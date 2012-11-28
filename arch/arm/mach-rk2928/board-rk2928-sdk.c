@@ -714,7 +714,7 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
         .iomux          = {
             .name       = RK29SDK_SD_CARD_DETECT_PIN_NAME,
             .fgpio      = RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO,
-            .fmux       = GPIO3B_SDMMC0_DETECT_N,
+            .fmux       = RK29SDK_SD_CARD_DETECT_IOMUX_FMUX,
         },
     }, 
     
@@ -726,6 +726,41 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
  * the end of setting for SDMMC devices
 **************************************************************************************************/
 
+#if defined(CONFIG_MT5931_MT6622)
+static struct mt6622_platform_data mt6622_platdata = {
+    .power_gpio         = { // BT_REG_ON
+        .io             = RK2928_PIN3_PC2, // set io to INVALID_GPIO for disable it
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = NULL,
+        },
+    },
+
+    .reset_gpio         = { // BT_RST
+        .io             = RK2928_PIN0_PC6,
+        .enable         = GPIO_LOW,
+        .iomux          = {
+            .name       = NULL,
+        },
+    },
+
+    .irq_gpio           = {
+        .io             = RK2928_PIN3_PD3,
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = NULL,
+        },
+    }
+};
+
+static struct platform_device device_mt6622 = {
+    .name   = "mt6622",
+    .id     = -1,
+    .dev    = {
+        .platform_data = &mt6622_platdata,
+    },
+};
+#endif
 
 #ifdef CONFIG_SND_SOC_RK2928
 static struct resource resources_acodec[] = {
@@ -791,6 +826,12 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_BATTERY_RK30_ADC_FAC
 	&rk30_device_adc_battery,
+#endif
+#ifdef CONFIG_WIFI_CONTROL_FUNC
+	&rk29sdk_wifi_device,
+#endif
+#ifdef CONFIG_MT5931_MT6622
+	&device_mt6622,
 #endif
 };
 //i2c

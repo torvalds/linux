@@ -386,11 +386,18 @@
         #define RK30SDK_WIFI_GPIO_RESET_IOMUX_FGPIO     GPIO3C_GPIO3C2
 
 
-        #elif defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) 
+    #elif defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) 
         #define RK30SDK_WIFI_GPIO_POWER_N               RK2928_PIN0_PD6
         #define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_LOW
         #define RK30SDK_WIFI_GPIO_POWER_PIN_NAME        GPIO0D6_MMC1_PWREN_NAME
         #define RK30SDK_WIFI_GPIO_POWER_IOMUX_FGPIO     GPIO0D_GPIO0D6
+        
+    #elif defined(CONFIG_MT5931) || defined(CONFIG_MT5931_MT6622)
+        #define RK30SDK_WIFI_GPIO_POWER_N               RK2928_PIN3_PD2
+        #define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_HIGH 
+        
+        #define RK30SDK_WIFI_GPIO_RESET_N               RK2928_PIN3_PD5
+        #define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE    GPIO_HIGH 
 
     #endif
 #endif
@@ -995,7 +1002,6 @@ static void rk29_sdmmc_gpio_open(int device_id, int on)
                 gpio_request(rksdmmc1_gpio_init.data0_gpio.io, "mmc1-data0");
                 gpio_direction_output(rksdmmc1_gpio_init.data0_gpio.io,GPIO_LOW);//set mmc1-data0 to low.
                 
-            #if defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
                 rk29_mux_api_set(rksdmmc1_gpio_init.data1_gpio.iomux.name, rksdmmc1_gpio_init.data1_gpio.iomux.fgpio);
                 gpio_request(rksdmmc1_gpio_init.data1_gpio.io, "mmc1-data1");
                 gpio_direction_output(rksdmmc1_gpio_init.data1_gpio.io,GPIO_LOW);//set mmc1-data1 to low.
@@ -1007,7 +1013,7 @@ static void rk29_sdmmc_gpio_open(int device_id, int on)
                 rk29_mux_api_set(rksdmmc1_gpio_init.data3_gpio.iomux.name, rksdmmc1_gpio_init.data3_gpio.iomux.fgpio);
                 gpio_request(rksdmmc1_gpio_init.data3_gpio.io, "mmc1-data3");
                 gpio_direction_output(rksdmmc1_gpio_init.data3_gpio.io,GPIO_LOW);//set mmc1-data3 to low.
-           #endif
+
                 mdelay(100);
             }
             #endif
@@ -1445,6 +1451,13 @@ static int rk29sdk_wifi_status_register(void (*callback)(int card_present, void 
         return 0;
 }
 
+#if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU)
+static int __init rk29sdk_wifi_bt_gpio_control_init(void)
+{
+    pr_info("%s: init finished\n",__func__);
+    return 0;
+}	
+#else
 static int __init rk29sdk_wifi_bt_gpio_control_init(void)
 {
     rk29sdk_init_wifi_mem();    
@@ -1470,25 +1483,13 @@ static int __init rk29sdk_wifi_bt_gpio_control_init(void)
 #endif    
 
     #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
-    
-    rk29_mux_api_set(rksdmmc1_gpio_init.data1_gpio.iomux.name, rksdmmc1_gpio_init.data1_gpio.iomux.fgpio);
-    gpio_request(rksdmmc1_gpio_init.data1_gpio.io, "mmc1-data1");
-    gpio_direction_output(rksdmmc1_gpio_init.data1_gpio.io,GPIO_LOW);//set mmc1-data1 to low.
-
-    rk29_mux_api_set(rksdmmc1_gpio_init.data2_gpio.iomux.name, rksdmmc1_gpio_init.data2_gpio.iomux.fgpio);
-    gpio_request(rksdmmc1_gpio_init.data2_gpio.io, "mmc1-data2");
-    gpio_direction_output(rksdmmc1_gpio_init.data2_gpio.io,GPIO_LOW);//set mmc1-data2 to low.
-
-    rk29_mux_api_set(rksdmmc1_gpio_init.data3_gpio.iomux.name,  rksdmmc1_gpio_init.data3_gpio.iomux.fgpio);
-    gpio_request(rksdmmc1_gpio_init.data3_gpio.io, "mmc1-data3");
-    gpio_direction_output(rksdmmc1_gpio_init.data3_gpio.io,GPIO_LOW);//set mmc1-data3 to low.
-    
     rk29_sdmmc_gpio_open(1, 0); //added by xbw at 2011-10-13
     #endif    
     pr_info("%s: init finished\n",__func__);
 
     return 0;
 }
+#endif
 
 #if (defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) )&& defined(CONFIG_ARCH_RK2928)
 static int usbwifi_power_status = 1;
