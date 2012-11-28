@@ -171,13 +171,8 @@ config ARCH_MAY_HAVE_PC_FDC
 	def_bool y
 	depends on ISA_DMA_API
 
-config RWSEM_GENERIC_SPINLOCK
-	def_bool y
-	depends on !X86_XADD
-
 config RWSEM_XCHGADD_ALGORITHM
 	def_bool y
-	depends on X86_XADD
 
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
