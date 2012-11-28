@@ -86,10 +86,12 @@ enum mx27_clks {
 };
 
 static struct clk *clk[clk_max];
+static struct clk_onecell_data clk_data;
 
 int __init mx27_clocks_init(unsigned long fref)
 {
 	int i;
+	struct device_node *np;
 
 	clk[dummy] = imx_clk_fixed("dummy", 0);
 	clk[ckih] = imx_clk_fixed("ckih", fref);
@@ -197,6 +199,13 @@ int __init mx27_clocks_init(unsigned long fref)
 		if (IS_ERR(clk[i]))
 			pr_err("i.MX27 clk %d: register failed with %ld\n",
 				i, PTR_ERR(clk[i]));
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx27-ccm");
+	if (np) {
+		clk_data.clks = clk;
+		clk_data.clk_num = ARRAY_SIZE(clk);
+		of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
+	}
 
 	clk_register_clkdev(clk[uart1_ipg_gate], "ipg", "imx21-uart.0");
 	clk_register_clkdev(clk[per1_gate], "per", "imx21-uart.0");
