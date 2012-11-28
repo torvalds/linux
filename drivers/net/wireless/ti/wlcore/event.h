@@ -70,8 +70,6 @@ int wl1271_event_unmask(struct wl1271 *wl);
 int wl1271_event_handle(struct wl1271 *wl, u8 mbox);
 
 void wlcore_event_soft_gemini_sense(struct wl1271 *wl, u8 enable);
-void wlcore_event_sched_scan_report(struct wl1271 *wl,
-				    u8 status);
 void wlcore_event_sched_scan_completed(struct wl1271 *wl,
 				       u8 status);
 void wlcore_event_ba_rx_constraint(struct wl1271 *wl,

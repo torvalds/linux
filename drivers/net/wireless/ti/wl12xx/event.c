@@ -64,9 +64,13 @@ int wl12xx_process_mailbox_events(struct wl1271 *wl)
 			wl12xx_scan_completed(wl, wl->scan_wlvif);
 	}
 
-	if (vector & PERIODIC_SCAN_REPORT_EVENT_ID)
-		wlcore_event_sched_scan_report(wl,
-					       mbox->scheduled_scan_status);
+	if (vector & PERIODIC_SCAN_REPORT_EVENT_ID) {
+		wl1271_debug(DEBUG_EVENT,
+			     "PERIODIC_SCAN_REPORT_EVENT (status 0x%0x)",
+			     mbox->scheduled_scan_status);
+
+		wlcore_scan_sched_scan_results(wl);
+	}
 
 	if (vector & PERIODIC_SCAN_COMPLETE_EVENT_ID)
 		wlcore_event_sched_scan_completed(wl,

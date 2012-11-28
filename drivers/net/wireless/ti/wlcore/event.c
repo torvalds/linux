@@ -94,16 +94,6 @@ void wlcore_event_soft_gemini_sense(struct wl1271 *wl, u8 enable)
 }
 EXPORT_SYMBOL_GPL(wlcore_event_soft_gemini_sense);
 
-void wlcore_event_sched_scan_report(struct wl1271 *wl,
-				    u8 status)
-{
-	wl1271_debug(DEBUG_EVENT, "PERIODIC_SCAN_REPORT_EVENT (status 0x%0x)",
-		     status);
-
-	wl1271_scan_sched_scan_results(wl);
-}
-EXPORT_SYMBOL_GPL(wlcore_event_sched_scan_report);
-
 void wlcore_event_sched_scan_completed(struct wl1271 *wl,
 				       u8 status)
 {

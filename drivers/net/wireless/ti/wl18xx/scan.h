@@ -78,8 +78,7 @@ struct wl18xx_cmd_scan_params {
 	__le16 long_cycles_sec;
 	u8 short_cycles_count;
 	u8 total_cycles; /* 0 - infinite */
-	u8 rate;
-	u8 padding[1];
+	u8 padding[2];
 
 	union {
 		struct {
@@ -93,7 +92,20 @@ struct wl18xx_cmd_scan_params {
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	u8 ssid_len;	 /* For SCAN_SSID_FILTER_SPECIFIC */
 	u8 tag;
-	u8 padding1[2];
+	u8 rate;
+
+	/* send SCAN_REPORT_EVENT in periodic scans after each cycle
+	* if number of results >= report_threshold. Must be 0 for
+	* non periodic scans
+	*/
+	u8 report_threshold;
+
+	/* Should periodic scan stop after a report event was created.
+	* Must be 0 for non periodic scans.
+	*/
+	u8 terminate_on_report;
+
+	u8 padding1[3];
 } __packed;
 
 struct wl18xx_cmd_scan_stop {

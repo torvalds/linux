@@ -227,6 +227,10 @@ int wl18xx_scan_sched_scan_config(struct wl1271 *wl,
 
 	cmd->tag = WL1271_SCAN_DEFAULT_TAG;
 
+	/* create a PERIODIC_SCAN_REPORT_EVENT whenever we've got a match */
+	cmd->report_threshold = 1;
+	cmd->terminate_on_report = 0;
+
 	if (cmd->active[0]) {
 		u8 band = IEEE80211_BAND_2GHZ;
 		ret = wl12xx_cmd_build_probe_req(wl, wlvif,
