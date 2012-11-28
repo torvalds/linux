@@ -122,7 +122,7 @@ static int tps51632_dcdc_set_voltage_sel(struct regulator_dev *rdev,
 	if (selector > TPS51632_MAX_VSEL)
 		return -EINVAL;
 
-	ret = regmap_write(tps->regmap, TPS51632_VOLTAGE_SELECT_REG, selector);
+	ret = regmap_write(tps->regmap, reg, selector);
 	if (ret < 0)
 		dev_err(tps->dev, "reg write failed, err %d\n", ret);
 	return ret;
