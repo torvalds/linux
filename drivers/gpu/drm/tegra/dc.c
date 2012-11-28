@@ -134,6 +134,29 @@ static int tegra_dc_add_planes(struct drm_device *drm, struct tegra_dc *dc)
 	return 0;
 }
 
+static int tegra_dc_set_base(struct tegra_dc *dc, int x, int y,
+			     struct drm_framebuffer *fb)
+{
+	struct drm_gem_cma_object *gem = drm_fb_cma_get_gem_obj(fb, 0);
+	unsigned long value;
+
+	tegra_dc_writel(dc, WINDOW_A_SELECT, DC_CMD_DISPLAY_WINDOW_HEADER);
+
+	value = fb->offsets[0] + y * fb->pitches[0] +
+		x * fb->bits_per_pixel / 8;
+
+	tegra_dc_writel(dc, gem->paddr + value, DC_WINBUF_START_ADDR);
+	tegra_dc_writel(dc, fb->pitches[0], DC_WIN_LINE_STRIDE);
+
+	value = GENERAL_UPDATE | WIN_A_UPDATE;
+	tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
+
+	value = GENERAL_ACT_REQ | WIN_A_ACT_REQ;
+	tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
+
+	return 0;
+}
+
 static const struct drm_crtc_funcs tegra_crtc_funcs = {
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = drm_crtc_cleanup,
@@ -510,6 +533,14 @@ static int tegra_crtc_mode_set(struct drm_crtc *crtc,
 	return 0;
 }
 
+static int tegra_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
+				    struct drm_framebuffer *old_fb)
+{
+	struct tegra_dc *dc = to_tegra_dc(crtc);
+
+	return tegra_dc_set_base(dc, x, y, crtc->fb);
+}
+
 static void tegra_crtc_prepare(struct drm_crtc *crtc)
 {
 	struct tegra_dc *dc = to_tegra_dc(crtc);
@@ -589,6 +620,7 @@ static const struct drm_crtc_helper_funcs tegra_crtc_helper_funcs = {
 	.disable = tegra_crtc_disable,
 	.mode_fixup = tegra_crtc_mode_fixup,
 	.mode_set = tegra_crtc_mode_set,
+	.mode_set_base = tegra_crtc_mode_set_base,
 	.prepare = tegra_crtc_prepare,
 	.commit = tegra_crtc_commit,
 	.load_lut = tegra_crtc_load_lut,
