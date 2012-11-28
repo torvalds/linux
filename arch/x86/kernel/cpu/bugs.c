@@ -136,24 +136,15 @@ static void __init check_popad(void)
 /*
  * Check whether we are able to run this kernel safely on SMP.
  *
- * - In order to run on a i386, we need to be compiled for i386
- *   (for due to lack of "invlpg" and working WP on a i386)
+ * - i386 is no longer supported.
  * - In order to run on anything without a TSC, we need to be
  *   compiled for a i486.
  */
 
 static void __init check_config(void)
 {
-/*
- * We'd better not be a i386 if we're configured to use some
- * i486+ only features! (WP works in supervisor mode and the
- * new "invlpg" and "bswap" instructions)
- */
-#if defined(CONFIG_X86_WP_WORKS_OK) || defined(CONFIG_X86_INVLPG) || \
-	defined(CONFIG_X86_BSWAP)
-	if (boot_cpu_data.x86 == 3)
+	if (boot_cpu_data.x86 < 4)
 		panic("Kernel requires i486+ for 'invlpg' and other features");
-#endif
 }
 
 
