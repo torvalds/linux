@@ -113,7 +113,17 @@ static void pppoatm_release_cb(struct atm_vcc *atmvcc)
 {
 	struct pppoatm_vcc *pvcc = atmvcc_to_pvcc(atmvcc);
 
-	tasklet_schedule(&pvcc->wakeup_tasklet);
+	/*
+	 * As in pppoatm_pop(), it's safe to clear the BLOCKED bit here because
+	 * the wakeup *can't* race with pppoatm_send(). They both hold the PPP
+	 * channel's ->downl lock. And the potential race with *setting* it,
+	 * which leads to the double-check dance in pppoatm_may_send(), doesn't
+	 * exist here. In the sock_owned_by_user() case in pppoatm_send(), we
+	 * set the BLOCKED bit while the socket is still locked. We know that
+	 * ->release_cb() can't be called until that's done.
+	 */
+	if (test_and_clear_bit(BLOCKED, &pvcc->blocked))
+		tasklet_schedule(&pvcc->wakeup_tasklet);
 	if (pvcc->old_release_cb)
 		pvcc->old_release_cb(atmvcc);
 }
@@ -292,8 +302,15 @@ static int pppoatm_send(struct ppp_channel *chan, struct sk_buff *skb)
 
 	vcc = ATM_SKB(skb)->vcc;
 	bh_lock_sock(sk_atm(vcc));
-	if (sock_owned_by_user(sk_atm(vcc)))
+	if (sock_owned_by_user(sk_atm(vcc))) {
+		/*
+		 * Needs to happen (and be flushed, hence test_and_) before we unlock
+		 * the socket. It needs to be seen by the time our ->release_cb gets
+		 * called.
+		 */
+		test_and_set_bit(BLOCKED, &pvcc->blocked);
 		goto nospace;
+	}
 	if (test_bit(ATM_VF_RELEASED, &vcc->flags) ||
 	    test_bit(ATM_VF_CLOSE, &vcc->flags) ||
 	    !test_bit(ATM_VF_READY, &vcc->flags)) {
