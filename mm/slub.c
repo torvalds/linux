@@ -3245,32 +3245,6 @@ static int __init setup_slub_nomerge(char *str)
 
 __setup("slub_nomerge", setup_slub_nomerge);
 
-static struct kmem_cache *__init create_kmalloc_cache(const char *name,
-						int size, unsigned int flags)
-{
-	struct kmem_cache *s;
-
-	s = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
-
-	s->name = name;
-	s->size = s->object_size = size;
-	s->align = ARCH_KMALLOC_MINALIGN;
-
-	/*
-	 * This function is called with IRQs disabled during early-boot on
-	 * single CPU so there's no need to take slab_mutex here.
-	 */
-	if (kmem_cache_open(s, flags))
-		goto panic;
-
-	list_add(&s->list, &slab_caches);
-	return s;
-
-panic:
-	panic("Creation of kmalloc slab %s size=%d failed.\n", name, size);
-	return NULL;
-}
-
 /*
  * Conversion table for small slabs sizes / 8 to the index in the
  * kmalloc array. This is necessary for slabs < 192 since we have non power
@@ -3947,6 +3921,10 @@ int __kmem_cache_create(struct kmem_cache *s, unsigned long flags)
 	err = kmem_cache_open(s, flags);
 	if (err)
 		return err;
+
+	/* Mutex is not taken during early boot */
+	if (slab_state <= UP)
+		return 0;
 
 	mutex_unlock(&slab_mutex);
 	err = sysfs_slab_add(s);
@@ -5249,13 +5227,8 @@ static int sysfs_slab_add(struct kmem_cache *s)
 {
 	int err;
 	const char *name;
-	int unmergeable;
+	int unmergeable = slab_unmergeable(s);
 
-	if (slab_state < FULL)
-		/* Defer until later */
-		return 0;
-
-	unmergeable = slab_unmergeable(s);
 	if (unmergeable) {
 		/*
 		 * Slabcache can never be merged so we can use the name proper.

@@ -1659,23 +1659,13 @@ void __init kmem_cache_init(void)
 	 * bug.
 	 */
 
-	sizes[INDEX_AC].cs_cachep = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
-	sizes[INDEX_AC].cs_cachep->name = names[INDEX_AC].name;
-	sizes[INDEX_AC].cs_cachep->size = sizes[INDEX_AC].cs_size;
-	sizes[INDEX_AC].cs_cachep->object_size = sizes[INDEX_AC].cs_size;
-	sizes[INDEX_AC].cs_cachep->align = ARCH_KMALLOC_MINALIGN;
-	__kmem_cache_create(sizes[INDEX_AC].cs_cachep, ARCH_KMALLOC_FLAGS|SLAB_PANIC);
-	list_add(&sizes[INDEX_AC].cs_cachep->list, &slab_caches);
+	sizes[INDEX_AC].cs_cachep = create_kmalloc_cache(names[INDEX_AC].name,
+					sizes[INDEX_AC].cs_size, ARCH_KMALLOC_FLAGS);
 
-	if (INDEX_AC != INDEX_L3) {
-		sizes[INDEX_L3].cs_cachep = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
-		sizes[INDEX_L3].cs_cachep->name = names[INDEX_L3].name;
-		sizes[INDEX_L3].cs_cachep->size = sizes[INDEX_L3].cs_size;
-		sizes[INDEX_L3].cs_cachep->object_size = sizes[INDEX_L3].cs_size;
-		sizes[INDEX_L3].cs_cachep->align = ARCH_KMALLOC_MINALIGN;
-		__kmem_cache_create(sizes[INDEX_L3].cs_cachep, ARCH_KMALLOC_FLAGS|SLAB_PANIC);
-		list_add(&sizes[INDEX_L3].cs_cachep->list, &slab_caches);
-	}
+	if (INDEX_AC != INDEX_L3)
+		sizes[INDEX_L3].cs_cachep =
+			create_kmalloc_cache(names[INDEX_L3].name,
+				sizes[INDEX_L3].cs_size, ARCH_KMALLOC_FLAGS);
 
 	slab_early_init = 0;
 
@@ -1687,24 +1677,14 @@ void __init kmem_cache_init(void)
 		 * Note for systems short on memory removing the alignment will
 		 * allow tighter packing of the smaller caches.
 		 */
-		if (!sizes->cs_cachep) {
-			sizes->cs_cachep = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
-			sizes->cs_cachep->name = names->name;
-			sizes->cs_cachep->size = sizes->cs_size;
-			sizes->cs_cachep->object_size = sizes->cs_size;
-			sizes->cs_cachep->align = ARCH_KMALLOC_MINALIGN;
-			__kmem_cache_create(sizes->cs_cachep, ARCH_KMALLOC_FLAGS|SLAB_PANIC);
-			list_add(&sizes->cs_cachep->list, &slab_caches);
-		}
+		if (!sizes->cs_cachep)
+			sizes->cs_cachep = create_kmalloc_cache(names->name,
+					sizes->cs_size, ARCH_KMALLOC_FLAGS);
+
 #ifdef CONFIG_ZONE_DMA
-		sizes->cs_dmacachep = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
-		sizes->cs_dmacachep->name = names->name_dma;
-		sizes->cs_dmacachep->size = sizes->cs_size;
-		sizes->cs_dmacachep->object_size = sizes->cs_size;
-		sizes->cs_dmacachep->align = ARCH_KMALLOC_MINALIGN;
-		__kmem_cache_create(sizes->cs_dmacachep,
-			       ARCH_KMALLOC_FLAGS|SLAB_CACHE_DMA| SLAB_PANIC);
-		list_add(&sizes->cs_dmacachep->list, &slab_caches);
+		sizes->cs_dmacachep = create_kmalloc_cache(
+			names->name_dma, sizes->cs_size,
+			SLAB_CACHE_DMA|ARCH_KMALLOC_FLAGS);
 #endif
 		sizes++;
 		names++;
