@@ -1021,7 +1021,7 @@ static int wl18xx_hw_init(struct wl1271 *wl)
 
 	/* (re)init private structures. Relevant on recovery as well. */
 	priv->last_fw_rls_idx = 0;
-	priv->extra_spare_vif_count = 0;
+	priv->extra_spare_key_count = 0;
 
 	/* set the default amount of spare blocks in the bitmap */
 	ret = wl18xx_set_host_cfg_bitmap(wl, WL18XX_TX_HW_BLOCK_SPARE);
@@ -1285,8 +1285,8 @@ static int wl18xx_get_spare_blocks(struct wl1271 *wl, bool is_gem)
 {
 	struct wl18xx_priv *priv = wl->priv;
 
-	/* If we have VIFs requiring extra spare, indulge them */
-	if (priv->extra_spare_vif_count)
+	/* If we have keys requiring extra spare, indulge them */
+	if (priv->extra_spare_key_count)
 		return WL18XX_TX_HW_EXTRA_BLOCK_SPARE;
 
 	return WL18XX_TX_HW_BLOCK_SPARE;
@@ -1298,42 +1298,48 @@ static int wl18xx_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 			  struct ieee80211_key_conf *key_conf)
 {
 	struct wl18xx_priv *priv = wl->priv;
-	bool change_spare = false;
+	bool change_spare = false, special_enc;
 	int ret;
 
-	/*
-	 * when adding the first or removing the last GEM/TKIP interface,
-	 * we have to adjust the number of spare blocks.
-	 */
-	change_spare = (key_conf->cipher == WL1271_CIPHER_SUITE_GEM ||
-		key_conf->cipher == WLAN_CIPHER_SUITE_TKIP) &&
-		((priv->extra_spare_vif_count == 0 && cmd == SET_KEY) ||
-		 (priv->extra_spare_vif_count == 1 && cmd == DISABLE_KEY));
+	wl1271_debug(DEBUG_CRYPT, "extra spare keys before: %d",
+		     priv->extra_spare_key_count);
 
-	/* no need to change spare - just regular set_key */
-	if (!change_spare)
-		return wlcore_set_key(wl, cmd, vif, sta, key_conf);
+	special_enc = key_conf->cipher == WL1271_CIPHER_SUITE_GEM ||
+		      key_conf->cipher == WLAN_CIPHER_SUITE_TKIP;
 
 	ret = wlcore_set_key(wl, cmd, vif, sta, key_conf);
 	if (ret < 0)
 		goto out;
 
+	/*
+	 * when adding the first or removing the last GEM/TKIP key,
+	 * we have to adjust the number of spare blocks.
+	 */
+	if (special_enc) {
+		if (cmd == SET_KEY) {
+			/* first key */
+			change_spare = (priv->extra_spare_key_count == 0);
+			priv->extra_spare_key_count++;
+		} else if (cmd == DISABLE_KEY) {
+			/* last key */
+			change_spare = (priv->extra_spare_key_count == 1);
+			priv->extra_spare_key_count--;
+		}
+	}
+
+	wl1271_debug(DEBUG_CRYPT, "extra spare keys after: %d",
+		     priv->extra_spare_key_count);
+
+	if (!change_spare)
+		goto out;
+
 	/* key is now set, change the spare blocks */
-	if (cmd == SET_KEY) {
+	if (priv->extra_spare_key_count)
 		ret = wl18xx_set_host_cfg_bitmap(wl,
 					WL18XX_TX_HW_EXTRA_BLOCK_SPARE);
-		if (ret < 0)
-			goto out;
-
-		priv->extra_spare_vif_count++;
-	} else {
+	else
 		ret = wl18xx_set_host_cfg_bitmap(wl,
 					WL18XX_TX_HW_BLOCK_SPARE);
-		if (ret < 0)
-			goto out;
-
-		priv->extra_spare_vif_count--;
-	}
 
 out:
 	return ret;

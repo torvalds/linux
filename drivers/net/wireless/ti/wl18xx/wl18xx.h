@@ -49,8 +49,8 @@ struct wl18xx_priv {
 	/* Index of last released Tx desc in FW */
 	u8 last_fw_rls_idx;
 
-	/* number of VIFs requiring extra spare mem-blocks */
-	int extra_spare_vif_count;
+	/* number of keys requiring extra spare mem-blocks */
+	int extra_spare_key_count;
 };
 
 #define WL18XX_FW_MAX_TX_STATUS_DESC 33
