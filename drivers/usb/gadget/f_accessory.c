@@ -1121,7 +1121,7 @@ static int acc_bind_config(struct usb_configuration *c)
 	dev->cdev = c->cdev;
 	dev->function.name = "accessory";
 	dev->function.strings = acc_strings,
-	dev->function.descriptors = fs_acc_descs;
+	dev->function.fs_descriptors = fs_acc_descs;
 	dev->function.hs_descriptors = hs_acc_descs;
 	dev->function.bind = acc_function_bind;
 	dev->function.unbind = acc_function_unbind;
