@@ -516,6 +516,10 @@ static cputime_t scale_utime(cputime_t utime, cputime_t rtime, cputime_t total)
 	return (__force cputime_t) temp;
 }
 
+/*
+ * Adjust tick based cputime random precision against scheduler
+ * runtime accounting.
+ */
 static void cputime_adjust(struct task_cputime *curr,
 			   struct cputime *prev,
 			   cputime_t *ut, cputime_t *st)
@@ -524,8 +528,16 @@ static void cputime_adjust(struct task_cputime *curr,
 
 	utime = curr->utime;
 	total = utime + curr->stime;
+
 	/*
-	 * Use CFS's precise accounting:
+	 * Tick based cputime accounting depend on random scheduling
+	 * timeslices of a task to be interrupted or not by the timer.
+	 * Depending on these circumstances, the number of these interrupts
+	 * may be over or under-optimistic, matching the real user and system
+	 * cputime with a variable precision.
+	 *
+	 * Fix this by scaling these tick based values against the total
+	 * runtime accounted by the CFS scheduler.
 	 */
 	rtime = nsecs_to_cputime(curr->sum_exec_runtime);
 
@@ -535,7 +547,9 @@ static void cputime_adjust(struct task_cputime *curr,
 		utime = rtime;
 
 	/*
-	 * Compare with previous values, to keep monotonicity:
+	 * If the tick based count grows faster than the scheduler one,
+	 * the result of the scaling may go backward.
+	 * Let's enforce monotonicity.
 	 */
 	prev->utime = max(prev->utime, utime);
 	prev->stime = max(prev->stime, rtime - prev->utime);
