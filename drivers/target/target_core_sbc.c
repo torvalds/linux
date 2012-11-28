@@ -107,7 +107,7 @@ sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 	return 0;
 }
 
-int spc_get_write_same_sectors(struct se_cmd *cmd)
+sector_t spc_get_write_same_sectors(struct se_cmd *cmd)
 {
 	u32 num_blocks;
 

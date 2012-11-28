@@ -481,7 +481,7 @@ iblock_execute_write_same(struct se_cmd *cmd)
 	struct bio *bio;
 	struct bio_list list;
 	sector_t block_lba = cmd->t_task_lba;
-	unsigned int sectors = spc_get_write_same_sectors(cmd);
+	sector_t sectors = spc_get_write_same_sectors(cmd);
 
 	sg = &cmd->t_data_sg[0];
 

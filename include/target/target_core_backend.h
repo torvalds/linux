@@ -52,7 +52,7 @@ void	target_complete_cmd(struct se_cmd *, u8);
 
 sense_reason_t	spc_parse_cdb(struct se_cmd *cmd, unsigned int *size);
 sense_reason_t	spc_emulate_report_luns(struct se_cmd *cmd);
-int	spc_get_write_same_sectors(struct se_cmd *cmd);
+sector_t	spc_get_write_same_sectors(struct se_cmd *cmd);
 
 sense_reason_t	sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops);
 u32	sbc_get_device_rev(struct se_device *dev);
