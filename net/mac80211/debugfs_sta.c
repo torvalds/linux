@@ -53,6 +53,7 @@ static const struct file_operations sta_ ##name## _ops = {		\
 STA_FILE(aid, sta.aid, D);
 STA_FILE(dev, sdata->name, S);
 STA_FILE(last_signal, last_signal, D);
+STA_FILE(last_ack_signal, last_ack_signal, D);
 
 static ssize_t sta_flags_read(struct file *file, char __user *userbuf,
 			      size_t count, loff_t *ppos)
@@ -369,6 +370,7 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	DEBUGFS_ADD(dev);
 	DEBUGFS_ADD(last_signal);
 	DEBUGFS_ADD(ht_capa);
+	DEBUGFS_ADD(last_ack_signal);
 
 	DEBUGFS_ADD_COUNTER(rx_packets, rx_packets);
 	DEBUGFS_ADD_COUNTER(tx_packets, tx_packets);
