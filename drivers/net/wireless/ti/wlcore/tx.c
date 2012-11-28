@@ -1066,7 +1066,6 @@ void wl12xx_tx_reset_wlvif(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 			wl1271_free_sta(wl, wlvif, i);
 		} else {
 			u8 hlid = i;
-			wlvif->sta.ba_rx_bitmap = 0;
 			wl12xx_free_link(wl, wlvif, &hlid);
 		}
 	}

@@ -58,9 +58,10 @@ static void wl1271_stop_ba_event(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 
 	if (wlvif->bss_type != BSS_TYPE_AP_BSS) {
-		if (!wlvif->sta.ba_rx_bitmap)
+		u8 hlid = wlvif->sta.hlid;
+		if (!wl->links[hlid].ba_bitmap)
 			return;
-		ieee80211_stop_rx_ba_session(vif, wlvif->sta.ba_rx_bitmap,
+		ieee80211_stop_rx_ba_session(vif, wl->links[hlid].ba_bitmap,
 					     vif->bss_conf.bssid);
 	} else {
 		u8 hlid;

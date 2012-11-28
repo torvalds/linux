@@ -330,7 +330,6 @@ struct wl12xx_vif {
 	union {
 		struct {
 			u8 hlid;
-			u8 ba_rx_bitmap;
 
 			u8 basic_rate_idx;
 			u8 ap_rate_idx;
