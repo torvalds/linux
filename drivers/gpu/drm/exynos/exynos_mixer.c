@@ -872,8 +872,6 @@ static void mixer_poweron(struct mixer_context *ctx)
 	ctx->powered = true;
 	mutex_unlock(&ctx->mixer_mutex);
 
-	pm_runtime_get_sync(ctx->dev);
-
 	clk_enable(res->mixer);
 	if (ctx->vp_enabled) {
 		clk_enable(res->vp);
@@ -907,8 +905,6 @@ static void mixer_poweroff(struct mixer_context *ctx)
 		clk_disable(res->sclk_mixer);
 	}
 
-	pm_runtime_put_sync(ctx->dev);
-
 	mutex_lock(&ctx->mixer_mutex);
 	ctx->powered = false;
 
@@ -924,12 +920,14 @@ static void mixer_dpms(void *ctx, int mode)
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-		mixer_poweron(mixer_ctx);
+		if (pm_runtime_suspended(mixer_ctx->dev))
+			pm_runtime_get_sync(mixer_ctx->dev);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		mixer_poweroff(mixer_ctx);
+		if (!pm_runtime_suspended(mixer_ctx->dev))
+			pm_runtime_put_sync(mixer_ctx->dev);
 		break;
 	default:
 		DRM_DEBUG_KMS("unknown dpms mode: %d\n", mode);
@@ -1249,13 +1247,66 @@ static int mixer_suspend(struct device *dev)
 	struct exynos_drm_hdmi_context *drm_hdmi_ctx = get_mixer_context(dev);
 	struct mixer_context *ctx = drm_hdmi_ctx->ctx;
 
+	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+
+	if (pm_runtime_suspended(dev)) {
+		DRM_DEBUG_KMS("%s : Already suspended\n", __func__);
+		return 0;
+	}
+
 	mixer_poweroff(ctx);
+
+	return 0;
+}
+
+static int mixer_resume(struct device *dev)
+{
+	struct exynos_drm_hdmi_context *drm_hdmi_ctx = get_mixer_context(dev);
+	struct mixer_context *ctx = drm_hdmi_ctx->ctx;
+
+	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+
+	if (!pm_runtime_suspended(dev)) {
+		DRM_DEBUG_KMS("%s : Already resumed\n", __func__);
+		return 0;
+	}
+
+	mixer_poweron(ctx);
 
 	return 0;
 }
 #endif
 
-static SIMPLE_DEV_PM_OPS(mixer_pm_ops, mixer_suspend, NULL);
+#ifdef CONFIG_PM_RUNTIME
+static int mixer_runtime_suspend(struct device *dev)
+{
+	struct exynos_drm_hdmi_context *drm_hdmi_ctx = get_mixer_context(dev);
+	struct mixer_context *ctx = drm_hdmi_ctx->ctx;
+
+	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+
+	mixer_poweroff(ctx);
+
+	return 0;
+}
+
+static int mixer_runtime_resume(struct device *dev)
+{
+	struct exynos_drm_hdmi_context *drm_hdmi_ctx = get_mixer_context(dev);
+	struct mixer_context *ctx = drm_hdmi_ctx->ctx;
+
+	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+
+	mixer_poweron(ctx);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops mixer_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(mixer_suspend, mixer_resume)
+	SET_RUNTIME_PM_OPS(mixer_runtime_suspend, mixer_runtime_resume, NULL)
+};
 
 struct platform_driver mixer_driver = {
 	.driver = {
