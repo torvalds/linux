@@ -77,6 +77,7 @@ static inline void gic_init(unsigned int nr, int start,
 }
 
 void gic_migrate_target(unsigned int new_cpu_id);
+unsigned long gic_get_sgir_physaddr(void);
 
 #endif /* __ASSEMBLY */
 
