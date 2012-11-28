@@ -26,13 +26,6 @@ void pvclock_set_flags(u8 flags)
 	valid_flags = flags;
 }
 
-static u64 pvclock_get_nsec_offset(const struct pvclock_vcpu_time_info *src)
-{
-	u64 delta = native_read_tsc() - src->tsc_timestamp;
-	return pvclock_scale_delta(delta, src->tsc_to_system_mul,
-				   src->tsc_shift);
-}
-
 unsigned long pvclock_tsc_khz(struct pvclock_vcpu_time_info *src)
 {
 	u64 pv_tsc_khz = 1000000ULL << 32;
@@ -55,17 +48,12 @@ void pvclock_resume(void)
 cycle_t pvclock_clocksource_read(struct pvclock_vcpu_time_info *src)
 {
 	unsigned version;
-	cycle_t ret, offset;
+	cycle_t ret;
 	u64 last;
 	u8 flags;
 
 	do {
-		version = src->version;
-		rdtsc_barrier();
-		offset = pvclock_get_nsec_offset(src);
-		ret = src->system_time + offset;
-		flags = src->flags;
-		rdtsc_barrier();
+		version = __pvclock_read_cycles(src, &ret, &flags);
 	} while ((src->version & 1) || version != src->version);
 
 	if ((valid_flags & PVCLOCK_TSC_STABLE_BIT) &&
