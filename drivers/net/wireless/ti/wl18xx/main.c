@@ -1410,7 +1410,8 @@ static bool wl18xx_lnk_high_prio(struct wl1271 *wl, u8 hlid,
 		return false;
 
 	/* the priority thresholds are taken from FW */
-	if (test_bit(hlid, (unsigned long *)&wl->fw_fast_lnk_map))
+	if (test_bit(hlid, (unsigned long *)&wl->fw_fast_lnk_map) &&
+	    !test_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map))
 		thold = status_priv->tx_fast_link_prio_threshold;
 	else
 		thold = status_priv->tx_slow_link_prio_threshold;
@@ -1428,7 +1429,8 @@ static bool wl18xx_lnk_low_prio(struct wl1271 *wl, u8 hlid,
 
 	if (test_bit(hlid, (unsigned long *)&suspend_bitmap))
 		thold = status_priv->tx_suspend_threshold;
-	else if (test_bit(hlid, (unsigned long *)&wl->fw_fast_lnk_map))
+	else if (test_bit(hlid, (unsigned long *)&wl->fw_fast_lnk_map) &&
+		 !test_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map))
 		thold = status_priv->tx_fast_stop_threshold;
 	else
 		thold = status_priv->tx_slow_stop_threshold;
