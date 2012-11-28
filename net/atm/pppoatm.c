@@ -60,6 +60,7 @@ struct pppoatm_vcc {
 	struct atm_vcc	*atmvcc;	/* VCC descriptor */
 	void (*old_push)(struct atm_vcc *, struct sk_buff *);
 	void (*old_pop)(struct atm_vcc *, struct sk_buff *);
+	void (*old_release_cb)(struct atm_vcc *);
 	struct module *old_owner;
 					/* keep old push/pop for detaching */
 	enum pppoatm_encaps encaps;
@@ -108,6 +109,14 @@ static void pppoatm_wakeup_sender(unsigned long arg)
 	ppp_output_wakeup((struct ppp_channel *) arg);
 }
 
+static void pppoatm_release_cb(struct atm_vcc *atmvcc)
+{
+	struct pppoatm_vcc *pvcc = atmvcc_to_pvcc(atmvcc);
+
+	tasklet_schedule(&pvcc->wakeup_tasklet);
+	if (pvcc->old_release_cb)
+		pvcc->old_release_cb(atmvcc);
+}
 /*
  * This gets called every time the ATM card has finished sending our
  * skb.  The ->old_pop will take care up normal atm flow control,
@@ -152,6 +161,7 @@ static void pppoatm_unassign_vcc(struct atm_vcc *atmvcc)
 	pvcc = atmvcc_to_pvcc(atmvcc);
 	atmvcc->push = pvcc->old_push;
 	atmvcc->pop = pvcc->old_pop;
+	atmvcc->release_cb = pvcc->old_release_cb;
 	tasklet_kill(&pvcc->wakeup_tasklet);
 	ppp_unregister_channel(&pvcc->chan);
 	atmvcc->user_back = NULL;
@@ -388,6 +398,7 @@ static int pppoatm_assign_vcc(struct atm_vcc *atmvcc, void __user *arg)
 	pvcc->old_push = atmvcc->push;
 	pvcc->old_pop = atmvcc->pop;
 	pvcc->old_owner = atmvcc->owner;
+	pvcc->old_release_cb = atmvcc->release_cb;
 	pvcc->encaps = (enum pppoatm_encaps) be.encaps;
 	pvcc->chan.private = pvcc;
 	pvcc->chan.ops = &pppoatm_ops;
@@ -403,6 +414,7 @@ static int pppoatm_assign_vcc(struct atm_vcc *atmvcc, void __user *arg)
 	atmvcc->user_back = pvcc;
 	atmvcc->push = pppoatm_push;
 	atmvcc->pop = pppoatm_pop;
+	atmvcc->release_cb = pppoatm_release_cb;
 	__module_get(THIS_MODULE);
 	atmvcc->owner = THIS_MODULE;
 
