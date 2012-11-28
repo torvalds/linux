@@ -1535,7 +1535,7 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	hci_register_sysfs(hdev);
 
-#if !defined(CONFIG_MT6620)
+#if !defined(CONFIG_MT6620) && !defined(CONFIG_MT5931_MT6622)
 	hdev->rfkill = rfkill_alloc(hdev->name, &hdev->dev,
 				RFKILL_TYPE_BLUETOOTH, &hci_rfkill_ops, hdev);
 	if (hdev->rfkill) {

@@ -87,6 +87,7 @@ choice
 	      (3) USI        WM-G-MR-09
 	      (4) Murata     SP-8HEP-P
 
+source "drivers/net/wireless/mt5931/Kconfig"
 source "drivers/net/wireless/rkusbwifi/rtl8192cu/Kconfig"
 source "drivers/net/wireless/rkusbwifi/rtl8188eu/Kconfig"
 source "drivers/net/wireless/rkusbwifi/rt5370/Kconfig"
