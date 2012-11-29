@@ -2095,6 +2095,73 @@ xfs_free_file_space(
 	return error;
 }
 
+
+STATIC int
+xfs_zero_file_space(
+	struct xfs_inode	*ip,
+	xfs_off_t		offset,
+	xfs_off_t		len,
+	int			attr_flags)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+	uint			granularity;
+	xfs_off_t		start_boundary;
+	xfs_off_t		end_boundary;
+	int			error;
+
+	granularity = max_t(uint, 1 << mp->m_sb.sb_blocklog, PAGE_CACHE_SIZE);
+
+	/*
+	 * Round the range of extents we are going to convert inwards.  If the
+	 * offset is aligned, then it doesn't get changed so we zero from the
+	 * start of the block offset points to.
+	 */
+	start_boundary = round_up(offset, granularity);
+	end_boundary = round_down(offset + len, granularity);
+
+	ASSERT(start_boundary >= offset);
+	ASSERT(end_boundary <= offset + len);
+
+	if (!(attr_flags & XFS_ATTR_NOLOCK))
+		xfs_ilock(ip, XFS_IOLOCK_EXCL);
+
+	if (start_boundary < end_boundary - 1) {
+		/* punch out the page cache over the conversion range */
+		truncate_pagecache_range(VFS_I(ip), start_boundary,
+					 end_boundary - 1);
+		/* convert the blocks */
+		error = xfs_alloc_file_space(ip, start_boundary,
+					end_boundary - start_boundary - 1,
+					XFS_BMAPI_PREALLOC | XFS_BMAPI_CONVERT,
+					attr_flags);
+		if (error)
+			goto out_unlock;
+
+		/* We've handled the interior of the range, now for the edges */
+		if (start_boundary != offset)
+			error = xfs_iozero(ip, offset, start_boundary - offset);
+		if (error)
+			goto out_unlock;
+
+		if (end_boundary != offset + len)
+			error = xfs_iozero(ip, end_boundary,
+					   offset + len - end_boundary);
+
+	} else {
+		/*
+		 * It's either a sub-granularity range or the range spanned lies
+		 * partially across two adjacent blocks.
+		 */
+		error = xfs_iozero(ip, offset, len);
+	}
+
+out_unlock:
+	if (!(attr_flags & XFS_ATTR_NOLOCK))
+		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+	return error;
+
+}
+
 /*
  * xfs_change_file_space()
  *      This routine allocates or frees disk space for the given file.
@@ -2120,10 +2187,8 @@ xfs_change_file_space(
 	xfs_fsize_t	fsize;
 	int		setprealloc;
 	xfs_off_t	startoffset;
-	xfs_off_t	end;
 	xfs_trans_t	*tp;
 	struct iattr	iattr;
-	int		prealloc_type;
 
 	if (!S_ISREG(ip->i_d.di_mode))
 		return XFS_ERROR(EINVAL);
@@ -2172,31 +2237,20 @@ xfs_change_file_space(
 	startoffset = bf->l_start;
 	fsize = XFS_ISIZE(ip);
 
-	/*
-	 * XFS_IOC_RESVSP and XFS_IOC_UNRESVSP will reserve or unreserve
-	 * file space.
-	 * These calls do NOT zero the data space allocated to the file,
-	 * nor do they change the file size.
-	 *
-	 * XFS_IOC_ALLOCSP and XFS_IOC_FREESP will allocate and free file
-	 * space.
-	 * These calls cause the new file data to be zeroed and the file
-	 * size to be changed.
-	 */
 	setprealloc = clrprealloc = 0;
-	prealloc_type = XFS_BMAPI_PREALLOC;
-
 	switch (cmd) {
 	case XFS_IOC_ZERO_RANGE:
-		prealloc_type |= XFS_BMAPI_CONVERT;
-		end = round_down(startoffset + bf->l_len, PAGE_SIZE) - 1;
-		if (startoffset <= end)
-			truncate_pagecache_range(VFS_I(ip), startoffset, end);
-		/* FALLTHRU */
+		error = xfs_zero_file_space(ip, startoffset, bf->l_len,
+						attr_flags);
+		if (error)
+			return error;
+		setprealloc = 1;
+		break;
+
 	case XFS_IOC_RESVSP:
 	case XFS_IOC_RESVSP64:
 		error = xfs_alloc_file_space(ip, startoffset, bf->l_len,
-						prealloc_type, attr_flags);
+						XFS_BMAPI_PREALLOC, attr_flags);
 		if (error)
 			return error;
 		setprealloc = 1;
