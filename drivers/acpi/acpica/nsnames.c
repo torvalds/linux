@@ -195,7 +195,7 @@ acpi_size acpi_ns_get_pathname_length(struct acpi_namespace_node *node)
 			ACPI_ERROR((AE_INFO,
 				    "Invalid Namespace Node (%p) while traversing namespace",
 				    next_node));
-			return 0;
+			return (0);
 		}
 		size += ACPI_PATH_SEGMENT_LENGTH;
 		next_node = next_node->parent;

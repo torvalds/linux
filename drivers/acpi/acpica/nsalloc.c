@@ -332,7 +332,7 @@ void acpi_ns_delete_children(struct acpi_namespace_node *parent_node)
  *
  * RETURN:      None.
  *
- * DESCRIPTION: Delete a subtree of the namespace.  This includes all objects
+ * DESCRIPTION: Delete a subtree of the namespace. This includes all objects
  *              stored within the subtree.
  *
  ******************************************************************************/
@@ -418,7 +418,7 @@ void acpi_ns_delete_namespace_subtree(struct acpi_namespace_node *parent_node)
  * RETURN:      Status
  *
  * DESCRIPTION: Delete entries within the namespace that are owned by a
- *              specific ID.  Used to delete entire ACPI tables.  All
+ *              specific ID. Used to delete entire ACPI tables. All
  *              reference counts are updated.
  *
  * MUTEX:       Locks namespace during deletion walk.

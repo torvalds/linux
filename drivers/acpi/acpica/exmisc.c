@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: exmisc - ACPI AML (p-code) execution - specific opcodes
@@ -254,7 +253,7 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 	ACPI_FUNCTION_TRACE(ex_do_concatenate);
 
 	/*
-	 * Convert the second operand if necessary.  The first operand
+	 * Convert the second operand if necessary. The first operand
 	 * determines the type of the second operand, (See the Data Types
 	 * section of the ACPI specification.)  Both object types are
 	 * guaranteed to be either Integer/String/Buffer by the operand
@@ -573,7 +572,7 @@ acpi_ex_do_logical_op(u16 opcode,
 	ACPI_FUNCTION_TRACE(ex_do_logical_op);
 
 	/*
-	 * Convert the second operand if necessary.  The first operand
+	 * Convert the second operand if necessary. The first operand
 	 * determines the type of the second operand, (See the Data Types
 	 * section of the ACPI 3.0+ specification.)  Both object types are
 	 * guaranteed to be either Integer/String/Buffer by the operand

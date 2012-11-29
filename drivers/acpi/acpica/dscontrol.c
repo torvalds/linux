@@ -280,7 +280,7 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state * walk_state,
 
 			/*
 			 * Get the return value and save as the last result
-			 * value.  This is the only place where walk_state->return_desc
+			 * value. This is the only place where walk_state->return_desc
 			 * is set to anything other than zero!
 			 */
 			walk_state->return_desc = walk_state->operands[0];

@@ -60,8 +60,8 @@ ACPI_MODULE_NAME("nswalk")
  * RETURN:      struct acpi_namespace_node - Pointer to the NEXT child or NULL if
  *                                    none is found.
  *
- * DESCRIPTION: Return the next peer node within the namespace.  If Handle
- *              is valid, Scope is ignored.  Otherwise, the first node
+ * DESCRIPTION: Return the next peer node within the namespace. If Handle
+ *              is valid, Scope is ignored. Otherwise, the first node
  *              within Scope is returned.
  *
  ******************************************************************************/
@@ -97,8 +97,8 @@ struct acpi_namespace_node *acpi_ns_get_next_node(struct acpi_namespace_node
  * RETURN:      struct acpi_namespace_node - Pointer to the NEXT child or NULL if
  *                                    none is found.
  *
- * DESCRIPTION: Return the next peer node within the namespace.  If Handle
- *              is valid, Scope is ignored.  Otherwise, the first node
+ * DESCRIPTION: Return the next peer node within the namespace. If Handle
+ *              is valid, Scope is ignored. Otherwise, the first node
  *              within Scope is returned.
  *
  ******************************************************************************/
@@ -305,7 +305,7 @@ acpi_ns_walk_namespace(acpi_object_type type,
 
 		/*
 		 * Depth first search: Attempt to go down another level in the
-		 * namespace if we are allowed to.  Don't go any further if we have
+		 * namespace if we are allowed to. Don't go any further if we have
 		 * reached the caller specified maximum depth or if the user
 		 * function has specified that the maximum depth has been reached.
 		 */

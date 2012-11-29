@@ -44,15 +44,26 @@
 #ifndef __ACDEBUG_H__
 #define __ACDEBUG_H__
 
-#define ACPI_DEBUG_BUFFER_SIZE  4196
+#define ACPI_DEBUG_BUFFER_SIZE  0x4000	/* 16K buffer for return objects */
 
-struct command_info {
+struct acpi_db_command_info {
 	char *name;		/* Command Name */
 	u8 min_args;		/* Minimum arguments required */
 };
 
-struct argument_info {
+struct acpi_db_command_help {
+	u8 line_count;		/* Number of help lines */
+	char *invocation;	/* Command Invocation */
+	char *description;	/* Command Description */
+};
+
+struct acpi_db_argument_info {
 	char *name;		/* Argument Name */
+};
+
+struct acpi_db_execute_walk {
+	u32 count;
+	u32 max_count;
 };
 
 #define PARAM_LIST(pl)                  pl
@@ -77,43 +88,19 @@ acpi_db_single_step(struct acpi_walk_state *walk_state,
 /*
  * dbcmds - debug commands and output routines
  */
-acpi_status acpi_db_disassemble_method(char *name);
+struct acpi_namespace_node *acpi_db_convert_to_node(char *in_string);
 
 void acpi_db_display_table_info(char *table_arg);
 
-void acpi_db_unload_acpi_table(char *table_arg, char *instance_arg);
+void acpi_db_display_template(char *buffer_arg);
 
-void
-acpi_db_set_method_breakpoint(char *location,
-			      struct acpi_walk_state *walk_state,
-			      union acpi_parse_object *op);
-
-void acpi_db_set_method_call_breakpoint(union acpi_parse_object *op);
-
-void acpi_db_get_bus_info(void);
-
-void acpi_db_disassemble_aml(char *statements, union acpi_parse_object *op);
-
-void acpi_db_dump_namespace(char *start_arg, char *depth_arg);
-
-void acpi_db_dump_namespace_by_owner(char *owner_arg, char *depth_arg);
+void acpi_db_unload_acpi_table(char *name);
 
 void acpi_db_send_notify(char *name, u32 value);
 
-void acpi_db_set_method_data(char *type_arg, char *index_arg, char *value_arg);
-
-acpi_status
-acpi_db_display_objects(char *obj_type_arg, char *display_count_arg);
-
 void acpi_db_display_interfaces(char *action_arg, char *interface_name_arg);
 
-acpi_status acpi_db_find_name_in_namespace(char *name_arg);
-
-void acpi_db_set_scope(char *name);
-
-ACPI_HW_DEPENDENT_RETURN_OK(acpi_status acpi_db_sleep(char *object_arg))
-
-void acpi_db_find_references(char *object_arg);
+acpi_status acpi_db_sleep(char *object_arg);
 
 void acpi_db_display_locks(void);
 
@@ -121,15 +108,51 @@ void acpi_db_display_resources(char *object_arg);
 
 ACPI_HW_DEPENDENT_RETURN_VOID(void acpi_db_display_gpes(void))
 
-void acpi_db_check_integrity(void);
+void acpi_db_display_handlers(void);
 
 ACPI_HW_DEPENDENT_RETURN_VOID(void
 			      acpi_db_generate_gpe(char *gpe_arg,
 						   char *block_arg))
 
+/*
+ * dbmethod - control method commands
+ */
+void
+acpi_db_set_method_breakpoint(char *location,
+			      struct acpi_walk_state *walk_state,
+			      union acpi_parse_object *op);
+
+void acpi_db_set_method_call_breakpoint(union acpi_parse_object *op);
+
+void acpi_db_set_method_data(char *type_arg, char *index_arg, char *value_arg);
+
+acpi_status acpi_db_disassemble_method(char *name);
+
+void acpi_db_disassemble_aml(char *statements, union acpi_parse_object *op);
+
+void acpi_db_batch_execute(char *count_arg);
+
+/*
+ * dbnames - namespace commands
+ */
+void acpi_db_set_scope(char *name);
+
+void acpi_db_dump_namespace(char *start_arg, char *depth_arg);
+
+void acpi_db_dump_namespace_by_owner(char *owner_arg, char *depth_arg);
+
+acpi_status acpi_db_find_name_in_namespace(char *name_arg);
+
 void acpi_db_check_predefined_names(void);
 
-void acpi_db_batch_execute(void);
+acpi_status
+acpi_db_display_objects(char *obj_type_arg, char *display_count_arg);
+
+void acpi_db_check_integrity(void);
+
+void acpi_db_find_references(char *object_arg);
+
+void acpi_db_get_bus_info(void);
 
 /*
  * dbdisply - debug display commands
@@ -161,7 +184,8 @@ acpi_db_display_argument_object(union acpi_operand_object *obj_desc,
 /*
  * dbexec - debugger control method execution
  */
-void acpi_db_execute(char *name, char **args, u32 flags);
+void
+acpi_db_execute(char *name, char **args, acpi_object_type * types, u32 flags);
 
 void
 acpi_db_create_execution_threads(char *num_threads_arg,
@@ -175,7 +199,8 @@ u32 acpi_db_get_cache_info(struct acpi_memory_list *cache);
  * dbfileio - Debugger file I/O commands
  */
 acpi_object_type
-acpi_db_match_argument(char *user_argument, struct argument_info *arguments);
+acpi_db_match_argument(char *user_argument,
+		       struct acpi_db_argument_info *arguments);
 
 void acpi_db_close_debug_file(void);
 
@@ -207,6 +232,11 @@ acpi_db_command_dispatch(char *input_buffer,
 			 union acpi_parse_object *op);
 
 void ACPI_SYSTEM_XFACE acpi_db_execute_thread(void *context);
+
+acpi_status acpi_db_user_commands(char prompt, union acpi_parse_object *op);
+
+char *acpi_db_get_next_token(char *string,
+			     char **next, acpi_object_type * return_type);
 
 /*
  * dbstats - Generation and display of ACPI table statistics

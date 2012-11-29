@@ -277,7 +277,7 @@ acpi_ds_create_buffer_field(union acpi_parse_object *op,
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Process all named fields in a field declaration.  Names are
+ * DESCRIPTION: Process all named fields in a field declaration. Names are
  *              entered into the namespace.
  *
  ******************************************************************************/

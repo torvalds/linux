@@ -236,7 +236,7 @@ acpi_get_table_header(char *signature,
 						       sizeof(struct
 							      acpi_table_header));
 				if (!header) {
-					return AE_NO_MEMORY;
+					return (AE_NO_MEMORY);
 				}
 				ACPI_MEMCPY(out_table_header, header,
 					    sizeof(struct acpi_table_header));
@@ -244,7 +244,7 @@ acpi_get_table_header(char *signature,
 						     sizeof(struct
 							    acpi_table_header));
 			} else {
-				return AE_NOT_FOUND;
+				return (AE_NOT_FOUND);
 			}
 		} else {
 			ACPI_MEMCPY(out_table_header,

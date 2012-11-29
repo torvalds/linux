@@ -398,7 +398,7 @@ ACPI_EXPORT_SYMBOL(acpi_install_exception_handler)
  *
  ******************************************************************************/
 acpi_status
-acpi_install_global_event_handler(ACPI_GBL_EVENT_HANDLER handler, void *context)
+acpi_install_global_event_handler(acpi_gbl_event_handler handler, void *context)
 {
 	acpi_status status;
 

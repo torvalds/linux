@@ -314,22 +314,7 @@ acpi_ns_search_and_enter(u32 target_name,
 	 * this problem, and we want to be able to enable ACPI support for them,
 	 * even though there are a few bad names.
 	 */
-	if (!acpi_ut_valid_acpi_name(target_name)) {
-		target_name =
-		    acpi_ut_repair_name(ACPI_CAST_PTR(char, &target_name));
-
-		/* Report warning only if in strict mode or debug mode */
-
-		if (!acpi_gbl_enable_interpreter_slack) {
-			ACPI_WARNING((AE_INFO,
-				      "Found bad character(s) in name, repaired: [%4.4s]\n",
-				      ACPI_CAST_PTR(char, &target_name)));
-		} else {
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-					  "Found bad character(s) in name, repaired: [%4.4s]\n",
-					  ACPI_CAST_PTR(char, &target_name)));
-		}
-	}
+	acpi_ut_repair_name(ACPI_CAST_PTR(char, &target_name));
 
 	/* Try to find the name in the namespace level specified by the caller */
 

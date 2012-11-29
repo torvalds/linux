@@ -122,7 +122,7 @@
 #define AE_CODE_TBL_MAX                 0x0005
 
 /*
- * AML exceptions.  These are caused by problems with
+ * AML exceptions. These are caused by problems with
  * the actual AML byte stream
  */
 #define AE_AML_BAD_OPCODE               (acpi_status) (0x0001 | AE_CODE_AML)
