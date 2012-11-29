@@ -3127,13 +3127,15 @@ static int svm_set_vm_cr(struct kvm_vcpu *vcpu, u64 data)
 	return 0;
 }
 
-static int svm_set_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 data)
+static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
+	u32 ecx = msr->index;
+	u64 data = msr->data;
 	switch (ecx) {
 	case MSR_IA32_TSC:
-		kvm_write_tsc(vcpu, data);
+		kvm_write_tsc(vcpu, msr);
 		break;
 	case MSR_STAR:
 		svm->vmcb->save.star = data;
@@ -3188,20 +3190,24 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 data)
 		vcpu_unimpl(vcpu, "unimplemented wrmsr: 0x%x data 0x%llx\n", ecx, data);
 		break;
 	default:
-		return kvm_set_msr_common(vcpu, ecx, data);
+		return kvm_set_msr_common(vcpu, msr);
 	}
 	return 0;
 }
 
 static int wrmsr_interception(struct vcpu_svm *svm)
 {
+	struct msr_data msr;
 	u32 ecx = svm->vcpu.arch.regs[VCPU_REGS_RCX];
 	u64 data = (svm->vcpu.arch.regs[VCPU_REGS_RAX] & -1u)
 		| ((u64)(svm->vcpu.arch.regs[VCPU_REGS_RDX] & -1u) << 32);
 
+	msr.data = data;
+	msr.index = ecx;
+	msr.host_initiated = false;
 
 	svm->next_rip = kvm_rip_read(&svm->vcpu) + 2;
-	if (svm_set_msr(&svm->vcpu, ecx, data)) {
+	if (svm_set_msr(&svm->vcpu, &msr)) {
 		trace_kvm_msr_write_ex(ecx, data);
 		kvm_inject_gp(&svm->vcpu, 0);
 	} else {

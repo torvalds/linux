@@ -890,9 +890,9 @@ EXPORT_SYMBOL_GPL(kvm_enable_efer_bits);
  * Returns 0 on success, non-0 otherwise.
  * Assumes vcpu_load() was already called.
  */
-int kvm_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
+int kvm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 {
-	return kvm_x86_ops->set_msr(vcpu, msr_index, data);
+	return kvm_x86_ops->set_msr(vcpu, msr);
 }
 
 /*
@@ -900,7 +900,12 @@ int kvm_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
  */
 static int do_set_msr(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
 {
-	return kvm_set_msr(vcpu, index, *data);
+	struct msr_data msr;
+
+	msr.data = *data;
+	msr.index = index;
+	msr.host_initiated = true;
+	return kvm_set_msr(vcpu, &msr);
 }
 
 #ifdef CONFIG_X86_64
@@ -1130,13 +1135,14 @@ void kvm_track_tsc_matching(struct kvm_vcpu *vcpu)
 #endif
 }
 
-void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
+void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr)
 {
 	struct kvm *kvm = vcpu->kvm;
 	u64 offset, ns, elapsed;
 	unsigned long flags;
 	s64 usdiff;
 	bool matched;
+	u64 data = msr->data;
 
 	raw_spin_lock_irqsave(&kvm->arch.tsc_write_lock, flags);
 	offset = kvm_x86_ops->compute_tsc_offset(vcpu, data);
@@ -1857,9 +1863,11 @@ static void record_steal_time(struct kvm_vcpu *vcpu)
 		&vcpu->arch.st.steal, sizeof(struct kvm_steal_time));
 }
 
-int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
+int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
 	bool pr = false;
+	u32 msr = msr_info->index;
+	u64 data = msr_info->data;
 
 	switch (msr) {
 	case MSR_EFER:
@@ -4531,7 +4539,12 @@ static int emulator_get_msr(struct x86_emulate_ctxt *ctxt,
 static int emulator_set_msr(struct x86_emulate_ctxt *ctxt,
 			    u32 msr_index, u64 data)
 {
-	return kvm_set_msr(emul_to_vcpu(ctxt), msr_index, data);
+	struct msr_data msr;
+
+	msr.data = data;
+	msr.index = msr_index;
+	msr.host_initiated = false;
+	return kvm_set_msr(emul_to_vcpu(ctxt), &msr);
 }
 
 static int emulator_read_pmc(struct x86_emulate_ctxt *ctxt,
@@ -6375,11 +6388,15 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 int kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 {
 	int r;
+	struct msr_data msr;
 
 	r = vcpu_load(vcpu);
 	if (r)
 		return r;
-	kvm_write_tsc(vcpu, 0);
+	msr.data = 0x0;
+	msr.index = MSR_IA32_TSC;
+	msr.host_initiated = true;
+	kvm_write_tsc(vcpu, &msr);
 	vcpu_put(vcpu);
 
 	return r;
