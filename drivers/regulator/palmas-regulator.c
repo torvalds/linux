@@ -309,19 +309,22 @@ static int palmas_list_voltage_smps(struct regulator_dev *dev,
 	int id = rdev_get_id(dev);
 	int mult = 1;
 
-	if (!selector)
-		return 0;
-
 	/* Read the multiplier set in VSEL register to return
 	 * the correct voltage.
 	 */
 	if (pmic->range[id])
 		mult = 2;
 
-	/* Voltage is (0.49V + (selector * 0.01V)) * RANGE
-	 * as defined in data sheet. RANGE is either x1 or x2
-	 */
-	return  (490000 + (selector * 10000)) * mult;
+	if (selector == 0)
+		return 0;
+	else if (selector < 6)
+		return 500000 * mult;
+	else
+		/* Voltage is linear mapping starting from selector 6,
+		 * volt = (0.49V + ((selector - 5) * 0.01V)) * RANGE
+		 * RANGE is either x1 or x2
+		 */
+		return (490000 + ((selector - 5) * 10000)) * mult;
 }
 
 static int palmas_get_voltage_smps_sel(struct regulator_dev *dev)
@@ -338,15 +341,6 @@ static int palmas_get_voltage_smps_sel(struct regulator_dev *dev)
 
 	selector = reg & PALMAS_SMPS12_VOLTAGE_VSEL_MASK;
 
-	/* Adjust selector to match list_voltage ranges */
-	if ((selector > 0) && (selector < 6))
-		selector = 6;
-	if (!selector)
-		selector = 5;
-	if (selector > 121)
-		selector = 121;
-	selector -= 5;
-
 	return selector;
 }
 
@@ -355,18 +349,14 @@ static int palmas_set_voltage_smps_sel(struct regulator_dev *dev,
 {
 	struct palmas_pmic *pmic = rdev_get_drvdata(dev);
 	int id = rdev_get_id(dev);
-	unsigned int reg = 0;
-	unsigned int addr;
+	unsigned int reg, addr;
 
 	addr = palmas_regs_info[id].vsel_addr;
+	reg = selector;
 
 	/* Make sure we don't change the value of RANGE */
 	if (pmic->range[id])
 		reg |= PALMAS_SMPS12_VOLTAGE_RANGE;
-
-	/* Adjust the linux selector into range used in VSEL register */
-	if (selector)
-		reg |= selector + 5;
 
 	palmas_smps_write(pmic->palmas, addr, reg);
 
@@ -386,11 +376,11 @@ static int palmas_map_voltage_smps(struct regulator_dev *rdev,
 	if (pmic->range[id]) { /* RANGE is x2 */
 		if (min_uV < 1000000)
 			min_uV = 1000000;
-		ret = DIV_ROUND_UP(min_uV - 1000000, 20000) + 1;
+		ret = DIV_ROUND_UP(min_uV - 1000000, 20000) + 6;
 	} else {		/* RANGE is x1 */
 		if (min_uV < 500000)
 			min_uV = 500000;
-		ret = DIV_ROUND_UP(min_uV - 500000, 10000) + 1;
+		ret = DIV_ROUND_UP(min_uV - 500000, 10000) + 6;
 	}
 
 	/* Map back into a voltage to verify we're still in bounds */
