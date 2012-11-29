@@ -836,6 +836,16 @@ int kernel_execve(const char *filename, const char *const argv[], const char *co
 		(const char __user *const __user *)envp)
 #endif
 
+asmlinkage long sys_fork(void);
+asmlinkage long sys_vfork(void);
+#ifdef CONFIG_CLONE_BACKWARDS
+asmlinkage long sys_clone(unsigned long, unsigned long, int __user *, int,
+	       int __user *);
+#else
+asmlinkage long sys_clone(unsigned long, unsigned long, int __user *,
+	       int __user *, int);
+#endif
+
 asmlinkage long sys_execve(const char __user *filename,
 		const char __user *const __user *argv,
 		const char __user *const __user *envp);

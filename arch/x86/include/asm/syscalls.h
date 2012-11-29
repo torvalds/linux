@@ -20,17 +20,6 @@
 asmlinkage long sys_ioperm(unsigned long, unsigned long, int);
 long sys_iopl(unsigned int, struct pt_regs *);
 
-/* kernel/process.c */
-asmlinkage long sys_fork(void);
-asmlinkage long sys_vfork(void);
-#ifdef CONFIG_CLONE_BACKWARDS
-asmlinkage long sys_clone(unsigned long, unsigned long, void __user *, int,
-	       void __user *);
-#else
-asmlinkage long sys_clone(unsigned long, unsigned long, void __user *,
-	       void __user *, int);
-#endif
-
 /* kernel/ldt.c */
 asmlinkage int sys_modify_ldt(int, void __user *, unsigned long);
 

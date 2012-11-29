@@ -25,11 +25,6 @@ typedef long (*syscall_fn)(unsigned long, unsigned long,
 	unsigned long, unsigned long,
 	unsigned long, unsigned long);
 
-asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
-			 unsigned long parent_tidp, unsigned long child_tidp);
-
-#define sys_clone	sys_clone
-
 #include <asm-generic/syscalls.h>
 
 extern void *sys_call_table[];

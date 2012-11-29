@@ -109,7 +109,6 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
 /* Call the assembly trampolines where necessary. */
 #undef sys_rt_sigreturn
 #define sys_rt_sigreturn _sys_rt_sigreturn
-#undef sys_clone
 #define sys_clone _sys_clone
 
 /*

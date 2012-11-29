@@ -104,7 +104,6 @@ long compat_sys_sched_rr_get_interval(compat_pid_t pid,
 
 /* Call the assembly trampolines where necessary. */
 #define compat_sys_rt_sigreturn _compat_sys_rt_sigreturn
-#undef sys_clone
 #define sys_clone _sys_clone
 
 /*
