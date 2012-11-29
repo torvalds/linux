@@ -533,6 +533,8 @@ wlcore_set_min_fw_ver(struct wl1271 *wl, unsigned int chip,
 /* Firmware requires reg domain configuration for active calibration */
 #define WLCORE_QUIRK_REGDOMAIN_CONF		BIT(11)
 
+/* The FW only support a zero session id for AP */
+#define WLCORE_QUIRK_AP_ZERO_SESSION_ID		BIT(12)
 
 /* TODO: move all these common registers and values elsewhere */
 #define HW_ACCESS_ELP_CTRL_REG		0x1FFFC

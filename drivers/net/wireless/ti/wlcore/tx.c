@@ -293,9 +293,14 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 		tx_attr |= TX_HW_ATTR_TX_DUMMY_REQ;
 	} else if (wlvif) {
+		u8 session_id = wl->session_ids[hlid];
+
+		if ((wl->quirks & WLCORE_QUIRK_AP_ZERO_SESSION_ID) &&
+		    (wlvif->bss_type == BSS_TYPE_AP_BSS))
+			session_id = 0;
+
 		/* configure the tx attributes */
-		tx_attr = wl->session_ids[hlid] <<
-			  TX_HW_ATTR_OFST_SESSION_COUNTER;
+		tx_attr = session_id << TX_HW_ATTR_OFST_SESSION_COUNTER;
 	}
 
 	desc->hlid = hlid;
