@@ -130,7 +130,10 @@ struct wl_fw_packet_counters {
 	/* Cumulative counter of released Voice memory blocks */
 	u8 tx_voice_released_blks;
 
-	u8 padding[3];
+	/* Tx rate of the last transmitted packet */
+	u8 tx_last_rate;
+
+	u8 padding[2];
 } __packed;
 
 /* FW status registers */
