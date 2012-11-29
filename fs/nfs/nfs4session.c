@@ -217,11 +217,65 @@ static void nfs4_destroy_slot_tables(struct nfs4_session *session)
 	nfs4_shrink_slot_table(&session->bc_slot_table, 0);
 }
 
+static bool nfs41_assign_slot(struct rpc_task *task, void *pslot)
+{
+	struct nfs4_sequence_args *args = task->tk_msg.rpc_argp;
+	struct nfs4_sequence_res *res = task->tk_msg.rpc_resp;
+	struct nfs4_slot *slot = pslot;
+	struct nfs4_slot_table *tbl = slot->table;
+
+	if (nfs4_session_draining(tbl->session) && !args->sa_privileged)
+		return false;
+	slot->renewal_time = jiffies;
+	slot->generation = tbl->generation;
+	args->sa_slot = slot;
+	res->sr_slot = slot;
+	res->sr_status_flags = 0;
+	res->sr_status = 1;
+	return true;
+}
+
+static bool __nfs41_wake_and_assign_slot(struct nfs4_slot_table *tbl,
+		struct nfs4_slot *slot)
+{
+	if (rpc_wake_up_first(&tbl->slot_tbl_waitq, nfs41_assign_slot, slot))
+		return true;
+	return false;
+}
+
+bool nfs41_wake_and_assign_slot(struct nfs4_slot_table *tbl,
+		struct nfs4_slot *slot)
+{
+	if (slot->slot_nr > tbl->max_slotid)
+		return false;
+	return __nfs41_wake_and_assign_slot(tbl, slot);
+}
+
+static bool nfs41_try_wake_next_slot_table_entry(struct nfs4_slot_table *tbl)
+{
+	struct nfs4_slot *slot = nfs4_alloc_slot(tbl);
+	if (!IS_ERR(slot)) {
+		bool ret = __nfs41_wake_and_assign_slot(tbl, slot);
+		if (ret)
+			return ret;
+		nfs4_free_slot(tbl, slot);
+	}
+	return false;
+}
+
+void nfs41_wake_slot_table(struct nfs4_slot_table *tbl)
+{
+	for (;;) {
+		if (!nfs41_try_wake_next_slot_table_entry(tbl))
+			break;
+	}
+}
+
 /* Update the client's idea of target_highest_slotid */
 static void nfs41_set_target_slotid_locked(struct nfs4_slot_table *tbl,
 		u32 target_highest_slotid)
 {
-	unsigned int max_slotid, i;
+	unsigned int max_slotid;
 
 	if (tbl->target_highest_slotid == target_highest_slotid)
 		return;
@@ -229,9 +283,8 @@ static void nfs41_set_target_slotid_locked(struct nfs4_slot_table *tbl,
 	tbl->generation++;
 
 	max_slotid = min(NFS4_MAX_SLOT_TABLE - 1, tbl->target_highest_slotid);
-	for (i = tbl->max_slotid + 1; i <= max_slotid; i++)
-		rpc_wake_up_next(&tbl->slot_tbl_waitq);
 	tbl->max_slotid = max_slotid;
+	nfs41_wake_slot_table(tbl);
 }
 
 void nfs41_set_target_slotid(struct nfs4_slot_table *tbl,

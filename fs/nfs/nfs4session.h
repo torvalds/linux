@@ -94,6 +94,10 @@ static inline bool nfs4_session_draining(struct nfs4_session *session)
 	return !!test_bit(NFS4_SESSION_DRAINING, &session->session_state);
 }
 
+bool nfs41_wake_and_assign_slot(struct nfs4_slot_table *tbl,
+		struct nfs4_slot *slot);
+void nfs41_wake_slot_table(struct nfs4_slot_table *tbl);
+
 /*
  * Determine if sessions are in use.
  */

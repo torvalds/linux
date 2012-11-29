@@ -401,14 +401,15 @@ static void nfs41_sequence_free_slot(struct nfs4_sequence_res *res)
 	if (tbl->highest_used_slotid > tbl->target_highest_slotid)
 		send_new_highest_used_slotid = true;
 
+	if (nfs41_wake_and_assign_slot(tbl, res->sr_slot)) {
+		send_new_highest_used_slotid = false;
+		goto out_unlock;
+	}
 	nfs4_free_slot(tbl, res->sr_slot);
 
 	if (tbl->highest_used_slotid != NFS4_NO_SLOT)
 		send_new_highest_used_slotid = false;
-	if (!nfs4_session_draining(session)) {
-		if (rpc_wake_up_next(&tbl->slot_tbl_waitq) != NULL)
-			send_new_highest_used_slotid = false;
-	}
+out_unlock:
 	spin_unlock(&tbl->slot_tbl_lock);
 	res->sr_slot = NULL;
 	if (send_new_highest_used_slotid)
@@ -1465,6 +1466,7 @@ unlock_no_action:
 	rcu_read_unlock();
 out_no_action:
 	task->tk_action = NULL;
+	nfs4_sequence_done(task, &data->o_res.seq_res);
 }
 
 static void nfs4_open_done(struct rpc_task *task, void *calldata)
@@ -2135,6 +2137,7 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 	if (!call_close) {
 		/* Note: exit _without_ calling nfs4_close_done */
 		task->tk_action = NULL;
+		nfs4_sequence_done(task, &calldata->res.seq_res);
 		goto out;
 	}
 
@@ -4384,6 +4387,7 @@ static void nfs4_locku_prepare(struct rpc_task *task, void *data)
 	if (test_bit(NFS_LOCK_INITIALIZED, &calldata->lsp->ls_flags) == 0) {
 		/* Note: exit _without_ running nfs4_locku_done */
 		task->tk_action = NULL;
+		nfs4_sequence_done(task, &calldata->res.seq_res);
 		return;
 	}
 	calldata->timestamp = jiffies;

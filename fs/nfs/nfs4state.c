@@ -255,17 +255,13 @@ static void nfs4_end_drain_session(struct nfs_client *clp)
 {
 	struct nfs4_session *ses = clp->cl_session;
 	struct nfs4_slot_table *tbl;
-	unsigned int i;
 
 	if (ses == NULL)
 		return;
 	tbl = &ses->fc_slot_table;
 	if (test_and_clear_bit(NFS4_SESSION_DRAINING, &ses->session_state)) {
 		spin_lock(&tbl->slot_tbl_lock);
-		for (i = 0; i <= tbl->max_slotid; i++) {
-			if (rpc_wake_up_next(&tbl->slot_tbl_waitq) == NULL)
-				break;
-		}
+		nfs41_wake_slot_table(tbl);
 		spin_unlock(&tbl->slot_tbl_lock);
 	}
 }
