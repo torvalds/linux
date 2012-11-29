@@ -1,4 +1,4 @@
-/**
+/*
  * fs/f2fs/data.c
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
@@ -21,7 +21,7 @@
 #include "node.h"
 #include "segment.h"
 
-/**
+/*
  * Lock ordering for the change of data block address:
  * ->data_page
  *  ->node_page
@@ -207,7 +207,7 @@ struct page *find_data_page(struct inode *inode, pgoff_t index)
 	return page;
 }
 
-/**
+/*
  * If it tries to access a hole, return an error.
  * Because, the callers, functions in dir.c and GC, should be able to know
  * whether this page exists or not.
@@ -247,7 +247,7 @@ struct page *get_lock_data_page(struct inode *inode, pgoff_t index)
 	return page;
 }
 
-/**
+/*
  * Caller ensures that this data page is never allocated.
  * A new zero-filled data page is allocated in the page cache.
  */
@@ -322,7 +322,7 @@ static void read_end_io(struct bio *bio, int err)
 	bio_put(bio);
 }
 
-/**
+/*
  * Fill the locked page with data located in the block address.
  * Read operation is synchronous, and caller must unlock the page.
  */
@@ -367,7 +367,7 @@ int f2fs_readpage(struct f2fs_sb_info *sbi, struct page *page,
 	return 0;
 }
 
-/**
+/*
  * This function should be used by the data read flow only where it
  * does not check the "create" flag that indicates block allocation.
  * The reason for this special functionality is to exploit VFS readahead

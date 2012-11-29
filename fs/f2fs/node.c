@@ -1,4 +1,4 @@
-/**
+/*
  * fs/f2fs/node.c
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
@@ -81,7 +81,7 @@ static struct page *get_next_nat_page(struct f2fs_sb_info *sbi, nid_t nid)
 	return dst_page;
 }
 
-/**
+/*
  * Readahead NAT pages
  */
 static void ra_nat_pages(struct f2fs_sb_info *sbi, int nid)
@@ -251,7 +251,7 @@ static int try_to_free_nats(struct f2fs_sb_info *sbi, int nr_shrink)
 	return nr_shrink;
 }
 
-/**
+/*
  * This function returns always success
  */
 void get_node_info(struct f2fs_sb_info *sbi, nid_t nid, struct node_info *ni)
@@ -302,7 +302,7 @@ cache:
 	cache_nat_entry(NM_I(sbi), nid, &ne);
 }
 
-/**
+/*
  * The maximum depth is four.
  * Offset[0] will have raw inode offset.
  */
@@ -649,7 +649,7 @@ fail:
 	return err;
 }
 
-/**
+/*
  * All the block addresses of data and nodes should be nullified.
  */
 int truncate_inode_blocks(struct inode *inode, pgoff_t from)
@@ -860,7 +860,7 @@ static int read_node_page(struct page *page, int type)
 	return f2fs_readpage(sbi, page, ni.blk_addr, type);
 }
 
-/**
+/*
  * Readahead a node page
  */
 void ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
@@ -910,7 +910,7 @@ struct page *get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid)
 	return page;
 }
 
-/**
+/*
  * Return a locked page for the desired node page.
  * And, readahead MAX_RA_NODE number of node pages.
  */
@@ -1186,7 +1186,7 @@ static int f2fs_release_node_page(struct page *page, gfp_t wait)
 	return 0;
 }
 
-/**
+/*
  * Structure of the f2fs node operations
  */
 const struct address_space_operations f2fs_node_aops = {
@@ -1386,7 +1386,7 @@ retry:
 	return true;
 }
 
-/**
+/*
  * alloc_nid() should be called prior to this function.
  */
 void alloc_nid_done(struct f2fs_sb_info *sbi, nid_t nid)
@@ -1403,7 +1403,7 @@ void alloc_nid_done(struct f2fs_sb_info *sbi, nid_t nid)
 	spin_unlock(&nm_i->free_nid_list_lock);
 }
 
-/**
+/*
  * alloc_nid() should be called prior to this function.
  */
 void alloc_nid_failed(struct f2fs_sb_info *sbi, nid_t nid)
@@ -1545,7 +1545,7 @@ retry:
 	return true;
 }
 
-/**
+/*
  * This function is called during the checkpointing process.
  */
 void flush_nat_entries(struct f2fs_sb_info *sbi)

@@ -1,4 +1,4 @@
-/**
+/*
  * fs/f2fs/gc.h
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
@@ -42,7 +42,7 @@ struct inode_entry {
 	struct inode *inode;
 };
 
-/**
+/*
  * inline functions
  */
 static inline block_t free_user_blocks(struct f2fs_sb_info *sbi)

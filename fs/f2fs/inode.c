@@ -1,4 +1,4 @@
-/**
+/*
  * fs/f2fs/inode.c
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
@@ -235,7 +235,7 @@ int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	return 0;
 }
 
-/**
+/*
  * Called at the last iput() if i_nlink is zero
  */
 void f2fs_evict_inode(struct inode *inode)

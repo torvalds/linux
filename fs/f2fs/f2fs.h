@@ -1,4 +1,4 @@
-/**
+/*
  * fs/f2fs/f2fs.h
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.

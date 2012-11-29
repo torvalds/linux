@@ -1,4 +1,4 @@
-/**
+/*
  * fs/f2fs/gc.c
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
@@ -213,7 +213,7 @@ static unsigned int get_gc_cost(struct f2fs_sb_info *sbi, unsigned int segno,
 		return get_cb_cost(sbi, segno);
 }
 
-/**
+/*
  * This function is called from two pathes.
  * One is garbage collection and the other is SSR segment selection.
  * When it is called during GC, it just gets a victim segment
@@ -359,7 +359,7 @@ static int check_valid_map(struct f2fs_sb_info *sbi,
 	return ret ? GC_OK : GC_NEXT;
 }
 
-/**
+/*
  * This function compares node address got in summary with that in NAT.
  * On validity, copy that node with cold status, otherwise (invalid node)
  * ignore that.
@@ -425,7 +425,7 @@ next_step:
 	return GC_DONE;
 }
 
-/**
+/*
  * Calculate start block index that this node page contains
  */
 block_t start_bidx_of_node(unsigned int node_ofs)
@@ -516,7 +516,7 @@ out:
 	f2fs_put_page(page, 1);
 }
 
-/**
+/*
  * This function tries to get parent node of victim data block, and identifies
  * data block validity. If the block is valid, copy that with cold status and
  * modify parent node.

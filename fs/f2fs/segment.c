@@ -1,4 +1,4 @@
-/**
+/*
  * fs/f2fs/segment.c
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
@@ -36,7 +36,7 @@ static int need_to_flush(struct f2fs_sb_info *sbi)
 	return 0;
 }
 
-/**
+/*
  * This function balances dirty node and dentry pages.
  * In addition, it controls garbage collection.
  */
@@ -105,7 +105,7 @@ static void __remove_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno,
 	}
 }
 
-/**
+/*
  * Should not occur error such as -ENOMEM.
  * Adding dirty entry into seglist is not critical operation.
  * If a given segment is one of current working segments, it won't be added.
@@ -136,7 +136,7 @@ void locate_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno)
 	return;
 }
 
-/**
+/*
  * Should call clear_prefree_segments after checkpoint is done.
  */
 static void set_prefree_as_free_segments(struct f2fs_sb_info *sbi)
@@ -269,7 +269,7 @@ void invalidate_blocks(struct f2fs_sb_info *sbi, block_t addr)
 	mutex_unlock(&sit_i->sentry_lock);
 }
 
-/**
+/*
  * This function should be resided under the curseg_mutex lock
  */
 static void __add_sum_entry(struct f2fs_sb_info *sbi, int type,
@@ -282,7 +282,7 @@ static void __add_sum_entry(struct f2fs_sb_info *sbi, int type,
 	return;
 }
 
-/**
+/*
  * Calculate the number of current summary pages for writing
  */
 int npages_for_summary_flush(struct f2fs_sb_info *sbi)
@@ -309,7 +309,7 @@ int npages_for_summary_flush(struct f2fs_sb_info *sbi)
 	return 3;
 }
 
-/**
+/*
  * Caller should put this summary page
  */
 struct page *get_sum_page(struct f2fs_sb_info *sbi, unsigned int segno)
@@ -371,7 +371,7 @@ next:
 	return NULL_SEGNO;
 }
 
-/**
+/*
  * Find a new segment from the free segments bitmap to right order
  * This function should be returned with success, otherwise BUG
  */
@@ -483,7 +483,7 @@ static void reset_curseg(struct f2fs_sb_info *sbi, int type, int modified)
 	__set_sit_entry_type(sbi, type, curseg->segno, modified);
 }
 
-/**
+/*
  * Allocate a current working segment.
  * This function always allocates a free segment in LFS manner.
  */
@@ -520,7 +520,7 @@ static void __next_free_blkoff(struct f2fs_sb_info *sbi,
 	seg->next_blkoff = ofs;
 }
 
-/**
+/*
  * If a segment is written by LFS manner, next block offset is just obtained
  * by increasing the current block offset. However, if a segment is written by
  * SSR manner, next block offset obtained by calling __next_free_blkoff
@@ -534,7 +534,7 @@ static void __refresh_next_blkoff(struct f2fs_sb_info *sbi,
 		seg->next_blkoff++;
 }
 
-/**
+/*
  * This function always allocates a used segment (from dirty seglist) by SSR
  * manner, so it should recover the existing segment information of valid blocks
  */
@@ -1310,7 +1310,7 @@ static bool flush_sits_in_journal(struct f2fs_sb_info *sbi)
 	return 0;
 }
 
-/**
+/*
  * CP calls this function, which flushes SIT entries including sit_journal,
  * and moves prefree segs to free segs.
  */
@@ -1624,7 +1624,7 @@ static int build_dirty_segmap(struct f2fs_sb_info *sbi)
 	return init_victim_segmap(sbi);
 }
 
-/**
+/*
  * Update min, max modified time for cost-benefit GC algorithm
  */
 static void init_min_max_mtime(struct f2fs_sb_info *sbi)

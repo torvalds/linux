@@ -1,4 +1,4 @@
-/**
+/*
  * fs/f2fs/xattr.h
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
@@ -77,7 +77,7 @@ struct f2fs_xattr_entry {
 #define MAX_VALUE_LEN	(MIN_OFFSET - sizeof(struct f2fs_xattr_header) - \
 			sizeof(struct f2fs_xattr_entry))
 
-/**
+/*
  * On-disk structure of f2fs_xattr
  * We use only 1 block for xattr.
  *

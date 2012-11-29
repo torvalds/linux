@@ -1,4 +1,4 @@
-/**
+/*
  * fs/f2fs/node.h
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.

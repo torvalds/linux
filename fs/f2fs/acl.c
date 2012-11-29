@@ -1,4 +1,4 @@
-/**
+/*
  * fs/f2fs/acl.c
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.

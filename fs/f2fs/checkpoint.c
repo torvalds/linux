@@ -1,4 +1,4 @@
-/**
+/*
  * fs/f2fs/checkpoint.c
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
@@ -24,7 +24,7 @@
 static struct kmem_cache *orphan_entry_slab;
 static struct kmem_cache *inode_entry_slab;
 
-/**
+/*
  * We guarantee no failure on the returned page.
  */
 struct page *grab_meta_page(struct f2fs_sb_info *sbi, pgoff_t index)
@@ -44,7 +44,7 @@ repeat:
 	return page;
 }
 
-/**
+/*
  * We guarantee no failure on the returned page.
  */
 struct page *get_meta_page(struct f2fs_sb_info *sbi, pgoff_t index)
@@ -543,7 +543,7 @@ retry:
 	goto retry;
 }
 
-/**
+/*
  * Freeze all the FS-operations for checkpoint.
  */
 void block_operations(struct f2fs_sb_info *sbi)
@@ -727,7 +727,7 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 	F2FS_RESET_SB_DIRT(sbi);
 }
 
-/**
+/*
  * We guarantee that this checkpoint procedure should not fail.
  */
 void write_checkpoint(struct f2fs_sb_info *sbi, bool blocked, bool is_umount)

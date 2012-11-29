@@ -1,4 +1,4 @@
-/**
+/*
  * fs/f2fs/dir.c
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
@@ -453,7 +453,7 @@ fail:
 	return err;
 }
 
-/**
+/*
  * It only removes the dentry from the dentry page,corresponding name
  * entry in name page does not need to be touched during deletion.
  */

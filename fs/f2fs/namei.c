@@ -1,4 +1,4 @@
-/**
+/*
  * fs/f2fs/namei.c
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
@@ -96,7 +96,7 @@ static int is_multimedia_file(const unsigned char *s, const char *sub)
 	return ret;
 }
 
-/**
+/*
  * Set multimedia files as cold files for hot/cold data separation
  */
 static inline void set_cold_file(struct f2fs_sb_info *sbi, struct inode *inode,

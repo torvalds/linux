@@ -1,4 +1,4 @@
-/**
+/*
  * f2fs debugging statistics
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
@@ -78,7 +78,7 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	}
 }
 
-/**
+/*
  * This function calculates BDF of every segments
  */
 static void update_sit_info(struct f2fs_sb_info *sbi)
@@ -113,7 +113,7 @@ static void update_sit_info(struct f2fs_sb_info *sbi)
 		si->avg_vblocks = 0;
 }
 
-/**
+/*
  * This function calculates memory footprint.
  */
 static void update_mem_info(struct f2fs_sb_info *sbi)
