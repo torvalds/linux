@@ -6867,6 +6867,20 @@ F:	drivers/media/radio/si470x/radio-si470x-common.c
 F:	drivers/media/radio/si470x/radio-si470x.h
 F:	drivers/media/radio/si470x/radio-si470x-usb.c
 
+SH_VEU V4L2 MEM2MEM DRIVER
+M:	Guennadi Liakhovetski <g.liakhovetski@gmx.de>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/platform/sh_veu.c
+F:	include/media/sh_veu.h
+
+SH_VOU V4L2 OUTPUT DRIVER
+M:	Guennadi Liakhovetski <g.liakhovetski@gmx.de>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/platform/sh_vou.c
+F:	include/media/sh_vou.h
+
 SIMPLE FIRMWARE INTERFACE (SFI)
 M:	Len Brown <lenb@kernel.org>
 L:	sfi-devel@simplefirmware.org
