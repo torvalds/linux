@@ -282,12 +282,8 @@ static int srcu_readers_active(struct srcu_struct *sp)
  */
 void cleanup_srcu_struct(struct srcu_struct *sp)
 {
-	int sum;
-
-	sum = srcu_readers_active(sp);
-	WARN_ON(sum);  /* Leakage unless caller handles error. */
-	if (sum != 0)
-		return;
+	if (WARN_ON(srcu_readers_active(sp)))
+		return; /* Leakage unless caller handles error. */
 	free_percpu(sp->per_cpu_ref);
 	sp->per_cpu_ref = NULL;
 }
