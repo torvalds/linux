@@ -211,7 +211,7 @@ static struct regmap_irq_chip tps65911_irq_chip = {
 	.irq_reg_stride = 2,
 	.status_base = TPS65910_INT_STS,
 	.mask_base = TPS65910_INT_MSK,
-	.ack_base = TPS65910_INT_MSK,
+	.ack_base = TPS65910_INT_STS,
 };
 
 static struct regmap_irq_chip tps65910_irq_chip = {
@@ -222,7 +222,7 @@ static struct regmap_irq_chip tps65910_irq_chip = {
 	.irq_reg_stride = 2,
 	.status_base = TPS65910_INT_STS,
 	.mask_base = TPS65910_INT_MSK,
-	.ack_base = TPS65910_INT_MSK,
+	.ack_base = TPS65910_INT_STS,
 };
 
 static int tps65910_irq_init(struct tps65910 *tps65910, int irq,
