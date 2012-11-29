@@ -345,7 +345,7 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 	}
 
 out:
-	if (!IS_ERR(dst)) {
+	if (!IS_ERR_OR_NULL(dst)) {
 		struct rt6_info *rt;
 		rt = (struct rt6_info *)dst;
 		t->dst = dst;
