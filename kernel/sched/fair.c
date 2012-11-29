@@ -3836,6 +3836,80 @@ static int hmp_attr_init(void)
 }
 late_initcall(hmp_attr_init);
 #endif /* CONFIG_HMP_VARIABLE_SCALE */
+
+static inline unsigned int hmp_domain_min_load(struct hmp_domain *hmpd,
+						int *min_cpu)
+{
+	int cpu;
+	int min_load = INT_MAX;
+	int min_cpu_temp = NR_CPUS;
+
+	for_each_cpu_mask(cpu, hmpd->cpus) {
+		if (cpu_rq(cpu)->cfs.tg_load_contrib < min_load) {
+			min_load = cpu_rq(cpu)->cfs.tg_load_contrib;
+			min_cpu_temp = cpu;
+		}
+	}
+
+	if (min_cpu)
+		*min_cpu = min_cpu_temp;
+
+	return min_load;
+}
+
+/*
+ * Calculate the task starvation
+ * This is the ratio of actually running time vs. runnable time.
+ * If the two are equal the task is getting the cpu time it needs or
+ * it is alone on the cpu and the cpu is fully utilized.
+ */
+static inline unsigned int hmp_task_starvation(struct sched_entity *se)
+{
+	u32 starvation;
+
+	starvation = se->avg.usage_avg_sum * scale_load_down(NICE_0_LOAD);
+	starvation /= (se->avg.runnable_avg_sum + 1);
+
+	return scale_load(starvation);
+}
+
+static inline unsigned int hmp_offload_down(int cpu, struct sched_entity *se)
+{
+	int min_usage;
+	int dest_cpu = NR_CPUS;
+
+	if (hmp_cpu_is_slowest(cpu))
+		return NR_CPUS;
+
+	/* Is the current domain fully loaded? */
+	/* load < ~94% */
+	min_usage = hmp_domain_min_load(hmp_cpu_domain(cpu), NULL);
+	if (min_usage < NICE_0_LOAD-64)
+		return NR_CPUS;
+
+	/* Is the cpu oversubscribed? */
+	/* load < ~194% */
+	if (cpu_rq(cpu)->cfs.tg_load_contrib < 2*NICE_0_LOAD-64)
+		return NR_CPUS;
+
+	/* Is the task alone on the cpu? */
+	if (cpu_rq(cpu)->cfs.nr_running < 2)
+		return NR_CPUS;
+
+	/* Is the task actually starving? */
+	if (hmp_task_starvation(se) > 768) /* <25% waiting */
+		return NR_CPUS;
+
+	/* Does the slower domain have spare cycles? */
+	min_usage = hmp_domain_min_load(hmp_slower_domain(cpu), &dest_cpu);
+	/* load > 50% */
+	if (min_usage > NICE_0_LOAD/2)
+		return NR_CPUS;
+
+	if (cpumask_test_cpu(dest_cpu, &hmp_slower_domain(cpu)->cpus))
+		return dest_cpu;
+	return NR_CPUS;
+}
 #endif /* CONFIG_SCHED_HMP */
 
 /*
@@ -6246,10 +6320,14 @@ static unsigned int hmp_up_migration(int cpu, struct sched_entity *se)
 					< hmp_next_up_threshold)
 		return 0;
 
-	if (cpumask_intersects(&hmp_faster_domain(cpu)->cpus,
-					tsk_cpus_allowed(p))
-		&& se->avg.load_avg_ratio > hmp_up_threshold) {
-		return 1;
+	if (se->avg.load_avg_ratio > hmp_up_threshold) {
+		/* Target domain load < ~94% */
+		if (hmp_domain_min_load(hmp_faster_domain(cpu), NULL)
+							> NICE_0_LOAD-64)
+			return 0;
+		if (cpumask_intersects(&hmp_faster_domain(cpu)->cpus,
+					tsk_cpus_allowed(p)))
+			return 1;
 	}
 	return 0;
 }
@@ -6479,6 +6557,21 @@ static void hmp_force_up_migration(int this_cpu)
 				force = 1;
 				trace_sched_hmp_migrate(p, target->push_cpu, 1);
 				hmp_next_up_delay(&p->se, target->push_cpu);
+			}
+		}
+		if (!force && !target->active_balance) {
+			/*
+			 * For now we just check the currently running task.
+			 * Selecting the lightest task for offloading will
+			 * require extensive book keeping.
+			 */
+			target->push_cpu = hmp_offload_down(cpu, curr);
+			if (target->push_cpu < NR_CPUS) {
+				target->active_balance = 1;
+				target->migrate_task = p;
+				force = 1;
+				trace_sched_hmp_migrate(p, target->push_cpu, 2);
+				hmp_next_down_delay(&p->se, target->push_cpu);
 			}
 		}
 		raw_spin_unlock_irqrestore(&target->lock, flags);
