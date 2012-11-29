@@ -29,7 +29,6 @@
 #include <linux/memory_hotplug.h>
 #include <linux/memory.h>
 #include <linux/notifier.h>
-#include <linux/mman.h>
 #include <linux/percpu_counter.h>
 
 #include <linux/hyperv.h>
