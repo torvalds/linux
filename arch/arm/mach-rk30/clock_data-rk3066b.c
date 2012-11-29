@@ -1009,7 +1009,7 @@ static struct clk codec_pll_clk = {
 
 static const struct pll_clk_set gpll_clks[] = {
 	_PLL_SET_CLKS(148500,	2,	99,	8),
-	_PLL_SET_CLKS(297000,	2,	99,	4),
+	_PLL_SET_CLKS(297000,	2,	198,	8),
 	_PLL_SET_CLKS(300000,	1,	50,	4),
 	_PLL_SET_CLKS(594000,	2,	198,	4),
 	_PLL_SET_CLKS(1188000,	2,	99,	1),
