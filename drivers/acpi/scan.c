@@ -965,8 +965,10 @@ static int acpi_bus_get_power_flags(struct acpi_device *device)
 		 * D3hot is only valid if _PR3 present.
 		 */
 		if (ps->resources.count ||
-		    (ps->flags.explicit_set && i < ACPI_STATE_D3_HOT))
+		    (ps->flags.explicit_set && i < ACPI_STATE_D3_HOT)) {
 			ps->flags.valid = 1;
+			ps->flags.os_accessible = 1;
+		}
 
 		ps->power = -1;	/* Unknown - driver assigned */
 		ps->latency = -1;	/* Unknown - driver assigned */
@@ -981,6 +983,11 @@ static int acpi_bus_get_power_flags(struct acpi_device *device)
 	/* Set D3cold's explicit_set flag if _PS3 exists. */
 	if (device->power.states[ACPI_STATE_D3_HOT].flags.explicit_set)
 		device->power.states[ACPI_STATE_D3_COLD].flags.explicit_set = 1;
+
+	/* Presence of _PS3 or _PRx means we can put the device into D3 cold */
+	if (device->power.states[ACPI_STATE_D3_HOT].flags.explicit_set ||
+			device->power.flags.power_resources)
+		device->power.states[ACPI_STATE_D3_COLD].flags.os_accessible = 1;
 
 	acpi_bus_init_power(device);
 

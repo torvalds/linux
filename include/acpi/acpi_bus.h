@@ -201,6 +201,7 @@ struct acpi_device_power_flags {
 struct acpi_device_power_state {
 	struct {
 		u8 valid:1;
+		u8 os_accessible:1;
 		u8 explicit_set:1;	/* _PSx present? */
 		u8 reserved:6;
 	} flags;
@@ -339,6 +340,7 @@ acpi_status acpi_bus_get_status_handle(acpi_handle handle,
 				       unsigned long long *sta);
 int acpi_bus_get_status(struct acpi_device *device);
 int acpi_bus_set_power(acpi_handle handle, int state);
+int acpi_device_set_power(struct acpi_device *device, int state);
 int acpi_bus_update_power(acpi_handle handle, int *state_p);
 bool acpi_bus_power_manageable(acpi_handle handle);
 bool acpi_bus_can_wakeup(acpi_handle handle);
@@ -416,21 +418,64 @@ int acpi_enable_wakeup_device_power(struct acpi_device *dev, int state);
 int acpi_disable_wakeup_device_power(struct acpi_device *dev);
 
 #ifdef CONFIG_PM
+acpi_status acpi_add_pm_notifier(struct acpi_device *adev,
+				 acpi_notify_handler handler, void *context);
+acpi_status acpi_remove_pm_notifier(struct acpi_device *adev,
+				    acpi_notify_handler handler);
+int acpi_device_power_state(struct device *dev, struct acpi_device *adev,
+			    u32 target_state, int d_max_in, int *d_min_p);
 int acpi_pm_device_sleep_state(struct device *, int *, int);
 #else
-static inline int acpi_pm_device_sleep_state(struct device *d, int *p, int m)
+static inline acpi_status acpi_add_pm_notifier(struct acpi_device *adev,
+					       acpi_notify_handler handler,
+					       void *context)
+{
+	return AE_SUPPORT;
+}
+static inline acpi_status acpi_remove_pm_notifier(struct acpi_device *adev,
+						  acpi_notify_handler handler)
+{
+	return AE_SUPPORT;
+}
+static inline int __acpi_device_power_state(int m, int *p)
 {
 	if (p)
 		*p = ACPI_STATE_D0;
 	return (m >= ACPI_STATE_D0 && m <= ACPI_STATE_D3) ? m : ACPI_STATE_D0;
 }
+static inline int acpi_device_power_state(struct device *dev,
+					  struct acpi_device *adev,
+					  u32 target_state, int d_max_in,
+					  int *d_min_p)
+{
+	return __acpi_device_power_state(d_max_in, d_min_p);
+}
+static inline int acpi_pm_device_sleep_state(struct device *d, int *p, int m)
+{
+	return __acpi_device_power_state(m, p);
+}
+#endif
+
+#ifdef CONFIG_PM_RUNTIME
+int __acpi_device_run_wake(struct acpi_device *, bool);
+int acpi_pm_device_run_wake(struct device *, bool);
+#else
+static inline int __acpi_device_run_wake(struct acpi_device *adev, bool en)
+{
+	return -ENODEV;
+}
+static inline int acpi_pm_device_run_wake(struct device *dev, bool enable)
+{
+	return -ENODEV;
+}
 #endif
 
 #ifdef CONFIG_PM_SLEEP
-int acpi_pm_device_run_wake(struct device *, bool);
+int __acpi_device_sleep_wake(struct acpi_device *, u32, bool);
 int acpi_pm_device_sleep_wake(struct device *, bool);
 #else
-static inline int acpi_pm_device_run_wake(struct device *dev, bool enable)
+static inline int __acpi_device_sleep_wake(struct acpi_device *adev,
+					   u32 target_state, bool enable)
 {
 	return -ENODEV;
 }
@@ -439,6 +484,27 @@ static inline int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
 	return -ENODEV;
 }
 #endif
+
+#ifdef CONFIG_ACPI_SLEEP
+u32 acpi_target_system_state(void);
+#else
+static inline u32 acpi_target_system_state(void) { return ACPI_STATE_S0; }
+#endif
+
+static inline bool acpi_device_power_manageable(struct acpi_device *adev)
+{
+	return adev->flags.power_manageable;
+}
+
+static inline bool acpi_device_can_wakeup(struct acpi_device *adev)
+{
+	return adev->wakeup.flags.valid;
+}
+
+static inline bool acpi_device_can_poweroff(struct acpi_device *adev)
+{
+	return adev->power.states[ACPI_STATE_D3_COLD].flags.os_accessible;
+}
 
 #else	/* CONFIG_ACPI */
 
