@@ -946,13 +946,6 @@ restart:
 	sz = msg_data_sz(msg);
 	err = msg_errcode(msg);
 
-	/* Complete connection setup for an implied connect */
-	if (unlikely(sock->state == SS_CONNECTING)) {
-		res = auto_connect(sock, msg);
-		if (res)
-			goto exit;
-	}
-
 	/* Discard an empty non-errored message & try again */
 	if ((!sz) && (!err)) {
 		advance_rx_queue(sk);
