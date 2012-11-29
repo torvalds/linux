@@ -102,6 +102,7 @@ static int dvb_usbv2_i2c_exit(struct dvb_usb_device *d)
 	return 0;
 }
 
+#if defined(CONFIG_RC_CORE) || defined(CONFIG_RC_CORE_MODULE)
 static void dvb_usb_read_remote_control(struct work_struct *work)
 {
 	struct dvb_usb_device *d = container_of(work,
@@ -202,6 +203,17 @@ static int dvb_usbv2_remote_exit(struct dvb_usb_device *d)
 
 	return 0;
 }
+#else
+static int dvb_usbv2_remote_init(struct dvb_usb_device *d)
+{
+	return 0;
+}
+
+static int dvb_usbv2_remote_exit(struct dvb_usb_device *d)
+{
+	return 0;
+}
+#endif
 
 static void dvb_usb_data_complete(struct usb_data_stream *stream, u8 *buf,
 		size_t len)

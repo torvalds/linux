@@ -400,4 +400,13 @@ extern int dvb_usbv2_reset_resume(struct usb_interface *);
 extern int dvb_usbv2_generic_rw(struct dvb_usb_device *, u8 *, u16, u8 *, u16);
 extern int dvb_usbv2_generic_write(struct dvb_usb_device *, u8 *, u16);
 
+/* stub implementations that will be never called when RC-core is disabled */
+#if !defined(CONFIG_RC_CORE) && !defined(CONFIG_RC_CORE_MODULE)
+#define rc_repeat(args...)
+#define rc_keydown(args...)
+#define rc_keydown_notimeout(args...)
+#define rc_keyup(args...)
+#define rc_g_keycode_from_table(args...) 0
+#endif
+
 #endif
