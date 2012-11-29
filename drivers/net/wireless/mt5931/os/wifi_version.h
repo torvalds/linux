@@ -7,7 +7,7 @@
 /*
  * Marvell MV8686 driver version.
  */
-#define MT5931_DRV_VERSION "2.01"
+#define MT5931_DRV_VERSION "2.03"
 
 #endif /* WIFI_VERSION_H */
 

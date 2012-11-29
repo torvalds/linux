@@ -3132,8 +3132,8 @@ qmPopOutDueToFallWithin(
            if (TRUE == fgMissing &&
                CHECK_FOR_TIMEOUT(rCurrentTime, (*prMissTimeout), 
                                   MSEC_TO_SEC(QM_RX_BA_ENTRY_MISS_TIMEOUT_MS))) {
-                DBGLOG(QM, TRACE, ("RX BA timeout, next tid %d, SSN %d\n", 
-                        prReorderQueParm->ucTid, prReorderedSwRfb->u2SSN));
+                //DBGLOG(QM, TRACE, ("RX BA timeout, next tid %d, SSN %d\n", 
+                //        prReorderQueParm->ucTid, prReorderedSwRfb->u2SSN));
                 fgDequeuHead == TRUE;
                 prReorderQueParm->u2WinStart = (((prReorderedSwRfb->u2SSN) + 1) % MAX_SEQ_NO_COUNT);
                 fgMissing = FALSE;
@@ -4601,8 +4601,8 @@ qmHandleEventStaChangePsMode(
         //    prEventStaChangePsMode->ucStaRecIdx, prStaRec->fgIsInPS));
 
 
-        DBGLOG(QM, TRACE, ("PS=%d,%d\n",
-            prEventStaChangePsMode->ucStaRecIdx, prStaRec->fgIsInPS));
+        //DBGLOG(QM, TRACE, ("PS=%d,%d\n",
+        //    prEventStaChangePsMode->ucStaRecIdx, prStaRec->fgIsInPS));
 
         /* From PS to Awake */
         if ((fgIsInPSOld) && (!prStaRec->fgIsInPS)){
