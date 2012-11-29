@@ -32,6 +32,7 @@
 #include <asm/platform.h>
 #include <asm/bootparam.h>
 #include <platform/lcd.h>
+#include <platform/hardware.h>
 
 void platform_halt(void)
 {
@@ -84,8 +85,7 @@ static void __init update_clock_frequency(struct device_node *node)
 	struct property *newfreq;
 	u32 freq;
 
-	if (!of_property_read_u32(node, "clock-frequency", &freq) &&
-			freq != 0)
+	if (!of_property_read_u32(node, "clock-frequency", &freq) && freq != 0)
 		return;
 
 	newfreq = kzalloc(sizeof(*newfreq) + sizeof(u32), GFP_KERNEL);
@@ -103,12 +103,44 @@ static void __init update_clock_frequency(struct device_node *node)
 	prom_update_property(node, newfreq);
 }
 
+#define MAC_LEN 6
+static void __init update_local_mac(struct device_node *node)
+{
+	struct property *newmac;
+	const u8* macaddr;
+	int prop_len;
+
+	macaddr = of_get_property(node, "local-mac-address", &prop_len);
+	if (macaddr == NULL || prop_len != MAC_LEN)
+		return;
+
+	newmac = kzalloc(sizeof(*newmac) + MAC_LEN, GFP_KERNEL);
+	if (newmac == NULL)
+		return;
+
+	newmac->value = newmac + 1;
+	newmac->length = MAC_LEN;
+	newmac->name = kstrdup("local-mac-address", GFP_KERNEL);
+	if (newmac->name == NULL) {
+		kfree(newmac);
+		return;
+	}
+
+	memcpy(newmac->value, macaddr, MAC_LEN);
+	((u8*)newmac->value)[5] = (*(u32*)DIP_SWITCHES_VADDR) & 0x3f;
+	prom_update_property(node, newmac);
+}
+
 static int __init machine_setup(void)
 {
 	struct device_node *serial;
+	struct device_node *eth = NULL;
 
 	for_each_compatible_node(serial, NULL, "ns16550a")
 		update_clock_frequency(serial);
+
+	if ((eth = of_find_compatible_node(eth, NULL, "opencores,ethoc")))
+		update_local_mac(eth);
 	return 0;
 }
 arch_initcall(machine_setup);
