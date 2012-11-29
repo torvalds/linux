@@ -124,15 +124,15 @@ ENTRY(__kernel_clock_gettime)
 3:	seqcnt_acquire
 	ldp	x9, x10, [vdso_data, #VDSO_XTIME_CRS_SEC]
 
-	cmp	w0, #CLOCK_MONOTONIC_COARSE
-	b.ne	6f
-
 	/* Get wtm timespec. */
 	ldp	x14, x15, [vdso_data, #VDSO_WTM_CLK_SEC]
 
 	/* Check the sequence counter. */
 	seqcnt_read w13
 	seqcnt_check w13, 3b
+
+	cmp	w0, #CLOCK_MONOTONIC_COARSE
+	b.ne	6f
 4:
 	/* Add on wtm timespec. */
 	add	x9, x9, x14
