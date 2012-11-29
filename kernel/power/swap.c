@@ -126,7 +126,7 @@ static int swsusp_extents_insert(unsigned long swap_offset)
 
 	/* Figure out where to put the new node */
 	while (*new) {
-		ext = container_of(*new, struct swsusp_extent, node);
+		ext = rb_entry(*new, struct swsusp_extent, node);
 		parent = *new;
 		if (swap_offset < ext->start) {
 			/* Try to merge */
