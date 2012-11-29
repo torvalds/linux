@@ -246,20 +246,6 @@ struct fsg_operations {
 	 * set).
 	 */
 	int (*thread_exits)(struct fsg_common *common);
-
-	/*
-	 * Called prior to ejection.  Negative return means error,
-	 * zero means to continue with ejection, positive means not to
-	 * eject.
-	 */
-	int (*pre_eject)(struct fsg_common *common,
-			 struct fsg_lun *lun, int num);
-	/*
-	 * Called after ejection.  Negative return means error, zero
-	 * or positive is just a success.
-	 */
-	int (*post_eject)(struct fsg_common *common,
-			  struct fsg_lun *lun, int num);
 };
 
 /* Data shared by all the FSG instances. */
@@ -1374,26 +1360,13 @@ static int do_start_stop(struct fsg_common *common)
 	if (!loej)
 		return 0;
 
-	/* Simulate an unload/eject */
-	if (common->ops && common->ops->pre_eject) {
-		int r = common->ops->pre_eject(common, curlun,
-					       curlun - common->luns);
-		if (unlikely(r < 0))
-			return r;
-		else if (r)
-			return 0;
-	}
-
 	up_read(&common->filesem);
 	down_write(&common->filesem);
 	fsg_lun_close(curlun);
 	up_write(&common->filesem);
 	down_read(&common->filesem);
 
-	return common->ops && common->ops->post_eject
-		? min(0, common->ops->post_eject(common, curlun,
-						 curlun - common->luns))
-		: 0;
+	return 0;
 }
 
 static int do_prevent_allow(struct fsg_common *common)
