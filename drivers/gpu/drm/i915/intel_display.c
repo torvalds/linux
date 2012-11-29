@@ -3951,16 +3951,8 @@ static int i830_get_display_clock_speed(struct drm_device *dev)
 	return 133000;
 }
 
-struct fdi_m_n {
-	u32        tu;
-	u32        gmch_m;
-	u32        gmch_n;
-	u32        link_m;
-	u32        link_n;
-};
-
 static void
-fdi_reduce_ratio(u32 *num, u32 *den)
+intel_reduce_ratio(uint32_t *num, uint32_t *den)
 {
 	while (*num > 0xffffff || *den > 0xffffff) {
 		*num >>= 1;
@@ -3968,20 +3960,18 @@ fdi_reduce_ratio(u32 *num, u32 *den)
 	}
 }
 
-static void
-ironlake_compute_m_n(int bits_per_pixel, int nlanes, int pixel_clock,
-		     int link_clock, struct fdi_m_n *m_n)
+void
+intel_link_compute_m_n(int bits_per_pixel, int nlanes,
+		       int pixel_clock, int link_clock,
+		       struct intel_link_m_n *m_n)
 {
-	m_n->tu = 64; /* default size */
-
-	/* BUG_ON(pixel_clock > INT_MAX / 36); */
+	m_n->tu = 64;
 	m_n->gmch_m = bits_per_pixel * pixel_clock;
 	m_n->gmch_n = link_clock * nlanes * 8;
-	fdi_reduce_ratio(&m_n->gmch_m, &m_n->gmch_n);
-
+	intel_reduce_ratio(&m_n->gmch_m, &m_n->gmch_n);
 	m_n->link_m = pixel_clock;
 	m_n->link_n = link_clock;
-	fdi_reduce_ratio(&m_n->link_m, &m_n->link_n);
+	intel_reduce_ratio(&m_n->link_m, &m_n->link_n);
 }
 
 static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
@@ -5095,7 +5085,7 @@ static void ironlake_set_m_n(struct drm_crtc *crtc,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
 	struct intel_encoder *intel_encoder, *edp_encoder = NULL;
-	struct fdi_m_n m_n = {0};
+	struct intel_link_m_n m_n = {0};
 	int target_clock, pixel_multiplier, lane, link_bw;
 	bool is_dp = false, is_cpu_edp = false;
 
@@ -5153,8 +5143,7 @@ static void ironlake_set_m_n(struct drm_crtc *crtc,
 
 	if (pixel_multiplier > 1)
 		link_bw *= pixel_multiplier;
-	ironlake_compute_m_n(intel_crtc->bpp, lane, target_clock, link_bw,
-			     &m_n);
+	intel_link_compute_m_n(intel_crtc->bpp, lane, target_clock, link_bw, &m_n);
 
 	I915_WRITE(PIPE_DATA_M1(cpu_transcoder), TU_SIZE(m_n.tu) | m_n.gmch_m);
 	I915_WRITE(PIPE_DATA_N1(cpu_transcoder), m_n.gmch_n);

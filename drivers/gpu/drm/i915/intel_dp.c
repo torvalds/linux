@@ -790,39 +790,6 @@ intel_dp_mode_fixup(struct drm_encoder *encoder,
 	return false;
 }
 
-struct intel_dp_m_n {
-	uint32_t	tu;
-	uint32_t	gmch_m;
-	uint32_t	gmch_n;
-	uint32_t	link_m;
-	uint32_t	link_n;
-};
-
-static void
-intel_reduce_ratio(uint32_t *num, uint32_t *den)
-{
-	while (*num > 0xffffff || *den > 0xffffff) {
-		*num >>= 1;
-		*den >>= 1;
-	}
-}
-
-static void
-intel_dp_compute_m_n(int bpp,
-		     int nlanes,
-		     int pixel_clock,
-		     int link_clock,
-		     struct intel_dp_m_n *m_n)
-{
-	m_n->tu = 64;
-	m_n->gmch_m = (pixel_clock * bpp) >> 3;
-	m_n->gmch_n = link_clock * nlanes;
-	intel_reduce_ratio(&m_n->gmch_m, &m_n->gmch_n);
-	m_n->link_m = pixel_clock;
-	m_n->link_n = link_clock;
-	intel_reduce_ratio(&m_n->link_m, &m_n->link_n);
-}
-
 void
 intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		 struct drm_display_mode *adjusted_mode)
@@ -833,7 +800,7 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int lane_count = 4;
-	struct intel_dp_m_n m_n;
+	struct intel_link_m_n m_n;
 	int pipe = intel_crtc->pipe;
 	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
 
@@ -856,8 +823,8 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	 * the number of bytes_per_pixel post-LUT, which we always
 	 * set up for 8-bits of R/G/B, or 3 bytes total.
 	 */
-	intel_dp_compute_m_n(intel_crtc->bpp, lane_count,
-			     mode->clock, adjusted_mode->clock, &m_n);
+	intel_link_compute_m_n(intel_crtc->bpp, lane_count,
+			       mode->clock, adjusted_mode->clock, &m_n);
 
 	if (IS_HASWELL(dev)) {
 		I915_WRITE(PIPE_DATA_M1(cpu_transcoder),

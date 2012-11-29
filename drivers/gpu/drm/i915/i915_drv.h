@@ -107,6 +107,19 @@ struct intel_pch_pll {
 };
 #define I915_NUM_PLLS 2
 
+/* Used by dp and fdi links */
+struct intel_link_m_n {
+	uint32_t	tu;
+	uint32_t	gmch_m;
+	uint32_t	gmch_n;
+	uint32_t	link_m;
+	uint32_t	link_n;
+};
+
+void intel_link_compute_m_n(int bpp, int nlanes,
+			    int pixel_clock, int link_clock,
+			    struct intel_link_m_n *m_n);
+
 struct intel_ddi_plls {
 	int spll_refcount;
 	int wrpll1_refcount;
