@@ -47,7 +47,12 @@
 
 /* list of all detected zpci devices */
 LIST_HEAD(zpci_list);
+EXPORT_SYMBOL_GPL(zpci_list);
 DEFINE_MUTEX(zpci_list_lock);
+EXPORT_SYMBOL_GPL(zpci_list_lock);
+
+struct pci_hp_callback_ops hotplug_ops;
+EXPORT_SYMBOL_GPL(hotplug_ops);
 
 static DECLARE_BITMAP(zpci_domain, ZPCI_NR_DEVICES);
 static DEFINE_SPINLOCK(zpci_domain_lock);
@@ -935,6 +940,8 @@ int zpci_create_device(struct zpci_dev *zdev)
 
 	mutex_lock(&zpci_list_lock);
 	list_add_tail(&zdev->entry, &zpci_list);
+	if (hotplug_ops.create_slot)
+		hotplug_ops.create_slot(zdev);
 	mutex_unlock(&zpci_list_lock);
 
 	if (zdev->state == ZPCI_FN_STATE_STANDBY)
@@ -948,6 +955,8 @@ int zpci_create_device(struct zpci_dev *zdev)
 out_start:
 	mutex_lock(&zpci_list_lock);
 	list_del(&zdev->entry);
+	if (hotplug_ops.remove_slot)
+		hotplug_ops.remove_slot(zdev);
 	mutex_unlock(&zpci_list_lock);
 out_bus:
 	zpci_free_domain(zdev);

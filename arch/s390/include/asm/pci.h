@@ -95,6 +95,11 @@ struct zpci_dev {
 	enum pci_bus_speed max_bus_speed;
 };
 
+struct pci_hp_callback_ops {
+	int (*create_slot)	(struct zpci_dev *zdev);
+	void (*remove_slot)	(struct zpci_dev *zdev);
+};
+
 static inline bool zdev_enabled(struct zpci_dev *zdev)
 {
 	return (zdev->fh & (1UL << 31)) ? true : false;
@@ -139,5 +144,11 @@ bool zpci_fid_present(u32);
 /* DMA */
 int zpci_dma_init(void);
 void zpci_dma_exit(void);
+
+/* Hotplug */
+extern struct mutex zpci_list_lock;
+extern struct list_head zpci_list;
+extern struct pci_hp_callback_ops hotplug_ops;
+extern unsigned int pci_probe;
 
 #endif

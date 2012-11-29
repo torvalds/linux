@@ -1,5 +1,5 @@
 /*
- * Copyright IBM Corp. 1999, 2009
+ * Copyright IBM Corp. 1999,2012
  *
  * Author(s): Martin Peschke <mpeschke@de.ibm.com>
  *	      Martin Schwidefsky <schwidefsky@de.ibm.com>
@@ -103,6 +103,7 @@ extern u64 sclp_facilities;
 #define SCLP_HAS_CHP_RECONFIG	(sclp_facilities & 0x2000000000000000ULL)
 #define SCLP_HAS_CPU_INFO	(sclp_facilities & 0x0800000000000000ULL)
 #define SCLP_HAS_CPU_RECONFIG	(sclp_facilities & 0x0400000000000000ULL)
+#define SCLP_HAS_PCI_RECONFIG	(sclp_facilities & 0x0000000040000000ULL)
 
 
 struct gds_subvector {
