@@ -81,6 +81,18 @@ config MMC_RICOH_MMC
 
 	  If unsure, say Y.
 
+config MMC_SDHCI_ACPI
+	tristate "SDHCI support for ACPI enumerated SDHCI controllers"
+	depends on MMC_SDHCI && ACPI
+	help
+	  This selects support for ACPI enumerated SDHCI controllers,
+	  identified by ACPI Compatibility ID PNP0D40 or specific
+	  ACPI Hardware IDs.
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_SDHCI_PLTFM
 	tristate "SDHCI platform and OF driver helper"
 	depends on MMC_SDHCI

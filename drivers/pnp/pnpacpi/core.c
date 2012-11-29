@@ -242,6 +242,10 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 	char *pnpid;
 	struct acpi_hardware_id *id;
 
+	/* Skip devices that are already bound */
+	if (device->physical_node_count)
+		return 0;
+
 	/*
 	 * If a PnPacpi device is not present , the device
 	 * driver should not be loaded.

@@ -93,4 +93,11 @@ static inline int suspend_nvs_save(void) { return 0; }
 static inline void suspend_nvs_restore(void) {}
 #endif
 
+/*--------------------------------------------------------------------------
+				Platform bus support
+  -------------------------------------------------------------------------- */
+struct platform_device;
+
+struct platform_device *acpi_create_platform_device(struct acpi_device *adev);
+
 #endif /* _ACPI_INTERNAL_H_ */

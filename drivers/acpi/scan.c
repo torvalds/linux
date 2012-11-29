@@ -29,6 +29,17 @@ extern struct acpi_device *acpi_root;
 
 static const char *dummy_hid = "device";
 
+/*
+ * The following ACPI IDs are known to be suitable for representing as
+ * platform devices.
+ */
+static const struct acpi_device_id acpi_platform_device_ids[] = {
+
+	{ "PNP0D40" },
+
+	{ }
+};
+
 static LIST_HEAD(acpi_device_list);
 static LIST_HEAD(acpi_bus_id_list);
 DEFINE_MUTEX(acpi_device_lock);
@@ -340,8 +351,8 @@ static void acpi_device_remove_files(struct acpi_device *dev)
 			ACPI Bus operations
    -------------------------------------------------------------------------- */
 
-int acpi_match_device_ids(struct acpi_device *device,
-			  const struct acpi_device_id *ids)
+static const struct acpi_device_id *__acpi_match_device(
+	struct acpi_device *device, const struct acpi_device_id *ids)
 {
 	const struct acpi_device_id *id;
 	struct acpi_hardware_id *hwid;
@@ -351,14 +362,44 @@ int acpi_match_device_ids(struct acpi_device *device,
 	 * driver for it.
 	 */
 	if (!device->status.present)
-		return -ENODEV;
+		return NULL;
 
 	for (id = ids; id->id[0]; id++)
 		list_for_each_entry(hwid, &device->pnp.ids, list)
 			if (!strcmp((char *) id->id, hwid->id))
-				return 0;
+				return id;
 
-	return -ENOENT;
+	return NULL;
+}
+
+/**
+ * acpi_match_device - Match a struct device against a given list of ACPI IDs
+ * @ids: Array of struct acpi_device_id object to match against.
+ * @dev: The device structure to match.
+ *
+ * Check if @dev has a valid ACPI handle and if there is a struct acpi_device
+ * object for that handle and use that object to match against a given list of
+ * device IDs.
+ *
+ * Return a pointer to the first matching ID on success or %NULL on failure.
+ */
+const struct acpi_device_id *acpi_match_device(const struct acpi_device_id *ids,
+					       const struct device *dev)
+{
+	struct acpi_device *adev;
+
+	if (!ids || !ACPI_HANDLE(dev)
+	    || ACPI_FAILURE(acpi_bus_get_device(ACPI_HANDLE(dev), &adev)))
+		return NULL;
+
+	return __acpi_match_device(adev, ids);
+}
+EXPORT_SYMBOL_GPL(acpi_match_device);
+
+int acpi_match_device_ids(struct acpi_device *device,
+			  const struct acpi_device_id *ids)
+{
+	return __acpi_match_device(device, ids) ? 0 : -ENOENT;
 }
 EXPORT_SYMBOL(acpi_match_device_ids);
 
@@ -1490,8 +1531,13 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl,
 	 */
 	device = NULL;
 	acpi_bus_get_device(handle, &device);
-	if (ops->acpi_op_add && !device)
+	if (ops->acpi_op_add && !device) {
 		acpi_add_single_object(&device, handle, type, sta, ops);
+		/* Is the device a known good platform device? */
+		if (device
+		    && !acpi_match_device_ids(device, acpi_platform_device_ids))
+			acpi_create_platform_device(device);
+	}
 
 	if (!device)
 		return AE_CTRL_DEPTH;

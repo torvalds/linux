@@ -27,6 +27,7 @@
 
 #include <linux/errno.h>
 #include <linux/ioport.h>	/* for struct resource */
+#include <linux/device.h>
 
 #ifdef	CONFIG_ACPI
 
@@ -251,6 +252,26 @@ extern int pnpacpi_disabled;
 
 #define PXM_INVAL	(-1)
 
+bool acpi_dev_resource_memory(struct acpi_resource *ares, struct resource *res);
+bool acpi_dev_resource_io(struct acpi_resource *ares, struct resource *res);
+bool acpi_dev_resource_address_space(struct acpi_resource *ares,
+				     struct resource *res);
+bool acpi_dev_resource_ext_address_space(struct acpi_resource *ares,
+					 struct resource *res);
+unsigned long acpi_dev_irq_flags(u8 triggering, u8 polarity, u8 shareable);
+bool acpi_dev_resource_interrupt(struct acpi_resource *ares, int index,
+				 struct resource *res);
+
+struct resource_list_entry {
+	struct list_head node;
+	struct resource res;
+};
+
+void acpi_dev_free_resource_list(struct list_head *list);
+int acpi_dev_get_resources(struct acpi_device *adev, struct list_head *list,
+			   int (*preproc)(struct acpi_resource *, void *),
+			   void *preproc_data);
+
 int acpi_check_resource_conflict(const struct resource *res);
 
 int acpi_check_region(resource_size_t start, resource_size_t n,
@@ -365,6 +386,17 @@ extern int acpi_nvs_register(__u64 start, __u64 size);
 extern int acpi_nvs_for_each_region(int (*func)(__u64, __u64, void *),
 				    void *data);
 
+const struct acpi_device_id *acpi_match_device(const struct acpi_device_id *ids,
+					       const struct device *dev);
+
+static inline bool acpi_driver_match_device(struct device *dev,
+					    const struct device_driver *drv)
+{
+	return !!acpi_match_device(drv->acpi_match_table, dev);
+}
+
+#define ACPI_PTR(_ptr)	(_ptr)
+
 #else	/* !CONFIG_ACPI */
 
 #define acpi_disabled 1
@@ -418,6 +450,22 @@ static inline int acpi_nvs_for_each_region(int (*func)(__u64, __u64, void *),
 {
 	return 0;
 }
+
+struct acpi_device_id;
+
+static inline const struct acpi_device_id *acpi_match_device(
+	const struct acpi_device_id *ids, const struct device *dev)
+{
+	return NULL;
+}
+
+static inline bool acpi_driver_match_device(struct device *dev,
+					    const struct device_driver *drv)
+{
+	return false;
+}
+
+#define ACPI_PTR(_ptr)	(NULL)
 
 #endif	/* !CONFIG_ACPI */
 
