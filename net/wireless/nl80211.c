@@ -5502,6 +5502,7 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 	if (ibss.chandef.width != NL80211_CHAN_WIDTH_20_NOHT &&
 	    !(rdev->wiphy.features & NL80211_FEATURE_HT_IBSS))
+		return -EINVAL;
 
 	ibss.channel_fixed = !!info->attrs[NL80211_ATTR_FREQ_FIXED];
 	ibss.privacy = !!info->attrs[NL80211_ATTR_PRIVACY];
