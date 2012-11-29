@@ -5345,15 +5345,8 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	} else
 		intel_put_pch_pll(intel_crtc);
 
-	if (is_dp && !is_cpu_edp) {
+	if (is_dp && !is_cpu_edp)
 		intel_dp_set_m_n(crtc, mode, adjusted_mode);
-	} else {
-		/* For non-DP output, clear any trans DP clock recovery setting.*/
-		I915_WRITE(TRANSDATA_M1(pipe), 0);
-		I915_WRITE(TRANSDATA_N1(pipe), 0);
-		I915_WRITE(TRANSDPLINK_M1(pipe), 0);
-		I915_WRITE(TRANSDPLINK_N1(pipe), 0);
-	}
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_pll_enable)
