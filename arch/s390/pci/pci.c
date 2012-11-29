@@ -29,6 +29,7 @@
 
 #include <asm/facility.h>
 #include <asm/pci_insn.h>
+#include <asm/pci_clp.h>
 
 #define DEBUG				/* enable pr_debug */
 
@@ -436,6 +437,20 @@ static void zpci_free_domain(struct zpci_dev *zdev)
 	spin_unlock(&zpci_domain_lock);
 }
 
+int zpci_enable_device(struct zpci_dev *zdev)
+{
+	int rc;
+
+	rc = clp_enable_fh(zdev, ZPCI_NR_DMA_SPACES);
+	if (rc)
+		goto out;
+	pr_info("Enabled fh: 0x%x fid: 0x%x\n", zdev->fh, zdev->fid);
+	return 0;
+out:
+	return rc;
+}
+EXPORT_SYMBOL_GPL(zpci_enable_device);
+
 int zpci_create_device(struct zpci_dev *zdev)
 {
 	int rc;
@@ -455,8 +470,15 @@ int zpci_create_device(struct zpci_dev *zdev)
 	if (zdev->state == ZPCI_FN_STATE_STANDBY)
 		return 0;
 
+	rc = zpci_enable_device(zdev);
+	if (rc)
+		goto out_start;
 	return 0;
 
+out_start:
+	mutex_lock(&zpci_list_lock);
+	list_del(&zdev->entry);
+	mutex_unlock(&zpci_list_lock);
 out_bus:
 	zpci_free_domain(zdev);
 out:
@@ -489,6 +511,7 @@ int zpci_scan_device(struct zpci_dev *zdev)
 	return 0;
 
 out:
+	clp_disable_fh(zdev);
 	return -EIO;
 }
 EXPORT_SYMBOL_GPL(zpci_scan_device);
@@ -547,9 +570,14 @@ static int __init pci_base_init(void)
 	if (rc)
 		goto out_mem;
 
+	rc = clp_find_pci_devices();
+	if (rc)
+		goto out_find;
+
 	zpci_scan_devices();
 	return 0;
 
+out_find:
 	zpci_mem_exit();
 out_mem:
 	return rc;

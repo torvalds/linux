@@ -8,6 +8,7 @@
 
 #include <asm-generic/pci.h>
 #include <asm-generic/pci-dma-compat.h>
+#include <asm/pci_clp.h>
 
 #define PCIBIOS_MIN_IO		0x1000
 #define PCIBIOS_MIN_MEM		0x10000000
@@ -75,6 +76,12 @@ int zpci_enable_device(struct zpci_dev *);
 void zpci_stop_device(struct zpci_dev *);
 void zpci_free_device(struct zpci_dev *);
 int zpci_scan_device(struct zpci_dev *);
+
+/* CLP */
+int clp_find_pci_devices(void);
+int clp_add_pci_device(u32, u32, int);
+int clp_enable_fh(struct zpci_dev *, u8);
+int clp_disable_fh(struct zpci_dev *);
 
 /* Helpers */
 struct zpci_dev *get_zdev(struct pci_dev *);
