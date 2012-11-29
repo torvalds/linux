@@ -315,22 +315,6 @@ static const struct pinconf_ops sh_pfc_pinconf_ops = {
 	.pin_config_dbg_show	= sh_pfc_pinconf_dbg_show,
 };
 
-static void sh_pfc_map_one_gpio(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx,
-				struct pinmux_gpio *gpio, unsigned offset)
-{
-	struct pinmux_data_reg *dummy;
-	int bit;
-
-	gpio->flags &= ~PINMUX_FLAG_TYPE;
-
-	if (sh_pfc_get_data_reg(pfc, offset, &dummy, &bit) == 0)
-		gpio->flags |= PINMUX_TYPE_GPIO;
-	else {
-		gpio->flags |= PINMUX_TYPE_FUNCTION;
-		pmx->nr_functions++;
-	}
-}
-
 /* pinmux ranges -> pinctrl pin descs */
 static int sh_pfc_map_gpios(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 {
@@ -356,7 +340,8 @@ static int sh_pfc_map_gpios(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 		if (unlikely(!gpio->enum_id))
 			continue;
 
-		sh_pfc_map_one_gpio(pfc, pmx, gpio, i);
+		if ((gpio->flags & PINMUX_FLAG_TYPE) == PINMUX_TYPE_FUNCTION)
+			pmx->nr_functions++;
 	}
 
 	return 0;

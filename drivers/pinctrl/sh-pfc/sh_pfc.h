@@ -41,8 +41,18 @@ struct pinmux_gpio {
 	const char *name;
 };
 
-#define PINMUX_GPIO(gpio, data_or_mark) \
-	[gpio] = { .name = __stringify(gpio), .enum_id = data_or_mark, .flags = PINMUX_TYPE_NONE }
+#define PINMUX_GPIO(gpio, data_or_mark)			\
+	[gpio] = {					\
+		.name = __stringify(gpio),		\
+		.enum_id = data_or_mark,		\
+		.flags = PINMUX_TYPE_GPIO		\
+	}
+#define PINMUX_GPIO_FN(gpio, data_or_mark)		\
+	[gpio] = {					\
+		.name = __stringify(gpio),		\
+		.enum_id = data_or_mark,		\
+		.flags = PINMUX_TYPE_FUNCTION		\
+	}
 
 #define PINMUX_DATA(data_or_mark, ids...) data_or_mark, ids, 0
 
@@ -135,7 +145,7 @@ enum { GPIO_CFG_DRYRUN, GPIO_CFG_REQ, GPIO_CFG_FREE };
 #define _GPIO_PORT(pfx, sfx) PINMUX_GPIO(GPIO_PORT##pfx, PORT##pfx##_DATA)
 #define PORT_ALL(str)	CPU_ALL_PORT(_PORT_ALL, PORT, str)
 #define GPIO_PORT_ALL()	CPU_ALL_PORT(_GPIO_PORT, , unused)
-#define GPIO_FN(str) PINMUX_GPIO(GPIO_FN_##str, str##_MARK)
+#define GPIO_FN(str) PINMUX_GPIO_FN(GPIO_FN_##str, str##_MARK)
 
 /* helper macro for pinmux_enum_t */
 #define PORT_DATA_I(nr)	\
