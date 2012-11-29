@@ -5228,6 +5228,17 @@ static bool ironlake_check_fdi_lanes(struct intel_crtc *intel_crtc)
 	}
 }
 
+int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp)
+{
+	/*
+	 * Account for spread spectrum to avoid
+	 * oversubscribing the link. Max center spread
+	 * is 2.5%; use 5% for safety's sake.
+	 */
+	u32 bps = target_clock * bpp * 21 / 20;
+	return bps / (link_bw * 8) + 1;
+}
+
 static void ironlake_set_m_n(struct drm_crtc *crtc,
 			     struct drm_display_mode *mode,
 			     struct drm_display_mode *adjusted_mode)
@@ -5281,15 +5292,9 @@ static void ironlake_set_m_n(struct drm_crtc *crtc,
 	else
 		target_clock = adjusted_mode->clock;
 
-	if (!lane) {
-		/*
-		 * Account for spread spectrum to avoid
-		 * oversubscribing the link. Max center spread
-		 * is 2.5%; use 5% for safety's sake.
-		 */
-		u32 bps = target_clock * intel_crtc->bpp * 21 / 20;
-		lane = bps / (link_bw * 8) + 1;
-	}
+	if (!lane)
+		lane = ironlake_get_lanes_required(target_clock, link_bw,
+						   intel_crtc->bpp);
 
 	intel_crtc->fdi_lanes = lane;
 

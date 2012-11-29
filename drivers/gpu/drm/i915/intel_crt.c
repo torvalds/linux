@@ -198,6 +198,11 @@ static int intel_crt_mode_valid(struct drm_connector *connector,
 	if (mode->clock > max_clock)
 		return MODE_CLOCK_HIGH;
 
+	/* The FDI receiver on LPT only supports 8bpc and only has 2 lanes. */
+	if (HAS_PCH_LPT(dev) &&
+	    (ironlake_get_lanes_required(mode->clock, 270000, 24) > 2))
+		return MODE_CLOCK_HIGH;
+
 	return MODE_OK;
 }
 

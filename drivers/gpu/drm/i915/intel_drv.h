@@ -559,6 +559,7 @@ intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
 			     enum pipe pipe);
 extern void intel_wait_for_vblank(struct drm_device *dev, int pipe);
 extern void intel_wait_for_pipe_off(struct drm_device *dev, int pipe);
+extern int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp);
 
 struct intel_load_detect_pipe {
 	struct drm_framebuffer *release_fb;
