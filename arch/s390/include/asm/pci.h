@@ -141,6 +141,10 @@ struct zpci_dev *get_zdev(struct pci_dev *);
 struct zpci_dev *get_zdev_by_fid(u32);
 bool zpci_fid_present(u32);
 
+/* sysfs */
+int zpci_sysfs_add_device(struct device *);
+void zpci_sysfs_remove_device(struct device *);
+
 /* DMA */
 int zpci_dma_init(void);
 void zpci_dma_exit(void);

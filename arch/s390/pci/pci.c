@@ -628,6 +628,7 @@ static void zpci_remove_device(struct pci_dev *pdev)
 	dev_info(&pdev->dev, "Removing device %u\n", zdev->domain);
 	zdev->state = ZPCI_FN_STATE_CONFIGURED;
 	zpci_dma_exit_device(zdev);
+	zpci_sysfs_remove_device(&pdev->dev);
 	zpci_unmap_resources(pdev);
 	list_del(&zdev->entry);		/* can be called from init */
 	zdev->pdev = NULL;
@@ -674,6 +675,11 @@ void pcibios_disable_device(struct pci_dev *pdev)
 {
 	zpci_remove_device(pdev);
 	pdev->sysdata = NULL;
+}
+
+int pcibios_add_platform_entries(struct pci_dev *pdev)
+{
+	return zpci_sysfs_add_device(&pdev->dev);
 }
 
 int zpci_request_irq(unsigned int irq, irq_handler_t handler, void *data)
