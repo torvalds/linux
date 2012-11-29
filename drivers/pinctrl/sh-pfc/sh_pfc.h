@@ -90,7 +90,6 @@ struct pinmux_range {
 
 struct sh_pfc_soc_info {
 	char *name;
-	pinmux_enum_t reserved_id;
 	struct pinmux_range input;
 	struct pinmux_range input_pd;
 	struct pinmux_range input_pu;

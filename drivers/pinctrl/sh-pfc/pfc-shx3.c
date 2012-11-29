@@ -564,7 +564,6 @@ static struct pinmux_data_reg shx3_pinmux_data_regs[] = {
 
 struct sh_pfc_soc_info shx3_pinmux_info = {
 	.name		= "shx3_pfc",
-	.reserved_id	= PINMUX_RESERVED,
 	.input		= { PINMUX_INPUT_BEGIN,	   PINMUX_INPUT_END },
 	.input_pu	= { PINMUX_INPUT_PULLUP_BEGIN,
 			    PINMUX_INPUT_PULLUP_END },

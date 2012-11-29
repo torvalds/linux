@@ -2581,7 +2581,6 @@ static struct pinmux_irq pinmux_irqs[] = {
 
 struct sh_pfc_soc_info r8a7740_pinmux_info = {
 	.name		= "r8a7740_pfc",
-	.reserved_id	= PINMUX_RESERVED,
 	.input		= { PINMUX_INPUT_BEGIN,
 			    PINMUX_INPUT_END },
 	.input_pu	= { PINMUX_INPUT_PULLUP_BEGIN,

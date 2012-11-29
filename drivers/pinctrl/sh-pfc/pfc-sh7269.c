@@ -2815,7 +2815,6 @@ static struct pinmux_data_reg pinmux_data_regs[] = {
 
 struct sh_pfc_soc_info sh7269_pinmux_info = {
 	.name = "sh7269_pfc",
-	.reserved_id = PINMUX_RESERVED,
 	.input = { PINMUX_INPUT_BEGIN, PINMUX_INPUT_END, FORCE_IN },
 	.output = { PINMUX_OUTPUT_BEGIN, PINMUX_OUTPUT_END, FORCE_OUT },
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },

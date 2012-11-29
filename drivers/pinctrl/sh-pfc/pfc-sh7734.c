@@ -2456,7 +2456,6 @@ struct sh_pfc_soc_info sh7734_pinmux_info = {
 
 	.unlock_reg = 0xFFFC0000,
 
-	.reserved_id = PINMUX_RESERVED,
 	.input = { PINMUX_INPUT_BEGIN, PINMUX_INPUT_END },
 	.output = { PINMUX_OUTPUT_BEGIN, PINMUX_OUTPUT_END },
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
