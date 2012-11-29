@@ -4670,12 +4670,13 @@ static int bond_check_params(struct bond_params *params)
 	     arp_ip_count++) {
 		/* not complete check, but should be good enough to
 		   catch mistakes */
-		if (!isdigit(arp_ip_target[arp_ip_count][0])) {
+		__be32 ip = in_aton(arp_ip_target[arp_ip_count]);
+		if (!isdigit(arp_ip_target[arp_ip_count][0]) ||
+		    ip == 0 || ip == htonl(INADDR_BROADCAST)) {
 			pr_warning("Warning: bad arp_ip_target module parameter (%s), ARP monitoring will not be performed\n",
 				   arp_ip_target[arp_ip_count]);
 			arp_interval = 0;
 		} else {
-			__be32 ip = in_aton(arp_ip_target[arp_ip_count]);
 			arp_target[arp_ip_count] = ip;
 		}
 	}
