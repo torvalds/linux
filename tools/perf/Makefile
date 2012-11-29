@@ -154,6 +154,7 @@ INSTALL = install
 SPARSE_FLAGS = -D__BIG_ENDIAN__ -D__powerpc__
 
 ifneq ($(MAKECMDGOALS),clean)
+ifneq ($(MAKECMDGOALS),tags)
 -include config/feature-tests.mak
 
 ifeq ($(call try-cc,$(SOURCE_HELLO),$(CFLAGS) -Werror -fstack-protector-all,-fstack-protector-all),y)
@@ -207,6 +208,7 @@ ifeq ($(call try-cc,$(SOURCE_BIONIC),$(CFLAGS),bionic),y)
 	EXTLIBS := $(filter-out -lpthread,$(EXTLIBS))
 	BASIC_CFLAGS += -I.
 endif
+endif # MAKECMDGOALS != tags
 endif # MAKECMDGOALS != clean
 
 # Guard against environment variables
@@ -525,6 +527,7 @@ PERFLIBS = $(LIB_FILE) $(LIBTRACEEVENT)
 # Platform specific tweaks
 #
 ifneq ($(MAKECMDGOALS),clean)
+ifneq ($(MAKECMDGOALS),tags)
 
 # We choose to avoid "if .. else if .. else .. endif endif"
 # because maintaining the nesting to match is a pain.  If
@@ -841,6 +844,7 @@ ifdef ASCIIDOC8
 	export ASCIIDOC8
 endif
 
+endif # MAKECMDGOALS != tags
 endif # MAKECMDGOALS != clean
 
 # Shell quote (do not use $(call) to accommodate ancient setups);
