@@ -158,7 +158,7 @@ typedef int (*brcmf_fweh_handler_t)(struct brcmf_if *ifp,
  */
 struct brcmf_fweh_info {
 	struct work_struct event_work;
-	struct spinlock evt_q_lock;
+	spinlock_t evt_q_lock;
 	struct list_head event_q;
 	int (*evt_handler[BRCMF_E_LAST])(struct brcmf_if *ifp,
 					 const struct brcmf_event_msg *evtmsg,
