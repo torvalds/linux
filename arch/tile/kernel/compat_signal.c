@@ -248,7 +248,7 @@ long compat_sys_rt_sigreturn(void)
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext))
 		goto badframe;
 
-	if (compat_sys_sigaltstack(&frame->uc.uc_stack, NULL) != 0)
+	if (compat_sys_sigaltstack(&frame->uc.uc_stack, NULL) == -EFAULT)
 		goto badframe;
 
 	return 0;
