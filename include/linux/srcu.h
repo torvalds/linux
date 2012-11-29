@@ -151,25 +151,14 @@ void srcu_barrier(struct srcu_struct *sp);
  * Checks debug_lockdep_rcu_enabled() to prevent false positives during boot
  * and while lockdep is disabled.
  *
- * Note that if the CPU is in the idle loop from an RCU point of view
- * (ie: that we are in the section between rcu_idle_enter() and
- * rcu_idle_exit()) then srcu_read_lock_held() returns false even if
- * the CPU did an srcu_read_lock().  The reason for this is that RCU
- * ignores CPUs that are in such a section, considering these as in
- * extended quiescent state, so such a CPU is effectively never in an
- * RCU read-side critical section regardless of what RCU primitives it
- * invokes.  This state of affairs is required --- we need to keep an
- * RCU-free window in idle where the CPU may possibly enter into low
- * power mode. This way we can notice an extended quiescent state to
- * other CPUs that started a grace period. Otherwise we would delay any
- * grace period as long as we run in the idle task.
+ * Note that SRCU is based on its own statemachine and it doesn't
+ * relies on normal RCU, it can be called from the CPU which
+ * is in the idle loop from an RCU point of view or offline.
  */
 static inline int srcu_read_lock_held(struct srcu_struct *sp)
 {
 	if (!debug_lockdep_rcu_enabled())
 		return 1;
-	if (rcu_is_cpu_idle())
-		return 0;
 	return lock_is_held(&sp->dep_map);
 }
 
@@ -231,8 +220,6 @@ static inline int srcu_read_lock(struct srcu_struct *sp) __acquires(sp)
 	int retval = __srcu_read_lock(sp);
 
 	rcu_lock_acquire(&(sp)->dep_map);
-	rcu_lockdep_assert(!rcu_is_cpu_idle(),
-			   "srcu_read_lock() used illegally while idle");
 	return retval;
 }
 
@@ -246,8 +233,6 @@ static inline int srcu_read_lock(struct srcu_struct *sp) __acquires(sp)
 static inline void srcu_read_unlock(struct srcu_struct *sp, int idx)
 	__releases(sp)
 {
-	rcu_lockdep_assert(!rcu_is_cpu_idle(),
-			   "srcu_read_unlock() used illegally while idle");
 	rcu_lock_release(&(sp)->dep_map);
 	__srcu_read_unlock(sp, idx);
 }
