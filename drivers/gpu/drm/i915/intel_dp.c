@@ -148,15 +148,6 @@ intel_dp_max_link_bw(struct intel_dp *intel_dp)
 	return max_link_bw;
 }
 
-static int
-intel_dp_link_clock(uint8_t link_bw)
-{
-	if (link_bw == DP_LINK_BW_2_7)
-		return 270000;
-	else
-		return 162000;
-}
-
 /*
  * The units on the numbers in the next two are... bizarre.  Examples will
  * make it clearer; this one parallels an example in the eDP spec.
@@ -191,7 +182,8 @@ intel_dp_adjust_dithering(struct intel_dp *intel_dp,
 			  struct drm_display_mode *mode,
 			  bool adjust_mode)
 {
-	int max_link_clock = intel_dp_link_clock(intel_dp_max_link_bw(intel_dp));
+	int max_link_clock =
+		drm_dp_bw_code_to_link_rate(intel_dp_max_link_bw(intel_dp));
 	int max_lanes = drm_dp_max_lane_count(intel_dp->dpcd);
 	int max_rate, mode_rate;
 
@@ -722,12 +714,15 @@ intel_dp_mode_fixup(struct drm_encoder *encoder,
 
 	for (clock = 0; clock <= max_clock; clock++) {
 		for (lane_count = 1; lane_count <= max_lane_count; lane_count <<= 1) {
-			int link_avail = intel_dp_max_data_rate(intel_dp_link_clock(bws[clock]), lane_count);
+			int link_bw_clock =
+				drm_dp_bw_code_to_link_rate(bws[clock]);
+			int link_avail = intel_dp_max_data_rate(link_bw_clock,
+								lane_count);
 
 			if (mode_rate <= link_avail) {
 				intel_dp->link_bw = bws[clock];
 				intel_dp->lane_count = lane_count;
-				adjusted_mode->clock = intel_dp_link_clock(intel_dp->link_bw);
+				adjusted_mode->clock = link_bw_clock;
 				DRM_DEBUG_KMS("DP link bw %02x lane "
 						"count %d clock %d bpp %d\n",
 				       intel_dp->link_bw, intel_dp->lane_count,
