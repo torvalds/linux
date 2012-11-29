@@ -841,7 +841,7 @@ static int popen(struct atm_vcc *vcc)
 		return -EINVAL;
 	}
 
-	skb = alloc_skb(sizeof(*header), GFP_ATOMIC);
+	skb = alloc_skb(sizeof(*header), GFP_KERNEL);
 	if (!skb) {
 		if (net_ratelimit())
 			dev_warn(&card->dev->dev, "Failed to allocate sk_buff in popen()\n");
@@ -881,7 +881,7 @@ static void pclose(struct atm_vcc *vcc)
 	}
 	spin_unlock(&card->tx_queue_lock);
 
-	skb = alloc_skb(sizeof(*header), GFP_ATOMIC);
+	skb = alloc_skb(sizeof(*header), GFP_KERNEL);
 	if (!skb) {
 		dev_warn(&card->dev->dev, "Failed to allocate sk_buff in pclose()\n");
 		return;
@@ -1268,7 +1268,7 @@ static int atm_init(struct solos_card *card, struct device *parent)
 		card->atmdev[i]->phy_data = (void *)(unsigned long)i;
 		atm_dev_signal_change(card->atmdev[i], ATM_PHY_SIG_FOUND);
 
-		skb = alloc_skb(sizeof(*header), GFP_ATOMIC);
+		skb = alloc_skb(sizeof(*header), GFP_KERNEL);
 		if (!skb) {
 			dev_warn(&card->dev->dev, "Failed to allocate sk_buff in atm_init()\n");
 			continue;
