@@ -178,6 +178,7 @@ struct smb_rqst {
 
 enum smb_version {
 	Smb_1 = 1,
+	Smb_20,
 	Smb_21,
 	Smb_30,
 };

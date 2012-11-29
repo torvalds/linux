@@ -274,6 +274,7 @@ static const match_table_t cifs_cacheflavor_tokens = {
 
 static const match_table_t cifs_smb_version_tokens = {
 	{ Smb_1, SMB1_VERSION_STRING },
+	{ Smb_20, SMB20_VERSION_STRING},
 	{ Smb_21, SMB21_VERSION_STRING },
 	{ Smb_30, SMB30_VERSION_STRING },
 };
@@ -1074,6 +1075,10 @@ cifs_parse_smb_version(char *value, struct smb_vol *vol)
 		vol->vals = &smb1_values;
 		break;
 #ifdef CONFIG_CIFS_SMB2
+	case Smb_20:
+		vol->ops = &smb21_operations; /* currently identical with 2.1 */
+		vol->vals = &smb20_values;
+		break;
 	case Smb_21:
 		vol->ops = &smb21_operations;
 		vol->vals = &smb21_values;
