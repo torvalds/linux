@@ -48,6 +48,8 @@ static void clp_free_block(void *ptr)
 static void clp_store_query_pci_fngrp(struct zpci_dev *zdev,
 				      struct clp_rsp_query_pci_grp *response)
 {
+	zdev->tlb_refresh = response->refresh;
+	zdev->dma_mask = response->dasm;
 	zdev->msi_addr = response->msia;
 
 	pr_debug("Supported number of MSI vectors: %u\n", response->noi);
@@ -97,6 +99,8 @@ static int clp_store_query_pci_fn(struct zpci_dev *zdev,
 		zdev->bars[i].val = le32_to_cpu(response->bar[i]);
 		zdev->bars[i].size = response->bar_size[i];
 	}
+	zdev->start_dma = response->sdma;
+	zdev->end_dma = response->edma;
 	zdev->pchid = response->pchid;
 	zdev->pfgid = response->pfgid;
 	return 0;

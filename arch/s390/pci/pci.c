@@ -34,6 +34,7 @@
 #include <asm/facility.h>
 #include <asm/pci_insn.h>
 #include <asm/pci_clp.h>
+#include <asm/pci_dma.h>
 
 #define DEBUG				/* enable pr_debug */
 
@@ -230,6 +231,25 @@ static int mod_pci(struct zpci_dev *zdev, int fn, u8 dmaas, struct mod_pci_args 
 	rc = mpcifc_instr(req, fib);
 	free_page((unsigned long) fib);
 	return rc;
+}
+
+/* Modify PCI: Register I/O address translation parameters */
+int zpci_register_ioat(struct zpci_dev *zdev, u8 dmaas,
+		       u64 base, u64 limit, u64 iota)
+{
+	struct mod_pci_args args = { base, limit, iota };
+
+	WARN_ON_ONCE(iota & 0x3fff);
+	args.iota |= ZPCI_IOTA_RTTO_FLAG;
+	return mod_pci(zdev, ZPCI_MOD_FC_REG_IOAT, dmaas, &args);
+}
+
+/* Modify PCI: Unregister I/O address translation parameters */
+int zpci_unregister_ioat(struct zpci_dev *zdev, u8 dmaas)
+{
+	struct mod_pci_args args = { 0, 0, 0 };
+
+	return mod_pci(zdev, ZPCI_MOD_FC_DEREG_IOAT, dmaas, &args);
 }
 
 /* Modify PCI: Unregister adapter interruptions */
@@ -602,6 +622,7 @@ static void zpci_remove_device(struct pci_dev *pdev)
 
 	dev_info(&pdev->dev, "Removing device %u\n", zdev->domain);
 	zdev->state = ZPCI_FN_STATE_CONFIGURED;
+	zpci_dma_exit_device(zdev);
 	zpci_unmap_resources(pdev);
 	list_del(&zdev->entry);		/* can be called from init */
 	zdev->pdev = NULL;
@@ -887,7 +908,14 @@ int zpci_enable_device(struct zpci_dev *zdev)
 	if (rc)
 		goto out;
 	pr_info("Enabled fh: 0x%x fid: 0x%x\n", zdev->fh, zdev->fid);
+
+	rc = zpci_dma_init_device(zdev);
+	if (rc)
+		goto out_dma;
 	return 0;
+
+out_dma:
+	clp_disable_fh(zdev);
 out:
 	return rc;
 }
@@ -929,6 +957,7 @@ out:
 
 void zpci_stop_device(struct zpci_dev *zdev)
 {
+	zpci_dma_exit_device(zdev);
 	/*
 	 * Note: SCLP disables fh via set-pci-fn so don't
 	 * do that here.
@@ -953,6 +982,7 @@ int zpci_scan_device(struct zpci_dev *zdev)
 	return 0;
 
 out:
+	zpci_dma_exit_device(zdev);
 	clp_disable_fh(zdev);
 	return -EIO;
 }
@@ -1028,6 +1058,10 @@ static int __init pci_base_init(void)
 	if (rc)
 		goto out_irq;
 
+	rc = zpci_dma_init();
+	if (rc)
+		goto out_dma;
+
 	rc = clp_find_pci_devices();
 	if (rc)
 		goto out_find;
@@ -1036,6 +1070,8 @@ static int __init pci_base_init(void)
 	return 0;
 
 out_find:
+	zpci_dma_exit();
+out_dma:
 	zpci_irq_exit();
 out_irq:
 	zpci_msihash_exit();

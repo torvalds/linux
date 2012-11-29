@@ -75,7 +75,22 @@ struct zpci_dev {
 	struct msi_map *msi_map[ZPCI_NR_MSI_VECS];
 	unsigned int	aisb;		/* number of the summary bit */
 
+	/* DMA stuff */
+	unsigned long	*dma_table;
+	spinlock_t	dma_table_lock;
+	int		tlb_refresh;
+
+	spinlock_t	iommu_bitmap_lock;
+	unsigned long	*iommu_bitmap;
+	unsigned long	iommu_size;
+	unsigned long	iommu_pages;
+	unsigned int	next_bit;
+
 	struct zpci_bar_struct bars[PCI_BAR_COUNT];
+
+	u64		start_dma;	/* Start of available DMA addresses */
+	u64		end_dma;	/* End of available DMA addresses */
+	u64		dma_mask;	/* DMA address space mask */
 
 	enum pci_bus_speed max_bus_speed;
 };
@@ -95,6 +110,8 @@ int zpci_enable_device(struct zpci_dev *);
 void zpci_stop_device(struct zpci_dev *);
 void zpci_free_device(struct zpci_dev *);
 int zpci_scan_device(struct zpci_dev *);
+int zpci_register_ioat(struct zpci_dev *, u8, u64, u64, u64);
+int zpci_unregister_ioat(struct zpci_dev *, u8);
 
 /* CLP */
 int clp_find_pci_devices(void);
@@ -114,5 +131,9 @@ void zpci_msihash_exit(void);
 struct zpci_dev *get_zdev(struct pci_dev *);
 struct zpci_dev *get_zdev_by_fid(u32);
 bool zpci_fid_present(u32);
+
+/* DMA */
+int zpci_dma_init(void);
+void zpci_dma_exit(void);
 
 #endif
