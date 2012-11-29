@@ -20,6 +20,10 @@ void pci_iounmap(struct pci_dev *, void __iomem *);
 int pci_domain_nr(struct pci_bus *);
 int pci_proc_domain(struct pci_bus *);
 
+/* MSI arch hooks */
+#define arch_setup_msi_irqs	arch_setup_msi_irqs
+#define arch_teardown_msi_irqs	arch_teardown_msi_irqs
+
 #define ZPCI_BUS_NR			0	/* default bus number */
 #define ZPCI_DEVFN			0	/* default device number */
 
@@ -28,6 +32,15 @@ int pci_proc_domain(struct pci_bus *);
 #define ZPCI_FC_ERROR			0x40
 #define ZPCI_FC_BLOCKED			0x20
 #define ZPCI_FC_DMA_ENABLED		0x10
+
+struct msi_map {
+	unsigned long irq;
+	struct msi_desc *msi;
+	struct hlist_node msi_chain;
+};
+
+#define ZPCI_NR_MSI_VECS	64
+#define ZPCI_MSI_MASK		(ZPCI_NR_MSI_VECS - 1)
 
 enum zpci_state {
 	ZPCI_FN_STATE_RESERVED,
@@ -56,6 +69,12 @@ struct zpci_dev {
 	u8		pfgid;		/* function group ID */
 	u16		domain;
 
+	/* IRQ stuff */
+	u64		msi_addr;	/* MSI address */
+	struct zdev_irq_map *irq_map;
+	struct msi_map *msi_map[ZPCI_NR_MSI_VECS];
+	unsigned int	aisb;		/* number of the summary bit */
+
 	struct zpci_bar_struct bars[PCI_BAR_COUNT];
 
 	enum pci_bus_speed max_bus_speed;
@@ -82,6 +101,14 @@ int clp_find_pci_devices(void);
 int clp_add_pci_device(u32, u32, int);
 int clp_enable_fh(struct zpci_dev *, u8);
 int clp_disable_fh(struct zpci_dev *);
+
+/* MSI */
+struct msi_desc *__irq_get_msi_desc(unsigned int);
+int zpci_msi_set_mask_bits(struct msi_desc *, u32, u32);
+int zpci_setup_msi_irq(struct zpci_dev *, struct msi_desc *, unsigned int, int);
+void zpci_teardown_msi_irq(struct zpci_dev *, struct msi_desc *);
+int zpci_msihash_init(void);
+void zpci_msihash_exit(void);
 
 /* Helpers */
 struct zpci_dev *get_zdev(struct pci_dev *);

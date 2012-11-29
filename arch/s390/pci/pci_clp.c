@@ -48,6 +48,9 @@ static void clp_free_block(void *ptr)
 static void clp_store_query_pci_fngrp(struct zpci_dev *zdev,
 				      struct clp_rsp_query_pci_grp *response)
 {
+	zdev->msi_addr = response->msia;
+
+	pr_debug("Supported number of MSI vectors: %u\n", response->noi);
 	switch (response->version) {
 	case 1:
 		zdev->max_bus_speed = PCIE_SPEED_5_0GT;
