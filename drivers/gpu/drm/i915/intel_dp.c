@@ -2098,15 +2098,10 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 		/* Changes to enable or select take place the vblank
 		 * after being written.
 		 */
-		if (crtc == NULL) {
-			/* We can arrive here never having been attached
-			 * to a CRTC, for instance, due to inheriting
-			 * random state from the BIOS.
-			 *
-			 * If the pipe is not running, play safe and
-			 * wait for the clocks to stabilise before
-			 * continuing.
-			 */
+		if (WARN_ON(crtc == NULL)) {
+			/* We should never try to disable a port without a crtc
+			 * attached. For paranoia keep the code around for a
+			 * bit. */
 			POSTING_READ(intel_dp->output_reg);
 			msleep(50);
 		} else
