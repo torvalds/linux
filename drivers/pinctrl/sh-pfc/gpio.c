@@ -71,16 +71,13 @@ static void sh_gpio_free(struct gpio_chip *gc, unsigned offset)
 {
 	struct sh_pfc *pfc = gpio_to_pfc(gc);
 	unsigned long flags;
-	int pinmux_type;
 
 	if (offset < pfc->info->nr_pins)
 		return pinctrl_free_gpio(offset);
 
 	spin_lock_irqsave(&pfc->lock, flags);
 
-	pinmux_type = pfc->info->gpios[offset].flags & PINMUX_FLAG_TYPE;
-
-	sh_pfc_config_gpio(pfc, offset, pinmux_type, GPIO_CFG_FREE);
+	sh_pfc_config_gpio(pfc, offset, PINMUX_TYPE_FUNCTION, GPIO_CFG_FREE);
 
 	spin_unlock_irqrestore(&pfc->lock, flags);
 }
