@@ -24,6 +24,8 @@
 #include "rt3261.h"
 #include "rt3261-dsp.h"
 
+#define INIT_DSP_IN_PROBE
+
 static const u16 rt3261_dsp_init[][2] = {
 	{0x3fd2, 0x0038}, {0x229C, 0x0fa0}, {0x22d2, 0x8400}, {0x22ee, 0x0000},
 	{0x22f2, 0x0040}, {0x22f5, 0x8000}, {0x22f6, 0x0000}, {0x22f9, 0x007f},
@@ -916,7 +918,12 @@ static int rt3261_dsp_event(struct snd_soc_dapm_widget *w,
 		if (!power_on) {
 			snd_soc_update_bits(codec, RT3261_PWR_DIG2,
 				RT3261_PWR_I2S_DSP, RT3261_PWR_I2S_DSP);
+#ifdef INIT_DSP_IN_PROBE
+			snd_soc_update_bits(codec, RT3261_DSP_CTRL3,
+				RT3261_DSP_PD_PIN_MASK, RT3261_DSP_PD_PIN_HI);
+#else
 			rt3261_dsp_snd_effect(codec);
+#endif
 		}
 		power_on++;
 		break;
@@ -1165,7 +1172,16 @@ int rt3261_dsp_probe(struct snd_soc_codec *codec)
 			"Failed to power up DSP IIS interface: %d\n", ret);
 	}
 
+#ifdef INIT_DSP_IN_PROBE
+	rt3261_dsp_snd_effect(codec);
+	ret = rt3261_dsp_read(codec, 0x22fb);
+	if(ret == 0x5a5a)
+		pr_info("DSP init success\n");
+	else
+		pr_info("DSP init failed\n");
+#else
 	rt3261_dsp_conf(codec);
+#endif
 	ret = rt3261_dsp_read(codec, 0x3800);
 	pr_info("DSP version code = 0x%04x\n",ret);
 	/*if(ret != 0x501a) {
@@ -1174,6 +1190,10 @@ int rt3261_dsp_probe(struct snd_soc_codec *codec)
 		schedule_delayed_work(&rt3261->patch_work,
 				msecs_to_jiffies(100));
 	}*/
+#ifdef INIT_DSP_IN_PROBE
+	snd_soc_update_bits(codec, RT3261_DSP_CTRL3,
+		RT3261_DSP_PD_PIN_MASK, RT3261_DSP_PD_PIN_LO);
+#endif
 	snd_soc_update_bits(codec, RT3261_PWR_DIG2,
 		RT3261_PWR_I2S_DSP, 0);
 
@@ -1269,66 +1289,7 @@ EXPORT_SYMBOL_GPL(rt_codec_dsp_ioctl_common);
 #ifdef CONFIG_PM
 int rt3261_dsp_suspend(struct snd_soc_codec *codec, pm_message_t state)
 {
-	struct rt3261_dsp_param param;
-	int ret;
-
-	if (RT3261_VER_C == snd_soc_read(codec, RT3261_VENDOR_ID))
-		return 0;
-
-	ret = snd_soc_update_bits(codec, RT3261_PWR_DIG2,
-		RT3261_PWR_I2S_DSP, RT3261_PWR_I2S_DSP);
-	if (ret < 0) {
-		dev_err(codec->dev,
-			"Failed to power up DSP IIS interface: %d\n", ret);
-		goto rsm_err;
-	}
-
-	ret = snd_soc_update_bits(codec, RT3261_DSP_CTRL3,
-		RT3261_DSP_PD_PIN_MASK, RT3261_DSP_PD_PIN_HI);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to power up DSP: %d\n", ret);
-		goto rsm_err;
-	}
-
-	ret = snd_soc_update_bits(codec, RT3261_DSP_CTRL3,
-		RT3261_DSP_RST_PIN_MASK, RT3261_DSP_RST_PIN_LO);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to reset DSP: %d\n", ret);
-		goto rsm_err;
-	}
-
-	mdelay(10);
-
-	ret = snd_soc_update_bits(codec, RT3261_DSP_CTRL3,
-		RT3261_DSP_RST_PIN_MASK, RT3261_DSP_RST_PIN_HI);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to recover DSP: %d\n", ret);
-		goto rsm_err;
-	}
-
-	param.cmd_fmt = 0x00e0;
-	param.addr = 0x3fd2;
-	param.data = 0x0030;
-	param.cmd = RT3261_DSP_CMD_MW;
-	ret = rt3261_dsp_write(codec, &param);
-	if (ret < 0) {
-		dev_err(codec->dev,
-			"Failed to Power up LDO of Dsp: %d\n", ret);
-		goto rsm_err;
-	}
-
-	ret = snd_soc_update_bits(codec, RT3261_DSP_CTRL3,
-		RT3261_DSP_PD_PIN_MASK, RT3261_DSP_PD_PIN_LO);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to power down DSP: %d\n", ret);
-		goto rsm_err;
-	}
-
 	return 0;
-
-rsm_err:
-
-	return ret;
 }
 EXPORT_SYMBOL_GPL(rt3261_dsp_suspend);
 
