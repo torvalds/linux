@@ -2041,6 +2041,8 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc =
+		to_intel_crtc(intel_dig_port->base.base.crtc);
 	uint32_t DP = intel_dp->DP;
 
 	/*
@@ -2075,7 +2077,8 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 	}
 	POSTING_READ(intel_dp->output_reg);
 
-	msleep(17);
+	/* We don't really know why we're doing this */
+	intel_wait_for_vblank(dev, intel_crtc->pipe);
 
 	if (HAS_PCH_IBX(dev) &&
 	    I915_READ(intel_dp->output_reg) & DP_PIPEB_SELECT) {
@@ -2107,7 +2110,7 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 			POSTING_READ(intel_dp->output_reg);
 			msleep(50);
 		} else
-			intel_wait_for_vblank(dev, to_intel_crtc(crtc)->pipe);
+			intel_wait_for_vblank(dev, intel_crtc->pipe);
 	}
 
 	DP &= ~DP_AUDIO_OUTPUT_ENABLE;
