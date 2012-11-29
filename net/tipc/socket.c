@@ -1187,6 +1187,53 @@ static int rx_queue_full(struct tipc_msg *msg, u32 queue_size, u32 base)
 }
 
 /**
+ * filter_connect - Handle all incoming messages for a connection-based socket
+ * @tsock: TIPC socket
+ * @msg: message
+ *
+ * Returns TIPC error status code and socket error status code
+ * once it encounters some errors
+ */
+static u32 filter_connect(struct tipc_sock *tsock, struct sk_buff **buf)
+{
+	struct socket *sock = tsock->sk.sk_socket;
+	struct tipc_msg *msg = buf_msg(*buf);
+	u32 retval = TIPC_ERR_NO_PORT;
+
+	if (msg_mcast(msg))
+		return retval;
+
+	switch ((int)sock->state) {
+	case SS_CONNECTED:
+		/* Accept only connection-based messages sent by peer */
+		if (msg_connected(msg) && tipc_port_peer_msg(tsock->p, msg)) {
+			if (unlikely(msg_errcode(msg))) {
+				sock->state = SS_DISCONNECTING;
+				__tipc_disconnect(tsock->p);
+			}
+			retval = TIPC_OK;
+		}
+		break;
+	case SS_CONNECTING:
+		/* Accept only ACK or NACK message */
+		if (msg_connected(msg) || (msg_errcode(msg)))
+			retval = TIPC_OK;
+		break;
+	case SS_LISTENING:
+	case SS_UNCONNECTED:
+		/* Accept only SYN message */
+		if (!msg_connected(msg) && !(msg_errcode(msg)))
+			retval = TIPC_OK;
+		break;
+	case SS_DISCONNECTING:
+		break;
+	default:
+		pr_err("Unknown socket state %u\n", sock->state);
+	}
+	return retval;
+}
+
+/**
  * filter_rcv - validate incoming message
  * @sk: socket
  * @buf: message
@@ -1203,6 +1250,7 @@ static u32 filter_rcv(struct sock *sk, struct sk_buff *buf)
 	struct socket *sock = sk->sk_socket;
 	struct tipc_msg *msg = buf_msg(buf);
 	u32 recv_q_len;
+	u32 res = TIPC_OK;
 
 	/* Reject message if it is wrong sort of message for socket */
 	if (msg_type(msg) > TIPC_DIRECT_MSG)
@@ -1212,24 +1260,9 @@ static u32 filter_rcv(struct sock *sk, struct sk_buff *buf)
 		if (msg_connected(msg))
 			return TIPC_ERR_NO_PORT;
 	} else {
-		if (msg_mcast(msg))
-			return TIPC_ERR_NO_PORT;
-		if (sock->state == SS_CONNECTED) {
-			if (!msg_connected(msg) ||
-			    !tipc_port_peer_msg(tipc_sk_port(sk), msg))
-				return TIPC_ERR_NO_PORT;
-		} else if (sock->state == SS_CONNECTING) {
-			if (!msg_connected(msg) && (msg_errcode(msg) == 0))
-				return TIPC_ERR_NO_PORT;
-		} else if (sock->state == SS_LISTENING) {
-			if (msg_connected(msg) || msg_errcode(msg))
-				return TIPC_ERR_NO_PORT;
-		} else if (sock->state == SS_DISCONNECTING) {
-			return TIPC_ERR_NO_PORT;
-		} else /* (sock->state == SS_UNCONNECTED) */ {
-			if (msg_connected(msg) || msg_errcode(msg))
-				return TIPC_ERR_NO_PORT;
-		}
+		res = filter_connect(tipc_sk(sk), &buf);
+		if (res != TIPC_OK || buf == NULL)
+			return res;
 	}
 
 	/* Reject message if there isn't room to queue it */
@@ -1242,12 +1275,6 @@ static u32 filter_rcv(struct sock *sk, struct sk_buff *buf)
 	/* Enqueue message (finally!) */
 	TIPC_SKB_CB(buf)->handle = 0;
 	__skb_queue_tail(&sk->sk_receive_queue, buf);
-
-	/* Initiate connection termination for an incoming 'FIN' */
-	if (unlikely(msg_errcode(msg) && (sock->state == SS_CONNECTED))) {
-		sock->state = SS_DISCONNECTING;
-		__tipc_disconnect(tipc_sk_port(sk));
-	}
 
 	sk->sk_data_ready(sk, 0);
 	return TIPC_OK;
