@@ -3106,18 +3106,17 @@ done:
 		if (test_bit(FLAG_EFS_ENABLE, &chan->flags))
 			l2cap_add_opt_efs(&ptr, chan);
 
-		if (!(chan->conn->feat_mask & L2CAP_FEAT_FCS))
-			break;
-
-		if (chan->fcs == L2CAP_FCS_NONE ||
-		    test_bit(CONF_NO_FCS_RECV, &chan->conf_state)) {
-			chan->fcs = L2CAP_FCS_NONE;
-			l2cap_add_conf_opt(&ptr, L2CAP_CONF_FCS, 1, chan->fcs);
-		}
-
 		if (test_bit(FLAG_EXT_CTRL, &chan->flags))
 			l2cap_add_conf_opt(&ptr, L2CAP_CONF_EWS, 2,
 					   chan->tx_win);
+
+		if (chan->conn->feat_mask & L2CAP_FEAT_FCS)
+			if (chan->fcs == L2CAP_FCS_NONE ||
+			    test_bit(CONF_NO_FCS_RECV, &chan->conf_state)) {
+				chan->fcs = L2CAP_FCS_NONE;
+				l2cap_add_conf_opt(&ptr, L2CAP_CONF_FCS, 1,
+						   chan->fcs);
+			}
 		break;
 
 	case L2CAP_MODE_STREAMING:
@@ -3139,14 +3138,13 @@ done:
 		if (test_bit(FLAG_EFS_ENABLE, &chan->flags))
 			l2cap_add_opt_efs(&ptr, chan);
 
-		if (!(chan->conn->feat_mask & L2CAP_FEAT_FCS))
-			break;
-
-		if (chan->fcs == L2CAP_FCS_NONE ||
-		    test_bit(CONF_NO_FCS_RECV, &chan->conf_state)) {
-			chan->fcs = L2CAP_FCS_NONE;
-			l2cap_add_conf_opt(&ptr, L2CAP_CONF_FCS, 1, chan->fcs);
-		}
+		if (chan->conn->feat_mask & L2CAP_FEAT_FCS)
+			if (chan->fcs == L2CAP_FCS_NONE ||
+			    test_bit(CONF_NO_FCS_RECV, &chan->conf_state)) {
+				chan->fcs = L2CAP_FCS_NONE;
+				l2cap_add_conf_opt(&ptr, L2CAP_CONF_FCS, 1,
+						   chan->fcs);
+			}
 		break;
 	}
 
