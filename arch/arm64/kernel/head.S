@@ -158,6 +158,7 @@ ENTRY(el2_setup)
 	mrs	x0, cnthctl_el2
 	orr	x0, x0, #3			// Enable EL1 physical timers
 	msr	cnthctl_el2, x0
+	msr	cntvoff_el2, xzr		// Clear virtual offset
 
 	/* Populate ID registers. */
 	mrs	x0, midr_el1

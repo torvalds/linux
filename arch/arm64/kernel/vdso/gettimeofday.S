@@ -220,9 +220,9 @@ ENTRY(__do_get_tspec)
 	ldp	w11, w12, [vdso_data, #VDSO_CS_MULT]
 	seqcnt_read w9
 
-	/* Read the physical counter. */
+	/* Read the virtual counter. */
 	isb
-	mrs	x15, cntpct_el0
+	mrs	x15, cntvct_el0
 
 	/* Calculate cycle delta and convert to ns. */
 	sub	x10, x15, x10
