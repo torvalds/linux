@@ -270,18 +270,10 @@ static int gpio_keys_polled_probe(struct platform_device *pdev)
 			goto err_free_gpio;
 		}
 
-		error = gpio_request(gpio,
-				     button->desc ? button->desc : DRV_NAME);
+		error = gpio_request_one(gpio, GPIOF_IN,
+					 button->desc ?: DRV_NAME);
 		if (error) {
 			dev_err(dev, "unable to claim gpio %u, err=%d\n",
-				gpio, error);
-			goto err_free_gpio;
-		}
-
-		error = gpio_direction_input(gpio);
-		if (error) {
-			dev_err(dev,
-				"unable to set direction on gpio %u, err=%d\n",
 				gpio, error);
 			goto err_free_gpio;
 		}
