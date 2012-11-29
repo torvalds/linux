@@ -819,7 +819,7 @@ static void of_register_spi_devices(struct spi_master *master)
 	if (!master->dev.of_node)
 		return;
 
-	for_each_child_of_node(master->dev.of_node, nc) {
+	for_each_available_child_of_node(master->dev.of_node, nc) {
 		/* Alloc an spi_device */
 		spi = spi_alloc_device(master);
 		if (!spi) {
