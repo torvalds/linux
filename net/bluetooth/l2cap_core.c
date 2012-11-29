@@ -1013,6 +1013,7 @@ static bool __amp_capable(struct l2cap_chan *chan)
 	struct l2cap_conn *conn = chan->conn;
 
 	if (enable_hs &&
+	    hci_amp_capable() &&
 	    chan->chan_policy == BT_CHANNEL_POLICY_AMP_PREFERRED &&
 	    conn->fixed_chan_mask & L2CAP_FC_A2MP)
 		return true;
