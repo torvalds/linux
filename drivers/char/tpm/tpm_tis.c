@@ -374,7 +374,7 @@ static int probe_itpm(struct tpm_chip *chip)
 	if (vendor != TPM_VID_INTEL)
 		return 0;
 
-	itpm = 0;
+	itpm = false;
 
 	rc = tpm_tis_send_data(chip, cmd_getticks, len);
 	if (rc == 0)
@@ -383,7 +383,7 @@ static int probe_itpm(struct tpm_chip *chip)
 	tpm_tis_ready(chip);
 	release_locality(chip, chip->vendor.locality, 0);
 
-	itpm = 1;
+	itpm = true;
 
 	rc = tpm_tis_send_data(chip, cmd_getticks, len);
 	if (rc == 0) {
@@ -502,7 +502,7 @@ static irqreturn_t tis_int_handler(int dummy, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static bool interrupts = 1;
+static bool interrupts = true;
 module_param(interrupts, bool, 0444);
 MODULE_PARM_DESC(interrupts, "Enable interrupts");
 
@@ -545,7 +545,7 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 			rc = -ENODEV;
 			goto out_err;
 		}
-		itpm = (probe == 0) ? 0 : 1;
+		itpm = !!probe;
 	}
 
 	if (itpm)
@@ -741,10 +741,10 @@ static int tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 	if (pnp_irq_valid(pnp_dev, 0))
 		irq = pnp_irq(pnp_dev, 0);
 	else
-		interrupts = 0;
+		interrupts = false;
 
 	if (is_itpm(pnp_dev))
-		itpm = 1;
+		itpm = true;
 
 	return tpm_tis_init(&pnp_dev->dev, start, len, irq);
 }
