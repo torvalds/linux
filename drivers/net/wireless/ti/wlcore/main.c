@@ -1200,8 +1200,8 @@ static void wl1271_op_tx(struct ieee80211_hw *hw,
 	 */
 	if (hlid == WL12XX_INVALID_LINK_ID ||
 	    (!test_bit(hlid, wlvif->links_map)) ||
-	     (wlcore_is_queue_stopped(wl, q) &&
-	      !wlcore_is_queue_stopped_by_reason(wl, q,
+	     (wlcore_is_queue_stopped(wl, wlvif, q) &&
+	      !wlcore_is_queue_stopped_by_reason(wl, wlvif, q,
 			WLCORE_QUEUE_STOP_REASON_WATERMARK))) {
 		wl1271_debug(DEBUG_TX, "DROP skb hlid %d q %d", hlid, q);
 		ieee80211_free_txskb(hw, skb);
@@ -1219,11 +1219,11 @@ static void wl1271_op_tx(struct ieee80211_hw *hw,
 	 * The workqueue is slow to process the tx_queue and we need stop
 	 * the queue here, otherwise the queue will get too long.
 	 */
-	if (wl->tx_queue_count[q] >= WL1271_TX_QUEUE_HIGH_WATERMARK &&
-	    !wlcore_is_queue_stopped_by_reason(wl, q,
+	if (wlvif->tx_queue_count[q] >= WL1271_TX_QUEUE_HIGH_WATERMARK &&
+	    !wlcore_is_queue_stopped_by_reason(wl, wlvif, q,
 					WLCORE_QUEUE_STOP_REASON_WATERMARK)) {
 		wl1271_debug(DEBUG_TX, "op_tx: stopping queues for q %d", q);
-		wlcore_stop_queue_locked(wl, q,
+		wlcore_stop_queue_locked(wl, wlvif, q,
 					 WLCORE_QUEUE_STOP_REASON_WATERMARK);
 	}
 
@@ -2290,6 +2290,81 @@ static void wl12xx_force_active_psm(struct wl1271 *wl)
 	}
 }
 
+struct wlcore_hw_queue_iter_data {
+	unsigned long hw_queue_map[BITS_TO_LONGS(WLCORE_NUM_MAC_ADDRESSES)];
+	/* current vif */
+	struct ieee80211_vif *vif;
+	/* is the current vif among those iterated */
+	bool cur_running;
+};
+
+static void wlcore_hw_queue_iter(void *data, u8 *mac,
+				 struct ieee80211_vif *vif)
+{
+	struct wlcore_hw_queue_iter_data *iter_data = data;
+
+	if (WARN_ON_ONCE(vif->hw_queue[0] == IEEE80211_INVAL_HW_QUEUE))
+		return;
+
+	if (iter_data->cur_running || vif == iter_data->vif) {
+		iter_data->cur_running = true;
+		return;
+	}
+
+	__set_bit(vif->hw_queue[0] / NUM_TX_QUEUES, iter_data->hw_queue_map);
+}
+
+static int wlcore_allocate_hw_queue_base(struct wl1271 *wl,
+					 struct wl12xx_vif *wlvif)
+{
+	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
+	struct wlcore_hw_queue_iter_data iter_data = {};
+	int i, q_base;
+
+	iter_data.vif = vif;
+
+	/* mark all bits taken by active interfaces */
+	ieee80211_iterate_active_interfaces_atomic(wl->hw,
+					IEEE80211_IFACE_ITER_RESUME_ALL,
+					wlcore_hw_queue_iter, &iter_data);
+
+	/* the current vif is already running in mac80211 (resume/recovery) */
+	if (iter_data.cur_running) {
+		wlvif->hw_queue_base = vif->hw_queue[0];
+		wl1271_debug(DEBUG_MAC80211,
+			     "using pre-allocated hw queue base %d",
+			     wlvif->hw_queue_base);
+
+		/* interface type might have changed type */
+		goto adjust_cab_queue;
+	}
+
+	q_base = find_first_zero_bit(iter_data.hw_queue_map,
+				     WLCORE_NUM_MAC_ADDRESSES);
+	if (q_base >= WLCORE_NUM_MAC_ADDRESSES)
+		return -EBUSY;
+
+	wlvif->hw_queue_base = q_base * NUM_TX_QUEUES;
+	wl1271_debug(DEBUG_MAC80211, "allocating hw queue base: %d",
+		     wlvif->hw_queue_base);
+
+	for (i = 0; i < NUM_TX_QUEUES; i++) {
+		wl->queue_stop_reasons[wlvif->hw_queue_base + i] = 0;
+		/* register hw queues in mac80211 */
+		vif->hw_queue[i] = wlvif->hw_queue_base + i;
+	}
+
+adjust_cab_queue:
+	/* the last places are reserved for cab queues per interface */
+	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
+		vif->cab_queue = NUM_TX_QUEUES * WLCORE_NUM_MAC_ADDRESSES +
+				 wlvif->hw_queue_base / NUM_TX_QUEUES;
+	else
+		vif->cab_queue = IEEE80211_INVAL_HW_QUEUE;
+
+	return 0;
+}
+
 static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif)
 {
@@ -2335,6 +2410,10 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		ret = -EINVAL;
 		goto out;
 	}
+
+	ret = wlcore_allocate_hw_queue_base(wl, wlvif);
+	if (ret < 0)
+		goto out;
 
 	if (wl12xx_need_fw_change(wl, vif_count, true)) {
 		wl12xx_force_active_psm(wl);
@@ -5564,7 +5643,8 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 		IEEE80211_HW_AP_LINK_PS |
 		IEEE80211_HW_AMPDU_AGGREGATION |
 		IEEE80211_HW_TX_AMPDU_SETUP_IN_HW |
-		IEEE80211_HW_SCAN_WHILE_IDLE;
+		IEEE80211_HW_SCAN_WHILE_IDLE |
+		IEEE80211_HW_QUEUE_CONTROL;
 
 	wl->hw->wiphy->cipher_suites = cipher_suites;
 	wl->hw->wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
@@ -5631,7 +5711,14 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 	wl->hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 		&wl->bands[IEEE80211_BAND_5GHZ];
 
-	wl->hw->queues = 4;
+	/*
+	 * allow 4 queues per mac address we support +
+	 * 1 cab queue per mac + one global offchannel Tx queue
+	 */
+	wl->hw->queues = (NUM_TX_QUEUES + 1) * WLCORE_NUM_MAC_ADDRESSES + 1;
+
+	/* the last queue is the offchannel queue */
+	wl->hw->offchannel_tx_hw_queue = wl->hw->queues - 1;
 	wl->hw->max_rates = 1;
 
 	wl->hw->wiphy->reg_notifier = wl1271_reg_notify;

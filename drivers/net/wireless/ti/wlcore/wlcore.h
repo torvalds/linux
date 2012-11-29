@@ -255,7 +255,8 @@ struct wl1271 {
 
 	/* Frames scheduled for transmission, not handled yet */
 	int tx_queue_count[NUM_TX_QUEUES];
-	unsigned long queue_stop_reasons[NUM_TX_QUEUES];
+	unsigned long queue_stop_reasons[
+				NUM_TX_QUEUES * WLCORE_NUM_MAC_ADDRESSES];
 
 	/* Frames received, not handled yet by mac80211 */
 	struct sk_buff_head deferred_rx_queue;

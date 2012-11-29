@@ -452,14 +452,17 @@ u32 wl1271_tx_enabled_rates_get(struct wl1271 *wl, u32 rate_set,
 void wl1271_handle_tx_low_watermark(struct wl1271 *wl)
 {
 	int i;
+	struct wl12xx_vif *wlvif;
 
-	for (i = 0; i < NUM_TX_QUEUES; i++) {
-		if (wlcore_is_queue_stopped_by_reason(wl, i,
-			WLCORE_QUEUE_STOP_REASON_WATERMARK) &&
-		    wl->tx_queue_count[i] <= WL1271_TX_QUEUE_LOW_WATERMARK) {
-			/* firmware buffer has space, restart queues */
-			wlcore_wake_queue(wl, i,
-					  WLCORE_QUEUE_STOP_REASON_WATERMARK);
+	wl12xx_for_each_wlvif(wl, wlvif) {
+		for (i = 0; i < NUM_TX_QUEUES; i++) {
+			if (wlcore_is_queue_stopped_by_reason(wl, wlvif, i,
+					WLCORE_QUEUE_STOP_REASON_WATERMARK) &&
+			    wlvif->tx_queue_count[i] <=
+					WL1271_TX_QUEUE_LOW_WATERMARK)
+				/* firmware buffer has space, restart queues */
+				wlcore_wake_queue(wl, wlvif, i,
+					WLCORE_QUEUE_STOP_REASON_WATERMARK);
 		}
 	}
 }
@@ -1194,44 +1197,46 @@ u32 wl1271_tx_min_rate_get(struct wl1271 *wl, u32 rate_set)
 }
 EXPORT_SYMBOL_GPL(wl1271_tx_min_rate_get);
 
-void wlcore_stop_queue_locked(struct wl1271 *wl, u8 queue,
-			      enum wlcore_queue_stop_reason reason)
+void wlcore_stop_queue_locked(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			      u8 queue, enum wlcore_queue_stop_reason reason)
 {
-	bool stopped = !!wl->queue_stop_reasons[queue];
+	int hwq = wlcore_tx_get_mac80211_queue(wlvif, queue);
+	bool stopped = !!wl->queue_stop_reasons[hwq];
 
 	/* queue should not be stopped for this reason */
-	WARN_ON(test_and_set_bit(reason, &wl->queue_stop_reasons[queue]));
+	WARN_ON_ONCE(test_and_set_bit(reason, &wl->queue_stop_reasons[hwq]));
 
 	if (stopped)
 		return;
 
-	ieee80211_stop_queue(wl->hw, wl1271_tx_get_mac80211_queue(queue));
+	ieee80211_stop_queue(wl->hw, hwq);
 }
 
-void wlcore_stop_queue(struct wl1271 *wl, u8 queue,
+void wlcore_stop_queue(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 queue,
 		       enum wlcore_queue_stop_reason reason)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
-	wlcore_stop_queue_locked(wl, queue, reason);
+	wlcore_stop_queue_locked(wl, wlvif, queue, reason);
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 }
 
-void wlcore_wake_queue(struct wl1271 *wl, u8 queue,
+void wlcore_wake_queue(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 queue,
 		       enum wlcore_queue_stop_reason reason)
 {
 	unsigned long flags;
+	int hwq = wlcore_tx_get_mac80211_queue(wlvif, queue);
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
 
 	/* queue should not be clear for this reason */
-	WARN_ON(!test_and_clear_bit(reason, &wl->queue_stop_reasons[queue]));
+	WARN_ON_ONCE(!test_and_clear_bit(reason, &wl->queue_stop_reasons[hwq]));
 
-	if (wl->queue_stop_reasons[queue])
+	if (wl->queue_stop_reasons[hwq])
 		goto out;
 
-	ieee80211_wake_queue(wl->hw, wl1271_tx_get_mac80211_queue(queue));
+	ieee80211_wake_queue(wl->hw, hwq);
 
 out:
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
@@ -1241,48 +1246,55 @@ void wlcore_stop_queues(struct wl1271 *wl,
 			enum wlcore_queue_stop_reason reason)
 {
 	int i;
+	unsigned long flags;
 
-	for (i = 0; i < NUM_TX_QUEUES; i++)
-		wlcore_stop_queue(wl, i, reason);
+	spin_lock_irqsave(&wl->wl_lock, flags);
+
+	/* mark all possible queues as stopped */
+        for (i = 0; i < WLCORE_NUM_MAC_ADDRESSES * NUM_TX_QUEUES; i++)
+                WARN_ON_ONCE(test_and_set_bit(reason,
+					      &wl->queue_stop_reasons[i]));
+
+	/* use the global version to make sure all vifs in mac80211 we don't
+	 * know are stopped.
+	 */
+	ieee80211_stop_queues(wl->hw);
+
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
 }
-EXPORT_SYMBOL_GPL(wlcore_stop_queues);
 
 void wlcore_wake_queues(struct wl1271 *wl,
 			enum wlcore_queue_stop_reason reason)
-{
-	int i;
-
-	for (i = 0; i < NUM_TX_QUEUES; i++)
-		wlcore_wake_queue(wl, i, reason);
-}
-EXPORT_SYMBOL_GPL(wlcore_wake_queues);
-
-void wlcore_reset_stopped_queues(struct wl1271 *wl)
 {
 	int i;
 	unsigned long flags;
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
 
-	for (i = 0; i < NUM_TX_QUEUES; i++) {
-		if (!wl->queue_stop_reasons[i])
-			continue;
+	/* mark all possible queues as awake */
+        for (i = 0; i < WLCORE_NUM_MAC_ADDRESSES * NUM_TX_QUEUES; i++)
+		WARN_ON_ONCE(!test_and_clear_bit(reason,
+						 &wl->queue_stop_reasons[i]));
 
-		wl->queue_stop_reasons[i] = 0;
-		ieee80211_wake_queue(wl->hw,
-				     wl1271_tx_get_mac80211_queue(i));
-	}
+	/* use the global version to make sure all vifs in mac80211 we don't
+	 * know are woken up.
+	 */
+	ieee80211_wake_queues(wl->hw);
 
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 }
 
-bool wlcore_is_queue_stopped_by_reason(struct wl1271 *wl, u8 queue,
-			     enum wlcore_queue_stop_reason reason)
+bool wlcore_is_queue_stopped_by_reason(struct wl1271 *wl,
+				       struct wl12xx_vif *wlvif, u8 queue,
+				       enum wlcore_queue_stop_reason reason)
 {
-	return test_bit(reason, &wl->queue_stop_reasons[queue]);
+	int hwq = wlcore_tx_get_mac80211_queue(wlvif, queue);
+	return test_bit(reason, &wl->queue_stop_reasons[hwq]);
 }
 
-bool wlcore_is_queue_stopped(struct wl1271 *wl, u8 queue)
+bool wlcore_is_queue_stopped(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			     u8 queue)
 {
-	return !!wl->queue_stop_reasons[queue];
+	int hwq = wlcore_tx_get_mac80211_queue(wlvif, queue);
+	return !!wl->queue_stop_reasons[hwq];
 }

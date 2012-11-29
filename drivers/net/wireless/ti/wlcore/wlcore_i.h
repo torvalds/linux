@@ -430,6 +430,15 @@ struct wl12xx_vif {
 	int inconn_count;
 
 	/*
+	 * This vif's queues are mapped to mac80211 HW queues as:
+	 * VO - hw_queue_base
+	 * VI - hw_queue_base + 1
+	 * BE - hw_queue_base + 2
+	 * BK - hw_queue_base + 3
+	 */
+	int hw_queue_base;
+
+	/*
 	 * This struct must be last!
 	 * data that has to be saved acrossed reconfigs (e.g. recovery)
 	 * should be declared in this struct.
