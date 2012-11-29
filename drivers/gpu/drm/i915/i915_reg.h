@@ -3339,6 +3339,8 @@
 #define _PFA_CTL_1               0x68080
 #define _PFB_CTL_1               0x68880
 #define  PF_ENABLE              (1<<31)
+#define  PF_PIPE_SEL_MASK_IVB	(3<<29)
+#define  PF_PIPE_SEL_IVB(pipe)	((pipe)<<29)
 #define  PF_FILTER_MASK		(3<<23)
 #define  PF_FILTER_PROGRAMMED	(0<<23)
 #define  PF_FILTER_MED_3x3	(1<<23)
@@ -3851,6 +3853,7 @@
 
 #define SOUTH_DSPCLK_GATE_D	0xc2020
 #define  PCH_DPLSUNIT_CLOCK_GATE_DISABLE (1<<29)
+#define  PCH_LP_PARTITION_LEVEL_DISABLE  (1<<12)
 
 /* CPU: FDI_TX */
 #define _FDI_TXA_CTL             0x60100
@@ -4514,6 +4517,7 @@
 #define  DDI_BUF_EMP_800MV_3_5DB_HSW		(8<<24)   /* Sel8 */
 #define  DDI_BUF_EMP_MASK			(0xf<<24)
 #define  DDI_BUF_IS_IDLE			(1<<7)
+#define  DDI_A_4_LANES				(1<<4)
 #define  DDI_PORT_WIDTH_X1			(0<<1)
 #define  DDI_PORT_WIDTH_X2			(1<<1)
 #define  DDI_PORT_WIDTH_X4			(3<<1)

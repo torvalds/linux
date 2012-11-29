@@ -367,8 +367,9 @@ static void i915_ggtt_clear_range(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	gtt_pte_t scratch_pte;
-	volatile void __iomem *gtt_base = dev_priv->mm.gtt->gtt + first_entry;
+	gtt_pte_t __iomem *gtt_base = dev_priv->mm.gtt->gtt + first_entry;
 	const int max_entries = dev_priv->mm.gtt->gtt_total_entries - first_entry;
+	int i;
 
 	if (INTEL_INFO(dev)->gen < 6) {
 		intel_gtt_clear_range(first_entry, num_entries);
@@ -381,7 +382,8 @@ static void i915_ggtt_clear_range(struct drm_device *dev,
 		num_entries = max_entries;
 
 	scratch_pte = pte_encode(dev, dev_priv->mm.gtt->scratch_page_dma, I915_CACHE_LLC);
-	memset_io(gtt_base, scratch_pte, num_entries * sizeof(scratch_pte));
+	for (i = 0; i < num_entries; i++)
+		iowrite32(scratch_pte, &gtt_base[i]);
 	readl(gtt_base);
 }
 
@@ -609,7 +611,6 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	phys_addr_t gtt_bus_addr;
 	u16 snb_gmch_ctl;
-	u32 tmp;
 	int ret;
 
 	/* On modern platforms we need not worry ourself with the legacy
@@ -638,12 +639,9 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(40)))
 		pci_set_consistent_dma_mask(dev->pdev, DMA_BIT_MASK(40));
 
-	pci_read_config_dword(dev->pdev, PCI_BASE_ADDRESS_0, &tmp);
 	/* For GEN6+ the PTEs for the ggtt live at 2MB + BAR0 */
-	gtt_bus_addr = (tmp & PCI_BASE_ADDRESS_MEM_MASK) + (2<<20);
-
-	pci_read_config_dword(dev->pdev, PCI_BASE_ADDRESS_2, &tmp);
-	dev_priv->mm.gtt->gma_bus_addr = tmp & PCI_BASE_ADDRESS_MEM_MASK;
+	gtt_bus_addr = pci_resource_start(dev->pdev, 0) + (2<<20);
+	dev_priv->mm.gtt->gma_bus_addr = pci_resource_start(dev->pdev, 2);
 
 	/* i9xx_setup */
 	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);

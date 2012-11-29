@@ -558,12 +558,9 @@ update_mboxes(struct intel_ring_buffer *ring,
 	    u32 seqno,
 	    u32 mmio_offset)
 {
-	intel_ring_emit(ring, MI_SEMAPHORE_MBOX |
-			      MI_SEMAPHORE_GLOBAL_GTT |
-			      MI_SEMAPHORE_REGISTER |
-			      MI_SEMAPHORE_UPDATE);
-	intel_ring_emit(ring, seqno);
+	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
 	intel_ring_emit(ring, mmio_offset);
+	intel_ring_emit(ring, seqno);
 }
 
 /**

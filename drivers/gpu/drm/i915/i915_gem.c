@@ -1345,30 +1345,17 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	trace_i915_gem_object_fault(obj, page_offset, true, write);
 
 	/* Now bind it into the GTT if needed */
-	if (!obj->map_and_fenceable) {
-		ret = i915_gem_object_unbind(obj);
-		if (ret)
-			goto unlock;
-	}
-	if (!obj->gtt_space) {
-		ret = i915_gem_object_bind_to_gtt(obj, 0, true, false);
-		if (ret)
-			goto unlock;
-
-		ret = i915_gem_object_set_to_gtt_domain(obj, write);
-		if (ret)
-			goto unlock;
-	}
-
-	if (!obj->has_global_gtt_mapping)
-		i915_gem_gtt_bind_object(obj, obj->cache_level);
-
-	ret = i915_gem_object_get_fence(obj);
+	ret = i915_gem_object_pin(obj, 0, true, false);
 	if (ret)
 		goto unlock;
 
-	if (i915_gem_object_is_inactive(obj))
-		list_move_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
+	ret = i915_gem_object_set_to_gtt_domain(obj, write);
+	if (ret)
+		goto unpin;
+
+	ret = i915_gem_object_get_fence(obj);
+	if (ret)
+		goto unpin;
 
 	obj->fault_mappable = true;
 
@@ -1377,6 +1364,8 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	/* Finally, remap it using the new GTT offset */
 	ret = vm_insert_pfn(vma, (unsigned long)vmf->virtual_address, pfn);
+unpin:
+	i915_gem_object_unpin(obj);
 unlock:
 	mutex_unlock(&dev->struct_mutex);
 out:
@@ -2925,13 +2914,14 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
+	i915_gem_object_pin_pages(obj);
+
  search_free:
 	if (map_and_fenceable)
-		free_space =
-			drm_mm_search_free_in_range_color(&dev_priv->mm.gtt_space,
-							  size, alignment, obj->cache_level,
-							  0, dev_priv->mm.gtt_mappable_end,
-							  false);
+		free_space = drm_mm_search_free_in_range_color(&dev_priv->mm.gtt_space,
+							       size, alignment, obj->cache_level,
+							       0, dev_priv->mm.gtt_mappable_end,
+							       false);
 	else
 		free_space = drm_mm_search_free_color(&dev_priv->mm.gtt_space,
 						      size, alignment, obj->cache_level,
@@ -2939,60 +2929,60 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 
 	if (free_space != NULL) {
 		if (map_and_fenceable)
-			obj->gtt_space =
+			free_space =
 				drm_mm_get_block_range_generic(free_space,
 							       size, alignment, obj->cache_level,
 							       0, dev_priv->mm.gtt_mappable_end,
 							       false);
 		else
-			obj->gtt_space =
+			free_space =
 				drm_mm_get_block_generic(free_space,
 							 size, alignment, obj->cache_level,
 							 false);
 	}
-	if (obj->gtt_space == NULL) {
+	if (free_space == NULL) {
 		ret = i915_gem_evict_something(dev, size, alignment,
 					       obj->cache_level,
 					       map_and_fenceable,
 					       nonblocking);
-		if (ret)
+		if (ret) {
+			i915_gem_object_unpin_pages(obj);
 			return ret;
+		}
 
 		goto search_free;
 	}
 	if (WARN_ON(!i915_gem_valid_gtt_space(dev,
-					      obj->gtt_space,
+					      free_space,
 					      obj->cache_level))) {
-		drm_mm_put_block(obj->gtt_space);
-		obj->gtt_space = NULL;
+		i915_gem_object_unpin_pages(obj);
+		drm_mm_put_block(free_space);
 		return -EINVAL;
 	}
 
-
 	ret = i915_gem_gtt_prepare_object(obj);
 	if (ret) {
-		drm_mm_put_block(obj->gtt_space);
-		obj->gtt_space = NULL;
+		i915_gem_object_unpin_pages(obj);
+		drm_mm_put_block(free_space);
 		return ret;
 	}
-
-	if (!dev_priv->mm.aliasing_ppgtt)
-		i915_gem_gtt_bind_object(obj, obj->cache_level);
 
 	list_move_tail(&obj->gtt_list, &dev_priv->mm.bound_list);
 	list_add_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
 
-	obj->gtt_offset = obj->gtt_space->start;
+	obj->gtt_space = free_space;
+	obj->gtt_offset = free_space->start;
 
 	fenceable =
-		obj->gtt_space->size == fence_size &&
-		(obj->gtt_space->start & (fence_alignment - 1)) == 0;
+		free_space->size == fence_size &&
+		(free_space->start & (fence_alignment - 1)) == 0;
 
 	mappable =
 		obj->gtt_offset + obj->base.size <= dev_priv->mm.gtt_mappable_end;
 
 	obj->map_and_fenceable = mappable && fenceable;
 
+	i915_gem_object_unpin_pages(obj);
 	trace_i915_gem_object_bind(obj, map_and_fenceable);
 	i915_gem_verify_gtt(dev);
 	return 0;
@@ -3456,11 +3446,16 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 	}
 
 	if (obj->gtt_space == NULL) {
+		struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+
 		ret = i915_gem_object_bind_to_gtt(obj, alignment,
 						  map_and_fenceable,
 						  nonblocking);
 		if (ret)
 			return ret;
+
+		if (!dev_priv->mm.aliasing_ppgtt)
+			i915_gem_gtt_bind_object(obj, obj->cache_level);
 	}
 
 	if (!obj->has_global_gtt_mapping && map_and_fenceable)
@@ -4347,6 +4342,19 @@ void i915_gem_release(struct drm_device *dev, struct drm_file *file)
 	spin_unlock(&file_priv->mm.lock);
 }
 
+static bool mutex_is_locked_by(struct mutex *mutex, struct task_struct *task)
+{
+	if (!mutex_is_locked(mutex))
+		return false;
+
+#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_MUTEXES)
+	return mutex->owner == task;
+#else
+	/* Since UP may be pre-empted, we cannot assume that we own the lock */
+	return false;
+#endif
+}
+
 static int
 i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
 {
@@ -4357,10 +4365,15 @@ i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_i915_gem_object *obj;
 	int nr_to_scan = sc->nr_to_scan;
+	bool unlock = true;
 	int cnt;
 
-	if (!mutex_trylock(&dev->struct_mutex))
-		return 0;
+	if (!mutex_trylock(&dev->struct_mutex)) {
+		if (!mutex_is_locked_by(&dev->struct_mutex, current))
+			return 0;
+
+		unlock = false;
+	}
 
 	if (nr_to_scan) {
 		nr_to_scan -= i915_gem_purge(dev_priv, nr_to_scan);
@@ -4376,6 +4389,7 @@ i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
 		if (obj->pin_count == 0 && obj->pages_pin_count == 0)
 			cnt += obj->base.size >> PAGE_SHIFT;
 
-	mutex_unlock(&dev->struct_mutex);
+	if (unlock)
+		mutex_unlock(&dev->struct_mutex);
 	return cnt;
 }

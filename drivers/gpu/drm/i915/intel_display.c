@@ -1149,14 +1149,9 @@ static void assert_fdi_rx(struct drm_i915_private *dev_priv,
 	u32 val;
 	bool cur_state;
 
-	if (IS_HASWELL(dev_priv->dev) && pipe > 0) {
-			DRM_ERROR("Attempting to enable FDI_RX on Haswell pipe > 0\n");
-			return;
-	} else {
-		reg = FDI_RX_CTL(pipe);
-		val = I915_READ(reg);
-		cur_state = !!(val & FDI_RX_ENABLE);
-	}
+	reg = FDI_RX_CTL(pipe);
+	val = I915_READ(reg);
+	cur_state = !!(val & FDI_RX_ENABLE);
 	WARN(cur_state != state,
 	     "FDI RX state assertion failure (expected %s, current %s)\n",
 	     state_string(state), state_string(cur_state));
@@ -1189,10 +1184,6 @@ static void assert_fdi_rx_pll_enabled(struct drm_i915_private *dev_priv,
 	int reg;
 	u32 val;
 
-	if (IS_HASWELL(dev_priv->dev) && pipe > 0) {
-		DRM_ERROR("Attempting to enable FDI on Haswell with pipe > 0\n");
-		return;
-	}
 	reg = FDI_RX_CTL(pipe);
 	val = I915_READ(reg);
 	WARN(!(val & FDI_RX_PLL_ENABLE), "FDI RX PLL assertion failure, should be active but is disabled\n");
@@ -1821,8 +1812,14 @@ static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 {
 	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
 								      pipe);
+	enum transcoder pch_transcoder;
 	int reg;
 	u32 val;
+
+	if (IS_HASWELL(dev_priv->dev))
+		pch_transcoder = TRANSCODER_A;
+	else
+		pch_transcoder = pipe;
 
 	/*
 	 * A pipe without a PLL won't actually be able to drive bits from
@@ -1834,8 +1831,8 @@ static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 	else {
 		if (pch_port) {
 			/* if driving the PCH, we need FDI enabled */
-			assert_fdi_rx_pll_enabled(dev_priv, pipe);
-			assert_fdi_tx_pll_enabled(dev_priv, pipe);
+			assert_fdi_rx_pll_enabled(dev_priv, pch_transcoder);
+			assert_fdi_tx_pll_enabled(dev_priv, cpu_transcoder);
 		}
 		/* FIXME: assert CPU port conditions for SNB+ */
 	}
@@ -2924,9 +2921,6 @@ static void ironlake_fdi_disable(struct drm_crtc *crtc)
 	/* Ironlake workaround, disable clock pointer after downing FDI */
 	if (HAS_PCH_IBX(dev)) {
 		I915_WRITE(FDI_RX_CHICKEN(pipe), FDI_RX_PHASE_SYNC_POINTER_OVR);
-		I915_WRITE(FDI_RX_CHICKEN(pipe),
-			   I915_READ(FDI_RX_CHICKEN(pipe) &
-				     ~FDI_RX_PHASE_SYNC_POINTER_EN));
 	} else if (HAS_PCH_CPT(dev)) {
 		cpt_phase_pointer_disable(dev, pipe);
 	}
@@ -3393,7 +3387,11 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 		 * as some pre-programmed values are broken,
 		 * e.g. x201.
 		 */
-		I915_WRITE(PF_CTL(pipe), PF_ENABLE | PF_FILTER_MED_3x3);
+		if (IS_IVYBRIDGE(dev))
+			I915_WRITE(PF_CTL(pipe), PF_ENABLE | PF_FILTER_MED_3x3 |
+						 PF_PIPE_SEL_IVB(pipe));
+		else
+			I915_WRITE(PF_CTL(pipe), PF_ENABLE | PF_FILTER_MED_3x3);
 		I915_WRITE(PF_WIN_POS(pipe), dev_priv->pch_pf_pos);
 		I915_WRITE(PF_WIN_SZ(pipe), dev_priv->pch_pf_size);
 	}
@@ -3469,7 +3467,8 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 		 * as some pre-programmed values are broken,
 		 * e.g. x201.
 		 */
-		I915_WRITE(PF_CTL(pipe), PF_ENABLE | PF_FILTER_MED_3x3);
+		I915_WRITE(PF_CTL(pipe), PF_ENABLE | PF_FILTER_MED_3x3 |
+					 PF_PIPE_SEL_IVB(pipe));
 		I915_WRITE(PF_WIN_POS(pipe), dev_priv->pch_pf_pos);
 		I915_WRITE(PF_WIN_SZ(pipe), dev_priv->pch_pf_size);
 	}
@@ -6899,14 +6898,19 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 {
 	struct intel_unpin_work *work =
 		container_of(__work, struct intel_unpin_work, work);
+	struct drm_device *dev = work->crtc->dev;
 
-	mutex_lock(&work->dev->struct_mutex);
+	mutex_lock(&dev->struct_mutex);
 	intel_unpin_fb_obj(work->old_fb_obj);
 	drm_gem_object_unreference(&work->pending_flip_obj->base);
 	drm_gem_object_unreference(&work->old_fb_obj->base);
 
-	intel_update_fbc(work->dev);
-	mutex_unlock(&work->dev->struct_mutex);
+	intel_update_fbc(dev);
+	mutex_unlock(&dev->struct_mutex);
+
+	BUG_ON(atomic_read(&to_intel_crtc(work->crtc)->unpin_work_count) == 0);
+	atomic_dec(&to_intel_crtc(work->crtc)->unpin_work_count);
+
 	kfree(work);
 }
 
@@ -6917,8 +6921,6 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_unpin_work *work;
 	struct drm_i915_gem_object *obj;
-	struct drm_pending_vblank_event *e;
-	struct timeval tvbl;
 	unsigned long flags;
 
 	/* Ignore early vblank irqs */
@@ -6934,17 +6936,8 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 
 	intel_crtc->unpin_work = NULL;
 
-	if (work->event) {
-		e = work->event;
-		e->event.sequence = drm_vblank_count_and_time(dev, intel_crtc->pipe, &tvbl);
-
-		e->event.tv_sec = tvbl.tv_sec;
-		e->event.tv_usec = tvbl.tv_usec;
-
-		list_add_tail(&e->base.link,
-			      &e->base.file_priv->event_list);
-		wake_up_interruptible(&e->base.file_priv->event_wait);
-	}
+	if (work->event)
+		drm_send_vblank_event(dev, intel_crtc->pipe, work->event);
 
 	drm_vblank_put(dev, intel_crtc->pipe);
 
@@ -6954,9 +6947,9 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 
 	atomic_clear_mask(1 << intel_crtc->plane,
 			  &obj->pending_flip.counter);
-
 	wake_up(&dev_priv->pending_flip_queue);
-	schedule_work(&work->work);
+
+	queue_work(dev_priv->wq, &work->work);
 
 	trace_i915_flip_complete(intel_crtc->plane, work->pending_flip_obj);
 }
@@ -7257,7 +7250,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		return -ENOMEM;
 
 	work->event = event;
-	work->dev = crtc->dev;
+	work->crtc = crtc;
 	intel_fb = to_intel_framebuffer(crtc->fb);
 	work->old_fb_obj = intel_fb->obj;
 	INIT_WORK(&work->work, intel_unpin_work_fn);
@@ -7282,6 +7275,9 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	intel_fb = to_intel_framebuffer(fb);
 	obj = intel_fb->obj;
 
+	if (atomic_read(&intel_crtc->unpin_work_count) >= 2)
+		flush_workqueue(dev_priv->wq);
+
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
 		goto cleanup;
@@ -7300,6 +7296,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	 * the flip occurs and the object is no longer visible.
 	 */
 	atomic_add(1 << intel_crtc->plane, &work->old_fb_obj->pending_flip);
+	atomic_inc(&intel_crtc->unpin_work_count);
 
 	ret = dev_priv->display.queue_flip(dev, crtc, fb, obj);
 	if (ret)
@@ -7314,6 +7311,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	return 0;
 
 cleanup_pending:
+	atomic_dec(&intel_crtc->unpin_work_count);
 	atomic_sub(1 << intel_crtc->plane, &work->old_fb_obj->pending_flip);
 	drm_gem_object_unreference(&work->old_fb_obj->base);
 	drm_gem_object_unreference(&obj->base);
@@ -7609,7 +7607,7 @@ intel_modeset_update_state(struct drm_device *dev, unsigned prepare_pipes)
 				dev->mode_config.dpms_property;
 
 			connector->dpms = DRM_MODE_DPMS_ON;
-			drm_connector_property_set_value(connector,
+			drm_object_property_set_value(&connector->base,
 							 dpms_property,
 							 DRM_MODE_DPMS_ON);
 
@@ -8263,7 +8261,9 @@ static void intel_setup_outputs(struct drm_device *dev)
 		I915_WRITE(PFIT_CONTROL, 0);
 	}
 
-	intel_crt_init(dev);
+	if (!(IS_HASWELL(dev) &&
+	      (I915_READ(DDI_BUF_CTL(PORT_A)) & DDI_A_4_LANES)))
+		intel_crt_init(dev);
 
 	if (IS_HASWELL(dev)) {
 		int found;

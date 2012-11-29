@@ -1289,7 +1289,7 @@ static void intel_tv_find_better_format(struct drm_connector *connector)
 	}
 
 	intel_tv->tv_format = tv_mode->name;
-	drm_connector_property_set_value(connector,
+	drm_object_property_set_value(&connector->base,
 		connector->dev->mode_config.tv_mode_property, i);
 }
 
@@ -1443,7 +1443,7 @@ intel_tv_set_property(struct drm_connector *connector, struct drm_property *prop
 	int ret = 0;
 	bool changed = false;
 
-	ret = drm_connector_property_set_value(connector, property, val);
+	ret = drm_object_property_set_value(&connector->base, property, val);
 	if (ret < 0)
 		goto out;
 
@@ -1655,18 +1655,18 @@ intel_tv_init(struct drm_device *dev)
 				      ARRAY_SIZE(tv_modes),
 				      tv_format_names);
 
-	drm_connector_attach_property(connector, dev->mode_config.tv_mode_property,
+	drm_object_attach_property(&connector->base, dev->mode_config.tv_mode_property,
 				   initial_mode);
-	drm_connector_attach_property(connector,
+	drm_object_attach_property(&connector->base,
 				   dev->mode_config.tv_left_margin_property,
 				   intel_tv->margin[TV_MARGIN_LEFT]);
-	drm_connector_attach_property(connector,
+	drm_object_attach_property(&connector->base,
 				   dev->mode_config.tv_top_margin_property,
 				   intel_tv->margin[TV_MARGIN_TOP]);
-	drm_connector_attach_property(connector,
+	drm_object_attach_property(&connector->base,
 				   dev->mode_config.tv_right_margin_property,
 				   intel_tv->margin[TV_MARGIN_RIGHT]);
-	drm_connector_attach_property(connector,
+	drm_object_attach_property(&connector->base,
 				   dev->mode_config.tv_bottom_margin_property,
 				   intel_tv->margin[TV_MARGIN_BOTTOM]);
 	drm_sysfs_connector_add(connector);

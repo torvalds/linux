@@ -2552,7 +2552,8 @@ static void gen6_update_ring_freq(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int min_freq = 15;
-	int gpu_freq, ia_freq, max_ia_freq;
+	int gpu_freq;
+	unsigned int ia_freq, max_ia_freq;
 	int scaling_factor = 180;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
@@ -3518,6 +3519,7 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 		   ILK_DPARBUNIT_CLOCK_GATE_ENABLE  |
 		   ILK_DPFDUNIT_CLOCK_GATE_ENABLE);
 
+	/* WaMbcDriverBootEnable */
 	I915_WRITE(GEN6_MBCTL, I915_READ(GEN6_MBCTL) |
 		   GEN6_MBCTL_ENABLE_BOOT_FETCH);
 
@@ -3546,6 +3548,20 @@ static void gen7_setup_fixed_func_scheduler(struct drm_i915_private *dev_priv)
 	reg |= GEN7_FF_DS_SCHED_HW;
 
 	I915_WRITE(GEN7_FF_THREAD_MODE, reg);
+}
+
+static void lpt_init_clock_gating(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/*
+	 * TODO: this bit should only be enabled when really needed, then
+	 * disabled when not needed anymore in order to save power.
+	 */
+	if (dev_priv->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE)
+		I915_WRITE(SOUTH_DSPCLK_GATE_D,
+			   I915_READ(SOUTH_DSPCLK_GATE_D) |
+			   PCH_LP_PARTITION_LEVEL_DISABLE);
 }
 
 static void haswell_init_clock_gating(struct drm_device *dev)
@@ -3590,6 +3606,10 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(CACHE_MODE_1,
 		   _MASKED_BIT_ENABLE(PIXEL_SUBSPAN_COLLECT_OPT_DISABLE));
 
+	/* WaMbcDriverBootEnable */
+	I915_WRITE(GEN6_MBCTL, I915_READ(GEN6_MBCTL) |
+		   GEN6_MBCTL_ENABLE_BOOT_FETCH);
+
 	/* XXX: This is a workaround for early silicon revisions and should be
 	 * removed later.
 	 */
@@ -3599,6 +3619,7 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 			WM_DBG_DISALLOW_SPRITE |
 			WM_DBG_DISALLOW_MAXFIFO);
 
+	lpt_init_clock_gating(dev);
 }
 
 static void ivybridge_init_clock_gating(struct drm_device *dev)
@@ -3680,6 +3701,7 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 		intel_flush_display_plane(dev_priv, pipe);
 	}
 
+	/* WaMbcDriverBootEnable */
 	I915_WRITE(GEN6_MBCTL, I915_READ(GEN6_MBCTL) |
 		   GEN6_MBCTL_ENABLE_BOOT_FETCH);
 
@@ -3745,6 +3767,7 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 		   I915_READ(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG) |
 		   GEN7_SQ_CHICKEN_MBCUNIT_SQINTMOB);
 
+	/* WaMbcDriverBootEnable */
 	I915_WRITE(GEN6_MBCTL, I915_READ(GEN6_MBCTL) |
 		   GEN6_MBCTL_ENABLE_BOOT_FETCH);
 

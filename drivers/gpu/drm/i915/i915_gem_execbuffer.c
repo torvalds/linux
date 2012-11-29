@@ -128,15 +128,6 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 					 target_i915_obj->cache_level);
 	}
 
-	/* The target buffer should have appeared before us in the
-	 * exec_object list, so it should have a GTT space bound by now.
-	 */
-	if (unlikely(target_offset == 0)) {
-		DRM_DEBUG("No GTT space found for object %d\n",
-			  reloc->target_handle);
-		return ret;
-	}
-
 	/* Validate that the target is in a valid r/w GPU domain */
 	if (unlikely(reloc->write_domain & (reloc->write_domain - 1))) {
 		DRM_DEBUG("reloc with multiple write domains: "

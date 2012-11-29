@@ -47,11 +47,11 @@ MODULE_PARM_DESC(modeset,
 unsigned int i915_fbpercrtc __always_unused = 0;
 module_param_named(fbpercrtc, i915_fbpercrtc, int, 0400);
 
-int i915_panel_ignore_lid __read_mostly = 0;
+int i915_panel_ignore_lid __read_mostly = 1;
 module_param_named(panel_ignore_lid, i915_panel_ignore_lid, int, 0600);
 MODULE_PARM_DESC(panel_ignore_lid,
-		"Override lid status (0=autodetect [default], 1=lid open, "
-		"-1=lid closed)");
+		"Override lid status (0=autodetect, 1=autodetect disabled [default], "
+		"-1=force lid closed, -2=force lid open)");
 
 unsigned int i915_powersave __read_mostly = 1;
 module_param_named(powersave, i915_powersave, int, 0600);
@@ -396,12 +396,6 @@ static const struct pci_device_id pciidlist[] = {		/* aka */
 MODULE_DEVICE_TABLE(pci, pciidlist);
 #endif
 
-#define INTEL_PCH_DEVICE_ID_MASK	0xff00
-#define INTEL_PCH_IBX_DEVICE_ID_TYPE	0x3b00
-#define INTEL_PCH_CPT_DEVICE_ID_TYPE	0x1c00
-#define INTEL_PCH_PPT_DEVICE_ID_TYPE	0x1e00
-#define INTEL_PCH_LPT_DEVICE_ID_TYPE	0x8c00
-
 void intel_detect_pch(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -416,8 +410,9 @@ void intel_detect_pch(struct drm_device *dev)
 	pch = pci_get_class(PCI_CLASS_BRIDGE_ISA << 8, NULL);
 	if (pch) {
 		if (pch->vendor == PCI_VENDOR_ID_INTEL) {
-			int id;
+			unsigned short id;
 			id = pch->device & INTEL_PCH_DEVICE_ID_MASK;
+			dev_priv->pch_id = id;
 
 			if (id == INTEL_PCH_IBX_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_IBX;
@@ -439,6 +434,11 @@ void intel_detect_pch(struct drm_device *dev)
 				dev_priv->pch_type = PCH_LPT;
 				dev_priv->num_pch_pll = 0;
 				DRM_DEBUG_KMS("Found LynxPoint PCH\n");
+				WARN_ON(!IS_HASWELL(dev));
+			} else if (id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE) {
+				dev_priv->pch_type = PCH_LPT;
+				dev_priv->num_pch_pll = 0;
+				DRM_DEBUG_KMS("Found LynxPoint LP PCH\n");
 				WARN_ON(!IS_HASWELL(dev));
 			}
 			BUG_ON(dev_priv->num_pch_pll > I915_NUM_PLLS);
@@ -884,7 +884,7 @@ i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct intel_device_info *intel_info =
 		(struct intel_device_info *) ent->driver_data;
 
-	if (intel_info->is_haswell || intel_info->is_valleyview)
+	if (intel_info->is_valleyview)
 		if(!i915_preliminary_hw_support) {
 			DRM_ERROR("Preliminary hardware support disabled\n");
 			return -ENODEV;
@@ -1258,6 +1258,10 @@ void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
 	} \
 	if (IS_GEN5(dev_priv->dev)) \
 		ilk_dummy_write(dev_priv); \
+	if (IS_HASWELL(dev_priv->dev) && (I915_READ_NOTRACE(GEN7_ERR_INT) & ERR_INT_MMIO_UNCLAIMED)) { \
+		DRM_ERROR("Unknown unclaimed register before writing to %x\n", reg); \
+		I915_WRITE_NOTRACE(GEN7_ERR_INT, ERR_INT_MMIO_UNCLAIMED); \
+	} \
 	if (IS_VALLEYVIEW(dev_priv->dev) && IS_DISPLAYREG(reg)) { \
 		write##y(val, dev_priv->regs + reg + 0x180000);		\
 	} else {							\

@@ -402,7 +402,6 @@ struct i915_suspend_saved_registers {
 	u32 saveDSPACNTR;
 	u32 saveDSPBCNTR;
 	u32 saveDSPARB;
-	u32 saveHWS;
 	u32 savePIPEACONF;
 	u32 savePIPEBCONF;
 	u32 savePIPEASRC;
@@ -738,6 +737,7 @@ typedef struct drm_i915_private {
 
 	/* PCH chipset type */
 	enum intel_pch pch_type;
+	unsigned short pch_id;
 
 	unsigned long quirks;
 
@@ -1161,6 +1161,8 @@ struct drm_i915_file_private {
 #define IS_VALLEYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview)
 #define IS_HASWELL(dev)	(INTEL_INFO(dev)->is_haswell)
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
+#define IS_ULT(dev)		(IS_HASWELL(dev) && \
+				 ((dev)->pci_device & 0xFF00) == 0x0A00)
 
 /*
  * The genX designation typically refers to the render engine, so render
@@ -1205,6 +1207,13 @@ struct drm_i915_file_private {
 #define I915_HAS_FBC(dev) (INTEL_INFO(dev)->has_fbc)
 
 #define HAS_PIPE_CONTROL(dev) (INTEL_INFO(dev)->gen >= 5)
+
+#define INTEL_PCH_DEVICE_ID_MASK		0xff00
+#define INTEL_PCH_IBX_DEVICE_ID_TYPE		0x3b00
+#define INTEL_PCH_CPT_DEVICE_ID_TYPE		0x1c00
+#define INTEL_PCH_PPT_DEVICE_ID_TYPE		0x1e00
+#define INTEL_PCH_LPT_DEVICE_ID_TYPE		0x8c00
+#define INTEL_PCH_LPT_LP_DEVICE_ID_TYPE		0x9c00
 
 #define INTEL_PCH_TYPE(dev) (((struct drm_i915_private *)(dev)->dev_private)->pch_type)
 #define HAS_PCH_LPT(dev) (INTEL_PCH_TYPE(dev) == PCH_LPT)
@@ -1541,7 +1550,7 @@ void i915_gem_init_global_gtt(struct drm_device *dev,
 			      unsigned long end);
 int i915_gem_gtt_init(struct drm_device *dev);
 void i915_gem_gtt_fini(struct drm_device *dev);
-extern inline void i915_gem_chipset_flush(struct drm_device *dev)
+static inline void i915_gem_chipset_flush(struct drm_device *dev)
 {
 	if (INTEL_INFO(dev)->gen < 6)
 		intel_gtt_chipset_flush();
