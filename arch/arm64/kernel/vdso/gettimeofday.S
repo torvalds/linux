@@ -66,6 +66,7 @@ ENTRY(__kernel_gettimeofday)
 
 	/* Convert ns to us. */
 	mov	x13, #1000
+	lsl	x13, x13, x12
 	udiv	x11, x11, x13
 	stp	x10, x11, [x0, #TVAL_TV_SEC]
 2:
@@ -136,11 +137,13 @@ ENTRY(__kernel_clock_gettime)
 4:
 	/* Add on wtm timespec. */
 	add	x10, x10, x13
+	lsl	x14, x14, x12
 	add	x11, x11, x14
 
 	/* Normalise the new timespec. */
 	mov	x15, #NSEC_PER_SEC_LO16
 	movk	x15, #NSEC_PER_SEC_HI16, lsl #16
+	lsl	x15, x15, x12
 	cmp	x11, x15
 	b.lt	5f
 	sub	x11, x11, x15
@@ -152,6 +155,7 @@ ENTRY(__kernel_clock_gettime)
 	sub	x10, x10, #1
 
 6:	/* Store to the user timespec. */
+	lsr	x11, x11, x12
 	stp	x10, x11, [x1, #TSPEC_TV_SEC]
 	mov	x0, xzr
 	ret	x2
@@ -204,7 +208,7 @@ ENDPROC(__kernel_clock_getres)
  * Clobbers the temporary registers (x9 - x15).
  * Returns:
  *  - w9		= vDSO sequence counter
- *  - (x10, x11)	= (ts->tv_sec, ts->tv_nsec)
+ *  - (x10, x11)	= (ts->tv_sec, shifted ts->tv_nsec)
  *  - w12		= cs_shift
  */
 ENTRY(__do_get_tspec)
@@ -226,11 +230,11 @@ ENTRY(__do_get_tspec)
 	movn	x15, #0xff00, lsl #48
 	and	x10, x15, x10
 	mul	x10, x10, x11
-	lsr	x10, x10, x12
 
 	/* Use the kernel time to calculate the new timespec. */
 	mov	x11, #NSEC_PER_SEC_LO16
 	movk	x11, #NSEC_PER_SEC_HI16, lsl #16
+	lsl	x11, x11, x12
 	add	x15, x10, x14
 	udiv	x14, x15, x11
 	add	x10, x13, x14
