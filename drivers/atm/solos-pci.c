@@ -868,8 +868,18 @@ static void pclose(struct atm_vcc *vcc)
 {
 	struct solos_card *card = vcc->dev->dev_data;
 	unsigned char port = SOLOS_CHAN(vcc->dev);
-	struct sk_buff *skb;
+	struct sk_buff *skb, *tmpskb;
 	struct pkt_hdr *header;
+
+	/* Remove any yet-to-be-transmitted packets from the pending queue */
+	spin_lock(&card->tx_queue_lock);
+	skb_queue_walk_safe(&card->tx_queue[port], skb, tmpskb) {
+		if (SKB_CB(skb)->vcc == vcc) {
+			skb_unlink(skb, &card->tx_queue[port]);
+			solos_pop(vcc, skb);
+		}
+	}
+	spin_unlock(&card->tx_queue_lock);
 
 	skb = alloc_skb(sizeof(*header), GFP_ATOMIC);
 	if (!skb) {
@@ -886,9 +896,6 @@ static void pclose(struct atm_vcc *vcc)
 	skb_get(skb);
 	fpga_queue(card, port, skb, NULL);
 
-	clear_bit(ATM_VF_ADDR, &vcc->flags);
-	clear_bit(ATM_VF_READY, &vcc->flags);
-
 	if (!wait_event_timeout(card->param_wq, !skb_shared(skb), 5 * HZ))
 		dev_warn(&card->dev->dev,
 			 "Timeout waiting for VCC close on port %d\n", port);
@@ -899,6 +906,9 @@ static void pclose(struct atm_vcc *vcc)
 	   tasklet has finished processing any incoming packets (and, more to
 	   the point, using the vcc pointer). */
 	tasklet_unlock_wait(&card->tlet);
+
+	clear_bit(ATM_VF_ADDR, &vcc->flags);
+
 	return;
 }
 
