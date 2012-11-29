@@ -245,7 +245,6 @@ static int gpio_keys_polled_probe(struct platform_device *pdev)
 
 	input = poll_dev->input;
 
-	input->evbit[0] = BIT(EV_KEY);
 	input->name = pdev->name;
 	input->phys = DRV_NAME"/input0";
 	input->dev.parent = &pdev->dev;
@@ -254,6 +253,10 @@ static int gpio_keys_polled_probe(struct platform_device *pdev)
 	input->id.vendor = 0x0001;
 	input->id.product = 0x0001;
 	input->id.version = 0x0100;
+
+	__set_bit(EV_KEY, input->evbit);
+	if (pdata->rep)
+		__set_bit(EV_REP, input->evbit);
 
 	for (i = 0; i < pdata->nbuttons; i++) {
 		struct gpio_keys_button *button = &pdata->buttons[i];
