@@ -217,22 +217,18 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 	down(&ieee->wx_sem);
 	spin_lock_irqsave(&ieee->lock, flags);
 
-	if(!ieee->bHwRadioOff)
-	{
+	if (!ieee->bHwRadioOff) {
 		list_for_each_entry(network, &ieee->network_list, list) {
 			i++;
 
-			if((stop-ev)<200)
-			{
+			if ((stop-ev)<200) {
 				err = -E2BIG;
 				break;
 			}
 			if (ieee->scan_age == 0 ||
-			    time_after(network->last_scanned + ieee->scan_age, jiffies))
-			{
+			    time_after(network->last_scanned + ieee->scan_age, jiffies)) {
 				ev = rtl818x_translate_scan(ieee, ev, stop, network, info);
-			}
-			else
+			} else
 				IEEE80211_DEBUG_SCAN(
 					"Not showing network '%s ("
 					"%pM)' due to age (%lums).\n",
@@ -430,7 +426,7 @@ int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 
 	IEEE80211_DEBUG_WX("GET_ENCODE\n");
 
-	if(ieee->iw_mode == IW_MODE_MONITOR)
+	if (ieee->iw_mode == IW_MODE_MONITOR)
 		return -1;
 
 	key = erq->flags & IW_ENCODE_INDEX;
@@ -715,15 +711,13 @@ int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 {
 	u8 *buf = NULL;
 
-	if (len>MAX_WPA_IE_LEN || (len && ie == NULL))
-	{
+	if (len>MAX_WPA_IE_LEN || (len && ie == NULL)) {
 		printk("return error out, len:%zu\n", len);
 	return -EINVAL;
 	}
 
-	if (len)
-	{
-		if (len != ie[1]+2){
+	if (len) {
+		if (len != ie[1]+2) {
 			printk("len:%zu, ie:%d\n", len, ie[1]);
 			return -EINVAL;
 		}
@@ -733,8 +727,7 @@ int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 		kfree(ieee->wpa_ie);
 		ieee->wpa_ie = buf;
 		ieee->wpa_ie_len = len;
-	}
-	else{
+	} else {
 		kfree(ieee->wpa_ie);
 		ieee->wpa_ie = NULL;
 		ieee->wpa_ie_len = 0;
