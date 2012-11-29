@@ -875,7 +875,7 @@ static int mt9v022_probe(struct i2c_client *client,
 	struct mt9v022 *mt9v022;
 	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
-	struct mt9v022_platform_data *pdata = icl->priv;
+	struct mt9v022_platform_data *pdata;
 	int ret;
 
 	if (!icl) {
@@ -893,6 +893,7 @@ static int mt9v022_probe(struct i2c_client *client,
 	if (!mt9v022)
 		return -ENOMEM;
 
+	pdata = icl->priv;
 	v4l2_i2c_subdev_init(&mt9v022->subdev, client, &mt9v022_subdev_ops);
 	v4l2_ctrl_handler_init(&mt9v022->hdl, 6);
 	v4l2_ctrl_new_std(&mt9v022->hdl, &mt9v022_ctrl_ops,
