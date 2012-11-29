@@ -37,7 +37,7 @@ struct cpufreq_stats {
 	unsigned int max_state;
 	unsigned int state_num;
 	unsigned int last_index;
-	cputime64_t *time_in_state;
+	u64 *time_in_state;
 	unsigned int *freq_table;
 #ifdef CONFIG_CPU_FREQ_STAT_DETAILS
 	unsigned int *trans_table;
@@ -223,7 +223,7 @@ static int cpufreq_stats_create_table(struct cpufreq_policy *policy,
 		count++;
 	}
 
-	alloc_size = count * sizeof(int) + count * sizeof(cputime64_t);
+	alloc_size = count * sizeof(int) + count * sizeof(u64);
 
 #ifdef CONFIG_CPU_FREQ_STAT_DETAILS
 	alloc_size += count * count * sizeof(int);

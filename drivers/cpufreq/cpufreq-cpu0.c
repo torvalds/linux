@@ -174,7 +174,7 @@ static struct cpufreq_driver cpu0_cpufreq_driver = {
 	.attr = cpu0_cpufreq_attr,
 };
 
-static int __devinit cpu0_cpufreq_driver_init(void)
+static int cpu0_cpufreq_driver_init(void)
 {
 	struct device_node *np;
 	int ret;

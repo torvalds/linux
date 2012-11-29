@@ -11,6 +11,7 @@
 #ifndef _LINUX_CPUFREQ_H
 #define _LINUX_CPUFREQ_H
 
+#include <asm/cputime.h>
 #include <linux/mutex.h>
 #include <linux/notifier.h>
 #include <linux/threads.h>
@@ -22,6 +23,8 @@
 #include <asm/div64.h>
 
 #define CPUFREQ_NAME_LEN 16
+/* Print length for names. Extra 1 space for accomodating '\n' in prints */
+#define CPUFREQ_NAME_PLEN (CPUFREQ_NAME_LEN + 1)
 
 
 /*********************************************************************
@@ -404,6 +407,4 @@ void cpufreq_frequency_table_get_attr(struct cpufreq_frequency_table *table,
 				      unsigned int cpu);
 
 void cpufreq_frequency_table_put_attr(unsigned int cpu);
-
-
 #endif /* _LINUX_CPUFREQ_H */
