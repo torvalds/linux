@@ -444,6 +444,7 @@ struct kvm_vcpu_arch {
 	s8 virtual_tsc_shift;
 	u32 virtual_tsc_mult;
 	u32 virtual_tsc_khz;
+	s64 ia32_tsc_adjust_msr;
 
 	atomic_t nmi_queued;  /* unprocessed asynchronous NMIs */
 	unsigned nmi_pending; /* NMI queued after currently running handler */
@@ -711,6 +712,7 @@ struct kvm_x86_ops {
 	bool (*has_wbinvd_exit)(void);
 
 	void (*set_tsc_khz)(struct kvm_vcpu *vcpu, u32 user_tsc_khz, bool scale);
+	u64 (*read_tsc_offset)(struct kvm_vcpu *vcpu);
 	void (*write_tsc_offset)(struct kvm_vcpu *vcpu, u64 offset);
 
 	u64 (*compute_tsc_offset)(struct kvm_vcpu *vcpu, u64 target_tsc);

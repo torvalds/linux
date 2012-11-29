@@ -1884,6 +1884,11 @@ static void vmx_set_tsc_khz(struct kvm_vcpu *vcpu, u32 user_tsc_khz, bool scale)
 		WARN(1, "user requested TSC rate below hardware speed\n");
 }
 
+static u64 vmx_read_tsc_offset(struct kvm_vcpu *vcpu)
+{
+	return vmcs_read64(TSC_OFFSET);
+}
+
 /*
  * writes 'offset' into guest's timestamp counter offset register
  */
@@ -2264,6 +2269,9 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			vcpu->arch.pat = data;
 			break;
 		}
+		ret = kvm_set_msr_common(vcpu, msr_info);
+		break;
+	case MSR_IA32_TSC_ADJUST:
 		ret = kvm_set_msr_common(vcpu, msr_info);
 		break;
 	case MSR_TSC_AUX:
@@ -7345,6 +7353,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.has_wbinvd_exit = cpu_has_vmx_wbinvd_exit,
 
 	.set_tsc_khz = vmx_set_tsc_khz,
+	.read_tsc_offset = vmx_read_tsc_offset,
 	.write_tsc_offset = vmx_write_tsc_offset,
 	.adjust_tsc_offset = vmx_adjust_tsc_offset,
 	.compute_tsc_offset = vmx_compute_tsc_offset,

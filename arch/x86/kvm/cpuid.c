@@ -320,6 +320,8 @@ static int do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		if (index == 0) {
 			entry->ebx &= kvm_supported_word9_x86_features;
 			cpuid_mask(&entry->ebx, 9);
+			// TSC_ADJUST is emulated
+			entry->ebx |= F(TSC_ADJUST);
 		} else
 			entry->ebx = 0;
 		entry->eax = 0;

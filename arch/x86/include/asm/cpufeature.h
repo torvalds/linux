@@ -202,6 +202,7 @@
 
 /* Intel-defined CPU features, CPUID level 0x00000007:0 (ebx), word 9 */
 #define X86_FEATURE_FSGSBASE	(9*32+ 0) /* {RD/WR}{FS/GS}BASE instructions*/
+#define X86_FEATURE_TSC_ADJUST	(9*32+ 1) /* TSC adjustment MSR 0x3b */
 #define X86_FEATURE_BMI1	(9*32+ 3) /* 1st group bit manipulation extensions */
 #define X86_FEATURE_HLE		(9*32+ 4) /* Hardware Lock Elision */
 #define X86_FEATURE_AVX2	(9*32+ 5) /* AVX2 instructions */
