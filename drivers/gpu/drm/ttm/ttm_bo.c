@@ -488,12 +488,16 @@ static void ttm_bo_cleanup_memtype_use(struct ttm_buffer_object *bo)
 	ttm_bo_mem_put(bo, &bo->mem);
 
 	atomic_set(&bo->reserved, 0);
+	wake_up_all(&bo->event_queue);
 
 	/*
-	 * Make processes trying to reserve really pick it up.
+	 * Since the final reference to this bo may not be dropped by
+	 * the current task we have to put a memory barrier here to make
+	 * sure the changes done in this function are always visible.
+	 *
+	 * This function only needs protection against the final kref_put.
 	 */
-	smp_mb__after_atomic_dec();
-	wake_up_all(&bo->event_queue);
+	smp_mb__before_atomic_dec();
 }
 
 static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
@@ -543,68 +547,84 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 }
 
 /**
- * function ttm_bo_cleanup_refs
+ * function ttm_bo_cleanup_refs_and_unlock
  * If bo idle, remove from delayed- and lru lists, and unref.
  * If not idle, do nothing.
  *
+ * Must be called with lru_lock and reservation held, this function
+ * will drop both before returning.
+ *
  * @interruptible         Any sleeps should occur interruptibly.
- * @no_wait_reserve       Never wait for reserve. Return -EBUSY instead.
  * @no_wait_gpu           Never wait for gpu. Return -EBUSY instead.
  */
 
-static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo,
-			       bool interruptible,
-			       bool no_wait_reserve,
-			       bool no_wait_gpu)
+static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
+					  bool interruptible,
+					  bool no_wait_gpu)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
+	struct ttm_bo_driver *driver = bdev->driver;
 	struct ttm_bo_global *glob = bo->glob;
 	int put_count;
-	int ret = 0;
+	int ret;
 
-retry:
 	spin_lock(&bdev->fence_lock);
-	ret = ttm_bo_wait(bo, false, interruptible, no_wait_gpu);
-	spin_unlock(&bdev->fence_lock);
+	ret = ttm_bo_wait(bo, false, false, true);
 
-	if (unlikely(ret != 0))
-		return ret;
+	if (ret && !no_wait_gpu) {
+		void *sync_obj;
 
-retry_reserve:
-	spin_lock(&glob->lru_lock);
+		/*
+		 * Take a reference to the fence and unreserve,
+		 * at this point the buffer should be dead, so
+		 * no new sync objects can be attached.
+		 */
+		sync_obj = driver->sync_obj_ref(&bo->sync_obj);
+		spin_unlock(&bdev->fence_lock);
 
-	if (unlikely(list_empty(&bo->ddestroy))) {
-		spin_unlock(&glob->lru_lock);
-		return 0;
-	}
-
-	ret = ttm_bo_reserve_locked(bo, false, true, false, 0);
-
-	if (unlikely(ret == -EBUSY)) {
-		spin_unlock(&glob->lru_lock);
-		if (likely(!no_wait_reserve))
-			ret = ttm_bo_wait_unreserved(bo, interruptible);
-		if (unlikely(ret != 0))
-			return ret;
-
-		goto retry_reserve;
-	}
-
-	BUG_ON(ret != 0);
-
-	/**
-	 * We can re-check for sync object without taking
-	 * the bo::lock since setting the sync object requires
-	 * also bo::reserved. A busy object at this point may
-	 * be caused by another thread recently starting an accelerated
-	 * eviction.
-	 */
-
-	if (unlikely(bo->sync_obj)) {
 		atomic_set(&bo->reserved, 0);
 		wake_up_all(&bo->event_queue);
 		spin_unlock(&glob->lru_lock);
-		goto retry;
+
+		ret = driver->sync_obj_wait(sync_obj, false, interruptible);
+		driver->sync_obj_unref(&sync_obj);
+		if (ret)
+			return ret;
+
+		/*
+		 * remove sync_obj with ttm_bo_wait, the wait should be
+		 * finished, and no new wait object should have been added.
+		 */
+		spin_lock(&bdev->fence_lock);
+		ret = ttm_bo_wait(bo, false, false, true);
+		WARN_ON(ret);
+		spin_unlock(&bdev->fence_lock);
+		if (ret)
+			return ret;
+
+		spin_lock(&glob->lru_lock);
+		ret = ttm_bo_reserve_locked(bo, false, true, false, 0);
+
+		/*
+		 * We raced, and lost, someone else holds the reservation now,
+		 * and is probably busy in ttm_bo_cleanup_memtype_use.
+		 *
+		 * Even if it's not the case, because we finished waiting any
+		 * delayed destruction would succeed, so just return success
+		 * here.
+		 */
+		if (ret) {
+			spin_unlock(&glob->lru_lock);
+			return 0;
+		}
+	} else
+		spin_unlock(&bdev->fence_lock);
+
+	if (ret || unlikely(list_empty(&bo->ddestroy))) {
+		atomic_set(&bo->reserved, 0);
+		wake_up_all(&bo->event_queue);
+		spin_unlock(&glob->lru_lock);
+		return ret;
 	}
 
 	put_count = ttm_bo_del_from_lru(bo);
@@ -647,9 +667,13 @@ static int ttm_bo_delayed_delete(struct ttm_bo_device *bdev, bool remove_all)
 			kref_get(&nentry->list_kref);
 		}
 
-		spin_unlock(&glob->lru_lock);
-		ret = ttm_bo_cleanup_refs(entry, false, !remove_all,
-					  !remove_all);
+		ret = ttm_bo_reserve_locked(entry, false, !remove_all, false, 0);
+		if (!ret)
+			ret = ttm_bo_cleanup_refs_and_unlock(entry, false,
+							     !remove_all);
+		else
+			spin_unlock(&glob->lru_lock);
+
 		kref_put(&entry->list_kref, ttm_bo_release_list);
 		entry = nentry;
 
@@ -800,9 +824,13 @@ retry:
 	kref_get(&bo->list_kref);
 
 	if (!list_empty(&bo->ddestroy)) {
-		spin_unlock(&glob->lru_lock);
-		ret = ttm_bo_cleanup_refs(bo, interruptible,
-					  no_wait_reserve, no_wait_gpu);
+		ret = ttm_bo_reserve_locked(bo, interruptible, no_wait_reserve, false, 0);
+		if (!ret)
+			ret = ttm_bo_cleanup_refs_and_unlock(bo, interruptible,
+							     no_wait_gpu);
+		else
+			spin_unlock(&glob->lru_lock);
+
 		kref_put(&bo->list_kref, ttm_bo_release_list);
 
 		return ret;
@@ -1796,8 +1824,9 @@ static int ttm_bo_swapout(struct ttm_mem_shrink *shrink)
 		kref_get(&bo->list_kref);
 
 		if (!list_empty(&bo->ddestroy)) {
-			spin_unlock(&glob->lru_lock);
-			(void) ttm_bo_cleanup_refs(bo, false, false, false);
+			ttm_bo_reserve_locked(bo, false, false, false, 0);
+			ttm_bo_cleanup_refs_and_unlock(bo, false, false);
+
 			kref_put(&bo->list_kref, ttm_bo_release_list);
 			spin_lock(&glob->lru_lock);
 			continue;
