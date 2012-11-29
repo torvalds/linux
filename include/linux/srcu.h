@@ -163,17 +163,12 @@ void srcu_barrier(struct srcu_struct *sp);
  * power mode. This way we can notice an extended quiescent state to
  * other CPUs that started a grace period. Otherwise we would delay any
  * grace period as long as we run in the idle task.
- *
- * Similarly, we avoid claiming an SRCU read lock held if the current
- * CPU is offline.
  */
 static inline int srcu_read_lock_held(struct srcu_struct *sp)
 {
 	if (!debug_lockdep_rcu_enabled())
 		return 1;
 	if (rcu_is_cpu_idle())
-		return 0;
-	if (!rcu_lockdep_current_cpu_online())
 		return 0;
 	return lock_is_held(&sp->dep_map);
 }
