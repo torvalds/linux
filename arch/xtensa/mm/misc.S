@@ -180,7 +180,7 @@ ENDPROC(clear_user_page)
 
 ENTRY(copy_user_page)
 
-	entry	a1, 32 
+	entry	a1, 32
 
 	/* Mark page dirty and determine alias for destination. */
 

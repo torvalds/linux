@@ -109,4 +109,3 @@
 #define DEBUGCAUSE_ICOUNT_BIT		0	/* ICOUNT would incr. to zero */
 
 #endif /* _XTENSA_SPECREG_H */
-

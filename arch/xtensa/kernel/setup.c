@@ -284,7 +284,7 @@ void __init init_arch(bp_tag_t *bp_start)
 
 	/* Parse boot parameters */
 
-        if (bp_start)
+	if (bp_start)
 		parse_bootparam(bp_start);
 
 #ifdef CONFIG_OF
@@ -460,7 +460,7 @@ void __init setup_arch(char **cmdline_p)
 		initrd_is_mapped = mem_reserve(__pa(initrd_start),
 					       __pa(initrd_end), 0);
 		initrd_below_start_ok = 1;
- 	} else {
+	} else {
 		initrd_start = 0;
 	}
 #endif
@@ -539,7 +539,7 @@ c_show(struct seq_file *f, void *slot)
 		     "core ID\t\t: " XCHAL_CORE_ID "\n"
 		     "build ID\t: 0x%x\n"
 		     "byte order\t: %s\n"
- 		     "cpu MHz\t\t: %lu.%02lu\n"
+		     "cpu MHz\t\t: %lu.%02lu\n"
 		     "bogomips\t: %lu.%02lu\n",
 		     XCHAL_BUILD_UNIQUE_ID,
 		     XCHAL_HAVE_BE ?  "big" : "little",
@@ -681,4 +681,3 @@ const struct seq_operations cpuinfo_op =
 };
 
 #endif /* CONFIG_PROC_FS */
-

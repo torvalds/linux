@@ -485,5 +485,3 @@ ENTRY_ALIGN64(_WindowUnderflow12)
 ENDPROC(_WindowUnderflow12)
 
 	.text
-
-

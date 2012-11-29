@@ -874,7 +874,7 @@ ENTRY(fast_alloca)
 
 	_bnei	a0, 1, 1f		# no 'movsp a1, ax': jump
 
-        /* Move the save area. This implies the use of the L32E
+	/* Move the save area. This implies the use of the L32E
 	 * and S32E instructions, because this move must be done with
 	 * the user's PS.RING privilege levels, not with ring 0
 	 * (kernel's) privileges currently active with PS.EXCM
@@ -1008,15 +1008,15 @@ ENDPROC(fast_syscall_user)
 
 ENTRY(fast_syscall_unrecoverable)
 
-        /* Restore all states. */
+	/* Restore all states. */
 
-        l32i    a0, a2, PT_AREG0        # restore a0
-        xsr     a2, depc                # restore a2, depc
-        rsr     a3, excsave1
+	l32i    a0, a2, PT_AREG0        # restore a0
+	xsr     a2, depc                # restore a2, depc
+	rsr     a3, excsave1
 
-        wsr     a0, excsave1
-        movi    a0, unrecoverable_exception
-        callx0  a0
+	wsr     a0, excsave1
+	movi    a0, unrecoverable_exception
+	callx0  a0
 
 ENDPROC(fast_syscall_unrecoverable)
 
@@ -1253,9 +1253,9 @@ fast_syscall_spill_registers_fixup:
 
 	movi	a3, exc_table
 	rsr	a0, exccause
-        addx4	a0, a0, a3              	# find entry in table
-        l32i	a0, a0, EXC_TABLE_FAST_USER     # load handler
-        jx	a0
+	addx4	a0, a0, a3              	# find entry in table
+	l32i	a0, a0, EXC_TABLE_FAST_USER     # load handler
+	jx	a0
 
 fast_syscall_spill_registers_fixup_return:
 
@@ -1457,7 +1457,7 @@ ENTRY(_spill_registers)
 	rsr	a0, ps
 	_bbci.l	a0, PS_UM_BIT, 1f
 
- 	/* User space: Setup a dummy frame and kill application.
+	/* User space: Setup a dummy frame and kill application.
 	 * Note: We assume EXC_TABLE_KSTK contains a valid stack pointer.
 	 */
 

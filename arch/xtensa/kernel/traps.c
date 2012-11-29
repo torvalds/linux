@@ -408,7 +408,8 @@ static inline void spill_registers(void)
 		"wsr	a13, sar\n\t"
 		"wsr	a14, ps\n\t"
 		:: "a" (&a0), "a" (&ps)
-		: "a2", "a3", "a4", "a7", "a11", "a12", "a13", "a14", "a15", "memory");
+		: "a2", "a3", "a4", "a7", "a11", "a12", "a13", "a14", "a15",
+		  "memory");
 }
 
 void show_trace(struct task_struct *task, unsigned long *sp)
@@ -463,7 +464,7 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 
 	if (!sp)
 		sp = stack_pointer(task);
- 	stack = sp;
+	stack = sp;
 
 	printk("\nStack: ");
 
@@ -534,5 +535,3 @@ void die(const char * str, struct pt_regs * regs, long err)
 
 	do_exit(err);
 }
-
-

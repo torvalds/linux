@@ -442,7 +442,7 @@ ENTRY(fast_unaligned)
 	mov	a1, a2
 
 	rsr	a0, ps
-        bbsi.l  a2, PS_UM_BIT, 1f     # jump if user mode
+	bbsi.l  a2, PS_UM_BIT, 1f     # jump if user mode
 
 	movi	a0, _kernel_exception
 	jx	a0
@@ -453,4 +453,3 @@ ENTRY(fast_unaligned)
 ENDPROC(fast_unaligned)
 
 #endif /* XCHAL_UNALIGNED_LOAD_EXCEPTION || XCHAL_UNALIGNED_STORE_EXCEPTION */
-

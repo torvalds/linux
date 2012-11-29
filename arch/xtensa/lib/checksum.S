@@ -41,10 +41,11 @@
 
 .text
 ENTRY(csum_partial)
-	  /*
-	   * Experiments with Ethernet and SLIP connections show that buf
-	   * is aligned on either a 2-byte or 4-byte boundary.
-	   */
+
+	/*
+	 * Experiments with Ethernet and SLIP connections show that buf
+	 * is aligned on either a 2-byte or 4-byte boundary.
+	 */
 	entry	sp, 32
 	extui	a5, a2, 0, 2
 	bnez	a5, 8f		/* branch if 2-byte aligned */
@@ -409,4 +410,3 @@ ENDPROC(csum_partial_copy_generic)
 	retw
 
 .previous
-

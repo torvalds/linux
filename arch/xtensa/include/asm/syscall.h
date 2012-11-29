@@ -25,9 +25,10 @@ asmlinkage long xtensa_fadvise64_64(int, int,
 /* Should probably move to linux/syscalls.h */
 struct pollfd;
 asmlinkage long sys_pselect6(int n, fd_set __user *inp, fd_set __user *outp,
-	fd_set __user *exp, struct timespec __user *tsp, void __user *sig);
+			     fd_set __user *exp, struct timespec __user *tsp,
+			     void __user *sig);
 asmlinkage long sys_ppoll(struct pollfd __user *ufds, unsigned int nfds,
-	struct timespec __user *tsp, const sigset_t __user *sigmask,
-	size_t sigsetsize);
-asmlinkage long sys_rt_sigsuspend(sigset_t __user *unewset,
-		size_t sigsetsize);
+			  struct timespec __user *tsp,
+			  const sigset_t __user *sigmask,
+			  size_t sigsetsize);
+asmlinkage long sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize);

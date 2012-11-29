@@ -172,7 +172,7 @@ ENTRY(coprocessor_load)
 ENDPROC(coprocessor_load)
 
 /*
- * coprocessor_flush(struct task_info*, index) 
+ * coprocessor_flush(struct task_info*, index)
  *                             a2        a3
  * coprocessor_restore(struct task_info*, index)
  *                              a2         a3
@@ -354,4 +354,3 @@ ENTRY(coprocessor_owner)
 END(coprocessor_owner)
 
 #endif /* XTENSA_HAVE_COPROCESSORS */
-

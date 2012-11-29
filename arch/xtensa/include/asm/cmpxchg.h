@@ -134,7 +134,8 @@ static inline unsigned long xchg_u32(volatile int * m, unsigned long val)
 #endif
 }
 
-#define xchg(ptr,x) ((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
+#define xchg(ptr,x) \
+	((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
 
 /*
  * This only works if the compiler isn't horribly bad at optimizing.
