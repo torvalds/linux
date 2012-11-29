@@ -298,9 +298,8 @@ int __srcu_read_lock(struct srcu_struct *sp)
 {
 	int idx;
 
+	idx = ACCESS_ONCE(sp->completed) & 0x1;
 	preempt_disable();
-	idx = rcu_dereference_index_check(sp->completed,
-					  rcu_read_lock_sched_held()) & 0x1;
 	ACCESS_ONCE(this_cpu_ptr(sp->per_cpu_ref)->c[idx]) += 1;
 	smp_mb(); /* B */  /* Avoid leaking the critical section. */
 	ACCESS_ONCE(this_cpu_ptr(sp->per_cpu_ref)->seq[idx]) += 1;
