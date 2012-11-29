@@ -3261,8 +3261,10 @@ cifs_cleanup_volume_info(struct smb_vol *volume_info)
 
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
-/* build_path_to_root returns full path to root when
- * we do not have an exiting connection (tcon) */
+/*
+ * cifs_build_path_to_root returns full path to root when we do not have an
+ * exiting connection (tcon)
+ */
 static char *
 build_unc_path_to_root(const struct smb_vol *vol,
 		const struct cifs_sb_info *cifs_sb)
@@ -3518,8 +3520,10 @@ remote_path_check:
 			rc = -ENOSYS;
 			goto mount_fail_check;
 		}
-		/* build_path_to_root works only when we have a valid tcon */
-		full_path = build_path_to_root(volume_info, cifs_sb, tcon);
+		/*
+		 * cifs_build_path_to_root works only when we have a valid tcon
+		 */
+		full_path = cifs_build_path_to_root(volume_info, cifs_sb, tcon);
 		if (full_path == NULL) {
 			rc = -ENOMEM;
 			goto mount_fail_check;

@@ -280,9 +280,6 @@ struct smb_version_operations {
 	/* set attributes */
 	int (*set_file_info)(struct inode *, const char *, FILE_BASIC_INFO *,
 			     const unsigned int);
-	/* build a full path to the root of the mount */
-	char * (*build_path_to_root)(struct smb_vol *, struct cifs_sb_info *,
-				     struct cifs_tcon *);
 	/* check if we can send an echo or nor */
 	bool (*can_echo)(struct TCP_Server_Info *);
 	/* send echo request */
@@ -1082,15 +1079,6 @@ convert_delimiter(char *path, char delim)
 		if (path[i] == old_delim)
 			path[i] = delim;
 	}
-}
-
-static inline char *
-build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
-		   struct cifs_tcon *tcon)
-{
-	if (!vol->ops->build_path_to_root)
-		return NULL;
-	return vol->ops->build_path_to_root(vol, cifs_sb, tcon);
 }
 
 #ifdef CONFIG_CIFS_STATS
