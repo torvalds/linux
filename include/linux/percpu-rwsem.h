@@ -13,7 +13,7 @@ struct percpu_rw_semaphore {
 };
 
 #define light_mb()	barrier()
-#define heavy_mb()	synchronize_sched()
+#define heavy_mb()	synchronize_sched_expedited()
 
 static inline void percpu_down_read(struct percpu_rw_semaphore *p)
 {
@@ -51,7 +51,7 @@ static inline void percpu_down_write(struct percpu_rw_semaphore *p)
 {
 	mutex_lock(&p->mtx);
 	p->locked = true;
-	synchronize_sched(); /* make sure that all readers exit the rcu_read_lock_sched region */
+	synchronize_sched_expedited(); /* make sure that all readers exit the rcu_read_lock_sched region */
 	while (__percpu_count(p->counters))
 		msleep(1);
 	heavy_mb(); /* C, between read of p->counter and write to data, paired with B */

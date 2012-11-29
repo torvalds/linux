@@ -1182,13 +1182,13 @@ static void sh_mobile_ceu_put_formats(struct soc_camera_device *icd)
 }
 
 /* Check if any dimension of r1 is smaller than respective one of r2 */
-static bool is_smaller(struct v4l2_rect *r1, struct v4l2_rect *r2)
+static bool is_smaller(const struct v4l2_rect *r1, const struct v4l2_rect *r2)
 {
 	return r1->width < r2->width || r1->height < r2->height;
 }
 
 /* Check if r1 fails to cover r2 */
-static bool is_inside(struct v4l2_rect *r1, struct v4l2_rect *r2)
+static bool is_inside(const struct v4l2_rect *r1, const struct v4l2_rect *r2)
 {
 	return r1->left > r2->left || r1->top > r2->top ||
 		r1->left + r1->width < r2->left + r2->width ||
@@ -1263,7 +1263,7 @@ static void update_subrect(struct sh_mobile_ceu_cam *cam)
  * 3. if (2) failed, try to request the maximum image
  */
 static int client_s_crop(struct soc_camera_device *icd, struct v4l2_crop *crop,
-			 const struct v4l2_crop *cam_crop)
+			 struct v4l2_crop *cam_crop)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct v4l2_rect *rect = &crop->c, *cam_rect = &cam_crop->c;
@@ -1519,7 +1519,8 @@ static int client_scale(struct soc_camera_device *icd,
 static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
 				  const struct v4l2_crop *a)
 {
-	struct v4l2_rect *rect = &a->c;
+	struct v4l2_crop a_writable = *a;
+	const struct v4l2_rect *rect = &a_writable.c;
 	struct device *dev = icd->parent;
 	struct soc_camera_host *ici = to_soc_camera_host(dev);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
@@ -1545,7 +1546,7 @@ static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
 	 * 1. - 2. Apply iterative camera S_CROP for new input window, read back
 	 * actual camera rectangle.
 	 */
-	ret = client_s_crop(icd, a, &cam_crop);
+	ret = client_s_crop(icd, &a_writable, &cam_crop);
 	if (ret < 0)
 		return ret;
 
@@ -1946,7 +1947,7 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 }
 
 static int sh_mobile_ceu_set_livecrop(struct soc_camera_device *icd,
-				      struct v4l2_crop *a)
+				      const struct v4l2_crop *a)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);

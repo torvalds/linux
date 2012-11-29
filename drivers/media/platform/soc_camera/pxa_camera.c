@@ -1337,9 +1337,9 @@ static int pxa_camera_check_frame(u32 width, u32 height)
 }
 
 static int pxa_camera_set_crop(struct soc_camera_device *icd,
-			       struct v4l2_crop *a)
+			       const struct v4l2_crop *a)
 {
-	struct v4l2_rect *rect = &a->c;
+	const struct v4l2_rect *rect = &a->c;
 	struct device *dev = icd->parent;
 	struct soc_camera_host *ici = to_soc_camera_host(dev);
 	struct pxa_camera_dev *pcdev = ici->priv;
