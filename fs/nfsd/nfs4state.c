@@ -4611,6 +4611,32 @@ u64 nfsd_forget_client(struct nfs4_client *clp, u64 max)
 	return 1;
 }
 
+static u64 nfsd_foreach_client_lock(struct nfs4_client *clp, u64 max, void (*func)(struct nfs4_lockowner *))
+{
+	struct nfs4_openowner *oop;
+	struct nfs4_lockowner *lop, *lo_next;
+	struct nfs4_ol_stateid *stp, *st_next;
+	u64 count = 0;
+
+	list_for_each_entry(oop, &clp->cl_openowners, oo_perclient) {
+		list_for_each_entry_safe(stp, st_next, &oop->oo_owner.so_stateids, st_perstateowner) {
+			list_for_each_entry_safe(lop, lo_next, &stp->st_lockowners, lo_perstateid) {
+				if (func)
+					func(lop);
+				if (++count == max)
+					return count;
+			}
+		}
+	}
+
+	return count;
+}
+
+u64 nfsd_forget_client_locks(struct nfs4_client *clp, u64 max)
+{
+	return nfsd_foreach_client_lock(clp, max, release_lockowner);
+}
+
 u64 nfsd_for_n_state(u64 max, u64 (*func)(struct nfs4_client *, u64))
 {
 	struct nfs4_client *clp, *next;
@@ -4633,11 +4659,6 @@ void nfsd_forget_clients(u64 num)
 {
 	u64 count = nfsd_for_n_state(num, nfsd_forget_client);
 	printk(KERN_INFO "NFSD: Forgot %llu clients", count);
-}
-
-static void release_lockowner_sop(struct nfs4_stateowner *sop)
-{
-	release_lockowner(lockowner(sop));
 }
 
 static void release_openowner_sop(struct nfs4_stateowner *sop)
@@ -4666,9 +4687,8 @@ static int nfsd_release_n_owners(u64 num, bool is_open_owner,
 
 void nfsd_forget_locks(u64 num)
 {
-	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
-	int count = nfsd_release_n_owners(num, false, release_lockowner_sop, nn);
-	printk(KERN_INFO "NFSD: Forgot %d locks", count);
+	u64 count = nfsd_for_n_state(num, nfsd_forget_client_locks);
+	printk(KERN_INFO "NFSD: Forgot %llu locks", count);
 }
 
 void nfsd_forget_openowners(u64 num)
