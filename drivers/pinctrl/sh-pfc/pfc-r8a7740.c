@@ -1654,11 +1654,13 @@ static pinmux_enum_t pinmux_data[] = {
 	PINMUX_DATA(TRACEAUD_FROM_MEMC_MARK,			MSEL5CR_30_1,	MSEL5CR_29_0),
 };
 
-static struct pinmux_gpio pinmux_gpios[] = {
-
-	/* PORT */
+static struct pinmux_pin pinmux_pins[] = {
 	GPIO_PORT_ALL(),
+};
 
+#define PINMUX_FN_BASE	ARRAY_SIZE(pinmux_pins)
+
+static struct pinmux_func pinmux_func_gpios[] = {
 	/* IRQ */
 	GPIO_FN(IRQ0_PORT2),	GPIO_FN(IRQ0_PORT13),
 	GPIO_FN(IRQ1),
@@ -2592,9 +2594,10 @@ struct sh_pfc_soc_info r8a7740_pinmux_info = {
 	.function	= { PINMUX_FUNCTION_BEGIN,
 			    PINMUX_FUNCTION_END },
 
-	.gpios		= pinmux_gpios,
-	.nr_pins	= GPIO_PORT211 + 1,
-	.nr_gpios	= ARRAY_SIZE(pinmux_gpios),
+	.pins		= pinmux_pins,
+	.nr_pins	= ARRAY_SIZE(pinmux_pins),
+	.func_gpios	= pinmux_func_gpios,
+	.nr_func_gpios	= ARRAY_SIZE(pinmux_func_gpios),
 
 	.cfg_regs	= pinmux_config_regs,
 	.data_regs	= pinmux_data_regs,

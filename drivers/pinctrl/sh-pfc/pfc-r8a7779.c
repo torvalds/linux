@@ -1450,8 +1450,13 @@ static pinmux_enum_t pinmux_data[] = {
 	PINMUX_IPSR_MODSEL_DATA(IP12_17_15, SCK4_B, SEL_SCIF4_1),
 };
 
-static struct pinmux_gpio pinmux_gpios[] = {
+static struct pinmux_pin pinmux_pins[] = {
 	PINMUX_GPIO_GP_ALL(),
+};
+
+#define PINMUX_FN_BASE	ARRAY_SIZE(pinmux_pins)
+
+static struct pinmux_func pinmux_func_gpios[] = {
 	GPIO_FN(AVS1), GPIO_FN(AVS2), GPIO_FN(A17), GPIO_FN(A18),
 	GPIO_FN(A19),
 
@@ -2609,9 +2614,10 @@ struct sh_pfc_soc_info r8a7779_pinmux_info = {
 	.output = { PINMUX_OUTPUT_BEGIN, PINMUX_OUTPUT_END },
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
 
-	.gpios = pinmux_gpios,
-	.nr_pins = GPIO_GP_6_8 + 1,
-	.nr_gpios = ARRAY_SIZE(pinmux_gpios),
+	.pins = pinmux_pins,
+	.nr_pins = ARRAY_SIZE(pinmux_pins),
+	.func_gpios = pinmux_func_gpios,
+	.nr_func_gpios = ARRAY_SIZE(pinmux_func_gpios),
 
 	.cfg_regs = pinmux_config_regs,
 	.data_regs = pinmux_data_regs,

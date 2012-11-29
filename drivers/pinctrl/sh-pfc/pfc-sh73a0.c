@@ -1539,9 +1539,13 @@ static pinmux_enum_t pinmux_data[] = {
 	PINMUX_DATA(FSIAISLD_PU_MARK, PORT55_FN1, PORT55_IN_PU),
 };
 
-static struct pinmux_gpio pinmux_gpios[] = {
+static struct pinmux_pin pinmux_pins[] = {
 	GPIO_PORT_ALL(),
+};
 
+#define PINMUX_FN_BASE	ARRAY_SIZE(pinmux_pins)
+
+static struct pinmux_func pinmux_func_gpios[] = {
 	/* Table 25-1 (Functions 0-7) */
 	GPIO_FN(VBUS_0),
 	GPIO_FN(GPI0),
@@ -2776,9 +2780,10 @@ struct sh_pfc_soc_info sh73a0_pinmux_info = {
 	.output = { PINMUX_OUTPUT_BEGIN, PINMUX_OUTPUT_END },
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
 
-	.gpios = pinmux_gpios,
-	.nr_pins = GPIO_PORT309 + 1,
-	.nr_gpios = ARRAY_SIZE(pinmux_gpios),
+	.pins = pinmux_pins,
+	.nr_pins = ARRAY_SIZE(pinmux_pins),
+	.func_gpios = pinmux_func_gpios,
+	.nr_func_gpios = ARRAY_SIZE(pinmux_func_gpios),
 
 	.cfg_regs = pinmux_config_regs,
 	.data_regs = pinmux_data_regs,

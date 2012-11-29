@@ -606,7 +606,7 @@ static pinmux_enum_t pinmux_data[] = {
 	PINMUX_DATA(SIM_CLK_MARK, PSELD_1_0_10, PTV0_FN),
 };
 
-static struct pinmux_gpio pinmux_gpios[] = {
+static struct pinmux_pin pinmux_pins[] = {
 	/* PTA */
 	PINMUX_GPIO(GPIO_PTA7, PTA7_DATA),
 	PINMUX_GPIO(GPIO_PTA6, PTA6_DATA),
@@ -759,7 +759,11 @@ static struct pinmux_gpio pinmux_gpios[] = {
 	PINMUX_GPIO(GPIO_PTV2, PTV2_DATA),
 	PINMUX_GPIO(GPIO_PTV1, PTV1_DATA),
 	PINMUX_GPIO(GPIO_PTV0, PTV0_DATA),
+};
 
+#define PINMUX_FN_BASE	ARRAY_SIZE(pinmux_pins)
+
+static struct pinmux_func pinmux_func_gpios[] = {
 	/* BSC */
 	GPIO_FN(D31),
 	GPIO_FN(D30),
@@ -1220,9 +1224,10 @@ struct sh_pfc_soc_info sh7720_pinmux_info = {
 	.output = { PINMUX_OUTPUT_BEGIN, PINMUX_OUTPUT_END },
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
 
-	.gpios = pinmux_gpios,
-	.nr_pins = GPIO_PTV0 + 1,
-	.nr_gpios = ARRAY_SIZE(pinmux_gpios),
+	.pins = pinmux_pins,
+	.nr_pins = ARRAY_SIZE(pinmux_pins),
+	.func_gpios = pinmux_func_gpios,
+	.nr_func_gpios = ARRAY_SIZE(pinmux_func_gpios),
 
 	.cfg_regs = pinmux_config_regs,
 	.data_regs = pinmux_data_regs,

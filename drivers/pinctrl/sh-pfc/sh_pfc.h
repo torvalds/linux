@@ -35,9 +35,14 @@ enum {
 #define PINMUX_FLAG_DREG_SHIFT      10
 #define PINMUX_FLAG_DREG            (0x3f << PINMUX_FLAG_DREG_SHIFT)
 
-struct pinmux_gpio {
+struct pinmux_pin {
 	const pinmux_enum_t enum_id;
 	pinmux_flag_t flags;
+	const char *name;
+};
+
+struct pinmux_func {
+	const pinmux_enum_t enum_id;
 	const char *name;
 };
 
@@ -47,11 +52,10 @@ struct pinmux_gpio {
 		.enum_id = data_or_mark,		\
 		.flags = PINMUX_TYPE_GPIO		\
 	}
-#define PINMUX_GPIO_FN(gpio, data_or_mark)		\
-	[gpio] = {					\
+#define PINMUX_GPIO_FN(gpio, base, data_or_mark)	\
+	[gpio - (base)] = {				\
 		.name = __stringify(gpio),		\
 		.enum_id = data_or_mark,		\
-		.flags = PINMUX_TYPE_FUNCTION		\
 	}
 
 #define PINMUX_DATA(data_or_mark, ids...) data_or_mark, ids, 0
@@ -106,9 +110,10 @@ struct sh_pfc_soc_info {
 	struct pinmux_range output;
 	struct pinmux_range function;
 
-	struct pinmux_gpio *gpios;
+	struct pinmux_pin *pins;
 	unsigned int nr_pins;
-	unsigned int nr_gpios;
+	struct pinmux_func *func_gpios;
+	unsigned int nr_func_gpios;
 
 	struct pinmux_cfg_reg *cfg_regs;
 	struct pinmux_data_reg *data_regs;
@@ -145,7 +150,7 @@ enum { GPIO_CFG_DRYRUN, GPIO_CFG_REQ, GPIO_CFG_FREE };
 #define _GPIO_PORT(pfx, sfx) PINMUX_GPIO(GPIO_PORT##pfx, PORT##pfx##_DATA)
 #define PORT_ALL(str)	CPU_ALL_PORT(_PORT_ALL, PORT, str)
 #define GPIO_PORT_ALL()	CPU_ALL_PORT(_GPIO_PORT, , unused)
-#define GPIO_FN(str) PINMUX_GPIO_FN(GPIO_FN_##str, str##_MARK)
+#define GPIO_FN(str) PINMUX_GPIO_FN(GPIO_FN_##str, PINMUX_FN_BASE, str##_MARK)
 
 /* helper macro for pinmux_enum_t */
 #define PORT_DATA_I(nr)	\

@@ -1384,9 +1384,13 @@ static pinmux_enum_t pinmux_data[] = {
 	PINMUX_IPSR_DATA(IP11_28, ST_CLKOUT),
 };
 
-static struct pinmux_gpio pinmux_gpios[] = {
+static struct pinmux_pin pinmux_pins[] = {
 	PINMUX_GPIO_GP_ALL(),
+};
 
+#define PINMUX_FN_BASE	ARRAY_SIZE(pinmux_pins)
+
+static struct pinmux_func pinmux_func_gpios[] = {
 	GPIO_FN(CLKOUT), GPIO_FN(BS), GPIO_FN(CS0), GPIO_FN(EX_CS0),
 	GPIO_FN(RD), GPIO_FN(WE0), GPIO_FN(WE1),
 	GPIO_FN(SCL0), GPIO_FN(PENC0), GPIO_FN(USB_OVC0),
@@ -2460,9 +2464,10 @@ struct sh_pfc_soc_info sh7734_pinmux_info = {
 	.output = { PINMUX_OUTPUT_BEGIN, PINMUX_OUTPUT_END },
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
 
-	.gpios = pinmux_gpios,
-	.nr_pins = GPIO_GP_5_11 + 1,
-	.nr_gpios = ARRAY_SIZE(pinmux_gpios),
+	.pins = pinmux_pins,
+	.nr_pins = ARRAY_SIZE(pinmux_pins),
+	.func_gpios = pinmux_func_gpios,
+	.nr_func_gpios = ARRAY_SIZE(pinmux_func_gpios),
 
 	.cfg_regs = pinmux_config_regs,
 	.data_regs = pinmux_data_regs,

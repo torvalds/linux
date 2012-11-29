@@ -92,13 +92,14 @@ static int sh_pfc_enum_in_range(pinmux_enum_t enum_id, struct pinmux_range *r)
 static bool sh_pfc_gpio_is_pin(struct sh_pfc *pfc, unsigned int gpio)
 {
 	return (gpio < pfc->info->nr_pins) &&
-	       (pfc->info->gpios[gpio].enum_id != 0);
+	       (pfc->info->pins[gpio].enum_id != 0);
 }
 
 bool sh_pfc_gpio_is_function(struct sh_pfc *pfc, unsigned int gpio)
 {
-	return (gpio >= pfc->info->nr_pins) && (gpio < pfc->info->nr_gpios) &&
-	       (pfc->info->gpios[gpio].enum_id != 0);
+	return (gpio >= pfc->info->nr_pins) &&
+	       (gpio < pfc->info->nr_pins + pfc->info->nr_func_gpios) &&
+	       (pfc->info->func_gpios[gpio - pfc->info->nr_pins].enum_id != 0);
 }
 
 static unsigned long sh_pfc_read_raw_reg(void __iomem *mapped_reg,
@@ -234,7 +235,7 @@ static void sh_pfc_write_config_reg(struct sh_pfc *pfc,
 
 static int sh_pfc_setup_data_reg(struct sh_pfc *pfc, unsigned gpio)
 {
-	struct pinmux_gpio *gpiop = &pfc->info->gpios[gpio];
+	struct pinmux_pin *gpiop = &pfc->info->pins[gpio];
 	struct pinmux_data_reg *data_reg;
 	int k, n;
 
@@ -291,7 +292,7 @@ static void sh_pfc_setup_data_regs(struct sh_pfc *pfc)
 int sh_pfc_get_data_reg(struct sh_pfc *pfc, unsigned gpio,
 			struct pinmux_data_reg **drp, int *bitp)
 {
-	struct pinmux_gpio *gpiop = &pfc->info->gpios[gpio];
+	struct pinmux_pin *gpiop = &pfc->info->pins[gpio];
 	int k, n;
 
 	if (!sh_pfc_gpio_is_pin(pfc, gpio))
@@ -352,12 +353,16 @@ static int sh_pfc_get_config_reg(struct sh_pfc *pfc, pinmux_enum_t enum_id,
 int sh_pfc_gpio_to_enum(struct sh_pfc *pfc, unsigned gpio, int pos,
 			pinmux_enum_t *enum_idp)
 {
-	pinmux_enum_t enum_id = pfc->info->gpios[gpio].enum_id;
 	pinmux_enum_t *data = pfc->info->gpio_data;
+	pinmux_enum_t enum_id;
 	int k;
 
-	if (!sh_pfc_gpio_is_pin(pfc, gpio) &&
-	    !sh_pfc_gpio_is_function(pfc, gpio)) {
+	if (sh_pfc_gpio_is_pin(pfc, gpio)) {
+		enum_id = pfc->info->pins[gpio].enum_id;
+	} else if (sh_pfc_gpio_is_function(pfc, gpio)) {
+		unsigned int offset = gpio - pfc->info->nr_pins;
+		enum_id = pfc->info->func_gpios[offset].enum_id;
+	} else {
 		pr_err("non data/mark enum_id for gpio %d\n", gpio);
 		return -1;
 	}
