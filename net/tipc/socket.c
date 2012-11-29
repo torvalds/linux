@@ -775,16 +775,19 @@ exit:
 static int auto_connect(struct socket *sock, struct tipc_msg *msg)
 {
 	struct tipc_sock *tsock = tipc_sk(sock->sk);
-
-	if (msg_errcode(msg)) {
-		sock->state = SS_DISCONNECTING;
-		return -ECONNREFUSED;
-	}
+	struct tipc_port *p_ptr;
 
 	tsock->peer_name.ref = msg_origport(msg);
 	tsock->peer_name.node = msg_orignode(msg);
-	tipc_connect(tsock->p->ref, &tsock->peer_name);
-	tipc_set_portimportance(tsock->p->ref, msg_importance(msg));
+	p_ptr = tipc_port_deref(tsock->p->ref);
+	if (!p_ptr)
+		return -EINVAL;
+
+	__tipc_connect(tsock->p->ref, p_ptr, &tsock->peer_name);
+
+	if (msg_importance(msg) > TIPC_CRITICAL_IMPORTANCE)
+		return -EINVAL;
+	msg_set_importance(&p_ptr->phdr, (u32)msg_importance(msg));
 	sock->state = SS_CONNECTED;
 	return 0;
 }
@@ -1198,7 +1201,9 @@ static u32 filter_connect(struct tipc_sock *tsock, struct sk_buff **buf)
 {
 	struct socket *sock = tsock->sk.sk_socket;
 	struct tipc_msg *msg = buf_msg(*buf);
+	struct sock *sk = &tsock->sk;
 	u32 retval = TIPC_ERR_NO_PORT;
+	int res;
 
 	if (msg_mcast(msg))
 		return retval;
@@ -1216,8 +1221,36 @@ static u32 filter_connect(struct tipc_sock *tsock, struct sk_buff **buf)
 		break;
 	case SS_CONNECTING:
 		/* Accept only ACK or NACK message */
-		if (msg_connected(msg) || (msg_errcode(msg)))
+		if (unlikely(msg_errcode(msg))) {
+			sock->state = SS_DISCONNECTING;
+			sk->sk_err = -ECONNREFUSED;
 			retval = TIPC_OK;
+			break;
+		}
+
+		if (unlikely(!msg_connected(msg)))
+			break;
+
+		res = auto_connect(sock, msg);
+		if (res) {
+			sock->state = SS_DISCONNECTING;
+			sk->sk_err = res;
+			retval = TIPC_OK;
+			break;
+		}
+
+		/* If an incoming message is an 'ACK-', it should be
+		 * discarded here because it doesn't contain useful
+		 * data. In addition, we should try to wake up
+		 * connect() routine if sleeping.
+		 */
+		if (msg_data_sz(msg) == 0) {
+			kfree_skb(*buf);
+			*buf = NULL;
+			if (waitqueue_active(sk_sleep(sk)))
+				wake_up_interruptible(sk_sleep(sk));
+		}
+		retval = TIPC_OK;
 		break;
 	case SS_LISTENING:
 	case SS_UNCONNECTED:
@@ -1361,8 +1394,6 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 	struct sock *sk = sock->sk;
 	struct sockaddr_tipc *dst = (struct sockaddr_tipc *)dest;
 	struct msghdr m = {NULL,};
-	struct sk_buff *buf;
-	struct tipc_msg *msg;
 	unsigned int timeout;
 	int res;
 
@@ -1371,26 +1402,6 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 	/* For now, TIPC does not allow use of connect() with DGRAM/RDM types */
 	if (sock->state == SS_READY) {
 		res = -EOPNOTSUPP;
-		goto exit;
-	}
-
-	/* For now, TIPC does not support the non-blocking form of connect() */
-	if (flags & O_NONBLOCK) {
-		res = -EOPNOTSUPP;
-		goto exit;
-	}
-
-	/* Issue Posix-compliant error code if socket is in the wrong state */
-	if (sock->state == SS_LISTENING) {
-		res = -EOPNOTSUPP;
-		goto exit;
-	}
-	if (sock->state == SS_CONNECTING) {
-		res = -EALREADY;
-		goto exit;
-	}
-	if (sock->state != SS_UNCONNECTED) {
-		res = -EISCONN;
 		goto exit;
 	}
 
@@ -1405,48 +1416,65 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 		goto exit;
 	}
 
-	/* Reject any messages already in receive queue (very unlikely) */
-	reject_rx_queue(sk);
+	timeout = (flags & O_NONBLOCK) ? 0 : tipc_sk(sk)->conn_timeout;
 
-	/* Send a 'SYN-' to destination */
-	m.msg_name = dest;
-	m.msg_namelen = destlen;
-	res = send_msg(NULL, sock, &m, 0);
-	if (res < 0)
+	switch (sock->state) {
+	case SS_UNCONNECTED:
+		/* Send a 'SYN-' to destination */
+		m.msg_name = dest;
+		m.msg_namelen = destlen;
+
+		/* If connect is in non-blocking case, set MSG_DONTWAIT to
+		 * indicate send_msg() is never blocked.
+		 */
+		if (!timeout)
+			m.msg_flags = MSG_DONTWAIT;
+
+		res = send_msg(NULL, sock, &m, 0);
+		if ((res < 0) && (res != -EWOULDBLOCK))
+			goto exit;
+
+		/* Just entered SS_CONNECTING state; the only
+		 * difference is that return value in non-blocking
+		 * case is EINPROGRESS, rather than EALREADY.
+		 */
+		res = -EINPROGRESS;
+		break;
+	case SS_CONNECTING:
+		res = -EALREADY;
+		break;
+	case SS_CONNECTED:
+		res = -EISCONN;
+		break;
+	default:
+		res = -EINVAL;
 		goto exit;
-
-	/* Wait until an 'ACK' or 'RST' arrives, or a timeout occurs */
-	timeout = tipc_sk(sk)->conn_timeout;
-	release_sock(sk);
-	res = wait_event_interruptible_timeout(*sk_sleep(sk),
-			(!skb_queue_empty(&sk->sk_receive_queue) ||
-			(sock->state != SS_CONNECTING)),
-			timeout ? (long)msecs_to_jiffies(timeout)
-				: MAX_SCHEDULE_TIMEOUT);
-	lock_sock(sk);
-
-	if (res > 0) {
-		buf = skb_peek(&sk->sk_receive_queue);
-		if (buf != NULL) {
-			msg = buf_msg(buf);
-			res = auto_connect(sock, msg);
-			if (!res) {
-				if (!msg_data_sz(msg))
-					advance_rx_queue(sk);
-			}
-		} else {
-			if (sock->state == SS_CONNECTED)
-				res = -EISCONN;
-			else
-				res = -ECONNREFUSED;
-		}
-	} else {
-		if (res == 0)
-			res = -ETIMEDOUT;
-		else
-			; /* leave "res" unchanged */
-		sock->state = SS_DISCONNECTING;
 	}
+
+	if (sock->state == SS_CONNECTING) {
+		if (!timeout)
+			goto exit;
+
+		/* Wait until an 'ACK' or 'RST' arrives, or a timeout occurs */
+		release_sock(sk);
+		res = wait_event_interruptible_timeout(*sk_sleep(sk),
+				sock->state != SS_CONNECTING,
+				timeout ? (long)msecs_to_jiffies(timeout)
+					: MAX_SCHEDULE_TIMEOUT);
+		lock_sock(sk);
+		if (res <= 0) {
+			if (res == 0)
+				res = -ETIMEDOUT;
+			else
+				; /* leave "res" unchanged */
+			goto exit;
+		}
+	}
+
+	if (unlikely(sock->state == SS_DISCONNECTING))
+		res = sock_error(sk);
+	else
+		res = 0;
 
 exit:
 	release_sock(sk);
