@@ -58,11 +58,11 @@ struct acpi_ec {
 	unsigned long data_addr;
 	unsigned long global_lock;
 	unsigned long flags;
-	struct mutex lock;
+	struct mutex mutex;
 	wait_queue_head_t wait;
 	struct list_head list;
 	struct transaction *curr;
-	spinlock_t curr_lock;
+	spinlock_t lock;
 };
 
 extern struct acpi_ec *first_ec;

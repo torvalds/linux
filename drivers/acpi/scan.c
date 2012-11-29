@@ -108,6 +108,7 @@ void acpi_bus_hot_remove_device(void *context)
 	struct acpi_eject_event *ej_event = (struct acpi_eject_event *) context;
 	struct acpi_device *device;
 	acpi_handle handle = ej_event->handle;
+	acpi_handle temp;
 	struct acpi_object_list arg_list;
 	union acpi_object arg;
 	acpi_status status = AE_OK;
@@ -128,13 +129,16 @@ void acpi_bus_hot_remove_device(void *context)
 		goto err_out;
 	}
 
+	/* device has been freed */
+	device = NULL;
+
 	/* power off device */
 	status = acpi_evaluate_object(handle, "_PS3", NULL, NULL);
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND)
 		printk(KERN_WARNING PREFIX
 				"Power-off device failed\n");
 
-	if (device->flags.lockable) {
+	if (ACPI_SUCCESS(acpi_get_handle(handle, "_LCK", &temp))) {
 		arg_list.count = 1;
 		arg_list.pointer = &arg;
 		arg.type = ACPI_TYPE_INTEGER;
@@ -168,6 +172,7 @@ err_out:
 	kfree(context);
 	return;
 }
+EXPORT_SYMBOL(acpi_bus_hot_remove_device);
 
 static ssize_t
 acpi_eject_store(struct device *d, struct device_attribute *attr,
@@ -227,6 +232,25 @@ acpi_device_hid_show(struct device *dev, struct device_attribute *attr, char *bu
 }
 static DEVICE_ATTR(hid, 0444, acpi_device_hid_show, NULL);
 
+static ssize_t acpi_device_uid_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct acpi_device *acpi_dev = to_acpi_device(dev);
+
+	return sprintf(buf, "%s\n", acpi_dev->pnp.unique_id);
+}
+static DEVICE_ATTR(uid, 0444, acpi_device_uid_show, NULL);
+
+static ssize_t acpi_device_adr_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct acpi_device *acpi_dev = to_acpi_device(dev);
+
+	return sprintf(buf, "0x%08x\n",
+		       (unsigned int)(acpi_dev->pnp.bus_address));
+}
+static DEVICE_ATTR(adr, 0444, acpi_device_adr_show, NULL);
+
 static ssize_t
 acpi_device_path_show(struct device *dev, struct device_attribute *attr, char *buf) {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
@@ -270,11 +294,21 @@ static ssize_t description_show(struct device *dev,
 }
 static DEVICE_ATTR(description, 0444, description_show, NULL);
 
+static ssize_t
+acpi_device_sun_show(struct device *dev, struct device_attribute *attr,
+		     char *buf) {
+	struct acpi_device *acpi_dev = to_acpi_device(dev);
+
+	return sprintf(buf, "%lu\n", acpi_dev->pnp.sun);
+}
+static DEVICE_ATTR(sun, 0444, acpi_device_sun_show, NULL);
+
 static int acpi_device_setup_files(struct acpi_device *dev)
 {
 	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
 	acpi_status status;
 	acpi_handle temp;
+	unsigned long long sun;
 	int result = 0;
 
 	/*
@@ -311,6 +345,21 @@ static int acpi_device_setup_files(struct acpi_device *dev)
 			goto end;
 	}
 
+	if (dev->flags.bus_address)
+		result = device_create_file(&dev->dev, &dev_attr_adr);
+	if (dev->pnp.unique_id)
+		result = device_create_file(&dev->dev, &dev_attr_uid);
+
+	status = acpi_evaluate_integer(dev->handle, "_SUN", NULL, &sun);
+	if (ACPI_SUCCESS(status)) {
+		dev->pnp.sun = (unsigned long)sun;
+		result = device_create_file(&dev->dev, &dev_attr_sun);
+		if (result)
+			goto end;
+	} else {
+		dev->pnp.sun = (unsigned long)-1;
+	}
+
         /*
          * If device has _EJ0, 'eject' file is created that is used to trigger
          * hot-removal function from userland.
@@ -342,6 +391,14 @@ static void acpi_device_remove_files(struct acpi_device *dev)
 	if (ACPI_SUCCESS(status))
 		device_remove_file(&dev->dev, &dev_attr_eject);
 
+	status = acpi_get_handle(dev->handle, "_SUN", &temp);
+	if (ACPI_SUCCESS(status))
+		device_remove_file(&dev->dev, &dev_attr_sun);
+
+	if (dev->pnp.unique_id)
+		device_remove_file(&dev->dev, &dev_attr_uid);
+	if (dev->flags.bus_address)
+		device_remove_file(&dev->dev, &dev_attr_adr);
 	device_remove_file(&dev->dev, &dev_attr_modalias);
 	device_remove_file(&dev->dev, &dev_attr_hid);
 	if (dev->handle)
@@ -418,6 +475,7 @@ static void acpi_device_release(struct device *dev)
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 
 	acpi_free_ids(acpi_dev);
+	kfree(acpi_dev->pnp.unique_id);
 	kfree(acpi_dev);
 }
 
@@ -1061,11 +1119,6 @@ static int acpi_bus_get_flags(struct acpi_device *device)
 			device->flags.ejectable = 1;
 	}
 
-	/* Presence of _LCK indicates 'lockable' */
-	status = acpi_get_handle(device->handle, "_LCK", &temp);
-	if (ACPI_SUCCESS(status))
-		device->flags.lockable = 1;
-
 	/* Power resources cannot be power manageable. */
 	if (device->device_type == ACPI_BUS_TYPE_POWER)
 		return 0;
@@ -1260,6 +1313,9 @@ static void acpi_device_set_id(struct acpi_device *device)
 			device->pnp.bus_address = info->address;
 			device->flags.bus_address = 1;
 		}
+		if (info->valid & ACPI_VALID_UID)
+			device->pnp.unique_id = kstrdup(info->unique_id.string,
+							GFP_KERNEL);
 
 		kfree(info);
 
