@@ -465,8 +465,8 @@ static void _rtl92s_dm_initial_gain_sta_beforeconnect(struct ieee80211_hw *hw)
 				digtable->cur_igvalue =
 						digtable->rx_gain_range_min;
 			else
-				digtable->cur_igvalue = digtable->rssi_val + 10 -
-						digtable->back_val;
+				digtable->cur_igvalue = digtable->rssi_val + 10
+					- digtable->back_val;
 
 			if (falsealm_cnt->cnt_all > 10000)
 				digtable->cur_igvalue =
@@ -518,7 +518,7 @@ static void _rtl92s_dm_initial_gain_sta_beforeconnect(struct ieee80211_hw *hw)
 static void _rtl92s_dm_ctrl_initgain_bytwoport(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct dig_t *digtable = &rtlpriv->dm_digtable;
+	struct dig_t *dig = &rtlpriv->dm_digtable;
 
 	if (rtlpriv->mac80211.act_scanning)
 		return;
@@ -526,17 +526,17 @@ static void _rtl92s_dm_ctrl_initgain_bytwoport(struct ieee80211_hw *hw)
 	/* Decide the current status and if modify initial gain or not */
 	if (rtlpriv->mac80211.link_state >= MAC80211_LINKED ||
 	    rtlpriv->mac80211.opmode == NL80211_IFTYPE_ADHOC)
-		digtable->cur_sta_cstate = DIG_STA_CONNECT;
+		dig->cur_sta_cstate = DIG_STA_CONNECT;
 	else
-		digtable->cur_sta_cstate = DIG_STA_DISCONNECT;
+		dig->cur_sta_cstate = DIG_STA_DISCONNECT;
 
-	digtable->rssi_val = rtlpriv->dm.undec_sm_pwdb;
+	dig->rssi_val = rtlpriv->dm.undec_sm_pwdb;
 
 	/* Change dig mode to rssi */
-	if (digtable->cur_sta_cstate != DIG_STA_DISCONNECT) {
-		if (digtable->dig_twoport_algorithm ==
+	if (dig->cur_sta_cstate != DIG_STA_DISCONNECT) {
+		if (dig->dig_twoport_algorithm ==
 		    DIG_TWO_PORT_ALGO_FALSE_ALARM) {
-			digtable->dig_twoport_algorithm = DIG_TWO_PORT_ALGO_RSSI;
+			dig->dig_twoport_algorithm = DIG_TWO_PORT_ALGO_RSSI;
 			rtl92s_phy_set_fw_cmd(hw, FW_CMD_DIG_MODE_SS);
 		}
 	}
@@ -544,7 +544,7 @@ static void _rtl92s_dm_ctrl_initgain_bytwoport(struct ieee80211_hw *hw)
 	_rtl92s_dm_false_alarm_counter_statistics(hw);
 	_rtl92s_dm_initial_gain_sta_beforeconnect(hw);
 
-	digtable->pre_sta_cstate = digtable->cur_sta_cstate;
+	dig->pre_sta_cstate = dig->cur_sta_cstate;
 }
 
 static void _rtl92s_dm_ctrl_initgain_byrssi(struct ieee80211_hw *hw)

@@ -1089,8 +1089,9 @@ int rtl92se_hw_init(struct ieee80211_hw *hw)
 	return err;
 }
 
-void rtl92se_set_mac_addr(struct rtl_io *io, const u8 * addr)
+void rtl92se_set_mac_addr(struct rtl_io *io, const u8 *addr)
 {
+	/* This is a stub. */
 }
 
 void rtl92se_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid)

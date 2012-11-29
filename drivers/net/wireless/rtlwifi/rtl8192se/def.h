@@ -522,8 +522,7 @@ enum fwcmd_iotype {
 	FW_CMD_IQK_ENABLE = 30,
 };
 
-/*
- * Driver info contain PHY status
+/* Driver info contain PHY status
  * and other variabel size info
  * PHY Status content as below
  */

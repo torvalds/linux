@@ -50,8 +50,7 @@ static void rtl92s_init_aspm_vars(struct ieee80211_hw *hw)
 	/*close ASPM for AMD defaultly */
 	rtlpci->const_amdpci_aspm = 0;
 
-	/*
-	 * ASPM PS mode.
+	/* ASPM PS mode.
 	 * 0 - Disable ASPM,
 	 * 1 - Enable ASPM without Clock Req,
 	 * 2 - Enable ASPM with Clock Req,
@@ -67,8 +66,7 @@ static void rtl92s_init_aspm_vars(struct ieee80211_hw *hw)
 	/*Setting for PCI-E bridge */
 	rtlpci->const_hostpci_aspm_setting = 0x02;
 
-	/*
-	 * In Hw/Sw Radio Off situation.
+	/* In Hw/Sw Radio Off situation.
 	 * 0 - Default,
 	 * 1 - From ASPM setting without low Mac Pwr,
 	 * 2 - From ASPM setting with low Mac Pwr,
@@ -77,8 +75,7 @@ static void rtl92s_init_aspm_vars(struct ieee80211_hw *hw)
 	 */
 	rtlpci->const_hwsw_rfoff_d3 = 2;
 
-	/*
-	 * This setting works for those device with
+	/* This setting works for those device with
 	 * backdoor ASPM setting such as EPHY setting.
 	 * 0 - Not support ASPM,
 	 * 1 - Support ASPM,
