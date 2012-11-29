@@ -4808,6 +4808,7 @@ static int nl80211_send_bss(struct sk_buff *msg, struct netlink_callback *cb,
 			    struct cfg80211_internal_bss *intbss)
 {
 	struct cfg80211_bss *res = &intbss->pub;
+	const struct cfg80211_bss_ies *ies;
 	void *hdr;
 	struct nlattr *bss;
 
@@ -4828,16 +4829,24 @@ static int nl80211_send_bss(struct sk_buff *msg, struct netlink_callback *cb,
 	if (!bss)
 		goto nla_put_failure;
 	if ((!is_zero_ether_addr(res->bssid) &&
-	     nla_put(msg, NL80211_BSS_BSSID, ETH_ALEN, res->bssid)) ||
-	    (res->information_elements && res->len_information_elements &&
-	     nla_put(msg, NL80211_BSS_INFORMATION_ELEMENTS,
-		     res->len_information_elements,
-		     res->information_elements)) ||
-	    (res->beacon_ies && res->len_beacon_ies &&
-	     res->beacon_ies != res->information_elements &&
-	     nla_put(msg, NL80211_BSS_BEACON_IES,
-		     res->len_beacon_ies, res->beacon_ies)))
+	     nla_put(msg, NL80211_BSS_BSSID, ETH_ALEN, res->bssid)))
 		goto nla_put_failure;
+
+	rcu_read_lock();
+	ies = rcu_dereference(res->ies);
+	if (ies && ies->len && nla_put(msg, NL80211_BSS_INFORMATION_ELEMENTS,
+				       ies->len, ies->data)) {
+		rcu_read_unlock();
+		goto nla_put_failure;
+	}
+	ies = rcu_dereference(res->beacon_ies);
+	if (ies && ies->len && nla_put(msg, NL80211_BSS_BEACON_IES,
+				       ies->len, ies->data)) {
+		rcu_read_unlock();
+		goto nla_put_failure;
+	}
+	rcu_read_unlock();
+
 	if (res->tsf &&
 	    nla_put_u64(msg, NL80211_BSS_TSF, res->tsf))
 		goto nla_put_failure;

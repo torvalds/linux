@@ -417,7 +417,7 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 			       struct cfg80211_bss *bss)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	u8 *country_ie;
+	const u8 *country_ie;
 #ifdef CONFIG_CFG80211_WEXT
 	union iwreq_data wrqu;
 #endif
@@ -501,7 +501,15 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 	wdev->sme_state = CFG80211_SME_CONNECTED;
 	cfg80211_upload_connect_keys(wdev);
 
-	country_ie = (u8 *) ieee80211_bss_get_ie(bss, WLAN_EID_COUNTRY);
+	rcu_read_lock();
+	country_ie = ieee80211_bss_get_ie(bss, WLAN_EID_COUNTRY);
+	if (!country_ie) {
+		rcu_read_unlock();
+		return;
+	}
+
+	country_ie = kmemdup(country_ie, 2 + country_ie[1], GFP_ATOMIC);
+	rcu_read_unlock();
 
 	if (!country_ie)
 		return;
@@ -515,6 +523,7 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 			    bss->channel->band,
 			    country_ie + 2,
 			    country_ie[1]);
+	kfree(country_ie);
 }
 
 void cfg80211_connect_result(struct net_device *dev, const u8 *bssid,

@@ -688,10 +688,13 @@ EXPORT_SYMBOL(cfg80211_classify8021d);
 
 const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 ie)
 {
-	if (bss->information_elements == NULL)
+	const struct cfg80211_bss_ies *ies;
+
+	ies = rcu_dereference(bss->ies);
+	if (!ies)
 		return NULL;
-	return cfg80211_find_ie(ie, bss->information_elements,
-				 bss->len_information_elements);
+
+	return cfg80211_find_ie(ie, ies->data, ies->len);
 }
 EXPORT_SYMBOL(ieee80211_bss_get_ie);
 

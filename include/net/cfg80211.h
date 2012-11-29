@@ -1206,6 +1206,18 @@ enum cfg80211_signal_type {
 };
 
 /**
+ * struct cfg80211_bss_ie_data - BSS entry IE data
+ * @rcu_head: internal use, for freeing
+ * @len: length of the IEs
+ * @data: IE data
+ */
+struct cfg80211_bss_ies {
+	struct rcu_head rcu_head;
+	int len;
+	u8 data[];
+};
+
+/**
  * struct cfg80211_bss - BSS description
  *
  * This structure describes a BSS (which may also be a mesh network)
@@ -1216,36 +1228,34 @@ enum cfg80211_signal_type {
  * @tsf: timestamp of last received update
  * @beacon_interval: the beacon interval as from the frame
  * @capability: the capability field in host byte order
- * @information_elements: the information elements (Note that there
+ * @ies: the information elements (Note that there
  *	is no guarantee that these are well-formed!); this is a pointer to
  *	either the beacon_ies or proberesp_ies depending on whether Probe
  *	Response frame has been received
- * @len_information_elements: total length of the information elements
  * @beacon_ies: the information elements from the last Beacon frame
- * @len_beacon_ies: total length of the beacon_ies
  * @proberesp_ies: the information elements from the last Probe Response frame
- * @len_proberesp_ies: total length of the proberesp_ies
  * @signal: signal strength value (type depends on the wiphy's signal_type)
  * @free_priv: function pointer to free private data
  * @priv: private area for driver use, has at least wiphy->bss_priv_size bytes
  */
 struct cfg80211_bss {
+	u64 tsf;
+
 	struct ieee80211_channel *channel;
 
-	u8 bssid[ETH_ALEN];
-	u64 tsf;
-	u16 beacon_interval;
-	u16 capability;
-	u8 *information_elements;
-	size_t len_information_elements;
-	u8 *beacon_ies;
-	size_t len_beacon_ies;
-	u8 *proberesp_ies;
-	size_t len_proberesp_ies;
+	const struct cfg80211_bss_ies __rcu *ies;
+	const struct cfg80211_bss_ies __rcu *beacon_ies;
+	const struct cfg80211_bss_ies __rcu *proberesp_ies;
+
+	void (*free_priv)(struct cfg80211_bss *bss);
 
 	s32 signal;
 
-	void (*free_priv)(struct cfg80211_bss *bss);
+	u16 beacon_interval;
+	u16 capability;
+
+	u8 bssid[ETH_ALEN];
+
 	u8 priv[0] __attribute__((__aligned__(sizeof(void *))));
 };
 
@@ -1253,6 +1263,9 @@ struct cfg80211_bss {
  * ieee80211_bss_get_ie - find IE with given ID
  * @bss: the bss to search
  * @ie: the IE ID
+ *
+ * Note that the return value is an RCU-protected pointer, so
+ * rcu_read_lock() must be held when calling this function.
  * Returns %NULL if not found.
  */
 const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 ie);

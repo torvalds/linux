@@ -1797,7 +1797,7 @@ EXPORT_SYMBOL(regulatory_hint);
  */
 void regulatory_hint_11d(struct wiphy *wiphy,
 			 enum ieee80211_band band,
-			 u8 *country_ie,
+			 const u8 *country_ie,
 			 u8 country_ie_len)
 {
 	char alpha2[2];

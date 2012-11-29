@@ -1382,19 +1382,26 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	sdata->u.mgd.flags |= IEEE80211_STA_RESET_SIGNAL_AVE;
 
 	if (sdata->vif.p2p) {
-		u8 noa[2];
-		int ret;
+		const struct cfg80211_bss_ies *ies;
 
-		ret = cfg80211_get_p2p_attr(cbss->information_elements,
-					    cbss->len_information_elements,
-					    IEEE80211_P2P_ATTR_ABSENCE_NOTICE,
-					    noa, sizeof(noa));
-		if (ret >= 2) {
-			bss_conf->p2p_oppps = noa[1] & 0x80;
-			bss_conf->p2p_ctwindow = noa[1] & 0x7f;
-			bss_info_changed |= BSS_CHANGED_P2P_PS;
-			sdata->u.mgd.p2p_noa_index = noa[0];
+		rcu_read_lock();
+		ies = rcu_dereference(cbss->ies);
+		if (ies) {
+			u8 noa[2];
+			int ret;
+
+			ret = cfg80211_get_p2p_attr(
+					ies->data, ies->len,
+					IEEE80211_P2P_ATTR_ABSENCE_NOTICE,
+					noa, sizeof(noa));
+			if (ret >= 2) {
+				bss_conf->p2p_oppps = noa[1] & 0x80;
+				bss_conf->p2p_ctwindow = noa[1] & 0x7f;
+				bss_info_changed |= BSS_CHANGED_P2P_PS;
+				sdata->u.mgd.p2p_noa_index = noa[0];
+			}
 		}
+		rcu_read_unlock();
 	}
 
 	/* just to be sure */
@@ -1659,6 +1666,7 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 	} else {
 		int ssid_len;
 
+		rcu_read_lock();
 		ssid = ieee80211_bss_get_ie(ifmgd->associated, WLAN_EID_SSID);
 		if (WARN_ON_ONCE(ssid == NULL))
 			ssid_len = 0;
@@ -1668,6 +1676,7 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 		ieee80211_send_probe_req(sdata, dst, ssid + 2, ssid_len, NULL,
 					 0, (u32) -1, true, false,
 					 ifmgd->associated->channel, false);
+		rcu_read_unlock();
 	}
 
 	ifmgd->probe_timeout = jiffies + msecs_to_jiffies(probe_wait_ms);
@@ -1763,6 +1772,7 @@ struct sk_buff *ieee80211_ap_probereq_get(struct ieee80211_hw *hw,
 	else
 		return NULL;
 
+	rcu_read_lock();
 	ssid = ieee80211_bss_get_ie(cbss, WLAN_EID_SSID);
 	if (WARN_ON_ONCE(ssid == NULL))
 		ssid_len = 0;
@@ -1773,6 +1783,7 @@ struct sk_buff *ieee80211_ap_probereq_get(struct ieee80211_hw *hw,
 					(u32) -1, cbss->channel,
 					ssid + 2, ssid_len,
 					NULL, 0, true);
+	rcu_read_unlock();
 
 	return skb;
 }
@@ -2858,9 +2869,12 @@ static int ieee80211_probe_auth(struct ieee80211_sub_if_data *sdata)
 			   auth_data->bss->bssid, auth_data->tries,
 			   IEEE80211_AUTH_MAX_TRIES);
 
+		rcu_read_lock();
 		ssidie = ieee80211_bss_get_ie(auth_data->bss, WLAN_EID_SSID);
-		if (!ssidie)
+		if (!ssidie) {
+			rcu_read_unlock();
 			return -EINVAL;
+		}
 		/*
 		 * Direct probe is sent to broadcast address as some APs
 		 * will not answer to direct packet in unassociated state.
@@ -2868,6 +2882,7 @@ static int ieee80211_probe_auth(struct ieee80211_sub_if_data *sdata)
 		ieee80211_send_probe_req(sdata, NULL, ssidie + 2, ssidie[1],
 					 NULL, 0, (u32) -1, true, false,
 					 auth_data->bss->channel, false);
+		rcu_read_unlock();
 	}
 
 	auth_data->timeout = jiffies + IEEE80211_AUTH_TIMEOUT;
@@ -3404,9 +3419,7 @@ static u8 ieee80211_ht_vht_rx_chains(struct ieee80211_sub_if_data *sdata,
 	if (ifmgd->flags & IEEE80211_STA_DISABLE_HT)
 		return chains;
 
-	ht_cap_ie = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY,
-				     cbss->information_elements,
-				     cbss->len_information_elements);
+	ht_cap_ie = ieee80211_bss_get_ie(cbss, WLAN_EID_HT_CAPABILITY);
 	if (ht_cap_ie && ht_cap_ie[1] >= sizeof(*ht_cap)) {
 		ht_cap = (void *)(ht_cap_ie + 2);
 		chains = ieee80211_mcs_to_chains(&ht_cap->mcs);
@@ -3419,9 +3432,7 @@ static u8 ieee80211_ht_vht_rx_chains(struct ieee80211_sub_if_data *sdata,
 	if (ifmgd->flags & IEEE80211_STA_DISABLE_VHT)
 		return chains;
 
-	vht_cap_ie = cfg80211_find_ie(WLAN_EID_VHT_CAPABILITY,
-				      cbss->information_elements,
-				      cbss->len_information_elements);
+	vht_cap_ie = ieee80211_bss_get_ie(cbss, WLAN_EID_VHT_CAPABILITY);
 	if (vht_cap_ie && vht_cap_ie[1] >= sizeof(*vht_cap)) {
 		u8 nss;
 		u16 tx_mcs_map;
@@ -3457,13 +3468,13 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 			  IEEE80211_STA_DISABLE_80P80MHZ |
 			  IEEE80211_STA_DISABLE_160MHZ);
 
+	rcu_read_lock();
+
 	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HT) &&
 	    sband->ht_cap.ht_supported) {
 		const u8 *ht_oper_ie;
 
-		ht_oper_ie = cfg80211_find_ie(WLAN_EID_HT_OPERATION,
-					      cbss->information_elements,
-					      cbss->len_information_elements);
+		ht_oper_ie = ieee80211_bss_get_ie(cbss, WLAN_EID_HT_OPERATION);
 		if (ht_oper_ie && ht_oper_ie[1] >= sizeof(*ht_oper))
 			ht_oper = (void *)(ht_oper_ie + 2);
 	}
@@ -3472,9 +3483,8 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	    sband->vht_cap.vht_supported) {
 		const u8 *vht_oper_ie;
 
-		vht_oper_ie = cfg80211_find_ie(WLAN_EID_VHT_OPERATION,
-					       cbss->information_elements,
-					       cbss->len_information_elements);
+		vht_oper_ie = ieee80211_bss_get_ie(cbss,
+						   WLAN_EID_VHT_OPERATION);
 		if (vht_oper_ie && vht_oper_ie[1] >= sizeof(*vht_oper))
 			vht_oper = (void *)(vht_oper_ie + 2);
 		if (vht_oper && !ht_oper) {
@@ -3493,6 +3503,8 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 
 	sdata->needed_rx_chains = min(ieee80211_ht_vht_rx_chains(sdata, cbss),
 				      local->rx_chains);
+
+	rcu_read_unlock();
 
 	/* will change later if needed */
 	sdata->smps_mode = IEEE80211_SMPS_OFF;
@@ -3734,13 +3746,20 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	const u8 *ssidie, *ht_ie;
 	int i, err;
 
-	ssidie = ieee80211_bss_get_ie(req->bss, WLAN_EID_SSID);
-	if (!ssidie)
-		return -EINVAL;
-
 	assoc_data = kzalloc(sizeof(*assoc_data) + req->ie_len, GFP_KERNEL);
 	if (!assoc_data)
 		return -ENOMEM;
+
+	rcu_read_lock();
+	ssidie = ieee80211_bss_get_ie(req->bss, WLAN_EID_SSID);
+	if (!ssidie) {
+		rcu_read_unlock();
+		kfree(assoc_data);
+		return -EINVAL;
+	}
+	memcpy(assoc_data->ssid, ssidie + 2, ssidie[1]);
+	assoc_data->ssid_len = ssidie[1];
+	rcu_read_unlock();
 
 	mutex_lock(&ifmgd->mtx);
 
@@ -3836,12 +3855,14 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	assoc_data->supp_rates = bss->supp_rates;
 	assoc_data->supp_rates_len = bss->supp_rates_len;
 
+	rcu_read_lock();
 	ht_ie = ieee80211_bss_get_ie(req->bss, WLAN_EID_HT_OPERATION);
 	if (ht_ie && ht_ie[1] >= sizeof(struct ieee80211_ht_operation))
 		assoc_data->ap_ht_param =
 			((struct ieee80211_ht_operation *)(ht_ie + 2))->ht_param;
 	else
 		ifmgd->flags |= IEEE80211_STA_DISABLE_HT;
+	rcu_read_unlock();
 
 	if (bss->wmm_used && bss->uapsd_supported &&
 	    (sdata->local->hw.flags & IEEE80211_HW_SUPPORTS_UAPSD)) {
@@ -3851,9 +3872,6 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		assoc_data->uapsd = false;
 		ifmgd->flags &= ~IEEE80211_STA_UAPSD_ENABLED;
 	}
-
-	memcpy(assoc_data->ssid, ssidie + 2, ssidie[1]);
-	assoc_data->ssid_len = ssidie[1];
 
 	if (req->prev_bssid)
 		memcpy(assoc_data->prev_bssid, req->prev_bssid, ETH_ALEN);
