@@ -99,7 +99,7 @@ netdev_tx_t mac802154_tx(struct mac802154_priv *priv, struct sk_buff *skb,
 	}
 
 	if (skb_cow_head(skb, priv->hw.extra_tx_headroom)) {
-		dev_kfree_skb(skb);
+		kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
 
