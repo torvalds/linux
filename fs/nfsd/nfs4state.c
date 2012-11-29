@@ -4605,19 +4605,34 @@ nfs4_check_open_reclaim(clientid_t *clid, bool sessions, struct nfsd_net *nn)
 
 #ifdef CONFIG_NFSD_FAULT_INJECTION
 
-void nfsd_forget_clients(u64 num)
+u64 nfsd_forget_client(struct nfs4_client *clp, u64 max)
+{
+	expire_client(clp);
+	return 1;
+}
+
+u64 nfsd_for_n_state(u64 max, u64 (*func)(struct nfs4_client *, u64))
 {
 	struct nfs4_client *clp, *next;
-	int count = 0;
+	u64 count = 0;
 	struct nfsd_net *nn = net_generic(current->nsproxy->net_ns, nfsd_net_id);
 
+	if (!nfsd_netns_ready(nn))
+		return 0;
+
 	list_for_each_entry_safe(clp, next, &nn->client_lru, cl_lru) {
-		expire_client(clp);
-		if (++count == num)
+		count += func(clp, max - count);
+		if ((max != 0) && (count >= max))
 			break;
 	}
 
-	printk(KERN_INFO "NFSD: Forgot %d clients", count);
+	return count;
+}
+
+void nfsd_forget_clients(u64 num)
+{
+	u64 count = nfsd_for_n_state(num, nfsd_forget_client);
+	printk(KERN_INFO "NFSD: Forgot %llu clients", count);
 }
 
 static void release_lockowner_sop(struct nfs4_stateowner *sop)

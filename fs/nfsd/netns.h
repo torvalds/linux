@@ -92,5 +92,8 @@ struct nfsd_net {
 	time_t nfsd4_grace;
 };
 
+/* Simple check to find out if a given net was properly initialized */
+#define nfsd_netns_ready(nn) ((nn)->sessionid_hashtbl)
+
 extern int nfsd_net_id;
 #endif /* __NFSD_NETNS_H__ */
