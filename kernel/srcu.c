@@ -477,12 +477,11 @@ EXPORT_SYMBOL_GPL(synchronize_srcu);
  * Wait for an SRCU grace period to elapse, but be more aggressive about
  * spinning rather than blocking when waiting.
  *
- * Note that it is illegal to call this function while holding any lock
- * that is acquired by a CPU-hotplug notifier.  It is also illegal to call
- * synchronize_srcu_expedited() from the corresponding SRCU read-side
- * critical section; doing so will result in deadlock.  However, it is
- * perfectly legal to call synchronize_srcu_expedited() on one srcu_struct
- * from some other srcu_struct's read-side critical section, as long as
+ * Note that it is also illegal to call synchronize_srcu_expedited()
+ * from the corresponding SRCU read-side critical section;
+ * doing so will result in deadlock.  However, it is perfectly legal
+ * to call synchronize_srcu_expedited() on one srcu_struct from some
+ * other srcu_struct's read-side critical section, as long as
  * the resulting graph of srcu_structs is acyclic.
  */
 void synchronize_srcu_expedited(struct srcu_struct *sp)
