@@ -19,6 +19,7 @@
 #include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_qos.h>
 
 #include <asm/io.h>
 
@@ -711,12 +712,20 @@ int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p, int d_max_in)
 	struct acpi_device *adev;
 	char acpi_method[] = "_SxD";
 	unsigned long long d_min, d_max;
+	bool wakeup = false;
 
 	if (d_max_in < ACPI_STATE_D0 || d_max_in > ACPI_STATE_D3)
 		return -EINVAL;
 	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &adev))) {
 		printk(KERN_DEBUG "ACPI handle has no context!\n");
 		return -ENODEV;
+	}
+	if (d_max_in > ACPI_STATE_D3_HOT) {
+		enum pm_qos_flags_status stat;
+
+		stat = dev_pm_qos_flags(dev, PM_QOS_FLAG_NO_POWER_OFF);
+		if (stat == PM_QOS_FLAGS_ALL)
+			d_max_in = ACPI_STATE_D3_HOT;
 	}
 
 	acpi_method[2] = '0' + acpi_target_sleep_state;
@@ -737,8 +746,14 @@ int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p, int d_max_in)
 	 * NOTE: We rely on acpi_evaluate_integer() not clobbering the integer
 	 * provided -- that's our fault recovery, we ignore retval.
 	 */
-	if (acpi_target_sleep_state > ACPI_STATE_S0)
+	if (acpi_target_sleep_state > ACPI_STATE_S0) {
 		acpi_evaluate_integer(handle, acpi_method, NULL, &d_min);
+		wakeup = device_may_wakeup(dev) && adev->wakeup.flags.valid
+			&& adev->wakeup.sleep_state >= acpi_target_sleep_state;
+	} else if (dev_pm_qos_flags(dev, PM_QOS_FLAG_REMOTE_WAKEUP) !=
+			PM_QOS_FLAGS_NONE) {
+		wakeup = adev->wakeup.flags.valid;
+	}
 
 	/*
 	 * If _PRW says we can wake up the system from the target sleep state,
@@ -747,9 +762,7 @@ int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p, int d_max_in)
 	 * (ACPI 3.x), it should return the maximum (lowest power) D-state that
 	 * can wake the system.  _S0W may be valid, too.
 	 */
-	if (acpi_target_sleep_state == ACPI_STATE_S0 ||
-	    (device_may_wakeup(dev) && adev->wakeup.flags.valid &&
-	     adev->wakeup.sleep_state >= acpi_target_sleep_state)) {
+	if (wakeup) {
 		acpi_status status;
 
 		acpi_method[3] = 'W';

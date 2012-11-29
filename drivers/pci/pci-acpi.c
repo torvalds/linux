@@ -17,6 +17,7 @@
 
 #include <linux/pci-acpi.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_qos.h>
 #include "pci.h"
 
 static DEFINE_MUTEX(pci_acpi_pm_notify_mtx);
@@ -257,11 +258,16 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		return -ENODEV;
 
 	switch (state) {
+	case PCI_D3cold:
+		if (dev_pm_qos_flags(&dev->dev, PM_QOS_FLAG_NO_POWER_OFF) ==
+				PM_QOS_FLAGS_ALL) {
+			error = -EBUSY;
+			break;
+		}
 	case PCI_D0:
 	case PCI_D1:
 	case PCI_D2:
 	case PCI_D3hot:
-	case PCI_D3cold:
 		error = acpi_bus_set_power(handle, state_conv[state]);
 	}
 
