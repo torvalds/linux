@@ -396,10 +396,8 @@ err:
 
 void batadv_debugfs_destroy(void)
 {
-	if (batadv_debugfs) {
-		debugfs_remove_recursive(batadv_debugfs);
-		batadv_debugfs = NULL;
-	}
+	debugfs_remove_recursive(batadv_debugfs);
+	batadv_debugfs = NULL;
 }
 
 int batadv_debugfs_add_meshif(struct net_device *dev)
