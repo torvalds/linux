@@ -321,10 +321,8 @@ EXPORT_SYMBOL_GPL(__srcu_read_lock);
  */
 void __srcu_read_unlock(struct srcu_struct *sp, int idx)
 {
-	preempt_disable();
 	smp_mb(); /* C */  /* Avoid leaking the critical section. */
-	ACCESS_ONCE(this_cpu_ptr(sp->per_cpu_ref)->c[idx]) -= 1;
-	preempt_enable();
+	this_cpu_dec(sp->per_cpu_ref->c[idx]);
 }
 EXPORT_SYMBOL_GPL(__srcu_read_unlock);
 
