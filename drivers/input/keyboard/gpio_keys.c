@@ -440,19 +440,11 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 
 	if (gpio_is_valid(button->gpio)) {
 
-		error = gpio_request(button->gpio, desc);
+		error = gpio_request_one(button->gpio, GPIOF_IN, desc);
 		if (error < 0) {
 			dev_err(dev, "Failed to request GPIO %d, error %d\n",
 				button->gpio, error);
 			return error;
-		}
-
-		error = gpio_direction_input(button->gpio);
-		if (error < 0) {
-			dev_err(dev,
-				"Failed to configure direction for GPIO %d, error %d\n",
-				button->gpio, error);
-			goto fail;
 		}
 
 		if (button->debounce_interval) {
