@@ -138,6 +138,19 @@ static const long hsw_ddi_buf_ctl_values[] = {
 	DDI_BUF_EMP_800MV_3_5DB_HSW
 };
 
+static void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
+				    enum port port)
+{
+	uint32_t reg = DDI_BUF_CTL(port);
+	int i;
+
+	for (i = 0; i < 8; i++) {
+		udelay(1);
+		if (I915_READ(reg) & DDI_BUF_IS_IDLE)
+			return;
+	}
+	DRM_ERROR("Timeout waiting for DDI BUF %c idle bit\n", port_name(port));
+}
 
 /* Starting with Haswell, different DDI ports can work in FDI mode for
  * connection to the PCH-located connectors. For this, it is necessary to train
@@ -231,18 +244,30 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 			return;
 		}
 
+		temp = I915_READ(DDI_BUF_CTL(PORT_E));
+		temp &= ~DDI_BUF_CTL_ENABLE;
+		I915_WRITE(DDI_BUF_CTL(PORT_E), temp);
+		POSTING_READ(DDI_BUF_CTL(PORT_E));
+
 		/* Disable DP_TP_CTL and FDI_RX_CTL and retry */
-		I915_WRITE(DP_TP_CTL(PORT_E),
-			   I915_READ(DP_TP_CTL(PORT_E)) & ~DP_TP_CTL_ENABLE);
+		temp = I915_READ(DP_TP_CTL(PORT_E));
+		temp &= ~(DP_TP_CTL_ENABLE | DP_TP_CTL_LINK_TRAIN_MASK);
+		temp |= DP_TP_CTL_LINK_TRAIN_PAT1;
+		I915_WRITE(DP_TP_CTL(PORT_E), temp);
+		POSTING_READ(DP_TP_CTL(PORT_E));
+
+		intel_wait_ddi_buf_idle(dev_priv, PORT_E);
 
 		rx_ctl_val &= ~FDI_RX_ENABLE;
 		I915_WRITE(_FDI_RXA_CTL, rx_ctl_val);
+		POSTING_READ(_FDI_RXA_CTL);
 
 		/* Reset FDI_RX_MISC pwrdn lanes */
 		temp = I915_READ(_FDI_RXA_MISC);
 		temp &= ~(FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK);
 		temp |= FDI_RX_PWRDN_LANE1_VAL(2) | FDI_RX_PWRDN_LANE0_VAL(2);
 		I915_WRITE(_FDI_RXA_MISC, temp);
+		POSTING_READ(_FDI_RXA_MISC);
 	}
 
 	DRM_ERROR("FDI link training failed!\n");
@@ -1220,20 +1245,6 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 		intel_dp_start_link_train(intel_dp);
 		intel_dp_complete_link_train(intel_dp);
 	}
-}
-
-static void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
-				    enum port port)
-{
-	uint32_t reg = DDI_BUF_CTL(port);
-	int i;
-
-	for (i = 0; i < 8; i++) {
-		udelay(1);
-		if (I915_READ(reg) & DDI_BUF_IS_IDLE)
-			return;
-	}
-	DRM_ERROR("Timeout waiting for DDI BUF %c idle bit\n", port_name(port));
 }
 
 static void intel_ddi_post_disable(struct intel_encoder *intel_encoder)
