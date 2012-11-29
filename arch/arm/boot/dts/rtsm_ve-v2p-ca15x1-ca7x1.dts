@@ -94,6 +94,11 @@
 		reg = <0 0x2c090000 0 0x8000>;
 	};
 
+	dcscb@60000000 {
+		compatible = "arm,dcscb";
+		reg = <0 0x60000000 0 0x1000>;
+	};
+
 	gic: interrupt-controller@2c001000 {
 		compatible = "arm,cortex-a15-gic", "arm,cortex-a9-gic";
 		#interrupt-cells = <3>;
