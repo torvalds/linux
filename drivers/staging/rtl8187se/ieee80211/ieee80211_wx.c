@@ -221,7 +221,7 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 		list_for_each_entry(network, &ieee->network_list, list) {
 			i++;
 
-			if ((stop-ev)<200) {
+			if ((stop-ev) < 200) {
 				err = -E2BIG;
 				break;
 			}
@@ -683,13 +683,13 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 		break;
 
 	case IW_AUTH_80211_AUTH_ALG:
-		ieee->open_wep = (data->value&IW_AUTH_ALG_OPEN_SYSTEM)?1:0;
+		ieee->open_wep = (data->value&IW_AUTH_ALG_OPEN_SYSTEM) ? 1 : 0;
 		//printk("open_wep:%d\n", ieee->open_wep);
 		break;
 
 #if 1
 	case IW_AUTH_WPA_ENABLED:
-		ieee->wpa_enabled = (data->value)?1:0;
+		ieee->wpa_enabled = (data->value) ? 1 : 0;
 		//printk("enable wpa:%d\n", ieee->wpa_enabled);
 		break;
 
@@ -711,7 +711,7 @@ int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 {
 	u8 *buf = NULL;
 
-	if (len>MAX_WPA_IE_LEN || (len && ie == NULL)) {
+	if (len > MAX_WPA_IE_LEN || (len && ie == NULL)) {
 		printk("return error out, len:%zu\n", len);
 	return -EINVAL;
 	}
