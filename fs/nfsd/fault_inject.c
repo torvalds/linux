@@ -14,28 +14,34 @@
 struct nfsd_fault_inject_op {
 	char *file;
 	u64 (*forget)(struct nfs4_client *, u64);
+	u64 (*print)(struct nfs4_client *, u64);
 };
 
 static struct nfsd_fault_inject_op inject_ops[] = {
 	{
 		.file   = "forget_clients",
 		.forget = nfsd_forget_client,
+		.print  = nfsd_print_client,
 	},
 	{
 		.file   = "forget_locks",
 		.forget = nfsd_forget_client_locks,
+		.print  = nfsd_print_client_locks,
 	},
 	{
 		.file   = "forget_openowners",
 		.forget = nfsd_forget_client_openowners,
+		.print  = nfsd_print_client_openowners,
 	},
 	{
 		.file   = "forget_delegations",
 		.forget = nfsd_forget_client_delegations,
+		.print  = nfsd_print_client_delegations,
 	},
 	{
 		.file   = "recall_delegations",
 		.forget = nfsd_recall_client_delegations,
+		.print  = nfsd_print_client_delegations,
 	},
 };
 
@@ -59,9 +65,12 @@ static int nfsd_inject_set(void *op_ptr, u64 val)
 	return 0;
 }
 
-static int nfsd_inject_get(void *data, u64 *val)
+static int nfsd_inject_get(void *op_ptr, u64 *val)
 {
-	*val = 0;
+	struct nfsd_fault_inject_op *op = op_ptr;
+	nfs4_lock_state();
+	*val = nfsd_for_n_state(0, op->print);
+	nfs4_unlock_state();
 	return 0;
 }
 

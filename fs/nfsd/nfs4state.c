@@ -4611,6 +4611,22 @@ u64 nfsd_forget_client(struct nfs4_client *clp, u64 max)
 	return 1;
 }
 
+u64 nfsd_print_client(struct nfs4_client *clp, u64 num)
+{
+	char buf[INET6_ADDRSTRLEN];
+	rpc_ntop((struct sockaddr *)&clp->cl_addr, buf, 129);
+	printk(KERN_INFO "NFS Client: %s\n", buf);
+	return 1;
+}
+
+static void nfsd_print_count(struct nfs4_client *clp, unsigned int count,
+			     const char *type)
+{
+	char buf[INET6_ADDRSTRLEN];
+	rpc_ntop((struct sockaddr *)&clp->cl_addr, buf, 129);
+	printk(KERN_INFO "NFS Client: %s has %u %s\n", buf, count, type);
+}
+
 static u64 nfsd_foreach_client_lock(struct nfs4_client *clp, u64 max, void (*func)(struct nfs4_lockowner *))
 {
 	struct nfs4_openowner *oop;
@@ -4637,6 +4653,13 @@ u64 nfsd_forget_client_locks(struct nfs4_client *clp, u64 max)
 	return nfsd_foreach_client_lock(clp, max, release_lockowner);
 }
 
+u64 nfsd_print_client_locks(struct nfs4_client *clp, u64 max)
+{
+	u64 count = nfsd_foreach_client_lock(clp, max, NULL);
+	nfsd_print_count(clp, count, "locked files");
+	return count;
+}
+
 static u64 nfsd_foreach_client_open(struct nfs4_client *clp, u64 max, void (*func)(struct nfs4_openowner *))
 {
 	struct nfs4_openowner *oop, *next;
@@ -4655,6 +4678,13 @@ static u64 nfsd_foreach_client_open(struct nfs4_client *clp, u64 max, void (*fun
 u64 nfsd_forget_client_openowners(struct nfs4_client *clp, u64 max)
 {
 	return nfsd_foreach_client_open(clp, max, release_openowner);
+}
+
+u64 nfsd_print_client_openowners(struct nfs4_client *clp, u64 max)
+{
+	u64 count = nfsd_foreach_client_open(clp, max, NULL);
+	nfsd_print_count(clp, count, "open files");
+	return count;
 }
 
 static u64 nfsd_find_all_delegations(struct nfs4_client *clp, u64 max,
@@ -4700,6 +4730,18 @@ u64 nfsd_recall_client_delegations(struct nfs4_client *clp, u64 max)
 		nfsd_break_one_deleg(dp);
 	spin_unlock(&recall_lock);
 
+	return count;
+}
+
+u64 nfsd_print_client_delegations(struct nfs4_client *clp, u64 max)
+{
+	u64 count = 0;
+
+	spin_lock(&recall_lock);
+	count = nfsd_find_all_delegations(clp, max, NULL);
+	spin_unlock(&recall_lock);
+
+	nfsd_print_count(clp, count, "delegations");
 	return count;
 }
 
