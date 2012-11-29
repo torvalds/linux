@@ -3112,7 +3112,7 @@ done:
 
 		if (chan->conn->feat_mask & L2CAP_FEAT_FCS)
 			if (chan->fcs == L2CAP_FCS_NONE ||
-			    test_bit(CONF_NO_FCS_RECV, &chan->conf_state)) {
+			    test_bit(CONF_RECV_NO_FCS, &chan->conf_state)) {
 				chan->fcs = L2CAP_FCS_NONE;
 				l2cap_add_conf_opt(&ptr, L2CAP_CONF_FCS, 1,
 						   chan->fcs);
@@ -3140,7 +3140,7 @@ done:
 
 		if (chan->conn->feat_mask & L2CAP_FEAT_FCS)
 			if (chan->fcs == L2CAP_FCS_NONE ||
-			    test_bit(CONF_NO_FCS_RECV, &chan->conf_state)) {
+			    test_bit(CONF_RECV_NO_FCS, &chan->conf_state)) {
 				chan->fcs = L2CAP_FCS_NONE;
 				l2cap_add_conf_opt(&ptr, L2CAP_CONF_FCS, 1,
 						   chan->fcs);
@@ -3196,7 +3196,7 @@ static int l2cap_parse_conf_req(struct l2cap_chan *chan, void *data)
 
 		case L2CAP_CONF_FCS:
 			if (val == L2CAP_FCS_NONE)
-				set_bit(CONF_NO_FCS_RECV, &chan->conf_state);
+				set_bit(CONF_RECV_NO_FCS, &chan->conf_state);
 			break;
 
 		case L2CAP_CONF_EFS:
@@ -3435,7 +3435,7 @@ static int l2cap_parse_conf_rsp(struct l2cap_chan *chan, void *rsp, int len,
 		case L2CAP_CONF_FCS:
 			if (*result == L2CAP_CONF_PENDING)
 				if (val == L2CAP_FCS_NONE)
-					set_bit(CONF_NO_FCS_RECV,
+					set_bit(CONF_RECV_NO_FCS,
 						&chan->conf_state);
 			break;
 		}
@@ -3807,7 +3807,7 @@ static inline void set_default_fcs(struct l2cap_chan *chan)
 	 */
 	if (chan->mode != L2CAP_MODE_ERTM && chan->mode != L2CAP_MODE_STREAMING)
 		chan->fcs = L2CAP_FCS_NONE;
-	else if (!test_bit(CONF_NO_FCS_RECV, &chan->conf_state))
+	else if (!test_bit(CONF_RECV_NO_FCS, &chan->conf_state))
 		chan->fcs = L2CAP_FCS_CRC16;
 }
 
