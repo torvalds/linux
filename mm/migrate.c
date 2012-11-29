@@ -1492,7 +1492,7 @@ bool migrate_ratelimited(int node)
 }
 
 /* Returns true if the node is migrate rate-limited after the update */
-bool numamigrate_update_ratelimit(pg_data_t *pgdat)
+bool numamigrate_update_ratelimit(pg_data_t *pgdat, unsigned long nr_pages)
 {
 	bool rate_limited = false;
 
@@ -1510,7 +1510,7 @@ bool numamigrate_update_ratelimit(pg_data_t *pgdat)
 	if (pgdat->numabalancing_migrate_nr_pages > ratelimit_pages)
 		rate_limited = true;
 	else
-		pgdat->numabalancing_migrate_nr_pages++;
+		pgdat->numabalancing_migrate_nr_pages += nr_pages;
 	spin_unlock(&pgdat->numabalancing_migrate_lock);
 	
 	return rate_limited;
@@ -1579,7 +1579,7 @@ int migrate_misplaced_page(struct page *page, int node)
 	 * Optimal placement is no good if the memory bus is saturated and
 	 * all the time is being spent migrating!
 	 */
-	if (numamigrate_update_ratelimit(pgdat)) {
+	if (numamigrate_update_ratelimit(pgdat, 1)) {
 		put_page(page);
 		goto out;
 	}
@@ -1630,7 +1630,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 	 * Optimal placement is no good if the memory bus is saturated and
 	 * all the time is being spent migrating!
 	 */
-	if (numamigrate_update_ratelimit(pgdat))
+	if (numamigrate_update_ratelimit(pgdat, HPAGE_PMD_NR))
 		goto out_dropref;
 
 	new_page = alloc_pages_node(node,
