@@ -337,6 +337,23 @@ static ssize_t sta_current_tx_rate_read(struct file *file, char __user *userbuf,
 }
 STA_OPS(current_tx_rate);
 
+static ssize_t sta_last_rx_rate_read(struct file *file, char __user *userbuf,
+				     size_t count, loff_t *ppos)
+{
+	struct sta_info *sta = file->private_data;
+	struct rate_info rinfo;
+	u16 rate;
+
+	sta_set_rate_info_rx(sta, &rinfo);
+
+	rate = cfg80211_calculate_bitrate(&rinfo);
+
+	return mac80211_format_buffer(userbuf, count, ppos,
+				      "%d.%d MBit/s\n",
+				      rate/10, rate%10);
+}
+STA_OPS(last_rx_rate);
+
 #define DEBUGFS_ADD(name) \
 	debugfs_create_file(#name, 0400, \
 		sta->debugfs.dir, sta, &sta_ ##name## _ops);
@@ -387,6 +404,7 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	DEBUGFS_ADD(ht_capa);
 	DEBUGFS_ADD(last_ack_signal);
 	DEBUGFS_ADD(current_tx_rate);
+	DEBUGFS_ADD(last_rx_rate);
 
 	DEBUGFS_ADD_COUNTER(rx_packets, rx_packets);
 	DEBUGFS_ADD_COUNTER(tx_packets, tx_packets);
