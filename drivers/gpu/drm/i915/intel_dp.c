@@ -899,6 +899,43 @@ void intel_dp_init_link_config(struct intel_dp *intel_dp)
 	}
 }
 
+static void ironlake_set_pll_edp(struct drm_crtc *crtc, int clock)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 dpa_ctl;
+
+	DRM_DEBUG_KMS("eDP PLL enable for clock %d\n", clock);
+	dpa_ctl = I915_READ(DP_A);
+	dpa_ctl &= ~DP_PLL_FREQ_MASK;
+
+	if (clock < 200000) {
+		u32 temp;
+		dpa_ctl |= DP_PLL_FREQ_160MHZ;
+		/* workaround for 160Mhz:
+		   1) program 0x4600c bits 15:0 = 0x8124
+		   2) program 0x46010 bit 0 = 1
+		   3) program 0x46034 bit 24 = 1
+		   4) program 0x64000 bit 14 = 1
+		   */
+		temp = I915_READ(0x4600c);
+		temp &= 0xffff0000;
+		I915_WRITE(0x4600c, temp | 0x8124);
+
+		temp = I915_READ(0x46010);
+		I915_WRITE(0x46010, temp | 1);
+
+		temp = I915_READ(0x46034);
+		I915_WRITE(0x46034, temp | (1 << 24));
+	} else {
+		dpa_ctl |= DP_PLL_FREQ_270MHZ;
+	}
+	I915_WRITE(DP_A, dpa_ctl);
+
+	POSTING_READ(DP_A);
+	udelay(500);
+}
+
 static void
 intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		  struct drm_display_mode *adjusted_mode)
@@ -998,6 +1035,9 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	} else {
 		intel_dp->DP |= DP_LINK_TRAIN_OFF_CPT;
 	}
+
+	if (is_cpu_edp(intel_dp))
+		ironlake_set_pll_edp(crtc, adjusted_mode->clock);
 }
 
 #define IDLE_ON_MASK		(PP_ON | 0 	  | PP_SEQUENCE_MASK | 0                     | PP_SEQUENCE_STATE_MASK)
