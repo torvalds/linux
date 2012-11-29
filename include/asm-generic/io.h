@@ -83,18 +83,24 @@ static inline void __raw_writel(u32 b, volatile void __iomem *addr)
 #define writel(b,addr) __raw_writel(__cpu_to_le32(b),addr)
 
 #ifdef CONFIG_64BIT
+#ifndef __raw_readq
 static inline u64 __raw_readq(const volatile void __iomem *addr)
 {
 	return *(const volatile u64 __force *) addr;
 }
+#endif
+
 #define readq(addr) __le64_to_cpu(__raw_readq(addr))
 
+#ifndef __raw_writeq
 static inline void __raw_writeq(u64 b, volatile void __iomem *addr)
 {
 	*(volatile u64 __force *) addr = b;
 }
-#define writeq(b,addr) __raw_writeq(__cpu_to_le64(b),addr)
 #endif
+
+#define writeq(b, addr) __raw_writeq(__cpu_to_le64(b), addr)
+#endif /* CONFIG_64BIT */
 
 #ifndef PCI_IOBASE
 #define PCI_IOBASE ((void __iomem *) 0)
@@ -286,15 +292,20 @@ static inline void writesb(const void __iomem *addr, const void *buf, int len)
 
 #ifndef CONFIG_GENERIC_IOMAP
 struct pci_dev;
+extern void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long max);
+
+#ifndef pci_iounmap
 static inline void pci_iounmap(struct pci_dev *dev, void __iomem *p)
 {
 }
+#endif
 #endif /* CONFIG_GENERIC_IOMAP */
 
 /*
  * Change virtual addresses to physical addresses and vv.
  * These are pretty trivial
  */
+#ifndef virt_to_phys
 static inline unsigned long virt_to_phys(volatile void *address)
 {
 	return __pa((unsigned long)address);
@@ -304,6 +315,7 @@ static inline void *phys_to_virt(unsigned long address)
 {
 	return __va(address);
 }
+#endif
 
 /*
  * Change "struct page" to physical address.
@@ -363,9 +375,16 @@ static inline void *bus_to_virt(unsigned long address)
 }
 #endif
 
+#ifndef memset_io
 #define memset_io(a, b, c)	memset(__io_virt(a), (b), (c))
+#endif
+
+#ifndef memcpy_fromio
 #define memcpy_fromio(a, b, c)	memcpy((a), __io_virt(b), (c))
+#endif
+#ifndef memcpy_toio
 #define memcpy_toio(a, b, c)	memcpy(__io_virt(a), (b), (c))
+#endif
 
 #endif /* __KERNEL__ */
 

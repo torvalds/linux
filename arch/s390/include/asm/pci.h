@@ -1,10 +1,84 @@
 #ifndef __ASM_S390_PCI_H
 #define __ASM_S390_PCI_H
 
-/* S/390 systems don't have a PCI bus. This file is just here because some stupid .c code
- * includes it even if CONFIG_PCI is not set.
- */
+/* must be set before including asm-generic/pci.h */
 #define PCI_DMA_BUS_IS_PHYS (0)
+/* must be set before including pci_clp.h */
+#define PCI_BAR_COUNT	6
 
-#endif /* __ASM_S390_PCI_H */
+#include <asm-generic/pci.h>
+#include <asm-generic/pci-dma-compat.h>
 
+#define PCIBIOS_MIN_IO		0x1000
+#define PCIBIOS_MIN_MEM		0x10000000
+
+#define pcibios_assign_all_busses()	(0)
+
+void __iomem *pci_iomap(struct pci_dev *, int, unsigned long);
+void pci_iounmap(struct pci_dev *, void __iomem *);
+int pci_domain_nr(struct pci_bus *);
+int pci_proc_domain(struct pci_bus *);
+
+#define ZPCI_BUS_NR			0	/* default bus number */
+#define ZPCI_DEVFN			0	/* default device number */
+
+/* PCI Function Controls */
+#define ZPCI_FC_FN_ENABLED		0x80
+#define ZPCI_FC_ERROR			0x40
+#define ZPCI_FC_BLOCKED			0x20
+#define ZPCI_FC_DMA_ENABLED		0x10
+
+enum zpci_state {
+	ZPCI_FN_STATE_RESERVED,
+	ZPCI_FN_STATE_STANDBY,
+	ZPCI_FN_STATE_CONFIGURED,
+	ZPCI_FN_STATE_ONLINE,
+	NR_ZPCI_FN_STATES,
+};
+
+struct zpci_bar_struct {
+	u32		val;		/* bar start & 3 flag bits */
+	u8		size;		/* order 2 exponent */
+	u16		map_idx;	/* index into bar mapping array */
+};
+
+/* Private data per function */
+struct zpci_dev {
+	struct pci_dev	*pdev;
+	struct pci_bus	*bus;
+	struct list_head entry;		/* list of all zpci_devices, needed for hotplug, etc. */
+
+	enum zpci_state state;
+	u32		fid;		/* function ID, used by sclp */
+	u32		fh;		/* function handle, used by insn's */
+	u16		pchid;		/* physical channel ID */
+	u8		pfgid;		/* function group ID */
+	u16		domain;
+
+	struct zpci_bar_struct bars[PCI_BAR_COUNT];
+
+	enum pci_bus_speed max_bus_speed;
+};
+
+static inline bool zdev_enabled(struct zpci_dev *zdev)
+{
+	return (zdev->fh & (1UL << 31)) ? true : false;
+}
+
+/* -----------------------------------------------------------------------------
+  Prototypes
+----------------------------------------------------------------------------- */
+/* Base stuff */
+struct zpci_dev *zpci_alloc_device(void);
+int zpci_create_device(struct zpci_dev *);
+int zpci_enable_device(struct zpci_dev *);
+void zpci_stop_device(struct zpci_dev *);
+void zpci_free_device(struct zpci_dev *);
+int zpci_scan_device(struct zpci_dev *);
+
+/* Helpers */
+struct zpci_dev *get_zdev(struct pci_dev *);
+struct zpci_dev *get_zdev_by_fid(u32);
+bool zpci_fid_present(u32);
+
+#endif

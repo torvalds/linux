@@ -399,6 +399,10 @@ enum {
 	LONG_INSN_TABORT,
 	LONG_INSN_TBEGIN,
 	LONG_INSN_TBEGINC,
+	LONG_INSN_PCISTG,
+	LONG_INSN_MPCIFC,
+	LONG_INSN_STPCIFC,
+	LONG_INSN_PCISTB,
 };
 
 static char *long_insn_name[] = {
@@ -469,6 +473,10 @@ static char *long_insn_name[] = {
 	[LONG_INSN_TABORT] = "tabort",
 	[LONG_INSN_TBEGIN] = "tbegin",
 	[LONG_INSN_TBEGINC] = "tbeginc",
+	[LONG_INSN_PCISTG] = "pcistg",
+	[LONG_INSN_MPCIFC] = "mpcifc",
+	[LONG_INSN_STPCIFC] = "stpcifc",
+	[LONG_INSN_PCISTB] = "pcistb",
 };
 
 static struct insn opcode[] = {
@@ -1115,6 +1123,9 @@ static struct insn opcode_b9[] = {
 	{ { 0, LONG_INSN_SLHHHR }, 0xcb, INSTR_RRF_R0RR2 },
 	{ "chhr", 0xcd, INSTR_RRE_RR },
 	{ "clhhr", 0xcf, INSTR_RRE_RR },
+	{ { 0, LONG_INSN_PCISTG }, 0xd0, INSTR_RRE_RR },
+	{ "pcilg", 0xd2, INSTR_RRE_RR },
+	{ "rpcit", 0xd3, INSTR_RRE_RR },
 	{ "ahhlr", 0xd8, INSTR_RRF_R0RR2 },
 	{ "shhlr", 0xd9, INSTR_RRF_R0RR2 },
 	{ { 0, LONG_INSN_ALHHLR }, 0xda, INSTR_RRF_R0RR2 },
@@ -1346,6 +1357,8 @@ static struct insn opcode_e3[] = {
 	{ "stfh", 0xcb, INSTR_RXY_RRRD },
 	{ "chf", 0xcd, INSTR_RXY_RRRD },
 	{ "clhf", 0xcf, INSTR_RXY_RRRD },
+	{ { 0, LONG_INSN_MPCIFC }, 0xd0, INSTR_RXY_RRRD },
+	{ { 0, LONG_INSN_STPCIFC }, 0xd4, INSTR_RXY_RRRD },
 #endif
 	{ "lrv", 0x1e, INSTR_RXY_RRRD },
 	{ "lrvh", 0x1f, INSTR_RXY_RRRD },
@@ -1423,6 +1436,8 @@ static struct insn opcode_eb[] = {
 	{ "lmy", 0x98, INSTR_RSY_RRRD },
 	{ "lamy", 0x9a, INSTR_RSY_AARD },
 	{ "stamy", 0x9b, INSTR_RSY_AARD },
+	{ { 0, LONG_INSN_PCISTB }, 0xd0, INSTR_RSY_RRRD },
+	{ "sic", 0xd1, INSTR_RSY_RRRD },
 	{ "srak", 0xdc, INSTR_RSY_RRRD },
 	{ "slak", 0xdd, INSTR_RSY_RRRD },
 	{ "srlk", 0xde, INSTR_RSY_RRRD },
