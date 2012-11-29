@@ -60,9 +60,6 @@ static LIST_HEAD(rk_dvfs_tree);
 static DEFINE_MUTEX(mutex);
 static DEFINE_MUTEX(rk_dvfs_mutex);
 
-extern int rk30_clk_notifier_register(struct clk *clk, struct notifier_block *nb);
-extern int rk30_clk_notifier_unregister(struct clk *clk, struct notifier_block *nb);
-
 static int dump_dbg_map(char* buf);
 
 #define PD_ON	1
@@ -441,8 +438,10 @@ int clk_disable_dvfs(struct clk *clk)
 		dvfs_clk->enable_dvfs--;
 		if (0 == dvfs_clk->enable_dvfs) {
 			DVFS_ERR("clk closed!\n");
-			rk30_clk_notifier_unregister(clk, dvfs_clk->dvfs_nb);
+#if 0
+			clk_notifier_unregister(clk, dvfs_clk->dvfs_nb);
 			DVFS_DBG("clk unregister nb!\n");
+#endif
 		}
 	}
 	return 0;
