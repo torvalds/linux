@@ -47,6 +47,7 @@ void sh_pfc_write_bit(struct pinmux_data_reg *dr, unsigned long in_pos,
 		      unsigned long value);
 int sh_pfc_get_data_reg(struct sh_pfc *pfc, unsigned gpio,
 			struct pinmux_data_reg **drp, int *bitp);
+bool sh_pfc_gpio_is_function(struct sh_pfc *pfc, unsigned int gpio);
 int sh_pfc_gpio_to_enum(struct sh_pfc *pfc, unsigned gpio, int pos,
 			pinmux_enum_t *enum_idp);
 int sh_pfc_config_gpio(struct sh_pfc *pfc, unsigned gpio, int pinmux_type,

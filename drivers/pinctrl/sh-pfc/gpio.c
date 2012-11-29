@@ -38,12 +38,51 @@ static struct sh_pfc *gpio_to_pfc(struct gpio_chip *gc)
 
 static int sh_gpio_request(struct gpio_chip *gc, unsigned offset)
 {
-	return pinctrl_request_gpio(offset);
+	struct sh_pfc *pfc = gpio_to_pfc(gc);
+	unsigned long flags;
+	int ret = -EINVAL;
+
+	if (offset < pfc->info->nr_pins)
+		return pinctrl_request_gpio(offset);
+
+	pr_notice_once("Use of GPIO API for function requests is deprecated, convert to pinctrl\n");
+
+	spin_lock_irqsave(&pfc->lock, flags);
+
+	if (!sh_pfc_gpio_is_function(pfc, offset))
+		goto done;
+
+	if (sh_pfc_config_gpio(pfc, offset, PINMUX_TYPE_FUNCTION,
+			       GPIO_CFG_DRYRUN))
+		goto done;
+
+	if (sh_pfc_config_gpio(pfc, offset, PINMUX_TYPE_FUNCTION,
+			       GPIO_CFG_REQ))
+		goto done;
+
+	ret = 0;
+
+done:
+	spin_unlock_irqrestore(&pfc->lock, flags);
+	return ret;
 }
 
 static void sh_gpio_free(struct gpio_chip *gc, unsigned offset)
 {
-	pinctrl_free_gpio(offset);
+	struct sh_pfc *pfc = gpio_to_pfc(gc);
+	unsigned long flags;
+	int pinmux_type;
+
+	if (offset < pfc->info->nr_pins)
+		return pinctrl_free_gpio(offset);
+
+	spin_lock_irqsave(&pfc->lock, flags);
+
+	pinmux_type = pfc->info->gpios[offset].flags & PINMUX_FLAG_TYPE;
+
+	sh_pfc_config_gpio(pfc, offset, pinmux_type, GPIO_CFG_FREE);
+
+	spin_unlock_irqrestore(&pfc->lock, flags);
 }
 
 static void sh_gpio_set_value(struct sh_pfc *pfc, unsigned gpio, int value)
@@ -70,12 +109,26 @@ static int sh_gpio_get_value(struct sh_pfc *pfc, unsigned gpio)
 
 static int sh_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
 {
+	struct sh_pfc *pfc = gpio_to_pfc(gc);
+
+	if (offset >= pfc->info->nr_pins) {
+		/* Function GPIOs can only be requested, never configured. */
+		return -EINVAL;
+	}
+
 	return pinctrl_gpio_direction_input(offset);
 }
 
 static int sh_gpio_direction_output(struct gpio_chip *gc, unsigned offset,
 				    int value)
 {
+	struct sh_pfc *pfc = gpio_to_pfc(gc);
+
+	if (offset >= pfc->info->nr_pins) {
+		/* Function GPIOs can only be requested, never configured. */
+		return -EINVAL;
+	}
+
 	sh_gpio_set_value(gpio_to_pfc(gc), offset, value);
 
 	return pinctrl_gpio_direction_output(offset);
