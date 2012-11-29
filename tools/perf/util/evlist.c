@@ -111,7 +111,6 @@ void __perf_evlist__set_leader(struct list_head *list)
 	struct perf_evsel *evsel, *leader;
 
 	leader = list_entry(list->next, struct perf_evsel, node);
-	leader->leader = NULL;
 
 	list_for_each_entry(evsel, list, node) {
 		if (evsel != leader)

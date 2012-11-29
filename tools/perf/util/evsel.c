@@ -55,6 +55,7 @@ void perf_evsel__init(struct perf_evsel *evsel,
 {
 	evsel->idx	   = idx;
 	evsel->attr	   = *attr;
+	evsel->leader	   = evsel;
 	INIT_LIST_HEAD(&evsel->node);
 	hists__init(&evsel->hists);
 	evsel->sample_size = __perf_evsel__sample_size(attr->sample_type);

@@ -228,6 +228,6 @@ static inline struct perf_evsel *perf_evsel__next(struct perf_evsel *evsel)
 
 static inline bool perf_evsel__is_group_member(const struct perf_evsel *evsel)
 {
-	return evsel->leader != NULL;
+	return evsel->leader != evsel;
 }
 #endif /* __PERF_EVSEL_H */
