@@ -22,7 +22,6 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/imu/adis.h>
 
-#include <linux/iio/iio.h>
 #include <linux/debugfs.h>
 
 #define ADIS16136_REG_FLASH_CNT		0x00
