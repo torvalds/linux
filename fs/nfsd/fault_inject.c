@@ -51,7 +51,9 @@ static int nfsd_inject_set(void *op_ptr, u64 val)
 	else
 		printk(KERN_INFO "NFSD Fault Injection: %s (n = %llu)", op->file, val);
 
+	nfs4_lock_state();
 	op->func(val);
+	nfs4_unlock_state();
 	return 0;
 }
 

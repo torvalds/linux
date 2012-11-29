@@ -4611,13 +4611,11 @@ void nfsd_forget_clients(u64 num)
 	int count = 0;
 	struct nfsd_net *nn = net_generic(current->nsproxy->net_ns, nfsd_net_id);
 
-	nfs4_lock_state();
 	list_for_each_entry_safe(clp, next, &nn->client_lru, cl_lru) {
 		expire_client(clp);
 		if (++count == num)
 			break;
 	}
-	nfs4_unlock_state();
 
 	printk(KERN_INFO "NFSD: Forgot %d clients", count);
 }
@@ -4653,25 +4651,15 @@ static int nfsd_release_n_owners(u64 num, bool is_open_owner,
 
 void nfsd_forget_locks(u64 num)
 {
-	int count;
 	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
-
-	nfs4_lock_state();
-	count = nfsd_release_n_owners(num, false, release_lockowner_sop, nn);
-	nfs4_unlock_state();
-
+	int count = nfsd_release_n_owners(num, false, release_lockowner_sop, nn);
 	printk(KERN_INFO "NFSD: Forgot %d locks", count);
 }
 
 void nfsd_forget_openowners(u64 num)
 {
-	int count;
 	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
-
-	nfs4_lock_state();
-	count = nfsd_release_n_owners(num, true, release_openowner_sop, nn);
-	nfs4_unlock_state();
-
+	int count = nfsd_release_n_owners(num, true, release_openowner_sop, nn);
 	printk(KERN_INFO "NFSD: Forgot %d open owners", count);
 }
 
@@ -4704,10 +4692,8 @@ void nfsd_forget_delegations(u64 num)
 	count = nfsd_process_n_delegations(num, &victims);
 	spin_unlock(&recall_lock);
 
-	nfs4_lock_state();
 	list_for_each_entry_safe(dp, dnext, &victims, dl_recall_lru)
 		unhash_delegation(dp);
-	nfs4_unlock_state();
 
 	printk(KERN_INFO "NFSD: Forgot %d delegations", count);
 }
