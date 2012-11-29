@@ -628,7 +628,7 @@ typedef struct drm_i915_private {
 	/** forcewake_count is protected by gt_lock */
 	unsigned forcewake_count;
 	/** gt_lock is also taken in irq contexts. */
-	struct spinlock gt_lock;
+	spinlock_t gt_lock;
 
 	struct intel_gmbus gmbus[GMBUS_NUM_PORTS];
 
@@ -1128,7 +1128,7 @@ struct drm_i915_gem_request {
 
 struct drm_i915_file_private {
 	struct {
-		struct spinlock lock;
+		spinlock_t lock;
 		struct list_head request_list;
 	} mm;
 	struct idr context_idr;
