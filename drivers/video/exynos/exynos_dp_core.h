@@ -13,6 +13,13 @@
 #ifndef _EXYNOS_DP_CORE_H
 #define _EXYNOS_DP_CORE_H
 
+enum dp_irq_type {
+	DP_IRQ_TYPE_HP_CABLE_IN,
+	DP_IRQ_TYPE_HP_CABLE_OUT,
+	DP_IRQ_TYPE_HP_CHANGE,
+	DP_IRQ_TYPE_UNKNOWN,
+};
+
 struct link_train {
 	int eq_loop;
 	int cr_loop[4];
@@ -29,9 +36,12 @@ struct exynos_dp_device {
 	struct clk		*clock;
 	unsigned int		irq;
 	void __iomem		*reg_base;
+	void __iomem		*phy_addr;
+	unsigned int		enable_mask;
 
 	struct video_info	*video_info;
 	struct link_train	link_train;
+	struct work_struct	hotplug_work;
 };
 
 /* exynos_dp_reg.c */
@@ -50,6 +60,8 @@ void exynos_dp_set_analog_power_down(struct exynos_dp_device *dp,
 				bool enable);
 void exynos_dp_init_analog_func(struct exynos_dp_device *dp);
 void exynos_dp_init_hpd(struct exynos_dp_device *dp);
+enum dp_irq_type exynos_dp_get_irq_type(struct exynos_dp_device *dp);
+void exynos_dp_clear_hotplug_interrupts(struct exynos_dp_device *dp);
 void exynos_dp_reset_aux(struct exynos_dp_device *dp);
 void exynos_dp_init_aux(struct exynos_dp_device *dp);
 int exynos_dp_get_plug_in_status(struct exynos_dp_device *dp);
@@ -107,11 +119,7 @@ u32 exynos_dp_get_lane3_link_training(struct exynos_dp_device *dp);
 void exynos_dp_reset_macro(struct exynos_dp_device *dp);
 void exynos_dp_init_video(struct exynos_dp_device *dp);
 
-void exynos_dp_set_video_color_format(struct exynos_dp_device *dp,
-				u32 color_depth,
-				u32 color_space,
-				u32 dynamic_range,
-				u32 ycbcr_coeff);
+void exynos_dp_set_video_color_format(struct exynos_dp_device *dp);
 int exynos_dp_is_slave_video_stream_clock_on(struct exynos_dp_device *dp);
 void exynos_dp_set_video_cr_mn(struct exynos_dp_device *dp,
 			enum clock_recovery_m_value_type type,
@@ -121,8 +129,7 @@ void exynos_dp_set_video_timing_mode(struct exynos_dp_device *dp, u32 type);
 void exynos_dp_enable_video_master(struct exynos_dp_device *dp, bool enable);
 void exynos_dp_start_video(struct exynos_dp_device *dp);
 int exynos_dp_is_video_stream_on(struct exynos_dp_device *dp);
-void exynos_dp_config_video_slave_mode(struct exynos_dp_device *dp,
-			struct video_info *video_info);
+void exynos_dp_config_video_slave_mode(struct exynos_dp_device *dp);
 void exynos_dp_enable_scrambling(struct exynos_dp_device *dp);
 void exynos_dp_disable_scrambling(struct exynos_dp_device *dp);
 
