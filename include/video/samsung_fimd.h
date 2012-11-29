@@ -24,12 +24,15 @@
 
 #define VIDCON0					(0x00)
 #define VIDCON0_INTERLACE			(1 << 29)
-#define VIDCON0_VIDOUT_MASK			(0x3 << 26)
+#define VIDCON0_VIDOUT_MASK			(0x7 << 26)
 #define VIDCON0_VIDOUT_SHIFT			(26)
 #define VIDCON0_VIDOUT_RGB			(0x0 << 26)
 #define VIDCON0_VIDOUT_TV			(0x1 << 26)
 #define VIDCON0_VIDOUT_I80_LDI0			(0x2 << 26)
 #define VIDCON0_VIDOUT_I80_LDI1			(0x3 << 26)
+#define VIDCON0_VIDOUT_WB_RGB			(0x4 << 26)
+#define VIDCON0_VIDOUT_WB_I80_LDI0		(0x6 << 26)
+#define VIDCON0_VIDOUT_WB_I80_LDI1		(0x7 << 26)
 
 #define VIDCON0_L1_DATA_MASK			(0x7 << 23)
 #define VIDCON0_L1_DATA_SHIFT			(23)
@@ -77,6 +80,7 @@
 #define VIDCON1_LINECNT_MASK			(0x7ff << 16)
 #define VIDCON1_LINECNT_SHIFT			(16)
 #define VIDCON1_LINECNT_GET(_v)			(((_v) >> 16) & 0x7ff)
+#define VIDCON1_FSTATUS_EVEN			(1 << 15)
 #define VIDCON1_VSTATUS_MASK			(0x3 << 13)
 #define VIDCON1_VSTATUS_SHIFT			(13)
 #define VIDCON1_VSTATUS_VSYNC			(0x0 << 13)
@@ -116,6 +120,7 @@
 
 /* VIDTCON0 */
 
+#define VIDTCON0				(0x10)
 #define VIDTCON0_VBPDE_MASK			(0xff << 24)
 #define VIDTCON0_VBPDE_SHIFT			(24)
 #define VIDTCON0_VBPDE_LIMIT			(0xff)
@@ -138,6 +143,7 @@
 
 /* VIDTCON1 */
 
+#define VIDTCON1				(0x14)
 #define VIDTCON1_VFPDE_MASK			(0xff << 24)
 #define VIDTCON1_VFPDE_SHIFT			(24)
 #define VIDTCON1_VFPDE_LIMIT			(0xff)
@@ -159,6 +165,7 @@
 #define VIDTCON1_HSPW(_x)			((_x) << 0)
 
 #define VIDTCON2				(0x18)
+#define VIDTCON2				(0x18)
 #define VIDTCON2_LINEVAL_E(_x)			((((_x) & 0x800) >> 11) << 23)
 #define VIDTCON2_LINEVAL_MASK			(0x7ff << 11)
 #define VIDTCON2_LINEVAL_SHIFT			(11)
@@ -173,18 +180,27 @@
 
 /* WINCONx */
 
-
+#define WINCON(_win)				(0x20 + ((_win) * 4))
+#define WINCONx_CSCWIDTH_MASK			(0x3 << 26)
+#define WINCONx_CSCWIDTH_SHIFT			(26)
+#define WINCONx_CSCWIDTH_WIDE			(0x0 << 26)
+#define WINCONx_CSCWIDTH_NARROW			(0x3 << 26)
+#define WINCONx_ENLOCAL				(1 << 22)
+#define WINCONx_BUFSTATUS			(1 << 21)
+#define WINCONx_BUFSEL				(1 << 20)
+#define WINCONx_BUFAUTOEN			(1 << 19)
 #define WINCONx_BITSWP				(1 << 18)
 #define WINCONx_BYTSWP				(1 << 17)
 #define WINCONx_HAWSWP				(1 << 16)
 #define WINCONx_WSWP				(1 << 15)
+#define WINCONx_YCbCr				(1 << 13)
 #define WINCONx_BURSTLEN_MASK			(0x3 << 9)
 #define WINCONx_BURSTLEN_SHIFT			(9)
 #define WINCONx_BURSTLEN_16WORD			(0x0 << 9)
 #define WINCONx_BURSTLEN_8WORD			(0x1 << 9)
 #define WINCONx_BURSTLEN_4WORD			(0x2 << 9)
-
 #define WINCONx_ENWIN				(1 << 0)
+
 #define WINCON0_BPPMODE_MASK			(0xf << 2)
 #define WINCON0_BPPMODE_SHIFT			(2)
 #define WINCON0_BPPMODE_1BPP			(0x0 << 2)
@@ -196,9 +212,8 @@
 #define WINCON0_BPPMODE_18BPP_666		(0x8 << 2)
 #define WINCON0_BPPMODE_24BPP_888		(0xb << 2)
 
+#define WINCON1_LOCALSEL_CAMIF			(1 << 23)
 #define WINCON1_BLD_PIX				(1 << 6)
-
-#define WINCON1_ALPHA_SEL			(1 << 1)
 #define WINCON1_BPPMODE_MASK			(0xf << 2)
 #define WINCON1_BPPMODE_SHIFT			(2)
 #define WINCON1_BPPMODE_1BPP			(0x0 << 2)
@@ -216,6 +231,7 @@
 #define WINCON1_BPPMODE_24BPP_A1887		(0xc << 2)
 #define WINCON1_BPPMODE_25BPP_A1888		(0xd << 2)
 #define WINCON1_BPPMODE_28BPP_A4888		(0xd << 2)
+#define WINCON1_ALPHA_SEL			(1 << 1)
 
 /* S5PV210 */
 #define SHADOWCON				(0x34)
@@ -225,6 +241,9 @@
 /* Local input channels (windows 0-2) */
 #define SHADOWCON_CHx_LOCAL_ENABLE(_win)	(1 << (5 + (_win)))
 
+/* VIDOSDx */
+
+#define VIDOSD_BASE				(0x40)
 #define VIDOSDxA_TOPLEFT_X_E(_x)		((((_x) & 0x800) >> 11) << 23)
 #define VIDOSDxA_TOPLEFT_X_MASK			(0x7ff << 11)
 #define VIDOSDxA_TOPLEFT_X_SHIFT		(11)
@@ -293,6 +312,7 @@
 
 /* Interrupt controls and status */
 
+#define VIDINTCON0				(0x130)
 #define VIDINTCON0_FIFOINTERVAL_MASK		(0x3f << 20)
 #define VIDINTCON0_FIFOINTERVAL_SHIFT		(20)
 #define VIDINTCON0_FIFOINTERVAL_LIMIT		(0x3f)
@@ -321,6 +341,9 @@
 #define VIDINTCON0_FIFIOSEL_SHIFT		(5)
 #define VIDINTCON0_FIFIOSEL_WINDOW0		(0x1 << 5)
 #define VIDINTCON0_FIFIOSEL_WINDOW1		(0x2 << 5)
+#define VIDINTCON0_FIFIOSEL_WINDOW2		(0x10 << 5)
+#define VIDINTCON0_FIFIOSEL_WINDOW3		(0x20 << 5)
+#define VIDINTCON0_FIFIOSEL_WINDOW4		(0x40 << 5)
 
 #define VIDINTCON0_FIFOLEVEL_MASK		(0x7 << 2)
 #define VIDINTCON0_FIFOLEVEL_SHIFT		(2)
@@ -357,16 +380,39 @@
 #define WxKEYCON1_COLVAL_LIMIT			(0xffffff)
 #define WxKEYCON1_COLVAL(_x)			((_x) << 0)
 
+/* Dithering control */
+#define DITHMODE				(0x170)
+#define DITHMODE_R_POS_MASK			(0x3 << 5)
+#define DITHMODE_R_POS_SHIFT			(5)
+#define DITHMODE_R_POS_8BIT			(0x0 << 5)
+#define DITHMODE_R_POS_6BIT			(0x1 << 5)
+#define DITHMODE_R_POS_5BIT			(0x2 << 5)
+#define DITHMODE_G_POS_MASK			(0x3 << 3)
+#define DITHMODE_G_POS_SHIFT			(3)
+#define DITHMODE_G_POS_8BIT			(0x0 << 3)
+#define DITHMODE_G_POS_6BIT			(0x1 << 3)
+#define DITHMODE_G_POS_5BIT			(0x2 << 3)
+#define DITHMODE_B_POS_MASK			(0x3 << 1)
+#define DITHMODE_B_POS_SHIFT			(1)
+#define DITHMODE_B_POS_8BIT			(0x0 << 1)
+#define DITHMODE_B_POS_6BIT			(0x1 << 1)
+#define DITHMODE_B_POS_5BIT			(0x2 << 1)
+#define DITHMODE_DITH_EN			(1 << 0)
 
 /* Window blanking (MAP) */
-
+#define WINxMAP(_win)				(0x180 + ((_win) * 4))
 #define WINxMAP_MAP				(1 << 24)
 #define WINxMAP_MAP_COLOUR_MASK			(0xffffff << 0)
 #define WINxMAP_MAP_COLOUR_SHIFT		(0)
 #define WINxMAP_MAP_COLOUR_LIMIT		(0xffffff)
 #define WINxMAP_MAP_COLOUR(_x)			((_x) << 0)
 
+/* Winodw palette control */
+#define WPALCON					(0x1A0)
 #define WPALCON_PAL_UPDATE			(1 << 9)
+#define WPALCON_W4PAL_16BPP_A555		(1 << 8)
+#define WPALCON_W3PAL_16BPP_A555		(1 << 7)
+#define WPALCON_W2PAL_16BPP_A555		(1 << 6)
 #define WPALCON_W1PAL_MASK			(0x7 << 3)
 #define WPALCON_W1PAL_SHIFT			(3)
 #define WPALCON_W1PAL_25BPP_A888		(0x0 << 3)
@@ -376,7 +422,6 @@
 #define WPALCON_W1PAL_18BPP			(0x4 << 3)
 #define WPALCON_W1PAL_16BPP_A555		(0x5 << 3)
 #define WPALCON_W1PAL_16BPP_565			(0x6 << 3)
-
 #define WPALCON_W0PAL_MASK			(0x7 << 0)
 #define WPALCON_W0PAL_SHIFT			(0)
 #define WPALCON_W0PAL_25BPP_A888		(0x0 << 0)
@@ -394,115 +439,6 @@
 #define BLENDCON_NEW_4BIT_ALPHA_VALUE		(0 << 0)
 
 #define S3C_FB_MAX_WIN (5)  /* number of hardware windows available. */
-#define VIDCON1_FSTATUS_EVEN	(1 << 15)
-
-/* Video timing controls */
-#define VIDTCON0				(0x10)
-#define VIDTCON1				(0x14)
-#define VIDTCON2				(0x18)
-
-/* Window position controls */
-
-#define WINCON(_win)				(0x20 + ((_win) * 4))
-
-/* OSD1 and OSD4 do not have register D */
-
-#define VIDOSD_BASE				(0x40)
-
-#define VIDINTCON0				(0x130)
-
-/* WINCONx */
-
-#define WINCONx_CSCWIDTH_MASK			(0x3 << 26)
-#define WINCONx_CSCWIDTH_SHIFT			(26)
-#define WINCONx_CSCWIDTH_WIDE			(0x0 << 26)
-#define WINCONx_CSCWIDTH_NARROW			(0x3 << 26)
-
-#define WINCONx_ENLOCAL				(1 << 22)
-#define WINCONx_BUFSTATUS			(1 << 21)
-#define WINCONx_BUFSEL				(1 << 20)
-#define WINCONx_BUFAUTOEN			(1 << 19)
-#define WINCONx_YCbCr				(1 << 13)
-
-#define WINCON1_LOCALSEL_CAMIF			(1 << 23)
-
-#define WINCON2_LOCALSEL_CAMIF			(1 << 23)
-#define WINCON2_BLD_PIX				(1 << 6)
-
-#define WINCON2_ALPHA_SEL			(1 << 1)
-#define WINCON2_BPPMODE_MASK			(0xf << 2)
-#define WINCON2_BPPMODE_SHIFT			(2)
-#define WINCON2_BPPMODE_1BPP			(0x0 << 2)
-#define WINCON2_BPPMODE_2BPP			(0x1 << 2)
-#define WINCON2_BPPMODE_4BPP			(0x2 << 2)
-#define WINCON2_BPPMODE_8BPP_1232		(0x4 << 2)
-#define WINCON2_BPPMODE_16BPP_565		(0x5 << 2)
-#define WINCON2_BPPMODE_16BPP_A1555		(0x6 << 2)
-#define WINCON2_BPPMODE_16BPP_I1555		(0x7 << 2)
-#define WINCON2_BPPMODE_18BPP_666		(0x8 << 2)
-#define WINCON2_BPPMODE_18BPP_A1665		(0x9 << 2)
-#define WINCON2_BPPMODE_19BPP_A1666		(0xa << 2)
-#define WINCON2_BPPMODE_24BPP_888		(0xb << 2)
-#define WINCON2_BPPMODE_24BPP_A1887		(0xc << 2)
-#define WINCON2_BPPMODE_25BPP_A1888		(0xd << 2)
-#define WINCON2_BPPMODE_28BPP_A4888		(0xd << 2)
-
-#define WINCON3_BLD_PIX				(1 << 6)
-
-#define WINCON3_ALPHA_SEL			(1 << 1)
-#define WINCON3_BPPMODE_MASK			(0xf << 2)
-#define WINCON3_BPPMODE_SHIFT			(2)
-#define WINCON3_BPPMODE_1BPP			(0x0 << 2)
-#define WINCON3_BPPMODE_2BPP			(0x1 << 2)
-#define WINCON3_BPPMODE_4BPP			(0x2 << 2)
-#define WINCON3_BPPMODE_16BPP_565		(0x5 << 2)
-#define WINCON3_BPPMODE_16BPP_A1555		(0x6 << 2)
-#define WINCON3_BPPMODE_16BPP_I1555		(0x7 << 2)
-#define WINCON3_BPPMODE_18BPP_666		(0x8 << 2)
-#define WINCON3_BPPMODE_18BPP_A1665		(0x9 << 2)
-#define WINCON3_BPPMODE_19BPP_A1666		(0xa << 2)
-#define WINCON3_BPPMODE_24BPP_888		(0xb << 2)
-#define WINCON3_BPPMODE_24BPP_A1887		(0xc << 2)
-#define WINCON3_BPPMODE_25BPP_A1888		(0xd << 2)
-#define WINCON3_BPPMODE_28BPP_A4888		(0xd << 2)
-
-#define VIDINTCON0_FIFIOSEL_WINDOW2		(0x10 << 5)
-#define VIDINTCON0_FIFIOSEL_WINDOW3		(0x20 << 5)
-#define VIDINTCON0_FIFIOSEL_WINDOW4		(0x40 << 5)
-
-#define DITHMODE				(0x170)
-#define WINxMAP(_win)				(0x180 + ((_win) * 4))
-
-
-#define DITHMODE_R_POS_MASK			(0x3 << 5)
-#define DITHMODE_R_POS_SHIFT			(5)
-#define DITHMODE_R_POS_8BIT			(0x0 << 5)
-#define DITHMODE_R_POS_6BIT			(0x1 << 5)
-#define DITHMODE_R_POS_5BIT			(0x2 << 5)
-
-#define DITHMODE_G_POS_MASK			(0x3 << 3)
-#define DITHMODE_G_POS_SHIFT			(3)
-#define DITHMODE_G_POS_8BIT			(0x0 << 3)
-#define DITHMODE_G_POS_6BIT			(0x1 << 3)
-#define DITHMODE_G_POS_5BIT			(0x2 << 3)
-
-#define DITHMODE_B_POS_MASK			(0x3 << 1)
-#define DITHMODE_B_POS_SHIFT			(1)
-#define DITHMODE_B_POS_8BIT			(0x0 << 1)
-#define DITHMODE_B_POS_6BIT			(0x1 << 1)
-#define DITHMODE_B_POS_5BIT			(0x2 << 1)
-
-#define DITHMODE_DITH_EN			(1 << 0)
-
-#define WPALCON					(0x1A0)
-
-/* Palette control */
-/* Note for S5PC100: you can still use those macros on WPALCON (aka WPALCON_L),
- * but make sure that WPALCON_H W2PAL-W4PAL entries are zeroed out */
-#define WPALCON_W4PAL_16BPP_A555		(1 << 8)
-#define WPALCON_W3PAL_16BPP_A555		(1 << 7)
-#define WPALCON_W2PAL_16BPP_A555		(1 << 6)
-
 
 /* Notes on per-window bpp settings
  *
