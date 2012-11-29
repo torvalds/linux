@@ -1044,7 +1044,7 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 	if (port == PORT_A)
 		cpu_transcoder = TRANSCODER_EDP;
 	else
-		cpu_transcoder = pipe;
+		cpu_transcoder = (enum transcoder) pipe;
 
 	tmp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
 

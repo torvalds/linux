@@ -546,11 +546,11 @@ static int i915_hws_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring;
-	const volatile u32 __iomem *hws;
+	const u32 *hws;
 	int i;
 
 	ring = &dev_priv->ring[(uintptr_t)node->info_ent->data];
-	hws = (volatile u32 __iomem *)ring->status_page.page_addr;
+	hws = ring->status_page.page_addr;
 	if (hws == NULL)
 		return 0;
 

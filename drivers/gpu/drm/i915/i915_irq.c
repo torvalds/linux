@@ -300,9 +300,6 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	drm_helper_hpd_irq_event(dev);
 }
 
-/* defined intel_pm.c */
-extern spinlock_t mchdev_lock;
-
 static void ironlake_handle_rps_change(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -936,7 +933,7 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			offset += src->stolen->start;
 			offset += i << PAGE_SHIFT;
 
-			memcpy_fromio(d, (void *)offset, PAGE_SIZE);
+			memcpy_fromio(d, (void __iomem *) offset, PAGE_SIZE);
 		} else {
 			struct page *page;
 			void *s;

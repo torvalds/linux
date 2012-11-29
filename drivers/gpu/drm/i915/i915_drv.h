@@ -577,6 +577,9 @@ struct intel_gen6_power_mgmt {
 	struct mutex hw_lock;
 };
 
+/* defined intel_pm.c */
+extern spinlock_t mchdev_lock;
+
 struct intel_ilk_power_mgmt {
 	u8 cur_delay;
 	u8 min_delay;

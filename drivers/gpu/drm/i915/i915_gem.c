@@ -3705,7 +3705,7 @@ struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 {
 	struct drm_i915_gem_object *obj;
 	struct address_space *mapping;
-	u32 mask;
+	gfp_t mask;
 
 	obj = i915_gem_object_alloc(dev);
 	if (obj == NULL)

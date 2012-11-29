@@ -1671,7 +1671,7 @@ static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 	BUG_ON(dev_priv->info->gen < 5);
 
 	/* FDI must be feeding us bits for PCH ports */
-	assert_fdi_tx_enabled(dev_priv, cpu_transcoder);
+	assert_fdi_tx_enabled(dev_priv, (enum pipe) cpu_transcoder);
 	assert_fdi_rx_enabled(dev_priv, TRANSCODER_A);
 
 	/* Workaround: set timing override bit. */
@@ -1759,7 +1759,7 @@ static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 {
 	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
 								      pipe);
-	enum transcoder pch_transcoder;
+	enum pipe pch_transcoder;
 	int reg;
 	u32 val;
 
@@ -1779,7 +1779,8 @@ static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 		if (pch_port) {
 			/* if driving the PCH, we need FDI enabled */
 			assert_fdi_rx_pll_enabled(dev_priv, pch_transcoder);
-			assert_fdi_tx_pll_enabled(dev_priv, cpu_transcoder);
+			assert_fdi_tx_pll_enabled(dev_priv,
+						  (enum pipe) cpu_transcoder);
 		}
 		/* FIXME: assert CPU port conditions for SNB+ */
 	}
@@ -3598,7 +3599,7 @@ static void haswell_crtc_off(struct drm_crtc *crtc)
 
 	/* Stop saying we're using TRANSCODER_EDP because some other CRTC might
 	 * start using it. */
-	intel_crtc->cpu_transcoder = intel_crtc->pipe;
+	intel_crtc->cpu_transcoder = (enum transcoder) intel_crtc->pipe;
 
 	intel_ddi_put_crtc_pll(crtc);
 }
