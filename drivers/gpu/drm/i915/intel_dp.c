@@ -910,26 +910,15 @@ static void ironlake_set_pll_edp(struct drm_crtc *crtc, int clock)
 	dpa_ctl &= ~DP_PLL_FREQ_MASK;
 
 	if (clock < 200000) {
-		u32 temp;
+		/* For a long time we've carried around a ILK-DevA w/a for the
+		 * 160MHz clock. If we're really unlucky, it's still required.
+		 */
+		DRM_DEBUG_KMS("160MHz cpu eDP clock, might need ilk devA w/a\n");
 		dpa_ctl |= DP_PLL_FREQ_160MHZ;
-		/* workaround for 160Mhz:
-		   1) program 0x4600c bits 15:0 = 0x8124
-		   2) program 0x46010 bit 0 = 1
-		   3) program 0x46034 bit 24 = 1
-		   4) program 0x64000 bit 14 = 1
-		   */
-		temp = I915_READ(0x4600c);
-		temp &= 0xffff0000;
-		I915_WRITE(0x4600c, temp | 0x8124);
-
-		temp = I915_READ(0x46010);
-		I915_WRITE(0x46010, temp | 1);
-
-		temp = I915_READ(0x46034);
-		I915_WRITE(0x46034, temp | (1 << 24));
 	} else {
 		dpa_ctl |= DP_PLL_FREQ_270MHZ;
 	}
+
 	I915_WRITE(DP_A, dpa_ctl);
 
 	POSTING_READ(DP_A);
