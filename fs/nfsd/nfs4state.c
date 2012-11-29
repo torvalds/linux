@@ -4721,36 +4721,6 @@ u64 nfsd_for_n_state(u64 max, u64 (*func)(struct nfs4_client *, u64))
 	return count;
 }
 
-void nfsd_forget_clients(u64 num)
-{
-	u64 count = nfsd_for_n_state(num, nfsd_forget_client);
-	printk(KERN_INFO "NFSD: Forgot %llu clients", count);
-}
-
-void nfsd_forget_locks(u64 num)
-{
-	u64 count = nfsd_for_n_state(num, nfsd_forget_client_locks);
-	printk(KERN_INFO "NFSD: Forgot %llu locks", count);
-}
-
-void nfsd_forget_openowners(u64 num)
-{
-	u64 count = nfsd_for_n_state(num, nfsd_forget_client_openowners);
-	printk(KERN_INFO "NFSD: Forgot %llu open owners", count);
-}
-
-void nfsd_forget_delegations(u64 num)
-{
-	u64 count = nfsd_for_n_state(num, nfsd_forget_client_delegations);
-	printk(KERN_INFO "NFSD: Forgot %llu delegations", count);
-}
-
-void nfsd_recall_delegations(u64 num)
-{
-	u64 count = nfsd_for_n_state(num, nfsd_recall_client_delegations);
-	printk(KERN_INFO "NFSD: Recalled %llu delegations", count);
-}
-
 #endif /* CONFIG_NFSD_FAULT_INJECTION */
 
 /* initialization to perform at module load time: */

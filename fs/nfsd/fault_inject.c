@@ -13,29 +13,29 @@
 
 struct nfsd_fault_inject_op {
 	char *file;
-	void (*func)(u64);
+	u64 (*forget)(struct nfs4_client *, u64);
 };
 
 static struct nfsd_fault_inject_op inject_ops[] = {
 	{
 		.file   = "forget_clients",
-		.func   = nfsd_forget_clients,
+		.forget = nfsd_forget_client,
 	},
 	{
 		.file   = "forget_locks",
-		.func   = nfsd_forget_locks,
+		.forget = nfsd_forget_client_locks,
 	},
 	{
 		.file   = "forget_openowners",
-		.func   = nfsd_forget_openowners,
+		.forget = nfsd_forget_client_openowners,
 	},
 	{
 		.file   = "forget_delegations",
-		.func   = nfsd_forget_delegations,
+		.forget = nfsd_forget_client_delegations,
 	},
 	{
 		.file   = "recall_delegations",
-		.func   = nfsd_recall_delegations,
+		.forget = nfsd_recall_client_delegations,
 	},
 };
 
@@ -44,6 +44,7 @@ static struct dentry *debug_dir;
 
 static int nfsd_inject_set(void *op_ptr, u64 val)
 {
+	u64 count = 0;
 	struct nfsd_fault_inject_op *op = op_ptr;
 
 	if (val == 0)
@@ -52,8 +53,9 @@ static int nfsd_inject_set(void *op_ptr, u64 val)
 		printk(KERN_INFO "NFSD Fault Injection: %s (n = %llu)", op->file, val);
 
 	nfs4_lock_state();
-	op->func(val);
+	count = nfsd_for_n_state(val, op->forget);
 	nfs4_unlock_state();
+	printk(KERN_INFO "NFSD: %s: found %llu", op->file, count);
 	return 0;
 }
 
