@@ -164,7 +164,6 @@ static void fpga_queue(struct solos_card *card, int port, struct sk_buff *skb,
 static uint32_t fpga_tx(struct solos_card *);
 static irqreturn_t solos_irq(int irq, void *dev_id);
 static struct atm_vcc* find_vcc(struct atm_dev *dev, short vpi, int vci);
-static int list_vccs(int vci);
 static int atm_init(struct solos_card *, struct device *);
 static void atm_remove(struct solos_card *);
 static int send_command(struct solos_card *card, int dev, const char *buf, size_t size);
@@ -791,44 +790,6 @@ static struct atm_vcc *find_vcc(struct atm_dev *dev, short vpi, int vci)
 	return vcc;
 }
 
-static int list_vccs(int vci)
-{
-	struct hlist_head *head;
-	struct atm_vcc *vcc;
-	struct hlist_node *node;
-	struct sock *s;
-	int num_found = 0;
-	int i;
-
-	read_lock(&vcc_sklist_lock);
-	if (vci != 0){
-		head = &vcc_hash[vci & (VCC_HTABLE_SIZE -1)];
-		sk_for_each(s, node, head) {
-			num_found ++;
-			vcc = atm_sk(s);
-			printk(KERN_DEBUG "Device: %d Vpi: %d Vci: %d\n",
-			       vcc->dev->number,
-			       vcc->vpi,
-			       vcc->vci);
-		}
-	} else {
-		for(i = 0; i < VCC_HTABLE_SIZE; i++){
-			head = &vcc_hash[i];
-			sk_for_each(s, node, head) {
-				num_found ++;
-				vcc = atm_sk(s);
-				printk(KERN_DEBUG "Device: %d Vpi: %d Vci: %d\n",
-				       vcc->dev->number,
-				       vcc->vpi,
-				       vcc->vci);
-			}
-		}
-	}
-	read_unlock(&vcc_sklist_lock);
-	return num_found;
-}
-
-
 static int popen(struct atm_vcc *vcc)
 {
 	struct solos_card *card = vcc->dev->dev_data;
@@ -858,8 +819,6 @@ static int popen(struct atm_vcc *vcc)
 
 	set_bit(ATM_VF_ADDR, &vcc->flags);
 	set_bit(ATM_VF_READY, &vcc->flags);
-	list_vccs(0);
-
 
 	return 0;
 }
