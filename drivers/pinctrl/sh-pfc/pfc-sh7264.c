@@ -2113,13 +2113,12 @@ static struct pinmux_data_reg pinmux_data_regs[] = {
 struct sh_pfc_soc_info sh7264_pinmux_info = {
 	.name = "sh7264_pfc",
 	.reserved_id = PINMUX_RESERVED,
-	.data = { PINMUX_DATA_BEGIN, PINMUX_DATA_END },
 	.input = { PINMUX_INPUT_BEGIN, PINMUX_INPUT_END, FORCE_IN },
 	.output = { PINMUX_OUTPUT_BEGIN, PINMUX_OUTPUT_END, FORCE_OUT },
-	.mark = { PINMUX_MARK_BEGIN, PINMUX_MARK_END },
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
 
 	.gpios = pinmux_gpios,
+	.nr_pins = GPIO_PK0 + 1,
 	.nr_gpios = ARRAY_SIZE(pinmux_gpios),
 
 	.cfg_regs = pinmux_config_regs,

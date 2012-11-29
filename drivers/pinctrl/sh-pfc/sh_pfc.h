@@ -91,15 +91,14 @@ struct pinmux_range {
 struct sh_pfc_soc_info {
 	char *name;
 	pinmux_enum_t reserved_id;
-	struct pinmux_range data;
 	struct pinmux_range input;
 	struct pinmux_range input_pd;
 	struct pinmux_range input_pu;
 	struct pinmux_range output;
-	struct pinmux_range mark;
 	struct pinmux_range function;
 
 	struct pinmux_gpio *gpios;
+	unsigned int nr_pins;
 	unsigned int nr_gpios;
 
 	struct pinmux_cfg_reg *cfg_regs;

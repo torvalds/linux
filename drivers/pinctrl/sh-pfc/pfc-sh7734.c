@@ -2457,13 +2457,12 @@ struct sh_pfc_soc_info sh7734_pinmux_info = {
 	.unlock_reg = 0xFFFC0000,
 
 	.reserved_id = PINMUX_RESERVED,
-	.data = { PINMUX_DATA_BEGIN, PINMUX_DATA_END },
 	.input = { PINMUX_INPUT_BEGIN, PINMUX_INPUT_END },
 	.output = { PINMUX_OUTPUT_BEGIN, PINMUX_OUTPUT_END },
-	.mark = { PINMUX_MARK_BEGIN, PINMUX_MARK_END },
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
 
 	.gpios = pinmux_gpios,
+	.nr_pins = GPIO_GP_5_11 + 1,
 	.nr_gpios = ARRAY_SIZE(pinmux_gpios),
 
 	.cfg_regs = pinmux_config_regs,
