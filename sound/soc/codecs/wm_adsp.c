@@ -553,7 +553,7 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 				return ret;
 			}
 
-			if (val & ADSP2_CLK_SEL_MASK >= 3) {
+			if ((val & ADSP2_CLK_SEL_MASK) >= 3) {
 				ret = regulator_enable(dsp->dvfs);
 				if (ret != 0) {
 					dev_err(dsp->dev,
