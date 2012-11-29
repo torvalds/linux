@@ -15,7 +15,7 @@ config M486
 
 	  Note that the 386 is no longer supported, this includes
 	  AMD/Cyrix/Intel 386DX/DXL/SL/SLC/SX, Cyrix/TI 486DLC/DLC2,
-	  and UMC 486SX-S.
+	  UMC 486SX-S and the NexGen Nx586.
 
 	  The kernel will not necessarily run on earlier architectures than
 	  the one you have chosen, e.g. a Pentium optimized kernel will run on
