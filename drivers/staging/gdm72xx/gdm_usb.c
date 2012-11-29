@@ -205,6 +205,7 @@ static int init_usb(struct usbwm_dev *udev)
 	for (i = 0; i < MAX_NR_SDU_BUF; i++) {
 		t = alloc_tx_struct(tx);
 		if (t == NULL) {
+			spin_unlock_irqrestore(&tx->lock, flags);
 			ret = -ENOMEM;
 			goto fail;
 		}
