@@ -135,6 +135,15 @@
 						reg = <0x0 0x1000000>;
 					};
 				};
-			};
+		};
+	};
+};
+
+&i2c0 {
+	lcd: lcd@28 {
+		compatible = "newhaven,nhd‐0216k3z‐nsw‐bbw";
+		reg = <0x28>;
+		height = <2>;
+		width = <16>;
 	};
 };

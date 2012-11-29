@@ -175,6 +175,11 @@ config BFIN_JTAG_COMM_CONSOLE
 	bool "Console on Blackfin JTAG"
 	depends on BFIN_JTAG_COMM=y
 
+config NEWHAVEN_LCD
+       tristate "NEWHAVEN LCD"
+       help
+         Add support for a TTY device on a Newhaven I2C LCD device.
+
 config SERIAL_NONSTANDARD
 	bool "Non-standard serial port support"
 	depends on HAS_IOMEM
