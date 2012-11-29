@@ -1239,14 +1239,8 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	size_t buf_len;
-	u8 *buf;
 	u8 chan_no;
-
-	/* FIXME: come up with a proper value */
-	buf = kmalloc(200 + ie_len, GFP_KERNEL);
-	if (!buf)
-		return NULL;
+	int ies_len;
 
 	/*
 	 * Do not send DS Channel parameter for directed probe requests
@@ -1258,15 +1252,16 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	else
 		chan_no = ieee80211_frequency_to_channel(chan->center_freq);
 
-	buf_len = ieee80211_build_preq_ies(local, buf, 200 + ie_len,
+	skb = ieee80211_probereq_get(&local->hw, &sdata->vif,
+				     ssid, ssid_len, 100 + ie_len);
+	if (!skb)
+		return NULL;
+
+	ies_len = ieee80211_build_preq_ies(local, skb_tail_pointer(skb),
+					   skb_tailroom(skb),
 					   ie, ie_len, chan->band,
 					   ratemask, chan_no);
-
-	skb = ieee80211_probereq_get(&local->hw, &sdata->vif,
-				     ssid, ssid_len,
-				     buf, buf_len);
-	if (!skb)
-		goto out;
+	skb_put(skb, ies_len);
 
 	if (dst) {
 		mgmt = (struct ieee80211_mgmt *) skb->data;
@@ -1275,9 +1270,6 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	}
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
-
- out:
-	kfree(buf);
 
 	return skb;
 }

@@ -1347,9 +1347,14 @@ static void hw_scan_work(struct work_struct *work)
 						       hwsim->hw_scan_vif,
 						       req->ssids[i].ssid,
 						       req->ssids[i].ssid_len,
-						       req->ie, req->ie_len);
+						       req->ie_len);
 			if (!probe)
 				continue;
+
+			if (req->ie_len)
+				memcpy(skb_put(probe, req->ie_len), req->ie,
+				       req->ie_len);
+
 			local_bh_disable();
 			mac80211_hwsim_tx_frame(hwsim->hw, probe,
 						hwsim->tmp_chan);
