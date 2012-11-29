@@ -144,6 +144,7 @@ int hci_uart_tx_wakeup(struct hci_uart *hu)
 
 restart:
 	clear_bit(HCI_UART_TX_WAKEUP, &hu->tx_state);
+#if !defined(CONFIG_MT5931_MT6622)
 /*added by Barry,for broadcom 4325*/
 #ifdef CONFIG_BT_AUTOSLEEP
 #ifdef CONFIG_RFKILL_RK
@@ -152,6 +153,7 @@ restart:
 #else
     //extern void bcm4325_sleep(unsigned long bSleep);
     //bcm4325_sleep(0);
+#endif
 #endif
 #endif
 	while ((skb = hci_uart_dequeue(hu))) {
