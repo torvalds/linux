@@ -3431,6 +3431,13 @@ static int l2cap_parse_conf_rsp(struct l2cap_chan *chan, void *rsp, int len,
 			l2cap_add_conf_opt(&ptr, L2CAP_CONF_EFS, sizeof(efs),
 					   (unsigned long) &efs);
 			break;
+
+		case L2CAP_CONF_FCS:
+			if (*result == L2CAP_CONF_PENDING)
+				if (val == L2CAP_FCS_NONE)
+					set_bit(CONF_NO_FCS_RECV,
+						&chan->conf_state);
+			break;
 		}
 	}
 
