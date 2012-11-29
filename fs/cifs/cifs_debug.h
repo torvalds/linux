@@ -63,12 +63,6 @@ do {						\
 /* debug event message: */
 extern int cifsERROR;
 
-#define cEVENT(fmt, arg...)						\
-do {									\
-	if (cifsERROR)							\
-		printk(KERN_EVENT "%s: " fmt "\n", __FILE__, ##arg);	\
-} while (0)
-
 /* error event message: e.g., i/o error */
 #define cifserror(fmt, arg...)					\
 do {								\
@@ -88,7 +82,6 @@ do {						\
  */
 #else		/* _CIFS_DEBUG */
 #define cERROR(set, fmt, arg...)
-#define cEVENT(fmt, arg...)
 #define cFYI(set, fmt, arg...)
 #define cifserror(fmt, arg...)
 #endif		/* _CIFS_DEBUG */
