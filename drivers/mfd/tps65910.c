@@ -486,7 +486,6 @@ static __devinit int tps65910_i2c_probe(struct i2c_client *i2c,
 	tps65910->dev = &i2c->dev;
 	tps65910->i2c_client = i2c;
 	tps65910->id = chip_id;
-	mutex_init(&tps65910->io_mutex);
 
 	tps65910->regmap = devm_regmap_init_i2c(i2c, &tps65910_regmap_config);
 	if (IS_ERR(tps65910->regmap)) {
