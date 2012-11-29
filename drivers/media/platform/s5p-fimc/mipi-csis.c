@@ -187,7 +187,7 @@ struct csis_state {
 	const struct csis_pix_format *csis_fmt;
 	struct v4l2_mbus_framefmt format;
 
-	struct spinlock slock;
+	spinlock_t slock;
 	struct csis_pktbuf pkt_buf;
 	struct s5pcsis_event events[S5PCSIS_NUM_EVENTS];
 };
