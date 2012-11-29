@@ -783,7 +783,7 @@ static int auto_connect(struct socket *sock, struct tipc_msg *msg)
 
 	tsock->peer_name.ref = msg_origport(msg);
 	tsock->peer_name.node = msg_orignode(msg);
-	tipc_connect2port(tsock->p->ref, &tsock->peer_name);
+	tipc_connect(tsock->p->ref, &tsock->peer_name);
 	tipc_set_portimportance(tsock->p->ref, msg_importance(msg));
 	sock->state = SS_CONNECTED;
 	return 0;
@@ -1246,7 +1246,7 @@ static u32 filter_rcv(struct sock *sk, struct sk_buff *buf)
 	/* Initiate connection termination for an incoming 'FIN' */
 	if (unlikely(msg_errcode(msg) && (sock->state == SS_CONNECTED))) {
 		sock->state = SS_DISCONNECTING;
-		tipc_disconnect_port(tipc_sk_port(sk));
+		__tipc_disconnect(tipc_sk_port(sk));
 	}
 
 	sk->sk_data_ready(sk, 0);
@@ -1506,7 +1506,7 @@ static int accept(struct socket *sock, struct socket *new_sock, int flags)
 		/* Connect new socket to it's peer */
 		new_tsock->peer_name.ref = msg_origport(msg);
 		new_tsock->peer_name.node = msg_orignode(msg);
-		tipc_connect2port(new_ref, &new_tsock->peer_name);
+		tipc_connect(new_ref, &new_tsock->peer_name);
 		new_sock->state = SS_CONNECTED;
 
 		tipc_set_portimportance(new_ref, msg_importance(msg));
