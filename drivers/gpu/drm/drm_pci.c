@@ -470,7 +470,7 @@ int drm_pcie_get_speed_cap_mask(struct drm_device *dev, u32 *mask)
 {
 	struct pci_dev *root;
 	int pos;
-	u32 lnkcap, lnkcap2;
+	u32 lnkcap = 0, lnkcap2 = 0;
 
 	*mask = 0;
 	if (!dev->pdev)
