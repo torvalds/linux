@@ -106,7 +106,6 @@ static inline void start_thread(struct pt_regs * regs, unsigned long pc,
 
 /* Free all resources held by a thread. */
 #define release_thread(tsk)		do { } while(0)
-extern pid_t kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 
 extern unsigned long get_wchan(struct task_struct *);
 

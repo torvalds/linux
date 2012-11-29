@@ -157,18 +157,50 @@ void arch_release_thread_info(struct thread_info *info)
 static void save_arch_state(struct thread_struct *t);
 
 int copy_thread(unsigned long clone_flags, unsigned long sp,
-		unsigned long stack_size,
-		struct task_struct *p, struct pt_regs *regs)
+		unsigned long arg,
+		struct task_struct *p, struct pt_regs *unused)
 {
-	struct pt_regs *childregs;
+	struct pt_regs *childregs = task_pt_regs(p);
 	unsigned long ksp;
+	unsigned long *callee_regs;
 
 	/*
-	 * When creating a new kernel thread we pass sp as zero.
-	 * Assign it to a reasonable value now that we have the stack.
+	 * Set up the stack and stack pointer appropriately for the
+	 * new child to find itself woken up in __switch_to().
+	 * The callee-saved registers must be on the stack to be read;
+	 * the new task will then jump to assembly support to handle
+	 * calling schedule_tail(), etc., and (for userspace tasks)
+	 * returning to the context set up in the pt_regs.
 	 */
-	if (sp == 0 && regs->ex1 == PL_ICS_EX1(KERNEL_PL, 0))
-		sp = KSTK_TOP(p);
+	ksp = (unsigned long) childregs;
+	ksp -= C_ABI_SAVE_AREA_SIZE;   /* interrupt-entry save area */
+	((long *)ksp)[0] = ((long *)ksp)[1] = 0;
+	ksp -= CALLEE_SAVED_REGS_COUNT * sizeof(unsigned long);
+	callee_regs = (unsigned long *)ksp;
+	ksp -= C_ABI_SAVE_AREA_SIZE;   /* __switch_to() save area */
+	((long *)ksp)[0] = ((long *)ksp)[1] = 0;
+	p->thread.ksp = ksp;
+
+	/* Record the pid of the task that created this one. */
+	p->thread.creator_pid = current->pid;
+
+	if (unlikely(p->flags & PF_KTHREAD)) {
+		/* kernel thread */
+		memset(childregs, 0, sizeof(struct pt_regs));
+		memset(&callee_regs[2], 0,
+		       (CALLEE_SAVED_REGS_COUNT - 2) * sizeof(unsigned long));
+		callee_regs[0] = sp;   /* r30 = function */
+		callee_regs[1] = arg;  /* r31 = arg */
+		childregs->ex1 = PL_ICS_EX1(KERNEL_PL, 0);
+		p->thread.pc = (unsigned long) ret_from_kernel_thread;
+		return 0;
+	}
+
+	/*
+	 * Start new thread in ret_from_fork so it schedules properly
+	 * and then return from interrupt like the parent.
+	 */
+	p->thread.pc = (unsigned long) ret_from_fork;
 
 	/*
 	 * Do not clone step state from the parent; each thread
@@ -177,51 +209,26 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	task_thread_info(p)->step_state = NULL;
 
 	/*
-	 * Start new thread in ret_from_fork so it schedules properly
-	 * and then return from interrupt like the parent.
-	 */
-	p->thread.pc = (unsigned long) ret_from_fork;
-
-	/* Save user stack top pointer so we can ID the stack vm area later. */
-	p->thread.usp0 = sp;
-
-	/* Record the pid of the process that created this one. */
-	p->thread.creator_pid = current->pid;
-
-	/*
 	 * Copy the registers onto the kernel stack so the
 	 * return-from-interrupt code will reload it into registers.
 	 */
-	childregs = task_pt_regs(p);
-	*childregs = *regs;
+	*childregs = *current_pt_regs();
 	childregs->regs[0] = 0;         /* return value is zero */
-	childregs->sp = sp;  /* override with new user stack pointer */
+	if (sp)
+		childregs->sp = sp;  /* override with new user stack pointer */
+	memcpy(callee_regs, &childregs->regs[CALLEE_SAVED_FIRST_REG],
+	       CALLEE_SAVED_REGS_COUNT * sizeof(unsigned long));
+
+	/* Save user stack top pointer so we can ID the stack vm area later. */
+	p->thread.usp0 = childregs->sp;
 
 	/*
 	 * If CLONE_SETTLS is set, set "tp" in the new task to "r4",
 	 * which is passed in as arg #5 to sys_clone().
 	 */
 	if (clone_flags & CLONE_SETTLS)
-		childregs->tp = regs->regs[4];
+		childregs->tp = childregs->regs[4];
 
-	/*
-	 * Copy the callee-saved registers from the passed pt_regs struct
-	 * into the context-switch callee-saved registers area.
-	 * This way when we start the interrupt-return sequence, the
-	 * callee-save registers will be correctly in registers, which
-	 * is how we assume the compiler leaves them as we start doing
-	 * the normal return-from-interrupt path after calling C code.
-	 * Zero out the C ABI save area to mark the top of the stack.
-	 */
-	ksp = (unsigned long) childregs;
-	ksp -= C_ABI_SAVE_AREA_SIZE;   /* interrupt-entry save area */
-	((long *)ksp)[0] = ((long *)ksp)[1] = 0;
-	ksp -= CALLEE_SAVED_REGS_COUNT * sizeof(unsigned long);
-	memcpy((void *)ksp, &regs->regs[CALLEE_SAVED_FIRST_REG],
-	       CALLEE_SAVED_REGS_COUNT * sizeof(unsigned long));
-	ksp -= C_ABI_SAVE_AREA_SIZE;   /* __switch_to() save area */
-	((long *)ksp)[0] = ((long *)ksp)[1] = 0;
-	p->thread.ksp = ksp;
 
 #if CHIP_HAS_TILE_DMA()
 	/*
@@ -578,60 +585,12 @@ int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 }
 
 /* Note there is an implicit fifth argument if (clone_flags & CLONE_SETTLS). */
-SYSCALL_DEFINE5(clone, unsigned long, clone_flags, unsigned long, newsp,
-		void __user *, parent_tidptr, void __user *, child_tidptr,
-		struct pt_regs *, regs)
+SYSCALL_DEFINE4(clone, unsigned long, clone_flags, unsigned long, newsp,
+		void __user *, parent_tidptr, void __user *, child_tidptr)
 {
-	if (!newsp)
-		newsp = regs->sp;
-	return do_fork(clone_flags, newsp, regs, 0,
+	return do_fork(clone_flags, newsp, current_pt_regs(), 0,
 		       parent_tidptr, child_tidptr);
 }
-
-/*
- * sys_execve() executes a new program.
- */
-SYSCALL_DEFINE4(execve, const char __user *, path,
-		const char __user *const __user *, argv,
-		const char __user *const __user *, envp,
-		struct pt_regs *, regs)
-{
-	long error;
-	struct filename *filename;
-
-	filename = getname(path);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	error = do_execve(filename->name, argv, envp, regs);
-	putname(filename);
-	if (error == 0)
-		single_step_execve();
-out:
-	return error;
-}
-
-#ifdef CONFIG_COMPAT
-long compat_sys_execve(const char __user *path,
-		       compat_uptr_t __user *argv,
-		       compat_uptr_t __user *envp,
-		       struct pt_regs *regs)
-{
-	long error;
-	struct filename *filename;
-
-	filename = getname(path);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	error = compat_do_execve(filename->name, argv, envp, regs);
-	putname(filename);
-	if (error == 0)
-		single_step_execve();
-out:
-	return error;
-}
-#endif
 
 unsigned long get_wchan(struct task_struct *p)
 {
@@ -649,37 +608,6 @@ unsigned long get_wchan(struct task_struct *p)
 
 	return 0;
 }
-
-/*
- * We pass in lr as zero (cleared in kernel_thread) and the caller
- * part of the backtrace ABI on the stack also zeroed (in copy_thread)
- * so that backtraces will stop with this function.
- * Note that we don't use r0, since copy_thread() clears it.
- */
-static void start_kernel_thread(int dummy, int (*fn)(int), int arg)
-{
-	do_exit(fn(arg));
-}
-
-/*
- * Create a kernel thread
- */
-int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
-{
-	struct pt_regs regs;
-
-	memset(&regs, 0, sizeof(regs));
-	regs.ex1 = PL_ICS_EX1(KERNEL_PL, 0);  /* run at kernel PL, no ICS */
-	regs.pc = (long) start_kernel_thread;
-	regs.flags = PT_FLAGS_CALLER_SAVES;   /* need to restore r1 and r2 */
-	regs.regs[1] = (long) fn;             /* function pointer */
-	regs.regs[2] = (long) arg;            /* parameter register */
-
-	/* Ok, create the new process.. */
-	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs,
-		       0, NULL, NULL);
-}
-EXPORT_SYMBOL(kernel_thread);
 
 /* Flush thread state. */
 void flush_thread(void)

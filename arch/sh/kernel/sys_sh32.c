@@ -60,27 +60,3 @@ asmlinkage int sys_fadvise64_64_wrapper(int fd, u32 offset0, u32 offset1,
 				(u64)len0 << 32 | len1,	advice);
 #endif
 }
-
-#if defined(CONFIG_CPU_SH2) || defined(CONFIG_CPU_SH2A)
-#define SYSCALL_ARG3	"trapa #0x23"
-#else
-#define SYSCALL_ARG3	"trapa #0x13"
-#endif
-
-/*
- * Do a system call from kernel instead of calling sys_execve so we
- * end up with proper pt_regs.
- */
-int kernel_execve(const char *filename,
-		  const char *const argv[],
-		  const char *const envp[])
-{
-	register long __sc0 __asm__ ("r3") = __NR_execve;
-	register long __sc4 __asm__ ("r4") = (long) filename;
-	register long __sc5 __asm__ ("r5") = (long) argv;
-	register long __sc6 __asm__ ("r6") = (long) envp;
-	__asm__ __volatile__ (SYSCALL_ARG3 : "=z" (__sc0)
-			: "0" (__sc0), "r" (__sc4), "r" (__sc5), "r" (__sc6)
-			: "memory");
-	return __sc0;
-}

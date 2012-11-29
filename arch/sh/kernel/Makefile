@@ -16,7 +16,7 @@ obj-y	:= debugtraps.o dma-nommu.o dumpstack.o 		\
 	   machvec.o nmi_debug.o process.o				\
 	   process_$(BITS).o ptrace.o ptrace_$(BITS).o			\
 	   reboot.o return_address.o					\
-	   setup.o signal_$(BITS).o sys_sh.o sys_sh$(BITS).o		\
+	   setup.o signal_$(BITS).o sys_sh.o 				\
 	   syscalls_$(BITS).o time.o topology.o traps.o			\
 	   traps_$(BITS).o unwinder.o
 
@@ -25,6 +25,7 @@ obj-y				+= iomap.o
 obj-$(CONFIG_HAS_IOPORT)	+= ioport.o
 endif
 
+obj-$(CONFIG_SUPERH32)		+= sys_sh32.o
 obj-y				+= cpu/
 obj-$(CONFIG_VSYSCALL)		+= vsyscall/
 obj-$(CONFIG_SMP)		+= smp.o

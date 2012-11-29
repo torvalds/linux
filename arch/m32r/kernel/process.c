@@ -165,41 +165,6 @@ void show_regs(struct pt_regs * regs)
 }
 
 /*
- * Create a kernel thread
- */
-
-/*
- * This is the mechanism for creating a new kernel thread.
- *
- * NOTE! Only a kernel-only process(ie the swapper or direct descendants
- * who haven't done an "execve()") should use this: it will work within
- * a system call from a "real" process, but the process memory space will
- * not be free'd until both the parent and the child have exited.
- */
-static void kernel_thread_helper(void *nouse, int (*fn)(void *), void *arg)
-{
-	fn(arg);
-	do_exit(-1);
-}
-
-int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
-{
-	struct pt_regs regs;
-
-	memset(&regs, 0, sizeof (regs));
-	regs.r1 = (unsigned long)fn;
-	regs.r2 = (unsigned long)arg;
-
-	regs.bpc = (unsigned long)kernel_thread_helper;
-
-	regs.psw = M32R_PSW_BIE;
-
-	/* Ok, create the new process. */
-	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0, NULL,
-		NULL);
-}
-
-/*
  * Free current thread data structures etc..
  */
 void exit_thread(void)
@@ -227,29 +192,35 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long spu,
-	unsigned long unused, struct task_struct *tsk, struct pt_regs *regs)
+	unsigned long arg, struct task_struct *tsk, struct pt_regs *regs)
 {
 	struct pt_regs *childregs = task_pt_regs(tsk);
 	extern void ret_from_fork(void);
+	extern void ret_from_kernel_thread(void);
 
-	/* Copy registers */
-	*childregs = *regs;
-
-	childregs->spu = spu;
-	childregs->r0 = 0;	/* Child gets zero as return value */
-	regs->r0 = tsk->pid;
+	if (unlikely(tsk->flags & PF_KTHREAD)) {
+		memset(childregs, 0, sizeof(struct pt_regs));
+		childregs->psw = M32R_PSW_BIE;
+		childregs->r1 = spu;	/* fn */
+		childregs->r0 = arg;
+		tsk->thread.lr = (unsigned long)ret_from_kernel_thread;
+	} else {
+		/* Copy registers */
+		*childregs = *regs;
+		childregs->spu = spu;
+		childregs->r0 = 0;	/* Child gets zero as return value */
+		tsk->thread.lr = (unsigned long)ret_from_fork;
+	}
 	tsk->thread.sp = (unsigned long)childregs;
-	tsk->thread.lr = (unsigned long)ret_from_fork;
 
 	return 0;
 }
 
-asmlinkage int sys_fork(unsigned long r0, unsigned long r1, unsigned long r2,
-	unsigned long r3, unsigned long r4, unsigned long r5, unsigned long r6,
-	struct pt_regs regs)
+asmlinkage int sys_fork(void)
 {
 #ifdef CONFIG_MMU
-	return do_fork(SIGCHLD, regs.spu, &regs, 0, NULL, NULL);
+	struct pt_regs *regs = current_pt_regs();
+	return do_fork(SIGCHLD, regs->spu, regs, 0, NULL, NULL);
 #else
 	return -EINVAL;
 #endif /* CONFIG_MMU */
@@ -257,14 +228,13 @@ asmlinkage int sys_fork(unsigned long r0, unsigned long r1, unsigned long r2,
 
 asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
 			 unsigned long parent_tidptr,
-			 unsigned long child_tidptr,
-			 unsigned long r4, unsigned long r5, unsigned long r6,
-			 struct pt_regs regs)
+			 unsigned long child_tidptr)
 {
+	struct pt_regs *regs = current_pt_regs();
 	if (!newsp)
-		newsp = regs.spu;
+		newsp = regs->spu;
 
-	return do_fork(clone_flags, newsp, &regs, 0,
+	return do_fork(clone_flags, newsp, regs, 0,
 		       (int __user *)parent_tidptr, (int __user *)child_tidptr);
 }
 
@@ -278,35 +248,11 @@ asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
  * do not have enough call-clobbered registers to hold all
  * the information you need.
  */
-asmlinkage int sys_vfork(unsigned long r0, unsigned long r1, unsigned long r2,
-	unsigned long r3, unsigned long r4, unsigned long r5, unsigned long r6,
-	struct pt_regs regs)
+asmlinkage int sys_vfork(void)
 {
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs.spu, &regs, 0,
+	struct pt_regs *regs = current_pt_regs();
+	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->spu, regs, 0,
 			NULL, NULL);
-}
-
-/*
- * sys_execve() executes a new program.
- */
-asmlinkage int sys_execve(const char __user *ufilename,
-			  const char __user *const __user *uargv,
-			  const char __user *const __user *uenvp,
-			  unsigned long r3, unsigned long r4, unsigned long r5,
-			  unsigned long r6, struct pt_regs regs)
-{
-	int error;
-	struct filename *filename;
-
-	filename = getname(ufilename);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-
-	error = do_execve(filename->name, uargv, uenvp, &regs);
-	putname(filename);
-out:
-	return error;
 }
 
 /*

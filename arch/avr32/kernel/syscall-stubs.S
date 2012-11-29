@@ -50,12 +50,6 @@ __sys_vfork:
 	mov	r12, sp
 	rjmp	sys_vfork
 
-	.global	__sys_execve
-	.type	__sys_execve,@function
-__sys_execve:
-	mov	r9, sp
-	rjmp	sys_execve
-
 	.global	__sys_mmap2
 	.type	__sys_mmap2,@function
 __sys_mmap2:

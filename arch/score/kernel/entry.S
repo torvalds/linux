@@ -278,6 +278,13 @@ need_resched:
 	nop
 #endif
 
+ENTRY(ret_from_kernel_thread)
+	bl	schedule_tail			# r4=struct task_struct *prev
+	nop
+	mv	r4, r13
+	brl	r12
+	j	syscall_exit
+
 ENTRY(ret_from_fork)
 	bl	schedule_tail			# r4=struct task_struct *prev
 
@@ -479,11 +486,6 @@ illegal_syscall:
 	ldi	r9, 1			# set error flag
 	sw	r9, [r0, PT_R7]
 	j	syscall_return
-
-ENTRY(sys_execve)
-	mv	r4, r0
-	la	r8, score_execve
-	br	r8
 
 ENTRY(sys_clone)
 	mv	r4, r0

@@ -373,17 +373,11 @@ _GLOBAL(ret_from_fork)
 _GLOBAL(ret_from_kernel_thread)
 	bl	.schedule_tail
 	REST_NVGPRS(r1)
-	REST_GPR(2,r1)
+	ld	r14, 0(r14)
 	mtlr	r14
 	mr	r3,r15
 	blrl
 	li	r3,0
-	b	.do_exit	# no return
-
-_GLOBAL(__ret_from_kernel_execve)
-	addi	r1,r3,-STACK_FRAME_OVERHEAD
-	li	r10,1
-	std	r10,SOFTE(r1)
 	b	syscall_exit
 
 	.section	".toc","aw"

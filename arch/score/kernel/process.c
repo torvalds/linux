@@ -60,6 +60,7 @@ void __noreturn cpu_idle(void)
 }
 
 void ret_from_fork(void);
+void ret_from_kernel_thread(void);
 
 void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long sp)
 {
@@ -86,29 +87,27 @@ void flush_thread(void) {}
  * set up the kernel stack and exception frames for a new process
  */
 int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long unused,
+		unsigned long arg,
 		struct task_struct *p, struct pt_regs *regs)
 {
 	struct thread_info *ti = task_thread_info(p);
 	struct pt_regs *childregs = task_pt_regs(p);
 
-	p->set_child_tid = NULL;
-	p->clear_child_tid = NULL;
-
-	*childregs = *regs;
-	childregs->regs[7] = 0;		/* Clear error flag */
-	childregs->regs[4] = 0;		/* Child gets zero as return value */
-	regs->regs[4] = p->pid;
-
-	if (childregs->cp0_psr & 0x8) {	/* test kernel fork or user fork */
-		childregs->regs[0] = usp;		/* user fork */
+	p->thread.reg0 = (unsigned long) childregs;
+	if (unlikely(!regs)) {
+		memset(childregs, 0, sizeof(struct pt_regs));
+		p->thread->reg12 = usp;
+		p->thread->reg13 = arg;
+		p->thread.reg3 = (unsigned long) ret_from_kernel_thread;
 	} else {
-		childregs->regs[28] = (unsigned long) ti; /* kernel fork */
-		childregs->regs[0] = (unsigned long) childregs;
+		*childregs = *regs;
+		childregs->regs[7] = 0;		/* Clear error flag */
+		childregs->regs[4] = 0;		/* Child gets zero as return value */
+		childregs->regs[0] = usp;	/* user fork */
+		regs->regs[4] = p->pid;		/* WTF? */
+		p->thread.reg3 = (unsigned long) ret_from_fork;
 	}
 
-	p->thread.reg0 = (unsigned long) childregs;
-	p->thread.reg3 = (unsigned long) ret_from_fork;
 	p->thread.cp0_psr = 0;
 
 	return 0;
@@ -118,32 +117,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 int dump_fpu(struct pt_regs *regs, elf_fpregset_t *r)
 {
 	return 1;
-}
-
-static void __noreturn
-kernel_thread_helper(void *unused0, int (*fn)(void *),
-		 void *arg, void *unused1)
-{
-	do_exit(fn(arg));
-}
-
-/*
- * Create a kernel thread.
- */
-long kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
-{
-	struct pt_regs regs;
-
-	memset(&regs, 0, sizeof(regs));
-
-	regs.regs[6] = (unsigned long) arg;
-	regs.regs[5] = (unsigned long) fn;
-	regs.cp0_epc = (unsigned long) kernel_thread_helper;
-	regs.cp0_psr = (regs.cp0_psr & ~(0x1|0x4|0x8)) | \
-			((regs.cp0_psr & 0x3) << 2);
-
-	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, \
-			0, &regs, 0, NULL, NULL);
 }
 
 unsigned long thread_saved_pc(struct task_struct *tsk)

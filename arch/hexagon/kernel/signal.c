@@ -249,14 +249,14 @@ void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
  */
 asmlinkage int sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss)
 {
-	struct pt_regs *regs = current_thread_info()->regs;
+	struct pt_regs *regs = current_pt_regs();
 
 	return do_sigaltstack(uss, uoss, regs->r29);
 }
 
 asmlinkage int sys_rt_sigreturn(void)
 {
-	struct pt_regs *regs = current_thread_info()->regs;
+	struct pt_regs *regs = current_pt_regs();
 	struct rt_sigframe __user *frame;
 	sigset_t blocked;
 

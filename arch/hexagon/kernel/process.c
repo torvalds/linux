@@ -26,33 +26,6 @@
 #include <linux/slab.h>
 
 /*
- * Kernel thread creation.  The desired kernel function is "wrapped"
- * in the kernel_thread_helper function, which does cleanup
- * afterwards.
- */
-static void __noreturn kernel_thread_helper(void *arg, int (*fn)(void *))
-{
-	do_exit(fn(arg));
-}
-
-int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
-{
-	struct pt_regs regs;
-
-	memset(&regs, 0, sizeof(regs));
-	/*
-	 * Yes, we're exploting illicit knowledge of the ABI here.
-	 */
-	regs.r00 = (unsigned long) arg;
-	regs.r01 = (unsigned long) fn;
-	pt_set_elr(&regs, (unsigned long)kernel_thread_helper);
-	pt_set_kmode(&regs);
-
-	return do_fork(flags|CLONE_VM|CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
-}
-EXPORT_SYMBOL(kernel_thread);
-
-/*
  * Program thread launch.  Often defined as a macro in processor.h,
  * but we're shooting for a small footprint and it's not an inner-loop
  * performance-critical operation.
@@ -114,7 +87,7 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
  * Copy architecture-specific thread state
  */
 int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long unused, struct task_struct *p,
+		unsigned long arg, struct task_struct *p,
 		struct pt_regs *regs)
 {
 	struct thread_info *ti = task_thread_info(p);
@@ -125,61 +98,50 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	childregs = (struct pt_regs *) (((unsigned long) ti + THREAD_SIZE) -
 					sizeof(*childregs));
 
-	memcpy(childregs, regs, sizeof(*childregs));
 	ti->regs = childregs;
 
 	/*
 	 * Establish kernel stack pointer and initial PC for new thread
+	 * Note that unlike the usual situation, we do not copy the
+	 * parent's callee-saved here; those are in pt_regs and whatever
+	 * we leave here will be overridden on return to userland.
 	 */
 	ss = (struct hexagon_switch_stack *) ((unsigned long) childregs -
 						    sizeof(*ss));
 	ss->lr = (unsigned long)ret_from_fork;
 	p->thread.switch_sp = ss;
-
-	/* If User mode thread, set pt_reg stack pointer as per parameter */
-	if (user_mode(childregs)) {
-		pt_set_rte_sp(childregs, usp);
-
-		/* Child sees zero return value */
-		childregs->r00 = 0;
-
-		/*
-		 * The clone syscall has the C signature:
-		 * int [r0] clone(int flags [r0],
-		 *           void *child_frame [r1],
-		 *           void *parent_tid [r2],
-		 *           void *child_tid [r3],
-		 *           void *thread_control_block [r4]);
-		 * ugp is used to provide TLS support.
-		 */
-		if (clone_flags & CLONE_SETTLS)
-			childregs->ugp = childregs->r04;
-
-		/*
-		 * Parent sees new pid -- not necessary, not even possible at
-		 * this point in the fork process
-		 * Might also want to set things like ti->addr_limit
-		 */
-	} else {
-		/*
-		 * If kernel thread, resume stack is kernel stack base.
-		 * Note that this is pointer arithmetic on pt_regs *
-		 */
-		pt_set_rte_sp(childregs, (unsigned long)(childregs + 1));
-		/*
-		 * We need the current thread_info fast path pointer
-		 * set up in pt_regs.  The register to be used is
-		 * parametric for assembler code, but the mechanism
-		 * doesn't drop neatly into C.  Needs to be fixed.
-		 */
-		childregs->THREADINFO_REG = (unsigned long) ti;
+	if (unlikely(p->flags & PF_KTHREAD)) {
+		memset(childregs, 0, sizeof(struct pt_regs));
+		/* r24 <- fn, r25 <- arg */
+		ss->r2524 = usp | ((u64)arg << 32);
+		pt_set_kmode(childregs);
+		return 0;
 	}
+	memcpy(childregs, regs, sizeof(*childregs));
+	ss->r2524 = 0;
+
+	pt_set_rte_sp(childregs, usp);
+
+	/* Child sees zero return value */
+	childregs->r00 = 0;
 
 	/*
-	 * thread_info pointer is pulled out of task_struct "stack"
-	 * field on switch_to.
+	 * The clone syscall has the C signature:
+	 * int [r0] clone(int flags [r0],
+	 *           void *child_frame [r1],
+	 *           void *parent_tid [r2],
+	 *           void *child_tid [r3],
+	 *           void *thread_control_block [r4]);
+	 * ugp is used to provide TLS support.
 	 */
-	p->stack = (void *)ti;
+	if (clone_flags & CLONE_SETTLS)
+		childregs->ugp = childregs->r04;
+
+	/*
+	 * Parent sees new pid -- not necessary, not even possible at
+	 * this point in the fork process
+	 * Might also want to set things like ti->addr_limit
+	 */
 
 	return 0;
 }

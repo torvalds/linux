@@ -530,61 +530,6 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	jump .Lsyscall_really_exit;
 ENDPROC(_trap)
 
-ENTRY(_kernel_execve)
-	link SIZEOF_PTREGS;
-	p0 = sp;
-	r3 = SIZEOF_PTREGS / 4;
-	r4 = 0(x);
-.Lclear_regs:
-	[p0++] = r4;
-	r3 += -1;
-	cc = r3 == 0;
-	if !cc jump .Lclear_regs (bp);
-
-	p0 = sp;
-	sp += -16;
-	[sp + 12] = p0;
-	pseudo_long_call _do_execve, p5;
-	SP += 16;
-	cc = r0 == 0;
-	if ! cc jump .Lexecve_failed;
-	/* Success.  Copy our temporary pt_regs to the top of the kernel
-	 * stack and do a normal exception return.
-	 */
-	r1 = sp;
-	r0 = (-KERNEL_STACK_SIZE) (x);
-	r1 = r1 & r0;
-	p2 = r1;
-	p3 = [p2];
-	r0 = KERNEL_STACK_SIZE - 4 (z);
-	p1 = r0;
-	p1 = p1 + p2;
-
-	p0 = fp;
-	r4 = [p0--];
-	r3 = SIZEOF_PTREGS / 4;
-.Lcopy_regs:
-	r4 = [p0--];
-	[p1--] = r4;
-	r3 += -1;
-	cc = r3 == 0;
-	if ! cc jump .Lcopy_regs (bp);
-
-	r0 = (KERNEL_STACK_SIZE - SIZEOF_PTREGS) (z);
-	p1 = r0;
-	p1 = p1 + p2;
-	sp = p1;
-	r0 = syscfg;
-	[SP + PT_SYSCFG] = r0;
-	[p3 + (TASK_THREAD + THREAD_KSP)] = sp;
-
-	RESTORE_CONTEXT;
-	rti;
-.Lexecve_failed:
-	unlink;
-	rts;
-ENDPROC(_kernel_execve)
-
 ENTRY(_system_call)
 	/* Store IPEND */
 	p2.l = lo(IPEND);

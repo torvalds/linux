@@ -46,22 +46,16 @@ ENTRY(_ret_from_fork)
 	SP += -12;
 	pseudo_long_call _schedule_tail, p5;
 	SP += 12;
-	r0 = [sp + PT_IPEND];
-	cc = bittst(r0,1);
-	if cc jump .Lin_kernel;
+	p1 = [sp++];
+	r0 = [sp++];
+	cc = p1 == 0;
+	if cc jump .Lfork;
+	sp += -12;
+	call (p1);
+	sp += 12;
+.Lfork:
 	RESTORE_CONTEXT
 	rti;
-.Lin_kernel:
-	bitclr(r0,1);
-	[sp + PT_IPEND] = r0;
-	/* do a 'fake' RTI by jumping to [RETI]
-	 * to avoid clearing supervisor mode in child
-	 */
-	r0 = [sp + PT_PC];
-	[sp + PT_P0] = r0;
-
-	RESTORE_ALL_SYS
-	jump (p0);
 ENDPROC(_ret_from_fork)
 
 ENTRY(_sys_vfork)

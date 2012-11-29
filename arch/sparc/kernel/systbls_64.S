@@ -107,7 +107,7 @@ sys_call_table:
 /*40*/	.word sys_newlstat, sys_dup, sys_sparc_pipe, sys_times, sys_nis_syscall
 	.word sys_umount, sys_setgid, sys_getgid, sys_signal, sys_geteuid
 /*50*/	.word sys_getegid, sys_acct, sys_memory_ordering, sys_nis_syscall, sys_ioctl
-	.word sys_reboot, sys_nis_syscall, sys_symlink, sys_readlink, sys_execve
+	.word sys_reboot, sys_nis_syscall, sys_symlink, sys_readlink, sys64_execve
 /*60*/	.word sys_umask, sys_chroot, sys_newfstat, sys_fstat64, sys_getpagesize
 	.word sys_msync, sys_vfork, sys_pread64, sys_pwrite64, sys_nis_syscall
 /*70*/	.word sys_nis_syscall, sys_mmap, sys_nis_syscall, sys_64_munmap, sys_mprotect

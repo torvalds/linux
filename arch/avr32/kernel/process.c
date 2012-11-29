@@ -69,44 +69,6 @@ void machine_restart(char *cmd)
 }
 
 /*
- * PC is actually discarded when returning from a system call -- the
- * return address must be stored in LR. This function will make sure
- * LR points to do_exit before starting the thread.
- *
- * Also, when returning from fork(), r12 is 0, so we must copy the
- * argument as well.
- *
- *  r0 : The argument to the main thread function
- *  r1 : The address of do_exit
- *  r2 : The address of the main thread function
- */
-asmlinkage extern void kernel_thread_helper(void);
-__asm__("	.type	kernel_thread_helper, @function\n"
-	"kernel_thread_helper:\n"
-	"	mov	r12, r0\n"
-	"	mov	lr, r2\n"
-	"	mov	pc, r1\n"
-	"	.size	kernel_thread_helper, . - kernel_thread_helper");
-
-int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
-{
-	struct pt_regs regs;
-
-	memset(&regs, 0, sizeof(regs));
-
-	regs.r0 = (unsigned long)arg;
-	regs.r1 = (unsigned long)fn;
-	regs.r2 = (unsigned long)do_exit;
-	regs.lr = (unsigned long)kernel_thread_helper;
-	regs.pc = (unsigned long)kernel_thread_helper;
-	regs.sr = MODE_SUPERVISOR;
-
-	return do_fork(flags | CLONE_VM | CLONE_UNTRACED,
-		       0, &regs, 0, NULL, NULL);
-}
-EXPORT_SYMBOL(kernel_thread);
-
-/*
  * Free current thread data structures etc
  */
 void exit_thread(void)
@@ -332,26 +294,31 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 }
 
 asmlinkage void ret_from_fork(void);
+asmlinkage void ret_from_kernel_thread(void);
+asmlinkage void syscall_return(void);
 
 int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long unused,
+		unsigned long arg,
 		struct task_struct *p, struct pt_regs *regs)
 {
-	struct pt_regs *childregs;
+	struct pt_regs *childregs = task_pt_regs(p);
 
-	childregs = ((struct pt_regs *)(THREAD_SIZE + (unsigned long)task_stack_page(p))) - 1;
-	*childregs = *regs;
-
-	if (user_mode(regs))
+	if (unlikely(!regs)) {
+		memset(childregs, 0, sizeof(struct pt_regs));
+		p->thread.cpu_context.r0 = arg;
+		p->thread.cpu_context.r1 = usp; /* fn */
+		p->thread.cpu_context.r2 = syscall_return;
+		p->thread.cpu_context.pc = (unsigned long)ret_from_kernel_thread;
+		childregs->sr = MODE_SUPERVISOR;
+	} else {
+		*childregs = *regs;
 		childregs->sp = usp;
-	else
-		childregs->sp = (unsigned long)task_stack_page(p) + THREAD_SIZE;
-
-	childregs->r12 = 0; /* Set return value for child */
+		childregs->r12 = 0; /* Set return value for child */
+		p->thread.cpu_context.pc = (unsigned long)ret_from_fork;
+	}
 
 	p->thread.cpu_context.sr = MODE_SUPERVISOR | SR_GM;
 	p->thread.cpu_context.ksp = (unsigned long)childregs;
-	p->thread.cpu_context.pc = (unsigned long)ret_from_fork;
 
 	clear_tsk_thread_flag(p, TIF_DEBUG);
 	if ((clone_flags & CLONE_PTRACE) && test_thread_flag(TIF_DEBUG))
@@ -381,27 +348,6 @@ asmlinkage int sys_vfork(struct pt_regs *regs)
 	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->sp, regs,
 		       0, NULL, NULL);
 }
-
-asmlinkage int sys_execve(const char __user *ufilename,
-			  const char __user *const __user *uargv,
-			  const char __user *const __user *uenvp,
-			  struct pt_regs *regs)
-{
-	int error;
-	struct filename *filename;
-
-	filename = getname(ufilename);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-
-	error = do_execve(filename->name, uargv, uenvp, regs);
-	putname(filename);
-
-out:
-	return error;
-}
-
 
 /*
  * This function is supposed to answer the question "who called

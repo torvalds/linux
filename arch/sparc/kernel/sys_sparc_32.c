@@ -258,27 +258,3 @@ out:
 	up_read(&uts_sem);
 	return err;
 }
-
-/*
- * Do a system call from kernel instead of calling sys_execve so we
- * end up with proper pt_regs.
- */
-int kernel_execve(const char *filename,
-		  const char *const argv[],
-		  const char *const envp[])
-{
-	long __res;
-	register long __g1 __asm__ ("g1") = __NR_execve;
-	register long __o0 __asm__ ("o0") = (long)(filename);
-	register long __o1 __asm__ ("o1") = (long)(argv);
-	register long __o2 __asm__ ("o2") = (long)(envp);
-	asm volatile ("t 0x10\n\t"
-		      "bcc 1f\n\t"
-		      "mov %%o0, %0\n\t"
-		      "sub %%g0, %%o0, %0\n\t"
-		      "1:\n\t"
-		      : "=r" (__res), "=&r" (__o0)
-		      : "1" (__o0), "r" (__o1), "r" (__o2), "r" (__g1)
-		      : "cc");
-	return __res;
-}

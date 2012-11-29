@@ -61,4 +61,10 @@ static inline void die_if_kernel(const char *str, struct pt_regs *regs)
 		die(str, regs);
 }
 
+#define current_pt_regs()						\
+({									\
+	unsigned long sp = (unsigned long)__builtin_frame_address(0);	\
+	(struct pt_regs *)((sp | (THREAD_SIZE - 1)) + 1 - 32) - 1;	\
+})
+
 #endif /* _ASM_PTRACE_H */

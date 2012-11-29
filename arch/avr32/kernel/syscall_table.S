@@ -24,7 +24,7 @@ sys_call_table:
 	.long	sys_creat
 	.long	sys_link
 	.long	sys_unlink		/* 10 */
-	.long	__sys_execve
+	.long	sys_execve
 	.long	sys_chdir
 	.long	sys_time
 	.long	sys_mknod

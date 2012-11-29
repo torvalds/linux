@@ -60,6 +60,8 @@ struct pt_regs {
 #define user_mode(regs) (!((regs)->ccr & PS_S))
 #define instruction_pointer(regs) ((regs)->pc)
 #define profile_pc(regs) instruction_pointer(regs)
+#define current_pt_regs() ((struct pt_regs *) \
+	(THREAD_SIZE + (unsigned long)current_thread_info()) - 1)
 #endif /* __KERNEL__ */
 #endif /* __ASSEMBLY__ */
 #endif /* _H8300_PTRACE_H */

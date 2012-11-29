@@ -47,6 +47,7 @@ void (*pm_power_off)(void) = NULL;
 EXPORT_SYMBOL(pm_power_off);
 
 asmlinkage void ret_from_fork(void);
+asmlinkage void ret_from_kernel_thread(void);
 
 /*
  * The idle loop on an H8/300..
@@ -122,39 +123,6 @@ void show_regs(struct pt_regs * regs)
 		printk("\n");
 }
 
-/*
- * Create a kernel thread
- */
-int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
-{
-	long retval;
-	long clone_arg;
-	mm_segment_t fs;
-
-	fs = get_fs();
-	set_fs (KERNEL_DS);
-	clone_arg = flags | CLONE_VM;
-	__asm__("mov.l sp,er3\n\t"
-		"sub.l er2,er2\n\t"
-		"mov.l %2,er1\n\t"
-		"mov.l %1,er0\n\t"
-		"trapa #0\n\t"
-		"cmp.l sp,er3\n\t"
-		"beq 1f\n\t"
-		"mov.l %4,er0\n\t"
-		"mov.l %3,er1\n\t"
-		"jsr @er1\n\t"
-		"mov.l %5,er0\n\t"
-		"trapa #0\n"
-		"1:\n\t"
-		"mov.l er0,%0"
-		:"=r"(retval)
-		:"i"(__NR_clone),"g"(clone_arg),"g"(fn),"g"(arg),"i"(__NR_exit)
-		:"er0","er1","er2","er3");
-	set_fs (fs);
-	return retval;
-}
-
 void flush_thread(void)
 {
 }
@@ -198,6 +166,13 @@ int copy_thread(unsigned long clone_flags,
 
 	childregs = (struct pt_regs *) (THREAD_SIZE + task_stack_page(p)) - 1;
 
+	if (unlikely(p->flags & PF_KTHREAD)) {
+		memset(childregs, 0, sizeof(struct pt_regs));
+		childregs->retpc = (unsigned long) ret_from_kernel_thread;
+		childregs->er4 = topstk; /* arg */
+		childregs->er5 = usp; /* fn */
+		p->thread.ksp = (unsigned long)childregs;
+	}
 	*childregs = *regs;
 	childregs->retpc = (unsigned long) ret_from_fork;
 	childregs->er0 = 0;
@@ -206,27 +181,6 @@ int copy_thread(unsigned long clone_flags,
 	p->thread.ksp = (unsigned long)childregs;
 
 	return 0;
-}
-
-/*
- * sys_execve() executes a new program.
- */
-asmlinkage int sys_execve(const char *name,
-			  const char *const *argv,
-			  const char *const *envp,
-			  int dummy, ...)
-{
-	int error;
-	struct filename *filename;
-	struct pt_regs *regs = (struct pt_regs *) ((unsigned char *)&dummy-4);
-
-	filename = getname(name);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		return error;
-	error = do_execve(filename->name, argv, envp, regs);
-	putname(filename);
-	return error;
 }
 
 unsigned long thread_saved_pc(struct task_struct *tsk)

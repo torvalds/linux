@@ -32,8 +32,6 @@ EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memmove);
 
-EXPORT_SYMBOL(kernel_thread);
-
 /*
  * Functions that operate on entire pages.  Mostly used by memory management.
  */

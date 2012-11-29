@@ -413,18 +413,8 @@ ENTRY(ret_from_kernel_thread)
 0:
 	B	.S2	B10		   /* call fn */
 	LDW	.D2T1	*+SP(REGS_A1+8),A4 /* get arg */
-	MVKL	.S2	sys_exit,B11
-	MVKH	.S2	sys_exit,B11
-	ADDKPC	.S2	0f,B3,1
-0:
-	BNOP	.S2	B11,5	/* jump to sys_exit */
+	ADDKPC	.S2	ret_from_fork_2,B3,3
 ENDPROC(ret_from_kernel_thread)
-
-ENTRY(ret_from_kernel_execve)
-	GET_THREAD_INFO A12
-	BNOP	.S2	syscall_exit,4
-	ADD	.D2X	A4,-8,SP
-ENDPROC(ret_from_kernel_execve)
 
 	;;
 	;; These are the interrupt handlers, responsible for calling __do_IRQ()

@@ -65,6 +65,12 @@ need_resched:
 	b	need_resched
 #endif
 
+FEXPORT(ret_from_kernel_thread)
+	jal	schedule_tail		# a0 = struct task_struct *prev
+	move	a0, s1
+	jal	s0
+	j	syscall_exit
+
 FEXPORT(ret_from_fork)
 	jal	schedule_tail		# a0 = struct task_struct *prev
 

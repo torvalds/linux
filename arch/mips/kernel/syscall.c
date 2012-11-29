@@ -127,28 +127,6 @@ _sys_clone(nabi_no_regargs struct pt_regs regs)
 	               parent_tidptr, child_tidptr);
 }
 
-/*
- * sys_execve() executes a new program.
- */
-asmlinkage int sys_execve(nabi_no_regargs struct pt_regs regs)
-{
-	int error;
-	struct filename *filename;
-
-	filename = getname((const char __user *) (long)regs.regs[4]);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	error = do_execve(filename->name,
-			  (const char __user *const __user *) (long)regs.regs[5],
-	                  (const char __user *const __user *) (long)regs.regs[6],
-			  &regs);
-	putname(filename);
-
-out:
-	return error;
-}
-
 SYSCALL_DEFINE1(set_thread_area, unsigned long, addr)
 {
 	struct thread_info *ti = task_thread_info(current);
@@ -312,35 +290,4 @@ SYSCALL_DEFINE3(cachectl, char *, addr, int, nbytes, int, op)
 asmlinkage void bad_stack(void)
 {
 	do_exit(SIGSEGV);
-}
-
-/*
- * Do a system call from kernel instead of calling sys_execve so we
- * end up with proper pt_regs.
- */
-int kernel_execve(const char *filename,
-		  const char *const argv[],
-		  const char *const envp[])
-{
-	register unsigned long __a0 asm("$4") = (unsigned long) filename;
-	register unsigned long __a1 asm("$5") = (unsigned long) argv;
-	register unsigned long __a2 asm("$6") = (unsigned long) envp;
-	register unsigned long __a3 asm("$7");
-	unsigned long __v0;
-
-	__asm__ volatile ("					\n"
-	"	.set	noreorder				\n"
-	"	li	$2, %5		# __NR_execve		\n"
-	"	syscall						\n"
-	"	move	%0, $2					\n"
-	"	.set	reorder					\n"
-	: "=&r" (__v0), "=r" (__a3)
-	: "r" (__a0), "r" (__a1), "r" (__a2), "i" (__NR_execve)
-	: "$2", "$8", "$9", "$10", "$11", "$12", "$13", "$14", "$15", "$24",
-	  "memory");
-
-	if (__a3 == 0)
-		return __v0;
-
-	return -__v0;
 }

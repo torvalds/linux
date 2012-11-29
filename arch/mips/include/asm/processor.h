@@ -310,8 +310,6 @@ struct task_struct;
 /* Free all resources held by a thread. */
 #define release_thread(thread) do { } while(0)
 
-extern long kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
-
 extern unsigned long thread_saved_pc(struct task_struct *tsk);
 
 /*

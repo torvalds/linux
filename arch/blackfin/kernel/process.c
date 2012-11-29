@@ -102,40 +102,6 @@ void cpu_idle(void)
 }
 
 /*
- * This gets run with P1 containing the
- * function to call, and R1 containing
- * the "args".  Note P0 is clobbered on the way here.
- */
-void kernel_thread_helper(void);
-__asm__(".section .text\n"
-	".align 4\n"
-	"_kernel_thread_helper:\n\t"
-	"\tsp += -12;\n\t"
-	"\tr0 = r1;\n\t" "\tcall (p1);\n\t" "\tcall _do_exit;\n" ".previous");
-
-/*
- * Create a kernel thread.
- */
-pid_t kernel_thread(int (*fn) (void *), void *arg, unsigned long flags)
-{
-	struct pt_regs regs;
-
-	memset(&regs, 0, sizeof(regs));
-
-	regs.r1 = (unsigned long)arg;
-	regs.p1 = (unsigned long)fn;
-	regs.pc = (unsigned long)kernel_thread_helper;
-	regs.orig_p0 = -1;
-	/* Set bit 2 to tell ret_from_fork we should be returning to kernel
-	   mode.  */
-	regs.ipend = 0x8002;
-	__asm__ __volatile__("%0 = syscfg;":"=da"(regs.syscfg):);
-	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0, NULL,
-		       NULL);
-}
-EXPORT_SYMBOL(kernel_thread);
-
-/*
  * Do necessary setup to start up a newly executed thread.
  *
  * pass the data segment into user programs if it exists,
@@ -193,36 +159,29 @@ copy_thread(unsigned long clone_flags,
 	    struct task_struct *p, struct pt_regs *regs)
 {
 	struct pt_regs *childregs;
+	unsigned long *v;
 
 	childregs = (struct pt_regs *) (task_stack_page(p) + THREAD_SIZE) - 1;
-	*childregs = *regs;
-	childregs->r0 = 0;
+	v = ((unsigned long *)childregs) - 2;
+	if (unlikely(!regs)) {
+		memset(childregs, 0, sizeof(struct pt_regs));
+		v[0] = usp;
+		v[1] = topstk;
+		childregs->orig_p0 = -1;
+		childregs->ipend = 0x8000;
+		__asm__ __volatile__("%0 = syscfg;":"=da"(childregs->syscfg):);
+		p->thread.usp = 0;
+	} else {
+		*childregs = *regs;
+		childregs->r0 = 0;
+		p->thread.usp = usp;
+		v[0] = v[1] = 0;
+	}
 
-	p->thread.usp = usp;
-	p->thread.ksp = (unsigned long)childregs;
+	p->thread.ksp = (unsigned long)v;
 	p->thread.pc = (unsigned long)ret_from_fork;
 
 	return 0;
-}
-
-/*
- * sys_execve() executes a new program.
- */
-asmlinkage int sys_execve(const char __user *name,
-			  const char __user *const __user *argv,
-			  const char __user *const __user *envp)
-{
-	int error;
-	struct filename *filename;
-	struct pt_regs *regs = (struct pt_regs *)((&name) + 6);
-
-	filename = getname(name);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		return error;
-	error = do_execve(filename->name, argv, envp, regs);
-	putname(filename);
-	return error;
 }
 
 unsigned long get_wchan(struct task_struct *p)

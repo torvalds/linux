@@ -61,14 +61,13 @@ ENTRY(ia64_execve)
 	 * Allocate 8 input registers since ptrace() may clobber them
 	 */
 	.prologue ASM_UNW_PRLG_RP|ASM_UNW_PRLG_PFS, ASM_UNW_PRLG_GRSAVE(8)
-	alloc loc1=ar.pfs,8,2,4,0
+	alloc loc1=ar.pfs,8,2,3,0
 	mov loc0=rp
 	.body
 	mov out0=in0			// filename
 	;;				// stop bit between alloc and call
 	mov out1=in1			// argv
 	mov out2=in2			// envp
-	add out3=16,sp			// regs
 	br.call.sptk.many rp=sys_execve
 .ret0:
 	cmp4.ge p6,p7=r8,r0
@@ -76,7 +75,6 @@ ENTRY(ia64_execve)
 	sxt4 r8=r8			// return 64-bit result
 	;;
 	stf.spill [sp]=f0
-(p6)	cmp.ne pKStk,pUStk=r0,r0	// a successful execve() lands us in user-mode...
 	mov rp=loc0
 (p6)	mov ar.pfs=r0			// clear ar.pfs on success
 (p7)	br.ret.sptk.many rp
@@ -484,19 +482,6 @@ GLOBAL_ENTRY(prefetch_stack)
 	br.ret.sptk.many rp
 END(prefetch_stack)
 
-GLOBAL_ENTRY(kernel_execve)
-	rum psr.ac
-	mov r15=__NR_execve			// put syscall number in place
-	break __BREAK_SYSCALL
-	br.ret.sptk.many rp
-END(kernel_execve)
-
-GLOBAL_ENTRY(clone)
-	mov r15=__NR_clone			// put syscall number in place
-	break __BREAK_SYSCALL
-	br.ret.sptk.many rp
-END(clone)
-
 	/*
 	 * Invoke a system call, but do some tracing before and after the call.
 	 * We MUST preserve the current register frame throughout this routine
@@ -600,6 +585,27 @@ GLOBAL_ENTRY(ia64_strace_leave_kernel)
 .ret4:	br.cond.sptk ia64_leave_kernel
 END(ia64_strace_leave_kernel)
 
+ENTRY(call_payload)
+	.prologue ASM_UNW_PRLG_RP|ASM_UNW_PRLG_PFS, ASM_UNW_PRLG_GRSAVE(0)
+	/* call the kernel_thread payload; fn is in r4, arg - in r5 */
+	alloc loc1=ar.pfs,0,3,1,0
+	mov loc0=rp
+	mov loc2=gp
+	mov out0=r5		// arg
+	ld8 r14 = [r4], 8	// fn.address
+	;;
+	mov b6 = r14
+	ld8 gp = [r4]		// fn.gp
+	;;
+	br.call.sptk.many rp=b6	// fn(arg)
+.ret12:	mov gp=loc2
+	mov rp=loc0
+	mov ar.pfs=loc1
+	/* ... and if it has returned, we are going to userland */
+	cmp.ne pKStk,pUStk=r0,r0
+	br.ret.sptk.many rp
+END(call_payload)
+
 GLOBAL_ENTRY(ia64_ret_from_clone)
 	PT_REGS_UNWIND_INFO(0)
 {	/*
@@ -616,6 +622,7 @@ GLOBAL_ENTRY(ia64_ret_from_clone)
 	br.call.sptk.many rp=ia64_invoke_schedule_tail
 }
 .ret8:
+(pKStk)	br.call.sptk.many rp=call_payload
 	adds r2=TI_FLAGS+IA64_TASK_SIZE,r13
 	;;
 	ld4 r2=[r2]

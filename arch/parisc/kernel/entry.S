@@ -708,59 +708,9 @@ ENTRY(end_fault_vector)
 	.import		do_cpu_irq_mask,code
 
 	/*
-	 * r26 = function to be called
-	 * r25 = argument to pass in
-	 * r24 = flags for do_fork()
-	 *
-	 * Kernel threads don't ever return, so they don't need
-	 * a true register context. We just save away the arguments
-	 * for copy_thread/ret_ to properly set up the child.
-	 */
-
-#define CLONE_VM 0x100	/* Must agree with <linux/sched.h> */
-#define CLONE_UNTRACED 0x00800000
-
-	.import do_fork
-ENTRY(__kernel_thread)
-	STREG	%r2, -RP_OFFSET(%r30)
-
-	copy	%r30, %r1
-	ldo	PT_SZ_ALGN(%r30),%r30
-#ifdef CONFIG_64BIT
-	/* Yo, function pointers in wide mode are little structs... -PB */
-	ldd	24(%r26), %r2
-	STREG	%r2, PT_GR27(%r1)	/* Store childs %dp */
-	ldd	16(%r26), %r26
-
-	STREG	%r22, PT_GR22(%r1)	/* save r22 (arg5) */
-	copy	%r0, %r22		/* user_tid */
-#endif
-	STREG	%r26, PT_GR26(%r1)  /* Store function & argument for child */
-	STREG	%r25, PT_GR25(%r1)
-	ldil	L%CLONE_UNTRACED, %r26
-	ldo	CLONE_VM(%r26), %r26   /* Force CLONE_VM since only init_mm */
-	or	%r26, %r24, %r26      /* will have kernel mappings.	 */
-	ldi	1, %r25			/* stack_start, signals kernel thread */
-	stw	%r0, -52(%r30)	     	/* user_tid */
-#ifdef CONFIG_64BIT
-	ldo	-16(%r30),%r29		/* Reference param save area */
-#endif
-	BL	do_fork, %r2
-	copy	%r1, %r24		/* pt_regs */
-
-	/* Parent Returns here */
-
-	LDREG	-PT_SZ_ALGN-RP_OFFSET(%r30), %r2
-	ldo	-PT_SZ_ALGN(%r30), %r30
-	bv	%r0(%r2)
-	nop
-ENDPROC(__kernel_thread)
-
-	/*
 	 * Child Returns here
 	 *
-	 * copy_thread moved args from temp save area set up above
-	 * into task save area.
+	 * copy_thread moved args into task save area.
 	 */
 
 ENTRY(ret_from_kernel_thread)
@@ -769,51 +719,17 @@ ENTRY(ret_from_kernel_thread)
 	BL	schedule_tail, %r2
 	nop
 
-	LDREG	TI_TASK-THREAD_SZ_ALGN(%r30), %r1
+	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30), %r1
 	LDREG	TASK_PT_GR25(%r1), %r26
 #ifdef CONFIG_64BIT
 	LDREG	TASK_PT_GR27(%r1), %r27
-	LDREG	TASK_PT_GR22(%r1), %r22
 #endif
 	LDREG	TASK_PT_GR26(%r1), %r1
 	ble	0(%sr7, %r1)
 	copy	%r31, %r2
-
-#ifdef CONFIG_64BIT
-	ldo	-16(%r30),%r29		/* Reference param save area */
-	loadgp				/* Thread could have been in a module */
-#endif
-#ifndef CONFIG_64BIT
-	b	sys_exit
-#else
-	load32	sys_exit, %r1
-	bv	%r0(%r1)
-#endif
-	ldi	0, %r26
-ENDPROC(ret_from_kernel_thread)
-
-	.import	sys_execve, code
-ENTRY(__execve)
-	copy	%r2, %r15
-	copy	%r30, %r16
-	ldo	PT_SZ_ALGN(%r30), %r30
-	STREG	%r26, PT_GR26(%r16)
-	STREG	%r25, PT_GR25(%r16)
-	STREG	%r24, PT_GR24(%r16)
-#ifdef CONFIG_64BIT
-	ldo	-16(%r30),%r29		/* Reference param save area */
-#endif
-	BL	sys_execve, %r2
-	copy	%r16, %r26
-
-	cmpib,=,n 0,%r28,intr_return    /* forward */
-
-	/* yes, this will trap and die. */
-	copy	%r15, %r2
-	copy	%r16, %r30
-	bv	%r0(%r2)
+	b	finish_child_return
 	nop
-ENDPROC(__execve)
+ENDPROC(ret_from_kernel_thread)
 
 
 	/*
@@ -1776,49 +1692,27 @@ ENTRY(sys_fork_wrapper)
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30), %r1
 	ldo	TASK_REGS(%r1),%r1
 	reg_save %r1
-	mfctl	%cr27, %r3
-	STREG	%r3, PT_CR27(%r1)
-
-	STREG	%r2,-RP_OFFSET(%r30)
-	ldo	FRAME_SIZE(%r30),%r30
-#ifdef CONFIG_64BIT
-	ldo	-16(%r30),%r29		/* Reference param save area */
-#endif
-
-	/* These are call-clobbered registers and therefore
-	   also syscall-clobbered (we hope). */
-	STREG	%r2,PT_GR19(%r1)	/* save for child */
-	STREG	%r30,PT_GR21(%r1)
+	mfctl	%cr27, %r28
+	STREG	%r28, PT_CR27(%r1)
 
 	LDREG	PT_GR30(%r1),%r25
 	copy	%r1,%r24
-	BL	sys_clone,%r2
+	b	sys_clone
 	ldi	SIGCHLD,%r26
-
-	LDREG	-RP_OFFSET-FRAME_SIZE(%r30),%r2
-wrapper_exit:
-	ldo	-FRAME_SIZE(%r30),%r30		/* get the stackframe */
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
-	ldo	TASK_REGS(%r1),%r1	 /* get pt regs */
-
-	LDREG	PT_CR27(%r1), %r3
-	mtctl	%r3, %cr27
-	reg_restore %r1
-
-	/* strace expects syscall # to be preserved in r20 */
-	ldi	__NR_fork,%r20
-	bv %r0(%r2)
-	STREG	%r20,PT_GR20(%r1)
 ENDPROC(sys_fork_wrapper)
 
 	/* Set the return value for the child */
 ENTRY(child_return)
 	BL	schedule_tail, %r2
 	nop
+finish_child_return:
+	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30), %r1
+	ldo	TASK_REGS(%r1),%r1	 /* get pt regs */
 
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE-FRAME_SIZE(%r30), %r1
-	LDREG	TASK_PT_GR19(%r1),%r2
-	b	wrapper_exit
+	LDREG	PT_CR27(%r1), %r3
+	mtctl	%r3, %cr27
+	reg_restore %r1
+	b	syscall_exit
 	copy	%r0,%r28
 ENDPROC(child_return)
 
@@ -1827,23 +1721,10 @@ ENTRY(sys_clone_wrapper)
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
 	ldo	TASK_REGS(%r1),%r1	/* get pt regs */
 	reg_save %r1
-	mfctl	%cr27, %r3
-	STREG	%r3, PT_CR27(%r1)
-
-	STREG	%r2,-RP_OFFSET(%r30)
-	ldo	FRAME_SIZE(%r30),%r30
-#ifdef CONFIG_64BIT
-	ldo	-16(%r30),%r29		/* Reference param save area */
-#endif
-
-	/* WARNING - Clobbers r19 and r21, userspace must save these! */
-	STREG	%r2,PT_GR19(%r1)	/* save for child */
-	STREG	%r30,PT_GR21(%r1)
-	BL	sys_clone,%r2
+	mfctl	%cr27, %r28
+	STREG	%r28, PT_CR27(%r1)
+	b	sys_clone
 	copy	%r1,%r24
-
-	b	wrapper_exit
-	LDREG	-RP_OFFSET-FRAME_SIZE(%r30),%r2
 ENDPROC(sys_clone_wrapper)
 
 
@@ -1851,72 +1732,14 @@ ENTRY(sys_vfork_wrapper)
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
 	ldo	TASK_REGS(%r1),%r1	/* get pt regs */
 	reg_save %r1
-	mfctl	%cr27, %r3
-	STREG	%r3, PT_CR27(%r1)
+	mfctl	%cr27, %r28
+	STREG	%r28, PT_CR27(%r1)
 
-	STREG	%r2,-RP_OFFSET(%r30)
-	ldo	FRAME_SIZE(%r30),%r30
-#ifdef CONFIG_64BIT
-	ldo	-16(%r30),%r29		/* Reference param save area */
-#endif
-
-	STREG	%r2,PT_GR19(%r1)	/* save for child */
-	STREG	%r30,PT_GR21(%r1)
-
-	BL	sys_vfork,%r2
+	b	sys_vfork
 	copy	%r1,%r26
-
-	b	wrapper_exit
-	LDREG	-RP_OFFSET-FRAME_SIZE(%r30),%r2
 ENDPROC(sys_vfork_wrapper)
 
 	
-	.macro  execve_wrapper execve
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
-	ldo	TASK_REGS(%r1),%r1	/* get pt regs */
-
-	/*
-	 * Do we need to save/restore r3-r18 here?
-	 * I don't think so. why would new thread need old
-	 * threads registers?
-	 */
-
-	/* %arg0 - %arg3 are already saved for us. */
-
-	STREG %r2,-RP_OFFSET(%r30)
-	ldo FRAME_SIZE(%r30),%r30
-#ifdef CONFIG_64BIT
-	ldo	-16(%r30),%r29		/* Reference param save area */
-#endif
-	BL \execve,%r2
-	copy %r1,%arg0
-
-	ldo -FRAME_SIZE(%r30),%r30
-	LDREG -RP_OFFSET(%r30),%r2
-
-	/* If exec succeeded we need to load the args */
-
-	ldo -1024(%r0),%r1
-	cmpb,>>= %r28,%r1,error_\execve
-	copy %r2,%r19
-
-error_\execve:
-	bv %r0(%r19)
-	nop
-	.endm
-
-	.import sys_execve
-ENTRY(sys_execve_wrapper)
-	execve_wrapper sys_execve
-ENDPROC(sys_execve_wrapper)
-
-#ifdef CONFIG_64BIT
-	.import sys32_execve
-ENTRY(sys32_execve_wrapper)
-	execve_wrapper sys32_execve
-ENDPROC(sys32_execve_wrapper)
-#endif
-
 ENTRY(sys_rt_sigreturn_wrapper)
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r26
 	ldo	TASK_REGS(%r26),%r26	/* get pt regs */

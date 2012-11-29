@@ -109,65 +109,81 @@ void release_thread(struct task_struct *dead_task)
  */
 extern asmlinkage void ret_from_fork(void);
 
+/*
+ * copy_thread
+ * @clone_flags: flags
+ * @usp: user stack pointer or fn for kernel thread
+ * @arg: arg to fn for kernel thread; always NULL for userspace thread
+ * @p: the newly created task
+ * @regs: CPU context to copy for userspace thread; always NULL for kthread
+ *
+ * At the top of a newly initialized kernel stack are two stacked pt_reg
+ * structures.  The first (topmost) is the userspace context of the thread.
+ * The second is the kernelspace context of the thread.
+ *
+ * A kernel thread will not be returning to userspace, so the topmost pt_regs
+ * struct can be uninitialized; it _does_ need to exist, though, because
+ * a kernel thread can become a userspace thread by doing a kernel_execve, in
+ * which case the topmost context will be initialized and used for 'returning'
+ * to userspace.
+ *
+ * The second pt_reg struct needs to be initialized to 'return' to
+ * ret_from_fork.  A kernel thread will need to set r20 to the address of
+ * a function to call into (with arg in r22); userspace threads need to set
+ * r20 to NULL in which case ret_from_fork will just continue a return to
+ * userspace.
+ *
+ * A kernel thread 'fn' may return; this is effectively what happens when
+ * kernel_execve is called.  In that case, the userspace pt_regs must have
+ * been initialized (which kernel_execve takes care of, see start_thread
+ * below); ret_from_fork will then continue its execution causing the
+ * 'kernel thread' to return to userspace as a userspace thread.
+ */
+
 int
 copy_thread(unsigned long clone_flags, unsigned long usp,
-	    unsigned long unused, struct task_struct *p, struct pt_regs *regs)
+	    unsigned long arg, struct task_struct *p, struct pt_regs *regs)
 {
-	struct pt_regs *childregs;
+	struct pt_regs *userregs;
 	struct pt_regs *kregs;
 	unsigned long sp = (unsigned long)task_stack_page(p) + THREAD_SIZE;
-	struct thread_info *ti;
 	unsigned long top_of_kernel_stack;
 
 	top_of_kernel_stack = sp;
 
 	p->set_child_tid = p->clear_child_tid = NULL;
 
-	/* Copy registers */
-	/* redzone */
-	sp -= STACK_FRAME_OVERHEAD;
+	/* Locate userspace context on stack... */
+	sp -= STACK_FRAME_OVERHEAD;	/* redzone */
 	sp -= sizeof(struct pt_regs);
-	childregs = (struct pt_regs *)sp;
+	userregs = (struct pt_regs *) sp;
 
-	/* Copy parent registers */
-	*childregs = *regs;
-
-	if ((childregs->sr & SPR_SR_SM) == 1) {
-		/* for kernel thread, set `current_thread_info'
-		 * and stackptr in new task
-		 */
-		childregs->sp = (unsigned long)task_stack_page(p) + THREAD_SIZE;
-		childregs->gpr[10] = (unsigned long)task_thread_info(p);
-	} else {
-		childregs->sp = usp;
-	}
-
-	childregs->gpr[11] = 0;	/* Result from fork() */
-
-	/*
-	 * The way this works is that at some point in the future
-	 * some task will call _switch to switch to the new task.
-	 * That will pop off the stack frame created below and start
-	 * the new task running at ret_from_fork.  The new task will
-	 * do some house keeping and then return from the fork or clone
-	 * system call, using the stack frame created above.
-	 */
-	/* redzone */
-	sp -= STACK_FRAME_OVERHEAD;
+	/* ...and kernel context */
+	sp -= STACK_FRAME_OVERHEAD;	/* redzone */
 	sp -= sizeof(struct pt_regs);
 	kregs = (struct pt_regs *)sp;
 
-	ti = task_thread_info(p);
-	ti->ksp = sp;
+	if (unlikely(p->flags & PF_KTHREAD)) {
+		memset(kregs, 0, sizeof(struct pt_regs));
+		kregs->gpr[20] = usp; /* fn, kernel thread */
+		kregs->gpr[22] = arg;
+	} else {
+		*userregs = *regs;
 
-	/* kregs->sp must store the location of the 'pre-switch' kernel stack
-	 * pointer... for a newly forked process, this is simply the top of
-	 * the kernel stack.
+		userregs->sp = usp;
+		userregs->gpr[11] = 0;	/* Result from fork() */
+
+		kregs->gpr[20] = 0;	/* Userspace thread */
+	}
+
+	/*
+	 * _switch wants the kernel stack page in pt_regs->sp so that it
+	 * can restore it to thread_info->ksp... see _switch for details.
 	 */
 	kregs->sp = top_of_kernel_stack;
-	kregs->gpr[3] = (unsigned long)current;	/* arg to schedule_tail */
-	kregs->gpr[10] = (unsigned long)task_thread_info(p);
 	kregs->gpr[9] = (unsigned long)ret_from_fork;
+
+	task_thread_info(p)->ksp = (unsigned long)kregs;
 
 	return 0;
 }
@@ -177,16 +193,14 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
  */
 void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long sp)
 {
-	unsigned long sr = regs->sr & ~SPR_SR_SM;
+	unsigned long sr = mfspr(SPR_SR) & ~SPR_SR_SM;
 
 	set_fs(USER_DS);
-	memset(regs->gpr, 0, sizeof(regs->gpr));
+	memset(regs, 0, sizeof(struct pt_regs));
 
 	regs->pc = pc;
 	regs->sr = sr;
 	regs->sp = sp;
-
-/*	printk("start thread, ksp = %lx\n", current_thread_info()->ksp);*/
 }
 
 /* Fill in the fpu structure for a core dump.  */
@@ -237,74 +251,9 @@ void dump_elf_thread(elf_greg_t *dest, struct pt_regs* regs)
 	dest[35] = 0;
 }
 
-extern void _kernel_thread_helper(void);
-
-void __noreturn kernel_thread_helper(int (*fn) (void *), void *arg)
-{
-	do_exit(fn(arg));
-}
-
-/*
- * Create a kernel thread.
- */
-int kernel_thread(int (*fn) (void *), void *arg, unsigned long flags)
-{
-	struct pt_regs regs;
-
-	memset(&regs, 0, sizeof(regs));
-
-	regs.gpr[20] = (unsigned long)fn;
-	regs.gpr[22] = (unsigned long)arg;
-	regs.sr = mfspr(SPR_SR);
-	regs.pc = (unsigned long)_kernel_thread_helper;
-
-	return do_fork(flags | CLONE_VM | CLONE_UNTRACED,
-		       0, &regs, 0, NULL, NULL);
-}
-
-/*
- * sys_execve() executes a new program.
- */
-asmlinkage long _sys_execve(const char __user *name,
-			    const char __user * const __user *argv,
-			    const char __user * const __user *envp,
-			    struct pt_regs *regs)
-{
-	int error;
-	struct filename *filename;
-
-	filename = getname(name);
-	error = PTR_ERR(filename);
-
-	if (IS_ERR(filename))
-		goto out;
-
-	error = do_execve(filename->name, argv, envp, regs);
-	putname(filename);
-
-out:
-	return error;
-}
-
 unsigned long get_wchan(struct task_struct *p)
 {
 	/* TODO */
 
 	return 0;
-}
-
-int kernel_execve(const char *filename, char *const argv[], char *const envp[])
-{
-	register long __res asm("r11") = __NR_execve;
-	register long __a asm("r3") = (long)(filename);
-	register long __b asm("r4") = (long)(argv);
-	register long __c asm("r5") = (long)(envp);
-	__asm__ volatile ("l.sys 1"
-			  : "=r" (__res), "=r"(__a), "=r"(__b), "=r"(__c)
-			  : "0"(__res), "1"(__a), "2"(__b), "3"(__c)
-			  : "r6", "r7", "r8", "r12", "r13", "r15",
-			    "r17", "r19", "r21", "r23", "r25", "r27",
-			    "r29", "r31");
-	__asm__ volatile ("l.nop");
-	return __res;
 }

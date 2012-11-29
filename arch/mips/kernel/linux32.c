@@ -3,7 +3,6 @@
  *
  * Copyright (C) 2000 Silicon Graphics, Inc.
  * Written by Ulf Carlsson (ulfc@engr.sgi.com)
- * sys32_execve from ia64/ia32 code, Feb 2000, Kanoj Sarcar (kanoj@sgi.com)
  */
 #include <linux/compiler.h>
 #include <linux/mm.h>
@@ -73,26 +72,6 @@ SYSCALL_DEFINE6(32_mmap2, unsigned long, addr, unsigned long, len,
 		goto out;
 	error = sys_mmap_pgoff(addr, len, prot, flags, fd,
 			       pgoff >> (PAGE_SHIFT-12));
-out:
-	return error;
-}
-
-/*
- * sys_execve() executes a new program.
- */
-asmlinkage int sys32_execve(nabi_no_regargs struct pt_regs regs)
-{
-	int error;
-	struct filename *filename;
-
-	filename = getname(compat_ptr(regs.regs[4]));
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	error = compat_do_execve(filename->name, compat_ptr(regs.regs[5]),
-				 compat_ptr(regs.regs[6]), &regs);
-	putname(filename);
-
 out:
 	return error;
 }

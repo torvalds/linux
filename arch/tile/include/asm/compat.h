@@ -275,18 +275,14 @@ extern int compat_setup_rt_frame(int sig, struct k_sigaction *ka,
 struct compat_sigaction;
 struct compat_siginfo;
 struct compat_sigaltstack;
-long compat_sys_execve(const char __user *path,
-		       compat_uptr_t __user *argv,
-		       compat_uptr_t __user *envp, struct pt_regs *);
 long compat_sys_rt_sigaction(int sig, struct compat_sigaction __user *act,
 			     struct compat_sigaction __user *oact,
 			     size_t sigsetsize);
 long compat_sys_rt_sigqueueinfo(int pid, int sig,
 				struct compat_siginfo __user *uinfo);
-long compat_sys_rt_sigreturn(struct pt_regs *);
+long compat_sys_rt_sigreturn(void);
 long compat_sys_sigaltstack(const struct compat_sigaltstack __user *uss_ptr,
-			    struct compat_sigaltstack __user *uoss_ptr,
-			    struct pt_regs *);
+			    struct compat_sigaltstack __user *uoss_ptr);
 long compat_sys_truncate64(char __user *filename, u32 dummy, u32 low, u32 high);
 long compat_sys_ftruncate64(unsigned int fd, u32 dummy, u32 low, u32 high);
 long compat_sys_pread64(unsigned int fd, char __user *ubuf, size_t count,
@@ -303,12 +299,7 @@ long compat_sys_fallocate(int fd, int mode,
 long compat_sys_sched_rr_get_interval(compat_pid_t pid,
 				      struct compat_timespec __user *interval);
 
-/* These are the intvec_64.S trampolines. */
-long _compat_sys_execve(const char __user *path,
-			const compat_uptr_t __user *argv,
-			const compat_uptr_t __user *envp);
-long _compat_sys_sigaltstack(const struct compat_sigaltstack __user *uss_ptr,
-			    struct compat_sigaltstack __user *uoss_ptr);
+/* Assembly trampoline to avoid clobbering r0. */
 long _compat_sys_rt_sigreturn(void);
 
 #endif /* _ASM_TILE_COMPAT_H */

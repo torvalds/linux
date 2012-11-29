@@ -1,23 +1,19 @@
 	/* SunOS's execv() call only specifies the argv argument, the
 	 * environment settings are the same as the calling processes.
 	 */
-sys_execve:
-	sethi	%hi(sparc_execve), %g1
-	ba,pt	%xcc, execve_merge
-	 or	%g1, %lo(sparc_execve), %g1
+sys64_execve:
+	set	sys_execve, %g1
+	jmpl	%g1, %g0
+	 flushw
 
 #ifdef CONFIG_COMPAT
 sunos_execv:
-	stx	%g0, [%sp + PTREGS_OFF + PT_V9_I2]
+	mov	%g0, %o2
 sys32_execve:
-	sethi	%hi(sparc32_execve), %g1
-	or	%g1, %lo(sparc32_execve), %g1
-#endif
-
-execve_merge:
-	flushw
+	set	compat_sys_execve, %g1
 	jmpl	%g1, %g0
-	 add	%sp, PTREGS_OFF, %o0
+	 flushw
+#endif
 
 	.align	32
 sys_sparc_pipe:
@@ -112,11 +108,16 @@ sys_clone:
 ret_from_syscall:
 	/* Clear current_thread_info()->new_child. */
 	stb	%g0, [%g6 + TI_NEW_CHILD]
-	ldx	[%g6 + TI_FLAGS], %l0
 	call	schedule_tail
 	 mov	%g7, %o0
+	ldx	[%sp + PTREGS_OFF + PT_V9_I0], %o0
+	brnz,pt	%o0, ret_sys_call
+	 ldx	[%g6 + TI_FLAGS], %l0
+	ldx	[%sp + PTREGS_OFF + PT_V9_G1], %l1
+	call	%l1
+	 ldx	[%sp + PTREGS_OFF + PT_V9_G2], %o0
 	ba,pt	%xcc, ret_sys_call
-	 ldx	[%sp + PTREGS_OFF + PT_V9_I0], %o0
+	 mov	0, %o0
 
 	.globl	sparc_exit
 	.type	sparc_exit,#function
@@ -222,7 +223,6 @@ ret_sys_call:
 	ldx	[%sp + PTREGS_OFF + PT_V9_TNPC], %l1 ! pc = npc
 
 2:
-	stb	%g0, [%g6 + TI_SYS_NOERROR]
 	/* System call success, clear Carry condition code. */
 	andn	%g3, %g2, %g3
 3:

@@ -167,7 +167,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_getsockopt
 	PTR	sys_clone			/* 6055 */
 	PTR	sys_fork
-	PTR	sys32_execve
+	PTR	compat_sys_execve
 	PTR	sys_exit
 	PTR	compat_sys_wait4
 	PTR	sys_kill			/* 6060 */

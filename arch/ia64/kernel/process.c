@@ -401,63 +401,14 @@ copy_thread(unsigned long clone_flags,
 	struct pt_regs *child_ptregs;
 	int retval = 0;
 
-#ifdef CONFIG_SMP
-	/*
-	 * For SMP idle threads, fork_by_hand() calls do_fork with
-	 * NULL regs.
-	 */
-	if (!regs)
-		return 0;
-#endif
-
-	stack = ((struct switch_stack *) regs) - 1;
-
 	child_ptregs = (struct pt_regs *) ((unsigned long) p + IA64_STK_OFFSET) - 1;
 	child_stack = (struct switch_stack *) child_ptregs - 1;
 
-	/* copy parent's switch_stack & pt_regs to child: */
-	memcpy(child_stack, stack, sizeof(*child_ptregs) + sizeof(*child_stack));
-
 	rbs = (unsigned long) current + IA64_RBS_OFFSET;
 	child_rbs = (unsigned long) p + IA64_RBS_OFFSET;
-	rbs_size = stack->ar_bspstore - rbs;
-
-	/* copy the parent's register backing store to the child: */
-	memcpy((void *) child_rbs, (void *) rbs, rbs_size);
-
-	if (likely(user_mode(child_ptregs))) {
-		if (clone_flags & CLONE_SETTLS)
-			child_ptregs->r13 = regs->r16;	/* see sys_clone2() in entry.S */
-		if (user_stack_base) {
-			child_ptregs->r12 = user_stack_base + user_stack_size - 16;
-			child_ptregs->ar_bspstore = user_stack_base;
-			child_ptregs->ar_rnat = 0;
-			child_ptregs->loadrs = 0;
-		}
-	} else {
-		/*
-		 * Note: we simply preserve the relative position of
-		 * the stack pointer here.  There is no need to
-		 * allocate a scratch area here, since that will have
-		 * been taken care of by the caller of sys_clone()
-		 * already.
-		 */
-		child_ptregs->r12 = (unsigned long) child_ptregs - 16; /* kernel sp */
-		child_ptregs->r13 = (unsigned long) p;		/* set `current' pointer */
-	}
-	child_stack->ar_bspstore = child_rbs + rbs_size;
-	child_stack->b0 = (unsigned long) &ia64_ret_from_clone;
 
 	/* copy parts of thread_struct: */
 	p->thread.ksp = (unsigned long) child_stack - 16;
-
-	/* stop some PSR bits from being inherited.
-	 * the psr.up/psr.pp bits must be cleared on fork but inherited on execve()
-	 * therefore we must specify them explicitly here and not include them in
-	 * IA64_PSR_BITS_TO_CLEAR.
-	 */
-	child_ptregs->cr_ipsr = ((child_ptregs->cr_ipsr | IA64_PSR_BITS_TO_SET)
-				 & ~(IA64_PSR_BITS_TO_CLEAR | IA64_PSR_PP | IA64_PSR_UP));
 
 	/*
 	 * NOTE: The calling convention considers all floating point
@@ -480,7 +431,65 @@ copy_thread(unsigned long clone_flags,
 #	define THREAD_FLAGS_TO_SET	0
 	p->thread.flags = ((current->thread.flags & ~THREAD_FLAGS_TO_CLEAR)
 			   | THREAD_FLAGS_TO_SET);
+
 	ia64_drop_fpu(p);	/* don't pick up stale state from a CPU's fph */
+
+	if (unlikely(p->flags & PF_KTHREAD)) {
+		if (unlikely(!user_stack_base)) {
+			/* fork_idle() called us */
+			return 0;
+		}
+		memset(child_stack, 0, sizeof(*child_ptregs) + sizeof(*child_stack));
+		child_stack->r4 = user_stack_base;	/* payload */
+		child_stack->r5 = user_stack_size;	/* argument */
+		/*
+		 * Preserve PSR bits, except for bits 32-34 and 37-45,
+		 * which we can't read.
+		 */
+		child_ptregs->cr_ipsr = ia64_getreg(_IA64_REG_PSR) | IA64_PSR_BN;
+		/* mark as valid, empty frame */
+		child_ptregs->cr_ifs = 1UL << 63;
+		child_stack->ar_fpsr = child_ptregs->ar_fpsr
+			= ia64_getreg(_IA64_REG_AR_FPSR);
+		child_stack->pr = (1 << PRED_KERNEL_STACK);
+		child_stack->ar_bspstore = child_rbs;
+		child_stack->b0 = (unsigned long) &ia64_ret_from_clone;
+
+		/* stop some PSR bits from being inherited.
+		 * the psr.up/psr.pp bits must be cleared on fork but inherited on execve()
+		 * therefore we must specify them explicitly here and not include them in
+		 * IA64_PSR_BITS_TO_CLEAR.
+		 */
+		child_ptregs->cr_ipsr = ((child_ptregs->cr_ipsr | IA64_PSR_BITS_TO_SET)
+				 & ~(IA64_PSR_BITS_TO_CLEAR | IA64_PSR_PP | IA64_PSR_UP));
+
+		return 0;
+	}
+	stack = ((struct switch_stack *) regs) - 1;
+	/* copy parent's switch_stack & pt_regs to child: */
+	memcpy(child_stack, stack, sizeof(*child_ptregs) + sizeof(*child_stack));
+
+	/* copy the parent's register backing store to the child: */
+	rbs_size = stack->ar_bspstore - rbs;
+	memcpy((void *) child_rbs, (void *) rbs, rbs_size);
+	if (clone_flags & CLONE_SETTLS)
+		child_ptregs->r13 = regs->r16;	/* see sys_clone2() in entry.S */
+	if (user_stack_base) {
+		child_ptregs->r12 = user_stack_base + user_stack_size - 16;
+		child_ptregs->ar_bspstore = user_stack_base;
+		child_ptregs->ar_rnat = 0;
+		child_ptregs->loadrs = 0;
+	}
+	child_stack->ar_bspstore = child_rbs + rbs_size;
+	child_stack->b0 = (unsigned long) &ia64_ret_from_clone;
+
+	/* stop some PSR bits from being inherited.
+	 * the psr.up/psr.pp bits must be cleared on fork but inherited on execve()
+	 * therefore we must specify them explicitly here and not include them in
+	 * IA64_PSR_BITS_TO_CLEAR.
+	 */
+	child_ptregs->cr_ipsr = ((child_ptregs->cr_ipsr | IA64_PSR_BITS_TO_SET)
+				 & ~(IA64_PSR_BITS_TO_CLEAR | IA64_PSR_PP | IA64_PSR_UP));
 
 #ifdef CONFIG_PERFMON
 	if (current->thread.pfm_context)
@@ -606,57 +615,6 @@ dump_fpu (struct pt_regs *pt, elf_fpregset_t dst)
 {
 	unw_init_running(do_dump_fpu, dst);
 	return 1;	/* f0-f31 are always valid so we always return 1 */
-}
-
-long
-sys_execve (const char __user *filename,
-	    const char __user *const __user *argv,
-	    const char __user *const __user *envp,
-	    struct pt_regs *regs)
-{
-	struct filename *fname;
-	int error;
-
-	fname = getname(filename);
-	error = PTR_ERR(fname);
-	if (IS_ERR(fname))
-		goto out;
-	error = do_execve(fname->name, argv, envp, regs);
-	putname(fname);
-out:
-	return error;
-}
-
-pid_t
-kernel_thread (int (*fn)(void *), void *arg, unsigned long flags)
-{
-	extern void start_kernel_thread (void);
-	unsigned long *helper_fptr = (unsigned long *) &start_kernel_thread;
-	struct {
-		struct switch_stack sw;
-		struct pt_regs pt;
-	} regs;
-
-	memset(&regs, 0, sizeof(regs));
-	regs.pt.cr_iip = helper_fptr[0];	/* set entry point (IP) */
-	regs.pt.r1 = helper_fptr[1];		/* set GP */
-	regs.pt.r9 = (unsigned long) fn;	/* 1st argument */
-	regs.pt.r11 = (unsigned long) arg;	/* 2nd argument */
-	/* Preserve PSR bits, except for bits 32-34 and 37-45, which we can't read.  */
-	regs.pt.cr_ipsr = ia64_getreg(_IA64_REG_PSR) | IA64_PSR_BN;
-	regs.pt.cr_ifs = 1UL << 63;		/* mark as valid, empty frame */
-	regs.sw.ar_fpsr = regs.pt.ar_fpsr = ia64_getreg(_IA64_REG_AR_FPSR);
-	regs.sw.ar_bspstore = (unsigned long) current + IA64_RBS_OFFSET;
-	regs.sw.pr = (1 << PRED_KERNEL_STACK);
-	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs.pt, 0, NULL, NULL);
-}
-EXPORT_SYMBOL(kernel_thread);
-
-/* This gets called from kernel_thread() via ia64_invoke_thread_helper().  */
-int
-kernel_thread_helper (int (*fn)(void *), void *arg)
-{
-	return (*fn)(arg);
 }
 
 /*

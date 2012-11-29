@@ -286,10 +286,8 @@ asmlinkage ssize_t compat_sys_pwritev(unsigned long fd,
 
 int compat_do_execve(const char *filename, const compat_uptr_t __user *argv,
 		     const compat_uptr_t __user *envp, struct pt_regs *regs);
-#ifdef __ARCH_WANT_SYS_EXECVE
 asmlinkage long compat_sys_execve(const char __user *filename, const compat_uptr_t __user *argv,
 		     const compat_uptr_t __user *envp);
-#endif
 
 asmlinkage long compat_sys_select(int n, compat_ulong_t __user *inp,
 		compat_ulong_t __user *outp, compat_ulong_t __user *exp,
