@@ -1817,7 +1817,7 @@ static int __devinit abx500_chargalg_probe(struct platform_device *pdev)
 	di->bm = pdev->mfd_cell->platform_data;
 	if (!di->bm) {
 		if (np) {
-			ret = ab8500_bm_of_probe(&pdev->dev, np, &di->bm);
+			ret = ab8500_bm_of_probe(&pdev->dev, np, di->bm);
 			if (ret) {
 				dev_err(&pdev->dev,
 					"failed to get battery information\n");

@@ -454,15 +454,12 @@ struct abx500_bm_data ab8500_bm_data = {
 
 int __devinit ab8500_bm_of_probe(struct device *dev,
 				 struct device_node *np,
-				 struct abx500_bm_data **battery)
+				 struct abx500_bm_data *bm)
 {
 	struct batres_vs_temp *tmp_batres_tbl;
 	struct device_node *np_bat_supply;
-	struct abx500_bm_data *bat;
 	const char *btech;
 	int i;
-
-	*battery = &ab8500_bm_data;
 
 	/* get phandle to 'battery-info' node */
 	np_bat_supply = of_parse_phandle(np, "battery", 0);
@@ -477,16 +474,14 @@ int __devinit ab8500_bm_of_probe(struct device *dev,
 		return -EINVAL;
 	}
 
-	bat = *battery;
-
 	if (strncmp(btech, "LION", 4) == 0) {
-		bat->no_maintenance  = true;
-		bat->chg_unknown_bat = true;
-		bat->bat_type[BATTERY_UNKNOWN].charge_full_design = 2600;
-		bat->bat_type[BATTERY_UNKNOWN].termination_vol    = 4150;
-		bat->bat_type[BATTERY_UNKNOWN].recharge_vol	  = 4130;
-		bat->bat_type[BATTERY_UNKNOWN].normal_cur_lvl	  = 520;
-		bat->bat_type[BATTERY_UNKNOWN].normal_vol_lvl	  = 4200;
+		bm->no_maintenance  = true;
+		bm->chg_unknown_bat = true;
+		bm->bat_type[BATTERY_UNKNOWN].charge_full_design = 2600;
+		bm->bat_type[BATTERY_UNKNOWN].termination_vol    = 4150;
+		bm->bat_type[BATTERY_UNKNOWN].recharge_vol       = 4130;
+		bm->bat_type[BATTERY_UNKNOWN].normal_cur_lvl     = 520;
+		bm->bat_type[BATTERY_UNKNOWN].normal_vol_lvl     = 4200;
 	}
 
 	if (of_property_read_bool(np_bat_supply, "thermistor-on-batctrl")) {
@@ -495,15 +490,15 @@ int __devinit ab8500_bm_of_probe(struct device *dev,
 		else
 			tmp_batres_tbl = temp_to_batres_tbl_thermistor;
 	} else {
-		bat->n_btypes   = 4;
-		bat->bat_type   = bat_type_ext_thermistor;
-		bat->adc_therm  = ABx500_ADC_THERM_BATTEMP;
-		tmp_batres_tbl  = temp_to_batres_tbl_ext_thermistor;
+		bm->n_btypes   = 4;
+		bm->bat_type   = bat_type_ext_thermistor;
+		bm->adc_therm  = ABx500_ADC_THERM_BATTEMP;
+		tmp_batres_tbl = temp_to_batres_tbl_ext_thermistor;
 	}
 
 	/* select the battery resolution table */
-	for (i = 0; i < bat->n_btypes; ++i)
-		bat->bat_type[i]->batres_tbl = tmp_batres_tbl;
+	for (i = 0; i < bm->n_btypes; ++i)
+		bm->bat_type[i].batres_tbl = tmp_batres_tbl;
 
 	of_node_put(np_bat_supply);
 
