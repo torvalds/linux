@@ -602,7 +602,7 @@ static void clk_notify(struct clk *clk, unsigned long msg,
  * upon allocation failure; otherwise, passes along the return value
  * of blocking_notifier_chain_register().
  */
-int rk30_clk_notifier_register(struct clk *clk, struct notifier_block *nb)
+int clk_notifier_register(struct clk *clk, struct notifier_block *nb)
 {
 	struct clk_notifier *cn = NULL, *cn_new = NULL;
 	int r;
@@ -647,7 +647,7 @@ cnr_out:
 
 	return r;
 }
-EXPORT_SYMBOL(rk30_clk_notifier_register);
+EXPORT_SYMBOL(clk_notifier_register);
 
 /**
  * clk_notifier_unregister - remove a clock change notifier
@@ -658,7 +658,7 @@ EXPORT_SYMBOL(rk30_clk_notifier_register);
  * Returns -EINVAL if called with null arguments; otherwise, passes
  * along the return value of blocking_notifier_chain_unregister().
  */
-int rk30_clk_notifier_unregister(struct clk *clk, struct notifier_block *nb)
+int clk_notifier_unregister(struct clk *clk, struct notifier_block *nb)
 {
 	struct clk_notifier *cn = NULL;
 	struct clk *clkp;
@@ -698,7 +698,7 @@ cnu_out:
 
 	return r;
 }
-EXPORT_SYMBOL(rk30_clk_notifier_unregister);
+EXPORT_SYMBOL(clk_notifier_unregister);
 
 static struct clk_dump_ops *dump_def_ops;
 
