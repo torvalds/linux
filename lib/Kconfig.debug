@@ -1115,7 +1115,7 @@ config NOTIFIER_ERROR_INJECTION
 	depends on DEBUG_KERNEL
 	select DEBUG_FS
 	help
-	  This option provides the ability to inject artifical errors to
+	  This option provides the ability to inject artificial errors to
 	  specified notifier chain callbacks. It is useful to test the error
 	  handling of notifier call chain failures.
 
@@ -1126,7 +1126,7 @@ config CPU_NOTIFIER_ERROR_INJECT
 	depends on HOTPLUG_CPU && NOTIFIER_ERROR_INJECTION
 	help
 	  This option provides a kernel module that can be used to test
-	  the error handling of the cpu notifiers by injecting artifical
+	  the error handling of the cpu notifiers by injecting artificial
 	  errors to CPU notifier chain callbacks.  It is controlled through
 	  debugfs interface under /sys/kernel/debug/notifier-error-inject/cpu
 
@@ -1150,7 +1150,7 @@ config PM_NOTIFIER_ERROR_INJECT
 	depends on PM && NOTIFIER_ERROR_INJECTION
 	default m if PM_DEBUG
 	help
-	  This option provides the ability to inject artifical errors to
+	  This option provides the ability to inject artificial errors to
 	  PM notifier chain callbacks.  It is controlled through debugfs
 	  interface /sys/kernel/debug/notifier-error-inject/pm
 
@@ -1173,7 +1173,7 @@ config MEMORY_NOTIFIER_ERROR_INJECT
 	tristate "Memory hotplug notifier error injection module"
 	depends on MEMORY_HOTPLUG_SPARSE && NOTIFIER_ERROR_INJECTION
 	help
-	  This option provides the ability to inject artifical errors to
+	  This option provides the ability to inject artificial errors to
 	  memory hotplug notifier chain callbacks.  It is controlled through
 	  debugfs interface under /sys/kernel/debug/notifier-error-inject/memory
 
@@ -1196,7 +1196,7 @@ config PSERIES_RECONFIG_NOTIFIER_ERROR_INJECT
 	tristate "pSeries reconfig notifier error injection module"
 	depends on PPC_PSERIES && NOTIFIER_ERROR_INJECTION
 	help
-	  This option provides the ability to inject artifical errors to
+	  This option provides the ability to inject artificial errors to
 	  pSeries reconfig notifier chain callbacks.  It is controlled
 	  through debugfs interface under
 	  /sys/kernel/debug/notifier-error-inject/pSeries-reconfig/

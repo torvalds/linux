@@ -55,7 +55,7 @@ config TEGRA_AHB
 	help
 	  Adds AHB configuration functionality for NVIDIA Tegra SoCs,
 	  which controls AHB bus master arbitration and some
-	  perfomance parameters(priority, prefech size).
+	  performance parameters(priority, prefech size).
 
 choice
         prompt "Default low-level debug console UART"

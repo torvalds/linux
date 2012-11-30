@@ -53,5 +53,5 @@ config EXYNOS_THERMAL
 	depends on (ARCH_EXYNOS4 || ARCH_EXYNOS5) && THERMAL
 	select CPU_FREQ_TABLE
 	help
-	  If you say yes here you get support for TMU (Thermal Managment
+	  If you say yes here you get support for TMU (Thermal Management
 	  Unit) on SAMSUNG EXYNOS series of SoC.
