@@ -70,7 +70,7 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 	const struct addi_board *this_board;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
-	int ret, n_subdevices;
+	int ret;
 
 	this_board = addi_find_boardinfo(dev, pcidev);
 	if (!this_board)
@@ -95,25 +95,12 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 			dev->irq = pcidev->irq;
 	}
 
-	n_subdevices = 7;
-	ret = comedi_alloc_subdevices(dev, n_subdevices);
+	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
 		return ret;
 
-	/*  Allocate and Initialise AI Subdevice Structures */
+	/* Initialize the digital output subdevice */
 	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/*  Allocate and Initialise AO Subdevice Structures */
-	s = &dev->subdevices[1];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/*  Allocate and Initialise DI Subdevice Structures */
-	s = &dev->subdevices[2];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/*  Allocate and Initialise DO Subdevice Structures */
-	s = &dev->subdevices[3];
 	if (this_board->i_NbrDoChannel) {
 		s->type = COMEDI_SUBD_DO;
 		s->subdev_flags =
@@ -133,8 +120,8 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	/*  Allocate and Initialise Timer Subdevice Structures */
-	s = &dev->subdevices[4];
+	/* Initialize the watchdog subdevice */
+	s = &dev->subdevices[1];
 	if (this_board->i_Timer) {
 		s->type = COMEDI_SUBD_TIMER;
 		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
@@ -150,14 +137,6 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
-
-	/*  Allocate and Initialise TTL */
-	s = &dev->subdevices[5];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/* EEPROM */
-	s = &dev->subdevices[6];
-	s->type = COMEDI_SUBD_UNUSED;
 
 	apci2032_reset(dev);
 	return 0;
