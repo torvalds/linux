@@ -266,6 +266,7 @@ void __init kirkwood_clk_init(void)
 	orion_clkdev_add("1", "pcie", pex1);
 	orion_clkdev_add(NULL, "kirkwood-i2s", audio);
 	orion_clkdev_add(NULL, MV64XXX_I2C_CTLR_NAME ".0", runit);
+	orion_clkdev_add(NULL, MV64XXX_I2C_CTLR_NAME ".1", runit);
 
 	/* Marvell says runit is used by SPI, UART, NAND, TWSI, ...,
 	 * so should never be gated.

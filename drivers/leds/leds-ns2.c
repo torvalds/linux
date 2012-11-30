@@ -30,6 +30,7 @@
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/platform_data/leds-kirkwood-ns2.h>
+#include <linux/of_gpio.h>
 
 /*
  * The Network Space v2 dual-GPIO LED is wired to a CPLD and can blink in
@@ -263,6 +264,62 @@ static void delete_ns2_led(struct ns2_led_data *led_dat)
 	gpio_free(led_dat->slow);
 }
 
+#ifdef CONFIG_OF_GPIO
+/*
+ * Translate OpenFirmware node properties into platform_data.
+ */
+static int __devinit
+ns2_leds_get_of_pdata(struct device *dev, struct ns2_led_platform_data *pdata)
+{
+	struct device_node *np = dev->of_node;
+	struct device_node *child;
+	struct ns2_led *leds;
+	int num_leds = 0;
+	int i = 0;
+
+	num_leds = of_get_child_count(np);
+	if (!num_leds)
+		return -ENODEV;
+
+	leds = devm_kzalloc(dev, num_leds * sizeof(struct ns2_led),
+			    GFP_KERNEL);
+	if (!leds)
+		return -ENOMEM;
+
+	for_each_child_of_node(np, child) {
+		const char *string;
+		int ret;
+
+		ret = of_get_named_gpio(child, "cmd-gpio", 0);
+		if (ret < 0)
+			return ret;
+		leds[i].cmd = ret;
+		ret = of_get_named_gpio(child, "slow-gpio", 0);
+		if (ret < 0)
+			return ret;
+		leds[i].slow = ret;
+		ret = of_property_read_string(child, "label", &string);
+		leds[i].name = (ret == 0) ? string : child->name;
+		ret = of_property_read_string(child, "linux,default-trigger",
+					      &string);
+		if (ret == 0)
+			leds[i].default_trigger = string;
+
+		i++;
+	}
+
+	pdata->leds = leds;
+	pdata->num_leds = num_leds;
+
+	return 0;
+}
+
+static const struct of_device_id of_ns2_leds_match[] = {
+	{ .compatible = "lacie,ns2-leds", },
+	{},
+};
+#endif /* CONFIG_OF_GPIO */
+
 static int __devinit ns2_led_probe(struct platform_device *pdev)
 {
 	struct ns2_led_platform_data *pdata = pdev->dev.platform_data;
@@ -270,11 +327,25 @@ static int __devinit ns2_led_probe(struct platform_device *pdev)
 	int i;
 	int ret;
 
+#ifdef CONFIG_OF_GPIO
+	if (!pdata) {
+		pdata = devm_kzalloc(&pdev->dev,
+				     sizeof(struct ns2_led_platform_data),
+				     GFP_KERNEL);
+		if (!pdata)
+			return -ENOMEM;
+
+		ret = ns2_leds_get_of_pdata(&pdev->dev, pdata);
+		if (ret)
+			return ret;
+	}
+#else
 	if (!pdata)
 		return -EINVAL;
+#endif /* CONFIG_OF_GPIO */
 
 	leds_data = devm_kzalloc(&pdev->dev, sizeof(struct ns2_led_data) *
-			    pdata->num_leds, GFP_KERNEL);
+				 pdata->num_leds, GFP_KERNEL);
 	if (!leds_data)
 		return -ENOMEM;
 
@@ -312,8 +383,9 @@ static struct platform_driver ns2_led_driver = {
 	.probe		= ns2_led_probe,
 	.remove		= __devexit_p(ns2_led_remove),
 	.driver		= {
-		.name	= "leds-ns2",
-		.owner	= THIS_MODULE,
+		.name		= "leds-ns2",
+		.owner		= THIS_MODULE,
+		.of_match_table	= of_match_ptr(of_ns2_leds_match),
 	},
 };
 

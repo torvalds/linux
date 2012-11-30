@@ -2797,27 +2797,6 @@ static __init void exynos4_gpiolib_init(void)
 	int group = 0;
 	void __iomem *gpx_base;
 
-#ifdef CONFIG_PINCTRL_SAMSUNG
-		/*
-		 * This gpio driver includes support for device tree support and
-		 * there are platforms using it. In order to maintain
-		 * compatibility with those platforms, and to allow non-dt
-		 * Exynos4210 platforms to use this gpiolib support, a check
-		 * is added to find out if there is a active pin-controller
-		 * driver support available. If it is available, this gpiolib
-		 * support is ignored and the gpiolib support available in
-		 * pin-controller driver is used. This is a temporary check and
-		 * will go away when all of the Exynos4210 platforms have
-		 * switched to using device tree and the pin-ctrl driver.
-		 */
-		struct device_node *pctrl_np;
-		const char *pctrl_compat = "samsung,pinctrl-exynos4210";
-		pctrl_np = of_find_compatible_node(NULL, NULL, pctrl_compat);
-		if (pctrl_np)
-			if (of_device_is_available(pctrl_np))
-				return;
-#endif
-
 	/* gpio part1 */
 	gpio_base1 = ioremap(EXYNOS4_PA_GPIO1, SZ_4K);
 	if (gpio_base1 == NULL) {
@@ -3031,6 +3010,28 @@ static __init int samsung_gpiolib_init(void)
 	struct samsung_gpio_chip *chip;
 	int i, nr_chips;
 	int group = 0;
+
+#ifdef CONFIG_PINCTRL_SAMSUNG
+	/*
+	* This gpio driver includes support for device tree support and there
+	* are platforms using it. In order to maintain compatibility with those
+	* platforms, and to allow non-dt Exynos4210 platforms to use this
+	* gpiolib support, a check is added to find out if there is a active
+	* pin-controller driver support available. If it is available, this
+	* gpiolib support is ignored and the gpiolib support available in
+	* pin-controller driver is used. This is a temporary check and will go
+	* away when all of the Exynos4210 platforms have switched to using
+	* device tree and the pin-ctrl driver.
+	*/
+	struct device_node *pctrl_np;
+	static const struct of_device_id exynos_pinctrl_ids[] = {
+		{ .compatible = "samsung,pinctrl-exynos4210", },
+		{ .compatible = "samsung,pinctrl-exynos4x12", },
+	};
+	for_each_matching_node(pctrl_np, exynos_pinctrl_ids)
+		if (pctrl_np && of_device_is_available(pctrl_np))
+			return -ENODEV;
+#endif
 
 	samsung_gpiolib_set_cfg(samsung_gpio_cfgs, ARRAY_SIZE(samsung_gpio_cfgs));
 

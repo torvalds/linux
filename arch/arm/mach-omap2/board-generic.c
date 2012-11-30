@@ -112,7 +112,7 @@ DT_MACHINE_START(OMAP3_GP_DT, "Generic OMAP3-GP (Flattened Device Tree)")
 	.init_machine	= omap_generic_init,
 	.timer		= &omap3_secure_timer,
 	.dt_compat	= omap3_gp_boards_compat,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END
 #endif
 

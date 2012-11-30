@@ -563,6 +563,8 @@ static int add_setting(struct pinctrl *p, struct pinctrl_map const *map)
 		return -EPROBE_DEFER;
 	}
 
+	setting->dev_name = map->dev_name;
+
 	switch (map->type) {
 	case PIN_MAP_TYPE_MUX_GROUP:
 		ret = pinmux_map_to_setting(map, setting);

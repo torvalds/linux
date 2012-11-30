@@ -523,6 +523,8 @@ config ARCH_DOVE
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
 	select MIGHT_HAVE_PCI
+	select PINCTRL
+	select PINCTRL_DOVE
 	select PLAT_ORION_LEGACY
 	select USB_ARCH_HAS_EHCI
 	help
@@ -534,6 +536,8 @@ config ARCH_KIRKWOOD
 	select CPU_FEROCEON
 	select GENERIC_CLOCKEVENTS
 	select PCI
+	select PINCTRL
+	select PINCTRL_KIRKWOOD
 	select PLAT_ORION_LEGACY
 	help
 	  Support for the following Marvell Kirkwood series SoCs:
@@ -911,6 +915,7 @@ config ARCH_DAVINCI
 	select GENERIC_IRQ_CHIP
 	select HAVE_IDE
 	select NEED_MACH_GPIO_H
+	select USE_OF
 	select ZONE_DMA
 	help
 	  Support for TI's DaVinci platform.
@@ -945,6 +950,7 @@ config ARCH_ZYNQ
 	bool "Xilinx Zynq ARM Cortex A9 Platform"
 	select ARM_AMBA
 	select ARM_GIC
+	select COMMON_CLK
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
 	select ICST

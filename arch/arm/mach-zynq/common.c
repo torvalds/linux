@@ -19,12 +19,15 @@
 #include <linux/cpumask.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/clk/zynq.h>
+#include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/of.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/mach/time.h>
 #include <asm/mach-types.h>
 #include <asm/page.h>
 #include <asm/hardware/gic.h>
@@ -84,13 +87,34 @@ static struct map_desc io_desc[] __initdata = {
 
 #ifdef CONFIG_DEBUG_LL
 	{
-		.virtual	= UART0_VIRT,
-		.pfn		= __phys_to_pfn(UART0_PHYS),
-		.length		= UART0_SIZE,
+		.virtual	= LL_UART_VADDR,
+		.pfn		= __phys_to_pfn(LL_UART_PADDR),
+		.length		= UART_SIZE,
 		.type		= MT_DEVICE,
 	},
 #endif
 
+};
+
+static void __init xilinx_zynq_timer_init(void)
+{
+	struct device_node *np;
+	void __iomem *slcr;
+
+	np = of_find_compatible_node(NULL, NULL, "xlnx,zynq-slcr");
+	slcr = of_iomap(np, 0);
+	WARN_ON(!slcr);
+
+	xilinx_zynq_clocks_init(slcr);
+
+	xttcpss_timer_init();
+}
+
+/*
+ * Instantiate and initialize the system timer structure
+ */
+static struct sys_timer xttcpss_sys_timer = {
+	.init		= xilinx_zynq_timer_init,
 };
 
 /**
@@ -102,7 +126,8 @@ static void __init xilinx_map_io(void)
 }
 
 static const char *xilinx_dt_match[] = {
-	"xlnx,zynq-ep107",
+	"xlnx,zynq-zc702",
+	"xlnx,zynq-7000",
 	NULL
 };
 

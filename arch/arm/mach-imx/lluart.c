@@ -17,17 +17,25 @@
 
 #include "hardware.h"
 
+#define IMX6Q_UART1_BASE_ADDR	0x02020000
+#define IMX6Q_UART2_BASE_ADDR	0x021e8000
+#define IMX6Q_UART3_BASE_ADDR	0x021ec000
+#define IMX6Q_UART4_BASE_ADDR	0x021f0000
+#define IMX6Q_UART5_BASE_ADDR	0x021f4000
+
+/*
+ * IMX6Q_UART_BASE_ADDR is put in the middle to force the expansion
+ * of IMX6Q_UART##n##_BASE_ADDR.
+ */
+#define IMX6Q_UART_BASE_ADDR(n)	IMX6Q_UART##n##_BASE_ADDR
+#define IMX6Q_UART_BASE(n)	IMX6Q_UART_BASE_ADDR(n)
+#define IMX6Q_DEBUG_UART_BASE	IMX6Q_UART_BASE(CONFIG_DEBUG_IMX6Q_UART_PORT)
+
 static struct map_desc imx_lluart_desc = {
-#ifdef CONFIG_DEBUG_IMX6Q_UART2
-	.virtual	= MX6Q_IO_P2V(MX6Q_UART2_BASE_ADDR),
-	.pfn		= __phys_to_pfn(MX6Q_UART2_BASE_ADDR),
-	.length		= MX6Q_UART2_SIZE,
-	.type		= MT_DEVICE,
-#endif
-#ifdef CONFIG_DEBUG_IMX6Q_UART4
-	.virtual	= MX6Q_IO_P2V(MX6Q_UART4_BASE_ADDR),
-	.pfn		= __phys_to_pfn(MX6Q_UART4_BASE_ADDR),
-	.length		= MX6Q_UART4_SIZE,
+#ifdef CONFIG_DEBUG_IMX6Q_UART
+	.virtual	= IMX_IO_P2V(IMX6Q_DEBUG_UART_BASE),
+	.pfn		= __phys_to_pfn(IMX6Q_DEBUG_UART_BASE),
+	.length		= 0x4000,
 	.type		= MT_DEVICE,
 #endif
 };

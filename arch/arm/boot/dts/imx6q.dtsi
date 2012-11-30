@@ -36,6 +36,14 @@
 			compatible = "arm,cortex-a9";
 			reg = <0>;
 			next-level-cache = <&L2>;
+			operating-points = <
+				/* kHz    uV */
+				792000  1100000
+				396000  950000
+				198000  850000
+			>;
+			clock-latency = <61036>; /* two CLK32 periods */
+			cpu0-supply = <&reg_cpu>;
 		};
 
 		cpu@1 {
@@ -100,7 +108,7 @@
 			clocks = <&clks 106>;
 		};
 
-		gpmi-nand@00112000 {
+		nfc: gpmi-nand@00112000 {
 			compatible = "fsl,imx6q-gpmi-nand";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -144,12 +152,12 @@
 				reg = <0x02000000 0x40000>;
 				ranges;
 
-				spdif@02004000 {
+				spdif: spdif@02004000 {
 					reg = <0x02004000 0x4000>;
 					interrupts = <0 52 0x04>;
 				};
 
-				ecspi@02008000 { /* eCSPI1 */
+				ecspi1: ecspi@02008000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
@@ -160,7 +168,7 @@
 					status = "disabled";
 				};
 
-				ecspi@0200c000 { /* eCSPI2 */
+				ecspi2: ecspi@0200c000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
@@ -171,7 +179,7 @@
 					status = "disabled";
 				};
 
-				ecspi@02010000 { /* eCSPI3 */
+				ecspi3: ecspi@02010000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
@@ -182,7 +190,7 @@
 					status = "disabled";
 				};
 
-				ecspi@02014000 { /* eCSPI4 */
+				ecspi4: ecspi@02014000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
@@ -193,7 +201,7 @@
 					status = "disabled";
 				};
 
-				ecspi@02018000 { /* eCSPI5 */
+				ecspi5: ecspi@02018000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
@@ -213,7 +221,7 @@
 					status = "disabled";
 				};
 
-				esai@02024000 {
+				esai: esai@02024000 {
 					reg = <0x02024000 0x4000>;
 					interrupts = <0 51 0x04>;
 				};
@@ -248,7 +256,7 @@
 					status = "disabled";
 				};
 
-				asrc@02034000 {
+				asrc: asrc@02034000 {
 					reg = <0x02034000 0x4000>;
 					interrupts = <0 50 0x04>;
 				};
@@ -258,7 +266,7 @@
 				};
 			};
 
-			vpu@02040000 {
+			vpu: vpu@02040000 {
 				reg = <0x02040000 0x3c000>;
 				interrupts = <0 3 0x04 0 12 0x04>;
 			};
@@ -267,37 +275,37 @@
 				reg = <0x0207c000 0x4000>;
 			};
 
-			pwm@02080000 { /* PWM1 */
+			pwm1: pwm@02080000 {
 				reg = <0x02080000 0x4000>;
 				interrupts = <0 83 0x04>;
 			};
 
-			pwm@02084000 { /* PWM2 */
+			pwm2: pwm@02084000 {
 				reg = <0x02084000 0x4000>;
 				interrupts = <0 84 0x04>;
 			};
 
-			pwm@02088000 { /* PWM3 */
+			pwm3: pwm@02088000 {
 				reg = <0x02088000 0x4000>;
 				interrupts = <0 85 0x04>;
 			};
 
-			pwm@0208c000 { /* PWM4 */
+			pwm4: pwm@0208c000 {
 				reg = <0x0208c000 0x4000>;
 				interrupts = <0 86 0x04>;
 			};
 
-			flexcan@02090000 { /* CAN1 */
+			can1: flexcan@02090000 {
 				reg = <0x02090000 0x4000>;
 				interrupts = <0 110 0x04>;
 			};
 
-			flexcan@02094000 { /* CAN2 */
+			can2: flexcan@02094000 {
 				reg = <0x02094000 0x4000>;
 				interrupts = <0 111 0x04>;
 			};
 
-			gpt@02098000 {
+			gpt: gpt@02098000 {
 				compatible = "fsl,imx6q-gpt";
 				reg = <0x02098000 0x4000>;
 				interrupts = <0 55 0x04>;
@@ -373,19 +381,19 @@
 				#interrupt-cells = <2>;
 			};
 
-			kpp@020b8000 {
+			kpp: kpp@020b8000 {
 				reg = <0x020b8000 0x4000>;
 				interrupts = <0 82 0x04>;
 			};
 
-			wdog@020bc000 { /* WDOG1 */
+			wdog1: wdog@020bc000 {
 				compatible = "fsl,imx6q-wdt", "fsl,imx21-wdt";
 				reg = <0x020bc000 0x4000>;
 				interrupts = <0 80 0x04>;
 				clocks = <&clks 0>;
 			};
 
-			wdog@020c0000 { /* WDOG2 */
+			wdog2: wdog@020c0000 {
 				compatible = "fsl,imx6q-wdt", "fsl,imx21-wdt";
 				reg = <0x020c0000 0x4000>;
 				interrupts = <0 81 0x04>;
@@ -447,7 +455,7 @@
 					anatop-max-voltage = <2750000>;
 				};
 
-				regulator-vddcore@140 {
+				reg_cpu: regulator-vddcore@140 {
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "cpu";
 					regulator-min-microvolt = <725000>;
@@ -505,27 +513,35 @@
 			};
 
 			snvs@020cc000 {
-				reg = <0x020cc000 0x4000>;
-				interrupts = <0 19 0x04 0 20 0x04>;
+				compatible = "fsl,sec-v4.0-mon", "simple-bus";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x020cc000 0x4000>;
+
+				snvs-rtc-lp@34 {
+					compatible = "fsl,sec-v4.0-mon-rtc-lp";
+					reg = <0x34 0x58>;
+					interrupts = <0 19 0x04 0 20 0x04>;
+				};
 			};
 
-			epit@020d0000 { /* EPIT1 */
+			epit1: epit@020d0000 { /* EPIT1 */
 				reg = <0x020d0000 0x4000>;
 				interrupts = <0 56 0x04>;
 			};
 
-			epit@020d4000 { /* EPIT2 */
+			epit2: epit@020d4000 { /* EPIT2 */
 				reg = <0x020d4000 0x4000>;
 				interrupts = <0 57 0x04>;
 			};
 
-			src@020d8000 {
+			src: src@020d8000 {
 				compatible = "fsl,imx6q-src";
 				reg = <0x020d8000 0x4000>;
 				interrupts = <0 91 0x04 0 96 0x04>;
 			};
 
-			gpc@020dc000 {
+			gpc: gpc@020dc000 {
 				compatible = "fsl,imx6q-gpc";
 				reg = <0x020dc000 0x4000>;
 				interrupts = <0 89 0x04 0 90 0x04>;
@@ -536,7 +552,7 @@
 				reg = <0x020e0000 0x38>;
 			};
 
-			iomuxc@020e0000 {
+			iomuxc: iomuxc@020e0000 {
 				compatible = "fsl,imx6q-iomuxc";
 				reg = <0x020e0000 0x4000>;
 
@@ -748,17 +764,17 @@
 				};
 			};
 
-			dcic@020e4000 { /* DCIC1 */
+			dcic1: dcic@020e4000 {
 				reg = <0x020e4000 0x4000>;
 				interrupts = <0 124 0x04>;
 			};
 
-			dcic@020e8000 { /* DCIC2 */
+			dcic2: dcic@020e8000 {
 				reg = <0x020e8000 0x4000>;
 				interrupts = <0 125 0x04>;
 			};
 
-			sdma@020ec000 {
+			sdma: sdma@020ec000 {
 				compatible = "fsl,imx6q-sdma", "fsl,imx35-sdma";
 				reg = <0x020ec000 0x4000>;
 				interrupts = <0 2 0x04>;
@@ -784,7 +800,7 @@
 				reg = <0x0217c000 0x4000>;
 			};
 
-			usb@02184000 { /* USB OTG */
+			usbotg: usb@02184000 {
 				compatible = "fsl,imx6q-usb", "fsl,imx27-usb";
 				reg = <0x02184000 0x200>;
 				interrupts = <0 43 0x04>;
@@ -794,7 +810,7 @@
 				status = "disabled";
 			};
 
-			usb@02184200 { /* USB1 */
+			usbh1: usb@02184200 {
 				compatible = "fsl,imx6q-usb", "fsl,imx27-usb";
 				reg = <0x02184200 0x200>;
 				interrupts = <0 40 0x04>;
@@ -804,7 +820,7 @@
 				status = "disabled";
 			};
 
-			usb@02184400 { /* USB2 */
+			usbh2: usb@02184400 {
 				compatible = "fsl,imx6q-usb", "fsl,imx27-usb";
 				reg = <0x02184400 0x200>;
 				interrupts = <0 41 0x04>;
@@ -813,7 +829,7 @@
 				status = "disabled";
 			};
 
-			usb@02184600 { /* USB3 */
+			usbh3: usb@02184600 {
 				compatible = "fsl,imx6q-usb", "fsl,imx27-usb";
 				reg = <0x02184600 0x200>;
 				interrupts = <0 42 0x04>;
@@ -822,14 +838,14 @@
 				status = "disabled";
 			};
 
-			usbmisc: usbmisc@02184800 {
+			usbmisc: usbmisc: usbmisc@02184800 {
 				#index-cells = <1>;
 				compatible = "fsl,imx6q-usbmisc";
 				reg = <0x02184800 0x200>;
 				clocks = <&clks 162>;
 			};
 
-			ethernet@02188000 {
+			fec: ethernet@02188000 {
 				compatible = "fsl,imx6q-fec";
 				reg = <0x02188000 0x4000>;
 				interrupts = <0 118 0x04 0 119 0x04>;
@@ -843,43 +859,47 @@
 				interrupts = <0 53 0x04 0 117 0x04 0 126 0x04>;
 			};
 
-			usdhc@02190000 { /* uSDHC1 */
+			usdhc1: usdhc@02190000 {
 				compatible = "fsl,imx6q-usdhc";
 				reg = <0x02190000 0x4000>;
 				interrupts = <0 22 0x04>;
 				clocks = <&clks 163>, <&clks 163>, <&clks 163>;
 				clock-names = "ipg", "ahb", "per";
+				bus-width = <4>;
 				status = "disabled";
 			};
 
-			usdhc@02194000 { /* uSDHC2 */
+			usdhc2: usdhc@02194000 {
 				compatible = "fsl,imx6q-usdhc";
 				reg = <0x02194000 0x4000>;
 				interrupts = <0 23 0x04>;
 				clocks = <&clks 164>, <&clks 164>, <&clks 164>;
 				clock-names = "ipg", "ahb", "per";
+				bus-width = <4>;
 				status = "disabled";
 			};
 
-			usdhc@02198000 { /* uSDHC3 */
+			usdhc3: usdhc@02198000 {
 				compatible = "fsl,imx6q-usdhc";
 				reg = <0x02198000 0x4000>;
 				interrupts = <0 24 0x04>;
 				clocks = <&clks 165>, <&clks 165>, <&clks 165>;
 				clock-names = "ipg", "ahb", "per";
+				bus-width = <4>;
 				status = "disabled";
 			};
 
-			usdhc@0219c000 { /* uSDHC4 */
+			usdhc4: usdhc@0219c000 {
 				compatible = "fsl,imx6q-usdhc";
 				reg = <0x0219c000 0x4000>;
 				interrupts = <0 25 0x04>;
 				clocks = <&clks 166>, <&clks 166>, <&clks 166>;
 				clock-names = "ipg", "ahb", "per";
+				bus-width = <4>;
 				status = "disabled";
 			};
 
-			i2c@021a0000 { /* I2C1 */
+			i2c1: i2c@021a0000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx6q-i2c", "fsl,imx21-i2c";
@@ -889,7 +909,7 @@
 				status = "disabled";
 			};
 
-			i2c@021a4000 { /* I2C2 */
+			i2c2: i2c@021a4000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx6q-i2c", "fsl,imx21-i2c";
@@ -899,7 +919,7 @@
 				status = "disabled";
 			};
 
-			i2c@021a8000 { /* I2C3 */
+			i2c3: i2c@021a8000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx6q-i2c", "fsl,imx21-i2c";
@@ -913,12 +933,12 @@
 				reg = <0x021ac000 0x4000>;
 			};
 
-			mmdc@021b0000 { /* MMDC0 */
+			mmdc0: mmdc@021b0000 { /* MMDC0 */
 				compatible = "fsl,imx6q-mmdc";
 				reg = <0x021b0000 0x4000>;
 			};
 
-			mmdc@021b4000 { /* MMDC1 */
+			mmdc1: mmdc@021b4000 { /* MMDC1 */
 				reg = <0x021b4000 0x4000>;
 			};
 
@@ -946,7 +966,7 @@
 				interrupts = <0 109 0x04>;
 			};
 
-			audmux@021d8000 {
+			audmux: audmux@021d8000 {
 				compatible = "fsl,imx6q-audmux", "fsl,imx31-audmux";
 				reg = <0x021d8000 0x4000>;
 				status = "disabled";

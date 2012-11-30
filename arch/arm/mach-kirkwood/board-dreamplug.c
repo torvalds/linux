@@ -17,7 +17,6 @@
 #include <linux/gpio.h>
 #include <linux/platform_data/mmc-mvsdio.h>
 #include "common.h"
-#include "mpp.h"
 
 static struct mv643xx_eth_platform_data dreamplug_ge00_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR(0),
@@ -31,25 +30,11 @@ static struct mvsdio_platform_data dreamplug_mvsdio_data = {
 	/* unfortunately the CD signal has not been connected */
 };
 
-static unsigned int dreamplug_mpp_config[] __initdata = {
-	MPP0_SPI_SCn,
-	MPP1_SPI_MOSI,
-	MPP2_SPI_SCK,
-	MPP3_SPI_MISO,
-	MPP47_GPIO,	/* Bluetooth LED */
-	MPP48_GPIO,	/* Wifi LED */
-	MPP49_GPIO,	/* Wifi AP LED */
-	0
-};
-
 void __init dreamplug_init(void)
 {
 	/*
 	 * Basic setup. Needs to be called early.
 	 */
-	kirkwood_mpp_conf(dreamplug_mpp_config);
-
-	kirkwood_ehci_init();
 	kirkwood_ge00_init(&dreamplug_ge00_data);
 	kirkwood_ge01_init(&dreamplug_ge01_data);
 	kirkwood_sdio_init(&dreamplug_mvsdio_data);

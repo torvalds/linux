@@ -196,6 +196,11 @@ static int exynos5_clk_ip_isp1_ctrl(struct clk *clk, int enable)
 	return s5p_gatectrl(EXYNOS5_CLKGATE_IP_ISP1, clk, enable);
 }
 
+static int exynos5_clk_hdmiphy_ctrl(struct clk *clk, int enable)
+{
+	return s5p_gatectrl(S5P_HDMI_PHY_CONTROL, clk, enable);
+}
+
 /* Core list of CMU_CPU side */
 
 static struct clksrc_clk exynos5_clk_mout_apll = {
@@ -616,6 +621,11 @@ static struct clk exynos5_init_clocks_off[] = {
 		.enable		= exynos5_clk_ip_peric_ctrl,
 		.ctrlbit	= (1 << 24),
 	}, {
+		.name		= "tmu_apbif",
+		.parent		= &exynos5_clk_aclk_66.clk,
+		.enable		= exynos5_clk_ip_peris_ctrl,
+		.ctrlbit	= (1 << 21),
+	}, {
 		.name		= "rtc",
 		.parent		= &exynos5_clk_aclk_66.clk,
 		.enable		= exynos5_clk_ip_peris_ctrl,
@@ -664,17 +674,22 @@ static struct clk exynos5_init_clocks_off[] = {
 		.ctrlbit	= (1 << 25),
 	}, {
 		.name		= "mfc",
-		.devname	= "s5p-mfc",
+		.devname	= "s5p-mfc-v6",
 		.enable		= exynos5_clk_ip_mfc_ctrl,
 		.ctrlbit	= (1 << 0),
 	}, {
 		.name		= "hdmi",
-		.devname	= "exynos4-hdmi",
+		.devname	= "exynos5-hdmi",
 		.enable		= exynos5_clk_ip_disp1_ctrl,
 		.ctrlbit	= (1 << 6),
 	}, {
+		.name		= "hdmiphy",
+		.devname	= "exynos5-hdmi",
+		.enable		= exynos5_clk_hdmiphy_ctrl,
+		.ctrlbit	= (1 << 0),
+	}, {
 		.name		= "mixer",
-		.devname	= "s5p-mixer",
+		.devname	= "exynos5-mixer",
 		.enable		= exynos5_clk_ip_disp1_ctrl,
 		.ctrlbit	= (1 << 5),
 	}, {

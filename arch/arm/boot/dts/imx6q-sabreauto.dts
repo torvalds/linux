@@ -1,0 +1,64 @@
+/*
+ * Copyright 2012 Freescale Semiconductor, Inc.
+ * Copyright 2011 Linaro Ltd.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+/include/ "imx6q.dtsi"
+
+/ {
+	model = "Freescale i.MX6 Quad SABRE Automotive Board";
+	compatible = "fsl,imx6q-sabreauto", "fsl,imx6q";
+
+	memory {
+		reg = <0x10000000 0x80000000>;
+	};
+
+	soc {
+		aips-bus@02000000 { /* AIPS1 */
+			iomuxc@020e0000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_hog>;
+
+				hog {
+					pinctrl_hog: hoggrp {
+						fsl,pins = <
+							1376 0x80000000	/* MX6Q_PAD_NANDF_CS2__GPIO_6_15 */
+							13   0x80000000	/* MX6Q_PAD_SD2_DAT2__GPIO_1_13 */
+						>;
+					};
+				};
+			};
+		};
+
+		aips-bus@02100000 { /* AIPS2 */
+			uart4: serial@021f0000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart4_1>;
+				status = "okay";
+			};
+
+			ethernet@02188000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_enet_2>;
+				phy-mode = "rgmii";
+				status = "okay";
+			};
+
+			usdhc@02198000 { /* uSDHC3 */
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_usdhc3_1>;
+				cd-gpios = <&gpio6 15 0>;
+				wp-gpios = <&gpio1 13 0>;
+				status = "okay";
+			};
+		};
+	};
+};

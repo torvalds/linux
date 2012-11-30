@@ -66,6 +66,7 @@ extern int mx51_clocks_init(unsigned long ckil, unsigned long osc,
 			unsigned long ckih1, unsigned long ckih2);
 extern int mx53_clocks_init(unsigned long ckil, unsigned long osc,
 			unsigned long ckih1, unsigned long ckih2);
+extern int mx25_clocks_init_dt(void);
 extern int mx27_clocks_init_dt(void);
 extern int mx31_clocks_init_dt(void);
 extern int mx51_clocks_init_dt(void);

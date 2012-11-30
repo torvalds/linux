@@ -31,6 +31,10 @@
 		gsc1 = &gsc_1;
 		gsc2 = &gsc_2;
 		gsc3 = &gsc_3;
+		mshc0 = &dwmmc_0;
+		mshc1 = &dwmmc_1;
+		mshc2 = &dwmmc_2;
+		mshc3 = &dwmmc_3;
 	};
 
 	gic:interrupt-controller@10481000 {
@@ -62,10 +66,22 @@
 		interrupts = <0 42 0>;
 	};
 
+	codec@11000000 {
+		compatible = "samsung,mfc-v6";
+		reg = <0x11000000 0x10000>;
+		interrupts = <0 96 0>;
+	};
+
 	rtc {
 		compatible = "samsung,s3c6410-rtc";
 		reg = <0x101E0000 0x100>;
 		interrupts = <0 43 0>, <0 44 0>;
+	};
+
+	tmu@10060000 {
+		compatible = "samsung,exynos5250-tmu";
+		reg = <0x10060000 0x100>;
+		interrupts = <0 65 0>;
 	};
 
 	serial@12C00000 {
@@ -90,6 +106,17 @@
 		compatible = "samsung,exynos4210-uart";
 		reg = <0x12C30000 0x100>;
 		interrupts = <0 54 0>;
+	};
+
+	sata@122F0000 {
+		compatible = "samsung,exynos5-sata-ahci";
+		reg = <0x122F0000 0x1ff>;
+		interrupts = <0 115 0>;
+	};
+
+	sata-phy@12170000 {
+		compatible = "samsung,exynos5-sata-phy";
+		reg = <0x12170000 0x1ff>;
 	};
 
 	i2c@12C60000 {
@@ -156,6 +183,21 @@
 		#size-cells = <0>;
 	};
 
+	i2c@12CE0000 {
+		compatible = "samsung,s3c2440-hdmiphy-i2c";
+		reg = <0x12CE0000 0x1000>;
+		interrupts = <0 64 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	i2c@121D0000 {
+                compatible = "samsung,exynos5-sata-phy-i2c";
+                reg = <0x121D0000 0x100>;
+                #address-cells = <1>;
+                #size-cells = <0>;
+	};
+
 	spi_0: spi@12d20000 {
 		compatible = "samsung,exynos4210-spi";
 		reg = <0x12d20000 0x100>;
@@ -186,7 +228,7 @@
 		#size-cells = <0>;
 	};
 
-	dwmmc0@12200000 {
+	dwmmc_0: dwmmc0@12200000 {
 		compatible = "samsung,exynos5250-dw-mshc";
 		reg = <0x12200000 0x1000>;
 		interrupts = <0 75 0>;
@@ -194,7 +236,7 @@
 		#size-cells = <0>;
 	};
 
-	dwmmc1@12210000 {
+	dwmmc_1: dwmmc1@12210000 {
 		compatible = "samsung,exynos5250-dw-mshc";
 		reg = <0x12210000 0x1000>;
 		interrupts = <0 76 0>;
@@ -202,7 +244,7 @@
 		#size-cells = <0>;
 	};
 
-	dwmmc2@12220000 {
+	dwmmc_2: dwmmc2@12220000 {
 		compatible = "samsung,exynos5250-dw-mshc";
 		reg = <0x12220000 0x1000>;
 		interrupts = <0 77 0>;
@@ -210,7 +252,7 @@
 		#size-cells = <0>;
 	};
 
-	dwmmc3@12230000 {
+	dwmmc_3: dwmmc3@12230000 {
 		compatible = "samsung,exynos5250-dw-mshc";
 		reg = <0x12230000 0x1000>;
 		interrupts = <0 78 0>;
@@ -519,5 +561,17 @@
 		compatible = "samsung,exynos5-gsc";
 		reg = <0x13e30000 0x1000>;
 		interrupts = <0 88 0>;
+	};
+
+	hdmi {
+		compatible = "samsung,exynos5-hdmi";
+		reg = <0x14530000 0x100000>;
+		interrupts = <0 95 0>;
+	};
+
+	mixer {
+		compatible = "samsung,exynos5-mixer";
+		reg = <0x14450000 0x10000>;
+		interrupts = <0 94 0>;
 	};
 };

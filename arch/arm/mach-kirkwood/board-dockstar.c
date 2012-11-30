@@ -17,19 +17,10 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/mv643xx_eth.h>
-#include <linux/gpio.h>
 #include "common.h"
-#include "mpp.h"
 
 static struct mv643xx_eth_platform_data dockstar_ge00_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR(0),
-};
-
-static unsigned int dockstar_mpp_config[] __initdata = {
-	MPP29_GPIO,	/* USB Power Enable */
-	MPP46_GPIO,	/* LED green */
-	MPP47_GPIO,	/* LED orange */
-	0
 };
 
 void __init dockstar_dt_init(void)
@@ -37,12 +28,5 @@ void __init dockstar_dt_init(void)
 	/*
 	 * Basic setup. Needs to be called early.
 	 */
-	kirkwood_mpp_conf(dockstar_mpp_config);
-
-	if (gpio_request(29, "USB Power Enable") != 0 ||
-	    gpio_direction_output(29, 1) != 0)
-		pr_err("can't setup GPIO 29 (USB Power Enable)\n");
-	kirkwood_ehci_init();
-
 	kirkwood_ge00_init(&dockstar_ge00_data);
 }

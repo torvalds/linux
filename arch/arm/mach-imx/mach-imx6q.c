@@ -38,6 +38,40 @@
 #include "cpuidle.h"
 #include "hardware.h"
 
+#define IMX6Q_ANALOG_DIGPROG	0x260
+
+static int imx6q_revision(void)
+{
+	struct device_node *np;
+	void __iomem *base;
+	static u32 rev;
+
+	if (!rev) {
+		np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-anatop");
+		if (!np)
+			return IMX_CHIP_REVISION_UNKNOWN;
+		base = of_iomap(np, 0);
+		if (!base) {
+			of_node_put(np);
+			return IMX_CHIP_REVISION_UNKNOWN;
+		}
+		rev =  readl_relaxed(base + IMX6Q_ANALOG_DIGPROG);
+		iounmap(base);
+		of_node_put(np);
+	}
+
+	switch (rev & 0xff) {
+	case 0:
+		return IMX_CHIP_REVISION_1_0;
+	case 1:
+		return IMX_CHIP_REVISION_1_1;
+	case 2:
+		return IMX_CHIP_REVISION_1_2;
+	default:
+		return IMX_CHIP_REVISION_UNKNOWN;
+	}
+}
+
 void imx6q_restart(char mode, const char *cmd)
 {
 	struct device_node *np;
@@ -192,6 +226,7 @@ static void __init imx6q_timer_init(void)
 {
 	mx6q_clocks_init();
 	twd_local_timer_of_register();
+	imx_print_silicon_rev("i.MX6Q", imx6q_revision());
 }
 
 static struct sys_timer imx6q_timer = {

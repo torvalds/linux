@@ -22,6 +22,22 @@
 	apb@80000000 {
 		apbh@80000000 {
 			pinctrl@80018000 {
+				pinctrl-names = "default", "default";
+				pinctrl-1 = <&hog_pins_cfa10049>;
+
+				hog_pins_cfa10049: hog-10049@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x0073 /* MX28_PAD_GPMI_D7__GPIO_0_7 */
+						0x1163 /* MX28_PAD_LCD_D22__GPIO_1_22 */
+						0x1173 /* MX28_PAD_LCD_D22__GPIO_1_23 */
+						0x2153 /* MX28_PAD_SSP2_D5__GPIO_2_21 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
 				spi3_pins_cfa10049: spi3-cfa10049@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
@@ -29,6 +45,7 @@
 						0x01c1 /* MX28_PAD_GPMI_RESETN__SSP3_CMD */
 						0x0111 /* MX28_PAD_GPMI_CE1N__SSP3_D3 */
 						0x01a2 /* MX28_PAD_GPMI_ALE__SSP3_D4 */
+						0x01b2 /* MX28_PAD_GPMI_CLE__SSP3_D5 */
 					>;
 					fsl,drive-strength = <1>;
 					fsl,voltage = <1>;
@@ -60,6 +77,11 @@
 					spi-max-frequency = <100000>;
 				};
 
+				dac0: dh2228@2 {
+					compatible = "rohm,dh2228fv";
+					reg = <2>;
+					spi-max-frequency = <100000>;
+				};
 			};
 		};
 
@@ -94,6 +116,17 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			gpio = <&gpio0 7 1>;
+		};
+	};
+
+	ahb@80080000 {
+		mac0: ethernet@800f0000 {
+			phy-mode = "rmii";
+			pinctrl-names = "default";
+			pinctrl-0 = <&mac0_pins_a>;
+			phy-reset-gpios = <&gpio2 21 0>;
+			phy-reset-duration = <100>;
+			status = "okay";
 		};
 	};
 };

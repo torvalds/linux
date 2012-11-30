@@ -1,0 +1,60 @@
+/*
+ * Copyright 2012 DENX Software Engineering GmbH
+ * Heiko Schocher <hs@denx.de>
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+/include/ "skeleton.dtsi"
+
+/ {
+	arm {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		intc: interrupt-controller {
+			compatible = "ti,cp-intc";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			ti,intc-size = <100>;
+			reg = <0xfffee000 0x2000>;
+		};
+	};
+	soc {
+		compatible = "simple-bus";
+		model = "da850";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x01c00000 0x400000>;
+
+		serial0: serial@1c42000 {
+			compatible = "ns16550a";
+			reg = <0x42000 0x100>;
+			clock-frequency = <150000000>;
+			reg-shift = <2>;
+			interrupts = <25>;
+			interrupt-parent = <&intc>;
+			status = "disabled";
+		};
+		serial1: serial@1d0c000 {
+			compatible = "ns16550a";
+			reg = <0x10c000 0x100>;
+			clock-frequency = <150000000>;
+			reg-shift = <2>;
+			interrupts = <53>;
+			interrupt-parent = <&intc>;
+			status = "disabled";
+		};
+		serial2: serial@1d0d000 {
+			compatible = "ns16550a";
+			reg = <0x10d000 0x100>;
+			clock-frequency = <150000000>;
+			reg-shift = <2>;
+			interrupts = <61>;
+			interrupt-parent = <&intc>;
+			status = "disabled";
+		};
+	};
+};
