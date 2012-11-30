@@ -2,7 +2,7 @@ obj-$(CONFIG_RAID6_PQ)	+= raid6_pq.o
 
 raid6_pq-y	+= algos.o recov.o recov_ssse3.o recov_avx2.o tables.o int1.o int2.o int4.o \
 		   int8.o int16.o int32.o altivec1.o altivec2.o altivec4.o \
-		   altivec8.o mmx.o sse1.o sse2.o
+		   altivec8.o mmx.o sse1.o sse2.o avx2.o
 hostprogs-y	+= mktables
 
 quiet_cmd_unroll = UNROLL  $@

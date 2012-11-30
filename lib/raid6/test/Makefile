@@ -11,6 +11,16 @@ AWK	 = awk -f
 AR	 = ar
 RANLIB	 = ranlib
 
+ARCH := $(shell uname -m 2>/dev/null | sed -e /s/i.86/i386/)
+ifeq ($(ARCH),i386)
+        CFLAGS += -DCONFIG_X86_32
+endif
+ifeq ($(ARCH),x86_64)
+        CFLAGS += -DCONFIG_X86_64
+endif
+CFLAGS += $(shell echo "vpbroadcastb %xmm0, %ymm1"| gcc -c -x assembler - &&\
+	     rm ./-.o && echo -DCONFIG_AS_AVX2=1)
+
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<
 
@@ -22,7 +32,7 @@ RANLIB	 = ranlib
 
 all:	raid6.a raid6test
 
-raid6.a: int1.o int2.o int4.o int8.o int16.o int32.o mmx.o sse1.o sse2.o \
+raid6.a: int1.o int2.o int4.o int8.o int16.o int32.o mmx.o sse1.o sse2.o avx2.o \
 	 altivec1.o altivec2.o altivec4.o altivec8.o recov.o recov_ssse3.o recov_avx2.o algos.o \
 	 tables.o
 	 rm -f $@
