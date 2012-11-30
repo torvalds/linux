@@ -1264,6 +1264,42 @@ myri10ge_unmap_rx_page(struct pci_dev *pdev,
 	}
 }
 
+/*
+ * GRO does not support acceleration of tagged vlan frames, and
+ * this NIC does not support vlan tag offload, so we must pop
+ * the tag ourselves to be able to achieve GRO performance that
+ * is comparable to LRO.
+ */
+
+static inline void
+myri10ge_vlan_rx(struct net_device *dev, void *addr, struct sk_buff *skb)
+{
+	u8 *va;
+	struct vlan_ethhdr *veh;
+	struct skb_frag_struct *frag;
+	__wsum vsum;
+
+	va = addr;
+	va += MXGEFW_PAD;
+	veh = (struct vlan_ethhdr *)va;
+	if ((dev->features & NETIF_F_HW_VLAN_RX) == NETIF_F_HW_VLAN_RX &&
+	    veh->h_vlan_proto == ntohs(ETH_P_8021Q)) {
+		/* fixup csum if needed */
+		if (skb->ip_summed == CHECKSUM_COMPLETE) {
+			vsum = csum_partial(va + ETH_HLEN, VLAN_HLEN, 0);
+			skb->csum = csum_sub(skb->csum, vsum);
+		}
+		/* pop tag */
+		__vlan_hwaccel_put_tag(skb, ntohs(veh->h_vlan_TCI));
+		memmove(va + VLAN_HLEN, va, 2 * ETH_ALEN);
+		skb->len -= VLAN_HLEN;
+		skb->data_len -= VLAN_HLEN;
+		frag = skb_shinfo(skb)->frags;
+		frag->page_offset += VLAN_HLEN;
+		skb_frag_size_set(frag, skb_frag_size(frag) - VLAN_HLEN);
+	}
+}
+
 static inline int
 myri10ge_rx_done(struct myri10ge_slice_state *ss, int len, __wsum csum)
 {
@@ -1326,6 +1362,7 @@ myri10ge_rx_done(struct myri10ge_slice_state *ss, int len, __wsum csum)
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		skb->csum = csum;
 	}
+	myri10ge_vlan_rx(mgp->dev, va, skb);
 	skb_record_rx_queue(skb, ss - &mgp->ss[0]);
 
 	napi_gro_frags(&ss->napi);
@@ -3851,6 +3888,10 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->netdev_ops = &myri10ge_netdev_ops;
 	netdev->mtu = myri10ge_initial_mtu;
 	netdev->hw_features = mgp->features | NETIF_F_RXCSUM;
+
+	/* fake NETIF_F_HW_VLAN_RX for good GRO performance */
+	netdev->hw_features |= NETIF_F_HW_VLAN_RX;
+
 	netdev->features = netdev->hw_features;
 
 	if (dac_enabled)
