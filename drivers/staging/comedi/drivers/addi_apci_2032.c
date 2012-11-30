@@ -5,30 +5,9 @@
 
 #include "addi-data/hwdrv_apci2032.c"
 
-static const struct addi_board apci2032_boardtypes[] = {
-	{
-		.pc_DriverName		= "apci2032",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x1004,
-		.i_NbrDoChannel		= 32,
-		.i_DoMaxdata		= 0xffffffff,
-		.i_Timer		= 1,
-		.interrupt		= v_APCI2032_Interrupt,
-		.do_config		= i_APCI2032_ConfigDigitalOutput,
-		.do_bits		= apci2032_do_insn_bits,
-		.do_read		= i_APCI2032_ReadInterruptStatus,
-		.timer_config		= i_APCI2032_ConfigWatchdog,
-		.timer_write		= i_APCI2032_StartStopWriteWatchdog,
-		.timer_read		= i_APCI2032_ReadWatchdog,
-	},
-};
-
 static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 {
-	struct comedi_device *dev = d;
-	const struct addi_board *this_board = comedi_board(dev);
-
-	this_board->interrupt(irq, d);
+	v_APCI2032_Interrupt(irq, d);
 	return IRQ_RETVAL(1);
 }
 
@@ -46,37 +25,15 @@ static int apci2032_reset(struct comedi_device *dev)
 	return 0;
 }
 
-static const void *addi_find_boardinfo(struct comedi_device *dev,
-				       struct pci_dev *pcidev)
-{
-	const void *p = dev->driver->board_name;
-	const struct addi_board *this_board;
-	int i;
-
-	for (i = 0; i < dev->driver->num_names; i++) {
-		this_board = p;
-		if (this_board->i_VendorId == pcidev->vendor &&
-		    this_board->i_DeviceId == pcidev->device)
-			return this_board;
-		p += dev->driver->offset;
-	}
-	return NULL;
-}
-
 static int apci2032_auto_attach(struct comedi_device *dev,
 				unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct addi_board *this_board;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
-	this_board = addi_find_boardinfo(dev, pcidev);
-	if (!this_board)
-		return -ENODEV;
-	dev->board_ptr = this_board;
-	dev->board_name = this_board->pc_DriverName;
+	dev->board_name = dev->driver->driver_name;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -101,42 +58,27 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 
 	/* Initialize the digital output subdevice */
 	s = &dev->subdevices[0];
-	if (this_board->i_NbrDoChannel) {
-		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags =
-			SDF_READABLE | SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = this_board->i_NbrDoChannel;
-		s->maxdata = this_board->i_DoMaxdata;
-		s->len_chanlist = this_board->i_NbrDoChannel;
-		s->range_table = &range_digital;
-		s->io_bits = 0xf;	/* all bits output */
-
-		/* insn_config - for digital output memory */
-		s->insn_config = this_board->do_config;
-		s->insn_write = this_board->do_write;
-		s->insn_bits = this_board->do_bits;
-		s->insn_read = this_board->do_read;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_DO;
+	s->subdev_flags =
+		SDF_READABLE | SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+	s->n_chan = 32;
+	s->maxdata = 1;
+	s->range_table = &range_digital;
+	s->insn_config = i_APCI2032_ConfigDigitalOutput;
+	s->insn_bits = apci2032_do_insn_bits;
+	s->insn_read = i_APCI2032_ReadInterruptStatus;
 
 	/* Initialize the watchdog subdevice */
 	s = &dev->subdevices[1];
-	if (this_board->i_Timer) {
-		s->type = COMEDI_SUBD_TIMER;
-		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = 1;
-		s->maxdata = 0;
-		s->len_chanlist = 1;
-		s->range_table = &range_digital;
-
-		s->insn_write = this_board->timer_write;
-		s->insn_read = this_board->timer_read;
-		s->insn_config = this_board->timer_config;
-		s->insn_bits = this_board->timer_bits;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_TIMER;
+	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+	s->n_chan = 1;
+	s->maxdata = 0;
+	s->len_chanlist = 1;
+	s->range_table = &range_digital;
+	s->insn_write = i_APCI2032_StartStopWriteWatchdog;
+	s->insn_read = i_APCI2032_ReadWatchdog;
+	s->insn_config = i_APCI2032_ConfigWatchdog;
 
 	apci2032_reset(dev);
 	return 0;
@@ -164,9 +106,6 @@ static struct comedi_driver apci2032_driver = {
 	.module		= THIS_MODULE,
 	.auto_attach	= apci2032_auto_attach,
 	.detach		= apci2032_detach,
-	.num_names	= ARRAY_SIZE(apci2032_boardtypes),
-	.board_name	= &apci2032_boardtypes[0].pc_DriverName,
-	.offset		= sizeof(struct addi_board),
 };
 
 static int apci2032_pci_probe(struct pci_dev *dev,
