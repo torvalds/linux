@@ -84,6 +84,7 @@ struct uas_cmd_info {
 static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 				struct uas_dev_info *devinfo, gfp_t gfp);
 static void uas_do_work(struct work_struct *work);
+static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller);
 
 static DECLARE_WORK(uas_work, uas_do_work);
 static DEFINE_SPINLOCK(uas_work_lock);
@@ -143,6 +144,45 @@ static void uas_do_work(struct work_struct *work)
 			schedule_work(&uas_work);
 		}
 	}
+}
+
+static void uas_abort_work(struct uas_dev_info *devinfo)
+{
+	struct uas_cmd_info *cmdinfo;
+	struct uas_cmd_info *temp;
+	struct list_head list;
+	unsigned long flags;
+
+	spin_lock_irq(&uas_work_lock);
+	list_replace_init(&uas_work_list, &list);
+	spin_unlock_irq(&uas_work_lock);
+
+	spin_lock_irqsave(&devinfo->lock, flags);
+	list_for_each_entry_safe(cmdinfo, temp, &list, list) {
+		struct scsi_pointer *scp = (void *)cmdinfo;
+		struct scsi_cmnd *cmnd = container_of(scp,
+							struct scsi_cmnd, SCp);
+		struct uas_dev_info *di = (void *)cmnd->device->hostdata;
+
+		if (di == devinfo) {
+			cmdinfo->state |= COMMAND_ABORTED;
+			cmdinfo->state &= ~IS_IN_WORK_LIST;
+			if (devinfo->resetting) {
+				/* uas_stat_cmplt() will not do that
+				 * when a device reset is in
+				 * progress */
+				cmdinfo->state &= ~COMMAND_INFLIGHT;
+			}
+			uas_try_complete(cmnd, __func__);
+		} else {
+			/* not our uas device, relink into list */
+			list_del(&cmdinfo->list);
+			spin_lock_irq(&uas_work_lock);
+			list_add_tail(&cmdinfo->list, &uas_work_list);
+			spin_unlock_irq(&uas_work_lock);
+		}
+	}
+	spin_unlock_irqrestore(&devinfo->lock, flags);
 }
 
 static void uas_sense(struct urb *urb, struct scsi_cmnd *cmnd)
@@ -750,6 +790,7 @@ static int uas_eh_bus_reset_handler(struct scsi_cmnd *cmnd)
 	int err;
 
 	devinfo->resetting = 1;
+	uas_abort_work(devinfo);
 	usb_kill_anchored_urbs(&devinfo->cmd_urbs);
 	usb_kill_anchored_urbs(&devinfo->sense_urbs);
 	usb_kill_anchored_urbs(&devinfo->data_urbs);
@@ -995,10 +1036,12 @@ static void uas_disconnect(struct usb_interface *intf)
 	struct Scsi_Host *shost = usb_get_intfdata(intf);
 	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
 
-	scsi_remove_host(shost);
+	devinfo->resetting = 1;
+	uas_abort_work(devinfo);
 	usb_kill_anchored_urbs(&devinfo->cmd_urbs);
 	usb_kill_anchored_urbs(&devinfo->sense_urbs);
 	usb_kill_anchored_urbs(&devinfo->data_urbs);
+	scsi_remove_host(shost);
 	uas_free_streams(devinfo);
 	kfree(devinfo);
 }
