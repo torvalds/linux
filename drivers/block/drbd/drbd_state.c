@@ -1800,8 +1800,7 @@ _conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_
 		spin_lock_irq(&tconn->req_lock);
 		wait_event_lock_irq(tconn->ping_wait,
 				(rv = _conn_rq_cond(tconn, mask, val)),
-				tconn->req_lock,
-				);
+				tconn->req_lock);
 		clear_bit(CONN_WD_ST_CHG_REQ, &tconn->flags);
 		if (rv < SS_SUCCESS)
 			goto abort;
