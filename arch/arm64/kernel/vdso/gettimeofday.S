@@ -223,7 +223,7 @@ ENTRY(__do_get_tspec)
 	/* Calculate cycle delta and convert to ns. */
 	sub	x10, x9, x10
 	/* We can only guarantee 56 bits of precision. */
-	movn	x9, #0xff0, lsl #48
+	movn	x9, #0xff00, lsl #48
 	and	x10, x9, x10
 	mul	x10, x10, x14
 	lsr	x10, x10, x15
