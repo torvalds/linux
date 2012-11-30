@@ -628,9 +628,9 @@ static void __init omap4_local_timer_init(void)
 	}
 }
 #else /* CONFIG_LOCAL_TIMERS */
-static inline void omap4_local_timer_init(void)
+static void __init omap4_local_timer_init(void)
 {
-	omap4_sync32_timer_init();
+	omap4_sync32k_timer_init();
 }
 #endif /* CONFIG_LOCAL_TIMERS */
 OMAP_SYS_TIMER(4, local);
