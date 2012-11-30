@@ -739,18 +739,7 @@ static void set_pin_power_state(struct hda_codec *codec, hda_nid_t nid,
 static int via_pin_power_ctl_info(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_info *uinfo)
 {
-	static const char * const texts[] = {
-		"Disabled", "Enabled"
-	};
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name,
-	       texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_hda_enum_bool_helper_info(kcontrol, uinfo);
 }
 
 static int via_pin_power_ctl_get(struct snd_kcontrol *kcontrol,

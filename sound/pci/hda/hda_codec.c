@@ -4792,6 +4792,34 @@ EXPORT_SYMBOL_HDA(snd_hda_input_mux_put);
 
 
 /*
+ * process kcontrol info callback of a simple string enum array
+ * when @num_items is 0 or @texts is NULL, assume a boolean enum array
+ */
+int snd_hda_enum_helper_info(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_info *uinfo,
+			     int num_items, const char * const *texts)
+{
+	static const char * const texts_default[] = {
+		"Disabled", "Enabled"
+	};
+
+	if (!texts || !num_items) {
+		num_items = 2;
+		texts = texts_default;
+	}
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = num_items;
+	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
+		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
+	strcpy(uinfo->value.enumerated.name,
+	       texts[uinfo->value.enumerated.item]);
+	return 0;
+}
+EXPORT_SYMBOL_HDA(snd_hda_enum_helper_info);
+
+/*
  * Multi-channel / digital-out PCM helper functions
  */
 

@@ -601,6 +601,15 @@ int snd_hda_check_amp_list_power(struct hda_codec *codec,
 #define get_amp_min_mute(kc)	(((kc)->private_value >> 29) & 0x1)
 
 /*
+ * enum control helper
+ */
+int snd_hda_enum_helper_info(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_info *uinfo,
+			     int num_entries, const char * const *texts);
+#define snd_hda_enum_bool_helper_info(kcontrol, uinfo) \
+	snd_hda_enum_helper_info(kcontrol, uinfo, 0, NULL)
+
+/*
  * CEA Short Audio Descriptor data
  */
 struct cea_sad {

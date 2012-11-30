@@ -3435,28 +3435,13 @@ static int cx_automute_mode_info(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct conexant_spec *spec = codec->spec;
-	static const char * const texts2[] = {
-		"Disabled", "Enabled"
-	};
 	static const char * const texts3[] = {
 		"Disabled", "Speaker Only", "Line Out+Speaker"
 	};
-	const char * const *texts;
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	if (spec->automute_hp_lo) {
-		uinfo->value.enumerated.items = 3;
-		texts = texts3;
-	} else {
-		uinfo->value.enumerated.items = 2;
-		texts = texts2;
-	}
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name,
-	       texts[uinfo->value.enumerated.item]);
-	return 0;
+	if (spec->automute_hp_lo)
+		return snd_hda_enum_helper_info(kcontrol, uinfo, 3, texts3);
+	return snd_hda_enum_bool_helper_info(kcontrol, uinfo);
 }
 
 static int cx_automute_mode_get(struct snd_kcontrol *kcontrol,
