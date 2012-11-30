@@ -340,7 +340,7 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	if (IS_ERR(net))
 		return PTR_ERR(net);
 
-	peer = rtnl_create_link(src_net, net, ifname, &veth_link_ops, tbp);
+	peer = rtnl_create_link(net, ifname, &veth_link_ops, tbp);
 	if (IS_ERR(peer)) {
 		put_net(net);
 		return PTR_ERR(peer);

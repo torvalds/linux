@@ -1642,7 +1642,7 @@ int rtnl_configure_link(struct net_device *dev, const struct ifinfomsg *ifm)
 }
 EXPORT_SYMBOL(rtnl_configure_link);
 
-struct net_device *rtnl_create_link(struct net *src_net, struct net *net,
+struct net_device *rtnl_create_link(struct net *net,
 	char *ifname, const struct rtnl_link_ops *ops, struct nlattr *tb[])
 {
 	int err;
@@ -1840,7 +1840,7 @@ replay:
 		if (IS_ERR(dest_net))
 			return PTR_ERR(dest_net);
 
-		dev = rtnl_create_link(net, dest_net, ifname, ops, tb);
+		dev = rtnl_create_link(dest_net, ifname, ops, tb);
 		if (IS_ERR(dev)) {
 			err = PTR_ERR(dev);
 			goto out;
