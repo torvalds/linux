@@ -67,6 +67,7 @@ enum {
 	COMMAND_COMPLETED       = (1 << 11),
 	COMMAND_ABORTED         = (1 << 12),
 	UNLINK_DATA_URBS        = (1 << 13),
+	IS_IN_WORK_LIST         = (1 << 14),
 };
 
 /* Overrides scsi_pointer */
@@ -131,6 +132,8 @@ static void uas_do_work(struct work_struct *work)
 		struct uas_dev_info *devinfo = (void *)cmnd->device->hostdata;
 		spin_lock_irqsave(&devinfo->lock, flags);
 		err = uas_submit_urbs(cmnd, cmnd->device->hostdata, GFP_ATOMIC);
+		if (!err)
+			cmdinfo->state &= ~IS_IN_WORK_LIST;
 		spin_unlock_irqrestore(&devinfo->lock, flags);
 		if (err) {
 			list_del(&cmdinfo->list);
@@ -193,7 +196,7 @@ static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *caller)
 	struct uas_cmd_info *ci = (void *)&cmnd->SCp;
 
 	scmd_printk(KERN_INFO, cmnd, "%s %p tag %d, inflight:"
-		    "%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+		    "%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		    caller, cmnd, cmnd->request->tag,
 		    (ci->state & SUBMIT_STATUS_URB)     ? " s-st"  : "",
 		    (ci->state & ALLOC_DATA_IN_URB)     ? " a-in"  : "",
@@ -207,7 +210,8 @@ static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *caller)
 		    (ci->state & DATA_OUT_URB_INFLIGHT) ? " OUT"   : "",
 		    (ci->state & COMMAND_COMPLETED)     ? " done"  : "",
 		    (ci->state & COMMAND_ABORTED)       ? " abort" : "",
-		    (ci->state & UNLINK_DATA_URBS)      ? " unlink": "");
+		    (ci->state & UNLINK_DATA_URBS)      ? " unlink": "",
+		    (ci->state & IS_IN_WORK_LIST)       ? " work"  : "");
 }
 
 static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller)
@@ -244,6 +248,7 @@ static void uas_xfer_data(struct urb *urb, struct scsi_cmnd *cmnd,
 	if (err) {
 		spin_lock(&uas_work_lock);
 		list_add_tail(&cmdinfo->list, &uas_work_list);
+		cmdinfo->state |= IS_IN_WORK_LIST;
 		spin_unlock(&uas_work_lock);
 		schedule_work(&uas_work);
 	}
@@ -643,6 +648,7 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 		}
 		spin_lock(&uas_work_lock);
 		list_add_tail(&cmdinfo->list, &uas_work_list);
+		cmdinfo->state |= IS_IN_WORK_LIST;
 		spin_unlock(&uas_work_lock);
 		schedule_work(&uas_work);
 	}
