@@ -1158,9 +1158,8 @@ int wvlan_uil_put_info(struct uilreq *urq, struct wl_private *lp)
 					break;
 				}
 
-				if (ltvAllocated) {
+				if (ltvAllocated)
 					kfree(pLtv);
-				}
 			} else {
 				urq->result = UIL_FAILURE;
 			}
@@ -1490,9 +1489,8 @@ int wvlan_uil_get_info(struct uilreq *urq, struct wl_private *lp)
 			case CFG_CFI_ACT_RANGES_STA:
 			case CFG_CUR_SCALE_THRH:
 			case CFG_AUTHENTICATION_ALGORITHMS:
-				for (i = 0; i < (lp->ltvRecord.len - 1); i++) {
+				for (i = 0; i < (lp->ltvRecord.len - 1); i++)
 					lp->ltvRecord.u.u16[i] = CNV_INT_TO_LITTLE(lp->ltvRecord.u.u16[i]);
-				}
 				break;
 			/* done at init time, and endian handled then */
 			case CFG_PRI_IDENTITY:
@@ -1515,10 +1513,8 @@ int wvlan_uil_get_info(struct uilreq *urq, struct wl_private *lp)
 			// Copy the LTV into the user's buffer.
 			copy_to_user(urq->data, &(lp->ltvRecord), urq->len);
 
-			if (ltvAllocated) {
+			if (ltvAllocated)
 				kfree(&(lp->ltvRecord));
-			}
-
 			urq->result = UIL_SUCCESS;
 		} else {
 			urq->result = UIL_FAILURE;
