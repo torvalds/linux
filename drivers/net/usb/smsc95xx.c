@@ -1074,9 +1074,10 @@ static void smsc95xx_unbind(struct usbnet *dev, struct usb_interface *intf)
 	}
 }
 
-static u16 smsc_crc(const u8 *buffer, size_t len, int filter)
+static u32 smsc_crc(const u8 *buffer, size_t len, int filter)
 {
-	return bitrev16(crc16(0xFFFF, buffer, len)) << ((filter % 2) * 16);
+	u32 crc = bitrev16(crc16(0xFFFF, buffer, len));
+	return crc << ((filter % 2) * 16);
 }
 
 static int smsc95xx_enable_phy_wakeup_interrupts(struct usbnet *dev, u16 mask)
