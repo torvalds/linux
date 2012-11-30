@@ -134,6 +134,10 @@ nf_nat_ipv4_fn(unsigned int hooknum,
 		/* ESTABLISHED */
 		NF_CT_ASSERT(ctinfo == IP_CT_ESTABLISHED ||
 			     ctinfo == IP_CT_ESTABLISHED_REPLY);
+		if (nf_nat_oif_changed(hooknum, ctinfo, nat, out)) {
+			nf_ct_kill_acct(ct, ctinfo, skb);
+			return NF_DROP;
+		}
 	}
 
 	return nf_nat_packet(ct, ctinfo, hooknum, skb);
