@@ -789,6 +789,7 @@ void ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 			   "not handling channel switch with channel contexts\n");
 		ieee80211_queue_work(&sdata->local->hw,
 				     &ifmgd->csa_connection_drop_work);
+		return;
 	}
 
 	mutex_lock(&sdata->local->chanctx_mtx);
