@@ -266,25 +266,25 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 
 	/* Initialize the digital output subdevice */
 	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITEABLE;
-	s->n_chan = 32;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_config = i_APCI2032_ConfigDigitalOutput;
-	s->insn_bits = apci2032_do_insn_bits;
-	s->insn_read = i_APCI2032_ReadInterruptStatus;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITEABLE;
+	s->n_chan	= 32;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_config	= i_APCI2032_ConfigDigitalOutput;
+	s->insn_bits	= apci2032_do_insn_bits;
+	s->insn_read	= i_APCI2032_ReadInterruptStatus;
 
 	/* Initialize the watchdog subdevice */
 	s = &dev->subdevices[1];
-	s->type = COMEDI_SUBD_TIMER;
-	s->subdev_flags = SDF_WRITEABLE;
-	s->n_chan = 1;
-	s->maxdata = 0xff;
-	s->range_table = &range_digital;
-	s->insn_write = apci2032_wdog_insn_write;
-	s->insn_read = apci2032_wdog_insn_read;
-	s->insn_config = apci2032_wdog_insn_config;
+	s->type		= COMEDI_SUBD_TIMER;
+	s->subdev_flags	= SDF_WRITEABLE;
+	s->n_chan	= 1;
+	s->maxdata	= 0xff;
+	s->range_table	= &range_digital;
+	s->insn_write	= apci2032_wdog_insn_write;
+	s->insn_read	= apci2032_wdog_insn_read;
+	s->insn_config	= apci2032_wdog_insn_config;
 
 	apci2032_reset(dev);
 	return 0;
