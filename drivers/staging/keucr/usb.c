@@ -130,12 +130,9 @@ void fill_inquiry_response(struct us_data *us, unsigned char *data, unsigned int
 	if (data_len < 36) /* You lose. */
 		return;
 
-	if (data[0]&0x20)
-	{
+	if (data[0]&0x20) {
 		memset(data+8,0,28);
-	}
-	else
-	{
+	} else {
 		u16 bcdDevice = le16_to_cpu(us->pusb_dev->descriptor.bcdDevice);
 		memcpy(data+8, us->unusual_dev->vendorName,
 			strlen(us->unusual_dev->vendorName) > 8 ? 8 :
@@ -157,8 +154,7 @@ static int usb_stor_control_thread(void * __us)
 	struct Scsi_Host *host = us_to_host(us);
 
 	pr_info("usb --- usb_stor_control_thread\n");
-	for(;;)
-	{
+	for (;;) {
 		if (wait_for_completion_interruptible(&us->cmnd_ready))
 			break;
 
@@ -175,43 +171,34 @@ static int usb_stor_control_thread(void * __us)
 		scsi_lock(host);
 
 		/* When we are called with no command pending, we're done */
-		if (us->srb == NULL)
-		{
+		if (us->srb == NULL) {
 			scsi_unlock(host);
 			mutex_unlock(&us->dev_mutex);
 			break;
 		}
 
 		/* has the command timed out *already* ? */
-		if (test_bit(US_FLIDX_TIMED_OUT, &us->dflags))
-		{
+		if (test_bit(US_FLIDX_TIMED_OUT, &us->dflags)) {
 			us->srb->result = DID_ABORT << 16;
 			goto SkipForAbort;
 		}
 
 		scsi_unlock(host);
 
-		if (us->srb->sc_data_direction == DMA_BIDIRECTIONAL)
-		{
+		if (us->srb->sc_data_direction == DMA_BIDIRECTIONAL) {
 			us->srb->result = DID_ERROR << 16;
-		}
-		else if (us->srb->device->id && !(us->fflags & US_FL_SCM_MULT_TARG))
-		{
+		} else if (us->srb->device->id
+			   && !(us->fflags & US_FL_SCM_MULT_TARG)) {
 			us->srb->result = DID_BAD_TARGET << 16;
-		}
-		else if (us->srb->device->lun > us->max_lun)
-		{
+		} else if (us->srb->device->lun > us->max_lun) {
 			us->srb->result = DID_BAD_TARGET << 16;
-		}
-		else if ((us->srb->cmnd[0] == INQUIRY) && (us->fflags & US_FL_FIX_INQUIRY))
-		{
+		} else if ((us->srb->cmnd[0] == INQUIRY)
+			   && (us->fflags & US_FL_FIX_INQUIRY)) {
 			unsigned char data_ptr[36] = {0x00, 0x80, 0x02, 0x02, 0x1F, 0x00, 0x00, 0x00};
 
 			fill_inquiry_response(us, data_ptr, 36);
 			us->srb->result = SAM_STAT_GOOD;
-		}
-		else
-		{
+		} else {
 			us->proto_handler(us->srb, us);
 		}
 
@@ -219,18 +206,14 @@ static int usb_stor_control_thread(void * __us)
 		scsi_lock(host);
 
 		/* indicate that the command is done */
-		if (us->srb->result != DID_ABORT << 16)
-		{
+		if (us->srb->result != DID_ABORT << 16) {
 			us->srb->scsi_done(us->srb);
-		}
-		else
-		{
+		} else {
 SkipForAbort:
 			pr_info("scsi command aborted\n");
 		}
 
-		if (test_bit(US_FLIDX_TIMED_OUT, &us->dflags))
-		{
+		if (test_bit(US_FLIDX_TIMED_OUT, &us->dflags)) {
 			complete(&(us->notify));
 
 			/* Allow USB transfers to resume */
@@ -247,8 +230,7 @@ SkipForAbort:
 	} /* for (;;) */
 
 	/* Wait until we are told to stop */
-	for (;;)
-	{
+	for (;;) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (kthread_should_stop())
 			break;
@@ -272,22 +254,19 @@ static int associate_dev(struct us_data *us, struct usb_interface *intf)
 
 	/* Allocate the device-related DMA-mapped buffers */
 	us->cr = usb_alloc_coherent(us->pusb_dev, sizeof(*us->cr), GFP_KERNEL, &us->cr_dma);
-	if (!us->cr)
-	{
+	if (!us->cr) {
 		pr_info("usb_ctrlrequest allocation failed\n");
 		return -ENOMEM;
 	}
 
 	us->iobuf = usb_alloc_coherent(us->pusb_dev, US_IOBUF_SIZE, GFP_KERNEL, &us->iobuf_dma);
-	if (!us->iobuf)
-	{
+	if (!us->iobuf) {
 		pr_info("I/O buffer allocation failed\n");
 		return -ENOMEM;
 	}
 
 	us->sensebuf = kmalloc(US_SENSE_SIZE, GFP_KERNEL);
-	if (!us->sensebuf)
-	{
+	if (!us->sensebuf) {
 		pr_info("Sense buffer allocation failed\n");
 		return -ENOMEM;
 	}
@@ -306,8 +285,7 @@ static int get_device_info(struct us_data *us, const struct usb_device_id *id)
 	us->fflags = id->driver_info;
 	us->Power_IsResum = false;
 
-	if (us->fflags & US_FL_IGNORE_DEVICE)
-	{
+	if (us->fflags & US_FL_IGNORE_DEVICE) {
 		pr_info("device ignored\n");
 		return -ENODEV;
 	}
@@ -348,7 +326,8 @@ static int get_protocol(struct us_data *us)
 	switch (us->subclass) {
 	case USB_SC_SCSI:
 		us->protocol_name = "Transparent SCSI";
-		if( (us->pusb_dev->descriptor.idVendor == 0x0CF2) && (us->pusb_dev->descriptor.idProduct == 0x6250) )
+		if ((us->pusb_dev->descriptor.idVendor == 0x0CF2)
+		    && (us->pusb_dev->descriptor.idProduct == 0x6250))
 			us->proto_handler = ENE_stor_invoke_transport;
 		else
 			us->proto_handler = usb_stor_invoke_transport;
@@ -371,32 +350,24 @@ static int get_pipes(struct us_data *us)
 
 	pr_info("usb --- get_pipes\n");
 
-	for (i = 0; i < altsetting->desc.bNumEndpoints; i++)
-	{
+	for (i = 0; i < altsetting->desc.bNumEndpoints; i++) {
 		ep = &altsetting->endpoint[i].desc;
 
-		if (usb_endpoint_xfer_bulk(ep))
-		{
-			if (usb_endpoint_dir_in(ep))
-			{
+		if (usb_endpoint_xfer_bulk(ep)) {
+			if (usb_endpoint_dir_in(ep)) {
 				if (!ep_in)
 					ep_in = ep;
-			}
-			else
-			{
+			} else {
 				if (!ep_out)
 					ep_out = ep;
 			}
-		}
-		else if (usb_endpoint_is_int_in(ep))
-		{
+		} else if (usb_endpoint_is_int_in(ep)) {
 			if (!ep_int)
 				ep_int = ep;
 		}
 	}
 
-	if (!ep_in || !ep_out || (us->protocol == USB_PR_CBI && !ep_int))
-	{
+	if (!ep_in || !ep_out || (us->protocol == USB_PR_CBI && !ep_int)) {
 		pr_info("Endpoint sanity check failed! Rejecting dev.\n");
 		return -EIO;
 	}
@@ -406,8 +377,7 @@ static int get_pipes(struct us_data *us)
 	us->recv_ctrl_pipe = usb_rcvctrlpipe(us->pusb_dev, 0);
 	us->send_bulk_pipe = usb_sndbulkpipe(us->pusb_dev, ep_out->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
 	us->recv_bulk_pipe = usb_rcvbulkpipe(us->pusb_dev, ep_in->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
-	if (ep_int)
-	{
+	if (ep_int) {
 		us->recv_intr_pipe = usb_rcvintpipe(us->pusb_dev, ep_int->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
 		us->ep_bInterval = ep_int->bInterval;
 	}
@@ -420,16 +390,14 @@ static int usb_stor_acquire_resources(struct us_data *us)
 
 	pr_info("usb --- usb_stor_acquire_resources\n");
 	us->current_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!us->current_urb)
-	{
+	if (!us->current_urb) {
 		pr_info("URB allocation failed\n");
 		return -ENOMEM;
 	}
 
 	/* Start up our control thread */
 	th = kthread_run(usb_stor_control_thread, us, "eucr-storage");
-	if (IS_ERR(th))
-	{
+	if (IS_ERR(th)) {
 		pr_info("Unable to start control thread\n");
 		return PTR_ERR(th);
 	}
@@ -449,8 +417,7 @@ static void usb_stor_release_resources(struct us_data *us)
 		kthread_stop(us->ctl_thread);
 
 	/* Call the destructor routine, if it exists */
-	if (us->extra_destructor)
-	{
+	if (us->extra_destructor) {
 		pr_info("-- calling extra_destructor()\n");
 		us->extra_destructor(us->extra);
 	}
@@ -535,11 +502,10 @@ static int usb_stor_scan_thread(void * __us)
 	}
 
 	/* If the device is still connected, perform the scanning */
-	if (!test_bit(US_FLIDX_DONT_SCAN, &us->dflags))
-	{
+	if (!test_bit(US_FLIDX_DONT_SCAN, &us->dflags)) {
 		/* For bulk-only devices, determine the max LUN value */
-		if (us->protocol == USB_PR_BULK && !(us->fflags & US_FL_SINGLE_LUN))
-		{
+		if (us->protocol == USB_PR_BULK
+		    && !(us->fflags & US_FL_SINGLE_LUN)) {
 			mutex_lock(&us->dev_mutex);
 			us->max_lun = usb_stor_Bulk_max_lun(us);
 			mutex_unlock(&us->dev_mutex);
@@ -561,8 +527,7 @@ static int eucr_probe(struct usb_interface *intf, const struct usb_device_id *id
 	pr_info("usb --- eucr_probe\n");
 
       host = scsi_host_alloc(&usb_stor_host_template, sizeof(*us));
-	if (!host)
-	{
+	if (!host) {
 		pr_info("Unable to allocate the scsi host\n");
 		return -ENOMEM;
 	}
@@ -604,8 +569,7 @@ static int eucr_probe(struct usb_interface *intf, const struct usb_device_id *id
 		goto BadDevice;
 
 	result = scsi_add_host(host, &intf->dev);
-	if (result)
-	{
+	if (result) {
 		pr_info("Unable to add the scsi host\n");
 		goto BadDevice;
 	}
