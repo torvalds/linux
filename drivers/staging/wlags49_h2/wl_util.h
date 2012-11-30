@@ -93,4 +93,4 @@ void wl_process_updated_record(struct wl_private *lp);
 void wl_process_assoc_status(struct wl_private *lp);
 void wl_process_security_status(struct wl_private *lp);
 
-#endif  // __WL_UTIL_H__
+#endif  /* __WL_UTIL_H__ */
