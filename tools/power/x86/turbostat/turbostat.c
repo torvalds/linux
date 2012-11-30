@@ -423,6 +423,7 @@ done:
 void flush_stdout()
 {
 	fputs(output_buffer, stdout);
+	fflush(stdout);
 	outp = output_buffer;
 }
 void flush_stderr()
