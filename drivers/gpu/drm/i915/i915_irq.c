@@ -758,7 +758,7 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int ret = IRQ_NONE;
-	u32 de_iir, gt_iir, de_ier, pch_iir, pm_iir;
+	u32 de_iir, gt_iir, de_ier, pm_iir;
 
 	atomic_inc(&dev_priv->irq_received);
 
@@ -769,11 +769,9 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 
 	de_iir = I915_READ(DEIIR);
 	gt_iir = I915_READ(GTIIR);
-	pch_iir = I915_READ(SDEIIR);
 	pm_iir = I915_READ(GEN6_PMIIR);
 
-	if (de_iir == 0 && gt_iir == 0 && pch_iir == 0 &&
-	    (!IS_GEN6(dev) || pm_iir == 0))
+	if (de_iir == 0 && gt_iir == 0 && (!IS_GEN6(dev) || pm_iir == 0))
 		goto done;
 
 	ret = IRQ_HANDLED;
@@ -804,10 +802,15 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 
 	/* check event from PCH */
 	if (de_iir & DE_PCH_EVENT) {
+		u32 pch_iir = I915_READ(SDEIIR);
+
 		if (HAS_PCH_CPT(dev))
 			cpt_irq_handler(dev, pch_iir);
 		else
 			ibx_irq_handler(dev, pch_iir);
+
+		/* should clear PCH hotplug event before clear CPU irq */
+		I915_WRITE(SDEIIR, pch_iir);
 	}
 
 	if (IS_GEN5(dev) &&  de_iir & DE_PCU_EVENT)
@@ -816,8 +819,6 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	if (IS_GEN6(dev) && pm_iir & GEN6_PM_DEFERRED_EVENTS)
 		gen6_queue_rps_work(dev_priv, pm_iir);
 
-	/* should clear PCH hotplug event before clear CPU irq */
-	I915_WRITE(SDEIIR, pch_iir);
 	I915_WRITE(GTIIR, gt_iir);
 	I915_WRITE(DEIIR, de_iir);
 	I915_WRITE(GEN6_PMIIR, pm_iir);
