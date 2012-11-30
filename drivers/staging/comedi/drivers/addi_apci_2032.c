@@ -59,8 +59,7 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 	/* Initialize the digital output subdevice */
 	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags =
-		SDF_READABLE | SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+	s->subdev_flags = SDF_WRITEABLE;
 	s->n_chan = 32;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
@@ -71,7 +70,7 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 	/* Initialize the watchdog subdevice */
 	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_TIMER;
-	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+	s->subdev_flags = SDF_WRITEABLE;
 	s->n_chan = 1;
 	s->maxdata = 0;
 	s->len_chanlist = 1;
