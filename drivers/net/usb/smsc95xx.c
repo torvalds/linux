@@ -154,25 +154,6 @@ static int __must_check smsc95xx_write_reg(struct usbnet *dev, u32 index,
 {
 	return __smsc95xx_write_reg(dev, index, data, 0);
 }
-static int smsc95xx_set_feature(struct usbnet *dev, u32 feature)
-{
-	if (WARN_ON_ONCE(!dev))
-		return -EINVAL;
-
-	return usbnet_write_cmd_nopm(dev, USB_REQ_SET_FEATURE,
-				     USB_RECIP_DEVICE, feature, 0,
-				     NULL, 0);
-}
-
-static int smsc95xx_clear_feature(struct usbnet *dev, u32 feature)
-{
-	if (WARN_ON_ONCE(!dev))
-		return -EINVAL;
-
-	return usbnet_write_cmd_nopm(dev, USB_REQ_CLEAR_FEATURE,
-				     USB_RECIP_DEVICE, feature,
-				     0, NULL, 0);
-}
 
 /* Loop until the read is completed with timeout
  * called with phy_mutex held */
@@ -685,8 +666,13 @@ static int smsc95xx_ethtool_set_wol(struct net_device *net,
 {
 	struct usbnet *dev = netdev_priv(net);
 	struct smsc95xx_priv *pdata = (struct smsc95xx_priv *)(dev->data[0]);
+	int ret;
 
 	pdata->wolopts = wolinfo->wolopts & SUPPORTED_WAKE;
+
+	ret = device_set_wakeup_enable(&dev->udev->dev, pdata->wolopts);
+	check_warn_return(ret, "device_set_wakeup_enable error %d\n", ret);
+
 	return 0;
 }
 
@@ -1160,8 +1146,6 @@ static int smsc95xx_enter_suspend0(struct usbnet *dev)
 	ret = smsc95xx_read_reg_nopm(dev, PM_CTRL, &val);
 	check_warn_return(ret, "Error reading PM_CTRL\n");
 
-	smsc95xx_set_feature(dev, USB_DEVICE_REMOTE_WAKEUP);
-
 	return 0;
 }
 
@@ -1203,8 +1187,6 @@ static int smsc95xx_enter_suspend1(struct usbnet *dev)
 
 	ret = smsc95xx_write_reg_nopm(dev, PM_CTRL, val);
 	check_warn_return(ret, "Error writing PM_CTRL\n");
-
-	smsc95xx_set_feature(dev, USB_DEVICE_REMOTE_WAKEUP);
 
 	return 0;
 }
@@ -1456,8 +1438,6 @@ static int smsc95xx_resume(struct usb_interface *intf)
 	BUG_ON(!dev);
 
 	if (pdata->wolopts) {
-		smsc95xx_clear_feature(dev, USB_DEVICE_REMOTE_WAKEUP);
-
 		/* clear wake-up sources */
 		ret = smsc95xx_read_reg_nopm(dev, WUCSR, &val);
 		check_warn_return(ret, "Error reading WUCSR\n");
