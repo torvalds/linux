@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -7,15 +7,15 @@
  */
 /dts-v1/;
 
-/include/ "omap36xx.dtsi"
+/include/ "omap3.dtsi"
 
 / {
-	model = "TI OMAP3 BeagleBoard xM";
-	compatible = "ti,omap3-beagle-xm, ti,omap3-beagle", "ti,omap3";
+	model = "TI OMAP3 BeagleBoard";
+	compatible = "ti,omap3-beagle", "ti,omap3";
 
 	memory {
 		device_type = "memory";
-		reg = <0x80000000 0x20000000>; /* 512 MB */
+		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
 
 	leds {
@@ -38,13 +38,6 @@
 		};
 	};
 
-	sound {
-		compatible = "ti,omap-twl4030";
-		ti,model = "omap3beagle";
-
-		ti,mcbsp = <&mcbsp2>;
-		ti,codec = <&twl_audio>;
-	};
 };
 
 &i2c1 {
@@ -54,33 +47,10 @@
 		reg = <0x48>;
 		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
 		interrupt-parent = <&intc>;
-
-		twl_audio: audio {
-			compatible = "ti,twl4030-audio";
-			codec {
-			};
-		};
 	};
 };
 
 /include/ "twl4030.dtsi"
-
-&i2c2 {
-	clock-frequency = <400000>;
-};
-
-&i2c3 {
-	clock-frequency = <100000>;
-
-	/*
-	 * Display monitor features are burnt in the EEPROM
-	 * as EDID data.
-	 */
-	eeprom@50 {
-		compatible = "ti,eeprom";
-		reg = <0x50>;
-	};
-};
 
 &mmc1 {
 	vmmc-supply = <&vmmc1>;
@@ -94,16 +64,4 @@
 
 &mmc3 {
 	status = "disabled";
-};
-
-&twl_gpio {
-	ti,use-leds;
-	/* pullups: BIT(1) */
-	ti,pullups = <0x000002>;
-	/*
-	 * pulldowns:
-	 * BIT(2), BIT(6), BIT(7), BIT(8), BIT(13)
-	 * BIT(15), BIT(16), BIT(17)
-	 */
-	ti,pulldowns = <0x03a1c4>;
 };
