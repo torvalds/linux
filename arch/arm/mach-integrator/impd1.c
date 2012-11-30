@@ -402,9 +402,10 @@ static int impd1_probe(struct lm_device *dev)
 
 		pc_base = dev->resource.start + idev->offset;
 		snprintf(devname, 32, "lm%x:%5.5lx", dev->id, idev->offset >> 12);
-		d = amba_ahb_device_add(&dev->dev, devname, pc_base, SZ_4K,
-					dev->irq, dev->irq,
-					idev->platform_data, idev->id);
+		d = amba_ahb_device_add_res(&dev->dev, devname, pc_base, SZ_4K,
+					    dev->irq, dev->irq,
+					    idev->platform_data, idev->id,
+					    &dev->resource);
 		if (IS_ERR(d)) {
 			dev_err(&dev->dev, "unable to register device: %ld\n", PTR_ERR(d));
 			continue;
