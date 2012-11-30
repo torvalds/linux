@@ -42,19 +42,12 @@ static int eucr_suspend(struct usb_interface *iface, pm_message_t message)
 	/* Wait until no command is running */
 	mutex_lock(&us->dev_mutex);
 
-	//US_DEBUGP("%s\n", __func__);
 	if (us->suspend_resume_hook)
 		(us->suspend_resume_hook)(us, US_SUSPEND);
-
-	/* When runtime PM is working, we'll set a flag to indicate
-	 * whether we should autoresume when a SCSI request arrives. */
-	// us->Power_IsResum = true;
-	//us->SD_Status.Ready = 0;
 
 	mutex_unlock(&us->dev_mutex);
 	return 0;
 }
-//EXPORT_SYMBOL_GPL(eucr_suspend);
 
 static int eucr_resume(struct usb_interface *iface)
 {
@@ -64,43 +57,40 @@ static int eucr_resume(struct usb_interface *iface)
 	pr_info("--- eucr_resume---\n");
 	mutex_lock(&us->dev_mutex);
 
-	//US_DEBUGP("%s\n", __func__);
 	if (us->suspend_resume_hook)
 		(us->suspend_resume_hook)(us, US_RESUME);
 
 
 	mutex_unlock(&us->dev_mutex);
 
-	
-         us->Power_IsResum = true;
-	//
-	//us->SD_Status.Ready = 0; //??
-    	us->SM_Status = *(PSM_STATUS)&tmp;
+	us->Power_IsResum = true;
+
+	us->SM_Status = *(PSM_STATUS)&tmp;
     	
 	return 0;
 }
-//EXPORT_SYMBOL_GPL(eucr_resume);
+
 static int eucr_reset_resume(struct usb_interface *iface)
 {
 	BYTE    tmp = 0;
 	struct us_data *us = usb_get_intfdata(iface);
 
 	pr_info("--- eucr_reset_resume---\n");
-	//US_DEBUGP("%s\n", __func__);
 
 	/* Report the reset to the SCSI core */
 	usb_stor_report_bus_reset(us);
 
-	/* FIXME: Notify the subdrivers that they need to reinitialize
-	 * the device */
-	//ENE_InitMedia(us);
+	/*
+	 * FIXME: Notify the subdrivers that they need to reinitialize
+	 * the device
+	 */
+
  	us->Power_IsResum = true;
-	//
-	//us->SD_Status.Ready = 0; //??
-    	us->SM_Status = *(PSM_STATUS)&tmp;
+
+	us->SM_Status = *(PSM_STATUS)&tmp;
+
 	return 0;
 }
-//EXPORT_SYMBOL_GPL(usb_stor_reset_resume);
 
 #else
 
@@ -110,7 +100,6 @@ static int eucr_reset_resume(struct usb_interface *iface)
 
 #endif
 
-//----- eucr_pre_reset() ---------------------
 static int eucr_pre_reset(struct usb_interface *iface)
 {
 	struct us_data *us = usb_get_intfdata(iface);
@@ -122,7 +111,6 @@ static int eucr_pre_reset(struct usb_interface *iface)
 	return 0;
 }
 
-//----- eucr_post_reset() ---------------------
 static int eucr_post_reset(struct usb_interface *iface)
 {
 	struct us_data *us = usb_get_intfdata(iface);
@@ -136,11 +124,10 @@ static int eucr_post_reset(struct usb_interface *iface)
 	return 0;
 }
 
-//----- fill_inquiry_response() ---------------------
 void fill_inquiry_response(struct us_data *us, unsigned char *data, unsigned int data_len)
 {
 	pr_info("usb --- fill_inquiry_response\n");
-	if (data_len<36) // You lose.
+	if (data_len < 36) /* You lose. */
 		return;
 
 	if (data[0]&0x20)
@@ -164,7 +151,6 @@ void fill_inquiry_response(struct us_data *us, unsigned char *data, unsigned int
 	usb_stor_set_xfer_buf(us, data, data_len, us->srb, TO_XFER_BUF);
 }
 
-//----- usb_stor_control_thread() ---------------------
 static int usb_stor_control_thread(void * __us)
 {
 	struct us_data *us = (struct us_data *)__us;
@@ -175,7 +161,7 @@ static int usb_stor_control_thread(void * __us)
 	{
 		if (wait_for_completion_interruptible(&us->cmnd_ready))
 			break;
-			
+
 		/* lock the device pointers */
 		mutex_lock(&(us->dev_mutex));
 
@@ -193,7 +179,6 @@ static int usb_stor_control_thread(void * __us)
 		{
 			scsi_unlock(host);
 			mutex_unlock(&us->dev_mutex);
-			//US_DEBUGP("-- exiting\n");
 			break;
 		}
 
@@ -273,7 +258,6 @@ SkipForAbort:
 	return 0;
 }	
 
-//----- associate_dev() ---------------------
 static int associate_dev(struct us_data *us, struct usb_interface *intf)
 {
 	pr_info("usb --- associate_dev\n");
@@ -310,7 +294,6 @@ static int associate_dev(struct us_data *us, struct usb_interface *intf)
 	return 0;
 }
 
-//----- get_device_info() ---------------------
 static int get_device_info(struct us_data *us, const struct usb_device_id *id)
 {
 	struct usb_device *dev = us->pusb_dev;
@@ -335,7 +318,6 @@ static int get_device_info(struct us_data *us, const struct usb_device_id *id)
 	return 0;
 }
 
-//----- get_transport() ---------------------
 static int get_transport(struct us_data *us)
 {
 	pr_info("usb --- get_transport\n");
@@ -349,7 +331,6 @@ static int get_transport(struct us_data *us)
 	default:
 		return -EIO;
 	}
-	/* pr_info("Transport: %s\n", us->transport_name); */
 
 	/* fix for single-lun devices */
 	if (us->fflags & US_FL_SINGLE_LUN)
@@ -357,7 +338,6 @@ static int get_transport(struct us_data *us)
 	return 0;
 }
 
-//----- get_protocol() ---------------------
 static int get_protocol(struct us_data *us)
 {
 	pr_info("usb --- get_protocol\n");
@@ -377,11 +357,9 @@ static int get_protocol(struct us_data *us)
 	default:
 		return -EIO;
 	}
-	/* pr_info("Protocol: %s\n", us->protocol_name); */
 	return 0;
 }
 
-//----- get_pipes() ---------------------
 static int get_pipes(struct us_data *us)
 {
 	struct usb_host_interface *altsetting = us->pusb_intf->cur_altsetting;
@@ -436,7 +414,6 @@ static int get_pipes(struct us_data *us)
 	return 0;
 }
 
-//----- usb_stor_acquire_resources() ---------------------
 static int usb_stor_acquire_resources(struct us_data *us)
 {
 	struct task_struct *th;
@@ -461,7 +438,6 @@ static int usb_stor_acquire_resources(struct us_data *us)
 	return 0;
 }
 
-//----- usb_stor_release_resources() ---------------------
 static void usb_stor_release_resources(struct us_data *us)
 {
 	pr_info("usb --- usb_stor_release_resources\n");
@@ -484,7 +460,6 @@ static void usb_stor_release_resources(struct us_data *us)
 	usb_free_urb(us->current_urb);
 }
 
-//----- dissociate_dev() ---------------------
 static void dissociate_dev(struct us_data *us)
 {
 	pr_info("usb --- dissociate_dev\n");
@@ -501,7 +476,6 @@ static void dissociate_dev(struct us_data *us)
 	usb_set_intfdata(us->pusb_intf, NULL);
 }
 
-//----- quiesce_and_remove_host() ---------------------
 static void quiesce_and_remove_host(struct us_data *us)
 {
 	struct Scsi_Host *host = us_to_host(us);
@@ -512,19 +486,22 @@ static void quiesce_and_remove_host(struct us_data *us)
 	if (us->pusb_dev->state == USB_STATE_NOTATTACHED)
 		set_bit(US_FLIDX_DISCONNECTING, &us->dflags);
 
-	/* Prevent SCSI-scanning (if it hasn't started yet)
+	/*
+	 * Prevent SCSI-scanning (if it hasn't started yet)
 	 * and wait for the SCSI-scanning thread to stop.
 	 */
 	set_bit(US_FLIDX_DONT_SCAN, &us->dflags);
 	wake_up(&us->delay_wait);
 	wait_for_completion(&us->scanning_done);
 
-	/* Removing the host will perform an orderly shutdown: caches
+	/*
+	 * Removing the host will perform an orderly shutdown: caches
 	 * synchronized, disks spun down, etc.
 	 */
 	scsi_remove_host(host);
 
-	/* Prevent any new commands from being accepted and cut short
+	/*
+	 * Prevent any new commands from being accepted and cut short
 	 * reset delays.
 	 */
 	scsi_lock(host);
@@ -533,7 +510,6 @@ static void quiesce_and_remove_host(struct us_data *us)
 	wake_up(&us->delay_wait);
 }
 
-//----- release_everything() ---------------------
 static void release_everything(struct us_data *us)
 {
 	pr_info("usb --- release_everything\n");
@@ -543,7 +519,6 @@ static void release_everything(struct us_data *us)
 	scsi_host_put(us_to_host(us));
 }
 
-//----- usb_stor_scan_thread() ---------------------
 static int usb_stor_scan_thread(void * __us)
 {
 	struct us_data *us = (struct us_data *)__us;
@@ -575,7 +550,6 @@ static int usb_stor_scan_thread(void * __us)
 	complete_and_exit(&us->scanning_done, 0);
 }
 
-//----- eucr_probe() ---------------------
 static int eucr_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct Scsi_Host *host;
@@ -673,7 +647,6 @@ BadDevice:
 	return result;
 }
 
-//----- eucr_disconnect() ---------------------
 static void eucr_disconnect(struct usb_interface *intf)
 {
 	struct us_data *us = usb_get_intfdata(intf);
@@ -683,11 +656,7 @@ static void eucr_disconnect(struct usb_interface *intf)
 	release_everything(us);
 }
 
-/***********************************************************************
- * Initialization and registration
- ***********************************************************************/
-
-//----- usb_storage_driver() ---------------------
+/* Initialization and registration */
 static struct usb_driver usb_storage_driver = {
 	.name =		"eucr",
 	.probe =		eucr_probe,
