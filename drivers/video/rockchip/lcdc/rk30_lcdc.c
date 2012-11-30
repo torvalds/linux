@@ -871,8 +871,29 @@ static ssize_t dump_win0_disp_info(struct rk30_lcdc_device *lcdc_dev,char *buf)
         y_factor = factor>>16;
         x_scale = 4096*100/x_factor;
         y_scale = 4096*100/y_factor;
-        return snprintf(buf,PAGE_SIZE,"xvir:%d\nxact:%d\nyact:%d\nxdsp:%d\nydsp:%d\nx_st:%d\ny_st:%d\nx_scale:%d.%d\ny_scale:%d.%d\nformat:%s\n",
-                xvir,x_act,y_act,x_dsp,y_dsp,dsp_st&0xffff,dsp_st>>16,x_scale/100,x_scale%100,y_scale/100,y_scale%100,format);
+        return snprintf(buf,PAGE_SIZE,
+		"xvir:%d\n"
+		"xact:%d\n"
+		"yact:%d\n"
+		"xdsp:%d\n"
+		"ydsp:%d\n"
+		"x_st:%d\n"
+		"y_st:%d\n"
+		"x_scale:%d.%d\n"
+		"y_scale:%d.%d\n"
+		"format:%s\n",
+                xvir,
+                x_act,
+                y_act,
+                x_dsp,
+                y_dsp,
+                dsp_st&0xffff,
+                dsp_st>>16,
+                x_scale/100,
+                x_scale%100,
+                y_scale/100,
+                y_scale%100,
+                format);
 
 }
 static ssize_t dump_win1_disp_info(struct rk30_lcdc_device *lcdc_dev,char *buf)
@@ -920,8 +941,29 @@ static ssize_t dump_win1_disp_info(struct rk30_lcdc_device *lcdc_dev,char *buf)
         y_factor = factor>>16;
         x_scale = 4096*100/x_factor;
         y_scale = 4096*100/y_factor;
-	 return snprintf(buf,PAGE_SIZE,"xvir:%d\nxact:%d\nyact:%d\nxdsp:%d\nydsp:%d\nx_st:%d\ny_st:%d\nx_scale:%d.%d\ny_scale:%d.%d\nformat:%s\n",
-                xvir,x_act,y_act,x_dsp,y_dsp,dsp_st&0xffff,dsp_st>>16,x_scale/100,x_scale%100,y_scale/100,y_scale%100,format);
+	 return snprintf(buf,PAGE_SIZE,
+	 	"xvir:%d\n"
+	 	"xact:%d\n"
+	 	"yact:%d\n"
+	 	"xdsp:%d\n"
+	 	"ydsp:%d\n"
+	 	"x_st:%d\n"
+	 	"y_st:%d\n"
+	 	"x_scale:%d.%d\n"
+	 	"y_scale:%d.%d\n"
+	 	"format:%s\n",
+                xvir,
+                x_act,
+                y_act,
+                x_dsp,
+                y_dsp,
+                dsp_st&0xffff,
+                dsp_st>>16,
+                x_scale/100,
+                x_scale%100,
+                y_scale/100,
+                y_scale%100,
+                format);
 
 }
 
@@ -967,8 +1009,19 @@ static ssize_t dump_win2_disp_info(struct rk30_lcdc_device *lcdc_dev,char *buf)
         x_dsp = dsp_info&0xffff;
         y_dsp = dsp_info>>16;
 
-        return snprintf(buf,PAGE_SIZE,"xvir:%d\nxdsp:%d\nydsp:%d\nx_st:%d\ny_st:%d\nformat:%s\n",
-                xvir,x_dsp,y_dsp,dsp_st&0xffff,dsp_st>>16,format);
+        return snprintf(buf,PAGE_SIZE,
+		"xvir:%d\n"
+		"xdsp:%d\n"
+		"ydsp:%d\n"
+		"x_st:%d\n"
+		"y_st:%d\n"
+		"format:%s\n",
+                xvir,
+                x_dsp,
+                y_dsp,
+                dsp_st&0xffff,
+                dsp_st>>16,
+                format);
 }
 
 static ssize_t  rk30_lcdc_get_disp_info(struct rk_lcdc_device_driver *dev_drv,char *buf,int layer_id)
