@@ -67,7 +67,7 @@
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <debug.h>
 #include <hcf.h>
