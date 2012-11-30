@@ -676,8 +676,10 @@ static int write_exec(struct page_collect *pcol)
 	return 0;
 
 err:
-	_unlock_pcol_pages(pcol, ret, WRITE);
-	pcol_free(pcol);
+	if (!pcol_copy) /* Failed before ownership transfer */
+		pcol_copy = pcol;
+	_unlock_pcol_pages(pcol_copy, ret, WRITE);
+	pcol_free(pcol_copy);
 	kfree(pcol_copy);
 
 	return ret;
