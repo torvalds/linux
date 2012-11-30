@@ -87,6 +87,15 @@ static DECLARE_WORK(uas_work, uas_do_work);
 static DEFINE_SPINLOCK(uas_work_lock);
 static LIST_HEAD(uas_work_list);
 
+static void uas_unlink_data_urbs(struct uas_dev_info *devinfo,
+				 struct uas_cmd_info *cmdinfo)
+{
+	if (cmdinfo->data_in_urb)
+		usb_unlink_urb(cmdinfo->data_in_urb);
+	if (cmdinfo->data_out_urb)
+		usb_unlink_urb(cmdinfo->data_out_urb);
+}
+
 static void uas_do_work(struct work_struct *work)
 {
 	struct uas_cmd_info *cmdinfo;
@@ -274,16 +283,9 @@ static void uas_stat_cmplt(struct urb *urb)
 			uas_sense(urb, cmnd);
 		if (cmnd->result != 0) {
 			/* cancel data transfers on error */
-			if (cmdinfo->state & DATA_IN_URB_INFLIGHT) {
-				spin_unlock_irqrestore(&devinfo->lock, flags);
-				usb_unlink_urb(cmdinfo->data_in_urb);
-				spin_lock_irqsave(&devinfo->lock, flags);
-			}
-			if (cmdinfo->state & DATA_OUT_URB_INFLIGHT) {
-				spin_unlock_irqrestore(&devinfo->lock, flags);
-				usb_unlink_urb(cmdinfo->data_out_urb);
-				spin_lock_irqsave(&devinfo->lock, flags);
-			}
+			spin_unlock_irqrestore(&devinfo->lock, flags);
+			uas_unlink_data_urbs(devinfo, cmdinfo);
+			spin_lock_irqsave(&devinfo->lock, flags);
 		}
 		cmdinfo->state &= ~COMMAND_INFLIGHT;
 		uas_try_complete(cmnd, __func__);
