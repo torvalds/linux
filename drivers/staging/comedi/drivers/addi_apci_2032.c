@@ -37,23 +37,24 @@
 /*
  * PCI bar 1 I/O Register map
  */
-#define APCI2032_DIGITAL_OP				0
-#define APCI2032_DIGITAL_OP_RW				0
-#define APCI2032_DIGITAL_OP_INTERRUPT			4
-#define APCI2032_DIGITAL_OP_INTERRUPT_STATUS		8
-#define APCI2032_DIGITAL_OP_IRQ				12
-
-#define APCI2032_DIGITAL_OP_VCC_INTERRUPT_ENABLE	0x1
-#define APCI2032_DIGITAL_OP_VCC_INTERRUPT_DISABLE	0xfffffffe
-#define APCI2032_DIGITAL_OP_CC_INTERRUPT_ENABLE		0x2
-#define APCI2032_DIGITAL_OP_CC_INTERRUPT_DISABLE	0xfffffffd
-
-#define APCI2032_DIGITAL_OP_WATCHDOG			16
-#define APCI2032_TCW_RELOAD_VALUE			4
-#define APCI2032_TCW_TIMEBASE				8
-#define APCI2032_TCW_PROG				12
-#define APCI2032_TCW_TRIG_STATUS			16
-#define APCI2032_TCW_IRQ				20
+#define APCI2032_DO_REG			0x00
+#define APCI2032_INT_CTRL_REG		0x04
+#define APCI2032_INT_CTRL_VCC_ENA	(1 << 0)
+#define APCI2032_INT_CTRL_CC_ENA	(1 << 1)
+#define APCI2032_INT_STATUS_REG		0x08
+#define APCI2032_INT_STATUS_VCC		(1 << 0)
+#define APCI2032_INT_STATUS_CC		(1 << 1)
+#define APCI2032_STATUS_REG		0x0c
+#define APCI2032_STATUS_IRQ		(1 << 0)
+#define APCI2032_WDOG_REG		0x10
+#define APCI2032_WDOG_RELOAD_REG	0x14
+#define APCI2032_WDOG_TIMEBASE		0x18
+#define APCI2032_WDOG_CTRL_REG		0x1c
+#define APCI2032_WDOG_CTRL_ENABLE	(1 << 0)
+#define APCI2032_WDOG_CTRL_SW_TRIG	(1 << 9)
+#define APCI2032_WDOG_STATUS_REG	0x20
+#define APCI2032_WDOG_STATUS_ENABLED	(1 << 0)
+#define APCI2032_WDOG_STATUS_SW_TRIG	(1 << 1)
 
 static unsigned int ui_InterruptData, ui_Type;
 
@@ -71,28 +72,26 @@ static int i_APCI2032_ConfigDigitalOutput(struct comedi_device *dev,
 		comedi_error(dev,
 			"Not a valid Data !!! ,Data should be 1 or 0\n");
 		return -EINVAL;
-	}			/* if  ( (data[0]!=0) && (data[0]!=1) ) */
-	if (data[0]) {
-		devpriv->b_OutputMemoryStatus = ADDIDATA_ENABLE;
-	}			/*  if  (data[0]) */
-	else {
-		devpriv->b_OutputMemoryStatus = ADDIDATA_DISABLE;
-	}			/* else if  (data[0]) */
+	}
 
-	if (data[1] == ADDIDATA_ENABLE) {
-		ul_Command = ul_Command | 0x1;
-	}			/* if  (data[1] == ADDIDATA_ENABLE) */
-	else {
-		ul_Command = ul_Command & 0xFFFFFFFE;
-	}			/* elseif  (data[1] == ADDIDATA_ENABLE) */
-	if (data[2] == ADDIDATA_ENABLE) {
-		ul_Command = ul_Command | 0x2;
-	}			/* if  (data[2] == ADDIDATA_ENABLE) */
-	else {
-		ul_Command = ul_Command & 0xFFFFFFFD;
-	}			/* elseif  (data[2] == ADDIDATA_ENABLE) */
-	outl(ul_Command, dev->iobase + APCI2032_DIGITAL_OP_INTERRUPT);
-	ui_InterruptData = inl(dev->iobase + APCI2032_DIGITAL_OP_INTERRUPT);
+	if (data[0])
+		devpriv->b_OutputMemoryStatus = ADDIDATA_ENABLE;
+	else
+		devpriv->b_OutputMemoryStatus = ADDIDATA_DISABLE;
+
+	if (data[1] == ADDIDATA_ENABLE)
+		ul_Command |= APCI2032_INT_CTRL_VCC_ENA;
+	else
+		ul_Command &= ~APCI2032_INT_CTRL_VCC_ENA;
+
+	if (data[2] == ADDIDATA_ENABLE)
+		ul_Command |= APCI2032_INT_CTRL_CC_ENA;
+	else
+		ul_Command &= ~APCI2032_INT_CTRL_CC_ENA;
+
+	outl(ul_Command, dev->iobase + APCI2032_INT_CTRL_REG);
+	ui_InterruptData = inl(dev->iobase + APCI2032_INT_CTRL_REG);
+
 	return insn->n;
 }
 
@@ -104,12 +103,12 @@ static int apci2032_do_insn_bits(struct comedi_device *dev,
 	unsigned int mask = data[0];
 	unsigned int bits = data[1];
 
-	s->state = inl(dev->iobase + APCI2032_DIGITAL_OP_RW);
+	s->state = inl(dev->iobase + APCI2032_DO_REG);
 	if (mask) {
 		s->state &= ~mask;
 		s->state |= (bits & mask);
 
-		outl(s->state, dev->iobase + APCI2032_DIGITAL_OP);
+		outl(s->state, dev->iobase + APCI2032_DO_REG);
 	}
 
 	data[1] = s->state;
@@ -124,13 +123,9 @@ static int i_APCI2032_ConfigWatchdog(struct comedi_device *dev,
 {
 	if (data[0] == 0) {
 		/* Disable the watchdog */
-		outl(0x0,
-			dev->iobase + APCI2032_DIGITAL_OP_WATCHDOG +
-			APCI2032_TCW_PROG);
+		outl(0x0, dev->iobase + APCI2032_WDOG_CTRL_REG);
 		/* Loading the Reload value */
-		outl(data[1],
-			dev->iobase + APCI2032_DIGITAL_OP_WATCHDOG +
-			APCI2032_TCW_RELOAD_VALUE);
+		outl(data[1], dev->iobase + APCI2032_WDOG_RELOAD_REG);
 	} else {
 		printk("\nThe input parameters are wrong\n");
 		return -EINVAL;
@@ -146,17 +141,13 @@ static int i_APCI2032_StartStopWriteWatchdog(struct comedi_device *dev,
 {
 	switch (data[0]) {
 	case 0:		/* stop the watchdog */
-		outl(0x0, dev->iobase + APCI2032_DIGITAL_OP_WATCHDOG + APCI2032_TCW_PROG);	/* disable the watchdog */
+		outl(0x0, dev->iobase + APCI2032_WDOG_CTRL_REG);
 		break;
 	case 1:		/* start the watchdog */
-		outl(0x0001,
-			dev->iobase + APCI2032_DIGITAL_OP_WATCHDOG +
-			APCI2032_TCW_PROG);
+		outl(0x0001, dev->iobase + APCI2032_WDOG_CTRL_REG);
 		break;
 	case 2:		/* Software trigger */
-		outl(0x0201,
-			dev->iobase + APCI2032_DIGITAL_OP_WATCHDOG +
-			APCI2032_TCW_PROG);
+		outl(0x0201, dev->iobase + APCI2032_WDOG_CTRL_REG);
 		break;
 	default:
 		printk("\nSpecified functionality does not exist\n");
@@ -170,9 +161,7 @@ static int i_APCI2032_ReadWatchdog(struct comedi_device *dev,
 				   struct comedi_insn *insn,
 				   unsigned int *data)
 {
-	data[0] =
-		inl(dev->iobase + APCI2032_DIGITAL_OP_WATCHDOG +
-		APCI2032_TCW_TRIG_STATUS) & 0x1;
+	data[0] = inl(dev->iobase + APCI2032_WDOG_STATUS_REG) & 0x1;
 	return insn->n;
 }
 
@@ -184,39 +173,28 @@ static int i_APCI2032_ReadInterruptStatus(struct comedi_device *dev,
 	*data = ui_Type;
 	return insn->n;
 }
+
 static void v_APCI2032_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_DO;
 
-	ui_DO = inl(dev->iobase + APCI2032_DIGITAL_OP_IRQ) & 0x1;	/* Check if VCC OR CC interrupt has occurred. */
+	/* Check if VCC OR CC interrupt has occurred */
+	ui_DO = inl(dev->iobase + APCI2032_STATUS_REG) & APCI2032_STATUS_IRQ;
 
 	if (ui_DO == 0) {
 		printk("\nInterrupt from unKnown source\n");
 	}			/*  if(ui_DO==0) */
 	if (ui_DO) {
 		/*  Check for Digital Output interrupt Type - 1: Vcc interrupt 2: CC interrupt. */
-		ui_Type =
-			inl(dev->iobase +
-			APCI2032_DIGITAL_OP_INTERRUPT_STATUS) & 0x3;
-		outl(0x0,
-			dev->iobase + APCI2032_DIGITAL_OP +
-			APCI2032_DIGITAL_OP_INTERRUPT);
-		if (ui_Type == 1) {
-			/* Sends signal to user space */
+		ui_Type = inl(dev->iobase + APCI2032_INT_STATUS_REG);
+		ui_Type &= (APCI2032_INT_STATUS_VCC | APCI2032_INT_STATUS_CC);
+		outl(0x0, dev->iobase + APCI2032_INT_CTRL_REG);
+
+		if (ui_Type)
 			send_sig(SIGIO, devpriv->tsk_Current, 0);
-		}		/*  if (ui_Type==1) */
-		else {
-			if (ui_Type == 2) {
-				/*  Sends signal to user space */
-				send_sig(SIGIO, devpriv->tsk_Current, 0);
-			}	/* if (ui_Type==2) */
-		}		/* else if (ui_Type==1) */
-	}			/* if(ui_DO) */
-
-	return;
-
+	}
 }
 
 static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
@@ -231,10 +209,10 @@ static int apci2032_reset(struct comedi_device *dev)
 
 	devpriv->b_DigitalOutputRegister = 0;
 	ui_Type = 0;
-	outl(0x0, dev->iobase + APCI2032_DIGITAL_OP);
-	outl(0x0, dev->iobase + APCI2032_DIGITAL_OP_INTERRUPT);
-	outl(0x0, dev->iobase + APCI2032_DIGITAL_OP_WATCHDOG + APCI2032_TCW_PROG);
-	outl(0x0, dev->iobase + APCI2032_DIGITAL_OP_WATCHDOG + APCI2032_TCW_RELOAD_VALUE);
+	outl(0x0, dev->iobase + APCI2032_DO_REG);
+	outl(0x0, dev->iobase + APCI2032_INT_CTRL_REG);
+	outl(0x0, dev->iobase + APCI2032_WDOG_CTRL_REG);
+	outl(0x0, dev->iobase + APCI2032_WDOG_RELOAD_REG);
 
 	return 0;
 }
