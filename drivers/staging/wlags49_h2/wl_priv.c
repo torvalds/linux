@@ -136,27 +136,27 @@ int wvlan_uil(struct uilreq *urq, struct wl_private *lp)
 	DBG_ENTER(DbgInfo);
 
 	switch (urq->command) {
-	  case UIL_FUN_CONNECT:
+	case UIL_FUN_CONNECT:
 		DBG_TRACE(DbgInfo, "IOCTL: WVLAN2_IOCTL_UIL -- WVLAN2_UIL_CONNECT\n");
 		ioctl_ret = wvlan_uil_connect(urq, lp);
 		break;
-	  case UIL_FUN_DISCONNECT:
+	case UIL_FUN_DISCONNECT:
 		DBG_TRACE(DbgInfo, "IOCTL: WVLAN2_IOCTL_UIL -- WVLAN2_UIL_DISCONNECT\n");
 		ioctl_ret = wvlan_uil_disconnect(urq, lp);
 		break;
-	  case UIL_FUN_ACTION:
+	case UIL_FUN_ACTION:
 		DBG_TRACE(DbgInfo, "IOCTL: WVLAN2_IOCTL_UIL -- WVLAN2_UIL_ACTION\n");
 		ioctl_ret = wvlan_uil_action(urq, lp);
 		break;
-	  case UIL_FUN_SEND_DIAG_MSG:
+	case UIL_FUN_SEND_DIAG_MSG:
 		DBG_TRACE(DbgInfo, "IOCTL: WVLAN2_IOCTL_UIL -- WVLAN2_UIL_SEND_DIAG_MSG\n");
 		ioctl_ret = wvlan_uil_send_diag_msg(urq, lp);
 		break;
-	  case UIL_FUN_GET_INFO:
+	case UIL_FUN_GET_INFO:
 		DBG_TRACE(DbgInfo, "IOCTL: WVLAN2_IOCTL_UIL -- WVLAN2_UIL_GET_INFO\n");
 		ioctl_ret = wvlan_uil_get_info(urq, lp);
 		break;
-	  case UIL_FUN_PUT_INFO:
+	case UIL_FUN_PUT_INFO:
 		DBG_TRACE(DbgInfo, "IOCTL: WVLAN2_IOCTL_UIL -- WVLAN2_UIL_PUT_INFO\n");
 		ioctl_ret = wvlan_uil_put_info(urq, lp);
 		break;
@@ -2047,22 +2047,22 @@ int wvlan_rts(struct rtsreq *rrq, __u32 io_base)
 	DBG_PRINT("io_base: 0x%08x\n", io_base);
 
 	switch (rrq->typ) {
-	  case WL_IOCTL_RTS_READ:
+	case WL_IOCTL_RTS_READ:
 		DBG_TRACE(DbgInfo, "IOCTL: WVLAN2_IOCTL_RTS -- WL_IOCTL_RTS_READ\n");
 		rrq->data[0] = IN_PORT_WORD(io_base + rrq->reg);
 		DBG_TRACE(DbgInfo, "  reg 0x%04x ==> 0x%04x\n", rrq->reg, CNV_LITTLE_TO_SHORT(rrq->data[0]));
 		break;
-	  case WL_IOCTL_RTS_WRITE:
+	case WL_IOCTL_RTS_WRITE:
 		DBG_TRACE(DbgInfo, "IOCTL: WVLAN2_IOCTL_RTS -- WL_IOCTL_RTS_WRITE\n");
 		OUT_PORT_WORD(io_base + rrq->reg, rrq->data[0]);
 		DBG_TRACE(DbgInfo, "  reg 0x%04x <== 0x%04x\n", rrq->reg, CNV_LITTLE_TO_SHORT(rrq->data[0]));
 		break;
-	  case WL_IOCTL_RTS_BATCH_READ:
+	case WL_IOCTL_RTS_BATCH_READ:
 		DBG_TRACE(DbgInfo, "IOCTL: WVLAN2_IOCTL_RTS -- WL_IOCTL_RTS_BATCH_READ\n");
 		IN_PORT_STRING_16(io_base + rrq->reg, rrq->data, rrq->len);
 		DBG_TRACE(DbgInfo, "  reg 0x%04x ==> %d bytes\n", rrq->reg, rrq->len * sizeof(__u16));
 		break;
-	  case WL_IOCTL_RTS_BATCH_WRITE:
+	case WL_IOCTL_RTS_BATCH_WRITE:
 		DBG_TRACE(DbgInfo, "IOCTL: WVLAN2_IOCTL_RTS -- WL_IOCTL_RTS_BATCH_WRITE\n");
 		OUT_PORT_STRING_16(io_base + rrq->reg, rrq->data, rrq->len);
 		DBG_TRACE(DbgInfo, "  reg 0x%04x <== %d bytes\n", rrq->reg, rrq->len * sizeof(__u16));
