@@ -170,6 +170,7 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
         c->choose_local_tries = 2;
         c->choose_local_fallback_tries = 5;
         c->choose_total_tries = 19;
+	c->chooseleaf_descend_once = 0;
 
 	ceph_decode_need(p, end, 4*sizeof(u32), bad);
 	magic = ceph_decode_32(p);
@@ -335,6 +336,11 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
              c->choose_local_fallback_tries);
         dout("crush decode tunable choose_total_tries = %d",
              c->choose_total_tries);
+
+	ceph_decode_need(p, end, sizeof(u32), done);
+	c->chooseleaf_descend_once = ceph_decode_32(p);
+	dout("crush decode tunable chooseleaf_descend_once = %d",
+	     c->chooseleaf_descend_once);
 
 done:
 	dout("crush_decode success\n");
