@@ -7,8 +7,6 @@
  * of the License.
  */
 
-#if (defined(__i386__) || defined(__x86_64__)) && !defined(__arch_um__)
-
 #include <linux/raid/pq.h>
 #include "x86.h"
 
@@ -332,5 +330,3 @@ const struct raid6_recov_calls raid6_recov_ssse3 = {
 #endif
 	.priority = 1,
 };
-
-#endif

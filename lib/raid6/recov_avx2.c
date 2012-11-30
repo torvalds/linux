@@ -8,8 +8,6 @@
  * of the License.
  */
 
-#if (defined(__i386__) || defined(__x86_64__)) && !defined(__arch_um__)
-
 #if CONFIG_AS_AVX2
 
 #include <linux/raid/pq.h>
@@ -322,6 +320,4 @@ const struct raid6_recov_calls raid6_recov_avx2 = {
 
 #else
 #warning "your version of binutils lacks AVX2 support"
-#endif
-
 #endif
