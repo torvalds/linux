@@ -13,8 +13,6 @@
 #include <linux/aer.h>
 #include <linux/log2.h>
 
-#include <linux/sysfs.h>
-
 int qlcnicvf_config_bridged_mode(struct qlcnic_adapter *adapter, u32 enable)
 {
 	return -EOPNOTSUPP;
