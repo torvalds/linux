@@ -1411,7 +1411,7 @@ static int smsc75xx_suspend(struct usb_interface *intf, pm_message_t message)
 	int ret;
 
 	ret = usbnet_suspend(intf, message);
-	check_warn_goto_done(ret, "usbnet_suspend error\n");
+	check_warn_return(ret, "usbnet_suspend error\n");
 
 	if (pdata->suspend_flags) {
 		netdev_warn(dev->net, "error during last resume\n");
