@@ -1349,27 +1349,6 @@ static int rbd_req_sync_notify_ack(struct rbd_device *rbd_dev,
 	return ret;
 }
 
-static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
-{
-	struct rbd_device *rbd_dev = (struct rbd_device *)data;
-	u64 hver;
-	int rc;
-
-	if (!rbd_dev)
-		return;
-
-	dout("rbd_watch_cb %s notify_id=%llu opcode=%u\n",
-		rbd_dev->header_name, (unsigned long long) notify_id,
-		(unsigned int) opcode);
-	rc = rbd_dev_refresh(rbd_dev, &hver);
-	if (rc)
-		rbd_warn(rbd_dev, "got notification but failed to "
-			   " update snaps: %d\n", rc);
-
-	rbd_req_sync_notify_ack(rbd_dev, hver, notify_id);
-}
-
-
 /*
  * Synchronous osd object method call
  */
@@ -1468,6 +1447,7 @@ static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
 	case CEPH_OSD_OP_WRITE:
 		rbd_osd_write_callback(obj_request, op);
 		break;
+	case CEPH_OSD_OP_NOTIFY_ACK:
 	case CEPH_OSD_OP_WATCH:
 		rbd_osd_trivial_callback(obj_request, op);
 		break;
@@ -1835,6 +1815,60 @@ static int rbd_img_request_submit(struct rbd_img_request *img_request)
 	}
 
 	return 0;
+}
+
+static int rbd_obj_notify_ack_sync(struct rbd_device *rbd_dev,
+				   u64 ver, u64 notify_id)
+{
+	struct rbd_obj_request *obj_request;
+	struct ceph_osd_req_op *op;
+	struct ceph_osd_client *osdc;
+	int ret;
+
+	obj_request = rbd_obj_request_create(rbd_dev->header_name, 0, 0,
+							OBJ_REQUEST_NODATA);
+	if (!obj_request)
+		return -ENOMEM;
+
+	ret = -ENOMEM;
+	op = rbd_osd_req_op_create(CEPH_OSD_OP_NOTIFY_ACK, notify_id, ver);
+	if (!op)
+		goto out;
+	obj_request->osd_req = rbd_osd_req_create(rbd_dev, false,
+						obj_request, op);
+	rbd_osd_req_op_destroy(op);
+	if (!obj_request->osd_req)
+		goto out;
+
+	osdc = &rbd_dev->rbd_client->client->osdc;
+	ret = rbd_obj_request_submit(osdc, obj_request);
+	if (!ret)
+		ret = rbd_obj_request_wait(obj_request);
+out:
+	rbd_obj_request_put(obj_request);
+
+	return ret;
+}
+
+static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
+{
+	struct rbd_device *rbd_dev = (struct rbd_device *)data;
+	u64 hver;
+	int rc;
+
+	if (!rbd_dev)
+		return;
+
+	dout("rbd_watch_cb %s notify_id=%llu opcode=%u\n",
+		rbd_dev->header_name, (unsigned long long) notify_id,
+		(unsigned int) opcode);
+	rc = rbd_dev_refresh(rbd_dev, &hver);
+	if (rc)
+		rbd_warn(rbd_dev, "got notification but failed to "
+			   " update snaps: %d\n", rc);
+
+	(void) rbd_req_sync_notify_ack;	/* avoid a warning */
+	rbd_obj_notify_ack_sync(rbd_dev, hver, notify_id);
 }
 
 /*
