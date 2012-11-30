@@ -463,7 +463,7 @@ int mwifiex_enable_hs(struct mwifiex_adapter *adapter)
 	}
 
 	if (adapter->hs_activated) {
-		dev_dbg(adapter->dev, "cmd: HS Already actived\n");
+		dev_dbg(adapter->dev, "cmd: HS Already activated\n");
 		return true;
 	}
 
