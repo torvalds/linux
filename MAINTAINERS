@@ -7454,8 +7454,7 @@ S:	Maintained
 F:	drivers/net/ethernet/dec/tulip/
 
 TUN/TAP driver
-M:	Maxim Krasnyansky <maxk@qualcomm.com>
-L:	vtun@office.satix.net
+M:	Maxim Krasnyansky <maxk@qti.qualcomm.com>
 W:	http://vtun.sourceforge.net/tun
 S:	Maintained
 F:	Documentation/networking/tuntap.txt
