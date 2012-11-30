@@ -2,8 +2,6 @@
 # Makefile for the industrial I/O core.
 #
 
-obj-$(CONFIG_IIO_SW_RING) += ring_sw.o
-
 obj-$(CONFIG_IIO_SIMPLE_DUMMY) += iio_dummy.o
 iio_dummy-y := iio_simple_dummy.o
 iio_dummy-$(CONFIG_IIO_SIMPLE_DUMMY_EVENTS) += iio_simple_dummy_events.o
