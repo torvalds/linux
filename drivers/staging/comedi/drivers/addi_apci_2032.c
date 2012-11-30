@@ -54,8 +54,6 @@
 #define APCI2032_WDOG_STATUS_ENABLED	(1 << 0)
 #define APCI2032_WDOG_STATUS_SW_TRIG	(1 << 1)
 
-static unsigned int ui_InterruptData, ui_Type;
-
 struct apci2032_private {
 	unsigned int wdog_ctrl;
 };
@@ -156,75 +154,106 @@ static int apci2032_wdog_insn_read(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int i_APCI2032_ConfigDigitalOutput(struct comedi_device *dev,
-					  struct comedi_subdevice *s,
-					  struct comedi_insn *insn,
-					  unsigned int *data)
+static int apci2032_int_insn_bits(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
-	unsigned int ul_Command = 0;
-
-	if ((data[0] != 0) && (data[0] != 1)) {
-		comedi_error(dev,
-			"Not a valid Data !!! ,Data should be 1 or 0\n");
-		return -EINVAL;
-	}
-
-	if (data[1] == 1)
-		ul_Command |= APCI2032_INT_CTRL_VCC_ENA;
-	else
-		ul_Command &= ~APCI2032_INT_CTRL_VCC_ENA;
-
-	if (data[2] == 1)
-		ul_Command |= APCI2032_INT_CTRL_CC_ENA;
-	else
-		ul_Command &= ~APCI2032_INT_CTRL_CC_ENA;
-
-	outl(ul_Command, dev->iobase + APCI2032_INT_CTRL_REG);
-	ui_InterruptData = inl(dev->iobase + APCI2032_INT_CTRL_REG);
-
+	data[1] = s->state;
 	return insn->n;
 }
 
-static int i_APCI2032_ReadInterruptStatus(struct comedi_device *dev,
-					  struct comedi_subdevice *s,
-					  struct comedi_insn *insn,
-					  unsigned int *data)
+static int apci2032_int_cmdtest(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_cmd *cmd)
 {
-	*data = ui_Type;
-	return insn->n;
+	int err = 0;
+
+	/* Step 1 : check if triggers are trivially valid */
+
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_OTHER);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_NONE);
+
+	if (err)
+		return 1;
+
+	/* Step 2a : make sure trigger sources are unique */
+	/* Step 2b : and mutually compatible */
+
+	if (err)
+		return 2;
+
+	/* Step 3: check if arguments are trivially valid */
+
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+
+	/*
+	 * 0 == no trigger
+	 * 1 == trigger on VCC interrupt
+	 * 2 == trigger on CC interrupt
+	 * 3 == trigger on either VCC or CC interrupt
+	 */
+	err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg, 3);
+
+	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, 1);
+	err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+
+	if (err)
+		return 3;
+
+	/* step 4: ignored */
+
+	if (err)
+		return 4;
+
+	return 0;
 }
 
-static void v_APCI2032_Interrupt(int irq, void *d)
+static int apci2032_int_cmd(struct comedi_device *dev,
+			    struct comedi_subdevice *s)
+{
+	struct comedi_cmd *cmd = &s->async->cmd;
+
+	outl(cmd->scan_begin_arg, dev->iobase + APCI2032_INT_CTRL_REG);
+
+	return 0;
+}
+
+static int apci2032_int_cancel(struct comedi_device *dev,
+			       struct comedi_subdevice *s)
+{
+	outl(0x0, dev->iobase + APCI2032_INT_CTRL_REG);
+
+	return 0;
+}
+
+static irqreturn_t apci2032_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	unsigned int ui_DO;
+	struct comedi_subdevice *s = dev->read_subdev;
+	unsigned int val;
 
 	/* Check if VCC OR CC interrupt has occurred */
-	ui_DO = inl(dev->iobase + APCI2032_STATUS_REG) & APCI2032_STATUS_IRQ;
+	val = inl(dev->iobase + APCI2032_STATUS_REG) & APCI2032_STATUS_IRQ;
+	if (!val)
+		return IRQ_NONE;
 
-	if (ui_DO == 0) {
-		printk("\nInterrupt from unKnown source\n");
-	}			/*  if(ui_DO==0) */
-	if (ui_DO) {
-		/*  Check for Digital Output interrupt Type - 1: Vcc interrupt 2: CC interrupt. */
-		ui_Type = inl(dev->iobase + APCI2032_INT_STATUS_REG);
-		ui_Type &= (APCI2032_INT_STATUS_VCC | APCI2032_INT_STATUS_CC);
-		outl(0x0, dev->iobase + APCI2032_INT_CTRL_REG);
+	s->state = inl(dev->iobase + APCI2032_INT_STATUS_REG);
+	outl(0x0, dev->iobase + APCI2032_INT_CTRL_REG);
 
-		if (ui_Type)
-			; /* send an event to indicate the interrupt */
-	}
-}
+	comedi_buf_put(s->async, s->state);
+	s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
+	comedi_event(dev, s);
 
-static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
-{
-	v_APCI2032_Interrupt(irq, d);
-	return IRQ_RETVAL(1);
+	return IRQ_HANDLED;
 }
 
 static int apci2032_reset(struct comedi_device *dev)
 {
-	ui_Type = 0;
 	outl(0x0, dev->iobase + APCI2032_DO_REG);
 	outl(0x0, dev->iobase + APCI2032_INT_CTRL_REG);
 	outl(0x0, dev->iobase + APCI2032_WDOG_CTRL_REG);
@@ -254,13 +283,13 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 	dev->iobase = pci_resource_start(pcidev, 1);
 
 	if (pcidev->irq > 0) {
-		ret = request_irq(pcidev->irq, v_ADDI_Interrupt, IRQF_SHARED,
-				  dev->board_name, dev);
+		ret = request_irq(pcidev->irq, apci2032_interrupt,
+				  IRQF_SHARED, dev->board_name, dev);
 		if (ret == 0)
 			dev->irq = pcidev->irq;
 	}
 
-	ret = comedi_alloc_subdevices(dev, 2);
+	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
 		return ret;
 
@@ -271,9 +300,7 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 	s->n_chan	= 32;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
-	s->insn_config	= i_APCI2032_ConfigDigitalOutput;
 	s->insn_bits	= apci2032_do_insn_bits;
-	s->insn_read	= i_APCI2032_ReadInterruptStatus;
 
 	/* Initialize the watchdog subdevice */
 	s = &dev->subdevices[1];
@@ -284,6 +311,23 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 	s->insn_write	= apci2032_wdog_insn_write;
 	s->insn_read	= apci2032_wdog_insn_read;
 	s->insn_config	= apci2032_wdog_insn_config;
+
+	/* Initialize the interrupt subdevice */
+	s = &dev->subdevices[2];
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->type		= COMEDI_SUBD_DI | SDF_CMD_READ;
+		s->subdev_flags	= SDF_READABLE;
+		s->n_chan	= 1;
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->insn_bits	= apci2032_int_insn_bits;
+		s->do_cmdtest	= apci2032_int_cmdtest;
+		s->do_cmd	= apci2032_int_cmd;
+		s->cancel	= apci2032_int_cancel;
+	} else {
+		s->type		= COMEDI_SUBD_UNUSED;
+	}
 
 	apci2032_reset(dev);
 	return 0;
