@@ -456,31 +456,19 @@ int __devinit bmdevs_of_probe(struct device *dev,
 			      struct device_node *np,
 			      struct abx500_bm_data **battery)
 {
-	struct abx500_battery_type *btype;
+	struct batres_vs_temp *tmp_batres_tbl;
 	struct device_node *np_bat_supply;
 	struct abx500_bm_data *bat;
 	const char *btech;
-	int i, thermistor;
+	int i;
 
 	*battery = &ab8500_bm_data;
 
 	/* get phandle to 'battery-info' node */
 	np_bat_supply = of_parse_phandle(np, "battery", 0);
 	if (!np_bat_supply) {
-		dev_err(dev, "missing property battery\n");
+		dev_err(dev, "battery node or reference missing\n");
 		return -EINVAL;
-	}
-
-	if (of_property_read_bool(np_bat_supply, "thermistor-on-batctrl"))
-		thermistor = NTC_INTERNAL;
-	else
-		thermistor = NTC_EXTERNAL;
-
-	bat = *battery;
-	if (thermistor == NTC_EXTERNAL) {
-		bat->n_btypes  = 4;
-		bat->bat_type  = bat_type_ext_thermistor;
-		bat->adc_therm = ABx500_ADC_THERM_BATTEMP;
 	}
 
 	btech = of_get_property(np_bat_supply, "stericsson,battery-type", NULL);
@@ -488,6 +476,9 @@ int __devinit bmdevs_of_probe(struct device *dev,
 		dev_warn(dev, "missing property battery-name/type\n");
 		return -EINVAL;
 	}
+
+	bat = *battery;
+
 	if (strncmp(btech, "LION", 4) == 0) {
 		bat->no_maintenance  = true;
 		bat->chg_unknown_bat = true;
@@ -498,20 +489,22 @@ int __devinit bmdevs_of_probe(struct device *dev,
 		bat->bat_type[BATTERY_UNKNOWN].normal_vol_lvl	  = 4200;
 	}
 
-	/* select the battery resolution table */
-	for (i = 0; i < bat->n_btypes; ++i) {
-		btype = (bat->bat_type + i);
-		if (thermistor == NTC_EXTERNAL) {
-			btype->batres_tbl =
-				temp_to_batres_tbl_ext_thermistor;
-		} else if (strncmp(btech, "LION", 4) == 0) {
-			btype->batres_tbl =
-				temp_to_batres_tbl_9100;
-		} else {
-			btype->batres_tbl =
-				temp_to_batres_tbl_thermistor;
-		}
+	if (of_property_read_bool(np_bat_supply, "thermistor-on-batctrl")) {
+		if (strncmp(btech, "LION", 4) == 0)
+			tmp_batres_tbl = temp_to_batres_tbl_9100;
+		else
+			tmp_batres_tbl = temp_to_batres_tbl_thermistor;
+	} else {
+		bat->n_btypes   = 4;
+		bat->bat_type   = bat_type_ext_thermistor;
+		bat->adc_therm  = ABx500_ADC_THERM_BATTEMP;
+		tmp_batres_tbl  = temp_to_batres_tbl_ext_thermistor;
 	}
+
+	/* select the battery resolution table */
+	for (i = 0; i < bat->n_btypes; ++i)
+		bat->bat_type[i]->batres_tbl = tmp_batres_tbl;
+
 	of_node_put(np_bat_supply);
 
 	return 0;
