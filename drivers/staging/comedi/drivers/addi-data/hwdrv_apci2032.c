@@ -369,32 +369,3 @@ static int i_APCI2032_ReadInterruptStatus(struct comedi_device *dev,
 	*data = ui_Type;
 	return insn->n;
 }
-
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   :  int i_APCI2032_Reset(struct comedi_device *dev)			     |
-|					                                                 |
-+----------------------------------------------------------------------------+
-| Task              :Resets the registers of the card                        |
-+----------------------------------------------------------------------------+
-| Input Parameters  :                                                        |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      :                                                        |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-
-static int i_APCI2032_Reset(struct comedi_device *dev)
-{
-	struct addi_private *devpriv = dev->private;
-
-	devpriv->b_DigitalOutputRegister = 0;
-	ui_Type = 0;
-	outl(0x0, devpriv->iobase + APCI2032_DIGITAL_OP);	/* Resets the output channels */
-	outl(0x0, devpriv->iobase + APCI2032_DIGITAL_OP_INTERRUPT);	/* Disables the interrupt. */
-	outl(0x0, devpriv->iobase + APCI2032_DIGITAL_OP_WATCHDOG + APCI2032_TCW_PROG);	/* disable the watchdog */
-	outl(0x0, devpriv->iobase + APCI2032_DIGITAL_OP_WATCHDOG + APCI2032_TCW_RELOAD_VALUE);	/* reload=0 */
-	return 0;
-}

@@ -18,7 +18,6 @@ static const struct addi_board apci2032_boardtypes[] = {
 		.i_DoMaxdata		= 0xffffffff,
 		.i_Timer		= 1,
 		.interrupt		= v_APCI2032_Interrupt,
-		.reset			= i_APCI2032_Reset,
 		.do_config		= i_APCI2032_ConfigDigitalOutput,
 		.do_bits		= apci2032_do_insn_bits,
 		.do_read		= i_APCI2032_ReadInterruptStatus,
@@ -37,11 +36,17 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 	return IRQ_RETVAL(1);
 }
 
-static int i_ADDI_Reset(struct comedi_device *dev)
+static int apci2032_reset(struct comedi_device *dev)
 {
-	const struct addi_board *this_board = comedi_board(dev);
+	struct addi_private *devpriv = dev->private;
 
-	this_board->reset(dev);
+	devpriv->b_DigitalOutputRegister = 0;
+	ui_Type = 0;
+	outl(0x0, devpriv->iobase + APCI2032_DIGITAL_OP);
+	outl(0x0, devpriv->iobase + APCI2032_DIGITAL_OP_INTERRUPT);
+	outl(0x0, devpriv->iobase + APCI2032_DIGITAL_OP_WATCHDOG + APCI2032_TCW_PROG);
+	outl(0x0, devpriv->iobase + APCI2032_DIGITAL_OP_WATCHDOG + APCI2032_TCW_RELOAD_VALUE);
+
 	return 0;
 }
 
@@ -195,7 +200,7 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[6];
 	s->type = COMEDI_SUBD_UNUSED;
 
-	i_ADDI_Reset(dev);
+	apci2032_reset(dev);
 	return 0;
 }
 
@@ -206,7 +211,7 @@ static void apci2032_detach(struct comedi_device *dev)
 
 	if (devpriv) {
 		if (dev->iobase)
-			i_ADDI_Reset(dev);
+			apci2032_reset(dev);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
 		if (devpriv->dw_AiBase)
