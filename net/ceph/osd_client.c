@@ -76,8 +76,16 @@ int ceph_calc_raw_layout(struct ceph_osd_client *osdc,
 		     orig_len - *plen, off, *plen);
 
 	if (op_has_extent(op->op)) {
+		u32 osize = le32_to_cpu(layout->fl_object_size);
 		op->extent.offset = objoff;
 		op->extent.length = objlen;
+		if (op->extent.truncate_size <= off - objoff) {
+			op->extent.truncate_size = 0;
+		} else {
+			op->extent.truncate_size -= off - objoff;
+			if (op->extent.truncate_size > osize)
+				op->extent.truncate_size = osize;
+		}
 	}
 	req->r_num_pages = calc_pages_for(off, *plen);
 	req->r_page_alignment = off & ~PAGE_MASK;
