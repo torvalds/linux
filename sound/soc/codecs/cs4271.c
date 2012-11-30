@@ -481,7 +481,7 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 		gpio_nreset = of_get_named_gpio(codec->dev->of_node,
 						"reset-gpio", 0);
 
-		if (!of_get_property(codec->dev->of_node,
+		if (of_get_property(codec->dev->of_node,
 				     "cirrus,amutec-eq-bmutec", NULL))
 			amutec_eq_bmutec = true;
 	}
