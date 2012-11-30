@@ -452,9 +452,9 @@ struct abx500_bm_data ab8500_bm_data = {
 	.fg_params              = &fg,
 };
 
-int __devinit bmdevs_of_probe(struct device *dev,
-			      struct device_node *np,
-			      struct abx500_bm_data **battery)
+int __devinit ab8500_bm_of_probe(struct device *dev,
+				 struct device_node *np,
+				 struct abx500_bm_data **battery)
 {
 	struct batres_vs_temp *tmp_batres_tbl;
 	struct device_node *np_bat_supply;

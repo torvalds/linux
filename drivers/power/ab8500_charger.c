@@ -189,7 +189,7 @@ struct ab8500_charger_usb_state {
  * @autopower_cfg	platform specific power config support for "pwron after pwrloss"
  * @parent:		Pointer to the struct ab8500
  * @gpadc:		Pointer to the struct gpadc
- * @bat:		Pointer to the abx500_bm platform data
+ * @bm:           	Platform specific battery management information
  * @flags:		Structure for information about events triggered
  * @usb_state:		Structure for usb stack information
  * @ac_chg:		AC charger power supply
@@ -226,7 +226,7 @@ struct ab8500_charger {
 	bool autopower_cfg;
 	struct ab8500 *parent;
 	struct ab8500_gpadc *gpadc;
-	struct abx500_bm_data *bat;
+	struct abx500_bm_data *bm;
 	struct ab8500_charger_event_flags flags;
 	struct ab8500_charger_usb_state usb_state;
 	struct ux500_charger ac_chg;
@@ -1034,7 +1034,7 @@ static int ab8500_charger_set_vbus_in_curr(struct ab8500_charger *di,
 	int min_value;
 
 	/* We should always use to lowest current limit */
-	min_value = min(di->bat->chg_params->usb_curr_max, ich_in);
+	min_value = min(di->bm->chg_params->usb_curr_max, ich_in);
 
 	switch (min_value) {
 	case 100:
@@ -1176,7 +1176,7 @@ static int ab8500_charger_ac_en(struct ux500_charger *charger,
 		volt_index = ab8500_voltage_to_regval(vset);
 		curr_index = ab8500_current_to_regval(iset);
 		input_curr_index = ab8500_current_to_regval(
-			di->bat->chg_params->ac_curr_max);
+			di->bm->chg_params->ac_curr_max);
 		if (volt_index < 0 || curr_index < 0 || input_curr_index < 0) {
 			dev_err(di->dev,
 				"Charger voltage or current too high, "
@@ -1193,7 +1193,7 @@ static int ab8500_charger_ac_en(struct ux500_charger *charger,
 		}
 		/* MainChInputCurr: current that can be drawn from the charger*/
 		ret = ab8500_charger_set_main_in_curr(di,
-			di->bat->chg_params->ac_curr_max);
+			di->bm->chg_params->ac_curr_max);
 		if (ret) {
 			dev_err(di->dev, "%s Failed to set MainChInputCurr\n",
 				__func__);
@@ -1209,7 +1209,7 @@ static int ab8500_charger_ac_en(struct ux500_charger *charger,
 		}
 
 		/* Check if VBAT overshoot control should be enabled */
-		if (!di->bat->enable_overshoot)
+		if (!di->bm->enable_overshoot)
 			overshoot = MAIN_CH_NO_OVERSHOOT_ENA_N;
 
 		/* Enable Main Charger */
@@ -1376,7 +1376,7 @@ static int ab8500_charger_usb_en(struct ux500_charger *charger,
 			return ret;
 		}
 		/* Check if VBAT overshoot control should be enabled */
-		if (!di->bat->enable_overshoot)
+		if (!di->bm->enable_overshoot)
 			overshoot = USB_CHG_NO_OVERSHOOT_ENA_N;
 
 		/* Enable USB Charger */
@@ -2454,8 +2454,8 @@ static int ab8500_charger_init_hw_registers(struct ab8500_charger *di)
 	ret = abx500_set_register_interruptible(di->dev,
 		AB8500_RTC,
 		AB8500_RTC_BACKUP_CHG_REG,
-		di->bat->bkup_bat_v |
-		di->bat->bkup_bat_i);
+		di->bm->bkup_bat_v |
+		di->bm->bkup_bat_i);
 	if (ret) {
 		dev_err(di->dev, "failed to setup backup battery charging\n");
 		goto out;
@@ -2644,10 +2644,10 @@ static int __devinit ab8500_charger_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "%s no mem for ab8500_charger\n", __func__);
 		return -ENOMEM;
 	}
-	di->bat = pdev->mfd_cell->platform_data;
-	if (!di->bat) {
+	di->bm = pdev->mfd_cell->platform_data;
+	if (!di->bm) {
 		if (np) {
-			ret = bmdevs_of_probe(&pdev->dev, np, &di->bat);
+			ret = ab8500_bm_of_probe(&pdev->dev, np, &di->bm);
 			if (ret) {
 				dev_err(&pdev->dev,
 					"failed to get battery information\n");
