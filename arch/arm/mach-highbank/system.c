@@ -26,6 +26,7 @@ void highbank_restart(char mode, const char *cmd)
 	else
 		hignbank_set_pwr_soft_reset();
 
-	cpu_do_idle();
+	while (1)
+		cpu_do_idle();
 }
 

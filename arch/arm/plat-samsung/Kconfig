@@ -414,6 +414,11 @@ config S5P_SETUP_MIPIPHY
 	help
 	  Compile in common setup code for MIPI-CSIS and MIPI-DSIM devices
 
+config S3C_SETUP_CAMIF
+	bool
+	help
+	  Compile in common setup code for S3C CAMIF devices
+
 # DMA
 
 config S3C_DMA
