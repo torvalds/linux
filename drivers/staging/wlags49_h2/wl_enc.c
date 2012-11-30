@@ -155,7 +155,7 @@ int wl_wep_code(char *szCrypt, char *szDest, void *Data, int nLen)
 	}
 	}
 
-	return(strlen(szDest)) ;
+	return strlen(szDest);
 
 }
 /*============================================================================*/
@@ -225,7 +225,7 @@ int wl_wep_decode(char *szCrypt, void *Dest, char *szData)
 
 	}
 
-	return(i) ;
+	return i;
 
 }
 /*============================================================================*/
