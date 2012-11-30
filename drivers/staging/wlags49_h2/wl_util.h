@@ -77,9 +77,9 @@ void wl_endian_translate_event(ltv_t *pLtv);
 
 int wl_has_wep(IFBP ifbp);
 
-hcf_8   wl_parse_ds_ie(PROBE_RESP *probe_rsp);
-hcf_8 * wl_parse_wpa_ie(PROBE_RESP *probe_rsp, hcf_16 *length);
-hcf_8 * wl_print_wpa_ie(hcf_8 *buffer, int length);
+hcf_8  wl_parse_ds_ie(PROBE_RESP *probe_rsp);
+hcf_8 *wl_parse_wpa_ie(PROBE_RESP *probe_rsp, hcf_16 *length);
+hcf_8 *wl_print_wpa_ie(hcf_8 *buffer, int length);
 
 int wl_get_tallies(struct wl_private *, CFG_HERMES_TALLIES_STRCT *);
 int wl_is_a_valid_chan(int channel);
