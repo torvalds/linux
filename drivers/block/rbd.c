@@ -1135,7 +1135,7 @@ static int rbd_do_request(struct request *rq,
 		bio_get(osd_req->r_bio);
 	}
 
-	if (rbd_cb) {
+	if (coll) {
 		ret = -ENOMEM;
 		rbd_req = kmalloc(sizeof(*rbd_req), GFP_NOIO);
 		if (!rbd_req)
@@ -1146,7 +1146,7 @@ static int rbd_do_request(struct request *rq,
 		rbd_req->pages = pages;
 		rbd_req->len = len;
 		rbd_req->coll = coll;
-		rbd_req->coll_index = coll ? coll_index : 0;
+		rbd_req->coll_index = coll_index;
 	}
 
 	osd_req->r_callback = rbd_cb;
