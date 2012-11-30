@@ -930,12 +930,12 @@ static int alc_add_automute_mode_enum(struct hda_codec *codec)
  * Check the availability of HP/line-out auto-mute;
  * Set up appropriately if really supported
  */
-static void alc_init_automute(struct hda_codec *codec)
+static int alc_init_automute(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int present = 0;
-	int i;
+	int i, err;
 
 	if (cfg->hp_pins[0])
 		present++;
@@ -944,7 +944,7 @@ static void alc_init_automute(struct hda_codec *codec)
 	if (cfg->speaker_pins[0])
 		present++;
 	if (present < 2) /* need two different output types */
-		return;
+		return 0;
 
 	if (!cfg->speaker_pins[0] &&
 	    cfg->line_out_type == AUTO_PIN_SPEAKER_OUT) {
@@ -994,9 +994,13 @@ static void alc_init_automute(struct hda_codec *codec)
 	spec->automute_lo = spec->automute_lo_possible;
 	spec->automute_speaker = spec->automute_speaker_possible;
 
-	if (spec->automute_speaker_possible || spec->automute_lo_possible)
+	if (spec->automute_speaker_possible || spec->automute_lo_possible) {
 		/* create a control for automute mode */
-		alc_add_automute_mode_enum(codec);
+		err = alc_add_automute_mode_enum(codec);
+		if (err < 0)
+			return err;
+	}
+	return 0;
 }
 
 /* return the position of NID in the list, or -1 if not found */
@@ -1096,7 +1100,7 @@ static bool alc_auto_mic_check_imux(struct hda_codec *codec)
  * Check the availability of auto-mic switch;
  * Set up if really supported
  */
-static void alc_init_auto_mic(struct hda_codec *codec)
+static int alc_init_auto_mic(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
@@ -1104,7 +1108,7 @@ static void alc_init_auto_mic(struct hda_codec *codec)
 	int i;
 
 	if (spec->shared_mic_hp)
-		return; /* no auto-mic for the shared I/O */
+		return 0; /* no auto-mic for the shared I/O */
 
 	spec->ext_mic_idx = spec->int_mic_idx = spec->dock_mic_idx = -1;
 
@@ -1116,25 +1120,25 @@ static void alc_init_auto_mic(struct hda_codec *codec)
 		switch (snd_hda_get_input_pin_attr(defcfg)) {
 		case INPUT_PIN_ATTR_INT:
 			if (fixed)
-				return; /* already occupied */
+				return 0; /* already occupied */
 			if (cfg->inputs[i].type != AUTO_PIN_MIC)
-				return; /* invalid type */
+				return 0; /* invalid type */
 			fixed = nid;
 			break;
 		case INPUT_PIN_ATTR_UNUSED:
-			return; /* invalid entry */
+			return 0; /* invalid entry */
 		case INPUT_PIN_ATTR_DOCK:
 			if (dock)
-				return; /* already occupied */
+				return 0; /* already occupied */
 			if (cfg->inputs[i].type > AUTO_PIN_LINE_IN)
-				return; /* invalid type */
+				return 0; /* invalid type */
 			dock = nid;
 			break;
 		default:
 			if (ext)
-				return; /* already occupied */
+				return 0; /* already occupied */
 			if (cfg->inputs[i].type != AUTO_PIN_MIC)
-				return; /* invalid type */
+				return 0; /* invalid type */
 			ext = nid;
 			break;
 		}
@@ -1144,11 +1148,11 @@ static void alc_init_auto_mic(struct hda_codec *codec)
 		dock = 0;
 	}
 	if (!ext || !fixed)
-		return;
+		return 0;
 	if (!is_jack_detectable(codec, ext))
-		return; /* no unsol support */
+		return 0; /* no unsol support */
 	if (dock && !is_jack_detectable(codec, dock))
-		return; /* no unsol support */
+		return 0; /* no unsol support */
 
 	/* check imux indices */
 	spec->ext_mic_pin = ext;
@@ -1157,17 +1161,26 @@ static void alc_init_auto_mic(struct hda_codec *codec)
 
 	spec->auto_mic = 1;
 	if (!alc_auto_mic_check_imux(codec))
-		return;
+		return 0;
 
 	snd_printdd("realtek: Enable auto-mic switch on NID 0x%x/0x%x/0x%x\n",
 		    ext, fixed, dock);
+
+	return 0;
 }
 
 /* check the availabilities of auto-mute and auto-mic switches */
-static void alc_auto_check_switches(struct hda_codec *codec)
+static int alc_auto_check_switches(struct hda_codec *codec)
 {
-	alc_init_automute(codec);
-	alc_init_auto_mic(codec);
+	int err;
+
+	err = alc_init_automute(codec);
+	if (err < 0)
+		return err;
+	err = alc_init_auto_mic(codec);
+	if (err < 0)
+		return err;
+	return 0;
 }
 
 /*
@@ -4338,7 +4351,9 @@ static int alc_parse_auto_config(struct hda_codec *codec,
 		alc_ssid_check(codec, ssid_nids);
 
 	if (!spec->no_analog) {
-		alc_auto_check_switches(codec);
+		err = alc_auto_check_switches(codec);
+		if (err < 0)
+			return err;
 		err = alc_auto_add_mic_boost(codec);
 		if (err < 0)
 			return err;
