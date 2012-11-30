@@ -38,10 +38,10 @@ static int apci2032_reset(struct comedi_device *dev)
 
 	devpriv->b_DigitalOutputRegister = 0;
 	ui_Type = 0;
-	outl(0x0, devpriv->iobase + APCI2032_DIGITAL_OP);
-	outl(0x0, devpriv->iobase + APCI2032_DIGITAL_OP_INTERRUPT);
-	outl(0x0, devpriv->iobase + APCI2032_DIGITAL_OP_WATCHDOG + APCI2032_TCW_PROG);
-	outl(0x0, devpriv->iobase + APCI2032_DIGITAL_OP_WATCHDOG + APCI2032_TCW_RELOAD_VALUE);
+	outl(0x0, dev->iobase + APCI2032_DIGITAL_OP);
+	outl(0x0, dev->iobase + APCI2032_DIGITAL_OP_INTERRUPT);
+	outl(0x0, dev->iobase + APCI2032_DIGITAL_OP_WATCHDOG + APCI2032_TCW_PROG);
+	outl(0x0, dev->iobase + APCI2032_DIGITAL_OP_WATCHDOG + APCI2032_TCW_RELOAD_VALUE);
 
 	return 0;
 }
@@ -88,7 +88,6 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	dev->iobase = pci_resource_start(pcidev, 1);
-	devpriv->iobase = dev->iobase;
 	devpriv->i_IobaseAmcc = pci_resource_start(pcidev, 0);
 	devpriv->i_IobaseAddon = pci_resource_start(pcidev, 2);
 	devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);

@@ -138,8 +138,8 @@ static int i_APCI2032_ConfigDigitalOutput(struct comedi_device *dev,
 	else {
 		ul_Command = ul_Command & 0xFFFFFFFD;
 	}			/* elseif  (data[2] == ADDIDATA_ENABLE) */
-	outl(ul_Command, devpriv->iobase + APCI2032_DIGITAL_OP_INTERRUPT);
-	ui_InterruptData = inl(devpriv->iobase + APCI2032_DIGITAL_OP_INTERRUPT);
+	outl(ul_Command, dev->iobase + APCI2032_DIGITAL_OP_INTERRUPT);
+	ui_InterruptData = inl(dev->iobase + APCI2032_DIGITAL_OP_INTERRUPT);
 	return insn->n;
 }
 
@@ -148,16 +148,15 @@ static int apci2032_do_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
 	unsigned int mask = data[0];
 	unsigned int bits = data[1];
 
-	s->state = inl(devpriv->iobase + APCI2032_DIGITAL_OP_RW);
+	s->state = inl(dev->iobase + APCI2032_DIGITAL_OP_RW);
 	if (mask) {
 		s->state &= ~mask;
 		s->state |= (bits & mask);
 
-		outl(s->state, devpriv->iobase + APCI2032_DIGITAL_OP);
+		outl(s->state, dev->iobase + APCI2032_DIGITAL_OP);
 	}
 
 	data[1] = s->state;
@@ -190,16 +189,14 @@ static int i_APCI2032_ConfigWatchdog(struct comedi_device *dev,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
-
 	if (data[0] == 0) {
 		/* Disable the watchdog */
 		outl(0x0,
-			devpriv->iobase + APCI2032_DIGITAL_OP_WATCHDOG +
+			dev->iobase + APCI2032_DIGITAL_OP_WATCHDOG +
 			APCI2032_TCW_PROG);
 		/* Loading the Reload value */
 		outl(data[1],
-			devpriv->iobase + APCI2032_DIGITAL_OP_WATCHDOG +
+			dev->iobase + APCI2032_DIGITAL_OP_WATCHDOG +
 			APCI2032_TCW_RELOAD_VALUE);
 	} else {
 		printk("\nThe input parameters are wrong\n");
@@ -235,20 +232,18 @@ static int i_APCI2032_StartStopWriteWatchdog(struct comedi_device *dev,
 					     struct comedi_insn *insn,
 					     unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
-
 	switch (data[0]) {
 	case 0:		/* stop the watchdog */
-		outl(0x0, devpriv->iobase + APCI2032_DIGITAL_OP_WATCHDOG + APCI2032_TCW_PROG);	/* disable the watchdog */
+		outl(0x0, dev->iobase + APCI2032_DIGITAL_OP_WATCHDOG + APCI2032_TCW_PROG);	/* disable the watchdog */
 		break;
 	case 1:		/* start the watchdog */
 		outl(0x0001,
-			devpriv->iobase + APCI2032_DIGITAL_OP_WATCHDOG +
+			dev->iobase + APCI2032_DIGITAL_OP_WATCHDOG +
 			APCI2032_TCW_PROG);
 		break;
 	case 2:		/* Software trigger */
 		outl(0x0201,
-			devpriv->iobase + APCI2032_DIGITAL_OP_WATCHDOG +
+			dev->iobase + APCI2032_DIGITAL_OP_WATCHDOG +
 			APCI2032_TCW_PROG);
 		break;
 	default:
@@ -284,10 +279,8 @@ static int i_APCI2032_ReadWatchdog(struct comedi_device *dev,
 				   struct comedi_insn *insn,
 				   unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
-
 	data[0] =
-		inl(devpriv->iobase + APCI2032_DIGITAL_OP_WATCHDOG +
+		inl(dev->iobase + APCI2032_DIGITAL_OP_WATCHDOG +
 		APCI2032_TCW_TRIG_STATUS) & 0x1;
 	return insn->n;
 }
@@ -315,7 +308,7 @@ static void v_APCI2032_Interrupt(int irq, void *d)
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_DO;
 
-	ui_DO = inl(devpriv->iobase + APCI2032_DIGITAL_OP_IRQ) & 0x1;	/* Check if VCC OR CC interrupt has occurred. */
+	ui_DO = inl(dev->iobase + APCI2032_DIGITAL_OP_IRQ) & 0x1;	/* Check if VCC OR CC interrupt has occurred. */
 
 	if (ui_DO == 0) {
 		printk("\nInterrupt from unKnown source\n");
@@ -323,10 +316,10 @@ static void v_APCI2032_Interrupt(int irq, void *d)
 	if (ui_DO) {
 		/*  Check for Digital Output interrupt Type - 1: Vcc interrupt 2: CC interrupt. */
 		ui_Type =
-			inl(devpriv->iobase +
+			inl(dev->iobase +
 			APCI2032_DIGITAL_OP_INTERRUPT_STATUS) & 0x3;
 		outl(0x0,
-			devpriv->iobase + APCI2032_DIGITAL_OP +
+			dev->iobase + APCI2032_DIGITAL_OP +
 			APCI2032_DIGITAL_OP_INTERRUPT);
 		if (ui_Type == 1) {
 			/* Sends signal to user space */
