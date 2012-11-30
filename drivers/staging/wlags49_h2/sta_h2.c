@@ -4399,7 +4399,7 @@ static const CFG_PROG_STRCT fw_image_code[] = {
 		0x0186,		// sizeof(fw_image_1_data),
 		0x00000060,					// Target address in NIC Memory
 		0x0000,						// CRC: yes/no	TYPE: primary/station/tertiary
-		(hcf_8 FAR   *) fw_image_1_data
+		(hcf_8 *)fw_image_1_data
 	},
 	{
 		8,
@@ -4408,7 +4408,7 @@ static const CFG_PROG_STRCT fw_image_code[] = {
 		0x2518,		// sizeof(fw_image_2_data),
 		0x00000C16,					// Target address in NIC Memory
 		0x0000,						// CRC: yes/no	TYPE: primary/station/tertiary
-		(hcf_8 FAR   *) fw_image_2_data
+		(hcf_8 *)fw_image_2_data
 	},
 	{
 		8,
@@ -4417,7 +4417,7 @@ static const CFG_PROG_STRCT fw_image_code[] = {
 		0x3daa,		// sizeof(fw_image_3_data),
 		0x001E312E,					// Target address in NIC Memory
 		0x0000,						// CRC: yes/no	TYPE: primary/station/tertiary
-		(hcf_8 FAR   *) fw_image_3_data
+		(hcf_8 *)fw_image_3_data
 	},
 	{
 		8,
@@ -4426,7 +4426,7 @@ static const CFG_PROG_STRCT fw_image_code[] = {
 		0xaa66,		// sizeof(fw_image_4_data),
 		0x001F4000,					// Target address in NIC Memory
 		0x0000,						// CRC: yes/no	TYPE: primary/station/tertiary
-		(hcf_8 FAR   *) fw_image_4_data
+		(hcf_8 *)fw_image_4_data
 	},
 	{
 		5,
