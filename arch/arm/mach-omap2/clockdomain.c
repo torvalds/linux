@@ -22,6 +22,7 @@
 #include <linux/clk.h>
 #include <linux/limits.h>
 #include <linux/err.h>
+#include <linux/clk-provider.h>
 
 #include <linux/io.h>
 
@@ -947,35 +948,6 @@ static int _clkdm_clk_hwmod_enable(struct clockdomain *clkdm)
 	return 0;
 }
 
-static int _clkdm_clk_hwmod_disable(struct clockdomain *clkdm)
-{
-	unsigned long flags;
-
-	if (!clkdm || !arch_clkdm || !arch_clkdm->clkdm_clk_disable)
-		return -EINVAL;
-
-	spin_lock_irqsave(&clkdm->lock, flags);
-
-	if (atomic_read(&clkdm->usecount) == 0) {
-		spin_unlock_irqrestore(&clkdm->lock, flags);
-		WARN_ON(1); /* underflow */
-		return -ERANGE;
-	}
-
-	if (atomic_dec_return(&clkdm->usecount) > 0) {
-		spin_unlock_irqrestore(&clkdm->lock, flags);
-		return 0;
-	}
-
-	arch_clkdm->clkdm_clk_disable(clkdm);
-	pwrdm_state_switch(clkdm->pwrdm.ptr);
-	spin_unlock_irqrestore(&clkdm->lock, flags);
-
-	pr_debug("clockdomain: %s: disabled\n", clkdm->name);
-
-	return 0;
-}
-
 /**
  * clkdm_clk_enable - add an enabled downstream clock to this clkdm
  * @clkdm: struct clockdomain *
@@ -1018,15 +990,37 @@ int clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
  */
 int clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk)
 {
-	/*
-	 * XXX Rewrite this code to maintain a list of enabled
-	 * downstream clocks for debugging purposes?
-	 */
+	unsigned long flags;
 
-	if (!clk)
+	if (!clkdm || !clk || !arch_clkdm || !arch_clkdm->clkdm_clk_disable)
 		return -EINVAL;
 
-	return _clkdm_clk_hwmod_disable(clkdm);
+	spin_lock_irqsave(&clkdm->lock, flags);
+
+	/* corner case: disabling unused clocks */
+	if (__clk_get_enable_count(clk) == 0)
+		goto ccd_exit;
+
+	if (atomic_read(&clkdm->usecount) == 0) {
+		spin_unlock_irqrestore(&clkdm->lock, flags);
+		WARN_ON(1); /* underflow */
+		return -ERANGE;
+	}
+
+	if (atomic_dec_return(&clkdm->usecount) > 0) {
+		spin_unlock_irqrestore(&clkdm->lock, flags);
+		return 0;
+	}
+
+	arch_clkdm->clkdm_clk_disable(clkdm);
+	pwrdm_state_switch(clkdm->pwrdm.ptr);
+
+	pr_debug("clockdomain: %s: disabled\n", clkdm->name);
+
+ccd_exit:
+	spin_unlock_irqrestore(&clkdm->lock, flags);
+
+	return 0;
 }
 
 /**
@@ -1077,6 +1071,8 @@ int clkdm_hwmod_enable(struct clockdomain *clkdm, struct omap_hwmod *oh)
  */
 int clkdm_hwmod_disable(struct clockdomain *clkdm, struct omap_hwmod *oh)
 {
+	unsigned long flags;
+
 	/* The clkdm attribute does not exist yet prior OMAP4 */
 	if (cpu_is_omap24xx() || cpu_is_omap34xx())
 		return 0;
@@ -1086,9 +1082,28 @@ int clkdm_hwmod_disable(struct clockdomain *clkdm, struct omap_hwmod *oh)
 	 * downstream hwmods for debugging purposes?
 	 */
 
-	if (!oh)
+	if (!clkdm || !oh || !arch_clkdm || !arch_clkdm->clkdm_clk_disable)
 		return -EINVAL;
 
-	return _clkdm_clk_hwmod_disable(clkdm);
+	spin_lock_irqsave(&clkdm->lock, flags);
+
+	if (atomic_read(&clkdm->usecount) == 0) {
+		spin_unlock_irqrestore(&clkdm->lock, flags);
+		WARN_ON(1); /* underflow */
+		return -ERANGE;
+	}
+
+	if (atomic_dec_return(&clkdm->usecount) > 0) {
+		spin_unlock_irqrestore(&clkdm->lock, flags);
+		return 0;
+	}
+
+	arch_clkdm->clkdm_clk_disable(clkdm);
+	pwrdm_state_switch(clkdm->pwrdm.ptr);
+	spin_unlock_irqrestore(&clkdm->lock, flags);
+
+	pr_debug("clockdomain: %s: disabled\n", clkdm->name);
+
+	return 0;
 }
 

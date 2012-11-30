@@ -108,6 +108,7 @@ extern void omap2xxx_cm_apll96_disable(void);
 /* CM_CLKSEL_GFX */
 #define OMAP_CLKSEL_GFX_SHIFT				0
 #define OMAP_CLKSEL_GFX_MASK				(0x7 << 0)
+#define OMAP_CLKSEL_GFX_WIDTH				3
 
 /* CM_ICLKEN_GFX */
 #define OMAP_EN_GFX_SHIFT				0

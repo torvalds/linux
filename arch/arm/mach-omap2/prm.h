@@ -114,16 +114,25 @@ struct prm_reset_src_map {
 
 /**
  * struct prm_ll_data - fn ptrs to per-SoC PRM function implementations
- * @read_reset_sources: ptr to the Soc PRM-specific get_reset_source impl
+ * @read_reset_sources: ptr to the SoC PRM-specific get_reset_source impl
+ * @was_any_context_lost_old: ptr to the SoC PRM context loss test fn
+ * @clear_context_loss_flags_old: ptr to the SoC PRM context loss flag clear fn
+ *
+ * XXX @was_any_context_lost_old and @clear_context_loss_flags_old are
+ * deprecated.
  */
 struct prm_ll_data {
 	u32 (*read_reset_sources)(void);
+	bool (*was_any_context_lost_old)(u8 part, s16 inst, u16 idx);
+	void (*clear_context_loss_flags_old)(u8 part, s16 inst, u16 idx);
 };
 
 extern int prm_register(struct prm_ll_data *pld);
 extern int prm_unregister(struct prm_ll_data *pld);
 
 extern u32 prm_read_reset_sources(void);
+extern bool prm_was_any_context_lost_old(u8 part, s16 inst, u16 idx);
+extern void prm_clear_context_loss_flags_old(u8 part, s16 inst, u16 idx);
 
 #endif
 

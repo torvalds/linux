@@ -38,8 +38,8 @@
 
 /* needed by omap3_core_dpll_m2_set_rate() */
 struct clk *sdrc_ick_p, *arm_fck_p;
-
-int omap3_dpll4_set_rate(struct clk *clk, unsigned long rate)
+int omap3_dpll4_set_rate(struct clk_hw *hw, unsigned long rate,
+				unsigned long parent_rate)
 {
 	/*
 	 * According to the 12-5 CDP code from TI, "Limitation 2.5"
@@ -51,7 +51,7 @@ int omap3_dpll4_set_rate(struct clk *clk, unsigned long rate)
 		return -EINVAL;
 	}
 
-	return omap3_noncore_dpll_set_rate(clk, rate);
+	return omap3_noncore_dpll_set_rate(hw, rate, parent_rate);
 }
 
 void __init omap3_clk_lock_dpll5(void)

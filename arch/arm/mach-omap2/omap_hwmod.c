@@ -130,7 +130,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/io.h>
-#include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/list.h>
@@ -187,6 +187,8 @@ struct omap_hwmod_soc_ops {
 	int (*is_hardreset_asserted)(struct omap_hwmod *oh,
 				     struct omap_hwmod_rst_info *ohri);
 	int (*init_clkdm)(struct omap_hwmod *oh);
+	void (*update_context_lost)(struct omap_hwmod *oh);
+	int (*get_context_lost)(struct omap_hwmod *oh);
 };
 
 /* soc_ops: adapts the omap_hwmod code to the currently-booted SoC */
@@ -646,6 +648,19 @@ static int _disable_wakeup(struct omap_hwmod *oh, u32 *v)
 	return 0;
 }
 
+static struct clockdomain *_get_clkdm(struct omap_hwmod *oh)
+{
+	struct clk_hw_omap *clk;
+
+	if (oh->clkdm) {
+		return oh->clkdm;
+	} else if (oh->_clk) {
+		clk = to_clk_hw_omap(__clk_get_hw(oh->_clk));
+		return  clk->clkdm;
+	}
+	return NULL;
+}
+
 /**
  * _add_initiator_dep: prevent @oh from smart-idling while @init_oh is active
  * @oh: struct omap_hwmod *
@@ -661,13 +676,18 @@ static int _disable_wakeup(struct omap_hwmod *oh, u32 *v)
  */
 static int _add_initiator_dep(struct omap_hwmod *oh, struct omap_hwmod *init_oh)
 {
-	if (!oh->_clk)
+	struct clockdomain *clkdm, *init_clkdm;
+
+	clkdm = _get_clkdm(oh);
+	init_clkdm = _get_clkdm(init_oh);
+
+	if (!clkdm || !init_clkdm)
 		return -EINVAL;
 
-	if (oh->_clk->clkdm && oh->_clk->clkdm->flags & CLKDM_NO_AUTODEPS)
+	if (clkdm && clkdm->flags & CLKDM_NO_AUTODEPS)
 		return 0;
 
-	return clkdm_add_sleepdep(oh->_clk->clkdm, init_oh->_clk->clkdm);
+	return clkdm_add_sleepdep(clkdm, init_clkdm);
 }
 
 /**
@@ -685,13 +705,18 @@ static int _add_initiator_dep(struct omap_hwmod *oh, struct omap_hwmod *init_oh)
  */
 static int _del_initiator_dep(struct omap_hwmod *oh, struct omap_hwmod *init_oh)
 {
-	if (!oh->_clk)
+	struct clockdomain *clkdm, *init_clkdm;
+
+	clkdm = _get_clkdm(oh);
+	init_clkdm = _get_clkdm(init_oh);
+
+	if (!clkdm || !init_clkdm)
 		return -EINVAL;
 
-	if (oh->_clk->clkdm && oh->_clk->clkdm->flags & CLKDM_NO_AUTODEPS)
+	if (clkdm && clkdm->flags & CLKDM_NO_AUTODEPS)
 		return 0;
 
-	return clkdm_del_sleepdep(oh->_clk->clkdm, init_oh->_clk->clkdm);
+	return clkdm_del_sleepdep(clkdm, init_clkdm);
 }
 
 /**
@@ -725,7 +750,7 @@ static int _init_main_clk(struct omap_hwmod *oh)
 	 */
 	clk_prepare(oh->_clk);
 
-	if (!oh->_clk->clkdm)
+	if (!_get_clkdm(oh))
 		pr_debug("omap_hwmod: %s: missing clockdomain for %s.\n",
 			   oh->name, oh->main_clk);
 
@@ -1308,6 +1333,7 @@ static void _enable_sysc(struct omap_hwmod *oh)
 	u8 idlemode, sf;
 	u32 v;
 	bool clkdm_act;
+	struct clockdomain *clkdm;
 
 	if (!oh->class->sysc)
 		return;
@@ -1327,11 +1353,9 @@ static void _enable_sysc(struct omap_hwmod *oh)
 	v = oh->_sysc_cache;
 	sf = oh->class->sysc->sysc_flags;
 
+	clkdm = _get_clkdm(oh);
 	if (sf & SYSC_HAS_SIDLEMODE) {
-		clkdm_act = ((oh->clkdm &&
-			      oh->clkdm->flags & CLKDM_ACTIVE_WITH_MPU) ||
-			     (oh->_clk && oh->_clk->clkdm &&
-			      oh->_clk->clkdm->flags & CLKDM_ACTIVE_WITH_MPU));
+		clkdm_act = (clkdm && clkdm->flags & CLKDM_ACTIVE_WITH_MPU);
 		if (clkdm_act && !(oh->class->sysc->idlemodes &
 				   (SIDLE_SMART | SIDLE_SMART_WKUP)))
 			idlemode = HWMOD_IDLEMODE_FORCE;
@@ -1533,11 +1557,12 @@ static int _init_clocks(struct omap_hwmod *oh, void *data)
 
 	pr_debug("omap_hwmod: %s: looking up clocks\n", oh->name);
 
+	if (soc_ops.init_clkdm)
+		ret |= soc_ops.init_clkdm(oh);
+
 	ret |= _init_main_clk(oh);
 	ret |= _init_interface_clks(oh);
 	ret |= _init_opt_clks(oh);
-	if (soc_ops.init_clkdm)
-		ret |= soc_ops.init_clkdm(oh);
 
 	if (!ret)
 		oh->_state = _HWMOD_STATE_CLKS_INITED;
@@ -1992,6 +2017,42 @@ static void _reconfigure_io_chain(void)
 }
 
 /**
+ * _omap4_update_context_lost - increment hwmod context loss counter if
+ * hwmod context was lost, and clear hardware context loss reg
+ * @oh: hwmod to check for context loss
+ *
+ * If the PRCM indicates that the hwmod @oh lost context, increment
+ * our in-memory context loss counter, and clear the RM_*_CONTEXT
+ * bits. No return value.
+ */
+static void _omap4_update_context_lost(struct omap_hwmod *oh)
+{
+	if (oh->prcm.omap4.flags & HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT)
+		return;
+
+	if (!prm_was_any_context_lost_old(oh->clkdm->pwrdm.ptr->prcm_partition,
+					  oh->clkdm->pwrdm.ptr->prcm_offs,
+					  oh->prcm.omap4.context_offs))
+		return;
+
+	oh->prcm.omap4.context_lost_counter++;
+	prm_clear_context_loss_flags_old(oh->clkdm->pwrdm.ptr->prcm_partition,
+					 oh->clkdm->pwrdm.ptr->prcm_offs,
+					 oh->prcm.omap4.context_offs);
+}
+
+/**
+ * _omap4_get_context_lost - get context loss counter for a hwmod
+ * @oh: hwmod to get context loss counter for
+ *
+ * Returns the in-memory context loss counter for a hwmod.
+ */
+static int _omap4_get_context_lost(struct omap_hwmod *oh)
+{
+	return oh->prcm.omap4.context_lost_counter;
+}
+
+/**
  * _enable - enable an omap_hwmod
  * @oh: struct omap_hwmod *
  *
@@ -2073,6 +2134,9 @@ static int _enable(struct omap_hwmod *oh)
 	_enable_clocks(oh);
 	if (soc_ops.enable_module)
 		soc_ops.enable_module(oh);
+
+	if (soc_ops.update_context_lost)
+		soc_ops.update_context_lost(oh);
 
 	r = (soc_ops.wait_target_ready) ? soc_ops.wait_target_ready(oh) :
 		-EINVAL;
@@ -3398,7 +3462,7 @@ int omap_hwmod_reset(struct omap_hwmod *oh)
 /**
  * omap_hwmod_count_resources - count number of struct resources needed by hwmod
  * @oh: struct omap_hwmod *
- * @res: pointer to the first element of an array of struct resource to fill
+ * @flags: Type of resources to include when counting (IRQ/DMA/MEM)
  *
  * Count the number of struct resource array elements necessary to
  * contain omap_hwmod @oh resources.  Intended to be called by code
@@ -3411,20 +3475,25 @@ int omap_hwmod_reset(struct omap_hwmod *oh)
  * resource IDs.
  *
  */
-int omap_hwmod_count_resources(struct omap_hwmod *oh)
+int omap_hwmod_count_resources(struct omap_hwmod *oh, unsigned long flags)
 {
-	struct omap_hwmod_ocp_if *os;
-	struct list_head *p;
-	int ret;
-	int i = 0;
+	int ret = 0;
 
-	ret = _count_mpu_irqs(oh) + _count_sdma_reqs(oh);
+	if (flags & IORESOURCE_IRQ)
+		ret += _count_mpu_irqs(oh);
 
-	p = oh->slave_ports.next;
+	if (flags & IORESOURCE_DMA)
+		ret += _count_sdma_reqs(oh);
 
-	while (i < oh->slaves_cnt) {
-		os = _fetch_next_ocp_if(&p, &i);
-		ret += _count_ocp_if_addr_spaces(os);
+	if (flags & IORESOURCE_MEM) {
+		int i = 0;
+		struct omap_hwmod_ocp_if *os;
+		struct list_head *p = oh->slave_ports.next;
+
+		while (i < oh->slaves_cnt) {
+			os = _fetch_next_ocp_if(&p, &i);
+			ret += _count_ocp_if_addr_spaces(os);
+		}
 	}
 
 	return ret;
@@ -3591,9 +3660,14 @@ struct powerdomain *omap_hwmod_get_pwrdm(struct omap_hwmod *oh)
 {
 	struct clk *c;
 	struct omap_hwmod_ocp_if *oi;
+	struct clockdomain *clkdm;
+	struct clk_hw_omap *clk;
 
 	if (!oh)
 		return NULL;
+
+	if (oh->clkdm)
+		return oh->clkdm->pwrdm.ptr;
 
 	if (oh->_clk) {
 		c = oh->_clk;
@@ -3604,11 +3678,12 @@ struct powerdomain *omap_hwmod_get_pwrdm(struct omap_hwmod *oh)
 		c = oi->_clk;
 	}
 
-	if (!c->clkdm)
+	clk = to_clk_hw_omap(__clk_get_hw(c));
+	clkdm = clk->clkdm;
+	if (!clkdm)
 		return NULL;
 
-	return c->clkdm->pwrdm.ptr;
-
+	return clkdm->pwrdm.ptr;
 }
 
 /**
@@ -3913,16 +3988,20 @@ ohsps_unlock:
  * omap_hwmod_get_context_loss_count - get lost context count
  * @oh: struct omap_hwmod *
  *
- * Query the powerdomain of of @oh to get the context loss
- * count for this device.
+ * Returns the context loss count of associated @oh
+ * upon success, or zero if no context loss data is available.
  *
- * Returns the context loss count of the powerdomain assocated with @oh
- * upon success, or zero if no powerdomain exists for @oh.
+ * On OMAP4, this queries the per-hwmod context loss register,
+ * assuming one exists.  If not, or on OMAP2/3, this queries the
+ * enclosing powerdomain context loss count.
  */
 int omap_hwmod_get_context_loss_count(struct omap_hwmod *oh)
 {
 	struct powerdomain *pwrdm;
 	int ret = 0;
+
+	if (soc_ops.get_context_lost)
+		return soc_ops.get_context_lost(oh);
 
 	pwrdm = omap_hwmod_get_pwrdm(oh);
 	if (pwrdm)
@@ -4038,6 +4117,8 @@ void __init omap_hwmod_init(void)
 		soc_ops.deassert_hardreset = _omap4_deassert_hardreset;
 		soc_ops.is_hardreset_asserted = _omap4_is_hardreset_asserted;
 		soc_ops.init_clkdm = _init_clkdm;
+		soc_ops.update_context_lost = _omap4_update_context_lost;
+		soc_ops.get_context_lost = _omap4_get_context_lost;
 	} else if (soc_is_am33xx()) {
 		soc_ops.enable_module = _am33xx_enable_module;
 		soc_ops.disable_module = _am33xx_disable_module;
