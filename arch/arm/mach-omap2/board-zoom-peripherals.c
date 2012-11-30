@@ -38,8 +38,6 @@
 #define OMAP_ZOOM_TSC2004_IRQ_GPIO	(153)
 #define OMAP_ZOOM_WLAN_IRQ_GPIO		(162)
 
-#define LCD_PANEL_ENABLE_GPIO		(7 + OMAP_MAX_GPIO_LINES)
-
 /* Zoom2 has Qwerty keyboard*/
 static uint32_t board_keymap[] = {
 	KEY(0, 0, KEY_E),
@@ -243,23 +241,15 @@ static struct omap_tw4030_pdata omap_twl4030_audio_data = {
 static int zoom_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
-	int ret;
-
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
 	mmc[0].gpio_cd = gpio + 0;
 	omap_hsmmc_late_init(mmc);
-
-	ret = gpio_request_one(LCD_PANEL_ENABLE_GPIO, GPIOF_OUT_INIT_LOW,
-			       "lcd enable");
-	if (ret)
-		pr_err("Failed to get LCD_PANEL_ENABLE_GPIO (gpio%d).\n",
-				LCD_PANEL_ENABLE_GPIO);
 
 	/* Audio setup */
 	omap_twl4030_audio_data.jack_detect = gpio + 2;
 	omap_twl4030_audio_init("Zoom2", &omap_twl4030_audio_data);
 
-	return ret;
+	return 0;
 }
 
 static struct twl4030_gpio_platform_data zoom_gpio_data = {
