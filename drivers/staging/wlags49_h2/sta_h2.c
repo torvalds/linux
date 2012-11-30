@@ -28,7 +28,7 @@
 #include "hcfcfg.h"	// to get hcf_16 etc defined as well as
 			// possible settings which influence mdd.h or dhf.h
 #include "mdd.h"	// to get COMP_ID_STA etc defined
-#include "dhf.h"	// used to be "fhfmem.h", to get memblock,plugrecord,
+#include "dhf.h"	// used to be fhfmem.h, to get memblock,plugrecord,
 
 static const hcf_8 fw_image_1_data[] = {
 	 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
