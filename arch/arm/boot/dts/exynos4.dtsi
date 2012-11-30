@@ -244,5 +244,11 @@
 			reg = <0x12690000 0x1000>;
 			interrupts = <0 36 0>;
 		};
+
+		mdma1: mdma@12850000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x12850000 0x1000>;
+			interrupts = <0 34 0>;
+		};
 	};
 };
