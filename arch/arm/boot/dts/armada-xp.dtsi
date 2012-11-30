@@ -22,6 +22,13 @@
 	model = "Marvell Armada XP family SoC";
 	compatible = "marvell,armadaxp", "marvell,armada-370-xp";
 
+	L2: l2-cache {
+		compatible = "marvell,aurora-system-cache";
+		reg = <0xd0008000 0x1000>;
+		cache-id-part = <0x100>;
+		wt-override;
+	};
+
 	mpic: interrupt-controller@d0020000 {
 	      reg = <0xd0020a00 0x1d0>,
 		    <0xd0021070 0x58>;
