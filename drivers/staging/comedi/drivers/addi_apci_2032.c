@@ -281,7 +281,6 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 	s->subdev_flags	= SDF_WRITEABLE;
 	s->n_chan	= 1;
 	s->maxdata	= 0xff;
-	s->range_table	= &range_digital;
 	s->insn_write	= apci2032_wdog_insn_write;
 	s->insn_read	= apci2032_wdog_insn_read;
 	s->insn_config	= apci2032_wdog_insn_config;
