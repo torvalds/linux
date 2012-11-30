@@ -1,0 +1,125 @@
+/*
+ * Device Tree file for OpenBlocks AX3-4 board
+ *
+ * Copyright (C) 2012 Marvell
+ *
+ * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
+/dts-v1/;
+/include/ "armada-xp-mv78260.dtsi"
+
+/ {
+	model = "PlatHome OpenBlocks AX3-4 board";
+	compatible = "plathome,openblocks-ax3-4", "marvell,armadaxp-mv78260", "marvell,armadaxp", "marvell,armada-370-xp";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlyprintk";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0xC0000000>; /* 3 GB */
+	};
+
+	soc {
+		serial@d0012000 {
+			clock-frequency = <250000000>;
+			status = "okay";
+		};
+		serial@d0012100 {
+			clock-frequency = <250000000>;
+			status = "okay";
+		};
+		pinctrl {
+			led_pins: led-pins-0 {
+				marvell,pins = "mpp49", "mpp51", "mpp53";
+				marvell,function = "gpio";
+			};
+		};
+		leds {
+			compatible = "gpio-leds";
+			pinctrl-names = "default";
+			pinctrl-0 = <&led_pins>;
+
+			red_led {
+				label = "red_led";
+				gpios = <&gpio1 17 1>;
+				default-state = "off";
+			};
+
+			yellow_led {
+				label = "yellow_led";
+				gpios = <&gpio1 19 1>;
+				default-state = "off";
+			};
+
+			green_led {
+				label = "green_led";
+				gpios = <&gpio1 21 1>;
+				default-state = "off";
+				linux,default-trigger = "heartbeat";
+			};
+		};
+
+		mdio {
+			phy0: ethernet-phy@0 {
+				reg = <0>;
+			};
+
+			phy1: ethernet-phy@1 {
+				reg = <1>;
+			};
+
+			phy2: ethernet-phy@2 {
+				reg = <2>;
+			};
+
+			phy3: ethernet-phy@3 {
+				reg = <3>;
+			};
+		};
+
+		ethernet@d0070000 {
+			status = "okay";
+			phy = <&phy0>;
+			phy-mode = "sgmii";
+		};
+		ethernet@d0074000 {
+			status = "okay";
+			phy = <&phy1>;
+			phy-mode = "sgmii";
+		};
+		ethernet@d0030000 {
+			status = "okay";
+			phy = <&phy2>;
+			phy-mode = "sgmii";
+		};
+		ethernet@d0034000 {
+			status = "okay";
+			phy = <&phy3>;
+			phy-mode = "sgmii";
+		};
+		i2c@d0011000 {
+			status = "okay";
+			clock-frequency = <400000>;
+		};
+		i2c@d0011100 {
+			status = "okay";
+			clock-frequency = <400000>;
+
+			s35390a: s35390a@30 {
+				compatible = "s35390a";
+				reg = <0x30>;
+			};
+		};
+		sata@d00a0000 {
+			nr-ports = <2>;
+			status = "okay";
+		};
+	};
+};

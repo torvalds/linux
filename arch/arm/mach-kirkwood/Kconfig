@@ -46,6 +46,8 @@ config MACH_GURUPLUG
 
 config ARCH_KIRKWOOD_DT
 	bool "Marvell Kirkwood Flattened Device Tree"
+	select MVEBU_CLK_CORE
+	select MVEBU_CLK_GATING
 	select USE_OF
 	help
 	  Say 'Y' here if you want your kernel to support the

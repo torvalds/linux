@@ -24,6 +24,7 @@
 #include <linux/irqdomain.h>
 #include <asm/mach/arch.h>
 #include <asm/exception.h>
+#include <asm/smp_plat.h>
 
 /* Interrupt Controller Registers Map */
 #define ARMADA_370_XP_INT_SET_MASK_OFFS		(0x48)
@@ -34,6 +35,12 @@
 #define ARMADA_370_XP_INT_CLEAR_ENABLE_OFFS	(0x34)
 
 #define ARMADA_370_XP_CPU_INTACK_OFFS		(0x44)
+
+#define ARMADA_370_XP_SW_TRIG_INT_OFFS           (0x4)
+#define ARMADA_370_XP_IN_DRBEL_MSK_OFFS          (0xc)
+#define ARMADA_370_XP_IN_DRBEL_CAUSE_OFFS        (0x8)
+
+#define ACTIVE_DOORBELLS			(8)
 
 static void __iomem *per_cpu_int_base;
 static void __iomem *main_int_base;
@@ -51,11 +58,22 @@ static void armada_370_xp_irq_unmask(struct irq_data *d)
 	       per_cpu_int_base + ARMADA_370_XP_INT_CLEAR_MASK_OFFS);
 }
 
+#ifdef CONFIG_SMP
+static int armada_xp_set_affinity(struct irq_data *d,
+				  const struct cpumask *mask_val, bool force)
+{
+	return 0;
+}
+#endif
+
 static struct irq_chip armada_370_xp_irq_chip = {
 	.name		= "armada_370_xp_irq",
 	.irq_mask       = armada_370_xp_irq_mask,
 	.irq_mask_ack   = armada_370_xp_irq_mask,
 	.irq_unmask     = armada_370_xp_irq_unmask,
+#ifdef CONFIG_SMP
+	.irq_set_affinity = armada_xp_set_affinity,
+#endif
 };
 
 static int armada_370_xp_mpic_irq_map(struct irq_domain *h,
@@ -71,6 +89,41 @@ static int armada_370_xp_mpic_irq_map(struct irq_domain *h,
 
 	return 0;
 }
+
+#ifdef CONFIG_SMP
+void armada_mpic_send_doorbell(const struct cpumask *mask, unsigned int irq)
+{
+	int cpu;
+	unsigned long map = 0;
+
+	/* Convert our logical CPU mask into a physical one. */
+	for_each_cpu(cpu, mask)
+		map |= 1 << cpu_logical_map(cpu);
+
+	/*
+	 * Ensure that stores to Normal memory are visible to the
+	 * other CPUs before issuing the IPI.
+	 */
+	dsb();
+
+	/* submit softirq */
+	writel((map << 8) | irq, main_int_base +
+		ARMADA_370_XP_SW_TRIG_INT_OFFS);
+}
+
+void armada_xp_mpic_smp_cpu_init(void)
+{
+	/* Clear pending IPIs */
+	writel(0, per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_CAUSE_OFFS);
+
+	/* Enable first 8 IPIs */
+	writel((1 << ACTIVE_DOORBELLS) - 1, per_cpu_int_base +
+		ARMADA_370_XP_IN_DRBEL_MSK_OFFS);
+
+	/* Unmask IPI interrupt */
+	writel(0, per_cpu_int_base + ARMADA_370_XP_INT_CLEAR_MASK_OFFS);
+}
+#endif /* CONFIG_SMP */
 
 static struct irq_domain_ops armada_370_xp_mpic_irq_ops = {
 	.map = armada_370_xp_mpic_irq_map,
@@ -91,13 +144,18 @@ static int __init armada_370_xp_mpic_of_init(struct device_node *node,
 	control = readl(main_int_base + ARMADA_370_XP_INT_CONTROL);
 
 	armada_370_xp_mpic_domain =
-	    irq_domain_add_linear(node, (control >> 2) & 0x3ff,
-				  &armada_370_xp_mpic_irq_ops, NULL);
+		irq_domain_add_linear(node, (control >> 2) & 0x3ff,
+				&armada_370_xp_mpic_irq_ops, NULL);
 
 	if (!armada_370_xp_mpic_domain)
 		panic("Unable to add Armada_370_Xp MPIC irq domain (DT)\n");
 
 	irq_set_default_host(armada_370_xp_mpic_domain);
+
+#ifdef CONFIG_SMP
+	armada_xp_mpic_smp_cpu_init();
+#endif
+
 	return 0;
 }
 
@@ -111,14 +169,36 @@ asmlinkage void __exception_irq_entry armada_370_xp_handle_irq(struct pt_regs
 					ARMADA_370_XP_CPU_INTACK_OFFS);
 		irqnr = irqstat & 0x3FF;
 
-		if (irqnr < 1023) {
-			irqnr =
-			    irq_find_mapping(armada_370_xp_mpic_domain, irqnr);
+		if (irqnr > 1022)
+			break;
+
+		if (irqnr >= 8) {
+			irqnr =	irq_find_mapping(armada_370_xp_mpic_domain,
+					irqnr);
 			handle_IRQ(irqnr, regs);
 			continue;
 		}
+#ifdef CONFIG_SMP
+		/* IPI Handling */
+		if (irqnr == 0) {
+			u32 ipimask, ipinr;
 
-		break;
+			ipimask = readl_relaxed(per_cpu_int_base +
+						ARMADA_370_XP_IN_DRBEL_CAUSE_OFFS)
+				& 0xFF;
+
+			writel(0x0, per_cpu_int_base +
+				ARMADA_370_XP_IN_DRBEL_CAUSE_OFFS);
+
+			/* Handle all pending doorbells */
+			for (ipinr = 0; ipinr < ACTIVE_DOORBELLS; ipinr++) {
+				if (ipimask & (0x1 << ipinr))
+					handle_IPI(ipinr, regs);
+			}
+			continue;
+		}
+#endif
+
 	} while (1);
 }
 
