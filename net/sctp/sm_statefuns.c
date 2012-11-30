@@ -1055,6 +1055,7 @@ sctp_disposition_t sctp_sf_beat_8_3(struct net *net,
 				    void *arg,
 				    sctp_cmd_seq_t *commands)
 {
+	sctp_paramhdr_t *param_hdr;
 	struct sctp_chunk *chunk = arg;
 	struct sctp_chunk *reply;
 	size_t paylen = 0;
@@ -1072,12 +1073,17 @@ sctp_disposition_t sctp_sf_beat_8_3(struct net *net,
 	 * Information field copied from the received HEARTBEAT chunk.
 	 */
 	chunk->subh.hb_hdr = (sctp_heartbeathdr_t *) chunk->skb->data;
+	param_hdr = (sctp_paramhdr_t *) chunk->subh.hb_hdr;
 	paylen = ntohs(chunk->chunk_hdr->length) - sizeof(sctp_chunkhdr_t);
+
+	if (ntohs(param_hdr->length) > paylen)
+		return sctp_sf_violation_paramlen(net, ep, asoc, type, arg,
+						  param_hdr, commands);
+
 	if (!pskb_pull(chunk->skb, paylen))
 		goto nomem;
 
-	reply = sctp_make_heartbeat_ack(asoc, chunk,
-					chunk->subh.hb_hdr, paylen);
+	reply = sctp_make_heartbeat_ack(asoc, chunk, param_hdr, paylen);
 	if (!reply)
 		goto nomem;
 
