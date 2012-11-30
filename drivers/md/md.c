@@ -452,7 +452,7 @@ void md_flush_request(struct mddev *mddev, struct bio *bio)
 	spin_lock_irq(&mddev->write_lock);
 	wait_event_lock_irq(mddev->sb_wait,
 			    !mddev->flush_bio,
-			    mddev->write_lock, /*nothing*/);
+			    mddev->write_lock);
 	mddev->flush_bio = bio;
 	spin_unlock_irq(&mddev->write_lock);
 
