@@ -84,4 +84,4 @@ int parse_mac_address(char *value, u_char *byte_array);
 void ParseConfigLine(char *pszLine, char **ppszLVal, char **ppszRVal);
 
 
-#endif  // __WL_PROFILE_H__
+#endif  /* __WL_PROFILE_H__ */
