@@ -1,8 +1,8 @@
 ifneq ($(CONFIG_ARM),y)
-obj-y	+= manage.o balloon.o
+obj-y	+= manage.o
 obj-$(CONFIG_HOTPLUG_CPU)		+= cpu_hotplug.o
 endif
-obj-y	+= grant-table.o features.o events.o
+obj-y	+= grant-table.o features.o events.o balloon.o
 obj-y	+= xenbus/
 
 nostackp := $(call cc-option, -fno-stack-protector)
