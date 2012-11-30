@@ -605,8 +605,11 @@ int rndis_filter_set_device_mac(struct hv_device *hdev, char *mac)
 		return -EBUSY;
 	} else {
 		set_complete = &request->response_msg.msg.set_complete;
-		if (set_complete->status != RNDIS_STATUS_SUCCESS)
+		if (set_complete->status != RNDIS_STATUS_SUCCESS) {
+			netdev_err(ndev, "Fail to set MAC on host side:0x%x\n",
+				   set_complete->status);
 			ret = -EINVAL;
+		}
 	}
 
 cleanup:
