@@ -38,7 +38,7 @@
 #include <asm/mach-types.h>
 #include <asm/system_misc.h>
 
-#include <plat-omap/dma-omap.h>
+#include <linux/omap-dma.h>
 
 #include "soc.h"
 #include "common.h"

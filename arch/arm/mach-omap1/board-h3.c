@@ -43,7 +43,7 @@
 #include <mach/mux.h>
 #include <mach/tc.h>
 #include <linux/platform_data/keypad-omap.h>
-#include <plat-omap/dma-omap.h>
+#include <linux/omap-dma.h>
 #include <mach/flash.h>
 
 #include <mach/hardware.h>

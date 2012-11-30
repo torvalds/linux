@@ -44,7 +44,7 @@
 #include <asm/unaligned.h>
 #include <asm/mach-types.h>
 
-#include <plat-omap/dma-omap.h>
+#include <linux/omap-dma.h>
 
 #include <mach/usb.h>
 

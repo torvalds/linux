@@ -21,7 +21,7 @@
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 #include <linux/pm_runtime.h>
 
-#include <plat-omap/dma-omap.h>
+#include <linux/omap-dma.h>
 
 #include "omap_device.h"
 

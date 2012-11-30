@@ -52,7 +52,7 @@
 
 #include <mach/tc.h>
 #include <mach/mux.h>
-#include <plat-omap/dma-omap.h>
+#include <linux/omap-dma.h>
 #include <plat/dmtimer.h>
 
 #include <mach/irqs.h>

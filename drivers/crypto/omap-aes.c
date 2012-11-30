@@ -29,7 +29,7 @@
 #include <crypto/scatterwalk.h>
 #include <crypto/aes.h>
 
-#include <plat-omap/dma-omap.h>
+#include <linux/omap-dma.h>
 
 /* OMAP TRM gives bitfields as start:end, where start is the higher bit
    number. For example 7:0 */

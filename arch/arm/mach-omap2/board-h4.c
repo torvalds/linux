@@ -32,7 +32,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat-omap/dma-omap.h>
+#include <linux/omap-dma.h>
 #include <plat/debug-devices.h>
 
 #include <video/omapdss.h>
