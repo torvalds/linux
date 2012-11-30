@@ -1422,7 +1422,7 @@ int capture_free_page(struct page *page, int alloc_order, int migratetype)
 		}
 	}
 
-	return 1UL << order;
+	return 1UL << alloc_order;
 }
 
 /*
@@ -2378,6 +2378,15 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
 	return !!(gfp_to_alloc_flags(gfp_mask) & ALLOC_NO_WATERMARKS);
 }
 
+/* Returns true if the allocation is likely for THP */
+static bool is_thp_alloc(gfp_t gfp_mask, unsigned int order)
+{
+	if (order == pageblock_order &&
+	    (gfp_mask & (__GFP_MOVABLE|__GFP_REPEAT)) == __GFP_MOVABLE)
+		return true;
+	return false;
+}
+
 static inline struct page *
 __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
 	struct zonelist *zonelist, enum zone_type high_zoneidx,
@@ -2416,9 +2425,10 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
 		goto nopage;
 
 restart:
-	if (!(gfp_mask & __GFP_NO_KSWAPD))
+	/* The decision whether to wake kswapd for THP is made later */
+	if (!is_thp_alloc(gfp_mask, order))
 		wake_all_kswapd(order, zonelist, high_zoneidx,
-						zone_idx(preferred_zone));
+					zone_idx(preferred_zone));
 
 	/*
 	 * OK, we're below the kswapd watermark and have kicked background
@@ -2488,15 +2498,21 @@ rebalance:
 		goto got_pg;
 	sync_migration = true;
 
-	/*
-	 * If compaction is deferred for high-order allocations, it is because
-	 * sync compaction recently failed. In this is the case and the caller
-	 * requested a movable allocation that does not heavily disrupt the
-	 * system then fail the allocation instead of entering direct reclaim.
-	 */
-	if ((deferred_compaction || contended_compaction) &&
-						(gfp_mask & __GFP_NO_KSWAPD))
-		goto nopage;
+	if (is_thp_alloc(gfp_mask, order)) {
+		/*
+		 * If compaction is deferred for high-order allocations, it is
+		 * because sync compaction recently failed. If this is the case
+		 * and the caller requested a movable allocation that does not
+		 * heavily disrupt the system then fail the allocation instead
+		 * of entering direct reclaim.
+		 */
+		if (deferred_compaction || contended_compaction)
+			goto nopage;
+
+		/* If process is willing to reclaim/compact then wake kswapd */
+		wake_all_kswapd(order, zonelist, high_zoneidx,
+					zone_idx(preferred_zone));
+	}
 
 	/* Try direct reclaim and then allocating */
 	page = __alloc_pages_direct_reclaim(gfp_mask, order,
