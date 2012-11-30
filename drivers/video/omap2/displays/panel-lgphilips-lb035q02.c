@@ -89,27 +89,21 @@ static void lb035q02_panel_power_off(struct omap_dss_device *dssdev)
 static int lb035q02_panel_probe(struct omap_dss_device *dssdev)
 {
 	struct lb035q02_data *ld;
-	int r;
 
 	dssdev->panel.timings = lb035q02_timings;
 
-	ld = kzalloc(sizeof(*ld), GFP_KERNEL);
-	if (!ld) {
-		r = -ENOMEM;
-		goto err;
-	}
+	ld = devm_kzalloc(&dssdev->dev, sizeof(*ld), GFP_KERNEL);
+	if (!ld)
+		return -ENOMEM;
+
 	mutex_init(&ld->lock);
 	dev_set_drvdata(&dssdev->dev, ld);
+
 	return 0;
-err:
-	return r;
 }
 
 static void lb035q02_panel_remove(struct omap_dss_device *dssdev)
 {
-	struct lb035q02_data *ld = dev_get_drvdata(&dssdev->dev);
-
-	kfree(ld);
 }
 
 static int lb035q02_panel_enable(struct omap_dss_device *dssdev)
