@@ -50,6 +50,7 @@ struct picodlp_i2c_data {
 
 static struct i2c_device_id picodlp_i2c_id[] = {
 	{ "picodlp_i2c_driver", 0 },
+	{ }
 };
 
 struct picodlp_i2c_command {
