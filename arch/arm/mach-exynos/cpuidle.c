@@ -116,7 +116,8 @@ static int exynos4_enter_core0_aftr(struct cpuidle_device *dev,
 	cpu_suspend(0, idle_finisher);
 
 #ifdef CONFIG_SMP
-	scu_enable(S5P_VA_SCU);
+	if (!soc_is_exynos5250())
+		scu_enable(S5P_VA_SCU);
 #endif
 	cpu_pm_exit();
 
