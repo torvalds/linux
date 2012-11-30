@@ -1283,7 +1283,7 @@ myri10ge_vlan_rx(struct net_device *dev, void *addr, struct sk_buff *skb)
 	va += MXGEFW_PAD;
 	veh = (struct vlan_ethhdr *)va;
 	if ((dev->features & NETIF_F_HW_VLAN_RX) == NETIF_F_HW_VLAN_RX &&
-	    veh->h_vlan_proto == ntohs(ETH_P_8021Q)) {
+	    veh->h_vlan_proto == htons(ETH_P_8021Q)) {
 		/* fixup csum if needed */
 		if (skb->ip_summed == CHECKSUM_COMPLETE) {
 			vsum = csum_partial(va + ETH_HLEN, VLAN_HLEN, 0);
