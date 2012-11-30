@@ -2636,6 +2636,7 @@ static char *supply_interface[] = {
 static int __devinit ab8500_charger_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
+	struct abx500_bm_data *plat = pdev->dev.platform_data;
 	struct ab8500_charger *di;
 	int irq, i, charger_status, ret = 0;
 
@@ -2644,24 +2645,22 @@ static int __devinit ab8500_charger_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "%s no mem for ab8500_charger\n", __func__);
 		return -ENOMEM;
 	}
-	di->bm = pdev->mfd_cell->platform_data;
-	if (!di->bm) {
-		if (np) {
-			ret = ab8500_bm_of_probe(&pdev->dev, np, di->bm);
-			if (ret) {
-				dev_err(&pdev->dev,
-					"failed to get battery information\n");
-				return ret;
-			}
-			di->autopower_cfg = of_property_read_bool(np, "autopower_cfg");
-		} else {
-			dev_err(&pdev->dev, "missing dt node for ab8500_charger\n");
-			return -EINVAL;
-		}
-	} else {
-		dev_info(&pdev->dev, "falling back to legacy platform data\n");
-		di->autopower_cfg = false;
+
+	if (!plat) {
+		dev_err(&pdev->dev, "no battery management data supplied\n");
+		return -EINVAL;
 	}
+	di->bm = plat;
+
+	if (np) {
+		ret = ab8500_bm_of_probe(&pdev->dev, np, di->bm);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to get battery information\n");
+			return ret;
+		}
+		di->autopower_cfg = of_property_read_bool(np, "autopower_cfg");
+	} else
+		di->autopower_cfg = false;
 
 	/* get parent data */
 	di->dev = &pdev->dev;
