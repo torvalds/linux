@@ -457,18 +457,18 @@ int __devinit ab8500_bm_of_probe(struct device *dev,
 				 struct abx500_bm_data *bm)
 {
 	struct batres_vs_temp *tmp_batres_tbl;
-	struct device_node *np_bat_supply;
+	struct device_node *battery_node;
 	const char *btech;
 	int i;
 
 	/* get phandle to 'battery-info' node */
-	np_bat_supply = of_parse_phandle(np, "battery", 0);
-	if (!np_bat_supply) {
+	battery_node = of_parse_phandle(np, "battery", 0);
+	if (!battery_node) {
 		dev_err(dev, "battery node or reference missing\n");
 		return -EINVAL;
 	}
 
-	btech = of_get_property(np_bat_supply, "stericsson,battery-type", NULL);
+	btech = of_get_property(battery_node, "stericsson,battery-type", NULL);
 	if (!btech) {
 		dev_warn(dev, "missing property battery-name/type\n");
 		return -EINVAL;
@@ -484,7 +484,7 @@ int __devinit ab8500_bm_of_probe(struct device *dev,
 		bm->bat_type[BATTERY_UNKNOWN].normal_vol_lvl     = 4200;
 	}
 
-	if (of_property_read_bool(np_bat_supply, "thermistor-on-batctrl")) {
+	if (of_property_read_bool(battery_node, "thermistor-on-batctrl")) {
 		if (strncmp(btech, "LION", 4) == 0)
 			tmp_batres_tbl = temp_to_batres_tbl_9100;
 		else
@@ -500,7 +500,7 @@ int __devinit ab8500_bm_of_probe(struct device *dev,
 	for (i = 0; i < bm->n_btypes; ++i)
 		bm->bat_type[i].batres_tbl = tmp_batres_tbl;
 
-	of_node_put(np_bat_supply);
+	of_node_put(battery_node);
 
 	return 0;
 }
