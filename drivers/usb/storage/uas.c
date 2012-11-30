@@ -66,6 +66,7 @@ enum {
 	DATA_OUT_URB_INFLIGHT   = (1 << 10),
 	COMMAND_COMPLETED       = (1 << 11),
 	COMMAND_ABORTED         = (1 << 12),
+	UNLINK_DATA_URBS        = (1 << 13),
 };
 
 /* Overrides scsi_pointer */
@@ -90,10 +91,25 @@ static LIST_HEAD(uas_work_list);
 static void uas_unlink_data_urbs(struct uas_dev_info *devinfo,
 				 struct uas_cmd_info *cmdinfo)
 {
+	unsigned long flags;
+
+	/*
+	 * The UNLINK_DATA_URBS flag makes sure uas_try_complete
+	 * (called by urb completion) doesn't release cmdinfo
+	 * underneath us.
+	 */
+	spin_lock_irqsave(&devinfo->lock, flags);
+	cmdinfo->state |= UNLINK_DATA_URBS;
+	spin_unlock_irqrestore(&devinfo->lock, flags);
+
 	if (cmdinfo->data_in_urb)
 		usb_unlink_urb(cmdinfo->data_in_urb);
 	if (cmdinfo->data_out_urb)
 		usb_unlink_urb(cmdinfo->data_out_urb);
+
+	spin_lock_irqsave(&devinfo->lock, flags);
+	cmdinfo->state &= ~UNLINK_DATA_URBS;
+	spin_unlock_irqrestore(&devinfo->lock, flags);
 }
 
 static void uas_do_work(struct work_struct *work)
@@ -177,7 +193,7 @@ static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *caller)
 	struct uas_cmd_info *ci = (void *)&cmnd->SCp;
 
 	scmd_printk(KERN_INFO, cmnd, "%s %p tag %d, inflight:"
-		    "%s%s%s%s%s%s%s%s%s%s%s%s\n",
+		    "%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		    caller, cmnd, cmnd->request->tag,
 		    (ci->state & SUBMIT_STATUS_URB)     ? " s-st"  : "",
 		    (ci->state & ALLOC_DATA_IN_URB)     ? " a-in"  : "",
@@ -190,7 +206,8 @@ static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *caller)
 		    (ci->state & DATA_IN_URB_INFLIGHT)  ? " IN"    : "",
 		    (ci->state & DATA_OUT_URB_INFLIGHT) ? " OUT"   : "",
 		    (ci->state & COMMAND_COMPLETED)     ? " done"  : "",
-		    (ci->state & COMMAND_ABORTED)       ? " abort" : "");
+		    (ci->state & COMMAND_ABORTED)       ? " abort" : "",
+		    (ci->state & UNLINK_DATA_URBS)      ? " unlink": "");
 }
 
 static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller)
@@ -201,7 +218,8 @@ static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller)
 	WARN_ON(!spin_is_locked(&devinfo->lock));
 	if (cmdinfo->state & (COMMAND_INFLIGHT |
 			      DATA_IN_URB_INFLIGHT |
-			      DATA_OUT_URB_INFLIGHT))
+			      DATA_OUT_URB_INFLIGHT |
+			      UNLINK_DATA_URBS))
 		return -EBUSY;
 	BUG_ON(cmdinfo->state & COMMAND_COMPLETED);
 	cmdinfo->state |= COMMAND_COMPLETED;
