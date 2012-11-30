@@ -684,6 +684,17 @@ restart_search:
 	return NULL;
 }
 
+static void radeon_dpm_update_requested_ps(struct radeon_device *rdev,
+					   struct radeon_ps *ps)
+{
+	/* copy the ps to the hw ps and point the requested ps
+	 * at the hw state in case the driver wants to modify
+	 * the state dynamically.
+	 */
+	rdev->pm.dpm.hw_ps = *ps;
+	rdev->pm.dpm.requested_ps = &rdev->pm.dpm.hw_ps;
+}
+
 static void radeon_dpm_change_power_state_locked(struct radeon_device *rdev)
 {
 	int i;
@@ -704,7 +715,7 @@ static void radeon_dpm_change_power_state_locked(struct radeon_device *rdev)
 
 	ps = radeon_dpm_pick_power_state(rdev, dpm_state);
 	if (ps)
-		rdev->pm.dpm.requested_ps = ps;
+		radeon_dpm_update_requested_ps(rdev, ps);
 	else
 		return;
 

@@ -129,6 +129,7 @@ struct sumo_power_info {
 	bool enable_dynamic_patch_ps;
 	bool enable_dpm;
 	bool enable_boost;
+	struct sumo_ps hw_ps;
 };
 
 #define SUMO_UTC_DFLT_00                     0x48

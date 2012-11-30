@@ -1072,6 +1072,11 @@ static void sumo_apply_state_adjust_rules(struct radeon_device *rdev)
 	u32 sclk_in_sr = pi->sys_info.min_sclk; /* ??? */
 	u32 i;
 
+	/* point to the hw copy since this function will modify the ps */
+	pi->hw_ps = *ps;
+	rdev->pm.dpm.hw_ps.ps_priv = &pi->hw_ps;
+	ps = &pi->hw_ps;
+
 	if (rps->class & ATOM_PPLIB_CLASSIFICATION_THERMAL)
 		return sumo_patch_thermal_state(rdev, ps, current_ps);
 
