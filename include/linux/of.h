@@ -88,14 +88,14 @@ static inline void of_node_put(struct device_node *node) { }
 #ifdef CONFIG_OF
 
 /* Pointer for first entry in chain of all nodes. */
-extern struct device_node *allnodes;
+extern struct device_node *of_allnodes;
 extern struct device_node *of_chosen;
 extern struct device_node *of_aliases;
 extern rwlock_t devtree_lock;
 
 static inline bool of_have_populated_dt(void)
 {
-	return allnodes != NULL;
+	return of_allnodes != NULL;
 }
 
 static inline bool of_node_is_root(const struct device_node *node)

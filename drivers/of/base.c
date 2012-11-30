@@ -45,7 +45,8 @@ struct alias_prop {
 
 static LIST_HEAD(aliases_lookup);
 
-struct device_node *allnodes;
+struct device_node *of_allnodes;
+EXPORT_SYMBOL(of_allnodes);
 struct device_node *of_chosen;
 struct device_node *of_aliases;
 
@@ -199,7 +200,7 @@ struct device_node *of_find_all_nodes(struct device_node *prev)
 	struct device_node *np;
 
 	read_lock(&devtree_lock);
-	np = prev ? prev->allnext : allnodes;
+	np = prev ? prev->allnext : of_allnodes;
 	for (; np != NULL; np = np->allnext)
 		if (of_node_get(np))
 			break;
@@ -422,7 +423,7 @@ EXPORT_SYMBOL(of_get_child_by_name);
  */
 struct device_node *of_find_node_by_path(const char *path)
 {
-	struct device_node *np = allnodes;
+	struct device_node *np = of_allnodes;
 
 	read_lock(&devtree_lock);
 	for (; np; np = np->allnext) {
@@ -452,7 +453,7 @@ struct device_node *of_find_node_by_name(struct device_node *from,
 	struct device_node *np;
 
 	read_lock(&devtree_lock);
-	np = from ? from->allnext : allnodes;
+	np = from ? from->allnext : of_allnodes;
 	for (; np; np = np->allnext)
 		if (np->name && (of_node_cmp(np->name, name) == 0)
 		    && of_node_get(np))
@@ -481,7 +482,7 @@ struct device_node *of_find_node_by_type(struct device_node *from,
 	struct device_node *np;
 
 	read_lock(&devtree_lock);
-	np = from ? from->allnext : allnodes;
+	np = from ? from->allnext : of_allnodes;
 	for (; np; np = np->allnext)
 		if (np->type && (of_node_cmp(np->type, type) == 0)
 		    && of_node_get(np))
@@ -512,7 +513,7 @@ struct device_node *of_find_compatible_node(struct device_node *from,
 	struct device_node *np;
 
 	read_lock(&devtree_lock);
-	np = from ? from->allnext : allnodes;
+	np = from ? from->allnext : of_allnodes;
 	for (; np; np = np->allnext) {
 		if (type
 		    && !(np->type && (of_node_cmp(np->type, type) == 0)))
@@ -545,7 +546,7 @@ struct device_node *of_find_node_with_property(struct device_node *from,
 	struct property *pp;
 
 	read_lock(&devtree_lock);
-	np = from ? from->allnext : allnodes;
+	np = from ? from->allnext : of_allnodes;
 	for (; np; np = np->allnext) {
 		for (pp = np->properties; pp; pp = pp->next) {
 			if (of_prop_cmp(pp->name, prop_name) == 0) {
@@ -616,7 +617,7 @@ struct device_node *of_find_matching_node_and_match(struct device_node *from,
 		*match = NULL;
 
 	read_lock(&devtree_lock);
-	np = from ? from->allnext : allnodes;
+	np = from ? from->allnext : of_allnodes;
 	for (; np; np = np->allnext) {
 		if (of_match_node(matches, np) && of_node_get(np)) {
 			if (match)
@@ -669,7 +670,7 @@ struct device_node *of_find_node_by_phandle(phandle handle)
 	struct device_node *np;
 
 	read_lock(&devtree_lock);
-	for (np = allnodes; np; np = np->allnext)
+	for (np = of_allnodes; np; np = np->allnext)
 		if (np->phandle == handle)
 			break;
 	of_node_get(np);
@@ -1254,9 +1255,9 @@ void of_attach_node(struct device_node *np)
 
 	write_lock_irqsave(&devtree_lock, flags);
 	np->sibling = np->parent->child;
-	np->allnext = allnodes;
+	np->allnext = of_allnodes;
 	np->parent->child = np;
-	allnodes = np;
+	of_allnodes = np;
 	write_unlock_irqrestore(&devtree_lock, flags);
 }
 
@@ -1277,11 +1278,11 @@ void of_detach_node(struct device_node *np)
 	if (!parent)
 		goto out_unlock;
 
-	if (allnodes == np)
-		allnodes = np->allnext;
+	if (of_allnodes == np)
+		of_allnodes = np->allnext;
 	else {
 		struct device_node *prev;
-		for (prev = allnodes;
+		for (prev = of_allnodes;
 		     prev->allnext != np;
 		     prev = prev->allnext)
 			;

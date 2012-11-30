@@ -589,7 +589,7 @@ void __init v2m_dt_init_early(void)
 		return;
 
 	/* Confirm board type against DT property, if available */
-	if (of_property_read_u32(allnodes, "arm,hbi", &dt_hbi) == 0) {
+	if (of_property_read_u32(of_allnodes, "arm,hbi", &dt_hbi) == 0) {
 		int site = v2m_get_master_site();
 		u32 id = readl(v2m_sysreg_base + (site == SYS_CFG_SITE_DB2 ?
 				V2M_SYS_PROCID1 : V2M_SYS_PROCID0));
