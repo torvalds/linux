@@ -70,17 +70,23 @@
 #ifdef WIRELESS_EXT
 
 
-int wvlan_set_netname(struct net_device *, struct iw_request_info *, union iwreq_data *, char *extra);
+int wvlan_set_netname(struct net_device *, struct iw_request_info *,
+		      union iwreq_data *, char *extra);
 
-int wvlan_get_netname(struct net_device *, struct iw_request_info *, union iwreq_data *, char *extra);
+int wvlan_get_netname(struct net_device *, struct iw_request_info *,
+		      union iwreq_data *, char *extra);
 
-int wvlan_set_station_nickname(struct net_device *, struct iw_request_info *, union iwreq_data *, char *extra);
+int wvlan_set_station_nickname(struct net_device *, struct iw_request_info *,
+			       union iwreq_data *, char *extra);
 
-int wvlan_get_station_nickname(struct net_device *, struct iw_request_info *, union iwreq_data *, char *extra);
+int wvlan_get_station_nickname(struct net_device *, struct iw_request_info *,
+			       union iwreq_data *, char *extra);
 
-int wvlan_set_porttype(struct net_device *, struct iw_request_info *, union iwreq_data *, char *extra);
+int wvlan_set_porttype(struct net_device *, struct iw_request_info *,
+		       union iwreq_data *, char *extra);
 
-int wvlan_get_porttype(struct net_device *, struct iw_request_info *, union iwreq_data *, char *extra);
+int wvlan_get_porttype(struct net_device *, struct iw_request_info *,
+		       union iwreq_data *, char *extra);
 
 
 #endif  /* WIRELESS_EXT */
