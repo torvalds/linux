@@ -942,7 +942,7 @@ static int ip_vs_out_icmp_v6(struct sk_buff *skb, int *related,
 	/* Fragment header that is before ICMP header tells us that:
 	 * it's not an error message since they can't be fragmented.
 	 */
-	if (ipvsh->flags & IP6T_FH_F_FRAG)
+	if (ipvsh->flags & IP6_FH_F_FRAG)
 		return NF_DROP;
 
 	IP_VS_DBG(8, "Outgoing ICMPv6 (%d,%d) %pI6c->%pI6c\n",
@@ -1475,7 +1475,7 @@ static int ip_vs_in_icmp_v6(struct sk_buff *skb, int *related,
 	/* Fragment header that is before ICMP header tells us that:
 	 * it's not an error message since they can't be fragmented.
 	 */
-	if (iph->flags & IP6T_FH_F_FRAG)
+	if (iph->flags & IP6_FH_F_FRAG)
 		return NF_DROP;
 
 	IP_VS_DBG(8, "Incoming ICMPv6 (%d,%d) %pI6c->%pI6c\n",

@@ -208,7 +208,7 @@ void ovs_dp_process_received_packet(struct vport *p, struct sk_buff *skb)
 	int error;
 	int key_len;
 
-	stats = per_cpu_ptr(dp->stats_percpu, smp_processor_id());
+	stats = this_cpu_ptr(dp->stats_percpu);
 
 	/* Extract flow from 'skb' into 'key'. */
 	error = ovs_flow_extract(skb, p->port_no, &key, &key_len);
@@ -282,7 +282,7 @@ int ovs_dp_upcall(struct datapath *dp, struct sk_buff *skb,
 	return 0;
 
 err:
-	stats = per_cpu_ptr(dp->stats_percpu, smp_processor_id());
+	stats = this_cpu_ptr(dp->stats_percpu);
 
 	u64_stats_update_begin(&stats->sync);
 	stats->n_lost++;
@@ -479,8 +479,10 @@ static int validate_set(const struct nlattr *a,
 
 	switch (key_type) {
 	const struct ovs_key_ipv4 *ipv4_key;
+	const struct ovs_key_ipv6 *ipv6_key;
 
 	case OVS_KEY_ATTR_PRIORITY:
+	case OVS_KEY_ATTR_SKB_MARK:
 	case OVS_KEY_ATTR_ETHERNET:
 		break;
 
@@ -496,6 +498,25 @@ static int validate_set(const struct nlattr *a,
 			return -EINVAL;
 
 		if (ipv4_key->ipv4_frag != flow_key->ip.frag)
+			return -EINVAL;
+
+		break;
+
+	case OVS_KEY_ATTR_IPV6:
+		if (flow_key->eth.type != htons(ETH_P_IPV6))
+			return -EINVAL;
+
+		if (!flow_key->ip.proto)
+			return -EINVAL;
+
+		ipv6_key = nla_data(ovs_key);
+		if (ipv6_key->ipv6_proto != flow_key->ip.proto)
+			return -EINVAL;
+
+		if (ipv6_key->ipv6_frag != flow_key->ip.frag)
+			return -EINVAL;
+
+		if (ntohl(ipv6_key->ipv6_label) & 0xFFF00000)
 			return -EINVAL;
 
 		break;
@@ -675,6 +696,7 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 		goto err_flow_free;
 
 	err = ovs_flow_metadata_from_nlattrs(&flow->key.phy.priority,
+					     &flow->key.phy.skb_mark,
 					     &flow->key.phy.in_port,
 					     a[OVS_PACKET_ATTR_KEY]);
 	if (err)
@@ -694,6 +716,7 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 
 	OVS_CB(packet)->flow = flow;
 	packet->priority = flow->key.phy.priority;
+	packet->mark = flow->key.phy.skb_mark;
 
 	rcu_read_lock();
 	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
