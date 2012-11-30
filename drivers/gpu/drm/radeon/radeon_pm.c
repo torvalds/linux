@@ -1215,6 +1215,7 @@ static void radeon_pm_compute_clocks_dpm(struct radeon_device *rdev)
 
 	mutex_lock(&rdev->pm.mutex);
 
+	/* update active crtc counts */
 	rdev->pm.dpm.new_active_crtcs = 0;
 	rdev->pm.dpm.new_active_crtc_count = 0;
 	list_for_each_entry(crtc,
@@ -1225,6 +1226,12 @@ static void radeon_pm_compute_clocks_dpm(struct radeon_device *rdev)
 			rdev->pm.dpm.new_active_crtc_count++;
 		}
 	}
+
+	/* update battery/ac status */
+	if (power_supply_is_system_supplied() > 0)
+		rdev->pm.dpm.ac_power = true;
+	else
+		rdev->pm.dpm.ac_power = false;
 
 	radeon_dpm_change_power_state_locked(rdev);
 
