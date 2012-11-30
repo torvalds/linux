@@ -32,8 +32,6 @@
 #include "../comedidev.h"
 #include "comedi_fc.h"
 
-#include "addi-data/addi_common.h"
-
 /*
  * PCI bar 1 I/O Register map
  */
@@ -71,12 +69,12 @@ static int i_APCI2032_ConfigDigitalOutput(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
-	if (data[1] == ADDIDATA_ENABLE)
+	if (data[1] == 1)
 		ul_Command |= APCI2032_INT_CTRL_VCC_ENA;
 	else
 		ul_Command &= ~APCI2032_INT_CTRL_VCC_ENA;
 
-	if (data[2] == ADDIDATA_ENABLE)
+	if (data[2] == 1)
 		ul_Command |= APCI2032_INT_CTRL_CC_ENA;
 	else
 		ul_Command &= ~APCI2032_INT_CTRL_CC_ENA;
