@@ -5041,6 +5041,10 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 	if (err)
 		goto out_unlock;
 
+	err = btrfs_update_inode(trans, root, inode);
+	if (err)
+		goto out_unlock;
+
 	/*
 	* If the active LSM wants to access the inode during
 	* d_instantiate it needs these. Smack checks to see
