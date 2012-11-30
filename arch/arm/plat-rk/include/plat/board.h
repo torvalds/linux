@@ -364,4 +364,24 @@ void rk28_send_wakeup_key(void);
 phys_addr_t __init board_mem_reserve_add(char *name, size_t size);
 void __init board_mem_reserved(void);
 
+/*
+ * For DDR frequency scaling setup. Board code something like this:
+ *
+ * This array _must_ be sorted in ascending frequency (without DDR_FREQ_*) order.
+ * 必须按频率（不必考虑DDR_FREQ_*）递增。
+ *static struct cpufreq_frequency_table dvfs_ddr_table[] = {
+ *	{.frequency = 200 * 1000 + DDR_FREQ_SUSPEND,	.index = xxxx * 1000},
+ *	{.frequency = 200 * 1000 + DDR_FREQ_IDLE,	.index = xxxx * 1000},
+ *	{.frequency = 300 * 1000 + DDR_FREQ_VIDEO,	.index = xxxx * 1000},
+ *	{.frequency = 400 * 1000 + DDR_FREQ_NORMAL,	.index = xxxx * 1000},
+ *	{.frequency = CPUFREQ_TABLE_END},
+ *};
+ */
+enum ddr_freq_mode {
+	DDR_FREQ_NORMAL = 1,	// default
+	DDR_FREQ_VIDEO,		// when video is playing
+	DDR_FREQ_IDLE,		// when screen is idle
+	DDR_FREQ_SUSPEND,	// when early suspend
+};
+
 #endif
