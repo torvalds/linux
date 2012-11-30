@@ -54,7 +54,7 @@ choice
 config MIPS_ALCHEMY
 	bool "Alchemy processor based machines"
 	select 64BIT_PHYS_ADDR
-	select CEVT_R4K_LIB
+	select CEVT_R4K
 	select CSRC_R4K
 	select IRQ_CPU
 	select SYS_HAS_CPU_MIPS32_R1
@@ -926,11 +926,7 @@ config CEVT_DS1287
 config CEVT_GT641XX
 	bool
 
-config CEVT_R4K_LIB
-	bool
-
 config CEVT_R4K
-	select CEVT_R4K_LIB
 	bool
 
 config CEVT_SB1250
