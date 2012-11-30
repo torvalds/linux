@@ -66,7 +66,7 @@ static int eucr_resume(struct usb_interface *iface)
 	us->Power_IsResum = true;
 
 	us->SM_Status = *(PSM_STATUS)&tmp;
-    	
+
 	return 0;
 }
 
@@ -256,7 +256,7 @@ SkipForAbort:
 	}
 	__set_current_state(TASK_RUNNING);
 	return 0;
-}	
+}
 
 static int associate_dev(struct us_data *us, struct usb_interface *intf)
 {
