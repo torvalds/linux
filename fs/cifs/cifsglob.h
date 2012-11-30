@@ -1064,21 +1064,16 @@ static inline char CIFS_DIR_SEP(const struct cifs_sb_info *cifs_sb)
 static inline void
 convert_delimiter(char *path, char delim)
 {
-	int i;
-	char old_delim;
-
-	if (path == NULL)
-		return;
+	char old_delim, *pos;
 
 	if (delim == '/')
 		old_delim = '\\';
 	else
 		old_delim = '/';
 
-	for (i = 0; path[i] != '\0'; i++) {
-		if (path[i] == old_delim)
-			path[i] = delim;
-	}
+	pos = path;
+	while ((pos = strchr(pos, old_delim)))
+		*pos = delim;
 }
 
 #ifdef CONFIG_CIFS_STATS
