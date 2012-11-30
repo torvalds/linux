@@ -993,4 +993,5 @@ MODULE_DESCRIPTION("WM831x DC-DC convertor driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:wm831x-buckv");
 MODULE_ALIAS("platform:wm831x-buckp");
+MODULE_ALIAS("platform:wm831x-boostp");
 MODULE_ALIAS("platform:wm831x-epe");
