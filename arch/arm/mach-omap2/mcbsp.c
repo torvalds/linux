@@ -29,7 +29,7 @@
  * FIXME: Find a mechanism to enable/disable runtime the McBSP ICLK autoidle.
  * Sidetone needs non-gated ICLK and sidetone autoidle is broken.
  */
-#include "cm2xxx_3xxx.h"
+#include "cm3xxx.h"
 #include "cm-regbits-34xx.h"
 
 static int omap3_enable_st_clock(unsigned int id, bool enable)

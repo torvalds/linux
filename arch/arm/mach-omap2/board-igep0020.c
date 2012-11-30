@@ -651,7 +651,7 @@ MACHINE_START(IGEP0020, "IGEP v2 board")
 	.init_machine	= igep_init,
 	.init_late	= omap35xx_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END
 
 MACHINE_START(IGEP0030, "IGEP OMAP3 module")
@@ -664,5 +664,5 @@ MACHINE_START(IGEP0030, "IGEP OMAP3 module")
 	.init_machine	= igep_init,
 	.init_late	= omap35xx_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END

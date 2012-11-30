@@ -436,5 +436,5 @@ MACHINE_START(OMAP_LDP, "OMAP LDP board")
 	.init_machine	= omap_ldp_init,
 	.init_late	= omap3430_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END

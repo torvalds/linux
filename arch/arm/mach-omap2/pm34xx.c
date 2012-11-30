@@ -38,17 +38,15 @@
 
 #include "clockdomain.h"
 #include "powerdomain.h"
-#include <plat/prcm.h>
 #include <plat-omap/dma-omap.h>
 
 #include "soc.h"
 #include "common.h"
-#include "cm2xxx_3xxx.h"
+#include "cm3xxx.h"
 #include "cm-regbits-34xx.h"
 #include "gpmc.h"
 #include "prm-regbits-34xx.h"
-
-#include "prm2xxx_3xxx.h"
+#include "prm3xxx.h"
 #include "pm.h"
 #include "sdrc.h"
 #include "sram.h"

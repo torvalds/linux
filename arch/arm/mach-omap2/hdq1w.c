@@ -31,10 +31,8 @@
 #include "omap_device.h"
 #include "hdq1w.h"
 
+#include "prm.h"
 #include "common.h"
-
-/* Maximum microseconds to wait for OMAP module to softreset */
-#define MAX_MODULE_SOFTRESET_WAIT	10000
 
 /**
  * omap_hdq1w_reset - reset the OMAP HDQ1W module

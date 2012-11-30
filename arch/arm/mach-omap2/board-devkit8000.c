@@ -643,5 +643,5 @@ MACHINE_START(DEVKIT8000, "OMAP3 Devkit8000")
 	.init_machine	= devkit8000_init,
 	.init_late	= omap35xx_init_late,
 	.timer		= &omap3_secure_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END

@@ -1,6 +1,8 @@
 /*
  * OMAP2+ MPU WD_TIMER-specific code
  *
+ * Copyright (C) 2012 Texas Instruments, Inc.
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -11,10 +13,14 @@
 #include <linux/io.h>
 #include <linux/err.h>
 
-#include "omap_hwmod.h"
+#include <linux/platform_data/omap-wd-timer.h>
 
+#include "omap_hwmod.h"
+#include "omap_device.h"
 #include "wd_timer.h"
 #include "common.h"
+#include "prm.h"
+#include "soc.h"
 
 /*
  * In order to avoid any assumptions from bootloader regarding WDT
@@ -25,9 +31,6 @@
  */
 #define OMAP_WDT_WPS		0x34
 #define OMAP_WDT_SPR		0x48
-
-/* Maximum microseconds to wait for OMAP module to softreset */
-#define MAX_MODULE_SOFTRESET_WAIT	10000
 
 int omap2_wd_timer_disable(struct omap_hwmod *oh)
 {
@@ -99,3 +102,32 @@ int omap2_wd_timer_reset(struct omap_hwmod *oh)
 	return (c == MAX_MODULE_SOFTRESET_WAIT) ? -ETIMEDOUT :
 		omap2_wd_timer_disable(oh);
 }
+
+static int __init omap_init_wdt(void)
+{
+	int id = -1;
+	struct platform_device *pdev;
+	struct omap_hwmod *oh;
+	char *oh_name = "wd_timer2";
+	char *dev_name = "omap_wdt";
+	struct omap_wd_timer_platform_data pdata;
+
+	if (!cpu_class_is_omap2() || of_have_populated_dt())
+		return 0;
+
+	oh = omap_hwmod_lookup(oh_name);
+	if (!oh) {
+		pr_err("Could not look up wd_timer%d hwmod\n", id);
+		return -EINVAL;
+	}
+
+	pdata.read_reset_sources = prm_read_reset_sources;
+
+	pdev = omap_device_build(dev_name, id, oh, &pdata,
+				 sizeof(struct omap_wd_timer_platform_data),
+				 NULL, 0, 0);
+	WARN(IS_ERR(pdev), "Can't build omap_device for %s:%s.\n",
+	     dev_name, oh->name);
+	return 0;
+}
+subsys_initcall(omap_init_wdt);

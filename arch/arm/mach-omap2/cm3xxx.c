@@ -1,8 +1,10 @@
 /*
- * OMAP2/3 CM module functions
+ * OMAP3xxx CM module functions
  *
  * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2008-2010, 2012 Texas Instruments, Inc.
  * Paul Walmsley
+ * Rajendra Nayak <rnayak@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,8 +14,6 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/delay.h>
-#include <linux/spinlock.h>
-#include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -21,55 +21,15 @@
 #include "soc.h"
 #include "iomap.h"
 #include "common.h"
+#include "prm2xxx_3xxx.h"
 #include "cm.h"
-#include "cm2xxx_3xxx.h"
-#include "cm-regbits-24xx.h"
+#include "cm3xxx.h"
 #include "cm-regbits-34xx.h"
+#include "clockdomain.h"
 
-/* CM_AUTOIDLE_PLL.AUTO_* bit values for DPLLs */
-#define DPLL_AUTOIDLE_DISABLE				0x0
-#define OMAP2XXX_DPLL_AUTOIDLE_LOW_POWER_STOP		0x3
-
-/* CM_AUTOIDLE_PLL.AUTO_* bit values for APLLs (OMAP2xxx only) */
-#define OMAP2XXX_APLL_AUTOIDLE_DISABLE			0x0
-#define OMAP2XXX_APLL_AUTOIDLE_LOW_POWER_STOP		0x3
-
-static const u8 cm_idlest_offs[] = {
-	CM_IDLEST1, CM_IDLEST2, OMAP2430_CM_IDLEST3, OMAP24XX_CM_IDLEST4
+static const u8 omap3xxx_cm_idlest_offs[] = {
+	CM_IDLEST1, CM_IDLEST2, OMAP2430_CM_IDLEST3
 };
-
-u32 omap2_cm_read_mod_reg(s16 module, u16 idx)
-{
-	return __raw_readl(cm_base + module + idx);
-}
-
-void omap2_cm_write_mod_reg(u32 val, s16 module, u16 idx)
-{
-	__raw_writel(val, cm_base + module + idx);
-}
-
-/* Read-modify-write a register in a CM module. Caller must lock */
-u32 omap2_cm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx)
-{
-	u32 v;
-
-	v = omap2_cm_read_mod_reg(module, idx);
-	v &= ~mask;
-	v |= bits;
-	omap2_cm_write_mod_reg(v, module, idx);
-
-	return v;
-}
-
-u32 omap2_cm_set_mod_reg_bits(u32 bits, s16 module, s16 idx)
-{
-	return omap2_cm_rmw_mod_reg_bits(bits, bits, module, idx);
-}
-
-u32 omap2_cm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
-{
-	return omap2_cm_rmw_mod_reg_bits(bits, 0x0, module, idx);
-}
 
 /*
  *
@@ -85,33 +45,15 @@ static void _write_clktrctrl(u8 c, s16 module, u32 mask)
 	omap2_cm_write_mod_reg(v, module, OMAP2_CM_CLKSTCTRL);
 }
 
-bool omap2_cm_is_clkdm_in_hwsup(s16 module, u32 mask)
+bool omap3xxx_cm_is_clkdm_in_hwsup(s16 module, u32 mask)
 {
 	u32 v;
-	bool ret = 0;
-
-	BUG_ON(!cpu_is_omap24xx() && !cpu_is_omap34xx());
 
 	v = omap2_cm_read_mod_reg(module, OMAP2_CM_CLKSTCTRL);
 	v &= mask;
 	v >>= __ffs(mask);
 
-	if (cpu_is_omap24xx())
-		ret = (v == OMAP24XX_CLKSTCTRL_ENABLE_AUTO) ? 1 : 0;
-	else
-		ret = (v == OMAP34XX_CLKSTCTRL_ENABLE_AUTO) ? 1 : 0;
-
-	return ret;
-}
-
-void omap2xxx_cm_clkdm_enable_hwsup(s16 module, u32 mask)
-{
-	_write_clktrctrl(OMAP24XX_CLKSTCTRL_ENABLE_AUTO, module, mask);
-}
-
-void omap2xxx_cm_clkdm_disable_hwsup(s16 module, u32 mask)
-{
-	_write_clktrctrl(OMAP24XX_CLKSTCTRL_DISABLE_AUTO, module, mask);
+	return (v == OMAP34XX_CLKSTCTRL_ENABLE_AUTO) ? 1 : 0;
 }
 
 void omap3xxx_cm_clkdm_enable_hwsup(s16 module, u32 mask)
@@ -135,109 +77,247 @@ void omap3xxx_cm_clkdm_force_wakeup(s16 module, u32 mask)
 }
 
 /*
- * DPLL autoidle control
- */
-
-static void _omap2xxx_set_dpll_autoidle(u8 m)
-{
-	u32 v;
-
-	v = omap2_cm_read_mod_reg(PLL_MOD, CM_AUTOIDLE);
-	v &= ~OMAP24XX_AUTO_DPLL_MASK;
-	v |= m << OMAP24XX_AUTO_DPLL_SHIFT;
-	omap2_cm_write_mod_reg(v, PLL_MOD, CM_AUTOIDLE);
-}
-
-void omap2xxx_cm_set_dpll_disable_autoidle(void)
-{
-	_omap2xxx_set_dpll_autoidle(OMAP2XXX_DPLL_AUTOIDLE_LOW_POWER_STOP);
-}
-
-void omap2xxx_cm_set_dpll_auto_low_power_stop(void)
-{
-	_omap2xxx_set_dpll_autoidle(DPLL_AUTOIDLE_DISABLE);
-}
-
-/*
- * APLL autoidle control
- */
-
-static void _omap2xxx_set_apll_autoidle(u8 m, u32 mask)
-{
-	u32 v;
-
-	v = omap2_cm_read_mod_reg(PLL_MOD, CM_AUTOIDLE);
-	v &= ~mask;
-	v |= m << __ffs(mask);
-	omap2_cm_write_mod_reg(v, PLL_MOD, CM_AUTOIDLE);
-}
-
-void omap2xxx_cm_set_apll54_disable_autoidle(void)
-{
-	_omap2xxx_set_apll_autoidle(OMAP2XXX_APLL_AUTOIDLE_LOW_POWER_STOP,
-				    OMAP24XX_AUTO_54M_MASK);
-}
-
-void omap2xxx_cm_set_apll54_auto_low_power_stop(void)
-{
-	_omap2xxx_set_apll_autoidle(OMAP2XXX_APLL_AUTOIDLE_DISABLE,
-				    OMAP24XX_AUTO_54M_MASK);
-}
-
-void omap2xxx_cm_set_apll96_disable_autoidle(void)
-{
-	_omap2xxx_set_apll_autoidle(OMAP2XXX_APLL_AUTOIDLE_LOW_POWER_STOP,
-				    OMAP24XX_AUTO_96M_MASK);
-}
-
-void omap2xxx_cm_set_apll96_auto_low_power_stop(void)
-{
-	_omap2xxx_set_apll_autoidle(OMAP2XXX_APLL_AUTOIDLE_DISABLE,
-				    OMAP24XX_AUTO_96M_MASK);
-}
-
-/*
  *
  */
 
 /**
- * omap2_cm_wait_idlest_ready - wait for a module to leave idle or standby
+ * omap3xxx_cm_wait_module_ready - wait for a module to leave idle or standby
  * @prcm_mod: PRCM module offset
  * @idlest_id: CM_IDLESTx register ID (i.e., x = 1, 2, 3)
  * @idlest_shift: shift of the bit in the CM_IDLEST* register to check
  *
- * XXX document
+ * Wait for the PRCM to indicate that the module identified by
+ * (@prcm_mod, @idlest_id, @idlest_shift) is clocked.  Return 0 upon
+ * success or -EBUSY if the module doesn't enable in time.
  */
-int omap2_cm_wait_module_ready(s16 prcm_mod, u8 idlest_id, u8 idlest_shift)
+int omap3xxx_cm_wait_module_ready(s16 prcm_mod, u8 idlest_id, u8 idlest_shift)
 {
 	int ena = 0, i = 0;
 	u8 cm_idlest_reg;
 	u32 mask;
 
-	if (!idlest_id || (idlest_id > ARRAY_SIZE(cm_idlest_offs)))
+	if (!idlest_id || (idlest_id > ARRAY_SIZE(omap3xxx_cm_idlest_offs)))
 		return -EINVAL;
 
-	cm_idlest_reg = cm_idlest_offs[idlest_id - 1];
+	cm_idlest_reg = omap3xxx_cm_idlest_offs[idlest_id - 1];
 
 	mask = 1 << idlest_shift;
+	ena = 0;
 
-	if (cpu_is_omap24xx())
-		ena = mask;
-	else if (cpu_is_omap34xx())
-		ena = 0;
-	else
-		BUG();
-
-	omap_test_timeout(((omap2_cm_read_mod_reg(prcm_mod, cm_idlest_reg) & mask) == ena),
-			  MAX_MODULE_READY_TIME, i);
+	omap_test_timeout(((omap2_cm_read_mod_reg(prcm_mod, cm_idlest_reg) &
+			    mask) == ena), MAX_MODULE_READY_TIME, i);
 
 	return (i < MAX_MODULE_READY_TIME) ? 0 : -EBUSY;
 }
 
+/**
+ * omap3xxx_cm_split_idlest_reg - split CM_IDLEST reg addr into its components
+ * @idlest_reg: CM_IDLEST* virtual address
+ * @prcm_inst: pointer to an s16 to return the PRCM instance offset
+ * @idlest_reg_id: pointer to a u8 to return the CM_IDLESTx register ID
+ *
+ * XXX This function is only needed until absolute register addresses are
+ * removed from the OMAP struct clk records.
+ */
+int omap3xxx_cm_split_idlest_reg(void __iomem *idlest_reg, s16 *prcm_inst,
+				 u8 *idlest_reg_id)
+{
+	unsigned long offs;
+	u8 idlest_offs;
+	int i;
+
+	if (idlest_reg < (cm_base + OMAP3430_IVA2_MOD) ||
+	    idlest_reg > (cm_base + 0x1ffff))
+		return -EINVAL;
+
+	idlest_offs = (unsigned long)idlest_reg & 0xff;
+	for (i = 0; i < ARRAY_SIZE(omap3xxx_cm_idlest_offs); i++) {
+		if (idlest_offs == omap3xxx_cm_idlest_offs[i]) {
+			*idlest_reg_id = i + 1;
+			break;
+		}
+	}
+
+	if (i == ARRAY_SIZE(omap3xxx_cm_idlest_offs))
+		return -EINVAL;
+
+	offs = idlest_reg - cm_base;
+	offs &= 0xff00;
+	*prcm_inst = offs;
+
+	return 0;
+}
+
+/* Clockdomain low-level operations */
+
+static int omap3xxx_clkdm_add_sleepdep(struct clockdomain *clkdm1,
+				       struct clockdomain *clkdm2)
+{
+	omap2_cm_set_mod_reg_bits((1 << clkdm2->dep_bit),
+				  clkdm1->pwrdm.ptr->prcm_offs,
+				  OMAP3430_CM_SLEEPDEP);
+	return 0;
+}
+
+static int omap3xxx_clkdm_del_sleepdep(struct clockdomain *clkdm1,
+				       struct clockdomain *clkdm2)
+{
+	omap2_cm_clear_mod_reg_bits((1 << clkdm2->dep_bit),
+				    clkdm1->pwrdm.ptr->prcm_offs,
+				    OMAP3430_CM_SLEEPDEP);
+	return 0;
+}
+
+static int omap3xxx_clkdm_read_sleepdep(struct clockdomain *clkdm1,
+					struct clockdomain *clkdm2)
+{
+	return omap2_cm_read_mod_bits_shift(clkdm1->pwrdm.ptr->prcm_offs,
+					    OMAP3430_CM_SLEEPDEP,
+					    (1 << clkdm2->dep_bit));
+}
+
+static int omap3xxx_clkdm_clear_all_sleepdeps(struct clockdomain *clkdm)
+{
+	struct clkdm_dep *cd;
+	u32 mask = 0;
+
+	for (cd = clkdm->sleepdep_srcs; cd && cd->clkdm_name; cd++) {
+		if (!cd->clkdm)
+			continue; /* only happens if data is erroneous */
+
+		mask |= 1 << cd->clkdm->dep_bit;
+		atomic_set(&cd->sleepdep_usecount, 0);
+	}
+	omap2_cm_clear_mod_reg_bits(mask, clkdm->pwrdm.ptr->prcm_offs,
+				    OMAP3430_CM_SLEEPDEP);
+	return 0;
+}
+
+static int omap3xxx_clkdm_sleep(struct clockdomain *clkdm)
+{
+	omap3xxx_cm_clkdm_force_sleep(clkdm->pwrdm.ptr->prcm_offs,
+				      clkdm->clktrctrl_mask);
+	return 0;
+}
+
+static int omap3xxx_clkdm_wakeup(struct clockdomain *clkdm)
+{
+	omap3xxx_cm_clkdm_force_wakeup(clkdm->pwrdm.ptr->prcm_offs,
+				       clkdm->clktrctrl_mask);
+	return 0;
+}
+
+static void omap3xxx_clkdm_allow_idle(struct clockdomain *clkdm)
+{
+	if (atomic_read(&clkdm->usecount) > 0)
+		_clkdm_add_autodeps(clkdm);
+
+	omap3xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+				       clkdm->clktrctrl_mask);
+}
+
+static void omap3xxx_clkdm_deny_idle(struct clockdomain *clkdm)
+{
+	omap3xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					clkdm->clktrctrl_mask);
+
+	if (atomic_read(&clkdm->usecount) > 0)
+		_clkdm_del_autodeps(clkdm);
+}
+
+static int omap3xxx_clkdm_clk_enable(struct clockdomain *clkdm)
+{
+	bool hwsup = false;
+
+	if (!clkdm->clktrctrl_mask)
+		return 0;
+
+	/*
+	 * The CLKDM_MISSING_IDLE_REPORTING flag documentation has
+	 * more details on the unpleasant problem this is working
+	 * around
+	 */
+	if ((clkdm->flags & CLKDM_MISSING_IDLE_REPORTING) &&
+	    (clkdm->flags & CLKDM_CAN_FORCE_WAKEUP)) {
+		omap3xxx_clkdm_wakeup(clkdm);
+		return 0;
+	}
+
+	hwsup = omap3xxx_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					      clkdm->clktrctrl_mask);
+
+	if (hwsup) {
+		/* Disable HW transitions when we are changing deps */
+		omap3xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+						clkdm->clktrctrl_mask);
+		_clkdm_add_autodeps(clkdm);
+		omap3xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					       clkdm->clktrctrl_mask);
+	} else {
+		if (clkdm->flags & CLKDM_CAN_FORCE_WAKEUP)
+			omap3xxx_clkdm_wakeup(clkdm);
+	}
+
+	return 0;
+}
+
+static int omap3xxx_clkdm_clk_disable(struct clockdomain *clkdm)
+{
+	bool hwsup = false;
+
+	if (!clkdm->clktrctrl_mask)
+		return 0;
+
+	/*
+	 * The CLKDM_MISSING_IDLE_REPORTING flag documentation has
+	 * more details on the unpleasant problem this is working
+	 * around
+	 */
+	if (clkdm->flags & CLKDM_MISSING_IDLE_REPORTING &&
+	    !(clkdm->flags & CLKDM_CAN_FORCE_SLEEP)) {
+		omap3xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					       clkdm->clktrctrl_mask);
+		return 0;
+	}
+
+	hwsup = omap3xxx_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					      clkdm->clktrctrl_mask);
+
+	if (hwsup) {
+		/* Disable HW transitions when we are changing deps */
+		omap3xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+						clkdm->clktrctrl_mask);
+		_clkdm_del_autodeps(clkdm);
+		omap3xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					       clkdm->clktrctrl_mask);
+	} else {
+		if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP)
+			omap3xxx_clkdm_sleep(clkdm);
+	}
+
+	return 0;
+}
+
+struct clkdm_ops omap3_clkdm_operations = {
+	.clkdm_add_wkdep	= omap2_clkdm_add_wkdep,
+	.clkdm_del_wkdep	= omap2_clkdm_del_wkdep,
+	.clkdm_read_wkdep	= omap2_clkdm_read_wkdep,
+	.clkdm_clear_all_wkdeps	= omap2_clkdm_clear_all_wkdeps,
+	.clkdm_add_sleepdep	= omap3xxx_clkdm_add_sleepdep,
+	.clkdm_del_sleepdep	= omap3xxx_clkdm_del_sleepdep,
+	.clkdm_read_sleepdep	= omap3xxx_clkdm_read_sleepdep,
+	.clkdm_clear_all_sleepdeps	= omap3xxx_clkdm_clear_all_sleepdeps,
+	.clkdm_sleep		= omap3xxx_clkdm_sleep,
+	.clkdm_wakeup		= omap3xxx_clkdm_wakeup,
+	.clkdm_allow_idle	= omap3xxx_clkdm_allow_idle,
+	.clkdm_deny_idle	= omap3xxx_clkdm_deny_idle,
+	.clkdm_clk_enable	= omap3xxx_clkdm_clk_enable,
+	.clkdm_clk_disable	= omap3xxx_clkdm_clk_disable,
+};
+
 /*
  * Context save/restore code - OMAP3 only
  */
-#ifdef CONFIG_ARCH_OMAP3
 struct omap3_cm_regs {
 	u32 iva2_cm_clksel1;
 	u32 iva2_cm_clksel2;
@@ -555,4 +635,31 @@ void omap3_cm_restore_context(void)
 	omap2_cm_write_mod_reg(cm_context.cm_clkout_ctrl, OMAP3430_CCR_MOD,
 			       OMAP3_CM_CLKOUT_CTRL_OFFSET);
 }
-#endif
+
+/*
+ *
+ */
+
+static struct cm_ll_data omap3xxx_cm_ll_data = {
+	.split_idlest_reg	= &omap3xxx_cm_split_idlest_reg,
+	.wait_module_ready	= &omap3xxx_cm_wait_module_ready,
+};
+
+int __init omap3xxx_cm_init(void)
+{
+	if (!cpu_is_omap34xx())
+		return 0;
+
+	return cm_register(&omap3xxx_cm_ll_data);
+}
+
+static void __exit omap3xxx_cm_exit(void)
+{
+	if (!cpu_is_omap34xx())
+		return;
+
+	/* Should never happen */
+	WARN(cm_unregister(&omap3xxx_cm_ll_data),
+	     "%s: cm_ll_data function pointer mismatch\n", __func__);
+}
+__exitcall(omap3xxx_cm_exit);
