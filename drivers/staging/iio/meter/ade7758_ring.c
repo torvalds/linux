@@ -13,7 +13,7 @@
 #include <asm/unaligned.h>
 
 #include <linux/iio/iio.h>
-#include "../ring_sw.h"
+#include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger_consumer.h>
 #include "ade7758.h"
 
@@ -119,7 +119,7 @@ static const struct iio_buffer_setup_ops ade7758_ring_setup_ops = {
 void ade7758_unconfigure_ring(struct iio_dev *indio_dev)
 {
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->buffer);
+	iio_kfifo_free(indio_dev->buffer);
 }
 
 int ade7758_configure_ring(struct iio_dev *indio_dev)
@@ -127,7 +127,7 @@ int ade7758_configure_ring(struct iio_dev *indio_dev)
 	struct ade7758_state *st = iio_priv(indio_dev);
 	int ret = 0;
 
-	indio_dev->buffer = iio_sw_rb_allocate(indio_dev);
+	indio_dev->buffer = iio_kfifo_allocate(indio_dev);
 	if (!indio_dev->buffer) {
 		ret = -ENOMEM;
 		return ret;
@@ -143,7 +143,7 @@ int ade7758_configure_ring(struct iio_dev *indio_dev)
 						 indio_dev->id);
 	if (indio_dev->pollfunc == NULL) {
 		ret = -ENOMEM;
-		goto error_iio_sw_rb_free;
+		goto error_iio_kfifo_free;
 	}
 
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
@@ -183,8 +183,8 @@ int ade7758_configure_ring(struct iio_dev *indio_dev)
 
 	return 0;
 
-error_iio_sw_rb_free:
-	iio_sw_rb_free(indio_dev->buffer);
+error_iio_kfifo_free:
+	iio_kfifo_free(indio_dev->buffer);
 	return ret;
 }
 
