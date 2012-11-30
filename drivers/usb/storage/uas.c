@@ -644,6 +644,12 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 
 	BUILD_BUG_ON(sizeof(struct uas_cmd_info) > sizeof(struct scsi_pointer));
 
+	if (devinfo->resetting) {
+		cmnd->result = DID_ERROR << 16;
+		cmnd->scsi_done(cmnd);
+		return 0;
+	}
+
 	spin_lock_irqsave(&devinfo->lock, flags);
 	if (devinfo->cmnd) {
 		spin_unlock_irqrestore(&devinfo->lock, flags);
