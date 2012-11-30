@@ -92,7 +92,14 @@ static void ddrfreq_mode(bool auto_self_refresh, unsigned long *target_rate, cha
 
 static noinline void ddrfreq_work(unsigned long sys_status)
 {
+	static struct clk *cpu = NULL;
+	static struct clk *gpu = NULL;
 	unsigned long s = sys_status;
+
+	if (!cpu)
+		cpu = clk_get(NULL, "cpu");
+	if (!gpu)
+		gpu = clk_get(NULL, "gpu");
 
 	dprintk(DEBUG_VERBOSE, "sys_status %02lx\n", sys_status);
 	if (s & (1 << SYS_STATUS_SUSPEND)) {
@@ -103,7 +110,10 @@ static noinline void ddrfreq_work(unsigned long sys_status)
 		&& !(s & (1 << SYS_STATUS_GPU))
 		&& !(s & (1 << SYS_STATUS_RGA))
 		&& !(s & (1 << SYS_STATUS_CIF0))
-		&& !(s & (1 << SYS_STATUS_CIF1))) {
+		&& !(s & (1 << SYS_STATUS_CIF1))
+		&& (clk_get_rate(cpu) < 816 * MHZ)
+		&& (clk_get_rate(gpu) <= 200 * MHZ)
+		) {
 		ddrfreq_mode(false, &ddr.idle_rate, "idle");
 	} else {
 		ddrfreq_mode(false, &ddr.normal_rate, "normal");
@@ -112,20 +122,11 @@ static noinline void ddrfreq_work(unsigned long sys_status)
 
 static int ddrfreq_task(void *data)
 {
-        static bool is_booting = true;
 	set_freezable();
 
 	do {
 		unsigned long status = ddr.sys_status;
-		if (is_booting) {
-			s64 boottime_ms = ktime_to_ms(ktime_get_boottime());
-			if (boottime_ms > 20 * MSEC_PER_SEC) {
-				is_booting = false;
-			}
-		}
-		if (!is_booting) {
-			ddrfreq_work(status);
-		}
+		ddrfreq_work(status);
 		wait_event_freezable(ddr.wait, (status != ddr.sys_status) || kthread_should_stop());
 	} while (!kthread_should_stop());
 
