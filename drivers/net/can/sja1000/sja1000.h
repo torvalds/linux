@@ -152,7 +152,6 @@
  */
 struct sja1000_priv {
 	struct can_priv can;	/* must be the first member */
-	int open_time;
 	struct sk_buff *echo_skb;
 
 	/* the lower-layer is responsible for appropriate locking */
