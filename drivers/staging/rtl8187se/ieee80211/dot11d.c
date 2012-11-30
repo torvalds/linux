@@ -39,10 +39,10 @@ Dot11d_Reset(struct ieee80211_device *ieee)
 	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER+1);
 	memset(pDot11dInfo->MaxTxPwrDbmList, 0xFF, MAX_CHANNEL_NUMBER+1);
 	// Set new channel map
-	for (i=1; i<=11; i++) {
+	for (i = 1; i <= 11; i++) {
 		(pDot11dInfo->channel_map)[i] = 1;
 	}
-	for (i=12; i<=14; i++) {
+	for (i = 12; i <= 14; i++) {
 		(pDot11dInfo->channel_map)[i] = 2;
 	}
 
@@ -116,7 +116,7 @@ Dot11d_UpdateCountryIe(
 #if 1
 	//printk("Dot11d_UpdateCountryIe(): Channel List:\n");
 	printk("Channel List:");
-	for(i=1; i<= MAX_CHANNEL_NUMBER; i++)
+	for(i = 1; i <= MAX_CHANNEL_NUMBER; i++)
 		if(pDot11dInfo->channel_map[i] > 0)
 			printk(" %d", i);
 	printk("\n");
@@ -125,7 +125,7 @@ Dot11d_UpdateCountryIe(
 	UPDATE_CIE_SRC(dev, pTaddr);
 
 	pDot11dInfo->CountryIeLen = CoutryIeLen;
-	memcpy(pDot11dInfo->CountryIeBuf, pCoutryIe,CoutryIeLen);
+	memcpy(pDot11dInfo->CountryIeBuf, pCoutryIe, CoutryIeLen);
 	pDot11dInfo->State = DOT11D_STATE_LEARNED;
 }
 
@@ -202,7 +202,7 @@ int ToLegalChannel(
 	u8 default_chn = 0;
 	u32 i = 0;
 
-	for (i=1; i<= MAX_CHANNEL_NUMBER; i++)
+	for (i = 1; i <= MAX_CHANNEL_NUMBER; i++)
 	{
 		if(pDot11dInfo->channel_map[i] > 0)
 		{
