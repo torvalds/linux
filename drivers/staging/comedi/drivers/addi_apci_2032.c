@@ -60,35 +60,6 @@ struct apci2032_private {
 	unsigned int wdog_ctrl;
 };
 
-static int i_APCI2032_ConfigDigitalOutput(struct comedi_device *dev,
-					  struct comedi_subdevice *s,
-					  struct comedi_insn *insn,
-					  unsigned int *data)
-{
-	unsigned int ul_Command = 0;
-
-	if ((data[0] != 0) && (data[0] != 1)) {
-		comedi_error(dev,
-			"Not a valid Data !!! ,Data should be 1 or 0\n");
-		return -EINVAL;
-	}
-
-	if (data[1] == 1)
-		ul_Command |= APCI2032_INT_CTRL_VCC_ENA;
-	else
-		ul_Command &= ~APCI2032_INT_CTRL_VCC_ENA;
-
-	if (data[2] == 1)
-		ul_Command |= APCI2032_INT_CTRL_CC_ENA;
-	else
-		ul_Command &= ~APCI2032_INT_CTRL_CC_ENA;
-
-	outl(ul_Command, dev->iobase + APCI2032_INT_CTRL_REG);
-	ui_InterruptData = inl(dev->iobase + APCI2032_INT_CTRL_REG);
-
-	return insn->n;
-}
-
 static int apci2032_do_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn,
@@ -181,6 +152,35 @@ static int apci2032_wdog_insn_read(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; i++)
 		data[i] = inl(dev->iobase + APCI2032_WDOG_STATUS_REG);
+
+	return insn->n;
+}
+
+static int i_APCI2032_ConfigDigitalOutput(struct comedi_device *dev,
+					  struct comedi_subdevice *s,
+					  struct comedi_insn *insn,
+					  unsigned int *data)
+{
+	unsigned int ul_Command = 0;
+
+	if ((data[0] != 0) && (data[0] != 1)) {
+		comedi_error(dev,
+			"Not a valid Data !!! ,Data should be 1 or 0\n");
+		return -EINVAL;
+	}
+
+	if (data[1] == 1)
+		ul_Command |= APCI2032_INT_CTRL_VCC_ENA;
+	else
+		ul_Command &= ~APCI2032_INT_CTRL_VCC_ENA;
+
+	if (data[2] == 1)
+		ul_Command |= APCI2032_INT_CTRL_CC_ENA;
+	else
+		ul_Command &= ~APCI2032_INT_CTRL_CC_ENA;
+
+	outl(ul_Command, dev->iobase + APCI2032_INT_CTRL_REG);
+	ui_InterruptData = inl(dev->iobase + APCI2032_INT_CTRL_REG);
 
 	return insn->n;
 }
