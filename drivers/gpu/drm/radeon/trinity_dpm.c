@@ -1379,6 +1379,11 @@ static void trinity_apply_state_adjust_rules(struct radeon_device *rdev)
 	bool force_high;
 	u32 num_active_displays = rdev->pm.dpm.new_active_crtc_count;
 
+	/* point to the hw copy since this function will modify the ps */
+	pi->hw_ps = *ps;
+	rdev->pm.dpm.hw_ps.ps_priv = &pi->hw_ps;
+	ps = &pi->hw_ps;
+
 	if (rps->class & ATOM_PPLIB_CLASSIFICATION_THERMAL)
 		return trinity_patch_thermal_state(rdev, ps, current_ps);
 

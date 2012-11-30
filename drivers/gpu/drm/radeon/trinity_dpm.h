@@ -110,6 +110,7 @@ struct trinity_power_info {
 	bool enable_dpm;
 	bool enable_sclk_ds;
 	bool uvd_dpm;
+	struct trinity_ps hw_ps;
 };
 
 #define TRINITY_AT_DFLT            30
