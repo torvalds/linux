@@ -414,6 +414,8 @@ extern void omap_ctrl_write_dsp_boot_addr(u32 bootaddr);
 extern void omap_ctrl_write_dsp_boot_mode(u8 bootmode);
 extern void omap3630_ctrl_disable_rta(void);
 extern int omap3_ctrl_save_padconf(void);
+extern void omap2_set_globals_control(void __iomem *ctrl,
+				      void __iomem *ctrl_pad);
 #else
 #define omap_ctrl_base_get()		0
 #define omap_ctrl_readb(x)		0

@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <asm/system_misc.h>
 
+#include "soc.h"
 #include "common.h"
 #include "clockdomain.h"
 #include "powerdomain.h"

@@ -12,13 +12,13 @@ Optional properties:
 Examples:
 
 i2c@83fc4000 { /* I2C2 on i.MX51 */
-	compatible = "fsl,imx51-i2c", "fsl,imx1-i2c";
+	compatible = "fsl,imx51-i2c", "fsl,imx21-i2c";
 	reg = <0x83fc4000 0x4000>;
 	interrupts = <63>;
 };
 
 i2c@70038000 { /* HS-I2C on i.MX51 */
-	compatible = "fsl,imx51-i2c", "fsl,imx1-i2c";
+	compatible = "fsl,imx51-i2c", "fsl,imx21-i2c";
 	reg = <0x70038000 0x4000>;
 	interrupts = <64>;
 	clock-frequency = <400000>;

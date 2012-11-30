@@ -15,8 +15,9 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <mach/hardware.h>
 #include <linux/io.h>
+
+#include "hardware.h"
 
 static int mx5_cpu_rev = -1;
 

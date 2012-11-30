@@ -65,6 +65,8 @@
 			&twl6040_pins
 			&mcpdm_pins
 			&mcbsp1_pins
+			&dss_hdmi_pins
+			&tpd12s015_pins
 	>;
 
 	twl6040_pins: pinmux_twl6040_pins {
@@ -90,6 +92,22 @@
 			0xc0 0x108	/* abe_mcbsp1_dr.abe_mcbsp1_dr INPUT PULLDOWN | MODE0 */
 			0xc2 0x8		/* abe_mcbsp1_dx.abe_mcbsp1_dx OUTPUT PULLDOWN | MODE0 */
 			0xc4 0x100	/* abe_mcbsp1_fsx.abe_mcbsp1_fsx INPUT | MODE0 */
+		>;
+	};
+
+	dss_hdmi_pins: pinmux_dss_hdmi_pins {
+		pinctrl-single,pins = <
+			0x5a 0x118	/* hdmi_cec.hdmi_cec INPUT PULLUP | MODE 0 */
+			0x5c 0x118	/* hdmi_scl.hdmi_scl INPUT PULLUP | MODE 0 */
+			0x5e 0x118	/* hdmi_sda.hdmi_sda INPUT PULLUP | MODE 0 */
+		>;
+	};
+
+	tpd12s015_pins: pinmux_tpd12s015_pins {
+		pinctrl-single,pins = <
+			0x22 0x3	/* gpmc_a17.gpio_41 OUTPUT | MODE3 */
+			0x48 0x3	/* gpmc_nbe1.gpio_60 OUTPUT | MODE3 */
+			0x58 0x10b	/* hdmi_hpd.gpio_63 INPUT PULLDOWN | MODE3 */
 		>;
 	};
 };
@@ -183,4 +201,8 @@
 
 &dmic {
 	status = "disabled";
+};
+
+&twl_usb_comparator {
+	usb-supply = <&vusb>;
 };

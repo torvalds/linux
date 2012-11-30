@@ -28,7 +28,6 @@
 
 #include <plat/dmtimer.h>
 #include <plat/clock.h>
-#include <plat/omap-pm.h>
 
 #include <media/lirc.h>
 #include <media/lirc_dev.h>

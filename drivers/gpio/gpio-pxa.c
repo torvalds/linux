@@ -448,7 +448,7 @@ static int pxa_gpio_nums(void)
 	} else if (cpu_is_pxa27x()) {
 		count = 120;
 		gpio_type = PXA27X_GPIO;
-	} else if (cpu_is_pxa93x() || cpu_is_pxa95x()) {
+	} else if (cpu_is_pxa93x()) {
 		count = 191;
 		gpio_type = PXA93X_GPIO;
 	} else if (cpu_is_pxa3xx()) {

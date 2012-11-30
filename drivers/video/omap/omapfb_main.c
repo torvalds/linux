@@ -30,7 +30,7 @@
 #include <linux/uaccess.h>
 #include <linux/module.h>
 
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 
 #include "omapfb.h"
 #include "lcdc.h"

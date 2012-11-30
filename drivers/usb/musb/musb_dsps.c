@@ -38,12 +38,11 @@
 #include <linux/pm_runtime.h>
 #include <linux/module.h>
 #include <linux/usb/nop-usb-xceiv.h>
+#include <linux/platform_data/usb-omap.h>
 
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_address.h>
-
-#include <plat/usb.h>
 
 #include "musb_core.h"
 

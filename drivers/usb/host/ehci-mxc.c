@@ -24,7 +24,6 @@
 #include <linux/usb/ulpi.h>
 #include <linux/slab.h>
 
-#include <mach/hardware.h>
 #include <linux/platform_data/usb-ehci-mxc.h>
 
 #include <asm/mach-types.h>

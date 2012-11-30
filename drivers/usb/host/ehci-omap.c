@@ -39,11 +39,12 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/usb/ulpi.h>
-#include <plat/usb.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/gpio.h>
 #include <linux/clk.h>
+
+#include <linux/platform_data/usb-omap.h>
 
 /* EHCI Register Set */
 #define EHCI_INSNREG04					(0xA0)

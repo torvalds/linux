@@ -21,17 +21,17 @@
 #include <linux/mtd/nand.h>
 #include <linux/gpio.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <mach/common.h>
 #include <asm/page.h>
 #include <asm/setup.h>
-#include <mach/iomux-mx3.h>
 
+#include "common.h"
 #include "devices-imx31.h"
+#include "hardware.h"
+#include "iomux-mx3.h"
 
 /* FPGA defines */
 #define QONG_FPGA_VERSION(major, minor, rev)	\

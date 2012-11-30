@@ -48,7 +48,6 @@
 #include <sound/soc.h>
 
 #include <linux/platform_data/asoc-imx-ssi.h>
-#include <mach/hardware.h>
 
 #include "imx-ssi.h"
 

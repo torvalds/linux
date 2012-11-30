@@ -882,7 +882,7 @@
 			i2c@021a0000 { /* I2C1 */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "fsl,imx6q-i2c", "fsl,imx1-i2c";
+				compatible = "fsl,imx6q-i2c", "fsl,imx21-i2c";
 				reg = <0x021a0000 0x4000>;
 				interrupts = <0 36 0x04>;
 				clocks = <&clks 125>;
@@ -892,7 +892,7 @@
 			i2c@021a4000 { /* I2C2 */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "fsl,imx6q-i2c", "fsl,imx1-i2c";
+				compatible = "fsl,imx6q-i2c", "fsl,imx21-i2c";
 				reg = <0x021a4000 0x4000>;
 				interrupts = <0 37 0x04>;
 				clocks = <&clks 126>;
@@ -902,7 +902,7 @@
 			i2c@021a8000 { /* I2C3 */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "fsl,imx6q-i2c", "fsl,imx1-i2c";
+				compatible = "fsl,imx6q-i2c", "fsl,imx21-i2c";
 				reg = <0x021a8000 0x4000>;
 				interrupts = <0 38 0x04>;
 				clocks = <&clks 127>;

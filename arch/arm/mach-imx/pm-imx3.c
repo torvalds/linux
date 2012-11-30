@@ -9,10 +9,11 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 #include <linux/io.h>
-#include <mach/common.h>
-#include <mach/hardware.h>
-#include <mach/devices-common.h>
+
+#include "common.h"
 #include "crmregs-imx3.h"
+#include "devices/devices-common.h"
+#include "hardware.h"
 
 /*
  * Set cpu low power mode before WFI instruction. This function is called

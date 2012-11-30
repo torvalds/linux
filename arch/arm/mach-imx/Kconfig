@@ -1,3 +1,70 @@
+config ARCH_MXC
+	bool "Freescale i.MX family" if ARCH_MULTI_V4_V5 || ARCH_MULTI_V6_V7
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_PATCH_PHYS_VIRT
+	select AUTO_ZRELADDR if !ZBOOT_ROM
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_CHIP
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
+	select USE_OF
+	help
+	  Support for Freescale MXC/iMX-based family of processors
+
+menu "Freescale i.MX support"
+	depends on ARCH_MXC
+
+config MXC_IRQ_PRIOR
+	bool "Use IRQ priority"
+	help
+	  Select this if you want to use prioritized IRQ handling.
+	  This feature prevents higher priority ISR to be interrupted
+	  by lower priority IRQ even IRQF_DISABLED flag is not set.
+	  This may be useful in embedded applications, where are strong
+	  requirements for timing.
+	  Say N here, unless you have a specialized requirement.
+
+config MXC_TZIC
+	bool
+
+config MXC_AVIC
+	bool
+
+config MXC_DEBUG_BOARD
+	bool "Enable MXC debug board(for 3-stack)"
+	help
+	  The debug board is an integral part of the MXC 3-stack(PDK)
+	  platforms, it can be attached or removed from the peripheral
+	  board. On debug board, several debug devices(ethernet, UART,
+	  buttons, LEDs and JTAG) are implemented. Between the MCU and
+	  these devices, a CPLD is added as a bridge which performs
+	  data/address de-multiplexing and decode, signal level shift,
+	  interrupt control and various board functions.
+
+config HAVE_EPIT
+	bool
+
+config MXC_USE_EPIT
+	bool "Use EPIT instead of GPT"
+	depends on HAVE_EPIT
+	help
+	  Use EPIT as the system timer on systems that have it. Normally you
+	  don't have a reason to do so as the EPIT has the same features and
+	  uses the same clocks as the GPT. Anyway, on some systems the GPT
+	  may be in use for other purposes.
+
+config MXC_ULPI
+	bool
+
+config ARCH_HAS_RNGA
+	bool
+
+config IRAM_ALLOC
+	bool
+	select GENERIC_ALLOCATOR
+
 config HAVE_IMX_GPC
 	bool
 
@@ -5,6 +72,12 @@ config HAVE_IMX_MMDC
 	bool
 
 config HAVE_IMX_SRC
+	def_bool y if SMP
+
+config IMX_HAVE_IOMUX_V1
+	bool
+
+config ARCH_MXC_IOMUX_V3
 	bool
 
 config ARCH_MX1
@@ -104,7 +177,7 @@ config	SOC_IMX51
 	select PINCTRL_IMX51
 	select SOC_IMX5
 
-if ARCH_IMX_V4_V5
+if ARCH_MULTI_V4T
 
 comment "MX1 platforms:"
 config MACH_MXLADS
@@ -132,6 +205,10 @@ config MACH_APF9328
 	select SOC_IMX1
 	help
 	  Say Yes here if you are using the Armadeus APF9328 development board
+
+endif
+
+if ARCH_MULTI_V5
 
 comment "MX21 platforms:"
 
@@ -384,7 +461,7 @@ config MACH_IMX27_DT
 
 endif
 
-if ARCH_IMX_V6_V7
+if ARCH_MULTI_V6
 
 comment "MX31 platforms:"
 
@@ -649,6 +726,10 @@ config MACH_VPR200
 	  Include support for VPR200 platform. This includes specific
 	  configurations for the board and its peripherals.
 
+endif
+
+if ARCH_MULTI_V7
+
 comment "i.MX5 platforms:"
 
 config MACH_MX50_RDP
@@ -756,7 +837,6 @@ config SOC_IMX6Q
 	select HAVE_CAN_FLEXCAN if CAN
 	select HAVE_IMX_GPC
 	select HAVE_IMX_MMDC
-	select HAVE_IMX_SRC
 	select HAVE_SMP
 	select MFD_SYSCON
 	select PINCTRL
@@ -766,3 +846,7 @@ config SOC_IMX6Q
 	  This enables support for Freescale i.MX6 Quad processor.
 
 endif
+
+source "arch/arm/mach-imx/devices/Kconfig"
+
+endmenu

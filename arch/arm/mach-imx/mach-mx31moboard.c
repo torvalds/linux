@@ -42,14 +42,14 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 #include <asm/memblock.h>
-#include <mach/board-mx31moboard.h>
-#include <mach/common.h>
-#include <mach/hardware.h>
-#include <mach/iomux-mx3.h>
-#include <mach/ulpi.h>
 #include <linux/platform_data/asoc-imx-ssi.h>
 
+#include "board-mx31moboard.h"
+#include "common.h"
 #include "devices-imx31.h"
+#include "hardware.h"
+#include "iomux-mx3.h"
+#include "ulpi.h"
 
 static unsigned int moboard_pins[] = {
 	/* UART0 */
@@ -175,11 +175,11 @@ static const struct spi_imx_master moboard_spi1_pdata __initconst = {
 
 static struct regulator_consumer_supply sdhc_consumers[] = {
 	{
-		.dev_name = "mxc-mmc.0",
+		.dev_name = "imx31-mmc.0",
 		.supply	= "sdhc0_vcc",
 	},
 	{
-		.dev_name = "mxc-mmc.1",
+		.dev_name = "imx31-mmc.1",
 		.supply	= "sdhc1_vcc",
 	},
 };

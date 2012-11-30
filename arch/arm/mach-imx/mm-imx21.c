@@ -21,12 +21,13 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/pinctrl/machine.h>
-#include <mach/hardware.h>
-#include <mach/common.h>
-#include <mach/devices-common.h>
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
-#include <mach/iomux-v1.h>
+
+#include "common.h"
+#include "devices/devices-common.h"
+#include "hardware.h"
+#include "iomux-v1.h"
 
 /* MX21 memory map definition */
 static struct map_desc imx21_io_desc[] __initdata = {
@@ -81,6 +82,8 @@ static const struct resource imx21_audmux_res[] __initconst = {
 
 void __init imx21_soc_init(void)
 {
+	mxc_device_init();
+
 	mxc_register_gpio("imx21-gpio", 0, MX21_GPIO1_BASE_ADDR, SZ_256, MX21_INT_GPIO, 0);
 	mxc_register_gpio("imx21-gpio", 1, MX21_GPIO2_BASE_ADDR, SZ_256, MX21_INT_GPIO, 0);
 	mxc_register_gpio("imx21-gpio", 2, MX21_GPIO3_BASE_ADDR, SZ_256, MX21_INT_GPIO, 0);
@@ -89,7 +92,8 @@ void __init imx21_soc_init(void)
 	mxc_register_gpio("imx21-gpio", 5, MX21_GPIO6_BASE_ADDR, SZ_256, MX21_INT_GPIO, 0);
 
 	pinctrl_provide_dummies();
-	imx_add_imx_dma();
+	imx_add_imx_dma("imx21-dma", MX21_DMA_BASE_ADDR,
+			MX21_INT_DMACH0, 0); /* No ERR irq */
 	platform_device_register_simple("imx21-audmux", 0, imx21_audmux_res,
 					ARRAY_SIZE(imx21_audmux_res));
 }

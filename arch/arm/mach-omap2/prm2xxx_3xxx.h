@@ -1,7 +1,7 @@
 /*
- * OMAP2/3 Power/Reset Management (PRM) register definitions
+ * OMAP2xxx/3xxx-common Power/Reset Management (PRM) register definitions
  *
- * Copyright (C) 2007-2009, 2011 Texas Instruments, Inc.
+ * Copyright (C) 2007-2009, 2011-2012 Texas Instruments, Inc.
  * Copyright (C) 2008-2010 Nokia Corporation
  * Paul Walmsley
  *
@@ -18,160 +18,6 @@
 
 #include "prcm-common.h"
 #include "prm.h"
-
-#define OMAP2420_PRM_REGADDR(module, reg)				\
-		OMAP2_L4_IO_ADDRESS(OMAP2420_PRM_BASE + (module) + (reg))
-#define OMAP2430_PRM_REGADDR(module, reg)				\
-		OMAP2_L4_IO_ADDRESS(OMAP2430_PRM_BASE + (module) + (reg))
-#define OMAP34XX_PRM_REGADDR(module, reg)				\
-		OMAP2_L4_IO_ADDRESS(OMAP3430_PRM_BASE + (module) + (reg))
-
-
-/*
- * OMAP2-specific global PRM registers
- * Use __raw_{read,write}l() with these registers.
- *
- * With a few exceptions, these are the register names beginning with
- * PRCM_* on 24xx.  (The exceptions are the IRQSTATUS and IRQENABLE
- * bits.)
- *
- */
-
-#define OMAP2_PRCM_REVISION_OFFSET	0x0000
-#define OMAP2420_PRCM_REVISION		OMAP2420_PRM_REGADDR(OCP_MOD, 0x0000)
-#define OMAP2_PRCM_SYSCONFIG_OFFSET	0x0010
-#define OMAP2420_PRCM_SYSCONFIG		OMAP2420_PRM_REGADDR(OCP_MOD, 0x0010)
-
-#define OMAP2_PRCM_IRQSTATUS_MPU_OFFSET	0x0018
-#define OMAP2420_PRCM_IRQSTATUS_MPU	OMAP2420_PRM_REGADDR(OCP_MOD, 0x0018)
-#define OMAP2_PRCM_IRQENABLE_MPU_OFFSET	0x001c
-#define OMAP2420_PRCM_IRQENABLE_MPU	OMAP2420_PRM_REGADDR(OCP_MOD, 0x001c)
-
-#define OMAP2_PRCM_VOLTCTRL_OFFSET	0x0050
-#define OMAP2420_PRCM_VOLTCTRL		OMAP2420_PRM_REGADDR(OCP_MOD, 0x0050)
-#define OMAP2_PRCM_VOLTST_OFFSET	0x0054
-#define OMAP2420_PRCM_VOLTST		OMAP2420_PRM_REGADDR(OCP_MOD, 0x0054)
-#define OMAP2_PRCM_CLKSRC_CTRL_OFFSET	0x0060
-#define OMAP2420_PRCM_CLKSRC_CTRL	OMAP2420_PRM_REGADDR(OCP_MOD, 0x0060)
-#define OMAP2_PRCM_CLKOUT_CTRL_OFFSET	0x0070
-#define OMAP2420_PRCM_CLKOUT_CTRL	OMAP2420_PRM_REGADDR(OCP_MOD, 0x0070)
-#define OMAP2_PRCM_CLKEMUL_CTRL_OFFSET	0x0078
-#define OMAP2420_PRCM_CLKEMUL_CTRL	OMAP2420_PRM_REGADDR(OCP_MOD, 0x0078)
-#define OMAP2_PRCM_CLKCFG_CTRL_OFFSET	0x0080
-#define OMAP2420_PRCM_CLKCFG_CTRL	OMAP2420_PRM_REGADDR(OCP_MOD, 0x0080)
-#define OMAP2_PRCM_CLKCFG_STATUS_OFFSET	0x0084
-#define OMAP2420_PRCM_CLKCFG_STATUS	OMAP2420_PRM_REGADDR(OCP_MOD, 0x0084)
-#define OMAP2_PRCM_VOLTSETUP_OFFSET	0x0090
-#define OMAP2420_PRCM_VOLTSETUP		OMAP2420_PRM_REGADDR(OCP_MOD, 0x0090)
-#define OMAP2_PRCM_CLKSSETUP_OFFSET	0x0094
-#define OMAP2420_PRCM_CLKSSETUP		OMAP2420_PRM_REGADDR(OCP_MOD, 0x0094)
-#define OMAP2_PRCM_POLCTRL_OFFSET	0x0098
-#define OMAP2420_PRCM_POLCTRL		OMAP2420_PRM_REGADDR(OCP_MOD, 0x0098)
-
-#define OMAP2430_PRCM_REVISION		OMAP2430_PRM_REGADDR(OCP_MOD, 0x0000)
-#define OMAP2430_PRCM_SYSCONFIG		OMAP2430_PRM_REGADDR(OCP_MOD, 0x0010)
-
-#define OMAP2430_PRCM_IRQSTATUS_MPU	OMAP2430_PRM_REGADDR(OCP_MOD, 0x0018)
-#define OMAP2430_PRCM_IRQENABLE_MPU	OMAP2430_PRM_REGADDR(OCP_MOD, 0x001c)
-
-#define OMAP2430_PRCM_VOLTCTRL		OMAP2430_PRM_REGADDR(OCP_MOD, 0x0050)
-#define OMAP2430_PRCM_VOLTST		OMAP2430_PRM_REGADDR(OCP_MOD, 0x0054)
-#define OMAP2430_PRCM_CLKSRC_CTRL	OMAP2430_PRM_REGADDR(OCP_MOD, 0x0060)
-#define OMAP2430_PRCM_CLKOUT_CTRL	OMAP2430_PRM_REGADDR(OCP_MOD, 0x0070)
-#define OMAP2430_PRCM_CLKEMUL_CTRL	OMAP2430_PRM_REGADDR(OCP_MOD, 0x0078)
-#define OMAP2430_PRCM_CLKCFG_CTRL	OMAP2430_PRM_REGADDR(OCP_MOD, 0x0080)
-#define OMAP2430_PRCM_CLKCFG_STATUS	OMAP2430_PRM_REGADDR(OCP_MOD, 0x0084)
-#define OMAP2430_PRCM_VOLTSETUP		OMAP2430_PRM_REGADDR(OCP_MOD, 0x0090)
-#define OMAP2430_PRCM_CLKSSETUP		OMAP2430_PRM_REGADDR(OCP_MOD, 0x0094)
-#define OMAP2430_PRCM_POLCTRL		OMAP2430_PRM_REGADDR(OCP_MOD, 0x0098)
-
-/*
- * OMAP3-specific global PRM registers
- * Use __raw_{read,write}l() with these registers.
- *
- * With a few exceptions, these are the register names beginning with
- * PRM_* on 34xx.  (The exceptions are the IRQSTATUS and IRQENABLE
- * bits.)
- */
-
-#define OMAP3_PRM_REVISION_OFFSET	0x0004
-#define OMAP3430_PRM_REVISION		OMAP34XX_PRM_REGADDR(OCP_MOD, 0x0004)
-#define OMAP3_PRM_SYSCONFIG_OFFSET	0x0014
-#define OMAP3430_PRM_SYSCONFIG		OMAP34XX_PRM_REGADDR(OCP_MOD, 0x0014)
-
-#define OMAP3_PRM_IRQSTATUS_MPU_OFFSET	0x0018
-#define OMAP3430_PRM_IRQSTATUS_MPU	OMAP34XX_PRM_REGADDR(OCP_MOD, 0x0018)
-#define OMAP3_PRM_IRQENABLE_MPU_OFFSET	0x001c
-#define OMAP3430_PRM_IRQENABLE_MPU	OMAP34XX_PRM_REGADDR(OCP_MOD, 0x001c)
-
-
-#define OMAP3_PRM_VC_SMPS_SA_OFFSET	0x0020
-#define OMAP3430_PRM_VC_SMPS_SA		OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x0020)
-#define OMAP3_PRM_VC_SMPS_VOL_RA_OFFSET	0x0024
-#define OMAP3430_PRM_VC_SMPS_VOL_RA	OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x0024)
-#define OMAP3_PRM_VC_SMPS_CMD_RA_OFFSET	0x0028
-#define OMAP3430_PRM_VC_SMPS_CMD_RA	OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x0028)
-#define OMAP3_PRM_VC_CMD_VAL_0_OFFSET	0x002c
-#define OMAP3430_PRM_VC_CMD_VAL_0	OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x002c)
-#define OMAP3_PRM_VC_CMD_VAL_1_OFFSET	0x0030
-#define OMAP3430_PRM_VC_CMD_VAL_1	OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x0030)
-#define OMAP3_PRM_VC_CH_CONF_OFFSET	0x0034
-#define OMAP3430_PRM_VC_CH_CONF		OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x0034)
-#define OMAP3_PRM_VC_I2C_CFG_OFFSET	0x0038
-#define OMAP3430_PRM_VC_I2C_CFG		OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x0038)
-#define OMAP3_PRM_VC_BYPASS_VAL_OFFSET	0x003c
-#define OMAP3430_PRM_VC_BYPASS_VAL	OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x003c)
-#define OMAP3_PRM_RSTCTRL_OFFSET	0x0050
-#define OMAP3430_PRM_RSTCTRL		OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x0050)
-#define OMAP3_PRM_RSTTIME_OFFSET	0x0054
-#define OMAP3430_PRM_RSTTIME		OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x0054)
-#define OMAP3_PRM_RSTST_OFFSET	0x0058
-#define OMAP3430_PRM_RSTST		OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x0058)
-#define OMAP3_PRM_VOLTCTRL_OFFSET	0x0060
-#define OMAP3430_PRM_VOLTCTRL		OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x0060)
-#define OMAP3_PRM_SRAM_PCHARGE_OFFSET	0x0064
-#define OMAP3430_PRM_SRAM_PCHARGE	OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x0064)
-#define OMAP3_PRM_CLKSRC_CTRL_OFFSET	0x0070
-#define OMAP3430_PRM_CLKSRC_CTRL	OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x0070)
-#define OMAP3_PRM_VOLTSETUP1_OFFSET	0x0090
-#define OMAP3430_PRM_VOLTSETUP1		OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x0090)
-#define OMAP3_PRM_VOLTOFFSET_OFFSET	0x0094
-#define OMAP3430_PRM_VOLTOFFSET		OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x0094)
-#define OMAP3_PRM_CLKSETUP_OFFSET	0x0098
-#define OMAP3430_PRM_CLKSETUP		OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x0098)
-#define OMAP3_PRM_POLCTRL_OFFSET	0x009c
-#define OMAP3430_PRM_POLCTRL		OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x009c)
-#define OMAP3_PRM_VOLTSETUP2_OFFSET	0x00a0
-#define OMAP3430_PRM_VOLTSETUP2		OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x00a0)
-#define OMAP3_PRM_VP1_CONFIG_OFFSET	0x00b0
-#define OMAP3430_PRM_VP1_CONFIG		OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x00b0)
-#define OMAP3_PRM_VP1_VSTEPMIN_OFFSET	0x00b4
-#define OMAP3430_PRM_VP1_VSTEPMIN	OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x00b4)
-#define OMAP3_PRM_VP1_VSTEPMAX_OFFSET	0x00b8
-#define OMAP3430_PRM_VP1_VSTEPMAX	OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x00b8)
-#define OMAP3_PRM_VP1_VLIMITTO_OFFSET	0x00bc
-#define OMAP3430_PRM_VP1_VLIMITTO	OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x00bc)
-#define OMAP3_PRM_VP1_VOLTAGE_OFFSET	0x00c0
-#define OMAP3430_PRM_VP1_VOLTAGE	OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x00c0)
-#define OMAP3_PRM_VP1_STATUS_OFFSET	0x00c4
-#define OMAP3430_PRM_VP1_STATUS		OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x00c4)
-#define OMAP3_PRM_VP2_CONFIG_OFFSET	0x00d0
-#define OMAP3430_PRM_VP2_CONFIG		OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x00d0)
-#define OMAP3_PRM_VP2_VSTEPMIN_OFFSET	0x00d4
-#define OMAP3430_PRM_VP2_VSTEPMIN	OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x00d4)
-#define OMAP3_PRM_VP2_VSTEPMAX_OFFSET	0x00d8
-#define OMAP3430_PRM_VP2_VSTEPMAX	OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x00d8)
-#define OMAP3_PRM_VP2_VLIMITTO_OFFSET	0x00dc
-#define OMAP3430_PRM_VP2_VLIMITTO	OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x00dc)
-#define OMAP3_PRM_VP2_VOLTAGE_OFFSET	0x00e0
-#define OMAP3430_PRM_VP2_VOLTAGE	OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x00e0)
-#define OMAP3_PRM_VP2_STATUS_OFFSET	0x00e4
-#define OMAP3430_PRM_VP2_STATUS		OMAP34XX_PRM_REGADDR(OMAP3430_GR_MOD, 0x00e4)
-
-#define OMAP3_PRM_CLKSEL_OFFSET	0x0040
-#define OMAP3430_PRM_CLKSEL		OMAP34XX_PRM_REGADDR(OMAP3430_CCR_MOD, 0x0040)
-#define OMAP3_PRM_CLKOUT_CTRL_OFFSET	0x0070
-#define OMAP3430_PRM_CLKOUT_CTRL	OMAP34XX_PRM_REGADDR(OMAP3430_CCR_MOD, 0x0070)
 
 /*
  * Module specific PRM register offsets from PRM_BASE + domain offset
@@ -200,66 +46,83 @@
 #define PM_EVGENONTIM					0x00d8
 #define PM_EVGENOFFTIM					0x00dc
 
-/* OMAP2xxx specific register offsets */
-#define OMAP24XX_PM_WKEN2				0x00a4
-#define OMAP24XX_PM_WKST2				0x00b4
-
-#define OMAP24XX_PRCM_IRQSTATUS_DSP			0x00f0	/* IVA mod */
-#define OMAP24XX_PRCM_IRQENABLE_DSP			0x00f4	/* IVA mod */
-#define OMAP24XX_PRCM_IRQSTATUS_IVA			0x00f8
-#define OMAP24XX_PRCM_IRQENABLE_IVA			0x00fc
-
-/* OMAP3 specific register offsets */
-#define OMAP3430ES2_PM_WKEN3				0x00f0
-#define OMAP3430ES2_PM_WKST3				0x00b8
-
-#define OMAP3430_PM_MPUGRPSEL				0x00a4
-#define OMAP3430_PM_MPUGRPSEL1				OMAP3430_PM_MPUGRPSEL
-#define OMAP3430ES2_PM_MPUGRPSEL3			0x00f8
-
-#define OMAP3430_PM_IVAGRPSEL				0x00a8
-#define OMAP3430_PM_IVAGRPSEL1				OMAP3430_PM_IVAGRPSEL
-#define OMAP3430ES2_PM_IVAGRPSEL3			0x00f4
-
-#define OMAP3430_PM_PREPWSTST				0x00e8
-
-#define OMAP3430_PRM_IRQSTATUS_IVA2			0x00f8
-#define OMAP3430_PRM_IRQENABLE_IVA2			0x00fc
-
 
 #ifndef __ASSEMBLER__
+
+#include <linux/io.h>
+#include "powerdomain.h"
+
 /* Power/reset management domain register get/set */
-extern u32 omap2_prm_read_mod_reg(s16 module, u16 idx);
-extern void omap2_prm_write_mod_reg(u32 val, s16 module, u16 idx);
-extern u32 omap2_prm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx);
-extern u32 omap2_prm_set_mod_reg_bits(u32 bits, s16 module, s16 idx);
-extern u32 omap2_prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx);
-extern u32 omap2_prm_read_mod_bits_shift(s16 domain, s16 idx, u32 mask);
+static inline u32 omap2_prm_read_mod_reg(s16 module, u16 idx)
+{
+	return __raw_readl(prm_base + module + idx);
+}
+
+static inline void omap2_prm_write_mod_reg(u32 val, s16 module, u16 idx)
+{
+	__raw_writel(val, prm_base + module + idx);
+}
+
+/* Read-modify-write a register in a PRM module. Caller must lock */
+static inline u32 omap2_prm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module,
+					     s16 idx)
+{
+	u32 v;
+
+	v = omap2_prm_read_mod_reg(module, idx);
+	v &= ~mask;
+	v |= bits;
+	omap2_prm_write_mod_reg(v, module, idx);
+
+	return v;
+}
+
+/* Read a PRM register, AND it, and shift the result down to bit 0 */
+static inline u32 omap2_prm_read_mod_bits_shift(s16 domain, s16 idx, u32 mask)
+{
+	u32 v;
+
+	v = omap2_prm_read_mod_reg(domain, idx);
+	v &= mask;
+	v >>= __ffs(mask);
+
+	return v;
+}
+
+static inline u32 omap2_prm_set_mod_reg_bits(u32 bits, s16 module, s16 idx)
+{
+	return omap2_prm_rmw_mod_reg_bits(bits, bits, module, idx);
+}
+
+static inline u32 omap2_prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
+{
+	return omap2_prm_rmw_mod_reg_bits(bits, 0x0, module, idx);
+}
 
 /* These omap2_ PRM functions apply to both OMAP2 and 3 */
 extern int omap2_prm_is_hardreset_asserted(s16 prm_mod, u8 shift);
 extern int omap2_prm_assert_hardreset(s16 prm_mod, u8 shift);
 extern int omap2_prm_deassert_hardreset(s16 prm_mod, u8 rst_shift, u8 st_shift);
 
-/* OMAP3-specific VP functions */
-u32 omap3_prm_vp_check_txdone(u8 vp_id);
-void omap3_prm_vp_clear_txdone(u8 vp_id);
+extern int omap2_pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst);
+extern int omap2_pwrdm_read_next_pwrst(struct powerdomain *pwrdm);
+extern int omap2_pwrdm_read_pwrst(struct powerdomain *pwrdm);
+extern int omap2_pwrdm_set_mem_onst(struct powerdomain *pwrdm, u8 bank,
+				    u8 pwrst);
+extern int omap2_pwrdm_set_mem_retst(struct powerdomain *pwrdm, u8 bank,
+				     u8 pwrst);
+extern int omap2_pwrdm_read_mem_pwrst(struct powerdomain *pwrdm, u8 bank);
+extern int omap2_pwrdm_read_mem_retst(struct powerdomain *pwrdm, u8 bank);
+extern int omap2_pwrdm_set_logic_retst(struct powerdomain *pwrdm, u8 pwrst);
+extern int omap2_pwrdm_wait_transition(struct powerdomain *pwrdm);
 
-/*
- * OMAP3 access functions for voltage controller (VC) and
- * voltage proccessor (VP) in the PRM.
- */
-extern u32 omap3_prm_vcvp_read(u8 offset);
-extern void omap3_prm_vcvp_write(u32 val, u8 offset);
-extern u32 omap3_prm_vcvp_rmw(u32 mask, u32 bits, u8 offset);
-
-extern void omap3xxx_prm_reconfigure_io_chain(void);
-
-/* PRM interrupt-related functions */
-extern void omap3xxx_prm_read_pending_irqs(unsigned long *events);
-extern void omap3xxx_prm_ocp_barrier(void);
-extern void omap3xxx_prm_save_and_clear_irqen(u32 *saved_mask);
-extern void omap3xxx_prm_restore_irqen(u32 *saved_mask);
+extern int omap2_clkdm_add_wkdep(struct clockdomain *clkdm1,
+				 struct clockdomain *clkdm2);
+extern int omap2_clkdm_del_wkdep(struct clockdomain *clkdm1,
+				 struct clockdomain *clkdm2);
+extern int omap2_clkdm_read_wkdep(struct clockdomain *clkdm1,
+				  struct clockdomain *clkdm2);
+extern int omap2_clkdm_clear_all_wkdeps(struct clockdomain *clkdm);
 
 #endif /* __ASSEMBLER */
 
@@ -348,7 +211,9 @@ extern void omap3xxx_prm_restore_irqen(u32 *saved_mask);
  *
  * 3430: RM_RSTST_CORE, RM_RSTST_EMU
  */
+#define OMAP_GLOBALWARM_RST_SHIFT			1
 #define OMAP_GLOBALWARM_RST_MASK			(1 << 1)
+#define OMAP_GLOBALCOLD_RST_SHIFT			0
 #define OMAP_GLOBALCOLD_RST_MASK			(1 << 0)
 
 /*
@@ -374,13 +239,6 @@ extern void omap3xxx_prm_restore_irqen(u32 *saved_mask);
  *	 PM_PWSTCTRL_NEON
  */
 #define OMAP_LOGICRETSTATE_MASK				(1 << 2)
-
-
-/*
- * MAX_MODULE_HARDRESET_WAIT: Maximum microseconds to wait for an OMAP
- * submodule to exit hardreset
- */
-#define MAX_MODULE_HARDRESET_WAIT		10000
 
 
 #endif

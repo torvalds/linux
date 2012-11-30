@@ -38,12 +38,10 @@
 #include <linux/regulator/consumer.h>
 
 #include <asm/mach/flash.h>
-#include <plat/gpmc.h>
 #include <linux/platform_data/mtd-onenand-omap2.h>
 #include <asm/gpio.h>
 
-#include <plat/dma.h>
-#include <plat/cpu.h>
+#include <plat-omap/dma-omap.h>
 
 #define DRIVER_NAME "omap2-onenand"
 
@@ -63,6 +61,7 @@ struct omap2_onenand {
 	int freq;
 	int (*setup)(void __iomem *base, int *freq_ptr);
 	struct regulator *regulator;
+	u8 flags;
 };
 
 static void omap2_onenand_dma_cb(int lch, u16 ch_status, void *data)
@@ -155,7 +154,7 @@ static int omap2_onenand_wait(struct mtd_info *mtd, int state)
 		if (!(syscfg & ONENAND_SYS_CFG1_IOBE)) {
 			syscfg |= ONENAND_SYS_CFG1_IOBE;
 			write_reg(c, syscfg, ONENAND_REG_SYS_CFG1);
-			if (cpu_is_omap34xx())
+			if (c->flags & ONENAND_IN_OMAP34XX)
 				/* Add a delay to let GPIO settle */
 				syscfg = read_reg(c, ONENAND_REG_SYS_CFG1);
 		}
@@ -446,13 +445,19 @@ out_copy:
 
 #else
 
-int omap3_onenand_read_bufferram(struct mtd_info *mtd, int area,
-				 unsigned char *buffer, int offset,
-				 size_t count);
+static int omap3_onenand_read_bufferram(struct mtd_info *mtd, int area,
+					unsigned char *buffer, int offset,
+					size_t count)
+{
+	return -ENOSYS;
+}
 
-int omap3_onenand_write_bufferram(struct mtd_info *mtd, int area,
-				  const unsigned char *buffer,
-				  int offset, size_t count);
+static int omap3_onenand_write_bufferram(struct mtd_info *mtd, int area,
+					 const unsigned char *buffer,
+					 int offset, size_t count)
+{
+	return -ENOSYS;
+}
 
 #endif
 
@@ -550,13 +555,19 @@ static int omap2_onenand_write_bufferram(struct mtd_info *mtd, int area,
 
 #else
 
-int omap2_onenand_read_bufferram(struct mtd_info *mtd, int area,
-				 unsigned char *buffer, int offset,
-				 size_t count);
+static int omap2_onenand_read_bufferram(struct mtd_info *mtd, int area,
+					unsigned char *buffer, int offset,
+					size_t count)
+{
+	return -ENOSYS;
+}
 
-int omap2_onenand_write_bufferram(struct mtd_info *mtd, int area,
-				  const unsigned char *buffer,
-				  int offset, size_t count);
+static int omap2_onenand_write_bufferram(struct mtd_info *mtd, int area,
+					 const unsigned char *buffer,
+					 int offset, size_t count)
+{
+	return -ENOSYS;
+}
 
 #endif
 
@@ -639,6 +650,7 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 
 	init_completion(&c->irq_done);
 	init_completion(&c->dma_done);
+	c->flags = pdata->flags;
 	c->gpmc_cs = pdata->cs;
 	c->gpio_irq = pdata->gpio_irq;
 	c->dma_channel = pdata->dma_channel;
@@ -729,7 +741,7 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 	this = &c->onenand;
 	if (c->dma_channel >= 0) {
 		this->wait = omap2_onenand_wait;
-		if (cpu_is_omap34xx()) {
+		if (c->flags & ONENAND_IN_OMAP34XX) {
 			this->read_bufferram = omap3_onenand_read_bufferram;
 			this->write_bufferram = omap3_onenand_write_bufferram;
 		} else {
@@ -803,7 +815,6 @@ static int __devexit omap2_onenand_remove(struct platform_device *pdev)
 	}
 	iounmap(c->onenand.base);
 	release_mem_region(c->phys_base, c->mem_size);
-	gpmc_cs_free(c->gpmc_cs);
 	kfree(c);
 
 	return 0;

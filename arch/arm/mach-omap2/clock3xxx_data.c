@@ -21,8 +21,6 @@
 #include <linux/list.h>
 #include <linux/io.h>
 
-#include <plat/clkdev_omap.h>
-
 #include "soc.h"
 #include "iomap.h"
 #include "clock.h"
@@ -30,7 +28,7 @@
 #include "clock34xx.h"
 #include "clock36xx.h"
 #include "clock3517.h"
-#include "cm2xxx_3xxx.h"
+#include "cm3xxx.h"
 #include "cm-regbits-34xx.h"
 #include "prm2xxx_3xxx.h"
 #include "prm-regbits-34xx.h"
@@ -3572,8 +3570,6 @@ int __init omap3xxx_clk_init(void)
 		dpll4_dd = dpll4_dd_3630;
 	else
 		dpll4_dd = dpll4_dd_34xx;
-
-	clk_init(&omap2_clk_functions);
 
 	for (c = omap3xxx_clks; c < omap3xxx_clks + ARRAY_SIZE(omap3xxx_clks);
 	     c++)

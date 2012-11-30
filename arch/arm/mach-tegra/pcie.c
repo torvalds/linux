@@ -37,11 +37,11 @@
 #include <asm/sizes.h>
 #include <asm/mach/pci.h>
 
-#include <mach/iomap.h>
 #include <mach/clk.h>
 #include <mach/powergate.h>
 
 #include "board.h"
+#include "iomap.h"
 
 /* register definitions */
 #define AFI_OFFSET	0x3800

@@ -25,6 +25,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/dmtimer-omap.h>
 
 #include <mach/irqs.h>
 

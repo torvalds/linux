@@ -17,6 +17,7 @@
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/dma/ipu-dma.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
@@ -24,7 +25,6 @@
 #include <media/soc_camera.h>
 #include <media/soc_mediabus.h>
 
-#include <mach/ipu.h>
 #include <linux/platform_data/camera-mx3.h>
 #include <linux/platform_data/dma-imx.h>
 

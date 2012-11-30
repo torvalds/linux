@@ -17,18 +17,18 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
+#include <linux/usb/musb.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include "common.h"
-#include <plat/dma.h>
-#include <plat/gpmc.h>
-#include <plat/usb.h>
+#include <plat-omap/dma-omap.h>
 
+#include "common.h"
 #include "mux.h"
+#include "gpmc.h"
 #include "pm.h"
 #include "sdram-nokia.h"
 
@@ -127,5 +127,5 @@ MACHINE_START(NOKIA_RX51, "Nokia RX-51 board")
 	.init_machine	= rx51_init,
 	.init_late	= omap3430_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END

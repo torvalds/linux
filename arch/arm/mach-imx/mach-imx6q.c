@@ -33,10 +33,10 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/system_misc.h>
-#include <mach/common.h>
-#include <mach/cpuidle.h>
-#include <mach/hardware.h>
 
+#include "common.h"
+#include "cpuidle.h"
+#include "hardware.h"
 
 void imx6q_restart(char mode, const char *cmd)
 {

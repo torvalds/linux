@@ -13,9 +13,37 @@
 	model = "TI AM335x EVM";
 	compatible = "ti,am335x-evm", "ti,am33xx";
 
+	cpus {
+		cpu@0 {
+			cpu0-supply = <&vdd1_reg>;
+		};
+	};
+
 	memory {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
+	};
+
+	am33xx_pinmux: pinmux@44e10800 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&matrix_keypad_s0 &volume_keys_s0>;
+
+		matrix_keypad_s0: matrix_keypad_s0 {
+			pinctrl-single,pins = <
+				0x54 0x7	/* gpmc_a5.gpio1_21, OUTPUT | MODE7 */
+				0x58 0x7	/* gpmc_a6.gpio1_22, OUTPUT | MODE7 */
+				0x64 0x27	/* gpmc_a9.gpio1_25, INPUT | MODE7 */
+				0x68 0x27	/* gpmc_a10.gpio1_26, INPUT | MODE7 */
+				0x6c 0x27	/* gpmc_a11.gpio1_27, INPUT | MODE7 */
+			>;
+		};
+
+		volume_keys_s0: volume_keys_s0 {
+			pinctrl-single,pins = <
+				0x150 0x27	/* spi0_sclk.gpio0_2, INPUT | MODE7 */
+				0x154 0x27	/* spi0_d0.gpio0_3, INPUT | MODE7 */
+			>;
+		};
 	};
 
 	ocp {
@@ -31,6 +59,49 @@
 				reg = <0x2d>;
 			};
 		};
+
+		i2c2: i2c@4802a000 {
+			status = "okay";
+			clock-frequency = <100000>;
+
+			lis331dlh: lis331dlh@18 {
+				compatible = "st,lis331dlh", "st,lis3lv02d";
+				reg = <0x18>;
+				Vdd-supply = <&lis3_reg>;
+				Vdd_IO-supply = <&lis3_reg>;
+
+				st,click-single-x;
+				st,click-single-y;
+				st,click-single-z;
+				st,click-thresh-x = <10>;
+				st,click-thresh-y = <10>;
+				st,click-thresh-z = <10>;
+				st,irq1-click;
+				st,irq2-click;
+				st,wakeup-x-lo;
+				st,wakeup-x-hi;
+				st,wakeup-y-lo;
+				st,wakeup-y-hi;
+				st,wakeup-z-lo;
+				st,wakeup-z-hi;
+				st,min-limit-x = <120>;
+				st,min-limit-y = <120>;
+				st,min-limit-z = <140>;
+				st,max-limit-x = <550>;
+				st,max-limit-y = <550>;
+				st,max-limit-z = <750>;
+			};
+
+			tsl2550: tsl2550@39 {
+				compatible = "taos,tsl2550";
+				reg = <0x39>;
+			};
+
+			tmp275: tmp275@48 {
+				compatible = "ti,tmp275";
+				reg = <0x48>;
+			};
+		};
 	};
 
 	vbat: fixedregulator@0 {
@@ -39,6 +110,53 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		regulator-boot-on;
+	};
+
+	lis3_reg: fixedregulator@1 {
+		compatible = "regulator-fixed";
+		regulator-name = "lis3_reg";
+		regulator-boot-on;
+	};
+
+	matrix_keypad: matrix_keypad@0 {
+		compatible = "gpio-matrix-keypad";
+		debounce-delay-ms = <5>;
+		col-scan-delay-us = <2>;
+
+		row-gpios = <&gpio2 25 0	/* Bank1, pin25 */
+			     &gpio2 26 0	/* Bank1, pin26 */
+			     &gpio2 27 0>;	/* Bank1, pin27 */
+
+		col-gpios = <&gpio2 21 0	/* Bank1, pin21 */
+			     &gpio2 22 0>;	/* Bank1, pin22 */
+
+		linux,keymap = <0x0000008b	/* MENU */
+				0x0100009e	/* BACK */
+				0x02000069	/* LEFT */
+				0x0001006a	/* RIGHT */
+				0x0101001c	/* ENTER */
+				0x0201006c>;	/* DOWN */
+	};
+
+	gpio_keys: volume_keys@0 {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		autorepeat;
+
+		switch@9 {
+			label = "volume-up";
+			linux,code = <115>;
+			gpios = <&gpio1 2 1>;
+			gpio-key,wakeup;
+		};
+
+		switch@10 {
+			label = "volume-down";
+			linux,code = <114>;
+			gpios = <&gpio1 3 1>;
+			gpio-key,wakeup;
+		};
 	};
 };
 

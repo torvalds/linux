@@ -512,7 +512,7 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
 static int tty_ldisc_halt(struct tty_struct *tty)
 {
 	clear_bit(TTY_LDISC, &tty->flags);
-	return cancel_work_sync(&tty->buf.work);
+	return cancel_work_sync(&tty->port->buf.work);
 }
 
 /**
@@ -525,7 +525,7 @@ static void tty_ldisc_flush_works(struct tty_struct *tty)
 {
 	flush_work(&tty->hangup_work);
 	flush_work(&tty->SAK_work);
-	flush_work(&tty->buf.work);
+	flush_work(&tty->port->buf.work);
 }
 
 /**
@@ -704,9 +704,9 @@ enable:
 	/* Restart the work queue in case no characters kick it off. Safe if
 	   already running */
 	if (work)
-		schedule_work(&tty->buf.work);
+		schedule_work(&tty->port->buf.work);
 	if (o_work)
-		schedule_work(&o_tty->buf.work);
+		schedule_work(&o_tty->port->buf.work);
 	mutex_unlock(&tty->ldisc_mutex);
 	tty_unlock(tty);
 	return retval;
@@ -817,7 +817,7 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 	 */
 	clear_bit(TTY_LDISC, &tty->flags);
 	tty_unlock(tty);
-	cancel_work_sync(&tty->buf.work);
+	cancel_work_sync(&tty->port->buf.work);
 	mutex_unlock(&tty->ldisc_mutex);
 retry:
 	tty_lock(tty);
@@ -897,6 +897,11 @@ int tty_ldisc_setup(struct tty_struct *tty, struct tty_struct *o_tty)
 
 static void tty_ldisc_kill(struct tty_struct *tty)
 {
+	/* There cannot be users from userspace now. But there still might be
+	 * drivers holding a reference via tty_ldisc_ref. Do not steal them the
+	 * ldisc until they are done. */
+	tty_ldisc_wait_idle(tty, MAX_SCHEDULE_TIMEOUT);
+
 	mutex_lock(&tty->ldisc_mutex);
 	/*
 	 * Now kill off the ldisc

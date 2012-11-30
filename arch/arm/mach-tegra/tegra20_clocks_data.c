@@ -27,8 +27,6 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 
-#include <mach/iomap.h>
-
 #include "clock.h"
 #include "fuse.h"
 #include "tegra2_emc.h"

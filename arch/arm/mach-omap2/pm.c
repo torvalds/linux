@@ -20,10 +20,11 @@
 
 #include <asm/system_misc.h>
 
-#include <plat/omap-pm.h>
-#include <plat/omap_device.h>
+#include "omap-pm.h"
+#include "omap_device.h"
 #include "common.h"
 
+#include "soc.h"
 #include "prcm-common.h"
 #include "voltage.h"
 #include "powerdomain.h"

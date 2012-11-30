@@ -15,10 +15,11 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/export.h>
+#include <linux/platform_data/usb-omap.h>
 
 #include <linux/usb/musb.h>
 
-#include <plat/gpmc.h>
+#include "gpmc.h"
 
 #include "mux.h"
 

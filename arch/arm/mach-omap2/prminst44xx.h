@@ -30,4 +30,6 @@ extern int omap4_prminst_assert_hardreset(u8 shift, u8 part, s16 inst,
 extern int omap4_prminst_deassert_hardreset(u8 shift, u8 part, s16 inst,
 					    u16 rstctrl_offs);
 
+extern void omap_prm_base_init(void);
+
 #endif

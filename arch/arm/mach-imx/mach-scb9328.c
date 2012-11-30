@@ -20,11 +20,10 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
-#include <mach/common.h>
-#include <mach/hardware.h>
-#include <mach/iomux-mx1.h>
-
+#include "common.h"
 #include "devices-imx1.h"
+#include "hardware.h"
+#include "iomux-mx1.h"
 
 /*
  * This scb9328 has a 32MiB flash

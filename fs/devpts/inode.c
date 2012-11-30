@@ -545,37 +545,38 @@ void devpts_kill_index(struct inode *ptmx_inode, int idx)
 	mutex_unlock(&allocated_ptys_lock);
 }
 
-int devpts_pty_new(struct inode *ptmx_inode, struct tty_struct *tty)
+/**
+ * devpts_pty_new -- create a new inode in /dev/pts/
+ * @ptmx_inode: inode of the master
+ * @device: major+minor of the node to be created
+ * @index: used as a name of the node
+ * @priv: what's given back by devpts_get_priv
+ *
+ * The created inode is returned. Remove it from /dev/pts/ by devpts_pty_kill.
+ */
+struct inode *devpts_pty_new(struct inode *ptmx_inode, dev_t device, int index,
+		void *priv)
 {
-	/* tty layer puts index from devpts_new_index() in here */
-	int number = tty->index;
-	struct tty_driver *driver = tty->driver;
-	dev_t device = MKDEV(driver->major, driver->minor_start+number);
 	struct dentry *dentry;
 	struct super_block *sb = pts_sb_from_inode(ptmx_inode);
-	struct inode *inode = new_inode(sb);
+	struct inode *inode;
 	struct dentry *root = sb->s_root;
 	struct pts_fs_info *fsi = DEVPTS_SB(sb);
 	struct pts_mount_opts *opts = &fsi->mount_opts;
-	int ret = 0;
 	char s[12];
 
-	/* We're supposed to be given the slave end of a pty */
-	BUG_ON(driver->type != TTY_DRIVER_TYPE_PTY);
-	BUG_ON(driver->subtype != PTY_TYPE_SLAVE);
-
+	inode = new_inode(sb);
 	if (!inode)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
-	inode->i_ino = number + 3;
+	inode->i_ino = index + 3;
 	inode->i_uid = opts->setuid ? opts->uid : current_fsuid();
 	inode->i_gid = opts->setgid ? opts->gid : current_fsgid();
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	init_special_inode(inode, S_IFCHR|opts->mode, device);
-	inode->i_private = tty;
-	tty->driver_data = inode;
+	inode->i_private = priv;
 
-	sprintf(s, "%d", number);
+	sprintf(s, "%d", index);
 
 	mutex_lock(&root->d_inode->i_mutex);
 
@@ -585,18 +586,24 @@ int devpts_pty_new(struct inode *ptmx_inode, struct tty_struct *tty)
 		fsnotify_create(root->d_inode, dentry);
 	} else {
 		iput(inode);
-		ret = -ENOMEM;
+		inode = ERR_PTR(-ENOMEM);
 	}
 
 	mutex_unlock(&root->d_inode->i_mutex);
 
-	return ret;
+	return inode;
 }
 
-struct tty_struct *devpts_get_tty(struct inode *pts_inode, int number)
+/**
+ * devpts_get_priv -- get private data for a slave
+ * @pts_inode: inode of the slave
+ *
+ * Returns whatever was passed as priv in devpts_pty_new for a given inode.
+ */
+void *devpts_get_priv(struct inode *pts_inode)
 {
 	struct dentry *dentry;
-	struct tty_struct *tty;
+	void *priv = NULL;
 
 	BUG_ON(pts_inode->i_rdev == MKDEV(TTYAUX_MAJOR, PTMX_MINOR));
 
@@ -605,18 +612,22 @@ struct tty_struct *devpts_get_tty(struct inode *pts_inode, int number)
 	if (!dentry)
 		return NULL;
 
-	tty = NULL;
 	if (pts_inode->i_sb->s_magic == DEVPTS_SUPER_MAGIC)
-		tty = (struct tty_struct *)pts_inode->i_private;
+		priv = pts_inode->i_private;
 
 	dput(dentry);
 
-	return tty;
+	return priv;
 }
 
-void devpts_pty_kill(struct tty_struct *tty)
+/**
+ * devpts_pty_kill -- remove inode form /dev/pts/
+ * @inode: inode of the slave to be removed
+ *
+ * This is an inverse operation of devpts_pty_new.
+ */
+void devpts_pty_kill(struct inode *inode)
 {
-	struct inode *inode = tty->driver_data;
 	struct super_block *sb = pts_sb_from_inode(inode);
 	struct dentry *root = sb->s_root;
 	struct dentry *dentry;

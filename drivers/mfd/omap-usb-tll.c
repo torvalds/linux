@@ -25,8 +25,8 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/err.h>
-#include <plat/usb.h>
 #include <linux/pm_runtime.h>
+#include <linux/platform_data/usb-omap.h>
 
 #define USBTLL_DRIVER_NAME	"usbhs_tll"
 

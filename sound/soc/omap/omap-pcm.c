@@ -32,8 +32,13 @@
 #include <sound/dmaengine_pcm.h>
 #include <sound/soc.h>
 
-#include <plat/cpu.h>
 #include "omap-pcm.h"
+
+#ifdef CONFIG_ARCH_OMAP1
+#define pcm_omap1510()	cpu_is_omap1510()
+#else
+#define pcm_omap1510()	0
+#endif
 
 static const struct snd_pcm_hardware omap_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_MMAP |
@@ -159,7 +164,7 @@ static snd_pcm_uframes_t omap_pcm_pointer(struct snd_pcm_substream *substream)
 {
 	snd_pcm_uframes_t offset;
 
-	if (cpu_is_omap1510())
+	if (pcm_omap1510())
 		offset = snd_dmaengine_pcm_pointer_no_residue(substream);
 	else
 		offset = snd_dmaengine_pcm_pointer(substream);

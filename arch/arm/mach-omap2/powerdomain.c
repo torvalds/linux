@@ -29,8 +29,6 @@
 
 #include <asm/cpu.h>
 
-#include <plat/prcm.h>
-
 #include "powerdomain.h"
 #include "clockdomain.h"
 

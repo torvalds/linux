@@ -21,6 +21,7 @@
 void tty_port_init(struct tty_port *port)
 {
 	memset(port, 0, sizeof(*port));
+	tty_buffer_init(port);
 	init_waitqueue_head(&port->open_wait);
 	init_waitqueue_head(&port->close_wait);
 	init_waitqueue_head(&port->delta_msr_wait);
@@ -126,6 +127,7 @@ static void tty_port_destructor(struct kref *kref)
 	struct tty_port *port = container_of(kref, struct tty_port, kref);
 	if (port->xmit_buf)
 		free_page((unsigned long)port->xmit_buf);
+	tty_buffer_free_all(port);
 	if (port->ops->destruct)
 		port->ops->destruct(port);
 	else

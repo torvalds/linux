@@ -20,17 +20,16 @@
 #include <linux/spi/flash.h>
 #include <linux/spi/spi.h>
 
-#include <mach/common.h>
-#include <mach/hardware.h>
-#include <mach/iomux-mx51.h>
-
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
+#include "common.h"
 #include "devices-imx51.h"
 #include "cpu_op-mx51.h"
+#include "hardware.h"
+#include "iomux-mx51.h"
 
 #define BABBAGE_USB_HUB_RESET	IMX_GPIO_NR(1, 7)
 #define BABBAGE_USBH1_STP	IMX_GPIO_NR(1, 27)

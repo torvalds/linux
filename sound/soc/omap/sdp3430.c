@@ -31,8 +31,6 @@
 #include <sound/jack.h>
 
 #include <asm/mach-types.h>
-#include <mach/hardware.h>
-#include <mach/gpio.h>
 #include <linux/platform_data/gpio-omap.h>
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 
