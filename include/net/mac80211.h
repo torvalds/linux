@@ -164,7 +164,7 @@ enum ieee80211_chanctx_change {
  *	active on the channel to receive MIMO transmissions
  * @rx_chains_dynamic: The number of RX chains that must be enabled
  *	after RTS/CTS handshake to receive SMPS MIMO transmissions;
- *	this will always be >= @rx_chains_always.
+ *	this will always be >= @rx_chains_static.
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *), size is determined in hw information.
  */
