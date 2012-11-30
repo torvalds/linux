@@ -63,21 +63,13 @@ static int i_APCI2032_ConfigDigitalOutput(struct comedi_device *dev,
 					  struct comedi_insn *insn,
 					  unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
 	unsigned int ul_Command = 0;
-
-	devpriv->tsk_Current = current;
 
 	if ((data[0] != 0) && (data[0] != 1)) {
 		comedi_error(dev,
 			"Not a valid Data !!! ,Data should be 1 or 0\n");
 		return -EINVAL;
 	}
-
-	if (data[0])
-		devpriv->b_OutputMemoryStatus = ADDIDATA_ENABLE;
-	else
-		devpriv->b_OutputMemoryStatus = ADDIDATA_DISABLE;
 
 	if (data[1] == ADDIDATA_ENABLE)
 		ul_Command |= APCI2032_INT_CTRL_VCC_ENA;
@@ -181,7 +173,6 @@ static int i_APCI2032_ReadInterruptStatus(struct comedi_device *dev,
 static void v_APCI2032_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct addi_private *devpriv = dev->private;
 	unsigned int ui_DO;
 
 	/* Check if VCC OR CC interrupt has occurred */
@@ -197,7 +188,7 @@ static void v_APCI2032_Interrupt(int irq, void *d)
 		outl(0x0, dev->iobase + APCI2032_INT_CTRL_REG);
 
 		if (ui_Type)
-			send_sig(SIGIO, devpriv->tsk_Current, 0);
+			; /* send an event to indicate the interrupt */
 	}
 }
 
@@ -209,9 +200,6 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 
 static int apci2032_reset(struct comedi_device *dev)
 {
-	struct addi_private *devpriv = dev->private;
-
-	devpriv->b_DigitalOutputRegister = 0;
 	ui_Type = 0;
 	outl(0x0, dev->iobase + APCI2032_DO_REG);
 	outl(0x0, dev->iobase + APCI2032_INT_CTRL_REG);
@@ -225,16 +213,10 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 				unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
 	dev->board_name = dev->driver->driver_name;
-
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
-	if (!devpriv)
-		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
@@ -282,14 +264,11 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 static void apci2032_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct addi_private *devpriv = dev->private;
 
-	if (devpriv) {
-		if (dev->iobase)
-			apci2032_reset(dev);
-		if (dev->irq)
-			free_irq(dev->irq, dev);
-	}
+	if (dev->iobase)
+		apci2032_reset(dev);
+	if (dev->irq)
+		free_irq(dev->irq, dev);
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
