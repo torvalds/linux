@@ -20,8 +20,6 @@
 #ifndef _NET_BATMAN_ADV_PACKET_H_
 #define _NET_BATMAN_ADV_PACKET_H_
 
-#define BATADV_ETH_P_BATMAN  0x4305 /* unofficial/not registered Ethertype */
-
 enum batadv_packettype {
 	BATADV_IV_OGM		= 0x01,
 	BATADV_ICMP		= 0x02,
