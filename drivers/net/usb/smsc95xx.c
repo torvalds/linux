@@ -1281,7 +1281,7 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
 	}
 
 	if (pdata->wolopts & (WAKE_BCAST | WAKE_MCAST | WAKE_ARP | WAKE_UCAST)) {
-		u32 *filter_mask = kzalloc(32, GFP_KERNEL);
+		u32 *filter_mask = kzalloc(sizeof(u32) * 32, GFP_KERNEL);
 		u32 command[2];
 		u32 offset[2];
 		u32 crc[4];
@@ -1289,6 +1289,11 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
 			(pdata->features & FEATURE_8_WAKEUP_FILTERS) ?
 			LAN9500A_WUFF_NUM : LAN9500_WUFF_NUM;
 		int i, filter = 0;
+
+		if (!filter_mask) {
+			netdev_warn(dev->net, "Unable to allocate filter_mask\n");
+			return -ENOMEM;
+		}
 
 		memset(command, 0, sizeof(command));
 		memset(offset, 0, sizeof(offset));
