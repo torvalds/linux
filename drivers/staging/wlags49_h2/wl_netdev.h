@@ -102,7 +102,7 @@ int wl_rx_dma( struct net_device *dev );
 void wl_multicast( struct net_device *dev );
 #else
 void wl_multicast( struct net_device *dev, int num_addrs, void *addrs );
-#endif // NEW_MULTICAST
+#endif /* NEW_MULTICAST */
 
 
 int wl_tx_port0( struct sk_buff *skb, struct net_device *dev );
@@ -151,4 +151,4 @@ void wl_wds_netif_carrier_off( struct wl_private *lp );
 #endif  /* USE_WDS */
 
 
-#endif  // __WL_NETDEV_H__
+#endif  /* __WL_NETDEV_H__ */
