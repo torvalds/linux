@@ -33,4 +33,6 @@
 #define BTC_CGULVPARAMETER_DFLT                       0x00040035
 #define BTC_CGULVCONTROL_DFLT                         0x00001450
 
+extern u32 btc_valid_sclk[];
+
 #endif

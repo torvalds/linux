@@ -1217,6 +1217,19 @@ struct radeon_dpm_thermal {
 	bool               high_to_low;
 };
 
+enum radeon_clk_action
+{
+	RADEON_SCLK_UP = 1,
+	RADEON_SCLK_DOWN
+};
+
+struct radeon_blacklist_clocks
+{
+	u32 sclk;
+	u32 mclk;
+	enum radeon_clk_action action;
+};
+
 struct radeon_clock_and_voltage_limits {
 	u32 sclk;
 	u32 mclk;

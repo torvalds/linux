@@ -88,6 +88,7 @@ struct evergreen_power_info {
 	struct at ats[2];
 	/* smc offsets */
 	u16 mc_reg_table_start;
+	struct rv7xx_ps hw_ps;
 };
 
 #define CYPRESS_HASI_DFLT                               400000

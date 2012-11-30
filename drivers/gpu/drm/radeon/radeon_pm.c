@@ -719,17 +719,42 @@ static void radeon_dpm_change_power_state_locked(struct radeon_device *rdev)
 	else
 		return;
 
-	/* no need to reprogram if nothing changed */
+	/* no need to reprogram if nothing changed unless we are on BTC+ */
 	if (rdev->pm.dpm.current_ps == rdev->pm.dpm.requested_ps) {
-		/* update display watermarks based on new power state */
-		if (rdev->pm.dpm.new_active_crtcs != rdev->pm.dpm.current_active_crtcs) {
-			radeon_bandwidth_update(rdev);
-			/* update displays */
-			radeon_dpm_display_configuration_changed(rdev);
-			rdev->pm.dpm.current_active_crtcs = rdev->pm.dpm.new_active_crtcs;
-			rdev->pm.dpm.current_active_crtc_count = rdev->pm.dpm.new_active_crtc_count;
+		if ((rdev->family < CHIP_BARTS) || (rdev->flags & RADEON_IS_IGP)) {
+			/* for pre-BTC and APUs if the num crtcs changed but state is the same,
+			 * all we need to do is update the display configuration.
+			 */
+			if (rdev->pm.dpm.new_active_crtcs != rdev->pm.dpm.current_active_crtcs) {
+				/* update display watermarks based on new power state */
+				radeon_bandwidth_update(rdev);
+				/* update displays */
+				radeon_dpm_display_configuration_changed(rdev);
+				rdev->pm.dpm.current_active_crtcs = rdev->pm.dpm.new_active_crtcs;
+				rdev->pm.dpm.current_active_crtc_count = rdev->pm.dpm.new_active_crtc_count;
+			}
+			return;
+		} else {
+			/* for BTC+ if the num crtcs hasn't changed and state is the same,
+			 * nothing to do, if the num crtcs is > 1 and state is the same,
+			 * update display configuration.
+			 */
+			if (rdev->pm.dpm.new_active_crtcs ==
+			    rdev->pm.dpm.current_active_crtcs) {
+				return;
+			} else {
+				if ((rdev->pm.dpm.current_active_crtc_count > 1) &&
+				    (rdev->pm.dpm.new_active_crtc_count > 1)) {
+					/* update display watermarks based on new power state */
+					radeon_bandwidth_update(rdev);
+					/* update displays */
+					radeon_dpm_display_configuration_changed(rdev);
+					rdev->pm.dpm.current_active_crtcs = rdev->pm.dpm.new_active_crtcs;
+					rdev->pm.dpm.current_active_crtc_count = rdev->pm.dpm.new_active_crtc_count;
+					return;
+				}
+			}
 		}
-		return;
 	}
 
 	printk("switching from power state:\n");

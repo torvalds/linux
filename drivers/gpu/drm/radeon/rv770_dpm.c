@@ -2177,6 +2177,16 @@ static void rv7xx_parse_pplib_clock_info(struct radeon_device *rdev,
 		pl->vddc = vddc;
 		pl->vddci = vddci;
 	}
+
+	if (rdev->family >= CHIP_BARTS) {
+		if ((rps->class & ATOM_PPLIB_CLASSIFICATION_UI_MASK) ==
+		    ATOM_PPLIB_CLASSIFICATION_UI_PERFORMANCE) {
+			rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac.sclk = pl->sclk;
+			rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac.mclk = pl->mclk;
+			rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac.vddc = pl->vddc;
+			rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac.vddci = pl->vddci;
+		}
+	}
 }
 
 int rv7xx_parse_power_table(struct radeon_device *rdev)
