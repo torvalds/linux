@@ -299,30 +299,34 @@ typedef __u64 __bitwise __addrpair;
 				   (((__force __u64)(__be32)(__daddr)) << 32) | \
 				   ((__force __u64)(__be32)(__saddr)));
 #endif /* __BIG_ENDIAN */
-#define INET_MATCH(__sk, __net, __hash, __cookie, __saddr, __daddr, __ports, __dif)\
-	(((__sk)->sk_hash == (__hash)) && net_eq(sock_net(__sk), (__net)) &&	\
-	 ((*((__addrpair *)&(inet_sk(__sk)->inet_daddr))) == (__cookie))  &&	\
-	 ((*((__portpair *)&(inet_sk(__sk)->inet_dport))) == (__ports))   &&	\
-	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
-#define INET_TW_MATCH(__sk, __net, __hash, __cookie, __saddr, __daddr, __ports, __dif)\
-	(((__sk)->sk_hash == (__hash)) && net_eq(sock_net(__sk), (__net)) &&	\
-	 ((*((__addrpair *)&(inet_twsk(__sk)->tw_daddr))) == (__cookie)) &&	\
-	 ((*((__portpair *)&(inet_twsk(__sk)->tw_dport))) == (__ports)) &&	\
-	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
+#define INET_MATCH(__sk, __net, __cookie, __saddr, __daddr, __ports, __dif)	\
+	((inet_sk(__sk)->inet_portpair == (__ports))		&&	\
+	 (inet_sk(__sk)->inet_addrpair == (__cookie))		&&	\
+	 (!(__sk)->sk_bound_dev_if	||				\
+	   ((__sk)->sk_bound_dev_if == (__dif))) 		&& 	\
+	 net_eq(sock_net(__sk), (__net)))
+#define INET_TW_MATCH(__sk, __net, __cookie, __saddr, __daddr, __ports, __dif)\
+	((inet_twsk(__sk)->tw_portpair == (__ports))	&&		\
+	 (inet_twsk(__sk)->tw_addrpair == (__cookie))	&&		\
+	 (!(__sk)->sk_bound_dev_if	||				\
+	   ((__sk)->sk_bound_dev_if == (__dif)))	&&		\
+	 net_eq(sock_net(__sk), (__net)))
 #else /* 32-bit arch */
 #define INET_ADDR_COOKIE(__name, __saddr, __daddr)
-#define INET_MATCH(__sk, __net, __hash, __cookie, __saddr, __daddr, __ports, __dif)	\
-	(((__sk)->sk_hash == (__hash)) && net_eq(sock_net(__sk), (__net))	&&	\
-	 (inet_sk(__sk)->inet_daddr	== (__saddr))		&&	\
-	 (inet_sk(__sk)->inet_rcv_saddr	== (__daddr))		&&	\
-	 ((*((__portpair *)&(inet_sk(__sk)->inet_dport))) == (__ports))	&&	\
-	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
-#define INET_TW_MATCH(__sk, __net, __hash,__cookie, __saddr, __daddr, __ports, __dif)	\
-	(((__sk)->sk_hash == (__hash)) && net_eq(sock_net(__sk), (__net))	&&	\
-	 (inet_twsk(__sk)->tw_daddr	== (__saddr))		&&	\
-	 (inet_twsk(__sk)->tw_rcv_saddr	== (__daddr))		&&	\
-	 ((*((__portpair *)&(inet_twsk(__sk)->tw_dport))) == (__ports)) &&	\
-	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
+#define INET_MATCH(__sk, __net, __cookie, __saddr, __daddr, __ports, __dif) \
+	((inet_sk(__sk)->inet_portpair == (__ports))	&&		\
+	 (inet_sk(__sk)->inet_daddr	== (__saddr))	&&		\
+	 (inet_sk(__sk)->inet_rcv_saddr	== (__daddr))	&&		\
+	 (!(__sk)->sk_bound_dev_if	||				\
+	   ((__sk)->sk_bound_dev_if == (__dif))) 	&&		\
+	 net_eq(sock_net(__sk), (__net)))
+#define INET_TW_MATCH(__sk, __net, __cookie, __saddr, __daddr, __ports, __dif) \
+	((inet_twsk(__sk)->tw_portpair == (__ports))	&&		\
+	 (inet_twsk(__sk)->tw_daddr	== (__saddr))	&&		\
+	 (inet_twsk(__sk)->tw_rcv_saddr	== (__daddr))	&&		\
+	 (!(__sk)->sk_bound_dev_if	||				\
+	   ((__sk)->sk_bound_dev_if == (__dif))) 	&&		\
+	 net_eq(sock_net(__sk), (__net)))
 #endif /* 64-bit arch */
 
 /*
