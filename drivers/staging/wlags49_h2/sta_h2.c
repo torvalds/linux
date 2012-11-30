@@ -4381,7 +4381,7 @@ static const hcf_8 fw_image_4_data[] = {
 
 static const CFG_IDENTITY_STRCT fw_image_infoidentity[] = {
 	{
-		sizeof( CFG_IDENTITY_STRCT ) / sizeof(hcf_16) - 1,
+		sizeof(CFG_IDENTITY_STRCT) / sizeof(hcf_16) - 1,
 		CFG_FW_IDENTITY,
 		COMP_ID_FW_STA,
 		3,							//Variant
