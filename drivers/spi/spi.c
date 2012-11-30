@@ -35,6 +35,8 @@
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
+#include <linux/ioport.h>
+#include <linux/acpi.h>
 
 static void spidev_release(struct device *dev)
 {
@@ -91,6 +93,10 @@ static int spi_match_device(struct device *dev, struct device_driver *drv)
 
 	/* Attempt an OF style match */
 	if (of_driver_match_device(dev, drv))
+		return 1;
+
+	/* Then try ACPI */
+	if (acpi_driver_match_device(dev, drv))
 		return 1;
 
 	if (sdrv->id_table)
@@ -888,6 +894,100 @@ static void of_register_spi_devices(struct spi_master *master)
 static void of_register_spi_devices(struct spi_master *master) { }
 #endif
 
+#ifdef CONFIG_ACPI
+static int acpi_spi_add_resource(struct acpi_resource *ares, void *data)
+{
+	struct spi_device *spi = data;
+
+	if (ares->type == ACPI_RESOURCE_TYPE_SERIAL_BUS) {
+		struct acpi_resource_spi_serialbus *sb;
+
+		sb = &ares->data.spi_serial_bus;
+		if (sb->type == ACPI_RESOURCE_SERIAL_TYPE_SPI) {
+			spi->chip_select = sb->device_selection;
+			spi->max_speed_hz = sb->connection_speed;
+
+			if (sb->clock_phase == ACPI_SPI_SECOND_PHASE)
+				spi->mode |= SPI_CPHA;
+			if (sb->clock_polarity == ACPI_SPI_START_HIGH)
+				spi->mode |= SPI_CPOL;
+			if (sb->device_polarity == ACPI_SPI_ACTIVE_HIGH)
+				spi->mode |= SPI_CS_HIGH;
+		}
+	} else if (spi->irq < 0) {
+		struct resource r;
+
+		if (acpi_dev_resource_interrupt(ares, 0, &r))
+			spi->irq = r.start;
+	}
+
+	/* Always tell the ACPI core to skip this resource */
+	return 1;
+}
+
+static acpi_status acpi_spi_add_device(acpi_handle handle, u32 level,
+				       void *data, void **return_value)
+{
+	struct spi_master *master = data;
+	struct list_head resource_list;
+	struct acpi_device *adev;
+	struct spi_device *spi;
+	int ret;
+
+	if (acpi_bus_get_device(handle, &adev))
+		return AE_OK;
+	if (acpi_bus_get_status(adev) || !adev->status.present)
+		return AE_OK;
+
+	spi = spi_alloc_device(master);
+	if (!spi) {
+		dev_err(&master->dev, "failed to allocate SPI device for %s\n",
+			dev_name(&adev->dev));
+		return AE_NO_MEMORY;
+	}
+
+	ACPI_HANDLE_SET(&spi->dev, handle);
+	spi->irq = -1;
+
+	INIT_LIST_HEAD(&resource_list);
+	ret = acpi_dev_get_resources(adev, &resource_list,
+				     acpi_spi_add_resource, spi);
+	acpi_dev_free_resource_list(&resource_list);
+
+	if (ret < 0 || !spi->max_speed_hz) {
+		spi_dev_put(spi);
+		return AE_OK;
+	}
+
+	strlcpy(spi->modalias, dev_name(&adev->dev), sizeof(spi->modalias));
+	if (spi_add_device(spi)) {
+		dev_err(&master->dev, "failed to add SPI device %s from ACPI\n",
+			dev_name(&adev->dev));
+		spi_dev_put(spi);
+	}
+
+	return AE_OK;
+}
+
+static void acpi_register_spi_devices(struct spi_master *master)
+{
+	acpi_status status;
+	acpi_handle handle;
+
+	handle = ACPI_HANDLE(&master->dev);
+	if (!handle)
+		return;
+
+	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
+				     acpi_spi_add_device, NULL,
+				     master, NULL);
+	if (ACPI_FAILURE(status))
+		dev_warn(&master->dev, "failed to enumerate SPI slaves\n");
+}
+#else
+static inline void acpi_register_spi_devices(struct spi_master *master) {}
+#endif /* CONFIG_ACPI */
+
 static void spi_master_release(struct device *dev)
 {
 	struct spi_master *master;
@@ -1023,8 +1123,9 @@ int spi_register_master(struct spi_master *master)
 		spi_match_master_to_boardinfo(master, &bi->board_info);
 	mutex_unlock(&board_lock);
 
-	/* Register devices from the device tree */
+	/* Register devices from the device tree and ACPI */
 	of_register_spi_devices(master);
+	acpi_register_spi_devices(master);
 done:
 	return status;
 }
