@@ -715,8 +715,23 @@ static int uas_eh_abort_handler(struct scsi_cmnd *cmnd)
 	uas_log_cmd_state(cmnd, __func__);
 	spin_lock_irqsave(&devinfo->lock, flags);
 	cmdinfo->state |= COMMAND_ABORTED;
-	spin_unlock_irqrestore(&devinfo->lock, flags);
-	ret = uas_eh_task_mgmt(cmnd, "ABORT TASK", TMF_ABORT_TASK);
+	if (cmdinfo->state & IS_IN_WORK_LIST) {
+		spin_lock(&uas_work_lock);
+		list_del(&cmdinfo->list);
+		cmdinfo->state &= ~IS_IN_WORK_LIST;
+		spin_unlock(&uas_work_lock);
+	}
+	if (cmdinfo->state & COMMAND_INFLIGHT) {
+		spin_unlock_irqrestore(&devinfo->lock, flags);
+		ret = uas_eh_task_mgmt(cmnd, "ABORT TASK", TMF_ABORT_TASK);
+	} else {
+		spin_unlock_irqrestore(&devinfo->lock, flags);
+		uas_unlink_data_urbs(devinfo, cmdinfo);
+		spin_lock_irqsave(&devinfo->lock, flags);
+		uas_try_complete(cmnd, __func__);
+		spin_unlock_irqrestore(&devinfo->lock, flags);
+		ret = SUCCESS;
+	}
 	return ret;
 }
 
