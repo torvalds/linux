@@ -156,12 +156,16 @@ static int i_APCI2032_StartStopWriteWatchdog(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int i_APCI2032_ReadWatchdog(struct comedi_device *dev,
+static int apci1516_wdog_insn_read(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn,
 				   unsigned int *data)
 {
-	data[0] = inl(dev->iobase + APCI2032_WDOG_STATUS_REG) & 0x1;
+	int i;
+
+	for (i = 0; i < insn->n; i++)
+		data[i] = inl(dev->iobase + APCI2032_WDOG_STATUS_REG);
+
 	return insn->n;
 }
 
@@ -268,7 +272,7 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 	s->len_chanlist = 1;
 	s->range_table = &range_digital;
 	s->insn_write = i_APCI2032_StartStopWriteWatchdog;
-	s->insn_read = i_APCI2032_ReadWatchdog;
+	s->insn_read = apci1516_wdog_insn_read;
 	s->insn_config = i_APCI2032_ConfigWatchdog;
 
 	apci2032_reset(dev);
