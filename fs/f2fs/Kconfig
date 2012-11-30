@@ -1,5 +1,6 @@
 config F2FS_FS
 	tristate "F2FS filesystem support (EXPERIMENTAL)"
+	depends on BLOCK
 	help
 	  F2FS is based on Log-structured File System (LFS), which supports
 	  versatile "flash-friendly" features. The design has been focused on
