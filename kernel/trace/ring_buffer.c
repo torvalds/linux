@@ -3425,7 +3425,7 @@ static void rb_advance_iter(struct ring_buffer_iter *iter)
 	/* check for end of page padding */
 	if ((iter->head >= rb_page_size(iter->head_page)) &&
 	    (iter->head_page != cpu_buffer->commit_page))
-		rb_advance_iter(iter);
+		rb_inc_iter(iter);
 }
 
 static int rb_lost_events(struct ring_buffer_per_cpu *cpu_buffer)
