@@ -22,7 +22,6 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/imu/adis.h>
 
-#include <linux/iio/iio.h>
 #include <linux/debugfs.h>
 
 #define ADIS16136_REG_FLASH_CNT		0x00
@@ -203,10 +202,10 @@ static ssize_t adis16136_write_frequency(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct adis16136 *adis16136 = iio_priv(indio_dev);
-	long val;
+	unsigned int val;
 	int ret;
 
-	ret = kstrtol(buf, 10, &val);
+	ret = kstrtouint(buf, 10, &val);
 	if (ret)
 		return ret;
 

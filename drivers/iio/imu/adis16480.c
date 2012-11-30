@@ -24,7 +24,6 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/imu/adis.h>
 
-#include <linux/iio/iio.h>
 #include <linux/debugfs.h>
 
 #define ADIS16480_PAGE_SIZE 0x80
@@ -125,7 +124,7 @@ static ssize_t adis16480_show_firmware_revision(struct file *file,
 		char __user *userbuf, size_t count, loff_t *ppos)
 {
 	struct adis16480 *adis16480 = file->private_data;
-	char buf[6];
+	char buf[7];
 	size_t len;
 	u16 rev;
 	int ret;
@@ -134,7 +133,7 @@ static ssize_t adis16480_show_firmware_revision(struct file *file,
 	if (ret < 0)
 		return ret;
 
-	len = snprintf(buf, sizeof(buf), "%x.%x\n", rev >> 8, rev & 0xff);
+	len = scnprintf(buf, sizeof(buf), "%x.%x\n", rev >> 8, rev & 0xff);
 
 	return simple_read_from_buffer(userbuf, count, ppos, buf, len);
 }
