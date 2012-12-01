@@ -99,6 +99,10 @@ static void snd_request_other(int minor)
  *
  * Checks that a minor device with the specified type is registered, and returns
  * its user data pointer.
+ *
+ * This function increments the reference counter of the card instance
+ * if an associated instance with the given minor number and type is found.
+ * The caller must call snd_card_unref() appropriately later.
  */
 void *snd_lookup_minor_data(unsigned int minor, int type)
 {
@@ -109,9 +113,11 @@ void *snd_lookup_minor_data(unsigned int minor, int type)
 		return NULL;
 	mutex_lock(&sound_mutex);
 	mreg = snd_minors[minor];
-	if (mreg && mreg->type == type)
+	if (mreg && mreg->type == type) {
 		private_data = mreg->private_data;
-	else
+		if (private_data && mreg->card_ptr)
+			atomic_inc(&mreg->card_ptr->refcount);
+	} else
 		private_data = NULL;
 	mutex_unlock(&sound_mutex);
 	return private_data;
@@ -275,6 +281,7 @@ int snd_register_device_for_dev(int type, struct snd_card *card, int dev,
 	preg->device = dev;
 	preg->f_ops = f_ops;
 	preg->private_data = private_data;
+	preg->card_ptr = card;
 	mutex_lock(&sound_mutex);
 #ifdef CONFIG_SND_DYNAMIC_MINORS
 	minor = snd_find_free_minor(type);
