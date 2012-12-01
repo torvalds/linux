@@ -137,6 +137,8 @@ int hv_init(void)
 	memset(hv_context.synic_event_page, 0, sizeof(void *) * NR_CPUS);
 	memset(hv_context.synic_message_page, 0,
 	       sizeof(void *) * NR_CPUS);
+	memset(hv_context.vp_index, 0,
+	       sizeof(int) * NR_CPUS);
 
 	max_leaf = query_hypervisor_info();
 
@@ -296,6 +298,7 @@ void hv_synic_init(void *irqarg)
 	union hv_synic_siefp siefp;
 	union hv_synic_sint shared_sint;
 	union hv_synic_scontrol sctrl;
+	u64 vp_index;
 
 	u32 irq_vector = *((u32 *)(irqarg));
 	int cpu = smp_processor_id();
@@ -355,6 +358,14 @@ void hv_synic_init(void *irqarg)
 	wrmsrl(HV_X64_MSR_SCONTROL, sctrl.as_uint64);
 
 	hv_context.synic_initialized = true;
+
+	/*
+	 * Setup the mapping between Hyper-V's notion
+	 * of cpuid and Linux' notion of cpuid.
+	 * This array will be indexed using Linux cpuid.
+	 */
+	rdmsrl(HV_X64_MSR_VP_INDEX, vp_index);
+	hv_context.vp_index[cpu] = (u32)vp_index;
 	return;
 
 cleanup:
