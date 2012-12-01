@@ -285,7 +285,7 @@ typedef struct _ISO_HEADER {
 #define SIGNATURE_SIZE			4
 #define DEFAULT_BUFF_SIZE		0x10000
 
-#define FIELD_OFFSET_IN_HEADER(HeaderPointer, Field) ((PUCHAR)&((HeaderPointer)(NULL))->Field - (PUCHAR)(NULL))
+#define FIELD_OFFSET_IN_HEADER(HeaderPointer, Field) ((u8 *)&((HeaderPointer)(NULL))->Field - (u8 *)(NULL))
 
 #endif
 
