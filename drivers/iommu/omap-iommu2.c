@@ -13,12 +13,15 @@
 
 #include <linux/err.h>
 #include <linux/device.h>
+#include <linux/io.h>
 #include <linux/jiffies.h>
 #include <linux/module.h>
+#include <linux/omap-iommu.h>
 #include <linux/slab.h>
 #include <linux/stringify.h>
+#include <linux/platform_data/iommu-omap.h>
 
-#include <plat/iommu.h>
+#include "omap-iommu.h"
 
 /*
  * omap2 architecture specific register bit definitions
@@ -65,6 +68,12 @@
 	 ((pgsz) == MMU_CAM_PGSZ_64K) ? 0xffff0000 :	\
 	 ((pgsz) == MMU_CAM_PGSZ_4K)  ? 0xfffff000 : 0)
 
+/* IOMMU errors */
+#define OMAP_IOMMU_ERR_TLB_MISS		(1 << 0)
+#define OMAP_IOMMU_ERR_TRANS_FAULT	(1 << 1)
+#define OMAP_IOMMU_ERR_EMU_MISS		(1 << 2)
+#define OMAP_IOMMU_ERR_TBLWALK_FAULT	(1 << 3)
+#define OMAP_IOMMU_ERR_MULTIHIT_FAULT	(1 << 4)
 
 static void __iommu_set_twl(struct omap_iommu *obj, bool on)
 {
