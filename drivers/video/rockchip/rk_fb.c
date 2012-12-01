@@ -1088,7 +1088,6 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
 	}
 		
 	dev_drv->init_lcdc(dev_drv);
-	dev_drv->load_screen(dev_drv,1);
 	/************fb set,one layer one fb ***********/
 	dev_drv->fb_index_base = fb_inf->num_fb;
 	for(i=0;i<dev_drv->num_layer;i++)
@@ -1147,6 +1146,7 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
     if(id == 0)
     {
 	    fb_inf->fb[0]->fbops->fb_open(fb_inf->fb[0],1);
+	    dev_drv->load_screen(dev_drv,1);
 	    fb_inf->fb[0]->fbops->fb_set_par(fb_inf->fb[0]);
 
 #if  defined(CONFIG_LOGO_LINUX_BMP)
