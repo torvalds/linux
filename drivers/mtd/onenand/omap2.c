@@ -41,7 +41,7 @@
 #include <linux/platform_data/mtd-onenand-omap2.h>
 #include <asm/gpio.h>
 
-#include <plat-omap/dma-omap.h>
+#include <linux/omap-dma.h>
 
 #define DRIVER_NAME "omap2-onenand"
 

@@ -10,7 +10,8 @@
  * published by the Free Software Foundation.
  */
 
-#include <plat-omap/dma-omap.h>
+#include <linux/dmaengine.h>
+#include <linux/omap-dma.h>
 
 #include "omap_hwmod.h"
 #include "hdq1w.h"

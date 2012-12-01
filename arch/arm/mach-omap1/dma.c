@@ -25,7 +25,7 @@
 #include <linux/device.h>
 #include <linux/io.h>
 
-#include <plat-omap/dma-omap.h>
+#include <linux/omap-dma.h>
 #include <mach/tc.h>
 
 #include <mach/irqs.h>

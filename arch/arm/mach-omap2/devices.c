@@ -24,7 +24,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
-#include <plat-omap/dma-omap.h>
+#include <linux/omap-dma.h>
 
 #include "iomap.h"
 #include "omap_hwmod.h"

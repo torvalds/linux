@@ -15,8 +15,8 @@
 
 #include <linux/i2c-omap.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
-
-#include <plat-omap/dma-omap.h>
+#include <linux/omap-dma.h>
+#include <plat/dmtimer.h>
 
 #include "omap_hwmod.h"
 #include "l3_2xxx.h"

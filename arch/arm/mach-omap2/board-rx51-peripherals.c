@@ -31,7 +31,7 @@
 #include <asm/system_info.h>
 
 #include "common.h"
-#include <plat-omap/dma-omap.h>
+#include <linux/omap-dma.h>
 #include "gpmc-smc91x.h"
 
 #include "board-rx51.h"

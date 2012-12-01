@@ -26,6 +26,12 @@
 
 #include "omap-pcm.h"
 
+#ifdef CONFIG_ARCH_OMAP1
+#define mcbsp_omap1()	1
+#else
+#define mcbsp_omap1()	0
+#endif
+
 /* McBSP register numbers. Register address offset = num * reg_step */
 enum {
 	/* Common registers */

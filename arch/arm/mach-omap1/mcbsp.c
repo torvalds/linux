@@ -19,7 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include <plat-omap/dma-omap.h>
+#include <linux/omap-dma.h>
 #include <mach/mux.h>
 #include "soc.h"
 #include <linux/platform_data/asoc-ti-mcbsp.h>
