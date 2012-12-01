@@ -25,6 +25,7 @@ generic-y += kdebug.h
 generic-y += kmap_types.h
 generic-y += local.h
 generic-y += mman.h
+generic-y += mmu.h
 generic-y += mmu_context.h
 generic-y += msgbuf.h
 generic-y += param.h
