@@ -389,9 +389,16 @@ static int bpf_jit_insn(struct bpf_jit *jit, struct sock_filter *filter,
 			EMIT4_DISP(0x5650d000, EMIT_CONST(K));
 		break;
 	case BPF_S_ANC_ALU_XOR_X: /* A ^= X; */
+	case BPF_S_ALU_XOR_X:
 		jit->seen |= SEEN_XREG;
 		/* xr %r5,%r12 */
 		EMIT2(0x175c);
+		break;
+	case BPF_S_ALU_XOR_K: /* A ^= K */
+		if (!K)
+			break;
+		/* x %r5,<d(K)>(%r13) */
+		EMIT4_DISP(0x5750d000, EMIT_CONST(K));
 		break;
 	case BPF_S_ALU_LSH_X: /* A <<= X; */
 		jit->seen |= SEEN_XREG;
