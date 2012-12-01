@@ -7,6 +7,21 @@ systems with multiple interrupt controllers the kernel must ensure
 that each one gets assigned non-overlapping allocations of Linux
 IRQ numbers.
 
+The number of interrupt controllers registered as unique irqchips
+show a rising tendency: for example subdrivers of different kinds
+such as GPIO controllers avoid reimplementing identical callback
+mechanisms as the IRQ core system by modelling their interrupt
+handlers as irqchips, i.e. in effect cascading interrupt controllers.
+
+Here the interrupt number loose all kind of correspondence to
+hardware interrupt numbers: whereas in the past, IRQ numbers could
+be chosen so they matched the hardware IRQ line into the root
+interrupt controller (i.e. the component actually fireing the
+interrupt line to the CPU) nowadays this number is just a number.
+
+For this reason we need a mechanism to separate controller-local
+interrupt numbers, called hardware irq's, from Linux IRQ numbers.
+
 The irq_alloc_desc*() and irq_free_desc*() APIs provide allocation of
 irq numbers, but they don't provide any support for reverse mapping of
 the controller-local IRQ (hwirq) number into the Linux IRQ number
@@ -39,6 +54,10 @@ required hardware setup.
 
 When an interrupt is received, irq_find_mapping() function should
 be used to find the Linux IRQ number from the hwirq number.
+
+The irq_create_mapping() function must be called *atleast once*
+before any call to irq_find_mapping(), lest the descriptor will not
+be allocated.
 
 If the driver has the Linux IRQ number or the irq_data pointer, and
 needs to know the associated hwirq number (such as in the irq_chip
@@ -119,4 +138,17 @@ numbers.
 
 Most users of legacy mappings should use irq_domain_add_simple() which
 will use a legacy domain only if an IRQ range is supplied by the
-system and will otherwise use a linear domain mapping.
+system and will otherwise use a linear domain mapping. The semantics
+of this call are such that if an IRQ range is specified then
+descriptors will be allocated on-the-fly for it, and if no range is
+specified it will fall through to irq_domain_add_linear() which meand
+*no* irq descriptors will be allocated.
+
+A typical use case for simple domains is where an irqchip provider
+is supporting both dynamic and static IRQ assignments.
+
+In order to avoid ending up in a situation where a linear domain is
+used and no descriptor gets allocated it is very important to make sure
+that the driver using the simple domain call irq_create_mapping()
+before any irq_find_mapping() since the latter will actually work
+for the static IRQ assignment case.
