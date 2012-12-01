@@ -110,9 +110,6 @@ static int hdmi_set_scale(struct rk_display_device *device, int direction, int v
 	
 	if(!hdmi || value < 0 || value > 100)
 		return -1;
-
-	if(!hdmi->hotplug)
-		return 0;
 			
 	if(direction == DISPLAY_SCALE_X)
 		hdmi->xscale = value;
