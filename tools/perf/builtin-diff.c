@@ -167,34 +167,34 @@ double perf_diff__period_percent(struct hist_entry *he, u64 period)
 
 double perf_diff__compute_delta(struct hist_entry *he, struct hist_entry *pair)
 {
-	double new_percent = perf_diff__period_percent(he, he->stat.period);
-	double old_percent = perf_diff__period_percent(pair, pair->stat.period);
+	double old_percent = perf_diff__period_percent(he, he->stat.period);
+	double new_percent = perf_diff__period_percent(pair, pair->stat.period);
 
-	he->diff.period_ratio_delta = new_percent - old_percent;
-	he->diff.computed = true;
-	return he->diff.period_ratio_delta;
+	pair->diff.period_ratio_delta = new_percent - old_percent;
+	pair->diff.computed = true;
+	return pair->diff.period_ratio_delta;
 }
 
 double perf_diff__compute_ratio(struct hist_entry *he, struct hist_entry *pair)
 {
-	double new_period = he->stat.period;
-	double old_period = pair->stat.period;
+	double old_period = he->stat.period ?: 1;
+	double new_period = pair->stat.period;
 
-	he->diff.computed = true;
-	he->diff.period_ratio = new_period / old_period;
-	return he->diff.period_ratio;
+	pair->diff.computed = true;
+	pair->diff.period_ratio = new_period / old_period;
+	return pair->diff.period_ratio;
 }
 
 s64 perf_diff__compute_wdiff(struct hist_entry *he, struct hist_entry *pair)
 {
-	u64 new_period = he->stat.period;
-	u64 old_period = pair->stat.period;
+	u64 old_period = he->stat.period;
+	u64 new_period = pair->stat.period;
 
-	he->diff.computed = true;
-	he->diff.wdiff = new_period * compute_wdiff_w2 -
-			 old_period * compute_wdiff_w1;
+	pair->diff.computed = true;
+	pair->diff.wdiff = new_period * compute_wdiff_w2 -
+			   old_period * compute_wdiff_w1;
 
-	return he->diff.wdiff;
+	return pair->diff.wdiff;
 }
 
 static int formula_delta(struct hist_entry *he, struct hist_entry *pair,
@@ -203,15 +203,15 @@ static int formula_delta(struct hist_entry *he, struct hist_entry *pair,
 	return scnprintf(buf, size,
 			 "(%" PRIu64 " * 100 / %" PRIu64 ") - "
 			 "(%" PRIu64 " * 100 / %" PRIu64 ")",
-			  he->stat.period, he->hists->stats.total_period,
-			  pair->stat.period, pair->hists->stats.total_period);
+			  pair->stat.period, pair->hists->stats.total_period,
+			  he->stat.period, he->hists->stats.total_period);
 }
 
 static int formula_ratio(struct hist_entry *he, struct hist_entry *pair,
 			 char *buf, size_t size)
 {
-	double new_period = he->stat.period;
-	double old_period = pair->stat.period;
+	double old_period = he->stat.period;
+	double new_period = pair->stat.period;
 
 	return scnprintf(buf, size, "%.0F / %.0F", new_period, old_period);
 }
@@ -219,8 +219,8 @@ static int formula_ratio(struct hist_entry *he, struct hist_entry *pair,
 static int formula_wdiff(struct hist_entry *he, struct hist_entry *pair,
 			 char *buf, size_t size)
 {
-	u64 new_period = he->stat.period;
-	u64 old_period = pair->stat.period;
+	u64 old_period = he->stat.period;
+	u64 new_period = pair->stat.period;
 
 	return scnprintf(buf, size,
 		  "(%" PRIu64 " * " "%" PRId64 ") - (%" PRIu64 " * " "%" PRId64 ")",
@@ -462,23 +462,23 @@ static void hists__compute_resort(struct hists *hists)
 	}
 }
 
-static void hists__process(struct hists *old, struct hists *new)
+static void hists__process(struct hists *base, struct hists *new)
 {
-	hists__match(new, old);
+	hists__match(base, new);
 
 	if (show_baseline_only)
-		hists__baseline_only(new);
+		hists__baseline_only(base);
 	else
-		hists__link(new, old);
+		hists__link(base, new);
 
 	if (sort_compute) {
-		hists__precompute(new);
-		hists__compute_resort(new);
+		hists__precompute(base);
+		hists__compute_resort(base);
 	} else {
-		hists__output_resort(new);
+		hists__output_resort(base);
 	}
 
-	hists__fprintf(new, true, 0, 0, 0, stdout);
+	hists__fprintf(base, true, 0, 0, 0, stdout);
 }
 
 static void data_process(void)

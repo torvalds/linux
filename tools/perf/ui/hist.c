@@ -178,18 +178,8 @@ static int hpp__width_baseline(struct perf_hpp_fmt *fmt __maybe_unused,
 
 static double baseline_percent(struct hist_entry *he)
 {
-	struct hist_entry *pair = hist_entry__next_pair(he);
-	struct hists *pair_hists = pair ? pair->hists : NULL;
-	double percent = 0.0;
-
-	if (pair) {
-		u64 total_period = pair_hists->stats.total_period;
-		u64 base_period  = pair->stat.period;
-
-		percent = 100.0 * base_period / total_period;
-	}
-
-	return percent;
+	struct hists *hists = he->hists;
+	return 100.0 * he->stat.period / hists->stats.total_period;
 }
 
 static int hpp__color_baseline(struct perf_hpp_fmt *fmt __maybe_unused,
@@ -197,10 +187,8 @@ static int hpp__color_baseline(struct perf_hpp_fmt *fmt __maybe_unused,
 {
 	double percent = baseline_percent(he);
 
-	if (hist_entry__has_pairs(he) || symbol_conf.field_sep)
-		return percent_color_snprintf(hpp->buf, hpp->size, " %6.2f%%", percent);
-	else
-		return scnprintf(hpp->buf, hpp->size, "        ");
+	return percent_color_snprintf(hpp->buf, hpp->size, " %6.2f%%",
+				      percent);
 }
 
 static int hpp__entry_baseline(struct perf_hpp_fmt *_fmt __maybe_unused,
@@ -209,10 +197,7 @@ static int hpp__entry_baseline(struct perf_hpp_fmt *_fmt __maybe_unused,
 	double percent = baseline_percent(he);
 	const char *fmt = symbol_conf.field_sep ? "%.2f" : " %6.2f%%";
 
-	if (hist_entry__has_pairs(he) || symbol_conf.field_sep)
-		return scnprintf(hpp->buf, hpp->size, fmt, percent);
-	else
-		return scnprintf(hpp->buf, hpp->size, "            ");
+	return scnprintf(hpp->buf, hpp->size, fmt, percent);
 }
 
 static int hpp__header_period_baseline(struct perf_hpp_fmt *_fmt __maybe_unused,
