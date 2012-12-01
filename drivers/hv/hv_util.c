@@ -274,6 +274,16 @@ static int util_probe(struct hv_device *dev,
 		}
 	}
 
+	/*
+	 * The set of services managed by the util driver are not performance
+	 * critical and do not need batched reading. Furthermore, some services
+	 * such as KVP can only handle one message from the host at a time.
+	 * Turn off batched reading for all util drivers before we open the
+	 * channel.
+	 */
+
+	set_channel_read_state(dev->channel, false);
+
 	ret = vmbus_open(dev->channel, 4 * PAGE_SIZE, 4 * PAGE_SIZE, NULL, 0,
 			srv->util_cb, dev->channel);
 	if (ret)
