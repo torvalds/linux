@@ -383,10 +383,13 @@ int vmbus_post_msg(void *buffer, size_t buflen)
 int vmbus_set_event(struct vmbus_channel *channel)
 {
 	u32 child_relid = channel->offermsg.child_relid;
-	/* Each u32 represents 32 channels */
-	sync_set_bit(child_relid & 31,
-		(unsigned long *)vmbus_connection.send_int_page +
-		(child_relid >> 5));
 
-	return hv_signal_event(hv_context.signal_event_param);
+	if (!channel->is_dedicated_interrupt) {
+		/* Each u32 represents 32 channels */
+		sync_set_bit(child_relid & 31,
+			(unsigned long *)vmbus_connection.send_int_page +
+			(child_relid >> 5));
+	}
+
+	return hv_signal_event(channel->sig_event);
 }
