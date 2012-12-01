@@ -294,19 +294,6 @@ void hv_ringbuffer_get_debuginfo(struct hv_ring_buffer_info *ring_info,
 	}
 }
 
-
-/*
- *
- * hv_get_ringbuffer_interrupt_mask()
- *
- * Get the interrupt mask for the specified ring buffer
- *
- */
-u32 hv_get_ringbuffer_interrupt_mask(struct hv_ring_buffer_info *rbi)
-{
-	return rbi->ring_buffer->interrupt_mask;
-}
-
 /*
  *
  * hv_ringbuffer_init()
