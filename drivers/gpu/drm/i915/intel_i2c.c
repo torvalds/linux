@@ -223,7 +223,7 @@ gmbus_wait_hw_status(struct drm_i915_private *dev_priv,
 		prepare_to_wait(&dev_priv->gmbus_wait_queue, &wait,
 				TASK_UNINTERRUPTIBLE);
 
-		gmbus2 = I915_READ(GMBUS2 + reg_offset);
+		gmbus2 = I915_READ_NOTRACE(GMBUS2 + reg_offset);
 		if (gmbus2 & (GMBUS_SATOER | gmbus2_status))
 			break;
 
@@ -246,7 +246,7 @@ gmbus_wait_idle(struct drm_i915_private *dev_priv)
 	int ret;
 	int reg_offset = dev_priv->gpio_mmio_base;
 
-#define C ((I915_READ(GMBUS2 + reg_offset) & GMBUS_ACTIVE) == 0)
+#define C ((I915_READ_NOTRACE(GMBUS2 + reg_offset) & GMBUS_ACTIVE) == 0)
 
 	if (!HAS_GMBUS_IRQ(dev_priv->dev))
 		return wait_for(C, 10);
