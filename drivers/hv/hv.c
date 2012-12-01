@@ -34,8 +34,6 @@
 struct hv_context hv_context = {
 	.synic_initialized	= false,
 	.hypercall_page		= NULL,
-	.signal_event_param	= NULL,
-	.signal_event_buffer	= NULL,
 };
 
 /*
@@ -170,24 +168,6 @@ int hv_init(void)
 
 	hv_context.hypercall_page = virtaddr;
 
-	/* Setup the global signal event param for the signal event hypercall */
-	hv_context.signal_event_buffer =
-			kmalloc(sizeof(struct hv_input_signal_event_buffer),
-				GFP_KERNEL);
-	if (!hv_context.signal_event_buffer)
-		goto cleanup;
-
-	hv_context.signal_event_param =
-		(struct hv_input_signal_event *)
-			(ALIGN((unsigned long)
-				  hv_context.signal_event_buffer,
-				  HV_HYPERCALL_PARAM_ALIGN));
-	hv_context.signal_event_param->connectionid.asu32 = 0;
-	hv_context.signal_event_param->connectionid.u.id =
-						VMBUS_EVENT_CONNECTION_ID;
-	hv_context.signal_event_param->flag_number = 0;
-	hv_context.signal_event_param->rsvdz = 0;
-
 	return 0;
 
 cleanup:
@@ -214,10 +194,6 @@ void hv_cleanup(void)
 
 	/* Reset our OS id */
 	wrmsrl(HV_X64_MSR_GUEST_OS_ID, 0);
-
-	kfree(hv_context.signal_event_buffer);
-	hv_context.signal_event_buffer = NULL;
-	hv_context.signal_event_param = NULL;
 
 	if (hv_context.hypercall_page) {
 		hypercall_msr.as_uint64 = 0;

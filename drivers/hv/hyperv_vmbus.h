@@ -492,14 +492,6 @@ struct hv_context {
 
 	bool synic_initialized;
 
-	/*
-	 * This is used as an input param to HvCallSignalEvent hypercall. The
-	 * input param is immutable in our usage and must be dynamic mem (vs
-	 * stack or global). */
-	struct hv_input_signal_event_buffer *signal_event_buffer;
-	/* 8-bytes aligned of the buffer above */
-	struct hv_input_signal_event *signal_event_param;
-
 	void *synic_message_page[NR_CPUS];
 	void *synic_event_page[NR_CPUS];
 	/*
