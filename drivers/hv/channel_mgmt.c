@@ -302,6 +302,8 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 				offer->connection_id;
 	}
 
+	newchannel->target_vp = 0;
+
 	memcpy(&newchannel->offermsg, offer,
 	       sizeof(struct vmbus_channel_offer_channel));
 	newchannel->monitor_grp = (u8)offer->monitorid / 32;

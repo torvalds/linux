@@ -732,8 +732,15 @@ struct vmbus_channel_open_channel {
 	/* GPADL for the channel's ring buffer. */
 	u32 ringbuffer_gpadlhandle;
 
-	/* GPADL for the channel's server context save area. */
-	u32 server_contextarea_gpadlhandle;
+	/*
+	 * Starting with win8, this field will be used to specify
+	 * the target virtual processor on which to deliver the interrupt for
+	 * the host to guest communication.
+	 * Prior to win8, incoming channel interrupts would only
+	 * be delivered on cpu 0. Setting this value to 0 would
+	 * preserve the earlier behavior.
+	 */
+	u32 target_vp;
 
 	/*
 	* The upstream ring buffer begins at offset zero in the memory
@@ -971,6 +978,16 @@ struct vmbus_channel {
 	bool is_dedicated_interrupt;
 	struct hv_input_signal_event_buffer sig_buf;
 	struct hv_input_signal_event *sig_event;
+
+	/*
+	 * Starting with win8, this field will be used to specify
+	 * the target virtual processor on which to deliver the interrupt for
+	 * the host to guest communication.
+	 * Prior to win8, incoming channel interrupts would only
+	 * be delivered on cpu 0. Setting this value to 0 would
+	 * preserve the earlier behavior.
+	 */
+	u32 target_vp;
 };
 
 static inline void set_channel_read_state(struct vmbus_channel *c, bool state)
