@@ -431,6 +431,10 @@
 #define FLOW_CONTROL_ADDRESS_HIGH 0x00000100
 #define FLOW_CONTROL_TYPE         0x8808
 
+/* Transmit Config Word */
+#define E1000_TXCW_ASM_DIR	0x00000100 /* TXCW astm pause direction */
+#define E1000_TXCW_PAUSE	0x00000080 /* TXCW sym pause request */
+
 /* 802.1q VLAN Packet Size */
 #define VLAN_TAG_SIZE              4    /* 802.3ac tag (not DMA'd) */
 #define E1000_VLAN_FILTER_TBL_SIZE 128  /* VLAN Filter Table (4096 bits) */
@@ -538,6 +542,9 @@
 #define E1000_MPHY_PCS_CLK_REG_OFFSET  0x0004 /* mPHY PCS CLK AFE CSR Offset */
 /* mPHY Near End Digital Loopback Override Bit */
 #define E1000_MPHY_PCS_CLK_REG_DIGINELBEN 0x10
+
+#define E1000_PCS_LCTL_FORCE_FCTRL	0x80
+#define E1000_PCS_LSTS_AN_COMPLETE	0x10000
 
 /* PHY Control Register */
 #define MII_CR_FULL_DUPLEX      0x0100  /* FDX =1, half duplex =0 */

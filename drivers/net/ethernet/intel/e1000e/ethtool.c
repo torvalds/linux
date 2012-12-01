@@ -214,7 +214,8 @@ static int e1000_set_spd_dplx(struct e1000_adapter *adapter, u32 spd, u8 dplx)
 	mac->autoneg = 0;
 
 	/* Make sure dplx is at most 1 bit and lsb of speed is not set
-	 * for the switch() below to work */
+	 * for the switch() below to work
+	 */
 	if ((spd & 1) || (dplx & ~1))
 		goto err_inval;
 
@@ -263,8 +264,7 @@ static int e1000_set_settings(struct net_device *netdev,
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
-	/*
-	 * When SoL/IDER sessions are active, autoneg/speed/duplex
+	/* When SoL/IDER sessions are active, autoneg/speed/duplex
 	 * cannot be changed
 	 */
 	if (hw->phy.ops.check_reset_block &&
@@ -273,8 +273,7 @@ static int e1000_set_settings(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	/*
-	 * MDI setting is only allowed when autoneg enabled because
+	/* MDI setting is only allowed when autoneg enabled because
 	 * some hardware doesn't allow MDI setting when speed or
 	 * duplex is forced.
 	 */
@@ -316,8 +315,7 @@ static int e1000_set_settings(struct net_device *netdev,
 
 	/* MDI-X => 2; MDI => 1; Auto => 3 */
 	if (ecmd->eth_tp_mdix_ctrl) {
-		/*
-		 * fix up the value for auto (3 => 0) as zero is mapped
+		/* fix up the value for auto (3 => 0) as zero is mapped
 		 * internally to auto
 		 */
 		if (ecmd->eth_tp_mdix_ctrl == ETH_TP_MDI_AUTO)
@@ -454,8 +452,8 @@ static void e1000_get_regs(struct net_device *netdev,
 	regs_buff[12] = adapter->hw.phy.type;  /* PHY type (IGP=1, M88=0) */
 
 	/* ethtool doesn't use anything past this point, so all this
-	 * code is likely legacy junk for apps that may or may not
-	 * exist */
+	 * code is likely legacy junk for apps that may or may not exist
+	 */
 	if (hw->phy.type == e1000_phy_m88) {
 		e1e_rphy(hw, M88E1000_PHY_SPEC_STATUS, &phy_data);
 		regs_buff[13] = (u32)phy_data; /* cable length */
@@ -598,8 +596,7 @@ static int e1000_set_eeprom(struct net_device *netdev,
 	if (ret_val)
 		goto out;
 
-	/*
-	 * Update the checksum over the first part of the EEPROM if needed
+	/* Update the checksum over the first part of the EEPROM if needed
 	 * and flush shadow RAM for applicable controllers
 	 */
 	if ((first_word <= NVM_CHECKSUM_REG) ||
@@ -623,8 +620,7 @@ static void e1000_get_drvinfo(struct net_device *netdev,
 	strlcpy(drvinfo->version, e1000e_driver_version,
 		sizeof(drvinfo->version));
 
-	/*
-	 * EEPROM image version # is reported as firmware version # for
+	/* EEPROM image version # is reported as firmware version # for
 	 * PCI-E controllers
 	 */
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
@@ -708,8 +704,7 @@ static int e1000_set_ringparam(struct net_device *netdev,
 
 	e1000e_down(adapter);
 
-	/*
-	 * We can't just free everything and then setup again, because the
+	/* We can't just free everything and then setup again, because the
 	 * ISRs in MSI-X mode get passed pointers to the Tx and Rx ring
 	 * structs.  First, attempt to allocate new resources...
 	 */
@@ -813,8 +808,7 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	u32 mask;
 	u32 wlock_mac = 0;
 
-	/*
-	 * The status register is Read Only, so a write should fail.
+	/* The status register is Read Only, so a write should fail.
 	 * Some bits that get toggled are ignored.
 	 */
 	switch (mac->type) {
@@ -996,8 +990,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 		}
 
 		if (!shared_int) {
-			/*
-			 * Disable the interrupt to be reported in
+			/* Disable the interrupt to be reported in
 			 * the cause register and then force the same
 			 * interrupt and see if one gets posted.  If
 			 * an interrupt was posted to the bus, the
@@ -1015,8 +1008,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 			}
 		}
 
-		/*
-		 * Enable the interrupt to be reported in
+		/* Enable the interrupt to be reported in
 		 * the cause register and then force the same
 		 * interrupt and see if one gets posted.  If
 		 * an interrupt was not posted to the bus, the
@@ -1034,8 +1026,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 		}
 
 		if (!shared_int) {
-			/*
-			 * Disable the other interrupts to be reported in
+			/* Disable the other interrupts to be reported in
 			 * the cause register and then force the other
 			 * interrupts and see if any get posted.  If
 			 * an interrupt was posted to the bus, the
@@ -1378,8 +1369,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 	    hw->phy.type == e1000_phy_m88) {
 		ctrl_reg |= E1000_CTRL_ILOS; /* Invert Loss of Signal */
 	} else {
-		/*
-		 * Set the ILOS bit on the fiber Nic if half duplex link is
+		/* Set the ILOS bit on the fiber Nic if half duplex link is
 		 * detected.
 		 */
 		if ((er32(STATUS) & E1000_STATUS_FD) == 0)
@@ -1388,8 +1378,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 
 	ew32(CTRL, ctrl_reg);
 
-	/*
-	 * Disable the receiver on the PHY so when a cable is plugged in, the
+	/* Disable the receiver on the PHY so when a cable is plugged in, the
 	 * PHY does not begin to autoneg when a cable is reconnected to the NIC.
 	 */
 	if (hw->phy.type == e1000_phy_m88)
@@ -1408,8 +1397,7 @@ static int e1000_set_82571_fiber_loopback(struct e1000_adapter *adapter)
 
 	/* special requirements for 82571/82572 fiber adapters */
 
-	/*
-	 * jump through hoops to make sure link is up because serdes
+	/* jump through hoops to make sure link is up because serdes
 	 * link is hardwired up
 	 */
 	ctrl |= E1000_CTRL_SLU;
@@ -1429,8 +1417,7 @@ static int e1000_set_82571_fiber_loopback(struct e1000_adapter *adapter)
 		ew32(CTRL, ctrl);
 	}
 
-	/*
-	 * special write to serdes control register to enable SerDes analog
+	/* special write to serdes control register to enable SerDes analog
 	 * loopback
 	 */
 #define E1000_SERDES_LB_ON 0x410
@@ -1448,8 +1435,7 @@ static int e1000_set_es2lan_mac_loopback(struct e1000_adapter *adapter)
 	u32 ctrlext = er32(CTRL_EXT);
 	u32 ctrl = er32(CTRL);
 
-	/*
-	 * save CTRL_EXT to restore later, reuse an empty variable (unused
+	/* save CTRL_EXT to restore later, reuse an empty variable (unused
 	 * on mac_type 80003es2lan)
 	 */
 	adapter->tx_fifo_head = ctrlext;
@@ -1585,8 +1571,7 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 
 	ew32(RDT(0), rx_ring->count - 1);
 
-	/*
-	 * Calculate the loop count based on the largest descriptor ring
+	/* Calculate the loop count based on the largest descriptor ring
 	 * The idea is to wrap the largest ring a number of times using 64
 	 * send/receive pairs during each loop
 	 */
@@ -1627,8 +1612,7 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 			l++;
 			if (l == rx_ring->count)
 				l = 0;
-			/*
-			 * time + 20 msecs (200 msecs on 2.4) is more than
+			/* time + 20 msecs (200 msecs on 2.4) is more than
 			 * enough time to complete the receives, if it's
 			 * exceeded, break and error off
 			 */
@@ -1649,10 +1633,7 @@ static int e1000_loopback_test(struct e1000_adapter *adapter, u64 *data)
 {
 	struct e1000_hw *hw = &adapter->hw;
 
-	/*
-	 * PHY loopback cannot be performed if SoL/IDER
-	 * sessions are active
-	 */
+	/* PHY loopback cannot be performed if SoL/IDER sessions are active */
 	if (hw->phy.ops.check_reset_block &&
 	    hw->phy.ops.check_reset_block(hw)) {
 		e_err("Cannot do PHY loopback test when SoL/IDER is active.\n");
@@ -1686,8 +1667,7 @@ static int e1000_link_test(struct e1000_adapter *adapter, u64 *data)
 		int i = 0;
 		hw->mac.serdes_has_link = false;
 
-		/*
-		 * On some blade server designs, link establishment
+		/* On some blade server designs, link establishment
 		 * could take as long as 2-3 minutes
 		 */
 		do {
@@ -1701,8 +1681,7 @@ static int e1000_link_test(struct e1000_adapter *adapter, u64 *data)
 	} else {
 		hw->mac.ops.check_for_link(hw);
 		if (hw->mac.autoneg)
-			/*
-			 * On some Phy/switch combinations, link establishment
+			/* On some Phy/switch combinations, link establishment
 			 * can take a few seconds more than expected.
 			 */
 			msleep(5000);

@@ -47,23 +47,27 @@ static ssize_t ixgbe_dbg_reg_ops_read(struct file *filp, char __user *buffer,
 				    size_t count, loff_t *ppos)
 {
 	struct ixgbe_adapter *adapter = filp->private_data;
-	char buf[256];
-	int bytes_not_copied;
+	char *buf;
 	int len;
 
 	/* don't allow partial reads */
 	if (*ppos != 0)
 		return 0;
 
-	len = snprintf(buf, sizeof(buf), "%s: %s\n",
-		       adapter->netdev->name, ixgbe_dbg_reg_ops_buf);
-	if (count < len)
-		return -ENOSPC;
-	bytes_not_copied = copy_to_user(buffer, buf, len);
-	if (bytes_not_copied < 0)
-		return bytes_not_copied;
+	buf = kasprintf(GFP_KERNEL, "%s: %s\n",
+			adapter->netdev->name,
+			ixgbe_dbg_reg_ops_buf);
+	if (!buf)
+		return -ENOMEM;
 
-	*ppos = len;
+	if (count < strlen(buf)) {
+		kfree(buf);
+		return -ENOSPC;
+	}
+
+	len = simple_read_from_buffer(buffer, count, ppos, buf, strlen(buf));
+
+	kfree(buf);
 	return len;
 }
 
@@ -79,7 +83,7 @@ static ssize_t ixgbe_dbg_reg_ops_write(struct file *filp,
 				     size_t count, loff_t *ppos)
 {
 	struct ixgbe_adapter *adapter = filp->private_data;
-	int bytes_not_copied;
+	int len;
 
 	/* don't allow partial writes */
 	if (*ppos != 0)
@@ -87,14 +91,15 @@ static ssize_t ixgbe_dbg_reg_ops_write(struct file *filp,
 	if (count >= sizeof(ixgbe_dbg_reg_ops_buf))
 		return -ENOSPC;
 
-	bytes_not_copied = copy_from_user(ixgbe_dbg_reg_ops_buf, buffer, count);
-	if (bytes_not_copied < 0)
-		return bytes_not_copied;
-	else if (bytes_not_copied < count)
-		count -= bytes_not_copied;
-	else
-		return -ENOSPC;
-	ixgbe_dbg_reg_ops_buf[count] = '\0';
+	len = simple_write_to_buffer(ixgbe_dbg_reg_ops_buf,
+				     sizeof(ixgbe_dbg_reg_ops_buf)-1,
+				     ppos,
+				     buffer,
+				     count);
+	if (len < 0)
+		return len;
+
+	ixgbe_dbg_reg_ops_buf[len] = '\0';
 
 	if (strncmp(ixgbe_dbg_reg_ops_buf, "write", 5) == 0) {
 		u32 reg, value;
@@ -147,23 +152,27 @@ static ssize_t ixgbe_dbg_netdev_ops_read(struct file *filp,
 					 size_t count, loff_t *ppos)
 {
 	struct ixgbe_adapter *adapter = filp->private_data;
-	char buf[256];
-	int bytes_not_copied;
+	char *buf;
 	int len;
 
 	/* don't allow partial reads */
 	if (*ppos != 0)
 		return 0;
 
-	len = snprintf(buf, sizeof(buf), "%s: %s\n",
-		       adapter->netdev->name, ixgbe_dbg_netdev_ops_buf);
-	if (count < len)
-		return -ENOSPC;
-	bytes_not_copied = copy_to_user(buffer, buf, len);
-	if (bytes_not_copied < 0)
-		return bytes_not_copied;
+	buf = kasprintf(GFP_KERNEL, "%s: %s\n",
+			adapter->netdev->name,
+			ixgbe_dbg_netdev_ops_buf);
+	if (!buf)
+		return -ENOMEM;
 
-	*ppos = len;
+	if (count < strlen(buf)) {
+		kfree(buf);
+		return -ENOSPC;
+	}
+
+	len = simple_read_from_buffer(buffer, count, ppos, buf, strlen(buf));
+
+	kfree(buf);
 	return len;
 }
 
@@ -179,7 +188,7 @@ static ssize_t ixgbe_dbg_netdev_ops_write(struct file *filp,
 					  size_t count, loff_t *ppos)
 {
 	struct ixgbe_adapter *adapter = filp->private_data;
-	int bytes_not_copied;
+	int len;
 
 	/* don't allow partial writes */
 	if (*ppos != 0)
@@ -187,15 +196,15 @@ static ssize_t ixgbe_dbg_netdev_ops_write(struct file *filp,
 	if (count >= sizeof(ixgbe_dbg_netdev_ops_buf))
 		return -ENOSPC;
 
-	bytes_not_copied = copy_from_user(ixgbe_dbg_netdev_ops_buf,
-					  buffer, count);
-	if (bytes_not_copied < 0)
-		return bytes_not_copied;
-	else if (bytes_not_copied < count)
-		count -= bytes_not_copied;
-	else
-		return -ENOSPC;
-	ixgbe_dbg_netdev_ops_buf[count] = '\0';
+	len = simple_write_to_buffer(ixgbe_dbg_netdev_ops_buf,
+				     sizeof(ixgbe_dbg_netdev_ops_buf)-1,
+				     ppos,
+				     buffer,
+				     count);
+	if (len < 0)
+		return len;
+
+	ixgbe_dbg_netdev_ops_buf[len] = '\0';
 
 	if (strncmp(ixgbe_dbg_netdev_ops_buf, "tx_timeout", 10) == 0) {
 		adapter->netdev->netdev_ops->ndo_tx_timeout(adapter->netdev);

@@ -161,8 +161,7 @@ struct e1000_info;
 /* Time to wait before putting the device into D3 if there's no link (in ms). */
 #define LINK_TIMEOUT		100
 
-/*
- * Count for polling __E1000_RESET condition every 10-20msec.
+/* Count for polling __E1000_RESET condition every 10-20msec.
  * Experimentation has shown the reset can take approximately 210msec.
  */
 #define E1000_CHECK_RESET_COUNT		25
@@ -172,8 +171,7 @@ struct e1000_info;
 #define BURST_RDTR			0x20
 #define BURST_RADV			0x20
 
-/*
- * in the case of WTHRESH, it appears at least the 82571/2 hardware
+/* in the case of WTHRESH, it appears at least the 82571/2 hardware
  * writes back 4 descriptors when WTHRESH=5, and 3 descriptors when
  * WTHRESH=4, so a setting of 5 gives the most efficient bus
  * utilization but to avoid possible Tx stalls, set it to 1
@@ -214,8 +212,7 @@ struct e1000_ps_page {
 	u64 dma; /* must be u64 - written to hw */
 };
 
-/*
- * wrappers around a pointer to a socket buffer,
+/* wrappers around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer
  */
 struct e1000_buffer {
@@ -305,9 +302,7 @@ struct e1000_adapter {
 	u16 tx_itr;
 	u16 rx_itr;
 
-	/*
-	 * Tx
-	 */
+	/* Tx */
 	struct e1000_ring *tx_ring /* One per active queue */
 						____cacheline_aligned_in_smp;
 	u32 tx_fifo_limit;
@@ -340,9 +335,7 @@ struct e1000_adapter {
 	u32 tx_fifo_size;
 	u32 tx_dma_failed;
 
-	/*
-	 * Rx
-	 */
+	/* Rx */
 	bool (*clean_rx) (struct e1000_ring *ring, int *work_done,
 			  int work_to_do) ____cacheline_aligned_in_smp;
 	void (*alloc_rx_buf) (struct e1000_ring *ring, int cleaned_count,
