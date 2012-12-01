@@ -915,6 +915,8 @@ typedef struct drm_i915_private {
 	bool hw_contexts_disabled;
 	uint32_t hw_context_size;
 
+	bool fdi_rx_polarity_reversed;
+
 	struct i915_suspend_saved_registers regfile;
 
 	/* Old dri1 support infrastructure, beware the dragons ya fools entering

@@ -3917,6 +3917,7 @@
 #define  FDI_FS_ERRC_ENABLE		(1<<27)
 #define  FDI_FE_ERRC_ENABLE		(1<<26)
 #define  FDI_DP_PORT_WIDTH_X8           (7<<19)
+#define  FDI_RX_POLARITY_REVERSED_LPT	(1<<16)
 #define  FDI_8BPC                       (0<<16)
 #define  FDI_10BPC                      (1<<16)
 #define  FDI_6BPC                       (2<<16)

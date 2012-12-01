@@ -180,6 +180,8 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 	/* Enable the PCH Receiver FDI PLL */
 	rx_ctl_val = FDI_RX_PLL_ENABLE | FDI_RX_ENHANCE_FRAME_ENABLE |
 		     ((intel_crtc->fdi_lanes - 1) << 19);
+	if (dev_priv->fdi_rx_polarity_reversed)
+		rx_ctl_val |= FDI_RX_POLARITY_REVERSED_LPT;
 	I915_WRITE(_FDI_RXA_CTL, rx_ctl_val);
 	POSTING_READ(_FDI_RXA_CTL);
 	udelay(220);
