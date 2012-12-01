@@ -69,6 +69,7 @@ static struct pmu_info act8931_ldo_info[] = {
 /*************************************** parameter ******************************************/
 /* keyboard */
 uint key_adc = DEF_KEY_ADC;
+module_param(key_adc, uint, 0644);
 uint key_val_size = 7;
 uint key_val[] = {DEF_PLAY_KEY, DEF_VOLDN_KEY, DEF_VOLUP_KEY, DEF_MENU_KEY, DEF_ESC_KEY, DEF_HOME_KEY, DEF_CAM_KEY};
 module_param_array(key_val, uint, &key_val_size, 0644);
@@ -198,7 +199,7 @@ static inline int check_gs_param(void)
 }
 /* lsensor */
 static int ls_type = DEF_LS_TYPE;
-
+module_param(ls_type, int, 0644);
 static int ls_i2c = DEF_LS_I2C;
 module_param(ls_i2c, int, 0644);
 static int ls_addr = DEF_LS_ADDR;
@@ -230,7 +231,7 @@ static inline int check_ls_param(void)
 
 /* psensor */
 static int ps_type = DEF_PS_TYPE;
-
+module_param(ps_type, int, 0644);
 static int ps_i2c = DEF_PS_I2C;
 module_param(ps_i2c, int, 0644);
 static int ps_addr = DEF_PS_ADDR;
