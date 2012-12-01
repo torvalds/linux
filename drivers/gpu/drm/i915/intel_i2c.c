@@ -203,6 +203,7 @@ intel_gpio_setup(struct intel_gmbus *bus, u32 pin)
 	algo->data = bus;
 }
 
+#define HAS_GMBUS_IRQ(dev) (INTEL_INFO(dev)->gen >= 4)
 static int
 gmbus_wait_hw_status(struct drm_i915_private *dev_priv,
 		     u32 gmbus2_status,
@@ -237,6 +238,31 @@ gmbus_wait_hw_status(struct drm_i915_private *dev_priv,
 	if (gmbus2 & gmbus2_status)
 		return 0;
 	return -ETIMEDOUT;
+}
+
+static int
+gmbus_wait_idle(struct drm_i915_private *dev_priv)
+{
+	int ret;
+	int reg_offset = dev_priv->gpio_mmio_base;
+
+#define C ((I915_READ(GMBUS2 + reg_offset) & GMBUS_ACTIVE) == 0)
+
+	if (!HAS_GMBUS_IRQ(dev_priv->dev))
+		return wait_for(C, 10);
+
+	/* Important: The hw handles only the first bit, so set only one! */
+	I915_WRITE(GMBUS4 + reg_offset, GMBUS_IDLE_EN);
+
+	ret = wait_event_timeout(dev_priv->gmbus_wait_queue, C, 10);
+
+	I915_WRITE(GMBUS4 + reg_offset, 0);
+
+	if (ret)
+		return 0;
+	else
+		return -ETIMEDOUT;
+#undef C
 }
 
 static int
@@ -406,8 +432,7 @@ gmbus_xfer(struct i2c_adapter *adapter,
 	 * We will re-enable it at the start of the next xfer,
 	 * till then let it sleep.
 	 */
-	if (wait_for((I915_READ(GMBUS2 + reg_offset) & GMBUS_ACTIVE) == 0,
-		     10)) {
+	if (gmbus_wait_idle(dev_priv)) {
 		DRM_DEBUG_KMS("GMBUS [%s] timed out waiting for idle\n",
 			 adapter->name);
 		ret = -ETIMEDOUT;
@@ -431,8 +456,7 @@ clear_err:
 	 * it's slow responding and only answers on the 2nd retry.
 	 */
 	ret = -ENXIO;
-	if (wait_for((I915_READ(GMBUS2 + reg_offset) & GMBUS_ACTIVE) == 0,
-		     10)) {
+	if (gmbus_wait_idle(dev_priv)) {
 		DRM_DEBUG_KMS("GMBUS [%s] timed out after NAK\n",
 			      adapter->name);
 		ret = -ETIMEDOUT;
