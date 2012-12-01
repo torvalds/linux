@@ -460,14 +460,31 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
 	 * Hyper-V, and the Windows team suggested we do the same.
 	 */
 
-	page_addr = hv_context.synic_event_page[cpu];
-	event = (union hv_synic_event_flags *)page_addr + VMBUS_MESSAGE_SINT;
+	if ((vmbus_proto_version == VERSION_WS2008) ||
+		(vmbus_proto_version == VERSION_WIN7)) {
 
-	/* Since we are a child, we only need to check bit 0 */
-	if (sync_test_and_clear_bit(0, (unsigned long *) &event->flags32[0])) {
+		page_addr = hv_context.synic_event_page[cpu];
+		event = (union hv_synic_event_flags *)page_addr +
+					 VMBUS_MESSAGE_SINT;
+
+		/* Since we are a child, we only need to check bit 0 */
+		if (sync_test_and_clear_bit(0,
+			(unsigned long *) &event->flags32[0])) {
+			handled = true;
+		}
+	} else {
+		/*
+		 * Our host is win8 or above. The signaling mechanism
+		 * has changed and we can directly look at the event page.
+		 * If bit n is set then we have an interrup on the channel
+		 * whose id is n.
+		 */
 		handled = true;
-		tasklet_schedule(&event_dpc);
 	}
+
+	if (handled)
+		tasklet_schedule(&event_dpc);
+
 
 	page_addr = hv_context.synic_message_page[cpu];
 	msg = (struct hv_message *)page_addr + VMBUS_MESSAGE_SINT;

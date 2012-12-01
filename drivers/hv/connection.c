@@ -321,10 +321,32 @@ static void process_chn_event(u32 relid)
 void vmbus_on_event(unsigned long data)
 {
 	u32 dword;
-	u32 maxdword = MAX_NUM_CHANNELS_SUPPORTED >> 5;
+	u32 maxdword;
 	int bit;
 	u32 relid;
-	u32 *recv_int_page = vmbus_connection.recv_int_page;
+	u32 *recv_int_page = NULL;
+	void *page_addr;
+	int cpu = smp_processor_id();
+	union hv_synic_event_flags *event;
+
+	if ((vmbus_proto_version == VERSION_WS2008) ||
+		(vmbus_proto_version == VERSION_WIN7)) {
+		maxdword = MAX_NUM_CHANNELS_SUPPORTED >> 5;
+		recv_int_page = vmbus_connection.recv_int_page;
+	} else {
+		/*
+		 * When the host is win8 and beyond, the event page
+		 * can be directly checked to get the id of the channel
+		 * that has the interrupt pending.
+		 */
+		maxdword = HV_EVENT_FLAGS_DWORD_COUNT;
+		page_addr = hv_context.synic_event_page[cpu];
+		event = (union hv_synic_event_flags *)page_addr +
+						 VMBUS_MESSAGE_SINT;
+		recv_int_page = event->flags32;
+	}
+
+
 
 	/* Check events */
 	if (!recv_int_page)
