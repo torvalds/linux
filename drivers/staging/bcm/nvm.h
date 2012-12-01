@@ -21,14 +21,12 @@
 #ifndef _NVM_H_
 #define _NVM_H_
 
-typedef struct _FLASH_SECTOR_INFO
-{
+typedef struct _FLASH_SECTOR_INFO {
 	UINT uiSectorSig;
 	UINT uiSectorSize;
 } FLASH_SECTOR_INFO, *PFLASH_SECTOR_INFO;
 
-typedef struct _FLASH_CS_INFO
-{
+typedef struct _FLASH_CS_INFO {
 	B_UINT32 MagicNumber;
 	/* let the magic number be 0xBECE-F1A5 - F1A5 for "flas-h" */
 	B_UINT32 FlashLayoutVersion;
@@ -60,8 +58,7 @@ typedef struct _FLASH_CS_INFO
 #define FLASH2X_TOTAL_SIZE	(64 * 1024 * 1024)
 #define DEFAULT_SECTOR_SIZE	(64 * 1024)
 
-typedef struct _FLASH_2X_CS_INFO
-{
+typedef struct _FLASH_2X_CS_INFO {
 	/* magic number as 0xBECE-F1A5 - F1A5 for "flas-h" */
 	B_UINT32 MagicNumber;
 	B_UINT32 FlashLayoutVersion;
@@ -123,22 +120,19 @@ typedef struct _FLASH_2X_CS_INFO
 	/* All expansions to the control data structure should add here */
 } FLASH2X_CS_INFO, *PFLASH2X_CS_INFO;
 
-typedef struct _VENDOR_SECTION_INFO
-{
+typedef struct _VENDOR_SECTION_INFO {
 	B_UINT32 OffsetFromZeroForSectionStart;
 	B_UINT32 OffsetFromZeroForSectionEnd;
 	B_UINT32 AccessFlags;
 	B_UINT32 Reserved[16];
 } VENDOR_SECTION_INFO, *PVENDOR_SECTION_INFO;
 
-typedef struct _FLASH2X_VENDORSPECIFIC_INFO
-{
+typedef struct _FLASH2X_VENDORSPECIFIC_INFO {
 	VENDOR_SECTION_INFO VendorSection[TOTAL_SECTIONS];
 	B_UINT32 Reserved[16];
 } FLASH2X_VENDORSPECIFIC_INFO, *PFLASH2X_VENDORSPECIFIC_INFO;
 
-typedef struct _DSD_HEADER
-{
+typedef struct _DSD_HEADER {
 	B_UINT32 DSDImageSize;
 	B_UINT32 DSDImageCRC;
 	B_UINT32 DSDImagePriority;
@@ -147,8 +141,7 @@ typedef struct _DSD_HEADER
 	B_UINT32 DSDImageMagicNumber;
 } DSD_HEADER, *PDSD_HEADER;
 
-typedef struct _ISO_HEADER
-{
+typedef struct _ISO_HEADER {
 	B_UINT32 ISOImageMagicNumber;
 	B_UINT32 ISOImageSize;
 	B_UINT32 ISOImageCRC;
