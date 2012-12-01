@@ -530,7 +530,6 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 	unsigned long irqflags;
 	int pipe;
 	u32 pipe_stats[I915_MAX_PIPES];
-	bool blc_event;
 
 	atomic_inc(&dev_priv->irq_received);
 
@@ -586,9 +585,6 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 			I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
 			I915_READ(PORT_HOTPLUG_STAT);
 		}
-
-		if (pipe_stats[pipe] & PIPE_LEGACY_BLC_EVENT_STATUS)
-			blc_event = true;
 
 		if (pm_iir & GEN6_PM_DEFERRED_EVENTS)
 			gen6_queue_rps_work(dev_priv, pm_iir);
