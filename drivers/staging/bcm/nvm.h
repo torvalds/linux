@@ -132,14 +132,14 @@ typedef struct _FLASH2X_VENDORSPECIFIC_INFO {
 	u32 Reserved[16];
 } FLASH2X_VENDORSPECIFIC_INFO, *PFLASH2X_VENDORSPECIFIC_INFO;
 
-typedef struct _DSD_HEADER {
+struct bcm_dsd_header {
 	u32 DSDImageSize;
 	u32 DSDImageCRC;
 	u32 DSDImagePriority;
 	/* We should not consider right now. Reading reserve is worthless. */
 	u32 Reserved[252]; /* Resvd for DSD Header */
 	u32 DSDImageMagicNumber;
-} DSD_HEADER, *PDSD_HEADER;
+};
 
 struct bcm_iso_header {
 	u32 ISOImageMagicNumber;

@@ -472,7 +472,7 @@ static int BeceemFlashBulkRead(struct bcm_mini_adapter *Adapter,
 static unsigned int BcmGetFlashSize(struct bcm_mini_adapter *Adapter)
 {
 	if (IsFlash2x(Adapter))
-		return Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + sizeof(DSD_HEADER);
+		return Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + sizeof(struct bcm_dsd_header);
 	else
 		return 32 * 1024;
 }
@@ -2446,7 +2446,7 @@ static VOID UpdateVendorInfo(struct bcm_mini_adapter *Adapter)
 
 		switch (i) {
 		case DSD0:
-			if ((uiSizeSection >= (Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + sizeof(DSD_HEADER))) &&
+			if ((uiSizeSection >= (Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + sizeof(struct bcm_dsd_header))) &&
 				(UNINIT_PTR_IN_CS != Adapter->psFlash2xVendorInfo->VendorSection[i].OffsetFromZeroForSectionStart))
 				Adapter->psFlash2xCSInfo->OffsetFromZeroForDSDStart = Adapter->psFlash2xCSInfo->OffsetFromZeroForDSDEnd = VENDOR_PTR_IN_CS;
 			else
@@ -2454,7 +2454,7 @@ static VOID UpdateVendorInfo(struct bcm_mini_adapter *Adapter)
 			break;
 
 		case DSD1:
-			if ((uiSizeSection >= (Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + sizeof(DSD_HEADER))) &&
+			if ((uiSizeSection >= (Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + sizeof(struct bcm_dsd_header))) &&
 				(UNINIT_PTR_IN_CS != Adapter->psFlash2xVendorInfo->VendorSection[i].OffsetFromZeroForSectionStart))
 				Adapter->psFlash2xCSInfo->OffsetFromZeroForDSD1Start = Adapter->psFlash2xCSInfo->OffsetFromZeroForDSD1End = VENDOR_PTR_IN_CS;
 			else
@@ -2462,7 +2462,7 @@ static VOID UpdateVendorInfo(struct bcm_mini_adapter *Adapter)
 			break;
 
 		case DSD2:
-			if ((uiSizeSection >= (Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + sizeof(DSD_HEADER))) &&
+			if ((uiSizeSection >= (Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + sizeof(struct bcm_dsd_header))) &&
 				(UNINIT_PTR_IN_CS != Adapter->psFlash2xVendorInfo->VendorSection[i].OffsetFromZeroForSectionStart))
 				Adapter->psFlash2xCSInfo->OffsetFromZeroForDSD2Start = Adapter->psFlash2xCSInfo->OffsetFromZeroForDSD2End = VENDOR_PTR_IN_CS;
 			else
@@ -3354,7 +3354,7 @@ int BcmSetActiveSection(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_secti
 	unsigned int SectImagePriority = 0;
 	int Status = STATUS_SUCCESS;
 
-	/* DSD_HEADER sDSD = {0};
+	/* struct bcm_dsd_header sDSD = {0};
 	 * struct bcm_iso_header sISO = {0};
 	 */
 	int HighestPriDSD = 0 ;
@@ -3452,7 +3452,7 @@ int BcmSetActiveSection(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_secti
 				Status = BcmFlash2xBulkWrite(Adapter,
 							&SectImagePriority,
 							HighestPriDSD,
-							Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + FIELD_OFFSET_IN_HEADER(PDSD_HEADER, DSDImagePriority),
+							Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + FIELD_OFFSET_IN_HEADER(struct bcm_dsd_header *, DSDImagePriority),
 							SIGNATURE_SIZE,
 							TRUE);
 				if (Status) {
@@ -3472,7 +3472,7 @@ int BcmSetActiveSection(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_secti
 				Status = BcmFlash2xBulkWrite(Adapter,
 							&SectImagePriority,
 							HighestPriDSD,
-							Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + FIELD_OFFSET_IN_HEADER(PDSD_HEADER, DSDImagePriority),
+							Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + FIELD_OFFSET_IN_HEADER(struct bcm_dsd_header *, DSDImagePriority),
 							SIGNATURE_SIZE,
 							TRUE);
 				if (Status) {
@@ -3492,7 +3492,7 @@ int BcmSetActiveSection(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_secti
 			Status = BcmFlash2xBulkWrite(Adapter,
 						&SectImagePriority,
 						eFlash2xSectVal,
-						Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + FIELD_OFFSET_IN_HEADER(PDSD_HEADER, DSDImagePriority),
+						Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + FIELD_OFFSET_IN_HEADER(struct bcm_dsd_header *, DSDImagePriority),
 						SIGNATURE_SIZE,
 						TRUE);
 			if (Status) {
@@ -3846,7 +3846,7 @@ int BcmFlash2xWriteSig(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_sectio
 	unsigned int uiSignature = 0;
 	unsigned int uiOffset = 0;
 
-	/* DSD_HEADER dsdHeader = {0}; */
+	/* struct bcm_dsd_header dsdHeader = {0}; */
 	if (Adapter->bSigCorrupted == FALSE) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "Signature is not corrupted by driver, hence not restoring\n");
 		return STATUS_SUCCESS;
@@ -3863,7 +3863,7 @@ int BcmFlash2xWriteSig(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_sectio
 		uiSignature = htonl(DSD_IMAGE_MAGIC_NUMBER);
 		uiOffset = Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader;
 
-		uiOffset += FIELD_OFFSET_IN_HEADER(PDSD_HEADER, DSDImageMagicNumber);
+		uiOffset += FIELD_OFFSET_IN_HEADER(struct bcm_dsd_header *, DSDImageMagicNumber);
 
 		if ((ReadDSDSignature(Adapter, eFlashSectionVal) & 0xFF000000) != CORRUPTED_PATTERN) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Corrupted Pattern is not there. Hence won't write sig");
@@ -4141,7 +4141,7 @@ int SaveHeaderIfPresent(struct bcm_mini_adapter *Adapter, PUCHAR pBuff, unsigned
 		(uiSectAlignAddr == BcmGetSectionValEndOffset(Adapter, DSD0) - Adapter->uiSectorSize)) {
 		/* offset from the sector boundary having the header map */
 		offsetToProtect = Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader % Adapter->uiSectorSize;
-		HeaderSizeToProtect = sizeof(DSD_HEADER);
+		HeaderSizeToProtect = sizeof(struct bcm_dsd_header);
 		bHasHeader = TRUE;
 	}
 
@@ -4167,7 +4167,7 @@ int SaveHeaderIfPresent(struct bcm_mini_adapter *Adapter, PUCHAR pBuff, unsigned
 		kfree(pTempBuff);
 	}
 	if (bHasHeader && Adapter->bSigCorrupted) {
-		sig = *((PUINT)(pBuff + offsetToProtect + FIELD_OFFSET_IN_HEADER(PDSD_HEADER, DSDImageMagicNumber)));
+		sig = *((PUINT)(pBuff + offsetToProtect + FIELD_OFFSET_IN_HEADER(struct bcm_dsd_header *, DSDImageMagicNumber)));
 		sig = ntohl(sig);
 		if ((sig & 0xFF000000) != CORRUPTED_PATTERN) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "Desired pattern is not at sig offset. Hence won't restore");
@@ -4175,7 +4175,7 @@ int SaveHeaderIfPresent(struct bcm_mini_adapter *Adapter, PUCHAR pBuff, unsigned
 			return STATUS_SUCCESS;
 		}
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, " Corrupted sig is :%X", sig);
-		*((PUINT)(pBuff + offsetToProtect + FIELD_OFFSET_IN_HEADER(PDSD_HEADER, DSDImageMagicNumber))) = htonl(DSD_IMAGE_MAGIC_NUMBER);
+		*((PUINT)(pBuff + offsetToProtect + FIELD_OFFSET_IN_HEADER(struct bcm_dsd_header *, DSDImageMagicNumber))) = htonl(DSD_IMAGE_MAGIC_NUMBER);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "Restoring the signature in Header Write only");
 		Adapter->bSigCorrupted = FALSE;
 	}
@@ -4268,7 +4268,7 @@ int ReadDSDSignature(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_
 {
 	unsigned int uiDSDsig = 0;
 	/* unsigned int sigoffsetInMap = 0;
-	 * DSD_HEADER dsdHeader = {0};
+	 * struct bcm_dsd_header dsdHeader = {0};
 	 */
 
 	/* sigoffsetInMap =(PUCHAR)&(dsdHeader.DSDImageMagicNumber) -(PUCHAR)&dsdHeader; */
@@ -4280,7 +4280,7 @@ int ReadDSDSignature(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_
 	BcmFlash2xBulkRead(Adapter,
 			&uiDSDsig,
 			dsd,
-			Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + FIELD_OFFSET_IN_HEADER(PDSD_HEADER, DSDImageMagicNumber),
+			Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + FIELD_OFFSET_IN_HEADER(struct bcm_dsd_header *, DSDImageMagicNumber),
 			SIGNATURE_SIZE);
 
 	uiDSDsig = ntohl(uiDSDsig);
@@ -4293,7 +4293,7 @@ int ReadDSDPriority(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_v
 {
 	/* unsigned int priOffsetInMap = 0 ; */
 	unsigned int uiDSDPri = STATUS_FAILURE;
-	/* DSD_HEADER dsdHeader = {0};
+	/* struct bcm_dsd_header dsdHeader = {0};
 	 * priOffsetInMap = (PUCHAR)&(dsdHeader.DSDImagePriority) -(PUCHAR)&dsdHeader;
 	 */
 	if (IsSectionWritable(Adapter, dsd)) {
@@ -4301,7 +4301,7 @@ int ReadDSDPriority(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_v
 			BcmFlash2xBulkRead(Adapter,
 					&uiDSDPri,
 					dsd,
-					Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + FIELD_OFFSET_IN_HEADER(PDSD_HEADER, DSDImagePriority),
+					Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + FIELD_OFFSET_IN_HEADER(struct bcm_dsd_header *, DSDImagePriority),
 					4);
 
 			uiDSDPri = ntohl(uiDSDPri);
@@ -4568,7 +4568,7 @@ static int CorruptDSDSig(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_sect
 		return -ENOMEM;
 	}
 
-	uiOffset = Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + sizeof(DSD_HEADER);
+	uiOffset = Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + sizeof(struct bcm_dsd_header);
 	uiOffset -= MAX_RW_SIZE;
 
 	BcmFlash2xBulkRead(Adapter, (PUINT)pBuff, eFlash2xSectionVal, uiOffset, MAX_RW_SIZE);
