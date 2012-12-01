@@ -29,6 +29,30 @@
 
 #include "hyperv_vmbus.h"
 
+void hv_begin_read(struct hv_ring_buffer_info *rbi)
+{
+	rbi->ring_buffer->interrupt_mask = 1;
+	smp_mb();
+}
+
+u32 hv_end_read(struct hv_ring_buffer_info *rbi)
+{
+	u32 read;
+	u32 write;
+
+	rbi->ring_buffer->interrupt_mask = 0;
+	smp_mb();
+
+	/*
+	 * Now check to see if the ring buffer is still empty.
+	 * If it is not, we raced and we need to process new
+	 * incoming messages.
+	 */
+	hv_get_ringbuffer_availbytes(rbi, &read, &write);
+
+	return read;
+}
+
 
 /*
  * hv_get_next_write_location()

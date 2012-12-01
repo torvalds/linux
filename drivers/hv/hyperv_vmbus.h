@@ -570,6 +570,10 @@ u32 hv_get_ringbuffer_interrupt_mask(struct hv_ring_buffer_info *ring_info);
 void hv_ringbuffer_get_debuginfo(struct hv_ring_buffer_info *ring_info,
 			    struct hv_ring_buffer_debug_info *debug_info);
 
+void hv_begin_read(struct hv_ring_buffer_info *rbi);
+
+u32 hv_end_read(struct hv_ring_buffer_info *rbi);
+
 /*
  * Maximum channels is determined by the size of the interrupt page
  * which is PAGE_SIZE. 1/2 of PAGE_SIZE is for send endpoint interrupt
