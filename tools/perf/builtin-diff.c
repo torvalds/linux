@@ -44,6 +44,7 @@ struct data__file {
 	struct perf_session	*session;
 	const char		*file;
 	int			 idx;
+	struct diff_hpp_fmt	 fmt[PERF_HPP_DIFF__MAX_INDEX];
 };
 
 static struct data__file *data__files;
@@ -584,6 +585,17 @@ static void data_process(void)
 	}
 }
 
+static void data__free(struct data__file *d)
+{
+	int col;
+
+	for (col = 0; col < PERF_HPP_DIFF__MAX_INDEX; col++) {
+		struct diff_hpp_fmt *fmt = &d->fmt[col];
+
+		free(fmt->header);
+	}
+}
+
 static int __cmd_diff(void)
 {
 	struct data__file *d;
@@ -613,6 +625,8 @@ static int __cmd_diff(void)
 	data__for_each_file(i, d) {
 		if (d->session)
 			perf_session__delete(d->session);
+
+		data__free(d);
 	}
 
 	free(data__files);
@@ -818,32 +832,6 @@ static int hpp__width(struct perf_hpp_fmt *fmt,
 	return dfmt->header_width;
 }
 
-#define hpp__color_global hpp__entry_global
-
-#define FMT(_i, _entry, _color)					\
-	[_i] = {						\
-		.fmt = {					\
-			.header	= hpp__header,			\
-			.width	= hpp__width,			\
-			.entry	= hpp__entry_ ## _entry,	\
-			.color	= hpp__color_ ## _color,	\
-		},						\
-		.idx = _i,					\
-	}
-
-#define FMT_GLOBAL(_i)	 FMT(_i, global, global)
-#define FMT_BASELINE(_i) FMT(_i, global, baseline)
-
-static struct diff_hpp_fmt diff_fmt[] = {
-	FMT_BASELINE(PERF_HPP_DIFF__BASELINE),
-	FMT_GLOBAL(PERF_HPP_DIFF__PERIOD),
-	FMT_GLOBAL(PERF_HPP_DIFF__PERIOD_BASELINE),
-	FMT_GLOBAL(PERF_HPP_DIFF__DELTA),
-	FMT_GLOBAL(PERF_HPP_DIFF__RATIO),
-	FMT_GLOBAL(PERF_HPP_DIFF__WEIGHTED_DIFF),
-	FMT_GLOBAL(PERF_HPP_DIFF__FORMULA),
-};
-
 static void init_header(struct diff_hpp_fmt *dfmt)
 {
 #define MAX_HEADER_NAME 100
@@ -873,31 +861,56 @@ static void init_header(struct diff_hpp_fmt *dfmt)
 #undef NAME
 }
 
-static void column_enable(unsigned col)
+static void data__hpp_register(struct data__file *d, int idx)
 {
-	struct diff_hpp_fmt *dfmt;
+	struct diff_hpp_fmt *dfmt = &d->fmt[idx];
+	struct perf_hpp_fmt *fmt = &dfmt->fmt;
 
-	BUG_ON(col >= PERF_HPP_DIFF__MAX_INDEX);
-	dfmt = &diff_fmt[col];
+	dfmt->idx = idx;
+
+	fmt->header = hpp__header;
+	fmt->width  = hpp__width;
+	fmt->entry  = hpp__entry_global;
+
+	/* TODO more colors */
+	if (idx == PERF_HPP_DIFF__BASELINE)
+		fmt->color = hpp__color_baseline;
+
 	init_header(dfmt);
-	perf_hpp__column_register(&dfmt->fmt);
+	perf_hpp__column_register(fmt);
 }
 
 static void ui_init(void)
 {
-	/*
-	 * Display baseline/delta/ratio/
-	 * formula/periods columns.
-	 */
-	column_enable(PERF_HPP_DIFF__BASELINE);
-	column_enable(compute_2_hpp[compute]);
+	struct data__file *d;
+	int i;
 
-	if (show_formula)
-		column_enable(PERF_HPP_DIFF__FORMULA);
+	data__for_each_file(i, d) {
 
-	if (show_period) {
-		column_enable(PERF_HPP_DIFF__PERIOD);
-		column_enable(PERF_HPP_DIFF__PERIOD_BASELINE);
+		/*
+		 * Baseline or compute realted columns:
+		 *
+		 *   PERF_HPP_DIFF__BASELINE
+		 *   PERF_HPP_DIFF__DELTA
+		 *   PERF_HPP_DIFF__RATIO
+		 *   PERF_HPP_DIFF__WEIGHTED_DIFF
+		 */
+		data__hpp_register(d, i ? compute_2_hpp[compute] :
+					  PERF_HPP_DIFF__BASELINE);
+
+		/*
+		 * And the rest:
+		 *
+		 * PERF_HPP_DIFF__FORMULA
+		 * PERF_HPP_DIFF__PERIOD
+		 * PERF_HPP_DIFF__PERIOD_BASELINE
+		 */
+		if (show_formula && i)
+			data__hpp_register(d, PERF_HPP_DIFF__FORMULA);
+
+		if (show_period)
+			data__hpp_register(d, i ? PERF_HPP_DIFF__PERIOD :
+						  PERF_HPP_DIFF__PERIOD_BASELINE);
 	}
 }
 
