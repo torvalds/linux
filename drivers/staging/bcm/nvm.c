@@ -2241,7 +2241,7 @@ int BcmAllocFlashCSStructure(struct bcm_mini_adapter *psAdapter)
 		return -ENOMEM;
 	}
 
-	psAdapter->psFlash2xVendorInfo = (PFLASH2X_VENDORSPECIFIC_INFO)kzalloc(sizeof(FLASH2X_VENDORSPECIFIC_INFO), GFP_KERNEL);
+	psAdapter->psFlash2xVendorInfo = (struct bcm_flash2x_vendor_info *)kzalloc(sizeof(struct bcm_flash2x_vendor_info), GFP_KERNEL);
 	if (!psAdapter->psFlash2xVendorInfo) {
 		BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_PRINTK, 0, 0, "Can't Allocate Vendor Info Memory for Flash 2.x");
 		kfree(psAdapter->psFlashCSInfo);

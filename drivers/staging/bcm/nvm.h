@@ -127,10 +127,10 @@ typedef struct _VENDOR_SECTION_INFO {
 	u32 Reserved[16];
 } VENDOR_SECTION_INFO, *PVENDOR_SECTION_INFO;
 
-typedef struct _FLASH2X_VENDORSPECIFIC_INFO {
+struct bcm_flash2x_vendor_info {
 	VENDOR_SECTION_INFO VendorSection[TOTAL_SECTIONS];
 	u32 Reserved[16];
-} FLASH2X_VENDORSPECIFIC_INFO, *PFLASH2X_VENDORSPECIFIC_INFO;
+};
 
 struct bcm_dsd_header {
 	u32 DSDImageSize;
