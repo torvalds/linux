@@ -842,6 +842,9 @@ struct drm_prop_enum_list {
 	char *name;
 };
 
+extern void drm_modeset_lock_all(struct drm_device *dev);
+extern void drm_modeset_unlock_all(struct drm_device *dev);
+
 extern int drm_crtc_init(struct drm_device *dev,
 			 struct drm_crtc *crtc,
 			 const struct drm_crtc_funcs *funcs);
