@@ -402,5 +402,5 @@ int vmbus_set_event(u32 child_relid)
 		(unsigned long *)vmbus_connection.send_int_page +
 		(child_relid >> 5));
 
-	return hv_signal_event();
+	return hv_signal_event(hv_context.signal_event_param);
 }

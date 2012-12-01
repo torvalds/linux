@@ -273,13 +273,12 @@ int hv_post_message(union hv_connection_id connection_id,
  *
  * This involves a hypercall.
  */
-u16 hv_signal_event(void)
+u16 hv_signal_event(void *con_id)
 {
 	u16 status;
 
-	status = do_hypercall(HVCALL_SIGNAL_EVENT,
-			       hv_context.signal_event_param,
-			       NULL) & 0xFFFF;
+	status = (do_hypercall(HVCALL_SIGNAL_EVENT, con_id, NULL) & 0xFFFF);
+
 	return status;
 }
 
