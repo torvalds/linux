@@ -33,6 +33,7 @@
 #include <acpi/acpi_bus.h>
 #include <linux/completion.h>
 #include <linux/hyperv.h>
+#include <linux/kernel_stat.h>
 #include <asm/hyperv.h>
 #include <asm/hypervisor.h>
 #include "hyperv_vmbus.h"
@@ -501,6 +502,19 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
 }
 
 /*
+ * vmbus interrupt flow handler:
+ * vmbus interrupts can concurrently occur on multiple CPUs and
+ * can be handled concurrently.
+ */
+
+void vmbus_flow_handler(unsigned int irq, struct irq_desc *desc)
+{
+	kstat_incr_irqs_this_cpu(irq, desc);
+
+	desc->action->handler(irq, desc->action->dev_id);
+}
+
+/*
  * vmbus_bus_init -Main vmbus driver initialization routine.
  *
  * Here, we
@@ -534,6 +548,13 @@ static int vmbus_bus_init(int irq)
 			   irq);
 		goto err_unregister;
 	}
+
+	/*
+	 * Vmbus interrupts can be handled concurrently on
+	 * different CPUs. Establish an appropriate interrupt flow
+	 * handler that can support this model.
+	 */
+	irq_set_handler(irq, vmbus_flow_handler);
 
 	vector = IRQ0_VECTOR + irq;
 
