@@ -40,6 +40,11 @@ struct hv_context hv_context = {
 /*
  * query_hypervisor_info - Get version info of the windows hypervisor
  */
+unsigned int host_info_eax;
+unsigned int host_info_ebx;
+unsigned int host_info_ecx;
+unsigned int host_info_edx;
+
 static int query_hypervisor_info(void)
 {
 	unsigned int eax;
@@ -76,6 +81,10 @@ static int query_hypervisor_info(void)
 			    ecx,
 			    edx >> 24,
 			    edx & 0xFFFFFF);
+		host_info_eax = eax;
+		host_info_ebx = ebx;
+		host_info_ecx = ecx;
+		host_info_edx = edx;
 	}
 	return max_leaf;
 }

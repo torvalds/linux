@@ -531,6 +531,13 @@ extern void hv_synic_init(void *irqarg);
 
 extern void hv_synic_cleanup(void *arg);
 
+/*
+ * Host version information.
+ */
+extern unsigned int host_info_eax;
+extern unsigned int host_info_ebx;
+extern unsigned int host_info_ecx;
+extern unsigned int host_info_edx;
 
 /* Interface */
 
