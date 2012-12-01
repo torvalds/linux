@@ -1737,6 +1737,7 @@ int i915_driver_unload(struct drm_device *dev)
 	intel_teardown_mchbar(dev);
 
 	destroy_workqueue(dev_priv->wq);
+	pm_qos_remove_request(&dev_priv->pm_qos);
 
 	if (dev_priv->slab)
 		kmem_cache_destroy(dev_priv->slab);

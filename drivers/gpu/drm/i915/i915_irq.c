@@ -536,7 +536,11 @@ static void gmbus_irq_handler(struct drm_device *dev)
 
 static void dp_aux_irq_handler(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = (drm_i915_private_t *) dev->dev_private;
+
 	DRM_DEBUG_DRIVER("AUX channel interrupt\n");
+
+	wake_up_all(&dev_priv->gmbus_wait_queue);
 }
 
 static irqreturn_t valleyview_irq_handler(int irq, void *arg)
@@ -2731,6 +2735,8 @@ void intel_irq_init(struct drm_device *dev)
 
 	setup_timer(&dev_priv->hangcheck_timer, i915_hangcheck_elapsed,
 		    (unsigned long) dev);
+
+	pm_qos_add_request(&dev_priv->pm_qos, PM_QOS_CPU_DMA_LATENCY, 0);
 
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
