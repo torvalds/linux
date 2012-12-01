@@ -2711,16 +2711,8 @@ void intel_irq_init(struct drm_device *dev)
 		dev->driver->irq_uninstall = valleyview_irq_uninstall;
 		dev->driver->enable_vblank = valleyview_enable_vblank;
 		dev->driver->disable_vblank = valleyview_disable_vblank;
-	} else if (IS_IVYBRIDGE(dev)) {
+	} else if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
 		/* Share pre & uninstall handlers with ILK/SNB */
-		dev->driver->irq_handler = ivybridge_irq_handler;
-		dev->driver->irq_preinstall = ironlake_irq_preinstall;
-		dev->driver->irq_postinstall = ivybridge_irq_postinstall;
-		dev->driver->irq_uninstall = ironlake_irq_uninstall;
-		dev->driver->enable_vblank = ivybridge_enable_vblank;
-		dev->driver->disable_vblank = ivybridge_disable_vblank;
-	} else if (IS_HASWELL(dev)) {
-		/* Share interrupts handling with IVB */
 		dev->driver->irq_handler = ivybridge_irq_handler;
 		dev->driver->irq_preinstall = ironlake_irq_preinstall;
 		dev->driver->irq_postinstall = ivybridge_irq_postinstall;
