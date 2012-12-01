@@ -41,7 +41,6 @@
 static struct acpi_device  *hv_acpi_dev;
 
 static struct tasklet_struct msg_dpc;
-static struct tasklet_struct event_dpc;
 static struct completion probe_event;
 static int irq;
 
@@ -483,7 +482,7 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
 	}
 
 	if (handled)
-		tasklet_schedule(&event_dpc);
+		tasklet_schedule(hv_context.event_dpc[cpu]);
 
 
 	page_addr = hv_context.synic_message_page[cpu];
@@ -523,7 +522,6 @@ static int vmbus_bus_init(int irq)
 	}
 
 	tasklet_init(&msg_dpc, vmbus_on_msg_dpc, 0);
-	tasklet_init(&event_dpc, vmbus_on_event, 0);
 
 	ret = bus_register(&hv_bus);
 	if (ret)

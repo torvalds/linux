@@ -27,6 +27,7 @@
 #include <linux/vmalloc.h>
 #include <linux/hyperv.h>
 #include <linux/version.h>
+#include <linux/interrupt.h>
 #include <asm/hyperv.h>
 #include "hyperv_vmbus.h"
 
@@ -137,6 +138,8 @@ int hv_init(void)
 	       sizeof(void *) * NR_CPUS);
 	memset(hv_context.vp_index, 0,
 	       sizeof(int) * NR_CPUS);
+	memset(hv_context.event_dpc, 0,
+	       sizeof(void *) * NR_CPUS);
 
 	max_leaf = query_hypervisor_info();
 
@@ -284,6 +287,15 @@ void hv_synic_init(void *irqarg)
 
 	/* Check the version */
 	rdmsrl(HV_X64_MSR_SVERSION, version);
+
+	hv_context.event_dpc[cpu] = (struct tasklet_struct *)
+					kmalloc(sizeof(struct tasklet_struct),
+						GFP_ATOMIC);
+	if (hv_context.event_dpc[cpu] == NULL) {
+		pr_err("Unable to allocate event dpc\n");
+		goto cleanup;
+	}
+	tasklet_init(hv_context.event_dpc[cpu], vmbus_on_event, cpu);
 
 	hv_context.synic_message_page[cpu] =
 		(void *)get_zeroed_page(GFP_ATOMIC);

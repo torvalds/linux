@@ -504,6 +504,12 @@ struct hv_context {
 	 * Linux cpuid 'a'.
 	 */
 	u32 vp_index[NR_CPUS];
+	/*
+	 * Starting with win8, we can take channel interrupts on any CPU;
+	 * we will manage the tasklet that handles events on a per CPU
+	 * basis.
+	 */
+	struct tasklet_struct *event_dpc[NR_CPUS];
 };
 
 extern struct hv_context hv_context;
