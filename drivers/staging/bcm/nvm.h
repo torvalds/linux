@@ -120,15 +120,15 @@ typedef struct _FLASH_2X_CS_INFO {
 	/* All expansions to the control data structure should add here */
 } FLASH2X_CS_INFO, *PFLASH2X_CS_INFO;
 
-typedef struct _VENDOR_SECTION_INFO {
+struct bcm_vendor_section_info {
 	u32 OffsetFromZeroForSectionStart;
 	u32 OffsetFromZeroForSectionEnd;
 	u32 AccessFlags;
 	u32 Reserved[16];
-} VENDOR_SECTION_INFO, *PVENDOR_SECTION_INFO;
+};
 
 struct bcm_flash2x_vendor_info {
-	VENDOR_SECTION_INFO VendorSection[TOTAL_SECTIONS];
+	struct bcm_vendor_section_info VendorSection[TOTAL_SECTIONS];
 	u32 Reserved[16];
 };
 
