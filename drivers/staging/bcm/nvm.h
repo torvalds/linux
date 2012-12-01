@@ -1,22 +1,22 @@
 /***************************************************************************************
-//
-// Copyright (c) Beceem Communications Inc.
-//
-// Module Name:
-//	 NVM.h
-//
-// Abstract:
-//	This file has the prototypes,preprocessors and definitions various NVM libraries.
-//
-//
-// Revision History:
-//	Who		When		What
-//	--------	--------	----------------------------------------------
-//	Name		Date		Created/reviewed/modified
-//
-// Notes:
-//
-****************************************************************************************/
+ *
+ * Copyright (c) Beceem Communications Inc.
+ *
+ * Module Name:
+ *	NVM.h
+ *
+ * Abstract:
+ *	This file has the prototypes,preprocessors and definitions various NVM libraries.
+ *
+ *
+ * Revision History:
+ *	Who		When		What
+ *	--------	--------	----------------------------------------------
+ *	Name		Date		Created/reviewed/modified
+ *
+ * Notes:
+ *
+ ****************************************************************************************/
 
 #ifndef _NVM_H_
 #define _NVM_H_
@@ -30,48 +30,30 @@ typedef struct _FLASH_SECTOR_INFO
 typedef struct _FLASH_CS_INFO
 {
 	B_UINT32 MagicNumber;
-	// let the magic number be 0xBECE-F1A5 - F1A5 for "flas-h"
+	/* let the magic number be 0xBECE-F1A5 - F1A5 for "flas-h" */
 	B_UINT32 FlashLayoutVersion;
-	// ISO Image/Format/BuildTool versioning
 	B_UINT32 ISOImageVersion;
-	// SCSI/Flash BootLoader versioning
 	B_UINT32 SCSIFirmwareVersion;
 	B_UINT32 OffsetFromZeroForPart1ISOImage;
-	// typically 0
 	B_UINT32 OffsetFromZeroForScsiFirmware;
-	//typically at 12MB
 	B_UINT32 SizeOfScsiFirmware;
-	//size of the firmware - depends on binary size
 	B_UINT32 OffsetFromZeroForPart2ISOImage;
-	// typically at first Word Aligned offset 12MB +                 sizeOfScsiFirmware.
 	B_UINT32 OffsetFromZeroForCalibrationStart;
-	// typically at 15MB
 	B_UINT32 OffsetFromZeroForCalibrationEnd;
-	// VSA0 offsets
 	B_UINT32 OffsetFromZeroForVSAStart;
 	B_UINT32 OffsetFromZeroForVSAEnd;
-	// Control Section offsets
 	B_UINT32 OffsetFromZeroForControlSectionStart;
 	B_UINT32 OffsetFromZeroForControlSectionData;
-	// NO Data Activity timeout to switch from MSC to NW Mode
 	B_UINT32 CDLessInactivityTimeout;
-	// New ISO Image Signature
 	B_UINT32 NewImageSignature;
-	// Signature to validate the sector size.
 	B_UINT32 FlashSectorSizeSig;
-	// Sector Size
 	B_UINT32 FlashSectorSize;
-	// Write Size Support
 	B_UINT32 FlashWriteSupportSize;
-	// Total Flash Size
 	B_UINT32 TotalFlashSize;
-	// Flash Base Address for offset specified
 	B_UINT32 FlashBaseAddr;
-	// Flash Part Max Size
 	B_UINT32 FlashPartMaxSize;
-	// Is CDLess or Flash Bootloader
 	B_UINT32 IsCDLessDeviceBootSig;
-	// MSC Timeout after reset to switch from MSC to NW Mode
+	/* MSC Timeout after reset to switch from MSC to NW Mode */
 	B_UINT32 MassStorageTimeout;
 } FLASH_CS_INFO, *PFLASH_CS_INFO;
 
@@ -80,75 +62,65 @@ typedef struct _FLASH_CS_INFO
 
 typedef struct _FLASH_2X_CS_INFO
 {
-	// magic number as 0xBECE-F1A5 - F1A5 for "flas-h"
+	/* magic number as 0xBECE-F1A5 - F1A5 for "flas-h" */
 	B_UINT32 MagicNumber;
 	B_UINT32 FlashLayoutVersion;
-	// ISO Image/Format/BuildTool versioning
 	B_UINT32 ISOImageVersion;
-	// SCSI/Flash BootLoader versioning
 	B_UINT32 SCSIFirmwareVersion;
-	// ISO Image1 Part1/SCSI Firmware/Flash Bootloader Start offset, size
 	B_UINT32 OffsetFromZeroForPart1ISOImage;
 	B_UINT32 OffsetFromZeroForScsiFirmware;
 	B_UINT32 SizeOfScsiFirmware;
-	// ISO Image1 Part2 start offset
 	B_UINT32 OffsetFromZeroForPart2ISOImage;
-	// DSD0 offset
 	B_UINT32 OffsetFromZeroForDSDStart;
 	B_UINT32 OffsetFromZeroForDSDEnd;
-	// VSA0 offset
 	B_UINT32 OffsetFromZeroForVSAStart;
 	B_UINT32 OffsetFromZeroForVSAEnd;
-	// Control Section offset
 	B_UINT32 OffsetFromZeroForControlSectionStart;
 	B_UINT32 OffsetFromZeroForControlSectionData;
-	// NO Data Activity timeout to switch from MSC to NW Mode
+	/* NO Data Activity timeout to switch from MSC to NW Mode */
 	B_UINT32 CDLessInactivityTimeout;
-	// New ISO Image Signature
 	B_UINT32 NewImageSignature;
-	B_UINT32 FlashSectorSizeSig;			// Sector Size Signature
-	B_UINT32 FlashSectorSize;			// Sector Size
-	B_UINT32 FlashWriteSupportSize;			// Write Size Support
-	B_UINT32 TotalFlashSize;			// Total Flash Size
-	// Flash Base Address for offset specified
+	B_UINT32 FlashSectorSizeSig;
+	B_UINT32 FlashSectorSize;
+	B_UINT32 FlashWriteSupportSize;
+	B_UINT32 TotalFlashSize;
 	B_UINT32 FlashBaseAddr;
-	B_UINT32 FlashPartMaxSize;			// Flash Part Max Size
-	// Is CDLess or Flash Bootloader
+	B_UINT32 FlashPartMaxSize;
 	B_UINT32 IsCDLessDeviceBootSig;
-	// MSC Timeout after reset to switch from MSC to NW Mode
+	/* MSC Timeout after reset to switch from MSC to NW Mode */
 	B_UINT32 MassStorageTimeout;
 	/* Flash Map 2.0 Field */
-	B_UINT32 OffsetISOImage1Part1Start;	// ISO Image1 Part1 offset
+	B_UINT32 OffsetISOImage1Part1Start;
 	B_UINT32 OffsetISOImage1Part1End;
-	B_UINT32 OffsetISOImage1Part2Start;	// ISO Image1 Part2 offset
+	B_UINT32 OffsetISOImage1Part2Start;
 	B_UINT32 OffsetISOImage1Part2End;
-	B_UINT32 OffsetISOImage1Part3Start;	// ISO Image1 Part3 offset
+	B_UINT32 OffsetISOImage1Part3Start;
 	B_UINT32 OffsetISOImage1Part3End;
-	B_UINT32 OffsetISOImage2Part1Start;	// ISO Image2 Part1 offset
+	B_UINT32 OffsetISOImage2Part1Start;
 	B_UINT32 OffsetISOImage2Part1End;
-	B_UINT32 OffsetISOImage2Part2Start;	// ISO Image2 Part2 offset
+	B_UINT32 OffsetISOImage2Part2Start;
 	B_UINT32 OffsetISOImage2Part2End;
-	B_UINT32 OffsetISOImage2Part3Start;	// ISO Image2 Part3 offset
+	B_UINT32 OffsetISOImage2Part3Start;
 	B_UINT32 OffsetISOImage2Part3End;
-	// DSD Header offset from start of DSD
+	/* DSD Header offset from start of DSD */
 	B_UINT32 OffsetFromDSDStartForDSDHeader;
-	B_UINT32 OffsetFromZeroForDSD1Start;	// DSD 1 offset
+	B_UINT32 OffsetFromZeroForDSD1Start;
 	B_UINT32 OffsetFromZeroForDSD1End;
-	B_UINT32 OffsetFromZeroForDSD2Start;	// DSD 2 offset
+	B_UINT32 OffsetFromZeroForDSD2Start;
 	B_UINT32 OffsetFromZeroForDSD2End;
-	B_UINT32 OffsetFromZeroForVSA1Start;	// VSA 1 offset
+	B_UINT32 OffsetFromZeroForVSA1Start;
 	B_UINT32 OffsetFromZeroForVSA1End;
-	B_UINT32 OffsetFromZeroForVSA2Start;	// VSA 2 offset
+	B_UINT32 OffsetFromZeroForVSA2Start;
 	B_UINT32 OffsetFromZeroForVSA2End;
 	/*
-*	 ACCESS_BITS_PER_SECTOR	2
-*	ACCESS_RW			0
-*	ACCESS_RO				1
-*	ACCESS_RESVD			2
-*	ACCESS_RESVD			3
-*	*/
+	 * ACCESS_BITS_PER_SECTOR	2
+	 * ACCESS_RW			0
+	 * ACCESS_RO			1
+	 * ACCESS_RESVD			2
+	 * ACCESS_RESVD			3
+	 */
 	B_UINT32 SectorAccessBitMap[FLASH2X_TOTAL_SIZE / (DEFAULT_SECTOR_SIZE * 16)];
-// All expansions to the control data structure should add here
+	/* All expansions to the control data structure should add here */
 } FLASH2X_CS_INFO, *PFLASH2X_CS_INFO;
 
 typedef struct _VENDOR_SECTION_INFO
@@ -170,8 +142,8 @@ typedef struct _DSD_HEADER
 	B_UINT32 DSDImageSize;
 	B_UINT32 DSDImageCRC;
 	B_UINT32 DSDImagePriority;
-	//We should not consider right now. Reading reserve is worthless.
-	B_UINT32 Reserved[252]; // Resvd for DSD Header
+	/* We should not consider right now. Reading reserve is worthless. */
+	B_UINT32 Reserved[252]; /* Resvd for DSD Header */
 	B_UINT32 DSDImageMagicNumber;
 } DSD_HEADER, *PDSD_HEADER;
 
@@ -181,8 +153,8 @@ typedef struct _ISO_HEADER
 	B_UINT32 ISOImageSize;
 	B_UINT32 ISOImageCRC;
 	B_UINT32 ISOImagePriority;
-	//We should not consider right now. Reading reserve is worthless.
-	B_UINT32 Reserved[60]; //Resvd for ISO Header extension
+	/* We should not consider right now. Reading reserve is worthless. */
+	B_UINT32 Reserved[60]; /* Resvd for ISO Header extension */
 } ISO_HEADER, *PISO_HEADER;
 
 #define EEPROM_BEGIN_CIS	(0)
@@ -237,11 +209,13 @@ typedef struct _ISO_HEADER
 
 /* Most EEPROM status register bit 0 indicates if the EEPROM is busy
  * with a write if set 1. See the details of the EEPROM Status Register
- * in the EEPROM data sheet. */
+ * in the EEPROM data sheet.
+ */
 #define EEPROM_STATUS_REG_WRITE_BUSY		0x00000001
 
-// We will have 1 mSec for every RETRIES_PER_DELAY count and have a max attempts of MAX_EEPROM_RETRIES
-// This will give us 80 mSec minimum of delay = 80mSecs
+/* We will have 1 mSec for every RETRIES_PER_DELAY count and have a max attempts of MAX_EEPROM_RETRIES
+ * This will give us 80 mSec minimum of delay = 80mSecs
+ */
 #define MAX_EEPROM_RETRIES			80
 #define RETRIES_PER_DELAY			64
 #define MAX_RW_SIZE				0x10
@@ -279,9 +253,10 @@ typedef struct _ISO_HEADER
 #define EEPROM_CALPARAM_START			0x200
 #define EEPROM_SIZE_OFFSET			524
 
-//As Read/Write time vaires from 1.5 to 3.0 ms.
-//so After Ignoring the rdm/wrm time(that is dependent on many factor like interface etc.),
-//here time calculated meets the worst case delay, 3.0 ms
+/* As Read/Write time vaires from 1.5 to 3.0 ms.
+ * so After Ignoring the rdm/wrm time(that is dependent on many factor like interface etc.),
+ * here time calculated meets the worst case delay, 3.0 ms
+ */
 #define MAX_FLASH_RETRIES		4
 #define FLASH_PER_RETRIES_DELAY		16
 #define EEPROM_MAX_CAL_AREA_SIZE	0xF0000
