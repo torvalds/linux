@@ -406,12 +406,6 @@ hv_get_ringbuffer_availbytes(struct hv_ring_buffer_info *rbi,
 #define HV_DRV_VERSION           "3.1"
 
 
-/*
- * A revision number of vmbus that is used for ensuring both ends on a
- * partition are using compatible versions.
- */
-#define VMBUS_REVISION_NUMBER		13
-
 /* Make maximum size of pipe payload of 16K */
 #define MAX_PIPE_DATA_PAYLOAD		(sizeof(u8) * 16384)
 

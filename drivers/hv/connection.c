@@ -40,15 +40,111 @@ struct vmbus_connection vmbus_connection = {
 };
 
 /*
+ * VMBUS version is 32 bit entity broken up into
+ * two 16 bit quantities: major_number. minor_number.
+ *
+ * 0 . 13 (Windows Server 2008)
+ * 1 . 1  (Windows 7)
+ * 2 . 4  (Windows 8)
+ */
+
+#define VERSION_WS2008	((0 << 16) | (13))
+#define VERSION_WIN7	((1 << 16) | (1))
+#define VERSION_WIN8	((2 << 16) | (4))
+
+#define VERSION_INVAL -1
+
+static __u32 vmbus_get_next_version(__u32 current_version)
+{
+	switch (current_version) {
+	case (VERSION_WIN7):
+		return VERSION_WS2008;
+
+	case (VERSION_WIN8):
+		return VERSION_WIN7;
+
+	case (VERSION_WS2008):
+	default:
+		return VERSION_INVAL;
+	}
+}
+
+static int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo,
+					__u32 version)
+{
+	int ret = 0;
+	struct vmbus_channel_initiate_contact *msg;
+	unsigned long flags;
+	int t;
+
+	init_completion(&msginfo->waitevent);
+
+	msg = (struct vmbus_channel_initiate_contact *)msginfo->msg;
+
+	msg->header.msgtype = CHANNELMSG_INITIATE_CONTACT;
+	msg->vmbus_version_requested = version;
+	msg->interrupt_page = virt_to_phys(vmbus_connection.int_page);
+	msg->monitor_page1 = virt_to_phys(vmbus_connection.monitor_pages);
+	msg->monitor_page2 = virt_to_phys(
+			(void *)((unsigned long)vmbus_connection.monitor_pages +
+				 PAGE_SIZE));
+
+	/*
+	 * Add to list before we send the request since we may
+	 * receive the response before returning from this routine
+	 */
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
+	list_add_tail(&msginfo->msglistentry,
+		      &vmbus_connection.chn_msg_list);
+
+	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
+
+	ret = vmbus_post_msg(msg,
+			       sizeof(struct vmbus_channel_initiate_contact));
+	if (ret != 0) {
+		spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
+		list_del(&msginfo->msglistentry);
+		spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock,
+					flags);
+		return ret;
+	}
+
+	/* Wait for the connection response */
+	t =  wait_for_completion_timeout(&msginfo->waitevent, 5*HZ);
+	if (t == 0) {
+		spin_lock_irqsave(&vmbus_connection.channelmsg_lock,
+				flags);
+		list_del(&msginfo->msglistentry);
+		spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock,
+					flags);
+		return -ETIMEDOUT;
+	}
+
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
+	list_del(&msginfo->msglistentry);
+	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
+
+	/* Check if successful */
+	if (msginfo->response.version_response.version_supported) {
+		vmbus_connection.conn_state = CONNECTED;
+	} else {
+		pr_err("Unable to connect, "
+			"Version %d not supported by Hyper-V\n",
+			version);
+		return -ECONNREFUSED;
+	}
+
+	return ret;
+}
+
+/*
  * vmbus_connect - Sends a connect request on the partition service connection
  */
 int vmbus_connect(void)
 {
 	int ret = 0;
-	int t;
 	struct vmbus_channel_msginfo *msginfo = NULL;
-	struct vmbus_channel_initiate_contact *msg;
-	unsigned long flags;
+	__u32 version;
 
 	/* Initialize the vmbus connection */
 	vmbus_connection.conn_state = CONNECTING;
@@ -99,64 +195,25 @@ int vmbus_connect(void)
 		goto cleanup;
 	}
 
-	init_completion(&msginfo->waitevent);
-
-	msg = (struct vmbus_channel_initiate_contact *)msginfo->msg;
-
-	msg->header.msgtype = CHANNELMSG_INITIATE_CONTACT;
-	msg->vmbus_version_requested = VMBUS_REVISION_NUMBER;
-	msg->interrupt_page = virt_to_phys(vmbus_connection.int_page);
-	msg->monitor_page1 = virt_to_phys(vmbus_connection.monitor_pages);
-	msg->monitor_page2 = virt_to_phys(
-			(void *)((unsigned long)vmbus_connection.monitor_pages +
-				 PAGE_SIZE));
-
 	/*
-	 * Add to list before we send the request since we may
-	 * receive the response before returning from this routine
+	 * Negotiate a compatible VMBUS version number with the
+	 * host. We start with the highest number we can support
+	 * and work our way down until we negotiate a compatible
+	 * version.
 	 */
-	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
-	list_add_tail(&msginfo->msglistentry,
-		      &vmbus_connection.chn_msg_list);
 
-	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
+	version = VERSION_WS2008;
 
-	ret = vmbus_post_msg(msg,
-			       sizeof(struct vmbus_channel_initiate_contact));
-	if (ret != 0) {
-		spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
-		list_del(&msginfo->msglistentry);
-		spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock,
-					flags);
+	do {
+		ret = vmbus_negotiate_version(msginfo, version);
+		if (ret == 0)
+			break;
+
+		version = vmbus_get_next_version(version);
+	} while (version != VERSION_INVAL);
+
+	if (version == VERSION_INVAL)
 		goto cleanup;
-	}
-
-	/* Wait for the connection response */
-	t =  wait_for_completion_timeout(&msginfo->waitevent, 5*HZ);
-	if (t == 0) {
-		spin_lock_irqsave(&vmbus_connection.channelmsg_lock,
-				flags);
-		list_del(&msginfo->msglistentry);
-		spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock,
-					flags);
-		ret = -ETIMEDOUT;
-		goto cleanup;
-	}
-
-	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
-	list_del(&msginfo->msglistentry);
-	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
-
-	/* Check if successful */
-	if (msginfo->response.version_response.version_supported) {
-		vmbus_connection.conn_state = CONNECTED;
-	} else {
-		pr_err("Unable to connect, "
-			"Version %d not supported by Hyper-V\n",
-			VMBUS_REVISION_NUMBER);
-		ret = -ECONNREFUSED;
-		goto cleanup;
-	}
 
 	kfree(msginfo);
 	return 0;
