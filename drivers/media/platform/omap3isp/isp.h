@@ -31,11 +31,9 @@
 #include <media/v4l2-device.h>
 #include <linux/device.h>
 #include <linux/io.h>
+#include <linux/iommu.h>
 #include <linux/platform_device.h>
 #include <linux/wait.h>
-#include <linux/iommu.h>
-#include <plat/iommu.h>
-#include <plat/iovmm.h>
 
 #include "ispstat.h"
 #include "ispccdc.h"
