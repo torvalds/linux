@@ -27,32 +27,32 @@ typedef struct _FLASH_SECTOR_INFO {
 } FLASH_SECTOR_INFO, *PFLASH_SECTOR_INFO;
 
 typedef struct _FLASH_CS_INFO {
-	B_UINT32 MagicNumber;
+	u32 MagicNumber;
 	/* let the magic number be 0xBECE-F1A5 - F1A5 for "flas-h" */
-	B_UINT32 FlashLayoutVersion;
-	B_UINT32 ISOImageVersion;
-	B_UINT32 SCSIFirmwareVersion;
-	B_UINT32 OffsetFromZeroForPart1ISOImage;
-	B_UINT32 OffsetFromZeroForScsiFirmware;
-	B_UINT32 SizeOfScsiFirmware;
-	B_UINT32 OffsetFromZeroForPart2ISOImage;
-	B_UINT32 OffsetFromZeroForCalibrationStart;
-	B_UINT32 OffsetFromZeroForCalibrationEnd;
-	B_UINT32 OffsetFromZeroForVSAStart;
-	B_UINT32 OffsetFromZeroForVSAEnd;
-	B_UINT32 OffsetFromZeroForControlSectionStart;
-	B_UINT32 OffsetFromZeroForControlSectionData;
-	B_UINT32 CDLessInactivityTimeout;
-	B_UINT32 NewImageSignature;
-	B_UINT32 FlashSectorSizeSig;
-	B_UINT32 FlashSectorSize;
-	B_UINT32 FlashWriteSupportSize;
-	B_UINT32 TotalFlashSize;
-	B_UINT32 FlashBaseAddr;
-	B_UINT32 FlashPartMaxSize;
-	B_UINT32 IsCDLessDeviceBootSig;
+	u32 FlashLayoutVersion;
+	u32 ISOImageVersion;
+	u32 SCSIFirmwareVersion;
+	u32 OffsetFromZeroForPart1ISOImage;
+	u32 OffsetFromZeroForScsiFirmware;
+	u32 SizeOfScsiFirmware;
+	u32 OffsetFromZeroForPart2ISOImage;
+	u32 OffsetFromZeroForCalibrationStart;
+	u32 OffsetFromZeroForCalibrationEnd;
+	u32 OffsetFromZeroForVSAStart;
+	u32 OffsetFromZeroForVSAEnd;
+	u32 OffsetFromZeroForControlSectionStart;
+	u32 OffsetFromZeroForControlSectionData;
+	u32 CDLessInactivityTimeout;
+	u32 NewImageSignature;
+	u32 FlashSectorSizeSig;
+	u32 FlashSectorSize;
+	u32 FlashWriteSupportSize;
+	u32 TotalFlashSize;
+	u32 FlashBaseAddr;
+	u32 FlashPartMaxSize;
+	u32 IsCDLessDeviceBootSig;
 	/* MSC Timeout after reset to switch from MSC to NW Mode */
-	B_UINT32 MassStorageTimeout;
+	u32 MassStorageTimeout;
 } FLASH_CS_INFO, *PFLASH_CS_INFO;
 
 #define FLASH2X_TOTAL_SIZE	(64 * 1024 * 1024)
@@ -60,55 +60,55 @@ typedef struct _FLASH_CS_INFO {
 
 typedef struct _FLASH_2X_CS_INFO {
 	/* magic number as 0xBECE-F1A5 - F1A5 for "flas-h" */
-	B_UINT32 MagicNumber;
-	B_UINT32 FlashLayoutVersion;
-	B_UINT32 ISOImageVersion;
-	B_UINT32 SCSIFirmwareVersion;
-	B_UINT32 OffsetFromZeroForPart1ISOImage;
-	B_UINT32 OffsetFromZeroForScsiFirmware;
-	B_UINT32 SizeOfScsiFirmware;
-	B_UINT32 OffsetFromZeroForPart2ISOImage;
-	B_UINT32 OffsetFromZeroForDSDStart;
-	B_UINT32 OffsetFromZeroForDSDEnd;
-	B_UINT32 OffsetFromZeroForVSAStart;
-	B_UINT32 OffsetFromZeroForVSAEnd;
-	B_UINT32 OffsetFromZeroForControlSectionStart;
-	B_UINT32 OffsetFromZeroForControlSectionData;
+	u32 MagicNumber;
+	u32 FlashLayoutVersion;
+	u32 ISOImageVersion;
+	u32 SCSIFirmwareVersion;
+	u32 OffsetFromZeroForPart1ISOImage;
+	u32 OffsetFromZeroForScsiFirmware;
+	u32 SizeOfScsiFirmware;
+	u32 OffsetFromZeroForPart2ISOImage;
+	u32 OffsetFromZeroForDSDStart;
+	u32 OffsetFromZeroForDSDEnd;
+	u32 OffsetFromZeroForVSAStart;
+	u32 OffsetFromZeroForVSAEnd;
+	u32 OffsetFromZeroForControlSectionStart;
+	u32 OffsetFromZeroForControlSectionData;
 	/* NO Data Activity timeout to switch from MSC to NW Mode */
-	B_UINT32 CDLessInactivityTimeout;
-	B_UINT32 NewImageSignature;
-	B_UINT32 FlashSectorSizeSig;
-	B_UINT32 FlashSectorSize;
-	B_UINT32 FlashWriteSupportSize;
-	B_UINT32 TotalFlashSize;
-	B_UINT32 FlashBaseAddr;
-	B_UINT32 FlashPartMaxSize;
-	B_UINT32 IsCDLessDeviceBootSig;
+	u32 CDLessInactivityTimeout;
+	u32 NewImageSignature;
+	u32 FlashSectorSizeSig;
+	u32 FlashSectorSize;
+	u32 FlashWriteSupportSize;
+	u32 TotalFlashSize;
+	u32 FlashBaseAddr;
+	u32 FlashPartMaxSize;
+	u32 IsCDLessDeviceBootSig;
 	/* MSC Timeout after reset to switch from MSC to NW Mode */
-	B_UINT32 MassStorageTimeout;
+	u32 MassStorageTimeout;
 	/* Flash Map 2.0 Field */
-	B_UINT32 OffsetISOImage1Part1Start;
-	B_UINT32 OffsetISOImage1Part1End;
-	B_UINT32 OffsetISOImage1Part2Start;
-	B_UINT32 OffsetISOImage1Part2End;
-	B_UINT32 OffsetISOImage1Part3Start;
-	B_UINT32 OffsetISOImage1Part3End;
-	B_UINT32 OffsetISOImage2Part1Start;
-	B_UINT32 OffsetISOImage2Part1End;
-	B_UINT32 OffsetISOImage2Part2Start;
-	B_UINT32 OffsetISOImage2Part2End;
-	B_UINT32 OffsetISOImage2Part3Start;
-	B_UINT32 OffsetISOImage2Part3End;
+	u32 OffsetISOImage1Part1Start;
+	u32 OffsetISOImage1Part1End;
+	u32 OffsetISOImage1Part2Start;
+	u32 OffsetISOImage1Part2End;
+	u32 OffsetISOImage1Part3Start;
+	u32 OffsetISOImage1Part3End;
+	u32 OffsetISOImage2Part1Start;
+	u32 OffsetISOImage2Part1End;
+	u32 OffsetISOImage2Part2Start;
+	u32 OffsetISOImage2Part2End;
+	u32 OffsetISOImage2Part3Start;
+	u32 OffsetISOImage2Part3End;
 	/* DSD Header offset from start of DSD */
-	B_UINT32 OffsetFromDSDStartForDSDHeader;
-	B_UINT32 OffsetFromZeroForDSD1Start;
-	B_UINT32 OffsetFromZeroForDSD1End;
-	B_UINT32 OffsetFromZeroForDSD2Start;
-	B_UINT32 OffsetFromZeroForDSD2End;
-	B_UINT32 OffsetFromZeroForVSA1Start;
-	B_UINT32 OffsetFromZeroForVSA1End;
-	B_UINT32 OffsetFromZeroForVSA2Start;
-	B_UINT32 OffsetFromZeroForVSA2End;
+	u32 OffsetFromDSDStartForDSDHeader;
+	u32 OffsetFromZeroForDSD1Start;
+	u32 OffsetFromZeroForDSD1End;
+	u32 OffsetFromZeroForDSD2Start;
+	u32 OffsetFromZeroForDSD2End;
+	u32 OffsetFromZeroForVSA1Start;
+	u32 OffsetFromZeroForVSA1End;
+	u32 OffsetFromZeroForVSA2Start;
+	u32 OffsetFromZeroForVSA2End;
 	/*
 	 * ACCESS_BITS_PER_SECTOR	2
 	 * ACCESS_RW			0
@@ -116,38 +116,38 @@ typedef struct _FLASH_2X_CS_INFO {
 	 * ACCESS_RESVD			2
 	 * ACCESS_RESVD			3
 	 */
-	B_UINT32 SectorAccessBitMap[FLASH2X_TOTAL_SIZE / (DEFAULT_SECTOR_SIZE * 16)];
+	u32 SectorAccessBitMap[FLASH2X_TOTAL_SIZE / (DEFAULT_SECTOR_SIZE * 16)];
 	/* All expansions to the control data structure should add here */
 } FLASH2X_CS_INFO, *PFLASH2X_CS_INFO;
 
 typedef struct _VENDOR_SECTION_INFO {
-	B_UINT32 OffsetFromZeroForSectionStart;
-	B_UINT32 OffsetFromZeroForSectionEnd;
-	B_UINT32 AccessFlags;
-	B_UINT32 Reserved[16];
+	u32 OffsetFromZeroForSectionStart;
+	u32 OffsetFromZeroForSectionEnd;
+	u32 AccessFlags;
+	u32 Reserved[16];
 } VENDOR_SECTION_INFO, *PVENDOR_SECTION_INFO;
 
 typedef struct _FLASH2X_VENDORSPECIFIC_INFO {
 	VENDOR_SECTION_INFO VendorSection[TOTAL_SECTIONS];
-	B_UINT32 Reserved[16];
+	u32 Reserved[16];
 } FLASH2X_VENDORSPECIFIC_INFO, *PFLASH2X_VENDORSPECIFIC_INFO;
 
 typedef struct _DSD_HEADER {
-	B_UINT32 DSDImageSize;
-	B_UINT32 DSDImageCRC;
-	B_UINT32 DSDImagePriority;
+	u32 DSDImageSize;
+	u32 DSDImageCRC;
+	u32 DSDImagePriority;
 	/* We should not consider right now. Reading reserve is worthless. */
-	B_UINT32 Reserved[252]; /* Resvd for DSD Header */
-	B_UINT32 DSDImageMagicNumber;
+	u32 Reserved[252]; /* Resvd for DSD Header */
+	u32 DSDImageMagicNumber;
 } DSD_HEADER, *PDSD_HEADER;
 
 typedef struct _ISO_HEADER {
-	B_UINT32 ISOImageMagicNumber;
-	B_UINT32 ISOImageSize;
-	B_UINT32 ISOImageCRC;
-	B_UINT32 ISOImagePriority;
+	u32 ISOImageMagicNumber;
+	u32 ISOImageSize;
+	u32 ISOImageCRC;
+	u32 ISOImagePriority;
 	/* We should not consider right now. Reading reserve is worthless. */
-	B_UINT32 Reserved[60]; /* Resvd for ISO Header extension */
+	u32 Reserved[60]; /* Resvd for ISO Header extension */
 } ISO_HEADER, *PISO_HEADER;
 
 #define EEPROM_BEGIN_CIS	(0)
