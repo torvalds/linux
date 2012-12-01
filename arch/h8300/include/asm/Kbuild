@@ -2,4 +2,5 @@ include include/asm-generic/Kbuild.asm
 
 generic-y += clkdev.h
 generic-y += exec.h
+generic-y += mmu.h
 generic-y += module.h
