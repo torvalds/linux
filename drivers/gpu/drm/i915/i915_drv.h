@@ -641,6 +641,7 @@ typedef struct drm_i915_private {
 
 	struct intel_gmbus gmbus[GMBUS_NUM_PORTS];
 
+
 	/** gmbus_mutex protects against concurrent usage of the single hw gmbus
 	 * controller on different i2c buses. */
 	struct mutex gmbus_mutex;
@@ -649,6 +650,8 @@ typedef struct drm_i915_private {
 	 * Base address of the gmbus and gpio block.
 	 */
 	uint32_t gpio_mmio_base;
+
+	wait_queue_head_t gmbus_wait_queue;
 
 	struct pci_dev *bridge_dev;
 	struct intel_ring_buffer ring[I915_NUM_RINGS];

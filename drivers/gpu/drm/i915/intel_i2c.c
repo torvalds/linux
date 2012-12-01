@@ -63,6 +63,7 @@ intel_i2c_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	I915_WRITE(dev_priv->gpio_mmio_base + GMBUS0, 0);
+	I915_WRITE(dev_priv->gpio_mmio_base + GMBUS4, 0);
 }
 
 static void intel_i2c_quirk_set(struct drm_i915_private *dev_priv, bool enable)
@@ -204,20 +205,38 @@ intel_gpio_setup(struct intel_gmbus *bus, u32 pin)
 
 static int
 gmbus_wait_hw_status(struct drm_i915_private *dev_priv,
-		     u32 gmbus2_status)
+		     u32 gmbus2_status,
+		     u32 gmbus4_irq_en)
 {
-	int ret;
+	int i;
 	int reg_offset = dev_priv->gpio_mmio_base;
-	u32 gmbus2;
+	u32 gmbus2 = 0;
+	DEFINE_WAIT(wait);
 
-	ret = wait_for((gmbus2 = I915_READ(GMBUS2 + reg_offset)) &
-		       (GMBUS_SATOER | gmbus2_status),
-		       50);
+	/* Important: The hw handles only the first bit, so set only one! Since
+	 * we also need to check for NAKs besides the hw ready/idle signal, we
+	 * need to wake up periodically and check that ourselves. */
+	I915_WRITE(GMBUS4 + reg_offset, gmbus4_irq_en);
+
+	for (i = 0; i < msecs_to_jiffies(50) + 1; i++) {
+		prepare_to_wait(&dev_priv->gmbus_wait_queue, &wait,
+				TASK_UNINTERRUPTIBLE);
+
+		gmbus2 = I915_READ(GMBUS2 + reg_offset);
+		if (gmbus2 & (GMBUS_SATOER | gmbus2_status))
+			break;
+
+		schedule_timeout(1);
+	}
+	finish_wait(&dev_priv->gmbus_wait_queue, &wait);
+
+	I915_WRITE(GMBUS4 + reg_offset, 0);
 
 	if (gmbus2 & GMBUS_SATOER)
 		return -ENXIO;
-
-	return ret;
+	if (gmbus2 & gmbus2_status)
+		return 0;
+	return -ETIMEDOUT;
 }
 
 static int
@@ -238,7 +257,8 @@ gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
 		int ret;
 		u32 val, loop = 0;
 
-		ret = gmbus_wait_hw_status(dev_priv, GMBUS_HW_RDY);
+		ret = gmbus_wait_hw_status(dev_priv, GMBUS_HW_RDY,
+					   GMBUS_HW_RDY_EN);
 		if (ret)
 			return ret;
 
@@ -282,7 +302,8 @@ gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg)
 
 		I915_WRITE(GMBUS3 + reg_offset, val);
 
-		ret = gmbus_wait_hw_status(dev_priv, GMBUS_HW_RDY);
+		ret = gmbus_wait_hw_status(dev_priv, GMBUS_HW_RDY,
+					   GMBUS_HW_RDY_EN);
 		if (ret)
 			return ret;
 	}
@@ -367,7 +388,8 @@ gmbus_xfer(struct i2c_adapter *adapter,
 		if (ret == -ENXIO)
 			goto clear_err;
 
-		ret = gmbus_wait_hw_status(dev_priv, GMBUS_HW_WAIT_PHASE);
+		ret = gmbus_wait_hw_status(dev_priv, GMBUS_HW_WAIT_PHASE,
+					   GMBUS_HW_WAIT_EN);
 		if (ret == -ENXIO)
 			goto clear_err;
 		if (ret)
@@ -473,6 +495,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 		dev_priv->gpio_mmio_base = 0;
 
 	mutex_init(&dev_priv->gmbus_mutex);
+	init_waitqueue_head(&dev_priv->gmbus_wait_queue);
 
 	for (i = 0; i < GMBUS_NUM_PORTS; i++) {
 		struct intel_gmbus *bus = &dev_priv->gmbus[i];

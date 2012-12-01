@@ -527,7 +527,11 @@ static void gen6_queue_rps_work(struct drm_i915_private *dev_priv,
 
 static void gmbus_irq_handler(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = (drm_i915_private_t *) dev->dev_private;
+
 	DRM_DEBUG_DRIVER("GMBUS interrupt\n");
+
+	wake_up_all(&dev_priv->gmbus_wait_queue);
 }
 
 static irqreturn_t valleyview_irq_handler(int irq, void *arg)
