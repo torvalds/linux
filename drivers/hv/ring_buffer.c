@@ -84,6 +84,50 @@ static bool hv_need_to_signal(u32 old_write, struct hv_ring_buffer_info *rbi)
 	return false;
 }
 
+/*
+ * To optimize the flow management on the send-side,
+ * when the sender is blocked because of lack of
+ * sufficient space in the ring buffer, potential the
+ * consumer of the ring buffer can signal the producer.
+ * This is controlled by the following parameters:
+ *
+ * 1. pending_send_sz: This is the size in bytes that the
+ *    producer is trying to send.
+ * 2. The feature bit feat_pending_send_sz set to indicate if
+ *    the consumer of the ring will signal when the ring
+ *    state transitions from being full to a state where
+ *    there is room for the producer to send the pending packet.
+ */
+
+static bool hv_need_to_signal_on_read(u32 old_rd,
+					 struct hv_ring_buffer_info *rbi)
+{
+	u32 prev_write_sz;
+	u32 cur_write_sz;
+	u32 r_size;
+	u32 write_loc = rbi->ring_buffer->write_index;
+	u32 read_loc = rbi->ring_buffer->read_index;
+	u32 pending_sz = rbi->ring_buffer->pending_send_sz;
+
+	/*
+	 * If the other end is not blocked on write don't bother.
+	 */
+	if (pending_sz == 0)
+		return false;
+
+	r_size = rbi->ring_datasize;
+	cur_write_sz = write_loc >= read_loc ? r_size - (write_loc - read_loc) :
+			read_loc - write_loc;
+
+	prev_write_sz = write_loc >= old_rd ? r_size - (write_loc - old_rd) :
+			old_rd - write_loc;
+
+
+	if ((prev_write_sz < pending_sz) && (cur_write_sz >= pending_sz))
+		return true;
+
+	return false;
+}
 
 /*
  * hv_get_next_write_location()
@@ -461,13 +505,14 @@ int hv_ringbuffer_peek(struct hv_ring_buffer_info *Inring_info,
  *
  */
 int hv_ringbuffer_read(struct hv_ring_buffer_info *inring_info, void *buffer,
-		   u32 buflen, u32 offset)
+		   u32 buflen, u32 offset, bool *signal)
 {
 	u32 bytes_avail_towrite;
 	u32 bytes_avail_toread;
 	u32 next_read_location = 0;
 	u64 prev_indices = 0;
 	unsigned long flags;
+	u32 old_read;
 
 	if (buflen <= 0)
 		return -EINVAL;
@@ -477,6 +522,8 @@ int hv_ringbuffer_read(struct hv_ring_buffer_info *inring_info, void *buffer,
 	hv_get_ringbuffer_availbytes(inring_info,
 				&bytes_avail_toread,
 				&bytes_avail_towrite);
+
+	old_read = bytes_avail_toread;
 
 	/* Make sure there is something to read */
 	if (bytes_avail_toread < buflen) {
@@ -507,6 +554,8 @@ int hv_ringbuffer_read(struct hv_ring_buffer_info *inring_info, void *buffer,
 	hv_set_next_read_location(inring_info, next_read_location);
 
 	spin_unlock_irqrestore(&inring_info->ring_lock, flags);
+
+	*signal = hv_need_to_signal_on_read(old_read, inring_info);
 
 	return 0;
 }
