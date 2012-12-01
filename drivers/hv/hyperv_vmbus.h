@@ -101,15 +101,6 @@ enum hv_message_type {
 /* Define invalid partition identifier. */
 #define HV_PARTITION_ID_INVALID		((u64)0x0)
 
-/* Define connection identifier type. */
-union hv_connection_id {
-	u32 asu32;
-	struct {
-		u32 id:24;
-		u32 reserved:8;
-	} u;
-};
-
 /* Define port identifier type. */
 union hv_port_id {
 	u32 asu32;
@@ -338,13 +329,6 @@ struct hv_input_post_message {
 	u64 payload[HV_MESSAGE_PAYLOAD_QWORD_COUNT];
 };
 
-/* Definition of the hv_signal_event hypercall input structure. */
-struct hv_input_signal_event {
-	union hv_connection_id connectionid;
-	u16 flag_number;
-	u16 rsvdz;
-};
-
 /*
  * Versioning definitions used for guests reporting themselves to the
  * hypervisor, and visa versa.
@@ -497,11 +481,6 @@ static const uuid_le VMBUS_SERVICE_ID = {
 };
 
 
-
-struct hv_input_signal_event_buffer {
-	u64 align8;
-	struct hv_input_signal_event event;
-};
 
 struct hv_context {
 	/* We only support running on top of Hyper-V

@@ -897,6 +897,27 @@ struct vmbus_close_msg {
 	struct vmbus_channel_close_channel msg;
 };
 
+/* Define connection identifier type. */
+union hv_connection_id {
+	u32 asu32;
+	struct {
+		u32 id:24;
+		u32 reserved:8;
+	} u;
+};
+
+/* Definition of the hv_signal_event hypercall input structure. */
+struct hv_input_signal_event {
+	union hv_connection_id connectionid;
+	u16 flag_number;
+	u16 rsvdz;
+};
+
+struct hv_input_signal_event_buffer {
+	u64 align8;
+	struct hv_input_signal_event event;
+};
+
 struct vmbus_channel {
 	struct list_head listentry;
 
@@ -946,6 +967,10 @@ struct vmbus_channel {
 	 */
 
 	bool batched_reading;
+
+	bool is_dedicated_interrupt;
+	struct hv_input_signal_event_buffer sig_buf;
+	struct hv_input_signal_event *sig_event;
 };
 
 static inline void set_channel_read_state(struct vmbus_channel *c, bool state)
