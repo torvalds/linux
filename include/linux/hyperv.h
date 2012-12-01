@@ -325,14 +325,28 @@ struct hv_ring_buffer {
 
 	u32 interrupt_mask;
 
-	/* Pad it to PAGE_SIZE so that data starts on page boundary */
-	u8	reserved[4084];
-
-	/* NOTE:
-	 * The interrupt_mask field is used only for channels but since our
-	 * vmbus connection also uses this data structure and its data starts
-	 * here, we commented out this field.
+	/*
+	 * Win8 uses some of the reserved bits to implement
+	 * interrupt driven flow management. On the send side
+	 * we can request that the receiver interrupt the sender
+	 * when the ring transitions from being full to being able
+	 * to handle a message of size "pending_send_sz".
+	 *
+	 * Add necessary state for this enhancement.
 	 */
+	u32 pending_send_sz;
+
+	u32 reserved1[12];
+
+	union {
+		struct {
+			u32 feat_pending_send_sz:1;
+		};
+		u32 value;
+	} feature_bits;
+
+	/* Pad it to PAGE_SIZE so that data starts on page boundary */
+	u8	reserved2[4028];
 
 	/*
 	 * Ring data starts here + RingDataStartOffset
