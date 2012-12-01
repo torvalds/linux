@@ -53,6 +53,37 @@ u32 hv_end_read(struct hv_ring_buffer_info *rbi)
 	return read;
 }
 
+/*
+ * When we write to the ring buffer, check if the host needs to
+ * be signaled. Here is the details of this protocol:
+ *
+ *	1. The host guarantees that while it is draining the
+ *	   ring buffer, it will set the interrupt_mask to
+ *	   indicate it does not need to be interrupted when
+ *	   new data is placed.
+ *
+ *	2. The host guarantees that it will completely drain
+ *	   the ring buffer before exiting the read loop. Further,
+ *	   once the ring buffer is empty, it will clear the
+ *	   interrupt_mask and re-check to see if new data has
+ *	   arrived.
+ */
+
+static bool hv_need_to_signal(u32 old_write, struct hv_ring_buffer_info *rbi)
+{
+	if (rbi->ring_buffer->interrupt_mask)
+		return false;
+
+	/*
+	 * This is the only case we need to signal when the
+	 * ring transitions from being empty to non-empty.
+	 */
+	if (old_write == rbi->ring_buffer->read_index)
+		return true;
+
+	return false;
+}
+
 
 /*
  * hv_get_next_write_location()
@@ -322,7 +353,7 @@ void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info)
  *
  */
 int hv_ringbuffer_write(struct hv_ring_buffer_info *outring_info,
-		    struct scatterlist *sglist, u32 sgcount)
+		    struct scatterlist *sglist, u32 sgcount, bool *signal)
 {
 	int i = 0;
 	u32 bytes_avail_towrite;
@@ -331,6 +362,7 @@ int hv_ringbuffer_write(struct hv_ring_buffer_info *outring_info,
 
 	struct scatterlist *sg;
 	u32 next_write_location;
+	u32 old_write;
 	u64 prev_indices = 0;
 	unsigned long flags;
 
@@ -359,6 +391,8 @@ int hv_ringbuffer_write(struct hv_ring_buffer_info *outring_info,
 	/* Write to the ring buffer */
 	next_write_location = hv_get_next_write_location(outring_info);
 
+	old_write = next_write_location;
+
 	for_each_sg(sglist, sg, sgcount, i)
 	{
 		next_write_location = hv_copyto_ringbuffer(outring_info,
@@ -375,14 +409,16 @@ int hv_ringbuffer_write(struct hv_ring_buffer_info *outring_info,
 					     &prev_indices,
 					     sizeof(u64));
 
-	/* Make sure we flush all writes before updating the writeIndex */
-	smp_wmb();
+	/* Issue a full memory barrier before updating the write index */
+	smp_mb();
 
 	/* Now, update the write location */
 	hv_set_next_write_location(outring_info, next_write_location);
 
 
 	spin_unlock_irqrestore(&outring_info->ring_lock, flags);
+
+	*signal = hv_need_to_signal(old_write, outring_info);
 	return 0;
 }
 
