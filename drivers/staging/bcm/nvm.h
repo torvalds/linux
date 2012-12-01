@@ -58,7 +58,7 @@ typedef struct _FLASH_CS_INFO {
 #define FLASH2X_TOTAL_SIZE	(64 * 1024 * 1024)
 #define DEFAULT_SECTOR_SIZE	(64 * 1024)
 
-typedef struct _FLASH_2X_CS_INFO {
+struct bcm_flash2x_cs_info {
 	/* magic number as 0xBECE-F1A5 - F1A5 for "flas-h" */
 	u32 MagicNumber;
 	u32 FlashLayoutVersion;
@@ -118,7 +118,7 @@ typedef struct _FLASH_2X_CS_INFO {
 	 */
 	u32 SectorAccessBitMap[FLASH2X_TOTAL_SIZE / (DEFAULT_SECTOR_SIZE * 16)];
 	/* All expansions to the control data structure should add here */
-} FLASH2X_CS_INFO, *PFLASH2X_CS_INFO;
+};
 
 struct bcm_vendor_section_info {
 	u32 OffsetFromZeroForSectionStart;

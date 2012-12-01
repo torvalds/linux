@@ -366,7 +366,7 @@ struct bcm_mini_adapter {
 	struct device		*pstCreatedClassDevice;
 
 	/*	BOOLEAN				InterfaceUpStatus; */
-	PFLASH2X_CS_INFO	psFlash2xCSInfo;
+	struct bcm_flash2x_cs_info *psFlash2xCSInfo;
 	PFLASH_CS_INFO		psFlashCSInfo;
 	struct bcm_flash2x_vendor_info *psFlash2xVendorInfo;
 	UINT			uiFlashBaseAdd; /* Flash start address */

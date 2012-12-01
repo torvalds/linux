@@ -1783,16 +1783,16 @@ cntrlEnd:
 		}
 
 		if (IsFlash2x(Adapter) == TRUE) {
-			if (IoBuffer.OutputLength < sizeof(FLASH2X_CS_INFO))
+			if (IoBuffer.OutputLength < sizeof(struct bcm_flash2x_cs_info))
 				return -EINVAL;
 
-			if (copy_to_user(IoBuffer.OutputBuffer, Adapter->psFlash2xCSInfo, sizeof(FLASH2X_CS_INFO)))
+			if (copy_to_user(IoBuffer.OutputBuffer, Adapter->psFlash2xCSInfo, sizeof(struct bcm_flash2x_cs_info)))
 				return -EFAULT;
 		} else {
 			if (IoBuffer.OutputLength < sizeof(FLASH_CS_INFO))
 				return -EINVAL;
 
-			if (copy_to_user(IoBuffer.OutputBuffer, Adapter->psFlashCSInfo, sizeof(FLASH_CS_INFO)))
+			if (copy_to_user(IoBuffer.OutputBuffer, Adapter->psFlashCSInfo, sizeof(struct bcm_flash2x_cs_info)))
 				return -EFAULT;
 		}
 	}

@@ -2234,7 +2234,7 @@ int BcmAllocFlashCSStructure(struct bcm_mini_adapter *psAdapter)
 		return -ENOMEM;
 	}
 
-	psAdapter->psFlash2xCSInfo = (PFLASH2X_CS_INFO)kzalloc(sizeof(FLASH2X_CS_INFO), GFP_KERNEL);
+	psAdapter->psFlash2xCSInfo = (struct bcm_flash2x_cs_info *)kzalloc(sizeof(struct bcm_flash2x_cs_info), GFP_KERNEL);
 	if (!psAdapter->psFlash2xCSInfo) {
 		BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_PRINTK, 0, 0, "Can't Allocate memory for Flash 2.x");
 		kfree(psAdapter->psFlashCSInfo);
@@ -2264,7 +2264,7 @@ int BcmDeAllocFlashCSStructure(struct bcm_mini_adapter *psAdapter)
 	return STATUS_SUCCESS;
 }
 
-static int BcmDumpFlash2XCSStructure(PFLASH2X_CS_INFO psFlash2xCSInfo, struct bcm_mini_adapter *Adapter)
+static int BcmDumpFlash2XCSStructure(struct bcm_flash2x_cs_info *psFlash2xCSInfo, struct bcm_mini_adapter *Adapter)
 {
 	unsigned int Index = 0;
 
@@ -2324,7 +2324,7 @@ static int BcmDumpFlash2XCSStructure(PFLASH2X_CS_INFO psFlash2xCSInfo, struct bc
 	return STATUS_SUCCESS;
 }
 
-static int ConvertEndianOf2XCSStructure(PFLASH2X_CS_INFO psFlash2xCSInfo)
+static int ConvertEndianOf2XCSStructure(struct bcm_flash2x_cs_info *psFlash2xCSInfo)
 {
 	unsigned int Index = 0;
 
@@ -2523,7 +2523,7 @@ static int BcmGetFlashCSInfo(struct bcm_mini_adapter *Adapter)
 	Adapter->uiFlashBaseAdd = 0;
 	Adapter->ulFlashCalStart = 0;
 	memset(Adapter->psFlashCSInfo, 0 , sizeof(FLASH_CS_INFO));
-	memset(Adapter->psFlash2xCSInfo, 0 , sizeof(FLASH2X_CS_INFO));
+	memset(Adapter->psFlash2xCSInfo, 0 , sizeof(struct bcm_flash2x_cs_info));
 
 	if (!Adapter->bDDRInitDone) {
 		value = FLASH_CONTIGIOUS_START_ADDR_BEFORE_INIT;
@@ -2576,7 +2576,7 @@ static int BcmGetFlashCSInfo(struct bcm_mini_adapter *Adapter)
 		Adapter->uiFlashBaseAdd = Adapter->psFlashCSInfo->FlashBaseAddr & 0xFCFFFFFF;
 	} else {
 		if (BcmFlash2xBulkRead(Adapter, (PUINT)Adapter->psFlash2xCSInfo, NO_SECTION_VAL,
-					Adapter->ulFlashControlSectionStart, sizeof(FLASH2X_CS_INFO))) {
+					Adapter->ulFlashControlSectionStart, sizeof(struct bcm_flash2x_cs_info))) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Unable to read CS structure\n");
 			return STATUS_FAILURE;
 		}
@@ -3101,7 +3101,7 @@ static int BcmDumpFlash2xSectionBitMap(struct bcm_flash2x_bitmap *psFlash2xBitMa
 
 int BcmGetFlash2xSectionalBitMap(struct bcm_mini_adapter *Adapter, struct bcm_flash2x_bitmap *psFlash2xBitMap)
 {
-	PFLASH2X_CS_INFO psFlash2xCSInfo = Adapter->psFlash2xCSInfo;
+	struct bcm_flash2x_cs_info *psFlash2xCSInfo = Adapter->psFlash2xCSInfo;
 	enum bcm_flash2x_section_val uiHighestPriDSD = 0;
 	enum bcm_flash2x_section_val uiHighestPriISO = 0;
 	BOOLEAN SetActiveDSDDone = FALSE;
