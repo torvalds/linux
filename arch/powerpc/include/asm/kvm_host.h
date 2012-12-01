@@ -406,11 +406,16 @@ struct kvm_vcpu_arch {
 	u32 host_mas4;
 	u32 host_mas6;
 	u32 shadow_epcr;
-	u32 epcr;
 	u32 shadow_msrp;
 	u32 eplc;
 	u32 epsc;
 	u32 oldpir;
+#endif
+
+#if defined(CONFIG_BOOKE)
+#if defined(CONFIG_KVM_BOOKE_HV) || defined(CONFIG_64BIT)
+	u32 epcr;
+#endif
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S
