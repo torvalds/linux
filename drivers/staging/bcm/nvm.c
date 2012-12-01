@@ -3355,7 +3355,7 @@ int BcmSetActiveSection(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_secti
 	int Status = STATUS_SUCCESS;
 
 	/* DSD_HEADER sDSD = {0};
-	 * ISO_HEADER sISO = {0};
+	 * struct bcm_iso_header sISO = {0};
 	 */
 	int HighestPriDSD = 0 ;
 	int HighestPriISO = 0;
@@ -3391,7 +3391,7 @@ int BcmSetActiveSection(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_secti
 				Status = BcmFlash2xBulkWrite(Adapter,
 							&SectImagePriority,
 							HighestPriISO,
-							0 + FIELD_OFFSET_IN_HEADER(PISO_HEADER, ISOImagePriority),
+							0 + FIELD_OFFSET_IN_HEADER(struct bcm_iso_header *, ISOImagePriority),
 							SIGNATURE_SIZE,
 							TRUE);
 				if (Status) {
@@ -3416,7 +3416,7 @@ int BcmSetActiveSection(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_secti
 			Status = BcmFlash2xBulkWrite(Adapter,
 						&SectImagePriority,
 						eFlash2xSectVal,
-						0 + FIELD_OFFSET_IN_HEADER(PISO_HEADER, ISOImagePriority),
+						0 + FIELD_OFFSET_IN_HEADER(struct bcm_iso_header *, ISOImagePriority),
 						SIGNATURE_SIZE,
 						TRUE);
 			if (Status) {
@@ -3550,7 +3550,7 @@ int BcmCopyISO(struct bcm_mini_adapter *Adapter, struct bcm_flash2x_copy_section
 	Status = BcmFlash2xBulkRead(Adapter,
 				&ISOLength,
 				sCopySectStrut.SrcSection,
-				0 + FIELD_OFFSET_IN_HEADER(PISO_HEADER, ISOImageSize),
+				0 + FIELD_OFFSET_IN_HEADER(struct bcm_iso_header *, ISOImageSize),
 				4);
 	if (Status) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Read failed while copying ISO\n");
@@ -3561,7 +3561,7 @@ int BcmCopyISO(struct bcm_mini_adapter *Adapter, struct bcm_flash2x_copy_section
 	if (ISOLength % Adapter->uiSectorSize)
 		ISOLength = Adapter->uiSectorSize * (1 + ISOLength/Adapter->uiSectorSize);
 
-	sigOffset = FIELD_OFFSET_IN_HEADER(PISO_HEADER, ISOImageMagicNumber);
+	sigOffset = FIELD_OFFSET_IN_HEADER(struct bcm_iso_header *, ISOImageMagicNumber);
 
 	Buff = kzalloc(Adapter->uiSectorSize, GFP_KERNEL);
 
@@ -3872,7 +3872,7 @@ int BcmFlash2xWriteSig(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_sectio
 	} else if ((eFlashSectionVal == ISO_IMAGE1) || (eFlashSectionVal == ISO_IMAGE2)) {
 		uiSignature = htonl(ISO_IMAGE_MAGIC_NUMBER);
 		/* uiOffset = 0; */
-		uiOffset = FIELD_OFFSET_IN_HEADER(PISO_HEADER, ISOImageMagicNumber);
+		uiOffset = FIELD_OFFSET_IN_HEADER(struct bcm_iso_header *, ISOImageMagicNumber);
 		if ((ReadISOSignature(Adapter, eFlashSectionVal) & 0xFF000000) != CORRUPTED_PATTERN) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Currupted Pattern is not there. Hence won't write sig");
 			return STATUS_FAILURE;
@@ -4148,7 +4148,7 @@ int SaveHeaderIfPresent(struct bcm_mini_adapter *Adapter, PUCHAR pBuff, unsigned
 	if (uiSectAlignAddr == BcmGetSectionValStartOffset(Adapter, ISO_IMAGE1) ||
 		uiSectAlignAddr == BcmGetSectionValStartOffset(Adapter, ISO_IMAGE2)) {
 		offsetToProtect = 0;
-		HeaderSizeToProtect = sizeof(ISO_HEADER);
+		HeaderSizeToProtect = sizeof(struct bcm_iso_header);
 		bHasHeader = TRUE;
 	}
 	/* If Header is present overwrite passed buffer with this */
@@ -4348,7 +4348,7 @@ int ReadISOSignature(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_
 {
 	unsigned int uiISOsig = 0;
 	/* unsigned int sigoffsetInMap = 0;
-	 * ISO_HEADER ISOHeader = {0};
+	 * struct bcm_iso_header ISOHeader = {0};
 	 * sigoffsetInMap =(PUCHAR)&(ISOHeader.ISOImageMagicNumber) -(PUCHAR)&ISOHeader;
 	 */
 	if (iso != ISO_IMAGE1 && iso != ISO_IMAGE2) {
@@ -4358,7 +4358,7 @@ int ReadISOSignature(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_
 	BcmFlash2xBulkRead(Adapter,
 			&uiISOsig,
 			iso,
-			0 + FIELD_OFFSET_IN_HEADER(PISO_HEADER, ISOImageMagicNumber),
+			0 + FIELD_OFFSET_IN_HEADER(struct bcm_iso_header *, ISOImageMagicNumber),
 			SIGNATURE_SIZE);
 
 	uiISOsig = ntohl(uiISOsig);
@@ -4375,7 +4375,7 @@ int ReadISOPriority(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_v
 			BcmFlash2xBulkRead(Adapter,
 					&ISOPri,
 					iso,
-					0 + FIELD_OFFSET_IN_HEADER(PISO_HEADER, ISOImagePriority),
+					0 + FIELD_OFFSET_IN_HEADER(struct bcm_iso_header *, ISOImagePriority),
 					4);
 
 			ISOPri = ntohl(ISOPri);

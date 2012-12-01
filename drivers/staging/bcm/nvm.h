@@ -141,14 +141,14 @@ typedef struct _DSD_HEADER {
 	u32 DSDImageMagicNumber;
 } DSD_HEADER, *PDSD_HEADER;
 
-typedef struct _ISO_HEADER {
+struct bcm_iso_header {
 	u32 ISOImageMagicNumber;
 	u32 ISOImageSize;
 	u32 ISOImageCRC;
 	u32 ISOImagePriority;
 	/* We should not consider right now. Reading reserve is worthless. */
 	u32 Reserved[60]; /* Resvd for ISO Header extension */
-} ISO_HEADER, *PISO_HEADER;
+};
 
 #define EEPROM_BEGIN_CIS	(0)
 #define EEPROM_BEGIN_NON_CIS	(0x200)
