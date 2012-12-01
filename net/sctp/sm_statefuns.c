@@ -6133,6 +6133,8 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 		/* The TSN is too high--silently discard the chunk and
 		 * count on it getting retransmitted later.
 		 */
+		if (chunk->asoc)
+			chunk->asoc->stats.outofseqtsns++;
 		return SCTP_IERROR_HIGH_TSN;
 	} else if (tmp > 0) {
 		/* This is a duplicate.  Record it.  */
@@ -6232,10 +6234,14 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	/* Note: Some chunks may get overcounted (if we drop) or overcounted
 	 * if we renege and the chunk arrives again.
 	 */
-	if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED)
+	if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED) {
 		SCTP_INC_STATS(net, SCTP_MIB_INUNORDERCHUNKS);
-	else {
+		if (chunk->asoc)
+			chunk->asoc->stats.iuodchunks++;
+	} else {
 		SCTP_INC_STATS(net, SCTP_MIB_INORDERCHUNKS);
+		if (chunk->asoc)
+			chunk->asoc->stats.iodchunks++;
 		ordered = 1;
 	}
 

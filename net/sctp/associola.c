@@ -321,6 +321,9 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	asoc->default_timetolive = sp->default_timetolive;
 	asoc->default_rcv_context = sp->default_rcv_context;
 
+	/* SCTP_GET_ASSOC_STATS COUNTERS */
+	memset(&asoc->stats, 0, sizeof(struct sctp_priv_assoc_stats));
+
 	/* AUTH related initializations */
 	INIT_LIST_HEAD(&asoc->endpoint_shared_keys);
 	err = sctp_auth_asoc_copy_shkeys(ep, asoc, gfp);
@@ -760,6 +763,7 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 
 	/* Set the transport's RTO.initial value */
 	peer->rto = asoc->rto_initial;
+	sctp_max_rto(asoc, peer);
 
 	/* Set the peer's active state. */
 	peer->state = peer_state;
@@ -1152,8 +1156,12 @@ static void sctp_assoc_bh_rcv(struct work_struct *work)
 		 */
 		if (sctp_chunk_is_data(chunk))
 			asoc->peer.last_data_from = chunk->transport;
-		else
+		else {
 			SCTP_INC_STATS(net, SCTP_MIB_INCTRLCHUNKS);
+			asoc->stats.ictrlchunks++;
+			if (chunk->chunk_hdr->type == SCTP_CID_SACK)
+				asoc->stats.isacks++;
+		}
 
 		if (chunk->transport)
 			chunk->transport->last_time_heard = jiffies;

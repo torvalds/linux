@@ -542,6 +542,7 @@ static void sctp_do_8_2_transport_strike(sctp_cmd_seq_t *commands,
 	 */
 	if (!is_hb || transport->hb_sent) {
 		transport->rto = min((transport->rto * 2), transport->asoc->rto_max);
+		sctp_max_rto(asoc, transport);
 	}
 }
 

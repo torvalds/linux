@@ -363,6 +363,7 @@ void sctp_transport_update_rto(struct sctp_transport *tp, __u32 rtt)
 	if (tp->rto > tp->asoc->rto_max)
 		tp->rto = tp->asoc->rto_max;
 
+	sctp_max_rto(tp->asoc, tp);
 	tp->rtt = rtt;
 
 	/* Reset rto_pending so that a new RTT measurement is started when a
@@ -620,6 +621,7 @@ void sctp_transport_reset(struct sctp_transport *t)
 	t->burst_limited = 0;
 	t->ssthresh = asoc->peer.i.a_rwnd;
 	t->rto = asoc->rto_initial;
+	sctp_max_rto(asoc, t);
 	t->rtt = 0;
 	t->srtt = 0;
 	t->rttvar = 0;

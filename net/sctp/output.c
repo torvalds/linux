@@ -311,6 +311,8 @@ static sctp_xmit_t __sctp_packet_append_chunk(struct sctp_packet *packet,
 
 	    case SCTP_CID_SACK:
 		packet->has_sack = 1;
+		if (chunk->asoc)
+			chunk->asoc->stats.osacks++;
 		break;
 
 	    case SCTP_CID_AUTH:
@@ -584,11 +586,13 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	 */
 
 	/* Dump that on IP!  */
-	if (asoc && asoc->peer.last_sent_to != tp) {
-		/* Considering the multiple CPU scenario, this is a
-		 * "correcter" place for last_sent_to.  --xguo
-		 */
-		asoc->peer.last_sent_to = tp;
+	if (asoc) {
+		asoc->stats.opackets++;
+		if (asoc->peer.last_sent_to != tp)
+			/* Considering the multiple CPU scenario, this is a
+			 * "correcter" place for last_sent_to.  --xguo
+			 */
+			asoc->peer.last_sent_to = tp;
 	}
 
 	if (has_data) {

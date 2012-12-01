@@ -107,6 +107,7 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_GET_LOCAL_ADDRS	109		/* Get all local address. */
 #define SCTP_SOCKOPT_CONNECTX	110		/* CONNECTX requests. */
 #define SCTP_SOCKOPT_CONNECTX3	111	/* CONNECTX requests (updated) */
+#define SCTP_GET_ASSOC_STATS	112	/* Read only */
 
 /*
  * 5.2.1 SCTP Initiation Structure (SCTP_INIT)
@@ -717,6 +718,32 @@ struct sctp_getaddrs {
 	sctp_assoc_t		assoc_id; /*input*/
 	__u32			addr_num; /*output*/
 	__u8			addrs[0]; /*output, variable size*/
+};
+
+/* A socket user request obtained via SCTP_GET_ASSOC_STATS that retrieves
+ * association stats. All stats are counts except sas_maxrto and
+ * sas_obs_rto_ipaddr. maxrto is the max observed rto + transport since
+ * the last call. Will return 0 when RTO was not update since last call
+ */
+struct sctp_assoc_stats {
+	sctp_assoc_t	sas_assoc_id;    /* Input */
+					 /* Transport of observed max RTO */
+	struct sockaddr_storage sas_obs_rto_ipaddr;
+	__u64		sas_maxrto;      /* Maximum Observed RTO for period */
+	__u64		sas_isacks;	 /* SACKs received */
+	__u64		sas_osacks;	 /* SACKs sent */
+	__u64		sas_opackets;	 /* Packets sent */
+	__u64		sas_ipackets;	 /* Packets received */
+	__u64		sas_rtxchunks;   /* Retransmitted Chunks */
+	__u64		sas_outofseqtsns;/* TSN received > next expected */
+	__u64		sas_idupchunks;  /* Dups received (ordered+unordered) */
+	__u64		sas_gapcnt;      /* Gap Acknowledgements Received */
+	__u64		sas_ouodchunks;  /* Unordered data chunks sent */
+	__u64		sas_iuodchunks;  /* Unordered data chunks received */
+	__u64		sas_oodchunks;	 /* Ordered data chunks sent */
+	__u64		sas_iodchunks;	 /* Ordered data chunks received */
+	__u64		sas_octrlchunks; /* Control chunks sent */
+	__u64		sas_ictrlchunks; /* Control chunks received */
 };
 
 /* These are bit fields for msghdr->msg_flags.  See section 5.1.  */

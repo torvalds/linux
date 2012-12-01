@@ -804,10 +804,11 @@ struct sctp_chunk *sctp_make_sack(const struct sctp_association *asoc)
 				 gabs);
 
 	/* Add the duplicate TSN information.  */
-	if (num_dup_tsns)
+	if (num_dup_tsns) {
+		aptr->stats.idupchunks += num_dup_tsns;
 		sctp_addto_chunk(retval, sizeof(__u32) * num_dup_tsns,
 				 sctp_tsnmap_get_dups(map));
-
+	}
 	/* Once we have a sack generated, check to see what our sack
 	 * generation is, if its 0, reset the transports to 0, and reset
 	 * the association generation to 1
