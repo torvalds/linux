@@ -382,6 +382,11 @@ enum intel_pch {
 	PCH_LPT,	/* Lynxpoint PCH */
 };
 
+enum intel_sbi_destination {
+	SBI_ICLK,
+	SBI_MPHY,
+};
+
 #define QUIRK_PIPEA_FORCE (1<<0)
 #define QUIRK_LVDS_SSC_DISABLE (1<<1)
 #define QUIRK_INVERT_BRIGHTNESS (1<<2)

@@ -4534,6 +4534,10 @@
 #define SBI_ADDR			0xC6000
 #define SBI_DATA			0xC6004
 #define SBI_CTL_STAT			0xC6008
+#define  SBI_CTL_DEST_ICLK		(0x0<<16)
+#define  SBI_CTL_DEST_MPHY		(0x1<<16)
+#define  SBI_CTL_OP_IORD		(0x2<<8)
+#define  SBI_CTL_OP_IOWR		(0x3<<8)
 #define  SBI_CTL_OP_CRRD		(0x6<<8)
 #define  SBI_CTL_OP_CRWR		(0x7<<8)
 #define  SBI_RESPONSE_FAIL		(0x1<<1)

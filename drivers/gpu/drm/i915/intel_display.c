@@ -1506,24 +1506,26 @@ static void intel_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 
 /* SBI access */
 static void
-intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value)
+intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value,
+		enum intel_sbi_destination destination)
 {
 	unsigned long flags;
+	u32 tmp;
 
 	spin_lock_irqsave(&dev_priv->dpio_lock, flags);
-	if (wait_for((I915_READ(SBI_CTL_STAT) & SBI_BUSY) == 0,
-				100)) {
+	if (wait_for((I915_READ(SBI_CTL_STAT) & SBI_BUSY) == 0, 100)) {
 		DRM_ERROR("timeout waiting for SBI to become ready\n");
 		goto out_unlock;
 	}
 
-	I915_WRITE(SBI_ADDR,
-			(reg << 16));
-	I915_WRITE(SBI_DATA,
-			value);
-	I915_WRITE(SBI_CTL_STAT,
-			SBI_BUSY |
-			SBI_CTL_OP_CRWR);
+	I915_WRITE(SBI_ADDR, (reg << 16));
+	I915_WRITE(SBI_DATA, value);
+
+	if (destination == SBI_ICLK)
+		tmp = SBI_CTL_DEST_ICLK | SBI_CTL_OP_CRWR;
+	else
+		tmp = SBI_CTL_DEST_MPHY | SBI_CTL_OP_IOWR;
+	I915_WRITE(SBI_CTL_STAT, SBI_BUSY | tmp);
 
 	if (wait_for((I915_READ(SBI_CTL_STAT) & (SBI_BUSY | SBI_RESPONSE_FAIL)) == 0,
 				100)) {
@@ -1536,23 +1538,25 @@ out_unlock:
 }
 
 static u32
-intel_sbi_read(struct drm_i915_private *dev_priv, u16 reg)
+intel_sbi_read(struct drm_i915_private *dev_priv, u16 reg,
+	       enum intel_sbi_destination destination)
 {
 	unsigned long flags;
 	u32 value = 0;
 
 	spin_lock_irqsave(&dev_priv->dpio_lock, flags);
-	if (wait_for((I915_READ(SBI_CTL_STAT) & SBI_BUSY) == 0,
-				100)) {
+	if (wait_for((I915_READ(SBI_CTL_STAT) & SBI_BUSY) == 0, 100)) {
 		DRM_ERROR("timeout waiting for SBI to become ready\n");
 		goto out_unlock;
 	}
 
-	I915_WRITE(SBI_ADDR,
-			(reg << 16));
-	I915_WRITE(SBI_CTL_STAT,
-			SBI_BUSY |
-			SBI_CTL_OP_CRRD);
+	I915_WRITE(SBI_ADDR, (reg << 16));
+
+	if (destination == SBI_ICLK)
+		value = SBI_CTL_DEST_ICLK | SBI_CTL_OP_CRRD;
+	else
+		value = SBI_CTL_DEST_MPHY | SBI_CTL_OP_IORD;
+	I915_WRITE(SBI_CTL_STAT, value | SBI_BUSY);
 
 	if (wait_for((I915_READ(SBI_CTL_STAT) & (SBI_BUSY | SBI_RESPONSE_FAIL)) == 0,
 				100)) {
@@ -3024,8 +3028,9 @@ static void lpt_program_iclkip(struct drm_crtc *crtc)
 
 	/* Disable SSCCTL */
 	intel_sbi_write(dev_priv, SBI_SSCCTL6,
-				intel_sbi_read(dev_priv, SBI_SSCCTL6) |
-					SBI_SSCCTL_DISABLE);
+			intel_sbi_read(dev_priv, SBI_SSCCTL6, SBI_ICLK) |
+				SBI_SSCCTL_DISABLE,
+			SBI_ICLK);
 
 	/* 20MHz is a corner case which is out of range for the 7-bit divisor */
 	if (crtc->mode.clock == 20000) {
@@ -3066,33 +3071,25 @@ static void lpt_program_iclkip(struct drm_crtc *crtc)
 			phaseinc);
 
 	/* Program SSCDIVINTPHASE6 */
-	temp = intel_sbi_read(dev_priv, SBI_SSCDIVINTPHASE6);
+	temp = intel_sbi_read(dev_priv, SBI_SSCDIVINTPHASE6, SBI_ICLK);
 	temp &= ~SBI_SSCDIVINTPHASE_DIVSEL_MASK;
 	temp |= SBI_SSCDIVINTPHASE_DIVSEL(divsel);
 	temp &= ~SBI_SSCDIVINTPHASE_INCVAL_MASK;
 	temp |= SBI_SSCDIVINTPHASE_INCVAL(phaseinc);
 	temp |= SBI_SSCDIVINTPHASE_DIR(phasedir);
 	temp |= SBI_SSCDIVINTPHASE_PROPAGATE;
-
-	intel_sbi_write(dev_priv,
-			SBI_SSCDIVINTPHASE6,
-			temp);
+	intel_sbi_write(dev_priv, SBI_SSCDIVINTPHASE6, temp, SBI_ICLK);
 
 	/* Program SSCAUXDIV */
-	temp = intel_sbi_read(dev_priv, SBI_SSCAUXDIV6);
+	temp = intel_sbi_read(dev_priv, SBI_SSCAUXDIV6, SBI_ICLK);
 	temp &= ~SBI_SSCAUXDIV_FINALDIV2SEL(1);
 	temp |= SBI_SSCAUXDIV_FINALDIV2SEL(auxdiv);
-	intel_sbi_write(dev_priv,
-			SBI_SSCAUXDIV6,
-			temp);
-
+	intel_sbi_write(dev_priv, SBI_SSCAUXDIV6, temp, SBI_ICLK);
 
 	/* Enable modulator and associated divider */
-	temp = intel_sbi_read(dev_priv, SBI_SSCCTL6);
+	temp = intel_sbi_read(dev_priv, SBI_SSCCTL6, SBI_ICLK);
 	temp &= ~SBI_SSCCTL_DISABLE;
-	intel_sbi_write(dev_priv,
-			SBI_SSCCTL6,
-			temp);
+	intel_sbi_write(dev_priv, SBI_SSCCTL6, temp, SBI_ICLK);
 
 	/* Wait for initialization time */
 	udelay(24);
