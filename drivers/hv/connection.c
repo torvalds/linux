@@ -120,9 +120,6 @@ static int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo,
 	if (msginfo->response.version_response.version_supported) {
 		vmbus_connection.conn_state = CONNECTED;
 	} else {
-		pr_err("Unable to connect, "
-			"Version %d not supported by Hyper-V\n",
-			version);
 		return -ECONNREFUSED;
 	}
 
@@ -208,11 +205,17 @@ int vmbus_connect(void)
 		goto cleanup;
 
 	vmbus_proto_version = version;
-	pr_info("Negotiated host information %d\n", version);
+	pr_info("Hyper-V Host Build:%d-%d.%d-%d-%d.%d; Vmbus version:%d.%d\n",
+		    host_info_eax, host_info_ebx >> 16,
+		    host_info_ebx & 0xFFFF, host_info_ecx,
+		    host_info_edx >> 24, host_info_edx & 0xFFFFFF,
+		    version >> 16, version & 0xFFFF);
+
 	kfree(msginfo);
 	return 0;
 
 cleanup:
+	pr_err("Unable to connect to host\n");
 	vmbus_connection.conn_state = DISCONNECTED;
 
 	if (vmbus_connection.work_queue)

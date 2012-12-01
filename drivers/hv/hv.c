@@ -74,13 +74,6 @@ static int query_hypervisor_info(void)
 		edx = 0;
 		op = HVCPUID_VERSION;
 		cpuid(op, &eax, &ebx, &ecx, &edx);
-		pr_info("Hyper-V Host OS Build:%d-%d.%d-%d-%d.%d\n",
-			    eax,
-			    ebx >> 16,
-			    ebx & 0xFFFF,
-			    ecx,
-			    edx >> 24,
-			    edx & 0xFFFFFF);
 		host_info_eax = eax;
 		host_info_ebx = ebx;
 		host_info_ecx = ecx;
