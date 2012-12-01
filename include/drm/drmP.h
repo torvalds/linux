@@ -1276,6 +1276,11 @@ static inline int drm_device_is_unplugged(struct drm_device *dev)
 	return ret;
 }
 
+static inline bool drm_modeset_is_locked(struct drm_device *dev)
+{
+	return mutex_is_locked(&dev->mode_config.mutex);
+}
+
 /******************************************************************/
 /** \name Internal function definitions */
 /*@{*/
