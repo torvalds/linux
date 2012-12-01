@@ -440,9 +440,13 @@ hv_get_ringbuffer_availbytes(struct hv_ring_buffer_info *rbi,
 struct vmbus_channel_offer {
 	uuid_le if_type;
 	uuid_le if_instance;
-	u64 int_latency; /* in 100ns units */
-	u32 if_revision;
-	u32 server_ctx_size;	/* in bytes */
+
+	/*
+	 * These two fields are not currently used.
+	 */
+	u64 reserved1;
+	u64 reserved2;
+
 	u16 chn_flags;
 	u16 mmio_megabytes;		/* in bytes * 1024 * 1024 */
 
@@ -464,7 +468,11 @@ struct vmbus_channel_offer {
 			unsigned char user_def[MAX_PIPE_USER_DEFINED_BYTES];
 		} pipe;
 	} u;
-	u32 padding;
+	/*
+	 * The sub_channel_index is defined in win8.
+	 */
+	u16 sub_channel_index;
+	u16 reserved3;
 } __packed;
 
 /* Server Flags */
@@ -660,7 +668,25 @@ struct vmbus_channel_offer_channel {
 	struct vmbus_channel_offer offer;
 	u32 child_relid;
 	u8 monitorid;
-	u8 monitor_allocated;
+	/*
+	 * win7 and beyond splits this field into a bit field.
+	 */
+	u8 monitor_allocated:1;
+	u8 reserved:7;
+	/*
+	 * These are new fields added in win7 and later.
+	 * Do not access these fields without checking the
+	 * negotiated protocol.
+	 *
+	 * If "is_dedicated_interrupt" is set, we must not set the
+	 * associated bit in the channel bitmap while sending the
+	 * interrupt to the host.
+	 *
+	 * connection_id is to be used in signaling the host.
+	 */
+	u16 is_dedicated_interrupt:1;
+	u16 reserved1:15;
+	u32 connection_id;
 } __packed;
 
 /* Rescind Offer parameters */
