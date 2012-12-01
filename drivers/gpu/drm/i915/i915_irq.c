@@ -534,6 +534,11 @@ static void gmbus_irq_handler(struct drm_device *dev)
 	wake_up_all(&dev_priv->gmbus_wait_queue);
 }
 
+static void dp_aux_irq_handler(struct drm_device *dev)
+{
+	DRM_DEBUG_DRIVER("AUX channel interrupt\n");
+}
+
 static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
@@ -627,6 +632,9 @@ static void ibx_irq_handler(struct drm_device *dev, u32 pch_iir)
 				 (pch_iir & SDE_AUDIO_POWER_MASK) >>
 				 SDE_AUDIO_POWER_SHIFT);
 
+	if (pch_iir & SDE_AUX_MASK)
+		dp_aux_irq_handler(dev);
+
 	if (pch_iir & SDE_GMBUS)
 		gmbus_irq_handler(dev);
 
@@ -671,7 +679,7 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 				 SDE_AUDIO_POWER_SHIFT_CPT);
 
 	if (pch_iir & SDE_AUX_MASK_CPT)
-		DRM_DEBUG_DRIVER("AUX channel interrupt\n");
+		dp_aux_irq_handler(dev);
 
 	if (pch_iir & SDE_GMBUS_CPT)
 		gmbus_irq_handler(dev);
@@ -712,6 +720,9 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 
 	de_iir = I915_READ(DEIIR);
 	if (de_iir) {
+		if (de_iir & DE_AUX_CHANNEL_A_IVB)
+			dp_aux_irq_handler(dev);
+
 		if (de_iir & DE_GSE_IVB)
 			intel_opregion_gse_intr(dev);
 
@@ -789,6 +800,9 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 		ilk_gt_irq_handler(dev, dev_priv, gt_iir);
 	else
 		snb_gt_irq_handler(dev, dev_priv, gt_iir);
+
+	if (de_iir & DE_AUX_CHANNEL_A)
+		dp_aux_irq_handler(dev);
 
 	if (de_iir & DE_GSE)
 		intel_opregion_gse_intr(dev);
@@ -1858,7 +1872,8 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	/* enable kind of interrupts always enabled */
 	u32 display_mask = DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
-			   DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE;
+			   DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE |
+			   DE_AUX_CHANNEL_A;
 	u32 render_irqs;
 	u32 hotplug_mask;
 
@@ -1893,7 +1908,8 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 				SDE_PORTB_HOTPLUG_CPT |
 				SDE_PORTC_HOTPLUG_CPT |
 				SDE_PORTD_HOTPLUG_CPT |
-				SDE_GMBUS_CPT);
+				SDE_GMBUS_CPT |
+				SDE_AUX_MASK_CPT);
 	} else {
 		hotplug_mask = (SDE_CRT_HOTPLUG |
 				SDE_PORTB_HOTPLUG |
@@ -1930,7 +1946,8 @@ static int ivybridge_irq_postinstall(struct drm_device *dev)
 		DE_MASTER_IRQ_CONTROL | DE_GSE_IVB | DE_PCH_EVENT_IVB |
 		DE_PLANEC_FLIP_DONE_IVB |
 		DE_PLANEB_FLIP_DONE_IVB |
-		DE_PLANEA_FLIP_DONE_IVB;
+		DE_PLANEA_FLIP_DONE_IVB |
+		DE_AUX_CHANNEL_A_IVB;
 	u32 render_irqs;
 	u32 hotplug_mask;
 
@@ -1960,7 +1977,8 @@ static int ivybridge_irq_postinstall(struct drm_device *dev)
 			SDE_PORTB_HOTPLUG_CPT |
 			SDE_PORTC_HOTPLUG_CPT |
 			SDE_PORTD_HOTPLUG_CPT |
-			SDE_GMBUS_CPT);
+			SDE_GMBUS_CPT |
+			SDE_AUX_MASK_CPT);
 	dev_priv->pch_irq_mask = ~hotplug_mask;
 
 	I915_WRITE(SDEIIR, I915_READ(SDEIIR));
