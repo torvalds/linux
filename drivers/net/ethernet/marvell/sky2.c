@@ -4919,13 +4919,13 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	err = pci_read_config_dword(pdev, PCI_DEV_REG2, &reg);
 	if (err) {
 		dev_err(&pdev->dev, "PCI read config failed\n");
-		goto err_out;
+		goto err_out_disable;
 	}
 
 	if (~reg == 0) {
 		dev_err(&pdev->dev, "PCI configuration read error\n");
 		err = -EIO;
-		goto err_out;
+		goto err_out_disable;
 	}
 
 	err = pci_request_regions(pdev, DRV_NAME);
@@ -5012,10 +5012,11 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 
 	if (!disable_msi && pci_enable_msi(pdev) == 0) {
 		err = sky2_test_msi(hw);
-		if (err == -EOPNOTSUPP)
+		if (err) {
  			pci_disable_msi(pdev);
-		else if (err)
-			goto err_out_free_netdev;
+			if (err != -EOPNOTSUPP)
+				goto err_out_free_netdev;
+		}
  	}
 
 	err = register_netdev(dev);
@@ -5063,10 +5064,10 @@ err_out_unregister_dev1:
 err_out_free_dev1:
 	free_netdev(dev1);
 err_out_unregister:
-	if (hw->flags & SKY2_HW_USE_MSI)
-		pci_disable_msi(pdev);
 	unregister_netdev(dev);
 err_out_free_netdev:
+	if (hw->flags & SKY2_HW_USE_MSI)
+		pci_disable_msi(pdev);
 	free_netdev(dev);
 err_out_free_pci:
 	pci_free_consistent(pdev, hw->st_size * sizeof(struct sky2_status_le),
