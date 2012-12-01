@@ -287,9 +287,8 @@ static int f2fs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	int err;
 
 	inode = f2fs_new_inode(dir, S_IFDIR | mode);
-	err = PTR_ERR(inode);
 	if (IS_ERR(inode))
-		return err;
+		return PTR_ERR(inode);
 
 	inode->i_op = &f2fs_dir_inode_operations;
 	inode->i_fop = &f2fs_dir_operations;
