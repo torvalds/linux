@@ -4864,10 +4864,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	return ret;
 }
 
-/*
- * Initialize reference clocks when the driver loads
- */
-void ironlake_init_pch_refclk(struct drm_device *dev)
+static void ironlake_init_pch_refclk(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_mode_config *mode_config = &dev->mode_config;
@@ -4979,6 +4976,182 @@ void ironlake_init_pch_refclk(struct drm_device *dev)
 		POSTING_READ(PCH_DREF_CONTROL);
 		udelay(200);
 	}
+}
+
+/* Sequence to enable CLKOUT_DP for FDI usage and configure PCH FDI I/O. */
+static void lpt_init_pch_refclk(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct intel_encoder *encoder;
+	bool has_vga = false;
+	bool is_sdv = false;
+	u32 tmp;
+
+	list_for_each_entry(encoder, &mode_config->encoder_list, base.head) {
+		switch (encoder->type) {
+		case INTEL_OUTPUT_ANALOG:
+			has_vga = true;
+			break;
+		}
+	}
+
+	if (!has_vga)
+		return;
+
+	/* XXX: Rip out SDV support once Haswell ships for real. */
+	if (IS_HASWELL(dev) && (dev->pci_device & 0xFF00) == 0x0C00)
+		is_sdv = true;
+
+	tmp = intel_sbi_read(dev_priv, SBI_SSCCTL, SBI_ICLK);
+	tmp &= ~SBI_SSCCTL_DISABLE;
+	tmp |= SBI_SSCCTL_PATHALT;
+	intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
+
+	udelay(24);
+
+	tmp = intel_sbi_read(dev_priv, SBI_SSCCTL, SBI_ICLK);
+	tmp &= ~SBI_SSCCTL_PATHALT;
+	intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
+
+	if (!is_sdv) {
+		tmp = I915_READ(SOUTH_CHICKEN2);
+		tmp |= FDI_MPHY_IOSFSB_RESET_CTL;
+		I915_WRITE(SOUTH_CHICKEN2, tmp);
+
+		if (wait_for_atomic_us(I915_READ(SOUTH_CHICKEN2) &
+				       FDI_MPHY_IOSFSB_RESET_STATUS, 100))
+			DRM_ERROR("FDI mPHY reset assert timeout\n");
+
+		tmp = I915_READ(SOUTH_CHICKEN2);
+		tmp &= ~FDI_MPHY_IOSFSB_RESET_CTL;
+		I915_WRITE(SOUTH_CHICKEN2, tmp);
+
+		if (wait_for_atomic_us((I915_READ(SOUTH_CHICKEN2) &
+				        FDI_MPHY_IOSFSB_RESET_STATUS) == 0,
+				       100))
+			DRM_ERROR("FDI mPHY reset de-assert timeout\n");
+	}
+
+	tmp = intel_sbi_read(dev_priv, 0x8008, SBI_MPHY);
+	tmp &= ~(0xFF << 24);
+	tmp |= (0x12 << 24);
+	intel_sbi_write(dev_priv, 0x8008, tmp, SBI_MPHY);
+
+	if (!is_sdv) {
+		tmp = intel_sbi_read(dev_priv, 0x808C, SBI_MPHY);
+		tmp &= ~(0x3 << 6);
+		tmp |= (1 << 6) | (1 << 0);
+		intel_sbi_write(dev_priv, 0x808C, tmp, SBI_MPHY);
+	}
+
+	if (is_sdv) {
+		tmp = intel_sbi_read(dev_priv, 0x800C, SBI_MPHY);
+		tmp |= 0x7FFF;
+		intel_sbi_write(dev_priv, 0x800C, tmp, SBI_MPHY);
+	}
+
+	tmp = intel_sbi_read(dev_priv, 0x2008, SBI_MPHY);
+	tmp |= (1 << 11);
+	intel_sbi_write(dev_priv, 0x2008, tmp, SBI_MPHY);
+
+	tmp = intel_sbi_read(dev_priv, 0x2108, SBI_MPHY);
+	tmp |= (1 << 11);
+	intel_sbi_write(dev_priv, 0x2108, tmp, SBI_MPHY);
+
+	if (is_sdv) {
+		tmp = intel_sbi_read(dev_priv, 0x2038, SBI_MPHY);
+		tmp |= (0x3F << 24) | (0xF << 20) | (0xF << 16);
+		intel_sbi_write(dev_priv, 0x2038, tmp, SBI_MPHY);
+
+		tmp = intel_sbi_read(dev_priv, 0x2138, SBI_MPHY);
+		tmp |= (0x3F << 24) | (0xF << 20) | (0xF << 16);
+		intel_sbi_write(dev_priv, 0x2138, tmp, SBI_MPHY);
+
+		tmp = intel_sbi_read(dev_priv, 0x203C, SBI_MPHY);
+		tmp |= (0x3F << 8);
+		intel_sbi_write(dev_priv, 0x203C, tmp, SBI_MPHY);
+
+		tmp = intel_sbi_read(dev_priv, 0x213C, SBI_MPHY);
+		tmp |= (0x3F << 8);
+		intel_sbi_write(dev_priv, 0x213C, tmp, SBI_MPHY);
+	}
+
+	tmp = intel_sbi_read(dev_priv, 0x206C, SBI_MPHY);
+	tmp |= (1 << 24) | (1 << 21) | (1 << 18);
+	intel_sbi_write(dev_priv, 0x206C, tmp, SBI_MPHY);
+
+	tmp = intel_sbi_read(dev_priv, 0x216C, SBI_MPHY);
+	tmp |= (1 << 24) | (1 << 21) | (1 << 18);
+	intel_sbi_write(dev_priv, 0x216C, tmp, SBI_MPHY);
+
+	if (!is_sdv) {
+		tmp = intel_sbi_read(dev_priv, 0x2080, SBI_MPHY);
+		tmp &= ~(7 << 13);
+		tmp |= (5 << 13);
+		intel_sbi_write(dev_priv, 0x2080, tmp, SBI_MPHY);
+
+		tmp = intel_sbi_read(dev_priv, 0x2180, SBI_MPHY);
+		tmp &= ~(7 << 13);
+		tmp |= (5 << 13);
+		intel_sbi_write(dev_priv, 0x2180, tmp, SBI_MPHY);
+	}
+
+	tmp = intel_sbi_read(dev_priv, 0x208C, SBI_MPHY);
+	tmp &= ~0xFF;
+	tmp |= 0x1C;
+	intel_sbi_write(dev_priv, 0x208C, tmp, SBI_MPHY);
+
+	tmp = intel_sbi_read(dev_priv, 0x218C, SBI_MPHY);
+	tmp &= ~0xFF;
+	tmp |= 0x1C;
+	intel_sbi_write(dev_priv, 0x218C, tmp, SBI_MPHY);
+
+	tmp = intel_sbi_read(dev_priv, 0x2098, SBI_MPHY);
+	tmp &= ~(0xFF << 16);
+	tmp |= (0x1C << 16);
+	intel_sbi_write(dev_priv, 0x2098, tmp, SBI_MPHY);
+
+	tmp = intel_sbi_read(dev_priv, 0x2198, SBI_MPHY);
+	tmp &= ~(0xFF << 16);
+	tmp |= (0x1C << 16);
+	intel_sbi_write(dev_priv, 0x2198, tmp, SBI_MPHY);
+
+	if (!is_sdv) {
+		tmp = intel_sbi_read(dev_priv, 0x20C4, SBI_MPHY);
+		tmp |= (1 << 27);
+		intel_sbi_write(dev_priv, 0x20C4, tmp, SBI_MPHY);
+
+		tmp = intel_sbi_read(dev_priv, 0x21C4, SBI_MPHY);
+		tmp |= (1 << 27);
+		intel_sbi_write(dev_priv, 0x21C4, tmp, SBI_MPHY);
+
+		tmp = intel_sbi_read(dev_priv, 0x20EC, SBI_MPHY);
+		tmp &= ~(0xF << 28);
+		tmp |= (4 << 28);
+		intel_sbi_write(dev_priv, 0x20EC, tmp, SBI_MPHY);
+
+		tmp = intel_sbi_read(dev_priv, 0x21EC, SBI_MPHY);
+		tmp &= ~(0xF << 28);
+		tmp |= (4 << 28);
+		intel_sbi_write(dev_priv, 0x21EC, tmp, SBI_MPHY);
+	}
+
+	/* ULT uses SBI_GEN0, but ULT doesn't have VGA, so we don't care. */
+	tmp = intel_sbi_read(dev_priv, SBI_DBUFF0, SBI_ICLK);
+	tmp |= SBI_DBUFF0_ENABLE;
+	intel_sbi_write(dev_priv, SBI_DBUFF0, tmp, SBI_ICLK);
+}
+
+/*
+ * Initialize reference clocks when the driver loads
+ */
+void intel_init_pch_refclk(struct drm_device *dev)
+{
+	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
+		ironlake_init_pch_refclk(dev);
+	else if (HAS_PCH_LPT(dev))
+		lpt_init_pch_refclk(dev);
 }
 
 static int ironlake_get_refclk(struct drm_crtc *crtc)
@@ -8410,8 +8583,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 			intel_encoder_clones(encoder);
 	}
 
-	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
-		ironlake_init_pch_refclk(dev);
+	intel_init_pch_refclk(dev);
 
 	drm_helper_move_panel_connectors_to_head(dev);
 }

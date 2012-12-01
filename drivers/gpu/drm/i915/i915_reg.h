@@ -3843,7 +3843,9 @@
 #define  FDI_PHASE_SYNC_EN(pipe) (1<<(FDIA_PHASE_SYNC_SHIFT_EN - ((pipe) * 2)))
 #define  FDI_BC_BIFURCATION_SELECT	(1 << 12)
 #define SOUTH_CHICKEN2		0xc2004
-#define  DPLS_EDP_PPS_FIX_DIS	(1<<0)
+#define  FDI_MPHY_IOSFSB_RESET_STATUS	(1<<13)
+#define  FDI_MPHY_IOSFSB_RESET_CTL	(1<<12)
+#define  DPLS_EDP_PPS_FIX_DIS		(1<<0)
 
 #define _FDI_RXA_CHICKEN         0xc200c
 #define _FDI_RXB_CHICKEN         0xc2010
@@ -4555,10 +4557,12 @@
 #define   SBI_SSCDIVINTPHASE_PROPAGATE		(1<<0)
 #define  SBI_SSCCTL				0x020c
 #define  SBI_SSCCTL6				0x060C
+#define   SBI_SSCCTL_PATHALT			(1<<3)
 #define   SBI_SSCCTL_DISABLE			(1<<0)
 #define  SBI_SSCAUXDIV6				0x0610
 #define   SBI_SSCAUXDIV_FINALDIV2SEL(x)		((x)<<4)
 #define  SBI_DBUFF0				0x2a00
+#define   SBI_DBUFF0_ENABLE			(1<<0)
 
 /* LPT PIXCLK_GATE */
 #define PIXCLK_GATE			0xC6020
