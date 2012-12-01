@@ -89,6 +89,9 @@ struct hist_entry {
 
 	struct hist_entry_diff	diff;
 
+	/* We are added by hists__add_dummy_entry. */
+	bool			dummy;
+
 	/* XXX These two should move to some tree widget lib */
 	u16			row_offset;
 	u16			nr_rows;

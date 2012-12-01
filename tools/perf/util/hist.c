@@ -912,6 +912,7 @@ static struct hist_entry *hists__add_dummy_entry(struct hists *hists,
 		rb_link_node(&he->rb_node_in, parent, p);
 		rb_insert_color(&he->rb_node_in, root);
 		hists__inc_nr_entries(hists, he);
+		he->dummy = true;
 	}
 out:
 	return he;

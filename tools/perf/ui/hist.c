@@ -187,8 +187,11 @@ static int hpp__color_baseline(struct perf_hpp_fmt *fmt __maybe_unused,
 {
 	double percent = baseline_percent(he);
 
-	return percent_color_snprintf(hpp->buf, hpp->size, " %6.2f%%",
-				      percent);
+	if (!he->dummy)
+		return percent_color_snprintf(hpp->buf, hpp->size,
+					      " %6.2f%%", percent);
+	else
+		return scnprintf(hpp->buf, hpp->size, "        ");
 }
 
 static int hpp__entry_baseline(struct perf_hpp_fmt *_fmt __maybe_unused,
@@ -197,7 +200,10 @@ static int hpp__entry_baseline(struct perf_hpp_fmt *_fmt __maybe_unused,
 	double percent = baseline_percent(he);
 	const char *fmt = symbol_conf.field_sep ? "%.2f" : " %6.2f%%";
 
-	return scnprintf(hpp->buf, hpp->size, fmt, percent);
+	if (!he->dummy)
+		return scnprintf(hpp->buf, hpp->size, fmt, percent);
+	else
+		return scnprintf(hpp->buf, hpp->size, "            ");
 }
 
 static int hpp__header_period_baseline(struct perf_hpp_fmt *_fmt __maybe_unused,
@@ -251,8 +257,7 @@ static int hpp__entry_delta(struct perf_hpp_fmt *_fmt __maybe_unused,
 			diff = he->diff.period_ratio_delta;
 		else
 			diff = perf_diff__compute_delta(he, pair);
-	} else
-		diff = perf_diff__period_percent(he, he->stat.period);
+	}
 
 	if (fabs(diff) >= 0.01)
 		scnprintf(buf, sizeof(buf), "%+4.2F%%", diff);
@@ -282,7 +287,8 @@ static int hpp__entry_ratio(struct perf_hpp_fmt *_fmt __maybe_unused,
 	char buf[32] = " ";
 	double ratio = 0.0;
 
-	if (pair) {
+	/* No point for ratio number if we are dummy.. */
+	if (!he->dummy && pair) {
 		if (he->diff.computed)
 			ratio = he->diff.period_ratio;
 		else
@@ -317,7 +323,8 @@ static int hpp__entry_wdiff(struct perf_hpp_fmt *_fmt __maybe_unused,
 	char buf[32] = " ";
 	s64 wdiff = 0;
 
-	if (pair) {
+	/* No point for wdiff number if we are dummy.. */
+	if (!he->dummy && pair) {
 		if (he->diff.computed)
 			wdiff = he->diff.wdiff;
 		else
