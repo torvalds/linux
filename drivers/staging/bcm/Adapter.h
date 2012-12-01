@@ -367,7 +367,7 @@ struct bcm_mini_adapter {
 
 	/*	BOOLEAN				InterfaceUpStatus; */
 	struct bcm_flash2x_cs_info *psFlash2xCSInfo;
-	PFLASH_CS_INFO		psFlashCSInfo;
+	struct bcm_flash_cs_info *psFlashCSInfo;
 	struct bcm_flash2x_vendor_info *psFlash2xVendorInfo;
 	UINT			uiFlashBaseAdd; /* Flash start address */
 	UINT			uiActiveISOOffset; /* Active ISO offset chosen before f/w download */

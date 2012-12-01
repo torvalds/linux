@@ -26,7 +26,7 @@ typedef struct _FLASH_SECTOR_INFO {
 	unsigned int uiSectorSize;
 } FLASH_SECTOR_INFO, *PFLASH_SECTOR_INFO;
 
-typedef struct _FLASH_CS_INFO {
+struct bcm_flash_cs_info {
 	u32 MagicNumber;
 	/* let the magic number be 0xBECE-F1A5 - F1A5 for "flas-h" */
 	u32 FlashLayoutVersion;
@@ -53,7 +53,7 @@ typedef struct _FLASH_CS_INFO {
 	u32 IsCDLessDeviceBootSig;
 	/* MSC Timeout after reset to switch from MSC to NW Mode */
 	u32 MassStorageTimeout;
-} FLASH_CS_INFO, *PFLASH_CS_INFO;
+};
 
 #define FLASH2X_TOTAL_SIZE	(64 * 1024 * 1024)
 #define DEFAULT_SECTOR_SIZE	(64 * 1024)

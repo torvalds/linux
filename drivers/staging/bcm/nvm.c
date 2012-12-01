@@ -1978,7 +1978,7 @@ int BeceemNVMWrite(struct bcm_mini_adapter *Adapter,
 int BcmUpdateSectorSize(struct bcm_mini_adapter *Adapter, unsigned int uiSectorSize)
 {
 	int Status = -1;
-	FLASH_CS_INFO sFlashCsInfo = {0};
+	struct bcm_flash_cs_info sFlashCsInfo = {0};
 	unsigned int uiTemp = 0;
 	unsigned int uiSectorSig = 0;
 	unsigned int uiCurrentSectorSize = 0;
@@ -2228,7 +2228,7 @@ int BcmAllocFlashCSStructure(struct bcm_mini_adapter *psAdapter)
 		BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_PRINTK, 0, 0, "Adapter structure point is NULL");
 		return -EINVAL;
 	}
-	psAdapter->psFlashCSInfo = (PFLASH_CS_INFO)kzalloc(sizeof(FLASH_CS_INFO), GFP_KERNEL);
+	psAdapter->psFlashCSInfo = (struct bcm_flash_cs_info *)kzalloc(sizeof(struct bcm_flash_cs_info), GFP_KERNEL);
 	if (psAdapter->psFlashCSInfo == NULL) {
 		BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_PRINTK, 0, 0, "Can't Allocate memory for Flash 1.x");
 		return -ENOMEM;
@@ -2381,7 +2381,7 @@ static int ConvertEndianOf2XCSStructure(struct bcm_flash2x_cs_info *psFlash2xCSI
 	return STATUS_SUCCESS;
 }
 
-static int ConvertEndianOfCSStructure(PFLASH_CS_INFO psFlashCSInfo)
+static int ConvertEndianOfCSStructure(struct bcm_flash_cs_info *psFlashCSInfo)
 {
 	/* unsigned int Index = 0; */
 	psFlashCSInfo->MagicNumber				= ntohl(psFlashCSInfo->MagicNumber);
@@ -2509,7 +2509,7 @@ static VOID UpdateVendorInfo(struct bcm_mini_adapter *Adapter)
 
 static int BcmGetFlashCSInfo(struct bcm_mini_adapter *Adapter)
 {
-	/* FLASH_CS_INFO sFlashCsInfo = {0}; */
+	/* struct bcm_flash_cs_info sFlashCsInfo = {0}; */
 
 	#if !defined(BCM_SHM_INTERFACE) || defined(FLASH_DIRECT_ACCESS)
 		unsigned int value;
@@ -2522,7 +2522,7 @@ static int BcmGetFlashCSInfo(struct bcm_mini_adapter *Adapter)
 
 	Adapter->uiFlashBaseAdd = 0;
 	Adapter->ulFlashCalStart = 0;
-	memset(Adapter->psFlashCSInfo, 0 , sizeof(FLASH_CS_INFO));
+	memset(Adapter->psFlashCSInfo, 0 , sizeof(struct bcm_flash_cs_info));
 	memset(Adapter->psFlash2xCSInfo, 0 , sizeof(struct bcm_flash2x_cs_info));
 
 	if (!Adapter->bDDRInitDone) {
@@ -2551,7 +2551,7 @@ static int BcmGetFlashCSInfo(struct bcm_mini_adapter *Adapter)
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "FLASH LAYOUT MAJOR VERSION :%X", uiFlashLayoutMajorVersion);
 
 	if (uiFlashLayoutMajorVersion < FLASH_2X_MAJOR_NUMBER) {
-		BeceemFlashBulkRead(Adapter, (PUINT)Adapter->psFlashCSInfo, Adapter->ulFlashControlSectionStart, sizeof(FLASH_CS_INFO));
+		BeceemFlashBulkRead(Adapter, (PUINT)Adapter->psFlashCSInfo, Adapter->ulFlashControlSectionStart, sizeof(struct bcm_flash_cs_info));
 		ConvertEndianOfCSStructure(Adapter->psFlashCSInfo);
 		Adapter->ulFlashCalStart = (Adapter->psFlashCSInfo->OffsetFromZeroForCalibrationStart);
 
