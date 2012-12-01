@@ -22,8 +22,8 @@
 #define _NVM_H_
 
 typedef struct _FLASH_SECTOR_INFO {
-	UINT uiSectorSig;
-	UINT uiSectorSize;
+	unsigned int uiSectorSig;
+	unsigned int uiSectorSize;
 } FLASH_SECTOR_INFO, *PFLASH_SECTOR_INFO;
 
 typedef struct _FLASH_CS_INFO {
