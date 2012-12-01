@@ -434,6 +434,7 @@ hv_get_ringbuffer_availbytes(struct hv_ring_buffer_info *rbi,
 
 #define VERSION_INVAL -1
 
+#define VERSION_CURRENT VERSION_WIN8
 
 /* Make maximum size of pipe payload of 16K */
 #define MAX_PIPE_DATA_PAYLOAD		(sizeof(u8) * 16384)

@@ -194,7 +194,7 @@ int vmbus_connect(void)
 	 * version.
 	 */
 
-	version = VERSION_WS2008;
+	version = VERSION_CURRENT;
 
 	do {
 		ret = vmbus_negotiate_version(msginfo, version);
