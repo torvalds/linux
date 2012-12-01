@@ -132,14 +132,15 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		.for_reclaim = 0,
 	};
 
+	if (inode->i_sb->s_flags & MS_RDONLY)
+		return 0;
+
 	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
 	if (ret)
 		return ret;
 
 	mutex_lock(&inode->i_mutex);
 
-	if (inode->i_sb->s_flags & MS_RDONLY)
-		goto out;
 	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
 		goto out;
 
