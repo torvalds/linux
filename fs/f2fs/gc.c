@@ -89,7 +89,7 @@ static int gc_thread_func(void *data)
 
 int start_gc_thread(struct f2fs_sb_info *sbi)
 {
-	struct f2fs_gc_kthread *gc_th = NULL;
+	struct f2fs_gc_kthread *gc_th;
 
 	gc_th = kmalloc(sizeof(struct f2fs_gc_kthread), GFP_KERNEL);
 	if (!gc_th)

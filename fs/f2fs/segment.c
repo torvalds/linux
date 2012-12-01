@@ -1489,7 +1489,7 @@ static int build_free_segmap(struct f2fs_sb_info *sbi)
 
 static int build_curseg(struct f2fs_sb_info *sbi)
 {
-	struct curseg_info *array = NULL;
+	struct curseg_info *array;
 	int i;
 
 	array = kzalloc(sizeof(*array) * NR_CURSEG_TYPE, GFP_KERNEL);
@@ -1656,7 +1656,7 @@ int build_segment_manager(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_super_block *raw_super = F2FS_RAW_SUPER(sbi);
 	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
-	struct f2fs_sm_info *sm_info = NULL;
+	struct f2fs_sm_info *sm_info;
 	int err;
 
 	sm_info = kzalloc(sizeof(struct f2fs_sm_info), GFP_KERNEL);
