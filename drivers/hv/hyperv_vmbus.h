@@ -660,7 +660,7 @@ int vmbus_connect(void);
 
 int vmbus_post_msg(void *buffer, size_t buflen);
 
-int vmbus_set_event(u32 child_relid);
+int vmbus_set_event(struct vmbus_channel *channel);
 
 void vmbus_on_event(unsigned long data);
 

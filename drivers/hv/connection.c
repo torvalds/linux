@@ -395,8 +395,9 @@ int vmbus_post_msg(void *buffer, size_t buflen)
 /*
  * vmbus_set_event - Send an event notification to the parent
  */
-int vmbus_set_event(u32 child_relid)
+int vmbus_set_event(struct vmbus_channel *channel)
 {
+	u32 child_relid = channel->offermsg.child_relid;
 	/* Each u32 represents 32 channels */
 	sync_set_bit(child_relid & 31,
 		(unsigned long *)vmbus_connection.send_int_page +

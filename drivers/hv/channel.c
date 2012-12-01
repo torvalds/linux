@@ -55,7 +55,7 @@ static void vmbus_setevent(struct vmbus_channel *channel)
 					[channel->monitor_grp].pending);
 
 	} else {
-		vmbus_set_event(channel->offermsg.child_relid);
+		vmbus_set_event(channel);
 	}
 }
 
