@@ -657,6 +657,14 @@ void rk_direct_fb_show(struct fb_info * fbi)
 EXPORT_SYMBOL(rk_direct_fb_show);
 
 
+
+/******************************************
+function:this function will be called by hdmi,when 
+              hdmi plug in/out
+screen: the screen attached to hdmi
+enable: 1,hdmi plug in,0,hdmi plug out
+lcdc_id: the lcdc id the hdmi attached ,0 or 1
+******************************************/
 int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 {
 	struct rk_fb_inf *inf =  platform_get_drvdata(g_fb_pdev);
@@ -700,7 +708,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	}
 	else if((lcdc_id == 1)&&(inf->num_lcdc == 2))
 	{
-		info = inf->fb[dev_drv->num_layer]; //the main fb of lcdc2
+		info = inf->fb[dev_drv->num_layer]; //the main fb of lcdc1
 	}
 
 	if(dev_drv->screen1) //device like rk2928 ,have only one lcdc but two outputs
@@ -813,6 +821,17 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	return 0;
 
 }
+
+
+
+
+/******************************************
+function:this function current only called by hdmi for 
+	scale the display
+scale_x: scale rate of x resolution
+scale_y: scale rate of y resolution
+lcdc_id: the lcdc id the hdmi attached ,0 or 1
+******************************************/
 
 int rk_fb_disp_scale(u8 scale_x, u8 scale_y,u8 lcdc_id)
 {
