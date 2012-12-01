@@ -481,6 +481,21 @@ static void hists__process(struct hists *base, struct hists *new)
 	hists__fprintf(base, true, 0, 0, 0, stdout);
 }
 
+static void data__fprintf(void)
+{
+	struct data__file *d;
+	int i;
+
+	fprintf(stdout, "# Data files:\n");
+
+	data__for_each_file(i, d)
+		fprintf(stdout, "#  [%d] %s %s\n",
+			d->idx, d->file,
+			!d->idx ? "(Baseline)" : "");
+
+	fprintf(stdout, "#\n");
+}
+
 static void data_process(void)
 {
 	struct perf_evlist *evlist_old = data__files[0].session->evlist;
@@ -499,6 +514,9 @@ static void data_process(void)
 			perf_evsel__name(evsel_old));
 
 		first = false;
+
+		if (verbose)
+			data__fprintf();
 
 		hists__process(&evsel_old->hists, &evsel_new->hists);
 	}
