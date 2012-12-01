@@ -1204,5 +1204,11 @@ int hv_kvp_init(struct hv_util_service *);
 void hv_kvp_deinit(void);
 void hv_kvp_onchannelcallback(void *);
 
+/*
+ * Negotiated version with the Host.
+ */
+
+extern __u32 vmbus_proto_version;
+
 #endif /* __KERNEL__ */
 #endif /* _HYPERV_H */

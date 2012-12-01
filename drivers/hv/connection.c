@@ -30,6 +30,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/hyperv.h>
+#include <linux/export.h>
 #include <asm/hyperv.h>
 #include "hyperv_vmbus.h"
 
@@ -53,6 +54,12 @@ struct vmbus_connection vmbus_connection = {
 #define VERSION_WIN8	((2 << 16) | (4))
 
 #define VERSION_INVAL -1
+
+/*
+ * Negotiated protocol version with the host.
+ */
+__u32 vmbus_proto_version;
+EXPORT_SYMBOL_GPL(vmbus_proto_version);
 
 static __u32 vmbus_get_next_version(__u32 current_version)
 {
@@ -215,6 +222,8 @@ int vmbus_connect(void)
 	if (version == VERSION_INVAL)
 		goto cleanup;
 
+	vmbus_proto_version = version;
+	pr_info("Negotiated host information %d\n", version);
 	kfree(msginfo);
 	return 0;
 
