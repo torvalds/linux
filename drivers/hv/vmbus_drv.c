@@ -454,6 +454,12 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
 	union hv_synic_event_flags *event;
 	bool handled = false;
 
+	page_addr = hv_context.synic_event_page[cpu];
+	if (page_addr == NULL)
+		return IRQ_NONE;
+
+	event = (union hv_synic_event_flags *)page_addr +
+					 VMBUS_MESSAGE_SINT;
 	/*
 	 * Check for events before checking for messages. This is the order
 	 * in which events and messages are checked in Windows guests on
@@ -462,10 +468,6 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
 
 	if ((vmbus_proto_version == VERSION_WS2008) ||
 		(vmbus_proto_version == VERSION_WIN7)) {
-
-		page_addr = hv_context.synic_event_page[cpu];
-		event = (union hv_synic_event_flags *)page_addr +
-					 VMBUS_MESSAGE_SINT;
 
 		/* Since we are a child, we only need to check bit 0 */
 		if (sync_test_and_clear_bit(0,
