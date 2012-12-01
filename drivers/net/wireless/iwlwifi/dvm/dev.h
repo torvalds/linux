@@ -844,7 +844,7 @@ struct iwl_priv {
 	void *wowlan_sram;
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 
-	struct iwl_eeprom_data *eeprom_data;
+	struct iwl_nvm_data *nvm_data;
 	/* eeprom blob for debugfs/testmode */
 	u8 *eeprom_blob;
 	size_t eeprom_blob_size;

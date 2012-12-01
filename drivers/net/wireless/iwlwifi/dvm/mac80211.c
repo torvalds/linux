@@ -164,7 +164,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	hw->max_tx_aggregation_subframes = LINK_QUAL_AGG_FRAME_LIMIT_DEF;
 	 */
 
-	if (priv->eeprom_data->sku & EEPROM_SKU_CAP_11N_ENABLE)
+	if (priv->nvm_data->sku_cap_11n_enable)
 		hw->flags |= IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
 			     IEEE80211_HW_SUPPORTS_STATIC_SMPS;
 
@@ -242,12 +242,12 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 
 	hw->max_listen_interval = IWL_CONN_MAX_LISTEN_INTERVAL;
 
-	if (priv->eeprom_data->bands[IEEE80211_BAND_2GHZ].n_channels)
+	if (priv->nvm_data->bands[IEEE80211_BAND_2GHZ].n_channels)
 		priv->hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
-			&priv->eeprom_data->bands[IEEE80211_BAND_2GHZ];
-	if (priv->eeprom_data->bands[IEEE80211_BAND_5GHZ].n_channels)
+			&priv->nvm_data->bands[IEEE80211_BAND_2GHZ];
+	if (priv->nvm_data->bands[IEEE80211_BAND_5GHZ].n_channels)
 		priv->hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
-			&priv->eeprom_data->bands[IEEE80211_BAND_5GHZ];
+			&priv->nvm_data->bands[IEEE80211_BAND_5GHZ];
 
 	hw->wiphy->hw_version = priv->trans->hw_id;
 
@@ -654,7 +654,7 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 	IWL_DEBUG_HT(priv, "A-MPDU action on addr %pM tid %d\n",
 		     sta->addr, tid);
 
-	if (!(priv->eeprom_data->sku & EEPROM_SKU_CAP_11N_ENABLE))
+	if (!(priv->nvm_data->sku_cap_11n_enable))
 		return -EACCES;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");

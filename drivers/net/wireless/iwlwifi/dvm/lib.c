@@ -59,7 +59,7 @@ int iwlagn_send_tx_power(struct iwl_priv *priv)
 	/* half dBm need to multiply */
 	tx_power_cmd.global_lmt = (s8)(2 * priv->tx_power_user_lmt);
 
-	if (tx_power_cmd.global_lmt > priv->eeprom_data->max_tx_pwr_half_dbm) {
+	if (tx_power_cmd.global_lmt > priv->nvm_data->max_tx_pwr_half_dbm) {
 		/*
 		 * For the newer devices which using enhanced/extend tx power
 		 * table in EEPROM, the format is in half dBm. driver need to
@@ -72,7 +72,7 @@ int iwlagn_send_tx_power(struct iwl_priv *priv)
 		 * half-dBm format), lower the tx power based on EEPROM
 		 */
 		tx_power_cmd.global_lmt =
-			priv->eeprom_data->max_tx_pwr_half_dbm;
+			priv->nvm_data->max_tx_pwr_half_dbm;
 	}
 	tx_power_cmd.flags = IWLAGN_TX_POWER_NO_CLOSED;
 	tx_power_cmd.srv_chan_lmt = IWLAGN_TX_POWER_AUTO;
@@ -159,7 +159,7 @@ int iwlagn_txfifo_flush(struct iwl_priv *priv)
 					   IWL_PAN_SCD_MGMT_MSK |
 					   IWL_PAN_SCD_MULTICAST_MSK;
 
-	if (priv->eeprom_data->sku & EEPROM_SKU_CAP_11N_ENABLE)
+	if (priv->nvm_data->sku_cap_11n_enable)
 		flush_cmd.queue_control |= IWL_AGG_TX_QUEUE_MSK;
 
 	IWL_DEBUG_INFO(priv, "queue control: 0x%x\n",
@@ -825,7 +825,7 @@ void iwlagn_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	if (priv->chain_noise_data.active_chains)
 		active_chains = priv->chain_noise_data.active_chains;
 	else
-		active_chains = priv->eeprom_data->valid_rx_ant;
+		active_chains = priv->nvm_data->valid_rx_ant;
 
 	if (priv->cfg->bt_params &&
 	    priv->cfg->bt_params->advanced_bt_coexist &&

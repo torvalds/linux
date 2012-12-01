@@ -66,22 +66,7 @@
 #include <linux/if_ether.h>
 #include "iwl-trans.h"
 
-/* SKU Capabilities (actual values from EEPROM definition) */
-#define EEPROM_SKU_CAP_BAND_24GHZ	(1 << 4)
-#define EEPROM_SKU_CAP_BAND_52GHZ	(1 << 5)
-#define EEPROM_SKU_CAP_11N_ENABLE	(1 << 6)
-#define EEPROM_SKU_CAP_AMT_ENABLE	(1 << 7)
-#define EEPROM_SKU_CAP_IPAN_ENABLE	(1 << 8)
-
-/* radio config bits (actual values from EEPROM definition) */
-#define EEPROM_RF_CFG_TYPE_MSK(x)   (x & 0x3)         /* bits 0-1   */
-#define EEPROM_RF_CFG_STEP_MSK(x)   ((x >> 2)  & 0x3) /* bits 2-3   */
-#define EEPROM_RF_CFG_DASH_MSK(x)   ((x >> 4)  & 0x3) /* bits 4-5   */
-#define EEPROM_RF_CFG_PNUM_MSK(x)   ((x >> 6)  & 0x3) /* bits 6-7   */
-#define EEPROM_RF_CFG_TX_ANT_MSK(x) ((x >> 8)  & 0xF) /* bits 8-11  */
-#define EEPROM_RF_CFG_RX_ANT_MSK(x) ((x >> 12) & 0xF) /* bits 12-15 */
-
-struct iwl_eeprom_data {
+struct iwl_nvm_data {
 	int n_hw_addrs;
 	u8 hw_addr[ETH_ALEN];
 
@@ -93,12 +78,20 @@ struct iwl_eeprom_data {
 	__le16 kelvin_voltage;
 	__le16 xtal_calib[2];
 
-	u16 sku;
-	u16 radio_cfg;
-	u16 eeprom_version;
-	s8 max_tx_pwr_half_dbm;
+	bool sku_cap_band_24GHz_enable;
+	bool sku_cap_band_52GHz_enable;
+	bool sku_cap_11n_enable;
+	bool sku_cap_amt_enable;
+	bool sku_cap_ipan_enable;
 
+	u8 radio_cfg_type;
+	u8 radio_cfg_step;
+	u8 radio_cfg_dash;
+	u8 radio_cfg_pnum;
 	u8 valid_tx_ant, valid_rx_ant;
+
+	u16 nvm_version;
+	s8 max_tx_pwr_half_dbm;
 
 	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 	struct ieee80211_channel channels[];
@@ -115,22 +108,22 @@ struct iwl_eeprom_data {
  * This function parses all EEPROM values we need and then
  * returns a (newly allocated) struct containing all the
  * relevant values for driver use. The struct must be freed
- * later with iwl_free_eeprom_data().
+ * later with iwl_free_nvm_data().
  */
-struct iwl_eeprom_data *
+struct iwl_nvm_data *
 iwl_parse_eeprom_data(struct device *dev, const struct iwl_cfg *cfg,
 		      const u8 *eeprom, size_t eeprom_size);
 
 /**
- * iwl_free_eeprom_data - free EEPROM data
+ * iwl_free_nvm_data - free NVM data
  * @data: the data to free
  */
-static inline void iwl_free_eeprom_data(struct iwl_eeprom_data *data)
+static inline void iwl_free_nvm_data(struct iwl_nvm_data *data)
 {
 	kfree(data);
 }
 
-int iwl_eeprom_check_version(struct iwl_eeprom_data *data,
-			     struct iwl_trans *trans);
+int iwl_nvm_check_version(struct iwl_nvm_data *data,
+			  struct iwl_trans *trans);
 
 #endif /* __iwl_eeprom_parse_h__ */

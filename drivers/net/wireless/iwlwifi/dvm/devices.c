@@ -305,8 +305,8 @@ static s32 iwl_temp_calib_to_offset(struct iwl_priv *priv)
 {
 	u16 temperature, voltage;
 
-	temperature = le16_to_cpu(priv->eeprom_data->kelvin_temperature);
-	voltage = le16_to_cpu(priv->eeprom_data->kelvin_voltage);
+	temperature = le16_to_cpu(priv->nvm_data->kelvin_temperature);
+	voltage = le16_to_cpu(priv->nvm_data->kelvin_voltage);
 
 	/* offset = temp - volt / coeff */
 	return (s32)(temperature -
@@ -460,13 +460,13 @@ static void iwl6000_nic_config(struct iwl_priv *priv)
 		break;
 	case IWL_DEVICE_FAMILY_6050:
 		/* Indicate calibration version to uCode. */
-		if (priv->eeprom_data->calib_version >= 6)
+		if (priv->nvm_data->calib_version >= 6)
 			iwl_set_bit(priv->trans, CSR_GP_DRIVER_REG,
 					CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
 		break;
 	case IWL_DEVICE_FAMILY_6150:
 		/* Indicate calibration version to uCode. */
-		if (priv->eeprom_data->calib_version >= 6)
+		if (priv->nvm_data->calib_version >= 6)
 			iwl_set_bit(priv->trans, CSR_GP_DRIVER_REG,
 					CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
 		iwl_set_bit(priv->trans, CSR_GP_DRIVER_REG,

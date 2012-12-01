@@ -61,7 +61,7 @@ iwl_get_ucode_image(struct iwl_priv *priv, enum iwl_ucode_type ucode_type)
 static int iwl_set_Xtal_calib(struct iwl_priv *priv)
 {
 	struct iwl_calib_xtal_freq_cmd cmd;
-	__le16 *xtal_calib = priv->eeprom_data->xtal_calib;
+	__le16 *xtal_calib = priv->nvm_data->xtal_calib;
 
 	iwl_set_calib_hdr(&cmd.hdr, IWL_PHY_CALIBRATE_CRYSTAL_FRQ_CMD);
 	cmd.cap_pin1 = le16_to_cpu(xtal_calib[0]);
@@ -75,7 +75,7 @@ static int iwl_set_temperature_offset_calib(struct iwl_priv *priv)
 
 	memset(&cmd, 0, sizeof(cmd));
 	iwl_set_calib_hdr(&cmd.hdr, IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD);
-	cmd.radio_sensor_offset = priv->eeprom_data->raw_temperature;
+	cmd.radio_sensor_offset = priv->nvm_data->raw_temperature;
 	if (!(cmd.radio_sensor_offset))
 		cmd.radio_sensor_offset = DEFAULT_RADIO_SENSOR_OFFSET;
 
@@ -90,14 +90,14 @@ static int iwl_set_temperature_offset_calib_v2(struct iwl_priv *priv)
 
 	memset(&cmd, 0, sizeof(cmd));
 	iwl_set_calib_hdr(&cmd.hdr, IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD);
-	cmd.radio_sensor_offset_high = priv->eeprom_data->kelvin_temperature;
-	cmd.radio_sensor_offset_low = priv->eeprom_data->raw_temperature;
+	cmd.radio_sensor_offset_high = priv->nvm_data->kelvin_temperature;
+	cmd.radio_sensor_offset_low = priv->nvm_data->raw_temperature;
 	if (!cmd.radio_sensor_offset_low) {
 		IWL_DEBUG_CALIB(priv, "no info in EEPROM, use default\n");
 		cmd.radio_sensor_offset_low = DEFAULT_RADIO_SENSOR_OFFSET;
 		cmd.radio_sensor_offset_high = DEFAULT_RADIO_SENSOR_OFFSET;
 	}
-	cmd.burntVoltageRef = priv->eeprom_data->calib_voltage;
+	cmd.burntVoltageRef = priv->nvm_data->calib_voltage;
 
 	IWL_DEBUG_CALIB(priv, "Radio sensor offset high: %d\n",
 			le16_to_cpu(cmd.radio_sensor_offset_high));
@@ -257,7 +257,7 @@ static int iwl_alive_notify(struct iwl_priv *priv)
 	iwl_trans_fw_alive(priv->trans, 0);
 
 	if (priv->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN &&
-	    priv->eeprom_data->sku & EEPROM_SKU_CAP_IPAN_ENABLE) {
+	    priv->nvm_data->sku_cap_ipan_enable) {
 		n_queues = ARRAY_SIZE(iwlagn_ipan_queue_to_tx_fifo);
 		queue_to_txf = iwlagn_ipan_queue_to_tx_fifo;
 	} else {

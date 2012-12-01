@@ -833,14 +833,14 @@ static void iwl_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
 	 * To be safe, simply mask out any chains that we know
 	 * are not on the device.
 	 */
-	active_chains &= priv->eeprom_data->valid_rx_ant;
+	active_chains &= priv->nvm_data->valid_rx_ant;
 
 	num_tx_chains = 0;
 	for (i = 0; i < NUM_RX_CHAINS; i++) {
 		/* loops on all the bits of
 		 * priv->hw_setting.valid_tx_ant */
 		u8 ant_msk = (1 << i);
-		if (!(priv->eeprom_data->valid_tx_ant & ant_msk))
+		if (!(priv->nvm_data->valid_tx_ant & ant_msk))
 			continue;
 
 		num_tx_chains++;
@@ -854,7 +854,7 @@ static void iwl_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
 			 * connect the first valid tx chain
 			 */
 			first_chain =
-				find_first_chain(priv->eeprom_data->valid_tx_ant);
+				find_first_chain(priv->nvm_data->valid_tx_ant);
 			data->disconn_array[first_chain] = 0;
 			active_chains |= BIT(first_chain);
 			IWL_DEBUG_CALIB(priv,
@@ -864,13 +864,13 @@ static void iwl_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
 		}
 	}
 
-	if (active_chains != priv->eeprom_data->valid_rx_ant &&
+	if (active_chains != priv->nvm_data->valid_rx_ant &&
 	    active_chains != priv->chain_noise_data.active_chains)
 		IWL_DEBUG_CALIB(priv,
 				"Detected that not all antennas are connected! "
 				"Connected: %#x, valid: %#x.\n",
 				active_chains,
-				priv->eeprom_data->valid_rx_ant);
+				priv->nvm_data->valid_rx_ant);
 
 	/* Save for use within RXON, TX, SCAN commands, etc. */
 	data->active_chains = active_chains;
@@ -1055,7 +1055,7 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 	    priv->cfg->bt_params->advanced_bt_coexist) {
 		/* Disable disconnected antenna algorithm for advanced
 		   bt coex, assuming valid antennas are connected */
-		data->active_chains = priv->eeprom_data->valid_rx_ant;
+		data->active_chains = priv->nvm_data->valid_rx_ant;
 		for (i = 0; i < NUM_RX_CHAINS; i++)
 			if (!(data->active_chains & (1<<i)))
 				data->disconn_array[i] = 1;
@@ -1086,7 +1086,7 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 
 	iwlagn_gain_computation(
 		priv, average_noise,
-		find_first_chain(priv->eeprom_data->valid_rx_ant));
+		find_first_chain(priv->nvm_data->valid_rx_ant));
 
 	/* Some power changes may have been made during the calibration.
 	 * Update and commit the RXON

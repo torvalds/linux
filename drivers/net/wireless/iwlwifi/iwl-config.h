@@ -226,8 +226,8 @@ struct iwl_eeprom_params {
  * @max_data_size: The maximal length of the fw data section
  * @valid_tx_ant: valid transmit antenna
  * @valid_rx_ant: valid receive antenna
- * @eeprom_ver: EEPROM version
- * @eeprom_calib_ver: EEPROM calibration version
+ * @nvm_ver: NVM version
+ * @nvm_calib_ver: NVM calibration version
  * @lib: pointer to the lib ops
  * @base_params: pointer to basic parameters
  * @ht_params: point to ht patameters
@@ -257,8 +257,8 @@ struct iwl_cfg {
 	const u32 max_inst_size;
 	u8   valid_tx_ant;
 	u8   valid_rx_ant;
-	u16  eeprom_ver;
-	u16  eeprom_calib_ver;
+	u16  nvm_ver;
+	u16  nvm_calib_ver;
 	/* params not likely to change within a device family */
 	const struct iwl_base_params *base_params;
 	/* params likely to change within a device family */
