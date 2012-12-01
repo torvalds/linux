@@ -203,6 +203,24 @@ intel_gpio_setup(struct intel_gmbus *bus, u32 pin)
 }
 
 static int
+gmbus_wait_hw_status(struct drm_i915_private *dev_priv,
+		     u32 gmbus2_status)
+{
+	int ret;
+	int reg_offset = dev_priv->gpio_mmio_base;
+	u32 gmbus2;
+
+	ret = wait_for((gmbus2 = I915_READ(GMBUS2 + reg_offset)) &
+		       (GMBUS_SATOER | gmbus2_status),
+		       50);
+
+	if (gmbus2 & GMBUS_SATOER)
+		return -ENXIO;
+
+	return ret;
+}
+
+static int
 gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
 		u32 gmbus1_index)
 {
@@ -219,15 +237,10 @@ gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
 	while (len) {
 		int ret;
 		u32 val, loop = 0;
-		u32 gmbus2;
 
-		ret = wait_for((gmbus2 = I915_READ(GMBUS2 + reg_offset)) &
-			       (GMBUS_SATOER | GMBUS_HW_RDY),
-			       50);
+		ret = gmbus_wait_hw_status(dev_priv, GMBUS_HW_RDY);
 		if (ret)
-			return -ETIMEDOUT;
-		if (gmbus2 & GMBUS_SATOER)
-			return -ENXIO;
+			return ret;
 
 		val = I915_READ(GMBUS3 + reg_offset);
 		do {
@@ -261,7 +274,6 @@ gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg)
 		   GMBUS_SLAVE_WRITE | GMBUS_SW_RDY);
 	while (len) {
 		int ret;
-		u32 gmbus2;
 
 		val = loop = 0;
 		do {
@@ -270,13 +282,9 @@ gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg)
 
 		I915_WRITE(GMBUS3 + reg_offset, val);
 
-		ret = wait_for((gmbus2 = I915_READ(GMBUS2 + reg_offset)) &
-			       (GMBUS_SATOER | GMBUS_HW_RDY),
-			       50);
+		ret = gmbus_wait_hw_status(dev_priv, GMBUS_HW_RDY);
 		if (ret)
-			return -ETIMEDOUT;
-		if (gmbus2 & GMBUS_SATOER)
-			return -ENXIO;
+			return ret;
 	}
 	return 0;
 }
@@ -345,8 +353,6 @@ gmbus_xfer(struct i2c_adapter *adapter,
 	I915_WRITE(GMBUS0 + reg_offset, bus->reg0);
 
 	for (i = 0; i < num; i++) {
-		u32 gmbus2;
-
 		if (gmbus_is_index_read(msgs, i, num)) {
 			ret = gmbus_xfer_index_read(dev_priv, &msgs[i]);
 			i += 1;  /* set i to the index of the read xfer */
@@ -361,13 +367,11 @@ gmbus_xfer(struct i2c_adapter *adapter,
 		if (ret == -ENXIO)
 			goto clear_err;
 
-		ret = wait_for((gmbus2 = I915_READ(GMBUS2 + reg_offset)) &
-			       (GMBUS_SATOER | GMBUS_HW_WAIT_PHASE),
-			       50);
+		ret = gmbus_wait_hw_status(dev_priv, GMBUS_HW_WAIT_PHASE);
+		if (ret == -ENXIO)
+			goto clear_err;
 		if (ret)
 			goto timeout;
-		if (gmbus2 & GMBUS_SATOER)
-			goto clear_err;
 	}
 
 	/* Generate a STOP condition on the bus. Note that gmbus can't generata
