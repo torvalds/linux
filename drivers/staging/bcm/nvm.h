@@ -21,11 +21,6 @@
 #ifndef _NVM_H_
 #define _NVM_H_
 
-typedef struct _FLASH_SECTOR_INFO {
-	unsigned int uiSectorSig;
-	unsigned int uiSectorSize;
-} FLASH_SECTOR_INFO, *PFLASH_SECTOR_INFO;
-
 struct bcm_flash_cs_info {
 	u32 MagicNumber;
 	/* let the magic number be 0xBECE-F1A5 - F1A5 for "flas-h" */
