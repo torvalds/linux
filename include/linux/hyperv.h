@@ -882,7 +882,27 @@ struct vmbus_channel {
 
 	void (*onchannel_callback)(void *context);
 	void *channel_callback_context;
+
+	/*
+	 * A channel can be marked for efficient (batched)
+	 * reading:
+	 * If batched_reading is set to "true", we read until the
+	 * channel is empty and hold off interrupts from the host
+	 * during the entire read process.
+	 * If batched_reading is set to "false", the client is not
+	 * going to perform batched reading.
+	 *
+	 * By default we will enable batched reading; specific
+	 * drivers that don't want this behavior can turn it off.
+	 */
+
+	bool batched_reading;
 };
+
+static inline void set_channel_read_state(struct vmbus_channel *c, bool state)
+{
+	c->batched_reading = state;
+}
 
 void vmbus_onmessage(void *context);
 

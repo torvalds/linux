@@ -275,6 +275,13 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 		return;
 	}
 
+	/*
+	 * By default we setup state to enable batched
+	 * reading. A specific service can choose to
+	 * disable this prior to opening the channel.
+	 */
+	newchannel->batched_reading = true;
+
 	memcpy(&newchannel->offermsg, offer,
 	       sizeof(struct vmbus_channel_offer_channel));
 	newchannel->monitor_grp = (u8)offer->monitorid / 32;
