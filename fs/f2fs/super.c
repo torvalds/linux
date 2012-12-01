@@ -311,6 +311,8 @@ static int parse_options(struct f2fs_sb_info *sbi, char *options)
 			set_opt(sbi, DISABLE_EXT_IDENTIFY);
 			break;
 		default:
+			pr_err("Unrecognized mount option \"%s\" or missing value\n",
+					p);
 			return -EINVAL;
 		}
 	}
