@@ -277,6 +277,8 @@ work_rescheduled:
  [A1]	BNOP	.S1	work_resched,5
 
 work_notifysig:
+	;; enable interrupts for do_notify_resume()
+	UNMASK_INT B2
 	B	.S2	do_notify_resume
 	LDW	.D2T1	*+SP(REGS__END+8),A6 ; syscall flag
 	ADDKPC	.S2	resume_userspace,B3,1
@@ -427,8 +429,7 @@ ENTRY(ret_from_kernel_execve)
 ENDPROC(ret_from_kernel_execve)
 
 	;;
-	;; These are the interrupt handlers, responsible for calling __do_IRQ()
-	;; int6 is used for syscalls (see _system_call entry)
+	;; These are the interrupt handlers, responsible for calling c6x_do_IRQ()
 	;;
 	.macro SAVE_ALL_INT
 	SAVE_ALL IRP,ITSR
