@@ -673,6 +673,7 @@ typedef struct drm_i915_private {
 
 	u32 hotplug_supported_mask;
 	struct work_struct hotplug_work;
+	bool enable_hotplug_processing;
 
 	int num_pipe;
 	int num_pch_pll;
