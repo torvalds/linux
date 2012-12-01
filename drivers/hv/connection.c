@@ -212,6 +212,9 @@ static void process_chn_event(u32 relid)
 {
 	struct vmbus_channel *channel;
 	unsigned long flags;
+	void *arg;
+	bool read_state;
+	u32 bytes_to_read;
 
 	/*
 	 * Find the channel based on this relid and invokes the
@@ -234,10 +237,29 @@ static void process_chn_event(u32 relid)
 	 */
 
 	spin_lock_irqsave(&channel->inbound_lock, flags);
-	if (channel->onchannel_callback != NULL)
-		channel->onchannel_callback(channel->channel_callback_context);
-	else
+	if (channel->onchannel_callback != NULL) {
+		arg = channel->channel_callback_context;
+		read_state = channel->batched_reading;
+		/*
+		 * This callback reads the messages sent by the host.
+		 * We can optimize host to guest signaling by ensuring:
+		 * 1. While reading the channel, we disable interrupts from
+		 *    host.
+		 * 2. Ensure that we process all posted messages from the host
+		 *    before returning from this callback.
+		 * 3. Once we return, enable signaling from the host. Once this
+		 *    state is set we check to see if additional packets are
+		 *    available to read. In this case we repeat the process.
+		 */
+
+		do {
+			hv_begin_read(&channel->inbound);
+			channel->onchannel_callback(arg);
+			bytes_to_read = hv_end_read(&channel->inbound);
+		} while (read_state && (bytes_to_read != 0));
+	} else {
 		pr_err("no channel callback for relid - %u\n", relid);
+	}
 
 	spin_unlock_irqrestore(&channel->inbound_lock, flags);
 }
