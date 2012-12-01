@@ -1611,9 +1611,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	intel_opregion_init(dev);
 	acpi_video_register();
 
-	setup_timer(&dev_priv->hangcheck_timer, i915_hangcheck_elapsed,
-		    (unsigned long) dev);
-
 	if (IS_GEN5(dev))
 		intel_gpu_ips_init(dev_priv);
 
