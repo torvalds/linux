@@ -164,7 +164,6 @@ static ssize_t batadv_log_read(struct file *file, char __user *buf,
 
 		buf++;
 		i++;
-
 	}
 
 	spin_unlock_bh(&debug_log->lock);

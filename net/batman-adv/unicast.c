@@ -133,7 +133,6 @@ batadv_frag_search_packet(struct list_head *head,
 	is_head = !!(up->flags & BATADV_UNI_FRAG_HEAD);
 
 	list_for_each_entry(tfp, head, list) {
-
 		if (!tfp->skb)
 			continue;
 
@@ -162,7 +161,6 @@ void batadv_frag_list_free(struct list_head *head)
 	struct batadv_frag_packet_list_entry *pf, *tmp_pf;
 
 	if (!list_empty(head)) {
-
 		list_for_each_entry_safe(pf, tmp_pf, head, list) {
 			kfree_skb(pf->skb);
 			list_del(&pf->list);

@@ -235,7 +235,6 @@ batadv_bla_del_backbone_claims(struct batadv_backbone_gw *backbone_gw)
 		spin_lock_bh(list_lock);
 		hlist_for_each_entry_safe(claim, node, node_tmp,
 					  head, hash_entry) {
-
 			if (claim->backbone_gw != backbone_gw)
 				continue;
 
@@ -338,7 +337,6 @@ static void batadv_bla_send_claim(struct batadv_priv *bat_priv, uint8_t *mac,
 			   "bla_send_claim(): REQUEST of %pM to %pMon vid %d\n",
 			   ethhdr->h_source, ethhdr->h_dest, vid);
 		break;
-
 	}
 
 	if (vid != -1)
@@ -539,7 +537,6 @@ static void batadv_bla_send_announce(struct batadv_priv *bat_priv,
 
 	batadv_bla_send_claim(bat_priv, mac, backbone_gw->vid,
 			      BATADV_CLAIM_TYPE_ANNOUNCE);
-
 }
 
 /**
@@ -598,7 +595,6 @@ static void batadv_bla_add_claim(struct batadv_priv *bat_priv,
 
 		claim->backbone_gw->crc ^= crc16(0, claim->addr, ETH_ALEN);
 		batadv_backbone_gw_free_ref(claim->backbone_gw);
-
 	}
 	/* set (new) backbone gw */
 	atomic_inc(&backbone_gw->refcount);
