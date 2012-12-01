@@ -525,6 +525,11 @@ static void gen6_queue_rps_work(struct drm_i915_private *dev_priv,
 	queue_work(dev_priv->wq, &dev_priv->rps.work);
 }
 
+static void gmbus_irq_handler(struct drm_device *dev)
+{
+	DRM_DEBUG_DRIVER("GMBUS interrupt\n");
+}
+
 static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
@@ -590,6 +595,9 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 			I915_READ(PORT_HOTPLUG_STAT);
 		}
 
+		if (pipe_stats[0] & PIPE_GMBUS_INTERRUPT_STATUS)
+			gmbus_irq_handler(dev);
+
 		if (pm_iir & GEN6_PM_DEFERRED_EVENTS)
 			gen6_queue_rps_work(dev_priv, pm_iir);
 
@@ -616,7 +624,7 @@ static void ibx_irq_handler(struct drm_device *dev, u32 pch_iir)
 				 SDE_AUDIO_POWER_SHIFT);
 
 	if (pch_iir & SDE_GMBUS)
-		DRM_DEBUG_DRIVER("PCH GMBUS interrupt\n");
+		gmbus_irq_handler(dev);
 
 	if (pch_iir & SDE_AUDIO_HDCP_MASK)
 		DRM_DEBUG_DRIVER("PCH HDCP audio interrupt\n");
@@ -662,7 +670,7 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 		DRM_DEBUG_DRIVER("AUX channel interrupt\n");
 
 	if (pch_iir & SDE_GMBUS_CPT)
-		DRM_DEBUG_DRIVER("PCH GMBUS interrupt\n");
+		gmbus_irq_handler(dev);
 
 	if (pch_iir & SDE_AUDIO_CP_REQ_CPT)
 		DRM_DEBUG_DRIVER("Audio CP request interrupt\n");
@@ -1880,12 +1888,14 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 		hotplug_mask = (SDE_CRT_HOTPLUG_CPT |
 				SDE_PORTB_HOTPLUG_CPT |
 				SDE_PORTC_HOTPLUG_CPT |
-				SDE_PORTD_HOTPLUG_CPT);
+				SDE_PORTD_HOTPLUG_CPT |
+				SDE_GMBUS_CPT);
 	} else {
 		hotplug_mask = (SDE_CRT_HOTPLUG |
 				SDE_PORTB_HOTPLUG |
 				SDE_PORTC_HOTPLUG |
 				SDE_PORTD_HOTPLUG |
+				SDE_GMBUS |
 				SDE_AUX_MASK);
 	}
 
@@ -1945,7 +1955,8 @@ static int ivybridge_irq_postinstall(struct drm_device *dev)
 	hotplug_mask = (SDE_CRT_HOTPLUG_CPT |
 			SDE_PORTB_HOTPLUG_CPT |
 			SDE_PORTC_HOTPLUG_CPT |
-			SDE_PORTD_HOTPLUG_CPT);
+			SDE_PORTD_HOTPLUG_CPT |
+			SDE_GMBUS_CPT);
 	dev_priv->pch_irq_mask = ~hotplug_mask;
 
 	I915_WRITE(SDEIIR, I915_READ(SDEIIR));
@@ -1999,6 +2010,7 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 	POSTING_READ(VLV_IER);
 
 	i915_enable_pipestat(dev_priv, 0, pipestat_enable);
+	i915_enable_pipestat(dev_priv, 0, PIPE_GMBUS_EVENT_ENABLE);
 	i915_enable_pipestat(dev_priv, 1, pipestat_enable);
 
 	I915_WRITE(VLV_IIR, 0xffffffff);
@@ -2483,6 +2495,7 @@ static int i965_irq_postinstall(struct drm_device *dev)
 
 	dev_priv->pipestat[0] = 0;
 	dev_priv->pipestat[1] = 0;
+	i915_enable_pipestat(dev_priv, 0, PIPE_GMBUS_EVENT_ENABLE);
 
 	/*
 	 * Enable some error detection, note the instruction error mask
@@ -2635,6 +2648,9 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 
 		if (blc_event || (iir & I915_ASLE_INTERRUPT))
 			intel_opregion_asle_intr(dev);
+
+		if (pipe_stats[0] & PIPE_GMBUS_INTERRUPT_STATUS)
+			gmbus_irq_handler(dev);
 
 		/* With MSI, interrupts are only generated when iir
 		 * transitions from zero to nonzero.  If another bit got
