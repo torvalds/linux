@@ -158,7 +158,7 @@ static inline int check_lcd_param(void)
 
 /* gsensor */
 static int gs_type = DEF_GS_TYPE;
-
+module_param(gs_type, int, 0644);
 static int gs_i2c = DEF_GS_I2C;
 module_param(gs_i2c, int, 0644);
 static int gs_addr = DEF_GS_ADDR;

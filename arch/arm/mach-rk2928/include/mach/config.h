@@ -2,12 +2,12 @@
 #define __MACH_CONFIG_H
 #include <mach/board.h>
 
-#define RK2926_TB_DEFAULT_CONFIG
+//#define RK2926_TB_DEFAULT_CONFIG
 //#define RK2928_TB_DEFAULT_CONFIG
 //#define RK2926_V86_DEFAULT_CONFIG
 //#define RK2926_SDK_DEFAULT_CONFIG
 //#define RK2928_SDK_DEFAULT_CONFIG
-//#define RK2928_PHONEPAD_DEFAULT_CONFIG
+#define RK2928_PHONEPAD_DEFAULT_CONFIG
 
 
 /* camera id */
@@ -901,13 +901,13 @@ enum {
 /* keyboard */
 enum{
         DEF_KEY_ADC = -1,
-        DEF_PLAY_KEY = -1,
-        DEF_VOLDN_KEY = -1,
-        DEF_VOLUP_KEY = 0,
-        DEF_MENU_KEY = 0,
-        DEF_ESC_KEY = 0,
-        DEF_HOME_KEY = 0,
-        DEF_CAM_KEY = 0,
+        DEF_PLAY_KEY = 0x80000000,
+        DEF_VOLDN_KEY = 0x80000000,
+        DEF_VOLUP_KEY = 0x80000000,
+        DEF_MENU_KEY = 0x80000000,
+        DEF_ESC_KEY = 0x80000000,
+        DEF_HOME_KEY = 0x80000000,
+        DEF_CAM_KEY = 0x80000000,
 };
 /* backlight */
 enum{
