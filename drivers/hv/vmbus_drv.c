@@ -592,8 +592,6 @@ int __vmbus_driver_register(struct hv_driver *hv_driver, struct module *owner, c
 
 	ret = driver_register(&hv_driver->driver);
 
-	vmbus_request_offers();
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__vmbus_driver_register);
