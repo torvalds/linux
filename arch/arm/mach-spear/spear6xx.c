@@ -24,8 +24,8 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <plat/pl080.h>
-#include <mach/generic.h>
+#include "pl080.h"
+#include "generic.h"
 #include <mach/spear.h>
 
 /* dmac device registration */

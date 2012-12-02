@@ -17,7 +17,7 @@
 #include <linux/irqchip.h>
 #include <linux/of_platform.h>
 #include <asm/mach/arch.h>
-#include <mach/generic.h>
+#include "generic.h"
 #include <mach/spear.h>
 
 /* DMAC platform data's slave info */

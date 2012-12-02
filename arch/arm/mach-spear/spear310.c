@@ -18,7 +18,7 @@
 #include <linux/irqchip.h>
 #include <linux/of_platform.h>
 #include <asm/mach/arch.h>
-#include <mach/generic.h>
+#include "generic.h"
 #include <mach/spear.h>
 
 #define SPEAR310_UART1_BASE		UL(0xB2000000)

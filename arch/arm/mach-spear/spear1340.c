@@ -20,7 +20,7 @@
 #include <linux/of_platform.h>
 #include <linux/irqchip.h>
 #include <asm/mach/arch.h>
-#include <mach/generic.h>
+#include "generic.h"
 #include <mach/spear.h>
 
 #include "spear13xx-dma.h"

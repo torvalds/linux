@@ -19,7 +19,7 @@
 #include <asm/cacheflush.h>
 #include <asm/smp_scu.h>
 #include <mach/spear.h>
-#include <mach/generic.h>
+#include "generic.h"
 
 static DEFINE_SPINLOCK(boot_lock);
 

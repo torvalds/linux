@@ -23,7 +23,7 @@
 #include <linux/time.h>
 #include <linux/irq.h>
 #include <asm/mach/time.h>
-#include <mach/generic.h>
+#include "generic.h"
 
 /*
  * We would use TIMER0 and TIMER1 as clockevent and clocksource.

@@ -19,7 +19,7 @@
 #include <linux/pata_arasan_cf_data.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <mach/generic.h>
+#include "generic.h"
 #include <mach/spear.h>
 
 /* Base addresses */

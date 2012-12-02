@@ -21,7 +21,7 @@
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/map.h>
 #include <asm/smp_twd.h>
-#include <mach/generic.h>
+#include "generic.h"
 #include <mach/spear.h>
 
 #include "spear13xx-dma.h"

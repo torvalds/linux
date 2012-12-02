@@ -14,7 +14,7 @@
 #include <linux/amba/sp810.h>
 #include <asm/system_misc.h>
 #include <mach/spear.h>
-#include <mach/generic.h>
+#include "generic.h"
 
 #define SPEAR13XX_SYS_SW_RES			(VA_MISC_BASE + 0x204)
 void spear_restart(char mode, const char *cmd)

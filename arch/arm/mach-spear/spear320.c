@@ -20,7 +20,7 @@
 #include <linux/of_platform.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <mach/generic.h>
+#include "generic.h"
 #include <mach/spear.h>
 
 #define SPEAR320_UART1_BASE		UL(0xA3000000)
