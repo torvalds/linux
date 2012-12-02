@@ -392,7 +392,7 @@ __SYSCALL(367, sys_fanotify_init)
 __SYSCALL(368, compat_sys_fanotify_mark_wrapper)
 __SYSCALL(369, sys_prlimit64)
 __SYSCALL(370, sys_name_to_handle_at)
-__SYSCALL(371, sys_open_by_handle_at)
+__SYSCALL(371, compat_sys_open_by_handle_at)
 __SYSCALL(372, sys_clock_adjtime)
 __SYSCALL(373, sys_syncfs)
 
