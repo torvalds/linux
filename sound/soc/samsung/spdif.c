@@ -397,7 +397,7 @@ static __devinit int spdif_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto err0;
 	}
-	clk_enable(spdif->pclk);
+	clk_prepare_enable(spdif->pclk);
 
 	spdif->sclk = clk_get(&pdev->dev, "sclk_spdif");
 	if (IS_ERR(spdif->sclk)) {
@@ -405,7 +405,7 @@ static __devinit int spdif_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto err1;
 	}
-	clk_enable(spdif->sclk);
+	clk_prepare_enable(spdif->sclk);
 
 	/* Request S/PDIF Register's memory region */
 	if (!request_mem_region(mem_res->start,
@@ -444,10 +444,10 @@ err4:
 err3:
 	release_mem_region(mem_res->start, resource_size(mem_res));
 err2:
-	clk_disable(spdif->sclk);
+	clk_disable_unprepare(spdif->sclk);
 	clk_put(spdif->sclk);
 err1:
-	clk_disable(spdif->pclk);
+	clk_disable_unprepare(spdif->pclk);
 	clk_put(spdif->pclk);
 err0:
 	return ret;
@@ -466,9 +466,9 @@ static __devexit int spdif_remove(struct platform_device *pdev)
 	if (mem_res)
 		release_mem_region(mem_res->start, resource_size(mem_res));
 
-	clk_disable(spdif->sclk);
+	clk_disable_unprepare(spdif->sclk);
 	clk_put(spdif->sclk);
-	clk_disable(spdif->pclk);
+	clk_disable_unprepare(spdif->pclk);
 	clk_put(spdif->pclk);
 
 	return 0;
