@@ -1104,7 +1104,7 @@ source "arch/arm/plat-samsung/Kconfig"
 
 source "arch/arm/mach-socfpga/Kconfig"
 
-source "arch/arm/plat-spear/Kconfig"
+source "arch/arm/mach-spear/Kconfig"
 
 source "arch/arm/mach-s3c24xx/Kconfig"
 
