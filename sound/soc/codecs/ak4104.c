@@ -15,6 +15,8 @@
 #include <sound/soc.h>
 #include <sound/initval.h>
 #include <linux/spi/spi.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <sound/asoundef.h>
 
 /* AK4104 registers addresses */
@@ -98,14 +100,32 @@ static int ak4104_hw_params(struct snd_pcm_substream *substream,
 	val = 0;
 
 	switch (params_rate(params)) {
+	case 22050:
+		val |= IEC958_AES3_CON_FS_22050;
+		break;
+	case 24000:
+		val |= IEC958_AES3_CON_FS_24000;
+		break;
+	case 32000:
+		val |= IEC958_AES3_CON_FS_32000;
+		break;
 	case 44100:
 		val |= IEC958_AES3_CON_FS_44100;
 		break;
 	case 48000:
 		val |= IEC958_AES3_CON_FS_48000;
 		break;
-	case 32000:
-		val |= IEC958_AES3_CON_FS_32000;
+	case 88200:
+		val |= IEC958_AES3_CON_FS_88200;
+		break;
+	case 96000:
+		val |= IEC958_AES3_CON_FS_96000;
+		break;
+	case 176400:
+		val |= IEC958_AES3_CON_FS_176400;
+		break;
+	case 192000:
+		val |= IEC958_AES3_CON_FS_192000;
 		break;
 	default:
 		dev_err(codec->dev, "unsupported sampling rate\n");
@@ -186,6 +206,7 @@ static const struct regmap_config ak4104_regmap = {
 
 static int ak4104_spi_probe(struct spi_device *spi)
 {
+	struct device_node *np = spi->dev.of_node;
 	struct ak4104_private *ak4104;
 	unsigned int val;
 	int ret;
@@ -201,10 +222,24 @@ static int ak4104_spi_probe(struct spi_device *spi)
 	if (ak4104 == NULL)
 		return -ENOMEM;
 
-	ak4104->regmap = regmap_init_spi(spi, &ak4104_regmap);
+	ak4104->regmap = devm_regmap_init_spi(spi, &ak4104_regmap);
 	if (IS_ERR(ak4104->regmap)) {
 		ret = PTR_ERR(ak4104->regmap);
 		return ret;
+	}
+
+	if (np) {
+		enum of_gpio_flags flags;
+		int gpio = of_get_named_gpio_flags(np, "reset-gpio", 0, &flags);
+
+		if (gpio_is_valid(gpio)) {
+			ret = devm_gpio_request_one(&spi->dev, gpio,
+				     flags & OF_GPIO_ACTIVE_LOW ?
+					GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH,
+				     "ak4104 reset");
+			if (ret < 0)
+				return ret;
+		}
 	}
 
 	/* read the 'reserved' register - according to the datasheet, it
@@ -212,38 +247,34 @@ static int ak4104_spi_probe(struct spi_device *spi)
 	 * the device, but there is no hardware ID register. */
 	ret = regmap_read(ak4104->regmap, AK4104_REG_RESERVED, &val);
 	if (ret != 0)
-		goto err;
-	if (val != AK4104_RESERVED_VAL) {
-		ret = -ENODEV;
-		goto err;
-	}
+		return ret;
+	if (val != AK4104_RESERVED_VAL)
+		return -ENODEV;
 
 	spi_set_drvdata(spi, ak4104);
 
 	ret = snd_soc_register_codec(&spi->dev,
 			&soc_codec_device_ak4104, &ak4104_dai, 1);
-	if (ret != 0)
-		goto err;
-
-	return 0;
-
-err:
-	regmap_exit(ak4104->regmap);
 	return ret;
 }
 
 static int __devexit ak4104_spi_remove(struct spi_device *spi)
 {
-	struct ak4104_private *ak4101 = spi_get_drvdata(spi);
-	regmap_exit(ak4101->regmap);
 	snd_soc_unregister_codec(&spi->dev);
 	return 0;
 }
+
+static const struct of_device_id ak4104_of_match[] = {
+	{ .compatible = "asahi-kasei,ak4104", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ak4104_of_match);
 
 static struct spi_driver ak4104_spi_driver = {
 	.driver  = {
 		.name   = DRV_NAME,
 		.owner  = THIS_MODULE,
+		.of_match_table = ak4104_of_match,
 	},
 	.probe  = ak4104_spi_probe,
 	.remove = __devexit_p(ak4104_spi_remove),
