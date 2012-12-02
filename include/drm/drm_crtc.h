@@ -390,6 +390,15 @@ struct drm_crtc {
 	struct drm_device *dev;
 	struct list_head head;
 
+	/**
+	 * crtc mutex
+	 *
+	 * This provides a read lock for the overall crtc state (mode, dpms
+	 * state, ...) and a write lock for everything which can be update
+	 * without a full modeset (fb, cursor data, ...)
+	 */
+	struct mutex mutex;
+
 	struct drm_mode_object base;
 
 	/* framebuffer the connector is currently bound to */

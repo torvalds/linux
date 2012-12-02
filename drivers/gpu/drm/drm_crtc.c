@@ -46,7 +46,12 @@
  */
 void drm_modeset_lock_all(struct drm_device *dev)
 {
+	struct drm_crtc *crtc;
+
 	mutex_lock(&dev->mode_config.mutex);
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+		mutex_lock_nest_lock(&crtc->mutex, &dev->mode_config.mutex);
 }
 EXPORT_SYMBOL(drm_modeset_lock_all);
 
@@ -56,6 +61,11 @@ EXPORT_SYMBOL(drm_modeset_lock_all);
  */
 void drm_modeset_unlock_all(struct drm_device *dev)
 {
+	struct drm_crtc *crtc;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+		mutex_unlock(&crtc->mutex);
+
 	mutex_unlock(&dev->mode_config.mutex);
 }
 EXPORT_SYMBOL(drm_modeset_unlock_all);
@@ -449,6 +459,8 @@ int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 	crtc->invert_dimensions = false;
 
 	drm_modeset_lock_all(dev);
+	mutex_init(&crtc->mutex);
+	mutex_lock_nest_lock(&crtc->mutex, &dev->mode_config.mutex);
 
 	ret = drm_mode_object_get(dev, &crtc->base, DRM_MODE_OBJECT_CRTC);
 	if (ret)
