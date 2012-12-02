@@ -144,7 +144,7 @@ u32 bnx2x_fw_command(struct bnx2x *bp, u32 command, u32 param);
  * @bp:		driver handle
  * @load_mode:	current mode
  */
-u8 bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode);
+int bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode);
 
 /**
  * bnx2x_link_set - configure hw according to link parameters structure.

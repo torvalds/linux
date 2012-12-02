@@ -2103,22 +2103,25 @@ void bnx2x_calc_fc_adv(struct bnx2x *bp)
 	}
 }
 
-u8 bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
+static void bnx2x_set_requested_fc(struct bnx2x *bp)
 {
-	if (!BP_NOMCP(bp)) {
-		u8 rc;
-		int cfx_idx = bnx2x_get_link_cfg_idx(bp);
-		u16 req_line_speed = bp->link_params.req_line_speed[cfx_idx];
-		/*
-		 * Initialize link parameters structure variables
-		 * It is recommended to turn off RX FC for jumbo frames
-		 * for better performance
-		 */
-		if (CHIP_IS_E1x(bp) && (bp->dev->mtu > 5000))
-			bp->link_params.req_fc_auto_adv = BNX2X_FLOW_CTRL_TX;
-		else
-			bp->link_params.req_fc_auto_adv = BNX2X_FLOW_CTRL_BOTH;
+	/* Initialize link parameters structure variables
+	 * It is recommended to turn off RX FC for jumbo frames
+	 *  for better performance
+	 */
+	if (CHIP_IS_E1x(bp) && (bp->dev->mtu > 5000))
+		bp->link_params.req_fc_auto_adv = BNX2X_FLOW_CTRL_TX;
+	else
+		bp->link_params.req_fc_auto_adv = BNX2X_FLOW_CTRL_BOTH;
+}
 
+int bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
+{
+	int rc, cfx_idx = bnx2x_get_link_cfg_idx(bp);
+	u16 req_line_speed = bp->link_params.req_line_speed[cfx_idx];
+
+	if (!BP_NOMCP(bp)) {
+		bnx2x_set_requested_fc(bp);
 		bnx2x_acquire_phy_lock(bp);
 
 		if (load_mode == LOAD_DIAG) {
@@ -2147,11 +2150,11 @@ u8 bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
 
 		bnx2x_calc_fc_adv(bp);
 
-		if (CHIP_REV_IS_SLOW(bp) && bp->link_vars.link_up) {
+		if (bp->link_vars.link_up) {
 			bnx2x_stats_handle(bp, STATS_EVENT_LINK_UP);
 			bnx2x_link_report(bp);
-		} else
-			queue_delayed_work(bnx2x_wq, &bp->period_task, 0);
+		}
+		queue_delayed_work(bnx2x_wq, &bp->period_task, 0);
 		bp->link_params.req_line_speed[cfx_idx] = req_line_speed;
 		return rc;
 	}
@@ -10315,11 +10318,13 @@ static void __devinit bnx2x_link_settings_requested(struct bnx2x *bp)
 
 		bp->link_params.req_flow_ctrl[idx] = (link_config &
 					 PORT_FEATURE_FLOW_CONTROL_MASK);
-		if ((bp->link_params.req_flow_ctrl[idx] ==
-		     BNX2X_FLOW_CTRL_AUTO) &&
-		    !(bp->port.supported[idx] & SUPPORTED_Autoneg)) {
-			bp->link_params.req_flow_ctrl[idx] =
-				BNX2X_FLOW_CTRL_NONE;
+		if (bp->link_params.req_flow_ctrl[idx] ==
+		    BNX2X_FLOW_CTRL_AUTO) {
+			if (!(bp->port.supported[idx] & SUPPORTED_Autoneg))
+				bp->link_params.req_flow_ctrl[idx] =
+							BNX2X_FLOW_CTRL_NONE;
+			else
+				bnx2x_set_requested_fc(bp);
 		}
 
 		BNX2X_DEV_INFO("req_line_speed %d  req_duplex %d req_flow_ctrl 0x%x advertising 0x%x\n",
