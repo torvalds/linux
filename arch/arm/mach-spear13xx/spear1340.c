@@ -20,9 +20,10 @@
 #include <linux/of_platform.h>
 #include <linux/irqchip.h>
 #include <asm/mach/arch.h>
-#include <mach/dma.h>
 #include <mach/generic.h>
 #include <mach/spear.h>
+
+#include "spear13xx-dma.h"
 
 /* Base addresses */
 #define SPEAR1340_SATA_BASE			UL(0xB1000000)
