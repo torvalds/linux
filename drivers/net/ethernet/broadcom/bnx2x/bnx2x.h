@@ -1488,7 +1488,7 @@ struct bnx2x {
 
 	int			qm_cid_count;
 
-	int			dropless_fc;
+	bool			dropless_fc;
 
 	void			*t2;
 	dma_addr_t		t2_mapping;

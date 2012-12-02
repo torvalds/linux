@@ -500,7 +500,15 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 	u32 e3_cmn_pin_cfg1;				    /* 0x170 */
 	#define PORT_HW_CFG_E3_OVER_CURRENT_MASK            0x000000FF
 	#define PORT_HW_CFG_E3_OVER_CURRENT_SHIFT                    0
-	u32 reserved0[7];				    /* 0x174 */
+
+	/*  pause on host ring */
+	u32 generic_features;                               /* 0x174 */
+	#define PORT_HW_CFG_PAUSE_ON_HOST_RING_MASK                   0x00000001
+	#define PORT_HW_CFG_PAUSE_ON_HOST_RING_SHIFT                  0
+	#define PORT_HW_CFG_PAUSE_ON_HOST_RING_DISABLED               0x00000000
+	#define PORT_HW_CFG_PAUSE_ON_HOST_RING_ENABLED                0x00000001
+
+	u32 reserved0[6];				    /* 0x178 */
 
 	u32 aeu_int_mask;				    /* 0x190 */
 
@@ -1518,12 +1526,13 @@ enum mf_cfg_afex_vlan_mode {
 /* This structure is not applicable and should not be accessed on 57711 */
 struct func_ext_cfg {
 	u32 func_cfg;
-	#define MACP_FUNC_CFG_FLAGS_MASK                0x000000FF
+	#define MACP_FUNC_CFG_FLAGS_MASK                0x0000007F
 	#define MACP_FUNC_CFG_FLAGS_SHIFT               0
 	#define MACP_FUNC_CFG_FLAGS_ENABLED             0x00000001
 	#define MACP_FUNC_CFG_FLAGS_ETHERNET            0x00000002
 	#define MACP_FUNC_CFG_FLAGS_ISCSI_OFFLOAD       0x00000004
 	#define MACP_FUNC_CFG_FLAGS_FCOE_OFFLOAD        0x00000008
+	#define MACP_FUNC_CFG_PAUSE_ON_HOST_RING        0x00000080
 
 	u32 iscsi_mac_addr_upper;
 	u32 iscsi_mac_addr_lower;

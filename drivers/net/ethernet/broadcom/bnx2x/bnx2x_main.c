@@ -10641,8 +10641,26 @@ static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 			"bad Ethernet MAC address configuration: %pM\n"
 			"change it manually before bringing up the appropriate network interface\n",
 			bp->dev->dev_addr);
+}
 
+static bool __devinit bnx2x_get_dropless_info(struct bnx2x *bp)
+{
+	int tmp;
+	u32 cfg;
 
+	if (IS_MF(bp) && !CHIP_IS_E1x(bp)) {
+		/* Take function: tmp = func */
+		tmp = BP_ABS_FUNC(bp);
+		cfg = MF_CFG_RD(bp, func_ext_config[tmp].func_cfg);
+		cfg = !!(cfg & MACP_FUNC_CFG_PAUSE_ON_HOST_RING);
+	} else {
+		/* Take port: tmp = port */
+		tmp = BP_PORT(bp);
+		cfg = SHMEM_RD(bp,
+			       dev_info.port_hw_config[tmp].generic_features);
+		cfg = !!(cfg & PORT_HW_CFG_PAUSE_ON_HOST_RING_ENABLED);
+	}
+	return cfg;
 }
 
 static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
@@ -11063,7 +11081,7 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 	if (CHIP_IS_E1(bp))
 		bp->dropless_fc = 0;
 	else
-		bp->dropless_fc = dropless_fc;
+		bp->dropless_fc = dropless_fc | bnx2x_get_dropless_info(bp);
 
 	bp->mrrs = mrrs;
 
