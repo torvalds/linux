@@ -264,9 +264,22 @@ int vmw_du_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	du->cursor_x = x + crtc->x;
 	du->cursor_y = y + crtc->y;
 
+	/*
+	 * FIXME: Unclear whether there's any global state touched by the
+	 * cursor_set function, especially vmw_cursor_update_position looks
+	 * suspicious. For now take the easy route and reacquire all locks. We
+	 * can do this since the caller in the drm core doesn't check anything
+	 * which is protected by any looks.
+	 */
+	mutex_unlock(&crtc->mutex);
+	drm_modeset_lock_all(dev_priv->dev);
+
 	vmw_cursor_update_position(dev_priv, shown,
 				   du->cursor_x + du->hotspot_x,
 				   du->cursor_y + du->hotspot_y);
+
+	drm_modeset_unlock_all(dev_priv->dev);
+	mutex_lock(&crtc->mutex);
 
 	return 0;
 }
