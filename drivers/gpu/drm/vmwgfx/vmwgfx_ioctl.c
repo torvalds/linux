@@ -131,7 +131,7 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	struct drm_vmw_rect __user *clips_ptr;
 	struct drm_vmw_rect *clips = NULL;
-	struct drm_mode_object *obj;
+	struct drm_framebuffer *fb;
 	struct vmw_framebuffer *vfb;
 	struct vmw_resource *res;
 	uint32_t num_clips;
@@ -165,15 +165,15 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 
 	drm_modeset_lock_all(dev);
 
-	mutex_lock(&dev->mode_config.fb_lock);
-	obj = drm_mode_object_find(dev, arg->fb_id, DRM_MODE_OBJECT_FB);
-	mutex_unlock(&dev->mode_config.fb_lock);
-	if (!obj) {
+	fb = drm_framebuffer_lookup(dev, arg->fb_id);
+	if (!fb) {
 		DRM_ERROR("Invalid framebuffer id.\n");
 		ret = -EINVAL;
 		goto out_no_fb;
 	}
-	vfb = vmw_framebuffer_to_vfb(obj_to_fb(obj));
+	/* fb is protect by the mode_config lock, so drop the ref immediately */
+	drm_framebuffer_unreference(fb);
+	vfb = vmw_framebuffer_to_vfb(fb);
 
 	ret = ttm_read_lock(&vmaster->lock, true);
 	if (unlikely(ret != 0))
@@ -217,7 +217,7 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	struct drm_vmw_rect __user *clips_ptr;
 	struct drm_vmw_rect *clips = NULL;
-	struct drm_mode_object *obj;
+	struct drm_framebuffer *fb;
 	struct vmw_framebuffer *vfb;
 	uint32_t num_clips;
 	int ret;
@@ -250,16 +250,16 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 
 	drm_modeset_lock_all(dev);
 
-	mutex_lock(&dev->mode_config.fb_lock);
-	obj = drm_mode_object_find(dev, arg->fb_id, DRM_MODE_OBJECT_FB);
-	mutex_unlock(&dev->mode_config.fb_lock);
-	if (!obj) {
+	fb = drm_framebuffer_lookup(dev, arg->fb_id);
+	if (!fb) {
 		DRM_ERROR("Invalid framebuffer id.\n");
 		ret = -EINVAL;
 		goto out_no_fb;
 	}
+	/* fb is protect by the mode_config lock, so drop the ref immediately */
+	drm_framebuffer_unreference(fb);
 
-	vfb = vmw_framebuffer_to_vfb(obj_to_fb(obj));
+	vfb = vmw_framebuffer_to_vfb(fb);
 	if (!vfb->dmabuf) {
 		DRM_ERROR("Framebuffer not dmabuf backed.\n");
 		ret = -EINVAL;

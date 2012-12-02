@@ -294,10 +294,23 @@ static void drm_mode_object_put(struct drm_device *dev,
 	mutex_unlock(&dev->mode_config.idr_mutex);
 }
 
+/**
+ * drm_mode_object_find - look up a drm object with static lifetime
+ * @dev: drm device
+ * @id: id of the mode object
+ * @type: type of the mode object
+ *
+ * Note that framebuffers cannot be looked up with this functions - since those
+ * are reference counted, they need special treatment.
+ */
 struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 		uint32_t id, uint32_t type)
 {
 	struct drm_mode_object *obj = NULL;
+
+	/* Framebuffers are reference counted and need their own lookup
+	 * function.*/
+	WARN_ON(type == DRM_MODE_OBJECT_FB);
 
 	mutex_lock(&dev->mode_config.idr_mutex);
 	obj = idr_find(&dev->mode_config.crtc_idr, id);
@@ -357,6 +370,40 @@ static void drm_framebuffer_free(struct kref *kref)
 			container_of(kref, struct drm_framebuffer, refcount);
 	fb->funcs->destroy(fb);
 }
+
+/**
+ * drm_framebuffer_lookup - look up a drm framebuffer and grab a reference
+ * @dev: drm device
+ * @id: id of the fb object
+ *
+ * If successful, this grabs an additional reference to the framebuffer -
+ * callers need to make sure to eventually unreference the returned framebuffer
+ * again.
+ */
+struct drm_framebuffer *drm_framebuffer_lookup(struct drm_device *dev,
+					       uint32_t id)
+{
+	struct drm_mode_object *obj = NULL;
+	struct drm_framebuffer *fb;
+
+	mutex_lock(&dev->mode_config.fb_lock);
+
+	mutex_lock(&dev->mode_config.idr_mutex);
+	obj = idr_find(&dev->mode_config.crtc_idr, id);
+	if (!obj || (obj->type != DRM_MODE_OBJECT_FB) || (obj->id != id))
+		fb = NULL;
+	else
+		fb = obj_to_fb(obj);
+	mutex_unlock(&dev->mode_config.idr_mutex);
+
+	if (fb)
+		kref_get(&fb->refcount);
+
+	mutex_unlock(&dev->mode_config.fb_lock);
+
+	return fb;
+}
+EXPORT_SYMBOL(drm_framebuffer_lookup);
 
 /**
  * drm_framebuffer_unreference - unref a framebuffer
@@ -1788,17 +1835,15 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	}
 	crtc = obj_to_crtc(obj);
 
-	mutex_lock(&dev->mode_config.fb_lock);
-	obj = drm_mode_object_find(dev, plane_req->fb_id,
-				   DRM_MODE_OBJECT_FB);
-	mutex_unlock(&dev->mode_config.fb_lock);
-	if (!obj) {
+	fb = drm_framebuffer_lookup(dev, plane_req->fb_id);
+	if (!fb) {
 		DRM_DEBUG_KMS("Unknown framebuffer ID %d\n",
 			      plane_req->fb_id);
 		ret = -ENOENT;
 		goto out;
 	}
-	fb = obj_to_fb(obj);
+	/* fb is protect by the mode_config lock, so drop the ref immediately */
+	drm_framebuffer_unreference(fb);
 
 	/* Check whether this plane supports the fb pixel format. */
 	for (i = 0; i < plane->format_count; i++)
@@ -1933,17 +1978,16 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			}
 			fb = crtc->fb;
 		} else {
-			mutex_lock(&dev->mode_config.fb_lock);
-			obj = drm_mode_object_find(dev, crtc_req->fb_id,
-						   DRM_MODE_OBJECT_FB);
-			mutex_unlock(&dev->mode_config.fb_lock);
-			if (!obj) {
+			fb = drm_framebuffer_lookup(dev, crtc_req->fb_id);
+			if (!fb) {
 				DRM_DEBUG_KMS("Unknown FB ID%d\n",
 						crtc_req->fb_id);
 				ret = -EINVAL;
 				goto out;
 			}
-			fb = obj_to_fb(obj);
+			/* fb is protect by the mode_config lock, so drop the
+			 * ref immediately */
+			drm_framebuffer_unreference(fb);
 		}
 
 		mode = drm_mode_create(dev);
@@ -2392,7 +2436,6 @@ int drm_mode_addfb2(struct drm_device *dev,
 int drm_mode_rmfb(struct drm_device *dev,
 		   void *data, struct drm_file *file_priv)
 {
-	struct drm_mode_object *obj;
 	struct drm_framebuffer *fb = NULL;
 	struct drm_framebuffer *fbl = NULL;
 	uint32_t *id = data;
@@ -2403,16 +2446,13 @@ int drm_mode_rmfb(struct drm_device *dev,
 		return -EINVAL;
 
 	drm_modeset_lock_all(dev);
-	mutex_lock(&dev->mode_config.fb_lock);
-	obj = drm_mode_object_find(dev, *id, DRM_MODE_OBJECT_FB);
-	/* TODO check that we really get a framebuffer back. */
-	if (!obj) {
-		mutex_unlock(&dev->mode_config.fb_lock);
+	fb = drm_framebuffer_lookup(dev, *id);
+	if (!fb) {
 		ret = -EINVAL;
 		goto out;
 	}
-	fb = obj_to_fb(obj);
-	mutex_unlock(&dev->mode_config.fb_lock);
+	/* fb is protect by the mode_config lock, so drop the ref immediately */
+	drm_framebuffer_unreference(fb);
 
 	mutex_lock(&file_priv->fbs_lock);
 	list_for_each_entry(fbl, &file_priv->fbs, filp_head)
@@ -2451,7 +2491,6 @@ int drm_mode_getfb(struct drm_device *dev,
 		   void *data, struct drm_file *file_priv)
 {
 	struct drm_mode_fb_cmd *r = data;
-	struct drm_mode_object *obj;
 	struct drm_framebuffer *fb;
 	int ret = 0;
 
@@ -2459,14 +2498,13 @@ int drm_mode_getfb(struct drm_device *dev,
 		return -EINVAL;
 
 	drm_modeset_lock_all(dev);
-	mutex_lock(&dev->mode_config.fb_lock);
-	obj = drm_mode_object_find(dev, r->fb_id, DRM_MODE_OBJECT_FB);
-	mutex_unlock(&dev->mode_config.fb_lock);
-	if (!obj) {
+	fb = drm_framebuffer_lookup(dev, r->fb_id);
+	if (!fb) {
 		ret = -EINVAL;
 		goto out;
 	}
-	fb = obj_to_fb(obj);
+	/* fb is protect by the mode_config lock, so drop the ref immediately */
+	drm_framebuffer_unreference(fb);
 
 	r->height = fb->height;
 	r->width = fb->width;
@@ -2489,7 +2527,6 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 	struct drm_clip_rect __user *clips_ptr;
 	struct drm_clip_rect *clips = NULL;
 	struct drm_mode_fb_dirty_cmd *r = data;
-	struct drm_mode_object *obj;
 	struct drm_framebuffer *fb;
 	unsigned flags;
 	int num_clips;
@@ -2499,14 +2536,13 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 		return -EINVAL;
 
 	drm_modeset_lock_all(dev);
-	mutex_lock(&dev->mode_config.fb_lock);
-	obj = drm_mode_object_find(dev, r->fb_id, DRM_MODE_OBJECT_FB);
-	mutex_unlock(&dev->mode_config.fb_lock);
-	if (!obj) {
+	fb = drm_framebuffer_lookup(dev, r->fb_id);
+	if (!fb) {
 		ret = -EINVAL;
 		goto out_err1;
 	}
-	fb = obj_to_fb(obj);
+	/* fb is protect by the mode_config lock, so drop the ref immediately */
+	drm_framebuffer_unreference(fb);
 
 	num_clips = r->num_clips;
 	clips_ptr = (struct drm_clip_rect __user *)(unsigned long)r->clips_ptr;
@@ -3586,12 +3622,11 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	if (crtc->funcs->page_flip == NULL)
 		goto out;
 
-	mutex_lock(&dev->mode_config.fb_lock);
-	obj = drm_mode_object_find(dev, page_flip->fb_id, DRM_MODE_OBJECT_FB);
-	mutex_unlock(&dev->mode_config.fb_lock);
-	if (!obj)
+	fb = drm_framebuffer_lookup(dev, page_flip->fb_id);
+	if (!fb)
 		goto out;
-	fb = obj_to_fb(obj);
+	/* fb is protect by the mode_config lock, so drop the ref immediately */
+	drm_framebuffer_unreference(fb);
 
 	hdisplay = crtc->mode.hdisplay;
 	vdisplay = crtc->mode.vdisplay;
