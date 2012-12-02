@@ -1382,7 +1382,7 @@ static int rt5631_hifi_pcm_params(struct snd_pcm_substream *substream,
 					timesofbclk);
 	if (coeff < 0) {
 		dev_err(codec->dev, "Fail to get coeff\n");
-		return -EINVAL;
+		return coeff;
 	}
 
 	switch (params_format(params)) {
