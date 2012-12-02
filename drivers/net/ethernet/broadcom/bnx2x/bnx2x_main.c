@@ -11570,6 +11570,14 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 		goto err_out_disable;
 	}
 
+	pci_read_config_dword(pdev, PCICFG_REVISION_ID_OFFSET, &pci_cfg_dword);
+	if ((pci_cfg_dword & PCICFG_REVESION_ID_MASK) ==
+	    PCICFG_REVESION_ID_ERROR_VAL) {
+		pr_err("PCI device error, probably due to fan failure, aborting\n");
+		rc = -ENODEV;
+		goto err_out_disable;
+	}
+
 	if (atomic_read(&pdev->enable_cnt) == 1) {
 		rc = pci_request_regions(pdev, DRV_MODULE_NAME);
 		if (rc) {
