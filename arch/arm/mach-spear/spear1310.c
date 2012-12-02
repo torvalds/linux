@@ -30,8 +30,6 @@
 
 #define SPEAR1310_RAS_GRP1_BASE			UL(0xD8000000)
 #define VA_SPEAR1310_RAS_GRP1_BASE		UL(0xFA000000)
-#define SPEAR1310_RAS_BASE			UL(0xD8400000)
-#define VA_SPEAR1310_RAS_BASE			IOMEM(UL(0xFA400000))
 
 static struct arasan_cf_pdata cf_pdata = {
 	.cf_if_clk = CF_IF_CLK_166M,

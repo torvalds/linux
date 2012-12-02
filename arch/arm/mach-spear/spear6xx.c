@@ -27,6 +27,7 @@
 #include "pl080.h"
 #include "generic.h"
 #include <mach/spear.h>
+#include <mach/misc_regs.h>
 
 /* dmac device registration */
 static struct pl08x_channel_data spear600_dma_info[] = {
@@ -350,17 +351,17 @@ struct pl08x_platform_data pl080_plat_data = {
  */
 struct map_desc spear6xx_io_desc[] __initdata = {
 	{
-		.virtual	= VA_SPEAR6XX_ML_CPU_BASE,
+		.virtual	= (unsigned long)VA_SPEAR6XX_ML_CPU_BASE,
 		.pfn		= __phys_to_pfn(SPEAR_ICM3_ML1_2_BASE),
 		.length		= 2 * SZ_16M,
 		.type		= MT_DEVICE
 	},	{
-		.virtual	= VA_SPEAR_ICM1_2_BASE,
+		.virtual	= (unsigned long)VA_SPEAR_ICM1_2_BASE,
 		.pfn		= __phys_to_pfn(SPEAR_ICM1_2_BASE),
 		.length		= SZ_16M,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= VA_SPEAR_ICM3_SMI_CTRL_BASE,
+		.virtual	= (unsigned long)VA_SPEAR_ICM3_SMI_CTRL_BASE,
 		.pfn		= __phys_to_pfn(SPEAR_ICM3_SMI_CTRL_BASE),
 		.length		= SZ_16M,
 		.type		= MT_DEVICE
@@ -378,7 +379,7 @@ void __init spear6xx_timer_init(void)
 	char pclk_name[] = "pll3_clk";
 	struct clk *gpt_clk, *pclk;
 
-	spear6xx_clk_init();
+	spear6xx_clk_init(MISC_BASE);
 
 	/* get the system timer clock */
 	gpt_clk = clk_get_sys("gpt0", NULL);

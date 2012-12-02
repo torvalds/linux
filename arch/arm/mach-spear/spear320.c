@@ -254,7 +254,7 @@ static const char * const spear320_dt_board_compat[] = {
 
 struct map_desc spear320_io_desc[] __initdata = {
 	{
-		.virtual	= VA_SPEAR320_SOC_CONFIG_BASE,
+		.virtual	= (unsigned long)VA_SPEAR320_SOC_CONFIG_BASE,
 		.pfn		= __phys_to_pfn(SPEAR320_SOC_CONFIG_BASE),
 		.length		= SZ_16M,
 		.type		= MT_DEVICE

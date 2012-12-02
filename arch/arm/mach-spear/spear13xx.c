@@ -146,9 +146,9 @@ void __init spear13xx_map_io(void)
 static void __init spear13xx_clk_init(void)
 {
 	if (of_machine_is_compatible("st,spear1310"))
-		spear1310_clk_init();
+		spear1310_clk_init(VA_MISC_BASE, VA_SPEAR1310_RAS_BASE);
 	else if (of_machine_is_compatible("st,spear1340"))
-		spear1340_clk_init();
+		spear1340_clk_init(VA_MISC_BASE);
 	else
 		pr_err("%s: Unknown machine\n", __func__);
 }

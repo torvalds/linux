@@ -21,6 +21,7 @@
 #include "pl080.h"
 #include "generic.h"
 #include <mach/spear.h>
+#include <mach/misc_regs.h>
 
 /* ssp device registration */
 struct pl022_ssp_controller pl022_plat_data = {
@@ -67,12 +68,12 @@ struct pl08x_platform_data pl080_plat_data = {
  */
 struct map_desc spear3xx_io_desc[] __initdata = {
 	{
-		.virtual	= VA_SPEAR_ICM1_2_BASE,
+		.virtual	= (unsigned long)VA_SPEAR_ICM1_2_BASE,
 		.pfn		= __phys_to_pfn(SPEAR_ICM1_2_BASE),
 		.length		= SZ_16M,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= VA_SPEAR_ICM3_SMI_CTRL_BASE,
+		.virtual	= (unsigned long)VA_SPEAR_ICM3_SMI_CTRL_BASE,
 		.pfn		= __phys_to_pfn(SPEAR_ICM3_SMI_CTRL_BASE),
 		.length		= SZ_16M,
 		.type		= MT_DEVICE
@@ -90,7 +91,7 @@ void __init spear3xx_timer_init(void)
 	char pclk_name[] = "pll3_clk";
 	struct clk *gpt_clk, *pclk;
 
-	spear3xx_clk_init();
+	spear3xx_clk_init(MISC_BASE, VA_SPEAR320_SOC_CONFIG_BASE);
 
 	/* get the system timer clock */
 	gpt_clk = clk_get_sys("gpt0", NULL);
