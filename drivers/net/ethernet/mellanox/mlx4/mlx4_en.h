@@ -67,7 +67,8 @@
 
 #define MLX4_EN_PAGE_SHIFT	12
 #define MLX4_EN_PAGE_SIZE	(1 << MLX4_EN_PAGE_SHIFT)
-#define MAX_RX_RINGS		16
+#define DEF_RX_RINGS		16
+#define MAX_RX_RINGS		128
 #define MIN_RX_RINGS		4
 #define TXBB_SIZE		64
 #define HEADROOM		(2048 / TXBB_SIZE + 1)
@@ -118,6 +119,8 @@ enum {
 #define MLX4_EN_NUM_UP			8
 #define MLX4_EN_DEF_TX_RING_SIZE	512
 #define MLX4_EN_DEF_RX_RING_SIZE  	1024
+#define MAX_TX_RINGS			(MLX4_EN_MAX_TX_RING_P_UP * \
+					 MLX4_EN_NUM_UP)
 
 /* Target number of packets to coalesce with interrupt moderation */
 #define MLX4_EN_RX_COAL_TARGET	44
@@ -476,6 +479,7 @@ struct mlx4_en_priv {
 	u32 flags;
 #define MLX4_EN_FLAG_PROMISC	0x1
 #define MLX4_EN_FLAG_MC_PROMISC	0x2
+	u8 num_tx_rings_p_up;
 	u32 tx_ring_num;
 	u32 rx_ring_num;
 	u32 rx_skb_size;
@@ -595,6 +599,8 @@ int mlx4_en_QUERY_PORT(struct mlx4_en_dev *mdev, u8 port);
 #ifdef CONFIG_MLX4_EN_DCB
 extern const struct dcbnl_rtnl_ops mlx4_en_dcbnl_ops;
 #endif
+
+int mlx4_en_setup_tc(struct net_device *dev, u8 up);
 
 #ifdef CONFIG_RFS_ACCEL
 void mlx4_en_cleanup_filters(struct mlx4_en_priv *priv,
