@@ -2356,7 +2356,7 @@ static int ab8500_codec_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	return 0;
 }
 
-struct snd_soc_dai_driver ab8500_codec_dai[] = {
+static struct snd_soc_dai_driver ab8500_codec_dai[] = {
 	{
 		.name = "ab8500-codec-dai.0",
 		.id = 0,
