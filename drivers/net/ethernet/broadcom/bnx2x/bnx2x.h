@@ -915,6 +915,7 @@ struct bnx2x_common {
 #define BNX2X_IGU_STAS_MSG_VF_CNT 64
 #define BNX2X_IGU_STAS_MSG_PF_CNT 4
 
+#define MAX_IGU_ATTN_ACK_TO       100
 /* end of common */
 
 /* port */

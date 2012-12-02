@@ -3588,6 +3588,21 @@ static void bnx2x_attn_int_asserted(struct bnx2x *bp, u32 asserted)
 
 	/* now set back the mask */
 	if (asserted & ATTN_NIG_FOR_FUNC) {
+		/* Verify that IGU ack through BAR was written before restoring
+		 * NIG mask. This loop should exit after 2-3 iterations max.
+		 */
+		if (bp->common.int_block != INT_BLOCK_HC) {
+			u32 cnt = 0, igu_acked;
+			do {
+				igu_acked = REG_RD(bp,
+						   IGU_REG_ATTENTION_ACK_BITS);
+			} while (((igu_acked & ATTN_NIG_FOR_FUNC) == 0) &&
+				 (++cnt < MAX_IGU_ATTN_ACK_TO));
+			if (!igu_acked)
+				DP(NETIF_MSG_HW,
+				   "Failed to verify IGU ack on time\n");
+			barrier();
+		}
 		REG_WR(bp, nig_int_mask_addr, nig_mask);
 		bnx2x_release_phy_lock(bp);
 	}
