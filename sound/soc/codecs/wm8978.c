@@ -527,9 +527,6 @@ static int wm8978_configure_pll(struct snd_soc_codec *codec)
 			return idx;
 
 		wm8978->mclk_idx = idx;
-
-		/* GPIO1 into default mode as input - before configuring PLL */
-		snd_soc_update_bits(codec, WM8978_GPIO_CONTROL, 7, 0);
 	} else {
 		return -EINVAL;
 	}
