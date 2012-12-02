@@ -1393,9 +1393,9 @@ static int vpbe_display_reqbufs(struct file *file, void *priv,
 	}
 	/* Initialize videobuf queue as per the buffer type */
 	layer->alloc_ctx = vb2_dma_contig_init_ctx(vpbe_dev->pdev);
-	if (!layer->alloc_ctx) {
+	if (IS_ERR(layer->alloc_ctx)) {
 		v4l2_err(&vpbe_dev->v4l2_dev, "Failed to get the context\n");
-		return -EINVAL;
+		return PTR_ERR(layer->alloc_ctx);
 	}
 	q = &layer->buffer_queue;
 	memset(q, 0, sizeof(*q));
