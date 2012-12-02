@@ -66,7 +66,6 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 	struct snd_soc_dapm_context *dapm;
 	struct snd_soc_jack_pin *pin;
 	int enable;
-	int oldstatus;
 
 	trace_snd_soc_jack_report(jack, mask, status);
 
@@ -77,8 +76,6 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 	dapm =  &codec->dapm;
 
 	mutex_lock(&jack->mutex);
-
-	oldstatus = jack->status;
 
 	jack->status &= ~mask;
 	jack->status |= status & mask;
