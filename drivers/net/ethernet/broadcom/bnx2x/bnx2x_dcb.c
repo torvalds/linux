@@ -413,8 +413,11 @@ static int bnx2x_dcbx_read_mib(struct bnx2x *bp,
 
 static void bnx2x_pfc_set_pfc(struct bnx2x *bp)
 {
+	int mfw_configured = SHMEM2_HAS(bp, drv_flags) &&
+			     GET_FLAGS(SHMEM2_RD(bp, drv_flags),
+				       1 << DRV_FLAGS_DCB_MFW_CONFIGURED);
 	if (bp->dcbx_port_params.pfc.enabled &&
-	    !(bp->dcbx_error & DCBX_REMOTE_MIB_ERROR))
+	    (!(bp->dcbx_error & DCBX_REMOTE_MIB_ERROR) || mfw_configured))
 		/*
 		 * 1. Fills up common PFC structures if required
 		 * 2. Configure NIG, MAC and BRB via the elink
@@ -552,10 +555,13 @@ static void bnx2x_dcbx_update_ets_config(struct bnx2x *bp)
 
 static void bnx2x_dcbx_update_ets_params(struct bnx2x *bp)
 {
+	int mfw_configured = SHMEM2_HAS(bp, drv_flags) &&
+			     GET_FLAGS(SHMEM2_RD(bp, drv_flags),
+				       1 << DRV_FLAGS_DCB_MFW_CONFIGURED);
 	bnx2x_ets_disabled(&bp->link_params, &bp->link_vars);
 
 	if (!bp->dcbx_port_params.ets.enabled ||
-	    (bp->dcbx_error & DCBX_REMOTE_MIB_ERROR))
+	    ((bp->dcbx_error & DCBX_REMOTE_MIB_ERROR) && !mfw_configured))
 		return;
 
 	if (CHIP_IS_E3B0(bp))
@@ -1802,11 +1808,14 @@ static void bnx2x_dcbx_fw_struct(struct bnx2x *bp,
 	u8 cos = 0, pri = 0;
 	struct priority_cos *tt2cos;
 	u32 *ttp = bp->dcbx_port_params.app.traffic_type_priority;
+	int mfw_configured = SHMEM2_HAS(bp, drv_flags) &&
+			     GET_FLAGS(SHMEM2_RD(bp, drv_flags),
+				       1 << DRV_FLAGS_DCB_MFW_CONFIGURED);
 
 	memset(pfc_fw_cfg, 0, sizeof(*pfc_fw_cfg));
 
 	/* to disable DCB - the structure must be zeroed */
-	if (bp->dcbx_error & DCBX_REMOTE_MIB_ERROR)
+	if ((bp->dcbx_error & DCBX_REMOTE_MIB_ERROR) && !mfw_configured)
 		return;
 
 	/*shortcut*/
@@ -2073,8 +2082,12 @@ static u8 bnx2x_dcbnl_set_all(struct net_device *netdev)
 			   "Handling parity error recovery. Try again later\n");
 		return 1;
 	}
-	if (netif_running(bp->dev))
+	if (netif_running(bp->dev)) {
+		bnx2x_update_drv_flags(bp,
+				       1 << DRV_FLAGS_DCB_MFW_CONFIGURED,
+				       1);
 		bnx2x_dcbx_init(bp, true);
+	}
 	DP(BNX2X_MSG_DCB, "set_dcbx_params done (%d)\n", rc);
 	if (rc)
 		return 1;

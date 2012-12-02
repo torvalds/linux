@@ -2088,8 +2088,13 @@ struct shmem2_region {
 
 	/* generic flags controlled by the driver */
 	u32 drv_flags;
-	#define DRV_FLAGS_DCB_CONFIGURED                0x1
+	#define DRV_FLAGS_DCB_CONFIGURED		0x0
+	#define DRV_FLAGS_DCB_CONFIGURATION_ABORTED	0x1
+	#define DRV_FLAGS_DCB_MFW_CONFIGURED	0x2
 
+	#define DRV_FLAGS_PORT_MASK	((1 << DRV_FLAGS_DCB_CONFIGURED) | \
+			(1 << DRV_FLAGS_DCB_CONFIGURATION_ABORTED) | \
+			(1 << DRV_FLAGS_DCB_MFW_CONFIGURED))
 	/* pointer to extended dev_info shared data copied from nvm image */
 	u32 extended_dev_info_shared_addr;
 	u32 ncsi_oem_data_addr;
