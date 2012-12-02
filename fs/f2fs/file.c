@@ -30,7 +30,6 @@ static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
 	struct page *page = vmf->page;
 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
-	struct page *node_page;
 	block_t old_blk_addr;
 	struct dnode_of_data dn;
 	int err;
@@ -50,7 +49,6 @@ static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
 	}
 
 	old_blk_addr = dn.data_blkaddr;
-	node_page = dn.node_page;
 
 	if (old_blk_addr == NULL_ADDR) {
 		err = reserve_new_block(&dn);

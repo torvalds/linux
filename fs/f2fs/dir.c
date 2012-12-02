@@ -509,13 +509,11 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 	}
 
 	if (bit_pos == NR_DENTRY_IN_BLOCK) {
-		loff_t page_offset;
 		truncate_hole(dir, page->index, page->index + 1);
 		clear_page_dirty_for_io(page);
 		ClearPageUptodate(page);
 		dec_page_count(sbi, F2FS_DIRTY_DENTS);
 		inode_dec_dirty_dents(dir);
-		page_offset = page->index << PAGE_CACHE_SHIFT;
 		f2fs_put_page(page, 1);
 	} else {
 		f2fs_put_page(page, 1);
