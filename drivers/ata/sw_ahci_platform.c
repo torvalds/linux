@@ -161,16 +161,7 @@ static int sw_ahci_start(struct device *dev, void __iomem *addr)
 	struct clk *hclk;
 	struct clk *mclk;
 	u32 pio_hdle = 0;
-	int ctrl = 0;
 	int rc = 0;
-
-	script_parser_fetch(sw_ahci_para_name, sw_ahci_used_name, &ctrl, sizeof(int));
-	if(!ctrl)
-	{
-		dev_err(dev, "AHCI is disable\n");
-		rc = -EINVAL;
-    	goto err2;
-	}
 
 	/*Enable mclk and hclk for AHCI*/
 	mclk = clk_get(dev, sw_ahci_mclk_name);
@@ -267,11 +258,17 @@ static struct ahci_platform_data sw_ahci_platform_data = {
 	.exit = sw_ahci_stop,
 };
 
+void sw_ahci_release(struct device *dev)
+{
+	/* FILL ME! */
+}
+
 static struct platform_device sw_ahci_device = {
 	.name		= "sw_ahci",
 	.id			= 0,
 	.dev 		= {
 		.platform_data = &sw_ahci_platform_data,
+		.release = &sw_ahci_release,
 	},
 
 	.num_resources	= ARRAY_SIZE(sw_ahci_resources),
@@ -488,14 +485,30 @@ static struct platform_driver sw_ahci_driver = {
 
 static int __init sw_ahci_init(void)
 {
-	platform_device_register(&sw_ahci_device);
-	return platform_driver_probe(&sw_ahci_driver, sw_ahci_probe);
+	int rc, ctrl = 0;
+	script_parser_fetch(sw_ahci_para_name,
+			sw_ahci_used_name, &ctrl, sizeof(int));
+	if (!ctrl) {
+		pr_warn("AHCI is disabled in script.bin\n");
+		return -ENODEV;
+	}
+
+	rc = platform_device_register(&sw_ahci_device);
+	if (rc)
+		return rc;
+
+	rc = platform_driver_probe(&sw_ahci_driver, sw_ahci_probe);
+	if (rc)
+		platform_device_unregister(&sw_ahci_device);
+
+	return rc;
 }
 module_init(sw_ahci_init);
 
 static void __exit sw_ahci_exit(void)
 {
 	platform_driver_unregister(&sw_ahci_driver);
+	platform_device_unregister(&sw_ahci_device);
 }
 module_exit(sw_ahci_exit);
 
