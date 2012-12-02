@@ -47,7 +47,7 @@ static const struct wm_adsp_region wm5102_dsp1_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x100000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x180000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x190000 },
-	{ .type = WMFW_ADSP2_YM, .base = 0x1a0000 },
+	{ .type = WMFW_ADSP2_YM, .base = 0x1a8000 },
 };
 
 static const struct reg_default wm5102_sysclk_reva_patch[] = {
