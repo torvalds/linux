@@ -116,12 +116,14 @@ u32 __sta2x11_mfd_mask(struct pci_dev *pdev, u32 reg, u32 mask, u32 val,
 	struct sta2x11_mfd *mfd = sta2x11_mfd_find(pdev);
 	u32 r;
 	unsigned long flags;
-	void __iomem *regs = mfd->regs[index];
+	void __iomem *regs;
 
 	if (!mfd) {
 		dev_warn(&pdev->dev, ": can't access sctl regs\n");
 		return 0;
 	}
+
+	regs = mfd->regs[index];
 	if (!regs) {
 		dev_warn(&pdev->dev, ": system ctl not initialized\n");
 		return 0;
