@@ -101,6 +101,7 @@ static struct irqaction sunxi_timer_irq = {
 
 static struct of_device_id sunxi_timer_dt_ids[] = {
 	{ .compatible = "allwinner,sunxi-timer" },
+	{ }
 };
 
 static void __init sunxi_timer_init(void)
