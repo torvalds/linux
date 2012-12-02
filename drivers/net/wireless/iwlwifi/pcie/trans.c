@@ -668,6 +668,20 @@ static u32 iwl_trans_pcie_read32(struct iwl_trans *trans, u32 ofs)
 	return readl(IWL_TRANS_GET_PCIE_TRANS(trans)->hw_base + ofs);
 }
 
+static u32 iwl_trans_pcie_read_prph(struct iwl_trans *trans, u32 reg)
+{
+	iwl_trans_pcie_write32(trans, HBUS_TARG_PRPH_RADDR, reg | (3 << 24));
+	return iwl_trans_pcie_read32(trans, HBUS_TARG_PRPH_RDAT);
+}
+
+static void iwl_trans_pcie_write_prph(struct iwl_trans *trans, u32 addr,
+				      u32 val)
+{
+	iwl_trans_pcie_write32(trans, HBUS_TARG_PRPH_WADDR,
+			       ((addr & 0x0000FFFF) | (3 << 24)));
+	iwl_trans_pcie_write32(trans, HBUS_TARG_PRPH_WDAT, val);
+}
+
 static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 				     const struct iwl_trans_config *trans_cfg)
 {
@@ -1223,6 +1237,8 @@ static const struct iwl_trans_ops trans_ops_pcie = {
 	.write8 = iwl_trans_pcie_write8,
 	.write32 = iwl_trans_pcie_write32,
 	.read32 = iwl_trans_pcie_read32,
+	.read_prph = iwl_trans_pcie_read_prph,
+	.write_prph = iwl_trans_pcie_write_prph,
 	.configure = iwl_trans_pcie_configure,
 	.set_pmi = iwl_trans_pcie_set_pmi,
 };

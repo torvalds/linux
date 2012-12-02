@@ -385,6 +385,8 @@ struct iwl_trans;
  * @write8: write a u8 to a register at offset ofs from the BAR
  * @write32: write a u32 to a register at offset ofs from the BAR
  * @read32: read a u32 register at offset ofs from the BAR
+ * @read_prph: read a DWORD from a periphery register
+ * @write_prph: write a DWORD to a periphery register
  * @configure: configure parameters required by the transport layer from
  *	the op_mode. May be called several times before start_fw, can't be
  *	called after that.
@@ -420,6 +422,8 @@ struct iwl_trans_ops {
 	void (*write8)(struct iwl_trans *trans, u32 ofs, u8 val);
 	void (*write32)(struct iwl_trans *trans, u32 ofs, u32 val);
 	u32 (*read32)(struct iwl_trans *trans, u32 ofs);
+	u32 (*read_prph)(struct iwl_trans *trans, u32 ofs);
+	void (*write_prph)(struct iwl_trans *trans, u32 ofs, u32 val);
 	void (*configure)(struct iwl_trans *trans,
 			  const struct iwl_trans_config *trans_cfg);
 	void (*set_pmi)(struct iwl_trans *trans, bool state);
@@ -662,6 +666,17 @@ static inline void iwl_trans_write32(struct iwl_trans *trans, u32 ofs, u32 val)
 static inline u32 iwl_trans_read32(struct iwl_trans *trans, u32 ofs)
 {
 	return trans->ops->read32(trans, ofs);
+}
+
+static inline u32 iwl_trans_read_prph(struct iwl_trans *trans, u32 ofs)
+{
+	return trans->ops->read_prph(trans, ofs);
+}
+
+static inline void iwl_trans_write_prph(struct iwl_trans *trans, u32 ofs,
+					u32 val)
+{
+	return trans->ops->write_prph(trans, ofs, val);
 }
 
 static inline void iwl_trans_set_pmi(struct iwl_trans *trans, bool state)
