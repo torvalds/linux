@@ -448,7 +448,6 @@ static void bq27x00_update(struct bq27x00_device_info *di)
 		cache.temperature = bq27x00_battery_read_temperature(di);
 		if (!is_bq27425)
 			cache.cycle_count = bq27x00_battery_read_cyct(di);
-		cache.cycle_count = bq27x00_battery_read_cyct(di);
 		cache.power_avg =
 			bq27x00_battery_read_pwr_avg(di, BQ27x00_POWER_AVG);
 
@@ -696,7 +695,6 @@ static int bq27x00_powersupply_init(struct bq27x00_device_info *di)
 	int ret;
 
 	di->bat.type = POWER_SUPPLY_TYPE_BATTERY;
-	di->chip = BQ27425;
 	if (di->chip == BQ27425) {
 		di->bat.properties = bq27425_battery_props;
 		di->bat.num_properties = ARRAY_SIZE(bq27425_battery_props);
