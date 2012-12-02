@@ -2036,7 +2036,6 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 	if (!req->flags || (~DRM_MODE_CURSOR_FLAGS & req->flags))
 		return -EINVAL;
 
-	drm_modeset_lock_all(dev);
 	obj = drm_mode_object_find(dev, req->crtc_id, DRM_MODE_OBJECT_CRTC);
 	if (!obj) {
 		DRM_DEBUG_KMS("Unknown CRTC ID %d\n", req->crtc_id);
@@ -2051,20 +2050,23 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 			goto out;
 		}
 		/* Turns off the cursor if handle is 0 */
+		mutex_lock(&crtc->mutex);
 		ret = crtc->funcs->cursor_set(crtc, file_priv, req->handle,
 					      req->width, req->height);
+		mutex_unlock(&crtc->mutex);
 	}
 
 	if (req->flags & DRM_MODE_CURSOR_MOVE) {
 		if (crtc->funcs->cursor_move) {
+			drm_modeset_lock_all(dev);
 			ret = crtc->funcs->cursor_move(crtc, req->x, req->y);
+			drm_modeset_unlock_all(dev);
 		} else {
 			ret = -EFAULT;
 			goto out;
 		}
 	}
 out:
-	drm_modeset_unlock_all(dev);
 	return ret;
 }
 
