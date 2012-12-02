@@ -646,7 +646,7 @@ static const struct snd_kcontrol_new wm2000_controls[] = {
 static int wm2000_anc_power_event(struct snd_soc_dapm_widget *w,
 				  struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = w->codec;
 	struct wm2000_priv *wm2000 = dev_get_drvdata(codec->dev);
 
 	if (SND_SOC_DAPM_EVENT_ON(event))
