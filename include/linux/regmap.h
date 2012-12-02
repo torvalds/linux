@@ -133,7 +133,7 @@ struct regmap_config {
 	enum regmap_endian val_format_endian;
 
 	const struct regmap_range_cfg *ranges;
-	unsigned int n_ranges;
+	unsigned int num_ranges;
 };
 
 /**
@@ -141,6 +141,8 @@ struct regmap_config {
  * Registers, mapped to this virtual range, are accessed in two steps:
  *     1. page selector register update;
  *     2. access through data window registers.
+ *
+ * @name: Descriptive name for diagnostics
  *
  * @range_min: Address of the lowest register address in virtual range.
  * @range_max: Address of the highest register in virtual range.
@@ -153,6 +155,8 @@ struct regmap_config {
  * @window_len: Number of registers in data window.
  */
 struct regmap_range_cfg {
+	const char *name;
+
 	/* Registers of virtual address range */
 	unsigned int range_min;
 	unsigned int range_max;

@@ -519,20 +519,38 @@ struct regmap *regmap_init(struct device *dev,
 	}
 
 	map->range_tree = RB_ROOT;
-	for (i = 0; i < config->n_ranges; i++) {
+	for (i = 0; i < config->num_ranges; i++) {
 		const struct regmap_range_cfg *range_cfg = &config->ranges[i];
 		struct regmap_range_node *new;
 
 		/* Sanity check */
-		if (range_cfg->range_max < range_cfg->range_min ||
-		    range_cfg->range_max > map->max_register ||
-		    range_cfg->selector_reg > map->max_register ||
-		    range_cfg->window_len == 0)
+		if (range_cfg->range_max < range_cfg->range_min) {
+			dev_err(map->dev, "Invalid range %d: %d < %d\n", i,
+				range_cfg->range_max, range_cfg->range_min);
 			goto err_range;
+		}
+
+		if (range_cfg->range_max > map->max_register) {
+			dev_err(map->dev, "Invalid range %d: %d > %d\n", i,
+				range_cfg->range_max, map->max_register);
+			goto err_range;
+		}
+
+		if (range_cfg->selector_reg > map->max_register) {
+			dev_err(map->dev,
+				"Invalid range %d: selector out of map\n", i);
+			goto err_range;
+		}
+
+		if (range_cfg->window_len == 0) {
+			dev_err(map->dev, "Invalid range %d: window_len 0\n",
+				i);
+			goto err_range;
+		}
 
 		/* Make sure, that this register range has no selector
 		   or data window within its boundary */
-		for (j = 0; j < config->n_ranges; j++) {
+		for (j = 0; j < config->num_ranges; j++) {
 			unsigned sel_reg = config->ranges[j].selector_reg;
 			unsigned win_min = config->ranges[j].window_start;
 			unsigned win_max = win_min +
@@ -540,11 +558,17 @@ struct regmap *regmap_init(struct device *dev,
 
 			if (range_cfg->range_min <= sel_reg &&
 			    sel_reg <= range_cfg->range_max) {
+				dev_err(map->dev,
+					"Range %d: selector for %d in window\n",
+					i, j);
 				goto err_range;
 			}
 
 			if (!(win_max < range_cfg->range_min ||
 			      win_min > range_cfg->range_max)) {
+				dev_err(map->dev,
+					"Range %d: window for %d in window\n",
+					i, j);
 				goto err_range;
 			}
 		}
@@ -555,6 +579,8 @@ struct regmap *regmap_init(struct device *dev,
 			goto err_range;
 		}
 
+		new->map = map;
+		new->name = range_cfg->name;
 		new->range_min = range_cfg->range_min;
 		new->range_max = range_cfg->range_max;
 		new->selector_reg = range_cfg->selector_reg;
@@ -564,6 +590,7 @@ struct regmap *regmap_init(struct device *dev,
 		new->window_len = range_cfg->window_len;
 
 		if (_regmap_range_add(map, new) == false) {
+			dev_err(map->dev, "Failed to add range %d\n", i);
 			kfree(new);
 			goto err_range;
 		}
@@ -579,7 +606,7 @@ struct regmap *regmap_init(struct device *dev,
 	}
 
 	ret = regcache_init(map, config);
-	if (ret < 0)
+	if (ret != 0)
 		goto err_range;
 
 	regmap_debugfs_init(map, config->name);
@@ -738,52 +765,49 @@ struct regmap *dev_get_regmap(struct device *dev, const char *name)
 EXPORT_SYMBOL_GPL(dev_get_regmap);
 
 static int _regmap_select_page(struct regmap *map, unsigned int *reg,
+			       struct regmap_range_node *range,
 			       unsigned int val_num)
 {
-	struct regmap_range_node *range;
 	void *orig_work_buf;
 	unsigned int win_offset;
 	unsigned int win_page;
 	bool page_chg;
 	int ret;
 
-	range = _regmap_range_lookup(map, *reg);
-	if (range) {
-		win_offset = (*reg - range->range_min) % range->window_len;
-		win_page = (*reg - range->range_min) / range->window_len;
+	win_offset = (*reg - range->range_min) % range->window_len;
+	win_page = (*reg - range->range_min) / range->window_len;
 
-		if (val_num > 1) {
-			/* Bulk write shouldn't cross range boundary */
-			if (*reg + val_num - 1 > range->range_max)
-				return -EINVAL;
+	if (val_num > 1) {
+		/* Bulk write shouldn't cross range boundary */
+		if (*reg + val_num - 1 > range->range_max)
+			return -EINVAL;
 
-			/* ... or single page boundary */
-			if (val_num > range->window_len - win_offset)
-				return -EINVAL;
-		}
-
-		/* It is possible to have selector register inside data window.
-		   In that case, selector register is located on every page and
-		   it needs no page switching, when accessed alone. */
-		if (val_num > 1 ||
-		    range->window_start + win_offset != range->selector_reg) {
-			/* Use separate work_buf during page switching */
-			orig_work_buf = map->work_buf;
-			map->work_buf = map->selector_work_buf;
-
-			ret = _regmap_update_bits(map, range->selector_reg,
-					range->selector_mask,
-					win_page << range->selector_shift,
-					&page_chg);
-
-			map->work_buf = orig_work_buf;
-
-			if (ret < 0)
-				return ret;
-		}
-
-		*reg = range->window_start + win_offset;
+		/* ... or single page boundary */
+		if (val_num > range->window_len - win_offset)
+			return -EINVAL;
 	}
+
+	/* It is possible to have selector register inside data window.
+	   In that case, selector register is located on every page and
+	   it needs no page switching, when accessed alone. */
+	if (val_num > 1 ||
+	    range->window_start + win_offset != range->selector_reg) {
+		/* Use separate work_buf during page switching */
+		orig_work_buf = map->work_buf;
+		map->work_buf = map->selector_work_buf;
+
+		ret = _regmap_update_bits(map, range->selector_reg,
+					  range->selector_mask,
+					  win_page << range->selector_shift,
+					  &page_chg);
+
+		map->work_buf = orig_work_buf;
+
+		if (ret != 0)
+			return ret;
+	}
+
+	*reg = range->window_start + win_offset;
 
 	return 0;
 }
@@ -791,6 +815,7 @@ static int _regmap_select_page(struct regmap *map, unsigned int *reg,
 static int _regmap_raw_write(struct regmap *map, unsigned int reg,
 			     const void *val, size_t val_len)
 {
+	struct regmap_range_node *range;
 	u8 *u8 = map->work_buf;
 	void *buf;
 	int ret = -ENOTSUPP;
@@ -825,9 +850,35 @@ static int _regmap_raw_write(struct regmap *map, unsigned int reg,
 		}
 	}
 
-	ret = _regmap_select_page(map, &reg, val_len / map->format.val_bytes);
-	if (ret < 0)
-		return ret;
+	range = _regmap_range_lookup(map, reg);
+	if (range) {
+		int val_num = val_len / map->format.val_bytes;
+		int win_offset = (reg - range->range_min) % range->window_len;
+		int win_residue = range->window_len - win_offset;
+
+		/* If the write goes beyond the end of the window split it */
+		while (val_num > win_residue) {
+			dev_dbg(map->dev, "Writing window %d/%d\n",
+				win_residue, val_len / map->format.val_bytes);
+			ret = _regmap_raw_write(map, reg, val, win_residue *
+						map->format.val_bytes);
+			if (ret != 0)
+				return ret;
+
+			reg += win_residue;
+			val_num -= win_residue;
+			val += win_residue * map->format.val_bytes;
+			val_len -= win_residue * map->format.val_bytes;
+
+			win_offset = (reg - range->range_min) %
+				range->window_len;
+			win_residue = range->window_len - win_offset;
+		}
+
+		ret = _regmap_select_page(map, &reg, range, val_num);
+		if (ret != 0)
+			return ret;
+	}
 
 	map->format.format_reg(map->work_buf, reg, map->reg_shift);
 
@@ -876,6 +927,7 @@ static int _regmap_raw_write(struct regmap *map, unsigned int reg,
 int _regmap_write(struct regmap *map, unsigned int reg,
 		  unsigned int val)
 {
+	struct regmap_range_node *range;
 	int ret;
 	BUG_ON(!map->format.format_write && !map->format.format_val);
 
@@ -897,9 +949,12 @@ int _regmap_write(struct regmap *map, unsigned int reg,
 	trace_regmap_reg_write(map->dev, reg, val);
 
 	if (map->format.format_write) {
-		ret = _regmap_select_page(map, &reg, 1);
-		if (ret < 0)
-			return ret;
+		range = _regmap_range_lookup(map, reg);
+		if (range) {
+			ret = _regmap_select_page(map, &reg, range, 1);
+			if (ret != 0)
+				return ret;
+		}
 
 		map->format.format_write(map, reg, val);
 
@@ -1055,12 +1110,17 @@ EXPORT_SYMBOL_GPL(regmap_bulk_write);
 static int _regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 			    unsigned int val_len)
 {
+	struct regmap_range_node *range;
 	u8 *u8 = map->work_buf;
 	int ret;
 
-	ret = _regmap_select_page(map, &reg, val_len / map->format.val_bytes);
-	if (ret < 0)
-		return ret;
+	range = _regmap_range_lookup(map, reg);
+	if (range) {
+		ret = _regmap_select_page(map, &reg, range,
+					  val_len / map->format.val_bytes);
+		if (ret != 0)
+			return ret;
+	}
 
 	map->format.format_reg(map->work_buf, reg, map->reg_shift);
 
