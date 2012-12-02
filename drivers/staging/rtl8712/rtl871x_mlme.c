@@ -604,9 +604,6 @@ void r8712_surveydone_event_callback(struct _adapter *adapter, u8 *pbuf)
 						 adapter->registrypriv.
 							dev_network.MacAddress;
 					pmlmepriv->fw_state ^= _FW_UNDER_SURVEY;
-					memset(&pdev_network->Ssid, 0,
-						sizeof(struct
-						       ndis_802_11_ssid));
 					memcpy(&pdev_network->Ssid,
 						&pmlmepriv->assoc_ssid,
 						sizeof(struct
@@ -1006,8 +1003,6 @@ void r8712_stadel_event_callback(struct _adapter *adapter, u8 *pbuf)
 			memcpy(pdev_network, &tgt_network->network,
 				r8712_get_ndis_wlan_bssid_ex_sz(&tgt_network->
 							network));
-			memset(&pdev_network->Ssid, 0,
-				sizeof(struct ndis_802_11_ssid));
 			memcpy(&pdev_network->Ssid,
 				&pmlmepriv->assoc_ssid,
 				sizeof(struct ndis_802_11_ssid));
