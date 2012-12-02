@@ -2052,10 +2052,13 @@ static void bnx2x_dcbnl_set_pfc_cfg(struct net_device *netdev, int prio,
 	if (!bnx2x_dcbnl_set_valid(bp) || prio >= MAX_PFC_PRIORITIES)
 		return;
 
-	bp->dcbx_config_params.admin_pfc_bitmap |= ((setting ? 1 : 0) << prio);
 
-	if (setting)
+	if (setting) {
+		bp->dcbx_config_params.admin_pfc_bitmap |= (1 << prio);
 		bp->dcbx_config_params.admin_pfc_tx_enable = 1;
+	} else {
+		bp->dcbx_config_params.admin_pfc_bitmap &= ~(1 << prio);
+	}
 }
 
 static void bnx2x_dcbnl_get_pfc_cfg(struct net_device *netdev, int prio,
