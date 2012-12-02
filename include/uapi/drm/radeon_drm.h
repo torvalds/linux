@@ -913,6 +913,7 @@ struct drm_radeon_gem_va {
 /* The first dword of RADEON_CHUNK_ID_FLAGS is a uint32 of these flags: */
 #define RADEON_CS_KEEP_TILING_FLAGS 0x01
 #define RADEON_CS_USE_VM            0x02
+#define RADEON_CS_END_OF_FRAME      0x04 /* a hint from userspace which CS is the last one */
 /* The second dword of RADEON_CHUNK_ID_FLAGS is a uint32 that sets the ring type */
 #define RADEON_CS_RING_GFX          0
 #define RADEON_CS_RING_COMPUTE      1
