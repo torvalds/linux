@@ -3127,11 +3127,16 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			BDS_PER_TX_PKT +
 			NEXT_CNT_PER_TX_PKT(MAX_BDS_PER_TX_PKT))) {
 		/* Handle special storage cases separately */
-		if (txdata->tx_ring_size != 0) {
-			BNX2X_ERR("BUG! Tx ring full when queue awake!\n");
+		if (txdata->tx_ring_size == 0) {
+			struct bnx2x_eth_q_stats *q_stats =
+				bnx2x_fp_qstats(bp, txdata->parent_fp);
+			q_stats->driver_filtered_tx_pkt++;
+			dev_kfree_skb(skb);
+			return NETDEV_TX_OK;
+		}
 			bnx2x_fp_qstats(bp, txdata->parent_fp)->driver_xoff++;
 			netif_tx_stop_queue(txq);
-		}
+		BNX2X_ERR("BUG! Tx ring full when queue awake!\n");
 
 		return NETDEV_TX_BUSY;
 	}
