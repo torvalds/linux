@@ -11120,8 +11120,15 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 	bp->timer.data = (unsigned long) bp;
 	bp->timer.function = bnx2x_timer;
 
-	bnx2x_dcbx_set_state(bp, true, BNX2X_DCBX_ENABLED_ON_NEG_ON);
-	bnx2x_dcbx_init_params(bp);
+	if (SHMEM2_HAS(bp, dcbx_lldp_params_offset) &&
+	    SHMEM2_HAS(bp, dcbx_lldp_dcbx_stat_offset) &&
+	    SHMEM2_RD(bp, dcbx_lldp_params_offset) &&
+	    SHMEM2_RD(bp, dcbx_lldp_dcbx_stat_offset)) {
+		bnx2x_dcbx_set_state(bp, true, BNX2X_DCBX_ENABLED_ON_NEG_ON);
+		bnx2x_dcbx_init_params(bp);
+	} else {
+		bnx2x_dcbx_set_state(bp, false, BNX2X_DCBX_ENABLED_OFF);
+	}
 
 	if (CHIP_IS_E1x(bp))
 		bp->cnic_base_cl_id = FP_SB_MAX_E1x;

@@ -1904,6 +1904,11 @@ static u8 bnx2x_dcbnl_set_state(struct net_device *netdev, u8 state)
 	struct bnx2x *bp = netdev_priv(netdev);
 	DP(BNX2X_MSG_DCB, "state = %s\n", state ? "on" : "off");
 
+	if (state && ((bp->dcbx_enabled == BNX2X_DCBX_ENABLED_OFF) ||
+		      (bp->dcbx_enabled == BNX2X_DCBX_ENABLED_INVALID))) {
+		DP(BNX2X_MSG_DCB, "Can not set dcbx to enabled while it is disabled in nvm\n");
+		return 1;
+	}
 	bnx2x_dcbx_set_state(bp, (state ? true : false), bp->dcbx_enabled);
 	return 0;
 }
