@@ -128,6 +128,11 @@ struct nv50_dmac {
 	struct nv50_chan base;
 	dma_addr_t handle;
 	u32 *ptr;
+
+	/* Protects against concurrent pushbuf access to this channel, lock is
+	 * grabbed by evo_wait (if the pushbuf reservation is successful) and
+	 * dropped again by evo_kick. */
+	struct mutex lock;
 };
 
 static void
@@ -271,6 +276,8 @@ nv50_dmac_create(struct nouveau_object *core, u32 bclass, u8 head,
 	u32 pushbuf = *(u32 *)data;
 	int ret;
 
+	mutex_init(&dmac->lock);
+
 	dmac->ptr = pci_alloc_consistent(nv_device(core)->pdev, PAGE_SIZE,
 					&dmac->handle);
 	if (!dmac->ptr)
@@ -395,11 +402,13 @@ evo_wait(void *evoc, int nr)
 	struct nv50_dmac *dmac = evoc;
 	u32 put = nv_ro32(dmac->base.user, 0x0000) / 4;
 
+	mutex_lock(&dmac->lock);
 	if (put + nr >= (PAGE_SIZE / 4) - 8) {
 		dmac->ptr[put] = 0x20000000;
 
 		nv_wo32(dmac->base.user, 0x0000, 0x00000000);
 		if (!nv_wait(dmac->base.user, 0x0004, ~0, 0x00000000)) {
+			mutex_unlock(&dmac->lock);
 			NV_ERROR(dmac->base.user, "channel stalled\n");
 			return NULL;
 		}
@@ -415,6 +424,7 @@ evo_kick(u32 *push, void *evoc)
 {
 	struct nv50_dmac *dmac = evoc;
 	nv_wo32(dmac->base.user, 0x0000, (push - dmac->ptr) << 2);
+	mutex_unlock(&dmac->lock);
 }
 
 #define evo_mthd(p,m,s) *((p)++) = (((s) << 18) | (m))
