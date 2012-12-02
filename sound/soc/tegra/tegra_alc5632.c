@@ -242,7 +242,7 @@ static int __devexit tegra_alc5632_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id tegra_alc5632_of_match[] __devinitconst = {
+static const struct of_device_id tegra_alc5632_of_match[] = {
 	{ .compatible = "nvidia,tegra-audio-alc5632", },
 	{},
 };
