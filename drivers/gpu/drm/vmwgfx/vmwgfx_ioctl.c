@@ -163,11 +163,7 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 		goto out_no_copy;
 	}
 
-	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
-	if (unlikely(ret != 0)) {
-		ret = -ERESTARTSYS;
-		goto out_no_mode_mutex;
-	}
+	drm_modeset_lock_all(dev);
 
 	obj = drm_mode_object_find(dev, arg->fb_id, DRM_MODE_OBJECT_FB);
 	if (!obj) {
@@ -200,8 +196,7 @@ out_no_surface:
 	ttm_read_unlock(&vmaster->lock);
 out_no_ttm_lock:
 out_no_fb:
-	mutex_unlock(&dev->mode_config.mutex);
-out_no_mode_mutex:
+	drm_modeset_unlock_all(dev);
 out_no_copy:
 	kfree(clips);
 out_clips:
@@ -251,11 +246,7 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 		goto out_no_copy;
 	}
 
-	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
-	if (unlikely(ret != 0)) {
-		ret = -ERESTARTSYS;
-		goto out_no_mode_mutex;
-	}
+	drm_modeset_lock_all(dev);
 
 	obj = drm_mode_object_find(dev, arg->fb_id, DRM_MODE_OBJECT_FB);
 	if (!obj) {
@@ -282,8 +273,7 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 	ttm_read_unlock(&vmaster->lock);
 out_no_ttm_lock:
 out_no_fb:
-	mutex_unlock(&dev->mode_config.mutex);
-out_no_mode_mutex:
+	drm_modeset_unlock_all(dev);
 out_no_copy:
 	kfree(clips);
 out_clips:
