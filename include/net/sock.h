@@ -126,6 +126,9 @@ struct sock;
 struct proto;
 struct net;
 
+typedef __u32 __bitwise __portpair;
+typedef __u64 __bitwise __addrpair;
+
 /**
  *	struct sock_common - minimal network layer representation of sockets
  *	@skc_daddr: Foreign IPv4 addr
@@ -155,7 +158,7 @@ struct sock_common {
 	 * address on 64bit arches : cf INET_MATCH() and INET_TW_MATCH()
 	 */
 	union {
-		unsigned long	skc_addrpair;
+		__addrpair	skc_addrpair;
 		struct {
 			__be32	skc_daddr;
 			__be32	skc_rcv_saddr;
@@ -167,7 +170,7 @@ struct sock_common {
 	};
 	/* skc_dport && skc_num must be grouped as well */
 	union {
-		u32		skc_portpair;
+		__portpair	skc_portpair;
 		struct {
 			__be16	skc_dport;
 			__u16	skc_num;

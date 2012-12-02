@@ -277,7 +277,6 @@ static inline struct sock *inet_lookup_listener(struct net *net,
    On 64bit targets we combine comparisons with pair of adjacent __be32
    fields in the same way.
 */
-typedef __u32 __bitwise __portpair;
 #ifdef __BIG_ENDIAN
 #define INET_COMBINED_PORTS(__sport, __dport) \
 	((__force __portpair)(((__force __u32)(__be16)(__sport) << 16) | (__u32)(__dport)))
@@ -287,7 +286,6 @@ typedef __u32 __bitwise __portpair;
 #endif
 
 #if (BITS_PER_LONG == 64)
-typedef __u64 __bitwise __addrpair;
 #ifdef __BIG_ENDIAN
 #define INET_ADDR_COOKIE(__name, __saddr, __daddr) \
 	const __addrpair __name = (__force __addrpair) ( \
