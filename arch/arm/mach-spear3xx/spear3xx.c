@@ -67,13 +67,13 @@ struct pl08x_platform_data pl080_plat_data = {
  */
 struct map_desc spear3xx_io_desc[] __initdata = {
 	{
-		.virtual	= VA_SPEAR3XX_ICM1_2_BASE,
-		.pfn		= __phys_to_pfn(SPEAR3XX_ICM1_2_BASE),
+		.virtual	= VA_SPEAR_ICM1_2_BASE,
+		.pfn		= __phys_to_pfn(SPEAR_ICM1_2_BASE),
 		.length		= SZ_16M,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= VA_SPEAR3XX_ICM3_SMI_CTRL_BASE,
-		.pfn		= __phys_to_pfn(SPEAR3XX_ICM3_SMI_CTRL_BASE),
+		.virtual	= VA_SPEAR_ICM3_SMI_CTRL_BASE,
+		.pfn		= __phys_to_pfn(SPEAR_ICM3_SMI_CTRL_BASE),
 		.length		= SZ_16M,
 		.type		= MT_DEVICE
 	},

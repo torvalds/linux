@@ -217,7 +217,7 @@ static struct amba_pl011_data spear310_uart_data[] = {
 static struct of_dev_auxdata spear310_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("arm,pl022", SPEAR3XX_ICM1_SSP_BASE, NULL,
 			&pl022_plat_data),
-	OF_DEV_AUXDATA("arm,pl080", SPEAR3XX_ICM3_DMA_BASE, NULL,
+	OF_DEV_AUXDATA("arm,pl080", SPEAR_ICM3_DMA_BASE, NULL,
 			&pl080_plat_data),
 	OF_DEV_AUXDATA("arm,pl011", SPEAR310_UART1_BASE, NULL,
 			&spear310_uart_data[0]),

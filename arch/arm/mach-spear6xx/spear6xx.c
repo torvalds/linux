@@ -351,17 +351,17 @@ struct pl08x_platform_data pl080_plat_data = {
 struct map_desc spear6xx_io_desc[] __initdata = {
 	{
 		.virtual	= VA_SPEAR6XX_ML_CPU_BASE,
-		.pfn		= __phys_to_pfn(SPEAR6XX_ML_CPU_BASE),
+		.pfn		= __phys_to_pfn(SPEAR_ICM3_ML1_2_BASE),
 		.length		= 2 * SZ_16M,
 		.type		= MT_DEVICE
 	},	{
-		.virtual	= VA_SPEAR6XX_ICM1_BASE,
-		.pfn		= __phys_to_pfn(SPEAR6XX_ICM1_BASE),
+		.virtual	= VA_SPEAR_ICM1_2_BASE,
+		.pfn		= __phys_to_pfn(SPEAR_ICM1_2_BASE),
 		.length		= SZ_16M,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= VA_SPEAR6XX_ICM3_SMI_CTRL_BASE,
-		.pfn		= __phys_to_pfn(SPEAR6XX_ICM3_SMI_CTRL_BASE),
+		.virtual	= VA_SPEAR_ICM3_SMI_CTRL_BASE,
+		.pfn		= __phys_to_pfn(SPEAR_ICM3_SMI_CTRL_BASE),
 		.length		= SZ_16M,
 		.type		= MT_DEVICE
 	},
@@ -404,7 +404,7 @@ void __init spear6xx_timer_init(void)
 
 /* Add auxdata to pass platform data */
 struct of_dev_auxdata spear6xx_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("arm,pl080", SPEAR6XX_ICM3_DMA_BASE, NULL,
+	OF_DEV_AUXDATA("arm,pl080", SPEAR_ICM3_DMA_BASE, NULL,
 			&pl080_plat_data),
 	{}
 };
