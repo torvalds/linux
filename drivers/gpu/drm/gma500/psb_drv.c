@@ -149,6 +149,16 @@ static struct drm_ioctl_desc psb_ioctls[] = {
 
 static void psb_lastclose(struct drm_device *dev)
 {
+	int ret;
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct psb_fbdev *fbdev = dev_priv->fbdev;
+
+	mutex_lock(&dev->mode_config.mutex);
+	ret = drm_fb_helper_restore_fbdev_mode(&fbdev->psb_fb_helper);
+	if (ret)
+		DRM_DEBUG("failed to restore crtc mode\n");
+	mutex_unlock(&dev->mode_config.mutex);
+
 	return;
 }
 
