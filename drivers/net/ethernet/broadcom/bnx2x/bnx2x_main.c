@@ -10484,8 +10484,9 @@ static void __devinit bnx2x_get_fcoe_info(struct bnx2x *bp)
 		if (BNX2X_MF_EXT_PROTOCOL_FCOE(bp) && !CHIP_IS_E1x(bp))
 			bnx2x_get_ext_wwn_info(bp, func);
 
-	} else if (IS_MF_FCOE_SD(bp))
+	} else if (IS_MF_FCOE_SD(bp) && !CHIP_IS_E1x(bp)) {
 		bnx2x_get_ext_wwn_info(bp, func);
+	}
 
 	BNX2X_DEV_INFO("max_fcoe_conn 0x%x\n", bp->cnic_eth_dev.max_fcoe_conn);
 
