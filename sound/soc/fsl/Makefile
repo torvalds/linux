@@ -6,6 +6,10 @@ obj-$(CONFIG_SND_SOC_MPC8610_HPCD) += snd-soc-mpc8610-hpcd.o
 snd-soc-p1022-ds-objs := p1022_ds.o
 obj-$(CONFIG_SND_SOC_P1022_DS) += snd-soc-p1022-ds.o
 
+# P1022 RDK Machine Support
+snd-soc-p1022-rdk-objs := p1022_rdk.o
+obj-$(CONFIG_SND_SOC_P1022_RDK) += snd-soc-p1022-rdk.o
+
 # Freescale PowerPC SSI/DMA Platform Support
 snd-soc-fsl-ssi-objs := fsl_ssi.o
 snd-soc-fsl-utils-objs := fsl_utils.o
