@@ -26,6 +26,7 @@
 #include "af9033.h"
 #include "tua9001.h"
 #include "fc0011.h"
+#include "fc0012.h"
 #include "mxl5007t.h"
 #include "tda18218.h"
 #include "fc2580.h"

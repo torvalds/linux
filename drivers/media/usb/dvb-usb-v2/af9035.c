@@ -514,6 +514,7 @@ static int af9035_read_config(struct dvb_usb_device *d)
 		case AF9033_TUNER_MXL5007T:
 		case AF9033_TUNER_TDA18218:
 		case AF9033_TUNER_FC2580:
+		case AF9033_TUNER_FC0012:
 			state->af9033_config[i].spec_inv = 1;
 			break;
 		default:
@@ -906,6 +907,31 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 		/* attach tuner */
 		fe = dvb_attach(fc2580_attach, adap->fe[0],
 				&d->i2c_adap, &af9035_fc2580_config);
+		break;
+	case AF9033_TUNER_FC0012:
+		/*
+		 * AF9035 gpiot2 = FC0012 enable
+		 * XXX: there seems to be something on gpioh8 too, but on my
+		 * my test I didn't find any difference.
+		 */
+
+		/* configure gpiot2 as output and high */
+		ret = af9035_wr_reg_mask(d, 0xd8eb, 0x01, 0x01);
+		if (ret < 0)
+			goto err;
+
+		ret = af9035_wr_reg_mask(d, 0xd8ec, 0x01, 0x01);
+		if (ret < 0)
+			goto err;
+
+		ret = af9035_wr_reg_mask(d, 0xd8ed, 0x01, 0x01);
+		if (ret < 0)
+			goto err;
+
+		usleep_range(10000, 50000);
+
+		fe = dvb_attach(fc0012_attach, adap->fe[0], &d->i2c_adap, 0x63,
+				1, FC_XTAL_36_MHZ);
 		break;
 	default:
 		fe = NULL;
