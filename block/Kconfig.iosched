@@ -43,15 +43,15 @@ config CFQ_GROUP_IOSCHED
 	---help---
 	  Enable group IO scheduling in CFQ.
 
-	config IOSCHED_SIO
-	        tristate "Simple I/O scheduler"
-	        default y
-	        ---help---
-	          The Simple I/O scheduler is an extremely simple scheduler,
-	          based on noop and deadline, that relies on deadlines to
-	          ensure fairness. The algorithm does not do any sorting but
-	          basic merging, trying to keep a minimum overhead. It is aimed
-	          mainly for aleatory access devices (eg: flash devices).
+config IOSCHED_SIO
+	tristate "Simple I/O scheduler"
+	default y
+	---help---
+	  The Simple I/O scheduler is an extremely simple scheduler,
+	  based on noop and deadline, that relies on deadlines to
+	  ensure fairness. The algorithm does not do any sorting but
+	  basic merging, trying to keep a minimum overhead. It is aimed
+	  mainly for aleatory access devices (eg: flash devices).
 
 config IOSCHED_BFQ
 	tristate "BFQ I/O scheduler"
@@ -75,6 +75,13 @@ config CGROUP_BFQIO
 	  filesystem interface.  The name of the subsystem will be
 	  bfqio.
 
+config IOSCHED_ZEN
+	tristate "Zen I/O scheduler"
+	default y
+	---help---
+	  FCFS, dispatches are back-inserted, deadlines ensure fairness.
+	  Should work best with devices where there is no travel delay.
+
 choice
 	prompt "Default I/O scheduler"
 	default DEFAULT_CFQ
@@ -88,14 +95,17 @@ choice
 	config DEFAULT_CFQ
 		bool "CFQ" if IOSCHED_CFQ=y
 		
-	config DEFAULT_SIO
-		bool "SIO" if IOSCHED_SIO=y
-
 	config DEFAULT_BFQ
 		bool "BFQ" if IOSCHED_BFQ=y
 
 	config DEFAULT_NOOP
 		bool "No-op"
+
+	config DEFAULT_SIO
+		bool "SIO" if IOSCHED_SIO=y
+
+	config DEFAULT_ZEN
+		bool "ZEN" if IOSCHED_ZEN=y
 
 endchoice
 
@@ -104,6 +114,7 @@ config DEFAULT_IOSCHED
 	default "deadline" if DEFAULT_DEADLINE
 	default "cfq" if DEFAULT_CFQ
 	default "sio" if DEFAULT_SIO
+	default "zen" if DEFAULT_ZEN
 	default "bfq" if DEFAULT_BFQ
 	default "noop" if DEFAULT_NOOP
 
