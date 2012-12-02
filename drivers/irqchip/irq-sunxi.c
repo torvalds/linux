@@ -129,7 +129,8 @@ static int __init sunxi_of_init(struct device_node *node,
 }
 
 static struct of_device_id sunxi_irq_dt_ids[] __initconst = {
-	{ .compatible = "allwinner,sunxi-ic", .data = sunxi_of_init }
+	{ .compatible = "allwinner,sunxi-ic", .data = sunxi_of_init },
+	{ }
 };
 
 void __init sunxi_init_irq(void)
