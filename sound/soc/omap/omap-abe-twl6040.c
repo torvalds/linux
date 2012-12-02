@@ -331,8 +331,8 @@ static __devinit int omap_abe_probe(struct platform_device *pdev)
 			num_links = 1;
 		}
 
-		of_property_read_u32(node, "ti,jack-detection",
-				     &priv->jack_detection);
+		priv->jack_detection = of_property_read_bool(node,
+							   "ti,jack-detection");
 		of_property_read_u32(node, "ti,mclk-freq",
 				     &priv->mclk_freq);
 		if (!priv->mclk_freq) {
