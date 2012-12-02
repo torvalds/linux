@@ -401,12 +401,18 @@ static const __devinitconst struct reg_default wm1811_reva_patch[] = {
  */
 static __devinit int wm8994_device_init(struct wm8994 *wm8994, int irq)
 {
-	struct wm8994_pdata *pdata = wm8994->dev->platform_data;
+	struct wm8994_pdata *pdata;
 	struct regmap_config *regmap_config;
 	const struct reg_default *regmap_patch = NULL;
 	const char *devname;
 	int ret, i, patch_regs;
 	int pulls = 0;
+
+	if (dev_get_platdata(wm8994->dev)) {
+		pdata = dev_get_platdata(wm8994->dev);
+		wm8994->pdata = *pdata;
+	}
+	pdata = &wm8994->pdata;
 
 	dev_set_drvdata(wm8994->dev, wm8994);
 
@@ -604,24 +610,21 @@ static __devinit int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		}
 	}
 
-	if (pdata) {
-		wm8994->irq_base = pdata->irq_base;
-		wm8994->gpio_base = pdata->gpio_base;
+	wm8994->irq_base = pdata->irq_base;
+	wm8994->gpio_base = pdata->gpio_base;
 
-		/* GPIO configuration is only applied if it's non-zero */
-		for (i = 0; i < ARRAY_SIZE(pdata->gpio_defaults); i++) {
-			if (pdata->gpio_defaults[i]) {
-				wm8994_set_bits(wm8994, WM8994_GPIO_1 + i,
-						0xffff,
-						pdata->gpio_defaults[i]);
-			}
+	/* GPIO configuration is only applied if it's non-zero */
+	for (i = 0; i < ARRAY_SIZE(pdata->gpio_defaults); i++) {
+		if (pdata->gpio_defaults[i]) {
+			wm8994_set_bits(wm8994, WM8994_GPIO_1 + i,
+					0xffff, pdata->gpio_defaults[i]);
 		}
-
-		wm8994->ldo_ena_always_driven = pdata->ldo_ena_always_driven;
-
-		if (pdata->spkmode_pu)
-			pulls |= WM8994_SPKMODE_PU;
 	}
+
+	wm8994->ldo_ena_always_driven = pdata->ldo_ena_always_driven;
+
+	if (pdata->spkmode_pu)
+		pulls |= WM8994_SPKMODE_PU;
 
 	/* Disable unneeded pulls */
 	wm8994_set_bits(wm8994, WM8994_PULL_CONTROL_2,
