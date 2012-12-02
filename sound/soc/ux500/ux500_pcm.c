@@ -282,7 +282,7 @@ static struct snd_soc_platform_driver ux500_pcm_soc_drv = {
 	.pcm_new        = ux500_pcm_new,
 };
 
-static int __devexit ux500_pcm_drv_probe(struct platform_device *pdev)
+int __devinit ux500_pcm_register_platform(struct platform_device *pdev)
 {
 	int ret;
 
@@ -296,23 +296,12 @@ static int __devexit ux500_pcm_drv_probe(struct platform_device *pdev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ux500_pcm_register_platform);
 
-static int __devinit ux500_pcm_drv_remove(struct platform_device *pdev)
+int __devexit ux500_pcm_unregister_platform(struct platform_device *pdev)
 {
 	snd_soc_unregister_platform(&pdev->dev);
 
 	return 0;
 }
-
-static struct platform_driver ux500_pcm_driver = {
-	.driver = {
-		.name = "ux500-pcm",
-		.owner = THIS_MODULE,
-	},
-
-	.probe = ux500_pcm_drv_probe,
-	.remove = __devexit_p(ux500_pcm_drv_remove),
-};
-module_platform_driver(ux500_pcm_driver);
-
-MODULE_LICENSE("GPL v2");
+EXPORT_SYMBOL_GPL(ux500_pcm_unregister_platform);
