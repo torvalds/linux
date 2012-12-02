@@ -629,6 +629,17 @@ int wm_adsp2_init(struct wm_adsp *adsp, bool dvfs)
 {
 	int ret;
 
+	/*
+	 * Disable the DSP memory by default when in reset for a small
+	 * power saving.
+	 */
+	ret = regmap_update_bits(adsp->regmap, adsp->base + ADSP2_CONTROL,
+				 ADSP2_MEM_ENA, 0);
+	if (ret != 0) {
+		adsp_err(adsp, "Failed to clear memory retention: %d\n", ret);
+		return ret;
+	}
+
 	if (dvfs) {
 		adsp->dvfs = devm_regulator_get(adsp->dev, "DCVDD");
 		if (IS_ERR(adsp->dvfs)) {
