@@ -34,7 +34,7 @@ static int ft1000_submit_rx_urb(struct ft1000_info *info);
 static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int ft1000_open (struct net_device *dev);
 static struct net_device_stats *ft1000_netdev_stats(struct net_device *dev);
-static int ft1000_chkcard (struct ft1000_device *dev);
+static int ft1000_chkcard (struct ft1000_usb *dev);
 
 static u8 tempbuffer[1600];
 
@@ -43,7 +43,7 @@ static u8 tempbuffer[1600];
 //---------------------------------------------------------------------------
 // Function:    ft1000_control
 //
-// Parameters:  ft1000_device  - device structure
+// Parameters:  ft1000_usb  - device structure
 //              pipe - usb control message pipe
 //              request - control request
 //              requesttype - control message request type
@@ -61,7 +61,7 @@ static u8 tempbuffer[1600];
 // Notes:
 //
 //---------------------------------------------------------------------------
-static int ft1000_control(struct ft1000_device *ft1000dev, unsigned int pipe,
+static int ft1000_control(struct ft1000_usb *ft1000dev, unsigned int pipe,
 			  u8 request, u8 requesttype, u16 value, u16 index,
 			  void *data, u16 size, int timeout)
 {
@@ -84,7 +84,7 @@ static int ft1000_control(struct ft1000_device *ft1000dev, unsigned int pipe,
 //---------------------------------------------------------------------------
 // Function:    ft1000_read_register
 //
-// Parameters:  ft1000_device  - device structure
+// Parameters:  ft1000_usb  - device structure
 //              Data - data buffer to hold the value read
 //              nRegIndex - register index
 //
@@ -97,7 +97,7 @@ static int ft1000_control(struct ft1000_device *ft1000dev, unsigned int pipe,
 //
 //---------------------------------------------------------------------------
 
-int ft1000_read_register(struct ft1000_device *ft1000dev, u16* Data,
+int ft1000_read_register(struct ft1000_usb *ft1000dev, u16* Data,
 			 u16 nRegIndx)
 {
 	int ret = STATUS_SUCCESS;
@@ -118,7 +118,7 @@ int ft1000_read_register(struct ft1000_device *ft1000dev, u16* Data,
 //---------------------------------------------------------------------------
 // Function:    ft1000_write_register
 //
-// Parameters:  ft1000_device  - device structure
+// Parameters:  ft1000_usb  - device structure
 //              value - value to write into a register
 //              nRegIndex - register index
 //
@@ -130,7 +130,7 @@ int ft1000_read_register(struct ft1000_device *ft1000dev, u16* Data,
 // Notes:
 //
 //---------------------------------------------------------------------------
-int ft1000_write_register(struct ft1000_device *ft1000dev, u16 value,
+int ft1000_write_register(struct ft1000_usb *ft1000dev, u16 value,
 			  u16 nRegIndx)
 {
 	int ret = STATUS_SUCCESS;
@@ -151,7 +151,7 @@ int ft1000_write_register(struct ft1000_device *ft1000dev, u16 value,
 //---------------------------------------------------------------------------
 // Function:    ft1000_read_dpram32
 //
-// Parameters:  ft1000_device  - device structure
+// Parameters:  ft1000_usb  - device structure
 //              indx - starting address to read
 //              buffer - data buffer to hold the data read
 //              cnt - number of byte read from DPRAM
@@ -165,7 +165,7 @@ int ft1000_write_register(struct ft1000_device *ft1000dev, u16 value,
 //
 //---------------------------------------------------------------------------
 
-int ft1000_read_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer,
+int ft1000_read_dpram32(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer,
 			u16 cnt)
 {
 	int ret = STATUS_SUCCESS;
@@ -186,7 +186,7 @@ int ft1000_read_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer,
 //---------------------------------------------------------------------------
 // Function:    ft1000_write_dpram32
 //
-// Parameters:  ft1000_device  - device structure
+// Parameters:  ft1000_usb  - device structure
 //              indx - starting address to write the data
 //              buffer - data buffer to write into DPRAM
 //              cnt - number of bytes to write
@@ -199,7 +199,7 @@ int ft1000_read_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer,
 // Notes:
 //
 //---------------------------------------------------------------------------
-int ft1000_write_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer,
+int ft1000_write_dpram32(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer,
 			 u16 cnt)
 {
 	int ret = STATUS_SUCCESS;
@@ -223,7 +223,7 @@ int ft1000_write_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer,
 //---------------------------------------------------------------------------
 // Function:    ft1000_read_dpram16
 //
-// Parameters:  ft1000_device  - device structure
+// Parameters:  ft1000_usb  - device structure
 //              indx - starting address to read
 //              buffer - data buffer to hold the data read
 //              hightlow - high or low 16 bit word
@@ -236,7 +236,7 @@ int ft1000_write_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer,
 // Notes:
 //
 //---------------------------------------------------------------------------
-int ft1000_read_dpram16(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer,
+int ft1000_read_dpram16(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer,
 			u8 highlow)
 {
 	int ret = STATUS_SUCCESS;
@@ -263,7 +263,7 @@ int ft1000_read_dpram16(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer,
 //---------------------------------------------------------------------------
 // Function:    ft1000_write_dpram16
 //
-// Parameters:  ft1000_device  - device structure
+// Parameters:  ft1000_usb  - device structure
 //              indx - starting address to write the data
 //              value - 16bits value to write
 //              hightlow - high or low 16 bit word
@@ -276,7 +276,7 @@ int ft1000_read_dpram16(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer,
 // Notes:
 //
 //---------------------------------------------------------------------------
-int ft1000_write_dpram16(struct ft1000_device *ft1000dev, u16 indx, u16 value, u8 highlow)
+int ft1000_write_dpram16(struct ft1000_usb *ft1000dev, u16 indx, u16 value, u8 highlow)
 {
 	int ret = STATUS_SUCCESS;
 	u8 request;
@@ -302,7 +302,7 @@ int ft1000_write_dpram16(struct ft1000_device *ft1000dev, u16 indx, u16 value, u
 //---------------------------------------------------------------------------
 // Function:    fix_ft1000_read_dpram32
 //
-// Parameters:  ft1000_device  - device structure
+// Parameters:  ft1000_usb  - device structure
 //              indx - starting address to read
 //              buffer - data buffer to hold the data read
 //
@@ -315,7 +315,7 @@ int ft1000_write_dpram16(struct ft1000_device *ft1000dev, u16 indx, u16 value, u
 // Notes:
 //
 //---------------------------------------------------------------------------
-int fix_ft1000_read_dpram32(struct ft1000_device *ft1000dev, u16 indx,
+int fix_ft1000_read_dpram32(struct ft1000_usb *ft1000dev, u16 indx,
 			    u8 *buffer)
 {
 	u8 buf[16];
@@ -346,7 +346,7 @@ int fix_ft1000_read_dpram32(struct ft1000_device *ft1000dev, u16 indx,
 //---------------------------------------------------------------------------
 // Function:    fix_ft1000_write_dpram32
 //
-// Parameters:  ft1000_device  - device structure
+// Parameters:  ft1000_usb  - device structure
 //              indx - starting address to write
 //              buffer - data buffer to write
 //
@@ -359,7 +359,7 @@ int fix_ft1000_read_dpram32(struct ft1000_device *ft1000dev, u16 indx,
 // Notes:
 //
 //---------------------------------------------------------------------------
-int fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer)
+int fix_ft1000_write_dpram32(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer)
 {
 	u16 pos1;
 	u16 pos2;
@@ -426,7 +426,7 @@ int fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buff
 //
 //  Returns:    None
 //-----------------------------------------------------------------------
-static void card_reset_dsp(struct ft1000_device *ft1000dev, bool value)
+static void card_reset_dsp(struct ft1000_usb *ft1000dev, bool value)
 {
 	u16 status = STATUS_SUCCESS;
 	u16 tempword;
@@ -465,7 +465,7 @@ static void card_reset_dsp(struct ft1000_device *ft1000dev, bool value)
 //---------------------------------------------------------------------------
 // Function:    card_send_command
 //
-// Parameters:  ft1000_device  - device structure
+// Parameters:  ft1000_usb  - device structure
 //              ptempbuffer - command buffer
 //              size - command buffer size
 //
@@ -477,7 +477,7 @@ static void card_reset_dsp(struct ft1000_device *ft1000dev, bool value)
 // Notes:
 //
 //---------------------------------------------------------------------------
-void card_send_command(struct ft1000_device *ft1000dev, void *ptempbuffer,
+void card_send_command(struct ft1000_usb *ft1000dev, void *ptempbuffer,
 		       int size)
 {
 	unsigned short temp;
@@ -524,7 +524,7 @@ void card_send_command(struct ft1000_device *ft1000dev, void *ptempbuffer,
 //
 //  Returns:    None
 //-----------------------------------------------------------------------
-int dsp_reload(struct ft1000_device *ft1000dev)
+int dsp_reload(struct ft1000_usb *ft1000dev)
 {
 	u16 status;
 	u16 tempword;
@@ -588,7 +588,7 @@ int dsp_reload(struct ft1000_device *ft1000dev)
 static void ft1000_reset_asic(struct net_device *dev)
 {
 	struct ft1000_info *info = netdev_priv(dev);
-	struct ft1000_device *ft1000dev = info->priv;
+	struct ft1000_usb *ft1000dev = info->priv;
 	u16 tempword;
 
 	DEBUG("ft1000_hw:ft1000_reset_asic called\n");
@@ -627,7 +627,7 @@ static void ft1000_reset_asic(struct net_device *dev)
 static int ft1000_reset_card(struct net_device *dev)
 {
 	struct ft1000_info *info = netdev_priv(dev);
-	struct ft1000_device *ft1000dev = info->priv;
+	struct ft1000_usb *ft1000dev = info->priv;
 	u16 tempword;
 	struct prov_record *ptr;
 
@@ -694,7 +694,7 @@ static const struct net_device_ops ftnet_ops =
 // Notes:
 //
 //---------------------------------------------------------------------------
-int init_ft1000_netdev(struct ft1000_device *ft1000dev)
+int init_ft1000_netdev(struct ft1000_usb *ft1000dev)
 {
 	struct net_device *netdev;
 	struct ft1000_info *pInfo = NULL;
@@ -822,7 +822,7 @@ err_net:
 // Notes:
 //
 //---------------------------------------------------------------------------
-int reg_ft1000_netdev(struct ft1000_device *ft1000dev,
+int reg_ft1000_netdev(struct ft1000_usb *ft1000dev,
 		      struct usb_interface *intf)
 {
 	struct net_device *netdev;
@@ -876,7 +876,7 @@ int ft1000_reset(void *dev)
 static void ft1000_usb_transmit_complete(struct urb *urb)
 {
 
-	struct ft1000_device *ft1000dev = urb->context;
+	struct ft1000_usb *ft1000dev = urb->context;
 
 	if (urb->status)
 		pr_err("%s: TX status %d\n", ft1000dev->net->name, urb->status);
@@ -902,7 +902,7 @@ static void ft1000_usb_transmit_complete(struct urb *urb)
 static int ft1000_copy_down_pkt(struct net_device *netdev, u8 * packet, u16 len)
 {
 	struct ft1000_info *pInfo = netdev_priv(netdev);
-	struct ft1000_device *pFt1000Dev = pInfo->priv;
+	struct ft1000_usb *pFt1000Dev = pInfo->priv;
 
 	int count, ret;
 	u8 *t;
@@ -981,7 +981,7 @@ static int ft1000_copy_down_pkt(struct net_device *netdev, u8 * packet, u16 len)
 static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ft1000_info *pInfo = netdev_priv(dev);
-	struct ft1000_device *pFt1000Dev = pInfo->priv;
+	struct ft1000_usb *pFt1000Dev = pInfo->priv;
 	u8 *pdata;
 	int maxlen, pipe;
 
@@ -1039,7 +1039,7 @@ err:
 static int ft1000_copy_up_pkt(struct urb *urb)
 {
 	struct ft1000_info *info = urb->context;
-	struct ft1000_device *ft1000dev = info->priv;
+	struct ft1000_usb *ft1000dev = info->priv;
 	struct net_device *net = ft1000dev->net;
 
 	u16 tempword;
@@ -1134,7 +1134,7 @@ static int ft1000_copy_up_pkt(struct urb *urb)
 static int ft1000_submit_rx_urb(struct ft1000_info *info)
 {
 	int result;
-	struct ft1000_device *pFt1000Dev = info->priv;
+	struct ft1000_usb *pFt1000Dev = info->priv;
 
 	if (pFt1000Dev->status & FT1000_STATUS_CLOSING) {
 		DEBUG("network driver is closed, return\n");
@@ -1177,7 +1177,7 @@ static int ft1000_submit_rx_urb(struct ft1000_info *info)
 static int ft1000_open(struct net_device *dev)
 {
 	struct ft1000_info *pInfo = netdev_priv(dev);
-	struct ft1000_device *pFt1000Dev = pInfo->priv;
+	struct ft1000_usb *pFt1000Dev = pInfo->priv;
 	struct timeval tv;
 
 	DEBUG("ft1000_open is called for card %d\n", pFt1000Dev->CardNumber);
@@ -1214,7 +1214,7 @@ static int ft1000_open(struct net_device *dev)
 int ft1000_close(struct net_device *net)
 {
 	struct ft1000_info *pInfo = netdev_priv(net);
-	struct ft1000_device *ft1000dev = pInfo->priv;
+	struct ft1000_usb *ft1000dev = pInfo->priv;
 
 	ft1000dev->status |= FT1000_STATUS_CLOSING;
 
@@ -1248,7 +1248,7 @@ static struct net_device_stats *ft1000_netdev_stats(struct net_device *dev)
 //              TRUE  (device is present)
 //
 //---------------------------------------------------------------------------
-static int ft1000_chkcard(struct ft1000_device *dev)
+static int ft1000_chkcard(struct ft1000_usb *dev)
 {
 	u16 tempword;
 	u16 status;
@@ -1293,7 +1293,7 @@ static int ft1000_chkcard(struct ft1000_device *dev)
 //          = 1 (successful)
 //
 //---------------------------------------------------------------------------
-static bool ft1000_receive_cmd(struct ft1000_device *dev, u16 *pbuffer,
+static bool ft1000_receive_cmd(struct ft1000_usb *dev, u16 *pbuffer,
 			       int maxsz, u16 *pnxtph)
 {
 	u16 size, ret;
@@ -1360,7 +1360,7 @@ static bool ft1000_receive_cmd(struct ft1000_device *dev, u16 *pbuffer,
 
 static int ft1000_dsp_prov(void *arg)
 {
-	struct ft1000_device *dev = (struct ft1000_device *)arg;
+	struct ft1000_usb *dev = (struct ft1000_usb *)arg;
 	struct ft1000_info *info = netdev_priv(dev->net);
 	u16 tempword;
 	u16 len;
@@ -1447,7 +1447,7 @@ static int ft1000_dsp_prov(void *arg)
 	return STATUS_SUCCESS;
 }
 
-static int ft1000_proc_drvmsg(struct ft1000_device *dev, u16 size)
+static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 {
 	struct ft1000_info *info = netdev_priv(dev->net);
 	u16 msgtype;
@@ -1753,7 +1753,7 @@ out:
 
 int ft1000_poll(void* dev_id)
 {
-    struct ft1000_device *dev = (struct ft1000_device *)dev_id;
+    struct ft1000_usb *dev = (struct ft1000_usb *)dev_id;
 	struct ft1000_info *info = netdev_priv(dev->net);
 
     u16 tempword;

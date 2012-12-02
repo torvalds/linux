@@ -63,11 +63,11 @@ static int ft1000_probe(struct usb_interface *interface,
 	unsigned numaltsetting;
 	int i, ret = 0, size;
 
-	struct ft1000_device *ft1000dev;
+	struct ft1000_usb *ft1000dev;
 	struct ft1000_info *pft1000info = NULL;
 	const struct firmware *dsp_fw;
 
-	ft1000dev = kzalloc(sizeof(struct ft1000_device), GFP_KERNEL);
+	ft1000dev = kzalloc(sizeof(struct ft1000_usb), GFP_KERNEL);
 
 	if (!ft1000dev) {
 		pr_err("out of memory allocating device structure\n");
@@ -219,7 +219,7 @@ err_fw:
 static void ft1000_disconnect(struct usb_interface *interface)
 {
 	struct ft1000_info *pft1000info;
-	struct ft1000_device *ft1000dev;
+	struct ft1000_usb *ft1000dev;
 
 	DEBUG("ft1000_disconnect is called\n");
 

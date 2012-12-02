@@ -114,7 +114,7 @@ struct dsp_image_info {
 //---------------------------------------------------------------------------
 // Function:    check_usb_db
 //
-// Parameters:  struct ft1000_device  - device structure
+// Parameters:  struct ft1000_usb  - device structure
 //
 // Returns:     0 - success
 //
@@ -123,7 +123,7 @@ struct dsp_image_info {
 // Notes:
 //
 //---------------------------------------------------------------------------
-static u32 check_usb_db (struct ft1000_device *ft1000dev)
+static u32 check_usb_db (struct ft1000_usb *ft1000dev)
 {
 	int loopcnt;
 	u16 temp;
@@ -172,7 +172,7 @@ static u32 check_usb_db (struct ft1000_device *ft1000dev)
 //---------------------------------------------------------------------------
 // Function:    get_handshake
 //
-// Parameters:  struct ft1000_device  - device structure
+// Parameters:  struct ft1000_usb  - device structure
 //              u16 expected_value - the handshake value expected
 //
 // Returns:     handshakevalue - success
@@ -183,7 +183,7 @@ static u32 check_usb_db (struct ft1000_device *ft1000dev)
 // Notes:
 //
 //---------------------------------------------------------------------------
-static u16 get_handshake(struct ft1000_device *ft1000dev, u16 expected_value)
+static u16 get_handshake(struct ft1000_usb *ft1000dev, u16 expected_value)
 {
 	u16 handshake;
 	int loopcnt;
@@ -232,7 +232,7 @@ static u16 get_handshake(struct ft1000_device *ft1000dev, u16 expected_value)
 //---------------------------------------------------------------------------
 // Function:    put_handshake
 //
-// Parameters:  struct ft1000_device  - device structure
+// Parameters:  struct ft1000_usb  - device structure
 //              u16 handshake_value - handshake to be written
 //
 // Returns:     none
@@ -243,7 +243,7 @@ static u16 get_handshake(struct ft1000_device *ft1000dev, u16 expected_value)
 // Notes:
 //
 //---------------------------------------------------------------------------
-static void put_handshake(struct ft1000_device *ft1000dev,u16 handshake_value)
+static void put_handshake(struct ft1000_usb *ft1000dev,u16 handshake_value)
 {
 	u32 tempx;
 	u16 tempword;
@@ -262,7 +262,7 @@ static void put_handshake(struct ft1000_device *ft1000dev,u16 handshake_value)
 					FT1000_REG_DOORBELL);
 }
 
-static u16 get_handshake_usb(struct ft1000_device *ft1000dev, u16 expected_value)
+static u16 get_handshake_usb(struct ft1000_usb *ft1000dev, u16 expected_value)
 {
 	u16 handshake;
 	int loopcnt;
@@ -309,7 +309,7 @@ static u16 get_handshake_usb(struct ft1000_device *ft1000dev, u16 expected_value
 	return HANDSHAKE_TIMEOUT_VALUE;
 }
 
-static void put_handshake_usb(struct ft1000_device *ft1000dev,u16 handshake_value)
+static void put_handshake_usb(struct ft1000_usb *ft1000dev,u16 handshake_value)
 {
 	int i;
 
@@ -319,7 +319,7 @@ static void put_handshake_usb(struct ft1000_device *ft1000dev,u16 handshake_valu
 //---------------------------------------------------------------------------
 // Function:    get_request_type
 //
-// Parameters:  struct ft1000_device  - device structure
+// Parameters:  struct ft1000_usb  - device structure
 //
 // Returns:     request type - success
 //
@@ -328,7 +328,7 @@ static void put_handshake_usb(struct ft1000_device *ft1000dev,u16 handshake_valu
 // Notes:
 //
 //---------------------------------------------------------------------------
-static u16 get_request_type(struct ft1000_device *ft1000dev)
+static u16 get_request_type(struct ft1000_usb *ft1000dev)
 {
 	u16 request_type;
 	u32 status;
@@ -351,7 +351,7 @@ static u16 get_request_type(struct ft1000_device *ft1000dev)
 	return request_type;
 }
 
-static u16 get_request_type_usb(struct ft1000_device *ft1000dev)
+static u16 get_request_type_usb(struct ft1000_usb *ft1000dev)
 {
 	u16 request_type;
 	u32 status;
@@ -383,7 +383,7 @@ static u16 get_request_type_usb(struct ft1000_device *ft1000dev)
 //---------------------------------------------------------------------------
 // Function:    get_request_value
 //
-// Parameters:  struct ft1000_device  - device structure
+// Parameters:  struct ft1000_usb  - device structure
 //
 // Returns:     request value - success
 //
@@ -392,7 +392,7 @@ static u16 get_request_type_usb(struct ft1000_device *ft1000dev)
 // Notes:
 //
 //---------------------------------------------------------------------------
-static long get_request_value(struct ft1000_device *ft1000dev)
+static long get_request_value(struct ft1000_usb *ft1000dev)
 {
 	u32 value;
 	u16 tempword;
@@ -419,7 +419,7 @@ static long get_request_value(struct ft1000_device *ft1000dev)
 //---------------------------------------------------------------------------
 // Function:    put_request_value
 //
-// Parameters:  struct ft1000_device  - device structure
+// Parameters:  struct ft1000_usb  - device structure
 //              long lvalue - value to be put into DPRAM location DWNLD_MAG1_SIZE_LOC
 //
 // Returns:     none
@@ -429,7 +429,7 @@ static long get_request_value(struct ft1000_device *ft1000dev)
 // Notes:
 //
 //---------------------------------------------------------------------------
-static void put_request_value(struct ft1000_device *ft1000dev, long lvalue)
+static void put_request_value(struct ft1000_usb *ft1000dev, long lvalue)
 {
 	u32    tempx;
 	u32    status;
@@ -480,7 +480,7 @@ static int check_buffers(u16 *buff_w, u16 *buff_r, int len, int offset)
 //---------------------------------------------------------------------------
 // Function:    write_blk
 //
-// Parameters:  struct ft1000_device  - device structure
+// Parameters:  struct ft1000_usb  - device structure
 //              u16 **pUsFile - DSP image file pointer in u16
 //              u8  **pUcFile - DSP image file pointer in u8
 //              long   word_length - length of the buffer to be written
@@ -494,7 +494,7 @@ static int check_buffers(u16 *buff_w, u16 *buff_r, int len, int offset)
 // Notes:
 //
 //---------------------------------------------------------------------------
-static u32 write_blk (struct ft1000_device *ft1000dev, u16 **pUsFile, u8 **pUcFile, long word_length)
+static u32 write_blk (struct ft1000_usb *ft1000dev, u16 **pUsFile, u8 **pUcFile, long word_length)
 {
    u32 Status = STATUS_SUCCESS;
    u16 dpram;
@@ -619,7 +619,7 @@ static void usb_dnld_complete (struct urb *urb)
 //---------------------------------------------------------------------------
 // Function:    write_blk_fifo
 //
-// Parameters:  struct ft1000_device  - device structure
+// Parameters:  struct ft1000_usb  - device structure
 //              u16 **pUsFile - DSP image file pointer in u16
 //              u8  **pUcFile - DSP image file pointer in u8
 //              long   word_length - length of the buffer to be written
@@ -633,7 +633,7 @@ static void usb_dnld_complete (struct urb *urb)
 // Notes:
 //
 //---------------------------------------------------------------------------
-static u32 write_blk_fifo(struct ft1000_device *ft1000dev, u16 **pUsFile,
+static u32 write_blk_fifo(struct ft1000_usb *ft1000dev, u16 **pUsFile,
 			  u8 **pUcFile, long word_length)
 {
 	u32 Status = STATUS_SUCCESS;
@@ -676,7 +676,7 @@ static u32 write_blk_fifo(struct ft1000_device *ft1000dev, u16 **pUsFile,
 //  Returns:    status                  - return code
 //---------------------------------------------------------------------------
 
-u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart,
+u16 scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 		u32 FileLength)
 {
 	u16 status = STATUS_SUCCESS;

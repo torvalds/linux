@@ -62,7 +62,7 @@ struct ft1000_debug_dirs {
 	int int_number;
 };
 
-struct ft1000_device {
+struct ft1000_usb {
 	struct usb_device *dev;
 	struct net_device *net;
 
@@ -103,21 +103,21 @@ struct dpram_blk {
 	u16 *pbuffer;
 } __packed;
 
-int ft1000_read_register(struct ft1000_device *ft1000dev,
+int ft1000_read_register(struct ft1000_usb *ft1000dev,
 			u16 *Data, u16 nRegIndx);
-int ft1000_write_register(struct ft1000_device *ft1000dev,
+int ft1000_write_register(struct ft1000_usb *ft1000dev,
 			u16 value, u16 nRegIndx);
-int ft1000_read_dpram32(struct ft1000_device *ft1000dev,
+int ft1000_read_dpram32(struct ft1000_usb *ft1000dev,
 			u16 indx, u8 *buffer, u16 cnt);
-int ft1000_write_dpram32(struct ft1000_device *ft1000dev,
+int ft1000_write_dpram32(struct ft1000_usb *ft1000dev,
 			u16 indx, u8 *buffer, u16 cnt);
-int ft1000_read_dpram16(struct ft1000_device *ft1000dev,
+int ft1000_read_dpram16(struct ft1000_usb *ft1000dev,
 			u16 indx, u8 *buffer, u8 highlow);
-int ft1000_write_dpram16(struct ft1000_device *ft1000dev,
+int ft1000_write_dpram16(struct ft1000_usb *ft1000dev,
 			u16 indx, u16 value, u8 highlow);
-int fix_ft1000_read_dpram32(struct ft1000_device *ft1000dev,
+int fix_ft1000_read_dpram32(struct ft1000_usb *ft1000dev,
 			u16 indx, u8 *buffer);
-int fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev,
+int fix_ft1000_write_dpram32(struct ft1000_usb *ft1000dev,
 			u16 indx, u8 *buffer);
 
 extern void *pFileStart;
@@ -125,25 +125,25 @@ extern size_t FileLength;
 extern int numofmsgbuf;
 
 int ft1000_close(struct net_device *dev);
-u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart,
+u16 scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 		u32  FileLength);
 
 extern struct list_head freercvpool;
 
 extern spinlock_t free_buff_lock;   /* lock to arbitrate free buffer list for receive command data */
 
-int ft1000_create_dev(struct ft1000_device *dev);
+int ft1000_create_dev(struct ft1000_usb *dev);
 void ft1000_destroy_dev(struct net_device *dev);
-extern void card_send_command(struct ft1000_device *ft1000dev,
+extern void card_send_command(struct ft1000_usb *ft1000dev,
 				void *ptempbuffer, int size);
 
 struct dpram_blk *ft1000_get_buffer(struct list_head *bufflist);
 void ft1000_free_buffer(struct dpram_blk *pdpram_blk, struct list_head *plist);
 
-int dsp_reload(struct ft1000_device *ft1000dev);
-int init_ft1000_netdev(struct ft1000_device *ft1000dev);
+int dsp_reload(struct ft1000_usb *ft1000dev);
+int init_ft1000_netdev(struct ft1000_usb *ft1000dev);
 struct usb_interface;
-int reg_ft1000_netdev(struct ft1000_device *ft1000dev,
+int reg_ft1000_netdev(struct ft1000_usb *ft1000dev,
 			struct usb_interface *intf);
 int ft1000_poll(void *dev_id);
 

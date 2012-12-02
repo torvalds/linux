@@ -137,7 +137,7 @@ void ft1000_free_buffer(struct dpram_blk *pdpram_blk, struct list_head *plist)
 // Notes:       Only called by init_module().
 //
 //---------------------------------------------------------------------------
-int ft1000_create_dev(struct ft1000_device *dev)
+int ft1000_create_dev(struct ft1000_usb *dev)
 {
     int result;
     int i;
@@ -227,7 +227,7 @@ fail:
 void ft1000_destroy_dev(struct net_device *netdev)
 {
 	struct ft1000_info *info = netdev_priv(netdev);
-	struct ft1000_device *dev = info->priv;
+	struct ft1000_usb *dev = info->priv;
 		int i;
 	struct dpram_blk *pdpram_blk;
 	struct dpram_blk *ptr;
@@ -292,7 +292,7 @@ void ft1000_destroy_dev(struct net_device *netdev)
 static int ft1000_open (struct inode *inode, struct file *file)
 {
 	struct ft1000_info *info;
-	struct ft1000_device *dev = (struct ft1000_device *)inode->i_private;
+	struct ft1000_usb *dev = (struct ft1000_usb *)inode->i_private;
     int i,num;
 
     DEBUG("%s called\n", __func__);
@@ -349,7 +349,7 @@ static unsigned int ft1000_poll_dev(struct file *file, poll_table *wait)
 {
     struct net_device *netdev = file->private_data;
 	struct ft1000_info *info = netdev_priv(netdev);
-	struct ft1000_device *dev = info->priv;
+	struct ft1000_usb *dev = info->priv;
     int i;
 
     //DEBUG("ft1000_poll_dev called\n");
@@ -398,7 +398,7 @@ static long ft1000_ioctl (struct file *file, unsigned int command,
 {
     void __user *argp = (void __user *)argument;
 	struct ft1000_info *info;
-    struct ft1000_device *ft1000dev;
+    struct ft1000_usb *ft1000dev;
     int result=0;
     int cmd;
     int i;
@@ -740,7 +740,7 @@ static int ft1000_release (struct inode *inode, struct file *file)
 {
 	struct ft1000_info *info;
     struct net_device *dev;
-    struct ft1000_device *ft1000dev;
+    struct ft1000_usb *ft1000dev;
     int i;
 	struct dpram_blk *pdpram_blk;
 
