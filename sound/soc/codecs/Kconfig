@@ -236,6 +236,7 @@ config SND_SOC_CX20442
 	tristate
 
 config SND_SOC_JZ4740_CODEC
+	select REGMAP_MMIO
 	tristate
 
 config SND_SOC_L3
