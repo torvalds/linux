@@ -1292,7 +1292,7 @@ static int __split_huge_page_splitting(struct page *page,
 		 * We can't temporarily set the pmd to null in order
 		 * to split it, the pmd must remain marked huge at all
 		 * times or the VM won't take the pmd_trans_huge paths
-		 * and it won't wait on the anon_vma->root->mutex to
+		 * and it won't wait on the anon_vma->root->rwsem to
 		 * serialize against split_huge_page*.
 		 */
 		pmdp_splitting_flush(vma, address, pmd);
@@ -1495,7 +1495,7 @@ static int __split_huge_page_map(struct page *page,
 	return ret;
 }
 
-/* must be called with anon_vma->root->mutex hold */
+/* must be called with anon_vma->root->rwsem held */
 static void __split_huge_page(struct page *page,
 			      struct anon_vma *anon_vma)
 {

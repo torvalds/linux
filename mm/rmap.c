@@ -24,7 +24,7 @@
  *   mm->mmap_sem
  *     page->flags PG_locked (lock_page)
  *       mapping->i_mmap_mutex
- *         anon_vma->mutex
+ *         anon_vma->rwsem
  *           mm->page_table_lock or pte_lock
  *             zone->lru_lock (in mark_page_accessed, isolate_lru_page)
  *             swap_lock (in swap_duplicate, swap_info_get)
@@ -37,7 +37,7 @@
  *                           in arch-dependent flush_dcache_mmap_lock,
  *                           within bdi.wb->list_lock in __sync_single_inode)
  *
- * anon_vma->mutex,mapping->i_mutex      (memory_failure, collect_procs_anon)
+ * anon_vma->rwsem,mapping->i_mutex      (memory_failure, collect_procs_anon)
  *   ->tasklist_lock
  *     pte map lock
  */
@@ -103,7 +103,7 @@ static inline void anon_vma_free(struct anon_vma *anon_vma)
 	 * LOCK should suffice since the actual taking of the lock must
 	 * happen _before_ what follows.
 	 */
-	if (mutex_is_locked(&anon_vma->root->mutex)) {
+	if (rwsem_is_locked(&anon_vma->root->rwsem)) {
 		anon_vma_lock(anon_vma);
 		anon_vma_unlock(anon_vma);
 	}
@@ -219,9 +219,9 @@ static inline struct anon_vma *lock_anon_vma_root(struct anon_vma *root, struct 
 	struct anon_vma *new_root = anon_vma->root;
 	if (new_root != root) {
 		if (WARN_ON_ONCE(root))
-			mutex_unlock(&root->mutex);
+			up_write(&root->rwsem);
 		root = new_root;
-		mutex_lock(&root->mutex);
+		down_write(&root->rwsem);
 	}
 	return root;
 }
@@ -229,7 +229,7 @@ static inline struct anon_vma *lock_anon_vma_root(struct anon_vma *root, struct 
 static inline void unlock_anon_vma_root(struct anon_vma *root)
 {
 	if (root)
-		mutex_unlock(&root->mutex);
+		up_write(&root->rwsem);
 }
 
 /*
@@ -349,7 +349,7 @@ void unlink_anon_vmas(struct vm_area_struct *vma)
 	/*
 	 * Iterate the list once more, it now only contains empty and unlinked
 	 * anon_vmas, destroy them. Could not do before due to __put_anon_vma()
-	 * needing to acquire the anon_vma->root->mutex.
+	 * needing to write-acquire the anon_vma->root->rwsem.
 	 */
 	list_for_each_entry_safe(avc, next, &vma->anon_vma_chain, same_vma) {
 		struct anon_vma *anon_vma = avc->anon_vma;
@@ -365,7 +365,7 @@ static void anon_vma_ctor(void *data)
 {
 	struct anon_vma *anon_vma = data;
 
-	mutex_init(&anon_vma->mutex);
+	init_rwsem(&anon_vma->rwsem);
 	atomic_set(&anon_vma->refcount, 0);
 	anon_vma->rb_root = RB_ROOT;
 }
@@ -457,14 +457,14 @@ struct anon_vma *page_lock_anon_vma(struct page *page)
 
 	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
 	root_anon_vma = ACCESS_ONCE(anon_vma->root);
-	if (mutex_trylock(&root_anon_vma->mutex)) {
+	if (down_write_trylock(&root_anon_vma->rwsem)) {
 		/*
 		 * If the page is still mapped, then this anon_vma is still
 		 * its anon_vma, and holding the mutex ensures that it will
 		 * not go away, see anon_vma_free().
 		 */
 		if (!page_mapped(page)) {
-			mutex_unlock(&root_anon_vma->mutex);
+			up_write(&root_anon_vma->rwsem);
 			anon_vma = NULL;
 		}
 		goto out;
@@ -1299,7 +1299,7 @@ out_mlock:
 	/*
 	 * We need mmap_sem locking, Otherwise VM_LOCKED check makes
 	 * unstable result and race. Plus, We can't wait here because
-	 * we now hold anon_vma->mutex or mapping->i_mmap_mutex.
+	 * we now hold anon_vma->rwsem or mapping->i_mmap_mutex.
 	 * if trylock failed, the page remain in evictable lru and later
 	 * vmscan could retry to move the page to unevictable lru if the
 	 * page is actually mlocked.
