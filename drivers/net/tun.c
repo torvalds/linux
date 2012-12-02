@@ -493,9 +493,6 @@ static int tun_attach(struct tun_struct *tun, struct file *file)
 
 	tun_set_real_num_queues(tun);
 
-	if (tun->numqueues == 1)
-		netif_carrier_on(tun->dev);
-
 	/* device is allowed to go away first, so no need to hold extra
 	 * refcnt.
 	 */
@@ -1612,6 +1609,10 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 			TUN_USER_FEATURES;
 		dev->features = dev->hw_features;
 
+		err = tun_attach(tun, file);
+		if (err < 0)
+			goto err_free_dev;
+
 		err = register_netdevice(tun->dev);
 		if (err < 0)
 			goto err_free_dev;
@@ -1621,9 +1622,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		    device_create_file(&tun->dev->dev, &dev_attr_group))
 			pr_err("Failed to create tun sysfs files\n");
 
-		err = tun_attach(tun, file);
-		if (err < 0)
-			goto err_free_dev;
+		netif_carrier_on(tun->dev);
 	}
 
 	tun_debug(KERN_INFO, tun, "tun_set_iff\n");
