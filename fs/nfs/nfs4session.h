@@ -38,6 +38,8 @@ struct nfs4_slot_table {
 						 * op for dynamic resizing */
 	u32		target_highest_slotid;	/* Server max_slot target */
 	u32		server_highest_slotid;	/* Server highest slotid */
+	s32		d_target_highest_slotid; /* Derivative */
+	s32		d2_target_highest_slotid; /* 2nd derivative */
 	unsigned long	generation;		/* Generation counter for
 						   target_highest_slotid */
 	struct completion complete;

@@ -178,6 +178,8 @@ static void nfs4_reset_slot_table(struct nfs4_slot_table *tbl,
 	tbl->highest_used_slotid = NFS4_NO_SLOT;
 	tbl->target_highest_slotid = server_highest_slotid;
 	tbl->server_highest_slotid = server_highest_slotid;
+	tbl->d_target_highest_slotid = 0;
+	tbl->d2_target_highest_slotid = 0;
 	tbl->max_slotid = server_highest_slotid;
 }
 
@@ -292,6 +294,8 @@ void nfs41_set_target_slotid(struct nfs4_slot_table *tbl,
 {
 	spin_lock(&tbl->slot_tbl_lock);
 	nfs41_set_target_slotid_locked(tbl, target_highest_slotid);
+	tbl->d_target_highest_slotid = 0;
+	tbl->d2_target_highest_slotid = 0;
 	spin_unlock(&tbl->slot_tbl_lock);
 }
 
@@ -307,16 +311,65 @@ static void nfs41_set_server_slotid_locked(struct nfs4_slot_table *tbl,
 	tbl->server_highest_slotid = highest_slotid;
 }
 
+static s32 nfs41_derivative_target_slotid(s32 s1, s32 s2)
+{
+	s1 -= s2;
+	if (s1 == 0)
+		return 0;
+	if (s1 < 0)
+		return (s1 - 1) >> 1;
+	return (s1 + 1) >> 1;
+}
+
+static int nfs41_sign_s32(s32 s1)
+{
+	if (s1 > 0)
+		return 1;
+	if (s1 < 0)
+		return -1;
+	return 0;
+}
+
+static bool nfs41_same_sign_or_zero_s32(s32 s1, s32 s2)
+{
+	if (!s1 || !s2)
+		return true;
+	return nfs41_sign_s32(s1) == nfs41_sign_s32(s2);
+}
+
+/* Try to eliminate outliers by checking for sharp changes in the
+ * derivatives and second derivatives
+ */
+static bool nfs41_is_outlier_target_slotid(struct nfs4_slot_table *tbl,
+		u32 new_target)
+{
+	s32 d_target, d2_target;
+	bool ret = true;
+
+	d_target = nfs41_derivative_target_slotid(new_target,
+			tbl->target_highest_slotid);
+	d2_target = nfs41_derivative_target_slotid(d_target,
+			tbl->d_target_highest_slotid);
+	/* Is first derivative same sign? */
+	if (nfs41_same_sign_or_zero_s32(d_target, tbl->d_target_highest_slotid))
+		ret = false;
+	/* Is second derivative same sign? */
+	if (nfs41_same_sign_or_zero_s32(d2_target, tbl->d2_target_highest_slotid))
+		ret = false;
+	tbl->d_target_highest_slotid = d_target;
+	tbl->d2_target_highest_slotid = d2_target;
+	return ret;
+}
+
 void nfs41_update_target_slotid(struct nfs4_slot_table *tbl,
 		struct nfs4_slot *slot,
 		struct nfs4_sequence_res *res)
 {
 	spin_lock(&tbl->slot_tbl_lock);
-	if (tbl->generation != slot->generation)
-		goto out;
-	nfs41_set_server_slotid_locked(tbl, res->sr_highest_slotid);
-	nfs41_set_target_slotid_locked(tbl, res->sr_target_highest_slotid);
-out:
+	if (!nfs41_is_outlier_target_slotid(tbl, res->sr_target_highest_slotid))
+		nfs41_set_target_slotid_locked(tbl, res->sr_target_highest_slotid);
+	if (tbl->generation == slot->generation)
+		nfs41_set_server_slotid_locked(tbl, res->sr_highest_slotid);
 	spin_unlock(&tbl->slot_tbl_lock);
 }
 
