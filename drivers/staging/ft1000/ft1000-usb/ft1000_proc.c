@@ -94,11 +94,11 @@ ft1000ReadProc(char *page, char **start, off_t off, int count, int *eof,
 
 
 	if (info->ProgConStat != 0xFF) {
-		ft1000_read_dpram16(info->pFt1000Dev, FT1000_MAG_DSP_LED,
+		ft1000_read_dpram16(info->priv, FT1000_MAG_DSP_LED,
 			   (u8 *)&ledStat, FT1000_MAG_DSP_LED_INDX);
 		info->LedStat = ntohs(ledStat);
 
-		ft1000_read_dpram16(info->pFt1000Dev, FT1000_MAG_DSP_CON_STATE,
+		ft1000_read_dpram16(info->priv, FT1000_MAG_DSP_CON_STATE,
 			(u8 *)&conStat, FT1000_MAG_DSP_CON_STATE_INDX);
 		info->ConStat = ntohs(conStat);
 		do_gettimeofday(&tv);

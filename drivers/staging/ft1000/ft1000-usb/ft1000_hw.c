@@ -29,7 +29,7 @@
 
 //#define JDEBUG
 
-static int ft1000_reset(struct net_device *ft1000dev);
+static int ft1000_reset(void *ft1000dev);
 static int ft1000_submit_rx_urb(struct ft1000_info *info);
 static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int ft1000_open (struct net_device *dev);
@@ -588,7 +588,7 @@ int dsp_reload(struct ft1000_device *ft1000dev)
 static void ft1000_reset_asic(struct net_device *dev)
 {
 	struct ft1000_info *info = netdev_priv(dev);
-	struct ft1000_device *ft1000dev = info->pFt1000Dev;
+	struct ft1000_device *ft1000dev = info->priv;
 	u16 tempword;
 
 	DEBUG("ft1000_hw:ft1000_reset_asic called\n");
@@ -627,15 +627,15 @@ static void ft1000_reset_asic(struct net_device *dev)
 static int ft1000_reset_card(struct net_device *dev)
 {
 	struct ft1000_info *info = netdev_priv(dev);
-	struct ft1000_device *ft1000dev = info->pFt1000Dev;
+	struct ft1000_device *ft1000dev = info->priv;
 	u16 tempword;
 	struct prov_record *ptr;
 
 	DEBUG("ft1000_hw:ft1000_reset_card called.....\n");
 
-	info->fCondResetPend = 1;
+	ft1000dev->fCondResetPend = 1;
 	info->CardReady = 0;
-	info->fProvComplete = 0;
+	ft1000dev->fProvComplete = 0;
 
 	/* Make sure we free any memory reserve for provisioning */
 	while (list_empty(&info->prov_list) == 0) {
@@ -666,7 +666,7 @@ static int ft1000_reset_card(struct net_device *dev)
 
 	info->CardReady = 1;
 
-	info->fCondResetPend = 0;
+	ft1000dev->fCondResetPend = 0;
 
 	return TRUE;
 }
@@ -729,8 +729,8 @@ int init_ft1000_netdev(struct ft1000_device *ft1000dev)
 			goto err_net;
 		}
 
-		pInfo->CardNumber = gCardIndex;
-		DEBUG("card number = %d\n", pInfo->CardNumber);
+		ft1000dev->CardNumber = gCardIndex;
+		DEBUG("card number = %d\n", ft1000dev->CardNumber);
 	} else {
 		printk(KERN_ERR "ft1000: Invalid device name\n");
 		ret_val = -ENXIO;
@@ -740,27 +740,27 @@ int init_ft1000_netdev(struct ft1000_device *ft1000dev)
 	memset(&pInfo->stats, 0, sizeof(struct net_device_stats));
 
 	spin_lock_init(&pInfo->dpram_lock);
-	pInfo->pFt1000Dev = ft1000dev;
+	pInfo->priv = ft1000dev;
 	pInfo->DrvErrNum = 0;
 	pInfo->registered = 1;
 	pInfo->ft1000_reset = ft1000_reset;
 	pInfo->mediastate = 0;
 	pInfo->fifo_cnt = 0;
-	pInfo->DeviceCreated = FALSE;
+	ft1000dev->DeviceCreated = FALSE;
 	pInfo->CardReady = 0;
 	pInfo->DSP_TIME[0] = 0;
 	pInfo->DSP_TIME[1] = 0;
 	pInfo->DSP_TIME[2] = 0;
 	pInfo->DSP_TIME[3] = 0;
-	pInfo->fAppMsgPend = 0;
-	pInfo->fCondResetPend = 0;
-	pInfo->usbboot = 0;
-	pInfo->dspalive = 0;
-	memset(&pInfo->tempbuf[0], 0, sizeof(pInfo->tempbuf));
+	ft1000dev->fAppMsgPend = 0;
+	ft1000dev->fCondResetPend = 0;
+	ft1000dev->usbboot = 0;
+	ft1000dev->dspalive = 0;
+	memset(&ft1000dev->tempbuf[0], 0, sizeof(ft1000dev->tempbuf));
 
 	INIT_LIST_HEAD(&pInfo->prov_list);
 
-	INIT_LIST_HEAD(&pInfo->nodes.list);
+	INIT_LIST_HEAD(&ft1000dev->nodes.list);
 
 	netdev->netdev_ops = &ftnet_ops;
 
@@ -854,7 +854,7 @@ int reg_ft1000_netdev(struct ft1000_device *ft1000dev,
 	return 0;
 }
 
-static int ft1000_reset(struct net_device *dev)
+int ft1000_reset(void *dev)
 {
 	ft1000_reset_card(dev);
 	return 0;
@@ -902,7 +902,7 @@ static void ft1000_usb_transmit_complete(struct urb *urb)
 static int ft1000_copy_down_pkt(struct net_device *netdev, u8 * packet, u16 len)
 {
 	struct ft1000_info *pInfo = netdev_priv(netdev);
-	struct ft1000_device *pFt1000Dev = pInfo->pFt1000Dev;
+	struct ft1000_device *pFt1000Dev = pInfo->priv;
 
 	int count, ret;
 	u8 *t;
@@ -981,7 +981,7 @@ static int ft1000_copy_down_pkt(struct net_device *netdev, u8 * packet, u16 len)
 static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ft1000_info *pInfo = netdev_priv(dev);
-	struct ft1000_device *pFt1000Dev = pInfo->pFt1000Dev;
+	struct ft1000_device *pFt1000Dev = pInfo->priv;
 	u8 *pdata;
 	int maxlen, pipe;
 
@@ -1039,7 +1039,7 @@ err:
 static int ft1000_copy_up_pkt(struct urb *urb)
 {
 	struct ft1000_info *info = urb->context;
-	struct ft1000_device *ft1000dev = info->pFt1000Dev;
+	struct ft1000_device *ft1000dev = info->priv;
 	struct net_device *net = ft1000dev->net;
 
 	u16 tempword;
@@ -1134,7 +1134,7 @@ static int ft1000_copy_up_pkt(struct urb *urb)
 static int ft1000_submit_rx_urb(struct ft1000_info *info)
 {
 	int result;
-	struct ft1000_device *pFt1000Dev = info->pFt1000Dev;
+	struct ft1000_device *pFt1000Dev = info->priv;
 
 	if (pFt1000Dev->status & FT1000_STATUS_CLOSING) {
 		DEBUG("network driver is closed, return\n");
@@ -1177,9 +1177,10 @@ static int ft1000_submit_rx_urb(struct ft1000_info *info)
 static int ft1000_open(struct net_device *dev)
 {
 	struct ft1000_info *pInfo = netdev_priv(dev);
+	struct ft1000_device *pFt1000Dev = pInfo->priv;
 	struct timeval tv;
 
-	DEBUG("ft1000_open is called for card %d\n", pInfo->CardNumber);
+	DEBUG("ft1000_open is called for card %d\n", pFt1000Dev->CardNumber);
 
 	pInfo->stats.rx_bytes = 0;
 	pInfo->stats.tx_bytes = 0;
@@ -1213,7 +1214,7 @@ static int ft1000_open(struct net_device *dev)
 int ft1000_close(struct net_device *net)
 {
 	struct ft1000_info *pInfo = netdev_priv(net);
-	struct ft1000_device *ft1000dev = pInfo->pFt1000Dev;
+	struct ft1000_device *ft1000dev = pInfo->priv;
 
 	ft1000dev->status |= FT1000_STATUS_CLOSING;
 
@@ -1251,9 +1252,8 @@ static int ft1000_chkcard(struct ft1000_device *dev)
 {
 	u16 tempword;
 	u16 status;
-	struct ft1000_info *info = netdev_priv(dev->net);
 
-	if (info->fCondResetPend) {
+	if (dev->fCondResetPend) {
 		DEBUG
 		    ("ft1000_hw:ft1000_chkcard:Card is being reset, return FALSE\n");
 		return TRUE;
@@ -1441,7 +1441,7 @@ static int ft1000_dsp_prov(void *arg)
 
 	msleep(100);
 
-	info->fProvComplete = 1;
+	dev->fProvComplete = 1;
 	info->CardReady = 1;
 
 	return STATUS_SUCCESS;
@@ -1498,7 +1498,7 @@ static int ft1000_proc_drvmsg(struct ft1000_device *dev, u16 size)
 				if (pmediamsg->state) {
 					DEBUG("Media is up\n");
 					if (info->mediastate == 0) {
-						if (info->NetDevRegDone) {
+						if (dev->NetDevRegDone) {
 							netif_wake_queue(dev->
 									 net);
 						}
@@ -1508,7 +1508,7 @@ static int ft1000_proc_drvmsg(struct ft1000_device *dev, u16 size)
 					DEBUG("Media is down\n");
 					if (info->mediastate == 1) {
 						info->mediastate = 0;
-						if (info->NetDevRegDone) {
+						if (dev->NetDevRegDone) {
 						}
 						info->ConTm = 0;
 					}
@@ -1567,12 +1567,12 @@ static int ft1000_proc_drvmsg(struct ft1000_device *dev, u16 size)
 			 * Send provisioning data to DSP
 			 */
 			if (list_empty(&info->prov_list) == 0) {
-				info->fProvComplete = 0;
+				dev->fProvComplete = 0;
 				status = ft1000_dsp_prov(dev);
 				if (status != STATUS_SUCCESS)
 					goto out;
 			} else {
-				info->fProvComplete = 1;
+				dev->fProvComplete = 1;
 				status =
 				    ft1000_write_register(dev, FT1000_DB_HB,
 							  FT1000_REG_DOORBELL);
@@ -1605,7 +1605,7 @@ static int ft1000_proc_drvmsg(struct ft1000_device *dev, u16 size)
 	case DSP_GET_INFO:{
 			DEBUG("FT1000:drivermsg:Got DSP_GET_INFO\n");
 			/* copy dsp info block to dsp */
-			info->DrvMsgPend = 1;
+			dev->DrvMsgPend = 1;
 			/* allow any outstanding ioctl to finish */
 			mdelay(10);
 			status =
@@ -1667,7 +1667,7 @@ static int ft1000_proc_drvmsg(struct ft1000_device *dev, u16 size)
 			status =
 			    ft1000_write_register(dev, FT1000_DB_DPRAM_TX,
 						  FT1000_REG_DOORBELL);
-			info->DrvMsgPend = 0;
+			dev->DrvMsgPend = 0;
 
 			break;
 		}
@@ -1675,7 +1675,7 @@ static int ft1000_proc_drvmsg(struct ft1000_device *dev, u16 size)
 	case GET_DRV_ERR_RPT_MSG:{
 			DEBUG("FT1000:drivermsg:Got GET_DRV_ERR_RPT_MSG\n");
 			/* copy driver error message to dsp */
-			info->DrvMsgPend = 1;
+			dev->DrvMsgPend = 1;
 			/* allow any outstanding ioctl to finish */
 			mdelay(10);
 			status =
@@ -1735,7 +1735,7 @@ static int ft1000_proc_drvmsg(struct ft1000_device *dev, u16 size)
 						 (u16) (0x0012 + PSEUDOSZ));
 				info->DrvErrNum = 0;
 			}
-			info->DrvMsgPend = 0;
+			dev->DrvMsgPend = 0;
 
 			break;
 		}
@@ -1804,8 +1804,8 @@ int ft1000_poll(void* dev_id)
                         // Check which application has registered for dsp broadcast messages
 
     	    	        for (i=0; i<MAX_NUM_APP; i++) {
-        	           if ( (info->app_info[i].DspBCMsgFlag) && (info->app_info[i].fileobject) &&
-                                         (info->app_info[i].NumOfMsg < MAX_MSG_LIMIT)  )
+        	           if ( (dev->app_info[i].DspBCMsgFlag) && (dev->app_info[i].fileobject) &&
+                                         (dev->app_info[i].NumOfMsg < MAX_MSG_LIMIT)  )
 			   {
 			       nxtph = FT1000_DPRAM_RX_BASE + 2;
 			       pdpram_blk = ft1000_get_buffer (&freercvpool);
@@ -1813,15 +1813,15 @@ int ft1000_poll(void* dev_id)
 			           if ( ft1000_receive_cmd(dev, pdpram_blk->pbuffer, MAX_CMD_SQSIZE, &nxtph) ) {
 					ppseudo_hdr = (struct pseudo_hdr *)pdpram_blk->pbuffer;
 				       // Put message into the appropriate application block
-				       info->app_info[i].nRxMsg++;
+				       dev->app_info[i].nRxMsg++;
 				       spin_lock_irqsave(&free_buff_lock, flags);
-				       list_add_tail(&pdpram_blk->list, &info->app_info[i].app_sqlist);
-				       info->app_info[i].NumOfMsg++;
+				       list_add_tail(&pdpram_blk->list, &dev->app_info[i].app_sqlist);
+				       dev->app_info[i].NumOfMsg++;
 				       spin_unlock_irqrestore(&free_buff_lock, flags);
-				       wake_up_interruptible(&info->app_info[i].wait_dpram_msg);
+				       wake_up_interruptible(&dev->app_info[i].wait_dpram_msg);
                                    }
                                    else {
-				       info->app_info[i].nRxMsgMiss++;
+				       dev->app_info[i].nRxMsgMiss++;
 				       // Put memory back to free pool
 				       ft1000_free_buffer(pdpram_blk, &freercvpool);
 				       DEBUG("pdpram_blk::ft1000_get_buffer NULL\n");
@@ -1829,7 +1829,7 @@ int ft1000_poll(void* dev_id)
                                }
                                else {
                                    DEBUG("Out of memory in free receive command pool\n");
-                                   info->app_info[i].nRxMsgMiss++;
+                                   dev->app_info[i].nRxMsgMiss++;
                                }
                            }
 	                }
@@ -1842,7 +1842,7 @@ int ft1000_poll(void* dev_id)
 				ppseudo_hdr = (struct pseudo_hdr *)pdpram_blk->pbuffer;
                                // Search for correct application block
                                for (i=0; i<MAX_NUM_APP; i++) {
-                                   if (info->app_info[i].app_id == ppseudo_hdr->portdest) {
+                                   if (dev->app_info[i].app_id == ppseudo_hdr->portdest) {
                                        break;
                                    }
                                }
@@ -1853,15 +1853,15 @@ int ft1000_poll(void* dev_id)
                                    ft1000_free_buffer(pdpram_blk, &freercvpool);
                                }
                                else {
-                                   if (info->app_info[i].NumOfMsg > MAX_MSG_LIMIT) {
+                                   if (dev->app_info[i].NumOfMsg > MAX_MSG_LIMIT) {
 	                               // Put memory back to free pool
 	                               ft1000_free_buffer(pdpram_blk, &freercvpool);
                                    }
                                    else {
-                                       info->app_info[i].nRxMsg++;
+                                       dev->app_info[i].nRxMsg++;
                                        // Put message into the appropriate application block
-                                       list_add_tail(&pdpram_blk->list, &info->app_info[i].app_sqlist);
-            			       info->app_info[i].NumOfMsg++;
+                                       list_add_tail(&pdpram_blk->list, &dev->app_info[i].app_sqlist);
+            			       dev->app_info[i].NumOfMsg++;
                                    }
                                }
                            }
@@ -1921,7 +1921,7 @@ int ft1000_poll(void* dev_id)
         else if (tempword & FT1000_DB_COND_RESET) {
             DEBUG("ft1000_poll: FT1000_REG_DOORBELL message type:  FT1000_DB_COND_RESET\n");
 
-	    if (info->fAppMsgPend == 0) {
+	    if (dev->fAppMsgPend == 0) {
                // Reset ASIC and DSP
 
                 status    = ft1000_read_dpram16(dev, FT1000_MAG_DSP_TIMER0, (u8 *)&(info->DSP_TIME[0]), FT1000_MAG_DSP_TIMER0_INDX);
@@ -1934,8 +1934,8 @@ int ft1000_poll(void* dev_id)
                 info->ft1000_reset(dev->net);
             }
             else {
-                info->fProvComplete = 0;
-                info->fCondResetPend = 1;
+                dev->fProvComplete = 0;
+                dev->fCondResetPend = 1;
             }
 
             ft1000_write_register(dev, FT1000_DB_COND_RESET, FT1000_REG_DOORBELL);
