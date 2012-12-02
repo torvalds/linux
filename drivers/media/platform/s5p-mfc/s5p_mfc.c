@@ -274,7 +274,6 @@ static void s5p_mfc_handle_frame_new(struct s5p_mfc_ctx *ctx, unsigned int err)
 	struct s5p_mfc_buf  *dst_buf;
 	size_t dspl_y_addr;
 	unsigned int frame_type;
-	unsigned int index;
 
 	dspl_y_addr = s5p_mfc_hw_call(dev->mfc_ops, get_dspl_y_adr, dev);
 	frame_type = s5p_mfc_hw_call(dev->mfc_ops, get_dec_frame_type, dev);
@@ -311,7 +310,6 @@ static void s5p_mfc_handle_frame_new(struct s5p_mfc_ctx *ctx, unsigned int err)
 			vb2_buffer_done(dst_buf->b,
 				err ? VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
 
-			index = dst_buf->b->v4l2_buf.index;
 			break;
 		}
 	}
@@ -326,8 +324,6 @@ static void s5p_mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 	struct s5p_mfc_buf *src_buf;
 	unsigned long flags;
 	unsigned int res_change;
-
-	unsigned int index;
 
 	dst_frame_status = s5p_mfc_hw_call(dev->mfc_ops, get_dspl_status, dev)
 				& S5P_FIMV_DEC_STATUS_DECODING_STATUS_MASK;
@@ -388,7 +384,6 @@ static void s5p_mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 			mfc_debug(2, "Running again the same buffer\n");
 			ctx->after_packed_pb = 1;
 		} else {
-			index = src_buf->b->v4l2_buf.index;
 			mfc_debug(2, "MFC needs next buffer\n");
 			ctx->consumed_stream = 0;
 			list_del(&src_buf->list);

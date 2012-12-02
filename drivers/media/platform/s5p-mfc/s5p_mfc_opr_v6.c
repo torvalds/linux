@@ -1408,7 +1408,6 @@ static inline int s5p_mfc_run_dec_frame(struct s5p_mfc_ctx *ctx)
 	struct s5p_mfc_buf *temp_vb;
 	unsigned long flags;
 	int last_frame = 0;
-	unsigned int index;
 
 	spin_lock_irqsave(&dev->irqlock, flags);
 
@@ -1426,8 +1425,6 @@ static inline int s5p_mfc_run_dec_frame(struct s5p_mfc_ctx *ctx)
 			ctx->consumed_stream,
 			temp_vb->b->v4l2_planes[0].bytesused);
 	spin_unlock_irqrestore(&dev->irqlock, flags);
-
-	index = temp_vb->b->v4l2_buf.index;
 
 	dev->curr_ctx = ctx->num;
 	s5p_mfc_clean_ctx_int_flags(ctx);
@@ -1452,7 +1449,6 @@ static inline int s5p_mfc_run_enc_frame(struct s5p_mfc_ctx *ctx)
 	unsigned int src_y_size, src_c_size;
 	*/
 	unsigned int dst_size;
-	unsigned int index;
 
 	spin_lock_irqsave(&dev->irqlock, flags);
 
@@ -1486,8 +1482,6 @@ static inline int s5p_mfc_run_enc_frame(struct s5p_mfc_ctx *ctx)
 	s5p_mfc_set_enc_stream_buffer_v6(ctx, dst_addr, dst_size);
 
 	spin_unlock_irqrestore(&dev->irqlock, flags);
-
-	index = src_mb->b->v4l2_buf.index;
 
 	dev->curr_ctx = ctx->num;
 	s5p_mfc_clean_ctx_int_flags(ctx);
