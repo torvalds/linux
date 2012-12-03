@@ -425,10 +425,14 @@ static int call_crda(const char *alpha2)
 	return kobject_uevent(&reg_pdev->dev.kobj, KOBJ_CHANGE);
 }
 
-/* Used by nl80211 before kmalloc'ing our regulatory domain */
-bool reg_is_valid_request(const char *alpha2)
+static bool reg_is_valid_request(const char *alpha2)
 {
+	assert_reg_lock();
+
 	if (!last_request)
+		return false;
+
+	if (last_request->processed)
 		return false;
 
 	return alpha2_equal(last_request->alpha2, alpha2);
@@ -1470,6 +1474,7 @@ new_request:
 
 	last_request = pending_request;
 	last_request->intersect = intersect;
+	last_request->processed = false;
 
 	pending_request = NULL;
 
@@ -2060,20 +2065,19 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 	const struct ieee80211_regdomain *regd;
 	const struct ieee80211_regdomain *intersected_rd = NULL;
 	struct wiphy *request_wiphy;
+
 	/* Some basic sanity checks first */
 
+	if (!reg_is_valid_request(rd->alpha2))
+		return -EINVAL;
+
 	if (is_world_regdom(rd->alpha2)) {
-		if (WARN_ON(!reg_is_valid_request(rd->alpha2)))
-			return -EINVAL;
 		update_world_regdomain(rd);
 		return 0;
 	}
 
 	if (!is_alpha2_set(rd->alpha2) && !is_an_alpha2(rd->alpha2) &&
 	    !is_unknown_alpha2(rd->alpha2))
-		return -EINVAL;
-
-	if (!last_request)
 		return -EINVAL;
 
 	/*
@@ -2096,9 +2100,6 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 	 * to review or adjust their own settings based on their own
 	 * internal EEPROM data
 	 */
-
-	if (WARN_ON(!reg_is_valid_request(rd->alpha2)))
-		return -EINVAL;
 
 	if (!is_valid_rd(rd)) {
 		pr_err("Invalid regulatory domain detected:\n");

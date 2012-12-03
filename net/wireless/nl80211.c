@@ -4265,21 +4265,12 @@ static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 			return -EINVAL;
 	}
 
-	mutex_lock(&cfg80211_mutex);
-
-	if (!reg_is_valid_request(alpha2)) {
-		r = -EINVAL;
-		goto bad_reg;
-	}
-
 	size_of_regd = sizeof(struct ieee80211_regdomain) +
 		       num_rules * sizeof(struct ieee80211_reg_rule);
 
 	rd = kzalloc(size_of_regd, GFP_KERNEL);
-	if (!rd) {
-		r = -ENOMEM;
-		goto bad_reg;
-	}
+	if (!rd)
+		return -ENOMEM;
 
 	rd->n_reg_rules = num_rules;
 	rd->alpha2[0] = alpha2[0];
@@ -4309,11 +4300,14 @@ static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
+	mutex_lock(&cfg80211_mutex);
+
 	r = set_regdom(rd);
+	/* set_regdom took ownership */
 	rd = NULL;
+	mutex_unlock(&cfg80211_mutex);
 
  bad_reg:
-	mutex_unlock(&cfg80211_mutex);
 	kfree(rd);
 	return r;
 }
