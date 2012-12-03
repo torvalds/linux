@@ -159,7 +159,7 @@ static int apci2032_int_insn_bits(struct comedi_device *dev,
 				  struct comedi_insn *insn,
 				  unsigned int *data)
 {
-	data[1] = s->state;
+	data[1] = inl(dev->iobase + APCI2032_INT_STATUS_REG) & 3;
 	return insn->n;
 }
 
@@ -245,10 +245,10 @@ static irqreturn_t apci2032_interrupt(int irq, void *d)
 	if (!val)
 		return IRQ_NONE;
 
-	s->state = inl(dev->iobase + APCI2032_INT_STATUS_REG);
-	outl(0x0, dev->iobase + APCI2032_INT_CTRL_REG);
+	val = inl(dev->iobase + APCI2032_INT_STATUS_REG) & 3;
+	outl(0x00, dev->iobase + APCI2032_INT_CTRL_REG);
 
-	if (comedi_buf_put(s->async, s->state))
+	if (comedi_buf_put(s->async, val))
 		s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
 	else
 		s->async->events |= COMEDI_CB_OVERFLOW;
