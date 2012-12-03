@@ -1099,7 +1099,7 @@ fail:
  *
  * Perimeter lock is initialized in the course of this function.
  */
-static int __devinit brcms_bcma_probe(struct bcma_device *pdev)
+static int brcms_bcma_probe(struct bcma_device *pdev)
 {
 	struct brcms_info *wl;
 	struct ieee80211_hw *hw;
@@ -1165,7 +1165,7 @@ static struct bcma_driver brcms_bcma_driver = {
 	.probe    = brcms_bcma_probe,
 	.suspend  = brcms_suspend,
 	.resume   = brcms_resume,
-	.remove   = __devexit_p(brcms_remove),
+	.remove   = brcms_remove,
 	.id_table = brcms_coreid_table,
 };
 
