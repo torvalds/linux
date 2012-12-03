@@ -5660,7 +5660,7 @@ out:
 	complete_all(&wl->nvs_loading_complete);
 }
 
-int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev)
+int wlcore_probe(struct wl1271 *wl, struct platform_device *pdev)
 {
 	int ret;
 
@@ -5683,7 +5683,7 @@ int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(wlcore_probe);
 
-int __devexit wlcore_remove(struct platform_device *pdev)
+int wlcore_remove(struct platform_device *pdev)
 {
 	struct wl1271 *wl = platform_get_drvdata(pdev);
 

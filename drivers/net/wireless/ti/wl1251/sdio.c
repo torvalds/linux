@@ -305,7 +305,7 @@ out_free_hw:
 	return ret;
 }
 
-static void __devexit wl1251_sdio_remove(struct sdio_func *func)
+static void wl1251_sdio_remove(struct sdio_func *func)
 {
 	struct wl1251 *wl = sdio_get_drvdata(func);
 	struct wl1251_sdio *wl_sdio = wl->if_priv;
@@ -347,7 +347,7 @@ static struct sdio_driver wl1251_sdio_driver = {
 	.name		= "wl1251_sdio",
 	.id_table	= wl1251_devices,
 	.probe		= wl1251_sdio_probe,
-	.remove		= __devexit_p(wl1251_sdio_remove),
+	.remove		= wl1251_sdio_remove,
 	.drv.pm		= &wl1251_sdio_pm_ops,
 };
 
