@@ -26,10 +26,20 @@ struct svc_sock {
 	void			(*sk_owspace)(struct sock *);
 
 	/* private TCP part */
-	u32			sk_reclen;	/* length of record */
+	__be32			sk_reclen;	/* length of record */
 	u32			sk_tcplen;	/* current read length */
 	struct page *		sk_pages[RPCSVC_MAXPAGES];	/* received data */
 };
+
+static inline u32 svc_sock_reclen(struct svc_sock *svsk)
+{
+	return ntohl(svsk->sk_reclen) & RPC_FRAGMENT_SIZE_MASK;
+}
+
+static inline u32 svc_sock_final_rec(struct svc_sock *svsk)
+{
+	return ntohl(svsk->sk_reclen) & RPC_LAST_STREAM_FRAGMENT;
+}
 
 /*
  * Function prototypes.
