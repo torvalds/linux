@@ -5873,11 +5873,6 @@ err_disable_device:
 	return rc;
 }
 
-static void __devexit mwl8k_shutdown(struct pci_dev *pdev)
-{
-	printk(KERN_ERR "===>%s(%u)\n", __func__, __LINE__);
-}
-
 static void __devexit mwl8k_remove(struct pci_dev *pdev)
 {
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
@@ -5931,7 +5926,6 @@ static struct pci_driver mwl8k_driver = {
 	.id_table	= mwl8k_pci_id_table,
 	.probe		= mwl8k_probe,
 	.remove		= __devexit_p(mwl8k_remove),
-	.shutdown	= __devexit_p(mwl8k_shutdown),
 };
 
 module_pci_driver(mwl8k_driver);
