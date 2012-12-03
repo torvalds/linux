@@ -498,7 +498,7 @@ out:
  * @ubi: UBI device description object
  *
  * This function returns a physical eraseblock in case of success and a
- * negative error code in case of failure. Might sleep.
+ * negative error code in case of failure.
  */
 static int __wl_get_peb(struct ubi_device *ubi)
 {
@@ -540,13 +540,6 @@ retry:
 	 * ubi_wl_get_peb() after removing e from the pool. */
 	prot_queue_add(ubi, e);
 #endif
-	err = ubi_self_check_all_ff(ubi, e->pnum, ubi->vid_hdr_aloffset,
-				    ubi->peb_size - ubi->vid_hdr_aloffset);
-	if (err) {
-		ubi_err("new PEB %d does not contain all 0xFF bytes", e->pnum);
-		return err;
-	}
-
 	return e->pnum;
 }
 
@@ -690,11 +683,18 @@ static struct ubi_wl_entry *get_peb_for_wl(struct ubi_device *ubi)
 
 int ubi_wl_get_peb(struct ubi_device *ubi)
 {
-	int peb;
+	int peb, err;
 
 	spin_lock(&ubi->wl_lock);
 	peb = __wl_get_peb(ubi);
 	spin_unlock(&ubi->wl_lock);
+
+	err = ubi_self_check_all_ff(ubi, peb, ubi->vid_hdr_aloffset,
+				    ubi->peb_size - ubi->vid_hdr_aloffset);
+	if (err) {
+		ubi_err("new PEB %d does not contain all 0xFF bytes", peb);
+		return err;
+	}
 
 	return peb;
 }
