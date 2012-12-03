@@ -54,9 +54,9 @@ static int qlcnic_config_npars;
 module_param(qlcnic_config_npars, int, 0444);
 MODULE_PARM_DESC(qlcnic_config_npars, "Configure NPARs (0=disabled, 1=enabled");
 
-static int __devinit qlcnic_probe(struct pci_dev *pdev,
+static int qlcnic_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent);
-static void __devexit qlcnic_remove(struct pci_dev *pdev);
+static void qlcnic_remove(struct pci_dev *pdev);
 static int qlcnic_open(struct net_device *netdev);
 static int qlcnic_close(struct net_device *netdev);
 static void qlcnic_tx_timeout(struct net_device *netdev);
@@ -1454,7 +1454,7 @@ qlcnic_alloc_msix_entries(struct qlcnic_adapter *adapter, u16 count)
 	return -ENOMEM;
 }
 
-static int __devinit
+static int
 qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *netdev = NULL;
@@ -1618,7 +1618,7 @@ err_out_maintenance_mode:
 	return 0;
 }
 
-static void __devexit qlcnic_remove(struct pci_dev *pdev)
+static void qlcnic_remove(struct pci_dev *pdev)
 {
 	struct qlcnic_adapter *adapter;
 	struct net_device *netdev;
@@ -2928,7 +2928,7 @@ static struct pci_driver qlcnic_driver = {
 	.name = qlcnic_driver_name,
 	.id_table = qlcnic_pci_tbl,
 	.probe = qlcnic_probe,
-	.remove = __devexit_p(qlcnic_remove),
+	.remove = qlcnic_remove,
 #ifdef CONFIG_PM
 	.suspend = qlcnic_suspend,
 	.resume = qlcnic_resume,

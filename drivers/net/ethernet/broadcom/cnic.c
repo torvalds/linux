@@ -53,7 +53,7 @@
 
 #define DRV_MODULE_NAME		"cnic"
 
-static char version[] __devinitdata =
+static char version[] =
 	"Broadcom NetXtreme II CNIC Driver " DRV_MODULE_NAME " v" CNIC_MODULE_VERSION " (" CNIC_MODULE_RELDATE ")\n";
 
 MODULE_AUTHOR("Michael Chan <mchan@broadcom.com> and John(Zongxi) "

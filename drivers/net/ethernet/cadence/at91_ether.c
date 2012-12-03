@@ -456,7 +456,7 @@ err_free_dev:
 	return res;
 }
 
-static int __devexit at91ether_remove(struct platform_device *pdev)
+static int at91ether_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct macb *lp = netdev_priv(dev);
@@ -509,7 +509,7 @@ static int at91ether_resume(struct platform_device *pdev)
 #endif
 
 static struct platform_driver at91ether_driver = {
-	.remove		= __devexit_p(at91ether_remove),
+	.remove		= at91ether_remove,
 	.suspend	= at91ether_suspend,
 	.resume		= at91ether_resume,
 	.driver		= {

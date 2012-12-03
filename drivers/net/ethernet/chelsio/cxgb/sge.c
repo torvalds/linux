@@ -2071,7 +2071,7 @@ static void espibug_workaround(unsigned long data)
 /*
  * Creates a t1_sge structure and returns suggested resource parameters.
  */
-struct sge * __devinit t1_sge_create(struct adapter *adapter,
+struct sge *t1_sge_create(struct adapter *adapter,
 				     struct sge_params *p)
 {
 	struct sge *sge = kzalloc(sizeof(*sge), GFP_KERNEL);

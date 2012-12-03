@@ -845,7 +845,7 @@ static const struct net_device_ops mpc52xx_fec_netdev_ops = {
 /* OF Driver                                                                */
 /* ======================================================================== */
 
-static int __devinit mpc52xx_fec_probe(struct platform_device *op)
+static int mpc52xx_fec_probe(struct platform_device *op)
 {
 	int rv;
 	struct net_device *ndev;

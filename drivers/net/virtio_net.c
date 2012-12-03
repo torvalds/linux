@@ -1203,7 +1203,7 @@ static void remove_vq_common(struct virtnet_info *vi)
 		__free_pages(get_a_page(vi, GFP_KERNEL), 0);
 }
 
-static void __devexit virtnet_remove(struct virtio_device *vdev)
+static void virtnet_remove(struct virtio_device *vdev)
 {
 	struct virtnet_info *vi = vdev->priv;
 
@@ -1293,7 +1293,7 @@ static struct virtio_driver virtio_net_driver = {
 	.driver.owner =	THIS_MODULE,
 	.id_table =	id_table,
 	.probe =	virtnet_probe,
-	.remove =	__devexit_p(virtnet_remove),
+	.remove =	virtnet_remove,
 	.config_changed = virtnet_config_changed,
 #ifdef CONFIG_PM
 	.freeze =	virtnet_freeze,

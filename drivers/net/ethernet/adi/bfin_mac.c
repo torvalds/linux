@@ -1603,7 +1603,7 @@ static const struct net_device_ops bfin_mac_netdev_ops = {
 #endif
 };
 
-static int __devinit bfin_mac_probe(struct platform_device *pdev)
+static int bfin_mac_probe(struct platform_device *pdev)
 {
 	struct net_device *ndev;
 	struct bfin_mac_local *lp;
@@ -1727,7 +1727,7 @@ out_err_probe_mac:
 	return rc;
 }
 
-static int __devexit bfin_mac_remove(struct platform_device *pdev)
+static int bfin_mac_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct bfin_mac_local *lp = netdev_priv(ndev);
@@ -1786,7 +1786,7 @@ static int bfin_mac_resume(struct platform_device *pdev)
 #define bfin_mac_resume NULL
 #endif	/* CONFIG_PM */
 
-static int __devinit bfin_mii_bus_probe(struct platform_device *pdev)
+static int bfin_mii_bus_probe(struct platform_device *pdev)
 {
 	struct mii_bus *miibus;
 	struct bfin_mii_bus_platform_data *mii_bus_pd;
@@ -1864,7 +1864,7 @@ out_err_alloc:
 	return rc;
 }
 
-static int __devexit bfin_mii_bus_remove(struct platform_device *pdev)
+static int bfin_mii_bus_remove(struct platform_device *pdev)
 {
 	struct mii_bus *miibus = platform_get_drvdata(pdev);
 	struct bfin_mii_bus_platform_data *mii_bus_pd =
@@ -1881,7 +1881,7 @@ static int __devexit bfin_mii_bus_remove(struct platform_device *pdev)
 
 static struct platform_driver bfin_mii_bus_driver = {
 	.probe = bfin_mii_bus_probe,
-	.remove = __devexit_p(bfin_mii_bus_remove),
+	.remove = bfin_mii_bus_remove,
 	.driver = {
 		.name = "bfin_mii_bus",
 		.owner	= THIS_MODULE,
@@ -1890,7 +1890,7 @@ static struct platform_driver bfin_mii_bus_driver = {
 
 static struct platform_driver bfin_mac_driver = {
 	.probe = bfin_mac_probe,
-	.remove = __devexit_p(bfin_mac_remove),
+	.remove = bfin_mac_remove,
 	.resume = bfin_mac_resume,
 	.suspend = bfin_mac_suspend,
 	.driver = {

@@ -1136,7 +1136,7 @@ error_ret:
 	return ret;
 }
 
-static int __devinit cpsw_probe(struct platform_device *pdev)
+static int cpsw_probe(struct platform_device *pdev)
 {
 	struct cpsw_platform_data	*data = pdev->dev.platform_data;
 	struct net_device		*ndev;
@@ -1398,7 +1398,7 @@ clean_ndev_ret:
 	return ret;
 }
 
-static int __devexit cpsw_remove(struct platform_device *pdev)
+static int cpsw_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct cpsw_priv *priv = netdev_priv(ndev);
@@ -1467,7 +1467,7 @@ static struct platform_driver cpsw_driver = {
 		.of_match_table = of_match_ptr(cpsw_of_mtable),
 	},
 	.probe = cpsw_probe,
-	.remove = __devexit_p(cpsw_remove),
+	.remove = cpsw_remove,
 };
 
 static int __init cpsw_init(void)

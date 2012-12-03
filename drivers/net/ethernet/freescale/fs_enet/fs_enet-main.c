@@ -1004,7 +1004,7 @@ static const struct net_device_ops fs_enet_netdev_ops = {
 };
 
 static struct of_device_id fs_enet_match[];
-static int __devinit fs_enet_probe(struct platform_device *ofdev)
+static int fs_enet_probe(struct platform_device *ofdev)
 {
 	const struct of_device_id *match;
 	struct net_device *ndev;

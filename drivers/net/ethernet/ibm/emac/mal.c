@@ -33,7 +33,7 @@
 
 static int mal_count;
 
-int __devinit mal_register_commac(struct mal_instance	*mal,
+int mal_register_commac(struct mal_instance	*mal,
 				  struct mal_commac	*commac)
 {
 	unsigned long flags;
@@ -517,7 +517,7 @@ void *mal_dump_regs(struct mal_instance *mal, void *buf)
 	return regs + 1;
 }
 
-static int __devinit mal_probe(struct platform_device *ofdev)
+static int mal_probe(struct platform_device *ofdev)
 {
 	struct mal_instance *mal;
 	int err = 0, i, bd_size;
@@ -729,7 +729,7 @@ static int __devinit mal_probe(struct platform_device *ofdev)
 	return err;
 }
 
-static int __devexit mal_remove(struct platform_device *ofdev)
+static int mal_remove(struct platform_device *ofdev)
 {
 	struct mal_instance *mal = dev_get_drvdata(&ofdev->dev);
 

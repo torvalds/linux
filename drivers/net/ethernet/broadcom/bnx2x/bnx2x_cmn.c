@@ -3875,7 +3875,7 @@ void bnx2x_free_mem_bp(struct bnx2x *bp)
 	kfree(bp->ilt);
 }
 
-int __devinit bnx2x_alloc_mem_bp(struct bnx2x *bp)
+int bnx2x_alloc_mem_bp(struct bnx2x *bp)
 {
 	struct bnx2x_fastpath *fp;
 	struct msix_entry *tbl;

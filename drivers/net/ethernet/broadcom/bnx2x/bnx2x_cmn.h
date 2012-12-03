@@ -563,7 +563,7 @@ int bnx2x_poll(struct napi_struct *napi, int budget);
  *
  * @bp:		driver handle
  */
-int __devinit bnx2x_alloc_mem_bp(struct bnx2x *bp);
+int bnx2x_alloc_mem_bp(struct bnx2x *bp);
 
 /**
  * bnx2x_free_mem_bp - release memories outsize main driver structure

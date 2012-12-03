@@ -521,7 +521,7 @@ static void __init etherh_banner(void)
  * Read the ethernet address string from the on board rom.
  * This is an ascii string...
  */
-static int __devinit etherh_addr(char *addr, struct expansion_card *ec)
+static int etherh_addr(char *addr, struct expansion_card *ec)
 {
 	struct in_chunk_dir cd;
 	char *s;
@@ -651,7 +651,7 @@ static const struct net_device_ops etherh_netdev_ops = {
 static u32 etherh_regoffsets[16];
 static u32 etherm_regoffsets[16];
 
-static int __devinit
+static int
 etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 {
 	const struct etherh_data *data = id->data;
@@ -769,7 +769,7 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 	return ret;
 }
 
-static void __devexit etherh_remove(struct expansion_card *ec)
+static void etherh_remove(struct expansion_card *ec)
 {
 	struct net_device *dev = ecard_get_drvdata(ec);
 
@@ -833,7 +833,7 @@ static const struct ecard_id etherh_ids[] = {
 
 static struct ecard_driver etherh_driver = {
 	.probe		= etherh_probe,
-	.remove		= __devexit_p(etherh_remove),
+	.remove		= etherh_remove,
 	.id_table	= etherh_ids,
 	.drv = {
 		.name	= DRV_NAME,

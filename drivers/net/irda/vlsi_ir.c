@@ -1627,7 +1627,7 @@ static int vlsi_irda_init(struct net_device *ndev)
 
 /**************************************************************/
 
-static int __devinit
+static int
 vlsi_irda_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct net_device	*ndev;
@@ -1699,7 +1699,7 @@ out:
 	return -ENODEV;
 }
 
-static void __devexit vlsi_irda_remove(struct pci_dev *pdev)
+static void vlsi_irda_remove(struct pci_dev *pdev)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
 	vlsi_irda_dev_t *idev;
@@ -1832,7 +1832,7 @@ static struct pci_driver vlsi_irda_driver = {
 	.name		= drivername,
 	.id_table	= vlsi_irda_table,
 	.probe		= vlsi_irda_probe,
-	.remove		= __devexit_p(vlsi_irda_remove),
+	.remove		= vlsi_irda_remove,
 #ifdef CONFIG_PM
 	.suspend	= vlsi_irda_suspend,
 	.resume		= vlsi_irda_resume,

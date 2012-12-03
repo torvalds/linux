@@ -1359,7 +1359,7 @@ static const struct net_device_ops dm9000_netdev_ops = {
 /*
  * Search DM9000 board, allocate space and register it
  */
-static int __devinit
+static int
 dm9000_probe(struct platform_device *pdev)
 {
 	struct dm9000_plat_data *pdata = pdev->dev.platform_data;
@@ -1661,7 +1661,7 @@ static const struct dev_pm_ops dm9000_drv_pm_ops = {
 	.resume		= dm9000_drv_resume,
 };
 
-static int __devexit
+static int
 dm9000_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
@@ -1683,7 +1683,7 @@ static struct platform_driver dm9000_driver = {
 		.pm	 = &dm9000_drv_pm_ops,
 	},
 	.probe   = dm9000_probe,
-	.remove  = __devexit_p(dm9000_drv_remove),
+	.remove  = dm9000_drv_remove,
 };
 
 static int __init

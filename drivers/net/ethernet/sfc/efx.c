@@ -2669,7 +2669,7 @@ static int efx_pci_probe_main(struct efx_nic *efx)
  * transmission; this is left to the first time one of the network
  * interfaces is brought up (i.e. efx_net_open).
  */
-static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
+static int efx_pci_probe(struct pci_dev *pci_dev,
 				   const struct pci_device_id *entry)
 {
 	struct net_device *net_dev;

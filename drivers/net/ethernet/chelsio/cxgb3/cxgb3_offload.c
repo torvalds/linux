@@ -1382,7 +1382,7 @@ static inline int adap2type(struct adapter *adapter)
 	return type;
 }
 
-void __devinit cxgb3_adapter_ofld(struct adapter *adapter)
+void cxgb3_adapter_ofld(struct adapter *adapter)
 {
 	struct t3cdev *tdev = &adapter->tdev;
 
@@ -1396,7 +1396,7 @@ void __devinit cxgb3_adapter_ofld(struct adapter *adapter)
 	register_tdev(tdev);
 }
 
-void __devexit cxgb3_adapter_unofld(struct adapter *adapter)
+void cxgb3_adapter_unofld(struct adapter *adapter)
 {
 	struct t3cdev *tdev = &adapter->tdev;
 

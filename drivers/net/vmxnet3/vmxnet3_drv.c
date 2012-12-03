@@ -2885,7 +2885,7 @@ vmxnet3_reset_work(struct work_struct *data)
 }
 
 
-static int __devinit
+static int
 vmxnet3_probe_device(struct pci_dev *pdev,
 		     const struct pci_device_id *id)
 {
@@ -3096,7 +3096,7 @@ err_alloc_shared:
 }
 
 
-static void __devexit
+static void
 vmxnet3_remove_device(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
@@ -3302,7 +3302,7 @@ static struct pci_driver vmxnet3_driver = {
 	.name		= vmxnet3_driver_name,
 	.id_table	= vmxnet3_pciid_table,
 	.probe		= vmxnet3_probe_device,
-	.remove		= __devexit_p(vmxnet3_remove_device),
+	.remove		= vmxnet3_remove_device,
 #ifdef CONFIG_PM
 	.driver.pm	= &vmxnet3_pm_ops,
 #endif

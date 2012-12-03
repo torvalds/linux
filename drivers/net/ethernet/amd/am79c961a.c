@@ -671,7 +671,7 @@ static const struct net_device_ops am79c961_netdev_ops = {
 #endif
 };
 
-static int __devinit am79c961_probe(struct platform_device *pdev)
+static int am79c961_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct net_device *dev;

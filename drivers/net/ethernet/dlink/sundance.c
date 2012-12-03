@@ -102,7 +102,7 @@ static char *media[MAX_UNITS];
 #include <linux/mii.h>
 
 /* These identify the driver base version and may not be removed. */
-static const char version[] __devinitconst =
+static const char version[] =
 	KERN_INFO DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE
 	" Written by Donald Becker\n";
 
@@ -218,7 +218,7 @@ enum {
 struct pci_id_info {
         const char *name;
 };
-static const struct pci_id_info pci_id_tbl[] __devinitconst = {
+static const struct pci_id_info pci_id_tbl[] = {
 	{"D-Link DFE-550TX FAST Ethernet Adapter"},
 	{"D-Link DFE-550FX 100Mbps Fiber-optics Adapter"},
 	{"D-Link DFE-580TX 4 port Server Adapter"},
@@ -482,8 +482,8 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int __devinit sundance_probe1 (struct pci_dev *pdev,
-				      const struct pci_device_id *ent)
+static int sundance_probe1(struct pci_dev *pdev,
+			   const struct pci_device_id *ent)
 {
 	struct net_device *dev;
 	struct netdev_private *np;
@@ -711,7 +711,7 @@ static int change_mtu(struct net_device *dev, int new_mtu)
 
 #define eeprom_delay(ee_addr)	ioread32(ee_addr)
 /* Read the EEPROM and MII Management Data I/O (MDIO) interfaces. */
-static int __devinit eeprom_read(void __iomem *ioaddr, int location)
+static int eeprom_read(void __iomem *ioaddr, int location)
 {
 	int boguscnt = 10000;		/* Typical 1900 ticks. */
 	iowrite16(0x0200 | (location & 0xff), ioaddr + EECtrl);
@@ -1914,7 +1914,7 @@ static int netdev_close(struct net_device *dev)
 	return 0;
 }
 
-static void __devexit sundance_remove1 (struct pci_dev *pdev)
+static void sundance_remove1(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 
@@ -1989,7 +1989,7 @@ static struct pci_driver sundance_driver = {
 	.name		= DRV_NAME,
 	.id_table	= sundance_pci_tbl,
 	.probe		= sundance_probe1,
-	.remove		= __devexit_p(sundance_remove1),
+	.remove		= sundance_remove1,
 #ifdef CONFIG_PM
 	.suspend	= sundance_suspend,
 	.resume		= sundance_resume,
