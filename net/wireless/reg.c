@@ -1825,12 +1825,7 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 	request->initiator = NL80211_REGDOM_SET_BY_COUNTRY_IE;
 	request->country_ie_env = env;
 
-	mutex_unlock(&reg_mutex);
-
 	queue_regulatory_request(request);
-
-	return;
-
 out:
 	mutex_unlock(&reg_mutex);
 }
