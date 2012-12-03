@@ -125,6 +125,7 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	DBG("In the headset_interrupt for read headset level  wake_lock headset_on_wake\n");		
 	headset_info->heatset_irq_working = BUSY;
+	msleep(150);
 	for(i=0; i<3; i++)
 	{
 		level = gpio_get_value(pdata->Headset_gpio);
