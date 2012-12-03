@@ -236,7 +236,7 @@ int rtl_pci_reset_trx_ring(struct ieee80211_hw *hw);
 
 extern struct rtl_intf_ops rtl_pci_ops;
 
-int __devinit rtl_pci_probe(struct pci_dev *pdev,
+int rtl_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *id);
 void rtl_pci_disconnect(struct pci_dev *pdev);
 #ifdef CONFIG_PM_SLEEP

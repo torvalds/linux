@@ -940,7 +940,7 @@ static struct rtl_intf_ops rtl_usb_ops = {
 	.waitq_insert = rtl_usb_tx_chk_waitq_insert,
 };
 
-int __devinit rtl_usb_probe(struct usb_interface *intf,
+int rtl_usb_probe(struct usb_interface *intf,
 			const struct usb_device_id *id)
 {
 	int err;

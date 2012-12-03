@@ -1756,7 +1756,7 @@ static bool _rtl_pci_find_adapter(struct pci_dev *pdev,
 	return true;
 }
 
-int __devinit rtl_pci_probe(struct pci_dev *pdev,
+int rtl_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *id)
 {
 	struct ieee80211_hw *hw = NULL;
