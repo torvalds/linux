@@ -3769,7 +3769,7 @@ static const struct net_device_ops ql3xxx_netdev_ops = {
 	.ndo_tx_timeout		= ql3xxx_tx_timeout,
 };
 
-static int __devinit ql3xxx_probe(struct pci_dev *pdev,
+static int ql3xxx_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *pci_entry)
 {
 	struct net_device *ndev = NULL;
@@ -3925,7 +3925,7 @@ err_out:
 	return err;
 }
 
-static void __devexit ql3xxx_remove(struct pci_dev *pdev)
+static void ql3xxx_remove(struct pci_dev *pdev)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
 	struct ql3_adapter *qdev = netdev_priv(ndev);
@@ -3952,7 +3952,7 @@ static struct pci_driver ql3xxx_driver = {
 	.name = DRV_NAME,
 	.id_table = ql3xxx_pci_tbl,
 	.probe = ql3xxx_probe,
-	.remove = __devexit_p(ql3xxx_remove),
+	.remove = ql3xxx_remove,
 };
 
 module_pci_driver(ql3xxx_driver);
