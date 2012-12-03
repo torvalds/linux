@@ -246,7 +246,13 @@ static irqreturn_t apci2032_interrupt(int irq, void *d)
 		return IRQ_NONE;
 
 	val = inl(dev->iobase + APCI2032_INT_STATUS_REG) & 3;
-	outl(0x00, dev->iobase + APCI2032_INT_CTRL_REG);
+	/* Disable triggered interrupt sources. */
+	outl(~val & 3, dev->iobase + APCI2032_INT_CTRL_REG);
+	/*
+	 * Note: We don't reenable the triggered interrupt sources because they
+	 * are level-sensitive, hardware error status interrupt sources and
+	 * they'd keep triggering interrupts repeatedly.
+	 */
 
 	if (comedi_buf_put(s->async, val))
 		s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
