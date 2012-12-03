@@ -14,6 +14,7 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
+#include <linux/libata.h>
 
 static int __devinit pata_of_platform_probe(struct platform_device *ofdev)
 {
