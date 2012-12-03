@@ -861,6 +861,9 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	/* Clear flags */
 	hdev->flags = 0;
 
+	/* Controller radio is available but is currently powered down */
+	hdev->amp_status = 0;
+
 	memset(hdev->eir, 0, sizeof(hdev->eir));
 	memset(hdev->dev_class, 0, sizeof(hdev->dev_class));
 
@@ -1853,6 +1856,8 @@ void hci_unregister_dev(struct hci_dev *hdev)
 
 	for (i = 0; i < NUM_REASSEMBLY; i++)
 		kfree_skb(hdev->reassembly[i]);
+
+	cancel_work_sync(&hdev->power_on);
 
 	if (!test_bit(HCI_INIT, &hdev->flags) &&
 	    !test_bit(HCI_SETUP, &hdev->dev_flags)) {

@@ -1226,7 +1226,7 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 	}
 
 	val = !!cp->val;
-	enabled = !!lmp_host_le_capable(hdev);
+	enabled = lmp_host_le_capable(hdev);
 
 	if (!hdev_is_powered(hdev) || val == enabled) {
 		bool changed = false;
@@ -1262,7 +1262,7 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	if (val) {
 		hci_cp.le = val;
-		hci_cp.simul = !!lmp_le_br_capable(hdev);
+		hci_cp.simul = lmp_le_br_capable(hdev);
 	}
 
 	err = hci_send_cmd(hdev, HCI_OP_WRITE_LE_HOST_SUPPORTED, sizeof(hci_cp),
@@ -2926,13 +2926,13 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 			struct hci_cp_write_le_host_supported cp;
 
 			cp.le = 1;
-			cp.simul = !!lmp_le_br_capable(hdev);
+			cp.simul = lmp_le_br_capable(hdev);
 
 			/* Check first if we already have the right
 			 * host state (host features set)
 			 */
-			if (cp.le != !!lmp_host_le_capable(hdev) ||
-			    cp.simul != !!lmp_host_le_br_capable(hdev))
+			if (cp.le != lmp_host_le_capable(hdev) ||
+			    cp.simul != lmp_host_le_br_capable(hdev))
 				hci_send_cmd(hdev,
 					     HCI_OP_WRITE_LE_HOST_SUPPORTED,
 					     sizeof(cp), &cp);
