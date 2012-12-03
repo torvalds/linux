@@ -454,6 +454,103 @@ add_sync_ep:
 }
 
 /*
+ * Return the score of matching two audioformats.
+ * Veto the audioformat if:
+ * - It has no channels for some reason.
+ * - Requested PCM format is not supported.
+ * - Requested sample rate is not supported.
+ */
+static int match_endpoint_audioformats(struct audioformat *fp,
+	struct audioformat *match, int rate,
+	snd_pcm_format_t pcm_format)
+{
+	int i;
+	int score = 0;
+
+	if (fp->channels < 1) {
+		snd_printdd("%s: (fmt @%p) no channels\n", __func__, fp);
+		return 0;
+	}
+
+	if (!(fp->formats & (1ULL << pcm_format))) {
+		snd_printdd("%s: (fmt @%p) no match for format %d\n", __func__,
+			fp, pcm_format);
+		return 0;
+	}
+
+	for (i = 0; i < fp->nr_rates; i++) {
+		if (fp->rate_table[i] == rate) {
+			score++;
+			break;
+		}
+	}
+	if (!score) {
+		snd_printdd("%s: (fmt @%p) no match for rate %d\n", __func__,
+			fp, rate);
+		return 0;
+	}
+
+	if (fp->channels == match->channels)
+		score++;
+
+	snd_printdd("%s: (fmt @%p) score %d\n", __func__, fp, score);
+
+	return score;
+}
+
+/*
+ * Configure the sync ep using the rate and pcm format of the data ep.
+ */
+static int configure_sync_endpoint(struct snd_usb_substream *subs)
+{
+	int ret;
+	struct audioformat *fp;
+	struct audioformat *sync_fp = NULL;
+	int cur_score = 0;
+	int sync_period_bytes = subs->period_bytes;
+	struct snd_usb_substream *sync_subs =
+		&subs->stream->substream[subs->direction ^ 1];
+
+	/* Try to find the best matching audioformat. */
+	list_for_each_entry(fp, &sync_subs->fmt_list, list) {
+		int score = match_endpoint_audioformats(fp, subs->cur_audiofmt,
+			subs->cur_rate, subs->pcm_format);
+
+		if (score > cur_score) {
+			sync_fp = fp;
+			cur_score = score;
+		}
+	}
+
+	if (unlikely(sync_fp == NULL)) {
+		snd_printk(KERN_ERR "%s: no valid audioformat for sync ep %x found\n",
+			__func__, sync_subs->ep_num);
+		return -EINVAL;
+	}
+
+	/*
+	 * Recalculate the period bytes if channel number differ between
+	 * data and sync ep audioformat.
+	 */
+	if (sync_fp->channels != subs->channels) {
+		sync_period_bytes = (subs->period_bytes / subs->channels) *
+			sync_fp->channels;
+		snd_printdd("%s: adjusted sync ep period bytes (%d -> %d)\n",
+			__func__, subs->period_bytes, sync_period_bytes);
+	}
+
+	ret = snd_usb_endpoint_set_params(subs->sync_endpoint,
+					  subs->pcm_format,
+					  sync_fp->channels,
+					  sync_period_bytes,
+					  subs->cur_rate,
+					  sync_fp,
+					  NULL);
+
+	return ret;
+}
+
+/*
  * configure endpoint params
  *
  * called  during initial setup and upon resume
@@ -475,13 +572,8 @@ static int configure_endpoint(struct snd_usb_substream *subs)
 		return ret;
 
 	if (subs->sync_endpoint)
-		ret = snd_usb_endpoint_set_params(subs->sync_endpoint,
-						  subs->pcm_format,
-						  subs->channels,
-						  subs->period_bytes,
-						  subs->cur_rate,
-						  subs->cur_audiofmt,
-						  NULL);
+		ret = configure_sync_endpoint(subs);
+
 	return ret;
 }
 
