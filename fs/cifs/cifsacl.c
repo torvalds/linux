@@ -191,6 +191,8 @@ id_to_sid(unsigned int cid, uint sidtype, struct cifs_sid *ssid)
 {
 	int rc;
 	struct key *sidkey;
+	struct cifs_sid *ksid;
+	unsigned int ksid_size;
 	char desc[3 + 10 + 1]; /* 3 byte prefix + 10 bytes for value + NULL */
 	const struct cred *saved_cred;
 
@@ -211,14 +213,27 @@ id_to_sid(unsigned int cid, uint sidtype, struct cifs_sid *ssid)
 		rc = -EIO;
 		cFYI(1, "%s: Downcall contained malformed key "
 			"(datalen=%hu)", __func__, sidkey->datalen);
-		goto out_key_put;
+		goto invalidate_key;
 	}
-	cifs_copy_sid(ssid, (struct cifs_sid *)sidkey->payload.data);
+
+	ksid = (struct cifs_sid *)sidkey->payload.data;
+	ksid_size = CIFS_SID_BASE_SIZE + (ksid->num_subauth * sizeof(__le32));
+	if (ksid_size > sidkey->datalen) {
+		rc = -EIO;
+		cFYI(1, "%s: Downcall contained malformed key (datalen=%hu, "
+			"ksid_size=%u)", __func__, sidkey->datalen, ksid_size);
+		goto invalidate_key;
+	}
+	cifs_copy_sid(ssid, ksid);
 out_key_put:
 	key_put(sidkey);
 out_revert_creds:
 	revert_creds(saved_cred);
 	return rc;
+
+invalidate_key:
+	key_invalidate(sidkey);
+	goto out_key_put;
 }
 
 static int
@@ -264,6 +279,7 @@ sid_to_id(struct cifs_sb_info *cifs_sb, struct cifs_sid *psid,
 		rc = -EIO;
 		cFYI(1, "%s: Downcall contained malformed key "
 			"(datalen=%hu)", __func__, sidkey->datalen);
+		key_invalidate(sidkey);
 		goto out_key_put;
 	}
 
