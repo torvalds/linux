@@ -57,9 +57,6 @@ struct cfg80211_registered_device *cfg80211_rdev_by_wiphy_idx(int wiphy_idx)
 {
 	struct cfg80211_registered_device *result = NULL, *rdev;
 
-	if (!wiphy_idx_valid(wiphy_idx))
-		return NULL;
-
 	assert_cfg80211_lock();
 
 	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
@@ -74,10 +71,8 @@ struct cfg80211_registered_device *cfg80211_rdev_by_wiphy_idx(int wiphy_idx)
 
 int get_wiphy_idx(struct wiphy *wiphy)
 {
-	struct cfg80211_registered_device *rdev;
-	if (!wiphy)
-		return WIPHY_IDX_STALE;
-	rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
 	return rdev->wiphy_idx;
 }
 
@@ -85,9 +80,6 @@ int get_wiphy_idx(struct wiphy *wiphy)
 struct wiphy *wiphy_idx_to_wiphy(int wiphy_idx)
 {
 	struct cfg80211_registered_device *rdev;
-
-	if (!wiphy_idx_valid(wiphy_idx))
-		return NULL;
 
 	assert_cfg80211_lock();
 
@@ -309,7 +301,7 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 
 	rdev->wiphy_idx = wiphy_counter++;
 
-	if (unlikely(!wiphy_idx_valid(rdev->wiphy_idx))) {
+	if (unlikely(rdev->wiphy_idx < 0)) {
 		wiphy_counter--;
 		mutex_unlock(&cfg80211_mutex);
 		/* ugh, wrapped! */

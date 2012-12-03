@@ -1539,7 +1539,7 @@ static void reg_process_hint(struct regulatory_request *reg_request,
 
 	BUG_ON(!reg_request->alpha2);
 
-	if (wiphy_idx_valid(reg_request->wiphy_idx))
+	if (reg_request->wiphy_idx != WIPHY_IDX_INVALID)
 		wiphy = wiphy_idx_to_wiphy(reg_request->wiphy_idx);
 
 	if (reg_initiator == NL80211_REGDOM_SET_BY_DRIVER && !wiphy) {
@@ -1684,7 +1684,7 @@ int regulatory_hint_user(const char *alpha2,
 	if (!request)
 		return -ENOMEM;
 
-	request->wiphy_idx = WIPHY_IDX_STALE;
+	request->wiphy_idx = WIPHY_IDX_INVALID;
 	request->alpha2[0] = alpha2[0];
 	request->alpha2[1] = alpha2[1];
 	request->initiator = NL80211_REGDOM_SET_BY_USER;
@@ -1708,9 +1708,6 @@ int regulatory_hint(struct wiphy *wiphy, const char *alpha2)
 		return -ENOMEM;
 
 	request->wiphy_idx = get_wiphy_idx(wiphy);
-
-	/* Must have registered wiphy first */
-	BUG_ON(!wiphy_idx_valid(request->wiphy_idx));
 
 	request->alpha2[0] = alpha2[0];
 	request->alpha2[1] = alpha2[1];
@@ -1758,9 +1755,8 @@ void regulatory_hint_11d(struct wiphy *wiphy, enum ieee80211_band band,
 	 * We leave conflict resolution to the workqueue, where can hold
 	 * cfg80211_mutex.
 	 */
-	if (likely(last_request->initiator ==
-		   NL80211_REGDOM_SET_BY_COUNTRY_IE &&
-		   wiphy_idx_valid(last_request->wiphy_idx)))
+	if (last_request->initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE &&
+	    last_request->wiphy_idx != WIPHY_IDX_INVALID)
 		goto out;
 
 	request = kzalloc(sizeof(struct regulatory_request), GFP_KERNEL);
@@ -2317,7 +2313,7 @@ void wiphy_regulatory_deregister(struct wiphy *wiphy)
 	if (!request_wiphy || request_wiphy != wiphy)
 		goto out;
 
-	last_request->wiphy_idx = WIPHY_IDX_STALE;
+	last_request->wiphy_idx = WIPHY_IDX_INVALID;
 	last_request->country_ie_env = ENVIRON_ANY;
 out:
 	mutex_unlock(&reg_mutex);
