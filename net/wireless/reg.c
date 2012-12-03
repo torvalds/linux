@@ -94,14 +94,14 @@ static struct device_type reg_device_type = {
 /*
  * Central wireless core regulatory domains, we only need two,
  * the current one and a world regulatory domain in case we have no
- * information to give us an alpha2
+ * information to give us an alpha2.
+ * Protected by the cfg80211_mutex.
  */
 const struct ieee80211_regdomain *cfg80211_regdomain;
 
 /*
  * Protects static reg.c components:
  *     - cfg80211_world_regdom
- *     - cfg80211_regdom
  *     - last_request
  *     - reg_num_devs_support_basehint
  */
@@ -185,6 +185,9 @@ MODULE_PARM_DESC(ieee80211_regdom, "IEEE 802.11 regulatory domain code");
 
 static void reset_regdomains(bool full_reset)
 {
+	assert_cfg80211_lock();
+	assert_reg_lock();
+
 	/* avoid freeing static information or freeing something twice */
 	if (cfg80211_regdomain == cfg80211_world_regdom)
 		cfg80211_regdomain = NULL;
@@ -214,6 +217,9 @@ static void reset_regdomains(bool full_reset)
 static void update_world_regdomain(const struct ieee80211_regdomain *rd)
 {
 	WARN_ON(!last_request);
+
+	assert_cfg80211_lock();
+	assert_reg_lock();
 
 	reset_regdomains(false);
 
@@ -422,8 +428,6 @@ static int call_crda(const char *alpha2)
 /* Used by nl80211 before kmalloc'ing our regulatory domain */
 bool reg_is_valid_request(const char *alpha2)
 {
-	assert_cfg80211_lock();
-
 	if (!last_request)
 		return false;
 
@@ -915,8 +919,6 @@ bool reg_last_request_cell_base(void)
 {
 	bool val;
 
-	assert_cfg80211_lock();
-
 	mutex_lock(&reg_mutex);
 	val = reg_request_cell_base(last_request);
 	mutex_unlock(&reg_mutex);
@@ -999,8 +1001,6 @@ static void handle_reg_beacon(struct wiphy *wiphy, unsigned int chan_idx,
 	bool channel_changed = false;
 	struct ieee80211_channel chan_before;
 
-	assert_cfg80211_lock();
-
 	sband = wiphy->bands[reg_beacon->chan.band];
 	chan = &sband->channels[chan_idx];
 
@@ -1042,8 +1042,6 @@ static void wiphy_update_new_beacon(struct wiphy *wiphy,
 	unsigned int i;
 	struct ieee80211_supported_band *sband;
 
-	assert_cfg80211_lock();
-
 	if (!wiphy->bands[reg_beacon->chan.band])
 		return;
 
@@ -1062,8 +1060,6 @@ static void wiphy_update_beacon_reg(struct wiphy *wiphy)
 	struct ieee80211_supported_band *sband;
 	struct reg_beacon *reg_beacon;
 
-	assert_cfg80211_lock();
-
 	list_for_each_entry(reg_beacon, &reg_beacon_list, list) {
 		if (!wiphy->bands[reg_beacon->chan.band])
 			continue;
@@ -1075,6 +1071,8 @@ static void wiphy_update_beacon_reg(struct wiphy *wiphy)
 
 static bool reg_is_world_roaming(struct wiphy *wiphy)
 {
+	assert_cfg80211_lock();
+
 	if (is_world_regdom(cfg80211_regdomain->alpha2) ||
 	    (wiphy->regd && is_world_regdom(wiphy->regd->alpha2)))
 		return true;
@@ -1115,8 +1113,6 @@ static void reg_process_ht_flags_channel(struct wiphy *wiphy,
 	struct ieee80211_supported_band *sband = wiphy->bands[channel->band];
 	struct ieee80211_channel *channel_before = NULL, *channel_after = NULL;
 	unsigned int i;
-
-	assert_cfg80211_lock();
 
 	if (!is_ht40_allowed(channel)) {
 		channel->flags |= IEEE80211_CHAN_NO_HT40;
@@ -1180,6 +1176,7 @@ static void wiphy_update_regulatory(struct wiphy *wiphy,
 {
 	enum ieee80211_band band;
 
+	assert_cfg80211_lock();
 	assert_reg_lock();
 
 	if (ignore_reg_update(wiphy, initiator))
@@ -1298,8 +1295,6 @@ get_reg_request_treatment(struct wiphy *wiphy,
 			  struct regulatory_request *pending_request)
 {
 	struct wiphy *last_wiphy = NULL;
-
-	assert_cfg80211_lock();
 
 	/* All initial requests are respected */
 	if (!last_request)
@@ -2246,8 +2241,6 @@ int reg_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 void wiphy_regulatory_register(struct wiphy *wiphy)
 {
-	assert_cfg80211_lock();
-
 	mutex_lock(&reg_mutex);
 
 	if (!reg_dev_ignore_cell_hint(wiphy))
@@ -2262,8 +2255,6 @@ void wiphy_regulatory_register(struct wiphy *wiphy)
 void wiphy_regulatory_deregister(struct wiphy *wiphy)
 {
 	struct wiphy *request_wiphy = NULL;
-
-	assert_cfg80211_lock();
 
 	mutex_lock(&reg_mutex);
 
