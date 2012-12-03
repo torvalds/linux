@@ -4971,7 +4971,7 @@ int dev_set_mtu(struct net_device *dev, int new_mtu)
 	else
 		dev->mtu = new_mtu;
 
-	if (!err && dev->flags & IFF_UP)
+	if (!err)
 		call_netdevice_notifiers(NETDEV_CHANGEMTU, dev);
 	return err;
 }
