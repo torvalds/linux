@@ -31,6 +31,7 @@
 #define TUN_FASYNC	0x0010
 #define TUN_NOCHECKSUM	0x0020
 #define TUN_NO_PI	0x0040
+/* This flag has no real effect */
 #define TUN_ONE_QUEUE	0x0080
 #define TUN_PERSIST 	0x0100	
 #define TUN_VNET_HDR 	0x0200
@@ -60,6 +61,7 @@
 #define IFF_TUN		0x0001
 #define IFF_TAP		0x0002
 #define IFF_NO_PI	0x1000
+/* This flag has no real effect */
 #define IFF_ONE_QUEUE	0x2000
 #define IFF_VNET_HDR	0x4000
 #define IFF_TUN_EXCL	0x8000

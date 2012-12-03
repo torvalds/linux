@@ -690,21 +690,8 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * number of queues.
 	 */
 	if (skb_queue_len(&tfile->socket.sk->sk_receive_queue)
-			  >= dev->tx_queue_len / tun->numqueues){
-		if (!(tun->flags & TUN_ONE_QUEUE)) {
-			/* Normal queueing mode. */
-			/* Packet scheduler handles dropping of further packets. */
-			netif_stop_subqueue(dev, txq);
-
-			/* We won't see all dropped packets individually, so overrun
-			 * error is more appropriate. */
-			dev->stats.tx_fifo_errors++;
-		} else {
-			/* Single queue mode.
-			 * Driver handles dropping of all packets itself. */
-			goto drop;
-		}
-	}
+			  >= dev->tx_queue_len / tun->numqueues)
+		goto drop;
 
 	/* Orphan the skb - required as we might hang on to it
 	 * for indefinite time. */
@@ -1319,7 +1306,6 @@ static ssize_t tun_do_read(struct tun_struct *tun, struct tun_file *tfile,
 			schedule();
 			continue;
 		}
-		netif_wake_subqueue(tun->dev, tfile->queue_index);
 
 		ret = tun_put_user(tun, tfile, skb, iv, len);
 		kfree_skb(skb);
@@ -1482,6 +1468,9 @@ static int tun_flags(struct tun_struct *tun)
 	if (tun->flags & TUN_NO_PI)
 		flags |= IFF_NO_PI;
 
+	/* This flag has no real effect.  We track the value for backwards
+	 * compatibility.
+	 */
 	if (tun->flags & TUN_ONE_QUEUE)
 		flags |= IFF_ONE_QUEUE;
 
@@ -1632,6 +1621,9 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	else
 		tun->flags &= ~TUN_NO_PI;
 
+	/* This flag has no real effect.  We track the value for backwards
+	 * compatibility.
+	 */
 	if (ifr->ifr_flags & IFF_ONE_QUEUE)
 		tun->flags |= TUN_ONE_QUEUE;
 	else
