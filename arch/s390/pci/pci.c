@@ -602,10 +602,9 @@ struct zpci_dev *zpci_alloc_device(void)
 		return ERR_PTR(-ENOMEM);
 
 	/* Alloc aibv & callback space */
-	zdev->irq_map = kmem_cache_alloc(zdev_irq_cache, GFP_KERNEL);
+	zdev->irq_map = kmem_cache_zalloc(zdev_irq_cache, GFP_KERNEL);
 	if (!zdev->irq_map)
 		goto error;
-	memset(zdev->irq_map, 0, sizeof(*zdev->irq_map));
 	WARN_ON((u64) zdev->irq_map & 0xff);
 	return zdev;
 
