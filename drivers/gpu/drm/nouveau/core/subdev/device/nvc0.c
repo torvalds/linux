@@ -255,7 +255,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nvd0_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nvc0_clock_oclass;
-		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv50_therm_oclass;
+		device->oclass[NVDEV_SUBDEV_THERM  ] = &nvd0_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv50_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nvc0_mc_oclass;

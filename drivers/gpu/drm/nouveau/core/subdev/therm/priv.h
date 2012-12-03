@@ -1,3 +1,6 @@
+#ifndef __NVTHERM_PRIV_H__
+#define __NVTHERM_PRIV_H__
+
 /*
  * Copyright 2012 The Nouveau community
  *
@@ -71,3 +74,7 @@ int nouveau_therm_fan_set_mode(struct nouveau_therm *therm,
 
 
 int nouveau_therm_fan_sense(struct nouveau_therm *therm);
+
+int nv50_temp_get(struct nouveau_therm *therm);
+
+#endif
