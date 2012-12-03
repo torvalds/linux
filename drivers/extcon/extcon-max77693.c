@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
+#include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
@@ -44,11 +45,15 @@ struct max77693_muic_info {
 	int prev_cable_type;
 	int prev_cable_type_gnd;
 	int prev_chg_type;
+	int prev_button_type;
 	u8 status[2];
 
 	int irq;
 	struct work_struct irq_work;
 	struct mutex mutex;
+
+	/* Button of dock device */
+	struct input_dev *dock;
 };
 
 enum max77693_muic_cable_group {
@@ -156,7 +161,10 @@ enum {
 	EXTCON_CABLE_JIG_USB_ON,
 	EXTCON_CABLE_JIG_USB_OFF,
 	EXTCON_CABLE_JIG_UART_OFF,
-	EXTCON_CABLE_AUDIO_VIDEO_LOAD,
+	EXTCON_CABLE_JIG_UART_ON,
+	EXTCON_CABLE_DOCK_SMART,
+	EXTCON_CABLE_DOCK_DESK,
+	EXTCON_CABLE_DOCK_AUDIO,
 
 	_EXTCON_CABLE_NUM,
 };
@@ -173,7 +181,10 @@ const char *max77693_extcon_cable[] = {
 	[EXTCON_CABLE_JIG_USB_ON]		= "JIG-USB-ON",
 	[EXTCON_CABLE_JIG_USB_OFF]		= "JIG-USB-OFF",
 	[EXTCON_CABLE_JIG_UART_OFF]		= "JIG-UART-OFF",
-	[EXTCON_CABLE_AUDIO_VIDEO_LOAD]		= "Audio-video-load",
+	[EXTCON_CABLE_JIG_UART_ON]		= "Dock-Car",
+	[EXTCON_CABLE_DOCK_SMART]		= "Dock-Smart",
+	[EXTCON_CABLE_DOCK_DESK]		= "Dock-Desk",
+	[EXTCON_CABLE_DOCK_AUDIO]		= "Dock-Audio",
 
 	NULL,
 };
@@ -411,6 +422,96 @@ static int max77693_muic_get_cable_type(struct max77693_muic_info *info,
 	return cable_type;
 }
 
+static int max77693_muic_dock_handler(struct max77693_muic_info *info,
+		int cable_type, bool attached)
+{
+	int ret = 0;
+	char dock_name[CABLE_NAME_MAX];
+
+	dev_info(info->dev,
+		"external connector is %s (adc:0x%02x)\n",
+		attached ? "attached" : "detached", cable_type);
+
+	switch (cable_type) {
+	case MAX77693_MUIC_ADC_RESERVED_ACC_3:		/* Dock-Smart */
+		/* PATH:AP_USB */
+		ret = max77693_muic_set_path(info,
+				CONTROL1_SW_USB, attached);
+		if (ret < 0)
+			goto out;
+
+		/* Dock-Smart */
+		extcon_set_cable_state(info->edev, "Dock-Smart", attached);
+		goto out;
+	case MAX77693_MUIC_ADC_FACTORY_MODE_UART_ON:	/* Dock-Car */
+		strcpy(dock_name, "Dock-Car");
+		break;
+	case MAX77693_MUIC_ADC_AUDIO_MODE_REMOTE:	/* Dock-Desk */
+		strcpy(dock_name, "Dock-Desk");
+		break;
+	case MAX77693_MUIC_ADC_AV_CABLE_NOLOAD:		/* Dock-Audio */
+		strcpy(dock_name, "Dock-Audio");
+		if (!attached)
+			extcon_set_cable_state(info->edev, "USB", false);
+		break;
+	}
+
+	/* Dock-Car/Desk/Audio, PATH:AUDIO */
+	ret = max77693_muic_set_path(info, CONTROL1_SW_AUDIO, attached);
+	if (ret < 0)
+		goto out;
+	extcon_set_cable_state(info->edev, dock_name, attached);
+
+out:
+	return ret;
+}
+
+static int max77693_muic_dock_button_handler(struct max77693_muic_info *info,
+		int button_type, bool attached)
+{
+	struct input_dev *dock = info->dock;
+	unsigned int code;
+	int ret = 0;
+
+	switch (button_type) {
+	case MAX77693_MUIC_ADC_REMOTE_S3_BUTTON-1
+		... MAX77693_MUIC_ADC_REMOTE_S3_BUTTON+1:
+		/* DOCK_KEY_PREV */
+		code = KEY_PREVIOUSSONG;
+		break;
+	case MAX77693_MUIC_ADC_REMOTE_S7_BUTTON-1
+		... MAX77693_MUIC_ADC_REMOTE_S7_BUTTON+1:
+		/* DOCK_KEY_NEXT */
+		code = KEY_NEXTSONG;
+		break;
+	case MAX77693_MUIC_ADC_REMOTE_S9_BUTTON:
+		/* DOCK_VOL_DOWN */
+		code = KEY_VOLUMEDOWN;
+		break;
+	case MAX77693_MUIC_ADC_REMOTE_S10_BUTTON:
+		/* DOCK_VOL_UP */
+		code = KEY_VOLUMEUP;
+		break;
+	case MAX77693_MUIC_ADC_REMOTE_S12_BUTTON-1
+		... MAX77693_MUIC_ADC_REMOTE_S12_BUTTON+1:
+		/* DOCK_KEY_PLAY_PAUSE */
+		code = KEY_PLAYPAUSE;
+		break;
+	default:
+		dev_err(info->dev,
+			"failed to detect %s key (adc:0x%x)\n",
+			attached ? "pressed" : "released", button_type);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	input_event(dock, EV_KEY, code, attached);
+	input_sync(dock);
+
+out:
+	return 0;
+}
+
 static int max77693_muic_adc_ground_handler(struct max77693_muic_info *info)
 {
 	int cable_type_gnd;
@@ -494,6 +595,7 @@ out:
 static int max77693_muic_adc_handler(struct max77693_muic_info *info)
 {
 	int cable_type;
+	int button_type;
 	bool attached;
 	int ret = 0;
 
@@ -519,31 +621,58 @@ static int max77693_muic_adc_handler(struct max77693_muic_info *info)
 		if (ret < 0)
 			goto out;
 		break;
-	case MAX77693_MUIC_ADC_FACTORY_MODE_UART_ON:
-	case MAX77693_MUIC_ADC_AUDIO_MODE_REMOTE:
-		/* Audio Video cable with no-load */
-		ret = max77693_muic_set_path(info, CONTROL1_SW_AUDIO, attached);
+	case MAX77693_MUIC_ADC_RESERVED_ACC_3:		/* Dock-Smart */
+	case MAX77693_MUIC_ADC_FACTORY_MODE_UART_ON:	/* Dock-Car */
+	case MAX77693_MUIC_ADC_AUDIO_MODE_REMOTE:	/* Dock-Desk */
+	case MAX77693_MUIC_ADC_AV_CABLE_NOLOAD:		/* Dock-Audio */
+		/*
+		 * DOCK device
+		 *
+		 * The MAX77693 MUIC device can detect total 34 cable type
+		 * except of charger cable and MUIC device didn't define
+		 * specfic role of cable in the range of from 0x01 to 0x12
+		 * of ADC value. So, can use/define cable with no role according
+		 * to schema of hardware board.
+		 */
+		ret = max77693_muic_dock_handler(info, cable_type, attached);
 		if (ret < 0)
 			goto out;
-		extcon_set_cable_state(info->edev,
-				"Audio-video-noload", attached);
+		break;
+	case MAX77693_MUIC_ADC_REMOTE_S3_BUTTON:	/* DOCK_KEY_PREV */
+	case MAX77693_MUIC_ADC_REMOTE_S7_BUTTON:	/* DOCK_KEY_NEXT */
+	case MAX77693_MUIC_ADC_REMOTE_S9_BUTTON:	/* DOCK_VOL_DOWN */
+	case MAX77693_MUIC_ADC_REMOTE_S10_BUTTON:	/* DOCK_VOL_UP */
+	case MAX77693_MUIC_ADC_REMOTE_S12_BUTTON:	/* DOCK_KEY_PLAY_PAUSE */
+		/*
+		 * Button of DOCK device
+		 * - the Prev/Next/Volume Up/Volume Down/Play-Pause button
+		 *
+		 * The MAX77693 MUIC device can detect total 34 cable type
+		 * except of charger cable and MUIC device didn't define
+		 * specfic role of cable in the range of from 0x01 to 0x12
+		 * of ADC value. So, can use/define cable with no role according
+		 * to schema of hardware board.
+		 */
+		if (attached)
+			button_type = info->prev_button_type = cable_type;
+		else
+			button_type = info->prev_button_type;
+
+		ret = max77693_muic_dock_button_handler(info, button_type,
+							attached);
+		if (ret < 0)
+			goto out;
 		break;
 	case MAX77693_MUIC_ADC_SEND_END_BUTTON:
 	case MAX77693_MUIC_ADC_REMOTE_S1_BUTTON:
 	case MAX77693_MUIC_ADC_REMOTE_S2_BUTTON:
-	case MAX77693_MUIC_ADC_REMOTE_S3_BUTTON:
 	case MAX77693_MUIC_ADC_REMOTE_S4_BUTTON:
 	case MAX77693_MUIC_ADC_REMOTE_S5_BUTTON:
 	case MAX77693_MUIC_ADC_REMOTE_S6_BUTTON:
-	case MAX77693_MUIC_ADC_REMOTE_S7_BUTTON:
 	case MAX77693_MUIC_ADC_REMOTE_S8_BUTTON:
-	case MAX77693_MUIC_ADC_REMOTE_S9_BUTTON:
-	case MAX77693_MUIC_ADC_REMOTE_S10_BUTTON:
 	case MAX77693_MUIC_ADC_REMOTE_S11_BUTTON:
-	case MAX77693_MUIC_ADC_REMOTE_S12_BUTTON:
 	case MAX77693_MUIC_ADC_RESERVED_ACC_1:
 	case MAX77693_MUIC_ADC_RESERVED_ACC_2:
-	case MAX77693_MUIC_ADC_RESERVED_ACC_3:
 	case MAX77693_MUIC_ADC_RESERVED_ACC_4:
 	case MAX77693_MUIC_ADC_RESERVED_ACC_5:
 	case MAX77693_MUIC_ADC_CEA936_AUDIO:
@@ -551,11 +680,12 @@ static int max77693_muic_adc_handler(struct max77693_muic_info *info)
 	case MAX77693_MUIC_ADC_TTY_CONVERTER:
 	case MAX77693_MUIC_ADC_UART_CABLE:
 	case MAX77693_MUIC_ADC_CEA936A_TYPE1_CHG:
-	case MAX77693_MUIC_ADC_AV_CABLE_NOLOAD:
 	case MAX77693_MUIC_ADC_CEA936A_TYPE2_CHG:
-		/* This accessory isn't used in general case if it is specially
-		   needed to detect additional accessory, should implement
-		   proper operation when this accessory is attached/detached. */
+		/*
+		 * This accessory isn't used in general case if it is specially
+		 * needed to detect additional accessory, should implement
+		 * proper operation when this accessory is attached/detached.
+		 */
 		dev_info(info->dev,
 			"accessory is %s but it isn't used (adc:0x%x)\n",
 			attached ? "attached" : "detached", cable_type);
@@ -576,6 +706,7 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 {
 	int chg_type;
 	int cable_type_gnd;
+	int cable_type;
 	bool attached;
 	bool cable_attached;
 	int ret = 0;
@@ -590,35 +721,52 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 
 	switch (chg_type) {
 	case MAX77693_CHARGER_TYPE_USB:
+		/*
+		 * MHL_TA(USB/TA) with MHL cable
+		 * - MHL cable include two port(HDMI line and separate micro
+		 * -usb port. When the target connect MHL cable, extcon driver
+		 * check whether MHL_TA(USB/TA) cable is connected. If MHL_TA
+		 * cable is connected, extcon driver notify state to notifiee
+		 * for charging battery.
+		 */
 		cable_type_gnd = max77693_muic_get_cable_type(info,
 					MAX77693_CABLE_GROUP_ADC_GND,
 					&cable_attached);
-
-		switch (cable_type_gnd) {
-		case MAX77693_MUIC_GND_MHL:
-		case MAX77693_MUIC_GND_MHL_VB:
-			/*
-			 * USB/TA with MHL cable
-			 * - MHL cable, which connect micro USB or TA cable,
-			 * is used to charging battery. So, extcon driver check
-			 * charging type whether micro USB or TA cable is
-			 * connected to MHL cable when extcon driver detect MHL
-			 * cable.
-			 */
+		if (cable_type_gnd == MAX77693_MUIC_GND_MHL
+			|| cable_type_gnd == MAX77693_MUIC_GND_MHL_VB) {
 			extcon_set_cable_state(info->edev, "MHL_TA", attached);
 
 			if (!cable_attached)
 				extcon_set_cable_state(info->edev,
-						"MHL", false);
-			break;
-		default:
-			/* Only USB cable, PATH:AP_USB */
-			ret = max77693_muic_set_path(info, CONTROL1_SW_USB,
-						attached);
-			if (ret < 0)
-				goto out;
-			extcon_set_cable_state(info->edev, "USB", attached);
+					"MHL", false);
+			goto out;
 		}
+
+		/*
+		 * USB/TA cable with Dock-Audio device
+		 * - Dock device include two port(Dock-Audio and micro-usb
+		 * port). When the target connect Dock-Audio device, extcon
+		 * driver check whether USB/TA cable is connected.
+		 * If USB/TA cable is connected, extcon driver notify state
+		 * to notifiee for charging battery.
+		 */
+		cable_type = max77693_muic_get_cable_type(info,
+					MAX77693_CABLE_GROUP_ADC,
+					&cable_attached);
+		if (cable_type == MAX77693_MUIC_ADC_AV_CABLE_NOLOAD) {
+			extcon_set_cable_state(info->edev, "USB", attached);
+
+			if (!cable_attached)
+				extcon_set_cable_state(info->edev,
+						"Dock-Audio", false);
+			goto out;
+		}
+
+		/* Only USB cable, PATH:AP_USB */
+		ret = max77693_muic_set_path(info, CONTROL1_SW_USB, attached);
+		if (ret < 0)
+			goto out;
+		extcon_set_cable_state(info->edev, "USB", attached);
 		break;
 	case MAX77693_CHARGER_TYPE_DOWNSTREAM_PORT:
 		extcon_set_cable_state(info->edev,
@@ -794,6 +942,32 @@ static int max77693_muic_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
+
+	/* Register input device for button of dock device */
+	info->dock = input_allocate_device();
+	if (!info->dock) {
+		dev_err(&pdev->dev, "%s: failed to allocate input\n", __func__);
+		return -ENOMEM;
+	}
+	info->dock->name = "max77693-muic/dock";
+	info->dock->phys = "max77693-muic/extcon";
+	info->dock->dev.parent = &pdev->dev;
+
+	__set_bit(EV_REP, info->dock->evbit);
+
+	input_set_capability(info->dock, EV_KEY, KEY_VOLUMEUP);
+	input_set_capability(info->dock, EV_KEY, KEY_VOLUMEDOWN);
+	input_set_capability(info->dock, EV_KEY, KEY_PLAYPAUSE);
+	input_set_capability(info->dock, EV_KEY, KEY_PREVIOUSSONG);
+	input_set_capability(info->dock, EV_KEY, KEY_NEXTSONG);
+
+	ret = input_register_device(info->dock);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Cannot register input device error(%d)\n",
+				ret);
+		return ret;
+	}
+
 	platform_set_drvdata(pdev, info);
 	mutex_init(&info->mutex);
 
@@ -870,7 +1044,7 @@ static int max77693_muic_probe(struct platform_device *pdev)
 			MAX77693_MUIC_REG_ID, &id);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to read revision number\n");
-		goto err_irq;
+		goto err_extcon;
 	}
 	dev_info(info->dev, "device ID : 0x%x\n", id);
 
@@ -882,6 +1056,8 @@ static int max77693_muic_probe(struct platform_device *pdev)
 
 	return ret;
 
+err_extcon:
+	extcon_dev_unregister(info->edev);
 err_irq:
 	while (--i >= 0)
 		free_irq(muic_irqs[i].virq, info);
@@ -896,6 +1072,7 @@ static int max77693_muic_remove(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(muic_irqs); i++)
 		free_irq(muic_irqs[i].virq, info);
 	cancel_work_sync(&info->irq_work);
+	input_unregister_device(info->dock);
 	extcon_dev_unregister(info->edev);
 
 	return 0;
