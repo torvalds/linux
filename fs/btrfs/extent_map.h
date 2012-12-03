@@ -24,6 +24,7 @@ struct extent_map {
 	u64 mod_start;
 	u64 mod_len;
 	u64 orig_start;
+	u64 orig_block_len;
 	u64 block_start;
 	u64 block_len;
 	u64 generation;

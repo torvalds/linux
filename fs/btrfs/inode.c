@@ -699,6 +699,7 @@ retry:
 
 		em->block_start = ins.objectid;
 		em->block_len = ins.offset;
+		em->orig_block_len = ins.offset;
 		em->bdev = root->fs_info->fs_devices->latest_bdev;
 		em->compress_type = async_extent->compress_type;
 		set_bit(EXTENT_FLAG_PINNED, &em->flags);
@@ -886,6 +887,7 @@ static noinline int __cow_file_range(struct btrfs_trans_handle *trans,
 
 		em->block_start = ins.objectid;
 		em->block_len = ins.offset;
+		em->orig_block_len = ins.offset;
 		em->bdev = root->fs_info->fs_devices->latest_bdev;
 		set_bit(EXTENT_FLAG_PINNED, &em->flags);
 
@@ -1143,6 +1145,7 @@ static noinline int run_delalloc_nocow(struct inode *inode,
 	u64 extent_offset;
 	u64 disk_bytenr;
 	u64 num_bytes;
+	u64 disk_num_bytes;
 	int extent_type;
 	int ret, err;
 	int type;
@@ -1245,6 +1248,8 @@ next_slot:
 			extent_offset = btrfs_file_extent_offset(leaf, fi);
 			extent_end = found_key.offset +
 				btrfs_file_extent_num_bytes(leaf, fi);
+			disk_num_bytes =
+				btrfs_file_extent_disk_num_bytes(leaf, fi);
 			if (extent_end <= start) {
 				path->slots[0]++;
 				goto next_slot;
@@ -1319,6 +1324,7 @@ out_check:
 			em->len = num_bytes;
 			em->block_len = num_bytes;
 			em->block_start = disk_bytenr;
+			em->orig_block_len = disk_num_bytes;
 			em->bdev = root->fs_info->fs_devices->latest_bdev;
 			set_bit(EXTENT_FLAG_PINNED, &em->flags);
 			set_bit(EXTENT_FLAG_PREALLOC, &em->flags);
@@ -3696,6 +3702,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 
 			hole_em->block_start = EXTENT_MAP_HOLE;
 			hole_em->block_len = 0;
+			hole_em->orig_block_len = 0;
 			hole_em->bdev = root->fs_info->fs_devices->latest_bdev;
 			hole_em->compress_type = BTRFS_COMPRESS_NONE;
 			hole_em->generation = trans->transid;
@@ -5374,6 +5381,8 @@ again:
 		em->len = extent_end - extent_start;
 		em->orig_start = extent_start -
 				 btrfs_file_extent_offset(leaf, item);
+		em->orig_block_len = btrfs_file_extent_disk_num_bytes(leaf,
+								      item);
 		bytenr = btrfs_file_extent_disk_bytenr(leaf, item);
 		if (bytenr == 0) {
 			em->block_start = EXTENT_MAP_HOLE;
@@ -5383,8 +5392,7 @@ again:
 			set_bit(EXTENT_FLAG_COMPRESSED, &em->flags);
 			em->compress_type = compress_type;
 			em->block_start = bytenr;
-			em->block_len = btrfs_file_extent_disk_num_bytes(leaf,
-									 item);
+			em->block_len = em->orig_block_len;
 		} else {
 			bytenr += btrfs_file_extent_offset(leaf, item);
 			em->block_start = bytenr;
@@ -5414,6 +5422,7 @@ again:
 		em->start = extent_start + extent_offset;
 		em->len = (copy_size + root->sectorsize - 1) &
 			~((u64)root->sectorsize - 1);
+		em->orig_block_len = em->len;
 		em->orig_start = EXTENT_MAP_INLINE;
 		if (compress_type) {
 			set_bit(EXTENT_FLAG_COMPRESSED, &em->flags);
@@ -5721,6 +5730,7 @@ static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
 
 	em->block_start = ins.objectid;
 	em->block_len = ins.offset;
+	em->orig_block_len = ins.offset;
 	em->bdev = root->fs_info->fs_devices->latest_bdev;
 
 	/*
@@ -5914,7 +5924,7 @@ static int lock_extent_direct(struct inode *inode, u64 lockstart, u64 lockend,
 static struct extent_map *create_pinned_em(struct inode *inode, u64 start,
 					   u64 len, u64 orig_start,
 					   u64 block_start, u64 block_len,
-					   int type)
+					   u64 orig_block_len, int type)
 {
 	struct extent_map_tree *em_tree;
 	struct extent_map *em;
@@ -5932,6 +5942,7 @@ static struct extent_map *create_pinned_em(struct inode *inode, u64 start,
 	em->block_len = block_len;
 	em->block_start = block_start;
 	em->bdev = root->fs_info->fs_devices->latest_bdev;
+	em->orig_block_len = orig_block_len;
 	set_bit(EXTENT_FLAG_PINNED, &em->flags);
 	if (type == BTRFS_ORDERED_PREALLOC)
 		set_bit(EXTENT_FLAG_PREALLOC, &em->flags);
@@ -6068,12 +6079,14 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 
 		if (can_nocow_odirect(trans, inode, start, len) == 1) {
 			u64 orig_start = em->start;
+			u64 orig_block_len = em->orig_block_len;
 
 			if (type == BTRFS_ORDERED_PREALLOC) {
 				free_extent_map(em);
 				em = create_pinned_em(inode, start, len,
 						       orig_start,
-						       block_start, len, type);
+						       block_start, len,
+						       orig_block_len, type);
 				if (IS_ERR(em)) {
 					btrfs_end_transaction(trans, root);
 					goto unlock_err;
@@ -7771,6 +7784,7 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 		em->len = ins.offset;
 		em->block_start = ins.objectid;
 		em->block_len = ins.offset;
+		em->orig_block_len = ins.offset;
 		em->bdev = root->fs_info->fs_devices->latest_bdev;
 		set_bit(EXTENT_FLAG_PREALLOC, &em->flags);
 		em->generation = trans->transid;
