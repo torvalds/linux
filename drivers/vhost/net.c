@@ -83,6 +83,8 @@ struct vhost_net {
 	/* Number of times zerocopy TX recently failed.
 	 * Protected by tx vq lock. */
 	unsigned tx_zcopy_err;
+	/* Flush in progress. Protected by tx vq lock. */
+	bool tx_flush;
 };
 
 static void vhost_net_tx_packet(struct vhost_net *net)
@@ -101,7 +103,11 @@ static void vhost_net_tx_err(struct vhost_net *net)
 
 static bool vhost_net_tx_select_zcopy(struct vhost_net *net)
 {
-	return net->tx_packets / 64 >= net->tx_zcopy_err;
+	/* TX flush waits for outstanding DMAs to be done.
+	 * Don't start new DMAs.
+	 */
+	return !net->tx_flush &&
+		net->tx_packets / 64 >= net->tx_zcopy_err;
 }
 
 static bool vhost_sock_zcopy(struct socket *sock)
@@ -679,6 +685,17 @@ static void vhost_net_flush(struct vhost_net *n)
 {
 	vhost_net_flush_vq(n, VHOST_NET_VQ_TX);
 	vhost_net_flush_vq(n, VHOST_NET_VQ_RX);
+	if (n->dev.vqs[VHOST_NET_VQ_TX].ubufs) {
+		mutex_lock(&n->dev.vqs[VHOST_NET_VQ_TX].mutex);
+		n->tx_flush = true;
+		mutex_unlock(&n->dev.vqs[VHOST_NET_VQ_TX].mutex);
+		/* Wait for all lower device DMAs done. */
+		vhost_ubuf_put_and_wait(n->dev.vqs[VHOST_NET_VQ_TX].ubufs);
+		mutex_lock(&n->dev.vqs[VHOST_NET_VQ_TX].mutex);
+		n->tx_flush = false;
+		kref_init(&n->dev.vqs[VHOST_NET_VQ_TX].ubufs->kref);
+		mutex_unlock(&n->dev.vqs[VHOST_NET_VQ_TX].mutex);
+	}
 }
 
 static int vhost_net_release(struct inode *inode, struct file *f)
@@ -686,18 +703,10 @@ static int vhost_net_release(struct inode *inode, struct file *f)
 	struct vhost_net *n = f->private_data;
 	struct socket *tx_sock;
 	struct socket *rx_sock;
-	int i;
 
 	vhost_net_stop(n, &tx_sock, &rx_sock);
 	vhost_net_flush(n);
 	vhost_dev_stop(&n->dev);
-	for (i = 0; i < n->dev.nvqs; ++i) {
-		/* Wait for all lower device DMAs done. */
-		if (n->dev.vqs[i].ubufs)
-			vhost_ubuf_put_and_wait(n->dev.vqs[i].ubufs);
-
-		vhost_zerocopy_signal_used(n, &n->dev.vqs[i]);
-	}
 	vhost_dev_cleanup(&n->dev, false);
 	if (tx_sock)
 		fput(tx_sock->file);
@@ -826,6 +835,7 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 
 		n->tx_packets = 0;
 		n->tx_zcopy_err = 0;
+		n->tx_flush = false;
 	}
 
 	mutex_unlock(&vq->mutex);
