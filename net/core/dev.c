@@ -6418,6 +6418,9 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 	dev_uc_flush(dev);
 	dev_mc_flush(dev);
 
+	/* Send a netdev-removed uevent to the old namespace */
+	kobject_uevent(&dev->dev.kobj, KOBJ_REMOVE);
+
 	/* Actually switch the network namespace */
 	dev_net_set(dev, net);
 
@@ -6428,6 +6431,9 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 		if (iflink)
 			dev->iflink = dev->ifindex;
 	}
+
+	/* Send a netdev-add uevent to the new namespace */
+	kobject_uevent(&dev->dev.kobj, KOBJ_ADD);
 
 	/* Fixup kobjects */
 	err = device_rename(&dev->dev, dev->name);
