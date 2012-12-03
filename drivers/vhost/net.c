@@ -823,6 +823,9 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 		r = vhost_init_used(vq);
 		if (r)
 			goto err_vq;
+
+		n->tx_packets = 0;
+		n->tx_zcopy_err = 0;
 	}
 
 	mutex_unlock(&vq->mutex);
