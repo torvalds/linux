@@ -679,7 +679,13 @@ static struct ubi_wl_entry *get_peb_for_wl(struct ubi_device *ubi)
 #else
 static struct ubi_wl_entry *get_peb_for_wl(struct ubi_device *ubi)
 {
-	return find_wl_entry(ubi, &ubi->free, WL_FREE_MAX_DIFF);
+	struct ubi_wl_entry *e;
+
+	e = find_wl_entry(ubi, &ubi->free, WL_FREE_MAX_DIFF);
+	self_check_in_wl_tree(ubi, e, &ubi->free);
+	rb_erase(&e->u.rb, &ubi->free);
+
+	return e;
 }
 
 int ubi_wl_get_peb(struct ubi_device *ubi)
