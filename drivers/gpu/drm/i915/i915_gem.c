@@ -1696,10 +1696,14 @@ i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 	if (obj->pages_pin_count)
 		return -EBUSY;
 
+	/* ->put_pages might need to allocate memory for the bit17 swizzle
+	 * array, hence protect them from being reaped by removing them from gtt
+	 * lists early. */
+	list_del(&obj->gtt_list);
+
 	ops->put_pages(obj);
 	obj->pages = NULL;
 
-	list_del(&obj->gtt_list);
 	if (i915_gem_object_is_purgeable(obj))
 		i915_gem_object_truncate(obj);
 
