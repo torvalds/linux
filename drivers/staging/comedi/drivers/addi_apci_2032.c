@@ -237,6 +237,9 @@ static irqreturn_t apci2032_interrupt(int irq, void *d)
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int val;
 
+	if (!dev->attached)
+		return IRQ_NONE;
+
 	/* Check if VCC OR CC interrupt has occurred */
 	val = inl(dev->iobase + APCI2032_STATUS_REG) & APCI2032_STATUS_IRQ;
 	if (!val)
@@ -281,6 +284,7 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 	dev->iobase = pci_resource_start(pcidev, 1);
+	apci2032_reset(dev);
 
 	if (pcidev->irq > 0) {
 		ret = request_irq(pcidev->irq, apci2032_interrupt,
@@ -329,7 +333,6 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
-	apci2032_reset(dev);
 	return 0;
 }
 
