@@ -120,18 +120,11 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 
 	if (cpu_context(cpu, mm) != 0) {
 		unsigned long size, flags;
-		int huge = is_vm_hugetlb_page(vma);
 
 		ENTER_CRITICAL(flags);
-		if (huge) {
-			start = round_down(start, HPAGE_SIZE);
-			end = round_up(end, HPAGE_SIZE);
-			size = (end - start) >> HPAGE_SHIFT;
-		} else {
-			start = round_down(start, PAGE_SIZE << 1);
-			end = round_up(end, PAGE_SIZE << 1);
-			size = (end - start) >> (PAGE_SHIFT + 1);
-		}
+		start = round_down(start, PAGE_SIZE << 1);
+		end = round_up(end, PAGE_SIZE << 1);
+		size = (end - start) >> (PAGE_SHIFT + 1);
 		if (size <= current_cpu_data.tlbsize/2) {
 			int oldpid = read_c0_entryhi();
 			int newpid = cpu_asid(cpu, mm);
@@ -140,10 +133,7 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 				int idx;
 
 				write_c0_entryhi(start | newpid);
-				if (huge)
-					start += HPAGE_SIZE;
-				else
-					start += (PAGE_SIZE << 1);
+				start += (PAGE_SIZE << 1);
 				mtc0_tlbw_hazard();
 				tlb_probe();
 				tlb_probe_hazard();
