@@ -6,7 +6,7 @@
  *
  *  Written by Jacob Shin - AMD, Inc.
  *
- *  Support: borislav.petkov@amd.com
+ *  Maintained by: Borislav Petkov <bp@alien8.de>
  *
  *  April 2006
  *     - added support for AMD Family 0x10 processors

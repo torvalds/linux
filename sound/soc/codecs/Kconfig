@@ -44,6 +44,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_LM4857 if I2C
 	select SND_SOC_LM49453 if I2C
 	select SND_SOC_MAX98088 if I2C
+	select SND_SOC_MAX98090 if I2C
 	select SND_SOC_MAX98095 if I2C
 	select SND_SOC_MAX9850 if I2C
 	select SND_SOC_MAX9768 if I2C
@@ -54,6 +55,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_PCM3008
 	select SND_SOC_RT5631 if I2C
 	select SND_SOC_SGTL5000 if I2C
+	select SND_SOC_SI476X if MFD_SI476X_CORE
 	select SND_SOC_SN95031 if INTEL_SCU_IPC
 	select SND_SOC_SPDIF
 	select SND_SOC_SSM2602 if SND_SOC_I2C_AND_SPI
@@ -146,6 +148,13 @@ config SND_SOC_WM_HUBS
 	default y if SND_SOC_WM8993=y || SND_SOC_WM8994=y
 	default m if SND_SOC_WM8993=m || SND_SOC_WM8994=m
 
+config SND_SOC_WM_ADSP
+	tristate
+	default y if SND_SOC_WM5102=y
+	default y if SND_SOC_WM2200=y
+	default m if SND_SOC_WM5102=m
+	default m if SND_SOC_WM2200=m
+
 config SND_SOC_AB8500_CODEC
 	tristate
 
@@ -229,6 +238,7 @@ config SND_SOC_CX20442
 	tristate
 
 config SND_SOC_JZ4740_CODEC
+	select REGMAP_MMIO
 	tristate
 
 config SND_SOC_L3
@@ -258,6 +268,9 @@ config SND_SOC_LM49453
 config SND_SOC_MAX98088
        tristate
 
+config SND_SOC_MAX98090
+       tristate
+
 config SND_SOC_MAX98095
        tristate
 
@@ -275,6 +288,9 @@ config SND_SOC_RT5631
 
 #Freescale sgtl5000 codec
 config SND_SOC_SGTL5000
+	tristate
+
+config SND_SOC_SI476X
 	tristate
 
 config SND_SOC_SIGMADSP

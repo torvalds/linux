@@ -628,7 +628,7 @@ static int wm9090_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 	}
 
-	wm9090->regmap = regmap_init_i2c(i2c, &wm9090_regmap);
+	wm9090->regmap = devm_regmap_init_i2c(i2c, &wm9090_regmap);
 	if (IS_ERR(wm9090->regmap)) {
 		ret = PTR_ERR(wm9090->regmap);
 		dev_err(&i2c->dev, "Failed to allocate regmap: %d\n", ret);
@@ -637,16 +637,16 @@ static int wm9090_i2c_probe(struct i2c_client *i2c,
 
 	ret = regmap_read(wm9090->regmap, WM9090_SOFTWARE_RESET, &reg);
 	if (ret < 0)
-		goto err;
+		return ret;
+
 	if (reg != 0x9093) {
 		dev_err(&i2c->dev, "Device is not a WM9090, ID=%x\n", reg);
-		ret = -ENODEV;
-		goto err;
+		return -ENODEV;
 	}
 
 	ret = regmap_write(wm9090->regmap, WM9090_SOFTWARE_RESET, 0);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	if (i2c->dev.platform_data)
 		memcpy(&wm9090->pdata, i2c->dev.platform_data,
@@ -658,23 +658,15 @@ static int wm9090_i2c_probe(struct i2c_client *i2c,
 			&soc_codec_dev_wm9090,  NULL, 0);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to register CODEC: %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	return 0;
-
-err:
-	regmap_exit(wm9090->regmap);
-	return ret;
 }
 
 static int __devexit wm9090_i2c_remove(struct i2c_client *i2c)
 {
-	struct wm9090_priv *wm9090 = i2c_get_clientdata(i2c);
-
 	snd_soc_unregister_codec(&i2c->dev);
-	regmap_exit(wm9090->regmap);
-
 	return 0;
 }
 

@@ -95,6 +95,7 @@ int snd_hda_delete_codec_preset(struct hda_codec_preset_list *preset)
 EXPORT_SYMBOL_HDA(snd_hda_delete_codec_preset);
 
 #ifdef CONFIG_PM
+#define codec_in_pm(codec)	((codec)->in_pm)
 static void hda_power_work(struct work_struct *work);
 static void hda_keep_power_on(struct hda_codec *codec);
 #define hda_codec_is_power_on(codec)	((codec)->power_on)
@@ -104,6 +105,7 @@ static inline void hda_call_pm_notify(struct hda_bus *bus, bool power_up)
 		bus->ops.pm_notify(bus, power_up);
 }
 #else
+#define codec_in_pm(codec)	0
 static inline void hda_keep_power_on(struct hda_codec *codec) {}
 #define hda_codec_is_power_on(codec)	1
 #define hda_call_pm_notify(bus, state) {}
@@ -228,7 +230,7 @@ static int codec_exec_verb(struct hda_codec *codec, unsigned int cmd,
 	}
 	mutex_unlock(&bus->cmd_mutex);
 	snd_hda_power_down(codec);
-	if (!codec->in_pm && res && *res == -1 && bus->rirb_error) {
+	if (!codec_in_pm(codec) && res && *res == -1 && bus->rirb_error) {
 		if (bus->response_reset) {
 			snd_printd("hda_codec: resetting BUS due to "
 				   "fatal communication error\n");
@@ -238,7 +240,7 @@ static int codec_exec_verb(struct hda_codec *codec, unsigned int cmd,
 		goto again;
 	}
 	/* clear reset-flag when the communication gets recovered */
-	if (!err || codec->in_pm)
+	if (!err || codec_in_pm(codec))
 		bus->response_reset = 0;
 	return err;
 }

@@ -442,7 +442,7 @@ static __devinit int s3c_ac97_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto err2;
 	}
-	clk_enable(s3c_ac97.ac97_clk);
+	clk_prepare_enable(s3c_ac97.ac97_clk);
 
 	if (ac97_pdata->cfg_gpio(pdev)) {
 		dev_err(&pdev->dev, "Unable to configure gpio\n");
@@ -468,7 +468,7 @@ err5:
 	free_irq(irq_res->start, NULL);
 err4:
 err3:
-	clk_disable(s3c_ac97.ac97_clk);
+	clk_disable_unprepare(s3c_ac97.ac97_clk);
 	clk_put(s3c_ac97.ac97_clk);
 err2:
 	iounmap(s3c_ac97.regs);
@@ -488,7 +488,7 @@ static __devexit int s3c_ac97_remove(struct platform_device *pdev)
 	if (irq_res)
 		free_irq(irq_res->start, NULL);
 
-	clk_disable(s3c_ac97.ac97_clk);
+	clk_disable_unprepare(s3c_ac97.ac97_clk);
 	clk_put(s3c_ac97.ac97_clk);
 
 	iounmap(s3c_ac97.regs);

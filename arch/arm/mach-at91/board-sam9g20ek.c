@@ -353,6 +353,16 @@ static struct i2c_board_info __initdata ek_i2c_devices[] = {
         },
 };
 
+static struct platform_device sam9g20ek_audio_device = {
+	.name   = "at91sam9g20ek-audio",
+	.id     = -1,
+};
+
+static void __init ek_add_device_audio(void)
+{
+	platform_device_register(&sam9g20ek_audio_device);
+}
+
 
 static void __init ek_board_init(void)
 {
@@ -394,6 +404,7 @@ static void __init ek_board_init(void)
 	at91_set_B_periph(AT91_PIN_PC1, 0);
 	/* SSC (for WM8731) */
 	at91_add_device_ssc(AT91SAM9260_ID_SSC, ATMEL_SSC_TX);
+	ek_add_device_audio();
 }
 
 MACHINE_START(AT91SAM9G20EK, "Atmel AT91SAM9G20-EK")

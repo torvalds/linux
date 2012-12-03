@@ -200,7 +200,7 @@ static int __devexit tegra_wm8753_driver_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id tegra_wm8753_of_match[] __devinitconst = {
+static const struct of_device_id tegra_wm8753_of_match[] = {
 	{ .compatible = "nvidia,tegra-audio-wm8753", },
 	{},
 };

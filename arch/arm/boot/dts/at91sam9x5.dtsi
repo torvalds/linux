@@ -30,6 +30,7 @@
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
+		ssc0 = &ssc0;
 	};
 	cpus {
 		cpu@0 {
@@ -85,6 +86,13 @@
 				compatible = "atmel,at91sam9260-pit";
 				reg = <0xfffffe30 0xf>;
 				interrupts = <1 4 7>;
+			};
+
+			ssc0: ssc@f0010000 {
+				compatible = "atmel,at91sam9g45-ssc";
+				reg = <0xf0010000 0x4000>;
+				interrupts = <28 4 5>;
+				status = "disable";
 			};
 
 			tcb0: timer@f8008000 {

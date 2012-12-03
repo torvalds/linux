@@ -742,7 +742,7 @@ static struct resource ssc_resources[] = {
 };
 
 static struct platform_device at91sam9260_ssc_device = {
-	.name	= "ssc",
+	.name	= "at91rm9200_ssc",
 	.id	= 0,
 	.dev	= {
 		.dma_mask		= &ssc_dmamask,
