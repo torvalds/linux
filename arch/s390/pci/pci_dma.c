@@ -193,12 +193,13 @@ static void dma_free_seg_table(unsigned long entry)
 
 static void dma_cleanup_tables(struct zpci_dev *zdev)
 {
-	unsigned long *table = zdev->dma_table;
+	unsigned long *table;
 	int rtx;
 
 	if (!zdev || !zdev->dma_table)
 		return;
 
+	table = zdev->dma_table;
 	for (rtx = 0; rtx < ZPCI_TABLE_ENTRIES; rtx++)
 		if (reg_entry_isvalid(table[rtx]))
 			dma_free_seg_table(table[rtx]);
