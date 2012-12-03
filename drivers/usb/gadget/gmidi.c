@@ -125,7 +125,7 @@ static struct usb_configuration midi_config = {
 	.bConfigurationValue = 1,
 	/* .iConfiguration = DYNAMIC */
 	.bmAttributes	= USB_CONFIG_ATT_ONE,
-	.bMaxPower	= CONFIG_USB_GADGET_VBUS_DRAW / 2,
+	.MaxPower	= CONFIG_USB_GADGET_VBUS_DRAW,
 };
 
 static int __init midi_bind_config(struct usb_configuration *c)

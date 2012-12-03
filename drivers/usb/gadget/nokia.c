@@ -133,7 +133,7 @@ static struct usb_configuration nokia_config_500ma_driver = {
 	.bConfigurationValue = 1,
 	/* .iConfiguration = DYNAMIC */
 	.bmAttributes	= USB_CONFIG_ATT_ONE,
-	.bMaxPower	= 250, /* 500mA */
+	.MaxPower	= 500,
 };
 
 static struct usb_configuration nokia_config_100ma_driver = {
@@ -141,7 +141,7 @@ static struct usb_configuration nokia_config_100ma_driver = {
 	.bConfigurationValue = 2,
 	/* .iConfiguration = DYNAMIC */
 	.bmAttributes	= USB_CONFIG_ATT_ONE | USB_CONFIG_ATT_SELFPOWER,
-	.bMaxPower	= 50, /* 100 mA */
+	.MaxPower	= 100,
 };
 
 static int __init nokia_bind(struct usb_composite_dev *cdev)

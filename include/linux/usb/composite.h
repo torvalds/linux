@@ -184,7 +184,8 @@ int config_ep_by_speed(struct usb_gadget *g, struct usb_function *f,
  * @bConfigurationValue: Copied into configuration descriptor.
  * @iConfiguration: Copied into configuration descriptor.
  * @bmAttributes: Copied into configuration descriptor.
- * @bMaxPower: Copied into configuration descriptor.
+ * @MaxPower: Power consumtion in mA. Used to compute bMaxPower in the
+ *	configuration descriptor after considering the bus speed.
  * @cdev: assigned by @usb_add_config() before calling @bind(); this is
  *	the device associated with this configuration.
  *
@@ -230,7 +231,7 @@ struct usb_configuration {
 	u8			bConfigurationValue;
 	u8			iConfiguration;
 	u8			bmAttributes;
-	u8			bMaxPower;
+	u16			MaxPower;
 
 	struct usb_composite_dev	*cdev;
 

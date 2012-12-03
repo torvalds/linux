@@ -320,6 +320,25 @@ int usb_interface_id(struct usb_configuration *config,
 }
 EXPORT_SYMBOL_GPL(usb_interface_id);
 
+static u8 encode_bMaxPower(enum usb_device_speed speed,
+		struct usb_configuration *c)
+{
+	unsigned val;
+
+	if (c->MaxPower)
+		val = c->MaxPower;
+	else
+		val = CONFIG_USB_GADGET_VBUS_DRAW;
+	if (!val)
+		return 0;
+	switch (speed) {
+	case USB_SPEED_SUPER:
+		return DIV_ROUND_UP(val, 8);
+	default:
+		return DIV_ROUND_UP(val, 2);
+	};
+}
+
 static int config_buf(struct usb_configuration *config,
 		enum usb_device_speed speed, void *buf, u8 type)
 {
@@ -339,7 +358,7 @@ static int config_buf(struct usb_configuration *config,
 	c->bConfigurationValue = config->bConfigurationValue;
 	c->iConfiguration = config->iConfiguration;
 	c->bmAttributes = USB_CONFIG_ATT_ONE | config->bmAttributes;
-	c->bMaxPower = config->bMaxPower ? : (CONFIG_USB_GADGET_VBUS_DRAW / 2);
+	c->bMaxPower = encode_bMaxPower(speed, config);
 
 	/* There may be e.g. OTG descriptors */
 	if (config->descriptors) {
@@ -656,7 +675,7 @@ static int set_config(struct usb_composite_dev *cdev,
 	}
 
 	/* when we return, be sure our power usage is valid */
-	power = c->bMaxPower ? (2 * c->bMaxPower) : CONFIG_USB_GADGET_VBUS_DRAW;
+	power = c->MaxPower ? c->MaxPower : CONFIG_USB_GADGET_VBUS_DRAW;
 done:
 	usb_gadget_vbus_draw(gadget, power);
 	if (result >= 0 && cdev->delayed_status)
@@ -1518,10 +1537,10 @@ composite_resume(struct usb_gadget *gadget)
 				f->resume(f);
 		}
 
-		maxpower = cdev->config->bMaxPower;
+		maxpower = cdev->config->MaxPower;
 
 		usb_gadget_vbus_draw(gadget, maxpower ?
-			(2 * maxpower) : CONFIG_USB_GADGET_VBUS_DRAW);
+			maxpower : CONFIG_USB_GADGET_VBUS_DRAW);
 	}
 
 	cdev->suspended = 0;
