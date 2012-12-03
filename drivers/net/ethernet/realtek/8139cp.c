@@ -1226,12 +1226,9 @@ static void cp_tx_timeout(struct net_device *dev)
 	spin_unlock_irqrestore(&cp->lock, flags);
 }
 
-#ifdef BROKEN
 static int cp_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct cp_private *cp = netdev_priv(dev);
-	int rc;
-	unsigned long flags;
 
 	/* check for invalid MTU, according to hardware limits */
 	if (new_mtu < CP_MIN_MTU || new_mtu > CP_MAX_MTU)
@@ -1244,22 +1241,12 @@ static int cp_change_mtu(struct net_device *dev, int new_mtu)
 		return 0;
 	}
 
-	spin_lock_irqsave(&cp->lock, flags);
-
-	cp_stop_hw(cp);			/* stop h/w and free rings */
-	cp_clean_rings(cp);
-
+	/* network IS up, close it, reset MTU, and come up again. */
+	cp_close(dev);
 	dev->mtu = new_mtu;
-	cp_set_rxbufsize(cp);		/* set new rx buf size */
-
-	rc = cp_init_rings(cp);		/* realloc and restart h/w */
-	cp_start_hw(cp);
-
-	spin_unlock_irqrestore(&cp->lock, flags);
-
-	return rc;
+	cp_set_rxbufsize(cp);
+	return cp_open(dev);
 }
-#endif /* BROKEN */
 
 static const char mii_2_8139_map[8] = {
 	BasicModeCtrl,
@@ -1835,9 +1822,7 @@ static const struct net_device_ops cp_netdev_ops = {
 	.ndo_start_xmit		= cp_start_xmit,
 	.ndo_tx_timeout		= cp_tx_timeout,
 	.ndo_set_features	= cp_set_features,
-#ifdef BROKEN
 	.ndo_change_mtu		= cp_change_mtu,
-#endif
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= cp_poll_controller,
