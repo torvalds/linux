@@ -271,14 +271,6 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 			       args->size, &args->handle);
 }
 
-static int i915_gem_object_needs_bit17_swizzle(struct drm_i915_gem_object *obj)
-{
-	drm_i915_private_t *dev_priv = obj->base.dev->dev_private;
-
-	return dev_priv->mm.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_9_10_17 &&
-		obj->tiling_mode != I915_TILING_NONE;
-}
-
 static inline int
 __copy_to_user_swizzled(char __user *cpu_vaddr,
 			const char *gpu_vaddr, int gpu_offset,
