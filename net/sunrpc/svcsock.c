@@ -1073,7 +1073,8 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 		if (len < 0 && len != -EAGAIN)
 			goto err_delete;
 		dprintk("svc: incomplete TCP record (%d of %d)\n",
-			svsk->sk_tcplen, svc_sock_reclen(svsk));
+			svsk->sk_tcplen - sizeof(rpc_fraghdr),
+			svc_sock_reclen(svsk));
 		goto err_noclose;
 	}
 
