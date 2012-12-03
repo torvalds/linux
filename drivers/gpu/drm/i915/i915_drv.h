@@ -83,7 +83,12 @@ enum port {
 };
 #define port_name(p) ((p) + 'A')
 
-#define I915_GEM_GPU_DOMAINS	(~(I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT))
+#define I915_GEM_GPU_DOMAINS \
+	(I915_GEM_DOMAIN_RENDER | \
+	 I915_GEM_DOMAIN_SAMPLER | \
+	 I915_GEM_DOMAIN_COMMAND | \
+	 I915_GEM_DOMAIN_INSTRUCTION | \
+	 I915_GEM_DOMAIN_VERTEX)
 
 #define for_each_pipe(p) for ((p) = 0; (p) < dev_priv->num_pipe; (p)++)
 
