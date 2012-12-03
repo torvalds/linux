@@ -291,8 +291,7 @@ struct mgsl_struct {
 	bool lcr_mem_requested;
 
 	u32 misc_ctrl_value;
-	char flag_buf[MAX_ASYNC_BUFFER_SIZE];
-	char char_buf[MAX_ASYNC_BUFFER_SIZE];	
+	char *flag_buf;
 	bool drop_rts_on_tx_done;
 
 	bool loopmode_insert_requested;
@@ -3898,7 +3897,13 @@ static int mgsl_alloc_intermediate_rxbuffer_memory(struct mgsl_struct *info)
 	info->intermediate_rxbuffer = kmalloc(info->max_frame_size, GFP_KERNEL | GFP_DMA);
 	if ( info->intermediate_rxbuffer == NULL )
 		return -ENOMEM;
-
+	/* unused flag buffer to satisfy receive_buf calling interface */
+	info->flag_buf = kzalloc(info->max_frame_size, GFP_KERNEL);
+	if (!info->flag_buf) {
+		kfree(info->intermediate_rxbuffer);
+		info->intermediate_rxbuffer = NULL;
+		return -ENOMEM;
+	}
 	return 0;
 
 }	/* end of mgsl_alloc_intermediate_rxbuffer_memory() */
@@ -3917,6 +3922,8 @@ static void mgsl_free_intermediate_rxbuffer_memory(struct mgsl_struct *info)
 {
 	kfree(info->intermediate_rxbuffer);
 	info->intermediate_rxbuffer = NULL;
+	kfree(info->flag_buf);
+	info->flag_buf = NULL;
 
 }	/* end of mgsl_free_intermediate_rxbuffer_memory() */
 

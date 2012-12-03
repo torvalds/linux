@@ -317,8 +317,7 @@ struct slgt_info {
 	unsigned char *tx_buf;
 	int tx_count;
 
-	char flag_buf[MAX_ASYNC_BUFFER_SIZE];
-	char char_buf[MAX_ASYNC_BUFFER_SIZE];
+	char *flag_buf;
 	bool drop_rts_on_tx_done;
 	struct	_input_signal_events	input_signal_events;
 
@@ -3355,11 +3354,24 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	return retval;
 }
 
+/*
+ * allocate buffers used for calling line discipline receive_buf
+ * directly in synchronous mode
+ * note: add 5 bytes to max frame size to allow appending
+ * 32-bit CRC and status byte when configured to do so
+ */
 static int alloc_tmp_rbuf(struct slgt_info *info)
 {
 	info->tmp_rbuf = kmalloc(info->max_frame_size + 5, GFP_KERNEL);
 	if (info->tmp_rbuf == NULL)
 		return -ENOMEM;
+	/* unused flag buffer to satisfy receive_buf calling interface */
+	info->flag_buf = kzalloc(info->max_frame_size + 5, GFP_KERNEL);
+	if (!info->flag_buf) {
+		kfree(info->tmp_rbuf);
+		info->tmp_rbuf = NULL;
+		return -ENOMEM;
+	}
 	return 0;
 }
 
@@ -3367,6 +3379,8 @@ static void free_tmp_rbuf(struct slgt_info *info)
 {
 	kfree(info->tmp_rbuf);
 	info->tmp_rbuf = NULL;
+	kfree(info->flag_buf);
+	info->flag_buf = NULL;
 }
 
 /*

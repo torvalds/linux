@@ -210,7 +210,7 @@ typedef struct _mgslpc_info {
 	char testing_irq;
 	unsigned int init_error;	/* startup error (DIAGS)	*/
 
-	char flag_buf[MAX_ASYNC_BUFFER_SIZE];
+	char *flag_buf;
 	bool drop_rts_on_tx_done;
 
 	struct	_input_signal_events	input_signal_events;
@@ -2674,6 +2674,14 @@ static int rx_alloc_buffers(MGSLPC_INFO *info)
 	if (info->rx_buf == NULL)
 		return -ENOMEM;
 
+	/* unused flag buffer to satisfy receive_buf calling interface */
+	info->flag_buf = kzalloc(info->max_frame_size, GFP_KERNEL);
+	if (!info->flag_buf) {
+		kfree(info->rx_buf);
+		info->rx_buf = NULL;
+		return -ENOMEM;
+	}
+	
 	rx_reset_buffers(info);
 	return 0;
 }
@@ -2682,6 +2690,8 @@ static void rx_free_buffers(MGSLPC_INFO *info)
 {
 	kfree(info->rx_buf);
 	info->rx_buf = NULL;
+	kfree(info->flag_buf);
+	info->flag_buf = NULL;
 }
 
 static int claim_resources(MGSLPC_INFO *info)

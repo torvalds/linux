@@ -262,8 +262,7 @@ typedef struct _synclinkmp_info {
 	bool sca_statctrl_requested;
 
 	u32 misc_ctrl_value;
-	char flag_buf[MAX_ASYNC_BUFFER_SIZE];
-	char char_buf[MAX_ASYNC_BUFFER_SIZE];
+	char *flag_buf;
 	bool drop_rts_on_tx_done;
 
 	struct	_input_signal_events	input_signal_events;
@@ -3553,6 +3552,13 @@ static int alloc_tmp_rx_buf(SLMP_INFO *info)
 	info->tmp_rx_buf = kmalloc(info->max_frame_size, GFP_KERNEL);
 	if (info->tmp_rx_buf == NULL)
 		return -ENOMEM;
+	/* unused flag buffer to satisfy receive_buf calling interface */
+	info->flag_buf = kzalloc(info->max_frame_size, GFP_KERNEL);
+	if (!info->flag_buf) {
+		kfree(info->tmp_rx_buf);
+		info->tmp_rx_buf = NULL;
+		return -ENOMEM;
+	}
 	return 0;
 }
 
@@ -3560,6 +3566,8 @@ static void free_tmp_rx_buf(SLMP_INFO *info)
 {
 	kfree(info->tmp_rx_buf);
 	info->tmp_rx_buf = NULL;
+	kfree(info->flag_buf);
+	info->flag_buf = NULL;
 }
 
 static int claim_resources(SLMP_INFO *info)
