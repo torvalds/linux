@@ -791,7 +791,6 @@ static int vpbe_display_g_crop(struct file *file, void *priv,
 	struct vpbe_device *vpbe_dev = fh->disp_dev->vpbe_dev;
 	struct osd_state *osd_device = fh->disp_dev->osd_device;
 	struct v4l2_rect *rect = &crop->c;
-	int ret;
 
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev,
 			"VIDIOC_G_CROP, layer id = %d\n",
@@ -799,7 +798,7 @@ static int vpbe_display_g_crop(struct file *file, void *priv,
 
 	if (crop->type != V4L2_BUF_TYPE_VIDEO_OUTPUT) {
 		v4l2_err(&vpbe_dev->v4l2_dev, "Invalid buf type\n");
-		ret = -EINVAL;
+		return -EINVAL;
 	}
 	osd_device->ops.get_layer_config(osd_device,
 				layer->layer_info.id, cfg);
