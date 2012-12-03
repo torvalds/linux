@@ -11,8 +11,8 @@
  *  (at your option) any later version.
  */
 
-#ifndef __SCCNXP_H
-#define __SCCNXP_H
+#ifndef _PLATFORM_DATA_SERIAL_SCCNXP_H_
+#define _PLATFORM_DATA_SERIAL_SCCNXP_H_
 
 #define SCCNXP_MAX_UARTS	2
 

@@ -25,7 +25,7 @@
 #include <linux/tty_flip.h>
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
-#include <linux/platform_data/sccnxp.h>
+#include <linux/platform_data/serial-sccnxp.h>
 
 #define SCCNXP_NAME			"uart-sccnxp"
 #define SCCNXP_MAJOR			204
