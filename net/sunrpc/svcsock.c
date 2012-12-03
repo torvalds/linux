@@ -921,10 +921,8 @@ out:
 }
 
 /*
- * Receive data.
+ * Receive fragment record header.
  * If we haven't gotten the record length yet, get the next four bytes.
- * Otherwise try to gobble up as much as possible up to the complete
- * record length.
  */
 static int svc_tcp_recv_record(struct svc_sock *svsk, struct svc_rqst *rqstp)
 {
@@ -967,9 +965,6 @@ static int svc_tcp_recv_record(struct svc_sock *svsk, struct svc_rqst *rqstp)
 			goto err_delete;
 		}
 	}
-
-	if (svc_sock_reclen(svsk) < 8)
-		goto err_delete; /* client is nuts. */
 
 	return svc_sock_reclen(svsk);
 error:
@@ -1076,11 +1071,14 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 	if (len != want) {
 		svc_tcp_save_pages(svsk, rqstp);
 		if (len < 0 && len != -EAGAIN)
-			goto err_other;
+			goto err_delete;
 		dprintk("svc: incomplete TCP record (%d of %d)\n",
 			svsk->sk_tcplen, svc_sock_reclen(svsk));
 		goto err_noclose;
 	}
+
+	if (svc_sock_reclen(svsk) < 8)
+		goto err_delete; /* client is nuts. */
 
 	rqstp->rq_arg.len = svc_sock_reclen(svsk);
 	rqstp->rq_arg.page_base = 0;
@@ -1117,10 +1115,10 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 
 error:
 	if (len != -EAGAIN)
-		goto err_other;
+		goto err_delete;
 	dprintk("RPC: TCP recvfrom got EAGAIN\n");
 	return 0;
-err_other:
+err_delete:
 	printk(KERN_NOTICE "%s: recvfrom returned errno %d\n",
 	       svsk->sk_xprt.xpt_server->sv_name, -len);
 	set_bit(XPT_CLOSE, &svsk->sk_xprt.xpt_flags);
