@@ -40,11 +40,13 @@ enum wm8994_vmid_mode {
 };
 
 typedef void (*wm1811_micdet_cb)(void *data);
+typedef void (*wm1811_mic_id_cb)(void *data, u16 status);
 
 int wm8994_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 		      int micbias);
 int wm8958_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
-		      wm1811_micdet_cb cb, void *cb_data);
+		      wm1811_micdet_cb cb, void *det_cb_data,
+		      wm1811_mic_id_cb id_cb, void *id_cb_data);
 
 int wm8994_vmid_mode(struct snd_soc_codec *codec, enum wm8994_vmid_mode mode);
 
@@ -140,6 +142,8 @@ struct wm8994_priv {
 	int micdet_irq;
 	wm1811_micdet_cb micd_cb;
 	void *micd_cb_data;
+	wm1811_mic_id_cb mic_id_cb;
+	void *mic_id_cb_data;
 
 	int revision;
 

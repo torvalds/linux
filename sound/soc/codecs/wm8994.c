@@ -3432,8 +3432,9 @@ static void wm8958_button_det(struct snd_soc_codec *codec, u16 status)
 			    wm8994->btn_mask);
 }
 
-static void wm8958_mic_id(struct snd_soc_codec *codec, u16 status)
+static void wm8958_mic_id(void *data, u16 status)
 {
+	struct snd_soc_codec *codec = data;
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 
 	/* Either nothing present or just starting detection */
@@ -3629,7 +3630,8 @@ static void wm1811_jackdet_bootstrap(struct work_struct *work)
  * detection algorithm.
  */
 int wm8958_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
-		      wm1811_micdet_cb cb, void *cb_data)
+		      wm1811_micdet_cb det_cb, void *det_cb_data,
+		      wm1811_mic_id_cb id_cb, void *id_cb_data)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994 *control = wm8994->wm8994;
@@ -3649,12 +3651,20 @@ int wm8958_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 
 		wm8994->micdet[0].jack = jack;
 
-		if (cb) {
-			wm8994->micd_cb = cb;
-			wm8994->micd_cb_data = cb_data;
+		if (det_cb) {
+			wm8994->micd_cb = det_cb;
+			wm8994->micd_cb_data = det_cb_data;
 		} else {
 			wm8994->mic_detecting = true;
 			wm8994->jack_mic = false;
+		}
+
+		if (id_cb) {
+			wm8994->mic_id_cb = id_cb;
+			wm8994->mic_id_cb_data = id_cb_data;
+		} else {
+			wm8994->mic_id_cb = wm8958_mic_id;
+			wm8994->mic_id_cb_data = codec;
 		}
 
 		wm8958_micd_set_rate(codec);
@@ -3768,7 +3778,7 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 	}
 
 	if (wm8994->mic_detecting)
-		wm8958_mic_id(codec, reg);
+		wm8994->mic_id_cb(wm8994->mic_id_cb_data, reg);
 	else
 		wm8958_button_det(codec, reg);
 
