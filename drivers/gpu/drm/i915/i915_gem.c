@@ -2818,7 +2818,7 @@ static bool i915_gem_valid_gtt_space(struct drm_device *dev,
 
 	/* On non-LLC machines we have to be careful when putting differing
 	 * types of snoopable memory together to avoid the prefetcher
-	 * crossing memory domains and dieing.
+	 * crossing memory domains and dying.
 	 */
 	if (HAS_LLC(dev))
 		return true;
