@@ -103,6 +103,35 @@ config MATH_EMULATION
 	help
 	Can we use information of configuration file?
 
+config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
+	bool "Initialize Xtensa MMU inside the Linux kernel code"
+	default y
+	help
+	  Earlier version initialized the MMU in the exception vector
+	  before jumping to _startup in head.S and had an advantage that
+	  it was possible to place a software breakpoint at 'reset' and
+	  then enter your normal kernel breakpoints once the MMU was mapped
+	  to the kernel mappings (0XC0000000).
+
+	  This unfortunately doesn't work for U-Boot and likley also wont
+	  work for using KEXEC to have a hot kernel ready for doing a
+	  KDUMP.
+
+	  So now the MMU is initialized in head.S but it's necessary to
+	  use hardware breakpoints (gdb 'hbreak' cmd) to break at _startup.
+	  xt-gdb can't place a Software Breakpoint in the  0XD region prior
+	  to mapping the MMU and after mapping even if the area of low memory
+	  was mapped gdb wouldn't remove the breakpoint on hitting it as the
+	  PC wouldn't match. Since Hardware Breakpoints are recommended for
+	  Linux configurations it seems reasonable to just assume they exist
+	  and leave this older mechanism for unfortunate souls that choose
+	  not to follow Tensilica's recommendation.
+
+	  Selecting this will cause U-Boot to set the KERNEL Load and Entry
+	  address at 0x00003000 instead of the mapped std of 0xD0003000.
+
+	  If in doubt, say Y.
+
 endmenu
 
 config XTENSA_CALIBRATE_CCOUNT

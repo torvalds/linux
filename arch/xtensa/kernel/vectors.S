@@ -50,6 +50,7 @@
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/thread_info.h>
+#include <asm/vectors.h>
 
 #define WINDOW_VECTORS_SIZE   0x180
 
@@ -220,7 +221,7 @@ ENTRY(_DoubleExceptionVector)
 
 	xsr	a0, depc		# get DEPC, save a0
 
-	movi	a3, XCHAL_WINDOW_VECTORS_VADDR
+	movi	a3, WINDOW_VECTORS_VADDR
 	_bltu	a0, a3, .Lfixup
 	addi	a3, a3, WINDOW_VECTORS_SIZE
 	_bgeu	a0, a3, .Lfixup

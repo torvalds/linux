@@ -12,6 +12,8 @@ obj-$(CONFIG_KGDB) += xtensa-stub.o
 obj-$(CONFIG_PCI) += pci.o
 obj-$(CONFIG_MODULES) += xtensa_ksyms.o module.o
 
+AFLAGS_head.o += -mtext-section-literals
+
 # In the Xtensa architecture, assembly generates literals which must always
 # precede the L32R instruction with a relative offset less than 256 kB.
 # Therefore, the .text and .literal section must be combined in parenthesis
