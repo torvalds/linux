@@ -151,8 +151,10 @@ static int process_measurement(struct file *file, const char *filename,
 	if (!ima_initialized || !S_ISREG(inode->i_mode))
 		return 0;
 
-	/* Determine if in appraise/audit/measurement policy,
-	 * returns IMA_MEASURE, IMA_APPRAISE, IMA_AUDIT bitmask.  */
+	/* Return an IMA_MEASURE, IMA_APPRAISE, IMA_AUDIT action
+	 * bitmask based on the appraise/audit/measurement policy.
+	 * Included is the appraise submask.
+	 */
 	action = ima_get_action(inode, mask, function);
 	if (!action)
 		return 0;
@@ -166,16 +168,17 @@ static int process_measurement(struct file *file, const char *filename,
 		goto out;
 
 	/* Determine if already appraised/measured based on bitmask
-	 * (IMA_MEASURE, IMA_MEASURED, IMA_APPRAISE, IMA_APPRAISED,
-	 *  IMA_AUDIT, IMA_AUDITED) */
+	 * (IMA_MEASURE, IMA_MEASURED, IMA_XXXX_APPRAISE, IMA_XXXX_APPRAISED,
+	 *  IMA_AUDIT, IMA_AUDITED)
+	 */
 	iint->flags |= action;
 	action &= IMA_DO_MASK;
 	action &= ~((iint->flags & IMA_DONE_MASK) >> 1);
 
 	/* Nothing to do, just return existing appraised status */
 	if (!action) {
-		if (iint->flags & IMA_APPRAISED)
-			rc = iint->ima_status;
+		if (must_appraise)
+			rc = ima_get_cache_status(iint, function);
 		goto out_digsig;
 	}
 
@@ -191,8 +194,8 @@ static int process_measurement(struct file *file, const char *filename,
 
 	if (action & IMA_MEASURE)
 		ima_store_measurement(iint, file, pathname);
-	if (action & IMA_APPRAISE)
-		rc = ima_appraise_measurement(iint, file, pathname);
+	if (action & IMA_APPRAISE_SUBMASK)
+		rc = ima_appraise_measurement(function, iint, file, pathname);
 	if (action & IMA_AUDIT)
 		ima_audit_measurement(iint, pathname);
 	kfree(pathbuf);

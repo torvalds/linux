@@ -218,6 +218,25 @@ retry:
 	return true;
 }
 
+/*
+ * In addition to knowing that we need to appraise the file in general,
+ * we need to differentiate between calling hooks.
+ */
+static int get_subaction(int func)
+{
+	switch(func) {
+	case MMAP_CHECK:
+		return IMA_MMAP_APPRAISE;
+	case BPRM_CHECK:
+		return IMA_BPRM_APPRAISE;
+	case MODULE_CHECK:
+		return IMA_MODULE_APPRAISE;
+	case FILE_CHECK:
+	default:
+		return IMA_FILE_APPRAISE;
+	}
+}
+
 /**
  * ima_match_policy - decision based on LSM and other conditions
  * @inode: pointer to an inode for which the policy decision is being made
@@ -248,6 +267,9 @@ int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
 		action |= entry->flags & IMA_ACTION_FLAGS;
 
 		action |= entry->action & IMA_DO_MASK;
+		if (entry->action & IMA_APPRAISE)
+			action |= get_subaction(func);
+
 		if (entry->action & IMA_DO_MASK)
 			actmask &= ~(entry->action | entry->action << 1);
 		else
