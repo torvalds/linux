@@ -1104,9 +1104,6 @@ static void wiphy_update_beacon_reg(struct wiphy *wiphy)
 
 	assert_cfg80211_lock();
 
-	if (list_empty(&reg_beacon_list))
-		return;
-
 	list_for_each_entry(reg_beacon, &reg_beacon_list, list) {
 		if (!wiphy->bands[reg_beacon->chan.band])
 			continue;
@@ -1666,11 +1663,6 @@ static void reg_process_pending_beacon_hints(void)
 	/* This goes through the _pending_ beacon list */
 	spin_lock_bh(&reg_pending_beacons_lock);
 
-	if (list_empty(&reg_pending_beacons)) {
-		spin_unlock_bh(&reg_pending_beacons_lock);
-		goto out;
-	}
-
 	list_for_each_entry_safe(pending_beacon, tmp,
 				 &reg_pending_beacons, list) {
 
@@ -1685,7 +1677,6 @@ static void reg_process_pending_beacon_hints(void)
 	}
 
 	spin_unlock_bh(&reg_pending_beacons_lock);
-out:
 	mutex_unlock(&cfg80211_mutex);
 }
 
@@ -1949,34 +1940,24 @@ static void restore_regulatory_settings(bool reset_user)
 	 * settings.
 	 */
 	spin_lock(&reg_requests_lock);
-	if (!list_empty(&reg_requests_list)) {
-		list_for_each_entry_safe(reg_request, tmp,
-					 &reg_requests_list, list) {
-			if (reg_request->initiator !=
-			    NL80211_REGDOM_SET_BY_USER)
-				continue;
-			list_move_tail(&reg_request->list, &tmp_reg_req_list);
-		}
+	list_for_each_entry_safe(reg_request, tmp, &reg_requests_list, list) {
+		if (reg_request->initiator != NL80211_REGDOM_SET_BY_USER)
+			continue;
+		list_move_tail(&reg_request->list, &tmp_reg_req_list);
 	}
 	spin_unlock(&reg_requests_lock);
 
 	/* Clear beacon hints */
 	spin_lock_bh(&reg_pending_beacons_lock);
-	if (!list_empty(&reg_pending_beacons)) {
-		list_for_each_entry_safe(reg_beacon, btmp,
-					 &reg_pending_beacons, list) {
-			list_del(&reg_beacon->list);
-			kfree(reg_beacon);
-		}
+	list_for_each_entry_safe(reg_beacon, btmp, &reg_pending_beacons, list) {
+		list_del(&reg_beacon->list);
+		kfree(reg_beacon);
 	}
 	spin_unlock_bh(&reg_pending_beacons_lock);
 
-	if (!list_empty(&reg_beacon_list)) {
-		list_for_each_entry_safe(reg_beacon, btmp,
-					 &reg_beacon_list, list) {
-			list_del(&reg_beacon->list);
-			kfree(reg_beacon);
-		}
+	list_for_each_entry_safe(reg_beacon, btmp, &reg_beacon_list, list) {
+		list_del(&reg_beacon->list);
+		kfree(reg_beacon);
 	}
 
 	/* First restore to the basic regulatory settings */
@@ -2490,30 +2471,21 @@ void /* __init_or_exit */ regulatory_exit(void)
 	platform_device_unregister(reg_pdev);
 
 	spin_lock_bh(&reg_pending_beacons_lock);
-	if (!list_empty(&reg_pending_beacons)) {
-		list_for_each_entry_safe(reg_beacon, btmp,
-					 &reg_pending_beacons, list) {
-			list_del(&reg_beacon->list);
-			kfree(reg_beacon);
-		}
+	list_for_each_entry_safe(reg_beacon, btmp, &reg_pending_beacons, list) {
+		list_del(&reg_beacon->list);
+		kfree(reg_beacon);
 	}
 	spin_unlock_bh(&reg_pending_beacons_lock);
 
-	if (!list_empty(&reg_beacon_list)) {
-		list_for_each_entry_safe(reg_beacon, btmp,
-					 &reg_beacon_list, list) {
-			list_del(&reg_beacon->list);
-			kfree(reg_beacon);
-		}
+	list_for_each_entry_safe(reg_beacon, btmp, &reg_beacon_list, list) {
+		list_del(&reg_beacon->list);
+		kfree(reg_beacon);
 	}
 
 	spin_lock(&reg_requests_lock);
-	if (!list_empty(&reg_requests_list)) {
-		list_for_each_entry_safe(reg_request, tmp,
-					 &reg_requests_list, list) {
-			list_del(&reg_request->list);
-			kfree(reg_request);
-		}
+	list_for_each_entry_safe(reg_request, tmp, &reg_requests_list, list) {
+		list_del(&reg_request->list);
+		kfree(reg_request);
 	}
 	spin_unlock(&reg_requests_lock);
 
