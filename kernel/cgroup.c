@@ -1349,14 +1349,21 @@ static int cgroup_remount(struct super_block *sb, int *flags, char *data)
 		goto out_unlock;
 	}
 
+	/*
+	 * Clear out the files of subsystems that should be removed, do
+	 * this before rebind_subsystems, since rebind_subsystems may
+	 * change this hierarchy's subsys_list.
+	 */
+	cgroup_clear_directory(cgrp->dentry, false, removed_mask);
+
 	ret = rebind_subsystems(root, opts.subsys_mask);
 	if (ret) {
+		/* rebind_subsystems failed, re-populate the removed files */
+		cgroup_populate_dir(cgrp, false, removed_mask);
 		drop_parsed_module_refcounts(opts.subsys_mask);
 		goto out_unlock;
 	}
 
-	/* clear out any existing files and repopulate subsystem files */
-	cgroup_clear_directory(cgrp->dentry, false, removed_mask);
 	/* re-populate subsystem files */
 	cgroup_populate_dir(cgrp, false, added_mask);
 
