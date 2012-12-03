@@ -445,7 +445,7 @@ static void rk2928_hdmi_reset(void)
 	writel_relaxed(0x00010001,RK2928_CRU_BASE+ 0x128);
 	msleep(100);
 	writel_relaxed(0x00010000, RK2928_CRU_BASE + 0x128);
-	rk2928_hdmi_set_pwr_mode(NORMAL);
+	rk2928_hdmi_set_pwr_mode(LOWER_PWR);
 }
 
 int rk2928_hdmi_initial(void)
