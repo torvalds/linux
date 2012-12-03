@@ -150,17 +150,6 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 			  reloc->write_domain);
 		return ret;
 	}
-	if (unlikely(reloc->write_domain && target_obj->pending_write_domain &&
-		     reloc->write_domain != target_obj->pending_write_domain)) {
-		DRM_DEBUG("Write domain conflict: "
-			  "obj %p target %d offset %d "
-			  "new %08x old %08x\n",
-			  obj, reloc->target_handle,
-			  (int) reloc->offset,
-			  reloc->write_domain,
-			  target_obj->pending_write_domain);
-		return ret;
-	}
 
 	target_obj->pending_read_domains |= reloc->read_domains;
 	target_obj->pending_write_domain |= reloc->write_domain;
