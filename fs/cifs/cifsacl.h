@@ -23,7 +23,7 @@
 #define _CIFSACL_H
 
 
-#define NUM_AUTHS 6 /* number of authority fields */
+#define NUM_AUTHS (6)	/* number of authority fields */
 #define SID_MAX_SUB_AUTHORITIES (15) /* max number of sub authority fields */
 #define NUM_WK_SIDS 7 /* number of well known sids */
 #define SIDNAMELENGTH 20 /* long enough for the ones we care about */
@@ -51,15 +51,12 @@
  * u32: max 10 bytes in decimal
  *
  * "S-" + 3 bytes for version field + 4 bytes for each authority field (3 bytes
- * per number + 1 for '-') + 11 bytes for each subauthority field (10 bytes
  * per number + 1 for '-') + NULL terminator.
+ *
+ * Add 11 bytes for each subauthority field (10 bytes each + 1 for '-')
  */
-#define SID_STRING_MAX (195)
-
-#define SID_ID_MAPPED 0
-#define SID_ID_PENDING 1
-#define SID_MAP_EXPIRE (3600 * HZ) /* map entry expires after one hour */
-#define SID_MAP_RETRY (300 * HZ)   /* wait 5 minutes for next attempt to map */
+#define SID_STRING_BASE_SIZE (2 + 3 + (4 * NUM_AUTHS) + 1)
+#define SID_STRING_SUBAUTH_SIZE (11) /* size of a single subauth string */
 
 struct cifs_ntsd {
 	__le16 revision; /* revision level */
@@ -93,20 +90,5 @@ struct cifs_ace {
 	__le32 access_req;
 	struct cifs_sid sid; /* ie UUID of user or group who gets these perms */
 } __attribute__((packed));
-
-struct cifs_wksid {
-	struct cifs_sid cifssid;
-	char sidname[SIDNAMELENGTH];
-} __attribute__((packed));
-
-struct cifs_sid_id {
-	unsigned int refcount; /* increment with spinlock, decrement without */
-	unsigned long id;
-	unsigned long time;
-	unsigned long state;
-	char *sidstr;
-	struct rb_node rbnode;
-	struct cifs_sid sid;
-};
 
 #endif /* _CIFSACL_H */

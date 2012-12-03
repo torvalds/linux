@@ -1204,7 +1204,6 @@ exit_cifs(void)
 	unregister_filesystem(&cifs_fs_type);
 	cifs_dfs_release_automount_timer();
 #ifdef CONFIG_CIFS_ACL
-	cifs_destroy_idmaptrees();
 	exit_cifs_idmap();
 #endif
 #ifdef CONFIG_CIFS_UPCALL
