@@ -248,8 +248,10 @@ static irqreturn_t apci2032_interrupt(int irq, void *d)
 	s->state = inl(dev->iobase + APCI2032_INT_STATUS_REG);
 	outl(0x0, dev->iobase + APCI2032_INT_CTRL_REG);
 
-	comedi_buf_put(s->async, s->state);
-	s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
+	if (comedi_buf_put(s->async, s->state))
+		s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
+	else
+		s->async->events |= COMEDI_CB_OVERFLOW;
 	comedi_event(dev, s);
 
 	return IRQ_HANDLED;
