@@ -544,35 +544,32 @@ static inline int rt6_check_dev(struct rt6_info *rt, int oif)
 	return 0;
 }
 
-static inline int rt6_check_neigh(struct rt6_info *rt)
+static inline bool rt6_check_neigh(struct rt6_info *rt)
 {
 	struct neighbour *neigh;
-	int m;
+	bool ret = false;
 
 	neigh = rt->n;
 	if (rt->rt6i_flags & RTF_NONEXTHOP ||
 	    !(rt->rt6i_flags & RTF_GATEWAY))
-		m = 1;
+		ret = true;
 	else if (neigh) {
 		read_lock_bh(&neigh->lock);
 		if (neigh->nud_state & NUD_VALID)
-			m = 2;
+			ret = true;
 #ifdef CONFIG_IPV6_ROUTER_PREF
-		else if (neigh->nud_state & NUD_FAILED)
-			m = 0;
+		else if (!(neigh->nud_state & NUD_FAILED))
+			ret = true;
 #endif
-		else
-			m = 1;
 		read_unlock_bh(&neigh->lock);
-	} else
-		m = 0;
-	return m;
+	}
+	return ret;
 }
 
 static int rt6_score_route(struct rt6_info *rt, int oif,
 			   int strict)
 {
-	int m, n;
+	int m;
 
 	m = rt6_check_dev(rt, oif);
 	if (!m && (strict & RT6_LOOKUP_F_IFACE))
@@ -580,8 +577,7 @@ static int rt6_score_route(struct rt6_info *rt, int oif,
 #ifdef CONFIG_IPV6_ROUTER_PREF
 	m |= IPV6_DECODE_PREF(IPV6_EXTRACT_PREF(rt->rt6i_flags)) << 2;
 #endif
-	n = rt6_check_neigh(rt);
-	if (!n && (strict & RT6_LOOKUP_F_REACHABLE))
+	if (!rt6_check_neigh(rt) && (strict & RT6_LOOKUP_F_REACHABLE))
 		return -1;
 	return m;
 }
