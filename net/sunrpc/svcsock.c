@@ -874,9 +874,9 @@ static unsigned int svc_tcp_restore_pages(struct svc_sock *svsk, struct svc_rqst
 {
 	unsigned int i, len, npages;
 
-	if (svsk->sk_tcplen <= sizeof(rpc_fraghdr))
+	if (svsk->sk_datalen == 0)
 		return 0;
-	len = svsk->sk_tcplen - sizeof(rpc_fraghdr);
+	len = svsk->sk_datalen;
 	npages = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	for (i = 0; i < npages; i++) {
 		if (rqstp->rq_pages[i] != NULL)
@@ -893,9 +893,9 @@ static void svc_tcp_save_pages(struct svc_sock *svsk, struct svc_rqst *rqstp)
 {
 	unsigned int i, len, npages;
 
-	if (svsk->sk_tcplen <= sizeof(rpc_fraghdr))
+	if (svsk->sk_datalen == 0)
 		return;
-	len = svsk->sk_tcplen - sizeof(rpc_fraghdr);
+	len = svsk->sk_datalen;
 	npages = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	for (i = 0; i < npages; i++) {
 		svsk->sk_pages[i] = rqstp->rq_pages[i];
@@ -907,9 +907,9 @@ static void svc_tcp_clear_pages(struct svc_sock *svsk)
 {
 	unsigned int i, len, npages;
 
-	if (svsk->sk_tcplen <= sizeof(rpc_fraghdr))
+	if (svsk->sk_datalen == 0)
 		goto out;
-	len = svsk->sk_tcplen - sizeof(rpc_fraghdr);
+	len = svsk->sk_datalen;
 	npages = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	for (i = 0; i < npages; i++) {
 		BUG_ON(svsk->sk_pages[i] == NULL);
@@ -918,6 +918,7 @@ static void svc_tcp_clear_pages(struct svc_sock *svsk)
 	}
 out:
 	svsk->sk_tcplen = 0;
+	svsk->sk_datalen = 0;
 }
 
 /*
@@ -1066,8 +1067,10 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 
 	/* Now receive data */
 	len = svc_partial_recvfrom(rqstp, vec, pnum, want, base);
-	if (len >= 0)
+	if (len >= 0) {
 		svsk->sk_tcplen += len;
+		svsk->sk_datalen += len;
+	}
 	if (len != want) {
 		svc_tcp_save_pages(svsk, rqstp);
 		if (len < 0 && len != -EAGAIN)
@@ -1100,6 +1103,7 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 	/* Reset TCP read info */
 	svsk->sk_reclen = 0;
 	svsk->sk_tcplen = 0;
+	svsk->sk_datalen = 0;
 	/* If we have more data, signal svc_xprt_enqueue() to try again */
 	if (svc_recv_available(svsk) > sizeof(rpc_fraghdr))
 		set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
@@ -1296,6 +1300,7 @@ static void svc_tcp_init(struct svc_sock *svsk, struct svc_serv *serv)
 
 		svsk->sk_reclen = 0;
 		svsk->sk_tcplen = 0;
+		svsk->sk_datalen = 0;
 		memset(&svsk->sk_pages[0], 0, sizeof(svsk->sk_pages));
 
 		tcp_sk(sk)->nonagle |= TCP_NAGLE_OFF;
