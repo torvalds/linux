@@ -141,6 +141,7 @@ struct net_bridge_port
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	u32				multicast_startup_queries_sent;
 	unsigned char			multicast_router;
+	unsigned char			multicast_fast_leave;
 	struct timer_list		multicast_router_timer;
 	struct timer_list		multicast_query_timer;
 	struct hlist_head		mglist;

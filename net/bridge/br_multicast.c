@@ -1225,6 +1225,27 @@ static void br_multicast_leave_group(struct net_bridge *br,
 	if (!mp)
 		goto out;
 
+	if (port && port->multicast_fast_leave) {
+		struct net_bridge_port_group __rcu **pp;
+
+		for (pp = &mp->ports;
+		     (p = mlock_dereference(*pp, br)) != NULL;
+		     pp = &p->next) {
+			if (p->port != port)
+				continue;
+
+			rcu_assign_pointer(*pp, p->next);
+			hlist_del_init(&p->mglist);
+			del_timer(&p->timer);
+			call_rcu_bh(&p->rcu, br_multicast_free_pg);
+
+			if (!mp->ports && !mp->mglist &&
+			    netif_running(br->dev))
+				mod_timer(&mp->timer, jiffies);
+		}
+		goto out;
+	}
+
 	now = jiffies;
 	time = now + br->multicast_last_member_count *
 		     br->multicast_last_member_interval;
