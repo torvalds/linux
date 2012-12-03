@@ -1176,7 +1176,7 @@ static struct platform_driver rt2800soc_driver = {
 		.mod_name	= KBUILD_MODNAME,
 	},
 	.probe		= rt2800soc_probe,
-	.remove		= __devexit_p(rt2x00soc_remove),
+	.remove		= rt2x00soc_remove,
 	.suspend	= rt2x00soc_suspend,
 	.resume		= rt2x00soc_resume,
 };
@@ -1193,7 +1193,7 @@ static struct pci_driver rt2800pci_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= rt2800pci_device_table,
 	.probe		= rt2800pci_probe,
-	.remove		= __devexit_p(rt2x00pci_remove),
+	.remove		= rt2x00pci_remove,
 	.suspend	= rt2x00pci_suspend,
 	.resume		= rt2x00pci_resume,
 };
