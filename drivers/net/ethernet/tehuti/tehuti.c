@@ -1914,7 +1914,7 @@ static const struct net_device_ops bdx_netdev_ops = {
  */
 
 /* TBD: netif_msg should be checked and implemented. I disable it for now */
-static int __devinit
+static int
 bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *ndev;
@@ -2427,7 +2427,7 @@ static void bdx_set_ethtool_ops(struct net_device *netdev)
  * Hot-Plug event, or because the driver is going to be removed from
  * memory.
  **/
-static void __devexit bdx_remove(struct pci_dev *pdev)
+static void bdx_remove(struct pci_dev *pdev)
 {
 	struct pci_nic *nic = pci_get_drvdata(pdev);
 	struct net_device *ndev;
@@ -2458,7 +2458,7 @@ static struct pci_driver bdx_pci_driver = {
 	.name = BDX_DRV_NAME,
 	.id_table = bdx_pci_tbl,
 	.probe = bdx_probe,
-	.remove = __devexit_p(bdx_remove),
+	.remove = bdx_remove,
 };
 
 /*
