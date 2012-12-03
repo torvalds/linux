@@ -375,7 +375,7 @@ static void pSeries_idle(void)
  * to ever be a problem in practice we can move this into a kernel thread to
  * finish off the process later in boot.
  */
-static int __init pSeries_enable_reloc_on_exc(void)
+long pSeries_enable_reloc_on_exc(void)
 {
 	long rc;
 	unsigned int delay, total_delay = 0;
@@ -397,9 +397,9 @@ static int __init pSeries_enable_reloc_on_exc(void)
 		mdelay(delay);
 	}
 }
+EXPORT_SYMBOL(pSeries_enable_reloc_on_exc);
 
-#ifdef CONFIG_KEXEC
-static long pSeries_disable_reloc_on_exc(void)
+long pSeries_disable_reloc_on_exc(void)
 {
 	long rc;
 
@@ -410,7 +410,9 @@ static long pSeries_disable_reloc_on_exc(void)
 		mdelay(get_longbusy_msecs(rc));
 	}
 }
+EXPORT_SYMBOL(pSeries_disable_reloc_on_exc);
 
+#ifdef CONFIG_KEXEC
 static void pSeries_machine_kexec(struct kimage *image)
 {
 	long rc;
