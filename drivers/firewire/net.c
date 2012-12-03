@@ -828,7 +828,6 @@ static void fwnet_receive_broadcast(struct fw_iso_context *context,
 {
 	struct fwnet_device *dev;
 	struct fw_iso_packet packet;
-	struct fw_card *card;
 	__be16 *hdr_ptr;
 	__be32 *buf_ptr;
 	int retval;
@@ -840,7 +839,6 @@ static void fwnet_receive_broadcast(struct fw_iso_context *context,
 	unsigned long flags;
 
 	dev = data;
-	card = dev->card;
 	hdr_ptr = header;
 	length = be16_to_cpup(hdr_ptr);
 
