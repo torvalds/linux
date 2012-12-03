@@ -461,13 +461,12 @@ config MTD_NAND_GPMI_NAND
 	 the GPMI.
 
 config MTD_NAND_BCM47XXNFLASH
-	tristate "R/O support for NAND flash on BCMA bus"
+	tristate "Support for NAND flash on BCM4706 BCMA bus"
 	depends on BCMA_NFLASH
 	help
 	  BCMA bus can have various flash memories attached, they are
 	  registered by bcma as platform devices. This enables driver for
-	  NAND flash memories. For now only read mode for BCM4706 is
-	  implemented.
+	  NAND flash memories. For now only BCM4706 is supported.
 
 config MTD_NAND_PLATFORM
 	tristate "Support for generic platform NAND driver"
