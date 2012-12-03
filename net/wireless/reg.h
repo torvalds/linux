@@ -55,8 +55,8 @@ bool reg_last_request_cell_base(void);
  * set the wiphy->disable_beacon_hints to true.
  */
 int regulatory_hint_found_beacon(struct wiphy *wiphy,
-					struct ieee80211_channel *beacon_chan,
-					gfp_t gfp);
+				 struct ieee80211_channel *beacon_chan,
+				 gfp_t gfp);
 
 /**
  * regulatory_hint_11d - hints a country IE as a regulatory domain
