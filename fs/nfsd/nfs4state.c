@@ -3132,6 +3132,18 @@ void nfsd4_cleanup_open_state(struct nfsd4_open *open, __be32 status)
 		free_generic_stateid(open->op_stp);
 }
 
+static __be32 lookup_clientid(clientid_t *clid, bool session, struct nfsd_net *nn, struct nfs4_client **clp)
+{
+	struct nfs4_client *found;
+
+	if (STALE_CLIENTID(clid, nn))
+		return nfserr_stale_clientid;
+	found = find_confirmed_client(clid, session, nn);
+	if (clp)
+		*clp = found;
+	return found ? nfs_ok : nfserr_expired;
+}
+
 __be32
 nfsd4_renew(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	    clientid_t *clid)
@@ -3143,16 +3155,9 @@ nfsd4_renew(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	nfs4_lock_state();
 	dprintk("process_renew(%08x/%08x): starting\n", 
 			clid->cl_boot, clid->cl_id);
-	status = nfserr_stale_clientid;
-	if (STALE_CLIENTID(clid, nn))
+	status = lookup_clientid(clid, cstate->minorversion, nn, &clp);
+	if (status)
 		goto out;
-	clp = find_confirmed_client(clid, cstate->minorversion, nn);
-	status = nfserr_expired;
-	if (clp == NULL) {
-		/* We assume the client took too long to RENEW. */
-		dprintk("nfsd4_renew: clientid not found!\n");
-		goto out;
-	}
 	status = nfserr_cb_path_down;
 	if (!list_empty(&clp->cl_delegations)
 			&& clp->cl_cb_state != NFSD4_CB_UP)
@@ -4293,9 +4298,11 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	nfs4_lock_state();
 
-	status = nfserr_stale_clientid;
-	if (!nfsd4_has_session(cstate) && STALE_CLIENTID(&lockt->lt_clientid, nn))
-		goto out;
+	if (!nfsd4_has_session(cstate)) {
+		status = lookup_clientid(&lockt->lt_clientid, false, nn, NULL);
+		if (status)
+			goto out;
+	}
 
 	if ((status = fh_verify(rqstp, &cstate->current_fh, S_IFREG, 0)))
 		goto out;
@@ -4466,13 +4473,11 @@ nfsd4_release_lockowner(struct svc_rqst *rqstp,
 	dprintk("nfsd4_release_lockowner clientid: (%08x/%08x):\n",
 		clid->cl_boot, clid->cl_id);
 
-	/* XXX check for lease expiration */
-
-	status = nfserr_stale_clientid;
-	if (STALE_CLIENTID(clid, nn))
-		return status;
-
 	nfs4_lock_state();
+
+	status = lookup_clientid(clid, cstate->minorversion, nn, NULL);
+	if (status)
+		goto out;
 
 	status = nfserr_locks_held;
 	INIT_LIST_HEAD(&matches);
