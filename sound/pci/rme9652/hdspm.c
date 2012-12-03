@@ -2887,6 +2887,63 @@ static int snd_hdspm_get_autosync_ref(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+#define HDSPM_TOGGLE_SETTING(xname, xindex) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+	.name = xname, \
+	.private_value = xindex, \
+	.info = snd_hdspm_info_toggle_setting, \
+	.get = snd_hdspm_get_toggle_setting, \
+	.put = snd_hdspm_put_toggle_setting \
+}
+
+static int hdspm_toggle_setting(struct hdspm *hdspm, u32 regmask)
+{
+	return (hdspm->control_register & regmask) ? 1 : 0;
+}
+
+static int hdspm_set_toggle_setting(struct hdspm *hdspm, u32 regmask, int out)
+{
+	if (out)
+		hdspm->control_register |= regmask;
+	else
+		hdspm->control_register &= ~regmask;
+	hdspm_write(hdspm, HDSPM_controlRegister, hdspm->control_register);
+
+	return 0;
+}
+
+#define snd_hdspm_info_toggle_setting		snd_ctl_boolean_mono_info
+
+static int snd_hdspm_get_toggle_setting(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
+	u32 regmask = kcontrol->private_value;
+
+	spin_lock_irq(&hdspm->lock);
+	ucontrol->value.integer.value[0] = hdspm_toggle_setting(hdspm, regmask);
+	spin_unlock_irq(&hdspm->lock);
+	return 0;
+}
+
+static int snd_hdspm_put_toggle_setting(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
+	u32 regmask = kcontrol->private_value;
+	int change;
+	unsigned int val;
+
+	if (!snd_hdspm_use_is_exclusive(hdspm))
+		return -EBUSY;
+	val = ucontrol->value.integer.value[0] & 1;
+	spin_lock_irq(&hdspm->lock);
+	change = (int) val != hdspm_toggle_setting(hdspm, regmask);
+	hdspm_set_toggle_setting(hdspm, regmask, val);
+	spin_unlock_irq(&hdspm->lock);
+	return change;
+}
+
 
 #define HDSPM_LINE_OUT(xname, xindex) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
