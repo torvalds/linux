@@ -1327,7 +1327,7 @@ out_check:
 			em->orig_block_len = disk_num_bytes;
 			em->bdev = root->fs_info->fs_devices->latest_bdev;
 			set_bit(EXTENT_FLAG_PINNED, &em->flags);
-			set_bit(EXTENT_FLAG_PREALLOC, &em->flags);
+			set_bit(EXTENT_FLAG_FILLING, &em->flags);
 			while (1) {
 				write_lock(&em_tree->lock);
 				ret = add_extent_mapping(em_tree, em);
@@ -5945,7 +5945,7 @@ static struct extent_map *create_pinned_em(struct inode *inode, u64 start,
 	em->orig_block_len = orig_block_len;
 	set_bit(EXTENT_FLAG_PINNED, &em->flags);
 	if (type == BTRFS_ORDERED_PREALLOC)
-		set_bit(EXTENT_FLAG_PREALLOC, &em->flags);
+		set_bit(EXTENT_FLAG_FILLING, &em->flags);
 
 	do {
 		btrfs_drop_extent_cache(inode, em->start,

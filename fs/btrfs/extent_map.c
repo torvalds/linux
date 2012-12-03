@@ -266,9 +266,9 @@ int unpin_extent_cache(struct extent_map_tree *tree, u64 start, u64 len,
 	em->mod_start = em->start;
 	em->mod_len = em->len;
 
-	if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags)) {
+	if (test_bit(EXTENT_FLAG_FILLING, &em->flags)) {
 		prealloc = true;
-		clear_bit(EXTENT_FLAG_PREALLOC, &em->flags);
+		clear_bit(EXTENT_FLAG_FILLING, &em->flags);
 	}
 
 	try_merge_map(tree, em);
