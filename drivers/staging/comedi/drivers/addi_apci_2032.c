@@ -60,6 +60,7 @@ struct apci2032_private {
 
 struct apci2032_int_private {
 	spinlock_t spinlock;
+	unsigned int stop_count;
 	bool active;
 	unsigned char enabled_isns;
 };
@@ -179,6 +180,30 @@ static void apci2032_int_stop(struct comedi_device *dev,
 	outl(0x0, dev->iobase + APCI2032_INT_CTRL_REG);
 }
 
+static bool apci2032_int_start(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       unsigned char enabled_isns)
+{
+	struct apci2032_int_private *subpriv = s->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	bool do_event;
+
+	subpriv->enabled_isns = enabled_isns;
+	subpriv->stop_count = cmd->stop_arg;
+	if (cmd->stop_src == TRIG_COUNT && subpriv->stop_count == 0) {
+		/* An empty acquisition! */
+		s->async->events |= COMEDI_CB_EOA;
+		subpriv->active = false;
+		do_event = true;
+	} else {
+		subpriv->active = true;
+		outl(enabled_isns, dev->iobase + APCI2032_INT_CTRL_REG);
+		do_event = false;
+	}
+
+	return do_event;
+}
+
 static int apci2032_int_cmdtest(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_cmd *cmd)
@@ -191,12 +216,14 @@ static int apci2032_int_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
 	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
 	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_NONE);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
 	/* Step 2b : and mutually compatible */
 
 	if (err)
@@ -208,7 +235,8 @@ static int apci2032_int_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
-	err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+	if (cmd->stop_src == TRIG_NONE)
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -229,16 +257,18 @@ static int apci2032_int_cmd(struct comedi_device *dev,
 	unsigned char enabled_isns;
 	unsigned int n;
 	unsigned long flags;
+	bool do_event;
 
 	enabled_isns = 0;
 	for (n = 0; n < cmd->chanlist_len; n++)
 		enabled_isns |= 1 << CR_CHAN(cmd->chanlist[n]);
 
 	spin_lock_irqsave(&subpriv->spinlock, flags);
-	subpriv->enabled_isns = enabled_isns;
-	subpriv->active = true;
-	outl(subpriv->enabled_isns, dev->iobase + APCI2032_INT_CTRL_REG);
+	do_event = apci2032_int_start(dev, s, enabled_isns);
 	spin_unlock_irqrestore(&subpriv->spinlock, flags);
+
+	if (do_event)
+		comedi_event(dev, s);
 
 	return 0;
 }
@@ -300,6 +330,15 @@ static irqreturn_t apci2032_interrupt(int irq, void *d)
 
 		if (comedi_buf_put(s->async, bits)) {
 			s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
+			if (s->async->cmd.stop_src == TRIG_COUNT &&
+			    subpriv->stop_count > 0) {
+				subpriv->stop_count--;
+				if (subpriv->stop_count == 0) {
+					/* end of acquisition */
+					s->async->events |= COMEDI_CB_EOA;
+					apci2032_int_stop(dev, s);
+				}
+			}
 		} else {
 			apci2032_int_stop(dev, s);
 			s->async->events |= COMEDI_CB_OVERFLOW;
