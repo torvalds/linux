@@ -1008,7 +1008,7 @@ id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 nmode,
 	 * memory for the smb header, set security descriptor request security
 	 * descriptor parameters, and secuirty descriptor itself
 	 */
-	secdesclen = max_t(u32, secdesclen, DEFSECDESCLEN);
+	secdesclen = max_t(u32, secdesclen, DEFAULT_SEC_DESC_LEN);
 	pnntsd = kmalloc(secdesclen, GFP_KERNEL);
 	if (!pnntsd) {
 		cERROR(1, "Unable to allocate security descriptor");

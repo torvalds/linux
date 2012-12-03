@@ -25,9 +25,6 @@
 
 #define NUM_AUTHS (6)	/* number of authority fields */
 #define SID_MAX_SUB_AUTHORITIES (15) /* max number of sub authority fields */
-#define NUM_WK_SIDS 7 /* number of well known sids */
-#define SIDNAMELENGTH 20 /* long enough for the ones we care about */
-#define DEFSECDESCLEN 192 /* sec desc len contaiting a dacl with three aces */
 
 #define READ_BIT        0x4
 #define WRITE_BIT       0x2
@@ -41,6 +38,14 @@
 
 #define SIDOWNER 1
 #define SIDGROUP 2
+
+/*
+ * Security Descriptor length containing DACL with 3 ACEs (one each for
+ * owner, group and world).
+ */
+#define DEFAULT_SEC_DESC_LEN (sizeof(struct cifs_ntsd) + \
+			      sizeof(struct cifs_acl) + \
+			      (sizeof(struct cifs_ace) * 3))
 
 /*
  * Maximum size of a string representation of a SID:
