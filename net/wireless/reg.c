@@ -1225,8 +1225,6 @@ static void handle_channel_custom(struct wiphy *wiphy,
 	const struct ieee80211_power_rule *power_rule = NULL;
 	const struct ieee80211_freq_range *freq_range = NULL;
 
-	assert_reg_lock();
-
 	r = freq_reg_info_regd(wiphy, MHZ_TO_KHZ(chan->center_freq),
 			       desired_bw_khz, &reg_rule, regd);
 
@@ -1271,14 +1269,12 @@ void wiphy_apply_custom_regulatory(struct wiphy *wiphy,
 	enum ieee80211_band band;
 	unsigned int bands_set = 0;
 
-	mutex_lock(&reg_mutex);
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		if (!wiphy->bands[band])
 			continue;
 		handle_band_custom(wiphy, wiphy->bands[band], regd);
 		bands_set++;
 	}
-	mutex_unlock(&reg_mutex);
 
 	/*
 	 * no point in calling this if it won't have any effect
