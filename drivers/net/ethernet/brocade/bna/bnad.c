@@ -3226,7 +3226,7 @@ bnad_pci_uninit(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static int __devinit
+static int
 bnad_pci_probe(struct pci_dev *pdev,
 		const struct pci_device_id *pcidev_id)
 {
@@ -3426,7 +3426,7 @@ unlock_mutex:
 	return err;
 }
 
-static void __devexit
+static void
 bnad_pci_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
@@ -3490,7 +3490,7 @@ static struct pci_driver bnad_pci_driver = {
 	.name = BNAD_NAME,
 	.id_table = bnad_pci_id_table,
 	.probe = bnad_pci_probe,
-	.remove = __devexit_p(bnad_pci_remove),
+	.remove = bnad_pci_remove,
 };
 
 static int __init
