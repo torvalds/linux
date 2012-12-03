@@ -1060,17 +1060,22 @@ static int cp_init_rings (struct cp_private *cp)
 
 static int cp_alloc_rings (struct cp_private *cp)
 {
+	struct device *d = &cp->pdev->dev;
 	void *mem;
+	int rc;
 
-	mem = dma_alloc_coherent(&cp->pdev->dev, CP_RING_BYTES,
-				 &cp->ring_dma, GFP_KERNEL);
+	mem = dma_alloc_coherent(d, CP_RING_BYTES, &cp->ring_dma, GFP_KERNEL);
 	if (!mem)
 		return -ENOMEM;
 
 	cp->rx_ring = mem;
 	cp->tx_ring = &cp->rx_ring[CP_RX_RING_SIZE];
 
-	return cp_init_rings(cp);
+	rc = cp_init_rings(cp);
+	if (rc < 0)
+		dma_free_coherent(d, CP_RING_BYTES, cp->rx_ring, cp->ring_dma);
+
+	return rc;
 }
 
 static void cp_clean_rings (struct cp_private *cp)
