@@ -557,7 +557,7 @@ static const struct net_device_ops wanxl_ops = {
 	.ndo_get_stats  = wanxl_get_stats,
 };
 
-static int __devinit wanxl_pci_init_one(struct pci_dev *pdev,
+static int wanxl_pci_init_one(struct pci_dev *pdev,
 					const struct pci_device_id *ent)
 {
 	card_t *card;
