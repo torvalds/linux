@@ -153,8 +153,8 @@ struct alc_spec {
 	const struct hda_channel_mode *channel_mode;
 	int num_channel_mode;
 	int need_dac_fix;
-	int const_channel_count;
-	int ext_channel_count;
+	int const_channel_count;	/* min. channel count (for speakers) */
+	int ext_channel_count;		/* current channel count for multi-io */
 
 	/* PCM information */
 	struct hda_pcm pcm_rec[3];	/* used in alc_build_pcms() */
@@ -3961,8 +3961,9 @@ static int alc_auto_ch_mode_put(struct snd_kcontrol *kcontrol,
 	spec->ext_channel_count = (ch + 1) * 2;
 	for (i = 0; i < spec->multi_ios; i++)
 		alc_set_multi_io(codec, i, i < ch);
-	spec->multiout.max_channels = spec->ext_channel_count;
-	if (spec->need_dac_fix && !spec->const_channel_count)
+	spec->multiout.max_channels = max(spec->ext_channel_count,
+					  spec->const_channel_count);
+	if (spec->need_dac_fix)
 		spec->multiout.num_dacs = spec->multiout.max_channels / 2;
 	return 1;
 }
@@ -4324,7 +4325,17 @@ static int alc_parse_auto_config(struct hda_codec *codec,
 	if (err < 0)
 		return err;
 
-	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
+	/* check the multiple speaker pins */
+	if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT)
+		spec->const_channel_count = cfg->line_outs * 2;
+	else
+		spec->const_channel_count = cfg->speaker_outs * 2;
+
+	if (spec->multi_ios > 0)
+		spec->multiout.max_channels = max(spec->ext_channel_count,
+						  spec->const_channel_count);
+	else
+		spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 
  dig_only:
 	alc_auto_parse_digital(codec);
