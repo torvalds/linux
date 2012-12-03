@@ -80,8 +80,6 @@
 #define DMA_STATUS_GPI		0x10000000	/* PMT interrupt */
 #define DMA_STATUS_GMI		0x08000000	/* MMC interrupt */
 #define DMA_STATUS_GLI		0x04000000	/* GMAC Line interface int */
-#define DMA_STATUS_GMI		0x08000000
-#define DMA_STATUS_GLI		0x04000000
 #define DMA_STATUS_EB_MASK	0x00380000	/* Error Bits Mask */
 #define DMA_STATUS_EB_TX_ABORT	0x00080000	/* Error Bits - TX Abort */
 #define DMA_STATUS_EB_RX_ABORT	0x00100000	/* Error Bits - RX Abort */
