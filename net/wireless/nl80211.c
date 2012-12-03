@@ -4309,8 +4309,6 @@ static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
-	BUG_ON(rule_idx != num_rules);
-
 	r = set_regdom(rd);
 	rd = NULL;
 
