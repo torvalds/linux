@@ -1186,6 +1186,38 @@
 #define	PACKET3_WAIT_REG_MEM				0x3C
 #define	PACKET3_MEM_WRITE				0x3D
 #define	PACKET3_INDIRECT_BUFFER				0x32
+#define	PACKET3_CP_DMA					0x41
+/* 1. header
+ * 2. SRC_ADDR_LO [31:0]
+ * 3. CP_SYNC [31] | SRC_ADDR_HI [7:0]
+ * 4. DST_ADDR_LO [31:0]
+ * 5. DST_ADDR_HI [7:0]
+ * 6. COMMAND [29:22] | BYTE_COUNT [20:0]
+ */
+#              define PACKET3_CP_DMA_CP_SYNC       (1 << 31)
+/* COMMAND */
+#              define PACKET3_CP_DMA_CMD_SRC_SWAP(x) ((x) << 23)
+                /* 0 - none
+		 * 1 - 8 in 16
+		 * 2 - 8 in 32
+		 * 3 - 8 in 64
+		 */
+#              define PACKET3_CP_DMA_CMD_DST_SWAP(x) ((x) << 24)
+                /* 0 - none
+		 * 1 - 8 in 16
+		 * 2 - 8 in 32
+		 * 3 - 8 in 64
+		 */
+#              define PACKET3_CP_DMA_CMD_SAS       (1 << 26)
+                /* 0 - memory
+		 * 1 - register
+		 */
+#              define PACKET3_CP_DMA_CMD_DAS       (1 << 27)
+                /* 0 - memory
+		 * 1 - register
+		 */
+#              define PACKET3_CP_DMA_CMD_SAIC      (1 << 28)
+#              define PACKET3_CP_DMA_CMD_DAIC      (1 << 29)
 #define	PACKET3_SURFACE_SYNC				0x43
 #              define PACKET3_CB0_DEST_BASE_ENA    (1 << 6)
 #              define PACKET3_TC_ACTION_ENA        (1 << 23)
