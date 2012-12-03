@@ -282,6 +282,8 @@ struct rcu_data {
 	 */
 	struct rcu_head *nxtlist;
 	struct rcu_head **nxttail[RCU_NEXT_SIZE];
+	unsigned long	nxtcompleted[RCU_NEXT_SIZE];
+					/* grace periods for sublists. */
 	long		qlen_lazy;	/* # of lazy queued callbacks */
 	long		qlen;		/* # of queued callbacks, incl lazy */
 	long		qlen_last_fqs_check;
