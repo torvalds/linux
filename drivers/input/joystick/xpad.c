@@ -235,7 +235,7 @@ static const signed short xpad_abs_triggers[] = {
 	{ XPAD_XBOX360_VENDOR_PROTOCOL(vend,1) }, \
 	{ XPAD_XBOX360_VENDOR_PROTOCOL(vend,129) }
 
-static struct usb_device_id xpad_table [] = {
+static struct usb_device_id xpad_table[] = {
 	{ USB_INTERFACE_INFO('X', 'B', 0) },	/* X-Box USB-IF not approved class */
 	XPAD_XBOX360_VENDOR(0x045e),		/* Microsoft X-Box 360 controllers */
 	XPAD_XBOX360_VENDOR(0x046d),		/* Logitech X-Box 360 style controllers */
@@ -251,7 +251,7 @@ static struct usb_device_id xpad_table [] = {
 	{ }
 };
 
-MODULE_DEVICE_TABLE (usb, xpad_table);
+MODULE_DEVICE_TABLE(usb, xpad_table);
 
 struct usb_xpad {
 	struct input_dev *dev;		/* input device interface */
@@ -783,7 +783,7 @@ static int xpad_open(struct input_dev *dev)
 	struct usb_xpad *xpad = input_get_drvdata(dev);
 
 	/* URB was submitted in probe */
-	if(xpad->xtype == XTYPE_XBOX360W)
+	if (xpad->xtype == XTYPE_XBOX360W)
 		return 0;
 
 	xpad->irq_in->dev = xpad->udev;
