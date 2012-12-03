@@ -54,6 +54,9 @@
 #include <asm/byteorder.h>
 #include <linux/uaccess.h>
 
+#include <uapi/linux/net_tstamp.h>
+#include <linux/ptp_clock_kernel.h>
+
 #ifdef CONFIG_SPARC
 #include <asm/idprom.h>
 #include <asm/prom.h>
@@ -5516,6 +5519,45 @@ static int tg3_setup_phy(struct tg3 *tp, int force_reset)
 	return err;
 }
 
+/* tp->lock must be held */
+static void tg3_refclk_write(struct tg3 *tp, u64 newval)
+{
+	tw32(TG3_EAV_REF_CLCK_CTL, TG3_EAV_REF_CLCK_CTL_STOP);
+	tw32(TG3_EAV_REF_CLCK_LSB, newval & 0xffffffff);
+	tw32(TG3_EAV_REF_CLCK_MSB, newval >> 32);
+	tw32_f(TG3_EAV_REF_CLCK_CTL, TG3_EAV_REF_CLCK_CTL_RESUME);
+}
+
+/* tp->lock must be held */
+static void tg3_ptp_init(struct tg3 *tp)
+{
+	if (!tg3_flag(tp, PTP_CAPABLE))
+		return;
+
+	/* Initialize the hardware clock to the system time. */
+	tg3_refclk_write(tp, ktime_to_ns(ktime_get_real()));
+	tp->ptp_adjust = 0;
+}
+
+/* tp->lock must be held */
+static void tg3_ptp_resume(struct tg3 *tp)
+{
+	if (!tg3_flag(tp, PTP_CAPABLE))
+		return;
+
+	tg3_refclk_write(tp, ktime_to_ns(ktime_get_real()) + tp->ptp_adjust);
+	tp->ptp_adjust = 0;
+}
+
+static void tg3_ptp_fini(struct tg3 *tp)
+{
+	if (!tg3_flag(tp, PTP_CAPABLE) || !tp->ptp_clock)
+		return;
+
+	tp->ptp_clock = NULL;
+	tp->ptp_adjust = 0;
+}
+
 static inline int tg3_irq_sync(struct tg3 *tp)
 {
 	return tp->irq_sync;
@@ -6528,6 +6570,8 @@ static inline void tg3_netif_stop(struct tg3 *tp)
 /* tp->lock must be held */
 static inline void tg3_netif_start(struct tg3 *tp)
 {
+	tg3_ptp_resume(tp);
+
 	/* NOTE: unconditional netif_tx_wake_all_queues is only
 	 * appropriate so long as all callers are assured to
 	 * have free tx slots (such as after tg3_init_hw)
@@ -10365,7 +10409,8 @@ static void tg3_ints_fini(struct tg3 *tp)
 	tg3_flag_clear(tp, ENABLE_TSS);
 }
 
-static int tg3_start(struct tg3 *tp, bool reset_phy, bool test_irq)
+static int tg3_start(struct tg3 *tp, bool reset_phy, bool test_irq,
+		     bool init)
 {
 	struct net_device *dev = tp->dev;
 	int i, err;
@@ -10443,6 +10488,12 @@ static int tg3_start(struct tg3 *tp, bool reset_phy, bool test_irq)
 	tg3_timer_start(tp);
 	tg3_flag_set(tp, INIT_COMPLETE);
 	tg3_enable_ints(tp);
+
+	if (init)
+		tg3_ptp_init(tp);
+	else
+		tg3_ptp_resume(tp);
+
 
 	tg3_full_unlock(tp);
 
@@ -10541,17 +10592,20 @@ static int tg3_open(struct net_device *dev)
 
 	tg3_full_unlock(tp);
 
-	err = tg3_start(tp, true, true);
+	err = tg3_start(tp, true, true, true);
 	if (err) {
 		tg3_frob_aux_power(tp, false);
 		pci_set_power_state(tp->pdev, PCI_D3hot);
 	}
+
 	return err;
 }
 
 static int tg3_close(struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
+
+	tg3_ptp_fini(tp);
 
 	tg3_stop(tp);
 
@@ -11455,7 +11509,7 @@ static int tg3_set_channels(struct net_device *dev,
 
 	tg3_carrier_off(tp);
 
-	tg3_start(tp, true, false);
+	tg3_start(tp, true, false, false);
 
 	return 0;
 }
@@ -12508,7 +12562,6 @@ static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 		}
 
 		tg3_full_lock(tp, irq_sync);
-
 		tg3_halt(tp, RESET_KIND_SUSPEND, 1);
 		err = tg3_nvram_lock(tp);
 		tg3_halt_cpu(tp, RX_CPU_BASE);
