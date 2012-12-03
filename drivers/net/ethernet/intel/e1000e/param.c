@@ -53,7 +53,7 @@ MODULE_PARM_DESC(copybreak,
  */
 #define E1000_PARAM_INIT { [0 ... E1000_MAX_NIC] = OPTION_UNSET }
 #define E1000_PARAM(X, desc)					\
-	static int __devinitdata X[E1000_MAX_NIC+1]		\
+	static int X[E1000_MAX_NIC+1]		\
 		= E1000_PARAM_INIT;				\
 	static unsigned int num_##X;				\
 	module_param_array_named(X, X, int, &num_##X, 0);	\
@@ -172,7 +172,7 @@ struct e1000_option {
 	} arg;
 };
 
-static int __devinit e1000_validate_option(unsigned int *value,
+static int e1000_validate_option(unsigned int *value,
 					   const struct e1000_option *opt,
 					   struct e1000_adapter *adapter)
 {
@@ -235,7 +235,7 @@ static int __devinit e1000_validate_option(unsigned int *value,
  * value exists, a default value is used.  The final value is stored
  * in a variable in the adapter structure.
  **/
-void __devinit e1000e_check_options(struct e1000_adapter *adapter)
+void e1000e_check_options(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	int bd = adapter->bd_number;

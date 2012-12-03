@@ -73,7 +73,7 @@ MODULE_DEVICE_TABLE(pci, ixgb_pci_tbl);
 static int ixgb_init_module(void);
 static void ixgb_exit_module(void);
 static int ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
-static void __devexit ixgb_remove(struct pci_dev *pdev);
+static void ixgb_remove(struct pci_dev *pdev);
 static int ixgb_sw_init(struct ixgb_adapter *adapter);
 static int ixgb_open(struct net_device *netdev);
 static int ixgb_close(struct net_device *netdev);
@@ -125,7 +125,7 @@ static struct pci_driver ixgb_driver = {
 	.name     = ixgb_driver_name,
 	.id_table = ixgb_pci_tbl,
 	.probe    = ixgb_probe,
-	.remove   = __devexit_p(ixgb_remove),
+	.remove   = ixgb_remove,
 	.err_handler = &ixgb_err_handler
 };
 
@@ -391,7 +391,7 @@ static const struct net_device_ops ixgb_netdev_ops = {
  * and a hardware reset occur.
  **/
 
-static int __devinit
+static int
 ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *netdev = NULL;
@@ -558,7 +558,7 @@ err_dma_mask:
  * memory.
  **/
 
-static void __devexit
+static void
 ixgb_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
@@ -584,7 +584,7 @@ ixgb_remove(struct pci_dev *pdev)
  * OS network device settings (MTU size).
  **/
 
-static int __devinit
+static int
 ixgb_sw_init(struct ixgb_adapter *adapter)
 {
 	struct ixgb_hw *hw = &adapter->hw;
