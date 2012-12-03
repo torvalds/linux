@@ -678,27 +678,14 @@ static int freq_reg_info_regd(struct wiphy *wiphy,
 			      u32 center_freq,
 			      u32 desired_bw_khz,
 			      const struct ieee80211_reg_rule **reg_rule,
-			      const struct ieee80211_regdomain *custom_regd)
+			      const struct ieee80211_regdomain *regd)
 {
 	int i;
 	bool band_rule_found = false;
-	const struct ieee80211_regdomain *regd;
 	bool bw_fits = false;
 
 	if (!desired_bw_khz)
 		desired_bw_khz = MHZ_TO_KHZ(20);
-
-	regd = custom_regd ? custom_regd : cfg80211_regdomain;
-
-	/*
-	 * Follow the driver's regulatory domain, if present, unless a country
-	 * IE has been processed or a user wants to help complaince further
-	 */
-	if (!custom_regd &&
-	    last_request->initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE &&
-	    last_request->initiator != NL80211_REGDOM_SET_BY_USER &&
-	    wiphy->regd)
-		regd = wiphy->regd;
 
 	if (!regd)
 		return -EINVAL;
@@ -735,10 +722,24 @@ static int freq_reg_info_regd(struct wiphy *wiphy,
 int freq_reg_info(struct wiphy *wiphy, u32 center_freq, u32 desired_bw_khz,
 		  const struct ieee80211_reg_rule **reg_rule)
 {
+	const struct ieee80211_regdomain *regd;
+
+	assert_reg_lock();
 	assert_cfg80211_lock();
 
+	/*
+	 * Follow the driver's regulatory domain, if present, unless a country
+	 * IE has been processed or a user wants to help complaince further
+	 */
+	if (last_request->initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE &&
+	    last_request->initiator != NL80211_REGDOM_SET_BY_USER &&
+	    wiphy->regd)
+		regd = wiphy->regd;
+	else
+		regd = cfg80211_regdomain;
+
 	return freq_reg_info_regd(wiphy, center_freq, desired_bw_khz,
-				  reg_rule, NULL);
+				  reg_rule, regd);
 }
 EXPORT_SYMBOL(freq_reg_info);
 
