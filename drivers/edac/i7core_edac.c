@@ -816,7 +816,7 @@ static ssize_t i7core_inject_store_##param(			\
 	struct device_attribute *mattr,				\
 	const char *data, size_t count)				\
 {								\
-	struct mem_ctl_info *mci = to_mci(dev);			\
+	struct mem_ctl_info *mci = dev_get_drvdata(dev);	\
 	struct i7core_pvt *pvt;					\
 	long value;						\
 	int rc;							\
@@ -845,7 +845,7 @@ static ssize_t i7core_inject_show_##param(			\
 	struct device_attribute *mattr,				\
 	char *data)						\
 {								\
-	struct mem_ctl_info *mci = to_mci(dev);			\
+	struct mem_ctl_info *mci = dev_get_drvdata(dev);	\
 	struct i7core_pvt *pvt;					\
 								\
 	pvt = mci->pvt_info;					\
@@ -1052,7 +1052,7 @@ static ssize_t i7core_show_counter_##param(			\
 	struct device_attribute *mattr,				\
 	char *data)						\
 {								\
-	struct mem_ctl_info *mci = to_mci(dev);			\
+	struct mem_ctl_info *mci = dev_get_drvdata(dev);	\
 	struct i7core_pvt *pvt = mci->pvt_info;			\
 								\
 	edac_dbg(1, "\n");					\
