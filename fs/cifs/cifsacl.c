@@ -57,7 +57,7 @@ cifs_idmap_key_instantiate(struct key *key, struct key_preparsed_payload *prep)
 	 * With this however, you must check the datalen before trying to
 	 * dereference payload.data!
 	 */
-	if (prep->datalen <= sizeof(void *)) {
+	if (prep->datalen <= sizeof(key->payload)) {
 		key->payload.value = 0;
 		memcpy(&key->payload.value, prep->data, prep->datalen);
 		key->datalen = prep->datalen;
@@ -76,7 +76,7 @@ cifs_idmap_key_instantiate(struct key *key, struct key_preparsed_payload *prep)
 static inline void
 cifs_idmap_key_destroy(struct key *key)
 {
-	if (key->datalen > sizeof(void *))
+	if (key->datalen > sizeof(key->payload))
 		kfree(key->payload.data);
 }
 
@@ -216,7 +216,15 @@ id_to_sid(unsigned int cid, uint sidtype, struct cifs_sid *ssid)
 		goto invalidate_key;
 	}
 
-	ksid = (struct cifs_sid *)sidkey->payload.data;
+	/*
+	 * A sid is usually too large to be embedded in payload.value, but if
+	 * there are no subauthorities and the host has 8-byte pointers, then
+	 * it could be.
+	 */
+	ksid = sidkey->datalen <= sizeof(sidkey->payload) ?
+		(struct cifs_sid *)&sidkey->payload.value :
+		(struct cifs_sid *)sidkey->payload.data;
+
 	ksid_size = CIFS_SID_BASE_SIZE + (ksid->num_subauth * sizeof(__le32));
 	if (ksid_size > sidkey->datalen) {
 		rc = -EIO;
@@ -224,6 +232,7 @@ id_to_sid(unsigned int cid, uint sidtype, struct cifs_sid *ssid)
 			"ksid_size=%u)", __func__, sidkey->datalen, ksid_size);
 		goto invalidate_key;
 	}
+
 	cifs_copy_sid(ssid, ksid);
 out_key_put:
 	key_put(sidkey);
