@@ -201,6 +201,20 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	bss_change |= BSS_CHANGED_BASIC_RATES;
 	bss_change |= BSS_CHANGED_HT;
 	bss_change |= BSS_CHANGED_IBSS;
+
+	/*
+	 * In 5 GHz/802.11a, we can always use short slot time.
+	 * (IEEE 802.11-2012 18.3.8.7)
+	 *
+	 * In 2.4GHz, we must always use long slots in IBSS for compatibility
+	 * reasons.
+	 * (IEEE 802.11-2012 19.4.5)
+	 *
+	 * HT follows these specifications (IEEE 802.11-2012 20.3.18)
+	 */
+	sdata->vif.bss_conf.use_short_slot = chan->band == IEEE80211_BAND_5GHZ;
+	bss_change |= BSS_CHANGED_ERP_SLOT;
+
 	sdata->vif.bss_conf.ibss_joined = true;
 	sdata->vif.bss_conf.ibss_creator = creator;
 	ieee80211_bss_info_change_notify(sdata, bss_change);
