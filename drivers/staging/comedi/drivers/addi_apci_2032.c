@@ -377,6 +377,12 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 
 	/* Initialize the interrupt subdevice */
 	s = &dev->subdevices[2];
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 2;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= apci2032_int_insn_bits;
 	if (dev->irq) {
 		struct apci2032_int_private *subpriv;
 
@@ -386,18 +392,11 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 			return -ENOMEM;
 		spin_lock_init(&subpriv->spinlock);
 		s->private	= subpriv;
-		s->type		= COMEDI_SUBD_DI;
 		s->subdev_flags	= SDF_READABLE | SDF_CMD_READ;
-		s->n_chan	= 2;
 		s->len_chanlist = 2;
-		s->maxdata	= 1;
-		s->range_table	= &range_digital;
-		s->insn_bits	= apci2032_int_insn_bits;
 		s->do_cmdtest	= apci2032_int_cmdtest;
 		s->do_cmd	= apci2032_int_cmd;
 		s->cancel	= apci2032_int_cancel;
-	} else {
-		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
 	return 0;
