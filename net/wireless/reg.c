@@ -1878,9 +1878,6 @@ static void restore_regulatory_settings(bool reset_user)
 			restore_custom_reg_settings(&rdev->wiphy);
 	}
 
-	mutex_unlock(&reg_mutex);
-	mutex_unlock(&cfg80211_mutex);
-
 	regulatory_hint_core(world_alpha2);
 
 	/*
@@ -1891,18 +1888,8 @@ static void restore_regulatory_settings(bool reset_user)
 	if (is_an_alpha2(alpha2))
 		regulatory_hint_user(user_alpha2, NL80211_USER_REG_HINT_USER);
 
-	if (list_empty(&tmp_reg_req_list))
-		return;
-
-	mutex_lock(&cfg80211_mutex);
-	mutex_lock(&reg_mutex);
-
 	spin_lock(&reg_requests_lock);
-	list_for_each_entry_safe(reg_request, tmp, &tmp_reg_req_list, list) {
-		REG_DBG_PRINT("Adding request for country %c%c back into the queue\n",
-			      reg_request->alpha2[0], reg_request->alpha2[1]);
-		list_move_tail(&reg_request->list, &reg_requests_list);
-	}
+	list_splice_tail_init(&tmp_reg_req_list, &reg_requests_list);
 	spin_unlock(&reg_requests_lock);
 
 	mutex_unlock(&reg_mutex);
