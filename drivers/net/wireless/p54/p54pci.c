@@ -540,7 +540,7 @@ out:
 	pci_dev_put(pdev);
 }
 
-static int __devinit p54p_probe(struct pci_dev *pdev,
+static int p54p_probe(struct pci_dev *pdev,
 				const struct pci_device_id *id)
 {
 	struct p54p_priv *priv;
@@ -639,7 +639,7 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 	return err;
 }
 
-static void __devexit p54p_remove(struct pci_dev *pdev)
+static void p54p_remove(struct pci_dev *pdev)
 {
 	struct ieee80211_hw *dev = pci_get_drvdata(pdev);
 	struct p54p_priv *priv;
@@ -692,7 +692,7 @@ static struct pci_driver p54p_driver = {
 	.name		= "p54pci",
 	.id_table	= p54p_table,
 	.probe		= p54p_probe,
-	.remove		= __devexit_p(p54p_remove),
+	.remove		= p54p_remove,
 	.driver.pm	= P54P_PM_OPS,
 };
 
