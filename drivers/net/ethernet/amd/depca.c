@@ -338,21 +338,21 @@ static struct eisa_driver depca_eisa_driver = {
 	.driver   = {
 		.name    = depca_string,
 		.probe   = depca_eisa_probe,
-		.remove  = __devexit_p (depca_device_remove)
+		.remove  = depca_device_remove
 	}
 };
 #endif
 
 static int depca_isa_probe (struct platform_device *);
 
-static int __devexit depca_isa_remove(struct platform_device *pdev)
+static int depca_isa_remove(struct platform_device *pdev)
 {
 	return depca_device_remove(&pdev->dev);
 }
 
 static struct platform_driver depca_isa_driver = {
 	.probe  = depca_isa_probe,
-	.remove = __devexit_p(depca_isa_remove),
+	.remove = depca_isa_remove,
 	.driver	= {
 		.name   = depca_string,
 	},
@@ -1320,7 +1320,7 @@ static enum depca_type __init depca_shmem_probe (ulong *mem_start)
 	return adapter;
 }
 
-static int __devinit depca_isa_probe (struct platform_device *device)
+static int depca_isa_probe(struct platform_device *device)
 {
 	struct net_device *dev;
 	struct depca_private *lp;
@@ -1412,7 +1412,7 @@ static int __init depca_eisa_probe (struct device *device)
 }
 #endif
 
-static int __devexit depca_device_remove (struct device *device)
+static int depca_device_remove(struct device *device)
 {
 	struct net_device *dev;
 	struct depca_private *lp;
