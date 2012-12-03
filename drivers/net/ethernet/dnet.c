@@ -72,7 +72,7 @@ static void __dnet_set_hwaddr(struct dnet *bp)
 	dnet_writew_mac(bp, DNET_INTERNAL_MAC_ADDR_2_REG, tmp);
 }
 
-static void __devinit dnet_get_hwaddr(struct dnet *bp)
+static void dnet_get_hwaddr(struct dnet *bp)
 {
 	u16 tmp;
 	u8 addr[6];
@@ -826,7 +826,7 @@ static const struct net_device_ops dnet_netdev_ops = {
 	.ndo_change_mtu		= eth_change_mtu,
 };
 
-static int __devinit dnet_probe(struct platform_device *pdev)
+static int dnet_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct net_device *dev;
@@ -942,7 +942,7 @@ err_out:
 	return err;
 }
 
-static int __devexit dnet_remove(struct platform_device *pdev)
+static int dnet_remove(struct platform_device *pdev)
 {
 
 	struct net_device *dev;
@@ -968,7 +968,7 @@ static int __devexit dnet_remove(struct platform_device *pdev)
 
 static struct platform_driver dnet_driver = {
 	.probe		= dnet_probe,
-	.remove		= __devexit_p(dnet_remove),
+	.remove		= dnet_remove,
 	.driver		= {
 		.name		= "dnet",
 	},
