@@ -3794,7 +3794,7 @@ out:
 	return err;
 }
 
-static void __devexit
+static void
 il3945_pci_remove(struct pci_dev *pdev)
 {
 	struct il_priv *il = pci_get_drvdata(pdev);
@@ -3884,7 +3884,7 @@ static struct pci_driver il3945_driver = {
 	.name = DRV_NAME,
 	.id_table = il3945_hw_card_ids,
 	.probe = il3945_pci_probe,
-	.remove = __devexit_p(il3945_pci_remove),
+	.remove = il3945_pci_remove,
 	.driver.pm = IL_LEGACY_PM_OPS,
 };
 
