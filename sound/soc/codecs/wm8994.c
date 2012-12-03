@@ -3755,6 +3755,18 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 	trace_snd_soc_jack_irq(dev_name(codec->dev));
 #endif
 
+	/* Avoid a transient report when the accessory is being removed */
+	if (wm8994->jackdet) {
+		reg = snd_soc_read(codec, WM1811_JACKDET_CTRL);
+		if (reg < 0) {
+			dev_err(codec->dev, "Failed to read jack status: %d\n",
+				reg);
+		} else if (!(reg & WM1811_JACKDET_LVL)) {
+			dev_dbg(codec->dev, "Ignoring removed jack\n");
+			return IRQ_HANDLED;
+		}
+	}
+
 	if (wm8994->mic_detecting)
 		wm8958_mic_id(codec, reg);
 	else
