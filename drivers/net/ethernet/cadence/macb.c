@@ -1470,7 +1470,7 @@ static const struct of_device_id macb_dt_ids[] = {
 
 MODULE_DEVICE_TABLE(of, macb_dt_ids);
 
-static int __devinit macb_get_phy_mode_dt(struct platform_device *pdev)
+static int macb_get_phy_mode_dt(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 
@@ -1480,7 +1480,7 @@ static int __devinit macb_get_phy_mode_dt(struct platform_device *pdev)
 	return -ENODEV;
 }
 
-static int __devinit macb_get_hwaddr_dt(struct macb *bp)
+static int macb_get_hwaddr_dt(struct macb *bp)
 {
 	struct device_node *np = bp->pdev->dev.of_node;
 	if (np) {
@@ -1494,11 +1494,11 @@ static int __devinit macb_get_hwaddr_dt(struct macb *bp)
 	return -ENODEV;
 }
 #else
-static int __devinit macb_get_phy_mode_dt(struct platform_device *pdev)
+static int macb_get_phy_mode_dt(struct platform_device *pdev)
 {
 	return -ENODEV;
 }
-static int __devinit macb_get_hwaddr_dt(struct macb *bp)
+static int macb_get_hwaddr_dt(struct macb *bp)
 {
 	return -ENODEV;
 }
