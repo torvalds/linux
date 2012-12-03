@@ -103,7 +103,7 @@ static void free_buffer_page(struct ion_system_heap *heap,
 		   security.  This uses vmap as we want to set the pgprot so
 		   the writes to occur to noncached mappings, as the pool's
 		   purpose is to keep the pages out of the cache */
-		for (i = 0; i < order / PAGE_SIZE; i++) {
+		for (i = 0; i < (1 << order); i++) {
 			struct page *sub_page = page + i;
 			void *addr = vmap(&sub_page, 1, VM_MAP,
 					  pgprot_writecombine(PAGE_KERNEL));
