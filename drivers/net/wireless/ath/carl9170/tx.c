@@ -1485,6 +1485,13 @@ void carl9170_op_tx(struct ieee80211_hw *hw,
 	}
 
 	if (info->flags & IEEE80211_TX_CTL_AMPDU) {
+		/* to static code analyzers and reviewers:
+		 * mac80211 guarantees that a valid "sta"
+		 * reference is present, if a frame is to
+		 * be part of an ampdu. Hence any extra
+		 * sta == NULL checks are redundant in this
+		 * special case.
+		 */
 		run = carl9170_tx_ampdu_queue(ar, sta, skb);
 		if (run)
 			carl9170_tx_ampdu(ar);
