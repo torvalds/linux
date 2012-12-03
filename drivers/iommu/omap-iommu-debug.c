@@ -18,11 +18,11 @@
 #include <linux/uaccess.h>
 #include <linux/platform_device.h>
 #include <linux/debugfs.h>
+#include <linux/omap-iommu.h>
+#include <linux/platform_data/iommu-omap.h>
 
-#include <plat/iommu.h>
-#include <plat/iovmm.h>
-
-#include <plat/iopgtable.h>
+#include "omap-iopgtable.h"
+#include "omap-iommu.h"
 
 #define MAXCOLUMN 100 /* for short messages */
 
