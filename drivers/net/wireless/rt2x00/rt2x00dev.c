@@ -1124,6 +1124,9 @@ static inline void rt2x00lib_set_if_combinations(struct rt2x00_dev *rt2x00dev)
 	struct ieee80211_iface_limit *if_limit;
 	struct ieee80211_iface_combination *if_combination;
 
+	if (rt2x00dev->ops->max_ap_intf < 2)
+		return;
+
 	/*
 	 * Build up AP interface limits structure.
 	 */
