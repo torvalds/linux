@@ -22,9 +22,12 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/thermal.h>
+
+#define IDLE_INTERVAL	5000
 
 #define THSCR	0x2c
 #define THSSR	0x30
@@ -176,8 +179,66 @@ static int rcar_thermal_get_temp(struct thermal_zone_device *zone,
 	return 0;
 }
 
+static int rcar_thermal_get_trip_type(struct thermal_zone_device *zone,
+				      int trip, enum thermal_trip_type *type)
+{
+	struct rcar_thermal_priv *priv = rcar_zone_to_priv(zone);
+
+	/* see rcar_thermal_get_temp() */
+	switch (trip) {
+	case 0: /* +90 <= temp */
+		*type = THERMAL_TRIP_CRITICAL;
+		break;
+	default:
+		dev_err(priv->dev, "rcar driver trip error\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int rcar_thermal_get_trip_temp(struct thermal_zone_device *zone,
+				      int trip, unsigned long *temp)
+{
+	struct rcar_thermal_priv *priv = rcar_zone_to_priv(zone);
+
+	/* see rcar_thermal_get_temp() */
+	switch (trip) {
+	case 0: /* +90 <= temp */
+		*temp = MCELSIUS(90);
+		break;
+	default:
+		dev_err(priv->dev, "rcar driver trip error\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int rcar_thermal_notify(struct thermal_zone_device *zone,
+			       int trip, enum thermal_trip_type type)
+{
+	struct rcar_thermal_priv *priv = rcar_zone_to_priv(zone);
+
+	switch (type) {
+	case THERMAL_TRIP_CRITICAL:
+		/* FIXME */
+		dev_warn(priv->dev,
+			 "Thermal reached to critical temperature\n");
+		machine_power_off();
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static struct thermal_zone_device_ops rcar_thermal_zone_ops = {
-	.get_temp = rcar_thermal_get_temp,
+	.get_temp	= rcar_thermal_get_temp,
+	.get_trip_type	= rcar_thermal_get_trip_type,
+	.get_trip_temp	= rcar_thermal_get_trip_temp,
+	.notify		= rcar_thermal_notify,
 };
 
 /*
@@ -211,8 +272,9 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	zone = thermal_zone_device_register("rcar_thermal", 0, 0, priv,
-				    &rcar_thermal_zone_ops, NULL, 0, 0);
+	zone = thermal_zone_device_register("rcar_thermal", 1, 0, priv,
+					    &rcar_thermal_zone_ops, NULL, 0,
+					    IDLE_INTERVAL);
 	if (IS_ERR(zone)) {
 		dev_err(&pdev->dev, "thermal zone device is NULL\n");
 		return PTR_ERR(zone);
