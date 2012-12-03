@@ -6525,6 +6525,7 @@ static inline void tg3_netif_stop(struct tg3 *tp)
 	netif_tx_disable(tp->dev);
 }
 
+/* tp->lock must be held */
 static inline void tg3_netif_start(struct tg3 *tp)
 {
 	/* NOTE: unconditional netif_tx_wake_all_queues is only
@@ -16599,8 +16600,8 @@ static void tg3_io_resume(struct pci_dev *pdev)
 	tg3_full_lock(tp, 0);
 	tg3_flag_set(tp, INIT_COMPLETE);
 	err = tg3_restart_hw(tp, 1);
-	tg3_full_unlock(tp);
 	if (err) {
+		tg3_full_unlock(tp);
 		netdev_err(netdev, "Cannot restart hardware after reset.\n");
 		goto done;
 	}
@@ -16610,6 +16611,8 @@ static void tg3_io_resume(struct pci_dev *pdev)
 	tg3_timer_start(tp);
 
 	tg3_netif_start(tp);
+
+	tg3_full_unlock(tp);
 
 	tg3_phy_start(tp);
 
