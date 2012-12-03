@@ -122,6 +122,8 @@ __secondary_hold:
 #endif
 	/* Grab our physical cpu number */
 	mr	r24,r3
+	/* stash r4 for book3e */
+	mr	r25,r4
 
 	/* Tell the master cpu we're here */
 	/* Relocation is off & we are located at an address less */
@@ -129,16 +131,31 @@ __secondary_hold:
 	std	r24,__secondary_hold_acknowledge-_stext(0)
 	sync
 
+	li	r26,0
+#ifdef CONFIG_PPC_BOOK3E
+	tovirt(r26,r26)
+#endif
 	/* All secondary cpus wait here until told to start. */
-100:	ld	r4,__secondary_hold_spinloop-_stext(0)
+100:	ld	r4,__secondary_hold_spinloop-_stext(r26)
 	cmpdi	0,r4,0
 	beq	100b
 
 #if defined(CONFIG_SMP) || defined(CONFIG_KEXEC)
+#ifdef CONFIG_PPC_BOOK3E
+	tovirt(r4,r4)
+#endif
 	ld	r4,0(r4)		/* deref function descriptor */
 	mtctr	r4
 	mr	r3,r24
+	/*
+	 * it may be the case that other platforms have r4 right to
+	 * begin with, this gives us some safety in case it is not
+	 */
+#ifdef CONFIG_PPC_BOOK3E
+	mr	r4,r25
+#else
 	li	r4,0
+#endif
 	/* Make sure that patched code is visible */
 	isync
 	bctr
