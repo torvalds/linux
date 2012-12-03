@@ -105,9 +105,9 @@ static void __init update_clock_frequency(struct device_node *node)
 
 static int __init machine_setup(void)
 {
-	struct device_node *serial = NULL;
+	struct device_node *serial;
 
-	while ((serial = of_find_compatible_node(serial, NULL, "ns16550a")))
+	for_each_compatible_node(serial, NULL, "ns16550a")
 		update_clock_frequency(serial);
 	return 0;
 }
