@@ -204,8 +204,8 @@ enum uli526x_CR6_bits {
 };
 
 /* Global variable declaration ----------------------------- */
-static int __devinitdata printed_version;
-static const char version[] __devinitconst =
+static int printed_version;
+static const char version[] =
 	"ULi M5261/M5263 net driver, version " DRV_VERSION " (" DRV_RELDATE ")";
 
 static int uli526x_debug;
@@ -281,8 +281,8 @@ static const struct net_device_ops netdev_ops = {
  *	Search ULI526X board, allocate space and register it
  */
 
-static int __devinit uli526x_init_one (struct pci_dev *pdev,
-				    const struct pci_device_id *ent)
+static int uli526x_init_one(struct pci_dev *pdev,
+			    const struct pci_device_id *ent)
 {
 	struct uli526x_board_info *db;	/* board information structure */
 	struct net_device *dev;
@@ -436,7 +436,7 @@ err_out_free:
 }
 
 
-static void __devexit uli526x_remove_one (struct pci_dev *pdev)
+static void uli526x_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct uli526x_board_info *db = netdev_priv(dev);
@@ -1788,7 +1788,7 @@ static struct pci_driver uli526x_driver = {
 	.name		= "uli526x",
 	.id_table	= uli526x_pci_tbl,
 	.probe		= uli526x_init_one,
-	.remove		= __devexit_p(uli526x_remove_one),
+	.remove		= uli526x_remove_one,
 	.suspend	= uli526x_suspend,
 	.resume		= uli526x_resume,
 };
