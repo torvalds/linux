@@ -46,11 +46,14 @@
 #include <linux/export.h>
 #include <linux/hardirq.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/rcu.h>
 
 #include "rcu.h"
+
+module_param(rcu_expedited, int, 0);
 
 #ifdef CONFIG_PREEMPT_RCU
 

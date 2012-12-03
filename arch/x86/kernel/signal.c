@@ -22,6 +22,7 @@
 #include <linux/uaccess.h>
 #include <linux/user-return-notifier.h>
 #include <linux/uprobes.h>
+#include <linux/context_tracking.h>
 
 #include <asm/processor.h>
 #include <asm/ucontext.h>
@@ -816,7 +817,7 @@ static void do_signal(struct pt_regs *regs)
 void
 do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
 {
-	rcu_user_exit();
+	user_exit();
 
 #ifdef CONFIG_X86_MCE
 	/* notify userspace of pending MCEs */
@@ -838,7 +839,7 @@ do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
 	if (thread_info_flags & _TIF_USER_RETURN_NOTIFY)
 		fire_user_return_notifiers();
 
-	rcu_user_enter();
+	user_enter();
 }
 
 void signal_fault(struct pt_regs *regs, void __user *frame, char *where)

@@ -55,7 +55,7 @@
 #include <asm/i387.h>
 #include <asm/fpu-internal.h>
 #include <asm/mce.h>
-#include <asm/rcu.h>
+#include <asm/context_tracking.h>
 
 #include <asm/mach_traps.h>
 
