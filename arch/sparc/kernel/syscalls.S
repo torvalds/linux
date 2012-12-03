@@ -118,10 +118,20 @@ ret_from_syscall:
 	ba,pt	%xcc, ret_sys_call
 	 ldx	[%sp + PTREGS_OFF + PT_V9_I0], %o0
 
+	.globl	sparc_exit_group
+	.type	sparc_exit_group,#function
+sparc_exit_group:
+	sethi	%hi(sys_exit_group), %g7
+	ba,pt	%xcc, 1f
+	 or	%g7, %lo(sys_exit_group), %g7
+	.size	sparc_exit_group,.-sparc_exit_group
+
 	.globl	sparc_exit
 	.type	sparc_exit,#function
 sparc_exit:
-	rdpr	%pstate, %g2
+	sethi	%hi(sys_exit), %g7
+	or	%g7, %lo(sys_exit), %g7
+1:	rdpr	%pstate, %g2
 	wrpr	%g2, PSTATE_IE, %pstate
 	rdpr	%otherwin, %g1
 	rdpr	%cansave, %g3
@@ -129,7 +139,7 @@ sparc_exit:
 	wrpr	%g3, 0x0, %cansave
 	wrpr	%g0, 0x0, %otherwin
 	wrpr	%g2, 0x0, %pstate
-	ba,pt	%xcc, sys_exit
+	jmpl	%g7, %g0
 	 stb	%g0, [%g6 + TI_WSAVED]
 	.size	sparc_exit,.-sparc_exit
 
