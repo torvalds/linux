@@ -141,7 +141,7 @@ void i915_kernel_lost_context(struct drm_device * dev)
 
 	ring->head = I915_READ_HEAD(ring) & HEAD_ADDR;
 	ring->tail = I915_READ_TAIL(ring) & TAIL_ADDR;
-	ring->space = ring->head - (ring->tail + 8);
+	ring->space = ring->head - (ring->tail + I915_RING_FREE_SPACE);
 	if (ring->space < 0)
 		ring->space += ring->size;
 

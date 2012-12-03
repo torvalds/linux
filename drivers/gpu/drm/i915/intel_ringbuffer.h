@@ -1,6 +1,17 @@
 #ifndef _INTEL_RINGBUFFER_H_
 #define _INTEL_RINGBUFFER_H_
 
+/*
+ * Gen2 BSpec "1. Programming Environment" / 1.4.4.6 "Ring Buffer Use"
+ * Gen3 BSpec "vol1c Memory Interface Functions" / 2.3.4.5 "Ring Buffer Use"
+ * Gen4+ BSpec "vol1c Memory Interface and Command Stream" / 5.3.4.5 "Ring Buffer Use"
+ *
+ * "If the Ring Buffer Head Pointer and the Tail Pointer are on the same
+ * cacheline, the Head Pointer must not be greater than the Tail
+ * Pointer."
+ */
+#define I915_RING_FREE_SPACE 64
+
 struct  intel_hw_status_page {
 	u32		*page_addr;
 	unsigned int	gfx_addr;
