@@ -1659,7 +1659,7 @@ exit_free_candev:
 	return err;
 }
 
-static int __devinit grcan_probe(struct platform_device *ofdev)
+static int grcan_probe(struct platform_device *ofdev)
 {
 	struct device_node *np = ofdev->dev.of_node;
 	struct resource *res;
@@ -1714,7 +1714,7 @@ exit_error:
 	return err;
 }
 
-static int __devexit grcan_remove(struct platform_device *ofdev)
+static int grcan_remove(struct platform_device *ofdev)
 {
 	struct net_device *dev = dev_get_drvdata(&ofdev->dev);
 	struct grcan_priv *priv = netdev_priv(dev);
@@ -1729,7 +1729,7 @@ static int __devexit grcan_remove(struct platform_device *ofdev)
 	return 0;
 }
 
-static struct of_device_id grcan_match[] __devinitconst = {
+static struct of_device_id grcan_match[] = {
 	{.name = "GAISLER_GRCAN"},
 	{.name = "01_03d"},
 	{.name = "GAISLER_GRHCAN"},
@@ -1746,7 +1746,7 @@ static struct platform_driver grcan_driver = {
 		.of_match_table = grcan_match,
 	},
 	.probe = grcan_probe,
-	.remove = __devexit_p(grcan_remove),
+	.remove = grcan_remove,
 };
 
 module_platform_driver(grcan_driver);

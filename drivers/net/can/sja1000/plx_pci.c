@@ -162,7 +162,7 @@ struct plx_pci_card_info {
 	void (*reset_func)(struct pci_dev *pdev);
 };
 
-static struct plx_pci_card_info plx_pci_card_info_adlink __devinitdata = {
+static struct plx_pci_card_info plx_pci_card_info_adlink = {
 	"Adlink PCI-7841/cPCI-7841", 2,
 	PLX_PCI_CAN_CLOCK, PLX_PCI_OCR, PLX_PCI_CDR,
 	{1, 0x00, 0x00}, { {2, 0x00, 0x80}, {2, 0x80, 0x80} },
@@ -170,7 +170,7 @@ static struct plx_pci_card_info plx_pci_card_info_adlink __devinitdata = {
 	/* based on PLX9052 */
 };
 
-static struct plx_pci_card_info plx_pci_card_info_adlink_se __devinitdata = {
+static struct plx_pci_card_info plx_pci_card_info_adlink_se = {
 	"Adlink PCI-7841/cPCI-7841 SE", 2,
 	PLX_PCI_CAN_CLOCK, PLX_PCI_OCR, PLX_PCI_CDR,
 	{0, 0x00, 0x00}, { {2, 0x00, 0x80}, {2, 0x80, 0x80} },
@@ -178,7 +178,7 @@ static struct plx_pci_card_info plx_pci_card_info_adlink_se __devinitdata = {
 	/* based on PLX9052 */
 };
 
-static struct plx_pci_card_info plx_pci_card_info_esd200 __devinitdata = {
+static struct plx_pci_card_info plx_pci_card_info_esd200 = {
 	"esd CAN-PCI/CPCI/PCI104/200", 2,
 	PLX_PCI_CAN_CLOCK, PLX_PCI_OCR, PLX_PCI_CDR,
 	{0, 0x00, 0x00}, { {2, 0x00, 0x80}, {2, 0x100, 0x80} },
@@ -186,7 +186,7 @@ static struct plx_pci_card_info plx_pci_card_info_esd200 __devinitdata = {
 	/* based on PLX9030/9050 */
 };
 
-static struct plx_pci_card_info plx_pci_card_info_esd266 __devinitdata = {
+static struct plx_pci_card_info plx_pci_card_info_esd266 = {
 	"esd CAN-PCI/PMC/266", 2,
 	PLX_PCI_CAN_CLOCK, PLX_PCI_OCR, PLX_PCI_CDR,
 	{0, 0x00, 0x00}, { {2, 0x00, 0x80}, {2, 0x100, 0x80} },
@@ -194,7 +194,7 @@ static struct plx_pci_card_info plx_pci_card_info_esd266 __devinitdata = {
 	/* based on PLX9056 */
 };
 
-static struct plx_pci_card_info plx_pci_card_info_esd2000 __devinitdata = {
+static struct plx_pci_card_info plx_pci_card_info_esd2000 = {
 	"esd CAN-PCIe/2000", 2,
 	PLX_PCI_CAN_CLOCK, PLX_PCI_OCR, PLX_PCI_CDR,
 	{0, 0x00, 0x00}, { {2, 0x00, 0x80}, {2, 0x100, 0x80} },
@@ -202,7 +202,7 @@ static struct plx_pci_card_info plx_pci_card_info_esd2000 __devinitdata = {
 	/* based on PEX8311 */
 };
 
-static struct plx_pci_card_info plx_pci_card_info_ixxat __devinitdata = {
+static struct plx_pci_card_info plx_pci_card_info_ixxat = {
 	"IXXAT PC-I 04/PCI", 2,
 	PLX_PCI_CAN_CLOCK, PLX_PCI_OCR, PLX_PCI_CDR,
 	{0, 0x00, 0x00}, { {2, 0x00, 0x80}, {2, 0x200, 0x80} },
@@ -210,7 +210,7 @@ static struct plx_pci_card_info plx_pci_card_info_ixxat __devinitdata = {
 	/* based on PLX9050 */
 };
 
-static struct plx_pci_card_info plx_pci_card_info_marathon __devinitdata = {
+static struct plx_pci_card_info plx_pci_card_info_marathon = {
 	"Marathon CAN-bus-PCI", 2,
 	PLX_PCI_CAN_CLOCK, PLX_PCI_OCR, PLX_PCI_CDR,
 	{0, 0x00, 0x00}, { {2, 0x00, 0x00}, {4, 0x00, 0x00} },
@@ -218,7 +218,7 @@ static struct plx_pci_card_info plx_pci_card_info_marathon __devinitdata = {
 	/* based on PLX9052 */
 };
 
-static struct plx_pci_card_info plx_pci_card_info_tews __devinitdata = {
+static struct plx_pci_card_info plx_pci_card_info_tews = {
 	"TEWS TECHNOLOGIES TPMC810", 2,
 	PLX_PCI_CAN_CLOCK, PLX_PCI_OCR, PLX_PCI_CDR,
 	{0, 0x00, 0x00}, { {2, 0x000, 0x80}, {2, 0x100, 0x80} },
@@ -226,7 +226,7 @@ static struct plx_pci_card_info plx_pci_card_info_tews __devinitdata = {
 	/* based on PLX9030 */
 };
 
-static struct plx_pci_card_info plx_pci_card_info_cti __devinitdata = {
+static struct plx_pci_card_info plx_pci_card_info_cti = {
 	"Connect Tech Inc. CANpro/104-Plus Opto (CRG001)", 2,
 	PLX_PCI_CAN_CLOCK, PLX_PCI_OCR, PLX_PCI_CDR,
 	{0, 0x00, 0x00}, { {2, 0x000, 0x80}, {2, 0x100, 0x80} },
@@ -484,7 +484,7 @@ static void plx_pci_del_card(struct pci_dev *pdev)
  * Probe PLX90xx based device for the SJA1000 chips and register each
  * available CAN channel to SJA1000 Socket-CAN subsystem.
  */
-static int __devinit plx_pci_add_card(struct pci_dev *pdev,
+static int plx_pci_add_card(struct pci_dev *pdev,
 				      const struct pci_device_id *ent)
 {
 	struct sja1000_priv *priv;

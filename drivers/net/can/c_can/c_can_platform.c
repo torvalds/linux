@@ -106,7 +106,7 @@ static const struct of_device_id c_can_of_table[] = {
 };
 MODULE_DEVICE_TABLE(of, c_can_of_table);
 
-static int __devinit c_can_plat_probe(struct platform_device *pdev)
+static int c_can_plat_probe(struct platform_device *pdev)
 {
 	int ret;
 	void __iomem *addr;
@@ -248,7 +248,7 @@ exit:
 	return ret;
 }
 
-static int __devexit c_can_plat_remove(struct platform_device *pdev)
+static int c_can_plat_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct c_can_priv *priv = netdev_priv(dev);
@@ -334,7 +334,7 @@ static struct platform_driver c_can_plat_driver = {
 		.of_match_table = of_match_ptr(c_can_of_table),
 	},
 	.probe = c_can_plat_probe,
-	.remove = __devexit_p(c_can_plat_remove),
+	.remove = c_can_plat_remove,
 	.suspend = c_can_suspend,
 	.resume = c_can_resume,
 	.id_table = c_can_id_table,
