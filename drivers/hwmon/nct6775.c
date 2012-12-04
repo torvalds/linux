@@ -255,6 +255,17 @@ static const u16 NCT6775_REG_TEMP_SOURCE[ARRAY_SIZE(NCT6775_REG_TEMP)] = {
 static const u16 NCT6775_REG_TEMP_SEL[] = {
 	0x100, 0x200, 0x300, 0x800, 0x900 };
 
+static const u16 NCT6775_REG_WEIGHT_TEMP_SEL[] = {
+	0x139, 0x239, 0x339, 0x839, 0x939 };
+static const u16 NCT6775_REG_WEIGHT_TEMP_STEP[] = {
+	0x13a, 0x23a, 0x33a, 0x83a, 0x93a };
+static const u16 NCT6775_REG_WEIGHT_TEMP_STEP_TOL[] = {
+	0x13b, 0x23b, 0x33b, 0x83b, 0x93b };
+static const u16 NCT6775_REG_WEIGHT_DUTY_STEP[] = {
+	0x13c, 0x23c, 0x33c, 0x83c, 0x93c };
+static const u16 NCT6775_REG_WEIGHT_TEMP_BASE[] = {
+	0x13d, 0x23d, 0x33d, 0x83d, 0x93d };
+
 static const u16 NCT6775_REG_TEMP_OFFSET[] = { 0x454, 0x455, 0x456 };
 
 static const u16 NCT6775_REG_AUTO_TEMP[] = {
@@ -322,6 +333,9 @@ static const u8 NCT6776_PWM_MODE_MASK[] = { 0x01, 0, 0 };
 
 static const u16 NCT6776_REG_FAN_MIN[] = { 0x63a, 0x63c, 0x63e, 0x640, 0x642 };
 static const u16 NCT6776_REG_FAN_PULSES[] = { 0x644, 0x645, 0x646, 0, 0 };
+
+static const u16 NCT6776_REG_WEIGHT_DUTY_BASE[] = {
+	0x13e, 0x23e, 0x33e, 0x83e, 0x93e };
 
 static const u16 NCT6776_REG_TEMP_CONFIG[ARRAY_SIZE(NCT6775_REG_TEMP)] = {
 	0x18, 0x152, 0x252, 0x628, 0x629, 0x62A };
@@ -571,8 +585,9 @@ struct nct6775_data {
 	const u8 *REG_PWM_MODE;
 	const u8 *PWM_MODE_MASK;
 
-	const u16 *REG_PWM[5];	/* [0]=pwm, [1]=pwm_start, [2]=pwm_floor,
-				 * [3]=pwm_max, [4]=pwm_step
+	const u16 *REG_PWM[7];	/* [0]=pwm, [1]=pwm_start, [2]=pwm_floor,
+				 * [3]=pwm_max, [4]=pwm_step,
+				 * [5]=weight_duty_step, [6]=weight_duty_base
 				 */
 	const u16 *REG_PWM_READ;
 
@@ -584,6 +599,9 @@ struct nct6775_data {
 
 	const u16 *REG_TEMP_SOURCE;	/* temp register sources */
 	const u16 *REG_TEMP_SEL;
+	const u16 *REG_WEIGHT_TEMP_SEL;
+	const u16 *REG_WEIGHT_TEMP[3];	/* 0=base, 1=tolerance, 2=step */
+
 	const u16 *REG_TEMP_OFFSET;
 
 	const u16 *REG_ALARM;
@@ -625,8 +643,9 @@ struct nct6775_data {
 			 * 4->SmartFan III
 			 * 5->enhanced variable thermal cruise (SmartFan IV)
 			 */
-	u8 pwm[5][5];	/* [0]=pwm, [1]=pwm_start, [2]=pwm_floor,
-			 * [3]=pwm_max, [4]=pwm_step
+	u8 pwm[7][5];	/* [0]=pwm, [1]=pwm_start, [2]=pwm_floor,
+			 * [3]=pwm_max, [4]=pwm_step,
+			 * [5]=weight_duty_step, [6]=weight_duty_base
 			 */
 
 	u8 target_temp[5];
@@ -645,6 +664,10 @@ struct nct6775_data {
 	u8 auto_pwm[5][7];
 	u8 auto_temp[5][7];
 	u8 pwm_temp_sel[5];
+	u8 pwm_weight_temp_sel[5];
+	u8 weight_temp[3][5];	/* 0->temp_step, 1->temp_step_tol,
+				 * 2->temp_base
+				 */
 
 	u8 vid;
 	u8 vrm;
@@ -972,6 +995,19 @@ static void nct6775_update_pwm(struct device *dev)
 		/* If fan can stop, report floor as 0 */
 		if (reg & 0x80)
 			data->pwm[2][i] = 0;
+
+		reg = nct6775_read_value(data, data->REG_WEIGHT_TEMP_SEL[i]);
+		data->pwm_weight_temp_sel[i] = reg & 0x1f;
+		/* If weight is disabled, report weight source as 0 */
+		if (j == 1 && !(reg & 0x80))
+			data->pwm_weight_temp_sel[i] = 0;
+
+		/* Weight temp data */
+		for (j = 0; j < 3; j++) {
+			data->weight_temp[j][i]
+			  = nct6775_read_value(data,
+					       data->REG_WEIGHT_TEMP[j][i]);
+		}
 	}
 }
 
@@ -1938,9 +1974,9 @@ store_pwm(struct device *dev, struct device_attribute *attr, const char *buf,
 	int nr = sattr->nr;
 	int index = sattr->index;
 	unsigned long val;
-	int minval[5] = { 0, 1, 1, data->pwm[2][nr], 0 };
-	int maxval[5]
-	  = { 255, 255, data->pwm[3][nr] ? : 255, 255, 255 };
+	int minval[7] = { 0, 1, 1, data->pwm[2][nr], 0, 0, 0 };
+	int maxval[7]
+	  = { 255, 255, data->pwm[3][nr] ? : 255, 255, 255, 255, 255 };
 	int err;
 	u8 reg;
 
@@ -2078,13 +2114,9 @@ store_pwm_enable(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
-show_pwm_temp_sel(struct device *dev, struct device_attribute *attr, char *buf)
+show_pwm_temp_sel_common(struct nct6775_data *data, char *buf, int src)
 {
-	struct nct6775_data *data = nct6775_update_device(dev);
-	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
-	int i, src, sel = 0;
-
-	src = data->pwm_temp_sel[sattr->index];
+	int i, sel = 0;
 
 	for (i = 0; i < NUM_TEMP; i++) {
 		if (!(data->have_temp & (1 << i)))
@@ -2096,6 +2128,16 @@ show_pwm_temp_sel(struct device *dev, struct device_attribute *attr, char *buf)
 	}
 
 	return sprintf(buf, "%d\n", sel);
+}
+
+static ssize_t
+show_pwm_temp_sel(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct nct6775_data *data = nct6775_update_device(dev);
+	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
+	int index = sattr->index;
+
+	return show_pwm_temp_sel_common(data, buf, data->pwm_temp_sel[index]);
 }
 
 static ssize_t
@@ -2123,6 +2165,56 @@ store_pwm_temp_sel(struct device *dev, struct device_attribute *attr,
 	reg &= 0xe0;
 	reg |= src;
 	nct6775_write_value(data, data->REG_TEMP_SEL[nr], reg);
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+static ssize_t
+show_pwm_weight_temp_sel(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct nct6775_data *data = nct6775_update_device(dev);
+	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
+	int index = sattr->index;
+
+	return show_pwm_temp_sel_common(data, buf,
+					data->pwm_weight_temp_sel[index]);
+}
+
+static ssize_t
+store_pwm_weight_temp_sel(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t count)
+{
+	struct nct6775_data *data = nct6775_update_device(dev);
+	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
+	int nr = sattr->index;
+	unsigned long val;
+	int err, reg, src;
+
+	err = kstrtoul(buf, 10, &val);
+	if (err < 0)
+		return err;
+	if (val > NUM_TEMP)
+		return -EINVAL;
+	if (val && (!(data->have_temp & (1 << (val - 1))) ||
+		    !data->temp_src[val - 1]))
+		return -EINVAL;
+
+	mutex_lock(&data->update_lock);
+	if (val) {
+		src = data->temp_src[val - 1];
+		data->pwm_weight_temp_sel[nr] = src;
+		reg = nct6775_read_value(data, data->REG_WEIGHT_TEMP_SEL[nr]);
+		reg &= 0xe0;
+		reg |= (src | 0x80);
+		nct6775_write_value(data, data->REG_WEIGHT_TEMP_SEL[nr], reg);
+	} else {
+		data->pwm_weight_temp_sel[nr] = 0;
+		reg = nct6775_read_value(data, data->REG_WEIGHT_TEMP_SEL[nr]);
+		reg &= 0x7f;
+		nct6775_write_value(data, data->REG_WEIGHT_TEMP_SEL[nr], reg);
+	}
 	mutex_unlock(&data->update_lock);
 
 	return count;
@@ -2381,6 +2473,115 @@ static SENSOR_DEVICE_ATTR(fan5_tolerance, S_IWUSR | S_IRUGO,
 /* Smart Fan registers */
 
 static ssize_t
+show_weight_temp(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct nct6775_data *data = nct6775_update_device(dev);
+	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
+	int nr = sattr->nr;
+	int index = sattr->index;
+
+	return sprintf(buf, "%d\n", data->weight_temp[index][nr] * 1000);
+}
+
+static ssize_t
+store_weight_temp(struct device *dev, struct device_attribute *attr,
+		  const char *buf, size_t count)
+{
+	struct nct6775_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
+	int nr = sattr->nr;
+	int index = sattr->index;
+	unsigned long val;
+	int err;
+
+	err = kstrtoul(buf, 10, &val);
+	if (err < 0)
+		return err;
+
+	val = clamp_val(DIV_ROUND_CLOSEST(val, 1000), 0, 255);
+
+	mutex_lock(&data->update_lock);
+	data->weight_temp[index][nr] = val;
+	nct6775_write_value(data, data->REG_WEIGHT_TEMP[index][nr], val);
+	mutex_unlock(&data->update_lock);
+	return count;
+}
+
+static SENSOR_DEVICE_ATTR(pwm1_weight_temp_sel, S_IWUSR | S_IRUGO,
+			    show_pwm_weight_temp_sel, store_pwm_weight_temp_sel,
+			    0);
+static SENSOR_DEVICE_ATTR(pwm2_weight_temp_sel, S_IWUSR | S_IRUGO,
+			    show_pwm_weight_temp_sel, store_pwm_weight_temp_sel,
+			    1);
+static SENSOR_DEVICE_ATTR(pwm3_weight_temp_sel, S_IWUSR | S_IRUGO,
+			    show_pwm_weight_temp_sel, store_pwm_weight_temp_sel,
+			    2);
+static SENSOR_DEVICE_ATTR(pwm4_weight_temp_sel, S_IWUSR | S_IRUGO,
+			    show_pwm_weight_temp_sel, store_pwm_weight_temp_sel,
+			    3);
+static SENSOR_DEVICE_ATTR(pwm5_weight_temp_sel, S_IWUSR | S_IRUGO,
+			    show_pwm_weight_temp_sel, store_pwm_weight_temp_sel,
+			    4);
+
+static SENSOR_DEVICE_ATTR_2(pwm1_weight_temp_step, S_IWUSR | S_IRUGO,
+			    show_weight_temp, store_weight_temp, 0, 0);
+static SENSOR_DEVICE_ATTR_2(pwm2_weight_temp_step, S_IWUSR | S_IRUGO,
+			    show_weight_temp, store_weight_temp, 1, 0);
+static SENSOR_DEVICE_ATTR_2(pwm3_weight_temp_step, S_IWUSR | S_IRUGO,
+			    show_weight_temp, store_weight_temp, 2, 0);
+static SENSOR_DEVICE_ATTR_2(pwm4_weight_temp_step, S_IWUSR | S_IRUGO,
+			    show_weight_temp, store_weight_temp, 3, 0);
+static SENSOR_DEVICE_ATTR_2(pwm5_weight_temp_step, S_IWUSR | S_IRUGO,
+			    show_weight_temp, store_weight_temp, 4, 0);
+
+static SENSOR_DEVICE_ATTR_2(pwm1_weight_temp_step_tol, S_IWUSR | S_IRUGO,
+			    show_weight_temp, store_weight_temp, 0, 1);
+static SENSOR_DEVICE_ATTR_2(pwm2_weight_temp_step_tol, S_IWUSR | S_IRUGO,
+			    show_weight_temp, store_weight_temp, 1, 1);
+static SENSOR_DEVICE_ATTR_2(pwm3_weight_temp_step_tol, S_IWUSR | S_IRUGO,
+			    show_weight_temp, store_weight_temp, 2, 1);
+static SENSOR_DEVICE_ATTR_2(pwm4_weight_temp_step_tol, S_IWUSR | S_IRUGO,
+			    show_weight_temp, store_weight_temp, 3, 1);
+static SENSOR_DEVICE_ATTR_2(pwm5_weight_temp_step_tol, S_IWUSR | S_IRUGO,
+			    show_weight_temp, store_weight_temp, 4, 1);
+
+static SENSOR_DEVICE_ATTR_2(pwm1_weight_temp_step_base, S_IWUSR | S_IRUGO,
+			    show_weight_temp, store_weight_temp, 0, 2);
+static SENSOR_DEVICE_ATTR_2(pwm2_weight_temp_step_base, S_IWUSR | S_IRUGO,
+			    show_weight_temp, store_weight_temp, 1, 2);
+static SENSOR_DEVICE_ATTR_2(pwm3_weight_temp_step_base, S_IWUSR | S_IRUGO,
+			    show_weight_temp, store_weight_temp, 2, 2);
+static SENSOR_DEVICE_ATTR_2(pwm4_weight_temp_step_base, S_IWUSR | S_IRUGO,
+			    show_weight_temp, store_weight_temp, 3, 2);
+static SENSOR_DEVICE_ATTR_2(pwm5_weight_temp_step_base, S_IWUSR | S_IRUGO,
+			    show_weight_temp, store_weight_temp, 4, 2);
+
+static SENSOR_DEVICE_ATTR_2(pwm1_weight_duty_step, S_IWUSR | S_IRUGO,
+			    show_pwm, store_pwm, 0, 5);
+static SENSOR_DEVICE_ATTR_2(pwm2_weight_duty_step, S_IWUSR | S_IRUGO,
+			    show_pwm, store_pwm, 1, 5);
+static SENSOR_DEVICE_ATTR_2(pwm3_weight_duty_step, S_IWUSR | S_IRUGO,
+			    show_pwm, store_pwm, 2, 5);
+static SENSOR_DEVICE_ATTR_2(pwm4_weight_duty_step, S_IWUSR | S_IRUGO,
+			    show_pwm, store_pwm, 3, 5);
+static SENSOR_DEVICE_ATTR_2(pwm5_weight_duty_step, S_IWUSR | S_IRUGO,
+			    show_pwm, store_pwm, 4, 5);
+
+/* duty_base is not supported on all chips */
+static struct sensor_device_attribute_2 sda_weight_duty_base[] = {
+	SENSOR_ATTR_2(pwm1_weight_duty_base, S_IWUSR | S_IRUGO,
+		      show_pwm, store_pwm, 0, 6),
+	SENSOR_ATTR_2(pwm2_weight_duty_base, S_IWUSR | S_IRUGO,
+		      show_pwm, store_pwm, 1, 6),
+	SENSOR_ATTR_2(pwm3_weight_duty_base, S_IWUSR | S_IRUGO,
+		      show_pwm, store_pwm, 2, 6),
+	SENSOR_ATTR_2(pwm4_weight_duty_base, S_IWUSR | S_IRUGO,
+		      show_pwm, store_pwm, 3, 6),
+	SENSOR_ATTR_2(pwm5_weight_duty_base, S_IWUSR | S_IRUGO,
+		      show_pwm, store_pwm, 4, 6),
+};
+
+static ssize_t
 show_fan_time(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct nct6775_data *data = nct6775_update_device(dev);
@@ -2526,7 +2727,7 @@ static struct sensor_device_attribute_2 sda_pwm_step[] = {
 	SENSOR_ATTR_2(pwm5_step, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 4, 4),
 };
 
-static struct attribute *nct6775_attributes_pwm[5][15] = {
+static struct attribute *nct6775_attributes_pwm[5][20] = {
 	{
 		&sensor_dev_attr_pwm1.dev_attr.attr,
 		&sensor_dev_attr_pwm1_mode.dev_attr.attr,
@@ -2542,6 +2743,11 @@ static struct attribute *nct6775_attributes_pwm[5][15] = {
 		&sensor_dev_attr_pwm1_step_down_time.dev_attr.attr,
 		&sensor_dev_attr_pwm1_start.dev_attr.attr,
 		&sensor_dev_attr_pwm1_floor.dev_attr.attr,
+		&sensor_dev_attr_pwm1_weight_temp_sel.dev_attr.attr,
+		&sensor_dev_attr_pwm1_weight_temp_step.dev_attr.attr,
+		&sensor_dev_attr_pwm1_weight_temp_step_tol.dev_attr.attr,
+		&sensor_dev_attr_pwm1_weight_temp_step_base.dev_attr.attr,
+		&sensor_dev_attr_pwm1_weight_duty_step.dev_attr.attr,
 		NULL
 	},
 	{
@@ -2559,6 +2765,11 @@ static struct attribute *nct6775_attributes_pwm[5][15] = {
 		&sensor_dev_attr_pwm2_step_down_time.dev_attr.attr,
 		&sensor_dev_attr_pwm2_start.dev_attr.attr,
 		&sensor_dev_attr_pwm2_floor.dev_attr.attr,
+		&sensor_dev_attr_pwm2_weight_temp_sel.dev_attr.attr,
+		&sensor_dev_attr_pwm2_weight_temp_step.dev_attr.attr,
+		&sensor_dev_attr_pwm2_weight_temp_step_tol.dev_attr.attr,
+		&sensor_dev_attr_pwm2_weight_temp_step_base.dev_attr.attr,
+		&sensor_dev_attr_pwm2_weight_duty_step.dev_attr.attr,
 		NULL
 	},
 	{
@@ -2576,6 +2787,11 @@ static struct attribute *nct6775_attributes_pwm[5][15] = {
 		&sensor_dev_attr_pwm3_step_down_time.dev_attr.attr,
 		&sensor_dev_attr_pwm3_start.dev_attr.attr,
 		&sensor_dev_attr_pwm3_floor.dev_attr.attr,
+		&sensor_dev_attr_pwm3_weight_temp_sel.dev_attr.attr,
+		&sensor_dev_attr_pwm3_weight_temp_step.dev_attr.attr,
+		&sensor_dev_attr_pwm3_weight_temp_step_tol.dev_attr.attr,
+		&sensor_dev_attr_pwm3_weight_temp_step_base.dev_attr.attr,
+		&sensor_dev_attr_pwm3_weight_duty_step.dev_attr.attr,
 		NULL
 	},
 	{
@@ -2593,6 +2809,11 @@ static struct attribute *nct6775_attributes_pwm[5][15] = {
 		&sensor_dev_attr_pwm4_step_down_time.dev_attr.attr,
 		&sensor_dev_attr_pwm4_start.dev_attr.attr,
 		&sensor_dev_attr_pwm4_floor.dev_attr.attr,
+		&sensor_dev_attr_pwm4_weight_temp_sel.dev_attr.attr,
+		&sensor_dev_attr_pwm4_weight_temp_step.dev_attr.attr,
+		&sensor_dev_attr_pwm4_weight_temp_step_tol.dev_attr.attr,
+		&sensor_dev_attr_pwm4_weight_temp_step_base.dev_attr.attr,
+		&sensor_dev_attr_pwm4_weight_duty_step.dev_attr.attr,
 		NULL
 	},
 	{
@@ -2610,6 +2831,11 @@ static struct attribute *nct6775_attributes_pwm[5][15] = {
 		&sensor_dev_attr_pwm5_step_down_time.dev_attr.attr,
 		&sensor_dev_attr_pwm5_start.dev_attr.attr,
 		&sensor_dev_attr_pwm5_floor.dev_attr.attr,
+		&sensor_dev_attr_pwm5_weight_temp_sel.dev_attr.attr,
+		&sensor_dev_attr_pwm5_weight_temp_step.dev_attr.attr,
+		&sensor_dev_attr_pwm5_weight_temp_step_tol.dev_attr.attr,
+		&sensor_dev_attr_pwm5_weight_temp_step_base.dev_attr.attr,
+		&sensor_dev_attr_pwm5_weight_duty_step.dev_attr.attr,
 		NULL
 	},
 };
@@ -2974,6 +3200,9 @@ static void nct6775_device_remove_files(struct device *dev)
 	for (i = 0; i < ARRAY_SIZE(sda_pwm_step); i++)
 		device_remove_file(dev, &sda_pwm_step[i].dev_attr);
 
+	for (i = 0; i < ARRAY_SIZE(sda_weight_duty_base); i++)
+		device_remove_file(dev, &sda_weight_duty_base[i].dev_attr);
+
 	for (i = 0; i < ARRAY_SIZE(sda_auto_pwm_arrays); i++)
 		device_remove_file(dev, &sda_auto_pwm_arrays[i].dev_attr);
 
@@ -3203,6 +3432,7 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_PWM[2] = NCT6775_REG_FAN_STOP_OUTPUT;
 		data->REG_PWM[3] = NCT6775_REG_FAN_MAX_OUTPUT;
 		data->REG_PWM[4] = NCT6775_REG_FAN_STEP_OUTPUT;
+		data->REG_PWM[5] = NCT6775_REG_WEIGHT_DUTY_STEP;
 		data->REG_PWM_READ = NCT6775_REG_PWM_READ;
 		data->REG_PWM_MODE = NCT6775_REG_PWM_MODE;
 		data->PWM_MODE_MASK = NCT6775_PWM_MODE_MASK;
@@ -3214,6 +3444,10 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_TEMP_OFFSET = NCT6775_REG_TEMP_OFFSET;
 		data->REG_TEMP_SOURCE = NCT6775_REG_TEMP_SOURCE;
 		data->REG_TEMP_SEL = NCT6775_REG_TEMP_SEL;
+		data->REG_WEIGHT_TEMP_SEL = NCT6775_REG_WEIGHT_TEMP_SEL;
+		data->REG_WEIGHT_TEMP[0] = NCT6775_REG_WEIGHT_TEMP_STEP;
+		data->REG_WEIGHT_TEMP[1] = NCT6775_REG_WEIGHT_TEMP_STEP_TOL;
+		data->REG_WEIGHT_TEMP[2] = NCT6775_REG_WEIGHT_TEMP_BASE;
 		data->REG_ALARM = NCT6775_REG_ALARM;
 
 		reg_temp = NCT6775_REG_TEMP;
@@ -3261,6 +3495,8 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_PWM[0] = NCT6775_REG_PWM;
 		data->REG_PWM[1] = NCT6775_REG_FAN_START_OUTPUT;
 		data->REG_PWM[2] = NCT6775_REG_FAN_STOP_OUTPUT;
+		data->REG_PWM[5] = NCT6775_REG_WEIGHT_DUTY_STEP;
+		data->REG_PWM[6] = NCT6776_REG_WEIGHT_DUTY_BASE;
 		data->REG_PWM_READ = NCT6775_REG_PWM_READ;
 		data->REG_PWM_MODE = NCT6776_REG_PWM_MODE;
 		data->PWM_MODE_MASK = NCT6776_PWM_MODE_MASK;
@@ -3272,6 +3508,10 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_TEMP_OFFSET = NCT6775_REG_TEMP_OFFSET;
 		data->REG_TEMP_SOURCE = NCT6775_REG_TEMP_SOURCE;
 		data->REG_TEMP_SEL = NCT6775_REG_TEMP_SEL;
+		data->REG_WEIGHT_TEMP_SEL = NCT6775_REG_WEIGHT_TEMP_SEL;
+		data->REG_WEIGHT_TEMP[0] = NCT6775_REG_WEIGHT_TEMP_STEP;
+		data->REG_WEIGHT_TEMP[1] = NCT6775_REG_WEIGHT_TEMP_STEP_TOL;
+		data->REG_WEIGHT_TEMP[2] = NCT6775_REG_WEIGHT_TEMP_BASE;
 		data->REG_ALARM = NCT6775_REG_ALARM;
 
 		reg_temp = NCT6775_REG_TEMP;
@@ -3319,6 +3559,8 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_PWM[0] = NCT6775_REG_PWM;
 		data->REG_PWM[1] = NCT6775_REG_FAN_START_OUTPUT;
 		data->REG_PWM[2] = NCT6775_REG_FAN_STOP_OUTPUT;
+		data->REG_PWM[5] = NCT6775_REG_WEIGHT_DUTY_STEP;
+		data->REG_PWM[6] = NCT6776_REG_WEIGHT_DUTY_BASE;
 		data->REG_PWM_READ = NCT6775_REG_PWM_READ;
 		data->REG_PWM_MODE = NCT6776_REG_PWM_MODE;
 		data->PWM_MODE_MASK = NCT6776_PWM_MODE_MASK;
@@ -3330,6 +3572,10 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_TEMP_OFFSET = NCT6779_REG_TEMP_OFFSET;
 		data->REG_TEMP_SOURCE = NCT6775_REG_TEMP_SOURCE;
 		data->REG_TEMP_SEL = NCT6775_REG_TEMP_SEL;
+		data->REG_WEIGHT_TEMP_SEL = NCT6775_REG_WEIGHT_TEMP_SEL;
+		data->REG_WEIGHT_TEMP[0] = NCT6775_REG_WEIGHT_TEMP_STEP;
+		data->REG_WEIGHT_TEMP[1] = NCT6775_REG_WEIGHT_TEMP_STEP_TOL;
+		data->REG_WEIGHT_TEMP[2] = NCT6775_REG_WEIGHT_TEMP_BASE;
 		data->REG_ALARM = NCT6779_REG_ALARM;
 
 		reg_temp = NCT6779_REG_TEMP;
@@ -3554,6 +3800,12 @@ static int nct6775_probe(struct platform_device *pdev)
 		if (data->REG_PWM[4]) {
 			err = device_create_file(dev,
 					&sda_pwm_step[i].dev_attr);
+			if (err)
+				goto exit_remove;
+		}
+		if (data->REG_PWM[6]) {
+			err = device_create_file(dev,
+					&sda_weight_duty_base[i].dev_attr);
 			if (err)
 				goto exit_remove;
 		}

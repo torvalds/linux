@@ -92,6 +92,25 @@ Common fan control attributes
 
 pwm[1-5]_temp_sel	Temperature source. Value is temperature sensor index.
 			For example, select '1' for temp1_input.
+pwm[1-5]_weight_temp_sel
+			Secondary temperature source. Value is temperature
+			sensor index. For example, select '1' for temp1_input.
+			Set to 0 to disable secondary temperature control.
+
+If secondary temperature functionality is enabled, it is controlled with the
+following attributes.
+
+pwm[1-5]_weight_duty_step
+			Duty step size.
+pwm[1-5]_weight_temp_step
+			Temperature step size. With each step over
+			temp_step_base, the value of weight_duty_step is added
+			to the current pwm value.
+pwm[1-5]_weight_temp_step_base
+			Temperature at which secondary temperature control kicks
+			in.
+pwm[1-5]_weight_temp_step_tol
+			Temperature step tolerance.
 
 Thermal Cruise mode (2)
 -----------------------
