@@ -127,6 +127,16 @@
 				status = "disable";
 			};
 
+			macb0: ethernet@fffbc000 {
+				compatible = "cdns,at91rm9200-emac", "cdns,emac";
+				reg = <0xfffbc000 0x4000>;
+				interrupts = <24 4 3>;
+				phy-mode = "rmii";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_macb_rmii>;
+				status = "disabled";
+			};
+
 			pinctrl@fffff400 {
 				#address-cells = <1>;
 				#size-cells = <1>;
@@ -243,6 +253,34 @@
 						atmel,pins =
 							<2 2 0x0 0x1	/* PC2 gpio RDY pin pull_up */
 							 1 1 0x0 0x1>;	/* PB1 gpio CD pin pull_up */
+					};
+				};
+
+				macb {
+					pinctrl_macb_rmii: macb_rmii-0 {
+						atmel,pins =
+							<0 7 0x1 0x0	/* PA7 periph A */
+							 0 8 0x1 0x0	/* PA8 periph A */
+							 0 9 0x1 0x0	/* PA9 periph A */
+							 0 10 0x1 0x0	/* PA10 periph A */
+							 0 11 0x1 0x0	/* PA11 periph A */
+							 0 12 0x1 0x0	/* PA12 periph A */
+							 0 13 0x1 0x0	/* PA13 periph A */
+							 0 14 0x1 0x0	/* PA14 periph A */
+							 0 15 0x1 0x0	/* PA15 periph A */
+							 0 16 0x1 0x0>;	/* PA16 periph A */
+					};
+
+					pinctrl_macb_rmii_mii: macb_rmii_mii-0 {
+						atmel,pins =
+							<1 12 0x2 0x0	/* PB12 periph B */
+							 1 13 0x2 0x0	/* PB13 periph B */
+							 1 14 0x2 0x0	/* PB14 periph B */
+							 1 15 0x2 0x0	/* PB15 periph B */
+							 1 16 0x2 0x0	/* PB16 periph B */
+							 1 17 0x2 0x0	/* PB17 periph B */
+							 1 18 0x2 0x0	/* PB18 periph B */
+							 1 19 0x2 0x0>;	/* PB19 periph B */
 					};
 				};
 
