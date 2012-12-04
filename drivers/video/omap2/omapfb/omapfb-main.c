@@ -2349,27 +2349,37 @@ static int omapfb_init_display(struct omapfb2_device *fbdev,
 }
 
 static int omapfb_init_connections(struct omapfb2_device *fbdev,
-		struct omap_dss_device *dssdev)
+		struct omap_dss_device *def_dssdev)
 {
 	int i, r;
-	struct omap_overlay_manager *mgr = NULL;
+	struct omap_overlay_manager *mgr;
 
-	for (i = 0; i < fbdev->num_managers; i++) {
-		mgr = fbdev->managers[i];
-
-		if (dssdev->channel == mgr->id)
-			break;
+	if (!def_dssdev->output) {
+		dev_err(fbdev->dev, "no output for the default display\n");
+		return -EINVAL;
 	}
 
-	if (i == fbdev->num_managers)
-		return -ENODEV;
+	for (i = 0; i < fbdev->num_displays; ++i) {
+		struct omap_dss_device *dssdev = fbdev->displays[i].dssdev;
+		struct omap_dss_output *out = dssdev->output;
 
-	if (mgr->output)
-		mgr->unset_output(mgr);
+		mgr = omap_dss_get_overlay_manager(dssdev->channel);
 
-	r = mgr->set_output(mgr, dssdev->output);
-	if (r)
-		return r;
+		if (!mgr || !out)
+			continue;
+
+		if (mgr->output)
+			mgr->unset_output(mgr);
+
+		mgr->set_output(mgr, out);
+	}
+
+	mgr = def_dssdev->output->manager;
+
+	if (!mgr) {
+		dev_err(fbdev->dev, "no ovl manager for the default display\n");
+		return -EINVAL;
+	}
 
 	for (i = 0; i < fbdev->num_overlays; i++) {
 		struct omap_overlay *ovl = fbdev->overlays[i];
