@@ -423,9 +423,12 @@ static int picodlp_panel_probe(struct omap_dss_device *dssdev)
 	struct picodlp_panel_data *picodlp_pdata = get_panel_data(dssdev);
 	struct i2c_adapter *adapter;
 	struct i2c_client *picodlp_i2c_client;
-	int picodlp_adapter_id;
+	int r, picodlp_adapter_id;
 
 	dssdev->panel.timings = pico_ls_timings;
+
+	if (!picodlp_pdata)
+		return -EINVAL;
 
 	picod = devm_kzalloc(&dssdev->dev, sizeof(*picod), GFP_KERNEL);
 	if (!picod)
@@ -451,6 +454,22 @@ static int picodlp_panel_probe(struct omap_dss_device *dssdev)
 	picod->picodlp_i2c_client = picodlp_i2c_client;
 
 	dev_set_drvdata(&dssdev->dev, picod);
+
+	if (gpio_is_valid(picodlp_pdata->emu_done_gpio)) {
+		r = devm_gpio_request_one(&dssdev->dev,
+				picodlp_pdata->emu_done_gpio,
+				GPIOF_IN, "DLP EMU DONE");
+		if (r)
+			return r;
+	}
+
+	if (gpio_is_valid(picodlp_pdata->pwrgood_gpio)) {
+		r = devm_gpio_request_one(&dssdev->dev,
+				picodlp_pdata->pwrgood_gpio,
+				GPIOF_OUT_INIT_LOW, "DLP PWRGOOD");
+		if (r)
+			return r;
+	}
 
 	return 0;
 }
