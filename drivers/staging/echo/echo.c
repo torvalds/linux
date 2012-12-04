@@ -119,7 +119,6 @@
 static inline void lms_adapt_bg(struct oslec_state *ec, int clean, int shift)
 {
 	int i;
-	int j;
 	int offset1;
 	int offset2;
 	int factor;
@@ -142,7 +141,7 @@ static inline void lms_adapt_bg(struct oslec_state *ec, int clean, int shift)
 
 	/* asm("st:"); */
 	n = ec->taps;
-	for (i = 0, j = offset2; i < n; i++, j++) {
+	for (i = 0; i < n; i++) {
 		exp = *phist++ * factor;
 		ec->fir_taps16[1][i] += (int16_t) ((exp + (1 << 14)) >> 15);
 	}
