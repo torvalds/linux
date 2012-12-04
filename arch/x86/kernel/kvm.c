@@ -43,6 +43,7 @@
 #include <asm/apicdef.h>
 #include <asm/hypervisor.h>
 #include <asm/kvm_guest.h>
+#include <asm/context_tracking.h>
 
 static int kvmapf = 1;
 
@@ -121,6 +122,8 @@ void kvm_async_pf_task_wait(u32 token)
 	struct kvm_task_sleep_node n, *e;
 	DEFINE_WAIT(wait);
 
+	rcu_irq_enter();
+
 	spin_lock(&b->lock);
 	e = _find_apf_task(b, token);
 	if (e) {
@@ -128,6 +131,8 @@ void kvm_async_pf_task_wait(u32 token)
 		hlist_del(&e->link);
 		kfree(e);
 		spin_unlock(&b->lock);
+
+		rcu_irq_exit();
 		return;
 	}
 
@@ -152,13 +157,16 @@ void kvm_async_pf_task_wait(u32 token)
 			/*
 			 * We cannot reschedule. So halt.
 			 */
+			rcu_irq_exit();
 			native_safe_halt();
+			rcu_irq_enter();
 			local_irq_disable();
 		}
 	}
 	if (!n.halted)
 		finish_wait(&n.wq, &wait);
 
+	rcu_irq_exit();
 	return;
 }
 EXPORT_SYMBOL_GPL(kvm_async_pf_task_wait);
@@ -252,10 +260,10 @@ do_async_page_fault(struct pt_regs *regs, unsigned long error_code)
 		break;
 	case KVM_PV_REASON_PAGE_NOT_PRESENT:
 		/* page is swapped out by the host. */
-		rcu_irq_enter();
+		exception_enter(regs);
 		exit_idle();
 		kvm_async_pf_task_wait((u32)read_cr2());
-		rcu_irq_exit();
+		exception_exit(regs);
 		break;
 	case KVM_PV_REASON_PAGE_READY:
 		rcu_irq_enter();
