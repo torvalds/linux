@@ -1515,4 +1515,11 @@ struct qlcnic_nic_template {
 			__func__, ##_args);		\
 	} while (0)
 
+#define PCI_DEVICE_ID_QLOGIC_QLE824X	0x8020
+static inline bool qlcnic_82xx_check(struct qlcnic_adapter *adapter)
+{
+	unsigned short device = adapter->pdev->device;
+	return (device == PCI_DEVICE_ID_QLOGIC_QLE824X) ? true : false;
+}
+
 #endif				/* __QLCNIC_H_ */
