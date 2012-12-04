@@ -28,7 +28,11 @@ obj-$(CONFIG_MXC_ULPI) += ulpi.o
 obj-$(CONFIG_MXC_USE_EPIT) += epit.o
 obj-$(CONFIG_MXC_DEBUG_BOARD) += 3ds_debugboard.o
 obj-$(CONFIG_CPU_FREQ_IMX)    += cpufreq.o
-obj-$(CONFIG_CPU_IDLE) += cpuidle.o
+
+ifeq ($(CONFIG_CPU_IDLE),y)
+obj-y += cpuidle.o
+obj-$(CONFIG_SOC_IMX6Q) += cpuidle-imx6q.o
+endif
 
 ifdef CONFIG_SND_IMX_SOC
 obj-y += ssi-fiq.o

@@ -12,7 +12,6 @@
 
 #include <linux/clk.h>
 #include <linux/clkdev.h>
-#include <linux/cpuidle.h>
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/init.h>
@@ -26,7 +25,6 @@
 #include <linux/regmap.h>
 #include <linux/micrel_phy.h>
 #include <linux/mfd/syscon.h>
-#include <asm/cpuidle.h>
 #include <asm/smp_twd.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/hardware/gic.h>
@@ -202,17 +200,9 @@ static void __init imx6q_init_machine(void)
 	imx6q_1588_init();
 }
 
-static struct cpuidle_driver imx6q_cpuidle_driver = {
-	.name			= "imx6q_cpuidle",
-	.owner			= THIS_MODULE,
-	.en_core_tk_irqen	= 1,
-	.states[0]		= ARM_CPUIDLE_WFI_STATE,
-	.state_count		= 1,
-};
-
 static void __init imx6q_init_late(void)
 {
-	imx_cpuidle_init(&imx6q_cpuidle_driver);
+	imx6q_cpuidle_init();
 }
 
 static void __init imx6q_map_io(void)
