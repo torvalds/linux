@@ -2249,7 +2249,10 @@ static int ip6mr_fill_mroute(struct mr6_table *mrt, struct sk_buff *skb,
 	if (nla_put_u32(skb, RTA_TABLE, mrt->id))
 		goto nla_put_failure;
 	rtm->rtm_scope    = RT_SCOPE_UNIVERSE;
-	rtm->rtm_protocol = RTPROT_UNSPEC;
+	if (c->mfc_flags & MFC_STATIC)
+		rtm->rtm_protocol = RTPROT_STATIC;
+	else
+		rtm->rtm_protocol = RTPROT_MROUTED;
 	rtm->rtm_flags    = 0;
 
 	if (nla_put(skb, RTA_SRC, 16, &c->mf6c_origin) ||

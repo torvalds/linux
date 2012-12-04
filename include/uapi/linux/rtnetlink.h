@@ -227,6 +227,7 @@ enum {
 #define RTPROT_XORP	14	/* XORP */
 #define RTPROT_NTK	15	/* Netsukuku */
 #define RTPROT_DHCP	16      /* DHCP client */
+#define RTPROT_MROUTED	17      /* Multicast daemon */
 
 /* rtm_scope
 

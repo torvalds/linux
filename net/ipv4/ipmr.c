@@ -2169,7 +2169,10 @@ static int ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 		goto nla_put_failure;
 	rtm->rtm_type     = RTN_MULTICAST;
 	rtm->rtm_scope    = RT_SCOPE_UNIVERSE;
-	rtm->rtm_protocol = RTPROT_UNSPEC;
+	if (c->mfc_flags & MFC_STATIC)
+		rtm->rtm_protocol = RTPROT_STATIC;
+	else
+		rtm->rtm_protocol = RTPROT_MROUTED;
 	rtm->rtm_flags    = 0;
 
 	if (nla_put_be32(skb, RTA_SRC, c->mfc_origin) ||
