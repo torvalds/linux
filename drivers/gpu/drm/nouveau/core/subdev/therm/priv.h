@@ -80,4 +80,6 @@ int nv50_fan_pwm_set(struct nouveau_therm *, int, u32, u32);
 int nv50_fan_pwm_clock(struct nouveau_therm *);
 int nv50_temp_get(struct nouveau_therm *therm);
 
+int nva3_therm_fan_sense(struct nouveau_therm *);
+
 #endif

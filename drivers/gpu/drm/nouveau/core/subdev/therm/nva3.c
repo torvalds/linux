@@ -30,7 +30,7 @@ struct nva3_therm_priv {
 	struct nouveau_therm_priv base;
 };
 
-static int
+int
 nva3_therm_fan_sense(struct nouveau_therm *therm)
 {
 	u32 tach = nv_rd32(therm, 0x00e728) & 0x0000ffff;
