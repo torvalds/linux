@@ -908,6 +908,9 @@ static int __devexit i2c_hid_remove(struct i2c_client *client)
 
 	free_irq(client->irq, ihid);
 
+	if (ihid->bufsize)
+		i2c_hid_free_buffers(ihid);
+
 	kfree(ihid);
 
 	return 0;
