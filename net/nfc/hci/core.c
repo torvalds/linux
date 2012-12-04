@@ -297,6 +297,12 @@ void nfc_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 		goto exit;
 	}
 
+	if (hdev->ops->event_received) {
+		r = hdev->ops->event_received(hdev, gate, event, skb);
+		if (r <= 0)
+			goto exit_noskb;
+	}
+
 	switch (event) {
 	case NFC_HCI_EVT_TARGET_DISCOVERED:
 		if (skb->len < 1) {	/* no status data? */
@@ -322,12 +328,8 @@ void nfc_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 		r = nfc_hci_target_discovered(hdev, gate);
 		break;
 	default:
-		if (hdev->ops->event_received) {
-			r = hdev->ops->event_received(hdev, gate, event, skb);
-			goto exit_noskb;
-		} else {
-			r = -EINVAL;
-		}
+		pr_info("Discarded unknown event %x to gate %x\n", event, gate);
+		r = -EINVAL;
 		break;
 	}
 
