@@ -53,8 +53,9 @@ triggered if the rotation speed has dropped below a programmable limit. On
 NCT6775F, fan readings can be divided by a programmable divider (1, 2, 4, 8,
 16, 32, 64 or 128) to give the readings more range or accuracy; the other chips
 do not have a fan speed divider. The driver sets the most suitable fan divisor
-itself; specifically, it doubles the divider value each time a fan speed reading
-returns an invalid value. Some fans might not be present because they share pins
+itself; specifically, it increases the divider value each time a fan speed
+reading returns an invalid value, and it reduces it if the fan speed reading
+is lower than optimal. Some fans might not be present because they share pins
 with other functions.
 
 Voltage sensors (also known as IN sensors) report their values in millivolts.
