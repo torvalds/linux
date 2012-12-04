@@ -105,22 +105,17 @@ static const struct i2c_hid_cmd hid_reset_cmd =		{ I2C_HID_CMD(0x01),
 							  .wait = true };
 static const struct i2c_hid_cmd hid_get_report_cmd =	{ I2C_HID_CMD(0x02) };
 static const struct i2c_hid_cmd hid_set_report_cmd =	{ I2C_HID_CMD(0x03) };
-static const struct i2c_hid_cmd hid_get_idle_cmd =	{ I2C_HID_CMD(0x04) };
-static const struct i2c_hid_cmd hid_set_idle_cmd =	{ I2C_HID_CMD(0x05) };
-static const struct i2c_hid_cmd hid_get_protocol_cmd =	{ I2C_HID_CMD(0x06) };
-static const struct i2c_hid_cmd hid_set_protocol_cmd =	{ I2C_HID_CMD(0x07) };
 static const struct i2c_hid_cmd hid_set_power_cmd =	{ I2C_HID_CMD(0x08) };
-/* read/write data register */
-static const struct i2c_hid_cmd hid_data_cmd = {
-		.registerIndex = offsetof(struct i2c_hid_desc, wDataRegister),
-		.opcode = 0x00,
-		.length = 2 };
-/* write output reports */
-static const struct i2c_hid_cmd hid_out_cmd = {
-		.registerIndex = offsetof(struct i2c_hid_desc,
-			wOutputRegister),
-		.opcode = 0x00,
-		.length = 2 };
+
+/*
+ * These definitions are not used here, but are defined by the spec.
+ * Keeping them here for documentation purposes.
+ *
+ * static const struct i2c_hid_cmd hid_get_idle_cmd = { I2C_HID_CMD(0x04) };
+ * static const struct i2c_hid_cmd hid_set_idle_cmd = { I2C_HID_CMD(0x05) };
+ * static const struct i2c_hid_cmd hid_get_protocol_cmd = { I2C_HID_CMD(0x06) };
+ * static const struct i2c_hid_cmd hid_set_protocol_cmd = { I2C_HID_CMD(0x07) };
+ */
 
 /* The main device structure */
 struct i2c_hid {
