@@ -389,7 +389,7 @@ static void i915_ring_seqno_info(struct seq_file *m,
 				 struct intel_ring_buffer *ring)
 {
 	if (ring->get_seqno) {
-		seq_printf(m, "Current sequence (%s): %d\n",
+		seq_printf(m, "Current sequence (%s): %u\n",
 			   ring->name, ring->get_seqno(ring, false));
 	}
 }
