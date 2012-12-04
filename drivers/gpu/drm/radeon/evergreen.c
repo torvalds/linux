@@ -2404,6 +2404,8 @@ void evergreen_disable_interrupt_state(struct radeon_device *rdev)
 					 CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
 		cayman_cp_int_cntl_setup(rdev, 1, 0);
 		cayman_cp_int_cntl_setup(rdev, 2, 0);
+		tmp = RREG32(CAYMAN_DMA1_CNTL) & ~TRAP_ENABLE;
+		WREG32(CAYMAN_DMA1_CNTL, tmp);
 	} else
 		WREG32(CP_INT_CNTL, CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
 	tmp = RREG32(DMA_CNTL) & ~TRAP_ENABLE;
@@ -2460,7 +2462,7 @@ int evergreen_irq_set(struct radeon_device *rdev)
 	u32 grbm_int_cntl = 0;
 	u32 grph1 = 0, grph2 = 0, grph3 = 0, grph4 = 0, grph5 = 0, grph6 = 0;
 	u32 afmt1 = 0, afmt2 = 0, afmt3 = 0, afmt4 = 0, afmt5 = 0, afmt6 = 0;
-	u32 dma_cntl;
+	u32 dma_cntl, dma_cntl1 = 0;
 
 	if (!rdev->irq.installed) {
 		WARN(1, "Can't enable IRQ/MSI because no handler is installed\n");
@@ -2515,6 +2517,14 @@ int evergreen_irq_set(struct radeon_device *rdev)
 	if (atomic_read(&rdev->irq.ring_int[R600_RING_TYPE_DMA_INDEX])) {
 		DRM_DEBUG("r600_irq_set: sw int dma\n");
 		dma_cntl |= TRAP_ENABLE;
+	}
+
+	if (rdev->family >= CHIP_CAYMAN) {
+		dma_cntl1 = RREG32(CAYMAN_DMA1_CNTL) & ~TRAP_ENABLE;
+		if (atomic_read(&rdev->irq.ring_int[CAYMAN_RING_TYPE_DMA1_INDEX])) {
+			DRM_DEBUG("r600_irq_set: sw int dma1\n");
+			dma_cntl1 |= TRAP_ENABLE;
+		}
 	}
 
 	if (rdev->irq.crtc_vblank_int[0] ||
@@ -2604,6 +2614,9 @@ int evergreen_irq_set(struct radeon_device *rdev)
 		WREG32(CP_INT_CNTL, cp_int_cntl);
 
 	WREG32(DMA_CNTL, dma_cntl);
+
+	if (rdev->family >= CHIP_CAYMAN)
+		WREG32(CAYMAN_DMA1_CNTL, dma_cntl1);
 
 	WREG32(GRBM_INT_CNTL, grbm_int_cntl);
 
@@ -3146,6 +3159,12 @@ restart_ih:
 			break;
 		case 233: /* GUI IDLE */
 			DRM_DEBUG("IH: GUI idle\n");
+			break;
+		case 244: /* DMA trap event */
+			if (rdev->family >= CHIP_CAYMAN) {
+				DRM_DEBUG("IH: DMA1 trap\n");
+				radeon_fence_process(rdev, CAYMAN_RING_TYPE_DMA1_INDEX);
+			}
 			break;
 		default:
 			DRM_DEBUG("Unhandled interrupt: %d %d\n", src_id, src_data);

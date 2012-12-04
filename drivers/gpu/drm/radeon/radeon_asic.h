@@ -470,6 +470,10 @@ void cayman_vm_set_page(struct radeon_device *rdev, uint64_t pe,
 			uint64_t addr, unsigned count,
 			uint32_t incr, uint32_t flags);
 int evergreen_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib);
+void cayman_dma_ring_ib_execute(struct radeon_device *rdev,
+				struct radeon_ib *ib);
+bool cayman_dma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring);
+void cayman_dma_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
 
 /* DCE6 - SI */
 void dce6_bandwidth_update(struct radeon_device *rdev);

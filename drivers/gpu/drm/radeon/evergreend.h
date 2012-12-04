@@ -918,6 +918,8 @@
 #       define CTXEMPTY_INT_ENABLE                        (1 << 28)
 #define DMA_TILING_CONFIG  				  0xD0B8
 
+#define CAYMAN_DMA1_CNTL                                  0xd82c
+
 /* async DMA packets */
 #define DMA_PACKET(cmd, t, s, n)	((((cmd) & 0xF) << 28) |	\
 					 (((t) & 0x1) << 23) |		\

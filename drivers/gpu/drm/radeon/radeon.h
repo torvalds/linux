@@ -109,7 +109,7 @@ extern int radeon_lockup_timeout;
 #define RADEON_BIOS_NUM_SCRATCH			8
 
 /* max number of rings */
-#define RADEON_NUM_RINGS			4
+#define RADEON_NUM_RINGS			5
 
 /* fence seq are set to this number when signaled */
 #define RADEON_FENCE_SIGNALED_SEQ		0LL
@@ -124,6 +124,8 @@ extern int radeon_lockup_timeout;
 
 /* R600+ has an async dma ring */
 #define R600_RING_TYPE_DMA_INDEX		3
+/* cayman add a second async dma ring */
+#define CAYMAN_RING_TYPE_DMA1_INDEX		4
 
 /* hardcode those limit for now */
 #define RADEON_VA_IB_OFFSET			(1 << 20)
@@ -893,6 +895,7 @@ struct radeon_wb {
 #define RADEON_WB_CP2_RPTR_OFFSET 1536
 #define R600_WB_DMA_RPTR_OFFSET   1792
 #define R600_WB_IH_WPTR_OFFSET   2048
+#define CAYMAN_WB_DMA1_RPTR_OFFSET   2304
 #define R600_WB_EVENT_OFFSET     3072
 
 /**
