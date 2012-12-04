@@ -2630,6 +2630,9 @@ static int azx_suspend(struct device *dev)
 	struct azx *chip = card->private_data;
 	struct azx_pcm *p;
 
+	if (chip->disabled)
+		return 0;
+
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	azx_clear_irq_pending(chip);
 	list_for_each_entry(p, &chip->pcm_list, list)
@@ -2654,6 +2657,9 @@ static int azx_resume(struct device *dev)
 	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
+
+	if (chip->disabled)
+		return 0;
 
 	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
