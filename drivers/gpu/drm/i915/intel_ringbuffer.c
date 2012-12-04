@@ -1402,6 +1402,28 @@ int intel_ring_begin(struct intel_ring_buffer *ring,
 	return __intel_ring_begin(ring, num_dwords * sizeof(uint32_t));
 }
 
+int intel_ring_handle_seqno_wrap(struct intel_ring_buffer *ring)
+{
+	int ret;
+
+	BUG_ON(ring->outstanding_lazy_request);
+
+	if (INTEL_INFO(ring->dev)->gen < 6)
+		return 0;
+
+	ret = __intel_ring_begin(ring, 6 * sizeof(uint32_t));
+	if (ret)
+		return ret;
+
+	/* Leaving a stale, pre-wrap seqno behind in the mboxes will result in
+	 * post-wrap semaphore waits completing immediately. Clear them. */
+	update_mboxes(ring, ring->signal_mbox[0]);
+	update_mboxes(ring, ring->signal_mbox[1]);
+	intel_ring_advance(ring);
+
+	return 0;
+}
+
 void intel_ring_advance(struct intel_ring_buffer *ring)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;

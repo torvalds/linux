@@ -1952,6 +1952,10 @@ i915_gem_handle_seqno_wrap(struct drm_device *dev)
 
 	i915_gem_retire_requests(dev);
 	for_each_ring(ring, dev_priv, i) {
+		ret = intel_ring_handle_seqno_wrap(ring);
+		if (ret)
+			return ret;
+
 		for (j = 0; j < ARRAY_SIZE(ring->sync_seqno); j++)
 			ring->sync_seqno[j] = 0;
 	}
