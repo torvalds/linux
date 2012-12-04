@@ -1391,9 +1391,6 @@ static int omapfb_alloc_fbmem(struct fb_info *fbi, unsigned long size,
 
 	size = PAGE_ALIGN(size);
 
-	WARN_ONCE(paddr,
-		"reserving memory at predefined address not supported\n");
-
 	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
 
 	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB)
@@ -1520,6 +1517,9 @@ static int omapfb_parse_vram_param(const char *param, int max_entries,
 				return -EINVAL;
 
 		}
+
+		WARN_ONCE(paddr,
+			"reserving memory at predefined address not supported\n");
 
 		paddrs[fbnum] = paddr;
 		sizes[fbnum] = size;
