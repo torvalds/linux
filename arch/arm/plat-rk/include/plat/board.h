@@ -276,7 +276,6 @@ struct rk29_vmac_platform_data {
 	int (*rmii_power_control)(int enable);
         int(*rmii_speed_switch)(int speed);
 };
-//#if defined  CONFIG_BATTERY_RK30_ADC_FAC 
 /* adc battery */
 struct rk30_adc_battery_platform_data {
 	int (*io_init)(void);
@@ -288,17 +287,22 @@ struct rk30_adc_battery_platform_data {
 	int spport_usb_charging ;
 	int (*control_usb_charging)(int);
 
-	int is_reboot_charging;
-
+	int usb_det_pin;
 	int dc_det_pin;
 	int batt_low_pin;
 	int charge_ok_pin;
 	int charge_set_pin;
+	int back_light_pin;
 
+	int ctrl_charge_led_pin;
+	int ctrl_charge_enable;
+	void (*ctrl_charge_led)(int);
+	
 	int dc_det_level;
 	int batt_low_level;
 	int charge_ok_level;
 	int charge_set_level;
+	int usb_det_level;
 	
       	int adc_channel;
 
@@ -311,7 +315,7 @@ struct rk30_adc_battery_platform_data {
 
 	int charging_sleep; // don't have lock,if chargeing_sleep = 0;else have lock
 	
-
+	int is_reboot_charging;
 	int save_capacity;  //save capacity to /data/bat_last_capacity.dat,  suggested use
 
 	int reference_voltage; // the rK2928 is 3300;RK3066 and rk29 are 2500;rk3066B is 1800;
@@ -329,7 +333,6 @@ struct rk30_adc_battery_platform_data {
 	int *board_batt_table;
 
 };
-//#endif
 
 
 #define BOOT_MODE_NORMAL		0
