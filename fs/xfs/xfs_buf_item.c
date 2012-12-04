@@ -71,7 +71,7 @@ xfs_buf_item_log_debug(
 		chunk_num = byte >> XFS_BLF_SHIFT;
 		word_num = chunk_num >> BIT_TO_WORD_SHIFT;
 		bit_num = chunk_num & (NBWORD - 1);
-		wordp = &(bip->bli_format.blf_data_map[word_num]);
+		wordp = &(bip->__bli_format.blf_data_map[word_num]);
 		bit_set = *wordp & (1 << bit_num);
 		ASSERT(bit_set);
 		byte++;
@@ -237,7 +237,7 @@ xfs_buf_item_size(
 		 * cancel flag in it.
 		 */
 		trace_xfs_buf_item_size_stale(bip);
-		ASSERT(bip->bli_format.blf_flags & XFS_BLF_CANCEL);
+		ASSERT(bip->__bli_format.blf_flags & XFS_BLF_CANCEL);
 		return bip->bli_format_count;
 	}
 
@@ -278,7 +278,7 @@ xfs_buf_item_format_segment(
 	uint		buffer_offset;
 
 	/* copy the flags across from the base format item */
-	blfp->blf_flags = bip->bli_format.blf_flags;
+	blfp->blf_flags = bip->__bli_format.blf_flags;
 
 	/*
 	 * Base size is the actual size of the ondisk structure - it reflects
@@ -371,7 +371,7 @@ xfs_buf_item_format_segment(
 			nbits++;
 		}
 	}
-	bip->bli_format.blf_size = nvecs;
+	bip->__bli_format.blf_size = nvecs;
 	return vecp;
 }
 
@@ -405,7 +405,7 @@ xfs_buf_item_format(
 	if (bip->bli_flags & XFS_BLI_INODE_BUF) {
 		if (!((bip->bli_flags & XFS_BLI_INODE_ALLOC_BUF) &&
 		      xfs_log_item_in_current_chkpt(lip)))
-			bip->bli_format.blf_flags |= XFS_BLF_INODE_BUF;
+			bip->__bli_format.blf_flags |= XFS_BLF_INODE_BUF;
 		bip->bli_flags &= ~XFS_BLI_INODE_BUF;
 	}
 
@@ -485,7 +485,7 @@ xfs_buf_item_unpin(
 		ASSERT(bip->bli_flags & XFS_BLI_STALE);
 		ASSERT(xfs_buf_islocked(bp));
 		ASSERT(XFS_BUF_ISSTALE(bp));
-		ASSERT(bip->bli_format.blf_flags & XFS_BLF_CANCEL);
+		ASSERT(bip->__bli_format.blf_flags & XFS_BLF_CANCEL);
 
 		trace_xfs_buf_item_unpin_stale(bip);
 
@@ -631,7 +631,7 @@ xfs_buf_item_unlock(
 	 */
 	if (bip->bli_flags & XFS_BLI_STALE) {
 		trace_xfs_buf_item_unlock_stale(bip);
-		ASSERT(bip->bli_format.blf_flags & XFS_BLF_CANCEL);
+		ASSERT(bip->__bli_format.blf_flags & XFS_BLF_CANCEL);
 		if (!aborted) {
 			atomic_dec(&bip->bli_refcount);
 			return;
@@ -644,8 +644,8 @@ xfs_buf_item_unlock(
 	 * If the buf item isn't tracking any data, free it, otherwise drop the
 	 * reference we hold to it.
 	 */
-	if (xfs_bitmap_empty(bip->bli_format.blf_data_map,
-			     bip->bli_format.blf_map_size))
+	if (xfs_bitmap_empty(bip->__bli_format.blf_data_map,
+			     bip->__bli_format.blf_map_size))
 		xfs_buf_item_relse(bp);
 	else
 		atomic_dec(&bip->bli_refcount);
@@ -716,7 +716,7 @@ xfs_buf_item_get_format(
 	bip->bli_format_count = count;
 
 	if (count == 1) {
-		bip->bli_formats = &bip->bli_format;
+		bip->bli_formats = &bip->__bli_format;
 		return 0;
 	}
 
@@ -731,7 +731,7 @@ STATIC void
 xfs_buf_item_free_format(
 	struct xfs_buf_log_item	*bip)
 {
-	if (bip->bli_formats != &bip->bli_format) {
+	if (bip->bli_formats != &bip->__bli_format) {
 		kmem_free(bip->bli_formats);
 		bip->bli_formats = NULL;
 	}
