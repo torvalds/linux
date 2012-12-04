@@ -35,6 +35,7 @@
 #define SESSION_HASH_SIZE	512
 
 struct cld_net;
+struct nfsd4_client_tracking_ops;
 
 struct nfsd_net {
 	struct cld_net *cld_net;
@@ -87,6 +88,7 @@ struct nfsd_net {
 
 	struct file *rec_file;
 	bool in_grace;
+	struct nfsd4_client_tracking_ops *client_tracking_ops;
 
 	time_t nfsd4_lease;
 	time_t nfsd4_grace;
