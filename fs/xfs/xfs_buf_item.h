@@ -98,10 +98,6 @@ typedef struct xfs_buf_log_item {
 	unsigned int		bli_flags;	/* misc flags */
 	unsigned int		bli_recur;	/* lock recursion count */
 	atomic_t		bli_refcount;	/* cnt of tp refs */
-#ifdef XFS_TRANS_DEBUG
-	char			*bli_orig;	/* original buffer copy */
-	char			*bli_logged;	/* bytes logged (bitmap) */
-#endif
 	int			bli_format_count;	/* count of headers */
 	struct xfs_buf_log_format *bli_formats;	/* array of in-log header ptrs */
 	struct xfs_buf_log_format __bli_format;	/* embedded in-log header */
@@ -116,16 +112,6 @@ void	xfs_buf_attach_iodone(struct xfs_buf *,
 			      xfs_log_item_t *);
 void	xfs_buf_iodone_callbacks(struct xfs_buf *);
 void	xfs_buf_iodone(struct xfs_buf *, struct xfs_log_item *);
-
-#ifdef XFS_TRANS_DEBUG
-void
-xfs_buf_item_flush_log_debug(
-	struct xfs_buf *bp,
-	uint	first,
-	uint	last);
-#else
-#define	xfs_buf_item_flush_log_debug(bp, first, last)
-#endif
 
 #endif	/* __KERNEL__ */
 
