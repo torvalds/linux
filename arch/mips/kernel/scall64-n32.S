@@ -403,8 +403,8 @@ EXPORT(sysn32_call_table)
 	PTR	sys_dup3			/* 6290 */
 	PTR	sys_pipe2
 	PTR	sys_inotify_init1
-	PTR	sys_preadv
-	PTR	sys_pwritev
+	PTR	compat_sys_preadv
+	PTR	compat_sys_pwritev
 	PTR	compat_sys_rt_tgsigqueueinfo	/* 6295 */
 	PTR	sys_perf_event_open
 	PTR	sys_accept4
