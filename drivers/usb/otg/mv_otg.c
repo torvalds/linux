@@ -420,7 +420,7 @@ static void mv_otg_work(struct work_struct *work)
 	struct usb_otg *otg;
 	int old_state;
 
-	mvotg = container_of((struct delayed_work *)work, struct mv_otg, work);
+	mvotg = container_of(to_delayed_work(work), struct mv_otg, work);
 
 run:
 	/* work queue is single thread, or we need spin_lock to protect */
