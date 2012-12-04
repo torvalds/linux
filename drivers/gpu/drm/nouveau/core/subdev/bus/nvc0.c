@@ -36,12 +36,17 @@ nvc0_bus_intr(struct nouveau_subdev *subdev)
 	u32 stat = nv_rd32(pbus, 0x001100) & nv_rd32(pbus, 0x001140);
 
 	if (stat & 0x0000000e) {
-		nv_error(pbus, "MMIO FAULT [");
-		if (stat & 0x00000002) pr_cont(" !ENGINE");
-		if (stat & 0x00000004) pr_cont(" IBUS");
-		if (stat & 0x00000004) pr_cont(" TIMEOUT");
-		pr_cont("]\n");
+		u32 addr = nv_rd32(pbus, 0x009084);
+		u32 data = nv_rd32(pbus, 0x009088);
 
+		nv_error(pbus, "MMIO %s of 0x%08x FAULT at 0x%06x [ %s%s%s]\n",
+			 (addr & 0x00000002) ? "write" : "read", data,
+			 (addr & 0x00fffffc),
+			 (stat & 0x00000002) ? "!ENGINE " : "",
+			 (stat & 0x00000004) ? "IBUS " : "",
+			 (stat & 0x00000008) ? "TIMEOUT " : "");
+
+		nv_wr32(pbus, 0x009084, 0x00000000);
 		nv_wr32(pbus, 0x001100, (stat & 0x0000000e));
 		stat &= ~0x0000000e;
 	}
