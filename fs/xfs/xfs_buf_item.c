@@ -611,7 +611,7 @@ xfs_buf_item_unlock(
 {
 	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
 	struct xfs_buf		*bp = bip->bli_buf;
-	int			aborted;
+	int			aborted, clean, i;
 	uint			hold;
 
 	/* Clear the buffer's association with this transaction. */
@@ -654,8 +654,15 @@ xfs_buf_item_unlock(
 	 * If the buf item isn't tracking any data, free it, otherwise drop the
 	 * reference we hold to it.
 	 */
-	if (xfs_bitmap_empty(bip->__bli_format.blf_data_map,
-			     bip->__bli_format.blf_map_size))
+	clean = 1;
+	for (i = 0; i < bip->bli_format_count; i++) {
+		if (!xfs_bitmap_empty(bip->bli_formats[i].blf_data_map,
+			     bip->bli_formats[i].blf_map_size)) {
+			clean = 0;
+			break;
+		}
+	}
+	if (clean)
 		xfs_buf_item_relse(bp);
 	else
 		atomic_dec(&bip->bli_refcount);
