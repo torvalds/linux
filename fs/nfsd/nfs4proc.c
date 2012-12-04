@@ -692,6 +692,17 @@ nfsd4_read(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (read->rd_offset >= OFFSET_MAX)
 		return nfserr_inval;
 
+	/*
+	 * If we do a zero copy read, then a client will see read data
+	 * that reflects the state of the file *after* performing the
+	 * following compound.
+	 *
+	 * To ensure proper ordering, we therefore turn off zero copy if
+	 * the client wants us to do more in this compound:
+	 */
+	if (!nfsd4_last_compound_op(rqstp))
+		rqstp->rq_splice_ok = false;
+
 	nfs4_lock_state();
 	/* check stateid */
 	if ((status = nfs4_preprocess_stateid_op(SVC_NET(rqstp),

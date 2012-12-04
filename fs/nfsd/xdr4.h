@@ -528,6 +528,14 @@ static inline bool nfsd4_not_cached(struct nfsd4_compoundres *resp)
 		|| nfsd4_is_solo_sequence(resp);
 }
 
+static inline bool nfsd4_last_compound_op(struct svc_rqst *rqstp)
+{
+	struct nfsd4_compoundres *resp = rqstp->rq_resp;
+	struct nfsd4_compoundargs *argp = rqstp->rq_argp;
+
+	return argp->opcnt == resp->opcnt;
+}
+
 #define NFS4_SVC_XDRSIZE		sizeof(struct nfsd4_compoundargs)
 
 static inline void

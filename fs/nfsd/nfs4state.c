@@ -1855,14 +1855,6 @@ out_free_session:
 	goto out;
 }
 
-static bool nfsd4_last_compound_op(struct svc_rqst *rqstp)
-{
-	struct nfsd4_compoundres *resp = rqstp->rq_resp;
-	struct nfsd4_compoundargs *argp = rqstp->rq_argp;
-
-	return argp->opcnt == resp->opcnt;
-}
-
 static __be32 nfsd4_map_bcts_dir(u32 *dir)
 {
 	switch (*dir) {
