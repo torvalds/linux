@@ -50,9 +50,11 @@ static bool debug;
 module_param(debug, bool, 0444);
 MODULE_PARM_DESC(debug, "print a lot of debug information");
 
-#define i2c_hid_dbg(ihid, fmt, arg...)	\
-	if (debug)			\
-		dev_printk(KERN_DEBUG, &(ihid)->client->dev, fmt, ##arg)
+#define i2c_hid_dbg(ihid, fmt, arg...)					  \
+do {									  \
+	if (debug)							  \
+		dev_printk(KERN_DEBUG, &(ihid)->client->dev, fmt, ##arg); \
+} while (0)
 
 struct i2c_hid_desc {
 	__le16 wHIDDescLength;
