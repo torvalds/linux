@@ -199,6 +199,22 @@ static ssize_t key_icverrors_read(struct file *file, char __user *userbuf,
 }
 KEY_OPS(icverrors);
 
+static ssize_t key_mic_failures_read(struct file *file, char __user *userbuf,
+				     size_t count, loff_t *ppos)
+{
+	struct ieee80211_key *key = file->private_data;
+	char buf[20];
+	int len;
+
+	if (key->conf.cipher != WLAN_CIPHER_SUITE_TKIP)
+		return -EINVAL;
+
+	len = scnprintf(buf, sizeof(buf), "%u\n", key->u.tkip.mic_failures);
+
+	return simple_read_from_buffer(userbuf, count, ppos, buf, len);
+}
+KEY_OPS(mic_failures);
+
 static ssize_t key_key_read(struct file *file, char __user *userbuf,
 			    size_t count, loff_t *ppos)
 {
@@ -260,6 +276,7 @@ void ieee80211_debugfs_key_add(struct ieee80211_key *key)
 	DEBUGFS_ADD(rx_spec);
 	DEBUGFS_ADD(replays);
 	DEBUGFS_ADD(icverrors);
+	DEBUGFS_ADD(mic_failures);
 	DEBUGFS_ADD(key);
 	DEBUGFS_ADD(ifindex);
 };

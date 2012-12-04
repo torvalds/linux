@@ -81,6 +81,9 @@ struct ieee80211_key {
 
 			/* last received RSC */
 			struct tkip_ctx rx[IEEE80211_NUM_TIDS];
+
+			/* number of mic failures */
+			u32 mic_failures;
 		} tkip;
 		struct {
 			atomic64_t tx_pn;
