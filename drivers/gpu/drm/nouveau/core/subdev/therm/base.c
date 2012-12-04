@@ -116,7 +116,7 @@ nouveau_therm_attr_set(struct nouveau_therm *therm,
 }
 
 int
-nouveau_therm_init(struct nouveau_object *object)
+_nouveau_therm_init(struct nouveau_object *object)
 {
 	struct nouveau_therm *therm = (void *)object;
 	struct nouveau_therm_priv *priv = (void *)therm;
@@ -133,7 +133,7 @@ nouveau_therm_init(struct nouveau_object *object)
 }
 
 int
-nouveau_therm_fini(struct nouveau_object *object, bool suspend)
+_nouveau_therm_fini(struct nouveau_object *object, bool suspend)
 {
 	struct nouveau_therm *therm = (void *)object;
 	struct nouveau_therm_priv *priv = (void *)therm;
@@ -141,4 +141,31 @@ nouveau_therm_fini(struct nouveau_object *object, bool suspend)
 	priv->fan.percent = therm->fan_get(therm);
 
 	return nouveau_subdev_fini(&therm->base, suspend);
+}
+
+int
+nouveau_therm_create_(struct nouveau_object *parent,
+		      struct nouveau_object *engine,
+		      struct nouveau_oclass *oclass,
+		      int length, void **pobject)
+{
+	struct nouveau_therm_priv *priv;
+	int ret;
+
+	ret = nouveau_subdev_create_(parent, engine, oclass, 0, "PTHERM",
+				     "therm", length, pobject);
+	priv = *pobject;
+	if (ret)
+		return ret;
+
+	nouveau_therm_ic_ctor(&priv->base);
+	nouveau_therm_sensor_ctor(&priv->base);
+	nouveau_therm_fan_ctor(&priv->base);
+
+	priv->base.fan_get = nouveau_therm_fan_user_get;
+	priv->base.fan_set = nouveau_therm_fan_user_set;
+	priv->base.fan_sense = nouveau_therm_fan_sense;
+	priv->base.attr_get = nouveau_therm_attr_get;
+	priv->base.attr_set = nouveau_therm_attr_set;
+	return 0;
 }

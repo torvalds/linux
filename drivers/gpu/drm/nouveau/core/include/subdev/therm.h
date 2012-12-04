@@ -46,11 +46,24 @@ nouveau_therm(void *obj)
 }
 
 #define nouveau_therm_create(p,e,o,d)                                          \
-	nouveau_subdev_create((p), (e), (o), 0, "THERM", "therm", d)
+	nouveau_therm_create_((p), (e), (o), sizeof(**d), (void **)d)
 #define nouveau_therm_destroy(p)                                               \
 	nouveau_subdev_destroy(&(p)->base)
+#define nouveau_therm_init(p) ({                                               \
+	struct nouveau_therm *therm = (p);                                     \
+        _nouveau_therm_init(nv_object(therm));                                 \
+})
+#define nouveau_therm_fini(p,s) ({                                             \
+	struct nouveau_therm *therm = (p);                                     \
+        _nouveau_therm_init(nv_object(therm), (s));                            \
+})
+
+int nouveau_therm_create_(struct nouveau_object *, struct nouveau_object *,
+			  struct nouveau_oclass *, int, void **);
 
 #define _nouveau_therm_dtor _nouveau_subdev_dtor
+int _nouveau_therm_init(struct nouveau_object *);
+int _nouveau_therm_fini(struct nouveau_object *, bool);
 
 extern struct nouveau_oclass nv40_therm_oclass;
 extern struct nouveau_oclass nv50_therm_oclass;

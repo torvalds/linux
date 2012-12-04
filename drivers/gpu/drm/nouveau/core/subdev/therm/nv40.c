@@ -25,6 +25,10 @@
 
 #include "priv.h"
 
+struct nv40_therm_priv {
+	struct nouveau_therm_priv base;
+};
+
 static int
 nv40_sensor_setup(struct nouveau_therm *therm)
 {
@@ -120,34 +124,21 @@ nv40_fan_pwm_set(struct nouveau_therm *therm, int line, u32 divs, u32 duty)
 
 static int
 nv40_therm_ctor(struct nouveau_object *parent,
-		   struct nouveau_object *engine,
-		   struct nouveau_oclass *oclass, void *data, u32 size,
-		   struct nouveau_object **pobject)
+		struct nouveau_object *engine,
+		struct nouveau_oclass *oclass, void *data, u32 size,
+		struct nouveau_object **pobject)
 {
-	struct nouveau_therm_priv *priv;
-	struct nouveau_therm *therm;
+	struct nv40_therm_priv *priv;
 	int ret;
 
 	ret = nouveau_therm_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
-	therm = (void *) priv;
 	if (ret)
 		return ret;
 
-	nouveau_therm_ic_ctor(therm);
-	nouveau_therm_sensor_ctor(therm);
-	nouveau_therm_fan_ctor(therm);
-
-	priv->fan.pwm_get = nv40_fan_pwm_get;
-	priv->fan.pwm_set = nv40_fan_pwm_set;
-
-	therm->temp_get = nv40_temp_get;
-	therm->fan_get = nouveau_therm_fan_user_get;
-	therm->fan_set = nouveau_therm_fan_user_set;
-	therm->fan_sense = nouveau_therm_fan_sense;
-	therm->attr_get = nouveau_therm_attr_get;
-	therm->attr_set = nouveau_therm_attr_set;
-
+	priv->base.fan.pwm_get = nv40_fan_pwm_get;
+	priv->base.fan.pwm_set = nv40_fan_pwm_set;
+	priv->base.base.temp_get = nv40_temp_get;
 	return 0;
 }
 
@@ -157,7 +148,7 @@ nv40_therm_oclass = {
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv40_therm_ctor,
 		.dtor = _nouveau_therm_dtor,
-		.init = nouveau_therm_init,
-		.fini = nouveau_therm_fini,
+		.init = _nouveau_therm_init,
+		.fini = _nouveau_therm_fini,
 	},
 };

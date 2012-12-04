@@ -53,8 +53,6 @@ struct nouveau_therm_priv {
 	struct i2c_client *ic;
 };
 
-int nouveau_therm_init(struct nouveau_object *object);
-int nouveau_therm_fini(struct nouveau_object *object, bool suspend);
 int nouveau_therm_attr_get(struct nouveau_therm *therm,
 		       enum nouveau_therm_attr_type type);
 int nouveau_therm_attr_set(struct nouveau_therm *therm,
