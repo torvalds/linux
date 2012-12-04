@@ -27,6 +27,7 @@
 
 #include <core/object.h>
 #include <core/device.h>
+
 #include <subdev/gpio.h>
 #include <subdev/timer.h>
 
@@ -104,13 +105,13 @@ nouveau_therm_fan_set(struct nouveau_therm *therm, int percent)
 int
 nouveau_therm_fan_sense(struct nouveau_therm *therm)
 {
+	struct nouveau_therm_priv *priv = (void *)therm;
 	struct nouveau_timer *ptimer = nouveau_timer(therm);
 	struct nouveau_gpio *gpio = nouveau_gpio(therm);
-	struct dcb_gpio_func func;
 	u32 cycles, cur, prev;
 	u64 start, end, tach;
 
-	if (gpio->find(gpio, 0, DCB_GPIO_FAN_SENSE, 0xff, &func))
+	if (priv->fan.tach.func == DCB_GPIO_UNUSED)
 		return -ENODEV;
 
 	/* Time a complete rotation and extrapolate to RPM:
@@ -118,12 +119,12 @@ nouveau_therm_fan_sense(struct nouveau_therm *therm)
 	 * We get 4 changes (0 -> 1 -> 0 -> 1) per complete rotation.
 	 */
 	start = ptimer->read(ptimer);
-	prev = gpio->get(gpio, 0, func.func, func.line);
+	prev = gpio->get(gpio, 0, priv->fan.tach.func, priv->fan.tach.line);
 	cycles = 0;
 	do {
 		usleep_range(500, 1000); /* supports 0 < rpm < 7500 */
 
-		cur = gpio->get(gpio, 0, func.func, func.line);
+		cur = gpio->get(gpio, 0, priv->fan.tach.func, priv->fan.tach.line);
 		if (prev != cur) {
 			if (!start)
 				start = ptimer->read(ptimer);
@@ -220,7 +221,13 @@ int
 nouveau_therm_fan_ctor(struct nouveau_therm *therm)
 {
 	struct nouveau_therm_priv *priv = (void *)therm;
+	struct nouveau_gpio *gpio = nouveau_gpio(therm);
 	struct nouveau_bios *bios = nouveau_bios(therm);
+	int ret;
+
+	ret = gpio->find(gpio, 0, DCB_GPIO_FAN_SENSE, 0xff, &priv->fan.tach);
+	if (ret)
+		priv->fan.tach.func = DCB_GPIO_UNUSED;
 
 	nouveau_therm_fan_set_defaults(therm);
 	nvbios_perf_fan_parse(bios, &priv->bios_perf_fan);

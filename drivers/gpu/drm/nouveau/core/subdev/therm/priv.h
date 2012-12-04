@@ -28,6 +28,7 @@
 #include <subdev/therm.h>
 
 #include <subdev/bios/extdev.h>
+#include <subdev/bios/gpio.h>
 #include <subdev/bios/perf.h>
 #include <subdev/bios/therm.h>
 
@@ -43,6 +44,8 @@ struct nouveau_therm_priv {
 	struct {
 		enum nouveau_therm_fan_mode mode;
 		int percent;
+
+		struct dcb_gpio_func tach;
 
 		int (*pwm_get)(struct nouveau_therm *, int line, u32*, u32*);
 		int (*pwm_set)(struct nouveau_therm *, int line, u32, u32);
@@ -70,9 +73,11 @@ int nouveau_therm_fan_user_set(struct nouveau_therm *therm, int percent);
 int nouveau_therm_fan_set_mode(struct nouveau_therm *therm,
 			   enum nouveau_therm_fan_mode mode);
 
-
 int nouveau_therm_fan_sense(struct nouveau_therm *therm);
 
+int nv50_fan_pwm_get(struct nouveau_therm *, int, u32 *, u32 *);
+int nv50_fan_pwm_set(struct nouveau_therm *, int, u32, u32);
+int nv50_fan_pwm_clock(struct nouveau_therm *);
 int nv50_temp_get(struct nouveau_therm *therm);
 
 #endif
