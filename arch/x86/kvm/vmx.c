@@ -4863,11 +4863,6 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 
-	if (exit_qualification & (1 << 6)) {
-		printk(KERN_ERR "EPT: GPA exceeds GAW!\n");
-		return -EINVAL;
-	}
-
 	gla_validity = (exit_qualification >> 7) & 0x3;
 	if (gla_validity != 0x3 && gla_validity != 0x1 && gla_validity != 0) {
 		printk(KERN_ERR "EPT: Handling EPT violation failed!\n");
