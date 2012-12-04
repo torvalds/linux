@@ -1361,8 +1361,8 @@ static void __queue_delayed_work(int cpu, struct workqueue_struct *wq,
 
 	WARN_ON_ONCE(timer->function != delayed_work_timer_fn ||
 		     timer->data != (unsigned long)dwork);
-	BUG_ON(timer_pending(timer));
-	BUG_ON(!list_empty(&work->entry));
+	WARN_ON_ONCE(timer_pending(timer));
+	WARN_ON_ONCE(!list_empty(&work->entry));
 
 	/*
 	 * If @delay is 0, queue @dwork->work immediately.  This is for
