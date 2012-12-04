@@ -1453,6 +1453,8 @@ static int inet_netconf_msgsize_devconf(int type)
 		size += nla_total_size(4);
 	if (type == -1 || type == NETCONFA_RP_FILTER)
 		size += nla_total_size(4);
+	if (type == -1 || type == NETCONFA_MC_FORWARDING)
+		size += nla_total_size(4);
 
 	return size;
 }
@@ -1485,6 +1487,10 @@ static int inet_netconf_fill_devconf(struct sk_buff *skb, int ifindex,
 	    nla_put_s32(skb, NETCONFA_RP_FILTER,
 			IPV4_DEVCONF(*devconf, RP_FILTER)) < 0)
 		goto nla_put_failure;
+	if ((type == -1 || type == NETCONFA_MC_FORWARDING) &&
+	    nla_put_s32(skb, NETCONFA_MC_FORWARDING,
+			IPV4_DEVCONF(*devconf, MC_FORWARDING)) < 0)
+		goto nla_put_failure;
 
 	return nlmsg_end(skb, nlh);
 
@@ -1493,8 +1499,8 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static void inet_netconf_notify_devconf(struct net *net, int type, int ifindex,
-					struct ipv4_devconf *devconf)
+void inet_netconf_notify_devconf(struct net *net, int type, int ifindex,
+				 struct ipv4_devconf *devconf)
 {
 	struct sk_buff *skb;
 	int err = -ENOBUFS;

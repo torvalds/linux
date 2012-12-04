@@ -52,6 +52,7 @@
 #include <linux/netfilter_ipv6.h>
 #include <linux/export.h>
 #include <net/ip6_checksum.h>
+#include <linux/netconf.h>
 
 struct mr6_table {
 	struct list_head	list;
@@ -805,8 +806,12 @@ static int mif6_delete(struct mr6_table *mrt, int vifi, struct list_head *head)
 	dev_set_allmulti(dev, -1);
 
 	in6_dev = __in6_dev_get(dev);
-	if (in6_dev)
+	if (in6_dev) {
 		in6_dev->cnf.mc_forwarding--;
+		inet6_netconf_notify_devconf(dev_net(dev),
+					     NETCONFA_MC_FORWARDING,
+					     dev->ifindex, &in6_dev->cnf);
+	}
 
 	if (v->flags & MIFF_REGISTER)
 		unregister_netdevice_queue(dev, head);
@@ -958,8 +963,12 @@ static int mif6_add(struct net *net, struct mr6_table *mrt,
 	}
 
 	in6_dev = __in6_dev_get(dev);
-	if (in6_dev)
+	if (in6_dev) {
 		in6_dev->cnf.mc_forwarding++;
+		inet6_netconf_notify_devconf(dev_net(dev),
+					     NETCONFA_MC_FORWARDING,
+					     dev->ifindex, &in6_dev->cnf);
+	}
 
 	/*
 	 *	Fill in the VIF structures
@@ -1513,6 +1522,9 @@ static int ip6mr_sk_init(struct mr6_table *mrt, struct sock *sk)
 	if (likely(mrt->mroute6_sk == NULL)) {
 		mrt->mroute6_sk = sk;
 		net->ipv6.devconf_all->mc_forwarding++;
+		inet6_netconf_notify_devconf(net, NETCONFA_MC_FORWARDING,
+					     NETCONFA_IFINDEX_ALL,
+					     net->ipv6.devconf_all);
 	}
 	else
 		err = -EADDRINUSE;
@@ -1535,6 +1547,10 @@ int ip6mr_sk_done(struct sock *sk)
 			write_lock_bh(&mrt_lock);
 			mrt->mroute6_sk = NULL;
 			net->ipv6.devconf_all->mc_forwarding--;
+			inet6_netconf_notify_devconf(net,
+						     NETCONFA_MC_FORWARDING,
+						     NETCONFA_IFINDEX_ALL,
+						     net->ipv6.devconf_all);
 			write_unlock_bh(&mrt_lock);
 
 			mroute_clean_tables(mrt);
