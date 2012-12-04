@@ -155,7 +155,7 @@ static u8 wl12xx_tx_get_hlid_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 u8 wl12xx_tx_get_hlid(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		      struct sk_buff *skb, struct ieee80211_sta *sta)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_tx_info *control;
 
 	if (!wlvif || wl12xx_is_dummy_packet(wl, skb))
 		return wl->system_hlid;
@@ -163,13 +163,13 @@ u8 wl12xx_tx_get_hlid(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
 		return wl12xx_tx_get_hlid_ap(wl, wlvif, skb, sta);
 
-	if ((test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags) ||
-	     test_bit(WLVIF_FLAG_IBSS_JOINED, &wlvif->flags)) &&
-	    !ieee80211_is_auth(hdr->frame_control) &&
-	    !ieee80211_is_assoc_req(hdr->frame_control))
-		return wlvif->sta.hlid;
-	else
+	control = IEEE80211_SKB_CB(skb);
+	if (control->flags & IEEE80211_TX_CTL_TX_OFFCHAN) {
+		wl1271_debug(DEBUG_TX, "tx offchannel");
 		return wlvif->dev_hlid;
+	}
+
+	return wlvif->sta.hlid;
 }
 
 unsigned int wlcore_calc_packet_alignment(struct wl1271 *wl,
@@ -294,7 +294,7 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		tx_attr |= TX_HW_ATTR_TX_DUMMY_REQ;
 	} else if (wlvif) {
 		/* configure the tx attributes */
-		tx_attr = wlvif->session_counter <<
+		tx_attr = wl->session_ids[hlid] <<
 			  TX_HW_ATTR_OFST_SESSION_COUNTER;
 	}
 
@@ -1135,6 +1135,7 @@ u32 wl1271_tx_min_rate_get(struct wl1271 *wl, u32 rate_set)
 
 	return BIT(__ffs(rate_set));
 }
+EXPORT_SYMBOL_GPL(wl1271_tx_min_rate_get);
 
 void wlcore_stop_queue_locked(struct wl1271 *wl, u8 queue,
 			      enum wlcore_queue_stop_reason reason)

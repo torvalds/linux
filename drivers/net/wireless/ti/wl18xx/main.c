@@ -34,10 +34,13 @@
 
 #include "reg.h"
 #include "conf.h"
+#include "cmd.h"
 #include "acx.h"
 #include "tx.h"
 #include "wl18xx.h"
 #include "io.h"
+#include "scan.h"
+#include "event.h"
 #include "debugfs.h"
 
 #define WL18XX_RX_CHECKSUM_MASK      0x40
@@ -391,8 +394,8 @@ static struct wlcore_conf wl18xx_conf = {
 	.scan = {
 		.min_dwell_time_active        = 7500,
 		.max_dwell_time_active        = 30000,
-		.min_dwell_time_passive       = 100000,
-		.max_dwell_time_passive       = 100000,
+		.dwell_time_passive           = 100000,
+		.dwell_time_dfs               = 150000,
 		.num_probe_reqs               = 2,
 		.split_scan_timeout           = 50000,
 	},
@@ -488,6 +491,10 @@ static struct wlcore_conf wl18xx_conf = {
 		.quiet_time                 = 4,
 		.increase_time              = 1,
 		.window_size                = 16,
+	},
+	.recovery = {
+		.bug_on_recovery	    = 0,
+		.no_recovery		    = 0,
 	},
 };
 
@@ -595,7 +602,7 @@ static const struct wl18xx_clk_cfg wl18xx_clk_table[NUM_CLOCK_CONFIGS] = {
 };
 
 /* TODO: maybe move to a new header file? */
-#define WL18XX_FW_NAME "ti-connectivity/wl18xx-fw.bin"
+#define WL18XX_FW_NAME "ti-connectivity/wl18xx-fw-2.bin"
 
 static int wl18xx_identify_chip(struct wl1271 *wl)
 {
@@ -612,11 +619,15 @@ static int wl18xx_identify_chip(struct wl1271 *wl)
 			      WLCORE_QUIRK_RX_BLOCKSIZE_ALIGN |
 			      WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN |
 			      WLCORE_QUIRK_NO_SCHED_SCAN_WHILE_CONN |
-			      WLCORE_QUIRK_TX_PAD_LAST_FRAME;
+			      WLCORE_QUIRK_TX_PAD_LAST_FRAME |
+			      WLCORE_QUIRK_REGDOMAIN_CONF |
+			      WLCORE_QUIRK_DUAL_PROBE_TMPL;
 
-		wlcore_set_min_fw_ver(wl, WL18XX_CHIP_VER, WL18XX_IFTYPE_VER,
-				      WL18XX_MAJOR_VER, WL18XX_SUBTYPE_VER,
-				      WL18XX_MINOR_VER);
+		wlcore_set_min_fw_ver(wl, WL18XX_CHIP_VER,
+				      WL18XX_IFTYPE_VER,  WL18XX_MAJOR_VER,
+				      WL18XX_SUBTYPE_VER, WL18XX_MINOR_VER,
+				      /* there's no separate multi-role FW */
+				      0, 0, 0, 0);
 		break;
 	case CHIP_ID_185x_PG10:
 		wl1271_warning("chip id 0x%x (185x PG10) is deprecated",
@@ -630,6 +641,11 @@ static int wl18xx_identify_chip(struct wl1271 *wl)
 		goto out;
 	}
 
+	wl->scan_templ_id_2_4 = CMD_TEMPL_CFG_PROBE_REQ_2_4;
+	wl->scan_templ_id_5 = CMD_TEMPL_CFG_PROBE_REQ_5;
+	wl->sched_scan_templ_id_2_4 = CMD_TEMPL_PROBE_REQ_2_4_PERIODIC;
+	wl->sched_scan_templ_id_5 = CMD_TEMPL_PROBE_REQ_5_PERIODIC;
+	wl->max_channels_5 = WL18XX_MAX_CHANNELS_5GHZ;
 out:
 	return ret;
 }
@@ -842,6 +858,19 @@ static int wl18xx_boot(struct wl1271 *wl)
 	ret = wl18xx_set_mac_and_phy(wl);
 	if (ret < 0)
 		goto out;
+
+	wl->event_mask = BSS_LOSS_EVENT_ID |
+		SCAN_COMPLETE_EVENT_ID |
+		RSSI_SNR_TRIGGER_0_EVENT_ID |
+		PERIODIC_SCAN_COMPLETE_EVENT_ID |
+		DUMMY_PACKET_EVENT_ID |
+		PEER_REMOVE_COMPLETE_EVENT_ID |
+		BA_SESSION_RX_CONSTRAINT_EVENT_ID |
+		REMAIN_ON_CHANNEL_COMPLETE_EVENT_ID |
+		INACTIVE_STA_EVENT_ID |
+		MAX_TX_FAILURE_EVENT_ID |
+		CHANNEL_SWITCH_COMPLETE_EVENT_ID |
+		DFS_CHANNELS_CONFIG_COMPLETE_EVENT;
 
 	ret = wlcore_boot_run_firmware(wl);
 	if (ret < 0)
@@ -1296,6 +1325,43 @@ static u32 wl18xx_pre_pkt_send(struct wl1271 *wl,
 	return buf_offset;
 }
 
+static void wl18xx_sta_rc_update(struct wl1271 *wl,
+				 struct wl12xx_vif *wlvif,
+				 struct ieee80211_sta *sta,
+				 u32 changed)
+{
+	bool wide = sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+
+	wl1271_debug(DEBUG_MAC80211, "mac80211 sta_rc_update wide %d", wide);
+
+	if (!(changed & IEEE80211_RC_BW_CHANGED))
+		return;
+
+	mutex_lock(&wl->mutex);
+
+	/* sanity */
+	if (WARN_ON(wlvif->bss_type != BSS_TYPE_STA_BSS))
+		goto out;
+
+	/* ignore the change before association */
+	if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
+		goto out;
+
+	/*
+	 * If we started out as wide, we can change the operation mode. If we
+	 * thought this was a 20mhz AP, we have to reconnect
+	 */
+	if (wlvif->sta.role_chan_type == NL80211_CHAN_HT40MINUS ||
+	    wlvif->sta.role_chan_type == NL80211_CHAN_HT40PLUS)
+		wl18xx_acx_peer_ht_operation_mode(wl, wlvif->sta.hlid, wide);
+	else
+		ieee80211_connection_loss(wl12xx_wlvif_to_vif(wlvif));
+
+out:
+	mutex_unlock(&wl->mutex);
+}
+
+
 static int wl18xx_setup(struct wl1271 *wl);
 
 static struct wlcore_ops wl18xx_ops = {
@@ -1305,6 +1371,8 @@ static struct wlcore_ops wl18xx_ops = {
 	.plt_init	= wl18xx_plt_init,
 	.trigger_cmd	= wl18xx_trigger_cmd,
 	.ack_event	= wl18xx_ack_event,
+	.wait_for_event	= wl18xx_wait_for_event,
+	.process_mailbox_events = wl18xx_process_mailbox_events,
 	.calc_tx_blocks = wl18xx_calc_tx_blocks,
 	.set_tx_desc_blocks = wl18xx_set_tx_desc_blocks,
 	.set_tx_desc_data_len = wl18xx_set_tx_desc_data_len,
@@ -1320,10 +1388,16 @@ static struct wlcore_ops wl18xx_ops = {
 	.ap_get_mimo_wide_rate_mask = wl18xx_ap_get_mimo_wide_rate_mask,
 	.get_mac	= wl18xx_get_mac,
 	.debugfs_init	= wl18xx_debugfs_add_files,
+	.scan_start	= wl18xx_scan_start,
+	.scan_stop	= wl18xx_scan_stop,
+	.sched_scan_start	= wl18xx_sched_scan_start,
+	.sched_scan_stop	= wl18xx_scan_sched_scan_stop,
 	.handle_static_data	= wl18xx_handle_static_data,
 	.get_spare_blocks = wl18xx_get_spare_blocks,
 	.set_key	= wl18xx_set_key,
+	.channel_switch	= wl18xx_cmd_channel_switch,
 	.pre_pkt_send	= wl18xx_pre_pkt_send,
+	.sta_rc_update	= wl18xx_sta_rc_update,
 };
 
 /* HT cap appropriate for wide channels in 2Ghz */
@@ -1388,6 +1462,7 @@ static int wl18xx_setup(struct wl1271 *wl)
 	wl->rtable = wl18xx_rtable;
 	wl->num_tx_desc = WL18XX_NUM_TX_DESCRIPTORS;
 	wl->num_rx_desc = WL18XX_NUM_TX_DESCRIPTORS;
+	wl->num_channels = 2;
 	wl->num_mac_addr = WL18XX_NUM_MAC_ADDRESSES;
 	wl->band_rate_to_idx = wl18xx_band_rate_to_idx;
 	wl->hw_tx_rate_tbl_size = WL18XX_CONF_HW_RXTX_RATE_MAX;
@@ -1506,7 +1581,8 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 	int ret;
 
 	hw = wlcore_alloc_hw(sizeof(struct wl18xx_priv),
-			     WL18XX_AGGR_BUFFER_SIZE);
+			     WL18XX_AGGR_BUFFER_SIZE,
+			     sizeof(struct wl18xx_event_mailbox));
 	if (IS_ERR(hw)) {
 		wl1271_error("can't allocate hw");
 		ret = PTR_ERR(hw);

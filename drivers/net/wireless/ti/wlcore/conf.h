@@ -415,11 +415,11 @@ struct conf_rx_settings {
 #define CONF_TX_RATE_MASK_BASIC_P2P    CONF_HW_BIT_RATE_6MBPS
 
 /*
- * Rates supported for data packets when operating as AP. Note the absence
+ * Rates supported for data packets when operating as STA/AP. Note the absence
  * of the 22Mbps rate. There is a FW limitation on 12 rates so we must drop
  * one. The rate dropped is not mandatory under any operating mode.
  */
-#define CONF_TX_AP_ENABLED_RATES       (CONF_HW_BIT_RATE_1MBPS | \
+#define CONF_TX_ENABLED_RATES       (CONF_HW_BIT_RATE_1MBPS |    \
 	CONF_HW_BIT_RATE_2MBPS | CONF_HW_BIT_RATE_5_5MBPS |      \
 	CONF_HW_BIT_RATE_6MBPS | CONF_HW_BIT_RATE_9MBPS |        \
 	CONF_HW_BIT_RATE_11MBPS | CONF_HW_BIT_RATE_12MBPS |      \
@@ -1059,19 +1059,11 @@ struct conf_scan_settings {
 	 */
 	u32 max_dwell_time_active;
 
-	/*
-	 * The minimum time to wait on each channel for passive scans
-	 *
-	 * Range: u32 tu/1000
-	 */
-	u32 min_dwell_time_passive;
+	/* time to wait on the channel for passive scans (in TU/1000) */
+	u32 dwell_time_passive;
 
-	/*
-	 * The maximum time to wait on each channel for passive scans
-	 *
-	 * Range: u32 tu/1000
-	 */
-	u32 max_dwell_time_passive;
+	/* time to wait on the channel for DFS scans (in TU/1000) */
+	u32 dwell_time_dfs;
 
 	/*
 	 * Number of probe requests to transmit on each active scan channel
@@ -1276,12 +1268,20 @@ struct conf_hangover_settings {
 	u8 window_size;
 } __packed;
 
+struct conf_recovery_settings {
+	/* BUG() on fw recovery */
+	u8 bug_on_recovery;
+
+	/* Prevent HW recovery. FW will remain stuck. */
+	u8 no_recovery;
+} __packed;
+
 /*
  * The conf version consists of 4 bytes.  The two MSB are the wlcore
  * version, the two LSB are the lower driver's private conf
  * version.
  */
-#define WLCORE_CONF_VERSION	(0x0002 << 16)
+#define WLCORE_CONF_VERSION	(0x0004 << 16)
 #define WLCORE_CONF_MASK	0xffff0000
 #define WLCORE_CONF_SIZE	(sizeof(struct wlcore_conf_header) +	\
 				 sizeof(struct wlcore_conf))
@@ -1309,6 +1309,7 @@ struct wlcore_conf {
 	struct conf_fwlog fwlog;
 	struct conf_rate_policy_settings rate;
 	struct conf_hangover_settings hangover;
+	struct conf_recovery_settings recovery;
 } __packed;
 
 struct wlcore_conf_file {

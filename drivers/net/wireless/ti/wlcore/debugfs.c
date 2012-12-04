@@ -490,7 +490,7 @@ static ssize_t driver_state_read(struct file *file, char __user *user_buf,
 	DRIVER_STATE_PRINT_HEX(chip.id);
 	DRIVER_STATE_PRINT_STR(chip.fw_ver_str);
 	DRIVER_STATE_PRINT_STR(chip.phy_fw_ver_str);
-	DRIVER_STATE_PRINT_INT(sched_scanning);
+	DRIVER_STATE_PRINT_INT(recovery_count);
 
 #undef DRIVER_STATE_PRINT_INT
 #undef DRIVER_STATE_PRINT_LONG
@@ -589,7 +589,6 @@ static ssize_t vifs_state_read(struct file *file, char __user *user_buf,
 		VIF_STATE_PRINT_INT(beacon_int);
 		VIF_STATE_PRINT_INT(default_key);
 		VIF_STATE_PRINT_INT(aid);
-		VIF_STATE_PRINT_INT(session_counter);
 		VIF_STATE_PRINT_INT(psm_entry_retry);
 		VIF_STATE_PRINT_INT(power_level);
 		VIF_STATE_PRINT_INT(rssi_thold);
@@ -993,7 +992,7 @@ static ssize_t sleep_auth_write(struct file *file,
 		return -EINVAL;
 	}
 
-	if (value < 0 || value > WL1271_PSM_MAX) {
+	if (value > WL1271_PSM_MAX) {
 		wl1271_warning("sleep_auth must be between 0 and %d",
 			       WL1271_PSM_MAX);
 		return -ERANGE;

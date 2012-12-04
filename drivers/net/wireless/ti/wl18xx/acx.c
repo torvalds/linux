@@ -75,7 +75,7 @@ int wl18xx_acx_set_checksum_state(struct wl1271 *wl)
 
 	acx->checksum_state = CHECKSUM_OFFLOAD_ENABLED;
 
-	ret = wl1271_cmd_configure(wl, ACX_CHECKSUM_CONFIG, acx, sizeof(*acx));
+	ret = wl1271_cmd_configure(wl, ACX_CSUM_CONFIG, acx, sizeof(*acx));
 	if (ret < 0) {
 		wl1271_warning("failed to set Tx checksum state: %d", ret);
 		goto out;
@@ -108,4 +108,35 @@ int wl18xx_acx_clear_statistics(struct wl1271 *wl)
 out:
 	kfree(acx);
 	return ret;
+}
+
+int wl18xx_acx_peer_ht_operation_mode(struct wl1271 *wl, u8 hlid, bool wide)
+{
+	struct wlcore_peer_ht_operation_mode *acx;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx peer ht operation mode hlid %d bw %d",
+		     hlid, wide);
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->hlid = hlid;
+	acx->bandwidth = wide ? WLCORE_BANDWIDTH_40MHZ : WLCORE_BANDWIDTH_20MHZ;
+
+	ret = wl1271_cmd_configure(wl, ACX_PEER_HT_OPERATION_MODE_CFG, acx,
+				   sizeof(*acx));
+
+	if (ret < 0) {
+		wl1271_warning("acx peer ht operation mode failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+
 }
