@@ -57,6 +57,11 @@ struct clk_hw;
  * 		This function must not sleep. Optional, if this op is not
  * 		set then the enable count will be used.
  *
+ * @disable_unused: Disable the clock atomically.  Only called from
+ *		clk_disable_unused for gate clocks with special needs.
+ *		Called with enable_lock held.  This function must not
+ *		sleep.
+ *
  * @recalc_rate	Recalculate the rate of this clock, by querying hardware. The
  * 		parent rate is an input parameter.  It is up to the caller to
  * 		ensure that the prepare_mutex is held across this call.
@@ -106,6 +111,7 @@ struct clk_ops {
 	int		(*enable)(struct clk_hw *hw);
 	void		(*disable)(struct clk_hw *hw);
 	int		(*is_enabled)(struct clk_hw *hw);
+	void		(*disable_unused)(struct clk_hw *hw);
 	unsigned long	(*recalc_rate)(struct clk_hw *hw,
 					unsigned long parent_rate);
 	long		(*round_rate)(struct clk_hw *hw, unsigned long,

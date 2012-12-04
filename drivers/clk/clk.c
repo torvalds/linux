@@ -219,8 +219,17 @@ static void clk_disable_unused_subtree(struct clk *clk)
 	if (clk->flags & CLK_IGNORE_UNUSED)
 		goto unlock_out;
 
-	if (__clk_is_enabled(clk) && clk->ops->disable)
-		clk->ops->disable(clk->hw);
+	/*
+	 * some gate clocks have special needs during the disable-unused
+	 * sequence.  call .disable_unused if available, otherwise fall
+	 * back to .disable
+	 */
+	if (__clk_is_enabled(clk)) {
+		if (clk->ops->disable_unused)
+			clk->ops->disable_unused(clk->hw);
+		else if (clk->ops->disable)
+			clk->ops->disable(clk->hw);
+	}
 
 unlock_out:
 	spin_unlock_irqrestore(&enable_lock, flags);
