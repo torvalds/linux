@@ -645,20 +645,16 @@ typedef void (*pci_parity_check_fn_t) (struct pci_dev *dev);
 
 /*
  * pci_dev parity list iterator
- *	Scan the PCI device list for one pass, looking for SERRORs
- *	Master Parity ERRORS or Parity ERRORs on primary or secondary devices
+ *
+ *	Scan the PCI device list looking for SERRORs, Master Parity ERRORS or
+ *	Parity ERRORs on primary or secondary devices.
  */
 static inline void edac_pci_dev_parity_iterator(pci_parity_check_fn_t fn)
 {
 	struct pci_dev *dev = NULL;
 
-	/* request for kernel access to the next PCI device, if any,
-	 * and while we are looking at it have its reference count
-	 * bumped until we are done with it
-	 */
-	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
+	for_each_pci_dev(dev)
 		fn(dev);
-	}
 }
 
 /*
