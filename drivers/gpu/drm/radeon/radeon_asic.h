@@ -441,6 +441,14 @@ extern void dce4_wait_for_vblank(struct radeon_device *rdev, int crtc);
 void evergreen_disable_interrupt_state(struct radeon_device *rdev);
 int evergreen_blit_init(struct radeon_device *rdev);
 int evergreen_mc_wait_for_idle(struct radeon_device *rdev);
+void evergreen_dma_fence_ring_emit(struct radeon_device *rdev,
+				   struct radeon_fence *fence);
+void evergreen_dma_ring_ib_execute(struct radeon_device *rdev,
+				   struct radeon_ib *ib);
+int evergreen_copy_dma(struct radeon_device *rdev,
+		       uint64_t src_offset, uint64_t dst_offset,
+		       unsigned num_gpu_pages,
+		       struct radeon_fence **fence);
 
 /*
  * cayman

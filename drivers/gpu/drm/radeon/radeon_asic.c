@@ -1199,6 +1199,15 @@ static struct radeon_asic evergreen_asic = {
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
 			.is_lockup = &evergreen_gpu_is_lockup,
+		},
+		[R600_RING_TYPE_DMA_INDEX] = {
+			.ib_execute = &evergreen_dma_ring_ib_execute,
+			.emit_fence = &evergreen_dma_fence_ring_emit,
+			.emit_semaphore = &r600_dma_semaphore_ring_emit,
+			.cs_parse = NULL,
+			.ring_test = &r600_dma_ring_test,
+			.ib_test = &r600_dma_ib_test,
+			.is_lockup = &r600_dma_is_lockup,
 		}
 	},
 	.irq = {
@@ -1215,8 +1224,8 @@ static struct radeon_asic evergreen_asic = {
 	.copy = {
 		.blit = &r600_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
-		.dma = NULL,
-		.dma_ring_index = RADEON_RING_TYPE_GFX_INDEX,
+		.dma = &evergreen_copy_dma,
+		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
 		.copy = &r600_copy_blit,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
@@ -1275,6 +1284,15 @@ static struct radeon_asic sumo_asic = {
 			.ib_test = &r600_ib_test,
 			.is_lockup = &evergreen_gpu_is_lockup,
 		},
+		[R600_RING_TYPE_DMA_INDEX] = {
+			.ib_execute = &evergreen_dma_ring_ib_execute,
+			.emit_fence = &evergreen_dma_fence_ring_emit,
+			.emit_semaphore = &r600_dma_semaphore_ring_emit,
+			.cs_parse = NULL,
+			.ring_test = &r600_dma_ring_test,
+			.ib_test = &r600_dma_ib_test,
+			.is_lockup = &r600_dma_is_lockup,
+		}
 	},
 	.irq = {
 		.set = &evergreen_irq_set,
@@ -1290,8 +1308,8 @@ static struct radeon_asic sumo_asic = {
 	.copy = {
 		.blit = &r600_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
-		.dma = NULL,
-		.dma_ring_index = RADEON_RING_TYPE_GFX_INDEX,
+		.dma = &evergreen_copy_dma,
+		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
 		.copy = &r600_copy_blit,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
@@ -1349,6 +1367,15 @@ static struct radeon_asic btc_asic = {
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
 			.is_lockup = &evergreen_gpu_is_lockup,
+		},
+		[R600_RING_TYPE_DMA_INDEX] = {
+			.ib_execute = &evergreen_dma_ring_ib_execute,
+			.emit_fence = &evergreen_dma_fence_ring_emit,
+			.emit_semaphore = &r600_dma_semaphore_ring_emit,
+			.cs_parse = NULL,
+			.ring_test = &r600_dma_ring_test,
+			.ib_test = &r600_dma_ib_test,
+			.is_lockup = &r600_dma_is_lockup,
 		}
 	},
 	.irq = {
@@ -1365,8 +1392,8 @@ static struct radeon_asic btc_asic = {
 	.copy = {
 		.blit = &r600_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
-		.dma = NULL,
-		.dma_ring_index = RADEON_RING_TYPE_GFX_INDEX,
+		.dma = &evergreen_copy_dma,
+		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
 		.copy = &r600_copy_blit,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
