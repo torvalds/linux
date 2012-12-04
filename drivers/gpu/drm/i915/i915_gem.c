@@ -3943,7 +3943,7 @@ i915_gem_init_hw(struct drm_device *dev)
 			goto cleanup_bsd_ring;
 	}
 
-	dev_priv->next_seqno = 1;
+	dev_priv->next_seqno = (u32)-1 - 0x1000;
 
 	/*
 	 * XXX: There was some w/a described somewhere suggesting loading
