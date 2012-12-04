@@ -740,10 +740,10 @@ static int __devinit i2c_hid_init_irq(struct i2c_client *client)
 			IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 			client->name, ihid);
 	if (ret < 0) {
-		dev_dbg(&client->dev,
+		dev_warn(&client->dev,
 			"Could not register for %s interrupt, irq = %d,"
 			" ret = %d\n",
-		client->name, client->irq, ret);
+			client->name, client->irq, ret);
 
 		return ret;
 	}
@@ -769,7 +769,8 @@ static int __devinit i2c_hid_fetch_hid_descriptor(struct i2c_hid *ihid)
 			__func__, 4, ihid->hdesc_buffer);
 
 	if (ret) {
-		dev_err(&client->dev, "HID_DESCR_LENGTH_CMD Fail (ret=%d)\n",
+		dev_err(&client->dev,
+			"unable to fetch the size of HID descriptor (ret=%d)\n",
 			ret);
 		return -ENODEV;
 	}
@@ -784,7 +785,7 @@ static int __devinit i2c_hid_fetch_hid_descriptor(struct i2c_hid *ihid)
 	/* check bcdVersion == 1.0 */
 	if (le16_to_cpu(hdesc->bcdVersion) != 0x0100) {
 		dev_err(&client->dev,
-			"unexpected HID descriptor bcdVersion (0x%04x)\n",
+			"unexpected HID descriptor bcdVersion (0x%04hx)\n",
 			le16_to_cpu(hdesc->bcdVersion));
 		return -ENODEV;
 	}
@@ -870,7 +871,7 @@ static int __devinit i2c_hid_probe(struct i2c_client *client,
 	hid->vendor = le16_to_cpu(ihid->hdesc.wVendorID);
 	hid->product = le16_to_cpu(ihid->hdesc.wProductID);
 
-	snprintf(hid->name, sizeof(hid->name), "%s %04X:%04X",
+	snprintf(hid->name, sizeof(hid->name), "%s %04hX:%04hX",
 		 client->name, hid->vendor, hid->product);
 
 	ret = hid_add_device(hid);
