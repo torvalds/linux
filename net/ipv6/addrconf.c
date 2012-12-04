@@ -469,8 +469,10 @@ static int inet6_netconf_msgsize_devconf(int type)
 	/* type -1 is used for ALL */
 	if (type == -1 || type == NETCONFA_FORWARDING)
 		size += nla_total_size(4);
+#ifdef CONFIG_IPV6_MROUTE
 	if (type == -1 || type == NETCONFA_MC_FORWARDING)
 		size += nla_total_size(4);
+#endif
 
 	return size;
 }
@@ -498,11 +500,12 @@ static int inet6_netconf_fill_devconf(struct sk_buff *skb, int ifindex,
 	if ((type == -1 || type == NETCONFA_FORWARDING) &&
 	    nla_put_s32(skb, NETCONFA_FORWARDING, devconf->forwarding) < 0)
 		goto nla_put_failure;
+#ifdef CONFIG_IPV6_MROUTE
 	if ((type == -1 || type == NETCONFA_MC_FORWARDING) &&
 	    nla_put_s32(skb, NETCONFA_MC_FORWARDING,
 			devconf->mc_forwarding) < 0)
 		goto nla_put_failure;
-
+#endif
 	return nlmsg_end(skb, nlh);
 
 nla_put_failure:
