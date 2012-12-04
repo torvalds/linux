@@ -901,9 +901,6 @@ static int __devexit i2c_hid_remove(struct i2c_client *client)
 	struct i2c_hid *ihid = i2c_get_clientdata(client);
 	struct hid_device *hid;
 
-	if (WARN_ON(!ihid))
-		return -1;
-
 	hid = ihid->hid;
 	hid_destroy_device(hid);
 
