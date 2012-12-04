@@ -843,6 +843,86 @@ static const struct file_operations i915_error_state_fops = {
 	.release = i915_error_state_release,
 };
 
+static ssize_t
+i915_next_seqno_read(struct file *filp,
+		 char __user *ubuf,
+		 size_t max,
+		 loff_t *ppos)
+{
+	struct drm_device *dev = filp->private_data;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	char buf[80];
+	int len;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	len = snprintf(buf, sizeof(buf),
+		       "next_seqno :  0x%x\n",
+		       dev_priv->next_seqno);
+
+	mutex_unlock(&dev->struct_mutex);
+
+	if (len > sizeof(buf))
+		len = sizeof(buf);
+
+	return simple_read_from_buffer(ubuf, max, ppos, buf, len);
+}
+
+static ssize_t
+i915_next_seqno_write(struct file *filp,
+		      const char __user *ubuf,
+		      size_t cnt,
+		      loff_t *ppos)
+{
+	struct drm_device *dev = filp->private_data;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	char buf[20];
+	u32 val = 1;
+	int ret;
+
+	if (cnt > 0) {
+		if (cnt > sizeof(buf) - 1)
+			return -EINVAL;
+
+		if (copy_from_user(buf, ubuf, cnt))
+			return -EFAULT;
+		buf[cnt] = 0;
+
+		ret = kstrtouint(buf, 0, &val);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (val == 0)
+		return -EINVAL;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	if (i915_seqno_passed(val, dev_priv->next_seqno)) {
+		dev_priv->next_seqno = val;
+		DRM_DEBUG_DRIVER("Advancing seqno to %u\n", val);
+	} else {
+		ret = -EINVAL;
+	}
+
+	mutex_unlock(&dev->struct_mutex);
+
+	return ret ?: cnt;
+}
+
+static const struct file_operations i915_next_seqno_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = i915_next_seqno_read,
+	.write = i915_next_seqno_write,
+	.llseek = default_llseek,
+};
+
 static int i915_rstdby_delays(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -2107,6 +2187,12 @@ int i915_debugfs_init(struct drm_minor *minor)
 	if (ret)
 		return ret;
 
+	ret = i915_debugfs_create(minor->debugfs_root, minor,
+				 "i915_next_seqno",
+				 &i915_next_seqno_fops);
+	if (ret)
+		return ret;
+
 	return drm_debugfs_create_files(i915_debugfs_list,
 					I915_DEBUGFS_ENTRIES,
 					minor->debugfs_root, minor);
@@ -2129,6 +2215,8 @@ void i915_debugfs_cleanup(struct drm_minor *minor)
 	drm_debugfs_remove_files((struct drm_info_list *) &i915_ring_stop_fops,
 				 1, minor);
 	drm_debugfs_remove_files((struct drm_info_list *) &i915_error_state_fops,
+				 1, minor);
+	drm_debugfs_remove_files((struct drm_info_list *) &i915_next_seqno_fops,
 				 1, minor);
 }
 
