@@ -117,9 +117,11 @@ extern u32 *pl310_get_save_ptr(void);
 extern void v7_secondary_startup(void);
 extern void imx_scu_map_io(void);
 extern void imx_smp_prepare(void);
+extern void imx_scu_standby_enable(void);
 #else
 static inline void imx_scu_map_io(void) {}
 static inline void imx_smp_prepare(void) {}
+static inline void imx_scu_standby_enable(void) {}
 #endif
 extern void imx_enable_cpu(int cpu, bool enable);
 extern void imx_set_cpu_jump(int cpu, void *jump_addr);
@@ -129,6 +131,7 @@ extern void imx_gpc_init(void);
 extern void imx_gpc_pre_suspend(void);
 extern void imx_gpc_post_resume(void);
 extern int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode);
+extern void imx6q_set_chicken_bit(void);
 
 extern void imx_cpu_die(unsigned int cpu);
 

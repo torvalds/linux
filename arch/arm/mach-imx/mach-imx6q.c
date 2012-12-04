@@ -202,7 +202,12 @@ static void __init imx6q_init_machine(void)
 
 static void __init imx6q_init_late(void)
 {
-	imx6q_cpuidle_init();
+	/*
+	 * WAIT mode is broken on TO 1.0 and 1.1, so there is no point
+	 * to run cpuidle on them.
+	 */
+	if (imx6q_revision() > IMX_CHIP_REVISION_1_1)
+		imx6q_cpuidle_init();
 }
 
 static void __init imx6q_map_io(void)
