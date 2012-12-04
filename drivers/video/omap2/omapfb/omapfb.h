@@ -129,9 +129,6 @@ void omapfb_remove_sysfs(struct omapfb2_device *fbdev);
 
 int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg);
 
-int omapfb_update_window(struct fb_info *fbi,
-		u32 x, u32 y, u32 w, u32 h);
-
 int dss_mode_to_fb_mode(enum omap_color_mode dssmode,
 			struct fb_var_screeninfo *var);
 
