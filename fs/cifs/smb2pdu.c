@@ -425,7 +425,7 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	}
 
 	cFYI(1, "sec_flags 0x%x", sec_flags);
-	if (sec_flags & CIFSSEC_MUST_SIGN) {
+	if ((sec_flags & CIFSSEC_MUST_SIGN) == CIFSSEC_MUST_SIGN) {
 		cFYI(1, "Signing required");
 		if (!(server->sec_mode & (SMB2_NEGOTIATE_SIGNING_REQUIRED |
 		      SMB2_NEGOTIATE_SIGNING_ENABLED))) {
