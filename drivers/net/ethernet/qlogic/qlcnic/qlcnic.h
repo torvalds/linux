@@ -1279,7 +1279,7 @@ struct qlcnic_cmd_args {
 int qlcnic_fw_cmd_get_minidump_temp(struct qlcnic_adapter *adapter);
 int qlcnic_fw_cmd_set_port(struct qlcnic_adapter *adapter, u32 config);
 
-u32 qlcnic_hw_read_wx_2M(struct qlcnic_adapter *adapter, ulong off);
+int qlcnic_hw_read_wx_2M(struct qlcnic_adapter *adapter, ulong off);
 int qlcnic_hw_write_wx_2M(struct qlcnic_adapter *, ulong off, u32 data);
 int qlcnic_pci_mem_write_2M(struct qlcnic_adapter *, u64 off, u64 data);
 int qlcnic_pci_mem_read_2M(struct qlcnic_adapter *, u64 off, u64 *data);
@@ -1345,7 +1345,7 @@ int qlcnic_rom_fast_read_words(struct qlcnic_adapter *adapter, int addr,
 int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter);
 void qlcnic_free_sw_resources(struct qlcnic_adapter *adapter);
 
-void __iomem *qlcnic_get_ioaddr(struct qlcnic_adapter *, u32);
+void __iomem *qlcnic_get_ioaddr(struct qlcnic_hardware_context *, u32);
 
 int qlcnic_alloc_hw_resources(struct qlcnic_adapter *adapter);
 void qlcnic_free_hw_resources(struct qlcnic_adapter *adapter);

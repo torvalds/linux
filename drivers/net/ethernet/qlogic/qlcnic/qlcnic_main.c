@@ -283,32 +283,31 @@ static int qlcnic_enable_msix(struct qlcnic_adapter *adapter, u32 num_msix)
 	return err;
 }
 
-
 static void qlcnic_enable_msi_legacy(struct qlcnic_adapter *adapter)
 {
+	u32 offset, mask_reg;
 	const struct qlcnic_legacy_intr_set *legacy_intrp;
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct pci_dev *pdev = adapter->pdev;
 
 	if (use_msi && !pci_enable_msi(pdev)) {
 		adapter->flags |= QLCNIC_MSI_ENABLED;
-		adapter->tgt_status_reg = qlcnic_get_ioaddr(adapter,
-				msi_tgt_status[adapter->ahw->pci_func]);
+		offset = msi_tgt_status[adapter->ahw->pci_func];
+		adapter->tgt_status_reg = qlcnic_get_ioaddr(adapter->ahw,
+							    offset);
 		dev_info(&pdev->dev, "using msi interrupts\n");
 		adapter->msix_entries[0].vector = pdev->irq;
 		return;
 	}
 
 	legacy_intrp = &legacy_intr[adapter->ahw->pci_func];
-
 	adapter->ahw->int_vec_bit = legacy_intrp->int_vec_bit;
-	adapter->tgt_status_reg = qlcnic_get_ioaddr(adapter,
-			legacy_intrp->tgt_status_reg);
-	adapter->tgt_mask_reg = qlcnic_get_ioaddr(adapter,
-			legacy_intrp->tgt_mask_reg);
-	adapter->isr_int_vec = qlcnic_get_ioaddr(adapter, ISR_INT_VECTOR);
-
-	adapter->crb_int_state_reg = qlcnic_get_ioaddr(adapter,
-			ISR_INT_STATE_REG);
+	offset = legacy_intrp->tgt_status_reg;
+	adapter->tgt_status_reg = qlcnic_get_ioaddr(ahw, offset);
+	mask_reg = legacy_intrp->tgt_mask_reg;
+	adapter->tgt_mask_reg = qlcnic_get_ioaddr(ahw, mask_reg);
+	adapter->isr_int_vec = qlcnic_get_ioaddr(ahw, ISR_INT_VECTOR);
+	adapter->crb_int_state_reg = qlcnic_get_ioaddr(ahw, ISR_INT_STATE_REG);
 	dev_info(&pdev->dev, "using legacy interrupts\n");
 	adapter->msix_entries[0].vector = pdev->irq;
 }
@@ -480,20 +479,32 @@ qlcnic_check_vf(struct qlcnic_adapter *adapter)
 		adapter->nic_ops = &qlcnic_ops;
 }
 
-static int
-qlcnic_setup_pci_map(struct qlcnic_adapter *adapter)
+#define QLCNIC_82XX_BAR0_LENGTH 0x00200000UL
+static void qlcnic_get_bar_length(u32 dev_id, ulong *bar)
 {
+	switch (dev_id) {
+	case PCI_DEVICE_ID_QLOGIC_QLE824X:
+		*bar = QLCNIC_82XX_BAR0_LENGTH;
+		break;
+	default:
+		*bar = 0;
+	}
+}
+
+static int qlcnic_setup_pci_map(struct pci_dev *pdev,
+				struct qlcnic_hardware_context *ahw)
+{
+	u32 offset;
 	void __iomem *mem_ptr0 = NULL;
 	resource_size_t mem_base;
-	unsigned long mem_len, pci_len0 = 0;
-
-	struct pci_dev *pdev = adapter->pdev;
+	unsigned long mem_len, pci_len0 = 0, bar0_len;
 
 	/* remap phys address */
 	mem_base = pci_resource_start(pdev, 0);	/* 0 is for BAR 0 */
 	mem_len = pci_resource_len(pdev, 0);
 
-	if (mem_len == QLCNIC_PCI_2MB_SIZE) {
+	qlcnic_get_bar_length(pdev->device, &bar0_len);
+	if (mem_len >= bar0_len) {
 
 		mem_ptr0 = pci_ioremap_bar(pdev, 0);
 		if (mem_ptr0 == NULL) {
@@ -506,15 +517,10 @@ qlcnic_setup_pci_map(struct qlcnic_adapter *adapter)
 	}
 
 	dev_info(&pdev->dev, "%dMB memory map\n", (int)(mem_len>>20));
-
-	adapter->ahw->pci_base0 = mem_ptr0;
-	adapter->ahw->pci_len0 = pci_len0;
-
-	qlcnic_check_vf(adapter);
-
-	adapter->ahw->ocm_win_crb = qlcnic_get_ioaddr(adapter,
-		QLCNIC_PCIX_PS_REG(PCIX_OCM_WINDOW_REG(
-			adapter->ahw->pci_func)));
+	ahw->pci_base0 = mem_ptr0;
+	ahw->pci_len0 = pci_len0;
+	offset = QLCNIC_PCIX_PS_REG(PCIX_OCM_WINDOW_REG(ahw->pci_func));
+	qlcnic_get_ioaddr(ahw, offset);
 
 	return 0;
 }
@@ -1510,9 +1516,10 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	spin_lock_init(&adapter->tx_clean_lock);
 	INIT_LIST_HEAD(&adapter->mac_list);
 
-	err = qlcnic_setup_pci_map(adapter);
+	err = qlcnic_setup_pci_map(pdev, adapter->ahw);
 	if (err)
 		goto err_out_free_hw;
+	qlcnic_check_vf(adapter);
 
 	/* This will be reset for mezz cards  */
 	adapter->portnum = adapter->ahw->pci_func;
