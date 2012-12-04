@@ -202,8 +202,8 @@ struct bcm_flash2x_bitmap {
 };
 
 struct bcm_time_elapsed {
-	unsigned long long ul64TimeElapsedSinceNetEntry;
-	u32  uiReserved[4];
+	u64 ul64TimeElapsedSinceNetEntry;
+	u32 uiReserved[4];
 };
 
 enum {
