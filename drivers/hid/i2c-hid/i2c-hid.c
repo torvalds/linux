@@ -399,9 +399,10 @@ static void i2c_hid_init_report(struct hid_report *report, u8 *buffer,
 	unsigned int size, ret_size;
 
 	size = i2c_hid_get_report_length(report);
-	i2c_hid_get_report(client,
+	if (i2c_hid_get_report(client,
 			report->type == HID_FEATURE_REPORT ? 0x03 : 0x01,
-			report->id, buffer, size);
+			report->id, buffer, size))
+		return;
 
 	i2c_hid_dbg(ihid, "report (len=%d): %*ph\n", size, size, ihid->inbuf);
 
