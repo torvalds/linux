@@ -1867,6 +1867,28 @@ int regulator_is_enabled(struct regulator *regulator)
 EXPORT_SYMBOL_GPL(regulator_is_enabled);
 
 /**
+ * regulator_can_change_voltage - check if regulator can change voltage
+ * @regulator: regulator source
+ *
+ * Returns positive if the regulator driver backing the source/client
+ * can change its voltage, false otherwise. Usefull for detecting fixed
+ * or dummy regulators and disabling voltage change logic in the client
+ * driver.
+ */
+int regulator_can_change_voltage(struct regulator *regulator)
+{
+	struct regulator_dev	*rdev = regulator->rdev;
+
+	if (rdev->constraints &&
+	    rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_VOLTAGE &&
+	    rdev->desc->n_voltages > 1)
+		return 1;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(regulator_can_change_voltage);
+
+/**
  * regulator_count_voltages - count regulator_list_voltage() selectors
  * @regulator: regulator source
  *
