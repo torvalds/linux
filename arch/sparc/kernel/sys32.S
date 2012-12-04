@@ -47,7 +47,7 @@ STUB:	sra	REG1, 0, REG1; \
 	sra	REG4, 0, REG4
 
 SIGN1(sys32_exit, sparc_exit, %o0)
-SIGN1(sys32_exit_group, sys_exit_group, %o0)
+SIGN1(sys32_exit_group, sparc_exit_group, %o0)
 SIGN1(sys32_wait4, compat_sys_wait4, %o2)
 SIGN1(sys32_creat, sys_creat, %o1)
 SIGN1(sys32_mknod, sys_mknod, %o1)
