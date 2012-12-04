@@ -949,7 +949,7 @@ static int i2c_hid_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(i2c_hid_pm, i2c_hid_suspend, i2c_hid_resume);
 
 static const struct i2c_device_id i2c_hid_id_table[] = {
-	{ "i2c_hid", 0 },
+	{ "hid", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, i2c_hid_id_table);
