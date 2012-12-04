@@ -635,6 +635,8 @@ static void iwl_trans_pcie_stop_hw(struct iwl_trans *trans,
 	iwl_disable_interrupts(trans);
 	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 
+	iwl_pcie_disable_ict(trans);
+
 	if (!op_mode_leaving) {
 		/*
 		 * Even if we stop the HW, we still want the RF kill
