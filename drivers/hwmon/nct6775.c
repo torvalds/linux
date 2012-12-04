@@ -96,6 +96,8 @@ MODULE_PARM_DESC(fan_debounce, "Enable debouncing for fan RPM signal");
 #define SIO_NCT6779_ID		0xc560
 #define SIO_ID_MASK		0xFFF0
 
+enum pwm_enable { off, manual, thermal_cruise, speed_cruise, sf3, sf4 };
+
 static inline void
 superio_outb(int ioreg, int reg, int val)
 {
@@ -209,6 +211,15 @@ static const s8 NCT6775_ALARM_BITS[] = {
 static const u8 NCT6775_REG_CR_CASEOPEN_CLR[] = { 0xe6, 0xee };
 static const u8 NCT6775_CR_CASEOPEN_CLR_MASK[] = { 0x20, 0x01 };
 
+/* DC or PWM output fan configuration */
+static const u8 NCT6775_REG_PWM_MODE[] = { 0x04, 0x04, 0x12 };
+static const u8 NCT6775_PWM_MODE_MASK[] = { 0x01, 0x02, 0x01 };
+
+static const u16 NCT6775_REG_FAN_MODE[] = { 0x102, 0x202, 0x302, 0x802, 0x902 };
+
+static const u16 NCT6775_REG_PWM[] = { 0x109, 0x209, 0x309, 0x809, 0x909 };
+static const u16 NCT6775_REG_PWM_READ[] = { 0x01, 0x03, 0x11, 0x13, 0x15 };
+
 static const u16 NCT6775_REG_FAN[] = { 0x630, 0x632, 0x634, 0x636, 0x638 };
 static const u16 NCT6775_REG_FAN_MIN[] = { 0x3b, 0x3c, 0x3d };
 static const u16 NCT6775_REG_FAN_PULSES[] = { 0x641, 0x642, 0x643, 0x644, 0 };
@@ -269,6 +280,9 @@ static const s8 NCT6776_ALARM_BITS[] = {
 	-1, -1, -1,			/* unused */
 	4, 5, 13, -1, -1, -1,		/* temp1..temp6 */
 	12, 9 };			/* intrusion0, intrusion1 */
+
+static const u8 NCT6776_REG_PWM_MODE[] = { 0x04, 0, 0 };
+static const u8 NCT6776_PWM_MODE_MASK[] = { 0x01, 0, 0 };
 
 static const u16 NCT6776_REG_FAN_MIN[] = { 0x63a, 0x63c, 0x63e, 0x640, 0x642 };
 static const u16 NCT6776_REG_FAN_PULSES[] = { 0x644, 0x645, 0x646, 0, 0 };
@@ -380,6 +394,20 @@ static const u16 NCT6779_REG_TEMP_ALTERNATE[ARRAY_SIZE(nct6779_temp_label) - 1]
 static const u16 NCT6779_REG_TEMP_CRIT[ARRAY_SIZE(nct6779_temp_label) - 1]
 	= { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x709, 0x70a };
 
+static enum pwm_enable reg_to_pwm_enable(int pwm, int mode)
+{
+	if (mode == 0 && pwm == 255)
+		return off;
+	return mode + 1;
+}
+
+static int pwm_enable_to_reg(enum pwm_enable mode)
+{
+	if (mode == off)
+		return 0;
+	return mode - 1;
+}
+
 /*
  * Conversions
  */
@@ -471,8 +499,15 @@ struct nct6775_data {
 	const u16 *REG_IN_MINMAX[2];
 
 	const u16 *REG_FAN;
+	const u16 *REG_FAN_MODE;
 	const u16 *REG_FAN_MIN;
 	const u16 *REG_FAN_PULSES;
+
+	const u8 *REG_PWM_MODE;
+	const u8 *PWM_MODE_MASK;
+
+	const u16 *REG_PWM[1];	/* [0]=pwm */
+	const u16 *REG_PWM_READ;
 
 	const u16 *REG_TEMP_SOURCE;	/* temp register sources */
 	const u16 *REG_TEMP_OFFSET;
@@ -494,6 +529,7 @@ struct nct6775_data {
 	u16 fan_min[5];
 	u8 fan_pulses[5];
 	u8 fan_div[5];
+	u8 has_pwm;
 	u8 has_fan;		/* some fan inputs can be disabled */
 	u8 has_fan_min;		/* some fans don't have min register */
 	bool has_fan_div;
@@ -504,6 +540,18 @@ struct nct6775_data {
 	s16 temp[4][NUM_TEMP]; /* 0=temp, 1=temp_over, 2=temp_hyst,
 				* 3=temp_crit */
 	u64 alarms;
+
+	u8 pwm_num;	/* number of pwm */
+	u8 pwm_mode[5]; /* 1->DC variable voltage, 0->PWM variable duty cycle */
+	enum pwm_enable pwm_enable[5];
+			/* 0->off
+			 * 1->manual
+			 * 2->thermal cruise mode (also called SmartFan I)
+			 * 3->fan speed cruise mode
+			 * 4->SmartFan III
+			 * 5->enhanced variable thermal cruise (SmartFan IV)
+			 */
+	u8 pwm[1][5];	/* [0]=pwm */
 
 	u8 vid;
 	u8 vrm;
@@ -781,6 +829,36 @@ static void nct6775_select_fan_div(struct device *dev,
 	}
 }
 
+static void nct6775_update_pwm(struct device *dev)
+{
+	struct nct6775_data *data = dev_get_drvdata(dev);
+	int i, j;
+	int fanmodecfg;
+	bool duty_is_dc;
+
+	for (i = 0; i < data->pwm_num; i++) {
+		if (!(data->has_pwm & (1 << i)))
+			continue;
+
+		duty_is_dc = data->REG_PWM_MODE[i] &&
+		  (nct6775_read_value(data, data->REG_PWM_MODE[i])
+		   & data->PWM_MODE_MASK[i]);
+		data->pwm_mode[i] = duty_is_dc;
+
+		fanmodecfg = nct6775_read_value(data, data->REG_FAN_MODE[i]);
+		for (j = 0; j < ARRAY_SIZE(data->REG_PWM); j++) {
+			if (data->REG_PWM[j] && data->REG_PWM[j][i]) {
+				data->pwm[j][i]
+				  = nct6775_read_value(data,
+						       data->REG_PWM[j][i]);
+			}
+		}
+
+		data->pwm_enable[i] = reg_to_pwm_enable(data->pwm[0][i],
+							(fanmodecfg >> 4) & 7);
+	}
+}
+
 static struct nct6775_data *nct6775_update_device(struct device *dev)
 {
 	struct nct6775_data *data = dev_get_drvdata(dev);
@@ -825,6 +903,8 @@ static struct nct6775_data *nct6775_update_device(struct device *dev)
 
 			nct6775_select_fan_div(dev, data, i, reg);
 		}
+
+		nct6775_update_pwm(dev);
 
 		/* Measured temperatures and limits */
 		for (i = 0; i < NUM_TEMP; i++) {
@@ -1600,6 +1680,170 @@ static struct sensor_device_attribute sda_temp_alarm[] = {
 #define NUM_TEMP_ALARM	ARRAY_SIZE(sda_temp_alarm)
 
 static ssize_t
+show_pwm_mode(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct nct6775_data *data = nct6775_update_device(dev);
+	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
+
+	return sprintf(buf, "%d\n", !data->pwm_mode[sattr->index]);
+}
+
+static ssize_t
+store_pwm_mode(struct device *dev, struct device_attribute *attr,
+	       const char *buf, size_t count)
+{
+	struct nct6775_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
+	int nr = sattr->index;
+	unsigned long val;
+	int err;
+	u8 reg;
+
+	err = kstrtoul(buf, 10, &val);
+	if (err < 0)
+		return err;
+
+	if (val > 1)
+		return -EINVAL;
+
+	/* Setting DC mode is not supported for all chips/channels */
+	if (data->REG_PWM_MODE[nr] == 0) {
+		if (val)
+			return -EINVAL;
+		return count;
+	}
+
+	mutex_lock(&data->update_lock);
+	data->pwm_mode[nr] = val;
+	reg = nct6775_read_value(data, data->REG_PWM_MODE[nr]);
+	reg &= ~data->PWM_MODE_MASK[nr];
+	if (val)
+		reg |= data->PWM_MODE_MASK[nr];
+	nct6775_write_value(data, data->REG_PWM_MODE[nr], reg);
+	mutex_unlock(&data->update_lock);
+	return count;
+}
+
+static ssize_t
+show_pwm(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct nct6775_data *data = nct6775_update_device(dev);
+	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
+	int nr = sattr->nr;
+	int index = sattr->index;
+	int pwm;
+
+	/*
+	 * For automatic fan control modes, show current pwm readings.
+	 * Otherwise, show the configured value.
+	 */
+	if (index == 0 && data->pwm_enable[nr] > manual)
+		pwm = nct6775_read_value(data, data->REG_PWM_READ[nr]);
+	else
+		pwm = data->pwm[index][nr];
+
+	return sprintf(buf, "%d\n", pwm);
+}
+
+static ssize_t
+store_pwm(struct device *dev, struct device_attribute *attr, const char *buf,
+	  size_t count)
+{
+	struct nct6775_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
+	int nr = sattr->nr;
+	int index = sattr->index;
+	unsigned long val;
+	int err;
+
+	err = kstrtoul(buf, 10, &val);
+	if (err < 0)
+		return err;
+	val = clamp_val(val, 0, 255);
+
+	mutex_lock(&data->update_lock);
+	data->pwm[index][nr] = val;
+	nct6775_write_value(data, data->REG_PWM[index][nr], val);
+	mutex_unlock(&data->update_lock);
+	return count;
+}
+
+static ssize_t
+show_pwm_enable(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct nct6775_data *data = nct6775_update_device(dev);
+	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
+
+	return sprintf(buf, "%d\n", data->pwm_enable[sattr->index]);
+}
+
+static ssize_t
+store_pwm_enable(struct device *dev, struct device_attribute *attr,
+		 const char *buf, size_t count)
+{
+	struct nct6775_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
+	int nr = sattr->index;
+	unsigned long val;
+	int err;
+	u16 reg;
+
+	err = kstrtoul(buf, 10, &val);
+	if (err < 0)
+		return err;
+
+	if (val > sf4)
+		return -EINVAL;
+
+	if (val == sf3 && data->kind != nct6775)
+		return -EINVAL;
+
+	mutex_lock(&data->update_lock);
+	data->pwm_enable[nr] = val;
+	if (val == off) {
+		/*
+		 * turn off pwm control: select manual mode, set pwm to maximum
+		 */
+		data->pwm[0][nr] = 255;
+		nct6775_write_value(data, data->REG_PWM[0][nr], 255);
+	}
+	reg = nct6775_read_value(data, data->REG_FAN_MODE[nr]);
+	reg &= 0x0f;
+	reg |= pwm_enable_to_reg(val) << 4;
+	nct6775_write_value(data, data->REG_FAN_MODE[nr], reg);
+	mutex_unlock(&data->update_lock);
+	return count;
+}
+
+static SENSOR_DEVICE_ATTR_2(pwm1, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 0, 0);
+static SENSOR_DEVICE_ATTR_2(pwm2, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 1, 0);
+static SENSOR_DEVICE_ATTR_2(pwm3, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 2, 0);
+static SENSOR_DEVICE_ATTR_2(pwm4, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 3, 0);
+static SENSOR_DEVICE_ATTR_2(pwm5, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 4, 0);
+
+static SENSOR_DEVICE_ATTR(pwm1_mode, S_IWUSR | S_IRUGO, show_pwm_mode,
+			  store_pwm_mode, 0);
+static SENSOR_DEVICE_ATTR(pwm2_mode, S_IWUSR | S_IRUGO, show_pwm_mode,
+			  store_pwm_mode, 1);
+static SENSOR_DEVICE_ATTR(pwm3_mode, S_IWUSR | S_IRUGO, show_pwm_mode,
+			  store_pwm_mode, 2);
+static SENSOR_DEVICE_ATTR(pwm4_mode, S_IWUSR | S_IRUGO, show_pwm_mode,
+			  store_pwm_mode, 3);
+static SENSOR_DEVICE_ATTR(pwm5_mode, S_IWUSR | S_IRUGO, show_pwm_mode,
+			  store_pwm_mode, 4);
+
+static SENSOR_DEVICE_ATTR(pwm1_enable, S_IWUSR | S_IRUGO, show_pwm_enable,
+			  store_pwm_enable, 0);
+static SENSOR_DEVICE_ATTR(pwm2_enable, S_IWUSR | S_IRUGO, show_pwm_enable,
+			  store_pwm_enable, 1);
+static SENSOR_DEVICE_ATTR(pwm3_enable, S_IWUSR | S_IRUGO, show_pwm_enable,
+			  store_pwm_enable, 2);
+static SENSOR_DEVICE_ATTR(pwm4_enable, S_IWUSR | S_IRUGO, show_pwm_enable,
+			  store_pwm_enable, 3);
+static SENSOR_DEVICE_ATTR(pwm5_enable, S_IWUSR | S_IRUGO, show_pwm_enable,
+			  store_pwm_enable, 4);
+
+static ssize_t
 show_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct nct6775_data *data = dev_get_drvdata(dev);
@@ -1608,6 +1852,47 @@ show_name(struct device *dev, struct device_attribute *attr, char *buf)
 }
 
 static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+
+static struct attribute *nct6775_attributes_pwm[5][4] = {
+	{
+		&sensor_dev_attr_pwm1.dev_attr.attr,
+		&sensor_dev_attr_pwm1_mode.dev_attr.attr,
+		&sensor_dev_attr_pwm1_enable.dev_attr.attr,
+		NULL
+	},
+	{
+		&sensor_dev_attr_pwm2.dev_attr.attr,
+		&sensor_dev_attr_pwm2_mode.dev_attr.attr,
+		&sensor_dev_attr_pwm2_enable.dev_attr.attr,
+		NULL
+	},
+	{
+		&sensor_dev_attr_pwm3.dev_attr.attr,
+		&sensor_dev_attr_pwm3_mode.dev_attr.attr,
+		&sensor_dev_attr_pwm3_enable.dev_attr.attr,
+		NULL
+	},
+	{
+		&sensor_dev_attr_pwm4.dev_attr.attr,
+		&sensor_dev_attr_pwm4_mode.dev_attr.attr,
+		&sensor_dev_attr_pwm4_enable.dev_attr.attr,
+		NULL
+	},
+	{
+		&sensor_dev_attr_pwm5.dev_attr.attr,
+		&sensor_dev_attr_pwm5_mode.dev_attr.attr,
+		&sensor_dev_attr_pwm5_enable.dev_attr.attr,
+		NULL
+	},
+};
+
+static const struct attribute_group nct6775_group_pwm[5] = {
+	{ .attrs = nct6775_attributes_pwm[0] },
+	{ .attrs = nct6775_attributes_pwm[1] },
+	{ .attrs = nct6775_attributes_pwm[2] },
+	{ .attrs = nct6775_attributes_pwm[3] },
+	{ .attrs = nct6775_attributes_pwm[4] },
+};
 
 static ssize_t
 show_vid(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1680,6 +1965,9 @@ static void nct6775_device_remove_files(struct device *dev)
 	 */
 	int i;
 	struct nct6775_data *data = dev_get_drvdata(dev);
+
+	for (i = 0; i < data->pwm_num; i++)
+		sysfs_remove_group(&dev->kobj, &nct6775_group_pwm[i]);
 
 	for (i = 0; i < data->in_num; i++)
 		sysfs_remove_group(&dev->kobj, &nct6775_group_in[i]);
@@ -1763,6 +2051,7 @@ nct6775_check_fan_inputs(const struct nct6775_sio_data *sio_data,
 {
 	int regval;
 	bool fan3pin, fan3min, fan4pin, fan4min, fan5pin;
+	bool pwm3pin, pwm4pin, pwm5pin;
 	int ret;
 
 	ret = superio_enter(sio_data->sioreg);
@@ -1775,11 +2064,14 @@ nct6775_check_fan_inputs(const struct nct6775_sio_data *sio_data,
 
 		fan3pin = regval & (1 << 6);
 		fan3min = fan3pin;
+		pwm3pin = regval & (1 << 7);
 
 		/* On NCT6775, fan4 shares pins with the fdc interface */
 		fan4pin = !(superio_inb(sio_data->sioreg, 0x2A) & 0x80);
 		fan4min = 0;
 		fan5pin = 0;
+		pwm4pin = 0;
+		pwm5pin = 0;
 	} else if (data->kind == nct6776) {
 		bool gpok = superio_inb(sio_data->sioreg, 0x27) & 0x80;
 
@@ -1803,12 +2095,19 @@ nct6775_check_fan_inputs(const struct nct6775_sio_data *sio_data,
 
 		fan4min = fan4pin;
 		fan3min = fan3pin;
+		pwm3pin = fan3pin;
+		pwm4pin = 0;
+		pwm5pin = 0;
 	} else {	/* NCT6779D */
 		regval = superio_inb(sio_data->sioreg, 0x1c);
 
 		fan3pin = !(regval & (1 << 5));
 		fan4pin = !(regval & (1 << 6));
 		fan5pin = !(regval & (1 << 7));
+
+		pwm3pin = !(regval & (1 << 0));
+		pwm4pin = !(regval & (1 << 1));
+		pwm5pin = !(regval & (1 << 2));
 
 		fan3min = fan3pin;
 		fan4min = fan4pin;
@@ -1822,6 +2121,8 @@ nct6775_check_fan_inputs(const struct nct6775_sio_data *sio_data,
 
 	data->has_fan |= (fan4pin << 3) | (fan5pin << 4);
 	data->has_fan_min |= (fan4min << 3) | (fan5pin << 4);
+
+	data->has_pwm = 0x03 | (pwm3pin << 2) | (pwm4pin << 3) | (pwm5pin << 4);
 
 	return 0;
 }
@@ -1859,6 +2160,7 @@ static int nct6775_probe(struct platform_device *pdev)
 	switch (data->kind) {
 	case nct6775:
 		data->in_num = 9;
+		data->pwm_num = 3;
 		data->has_fan_div = true;
 		data->temp_fixed_num = 3;
 
@@ -1877,8 +2179,13 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_IN_MINMAX[0] = NCT6775_REG_IN_MIN;
 		data->REG_IN_MINMAX[1] = NCT6775_REG_IN_MAX;
 		data->REG_FAN = NCT6775_REG_FAN;
+		data->REG_FAN_MODE = NCT6775_REG_FAN_MODE;
 		data->REG_FAN_MIN = NCT6775_REG_FAN_MIN;
 		data->REG_FAN_PULSES = NCT6775_REG_FAN_PULSES;
+		data->REG_PWM[0] = NCT6775_REG_PWM;
+		data->REG_PWM_READ = NCT6775_REG_PWM_READ;
+		data->REG_PWM_MODE = NCT6775_REG_PWM_MODE;
+		data->PWM_MODE_MASK = NCT6775_PWM_MODE_MASK;
 		data->REG_TEMP_OFFSET = NCT6775_REG_TEMP_OFFSET;
 		data->REG_TEMP_SOURCE = NCT6775_REG_TEMP_SOURCE;
 		data->REG_ALARM = NCT6775_REG_ALARM;
@@ -1894,6 +2201,7 @@ static int nct6775_probe(struct platform_device *pdev)
 		break;
 	case nct6776:
 		data->in_num = 9;
+		data->pwm_num = 3;
 		data->has_fan_div = false;
 		data->temp_fixed_num = 3;
 
@@ -1912,8 +2220,13 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_IN_MINMAX[0] = NCT6775_REG_IN_MIN;
 		data->REG_IN_MINMAX[1] = NCT6775_REG_IN_MAX;
 		data->REG_FAN = NCT6775_REG_FAN;
+		data->REG_FAN_MODE = NCT6775_REG_FAN_MODE;
 		data->REG_FAN_MIN = NCT6776_REG_FAN_MIN;
 		data->REG_FAN_PULSES = NCT6776_REG_FAN_PULSES;
+		data->REG_PWM[0] = NCT6775_REG_PWM;
+		data->REG_PWM_READ = NCT6775_REG_PWM_READ;
+		data->REG_PWM_MODE = NCT6776_REG_PWM_MODE;
+		data->PWM_MODE_MASK = NCT6776_PWM_MODE_MASK;
 		data->REG_TEMP_OFFSET = NCT6775_REG_TEMP_OFFSET;
 		data->REG_TEMP_SOURCE = NCT6775_REG_TEMP_SOURCE;
 		data->REG_ALARM = NCT6775_REG_ALARM;
@@ -1929,6 +2242,7 @@ static int nct6775_probe(struct platform_device *pdev)
 		break;
 	case nct6779:
 		data->in_num = 15;
+		data->pwm_num = 5;
 		data->has_fan_div = false;
 		data->temp_fixed_num = 6;
 
@@ -1947,8 +2261,13 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_IN_MINMAX[0] = NCT6775_REG_IN_MIN;
 		data->REG_IN_MINMAX[1] = NCT6775_REG_IN_MAX;
 		data->REG_FAN = NCT6779_REG_FAN;
+		data->REG_FAN_MODE = NCT6775_REG_FAN_MODE;
 		data->REG_FAN_MIN = NCT6776_REG_FAN_MIN;
 		data->REG_FAN_PULSES = NCT6779_REG_FAN_PULSES;
+		data->REG_PWM[0] = NCT6775_REG_PWM;
+		data->REG_PWM_READ = NCT6775_REG_PWM_READ;
+		data->REG_PWM_MODE = NCT6776_REG_PWM_MODE;
+		data->PWM_MODE_MASK = NCT6776_PWM_MODE_MASK;
 		data->REG_TEMP_OFFSET = NCT6779_REG_TEMP_OFFSET;
 		data->REG_TEMP_SOURCE = NCT6775_REG_TEMP_SOURCE;
 		data->REG_ALARM = NCT6779_REG_ALARM;
@@ -2156,6 +2475,16 @@ static int nct6775_probe(struct platform_device *pdev)
 
 	/* Read fan clock dividers immediately */
 	nct6775_init_fan_common(dev, data);
+
+	/* Register sysfs hooks */
+	for (i = 0; i < data->pwm_num; i++) {
+		if (!(data->has_pwm & (1 << i)))
+			continue;
+
+		err = sysfs_create_group(&dev->kobj, &nct6775_group_pwm[i]);
+		if (err)
+			goto exit_remove;
+	}
 
 	for (i = 0; i < data->in_num; i++) {
 		if (!(data->have_in & (1 << i)))
