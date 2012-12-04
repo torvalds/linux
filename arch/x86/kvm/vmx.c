@@ -802,11 +802,6 @@ static inline bool cpu_has_vmx_ept_ad_bits(void)
 	return vmx_capability.ept & VMX_EPT_AD_BIT;
 }
 
-static inline bool cpu_has_vmx_invept_individual_addr(void)
-{
-	return vmx_capability.ept & VMX_EPT_EXTENT_INDIVIDUAL_BIT;
-}
-
 static inline bool cpu_has_vmx_invept_context(void)
 {
 	return vmx_capability.ept & VMX_EPT_EXTENT_CONTEXT_BIT;
@@ -1059,17 +1054,6 @@ static inline void ept_sync_context(u64 eptp)
 			__invept(VMX_EPT_EXTENT_CONTEXT, eptp, 0);
 		else
 			ept_sync_global();
-	}
-}
-
-static inline void ept_sync_individual_addr(u64 eptp, gpa_t gpa)
-{
-	if (enable_ept) {
-		if (cpu_has_vmx_invept_individual_addr())
-			__invept(VMX_EPT_EXTENT_INDIVIDUAL_ADDR,
-					eptp, gpa);
-		else
-			ept_sync_context(eptp);
 	}
 }
 
