@@ -1363,11 +1363,31 @@ intel_ring_alloc_seqno(struct intel_ring_buffer *ring)
 	return i915_gem_get_seqno(ring->dev, &ring->outstanding_lazy_request);
 }
 
+static int __intel_ring_begin(struct intel_ring_buffer *ring,
+			      int bytes)
+{
+	int ret;
+
+	if (unlikely(ring->tail + bytes > ring->effective_size)) {
+		ret = intel_wrap_ring_buffer(ring);
+		if (unlikely(ret))
+			return ret;
+	}
+
+	if (unlikely(ring->space < bytes)) {
+		ret = ring_wait_for_space(ring, bytes);
+		if (unlikely(ret))
+			return ret;
+	}
+
+	ring->space -= bytes;
+	return 0;
+}
+
 int intel_ring_begin(struct intel_ring_buffer *ring,
 		     int num_dwords)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
-	int n = 4*num_dwords;
 	int ret;
 
 	ret = i915_gem_check_wedge(dev_priv, dev_priv->mm.interruptible);
@@ -1379,20 +1399,7 @@ int intel_ring_begin(struct intel_ring_buffer *ring,
 	if (ret)
 		return ret;
 
-	if (unlikely(ring->tail + n > ring->effective_size)) {
-		ret = intel_wrap_ring_buffer(ring);
-		if (unlikely(ret))
-			return ret;
-	}
-
-	if (unlikely(ring->space < n)) {
-		ret = ring_wait_for_space(ring, n);
-		if (unlikely(ret))
-			return ret;
-	}
-
-	ring->space -= n;
-	return 0;
+	return __intel_ring_begin(ring, num_dwords * sizeof(uint32_t));
 }
 
 void intel_ring_advance(struct intel_ring_buffer *ring)
