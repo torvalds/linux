@@ -1731,6 +1731,26 @@ static struct radeon_asic si_asic = {
 			.ib_test = &r600_ib_test,
 			.is_lockup = &si_gpu_is_lockup,
 			.vm_flush = &si_vm_flush,
+		},
+		[R600_RING_TYPE_DMA_INDEX] = {
+			.ib_execute = &cayman_dma_ring_ib_execute,
+			.emit_fence = &evergreen_dma_fence_ring_emit,
+			.emit_semaphore = &r600_dma_semaphore_ring_emit,
+			.cs_parse = NULL,
+			.ring_test = &r600_dma_ring_test,
+			.ib_test = &r600_dma_ib_test,
+			.is_lockup = &cayman_dma_is_lockup,
+			.vm_flush = &si_dma_vm_flush,
+		},
+		[CAYMAN_RING_TYPE_DMA1_INDEX] = {
+			.ib_execute = &cayman_dma_ring_ib_execute,
+			.emit_fence = &evergreen_dma_fence_ring_emit,
+			.emit_semaphore = &r600_dma_semaphore_ring_emit,
+			.cs_parse = NULL,
+			.ring_test = &r600_dma_ring_test,
+			.ib_test = &r600_dma_ib_test,
+			.is_lockup = &cayman_dma_is_lockup,
+			.vm_flush = &si_dma_vm_flush,
 		}
 	},
 	.irq = {
@@ -1747,8 +1767,8 @@ static struct radeon_asic si_asic = {
 	.copy = {
 		.blit = NULL,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
-		.dma = NULL,
-		.dma_ring_index = RADEON_RING_TYPE_GFX_INDEX,
+		.dma = &si_copy_dma,
+		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
 		.copy = NULL,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},

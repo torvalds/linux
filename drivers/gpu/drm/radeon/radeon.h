@@ -797,6 +797,10 @@ void r600_dma_stop(struct radeon_device *rdev);
 int r600_dma_resume(struct radeon_device *rdev);
 void r600_dma_fini(struct radeon_device *rdev);
 
+void cayman_dma_stop(struct radeon_device *rdev);
+int cayman_dma_resume(struct radeon_device *rdev);
+void cayman_dma_fini(struct radeon_device *rdev);
+
 /*
  * CS.
  */

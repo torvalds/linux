@@ -501,5 +501,10 @@ void si_vm_set_page(struct radeon_device *rdev, uint64_t pe,
 void si_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
 int si_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib);
 uint64_t si_get_gpu_clock(struct radeon_device *rdev);
+int si_copy_dma(struct radeon_device *rdev,
+		uint64_t src_offset, uint64_t dst_offset,
+		unsigned num_gpu_pages,
+		struct radeon_fence **fence);
+void si_dma_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
 
 #endif
