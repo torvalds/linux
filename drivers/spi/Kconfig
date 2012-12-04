@@ -379,12 +379,6 @@ config SPI_SIRF
 	help
 	  SPI driver for CSR SiRFprimaII SoCs
 
-config SPI_STMP3XXX
-	tristate "Freescale STMP37xx/378x SPI/SSP controller"
-	depends on ARCH_STMP3XXX
-	help
-	  SPI driver for Freescale STMP37xx/378x SoC SSP interface
-
 config SPI_MXS
 	tristate "Freescale MXS SPI controller"
 	depends on ARCH_MXS
