@@ -28,7 +28,7 @@ ENTRY(sys32_open_wrapper)
 	llgtr	%r2,%r2			# const char *
 	lgfr	%r3,%r3			# int
 	lgfr	%r4,%r4			# int
-	jg	sys_open		# branch to system call
+	jg	compat_sys_open		# branch to system call
 
 ENTRY(sys32_close_wrapper)
 	llgfr	%r2,%r2			# unsigned int

@@ -1819,8 +1819,10 @@ void target_execute_cmd(struct se_cmd *cmd)
 	/*
 	 * If the received CDB has aleady been aborted stop processing it here.
 	 */
-	if (transport_check_aborted_status(cmd, 1))
+	if (transport_check_aborted_status(cmd, 1)) {
+		complete(&cmd->t_transport_stop_comp);
 		return;
+	}
 
 	/*
 	 * Determine if IOCTL context caller in requesting the stopping of this
@@ -3067,7 +3069,7 @@ void transport_send_task_abort(struct se_cmd *cmd)
 	unsigned long flags;
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	if (cmd->se_cmd_flags & SCF_SENT_CHECK_CONDITION) {
+	if (cmd->se_cmd_flags & (SCF_SENT_CHECK_CONDITION | SCF_SENT_DELAYED_TAS)) {
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 		return;
 	}

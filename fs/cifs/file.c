@@ -1794,7 +1794,6 @@ static int cifs_writepages(struct address_space *mapping,
 	struct TCP_Server_Info *server;
 	struct page *page;
 	int rc = 0;
-	loff_t isize = i_size_read(mapping->host);
 
 	/*
 	 * If wsize is smaller than the page cache size, default to writing
@@ -1899,7 +1898,7 @@ retry:
 			 */
 			set_page_writeback(page);
 
-			if (page_offset(page) >= isize) {
+			if (page_offset(page) >= i_size_read(mapping->host)) {
 				done = true;
 				unlock_page(page);
 				end_page_writeback(page);
@@ -1932,7 +1931,8 @@ retry:
 		wdata->offset = page_offset(wdata->pages[0]);
 		wdata->pagesz = PAGE_CACHE_SIZE;
 		wdata->tailsz =
-			min(isize - page_offset(wdata->pages[nr_pages - 1]),
+			min(i_size_read(mapping->host) -
+			    page_offset(wdata->pages[nr_pages - 1]),
 			    (loff_t)PAGE_CACHE_SIZE);
 		wdata->bytes = ((nr_pages - 1) * PAGE_CACHE_SIZE) +
 					wdata->tailsz;

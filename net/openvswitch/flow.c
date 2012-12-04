@@ -702,15 +702,11 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key,
 			/* We only match on the lower 8 bits of the opcode. */
 			if (ntohs(arp->ar_op) <= 0xff)
 				key->ip.proto = ntohs(arp->ar_op);
-
-			if (key->ip.proto == ARPOP_REQUEST
-					|| key->ip.proto == ARPOP_REPLY) {
-				memcpy(&key->ipv4.addr.src, arp->ar_sip, sizeof(key->ipv4.addr.src));
-				memcpy(&key->ipv4.addr.dst, arp->ar_tip, sizeof(key->ipv4.addr.dst));
-				memcpy(key->ipv4.arp.sha, arp->ar_sha, ETH_ALEN);
-				memcpy(key->ipv4.arp.tha, arp->ar_tha, ETH_ALEN);
-				key_len = SW_FLOW_KEY_OFFSET(ipv4.arp);
-			}
+			memcpy(&key->ipv4.addr.src, arp->ar_sip, sizeof(key->ipv4.addr.src));
+			memcpy(&key->ipv4.addr.dst, arp->ar_tip, sizeof(key->ipv4.addr.dst));
+			memcpy(key->ipv4.arp.sha, arp->ar_sha, ETH_ALEN);
+			memcpy(key->ipv4.arp.tha, arp->ar_tha, ETH_ALEN);
+			key_len = SW_FLOW_KEY_OFFSET(ipv4.arp);
 		}
 	} else if (key->eth.type == htons(ETH_P_IPV6)) {
 		int nh_len;             /* IPv6 Header + Extensions */

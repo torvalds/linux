@@ -352,6 +352,7 @@ static int fimc_register_callback(struct device *dev, void *p)
 
 	sd = &fimc->vid_cap.subdev;
 	sd->grp_id = FIMC_GROUP_ID;
+	v4l2_set_subdev_hostdata(sd, (void *)&fimc_pipeline_ops);
 
 	ret = v4l2_device_register_subdev(&fmd->v4l2_dev, sd);
 	if (ret) {
@@ -360,7 +361,6 @@ static int fimc_register_callback(struct device *dev, void *p)
 		return ret;
 	}
 
-	fimc->pipeline_ops = &fimc_pipeline_ops;
 	fmd->fimc[fimc->id] = fimc;
 	return 0;
 }
@@ -375,6 +375,7 @@ static int fimc_lite_register_callback(struct device *dev, void *p)
 		return 0;
 
 	fimc->subdev.grp_id = FLITE_GROUP_ID;
+	v4l2_set_subdev_hostdata(&fimc->subdev, (void *)&fimc_pipeline_ops);
 
 	ret = v4l2_device_register_subdev(&fmd->v4l2_dev, &fimc->subdev);
 	if (ret) {
@@ -384,7 +385,6 @@ static int fimc_lite_register_callback(struct device *dev, void *p)
 		return ret;
 	}
 
-	fimc->pipeline_ops = &fimc_pipeline_ops;
 	fmd->fimc_lite[fimc->index] = fimc;
 	return 0;
 }
