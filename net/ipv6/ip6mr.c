@@ -2251,7 +2251,7 @@ static int ip6mr_fill_mroute(struct mr6_table *mrt, struct sk_buff *skb,
 		return -EMSGSIZE;
 
 	rtm = nlmsg_data(nlh);
-	rtm->rtm_family   = RTNL_FAMILY_IPMR;
+	rtm->rtm_family   = RTNL_FAMILY_IP6MR;
 	rtm->rtm_dst_len  = 128;
 	rtm->rtm_src_len  = 128;
 	rtm->rtm_tos      = 0;
