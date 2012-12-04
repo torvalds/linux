@@ -1325,10 +1325,11 @@ static void valleyview_update_wm(struct drm_device *dev)
 		   (planeb_wm << DSPFW_PLANEB_SHIFT) |
 		   planea_wm);
 	I915_WRITE(DSPFW2,
-		   (I915_READ(DSPFW2) & DSPFW_CURSORA_MASK) |
+		   (I915_READ(DSPFW2) & ~DSPFW_CURSORA_MASK) |
 		   (cursora_wm << DSPFW_CURSORA_SHIFT));
 	I915_WRITE(DSPFW3,
-		   (I915_READ(DSPFW3) | (cursor_sr << DSPFW_CURSOR_SR_SHIFT)));
+		   (I915_READ(DSPFW3) & ~DSPFW_CURSOR_SR_MASK) |
+		   (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
 }
 
 static void g4x_update_wm(struct drm_device *dev)
@@ -1374,11 +1375,11 @@ static void g4x_update_wm(struct drm_device *dev)
 		   (planeb_wm << DSPFW_PLANEB_SHIFT) |
 		   planea_wm);
 	I915_WRITE(DSPFW2,
-		   (I915_READ(DSPFW2) & DSPFW_CURSORA_MASK) |
+		   (I915_READ(DSPFW2) & ~DSPFW_CURSORA_MASK) |
 		   (cursora_wm << DSPFW_CURSORA_SHIFT));
 	/* HPLL off in SR has some issues on G4x... disable it */
 	I915_WRITE(DSPFW3,
-		   (I915_READ(DSPFW3) & ~DSPFW_HPLL_SR_EN) |
+		   (I915_READ(DSPFW3) & ~(DSPFW_HPLL_SR_EN | DSPFW_CURSOR_SR_MASK)) |
 		   (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
 }
 
