@@ -1183,9 +1183,7 @@ static int __init hvsi_console_init(void)
 	hvsi_wait = poll_for_state; /* no irqs yet; must poll */
 
 	/* search device tree for vty nodes */
-	for (vty = of_find_compatible_node(NULL, "serial", "hvterm-protocol");
-			vty != NULL;
-			vty = of_find_compatible_node(vty, "serial", "hvterm-protocol")) {
+	for_each_compatible_node(vty, "serial", "hvterm-protocol") {
 		struct hvsi_struct *hp;
 		const uint32_t *vtermno, *irq;
 
