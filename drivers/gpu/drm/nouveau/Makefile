@@ -110,6 +110,7 @@ nouveau-y += core/subdev/therm/ic.o
 nouveau-y += core/subdev/therm/temp.o
 nouveau-y += core/subdev/therm/nv40.o
 nouveau-y += core/subdev/therm/nv50.o
+nouveau-y += core/subdev/therm/nva3.o
 nouveau-y += core/subdev/therm/nvd0.o
 nouveau-y += core/subdev/timer/base.o
 nouveau-y += core/subdev/timer/nv04.o
