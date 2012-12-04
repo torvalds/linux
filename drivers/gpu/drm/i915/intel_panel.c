@@ -130,8 +130,9 @@ static int is_backlight_combination_mode(struct drm_device *dev)
 	return 0;
 }
 
-static u32 i915_read_blc_pwm_ctl(struct drm_i915_private *dev_priv)
+static u32 i915_read_blc_pwm_ctl(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 val;
 
 	/* Restore the CTL value if it lost, e.g. GPU reset */
@@ -141,21 +142,22 @@ static u32 i915_read_blc_pwm_ctl(struct drm_i915_private *dev_priv)
 		if (dev_priv->regfile.saveBLC_PWM_CTL2 == 0) {
 			dev_priv->regfile.saveBLC_PWM_CTL2 = val;
 		} else if (val == 0) {
-			I915_WRITE(BLC_PWM_PCH_CTL2,
-				   dev_priv->regfile.saveBLC_PWM_CTL2);
 			val = dev_priv->regfile.saveBLC_PWM_CTL2;
+			I915_WRITE(BLC_PWM_PCH_CTL2, val);
 		}
 	} else {
 		val = I915_READ(BLC_PWM_CTL);
 		if (dev_priv->regfile.saveBLC_PWM_CTL == 0) {
 			dev_priv->regfile.saveBLC_PWM_CTL = val;
-			dev_priv->regfile.saveBLC_PWM_CTL2 = I915_READ(BLC_PWM_CTL2);
+			if (INTEL_INFO(dev)->gen >= 4)
+				dev_priv->regfile.saveBLC_PWM_CTL2 =
+					I915_READ(BLC_PWM_CTL2);
 		} else if (val == 0) {
-			I915_WRITE(BLC_PWM_CTL,
-				   dev_priv->regfile.saveBLC_PWM_CTL);
-			I915_WRITE(BLC_PWM_CTL2,
-				   dev_priv->regfile.saveBLC_PWM_CTL2);
 			val = dev_priv->regfile.saveBLC_PWM_CTL;
+			I915_WRITE(BLC_PWM_CTL, val);
+			if (INTEL_INFO(dev)->gen >= 4)
+				I915_WRITE(BLC_PWM_CTL2,
+					   dev_priv->regfile.saveBLC_PWM_CTL2);
 		}
 	}
 
@@ -164,10 +166,9 @@ static u32 i915_read_blc_pwm_ctl(struct drm_i915_private *dev_priv)
 
 static u32 _intel_panel_get_max_backlight(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 max;
 
-	max = i915_read_blc_pwm_ctl(dev_priv);
+	max = i915_read_blc_pwm_ctl(dev);
 
 	if (HAS_PCH_SPLIT(dev)) {
 		max >>= 16;
