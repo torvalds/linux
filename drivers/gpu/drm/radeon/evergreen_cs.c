@@ -2232,6 +2232,95 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 			ib[idx+2] = upper_32_bits(offset) & 0xff;
 		}
 		break;
+	case PACKET3_CP_DMA:
+	{
+		u32 command, size, info;
+		u64 offset, tmp;
+		if (pkt->count != 4) {
+			DRM_ERROR("bad CP DMA\n");
+			return -EINVAL;
+		}
+		command = radeon_get_ib_value(p, idx+4);
+		size = command & 0x1fffff;
+		info = radeon_get_ib_value(p, idx+1);
+		if (command & PACKET3_CP_DMA_CMD_SAS) {
+			/* src address space is register */
+			/* GDS is ok */
+			if (((info & 0x60000000) >> 29) != 1) {
+				DRM_ERROR("CP DMA SAS not supported\n");
+				return -EINVAL;
+			}
+		} else {
+			if (command & PACKET3_CP_DMA_CMD_SAIC) {
+				DRM_ERROR("CP DMA SAIC only supported for registers\n");
+				return -EINVAL;
+			}
+			/* src address space is memory */
+			if (((info & 0x60000000) >> 29) == 0) {
+				r = evergreen_cs_packet_next_reloc(p, &reloc);
+				if (r) {
+					DRM_ERROR("bad CP DMA SRC\n");
+					return -EINVAL;
+				}
+
+				tmp = radeon_get_ib_value(p, idx) +
+					((u64)(radeon_get_ib_value(p, idx+1) & 0xff) << 32);
+
+				offset = reloc->lobj.gpu_offset + tmp;
+
+				if ((tmp + size) > radeon_bo_size(reloc->robj)) {
+					dev_warn(p->dev, "CP DMA src buffer too small (%llu %lu)\n",
+						 tmp + size, radeon_bo_size(reloc->robj));
+					return -EINVAL;
+				}
+
+				ib[idx] = offset;
+				ib[idx+1] = (ib[idx+1] & 0xffffff00) | (upper_32_bits(offset) & 0xff);
+			} else if (((info & 0x60000000) >> 29) != 2) {
+				DRM_ERROR("bad CP DMA SRC_SEL\n");
+				return -EINVAL;
+			}
+		}
+		if (command & PACKET3_CP_DMA_CMD_DAS) {
+			/* dst address space is register */
+			/* GDS is ok */
+			if (((info & 0x00300000) >> 20) != 1) {
+				DRM_ERROR("CP DMA DAS not supported\n");
+				return -EINVAL;
+			}
+		} else {
+			/* dst address space is memory */
+			if (command & PACKET3_CP_DMA_CMD_DAIC) {
+				DRM_ERROR("CP DMA DAIC only supported for registers\n");
+				return -EINVAL;
+			}
+			if (((info & 0x00300000) >> 20) == 0) {
+				r = evergreen_cs_packet_next_reloc(p, &reloc);
+				if (r) {
+					DRM_ERROR("bad CP DMA DST\n");
+					return -EINVAL;
+				}
+
+				tmp = radeon_get_ib_value(p, idx+2) +
+					((u64)(radeon_get_ib_value(p, idx+3) & 0xff) << 32);
+
+				offset = reloc->lobj.gpu_offset + tmp;
+
+				if ((tmp + size) > radeon_bo_size(reloc->robj)) {
+					dev_warn(p->dev, "CP DMA dst buffer too small (%llu %lu)\n",
+						 tmp + size, radeon_bo_size(reloc->robj));
+					return -EINVAL;
+				}
+
+				ib[idx+2] = offset;
+				ib[idx+3] = upper_32_bits(offset) & 0xff;
+			} else {
+				DRM_ERROR("bad CP DMA DST_SEL\n");
+				return -EINVAL;
+			}
+		}
+		break;
+	}
 	case PACKET3_SURFACE_SYNC:
 		if (pkt->count != 3) {
 			DRM_ERROR("bad SURFACE_SYNC\n");
