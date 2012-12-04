@@ -1051,6 +1051,7 @@ struct qlcnic_npar_info {
 	u8	mac_anti_spoof;
 	u8	promisc_mode;
 	u8	offload_flags;
+	u8      pci_func;
 };
 
 struct qlcnic_eswitch {
