@@ -397,7 +397,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_timerfd_create
 	PTR	compat_sys_timerfd_gettime	/* 6285 */
 	PTR	compat_sys_timerfd_settime
-	PTR	sys_signalfd4
+	PTR	compat_sys_signalfd4
 	PTR	sys_eventfd2
 	PTR	sys_epoll_create1
 	PTR	sys_dup3			/* 6290 */
