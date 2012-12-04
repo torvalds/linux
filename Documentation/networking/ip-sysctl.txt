@@ -30,16 +30,24 @@ neigh/default/gc_thresh3 - INTEGER
 	Maximum number of neighbor entries allowed.  Increase this
 	when using large numbers of interfaces and when communicating
 	with large numbers of directly-connected peers.
+	Default: 1024
 
 neigh/default/unres_qlen_bytes - INTEGER
 	The maximum number of bytes which may be used by packets
 	queued for each	unresolved address by other network layers.
 	(added in linux 3.3)
+	Seting negative value is meaningless and will retrun error.
+	Default: 65536 Bytes(64KB)
 
 neigh/default/unres_qlen - INTEGER
 	The maximum number of packets which may be queued for each
 	unresolved address by other network layers.
 	(deprecated in linux 3.3) : use unres_qlen_bytes instead.
+	Prior to linux 3.3, the default value is 3 which may cause
+	secluded packet loss. The current default value is calculated
+	according to default value of unres_qlen_bytes and true size of
+	packet.
+	Default: 31
 
 mtu_expires - INTEGER
 	Time, in seconds, that cached PMTU information is kept.
