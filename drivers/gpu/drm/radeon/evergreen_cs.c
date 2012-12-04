@@ -2932,6 +2932,7 @@ static int evergreen_vm_packet3_check(struct radeon_device *rdev,
 	u32 idx = pkt->idx + 1;
 	u32 idx_value = ib[idx];
 	u32 start_reg, end_reg, reg, i;
+	u32 command, info;
 
 	switch (pkt->opcode) {
 	case PACKET3_NOP:
@@ -3004,6 +3005,52 @@ static int evergreen_vm_packet3_check(struct radeon_device *rdev,
 			reg = start_reg + (4 * i);
 			if (!evergreen_vm_reg_valid(reg))
 				return -EINVAL;
+		}
+		break;
+	case PACKET3_CP_DMA:
+		command = ib[idx + 4];
+		info = ib[idx + 1];
+		if (command & PACKET3_CP_DMA_CMD_SAS) {
+			/* src address space is register */
+			if (((info & 0x60000000) >> 29) == 0) {
+				start_reg = idx_value << 2;
+				if (command & PACKET3_CP_DMA_CMD_SAIC) {
+					reg = start_reg;
+					if (!evergreen_vm_reg_valid(reg)) {
+						DRM_ERROR("CP DMA Bad SRC register\n");
+						return -EINVAL;
+					}
+				} else {
+					for (i = 0; i < (command & 0x1fffff); i++) {
+						reg = start_reg + (4 * i);
+						if (!evergreen_vm_reg_valid(reg)) {
+							DRM_ERROR("CP DMA Bad SRC register\n");
+							return -EINVAL;
+						}
+					}
+				}
+			}
+		}
+		if (command & PACKET3_CP_DMA_CMD_DAS) {
+			/* dst address space is register */
+			if (((info & 0x00300000) >> 20) == 0) {
+				start_reg = ib[idx + 2];
+				if (command & PACKET3_CP_DMA_CMD_DAIC) {
+					reg = start_reg;
+					if (!evergreen_vm_reg_valid(reg)) {
+						DRM_ERROR("CP DMA Bad DST register\n");
+						return -EINVAL;
+					}
+				} else {
+					for (i = 0; i < (command & 0x1fffff); i++) {
+						reg = start_reg + (4 * i);
+						if (!evergreen_vm_reg_valid(reg)) {
+							DRM_ERROR("CP DMA Bad DST register\n");
+							return -EINVAL;
+						}
+					}
+				}
+			}
 		}
 		break;
 	default:
