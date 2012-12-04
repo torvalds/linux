@@ -709,7 +709,7 @@ static void qlcnic_handle_linkevent(struct qlcnic_adapter *adapter,
 	u8  link_status, module, duplex, autoneg, lb_status = 0;
 	struct net_device *netdev = adapter->netdev;
 
-	adapter->has_link_events = 1;
+	adapter->ahw->has_link_events = 1;
 
 	cable_OUI = msg->body[1] & 0xffffffff;
 	cable_len = (msg->body[1] >> 32) & 0xffff;
@@ -736,18 +736,18 @@ static void qlcnic_handle_linkevent(struct qlcnic_adapter *adapter,
 	qlcnic_advert_link_change(adapter, link_status);
 
 	if (duplex == LINKEVENT_FULL_DUPLEX)
-		adapter->link_duplex = DUPLEX_FULL;
+		adapter->ahw->link_duplex = DUPLEX_FULL;
 	else
-		adapter->link_duplex = DUPLEX_HALF;
+		adapter->ahw->link_duplex = DUPLEX_HALF;
 
-	adapter->module_type = module;
-	adapter->link_autoneg = autoneg;
+	adapter->ahw->module_type = module;
+	adapter->ahw->link_autoneg = autoneg;
 
 	if (link_status) {
-		adapter->link_speed = link_speed;
+		adapter->ahw->link_speed = link_speed;
 	} else {
-		adapter->link_speed = SPEED_UNKNOWN;
-		adapter->link_duplex = DUPLEX_UNKNOWN;
+		adapter->ahw->link_speed = SPEED_UNKNOWN;
+		adapter->ahw->link_duplex = DUPLEX_UNKNOWN;
 	}
 }
 
@@ -785,17 +785,17 @@ static void qlcnic_handle_fw_message(int desc_cnt, int index,
 			break;
 		case 1:
 			dev_info(dev, "loopback already in progress\n");
-			adapter->diag_cnt = -QLCNIC_TEST_IN_PROGRESS;
+			adapter->ahw->diag_cnt = -QLCNIC_TEST_IN_PROGRESS;
 			break;
 		case 2:
 			dev_info(dev, "loopback cable is not connected\n");
-			adapter->diag_cnt = -QLCNIC_LB_CABLE_NOT_CONN;
+			adapter->ahw->diag_cnt = -QLCNIC_LB_CABLE_NOT_CONN;
 			break;
 		default:
 			dev_info(dev,
 				 "loopback configure request failed, err %x\n",
 				 ret);
-			adapter->diag_cnt = -QLCNIC_UNDEFINED_ERROR;
+			adapter->ahw->diag_cnt = -QLCNIC_UNDEFINED_ERROR;
 			break;
 		}
 		break;
@@ -1169,7 +1169,7 @@ static void qlcnic_process_rcv_diag(struct qlcnic_adapter *adapter, int ring,
 		skb_pull(skb, pkt_offset);
 
 	if (!qlcnic_check_loopback_buff(skb->data, adapter->mac_addr))
-		adapter->diag_cnt++;
+		adapter->ahw->diag_cnt++;
 	else
 		dump_skb(skb, adapter);
 

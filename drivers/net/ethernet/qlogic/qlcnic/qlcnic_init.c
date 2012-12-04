@@ -246,7 +246,8 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 			rds_ring->dma_size =
 				QLCNIC_P3P_RX_JUMBO_BUF_MAX_LEN;
 
-			if (adapter->capabilities & QLCNIC_FW_CAPABILITY_HW_LRO)
+			if (adapter->ahw->capabilities &
+			    QLCNIC_FW_CAPABILITY_HW_LRO)
 				rds_ring->dma_size += QLCNIC_LRO_BUFFER_EXTRA;
 
 			rds_ring->skb_size =
@@ -655,7 +656,7 @@ qlcnic_setup_idc_param(struct qlcnic_adapter *adapter) {
 			"Not an Ethernet NIC func=%u\n", val);
 		return -EIO;
 	}
-	adapter->physical_port = (val >> 2);
+	adapter->ahw->physical_port = (val >> 2);
 	if (qlcnic_rom_fast_read(adapter, QLCNIC_ROM_DEV_INIT_TIMEOUT, &timeo))
 		timeo = QLCNIC_INIT_TIMEOUT_SECS;
 
@@ -996,7 +997,7 @@ qlcnic_get_bootld_offs(struct qlcnic_adapter *adapter)
 	data_desc = qlcnic_get_data_desc(adapter, QLCNIC_UNI_DIR_SECT_BOOTLD,
 					 QLCNIC_UNI_BOOTLD_IDX_OFF);
 
-	if (adapter->fw_type == QLCNIC_UNIFIED_ROMIMAGE)
+	if (adapter->ahw->fw_type == QLCNIC_UNIFIED_ROMIMAGE)
 		offs = le32_to_cpu(data_desc->findex);
 
 	return (u8 *)&adapter->fw->data[offs];
@@ -1010,7 +1011,7 @@ qlcnic_get_fw_offs(struct qlcnic_adapter *adapter)
 
 	data_desc = qlcnic_get_data_desc(adapter, QLCNIC_UNI_DIR_SECT_FW,
 					 QLCNIC_UNI_FIRMWARE_IDX_OFF);
-	if (adapter->fw_type == QLCNIC_UNIFIED_ROMIMAGE)
+	if (adapter->ahw->fw_type == QLCNIC_UNIFIED_ROMIMAGE)
 		offs = le32_to_cpu(data_desc->findex);
 
 	return (u8 *)&adapter->fw->data[offs];
@@ -1024,7 +1025,7 @@ static u32 qlcnic_get_fw_size(struct qlcnic_adapter *adapter)
 	data_desc = qlcnic_get_data_desc(adapter, QLCNIC_UNI_DIR_SECT_FW,
 					 QLCNIC_UNI_FIRMWARE_IDX_OFF);
 
-	if (adapter->fw_type == QLCNIC_UNIFIED_ROMIMAGE)
+	if (adapter->ahw->fw_type == QLCNIC_UNIFIED_ROMIMAGE)
 		return le32_to_cpu(data_desc->size);
 	else
 		return le32_to_cpu(*(__le32 *)&unirom[QLCNIC_FW_SIZE_OFFSET]);
@@ -1039,7 +1040,7 @@ static u32 qlcnic_get_fw_version(struct qlcnic_adapter *adapter)
 	const u8 *ver_str;
 	int i, ret;
 
-	if (adapter->fw_type != QLCNIC_UNIFIED_ROMIMAGE) {
+	if (adapter->ahw->fw_type != QLCNIC_UNIFIED_ROMIMAGE) {
 		version_offset = *(__le32 *)&fw->data[QLCNIC_FW_VERSION_OFFSET];
 		return le32_to_cpu(version_offset);
 	}
@@ -1070,7 +1071,7 @@ static u32 qlcnic_get_bios_version(struct qlcnic_adapter *adapter)
 	u8 *version_offset;
 	__le32 temp;
 
-	if (adapter->fw_type != QLCNIC_UNIFIED_ROMIMAGE) {
+	if (adapter->ahw->fw_type != QLCNIC_UNIFIED_ROMIMAGE) {
 		version_offset = (u8 *)&fw->data[QLCNIC_BIOS_VERSION_OFFSET];
 		return le32_to_cpu(*(__le32 *)version_offset);
 	}
@@ -1141,7 +1142,7 @@ qlcnic_load_firmware(struct qlcnic_adapter *adapter)
 	struct pci_dev *pdev = adapter->pdev;
 
 	dev_info(&pdev->dev, "loading firmware from %s\n",
-			fw_name[adapter->fw_type]);
+		 fw_name[adapter->ahw->fw_type]);
 
 	if (fw) {
 		u64 data;
@@ -1233,7 +1234,7 @@ qlcnic_validate_firmware(struct qlcnic_adapter *adapter)
 	u32 ver, bios, min_size;
 	struct pci_dev *pdev = adapter->pdev;
 	const struct firmware *fw = adapter->fw;
-	u8 fw_type = adapter->fw_type;
+	u8 fw_type = adapter->ahw->fw_type;
 
 	if (fw_type == QLCNIC_UNIFIED_ROMIMAGE) {
 		if (qlcnic_validate_unified_romimage(adapter))
@@ -1278,7 +1279,7 @@ qlcnic_get_next_fwtype(struct qlcnic_adapter *adapter)
 {
 	u8 fw_type;
 
-	switch (adapter->fw_type) {
+	switch (adapter->ahw->fw_type) {
 	case QLCNIC_UNKNOWN_ROMIMAGE:
 		fw_type = QLCNIC_UNIFIED_ROMIMAGE;
 		break;
@@ -1289,7 +1290,7 @@ qlcnic_get_next_fwtype(struct qlcnic_adapter *adapter)
 		break;
 	}
 
-	adapter->fw_type = fw_type;
+	adapter->ahw->fw_type = fw_type;
 }
 
 
@@ -1299,16 +1300,17 @@ void qlcnic_request_firmware(struct qlcnic_adapter *adapter)
 	struct pci_dev *pdev = adapter->pdev;
 	int rc;
 
-	adapter->fw_type = QLCNIC_UNKNOWN_ROMIMAGE;
+	adapter->ahw->fw_type = QLCNIC_UNKNOWN_ROMIMAGE;
 
 next:
 	qlcnic_get_next_fwtype(adapter);
 
-	if (adapter->fw_type == QLCNIC_FLASH_ROMIMAGE) {
+	if (adapter->ahw->fw_type == QLCNIC_FLASH_ROMIMAGE) {
 		adapter->fw = NULL;
 	} else {
 		rc = request_firmware(&adapter->fw,
-				fw_name[adapter->fw_type], &pdev->dev);
+				      fw_name[adapter->ahw->fw_type],
+				      &pdev->dev);
 		if (rc != 0)
 			goto next;
 

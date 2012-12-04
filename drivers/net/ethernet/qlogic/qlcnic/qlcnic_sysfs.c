@@ -31,7 +31,7 @@ static ssize_t qlcnic_store_bridged_mode(struct device *dev,
 	unsigned long new;
 	int ret = -EINVAL;
 
-	if (!(adapter->capabilities & QLCNIC_FW_CAPABILITY_BDG))
+	if (!(adapter->ahw->capabilities & QLCNIC_FW_CAPABILITY_BDG))
 		goto err_out;
 
 	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state))
@@ -54,7 +54,7 @@ static ssize_t qlcnic_show_bridged_mode(struct device *dev,
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	int bridged_mode = 0;
 
-	if (adapter->capabilities & QLCNIC_FW_CAPABILITY_BDG)
+	if (adapter->ahw->capabilities & QLCNIC_FW_CAPABILITY_BDG)
 		bridged_mode = !!(adapter->flags & QLCNIC_BRIDGE_ENABLED);
 
 	return sprintf(buf, "%d\n", bridged_mode);
@@ -116,7 +116,7 @@ static ssize_t qlcnic_store_beacon(struct device *dev,
 	u8 b_state, b_rate;
 	int err;
 
-	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC) {
+	if (adapter->ahw->op_mode == QLCNIC_NON_PRIV_FUNC) {
 		dev_warn(dev,
 			 "LED test not supported in non privileged mode\n");
 		return -EOPNOTSUPP;
@@ -413,7 +413,7 @@ static int validate_esw_config(struct qlcnic_adapter *adapter,
 		if (pci_func >= QLCNIC_MAX_PCI_FUNC)
 			return QL_STATUS_INVALID_PARAM;
 
-		if (adapter->op_mode == QLCNIC_MGMT_FUNC) {
+		if (adapter->ahw->op_mode == QLCNIC_MGMT_FUNC) {
 			if (adapter->npars[pci_func].type != QLCNIC_TYPE_NIC)
 				return QL_STATUS_INVALID_PARAM;
 		}
@@ -471,7 +471,7 @@ static ssize_t qlcnic_sysfs_write_esw_config(struct file *file,
 		return ret;
 
 	for (i = 0; i < count; i++) {
-		if (adapter->op_mode == QLCNIC_MGMT_FUNC) {
+		if (adapter->ahw->op_mode == QLCNIC_MGMT_FUNC) {
 			if (qlcnic_config_switch_port(adapter, &esw_cfg[i]))
 				return QL_STATUS_INVALID_PARAM;
 		}
@@ -498,7 +498,7 @@ static ssize_t qlcnic_sysfs_write_esw_config(struct file *file,
 		}
 	}
 
-	if (adapter->op_mode != QLCNIC_MGMT_FUNC)
+	if (adapter->ahw->op_mode != QLCNIC_MGMT_FUNC)
 		goto out;
 
 	for (i = 0; i < count; i++) {
@@ -880,7 +880,7 @@ void qlcnic_create_sysfs_entries(struct qlcnic_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
 
-	if (adapter->capabilities & QLCNIC_FW_CAPABILITY_BDG)
+	if (adapter->ahw->capabilities & QLCNIC_FW_CAPABILITY_BDG)
 		if (device_create_file(dev, &dev_attr_bridged_mode))
 			dev_warn(dev,
 				 "failed to create bridged_mode sysfs entry\n");
@@ -890,7 +890,7 @@ void qlcnic_remove_sysfs_entries(struct qlcnic_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
 
-	if (adapter->capabilities & QLCNIC_FW_CAPABILITY_BDG)
+	if (adapter->ahw->capabilities & QLCNIC_FW_CAPABILITY_BDG)
 		device_remove_file(dev, &dev_attr_bridged_mode);
 }
 
@@ -902,7 +902,7 @@ void qlcnic_create_diag_entries(struct qlcnic_adapter *adapter)
 	if (device_create_bin_file(dev, &bin_attr_port_stats))
 		dev_info(dev, "failed to create port stats sysfs entry");
 
-	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC)
+	if (adapter->ahw->op_mode == QLCNIC_NON_PRIV_FUNC)
 		return;
 	if (device_create_file(dev, &dev_attr_diag_mode))
 		dev_info(dev, "failed to create diag_mode sysfs entry\n");
@@ -923,7 +923,7 @@ void qlcnic_create_diag_entries(struct qlcnic_adapter *adapter)
 		return;
 	if (device_create_bin_file(dev, &bin_attr_esw_config))
 		dev_info(dev, "failed to create esw config sysfs entry");
-	if (adapter->op_mode != QLCNIC_MGMT_FUNC)
+	if (adapter->ahw->op_mode != QLCNIC_MGMT_FUNC)
 		return;
 	if (device_create_bin_file(dev, &bin_attr_npar_config))
 		dev_info(dev, "failed to create npar config sysfs entry");
@@ -940,7 +940,7 @@ void qlcnic_remove_diag_entries(struct qlcnic_adapter *adapter)
 
 	device_remove_bin_file(dev, &bin_attr_port_stats);
 
-	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC)
+	if (adapter->ahw->op_mode == QLCNIC_NON_PRIV_FUNC)
 		return;
 	device_remove_file(dev, &dev_attr_diag_mode);
 	device_remove_bin_file(dev, &bin_attr_crb);
@@ -952,7 +952,7 @@ void qlcnic_remove_diag_entries(struct qlcnic_adapter *adapter)
 	if (!(adapter->flags & QLCNIC_ESWITCH_ENABLED))
 		return;
 	device_remove_bin_file(dev, &bin_attr_esw_config);
-	if (adapter->op_mode != QLCNIC_MGMT_FUNC)
+	if (adapter->ahw->op_mode != QLCNIC_MGMT_FUNC)
 		return;
 	device_remove_bin_file(dev, &bin_attr_npar_config);
 	device_remove_bin_file(dev, &bin_attr_pm_config);

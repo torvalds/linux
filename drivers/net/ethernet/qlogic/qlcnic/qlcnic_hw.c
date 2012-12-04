@@ -434,7 +434,7 @@ void qlcnic_set_multi(struct net_device *netdev)
 	}
 
 	if ((netdev->flags & IFF_ALLMULTI) ||
-	    (netdev_mc_count(netdev) > adapter->max_mc_count)) {
+	    (netdev_mc_count(netdev) > adapter->ahw->max_mc_count)) {
 		mode = VPORT_MISS_MODE_ACCEPT_MULTI;
 		goto send_fw_cmd;
 	}

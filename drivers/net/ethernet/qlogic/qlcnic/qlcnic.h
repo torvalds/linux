@@ -365,11 +365,41 @@ struct qlcnic_hardware_context {
 	u8 pci_func;
 	u8 linkup;
 	u8 loopback_state;
+	u8 beacon_state;
+	u8 has_link_events;
+	u8 fw_type;
+	u8 physical_port;
+	u8 reset_context;
+	u8 msix_supported;
+	u8 max_mac_filters;
+	u8 mc_enabled;
+	u8 max_mc_count;
+	u8 diag_test;
+	u8 num_msix;
+	u8 nic_mode;
+	char diag_cnt;
+
 	u16 port_type;
 	u16 board_type;
 
-	u8 beacon_state;
+	u16 link_speed;
+	u16 link_duplex;
+	u16 link_autoneg;
+	u16 module_type;
 
+	u16 op_mode;
+	u16 switch_mode;
+	u16 max_tx_ques;
+	u16 max_rx_ques;
+	u16 max_mtu;
+	u32 msg_enable;
+	u16 act_pci_func;
+
+	u32 capabilities;
+	u32 temp;
+	u32 int_vec_bit;
+	u32 fw_hal_version;
+	struct qlcnic_hardware_ops *hw_ops;
 	struct qlcnic_nic_intr_coalesce coal;
 	struct qlcnic_fw_dump fw_dump;
 };
@@ -430,6 +460,7 @@ struct qlcnic_host_sds_ring {
 } ____cacheline_internodealigned_in_smp;
 
 struct qlcnic_host_tx_ring {
+	u16 ctx_id;
 	u32 producer;
 	u32 sw_consumer;
 	u32 num_desc;
@@ -894,6 +925,7 @@ struct qlcnic_adapter {
 	unsigned long state;
 	u32 flags;
 
+	int max_drv_tx_rings;
 	u16 num_txd;
 	u16 num_rxd;
 	u16 num_jumbo_rxd;
@@ -902,57 +934,28 @@ struct qlcnic_adapter {
 
 	u8 max_rds_rings;
 	u8 max_sds_rings;
-	u8 msix_supported;
 	u8 portnum;
-	u8 physical_port;
-	u8 reset_context;
 
-	u8 mc_enabled;
-	u8 max_mc_count;
 	u8 fw_wait_cnt;
 	u8 fw_fail_cnt;
 	u8 tx_timeo_cnt;
 	u8 need_fw_reset;
 
-	u8 has_link_events;
-	u8 fw_type;
-	u16 tx_context_id;
 	u16 is_up;
-
-	u16 link_speed;
-	u16 link_duplex;
-	u16 link_autoneg;
-	u16 module_type;
-
-	u16 op_mode;
-	u16 switch_mode;
-	u16 max_tx_ques;
-	u16 max_rx_ques;
-	u16 max_mtu;
 	u16 pvid;
 
-	u32 fw_hal_version;
-	u32 capabilities;
 	u32 irq;
-	u32 temp;
-
-	u32 int_vec_bit;
 	u32 heartbeat;
 
-	u8 max_mac_filters;
 	u8 dev_state;
-	u8 diag_test;
-	char diag_cnt;
 	u8 reset_ack_timeo;
 	u8 dev_init_timeo;
-	u16 msg_enable;
 
 	u8 mac_addr[ETH_ALEN];
 
 	u64 dev_rst_time;
 	u8 mac_learn;
 	unsigned long vlans[BITS_TO_LONGS(VLAN_N_VID)];
-
 	struct qlcnic_npar_info *npars;
 	struct qlcnic_eswitch *eswitch;
 	struct qlcnic_nic_template *nic_ops;
@@ -966,9 +969,7 @@ struct qlcnic_adapter {
 	void __iomem	*isr_int_vec;
 
 	struct msix_entry *msix_entries;
-
 	struct delayed_work fw_work;
-
 
 	struct qlcnic_filter_hash fhash;
 
@@ -1509,7 +1510,7 @@ struct qlcnic_nic_template {
 };
 
 #define QLCDB(adapter, lvl, _fmt, _args...) do {	\
-	if (NETIF_MSG_##lvl & adapter->msg_enable)	\
+	if (NETIF_MSG_##lvl & adapter->ahw->msg_enable)	\
 		printk(KERN_INFO "%s: %s: " _fmt,	\
 			 dev_name(&adapter->pdev->dev),	\
 			__func__, ##_args);		\
