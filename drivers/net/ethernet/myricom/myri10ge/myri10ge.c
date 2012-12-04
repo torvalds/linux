@@ -1885,7 +1885,7 @@ static int myri10ge_led(struct myri10ge_priv *mgp, int on)
 	}
 	if (!on)
 		pattern = swab32(readl(mgp->sram + pattern_off + 4));
-	writel(htonl(pattern), mgp->sram + pattern_off);
+	writel(swab32(pattern), mgp->sram + pattern_off);
 	return 0;
 }
 
@@ -2294,7 +2294,7 @@ static int myri10ge_open(struct net_device *dev)
 	struct myri10ge_priv *mgp = netdev_priv(dev);
 	struct myri10ge_cmd cmd;
 	int i, status, big_pow2, slice;
-	u8 *itable;
+	u8 __iomem *itable;
 
 	if (mgp->running != MYRI10GE_ETH_STOPPED)
 		return -EBUSY;
@@ -2757,7 +2757,7 @@ again:
 					flags_next |= next_is_first *
 					    MXGEFW_FLAGS_FIRST;
 					rdma_count |= -(chop | next_is_first);
-					rdma_count += chop & !next_is_first;
+					rdma_count += chop & ~next_is_first;
 				} else if (likely(cum_len_next >= 0)) {	/* header ends */
 					int small;
 
@@ -3836,9 +3836,9 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto abort_with_mtrr;
 	}
 	hdr_offset =
-	    ntohl(__raw_readl(mgp->sram + MCP_HEADER_PTR_OFFSET)) & 0xffffc;
+	    swab32(readl(mgp->sram + MCP_HEADER_PTR_OFFSET)) & 0xffffc;
 	ss_offset = hdr_offset + offsetof(struct mcp_gen_header, string_specs);
-	mgp->sram_size = ntohl(__raw_readl(mgp->sram + ss_offset));
+	mgp->sram_size = swab32(readl(mgp->sram + ss_offset));
 	if (mgp->sram_size > mgp->board_span ||
 	    mgp->sram_size <= MYRI10GE_FW_OFFSET) {
 		dev_err(&pdev->dev,
