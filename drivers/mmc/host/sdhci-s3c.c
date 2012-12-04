@@ -375,7 +375,9 @@ static struct sdhci_ops sdhci_s3c_ops = {
 static void sdhci_s3c_notify_change(struct platform_device *dev, int state)
 {
 	struct sdhci_host *host = platform_get_drvdata(dev);
+#ifdef CONFIG_PM_RUNTIME
 	struct sdhci_s3c *sc = sdhci_priv(host);
+#endif
 	unsigned long flags;
 
 	if (host) {
