@@ -967,6 +967,10 @@ struct drm_radeon_cs {
 #define RADEON_INFO_MAX_PIPES		0x10
 /* timestamp for GL_ARB_timer_query (OpenGL), returns the current GPU clock */
 #define RADEON_INFO_TIMESTAMP		0x11
+/* max shader engines (SE) - needed for geometry shaders, etc. */
+#define RADEON_INFO_MAX_SE		0x12
+/* max SH per SE */
+#define RADEON_INFO_MAX_SH_PER_SE	0x13
 
 struct drm_radeon_info {
 	uint32_t		request;
