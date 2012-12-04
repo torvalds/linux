@@ -675,8 +675,10 @@ static int hci_tm_send(struct nfc_dev *nfc_dev, struct sk_buff *skb)
 
 	if (hdev->ops->tm_send)
 		return hdev->ops->tm_send(hdev, skb);
-	else
-		return -ENOTSUPP;
+
+	kfree_skb(skb);
+
+	return -ENOTSUPP;
 }
 
 static int hci_check_presence(struct nfc_dev *nfc_dev,

@@ -675,11 +675,17 @@ static int pn544_hci_im_transceive(struct nfc_hci_dev *hdev,
 
 static int pn544_hci_tm_send(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 {
+	int r;
+
 	/* Set default false for multiple information chaining */
 	*skb_push(skb, 1) = 0;
 
-	return nfc_hci_send_event(hdev, PN544_RF_READER_NFCIP1_TARGET_GATE,
-				PN544_HCI_EVT_SND_DATA, skb->data, skb->len);
+	r = nfc_hci_send_event(hdev, PN544_RF_READER_NFCIP1_TARGET_GATE,
+			       PN544_HCI_EVT_SND_DATA, skb->data, skb->len);
+
+	kfree_skb(skb);
+
+	return r;
 }
 
 static int pn544_hci_check_presence(struct nfc_hci_dev *hdev,
