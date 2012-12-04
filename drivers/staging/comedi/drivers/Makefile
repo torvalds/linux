@@ -2,7 +2,6 @@
 #
 
 # Comedi "helper" modules
-obj-$(CONFIG_COMEDI)			+= pcm_common.o
 
 # Comedi misc drivers
 obj-$(CONFIG_COMEDI_BOND)		+= comedi_bond.o
