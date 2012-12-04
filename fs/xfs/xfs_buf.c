@@ -175,7 +175,7 @@ xfs_buf_get_maps(
 	bp->b_map_count = map_count;
 
 	if (map_count == 1) {
-		bp->b_maps = &bp->b_map;
+		bp->b_maps = &bp->__b_map;
 		return 0;
 	}
 
@@ -193,7 +193,7 @@ static void
 xfs_buf_free_maps(
 	struct xfs_buf	*bp)
 {
-	if (bp->b_maps != &bp->b_map) {
+	if (bp->b_maps != &bp->__b_map) {
 		kmem_free(bp->b_maps);
 		bp->b_maps = NULL;
 	}
@@ -377,8 +377,8 @@ xfs_buf_allocate_memory(
 	}
 
 use_alloc_page:
-	start = BBTOB(bp->b_map.bm_bn) >> PAGE_SHIFT;
-	end = (BBTOB(bp->b_map.bm_bn + bp->b_length) + PAGE_SIZE - 1)
+	start = BBTOB(bp->b_maps[0].bm_bn) >> PAGE_SHIFT;
+	end = (BBTOB(bp->b_maps[0].bm_bn + bp->b_length) + PAGE_SIZE - 1)
 								>> PAGE_SHIFT;
 	page_count = end - start;
 	error = _xfs_buf_get_pages(bp, page_count, flags);
@@ -640,7 +640,7 @@ _xfs_buf_read(
 	xfs_buf_flags_t		flags)
 {
 	ASSERT(!(flags & XBF_WRITE));
-	ASSERT(bp->b_map.bm_bn != XFS_BUF_DADDR_NULL);
+	ASSERT(bp->b_maps[0].bm_bn != XFS_BUF_DADDR_NULL);
 
 	bp->b_flags &= ~(XBF_WRITE | XBF_ASYNC | XBF_READ_AHEAD);
 	bp->b_flags |= flags & (XBF_READ | XBF_ASYNC | XBF_READ_AHEAD);
@@ -1709,7 +1709,7 @@ xfs_buf_cmp(
 	struct xfs_buf	*bp = container_of(b, struct xfs_buf, b_list);
 	xfs_daddr_t		diff;
 
-	diff = ap->b_map.bm_bn - bp->b_map.bm_bn;
+	diff = ap->b_maps[0].bm_bn - bp->b_maps[0].bm_bn;
 	if (diff < 0)
 		return -1;
 	if (diff > 0)
