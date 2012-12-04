@@ -2120,6 +2120,7 @@ static int __ip6mr_fill_mroute(struct mr6_table *mrt, struct sk_buff *skb,
 	int ct;
 	struct rtnexthop *nhp;
 	struct nlattr *mp_attr;
+	struct rta_mfc_stats mfcs;
 
 	/* If cache is unresolved, don't try to parse IIF and OIF */
 	if (c->mf6c_parent >= MAXMIFS)
@@ -2148,6 +2149,12 @@ static int __ip6mr_fill_mroute(struct mr6_table *mrt, struct sk_buff *skb,
 	}
 
 	nla_nest_end(skb, mp_attr);
+
+	mfcs.mfcs_packets = c->mfc_un.res.pkt;
+	mfcs.mfcs_bytes = c->mfc_un.res.bytes;
+	mfcs.mfcs_wrong_if = c->mfc_un.res.wrong_if;
+	if (nla_put(skb, RTA_MFC_STATS, sizeof(mfcs), &mfcs) < 0)
+		return -EMSGSIZE;
 
 	rtm->rtm_type = RTN_MULTICAST;
 	return 1;

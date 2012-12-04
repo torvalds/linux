@@ -288,6 +288,7 @@ enum rtattr_type_t {
 	RTA_MP_ALGO, /* no longer used */
 	RTA_TABLE,
 	RTA_MARK,
+	RTA_MFC_STATS,
 	__RTA_MAX
 };
 
@@ -406,6 +407,12 @@ struct rta_session {
 
 		__u32		spi;
 	} u;
+};
+
+struct rta_mfc_stats {
+	__u64	mfcs_packets;
+	__u64	mfcs_bytes;
+	__u64	mfcs_wrong_if;
 };
 
 /****
