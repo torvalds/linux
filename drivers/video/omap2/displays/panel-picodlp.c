@@ -354,12 +354,6 @@ static int picodlp_panel_power_on(struct omap_dss_device *dssdev)
 	struct picodlp_data *picod = dev_get_drvdata(&dssdev->dev);
 	struct picodlp_panel_data *picodlp_pdata = get_panel_data(dssdev);
 
-	if (dssdev->platform_enable) {
-		r = dssdev->platform_enable(dssdev);
-		if (r)
-			return r;
-	}
-
 	gpio_set_value(picodlp_pdata->pwrgood_gpio, 0);
 	msleep(1);
 	gpio_set_value(picodlp_pdata->pwrgood_gpio, 1);
@@ -398,9 +392,6 @@ static int picodlp_panel_power_on(struct omap_dss_device *dssdev)
 err:
 	omapdss_dpi_display_disable(dssdev);
 err1:
-	if (dssdev->platform_disable)
-		dssdev->platform_disable(dssdev);
-
 	return r;
 }
 
@@ -412,9 +403,6 @@ static void picodlp_panel_power_off(struct omap_dss_device *dssdev)
 
 	gpio_set_value(picodlp_pdata->emu_done_gpio, 0);
 	gpio_set_value(picodlp_pdata->pwrgood_gpio, 0);
-
-	if (dssdev->platform_disable)
-		dssdev->platform_disable(dssdev);
 }
 
 static int picodlp_panel_probe(struct omap_dss_device *dssdev)
