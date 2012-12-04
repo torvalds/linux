@@ -2154,6 +2154,7 @@ static int ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 {
 	struct nlmsghdr *nlh;
 	struct rtmsg *rtm;
+	int err;
 
 	nlh = nlmsg_put(skb, portid, seq, RTM_NEWROUTE, sizeof(*rtm), NLM_F_MULTI);
 	if (nlh == NULL)
@@ -2178,7 +2179,9 @@ static int ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 	if (nla_put_be32(skb, RTA_SRC, c->mfc_origin) ||
 	    nla_put_be32(skb, RTA_DST, c->mfc_mcastgrp))
 		goto nla_put_failure;
-	if (__ipmr_fill_mroute(mrt, skb, c, rtm) < 0)
+	err = __ipmr_fill_mroute(mrt, skb, c, rtm);
+	/* do not break the dump if cache is unresolved */
+	if (err < 0 && err != -ENOENT)
 		goto nla_put_failure;
 
 	return nlmsg_end(skb, nlh);
@@ -2221,6 +2224,22 @@ next_entry:
 			}
 			e = s_e = 0;
 		}
+		spin_lock_bh(&mfc_unres_lock);
+		list_for_each_entry(mfc, &mrt->mfc_unres_queue, list) {
+			if (e < s_e)
+				goto next_entry2;
+			if (ipmr_fill_mroute(mrt, skb,
+					     NETLINK_CB(cb->skb).portid,
+					     cb->nlh->nlmsg_seq,
+					     mfc) < 0) {
+				spin_unlock_bh(&mfc_unres_lock);
+				goto done;
+			}
+next_entry2:
+			e++;
+		}
+		spin_unlock_bh(&mfc_unres_lock);
+		e = s_e = 0;
 		s_h = 0;
 next_table:
 		t++;

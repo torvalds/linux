@@ -2235,6 +2235,7 @@ static int ip6mr_fill_mroute(struct mr6_table *mrt, struct sk_buff *skb,
 {
 	struct nlmsghdr *nlh;
 	struct rtmsg *rtm;
+	int err;
 
 	nlh = nlmsg_put(skb, portid, seq, RTM_NEWROUTE, sizeof(*rtm), NLM_F_MULTI);
 	if (nlh == NULL)
@@ -2248,6 +2249,7 @@ static int ip6mr_fill_mroute(struct mr6_table *mrt, struct sk_buff *skb,
 	rtm->rtm_table    = mrt->id;
 	if (nla_put_u32(skb, RTA_TABLE, mrt->id))
 		goto nla_put_failure;
+	rtm->rtm_type = RTN_MULTICAST;
 	rtm->rtm_scope    = RT_SCOPE_UNIVERSE;
 	if (c->mfc_flags & MFC_STATIC)
 		rtm->rtm_protocol = RTPROT_STATIC;
@@ -2258,7 +2260,9 @@ static int ip6mr_fill_mroute(struct mr6_table *mrt, struct sk_buff *skb,
 	if (nla_put(skb, RTA_SRC, 16, &c->mf6c_origin) ||
 	    nla_put(skb, RTA_DST, 16, &c->mf6c_mcastgrp))
 		goto nla_put_failure;
-	if (__ip6mr_fill_mroute(mrt, skb, c, rtm) < 0)
+	err = __ip6mr_fill_mroute(mrt, skb, c, rtm);
+	/* do not break the dump if cache is unresolved */
+	if (err < 0 && err != -ENOENT)
 		goto nla_put_failure;
 
 	return nlmsg_end(skb, nlh);
@@ -2301,6 +2305,22 @@ next_entry:
 			}
 			e = s_e = 0;
 		}
+		spin_lock_bh(&mfc_unres_lock);
+		list_for_each_entry(mfc, &mrt->mfc6_unres_queue, list) {
+			if (e < s_e)
+				goto next_entry2;
+			if (ip6mr_fill_mroute(mrt, skb,
+					      NETLINK_CB(cb->skb).portid,
+					      cb->nlh->nlmsg_seq,
+					      mfc) < 0) {
+				spin_unlock_bh(&mfc_unres_lock);
+				goto done;
+			}
+next_entry2:
+			e++;
+		}
+		spin_unlock_bh(&mfc_unres_lock);
+		e = s_e = 0;
 		s_h = 0;
 next_table:
 		t++;
