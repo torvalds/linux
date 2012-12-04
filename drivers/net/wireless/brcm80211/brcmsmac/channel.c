@@ -686,7 +686,7 @@ brcms_reg_apply_beaconing_flags(struct wiphy *wiphy,
 
 			if (initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE) {
 				ret = freq_reg_info(wiphy, ch->center_freq,
-						    0, &rule);
+						    &rule);
 				if (ret)
 					continue;
 

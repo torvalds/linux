@@ -2938,10 +2938,6 @@ extern void wiphy_apply_custom_regulatory(
  * freq_reg_info - get regulatory information for the given frequency
  * @wiphy: the wiphy for which we want to process this rule for
  * @center_freq: Frequency in KHz for which we want regulatory information for
- * @desired_bw_khz: the desired max bandwidth you want to use per
- *	channel. Note that this is still 20 MHz if you want to use HT40
- *	as HT40 makes use of two channels for its 40 MHz width bandwidth.
- *	If set to 0 we'll assume you want the standard 20 MHz.
  * @reg_rule: the regulatory rule which we have for this frequency
  *
  * Use this function to get the regulatory rule for a specific frequency on
@@ -2956,9 +2952,7 @@ extern void wiphy_apply_custom_regulatory(
  * freq_in_rule_band() for our current definition of a band -- this is purely
  * subjective and right now its 802.11 specific.
  */
-extern int freq_reg_info(struct wiphy *wiphy,
-			 u32 center_freq,
-			 u32 desired_bw_khz,
+extern int freq_reg_info(struct wiphy *wiphy, u32 center_freq,
 			 const struct ieee80211_reg_rule **reg_rule);
 
 /*

@@ -480,8 +480,7 @@ static bool is_valid_rd(const struct ieee80211_regdomain *rd)
 }
 
 static bool reg_does_bw_fit(const struct ieee80211_freq_range *freq_range,
-			    u32 center_freq_khz,
-			    u32 bw_khz)
+			    u32 center_freq_khz, u32 bw_khz)
 {
 	u32 start_freq_khz, end_freq_khz;
 
@@ -682,18 +681,13 @@ static u32 map_regdom_flags(u32 rd_flags)
 	return channel_flags;
 }
 
-static int freq_reg_info_regd(struct wiphy *wiphy,
-			      u32 center_freq,
-			      u32 desired_bw_khz,
+static int freq_reg_info_regd(struct wiphy *wiphy, u32 center_freq,
 			      const struct ieee80211_reg_rule **reg_rule,
 			      const struct ieee80211_regdomain *regd)
 {
 	int i;
 	bool band_rule_found = false;
 	bool bw_fits = false;
-
-	if (!desired_bw_khz)
-		desired_bw_khz = MHZ_TO_KHZ(20);
 
 	if (!regd)
 		return -EINVAL;
@@ -713,7 +707,7 @@ static int freq_reg_info_regd(struct wiphy *wiphy,
 		if (!band_rule_found)
 			band_rule_found = freq_in_rule_band(fr, center_freq);
 
-		bw_fits = reg_does_bw_fit(fr, center_freq, desired_bw_khz);
+		bw_fits = reg_does_bw_fit(fr, center_freq, MHZ_TO_KHZ(20));
 
 		if (band_rule_found && bw_fits) {
 			*reg_rule = rr;
@@ -727,7 +721,7 @@ static int freq_reg_info_regd(struct wiphy *wiphy,
 	return -EINVAL;
 }
 
-int freq_reg_info(struct wiphy *wiphy, u32 center_freq, u32 desired_bw_khz,
+int freq_reg_info(struct wiphy *wiphy, u32 center_freq,
 		  const struct ieee80211_reg_rule **reg_rule)
 {
 	const struct ieee80211_regdomain *regd;
@@ -746,8 +740,7 @@ int freq_reg_info(struct wiphy *wiphy, u32 center_freq, u32 desired_bw_khz,
 	else
 		regd = cfg80211_regdomain;
 
-	return freq_reg_info_regd(wiphy, center_freq, desired_bw_khz,
-				  reg_rule, regd);
+	return freq_reg_info_regd(wiphy, center_freq, reg_rule, regd);
 }
 EXPORT_SYMBOL(freq_reg_info);
 
@@ -770,7 +763,6 @@ static const char *reg_initiator_name(enum nl80211_reg_initiator initiator)
 }
 
 static void chan_reg_rule_print_dbg(struct ieee80211_channel *chan,
-				    u32 desired_bw_khz,
 				    const struct ieee80211_reg_rule *reg_rule)
 {
 	const struct ieee80211_power_rule *power_rule;
@@ -785,8 +777,8 @@ static void chan_reg_rule_print_dbg(struct ieee80211_channel *chan,
 	else
 		snprintf(max_antenna_gain, 32, "%d", power_rule->max_antenna_gain);
 
-	REG_DBG_PRINT("Updating information on frequency %d MHz for a %d MHz width channel with regulatory rule:\n",
-		      chan->center_freq, KHZ_TO_MHZ(desired_bw_khz));
+	REG_DBG_PRINT("Updating information on frequency %d MHz with regulatory rule:\n",
+		      chan->center_freq);
 
 	REG_DBG_PRINT("%d KHz - %d KHz @ %d KHz), (%s mBi, %d mBm)\n",
 		      freq_range->start_freq_khz, freq_range->end_freq_khz,
@@ -795,7 +787,6 @@ static void chan_reg_rule_print_dbg(struct ieee80211_channel *chan,
 }
 #else
 static void chan_reg_rule_print_dbg(struct ieee80211_channel *chan,
-				    u32 desired_bw_khz,
 				    const struct ieee80211_reg_rule *reg_rule)
 {
 	return;
@@ -805,11 +796,7 @@ static void chan_reg_rule_print_dbg(struct ieee80211_channel *chan,
 /*
  * Note that right now we assume the desired channel bandwidth
  * is always 20 MHz for each individual channel (HT40 uses 20 MHz
- * per channel, the primary and the extension channel). To support
- * smaller custom bandwidths such as 5 MHz or 10 MHz we'll need a
- * new ieee80211_channel.target_bw and re run the regulatory check
- * on the wiphy with the target_bw specified. Then we can simply use
- * that below for the desired_bw_khz below.
+ * per channel, the primary and the extension channel).
  */
 static void handle_channel(struct wiphy *wiphy,
 			   enum nl80211_reg_initiator initiator,
@@ -817,7 +804,6 @@ static void handle_channel(struct wiphy *wiphy,
 {
 	int r;
 	u32 flags, bw_flags = 0;
-	u32 desired_bw_khz = MHZ_TO_KHZ(20);
 	const struct ieee80211_reg_rule *reg_rule = NULL;
 	const struct ieee80211_power_rule *power_rule = NULL;
 	const struct ieee80211_freq_range *freq_range = NULL;
@@ -829,8 +815,7 @@ static void handle_channel(struct wiphy *wiphy,
 
 	flags = chan->orig_flags;
 
-	r = freq_reg_info(wiphy, MHZ_TO_KHZ(chan->center_freq),
-			  desired_bw_khz, &reg_rule);
+	r = freq_reg_info(wiphy, MHZ_TO_KHZ(chan->center_freq), &reg_rule);
 	if (r) {
 		/*
 		 * We will disable all channels that do not match our
@@ -851,7 +836,7 @@ static void handle_channel(struct wiphy *wiphy,
 		return;
 	}
 
-	chan_reg_rule_print_dbg(chan, desired_bw_khz, reg_rule);
+	chan_reg_rule_print_dbg(chan, reg_rule);
 
 	power_rule = &reg_rule->power_rule;
 	freq_range = &reg_rule->freq_range;
@@ -1223,23 +1208,22 @@ static void handle_channel_custom(struct wiphy *wiphy,
 				  const struct ieee80211_regdomain *regd)
 {
 	int r;
-	u32 desired_bw_khz = MHZ_TO_KHZ(20);
 	u32 bw_flags = 0;
 	const struct ieee80211_reg_rule *reg_rule = NULL;
 	const struct ieee80211_power_rule *power_rule = NULL;
 	const struct ieee80211_freq_range *freq_range = NULL;
 
 	r = freq_reg_info_regd(wiphy, MHZ_TO_KHZ(chan->center_freq),
-			       desired_bw_khz, &reg_rule, regd);
+			       &reg_rule, regd);
 
 	if (r) {
-		REG_DBG_PRINT("Disabling freq %d MHz as custom regd has no rule that fits a %d MHz wide channel\n",
-			      chan->center_freq, KHZ_TO_MHZ(desired_bw_khz));
+		REG_DBG_PRINT("Disabling freq %d MHz as custom regd has no rule that fits it\n",
+			      chan->center_freq);
 		chan->flags = IEEE80211_CHAN_DISABLED;
 		return;
 	}
 
-	chan_reg_rule_print_dbg(chan, desired_bw_khz, reg_rule);
+	chan_reg_rule_print_dbg(chan, reg_rule);
 
 	power_rule = &reg_rule->power_rule;
 	freq_range = &reg_rule->freq_range;
