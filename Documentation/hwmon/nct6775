@@ -87,6 +87,75 @@ pwm[1-5]_mode - controls if output is PWM or DC level
         * 0 DC output
         * 1 PWM output
 
+Common fan control attributes
+-----------------------------
+
+pwm[1-5]_temp_sel	Temperature source. Value is temperature sensor index.
+			For example, select '1' for temp1_input.
+
+Thermal Cruise mode (2)
+-----------------------
+
+If the temperature is in the range defined by:
+
+pwm[1-5]_target_temp	Target temperature, unit millidegree Celsius
+			(range 0 - 127000)
+pwm[1-5]_temp_tolerance
+			Target temperature tolerance, unit millidegree Celsius
+
+there are no changes to fan speed. Once the temperature leaves the interval, fan
+speed increases (if temperature is higher that desired) or decreases (if
+temperature is lower than desired), using the following limits and time
+intervals.
+
+pwm[1-5]_start		fan pwm start value (range 1 - 255), to start fan
+			when the temperature is above defined range.
+pwm[1-5]_floor		lowest fan pwm (range 0 - 255) if temperature is below
+			the defined range. If set to 0, the fan is expected to
+			stop if the temperature is below the defined range.
+pwm[1-5]_step_up_time	milliseconds before fan speed is increased
+pwm[1-5]_step_down_time	milliseconds before fan speed is decreased
+pwm[1-5]_stop_time	how many milliseconds must elapse to switch
+			corresponding fan off (when the temperature was below
+			defined range).
+
+Speed Cruise mode (3)
+---------------------
+
+This modes tries to keep the fan speed constant.
+
+fan[1-5]_target		Target fan speed
+fan[1-5]_tolerance
+			Target speed tolerance
+
+
+Untested; use at your own risk.
+
+Smart Fan IV mode (5)
+---------------------
+
+This mode offers multiple slopes to control the fan speed. The slopes can be
+controlled by setting the pwm and temperature attributes. When the temperature
+rises, the chip will calculate the DC/PWM output based on the current slope.
+There are up to seven data points depending on the chip type. Subsequent data
+points should be set to higher temperatures and higher pwm values to achieve
+higher fan speeds with increasing temperature. The last data point reflects
+critical temperature mode, in which the fans should run at full speed.
+
+pwm[1-5]_auto_point[1-7]_pwm
+			pwm value to be set if temperature reaches matching
+			temperature range.
+pwm[1-5]_auto_point[1-7]_temp
+			Temperature over which the matching pwm is enabled.
+pwm[1-5]_temp_tolerance
+			Temperature tolerance, unit millidegree Celsius
+pwm[1-5]_crit_temp_tolerance
+			Temperature tolerance for critical temperature,
+			unit millidegree Celsius
+
+pwm[1-5]_step_up_time	milliseconds before fan speed is increased
+pwm[1-5]_step_down_time	milliseconds before fan speed is decreased
+
 Usage Notes
 -----------
 
