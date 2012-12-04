@@ -88,6 +88,15 @@
 				interrupts = <20 4 0 21 4 0 22 4 0>;
 			};
 
+			mmc0: mmc@fffb4000 {
+				compatible = "atmel,hsmci";
+				reg = <0xfffb4000 0x4000>;
+				interrupts = <10 4 0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
 			pinctrl@fffff400 {
 				#address-cells = <1>;
 				#size-cells = <1>;
@@ -204,6 +213,39 @@
 						atmel,pins =
 							<2 2 0x0 0x1	/* PC2 gpio RDY pin pull_up */
 							 1 1 0x0 0x1>;	/* PB1 gpio CD pin pull_up */
+					};
+				};
+
+				mmc0 {
+					pinctrl_mmc0_clk: mmc0_clk-0 {
+						atmel,pins =
+							<0 27 0x1 0x0>;	/* PA27 periph A */
+					};
+
+					pinctrl_mmc0_slot0_cmd_dat0: mmc0_slot0_cmd_dat0-0 {
+						atmel,pins =
+							<0 28 0x1 0x1	/* PA28 periph A with pullup */
+							 0 29 0x1 0x1>;	/* PA29 periph A with pullup */
+					};
+
+					pinctrl_mmc0_slot0_dat1_3: mmc0_slot0_dat1_3-0 {
+						atmel,pins =
+							<1 3 0x2 0x1	/* PB3 periph B with pullup */
+							 1 4 0x2 0x1	/* PB4 periph B with pullup */
+							 1 5 0x2 0x1>;	/* PB5 periph B with pullup */
+					};
+
+					pinctrl_mmc0_slot1_cmd_dat0: mmc0_slot1_cmd_dat0-0 {
+						atmel,pins =
+							<0 8 0x2 0x1	/* PA8 periph B with pullup */
+							 0 9 0x2 0x1>;	/* PA9 periph B with pullup */
+					};
+
+					pinctrl_mmc0_slot1_dat1_3: mmc0_slot1_dat1_3-0 {
+						atmel,pins =
+							<0 10 0x2 0x1	/* PA10 periph B with pullup */
+							 0 11 0x2 0x1	/* PA11 periph B with pullup */
+							 0 12 0x2 0x1>;	/* PA12 periph B with pullup */
 					};
 				};
 
