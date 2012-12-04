@@ -185,14 +185,11 @@ static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
 	       __func__, tv.model);
 }
 
+void au0828_card_analog_fe_setup(struct au0828_dev *dev);
+
 void au0828_card_setup(struct au0828_dev *dev)
 {
 	static u8 eeprom[256];
-#ifdef CONFIG_VIDEO_AU0828_V4L2
-	struct tuner_setup tun_setup;
-	struct v4l2_subdev *sd;
-	unsigned int mode_mask = T_ANALOG_TV;
-#endif
 
 	dprintk(1, "%s()\n", __func__);
 
@@ -213,7 +210,16 @@ void au0828_card_setup(struct au0828_dev *dev)
 		break;
 	}
 
+	au0828_card_analog_fe_setup(dev);
+}
+
+void au0828_card_analog_fe_setup(struct au0828_dev *dev)
+{
 #ifdef CONFIG_VIDEO_AU0828_V4L2
+	struct tuner_setup tun_setup;
+	struct v4l2_subdev *sd;
+	unsigned int mode_mask = T_ANALOG_TV;
+
 	if (AUVI_INPUT(0).type != AU0828_VMUX_UNDEFINED) {
 		/* Load the analog demodulator driver (note this would need to
 		   be abstracted out if we ever need to support a different
