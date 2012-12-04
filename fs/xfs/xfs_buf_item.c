@@ -287,6 +287,17 @@ xfs_buf_item_format_segment(
 	 */
 	base_size = offsetof(struct xfs_buf_log_format, blf_data_map) +
 			(blfp->blf_map_size * sizeof(blfp->blf_data_map[0]));
+
+	nvecs = 0;
+	first_bit = xfs_next_bit(blfp->blf_data_map, blfp->blf_map_size, 0);
+	if (!(bip->bli_flags & XFS_BLI_STALE) && first_bit == -1) {
+		/*
+		 * If the map is not be dirty in the transaction, mark
+		 * the size as zero and do not advance the vector pointer.
+		 */
+		goto out;
+	}
+
 	vecp->i_addr = blfp;
 	vecp->i_len = base_size;
 	vecp->i_type = XLOG_REG_TYPE_BFORMAT;
@@ -301,15 +312,13 @@ xfs_buf_item_format_segment(
 		 */
 		trace_xfs_buf_item_format_stale(bip);
 		ASSERT(blfp->blf_flags & XFS_BLF_CANCEL);
-		blfp->blf_size = nvecs;
-		return vecp;
+		goto out;
 	}
 
 	/*
 	 * Fill in an iovec for each set of contiguous chunks.
 	 */
-	first_bit = xfs_next_bit(blfp->blf_data_map, blfp->blf_map_size, 0);
-	ASSERT(first_bit != -1);
+
 	last_bit = first_bit;
 	nbits = 1;
 	for (;;) {
@@ -371,7 +380,8 @@ xfs_buf_item_format_segment(
 			nbits++;
 		}
 	}
-	bip->__bli_format.blf_size = nvecs;
+out:
+	blfp->blf_size = nvecs;
 	return vecp;
 }
 
