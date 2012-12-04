@@ -46,7 +46,7 @@
 #define I2C_HID_PWR_SLEEP	0x01
 
 /* debug option */
-static bool debug = false;
+static bool debug;
 module_param(debug, bool, 0444);
 MODULE_PARM_DESC(debug, "print a lot of debug information");
 
