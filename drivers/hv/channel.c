@@ -780,7 +780,6 @@ int vmbus_recvpacket_raw(struct vmbus_channel *channel, void *buffer,
 {
 	struct vmpacket_descriptor desc;
 	u32 packetlen;
-	u32 userlen;
 	int ret;
 	bool signal = false;
 
@@ -795,7 +794,6 @@ int vmbus_recvpacket_raw(struct vmbus_channel *channel, void *buffer,
 
 
 	packetlen = desc.len8 << 3;
-	userlen = packetlen - (desc.offset8 << 3);
 
 	*buffer_actual_len = packetlen;
 
