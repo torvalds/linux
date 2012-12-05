@@ -514,6 +514,10 @@ static int keys_resume(struct device *dev)
 				disable_irq_wake(irq);
 			}
 		}
+		preempt_disable();
+		if (local_softirq_pending())
+			do_softirq(); // for call resend_irqs, which may call keys_isr
+		preempt_enable_no_resched();
 	}
 
 	ddata->in_suspend = false;
