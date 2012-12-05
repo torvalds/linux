@@ -332,17 +332,6 @@ int line6_send_sysex_message(struct usb_line6 *line6, const char *buffer,
 }
 
 /*
-	Send sysex message in pieces of wMaxPacketSize bytes.
-*/
-int line6_send_sysex_message_async(struct usb_line6 *line6, const char *buffer,
-				   int size)
-{
-	return line6_send_raw_message_async(line6, buffer,
-					    size + SYSEX_EXTRA_SIZE) -
-	    SYSEX_EXTRA_SIZE;
-}
-
-/*
 	Allocate buffer for sysex message and prepare header.
 	@param code sysex message code
 	@param size number of bytes between code and sysex end
