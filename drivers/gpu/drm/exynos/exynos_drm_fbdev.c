@@ -46,8 +46,38 @@ struct exynos_drm_fbdev {
 	struct exynos_drm_gem_obj	*exynos_gem_obj;
 };
 
+static int exynos_drm_fb_mmap(struct fb_info *info,
+			struct vm_area_struct *vma)
+{
+	struct drm_fb_helper *helper = info->par;
+	struct exynos_drm_fbdev *exynos_fbd = to_exynos_fbdev(helper);
+	struct exynos_drm_gem_obj *exynos_gem_obj = exynos_fbd->exynos_gem_obj;
+	struct exynos_drm_gem_buf *buffer = exynos_gem_obj->buffer;
+	unsigned long vm_size;
+	int ret;
+
+	DRM_DEBUG_KMS("%s\n", __func__);
+
+	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
+
+	vm_size = vma->vm_end - vma->vm_start;
+
+	if (vm_size > buffer->size)
+		return -EINVAL;
+
+	ret = dma_mmap_attrs(helper->dev->dev, vma, buffer->kvaddr,
+		buffer->dma_addr, buffer->size, &buffer->dma_attrs);
+	if (ret < 0) {
+		DRM_ERROR("failed to mmap.\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static struct fb_ops exynos_drm_fb_ops = {
 	.owner		= THIS_MODULE,
+	.fb_mmap        = exynos_drm_fb_mmap,
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
@@ -87,7 +117,8 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 
 	dev->mode_config.fb_base = (resource_size_t)buffer->dma_addr;
 	fbi->screen_base = buffer->kvaddr + offset;
-	fbi->fix.smem_start = (unsigned long)(buffer->dma_addr + offset);
+	fbi->fix.smem_start = (unsigned long)
+			(page_to_phys(sg_page(buffer->sgt->sgl)) + offset);
 	fbi->screen_size = size;
 	fbi->fix.smem_len = size;
 

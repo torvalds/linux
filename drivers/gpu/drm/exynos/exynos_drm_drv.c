@@ -40,6 +40,7 @@
 #include "exynos_drm_vidi.h"
 #include "exynos_drm_dmabuf.h"
 #include "exynos_drm_g2d.h"
+#include "exynos_drm_iommu.h"
 
 #define DRIVER_NAME	"exynos"
 #define DRIVER_DESC	"Samsung SoC DRM"
@@ -66,6 +67,18 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	INIT_LIST_HEAD(&private->pageflip_event_list);
 	dev->dev_private = (void *)private;
 
+	/*
+	 * create mapping to manage iommu table and set a pointer to iommu
+	 * mapping structure to iommu_mapping of private data.
+	 * also this iommu_mapping can be used to check if iommu is supported
+	 * or not.
+	 */
+	ret = drm_create_iommu_mapping(dev);
+	if (ret < 0) {
+		DRM_ERROR("failed to create iommu mapping.\n");
+		goto err_crtc;
+	}
+
 	drm_mode_config_init(dev);
 
 	/* init kms poll for handling hpd */
@@ -80,7 +93,7 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	for (nr = 0; nr < MAX_CRTC; nr++) {
 		ret = exynos_drm_crtc_create(dev, nr);
 		if (ret)
-			goto err_crtc;
+			goto err_release_iommu_mapping;
 	}
 
 	for (nr = 0; nr < MAX_PLANE; nr++) {
@@ -89,12 +102,12 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 
 		plane = exynos_plane_init(dev, possible_crtcs, false);
 		if (!plane)
-			goto err_crtc;
+			goto err_release_iommu_mapping;
 	}
 
 	ret = drm_vblank_init(dev, MAX_CRTC);
 	if (ret)
-		goto err_crtc;
+		goto err_release_iommu_mapping;
 
 	/*
 	 * probe sub drivers such as display controller and hdmi driver,
@@ -126,6 +139,8 @@ err_drm_device:
 	exynos_drm_device_unregister(dev);
 err_vblank:
 	drm_vblank_cleanup(dev);
+err_release_iommu_mapping:
+	drm_release_iommu_mapping(dev);
 err_crtc:
 	drm_mode_config_cleanup(dev);
 	kfree(private);
@@ -142,6 +157,8 @@ static int exynos_drm_unload(struct drm_device *dev)
 	drm_vblank_cleanup(dev);
 	drm_kms_helper_poll_fini(dev);
 	drm_mode_config_cleanup(dev);
+
+	drm_release_iommu_mapping(dev);
 	kfree(dev->dev_private);
 
 	dev->dev_private = NULL;

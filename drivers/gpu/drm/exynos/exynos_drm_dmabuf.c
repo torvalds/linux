@@ -30,26 +30,22 @@
 
 #include <linux/dma-buf.h>
 
-static struct sg_table *exynos_pages_to_sg(struct page **pages, int nr_pages,
-		unsigned int page_size)
+static struct sg_table *exynos_get_sgt(struct drm_device *drm_dev,
+					struct exynos_drm_gem_buf *buf)
 {
 	struct sg_table *sgt = NULL;
-	struct scatterlist *sgl;
-	int i, ret;
+	int ret;
 
 	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
 	if (!sgt)
 		goto out;
 
-	ret = sg_alloc_table(sgt, nr_pages, GFP_KERNEL);
-	if (ret)
+	ret = dma_get_sgtable(drm_dev->dev, sgt, buf->kvaddr,
+				buf->dma_addr, buf->size);
+	if (ret < 0) {
+		DRM_ERROR("failed to get sgtable.\n");
 		goto err_free_sgt;
-
-	if (page_size < PAGE_SIZE)
-		page_size = PAGE_SIZE;
-
-	for_each_sg(sgt->sgl, sgl, nr_pages, i)
-		sg_set_page(sgl, pages[i], page_size, 0);
+	}
 
 	return sgt;
 
@@ -68,32 +64,30 @@ static struct sg_table *
 	struct drm_device *dev = gem_obj->base.dev;
 	struct exynos_drm_gem_buf *buf;
 	struct sg_table *sgt = NULL;
-	unsigned int npages;
 	int nents;
 
 	DRM_DEBUG_PRIME("%s\n", __FILE__);
 
+	buf = gem_obj->buffer;
+	if (!buf) {
+		DRM_ERROR("buffer is null.\n");
+		return sgt;
+	}
+
 	mutex_lock(&dev->struct_mutex);
 
-	buf = gem_obj->buffer;
-
-	/* there should always be pages allocated. */
-	if (!buf->pages) {
-		DRM_ERROR("pages is null.\n");
+	sgt = exynos_get_sgt(dev, buf);
+	if (!sgt)
 		goto err_unlock;
-	}
 
-	npages = buf->size / buf->page_size;
-
-	sgt = exynos_pages_to_sg(buf->pages, npages, buf->page_size);
-	if (!sgt) {
-		DRM_DEBUG_PRIME("exynos_pages_to_sg returned NULL!\n");
-		goto err_unlock;
-	}
 	nents = dma_map_sg(attach->dev, sgt->sgl, sgt->nents, dir);
+	if (!nents) {
+		DRM_ERROR("failed to map sgl with iommu.\n");
+		sgt = NULL;
+		goto err_unlock;
+	}
 
-	DRM_DEBUG_PRIME("npages = %d buffer size = 0x%lx page_size = 0x%lx\n",
-			npages, buf->size, buf->page_size);
+	DRM_DEBUG_PRIME("buffer size = 0x%lx\n", buf->size);
 
 err_unlock:
 	mutex_unlock(&dev->struct_mutex);
@@ -105,6 +99,7 @@ static void exynos_gem_unmap_dma_buf(struct dma_buf_attachment *attach,
 						enum dma_data_direction dir)
 {
 	dma_unmap_sg(attach->dev, sgt->sgl, sgt->nents, dir);
+
 	sg_free_table(sgt);
 	kfree(sgt);
 	sgt = NULL;
@@ -196,7 +191,6 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 	struct scatterlist *sgl;
 	struct exynos_drm_gem_obj *exynos_gem_obj;
 	struct exynos_drm_gem_buf *buffer;
-	struct page *page;
 	int ret;
 
 	DRM_DEBUG_PRIME("%s\n", __FILE__);
@@ -233,38 +227,27 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 		goto err_unmap_attach;
 	}
 
-	buffer->pages = kzalloc(sizeof(*page) * sgt->nents, GFP_KERNEL);
-	if (!buffer->pages) {
-		DRM_ERROR("failed to allocate pages.\n");
+	exynos_gem_obj = exynos_drm_gem_init(drm_dev, dma_buf->size);
+	if (!exynos_gem_obj) {
 		ret = -ENOMEM;
 		goto err_free_buffer;
 	}
 
-	exynos_gem_obj = exynos_drm_gem_init(drm_dev, dma_buf->size);
-	if (!exynos_gem_obj) {
-		ret = -ENOMEM;
-		goto err_free_pages;
-	}
-
 	sgl = sgt->sgl;
 
-	if (sgt->nents == 1) {
-		buffer->dma_addr = sg_dma_address(sgt->sgl);
-		buffer->size = sg_dma_len(sgt->sgl);
+	buffer->size = dma_buf->size;
+	buffer->dma_addr = sg_dma_address(sgl);
 
+	if (sgt->nents == 1) {
 		/* always physically continuous memory if sgt->nents is 1. */
 		exynos_gem_obj->flags |= EXYNOS_BO_CONTIG;
 	} else {
-		unsigned int i = 0;
-
-		buffer->dma_addr = sg_dma_address(sgl);
-		while (i < sgt->nents) {
-			buffer->pages[i] = sg_page(sgl);
-			buffer->size += sg_dma_len(sgl);
-			sgl = sg_next(sgl);
-			i++;
-		}
-
+		/*
+		 * this case could be CONTIG or NONCONTIG type but for now
+		 * sets NONCONTIG.
+		 * TODO. we have to find a way that exporter can notify
+		 * the type of its own buffer to importer.
+		 */
 		exynos_gem_obj->flags |= EXYNOS_BO_NONCONTIG;
 	}
 
@@ -277,9 +260,6 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 
 	return &exynos_gem_obj->base;
 
-err_free_pages:
-	kfree(buffer->pages);
-	buffer->pages = NULL;
 err_free_buffer:
 	kfree(buffer);
 	buffer = NULL;

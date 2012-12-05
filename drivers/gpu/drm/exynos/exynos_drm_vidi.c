@@ -382,7 +382,6 @@ static void vidi_finish_pageflip(struct drm_device *drm_dev, int crtc)
 	struct drm_pending_vblank_event *e, *t;
 	struct timeval now;
 	unsigned long flags;
-	bool is_checked = false;
 
 	spin_lock_irqsave(&drm_dev->event_lock, flags);
 
@@ -392,8 +391,6 @@ static void vidi_finish_pageflip(struct drm_device *drm_dev, int crtc)
 		if (crtc != e->pipe)
 			continue;
 
-		is_checked = true;
-
 		do_gettimeofday(&now);
 		e->event.sequence = 0;
 		e->event.tv_sec = now.tv_sec;
@@ -401,22 +398,7 @@ static void vidi_finish_pageflip(struct drm_device *drm_dev, int crtc)
 
 		list_move_tail(&e->base.link, &e->base.file_priv->event_list);
 		wake_up_interruptible(&e->base.file_priv->event_wait);
-	}
-
-	if (is_checked) {
-		/*
-		 * call drm_vblank_put only in case that drm_vblank_get was
-		 * called.
-		 */
-		if (atomic_read(&drm_dev->vblank_refcount[crtc]) > 0)
-			drm_vblank_put(drm_dev, crtc);
-
-		/*
-		 * don't off vblank if vblank_disable_allowed is 1,
-		 * because vblank would be off by timer handler.
-		 */
-		if (!drm_dev->vblank_disable_allowed)
-			drm_vblank_off(drm_dev, crtc);
+		drm_vblank_put(drm_dev, crtc);
 	}
 
 	spin_unlock_irqrestore(&drm_dev->event_lock, flags);

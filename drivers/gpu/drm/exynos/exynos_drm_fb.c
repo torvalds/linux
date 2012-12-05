@@ -30,10 +30,13 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <uapi/drm/exynos_drm.h>
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_gem.h"
+#include "exynos_drm_iommu.h"
+#include "exynos_drm_encoder.h"
 
 #define to_exynos_fb(x)	container_of(x, struct exynos_drm_fb, fb)
 
@@ -50,12 +53,41 @@ struct exynos_drm_fb {
 	struct exynos_drm_gem_obj	*exynos_gem_obj[MAX_FB_BUFFER];
 };
 
+static int check_fb_gem_memory_type(struct drm_device *drm_dev,
+				struct exynos_drm_gem_obj *exynos_gem_obj)
+{
+	unsigned int flags;
+
+	/*
+	 * if exynos drm driver supports iommu then framebuffer can use
+	 * all the buffer types.
+	 */
+	if (is_drm_iommu_supported(drm_dev))
+		return 0;
+
+	flags = exynos_gem_obj->flags;
+
+	/*
+	 * without iommu support, not support physically non-continuous memory
+	 * for framebuffer.
+	 */
+	if (IS_NONCONTIG_BUFFER(flags)) {
+		DRM_ERROR("cannot use this gem memory type for fb.\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static void exynos_drm_fb_destroy(struct drm_framebuffer *fb)
 {
 	struct exynos_drm_fb *exynos_fb = to_exynos_fb(fb);
 	unsigned int i;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	/* make sure that overlay data are updated before relesing fb. */
+	exynos_drm_encoder_complete_scanout(fb);
 
 	drm_framebuffer_cleanup(fb);
 
@@ -128,13 +160,24 @@ exynos_drm_framebuffer_init(struct drm_device *dev,
 			    struct drm_gem_object *obj)
 {
 	struct exynos_drm_fb *exynos_fb;
+	struct exynos_drm_gem_obj *exynos_gem_obj;
 	int ret;
+
+	exynos_gem_obj = to_exynos_gem_obj(obj);
+
+	ret = check_fb_gem_memory_type(dev, exynos_gem_obj);
+	if (ret < 0) {
+		DRM_ERROR("cannot use this gem memory type for fb.\n");
+		return ERR_PTR(-EINVAL);
+	}
 
 	exynos_fb = kzalloc(sizeof(*exynos_fb), GFP_KERNEL);
 	if (!exynos_fb) {
 		DRM_ERROR("failed to allocate exynos drm framebuffer\n");
 		return ERR_PTR(-ENOMEM);
 	}
+
+	exynos_fb->exynos_gem_obj[0] = exynos_gem_obj;
 
 	ret = drm_framebuffer_init(dev, &exynos_fb->fb, &exynos_drm_fb_funcs);
 	if (ret) {
@@ -143,7 +186,6 @@ exynos_drm_framebuffer_init(struct drm_device *dev,
 	}
 
 	drm_helper_mode_fill_fb_struct(&exynos_fb->fb, mode_cmd);
-	exynos_fb->exynos_gem_obj[0] = to_exynos_gem_obj(obj);
 
 	return &exynos_fb->fb;
 }
@@ -214,12 +256,24 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 	DRM_DEBUG_KMS("buf_cnt = %d\n", exynos_fb->buf_cnt);
 
 	for (i = 1; i < exynos_fb->buf_cnt; i++) {
+		struct exynos_drm_gem_obj *exynos_gem_obj;
+		int ret;
+
 		obj = drm_gem_object_lookup(dev, file_priv,
 				mode_cmd->handles[i]);
 		if (!obj) {
 			DRM_ERROR("failed to lookup gem object\n");
 			exynos_drm_fb_destroy(fb);
 			return ERR_PTR(-ENOENT);
+		}
+
+		exynos_gem_obj = to_exynos_gem_obj(obj);
+
+		ret = check_fb_gem_memory_type(dev, exynos_gem_obj);
+		if (ret < 0) {
+			DRM_ERROR("cannot use this gem memory type for fb.\n");
+			exynos_drm_fb_destroy(fb);
+			return ERR_PTR(ret);
 		}
 
 		exynos_fb->exynos_gem_obj[i] = to_exynos_gem_obj(obj);

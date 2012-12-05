@@ -1021,6 +1021,8 @@ void drm_vblank_off(struct drm_device *dev, int crtc)
 
 	/* Send any queued vblank events, lest the natives grow disquiet */
 	seq = drm_vblank_count_and_time(dev, crtc, &now);
+
+	spin_lock(&dev->event_lock);
 	list_for_each_entry_safe(e, t, &dev->vblank_event_list, base.link) {
 		if (e->pipe != crtc)
 			continue;
@@ -1031,6 +1033,7 @@ void drm_vblank_off(struct drm_device *dev, int crtc)
 		drm_vblank_put(dev, e->pipe);
 		send_vblank_event(dev, e, seq, &now);
 	}
+	spin_unlock(&dev->event_lock);
 
 	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 }

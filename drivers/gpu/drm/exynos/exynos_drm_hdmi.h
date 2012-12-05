@@ -62,6 +62,7 @@ struct exynos_hdmi_ops {
 
 struct exynos_mixer_ops {
 	/* manager */
+	int (*iommu_on)(void *ctx, bool enable);
 	int (*enable_vblank)(void *ctx, int pipe);
 	void (*disable_vblank)(void *ctx);
 	void (*dpms)(void *ctx, int mode);

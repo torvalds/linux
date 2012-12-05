@@ -25,6 +25,7 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fbdev.h"
 #include "exynos_drm_crtc.h"
+#include "exynos_drm_iommu.h"
 
 /*
  * FIMD is stand for Fully Interactive Mobile Display and
@@ -61,11 +62,11 @@ struct fimd_driver_data {
 	unsigned int timing_base;
 };
 
-struct fimd_driver_data exynos4_fimd_driver_data = {
+static struct fimd_driver_data exynos4_fimd_driver_data = {
 	.timing_base = 0x0,
 };
 
-struct fimd_driver_data exynos5_fimd_driver_data = {
+static struct fimd_driver_data exynos5_fimd_driver_data = {
 	.timing_base = 0x20000,
 };
 
@@ -623,7 +624,6 @@ static void fimd_finish_pageflip(struct drm_device *drm_dev, int crtc)
 	struct drm_pending_vblank_event *e, *t;
 	struct timeval now;
 	unsigned long flags;
-	bool is_checked = false;
 
 	spin_lock_irqsave(&drm_dev->event_lock, flags);
 
@@ -633,8 +633,6 @@ static void fimd_finish_pageflip(struct drm_device *drm_dev, int crtc)
 		if (crtc != e->pipe)
 			continue;
 
-		is_checked = true;
-
 		do_gettimeofday(&now);
 		e->event.sequence = 0;
 		e->event.tv_sec = now.tv_sec;
@@ -642,22 +640,7 @@ static void fimd_finish_pageflip(struct drm_device *drm_dev, int crtc)
 
 		list_move_tail(&e->base.link, &e->base.file_priv->event_list);
 		wake_up_interruptible(&e->base.file_priv->event_wait);
-	}
-
-	if (is_checked) {
-		/*
-		 * call drm_vblank_put only in case that drm_vblank_get was
-		 * called.
-		 */
-		if (atomic_read(&drm_dev->vblank_refcount[crtc]) > 0)
-			drm_vblank_put(drm_dev, crtc);
-
-		/*
-		 * don't off vblank if vblank_disable_allowed is 1,
-		 * because vblank would be off by timer handler.
-		 */
-		if (!drm_dev->vblank_disable_allowed)
-			drm_vblank_off(drm_dev, crtc);
+		drm_vblank_put(drm_dev, crtc);
 	}
 
 	spin_unlock_irqrestore(&drm_dev->event_lock, flags);
@@ -709,6 +692,10 @@ static int fimd_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 	 */
 	drm_dev->vblank_disable_allowed = 1;
 
+	/* attach this sub driver to iommu mapping if supported. */
+	if (is_drm_iommu_supported(drm_dev))
+		drm_iommu_attach_device(drm_dev, dev);
+
 	return 0;
 }
 
@@ -716,7 +703,9 @@ static void fimd_subdrv_remove(struct drm_device *drm_dev, struct device *dev)
 {
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	/* TODO. */
+	/* detach this sub driver from iommu mapping if supported. */
+	if (is_drm_iommu_supported(drm_dev))
+		drm_iommu_detach_device(drm_dev, dev);
 }
 
 static int fimd_calc_clkdiv(struct fimd_context *ctx,
@@ -857,18 +846,16 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->bus_clk = clk_get(dev, "fimd");
+	ctx->bus_clk = devm_clk_get(dev, "fimd");
 	if (IS_ERR(ctx->bus_clk)) {
 		dev_err(dev, "failed to get bus clock\n");
-		ret = PTR_ERR(ctx->bus_clk);
-		goto err_clk_get;
+		return PTR_ERR(ctx->bus_clk);
 	}
 
-	ctx->lcd_clk = clk_get(dev, "sclk_fimd");
+	ctx->lcd_clk = devm_clk_get(dev, "sclk_fimd");
 	if (IS_ERR(ctx->lcd_clk)) {
 		dev_err(dev, "failed to get lcd clock\n");
-		ret = PTR_ERR(ctx->lcd_clk);
-		goto err_bus_clk;
+		return PTR_ERR(ctx->lcd_clk);
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -876,14 +863,13 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 	ctx->regs = devm_request_and_ioremap(&pdev->dev, res);
 	if (!ctx->regs) {
 		dev_err(dev, "failed to map registers\n");
-		ret = -ENXIO;
-		goto err_clk;
+		return -ENXIO;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
 		dev_err(dev, "irq request failed.\n");
-		goto err_clk;
+		return -ENXIO;
 	}
 
 	ctx->irq = res->start;
@@ -892,7 +878,7 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 							0, "drm_fimd", ctx);
 	if (ret) {
 		dev_err(dev, "irq request failed.\n");
-		goto err_clk;
+		return ret;
 	}
 
 	ctx->vidcon0 = pdata->vidcon0;
@@ -926,17 +912,6 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 	exynos_drm_subdrv_register(subdrv);
 
 	return 0;
-
-err_clk:
-	clk_disable(ctx->lcd_clk);
-	clk_put(ctx->lcd_clk);
-
-err_bus_clk:
-	clk_disable(ctx->bus_clk);
-	clk_put(ctx->bus_clk);
-
-err_clk_get:
-	return ret;
 }
 
 static int __devexit fimd_remove(struct platform_device *pdev)
@@ -959,9 +934,6 @@ static int __devexit fimd_remove(struct platform_device *pdev)
 
 out:
 	pm_runtime_disable(dev);
-
-	clk_put(ctx->lcd_clk);
-	clk_put(ctx->bus_clk);
 
 	return 0;
 }

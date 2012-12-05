@@ -133,17 +133,26 @@ struct drm_exynos_g2d_cmd {
 	__u32	data;
 };
 
+enum drm_exynos_g2d_buf_type {
+	G2D_BUF_USERPTR = 1 << 31,
+};
+
 enum drm_exynos_g2d_event_type {
 	G2D_EVENT_NOT,
 	G2D_EVENT_NONSTOP,
 	G2D_EVENT_STOP,		/* not yet */
 };
 
+struct drm_exynos_g2d_userptr {
+	unsigned long userptr;
+	unsigned long size;
+};
+
 struct drm_exynos_g2d_set_cmdlist {
 	__u64					cmd;
-	__u64					cmd_gem;
+	__u64					cmd_buf;
 	__u32					cmd_nr;
-	__u32					cmd_gem_nr;
+	__u32					cmd_buf_nr;
 
 	/* for g2d event */
 	__u64					event_type;
