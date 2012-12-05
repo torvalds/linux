@@ -321,6 +321,8 @@ static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
  * @n_no_reclaim_cmds: # of commands in list
  * @rx_buf_size_8k: 8 kB RX buffer size needed for A-MSDUs,
  *	if unset 4k will be the RX buffer size
+ * @bc_table_dword: set to true if the BC table expects the byte count to be
+ *	in DWORD (as opposed to bytes)
  * @queue_watchdog_timeout: time (in ms) after which queues
  *	are considered stuck and will trigger device restart
  * @command_names: array of command names, must be 256 entries
@@ -335,6 +337,7 @@ struct iwl_trans_config {
 	int n_no_reclaim_cmds;
 
 	bool rx_buf_size_8k;
+	bool bc_table_dword;
 	unsigned int queue_watchdog_timeout;
 	const char **command_names;
 };

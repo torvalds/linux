@@ -703,6 +703,7 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 		msecs_to_jiffies(trans_cfg->queue_watchdog_timeout);
 
 	trans_pcie->command_names = trans_cfg->command_names;
+	trans_pcie->bc_table_dword = trans_cfg->bc_table_dword;
 }
 
 void iwl_trans_pcie_free(struct iwl_trans *trans)

@@ -234,6 +234,7 @@ struct iwl_txq {
  * @status - transport specific status flags
  * @cmd_queue - command queue number
  * @rx_buf_size_8k: 8 kB RX buffer size
+ * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
  * @rx_page_order: page order for receive buffer size
  * @wd_timeout: queue watchdog timeout (jiffies)
  */
@@ -279,6 +280,7 @@ struct iwl_trans_pcie {
 	u8 no_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
 
 	bool rx_buf_size_8k;
+	bool bc_table_dword;
 	u32 rx_page_order;
 
 	const char **command_names;

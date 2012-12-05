@@ -237,7 +237,10 @@ static void iwl_pcie_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
 		break;
 	}
 
-	bc_ent = cpu_to_le16((len & 0xFFF) | (sta_id << 12));
+	if (trans_pcie->bc_table_dword)
+		len = DIV_ROUND_UP(len, 4);
+
+	bc_ent = cpu_to_le16(len | (sta_id << 12));
 
 	scd_bc_tbl[txq_id].tfd_offset[write_ptr] = bc_ent;
 
