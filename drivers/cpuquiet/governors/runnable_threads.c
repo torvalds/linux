@@ -29,8 +29,7 @@
 typedef enum {
 	DISABLED,
 	IDLE,
-	DOWN,
-	UP,
+	RUNNING,
 } RUNNABLES_STATE;
 
 static struct work_struct runnables_work;
@@ -40,8 +39,6 @@ static struct timer_list runnables_timer;
 static RUNNABLES_STATE runnables_state;
 /* configurable parameters */
 static unsigned int sample_rate = 20;		/* msec */
-
-static RUNNABLES_STATE runnables_state;
 
 #define NR_FSHIFT_EXP	3
 #define NR_FSHIFT	(1 << NR_FSHIFT_EXP)
@@ -55,7 +52,7 @@ static unsigned int nr_run_hysteresis = 2;		/* 1 / 2 thread */
 static unsigned int default_threshold_level = 4;	/* 1 / 4 thread */
 static unsigned int nr_run_thresholds[NR_CPUS];
 
-DEFINE_MUTEX(runnables_work_lock);
+DEFINE_MUTEX(runnables_lock);
 
 struct runnables_avg_sample {
 	u64 previous_integral;
@@ -119,26 +116,28 @@ static unsigned int get_avg_nr_runnables(void)
 	return avg;
 }
 
-static void update_runnables_state(unsigned int nr_run)
+static int get_action(unsigned int nr_run)
 {
 	unsigned int nr_cpus = num_online_cpus();
 	int max_cpus = pm_qos_request(PM_QOS_MAX_ONLINE_CPUS) ? : 4;
 	int min_cpus = pm_qos_request(PM_QOS_MIN_ONLINE_CPUS);
 
-	if ((nr_cpus > max_cpus || nr_run < nr_cpus) && nr_cpus >= min_cpus) {
-		runnables_state = DOWN;
-	} else if (nr_cpus < min_cpus || nr_run > nr_cpus) {
-		runnables_state =  UP;
-	} else {
-		runnables_state = IDLE;
-	}
+	if ((nr_cpus > max_cpus || nr_run < nr_cpus) && nr_cpus >= min_cpus)
+		return -1;
+
+	if (nr_cpus < min_cpus || nr_run > nr_cpus)
+		return 1;
+
+	return 0;
 }
 
 static void runnables_avg_sampler(unsigned long data)
 {
 	unsigned int nr_run, avg_nr_run;
+	int action;
 
-	if (runnables_state == DISABLED)
+	rmb();
+	if (runnables_state != RUNNING)
 		return;
 
 	avg_nr_run = get_avg_nr_runnables();
@@ -153,10 +152,12 @@ static void runnables_avg_sampler(unsigned long data)
 	}
 
 	nr_run_last = nr_run;
-	update_runnables_state(nr_run);
 
-	if (runnables_state != DISABLED && runnables_state != IDLE)
+	action = get_action(nr_run);
+	if (action != 0) {
+		wmb();
 		schedule_work(&runnables_work);
+	}
 }
 
 static unsigned int get_lightest_loaded_cpu_n(void)
@@ -179,39 +180,26 @@ static unsigned int get_lightest_loaded_cpu_n(void)
 
 static void runnables_work_func(struct work_struct *work)
 {
-	bool up = false;
 	unsigned int cpu = nr_cpu_ids;
+	int action, state;
 
-	mutex_lock(&runnables_work_lock);
-
-	/* Update state to avoid duplicate operations */
-	update_runnables_state(nr_run_last);
-
-	switch (runnables_state) {
-	case DISABLED:
-	case IDLE:
-		break;
-	case UP:
-		cpu = cpumask_next_zero(0, cpu_online_mask);
-		up = true;
-		break;
-	case DOWN:
-		cpu = get_lightest_loaded_cpu_n();
-		break;
-	default:
-		pr_err("%s: invalid cpuquiet runnable governor state %d\n",
-			__func__, runnables_state);
-		break;
+	mutex_lock(&runnables_lock);
+	if (runnables_state != RUNNING) {
+		mutex_unlock(&runnables_lock);
+		return;
 	}
 
-	if (cpu < nr_cpu_ids) {
-		if (up)
+	action = get_action(nr_run_last);
+	if (action > 0) {
+		cpu = cpumask_next_zero(0, cpu_online_mask);
+		if (cpu < nr_cpu_ids)
 			cpuquiet_wake_cpu(cpu);
-		else
+	} else if (action < 0) {
+		cpu = get_lightest_loaded_cpu_n();
+		if (cpu < nr_cpu_ids)
 			cpuquiet_quiesence_cpu(cpu);
 	}
-
-	mutex_unlock(&runnables_work_lock);
+	mutex_unlock(&runnables_lock);
 }
 
 CPQ_BASIC_ATTRIBUTE(sample_rate, 0644, uint);
@@ -254,25 +242,35 @@ static int runnables_sysfs(void)
 
 static void runnables_device_busy(void)
 {
-	if (runnables_state != DISABLED) {
-		runnables_state = DISABLED;
+	mutex_lock(&runnables_lock);
+	if (runnables_state == RUNNING) {
+		runnables_state = IDLE;
 		cancel_work_sync(&runnables_work);
+		del_timer_sync(&runnables_timer);
 	}
+	mutex_unlock(&runnables_lock);
 }
 
 static void runnables_device_free(void)
 {
-	if (runnables_state == DISABLED) {
-		runnables_state = IDLE;
+	mutex_lock(&runnables_lock);
+	if (runnables_state == IDLE) {
+		runnables_state = RUNNING;
 		mod_timer(&runnables_timer, jiffies + 1);
 	}
+	mutex_unlock(&runnables_lock);
 }
 
 static void runnables_stop(void)
 {
+	mutex_lock(&runnables_lock);
+
 	runnables_state = DISABLED;
+	del_timer_sync(&runnables_timer);
 	cancel_work_sync(&runnables_work);
 	kobject_put(runnables_kobject);
+
+	mutex_unlock(&runnables_lock);
 }
 
 static int runnables_start(void)
@@ -298,7 +296,10 @@ static int runnables_start(void)
 				NR_FSHIFT / default_threshold_level;
 	}
 
-	runnables_state = IDLE;
+	mutex_lock(&runnables_lock);
+	runnables_state = RUNNING;
+	mutex_unlock(&runnables_lock);
+
 	runnables_avg_sampler(0);
 
 	return 0;
