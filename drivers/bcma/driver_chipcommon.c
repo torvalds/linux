@@ -4,6 +4,7 @@
  *
  * Copyright 2005, Broadcom Corporation
  * Copyright 2006, 2007, Michael Buesch <m@bues.ch>
+ * Copyright 2012, Hauke Mehrtens <hauke@hauke-m.de>
  *
  * Licensed under the GNU/GPL. See COPYING for details.
  */
@@ -20,6 +21,14 @@ static inline u32 bcma_cc_write32_masked(struct bcma_drv_cc *cc, u16 offset,
 	bcma_cc_write32(cc, offset, value);
 
 	return value;
+}
+
+static u32 bcma_chipco_alp_clock(struct bcma_drv_cc *cc)
+{
+	if (cc->capabilities & BCMA_CC_CAP_PMU)
+		return bcma_pmu_alp_clock(cc);
+
+	return 20000000;
 }
 
 void bcma_core_chipcommon_early_init(struct bcma_drv_cc *cc)
@@ -131,8 +140,7 @@ void bcma_chipco_serial_init(struct bcma_drv_cc *cc)
 	struct bcma_serial_port *ports = cc->serial_ports;
 
 	if (ccrev >= 11 && ccrev != 15) {
-		/* Fixed ALP clock */
-		baud_base = bcma_pmu_alp_clock(cc);
+		baud_base = bcma_chipco_alp_clock(cc);
 		if (ccrev >= 21) {
 			/* Turn off UART clock before switching clocksource. */
 			bcma_cc_write32(cc, BCMA_CC_CORECTL,
