@@ -62,6 +62,7 @@ enum e1e_registers {
 	E1000_IVAR     = 0x000E4, /* Interrupt Vector Allocation - RW */
 	E1000_EITR_82574_BASE = 0x000E8, /* Interrupt Throttling - RW */
 #define E1000_EITR_82574(_n) (E1000_EITR_82574_BASE + (_n << 2))
+	E1000_LPIC     = 0x000FC, /* Low Power Idle Control - RW */
 	E1000_RCTL     = 0x00100, /* Rx Control - RW */
 	E1000_FCTTV    = 0x00170, /* Flow Control Transmit Timer Value - RW */
 	E1000_TXCW     = 0x00178, /* Tx Configuration Word - RW */
