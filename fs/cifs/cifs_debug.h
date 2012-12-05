@@ -18,7 +18,6 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
 */
-#define CIFS_DEBUG		/* BB temporary */
 
 #ifndef _H_CIFS_DEBUG
 #define _H_CIFS_DEBUG
@@ -44,7 +43,7 @@ extern int cifsERROR;
  *	debug ON
  *	--------
  */
-#ifdef CIFS_DEBUG
+#ifdef CONFIG_CIFS_DEBUG
 
 /* information message: e.g., configuration, major event */
 #define cifsfyi(fmt, ...)						\
