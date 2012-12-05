@@ -722,7 +722,7 @@ static void __init cm_t3x_common_init(void)
 	cm_t35_init_ethernet();
 	cm_t35_init_led();
 	cm_t35_init_display();
-	omap_twl4030_audio_init("cm-t3x");
+	omap_twl4030_audio_init("cm-t3x", NULL);
 
 	usb_musb_init(NULL);
 	cm_t35_init_usbh();

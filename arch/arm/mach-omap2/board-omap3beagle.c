@@ -524,7 +524,7 @@ static void __init omap3_beagle_init(void)
 	board_nand_init(omap3beagle_nand_partitions,
 			ARRAY_SIZE(omap3beagle_nand_partitions), NAND_CS,
 			NAND_BUSWIDTH_16, NULL);
-	omap_twl4030_audio_init("omap3beagle");
+	omap_twl4030_audio_init("omap3beagle", NULL);
 
 	/* Ensure msecure is mux'd to be able to set the RTC. */
 	omap_mux_init_signal("sys_drm_msecure", OMAP_PIN_OFF_OUTPUT_HIGH);

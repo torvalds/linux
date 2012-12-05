@@ -744,7 +744,7 @@ static void __init omap3_evm_init(void)
 	omap3evm_init_smsc911x();
 	omap3_evm_display_init();
 	omap3_evm_wl12xx_init();
-	omap_twl4030_audio_init("omap3evm");
+	omap_twl4030_audio_init("omap3evm", NULL);
 }
 
 MACHINE_START(OMAP3EVM, "OMAP3 EVM")
