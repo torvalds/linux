@@ -69,6 +69,7 @@ struct i2c_hid_desc {
 	__le16 wVendorID;
 	__le16 wProductID;
 	__le16 wVersionID;
+	__le32 reserved;
 } __packed;
 
 struct i2c_hid_cmd {
@@ -776,7 +777,13 @@ static int __devinit i2c_hid_fetch_hid_descriptor(struct i2c_hid *ihid)
 	}
 
 	dsize = le16_to_cpu(hdesc->wHIDDescLength);
-	if (!dsize || dsize > HID_MAX_DESCRIPTOR_SIZE) {
+	/*
+	 * the size of the HID descriptor should at least contain
+	 * its size and the bcdVersion (4 bytes), and should not be greater
+	 * than sizeof(struct i2c_hid_desc) as we directly fill this struct
+	 * through i2c_hid_command.
+	 */
+	if (dsize < 4 || dsize > sizeof(struct i2c_hid_desc)) {
 		dev_err(&client->dev, "weird size of HID descriptor (%u)\n",
 			dsize);
 		return -ENODEV;
