@@ -153,6 +153,8 @@
 #define SSB_EXTIF_WATCHDOG_CLK		48000000	/* Hz */
 
 #define SSB_EXTIF_WATCHDOG_MAX_TIMER	((1 << 28) - 1)
+#define SSB_EXTIF_WATCHDOG_MAX_TIMER_MS	(SSB_EXTIF_WATCHDOG_MAX_TIMER \
+					 / (SSB_EXTIF_WATCHDOG_CLK / 1000))
 
 
 #ifdef CONFIG_SSB_DRIVER_EXTIF
@@ -172,8 +174,7 @@ extern void ssb_extif_get_clockcontrol(struct ssb_extif *extif,
 extern void ssb_extif_timing_init(struct ssb_extif *extif,
 				  unsigned long ns);
 
-extern void ssb_extif_watchdog_timer_set(struct ssb_extif *extif,
-					 u32 ticks);
+extern u32 ssb_extif_watchdog_timer_set(struct ssb_extif *extif, u32 ticks);
 
 /* Extif GPIO pin access */
 u32 ssb_extif_gpio_in(struct ssb_extif *extif, u32 mask);
@@ -211,9 +212,9 @@ void ssb_extif_timing_init(struct ssb_extif *extif, unsigned long ns)
 }
 
 static inline
-void ssb_extif_watchdog_timer_set(struct ssb_extif *extif,
-				  u32 ticks)
+u32 ssb_extif_watchdog_timer_set(struct ssb_extif *extif, u32 ticks)
 {
+	return 0;
 }
 
 static inline u32 ssb_extif_gpio_in(struct ssb_extif *extif, u32 mask)
