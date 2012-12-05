@@ -528,7 +528,12 @@ void __init omap4_pmic_get_config(struct twl4030_platform_data *pmic_data,
 	defined(CONFIG_SND_OMAP_SOC_OMAP_TWL4030_MODULE)
 #include <linux/platform_data/omap-twl4030.h>
 
-static struct omap_tw4030_pdata omap_twl4030_audio_data;
+/* Commonly used configuration */
+static struct omap_tw4030_pdata omap_twl4030_audio_data = {
+	.has_hs		= OMAP_TWL4030_LEFT | OMAP_TWL4030_RIGHT,
+	.has_hf		= OMAP_TWL4030_LEFT | OMAP_TWL4030_RIGHT,
+	.has_linein	= OMAP_TWL4030_LEFT | OMAP_TWL4030_RIGHT,
+};
 
 static struct platform_device audio_device = {
 	.name		= "omap-twl4030",
