@@ -55,6 +55,16 @@ pwm_info(struct nouveau_therm *therm, int *line, int *ctrl, int *indx)
 }
 
 int
+nv50_fan_pwm_ctrl(struct nouveau_therm *therm, int line, bool enable)
+{
+	u32 data = enable ? 0x00000001 : 0x00000000;
+	int ctrl, id, ret = pwm_info(therm, &line, &ctrl, &id);
+	if (ret == 0)
+		nv_mask(therm, ctrl, 0x00010001 << line, data << line);
+	return ret;
+}
+
+int
 nv50_fan_pwm_get(struct nouveau_therm *therm, int line, u32 *divs, u32 *duty)
 {
 	int ctrl, id, ret = pwm_info(therm, &line, &ctrl, &id);
@@ -77,7 +87,6 @@ nv50_fan_pwm_set(struct nouveau_therm *therm, int line, u32 divs, u32 duty)
 	if (ret)
 		return ret;
 
-	nv_mask(therm, ctrl, 0x00010001 << line, 0x00000001 << line);
 	nv_wr32(therm, 0x00e114 + (id * 8), divs);
 	nv_wr32(therm, 0x00e118 + (id * 8), duty | 0x80000000);
 	return 0;
@@ -129,6 +138,7 @@ nv50_therm_ctor(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
+	priv->base.fan.pwm_ctrl = nv50_fan_pwm_ctrl;
 	priv->base.fan.pwm_get = nv50_fan_pwm_get;
 	priv->base.fan.pwm_set = nv50_fan_pwm_set;
 	priv->base.fan.pwm_clock = nv50_fan_pwm_clock;

@@ -96,6 +96,8 @@ nouveau_therm_fan_set(struct nouveau_therm *therm, int percent)
 			duty = divs - duty;
 
 		ret = priv->fan.pwm_set(therm, func.line, divs, duty);
+		if (ret == 0)
+			ret = priv->fan.pwm_ctrl(therm, func.line, true);
 		return ret;
 	}
 

@@ -32,17 +32,33 @@ static int
 pwm_info(struct nouveau_therm *therm, int line)
 {
 	u32 gpio = nv_rd32(therm, 0x00d610 + (line * 0x04));
-	if (gpio & 0x00000040) {
+	switch (gpio & 0x000000c0) {
+	case 0x00000000: /* normal mode, possibly pwm forced off by us */
+	case 0x00000040: /* nvio special */
 		switch (gpio & 0x0000001f) {
 		case 0x19: return 1;
 		case 0x1c: return 0;
 		default:
 			break;
 		}
+	default:
+		break;
 	}
 
 	nv_error(therm, "GPIO %d unknown PWM: 0x%08x\n", line, gpio);
-	return -EINVAL;
+	return -ENODEV;
+}
+
+static int
+nvd0_fan_pwm_ctrl(struct nouveau_therm *therm, int line, bool enable)
+{
+	u32 data = enable ? 0x00000040 : 0x00000000;
+	int indx = pwm_info(therm, line);
+	if (indx < 0)
+		return indx;
+
+	nv_mask(therm, 0x00d610 + (line * 0x04), 0x000000c0, data);
+	return 0;
 }
 
 static int
@@ -52,9 +68,13 @@ nvd0_fan_pwm_get(struct nouveau_therm *therm, int line, u32 *divs, u32 *duty)
 	if (indx < 0)
 		return indx;
 
-	*divs = nv_rd32(therm, 0x00e114 + (indx * 8));
-	*duty = nv_rd32(therm, 0x00e118 + (indx * 8));
-	return 0;
+	if (nv_rd32(therm, 0x00d610 + (line * 0x04)) & 0x00000040) {
+		*divs = nv_rd32(therm, 0x00e114 + (indx * 8));
+		*duty = nv_rd32(therm, 0x00e118 + (indx * 8));
+		return 0;
+	}
+
+	return -EINVAL;
 }
 
 static int
@@ -111,6 +131,7 @@ nvd0_therm_ctor(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
+	priv->base.fan.pwm_ctrl = nvd0_fan_pwm_ctrl;
 	priv->base.fan.pwm_get = nvd0_fan_pwm_get;
 	priv->base.fan.pwm_set = nvd0_fan_pwm_set;
 	priv->base.fan.pwm_clock = nvd0_fan_pwm_clock;

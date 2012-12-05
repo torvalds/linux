@@ -47,6 +47,7 @@ struct nouveau_therm_priv {
 
 		struct dcb_gpio_func tach;
 
+		int (*pwm_ctrl)(struct nouveau_therm *, int line, bool);
 		int (*pwm_get)(struct nouveau_therm *, int line, u32*, u32*);
 		int (*pwm_set)(struct nouveau_therm *, int line, u32, u32);
 		int (*pwm_clock)(struct nouveau_therm *);

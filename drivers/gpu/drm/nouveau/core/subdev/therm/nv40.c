@@ -80,6 +80,19 @@ nv40_temp_get(struct nouveau_therm *therm)
 }
 
 int
+nv40_fan_pwm_ctrl(struct nouveau_therm *therm, int line, bool enable)
+{
+	u32 mask = enable ? 0x80000000 : 0x0000000;
+	if      (line == 2) nv_mask(therm, 0x0010f0, 0x80000000, mask);
+	else if (line == 9) nv_mask(therm, 0x0015f4, 0x80000000, mask);
+	else {
+		nv_error(therm, "unknown pwm ctrl for gpio %d\n", line);
+		return -ENODEV;
+	}
+	return 0;
+}
+
+int
 nv40_fan_pwm_get(struct nouveau_therm *therm, int line, u32 *divs, u32 *duty)
 {
 	if (line == 2) {
@@ -109,11 +122,11 @@ int
 nv40_fan_pwm_set(struct nouveau_therm *therm, int line, u32 divs, u32 duty)
 {
 	if (line == 2) {
-		nv_wr32(therm, 0x0010f0, 0x80000000 | (duty << 16) | divs);
+		nv_mask(therm, 0x0010f0, 0x7fff7fff, (duty << 16) | divs);
 	} else
 	if (line == 9) {
 		nv_wr32(therm, 0x0015f8, divs);
-		nv_wr32(therm, 0x0015f4, duty | 0x80000000);
+		nv_mask(therm, 0x0015f4, 0x7fffffff, duty);
 	} else {
 		nv_error(therm, "unknown pwm ctrl for gpio %d\n", line);
 		return -ENODEV;
@@ -136,6 +149,7 @@ nv40_therm_ctor(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
+	priv->base.fan.pwm_ctrl = nv40_fan_pwm_ctrl;
 	priv->base.fan.pwm_get = nv40_fan_pwm_get;
 	priv->base.fan.pwm_set = nv40_fan_pwm_set;
 	priv->base.base.temp_get = nv40_temp_get;
