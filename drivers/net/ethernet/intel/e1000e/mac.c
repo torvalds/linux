@@ -1021,6 +1021,7 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 	s32 ret_val = 0;
+	u32 pcs_status_reg, pcs_adv_reg, pcs_lp_ability_reg, pcs_ctrl_reg;
 	u16 mii_status_reg, mii_nway_adv_reg, mii_nway_lp_ability_reg;
 	u16 speed, duplex;
 
@@ -1178,6 +1179,130 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 		/* Now we call a subroutine to actually force the MAC
 		 * controller to use the correct flow control settings.
 		 */
+		ret_val = e1000e_force_mac_fc(hw);
+		if (ret_val) {
+			e_dbg("Error forcing flow control settings\n");
+			return ret_val;
+		}
+	}
+
+	/* Check for the case where we have SerDes media and auto-neg is
+	 * enabled.  In this case, we need to check and see if Auto-Neg
+	 * has completed, and if so, how the PHY and link partner has
+	 * flow control configured.
+	 */
+	if ((hw->phy.media_type == e1000_media_type_internal_serdes) &&
+	    mac->autoneg) {
+		/* Read the PCS_LSTS and check to see if AutoNeg
+		 * has completed.
+		 */
+		pcs_status_reg = er32(PCS_LSTAT);
+
+		if (!(pcs_status_reg & E1000_PCS_LSTS_AN_COMPLETE)) {
+			e_dbg("PCS Auto Neg has not completed.\n");
+			return ret_val;
+		}
+
+		/* The AutoNeg process has completed, so we now need to
+		 * read both the Auto Negotiation Advertisement
+		 * Register (PCS_ANADV) and the Auto_Negotiation Base
+		 * Page Ability Register (PCS_LPAB) to determine how
+		 * flow control was negotiated.
+		 */
+		pcs_adv_reg = er32(PCS_ANADV);
+		pcs_lp_ability_reg = er32(PCS_LPAB);
+
+		/* Two bits in the Auto Negotiation Advertisement Register
+		 * (PCS_ANADV) and two bits in the Auto Negotiation Base
+		 * Page Ability Register (PCS_LPAB) determine flow control
+		 * for both the PHY and the link partner.  The following
+		 * table, taken out of the IEEE 802.3ab/D6.0 dated March 25,
+		 * 1999, describes these PAUSE resolution bits and how flow
+		 * control is determined based upon these settings.
+		 * NOTE:  DC = Don't Care
+		 *
+		 *   LOCAL DEVICE  |   LINK PARTNER
+		 * PAUSE | ASM_DIR | PAUSE | ASM_DIR | NIC Resolution
+		 *-------|---------|-------|---------|--------------------
+		 *   0   |    0    |  DC   |   DC    | e1000_fc_none
+		 *   0   |    1    |   0   |   DC    | e1000_fc_none
+		 *   0   |    1    |   1   |    0    | e1000_fc_none
+		 *   0   |    1    |   1   |    1    | e1000_fc_tx_pause
+		 *   1   |    0    |   0   |   DC    | e1000_fc_none
+		 *   1   |   DC    |   1   |   DC    | e1000_fc_full
+		 *   1   |    1    |   0   |    0    | e1000_fc_none
+		 *   1   |    1    |   0   |    1    | e1000_fc_rx_pause
+		 *
+		 * Are both PAUSE bits set to 1?  If so, this implies
+		 * Symmetric Flow Control is enabled at both ends.  The
+		 * ASM_DIR bits are irrelevant per the spec.
+		 *
+		 * For Symmetric Flow Control:
+		 *
+		 *   LOCAL DEVICE  |   LINK PARTNER
+		 * PAUSE | ASM_DIR | PAUSE | ASM_DIR | Result
+		 *-------|---------|-------|---------|--------------------
+		 *   1   |   DC    |   1   |   DC    | e1000_fc_full
+		 *
+		 */
+		if ((pcs_adv_reg & E1000_TXCW_PAUSE) &&
+		    (pcs_lp_ability_reg & E1000_TXCW_PAUSE)) {
+			/* Now we need to check if the user selected Rx ONLY
+			 * of pause frames.  In this case, we had to advertise
+			 * FULL flow control because we could not advertise Rx
+			 * ONLY. Hence, we must now check to see if we need to
+			 * turn OFF the TRANSMISSION of PAUSE frames.
+			 */
+			if (hw->fc.requested_mode == e1000_fc_full) {
+				hw->fc.current_mode = e1000_fc_full;
+				e_dbg("Flow Control = FULL.\n");
+			} else {
+				hw->fc.current_mode = e1000_fc_rx_pause;
+				e_dbg("Flow Control = Rx PAUSE frames only.\n");
+			}
+		}
+		/* For receiving PAUSE frames ONLY.
+		 *
+		 *   LOCAL DEVICE  |   LINK PARTNER
+		 * PAUSE | ASM_DIR | PAUSE | ASM_DIR | Result
+		 *-------|---------|-------|---------|--------------------
+		 *   0   |    1    |   1   |    1    | e1000_fc_tx_pause
+		 */
+		else if (!(pcs_adv_reg & E1000_TXCW_PAUSE) &&
+			 (pcs_adv_reg & E1000_TXCW_ASM_DIR) &&
+			 (pcs_lp_ability_reg & E1000_TXCW_PAUSE) &&
+			 (pcs_lp_ability_reg & E1000_TXCW_ASM_DIR)) {
+			hw->fc.current_mode = e1000_fc_tx_pause;
+			e_dbg("Flow Control = Tx PAUSE frames only.\n");
+		}
+		/* For transmitting PAUSE frames ONLY.
+		 *
+		 *   LOCAL DEVICE  |   LINK PARTNER
+		 * PAUSE | ASM_DIR | PAUSE | ASM_DIR | Result
+		 *-------|---------|-------|---------|--------------------
+		 *   1   |    1    |   0   |    1    | e1000_fc_rx_pause
+		 */
+		else if ((pcs_adv_reg & E1000_TXCW_PAUSE) &&
+			 (pcs_adv_reg & E1000_TXCW_ASM_DIR) &&
+			 !(pcs_lp_ability_reg & E1000_TXCW_PAUSE) &&
+			 (pcs_lp_ability_reg & E1000_TXCW_ASM_DIR)) {
+			hw->fc.current_mode = e1000_fc_rx_pause;
+			e_dbg("Flow Control = Rx PAUSE frames only.\n");
+		} else {
+			/* Per the IEEE spec, at this point flow control
+			 * should be disabled.
+			 */
+			hw->fc.current_mode = e1000_fc_none;
+			e_dbg("Flow Control = NONE.\n");
+		}
+
+		/* Now we call a subroutine to actually force the MAC
+		 * controller to use the correct flow control settings.
+		 */
+		pcs_ctrl_reg = er32(PCS_LCTL);
+		pcs_ctrl_reg |= E1000_PCS_LCTL_FORCE_FCTRL;
+		ew32(PCS_LCTL, pcs_ctrl_reg);
+
 		ret_val = e1000e_force_mac_fc(hw);
 		if (ret_val) {
 			e_dbg("Error forcing flow control settings\n");

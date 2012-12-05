@@ -241,9 +241,9 @@
 #define E1000_CTRL_VME      0x40000000  /* IEEE VLAN mode enable */
 #define E1000_CTRL_PHY_RST  0x80000000  /* PHY Reset */
 
-/* Bit definitions for the Management Data IO (MDIO) and Management Data
- * Clock (MDC) pins in the Device Control Register.
- */
+#define E1000_PCS_LCTL_FORCE_FCTRL	0x80
+
+#define E1000_PCS_LSTS_AN_COMPLETE	0x10000
 
 /* Device Status */
 #define E1000_STATUS_FD         0x00000001      /* Full duplex.0=half,1=full */
