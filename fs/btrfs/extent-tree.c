@@ -4559,6 +4559,9 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 		ret = btrfs_qgroup_reserve(root, num_bytes +
 					   nr_extents * root->leafsize);
 		if (ret) {
+			spin_lock(&BTRFS_I(inode)->lock);
+			calc_csum_metadata_size(inode, num_bytes, 0);
+			spin_unlock(&BTRFS_I(inode)->lock);
 			mutex_unlock(&BTRFS_I(inode)->delalloc_mutex);
 			return ret;
 		}
@@ -4593,6 +4596,10 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 						      "delalloc",
 						      btrfs_ino(inode),
 						      to_free, 0);
+		}
+		if (root->fs_info->quota_enabled) {
+			btrfs_qgroup_free(root, num_bytes +
+						nr_extents * root->leafsize);
 		}
 		mutex_unlock(&BTRFS_I(inode)->delalloc_mutex);
 		return ret;
