@@ -1341,6 +1341,7 @@ struct se_device *transport_add_device_to_core_hba(
 	dev->se_hba		= hba;
 	dev->se_sub_dev		= se_dev;
 	dev->transport		= transport;
+	dev->dev_link_magic	= SE_DEV_LINK_MAGIC;
 	INIT_LIST_HEAD(&dev->dev_list);
 	INIT_LIST_HEAD(&dev->dev_sep_list);
 	INIT_LIST_HEAD(&dev->dev_tmr_list);
