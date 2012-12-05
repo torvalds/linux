@@ -172,6 +172,10 @@ struct alc_spec {
 	int int_mic_idx, ext_mic_idx, dock_mic_idx; /* for auto-mic */
 	hda_nid_t inv_dmic_pin;
 
+	/* DAC list */
+	int num_all_dacs;
+	hda_nid_t all_dacs[16];
+
 	/* hooks */
 	void (*init_hook)(struct hda_codec *codec);
 #ifdef CONFIG_PM
@@ -2916,24 +2920,6 @@ static bool alc_is_dac_already_used(struct hda_codec *codec, hda_nid_t nid)
 	return false;
 }
 
-/* look for an empty DAC slot */
-static hda_nid_t alc_auto_look_for_dac(struct hda_codec *codec, hda_nid_t pin)
-{
-	hda_nid_t srcs[5];
-	int i, num;
-
-	pin = alc_go_down_to_selector(codec, pin);
-	num = snd_hda_get_connections(codec, pin, srcs, ARRAY_SIZE(srcs));
-	for (i = 0; i < num; i++) {
-		hda_nid_t nid = alc_auto_mix_to_dac(codec, srcs[i]);
-		if (!nid)
-			continue;
-		if (!alc_is_dac_already_used(codec, nid))
-			return nid;
-	}
-	return 0;
-}
-
 /* check whether the DAC is reachable from the pin */
 static bool alc_auto_is_dac_reachable(struct hda_codec *codec,
 				      hda_nid_t pin, hda_nid_t dac)
@@ -2943,21 +2929,33 @@ static bool alc_auto_is_dac_reachable(struct hda_codec *codec,
 	return snd_hda_get_conn_index(codec, pin, dac, true) >= 0;
 }
 
+/* look for an empty DAC slot */
+static hda_nid_t alc_auto_look_for_dac(struct hda_codec *codec, hda_nid_t pin)
+{
+	struct alc_spec *spec = codec->spec;
+	int i;
+
+	for (i = 0; i < spec->num_all_dacs; i++) {
+		hda_nid_t nid = spec->all_dacs[i];
+		if (!nid || alc_is_dac_already_used(codec, nid))
+			continue;
+		if (alc_auto_is_dac_reachable(codec, pin, nid))
+			return nid;
+	}
+	return 0;
+}
+
 static hda_nid_t get_dac_if_single(struct hda_codec *codec, hda_nid_t pin)
 {
 	struct alc_spec *spec = codec->spec;
-	hda_nid_t sel = alc_go_down_to_selector(codec, pin);
-	hda_nid_t nid, nid_found, srcs[5];
-	int i, num = snd_hda_get_connections(codec, sel, srcs,
-					  ARRAY_SIZE(srcs));
-	if (num == 1)
-		return alc_auto_look_for_dac(codec, pin);
-	nid_found = 0;
-	for (i = 0; i < num; i++) {
-		if (srcs[i] == spec->mixer_nid)
+	int i;
+	hda_nid_t nid_found = 0;
+
+	for (i = 0; i < spec->num_all_dacs; i++) {
+		hda_nid_t nid = spec->all_dacs[i];
+		if (!nid || alc_is_dac_already_used(codec, nid))
 			continue;
-		nid = alc_auto_mix_to_dac(codec, srcs[i]);
-		if (nid && !alc_is_dac_already_used(codec, nid)) {
+		if (alc_auto_is_dac_reachable(codec, pin, nid)) {
 			if (nid_found)
 				return 0;
 			nid_found = nid;
@@ -3308,6 +3306,26 @@ static void debug_show_configs(struct alc_spec *spec, struct auto_pin_cfg *cfg)
 		      spec->multiout.extra_out_nid[3]);
 }
 
+/* find all available DACs of the codec */
+static void alc_fill_all_nids(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	int i;
+	hda_nid_t nid = codec->start_nid;
+
+	spec->num_all_dacs = 0;
+	memset(spec->all_dacs, 0, sizeof(spec->all_dacs));
+	for (i = 0; i < codec->num_nodes; i++, nid++) {
+		if (get_wcaps_type(get_wcaps(codec, nid)) != AC_WID_AUD_OUT)
+			continue;
+		if (spec->num_all_dacs >= ARRAY_SIZE(spec->all_dacs)) {
+			snd_printk(KERN_ERR "hda: Too many DACs!\n");
+			break;
+		}
+		spec->all_dacs[spec->num_all_dacs++] = nid;
+	}
+}
+
 static int alc_auto_fill_dac_nids(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -3318,6 +3336,8 @@ static int alc_auto_fill_dac_nids(struct hda_codec *codec)
 	bool fill_hardwired = true, fill_mio_first = true;
 	bool best_wired = true, best_mio = true;
 	bool hp_spk_swapped = false;
+
+	alc_fill_all_nids(codec);
 
 	best_cfg = kmalloc(sizeof(*best_cfg), GFP_KERNEL);
 	if (!best_cfg)
