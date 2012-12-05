@@ -2426,10 +2426,6 @@ struct il_tfd {
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
 
-/* PCI register values */
-#define PCI_CFG_LINK_CTRL_VAL_L0S_EN	0x01
-#define PCI_CFG_LINK_CTRL_VAL_L1_EN	0x02
-
 struct il_rate_info {
 	u8 plcp;		/* uCode API:  RATE_6M_PLCP, etc. */
 	u8 plcp_siso;		/* uCode API:  RATE_SISO_6M_PLCP, etc. */
