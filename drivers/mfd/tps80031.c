@@ -543,6 +543,7 @@ static int __devexit tps80031_remove(struct i2c_client *client)
 static const struct i2c_device_id tps80031_id_table[] = {
 	{ "tps80031", TPS80031 },
 	{ "tps80032", TPS80032 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tps80031_id_table);
 
