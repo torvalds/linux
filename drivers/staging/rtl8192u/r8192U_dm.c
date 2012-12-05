@@ -201,8 +201,8 @@ extern void deinit_hal_dm(struct net_device *dev)
 void dm_CheckRxAggregation(struct net_device *dev) {
 	struct r8192_priv *priv = ieee80211_priv((struct net_device *)dev);
 	PRT_HIGH_THROUGHPUT	pHTInfo = priv->ieee80211->pHTInfo;
-	static unsigned long	lastTxOkCnt = 0;
-	static unsigned long	lastRxOkCnt = 0;
+	static unsigned long	lastTxOkCnt;
+	static unsigned long	lastRxOkCnt;
 	unsigned long		curTxOkCnt = 0;
 	unsigned long		curRxOkCnt = 0;
 
@@ -359,7 +359,7 @@ static void dm_check_rate_adaptive(struct net_device * dev)
 	u32						currentRATR, targetRATR = 0;
 	u32						LowRSSIThreshForRA = 0, HighRSSIThreshForRA = 0;
 	bool						bshort_gi_enabled = false;
-	static u8					ping_rssi_state=0;
+	static u8					ping_rssi_state;
 
 
 	if(!priv->up)
@@ -1486,7 +1486,7 @@ void dm_initialize_txpower_tracking(struct net_device *dev)
 static void dm_CheckTXPowerTracking_TSSI(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	static u32 tx_power_track_counter = 0;
+	static u32 tx_power_track_counter;
 
 	if(!priv->btxpower_tracking)
 		return;
@@ -1505,7 +1505,7 @@ static void dm_CheckTXPowerTracking_TSSI(struct net_device *dev)
 static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	static u8	TM_Trigger=0;
+	static u8	TM_Trigger;
 	//DbgPrint("dm_CheckTXPowerTracking() \n");
 	if(!priv->btxpower_tracking)
 		return;
@@ -2091,7 +2091,7 @@ static void dm_ctrl_initgain_byrssi_by_driverrssi(
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8 i;
-	static u8	fw_dig=0;
+	static u8	fw_dig;
 
 	if (dm_digtable.dig_enable_flag == false)
 		return;
@@ -2131,7 +2131,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 	struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	static u32 reset_cnt = 0;
+	static u32 reset_cnt;
 	u8 i;
 
 	if (dm_digtable.dig_enable_flag == false)
@@ -2319,7 +2319,7 @@ static void dm_ctrl_initgain_byrssi_highpwr(
 	struct net_device * dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	static u32 reset_cnt_highpwr = 0;
+	static u32 reset_cnt_highpwr;
 
 	// For smooth, we can not change high power DIG state in the range.
 	if ((priv->undecorated_smoothed_pwdb > dm_digtable.rssi_high_power_lowthresh) &&
@@ -2395,8 +2395,8 @@ static void dm_initial_gain(
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8					initial_gain=0;
-	static u8				initialized=0, force_write=0;
-	static u32			reset_cnt=0;
+	static u8				initialized, force_write;
+	static u32			reset_cnt;
 
 	if(dm_digtable.dig_algorithm_switch)
 	{
@@ -2462,8 +2462,8 @@ static void dm_pd_th(
 	struct net_device * dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	static u8				initialized=0, force_write=0;
-	static u32			reset_cnt = 0;
+	static u8				initialized, force_write;
+	static u32			reset_cnt;
 
 	if(dm_digtable.dig_algorithm_switch)
 	{
@@ -2574,8 +2574,8 @@ static	void dm_cs_ratio(
 	struct net_device * dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	static u8				initialized=0,force_write=0;
-	static u32			reset_cnt = 0;
+	static u8				initialized,force_write;
+	static u32			reset_cnt;
 
 	if(dm_digtable.dig_algorithm_switch)
 	{
@@ -2651,8 +2651,8 @@ static void dm_check_edca_turbo(
 	//PSTA_QOS			pStaQos = pMgntInfo->pStaQos;
 
 	// Keep past Tx/Rx packet count for RT-to-RT EDCA turbo.
-	static unsigned long			lastTxOkCnt = 0;
-	static unsigned long			lastRxOkCnt = 0;
+	static unsigned long			lastTxOkCnt;
+	static unsigned long			lastRxOkCnt;
 	unsigned long				curTxOkCnt = 0;
 	unsigned long				curRxOkCnt = 0;
 
@@ -2785,8 +2785,8 @@ static void dm_ctstoself(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv((struct net_device *)dev);
 	PRT_HIGH_THROUGHPUT	pHTInfo = priv->ieee80211->pHTInfo;
-	static unsigned long				lastTxOkCnt = 0;
-	static unsigned long				lastRxOkCnt = 0;
+	static unsigned long				lastTxOkCnt;
+	static unsigned long				lastRxOkCnt;
 	unsigned long						curTxOkCnt = 0;
 	unsigned long						curRxOkCnt = 0;
 
@@ -3044,7 +3044,7 @@ static void dm_rxpath_sel_byrssi(struct net_device * dev)
 	u8				cck_rx_ver2_max_index=0, cck_rx_ver2_min_index=0, cck_rx_ver2_sec_index=0;
 	u8				cur_rf_rssi;
 	long				cur_cck_pwdb;
-	static u8			disabled_rf_cnt=0, cck_Rx_Path_initialized=0;
+	static u8			disabled_rf_cnt, cck_Rx_Path_initialized;
 	u8				update_cck_rx_path;
 
 	if(priv->rf_type != RF_2T4R)
@@ -3571,7 +3571,7 @@ void dm_check_fsync(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	//u32			framesyncC34;
 	static u8		reg_c38_State=RegC38_Default;
-	static u32	reset_cnt=0;
+	static u32	reset_cnt;
 
 	RT_TRACE(COMP_HALDM, "RSSI %d TimeInterval %d MultipleTimeInterval %d\n", priv->ieee80211->fsync_rssi_threshold, priv->ieee80211->fsync_time_interval, priv->ieee80211->fsync_multiple_timeinterval);
 	RT_TRACE(COMP_HALDM, "RateBitmap 0x%x FirstDiffRateThreshold %d SecondDiffRateThreshold %d\n", priv->ieee80211->fsync_rate_bitmap, priv->ieee80211->fsync_firstdiff_ratethreshold, priv->ieee80211->fsync_seconddiff_ratethreshold);

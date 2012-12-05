@@ -3613,7 +3613,7 @@ HalRxCheckStuck819xUsb(struct net_device *dev)
 	u16	RegRxCounter = read_nic_word(dev, 0x130);
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	bool bStuck = FALSE;
-	static u8	rx_chk_cnt = 0;
+	static u8	rx_chk_cnt;
 	RT_TRACE(COMP_RESET,"%s(): RegRxCounter is %d,RxCounter is %d\n",__FUNCTION__,RegRxCounter,priv->RxCounter);
 	// If rssi is small, we should check rx for long time because of bad rx.
 	// or maybe it will continuous silent reset every 2 seconds.
@@ -4071,7 +4071,7 @@ extern	void	rtl819x_watchdog_wqcallback(struct work_struct *work)
        struct net_device *dev = priv->ieee80211->dev;
 	struct ieee80211_device* ieee = priv->ieee80211;
 	RESET_TYPE	ResetType = RESET_TYPE_NORESET;
-	static u8	check_reset_cnt=0;
+	static u8	check_reset_cnt;
 	bool bBusyTraffic = false;
 
 	if(!priv->up)
@@ -4554,12 +4554,12 @@ void rtl8192_process_phyinfo(struct r8192_priv * priv,u8* buffer, struct ieee802
 	u8	rfpath;
 	u32	nspatial_stream, tmp_val;
 	//u8	i;
-	static u32 slide_rssi_index=0, slide_rssi_statistics=0;
-	static u32 slide_evm_index=0, slide_evm_statistics=0;
-	static u32 last_rssi=0, last_evm=0;
+	static u32 slide_rssi_index, slide_rssi_statistics;
+	static u32 slide_evm_index, slide_evm_statistics;
+	static u32 last_rssi, last_evm;
 
-	static u32 slide_beacon_adc_pwdb_index=0, slide_beacon_adc_pwdb_statistics=0;
-	static u32 last_beacon_adc_pwdb=0;
+	static u32 slide_beacon_adc_pwdb_index, slide_beacon_adc_pwdb_statistics;
+	static u32 last_beacon_adc_pwdb;
 
 	struct ieee80211_hdr_3addr *hdr;
 	u16 sc ;
