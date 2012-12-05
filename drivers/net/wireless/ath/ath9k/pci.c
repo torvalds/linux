@@ -125,23 +125,23 @@ static void ath_pci_aspm_init(struct ath_common *common)
 
 	if ((ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE) &&
 	    (AR_SREV_9285(ah))) {
-		/* Bluetooth coexistance requires disabling ASPM. */
+		/* Bluetooth coexistence requires disabling ASPM. */
 		pcie_capability_clear_word(pdev, PCI_EXP_LNKCTL,
-			PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
+			PCI_EXP_LNKCTL_ASPM_L0S | PCI_EXP_LNKCTL_ASPM_L1);
 
 		/*
 		 * Both upstream and downstream PCIe components should
 		 * have the same ASPM settings.
 		 */
 		pcie_capability_clear_word(parent, PCI_EXP_LNKCTL,
-			PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
+			PCI_EXP_LNKCTL_ASPM_L0S | PCI_EXP_LNKCTL_ASPM_L1);
 
 		ath_info(common, "Disabling ASPM since BTCOEX is enabled\n");
 		return;
 	}
 
 	pcie_capability_read_word(parent, PCI_EXP_LNKCTL, &aspm);
-	if (aspm & (PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1)) {
+	if (aspm & (PCI_EXP_LNKCTL_ASPM_L0S | PCI_EXP_LNKCTL_ASPM_L1)) {
 		ah->aspm_enabled = true;
 		/* Initialize PCIe PM and SERDES registers. */
 		ath9k_hw_configpcipowersave(ah, false);
