@@ -1873,26 +1873,28 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	btrfs_wait_ordered_range(inode, offset, len);
 
 	mutex_lock(&inode->i_mutex);
-	if (offset >= inode->i_size) {
-		mutex_unlock(&inode->i_mutex);
-		return 0;
-	}
-
+	/*
+	 * We needn't truncate any page which is beyond the end of the file
+	 * because we are sure there is no data there.
+	 */
 	/*
 	 * Only do this if we are in the same page and we aren't doing the
 	 * entire page.
 	 */
 	if (same_page && len < PAGE_CACHE_SIZE) {
-		ret = btrfs_truncate_page(inode, offset, len, 0);
+		if (offset < round_up(inode->i_size, PAGE_CACHE_SIZE))
+			ret = btrfs_truncate_page(inode, offset, len, 0);
 		mutex_unlock(&inode->i_mutex);
 		return ret;
 	}
 
 	/* zero back part of the first page */
-	ret = btrfs_truncate_page(inode, offset, 0, 0);
-	if (ret) {
-		mutex_unlock(&inode->i_mutex);
-		return ret;
+	if (offset < round_up(inode->i_size, PAGE_CACHE_SIZE)) {
+		ret = btrfs_truncate_page(inode, offset, 0, 0);
+		if (ret) {
+			mutex_unlock(&inode->i_mutex);
+			return ret;
+		}
 	}
 
 	/* zero the front end of the last page */
