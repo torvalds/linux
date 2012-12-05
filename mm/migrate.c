@@ -1602,7 +1602,9 @@ int migrate_misplaced_page(struct page *page, int node)
 out:
 	return isolated;
 }
+#endif /* CONFIG_NUMA_BALANCING */
 
+#if defined(CONFIG_NUMA_BALANCING) && defined(CONFIG_TRANSPARENT_HUGEPAGE)
 int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 				struct vm_area_struct *vma,
 				pmd_t *pmd, pmd_t entry,

@@ -79,12 +79,6 @@ static inline int migrate_huge_page_move_mapping(struct address_space *mapping,
 extern int migrate_misplaced_page(struct page *page, int node);
 extern int migrate_misplaced_page(struct page *page, int node);
 extern bool migrate_ratelimited(int node);
-extern int migrate_misplaced_transhuge_page(struct mm_struct *mm,
-			struct vm_area_struct *vma,
-			pmd_t *pmd, pmd_t entry,
-			unsigned long address,
-			struct page *page, int node);
-
 #else
 static inline int migrate_misplaced_page(struct page *page, int node)
 {
@@ -94,7 +88,15 @@ static inline bool migrate_ratelimited(int node)
 {
 	return false;
 }
+#endif /* CONFIG_NUMA_BALANCING */
 
+#if defined(CONFIG_NUMA_BALANCING) && defined(CONFIG_TRANSPARENT_HUGEPAGE)
+extern int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+			struct vm_area_struct *vma,
+			pmd_t *pmd, pmd_t entry,
+			unsigned long address,
+			struct page *page, int node);
+#else
 static inline int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 			struct vm_area_struct *vma,
 			pmd_t *pmd, pmd_t entry,
@@ -103,6 +105,6 @@ static inline int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 {
 	return -EAGAIN;
 }
-#endif /* CONFIG_NUMA_BALANCING */
+#endif /* CONFIG_NUMA_BALANCING && CONFIG_TRANSPARENT_HUGEPAGE*/
 
 #endif /* _LINUX_MIGRATE_H */
