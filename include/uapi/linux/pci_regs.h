@@ -469,6 +469,8 @@
 #define  PCI_EXP_LNKCAP_PN	0xff000000 /* Port Number */
 #define PCI_EXP_LNKCTL		16	/* Link Control */
 #define  PCI_EXP_LNKCTL_ASPMC	0x0003	/* ASPM Control */
+#define  PCI_EXP_LNKCTL_ASPM_L0S  0x01	/* L0s Enable */
+#define  PCI_EXP_LNKCTL_ASPM_L1   0x02	/* L1 Enable */
 #define  PCI_EXP_LNKCTL_RCB	0x0008	/* Read Completion Boundary */
 #define  PCI_EXP_LNKCTL_LD	0x0010	/* Link Disable */
 #define  PCI_EXP_LNKCTL_RL	0x0020	/* Retrain Link */
