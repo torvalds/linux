@@ -479,6 +479,9 @@ config NEED_SG_DMA_LENGTH
 config HAVE_DMA_ATTRS
 	def_bool PCI
 
+config NEED_DMA_MAP_STATE
+	def_bool PCI
+
 config CHSC_SCH
 	def_tristate m
 	prompt "Support for CHSC subchannels"
