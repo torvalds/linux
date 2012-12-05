@@ -135,8 +135,6 @@ struct i2c_hid {
 
 	unsigned long		flags;		/* device flags */
 
-	int			irq;		/* the interrupt line irq */
-
 	wait_queue_head_t	wait;		/* For waiting the interrupt */
 };
 
@@ -736,8 +734,6 @@ static int __devinit i2c_hid_init_irq(struct i2c_client *client)
 		return ret;
 	}
 
-	ihid->irq = client->irq;
-
 	return 0;
 }
 
@@ -851,7 +847,7 @@ static int __devinit i2c_hid_probe(struct i2c_client *client,
 	hid = hid_allocate_device();
 	if (IS_ERR(hid)) {
 		ret = PTR_ERR(hid);
-		goto err;
+		goto err_irq;
 	}
 
 	ihid->hid = hid;
@@ -881,10 +877,10 @@ static int __devinit i2c_hid_probe(struct i2c_client *client,
 err_mem_free:
 	hid_destroy_device(hid);
 
-err:
-	if (ihid->irq)
-		free_irq(ihid->irq, ihid);
+err_irq:
+	free_irq(client->irq, ihid);
 
+err:
 	i2c_hid_free_buffers(ihid);
 	kfree(ihid);
 	return ret;
@@ -912,10 +908,9 @@ static int __devexit i2c_hid_remove(struct i2c_client *client)
 static int i2c_hid_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	struct i2c_hid *ihid = i2c_get_clientdata(client);
 
 	if (device_may_wakeup(&client->dev))
-		enable_irq_wake(ihid->irq);
+		enable_irq_wake(client->irq);
 
 	/* Save some power */
 	i2c_hid_set_power(client, I2C_HID_PWR_SLEEP);
