@@ -1867,8 +1867,8 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	u64 drop_end;
 	int ret = 0;
 	int err = 0;
-	bool same_page = (offset >> PAGE_CACHE_SHIFT) ==
-		((offset + len) >> PAGE_CACHE_SHIFT);
+	bool same_page = ((offset >> PAGE_CACHE_SHIFT) ==
+			  ((offset + len - 1) >> PAGE_CACHE_SHIFT));
 
 	btrfs_wait_ordered_range(inode, offset, len);
 
