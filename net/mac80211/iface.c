@@ -862,7 +862,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		rcu_assign_pointer(local->p2p_sdata, NULL);
 		/* fall through */
 	default:
-		flush_work(&sdata->work);
+		cancel_work_sync(&sdata->work);
 		/*
 		 * When we get here, the interface is marked down.
 		 * Call rcu_barrier() to wait both for the RX path
