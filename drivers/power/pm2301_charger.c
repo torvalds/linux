@@ -139,6 +139,8 @@ static int pm2xxx_reg_read(struct pm2xxx_charger *pm2, int reg, u8 *val)
 	else
 		ret = 0;
 
+	pm_runtime_put_sync(pm2->dev);
+
 	return ret;
 }
 
@@ -155,6 +157,8 @@ static int pm2xxx_reg_write(struct pm2xxx_charger *pm2, int reg, u8 val)
 		dev_err(pm2->dev, "Error writing register at 0x%x\n", reg);
 	else
 		ret = 0;
+
+	pm_runtime_put_sync(pm2->dev);
 
 	return ret;
 }
