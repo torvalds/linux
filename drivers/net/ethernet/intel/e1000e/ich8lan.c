@@ -150,6 +150,8 @@
 
 /* PHY Low Power Idle Control */
 #define I82579_LPI_CTRL				PHY_REG(772, 20)
+#define I82579_LPI_CTRL_100_ENABLE		0x2000
+#define I82579_LPI_CTRL_1000_ENABLE		0x4000
 #define I82579_LPI_CTRL_ENABLE_MASK		0x6000
 #define I82579_LPI_CTRL_FORCE_PLL_LOCK_COUNT	0x80
 
@@ -160,9 +162,13 @@
 #define I82579_MSE_THRESHOLD    0x084F	/* 82579 Mean Square Error Threshold */
 #define I82577_MSE_THRESHOLD    0x0887	/* 82577 Mean Square Error Threshold */
 #define I82579_MSE_LINK_DOWN    0x2411	/* MSE count before dropping link */
+#define I82579_EEE_PCS_STATUS	0x182D	/* IEEE MMD Register 3.1 >> 8 */
+#define I82579_EEE_LP_ABILITY	0x040F	/* IEEE MMD Register 7.61 */
+#define I82579_EEE_100_SUPPORTED	(1 << 1) /* 100BaseTx EEE supported */
+#define I82579_EEE_1000_SUPPORTED	(1 << 2) /* 1000BaseTx EEE supported */
+#define I217_EEE_PCS_STATUS	0x9401	/* IEEE MMD Register 3.1 */
 #define I217_EEE_ADVERTISEMENT  0x8001	/* IEEE MMD Register 7.60 */
 #define I217_EEE_LP_ABILITY     0x8002	/* IEEE MMD Register 7.61 */
-#define I217_EEE_100_SUPPORTED  (1 << 1)	/* 100BaseTx EEE supported */
 
 /* Intel Rapid Start Technology Support */
 #define I217_PROXY_CTRL                 BM_PHY_REG(BM_WUC_PAGE, 70)
@@ -845,54 +851,84 @@ static s32 e1000_write_emi_reg_locked(struct e1000_hw *hw, u16 addr, u16 data)
  *  e1000_set_eee_pchlan - Enable/disable EEE support
  *  @hw: pointer to the HW structure
  *
- *  Enable/disable EEE based on setting in dev_spec structure.  The bits in
- *  the LPI Control register will remain set only if/when link is up.
+ *  Enable/disable EEE based on setting in dev_spec structure, the duplex of
+ *  the link and the EEE capabilities of the link partner.  The LPI Control
+ *  register bits will remain set only if/when link is up.
  **/
 static s32 e1000_set_eee_pchlan(struct e1000_hw *hw)
 {
 	struct e1000_dev_spec_ich8lan *dev_spec = &hw->dev_spec.ich8lan;
-	s32 ret_val = 0;
-	u16 phy_reg;
+	s32 ret_val;
+	u16 lpi_ctrl;
 
 	if ((hw->phy.type != e1000_phy_82579) &&
 	    (hw->phy.type != e1000_phy_i217))
 		return 0;
 
-	ret_val = e1e_rphy(hw, I82579_LPI_CTRL, &phy_reg);
+	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val)
 		return ret_val;
 
-	if (dev_spec->eee_disable)
-		phy_reg &= ~I82579_LPI_CTRL_ENABLE_MASK;
-	else
-		phy_reg |= I82579_LPI_CTRL_ENABLE_MASK;
-
-	ret_val = e1e_wphy(hw, I82579_LPI_CTRL, phy_reg);
+	ret_val = e1e_rphy_locked(hw, I82579_LPI_CTRL, &lpi_ctrl);
 	if (ret_val)
-		return ret_val;
+		goto release;
 
-	if ((hw->phy.type == e1000_phy_i217) && !dev_spec->eee_disable) {
+	/* Clear bits that enable EEE in various speeds */
+	lpi_ctrl &= ~I82579_LPI_CTRL_ENABLE_MASK;
+
+	/* Enable EEE if not disabled by user */
+	if (!dev_spec->eee_disable) {
+		u16 lpa, pcs_status, data;
+
 		/* Save off link partner's EEE ability */
-		ret_val = hw->phy.ops.acquire(hw);
-		if (ret_val)
-			return ret_val;
-		ret_val = e1000_read_emi_reg_locked(hw,
-						    I217_EEE_LP_ABILITY,
+		switch (hw->phy.type) {
+		case e1000_phy_82579:
+			lpa = I82579_EEE_LP_ABILITY;
+			pcs_status = I82579_EEE_PCS_STATUS;
+			break;
+		case e1000_phy_i217:
+			lpa = I217_EEE_LP_ABILITY;
+			pcs_status = I217_EEE_PCS_STATUS;
+			break;
+		default:
+			ret_val = -E1000_ERR_PHY;
+			goto release;
+		}
+		ret_val = e1000_read_emi_reg_locked(hw, lpa,
 						    &dev_spec->eee_lp_ability);
 		if (ret_val)
 			goto release;
 
-		/* EEE is not supported in 100Half, so ignore partner's EEE
-		 * in 100 ability if full-duplex is not advertised.
+		/* Enable EEE only for speeds in which the link partner is
+		 * EEE capable.
 		 */
-		e1e_rphy_locked(hw, PHY_LP_ABILITY, &phy_reg);
-		if (!(phy_reg & NWAY_LPAR_100TX_FD_CAPS))
-			dev_spec->eee_lp_ability &= ~I217_EEE_100_SUPPORTED;
-release:
-		hw->phy.ops.release(hw);
+		if (dev_spec->eee_lp_ability & I82579_EEE_1000_SUPPORTED)
+			lpi_ctrl |= I82579_LPI_CTRL_1000_ENABLE;
+
+		if (dev_spec->eee_lp_ability & I82579_EEE_100_SUPPORTED) {
+			e1e_rphy_locked(hw, PHY_LP_ABILITY, &data);
+			if (data & NWAY_LPAR_100TX_FD_CAPS)
+				lpi_ctrl |= I82579_LPI_CTRL_100_ENABLE;
+			else
+				/* EEE is not supported in 100Half, so ignore
+				 * partner's EEE in 100 ability if full-duplex
+				 * is not advertised.
+				 */
+				dev_spec->eee_lp_ability &=
+				    ~I82579_EEE_100_SUPPORTED;
+		}
+
+		/* R/Clr IEEE MMD 3.1 bits 11:10 - Tx/Rx LPI Received */
+		ret_val = e1000_read_emi_reg_locked(hw, pcs_status, &data);
+		if (ret_val)
+			goto release;
 	}
 
-	return 0;
+	ret_val = e1e_wphy_locked(hw, I82579_LPI_CTRL, lpi_ctrl);
+release:
+	hw->phy.ops.release(hw);
+
+	return ret_val;
 }
 
 /**
@@ -4075,9 +4111,9 @@ void e1000_suspend_workarounds_ich8lan(struct e1000_hw *hw)
 			 * EEE and 100Full is advertised on both ends of the
 			 * link.
 			 */
-			if ((eee_advert & I217_EEE_100_SUPPORTED) &&
+			if ((eee_advert & I82579_EEE_100_SUPPORTED) &&
 			    (dev_spec->eee_lp_ability &
-			     I217_EEE_100_SUPPORTED) &&
+			     I82579_EEE_100_SUPPORTED) &&
 			    (hw->phy.autoneg_advertised & ADVERTISE_100_FULL))
 				phy_ctrl &= ~(E1000_PHY_CTRL_D0A_LPLU |
 					      E1000_PHY_CTRL_NOND0A_LPLU);
