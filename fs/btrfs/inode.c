@@ -5692,9 +5692,6 @@ static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
 	if (IS_ERR(trans))
 		return ERR_CAST(trans);
 
-	if (start <= BTRFS_I(inode)->disk_i_size && len < 64 * 1024)
-		btrfs_add_inode_defrag(trans, inode);
-
 	trans->block_rsv = &root->fs_info->delalloc_block_rsv;
 
 	alloc_hint = get_extent_allocation_hint(inode, start, len);
