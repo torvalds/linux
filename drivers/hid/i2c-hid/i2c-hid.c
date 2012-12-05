@@ -32,7 +32,6 @@
 #include <linux/list.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
-#include <linux/bug.h>
 #include <linux/hid.h>
 
 #include <linux/i2c/i2c-hid.h>
