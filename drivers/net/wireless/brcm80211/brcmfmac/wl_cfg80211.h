@@ -17,72 +17,14 @@
 #ifndef _wl_cfg80211_h_
 #define _wl_cfg80211_h_
 
-#define WL_DBG_NONE		0
-#define WL_DBG_CONN		(1 << 5)
-#define WL_DBG_SCAN		(1 << 4)
-#define WL_DBG_TRACE		(1 << 3)
-#define WL_DBG_INFO		(1 << 1)
-#define WL_DBG_ERR		(1 << 0)
-#define WL_DBG_MASK		((WL_DBG_INFO | WL_DBG_ERR | WL_DBG_TRACE) | \
-				(WL_DBG_SCAN) | (WL_DBG_CONN))
+#include "dhd_dbg.h"
 
-#define	WL_ERR(fmt, ...)					\
-do {								\
-	if (brcmf_dbg_level & WL_DBG_ERR) {			\
-		if (net_ratelimit()) {				\
-			pr_err("ERROR @%s : " fmt,		\
-			       __func__, ##__VA_ARGS__);	\
-		}						\
-	}							\
-} while (0)
+#define	WL_ERR(fmt, ...)	brcmf_err(fmt, ##__VA_ARGS__)
 
-#if (defined DEBUG)
-#define	WL_INFO(fmt, ...)					\
-do {								\
-	if (brcmf_dbg_level & WL_DBG_INFO) {			\
-		if (net_ratelimit()) {				\
-			pr_err("INFO @%s : " fmt,		\
-			       __func__, ##__VA_ARGS__);	\
-		}						\
-	}							\
-} while (0)
-
-#define	WL_TRACE(fmt, ...)					\
-do {								\
-	if (brcmf_dbg_level & WL_DBG_TRACE) {			\
-		if (net_ratelimit()) {				\
-			pr_err("TRACE @%s : " fmt,		\
-			       __func__, ##__VA_ARGS__);	\
-		}						\
-	}							\
-} while (0)
-
-#define	WL_SCAN(fmt, ...)					\
-do {								\
-	if (brcmf_dbg_level & WL_DBG_SCAN) {			\
-		if (net_ratelimit()) {				\
-			pr_err("SCAN @%s : " fmt,		\
-			       __func__, ##__VA_ARGS__);	\
-		}						\
-	}							\
-} while (0)
-
-#define	WL_CONN(fmt, ...)					\
-do {								\
-	if (brcmf_dbg_level & WL_DBG_CONN) {			\
-		if (net_ratelimit()) {				\
-			pr_err("CONN @%s : " fmt,		\
-			       __func__, ##__VA_ARGS__);	\
-		}						\
-	}							\
-} while (0)
-
-#else /* (defined DEBUG) */
-#define	WL_INFO(fmt, args...)
-#define	WL_TRACE(fmt, args...)
-#define	WL_SCAN(fmt, args...)
-#define	WL_CONN(fmt, args...)
-#endif /* (defined DEBUG) */
+#define	WL_INFO(fmt, ...)	brcmf_dbg(INFO, fmt, ##__VA_ARGS__)
+#define	WL_TRACE(fmt, ...)	brcmf_dbg(TRACE, fmt, ##__VA_ARGS__)
+#define	WL_SCAN(fmt, ...)	brcmf_dbg(SCAN, fmt, ##__VA_ARGS__)
+#define	WL_CONN(fmt, ...)	brcmf_dbg(CONN, fmt, ##__VA_ARGS__)
 
 #define WL_NUM_SCAN_MAX			10
 #define WL_NUM_PMKIDS_MAX		MAXPMKID

@@ -31,6 +31,8 @@
 #define BRCMF_BTA_VAL	0x0800
 #define BRCMF_FIL_VAL	0x1000
 #define BRCMF_USB_VAL	0x2000
+#define BRCMF_SCAN_VAL	0x4000
+#define BRCMF_CONN_VAL	0x8000
 
 /* Macro for error messages. net_ratelimit() is used when driver
  * debugging is not selected. When debugging the driver error
