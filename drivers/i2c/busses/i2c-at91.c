@@ -584,6 +584,9 @@ static const struct platform_device_id at91_twi_devtypes[] = {
 #if defined(CONFIG_OF)
 static const struct of_device_id atmel_twi_dt_ids[] = {
 	{
+		.compatible = "atmel,at91rm9200-i2c",
+		.data = &at91rm9200_config,
+	} , {
 		.compatible = "atmel,at91sam9260-i2c",
 		.data = &at91sam9260_config,
 	} , {
