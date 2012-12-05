@@ -702,7 +702,7 @@ int init_ft1000_netdev(struct ft1000_usb *ft1000dev)
 	int i, ret_val;
 	struct list_head *cur, *tmp;
 	char card_nr[2];
-	unsigned long gCardIndex = 0;
+	u8 gCardIndex = 0;
 
 	DEBUG("Enter init_ft1000_netdev...\n");
 
@@ -723,7 +723,7 @@ int init_ft1000_netdev(struct ft1000_usb *ft1000dev)
 	if (strncmp(netdev->name, "eth", 3) == 0) {
 		card_nr[0] = netdev->name[3];
 		card_nr[1] = '\0';
-		ret_val = strict_strtoul(card_nr, 10, &gCardIndex);
+		ret_val = kstrtou8(card_nr, 10, &gCardIndex);
 		if (ret_val) {
 			printk(KERN_ERR "Can't parse netdev\n");
 			goto err_net;
