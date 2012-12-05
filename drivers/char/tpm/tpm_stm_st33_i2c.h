@@ -30,32 +30,6 @@
 #ifndef __STM_ST33_TPM_I2C_MAIN_H__
 #define __STM_ST33_TPM_I2C_MAIN_H__
 
-#include <linux/pci.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/i2c.h>
-#include <linux/fs.h>
-#include <linux/miscdevice.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/delay.h>
-#include <linux/init.h>
-#include <linux/wait.h>
-#include <linux/string.h>
-#include <linux/interrupt.h>
-#include <linux/spinlock.h>
-#include <linux/sysfs.h>
-#include <linux/gpio.h>
-#include <linux/sched.h>
-#include <linux/uaccess.h>
-#include <linux/io.h>
-#include <linux/slab.h>
-#include <linux/sched.h>
-
-#include "tpm.h"
-
-#define MINOR_NUM_I2C		224
-
 #define TPM_ACCESS			(0x0)
 #define TPM_STS				(0x18)
 #define TPM_HASH_END			(0x20)
@@ -73,9 +47,16 @@
 
 #define LOCALITY0		0
 
-struct st_tpm_hash {
-	int size;
-	u8 *data;
+#define TPM_ST33_I2C			"st33zp24_i2c"
+
+struct st33zp24_platform_data {
+	int io_serirq;
+	int io_lpcpd;
+	struct i2c_client *client;
+	bool bChipF;
+	u8 *tpm_i2c_buffer[2]; /* 0 Request 1 Response */
+	struct completion irq_detection;
+	struct mutex lock;
 };
 
 #endif /* __STM_ST33_TPM_I2C_MAIN_H__ */
