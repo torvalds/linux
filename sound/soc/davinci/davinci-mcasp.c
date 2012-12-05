@@ -593,6 +593,10 @@ static int davinci_mcasp_set_clkdiv(struct snd_soc_dai *dai, int div_id, int div
 			       ACLKRDIV(div - 1), ACLKRDIV_MASK);
 		break;
 
+	case 2:		/* BCLK/LRCLK ratio */
+		dev->bclk_lrclk_ratio = div;
+		break;
+
 	default:
 		return -EINVAL;
 	}
@@ -624,6 +628,17 @@ static int davinci_config_channel_size(struct davinci_audio_dev *dev,
 	u32 fmt;
 	u32 rotate = (32 - word_length) / 4;
 	u32 mask = (1ULL << word_length) - 1;
+
+	/*
+	 * if s BCLK-to-LRCLK ratio has been configured via the set_clkdiv()
+	 * callback, take it into account here. That allows us to for example
+	 * send 32 bits per channel to the codec, while only 16 of them carry
+	 * audio payload.
+	 * The clock ratio is given for a full period of data (both left and
+	 * right channels), so it has to be divided by 2.
+	 */
+	if (dev->bclk_lrclk_ratio)
+		word_length = dev->bclk_lrclk_ratio / 2;
 
 	/* mapping of the XSSZ bit-field as described in the datasheet */
 	fmt = (word_length >> 1) - 1;
