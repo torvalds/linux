@@ -1441,7 +1441,7 @@ static void ixgbe_process_skb_fields(struct ixgbe_ring *rx_ring,
 
 	ixgbe_rx_checksum(rx_ring, rx_desc, skb);
 
-	ixgbe_ptp_rx_hwtstamp(rx_ring->q_vector, rx_desc, skb);
+	ixgbe_ptp_rx_hwtstamp(rx_ring, rx_desc, skb);
 
 	if ((dev->features & NETIF_F_HW_VLAN_RX) &&
 	    ixgbe_test_staterr(rx_desc, IXGBE_RXD_STAT_VP)) {
@@ -5534,6 +5534,8 @@ static void ixgbe_watchdog_link_is_up(struct ixgbe_adapter *adapter)
 		break;
 	}
 
+	adapter->last_rx_ptp_check = jiffies;
+
 	if (adapter->flags2 & IXGBE_FLAG2_PTP_ENABLED)
 		ixgbe_ptp_start_cyclecounter(adapter);
 
@@ -5887,6 +5889,7 @@ static void ixgbe_service_task(struct work_struct *work)
 	ixgbe_fdir_reinit_subtask(adapter);
 	ixgbe_check_hang_subtask(adapter);
 	ixgbe_ptp_overflow_check(adapter);
+	ixgbe_ptp_rx_hang(adapter);
 
 	ixgbe_service_event_complete(adapter);
 }
