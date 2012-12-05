@@ -5344,8 +5344,27 @@ static void cnic_stop_bnx2_hw(struct cnic_dev *dev)
 static void cnic_stop_bnx2x_hw(struct cnic_dev *dev)
 {
 	struct cnic_local *cp = dev->cnic_priv;
+	u32 hc_index = HC_INDEX_ISCSI_EQ_CONS;
+	u32 sb_id = cp->status_blk_num;
+	u32 idx_off, syn_off;
 
 	cnic_free_irq(dev);
+
+	if (BNX2X_CHIP_IS_E2_PLUS(cp->chip_id)) {
+		idx_off = offsetof(struct hc_status_block_e2, index_values) +
+			  (hc_index * sizeof(u16));
+
+		syn_off = CSTORM_HC_SYNC_LINE_INDEX_E2_OFFSET(hc_index, sb_id);
+	} else {
+		idx_off = offsetof(struct hc_status_block_e1x, index_values) +
+			  (hc_index * sizeof(u16));
+
+		syn_off = CSTORM_HC_SYNC_LINE_INDEX_E1X_OFFSET(hc_index, sb_id);
+	}
+	CNIC_WR16(dev, BAR_CSTRORM_INTMEM + syn_off, 0);
+	CNIC_WR16(dev, BAR_CSTRORM_INTMEM + CSTORM_STATUS_BLOCK_OFFSET(sb_id) +
+		  idx_off, 0);
+
 	*cp->kcq1.hw_prod_idx_ptr = 0;
 	CNIC_WR(dev, BAR_CSTRORM_INTMEM +
 		CSTORM_ISCSI_EQ_CONS_OFFSET(cp->pfid, 0), 0);
