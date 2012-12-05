@@ -64,7 +64,7 @@ static struct ibmvtpm_dev *ibmvtpm_get_data(const struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 	if (chip)
-		return (struct ibmvtpm_dev *)chip->vendor.data;
+		return (struct ibmvtpm_dev *)TPM_VPRIV(chip);
 	return NULL;
 }
 
@@ -83,7 +83,7 @@ static int tpm_ibmvtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	u16 len;
 	int sig;
 
-	ibmvtpm = (struct ibmvtpm_dev *)chip->vendor.data;
+	ibmvtpm = (struct ibmvtpm_dev *)TPM_VPRIV(chip);
 
 	if (!ibmvtpm->rtce_buf) {
 		dev_err(ibmvtpm->dev, "ibmvtpm device is not ready\n");
@@ -127,7 +127,7 @@ static int tpm_ibmvtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 	u64 *word = (u64 *) &crq;
 	int rc;
 
-	ibmvtpm = (struct ibmvtpm_dev *)chip->vendor.data;
+	ibmvtpm = (struct ibmvtpm_dev *)TPM_VPRIV(chip);
 
 	if (!ibmvtpm->rtce_buf) {
 		dev_err(ibmvtpm->dev, "ibmvtpm device is not ready\n");
@@ -647,7 +647,7 @@ static int tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 
 	ibmvtpm->dev = dev;
 	ibmvtpm->vdev = vio_dev;
-	chip->vendor.data = (void *)ibmvtpm;
+	TPM_VPRIV(chip) = (void *)ibmvtpm;
 
 	spin_lock_init(&ibmvtpm->rtce_lock);
 

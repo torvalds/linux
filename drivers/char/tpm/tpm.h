@@ -101,11 +101,13 @@ struct tpm_vendor_specific {
 	bool timeout_adjusted;
 	unsigned long duration[3]; /* jiffies */
 	bool duration_adjusted;
-	void *data;
+	void *priv;
 
 	wait_queue_head_t read_queue;
 	wait_queue_head_t int_queue;
 };
+
+#define TPM_VPRIV(c)	(c)->vendor.priv
 
 #define TPM_VID_INTEL    0x8086
 
