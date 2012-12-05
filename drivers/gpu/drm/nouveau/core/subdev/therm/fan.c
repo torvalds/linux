@@ -107,10 +107,6 @@ int
 nouveau_therm_fan_set(struct nouveau_therm *therm, bool immediate, int percent)
 {
 	struct nouveau_therm_priv *priv = (void *)therm;
-
-	if (priv->fan->mode == FAN_CONTROL_NONE)
-		return -EINVAL;
-
 	return nouveau_fan_update(priv->fan, immediate, percent);
 }
 
@@ -155,34 +151,6 @@ nouveau_therm_fan_sense(struct nouveau_therm *therm)
 }
 
 int
-nouveau_therm_fan_set_mode(struct nouveau_therm *therm,
-			   enum nouveau_therm_fan_mode mode)
-{
-	struct nouveau_therm_priv *priv = (void *)therm;
-
-	if (priv->fan->mode == mode)
-		return 0;
-
-	if (mode < FAN_CONTROL_NONE || mode >= FAN_CONTROL_NR)
-		return -EINVAL;
-
-	switch (mode)
-	{
-	case FAN_CONTROL_NONE:
-		nv_info(therm, "switch fan to no-control mode\n");
-		break;
-	case FAN_CONTROL_MANUAL:
-		nv_info(therm, "switch fan to manual mode\n");
-		break;
-	case FAN_CONTROL_NR:
-		break;
-	}
-
-	priv->fan->mode = mode;
-	return 0;
-}
-
-int
 nouveau_therm_fan_user_get(struct nouveau_therm *therm)
 {
 	return nouveau_therm_fan_get(therm);
@@ -193,7 +161,7 @@ nouveau_therm_fan_user_set(struct nouveau_therm *therm, int percent)
 {
 	struct nouveau_therm_priv *priv = (void *)therm;
 
-	if (priv->fan->mode != FAN_CONTROL_MANUAL)
+	if (priv->mode != FAN_CONTROL_MANUAL)
 		return -EINVAL;
 
 	return nouveau_therm_fan_set(therm, true, percent);
@@ -209,6 +177,8 @@ nouveau_therm_fan_set_defaults(struct nouveau_therm *therm)
 	priv->fan->bios.max_duty = 100;
 	priv->fan->bios.bump_period = 500;
 	priv->fan->bios.slow_down_period = 2000;
+	priv->fan->bios.linear_min_temp = 40;
+	priv->fan->bios.linear_max_temp = 85;
 }
 
 static void
@@ -263,7 +233,5 @@ nouveau_therm_fan_ctor(struct nouveau_therm *therm)
 	if (nvbios_therm_fan_parse(bios, &priv->fan->bios))
 		nv_error(therm, "parsing the thermal table failed\n");
 	nouveau_therm_fan_safety_checks(therm);
-
-	nouveau_therm_fan_set_mode(therm, FAN_CONTROL_NONE);
 	return 0;
 }

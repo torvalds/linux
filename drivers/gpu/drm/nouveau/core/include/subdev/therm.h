@@ -7,6 +7,7 @@
 enum nouveau_therm_fan_mode {
 	FAN_CONTROL_NONE = 0,
 	FAN_CONTROL_MANUAL = 1,
+	FAN_CONTROL_AUTO = 2,
 	FAN_CONTROL_NR,
 };
 

@@ -29,6 +29,130 @@
 
 #include "priv.h"
 
+static int
+nouveau_therm_update_trip(struct nouveau_therm *therm)
+{
+	struct nouveau_therm_priv *priv = (void *)therm;
+	struct nouveau_therm_trip_point *trip = priv->fan->bios.trip,
+					*cur_trip = NULL,
+					*last_trip = priv->last_trip;
+	u8  temp = therm->temp_get(therm);
+	u16 duty, i;
+
+	/* look for the trip point corresponding to the current temperature */
+	cur_trip = NULL;
+	for (i = 0; i < priv->fan->bios.nr_fan_trip; i++) {
+		if (temp >= trip[i].temp)
+			cur_trip = &trip[i];
+	}
+
+	/* account for the hysteresis cycle */
+	if (last_trip && temp <= (last_trip->temp) &&
+	    temp > (last_trip->temp - last_trip->hysteresis))
+		cur_trip = last_trip;
+
+	if (cur_trip) {
+		duty = cur_trip->fan_duty;
+		priv->last_trip = cur_trip;
+	} else {
+		duty = 0;
+		priv->last_trip = NULL;
+	}
+
+	return duty;
+}
+
+static int
+nouveau_therm_update_linear(struct nouveau_therm *therm)
+{
+	struct nouveau_therm_priv *priv = (void *)therm;
+	u8  linear_min_temp = priv->fan->bios.linear_min_temp;
+	u8  linear_max_temp = priv->fan->bios.linear_max_temp;
+	u8  temp = therm->temp_get(therm);
+	u16 duty;
+
+	duty  = (temp - linear_min_temp);
+	duty *= (priv->fan->bios.max_duty - priv->fan->bios.min_duty);
+	duty /= (linear_max_temp - linear_min_temp);
+	duty += priv->fan->bios.min_duty;
+
+	return duty;
+}
+
+static void
+nouveau_therm_update(struct nouveau_therm *therm, int mode)
+{
+	struct nouveau_timer *ptimer = nouveau_timer(therm);
+	struct nouveau_therm_priv *priv = (void *)therm;
+	unsigned long flags;
+	int duty;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	if (mode < 0)
+		mode = priv->mode;
+	priv->mode = mode;
+
+	switch (mode) {
+	case FAN_CONTROL_MANUAL:
+		duty = priv->fan->percent;
+		break;
+	case FAN_CONTROL_AUTO:
+		if (priv->fan->bios.nr_fan_trip)
+			duty = nouveau_therm_update_trip(therm);
+		else
+			duty = nouveau_therm_update_linear(therm);
+		break;
+	case FAN_CONTROL_NONE:
+	default:
+		goto done;
+	}
+
+	nouveau_therm_fan_set(therm, (mode != FAN_CONTROL_AUTO), duty);
+
+done:
+	if (list_empty(&priv->alarm.head) && (mode == FAN_CONTROL_AUTO))
+		ptimer->alarm(ptimer, 1000000000ULL, &priv->alarm);
+	spin_unlock_irqrestore(&priv->lock, flags);
+}
+
+static void
+nouveau_therm_alarm(struct nouveau_alarm *alarm)
+{
+	struct nouveau_therm_priv *priv =
+	       container_of(alarm, struct nouveau_therm_priv, alarm);
+	nouveau_therm_update(&priv->base, -1);
+}
+
+static int
+nouveau_therm_mode(struct nouveau_therm *therm, int mode)
+{
+	struct nouveau_therm_priv *priv = (void *)therm;
+
+	if (priv->mode == mode)
+		return 0;
+
+	/* The default PDAEMON ucode interferes with fan management */
+	if (nv_device(therm)->card_type >= NV_C0)
+		return -EINVAL;
+
+	switch (mode) {
+	case FAN_CONTROL_NONE:
+		nv_info(therm, "switch to no-control mode\n");
+		break;
+	case FAN_CONTROL_MANUAL:
+		nv_info(therm, "switch to manual mode\n");
+		break;
+	case FAN_CONTROL_AUTO:
+		nv_info(therm, "switch to automatic mode\n");
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	nouveau_therm_update(therm, mode);
+	return 0;
+}
+
 int
 nouveau_therm_attr_get(struct nouveau_therm *therm,
 		       enum nouveau_therm_attr_type type)
@@ -41,7 +165,7 @@ nouveau_therm_attr_get(struct nouveau_therm *therm,
 	case NOUVEAU_THERM_ATTR_FAN_MAX_DUTY:
 		return priv->fan->bios.max_duty;
 	case NOUVEAU_THERM_ATTR_FAN_MODE:
-		return priv->fan->mode;
+		return priv->mode;
 	case NOUVEAU_THERM_ATTR_THRS_FAN_BOOST:
 		return priv->bios_sensor.thrs_fan_boost.temp;
 	case NOUVEAU_THERM_ATTR_THRS_FAN_BOOST_HYST:
@@ -85,7 +209,7 @@ nouveau_therm_attr_set(struct nouveau_therm *therm,
 		priv->fan->bios.max_duty = value;
 		return 0;
 	case NOUVEAU_THERM_ATTR_FAN_MODE:
-		return nouveau_therm_fan_set_mode(therm, value);
+		return nouveau_therm_mode(therm, value);
 	case NOUVEAU_THERM_ATTR_THRS_FAN_BOOST:
 		priv->bios_sensor.thrs_fan_boost.temp = value;
 		return 0;
@@ -157,6 +281,9 @@ nouveau_therm_create_(struct nouveau_object *parent,
 	priv = *pobject;
 	if (ret)
 		return ret;
+
+	nouveau_alarm_init(&priv->alarm, nouveau_therm_alarm);
+	spin_lock_init(&priv->lock);
 
 	priv->base.fan_get = nouveau_therm_fan_user_get;
 	priv->base.fan_set = nouveau_therm_fan_user_set;

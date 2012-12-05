@@ -36,7 +36,6 @@
 struct nouveau_fan {
 	struct nouveau_therm *parent;
 	const char *type;
-	enum nouveau_therm_fan_mode mode;
 
 	struct nvbios_therm_fan bios;
 	struct nvbios_perf_fan perf;
@@ -53,6 +52,12 @@ struct nouveau_fan {
 
 struct nouveau_therm_priv {
 	struct nouveau_therm base;
+
+	/* automatic thermal management */
+	struct nouveau_alarm alarm;
+	spinlock_t lock;
+	struct nouveau_therm_trip_point *last_trip;
+	int mode;
 
 	/* bios */
 	struct nvbios_therm_sensor bios_sensor;
@@ -78,8 +83,6 @@ int nouveau_therm_fan_get(struct nouveau_therm *therm);
 int nouveau_therm_fan_set(struct nouveau_therm *therm, bool now, int percent);
 int nouveau_therm_fan_user_get(struct nouveau_therm *therm);
 int nouveau_therm_fan_user_set(struct nouveau_therm *therm, int percent);
-int nouveau_therm_fan_set_mode(struct nouveau_therm *therm,
-			   enum nouveau_therm_fan_mode mode);
 
 int nouveau_therm_fan_sense(struct nouveau_therm *therm);
 
