@@ -17,6 +17,7 @@
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <asm/pci_x86.h>
+#include <asm/setup.h>
 
 unsigned int pci_probe = PCI_PROBE_BIOS | PCI_PROBE_CONF1 | PCI_PROBE_CONF2 |
 				PCI_PROBE_MMCONF;
@@ -606,6 +607,35 @@ char * __init pcibios_setup(char *str)
 unsigned int pcibios_assign_all_busses(void)
 {
 	return (pci_probe & PCI_ASSIGN_ALL_BUSSES) ? 1 : 0;
+}
+
+int pcibios_add_device(struct pci_dev *dev)
+{
+	struct setup_data *data;
+	struct pci_setup_rom *rom;
+	u64 pa_data;
+
+	pa_data = boot_params.hdr.setup_data;
+	while (pa_data) {
+		data = phys_to_virt(pa_data);
+
+		if (data->type == SETUP_PCI) {
+			rom = (struct pci_setup_rom *)data;
+
+			if ((pci_domain_nr(dev->bus) == rom->segment) &&
+			    (dev->bus->number == rom->bus) &&
+			    (PCI_SLOT(dev->devfn) == rom->device) &&
+			    (PCI_FUNC(dev->devfn) == rom->function) &&
+			    (dev->vendor == rom->vendor) &&
+			    (dev->device == rom->devid)) {
+				dev->rom = (void *)(unsigned long)(pa_data +
+				      offsetof(struct pci_setup_rom, romdata));
+				dev->romlen = rom->pcilen;
+			}
+		}
+		pa_data = data->next;
+	}
+	return 0;
 }
 
 int pcibios_enable_device(struct pci_dev *dev, int mask)
