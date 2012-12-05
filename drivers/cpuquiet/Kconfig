@@ -10,6 +10,15 @@ config CPUQUIET_FRAMEWORK
 
 if CPUQUIET_FRAMEWORK
 
+config CPUQUIET_STATS
+	bool "per CPU statistics"
+	default n
+	help
+	  Enable up/down count and total time plugged statistics per CPU. These
+	  depend on correct driver input for reliability
+
+	  If in doubt say N.
+
 config CPUQUIET_GOVERNOR_USERSPACE
 	bool "userspace"
 	default y
