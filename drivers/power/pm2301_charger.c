@@ -128,13 +128,9 @@ static void clear_lpn_pin(struct pm2xxx_charger *pm2)
 static int pm2xxx_reg_read(struct pm2xxx_charger *pm2, int reg, u8 *val)
 {
 	int ret;
-	/*
-	 * When AC adaptor is unplugged, the host
-	 * must put LPN high to be able to
-	 * communicate by I2C with PM2301
-	 * and receive I2C "acknowledge" from PM2301.
-	 */
-	mutex_lock(&pm2->lock);
+
+	/* wake up the device */
+	pm_runtime_get_sync(pm2->dev);
 
 	ret = i2c_smbus_read_i2c_block_data(pm2->config.pm2xxx_i2c, reg,
 				1, val);
@@ -142,7 +138,6 @@ static int pm2xxx_reg_read(struct pm2xxx_charger *pm2, int reg, u8 *val)
 		dev_err(pm2->dev, "Error reading register at 0x%x\n", reg);
 	else
 		ret = 0;
-	mutex_unlock(&pm2->lock);
 
 	return ret;
 }
@@ -150,13 +145,9 @@ static int pm2xxx_reg_read(struct pm2xxx_charger *pm2, int reg, u8 *val)
 static int pm2xxx_reg_write(struct pm2xxx_charger *pm2, int reg, u8 val)
 {
 	int ret;
-	/*
-	 * When AC adaptor is unplugged, the host
-	 * must put LPN high to be able to
-	 * communicate by I2C with PM2301
-	 * and receive I2C "acknowledge" from PM2301.
-	 */
-	mutex_lock(&pm2->lock);
+
+	/* wake up the device */
+	pm_runtime_get_sync(pm2->dev);
 
 	ret = i2c_smbus_write_i2c_block_data(pm2->config.pm2xxx_i2c, reg,
 				1, &val);
@@ -164,7 +155,6 @@ static int pm2xxx_reg_write(struct pm2xxx_charger *pm2, int reg, u8 val)
 		dev_err(pm2->dev, "Error writing register at 0x%x\n", reg);
 	else
 		ret = 0;
-	mutex_unlock(&pm2->lock);
 
 	return ret;
 }
