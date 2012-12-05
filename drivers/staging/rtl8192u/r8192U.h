@@ -110,7 +110,7 @@ do { if(rt_global_debug_component & component) \
 #define COMP_RATE				BIT12	// For Rate Adaptive mechanism, 2006.07.02, by rcnjko.
 #define COMP_RM					BIT13	// For Radio Measurement.
 #define COMP_DIG				BIT14	// For DIG, 2006.09.25, by rcnjko.
-#define COMP_PHY	 			BIT15
+#define COMP_PHY				BIT15
 #define COMP_CH					BIT16	//channel setting debug
 #define COMP_TXAGC				BIT17	// For Tx power, 060928, by rcnjko.
 #define COMP_HIPWR				BIT18	// For High Power Mechanism, 060928, by rcnjko.
@@ -209,7 +209,7 @@ do { if(rt_global_debug_component & component) \
 #define IEEE80211_WATCH_DOG_TIME    2000
 #define		PHY_Beacon_RSSI_SLID_WIN_MAX		10
 //for txpowertracking by amy
-#define 	OFDM_Table_Length	19
+#define		OFDM_Table_Length	19
 #define	CCK_Table_length	12
 
 /* for rtl819x */
@@ -298,7 +298,7 @@ typedef struct _tx_desc_cmd_819x_usb {
 	u8	Reserved4;
 
         //DOWRD 2
-	u16 	TxBufferSize;
+	u16	TxBufferSize;
 	u16	Reserved5;
 
        //DWORD 3,4,5
@@ -391,7 +391,7 @@ typedef struct _rx_desc_819x_usb_aggr_subframe{
 	//DWORD 2
 	//u4Byte		Reserved3;
 	//DWORD 3
-	//u4Byte           	BufferAddress;
+	//u4Byte		BufferAddress;
 }rx_desc_819x_usb_aggr_subframe, *prx_desc_819x_usb_aggr_subframe;
 #endif
 
@@ -424,7 +424,7 @@ typedef struct rx_drvinfo_819x_usb{
 #define MAX_802_11_HEADER_LENGTH        (40 + MAX_FIRMWARE_INFORMATION_SIZE)
 #define ENCRYPTION_MAX_OVERHEAD		128
 #define	USB_HWDESC_HEADER_LEN		sizeof(tx_desc_819x_usb)
-#define TX_PACKET_SHIFT_BYTES 	  	(USB_HWDESC_HEADER_LEN + sizeof(tx_fwinfo_819x_usb))
+#define TX_PACKET_SHIFT_BYTES		(USB_HWDESC_HEADER_LEN + sizeof(tx_fwinfo_819x_usb))
 #define MAX_FRAGMENT_COUNT		8
 #ifdef RTL8192U
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
@@ -433,7 +433,7 @@ typedef struct rx_drvinfo_819x_usb{
 #define MAX_TRANSMIT_BUFFER_SIZE			8000
 #endif
 #else
-#define MAX_TRANSMIT_BUFFER_SIZE  	(1600+(MAX_802_11_HEADER_LENGTH+ENCRYPTION_MAX_OVERHEAD)*MAX_FRAGMENT_COUNT)
+#define MAX_TRANSMIT_BUFFER_SIZE	(1600+(MAX_802_11_HEADER_LENGTH+ENCRYPTION_MAX_OVERHEAD)*MAX_FRAGMENT_COUNT)
 #endif
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
 #define TX_PACKET_DRVAGGR_SUBFRAME_SHIFT_BYTES (sizeof(tx_desc_819x_usb_aggr_subframe) + sizeof(tx_fwinfo_819x_usb))
@@ -711,7 +711,7 @@ typedef struct Stats
 
 //+by amy 080507
 
-typedef struct 	ChnlAccessSetting {
+typedef struct	ChnlAccessSetting {
 	u16 SIFS_Timer;
 	u16 DIFS_Timer;
 	u16 SlotTimeTimer;
@@ -721,23 +721,23 @@ typedef struct 	ChnlAccessSetting {
 }*PCHANNEL_ACCESS_SETTING,CHANNEL_ACCESS_SETTING;
 
 typedef struct _BB_REGISTER_DEFINITION{
-	u32 rfintfs; 			// set software control: //		0x870~0x877[8 bytes]
-	u32 rfintfi; 			// readback data: //		0x8e0~0x8e7[8 bytes]
-	u32 rfintfo; 			// output data: //		0x860~0x86f [16 bytes]
-	u32 rfintfe; 			// output enable: //		0x860~0x86f [16 bytes]
-	u32 rf3wireOffset; 		// LSSI data: //		0x840~0x84f [16 bytes]
-	u32 rfLSSI_Select; 		// BB Band Select: //		0x878~0x87f [8 bytes]
+	u32 rfintfs;			// set software control: //		0x870~0x877[8 bytes]
+	u32 rfintfi;			// readback data: //		0x8e0~0x8e7[8 bytes]
+	u32 rfintfo;			// output data: //		0x860~0x86f [16 bytes]
+	u32 rfintfe;			// output enable: //		0x860~0x86f [16 bytes]
+	u32 rf3wireOffset;		// LSSI data: //		0x840~0x84f [16 bytes]
+	u32 rfLSSI_Select;		// BB Band Select: //		0x878~0x87f [8 bytes]
 	u32 rfTxGainStage;		// Tx gain stage: //		0x80c~0x80f [4 bytes]
-	u32 rfHSSIPara1; 		// wire parameter control1 : //		0x820~0x823,0x828~0x82b, 0x830~0x833, 0x838~0x83b [16 bytes]
-	u32 rfHSSIPara2; 		// wire parameter control2 : //		0x824~0x827,0x82c~0x82f, 0x834~0x837, 0x83c~0x83f [16 bytes]
-	u32 rfSwitchControl; 	//Tx Rx antenna control : //		0x858~0x85f [16 bytes]
-	u32 rfAGCControl1; 	//AGC parameter control1 : //		0xc50~0xc53,0xc58~0xc5b, 0xc60~0xc63, 0xc68~0xc6b [16 bytes]
-	u32 rfAGCControl2; 	//AGC parameter control2 : //		0xc54~0xc57,0xc5c~0xc5f, 0xc64~0xc67, 0xc6c~0xc6f [16 bytes]
-	u32 rfRxIQImbalance; 	//OFDM Rx IQ imbalance matrix : //		0xc14~0xc17,0xc1c~0xc1f, 0xc24~0xc27, 0xc2c~0xc2f [16 bytes]
-	u32 rfRxAFE;  			//Rx IQ DC ofset and Rx digital filter, Rx DC notch filter : //		0xc10~0xc13,0xc18~0xc1b, 0xc20~0xc23, 0xc28~0xc2b [16 bytes]
-	u32 rfTxIQImbalance; 	//OFDM Tx IQ imbalance matrix //		0xc80~0xc83,0xc88~0xc8b, 0xc90~0xc93, 0xc98~0xc9b [16 bytes]
-	u32 rfTxAFE; 			//Tx IQ DC Offset and Tx DFIR type //		0xc84~0xc87,0xc8c~0xc8f, 0xc94~0xc97, 0xc9c~0xc9f [16 bytes]
-	u32 rfLSSIReadBack; 	//LSSI RF readback data //		0x8a0~0x8af [16 bytes]
+	u32 rfHSSIPara1;		// wire parameter control1 : //		0x820~0x823,0x828~0x82b, 0x830~0x833, 0x838~0x83b [16 bytes]
+	u32 rfHSSIPara2;		// wire parameter control2 : //		0x824~0x827,0x82c~0x82f, 0x834~0x837, 0x83c~0x83f [16 bytes]
+	u32 rfSwitchControl;	//Tx Rx antenna control : //		0x858~0x85f [16 bytes]
+	u32 rfAGCControl1;	//AGC parameter control1 : //		0xc50~0xc53,0xc58~0xc5b, 0xc60~0xc63, 0xc68~0xc6b [16 bytes]
+	u32 rfAGCControl2;	//AGC parameter control2 : //		0xc54~0xc57,0xc5c~0xc5f, 0xc64~0xc67, 0xc6c~0xc6f [16 bytes]
+	u32 rfRxIQImbalance;	//OFDM Rx IQ imbalance matrix : //		0xc14~0xc17,0xc1c~0xc1f, 0xc24~0xc27, 0xc2c~0xc2f [16 bytes]
+	u32 rfRxAFE;			//Rx IQ DC ofset and Rx digital filter, Rx DC notch filter : //		0xc10~0xc13,0xc18~0xc1b, 0xc20~0xc23, 0xc28~0xc2b [16 bytes]
+	u32 rfTxIQImbalance;	//OFDM Tx IQ imbalance matrix //		0xc80~0xc83,0xc88~0xc8b, 0xc90~0xc93, 0xc98~0xc9b [16 bytes]
+	u32 rfTxAFE;			//Tx IQ DC Offset and Tx DFIR type //		0xc84~0xc87,0xc8c~0xc8f, 0xc94~0xc97, 0xc9c~0xc9f [16 bytes]
+	u32 rfLSSIReadBack;	//LSSI RF readback data //		0x8a0~0x8af [16 bytes]
 }BB_REGISTER_DEFINITION_T, *PBB_REGISTER_DEFINITION_T;
 
 typedef enum _RT_RF_TYPE_819xU{
@@ -1006,7 +1006,7 @@ typedef struct r8192_priv
 	u8 retry_rts;
 	u16 rts;
 
-	struct 	ChnlAccessSetting  ChannelAccessSetting;
+	struct	ChnlAccessSetting  ChannelAccessSetting;
 	struct work_struct reset_wq;
 
 /**********************************************************/
@@ -1014,7 +1014,7 @@ typedef struct r8192_priv
 	u16     basic_rate;
 	u8      short_preamble;
 	u8      slot_time;
-	bool 	bDcut;
+	bool	bDcut;
 	bool bCurrentRxAggrEnable;
 	u8 Rf_Mode; //add for Firmware RF -R/W switch
 	prt_firmware		pFirmware;
@@ -1050,7 +1050,7 @@ typedef struct r8192_priv
 
 	//for set channel
 	u8	SwChnlInProgress;
-	u8 	SwChnlStage;
+	u8	SwChnlStage;
 	u8	SwChnlStep;
 	u8	SetBWModeInProgress;
 	HT_CHANNEL_WIDTH		CurrentChannelBW;
@@ -1062,8 +1062,8 @@ typedef struct r8192_priv
 	// We save RF reg0 in this variable to reduce RF reading.
 	//
 	u32					RfReg0Value[4];
-	u8 					NumTotalRFPath;
-	bool 				brfpath_rxenable[4];
+	u8					NumTotalRFPath;
+	bool				brfpath_rxenable[4];
 	//RF set related
 	bool				SetRFPowerStateInProgress;
 //+by amy 080507
@@ -1104,7 +1104,7 @@ typedef struct r8192_priv
 	bool btxpower_tracking;
 	bool bcck_in_ch14;
 	bool btxpowerdata_readfromEEPORM;
-	u16 	TSSI_13dBm;
+	u16	TSSI_13dBm;
 	//For Backup Initial Gain
 	init_gain initgain_backup;
 	u8 DefaultInitialGain[4];
@@ -1114,17 +1114,17 @@ typedef struct r8192_priv
 	bool		bis_cur_rdlstate;
 	struct timer_list fsync_timer;
 	bool bfsync_processing;	// 500ms Fsync timer is active or not
-	u32 	rate_record;
-	u32 	rateCountDiffRecord;
+	u32	rate_record;
+	u32	rateCountDiffRecord;
 	u32	ContinueDiffCount;
 	bool bswitch_fsync;
 
 	u8	framesync;
-	u32 	framesyncC34;
-	u8   	framesyncMonitor;
-        	//Added by amy 080516  for RX related
-	u16 	nrxAMPDU_size;
-	u8 	nrxAMPDU_aggr_num;
+	u32	framesyncC34;
+	u8	framesyncMonitor;
+		//Added by amy 080516  for RX related
+	u16	nrxAMPDU_size;
+	u8	nrxAMPDU_aggr_num;
 
 	//by amy for gpio
 	 bool bHwRadioOff;
@@ -1204,7 +1204,7 @@ typedef enum{
 #ifdef JOHN_HWSEC
 struct ssid_thread {
 	struct net_device *dev;
-       	u8 name[IW_ESSID_MAX_SIZE + 1];
+	u8 name[IW_ESSID_MAX_SIZE + 1];
 };
 #endif
 

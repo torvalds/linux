@@ -233,9 +233,9 @@ static int debug = \
 	//		    IEEE80211_DL_TX	|
 	//		    IEEE80211_DL_RX	|
 			    //IEEE80211_DL_QOS    |
-	//		    IEEE80211_DL_HT 	|
+	//		    IEEE80211_DL_HT	|
 	//		    IEEE80211_DL_TS	|
-//			    IEEE80211_DL_BA 	|
+//			    IEEE80211_DL_BA	|
 	//		    IEEE80211_DL_REORDER|
 //			    IEEE80211_DL_TRACE  |
 			    //IEEE80211_DL_DATA	|

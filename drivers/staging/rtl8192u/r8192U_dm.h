@@ -13,7 +13,7 @@
  *
  * History:
  *	Data		Who		Remark
- *	10/04/2007  MHC    	Create initial version.
+ *	10/04/2007  MHC		Create initial version.
  *
  *****************************************************************************/
  /* Check to see if the file has been included already.  */
@@ -55,12 +55,12 @@
 #define		TX_POWER_NEAR_FIELD_THRESH_LOW		62
 //added by amy for atheros AP
 #define         TX_POWER_ATHEROAP_THRESH_HIGH           78
-#define 	TX_POWER_ATHEROAP_THRESH_LOW		72
+#define		TX_POWER_ATHEROAP_THRESH_LOW		72
 
 //defined by vivi, for showing on UI
-#define 		Current_Tx_Rate_Reg         0x1b8
-#define 		Initial_Tx_Rate_Reg         	  0x1b9
-#define 		Tx_Retry_Count_Reg         0x1ac
+#define			Current_Tx_Rate_Reg         0x1b8
+#define			Initial_Tx_Rate_Reg		  0x1b9
+#define			Tx_Retry_Count_Reg         0x1ac
 #define		RegC38_TH				 20
 /*--------------------------Define Parameters-------------------------------*/
 
@@ -132,8 +132,8 @@ typedef enum tag_dynamic_init_gain_operation_type_definition
 	DIG_TYPE_PWDB_FACTOR			= 8,
 	DIG_TYPE_RX_GAIN_MIN				= 9,
 	DIG_TYPE_RX_GAIN_MAX				= 10,
-	DIG_TYPE_ENABLE 		= 20,
-	DIG_TYPE_DISABLE 		= 30,
+	DIG_TYPE_ENABLE			= 20,
+	DIG_TYPE_DISABLE		= 30,
 	DIG_OP_TYPE_MAX
 }dm_dig_op_e;
 
@@ -251,4 +251,3 @@ extern void dm_initialize_txpower_tracking(struct net_device *dev);
 
 
 /* End of r8192U_dm.h */
-

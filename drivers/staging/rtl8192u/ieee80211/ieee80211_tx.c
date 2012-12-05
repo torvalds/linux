@@ -395,7 +395,7 @@ ieee80211_query_HTCapShortGI(struct ieee80211_device *ieee, cb_desc *tcb_desc)
 {
 	PRT_HIGH_THROUGHPUT		pHTInfo = ieee->pHTInfo;
 
-	tcb_desc->bUseShortGI 		= false;
+	tcb_desc->bUseShortGI		= false;
 
 	if(!pHTInfo->bCurrentHTSupport||!pHTInfo->bEnableHT)
 		return;
@@ -514,7 +514,7 @@ void ieee80211_query_protectionmode(struct ieee80211_device* ieee, cb_desc* tcb_
 			if(pHTInfo->IOTAction & HT_IOT_ACT_FORCED_CTS2SELF)
 			{
 				tcb_desc->bCTSEnable	= true;
-				tcb_desc->rts_rate  = 	MGN_24M;
+				tcb_desc->rts_rate  =	MGN_24M;
 				tcb_desc->bRTSEnable = true;
 				break;
 			}
@@ -527,7 +527,7 @@ void ieee80211_query_protectionmode(struct ieee80211_device* ieee, cb_desc* tcb_
 	{
 		tcb_desc->bCTSEnable	= true;
 		tcb_desc->rts_rate = MGN_24M;
-		tcb_desc->bRTSEnable 	= true;
+		tcb_desc->bRTSEnable	= true;
 	}
 	if (ieee->current_network.capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
 		tcb_desc->bUseShortPreamble = true;
@@ -833,7 +833,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		  else
 			ieee->seq_ctrl[UP2AC(skb->priority) + 1]++;
 		} else {
-  		  if (ieee->seq_ctrl[0] == 0xFFF)
+		  if (ieee->seq_ctrl[0] == 0xFFF)
 			ieee->seq_ctrl[0] = 0;
 		  else
 			ieee->seq_ctrl[0]++;

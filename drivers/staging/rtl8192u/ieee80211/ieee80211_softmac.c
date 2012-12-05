@@ -3124,7 +3124,7 @@ inline struct sk_buff *ieee80211_disassociate_skb(
 void
 SendDisassociation(
 		struct ieee80211_device *ieee,
-		u8* 					asSta,
+		u8*					asSta,
 		u8						asRsn
 )
 {

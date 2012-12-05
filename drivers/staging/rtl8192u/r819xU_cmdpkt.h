@@ -72,7 +72,7 @@ typedef struct tag_cmd_pkt_set_configuration
 	u8	element_id;			/* Command packet type. */
 	u8	length;				/* Command packet length. */
 	u16	reserve1;			/* */
-	u8 	cfg_reserve1:3;
+	u8	cfg_reserve1:3;
 	u8	cfg_size:2;			/* Configuration info. */
 	u8	cfg_type:2;			/* Configuration info. */
 	u8	cfg_action:1;		/* Configuration info. */
@@ -94,20 +94,20 @@ typedef struct tag_tx_stats_feedback // PJ quick rxcmd 09042007
 	// For endian transfer --> Driver will not the same as firmware structure.
 	// DW 0
 	u16	reserve1;
-	u8 	length;				// Command packet length
-	u8 	element_id;			// Command packet type
+	u8	length;				// Command packet length
+	u8	element_id;			// Command packet type
 
 	// DW 1
 	u16	txfail;				// Tx Fail count
-	u16 	txok;				// Tx ok count
+	u16	txok;				// Tx ok count
 
 	// DW 2
-	u16	txmcok;  			// tx multicast
-	u16 	txretry;			// Tx Retry count
+	u16	txmcok;				// tx multicast
+	u16	txretry;			// Tx Retry count
 
 	// DW 3
 	u16  txucok;				// tx unicast
-	u16	txbcok;  			// tx broadcast
+	u16	txbcok;				// tx broadcast
 
 	// DW 4
 	u16	txbcfail;			//
@@ -135,8 +135,8 @@ typedef struct tag_rx_debug_message_feedback
 	// For endian transfer --> for driver
 	// DW 0
 	u16	reserve1;
-	u8 	length;				// Command packet length
-	u8 	element_id;			// Command packet type
+	u8	length;				// Command packet length
+	u8	element_id;			// Command packet type
 
 	// DW 1-??
 	// Variable debug message.
@@ -148,15 +148,15 @@ typedef struct tag_tx_rate_history
 {
 	// For endian transfer --> for driver
 	// DW 0
-	u8 	element_id;			// Command packet type
-	u8 	length;				// Command packet length
+	u8	element_id;			// Command packet type
+	u8	length;				// Command packet length
 	u16	reserved1;
 
 	// DW 1-2	CCK rate counter
-	u16 	cck[4];
+	u16	cck[4];
 
 	// DW 3-6
-	u16 	ofdm[8];
+	u16	ofdm[8];
 
 	// DW 7-14
 	//UINT16	MCS_BW0_SG0[16];

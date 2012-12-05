@@ -412,14 +412,14 @@ typedef union _QOS_TCLAS{
 
 	struct _TYPE_GENERAL{
 		u8		Priority;
-		u8 		ClassifierType;
-		u8 		Mask;
+		u8		ClassifierType;
+		u8		Mask;
 	} TYPE_GENERAL;
 
 	struct _TYPE0_ETH{
 		u8		Priority;
-		u8 		ClassifierType;
-		u8 		Mask;
+		u8		ClassifierType;
+		u8		Mask;
 		u8		SrcAddr[6];
 		u8		DstAddr[6];
 		u16		Type;
@@ -427,9 +427,9 @@ typedef union _QOS_TCLAS{
 
 	struct _TYPE1_IPV4{
 		u8		Priority;
-		u8 		ClassifierType;
-		u8 		Mask;
-		u8 		Version;
+		u8		ClassifierType;
+		u8		Mask;
+		u8		Version;
 		u8		SrcIP[4];
 		u8		DstIP[4];
 		u16		SrcPort;
@@ -441,9 +441,9 @@ typedef union _QOS_TCLAS{
 
 	struct _TYPE1_IPV6{
 		u8		Priority;
-		u8 		ClassifierType;
-		u8 		Mask;
-		u8 		Version;
+		u8		ClassifierType;
+		u8		Mask;
+		u8		Version;
 		u8		SrcIP[16];
 		u8		DstIP[16];
 		u16		SrcPort;
@@ -453,8 +453,8 @@ typedef union _QOS_TCLAS{
 
 	struct _TYPE2_8021Q{
 		u8		Priority;
-		u8 		ClassifierType;
-		u8 		Mask;
+		u8		ClassifierType;
+		u8		Mask;
 		u16		TagType;
 	} TYPE2_8021Q;
 } QOS_TCLAS, *PQOS_TCLAS;
@@ -481,7 +481,7 @@ typedef struct _QOS_TSTREAM{
 //	"Qos control field" and "Qos info field"
 //typedef struct _QOS_UAPSD{
 //	u8			bTriggerEnable[4];
-//	u8 			MaxSPLength;
+//	u8			MaxSPLength;
 //	u8			HighestBufAC;
 //} QOS_UAPSD, *PQOS_APSD;
 
@@ -489,7 +489,7 @@ typedef struct _QOS_TSTREAM{
 //      802.11 Management frame Status Code field
 //----------------------------------------------------------------------------
 typedef struct _OCTET_STRING{
-	u8        	*Octet;
+	u8		*Octet;
 	u16             Length;
 }OCTET_STRING, *POCTET_STRING;
 
@@ -512,7 +512,7 @@ typedef struct _STA_QOS{
 	AC_UAPSD			Curr4acUapsd;
 	u8				bInServicePeriod;
 	u8				MaxSPLength;
-	int 				NumBcnBeforeTrigger;
+	int				NumBcnBeforeTrigger;
 
 	// Part 2. EDCA Parameter (perAC)
 	u8 *				pWMMInfoEle;
@@ -523,7 +523,7 @@ typedef struct _STA_QOS{
 	//2 ToDo: remove the Qos Info Field and replace it by the above WMM Info element.
 	// By Bruce, 2008-01-30.
 	// Part 2. EDCA Parameter (perAC)
-	QOS_INFO_FIELD			QosInfoField_STA; 	// Maintained by STA
+	QOS_INFO_FIELD			QosInfoField_STA;	// Maintained by STA
 	QOS_INFO_FIELD			QosInfoField_AP;	// Retrieved from AP
 
 	AC_PARAM			CurAcParameters[4];

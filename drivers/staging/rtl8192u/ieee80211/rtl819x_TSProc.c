@@ -27,7 +27,7 @@ void RxPktPendingTimeout(unsigned long data)
 	PRX_TS_RECORD	pRxTs = (PRX_TS_RECORD)data;
 	struct ieee80211_device *ieee = container_of(pRxTs, struct ieee80211_device, RxTsRecord[pRxTs->num]);
 
-	PRX_REORDER_ENTRY 	pReorderEntry = NULL;
+	PRX_REORDER_ENTRY	pReorderEntry = NULL;
 
 	//u32 flags = 0;
 	unsigned long flags = 0;
@@ -236,8 +236,8 @@ void AdmitTS(struct ieee80211_device *ieee, PTS_COMMON_INFO pTsCommonInfo, u32 I
 
 PTS_COMMON_INFO SearchAdmitTRStream(struct ieee80211_device *ieee, u8*	Addr, u8 TID, TR_SELECT	TxRxSelect)
 {
-	//DIRECTION_VALUE 	dir;
-	u8 	dir;
+	//DIRECTION_VALUE	dir;
+	u8	dir;
 	bool				search_dir[4] = {0, 0, 0, 0};
 	struct list_head*		psearch_list; //FIXME
 	PTS_COMMON_INFO	pRet = NULL;
@@ -250,14 +250,14 @@ PTS_COMMON_INFO SearchAdmitTRStream(struct ieee80211_device *ieee, u8*	Addr, u8 
 		}
 		else
 		{
-			search_dir[DIR_UP] 	= true;
+			search_dir[DIR_UP]	= true;
 			search_dir[DIR_BI_DIR]= true;
 		}
 	}
 	else if(ieee->iw_mode == IW_MODE_ADHOC)
 	{
 		if(TxRxSelect == TX_DIR)
-			search_dir[DIR_UP] 	= true;
+			search_dir[DIR_UP]	= true;
 		else
 			search_dir[DIR_DOWN] = true;
 	}
@@ -265,7 +265,7 @@ PTS_COMMON_INFO SearchAdmitTRStream(struct ieee80211_device *ieee, u8*	Addr, u8 
 	{
 		if(TxRxSelect == TX_DIR)
 		{
-			search_dir[DIR_UP] 	= true;
+			search_dir[DIR_UP]	= true;
 			search_dir[DIR_BI_DIR]= true;
 			search_dir[DIR_DIRECT]= true;
 		}
@@ -450,8 +450,8 @@ bool GetTs(
 				pTSInfo->field.ucTSID = UP;			// TSID
 				pTSInfo->field.ucDirection = Dir;			// Direction: if there is DirectLink, this need additional consideration.
 				pTSInfo->field.ucAccessPolicy = 1;		// Access policy
-				pTSInfo->field.ucAggregation = 0; 		// Aggregation
-				pTSInfo->field.ucPSB = 0; 				// Aggregation
+				pTSInfo->field.ucAggregation = 0;		// Aggregation
+				pTSInfo->field.ucPSB = 0;				// Aggregation
 				pTSInfo->field.ucUP = UP;				// User priority
 				pTSInfo->field.ucTSInfoAckPolicy = 0;		// Ack policy
 				pTSInfo->field.ucSchedule = 0;			// Schedule
@@ -488,7 +488,7 @@ void RemoveTsEntry(
 	{
 //#ifdef TO_DO_LIST
 		PRX_REORDER_ENTRY	pRxReorderEntry;
-		PRX_TS_RECORD 		pRxTS = (PRX_TS_RECORD)pTs;
+		PRX_TS_RECORD		pRxTS = (PRX_TS_RECORD)pTs;
 		if(timer_pending(&pRxTS->RxPktPendingTimer))
 			del_timer_sync(&pRxTS->RxPktPendingTimer);
 

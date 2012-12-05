@@ -1,7 +1,7 @@
 #ifndef _BATYPE_H_
 #define _BATYPE_H_
 
-#define 	TOTAL_TXBA_NUM	16
+#define		TOTAL_TXBA_NUM	16
 #define	TOTAL_RXBA_NUM	16
 
 #define	BA_SETUP_TIMEOUT	200
@@ -66,4 +66,3 @@ typedef struct _BA_RECORD {
 } BA_RECORD, *PBA_RECORD;
 
 #endif //end _BATYPE_H_
-

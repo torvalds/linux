@@ -2,7 +2,7 @@
  * Procedure:    Init boot code/firmware code/data session
  *
  * Description: This routine will initialize firmware. If any error occurs during the initialization
- * 		process, the routine shall terminate immediately and return fail.
+ *		process, the routine shall terminate immediately and return fail.
  *		NIC driver should call NdisOpenFile only from MiniportInitialize.
  *
  * Arguments:   The pointer of the adapter
@@ -19,7 +19,7 @@
 #include <linux/firmware.h>
 void firmware_init_param(struct net_device *dev)
 {
-	struct r8192_priv 	*priv = ieee80211_priv(dev);
+	struct r8192_priv	*priv = ieee80211_priv(dev);
 	rt_firmware		*pfirmware = priv->pFirmware;
 
 	pfirmware->cmdpacket_frag_thresold = GET_COMMAND_PACKET_FRAG_THRESHOLD(MAX_TRANSMIT_BUFFER_SIZE);
@@ -32,7 +32,7 @@ void firmware_init_param(struct net_device *dev)
 bool fw_download_code(struct net_device *dev, u8 *code_virtual_address, u32 buffer_len)
 {
 	struct r8192_priv   *priv = ieee80211_priv(dev);
-	bool 		    rt_status = true;
+	bool		    rt_status = true;
 	u16		    frag_threshold;
 	u16		    frag_length, frag_offset = 0;
 	//u16		    total_size;
@@ -241,17 +241,17 @@ CPUCheckFirmwareReady_Fail:
 
 bool init_firmware(struct net_device *dev)
 {
-	struct r8192_priv 	*priv = ieee80211_priv(dev);
+	struct r8192_priv	*priv = ieee80211_priv(dev);
 	bool			rt_status = TRUE;
 
 	u32			file_length = 0;
 	u8			*mapped_file = NULL;
 	u32			init_step = 0;
 	opt_rst_type_e	rst_opt = OPT_SYSTEM_RESET;
-	firmware_init_step_e 	starting_state = FW_INIT_STEP0_BOOT;
+	firmware_init_step_e	starting_state = FW_INIT_STEP0_BOOT;
 
 	rt_firmware		*pfirmware = priv->pFirmware;
-	const struct firmware 	*fw_entry;
+	const struct firmware	*fw_entry;
 	const char *fw_name[3] = { "RTL8192U/boot.img",
 			   "RTL8192U/main.img",
 			   "RTL8192U/data.img"};
@@ -402,4 +402,3 @@ download_firmware_fail:
 MODULE_FIRMWARE("RTL8192U/boot.img");
 MODULE_FIRMWARE("RTL8192U/main.img");
 MODULE_FIRMWARE("RTL8192U/data.img");
-
