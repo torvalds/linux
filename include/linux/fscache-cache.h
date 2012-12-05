@@ -338,6 +338,23 @@ struct fscache_cookie {
 extern struct fscache_cookie fscache_fsdef_index;
 
 /*
+ * Event list for fscache_object::{event_mask,events}
+ */
+enum {
+	FSCACHE_OBJECT_EV_REQUEUE,	/* T if object should be requeued */
+	FSCACHE_OBJECT_EV_UPDATE,	/* T if object should be updated */
+	FSCACHE_OBJECT_EV_INVALIDATE,	/* T if cache requested object invalidation */
+	FSCACHE_OBJECT_EV_CLEARED,	/* T if accessors all gone */
+	FSCACHE_OBJECT_EV_ERROR,	/* T if fatal error occurred during processing */
+	FSCACHE_OBJECT_EV_RELEASE,	/* T if netfs requested object release */
+	FSCACHE_OBJECT_EV_RETIRE,	/* T if netfs requested object retirement */
+	FSCACHE_OBJECT_EV_WITHDRAW,	/* T if cache requested object withdrawal */
+	NR_FSCACHE_OBJECT_EVENTS
+};
+
+#define FSCACHE_OBJECT_EVENTS_MASK ((1UL << NR_FSCACHE_OBJECT_EVENTS) - 1)
+
+/*
  * on-disk cache file or index handle
  */
 struct fscache_object {
@@ -376,15 +393,6 @@ struct fscache_object {
 	unsigned long		event_mask;	/* events this object is interested in */
 	unsigned long		events;		/* events to be processed by this object
 						 * (order is important - using fls) */
-#define FSCACHE_OBJECT_EV_REQUEUE	0	/* T if object should be requeued */
-#define FSCACHE_OBJECT_EV_UPDATE	1	/* T if object should be updated */
-#define FSCACHE_OBJECT_EV_CLEARED	2	/* T if accessors all gone */
-#define FSCACHE_OBJECT_EV_ERROR		3	/* T if fatal error occurred during processing */
-#define FSCACHE_OBJECT_EV_RELEASE	4	/* T if netfs requested object release */
-#define FSCACHE_OBJECT_EV_RETIRE	5	/* T if netfs requested object retirement */
-#define FSCACHE_OBJECT_EV_WITHDRAW	6	/* T if cache requested object withdrawal */
-#define FSCACHE_OBJECT_EV_INVALIDATE	7	/* T if cache requested object invalidation */
-#define FSCACHE_OBJECT_EVENTS_MASK	0xff	/* mask of all events*/
 
 	unsigned long		flags;
 #define FSCACHE_OBJECT_LOCK		0	/* T if object is busy being processed */
