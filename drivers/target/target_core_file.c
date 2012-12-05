@@ -216,8 +216,8 @@ static void fd_free_device(struct se_device *dev)
 	kfree(fd_dev);
 }
 
-static int fd_do_readv(struct se_cmd *cmd, struct scatterlist *sgl,
-		u32 sgl_nents)
+static int fd_do_rw(struct se_cmd *cmd, struct scatterlist *sgl,
+		u32 sgl_nents, int is_write)
 {
 	struct se_device *se_dev = cmd->se_dev;
 	struct fd_dev *dev = FD_DEV(se_dev);
@@ -241,73 +241,45 @@ static int fd_do_readv(struct se_cmd *cmd, struct scatterlist *sgl,
 
 	old_fs = get_fs();
 	set_fs(get_ds());
-	ret = vfs_readv(fd, &iov[0], sgl_nents, &pos);
+
+	if (is_write)
+		ret = vfs_writev(fd, &iov[0], sgl_nents, &pos);
+	else
+		ret = vfs_readv(fd, &iov[0], sgl_nents, &pos);
+
 	set_fs(old_fs);
 
 	for_each_sg(sgl, sg, sgl_nents, i)
 		kunmap(sg_page(sg));
+
 	kfree(iov);
-	/*
-	 * Return zeros and GOOD status even if the READ did not return
-	 * the expected virt_size for struct file w/o a backing struct
-	 * block_device.
-	 */
-	if (S_ISBLK(fd->f_dentry->d_inode->i_mode)) {
+
+	if (is_write) {
 		if (ret < 0 || ret != cmd->data_length) {
-			pr_err("vfs_readv() returned %d,"
-				" expecting %d for S_ISBLK\n", ret,
-				(int)cmd->data_length);
+			pr_err("%s() write returned %d\n", __func__, ret);
 			return (ret < 0 ? ret : -EINVAL);
 		}
 	} else {
-		if (ret < 0) {
-			pr_err("vfs_readv() returned %d for non"
-				" S_ISBLK\n", ret);
-			return ret;
+		/*
+		 * Return zeros and GOOD status even if the READ did not return
+		 * the expected virt_size for struct file w/o a backing struct
+		 * block_device.
+		 */
+		if (S_ISBLK(fd->f_dentry->d_inode->i_mode)) {
+			if (ret < 0 || ret != cmd->data_length) {
+				pr_err("%s() returned %d, expecting %u for "
+						"S_ISBLK\n", __func__, ret,
+						cmd->data_length);
+				return (ret < 0 ? ret : -EINVAL);
+			}
+		} else {
+			if (ret < 0) {
+				pr_err("%s() returned %d for non S_ISBLK\n",
+						__func__, ret);
+				return ret;
+			}
 		}
 	}
-
-	return 1;
-}
-
-static int fd_do_writev(struct se_cmd *cmd, struct scatterlist *sgl,
-		u32 sgl_nents)
-{
-	struct se_device *se_dev = cmd->se_dev;
-	struct fd_dev *dev = FD_DEV(se_dev);
-	struct file *fd = dev->fd_file;
-	struct scatterlist *sg;
-	struct iovec *iov;
-	mm_segment_t old_fs;
-	loff_t pos = (cmd->t_task_lba * se_dev->dev_attrib.block_size);
-	int ret, i = 0;
-
-	iov = kzalloc(sizeof(struct iovec) * sgl_nents, GFP_KERNEL);
-	if (!iov) {
-		pr_err("Unable to allocate fd_do_writev iov[]\n");
-		return -ENOMEM;
-	}
-
-	for_each_sg(sgl, sg, sgl_nents, i) {
-		iov[i].iov_len = sg->length;
-		iov[i].iov_base = kmap(sg_page(sg)) + sg->offset;
-	}
-
-	old_fs = get_fs();
-	set_fs(get_ds());
-	ret = vfs_writev(fd, &iov[0], sgl_nents, &pos);
-	set_fs(old_fs);
-
-	for_each_sg(sgl, sg, sgl_nents, i)
-		kunmap(sg_page(sg));
-
-	kfree(iov);
-
-	if (ret < 0 || ret != cmd->data_length) {
-		pr_err("vfs_writev() returned %d\n", ret);
-		return (ret < 0 ? ret : -EINVAL);
-	}
-
 	return 1;
 }
 
@@ -370,9 +342,9 @@ fd_execute_rw(struct se_cmd *cmd)
 	 * physical memory addresses to struct iovec virtual memory.
 	 */
 	if (data_direction == DMA_FROM_DEVICE) {
-		ret = fd_do_readv(cmd, sgl, sgl_nents);
+		ret = fd_do_rw(cmd, sgl, sgl_nents, 0);
 	} else {
-		ret = fd_do_writev(cmd, sgl, sgl_nents);
+		ret = fd_do_rw(cmd, sgl, sgl_nents, 1);
 		/*
 		 * Perform implict vfs_fsync_range() for fd_do_writev() ops
 		 * for SCSI WRITEs with Forced Unit Access (FUA) set.
