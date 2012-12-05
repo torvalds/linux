@@ -531,18 +531,16 @@ static void ixgbe_ptp_tx_hwtstamp_work(struct work_struct *work)
 }
 
 /**
- * ixgbe_ptp_rx_hwtstamp - utility function which checks for RX time stamp
+ * __ixgbe_ptp_rx_hwtstamp - utility function which checks for RX time stamp
  * @q_vector: structure containing interrupt and ring information
- * @rx_desc: the rx descriptor
  * @skb: particular skb to send timestamp with
  *
  * if the timestamp is valid, we convert it into the timecounter ns
  * value, then store that result into the shhwtstamps structure which
  * is passed up the network stack
  */
-void ixgbe_ptp_rx_hwtstamp(struct ixgbe_ring *rx_ring,
-			   union ixgbe_adv_rx_desc *rx_desc,
-			   struct sk_buff *skb)
+void __ixgbe_ptp_rx_hwtstamp(struct ixgbe_q_vector *q_vector,
+			     struct sk_buff *skb)
 {
 	struct ixgbe_adapter *adapter;
 	struct ixgbe_hw *hw;
@@ -552,14 +550,11 @@ void ixgbe_ptp_rx_hwtstamp(struct ixgbe_ring *rx_ring,
 	unsigned long flags;
 
 	/* we cannot process timestamps on a ring without a q_vector */
-	if (!rx_ring->q_vector || !rx_ring->q_vector->adapter)
+	if (!q_vector || !q_vector->adapter)
 		return;
 
-	adapter = rx_ring->q_vector->adapter;
+	adapter = q_vector->adapter;
 	hw = &adapter->hw;
-
-	if (unlikely(!ixgbe_test_staterr(rx_desc, IXGBE_RXDADV_STAT_TS)))
-		return;
 
 	/*
 	 * Read the tsyncrxctl register afterwards in order to prevent taking an
@@ -568,12 +563,6 @@ void ixgbe_ptp_rx_hwtstamp(struct ixgbe_ring *rx_ring,
 	tsyncrxctl = IXGBE_READ_REG(hw, IXGBE_TSYNCRXCTL);
 	if (!(tsyncrxctl & IXGBE_TSYNCRXCTL_VALID))
 		return;
-
-	/*
-	 * Update the last_rx_timestamp timer in order to enable watchdog check
-	 * for error case of latched timestamp on a dropped packet.
-	 */
-	rx_ring->last_rx_timestamp = jiffies;
 
 	regval |= (u64)IXGBE_READ_REG(hw, IXGBE_RXSTMPL);
 	regval |= (u64)IXGBE_READ_REG(hw, IXGBE_RXSTMPH) << 32;
