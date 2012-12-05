@@ -502,23 +502,31 @@ static int i2c_hid_get_raw_report(struct hid_device *hid,
 {
 	struct i2c_client *client = hid->driver_data;
 	struct i2c_hid *ihid = i2c_get_clientdata(client);
+	size_t ret_count, ask_count;
 	int ret;
 
 	if (report_type == HID_OUTPUT_REPORT)
 		return -EINVAL;
 
-	if (count > ihid->bufsize)
-		count = ihid->bufsize;
+	/* +2 bytes to include the size of the reply in the query buffer */
+	ask_count = min(count + 2, (size_t)ihid->bufsize);
 
 	ret = i2c_hid_get_report(client,
 			report_type == HID_FEATURE_REPORT ? 0x03 : 0x01,
-			report_number, ihid->inbuf, count);
+			report_number, ihid->inbuf, ask_count);
 
 	if (ret < 0)
 		return ret;
 
-	count = ihid->inbuf[0] | (ihid->inbuf[1] << 8);
+	ret_count = ihid->inbuf[0] | (ihid->inbuf[1] << 8);
 
+	if (!ret_count)
+		return 0;
+
+	ret_count = min(ret_count, ask_count);
+
+	/* The query buffer contains the size, dropping it in the reply */
+	count = min(count, ret_count - 2);
 	memcpy(buf, ihid->inbuf + 2, count);
 
 	return count;
