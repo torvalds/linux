@@ -69,6 +69,7 @@ atomic_t fscache_n_store_vmscan_not_storing;
 atomic_t fscache_n_store_vmscan_gone;
 atomic_t fscache_n_store_vmscan_busy;
 atomic_t fscache_n_store_vmscan_cancelled;
+atomic_t fscache_n_store_vmscan_wait;
 
 atomic_t fscache_n_marks;
 atomic_t fscache_n_uncaches;
@@ -232,11 +233,12 @@ static int fscache_stats_show(struct seq_file *m, void *v)
 		   atomic_read(&fscache_n_store_radix_deletes),
 		   atomic_read(&fscache_n_store_pages_over_limit));
 
-	seq_printf(m, "VmScan : nos=%u gon=%u bsy=%u can=%u\n",
+	seq_printf(m, "VmScan : nos=%u gon=%u bsy=%u can=%u wt=%u\n",
 		   atomic_read(&fscache_n_store_vmscan_not_storing),
 		   atomic_read(&fscache_n_store_vmscan_gone),
 		   atomic_read(&fscache_n_store_vmscan_busy),
-		   atomic_read(&fscache_n_store_vmscan_cancelled));
+		   atomic_read(&fscache_n_store_vmscan_cancelled),
+		   atomic_read(&fscache_n_store_vmscan_wait));
 
 	seq_printf(m, "Ops    : pend=%u run=%u enq=%u can=%u rej=%u\n",
 		   atomic_read(&fscache_n_op_pend),
