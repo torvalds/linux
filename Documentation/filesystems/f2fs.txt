@@ -253,7 +253,7 @@ Index Structure
 
 The key data structure to manage the data locations is a "node". Similar to
 traditional file structures, F2FS has three types of node: inode, direct node,
-indirect node. F2FS assigns 4KB to an inode block which contains 929 data block
+indirect node. F2FS assigns 4KB to an inode block which contains 923 data block
 indices, two direct node pointers, two indirect node pointers, and one double
 indirect node pointer as described below. One direct node block contains 1018
 data blocks, and one indirect node block contains also 1018 node blocks. Thus,
