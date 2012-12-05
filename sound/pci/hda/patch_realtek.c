@@ -2938,19 +2938,9 @@ static hda_nid_t alc_auto_look_for_dac(struct hda_codec *codec, hda_nid_t pin)
 static bool alc_auto_is_dac_reachable(struct hda_codec *codec,
 				      hda_nid_t pin, hda_nid_t dac)
 {
-	hda_nid_t srcs[5];
-	int i, num;
-
 	if (!pin || !dac)
 		return false;
-	pin = alc_go_down_to_selector(codec, pin);
-	num = snd_hda_get_connections(codec, pin, srcs, ARRAY_SIZE(srcs));
-	for (i = 0; i < num; i++) {
-		hda_nid_t nid = alc_auto_mix_to_dac(codec, srcs[i]);
-		if (nid == dac)
-			return true;
-	}
-	return false;
+	return snd_hda_get_conn_index(codec, pin, dac, true) >= 0;
 }
 
 static hda_nid_t get_dac_if_single(struct hda_codec *codec, hda_nid_t pin)
