@@ -27,16 +27,6 @@
 #define DAVINCI_MCASP_I2S_DAI	0
 #define DAVINCI_MCASP_DIT_DAI	1
 
-enum {
-	DAVINCI_AUDIO_WORD_8 = 0,
-	DAVINCI_AUDIO_WORD_12,
-	DAVINCI_AUDIO_WORD_16,
-	DAVINCI_AUDIO_WORD_20,
-	DAVINCI_AUDIO_WORD_24,
-	DAVINCI_AUDIO_WORD_32,
-	DAVINCI_AUDIO_WORD_28,  /* This is only valid for McASP */
-};
-
 struct davinci_audio_dev {
 	struct davinci_pcm_dma_params dma_params[2];
 	void __iomem *base;
