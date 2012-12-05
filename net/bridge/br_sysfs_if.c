@@ -173,24 +173,7 @@ static int store_multicast_router(struct net_bridge_port *p,
 static BRPORT_ATTR(multicast_router, S_IRUGO | S_IWUSR, show_multicast_router,
 		   store_multicast_router);
 
-static ssize_t show_multicast_fast_leave(struct net_bridge_port *p,
-					 char *buf)
-{
-	return sprintf(buf, "%d\n", p->multicast_fast_leave);
-}
-
-static int store_multicast_fast_leave(struct net_bridge_port *p,
-				      unsigned long v)
-{
-	if (p->br->multicast_disabled)
-		return -EINVAL;
-
-	p->multicast_fast_leave = !!v;
-	return 0;
-}
-
-static BRPORT_ATTR(multicast_fast_leave, S_IRUGO | S_IWUSR,
-		   show_multicast_fast_leave, store_multicast_fast_leave);
+BRPORT_ATTR_FLAG(multicast_fast_leave, BR_MULTICAST_FAST_LEAVE);
 #endif
 
 static const struct brport_attribute *brport_attrs[] = {

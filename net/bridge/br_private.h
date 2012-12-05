@@ -137,11 +137,11 @@ struct net_bridge_port
 #define BR_HAIRPIN_MODE		0x00000001
 #define BR_BPDU_GUARD           0x00000002
 #define BR_ROOT_BLOCK		0x00000004
+#define BR_MULTICAST_FAST_LEAVE	0x00000008
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	u32				multicast_startup_queries_sent;
 	unsigned char			multicast_router;
-	unsigned char			multicast_fast_leave;
 	struct timer_list		multicast_router_timer;
 	struct timer_list		multicast_query_timer;
 	struct hlist_head		mglist;

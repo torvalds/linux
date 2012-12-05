@@ -1225,7 +1225,7 @@ static void br_multicast_leave_group(struct net_bridge *br,
 	if (!mp)
 		goto out;
 
-	if (port && port->multicast_fast_leave) {
+	if (port && (port->flags & BR_MULTICAST_FAST_LEAVE)) {
 		struct net_bridge_port_group __rcu **pp;
 
 		for (pp = &mp->ports;
