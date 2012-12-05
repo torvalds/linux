@@ -141,6 +141,30 @@ const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS] = {
 	"ASRC1R",
 	"ASRC2L",
 	"ASRC2R",
+	"ISRC1INT1",
+	"ISRC1INT2",
+	"ISRC1INT3",
+	"ISRC1INT4",
+	"ISRC1DEC1",
+	"ISRC1DEC2",
+	"ISRC1DEC3",
+	"ISRC1DEC4",
+	"ISRC2INT1",
+	"ISRC2INT2",
+	"ISRC2INT3",
+	"ISRC2INT4",
+	"ISRC2DEC1",
+	"ISRC2DEC2",
+	"ISRC2DEC3",
+	"ISRC2DEC4",
+	"ISRC3INT1",
+	"ISRC3INT2",
+	"ISRC3INT3",
+	"ISRC3INT4",
+	"ISRC3DEC1",
+	"ISRC3DEC2",
+	"ISRC3DEC3",
+	"ISRC3DEC4",
 };
 EXPORT_SYMBOL_GPL(arizona_mixer_texts);
 
@@ -220,6 +244,30 @@ int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS] = {
 	0x91,
 	0x92,
 	0x93,
+	0xa0,  /* ISRC1INT1 */
+	0xa1,
+	0xa2,
+	0xa3,
+	0xa4,  /* ISRC1DEC1 */
+	0xa5,
+	0xa6,
+	0xa7,
+	0xa8,  /* ISRC2DEC1 */
+	0xa9,
+	0xaa,
+	0xab,
+	0xac,  /* ISRC2INT1 */
+	0xad,
+	0xae,
+	0xaf,
+	0xb0,  /* ISRC3DEC1 */
+	0xb1,
+	0xb2,
+	0xb3,
+	0xb4,  /* ISRC3INT1 */
+	0xb5,
+	0xb6,
+	0xb7,
 };
 EXPORT_SYMBOL_GPL(arizona_mixer_values);
 

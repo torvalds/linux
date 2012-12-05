@@ -66,7 +66,7 @@ struct arizona_priv {
 	struct arizona_dai_priv dai[ARIZONA_MAX_DAI];
 };
 
-#define ARIZONA_NUM_MIXER_INPUTS 75
+#define ARIZONA_NUM_MIXER_INPUTS 99
 
 extern const unsigned int arizona_mixer_tlv[];
 extern const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS];
