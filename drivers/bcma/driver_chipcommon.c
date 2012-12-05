@@ -31,6 +31,28 @@ static u32 bcma_chipco_alp_clock(struct bcma_drv_cc *cc)
 	return 20000000;
 }
 
+static u32 bcma_chipco_watchdog_get_max_timer(struct bcma_drv_cc *cc)
+{
+	struct bcma_bus *bus = cc->core->bus;
+	u32 nb;
+
+	if (cc->capabilities & BCMA_CC_CAP_PMU) {
+		if (bus->chipinfo.id == BCMA_CHIP_ID_BCM4706)
+			nb = 32;
+		else if (cc->core->id.rev < 26)
+			nb = 16;
+		else
+			nb = (cc->core->id.rev >= 37) ? 32 : 24;
+	} else {
+		nb = 28;
+	}
+	if (nb == 32)
+		return 0xffffffff;
+	else
+		return (1 << nb) - 1;
+}
+
+
 void bcma_core_chipcommon_early_init(struct bcma_drv_cc *cc)
 {
 	if (cc->early_setup_done)
@@ -85,8 +107,24 @@ void bcma_core_chipcommon_init(struct bcma_drv_cc *cc)
 /* Set chip watchdog reset timer to fire in 'ticks' backplane cycles */
 void bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc, u32 ticks)
 {
-	/* instant NMI */
-	bcma_cc_write32(cc, BCMA_CC_WATCHDOG, ticks);
+	u32 maxt;
+	enum bcma_clkmode clkmode;
+
+	maxt = bcma_chipco_watchdog_get_max_timer(cc);
+	if (cc->capabilities & BCMA_CC_CAP_PMU) {
+		if (ticks == 1)
+			ticks = 2;
+		else if (ticks > maxt)
+			ticks = maxt;
+		bcma_cc_write32(cc, BCMA_CC_PMU_WATCHDOG, ticks);
+	} else {
+		clkmode = ticks ? BCMA_CLKMODE_FAST : BCMA_CLKMODE_DYNAMIC;
+		bcma_core_set_clockmode(cc->core, clkmode);
+		if (ticks > maxt)
+			ticks = maxt;
+		/* instant NMI */
+		bcma_cc_write32(cc, BCMA_CC_WATCHDOG, ticks);
+	}
 }
 
 void bcma_chipco_irq_mask(struct bcma_drv_cc *cc, u32 mask, u32 value)
