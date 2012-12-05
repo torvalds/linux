@@ -1875,43 +1875,43 @@ u8 MapHwQueueToFirmwareQueue(u8 QueueID)
 	u8 QueueSelect = 0x0;       //defualt set to
 
 	switch(QueueID) {
-		case BE_QUEUE:
-			QueueSelect = QSLT_BE;  //or QSelect = pTcb->priority;
-			break;
+	case BE_QUEUE:
+		QueueSelect = QSLT_BE;  //or QSelect = pTcb->priority;
+		break;
 
-		case BK_QUEUE:
-			QueueSelect = QSLT_BK;  //or QSelect = pTcb->priority;
-			break;
+	case BK_QUEUE:
+		QueueSelect = QSLT_BK;  //or QSelect = pTcb->priority;
+		break;
 
-		case VO_QUEUE:
-			QueueSelect = QSLT_VO;  //or QSelect = pTcb->priority;
-			break;
+	case VO_QUEUE:
+		QueueSelect = QSLT_VO;  //or QSelect = pTcb->priority;
+		break;
 
-		case VI_QUEUE:
-			QueueSelect = QSLT_VI;  //or QSelect = pTcb->priority;
-			break;
-		case MGNT_QUEUE:
-			QueueSelect = QSLT_MGNT;
-			break;
+	case VI_QUEUE:
+		QueueSelect = QSLT_VI;  //or QSelect = pTcb->priority;
+		break;
+	case MGNT_QUEUE:
+		QueueSelect = QSLT_MGNT;
+		break;
 
-		case BEACON_QUEUE:
-			QueueSelect = QSLT_BEACON;
-			break;
+	case BEACON_QUEUE:
+		QueueSelect = QSLT_BEACON;
+		break;
 
-			// TODO: 2006.10.30 mark other queue selection until we verify it is OK
-			// TODO: Remove Assertions
+		// TODO: 2006.10.30 mark other queue selection until we verify it is OK
+		// TODO: Remove Assertions
 //#if (RTL819X_FPGA_VER & RTL819X_FPGA_GUANGAN_070502)
-		case TXCMD_QUEUE:
-			QueueSelect = QSLT_CMD;
-			break;
+	case TXCMD_QUEUE:
+		QueueSelect = QSLT_CMD;
+		break;
 //#endif
-		case HIGH_QUEUE:
-			QueueSelect = QSLT_HIGH;
-			break;
+	case HIGH_QUEUE:
+		QueueSelect = QSLT_HIGH;
+		break;
 
-		default:
-			RT_TRACE(COMP_ERR, "TransmitTCB(): Impossible Queue Selection: %d \n", QueueID);
-			break;
+	default:
+		RT_TRACE(COMP_ERR, "TransmitTCB(): Impossible Queue Selection: %d \n", QueueID);
+		break;
 	}
 	return QueueSelect;
 }
@@ -1921,39 +1921,39 @@ u8 MRateToHwRate8190Pci(u8 rate)
 	u8  ret = DESC90_RATE1M;
 
 	switch(rate) {
-		case MGN_1M:    ret = DESC90_RATE1M;    break;
-		case MGN_2M:    ret = DESC90_RATE2M;    break;
-		case MGN_5_5M:  ret = DESC90_RATE5_5M;  break;
-		case MGN_11M:   ret = DESC90_RATE11M;   break;
-		case MGN_6M:    ret = DESC90_RATE6M;    break;
-		case MGN_9M:    ret = DESC90_RATE9M;    break;
-		case MGN_12M:   ret = DESC90_RATE12M;   break;
-		case MGN_18M:   ret = DESC90_RATE18M;   break;
-		case MGN_24M:   ret = DESC90_RATE24M;   break;
-		case MGN_36M:   ret = DESC90_RATE36M;   break;
-		case MGN_48M:   ret = DESC90_RATE48M;   break;
-		case MGN_54M:   ret = DESC90_RATE54M;   break;
+	case MGN_1M:    ret = DESC90_RATE1M;    break;
+	case MGN_2M:    ret = DESC90_RATE2M;    break;
+	case MGN_5_5M:  ret = DESC90_RATE5_5M;  break;
+	case MGN_11M:   ret = DESC90_RATE11M;   break;
+	case MGN_6M:    ret = DESC90_RATE6M;    break;
+	case MGN_9M:    ret = DESC90_RATE9M;    break;
+	case MGN_12M:   ret = DESC90_RATE12M;   break;
+	case MGN_18M:   ret = DESC90_RATE18M;   break;
+	case MGN_24M:   ret = DESC90_RATE24M;   break;
+	case MGN_36M:   ret = DESC90_RATE36M;   break;
+	case MGN_48M:   ret = DESC90_RATE48M;   break;
+	case MGN_54M:   ret = DESC90_RATE54M;   break;
 
-		// HT rate since here
-		case MGN_MCS0:  ret = DESC90_RATEMCS0;  break;
-		case MGN_MCS1:  ret = DESC90_RATEMCS1;  break;
-		case MGN_MCS2:  ret = DESC90_RATEMCS2;  break;
-		case MGN_MCS3:  ret = DESC90_RATEMCS3;  break;
-		case MGN_MCS4:  ret = DESC90_RATEMCS4;  break;
-		case MGN_MCS5:  ret = DESC90_RATEMCS5;  break;
-		case MGN_MCS6:  ret = DESC90_RATEMCS6;  break;
-		case MGN_MCS7:  ret = DESC90_RATEMCS7;  break;
-		case MGN_MCS8:  ret = DESC90_RATEMCS8;  break;
-		case MGN_MCS9:  ret = DESC90_RATEMCS9;  break;
-		case MGN_MCS10: ret = DESC90_RATEMCS10; break;
-		case MGN_MCS11: ret = DESC90_RATEMCS11; break;
-		case MGN_MCS12: ret = DESC90_RATEMCS12; break;
-		case MGN_MCS13: ret = DESC90_RATEMCS13; break;
-		case MGN_MCS14: ret = DESC90_RATEMCS14; break;
-		case MGN_MCS15: ret = DESC90_RATEMCS15; break;
-		case (0x80|0x20): ret = DESC90_RATEMCS32; break;
+	// HT rate since here
+	case MGN_MCS0:  ret = DESC90_RATEMCS0;  break;
+	case MGN_MCS1:  ret = DESC90_RATEMCS1;  break;
+	case MGN_MCS2:  ret = DESC90_RATEMCS2;  break;
+	case MGN_MCS3:  ret = DESC90_RATEMCS3;  break;
+	case MGN_MCS4:  ret = DESC90_RATEMCS4;  break;
+	case MGN_MCS5:  ret = DESC90_RATEMCS5;  break;
+	case MGN_MCS6:  ret = DESC90_RATEMCS6;  break;
+	case MGN_MCS7:  ret = DESC90_RATEMCS7;  break;
+	case MGN_MCS8:  ret = DESC90_RATEMCS8;  break;
+	case MGN_MCS9:  ret = DESC90_RATEMCS9;  break;
+	case MGN_MCS10: ret = DESC90_RATEMCS10; break;
+	case MGN_MCS11: ret = DESC90_RATEMCS11; break;
+	case MGN_MCS12: ret = DESC90_RATEMCS12; break;
+	case MGN_MCS13: ret = DESC90_RATEMCS13; break;
+	case MGN_MCS14: ret = DESC90_RATEMCS14; break;
+	case MGN_MCS15: ret = DESC90_RATEMCS15; break;
+	case (0x80|0x20): ret = DESC90_RATEMCS32; break;
 
-		default:       break;
+	default:       break;
 	}
 	return ret;
 }
@@ -4364,66 +4364,66 @@ int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	}
 
 	switch (cmd) {
-	    case RTL_IOCTL_WPA_SUPPLICANT:
+	case RTL_IOCTL_WPA_SUPPLICANT:
 	//parse here for HW security
-			if (ipw->cmd == IEEE_CMD_SET_ENCRYPTION)
+		if (ipw->cmd == IEEE_CMD_SET_ENCRYPTION)
+		{
+			if (ipw->u.crypt.set_tx)
 			{
-				if (ipw->u.crypt.set_tx)
+				if (strcmp(ipw->u.crypt.alg, "CCMP") == 0)
+					ieee->pairwise_key_type = KEY_TYPE_CCMP;
+				else if (strcmp(ipw->u.crypt.alg, "TKIP") == 0)
+					ieee->pairwise_key_type = KEY_TYPE_TKIP;
+				else if (strcmp(ipw->u.crypt.alg, "WEP") == 0)
 				{
-					if (strcmp(ipw->u.crypt.alg, "CCMP") == 0)
-						ieee->pairwise_key_type = KEY_TYPE_CCMP;
-					else if (strcmp(ipw->u.crypt.alg, "TKIP") == 0)
-						ieee->pairwise_key_type = KEY_TYPE_TKIP;
-					else if (strcmp(ipw->u.crypt.alg, "WEP") == 0)
-					{
-						if (ipw->u.crypt.key_len == 13)
-							ieee->pairwise_key_type = KEY_TYPE_WEP104;
-						else if (ipw->u.crypt.key_len == 5)
-							ieee->pairwise_key_type = KEY_TYPE_WEP40;
-					}
-					else
-						ieee->pairwise_key_type = KEY_TYPE_NA;
-
-					if (ieee->pairwise_key_type)
-					{
-						memcpy((u8*)key, ipw->u.crypt.key, 16);
-						EnableHWSecurityConfig8192(dev);
-					//we fill both index entry and 4th entry for pairwise key as in IPW interface, adhoc will only get here, so we need index entry for its default key serching!
-					//added by WB.
-						setKey(dev, 4, ipw->u.crypt.idx, ieee->pairwise_key_type, (u8*)ieee->ap_mac_addr, 0, key);
-						if (ieee->auth_mode != 2)
-						setKey(dev, ipw->u.crypt.idx, ipw->u.crypt.idx, ieee->pairwise_key_type, (u8*)ieee->ap_mac_addr, 0, key);
-					}
+					if (ipw->u.crypt.key_len == 13)
+						ieee->pairwise_key_type = KEY_TYPE_WEP104;
+					else if (ipw->u.crypt.key_len == 5)
+						ieee->pairwise_key_type = KEY_TYPE_WEP40;
 				}
-				else //if (ipw->u.crypt.idx) //group key use idx > 0
+				else
+					ieee->pairwise_key_type = KEY_TYPE_NA;
+
+				if (ieee->pairwise_key_type)
 				{
 					memcpy((u8*)key, ipw->u.crypt.key, 16);
-					if (strcmp(ipw->u.crypt.alg, "CCMP") == 0)
-						ieee->group_key_type= KEY_TYPE_CCMP;
-					else if (strcmp(ipw->u.crypt.alg, "TKIP") == 0)
-						ieee->group_key_type = KEY_TYPE_TKIP;
-					else if (strcmp(ipw->u.crypt.alg, "WEP") == 0)
-					{
-						if (ipw->u.crypt.key_len == 13)
-							ieee->group_key_type = KEY_TYPE_WEP104;
-						else if (ipw->u.crypt.key_len == 5)
-							ieee->group_key_type = KEY_TYPE_WEP40;
-					}
-					else
-						ieee->group_key_type = KEY_TYPE_NA;
-
-					if (ieee->group_key_type)
-					{
-							setKey(	dev,
-								ipw->u.crypt.idx,
-								ipw->u.crypt.idx,		//KeyIndex
-								ieee->group_key_type,	//KeyType
-								broadcast_addr,	//MacAddr
-								0,		//DefaultKey
-								key);		//KeyContent
-					}
+					EnableHWSecurityConfig8192(dev);
+				//we fill both index entry and 4th entry for pairwise key as in IPW interface, adhoc will only get here, so we need index entry for its default key serching!
+				//added by WB.
+					setKey(dev, 4, ipw->u.crypt.idx, ieee->pairwise_key_type, (u8*)ieee->ap_mac_addr, 0, key);
+					if (ieee->auth_mode != 2)
+					setKey(dev, ipw->u.crypt.idx, ipw->u.crypt.idx, ieee->pairwise_key_type, (u8*)ieee->ap_mac_addr, 0, key);
 				}
 			}
+			else //if (ipw->u.crypt.idx) //group key use idx > 0
+			{
+				memcpy((u8*)key, ipw->u.crypt.key, 16);
+				if (strcmp(ipw->u.crypt.alg, "CCMP") == 0)
+					ieee->group_key_type= KEY_TYPE_CCMP;
+				else if (strcmp(ipw->u.crypt.alg, "TKIP") == 0)
+					ieee->group_key_type = KEY_TYPE_TKIP;
+				else if (strcmp(ipw->u.crypt.alg, "WEP") == 0)
+				{
+					if (ipw->u.crypt.key_len == 13)
+						ieee->group_key_type = KEY_TYPE_WEP104;
+					else if (ipw->u.crypt.key_len == 5)
+						ieee->group_key_type = KEY_TYPE_WEP40;
+				}
+				else
+					ieee->group_key_type = KEY_TYPE_NA;
+
+				if (ieee->group_key_type)
+				{
+						setKey(	dev,
+							ipw->u.crypt.idx,
+							ipw->u.crypt.idx,		//KeyIndex
+							ieee->group_key_type,	//KeyType
+							broadcast_addr,	//MacAddr
+							0,		//DefaultKey
+							key);		//KeyContent
+				}
+			}
+		}
 #ifdef JOHN_HWSEC_DEBUG
 		//john's test 0711
 		printk("@@ wrq->u pointer = ");
@@ -4436,7 +4436,7 @@ int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		ret = ieee80211_wpa_supplicant_ioctl(priv->ieee80211, &wrq->u.data);
 		break;
 
-	    default:
+	default:
 		ret = -EOPNOTSUPP;
 		break;
 	}
@@ -4453,49 +4453,49 @@ u8 HwRateToMRate90(bool bIsHT, u8 rate)
 
 	if(!bIsHT) {
 		switch(rate) {
-			case DESC90_RATE1M:   ret_rate = MGN_1M;         break;
-			case DESC90_RATE2M:   ret_rate = MGN_2M;         break;
-			case DESC90_RATE5_5M: ret_rate = MGN_5_5M;       break;
-			case DESC90_RATE11M:  ret_rate = MGN_11M;        break;
-			case DESC90_RATE6M:   ret_rate = MGN_6M;         break;
-			case DESC90_RATE9M:   ret_rate = MGN_9M;         break;
-			case DESC90_RATE12M:  ret_rate = MGN_12M;        break;
-			case DESC90_RATE18M:  ret_rate = MGN_18M;        break;
-			case DESC90_RATE24M:  ret_rate = MGN_24M;        break;
-			case DESC90_RATE36M:  ret_rate = MGN_36M;        break;
-			case DESC90_RATE48M:  ret_rate = MGN_48M;        break;
-			case DESC90_RATE54M:  ret_rate = MGN_54M;        break;
+		case DESC90_RATE1M:   ret_rate = MGN_1M;         break;
+		case DESC90_RATE2M:   ret_rate = MGN_2M;         break;
+		case DESC90_RATE5_5M: ret_rate = MGN_5_5M;       break;
+		case DESC90_RATE11M:  ret_rate = MGN_11M;        break;
+		case DESC90_RATE6M:   ret_rate = MGN_6M;         break;
+		case DESC90_RATE9M:   ret_rate = MGN_9M;         break;
+		case DESC90_RATE12M:  ret_rate = MGN_12M;        break;
+		case DESC90_RATE18M:  ret_rate = MGN_18M;        break;
+		case DESC90_RATE24M:  ret_rate = MGN_24M;        break;
+		case DESC90_RATE36M:  ret_rate = MGN_36M;        break;
+		case DESC90_RATE48M:  ret_rate = MGN_48M;        break;
+		case DESC90_RATE54M:  ret_rate = MGN_54M;        break;
 
-			default:
-				ret_rate = 0xff;
-				RT_TRACE(COMP_RECV, "HwRateToMRate90(): Non supported Rate [%x], bIsHT = %d!!!\n", rate, bIsHT);
-				break;
+		default:
+			ret_rate = 0xff;
+			RT_TRACE(COMP_RECV, "HwRateToMRate90(): Non supported Rate [%x], bIsHT = %d!!!\n", rate, bIsHT);
+			break;
 		}
 
 	} else {
 		switch(rate) {
-			case DESC90_RATEMCS0:   ret_rate = MGN_MCS0;    break;
-			case DESC90_RATEMCS1:   ret_rate = MGN_MCS1;    break;
-			case DESC90_RATEMCS2:   ret_rate = MGN_MCS2;    break;
-			case DESC90_RATEMCS3:   ret_rate = MGN_MCS3;    break;
-			case DESC90_RATEMCS4:   ret_rate = MGN_MCS4;    break;
-			case DESC90_RATEMCS5:   ret_rate = MGN_MCS5;    break;
-			case DESC90_RATEMCS6:   ret_rate = MGN_MCS6;    break;
-			case DESC90_RATEMCS7:   ret_rate = MGN_MCS7;    break;
-			case DESC90_RATEMCS8:   ret_rate = MGN_MCS8;    break;
-			case DESC90_RATEMCS9:   ret_rate = MGN_MCS9;    break;
-			case DESC90_RATEMCS10:  ret_rate = MGN_MCS10;   break;
-			case DESC90_RATEMCS11:  ret_rate = MGN_MCS11;   break;
-			case DESC90_RATEMCS12:  ret_rate = MGN_MCS12;   break;
-			case DESC90_RATEMCS13:  ret_rate = MGN_MCS13;   break;
-			case DESC90_RATEMCS14:  ret_rate = MGN_MCS14;   break;
-			case DESC90_RATEMCS15:  ret_rate = MGN_MCS15;   break;
-			case DESC90_RATEMCS32:  ret_rate = (0x80|0x20); break;
+		case DESC90_RATEMCS0:   ret_rate = MGN_MCS0;    break;
+		case DESC90_RATEMCS1:   ret_rate = MGN_MCS1;    break;
+		case DESC90_RATEMCS2:   ret_rate = MGN_MCS2;    break;
+		case DESC90_RATEMCS3:   ret_rate = MGN_MCS3;    break;
+		case DESC90_RATEMCS4:   ret_rate = MGN_MCS4;    break;
+		case DESC90_RATEMCS5:   ret_rate = MGN_MCS5;    break;
+		case DESC90_RATEMCS6:   ret_rate = MGN_MCS6;    break;
+		case DESC90_RATEMCS7:   ret_rate = MGN_MCS7;    break;
+		case DESC90_RATEMCS8:   ret_rate = MGN_MCS8;    break;
+		case DESC90_RATEMCS9:   ret_rate = MGN_MCS9;    break;
+		case DESC90_RATEMCS10:  ret_rate = MGN_MCS10;   break;
+		case DESC90_RATEMCS11:  ret_rate = MGN_MCS11;   break;
+		case DESC90_RATEMCS12:  ret_rate = MGN_MCS12;   break;
+		case DESC90_RATEMCS13:  ret_rate = MGN_MCS13;   break;
+		case DESC90_RATEMCS14:  ret_rate = MGN_MCS14;   break;
+		case DESC90_RATEMCS15:  ret_rate = MGN_MCS15;   break;
+		case DESC90_RATEMCS32:  ret_rate = (0x80|0x20); break;
 
-			default:
-				ret_rate = 0xff;
-				RT_TRACE(COMP_RECV, "HwRateToMRate90(): Non supported Rate [%x], bIsHT = %d!!!\n",rate, bIsHT);
-				break;
+		default:
+			ret_rate = 0xff;
+			RT_TRACE(COMP_RECV, "HwRateToMRate90(): Non supported Rate [%x], bIsHT = %d!!!\n",rate, bIsHT);
+			break;
 		}
 	}
 
@@ -5696,25 +5696,25 @@ void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
 		info = (struct rtl8192_rx_info *)skb->cb;
 		switch (info->out_pipe) {
 		/* Nomal packet pipe */
-			case 3:
-				//RT_TRACE(COMP_RECV, "normal in-pipe index(%d)\n",info->out_pipe);
-				priv->IrpPendingCount--;
-				rtl8192_rx_nomal(skb);
-				break;
+		case 3:
+			//RT_TRACE(COMP_RECV, "normal in-pipe index(%d)\n",info->out_pipe);
+			priv->IrpPendingCount--;
+			rtl8192_rx_nomal(skb);
+			break;
 
-				/* Command packet pipe */
-			case 9:
-				RT_TRACE(COMP_RECV, "command in-pipe index(%d)\n",\
-						info->out_pipe);
+			/* Command packet pipe */
+		case 9:
+			RT_TRACE(COMP_RECV, "command in-pipe index(%d)\n",\
+					info->out_pipe);
 
-				rtl8192_rx_cmd(skb);
-				break;
+			rtl8192_rx_cmd(skb);
+			break;
 
-			default: /* should never get here! */
-				RT_TRACE(COMP_ERR, "Unknown in-pipe index(%d)\n",\
-						info->out_pipe);
-				dev_kfree_skb(skb);
-				break;
+		default: /* should never get here! */
+			RT_TRACE(COMP_ERR, "Unknown in-pipe index(%d)\n",\
+					info->out_pipe);
+			dev_kfree_skb(skb);
+			break;
 
 		}
 	}

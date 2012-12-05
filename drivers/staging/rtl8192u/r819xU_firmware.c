@@ -334,56 +334,56 @@ bool init_firmware(struct net_device *dev)
 		}
 
 		switch(init_step) {
-			case FW_INIT_STEP0_BOOT:
-				/* Download boot
-				 * initialize command descriptor.
-				 * will set polling bit when firmware code is also configured
-				 */
-				pfirmware->firmware_status = FW_STATUS_1_MOVE_BOOT_CODE;
+		case FW_INIT_STEP0_BOOT:
+			/* Download boot
+			 * initialize command descriptor.
+			 * will set polling bit when firmware code is also configured
+			 */
+			pfirmware->firmware_status = FW_STATUS_1_MOVE_BOOT_CODE;
 #ifdef RTL8190P
-				// To initialize IMEM, CPU move code  from 0x80000080, hence, we send 0x80 byte packet
-				rt_status = fwSendNullPacket(dev, RTL8190_CPU_START_OFFSET);
-				if(rt_status != true)
-				{
-					RT_TRACE(COMP_INIT, "fwSendNullPacket() fail ! \n");
-					goto  download_firmware_fail;
-				}
+			// To initialize IMEM, CPU move code  from 0x80000080, hence, we send 0x80 byte packet
+			rt_status = fwSendNullPacket(dev, RTL8190_CPU_START_OFFSET);
+			if(rt_status != true)
+			{
+				RT_TRACE(COMP_INIT, "fwSendNullPacket() fail ! \n");
+				goto  download_firmware_fail;
+			}
 #endif
-				//mdelay(1000);
-				/*
-				 * To initialize IMEM, CPU move code  from 0x80000080,
-				 * hence, we send 0x80 byte packet
-				 */
-				break;
+			//mdelay(1000);
+			/*
+			 * To initialize IMEM, CPU move code  from 0x80000080,
+			 * hence, we send 0x80 byte packet
+			 */
+			break;
 
-			case FW_INIT_STEP1_MAIN:
-				/* Download firmware code. Wait until Boot Ready and Turn on CPU */
-				pfirmware->firmware_status = FW_STATUS_2_MOVE_MAIN_CODE;
+		case FW_INIT_STEP1_MAIN:
+			/* Download firmware code. Wait until Boot Ready and Turn on CPU */
+			pfirmware->firmware_status = FW_STATUS_2_MOVE_MAIN_CODE;
 
-				/* Check Put Code OK and Turn On CPU */
-				rt_status = CPUcheck_maincodeok_turnonCPU(dev);
-				if(rt_status != TRUE) {
-					RT_TRACE(COMP_ERR, "CPUcheck_maincodeok_turnonCPU fail!\n");
-					goto download_firmware_fail;
-				}
+			/* Check Put Code OK and Turn On CPU */
+			rt_status = CPUcheck_maincodeok_turnonCPU(dev);
+			if(rt_status != TRUE) {
+				RT_TRACE(COMP_ERR, "CPUcheck_maincodeok_turnonCPU fail!\n");
+				goto download_firmware_fail;
+			}
 
-				pfirmware->firmware_status = FW_STATUS_3_TURNON_CPU;
-				break;
+			pfirmware->firmware_status = FW_STATUS_3_TURNON_CPU;
+			break;
 
-			case FW_INIT_STEP2_DATA:
-				/* download initial data code */
-				pfirmware->firmware_status = FW_STATUS_4_MOVE_DATA_CODE;
-				mdelay(1);
+		case FW_INIT_STEP2_DATA:
+			/* download initial data code */
+			pfirmware->firmware_status = FW_STATUS_4_MOVE_DATA_CODE;
+			mdelay(1);
 
-				rt_status = CPUcheck_firmware_ready(dev);
-				if(rt_status != TRUE) {
-					RT_TRACE(COMP_ERR, "CPUcheck_firmware_ready fail(%d)!\n",rt_status);
-					goto download_firmware_fail;
-				}
+			rt_status = CPUcheck_firmware_ready(dev);
+			if(rt_status != TRUE) {
+				RT_TRACE(COMP_ERR, "CPUcheck_firmware_ready fail(%d)!\n",rt_status);
+				goto download_firmware_fail;
+			}
 
-				/* wait until data code is initialized ready.*/
-				pfirmware->firmware_status = FW_STATUS_5_READY;
-				break;
+			/* wait until data code is initialized ready.*/
+			pfirmware->firmware_status = FW_STATUS_5_READY;
+			break;
 		}
 	}
 

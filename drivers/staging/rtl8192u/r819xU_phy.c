@@ -957,56 +957,56 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device* dev, RF90_RADIO_PATH_E	
 	u8 ret = 0;
 
 	switch(eRFPath){
-		case RF90_PATH_A:
-			for(i = 0;i<RadioA_ArrayLength; i=i+2){
+	case RF90_PATH_A:
+		for(i = 0;i<RadioA_ArrayLength; i=i+2){
 
-				if(rtl819XRadioA_Array[i] == 0xfe){
-						mdelay(100);
-						continue;
-				}
-				rtl8192_phy_SetRFReg(dev, eRFPath, rtl819XRadioA_Array[i], bMask12Bits, rtl819XRadioA_Array[i+1]);
-				mdelay(1);
-
+			if(rtl819XRadioA_Array[i] == 0xfe){
+					mdelay(100);
+					continue;
 			}
-			break;
-		case RF90_PATH_B:
-			for(i = 0;i<RadioB_ArrayLength; i=i+2){
+			rtl8192_phy_SetRFReg(dev, eRFPath, rtl819XRadioA_Array[i], bMask12Bits, rtl819XRadioA_Array[i+1]);
+			mdelay(1);
 
-				if(rtl819XRadioB_Array[i] == 0xfe){
-						mdelay(100);
-						continue;
-				}
-				rtl8192_phy_SetRFReg(dev, eRFPath, rtl819XRadioB_Array[i], bMask12Bits, rtl819XRadioB_Array[i+1]);
-				mdelay(1);
+		}
+		break;
+	case RF90_PATH_B:
+		for(i = 0;i<RadioB_ArrayLength; i=i+2){
 
+			if(rtl819XRadioB_Array[i] == 0xfe){
+					mdelay(100);
+					continue;
 			}
-			break;
-		case RF90_PATH_C:
-			for(i = 0;i<RadioC_ArrayLength; i=i+2){
+			rtl8192_phy_SetRFReg(dev, eRFPath, rtl819XRadioB_Array[i], bMask12Bits, rtl819XRadioB_Array[i+1]);
+			mdelay(1);
 
-				if(rtl819XRadioC_Array[i] == 0xfe){
-						mdelay(100);
-						continue;
-				}
-				rtl8192_phy_SetRFReg(dev, eRFPath, rtl819XRadioC_Array[i], bMask12Bits, rtl819XRadioC_Array[i+1]);
-				mdelay(1);
+		}
+		break;
+	case RF90_PATH_C:
+		for(i = 0;i<RadioC_ArrayLength; i=i+2){
 
+			if(rtl819XRadioC_Array[i] == 0xfe){
+					mdelay(100);
+					continue;
 			}
-			break;
-		case RF90_PATH_D:
-			for(i = 0;i<RadioD_ArrayLength; i=i+2){
+			rtl8192_phy_SetRFReg(dev, eRFPath, rtl819XRadioC_Array[i], bMask12Bits, rtl819XRadioC_Array[i+1]);
+			mdelay(1);
 
-				if(rtl819XRadioD_Array[i] == 0xfe){
-						mdelay(100);
-						continue;
-				}
-				rtl8192_phy_SetRFReg(dev, eRFPath, rtl819XRadioD_Array[i], bMask12Bits, rtl819XRadioD_Array[i+1]);
-				mdelay(1);
+		}
+		break;
+	case RF90_PATH_D:
+		for(i = 0;i<RadioD_ArrayLength; i=i+2){
 
+			if(rtl819XRadioD_Array[i] == 0xfe){
+					mdelay(100);
+					continue;
 			}
-			break;
-		default:
-			break;
+			rtl8192_phy_SetRFReg(dev, eRFPath, rtl819XRadioD_Array[i], bMask12Bits, rtl819XRadioD_Array[i+1]);
+			mdelay(1);
+
+		}
+		break;
+	default:
+		break;
 	}
 
 	return ret;
