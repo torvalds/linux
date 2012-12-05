@@ -20,6 +20,7 @@
 #include <brcmu_wifi.h>
 #include <brcmu_utils.h>
 #include "dhd.h"
+#include "dhd_bus.h"
 #include "dhd_dbg.h"
 
 static struct dentry *root_folder;
@@ -42,10 +43,12 @@ void brcmf_debugfs_exit(void)
 
 int brcmf_debugfs_attach(struct brcmf_pub *drvr)
 {
+	struct device *dev = drvr->bus_if->dev;
+
 	if (!root_folder)
 		return -ENODEV;
 
-	drvr->dbgfs_dir = debugfs_create_dir(dev_name(drvr->dev), root_folder);
+	drvr->dbgfs_dir = debugfs_create_dir(dev_name(dev), root_folder);
 	return PTR_RET(drvr->dbgfs_dir);
 }
 

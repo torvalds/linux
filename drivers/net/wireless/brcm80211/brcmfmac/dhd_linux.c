@@ -219,7 +219,7 @@ static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	brcmf_proto_hdrpush(drvr, ifp->idx, skb);
 
 	/* Use bus module to send data frame */
-	ret =  drvr->bus_if->brcmf_bus_txdata(drvr->dev, skb);
+	ret =  brcmf_bus_txdata(drvr->bus_if, skb);
 
 done:
 	if (ret)
@@ -397,7 +397,7 @@ static void brcmf_ethtool_get_drvinfo(struct net_device *ndev,
 
 	sprintf(info->driver, KBUILD_MODNAME);
 	sprintf(info->version, "%lu", drvr->drv_version);
-	sprintf(info->bus_info, "%s", dev_name(drvr->dev));
+	sprintf(info->bus_info, "%s", dev_name(drvr->bus_if->dev));
 }
 
 static const struct ethtool_ops brcmf_ethtool_ops = {
@@ -753,7 +753,6 @@ int brcmf_attach(uint bus_hdrlen, struct device *dev)
 	drvr->hdrlen = bus_hdrlen;
 	drvr->bus_if = dev_get_drvdata(dev);
 	drvr->bus_if->drvr = drvr;
-	drvr->dev = dev;
 
 	/* create device debugfs folder */
 	brcmf_debugfs_attach(drvr);
@@ -790,7 +789,7 @@ int brcmf_bus_start(struct device *dev)
 	brcmf_dbg(TRACE, "\n");
 
 	/* Bring up the bus */
-	ret = bus_if->brcmf_bus_init(dev);
+	ret = brcmf_bus_init(bus_if);
 	if (ret != 0) {
 		brcmf_dbg(ERROR, "brcmf_sdbrcm_bus_init failed %d\n", ret);
 		return ret;
@@ -809,7 +808,7 @@ int brcmf_bus_start(struct device *dev)
 	if (ret < 0)
 		goto fail;
 
-	drvr->config = brcmf_cfg80211_attach(drvr);
+	drvr->config = brcmf_cfg80211_attach(drvr, bus_if->dev);
 	if (drvr->config == NULL) {
 		ret = -ENOMEM;
 		goto fail;
@@ -842,7 +841,7 @@ static void brcmf_bus_detach(struct brcmf_pub *drvr)
 		brcmf_proto_stop(drvr);
 
 		/* Stop the bus module */
-		drvr->bus_if->brcmf_bus_stop(drvr->dev);
+		brcmf_bus_stop(drvr->bus_if);
 	}
 }
 

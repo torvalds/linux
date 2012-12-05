@@ -3883,6 +3883,14 @@ static void brcmf_sdbrcm_release(struct brcmf_sdio *bus)
 	brcmf_dbg(TRACE, "Disconnected\n");
 }
 
+static struct brcmf_bus_ops brcmf_sdio_bus_ops = {
+	.stop = brcmf_sdbrcm_bus_stop,
+	.init = brcmf_sdbrcm_bus_init,
+	.txdata = brcmf_sdbrcm_bus_txdata,
+	.txctl = brcmf_sdbrcm_bus_txctl,
+	.rxctl = brcmf_sdbrcm_bus_rxctl,
+};
+
 void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 {
 	int ret;
@@ -3946,11 +3954,9 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 	spin_lock_init(&bus->dpc_tl_lock);
 
 	/* Assign bus interface call back */
-	bus->sdiodev->bus_if->brcmf_bus_stop = brcmf_sdbrcm_bus_stop;
-	bus->sdiodev->bus_if->brcmf_bus_init = brcmf_sdbrcm_bus_init;
-	bus->sdiodev->bus_if->brcmf_bus_txdata = brcmf_sdbrcm_bus_txdata;
-	bus->sdiodev->bus_if->brcmf_bus_txctl = brcmf_sdbrcm_bus_txctl;
-	bus->sdiodev->bus_if->brcmf_bus_rxctl = brcmf_sdbrcm_bus_rxctl;
+	bus->sdiodev->bus_if->dev = bus->sdiodev->dev;
+	bus->sdiodev->bus_if->ops = &brcmf_sdio_bus_ops;
+
 	/* Attach to the brcmf/OS/network interface */
 	ret = brcmf_attach(SDPCM_RESERVE, bus->sdiodev->dev);
 	if (ret != 0) {

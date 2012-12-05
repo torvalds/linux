@@ -43,34 +43,88 @@ struct brcmf_bus_dcmd {
 	struct list_head list;
 };
 
-/* interface structure between common and bus layer */
+/**
+ * struct brcmf_bus_ops - bus callback operations.
+ *
+ * @init: prepare for communication with dongle.
+ * @stop: clear pending frames, disable data flow.
+ * @txdata: send a data frame to the dongle (callee disposes skb).
+ * @txctl: transmit a control request message to dongle.
+ * @rxctl: receive a control response message from dongle.
+ *
+ * This structure provides an abstract interface towards the
+ * bus specific driver. For control messages to common driver
+ * will assure there is only one active transaction.
+ */
+struct brcmf_bus_ops {
+	int (*init)(struct device *dev);
+	void (*stop)(struct device *dev);
+	int (*txdata)(struct device *dev, struct sk_buff *skb);
+	int (*txctl)(struct device *dev, unsigned char *msg, uint len);
+	int (*rxctl)(struct device *dev, unsigned char *msg, uint len);
+};
+
+/**
+ * struct brcmf_bus - interface structure between common and bus layer
+ *
+ * @bus_priv: pointer to private bus device.
+ * @dev: device pointer of bus device.
+ * @drvr: public driver information.
+ * @state: operational state of the bus interface.
+ * @maxctl: maximum size for rxctl request message.
+ * @drvr_up: indicates driver up/down status.
+ * @tx_realloc: number of tx packets realloced for headroom.
+ * @dstats: dongle-based statistical data.
+ * @align: alignment requirement for the bus.
+ * @dcmd_list: bus/device specific dongle initialization commands.
+ */
 struct brcmf_bus {
 	union {
 		struct brcmf_sdio_dev *sdio;
 		struct brcmf_usbdev *usb;
 	} bus_priv;
-	struct brcmf_pub *drvr;	/* pointer to driver pub structure brcmf_pub */
+	struct device *dev;
+	struct brcmf_pub *drvr;
 	enum brcmf_bus_state state;
-	uint maxctl;		/* Max size rxctl request from proto to bus */
-	bool drvr_up;		/* Status flag of driver up/down */
-	unsigned long tx_realloc;	/* Tx packets realloced for headroom */
-	struct dngl_stats dstats;	/* Stats for dongle-based data */
-	u8 align;		/* bus alignment requirement */
+	uint maxctl;
+	bool drvr_up;
+	unsigned long tx_realloc;
+	struct dngl_stats dstats;
+	u8 align;
 	struct list_head dcmd_list;
 
-	/* interface functions pointers */
-	/* Stop bus module: clear pending frames, disable data flow */
-	void (*brcmf_bus_stop)(struct device *);
-	/* Initialize bus module: prepare for communication w/dongle */
-	int (*brcmf_bus_init)(struct device *);
-	/* Send a data frame to the dongle.  Callee disposes of txp. */
-	int (*brcmf_bus_txdata)(struct device *, struct sk_buff *);
-	/* Send/receive a control message to/from the dongle.
-	 * Expects caller to enforce a single outstanding transaction.
-	 */
-	int (*brcmf_bus_txctl)(struct device *, unsigned char *, uint);
-	int (*brcmf_bus_rxctl)(struct device *, unsigned char *, uint);
+	struct brcmf_bus_ops *ops;
 };
+
+/*
+ * callback wrappers
+ */
+static inline int brcmf_bus_init(struct brcmf_bus *bus)
+{
+	return bus->ops->init(bus->dev);
+}
+
+static inline void brcmf_bus_stop(struct brcmf_bus *bus)
+{
+	bus->ops->stop(bus->dev);
+}
+
+static inline int brcmf_bus_txdata(struct brcmf_bus *bus, struct sk_buff *skb)
+{
+	return bus->ops->txdata(bus->dev, skb);
+}
+
+static inline
+int brcmf_bus_txctl(struct brcmf_bus *bus, unsigned char *msg, uint len)
+{
+	return bus->ops->txctl(bus->dev, msg, len);
+}
+
+static inline
+int brcmf_bus_rxctl(struct brcmf_bus *bus, unsigned char *msg, uint len)
+{
+	return bus->ops->rxctl(bus->dev, msg, len);
+}
 
 /*
  * interface functions from common layer

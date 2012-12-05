@@ -1228,6 +1228,14 @@ error:
 	return NULL;
 }
 
+static struct brcmf_bus_ops brcmf_usb_bus_ops = {
+	.txdata = brcmf_usb_tx,
+	.init = brcmf_usb_up,
+	.stop = brcmf_usb_down,
+	.txctl = brcmf_usb_tx_ctlpkt,
+	.rxctl = brcmf_usb_rx_ctlpkt,
+};
+
 static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo)
 {
 	struct brcmf_bus *bus = NULL;
@@ -1246,14 +1254,11 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo)
 		goto fail;
 	}
 
+	bus->dev = dev;
 	bus_pub->bus = bus;
-	bus->brcmf_bus_txdata = brcmf_usb_tx;
-	bus->brcmf_bus_init = brcmf_usb_up;
-	bus->brcmf_bus_stop = brcmf_usb_down;
-	bus->brcmf_bus_txctl = brcmf_usb_tx_ctlpkt;
-	bus->brcmf_bus_rxctl = brcmf_usb_rx_ctlpkt;
 	bus->bus_priv.usb = bus_pub;
 	dev_set_drvdata(dev, bus);
+	bus->ops = &brcmf_usb_bus_ops;
 
 	/* Attach to the common driver interface */
 	ret = brcmf_attach(0, dev);

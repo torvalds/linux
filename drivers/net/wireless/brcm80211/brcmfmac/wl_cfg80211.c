@@ -4271,10 +4271,10 @@ static void wl_deinit_priv(struct brcmf_cfg80211_info *cfg)
 	brcmf_deinit_priv_mem(cfg);
 }
 
-struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr)
+struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
+						  struct device *busdev)
 {
 	struct net_device *ndev = drvr->iflist[0]->ndev;
-	struct device *busdev = drvr->dev;
 	struct brcmf_cfg80211_info *cfg;
 	struct wiphy *wiphy;
 	struct brcmf_cfg80211_vif *vif;
