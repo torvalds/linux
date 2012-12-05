@@ -157,7 +157,8 @@
 #define I82579_EMI_ADDR         0x10
 #define I82579_EMI_DATA         0x11
 #define I82579_LPI_UPDATE_TIMER 0x4805	/* in 40ns units + 40 ns base value */
-#define I82579_MSE_THRESHOLD    0x084F	/* Mean Square Error Threshold */
+#define I82579_MSE_THRESHOLD    0x084F	/* 82579 Mean Square Error Threshold */
+#define I82577_MSE_THRESHOLD    0x0887	/* 82577 Mean Square Error Threshold */
 #define I82579_MSE_LINK_DOWN    0x2411	/* MSE count before dropping link */
 #define I217_EEE_ADVERTISEMENT  0x8001	/* IEEE MMD Register 7.60 */
 #define I217_EEE_LP_ABILITY     0x8002	/* IEEE MMD Register 7.61 */
@@ -1809,6 +1810,11 @@ static s32 e1000_hv_phy_workarounds_ich8lan(struct e1000_hw *hw)
 	if (ret_val)
 		goto release;
 	ret_val = e1e_wphy_locked(hw, BM_PORT_GEN_CFG, phy_data & 0x00FF);
+	if (ret_val)
+		goto release;
+
+	/* set MSE higher to enable link to stay up when noise is high */
+	ret_val = e1000_write_emi_reg_locked(hw, I82577_MSE_THRESHOLD, 0x0034);
 release:
 	hw->phy.ops.release(hw);
 
