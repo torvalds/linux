@@ -97,7 +97,7 @@ static struct attribute_group rc6_attr_group = {
 
 static int l3_access_valid(struct drm_device *dev, loff_t offset)
 {
-	if (!IS_IVYBRIDGE(dev))
+	if (!HAS_L3_GPU_CACHE(dev))
 		return -EPERM;
 
 	if (offset % 4 != 0)
