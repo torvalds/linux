@@ -3521,11 +3521,11 @@ int btrfs_truncate_page(struct inode *inode, loff_t from, loff_t len,
 	if (ret)
 		goto out;
 
-	ret = -ENOMEM;
 again:
 	page = find_or_create_page(mapping, index, mask);
 	if (!page) {
 		btrfs_delalloc_release_space(inode, PAGE_CACHE_SIZE);
+		ret = -ENOMEM;
 		goto out;
 	}
 
@@ -3574,7 +3574,6 @@ again:
 		goto out_unlock;
 	}
 
-	ret = 0;
 	if (offset != PAGE_CACHE_SIZE) {
 		if (!len)
 			len = PAGE_CACHE_SIZE - offset;
