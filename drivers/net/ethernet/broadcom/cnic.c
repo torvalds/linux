@@ -3853,12 +3853,17 @@ static int cnic_cm_abort(struct cnic_sock *csk)
 		return cnic_cm_abort_req(csk);
 
 	/* Getting here means that we haven't started connect, or
-	 * connect was not successful.
+	 * connect was not successful, or it has been reset by the target.
 	 */
 
 	cp->close_conn(csk, opcode);
-	if (csk->state != opcode)
+	if (csk->state != opcode) {
+		/* Wait for remote reset sequence to complete */
+		while (test_bit(SK_F_PG_OFFLD_COMPLETE, &csk->flags))
+			msleep(1);
+
 		return -EALREADY;
+	}
 
 	return 0;
 }
@@ -3872,6 +3877,10 @@ static int cnic_cm_close(struct cnic_sock *csk)
 		csk->state = L4_KCQE_OPCODE_VALUE_CLOSE_COMP;
 		return cnic_cm_close_req(csk);
 	} else {
+		/* Wait for remote reset sequence to complete */
+		while (test_bit(SK_F_PG_OFFLD_COMPLETE, &csk->flags))
+			msleep(1);
+
 		return -EALREADY;
 	}
 	return 0;
