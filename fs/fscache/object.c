@@ -284,6 +284,9 @@ lookup_transit:
 	case FSCACHE_OBJECT_EV_ERROR:
 		new_state = FSCACHE_OBJECT_LC_DYING;
 		goto change_state;
+	case FSCACHE_OBJECT_EV_INVALIDATE:
+		new_state = FSCACHE_OBJECT_INVALIDATING;
+		goto change_state;
 	case FSCACHE_OBJECT_EV_REQUEUE:
 		goto done;
 	case -1:
