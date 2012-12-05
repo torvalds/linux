@@ -84,6 +84,8 @@ extern void __exit bcma_host_pci_exit(void);
 /* driver_pci.c */
 u32 bcma_pcie_read(struct bcma_drv_pci *pc, u32 address);
 
+extern int bcma_chipco_watchdog_register(struct bcma_drv_cc *cc);
+
 #ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE
 bool __devinit bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc);
 void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc);

@@ -165,6 +165,12 @@ static int bcma_register_cores(struct bcma_bus *bus)
 	}
 #endif
 
+	if (bus->hosttype == BCMA_HOSTTYPE_SOC) {
+		err = bcma_chipco_watchdog_register(&bus->drv_cc);
+		if (err)
+			bcma_err(bus, "Error registering watchdog driver\n");
+	}
+
 	return 0;
 }
 
@@ -177,6 +183,8 @@ static void bcma_unregister_cores(struct bcma_bus *bus)
 		if (core->dev_registered)
 			device_unregister(&core->dev);
 	}
+	if (bus->hosttype == BCMA_HOSTTYPE_SOC)
+		platform_device_unregister(bus->drv_cc.watchdog);
 }
 
 int __devinit bcma_bus_register(struct bcma_bus *bus)

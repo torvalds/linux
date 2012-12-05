@@ -12,6 +12,7 @@
 #include "bcma_private.h"
 #include <linux/bcm47xx_wdt.h>
 #include <linux/export.h>
+#include <linux/platform_device.h>
 #include <linux/bcma/bcma.h>
 
 static inline u32 bcma_cc_write32_masked(struct bcma_drv_cc *cc, u16 offset,
@@ -85,6 +86,27 @@ static int bcma_chipco_watchdog_ticks_per_ms(struct bcma_drv_cc *cc)
 	} else {
 		return bcma_chipco_alp_clock(cc) / 1000;
 	}
+}
+
+int bcma_chipco_watchdog_register(struct bcma_drv_cc *cc)
+{
+	struct bcm47xx_wdt wdt = {};
+	struct platform_device *pdev;
+
+	wdt.driver_data = cc;
+	wdt.timer_set = bcma_chipco_watchdog_timer_set_wdt;
+	wdt.timer_set_ms = bcma_chipco_watchdog_timer_set_ms_wdt;
+	wdt.max_timer_ms = bcma_chipco_watchdog_get_max_timer(cc) / cc->ticks_per_ms;
+
+	pdev = platform_device_register_data(NULL, "bcm47xx-wdt",
+					     cc->core->bus->num, &wdt,
+					     sizeof(wdt));
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	cc->watchdog = pdev;
+
+	return 0;
 }
 
 void bcma_core_chipcommon_early_init(struct bcma_drv_cc *cc)
