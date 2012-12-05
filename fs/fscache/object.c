@@ -103,6 +103,7 @@ static void fscache_object_state_machine(struct fscache_object *object)
 {
 	enum fscache_object_state new_state;
 	struct fscache_cookie *cookie;
+	int event;
 
 	ASSERT(object != NULL);
 
@@ -275,7 +276,8 @@ static void fscache_object_state_machine(struct fscache_object *object)
 
 	/* determine the transition from a lookup state */
 lookup_transit:
-	switch (fls(object->events & object->event_mask) - 1) {
+	event = fls(object->events & object->event_mask) - 1;
+	switch (event) {
 	case FSCACHE_OBJECT_EV_WITHDRAW:
 	case FSCACHE_OBJECT_EV_RETIRE:
 	case FSCACHE_OBJECT_EV_RELEASE:
@@ -292,7 +294,8 @@ lookup_transit:
 
 	/* determine the transition from an active state */
 active_transit:
-	switch (fls(object->events & object->event_mask) - 1) {
+	event = fls(object->events & object->event_mask) - 1;
+	switch (event) {
 	case FSCACHE_OBJECT_EV_WITHDRAW:
 	case FSCACHE_OBJECT_EV_RETIRE:
 	case FSCACHE_OBJECT_EV_RELEASE:
@@ -314,7 +317,8 @@ active_transit:
 
 	/* determine the transition from a terminal state */
 terminal_transit:
-	switch (fls(object->events & object->event_mask) - 1) {
+	event = fls(object->events & object->event_mask) - 1;
+	switch (event) {
 	case FSCACHE_OBJECT_EV_WITHDRAW:
 		new_state = FSCACHE_OBJECT_WITHDRAWING;
 		goto change_state;
@@ -347,8 +351,8 @@ done:
 
 unsupported_event:
 	printk(KERN_ERR "FS-Cache:"
-	       " Unsupported event %lx [mask %lx] in state %s\n",
-	       object->events, object->event_mask,
+	       " Unsupported event %d [%lx/%lx] in state %s\n",
+	       event, object->events, object->event_mask,
 	       fscache_object_states[object->state]);
 	BUG();
 }
@@ -945,7 +949,7 @@ static void fscache_invalidate_object(struct fscache_object *object)
 
 	spin_lock(&cookie->lock);
 	if (fscache_submit_exclusive_op(object, op) < 0)
-		BUG();
+		goto submit_op_failed;
 	spin_unlock(&cookie->lock);
 	fscache_put_operation(op);
 
@@ -960,4 +964,11 @@ static void fscache_invalidate_object(struct fscache_object *object)
 	 */
 	fscache_invalidation_complete(cookie);
 	_leave("");
+	return;
+
+submit_op_failed:
+	spin_unlock(&cookie->lock);
+	kfree(op);
+	fscache_raise_event(object, FSCACHE_OBJECT_EV_ERROR);
+	_leave(" [EIO]");
 }

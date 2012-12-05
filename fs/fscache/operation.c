@@ -84,6 +84,8 @@ static void fscache_run_op(struct fscache_object *object,
 int fscache_submit_exclusive_op(struct fscache_object *object,
 				struct fscache_operation *op)
 {
+	int ret;
+
 	_enter("{OBJ%x OP%x},", object->debug_id, op->debug_id);
 
 	ASSERTCMP(op->state, ==, FSCACHE_OP_ST_INITIALISED);
@@ -116,6 +118,7 @@ int fscache_submit_exclusive_op(struct fscache_object *object,
 
 		/* need to issue a new write op after this */
 		clear_bit(FSCACHE_OBJECT_PENDING_WRITE, &object->flags);
+		ret = 0;
 	} else if (object->state == FSCACHE_OBJECT_CREATING) {
 		op->object = object;
 		object->n_ops++;
@@ -123,13 +126,17 @@ int fscache_submit_exclusive_op(struct fscache_object *object,
 		atomic_inc(&op->usage);
 		list_add_tail(&op->pend_link, &object->pending_ops);
 		fscache_stat(&fscache_n_op_pend);
+		ret = 0;
 	} else {
-		/* not allowed to submit ops in any other state */
-		BUG();
+		/* If we're in any other state, there must have been an I/O
+		 * error of some nature.
+		 */
+		ASSERT(test_bit(FSCACHE_IOERROR, &object->cache->flags));
+		ret = -EIO;
 	}
 
 	spin_unlock(&object->lock);
-	return 0;
+	return ret;
 }
 
 /*
