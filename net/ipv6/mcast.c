@@ -284,6 +284,9 @@ void ipv6_sock_mc_close(struct sock *sk)
 	struct ipv6_mc_socklist *mc_lst;
 	struct net *net = sock_net(sk);
 
+	if (!rcu_access_pointer(np->ipv6_mc_list))
+		return;
+
 	spin_lock(&ipv6_sk_mc_lock);
 	while ((mc_lst = rcu_dereference_protected(np->ipv6_mc_list,
 				lockdep_is_held(&ipv6_sk_mc_lock))) != NULL) {

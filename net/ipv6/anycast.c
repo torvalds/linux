@@ -189,6 +189,9 @@ void ipv6_sock_ac_close(struct sock *sk)
 	struct net *net = sock_net(sk);
 	int	prev_index;
 
+	if (!np->ipv6_ac_list)
+		return;
+
 	write_lock_bh(&ipv6_sk_ac_lock);
 	pac = np->ipv6_ac_list;
 	np->ipv6_ac_list = NULL;
