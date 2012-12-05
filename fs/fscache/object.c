@@ -114,7 +114,8 @@ static void fscache_object_state_machine(struct fscache_object *object)
 		/* wait for the parent object to become ready */
 	case FSCACHE_OBJECT_INIT:
 		object->event_mask =
-			ULONG_MAX & ~(1 << FSCACHE_OBJECT_EV_CLEARED);
+			FSCACHE_OBJECT_EVENTS_MASK &
+			~(1 << FSCACHE_OBJECT_EV_CLEARED);
 		fscache_initialise_object(object);
 		goto done;
 
