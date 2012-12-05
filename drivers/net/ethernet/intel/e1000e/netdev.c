@@ -2405,7 +2405,6 @@ static unsigned int e1000_update_itr(struct e1000_adapter *adapter,
 
 static void e1000_set_itr(struct e1000_adapter *adapter)
 {
-	struct e1000_hw *hw = &adapter->hw;
 	u16 current_itr;
 	u32 new_itr = adapter->itr;
 
@@ -2468,10 +2467,7 @@ set_itr_now:
 		if (adapter->msix_entries)
 			adapter->rx_ring->set_itr = 1;
 		else
-			if (new_itr)
-				ew32(ITR, 1000000000 / (new_itr * 256));
-			else
-				ew32(ITR, 0);
+			e1000e_write_itr(adapter, new_itr);
 	}
 }
 
