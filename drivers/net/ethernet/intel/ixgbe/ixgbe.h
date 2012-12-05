@@ -582,6 +582,9 @@ struct ixgbe_adapter {
 
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_caps;
+	struct work_struct ptp_tx_work;
+	struct sk_buff *ptp_tx_skb;
+	unsigned long ptp_tx_start;
 	unsigned long last_overflow_check;
 	unsigned long last_rx_ptp_check;
 	spinlock_t tmreg_lock;
@@ -752,8 +755,6 @@ extern void ixgbe_ptp_init(struct ixgbe_adapter *adapter);
 extern void ixgbe_ptp_stop(struct ixgbe_adapter *adapter);
 extern void ixgbe_ptp_overflow_check(struct ixgbe_adapter *adapter);
 extern void ixgbe_ptp_rx_hang(struct ixgbe_adapter *adapter);
-extern void ixgbe_ptp_tx_hwtstamp(struct ixgbe_q_vector *q_vector,
-				  struct sk_buff *skb);
 extern void ixgbe_ptp_rx_hwtstamp(struct ixgbe_ring *rx_ring,
 				  union ixgbe_adv_rx_desc *rx_desc,
 				  struct sk_buff *skb);

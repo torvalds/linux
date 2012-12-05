@@ -96,6 +96,7 @@
 #define IXGBE_MAX_TIMEADJ_VALUE  0x7FFFFFFFFFFFFFFFULL
 
 #define IXGBE_OVERFLOW_PERIOD    (HZ * 30)
+#define IXGBE_PTP_TX_TIMEOUT     (HZ * 15)
 
 #ifndef NSECS_PER_SEC
 #define NSECS_PER_SEC 1000000000ULL
@@ -401,7 +402,6 @@ void ixgbe_ptp_check_pps_event(struct ixgbe_adapter *adapter, u32 eicr)
 	}
 }
 
-
 /**
  * ixgbe_ptp_overflow_check - watchdog task to detect SYSTIME overflow
  * @adapter: private adapter struct
@@ -416,8 +416,7 @@ void ixgbe_ptp_overflow_check(struct ixgbe_adapter *adapter)
 					     IXGBE_OVERFLOW_PERIOD);
 	struct timespec ts;
 
-	if ((adapter->flags2 & IXGBE_FLAG2_PTP_ENABLED) &&
-	    (timeout)) {
+	if (timeout) {
 		ixgbe_ptp_gettime(&adapter->ptp_caps, &ts);
 		adapter->last_overflow_check = jiffies;
 	}
@@ -467,40 +466,21 @@ void ixgbe_ptp_rx_hang(struct ixgbe_adapter *adapter)
 
 /**
  * ixgbe_ptp_tx_hwtstamp - utility function which checks for TX time stamp
- * @q_vector: structure containing interrupt and ring information
- * @skb: particular skb to send timestamp with
+ * @adapter: the private adapter struct
  *
  * if the timestamp is valid, we convert it into the timecounter ns
  * value, then store that result into the shhwtstamps structure which
  * is passed up the network stack
  */
-void ixgbe_ptp_tx_hwtstamp(struct ixgbe_q_vector *q_vector,
-			   struct sk_buff *skb)
+static void ixgbe_ptp_tx_hwtstamp(struct ixgbe_adapter *adapter)
 {
-	struct ixgbe_adapter *adapter;
-	struct ixgbe_hw *hw;
+	struct ixgbe_hw *hw = &adapter->hw;
 	struct skb_shared_hwtstamps shhwtstamps;
 	u64 regval = 0, ns;
-	u32 tsynctxctl;
 	unsigned long flags;
 
-	/* we cannot process timestamps on a ring without a q_vector */
-	if (!q_vector || !q_vector->adapter)
-		return;
-
-	adapter = q_vector->adapter;
-	hw = &adapter->hw;
-
-	tsynctxctl = IXGBE_READ_REG(hw, IXGBE_TSYNCTXCTL);
 	regval |= (u64)IXGBE_READ_REG(hw, IXGBE_TXSTMPL);
 	regval |= (u64)IXGBE_READ_REG(hw, IXGBE_TXSTMPH) << 32;
-
-	/*
-	 * if TX timestamp is not valid, exit after clearing the
-	 * timestamp registers
-	 */
-	if (!(tsynctxctl & IXGBE_TSYNCTXCTL_VALID))
-		return;
 
 	spin_lock_irqsave(&adapter->tmreg_lock, flags);
 	ns = timecounter_cyc2time(&adapter->tc, regval);
@@ -508,7 +488,46 @@ void ixgbe_ptp_tx_hwtstamp(struct ixgbe_q_vector *q_vector,
 
 	memset(&shhwtstamps, 0, sizeof(shhwtstamps));
 	shhwtstamps.hwtstamp = ns_to_ktime(ns);
-	skb_tstamp_tx(skb, &shhwtstamps);
+	skb_tstamp_tx(adapter->ptp_tx_skb, &shhwtstamps);
+
+	dev_kfree_skb_any(adapter->ptp_tx_skb);
+	adapter->ptp_tx_skb = NULL;
+}
+
+/**
+ * ixgbe_ptp_tx_hwtstamp_work
+ * @work: pointer to the work struct
+ *
+ * This work item polls TSYNCTXCTL valid bit to determine when a Tx hardware
+ * timestamp has been taken for the current skb. It is necesary, because the
+ * descriptor's "done" bit does not correlate with the timestamp event.
+ */
+static void ixgbe_ptp_tx_hwtstamp_work(struct work_struct *work)
+{
+	struct ixgbe_adapter *adapter = container_of(work, struct ixgbe_adapter,
+						     ptp_tx_work);
+	struct ixgbe_hw *hw = &adapter->hw;
+	bool timeout = time_is_before_jiffies(adapter->ptp_tx_start +
+					      IXGBE_PTP_TX_TIMEOUT);
+	u32 tsynctxctl;
+
+	/* we have to have a valid skb */
+	if (!adapter->ptp_tx_skb)
+		return;
+
+	if (timeout) {
+		dev_kfree_skb_any(adapter->ptp_tx_skb);
+		adapter->ptp_tx_skb = NULL;
+		e_warn(drv, "clearing Tx Timestamp hang");
+		return;
+	}
+
+	tsynctxctl = IXGBE_READ_REG(hw, IXGBE_TSYNCTXCTL);
+	if (tsynctxctl & IXGBE_TSYNCTXCTL_VALID)
+		ixgbe_ptp_tx_hwtstamp(adapter);
+	else
+		/* reschedule to keep checking if it's not available yet */
+		schedule_work(&adapter->ptp_tx_work);
 }
 
 /**
@@ -865,6 +884,7 @@ void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
 	}
 
 	spin_lock_init(&adapter->tmreg_lock);
+	INIT_WORK(&adapter->ptp_tx_work, ixgbe_ptp_tx_hwtstamp_work);
 
 	adapter->ptp_clock = ptp_clock_register(&adapter->ptp_caps,
 						&adapter->pdev->dev);
@@ -895,6 +915,12 @@ void ixgbe_ptp_stop(struct ixgbe_adapter *adapter)
 			     IXGBE_FLAG2_PTP_PPS_ENABLED);
 
 	ixgbe_ptp_setup_sdp(adapter);
+
+	cancel_work_sync(&adapter->ptp_tx_work);
+	if (adapter->ptp_tx_skb) {
+		dev_kfree_skb_any(adapter->ptp_tx_skb);
+		adapter->ptp_tx_skb = NULL;
+	}
 
 	if (adapter->ptp_clock) {
 		ptp_clock_unregister(adapter->ptp_clock);
