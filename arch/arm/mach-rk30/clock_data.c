@@ -855,7 +855,7 @@ struct arm_clks_div_set * arm_clks_get_div(u32 rate)
 
 #endif
 
-u32 force_cpu_hpclk_11(u32 clksel1)
+static u32 force_cpu_hpclk_11(u32 clksel1)
 {
 	u8 p_bits=(clksel1&ACLK_PCLK_MSK)>>ACLK_PCLK_OFF;
 	if(p_bits<3)
