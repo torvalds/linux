@@ -52,6 +52,7 @@ extern void r8a7740_add_early_devices(void);
 extern void r8a7740_add_standard_devices(void);
 extern void r8a7740_clock_init(u8 md_ck);
 extern void r8a7740_pinmux_init(void);
+extern void r8a7740_pm_init(void);
 
 extern void r8a7779_init_irq(void);
 extern void r8a7779_map_io(void);
