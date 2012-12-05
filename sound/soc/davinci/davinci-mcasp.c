@@ -1158,7 +1158,6 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	dev->tdm_slots = pdata->tdm_slots;
 	dev->num_serializer = pdata->num_serializer;
 	dev->serial_dir = pdata->serial_dir;
-	dev->codec_fmt = pdata->codec_fmt;
 	dev->version = pdata->version;
 	dev->txnumevt = pdata->txnumevt;
 	dev->rxnumevt = pdata->rxnumevt;
