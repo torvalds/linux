@@ -35,73 +35,23 @@ int
 nouveau_therm_fan_get(struct nouveau_therm *therm)
 {
 	struct nouveau_therm_priv *priv = (void *)therm;
-	struct nouveau_gpio *gpio = nouveau_gpio(therm);
-	struct dcb_gpio_func func;
-	int card_type = nv_device(therm)->card_type;
-	u32 divs, duty;
-	int ret;
-
-	if (!priv->fan.pwm_get)
-		return -ENODEV;
-
-	ret = gpio->find(gpio, 0, DCB_GPIO_PWM_FAN, 0xff, &func);
-	if (ret == 0) {
-		ret = priv->fan.pwm_get(therm, func.line, &divs, &duty);
-		if (ret == 0 && divs) {
-			divs = max(divs, duty);
-			if (card_type <= NV_40 || (func.log[0] & 1))
-				duty = divs - duty;
-			return (duty * 100) / divs;
-		}
-
-		return gpio->get(gpio, 0, func.func, func.line) * 100;
-	}
-
-	return -ENODEV;
+	return priv->fan->get(therm);
 }
 
 int
 nouveau_therm_fan_set(struct nouveau_therm *therm, int percent)
 {
 	struct nouveau_therm_priv *priv = (void *)therm;
-	struct nouveau_gpio *gpio = nouveau_gpio(therm);
-	struct dcb_gpio_func func;
-	int card_type = nv_device(therm)->card_type;
-	u32 divs, duty;
-	int ret;
 
-	if (priv->fan.mode == FAN_CONTROL_NONE)
+	if (percent < priv->fan->bios.min_duty)
+		percent = priv->fan->bios.min_duty;
+	if (percent > priv->fan->bios.max_duty)
+		percent = priv->fan->bios.max_duty;
+
+	if (priv->fan->mode == FAN_CONTROL_NONE)
 		return -EINVAL;
 
-	if (!priv->fan.pwm_set)
-		return -ENODEV;
-
-	if (percent < priv->bios_fan.min_duty)
-		percent = priv->bios_fan.min_duty;
-	if (percent > priv->bios_fan.max_duty)
-		percent = priv->bios_fan.max_duty;
-
-	ret = gpio->find(gpio, 0, DCB_GPIO_PWM_FAN, 0xff, &func);
-	if (ret == 0) {
-		divs = priv->bios_perf_fan.pwm_divisor;
-		if (priv->bios_fan.pwm_freq) {
-			divs = 1;
-			if (priv->fan.pwm_clock)
-				divs = priv->fan.pwm_clock(therm);
-			divs /= priv->bios_fan.pwm_freq;
-		}
-
-		duty = ((divs * percent) + 99) / 100;
-		if (card_type <= NV_40 || (func.log[0] & 1))
-			duty = divs - duty;
-
-		ret = priv->fan.pwm_set(therm, func.line, divs, duty);
-		if (ret == 0)
-			ret = priv->fan.pwm_ctrl(therm, func.line, true);
-		return ret;
-	}
-
-	return -ENODEV;
+	return priv->fan->set(therm, percent);
 }
 
 int
@@ -113,7 +63,7 @@ nouveau_therm_fan_sense(struct nouveau_therm *therm)
 	u32 cycles, cur, prev;
 	u64 start, end, tach;
 
-	if (priv->fan.tach.func == DCB_GPIO_UNUSED)
+	if (priv->fan->tach.func == DCB_GPIO_UNUSED)
 		return -ENODEV;
 
 	/* Time a complete rotation and extrapolate to RPM:
@@ -121,12 +71,12 @@ nouveau_therm_fan_sense(struct nouveau_therm *therm)
 	 * We get 4 changes (0 -> 1 -> 0 -> 1) per complete rotation.
 	 */
 	start = ptimer->read(ptimer);
-	prev = gpio->get(gpio, 0, priv->fan.tach.func, priv->fan.tach.line);
+	prev = gpio->get(gpio, 0, priv->fan->tach.func, priv->fan->tach.line);
 	cycles = 0;
 	do {
 		usleep_range(500, 1000); /* supports 0 < rpm < 7500 */
 
-		cur = gpio->get(gpio, 0, priv->fan.tach.func, priv->fan.tach.line);
+		cur = gpio->get(gpio, 0, priv->fan->tach.func, priv->fan->tach.line);
 		if (prev != cur) {
 			if (!start)
 				start = ptimer->read(ptimer);
@@ -150,7 +100,7 @@ nouveau_therm_fan_set_mode(struct nouveau_therm *therm,
 {
 	struct nouveau_therm_priv *priv = (void *)therm;
 
-	if (priv->fan.mode == mode)
+	if (priv->fan->mode == mode)
 		return 0;
 
 	if (mode < FAN_CONTROL_NONE || mode >= FAN_CONTROL_NR)
@@ -168,7 +118,7 @@ nouveau_therm_fan_set_mode(struct nouveau_therm *therm,
 		break;
 	}
 
-	priv->fan.mode = mode;
+	priv->fan->mode = mode;
 	return 0;
 }
 
@@ -183,7 +133,7 @@ nouveau_therm_fan_user_set(struct nouveau_therm *therm, int percent)
 {
 	struct nouveau_therm_priv *priv = (void *)therm;
 
-	if (priv->fan.mode != FAN_CONTROL_MANUAL)
+	if (priv->fan->mode != FAN_CONTROL_MANUAL)
 		return -EINVAL;
 
 	return nouveau_therm_fan_set(therm, percent);
@@ -194,9 +144,9 @@ nouveau_therm_fan_set_defaults(struct nouveau_therm *therm)
 {
 	struct nouveau_therm_priv *priv = (void *)therm;
 
-	priv->bios_fan.pwm_freq = 0;
-	priv->bios_fan.min_duty = 0;
-	priv->bios_fan.max_duty = 100;
+	priv->fan->bios.pwm_freq = 0;
+	priv->fan->bios.min_duty = 0;
+	priv->fan->bios.max_duty = 100;
 }
 
 
@@ -205,13 +155,13 @@ nouveau_therm_fan_safety_checks(struct nouveau_therm *therm)
 {
 	struct nouveau_therm_priv *priv = (void *)therm;
 
-	if (priv->bios_fan.min_duty > 100)
-		priv->bios_fan.min_duty = 100;
-	if (priv->bios_fan.max_duty > 100)
-		priv->bios_fan.max_duty = 100;
+	if (priv->fan->bios.min_duty > 100)
+		priv->fan->bios.min_duty = 100;
+	if (priv->fan->bios.max_duty > 100)
+		priv->fan->bios.max_duty = 100;
 
-	if (priv->bios_fan.min_duty > priv->bios_fan.max_duty)
-		priv->bios_fan.min_duty = priv->bios_fan.max_duty;
+	if (priv->fan->bios.min_duty > priv->fan->bios.max_duty)
+		priv->fan->bios.min_duty = priv->fan->bios.max_duty;
 }
 
 int nouveau_fan_pwm_clock_dummy(struct nouveau_therm *therm)
@@ -225,15 +175,29 @@ nouveau_therm_fan_ctor(struct nouveau_therm *therm)
 	struct nouveau_therm_priv *priv = (void *)therm;
 	struct nouveau_gpio *gpio = nouveau_gpio(therm);
 	struct nouveau_bios *bios = nouveau_bios(therm);
+	struct dcb_gpio_func func;
 	int ret;
 
-	ret = gpio->find(gpio, 0, DCB_GPIO_FAN_SENSE, 0xff, &priv->fan.tach);
+	/* attempt to locate a drivable fan, and determine control method */
+	ret = gpio->find(gpio, 0, DCB_GPIO_PWM_FAN, 0xff, &func);
+	if (ret == 0)
+		ret = nouveau_fanpwm_create(therm, &func);
 	if (ret)
-		priv->fan.tach.func = DCB_GPIO_UNUSED;
+		ret = nouveau_fannil_create(therm);
+	if (ret)
+		return ret;
 
+	nv_info(therm, "FAN control: %s\n", priv->fan->type);
+
+	/* attempt to detect a tachometer connection */
+	ret = gpio->find(gpio, 0, DCB_GPIO_FAN_SENSE, 0xff, &priv->fan->tach);
+	if (ret)
+		priv->fan->tach.func = DCB_GPIO_UNUSED;
+
+	/* other random init... */
 	nouveau_therm_fan_set_defaults(therm);
-	nvbios_perf_fan_parse(bios, &priv->bios_perf_fan);
-	if (nvbios_therm_fan_parse(bios, &priv->bios_fan))
+	nvbios_perf_fan_parse(bios, &priv->fan->perf);
+	if (nvbios_therm_fan_parse(bios, &priv->fan->bios))
 		nv_error(therm, "parsing the thermal table failed\n");
 	nouveau_therm_fan_safety_checks(therm);
 

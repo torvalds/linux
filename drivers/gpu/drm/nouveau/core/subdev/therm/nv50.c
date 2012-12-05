@@ -138,12 +138,12 @@ nv50_therm_ctor(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
-	priv->base.fan.pwm_ctrl = nv50_fan_pwm_ctrl;
-	priv->base.fan.pwm_get = nv50_fan_pwm_get;
-	priv->base.fan.pwm_set = nv50_fan_pwm_set;
-	priv->base.fan.pwm_clock = nv50_fan_pwm_clock;
+	priv->base.base.pwm_ctrl = nv50_fan_pwm_ctrl;
+	priv->base.base.pwm_get = nv50_fan_pwm_get;
+	priv->base.base.pwm_set = nv50_fan_pwm_set;
+	priv->base.base.pwm_clock = nv50_fan_pwm_clock;
 	priv->base.base.temp_get = nv50_temp_get;
-	return 0;
+	return nouveau_therm_preinit(&priv->base.base);
 }
 
 struct nouveau_oclass

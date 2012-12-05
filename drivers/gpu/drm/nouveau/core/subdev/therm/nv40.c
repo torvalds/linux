@@ -149,11 +149,11 @@ nv40_therm_ctor(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
-	priv->base.fan.pwm_ctrl = nv40_fan_pwm_ctrl;
-	priv->base.fan.pwm_get = nv40_fan_pwm_get;
-	priv->base.fan.pwm_set = nv40_fan_pwm_set;
+	priv->base.base.pwm_ctrl = nv40_fan_pwm_ctrl;
+	priv->base.base.pwm_get = nv40_fan_pwm_get;
+	priv->base.base.pwm_set = nv40_fan_pwm_set;
 	priv->base.base.temp_get = nv40_temp_get;
-	return 0;
+	return nouveau_therm_preinit(&priv->base.base);
 }
 
 struct nouveau_oclass

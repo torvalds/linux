@@ -44,7 +44,7 @@ static int
 nva3_therm_init(struct nouveau_object *object)
 {
 	struct nva3_therm_priv *priv = (void *)object;
-	struct dcb_gpio_func *tach = &priv->base.fan.tach;
+	struct dcb_gpio_func *tach = &priv->base.fan->tach;
 	int ret;
 
 	ret = nouveau_therm_init(&priv->base.base);
@@ -77,12 +77,13 @@ nva3_therm_ctor(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
-	priv->base.fan.pwm_get = nv50_fan_pwm_get;
-	priv->base.fan.pwm_set = nv50_fan_pwm_set;
-	priv->base.fan.pwm_clock = nv50_fan_pwm_clock;
+	priv->base.base.pwm_ctrl = nv50_fan_pwm_ctrl;
+	priv->base.base.pwm_get = nv50_fan_pwm_get;
+	priv->base.base.pwm_set = nv50_fan_pwm_set;
+	priv->base.base.pwm_clock = nv50_fan_pwm_clock;
 	priv->base.base.temp_get = nv50_temp_get;
 	priv->base.base.fan_sense = nva3_therm_fan_sense;
-	return 0;
+	return nouveau_therm_preinit(&priv->base.base);
 }
 
 struct nouveau_oclass

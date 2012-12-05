@@ -32,26 +32,28 @@
 #include <subdev/bios/perf.h>
 #include <subdev/bios/therm.h>
 
+struct nouveau_fan {
+	const char *type;
+	enum nouveau_therm_fan_mode mode;
+	int percent;
+
+	struct nvbios_therm_fan bios;
+	struct nvbios_perf_fan perf;
+
+	int (*get)(struct nouveau_therm *therm);
+	int (*set)(struct nouveau_therm *therm, int percent);
+
+	struct dcb_gpio_func tach;
+};
+
 struct nouveau_therm_priv {
 	struct nouveau_therm base;
 
 	/* bios */
 	struct nvbios_therm_sensor bios_sensor;
-	struct nvbios_therm_fan bios_fan;
-	struct nvbios_perf_fan bios_perf_fan;
 
 	/* fan priv */
-	struct {
-		enum nouveau_therm_fan_mode mode;
-		int percent;
-
-		struct dcb_gpio_func tach;
-
-		int (*pwm_ctrl)(struct nouveau_therm *, int line, bool);
-		int (*pwm_get)(struct nouveau_therm *, int line, u32*, u32*);
-		int (*pwm_set)(struct nouveau_therm *, int line, u32, u32);
-		int (*pwm_clock)(struct nouveau_therm *);
-	} fan;
+	struct nouveau_fan *fan;
 
 	/* ic */
 	struct i2c_client *ic;
@@ -76,11 +78,17 @@ int nouveau_therm_fan_set_mode(struct nouveau_therm *therm,
 
 int nouveau_therm_fan_sense(struct nouveau_therm *therm);
 
+int nouveau_therm_preinit(struct nouveau_therm *);
+
+int nv50_fan_pwm_ctrl(struct nouveau_therm *, int, bool);
 int nv50_fan_pwm_get(struct nouveau_therm *, int, u32 *, u32 *);
 int nv50_fan_pwm_set(struct nouveau_therm *, int, u32, u32);
 int nv50_fan_pwm_clock(struct nouveau_therm *);
 int nv50_temp_get(struct nouveau_therm *therm);
 
 int nva3_therm_fan_sense(struct nouveau_therm *);
+
+int nouveau_fanpwm_create(struct nouveau_therm *, struct dcb_gpio_func *);
+int nouveau_fannil_create(struct nouveau_therm *);
 
 #endif

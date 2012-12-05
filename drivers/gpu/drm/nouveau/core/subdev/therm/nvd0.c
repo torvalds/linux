@@ -107,8 +107,8 @@ nvd0_therm_init(struct nouveau_object *object)
 
 	/* enable fan tach, count revolutions per-second */
 	nv_mask(priv, 0x00e720, 0x00000003, 0x00000002);
-	if (priv->base.fan.tach.func != DCB_GPIO_UNUSED) {
-		nv_mask(priv, 0x00d79c, 0x000000ff, priv->base.fan.tach.line);
+	if (priv->base.fan->tach.func != DCB_GPIO_UNUSED) {
+		nv_mask(priv, 0x00d79c, 0x000000ff, priv->base.fan->tach.line);
 		nv_wr32(priv, 0x00e724, nv_device(priv)->crystal * 1000);
 		nv_mask(priv, 0x00e720, 0x00000001, 0x00000001);
 	}
@@ -131,13 +131,13 @@ nvd0_therm_ctor(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
-	priv->base.fan.pwm_ctrl = nvd0_fan_pwm_ctrl;
-	priv->base.fan.pwm_get = nvd0_fan_pwm_get;
-	priv->base.fan.pwm_set = nvd0_fan_pwm_set;
-	priv->base.fan.pwm_clock = nvd0_fan_pwm_clock;
+	priv->base.base.pwm_ctrl = nvd0_fan_pwm_ctrl;
+	priv->base.base.pwm_get = nvd0_fan_pwm_get;
+	priv->base.base.pwm_set = nvd0_fan_pwm_set;
+	priv->base.base.pwm_clock = nvd0_fan_pwm_clock;
 	priv->base.base.temp_get = nv50_temp_get;
 	priv->base.base.fan_sense = nva3_therm_fan_sense;
-	return 0;
+	return nouveau_therm_preinit(&priv->base.base);
 }
 
 struct nouveau_oclass

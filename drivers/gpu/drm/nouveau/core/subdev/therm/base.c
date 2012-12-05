@@ -37,11 +37,11 @@ nouveau_therm_attr_get(struct nouveau_therm *therm,
 
 	switch (type) {
 	case NOUVEAU_THERM_ATTR_FAN_MIN_DUTY:
-		return priv->bios_fan.min_duty;
+		return priv->fan->bios.min_duty;
 	case NOUVEAU_THERM_ATTR_FAN_MAX_DUTY:
-		return priv->bios_fan.max_duty;
+		return priv->fan->bios.max_duty;
 	case NOUVEAU_THERM_ATTR_FAN_MODE:
-		return priv->fan.mode;
+		return priv->fan->mode;
 	case NOUVEAU_THERM_ATTR_THRS_FAN_BOOST:
 		return priv->bios_sensor.thrs_fan_boost.temp;
 	case NOUVEAU_THERM_ATTR_THRS_FAN_BOOST_HYST:
@@ -73,16 +73,16 @@ nouveau_therm_attr_set(struct nouveau_therm *therm,
 	case NOUVEAU_THERM_ATTR_FAN_MIN_DUTY:
 		if (value < 0)
 			value = 0;
-		if (value > priv->bios_fan.max_duty)
-			value = priv->bios_fan.max_duty;
-		priv->bios_fan.min_duty = value;
+		if (value > priv->fan->bios.max_duty)
+			value = priv->fan->bios.max_duty;
+		priv->fan->bios.min_duty = value;
 		return 0;
 	case NOUVEAU_THERM_ATTR_FAN_MAX_DUTY:
 		if (value < 0)
 			value = 0;
-		if (value < priv->bios_fan.min_duty)
-			value = priv->bios_fan.min_duty;
-		priv->bios_fan.max_duty = value;
+		if (value < priv->fan->bios.min_duty)
+			value = priv->fan->bios.min_duty;
+		priv->fan->bios.max_duty = value;
 		return 0;
 	case NOUVEAU_THERM_ATTR_FAN_MODE:
 		return nouveau_therm_fan_set_mode(therm, value);
@@ -126,8 +126,8 @@ _nouveau_therm_init(struct nouveau_object *object)
 	if (ret)
 		return ret;
 
-	if (priv->fan.percent >= 0)
-		therm->fan_set(therm, priv->fan.percent);
+	if (priv->fan->percent >= 0)
+		therm->fan_set(therm, priv->fan->percent);
 
 	return 0;
 }
@@ -138,7 +138,7 @@ _nouveau_therm_fini(struct nouveau_object *object, bool suspend)
 	struct nouveau_therm *therm = (void *)object;
 	struct nouveau_therm_priv *priv = (void *)therm;
 
-	priv->fan.percent = therm->fan_get(therm);
+	priv->fan->percent = therm->fan_get(therm);
 
 	return nouveau_subdev_fini(&therm->base, suspend);
 }
@@ -158,14 +158,27 @@ nouveau_therm_create_(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
-	nouveau_therm_ic_ctor(&priv->base);
-	nouveau_therm_sensor_ctor(&priv->base);
-	nouveau_therm_fan_ctor(&priv->base);
-
 	priv->base.fan_get = nouveau_therm_fan_user_get;
 	priv->base.fan_set = nouveau_therm_fan_user_set;
 	priv->base.fan_sense = nouveau_therm_fan_sense;
 	priv->base.attr_get = nouveau_therm_attr_get;
 	priv->base.attr_set = nouveau_therm_attr_set;
 	return 0;
+}
+
+int
+nouveau_therm_preinit(struct nouveau_therm *therm)
+{
+	nouveau_therm_ic_ctor(therm);
+	nouveau_therm_sensor_ctor(therm);
+	nouveau_therm_fan_ctor(therm);
+	return 0;
+}
+
+void
+_nouveau_therm_dtor(struct nouveau_object *object)
+{
+	struct nouveau_therm_priv *priv = (void *)object;
+	kfree(priv->fan);
+	nouveau_subdev_destroy(&priv->base.base);
 }
