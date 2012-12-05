@@ -8,6 +8,7 @@
 #include <linux/pci.h>
 #include <linux/mod_devicetable.h>
 #include <linux/dma-mapping.h>
+#include <linux/platform_device.h>
 
 #include <linux/ssb/ssb_regs.h>
 
@@ -432,6 +433,7 @@ struct ssb_bus {
 #ifdef CONFIG_SSB_EMBEDDED
 	/* Lock for GPIO register access. */
 	spinlock_t gpio_lock;
+	struct platform_device *watchdog;
 #endif /* EMBEDDED */
 
 	/* Internal-only stuff follows. Do not touch. */

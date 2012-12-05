@@ -232,4 +232,14 @@ static inline u32 ssb_extif_watchdog_timer_set_ms(struct bcm47xx_wdt *wdt,
 	return 0;
 }
 #endif
+
+#ifdef CONFIG_SSB_EMBEDDED
+extern int ssb_watchdog_register(struct ssb_bus *bus);
+#else /* CONFIG_SSB_EMBEDDED */
+static inline int ssb_watchdog_register(struct ssb_bus *bus)
+{
+	return 0;
+}
+#endif /* CONFIG_SSB_EMBEDDED */
+
 #endif /* LINUX_SSB_PRIVATE_H_ */
