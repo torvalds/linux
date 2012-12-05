@@ -18,6 +18,7 @@
 #include <linux/writeback.h>
 #include <linux/atomic.h>
 #include <linux/sysctl.h>
+#include <linux/mutex.h>
 
 struct page;
 struct device;
@@ -104,6 +105,9 @@ struct backing_dev_info {
 	struct device *dev;
 
 	struct timer_list laptop_mode_wb_timer;
+
+	cpumask_t *flusher_cpumask; /* used for writeback thread scheduling */
+	struct mutex flusher_cpumask_lock;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debug_dir;
