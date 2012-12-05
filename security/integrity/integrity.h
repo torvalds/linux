@@ -16,19 +16,19 @@
 #include <crypto/sha.h>
 
 /* iint action cache flags */
-#define IMA_MEASURE		0x0001
-#define IMA_MEASURED		0x0002
-#define IMA_APPRAISE		0x0004
-#define IMA_APPRAISED		0x0008
-/*#define IMA_COLLECT		0x0010  do not use this flag */
-#define IMA_COLLECTED		0x0020
-#define IMA_AUDIT		0x0040
-#define IMA_AUDITED		0x0080
+#define IMA_MEASURE		0x00000001
+#define IMA_MEASURED		0x00000002
+#define IMA_APPRAISE		0x00000004
+#define IMA_APPRAISED		0x00000008
+/*#define IMA_COLLECT		0x00000010  do not use this flag */
+#define IMA_COLLECTED		0x00000020
+#define IMA_AUDIT		0x00000040
+#define IMA_AUDITED		0x00000080
 
 /* iint cache flags */
-#define IMA_ACTION_FLAGS	0xff00
-#define IMA_DIGSIG		0x0100
-#define IMA_DIGSIG_REQUIRED	0x0200
+#define IMA_ACTION_FLAGS	0xff000000
+#define IMA_DIGSIG		0x01000000
+#define IMA_DIGSIG_REQUIRED	0x02000000
 
 #define IMA_DO_MASK		(IMA_MEASURE | IMA_APPRAISE | IMA_AUDIT)
 #define IMA_DONE_MASK		(IMA_MEASURED | IMA_APPRAISED | IMA_AUDITED \
@@ -50,7 +50,7 @@ struct integrity_iint_cache {
 	struct rb_node rb_node; /* rooted in integrity_iint_tree */
 	struct inode *inode;	/* back pointer to inode in question */
 	u64 version;		/* track inode changes */
-	unsigned short flags;
+	unsigned long flags;
 	struct evm_ima_xattr_data ima_xattr;
 	enum integrity_status ima_status:4;
 	enum integrity_status evm_status:4;
