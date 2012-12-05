@@ -1,7 +1,9 @@
 dtb-y	+= skeleton.dtb
+dtb-y	+= tz1090_generic.dtb
 
 # Built-in dtb
 builtindtb-y				:= skeleton
+builtindtb-$(CONFIG_SOC_TZ1090)		:= tz1090_generic
 
 ifneq ($(CONFIG_METAG_BUILTIN_DTB_NAME),"")
 	builtindtb-y			:= $(patsubst "%",%,$(CONFIG_METAG_BUILTIN_DTB_NAME))

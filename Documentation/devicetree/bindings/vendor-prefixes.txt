@@ -57,6 +57,7 @@ snps 	Synopsys, Inc.
 st	STMicroelectronics
 ste	ST-Ericsson
 stericsson	ST-Ericsson
+toumaz	Toumaz
 ti	Texas Instruments
 toshiba	Toshiba Corporation
 via	VIA Technologies, Inc.

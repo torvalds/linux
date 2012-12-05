@@ -14,6 +14,15 @@ config META21_FPGA
 	help
 	  This is a Meta 2.1 FPGA bitstream, just a bare CPU.
 
+config SOC_TZ1090
+	bool "Toumaz Xenif TZ1090 SoC (Comet)"
+	select METAG_LNKGET_AROUND_CACHE
+	select METAG_META21
+	select METAG_SMP_WRITE_REORDERING
+	help
+	  This is a Toumaz Technology Xenif TZ1090 (A.K.A. Comet) SoC containing
+	  a 2-threaded HTP.
+
 endchoice
 
 menu "SoC configuration"

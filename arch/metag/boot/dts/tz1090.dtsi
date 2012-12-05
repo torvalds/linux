@@ -1,0 +1,29 @@
+/*
+ * Copyright (C) 2012 Imagination Technologies Ltd.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	compatible = "toumaz,tz1090", "img,meta";
+
+	interrupt-parent = <&intc>;
+
+	intc: interrupt-controller {
+		compatible = "img,meta-intc";
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		num-banks = <2>;
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+	};
+};
