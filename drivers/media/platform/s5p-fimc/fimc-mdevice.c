@@ -627,7 +627,7 @@ static int __fimc_md_create_flite_source_links(struct fimc_md *fmd)
  */
 static int fimc_md_create_links(struct fimc_md *fmd)
 {
-	struct v4l2_subdev *csi_sensors[2] = { NULL };
+	struct v4l2_subdev *csi_sensors[CSIS_MAX_ENTITIES] = { NULL };
 	struct v4l2_subdev *sensor, *csis;
 	struct s5p_fimc_isp_info *pdata;
 	struct fimc_sensor_info *s_info;
@@ -692,7 +692,7 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 						       pad, link_mask);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(fmd->csis); i++) {
+	for (i = 0; i < CSIS_MAX_ENTITIES; i++) {
 		if (fmd->csis[i].sd == NULL)
 			continue;
 		source = &fmd->csis[i].sd->entity;
