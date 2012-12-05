@@ -1875,8 +1875,6 @@
 #define   PFIT_SCALING_PILLAR	(2 << 26)
 #define   PFIT_SCALING_LETTER	(3 << 26)
 #define PFIT_PGM_RATIOS	0x61234
-#define   PFIT_VERT_SCALE_MASK			0xfff00000
-#define   PFIT_HORIZ_SCALE_MASK			0x0000fff0
 /* Pre-965 */
 #define		PFIT_VERT_SCALE_SHIFT		20
 #define		PFIT_VERT_SCALE_MASK		0xfff00000
@@ -3799,8 +3797,6 @@
 #define  TRANS_FSYNC_DELAY_HB2  (1<<27)
 #define  TRANS_FSYNC_DELAY_HB3  (2<<27)
 #define  TRANS_FSYNC_DELAY_HB4  (3<<27)
-#define  TRANS_DP_AUDIO_ONLY    (1<<26)
-#define  TRANS_DP_VIDEO_AUDIO   (0<<26)
 #define  TRANS_INTERLACE_MASK   (7<<21)
 #define  TRANS_PROGRESSIVE      (0<<21)
 #define  TRANS_INTERLACED       (3<<21)
