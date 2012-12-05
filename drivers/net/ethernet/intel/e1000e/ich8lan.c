@@ -2077,6 +2077,8 @@ static s32 e1000_lv_phy_workarounds_ich8lan(struct e1000_hw *hw)
 
 	/* Set MDIO slow mode before any other MDIO access */
 	ret_val = e1000_set_mdio_slow_mode_hv(hw);
+	if (ret_val)
+		return ret_val;
 
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val)
