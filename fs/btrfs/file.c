@@ -1859,9 +1859,9 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	struct btrfs_path *path;
 	struct btrfs_block_rsv *rsv;
 	struct btrfs_trans_handle *trans;
-	u64 mask = BTRFS_I(inode)->root->sectorsize - 1;
-	u64 lockstart = (offset + mask) & ~mask;
-	u64 lockend = ((offset + len) & ~mask) - 1;
+	u64 lockstart = round_up(offset, BTRFS_I(inode)->root->sectorsize);
+	u64 lockend = round_down(offset + len,
+				 BTRFS_I(inode)->root->sectorsize) - 1;
 	u64 cur_offset = lockstart;
 	u64 min_size = btrfs_calc_trunc_metadata_size(root, 1);
 	u64 drop_end;
@@ -1896,10 +1896,12 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	}
 
 	/* zero the front end of the last page */
-	ret = btrfs_truncate_page(inode, offset + len, 0, 1);
-	if (ret) {
-		mutex_unlock(&inode->i_mutex);
-		return ret;
+	if (offset + len < round_up(inode->i_size, PAGE_CACHE_SIZE)) {
+		ret = btrfs_truncate_page(inode, offset + len, 0, 1);
+		if (ret) {
+			mutex_unlock(&inode->i_mutex);
+			return ret;
+		}
 	}
 
 	if (lockend < lockstart) {
