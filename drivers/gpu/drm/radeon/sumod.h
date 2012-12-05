@@ -136,6 +136,16 @@
 #define CG_SCLK_STATUS                                  0x604
 #       define SCLK_OVERCLK_DETECT                      (1 << 2)
 
+#define CG_DCLK_CNTL                                    0x610
+#       define DCLK_DIVIDER_MASK                        0x7f
+#       define DCLK_DIR_CNTL_EN                         (1 << 8)
+#define CG_DCLK_STATUS                                  0x614
+#       define DCLK_STATUS                              (1 << 0)
+#define CG_VCLK_CNTL                                    0x618
+#       define VCLK_DIVIDER_MASK                        0x7f
+#       define VCLK_DIR_CNTL_EN                         (1 << 8)
+#define CG_VCLK_STATUS                                  0x61c
+
 #define GENERAL_PWRMGT                                  0x63c
 #       define STATIC_PM_EN                             (1 << 1)
 
