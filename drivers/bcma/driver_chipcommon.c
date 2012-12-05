@@ -10,6 +10,7 @@
  */
 
 #include "bcma_private.h"
+#include <linux/bcm47xx_wdt.h>
 #include <linux/export.h>
 #include <linux/bcma/bcma.h>
 
@@ -52,6 +53,39 @@ static u32 bcma_chipco_watchdog_get_max_timer(struct bcma_drv_cc *cc)
 		return (1 << nb) - 1;
 }
 
+static u32 bcma_chipco_watchdog_timer_set_wdt(struct bcm47xx_wdt *wdt,
+					      u32 ticks)
+{
+	struct bcma_drv_cc *cc = bcm47xx_wdt_get_drvdata(wdt);
+
+	return bcma_chipco_watchdog_timer_set(cc, ticks);
+}
+
+static u32 bcma_chipco_watchdog_timer_set_ms_wdt(struct bcm47xx_wdt *wdt,
+						 u32 ms)
+{
+	struct bcma_drv_cc *cc = bcm47xx_wdt_get_drvdata(wdt);
+	u32 ticks;
+
+	ticks = bcma_chipco_watchdog_timer_set(cc, cc->ticks_per_ms * ms);
+	return ticks / cc->ticks_per_ms;
+}
+
+static int bcma_chipco_watchdog_ticks_per_ms(struct bcma_drv_cc *cc)
+{
+	struct bcma_bus *bus = cc->core->bus;
+
+	if (cc->capabilities & BCMA_CC_CAP_PMU) {
+		if (bus->chipinfo.id == BCMA_CHIP_ID_BCM4706)
+			/* 4706 CC and PMU watchdogs are clocked at 1/4 of ALP clock */
+			return bcma_chipco_alp_clock(cc) / 4000;
+		else
+			/* based on 32KHz ILP clock */
+			return 32;
+	} else {
+		return bcma_chipco_alp_clock(cc) / 1000;
+	}
+}
 
 void bcma_core_chipcommon_early_init(struct bcma_drv_cc *cc)
 {
@@ -100,12 +134,13 @@ void bcma_core_chipcommon_init(struct bcma_drv_cc *cc)
 			((leddc_on << BCMA_CC_GPIOTIMER_ONTIME_SHIFT) |
 			 (leddc_off << BCMA_CC_GPIOTIMER_OFFTIME_SHIFT)));
 	}
+	cc->ticks_per_ms = bcma_chipco_watchdog_ticks_per_ms(cc);
 
 	cc->setup_done = true;
 }
 
 /* Set chip watchdog reset timer to fire in 'ticks' backplane cycles */
-void bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc, u32 ticks)
+u32 bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc, u32 ticks)
 {
 	u32 maxt;
 	enum bcma_clkmode clkmode;
@@ -125,6 +160,7 @@ void bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc, u32 ticks)
 		/* instant NMI */
 		bcma_cc_write32(cc, BCMA_CC_WATCHDOG, ticks);
 	}
+	return ticks;
 }
 
 void bcma_chipco_irq_mask(struct bcma_drv_cc *cc, u32 mask, u32 value)
