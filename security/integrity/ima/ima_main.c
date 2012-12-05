@@ -146,7 +146,7 @@ static int process_measurement(struct file *file, const char *filename,
 	struct integrity_iint_cache *iint;
 	char *pathbuf = NULL;
 	const char *pathname = NULL;
-	int rc = -ENOMEM, action, must_appraise;
+	int rc = -ENOMEM, action, must_appraise, _func;
 
 	if (!ima_initialized || !S_ISREG(inode->i_mode))
 		return 0;
@@ -160,6 +160,9 @@ static int process_measurement(struct file *file, const char *filename,
 		return 0;
 
 	must_appraise = action & IMA_APPRAISE;
+
+	/*  Is the appraise rule hook specific?  */
+	_func = (action & IMA_FILE_APPRAISE) ? FILE_CHECK : function;
 
 	mutex_lock(&inode->i_mutex);
 
@@ -178,7 +181,7 @@ static int process_measurement(struct file *file, const char *filename,
 	/* Nothing to do, just return existing appraised status */
 	if (!action) {
 		if (must_appraise)
-			rc = ima_get_cache_status(iint, function);
+			rc = ima_get_cache_status(iint, _func);
 		goto out_digsig;
 	}
 
@@ -195,7 +198,7 @@ static int process_measurement(struct file *file, const char *filename,
 	if (action & IMA_MEASURE)
 		ima_store_measurement(iint, file, pathname);
 	if (action & IMA_APPRAISE_SUBMASK)
-		rc = ima_appraise_measurement(function, iint, file, pathname);
+		rc = ima_appraise_measurement(_func, iint, file, pathname);
 	if (action & IMA_AUDIT)
 		ima_audit_measurement(iint, pathname);
 	kfree(pathbuf);

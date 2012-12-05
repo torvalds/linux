@@ -220,10 +220,13 @@ retry:
 
 /*
  * In addition to knowing that we need to appraise the file in general,
- * we need to differentiate between calling hooks.
+ * we need to differentiate between calling hooks, for hook specific rules.
  */
-static int get_subaction(int func)
+static int get_subaction(struct ima_rule_entry *rule, int func)
 {
+	if (!(rule->flags & IMA_FUNC))
+		return IMA_FILE_APPRAISE;
+
 	switch(func) {
 	case MMAP_CHECK:
 		return IMA_MMAP_APPRAISE;
@@ -268,7 +271,7 @@ int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
 
 		action |= entry->action & IMA_DO_MASK;
 		if (entry->action & IMA_APPRAISE)
-			action |= get_subaction(func);
+			action |= get_subaction(entry, func);
 
 		if (entry->action & IMA_DO_MASK)
 			actmask &= ~(entry->action | entry->action << 1);
