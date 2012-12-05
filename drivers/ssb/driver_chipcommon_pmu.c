@@ -618,6 +618,33 @@ void ssb_pmu_set_ldo_paref(struct ssb_chipcommon *cc, bool on)
 EXPORT_SYMBOL(ssb_pmu_set_ldo_voltage);
 EXPORT_SYMBOL(ssb_pmu_set_ldo_paref);
 
+static u32 ssb_pmu_get_alp_clock_clk0(struct ssb_chipcommon *cc)
+{
+	u32 crystalfreq;
+	const struct pmu0_plltab_entry *e = NULL;
+
+	crystalfreq = chipco_read32(cc, SSB_CHIPCO_PMU_CTL) &
+		      SSB_CHIPCO_PMU_CTL_XTALFREQ >> SSB_CHIPCO_PMU_CTL_XTALFREQ_SHIFT;
+	e = pmu0_plltab_find_entry(crystalfreq);
+	BUG_ON(!e);
+	return e->freq * 1000;
+}
+
+u32 ssb_pmu_get_alp_clock(struct ssb_chipcommon *cc)
+{
+	struct ssb_bus *bus = cc->dev->bus;
+
+	switch (bus->chip_id) {
+	case 0x5354:
+		ssb_pmu_get_alp_clock_clk0(cc);
+	default:
+		ssb_printk(KERN_ERR PFX
+			   "ERROR: PMU alp clock unknown for device %04X\n",
+			   bus->chip_id);
+		return 0;
+	}
+}
+
 u32 ssb_pmu_get_cpu_clock(struct ssb_chipcommon *cc)
 {
 	struct ssb_bus *bus = cc->dev->bus;

@@ -280,6 +280,14 @@ static void calc_fast_powerup_delay(struct ssb_chipcommon *cc)
 	cc->fast_pwrup_delay = tmp;
 }
 
+static u32 ssb_chipco_alp_clock(struct ssb_chipcommon *cc)
+{
+	if (cc->capabilities & SSB_CHIPCO_CAP_PMU)
+		return ssb_pmu_get_alp_clock(cc);
+
+	return 20000000;
+}
+
 void ssb_chipcommon_init(struct ssb_chipcommon *cc)
 {
 	if (!cc->dev)
@@ -473,12 +481,7 @@ int ssb_chipco_serial_init(struct ssb_chipcommon *cc,
 				       chipco_read32(cc, SSB_CHIPCO_CORECTL)
 				       | SSB_CHIPCO_CORECTL_UARTCLK0);
 		} else if ((ccrev >= 11) && (ccrev != 15)) {
-			/* Fixed ALP clock */
-			baud_base = 20000000;
-			if (cc->capabilities & SSB_CHIPCO_CAP_PMU) {
-				/* FIXME: baud_base is different for devices with a PMU */
-				SSB_WARN_ON(1);
-			}
+			baud_base = ssb_chipco_alp_clock(cc);
 			div = 1;
 			if (ccrev >= 21) {
 				/* Turn off UART clock before switching clocksource. */
