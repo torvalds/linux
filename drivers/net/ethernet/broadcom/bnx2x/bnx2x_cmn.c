@@ -2396,6 +2396,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 	if (bp->port.pmf)
 		bnx2x_initial_phy_init(bp, load_mode);
+	bp->link_params.feature_config_flags &= ~FEATURE_CONFIG_BOOT_FROM_SAN;
 
 	/* Start fast path */
 

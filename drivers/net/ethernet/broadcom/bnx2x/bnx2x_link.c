@@ -254,6 +254,12 @@ static int bnx2x_check_lfa(struct link_params *params)
 	if (!(link_status & LINK_STATUS_LINK_UP))
 		return LFA_LINK_DOWN;
 
+	/* if loaded after BOOT from SAN, don't flap the link in any case and
+	 * rely on link set by preboot driver
+	 */
+	if (params->feature_config_flags & FEATURE_CONFIG_BOOT_FROM_SAN)
+		return 0;
+
 	/* Verify that loopback mode is not set */
 	if (params->loopback_mode)
 		return LFA_LOOPBACK_ENABLED;

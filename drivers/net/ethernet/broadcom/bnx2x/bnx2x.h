@@ -1186,6 +1186,7 @@ struct bnx2x_prev_path_list {
 	u8 slot;
 	u8 path;
 	struct list_head list;
+	u8 undi;
 };
 
 struct bnx2x_sp_objs {

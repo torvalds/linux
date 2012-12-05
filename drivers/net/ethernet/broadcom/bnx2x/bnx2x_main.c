@@ -9515,6 +9515,20 @@ static int bnx2x_prev_mcp_done(struct bnx2x *bp)
 	return 0;
 }
 
+static struct bnx2x_prev_path_list *
+		bnx2x_prev_path_get_entry(struct bnx2x *bp)
+{
+	struct bnx2x_prev_path_list *tmp_list;
+
+	list_for_each_entry(tmp_list, &bnx2x_prev_list, list)
+		if (PCI_SLOT(bp->pdev->devfn) == tmp_list->slot &&
+		    bp->pdev->bus->number == tmp_list->bus &&
+		    BP_PATH(bp) == tmp_list->path)
+			return tmp_list;
+
+	return NULL;
+}
+
 static bool bnx2x_prev_is_path_marked(struct bnx2x *bp)
 {
 	struct bnx2x_prev_path_list *tmp_list;
@@ -9539,7 +9553,7 @@ static bool bnx2x_prev_is_path_marked(struct bnx2x *bp)
 	return rc;
 }
 
-static int bnx2x_prev_mark_path(struct bnx2x *bp)
+static int bnx2x_prev_mark_path(struct bnx2x *bp, bool after_undi)
 {
 	struct bnx2x_prev_path_list *tmp_list;
 	int rc;
@@ -9553,6 +9567,7 @@ static int bnx2x_prev_mark_path(struct bnx2x *bp)
 	tmp_list->bus = bp->pdev->bus->number;
 	tmp_list->slot = PCI_SLOT(bp->pdev->devfn);
 	tmp_list->path = BP_PATH(bp);
+	tmp_list->undi = after_undi ? (1 << BP_PORT(bp)) : 0;
 
 	rc = down_interruptible(&bnx2x_prev_sem);
 	if (rc) {
@@ -9649,6 +9664,7 @@ static int bnx2x_prev_unload_uncommon(struct bnx2x *bp)
 static int bnx2x_prev_unload_common(struct bnx2x *bp)
 {
 	u32 reset_reg, tmp_reg = 0, rc;
+	bool prev_undi = false;
 	/* It is possible a previous function received 'common' answer,
 	 * but hasn't loaded yet, therefore creating a scenario of
 	 * multiple functions receiving 'common' on the same path.
@@ -9663,7 +9679,6 @@ static int bnx2x_prev_unload_common(struct bnx2x *bp)
 	/* Reset should be performed after BRB is emptied */
 	if (reset_reg & MISC_REGISTERS_RESET_REG_1_RST_BRB1) {
 		u32 timer_count = 1000;
-		bool prev_undi = false;
 
 		/* Close the MAC Rx to prevent BRB from filling up */
 		bnx2x_prev_unload_close_mac(bp);
@@ -9713,7 +9728,7 @@ static int bnx2x_prev_unload_common(struct bnx2x *bp)
 	/* No packets are in the pipeline, path is ready for reset */
 	bnx2x_reset_common(bp);
 
-	rc = bnx2x_prev_mark_path(bp);
+	rc = bnx2x_prev_mark_path(bp, prev_undi);
 	if (rc) {
 		bnx2x_prev_mcp_done(bp);
 		return rc;
@@ -9745,6 +9760,7 @@ static int bnx2x_prev_unload(struct bnx2x *bp)
 {
 	int time_counter = 10;
 	u32 rc, fw, hw_lock_reg, hw_lock_val;
+	struct bnx2x_prev_path_list *prev_list;
 	BNX2X_DEV_INFO("Entering Previous Unload Flow\n");
 
 	/* clear hw from errors which may have resulted from an interrupted
@@ -9802,6 +9818,12 @@ static int bnx2x_prev_unload(struct bnx2x *bp)
 		BNX2X_ERR("Failed unloading previous driver, aborting\n");
 		rc = -EBUSY;
 	}
+
+	/* Mark function if its port was used to boot from SAN */
+	prev_list = bnx2x_prev_path_get_entry(bp);
+	if (prev_list && (prev_list->undi & (1 << BP_PORT(bp))))
+		bp->link_params.feature_config_flags |=
+			FEATURE_CONFIG_BOOT_FROM_SAN;
 
 	BNX2X_DEV_INFO("Finished Previous Unload Flow [%d]\n", rc);
 
