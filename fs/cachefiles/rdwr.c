@@ -361,8 +361,10 @@ out:
 
 read_error:
 	_debug("read error %d", ret);
-	if (ret == -ENOMEM)
+	if (ret == -ENOMEM) {
+		fscache_retrieval_complete(op, 1);
 		goto out;
+	}
 io_error:
 	cachefiles_io_error_obj(object, "Page read error on backing file");
 	fscache_retrieval_complete(op, 1);
@@ -551,6 +553,7 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 		if (ret < 0) {
 			if (ret == -EEXIST) {
 				page_cache_release(netpage);
+				fscache_retrieval_complete(op, 1);
 				continue;
 			}
 			goto nomem;
@@ -627,6 +630,7 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 		if (ret < 0) {
 			if (ret == -EEXIST) {
 				page_cache_release(netpage);
+				fscache_retrieval_complete(op, 1);
 				continue;
 			}
 			goto nomem;
@@ -645,9 +649,9 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 
 		/* the netpage is unlocked and marked up to date here */
 		fscache_end_io(op, netpage, 0);
-		fscache_retrieval_complete(op, 1);
 		page_cache_release(netpage);
 		netpage = NULL;
+		fscache_retrieval_complete(op, 1);
 		continue;
 	}
 
@@ -682,15 +686,17 @@ out:
 nomem:
 	_debug("nomem");
 	ret = -ENOMEM;
-	goto out;
+	goto record_page_complete;
 
 read_error:
 	_debug("read error %d", ret);
 	if (ret == -ENOMEM)
-		goto out;
+		goto record_page_complete;
 io_error:
 	cachefiles_io_error_obj(object, "Page read error on backing file");
 	ret = -ENOBUFS;
+record_page_complete:
+	fscache_retrieval_complete(op, 1);
 	goto out;
 }
 

@@ -329,6 +329,8 @@ check_if_dead:
 		return -ENOBUFS;
 	}
 	if (unlikely(fscache_object_is_dead(object))) {
+		pr_err("%s() = -ENOBUFS [obj dead %d]", __func__, op->op.state);
+		fscache_cancel_op(&op->op);
 		fscache_stat(stat_object_dead);
 		return -ENOBUFS;
 	}
