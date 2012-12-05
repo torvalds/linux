@@ -3,7 +3,7 @@
 
 #include <linux/delay.h>
 
-#define ZPCI_INSN_BUSY_DELAY	1	/* 1 millisecond */
+#define ZPCI_INSN_BUSY_DELAY	1	/* 1 microsecond */
 
 /* Load/Store status codes */
 #define ZPCI_PCI_ST_FUNC_NOT_ENABLED		4
@@ -138,7 +138,7 @@ static inline int rpcit_instr(u64 fn, u64 addr, u64 range)
 	do {
 		cc = __rpcit(fn, addr, range, &status);
 		if (cc == 2)
-			msleep(ZPCI_INSN_BUSY_DELAY);
+			udelay(ZPCI_INSN_BUSY_DELAY);
 	} while (cc == 2);
 
 	if (cc)
@@ -198,7 +198,7 @@ static inline int pcilg_instr(u64 *data, u64 req, u64 offset)
 	do {
 		cc = __pcilg(data, req, offset, &status);
 		if (cc == 2)
-			msleep(ZPCI_INSN_BUSY_DELAY);
+			udelay(ZPCI_INSN_BUSY_DELAY);
 	} while (cc == 2);
 
 	if (cc) {
@@ -236,7 +236,7 @@ static inline int pcistg_instr(u64 data, u64 req, u64 offset)
 	do {
 		cc = __pcistg(data, req, offset, &status);
 		if (cc == 2)
-			msleep(ZPCI_INSN_BUSY_DELAY);
+			udelay(ZPCI_INSN_BUSY_DELAY);
 	} while (cc == 2);
 
 	if (cc)
@@ -268,7 +268,7 @@ static inline int pcistb_instr(const u64 *data, u64 req, u64 offset)
 	do {
 		cc = __pcistb(data, req, offset, &status);
 		if (cc == 2)
-			msleep(ZPCI_INSN_BUSY_DELAY);
+			udelay(ZPCI_INSN_BUSY_DELAY);
 	} while (cc == 2);
 
 	if (cc)
