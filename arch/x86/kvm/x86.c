@@ -6461,6 +6461,10 @@ static int kvm_vcpu_reset(struct kvm_vcpu *vcpu)
 
 	kvm_pmu_reset(vcpu);
 
+	memset(vcpu->arch.regs, 0, sizeof(vcpu->arch.regs));
+	vcpu->arch.regs_avail = ~0;
+	vcpu->arch.regs_dirty = ~0;
+
 	return kvm_x86_ops->vcpu_reset(vcpu);
 }
 
@@ -6629,11 +6633,17 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	if (!zalloc_cpumask_var(&vcpu->arch.wbinvd_dirty_mask, GFP_KERNEL))
 		goto fail_free_mce_banks;
 
+	r = fx_init(vcpu);
+	if (r)
+		goto fail_free_wbinvd_dirty_mask;
+
 	vcpu->arch.ia32_tsc_adjust_msr = 0x0;
 	kvm_async_pf_hash_reset(vcpu);
 	kvm_pmu_init(vcpu);
 
 	return 0;
+fail_free_wbinvd_dirty_mask:
+	free_cpumask_var(vcpu->arch.wbinvd_dirty_mask);
 fail_free_mce_banks:
 	kfree(vcpu->arch.mce_banks);
 fail_free_lapic:
