@@ -61,11 +61,6 @@
 #include "xattr.h"
 #include "acl.h"
 
-#define BHDR(bh) ((struct ext4_xattr_header *)((bh)->b_data))
-#define ENTRY(ptr) ((struct ext4_xattr_entry *)(ptr))
-#define BFIRST(bh) ENTRY(BHDR(bh)+1)
-#define IS_LAST_ENTRY(entry) (*(__u32 *)(entry) == 0)
-
 #ifdef EXT4_XATTR_DEBUG
 # define ea_idebug(inode, f...) do { \
 		printk(KERN_DEBUG "inode %s:%lu: ", \
@@ -312,7 +307,7 @@ cleanup:
 	return error;
 }
 
-static int
+int
 ext4_xattr_ibody_get(struct inode *inode, int name_index, const char *name,
 		     void *buffer, size_t buffer_size)
 {
@@ -580,21 +575,6 @@ static size_t ext4_xattr_free_space(struct ext4_xattr_entry *last,
 	}
 	return (*min_offs - ((void *)last - base) - sizeof(__u32));
 }
-
-struct ext4_xattr_info {
-	int name_index;
-	const char *name;
-	const void *value;
-	size_t value_len;
-};
-
-struct ext4_xattr_search {
-	struct ext4_xattr_entry *first;
-	void *base;
-	void *end;
-	struct ext4_xattr_entry *here;
-	int not_found;
-};
 
 static int
 ext4_xattr_set_entry(struct ext4_xattr_info *i, struct ext4_xattr_search *s)
@@ -949,14 +929,8 @@ bad_block:
 #undef header
 }
 
-struct ext4_xattr_ibody_find {
-	struct ext4_xattr_search s;
-	struct ext4_iloc iloc;
-};
-
-static int
-ext4_xattr_ibody_find(struct inode *inode, struct ext4_xattr_info *i,
-		      struct ext4_xattr_ibody_find *is)
+int ext4_xattr_ibody_find(struct inode *inode, struct ext4_xattr_info *i,
+			  struct ext4_xattr_ibody_find *is)
 {
 	struct ext4_xattr_ibody_header *header;
 	struct ext4_inode *raw_inode;
@@ -984,10 +958,9 @@ ext4_xattr_ibody_find(struct inode *inode, struct ext4_xattr_info *i,
 	return 0;
 }
 
-static int
-ext4_xattr_ibody_set(handle_t *handle, struct inode *inode,
-		     struct ext4_xattr_info *i,
-		     struct ext4_xattr_ibody_find *is)
+int ext4_xattr_ibody_set(handle_t *handle, struct inode *inode,
+			 struct ext4_xattr_info *i,
+			 struct ext4_xattr_ibody_find *is)
 {
 	struct ext4_xattr_ibody_header *header;
 	struct ext4_xattr_search *s = &is->s;

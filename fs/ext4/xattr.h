@@ -65,6 +65,32 @@ struct ext4_xattr_entry {
 		EXT4_I(inode)->i_extra_isize))
 #define IFIRST(hdr) ((struct ext4_xattr_entry *)((hdr)+1))
 
+#define BHDR(bh) ((struct ext4_xattr_header *)((bh)->b_data))
+#define ENTRY(ptr) ((struct ext4_xattr_entry *)(ptr))
+#define BFIRST(bh) ENTRY(BHDR(bh)+1)
+#define IS_LAST_ENTRY(entry) (*(__u32 *)(entry) == 0)
+
+
+struct ext4_xattr_info {
+	int name_index;
+	const char *name;
+	const void *value;
+	size_t value_len;
+};
+
+struct ext4_xattr_search {
+	struct ext4_xattr_entry *first;
+	void *base;
+	void *end;
+	struct ext4_xattr_entry *here;
+	int not_found;
+};
+
+struct ext4_xattr_ibody_find {
+	struct ext4_xattr_search s;
+	struct ext4_iloc iloc;
+};
+
 # ifdef CONFIG_EXT4_FS_XATTR
 
 extern const struct xattr_handler ext4_xattr_user_handler;
@@ -89,6 +115,15 @@ extern int __init ext4_init_xattr(void);
 extern void ext4_exit_xattr(void);
 
 extern const struct xattr_handler *ext4_xattr_handlers[];
+
+extern int ext4_xattr_ibody_find(struct inode *inode, struct ext4_xattr_info *i,
+				 struct ext4_xattr_ibody_find *is);
+extern int ext4_xattr_ibody_get(struct inode *inode, int name_index,
+				const char *name,
+				void *buffer, size_t buffer_size);
+extern int ext4_xattr_ibody_set(handle_t *handle, struct inode *inode,
+				struct ext4_xattr_info *i,
+				struct ext4_xattr_ibody_find *is);
 
 # else  /* CONFIG_EXT4_FS_XATTR */
 
@@ -142,6 +177,29 @@ ext4_expand_extra_isize_ea(struct inode *inode, int new_extra_isize,
 }
 
 #define ext4_xattr_handlers	NULL
+
+static inline int
+ext4_xattr_ibody_find(struct inode *inode, struct ext4_xattr_info *i,
+		      struct ext4_xattr_ibody_find *is)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+ext4_xattr_ibody_set(handle_t *handle, struct inode *inode,
+		     struct ext4_xattr_info *i,
+		     struct ext4_xattr_ibody_find *is)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+ext4_xattr_ibody_get(struct inode *inode, int name_index,
+		     const char *name,
+		     void *buffer, size_t buffer_size)
+{
+	return -EOPNOTSUPP;
+}
 
 # endif  /* CONFIG_EXT4_FS_XATTR */
 
