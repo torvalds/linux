@@ -37,6 +37,7 @@ obj-$(CONFIG_ARCH_SHMOBILE)	+= pm-rmobile.o
 obj-$(CONFIG_ARCH_SH7372)	+= pm-sh7372.o sleep-sh7372.o
 obj-$(CONFIG_ARCH_R8A7740)	+= pm-r8a7740.o
 obj-$(CONFIG_ARCH_R8A7779)	+= pm-r8a7779.o
+obj-$(CONFIG_ARCH_SH73A0)	+= pm-sh73a0.o
 
 # Board objects
 obj-$(CONFIG_MACH_AP4EVB)	+= board-ap4evb.o
