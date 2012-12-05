@@ -1671,7 +1671,7 @@ static irqreturn_t e1000_intr_msi(int irq, void *data)
 			/* disable receives */
 			u32 rctl = er32(RCTL);
 			ew32(RCTL, rctl & ~E1000_RCTL_EN);
-			adapter->flags |= FLAG_RX_RESTART_NOW;
+			adapter->flags |= FLAG_RESTART_NOW;
 		}
 		/* guard against interrupt when we're going down */
 		if (!test_bit(__E1000_DOWN, &adapter->state))
@@ -1734,7 +1734,7 @@ static irqreturn_t e1000_intr(int irq, void *data)
 			/* disable receives */
 			rctl = er32(RCTL);
 			ew32(RCTL, rctl & ~E1000_RCTL_EN);
-			adapter->flags |= FLAG_RX_RESTART_NOW;
+			adapter->flags |= FLAG_RESTART_NOW;
 		}
 		/* guard against interrupt when we're going down */
 		if (!test_bit(__E1000_DOWN, &adapter->state))
@@ -3013,7 +3013,7 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 
 	ew32(RCTL, rctl);
 	/* just started the receive unit, no need to restart */
-	adapter->flags &= ~FLAG_RX_RESTART_NOW;
+	adapter->flags &= ~FLAG_RESTART_NOW;
 }
 
 /**
@@ -4355,11 +4355,11 @@ static void e1000e_enable_receives(struct e1000_adapter *adapter)
 {
 	/* make sure the receive unit is started */
 	if ((adapter->flags & FLAG_RX_NEEDS_RESTART) &&
-	    (adapter->flags & FLAG_RX_RESTART_NOW)) {
+	    (adapter->flags & FLAG_RESTART_NOW)) {
 		struct e1000_hw *hw = &adapter->hw;
 		u32 rctl = er32(RCTL);
 		ew32(RCTL, rctl | E1000_RCTL_EN);
-		adapter->flags &= ~FLAG_RX_RESTART_NOW;
+		adapter->flags &= ~FLAG_RESTART_NOW;
 	}
 }
 
@@ -4528,8 +4528,16 @@ static void e1000_watchdog_task(struct work_struct *work)
 				mod_timer(&adapter->phy_info_timer,
 					  round_jiffies(jiffies + 2 * HZ));
 
-			if (adapter->flags & FLAG_RX_NEEDS_RESTART)
-				schedule_work(&adapter->reset_task);
+			/* The link is lost so the controller stops DMA.
+			 * If there is queued Tx work that cannot be done
+			 * or if on an 8000ES2LAN which requires a Rx packet
+			 * buffer work-around on link down event, reset the
+			 * controller to flush the Tx/Rx packet buffers.
+			 * (Do the reset outside of interrupt context).
+			 */
+			if ((adapter->flags & FLAG_RX_NEEDS_RESTART) ||
+			    (e1000_desc_unused(tx_ring) + 1 < tx_ring->count))
+				adapter->flags |= FLAG_RESTART_NOW;
 			else
 				pm_schedule_suspend(netdev->dev.parent,
 							LINK_TIMEOUT);
@@ -4551,19 +4559,13 @@ link_up:
 	adapter->gotc_old = adapter->stats.gotc;
 	spin_unlock(&adapter->stats64_lock);
 
-	e1000e_update_adaptive(&adapter->hw);
-
-	if (!netif_carrier_ok(netdev) &&
-	    (e1000_desc_unused(tx_ring) + 1 < tx_ring->count)) {
-		/* We've lost link, so the controller stops DMA,
-		 * but we've got queued Tx work that's never going
-		 * to get done, so reset controller to flush Tx.
-		 * (Do the reset outside of interrupt context).
-		 */
+	if (adapter->flags & FLAG_RESTART_NOW) {
 		schedule_work(&adapter->reset_task);
 		/* return immediately since reset is imminent */
 		return;
 	}
+
+	e1000e_update_adaptive(&adapter->hw);
 
 	/* Simple mode for Interrupt Throttle Rate (ITR) */
 	if (adapter->itr_setting == 4) {
@@ -5134,10 +5136,9 @@ static void e1000_reset_task(struct work_struct *work)
 	if (test_bit(__E1000_DOWN, &adapter->state))
 		return;
 
-	if (!((adapter->flags & FLAG_RX_NEEDS_RESTART) &&
-	      (adapter->flags & FLAG_RX_RESTART_NOW))) {
+	if (!(adapter->flags & FLAG_RESTART_NOW)) {
 		e1000e_dump(adapter);
-		e_err("Reset adapter\n");
+		e_err("Reset adapter unexpectedly\n");
 	}
 	e1000e_reinit_locked(adapter);
 }
