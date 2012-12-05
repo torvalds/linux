@@ -220,7 +220,7 @@ void free_ieee80211(struct net_device *dev)
 
 #ifdef CONFIG_IEEE80211_DEBUG
 
-u32 ieee80211_debug_level = 0;
+u32 ieee80211_debug_level;
 static int debug = \
 	//		    IEEE80211_DL_INFO	|
 	//		    IEEE80211_DL_WX	|
@@ -241,7 +241,7 @@ static int debug = \
 			    //IEEE80211_DL_DATA	|
 			    IEEE80211_DL_ERR	  //awayls open this flags to show error out
 			    ;
-struct proc_dir_entry *ieee80211_proc = NULL;
+struct proc_dir_entry *ieee80211_proc;
 
 static int show_debug_level(char *page, char **start, off_t offset,
 			    int count, int *eof, void *data)
