@@ -559,8 +559,7 @@ typedef enum _WIRELESS_MODE {
 
 #define RTL_IOCTL_WPA_SUPPLICANT		SIOCIWFIRSTPRIV+30
 
-typedef struct buffer
-{
+typedef struct buffer {
 	struct buffer *next;
 	u32 *buf;
 
@@ -600,8 +599,7 @@ typedef struct _RT_SMOOTH_DATA_4RF {
 
 #define MAX_8192U_RX_SIZE			8192    // This maybe changed for D-cut larger aggregation size
 //stats seems messed up, clean it ASAP
-typedef struct Stats
-{
+typedef struct Stats {
 	unsigned long txrdu;
 //	unsigned long rxrdu;
 	//unsigned long rxnolast;
@@ -748,8 +746,7 @@ typedef enum _RT_RF_TYPE_819xU{
         RF_PSEUDO_11N = 4,
 }RT_RF_TYPE_819xU, *PRT_RF_TYPE_819xU;
 
-typedef struct _rate_adaptive
-{
+typedef struct _rate_adaptive {
 	u8				rate_adaptive_disabled;
 	u8				ratr_state;
 	u16				reserve;
@@ -775,21 +772,18 @@ typedef struct _rate_adaptive
 #define TxBBGainTableLength 37
 #define	CCKTxBBGainTableLength 23
 
-typedef struct _txbbgain_struct
-{
+typedef struct _txbbgain_struct {
 	long	txbb_iq_amplifygain;
 	u32	txbbgain_value;
 } txbbgain_struct, *ptxbbgain_struct;
 
-typedef struct _ccktxbbgain_struct
-{
+typedef struct _ccktxbbgain_struct {
 	//The Value is from a22 to a29 one Byte one time is much Safer
 	u8	ccktxbb_valuearray[8];
 } ccktxbbgain_struct,*pccktxbbgain_struct;
 
 
-typedef struct _init_gain
-{
+typedef struct _init_gain {
 	u8				xaagccore1;
 	u8				xbagccore1;
 	u8				xcagccore1;
@@ -799,8 +793,7 @@ typedef struct _init_gain
 } init_gain, *pinit_gain;
 //by amy 0606
 
-typedef struct _phy_ofdm_rx_status_report_819xusb
-{
+typedef struct _phy_ofdm_rx_status_report_819xusb {
 	u8	trsw_gain_X[4];
 	u8	pwdb_all;
 	u8	cfosho_X[4];
@@ -816,8 +809,7 @@ typedef struct _phy_ofdm_rx_status_report_819xusb
 	u8  rxsc_sgien_exflg;
 }phy_sts_ofdm_819xusb_t;
 
-typedef struct _phy_cck_rx_status_report_819xusb
-{
+typedef struct _phy_cck_rx_status_report_819xusb {
 	/* For CCK rate descriptor. This is a unsigned 8:1 variable. LSB bit presend
 	   0.5. And MSB 7 bts presend a signed value. Range from -64~+63.5. */
 	u8	adc_pwdb_X[4];
@@ -881,8 +873,7 @@ typedef enum _tag_TxCmd_Config_Index{
 	TXCMD_XXXX_CTRL,
 }DCMD_TXCMD_OP;
 
-typedef struct r8192_priv
-{
+typedef struct r8192_priv {
 	struct usb_device *udev;
 	//added for maintain info from eeprom
 	short epromtype;

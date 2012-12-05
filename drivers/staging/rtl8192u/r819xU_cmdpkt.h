@@ -19,8 +19,7 @@
 /*------------------------------Define structure----------------------------*/
 /* Define different command packet structure. */
 /* 1. RX side: TX feedback packet. */
-typedef struct tag_cmd_pkt_tx_feedback
-{
+typedef struct tag_cmd_pkt_tx_feedback {
 	// DWORD 0
 	u8	element_id;			/* Command packet type. */
 	u8	length;				/* Command packet length. */
@@ -57,8 +56,7 @@ typedef struct tag_cmd_pkt_tx_feedback
 
 /* 2. RX side: Interrupt status packet. It includes Beacon State,
 	  Beacon Timer Interrupt and other useful informations in MAC ISR Reg. */
-typedef struct tag_cmd_pkt_interrupt_status
-{
+typedef struct tag_cmd_pkt_interrupt_status {
 	u8	element_id;			/* Command packet type. */
 	u8	length;				/* Command packet length. */
 	u16	reserve;
@@ -67,8 +65,7 @@ typedef struct tag_cmd_pkt_interrupt_status
 
 
 /* 3. TX side: Set configuration packet. */
-typedef struct tag_cmd_pkt_set_configuration
-{
+typedef struct tag_cmd_pkt_set_configuration {
 	u8	element_id;			/* Command packet type. */
 	u8	length;				/* Command packet length. */
 	u16	reserve1;			/* */
@@ -89,8 +86,7 @@ typedef struct tag_cmd_pkt_set_configuration
 #define		cmpk_query_cfg_t	cmpk_set_cfg_t
 
 /* 5. Multi packet feedback status. */
-typedef struct tag_tx_stats_feedback // PJ quick rxcmd 09042007
-{
+typedef struct tag_tx_stats_feedback { // PJ quick rxcmd 09042007
 	// For endian transfer --> Driver will not the same as firmware structure.
 	// DW 0
 	u16	reserve1;
@@ -130,8 +126,7 @@ typedef struct tag_tx_stats_feedback // PJ quick rxcmd 09042007
 
 /* 6. Debug feedback message. */
 /* 2007/10/23 MH Define RX debug message  */
-typedef struct tag_rx_debug_message_feedback
-{
+typedef struct tag_rx_debug_message_feedback {
 	// For endian transfer --> for driver
 	// DW 0
 	u16	reserve1;
@@ -144,8 +139,7 @@ typedef struct tag_rx_debug_message_feedback
 }cmpk_rx_dbginfo_t;
 
 /* 2008/03/20 MH Define transmit rate history. For big endian format. */
-typedef struct tag_tx_rate_history
-{
+typedef struct tag_tx_rate_history {
 	// For endian transfer --> for driver
 	// DW 0
 	u8	element_id;			// Command packet type

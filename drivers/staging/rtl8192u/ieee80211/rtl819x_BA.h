@@ -28,8 +28,7 @@ struct ieee80211_ADDBA_Req{
 //Is this need?I put here just to make it easier to define structure BA_RECORD //WB
 typedef union _SEQUENCE_CONTROL{
 	u16 ShortData;
-	struct
-	{
+	struct {
 		u16	FragNum:4;
 		u16	SeqNum:12;
 	}field;

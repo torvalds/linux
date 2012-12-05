@@ -354,8 +354,7 @@ static int r8192_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 	return ret;
 }
 
-struct  iw_range_with_scan_capa
-{
+struct  iw_range_with_scan_capa {
 	/* Informative stuff (to choose between different interface) */
 	__u32           throughput;     /* To give an idea... */
 	/* In theory this value should be the maximum benchmarked

@@ -67,8 +67,7 @@
 
 /*------------------------------Define structure----------------------------*/
 /* 2007/10/04 MH Define upper and lower threshold of DIG enable or disable. */
-typedef struct _dynamic_initial_gain_threshold_
-{
+typedef struct _dynamic_initial_gain_threshold_ {
 	u8		dig_enable_flag;
 	u8		dig_algorithm;
 	u8		dbg_mode;
@@ -172,8 +171,7 @@ typedef enum tag_dig_cck_cs_ratio_state_definition
 	DIG_CS_RATIO_HIGHER = 1,
 	DIG_CS_MAX
 }dm_dig_cs_ratio_e;
-typedef struct _Dynamic_Rx_Path_Selection_
-{
+typedef struct _Dynamic_Rx_Path_Selection_ {
 	u8		Enable;
 	u8		DbgMode;
 	u8		cck_method;
@@ -203,8 +201,7 @@ typedef enum tag_DM_DbgMode_Definition
 	DM_DBG_MAX
 }DM_DBG_E;
 
-typedef struct tag_Tx_Config_Cmd_Format
-{
+typedef struct tag_Tx_Config_Cmd_Format {
 	u32	Op;										/* Command packet type. */
 	u32	Length;									/* Command packet length. */
 	u32	Value;

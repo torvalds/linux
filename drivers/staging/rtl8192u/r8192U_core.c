@@ -164,8 +164,7 @@ static struct usb_driver rtl8192_usb_driver = {
 };
 
 
-typedef struct _CHANNEL_LIST
-{
+typedef struct _CHANNEL_LIST {
 	u8	Channel[32];
 	u8	Len;
 }CHANNEL_LIST, *PCHANNEL_LIST;

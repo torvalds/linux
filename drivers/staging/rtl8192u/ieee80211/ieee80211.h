@@ -1655,8 +1655,7 @@ typedef struct tx_pending_t{
 	struct ieee80211_txb *txb;
 }tx_pending_t;
 
-typedef struct _bandwidth_autoswitch
-{
+typedef struct _bandwidth_autoswitch {
 	long threshold_20Mhzto40Mhz;
 	long	threshold_40Mhzto20Mhz;
 	bool bforced_tx20Mhz;
@@ -1668,8 +1667,7 @@ typedef struct _bandwidth_autoswitch
 
 #define REORDER_WIN_SIZE	128
 #define REORDER_ENTRY_NUM	128
-typedef struct _RX_REORDER_ENTRY
-{
+typedef struct _RX_REORDER_ENTRY {
 	struct list_head	List;
 	u16			SeqNum;
 	struct ieee80211_rxb* prxb;
@@ -1709,15 +1707,13 @@ typedef struct _IbssParms{
 #define MAX_NUM_RATES	264 // Max num of support rates element: 8,  Max num of ext. support rate: 255. 061122, by rcnjko.
 
 // RF state.
-typedef	enum _RT_RF_POWER_STATE
-{
+typedef	enum _RT_RF_POWER_STATE {
 	eRfOn,
 	eRfSleep,
 	eRfOff
 }RT_RF_POWER_STATE;
 
-typedef struct _RT_POWER_SAVE_CONTROL
-{
+typedef struct _RT_POWER_SAVE_CONTROL {
 
 	//
 	// Inactive Power Save(IPS) : Disable RF when disconnected
