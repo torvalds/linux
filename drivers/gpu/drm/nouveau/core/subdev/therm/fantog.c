@@ -32,7 +32,6 @@
 
 struct nouveau_fantog_priv {
 	struct nouveau_fan base;
-	struct nouveau_therm *parent;
 	struct nouveau_alarm alarm;
 	spinlock_t lock;
 	u32 period_us;
@@ -43,7 +42,7 @@ struct nouveau_fantog_priv {
 static void
 nouveau_fantog_update(struct nouveau_fantog_priv *priv, int percent)
 {
-	struct nouveau_therm_priv *tpriv = (void *)priv->parent;
+	struct nouveau_therm_priv *tpriv = (void *)priv->base.parent;
 	struct nouveau_timer *ptimer = nouveau_timer(tpriv);
 	struct nouveau_gpio *gpio = nouveau_gpio(tpriv);
 	unsigned long flags;
@@ -104,7 +103,6 @@ nouveau_fantog_create(struct nouveau_therm *therm, struct dcb_gpio_func *func)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->parent = therm;
 	priv->base.type = "toggle";
 	priv->base.get = nouveau_fantog_get;
 	priv->base.set = nouveau_fantog_set;

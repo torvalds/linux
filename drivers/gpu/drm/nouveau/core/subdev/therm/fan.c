@@ -31,6 +31,71 @@
 #include <subdev/gpio.h>
 #include <subdev/timer.h>
 
+static int
+nouveau_fan_update(struct nouveau_fan *fan, bool immediate, int target)
+{
+	struct nouveau_therm *therm = fan->parent;
+	struct nouveau_therm_priv *priv = (void *)therm;
+	struct nouveau_timer *ptimer = nouveau_timer(priv);
+	unsigned long flags;
+	int ret = 0;
+	u32 duty;
+
+	/* update target fan speed, restricting to allowed range */
+	spin_lock_irqsave(&fan->lock, flags);
+	if (target < 0)
+		target = fan->percent;
+	target = max_t(u8, target, fan->bios.min_duty);
+	target = min_t(u8, target, fan->bios.max_duty);
+	fan->percent = target;
+
+	/* smooth out the fanspeed increase/decrease */
+	duty = fan->get(therm);
+	if (!immediate && duty >= 0) {
+		/* the constant "3" is a rough approximation taken from
+		 * nvidia's behaviour.
+		 * it is meant to bump the fan speed more incrementally
+		 */
+		if (duty < target)
+			duty = min(duty + 3, (u32) target);
+		else if (duty > target)
+			duty = max(duty - 3, (u32) target);
+	} else {
+		duty = target;
+	}
+
+	ret = fan->set(therm, duty);
+	if (ret)
+		goto done;
+
+	/* schedule next fan update, if not at target speed already */
+	if (list_empty(&fan->alarm.head) && target != duty) {
+		u16 bump_period = fan->bios.bump_period;
+		u16 slow_down_period = fan->bios.slow_down_period;
+		u64 delay;
+
+		if (duty > target)
+			delay = slow_down_period;
+		else if (duty == target)
+			delay = min(bump_period, slow_down_period) ;
+		else
+			delay = bump_period;
+
+		ptimer->alarm(ptimer, delay * 1000 * 1000, &fan->alarm);
+	}
+
+done:
+	spin_unlock_irqrestore(&fan->lock, flags);
+	return ret;
+}
+
+static void
+nouveau_fan_alarm(struct nouveau_alarm *alarm)
+{
+	struct nouveau_fan *fan = container_of(alarm, struct nouveau_fan, alarm);
+	nouveau_fan_update(fan, false, -1);
+}
+
 int
 nouveau_therm_fan_get(struct nouveau_therm *therm)
 {
@@ -39,19 +104,14 @@ nouveau_therm_fan_get(struct nouveau_therm *therm)
 }
 
 int
-nouveau_therm_fan_set(struct nouveau_therm *therm, int percent)
+nouveau_therm_fan_set(struct nouveau_therm *therm, bool immediate, int percent)
 {
 	struct nouveau_therm_priv *priv = (void *)therm;
-
-	if (percent < priv->fan->bios.min_duty)
-		percent = priv->fan->bios.min_duty;
-	if (percent > priv->fan->bios.max_duty)
-		percent = priv->fan->bios.max_duty;
 
 	if (priv->fan->mode == FAN_CONTROL_NONE)
 		return -EINVAL;
 
-	return priv->fan->set(therm, percent);
+	return nouveau_fan_update(priv->fan, immediate, percent);
 }
 
 int
@@ -136,7 +196,7 @@ nouveau_therm_fan_user_set(struct nouveau_therm *therm, int percent)
 	if (priv->fan->mode != FAN_CONTROL_MANUAL)
 		return -EINVAL;
 
-	return nouveau_therm_fan_set(therm, percent);
+	return nouveau_therm_fan_set(therm, true, percent);
 }
 
 void
@@ -147,6 +207,8 @@ nouveau_therm_fan_set_defaults(struct nouveau_therm *therm)
 	priv->fan->bios.pwm_freq = 0;
 	priv->fan->bios.min_duty = 0;
 	priv->fan->bios.max_duty = 100;
+	priv->fan->bios.bump_period = 500;
+	priv->fan->bios.slow_down_period = 2000;
 }
 
 static void
@@ -189,6 +251,11 @@ nouveau_therm_fan_ctor(struct nouveau_therm *therm)
 	ret = gpio->find(gpio, 0, DCB_GPIO_FAN_SENSE, 0xff, &priv->fan->tach);
 	if (ret)
 		priv->fan->tach.func = DCB_GPIO_UNUSED;
+
+	/* initialise fan bump/slow update handling */
+	priv->fan->parent = therm;
+	nouveau_alarm_init(&priv->fan->alarm, nouveau_fan_alarm);
+	spin_lock_init(&priv->fan->lock);
 
 	/* other random init... */
 	nouveau_therm_fan_set_defaults(therm);

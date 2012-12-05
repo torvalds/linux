@@ -34,12 +34,16 @@
 #include <subdev/timer.h>
 
 struct nouveau_fan {
+	struct nouveau_therm *parent;
 	const char *type;
 	enum nouveau_therm_fan_mode mode;
-	int percent;
 
 	struct nvbios_therm_fan bios;
 	struct nvbios_perf_fan perf;
+
+	struct nouveau_alarm alarm;
+	spinlock_t lock;
+	int percent;
 
 	int (*get)(struct nouveau_therm *therm);
 	int (*set)(struct nouveau_therm *therm, int percent);
@@ -71,7 +75,7 @@ int nouveau_therm_sensor_ctor(struct nouveau_therm *therm);
 
 int nouveau_therm_fan_ctor(struct nouveau_therm *therm);
 int nouveau_therm_fan_get(struct nouveau_therm *therm);
-int nouveau_therm_fan_set(struct nouveau_therm *therm, int percent);
+int nouveau_therm_fan_set(struct nouveau_therm *therm, bool now, int percent);
 int nouveau_therm_fan_user_get(struct nouveau_therm *therm);
 int nouveau_therm_fan_user_set(struct nouveau_therm *therm, int percent);
 int nouveau_therm_fan_set_mode(struct nouveau_therm *therm,
