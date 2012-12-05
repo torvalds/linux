@@ -765,7 +765,7 @@ static void e1000_alloc_jumbo_rx_buffers(struct e1000_ring *rx_ring,
 	struct e1000_buffer *buffer_info;
 	struct sk_buff *skb;
 	unsigned int i;
-	unsigned int bufsz = 256 - 16 /* for skb_reserve */;
+	unsigned int bufsz = 256 - 16;	/* for skb_reserve */
 
 	i = rx_ring->next_to_use;
 	buffer_info = &rx_ring->buffer_info[i];
