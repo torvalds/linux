@@ -19,7 +19,6 @@
 
 #include "dhd_dbg.h"
 
-#define	WL_INFO(fmt, ...)	brcmf_dbg(INFO, fmt, ##__VA_ARGS__)
 #define	WL_TRACE(fmt, ...)	brcmf_dbg(TRACE, fmt, ##__VA_ARGS__)
 #define	WL_SCAN(fmt, ...)	brcmf_dbg(SCAN, fmt, ##__VA_ARGS__)
 #define	WL_CONN(fmt, ...)	brcmf_dbg(CONN, fmt, ##__VA_ARGS__)
