@@ -407,21 +407,21 @@ void ixgbe_ptp_check_pps_event(struct ixgbe_adapter *adapter, u32 eicr)
 
 
 /**
- * ixgbe_ptp_overflow_check - delayed work to detect SYSTIME overflow
- * @work: structure containing information about this work task
+ * ixgbe_ptp_overflow_check - watchdog task to detect SYSTIME overflow
+ * @adapter: private adapter struct
  *
- * this work function is scheduled to continue reading the timecounter
+ * this watchdog task periodically reads the timecounter
  * in order to prevent missing when the system time registers wrap
- * around. This needs to be run approximately twice a minute when no
- * PTP activity is occurring.
+ * around. This needs to be run approximately twice a minute.
  */
 void ixgbe_ptp_overflow_check(struct ixgbe_adapter *adapter)
 {
-	unsigned long elapsed_jiffies = adapter->last_overflow_check - jiffies;
+	bool timeout = time_is_before_jiffies(adapter->last_overflow_check +
+					     IXGBE_OVERFLOW_PERIOD);
 	struct timespec ts;
 
 	if ((adapter->flags2 & IXGBE_FLAG2_PTP_ENABLED) &&
-	    (elapsed_jiffies >= IXGBE_OVERFLOW_PERIOD)) {
+	    (timeout)) {
 		ixgbe_ptp_gettime(&adapter->ptp_caps, &ts);
 		adapter->last_overflow_check = jiffies;
 	}
