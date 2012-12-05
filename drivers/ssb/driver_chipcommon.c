@@ -4,6 +4,7 @@
  *
  * Copyright 2005, Broadcom Corporation
  * Copyright 2006, 2007, Michael Buesch <m@bues.ch>
+ * Copyright 2012, Hauke Mehrtens <hauke@hauke-m.de>
  *
  * Licensed under the GNU/GPL. See COPYING for details.
  */
@@ -12,6 +13,7 @@
 #include <linux/ssb/ssb_regs.h>
 #include <linux/export.h>
 #include <linux/pci.h>
+#include <linux/bcm47xx_wdt.h>
 
 #include "ssb_private.h"
 
@@ -306,6 +308,43 @@ static u32 ssb_chipco_watchdog_get_max_timer(struct ssb_chipcommon *cc)
 		return (1 << nb) - 1;
 }
 
+u32 ssb_chipco_watchdog_timer_set_wdt(struct bcm47xx_wdt *wdt, u32 ticks)
+{
+	struct ssb_chipcommon *cc = bcm47xx_wdt_get_drvdata(wdt);
+
+	if (cc->dev->bus->bustype != SSB_BUSTYPE_SSB)
+		return 0;
+
+	return ssb_chipco_watchdog_timer_set(cc, ticks);
+}
+
+u32 ssb_chipco_watchdog_timer_set_ms(struct bcm47xx_wdt *wdt, u32 ms)
+{
+	struct ssb_chipcommon *cc = bcm47xx_wdt_get_drvdata(wdt);
+	u32 ticks;
+
+	if (cc->dev->bus->bustype != SSB_BUSTYPE_SSB)
+		return 0;
+
+	ticks = ssb_chipco_watchdog_timer_set(cc, cc->ticks_per_ms * ms);
+	return ticks / cc->ticks_per_ms;
+}
+
+static int ssb_chipco_watchdog_ticks_per_ms(struct ssb_chipcommon *cc)
+{
+	struct ssb_bus *bus = cc->dev->bus;
+
+	if (cc->capabilities & SSB_CHIPCO_CAP_PMU) {
+			/* based on 32KHz ILP clock */
+			return 32;
+	} else {
+		if (cc->dev->id.revision < 18)
+			return ssb_clockspeed(bus) / 1000;
+		else
+			return ssb_chipco_alp_clock(cc) / 1000;
+	}
+}
+
 void ssb_chipcommon_init(struct ssb_chipcommon *cc)
 {
 	if (!cc->dev)
@@ -323,6 +362,11 @@ void ssb_chipcommon_init(struct ssb_chipcommon *cc)
 	chipco_powercontrol_init(cc);
 	ssb_chipco_set_clockmode(cc, SSB_CLKMODE_FAST);
 	calc_fast_powerup_delay(cc);
+
+	if (cc->dev->bus->bustype == SSB_BUSTYPE_SSB) {
+		cc->ticks_per_ms = ssb_chipco_watchdog_ticks_per_ms(cc);
+		cc->max_timer_ms = ssb_chipco_watchdog_get_max_timer(cc) / cc->ticks_per_ms;
+	}
 }
 
 void ssb_chipco_suspend(struct ssb_chipcommon *cc)
@@ -421,7 +465,7 @@ void ssb_chipco_timing_init(struct ssb_chipcommon *cc,
 }
 
 /* Set chip watchdog reset timer to fire in 'ticks' backplane cycles */
-void ssb_chipco_watchdog_timer_set(struct ssb_chipcommon *cc, u32 ticks)
+u32 ssb_chipco_watchdog_timer_set(struct ssb_chipcommon *cc, u32 ticks)
 {
 	u32 maxt;
 	enum ssb_clkmode clkmode;
@@ -441,6 +485,7 @@ void ssb_chipco_watchdog_timer_set(struct ssb_chipcommon *cc, u32 ticks)
 		/* instant NMI */
 		chipco_write32(cc, SSB_CHIPCO_WATCHDOG, ticks);
 	}
+	return ticks;
 }
 
 void ssb_chipco_irq_mask(struct ssb_chipcommon *cc, u32 mask, u32 value)

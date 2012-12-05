@@ -3,6 +3,7 @@
 
 #include <linux/ssb/ssb.h>
 #include <linux/types.h>
+#include <linux/bcm47xx_wdt.h>
 
 
 #define PFX	"ssb: "
@@ -211,5 +212,9 @@ static inline void b43_pci_ssb_bridge_exit(void)
 extern u32 ssb_pmu_get_cpu_clock(struct ssb_chipcommon *cc);
 extern u32 ssb_pmu_get_controlclock(struct ssb_chipcommon *cc);
 extern u32 ssb_pmu_get_alp_clock(struct ssb_chipcommon *cc);
+
+extern u32 ssb_chipco_watchdog_timer_set_wdt(struct bcm47xx_wdt *wdt,
+					     u32 ticks);
+extern u32 ssb_chipco_watchdog_timer_set_ms(struct bcm47xx_wdt *wdt, u32 ms);
 
 #endif /* LINUX_SSB_PRIVATE_H_ */
