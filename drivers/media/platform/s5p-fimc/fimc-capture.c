@@ -1561,6 +1561,10 @@ static int fimc_subdev_set_fmt(struct v4l2_subdev *sd,
 		*mf = fmt->format;
 		return 0;
 	}
+	/* There must be a bug in the driver if this happens */
+	if (WARN_ON(ffmt == NULL))
+		return -EINVAL;
+
 	/* Update RGB Alpha control state and value range */
 	fimc_alpha_ctrl_update(ctx);
 
