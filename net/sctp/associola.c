@@ -448,7 +448,7 @@ void sctp_association_free(struct sctp_association *asoc)
 	/* Release the transport structures. */
 	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {
 		transport = list_entry(pos, struct sctp_transport, transports);
-		list_del(pos);
+		list_del_rcu(pos);
 		sctp_transport_free(transport);
 	}
 
@@ -568,7 +568,7 @@ void sctp_assoc_rm_peer(struct sctp_association *asoc,
 		sctp_assoc_update_retran_path(asoc);
 
 	/* Remove this peer from the list. */
-	list_del(&peer->transports);
+	list_del_rcu(&peer->transports);
 
 	/* Get the first transport of asoc. */
 	pos = asoc->peer.transport_addr_list.next;
@@ -769,7 +769,7 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 	peer->state = peer_state;
 
 	/* Attach the remote transport to our asoc.  */
-	list_add_tail(&peer->transports, &asoc->peer.transport_addr_list);
+	list_add_tail_rcu(&peer->transports, &asoc->peer.transport_addr_list);
 	asoc->peer.transport_count++;
 
 	/* If we do not yet have a primary path, set one.  */

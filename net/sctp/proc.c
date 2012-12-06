@@ -162,15 +162,20 @@ static void sctp_seq_dump_remote_addrs(struct seq_file *seq, struct sctp_associa
 	struct sctp_af *af;
 
 	primary = &assoc->peer.primary_addr;
-	list_for_each_entry(transport, &assoc->peer.transport_addr_list,
+	rcu_read_lock();
+	list_for_each_entry_rcu(transport, &assoc->peer.transport_addr_list,
 			transports) {
 		addr = &transport->ipaddr;
+		if (transport->dead)
+			continue;
+
 		af = sctp_get_af_specific(addr->sa.sa_family);
 		if (af->cmp_addr(addr, primary)) {
 			seq_printf(seq, "*");
 		}
 		af->seq_dump_addr(seq, addr);
 	}
+	rcu_read_unlock();
 }
 
 static void * sctp_eps_seq_start(struct seq_file *seq, loff_t *pos)
@@ -441,12 +446,16 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 	head = &sctp_assoc_hashtable[hash];
 	sctp_local_bh_disable();
 	read_lock(&head->lock);
+	rcu_read_lock();
 	sctp_for_each_hentry(epb, node, &head->chain) {
 		if (!net_eq(sock_net(epb->sk), seq_file_net(seq)))
 			continue;
 		assoc = sctp_assoc(epb);
-		list_for_each_entry(tsp, &assoc->peer.transport_addr_list,
+		list_for_each_entry_rcu(tsp, &assoc->peer.transport_addr_list,
 					transports) {
+			if (tsp->dead)
+				continue;
+
 			/*
 			 * The remote address (ADDR)
 			 */
@@ -492,6 +501,7 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 		}
 	}
 
+	rcu_read_unlock();
 	read_unlock(&head->lock);
 	sctp_local_bh_enable();
 

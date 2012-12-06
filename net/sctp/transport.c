@@ -163,13 +163,11 @@ void sctp_transport_free(struct sctp_transport *transport)
 	sctp_transport_put(transport);
 }
 
-/* Destroy the transport data structure.
- * Assumes there are no more users of this structure.
- */
-static void sctp_transport_destroy(struct sctp_transport *transport)
+static void sctp_transport_destroy_rcu(struct rcu_head *head)
 {
-	SCTP_ASSERT(transport->dead, "Transport is not dead", return);
+	struct sctp_transport *transport;
 
+	transport = container_of(head, struct sctp_transport, rcu);
 	if (transport->asoc)
 		sctp_association_put(transport->asoc);
 
@@ -178,6 +176,16 @@ static void sctp_transport_destroy(struct sctp_transport *transport)
 	dst_release(transport->dst);
 	kfree(transport);
 	SCTP_DBG_OBJCNT_DEC(transport);
+}
+
+/* Destroy the transport data structure.
+ * Assumes there are no more users of this structure.
+ */
+static void sctp_transport_destroy(struct sctp_transport *transport)
+{
+	SCTP_ASSERT(transport->dead, "Transport is not dead", return);
+
+	call_rcu(&transport->rcu, sctp_transport_destroy_rcu);
 }
 
 /* Start T3_rtx timer if it is not already running and update the heartbeat
