@@ -8284,8 +8284,7 @@ static void intel_init_display(struct drm_device *dev)
 		} else if (IS_HASWELL(dev)) {
 			dev_priv->display.fdi_link_train = hsw_fdi_link_train;
 			dev_priv->display.write_eld = haswell_write_eld;
-		} else
-			dev_priv->display.update_wm = NULL;
+		}
 	} else if (IS_G4X(dev)) {
 		dev_priv->display.write_eld = g4x_write_eld;
 	}
