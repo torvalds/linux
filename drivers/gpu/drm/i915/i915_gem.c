@@ -976,13 +976,22 @@ i915_gem_check_olr(struct intel_ring_buffer *ring, u32 seqno)
  * __wait_seqno - wait until execution of seqno has finished
  * @ring: the ring expected to report seqno
  * @seqno: duh!
+ * @reset_counter: reset sequence associated with the given seqno
  * @interruptible: do an interruptible wait (normally yes)
  * @timeout: in - how long to wait (NULL forever); out - how much time remaining
+ *
+ * Note: It is of utmost importance that the passed in seqno and reset_counter
+ * values have been read by the caller in an smp safe manner. Where read-side
+ * locks are involved, it is sufficient to read the reset_counter before
+ * unlocking the lock that protects the seqno. For lockless tricks, the
+ * reset_counter _must_ be read before, and an appropriate smp_rmb must be
+ * inserted.
  *
  * Returns 0 if the seqno was found within the alloted time. Else returns the
  * errno with remaining time filled in timeout argument.
  */
 static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
+			unsigned reset_counter,
 			bool interruptible, struct timespec *timeout)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
@@ -1012,7 +1021,8 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 
 #define EXIT_COND \
 	(i915_seqno_passed(ring->get_seqno(ring, false), seqno) || \
-	i915_reset_in_progress(&dev_priv->gpu_error))
+	 i915_reset_in_progress(&dev_priv->gpu_error) || \
+	 reset_counter != atomic_read(&dev_priv->gpu_error.reset_counter))
 	do {
 		if (interruptible)
 			end = wait_event_interruptible_timeout(ring->irq_queue,
@@ -1022,6 +1032,13 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 			end = wait_event_timeout(ring->irq_queue, EXIT_COND,
 						 timeout_jiffies);
 
+		/* We need to check whether any gpu reset happened in between
+		 * the caller grabbing the seqno and now ... */
+		if (reset_counter != atomic_read(&dev_priv->gpu_error.reset_counter))
+			end = -EAGAIN;
+
+		/* ... but upgrade the -EGAIN to an -EIO if the gpu is truely
+		 * gone. */
 		ret = i915_gem_check_wedge(&dev_priv->gpu_error, interruptible);
 		if (ret)
 			end = ret;
@@ -1076,7 +1093,9 @@ i915_wait_seqno(struct intel_ring_buffer *ring, uint32_t seqno)
 	if (ret)
 		return ret;
 
-	return __wait_seqno(ring, seqno, interruptible, NULL);
+	return __wait_seqno(ring, seqno,
+			    atomic_read(&dev_priv->gpu_error.reset_counter),
+			    interruptible, NULL);
 }
 
 /**
@@ -1123,6 +1142,7 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring = obj->ring;
+	unsigned reset_counter;
 	u32 seqno;
 	int ret;
 
@@ -1141,8 +1161,9 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
+	reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
 	mutex_unlock(&dev->struct_mutex);
-	ret = __wait_seqno(ring, seqno, true, NULL);
+	ret = __wait_seqno(ring, seqno, reset_counter, true, NULL);
 	mutex_lock(&dev->struct_mutex);
 
 	i915_gem_retire_requests_ring(ring);
@@ -2297,10 +2318,12 @@ i915_gem_object_flush_active(struct drm_i915_gem_object *obj)
 int
 i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 {
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_wait *args = data;
 	struct drm_i915_gem_object *obj;
 	struct intel_ring_buffer *ring = NULL;
 	struct timespec timeout_stack, *timeout = NULL;
+	unsigned reset_counter;
 	u32 seqno = 0;
 	int ret = 0;
 
@@ -2341,9 +2364,10 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	}
 
 	drm_gem_object_unreference(&obj->base);
+	reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
 	mutex_unlock(&dev->struct_mutex);
 
-	ret = __wait_seqno(ring, seqno, true, timeout);
+	ret = __wait_seqno(ring, seqno, reset_counter, true, timeout);
 	if (timeout) {
 		WARN_ON(!timespec_valid(timeout));
 		args->timeout_ns = timespec_to_ns(timeout);
@@ -3394,6 +3418,7 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	unsigned long recent_enough = jiffies - msecs_to_jiffies(20);
 	struct drm_i915_gem_request *request;
 	struct intel_ring_buffer *ring = NULL;
+	unsigned reset_counter;
 	u32 seqno = 0;
 	int ret;
 
@@ -3413,12 +3438,13 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 		ring = request->ring;
 		seqno = request->seqno;
 	}
+	reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
 	spin_unlock(&file_priv->mm.lock);
 
 	if (seqno == 0)
 		return 0;
 
-	ret = __wait_seqno(ring, seqno, true, NULL);
+	ret = __wait_seqno(ring, seqno, reset_counter, true, NULL);
 	if (ret == 0)
 		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, 0);
 

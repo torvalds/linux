@@ -775,9 +775,16 @@ struct i915_gpu_error {
 	unsigned long last_reset;
 
 	/**
-	 * State variable controlling the reset flow
+	 * State variable and reset counter controlling the reset flow
 	 *
-	 * Upper bits are for the reset counter.
+	 * Upper bits are for the reset counter.  This counter is used by the
+	 * wait_seqno code to race-free noticed that a reset event happened and
+	 * that it needs to restart the entire ioctl (since most likely the
+	 * seqno it waited for won't ever signal anytime soon).
+	 *
+	 * This is important for lock-free wait paths, where no contended lock
+	 * naturally enforces the correct ordering between the bail-out of the
+	 * waiter and the gpu reset work code.
 	 *
 	 * Lowest bit controls the reset state machine: Set means a reset is in
 	 * progress. This state will (presuming we don't have any bugs) decay

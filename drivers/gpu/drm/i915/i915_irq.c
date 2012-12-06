@@ -867,9 +867,11 @@ static void i915_error_work_func(struct work_struct *work)
 	drm_i915_private_t *dev_priv = container_of(error, drm_i915_private_t,
 						    gpu_error);
 	struct drm_device *dev = dev_priv->dev;
+	struct intel_ring_buffer *ring;
 	char *error_event[] = { "ERROR=1", NULL };
 	char *reset_event[] = { "RESET=1", NULL };
 	char *reset_done_event[] = { "ERROR=0", NULL };
+	int i, ret;
 
 	kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, error_event);
 
@@ -877,12 +879,30 @@ static void i915_error_work_func(struct work_struct *work)
 		DRM_DEBUG_DRIVER("resetting chip\n");
 		kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_event);
 
-		if (!i915_reset(dev)) {
-			atomic_set(&error->reset_counter, 0);
-			kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_done_event);
+		ret = i915_reset(dev);
+
+		if (ret == 0) {
+			/*
+			 * After all the gem state is reset, increment the reset
+			 * counter and wake up everyone waiting for the reset to
+			 * complete.
+			 *
+			 * Since unlock operations are a one-sided barrier only,
+			 * we need to insert a barrier here to order any seqno
+			 * updates before
+			 * the counter increment.
+			 */
+			smp_mb__before_atomic_inc();
+			atomic_inc(&dev_priv->gpu_error.reset_counter);
+
+			kobject_uevent_env(&dev->primary->kdev.kobj,
+					   KOBJ_CHANGE, reset_done_event);
 		} else {
 			atomic_set(&error->reset_counter, I915_WEDGED);
 		}
+
+		for_each_ring(ring, dev_priv, i)
+			wake_up_all(&ring->irq_queue);
 
 		wake_up_all(&dev_priv->gpu_error.reset_queue);
 	}
@@ -1488,8 +1508,8 @@ void i915_handle_error(struct drm_device *dev, bool wedged)
 	i915_report_and_clear_eir(dev);
 
 	if (wedged) {
-		atomic_set(&dev_priv->gpu_error.reset_counter,
-			   I915_RESET_IN_PROGRESS_FLAG);
+		atomic_set_mask(I915_RESET_IN_PROGRESS_FLAG,
+				&dev_priv->gpu_error.reset_counter);
 
 		/*
 		 * Wakeup waiting processes so that the reset work item
