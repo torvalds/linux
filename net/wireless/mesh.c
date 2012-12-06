@@ -146,7 +146,8 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 		if (!setup->chandef.chan)
 			return -EINVAL;
 
-		setup->chandef.width = NL80211_CHAN_WIDTH_20_NOHT;;
+		setup->chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
+		setup->chandef.center_freq1 = setup->chandef.chan->center_freq;
 	}
 
 	if (!cfg80211_reg_can_beacon(&rdev->wiphy, &setup->chandef))

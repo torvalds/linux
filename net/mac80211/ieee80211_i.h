@@ -371,6 +371,8 @@ enum ieee80211_sta_flags {
 	IEEE80211_STA_RESET_SIGNAL_AVE	= BIT(9),
 	IEEE80211_STA_DISABLE_40MHZ	= BIT(10),
 	IEEE80211_STA_DISABLE_VHT	= BIT(11),
+	IEEE80211_STA_DISABLE_80P80MHZ	= BIT(12),
+	IEEE80211_STA_DISABLE_160MHZ	= BIT(13),
 };
 
 struct ieee80211_mgd_auth_data {
@@ -1032,6 +1034,7 @@ struct ieee80211_local {
 	enum ieee80211_band hw_scan_band;
 	int scan_channel_idx;
 	int scan_ies_len;
+	int hw_scan_ies_bufsize;
 
 	struct work_struct sched_scan_stopped_work;
 	struct ieee80211_sub_if_data __rcu *sched_scan_sdata;
@@ -1573,7 +1576,7 @@ void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 				    const u8 *bssid, u16 stype, u16 reason,
 				    bool send_frame, u8 *frame_buf);
 int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
-			     const u8 *ie, size_t ie_len,
+			     size_t buffer_len, const u8 *ie, size_t ie_len,
 			     enum ieee80211_band band, u32 rate_mask,
 			     u8 channel);
 struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,

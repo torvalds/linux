@@ -58,6 +58,8 @@
  * structures here describe these capabilities in detail.
  */
 
+struct wiphy;
+
 /*
  * wireless hardware capability structures
  */
@@ -388,6 +390,22 @@ cfg80211_chandef_compatible(const struct cfg80211_chan_def *chandef1,
 			    const struct cfg80211_chan_def *chandef2);
 
 /**
+ * cfg80211_chandef_valid - check if a channel definition is valid
+ * @chandef: the channel definition to check
+ */
+bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef);
+
+/**
+ * cfg80211_chandef_usable - check if secondary channels can be used
+ * @wiphy: the wiphy to validate against
+ * @chandef: the channel definition to check
+ * @prohibited_flags: the regulatory chanenl flags that must not be set
+ */
+bool cfg80211_chandef_usable(struct wiphy *wiphy,
+			     const struct cfg80211_chan_def *chandef,
+			     u32 prohibited_flags);
+
+/**
  * enum survey_info_flags - survey information flags
  *
  * @SURVEY_INFO_NOISE_DBM: noise (in dBm) was filled in
@@ -520,6 +538,8 @@ struct cfg80211_beacon_data {
  * @privacy: the BSS uses privacy
  * @auth_type: Authentication type (algorithm)
  * @inactivity_timeout: time in seconds to determine station's inactivity.
+ * @p2p_ctwindow: P2P CT Window
+ * @p2p_opp_ps: P2P opportunistic PS
  */
 struct cfg80211_ap_settings {
 	struct cfg80211_chan_def chandef;
@@ -534,6 +554,8 @@ struct cfg80211_ap_settings {
 	bool privacy;
 	enum nl80211_auth_type auth_type;
 	int inactivity_timeout;
+	u8 p2p_ctwindow;
+	bool p2p_opp_ps;
 };
 
 /**
@@ -895,6 +917,8 @@ struct mpath_info {
  * @ap_isolate: do not forward packets between connected stations
  * @ht_opmode: HT Operation mode
  * 	(u16 = opmode, -1 = do not change)
+ * @p2p_ctwindow: P2P CT Window (-1 = no change)
+ * @p2p_opp_ps: P2P opportunistic PS (-1 = no change)
  */
 struct bss_parameters {
 	int use_cts_prot;
@@ -904,6 +928,7 @@ struct bss_parameters {
 	u8 basic_rates_len;
 	int ap_isolate;
 	int ht_opmode;
+	s8 p2p_ctwindow, p2p_opp_ps;
 };
 
 /**
@@ -1045,9 +1070,6 @@ struct ieee80211_txq_params {
 	u8 aifs;
 };
 
-/* from net/wireless.h */
-struct wiphy;
-
 /**
  * DOC: Scanning and BSS list handling
  *
@@ -1184,6 +1206,18 @@ enum cfg80211_signal_type {
 };
 
 /**
+ * struct cfg80211_bss_ie_data - BSS entry IE data
+ * @rcu_head: internal use, for freeing
+ * @len: length of the IEs
+ * @data: IE data
+ */
+struct cfg80211_bss_ies {
+	struct rcu_head rcu_head;
+	int len;
+	u8 data[];
+};
+
+/**
  * struct cfg80211_bss - BSS description
  *
  * This structure describes a BSS (which may also be a mesh network)
@@ -1194,36 +1228,34 @@ enum cfg80211_signal_type {
  * @tsf: timestamp of last received update
  * @beacon_interval: the beacon interval as from the frame
  * @capability: the capability field in host byte order
- * @information_elements: the information elements (Note that there
+ * @ies: the information elements (Note that there
  *	is no guarantee that these are well-formed!); this is a pointer to
  *	either the beacon_ies or proberesp_ies depending on whether Probe
  *	Response frame has been received
- * @len_information_elements: total length of the information elements
  * @beacon_ies: the information elements from the last Beacon frame
- * @len_beacon_ies: total length of the beacon_ies
  * @proberesp_ies: the information elements from the last Probe Response frame
- * @len_proberesp_ies: total length of the proberesp_ies
  * @signal: signal strength value (type depends on the wiphy's signal_type)
  * @free_priv: function pointer to free private data
  * @priv: private area for driver use, has at least wiphy->bss_priv_size bytes
  */
 struct cfg80211_bss {
+	u64 tsf;
+
 	struct ieee80211_channel *channel;
 
-	u8 bssid[ETH_ALEN];
-	u64 tsf;
-	u16 beacon_interval;
-	u16 capability;
-	u8 *information_elements;
-	size_t len_information_elements;
-	u8 *beacon_ies;
-	size_t len_beacon_ies;
-	u8 *proberesp_ies;
-	size_t len_proberesp_ies;
+	const struct cfg80211_bss_ies __rcu *ies;
+	const struct cfg80211_bss_ies __rcu *beacon_ies;
+	const struct cfg80211_bss_ies __rcu *proberesp_ies;
+
+	void (*free_priv)(struct cfg80211_bss *bss);
 
 	s32 signal;
 
-	void (*free_priv)(struct cfg80211_bss *bss);
+	u16 beacon_interval;
+	u16 capability;
+
+	u8 bssid[ETH_ALEN];
+
 	u8 priv[0] __attribute__((__aligned__(sizeof(void *))));
 };
 
@@ -1231,6 +1263,9 @@ struct cfg80211_bss {
  * ieee80211_bss_get_ie - find IE with given ID
  * @bss: the bss to search
  * @ie: the IE ID
+ *
+ * Note that the return value is an RCU-protected pointer, so
+ * rcu_read_lock() must be held when calling this function.
  * Returns %NULL if not found.
  */
 const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 ie);

@@ -398,6 +398,38 @@ void sta_set_rate_info_tx(struct sta_info *sta,
 		rinfo->flags |= RATE_INFO_FLAGS_SHORT_GI;
 }
 
+void sta_set_rate_info_rx(struct sta_info *sta, struct rate_info *rinfo)
+{
+	rinfo->flags = 0;
+
+	if (sta->last_rx_rate_flag & RX_FLAG_HT) {
+		rinfo->flags |= RATE_INFO_FLAGS_MCS;
+		rinfo->mcs = sta->last_rx_rate_idx;
+	} else if (sta->last_rx_rate_flag & RX_FLAG_VHT) {
+		rinfo->flags |= RATE_INFO_FLAGS_VHT_MCS;
+		rinfo->nss = sta->last_rx_rate_vht_nss;
+		rinfo->mcs = sta->last_rx_rate_idx;
+	} else {
+		struct ieee80211_supported_band *sband;
+
+		sband = sta->local->hw.wiphy->bands[
+				ieee80211_get_sdata_band(sta->sdata)];
+		rinfo->legacy =
+			sband->bitrates[sta->last_rx_rate_idx].bitrate;
+	}
+
+	if (sta->last_rx_rate_flag & RX_FLAG_40MHZ)
+		rinfo->flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+	if (sta->last_rx_rate_flag & RX_FLAG_SHORT_GI)
+		rinfo->flags |= RATE_INFO_FLAGS_SHORT_GI;
+	if (sta->last_rx_rate_flag & RX_FLAG_80MHZ)
+		rinfo->flags |= RATE_INFO_FLAGS_80_MHZ_WIDTH;
+	if (sta->last_rx_rate_flag & RX_FLAG_80P80MHZ)
+		rinfo->flags |= RATE_INFO_FLAGS_80P80_MHZ_WIDTH;
+	if (sta->last_rx_rate_flag & RX_FLAG_160MHZ)
+		rinfo->flags |= RATE_INFO_FLAGS_160_MHZ_WIDTH;
+}
+
 static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
@@ -444,34 +476,7 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 	}
 
 	sta_set_rate_info_tx(sta, &sta->last_tx_rate, &sinfo->txrate);
-
-	sinfo->rxrate.flags = 0;
-	if (sta->last_rx_rate_flag & RX_FLAG_HT) {
-		sinfo->rxrate.flags |= RATE_INFO_FLAGS_MCS;
-		sinfo->rxrate.mcs = sta->last_rx_rate_idx;
-	} else if (sta->last_rx_rate_flag & RX_FLAG_VHT) {
-		sinfo->rxrate.flags |= RATE_INFO_FLAGS_VHT_MCS;
-		sinfo->rxrate.nss = sta->last_rx_rate_vht_nss;
-		sinfo->rxrate.mcs = sta->last_rx_rate_idx;
-	} else {
-		struct ieee80211_supported_band *sband;
-
-		sband = sta->local->hw.wiphy->bands[
-				ieee80211_get_sdata_band(sta->sdata)];
-		sinfo->rxrate.legacy =
-			sband->bitrates[sta->last_rx_rate_idx].bitrate;
-	}
-
-	if (sta->last_rx_rate_flag & RX_FLAG_40MHZ)
-		sinfo->rxrate.flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
-	if (sta->last_rx_rate_flag & RX_FLAG_SHORT_GI)
-		sinfo->rxrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
-	if (sta->last_rx_rate_flag & RX_FLAG_80MHZ)
-		sinfo->rxrate.flags |= RATE_INFO_FLAGS_80_MHZ_WIDTH;
-	if (sta->last_rx_rate_flag & RX_FLAG_80P80MHZ)
-		sinfo->rxrate.flags |= RATE_INFO_FLAGS_80P80_MHZ_WIDTH;
-	if (sta->last_rx_rate_flag & RX_FLAG_160MHZ)
-		sinfo->rxrate.flags |= RATE_INFO_FLAGS_160_MHZ_WIDTH;
+	sta_set_rate_info_rx(sta, &sinfo->rxrate);
 
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
 #ifdef CONFIG_MAC80211_MESH
@@ -893,7 +898,8 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	u32 changed = BSS_CHANGED_BEACON_INT |
 		      BSS_CHANGED_BEACON_ENABLED |
 		      BSS_CHANGED_BEACON |
-		      BSS_CHANGED_SSID;
+		      BSS_CHANGED_SSID |
+		      BSS_CHANGED_P2P_PS;
 	int err;
 
 	old = rtnl_dereference(sdata->u.ap.beacon);
@@ -931,6 +937,9 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		       params->ssid_len);
 	sdata->vif.bss_conf.hidden_ssid =
 		(params->hidden_ssid != NL80211_HIDDEN_SSID_NOT_IN_USE);
+
+	sdata->vif.bss_conf.p2p_ctwindow = params->p2p_ctwindow;
+	sdata->vif.bss_conf.p2p_oppps = params->p2p_opp_ps;
 
 	err = ieee80211_assign_beacon(sdata, &params->beacon);
 	if (err < 0)
@@ -1805,6 +1814,16 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 		sdata->vif.bss_conf.ht_operation_mode =
 			(u16) params->ht_opmode;
 		changed |= BSS_CHANGED_HT;
+	}
+
+	if (params->p2p_ctwindow >= 0) {
+		sdata->vif.bss_conf.p2p_ctwindow = params->p2p_ctwindow;
+		changed |= BSS_CHANGED_P2P_PS;
+	}
+
+	if (params->p2p_opp_ps >= 0) {
+		sdata->vif.bss_conf.p2p_oppps = params->p2p_opp_ps;
+		changed |= BSS_CHANGED_P2P_PS;
 	}
 
 	ieee80211_bss_info_change_notify(sdata, changed);

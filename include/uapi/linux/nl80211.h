@@ -1303,6 +1303,13 @@ enum nl80211_commands {
  *
  * @NL80211_ATTR_SCAN_FLAGS: scan request control flags (u32)
  *
+ * @NL80211_ATTR_P2P_CTWINDOW: P2P GO Client Traffic Window (u8), used with
+ *	the START_AP and SET_BSS commands
+ * @NL80211_ATTR_P2P_OPPPS: P2P GO opportunistic PS (u8), used with the
+ *	START_AP and SET_BSS commands. This can have the values 0 or 1;
+ *	if not given in START_AP 0 is assumed, if not given in SET_BSS
+ *	no change is made.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -1569,6 +1576,9 @@ enum nl80211_attrs {
 	NL80211_ATTR_CHANNEL_WIDTH,
 	NL80211_ATTR_CENTER_FREQ1,
 	NL80211_ATTR_CENTER_FREQ2,
+
+	NL80211_ATTR_P2P_CTWINDOW,
+	NL80211_ATTR_P2P_OPPPS,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -3126,6 +3136,10 @@ enum nl80211_ap_sme_features {
  * @NL80211_FEATURE_NEED_OBSS_SCAN: The driver expects userspace to perform
  *	OBSS scans and generate 20/40 BSS coex reports. This flag is used only
  *	for drivers implementing the CONNECT API, for AUTH/ASSOC it is implied.
+ * @NL80211_FEATURE_P2P_GO_CTWIN: P2P GO implementation supports CT Window
+ *	setting
+ * @NL80211_FEATURE_P2P_GO_OPPPS: P2P GO implementation supports opportunistic
+ *	powersave
  */
 enum nl80211_feature_flags {
 	NL80211_FEATURE_SK_TX_STATUS			= 1 << 0,
@@ -3139,6 +3153,8 @@ enum nl80211_feature_flags {
 	NL80211_FEATURE_AP_SCAN				= 1 << 8,
 	NL80211_FEATURE_VIF_TXPOWER			= 1 << 9,
 	NL80211_FEATURE_NEED_OBSS_SCAN			= 1 << 10,
+	NL80211_FEATURE_P2P_GO_CTWIN			= 1 << 11,
+	NL80211_FEATURE_P2P_GO_OPPPS			= 1 << 12,
 };
 
 /**

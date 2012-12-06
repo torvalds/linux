@@ -23,18 +23,23 @@
 
 static void bss_release(struct kref *ref)
 {
+	struct cfg80211_bss_ies *ies;
 	struct cfg80211_internal_bss *bss;
 
 	bss = container_of(ref, struct cfg80211_internal_bss, ref);
+
+	if (WARN_ON(atomic_read(&bss->hold)))
+		return;
+
 	if (bss->pub.free_priv)
 		bss->pub.free_priv(&bss->pub);
 
-	if (bss->beacon_ies_allocated)
-		kfree(bss->pub.beacon_ies);
-	if (bss->proberesp_ies_allocated)
-		kfree(bss->pub.proberesp_ies);
-
-	BUG_ON(atomic_read(&bss->hold));
+	ies = (void *)rcu_access_pointer(bss->pub.beacon_ies);
+	if (ies)
+		kfree_rcu(ies, rcu_head);
+	ies = (void *)rcu_access_pointer(bss->pub.proberesp_ies);
+	if (ies)
+		kfree_rcu(ies, rcu_head);
 
 	kfree(bss);
 }
@@ -236,9 +241,8 @@ void cfg80211_bss_age(struct cfg80211_registered_device *dev,
 	struct cfg80211_internal_bss *bss;
 	unsigned long age_jiffies = msecs_to_jiffies(age_secs * MSEC_PER_SEC);
 
-	list_for_each_entry(bss, &dev->bss_list, list) {
+	list_for_each_entry(bss, &dev->bss_list, list)
 		bss->ts -= age_jiffies;
-	}
 }
 
 void cfg80211_bss_expire(struct cfg80211_registered_device *dev)
@@ -287,7 +291,7 @@ const u8 *cfg80211_find_vendor_ie(unsigned int oui, u8 oui_type,
 }
 EXPORT_SYMBOL(cfg80211_find_vendor_ie);
 
-static int cmp_ies(u8 num, u8 *ies1, size_t len1, u8 *ies2, size_t len2)
+static int cmp_ies(u8 num, const u8 *ies1, int len1, const u8 *ies2, int len2)
 {
 	const u8 *ie1 = cfg80211_find_ie(num, ies1, len1);
 	const u8 *ie2 = cfg80211_find_ie(num, ies2, len2);
@@ -307,10 +311,10 @@ static int cmp_ies(u8 num, u8 *ies1, size_t len1, u8 *ies2, size_t len2)
 	return memcmp(ie1 + 2, ie2 + 2, ie1[1]);
 }
 
-static bool is_bss(struct cfg80211_bss *a,
-		   const u8 *bssid,
+static bool is_bss(struct cfg80211_bss *a, const u8 *bssid,
 		   const u8 *ssid, size_t ssid_len)
 {
+	const struct cfg80211_bss_ies *ies;
 	const u8 *ssidie;
 
 	if (bssid && !ether_addr_equal(a->bssid, bssid))
@@ -319,9 +323,10 @@ static bool is_bss(struct cfg80211_bss *a,
 	if (!ssid)
 		return true;
 
-	ssidie = cfg80211_find_ie(WLAN_EID_SSID,
-				  a->information_elements,
-				  a->len_information_elements);
+	ies = rcu_access_pointer(a->ies);
+	if (!ies)
+		return false;
+	ssidie = cfg80211_find_ie(WLAN_EID_SSID, ies->data, ies->len);
 	if (!ssidie)
 		return false;
 	if (ssidie[1] != ssid_len)
@@ -331,20 +336,21 @@ static bool is_bss(struct cfg80211_bss *a,
 
 static bool is_mesh_bss(struct cfg80211_bss *a)
 {
+	const struct cfg80211_bss_ies *ies;
 	const u8 *ie;
 
 	if (!WLAN_CAPABILITY_IS_STA_BSS(a->capability))
 		return false;
 
-	ie = cfg80211_find_ie(WLAN_EID_MESH_ID,
-			      a->information_elements,
-			      a->len_information_elements);
+	ies = rcu_access_pointer(a->ies);
+	if (!ies)
+		return false;
+
+	ie = cfg80211_find_ie(WLAN_EID_MESH_ID, ies->data, ies->len);
 	if (!ie)
 		return false;
 
-	ie = cfg80211_find_ie(WLAN_EID_MESH_CONFIG,
-			      a->information_elements,
-			      a->len_information_elements);
+	ie = cfg80211_find_ie(WLAN_EID_MESH_CONFIG, ies->data, ies->len);
 	if (!ie)
 		return false;
 
@@ -355,14 +361,17 @@ static bool is_mesh(struct cfg80211_bss *a,
 		    const u8 *meshid, size_t meshidlen,
 		    const u8 *meshcfg)
 {
+	const struct cfg80211_bss_ies *ies;
 	const u8 *ie;
 
 	if (!WLAN_CAPABILITY_IS_STA_BSS(a->capability))
 		return false;
 
-	ie = cfg80211_find_ie(WLAN_EID_MESH_ID,
-			      a->information_elements,
-			      a->len_information_elements);
+	ies = rcu_access_pointer(a->ies);
+	if (!ies)
+		return false;
+
+	ie = cfg80211_find_ie(WLAN_EID_MESH_ID, ies->data, ies->len);
 	if (!ie)
 		return false;
 	if (ie[1] != meshidlen)
@@ -370,9 +379,7 @@ static bool is_mesh(struct cfg80211_bss *a,
 	if (memcmp(ie + 2, meshid, meshidlen))
 		return false;
 
-	ie = cfg80211_find_ie(WLAN_EID_MESH_CONFIG,
-			      a->information_elements,
-			      a->len_information_elements);
+	ie = cfg80211_find_ie(WLAN_EID_MESH_CONFIG, ies->data, ies->len);
 	if (!ie)
 		return false;
 	if (ie[1] != sizeof(struct ieee80211_meshconf_ie))
@@ -384,30 +391,33 @@ static bool is_mesh(struct cfg80211_bss *a,
 	 * part in the same mesh.
 	 */
 	return memcmp(ie + 2, meshcfg,
-	    sizeof(struct ieee80211_meshconf_ie) - 2) == 0;
+		      sizeof(struct ieee80211_meshconf_ie) - 2) == 0;
 }
 
-static int cmp_bss_core(struct cfg80211_bss *a,
-			struct cfg80211_bss *b)
+static int cmp_bss_core(struct cfg80211_bss *a, struct cfg80211_bss *b)
 {
+	const struct cfg80211_bss_ies *a_ies, *b_ies;
 	int r;
 
 	if (a->channel != b->channel)
 		return b->channel->center_freq - a->channel->center_freq;
 
 	if (is_mesh_bss(a) && is_mesh_bss(b)) {
+		a_ies = rcu_access_pointer(a->ies);
+		if (!a_ies)
+			return -1;
+		b_ies = rcu_access_pointer(b->ies);
+		if (!b_ies)
+			return 1;
+
 		r = cmp_ies(WLAN_EID_MESH_ID,
-			    a->information_elements,
-			    a->len_information_elements,
-			    b->information_elements,
-			    b->len_information_elements);
+			    a_ies->data, a_ies->len,
+			    b_ies->data, b_ies->len);
 		if (r)
 			return r;
 		return cmp_ies(WLAN_EID_MESH_CONFIG,
-			       a->information_elements,
-			       a->len_information_elements,
-			       b->information_elements,
-			       b->len_information_elements);
+			       a_ies->data, a_ies->len,
+			       b_ies->data, b_ies->len);
 	}
 
 	/*
@@ -420,22 +430,28 @@ static int cmp_bss_core(struct cfg80211_bss *a,
 static int cmp_bss(struct cfg80211_bss *a,
 		   struct cfg80211_bss *b)
 {
+	const struct cfg80211_bss_ies *a_ies, *b_ies;
 	int r;
 
 	r = cmp_bss_core(a, b);
 	if (r)
 		return r;
 
+	a_ies = rcu_access_pointer(a->ies);
+	if (!a_ies)
+		return -1;
+	b_ies = rcu_access_pointer(b->ies);
+	if (!b_ies)
+		return 1;
+
 	return cmp_ies(WLAN_EID_SSID,
-		       a->information_elements,
-		       a->len_information_elements,
-		       b->information_elements,
-		       b->len_information_elements);
+		       a_ies->data, a_ies->len,
+		       b_ies->data, b_ies->len);
 }
 
-static int cmp_hidden_bss(struct cfg80211_bss *a,
-		   struct cfg80211_bss *b)
+static int cmp_hidden_bss(struct cfg80211_bss *a, struct cfg80211_bss *b)
 {
+	const struct cfg80211_bss_ies *a_ies, *b_ies;
 	const u8 *ie1;
 	const u8 *ie2;
 	int i;
@@ -445,17 +461,26 @@ static int cmp_hidden_bss(struct cfg80211_bss *a,
 	if (r)
 		return r;
 
-	ie1 = cfg80211_find_ie(WLAN_EID_SSID,
-			a->information_elements,
-			a->len_information_elements);
-	ie2 = cfg80211_find_ie(WLAN_EID_SSID,
-			b->information_elements,
-			b->len_information_elements);
+	a_ies = rcu_access_pointer(a->ies);
+	if (!a_ies)
+		return -1;
+	b_ies = rcu_access_pointer(b->ies);
+	if (!b_ies)
+		return 1;
 
-	/* Key comparator must use same algorithm in any rb-tree
+	ie1 = cfg80211_find_ie(WLAN_EID_SSID, a_ies->data, a_ies->len);
+	ie2 = cfg80211_find_ie(WLAN_EID_SSID, b_ies->data, b_ies->len);
+
+	/*
+	 * Key comparator must use same algorithm in any rb-tree
 	 * search function (order is important), otherwise ordering
 	 * of items in the tree is broken and search gives incorrect
-	 * results. This code uses same order as cmp_ies() does. */
+	 * results. This code uses same order as cmp_ies() does.
+	 *
+	 * Note that due to the differring behaviour with hidden SSIDs
+	 * this function only works when "b" is the tree element and
+	 * "a" is the key we're looking for.
+	 */
 
 	/* sort missing IE before (left of) present IE */
 	if (!ie1)
@@ -471,10 +496,14 @@ static int cmp_hidden_bss(struct cfg80211_bss *a,
 	if (ie1[1] != ie2[1])
 		return ie2[1] - ie1[1];
 
-	/* zeroed SSID ie is another indication of a hidden bss */
+	/*
+	 * zeroed SSID ie is another indication of a hidden bss;
+	 * if it isn't zeroed just return the regular sort value
+	 * to find the next candidate
+	 */
 	for (i = 0; i < ie2[1]; i++)
 		if (ie2[i + 2])
-			return -1;
+			return memcmp(ie1 + 2, ie2 + 2, ie1[1]);
 
 	return 0;
 }
@@ -600,7 +629,7 @@ rb_find_bss(struct cfg80211_registered_device *dev,
 
 static struct cfg80211_internal_bss *
 rb_find_hidden_bss(struct cfg80211_registered_device *dev,
-	    struct cfg80211_internal_bss *res)
+		   struct cfg80211_internal_bss *res)
 {
 	struct rb_node *n = dev->bss_tree.rb_node;
 	struct cfg80211_internal_bss *bss;
@@ -623,127 +652,86 @@ rb_find_hidden_bss(struct cfg80211_registered_device *dev,
 
 static void
 copy_hidden_ies(struct cfg80211_internal_bss *res,
-		 struct cfg80211_internal_bss *hidden)
+		struct cfg80211_internal_bss *hidden)
 {
-	if (unlikely(res->pub.beacon_ies))
-		return;
-	if (WARN_ON(!hidden->pub.beacon_ies))
+	const struct cfg80211_bss_ies *ies;
+
+	if (rcu_access_pointer(res->pub.beacon_ies))
 		return;
 
-	res->pub.beacon_ies = kmalloc(hidden->pub.len_beacon_ies, GFP_ATOMIC);
-	if (unlikely(!res->pub.beacon_ies))
+	ies = rcu_access_pointer(hidden->pub.beacon_ies);
+	if (WARN_ON(!ies))
 		return;
 
-	res->beacon_ies_allocated = true;
-	res->pub.len_beacon_ies = hidden->pub.len_beacon_ies;
-	memcpy(res->pub.beacon_ies, hidden->pub.beacon_ies,
-			res->pub.len_beacon_ies);
+	ies = kmemdup(ies, sizeof(*ies) + ies->len, GFP_ATOMIC);
+	if (unlikely(!ies))
+		return;
+	rcu_assign_pointer(res->pub.beacon_ies, ies);
 }
 
 static struct cfg80211_internal_bss *
 cfg80211_bss_update(struct cfg80211_registered_device *dev,
-		    struct cfg80211_internal_bss *res)
+		    struct cfg80211_internal_bss *tmp)
 {
 	struct cfg80211_internal_bss *found = NULL;
 
-	/*
-	 * The reference to "res" is donated to this function.
-	 */
-
-	if (WARN_ON(!res->pub.channel)) {
-		kref_put(&res->ref, bss_release);
+	if (WARN_ON(!tmp->pub.channel))
 		return NULL;
-	}
 
-	res->ts = jiffies;
+	tmp->ts = jiffies;
 
 	spin_lock_bh(&dev->bss_lock);
 
-	found = rb_find_bss(dev, res);
+	if (WARN_ON(!rcu_access_pointer(tmp->pub.ies))) {
+		spin_unlock_bh(&dev->bss_lock);
+		return NULL;
+	}
+
+	found = rb_find_bss(dev, tmp);
 
 	if (found) {
-		found->pub.beacon_interval = res->pub.beacon_interval;
-		found->pub.tsf = res->pub.tsf;
-		found->pub.signal = res->pub.signal;
-		found->pub.capability = res->pub.capability;
-		found->ts = res->ts;
+		found->pub.beacon_interval = tmp->pub.beacon_interval;
+		found->pub.tsf = tmp->pub.tsf;
+		found->pub.signal = tmp->pub.signal;
+		found->pub.capability = tmp->pub.capability;
+		found->ts = tmp->ts;
 
 		/* Update IEs */
-		if (res->pub.proberesp_ies) {
-			size_t used = dev->wiphy.bss_priv_size + sizeof(*res);
-			size_t ielen = res->pub.len_proberesp_ies;
+		if (rcu_access_pointer(tmp->pub.proberesp_ies)) {
+			const struct cfg80211_bss_ies *old;
 
-			if (found->pub.proberesp_ies &&
-			    !found->proberesp_ies_allocated &&
-			    ksize(found) >= used + ielen) {
-				memcpy(found->pub.proberesp_ies,
-				       res->pub.proberesp_ies, ielen);
-				found->pub.len_proberesp_ies = ielen;
-			} else {
-				u8 *ies = found->pub.proberesp_ies;
+			old = rcu_access_pointer(found->pub.proberesp_ies);
 
-				if (found->proberesp_ies_allocated)
-					ies = krealloc(ies, ielen, GFP_ATOMIC);
-				else
-					ies = kmalloc(ielen, GFP_ATOMIC);
-
-				if (ies) {
-					memcpy(ies, res->pub.proberesp_ies,
-					       ielen);
-					found->proberesp_ies_allocated = true;
-					found->pub.proberesp_ies = ies;
-					found->pub.len_proberesp_ies = ielen;
-				}
-			}
-
+			rcu_assign_pointer(found->pub.proberesp_ies,
+					   tmp->pub.proberesp_ies);
 			/* Override possible earlier Beacon frame IEs */
-			found->pub.information_elements =
-				found->pub.proberesp_ies;
-			found->pub.len_information_elements =
-				found->pub.len_proberesp_ies;
-		}
-		if (res->pub.beacon_ies) {
-			size_t used = dev->wiphy.bss_priv_size + sizeof(*res);
-			size_t ielen = res->pub.len_beacon_ies;
-			bool information_elements_is_beacon_ies =
-				(found->pub.information_elements ==
-				 found->pub.beacon_ies);
+			rcu_assign_pointer(found->pub.ies,
+					   tmp->pub.proberesp_ies);
+			if (old)
+				kfree_rcu((struct cfg80211_bss_ies *)old,
+					  rcu_head);
+		} else if (rcu_access_pointer(tmp->pub.beacon_ies)) {
+			const struct cfg80211_bss_ies *old, *ies;
 
-			if (found->pub.beacon_ies &&
-			    !found->beacon_ies_allocated &&
-			    ksize(found) >= used + ielen) {
-				memcpy(found->pub.beacon_ies,
-				       res->pub.beacon_ies, ielen);
-				found->pub.len_beacon_ies = ielen;
-			} else {
-				u8 *ies = found->pub.beacon_ies;
+			old = rcu_access_pointer(found->pub.beacon_ies);
+			ies = rcu_access_pointer(found->pub.ies);
 
-				if (found->beacon_ies_allocated)
-					ies = krealloc(ies, ielen, GFP_ATOMIC);
-				else
-					ies = kmalloc(ielen, GFP_ATOMIC);
-
-				if (ies) {
-					memcpy(ies, res->pub.beacon_ies,
-					       ielen);
-					found->beacon_ies_allocated = true;
-					found->pub.beacon_ies = ies;
-					found->pub.len_beacon_ies = ielen;
-				}
-			}
+			rcu_assign_pointer(found->pub.beacon_ies,
+					   tmp->pub.beacon_ies);
 
 			/* Override IEs if they were from a beacon before */
-			if (information_elements_is_beacon_ies) {
-				found->pub.information_elements =
-					found->pub.beacon_ies;
-				found->pub.len_information_elements =
-					found->pub.len_beacon_ies;
-			}
-		}
+			if (old == ies)
+				rcu_assign_pointer(found->pub.ies,
+						   tmp->pub.beacon_ies);
 
-		kref_put(&res->ref, bss_release);
+			if (old)
+				kfree_rcu((struct cfg80211_bss_ies *)old,
+					  rcu_head);
+		}
 	} else {
+		struct cfg80211_internal_bss *new;
 		struct cfg80211_internal_bss *hidden;
+		struct cfg80211_bss_ies *ies;
 
 		/* First check if the beacon is a probe response from
 		 * a hidden bss. If so, copy beacon ies (with nullified
@@ -754,14 +742,32 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 		/* TODO: The code is not trying to update existing probe
 		 * response bss entries when beacon ies are
 		 * getting changed. */
-		hidden = rb_find_hidden_bss(dev, res);
+		hidden = rb_find_hidden_bss(dev, tmp);
 		if (hidden)
-			copy_hidden_ies(res, hidden);
+			copy_hidden_ies(tmp, hidden);
 
-		/* this "consumes" the reference */
-		list_add_tail(&res->list, &dev->bss_list);
-		rb_insert_bss(dev, res);
-		found = res;
+		/*
+		 * create a copy -- the "res" variable that is passed in
+		 * is allocated on the stack since it's not needed in the
+		 * more common case of an update
+		 */
+		new = kzalloc(sizeof(*new) + dev->wiphy.bss_priv_size,
+			      GFP_ATOMIC);
+		if (!new) {
+			ies = (void *)rcu_dereference(tmp->pub.beacon_ies);
+			if (ies)
+				kfree_rcu(ies, rcu_head);
+			ies = (void *)rcu_dereference(tmp->pub.proberesp_ies);
+			if (ies)
+				kfree_rcu(ies, rcu_head);
+			spin_unlock_bh(&dev->bss_lock);
+			return NULL;
+		}
+		memcpy(new, tmp, sizeof(*new));
+		kref_init(&new->ref);
+		list_add_tail(&new->list, &dev->bss_list);
+		rb_insert_bss(dev, new);
+		found = new;
 	}
 
 	dev->bss_generation++;
@@ -810,13 +816,11 @@ cfg80211_inform_bss(struct wiphy *wiphy,
 		    u16 beacon_interval, const u8 *ie, size_t ielen,
 		    s32 signal, gfp_t gfp)
 {
-	struct cfg80211_internal_bss *res;
-	size_t privsz;
+	struct cfg80211_bss_ies *ies;
+	struct cfg80211_internal_bss tmp = {}, *res;
 
 	if (WARN_ON(!wiphy))
 		return NULL;
-
-	privsz = wiphy->bss_priv_size;
 
 	if (WARN_ON(wiphy->signal_type == CFG80211_SIGNAL_TYPE_UNSPEC &&
 			(signal < 0 || signal > 100)))
@@ -826,36 +830,33 @@ cfg80211_inform_bss(struct wiphy *wiphy,
 	if (!channel)
 		return NULL;
 
-	res = kzalloc(sizeof(*res) + privsz + ielen, gfp);
-	if (!res)
-		return NULL;
-
-	memcpy(res->pub.bssid, bssid, ETH_ALEN);
-	res->pub.channel = channel;
-	res->pub.signal = signal;
-	res->pub.tsf = tsf;
-	res->pub.beacon_interval = beacon_interval;
-	res->pub.capability = capability;
+	memcpy(tmp.pub.bssid, bssid, ETH_ALEN);
+	tmp.pub.channel = channel;
+	tmp.pub.signal = signal;
+	tmp.pub.tsf = tsf;
+	tmp.pub.beacon_interval = beacon_interval;
+	tmp.pub.capability = capability;
 	/*
 	 * Since we do not know here whether the IEs are from a Beacon or Probe
 	 * Response frame, we need to pick one of the options and only use it
 	 * with the driver that does not provide the full Beacon/Probe Response
 	 * frame. Use Beacon frame pointer to avoid indicating that this should
-	 * override the information_elements pointer should we have received an
-	 * earlier indication of Probe Response data.
+	 * override the iies pointer should we have received an earlier
+	 * indication of Probe Response data.
 	 *
 	 * The initial buffer for the IEs is allocated with the BSS entry and
 	 * is located after the private area.
 	 */
-	res->pub.beacon_ies = (u8 *)res + sizeof(*res) + privsz;
-	memcpy(res->pub.beacon_ies, ie, ielen);
-	res->pub.len_beacon_ies = ielen;
-	res->pub.information_elements = res->pub.beacon_ies;
-	res->pub.len_information_elements = res->pub.len_beacon_ies;
+	ies = kmalloc(sizeof(*ies) + ielen, gfp);
+	if (!ies)
+		return NULL;
+	ies->len = ielen;
+	memcpy(ies->data, ie, ielen);
 
-	kref_init(&res->ref);
+	rcu_assign_pointer(tmp.pub.beacon_ies, ies);
+	rcu_assign_pointer(tmp.pub.ies, ies);
 
-	res = cfg80211_bss_update(wiphy_to_dev(wiphy), res);
+	res = cfg80211_bss_update(wiphy_to_dev(wiphy), &tmp);
 	if (!res)
 		return NULL;
 
@@ -874,10 +875,10 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
 			  struct ieee80211_mgmt *mgmt, size_t len,
 			  s32 signal, gfp_t gfp)
 {
-	struct cfg80211_internal_bss *res;
+	struct cfg80211_internal_bss tmp = {}, *res;
+	struct cfg80211_bss_ies *ies;
 	size_t ielen = len - offsetof(struct ieee80211_mgmt,
 				      u.probe_resp.variable);
-	size_t privsz;
 
 	BUILD_BUG_ON(offsetof(struct ieee80211_mgmt, u.probe_resp.variable) !=
 			offsetof(struct ieee80211_mgmt, u.beacon.variable));
@@ -897,45 +898,31 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
 	if (WARN_ON(len < offsetof(struct ieee80211_mgmt, u.probe_resp.variable)))
 		return NULL;
 
-	privsz = wiphy->bss_priv_size;
-
 	channel = cfg80211_get_bss_channel(wiphy, mgmt->u.beacon.variable,
 					   ielen, channel);
 	if (!channel)
 		return NULL;
 
-	res = kzalloc(sizeof(*res) + privsz + ielen, gfp);
-	if (!res)
+	ies = kmalloc(sizeof(*ies) + ielen, gfp);
+	if (!ies)
 		return NULL;
+	ies->len = ielen;
+	memcpy(ies->data, mgmt->u.probe_resp.variable, ielen);
 
-	memcpy(res->pub.bssid, mgmt->bssid, ETH_ALEN);
-	res->pub.channel = channel;
-	res->pub.signal = signal;
-	res->pub.tsf = le64_to_cpu(mgmt->u.probe_resp.timestamp);
-	res->pub.beacon_interval = le16_to_cpu(mgmt->u.probe_resp.beacon_int);
-	res->pub.capability = le16_to_cpu(mgmt->u.probe_resp.capab_info);
-	/*
-	 * The initial buffer for the IEs is allocated with the BSS entry and
-	 * is located after the private area.
-	 */
-	if (ieee80211_is_probe_resp(mgmt->frame_control)) {
-		res->pub.proberesp_ies = (u8 *) res + sizeof(*res) + privsz;
-		memcpy(res->pub.proberesp_ies, mgmt->u.probe_resp.variable,
-		       ielen);
-		res->pub.len_proberesp_ies = ielen;
-		res->pub.information_elements = res->pub.proberesp_ies;
-		res->pub.len_information_elements = res->pub.len_proberesp_ies;
-	} else {
-		res->pub.beacon_ies = (u8 *) res + sizeof(*res) + privsz;
-		memcpy(res->pub.beacon_ies, mgmt->u.beacon.variable, ielen);
-		res->pub.len_beacon_ies = ielen;
-		res->pub.information_elements = res->pub.beacon_ies;
-		res->pub.len_information_elements = res->pub.len_beacon_ies;
-	}
+	if (ieee80211_is_probe_resp(mgmt->frame_control))
+		rcu_assign_pointer(tmp.pub.proberesp_ies, ies);
+	else
+		rcu_assign_pointer(tmp.pub.beacon_ies, ies);
+	rcu_assign_pointer(tmp.pub.ies, ies);
+	
+	memcpy(tmp.pub.bssid, mgmt->bssid, ETH_ALEN);
+	tmp.pub.channel = channel;
+	tmp.pub.signal = signal;
+	tmp.pub.tsf = le64_to_cpu(mgmt->u.probe_resp.timestamp);
+	tmp.pub.beacon_interval = le16_to_cpu(mgmt->u.probe_resp.beacon_int);
+	tmp.pub.capability = le16_to_cpu(mgmt->u.probe_resp.capab_info);
 
-	kref_init(&res->ref);
-
-	res = cfg80211_bss_update(wiphy_to_dev(wiphy), res);
+	res = cfg80211_bss_update(wiphy_to_dev(wiphy), &tmp);
 	if (!res)
 		return NULL;
 
@@ -1127,22 +1114,21 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 EXPORT_SYMBOL_GPL(cfg80211_wext_siwscan);
 
 static void ieee80211_scan_add_ies(struct iw_request_info *info,
-				   struct cfg80211_bss *bss,
+				   const struct cfg80211_bss_ies *ies,
 				   char **current_ev, char *end_buf)
 {
-	u8 *pos, *end, *next;
+	const u8 *pos, *end, *next;
 	struct iw_event iwe;
 
-	if (!bss->information_elements ||
-	    !bss->len_information_elements)
+	if (!ies)
 		return;
 
 	/*
 	 * If needed, fragment the IEs buffer (at IE boundaries) into short
 	 * enough fragments to fit into IW_GENERIC_IE_MAX octet messages.
 	 */
-	pos = bss->information_elements;
-	end = pos + bss->len_information_elements;
+	pos = ies->data;
+	end = pos + ies->len;
 
 	while (end - pos > IW_GENERIC_IE_MAX) {
 		next = pos + 2 + pos[1];
@@ -1153,7 +1139,8 @@ static void ieee80211_scan_add_ies(struct iw_request_info *info,
 		iwe.cmd = IWEVGENIE;
 		iwe.u.data.length = next - pos;
 		*current_ev = iwe_stream_add_point(info, *current_ev,
-						   end_buf, &iwe, pos);
+						   end_buf, &iwe,
+						   (void *)pos);
 
 		pos = next;
 	}
@@ -1163,7 +1150,8 @@ static void ieee80211_scan_add_ies(struct iw_request_info *info,
 		iwe.cmd = IWEVGENIE;
 		iwe.u.data.length = end - pos;
 		*current_ev = iwe_stream_add_point(info, *current_ev,
-						   end_buf, &iwe, pos);
+						   end_buf, &iwe,
+						   (void *)pos);
 	}
 }
 
@@ -1182,10 +1170,11 @@ ieee80211_bss(struct wiphy *wiphy, struct iw_request_info *info,
 	      struct cfg80211_internal_bss *bss, char *current_ev,
 	      char *end_buf)
 {
+	const struct cfg80211_bss_ies *ies;
 	struct iw_event iwe;
+	const u8 *ie;
 	u8 *buf, *cfg, *p;
-	u8 *ie = bss->pub.information_elements;
-	int rem = bss->pub.len_information_elements, i, sig;
+	int rem, i, sig;
 	bool ismesh = false;
 
 	memset(&iwe, 0, sizeof(iwe));
@@ -1250,7 +1239,17 @@ ieee80211_bss(struct wiphy *wiphy, struct iw_request_info *info,
 	current_ev = iwe_stream_add_point(info, current_ev, end_buf,
 					  &iwe, "");
 
-	while (rem >= 2) {
+	rcu_read_lock();
+	ies = rcu_dereference(bss->pub.ies);
+	if (ies) {
+		rem = ies->len;
+		ie = ies->data;
+	} else {
+		rem = 0;
+		ie = NULL;
+	}
+
+	while (ies && rem >= 2) {
 		/* invalid data */
 		if (ie[1] > rem - 2)
 			break;
@@ -1262,7 +1261,7 @@ ieee80211_bss(struct wiphy *wiphy, struct iw_request_info *info,
 			iwe.u.data.length = ie[1];
 			iwe.u.data.flags = 1;
 			current_ev = iwe_stream_add_point(info, current_ev, end_buf,
-							  &iwe, ie + 2);
+							  &iwe, (u8 *)ie + 2);
 			break;
 		case WLAN_EID_MESH_ID:
 			memset(&iwe, 0, sizeof(iwe));
@@ -1270,7 +1269,7 @@ ieee80211_bss(struct wiphy *wiphy, struct iw_request_info *info,
 			iwe.u.data.length = ie[1];
 			iwe.u.data.flags = 1;
 			current_ev = iwe_stream_add_point(info, current_ev, end_buf,
-							  &iwe, ie + 2);
+							  &iwe, (u8 *)ie + 2);
 			break;
 		case WLAN_EID_MESH_CONFIG:
 			ismesh = true;
@@ -1279,7 +1278,7 @@ ieee80211_bss(struct wiphy *wiphy, struct iw_request_info *info,
 			buf = kmalloc(50, GFP_ATOMIC);
 			if (!buf)
 				break;
-			cfg = ie + 2;
+			cfg = (u8 *)ie + 2;
 			memset(&iwe, 0, sizeof(iwe));
 			iwe.cmd = IWEVCUSTOM;
 			sprintf(buf, "Mesh Network Path Selection Protocol ID: "
@@ -1377,7 +1376,8 @@ ieee80211_bss(struct wiphy *wiphy, struct iw_request_info *info,
 		kfree(buf);
 	}
 
-	ieee80211_scan_add_ies(info, &bss->pub, &current_ev, end_buf);
+	ieee80211_scan_add_ies(info, ies, &current_ev, end_buf);
+	rcu_read_unlock();
 
 	return current_ev;
 }

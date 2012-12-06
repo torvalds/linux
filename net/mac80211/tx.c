@@ -2623,7 +2623,7 @@ EXPORT_SYMBOL(ieee80211_nullfunc_get);
 struct sk_buff *ieee80211_probereq_get(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
 				       const u8 *ssid, size_t ssid_len,
-				       const u8 *ie, size_t ie_len)
+				       size_t tailroom)
 {
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_local *local;
@@ -2637,7 +2637,7 @@ struct sk_buff *ieee80211_probereq_get(struct ieee80211_hw *hw,
 	ie_ssid_len = 2 + ssid_len;
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + sizeof(*hdr) +
-			    ie_ssid_len + ie_len);
+			    ie_ssid_len + tailroom);
 	if (!skb)
 		return NULL;
 
@@ -2657,11 +2657,6 @@ struct sk_buff *ieee80211_probereq_get(struct ieee80211_hw *hw,
 	if (ssid_len)
 		memcpy(pos, ssid, ssid_len);
 	pos += ssid_len;
-
-	if (ie) {
-		pos = skb_put(skb, ie_len);
-		memcpy(pos, ie, ie_len);
-	}
 
 	return skb;
 }

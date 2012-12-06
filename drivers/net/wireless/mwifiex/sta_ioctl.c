@@ -160,11 +160,21 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 {
 	int ret;
 	u8 *beacon_ie;
+	size_t beacon_ie_len;
 	struct mwifiex_bss_priv *bss_priv = (void *)bss->priv;
-	size_t beacon_ie_len = bss->len_information_elements;
+	const struct cfg80211_bss_ies *ies;
 
-	beacon_ie = kmemdup(bss->information_elements, beacon_ie_len,
-			    GFP_KERNEL);
+	rcu_read_lock();
+	ies = rcu_dereference(bss->ies);
+	if (WARN_ON(!ies)) {
+		/* should never happen */
+		rcu_read_unlock();
+		return -EINVAL;
+	}
+	beacon_ie = kmemdup(ies->data, ies->len, GFP_ATOMIC);
+	beacon_ie_len = ies->len;
+	rcu_read_unlock();
+
 	if (!beacon_ie) {
 		dev_err(priv->adapter->dev, " failed to alloc beacon_ie\n");
 		return -ENOMEM;
@@ -199,18 +209,23 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 static int mwifiex_process_country_ie(struct mwifiex_private *priv,
 				      struct cfg80211_bss *bss)
 {
-	u8 *country_ie, country_ie_len;
+	const u8 *country_ie;
+	u8 country_ie_len;
 	struct mwifiex_802_11d_domain_reg *domain_info =
 					&priv->adapter->domain_reg;
 
-	country_ie = (u8 *)ieee80211_bss_get_ie(bss, WLAN_EID_COUNTRY);
-
-	if (!country_ie)
+	rcu_read_lock();
+	country_ie = ieee80211_bss_get_ie(bss, WLAN_EID_COUNTRY);
+	if (!country_ie) {
+		rcu_read_unlock();
 		return 0;
+	}
 
 	country_ie_len = country_ie[1];
-	if (country_ie_len < IEEE80211_COUNTRY_IE_MIN_LEN)
+	if (country_ie_len < IEEE80211_COUNTRY_IE_MIN_LEN) {
+		rcu_read_unlock();
 		return 0;
+	}
 
 	domain_info->country_code[0] = country_ie[2];
 	domain_info->country_code[1] = country_ie[3];
@@ -223,6 +238,8 @@ static int mwifiex_process_country_ie(struct mwifiex_private *priv,
 
 	memcpy((u8 *)domain_info->triplet,
 	       &country_ie[2] + IEEE80211_COUNTRY_STRING_LEN, country_ie_len);
+
+	rcu_read_unlock();
 
 	if (mwifiex_send_cmd_async(priv, HostCmd_CMD_802_11D_DOMAIN_INFO,
 				   HostCmd_ACT_GEN_SET, 0, NULL)) {

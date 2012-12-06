@@ -391,7 +391,8 @@ static struct sta_info *mesh_peer_init(struct ieee80211_sub_if_data *sdata,
 		sta->ch_width = chandef.width;
 	}
 
-	rate_control_rate_init(sta);
+	if (insert)
+		rate_control_rate_init(sta);
 	spin_unlock_bh(&sta->lock);
 
 	if (insert && sta_info_insert(sta))
