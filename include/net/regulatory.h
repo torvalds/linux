@@ -18,6 +18,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/rcupdate.h>
 
 /**
  * enum environment_cap - Environment parsed from country IE
@@ -101,6 +102,7 @@ struct ieee80211_reg_rule {
 };
 
 struct ieee80211_regdomain {
+	struct rcu_head rcu_head;
 	u32 n_reg_rules;
 	char alpha2[2];
 	u8 dfs_region;

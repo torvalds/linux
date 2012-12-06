@@ -95,15 +95,15 @@ static struct device_type reg_device_type = {
  * Central wireless core regulatory domains, we only need two,
  * the current one and a world regulatory domain in case we have no
  * information to give us an alpha2.
- * Protected by the cfg80211_mutex.
  */
-const struct ieee80211_regdomain *cfg80211_regdomain;
+const struct ieee80211_regdomain __rcu *cfg80211_regdomain;
 
 /*
  * Protects static reg.c components:
- *     - cfg80211_world_regdom
- *     - last_request
- *     - reg_num_devs_support_basehint
+ *	- cfg80211_regdomain (if not used with RCU)
+ *	- cfg80211_world_regdom
+ *	- last_request
+ *	- reg_num_devs_support_basehint
  */
 static DEFINE_MUTEX(reg_mutex);
 
@@ -116,6 +116,25 @@ static int reg_num_devs_support_basehint;
 static inline void assert_reg_lock(void)
 {
 	lockdep_assert_held(&reg_mutex);
+}
+
+static const struct ieee80211_regdomain *get_cfg80211_regdom(void)
+{
+	return rcu_dereference_protected(cfg80211_regdomain,
+					 lockdep_is_held(&reg_mutex));
+}
+
+static const struct ieee80211_regdomain *get_wiphy_regdom(struct wiphy *wiphy)
+{
+	return rcu_dereference_protected(wiphy->regd,
+					 lockdep_is_held(&reg_mutex));
+}
+
+static void rcu_free_regdom(const struct ieee80211_regdomain *r)
+{
+	if (!r)
+		return;
+	kfree_rcu((struct ieee80211_regdomain *)r, rcu_head);
 }
 
 /* Used to queue up regulatory hints */
@@ -186,22 +205,25 @@ MODULE_PARM_DESC(ieee80211_regdom, "IEEE 802.11 regulatory domain code");
 static void reset_regdomains(bool full_reset,
 			     const struct ieee80211_regdomain *new_regdom)
 {
-	assert_cfg80211_lock();
+	const struct ieee80211_regdomain *r;
+
 	assert_reg_lock();
 
+	r = get_cfg80211_regdom();
+
 	/* avoid freeing static information or freeing something twice */
-	if (cfg80211_regdomain == cfg80211_world_regdom)
-		cfg80211_regdomain = NULL;
+	if (r == cfg80211_world_regdom)
+		r = NULL;
 	if (cfg80211_world_regdom == &world_regdom)
 		cfg80211_world_regdom = NULL;
-	if (cfg80211_regdomain == &world_regdom)
-		cfg80211_regdomain = NULL;
+	if (r == &world_regdom)
+		r = NULL;
 
-	kfree(cfg80211_regdomain);
-	kfree(cfg80211_world_regdom);
+	rcu_free_regdom(r);
+	rcu_free_regdom(cfg80211_world_regdom);
 
 	cfg80211_world_regdom = &world_regdom;
-	cfg80211_regdomain = new_regdom;
+	rcu_assign_pointer(cfg80211_regdomain, new_regdom);
 
 	if (!full_reset)
 		return;
@@ -219,7 +241,6 @@ static void update_world_regdomain(const struct ieee80211_regdomain *rd)
 {
 	WARN_ON(!last_request);
 
-	assert_cfg80211_lock();
 	assert_reg_lock();
 
 	reset_regdomains(false, rd);
@@ -280,11 +301,11 @@ static bool alpha2_equal(const char *alpha2_x, const char *alpha2_y)
 
 static bool regdom_changes(const char *alpha2)
 {
-	assert_cfg80211_lock();
+	const struct ieee80211_regdomain *r = get_cfg80211_regdom();
 
-	if (!cfg80211_regdomain)
+	if (!r)
 		return true;
-	return !alpha2_equal(cfg80211_regdomain->alpha2, alpha2);
+	return !alpha2_equal(r->alpha2, alpha2);
 }
 
 /*
@@ -727,7 +748,6 @@ int freq_reg_info(struct wiphy *wiphy, u32 center_freq,
 	const struct ieee80211_regdomain *regd;
 
 	assert_reg_lock();
-	assert_cfg80211_lock();
 
 	/*
 	 * Follow the driver's regulatory domain, if present, unless a country
@@ -736,9 +756,9 @@ int freq_reg_info(struct wiphy *wiphy, u32 center_freq,
 	if (last_request->initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE &&
 	    last_request->initiator != NL80211_REGDOM_SET_BY_USER &&
 	    wiphy->regd)
-		regd = wiphy->regd;
+		regd = get_wiphy_regdom(wiphy);
 	else
-		regd = cfg80211_regdomain;
+		regd = get_cfg80211_regdom();
 
 	return freq_reg_info_regd(wiphy, center_freq, reg_rule, regd);
 }
@@ -808,8 +828,6 @@ static void handle_channel(struct wiphy *wiphy,
 	const struct ieee80211_power_rule *power_rule = NULL;
 	const struct ieee80211_freq_range *freq_range = NULL;
 	struct wiphy *request_wiphy = NULL;
-
-	assert_cfg80211_lock();
 
 	request_wiphy = wiphy_idx_to_wiphy(last_request->wiphy_idx);
 
@@ -1060,15 +1078,17 @@ static void wiphy_update_beacon_reg(struct wiphy *wiphy)
 
 static bool reg_is_world_roaming(struct wiphy *wiphy)
 {
-	assert_cfg80211_lock();
+	const struct ieee80211_regdomain *cr = get_cfg80211_regdom();
+	const struct ieee80211_regdomain *wr = get_wiphy_regdom(wiphy);
 
-	if (is_world_regdom(cfg80211_regdomain->alpha2) ||
-	    (wiphy->regd && is_world_regdom(wiphy->regd->alpha2)))
+	if (is_world_regdom(cr->alpha2) || (wr && is_world_regdom(wr->alpha2)))
 		return true;
+
 	if (last_request &&
 	    last_request->initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE &&
 	    wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY)
 		return true;
+
 	return false;
 }
 
@@ -1165,13 +1185,12 @@ static void wiphy_update_regulatory(struct wiphy *wiphy,
 {
 	enum ieee80211_band band;
 
-	assert_cfg80211_lock();
 	assert_reg_lock();
 
 	if (ignore_reg_update(wiphy, initiator))
 		return;
 
-	last_request->dfs_region = cfg80211_regdomain->dfs_region;
+	last_request->dfs_region = get_cfg80211_regdom()->dfs_region;
 
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++)
 		handle_band(wiphy, initiator, wiphy->bands[band]);
@@ -1187,6 +1206,8 @@ static void update_all_wiphy_regulatory(enum nl80211_reg_initiator initiator)
 {
 	struct cfg80211_registered_device *rdev;
 	struct wiphy *wiphy;
+
+	assert_cfg80211_lock();
 
 	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
 		wiphy = &rdev->wiphy;
@@ -1402,7 +1423,7 @@ static void reg_set_request_processed(void)
  *
  * Returns one of the different reg request treatment values.
  *
- * Caller must hold &cfg80211_mutex and &reg_mutex
+ * Caller must hold &reg_mutex
  */
 static enum reg_request_treatment
 __regulatory_hint(struct wiphy *wiphy,
@@ -1412,20 +1433,18 @@ __regulatory_hint(struct wiphy *wiphy,
 	bool intersect = false;
 	enum reg_request_treatment treatment;
 
-	assert_cfg80211_lock();
-
 	treatment = get_reg_request_treatment(wiphy, pending_request);
 
 	switch (treatment) {
 	case REG_REQ_INTERSECT:
 		if (pending_request->initiator ==
 		    NL80211_REGDOM_SET_BY_DRIVER) {
-			regd = reg_copy_regd(cfg80211_regdomain);
+			regd = reg_copy_regd(get_cfg80211_regdom());
 			if (IS_ERR(regd)) {
 				kfree(pending_request);
 				return PTR_ERR(regd);
 			}
-			wiphy->regd = regd;
+			rcu_assign_pointer(wiphy->regd, regd);
 		}
 		intersect = true;
 		break;
@@ -1439,13 +1458,13 @@ __regulatory_hint(struct wiphy *wiphy,
 		 */
 		if (treatment == REG_REQ_ALREADY_SET &&
 		    pending_request->initiator == NL80211_REGDOM_SET_BY_DRIVER) {
-			regd = reg_copy_regd(cfg80211_regdomain);
+			regd = reg_copy_regd(get_cfg80211_regdom());
 			if (IS_ERR(regd)) {
 				kfree(pending_request);
 				return REG_REQ_IGNORE;
 			}
 			treatment = REG_REQ_ALREADY_SET;
-			wiphy->regd = regd;
+			rcu_assign_pointer(wiphy->regd, regd);
 			goto new_request;
 		}
 		kfree(pending_request);
@@ -2051,6 +2070,8 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 
 	/* Some basic sanity checks first */
 
+	assert_reg_lock();
+
 	if (!reg_is_valid_request(rd->alpha2))
 		return -EINVAL;
 
@@ -2120,7 +2141,7 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 		if (IS_ERR(regd))
 			return PTR_ERR(regd);
 
-		request_wiphy->regd = regd;
+		rcu_assign_pointer(request_wiphy->regd, regd);
 		reset_regdomains(false, rd);
 		return 0;
 	}
@@ -2128,7 +2149,7 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 	/* Intersection requires a bit more work */
 
 	if (last_request->initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE) {
-		intersected_rd = regdom_intersect(rd, cfg80211_regdomain);
+		intersected_rd = regdom_intersect(rd, get_cfg80211_regdom());
 		if (!intersected_rd)
 			return -EINVAL;
 
@@ -2138,7 +2159,7 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 		 * domain we keep it for its private use
 		 */
 		if (last_request->initiator == NL80211_REGDOM_SET_BY_DRIVER)
-			request_wiphy->regd = rd;
+			rcu_assign_pointer(request_wiphy->regd, rd);
 		else
 			kfree(rd);
 
@@ -2156,13 +2177,11 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 /*
  * Use this call to set the current regulatory domain. Conflicts with
  * multiple drivers can be ironed out later. Caller must've already
- * kmalloc'd the rd structure. Caller must hold cfg80211_mutex
+ * kmalloc'd the rd structure.
  */
 int set_regdom(const struct ieee80211_regdomain *rd)
 {
 	int r;
-
-	assert_cfg80211_lock();
 
 	mutex_lock(&reg_mutex);
 
@@ -2177,7 +2196,8 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 	}
 
 	/* This would make this whole thing pointless */
-	if (WARN_ON(!last_request->intersect && rd != cfg80211_regdomain)) {
+	if (WARN_ON(!last_request->intersect &&
+		    rd != get_cfg80211_regdom())) {
 		r = -EINVAL;
 		goto out;
 	}
@@ -2185,7 +2205,7 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 	/* update all wiphys now with the new established regulatory domain */
 	update_all_wiphy_regulatory(last_request->initiator);
 
-	print_regdomain(cfg80211_regdomain);
+	print_regdomain(get_cfg80211_regdom());
 
 	nl80211_send_reg_change_event(last_request);
 
@@ -2238,7 +2258,8 @@ void wiphy_regulatory_deregister(struct wiphy *wiphy)
 	if (!reg_dev_ignore_cell_hint(wiphy))
 		reg_num_devs_support_basehint--;
 
-	kfree(wiphy->regd);
+	rcu_free_regdom(get_wiphy_regdom(wiphy));
+	rcu_assign_pointer(wiphy->regd, NULL);
 
 	if (last_request)
 		request_wiphy = wiphy_idx_to_wiphy(last_request->wiphy_idx);
@@ -2273,13 +2294,13 @@ int __init regulatory_init(void)
 
 	reg_regdb_size_check();
 
-	cfg80211_regdomain = cfg80211_world_regdom;
+	rcu_assign_pointer(cfg80211_regdomain, cfg80211_world_regdom);
 
 	user_alpha2[0] = '9';
 	user_alpha2[1] = '7';
 
 	/* We always try to get an update for the static regdomain */
-	err = regulatory_hint_core(cfg80211_regdomain->alpha2);
+	err = regulatory_hint_core(cfg80211_world_regdom->alpha2);
 	if (err) {
 		if (err == -ENOMEM)
 			return err;
@@ -2313,10 +2334,8 @@ void regulatory_exit(void)
 	cancel_delayed_work_sync(&reg_timeout);
 
 	/* Lock to suppress warnings */
-	mutex_lock(&cfg80211_mutex);
 	mutex_lock(&reg_mutex);
 	reset_regdomains(true, NULL);
-	mutex_unlock(&cfg80211_mutex);
 	mutex_unlock(&reg_mutex);
 
 	dev_set_uevent_suppress(&reg_pdev->dev, true);
