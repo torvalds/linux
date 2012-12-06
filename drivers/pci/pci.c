@@ -1333,6 +1333,19 @@ void pcim_pin_device(struct pci_dev *pdev)
 		dr->pinned = 1;
 }
 
+/*
+ * pcibios_add_device - provide arch specific hooks when adding device dev
+ * @dev: the PCI device being added
+ *
+ * Permits the platform to provide architecture specific functionality when
+ * devices are added. This is the default implementation. Architecture
+ * implementations can override this.
+ */
+int __weak pcibios_add_device (struct pci_dev *dev)
+{
+	return 0;
+}
+
 /**
  * pcibios_disable_device - disable arch specific PCI resources for device dev
  * @dev: the PCI device to disable

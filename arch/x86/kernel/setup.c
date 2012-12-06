@@ -143,11 +143,7 @@ int default_check_phys_apicid_present(int phys_apicid)
 }
 #endif
 
-#ifndef CONFIG_DEBUG_BOOT_PARAMS
-struct boot_params __initdata boot_params;
-#else
 struct boot_params boot_params;
-#endif
 
 /*
  * Machine setup..
