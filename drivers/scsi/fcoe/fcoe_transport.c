@@ -83,6 +83,41 @@ static struct notifier_block libfcoe_notifier = {
 	.notifier_call = libfcoe_device_notification,
 };
 
+/**
+ * fcoe_link_speed_update() - Update the supported and actual link speeds
+ * @lport: The local port to update speeds for
+ *
+ * Returns: 0 if the ethtool query was successful
+ *          -1 if the ethtool query failed
+ */
+int fcoe_link_speed_update(struct fc_lport *lport)
+{
+	struct net_device *netdev = fcoe_get_netdev(lport);
+	struct ethtool_cmd ecmd;
+
+	if (!__ethtool_get_settings(netdev, &ecmd)) {
+		lport->link_supported_speeds &=
+			~(FC_PORTSPEED_1GBIT | FC_PORTSPEED_10GBIT);
+		if (ecmd.supported & (SUPPORTED_1000baseT_Half |
+				      SUPPORTED_1000baseT_Full))
+			lport->link_supported_speeds |= FC_PORTSPEED_1GBIT;
+		if (ecmd.supported & SUPPORTED_10000baseT_Full)
+			lport->link_supported_speeds |=
+				FC_PORTSPEED_10GBIT;
+		switch (ethtool_cmd_speed(&ecmd)) {
+		case SPEED_1000:
+			lport->link_speed = FC_PORTSPEED_1GBIT;
+			break;
+		case SPEED_10000:
+			lport->link_speed = FC_PORTSPEED_10GBIT;
+			break;
+		}
+		return 0;
+	}
+	return -1;
+}
+EXPORT_SYMBOL_GPL(fcoe_link_speed_update);
+
 void __fcoe_get_lesb(struct fc_lport *lport,
 		     struct fc_els_lesb *fc_lesb,
 		     struct net_device *netdev)

@@ -260,6 +260,7 @@ void __fcoe_get_lesb(struct fc_lport *lport, struct fc_els_lesb *fc_lesb,
 		     struct net_device *netdev);
 void fcoe_wwn_to_str(u64 wwn, char *buf, int len);
 int fcoe_validate_vport_create(struct fc_vport *vport);
+int fcoe_link_speed_update(struct fc_lport *);
 
 /**
  * is_fip_mode() - returns true if FIP mode selected.

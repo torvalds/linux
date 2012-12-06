@@ -82,7 +82,6 @@ static int fcoe_rcv(struct sk_buff *, struct net_device *,
 		    struct packet_type *, struct net_device *);
 static int fcoe_percpu_receive_thread(void *);
 static void fcoe_percpu_clean(struct fc_lport *);
-static int fcoe_link_speed_update(struct fc_lport *);
 static int fcoe_link_ok(struct fc_lport *);
 
 static struct fc_lport *fcoe_hostlist_lookup(const struct net_device *);
@@ -2385,40 +2384,6 @@ static int fcoe_ctlr_alloc(struct net_device *netdev)
 {
 	return _fcoe_create(netdev, FIP_MODE_FABRIC,
 			    FCOE_CREATE_LINK_DOWN);
-}
-
-/**
- * fcoe_link_speed_update() - Update the supported and actual link speeds
- * @lport: The local port to update speeds for
- *
- * Returns: 0 if the ethtool query was successful
- *          -1 if the ethtool query failed
- */
-static int fcoe_link_speed_update(struct fc_lport *lport)
-{
-	struct net_device *netdev = fcoe_netdev(lport);
-	struct ethtool_cmd ecmd;
-
-	if (!__ethtool_get_settings(netdev, &ecmd)) {
-		lport->link_supported_speeds &=
-			~(FC_PORTSPEED_1GBIT | FC_PORTSPEED_10GBIT);
-		if (ecmd.supported & (SUPPORTED_1000baseT_Half |
-				      SUPPORTED_1000baseT_Full))
-			lport->link_supported_speeds |= FC_PORTSPEED_1GBIT;
-		if (ecmd.supported & SUPPORTED_10000baseT_Full)
-			lport->link_supported_speeds |=
-				FC_PORTSPEED_10GBIT;
-		switch (ethtool_cmd_speed(&ecmd)) {
-		case SPEED_1000:
-			lport->link_speed = FC_PORTSPEED_1GBIT;
-			break;
-		case SPEED_10000:
-			lport->link_speed = FC_PORTSPEED_10GBIT;
-			break;
-		}
-		return 0;
-	}
-	return -1;
 }
 
 /**
