@@ -480,7 +480,7 @@ void qdio_print_subchannel_info(struct qdio_irq *irq_ptr,
 	char s[80];
 
 	snprintf(s, 80, "qdio: %s %s on SC %x using "
-		 "AI:%d QEBSM:%d PCI:%d TDD:%d SIGA:%s%s%s%s%s\n",
+		 "AI:%d QEBSM:%d PRI:%d TDD:%d SIGA:%s%s%s%s%s\n",
 		 dev_name(&cdev->dev),
 		 (irq_ptr->qib.qfmt == QDIO_QETH_QFMT) ? "OSA" :
 			((irq_ptr->qib.qfmt == QDIO_ZFCP_QFMT) ? "ZFCP" : "HS"),
