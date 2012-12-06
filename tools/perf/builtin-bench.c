@@ -35,6 +35,16 @@ struct bench_suite {
 /* sentinel: easy for help */
 #define suite_all { "all", "Test all benchmark suites", NULL }
 
+static struct bench_suite numa_suites[] = {
+	{ "mem",
+	  "Benchmark for NUMA workloads",
+	  bench_numa },
+	suite_all,
+	{ NULL,
+	  NULL,
+	  NULL                  }
+};
+
 static struct bench_suite sched_suites[] = {
 	{ "messaging",
 	  "Benchmark for scheduler and IPC mechanisms",
@@ -68,6 +78,9 @@ struct bench_subsys {
 };
 
 static struct bench_subsys subsystems[] = {
+	{ "numa",
+	  "NUMA scheduling and MM behavior",
+	  numa_suites },
 	{ "sched",
 	  "scheduler and IPC mechanism",
 	  sched_suites },
