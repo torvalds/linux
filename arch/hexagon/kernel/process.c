@@ -215,7 +215,7 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 
 int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 {
-	if (!(thread_info_flags & _TIF_ALLWORK_MASK)) {
+	if (!(thread_info_flags & _TIF_WORK_MASK)) {
 		return 0;
 	}  /* shortcut -- no work to be done */
 
