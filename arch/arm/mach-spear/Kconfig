@@ -2,14 +2,22 @@
 # SPEAr Platform configuration file
 #
 
+menuconfig PLAT_SPEAR
+	bool "ST SPEAr Family" if ARCH_MULTI_V7 || ARCH_MULTI_V5
+	default PLAT_SPEAR_SINGLE
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_AMBA
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select COMMON_CLK
+	select GENERIC_CLOCKEVENTS
+	select HAVE_CLK
+
 if PLAT_SPEAR
 
-choice
-	prompt "ST SPEAr Family"
-	default ARCH_SPEAR3XX
-
 config ARCH_SPEAR13XX
-	bool "ST SPEAr13xx with Device Tree"
+	bool "ST SPEAr13xx"
+	depends on ARCH_MULTI_V7 || PLAT_SPEAR_SINGLE
 	select ARCH_HAVE_CPUFREQ
 	select ARM_GIC
 	select CPU_V7
@@ -21,27 +29,8 @@ config ARCH_SPEAR13XX
 	help
 	  Supports for ARM's SPEAR13XX family
 
-config ARCH_SPEAR3XX
-	bool "ST SPEAr3xx with Device Tree"
-	select ARM_VIC
-	select CPU_ARM926T
-	select PINCTRL
-	select USE_OF
-	help
-	  Supports for ARM's SPEAR3XX family
-
-config ARCH_SPEAR6XX
-	bool "SPEAr6XX"
-	select ARM_VIC
-	select CPU_ARM926T
-	help
-	  Supports for ARM's SPEAR6XX family
-
-endchoice
-
 if ARCH_SPEAR13XX
 
-menu "SPEAr13xx Implementations"
 config MACH_SPEAR1310
 	bool "SPEAr1310 Machine support with Device Tree"
 	select PINCTRL_SPEAR1310
@@ -53,12 +42,22 @@ config MACH_SPEAR1340
 	select PINCTRL_SPEAR1340
 	help
 	  Supports ST SPEAr1340 machine configured via the device-tree
-endmenu
+
 endif #ARCH_SPEAR13XX
+
+config ARCH_SPEAR3XX
+	bool "ST SPEAr3xx"
+	depends on ARCH_MULTI_V5 || PLAT_SPEAR_SINGLE
+	depends on !ARCH_SPEAR13XX
+	select ARM_VIC
+	select CPU_ARM926T
+	select PINCTRL
+	select USE_OF
+	help
+	  Supports for ARM's SPEAR3XX family
 
 if ARCH_SPEAR3XX
 
-menu "SPEAr3xx Implementations"
 config MACH_SPEAR300
 	bool "SPEAr300 Machine support with Device Tree"
 	select PINCTRL_SPEAR300
@@ -76,9 +75,17 @@ config MACH_SPEAR320
 	select PINCTRL_SPEAR320
 	help
 	  Supports ST SPEAr320 machine configured via the device-tree
-endmenu
 
 endif
+
+config ARCH_SPEAR6XX
+	bool "ST SPEAr6XX"
+	depends on ARCH_MULTI_V5 || PLAT_SPEAR_SINGLE
+	depends on !ARCH_SPEAR13XX
+	select ARM_VIC
+	select CPU_ARM926T
+	help
+	  Supports for ARM's SPEAR6XX family
 
 config MACH_SPEAR600
 	def_bool y
@@ -87,4 +94,10 @@ config MACH_SPEAR600
 	help
 	  Supports ST SPEAr600 boards configured via the device-treesource "arch/arm/mach-spear6xx/Kconfig"
 
+config ARCH_SPEAR_AUTO
+	def_bool PLAT_SPEAR_SINGLE
+	depends on !ARCH_SPEAR13XX && !ARCH_SPEAR6XX
+	select ARCH_SPEAR3XX
+
 endif
+
