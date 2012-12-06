@@ -235,9 +235,10 @@ static void nfsd_shutdown_generic(void)
 {
 	nfs4_state_shutdown();
 	nfsd_racache_shutdown();
+	nfsd_up = false;
 }
 
-static int nfsd_startup_net(struct net *net)
+static int nfsd_startup_net(int nrservs, struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	int ret;
@@ -245,39 +246,26 @@ static int nfsd_startup_net(struct net *net)
 	if (nn->nfsd_net_up)
 		return 0;
 
+	ret = nfsd_startup_generic(nrservs);
+	if (ret)
+		return ret;
 	ret = nfsd_init_socks(net);
 	if (ret)
-		return ret;
+		goto out_socks;
 	ret = lockd_up(net);
 	if (ret)
-		return ret;
+		goto out_socks;
 	ret = nfs4_state_start_net(net);
 	if (ret)
 		goto out_lockd;
 
 	nn->nfsd_net_up = true;
+	nfsd_up = true;
 	return 0;
 
 out_lockd:
 	lockd_down(net);
-	return ret;
-}
-
-static int nfsd_startup(int nrservs, struct net *net)
-{
-	int ret;
-
-	ret = nfsd_startup_generic(nrservs);
-	if (ret)
-		return ret;
-	ret = nfsd_startup_net(net);
-	if (ret)
-		goto out_net;
-
-	nfsd_up = true;
-	return 0;
-
-out_net:
+out_socks:
 	nfsd_shutdown_generic();
 	return ret;
 }
@@ -286,27 +274,25 @@ static void nfsd_shutdown_net(struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
-	if (!nn->nfsd_net_up)
-		return;
-
 	nfs4_state_shutdown_net(net);
 	lockd_down(net);
 	nn->nfsd_net_up = false;
+	nfsd_shutdown_generic();
 }
 
 static void nfsd_shutdown(struct net *net)
 {
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+
 	/*
 	 * write_ports can create the server without actually starting
 	 * any threads--if we get shut down before any threads are
 	 * started, then nfsd_last_thread will be run before any of this
 	 * other initialization has been done.
 	 */
-	if (!nfsd_up)
+	if (!nn->nfsd_net_up)
 		return;
 	nfsd_shutdown_net(net);
-	nfsd_shutdown_generic();
-	nfsd_up = false;
 }
 
 static void nfsd_last_thread(struct svc_serv *serv, struct net *net)
@@ -528,9 +514,9 @@ nfsd_svc(int nrservs, struct net *net)
 	if (error)
 		goto out;
 
-	nfsd_up_before = nfsd_up;
+	nfsd_up_before = nn->nfsd_net_up;
 
-	error = nfsd_startup(nrservs, net);
+	error = nfsd_startup_net(nrservs, net);
 	if (error)
 		goto out_destroy;
 	error = svc_set_num_threads(nn->nfsd_serv, NULL, nrservs);
