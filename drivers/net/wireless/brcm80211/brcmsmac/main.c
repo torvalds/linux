@@ -717,7 +717,7 @@ static void brcms_c_ucode_bsinit(struct brcms_hardware *wlc_hw)
 	brcms_c_write_mhf(wlc_hw, wlc_hw->band->mhfs);
 
 	/* do band-specific ucode IHR, SHM, and SCR inits */
-	if (D11REV_IS(wlc_hw->corerev, 23)) {
+	if (D11REV_IS(wlc_hw->corerev, 17) || D11REV_IS(wlc_hw->corerev, 23)) {
 		if (BRCMS_ISNPHY(wlc_hw->band))
 			brcms_c_write_inits(wlc_hw, ucode->d11n0bsinitvals16);
 		else
@@ -2264,7 +2264,7 @@ static void brcms_ucode_download(struct brcms_hardware *wlc_hw)
 	if (wlc_hw->ucode_loaded)
 		return;
 
-	if (D11REV_IS(wlc_hw->corerev, 23)) {
+	if (D11REV_IS(wlc_hw->corerev, 17) || D11REV_IS(wlc_hw->corerev, 23)) {
 		if (BRCMS_ISNPHY(wlc_hw->band)) {
 			brcms_ucode_write(wlc_hw, ucode->bcm43xx_16_mimo,
 					  ucode->bcm43xx_16_mimosz);
@@ -3216,7 +3216,7 @@ static void brcms_b_coreinit(struct brcms_c_info *wlc)
 
 	sflags = bcma_aread32(core, BCMA_IOST);
 
-	if (D11REV_IS(wlc_hw->corerev, 23)) {
+	if (D11REV_IS(wlc_hw->corerev, 17) || D11REV_IS(wlc_hw->corerev, 23)) {
 		if (BRCMS_ISNPHY(wlc_hw->band))
 			brcms_c_write_inits(wlc_hw, ucode->d11n0initvals16);
 		else
