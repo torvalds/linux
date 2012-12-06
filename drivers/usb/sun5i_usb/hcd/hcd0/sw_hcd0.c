@@ -1020,7 +1020,7 @@ static int sw_hcd_core_init(u16 sw_hcd_type, struct sw_hcd *sw_hcd)
 {
 	u8              reg         = 0;
 	char            *type       = NULL;
-	char            aInfo[78];
+	char            aInfo[128];
 	char            aRevision[32];
 	char            aDate[12];
 	void __iomem    *usbc_base  = sw_hcd->mregs;
