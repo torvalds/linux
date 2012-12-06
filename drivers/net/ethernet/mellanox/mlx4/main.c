@@ -85,15 +85,15 @@ static int probe_vf;
 module_param(probe_vf, int, 0644);
 MODULE_PARM_DESC(probe_vf, "number of vfs to probe by pf driver (num_vfs > 0)");
 
-int mlx4_log_num_mgm_entry_size = 10;
+int mlx4_log_num_mgm_entry_size = MLX4_DEFAULT_MGM_LOG_ENTRY_SIZE;
 module_param_named(log_num_mgm_entry_size,
 			mlx4_log_num_mgm_entry_size, int, 0444);
 MODULE_PARM_DESC(log_num_mgm_entry_size, "log mgm size, that defines the num"
 					 " of qp per mcg, for example:"
-					 " 10 gives 248.range: 9<="
+					 " 10 gives 248.range: 7 <="
 					 " log_num_mgm_entry_size <= 12."
-					 " Not in use with device managed"
-					 " flow steering");
+					 " To activate device managed"
+					 " flow steering when available, set to -1");
 
 static bool enable_64b_cqe_eqe;
 module_param(enable_64b_cqe_eqe, bool, 0444);
@@ -1318,12 +1318,30 @@ static void mlx4_parav_master_pf_caps(struct mlx4_dev *dev)
 	}
 }
 
+static int choose_log_fs_mgm_entry_size(int qp_per_entry)
+{
+	int i = MLX4_MIN_MGM_LOG_ENTRY_SIZE;
+
+	for (i = MLX4_MIN_MGM_LOG_ENTRY_SIZE; i <= MLX4_MAX_MGM_LOG_ENTRY_SIZE;
+	      i++) {
+		if (qp_per_entry <= 4 * ((1 << i) / 16 - 2))
+			break;
+	}
+
+	return (i <= MLX4_MAX_MGM_LOG_ENTRY_SIZE) ? i : -1;
+}
+
 static void choose_steering_mode(struct mlx4_dev *dev,
 				 struct mlx4_dev_cap *dev_cap)
 {
-	if (dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_FS_EN &&
+	if (mlx4_log_num_mgm_entry_size == -1 &&
+	    dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_FS_EN &&
 	    (!mlx4_is_mfunc(dev) ||
-	     (dev_cap->fs_max_num_qp_per_entry >= (num_vfs + 1)))) {
+	     (dev_cap->fs_max_num_qp_per_entry >= (num_vfs + 1))) &&
+	    choose_log_fs_mgm_entry_size(dev_cap->fs_max_num_qp_per_entry) >=
+		MLX4_MIN_MGM_LOG_ENTRY_SIZE) {
+		dev->oper_log_mgm_entry_size =
+			choose_log_fs_mgm_entry_size(dev_cap->fs_max_num_qp_per_entry);
 		dev->caps.steering_mode = MLX4_STEERING_MODE_DEVICE_MANAGED;
 		dev->caps.num_qp_per_mgm = dev_cap->fs_max_num_qp_per_entry;
 		dev->caps.fs_log_max_ucast_qp_range_size =
@@ -1340,10 +1358,17 @@ static void choose_steering_mode(struct mlx4_dev *dev,
 				mlx4_warn(dev, "Must have both UC_STEER and MC_STEER flags "
 					  "set to use B0 steering. Falling back to A0 steering mode.\n");
 		}
+		dev->oper_log_mgm_entry_size =
+			mlx4_log_num_mgm_entry_size > 0 ?
+			mlx4_log_num_mgm_entry_size :
+			MLX4_DEFAULT_MGM_LOG_ENTRY_SIZE;
 		dev->caps.num_qp_per_mgm = mlx4_get_qp_per_mgm(dev);
 	}
-	mlx4_dbg(dev, "Steering mode is: %s\n",
-		 mlx4_steering_mode_str(dev->caps.steering_mode));
+	mlx4_dbg(dev, "Steering mode is: %s, oper_log_mgm_entry_size = %d, "
+		 "modparam log_num_mgm_entry_size = %d\n",
+		 mlx4_steering_mode_str(dev->caps.steering_mode),
+		 dev->oper_log_mgm_entry_size,
+		 mlx4_log_num_mgm_entry_size);
 }
 
 static int mlx4_init_hca(struct mlx4_dev *dev)
@@ -2477,6 +2502,17 @@ static int __init mlx4_verify_params(void)
 	if (port_type_array[0] == false && port_type_array[1] == true) {
 		printk(KERN_WARNING "Module parameter configuration ETH/IB is not supported. Switching to default configuration IB/IB\n");
 		port_type_array[0] = true;
+	}
+
+	if (mlx4_log_num_mgm_entry_size != -1 &&
+	    (mlx4_log_num_mgm_entry_size < MLX4_MIN_MGM_LOG_ENTRY_SIZE ||
+	     mlx4_log_num_mgm_entry_size > MLX4_MAX_MGM_LOG_ENTRY_SIZE)) {
+		pr_warning("mlx4_core: mlx4_log_num_mgm_entry_size (%d) not "
+			   "in legal range (-1 or %d..%d)\n",
+			   mlx4_log_num_mgm_entry_size,
+			   MLX4_MIN_MGM_LOG_ENTRY_SIZE,
+			   MLX4_MAX_MGM_LOG_ENTRY_SIZE);
+		return -1;
 	}
 
 	return 0;
