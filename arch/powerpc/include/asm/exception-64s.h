@@ -108,6 +108,43 @@
 #define RESTORE_LR(reg, area)
 #endif
 
+/*
+ * PPR save/restore macros used in exceptions_64s.S  
+ * Used for P7 or later processors
+ */
+#define SAVE_PPR(area, ra, rb)						\
+BEGIN_FTR_SECTION_NESTED(940)						\
+	ld	ra,PACACURRENT(r13);					\
+	ld	rb,area+EX_PPR(r13);	/* Read PPR from paca */	\
+	std	rb,TASKTHREADPPR(ra);					\
+END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,940)
+
+#define RESTORE_PPR_PACA(area, ra)					\
+BEGIN_FTR_SECTION_NESTED(941)						\
+	ld	ra,area+EX_PPR(r13);					\
+	mtspr	SPRN_PPR,ra;						\
+END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,941)
+
+/*
+ * Increase the priority on systems where PPR save/restore is not
+ * implemented/ supported.
+ */
+#define HMT_MEDIUM_PPR_DISCARD						\
+BEGIN_FTR_SECTION_NESTED(942)						\
+	HMT_MEDIUM;							\
+END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,0,942)  /*non P7*/		
+
+/*
+ * Save PPR in paca whenever some register is available to use.
+ * Then increase the priority.
+ */
+#define HMT_MEDIUM_PPR_SAVE(area, ra)					\
+BEGIN_FTR_SECTION_NESTED(943)						\
+	mfspr	ra,SPRN_PPR;						\
+	std	ra,area+EX_PPR(r13);					\
+	HMT_MEDIUM;							\
+END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,943) 
+
 #define __EXCEPTION_PROLOG_1(area, extra, vec)				\
 	GET_PACA(r13);							\
 	std	r9,area+EX_R9(r13);	/* save r9 - r12 */		\
