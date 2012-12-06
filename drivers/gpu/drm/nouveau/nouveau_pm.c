@@ -932,7 +932,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 	dev_set_drvdata(hwmon_dev, dev);
 
 	/* default sysfs entries */
-	ret = sysfs_create_group(&dev->pdev->dev.kobj, &hwmon_attrgroup);
+	ret = sysfs_create_group(&hwmon_dev->kobj, &hwmon_attrgroup);
 	if (ret) {
 		if (ret)
 			goto error;
@@ -943,7 +943,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 	 *     the gpio entries for pwm fan control even when there's no
 	 *     actual fan connected to it... therm table? */
 	if (therm->fan_get && therm->fan_get(therm) >= 0) {
-		ret = sysfs_create_group(&dev->pdev->dev.kobj,
+		ret = sysfs_create_group(&hwmon_dev->kobj,
 					 &hwmon_pwm_fan_attrgroup);
 		if (ret)
 			goto error;
@@ -951,7 +951,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 
 	/* if the card can read the fan rpm */
 	if (therm->fan_sense(therm) >= 0) {
-		ret = sysfs_create_group(&dev->pdev->dev.kobj,
+		ret = sysfs_create_group(&hwmon_dev->kobj,
 					 &hwmon_fan_rpm_attrgroup);
 		if (ret)
 			goto error;
@@ -979,10 +979,10 @@ nouveau_hwmon_fini(struct drm_device *dev)
 	struct nouveau_pm *pm = nouveau_pm(dev);
 
 	if (pm->hwmon) {
-		sysfs_remove_group(&dev->pdev->dev.kobj, &hwmon_attrgroup);
-		sysfs_remove_group(&dev->pdev->dev.kobj,
+		sysfs_remove_group(&pm->hwmon->kobj, &hwmon_attrgroup);
+		sysfs_remove_group(&pm->hwmon->kobj,
 				   &hwmon_pwm_fan_attrgroup);
-		sysfs_remove_group(&dev->pdev->dev.kobj,
+		sysfs_remove_group(&pm->hwmon->kobj,
 				   &hwmon_fan_rpm_attrgroup);
 
 		hwmon_device_unregister(pm->hwmon);
