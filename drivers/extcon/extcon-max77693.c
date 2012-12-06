@@ -737,6 +737,7 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 
 	switch (chg_type) {
 	case MAX77693_CHARGER_TYPE_USB:
+	case MAX77693_CHARGER_TYPE_NONE:
 		/*
 		 * MHL_TA(USB/TA) with MHL cable
 		 * - MHL cable include two port(HDMI line and separate micro
@@ -777,6 +778,25 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 						"Dock-Audio", false);
 			goto out;
 		}
+
+		/*
+		 * When MHL(with USB/TA cable) or Dock-Audio with USB/TA cable
+		 * is attached, muic device happen below two interrupt.
+		 * - 'MAX77693_MUIC_IRQ_INT1_ADC' for detecting MHL/Dock-Audio.
+		 * - 'MAX77693_MUIC_IRQ_INT2_CHGTYP' for detecting USB/TA cable
+		 *   connected to MHL or Dock-Audio.
+		 * Always, happen eariler MAX77693_MUIC_IRQ_INT1_ADC interrupt
+		 * than MAX77693_MUIC_IRQ_INT2_CHGTYP interrupt.
+		 *
+		 * If user attach MHL (with USB/TA cable and immediately detach
+		 * MHL with USB/TA cable before MAX77693_MUIC_IRQ_INT2_CHGTYP
+		 * interrupt is happened, USB/TA cable remain connected state to
+		 * target. But USB/TA cable isn't connected to target. The user
+		 * be face with unusual action. So, driver should check this
+		 * situation in spite of, that previous charger type is N/A.
+		 */
+		if (chg_type == MAX77693_CHARGER_TYPE_NONE)
+			break;
 
 		/* Only USB cable, PATH:AP_USB */
 		ret = max77693_muic_set_path(info, CONTROL1_SW_USB, attached);
