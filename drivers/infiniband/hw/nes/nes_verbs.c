@@ -1404,6 +1404,9 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 	}
 
 	nesqp->sig_all = (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR);
+	init_timer(&nesqp->terminate_timer);
+	nesqp->terminate_timer.function = nes_terminate_timeout;
+	nesqp->terminate_timer.data = (unsigned long)nesqp;
 
 	/* update the QP table */
 	nesdev->nesadapter->qp_table[nesqp->hwqp.qp_id-NES_FIRST_QPN] = nesqp;
@@ -1412,7 +1415,6 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 
 	return &nesqp->ibqp;
 }
-
 
 /**
  * nes_clean_cq
