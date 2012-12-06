@@ -60,6 +60,8 @@ struct hdmi_win_data {
 	unsigned int		mode_width;
 	unsigned int		mode_height;
 	unsigned int		scan_flags;
+	bool			enabled;
+	bool			resume;
 };
 
 struct mixer_resources {
@@ -688,60 +690,6 @@ static int mixer_iommu_on(void *ctx, bool enable)
 	return 0;
 }
 
-static void mixer_poweron(struct mixer_context *ctx)
-{
-	struct mixer_resources *res = &ctx->mixer_res;
-
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
-
-	mutex_lock(&ctx->mixer_mutex);
-	if (ctx->powered) {
-		mutex_unlock(&ctx->mixer_mutex);
-		return;
-	}
-	ctx->powered = true;
-	mutex_unlock(&ctx->mixer_mutex);
-
-	pm_runtime_get_sync(ctx->dev);
-
-	clk_enable(res->mixer);
-	if (ctx->vp_enabled) {
-		clk_enable(res->vp);
-		clk_enable(res->sclk_mixer);
-	}
-
-	mixer_reg_write(res, MXR_INT_EN, ctx->int_en);
-	mixer_win_reset(ctx);
-}
-
-static void mixer_poweroff(struct mixer_context *ctx)
-{
-	struct mixer_resources *res = &ctx->mixer_res;
-
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
-
-	mutex_lock(&ctx->mixer_mutex);
-	if (!ctx->powered)
-		goto out;
-	mutex_unlock(&ctx->mixer_mutex);
-
-	ctx->int_en = mixer_reg_read(res, MXR_INT_EN);
-
-	clk_disable(res->mixer);
-	if (ctx->vp_enabled) {
-		clk_disable(res->vp);
-		clk_disable(res->sclk_mixer);
-	}
-
-	pm_runtime_put_sync(ctx->dev);
-
-	mutex_lock(&ctx->mixer_mutex);
-	ctx->powered = false;
-
-out:
-	mutex_unlock(&ctx->mixer_mutex);
-}
-
 static int mixer_enable_vblank(void *ctx, int pipe)
 {
 	struct mixer_context *mixer_ctx = ctx;
@@ -767,27 +715,6 @@ static void mixer_disable_vblank(void *ctx)
 
 	/* disable vsync interrupt */
 	mixer_reg_writemask(res, MXR_INT_EN, 0, MXR_INT_EN_VSYNC);
-}
-
-static void mixer_dpms(void *ctx, int mode)
-{
-	struct mixer_context *mixer_ctx = ctx;
-
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
-
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		mixer_poweron(mixer_ctx);
-		break;
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-	case DRM_MODE_DPMS_OFF:
-		mixer_poweroff(mixer_ctx);
-		break;
-	default:
-		DRM_DEBUG_KMS("unknown dpms mode: %d\n", mode);
-		break;
-	}
 }
 
 static void mixer_win_mode_set(void *ctx,
@@ -856,6 +783,8 @@ static void mixer_win_commit(void *ctx, int win)
 		vp_video_buffer(mixer_ctx, win);
 	else
 		mixer_graph_buffer(mixer_ctx, win);
+
+	mixer_ctx->win_data[win].enabled = true;
 }
 
 static void mixer_win_disable(void *ctx, int win)
@@ -866,6 +795,14 @@ static void mixer_win_disable(void *ctx, int win)
 
 	DRM_DEBUG_KMS("[%d] %s, win: %d\n", __LINE__, __func__, win);
 
+	mutex_lock(&mixer_ctx->mixer_mutex);
+	if (!mixer_ctx->powered) {
+		mutex_unlock(&mixer_ctx->mixer_mutex);
+		mixer_ctx->win_data[win].resume = false;
+		return;
+	}
+	mutex_unlock(&mixer_ctx->mixer_mutex);
+
 	spin_lock_irqsave(&res->reg_slock, flags);
 	mixer_vsync_set_update(mixer_ctx, false);
 
@@ -873,6 +810,8 @@ static void mixer_win_disable(void *ctx, int win)
 
 	mixer_vsync_set_update(mixer_ctx, true);
 	spin_unlock_irqrestore(&res->reg_slock, flags);
+
+	mixer_ctx->win_data[win].enabled = false;
 }
 
 static void mixer_wait_for_vblank(void *ctx)
@@ -896,6 +835,110 @@ static void mixer_wait_for_vblank(void *ctx)
 				!atomic_read(&mixer_ctx->wait_vsync_event),
 				DRM_HZ/20))
 		DRM_DEBUG_KMS("vblank wait timed out.\n");
+}
+
+static void mixer_window_suspend(struct mixer_context *ctx)
+{
+	struct hdmi_win_data *win_data;
+	int i;
+
+	for (i = 0; i < MIXER_WIN_NR; i++) {
+		win_data = &ctx->win_data[i];
+		win_data->resume = win_data->enabled;
+		mixer_win_disable(ctx, i);
+	}
+	mixer_wait_for_vblank(ctx);
+}
+
+static void mixer_window_resume(struct mixer_context *ctx)
+{
+	struct hdmi_win_data *win_data;
+	int i;
+
+	for (i = 0; i < MIXER_WIN_NR; i++) {
+		win_data = &ctx->win_data[i];
+		win_data->enabled = win_data->resume;
+		win_data->resume = false;
+	}
+}
+
+static void mixer_poweron(struct mixer_context *ctx)
+{
+	struct mixer_resources *res = &ctx->mixer_res;
+
+	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+
+	mutex_lock(&ctx->mixer_mutex);
+	if (ctx->powered) {
+		mutex_unlock(&ctx->mixer_mutex);
+		return;
+	}
+	ctx->powered = true;
+	mutex_unlock(&ctx->mixer_mutex);
+
+	pm_runtime_get_sync(ctx->dev);
+
+	clk_enable(res->mixer);
+	if (ctx->vp_enabled) {
+		clk_enable(res->vp);
+		clk_enable(res->sclk_mixer);
+	}
+
+	mixer_reg_write(res, MXR_INT_EN, ctx->int_en);
+	mixer_win_reset(ctx);
+
+	mixer_window_resume(ctx);
+}
+
+static void mixer_poweroff(struct mixer_context *ctx)
+{
+	struct mixer_resources *res = &ctx->mixer_res;
+
+	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+
+	mutex_lock(&ctx->mixer_mutex);
+	if (!ctx->powered)
+		goto out;
+	mutex_unlock(&ctx->mixer_mutex);
+
+	mixer_window_suspend(ctx);
+
+	ctx->int_en = mixer_reg_read(res, MXR_INT_EN);
+
+	clk_disable(res->mixer);
+	if (ctx->vp_enabled) {
+		clk_disable(res->vp);
+		clk_disable(res->sclk_mixer);
+	}
+
+	pm_runtime_put_sync(ctx->dev);
+
+	mutex_lock(&ctx->mixer_mutex);
+	ctx->powered = false;
+
+out:
+	mutex_unlock(&ctx->mixer_mutex);
+}
+
+static void mixer_dpms(void *ctx, int mode)
+{
+	struct mixer_context *mixer_ctx = ctx;
+
+	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+
+	switch (mode) {
+	case DRM_MODE_DPMS_ON:
+		mixer_poweron(mixer_ctx);
+		break;
+	case DRM_MODE_DPMS_STANDBY:
+	case DRM_MODE_DPMS_SUSPEND:
+	case DRM_MODE_DPMS_OFF:
+		mixer_poweroff(mixer_ctx);
+		break;
+	default:
+		DRM_DEBUG_KMS("unknown dpms mode: %d\n", mode);
+		break;
+	}
 }
 
 static struct exynos_mixer_ops mixer_ops = {
