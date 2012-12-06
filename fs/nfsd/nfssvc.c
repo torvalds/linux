@@ -21,6 +21,7 @@
 #include "nfsd.h"
 #include "cache.h"
 #include "vfs.h"
+#include "netns.h"
 
 #define NFSDDBG_FACILITY	NFSDDBG_SVC
 
@@ -205,7 +206,11 @@ static bool nfsd_up = false;
 
 static int nfsd_startup_net(struct net *net)
 {
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	int ret;
+
+	if (nn->nfsd_net_up)
+		return 0;
 
 	ret = nfsd_init_socks(net);
 	if (ret)
@@ -217,6 +222,7 @@ static int nfsd_startup_net(struct net *net)
 	if (ret)
 		goto out_lockd;
 
+	nn->nfsd_net_up = true;
 	return 0;
 
 out_lockd:
@@ -257,8 +263,14 @@ out_racache:
 
 static void nfsd_shutdown_net(struct net *net)
 {
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+
+	if (!nn->nfsd_net_up)
+		return;
+
 	nfs4_state_shutdown_net(net);
 	lockd_down(net);
+	nn->nfsd_net_up = false;
 }
 
 static void nfsd_shutdown(struct net *net)

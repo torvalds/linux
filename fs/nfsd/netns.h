@@ -92,6 +92,8 @@ struct nfsd_net {
 
 	time_t nfsd4_lease;
 	time_t nfsd4_grace;
+
+	bool nfsd_net_up;
 };
 
 /* Simple check to find out if a given net was properly initialized */
