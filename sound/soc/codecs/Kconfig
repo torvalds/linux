@@ -336,9 +336,11 @@ config SND_SOC_RT5625
 	tristate
 
 config SND_SOC_RT3224
+	select SND_HWDEP
 	tristate
 
 config SND_SOC_RT3261
+	select SND_HWDEP
 	tristate
 
 config SND_SOC_WM8903

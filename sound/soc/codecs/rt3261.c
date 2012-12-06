@@ -49,7 +49,7 @@ static struct snd_soc_codec *rt3261_codec;
 #define DBG(x...)
 #endif
 
-//#define RTK_IOCTL
+#define RTK_IOCTL
 #ifdef RTK_IOCTL
 #if defined(CONFIG_SND_HWDEP) || defined(CONFIG_SND_HWDEP_MODULE)
 #include "rt_codec_ioctl.h"
@@ -3175,7 +3175,6 @@ static int rt3261_probe(struct snd_soc_codec *codec)
 {
 	struct rt3261_priv *rt3261 = snd_soc_codec_get_drvdata(codec);
 	int ret;
-	struct clk *iis_clk;
 
 	#if defined (CONFIG_SND_SOC_RT3224)
 	pr_info("Codec driver version %s, in fact you choose rt3224, no dsp!\n", VERSION);
@@ -3195,6 +3194,7 @@ static int rt3261_probe(struct snd_soc_codec *codec)
 	#endif
 
 	#if defined (CONFIG_SND_SOC_RT5623)
+	struct clk *iis_clk;
 	//for rt5623 MCLK use
 	iis_clk = clk_get_sys("rk29_i2s.2", "i2s");
 	if (IS_ERR(iis_clk)) {
