@@ -30,6 +30,10 @@ config SOC_RK3108
 	bool "RK3108"
 	select ARCH_RK3066B
 
+config SOC_RK3168
+	bool "RK3168"
+	select ARCH_RK3066B
+
 endchoice
 
 if ARCH_RK30XX
@@ -100,6 +104,16 @@ choice
 
 config MACH_RK3108_TB
 	bool "RK3108 Top Board"
+
+endchoice
+endif
+
+if SOC_RK3168
+choice
+	prompt "RK3168 Board Type"
+
+config MACH_RK3168_TB
+	bool "RK3168 Top Board"
 
 endchoice
 endif

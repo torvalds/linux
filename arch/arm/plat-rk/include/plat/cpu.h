@@ -44,5 +44,6 @@ static inline bool soc_is_rk3108(void)
 static inline bool soc_is_rk3066b(void) { return false; }
 static inline bool soc_is_rk3108(void) { return false; }
 #endif
+static inline bool soc_is_rk3168(void) { return soc_is_rk3108(); }
 
 #endif
