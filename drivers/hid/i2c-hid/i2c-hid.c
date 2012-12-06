@@ -520,7 +520,7 @@ static int i2c_hid_get_raw_report(struct hid_device *hid,
 
 	ret_count = ihid->inbuf[0] | (ihid->inbuf[1] << 8);
 
-	if (!ret_count)
+	if (ret_count <= 2)
 		return 0;
 
 	ret_count = min(ret_count, ask_count);
