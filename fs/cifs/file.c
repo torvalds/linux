@@ -3554,7 +3554,7 @@ void cifs_oplock_break(struct work_struct *work)
 		if (cinode->clientCanCacheRead == 0) {
 			rc = filemap_fdatawait(inode->i_mapping);
 			mapping_set_error(inode->i_mapping, rc);
-			invalidate_remote_inode(inode);
+			cifs_invalidate_mapping(inode);
 		}
 		cFYI(1, "Oplock flush inode %p rc %d", inode, rc);
 	}
