@@ -108,8 +108,7 @@ static struct mdiobb_ops bb_ops = {
 	.get_mdio_data = mdio_read,
 };
 
-static int fs_mii_bitbang_init(struct mii_bus *bus,
-                                         struct device_node *np)
+static int fs_mii_bitbang_init(struct mii_bus *bus, struct device_node *np)
 {
 	struct resource res;
 	const u32 *data;

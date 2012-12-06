@@ -797,8 +797,7 @@ static const struct net_device_ops natsemi_netdev_ops = {
 #endif
 };
 
-static int natsemi_probe1(struct pci_dev *pdev,
-			  const struct pci_device_id *ent)
+static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *dev;
 	struct netdev_private *np;

@@ -816,8 +816,7 @@ static const struct net_device_ops lmc_ops = {
 	.ndo_get_stats  = lmc_get_stats,
 };
 
-static int lmc_init_one(struct pci_dev *pdev,
-				  const struct pci_device_id *ent)
+static int lmc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	lmc_softc_t *sc;
 	struct net_device *dev;

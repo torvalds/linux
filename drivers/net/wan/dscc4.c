@@ -707,8 +707,7 @@ static void dscc4_free1(struct pci_dev *pdev)
 	kfree(ppriv);
 }
 
-static int dscc4_init_one(struct pci_dev *pdev,
-				  const struct pci_device_id *ent)
+static int dscc4_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct dscc4_pci_priv *priv;
 	struct dscc4_dev_priv *dpriv;

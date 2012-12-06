@@ -1075,7 +1075,7 @@ static const struct net_device_ops bigmac_ops = {
 };
 
 static int bigmac_ether_init(struct platform_device *op,
-				       struct platform_device *qec_op)
+			     struct platform_device *qec_op)
 {
 	static int version_printed;
 	struct net_device *dev;

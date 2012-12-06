@@ -1854,7 +1854,7 @@ static int smc_findirq(struct smc_local *lp)
  * o  GRAB the region
  */
 static int smc_probe(struct net_device *dev, void __iomem *ioaddr,
-			    unsigned long irq_flags)
+		     unsigned long irq_flags)
 {
 	struct smc_local *lp = netdev_priv(dev);
 	static int version_printed = 0;

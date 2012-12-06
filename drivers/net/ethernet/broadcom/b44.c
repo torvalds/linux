@@ -2142,7 +2142,7 @@ static const struct net_device_ops b44_netdev_ops = {
 };
 
 static int b44_init_one(struct ssb_device *sdev,
-				  const struct ssb_device_id *ent)
+			const struct ssb_device_id *ent)
 {
 	struct net_device *dev;
 	struct b44 *bp;

@@ -14873,8 +14873,7 @@ static bool tg3_10_100_only_device(struct tg3 *tp,
 	return false;
 }
 
-static int tg3_get_invariants(struct tg3 *tp,
-					const struct pci_device_id *ent)
+static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 {
 	u32 misc_ctrl_reg;
 	u32 pci_state_reg, grc_misc_cfg;

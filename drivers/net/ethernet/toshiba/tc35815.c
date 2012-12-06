@@ -786,7 +786,7 @@ static const struct net_device_ops tc35815_netdev_ops = {
 };
 
 static int tc35815_init_one(struct pci_dev *pdev,
-				      const struct pci_device_id *ent)
+			    const struct pci_device_id *ent)
 {
 	void __iomem *ioaddr = NULL;
 	struct net_device *dev;

@@ -193,8 +193,7 @@ static int softingcs_enable_irq(struct platform_device *pdev, int v)
 /*
  * pcmcia check
  */
-static int softingcs_probe_config(struct pcmcia_device *pcmcia,
-		void *priv_data)
+static int softingcs_probe_config(struct pcmcia_device *pcmcia, void *priv_data)
 {
 	struct softing_platform_data *pdat = priv_data;
 	struct resource *pres;

@@ -455,7 +455,7 @@ static const struct net_device_ops ace_netdev_ops = {
 };
 
 static int acenic_probe_one(struct pci_dev *pdev,
-		const struct pci_device_id *id)
+			    const struct pci_device_id *id)
 {
 	struct net_device *dev;
 	struct ace_private *ap;
@@ -2825,7 +2825,7 @@ static struct net_device_stats *ace_get_stats(struct net_device *dev)
 
 
 static void ace_copy(struct ace_regs __iomem *regs, const __be32 *src,
-			       u32 dest, int size)
+		     u32 dest, int size)
 {
 	void __iomem *tdest;
 	short tsize, i;
@@ -3091,8 +3091,7 @@ static void eeprom_stop(struct ace_regs __iomem *regs)
 /*
  * Read a whole byte from the EEPROM.
  */
-static int read_eeprom_byte(struct net_device *dev,
-				   unsigned long offset)
+static int read_eeprom_byte(struct net_device *dev, unsigned long offset)
 {
 	struct ace_private *ap = netdev_priv(dev);
 	struct ace_regs __iomem *regs = ap->regs;

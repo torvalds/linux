@@ -1032,7 +1032,7 @@ static int smsc911x_mii_probe(struct net_device *dev)
 }
 
 static int smsc911x_mii_init(struct platform_device *pdev,
-				       struct net_device *dev)
+			     struct net_device *dev)
 {
 	struct smsc911x_data *pdata = netdev_priv(dev);
 	int err = -ENXIO, i;
@@ -2296,9 +2296,8 @@ static const struct smsc911x_ops shifted_smsc911x_ops = {
 };
 
 #ifdef CONFIG_OF
-static int smsc911x_probe_config_dt(
-				struct smsc911x_platform_config *config,
-				struct device_node *np)
+static int smsc911x_probe_config_dt(struct smsc911x_platform_config *config,
+				    struct device_node *np)
 {
 	const char *mac;
 	u32 width = 0;

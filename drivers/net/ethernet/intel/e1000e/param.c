@@ -173,8 +173,8 @@ struct e1000_option {
 };
 
 static int e1000_validate_option(unsigned int *value,
-					   const struct e1000_option *opt,
-					   struct e1000_adapter *adapter)
+				 const struct e1000_option *opt,
+				 struct e1000_adapter *adapter)
 {
 	if (*value == OPTION_UNSET) {
 		*value = opt->def;

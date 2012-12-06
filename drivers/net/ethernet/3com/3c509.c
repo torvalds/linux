@@ -270,9 +270,8 @@ static int el3_isa_id_sequence(__be16 *phys_addr)
 
 }
 
-static void el3_dev_fill(struct net_device *dev, __be16 *phys_addr,
-				   int ioaddr, int irq, int if_port,
-				   enum el3_cardtype type)
+static void el3_dev_fill(struct net_device *dev, __be16 *phys_addr, int ioaddr,
+			 int irq, int if_port, enum el3_cardtype type)
 {
 	struct el3_private *lp = netdev_priv(dev);
 
@@ -283,8 +282,7 @@ static void el3_dev_fill(struct net_device *dev, __be16 *phys_addr,
 	lp->type = type;
 }
 
-static int el3_isa_match(struct device *pdev,
-				   unsigned int ndev)
+static int el3_isa_match(struct device *pdev, unsigned int ndev)
 {
 	struct net_device *dev;
 	int ioaddr, isa_irq, if_port, err;
@@ -406,8 +404,7 @@ static struct pnp_device_id el3_pnp_ids[] = {
 };
 MODULE_DEVICE_TABLE(pnp, el3_pnp_ids);
 
-static int el3_pnp_probe(struct pnp_dev *pdev,
-				    const struct pnp_device_id *id)
+static int el3_pnp_probe(struct pnp_dev *pdev, const struct pnp_device_id *id)
 {
 	short i;
 	int ioaddr, irq, if_port;

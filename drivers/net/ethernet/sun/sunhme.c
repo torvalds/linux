@@ -2928,7 +2928,7 @@ static void get_hme_mac_nonsparc(struct pci_dev *pdev, unsigned char *dev_addr)
 #endif /* !(CONFIG_SPARC) */
 
 static int happy_meal_pci_probe(struct pci_dev *pdev,
-					  const struct pci_device_id *ent)
+				const struct pci_device_id *ent)
 {
 	struct quattro *qp = NULL;
 #ifdef CONFIG_SPARC

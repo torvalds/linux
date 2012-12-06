@@ -642,7 +642,7 @@ static const struct net_device_ops netdev_ops = {
 };
 
 static int starfire_init_one(struct pci_dev *pdev,
-				       const struct pci_device_id *ent)
+			     const struct pci_device_id *ent)
 {
 	struct device *d = &pdev->dev;
 	struct netdev_private *np;

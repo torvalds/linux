@@ -4916,8 +4916,7 @@ static const struct net_device_ops cas_netdev_ops = {
 #endif
 };
 
-static int cas_init_one(struct pci_dev *pdev,
-				  const struct pci_device_id *ent)
+static int cas_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int cas_version_printed = 0;
 	unsigned long casreg_len;

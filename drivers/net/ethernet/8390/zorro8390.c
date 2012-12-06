@@ -286,9 +286,8 @@ static const struct net_device_ops zorro8390_netdev_ops = {
 #endif
 };
 
-static int zorro8390_init(struct net_device *dev,
-				    unsigned long board, const char *name,
-				    unsigned long ioaddr)
+static int zorro8390_init(struct net_device *dev, unsigned long board,
+			  const char *name, unsigned long ioaddr)
 {
 	int i;
 	int err;
@@ -397,7 +396,7 @@ static int zorro8390_init(struct net_device *dev,
 }
 
 static int zorro8390_init_one(struct zorro_dev *z,
-					const struct zorro_device_id *ent)
+			      const struct zorro_device_id *ent)
 {
 	struct net_device *dev;
 	unsigned long board, ioaddr;

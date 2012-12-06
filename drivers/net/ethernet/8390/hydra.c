@@ -81,7 +81,7 @@ static struct zorro_driver hydra_driver = {
 };
 
 static int hydra_init_one(struct zorro_dev *z,
-				    const struct zorro_device_id *ent)
+			  const struct zorro_device_id *ent)
 {
     int err;
 

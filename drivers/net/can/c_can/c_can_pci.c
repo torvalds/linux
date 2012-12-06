@@ -64,7 +64,7 @@ static void c_can_pci_write_reg_aligned_to_32bit(struct c_can_priv *priv,
 }
 
 static int c_can_pci_probe(struct pci_dev *pdev,
-				     const struct pci_device_id *ent)
+			   const struct pci_device_id *ent)
 {
 	struct c_can_pci_data *c_can_pci_data = (void *)ent->driver_data;
 	struct c_can_priv *priv;

@@ -3994,8 +3994,7 @@ static inline char *func_name(struct be_adapter *adapter)
 	return be_physfn(adapter) ? "PF" : "VF";
 }
 
-static int be_probe(struct pci_dev *pdev,
-			const struct pci_device_id *pdev_id)
+static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 {
 	int status = 0;
 	struct be_adapter *adapter;

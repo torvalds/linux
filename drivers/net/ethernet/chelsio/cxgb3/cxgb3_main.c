@@ -3108,8 +3108,7 @@ static int cxgb_enable_msix(struct adapter *adap)
 	return err;
 }
 
-static void print_port_info(struct adapter *adap,
-				      const struct adapter_info *ai)
+static void print_port_info(struct adapter *adap, const struct adapter_info *ai)
 {
 	static const char *pci_variant[] = {
 		"PCI", "PCI-X", "PCI-X ECC", "PCI-X 266", "PCI Express"
@@ -3176,8 +3175,7 @@ static void cxgb3_init_iscsi_mac(struct net_device *dev)
 #define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
 #define VLAN_FEAT (NETIF_F_SG | NETIF_F_IP_CSUM | TSO_FLAGS | \
 			NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
-static int init_one(struct pci_dev *pdev,
-			      const struct pci_device_id *ent)
+static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int version_printed;
 

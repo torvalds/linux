@@ -1001,7 +1001,7 @@ static int __init vortex_eisa_init(void)
 
 /* returns count (>= 0), or negative on error */
 static int vortex_init_one(struct pci_dev *pdev,
-				      const struct pci_device_id *ent)
+			   const struct pci_device_id *ent)
 {
 	int rc, unit, pci_bar;
 	struct vortex_chip_info *vci;
@@ -1088,9 +1088,8 @@ static const struct net_device_ops vortex_netdev_ops = {
  *
  * NOTE: pdev can be NULL, for the case of a Compaq device
  */
-static int vortex_probe1(struct device *gendev,
-				   void __iomem *ioaddr, int irq,
-				   int chip_idx, int card_idx)
+static int vortex_probe1(struct device *gendev, void __iomem *ioaddr, int irq,
+			 int chip_idx, int card_idx)
 {
 	struct vortex_private *vp;
 	int option;

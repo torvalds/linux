@@ -711,7 +711,7 @@ static const struct net_device_ops ariadne_netdev_ops = {
 };
 
 static int ariadne_init_one(struct zorro_dev *z,
-				      const struct zorro_device_id *ent)
+			    const struct zorro_device_id *ent)
 {
 	unsigned long board = z->resource.start;
 	unsigned long base_addr = board + ARIADNE_LANCE;

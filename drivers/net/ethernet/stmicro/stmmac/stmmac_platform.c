@@ -30,8 +30,8 @@
 
 #ifdef CONFIG_OF
 static int stmmac_probe_config_dt(struct platform_device *pdev,
-					    struct plat_stmmacenet_data *plat,
-					    const char **mac)
+				  struct plat_stmmacenet_data *plat,
+				  const char **mac)
 {
 	struct device_node *np = pdev->dev.of_node;
 
@@ -60,8 +60,8 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 }
 #else
 static int stmmac_probe_config_dt(struct platform_device *pdev,
-					    struct plat_stmmacenet_data *plat,
-					    const char **mac)
+				  struct plat_stmmacenet_data *plat,
+				  const char **mac)
 {
 	return -ENOSYS;
 }

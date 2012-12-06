@@ -640,7 +640,7 @@ static void lance_set_multicast(struct net_device *dev)
 }
 
 static int a2065_init_one(struct zorro_dev *z,
-				    const struct zorro_device_id *ent);
+			  const struct zorro_device_id *ent);
 static void a2065_remove_one(struct zorro_dev *z);
 
 
@@ -671,7 +671,7 @@ static const struct net_device_ops lance_netdev_ops = {
 };
 
 static int a2065_init_one(struct zorro_dev *z,
-				    const struct zorro_device_id *ent)
+			  const struct zorro_device_id *ent)
 {
 	struct net_device *dev;
 	struct lance_private *priv;

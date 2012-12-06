@@ -166,8 +166,7 @@ static void ems_pcmcia_del_card(struct pcmcia_device *pdev)
  * Probe PCI device for EMS CAN signature and register each available
  * CAN channel to SJA1000 Socket-CAN subsystem.
  */
-static int ems_pcmcia_add_card(struct pcmcia_device *pdev,
-					 unsigned long base)
+static int ems_pcmcia_add_card(struct pcmcia_device *pdev, unsigned long base)
 {
 	struct sja1000_priv *priv;
 	struct net_device *dev;

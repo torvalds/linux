@@ -46,10 +46,8 @@ struct hplance_private {
  * plus board-specific init, open and close actions.
  * Oh, and we need to tell the generic code how to read and write LANCE registers...
  */
-static int hplance_init_one(struct dio_dev *d,
-				const struct dio_device_id *ent);
-static void hplance_init(struct net_device *dev,
-				struct dio_dev *d);
+static int hplance_init_one(struct dio_dev *d, const struct dio_device_id *ent);
+static void hplance_init(struct net_device *dev, struct dio_dev *d);
 static void hplance_remove_one(struct dio_dev *d);
 static void hplance_writerap(void *priv, unsigned short value);
 static void hplance_writerdp(void *priv, unsigned short value);
@@ -83,8 +81,7 @@ static const struct net_device_ops hplance_netdev_ops = {
 };
 
 /* Find all the HP Lance boards and initialise them... */
-static int hplance_init_one(struct dio_dev *d,
-				const struct dio_device_id *ent)
+static int hplance_init_one(struct dio_dev *d, const struct dio_device_id *ent)
 {
 	struct net_device *dev;
 	int err = -ENOMEM;

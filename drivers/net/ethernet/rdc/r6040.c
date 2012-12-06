@@ -1073,8 +1073,7 @@ static int r6040_mii_probe(struct net_device *dev)
 	return 0;
 }
 
-static int r6040_init_one(struct pci_dev *pdev,
-					 const struct pci_device_id *ent)
+static int r6040_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *dev;
 	struct r6040_private *lp;

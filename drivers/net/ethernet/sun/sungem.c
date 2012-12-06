@@ -2827,8 +2827,7 @@ static const struct net_device_ops gem_netdev_ops = {
 #endif
 };
 
-static int gem_init_one(struct pci_dev *pdev,
-				  const struct pci_device_id *ent)
+static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	unsigned long gemreg_base, gemreg_len;
 	struct net_device *dev;

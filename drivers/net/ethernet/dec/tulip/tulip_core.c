@@ -1191,8 +1191,7 @@ static void set_rx_mode(struct net_device *dev)
 }
 
 #ifdef CONFIG_TULIP_MWI
-static void tulip_mwi_config(struct pci_dev *pdev,
-			     struct net_device *dev)
+static void tulip_mwi_config(struct pci_dev *pdev, struct net_device *dev)
 {
 	struct tulip_private *tp = netdev_priv(dev);
 	u8 cache;
@@ -1301,8 +1300,7 @@ DEFINE_PCI_DEVICE_TABLE(early_486_chipsets) = {
 	{ },
 };
 
-static int tulip_init_one(struct pci_dev *pdev,
-			  const struct pci_device_id *ent)
+static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct tulip_private *tp;
 	/* See note below on the multiport cards. */

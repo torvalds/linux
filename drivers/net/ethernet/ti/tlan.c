@@ -460,9 +460,8 @@ static int tlan_init_one(struct pci_dev *pdev,
 *
 **************************************************************/
 
-static int tlan_probe1(struct pci_dev *pdev,
-				 long ioaddr, int irq, int rev,
-				 const struct pci_device_id *ent)
+static int tlan_probe1(struct pci_dev *pdev, long ioaddr, int irq, int rev,
+		       const struct pci_device_id *ent)
 {
 
 	struct net_device  *dev;

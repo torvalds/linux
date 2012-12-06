@@ -435,7 +435,7 @@ static const struct net_device_ops sis900_netdev_ops = {
  */
 
 static int sis900_probe(struct pci_dev *pci_dev,
-				const struct pci_device_id *pci_id)
+			const struct pci_device_id *pci_id)
 {
 	struct sis900_private *sis_priv;
 	struct net_device *net_dev;

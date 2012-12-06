@@ -4491,8 +4491,8 @@ static void ql_release_all(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
-static int ql_init_device(struct pci_dev *pdev,
-				    struct net_device *ndev, int cards_found)
+static int ql_init_device(struct pci_dev *pdev, struct net_device *ndev,
+			  int cards_found)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
 	int err = 0;
@@ -4657,7 +4657,7 @@ static void ql_timer(unsigned long data)
 }
 
 static int qlge_probe(struct pci_dev *pdev,
-				const struct pci_device_id *pci_entry)
+		      const struct pci_device_id *pci_entry)
 {
 	struct net_device *ndev = NULL;
 	struct ql_adapter *qdev = NULL;

@@ -367,8 +367,7 @@ static const struct net_device_ops netdev_ops = {
  *	Search DM910X board ,allocate space and register it
  */
 
-static int dmfe_init_one(struct pci_dev *pdev,
-			 const struct pci_device_id *ent)
+static int dmfe_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct dmfe_board_info *db;	/* board information structure */
 	struct net_device *dev;

@@ -1132,8 +1132,7 @@ static void print_version(void)
 
 const char *remote_macaddr_prop = "remote-mac-address";
 
-static int vnet_port_probe(struct vio_dev *vdev,
-				     const struct vio_device_id *id)
+static int vnet_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 {
 	struct mdesc_handle *hp;
 	struct vnet_port *port;

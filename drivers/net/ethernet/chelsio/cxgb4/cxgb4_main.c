@@ -2149,7 +2149,7 @@ static const struct file_operations mem_debugfs_fops = {
 };
 
 static void add_debugfs_mem(struct adapter *adap, const char *name,
-				      unsigned int idx, unsigned int size_mb)
+			    unsigned int idx, unsigned int size_mb)
 {
 	struct dentry *de;
 
@@ -4419,8 +4419,7 @@ static void free_some_resources(struct adapter *adapter)
 #define VLAN_FEAT (NETIF_F_SG | NETIF_F_IP_CSUM | TSO_FLAGS | \
 		   NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
 
-static int init_one(struct pci_dev *pdev,
-			      const struct pci_device_id *ent)
+static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int func, i, err;
 	struct port_info *pi;

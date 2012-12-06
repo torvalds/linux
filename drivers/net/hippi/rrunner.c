@@ -88,8 +88,7 @@ static const struct net_device_ops rr_netdev_ops = {
  * stack will need to know about I/O vectors or something similar.
  */
 
-static int rr_init_one(struct pci_dev *pdev,
-	const struct pci_device_id *ent)
+static int rr_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *dev;
 	static int version_disp;

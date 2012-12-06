@@ -8054,10 +8054,8 @@ static int niu_pci_eeprom_read16_swp(struct niu *np, u32 off)
 	return val;
 }
 
-static int niu_pci_vpd_get_propname(struct niu *np,
-					      u32 off,
-					      char *namebuf,
-					      int namebuf_len)
+static int niu_pci_vpd_get_propname(struct niu *np, u32 off, char *namebuf,
+				    int namebuf_len)
 {
 	int i;
 
@@ -8102,8 +8100,7 @@ static void niu_vpd_parse_version(struct niu *np)
 }
 
 /* ESPC_PIO_EN_ENABLE must be set */
-static int niu_pci_vpd_scan_props(struct niu *np,
-					    u32 start, u32 end)
+static int niu_pci_vpd_scan_props(struct niu *np, u32 start, u32 end)
 {
 	unsigned int found_mask = 0;
 #define FOUND_MASK_MODEL	0x00000001
@@ -8279,8 +8276,7 @@ static u32 niu_pci_vpd_offset(struct niu *np)
 	return 0;
 }
 
-static int niu_phy_type_prop_decode(struct niu *np,
-					      const char *phy_prop)
+static int niu_phy_type_prop_decode(struct niu *np, const char *phy_prop)
 {
 	if (!strcmp(phy_prop, "mif")) {
 		/* 1G copper, MII */
@@ -8572,10 +8568,8 @@ static int niu_get_and_validate_port(struct niu *np)
 	return 0;
 }
 
-static int phy_record(struct niu_parent *parent,
-				struct phy_probe_info *p,
-				int dev_id_1, int dev_id_2, u8 phy_port,
-				int type)
+static int phy_record(struct niu_parent *parent, struct phy_probe_info *p,
+		      int dev_id_1, int dev_id_2, u8 phy_port, int type)
 {
 	u32 id = (dev_id_1 << 16) | dev_id_2;
 	u8 idx;
@@ -8670,7 +8664,7 @@ static void niu_n2_divide_channels(struct niu_parent *parent)
 }
 
 static void niu_divide_channels(struct niu_parent *parent,
-					  int num_10g, int num_1g)
+				int num_10g, int num_1g)
 {
 	int num_ports = parent->num_ports;
 	int rx_chans_per_10g, rx_chans_per_1g;
@@ -8732,7 +8726,7 @@ static void niu_divide_channels(struct niu_parent *parent,
 }
 
 static void niu_divide_rdc_groups(struct niu_parent *parent,
-					    int num_10g, int num_1g)
+				  int num_10g, int num_1g)
 {
 	int i, num_ports = parent->num_ports;
 	int rdc_group, rdc_groups_per_port;
@@ -8776,9 +8770,8 @@ static void niu_divide_rdc_groups(struct niu_parent *parent,
 	}
 }
 
-static int fill_phy_probe_info(struct niu *np,
-					 struct niu_parent *parent,
-					 struct phy_probe_info *info)
+static int fill_phy_probe_info(struct niu *np, struct niu_parent *parent,
+			       struct phy_probe_info *info)
 {
 	unsigned long flags;
 	int port, err;
@@ -9480,8 +9473,7 @@ static struct device_attribute niu_parent_attributes[] = {
 };
 
 static struct niu_parent *niu_new_parent(struct niu *np,
-						    union niu_parent_id *id,
-						    u8 ptype)
+					 union niu_parent_id *id, u8 ptype)
 {
 	struct platform_device *plat_dev;
 	struct niu_parent *p;
@@ -9545,8 +9537,7 @@ fail_unregister:
 }
 
 static struct niu_parent *niu_get_parent(struct niu *np,
-						    union niu_parent_id *id,
-						    u8 ptype)
+					 union niu_parent_id *id, u8 ptype)
 {
 	struct niu_parent *p, *tmp;
 	int port = np->port;
@@ -9670,10 +9661,10 @@ static void niu_driver_version(void)
 		pr_info("%s", version);
 }
 
-static struct net_device *niu_alloc_and_init(
-	struct device *gen_dev, struct pci_dev *pdev,
-	struct platform_device *op, const struct niu_ops *ops,
-	u8 port)
+static struct net_device *niu_alloc_and_init(struct device *gen_dev,
+					     struct pci_dev *pdev,
+					     struct platform_device *op,
+					     const struct niu_ops *ops, u8 port)
 {
 	struct net_device *dev;
 	struct niu *np;
@@ -9757,7 +9748,7 @@ static void niu_set_basic_features(struct net_device *dev)
 }
 
 static int niu_pci_init_one(struct pci_dev *pdev,
-				      const struct pci_device_id *ent)
+			    const struct pci_device_id *ent)
 {
 	union niu_parent_id parent_id;
 	struct net_device *dev;

@@ -49,8 +49,7 @@ static struct of_device_id mpc52xx_cdm_ids[] = {
 };
 
 static u32 mpc52xx_can_get_clock(struct platform_device *ofdev,
-					   const char *clock_name,
-					   int *mscan_clksrc)
+				 const char *clock_name, int *mscan_clksrc)
 {
 	unsigned int pvr;
 	struct mpc52xx_cdm  __iomem *cdm;
@@ -102,8 +101,7 @@ static u32 mpc52xx_can_get_clock(struct platform_device *ofdev,
 }
 #else /* !CONFIG_PPC_MPC52xx */
 static u32 mpc52xx_can_get_clock(struct platform_device *ofdev,
-					   const char *clock_name,
-					   int *mscan_clksrc)
+				 const char *clock_name, int *mscan_clksrc)
 {
 	return 0;
 }
@@ -130,8 +128,7 @@ static struct of_device_id mpc512x_clock_ids[] = {
 };
 
 static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
-					   const char *clock_name,
-					   int *mscan_clksrc)
+				 const char *clock_name, int *mscan_clksrc)
 {
 	struct mpc512x_clockctl __iomem *clockctl;
 	struct device_node *np_clock;
@@ -240,8 +237,7 @@ exit_put:
 }
 #else /* !CONFIG_PPC_MPC512x */
 static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
-					   const char *clock_name,
-					   int *mscan_clksrc)
+				 const char *clock_name, int *mscan_clksrc)
 {
 	return 0;
 }

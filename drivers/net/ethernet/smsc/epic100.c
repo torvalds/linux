@@ -318,8 +318,7 @@ static const struct net_device_ops epic_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int epic_init_one(struct pci_dev *pdev,
-				   const struct pci_device_id *ent)
+static int epic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int card_idx = -1;
 	void __iomem *ioaddr;

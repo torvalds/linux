@@ -33,8 +33,7 @@
 
 static int mal_count;
 
-int mal_register_commac(struct mal_instance	*mal,
-				  struct mal_commac	*commac)
+int mal_register_commac(struct mal_instance *mal, struct mal_commac *commac)
 {
 	unsigned long flags;
 

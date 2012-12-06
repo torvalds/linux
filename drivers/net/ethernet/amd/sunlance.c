@@ -1305,8 +1305,8 @@ static const struct net_device_ops sparc_lance_ops = {
 };
 
 static int sparc_lance_probe_one(struct platform_device *op,
-					   struct platform_device *ledma,
-					   struct platform_device *lebuffer)
+				 struct platform_device *ledma,
+				 struct platform_device *lebuffer)
 {
 	struct device_node *dp = op->dev.of_node;
 	static unsigned version_printed;

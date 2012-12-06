@@ -2262,7 +2262,7 @@ struct emac_depentry {
 #define	EMAC_DEP_COUNT		6
 
 static int emac_check_deps(struct emac_instance *dev,
-				     struct emac_depentry *deps)
+			   struct emac_depentry *deps)
 {
 	int i, there = 0;
 	struct device_node *np;
@@ -2314,8 +2314,8 @@ static void emac_put_deps(struct emac_instance *dev)
 		of_dev_put(dev->tah_dev);
 }
 
-static int emac_of_bus_notify(struct notifier_block *nb,
-					unsigned long action, void *data)
+static int emac_of_bus_notify(struct notifier_block *nb, unsigned long action,
+			      void *data)
 {
 	/* We are only intereted in device addition */
 	if (action == BUS_NOTIFY_BOUND_DRIVER)
@@ -2368,7 +2368,7 @@ static int emac_wait_deps(struct emac_instance *dev)
 }
 
 static int emac_read_uint_prop(struct device_node *np, const char *name,
-					 u32 *val, int fatal)
+			       u32 *val, int fatal)
 {
 	int len;
 	const u32 *prop = of_get_property(np, name, &len);

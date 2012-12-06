@@ -3869,8 +3869,7 @@ static void skge_show_addr(struct net_device *dev)
 
 static int only_32bit_dma;
 
-static int skge_probe(struct pci_dev *pdev,
-				const struct pci_device_id *ent)
+static int skge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *dev, *dev1;
 	struct skge_hw *hw;

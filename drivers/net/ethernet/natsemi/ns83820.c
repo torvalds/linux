@@ -1942,7 +1942,7 @@ static const struct net_device_ops netdev_ops = {
 };
 
 static int ns83820_init_one(struct pci_dev *pci_dev,
-				      const struct pci_device_id *id)
+			    const struct pci_device_id *id)
 {
 	struct net_device *ndev;
 	struct ns83820 *dev;

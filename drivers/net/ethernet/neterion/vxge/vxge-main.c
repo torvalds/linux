@@ -3372,9 +3372,8 @@ static const struct net_device_ops vxge_netdev_ops = {
 };
 
 static int vxge_device_register(struct __vxge_hw_device *hldev,
-					  struct vxge_config *config,
-					  int high_dma, int no_of_vpath,
-					  struct vxgedev **vdev_out)
+				struct vxge_config *config, int high_dma,
+				int no_of_vpath, struct vxgedev **vdev_out)
 {
 	struct net_device *ndev;
 	enum vxge_hw_status status = VXGE_HW_OK;
@@ -3672,9 +3671,8 @@ static void verify_bandwidth(void)
 /*
  * Vpath configuration
  */
-static int vxge_config_vpaths(
-			struct vxge_hw_device_config *device_config,
-			u64 vpath_mask, struct vxge_config *config_param)
+static int vxge_config_vpaths(struct vxge_hw_device_config *device_config,
+			      u64 vpath_mask, struct vxge_config *config_param)
 {
 	int i, no_of_vpaths = 0, default_no_vpath = 0, temp;
 	u32 txdl_size, txdl_per_memblock;
@@ -3859,9 +3857,8 @@ static int vxge_config_vpaths(
 }
 
 /* initialize device configuratrions */
-static void vxge_device_config_init(
-				struct vxge_hw_device_config *device_config,
-				int *intr_type)
+static void vxge_device_config_init(struct vxge_hw_device_config *device_config,
+				    int *intr_type)
 {
 	/* Used for CQRQ/SRQ. */
 	device_config->dma_blockpool_initial =

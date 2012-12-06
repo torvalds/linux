@@ -2224,8 +2224,7 @@ err_disable_pdev:
 	return err;
 }
 
-static int mlx4_init_one(struct pci_dev *pdev,
-				   const struct pci_device_id *id)
+static int mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	printk_once(KERN_INFO "%s", mlx4_version);
 

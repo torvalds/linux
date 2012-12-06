@@ -358,8 +358,7 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int w840_probe1(struct pci_dev *pdev,
-		       const struct pci_device_id *ent)
+static int w840_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *dev;
 	struct netdev_private *np;

@@ -77,7 +77,7 @@ static int dongle_id = 0;	/* default: probe */
 module_param(dongle_id, int, 0);
 
 /* Some prototypes */
-static int via_ircc_open(struct pci_dev *pdev, chipio_t * info,
+static int via_ircc_open(struct pci_dev *pdev, chipio_t *info,
 			 unsigned int id);
 static int via_ircc_dma_receive(struct via_ircc_cb *self);
 static int via_ircc_dma_receive_complete(struct via_ircc_cb *self,
@@ -103,7 +103,7 @@ static void hwreset(struct via_ircc_cb *self);
 static int via_ircc_dma_xmit(struct via_ircc_cb *self, u16 iobase);
 static int upload_rxdata(struct via_ircc_cb *self, int iobase);
 static int via_init_one(struct pci_dev *pcidev, const struct pci_device_id *id);
-static void via_remove_one (struct pci_dev *pdev);
+static void via_remove_one(struct pci_dev *pdev);
 
 /* FIXME : Should use udelay() instead, even if we are x86 only - Jean II */
 static void iodelay(int udelay)
@@ -286,8 +286,7 @@ static const struct net_device_ops via_ircc_fir_ops = {
  *    Open driver instance
  *
  */
-static int via_ircc_open(struct pci_dev *pdev, chipio_t *info,
-			 unsigned int id)
+static int via_ircc_open(struct pci_dev *pdev, chipio_t *info, unsigned int id)
 {
 	struct net_device *dev;
 	struct via_ircc_cb *self;

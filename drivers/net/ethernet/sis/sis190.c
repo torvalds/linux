@@ -1574,7 +1574,7 @@ static void sis190_set_rgmii(struct sis190_private *tp, u8 reg)
 }
 
 static int sis190_get_mac_addr_from_eeprom(struct pci_dev *pdev,
-						     struct net_device *dev)
+					   struct net_device *dev)
 {
 	struct sis190_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
@@ -1616,7 +1616,7 @@ static int sis190_get_mac_addr_from_eeprom(struct pci_dev *pdev,
  *	MAC address is read into @net_dev->dev_addr.
  */
 static int sis190_get_mac_addr_from_apc(struct pci_dev *pdev,
-						  struct net_device *dev)
+					struct net_device *dev)
 {
 	static const u16 ids[] = { 0x0965, 0x0966, 0x0968 };
 	struct sis190_private *tp = netdev_priv(dev);
@@ -1693,8 +1693,7 @@ static inline void sis190_init_rxfilter(struct net_device *dev)
 	SIS_PCI_COMMIT();
 }
 
-static int sis190_get_mac_addr(struct pci_dev *pdev,
-					 struct net_device *dev)
+static int sis190_get_mac_addr(struct pci_dev *pdev, struct net_device *dev)
 {
 	int rc;
 
@@ -1846,7 +1845,7 @@ static const struct net_device_ops sis190_netdev_ops = {
 };
 
 static int sis190_init_one(struct pci_dev *pdev,
-				     const struct pci_device_id *ent)
+			   const struct pci_device_id *ent)
 {
 	static int printed_version = 0;
 	struct sis190_private *tp;

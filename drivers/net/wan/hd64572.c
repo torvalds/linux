@@ -605,8 +605,7 @@ static netdev_tx_t sca_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 
-static u32 sca_detect_ram(card_t *card, u8 __iomem *rambase,
-				    u32 ramsize)
+static u32 sca_detect_ram(card_t *card, u8 __iomem *rambase, u32 ramsize)
 {
 	/* Round RAM size to 32 bits, fill from end to start */
 	u32 i = ramsize &= ~3;

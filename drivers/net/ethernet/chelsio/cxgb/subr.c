@@ -893,7 +893,7 @@ static void power_sequence_xpak(adapter_t* adapter)
 }
 
 int t1_get_board_rev(adapter_t *adapter, const struct board_info *bi,
-			       struct adapter_params *p)
+		     struct adapter_params *p)
 {
 	p->chip_version = bi->chip_term;
 	p->is_asic = (p->chip_version != CHBT_TERM_FPGA);
@@ -1029,7 +1029,7 @@ void t1_free_sw_modules(adapter_t *adapter)
 }
 
 static void init_link_config(struct link_config *lc,
-				       const struct board_info *bi)
+			     const struct board_info *bi)
 {
 	lc->supported = bi->caps;
 	lc->requested_speed = lc->speed = SPEED_INVALID;
@@ -1049,8 +1049,7 @@ static void init_link_config(struct link_config *lc,
  * Allocate and initialize the data structures that hold the SW state of
  * the Terminator HW modules.
  */
-int t1_init_sw_modules(adapter_t *adapter,
-				 const struct board_info *bi)
+int t1_init_sw_modules(adapter_t *adapter, const struct board_info *bi)
 {
 	unsigned int i;
 

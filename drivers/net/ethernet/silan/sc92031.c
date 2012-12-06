@@ -1395,8 +1395,7 @@ static const struct net_device_ops sc92031_netdev_ops = {
 #endif
 };
 
-static int sc92031_probe(struct pci_dev *pdev,
-		const struct pci_device_id *id)
+static int sc92031_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int err;
 	void __iomem* port_base;

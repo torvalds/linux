@@ -377,7 +377,7 @@ static int pnp_driver_registered;
 
 #ifdef CONFIG_PNP
 static int smsc_ircc_pnp_probe(struct pnp_dev *dev,
-				      const struct pnp_device_id *dev_id)
+			       const struct pnp_device_id *dev_id)
 {
 	unsigned int firbase, sirbase;
 	u8 dma, irq;

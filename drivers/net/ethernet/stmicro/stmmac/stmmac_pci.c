@@ -62,7 +62,7 @@ static void stmmac_default_data(void)
  * to take "ownership" of the device or an error code(-ve no) otherwise.
  */
 static int stmmac_pci_probe(struct pci_dev *pdev,
-				      const struct pci_device_id *id)
+			    const struct pci_device_id *id)
 {
 	int ret = 0;
 	void __iomem *addr = NULL;

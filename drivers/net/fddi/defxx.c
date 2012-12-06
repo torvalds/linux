@@ -962,9 +962,8 @@ static void dfx_bus_config_check(DFX_board_t *bp)
  *   returning from this routine.
  */
 
-static int dfx_driver_init(struct net_device *dev,
-				     const char *print_name,
-				     resource_size_t bar_start)
+static int dfx_driver_init(struct net_device *dev, const char *print_name,
+			   resource_size_t bar_start)
 {
 	DFX_board_t *bp = netdev_priv(dev);
 	struct device *bdev = bp->bus_dev;
@@ -3623,8 +3622,7 @@ static int __maybe_unused dfx_dev_register(struct device *);
 static int __maybe_unused dfx_dev_unregister(struct device *);
 
 #ifdef CONFIG_PCI
-static int dfx_pci_register(struct pci_dev *,
-				      const struct pci_device_id *);
+static int dfx_pci_register(struct pci_dev *, const struct pci_device_id *);
 static void dfx_pci_unregister(struct pci_dev *);
 
 static DEFINE_PCI_DEVICE_TABLE(dfx_pci_table) = {
@@ -3641,7 +3639,7 @@ static struct pci_driver dfx_pci_driver = {
 };
 
 static int dfx_pci_register(struct pci_dev *pdev,
-				      const struct pci_device_id *ent)
+			    const struct pci_device_id *ent)
 {
 	return dfx_register(&pdev->dev);
 }

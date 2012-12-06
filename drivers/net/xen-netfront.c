@@ -1408,7 +1408,7 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
  * inform the backend of the appropriate details for those.
  */
 static int netfront_probe(struct xenbus_device *dev,
-				    const struct xenbus_device_id *id)
+			  const struct xenbus_device_id *id)
 {
 	int err;
 	struct net_device *netdev;

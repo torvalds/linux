@@ -2463,7 +2463,7 @@ static const struct net_device_ops cxgb4vf_netdev_ops	= {
  * the PF Driver ...
  */
 static int cxgb4vf_pci_probe(struct pci_dev *pdev,
-				       const struct pci_device_id *ent)
+			     const struct pci_device_id *ent)
 {
 	static int version_printed;
 

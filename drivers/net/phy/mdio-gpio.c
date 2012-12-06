@@ -104,8 +104,8 @@ static struct mdiobb_ops mdio_gpio_ops = {
 };
 
 static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
-					struct mdio_gpio_platform_data *pdata,
-					int bus_id)
+					  struct mdio_gpio_platform_data *pdata,
+					  int bus_id)
 {
 	struct mii_bus *new_bus;
 	struct mdio_gpio_info *bitbang;

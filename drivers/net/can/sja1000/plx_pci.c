@@ -485,7 +485,7 @@ static void plx_pci_del_card(struct pci_dev *pdev)
  * available CAN channel to SJA1000 Socket-CAN subsystem.
  */
 static int plx_pci_add_card(struct pci_dev *pdev,
-				      const struct pci_device_id *ent)
+			    const struct pci_device_id *ent)
 {
 	struct sja1000_priv *priv;
 	struct net_device *dev;

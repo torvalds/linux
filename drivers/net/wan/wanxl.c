@@ -558,7 +558,7 @@ static const struct net_device_ops wanxl_ops = {
 };
 
 static int wanxl_pci_init_one(struct pci_dev *pdev,
-					const struct pci_device_id *ent)
+			      const struct pci_device_id *ent)
 {
 	card_t *card;
 	u32 ramsize, stat;

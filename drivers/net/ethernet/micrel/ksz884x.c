@@ -6919,8 +6919,7 @@ static void read_other_addr(struct ksz_hw *hw)
 #define PCI_VENDOR_ID_MICREL_KS		0x16c6
 #endif
 
-static int pcidev_init(struct pci_dev *pdev,
-	const struct pci_device_id *id)
+static int pcidev_init(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct net_device *dev;
 	struct dev_priv *priv;

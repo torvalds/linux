@@ -1962,8 +1962,7 @@ static const struct net_device_ops de_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int de_init_one(struct pci_dev *pdev,
-		       const struct pci_device_id *ent)
+static int de_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *dev;
 	struct de_private *de;

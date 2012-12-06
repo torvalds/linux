@@ -974,8 +974,7 @@ static const struct net_device_ops cxgb_netdev_ops = {
 #endif
 };
 
-static int init_one(struct pci_dev *pdev,
-			      const struct pci_device_id *ent)
+static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int version_printed;
 

@@ -1324,8 +1324,7 @@ static const struct net_device_ops ibmveth_netdev_ops = {
 #endif
 };
 
-static int ibmveth_probe(struct vio_dev *dev,
-				   const struct vio_device_id *id)
+static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 {
 	int rc, i;
 	struct net_device *netdev;

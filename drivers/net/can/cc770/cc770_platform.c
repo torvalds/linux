@@ -76,7 +76,7 @@ static void cc770_platform_write_reg(const struct cc770_priv *priv, int reg,
 }
 
 static int cc770_get_of_node_data(struct platform_device *pdev,
-					    struct cc770_priv *priv)
+				  struct cc770_priv *priv)
 {
 	struct device_node *np = pdev->dev.of_node;
 	const u32 *prop;
@@ -149,7 +149,7 @@ static int cc770_get_of_node_data(struct platform_device *pdev,
 }
 
 static int cc770_get_platform_data(struct platform_device *pdev,
-					     struct cc770_priv *priv)
+				   struct cc770_priv *priv)
 {
 
 	struct cc770_platform_data *pdata = pdev->dev.platform_data;

@@ -421,8 +421,7 @@ static int mac_onboard_sonic_probe(struct net_device *dev)
 }
 
 static int mac_nubus_sonic_ethernet_addr(struct net_device *dev,
-						unsigned long prom_addr,
-						int id)
+					 unsigned long prom_addr, int id)
 {
 	int i;
 	for(i = 0; i < 6; i++)

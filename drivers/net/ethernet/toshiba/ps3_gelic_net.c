@@ -235,9 +235,8 @@ static void gelic_card_free_chain(struct gelic_card *card,
  * returns 0 on success, <0 on failure
  */
 static int gelic_card_init_chain(struct gelic_card *card,
-					   struct gelic_descr_chain *chain,
-					   struct gelic_descr *start_descr,
-					   int no)
+				 struct gelic_descr_chain *chain,
+				 struct gelic_descr *start_descr, int no)
 {
 	int i;
 	struct gelic_descr *descr;
@@ -1469,7 +1468,7 @@ static const struct net_device_ops gelic_netdevice_ops = {
  * fills out function pointers in the net_device structure
  */
 static void gelic_ether_setup_netdev_ops(struct net_device *netdev,
-						   struct napi_struct *napi)
+					 struct napi_struct *napi)
 {
 	netdev->watchdog_timeo = GELIC_NET_WATCHDOG_TIMEOUT;
 	/* NAPI */
@@ -1489,8 +1488,7 @@ static void gelic_ether_setup_netdev_ops(struct net_device *netdev,
  * gelic_ether_setup_netdev initializes the net_device structure
  * and register it.
  **/
-int gelic_net_setup_netdev(struct net_device *netdev,
-				     struct gelic_card *card)
+int gelic_net_setup_netdev(struct net_device *netdev, struct gelic_card *card)
 {
 	int status;
 	u64 v1, v2;

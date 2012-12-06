@@ -298,7 +298,7 @@ static const struct net_device_ops pc300_ops = {
 };
 
 static int pc300_pci_init_one(struct pci_dev *pdev,
-					const struct pci_device_id *ent)
+			      const struct pci_device_id *ent)
 {
 	card_t *card;
 	u32 __iomem *p;

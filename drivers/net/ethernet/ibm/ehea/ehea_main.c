@@ -99,7 +99,7 @@ static struct ehea_bcmc_reg_array ehea_bcmc_regs;
 
 
 static int ehea_probe_adapter(struct platform_device *dev,
-					const struct of_device_id *id);
+			      const struct of_device_id *id);
 
 static int ehea_remove(struct platform_device *dev);
 
@@ -3258,7 +3258,7 @@ static void ehea_remove_device_sysfs(struct platform_device *dev)
 }
 
 static int ehea_probe_adapter(struct platform_device *dev,
-					const struct of_device_id *id)
+			      const struct of_device_id *id)
 {
 	struct ehea_adapter *adapter;
 	const u64 *adapter_handle;

@@ -1075,8 +1075,7 @@ static inline void SPECIAL_REG_WRITE(u64 val, void __iomem *addr, int order)
 /*
  * Prototype declaration.
  */
-static int s2io_init_nic(struct pci_dev *pdev,
-				   const struct pci_device_id *pre);
+static int s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre);
 static void s2io_rem_nic(struct pci_dev *pdev);
 static int init_shared_mem(struct s2io_nic *sp);
 static void free_shared_mem(struct s2io_nic *sp);

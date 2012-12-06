@@ -3770,7 +3770,7 @@ static const struct net_device_ops ql3xxx_netdev_ops = {
 };
 
 static int ql3xxx_probe(struct pci_dev *pdev,
-				  const struct pci_device_id *pci_entry)
+			const struct pci_device_id *pci_entry)
 {
 	struct net_device *ndev = NULL;
 	struct ql3_adapter *qdev = NULL;

@@ -2199,8 +2199,7 @@ static const struct net_device_ops ipg_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int ipg_probe(struct pci_dev *pdev,
-			       const struct pci_device_id *id)
+static int ipg_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	unsigned int i = id->driver_data;
 	struct ipg_nic_private *sp;

@@ -447,8 +447,8 @@ static const struct net_device_ops hp100_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int hp100_probe1(struct net_device *dev, int ioaddr,
-				  u_char bus, struct pci_dev *pci_dev)
+static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
+			struct pci_dev *pci_dev)
 {
 	int i;
 	int err = -ENODEV;
@@ -2878,7 +2878,7 @@ static struct eisa_driver hp100_eisa_driver = {
         .driver   = {
                 .name    = "hp100",
                 .probe   = hp100_eisa_probe,
-		.remove	 = hp100_eisa_remove,
+		.remove  = hp100_eisa_remove,
         }
 };
 #endif

@@ -2670,7 +2670,7 @@ static int efx_pci_probe_main(struct efx_nic *efx)
  * interfaces is brought up (i.e. efx_net_open).
  */
 static int efx_pci_probe(struct pci_dev *pci_dev,
-				   const struct pci_device_id *entry)
+			 const struct pci_device_id *entry)
 {
 	struct net_device *net_dev;
 	struct efx_nic *efx;
