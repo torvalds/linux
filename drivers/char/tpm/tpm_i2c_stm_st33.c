@@ -818,6 +818,7 @@ static __devexit int tpm_st33_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 /*
  * tpm_st33_i2c_pm_suspend suspend the TPM device
  * Added: Work around when suspend and no tpm application is running, suspend
@@ -827,12 +828,10 @@ static __devexit int tpm_st33_i2c_remove(struct i2c_client *client)
  * @param: mesg, the power management message.
  * @return: 0 in case of success.
  */
-static int tpm_st33_i2c_pm_suspend(struct i2c_client *client, pm_message_t mesg)
+static int tpm_st33_i2c_pm_suspend(struct device *dev)
 {
-	struct tpm_chip *chip =
-	    (struct tpm_chip *)i2c_get_clientdata(client);
-	struct st33zp24_platform_data *pin_infos =
-		((struct i2c_client *)TPM_VPRIV(chip))->dev.platform_data;
+	struct tpm_chip *chip = dev_get_drvdata(dev);
+	struct st33zp24_platform_data *pin_infos = dev->platform_data;
 	int ret = 0;
 
 	if (power_mgt)
@@ -840,7 +839,7 @@ static int tpm_st33_i2c_pm_suspend(struct i2c_client *client, pm_message_t mesg)
 	else{
 		if (chip->data_buffer == NULL)
 			chip->data_buffer = pin_infos->tpm_i2c_buffer[0];
-		ret = tpm_pm_suspend(&client->dev);
+		ret = tpm_pm_suspend(dev);
 	}
 	return ret;
 }				/* tpm_st33_i2c_suspend() */
@@ -850,12 +849,10 @@ static int tpm_st33_i2c_pm_suspend(struct i2c_client *client, pm_message_t mesg)
  * @param: client, the i2c_client drescription (TPM I2C description).
  * @return: 0 in case of success.
  */
-static int tpm_st33_i2c_pm_resume(struct i2c_client *client)
+static int tpm_st33_i2c_pm_resume(struct device *dev)
 {
-	struct tpm_chip *chip =
-	    (struct tpm_chip *)i2c_get_clientdata(client);
-	struct st33zp24_platform_data *pin_infos =
-		((struct i2c_client *)TPM_VPRIV(chip))->dev.platform_data;
+	struct tpm_chip *chip = dev_get_drvdata(dev);
+	struct st33zp24_platform_data *pin_infos = dev->platform_data;
 
 	int ret = 0;
 
@@ -868,29 +865,28 @@ static int tpm_st33_i2c_pm_resume(struct i2c_client *client)
 	} else{
 	if (chip->data_buffer == NULL)
 		chip->data_buffer = pin_infos->tpm_i2c_buffer[0];
-	ret = tpm_pm_resume(&client->dev);
+	ret = tpm_pm_resume(dev);
 	if (!ret)
 		tpm_do_selftest(chip);
 	}
 	return ret;
 }				/* tpm_st33_i2c_pm_resume() */
+#endif
 
 static const struct i2c_device_id tpm_st33_i2c_id[] = {
 	{TPM_ST33_I2C, 0},
 	{}
 };
-
 MODULE_DEVICE_TABLE(i2c, tpm_st33_i2c_id);
-
+static SIMPLE_DEV_PM_OPS(tpm_st33_i2c_ops, tpm_st33_i2c_pm_suspend, tpm_st33_i2c_pm_resume);
 static struct i2c_driver tpm_st33_i2c_driver = {
 	.driver = {
 		   .owner = THIS_MODULE,
 		   .name = TPM_ST33_I2C,
+		   .pm = &tpm_st33_i2c_ops,
 		   },
 	.probe = tpm_st33_i2c_probe,
 	.remove = tpm_st33_i2c_remove,
-	.resume = tpm_st33_i2c_pm_resume,
-	.suspend = tpm_st33_i2c_pm_suspend,
 	.id_table = tpm_st33_i2c_id
 };
 
