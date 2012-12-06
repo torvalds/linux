@@ -403,7 +403,7 @@ struct dm_info_header {
  */
 
 struct dm_info_msg {
-	struct dm_info_header header;
+	struct dm_header hdr;
 	__u32 reserved;
 	__u32 info_size;
 	__u8  info[];
@@ -503,13 +503,17 @@ static void hot_add_req(struct hv_dynmem_device *dm, struct dm_hot_add *msg)
 
 static void process_info(struct hv_dynmem_device *dm, struct dm_info_msg *msg)
 {
-	switch (msg->header.type) {
+	struct dm_info_header *info_hdr;
+
+	info_hdr = (struct dm_info_header *)msg->info;
+
+	switch (info_hdr->type) {
 	case INFO_TYPE_MAX_PAGE_CNT:
 		pr_info("Received INFO_TYPE_MAX_PAGE_CNT\n");
-		pr_info("Data Size is %d\n", msg->header.data_size);
+		pr_info("Data Size is %d\n", info_hdr->data_size);
 		break;
 	default:
-		pr_info("Received Unknown type: %d\n", msg->header.type);
+		pr_info("Received Unknown type: %d\n", info_hdr->type);
 	}
 }
 
