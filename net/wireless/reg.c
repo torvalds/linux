@@ -183,7 +183,8 @@ static char user_alpha2[2];
 module_param(ieee80211_regdom, charp, 0444);
 MODULE_PARM_DESC(ieee80211_regdom, "IEEE 802.11 regulatory domain code");
 
-static void reset_regdomains(bool full_reset)
+static void reset_regdomains(bool full_reset,
+			     const struct ieee80211_regdomain *new_regdom)
 {
 	assert_cfg80211_lock();
 	assert_reg_lock();
@@ -200,7 +201,7 @@ static void reset_regdomains(bool full_reset)
 	kfree(cfg80211_world_regdom);
 
 	cfg80211_world_regdom = &world_regdom;
-	cfg80211_regdomain = NULL;
+	cfg80211_regdomain = new_regdom;
 
 	if (!full_reset)
 		return;
@@ -221,10 +222,9 @@ static void update_world_regdomain(const struct ieee80211_regdomain *rd)
 	assert_cfg80211_lock();
 	assert_reg_lock();
 
-	reset_regdomains(false);
+	reset_regdomains(false, rd);
 
 	cfg80211_world_regdom = rd;
-	cfg80211_regdomain = rd;
 }
 
 bool is_world_regdom(const char *alpha2)
@@ -1817,7 +1817,7 @@ static void restore_regulatory_settings(bool reset_user)
 	mutex_lock(&cfg80211_mutex);
 	mutex_lock(&reg_mutex);
 
-	reset_regdomains(true);
+	reset_regdomains(true, cfg80211_world_regdom);
 	restore_alpha2(alpha2, reset_user);
 
 	/*
@@ -1848,9 +1848,8 @@ static void restore_regulatory_settings(bool reset_user)
 	}
 
 	/* First restore to the basic regulatory settings */
-	cfg80211_regdomain = cfg80211_world_regdom;
-	world_alpha2[0] = cfg80211_regdomain->alpha2[0];
-	world_alpha2[1] = cfg80211_regdomain->alpha2[1];
+	world_alpha2[0] = cfg80211_world_regdom->alpha2[0];
+	world_alpha2[1] = cfg80211_world_regdom->alpha2[1];
 
 	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
 		if (rdev->wiphy.flags & WIPHY_FLAG_CUSTOM_REGULATORY)
@@ -2101,8 +2100,7 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 
 	if (!last_request->intersect) {
 		if (last_request->initiator != NL80211_REGDOM_SET_BY_DRIVER) {
-			reset_regdomains(false);
-			cfg80211_regdomain = rd;
+			reset_regdomains(false, rd);
 			return 0;
 		}
 
@@ -2123,8 +2121,7 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 			return PTR_ERR(regd);
 
 		request_wiphy->regd = regd;
-		reset_regdomains(false);
-		cfg80211_regdomain = rd;
+		reset_regdomains(false, rd);
 		return 0;
 	}
 
@@ -2147,8 +2144,7 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 
 		rd = NULL;
 
-		reset_regdomains(false);
-		cfg80211_regdomain = intersected_rd;
+		reset_regdomains(false, intersected_rd);
 
 		return 0;
 	}
@@ -2319,7 +2315,7 @@ void regulatory_exit(void)
 	/* Lock to suppress warnings */
 	mutex_lock(&cfg80211_mutex);
 	mutex_lock(&reg_mutex);
-	reset_regdomains(true);
+	reset_regdomains(true, NULL);
 	mutex_unlock(&cfg80211_mutex);
 	mutex_unlock(&reg_mutex);
 
