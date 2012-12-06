@@ -608,12 +608,7 @@ static struct ieee80211_regdomain *regdom_intersect(
 	struct ieee80211_reg_rule *intersected_rule;
 	struct ieee80211_regdomain *rd;
 	/* This is just a dummy holder to help us count */
-	struct ieee80211_reg_rule irule;
-
-	/* Uses the stack temporarily for counter arithmetic */
-	intersected_rule = &irule;
-
-	memset(intersected_rule, 0, sizeof(struct ieee80211_reg_rule));
+	struct ieee80211_reg_rule dummy_rule;
 
 	if (!rd1 || !rd2)
 		return NULL;
@@ -630,11 +625,8 @@ static struct ieee80211_regdomain *regdom_intersect(
 		rule1 = &rd1->reg_rules[x];
 		for (y = 0; y < rd2->n_reg_rules; y++) {
 			rule2 = &rd2->reg_rules[y];
-			if (!reg_rules_intersect(rule1, rule2,
-					intersected_rule))
+			if (!reg_rules_intersect(rule1, rule2, &dummy_rule))
 				num_rules++;
-			memset(intersected_rule, 0,
-					sizeof(struct ieee80211_reg_rule));
 		}
 	}
 
