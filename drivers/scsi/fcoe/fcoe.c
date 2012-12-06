@@ -1118,6 +1118,7 @@ static struct fc_lport *fcoe_if_create(struct fcoe_interface *fcoe,
 	port = lport_priv(lport);
 	port->lport = lport;
 	port->priv = fcoe;
+	port->get_netdev = fcoe_netdev;
 	port->max_queue_depth = FCOE_MAX_QUEUE_DEPTH;
 	port->min_queue_depth = FCOE_MIN_QUEUE_DEPTH;
 	INIT_WORK(&port->destroy_work, fcoe_destroy_work);

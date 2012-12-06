@@ -353,6 +353,18 @@ struct fcoe_port {
 	u8		      data_src_addr[ETH_ALEN];
 	struct net_device * (*get_netdev)(const struct fc_lport *lport);
 };
+
+/**
+ * fcoe_get_netdev() - Return the net device associated with a local port
+ * @lport: The local port to get the net device from
+ */
+static inline struct net_device *fcoe_get_netdev(const struct fc_lport *lport)
+{
+	struct fcoe_port *port = ((struct fcoe_port *)lport_priv(lport));
+
+	return (port->get_netdev) ? port->get_netdev(lport) : NULL;
+}
+
 void fcoe_clean_pending_queue(struct fc_lport *);
 void fcoe_check_wait_queue(struct fc_lport *lport, struct sk_buff *skb);
 void fcoe_queue_timer(ulong lport);
