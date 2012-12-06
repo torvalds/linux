@@ -322,7 +322,7 @@ static struct pl08x_channel_data spear600_dma_info[] = {
 	},
 };
 
-struct pl08x_platform_data pl080_plat_data = {
+static struct pl08x_platform_data spear6xx_pl080_plat_data = {
 	.memcpy_channel = {
 		.bus_id = "memcpy",
 		.cctl_memcpy =
@@ -406,7 +406,7 @@ void __init spear6xx_timer_init(void)
 /* Add auxdata to pass platform data */
 struct of_dev_auxdata spear6xx_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("arm,pl080", SPEAR_ICM3_DMA_BASE, NULL,
-			&pl080_plat_data),
+			&spear6xx_pl080_plat_data),
 	{}
 };
 
