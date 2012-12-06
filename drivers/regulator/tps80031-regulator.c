@@ -284,14 +284,6 @@ static int tps80031_ldo_get_voltage_sel(struct regulator_dev *rdev)
 	return vsel & rdev->desc->vsel_mask;
 }
 
-static int tps80031_ldo_list_voltage(struct regulator_dev *rdev, unsigned sel)
-{
-	if (sel == 0)
-		return 0;
-	else
-		return regulator_list_voltage_linear(rdev, sel - 1);
-}
-
 static int tps80031_vbus_is_enabled(struct regulator_dev *rdev)
 {
 	struct tps80031_regulator *ri = rdev_get_drvdata(rdev);
@@ -398,7 +390,7 @@ static struct regulator_ops tps80031_dcdc_ops = {
 };
 
 static struct regulator_ops tps80031_ldo_ops = {
-	.list_voltage		= tps80031_ldo_list_voltage,
+	.list_voltage		= regulator_list_voltage_linear,
 	.set_voltage_sel	= tps80031_ldo_set_voltage_sel,
 	.get_voltage_sel	= tps80031_ldo_get_voltage_sel,
 	.enable			= tps80031_reg_enable,
@@ -465,6 +457,7 @@ static struct regulator_ops tps80031_ext_reg_ops = {
 		.type = REGULATOR_VOLTAGE,			\
 		.min_uV = 1000000,				\
 		.uV_step = 100000,				\
+		.linear_min_sel = 1,				\
 		.n_voltages = 25,				\
 		.vsel_mask = LDO_VSEL_MASK,			\
 		.enable_time = 500,				\
