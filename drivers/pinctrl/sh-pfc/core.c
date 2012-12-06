@@ -95,7 +95,7 @@ static bool sh_pfc_gpio_is_pin(struct sh_pfc *pfc, unsigned int gpio)
 	       (pfc->info->pins[gpio].enum_id != 0);
 }
 
-bool sh_pfc_gpio_is_function(struct sh_pfc *pfc, unsigned int gpio)
+static bool sh_pfc_gpio_is_function(struct sh_pfc *pfc, unsigned int gpio)
 {
 	return (gpio >= pfc->info->nr_pins) &&
 	       (gpio < pfc->info->nr_pins + pfc->info->nr_func_gpios) &&
