@@ -1587,7 +1587,7 @@ intel_get_adjust_train(struct intel_dp *intel_dp, uint8_t link_status[DP_LINK_ST
 }
 
 static uint32_t
-intel_dp_signal_levels(uint8_t train_set)
+intel_gen4_signal_levels(uint8_t train_set)
 {
 	uint32_t	signal_levels = 0;
 
@@ -1685,7 +1685,7 @@ intel_gen7_edp_signal_levels(uint8_t train_set)
 
 /* Gen7.5's (HSW) DP voltage swing and pre-emphasis control */
 static uint32_t
-intel_dp_signal_levels_hsw(uint8_t train_set)
+intel_hsw_signal_levels(uint8_t train_set)
 {
 	int signal_levels = train_set & (DP_TRAIN_VOLTAGE_SWING_MASK |
 					 DP_TRAIN_PRE_EMPHASIS_MASK);
@@ -1715,6 +1715,34 @@ intel_dp_signal_levels_hsw(uint8_t train_set)
 			      "0x%x\n", signal_levels);
 		return DDI_BUF_EMP_400MV_0DB_HSW;
 	}
+}
+
+/* Properly updates "DP" with the correct signal levels. */
+static void
+intel_dp_set_signal_levels(struct intel_dp *intel_dp, uint32_t *DP)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	uint32_t signal_levels, mask;
+	uint8_t train_set = intel_dp->train_set[0];
+
+	if (IS_HASWELL(dev)) {
+		signal_levels = intel_hsw_signal_levels(train_set);
+		mask = DDI_BUF_EMP_MASK;
+	} else if (IS_GEN7(dev) && is_cpu_edp(intel_dp) && !IS_VALLEYVIEW(dev)) {
+		signal_levels = intel_gen7_edp_signal_levels(train_set);
+		mask = EDP_LINK_TRAIN_VOL_EMP_MASK_IVB;
+	} else if (IS_GEN6(dev) && is_cpu_edp(intel_dp)) {
+		signal_levels = intel_gen6_edp_signal_levels(train_set);
+		mask = EDP_LINK_TRAIN_VOL_EMP_MASK_SNB;
+	} else {
+		signal_levels = intel_gen4_signal_levels(train_set);
+		mask = DP_VOLTAGE_MASK | DP_PRE_EMPHASIS_MASK;
+	}
+
+	DRM_DEBUG_KMS("Using signal levels %08x\n", signal_levels);
+
+	*DP = (*DP & ~mask) | signal_levels;
 }
 
 static bool
@@ -1853,24 +1881,8 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 	for (;;) {
 		/* Use intel_dp->train_set[0] to set the voltage and pre emphasis values */
 		uint8_t	    link_status[DP_LINK_STATUS_SIZE];
-		uint32_t    signal_levels;
 
-		if (IS_HASWELL(dev)) {
-			signal_levels = intel_dp_signal_levels_hsw(
-							intel_dp->train_set[0]);
-			DP = (DP & ~DDI_BUF_EMP_MASK) | signal_levels;
-		} else if (IS_GEN7(dev) && is_cpu_edp(intel_dp) && !IS_VALLEYVIEW(dev)) {
-			signal_levels = intel_gen7_edp_signal_levels(intel_dp->train_set[0]);
-			DP = (DP & ~EDP_LINK_TRAIN_VOL_EMP_MASK_IVB) | signal_levels;
-		} else if (IS_GEN6(dev) && is_cpu_edp(intel_dp)) {
-			signal_levels = intel_gen6_edp_signal_levels(intel_dp->train_set[0]);
-			DP = (DP & ~EDP_LINK_TRAIN_VOL_EMP_MASK_SNB) | signal_levels;
-		} else {
-			signal_levels = intel_dp_signal_levels(intel_dp->train_set[0]);
-			DP = (DP & ~(DP_VOLTAGE_MASK|DP_PRE_EMPHASIS_MASK)) | signal_levels;
-		}
-		DRM_DEBUG_KMS("training pattern 1 signal levels %08x\n",
-			      signal_levels);
+		intel_dp_set_signal_levels(intel_dp, &DP);
 
 		/* Set training pattern 1 */
 		if (!intel_dp_set_link_train(intel_dp, DP,
@@ -1926,7 +1938,6 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 void
 intel_dp_complete_link_train(struct intel_dp *intel_dp)
 {
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	bool channel_eq = false;
 	int tries, cr_tries;
 	uint32_t DP = intel_dp->DP;
@@ -1936,8 +1947,6 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 	cr_tries = 0;
 	channel_eq = false;
 	for (;;) {
-		/* Use intel_dp->train_set[0] to set the voltage and pre emphasis values */
-		uint32_t    signal_levels;
 		uint8_t	    link_status[DP_LINK_STATUS_SIZE];
 
 		if (cr_tries > 5) {
@@ -1946,19 +1955,7 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 			break;
 		}
 
-		if (IS_HASWELL(dev)) {
-			signal_levels = intel_dp_signal_levels_hsw(intel_dp->train_set[0]);
-			DP = (DP & ~DDI_BUF_EMP_MASK) | signal_levels;
-		} else if (IS_GEN7(dev) && is_cpu_edp(intel_dp) && !IS_VALLEYVIEW(dev)) {
-			signal_levels = intel_gen7_edp_signal_levels(intel_dp->train_set[0]);
-			DP = (DP & ~EDP_LINK_TRAIN_VOL_EMP_MASK_IVB) | signal_levels;
-		} else if (IS_GEN6(dev) && is_cpu_edp(intel_dp)) {
-			signal_levels = intel_gen6_edp_signal_levels(intel_dp->train_set[0]);
-			DP = (DP & ~EDP_LINK_TRAIN_VOL_EMP_MASK_SNB) | signal_levels;
-		} else {
-			signal_levels = intel_dp_signal_levels(intel_dp->train_set[0]);
-			DP = (DP & ~(DP_VOLTAGE_MASK|DP_PRE_EMPHASIS_MASK)) | signal_levels;
-		}
+		intel_dp_set_signal_levels(intel_dp, &DP);
 
 		/* channel eq pattern */
 		if (!intel_dp_set_link_train(intel_dp, DP,
