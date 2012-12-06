@@ -119,7 +119,7 @@ static inline struct net_device *bnx2fc_netdev(const struct fc_lport *lport)
 static void bnx2fc_get_lesb(struct fc_lport *lport,
 			    struct fc_els_lesb *fc_lesb)
 {
-	struct net_device *netdev = bnx2fc_netdev(lport);
+	struct net_device *netdev = fcoe_get_netdev(lport);
 
 	__fcoe_get_lesb(lport, fc_lesb, netdev);
 }
@@ -127,7 +127,7 @@ static void bnx2fc_get_lesb(struct fc_lport *lport,
 static void bnx2fc_ctlr_get_lesb(struct fcoe_ctlr_device *ctlr_dev)
 {
 	struct fcoe_ctlr *fip = fcoe_ctlr_device_priv(ctlr_dev);
-	struct net_device *netdev = bnx2fc_netdev(fip->lp);
+	struct net_device *netdev = fcoe_get_netdev(fip->lp);
 	struct fcoe_fc_els_lesb *fcoe_lesb;
 	struct fc_els_lesb fc_lesb;
 
@@ -1499,6 +1499,7 @@ static struct fc_lport *bnx2fc_if_create(struct bnx2fc_interface *interface,
 	port = lport_priv(lport);
 	port->lport = lport;
 	port->priv = interface;
+	port->get_netdev = bnx2fc_netdev;
 	INIT_WORK(&port->destroy_work, bnx2fc_destroy_work);
 
 	/* Configure fcoe_port */
