@@ -40,7 +40,7 @@
 
 		vmmci: regulator-gpio {
 			gpios = <&tc3589x_gpio 18 0x4>;
-			gpio-enable = <&tc3589x_gpio 17 0x4>;
+			enable-gpio = <&tc3589x_gpio 17 0x4>;
 
 			status = "okay";
 		};
