@@ -1016,7 +1016,7 @@ int arizona_set_fll(struct arizona_fll *fll, int source,
 				   ARIZONA_FLL1_SYNC_ENA);
 
 	ret = wait_for_completion_timeout(&fll->ok,
-					  msecs_to_jiffies(25));
+					  msecs_to_jiffies(250));
 	if (ret == 0)
 		arizona_fll_warn(fll, "Timed out waiting for lock\n");
 
