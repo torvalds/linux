@@ -83,6 +83,7 @@ struct fimd_win_data {
 	unsigned int		buf_offsize;
 	unsigned int		line_size;	/* bytes */
 	bool			enabled;
+	bool			resume;
 };
 
 struct fimd_context {
@@ -596,6 +597,12 @@ static void fimd_win_disable(struct device *dev, int zpos)
 
 	win_data = &ctx->win_data[win];
 
+	if (ctx->suspended) {
+		/* do not resume this window*/
+		win_data->resume = false;
+		return;
+	}
+
 	/* protect windows */
 	val = readl(ctx->regs + SHADOWCON);
 	val |= SHADOWCON_WINx_PROTECT(win);
@@ -809,11 +816,38 @@ static int fimd_clock(struct fimd_context *ctx, bool enable)
 	return 0;
 }
 
+static void fimd_window_suspend(struct device *dev)
+{
+	struct fimd_context *ctx = get_fimd_context(dev);
+	struct fimd_win_data *win_data;
+	int i;
+
+	for (i = 0; i < WINDOWS_NR; i++) {
+		win_data = &ctx->win_data[i];
+		win_data->resume = win_data->enabled;
+		fimd_win_disable(dev, i);
+	}
+	fimd_wait_for_vblank(dev);
+}
+
+static void fimd_window_resume(struct device *dev)
+{
+	struct fimd_context *ctx = get_fimd_context(dev);
+	struct fimd_win_data *win_data;
+	int i;
+
+	for (i = 0; i < WINDOWS_NR; i++) {
+		win_data = &ctx->win_data[i];
+		win_data->enabled = win_data->resume;
+		win_data->resume = false;
+	}
+}
+
 static int fimd_activate(struct fimd_context *ctx, bool enable)
 {
+	struct device *dev = ctx->subdrv.dev;
 	if (enable) {
 		int ret;
-		struct device *dev = ctx->subdrv.dev;
 
 		ret = fimd_clock(ctx, true);
 		if (ret < 0)
@@ -824,7 +858,11 @@ static int fimd_activate(struct fimd_context *ctx, bool enable)
 		/* if vblank was enabled status, enable it again. */
 		if (test_and_clear_bit(0, &ctx->irq_flags))
 			fimd_enable_vblank(dev);
+
+		fimd_window_resume(dev);
 	} else {
+		fimd_window_suspend(dev);
+
 		fimd_clock(ctx, false);
 		ctx->suspended = true;
 	}
