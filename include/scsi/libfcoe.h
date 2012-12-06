@@ -351,6 +351,7 @@ struct fcoe_port {
 	struct timer_list     timer;
 	struct work_struct    destroy_work;
 	u8		      data_src_addr[ETH_ALEN];
+	struct net_device * (*get_netdev)(const struct fc_lport *lport);
 };
 void fcoe_clean_pending_queue(struct fc_lport *);
 void fcoe_check_wait_queue(struct fc_lport *lport, struct sk_buff *skb);
