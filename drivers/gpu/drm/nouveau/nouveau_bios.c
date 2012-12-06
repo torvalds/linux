@@ -2052,45 +2052,27 @@ uint8_t *nouveau_bios_embedded_edid(struct drm_device *dev)
 static bool NVInitVBIOS(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvbios *bios = &drm->vbios;
+	struct nouveau_bios *bios = nouveau_bios(drm->device);
+	struct nvbios *legacy = &drm->vbios;
 
-	memset(bios, 0, sizeof(struct nvbios));
-	spin_lock_init(&bios->lock);
-	bios->dev = dev;
+	memset(legacy, 0, sizeof(struct nvbios));
+	spin_lock_init(&legacy->lock);
+	legacy->dev = dev;
 
-	bios->data = nouveau_bios(drm->device)->data;
-	bios->length = nouveau_bios(drm->device)->size;
-	return true;
-}
-
-static int nouveau_parse_vbios_struct(struct drm_device *dev)
-{
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvbios *bios = &drm->vbios;
-	const uint8_t bit_signature[] = { 0xff, 0xb8, 'B', 'I', 'T' };
-	const uint8_t bmp_signature[] = { 0xff, 0x7f, 'N', 'V', 0x0 };
-	int offset;
-
-	offset = findstr(bios->data, bios->length,
-					bit_signature, sizeof(bit_signature));
-	if (offset) {
-		NV_INFO(drm, "BIT BIOS found\n");
-		bios->type = NVBIOS_BIT;
-		bios->offset = offset;
-		return parse_bit_structure(bios, offset + 6);
+	legacy->data = bios->data;
+	legacy->length = bios->size;
+	if (bios->bit_offset) {
+		legacy->type = NVBIOS_BIT;
+		legacy->offset = bios->bit_offset;
+		return !parse_bit_structure(legacy, legacy->offset + 6);
+	} else
+	if (bios->bmp_offset) {
+		legacy->type = NVBIOS_BMP;
+		legacy->offset = bios->bmp_offset;
+		return !parse_bmp_structure(dev, legacy, legacy->offset);
 	}
 
-	offset = findstr(bios->data, bios->length,
-					bmp_signature, sizeof(bmp_signature));
-	if (offset) {
-		NV_INFO(drm, "BMP BIOS found\n");
-		bios->type = NVBIOS_BMP;
-		bios->offset = offset;
-		return parse_bmp_structure(dev, bios, offset);
-	}
-
-	NV_ERROR(drm, "No known BIOS signature found\n");
-	return -ENODEV;
+	return false;
 }
 
 int
@@ -2145,10 +2127,6 @@ nouveau_bios_init(struct drm_device *dev)
 
 	if (!NVInitVBIOS(dev))
 		return -ENODEV;
-
-	ret = nouveau_parse_vbios_struct(dev);
-	if (ret)
-		return ret;
 
 	ret = parse_dcb_table(dev, bios);
 	if (ret)
