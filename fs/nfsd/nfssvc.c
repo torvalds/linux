@@ -204,13 +204,13 @@ static int nfsd_init_socks(struct net *net)
 	return 0;
 }
 
-static bool nfsd_up = false;
+static int nfsd_users = 0;
 
 static int nfsd_startup_generic(int nrservs)
 {
 	int ret;
 
-	if (nfsd_up)
+	if (nfsd_users++)
 		return 0;
 
 	/*
@@ -233,9 +233,11 @@ out_racache:
 
 static void nfsd_shutdown_generic(void)
 {
+	if (--nfsd_users)
+		return;
+
 	nfs4_state_shutdown();
 	nfsd_racache_shutdown();
-	nfsd_up = false;
 }
 
 static int nfsd_startup_net(int nrservs, struct net *net)
@@ -260,7 +262,6 @@ static int nfsd_startup_net(int nrservs, struct net *net)
 		goto out_lockd;
 
 	nn->nfsd_net_up = true;
-	nfsd_up = true;
 	return 0;
 
 out_lockd:
