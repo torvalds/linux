@@ -529,16 +529,12 @@ static void gmbus_irq_handler(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = (drm_i915_private_t *) dev->dev_private;
 
-	DRM_DEBUG_DRIVER("GMBUS interrupt\n");
-
 	wake_up_all(&dev_priv->gmbus_wait_queue);
 }
 
 static void dp_aux_irq_handler(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = (drm_i915_private_t *) dev->dev_private;
-
-	DRM_DEBUG_DRIVER("AUX channel interrupt\n");
 
 	wake_up_all(&dev_priv->gmbus_wait_queue);
 }
