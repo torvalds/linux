@@ -136,26 +136,26 @@ do { if(rt_global_debug_component & component) \
 #define RTL819x_DEBUG
 #ifdef RTL819x_DEBUG
 #define assert(expr) \
-        if (!(expr)) {                                  \
-                printk( "Assertion failed! %s,%s,%s,line=%d\n", \
-                #expr,__FILE__,__FUNCTION__,__LINE__);          \
-        }
+	if (!(expr)) {                                  \
+		printk( "Assertion failed! %s,%s,%s,line=%d\n", \
+		#expr,__FILE__,__FUNCTION__,__LINE__);          \
+	}
 //wb added to debug out data buf
 //if you want print DATA buffer related BA, please set ieee80211_debug_level to DATA|BA
 #define RT_DEBUG_DATA(level, data, datalen)      \
-        do{ if ((rt_global_debug_component & (level)) == (level))   \
-                {       \
-                        int i;                                  \
-                        u8* pdata = (u8*) data;                 \
-                        printk(KERN_DEBUG RTL819xU_MODULE_NAME ": %s()\n", __FUNCTION__);   \
-                        for(i=0; i<(int)(datalen); i++)                 \
-                        {                                               \
-                                printk("%2x ", pdata[i]);               \
-                                if ((i+1)%16 == 0) printk("\n");        \
-                        }                               \
-                        printk("\n");                   \
-                }                                       \
-        } while (0)
+	do{ if ((rt_global_debug_component & (level)) == (level))   \
+		{       \
+			int i;                                  \
+			u8* pdata = (u8*) data;                 \
+			printk(KERN_DEBUG RTL819xU_MODULE_NAME ": %s()\n", __FUNCTION__);   \
+			for(i=0; i<(int)(datalen); i++)                 \
+			{                                               \
+				printk("%2x ", pdata[i]);               \
+				if ((i+1)%16 == 0) printk("\n");        \
+			}                               \
+			printk("\n");                   \
+		}                                       \
+	} while (0)
 #else
 #define assert(expr) do {} while (0)
 #define RT_DEBUG_DATA(level, data, datalen) do {} while(0)
@@ -214,42 +214,42 @@ do { if(rt_global_debug_component & component) \
 
 /* for rtl819x */
 typedef struct _tx_desc_819x_usb {
-        //DWORD 0
-        u16	PktSize;
-        u8	Offset;
-        u8	Reserved0:3;
-        u8	CmdInit:1;
-        u8	LastSeg:1;
-        u8	FirstSeg:1;
-        u8	LINIP:1;
-        u8	OWN:1;
+	//DWORD 0
+	u16	PktSize;
+	u8	Offset;
+	u8	Reserved0:3;
+	u8	CmdInit:1;
+	u8	LastSeg:1;
+	u8	FirstSeg:1;
+	u8	LINIP:1;
+	u8	OWN:1;
 
-        //DWORD 1
-        u8	TxFWInfoSize;
-        u8	RATid:3;
-        u8	DISFB:1;
-        u8	USERATE:1;
-        u8	MOREFRAG:1;
-        u8	NoEnc:1;
-        u8	PIFS:1;
-        u8	QueueSelect:5;
-        u8	NoACM:1;
-        u8	Reserved1:2;
-        u8	SecCAMID:5;
-        u8	SecDescAssign:1;
-        u8	SecType:2;
+	//DWORD 1
+	u8	TxFWInfoSize;
+	u8	RATid:3;
+	u8	DISFB:1;
+	u8	USERATE:1;
+	u8	MOREFRAG:1;
+	u8	NoEnc:1;
+	u8	PIFS:1;
+	u8	QueueSelect:5;
+	u8	NoACM:1;
+	u8	Reserved1:2;
+	u8	SecCAMID:5;
+	u8	SecDescAssign:1;
+	u8	SecType:2;
 
-        //DWORD 2
-        u16	TxBufferSize;
-        //u16 Reserved2;
-        u8	ResvForPaddingLen:7;
-        u8	Reserved3:1;
-        u8	Reserved4;
+	//DWORD 2
+	u16	TxBufferSize;
+	//u16 Reserved2;
+	u8	ResvForPaddingLen:7;
+	u8	Reserved3:1;
+	u8	Reserved4;
 
-        //DWORD 3, 4, 5
-        u32	Reserved5;
-        u32	Reserved6;
-        u32	Reserved7;
+	//DWORD 3, 4, 5
+	u32	Reserved5;
+	u32	Reserved6;
+	u32	Reserved7;
 }tx_desc_819x_usb, *ptx_desc_819x_usb;
 
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
@@ -280,7 +280,7 @@ typedef struct _tx_desc_819x_usb_aggr_subframe {
 
 
 typedef struct _tx_desc_cmd_819x_usb {
-        //DWORD 0
+	//DWORD 0
 	u16	Reserved0;
 	u8	Reserved1;
 	u8	Reserved2:3;
@@ -290,14 +290,14 @@ typedef struct _tx_desc_cmd_819x_usb {
 	u8	LINIP:1;
 	u8	OWN:1;
 
-        //DOWRD 1
+	//DOWRD 1
 	//u32	Reserved3;
 	u8	TxFWInfoSize;
 	u8	Reserved3;
 	u8	QueueSelect;
 	u8	Reserved4;
 
-        //DOWRD 2
+	//DOWRD 2
 	u16	TxBufferSize;
 	u16	Reserved5;
 
@@ -311,34 +311,34 @@ typedef struct _tx_desc_cmd_819x_usb {
 
 
 typedef struct _tx_fwinfo_819x_usb {
-        //DOWRD 0
-        u8		TxRate:7;
-        u8		CtsEnable:1;
-        u8		RtsRate:7;
-        u8		RtsEnable:1;
-        u8		TxHT:1;
-        u8		Short:1;                //Short PLCP for CCK, or short GI for 11n MCS
-        u8		TxBandwidth:1;          // This is used for HT MCS rate only.
-        u8		TxSubCarrier:2;         // This is used for legacy OFDM rate only.
-        u8		STBC:2;
-        u8		AllowAggregation:1;
-        u8		RtsHT:1;                //Interpret RtsRate field as high throughput data rate
-        u8		RtsShort:1;             //Short PLCP for CCK, or short GI for 11n MCS
-        u8		RtsBandwidth:1;         // This is used for HT MCS rate only.
-        u8		RtsSubcarrier:2;        // This is used for legacy OFDM rate only.
-        u8		RtsSTBC:2;
-        u8		EnableCPUDur:1;         //Enable firmware to recalculate and assign packet duration
+	//DOWRD 0
+	u8		TxRate:7;
+	u8		CtsEnable:1;
+	u8		RtsRate:7;
+	u8		RtsEnable:1;
+	u8		TxHT:1;
+	u8		Short:1;                //Short PLCP for CCK, or short GI for 11n MCS
+	u8		TxBandwidth:1;          // This is used for HT MCS rate only.
+	u8		TxSubCarrier:2;         // This is used for legacy OFDM rate only.
+	u8		STBC:2;
+	u8		AllowAggregation:1;
+	u8		RtsHT:1;                //Interpret RtsRate field as high throughput data rate
+	u8		RtsShort:1;             //Short PLCP for CCK, or short GI for 11n MCS
+	u8		RtsBandwidth:1;         // This is used for HT MCS rate only.
+	u8		RtsSubcarrier:2;        // This is used for legacy OFDM rate only.
+	u8		RtsSTBC:2;
+	u8		EnableCPUDur:1;         //Enable firmware to recalculate and assign packet duration
 
-        //DWORD 1
-        u32		RxMF:2;
-        u32		RxAMD:3;
-        u32		TxPerPktInfoFeedback:1;//1 indicate Tx info gathtered by firmware and returned by Rx Cmd
-        u32		Reserved1:2;
-        u32		TxAGCOffSet:4;
-        u32		TxAGCSign:1;
-        u32		Tx_INFO_RSVD:6;
+	//DWORD 1
+	u32		RxMF:2;
+	u32		RxAMD:3;
+	u32		TxPerPktInfoFeedback:1;//1 indicate Tx info gathtered by firmware and returned by Rx Cmd
+	u32		Reserved1:2;
+	u32		TxAGCOffSet:4;
+	u32		TxAGCSign:1;
+	u32		Tx_INFO_RSVD:6;
 	u32		PacketID:13;
-        //u32                Reserved;
+	//u32                Reserved;
 }tx_fwinfo_819x_usb, *ptx_fwinfo_819x_usb;
 
 typedef struct rtl8192_rx_info {
@@ -566,14 +566,14 @@ typedef struct buffer {
 } buffer;
 
 typedef struct rtl_reg_debug{
-        unsigned int  cmd;
-        struct {
-                unsigned char type;
-                unsigned char addr;
-                unsigned char page;
-                unsigned char length;
-        } head;
-        unsigned char buf[0xff];
+	unsigned int  cmd;
+	struct {
+		unsigned char type;
+		unsigned char addr;
+		unsigned char page;
+		unsigned char length;
+	} head;
+	unsigned char buf[0xff];
 }rtl_reg_debug;
 
 
@@ -739,11 +739,11 @@ typedef struct _BB_REGISTER_DEFINITION{
 }BB_REGISTER_DEFINITION_T, *PBB_REGISTER_DEFINITION_T;
 
 typedef enum _RT_RF_TYPE_819xU{
-        RF_TYPE_MIN = 0,
-        RF_8225,
-        RF_8256,
-        RF_8258,
-        RF_PSEUDO_11N = 4,
+	RF_TYPE_MIN = 0,
+	RF_8225,
+	RF_8256,
+	RF_8258,
+	RF_PSEUDO_11N = 4,
 }RT_RF_TYPE_819xU, *PRT_RF_TYPE_819xU;
 
 typedef struct _rate_adaptive {
@@ -898,7 +898,7 @@ typedef struct r8192_priv {
 	spinlock_t irq_lock;
 //	spinlock_t irq_th_lock;
 	spinlock_t tx_lock;
-        struct mutex mutex;
+	struct mutex mutex;
 	//spinlock_t rf_lock; //used to lock rf write operation added by wb
 
 	u16 irq_mask;
@@ -961,8 +961,8 @@ typedef struct r8192_priv {
 	atomic_t irt_counter;//count for irq_rx_tasklet
 #endif
 #ifdef JACKSON_NEW_RX
-        struct sk_buff **pp_rxskb;
-        int     rx_inx;
+	struct sk_buff **pp_rxskb;
+	int     rx_inx;
 #endif
 
 /* modified by davad for Rx process */

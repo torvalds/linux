@@ -2088,10 +2088,10 @@ struct ieee80211_device {
 	 struct delayed_work start_ibss_wq;
 	struct work_struct wx_sync_scan_wq;
 	struct workqueue_struct *wq;
-        // Qos related. Added by Annie, 2005-11-01.
-        //STA_QOS  StaQos;
+	// Qos related. Added by Annie, 2005-11-01.
+	//STA_QOS  StaQos;
 
-        //u32 STA_EDCA_PARAM[4];
+	//u32 STA_EDCA_PARAM[4];
 	//CHANNEL_ACCESS_SETTING ChannelAccessSetting;
 
 
@@ -2107,11 +2107,11 @@ struct ieee80211_device {
 			       struct net_device *dev);
 
 	int (*reset_port)(struct net_device *dev);
-        int (*is_queue_full) (struct net_device * dev, int pri);
+	int (*is_queue_full) (struct net_device * dev, int pri);
 
-        int (*handle_management) (struct net_device * dev,
-                                  struct ieee80211_network * network, u16 type);
-        int (*is_qos_active) (struct net_device *dev, struct sk_buff *skb);
+	int (*handle_management) (struct net_device * dev,
+				  struct ieee80211_network * network, u16 type);
+	int (*is_qos_active) (struct net_device *dev, struct sk_buff *skb);
 
 	/* Softmac-generated frames (management) are TXed via this
 	 * callback if the flag IEEE_SOFTMAC_SINGLE_QUEUE is
