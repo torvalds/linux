@@ -152,7 +152,8 @@ static int v2_set_next_event(unsigned long evt,
 
 	__raw_writel(tcmp, timer_base + V2_TCMP);
 
-	return (int)(tcmp - __raw_readl(timer_base + V2_TCN)) < 0 ?
+	return evt < 0x7fffffff &&
+		(int)(tcmp - __raw_readl(timer_base + V2_TCN)) < 0 ?
 				-ETIME : 0;
 }
 
