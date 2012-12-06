@@ -333,7 +333,7 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 		mutex_lock(&kvm->irqfds.resampler_lock);
 
 		list_for_each_entry(resampler,
-				    &kvm->irqfds.resampler_list, list) {
+				    &kvm->irqfds.resampler_list, link) {
 			if (resampler->notifier.gsi == irqfd->gsi) {
 				irqfd->resampler = resampler;
 				break;
