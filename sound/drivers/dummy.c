@@ -688,8 +688,8 @@ static struct snd_pcm_ops dummy_pcm_ops_no_buf = {
 	.page =		dummy_pcm_page,
 };
 
-static int __devinit snd_card_dummy_pcm(struct snd_dummy *dummy, int device,
-					int substreams)
+static int snd_card_dummy_pcm(struct snd_dummy *dummy, int device,
+			      int substreams)
 {
 	struct snd_pcm *pcm;
 	struct snd_pcm_ops *ops;
@@ -891,7 +891,7 @@ DUMMY_CAPSRC("CD Capture Switch", 0, MIXER_ADDR_CD),
 },
 };
 
-static int __devinit snd_card_dummy_new_mixer(struct snd_dummy *dummy)
+static int snd_card_dummy_new_mixer(struct snd_dummy *dummy)
 {
 	struct snd_card *card = dummy->card;
 	struct snd_kcontrol *kcontrol;
@@ -1031,7 +1031,7 @@ static void dummy_proc_write(struct snd_info_entry *entry,
 	}
 }
 
-static void __devinit dummy_proc_init(struct snd_dummy *chip)
+static void dummy_proc_init(struct snd_dummy *chip)
 {
 	struct snd_info_entry *entry;
 
@@ -1046,7 +1046,7 @@ static void __devinit dummy_proc_init(struct snd_dummy *chip)
 #define dummy_proc_init(x)
 #endif /* CONFIG_SND_DEBUG && CONFIG_PROC_FS */
 
-static int __devinit snd_dummy_probe(struct platform_device *devptr)
+static int snd_dummy_probe(struct platform_device *devptr)
 {
 	struct snd_card *card;
 	struct snd_dummy *dummy;
@@ -1126,7 +1126,7 @@ static int __devinit snd_dummy_probe(struct platform_device *devptr)
 	return err;
 }
 
-static int __devexit snd_dummy_remove(struct platform_device *devptr)
+static int snd_dummy_remove(struct platform_device *devptr)
 {
 	snd_card_free(platform_get_drvdata(devptr));
 	platform_set_drvdata(devptr, NULL);
@@ -1162,7 +1162,7 @@ static SIMPLE_DEV_PM_OPS(snd_dummy_pm, snd_dummy_suspend, snd_dummy_resume);
 
 static struct platform_driver snd_dummy_driver = {
 	.probe		= snd_dummy_probe,
-	.remove		= __devexit_p(snd_dummy_remove),
+	.remove		= snd_dummy_remove,
 	.driver		= {
 		.name	= SND_DUMMY_DRIVER,
 		.owner	= THIS_MODULE,

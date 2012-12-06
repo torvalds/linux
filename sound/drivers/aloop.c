@@ -774,8 +774,8 @@ static struct snd_pcm_ops loopback_capture_ops = {
 	.mmap =		snd_pcm_lib_mmap_vmalloc,
 };
 
-static int __devinit loopback_pcm_new(struct loopback *loopback,
-				      int device, int substreams)
+static int loopback_pcm_new(struct loopback *loopback,
+			    int device, int substreams)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -949,7 +949,7 @@ static int loopback_channels_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new loopback_controls[]  __devinitdata = {
+static struct snd_kcontrol_new loopback_controls[]  = {
 {
 	.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         "PCM Rate Shift 100000",
@@ -998,7 +998,7 @@ static struct snd_kcontrol_new loopback_controls[]  __devinitdata = {
 }
 };
 
-static int __devinit loopback_mixer_new(struct loopback *loopback, int notify)
+static int loopback_mixer_new(struct loopback *loopback, int notify)
 {
 	struct snd_card *card = loopback->card;
 	struct snd_pcm *pcm;
@@ -1111,7 +1111,7 @@ static void print_cable_info(struct snd_info_entry *entry,
 	mutex_unlock(&loopback->cable_lock);
 }
 
-static int __devinit loopback_proc_new(struct loopback *loopback, int cidx)
+static int loopback_proc_new(struct loopback *loopback, int cidx)
 {
 	char name[32];
 	struct snd_info_entry *entry;
@@ -1132,7 +1132,7 @@ static int __devinit loopback_proc_new(struct loopback *loopback, int cidx)
 
 #endif
 
-static int __devinit loopback_probe(struct platform_device *devptr)
+static int loopback_probe(struct platform_device *devptr)
 {
 	struct snd_card *card;
 	struct loopback *loopback;
@@ -1177,7 +1177,7 @@ static int __devinit loopback_probe(struct platform_device *devptr)
 	return err;
 }
 
-static int __devexit loopback_remove(struct platform_device *devptr)
+static int loopback_remove(struct platform_device *devptr)
 {
 	snd_card_free(platform_get_drvdata(devptr));
 	platform_set_drvdata(devptr, NULL);
@@ -1215,7 +1215,7 @@ static SIMPLE_DEV_PM_OPS(loopback_pm, loopback_suspend, loopback_resume);
 
 static struct platform_driver loopback_driver = {
 	.probe		= loopback_probe,
-	.remove		= __devexit_p(loopback_remove),
+	.remove		= loopback_remove,
 	.driver		= {
 		.name	= SND_LOOPBACK_DRIVER,
 		.owner	= THIS_MODULE,
