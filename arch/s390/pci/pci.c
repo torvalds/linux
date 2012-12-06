@@ -6,13 +6,13 @@
  *
  * The System z PCI code is a rewrite from a prototype by
  * the following people (Kudoz!):
- *   Alexander Schmidt <alexschm@de.ibm.com>
- *   Christoph Raisch <raisch@de.ibm.com>
- *   Hannes Hering <hering2@de.ibm.com>
- *   Hoang-Nam Nguyen <hnguyen@de.ibm.com>
- *   Jan-Bernd Themann <themann@de.ibm.com>
- *   Stefan Roscher <stefan.roscher@de.ibm.com>
- *   Thomas Klein <tklein@de.ibm.com>
+ *   Alexander Schmidt
+ *   Christoph Raisch
+ *   Hannes Hering
+ *   Hoang-Nam Nguyen
+ *   Jan-Bernd Themann
+ *   Stefan Roscher
+ *   Thomas Klein
  */
 
 #define COMPONENT "zPCI"
