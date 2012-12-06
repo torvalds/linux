@@ -100,6 +100,8 @@ struct fimd_context {
 	u32				vidcon1;
 	bool				suspended;
 	struct mutex			lock;
+	wait_queue_head_t		wait_vsync_queue;
+	atomic_t			wait_vsync_event;
 
 	struct exynos_drm_panel_info *panel;
 };
@@ -311,11 +313,19 @@ static void fimd_disable_vblank(struct device *dev)
 static void fimd_wait_for_vblank(struct device *dev)
 {
 	struct fimd_context *ctx = get_fimd_context(dev);
-	int ret;
 
-	ret = wait_for((__raw_readl(ctx->regs + VIDCON1) &
-					VIDCON1_VSTATUS_VSYNC), 50);
-	if (ret < 0)
+	if (ctx->suspended)
+		return;
+
+	atomic_set(&ctx->wait_vsync_event, 1);
+
+	/*
+	 * wait for FIMD to signal VSYNC interrupt or return after
+	 * timeout which is set to 50ms (refresh rate of 20).
+	 */
+	if (!wait_event_timeout(ctx->wait_vsync_queue,
+				!atomic_read(&ctx->wait_vsync_event),
+				DRM_HZ/20))
 		DRM_DEBUG_KMS("vblank wait timed out.\n");
 }
 
@@ -667,6 +677,11 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 	drm_handle_vblank(drm_dev, manager->pipe);
 	fimd_finish_pageflip(drm_dev, manager->pipe);
 
+	/* set wait vsync event to zero and wake up queue. */
+	if (atomic_read(&ctx->wait_vsync_event)) {
+		atomic_set(&ctx->wait_vsync_event, 0);
+		DRM_WAKEUP(&ctx->wait_vsync_queue);
+	}
 out:
 	return IRQ_HANDLED;
 }
@@ -885,6 +900,8 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 	ctx->vidcon1 = pdata->vidcon1;
 	ctx->default_win = pdata->default_win;
 	ctx->panel = panel;
+	DRM_INIT_WAITQUEUE(&ctx->wait_vsync_queue);
+	atomic_set(&ctx->wait_vsync_event, 0);
 
 	subdrv = &ctx->subdrv;
 
