@@ -559,9 +559,9 @@ static struct snd_pcm_ops pcm_ops = {
 	.pointer = usb6fire_pcm_pointer,
 };
 
-static void __devinit usb6fire_pcm_init_urb(struct pcm_urb *urb,
-		struct sfire_chip *chip, bool in, int ep,
-		void (*handler)(struct urb *))
+static void usb6fire_pcm_init_urb(struct pcm_urb *urb,
+				  struct sfire_chip *chip, bool in, int ep,
+				  void (*handler)(struct urb *))
 {
 	urb->chip = chip;
 	usb_init_urb(&urb->instance);
@@ -578,7 +578,7 @@ static void __devinit usb6fire_pcm_init_urb(struct pcm_urb *urb,
 	urb->instance.number_of_packets = PCM_N_PACKETS_PER_URB;
 }
 
-int __devinit usb6fire_pcm_init(struct sfire_chip *chip)
+int usb6fire_pcm_init(struct sfire_chip *chip)
 {
 	int i;
 	int ret;

@@ -125,7 +125,7 @@ static int usb6fire_comm_write16(struct comm_runtime *rt, u8 request,
 	return usb6fire_comm_send_buffer(buffer, rt->chip->dev);
 }
 
-int __devinit usb6fire_comm_init(struct sfire_chip *chip)
+int usb6fire_comm_init(struct sfire_chip *chip)
 {
 	struct comm_runtime *rt = kzalloc(sizeof(struct comm_runtime),
 			GFP_KERNEL);
