@@ -241,7 +241,7 @@ static void handle_tx(struct vhost_net *net)
 	size_t hdr_size;
 	struct socket *sock;
 	struct vhost_ubuf_ref *uninitialized_var(ubufs);
-	bool zcopy;
+	bool zcopy, zcopy_used;
 
 	/* TODO: check that we are running from vhost_worker? */
 	sock = rcu_dereference_check(vq->private_data, 1);
@@ -319,8 +319,11 @@ static void handle_tx(struct vhost_net *net)
 			       iov_length(vq->hdr, s), hdr_size);
 			break;
 		}
+		zcopy_used = zcopy && (len >= VHOST_GOODCOPY_LEN ||
+				       vq->upend_idx != vq->done_idx);
+
 		/* use msg_control to pass vhost zerocopy ubuf info to skb */
-		if (zcopy) {
+		if (zcopy_used) {
 			vq->heads[vq->upend_idx].id = head;
 			if (!vhost_net_tx_select_zcopy(net) ||
 			    len < VHOST_GOODCOPY_LEN) {
@@ -348,7 +351,7 @@ static void handle_tx(struct vhost_net *net)
 		/* TODO: Check specific error and bomb out unless ENOBUFS? */
 		err = sock->ops->sendmsg(NULL, sock, &msg, len);
 		if (unlikely(err < 0)) {
-			if (zcopy) {
+			if (zcopy_used) {
 				if (ubufs)
 					vhost_ubuf_put(ubufs);
 				vq->upend_idx = ((unsigned)vq->upend_idx - 1) %
@@ -362,7 +365,7 @@ static void handle_tx(struct vhost_net *net)
 		if (err != len)
 			pr_debug("Truncated TX packet: "
 				 " len %d != %zd\n", err, len);
-		if (!zcopy)
+		if (!zcopy_used)
 			vhost_add_used_and_signal(&net->dev, vq, head, 0);
 		else
 			vhost_zerocopy_signal_used(net, vq);
