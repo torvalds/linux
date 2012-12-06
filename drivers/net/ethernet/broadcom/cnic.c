@@ -895,7 +895,7 @@ static int cnic_alloc_context(struct cnic_dev *dev)
 {
 	struct cnic_local *cp = dev->cnic_priv;
 
-	if (CHIP_NUM(cp) == CHIP_NUM_5709) {
+	if (BNX2_CHIP(cp) == BNX2_CHIP_5709) {
 		int i, k, arr_size;
 
 		cp->ctx_blk_size = BNX2_PAGE_SIZE;
@@ -4358,7 +4358,7 @@ static int cnic_setup_5709_context(struct cnic_dev *dev, int valid)
 	int ret = 0, i;
 	u32 valid_bit = valid ? BNX2_CTX_HOST_PAGE_TBL_DATA0_VALID : 0;
 
-	if (CHIP_NUM(cp) != CHIP_NUM_5709)
+	if (BNX2_CHIP(cp) != BNX2_CHIP_5709)
 		return 0;
 
 	for (i = 0; i < cp->ctx_blks; i++) {
@@ -4526,7 +4526,7 @@ static void cnic_init_bnx2_tx_ring(struct cnic_dev *dev)
 	cp->tx_cons = *cp->tx_cons_ptr;
 
 	cid_addr = GET_CID_ADDR(tx_cid);
-	if (CHIP_NUM(cp) == CHIP_NUM_5709) {
+	if (BNX2_CHIP(cp) == BNX2_CHIP_5709) {
 		u32 cid_addr2 = GET_CID_ADDR(tx_cid + 4) + 0x40;
 
 		for (i = 0; i < PHY_CTX_SIZE; i += 4)
@@ -4671,7 +4671,7 @@ static void cnic_set_bnx2_mac(struct cnic_dev *dev)
 	CNIC_WR(dev, BNX2_EMAC_MAC_MATCH5, val);
 
 	val = 4 | BNX2_RPM_SORT_USER2_BC_EN;
-	if (CHIP_NUM(cp) != CHIP_NUM_5709)
+	if (BNX2_CHIP(cp) != BNX2_CHIP_5709)
 		val |= BNX2_RPM_SORT_USER2_PROM_VLAN;
 
 	CNIC_WR(dev, BNX2_RPM_SORT_USER2, 0x0);
@@ -4717,7 +4717,7 @@ static int cnic_start_bnx2_hw(struct cnic_dev *dev)
 	cp->kwq_con_idx = 0;
 	set_bit(CNIC_LCL_FL_KWQ_INIT, &cp->cnic_local_flags);
 
-	if (CHIP_NUM(cp) == CHIP_NUM_5706 || CHIP_NUM(cp) == CHIP_NUM_5708)
+	if (BNX2_CHIP(cp) == BNX2_CHIP_5706 || BNX2_CHIP(cp) == BNX2_CHIP_5708)
 		cp->kwq_con_idx_ptr = &sblk->status_rx_quick_consumer_index15;
 	else
 		cp->kwq_con_idx_ptr = &sblk->status_cmd_consumer_index;
@@ -4917,9 +4917,9 @@ static void cnic_init_bnx2x_tx_ring(struct cnic_dev *dev,
 
 		if (BNX2X_CHIP_IS_E2_PLUS(cp->chip_id))
 			pbd_e2->parsing_data = (UNICAST_ADDRESS <<
-				 ETH_TX_PARSE_BD_E2_ETH_ADDR_TYPE_SHIFT);
+				ETH_TX_PARSE_BD_E2_ETH_ADDR_TYPE_SHIFT);
 		else
-			 pbd_e1x->global_data = (UNICAST_ADDRESS <<
+			pbd_e1x->global_data = (UNICAST_ADDRESS <<
 				ETH_TX_PARSE_BD_E1X_ETH_ADDR_TYPE_SHIFT);
 	}
 

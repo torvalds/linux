@@ -6854,33 +6854,31 @@ struct bnx2 {
 
 	u32			chip_id;
 	/* chip num:16-31, rev:12-15, metal:4-11, bond_id:0-3 */
-#define CHIP_NUM(bp)			(((bp)->chip_id) & 0xffff0000)
-#define CHIP_NUM_5706			0x57060000
-#define CHIP_NUM_5708			0x57080000
-#define CHIP_NUM_5709			0x57090000
+#define BNX2_CHIP(bp)			(((bp)->chip_id) & 0xffff0000)
+#define BNX2_CHIP_5706			0x57060000
+#define BNX2_CHIP_5708			0x57080000
+#define BNX2_CHIP_5709			0x57090000
 
-#define CHIP_REV(bp)			(((bp)->chip_id) & 0x0000f000)
-#define CHIP_REV_Ax			0x00000000
-#define CHIP_REV_Bx			0x00001000
-#define CHIP_REV_Cx			0x00002000
+#define BNX2_CHIP_REV(bp)		(((bp)->chip_id) & 0x0000f000)
+#define BNX2_CHIP_REV_Ax		0x00000000
+#define BNX2_CHIP_REV_Bx		0x00001000
+#define BNX2_CHIP_REV_Cx		0x00002000
 
-#define CHIP_METAL(bp)			(((bp)->chip_id) & 0x00000ff0)
-#define CHIP_BONDING(bp)		(((bp)->chip_id) & 0x0000000f)
+#define BNX2_CHIP_METAL(bp)		(((bp)->chip_id) & 0x00000ff0)
+#define BNX2_CHIP_BOND(bp)		(((bp)->chip_id) & 0x0000000f)
 
-#define CHIP_ID(bp)			(((bp)->chip_id) & 0xfffffff0)
-#define CHIP_ID_5706_A0			0x57060000
-#define CHIP_ID_5706_A1			0x57060010
-#define CHIP_ID_5706_A2			0x57060020
-#define CHIP_ID_5708_A0			0x57080000
-#define CHIP_ID_5708_B0			0x57081000
-#define CHIP_ID_5708_B1			0x57081010
-#define CHIP_ID_5709_A0			0x57090000
-#define CHIP_ID_5709_A1			0x57090010
-
-#define CHIP_BOND_ID(bp)		(((bp)->chip_id) & 0xf)
+#define BNX2_CHIP_ID(bp)		(((bp)->chip_id) & 0xfffffff0)
+#define BNX2_CHIP_ID_5706_A0		0x57060000
+#define BNX2_CHIP_ID_5706_A1			0x57060010
+#define BNX2_CHIP_ID_5706_A2			0x57060020
+#define BNX2_CHIP_ID_5708_A0			0x57080000
+#define BNX2_CHIP_ID_5708_B0			0x57081000
+#define BNX2_CHIP_ID_5708_B1			0x57081010
+#define BNX2_CHIP_ID_5709_A0			0x57090000
+#define BNX2_CHIP_ID_5709_A1			0x57090010
 
 /* A serdes chip will have the first bit of the bond id set. */
-#define CHIP_BOND_ID_SERDES_BIT		0x01
+#define BNX2_CHIP_BOND_SERDES_BIT		0x01
 
 	u32			phy_addr;
 	u32			phy_id;
