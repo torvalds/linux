@@ -118,6 +118,15 @@ int fcoe_link_speed_update(struct fc_lport *lport)
 }
 EXPORT_SYMBOL_GPL(fcoe_link_speed_update);
 
+/**
+ * __fcoe_get_lesb() - Get the Link Error Status Block (LESB) for a given lport
+ * @lport: The local port to update speeds for
+ * @fc_lesb: Pointer to the LESB to be filled up
+ * @netdev: Pointer to the netdev that is associated with the lport
+ *
+ * Note, the Link Error Status Block (LESB) for FCoE is defined in FC-BB-6
+ * Clause 7.11 in v1.04.
+ */
 void __fcoe_get_lesb(struct fc_lport *lport,
 		     struct fc_els_lesb *fc_lesb,
 		     struct net_device *netdev)
@@ -146,6 +155,51 @@ void __fcoe_get_lesb(struct fc_lport *lport,
 			htonl(dev_get_stats(netdev, &temp)->rx_crc_errors);
 }
 EXPORT_SYMBOL_GPL(__fcoe_get_lesb);
+
+/**
+ * fcoe_get_lesb() - Fill the FCoE Link Error Status Block
+ * @lport: the local port
+ * @fc_lesb: the link error status block
+ */
+void fcoe_get_lesb(struct fc_lport *lport,
+			 struct fc_els_lesb *fc_lesb)
+{
+	struct net_device *netdev = fcoe_get_netdev(lport);
+
+	__fcoe_get_lesb(lport, fc_lesb, netdev);
+}
+EXPORT_SYMBOL_GPL(fcoe_get_lesb);
+
+/**
+ * fcoe_ctlr_get_lesb() - Get the Link Error Status Block (LESB) for a given
+ * fcoe controller device
+ * @ctlr_dev: The given fcoe controller device
+ *
+ */
+void fcoe_ctlr_get_lesb(struct fcoe_ctlr_device *ctlr_dev)
+{
+	struct fcoe_ctlr *fip = fcoe_ctlr_device_priv(ctlr_dev);
+	struct net_device *netdev = fcoe_get_netdev(fip->lp);
+	struct fcoe_fc_els_lesb *fcoe_lesb;
+	struct fc_els_lesb fc_lesb;
+
+	__fcoe_get_lesb(fip->lp, &fc_lesb, netdev);
+	fcoe_lesb = (struct fcoe_fc_els_lesb *)(&fc_lesb);
+
+	ctlr_dev->lesb.lesb_link_fail =
+		ntohl(fcoe_lesb->lesb_link_fail);
+	ctlr_dev->lesb.lesb_vlink_fail =
+		ntohl(fcoe_lesb->lesb_vlink_fail);
+	ctlr_dev->lesb.lesb_miss_fka =
+		ntohl(fcoe_lesb->lesb_miss_fka);
+	ctlr_dev->lesb.lesb_symb_err =
+		ntohl(fcoe_lesb->lesb_symb_err);
+	ctlr_dev->lesb.lesb_err_block =
+		ntohl(fcoe_lesb->lesb_err_block);
+	ctlr_dev->lesb.lesb_fcs_error =
+		ntohl(fcoe_lesb->lesb_fcs_error);
+}
+EXPORT_SYMBOL_GPL(fcoe_ctlr_get_lesb);
 
 void fcoe_wwn_to_str(u64 wwn, char *buf, int len)
 {

@@ -130,8 +130,6 @@ static struct fc_seq *fcoe_elsct_send(struct fc_lport *,
 				      void *, u32 timeout);
 static void fcoe_recv_frame(struct sk_buff *skb);
 
-static void fcoe_get_lesb(struct fc_lport *, struct fc_els_lesb *);
-
 /* notification function for packets from net device */
 static struct notifier_block fcoe_notifier = {
 	.notifier_call = fcoe_device_notification,
@@ -155,7 +153,6 @@ static int fcoe_vport_create(struct fc_vport *, bool disabled);
 static int fcoe_vport_disable(struct fc_vport *, bool disable);
 static void fcoe_set_vport_symbolic_name(struct fc_vport *);
 static void fcoe_set_port_id(struct fc_lport *, u32, struct fc_frame *);
-static void fcoe_ctlr_get_lesb(struct fcoe_ctlr_device *);
 static void fcoe_fcf_get_vlan_id(struct fcoe_fcf_device *);
 
 static struct fcoe_sysfs_function_template fcoe_sysfs_templ = {
@@ -2856,43 +2853,6 @@ static void fcoe_set_vport_symbolic_name(struct fc_vport *vport)
 		return;
 	lport->tt.elsct_send(lport, FC_FID_DIR_SERV, fp, FC_NS_RSPN_ID,
 			     NULL, NULL, 3 * lport->r_a_tov);
-}
-
-/**
- * fcoe_get_lesb() - Fill the FCoE Link Error Status Block
- * @lport: the local port
- * @fc_lesb: the link error status block
- */
-static void fcoe_get_lesb(struct fc_lport *lport,
-			 struct fc_els_lesb *fc_lesb)
-{
-	struct net_device *netdev = fcoe_netdev(lport);
-
-	__fcoe_get_lesb(lport, fc_lesb, netdev);
-}
-
-static void fcoe_ctlr_get_lesb(struct fcoe_ctlr_device *ctlr_dev)
-{
-	struct fcoe_ctlr *fip = fcoe_ctlr_device_priv(ctlr_dev);
-	struct net_device *netdev = fcoe_netdev(fip->lp);
-	struct fcoe_fc_els_lesb *fcoe_lesb;
-	struct fc_els_lesb fc_lesb;
-
-	__fcoe_get_lesb(fip->lp, &fc_lesb, netdev);
-	fcoe_lesb = (struct fcoe_fc_els_lesb *)(&fc_lesb);
-
-	ctlr_dev->lesb.lesb_link_fail =
-		ntohl(fcoe_lesb->lesb_link_fail);
-	ctlr_dev->lesb.lesb_vlink_fail =
-		ntohl(fcoe_lesb->lesb_vlink_fail);
-	ctlr_dev->lesb.lesb_miss_fka =
-		ntohl(fcoe_lesb->lesb_miss_fka);
-	ctlr_dev->lesb.lesb_symb_err =
-		ntohl(fcoe_lesb->lesb_symb_err);
-	ctlr_dev->lesb.lesb_err_block =
-		ntohl(fcoe_lesb->lesb_err_block);
-	ctlr_dev->lesb.lesb_fcs_error =
-		ntohl(fcoe_lesb->lesb_fcs_error);
 }
 
 static void fcoe_fcf_get_vlan_id(struct fcoe_fcf_device *fcf_dev)
