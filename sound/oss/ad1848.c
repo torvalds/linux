@@ -2864,7 +2864,7 @@ static struct {
 	{NULL}
 };
 
-static struct isapnp_device_id id_table[] __devinitdata = {
+static struct isapnp_device_id id_table[] = {
 	{	ISAPNP_VENDOR('C','M','I'), ISAPNP_DEVICE(0x0001),
 		ISAPNP_VENDOR('@','@','@'), ISAPNP_FUNCTION(0x0001), 0 },
         {       ISAPNP_ANY_ID, ISAPNP_ANY_ID,
