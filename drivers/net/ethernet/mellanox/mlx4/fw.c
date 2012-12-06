@@ -1338,6 +1338,7 @@ int mlx4_QUERY_HCA(struct mlx4_dev *dev,
 {
 	struct mlx4_cmd_mailbox *mailbox;
 	__be32 *outbox;
+	u32 dword_field;
 	int err;
 	u8 byte_field;
 
@@ -1372,10 +1373,18 @@ int mlx4_QUERY_HCA(struct mlx4_dev *dev,
 	MLX4_GET(param->rdmarc_base,   outbox, INIT_HCA_RDMARC_BASE_OFFSET);
 	MLX4_GET(param->log_rd_per_qp, outbox, INIT_HCA_LOG_RD_OFFSET);
 
+	MLX4_GET(dword_field, outbox, INIT_HCA_FLAGS_OFFSET);
+	if (dword_field & (1 << INIT_HCA_DEVICE_MANAGED_FLOW_STEERING_EN)) {
+		param->steering_mode = MLX4_STEERING_MODE_DEVICE_MANAGED;
+	} else {
+		MLX4_GET(byte_field, outbox, INIT_HCA_UC_STEERING_OFFSET);
+		if (byte_field & 0x8)
+			param->steering_mode = MLX4_STEERING_MODE_B0;
+		else
+			param->steering_mode = MLX4_STEERING_MODE_A0;
+	}
 	/* steering attributes */
-	if (dev->caps.steering_mode ==
-	    MLX4_STEERING_MODE_DEVICE_MANAGED) {
-
+	if (param->steering_mode == MLX4_STEERING_MODE_DEVICE_MANAGED) {
 		MLX4_GET(param->mc_base, outbox, INIT_HCA_FS_BASE_OFFSET);
 		MLX4_GET(param->log_mc_entry_sz, outbox,
 			 INIT_HCA_FS_LOG_ENTRY_SZ_OFFSET);

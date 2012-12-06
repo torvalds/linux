@@ -281,28 +281,6 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.max_gso_sz	     = dev_cap->max_gso_sz;
 	dev->caps.max_rss_tbl_sz     = dev_cap->max_rss_tbl_sz;
 
-	if (dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_FS_EN) {
-		dev->caps.steering_mode = MLX4_STEERING_MODE_DEVICE_MANAGED;
-		dev->caps.num_qp_per_mgm = dev_cap->fs_max_num_qp_per_entry;
-		dev->caps.fs_log_max_ucast_qp_range_size =
-			dev_cap->fs_log_max_ucast_qp_range_size;
-	} else {
-		if (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER &&
-		    dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER) {
-			dev->caps.steering_mode = MLX4_STEERING_MODE_B0;
-		} else {
-			dev->caps.steering_mode = MLX4_STEERING_MODE_A0;
-
-			if (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER ||
-			    dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER)
-				mlx4_warn(dev, "Must have UC_STEER and MC_STEER flags "
-						"set to use B0 steering. Falling back to A0 steering mode.\n");
-		}
-		dev->caps.num_qp_per_mgm = mlx4_get_qp_per_mgm(dev);
-	}
-	mlx4_dbg(dev, "Steering mode is: %s\n",
-		 mlx4_steering_mode_str(dev->caps.steering_mode));
-
 	/* Sense port always allowed on supported devices for ConnectX-1 and -2 */
 	if (mlx4_priv(dev)->pci_dev_data & MLX4_PCI_DEV_FORCE_SENSE_PORT)
 		dev->caps.flags |= MLX4_DEV_CAP_FLAG_SENSE_SUPPORT;
@@ -493,6 +471,23 @@ int mlx4_is_slave_active(struct mlx4_dev *dev, int slave)
 }
 EXPORT_SYMBOL(mlx4_is_slave_active);
 
+static void slave_adjust_steering_mode(struct mlx4_dev *dev,
+				       struct mlx4_dev_cap *dev_cap,
+				       struct mlx4_init_hca_param *hca_param)
+{
+	dev->caps.steering_mode = hca_param->steering_mode;
+	if (dev->caps.steering_mode == MLX4_STEERING_MODE_DEVICE_MANAGED) {
+		dev->caps.num_qp_per_mgm = dev_cap->fs_max_num_qp_per_entry;
+		dev->caps.fs_log_max_ucast_qp_range_size =
+			dev_cap->fs_log_max_ucast_qp_range_size;
+	} else
+		dev->caps.num_qp_per_mgm =
+			4 * ((1 << hca_param->log_mc_entry_sz)/16 - 2);
+
+	mlx4_dbg(dev, "Steering mode is: %s\n",
+		 mlx4_steering_mode_str(dev->caps.steering_mode));
+}
+
 static int mlx4_slave_cap(struct mlx4_dev *dev)
 {
 	int			   err;
@@ -634,6 +629,8 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 	} else {
 		dev->caps.cqe_size   = 32;
 	}
+
+	slave_adjust_steering_mode(dev, &dev_cap, &hca_param);
 
 	return 0;
 
@@ -1321,6 +1318,34 @@ static void mlx4_parav_master_pf_caps(struct mlx4_dev *dev)
 	}
 }
 
+static void choose_steering_mode(struct mlx4_dev *dev,
+				 struct mlx4_dev_cap *dev_cap)
+{
+	if (dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_FS_EN &&
+	    (!mlx4_is_mfunc(dev) ||
+	     (dev_cap->fs_max_num_qp_per_entry >= (num_vfs + 1)))) {
+		dev->caps.steering_mode = MLX4_STEERING_MODE_DEVICE_MANAGED;
+		dev->caps.num_qp_per_mgm = dev_cap->fs_max_num_qp_per_entry;
+		dev->caps.fs_log_max_ucast_qp_range_size =
+			dev_cap->fs_log_max_ucast_qp_range_size;
+	} else {
+		if (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER &&
+		    dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER)
+			dev->caps.steering_mode = MLX4_STEERING_MODE_B0;
+		else {
+			dev->caps.steering_mode = MLX4_STEERING_MODE_A0;
+
+			if (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER ||
+			    dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER)
+				mlx4_warn(dev, "Must have both UC_STEER and MC_STEER flags "
+					  "set to use B0 steering. Falling back to A0 steering mode.\n");
+		}
+		dev->caps.num_qp_per_mgm = mlx4_get_qp_per_mgm(dev);
+	}
+	mlx4_dbg(dev, "Steering mode is: %s\n",
+		 mlx4_steering_mode_str(dev->caps.steering_mode));
+}
+
 static int mlx4_init_hca(struct mlx4_dev *dev)
 {
 	struct mlx4_priv	  *priv = mlx4_priv(dev);
@@ -1359,6 +1384,8 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 			mlx4_err(dev, "QUERY_DEV_CAP command failed, aborting.\n");
 			goto err_stop_fw;
 		}
+
+		choose_steering_mode(dev, &dev_cap);
 
 		if (mlx4_is_master(dev))
 			mlx4_parav_master_pf_caps(dev);

@@ -172,6 +172,7 @@ struct mlx4_init_hca_param {
 	u8  log_uar_sz;
 	u8  uar_page_sz; /* log pg sz in 4k chunks */
 	u8  fs_hash_enable_bits;
+	u8  steering_mode; /* for QUERY_HCA */
 	u64 dev_cap_enabled;
 };
 
