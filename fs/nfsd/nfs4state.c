@@ -743,9 +743,12 @@ out_free:
 	return NULL;
 }
 
-static void init_forechannel_attrs(struct nfsd4_channel_attrs *new, struct nfsd4_channel_attrs *req, int numslots, int slotsize)
+static void init_forechannel_attrs(struct nfsd4_channel_attrs *new,
+				   struct nfsd4_channel_attrs *req,
+				   int numslots, int slotsize,
+				   struct nfsd_net *nn)
 {
-	u32 maxrpc = nfsd_serv->sv_max_mesg;
+	u32 maxrpc = nn->nfsd_serv->sv_max_mesg;
 
 	new->maxreqs = numslots;
 	new->maxresp_cached = min_t(u32, req->maxresp_cached,
@@ -883,7 +886,8 @@ void nfsd4_put_session(struct nfsd4_session *ses)
 	spin_unlock(&nn->client_lock);
 }
 
-static struct nfsd4_session *alloc_session(struct nfsd4_channel_attrs *fchan)
+static struct nfsd4_session *alloc_session(struct nfsd4_channel_attrs *fchan,
+					   struct nfsd_net *nn)
 {
 	struct nfsd4_session *new;
 	int numslots, slotsize;
@@ -904,7 +908,7 @@ static struct nfsd4_session *alloc_session(struct nfsd4_channel_attrs *fchan)
 		nfsd4_put_drc_mem(slotsize, fchan->maxreqs);
 		return NULL;
 	}
-	init_forechannel_attrs(&new->se_fchannel, fchan, numslots, slotsize);
+	init_forechannel_attrs(&new->se_fchannel, fchan, numslots, slotsize, nn);
 	return new;
 }
 
@@ -1776,7 +1780,7 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 		return nfserr_inval;
 	if (check_forechannel_attrs(cr_ses->fore_channel))
 		return nfserr_toosmall;
-	new = alloc_session(&cr_ses->fore_channel);
+	new = alloc_session(&cr_ses->fore_channel, nn);
 	if (!new)
 		return nfserr_jukebox;
 	status = nfserr_jukebox;

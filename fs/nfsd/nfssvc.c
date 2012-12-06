@@ -29,11 +29,11 @@ extern struct svc_program	nfsd_program;
 static int			nfsd(void *vrqstp);
 
 /*
- * nfsd_mutex protects nfsd_serv -- both the pointer itself and the members
+ * nfsd_mutex protects nn->nfsd_serv -- both the pointer itself and the members
  * of the svc_serv struct. In particular, ->sv_nrthreads but also to some
  * extent ->sv_temp_socks and ->sv_permsocks. It also protects nfsdstats.th_cnt
  *
- * If (out side the lock) nfsd_serv is non-NULL, then it must point to a
+ * If (out side the lock) nn->nfsd_serv is non-NULL, then it must point to a
  * properly initialised 'struct svc_serv' with ->sv_nrthreads > 0. That number
  * of nfsd threads must exist and each must listed in ->sp_all_threads in each
  * entry of ->sv_pools[].
@@ -51,7 +51,6 @@ static int			nfsd(void *vrqstp);
  *	nfsd_versions
  */
 DEFINE_MUTEX(nfsd_mutex);
-struct svc_serv 		*nfsd_serv;
 
 /*
  * nfsd_drc_lock protects nfsd_drc_max_pages and nfsd_drc_pages_used.
@@ -172,12 +171,14 @@ int nfsd_minorversion(u32 minorversion, enum vers_op change)
  */
 #define	NFSD_MAXSERVS		8192
 
-int nfsd_nrthreads(void)
+int nfsd_nrthreads(struct net *net)
 {
 	int rv = 0;
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+
 	mutex_lock(&nfsd_mutex);
-	if (nfsd_serv)
-		rv = nfsd_serv->sv_nrthreads;
+	if (nn->nfsd_serv)
+		rv = nn->nfsd_serv->sv_nrthreads;
 	mutex_unlock(&nfsd_mutex);
 	return rv;
 }
@@ -185,15 +186,17 @@ int nfsd_nrthreads(void)
 static int nfsd_init_socks(struct net *net)
 {
 	int error;
-	if (!list_empty(&nfsd_serv->sv_permsocks))
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+
+	if (!list_empty(&nn->nfsd_serv->sv_permsocks))
 		return 0;
 
-	error = svc_create_xprt(nfsd_serv, "udp", net, PF_INET, NFS_PORT,
+	error = svc_create_xprt(nn->nfsd_serv, "udp", net, PF_INET, NFS_PORT,
 					SVC_SOCK_DEFAULTS);
 	if (error < 0)
 		return error;
 
-	error = svc_create_xprt(nfsd_serv, "tcp", net, PF_INET, NFS_PORT,
+	error = svc_create_xprt(nn->nfsd_serv, "tcp", net, PF_INET, NFS_PORT,
 					SVC_SOCK_DEFAULTS);
 	if (error < 0)
 		return error;
@@ -369,21 +372,21 @@ int nfsd_create_serv(struct net *net)
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	WARN_ON(!mutex_is_locked(&nfsd_mutex));
-	if (nfsd_serv) {
-		svc_get(nfsd_serv);
+	if (nn->nfsd_serv) {
+		svc_get(nn->nfsd_serv);
 		return 0;
 	}
 	if (nfsd_max_blksize == 0)
 		nfsd_max_blksize = nfsd_get_default_max_blksize();
 	nfsd_reset_versions();
-	nfsd_serv = svc_create_pooled(&nfsd_program, nfsd_max_blksize,
+	nn->nfsd_serv = svc_create_pooled(&nfsd_program, nfsd_max_blksize,
 				      nfsd_last_thread, nfsd, THIS_MODULE);
-	if (nfsd_serv == NULL)
+	if (nn->nfsd_serv == NULL)
 		return -ENOMEM;
 
-	error = svc_bind(nfsd_serv, net);
+	error = svc_bind(nn->nfsd_serv, net);
 	if (error < 0) {
-		svc_destroy(nfsd_serv);
+		svc_destroy(nn->nfsd_serv);
 		return error;
 	}
 
@@ -392,24 +395,39 @@ int nfsd_create_serv(struct net *net)
 	return 0;
 }
 
-int nfsd_nrpools(void)
+int nfsd_nrpools(struct net *net)
 {
-	if (nfsd_serv == NULL)
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+
+	if (nn->nfsd_serv == NULL)
 		return 0;
 	else
-		return nfsd_serv->sv_nrpools;
+		return nn->nfsd_serv->sv_nrpools;
 }
 
-int nfsd_get_nrthreads(int n, int *nthreads)
+int nfsd_get_nrthreads(int n, int *nthreads, struct net *net)
 {
 	int i = 0;
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
-	if (nfsd_serv != NULL) {
-		for (i = 0; i < nfsd_serv->sv_nrpools && i < n; i++)
-			nthreads[i] = nfsd_serv->sv_pools[i].sp_nrthreads;
+	if (nn->nfsd_serv != NULL) {
+		for (i = 0; i < nn->nfsd_serv->sv_nrpools && i < n; i++)
+			nthreads[i] = nn->nfsd_serv->sv_pools[i].sp_nrthreads;
 	}
 
 	return 0;
+}
+
+void nfsd_destroy(struct net *net)
+{
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	int destroy = (nn->nfsd_serv->sv_nrthreads == 1);
+
+	if (destroy)
+		svc_shutdown_net(nn->nfsd_serv, net);
+	svc_destroy(nn->nfsd_serv);
+	if (destroy)
+		nn->nfsd_serv = NULL;
 }
 
 int nfsd_set_nrthreads(int n, int *nthreads, struct net *net)
@@ -417,14 +435,15 @@ int nfsd_set_nrthreads(int n, int *nthreads, struct net *net)
 	int i = 0;
 	int tot = 0;
 	int err = 0;
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	WARN_ON(!mutex_is_locked(&nfsd_mutex));
 
-	if (nfsd_serv == NULL || n <= 0)
+	if (nn->nfsd_serv == NULL || n <= 0)
 		return 0;
 
-	if (n > nfsd_serv->sv_nrpools)
-		n = nfsd_serv->sv_nrpools;
+	if (n > nn->nfsd_serv->sv_nrpools)
+		n = nn->nfsd_serv->sv_nrpools;
 
 	/* enforce a global maximum number of threads */
 	tot = 0;
@@ -454,9 +473,9 @@ int nfsd_set_nrthreads(int n, int *nthreads, struct net *net)
 		nthreads[0] = 1;
 
 	/* apply the new numbers */
-	svc_get(nfsd_serv);
+	svc_get(nn->nfsd_serv);
 	for (i = 0; i < n; i++) {
-		err = svc_set_num_threads(nfsd_serv, &nfsd_serv->sv_pools[i],
+		err = svc_set_num_threads(nn->nfsd_serv, &nn->nfsd_serv->sv_pools[i],
 				    	  nthreads[i]);
 		if (err)
 			break;
@@ -475,6 +494,7 @@ nfsd_svc(int nrservs, struct net *net)
 {
 	int	error;
 	bool	nfsd_up_before;
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	mutex_lock(&nfsd_mutex);
 	dprintk("nfsd: creating service\n");
@@ -483,7 +503,7 @@ nfsd_svc(int nrservs, struct net *net)
 	if (nrservs > NFSD_MAXSERVS)
 		nrservs = NFSD_MAXSERVS;
 	error = 0;
-	if (nrservs == 0 && nfsd_serv == NULL)
+	if (nrservs == 0 && nn->nfsd_serv == NULL)
 		goto out;
 
 	error = nfsd_create_serv(net);
@@ -495,14 +515,14 @@ nfsd_svc(int nrservs, struct net *net)
 	error = nfsd_startup(nrservs, net);
 	if (error)
 		goto out_destroy;
-	error = svc_set_num_threads(nfsd_serv, NULL, nrservs);
+	error = svc_set_num_threads(nn->nfsd_serv, NULL, nrservs);
 	if (error)
 		goto out_shutdown;
-	/* We are holding a reference to nfsd_serv which
+	/* We are holding a reference to nn->nfsd_serv which
 	 * we don't want to count in the return value,
 	 * so subtract 1
 	 */
-	error = nfsd_serv->sv_nrthreads - 1;
+	error = nn->nfsd_serv->sv_nrthreads - 1;
 out_shutdown:
 	if (error < 0 && !nfsd_up_before)
 		nfsd_shutdown(net);
@@ -681,14 +701,17 @@ nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 int nfsd_pool_stats_open(struct inode *inode, struct file *file)
 {
 	int ret;
+	struct net *net = &init_net;
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+
 	mutex_lock(&nfsd_mutex);
-	if (nfsd_serv == NULL) {
+	if (nn->nfsd_serv == NULL) {
 		mutex_unlock(&nfsd_mutex);
 		return -ENODEV;
 	}
 	/* bump up the psudo refcount while traversing */
-	svc_get(nfsd_serv);
-	ret = svc_pool_stats_open(nfsd_serv, file);
+	svc_get(nn->nfsd_serv);
+	ret = svc_pool_stats_open(nn->nfsd_serv, file);
 	mutex_unlock(&nfsd_mutex);
 	return ret;
 }

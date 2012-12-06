@@ -55,7 +55,6 @@ extern struct svc_version	nfsd_version2, nfsd_version3,
 				nfsd_version4;
 extern u32			nfsd_supported_minorversion;
 extern struct mutex		nfsd_mutex;
-extern struct svc_serv		*nfsd_serv;
 extern spinlock_t		nfsd_drc_lock;
 extern unsigned int		nfsd_drc_max_mem;
 extern unsigned int		nfsd_drc_mem_used;
@@ -68,23 +67,14 @@ extern const struct seq_operations nfs_exports_op;
 int		nfsd_svc(int nrservs, struct net *net);
 int		nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp);
 
-int		nfsd_nrthreads(void);
-int		nfsd_nrpools(void);
-int		nfsd_get_nrthreads(int n, int *);
+int		nfsd_nrthreads(struct net *);
+int		nfsd_nrpools(struct net *);
+int		nfsd_get_nrthreads(int n, int *, struct net *);
 int		nfsd_set_nrthreads(int n, int *, struct net *);
 int		nfsd_pool_stats_open(struct inode *, struct file *);
 int		nfsd_pool_stats_release(struct inode *, struct file *);
 
-static inline void nfsd_destroy(struct net *net)
-{
-	int destroy = (nfsd_serv->sv_nrthreads == 1);
-
-	if (destroy)
-		svc_shutdown_net(nfsd_serv, net);
-	svc_destroy(nfsd_serv);
-	if (destroy)
-		nfsd_serv = NULL;
-}
+void		nfsd_destroy(struct net *net);
 
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
 #ifdef CONFIG_NFSD_V2_ACL

@@ -99,6 +99,8 @@ struct nfsd_net {
 	 * Time of server startup
 	 */
 	struct timeval nfssvc_boot;
+
+	struct svc_serv *nfsd_serv;
 };
 
 /* Simple check to find out if a given net was properly initialized */
