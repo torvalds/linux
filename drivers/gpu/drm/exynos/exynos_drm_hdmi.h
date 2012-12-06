@@ -65,10 +65,10 @@ struct exynos_mixer_ops {
 	int (*iommu_on)(void *ctx, bool enable);
 	int (*enable_vblank)(void *ctx, int pipe);
 	void (*disable_vblank)(void *ctx);
+	void (*wait_for_vblank)(void *ctx);
 	void (*dpms)(void *ctx, int mode);
 
 	/* overlay */
-	void (*wait_for_vblank)(void *ctx);
 	void (*win_mode_set)(void *ctx, struct exynos_drm_overlay *overlay);
 	void (*win_commit)(void *ctx, int zpos);
 	void (*win_disable)(void *ctx, int zpos);

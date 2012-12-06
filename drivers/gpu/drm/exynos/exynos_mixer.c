@@ -788,18 +788,6 @@ static void mixer_dpms(void *ctx, int mode)
 	}
 }
 
-static void mixer_wait_for_vblank(void *ctx)
-{
-	struct mixer_context *mixer_ctx = ctx;
-	struct mixer_resources *res = &mixer_ctx->mixer_res;
-	int ret;
-
-	ret = wait_for((mixer_reg_read(res, MXR_INT_STATUS) &
-				MXR_INT_STATUS_VSYNC), 50);
-	if (ret < 0)
-		DRM_DEBUG_KMS("vblank wait timed out.\n");
-}
-
 static void mixer_win_mode_set(void *ctx,
 			      struct exynos_drm_overlay *overlay)
 {
@@ -885,15 +873,27 @@ static void mixer_win_disable(void *ctx, int win)
 	spin_unlock_irqrestore(&res->reg_slock, flags);
 }
 
+static void mixer_wait_for_vblank(void *ctx)
+{
+	struct mixer_context *mixer_ctx = ctx;
+	struct mixer_resources *res = &mixer_ctx->mixer_res;
+	int ret;
+
+	ret = wait_for((mixer_reg_read(res, MXR_INT_STATUS) &
+				MXR_INT_STATUS_VSYNC), 50);
+	if (ret < 0)
+		DRM_DEBUG_KMS("vblank wait timed out.\n");
+}
+
 static struct exynos_mixer_ops mixer_ops = {
 	/* manager */
 	.iommu_on		= mixer_iommu_on,
 	.enable_vblank		= mixer_enable_vblank,
 	.disable_vblank		= mixer_disable_vblank,
+	.wait_for_vblank	= mixer_wait_for_vblank,
 	.dpms			= mixer_dpms,
 
 	/* overlay */
-	.wait_for_vblank	= mixer_wait_for_vblank,
 	.win_mode_set		= mixer_win_mode_set,
 	.win_commit		= mixer_win_commit,
 	.win_disable		= mixer_win_disable,
