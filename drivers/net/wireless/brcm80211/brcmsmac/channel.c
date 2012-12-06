@@ -670,7 +670,7 @@ brcms_reg_apply_beaconing_flags(struct wiphy *wiphy,
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
 	const struct ieee80211_reg_rule *rule;
-	int band, i, ret;
+	int band, i;
 
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		sband = wiphy->bands[band];
@@ -685,9 +685,8 @@ brcms_reg_apply_beaconing_flags(struct wiphy *wiphy,
 				continue;
 
 			if (initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE) {
-				ret = freq_reg_info(wiphy, ch->center_freq,
-						    &rule);
-				if (ret)
+				rule = freq_reg_info(wiphy, ch->center_freq);
+				if (IS_ERR(rule))
 					continue;
 
 				if (!(rule->flags & NL80211_RRF_NO_IBSS))

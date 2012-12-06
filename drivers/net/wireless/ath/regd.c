@@ -195,7 +195,6 @@ ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
 	const struct ieee80211_reg_rule *reg_rule;
 	struct ieee80211_channel *ch;
 	unsigned int i;
-	int r;
 
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 
@@ -213,10 +212,8 @@ ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
 				continue;
 
 			if (initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE) {
-				r = freq_reg_info(wiphy,
-						  ch->center_freq,
-						  &reg_rule);
-				if (r)
+				reg_rule = freq_reg_info(wiphy, ch->center_freq);
+				if (IS_ERR(reg_rule))
 					continue;
 				/*
 				 * If 11d had a rule for this channel ensure
@@ -252,7 +249,6 @@ ath_reg_apply_active_scan_flags(struct wiphy *wiphy,
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
 	const struct ieee80211_reg_rule *reg_rule;
-	int r;
 
 	sband = wiphy->bands[IEEE80211_BAND_2GHZ];
 	if (!sband)
@@ -280,16 +276,16 @@ ath_reg_apply_active_scan_flags(struct wiphy *wiphy,
 	 */
 
 	ch = &sband->channels[11]; /* CH 12 */
-	r = freq_reg_info(wiphy, ch->center_freq, &reg_rule);
-	if (!r) {
+	reg_rule = freq_reg_info(wiphy, ch->center_freq);
+	if (!IS_ERR(reg_rule)) {
 		if (!(reg_rule->flags & NL80211_RRF_PASSIVE_SCAN))
 			if (ch->flags & IEEE80211_CHAN_PASSIVE_SCAN)
 				ch->flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
 	}
 
 	ch = &sband->channels[12]; /* CH 13 */
-	r = freq_reg_info(wiphy, ch->center_freq, &reg_rule);
-	if (!r) {
+	reg_rule = freq_reg_info(wiphy, ch->center_freq);
+	if (!IS_ERR(reg_rule)) {
 		if (!(reg_rule->flags & NL80211_RRF_PASSIVE_SCAN))
 			if (ch->flags & IEEE80211_CHAN_PASSIVE_SCAN)
 				ch->flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
