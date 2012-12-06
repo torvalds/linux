@@ -27,13 +27,13 @@
  *	- Information block
  */
 struct module_signature {
-	enum pkey_algo		algo : 8;	/* Public-key crypto algorithm */
-	enum pkey_hash_algo	hash : 8;	/* Digest algorithm */
-	enum pkey_id_type	id_type : 8;	/* Key identifier type */
-	u8			signer_len;	/* Length of signer's name */
-	u8			key_id_len;	/* Length of key identifier */
-	u8			__pad[3];
-	__be32			sig_len;	/* Length of signature data */
+	u8	algo;		/* Public-key crypto algorithm [enum pkey_algo] */
+	u8	hash;		/* Digest algorithm [enum pkey_hash_algo] */
+	u8	id_type;	/* Key identifier type [enum pkey_id_type] */
+	u8	signer_len;	/* Length of signer's name */
+	u8	key_id_len;	/* Length of key identifier */
+	u8	__pad[3];
+	__be32	sig_len;	/* Length of signature data */
 };
 
 /*
