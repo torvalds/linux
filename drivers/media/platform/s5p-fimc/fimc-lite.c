@@ -459,11 +459,12 @@ static void fimc_lite_clear_event_counters(struct fimc_lite *fimc)
 static int fimc_lite_open(struct file *file)
 {
 	struct fimc_lite *fimc = video_drvdata(file);
+	struct media_entity *me = &fimc->vfd.entity;
 	int ret;
 
-	if (mutex_lock_interruptible(&fimc->lock))
-		return -ERESTARTSYS;
+	mutex_lock(&me->parent->graph_mutex);
 
+	mutex_lock(&fimc->lock);
 	if (fimc->out_path != FIMC_IO_DMA) {
 		ret = -EBUSY;
 		goto done;
@@ -492,6 +493,7 @@ static int fimc_lite_open(struct file *file)
 	}
 done:
 	mutex_unlock(&fimc->lock);
+	mutex_unlock(&me->parent->graph_mutex);
 	return ret;
 }
 

@@ -510,8 +510,8 @@ static int fimc_capture_open(struct file *file)
 
 	dbg("pid: %d, state: 0x%lx", task_pid_nr(current), fimc->state);
 
-	if (mutex_lock_interruptible(&fimc->lock))
-		return -ERESTARTSYS;
+	fimc_md_graph_lock(fimc);
+	mutex_lock(&fimc->lock);
 
 	if (fimc_m2m_active(fimc))
 		goto unlock;
@@ -546,6 +546,7 @@ static int fimc_capture_open(struct file *file)
 	}
 unlock:
 	mutex_unlock(&fimc->lock);
+	fimc_md_graph_unlock(fimc);
 	return ret;
 }
 
@@ -962,6 +963,10 @@ static int fimc_cap_try_fmt_mplane(struct file *file, void *fh,
 	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
 	struct v4l2_mbus_framefmt mf;
 	struct fimc_fmt *ffmt = NULL;
+	int ret = 0;
+
+	fimc_md_graph_lock(fimc);
+	mutex_lock(&fimc->lock);
 
 	if (fimc_jpeg_fourcc(pix->pixelformat)) {
 		fimc_capture_try_format(ctx, &pix->width, &pix->height,
@@ -973,16 +978,16 @@ static int fimc_cap_try_fmt_mplane(struct file *file, void *fh,
 	ffmt = fimc_capture_try_format(ctx, &pix->width, &pix->height,
 				       NULL, &pix->pixelformat,
 				       FIMC_SD_PAD_SOURCE);
-	if (!ffmt)
-		return -EINVAL;
+	if (!ffmt) {
+		ret = -EINVAL;
+		goto unlock;
+	}
 
 	if (!fimc->vid_cap.user_subdev_api) {
 		mf.width = pix->width;
 		mf.height = pix->height;
 		mf.code = ffmt->mbus_code;
-		fimc_md_graph_lock(fimc);
 		fimc_pipeline_try_format(ctx, &mf, &ffmt, false);
-		fimc_md_graph_unlock(fimc);
 		pix->width = mf.width;
 		pix->height = mf.height;
 		if (ffmt)
@@ -994,8 +999,11 @@ static int fimc_cap_try_fmt_mplane(struct file *file, void *fh,
 	if (ffmt->flags & FMT_FLAGS_COMPRESSED)
 		fimc_get_sensor_frame_desc(fimc->pipeline.subdevs[IDX_SENSOR],
 					pix->plane_fmt, ffmt->memplanes, true);
+unlock:
+	mutex_unlock(&fimc->lock);
+	fimc_md_graph_unlock(fimc);
 
-	return 0;
+	return ret;
 }
 
 static void fimc_capture_mark_jpeg_xfer(struct fimc_ctx *ctx,
@@ -1012,7 +1020,8 @@ static void fimc_capture_mark_jpeg_xfer(struct fimc_ctx *ctx,
 		clear_bit(ST_CAPT_JPEG, &ctx->fimc_dev->state);
 }
 
-static int fimc_capture_set_format(struct fimc_dev *fimc, struct v4l2_format *f)
+static int __fimc_capture_set_format(struct fimc_dev *fimc,
+				     struct v4l2_format *f)
 {
 	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
 	struct v4l2_pix_format_mplane *pix = &f->fmt.pix_mp;
@@ -1047,12 +1056,10 @@ static int fimc_capture_set_format(struct fimc_dev *fimc, struct v4l2_format *f)
 		mf->code   = ff->fmt->mbus_code;
 		mf->width  = pix->width;
 		mf->height = pix->height;
-
-		fimc_md_graph_lock(fimc);
 		ret = fimc_pipeline_try_format(ctx, mf, &s_fmt, true);
-		fimc_md_graph_unlock(fimc);
 		if (ret)
 			return ret;
+
 		pix->width  = mf->width;
 		pix->height = mf->height;
 	}
@@ -1091,8 +1098,23 @@ static int fimc_cap_s_fmt_mplane(struct file *file, void *priv,
 				 struct v4l2_format *f)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
+	int ret;
 
-	return fimc_capture_set_format(fimc, f);
+	fimc_md_graph_lock(fimc);
+	mutex_lock(&fimc->lock);
+	/*
+	 * The graph is walked within __fimc_capture_set_format() to set
+	 * the format at subdevs thus the graph mutex needs to be held at
+	 * this point and acquired before the video mutex, to avoid  AB-BA
+	 * deadlock when fimc_md_link_notify() is called by other thread.
+	 * Ideally the graph walking and setting format at the whole pipeline
+	 * should be removed from this driver and handled in userspace only.
+	 */
+	ret = __fimc_capture_set_format(fimc, f);
+
+	mutex_unlock(&fimc->lock);
+	fimc_md_graph_unlock(fimc);
+	return ret;
 }
 
 static int fimc_cap_enum_input(struct file *file, void *priv,
@@ -1727,7 +1749,7 @@ static int fimc_capture_set_default_format(struct fimc_dev *fimc)
 		},
 	};
 
-	return fimc_capture_set_format(fimc, &fmt);
+	return __fimc_capture_set_format(fimc, &fmt);
 }
 
 /* fimc->lock must be already initialized */
@@ -1789,6 +1811,12 @@ static int fimc_register_capture_device(struct fimc_dev *fimc,
 	ret = media_entity_init(&vfd->entity, 1, &vid_cap->vd_pad, 0);
 	if (ret)
 		goto err_ent;
+	/*
+	 * For proper order of acquiring/releasing the video
+	 * and the graph mutex.
+	 */
+	v4l2_disable_ioctl_locking(vfd, VIDIOC_TRY_FMT);
+	v4l2_disable_ioctl_locking(vfd, VIDIOC_S_FMT);
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
 	if (ret)
