@@ -1030,6 +1030,7 @@ struct cifsInodeInfo {
 	bool clientCanCacheAll;		/* read and writebehind oplock */
 	bool delete_pending;		/* DELETE_ON_CLOSE is set */
 	bool invalid_mapping;		/* pagecache is invalid */
+	bool leave_pages_clean;	/* protected by i_mutex, not set pages dirty */
 	unsigned long time;		/* jiffies of last update of inode */
 	u64  server_eof;		/* current file size on server -- protected by i_lock */
 	u64  uniqueid;			/* server inode number */
