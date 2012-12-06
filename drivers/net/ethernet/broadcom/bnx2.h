@@ -6991,13 +6991,13 @@ struct bnx2 {
 	const struct firmware	*rv2p_firmware;
 };
 
-#define REG_RD(bp, offset)					\
+#define BNX2_RD(bp, offset)					\
 	readl(bp->regview + offset)
 
-#define REG_WR(bp, offset, val)					\
+#define BNX2_WR(bp, offset, val)					\
 	writel(val, bp->regview + offset)
 
-#define REG_WR16(bp, offset, val)				\
+#define BNX2_WR16(bp, offset, val)				\
 	writew(val, bp->regview + offset)
 
 struct cpu_reg {
