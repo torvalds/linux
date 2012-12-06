@@ -25,12 +25,6 @@
 #include <plat/clock.h>
 #include <plat/cpu.h>
 
-#if defined(CONFIG_BOARD_ODROID_X2) || defined(CONFIG_BOARD_ODROID_Q2) || defined(CONFIG_BOARD_ODROID_U2)
-	#define CPUFREQ_LEVEL_END	(L18 + 1)
-#elif defined(CONFIG_BOARD_ODROID_X) || defined(CONFIG_BOARD_ODROID_Q) || defined(CONFIG_BOARD_ODROID_U)
-	#define CPUFREQ_LEVEL_END	(L16 + 1)
-#endif
-
 #undef PRINT_DIV_VAL
 
 #define ENABLE_CLKOUT

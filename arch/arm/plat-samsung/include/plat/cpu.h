@@ -41,6 +41,7 @@ extern unsigned long samsung_cpu_id;
 #define EXYNOS4210_CPU_ID	0x43210000
 #define EXYNOS4212_CPU_ID	0x43220000
 #define EXYNOS4412_CPU_ID	0xE4412200
+#define EXYNOS5210_CPU_ID	0x43510000
 #define EXYNOS5250_CPU_ID	0x43520000
 #define EXYNOS_CPU_MASK		0xFFFE0000
 
@@ -59,6 +60,7 @@ IS_SAMSUNG_CPU(s5pv210, S5PV210_CPU_ID, S5PV210_CPU_MASK)
 IS_SAMSUNG_CPU(exynos4210, EXYNOS4210_CPU_ID, EXYNOS_CPU_MASK)
 IS_SAMSUNG_CPU(exynos4212, EXYNOS4212_CPU_ID, EXYNOS_CPU_MASK)
 IS_SAMSUNG_CPU(exynos4412, EXYNOS4412_CPU_ID, EXYNOS_CPU_MASK)
+IS_SAMSUNG_CPU(exynos5210, EXYNOS5210_CPU_ID, EXYNOS_CPU_MASK)
 IS_SAMSUNG_CPU(exynos5250, EXYNOS5250_CPU_ID, EXYNOS_CPU_MASK)
 
 #if defined(CONFIG_CPU_S3C2410) || defined(CONFIG_CPU_S3C2412) || \
@@ -109,6 +111,7 @@ IS_SAMSUNG_CPU(exynos5250, EXYNOS5250_CPU_ID, EXYNOS_CPU_MASK)
 #define EXYNOS4210_REV_0       (0x0)
 #define EXYNOS4210_REV_1_0     (0x10)
 #define EXYNOS4210_REV_1_1     (0x11)
+#define EXYNOS4210_REV_1_2     (0x12)
 
 #if defined(CONFIG_CPU_EXYNOS4212)
 # define soc_is_exynos4212()	is_samsung_exynos4212()
@@ -129,12 +132,25 @@ IS_SAMSUNG_CPU(exynos5250, EXYNOS5250_CPU_ID, EXYNOS_CPU_MASK)
 #define EXYNOS4412_REV_0_1     (0x01)
 #define EXYNOS4412_REV_1_0     (0x10)
 #define EXYNOS4412_REV_1_1     (0x11)
+#define EXYNOS4412_REV_2_0     (0x20)
+
+#if defined(CONFIG_CPU_EXYNOS5210)
+# define soc_is_exynos5210()	is_samsung_exynos5210()
+#else
+# define soc_is_exynos5210()	0
+#endif
 
 #if defined(CONFIG_CPU_EXYNOS5250)
 # define soc_is_exynos5250()	is_samsung_exynos5250()
+# define soc_is_exynos5250_rev1	(soc_is_exynos5250() && \
+				samsung_rev() >= EXYNOS5250_REV_1_0)
 #else
 # define soc_is_exynos5250()	0
+# define soc_is_exynos5250_rev1	0
 #endif
+
+#define EXYNOS5250_REV_0	(0x0)
+#define EXYNOS5250_REV_1_0	(0x10)
 
 #define IODESC_ENT(x) { (unsigned long)S3C24XX_VA_##x, __phys_to_pfn(S3C24XX_PA_##x), S3C24XX_SZ_##x, MT_DEVICE }
 
