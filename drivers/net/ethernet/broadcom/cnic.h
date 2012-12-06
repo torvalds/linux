@@ -186,14 +186,6 @@ struct kcq_info {
 	u16		(*hw_idx)(u16);
 };
 
-struct iro {
-	u32 base;
-	u16 m1;
-	u16 m2;
-	u16 m3;
-	u16 size;
-};
-
 struct cnic_uio_dev {
 	struct uio_info		cnic_uinfo;
 	u32			uio_dev;
@@ -240,9 +232,6 @@ struct cnic_local {
 	u16		*tx_cons_ptr;
 	u16		rx_cons;
 	u16		tx_cons;
-
-	const struct iro	*iro_arr;
-#define IRO (((struct cnic_local *) dev->cnic_priv)->iro_arr)
 
 	struct cnic_dma		kwq_info;
 	struct kwqe		**kwq;
@@ -316,9 +305,6 @@ struct cnic_local {
 	int			func;
 	u32			pfid;
 	u8			port_mode;
-#define CHIP_4_PORT_MODE	0
-#define CHIP_2_PORT_MODE	1
-#define CHIP_PORT_MODE_NONE	2
 
 	u32			shmem_base;
 
@@ -419,8 +405,6 @@ struct bnx2x_bd_chain_next {
 	(BNX2X_CHIP_IS_57800(x) || BNX2X_CHIP_IS_57810(x) || \
 	 BNX2X_CHIP_IS_57840(x))
 #define BNX2X_CHIP_IS_E2_PLUS(x) (BNX2X_CHIP_IS_E2(x) || BNX2X_CHIP_IS_E3(x))
-
-#define IS_E1H_OFFSET       		BNX2X_CHIP_IS_E1H(cp->chip_id)
 
 #define BNX2X_RX_DESC_CNT		(BNX2_PAGE_SIZE / \
 					 sizeof(struct eth_rx_bd))
