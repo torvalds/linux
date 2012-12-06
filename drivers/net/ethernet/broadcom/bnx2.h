@@ -6984,6 +6984,7 @@ struct bnx2 {
 #ifdef BCM_CNIC
 	struct mutex		cnic_lock;
 	struct cnic_eth_dev	cnic_eth_dev;
+	struct cnic_eth_dev	*(*cnic_probe)(struct net_device *);
 #endif
 
 	const struct firmware	*mips_firmware;

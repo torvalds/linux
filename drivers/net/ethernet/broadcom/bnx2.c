@@ -434,7 +434,6 @@ struct cnic_eth_dev *bnx2_cnic_probe(struct net_device *dev)
 
 	return cp;
 }
-EXPORT_SYMBOL(bnx2_cnic_probe);
 
 static void
 bnx2_cnic_stop(struct bnx2 *bp)
@@ -8422,6 +8421,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 		bp->cnic_eth_dev.max_iscsi_conn =
 			(bnx2_shmem_rd(bp, BNX2_ISCSI_MAX_CONN) &
 			 BNX2_ISCSI_MAX_CONN_MASK) >> BNX2_ISCSI_MAX_CONN_SHIFT;
+	bp->cnic_probe = bnx2_cnic_probe;
 #endif
 	pci_save_state(pdev);
 

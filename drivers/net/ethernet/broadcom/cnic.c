@@ -40,6 +40,7 @@
 #include <net/ip6_checksum.h>
 #include <scsi/iscsi_if.h>
 
+#define BCM_CNIC	1
 #include "cnic_if.h"
 #include "bnx2.h"
 #include "bnx2x/bnx2x.h"
@@ -5449,14 +5450,12 @@ static struct cnic_dev *init_bnx2_cnic(struct net_device *dev)
 	struct pci_dev *pdev;
 	struct cnic_dev *cdev;
 	struct cnic_local *cp;
+	struct bnx2 *bp = netdev_priv(dev);
 	struct cnic_eth_dev *ethdev = NULL;
-	struct cnic_eth_dev *(*probe)(struct net_device *) = NULL;
 
-	probe = symbol_get(bnx2_cnic_probe);
-	if (probe) {
-		ethdev = (*probe)(dev);
-		symbol_put(bnx2_cnic_probe);
-	}
+	if (bp->cnic_probe)
+		ethdev = (bp->cnic_probe)(dev);
+
 	if (!ethdev)
 		return NULL;
 
@@ -5511,14 +5510,12 @@ static struct cnic_dev *init_bnx2x_cnic(struct net_device *dev)
 	struct pci_dev *pdev;
 	struct cnic_dev *cdev;
 	struct cnic_local *cp;
+	struct bnx2x *bp = netdev_priv(dev);
 	struct cnic_eth_dev *ethdev = NULL;
-	struct cnic_eth_dev *(*probe)(struct net_device *) = NULL;
 
-	probe = symbol_get(bnx2x_cnic_probe);
-	if (probe) {
-		ethdev = (*probe)(dev);
-		symbol_put(bnx2x_cnic_probe);
-	}
+	if (bp->cnic_probe)
+		ethdev = bp->cnic_probe(dev);
+
 	if (!ethdev)
 		return NULL;
 

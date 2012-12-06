@@ -12018,6 +12018,8 @@ static int bnx2x_get_num_non_def_sbs(struct pci_dev *pdev,
 	return control & PCI_MSIX_FLAGS_QSIZE;
 }
 
+struct cnic_eth_dev *bnx2x_cnic_probe(struct net_device *);
+
 static int bnx2x_init_one(struct pci_dev *pdev,
 				    const struct pci_device_id *ent)
 {
@@ -12097,6 +12099,7 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 	bp->igu_sb_cnt = max_non_def_sbs;
 	bp->msg_enable = debug;
 	bp->cnic_support = cnic_cnt;
+	bp->cnic_probe = bnx2x_cnic_probe;
 
 	pci_set_drvdata(pdev, dev);
 
@@ -13038,6 +13041,5 @@ struct cnic_eth_dev *bnx2x_cnic_probe(struct net_device *dev)
 	   cp->starting_cid);
 	return cp;
 }
-EXPORT_SYMBOL(bnx2x_cnic_probe);
 
 
