@@ -652,12 +652,10 @@ static void bcm47xx_fill_sprom_ethernet(struct ssb_sprom *sprom,
 static void bcm47xx_fill_board_data(struct ssb_sprom *sprom, const char *prefix,
 				    bool fallback)
 {
-	nvram_read_u16(prefix, NULL, "boardrev", &sprom->board_rev, 0,
-		       fallback);
+	nvram_read_u16(prefix, NULL, "boardrev", &sprom->board_rev, 0, true);
 	nvram_read_u16(prefix, NULL, "boardnum", &sprom->board_num, 0,
 		       fallback);
-	nvram_read_u16(prefix, NULL, "boardtype", &sprom->board_type, 0,
-		       fallback);
+	nvram_read_u16(prefix, NULL, "boardtype", &sprom->board_type, 0, true);
 	nvram_read_u32_2(prefix, "boardflags", &sprom->boardflags_lo,
 			 &sprom->boardflags_hi, fallback);
 	nvram_read_u32_2(prefix, "boardflags2", &sprom->boardflags2_lo,
