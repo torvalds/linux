@@ -240,7 +240,7 @@ snd_wavefront_fx_ioctl (struct snd_hwdep *sdev, struct file *file,
    that outputs it.
 */
 
-int __devinit
+int
 snd_wavefront_fx_start (snd_wavefront_t *dev)
 {
 	unsigned int i;
