@@ -3576,7 +3576,7 @@ S:	Maintained
 F:	drivers/input/touchscreen/htcpen.c
 
 HUGETLB FILESYSTEM
-M:	William Irwin <wli@holomorphy.com>
+M:	Nadia Yvette Chambers <nyc@holomorphy.com>
 S:	Maintained
 F:	fs/hugetlbfs/
 

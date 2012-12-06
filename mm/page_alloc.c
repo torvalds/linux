@@ -523,7 +523,7 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
  * If a block is freed, and its buddy is also free, then this
  * triggers coalescing into a block of larger size.
  *
- * -- wli
+ * -- nyc
  */
 
 static inline void __free_one_page(struct page *page,
@@ -780,7 +780,7 @@ void __init init_cma_reserved_pageblock(struct page *page)
  * large block of memory acted on by a series of small allocations.
  * This behavior is a critical factor in sglist merging's success.
  *
- * -- wli
+ * -- nyc
  */
 static inline void expand(struct zone *zone, struct page *page,
 	int low, int high, struct free_area *area,

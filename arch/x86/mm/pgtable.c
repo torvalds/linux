@@ -137,7 +137,7 @@ static void pgd_dtor(pgd_t *pgd)
  * against pageattr.c; it is the unique case in which a valid change
  * of kernel pagetables can't be lazily synchronized by vmalloc faults.
  * vmalloc faults work because attached pagetables are never freed.
- * -- wli
+ * -- nyc
  */
 
 #ifdef CONFIG_X86_PAE

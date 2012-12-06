@@ -7,7 +7,7 @@
  * From code in the latency_tracer, that is:
  *
  *  Copyright (C) 2004-2006 Ingo Molnar
- *  Copyright (C) 2004 William Lee Irwin III
+ *  Copyright (C) 2004 Nadia Yvette Chambers
  */
 #include <linux/kallsyms.h>
 #include <linux/debugfs.h>
