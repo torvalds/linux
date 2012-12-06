@@ -260,10 +260,10 @@ static inline u32 bnx2_tx_avail(struct bnx2 *bp, struct bnx2_tx_ring_info *txr)
 	 * needs to be skipped.
 	 */
 	diff = txr->tx_prod - txr->tx_cons;
-	if (unlikely(diff >= TX_DESC_CNT)) {
+	if (unlikely(diff >= BNX2_TX_DESC_CNT)) {
 		diff &= 0xffff;
-		if (diff == TX_DESC_CNT)
-			diff = MAX_TX_DESC_CNT;
+		if (diff == BNX2_TX_DESC_CNT)
+			diff = BNX2_MAX_TX_DESC_CNT;
 	}
 	return bp->tx_ring_size - diff;
 }
@@ -824,7 +824,7 @@ bnx2_free_mem(struct bnx2 *bp)
 
 	for (i = 0; i < bp->ctx_pages; i++) {
 		if (bp->ctx_blk[i]) {
-			dma_free_coherent(&bp->pdev->dev, BCM_PAGE_SIZE,
+			dma_free_coherent(&bp->pdev->dev, BNX2_PAGE_SIZE,
 					  bp->ctx_blk[i],
 					  bp->ctx_blk_mapping[i]);
 			bp->ctx_blk[i] = NULL;
@@ -888,12 +888,12 @@ bnx2_alloc_mem(struct bnx2 *bp)
 	bp->stats_blk_mapping = bp->status_blk_mapping + status_blk_size;
 
 	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
-		bp->ctx_pages = 0x2000 / BCM_PAGE_SIZE;
+		bp->ctx_pages = 0x2000 / BNX2_PAGE_SIZE;
 		if (bp->ctx_pages == 0)
 			bp->ctx_pages = 1;
 		for (i = 0; i < bp->ctx_pages; i++) {
 			bp->ctx_blk[i] = dma_alloc_coherent(&bp->pdev->dev,
-						BCM_PAGE_SIZE,
+						BNX2_PAGE_SIZE,
 						&bp->ctx_blk_mapping[i],
 						GFP_KERNEL);
 			if (bp->ctx_blk[i] == NULL)
@@ -2538,7 +2538,7 @@ bnx2_init_5709_context(struct bnx2 *bp)
 	u32 val;
 
 	val = BNX2_CTX_COMMAND_ENABLED | BNX2_CTX_COMMAND_MEM_INIT | (1 << 12);
-	val |= (BCM_PAGE_BITS - 8) << 16;
+	val |= (BNX2_PAGE_BITS - 8) << 16;
 	BNX2_WR(bp, BNX2_CTX_COMMAND, val);
 	for (i = 0; i < 10; i++) {
 		val = BNX2_RD(bp, BNX2_CTX_COMMAND);
@@ -2553,7 +2553,7 @@ bnx2_init_5709_context(struct bnx2 *bp)
 		int j;
 
 		if (bp->ctx_blk[i])
-			memset(bp->ctx_blk[i], 0, BCM_PAGE_SIZE);
+			memset(bp->ctx_blk[i], 0, BNX2_PAGE_SIZE);
 		else
 			return -ENOMEM;
 
@@ -2690,9 +2690,9 @@ static inline int
 bnx2_alloc_rx_page(struct bnx2 *bp, struct bnx2_rx_ring_info *rxr, u16 index, gfp_t gfp)
 {
 	dma_addr_t mapping;
-	struct sw_pg *rx_pg = &rxr->rx_pg_ring[index];
-	struct rx_bd *rxbd =
-		&rxr->rx_pg_desc_ring[RX_RING(index)][RX_IDX(index)];
+	struct bnx2_sw_pg *rx_pg = &rxr->rx_pg_ring[index];
+	struct bnx2_rx_bd *rxbd =
+		&rxr->rx_pg_desc_ring[BNX2_RX_RING(index)][BNX2_RX_IDX(index)];
 	struct page *page = alloc_page(gfp);
 
 	if (!page)
@@ -2714,7 +2714,7 @@ bnx2_alloc_rx_page(struct bnx2 *bp, struct bnx2_rx_ring_info *rxr, u16 index, gf
 static void
 bnx2_free_rx_page(struct bnx2 *bp, struct bnx2_rx_ring_info *rxr, u16 index)
 {
-	struct sw_pg *rx_pg = &rxr->rx_pg_ring[index];
+	struct bnx2_sw_pg *rx_pg = &rxr->rx_pg_ring[index];
 	struct page *page = rx_pg->page;
 
 	if (!page)
@@ -2731,9 +2731,10 @@ static inline int
 bnx2_alloc_rx_data(struct bnx2 *bp, struct bnx2_rx_ring_info *rxr, u16 index, gfp_t gfp)
 {
 	u8 *data;
-	struct sw_bd *rx_buf = &rxr->rx_buf_ring[index];
+	struct bnx2_sw_bd *rx_buf = &rxr->rx_buf_ring[index];
 	dma_addr_t mapping;
-	struct rx_bd *rxbd = &rxr->rx_desc_ring[RX_RING(index)][RX_IDX(index)];
+	struct bnx2_rx_bd *rxbd =
+		&rxr->rx_desc_ring[BNX2_RX_RING(index)][BNX2_RX_IDX(index)];
 
 	data = kmalloc(bp->rx_buf_size, gfp);
 	if (!data)
@@ -2802,7 +2803,7 @@ bnx2_get_hw_tx_cons(struct bnx2_napi *bnapi)
 	barrier();
 	cons = *bnapi->hw_tx_cons_ptr;
 	barrier();
-	if (unlikely((cons & MAX_TX_DESC_CNT) == MAX_TX_DESC_CNT))
+	if (unlikely((cons & BNX2_MAX_TX_DESC_CNT) == BNX2_MAX_TX_DESC_CNT))
 		cons++;
 	return cons;
 }
@@ -2823,11 +2824,11 @@ bnx2_tx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 	sw_cons = txr->tx_cons;
 
 	while (sw_cons != hw_cons) {
-		struct sw_tx_bd *tx_buf;
+		struct bnx2_sw_tx_bd *tx_buf;
 		struct sk_buff *skb;
 		int i, last;
 
-		sw_ring_cons = TX_RING_IDX(sw_cons);
+		sw_ring_cons = BNX2_TX_RING_IDX(sw_cons);
 
 		tx_buf = &txr->tx_buf_ring[sw_ring_cons];
 		skb = tx_buf->skb;
@@ -2841,7 +2842,7 @@ bnx2_tx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 
 			last_idx = sw_cons + tx_buf->nr_frags + 1;
 			last_ring_idx = sw_ring_cons + tx_buf->nr_frags + 1;
-			if (unlikely(last_ring_idx >= MAX_TX_DESC_CNT)) {
+			if (unlikely(last_ring_idx >= BNX2_MAX_TX_DESC_CNT)) {
 				last_idx++;
 			}
 			if (((s16) ((s16) last_idx - (s16) hw_cons)) > 0) {
@@ -2856,17 +2857,18 @@ bnx2_tx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 		last = tx_buf->nr_frags;
 
 		for (i = 0; i < last; i++) {
-			sw_cons = NEXT_TX_BD(sw_cons);
+			struct bnx2_sw_tx_bd *tx_buf;
 
+			sw_cons = BNX2_NEXT_TX_BD(sw_cons);
+
+			tx_buf = &txr->tx_buf_ring[BNX2_TX_RING_IDX(sw_cons)];
 			dma_unmap_page(&bp->pdev->dev,
-				dma_unmap_addr(
-					&txr->tx_buf_ring[TX_RING_IDX(sw_cons)],
-					mapping),
+				dma_unmap_addr(tx_buf, mapping),
 				skb_frag_size(&skb_shinfo(skb)->frags[i]),
 				PCI_DMA_TODEVICE);
 		}
 
-		sw_cons = NEXT_TX_BD(sw_cons);
+		sw_cons = BNX2_NEXT_TX_BD(sw_cons);
 
 		tx_bytes += skb->len;
 		dev_kfree_skb(skb);
@@ -2905,8 +2907,8 @@ static void
 bnx2_reuse_rx_skb_pages(struct bnx2 *bp, struct bnx2_rx_ring_info *rxr,
 			struct sk_buff *skb, int count)
 {
-	struct sw_pg *cons_rx_pg, *prod_rx_pg;
-	struct rx_bd *cons_bd, *prod_bd;
+	struct bnx2_sw_pg *cons_rx_pg, *prod_rx_pg;
+	struct bnx2_rx_bd *cons_bd, *prod_bd;
 	int i;
 	u16 hw_prod, prod;
 	u16 cons = rxr->rx_pg_cons;
@@ -2933,12 +2935,14 @@ bnx2_reuse_rx_skb_pages(struct bnx2 *bp, struct bnx2_rx_ring_info *rxr,
 	hw_prod = rxr->rx_pg_prod;
 
 	for (i = 0; i < count; i++) {
-		prod = RX_PG_RING_IDX(hw_prod);
+		prod = BNX2_RX_PG_RING_IDX(hw_prod);
 
 		prod_rx_pg = &rxr->rx_pg_ring[prod];
 		cons_rx_pg = &rxr->rx_pg_ring[cons];
-		cons_bd = &rxr->rx_pg_desc_ring[RX_RING(cons)][RX_IDX(cons)];
-		prod_bd = &rxr->rx_pg_desc_ring[RX_RING(prod)][RX_IDX(prod)];
+		cons_bd = &rxr->rx_pg_desc_ring[BNX2_RX_RING(cons)]
+						[BNX2_RX_IDX(cons)];
+		prod_bd = &rxr->rx_pg_desc_ring[BNX2_RX_RING(prod)]
+						[BNX2_RX_IDX(prod)];
 
 		if (prod != cons) {
 			prod_rx_pg->page = cons_rx_pg->page;
@@ -2950,8 +2954,8 @@ bnx2_reuse_rx_skb_pages(struct bnx2 *bp, struct bnx2_rx_ring_info *rxr,
 			prod_bd->rx_bd_haddr_lo = cons_bd->rx_bd_haddr_lo;
 
 		}
-		cons = RX_PG_RING_IDX(NEXT_RX_BD(cons));
-		hw_prod = NEXT_RX_BD(hw_prod);
+		cons = BNX2_RX_PG_RING_IDX(BNX2_NEXT_RX_BD(cons));
+		hw_prod = BNX2_NEXT_RX_BD(hw_prod);
 	}
 	rxr->rx_pg_prod = hw_prod;
 	rxr->rx_pg_cons = cons;
@@ -2961,8 +2965,8 @@ static inline void
 bnx2_reuse_rx_data(struct bnx2 *bp, struct bnx2_rx_ring_info *rxr,
 		   u8 *data, u16 cons, u16 prod)
 {
-	struct sw_bd *cons_rx_buf, *prod_rx_buf;
-	struct rx_bd *cons_bd, *prod_bd;
+	struct bnx2_sw_bd *cons_rx_buf, *prod_rx_buf;
+	struct bnx2_rx_bd *cons_bd, *prod_bd;
 
 	cons_rx_buf = &rxr->rx_buf_ring[cons];
 	prod_rx_buf = &rxr->rx_buf_ring[prod];
@@ -2981,8 +2985,8 @@ bnx2_reuse_rx_data(struct bnx2 *bp, struct bnx2_rx_ring_info *rxr,
 	dma_unmap_addr_set(prod_rx_buf, mapping,
 			dma_unmap_addr(cons_rx_buf, mapping));
 
-	cons_bd = &rxr->rx_desc_ring[RX_RING(cons)][RX_IDX(cons)];
-	prod_bd = &rxr->rx_desc_ring[RX_RING(prod)][RX_IDX(prod)];
+	cons_bd = &rxr->rx_desc_ring[BNX2_RX_RING(cons)][BNX2_RX_IDX(cons)];
+	prod_bd = &rxr->rx_desc_ring[BNX2_RX_RING(prod)][BNX2_RX_IDX(prod)];
 	prod_bd->rx_bd_haddr_hi = cons_bd->rx_bd_haddr_hi;
 	prod_bd->rx_bd_haddr_lo = cons_bd->rx_bd_haddr_lo;
 }
@@ -3022,7 +3026,7 @@ error:
 		return skb;
 	} else {
 		unsigned int i, frag_len, frag_size, pages;
-		struct sw_pg *rx_pg;
+		struct bnx2_sw_pg *rx_pg;
 		u16 pg_cons = rxr->rx_pg_cons;
 		u16 pg_prod = rxr->rx_pg_prod;
 
@@ -3065,7 +3069,7 @@ error:
 			rx_pg->page = NULL;
 
 			err = bnx2_alloc_rx_page(bp, rxr,
-						 RX_PG_RING_IDX(pg_prod),
+						 BNX2_RX_PG_RING_IDX(pg_prod),
 						 GFP_ATOMIC);
 			if (unlikely(err)) {
 				rxr->rx_pg_cons = pg_cons;
@@ -3083,8 +3087,8 @@ error:
 			skb->truesize += PAGE_SIZE;
 			skb->len += frag_len;
 
-			pg_prod = NEXT_RX_BD(pg_prod);
-			pg_cons = RX_PG_RING_IDX(NEXT_RX_BD(pg_cons));
+			pg_prod = BNX2_NEXT_RX_BD(pg_prod);
+			pg_cons = BNX2_RX_PG_RING_IDX(BNX2_NEXT_RX_BD(pg_cons));
 		}
 		rxr->rx_pg_prod = pg_prod;
 		rxr->rx_pg_cons = pg_cons;
@@ -3101,7 +3105,7 @@ bnx2_get_hw_rx_cons(struct bnx2_napi *bnapi)
 	barrier();
 	cons = *bnapi->hw_rx_cons_ptr;
 	barrier();
-	if (unlikely((cons & MAX_RX_DESC_CNT) == MAX_RX_DESC_CNT))
+	if (unlikely((cons & BNX2_MAX_RX_DESC_CNT) == BNX2_MAX_RX_DESC_CNT))
 		cons++;
 	return cons;
 }
@@ -3125,13 +3129,14 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 	while (sw_cons != hw_cons) {
 		unsigned int len, hdr_len;
 		u32 status;
-		struct sw_bd *rx_buf, *next_rx_buf;
+		struct bnx2_sw_bd *rx_buf, *next_rx_buf;
 		struct sk_buff *skb;
 		dma_addr_t dma_addr;
 		u8 *data;
+		u16 next_ring_idx;
 
-		sw_ring_cons = RX_RING_IDX(sw_cons);
-		sw_ring_prod = RX_RING_IDX(sw_prod);
+		sw_ring_cons = BNX2_RX_RING_IDX(sw_cons);
+		sw_ring_prod = BNX2_RX_RING_IDX(sw_prod);
 
 		rx_buf = &rxr->rx_buf_ring[sw_ring_cons];
 		data = rx_buf->data;
@@ -3146,8 +3151,8 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 			BNX2_RX_OFFSET + BNX2_RX_COPY_THRESH,
 			PCI_DMA_FROMDEVICE);
 
-		next_rx_buf =
-			&rxr->rx_buf_ring[RX_RING_IDX(NEXT_RX_BD(sw_cons))];
+		next_ring_idx = BNX2_RX_RING_IDX(BNX2_NEXT_RX_BD(sw_cons));
+		next_rx_buf = &rxr->rx_buf_ring[next_ring_idx];
 		prefetch(get_l2_fhdr(next_rx_buf->data));
 
 		len = rx_hdr->l2_fhdr_pkt_len;
@@ -3239,8 +3244,8 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 		rx_pkt++;
 
 next_rx:
-		sw_cons = NEXT_RX_BD(sw_cons);
-		sw_prod = NEXT_RX_BD(sw_prod);
+		sw_cons = BNX2_NEXT_RX_BD(sw_cons);
+		sw_prod = BNX2_NEXT_RX_BD(sw_prod);
 
 		if ((rx_pkt == budget))
 			break;
@@ -4907,13 +4912,13 @@ bnx2_init_chip(struct bnx2 *bp)
 	BNX2_WR(bp, BNX2_MQ_KNL_BYP_WIND_START, val);
 	BNX2_WR(bp, BNX2_MQ_KNL_WIND_END, val);
 
-	val = (BCM_PAGE_BITS - 8) << 24;
+	val = (BNX2_PAGE_BITS - 8) << 24;
 	BNX2_WR(bp, BNX2_RV2P_CONFIG, val);
 
 	/* Configure page size. */
 	val = BNX2_RD(bp, BNX2_TBDR_CONFIG);
 	val &= ~BNX2_TBDR_CONFIG_PAGE_SIZE;
-	val |= (BCM_PAGE_BITS - 8) << 24 | 0x40;
+	val |= (BNX2_PAGE_BITS - 8) << 24 | 0x40;
 	BNX2_WR(bp, BNX2_TBDR_CONFIG, val);
 
 	val = bp->mac_addr[0] +
@@ -5113,7 +5118,7 @@ bnx2_init_tx_context(struct bnx2 *bp, u32 cid, struct bnx2_tx_ring_info *txr)
 static void
 bnx2_init_tx_ring(struct bnx2 *bp, int ring_num)
 {
-	struct tx_bd *txbd;
+	struct bnx2_tx_bd *txbd;
 	u32 cid = TX_CID;
 	struct bnx2_napi *bnapi;
 	struct bnx2_tx_ring_info *txr;
@@ -5128,7 +5133,7 @@ bnx2_init_tx_ring(struct bnx2 *bp, int ring_num)
 
 	bp->tx_wake_thresh = bp->tx_ring_size / 2;
 
-	txbd = &txr->tx_desc_ring[MAX_TX_DESC_CNT];
+	txbd = &txr->tx_desc_ring[BNX2_MAX_TX_DESC_CNT];
 
 	txbd->tx_bd_haddr_hi = (u64) txr->tx_desc_mapping >> 32;
 	txbd->tx_bd_haddr_lo = (u64) txr->tx_desc_mapping & 0xffffffff;
@@ -5143,17 +5148,17 @@ bnx2_init_tx_ring(struct bnx2 *bp, int ring_num)
 }
 
 static void
-bnx2_init_rxbd_rings(struct rx_bd *rx_ring[], dma_addr_t dma[], u32 buf_size,
-		     int num_rings)
+bnx2_init_rxbd_rings(struct bnx2_rx_bd *rx_ring[], dma_addr_t dma[],
+		     u32 buf_size, int num_rings)
 {
 	int i;
-	struct rx_bd *rxbd;
+	struct bnx2_rx_bd *rxbd;
 
 	for (i = 0; i < num_rings; i++) {
 		int j;
 
 		rxbd = &rx_ring[i][0];
-		for (j = 0; j < MAX_RX_DESC_CNT; j++, rxbd++) {
+		for (j = 0; j < BNX2_MAX_RX_DESC_CNT; j++, rxbd++) {
 			rxbd->rx_bd_len = buf_size;
 			rxbd->rx_bd_flags = RX_BD_FLAGS_START | RX_BD_FLAGS_END;
 		}
@@ -5225,8 +5230,8 @@ bnx2_init_rx_ring(struct bnx2 *bp, int ring_num)
 				    ring_num, i, bp->rx_pg_ring_size);
 			break;
 		}
-		prod = NEXT_RX_BD(prod);
-		ring_prod = RX_PG_RING_IDX(prod);
+		prod = BNX2_NEXT_RX_BD(prod);
+		ring_prod = BNX2_RX_PG_RING_IDX(prod);
 	}
 	rxr->rx_pg_prod = prod;
 
@@ -5237,8 +5242,8 @@ bnx2_init_rx_ring(struct bnx2 *bp, int ring_num)
 				    ring_num, i, bp->rx_ring_size);
 			break;
 		}
-		prod = NEXT_RX_BD(prod);
-		ring_prod = RX_RING_IDX(prod);
+		prod = BNX2_NEXT_RX_BD(prod);
+		ring_prod = BNX2_RX_RING_IDX(prod);
 	}
 	rxr->rx_prod = prod;
 
@@ -5303,8 +5308,8 @@ static u32 bnx2_find_max_ring(u32 ring_size, u32 max_size)
 {
 	u32 max, num_rings = 1;
 
-	while (ring_size > MAX_RX_DESC_CNT) {
-		ring_size -= MAX_RX_DESC_CNT;
+	while (ring_size > BNX2_MAX_RX_DESC_CNT) {
+		ring_size -= BNX2_MAX_RX_DESC_CNT;
 		num_rings++;
 	}
 	/* round to next power of 2 */
@@ -5337,13 +5342,14 @@ bnx2_set_rx_ring_size(struct bnx2 *bp, u32 size)
 		int pages = PAGE_ALIGN(bp->dev->mtu - 40) >> PAGE_SHIFT;
 
 		jumbo_size = size * pages;
-		if (jumbo_size > MAX_TOTAL_RX_PG_DESC_CNT)
-			jumbo_size = MAX_TOTAL_RX_PG_DESC_CNT;
+		if (jumbo_size > BNX2_MAX_TOTAL_RX_PG_DESC_CNT)
+			jumbo_size = BNX2_MAX_TOTAL_RX_PG_DESC_CNT;
 
 		bp->rx_pg_ring_size = jumbo_size;
 		bp->rx_max_pg_ring = bnx2_find_max_ring(jumbo_size,
-							MAX_RX_PG_RINGS);
-		bp->rx_max_pg_ring_idx = (bp->rx_max_pg_ring * RX_DESC_CNT) - 1;
+							BNX2_MAX_RX_PG_RINGS);
+		bp->rx_max_pg_ring_idx =
+			(bp->rx_max_pg_ring * BNX2_RX_DESC_CNT) - 1;
 		rx_size = BNX2_RX_COPY_THRESH + BNX2_RX_OFFSET;
 		bp->rx_copy_thresh = 0;
 	}
@@ -5354,8 +5360,8 @@ bnx2_set_rx_ring_size(struct bnx2 *bp, u32 size)
 		NET_SKB_PAD + SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 	bp->rx_jumbo_thresh = rx_size - BNX2_RX_OFFSET;
 	bp->rx_ring_size = size;
-	bp->rx_max_ring = bnx2_find_max_ring(size, MAX_RX_RINGS);
-	bp->rx_max_ring_idx = (bp->rx_max_ring * RX_DESC_CNT) - 1;
+	bp->rx_max_ring = bnx2_find_max_ring(size, BNX2_MAX_RX_RINGS);
+	bp->rx_max_ring_idx = (bp->rx_max_ring * BNX2_RX_DESC_CNT) - 1;
 }
 
 static void
@@ -5371,13 +5377,13 @@ bnx2_free_tx_skbs(struct bnx2 *bp)
 		if (txr->tx_buf_ring == NULL)
 			continue;
 
-		for (j = 0; j < TX_DESC_CNT; ) {
-			struct sw_tx_bd *tx_buf = &txr->tx_buf_ring[j];
+		for (j = 0; j < BNX2_TX_DESC_CNT; ) {
+			struct bnx2_sw_tx_bd *tx_buf = &txr->tx_buf_ring[j];
 			struct sk_buff *skb = tx_buf->skb;
 			int k, last;
 
 			if (skb == NULL) {
-				j = NEXT_TX_BD(j);
+				j = BNX2_NEXT_TX_BD(j);
 				continue;
 			}
 
@@ -5389,9 +5395,9 @@ bnx2_free_tx_skbs(struct bnx2 *bp)
 			tx_buf->skb = NULL;
 
 			last = tx_buf->nr_frags;
-			j = NEXT_TX_BD(j);
-			for (k = 0; k < last; k++, j = NEXT_TX_BD(j)) {
-				tx_buf = &txr->tx_buf_ring[TX_RING_IDX(j)];
+			j = BNX2_NEXT_TX_BD(j);
+			for (k = 0; k < last; k++, j = BNX2_NEXT_TX_BD(j)) {
+				tx_buf = &txr->tx_buf_ring[BNX2_TX_RING_IDX(j)];
 				dma_unmap_page(&bp->pdev->dev,
 					dma_unmap_addr(tx_buf, mapping),
 					skb_frag_size(&skb_shinfo(skb)->frags[k]),
@@ -5417,7 +5423,7 @@ bnx2_free_rx_skbs(struct bnx2 *bp)
 			return;
 
 		for (j = 0; j < bp->rx_max_ring_idx; j++) {
-			struct sw_bd *rx_buf = &rxr->rx_buf_ring[j];
+			struct bnx2_sw_bd *rx_buf = &rxr->rx_buf_ring[j];
 			u8 *data = rx_buf->data;
 
 			if (data == NULL)
@@ -5741,8 +5747,8 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 	unsigned char *packet;
 	u16 rx_start_idx, rx_idx;
 	dma_addr_t map;
-	struct tx_bd *txbd;
-	struct sw_bd *rx_buf;
+	struct bnx2_tx_bd *txbd;
+	struct bnx2_sw_bd *rx_buf;
 	struct l2_fhdr *rx_hdr;
 	int ret = -ENODEV;
 	struct bnx2_napi *bnapi = &bp->bnx2_napi[0], *tx_napi;
@@ -5794,7 +5800,7 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 
 	num_pkts = 0;
 
-	txbd = &txr->tx_desc_ring[TX_RING_IDX(txr->tx_prod)];
+	txbd = &txr->tx_desc_ring[BNX2_TX_RING_IDX(txr->tx_prod)];
 
 	txbd->tx_bd_haddr_hi = (u64) map >> 32;
 	txbd->tx_bd_haddr_lo = (u64) map & 0xffffffff;
@@ -5802,7 +5808,7 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 	txbd->tx_bd_vlan_tag_flags = TX_BD_FLAGS_START | TX_BD_FLAGS_END;
 
 	num_pkts++;
-	txr->tx_prod = NEXT_TX_BD(txr->tx_prod);
+	txr->tx_prod = BNX2_NEXT_TX_BD(txr->tx_prod);
 	txr->tx_prod_bseq += pkt_size;
 
 	BNX2_WR16(bp, txr->tx_bidx_addr, txr->tx_prod);
@@ -6533,8 +6539,8 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 	dma_addr_t mapping;
-	struct tx_bd *txbd;
-	struct sw_tx_bd *tx_buf;
+	struct bnx2_tx_bd *txbd;
+	struct bnx2_sw_tx_bd *tx_buf;
 	u32 len, vlan_tag_flags, last_frag, mss;
 	u16 prod, ring_prod;
 	int i;
@@ -6557,7 +6563,7 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	len = skb_headlen(skb);
 	prod = txr->tx_prod;
-	ring_prod = TX_RING_IDX(prod);
+	ring_prod = BNX2_TX_RING_IDX(prod);
 
 	vlan_tag_flags = 0;
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
@@ -6627,8 +6633,8 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	for (i = 0; i < last_frag; i++) {
 		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
-		prod = NEXT_TX_BD(prod);
-		ring_prod = TX_RING_IDX(prod);
+		prod = BNX2_NEXT_TX_BD(prod);
+		ring_prod = BNX2_TX_RING_IDX(prod);
 		txbd = &txr->tx_desc_ring[ring_prod];
 
 		len = skb_frag_size(frag);
@@ -6652,7 +6658,7 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	netdev_tx_sent_queue(txq, skb->len);
 
-	prod = NEXT_TX_BD(prod);
+	prod = BNX2_NEXT_TX_BD(prod);
 	txr->tx_prod_bseq += skb->len;
 
 	BNX2_WR16(bp, txr->tx_bidx_addr, prod);
@@ -6682,7 +6688,7 @@ dma_error:
 
 	/* start back at beginning and unmap skb */
 	prod = txr->tx_prod;
-	ring_prod = TX_RING_IDX(prod);
+	ring_prod = BNX2_TX_RING_IDX(prod);
 	tx_buf = &txr->tx_buf_ring[ring_prod];
 	tx_buf->skb = NULL;
 	dma_unmap_single(&bp->pdev->dev, dma_unmap_addr(tx_buf, mapping),
@@ -6690,8 +6696,8 @@ dma_error:
 
 	/* unmap remaining mapped pages */
 	for (i = 0; i < last_frag; i++) {
-		prod = NEXT_TX_BD(prod);
-		ring_prod = TX_RING_IDX(prod);
+		prod = BNX2_NEXT_TX_BD(prod);
+		ring_prod = BNX2_TX_RING_IDX(prod);
 		tx_buf = &txr->tx_buf_ring[ring_prod];
 		dma_unmap_page(&bp->pdev->dev, dma_unmap_addr(tx_buf, mapping),
 			       skb_frag_size(&skb_shinfo(skb)->frags[i]),
@@ -7254,13 +7260,13 @@ bnx2_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 
-	ering->rx_max_pending = MAX_TOTAL_RX_DESC_CNT;
-	ering->rx_jumbo_max_pending = MAX_TOTAL_RX_PG_DESC_CNT;
+	ering->rx_max_pending = BNX2_MAX_TOTAL_RX_DESC_CNT;
+	ering->rx_jumbo_max_pending = BNX2_MAX_TOTAL_RX_PG_DESC_CNT;
 
 	ering->rx_pending = bp->rx_ring_size;
 	ering->rx_jumbo_pending = bp->rx_pg_ring_size;
 
-	ering->tx_max_pending = MAX_TX_DESC_CNT;
+	ering->tx_max_pending = BNX2_MAX_TX_DESC_CNT;
 	ering->tx_pending = bp->tx_ring_size;
 }
 
@@ -7326,8 +7332,8 @@ bnx2_set_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 	struct bnx2 *bp = netdev_priv(dev);
 	int rc;
 
-	if ((ering->rx_pending > MAX_TOTAL_RX_DESC_CNT) ||
-		(ering->tx_pending > MAX_TX_DESC_CNT) ||
+	if ((ering->rx_pending > BNX2_MAX_TOTAL_RX_DESC_CNT) ||
+		(ering->tx_pending > BNX2_MAX_TX_DESC_CNT) ||
 		(ering->tx_pending <= MAX_SKB_FRAGS)) {
 
 		return -EINVAL;
@@ -8299,7 +8305,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->mac_addr[4] = (u8) (reg >> 8);
 	bp->mac_addr[5] = (u8) reg;
 
-	bp->tx_ring_size = MAX_TX_DESC_CNT;
+	bp->tx_ring_size = BNX2_MAX_TX_DESC_CNT;
 	bnx2_set_rx_ring_size(bp, 255);
 
 	bp->tx_quick_cons_trip_int = 2;

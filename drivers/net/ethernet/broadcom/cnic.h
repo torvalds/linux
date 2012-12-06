@@ -80,18 +80,18 @@
 #define CNIC_LOCAL_PORT_MAX	61024
 #define CNIC_LOCAL_PORT_RANGE	(CNIC_LOCAL_PORT_MAX - CNIC_LOCAL_PORT_MIN)
 
-#define KWQE_CNT (BCM_PAGE_SIZE / sizeof(struct kwqe))
-#define KCQE_CNT (BCM_PAGE_SIZE / sizeof(struct kcqe))
+#define KWQE_CNT (BNX2_PAGE_SIZE / sizeof(struct kwqe))
+#define KCQE_CNT (BNX2_PAGE_SIZE / sizeof(struct kcqe))
 #define MAX_KWQE_CNT (KWQE_CNT - 1)
 #define MAX_KCQE_CNT (KCQE_CNT - 1)
 
 #define MAX_KWQ_IDX	((KWQ_PAGE_CNT * KWQE_CNT) - 1)
 #define MAX_KCQ_IDX	((KCQ_PAGE_CNT * KCQE_CNT) - 1)
 
-#define KWQ_PG(x) (((x) & ~MAX_KWQE_CNT) >> (BCM_PAGE_BITS - 5))
+#define KWQ_PG(x) (((x) & ~MAX_KWQE_CNT) >> (BNX2_PAGE_BITS - 5))
 #define KWQ_IDX(x) ((x) & MAX_KWQE_CNT)
 
-#define KCQ_PG(x) (((x) & ~MAX_KCQE_CNT) >> (BCM_PAGE_BITS - 5))
+#define KCQ_PG(x) (((x) & ~MAX_KCQE_CNT) >> (BNX2_PAGE_BITS - 5))
 #define KCQ_IDX(x) ((x) & MAX_KCQE_CNT)
 
 #define BNX2X_NEXT_KCQE(x) (((x) & (MAX_KCQE_CNT - 1)) ==		\
@@ -422,9 +422,11 @@ struct bnx2x_bd_chain_next {
 
 #define IS_E1H_OFFSET       		BNX2X_CHIP_IS_E1H(cp->chip_id)
 
-#define BNX2X_RX_DESC_CNT		(BCM_PAGE_SIZE / sizeof(struct eth_rx_bd))
+#define BNX2X_RX_DESC_CNT		(BNX2_PAGE_SIZE / \
+					 sizeof(struct eth_rx_bd))
 #define BNX2X_MAX_RX_DESC_CNT		(BNX2X_RX_DESC_CNT - 2)
-#define BNX2X_RCQ_DESC_CNT		(BCM_PAGE_SIZE / sizeof(union eth_rx_cqe))
+#define BNX2X_RCQ_DESC_CNT		(BNX2_PAGE_SIZE / \
+					 sizeof(union eth_rx_cqe))
 #define BNX2X_MAX_RCQ_DESC_CNT		(BNX2X_RCQ_DESC_CNT - 1)
 
 #define BNX2X_NEXT_RCQE(x) (((x) & BNX2X_MAX_RCQ_DESC_CNT) ==		\

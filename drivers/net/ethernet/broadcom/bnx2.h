@@ -20,7 +20,7 @@
 /*
  *  tx_bd definition
  */
-struct tx_bd {
+struct bnx2_tx_bd {
 	u32 tx_bd_haddr_hi;
 	u32 tx_bd_haddr_lo;
 	u32 tx_bd_mss_nbytes;
@@ -48,7 +48,7 @@ struct tx_bd {
 /*
  *  rx_bd definition
  */
-struct rx_bd {
+struct bnx2_rx_bd {
 	u32 rx_bd_haddr_hi;
 	u32 rx_bd_haddr_lo;
 	u32 rx_bd_len;
@@ -6538,37 +6538,38 @@ struct l2_fhdr {
 
 /* Use CPU native page size up to 16K for the ring sizes.  */
 #if (PAGE_SHIFT > 14)
-#define BCM_PAGE_BITS	14
+#define BNX2_PAGE_BITS	14
 #else
-#define BCM_PAGE_BITS	PAGE_SHIFT
+#define BNX2_PAGE_BITS	PAGE_SHIFT
 #endif
-#define BCM_PAGE_SIZE	(1 << BCM_PAGE_BITS)
+#define BNX2_PAGE_SIZE	(1 << BNX2_PAGE_BITS)
 
-#define TX_DESC_CNT  (BCM_PAGE_SIZE / sizeof(struct tx_bd))
-#define MAX_TX_DESC_CNT (TX_DESC_CNT - 1)
+#define BNX2_TX_DESC_CNT  (BNX2_PAGE_SIZE / sizeof(struct bnx2_tx_bd))
+#define BNX2_MAX_TX_DESC_CNT (BNX2_TX_DESC_CNT - 1)
 
-#define MAX_RX_RINGS	8
-#define MAX_RX_PG_RINGS	32
-#define RX_DESC_CNT  (BCM_PAGE_SIZE / sizeof(struct rx_bd))
-#define MAX_RX_DESC_CNT (RX_DESC_CNT - 1)
-#define MAX_TOTAL_RX_DESC_CNT (MAX_RX_DESC_CNT * MAX_RX_RINGS)
-#define MAX_TOTAL_RX_PG_DESC_CNT (MAX_RX_DESC_CNT * MAX_RX_PG_RINGS)
+#define BNX2_MAX_RX_RINGS	8
+#define BNX2_MAX_RX_PG_RINGS	32
+#define BNX2_RX_DESC_CNT  (BNX2_PAGE_SIZE / sizeof(struct bnx2_rx_bd))
+#define BNX2_MAX_RX_DESC_CNT (BNX2_RX_DESC_CNT - 1)
+#define BNX2_MAX_TOTAL_RX_DESC_CNT (BNX2_MAX_RX_DESC_CNT * BNX2_MAX_RX_RINGS)
+#define BNX2_MAX_TOTAL_RX_PG_DESC_CNT	\
+	(BNX2_MAX_RX_DESC_CNT * BNX2_MAX_RX_PG_RINGS)
 
-#define NEXT_TX_BD(x) (((x) & (MAX_TX_DESC_CNT - 1)) ==			\
-		(MAX_TX_DESC_CNT - 1)) ?				\
+#define BNX2_NEXT_TX_BD(x) (((x) & (BNX2_MAX_TX_DESC_CNT - 1)) ==	\
+		(BNX2_MAX_TX_DESC_CNT - 1)) ?				\
 	(x) + 2 : (x) + 1
 
-#define TX_RING_IDX(x) ((x) & MAX_TX_DESC_CNT)
+#define BNX2_TX_RING_IDX(x) ((x) & BNX2_MAX_TX_DESC_CNT)
 
-#define NEXT_RX_BD(x) (((x) & (MAX_RX_DESC_CNT - 1)) ==			\
-		(MAX_RX_DESC_CNT - 1)) ?				\
+#define BNX2_NEXT_RX_BD(x) (((x) & (BNX2_MAX_RX_DESC_CNT - 1)) ==	\
+		(BNX2_MAX_RX_DESC_CNT - 1)) ?				\
 	(x) + 2 : (x) + 1
 
-#define RX_RING_IDX(x) ((x) & bp->rx_max_ring_idx)
-#define RX_PG_RING_IDX(x) ((x) & bp->rx_max_pg_ring_idx)
+#define BNX2_RX_RING_IDX(x) ((x) & bp->rx_max_ring_idx)
+#define BNX2_RX_PG_RING_IDX(x) ((x) & bp->rx_max_pg_ring_idx)
 
-#define RX_RING(x) (((x) & ~MAX_RX_DESC_CNT) >> (BCM_PAGE_BITS - 4))
-#define RX_IDX(x) ((x) & MAX_RX_DESC_CNT)
+#define BNX2_RX_RING(x) (((x) & ~BNX2_MAX_RX_DESC_CNT) >> (BNX2_PAGE_BITS - 4))
+#define BNX2_RX_IDX(x) ((x) & BNX2_MAX_RX_DESC_CNT)
 
 /* Context size. */
 #define CTX_SHIFT                   7
@@ -6609,7 +6610,7 @@ struct l2_fhdr {
  * RX ring buffer contains pointer to kmalloc() data only,
  * skb are built only after Hardware filled the frame.
  */
-struct sw_bd {
+struct bnx2_sw_bd {
 	u8			*data;
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 };
@@ -6623,23 +6624,23 @@ static inline struct l2_fhdr *get_l2_fhdr(u8 *data)
 }
 
 
-struct sw_pg {
+struct bnx2_sw_pg {
 	struct page		*page;
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 };
 
-struct sw_tx_bd {
+struct bnx2_sw_tx_bd {
 	struct sk_buff		*skb;
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 	unsigned short		is_gso;
 	unsigned short		nr_frags;
 };
 
-#define SW_RXBD_RING_SIZE (sizeof(struct sw_bd) * RX_DESC_CNT)
-#define SW_RXPG_RING_SIZE (sizeof(struct sw_pg) * RX_DESC_CNT)
-#define RXBD_RING_SIZE (sizeof(struct rx_bd) * RX_DESC_CNT)
-#define SW_TXBD_RING_SIZE (sizeof(struct sw_tx_bd) * TX_DESC_CNT)
-#define TXBD_RING_SIZE (sizeof(struct tx_bd) * TX_DESC_CNT)
+#define SW_RXBD_RING_SIZE (sizeof(struct bnx2_sw_bd) * BNX2_RX_DESC_CNT)
+#define SW_RXPG_RING_SIZE (sizeof(struct bnx2_sw_pg) * BNX2_RX_DESC_CNT)
+#define RXBD_RING_SIZE (sizeof(struct bnx2_rx_bd) * BNX2_RX_DESC_CNT)
+#define SW_TXBD_RING_SIZE (sizeof(struct bnx2_sw_tx_bd) * BNX2_TX_DESC_CNT)
+#define TXBD_RING_SIZE (sizeof(struct bnx2_tx_bd) * BNX2_TX_DESC_CNT)
 
 /* Buffered flash (Atmel: AT45DB011B) specific information */
 #define SEEPROM_PAGE_BITS			2
@@ -6720,8 +6721,8 @@ struct bnx2_tx_ring_info {
 	u32			tx_bidx_addr;
 	u32			tx_bseq_addr;
 
-	struct tx_bd		*tx_desc_ring;
-	struct sw_tx_bd		*tx_buf_ring;
+	struct bnx2_tx_bd	*tx_desc_ring;
+	struct bnx2_sw_tx_bd	*tx_buf_ring;
 
 	u16			tx_cons;
 	u16			hw_tx_cons;
@@ -6741,13 +6742,13 @@ struct bnx2_rx_ring_info {
 	u16			rx_pg_prod;
 	u16			rx_pg_cons;
 
-	struct sw_bd		*rx_buf_ring;
-	struct rx_bd		*rx_desc_ring[MAX_RX_RINGS];
-	struct sw_pg		*rx_pg_ring;
-	struct rx_bd		*rx_pg_desc_ring[MAX_RX_PG_RINGS];
+	struct bnx2_sw_bd	*rx_buf_ring;
+	struct bnx2_rx_bd	*rx_desc_ring[BNX2_MAX_RX_RINGS];
+	struct bnx2_sw_pg	*rx_pg_ring;
+	struct bnx2_rx_bd	*rx_pg_desc_ring[BNX2_MAX_RX_PG_RINGS];
 
-	dma_addr_t		rx_desc_mapping[MAX_RX_RINGS];
-	dma_addr_t		rx_pg_desc_mapping[MAX_RX_PG_RINGS];
+	dma_addr_t		rx_desc_mapping[BNX2_MAX_RX_RINGS];
+	dma_addr_t		rx_pg_desc_mapping[BNX2_MAX_RX_PG_RINGS];
 };
 
 struct bnx2_napi {
@@ -7052,7 +7053,7 @@ struct bnx2_rv2p_fw_file {
 
 #define RV2P_P1_FIXUP_PAGE_SIZE_IDX		0
 #define RV2P_BD_PAGE_SIZE_MSK			0xffff
-#define RV2P_BD_PAGE_SIZE			((BCM_PAGE_SIZE / 16) - 1)
+#define RV2P_BD_PAGE_SIZE			((BNX2_PAGE_SIZE / 16) - 1)
 
 #define RV2P_PROC1                              0
 #define RV2P_PROC2                              1
