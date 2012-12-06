@@ -252,6 +252,7 @@ nve0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 			priv->magic_not_rop_nr = 1;
 		break;
 	case 0xe7:
+	case 0xe6:
 		priv->magic_not_rop_nr = 1;
 		break;
 	default:
