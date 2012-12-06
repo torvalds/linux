@@ -281,7 +281,7 @@ static void nfsd_shutdown_net(struct net *net)
 	nfsd_shutdown_generic();
 }
 
-static void nfsd_shutdown(struct net *net)
+static void nfsd_last_thread(struct svc_serv *serv, struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
@@ -294,11 +294,6 @@ static void nfsd_shutdown(struct net *net)
 	if (!nn->nfsd_net_up)
 		return;
 	nfsd_shutdown_net(net);
-}
-
-static void nfsd_last_thread(struct svc_serv *serv, struct net *net)
-{
-	nfsd_shutdown(net);
 
 	svc_rpcb_cleanup(serv, net);
 
@@ -530,7 +525,7 @@ nfsd_svc(int nrservs, struct net *net)
 	error = nn->nfsd_serv->sv_nrthreads - 1;
 out_shutdown:
 	if (error < 0 && !nfsd_up_before)
-		nfsd_shutdown(net);
+		nfsd_shutdown_net(net);
 out_destroy:
 	nfsd_destroy(net);		/* Release server */
 out:
