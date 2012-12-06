@@ -761,6 +761,8 @@ static int arizona_dai_set_sysclk(struct snd_soc_dai *dai,
 	routes[1].source = arizona_dai_clk_str(clk_id);
 	snd_soc_dapm_add_routes(&codec->dapm, routes, ARRAY_SIZE(routes));
 
+	dai_priv->clk = clk_id;
+
 	return snd_soc_dapm_sync(&codec->dapm);
 }
 
