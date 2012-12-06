@@ -942,8 +942,11 @@ static long vhost_net_ioctl(struct file *f, unsigned int ioctl,
 		return vhost_net_reset_owner(n);
 	default:
 		mutex_lock(&n->dev.mutex);
-		r = vhost_dev_ioctl(&n->dev, ioctl, arg);
-		vhost_net_flush(n);
+		r = vhost_dev_ioctl(&n->dev, ioctl, argp);
+		if (r == -ENOIOCTLCMD)
+			r = vhost_vring_ioctl(&n->dev, ioctl, argp);
+		else
+			vhost_net_flush(n);
 		mutex_unlock(&n->dev.mutex);
 		return r;
 	}

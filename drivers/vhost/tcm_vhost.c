@@ -970,7 +970,10 @@ static long vhost_scsi_ioctl(struct file *f, unsigned int ioctl,
 		return vhost_scsi_set_features(vs, features);
 	default:
 		mutex_lock(&vs->dev.mutex);
-		r = vhost_dev_ioctl(&vs->dev, ioctl, arg);
+		r = vhost_dev_ioctl(&vs->dev, ioctl, argp);
+		/* TODO: flush backend after dev ioctl. */
+		if (r == -ENOIOCTLCMD)
+			r = vhost_vring_ioctl(&vs->dev, ioctl, argp);
 		mutex_unlock(&vs->dev.mutex);
 		return r;
 	}
