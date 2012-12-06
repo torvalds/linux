@@ -305,7 +305,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 	u8 hdr_len;
 	u16 len, seq_number = 0;
 	u8 sta_id, tid = IWL_MAX_TID_COUNT;
-	bool is_agg = false;
+	bool is_agg = false, is_data_qos = false;
 	int txq_id;
 
 	if (info->control.vif)
@@ -378,9 +378,6 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 		iwl_sta_modify_sleep_tx_count(priv, sta_id, 1);
 	}
 
-	if (info->flags & IEEE80211_TX_CTL_AMPDU)
-		is_agg = true;
-
 	dev_cmd = iwl_trans_alloc_tx_cmd(priv->trans);
 
 	if (unlikely(!dev_cmd))
@@ -442,6 +439,10 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
 		hdr->seq_ctrl |= cpu_to_le16(seq_number);
 		seq_number += 0x10;
+
+		if (info->flags & IEEE80211_TX_CTL_AMPDU)
+			is_agg = true;
+		is_data_qos = true;
 	}
 
 	/* Copy MAC header from skb into command buffer */
@@ -474,8 +475,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 	if (iwl_trans_tx(priv->trans, skb, dev_cmd, txq_id))
 		goto drop_unlock_sta;
 
-	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc) &&
-	    !ieee80211_has_morefrags(fc))
+	if (is_data_qos && !ieee80211_has_morefrags(fc))
 		priv->tid_data[sta_id][tid].seq_number = seq_number;
 
 	spin_unlock(&priv->sta_lock);
