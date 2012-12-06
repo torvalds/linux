@@ -384,7 +384,7 @@ static void __exit bt_hwctl_exit(void)
 {
     BT_HWCTL_DEBUG("bt_hwctl_exit\n");
     
-    platform_driver_register(&mt6622_driver);
+    platform_driver_unregister(&mt6622_driver);
     
     if (bh){
         cdev_del(&bh->cdev);
