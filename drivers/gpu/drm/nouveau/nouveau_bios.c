@@ -678,23 +678,6 @@ int run_tmds_table(struct drm_device *dev, struct dcb_output *dcbent, int head, 
 	return 0;
 }
 
-static void parse_bios_version(struct drm_device *dev, struct nvbios *bios, uint16_t offset)
-{
-	/*
-	 * offset + 0  (8 bits): Micro version
-	 * offset + 1  (8 bits): Minor version
-	 * offset + 2  (8 bits): Chip version
-	 * offset + 3  (8 bits): Major version
-	 */
-	struct nouveau_drm *drm = nouveau_drm(dev);
-
-	bios->major_version = bios->data[offset + 3];
-	bios->chip_version = bios->data[offset + 2];
-	NV_INFO(drm, "Bios version %02x.%02x.%02x.%02x\n",
-		 bios->data[offset + 3], bios->data[offset + 2],
-		 bios->data[offset + 1], bios->data[offset]);
-}
-
 static void parse_script_table_pointers(struct nvbios *bios, uint16_t offset)
 {
 	/*
@@ -710,12 +693,6 @@ static void parse_script_table_pointers(struct nvbios *bios, uint16_t offset)
 	 */
 
 	bios->init_script_tbls_ptr = ROM16(bios->data[offset]);
-	bios->macro_index_tbl_ptr = ROM16(bios->data[offset + 2]);
-	bios->macro_tbl_ptr = ROM16(bios->data[offset + 4]);
-	bios->condition_tbl_ptr = ROM16(bios->data[offset + 6]);
-	bios->io_condition_tbl_ptr = ROM16(bios->data[offset + 8]);
-	bios->io_flag_condition_tbl_ptr = ROM16(bios->data[offset + 10]);
-	bios->init_function_tbl_ptr = ROM16(bios->data[offset + 12]);
 }
 
 static int parse_bit_A_tbl_entry(struct drm_device *dev, struct nvbios *bios, struct bit_entry *bitentry)
@@ -765,25 +742,6 @@ static int parse_bit_A_tbl_entry(struct drm_device *dev, struct nvbios *bios, st
 	return 0;
 }
 
-static int parse_bit_C_tbl_entry(struct drm_device *dev, struct nvbios *bios, struct bit_entry *bitentry)
-{
-	/*
-	 * offset + 8  (16 bits): PLL limits table pointer
-	 *
-	 * There's more in here, but that's unknown.
-	 */
-	struct nouveau_drm *drm = nouveau_drm(dev);
-
-	if (bitentry->length < 10) {
-		NV_ERROR(drm, "Do not understand BIT C table\n");
-		return -EINVAL;
-	}
-
-	bios->pll_limit_tbl_ptr = ROM16(bios->data[bitentry->offset + 8]);
-
-	return 0;
-}
-
 static int parse_bit_display_tbl_entry(struct drm_device *dev, struct nvbios *bios, struct bit_entry *bitentry)
 {
 	/*
@@ -821,12 +779,6 @@ static int parse_bit_init_tbl_entry(struct drm_device *dev, struct nvbios *bios,
 	}
 
 	parse_script_table_pointers(bios, bitentry->offset);
-
-	if (bitentry->length >= 16)
-		bios->some_script_ptr = ROM16(bios->data[bitentry->offset + 14]);
-	if (bitentry->length >= 18)
-		bios->init96_tbl_ptr = ROM16(bios->data[bitentry->offset + 16]);
-
 	return 0;
 }
 
@@ -851,8 +803,6 @@ static int parse_bit_i_tbl_entry(struct drm_device *dev, struct nvbios *bios, st
 		NV_ERROR(drm, "BIT i table too short for needed information\n");
 		return -EINVAL;
 	}
-
-	parse_bios_version(dev, bios, bitentry->offset);
 
 	/*
 	 * bit 4 seems to indicate a mobile bios (doesn't suffer from BMP's
@@ -1078,9 +1028,6 @@ parse_bit_structure(struct nvbios *bios, const uint16_t bitoffset)
 		return ret;
 	if (bios->major_version >= 0x60) /* g80+ */
 		parse_bit_table(bios, bitoffset, &BIT_TABLE('A', A));
-	ret = parse_bit_table(bios, bitoffset, &BIT_TABLE('C', C));
-	if (ret)
-		return ret;
 	parse_bit_table(bios, bitoffset, &BIT_TABLE('D', display));
 	ret = parse_bit_table(bios, bitoffset, &BIT_TABLE('I', init));
 	if (ret)
@@ -1228,8 +1175,6 @@ static int parse_bmp_structure(struct drm_device *dev, struct nvbios *bios, unsi
 	 */
 	bios->feature_byte = bmp[9];
 
-	parse_bios_version(dev, bios, offset + 10);
-
 	if (bmp_version_major < 5 || bmp_version_minor < 0x10)
 		bios->old_style_init = true;
 	legacy_scripts_offset = 18;
@@ -1276,8 +1221,10 @@ static int parse_bmp_structure(struct drm_device *dev, struct nvbios *bios, unsi
 		bios->fp.lvdsmanufacturerpointer = ROM16(bmp[117]);
 		bios->fp.fpxlatemanufacturertableptr = ROM16(bmp[119]);
 	}
+#if 0
 	if (bmplength > 143)
 		bios->pll_limit_tbl_ptr = ROM16(bmp[142]);
+#endif
 
 	if (bmplength > 157)
 		bios->fp.duallink_transition_clk = ROM16(bmp[156]) * 10;
@@ -2072,6 +2019,8 @@ static bool NVInitVBIOS(struct drm_device *dev)
 		return !parse_bmp_structure(dev, legacy, legacy->offset);
 	}
 
+	legacy->major_version = bios->version.major;
+	legacy->chip_version = bios->version.chip;
 	return false;
 }
 
