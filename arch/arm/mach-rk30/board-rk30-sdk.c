@@ -1555,12 +1555,14 @@ static void __init machine_rk30_board_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	board_usb_detect_init(RK30_PIN6_PA3);
 
-#ifdef CONFIG_WIFI_CONTROL_FUNC
+#if defined(CONFIG_WIFI_CONTROL_FUNC)
 	rk29sdk_wifi_bt_gpio_control_init();
+#elif defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
+    rk29sdk_wifi_combo_module_gpio_init();
 #endif
 
 #if defined(CONFIG_MT6620)
-    clk_set_rate(clk_get_sys("rk_serial.0", "uart"), 16*1000000);
+    clk_set_rate(clk_get_sys("rk_serial.0", "uart"), 48*1000000);
 #endif
 }
 
