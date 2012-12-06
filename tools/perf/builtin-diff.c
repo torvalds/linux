@@ -23,7 +23,6 @@ static char const *input_old = "perf.data.old",
 		  *input_new = "perf.data";
 static char	  diff__default_sort_order[] = "dso,symbol";
 static bool  force;
-static bool show_displacement;
 static bool show_period;
 static bool show_formula;
 static bool show_baseline_only;
@@ -296,9 +295,8 @@ static void insert_hist_entry_by_name(struct rb_root *root,
 	rb_insert_color(&he->rb_node, root);
 }
 
-static void hists__name_resort(struct hists *self, bool sort)
+static void hists__name_resort(struct hists *self)
 {
-	unsigned long position = 1;
 	struct rb_root tmp = RB_ROOT;
 	struct rb_node *next = rb_first(&self->entries);
 
@@ -306,16 +304,12 @@ static void hists__name_resort(struct hists *self, bool sort)
 		struct hist_entry *n = rb_entry(next, struct hist_entry, rb_node);
 
 		next = rb_next(&n->rb_node);
-		n->position = position++;
 
-		if (sort) {
-			rb_erase(&n->rb_node, &self->entries);
-			insert_hist_entry_by_name(&tmp, n);
-		}
+		rb_erase(&n->rb_node, &self->entries);
+		insert_hist_entry_by_name(&tmp, n);
 	}
 
-	if (sort)
-		self->entries = tmp;
+	self->entries = tmp;
 }
 
 static struct perf_evsel *evsel_match(struct perf_evsel *evsel,
@@ -339,12 +333,8 @@ static void perf_evlist__resort_hists(struct perf_evlist *evlist, bool name)
 
 		hists__output_resort(hists);
 
-		/*
-		 * The hists__name_resort only sets possition
-		 * if name is false.
-		 */
-		if (name || ((!name) && show_displacement))
-			hists__name_resort(hists, name);
+		if (name)
+			hists__name_resort(hists);
 	}
 }
 
@@ -549,8 +539,6 @@ static const char * const diff_usage[] = {
 static const struct option options[] = {
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
-	OPT_BOOLEAN('M', "displacement", &show_displacement,
-		    "Show position displacement relative to baseline"),
 	OPT_BOOLEAN('b', "baseline-only", &show_baseline_only,
 		    "Show only items with match in baseline"),
 	OPT_CALLBACK('c', "compute", &compute,
@@ -585,7 +573,7 @@ static const struct option options[] = {
 static void ui_init(void)
 {
 	/*
-	 * Display baseline/delta/ratio/displacement/
+	 * Display baseline/delta/ratio
 	 * formula/periods columns.
 	 */
 	perf_hpp__column_enable(PERF_HPP__BASELINE);
@@ -603,9 +591,6 @@ static void ui_init(void)
 	default:
 		BUG_ON(1);
 	};
-
-	if (show_displacement)
-		perf_hpp__column_enable(PERF_HPP__DISPL);
 
 	if (show_formula)
 		perf_hpp__column_enable(PERF_HPP__FORMULA);
