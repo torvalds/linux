@@ -1789,7 +1789,7 @@ static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 	int reg;
 	u32 val;
 
-	if (IS_HASWELL(dev_priv->dev))
+	if (HAS_PCH_LPT(dev_priv->dev))
 		pch_transcoder = TRANSCODER_A;
 	else
 		pch_transcoder = pipe;
