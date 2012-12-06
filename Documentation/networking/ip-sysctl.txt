@@ -44,7 +44,7 @@ neigh/default/unres_qlen - INTEGER
 	unresolved address by other network layers.
 	(deprecated in linux 3.3) : use unres_qlen_bytes instead.
 	Prior to linux 3.3, the default value is 3 which may cause
-	secluded packet loss. The current default value is calculated
+	unexpected packet loss. The current default value is calculated
 	according to default value of unres_qlen_bytes and true size of
 	packet.
 	Default: 31
