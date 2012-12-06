@@ -53,6 +53,8 @@ contain the following properties.
     		shifted clock phase (CPHA) mode
 - spi-cs-high     - (optional) Empty property indicating device requires
     		chip select active high
+- spi-3wire       - (optional) Empty property indicating device requires
+    		    3-wire mode.
 
 If a gpio chipselect is used for the SPI slave the gpio number will be passed
 via the cs_gpio
