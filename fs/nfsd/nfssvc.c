@@ -541,6 +541,8 @@ static int
 nfsd(void *vrqstp)
 {
 	struct svc_rqst *rqstp = (struct svc_rqst *) vrqstp;
+	struct svc_xprt *perm_sock = list_entry(rqstp->rq_server->sv_permsocks.next, typeof(struct svc_xprt), xpt_list);
+	struct net *net = perm_sock->xpt_net;
 	int err;
 
 	/* Lock module and set up kernel thread */
@@ -605,7 +607,7 @@ out:
 	/* Release the thread */
 	svc_exit_thread(rqstp);
 
-	nfsd_destroy(&init_net);
+	nfsd_destroy(net);
 
 	/* Release module */
 	mutex_unlock(&nfsd_mutex);
