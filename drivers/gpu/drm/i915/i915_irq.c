@@ -875,9 +875,20 @@ static void i915_error_work_func(struct work_struct *work)
 
 	kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, error_event);
 
-	if (i915_reset_in_progress(error)) {
+	/*
+	 * Note that there's only one work item which does gpu resets, so we
+	 * need not worry about concurrent gpu resets potentially incrementing
+	 * error->reset_counter twice. We only need to take care of another
+	 * racing irq/hangcheck declaring the gpu dead for a second time. A
+	 * quick check for that is good enough: schedule_work ensures the
+	 * correct ordering between hang detection and this work item, and since
+	 * the reset in-progress bit is only ever set by code outside of this
+	 * work we don't need to worry about any other races.
+	 */
+	if (i915_reset_in_progress(error) && !i915_terminally_wedged(error)) {
 		DRM_DEBUG_DRIVER("resetting chip\n");
-		kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_event);
+		kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE,
+				   reset_event);
 
 		ret = i915_reset(dev);
 
