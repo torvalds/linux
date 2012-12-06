@@ -203,6 +203,27 @@ static int nfsd_init_socks(struct net *net)
 
 static bool nfsd_up = false;
 
+static int nfsd_startup_net(struct net *net)
+{
+	int ret;
+
+	ret = nfsd_init_socks(net);
+	if (ret)
+		return ret;
+	ret = lockd_up(net);
+	if (ret)
+		return ret;
+	ret = nfs4_state_start_net(net);
+	if (ret)
+		goto out_lockd;
+
+	return 0;
+
+out_lockd:
+	lockd_down(net);
+	return ret;
+}
+
 static int nfsd_startup(int nrservs, struct net *net)
 {
 	int ret;
@@ -217,29 +238,27 @@ static int nfsd_startup(int nrservs, struct net *net)
 	ret = nfsd_racache_init(2*nrservs);
 	if (ret)
 		return ret;
-	ret = nfsd_init_socks(net);
-	if (ret)
-		goto out_racache;
-	ret = lockd_up(net);
-	if (ret)
-		goto out_racache;
 	ret = nfs4_state_start();
 	if (ret)
-		goto out_lockd;
-
-	ret = nfs4_state_start_net(net);
+		goto out_racache;
+	ret = nfsd_startup_net(net);
 	if (ret)
-		goto out_net_state;
+		goto out_net;
 
 	nfsd_up = true;
 	return 0;
-out_net_state:
+
+out_net:
 	nfs4_state_shutdown();
-out_lockd:
-	lockd_down(net);
 out_racache:
 	nfsd_racache_shutdown();
 	return ret;
+}
+
+static void nfsd_shutdown_net(struct net *net)
+{
+	nfs4_state_shutdown_net(net);
+	lockd_down(net);
 }
 
 static void nfsd_shutdown(struct net *net)
@@ -252,9 +271,8 @@ static void nfsd_shutdown(struct net *net)
 	 */
 	if (!nfsd_up)
 		return;
-	nfs4_state_shutdown_net(net);
+	nfsd_shutdown_net(net);
 	nfs4_state_shutdown();
-	lockd_down(net);
 	nfsd_racache_shutdown();
 	nfsd_up = false;
 }
