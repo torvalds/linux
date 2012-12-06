@@ -47,6 +47,7 @@
 #define EX_R3		64
 #define EX_LR		72
 #define EX_CFAR		80
+#define EX_PPR		88	/* SMT thread status register (priority) */
 
 #ifdef CONFIG_RELOCATABLE
 #define EXCEPTION_RELON_PROLOG_PSERIES_1(label, h)			\
