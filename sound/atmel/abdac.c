@@ -309,7 +309,7 @@ static struct snd_pcm_ops atmel_abdac_ops = {
 	.pointer	= atmel_abdac_pointer,
 };
 
-static int __devinit atmel_abdac_pcm_new(struct atmel_abdac *dac)
+static int atmel_abdac_pcm_new(struct atmel_abdac *dac)
 {
 	struct snd_pcm_hardware hw = atmel_abdac_hw;
 	struct snd_pcm *pcm;
@@ -386,7 +386,7 @@ static int set_sample_rates(struct atmel_abdac *dac)
 	return retval;
 }
 
-static int __devinit atmel_abdac_probe(struct platform_device *pdev)
+static int atmel_abdac_probe(struct platform_device *pdev)
 {
 	struct snd_card		*card;
 	struct atmel_abdac	*dac;
@@ -567,7 +567,7 @@ static SIMPLE_DEV_PM_OPS(atmel_abdac_pm, atmel_abdac_suspend, atmel_abdac_resume
 #define ATMEL_ABDAC_PM_OPS	NULL
 #endif
 
-static int __devexit atmel_abdac_remove(struct platform_device *pdev)
+static int atmel_abdac_remove(struct platform_device *pdev)
 {
 	struct snd_card *card = platform_get_drvdata(pdev);
 	struct atmel_abdac *dac = get_dac(card);
@@ -589,7 +589,7 @@ static int __devexit atmel_abdac_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver atmel_abdac_driver = {
-	.remove		= __devexit_p(atmel_abdac_remove),
+	.remove		= atmel_abdac_remove,
 	.driver		= {
 		.name	= "atmel_abdac",
 		.owner	= THIS_MODULE,
