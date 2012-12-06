@@ -27,7 +27,6 @@
 
 extern struct svc_program	nfsd_program;
 static int			nfsd(void *vrqstp);
-struct timeval			nfssvc_boot;
 
 /*
  * nfsd_mutex protects nfsd_serv -- both the pointer itself and the members
@@ -367,6 +366,7 @@ static int nfsd_get_default_max_blksize(void)
 int nfsd_create_serv(struct net *net)
 {
 	int error;
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	WARN_ON(!mutex_is_locked(&nfsd_mutex));
 	if (nfsd_serv) {
@@ -388,7 +388,7 @@ int nfsd_create_serv(struct net *net)
 	}
 
 	set_max_drc();
-	do_gettimeofday(&nfssvc_boot);		/* record boot time */
+	do_gettimeofday(&nn->nfssvc_boot);		/* record boot time */
 	return 0;
 }
 

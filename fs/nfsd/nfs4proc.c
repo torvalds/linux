@@ -497,12 +497,13 @@ nfsd4_access(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			   &access->ac_supported);
 }
 
-static void gen_boot_verifier(nfs4_verifier *verifier)
+static void gen_boot_verifier(nfs4_verifier *verifier, struct net *net)
 {
 	__be32 verf[2];
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
-	verf[0] = (__be32)nfssvc_boot.tv_sec;
-	verf[1] = (__be32)nfssvc_boot.tv_usec;
+	verf[0] = (__be32)nn->nfssvc_boot.tv_sec;
+	verf[1] = (__be32)nn->nfssvc_boot.tv_usec;
 	memcpy(verifier->data, verf, sizeof(verifier->data));
 }
 
@@ -510,7 +511,7 @@ static __be32
 nfsd4_commit(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	     struct nfsd4_commit *commit)
 {
-	gen_boot_verifier(&commit->co_verf);
+	gen_boot_verifier(&commit->co_verf, SVC_NET(rqstp));
 	return nfsd_commit(rqstp, &cstate->current_fh, commit->co_offset,
 			     commit->co_count);
 }
@@ -930,7 +931,7 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	cnt = write->wr_buflen;
 	write->wr_how_written = write->wr_stable_how;
-	gen_boot_verifier(&write->wr_verifier);
+	gen_boot_verifier(&write->wr_verifier, SVC_NET(rqstp));
 
 	nvecs = fill_in_write_vector(rqstp->rq_vec, write);
 	WARN_ON_ONCE(nvecs > ARRAY_SIZE(rqstp->rq_vec));

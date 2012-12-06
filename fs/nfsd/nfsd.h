@@ -269,11 +269,6 @@ void		nfsd_lockd_shutdown(void);
 /* Check for dir entries '.' and '..' */
 #define isdotent(n, l)	(l < 3 && n[0] == '.' && (l == 1 || n[1] == '.'))
 
-/*
- * Time of server startup
- */
-extern struct timeval	nfssvc_boot;
-
 #ifdef CONFIG_NFSD_V4
 
 /* before processing a COMPOUND operation, we have to check that there

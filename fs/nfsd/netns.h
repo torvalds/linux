@@ -94,6 +94,11 @@ struct nfsd_net {
 	time_t nfsd4_grace;
 
 	bool nfsd_net_up;
+
+	/*
+	 * Time of server startup
+	 */
+	struct timeval nfssvc_boot;
 };
 
 /* Simple check to find out if a given net was properly initialized */
