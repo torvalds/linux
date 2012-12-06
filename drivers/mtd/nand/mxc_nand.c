@@ -1533,7 +1533,8 @@ static int mxcnd_probe(struct platform_device *pdev)
 	return 0;
 
 escan:
-	clk_disable_unprepare(host->clk);
+	if (host->clk_act)
+		clk_disable_unprepare(host->clk);
 
 	return err;
 }
