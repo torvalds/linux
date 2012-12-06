@@ -928,7 +928,7 @@ static struct snd_pcm_ops snd_nm256_capture_ops = {
 	.mmap =		snd_pcm_lib_mmap_iomem,
 };
 
-static int __devinit
+static int
 snd_nm256_pcm(struct nm256 *chip, int device)
 {
 	struct snd_pcm *pcm;
@@ -1295,7 +1295,7 @@ snd_nm256_ac97_reset(struct snd_ac97 *ac97)
 }
 
 /* create an ac97 mixer interface */
-static int __devinit
+static int
 snd_nm256_mixer(struct nm256 *chip)
 {
 	struct snd_ac97_bus *pbus;
@@ -1336,7 +1336,7 @@ snd_nm256_mixer(struct nm256 *chip)
  * RAM.
  */
 
-static int __devinit
+static int
 snd_nm256_peek_for_sig(struct nm256 *chip)
 {
 	/* The signature is located 1K below the end of video RAM.  */
@@ -1472,7 +1472,7 @@ static int snd_nm256_dev_free(struct snd_device *device)
 	return snd_nm256_free(chip);
 }
 
-static int __devinit
+static int
 snd_nm256_create(struct snd_card *card, struct pci_dev *pci,
 		 struct nm256 **chip_ret)
 {
@@ -1639,7 +1639,7 @@ __error:
 
 enum { NM_BLACKLISTED, NM_RESET_WORKAROUND, NM_RESET_WORKAROUND_2 };
 
-static struct snd_pci_quirk nm256_quirks[] __devinitdata = {
+static struct snd_pci_quirk nm256_quirks[] = {
 	/* HP omnibook 4150 has cs4232 codec internally */
 	SND_PCI_QUIRK(0x103c, 0x0007, "HP omnibook 4150", NM_BLACKLISTED),
 	/* Reset workarounds to avoid lock-ups */
@@ -1650,8 +1650,8 @@ static struct snd_pci_quirk nm256_quirks[] __devinitdata = {
 };
 
 
-static int __devinit snd_nm256_probe(struct pci_dev *pci,
-				     const struct pci_device_id *pci_id)
+static int snd_nm256_probe(struct pci_dev *pci,
+			   const struct pci_device_id *pci_id)
 {
 	struct snd_card *card;
 	struct nm256 *chip;
@@ -1742,7 +1742,7 @@ static int __devinit snd_nm256_probe(struct pci_dev *pci,
 	return 0;
 }
 
-static void __devexit snd_nm256_remove(struct pci_dev *pci)
+static void snd_nm256_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -1753,7 +1753,7 @@ static struct pci_driver nm256_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_nm256_ids,
 	.probe = snd_nm256_probe,
-	.remove = __devexit_p(snd_nm256_remove),
+	.remove = snd_nm256_remove,
 	.driver = {
 		.pm = NM256_PM_OPS,
 	},

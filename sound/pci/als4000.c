@@ -694,7 +694,7 @@ static struct snd_pcm_ops snd_als4000_capture_ops = {
 	.pointer =	snd_als4000_capture_pointer
 };
 
-static int __devinit snd_als4000_pcm(struct snd_sb *chip, int device)
+static int snd_als4000_pcm(struct snd_sb *chip, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -770,7 +770,7 @@ static void snd_als4000_configure(struct snd_sb *chip)
 }
 
 #ifdef SUPPORT_JOYSTICK
-static int __devinit snd_als4000_create_gameport(struct snd_card_als4000 *acard, int dev)
+static int snd_als4000_create_gameport(struct snd_card_als4000 *acard, int dev)
 {
 	struct gameport *gp;
 	struct resource *r;
@@ -847,8 +847,8 @@ static void snd_card_als4000_free( struct snd_card *card )
 	pci_disable_device(acard->pci);
 }
 
-static int __devinit snd_card_als4000_probe(struct pci_dev *pci,
-					  const struct pci_device_id *pci_id)
+static int snd_card_als4000_probe(struct pci_dev *pci,
+				  const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
@@ -981,7 +981,7 @@ out:
 	return err;
 }
 
-static void __devexit snd_card_als4000_remove(struct pci_dev *pci)
+static void snd_card_als4000_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -1046,7 +1046,7 @@ static struct pci_driver als4000_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_als4000_ids,
 	.probe = snd_card_als4000_probe,
-	.remove = __devexit_p(snd_card_als4000_remove),
+	.remove = snd_card_als4000_remove,
 	.driver = {
 		.pm = SND_ALS4000_PM_OPS,
 	},

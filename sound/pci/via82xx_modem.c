@@ -836,7 +836,7 @@ static void init_viadev(struct via82xx_modem *chip, int idx, unsigned int reg_of
 /*
  * create a pcm instance for via686a/b
  */
-static int __devinit snd_via686_pcm_new(struct via82xx_modem *chip)
+static int snd_via686_pcm_new(struct via82xx_modem *chip)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -885,7 +885,7 @@ static void snd_via82xx_mixer_free_ac97(struct snd_ac97 *ac97)
 }
 
 
-static int __devinit snd_via82xx_mixer_new(struct via82xx_modem *chip)
+static int snd_via82xx_mixer_new(struct via82xx_modem *chip)
 {
 	struct snd_ac97_template ac97;
 	int err;
@@ -928,7 +928,7 @@ static void snd_via82xx_proc_read(struct snd_info_entry *entry, struct snd_info_
 	}
 }
 
-static void __devinit snd_via82xx_proc_init(struct via82xx_modem *chip)
+static void snd_via82xx_proc_init(struct via82xx_modem *chip)
 {
 	struct snd_info_entry *entry;
 
@@ -1103,12 +1103,12 @@ static int snd_via82xx_dev_free(struct snd_device *device)
 	return snd_via82xx_free(chip);
 }
 
-static int __devinit snd_via82xx_create(struct snd_card *card,
-					struct pci_dev *pci,
-					int chip_type,
-					int revision,
-					unsigned int ac97_clock,
-					struct via82xx_modem ** r_via)
+static int snd_via82xx_create(struct snd_card *card,
+			      struct pci_dev *pci,
+			      int chip_type,
+			      int revision,
+			      unsigned int ac97_clock,
+			      struct via82xx_modem **r_via)
 {
 	struct via82xx_modem *chip;
 	int err;
@@ -1168,8 +1168,8 @@ static int __devinit snd_via82xx_create(struct snd_card *card,
 }
 
 
-static int __devinit snd_via82xx_probe(struct pci_dev *pci,
-				       const struct pci_device_id *pci_id)
+static int snd_via82xx_probe(struct pci_dev *pci,
+			     const struct pci_device_id *pci_id)
 {
 	struct snd_card *card;
 	struct via82xx_modem *chip;
@@ -1224,7 +1224,7 @@ static int __devinit snd_via82xx_probe(struct pci_dev *pci,
 	return err;
 }
 
-static void __devexit snd_via82xx_remove(struct pci_dev *pci)
+static void snd_via82xx_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -1234,7 +1234,7 @@ static struct pci_driver via82xx_modem_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_via82xx_modem_ids,
 	.probe = snd_via82xx_probe,
-	.remove = __devexit_p(snd_via82xx_remove),
+	.remove = snd_via82xx_remove,
 	.driver = {
 		.pm = SND_VIA82XX_PM_OPS,
 	},

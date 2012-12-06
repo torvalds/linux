@@ -316,7 +316,7 @@ static const char *clfe_deemph	= "CLFE Deemphasis Playback Switch";
 static const char *rear_clfe_izd = "Rear Infinite Zero Detect Playback Switch";
 static const char *rear_clfe_zc	= "Rear Zero Cross Detect Playback Switch";
 
-static int __devinit psc724_add_controls(struct snd_ice1712 *ice)
+static int psc724_add_controls(struct snd_ice1712 *ice)
 {
 	struct snd_kcontrol_new cont;
 	struct snd_kcontrol *ctl;
@@ -396,7 +396,7 @@ static int psc724_resume(struct snd_ice1712 *ice)
 
 /* init */
 
-static int __devinit psc724_init(struct snd_ice1712 *ice)
+static int psc724_init(struct snd_ice1712 *ice)
 {
 	struct psc724_spec *spec;
 
@@ -434,7 +434,7 @@ static void psc724_exit(struct snd_ice1712 *ice)
 }
 
 /* PSC724 has buggy EEPROM (no 96&192kHz, all FFh GPIOs), so override it here */
-static unsigned char psc724_eeprom[] __devinitdata = {
+static unsigned char psc724_eeprom[] = {
 	[ICE_EEP2_SYSCONF]	= 0x42,	/* 49.152MHz, 1 ADC, 3 DACs */
 	[ICE_EEP2_ACLINK]	= 0x80,	/* I2S */
 	[ICE_EEP2_I2S]		= 0xf0,	/* I2S volume, 96kHz, 24bit */
@@ -449,7 +449,7 @@ static unsigned char psc724_eeprom[] __devinitdata = {
 	[ICE_EEP2_GPIO_STATE2]	= 0x20,	/* unmuted, all WM8766 pins low */
 };
 
-struct snd_ice1712_card_info snd_vt1724_psc724_cards[] __devinitdata = {
+struct snd_ice1712_card_info snd_vt1724_psc724_cards[] = {
 	{
 		.subvendor = VT1724_SUBDEVICE_PSC724,
 		.name = "Philips PSC724 Ultimate Edge",

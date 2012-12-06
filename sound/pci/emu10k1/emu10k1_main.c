@@ -1726,7 +1726,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	{ } /* terminator */
 };
 
-int __devinit snd_emu10k1_create(struct snd_card *card,
+int snd_emu10k1_create(struct snd_card *card,
 		       struct pci_dev *pci,
 		       unsigned short extin_mask,
 		       unsigned short extout_mask,
@@ -2013,7 +2013,7 @@ static unsigned char saved_regs_audigy[] = {
 	0xff /* end */
 };
 
-static int __devinit alloc_pm_buffer(struct snd_emu10k1 *emu)
+static int alloc_pm_buffer(struct snd_emu10k1 *emu)
 {
 	int size;
 

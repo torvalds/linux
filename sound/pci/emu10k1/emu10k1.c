@@ -99,8 +99,8 @@ static DEFINE_PCI_DEVICE_TABLE(snd_emu10k1_ids) = {
 
 MODULE_DEVICE_TABLE(pci, snd_emu10k1_ids);
 
-static int __devinit snd_card_emu10k1_probe(struct pci_dev *pci,
-					    const struct pci_device_id *pci_id)
+static int snd_card_emu10k1_probe(struct pci_dev *pci,
+				  const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
@@ -199,7 +199,7 @@ static int __devinit snd_card_emu10k1_probe(struct pci_dev *pci,
 	return err;
 }
 
-static void __devexit snd_card_emu10k1_remove(struct pci_dev *pci)
+static void snd_card_emu10k1_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -278,7 +278,7 @@ static struct pci_driver emu10k1_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_emu10k1_ids,
 	.probe = snd_card_emu10k1_probe,
-	.remove = __devexit_p(snd_card_emu10k1_remove),
+	.remove = snd_card_emu10k1_remove,
 	.driver = {
 		.pm = SND_EMU10K1_PM_OPS,
 	},

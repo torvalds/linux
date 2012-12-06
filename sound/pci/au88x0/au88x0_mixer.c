@@ -19,7 +19,7 @@ static int remove_ctl(struct snd_card *card, const char *name)
 	return snd_ctl_remove_id(card, &id);
 }
 
-static int __devinit snd_vortex_mixer(vortex_t * vortex)
+static int snd_vortex_mixer(vortex_t *vortex)
 {
 	struct snd_ac97_bus *pbus;
 	struct snd_ac97_template ac97;

@@ -41,7 +41,7 @@
 #define MPU401_ENTER_UART	0x3f
 #define MPU401_ACK		    0xfe
 
-static int __devinit snd_vortex_midi(vortex_t * vortex)
+static int snd_vortex_midi(vortex_t *vortex)
 {
 	struct snd_rawmidi *rmidi;
 	int temp, mode;

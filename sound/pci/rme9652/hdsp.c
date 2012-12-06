@@ -4020,7 +4020,7 @@ static void snd_hdsp_free_buffers(struct hdsp *hdsp)
 	snd_hammerfall_free_buffer(&hdsp->playback_dma_buf, hdsp->pci);
 }
 
-static int __devinit snd_hdsp_initialize_memory(struct hdsp *hdsp)
+static int snd_hdsp_initialize_memory(struct hdsp *hdsp)
 {
 	unsigned long pb_bus, cb_bus;
 
@@ -5413,8 +5413,8 @@ static int hdsp_request_fw_loader(struct hdsp *hdsp)
 	return 0;
 }
 
-static int __devinit snd_hdsp_create(struct snd_card *card,
-				     struct hdsp *hdsp)
+static int snd_hdsp_create(struct snd_card *card,
+			   struct hdsp *hdsp)
 {
 	struct pci_dev *pci = hdsp->pci;
 	int err;
@@ -5593,8 +5593,8 @@ static void snd_hdsp_card_free(struct snd_card *card)
 		snd_hdsp_free(hdsp);
 }
 
-static int __devinit snd_hdsp_probe(struct pci_dev *pci,
-				    const struct pci_device_id *pci_id)
+static int snd_hdsp_probe(struct pci_dev *pci,
+			  const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct hdsp *hdsp;
@@ -5637,7 +5637,7 @@ static int __devinit snd_hdsp_probe(struct pci_dev *pci,
 	return 0;
 }
 
-static void __devexit snd_hdsp_remove(struct pci_dev *pci)
+static void snd_hdsp_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -5647,7 +5647,7 @@ static struct pci_driver hdsp_driver = {
 	.name =     KBUILD_MODNAME,
 	.id_table = snd_hdsp_ids,
 	.probe =    snd_hdsp_probe,
-	.remove = __devexit_p(snd_hdsp_remove),
+	.remove = snd_hdsp_remove,
 };
 
 module_pci_driver(hdsp_driver);

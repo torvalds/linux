@@ -597,7 +597,7 @@ static void snd_ymfpci_pcm_init_voice(struct snd_ymfpci_pcm *ypcm, unsigned int 
 	}
 }
 
-static int __devinit snd_ymfpci_ac3_init(struct snd_ymfpci *chip)
+static int snd_ymfpci_ac3_init(struct snd_ymfpci *chip)
 {
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(chip->pci),
 				4096, &chip->ac3_tmp_base) < 0)
@@ -1143,7 +1143,7 @@ static struct snd_pcm_ops snd_ymfpci_capture_rec_ops = {
 	.pointer =		snd_ymfpci_capture_pointer,
 };
 
-int __devinit snd_ymfpci_pcm(struct snd_ymfpci *chip, int device, struct snd_pcm ** rpcm)
+int snd_ymfpci_pcm(struct snd_ymfpci *chip, int device, struct snd_pcm **rpcm)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -1186,7 +1186,7 @@ static struct snd_pcm_ops snd_ymfpci_capture_ac97_ops = {
 	.pointer =		snd_ymfpci_capture_pointer,
 };
 
-int __devinit snd_ymfpci_pcm2(struct snd_ymfpci *chip, int device, struct snd_pcm ** rpcm)
+int snd_ymfpci_pcm2(struct snd_ymfpci *chip, int device, struct snd_pcm **rpcm)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -1224,7 +1224,8 @@ static struct snd_pcm_ops snd_ymfpci_playback_spdif_ops = {
 	.pointer =		snd_ymfpci_playback_pointer,
 };
 
-int __devinit snd_ymfpci_pcm_spdif(struct snd_ymfpci *chip, int device, struct snd_pcm ** rpcm)
+int snd_ymfpci_pcm_spdif(struct snd_ymfpci *chip, int device,
+			 struct snd_pcm **rpcm)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -1269,7 +1270,8 @@ static const struct snd_pcm_chmap_elem surround_map[] = {
 	{ }
 };
 
-int __devinit snd_ymfpci_pcm_4ch(struct snd_ymfpci *chip, int device, struct snd_pcm ** rpcm)
+int snd_ymfpci_pcm_4ch(struct snd_ymfpci *chip, int device,
+		       struct snd_pcm **rpcm)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -1338,7 +1340,7 @@ static int snd_ymfpci_spdif_default_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_ymfpci_spdif_default __devinitdata =
+static struct snd_kcontrol_new snd_ymfpci_spdif_default =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
@@ -1366,7 +1368,7 @@ static int snd_ymfpci_spdif_mask_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new snd_ymfpci_spdif_mask __devinitdata =
+static struct snd_kcontrol_new snd_ymfpci_spdif_mask =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -1413,7 +1415,7 @@ static int snd_ymfpci_spdif_stream_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_ymfpci_spdif_stream __devinitdata =
+static struct snd_kcontrol_new snd_ymfpci_spdif_stream =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_INACTIVE,
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -1461,7 +1463,7 @@ static int snd_ymfpci_drec_source_put(struct snd_kcontrol *kcontrol, struct snd_
 	return reg != old_reg;
 }
 
-static struct snd_kcontrol_new snd_ymfpci_drec_source __devinitdata = {
+static struct snd_kcontrol_new snd_ymfpci_drec_source = {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"Direct Recording Source",
@@ -1631,7 +1633,7 @@ static int snd_ymfpci_put_dup4ch(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	return change;
 }
 
-static struct snd_kcontrol_new snd_ymfpci_dup4ch __devinitdata = {
+static struct snd_kcontrol_new snd_ymfpci_dup4ch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "4ch Duplication",
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
@@ -1640,7 +1642,7 @@ static struct snd_kcontrol_new snd_ymfpci_dup4ch __devinitdata = {
 	.put = snd_ymfpci_put_dup4ch,
 };
 
-static struct snd_kcontrol_new snd_ymfpci_controls[] __devinitdata = {
+static struct snd_kcontrol_new snd_ymfpci_controls[] = {
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Wave Playback Volume",
@@ -1734,7 +1736,7 @@ static int snd_ymfpci_gpio_sw_put(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	return 0;
 }
 
-static struct snd_kcontrol_new snd_ymfpci_rear_shared __devinitdata = {
+static struct snd_kcontrol_new snd_ymfpci_rear_shared = {
 	.name = "Shared Rear/Line-In Switch",
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.info = snd_ymfpci_gpio_sw_info,
@@ -1798,7 +1800,7 @@ static int snd_ymfpci_pcm_vol_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new snd_ymfpci_pcm_volume __devinitdata = {
+static struct snd_kcontrol_new snd_ymfpci_pcm_volume = {
 	.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 	.name = "PCM Playback Volume",
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
@@ -1825,7 +1827,7 @@ static void snd_ymfpci_mixer_free_ac97(struct snd_ac97 *ac97)
 	chip->ac97 = NULL;
 }
 
-int __devinit snd_ymfpci_mixer(struct snd_ymfpci *chip, int rear_switch)
+int snd_ymfpci_mixer(struct snd_ymfpci *chip, int rear_switch)
 {
 	struct snd_ac97_template ac97;
 	struct snd_kcontrol *kctl;
@@ -1969,7 +1971,7 @@ static struct snd_timer_hardware snd_ymfpci_timer_hw = {
 	.precise_resolution = snd_ymfpci_timer_precise_resolution,
 };
 
-int __devinit snd_ymfpci_timer(struct snd_ymfpci *chip, int device)
+int snd_ymfpci_timer(struct snd_ymfpci *chip, int device)
 {
 	struct snd_timer *timer = NULL;
 	struct snd_timer_id tid;
@@ -2005,7 +2007,7 @@ static void snd_ymfpci_proc_read(struct snd_info_entry *entry,
 		snd_iprintf(buffer, "%04x: %04x\n", i, snd_ymfpci_readl(chip, i));
 }
 
-static int __devinit snd_ymfpci_proc_init(struct snd_card *card, struct snd_ymfpci *chip)
+static int snd_ymfpci_proc_init(struct snd_card *card, struct snd_ymfpci *chip)
 {
 	struct snd_info_entry *entry;
 	
@@ -2127,7 +2129,7 @@ static void snd_ymfpci_download_image(struct snd_ymfpci *chip)
 	snd_ymfpci_enable_dsp(chip);
 }
 
-static int __devinit snd_ymfpci_memalloc(struct snd_ymfpci *chip)
+static int snd_ymfpci_memalloc(struct snd_ymfpci *chip)
 {
 	long size, playback_ctrl_size;
 	int voice, bank, reg;
@@ -2393,10 +2395,10 @@ static int snd_ymfpci_resume(struct device *dev)
 SIMPLE_DEV_PM_OPS(snd_ymfpci_pm, snd_ymfpci_suspend, snd_ymfpci_resume);
 #endif /* CONFIG_PM_SLEEP */
 
-int __devinit snd_ymfpci_create(struct snd_card *card,
-				struct pci_dev * pci,
-				unsigned short old_legacy_ctrl,
-				struct snd_ymfpci ** rchip)
+int snd_ymfpci_create(struct snd_card *card,
+		      struct pci_dev *pci,
+		      unsigned short old_legacy_ctrl,
+		      struct snd_ymfpci **rchip)
 {
 	struct snd_ymfpci *chip;
 	int err;

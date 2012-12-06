@@ -386,7 +386,7 @@ static const struct snd_akm4xxx_adc_channel qtet_adc[] = {
 	AK_CONTROL(PCM_34_CAPTURE_VOLUME, 2),
 };
 
-static struct snd_akm4xxx akm_qtet_dac __devinitdata = {
+static struct snd_akm4xxx akm_qtet_dac = {
 	.type = SND_AK4620,
 	.num_dacs = 4,	/* DAC1 - Output 12
 	*/
@@ -758,7 +758,7 @@ static int qtet_sw_put(struct snd_kcontrol *kcontrol,
 	.put = qtet_sw_put,\
 	.private_value = xpriv }
 
-static struct snd_kcontrol_new qtet_controls[] __devinitdata = {
+static struct snd_kcontrol_new qtet_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
@@ -795,17 +795,17 @@ static struct snd_kcontrol_new qtet_controls[] __devinitdata = {
 	QTET_CONTROL("Output 3/4 to Monitor 1/2", sw, OUT34_MON12),
 };
 
-static char *slave_vols[] __devinitdata = {
+static char *slave_vols[] = {
 	PCM_12_PLAYBACK_VOLUME,
 	PCM_34_PLAYBACK_VOLUME,
 	NULL
 };
 
-static __devinitdata
+static
 DECLARE_TLV_DB_SCALE(qtet_master_db_scale, -6350, 50, 1);
 
-static struct snd_kcontrol __devinit *ctl_find(struct snd_card *card,
-		const char *name)
+static struct snd_kcontrol *ctl_find(struct snd_card *card,
+				     const char *name)
 {
 	struct snd_ctl_elem_id sid;
 	memset(&sid, 0, sizeof(sid));
@@ -815,8 +815,8 @@ static struct snd_kcontrol __devinit *ctl_find(struct snd_card *card,
 	return snd_ctl_find_id(card, &sid);
 }
 
-static void __devinit add_slaves(struct snd_card *card,
-		struct snd_kcontrol *master, char * const *list)
+static void add_slaves(struct snd_card *card,
+		       struct snd_kcontrol *master, char * const *list)
 {
 	for (; *list; list++) {
 		struct snd_kcontrol *slave = ctl_find(card, *list);
@@ -825,7 +825,7 @@ static void __devinit add_slaves(struct snd_card *card,
 	}
 }
 
-static int __devinit qtet_add_controls(struct snd_ice1712 *ice)
+static int qtet_add_controls(struct snd_ice1712 *ice)
 {
 	struct qtet_spec *spec = ice->spec;
 	int err, i;
@@ -1007,7 +1007,7 @@ static void qtet_spdif_in_open(struct snd_ice1712 *ice,
 /*
  * initialize the chip
  */
-static int __devinit qtet_init(struct snd_ice1712 *ice)
+static int qtet_init(struct snd_ice1712 *ice)
 {
 	static const unsigned char ak4113_init_vals[] = {
 		/* AK4113_REG_PWRDN */	AK4113_RST | AK4113_PWN |
@@ -1095,7 +1095,7 @@ static int __devinit qtet_init(struct snd_ice1712 *ice)
 	return 0;
 }
 
-static unsigned char qtet_eeprom[] __devinitdata = {
+static unsigned char qtet_eeprom[] = {
 	[ICE_EEP2_SYSCONF]     = 0x28,	/* clock 256(24MHz), mpu401, 1xADC,
 					   1xDACs, SPDIF in */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
@@ -1116,7 +1116,7 @@ static unsigned char qtet_eeprom[] __devinitdata = {
 };
 
 /* entry point */
-struct snd_ice1712_card_info snd_vt1724_qtet_cards[] __devinitdata = {
+struct snd_ice1712_card_info snd_vt1724_qtet_cards[] = {
 	{
 		.subvendor = VT1724_SUBDEVICE_QTET,
 		.name = "Infrasonic Quartet",

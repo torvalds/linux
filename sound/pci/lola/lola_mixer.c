@@ -28,8 +28,8 @@
 #include <sound/tlv.h>
 #include "lola.h"
 
-static int __devinit lola_init_pin(struct lola *chip, struct lola_pin *pin,
-				   int dir, int nid)
+static int lola_init_pin(struct lola *chip, struct lola_pin *pin,
+			 int dir, int nid)
 {
 	unsigned int val;
 	int err;
@@ -91,7 +91,7 @@ static int __devinit lola_init_pin(struct lola *chip, struct lola_pin *pin,
 	return 0;
 }
 
-int __devinit lola_init_pins(struct lola *chip, int dir, int *nidp)
+int lola_init_pins(struct lola *chip, int dir, int *nidp)
 {
 	int i, err, nid;
 	nid = *nidp;
@@ -112,7 +112,7 @@ void lola_free_mixer(struct lola *chip)
 		vfree(chip->mixer.array_saved);
 }
 
-int __devinit lola_init_mixer_widget(struct lola *chip, int nid)
+int lola_init_mixer_widget(struct lola *chip, int nid)
 {
 	unsigned int val;
 	int err;
@@ -579,7 +579,7 @@ static int lola_analog_vol_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 	return 0;
 }
 
-static struct snd_kcontrol_new lola_analog_mixer __devinitdata = {
+static struct snd_kcontrol_new lola_analog_mixer = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
 		   SNDRV_CTL_ELEM_ACCESS_TLV_READ |
@@ -590,7 +590,7 @@ static struct snd_kcontrol_new lola_analog_mixer __devinitdata = {
 	.tlv.c = lola_analog_vol_tlv,
 };
 
-static int __devinit create_analog_mixer(struct lola *chip, int dir, char *name)
+static int create_analog_mixer(struct lola *chip, int dir, char *name)
 {
 	if (!chip->pin[dir].num_pins)
 		return 0;
@@ -644,7 +644,7 @@ static int lola_input_src_put(struct snd_kcontrol *kcontrol,
 	return lola_set_src_config(chip, mask, true);
 }
 
-static struct snd_kcontrol_new lola_input_src_mixer __devinitdata = {
+static struct snd_kcontrol_new lola_input_src_mixer = {
 	.name = "Digital SRC Capture Switch",
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.info = lola_input_src_info,
@@ -656,7 +656,7 @@ static struct snd_kcontrol_new lola_input_src_mixer __devinitdata = {
  * Lola16161 or Lola881 can have Hardware sample rate converters
  * on its digital input pins
  */
-static int __devinit create_input_src_mixer(struct lola *chip)
+static int create_input_src_mixer(struct lola *chip)
 {
 	if (!chip->input_src_caps_mask)
 		return 0;
@@ -726,7 +726,7 @@ static int lola_src_gain_put(struct snd_kcontrol *kcontrol,
 /* raw value: 0 = -84dB, 336 = 0dB, 408=18dB, incremented 1 for mute */
 static const DECLARE_TLV_DB_SCALE(lola_src_gain_tlv, -8425, 25, 1);
 
-static struct snd_kcontrol_new lola_src_gain_mixer __devinitdata = {
+static struct snd_kcontrol_new lola_src_gain_mixer = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
 		   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
@@ -736,8 +736,8 @@ static struct snd_kcontrol_new lola_src_gain_mixer __devinitdata = {
 	.tlv.p = lola_src_gain_tlv,
 };
 
-static int __devinit create_src_gain_mixer(struct lola *chip,
-					   int num, int ofs, char *name)
+static int create_src_gain_mixer(struct lola *chip,
+				 int num, int ofs, char *name)
 {
 	lola_src_gain_mixer.name = name;
 	lola_src_gain_mixer.private_value = ofs + (num << 8);
@@ -813,7 +813,7 @@ static int lola_dest_gain_put(struct snd_kcontrol *kcontrol,
 
 static const DECLARE_TLV_DB_SCALE(lola_dest_gain_tlv, -8425, 25, 1);
 
-static struct snd_kcontrol_new lola_dest_gain_mixer __devinitdata = {
+static struct snd_kcontrol_new lola_dest_gain_mixer = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
 		   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
@@ -823,9 +823,9 @@ static struct snd_kcontrol_new lola_dest_gain_mixer __devinitdata = {
 	.tlv.p = lola_dest_gain_tlv,
 };
 
-static int __devinit create_dest_gain_mixer(struct lola *chip,
-					    int src_num, int src_ofs,
-					    int num, int ofs, char *name)
+static int create_dest_gain_mixer(struct lola *chip,
+				  int src_num, int src_ofs,
+				  int num, int ofs, char *name)
 {
 	lola_dest_gain_mixer.count = num;
 	lola_dest_gain_mixer.name = name;
@@ -838,7 +838,7 @@ static int __devinit create_dest_gain_mixer(struct lola *chip,
 
 /*
  */
-int __devinit lola_create_mixer(struct lola *chip)
+int lola_create_mixer(struct lola *chip)
 {
 	int err;
 
