@@ -206,6 +206,37 @@ static int nfsd_init_socks(struct net *net)
 
 static bool nfsd_up = false;
 
+static int nfsd_startup_generic(int nrservs)
+{
+	int ret;
+
+	if (nfsd_up)
+		return 0;
+
+	/*
+	 * Readahead param cache - will no-op if it already exists.
+	 * (Note therefore results will be suboptimal if number of
+	 * threads is modified after nfsd start.)
+	 */
+	ret = nfsd_racache_init(2*nrservs);
+	if (ret)
+		return ret;
+	ret = nfs4_state_start();
+	if (ret)
+		goto out_racache;
+	return 0;
+
+out_racache:
+	nfsd_racache_shutdown();
+	return ret;
+}
+
+static void nfsd_shutdown_generic(void)
+{
+	nfs4_state_shutdown();
+	nfsd_racache_shutdown();
+}
+
 static int nfsd_startup_net(struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
@@ -236,19 +267,9 @@ static int nfsd_startup(int nrservs, struct net *net)
 {
 	int ret;
 
-	if (nfsd_up)
-		return 0;
-	/*
-	 * Readahead param cache - will no-op if it already exists.
-	 * (Note therefore results will be suboptimal if number of
-	 * threads is modified after nfsd start.)
-	 */
-	ret = nfsd_racache_init(2*nrservs);
+	ret = nfsd_startup_generic(nrservs);
 	if (ret)
 		return ret;
-	ret = nfs4_state_start();
-	if (ret)
-		goto out_racache;
 	ret = nfsd_startup_net(net);
 	if (ret)
 		goto out_net;
@@ -257,9 +278,7 @@ static int nfsd_startup(int nrservs, struct net *net)
 	return 0;
 
 out_net:
-	nfs4_state_shutdown();
-out_racache:
-	nfsd_racache_shutdown();
+	nfsd_shutdown_generic();
 	return ret;
 }
 
@@ -286,8 +305,7 @@ static void nfsd_shutdown(struct net *net)
 	if (!nfsd_up)
 		return;
 	nfsd_shutdown_net(net);
-	nfs4_state_shutdown();
-	nfsd_racache_shutdown();
+	nfsd_shutdown_generic();
 	nfsd_up = false;
 }
 
