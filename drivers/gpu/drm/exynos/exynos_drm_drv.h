@@ -74,8 +74,6 @@ enum exynos_drm_output_type {
  * @commit: apply hardware specific overlay data to registers.
  * @enable: enable hardware specific overlay.
  * @disable: disable hardware specific overlay.
- * @wait_for_vblank: wait for vblank interrupt to make sure that
- *	hardware overlay is disabled.
  */
 struct exynos_drm_overlay_ops {
 	void (*mode_set)(struct device *subdrv_dev,
@@ -83,7 +81,6 @@ struct exynos_drm_overlay_ops {
 	void (*commit)(struct device *subdrv_dev, int zpos);
 	void (*enable)(struct device *subdrv_dev, int zpos);
 	void (*disable)(struct device *subdrv_dev, int zpos);
-	void (*wait_for_vblank)(struct device *subdrv_dev);
 };
 
 /*
@@ -186,6 +183,8 @@ struct exynos_drm_display_ops {
  * @commit: set current hw specific display mode to hw.
  * @enable_vblank: specific driver callback for enabling vblank interrupt.
  * @disable_vblank: specific driver callback for disabling vblank interrupt.
+ * @wait_for_vblank: wait for vblank interrupt to make sure that
+ *	hardware overlay is updated.
  */
 struct exynos_drm_manager_ops {
 	void (*dpms)(struct device *subdrv_dev, int mode);
@@ -200,6 +199,7 @@ struct exynos_drm_manager_ops {
 	void (*commit)(struct device *subdrv_dev);
 	int (*enable_vblank)(struct device *subdrv_dev);
 	void (*disable_vblank)(struct device *subdrv_dev);
+	void (*wait_for_vblank)(struct device *subdrv_dev);
 };
 
 /*
