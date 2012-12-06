@@ -108,7 +108,7 @@ void nouveau_therm_sensor_event(struct nouveau_therm *therm,
 	switch (thrs) {
 	case NOUVEAU_THERM_THRS_FANBOOST:
 		nouveau_therm_fan_set(therm, true, 100);
-		nouveau_therm_mode(therm, FAN_CONTROL_AUTO);
+		nouveau_therm_mode(therm, NOUVEAU_THERM_CTRL_AUTO);
 		break;
 	case NOUVEAU_THERM_THRS_DOWNCLOCK:
 		if (priv->emergency.downclock)

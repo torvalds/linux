@@ -93,24 +93,27 @@ nouveau_therm_update(struct nouveau_therm *therm, int mode)
 	priv->mode = mode;
 
 	switch (mode) {
-	case FAN_CONTROL_MANUAL:
-		duty = priv->fan->percent;
+	case NOUVEAU_THERM_CTRL_MANUAL:
+		duty = nouveau_therm_fan_get(therm);
+		if (duty < 0)
+			duty = 100;
 		break;
-	case FAN_CONTROL_AUTO:
+	case NOUVEAU_THERM_CTRL_AUTO:
 		if (priv->fan->bios.nr_fan_trip)
 			duty = nouveau_therm_update_trip(therm);
 		else
 			duty = nouveau_therm_update_linear(therm);
 		break;
-	case FAN_CONTROL_NONE:
+	case NOUVEAU_THERM_CTRL_NONE:
 	default:
 		goto done;
 	}
 
-	nouveau_therm_fan_set(therm, (mode != FAN_CONTROL_AUTO), duty);
+	nv_debug(therm, "FAN target request: %d%%\n", duty);
+	nouveau_therm_fan_set(therm, (mode != NOUVEAU_THERM_CTRL_AUTO), duty);
 
 done:
-	if (list_empty(&priv->alarm.head) && (mode == FAN_CONTROL_AUTO))
+	if (list_empty(&priv->alarm.head) && (mode == NOUVEAU_THERM_CTRL_AUTO))
 		ptimer->alarm(ptimer, 1000000000ULL, &priv->alarm);
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
@@ -127,28 +130,22 @@ int
 nouveau_therm_mode(struct nouveau_therm *therm, int mode)
 {
 	struct nouveau_therm_priv *priv = (void *)therm;
+	struct nouveau_device *device = nv_device(therm);
+	static const char *name[] = {
+		"disabled",
+		"manual",
+		"automatic"
+	};
+
+	/* The default PDAEMON ucode interferes with fan management */
+	if ((mode >= ARRAY_SIZE(name)) ||
+	    (mode != NOUVEAU_THERM_CTRL_NONE && device->card_type >= NV_C0))
+		return -EINVAL;
 
 	if (priv->mode == mode)
 		return 0;
 
-	/* The default PDAEMON ucode interferes with fan management */
-	if (nv_device(therm)->card_type >= NV_C0)
-		return -EINVAL;
-
-	switch (mode) {
-	case FAN_CONTROL_NONE:
-		nv_info(therm, "switch to no-control mode\n");
-		break;
-	case FAN_CONTROL_MANUAL:
-		nv_info(therm, "switch to manual mode\n");
-		break;
-	case FAN_CONTROL_AUTO:
-		nv_info(therm, "switch to automatic mode\n");
-		break;
-	default:
-		return -EINVAL;
-	}
-
+	nv_info(therm, "Thermal management: %s\n", name[mode]);
 	nouveau_therm_update(therm, mode);
 	return 0;
 }
@@ -258,9 +255,8 @@ _nouveau_therm_init(struct nouveau_object *object)
 	if (ret)
 		return ret;
 
-	if (priv->fan->percent >= 0)
-		therm->fan_set(therm, priv->fan->percent);
-
+	if (priv->suspend >= 0)
+		nouveau_therm_mode(therm, priv->mode);
 	priv->sensor.program_alarms(therm);
 	return 0;
 }
@@ -271,7 +267,10 @@ _nouveau_therm_fini(struct nouveau_object *object, bool suspend)
 	struct nouveau_therm *therm = (void *)object;
 	struct nouveau_therm_priv *priv = (void *)therm;
 
-	priv->fan->percent = therm->fan_get(therm);
+	if (suspend) {
+		priv->suspend = priv->mode;
+		priv->mode = NOUVEAU_THERM_CTRL_NONE;
+	}
 
 	return nouveau_subdev_fini(&therm->base, suspend);
 }
@@ -299,6 +298,7 @@ nouveau_therm_create_(struct nouveau_object *parent,
 	priv->base.fan_sense = nouveau_therm_fan_sense;
 	priv->base.attr_get = nouveau_therm_attr_get;
 	priv->base.attr_set = nouveau_therm_attr_set;
+	priv->mode = priv->suspend = -1; /* undefined */
 	return 0;
 }
 
@@ -308,6 +308,8 @@ nouveau_therm_preinit(struct nouveau_therm *therm)
 	nouveau_therm_ic_ctor(therm);
 	nouveau_therm_sensor_ctor(therm);
 	nouveau_therm_fan_ctor(therm);
+
+	nouveau_therm_mode(therm, NOUVEAU_THERM_CTRL_NONE);
 	return 0;
 }
 

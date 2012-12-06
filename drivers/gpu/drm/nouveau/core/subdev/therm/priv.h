@@ -76,6 +76,7 @@ struct nouveau_therm_priv {
 	spinlock_t lock;
 	struct nouveau_therm_trip_point *last_trip;
 	int mode;
+	int suspend;
 
 	/* bios */
 	struct nvbios_therm_sensor bios_sensor;

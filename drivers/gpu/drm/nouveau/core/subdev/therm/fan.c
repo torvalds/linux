@@ -47,10 +47,17 @@ nouveau_fan_update(struct nouveau_fan *fan, bool immediate, int target)
 		target = fan->percent;
 	target = max_t(u8, target, fan->bios.min_duty);
 	target = min_t(u8, target, fan->bios.max_duty);
-	fan->percent = target;
+	if (fan->percent != target) {
+		nv_debug(therm, "FAN target: %d\n", target);
+		fan->percent = target;
+	}
+
+	/* check that we're not already at the target duty cycle */
+	duty = fan->get(therm);
+	if (duty == target)
+		goto done;
 
 	/* smooth out the fanspeed increase/decrease */
-	duty = fan->get(therm);
 	if (!immediate && duty >= 0) {
 		/* the constant "3" is a rough approximation taken from
 		 * nvidia's behaviour.
@@ -64,6 +71,7 @@ nouveau_fan_update(struct nouveau_fan *fan, bool immediate, int target)
 		duty = target;
 	}
 
+	nv_debug(therm, "FAN update: %d\n", duty);
 	ret = fan->set(therm, duty);
 	if (ret)
 		goto done;
@@ -161,7 +169,7 @@ nouveau_therm_fan_user_set(struct nouveau_therm *therm, int percent)
 {
 	struct nouveau_therm_priv *priv = (void *)therm;
 
-	if (priv->mode != FAN_CONTROL_MANUAL)
+	if (priv->mode != NOUVEAU_THERM_CTRL_MANUAL)
 		return -EINVAL;
 
 	return nouveau_therm_fan_set(therm, true, percent);

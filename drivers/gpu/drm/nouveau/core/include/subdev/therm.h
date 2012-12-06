@@ -4,11 +4,10 @@
 #include <core/device.h>
 #include <core/subdev.h>
 
-enum nouveau_therm_fan_mode {
-	FAN_CONTROL_NONE = 0,
-	FAN_CONTROL_MANUAL = 1,
-	FAN_CONTROL_AUTO = 2,
-	FAN_CONTROL_NR,
+enum nouveau_therm_mode {
+	NOUVEAU_THERM_CTRL_NONE = 0,
+	NOUVEAU_THERM_CTRL_MANUAL = 1,
+	NOUVEAU_THERM_CTRL_AUTO = 2,
 };
 
 enum nouveau_therm_attr_type {
