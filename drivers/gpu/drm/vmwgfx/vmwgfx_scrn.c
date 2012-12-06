@@ -468,7 +468,7 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 
 	drm_mode_crtc_set_gamma_size(crtc, 256);
 
-	drm_connector_attach_property(connector,
+	drm_object_attach_property(&connector->base,
 				      dev->mode_config.dirty_info_property,
 				      1);
 

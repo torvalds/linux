@@ -185,14 +185,14 @@ static int cdv_hdmi_set_property(struct drm_connector *connector,
 			return -1;
 		}
 
-		if (drm_connector_property_get_value(connector,
+		if (drm_object_property_get_value(&connector->base,
 							property, &curValue))
 			return -1;
 
 		if (curValue == value)
 			return 0;
 
-		if (drm_connector_property_set_value(connector,
+		if (drm_object_property_set_value(&connector->base,
 							property, value))
 			return -1;
 
@@ -341,7 +341,7 @@ void cdv_hdmi_init(struct drm_device *dev,
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
 
-	drm_connector_attach_property(connector,
+	drm_object_attach_property(&connector->base,
 				      dev->mode_config.scaling_mode_property,
 				      DRM_MODE_SCALE_FULLSCREEN);
 

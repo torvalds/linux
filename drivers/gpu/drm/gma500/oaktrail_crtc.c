@@ -351,7 +351,7 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 		  (mode->crtc_vdisplay - 1));
 
 	if (psb_intel_encoder)
-		drm_connector_property_get_value(connector,
+		drm_object_property_get_value(&connector->base,
 			dev->mode_config.scaling_mode_property, &scalingType);
 
 	if (scalingType == DRM_MODE_SCALE_NO_SCALE) {

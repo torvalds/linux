@@ -559,11 +559,11 @@ int drm_connector_init(struct drm_device *dev,
 	dev->mode_config.num_connector++;
 
 	if (connector_type != DRM_MODE_CONNECTOR_VIRTUAL)
-		drm_connector_attach_property(connector,
+		drm_object_attach_property(&connector->base,
 					      dev->mode_config.edid_property,
 					      0);
 
-	drm_connector_attach_property(connector,
+	drm_object_attach_property(&connector->base,
 				      dev->mode_config.dpms_property, 0);
 
  out:
@@ -2928,27 +2928,6 @@ void drm_property_destroy(struct drm_device *dev, struct drm_property *property)
 }
 EXPORT_SYMBOL(drm_property_destroy);
 
-void drm_connector_attach_property(struct drm_connector *connector,
-			       struct drm_property *property, uint64_t init_val)
-{
-	drm_object_attach_property(&connector->base, property, init_val);
-}
-EXPORT_SYMBOL(drm_connector_attach_property);
-
-int drm_connector_property_set_value(struct drm_connector *connector,
-				  struct drm_property *property, uint64_t value)
-{
-	return drm_object_property_set_value(&connector->base, property, value);
-}
-EXPORT_SYMBOL(drm_connector_property_set_value);
-
-int drm_connector_property_get_value(struct drm_connector *connector,
-				  struct drm_property *property, uint64_t *val)
-{
-	return drm_object_property_get_value(&connector->base, property, val);
-}
-EXPORT_SYMBOL(drm_connector_property_get_value);
-
 void drm_object_attach_property(struct drm_mode_object *obj,
 				struct drm_property *property,
 				uint64_t init_val)
@@ -3185,7 +3164,7 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 	/* Delete edid, when there is none. */
 	if (!edid) {
 		connector->edid_blob_ptr = NULL;
-		ret = drm_connector_property_set_value(connector, dev->mode_config.edid_property, 0);
+		ret = drm_object_property_set_value(&connector->base, dev->mode_config.edid_property, 0);
 		return ret;
 	}
 
@@ -3195,7 +3174,7 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 	if (!connector->edid_blob_ptr)
 		return -EINVAL;
 
-	ret = drm_connector_property_set_value(connector,
+	ret = drm_object_property_set_value(&connector->base,
 					       dev->mode_config.edid_property,
 					       connector->edid_blob_ptr->base.id);
 
@@ -3262,7 +3241,7 @@ static int drm_mode_connector_set_obj_prop(struct drm_mode_object *obj,
 
 	/* store the property value if successful */
 	if (!ret)
-		drm_connector_property_set_value(connector, property, value);
+		drm_object_property_set_value(&connector->base, property, value);
 	return ret;
 }
 

@@ -2569,8 +2569,8 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 
 	if (is_edp(intel_dp)) {
 		drm_mode_create_scaling_mode_property(connector->dev);
-		drm_connector_attach_property(
-			connector,
+		drm_object_attach_property(
+			&connector->base,
 			connector->dev->mode_config.scaling_mode_property,
 			DRM_MODE_SCALE_ASPECT);
 		intel_connector->panel.fitting_mode = DRM_MODE_SCALE_ASPECT;
