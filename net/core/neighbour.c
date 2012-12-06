@@ -62,9 +62,6 @@ static void __neigh_notify(struct neighbour *n, int type, int flags);
 static void neigh_update_notify(struct neighbour *neigh);
 static int pneigh_ifdown(struct neigh_table *tbl, struct net_device *dev);
 
-static int zero;
-static int unres_qlen_max = INT_MAX / SKB_TRUESIZE(ETH_FRAME_LEN);
-
 static struct neigh_table *neigh_tables;
 #ifdef CONFIG_PROC_FS
 static const struct file_operations neigh_stat_seq_fops;
@@ -2772,6 +2769,8 @@ EXPORT_SYMBOL(neigh_app_ns);
 #endif /* CONFIG_ARPD */
 
 #ifdef CONFIG_SYSCTL
+static int zero;
+static int unres_qlen_max = INT_MAX / SKB_TRUESIZE(ETH_FRAME_LEN);
 
 static int proc_unres_qlen(ctl_table *ctl, int write, void __user *buffer,
 			   size_t *lenp, loff_t *ppos)
