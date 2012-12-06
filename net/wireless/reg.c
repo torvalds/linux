@@ -647,9 +647,9 @@ static struct ieee80211_regdomain *regdom_intersect(
 	if (!rd)
 		return NULL;
 
-	for (x = 0; x < rd1->n_reg_rules; x++) {
+	for (x = 0; x < rd1->n_reg_rules && rule_idx < num_rules; x++) {
 		rule1 = &rd1->reg_rules[x];
-		for (y = 0; y < rd2->n_reg_rules; y++) {
+		for (y = 0; y < rd2->n_reg_rules && rule_idx < num_rules; y++) {
 			rule2 = &rd2->reg_rules[y];
 			/*
 			 * This time around instead of using the stack lets
