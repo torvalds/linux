@@ -58,7 +58,7 @@ attributes should be available:
 
 You may also have the following attribute:
 
- * fan0_input: Speed in RPM of your fan.
+ * fan1_input: Speed in RPM of your fan.
 
 Your fan can be driven in different modes:
 

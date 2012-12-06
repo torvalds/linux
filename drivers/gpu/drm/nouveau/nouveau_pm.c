@@ -698,7 +698,7 @@ static SENSOR_DEVICE_ATTR(update_rate, S_IRUGO,
 						NULL, 0);
 
 static ssize_t
-nouveau_hwmon_show_fan0_input(struct device *d, struct device_attribute *attr,
+nouveau_hwmon_show_fan1_input(struct device *d, struct device_attribute *attr,
 			      char *buf)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
@@ -707,7 +707,7 @@ nouveau_hwmon_show_fan0_input(struct device *d, struct device_attribute *attr,
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", therm->fan_sense(therm));
 }
-static SENSOR_DEVICE_ATTR(fan0_input, S_IRUGO, nouveau_hwmon_show_fan0_input,
+static SENSOR_DEVICE_ATTR(fan1_input, S_IRUGO, nouveau_hwmon_show_fan1_input,
 			  NULL, 0);
 
  static ssize_t
@@ -887,7 +887,7 @@ static struct attribute *hwmon_attributes[] = {
 	NULL
 };
 static struct attribute *hwmon_fan_rpm_attributes[] = {
-	&sensor_dev_attr_fan0_input.dev_attr.attr,
+	&sensor_dev_attr_fan1_input.dev_attr.attr,
 	NULL
 };
 static struct attribute *hwmon_pwm_fan_attributes[] = {
