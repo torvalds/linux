@@ -30,7 +30,6 @@
 #define ACCOUNT_STOLEN_TIME
 #else
 #define ACCOUNT_CPU_USER_ENTRY(ra, rb)					\
-	beq	2f;			/* if from kernel mode */	\
 	MFTB(ra);			/* get timebase */		\
 	ld	rb,PACA_STARTTIME_USER(r13);				\
 	std	ra,PACA_STARTTIME(r13);					\
@@ -38,7 +37,6 @@
 	ld	ra,PACA_USER_TIME(r13);					\
 	add	ra,ra,rb;		/* add on to user time */	\
 	std	ra,PACA_USER_TIME(r13);					\
-2:
 
 #define ACCOUNT_CPU_USER_EXIT(ra, rb)					\
 	MFTB(ra);			/* get timebase */		\
