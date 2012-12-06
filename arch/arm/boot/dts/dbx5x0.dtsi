@@ -679,6 +679,8 @@
 			regulator-name = "mmci-reg";
 			regulator-type = "voltage";
 
+			enable-active-high;
+
 			states = <1800000 0x1
 				  2900000 0x0>;
 
