@@ -18,6 +18,16 @@
 #define TS_FPRWIDTH 1
 #endif
 
+#ifdef CONFIG_PPC64
+/* Default SMT priority is set to 3. Use 11- 13bits to save priority. */
+#define PPR_PRIORITY 3
+#ifdef __ASSEMBLY__
+#define INIT_PPR (PPR_PRIORITY << 50)
+#else
+#define INIT_PPR ((u64)PPR_PRIORITY << 50)
+#endif /* __ASSEMBLY__ */
+#endif /* CONFIG_PPC64 */
+
 #ifndef __ASSEMBLY__
 #include <linux/compiler.h>
 #include <linux/cache.h>
@@ -245,6 +255,7 @@ struct thread_struct {
 #ifdef CONFIG_PPC64
 	unsigned long	dscr;
 	int		dscr_inherit;
+	unsigned long	ppr;	/* used to save/restore SMT priority */
 #endif
 };
 
@@ -278,6 +289,7 @@ struct thread_struct {
 	.fpr = {{0}}, \
 	.fpscr = { .val = 0, }, \
 	.fpexc_mode = 0, \
+	.ppr = INIT_PPR, \
 }
 #endif
 

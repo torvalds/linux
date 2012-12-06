@@ -813,6 +813,8 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		p->thread.dscr_inherit = current->thread.dscr_inherit;
 		p->thread.dscr = current->thread.dscr;
 	}
+	if (cpu_has_feature(CPU_FTR_HAS_PPR))
+		p->thread.ppr = INIT_PPR;
 #endif
 	/*
 	 * The PPC64 ABI makes use of a TOC to contain function 
