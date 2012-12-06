@@ -24,38 +24,35 @@
 	};
 
 	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
 		cpu@0 {
 			compatible = "arm,cortex-a15";
-			timer {
-				compatible = "arm,armv7-timer";
-				interrupts = <1 13 0xf08>;
-				clock-frequency = <1000000>;
-			};
+			reg = <0>;
 		};
 		cpu@1 {
 			compatible = "arm,cortex-a15";
-			timer {
-				compatible = "arm,armv7-timer";
-				interrupts = <1 14 0xf08>;
-				clock-frequency = <1000000>;
-			};
+			reg = <1>;
 		};
 		cpu@2 {
 			compatible = "arm,cortex-a15";
-			timer {
-				compatible = "arm,armv7-timer";
-				interrupts = <1 14 0xf08>;
-				clock-frequency = <1000000>;
-			};
+			reg = <2>;
 		};
 		cpu@3 {
 			compatible = "arm,cortex-a15";
-			timer {
-				compatible = "arm,armv7-timer";
-				interrupts = <1 14 0xf08>;
-				clock-frequency = <1000000>;
-			};
+			reg = <3>;
 		};
+	};
+
+	timer {
+		compatible = "arm,cortex-a15-timer",
+			     "arm,armv7-timer";
+		interrupts = <1 13 0xf08>,
+			     <1 14 0xf08>,
+			     <1 11 0xf08>,
+			     <1 10 0xf08>;
+		clock-frequency = <50000000>;
 	};
 
 	serial@B0000 {
