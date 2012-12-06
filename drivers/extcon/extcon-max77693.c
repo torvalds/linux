@@ -63,6 +63,13 @@ struct max77693_muic_info {
 
 	/* Button of dock device */
 	struct input_dev *dock;
+
+	/*
+	 * Default usb/uart path whether UART/USB or AUX_UART/AUX_USB
+	 * h/w path of COMP2/COMN1 on CONTROL1 register.
+	 */
+	int path_usb;
+	int path_uart;
 };
 
 enum max77693_muic_cable_group {
@@ -1057,6 +1064,23 @@ static int max77693_muic_probe(struct platform_device *pdev)
 			info->max77693->irq_masks_cur[irq_src]
 				= muic_pdata->init_data[i].data;
 	}
+
+	/*
+	 * Default usb/uart path whether UART/USB or AUX_UART/AUX_USB
+	 * h/w path of COMP2/COMN1 on CONTROL1 register.
+	 */
+	if (muic_pdata->path_uart)
+		info->path_uart = muic_pdata->path_uart;
+	else
+		info->path_uart = CONTROL1_SW_UART;
+
+	if (muic_pdata->path_usb)
+		info->path_usb = muic_pdata->path_usb;
+	else
+		info->path_usb = CONTROL1_SW_USB;
+
+	/* Set initial path for UART */
+	 max77693_muic_set_path(info, info->path_uart, true);
 
 	/* Check revision number of MUIC device*/
 	ret = max77693_read_reg(info->max77693->regmap_muic,
