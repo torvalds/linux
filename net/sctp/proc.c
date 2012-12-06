@@ -139,7 +139,11 @@ static void sctp_seq_dump_local_addrs(struct seq_file *seq, struct sctp_ep_commo
 	    primary = &peer->saddr;
 	}
 
-	list_for_each_entry(laddr, &epb->bind_addr.address_list, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(laddr, &epb->bind_addr.address_list, list) {
+		if (!laddr->valid)
+			continue;
+
 		addr = &laddr->a;
 		af = sctp_get_af_specific(addr->sa.sa_family);
 		if (primary && af->cmp_addr(addr, primary)) {
@@ -147,6 +151,7 @@ static void sctp_seq_dump_local_addrs(struct seq_file *seq, struct sctp_ep_commo
 		}
 		af->seq_dump_addr(seq, addr);
 	}
+	rcu_read_unlock();
 }
 
 /* Dump remote addresses of an association. */
