@@ -86,7 +86,7 @@ int sysctl_sctp_rmem[3];
 int sysctl_sctp_wmem[3];
 
 /* Set up the proc fs entry for the SCTP protocol. */
-static __net_init int sctp_proc_init(struct net *net)
+static int __net_init sctp_proc_init(struct net *net)
 {
 #ifdef CONFIG_PROC_FS
 	net->sctp.proc_net_sctp = proc_net_mkdir(net, "sctp", net->proc_net);
@@ -1165,7 +1165,7 @@ static void sctp_v4_del_protocol(void)
 	unregister_inetaddr_notifier(&sctp_inetaddr_notifier);
 }
 
-static int sctp_net_init(struct net *net)
+static int __net_init sctp_net_init(struct net *net)
 {
 	int status;
 
@@ -1290,7 +1290,7 @@ err_sysctl_register:
 	return status;
 }
 
-static void sctp_net_exit(struct net *net)
+static void __net_exit sctp_net_exit(struct net *net)
 {
 	/* Free the local address list */
 	sctp_free_addr_wq(net);
