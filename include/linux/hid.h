@@ -721,6 +721,7 @@ struct hid_ll_driver {
 
 extern int hid_debug;
 
+extern bool hid_ignore(struct hid_device *);
 extern int hid_add_device(struct hid_device *);
 extern void hid_destroy_device(struct hid_device *);
 
