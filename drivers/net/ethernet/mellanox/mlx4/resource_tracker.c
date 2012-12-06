@@ -3128,7 +3128,7 @@ int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 		mlx4_err(dev, "Fail to add flow steering resources.\n ");
 		/* detach rule*/
 		mlx4_cmd(dev, vhcr->out_param, 0, 0,
-			 MLX4_QP_FLOW_STEERING_ATTACH, MLX4_CMD_TIME_CLASS_A,
+			 MLX4_QP_FLOW_STEERING_DETACH, MLX4_CMD_TIME_CLASS_A,
 			 MLX4_CMD_NATIVE);
 	}
 err_put:
