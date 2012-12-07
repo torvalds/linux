@@ -511,7 +511,7 @@ static inline int acpi_subsys_resume_early(struct device *dev) { return 0; }
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_PM)
 int acpi_dev_pm_attach(struct device *dev, bool power_on);
-int acpi_dev_pm_detach(struct device *dev, bool power_off);
+void acpi_dev_pm_detach(struct device *dev, bool power_off);
 #else
 static inline int acpi_dev_pm_attach(struct device *dev, bool power_on)
 {
