@@ -589,6 +589,8 @@ static const struct snd_kcontrol_new cs42l73_snd_controls[] = {
 };
 
 static const struct snd_soc_dapm_widget cs42l73_dapm_widgets[] = {
+	SND_SOC_DAPM_INPUT("DMICA"),
+	SND_SOC_DAPM_INPUT("DMICB"),
 	SND_SOC_DAPM_INPUT("LINEINA"),
 	SND_SOC_DAPM_INPUT("LINEINB"),
 	SND_SOC_DAPM_INPUT("MIC1"),
@@ -795,6 +797,8 @@ static const struct snd_soc_dapm_route cs42l73_audio_map[] = {
 
 	{"ADC Left", NULL, "PGA Left"},
 	{"ADC Right", NULL, "PGA Right"},
+	{"DMIC Left", NULL, "DMICA"},
+	{"DMIC Right", NULL, "DMICB"},
 
 	{"Input Left Capture", "ADC Left Input", "ADC Left"},
 	{"Input Right Capture", "ADC Right Input", "ADC Right"},
