@@ -615,15 +615,9 @@ static int bond_check_dev_link(struct bonding *bond,
 		return netif_carrier_ok(slave_dev) ? BMSR_LSTATUS : 0;
 
 	/* Try to get link status using Ethtool first. */
-	if (slave_dev->ethtool_ops) {
-		if (slave_dev->ethtool_ops->get_link) {
-			u32 link;
-
-			link = slave_dev->ethtool_ops->get_link(slave_dev);
-
-			return link ? BMSR_LSTATUS : 0;
-		}
-	}
+	if (slave_dev->ethtool_ops->get_link)
+		return slave_dev->ethtool_ops->get_link(slave_dev) ?
+			BMSR_LSTATUS : 0;
 
 	/* Ethtool can't be used, fallback to MII ioctls. */
 	ioctl = slave_ops->ndo_do_ioctl;
@@ -1510,8 +1504,9 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	int link_reporting;
 	int res = 0;
 
-	if (!bond->params.use_carrier && slave_dev->ethtool_ops == NULL &&
-		slave_ops->ndo_do_ioctl == NULL) {
+	if (!bond->params.use_carrier &&
+	    slave_dev->ethtool_ops->get_link == NULL &&
+	    slave_ops->ndo_do_ioctl == NULL) {
 		pr_warning("%s: Warning: no link monitoring support for %s\n",
 			   bond_dev->name, slave_dev->name);
 	}
