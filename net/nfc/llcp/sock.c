@@ -808,7 +808,6 @@ struct sock *nfc_llcp_sock_alloc(struct socket *sock, int type, gfp_t gfp)
 	llcp_sock->reserved_ssap = LLCP_SAP_MAX;
 	skb_queue_head_init(&llcp_sock->tx_queue);
 	skb_queue_head_init(&llcp_sock->tx_pending_queue);
-	skb_queue_head_init(&llcp_sock->tx_backlog_queue);
 	INIT_LIST_HEAD(&llcp_sock->accept_queue);
 
 	if (sock != NULL)
@@ -823,7 +822,6 @@ void nfc_llcp_sock_free(struct nfc_llcp_sock *sock)
 
 	skb_queue_purge(&sock->tx_queue);
 	skb_queue_purge(&sock->tx_pending_queue);
-	skb_queue_purge(&sock->tx_backlog_queue);
 
 	list_del_init(&sock->accept_queue);
 

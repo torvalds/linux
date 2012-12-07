@@ -54,7 +54,6 @@ static void nfc_llcp_socket_purge(struct nfc_llcp_sock *sock)
 
 	skb_queue_purge(&sock->tx_queue);
 	skb_queue_purge(&sock->tx_pending_queue);
-	skb_queue_purge(&sock->tx_backlog_queue);
 
 	if (local == NULL)
 		return;
@@ -785,7 +784,7 @@ static void nfc_llcp_recv_ui(struct nfc_llcp_local *local,
 	skb_pull(skb, LLCP_HEADER_SIZE);
 	if (sock_queue_rcv_skb(&llcp_sock->sk, skb)) {
 		pr_err("receive queue is full\n");
-		skb_queue_head(&llcp_sock->tx_backlog_queue, skb);
+		kfree_skb(skb);
 	}
 
 	nfc_llcp_sock_put(llcp_sock);
@@ -980,7 +979,7 @@ static void nfc_llcp_recv_hdlc(struct nfc_llcp_local *local,
 		skb_pull(skb, LLCP_HEADER_SIZE + LLCP_SEQUENCE_SIZE);
 		if (sock_queue_rcv_skb(&llcp_sock->sk, skb)) {
 			pr_err("receive queue is full\n");
-			skb_queue_head(&llcp_sock->tx_backlog_queue, skb);
+			kfree_skb(skb);
 		}
 	}
 
