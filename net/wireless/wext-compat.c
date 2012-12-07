@@ -176,7 +176,7 @@ int cfg80211_wext_giwrange(struct net_device *dev,
 	case CFG80211_SIGNAL_TYPE_NONE:
 		break;
 	case CFG80211_SIGNAL_TYPE_MBM:
-		range->max_qual.level = -110;
+		range->max_qual.level = (u8)-110;
 		range->max_qual.qual = 70;
 		range->avg_qual.qual = 35;
 		range->max_qual.updated |= IW_QUAL_DBM;
