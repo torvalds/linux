@@ -176,6 +176,7 @@ struct brcms_pub {
 	bool phy_11ncapable;	/* the PHY/HW is capable of 802.11N */
 
 	struct wl_cnt *_cnt;	/* low-level counters in driver */
+	struct dentry *dbgfs_dir;
 };
 
 enum wlc_par_id {
@@ -282,9 +283,9 @@ extern void brcms_c_intrson(struct brcms_c_info *wlc);
 extern u32 brcms_c_intrsoff(struct brcms_c_info *wlc);
 extern void brcms_c_intrsrestore(struct brcms_c_info *wlc, u32 macintmask);
 extern bool brcms_c_intrsupd(struct brcms_c_info *wlc);
-extern bool brcms_c_isr(struct brcms_c_info *wlc, bool *wantdpc);
+extern bool brcms_c_isr(struct brcms_c_info *wlc);
 extern bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded);
-extern void brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc,
+extern bool brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc,
 				     struct sk_buff *sdu,
 				     struct ieee80211_hw *hw);
 extern bool brcms_c_aggregatable(struct brcms_c_info *wlc, u8 tid);

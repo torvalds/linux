@@ -257,8 +257,9 @@ static void ath_mci_set_concur_txprio(struct ath_softc *sc)
 {
 	struct ath_btcoex *btcoex = &sc->btcoex;
 	struct ath_mci_profile *mci = &btcoex->mci;
-	u8 stomp_txprio[] = { 0, 0, 0, 0 }; /* all, low, none, low_ftp */
+	u8 stomp_txprio[ATH_BTCOEX_STOMP_MAX];
 
+	memset(stomp_txprio, 0, sizeof(stomp_txprio));
 	if (mci->num_mgmt) {
 		stomp_txprio[ATH_BTCOEX_STOMP_ALL] = ATH_MCI_INQUIRY_PRIO;
 		if (!mci->num_pan && !mci->num_other_acl)

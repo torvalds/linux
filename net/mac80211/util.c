@@ -1107,12 +1107,12 @@ void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 }
 
 int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
-			     const u8 *ie, size_t ie_len,
+			     size_t buffer_len, const u8 *ie, size_t ie_len,
 			     enum ieee80211_band band, u32 rate_mask,
 			     u8 channel)
 {
 	struct ieee80211_supported_band *sband;
-	u8 *pos;
+	u8 *pos = buffer, *end = buffer + buffer_len;
 	size_t offset = 0, noffset;
 	int supp_rates_len, i;
 	u8 rates[32];
@@ -1123,8 +1123,6 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 	if (WARN_ON_ONCE(!sband))
 		return 0;
 
-	pos = buffer;
-
 	num_rates = 0;
 	for (i = 0; i < sband->n_bitrates; i++) {
 		if ((BIT(i) & rate_mask) == 0)
@@ -1134,6 +1132,8 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 
 	supp_rates_len = min_t(int, num_rates, 8);
 
+	if (end - pos < 2 + supp_rates_len)
+		goto out_err;
 	*pos++ = WLAN_EID_SUPP_RATES;
 	*pos++ = supp_rates_len;
 	memcpy(pos, rates, supp_rates_len);
@@ -1150,6 +1150,8 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 					     before_extrates,
 					     ARRAY_SIZE(before_extrates),
 					     offset);
+		if (end - pos < noffset - offset)
+			goto out_err;
 		memcpy(pos, ie + offset, noffset - offset);
 		pos += noffset - offset;
 		offset = noffset;
@@ -1157,6 +1159,8 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 
 	ext_rates_len = num_rates - supp_rates_len;
 	if (ext_rates_len > 0) {
+		if (end - pos < 2 + ext_rates_len)
+			goto out_err;
 		*pos++ = WLAN_EID_EXT_SUPP_RATES;
 		*pos++ = ext_rates_len;
 		memcpy(pos, rates + supp_rates_len, ext_rates_len);
@@ -1164,6 +1168,8 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 	}
 
 	if (channel && sband->band == IEEE80211_BAND_2GHZ) {
+		if (end - pos < 3)
+			goto out_err;
 		*pos++ = WLAN_EID_DS_PARAMS;
 		*pos++ = 1;
 		*pos++ = channel;
@@ -1182,14 +1188,19 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 		noffset = ieee80211_ie_split(ie, ie_len,
 					     before_ht, ARRAY_SIZE(before_ht),
 					     offset);
+		if (end - pos < noffset - offset)
+			goto out_err;
 		memcpy(pos, ie + offset, noffset - offset);
 		pos += noffset - offset;
 		offset = noffset;
 	}
 
-	if (sband->ht_cap.ht_supported)
+	if (sband->ht_cap.ht_supported) {
+		if (end - pos < 2 + sizeof(struct ieee80211_ht_cap))
+			goto out_err;
 		pos = ieee80211_ie_build_ht_cap(pos, &sband->ht_cap,
 						sband->ht_cap.cap);
+	}
 
 	/*
 	 * If adding more here, adjust code in main.c
@@ -1199,14 +1210,22 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 	/* add any remaining custom IEs */
 	if (ie && ie_len) {
 		noffset = ie_len;
+		if (end - pos < noffset - offset)
+			goto out_err;
 		memcpy(pos, ie + offset, noffset - offset);
 		pos += noffset - offset;
 	}
 
-	if (sband->vht_cap.vht_supported)
+	if (sband->vht_cap.vht_supported) {
+		if (end - pos < 2 + sizeof(struct ieee80211_vht_cap))
+			goto out_err;
 		pos = ieee80211_ie_build_vht_cap(pos, &sband->vht_cap,
 						 sband->vht_cap.cap);
+	}
 
+	return pos - buffer;
+ out_err:
+	WARN_ONCE(1, "not enough space for preq IEs\n");
 	return pos - buffer;
 }
 
@@ -1220,14 +1239,8 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	size_t buf_len;
-	u8 *buf;
 	u8 chan_no;
-
-	/* FIXME: come up with a proper value */
-	buf = kmalloc(200 + ie_len, GFP_KERNEL);
-	if (!buf)
-		return NULL;
+	int ies_len;
 
 	/*
 	 * Do not send DS Channel parameter for directed probe requests
@@ -1239,14 +1252,16 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	else
 		chan_no = ieee80211_frequency_to_channel(chan->center_freq);
 
-	buf_len = ieee80211_build_preq_ies(local, buf, ie, ie_len, chan->band,
-					   ratemask, chan_no);
-
 	skb = ieee80211_probereq_get(&local->hw, &sdata->vif,
-				     ssid, ssid_len,
-				     buf, buf_len);
+				     ssid, ssid_len, 100 + ie_len);
 	if (!skb)
-		goto out;
+		return NULL;
+
+	ies_len = ieee80211_build_preq_ies(local, skb_tail_pointer(skb),
+					   skb_tailroom(skb),
+					   ie, ie_len, chan->band,
+					   ratemask, chan_no);
+	skb_put(skb, ies_len);
 
 	if (dst) {
 		mgmt = (struct ieee80211_mgmt *) skb->data;
@@ -1255,9 +1270,6 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	}
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
-
- out:
-	kfree(buf);
 
 	return skb;
 }
@@ -1527,7 +1539,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			changed |= BSS_CHANGED_IBSS;
 			/* fall through */
 		case NL80211_IFTYPE_AP:
-			changed |= BSS_CHANGED_SSID;
+			changed |= BSS_CHANGED_SSID | BSS_CHANGED_P2P_PS;
 
 			if (sdata->vif.type == NL80211_IFTYPE_AP) {
 				changed |= BSS_CHANGED_AP_PROBE_RESP;

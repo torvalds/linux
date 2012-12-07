@@ -312,7 +312,6 @@ static struct ath_buf *ath_tx_get_buffer(struct ath_softc *sc)
 	}
 
 	bf = list_first_entry(&sc->tx.txbuf, struct ath_buf, list);
-	bf->bf_next = NULL;
 	list_del(&bf->list);
 
 	spin_unlock_bh(&sc->tx.txbuflock);
@@ -1263,7 +1262,7 @@ void ath_tx_aggr_sleep(struct ieee80211_sta *sta, struct ath_softc *sc,
 	int tidno;
 
 	for (tidno = 0, tid = &an->tid[tidno];
-	     tidno < WME_NUM_TID; tidno++, tid++) {
+	     tidno < IEEE80211_NUM_TIDS; tidno++, tid++) {
 
 		if (!tid->sched)
 			continue;
@@ -1297,7 +1296,7 @@ void ath_tx_aggr_wakeup(struct ath_softc *sc, struct ath_node *an)
 	int tidno;
 
 	for (tidno = 0, tid = &an->tid[tidno];
-	     tidno < WME_NUM_TID; tidno++, tid++) {
+	     tidno < IEEE80211_NUM_TIDS; tidno++, tid++) {
 
 		ac = tid->ac;
 		txq = ac->txq;
@@ -2448,7 +2447,7 @@ void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an)
 	int tidno, acno;
 
 	for (tidno = 0, tid = &an->tid[tidno];
-	     tidno < WME_NUM_TID;
+	     tidno < IEEE80211_NUM_TIDS;
 	     tidno++, tid++) {
 		tid->an        = an;
 		tid->tidno     = tidno;
@@ -2481,7 +2480,7 @@ void ath_tx_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 	int tidno;
 
 	for (tidno = 0, tid = &an->tid[tidno];
-	     tidno < WME_NUM_TID; tidno++, tid++) {
+	     tidno < IEEE80211_NUM_TIDS; tidno++, tid++) {
 
 		ac = tid->ac;
 		txq = ac->txq;

@@ -298,6 +298,7 @@ static int lbs_add_common_rates_tlv(u8 *tlv, struct cfg80211_bss *bss)
 	const u8 *rates_eid, *ext_rates_eid;
 	int n = 0;
 
+	rcu_read_lock();
 	rates_eid = ieee80211_bss_get_ie(bss, WLAN_EID_SUPP_RATES);
 	ext_rates_eid = ieee80211_bss_get_ie(bss, WLAN_EID_EXT_SUPP_RATES);
 
@@ -325,6 +326,7 @@ static int lbs_add_common_rates_tlv(u8 *tlv, struct cfg80211_bss *bss)
 		*tlv++ = 0x96;
 		n = 4;
 	}
+	rcu_read_unlock();
 
 	rate_tlv->header.len = cpu_to_le16(n);
 	return sizeof(rate_tlv->header) + n;
@@ -1140,11 +1142,13 @@ static int lbs_associate(struct lbs_private *priv,
 	cmd->capability = cpu_to_le16(bss->capability);
 
 	/* add SSID TLV */
+	rcu_read_lock();
 	ssid_eid = ieee80211_bss_get_ie(bss, WLAN_EID_SSID);
 	if (ssid_eid)
 		pos += lbs_add_ssid_tlv(pos, ssid_eid + 2, ssid_eid[1]);
 	else
 		lbs_deb_assoc("no SSID\n");
+	rcu_read_unlock();
 
 	/* add DS param TLV */
 	if (bss->channel)
@@ -1782,7 +1786,7 @@ static int lbs_ibss_join_existing(struct lbs_private *priv,
 	struct cfg80211_ibss_params *params,
 	struct cfg80211_bss *bss)
 {
-	const u8 *rates_eid = ieee80211_bss_get_ie(bss, WLAN_EID_SUPP_RATES);
+	const u8 *rates_eid;
 	struct cmd_ds_802_11_ad_hoc_join cmd;
 	u8 preamble = RADIO_PREAMBLE_SHORT;
 	int ret = 0;
@@ -1841,6 +1845,8 @@ static int lbs_ibss_join_existing(struct lbs_private *priv,
 
 	/* set rates to the intersection of our rates and the rates in the
 	   bss */
+	rcu_read_lock();
+	rates_eid = ieee80211_bss_get_ie(bss, WLAN_EID_SUPP_RATES);
 	if (!rates_eid) {
 		lbs_add_rates(cmd.bss.rates);
 	} else {
@@ -1860,6 +1866,7 @@ static int lbs_ibss_join_existing(struct lbs_private *priv,
 			}
 		}
 	}
+	rcu_read_unlock();
 
 	/* Only v8 and below support setting this */
 	if (MRVL_FW_MAJOR_REV(priv->fwrelease) <= 8) {

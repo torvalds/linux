@@ -1411,7 +1411,7 @@ static void rtl8187_eeprom_register_write(struct eeprom_93cx6 *eeprom)
 	udelay(10);
 }
 
-static int __devinit rtl8187_probe(struct usb_interface *intf,
+static int rtl8187_probe(struct usb_interface *intf,
 				   const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
@@ -1639,7 +1639,7 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	return err;
 }
 
-static void __devexit rtl8187_disconnect(struct usb_interface *intf)
+static void rtl8187_disconnect(struct usb_interface *intf)
 {
 	struct ieee80211_hw *dev = usb_get_intfdata(intf);
 	struct rtl8187_priv *priv;
@@ -1664,7 +1664,7 @@ static struct usb_driver rtl8187_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= rtl8187_table,
 	.probe		= rtl8187_probe,
-	.disconnect	= __devexit_p(rtl8187_disconnect),
+	.disconnect	= rtl8187_disconnect,
 	.disable_hub_initiated_lpm = 1,
 };
 

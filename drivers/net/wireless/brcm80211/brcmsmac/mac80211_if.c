@@ -285,8 +285,8 @@ static void brcms_ops_tx(struct ieee80211_hw *hw,
 		kfree_skb(skb);
 		goto done;
 	}
-	brcms_c_sendpkt_mac80211(wl->wlc, skb, hw);
-	tx_info->rate_driver_data[0] = control->sta;
+	if (brcms_c_sendpkt_mac80211(wl->wlc, skb, hw))
+		tx_info->rate_driver_data[0] = control->sta;
  done:
 	spin_unlock_bh(&wl->lock);
 }
@@ -846,8 +846,10 @@ static void brcms_free(struct brcms_info *wl)
 	/* kill dpc */
 	tasklet_kill(&wl->tasklet);
 
-	if (wl->pub)
+	if (wl->pub) {
+		brcms_debugfs_detach(wl->pub);
 		brcms_c_module_unregister(wl->pub, "linux", wl);
+	}
 
 	/* free common resources */
 	if (wl->wlc) {
@@ -896,27 +898,22 @@ static void brcms_remove(struct bcma_device *pdev)
 static irqreturn_t brcms_isr(int irq, void *dev_id)
 {
 	struct brcms_info *wl;
-	bool ours, wantdpc;
+	irqreturn_t ret = IRQ_NONE;
 
 	wl = (struct brcms_info *) dev_id;
 
 	spin_lock(&wl->isr_lock);
 
 	/* call common first level interrupt handler */
-	ours = brcms_c_isr(wl->wlc, &wantdpc);
-	if (ours) {
-		/* if more to do... */
-		if (wantdpc) {
-
-			/* ...and call the second level interrupt handler */
-			/* schedule dpc */
-			tasklet_schedule(&wl->tasklet);
-		}
+	if (brcms_c_isr(wl->wlc)) {
+		/* schedule second level handler */
+		tasklet_schedule(&wl->tasklet);
+		ret = IRQ_HANDLED;
 	}
 
 	spin_unlock(&wl->isr_lock);
 
-	return IRQ_RETVAL(ours);
+	return ret;
 }
 
 /*
@@ -1082,6 +1079,8 @@ static struct brcms_info *brcms_attach(struct bcma_device *pdev)
 	    regulatory_hint(wl->wiphy, wl->pub->srom_ccode))
 		wiphy_err(wl->wiphy, "%s: regulatory hint failed\n", __func__);
 
+	brcms_debugfs_attach(wl->pub);
+	brcms_debugfs_create_files(wl->pub);
 	n_adapters_found++;
 	return wl;
 
@@ -1100,7 +1099,7 @@ fail:
  *
  * Perimeter lock is initialized in the course of this function.
  */
-static int __devinit brcms_bcma_probe(struct bcma_device *pdev)
+static int brcms_bcma_probe(struct bcma_device *pdev)
 {
 	struct brcms_info *wl;
 	struct ieee80211_hw *hw;
@@ -1166,7 +1165,7 @@ static struct bcma_driver brcms_bcma_driver = {
 	.probe    = brcms_bcma_probe,
 	.suspend  = brcms_suspend,
 	.resume   = brcms_resume,
-	.remove   = __devexit_p(brcms_remove),
+	.remove   = brcms_remove,
 	.id_table = brcms_coreid_table,
 };
 
@@ -1190,6 +1189,7 @@ static DECLARE_WORK(brcms_driver_work, brcms_driver_init);
 
 static int __init brcms_module_init(void)
 {
+	brcms_debugfs_init();
 	if (!schedule_work(&brcms_driver_work))
 		return -EBUSY;
 
@@ -1207,6 +1207,7 @@ static void __exit brcms_module_exit(void)
 {
 	cancel_work_sync(&brcms_driver_work);
 	bcma_driver_unregister(&brcms_bcma_driver);
+	brcms_debugfs_exit();
 }
 
 module_init(brcms_module_init);

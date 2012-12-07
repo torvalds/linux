@@ -794,10 +794,10 @@ static void hci_set_le_support(struct hci_dev *hdev)
 
 	if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
 		cp.le = 1;
-		cp.simul = !!lmp_le_br_capable(hdev);
+		cp.simul = lmp_le_br_capable(hdev);
 	}
 
-	if (cp.le != !!lmp_host_le_capable(hdev))
+	if (cp.le != lmp_host_le_capable(hdev))
 		hci_send_cmd(hdev, HCI_OP_WRITE_LE_HOST_SUPPORTED, sizeof(cp),
 			     &cp);
 }
@@ -2047,15 +2047,53 @@ unlock:
 	hci_conn_check_pending(hdev);
 }
 
+void hci_conn_accept(struct hci_conn *conn, int mask)
+{
+	struct hci_dev *hdev = conn->hdev;
+
+	BT_DBG("conn %p", conn);
+
+	conn->state = BT_CONFIG;
+
+	if (!lmp_esco_capable(hdev)) {
+		struct hci_cp_accept_conn_req cp;
+
+		bacpy(&cp.bdaddr, &conn->dst);
+
+		if (lmp_rswitch_capable(hdev) && (mask & HCI_LM_MASTER))
+			cp.role = 0x00; /* Become master */
+		else
+			cp.role = 0x01; /* Remain slave */
+
+		hci_send_cmd(hdev, HCI_OP_ACCEPT_CONN_REQ, sizeof(cp), &cp);
+	} else /* lmp_esco_capable(hdev)) */ {
+		struct hci_cp_accept_sync_conn_req cp;
+
+		bacpy(&cp.bdaddr, &conn->dst);
+		cp.pkt_type = cpu_to_le16(conn->pkt_type);
+
+		cp.tx_bandwidth   = __constant_cpu_to_le32(0x00001f40);
+		cp.rx_bandwidth   = __constant_cpu_to_le32(0x00001f40);
+		cp.max_latency    = __constant_cpu_to_le16(0xffff);
+		cp.content_format = cpu_to_le16(hdev->voice_setting);
+		cp.retrans_effort = 0xff;
+
+		hci_send_cmd(hdev, HCI_OP_ACCEPT_SYNC_CONN_REQ,
+			     sizeof(cp), &cp);
+	}
+}
+
 static void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_conn_request *ev = (void *) skb->data;
 	int mask = hdev->link_mode;
+	__u8 flags = 0;
 
 	BT_DBG("%s bdaddr %pMR type 0x%x", hdev->name, &ev->bdaddr,
 	       ev->link_type);
 
-	mask |= hci_proto_connect_ind(hdev, &ev->bdaddr, ev->link_type);
+	mask |= hci_proto_connect_ind(hdev, &ev->bdaddr, ev->link_type,
+				      &flags);
 
 	if ((mask & HCI_LM_ACCEPT) &&
 	    !hci_blacklist_lookup(hdev, &ev->bdaddr)) {
@@ -2081,12 +2119,13 @@ static void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		}
 
 		memcpy(conn->dev_class, ev->dev_class, 3);
-		conn->state = BT_CONNECT;
 
 		hci_dev_unlock(hdev);
 
-		if (ev->link_type == ACL_LINK || !lmp_esco_capable(hdev)) {
+		if (ev->link_type == ACL_LINK ||
+		    (!(flags & HCI_PROTO_DEFER) && !lmp_esco_capable(hdev))) {
 			struct hci_cp_accept_conn_req cp;
+			conn->state = BT_CONNECT;
 
 			bacpy(&cp.bdaddr, &ev->bdaddr);
 
@@ -2097,8 +2136,9 @@ static void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 			hci_send_cmd(hdev, HCI_OP_ACCEPT_CONN_REQ, sizeof(cp),
 				     &cp);
-		} else {
+		} else if (!(flags & HCI_PROTO_DEFER)) {
 			struct hci_cp_accept_sync_conn_req cp;
+			conn->state = BT_CONNECT;
 
 			bacpy(&cp.bdaddr, &ev->bdaddr);
 			cp.pkt_type = cpu_to_le16(conn->pkt_type);
@@ -2111,6 +2151,10 @@ static void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 			hci_send_cmd(hdev, HCI_OP_ACCEPT_SYNC_CONN_REQ,
 				     sizeof(cp), &cp);
+		} else {
+			conn->state = BT_CONNECT2;
+			hci_proto_connect_cfm(conn, 0);
+			hci_conn_put(conn);
 		}
 	} else {
 		/* Connection rejected */
