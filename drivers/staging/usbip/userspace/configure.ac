@@ -91,10 +91,5 @@ AC_ARG_WITH([usbids-dir],
 	    [USBIDS_DIR=$withval], [USBIDS_DIR="/usr/share/hwdata/"])
 AC_SUBST([USBIDS_DIR])
 
-GLIB2_REQUIRED=2.6.0
-PKG_CHECK_MODULES([PACKAGE], [glib-2.0 >= $GLIB2_REQUIRED])
-AC_SUBST([PACKAGE_CFLAGS])
-AC_SUBST([PACKAGE_LIBS])
-
 AC_CONFIG_FILES([Makefile libsrc/Makefile src/Makefile])
 AC_OUTPUT
