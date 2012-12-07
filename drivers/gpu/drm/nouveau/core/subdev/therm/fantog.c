@@ -53,8 +53,8 @@ nouveau_fantog_update(struct nouveau_fantog_priv *priv, int percent)
 		percent = priv->percent;
 	priv->percent = percent;
 
-	duty = !gpio->get(gpio, 0, DCB_GPIO_PWM_FAN, 0xff);
-	gpio->set(gpio, 0, DCB_GPIO_PWM_FAN, 0xff, duty);
+	duty = !gpio->get(gpio, 0, DCB_GPIO_FAN, 0xff);
+	gpio->set(gpio, 0, DCB_GPIO_FAN, 0xff, duty);
 
 	if (list_empty(&priv->alarm.head) && percent != (duty * 100)) {
 		u64 next_change = (percent * priv->period_us) / 100;

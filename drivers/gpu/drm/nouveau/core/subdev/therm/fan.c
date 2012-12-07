@@ -213,7 +213,7 @@ nouveau_therm_fan_ctor(struct nouveau_therm *therm)
 	int ret;
 
 	/* attempt to locate a drivable fan, and determine control method */
-	ret = gpio->find(gpio, 0, DCB_GPIO_PWM_FAN, 0xff, &func);
+	ret = gpio->find(gpio, 0, DCB_GPIO_FAN, 0xff, &func);
 	if (ret == 0)
 		ret = nouveau_fanpwm_create(therm, &func);
 	if (ret != 0)
