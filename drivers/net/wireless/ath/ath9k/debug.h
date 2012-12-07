@@ -242,7 +242,7 @@ struct ath_rx_stats {
 
 struct ath_stats {
 	struct ath_interrupt_stats istats;
-	struct ath_tx_stats txstats[IEEE80211_NUM_ACS];
+	struct ath_tx_stats txstats[ATH9K_NUM_TX_QUEUES];
 	struct ath_rx_stats rxstats;
 	struct ath_dfs_stats dfs_stats;
 	u32 reset[__RESET_TYPE_MAX];
