@@ -2604,9 +2604,6 @@ static int ab8500_charger_remove(struct platform_device *pdev)
 		free_irq(irq, di);
 	}
 
-	/* disable the regulator */
-	regulator_put(di->regu);
-
 	/* Backup battery voltage and current disable */
 	ret = abx500_mask_and_set_register_interruptible(di->dev,
 		AB8500_RTC, AB8500_RTC_CTRL_REG, RTC_BUP_CH_ENA, 0);
@@ -2759,7 +2756,7 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	 * is a charger connected to avoid erroneous BTEMP_HIGH/LOW
 	 * interrupts during charging
 	 */
-	di->regu = regulator_get(di->dev, "vddadc");
+	di->regu = devm_regulator_get(di->dev, "vddadc");
 	if (IS_ERR(di->regu)) {
 		ret = PTR_ERR(di->regu);
 		dev_err(di->dev, "failed to get vddadc regulator\n");
@@ -2771,14 +2768,14 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	ret = ab8500_charger_init_hw_registers(di);
 	if (ret) {
 		dev_err(di->dev, "failed to initialize ABB registers\n");
-		goto free_regulator;
+		goto free_charger_wq;
 	}
 
 	/* Register AC charger class */
 	ret = power_supply_register(di->dev, &di->ac_chg.psy);
 	if (ret) {
 		dev_err(di->dev, "failed to register AC charger\n");
-		goto free_regulator;
+		goto free_charger_wq;
 	}
 
 	/* Register USB charger class */
@@ -2852,8 +2849,6 @@ free_usb:
 	power_supply_unregister(&di->usb_chg.psy);
 free_ac:
 	power_supply_unregister(&di->ac_chg.psy);
-free_regulator:
-	regulator_put(di->regu);
 free_charger_wq:
 	destroy_workqueue(di->charger_wq);
 	return ret;
