@@ -1056,7 +1056,7 @@ static void s3c64xx_spi_hwinit(struct s3c64xx_spi_driver_data *sdd, int channel)
 	flush_fifo(sdd);
 }
 
-static int __devinit s3c64xx_spi_get_dmares(
+static int s3c64xx_spi_get_dmares(
 			struct s3c64xx_spi_driver_data *sdd, bool tx)
 {
 	struct platform_device *pdev = sdd->pdev;
@@ -1135,7 +1135,7 @@ static void s3c64xx_spi_dt_gpio_free(struct s3c64xx_spi_driver_data *sdd)
 		gpio_free(sdd->gpios[idx]);
 }
 
-static struct __devinit s3c64xx_spi_info * s3c64xx_spi_parse_dt(
+static struct s3c64xx_spi_info * s3c64xx_spi_parse_dt(
 						struct device *dev)
 {
 	struct s3c64xx_spi_info *sci;

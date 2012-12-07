@@ -907,7 +907,7 @@ static void atmel_spi_cleanup(struct spi_device *spi)
 
 /*-------------------------------------------------------------------------*/
 
-static int __devinit atmel_spi_probe(struct platform_device *pdev)
+static int atmel_spi_probe(struct platform_device *pdev)
 {
 	struct resource		*regs;
 	int			irq;
@@ -1003,7 +1003,7 @@ out_free:
 	return ret;
 }
 
-static int __devexit atmel_spi_remove(struct platform_device *pdev)
+static int atmel_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master	*master = platform_get_drvdata(pdev);
 	struct atmel_spi	*as = spi_master_get_devdata(master);

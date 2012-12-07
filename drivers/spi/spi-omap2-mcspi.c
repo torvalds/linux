@@ -1088,7 +1088,7 @@ static int omap2_mcspi_transfer_one_message(struct spi_master *master,
 	return 0;
 }
 
-static int __devinit omap2_mcspi_master_setup(struct omap2_mcspi *mcspi)
+static int omap2_mcspi_master_setup(struct omap2_mcspi *mcspi)
 {
 	struct spi_master	*master = mcspi->master;
 	struct omap2_mcspi_regs	*ctx = &mcspi->ctx;
@@ -1141,7 +1141,7 @@ static const struct of_device_id omap_mcspi_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, omap_mcspi_of_match);
 
-static int __devinit omap2_mcspi_probe(struct platform_device *pdev)
+static int omap2_mcspi_probe(struct platform_device *pdev)
 {
 	struct spi_master	*master;
 	const struct omap2_mcspi_platform_config *pdata;
@@ -1278,7 +1278,7 @@ free_master:
 	return status;
 }
 
-static int __devexit omap2_mcspi_remove(struct platform_device *pdev)
+static int omap2_mcspi_remove(struct platform_device *pdev)
 {
 	struct spi_master	*master;
 	struct omap2_mcspi	*mcspi;
@@ -1347,7 +1347,7 @@ static struct platform_driver omap2_mcspi_driver = {
 		.of_match_table = omap_mcspi_of_match,
 	},
 	.probe =	omap2_mcspi_probe,
-	.remove =	__devexit_p(omap2_mcspi_remove),
+	.remove =	omap2_mcspi_remove,
 };
 
 module_platform_driver(omap2_mcspi_driver);

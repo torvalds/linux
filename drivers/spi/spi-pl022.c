@@ -1089,7 +1089,7 @@ err_alloc_rx_sg:
 	return -ENOMEM;
 }
 
-static int __devinit pl022_dma_probe(struct pl022 *pl022)
+static int pl022_dma_probe(struct pl022 *pl022)
 {
 	dma_cap_mask_t mask;
 
@@ -2058,8 +2058,7 @@ pl022_platform_data_dt_get(struct device *dev)
 	return pd;
 }
 
-static int __devinit
-pl022_probe(struct amba_device *adev, const struct amba_id *id)
+static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	struct device *dev = &adev->dev;
 	struct pl022_ssp_controller *platform_info = adev->dev.platform_data;
@@ -2275,7 +2274,7 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	return status;
 }
 
-static int __devexit
+static int
 pl022_remove(struct amba_device *adev)
 {
 	struct pl022 *pl022 = amba_get_drvdata(adev);
@@ -2484,7 +2483,7 @@ static struct amba_driver pl022_driver = {
 	},
 	.id_table	= pl022_ids,
 	.probe		= pl022_probe,
-	.remove		= __devexit_p(pl022_remove),
+	.remove		= pl022_remove,
 };
 
 static int __init pl022_init(void)

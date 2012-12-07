@@ -1108,14 +1108,14 @@ const struct tegra_slink_chip_data tegra20_spi_cdata = {
 	.cs_hold_time = false,
 };
 
-static struct of_device_id tegra_slink_of_match[] __devinitconst = {
+static struct of_device_id tegra_slink_of_match[] = {
 	{ .compatible = "nvidia,tegra30-slink", .data = &tegra30_spi_cdata, },
 	{ .compatible = "nvidia,tegra20-slink", .data = &tegra20_spi_cdata, },
 	{}
 };
 MODULE_DEVICE_TABLE(of, tegra_slink_of_match);
 
-static int __devinit tegra_slink_probe(struct platform_device *pdev)
+static int tegra_slink_probe(struct platform_device *pdev)
 {
 	struct spi_master	*master;
 	struct tegra_slink_data	*tspi;
@@ -1261,7 +1261,7 @@ exit_free_master:
 	return ret;
 }
 
-static int __devexit tegra_slink_remove(struct platform_device *pdev)
+static int tegra_slink_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = dev_get_drvdata(&pdev->dev);
 	struct tegra_slink_data	*tspi = spi_master_get_devdata(master);
@@ -1348,7 +1348,7 @@ static struct platform_driver tegra_slink_driver = {
 		.of_match_table	= of_match_ptr(tegra_slink_of_match),
 	},
 	.probe =	tegra_slink_probe,
-	.remove =	__devexit_p(tegra_slink_remove),
+	.remove =	tegra_slink_remove,
 };
 module_platform_driver(tegra_slink_driver);
 

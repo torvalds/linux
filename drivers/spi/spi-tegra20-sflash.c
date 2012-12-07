@@ -451,13 +451,13 @@ static struct tegra_spi_platform_data *tegra_sflash_parse_dt(
 	return pdata;
 }
 
-static struct of_device_id tegra_sflash_of_match[] __devinitconst = {
+static struct of_device_id tegra_sflash_of_match[] = {
 	{ .compatible = "nvidia,tegra20-sflash", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, tegra_sflash_of_match);
 
-static int __devinit tegra_sflash_probe(struct platform_device *pdev)
+static int tegra_sflash_probe(struct platform_device *pdev)
 {
 	struct spi_master	*master;
 	struct tegra_sflash_data	*tsd;
@@ -575,7 +575,7 @@ exit_free_master:
 	return ret;
 }
 
-static int __devexit tegra_sflash_remove(struct platform_device *pdev)
+static int tegra_sflash_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = dev_get_drvdata(&pdev->dev);
 	struct tegra_sflash_data	*tsd = spi_master_get_devdata(master);
@@ -655,7 +655,7 @@ static struct platform_driver tegra_sflash_driver = {
 		.of_match_table	= of_match_ptr(tegra_sflash_of_match),
 	},
 	.probe =	tegra_sflash_probe,
-	.remove =	__devexit_p(tegra_sflash_remove),
+	.remove =	tegra_sflash_remove,
 };
 module_platform_driver(tegra_sflash_driver);
 

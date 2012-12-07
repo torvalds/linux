@@ -163,7 +163,7 @@ static irqreturn_t spi_clps711x_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit spi_clps711x_probe(struct platform_device *pdev)
+static int spi_clps711x_probe(struct platform_device *pdev)
 {
 	int i, ret;
 	struct spi_master *master;
@@ -261,7 +261,7 @@ err_out:
 	return ret;
 }
 
-static int __devexit spi_clps711x_remove(struct platform_device *pdev)
+static int spi_clps711x_remove(struct platform_device *pdev)
 {
 	int i;
 	struct spi_master *master = platform_get_drvdata(pdev);
@@ -287,7 +287,7 @@ static struct platform_driver clps711x_spi_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= spi_clps711x_probe,
-	.remove	= __devexit_p(spi_clps711x_remove),
+	.remove	= spi_clps711x_remove,
 };
 module_platform_driver(clps711x_spi_driver);
 
