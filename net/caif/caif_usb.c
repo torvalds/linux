@@ -128,17 +128,10 @@ static int cfusbl_device_notify(struct notifier_block *me, unsigned long what,
 	struct cflayer *layer, *link_support;
 	struct usbnet *usbnet;
 	struct usb_device *usbdev;
-	struct ethtool_drvinfo drvinfo;
 
-	/*
-	 * Quirks: High-jack ethtool to find if we have a NCM device,
-	 * and find it's VID/PID.
-	 */
-	if (dev->ethtool_ops == NULL || dev->ethtool_ops->get_drvinfo == NULL)
-		return 0;
-
-	dev->ethtool_ops->get_drvinfo(dev, &drvinfo);
-	if (strncmp(drvinfo.driver, "cdc_ncm", 7) != 0)
+	/* Check whether we have a NCM device, and find its VID/PID. */
+	if (!(dev->dev.parent && dev->dev.parent->driver &&
+	      strcmp(dev->dev.parent->driver->name, "cdc_ncm") == 0))
 		return 0;
 
 	usbnet = netdev_priv(dev);
