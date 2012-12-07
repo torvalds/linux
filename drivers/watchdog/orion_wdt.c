@@ -156,6 +156,8 @@ static int orion_wdt_probe(struct platform_device *pdev)
 	wdt_tclk = clk_get_rate(clk);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -ENODEV;
 	wdt_reg = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!wdt_reg)
 		return -ENOMEM;
