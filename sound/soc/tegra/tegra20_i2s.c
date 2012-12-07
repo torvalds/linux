@@ -331,7 +331,7 @@ static const struct regmap_config tegra20_i2s_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static __devinit int tegra20_i2s_platform_probe(struct platform_device *pdev)
+static int tegra20_i2s_platform_probe(struct platform_device *pdev)
 {
 	struct tegra20_i2s *i2s;
 	struct resource *mem, *memregion, *dmareq;
@@ -447,7 +447,7 @@ err:
 	return ret;
 }
 
-static int __devexit tegra20_i2s_platform_remove(struct platform_device *pdev)
+static int tegra20_i2s_platform_remove(struct platform_device *pdev)
 {
 	struct tegra20_i2s *i2s = dev_get_drvdata(&pdev->dev);
 
@@ -481,7 +481,7 @@ static struct platform_driver tegra20_i2s_driver = {
 		.pm = &tegra20_i2s_pm_ops,
 	},
 	.probe = tegra20_i2s_platform_probe,
-	.remove = __devexit_p(tegra20_i2s_platform_remove),
+	.remove = tegra20_i2s_platform_remove,
 };
 module_platform_driver(tegra20_i2s_driver);
 
