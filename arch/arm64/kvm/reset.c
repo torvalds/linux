@@ -23,6 +23,8 @@
 #include <linux/kvm_host.h>
 #include <linux/kvm.h>
 
+#include <kvm/arm_arch_timer.h>
+
 #include <asm/cputype.h>
 #include <asm/ptrace.h>
 #include <asm/kvm_arm.h>
@@ -34,6 +36,11 @@
 static const struct kvm_regs default_regs_reset = {
 	.regs.pstate = (PSR_MODE_EL1h | PSR_A_BIT | PSR_I_BIT |
 			PSR_F_BIT | PSR_D_BIT),
+};
+
+static const struct kvm_irq_level default_vtimer_irq = {
+	.irq	= 27,
+	.level	= 1,
 };
 
 int kvm_arch_dev_ioctl_check_extension(long ext)
@@ -58,11 +65,13 @@ int kvm_arch_dev_ioctl_check_extension(long ext)
  */
 int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 {
+	const struct kvm_irq_level *cpu_vtimer_irq;
 	const struct kvm_regs *cpu_reset;
 
 	switch (vcpu->arch.target) {
 	default:
 		cpu_reset = &default_regs_reset;
+		cpu_vtimer_irq = &default_vtimer_irq;
 		break;
 	}
 
@@ -71,6 +80,9 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 
 	/* Reset system registers */
 	kvm_reset_sys_regs(vcpu);
+
+	/* Reset timer */
+	kvm_timer_vcpu_reset(vcpu, cpu_vtimer_irq);
 
 	return 0;
 }
