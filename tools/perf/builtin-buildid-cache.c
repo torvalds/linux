@@ -14,6 +14,7 @@
 #include "util/parse-options.h"
 #include "util/strlist.h"
 #include "util/build-id.h"
+#include "util/session.h"
 #include "util/symbol.h"
 
 static int build_id_cache__add_file(const char *filename, const char *debugdir)
@@ -58,19 +59,59 @@ static int build_id_cache__remove_file(const char *filename,
 	return err;
 }
 
+static bool dso__missing_buildid_cache(struct dso *dso, int parm __maybe_unused)
+{
+	char filename[PATH_MAX];
+	u8 build_id[BUILD_ID_SIZE];
+
+	if (dso__build_id_filename(dso, filename, sizeof(filename)) &&
+	    filename__read_build_id(filename, build_id,
+				    sizeof(build_id)) != sizeof(build_id)) {
+		if (errno == ENOENT)
+			return false;
+
+		pr_warning("Problems with %s file, consider removing it from the cache\n", 
+			   filename);
+	} else if (memcmp(dso->build_id, build_id, sizeof(dso->build_id))) {
+		pr_warning("Problems with %s file, consider removing it from the cache\n", 
+			   filename);
+	}
+
+	return true;
+}
+
+static int build_id_cache__fprintf_missing(const char *filename, bool force, FILE *fp)
+{
+	struct perf_session *session = perf_session__new(filename, O_RDONLY,
+							 force, false, NULL);
+	if (session == NULL)
+		return -1;
+
+	perf_session__fprintf_dsos_buildid(session, fp, dso__missing_buildid_cache, 0);
+	perf_session__delete(session);
+
+	return 0;
+}
+
 int cmd_buildid_cache(int argc, const char **argv,
 		      const char *prefix __maybe_unused)
 {
 	struct strlist *list;
 	struct str_node *pos;
+	int ret = 0;
+	bool force = false;
 	char debugdir[PATH_MAX];
 	char const *add_name_list_str = NULL,
-		   *remove_name_list_str = NULL;
+		   *remove_name_list_str = NULL,
+		   *missing_filename = NULL;
 	const struct option buildid_cache_options[] = {
 	OPT_STRING('a', "add", &add_name_list_str,
 		   "file list", "file(s) to add"),
 	OPT_STRING('r', "remove", &remove_name_list_str, "file list",
 		    "file(s) to remove"),
+	OPT_STRING('M', "missing", &missing_filename, "file",
+		   "to find missing build ids in the cache"),
+	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
 	OPT_INCR('v', "verbose", &verbose, "be more verbose"),
 	OPT_END()
 	};
@@ -125,5 +166,8 @@ int cmd_buildid_cache(int argc, const char **argv,
 		}
 	}
 
-	return 0;
+	if (missing_filename)
+		ret = build_id_cache__fprintf_missing(missing_filename, force, stdout);
+
+	return ret;
 }
