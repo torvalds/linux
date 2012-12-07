@@ -71,8 +71,8 @@ static void mop500_of_node_put(void)
 	}
 }
 
-static int __devinit mop500_of_probe(struct platform_device *pdev,
-				struct device_node *np)
+static int mop500_of_probe(struct platform_device *pdev,
+			   struct device_node *np)
 {
 	struct device_node *codec_np, *msp_np[2];
 	int i;
@@ -99,7 +99,7 @@ static int __devinit mop500_of_probe(struct platform_device *pdev,
 	return 0;
 }
 
-static int __devinit mop500_probe(struct platform_device *pdev)
+static int mop500_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	int ret;
@@ -136,7 +136,7 @@ static int __devinit mop500_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit mop500_remove(struct platform_device *pdev)
+static int mop500_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *mop500_card = platform_get_drvdata(pdev);
 
@@ -161,7 +161,7 @@ static struct platform_driver snd_soc_mop500_driver = {
 		.of_match_table = snd_soc_mop500_match,
 	},
 	.probe = mop500_probe,
-	.remove = __devexit_p(mop500_remove),
+	.remove = mop500_remove,
 };
 
 module_platform_driver(snd_soc_mop500_driver);
