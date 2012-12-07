@@ -28,8 +28,8 @@
 #include <linux/of_device.h>
 
 #include <linux/atomic.h>
-#include <asm/time.h>
-#include <asm/io.h>
+#include <linux/time.h>
+#include <linux/io.h>
 #include <asm/machdep.h>
 #include <asm/ipic.h>
 #include <asm/irq.h>
@@ -88,15 +88,13 @@ static void __init mpc83xx_km_setup_arch(void)
 
 		np_par = of_find_node_by_name(NULL, "par_io");
 		if (np_par == NULL) {
-			printk(KERN_WARNING "%s couldn;t find par_io node\n",
-				__func__);
+			pr_warn("%s couldn;t find par_io node\n", __func__);
 			return;
 		}
 		/* Map Parallel I/O ports registers */
 		ret = of_address_to_resource(np_par, 0, &res);
 		if (ret) {
-			printk(KERN_WARNING "%s couldn;t map par_io registers\n",
-				__func__);
+			pr_warn("%s couldn;t map par_io registers\n", __func__);
 			return;
 		}
 
