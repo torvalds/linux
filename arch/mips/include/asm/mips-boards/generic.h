@@ -1,21 +1,14 @@
 /*
- * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
- *
- * This program is free software; you can distribute it and/or modify it
- * under the terms of the GNU General Public License (Version 2) as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
  * Defines of the MIPS boards specific address-MAP, registers, etc.
+ *
+ * Copyright (C) 2000,2012 MIPS Technologies, Inc.
+ * All rights reserved.
+ * Authors: Carsten Langgaard <carstenl@mips.com>
+ *          Steven J. Hill <sjhill@mips.com>
  */
 #ifndef __ASM_MIPS_BOARDS_GENERIC_H
 #define __ASM_MIPS_BOARDS_GENERIC_H
@@ -29,13 +22,6 @@
  */
 #define ASCII_DISPLAY_WORD_BASE    0x1f000410
 #define ASCII_DISPLAY_POS_BASE     0x1f000418
-
-
-/*
- * Yamon Prom print address.
- */
-#define YAMON_PROM_PRINT_ADDR      0x1fc00504
-
 
 /*
  * Reset register.
