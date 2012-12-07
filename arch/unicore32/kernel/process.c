@@ -258,6 +258,7 @@ void release_thread(struct task_struct *dead_task)
 }
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
+asmlinkage void ret_from_kernel_thread(void) __asm__("ret_from_kernel_thread");
 
 int
 copy_thread(unsigned long clone_flags, unsigned long stack_start,
@@ -266,17 +267,22 @@ copy_thread(unsigned long clone_flags, unsigned long stack_start,
 	struct thread_info *thread = task_thread_info(p);
 	struct pt_regs *childregs = task_pt_regs(p);
 
-	*childregs = *regs;
-	childregs->UCreg_00 = 0;
-	childregs->UCreg_sp = stack_start;
-
 	memset(&thread->cpu_context, 0, sizeof(struct cpu_context_save));
 	thread->cpu_context.sp = (unsigned long)childregs;
-	thread->cpu_context.pc = (unsigned long)ret_from_fork;
+	if (unlikely(!regs)) {
+		thread->cpu_context.pc = (unsigned long)ret_from_kernel_thread;
+		thread->cpu_context.r4 = stack_start;
+		thread->cpu_context.r5 = stk_sz;
+		memset(childregs, 0, sizeof(struct pt_regs));
+	} else {
+		thread->cpu_context.pc = (unsigned long)ret_from_fork;
+		*childregs = *regs;
+		childregs->UCreg_00 = 0;
+		childregs->UCreg_sp = stack_start;
 
-	if (clone_flags & CLONE_SETTLS)
-		childregs->UCreg_16 = regs->UCreg_03;
-
+		if (clone_flags & CLONE_SETTLS)
+			childregs->UCreg_16 = regs->UCreg_03;
+	}
 	return 0;
 }
 
@@ -304,42 +310,6 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fp)
 	return used_math != 0;
 }
 EXPORT_SYMBOL(dump_fpu);
-
-/*
- * Shuffle the argument into the correct register before calling the
- * thread function.  r1 is the thread argument, r2 is the pointer to
- * the thread function, and r3 points to the exit function.
- */
-asm(".pushsection .text\n"
-"	.align\n"
-"	.type	kernel_thread_helper, #function\n"
-"kernel_thread_helper:\n"
-"	mov.a	asr, r7\n"
-"	mov	r0, r4\n"
-"	mov	lr, r6\n"
-"	mov	pc, r5\n"
-"	.size	kernel_thread_helper, . - kernel_thread_helper\n"
-"	.popsection");
-
-/*
- * Create a kernel thread.
- */
-pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
-{
-	struct pt_regs regs;
-
-	memset(&regs, 0, sizeof(regs));
-
-	regs.UCreg_04 = (unsigned long)arg;
-	regs.UCreg_05 = (unsigned long)fn;
-	regs.UCreg_06 = (unsigned long)do_exit;
-	regs.UCreg_07 = PRIV_MODE;
-	regs.UCreg_pc = (unsigned long)kernel_thread_helper;
-	regs.UCreg_asr = regs.UCreg_07 | PSR_I_BIT;
-
-	return do_fork(flags|CLONE_VM|CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
-}
-EXPORT_SYMBOL(kernel_thread);
 
 unsigned long get_wchan(struct task_struct *p)
 {

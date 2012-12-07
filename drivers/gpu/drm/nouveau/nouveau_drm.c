@@ -129,7 +129,8 @@ nouveau_accel_init(struct nouveau_drm *drm)
 
 	/* initialise synchronisation routines */
 	if      (device->card_type < NV_10) ret = nv04_fence_create(drm);
-	else if (device->chipset   <  0x84) ret = nv10_fence_create(drm);
+	else if (device->card_type < NV_50) ret = nv10_fence_create(drm);
+	else if (device->chipset   <  0x84) ret = nv50_fence_create(drm);
 	else if (device->card_type < NV_C0) ret = nv84_fence_create(drm);
 	else                                ret = nvc0_fence_create(drm);
 	if (ret) {

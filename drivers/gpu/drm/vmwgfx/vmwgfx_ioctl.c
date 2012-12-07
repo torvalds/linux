@@ -110,6 +110,8 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 	memcpy_fromio(bounce, &fifo_mem[SVGA_FIFO_3D_CAPS], size);
 
 	ret = copy_to_user(buffer, bounce, size);
+	if (ret)
+		ret = -EFAULT;
 	vfree(bounce);
 
 	if (unlikely(ret != 0))

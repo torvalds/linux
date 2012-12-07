@@ -178,7 +178,7 @@ config PINCTRL_COH901
 	  ports of 8 GPIO pins each.
 
 config PINCTRL_SAMSUNG
-	bool "Samsung pinctrl driver"
+	bool
 	depends on OF && GPIOLIB
 	select PINMUX
 	select PINCONF
