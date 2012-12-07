@@ -349,7 +349,7 @@
 #define  PCI_AF_STATUS_TP	0x01
 #define PCI_CAP_AF_SIZEOF	6	/* size of AF registers */
 
-/* PCI-X registers */
+/* PCI-X registers (Type 0 (non-bridge) devices) */
 
 #define PCI_X_CMD		2	/* Modes & Features */
 #define  PCI_X_CMD_DPERR_E	0x0001	/* Data Parity Error Recovery Enable */
@@ -388,6 +388,19 @@
 #define PCI_CAP_PCIX_SIZEOF_V0	8	/* size of registers for Version 0 */
 #define PCI_CAP_PCIX_SIZEOF_V1	24	/* size for Version 1 */
 #define PCI_CAP_PCIX_SIZEOF_V2	PCI_CAP_PCIX_SIZEOF_V1	/* Same for v2 */
+
+/* PCI-X registers (Type 1 (bridge) devices) */
+
+#define PCI_X_BRIDGE_SSTATUS	2	/* Secondary Status */
+#define  PCI_X_SSTATUS_64BIT	0x0001	/* Secondary AD interface is 64 bits */
+#define  PCI_X_SSTATUS_133MHZ	0x0002	/* 133 MHz capable */
+#define  PCI_X_SSTATUS_FREQ	0x03c0	/* Secondary Bus Mode and Frequency */
+#define  PCI_X_SSTATUS_VERS	0x3000	/* PCI-X Capability Version */
+#define  PCI_X_SSTATUS_V1	0x1000	/* Mode 2, not Mode 1 */
+#define  PCI_X_SSTATUS_V2	0x2000	/* Mode 1 or Modes 1 and 2 */
+#define  PCI_X_SSTATUS_266MHZ	0x4000	/* 266 MHz capable */
+#define  PCI_X_SSTATUS_533MHZ	0x8000	/* 533 MHz capable */
+#define PCI_X_BRIDGE_STATUS	4	/* Bridge Status */
 
 /* PCI Bridge Subsystem ID registers */
 
@@ -456,6 +469,8 @@
 #define  PCI_EXP_LNKCAP_PN	0xff000000 /* Port Number */
 #define PCI_EXP_LNKCTL		16	/* Link Control */
 #define  PCI_EXP_LNKCTL_ASPMC	0x0003	/* ASPM Control */
+#define  PCI_EXP_LNKCTL_ASPM_L0S  0x01	/* L0s Enable */
+#define  PCI_EXP_LNKCTL_ASPM_L1   0x02	/* L1 Enable */
 #define  PCI_EXP_LNKCTL_RCB	0x0008	/* Read Completion Boundary */
 #define  PCI_EXP_LNKCTL_LD	0x0010	/* Link Disable */
 #define  PCI_EXP_LNKCTL_RL	0x0020	/* Retrain Link */

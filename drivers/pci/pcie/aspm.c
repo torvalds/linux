@@ -426,7 +426,8 @@ static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
 
 static void pcie_config_aspm_dev(struct pci_dev *pdev, u32 val)
 {
-	pcie_capability_clear_and_set_word(pdev, PCI_EXP_LNKCTL, 0x3, val);
+	pcie_capability_clear_and_set_word(pdev, PCI_EXP_LNKCTL,
+					   PCI_EXP_LNKCTL_ASPMC, val);
 }
 
 static void pcie_config_aspm_link(struct pcie_link_state *link, u32 state)
@@ -441,12 +442,12 @@ static void pcie_config_aspm_link(struct pcie_link_state *link, u32 state)
 		return;
 	/* Convert ASPM state to upstream/downstream ASPM register state */
 	if (state & ASPM_STATE_L0S_UP)
-		dwstream |= PCIE_LINK_STATE_L0S;
+		dwstream |= PCI_EXP_LNKCTL_ASPM_L0S;
 	if (state & ASPM_STATE_L0S_DW)
-		upstream |= PCIE_LINK_STATE_L0S;
+		upstream |= PCI_EXP_LNKCTL_ASPM_L0S;
 	if (state & ASPM_STATE_L1) {
-		upstream |= PCIE_LINK_STATE_L1;
-		dwstream |= PCIE_LINK_STATE_L1;
+		upstream |= PCI_EXP_LNKCTL_ASPM_L1;
+		dwstream |= PCI_EXP_LNKCTL_ASPM_L1;
 	}
 	/*
 	 * Spec 2.0 suggests all functions should be configured the

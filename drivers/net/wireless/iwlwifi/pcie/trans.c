@@ -670,21 +670,12 @@ static void iwl_set_pwr_vmain(struct iwl_trans *trans)
 
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
-#define PCI_CFG_LINK_CTRL_VAL_L0S_EN	0x01
-#define PCI_CFG_LINK_CTRL_VAL_L1_EN	0x02
-
-static u16 iwl_pciexp_link_ctrl(struct iwl_trans *trans)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	u16 pci_lnk_ctl;
-
-	pcie_capability_read_word(trans_pcie->pci_dev, PCI_EXP_LNKCTL,
-				  &pci_lnk_ctl);
-	return pci_lnk_ctl;
-}
 
 static void iwl_apm_config(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	u16 lctl;
+
 	/*
 	 * HW bug W/A for instability in PCIe bus L0S->L1 transition.
 	 * Check if BIOS (or OS) enabled L1-ASPM on this device.
@@ -693,10 +684,9 @@ static void iwl_apm_config(struct iwl_trans *trans)
 	 * If not (unlikely), enable L0S, so there is at least some
 	 *    power savings, even without L1.
 	 */
-	u16 lctl = iwl_pciexp_link_ctrl(trans);
 
-	if ((lctl & PCI_CFG_LINK_CTRL_VAL_L1_EN) ==
-				PCI_CFG_LINK_CTRL_VAL_L1_EN) {
+	pcie_capability_read_word(trans_pcie->pci_dev, PCI_EXP_LNKCTL, &lctl);
+	if (lctl & PCI_EXP_LNKCTL_ASPM_L1) {
 		/* L1-ASPM enabled; disable(!) L0S */
 		iwl_set_bit(trans, CSR_GIO_REG, CSR_GIO_REG_VAL_L0S_ENABLED);
 		dev_printk(KERN_INFO, trans->dev,
@@ -707,7 +697,7 @@ static void iwl_apm_config(struct iwl_trans *trans)
 		dev_printk(KERN_INFO, trans->dev,
 			   "L1 Disabled; Enabling L0S\n");
 	}
-	trans->pm_support = !(lctl & PCI_CFG_LINK_CTRL_VAL_L0S_EN);
+	trans->pm_support = !(lctl & PCI_EXP_LNKCTL_ASPM_L0S);
 }
 
 /*
