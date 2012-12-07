@@ -42,8 +42,14 @@ nv31_bus_intr(struct nouveau_subdev *subdev)
 			subdev->intr(subdev);
 	}
 
-	if (stat & 0x00000008) {
-		nv_error(pbus, "MMIO FAULT\n"); /* NV41- */
+	if (stat & 0x00000008) {  /* NV41- */
+		u32 addr = nv_rd32(pbus, 0x009084);
+		u32 data = nv_rd32(pbus, 0x009088);
+
+		nv_error(pbus, "MMIO %s of 0x%08x FAULT at 0x%06x\n",
+			 (addr & 0x00000002) ? "write" : "read", data,
+			 (addr & 0x00fffffc));
+
 		stat &= ~0x00000008;
 		nv_wr32(pbus, 0x001100, 0x00000008);
 	}
