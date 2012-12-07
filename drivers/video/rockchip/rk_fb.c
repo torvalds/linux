@@ -95,6 +95,7 @@ static int rk_fb_open(struct fb_info *info,int user)
     else
     {
     	dev_drv->open(dev_drv,layer_id,1);
+	dev_drv->load_screen(dev_drv,1);
     }
     
     return 0;
