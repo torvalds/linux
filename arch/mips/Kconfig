@@ -296,6 +296,7 @@ config MIPS_MALTA
 	select BOOT_RAW
 	select CEVT_R4K
 	select CSRC_R4K
+	select CSRC_GIC
 	select DMA_NONCOHERENT
 	select GENERIC_ISA_DMA
 	select HAVE_PCSPKR_PLATFORM
@@ -926,6 +927,9 @@ config CSRC_POWERTV
 	bool
 
 config CSRC_R4K
+	bool
+
+config CSRC_GIC
 	bool
 
 config CSRC_SB1250
