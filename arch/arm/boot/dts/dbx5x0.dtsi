@@ -679,6 +679,7 @@
 			regulator-name = "mmci-reg";
 			regulator-type = "voltage";
 
+			startup-delay-us = <100>;
 			enable-active-high;
 
 			states = <1800000 0x1
