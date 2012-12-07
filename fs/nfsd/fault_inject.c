@@ -122,7 +122,7 @@ static ssize_t fault_inject_write(struct file *file, const char __user *buf,
 				  size_t len, loff_t *ppos)
 {
 	char write_buf[INET6_ADDRSTRLEN];
-	size_t size = min(sizeof(write_buf), len) - 1;
+	size_t size = min(sizeof(write_buf) - 1, len);
 	struct net *net = current->nsproxy->net_ns;
 	struct sockaddr_storage sa;
 	u64 val;
