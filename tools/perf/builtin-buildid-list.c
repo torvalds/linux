@@ -44,6 +44,11 @@ static int filename__fprintf_build_id(const char *name, FILE *fp)
 	return fprintf(fp, "%s\n", sbuild_id);
 }
 
+static bool dso__skip_buildid(struct dso *dso, int with_hits)
+{
+	return with_hits && !dso->hit;
+}
+
 static int perf_session__list_build_ids(bool force, bool with_hits)
 {
 	struct perf_session *session;
@@ -66,7 +71,7 @@ static int perf_session__list_build_ids(bool force, bool with_hits)
 	if (with_hits || session->fd_pipe)
 		perf_session__process_events(session, &build_id__mark_dso_hit_ops);
 
-	perf_session__fprintf_dsos_buildid(session, stdout, with_hits);
+	perf_session__fprintf_dsos_buildid(session, stdout, dso__skip_buildid, with_hits);
 	perf_session__delete(session);
 out:
 	return 0;

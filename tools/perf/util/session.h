@@ -115,8 +115,8 @@ size_t perf_session__fprintf(struct perf_session *self, FILE *fp);
 
 size_t perf_session__fprintf_dsos(struct perf_session *self, FILE *fp);
 
-size_t perf_session__fprintf_dsos_buildid(struct perf_session *self,
-					  FILE *fp, bool with_hits);
+size_t perf_session__fprintf_dsos_buildid(struct perf_session *session, FILE *fp,
+					  bool (fn)(struct dso *dso, int parm), int parm);
 
 size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp);
 

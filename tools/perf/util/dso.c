@@ -539,13 +539,13 @@ struct dso *__dsos__findnew(struct list_head *head, const char *name)
 }
 
 size_t __dsos__fprintf_buildid(struct list_head *head, FILE *fp,
-			       bool with_hits)
+			       bool (skip)(struct dso *dso, int parm), int parm)
 {
 	struct dso *pos;
 	size_t ret = 0;
 
 	list_for_each_entry(pos, head, node) {
-		if (with_hits && !pos->hit)
+		if (skip && skip(pos, parm))
 			continue;
 		ret += dso__fprintf_buildid(pos, fp);
 		ret += fprintf(fp, " %s\n", pos->long_name);

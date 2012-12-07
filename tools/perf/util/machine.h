@@ -129,11 +129,11 @@ int machine__load_kallsyms(struct machine *machine, const char *filename,
 int machine__load_vmlinux_path(struct machine *machine, enum map_type type,
 			       symbol_filter_t filter);
 
-size_t machine__fprintf_dsos_buildid(struct machine *machine,
-				     FILE *fp, bool with_hits);
+size_t machine__fprintf_dsos_buildid(struct machine *machine, FILE *fp,
+				     bool (skip)(struct dso *dso, int parm), int parm);
 size_t machines__fprintf_dsos(struct rb_root *machines, FILE *fp);
-size_t machines__fprintf_dsos_buildid(struct rb_root *machines,
-				      FILE *fp, bool with_hits);
+size_t machines__fprintf_dsos_buildid(struct rb_root *machines, FILE *fp,
+				     bool (skip)(struct dso *dso, int parm), int parm);
 
 void machine__destroy_kernel_maps(struct machine *machine);
 int __machine__create_kernel_maps(struct machine *machine, struct dso *kernel);

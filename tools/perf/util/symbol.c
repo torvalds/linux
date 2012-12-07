@@ -1315,21 +1315,21 @@ size_t machines__fprintf_dsos(struct rb_root *machines, FILE *fp)
 }
 
 size_t machine__fprintf_dsos_buildid(struct machine *machine, FILE *fp,
-				     bool with_hits)
+				     bool (skip)(struct dso *dso, int parm), int parm)
 {
-	return __dsos__fprintf_buildid(&machine->kernel_dsos, fp, with_hits) +
-	       __dsos__fprintf_buildid(&machine->user_dsos, fp, with_hits);
+	return __dsos__fprintf_buildid(&machine->kernel_dsos, fp, skip, parm) +
+	       __dsos__fprintf_buildid(&machine->user_dsos, fp, skip, parm);
 }
 
-size_t machines__fprintf_dsos_buildid(struct rb_root *machines,
-				      FILE *fp, bool with_hits)
+size_t machines__fprintf_dsos_buildid(struct rb_root *machines, FILE *fp,
+				     bool (skip)(struct dso *dso, int parm), int parm)
 {
 	struct rb_node *nd;
 	size_t ret = 0;
 
 	for (nd = rb_first(machines); nd; nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
-		ret += machine__fprintf_dsos_buildid(pos, fp, with_hits);
+		ret += machine__fprintf_dsos_buildid(pos, fp, skip, parm);
 	}
 	return ret;
 }

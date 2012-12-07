@@ -1552,10 +1552,10 @@ size_t perf_session__fprintf_dsos(struct perf_session *self, FILE *fp)
 }
 
 size_t perf_session__fprintf_dsos_buildid(struct perf_session *self, FILE *fp,
-					  bool with_hits)
+					  bool (skip)(struct dso *dso, int parm), int parm)
 {
-	size_t ret = machine__fprintf_dsos_buildid(&self->host_machine, fp, with_hits);
-	return ret + machines__fprintf_dsos_buildid(&self->machines, fp, with_hits);
+	size_t ret = machine__fprintf_dsos_buildid(&self->host_machine, fp, skip, parm);
+	return ret + machines__fprintf_dsos_buildid(&self->machines, fp, skip, parm);
 }
 
 size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp)
