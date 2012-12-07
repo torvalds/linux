@@ -150,7 +150,7 @@ static struct snd_soc_card smdk = {
 };
 
 
-static int __devinit smdk_audio_probe(struct platform_device *pdev)
+static int smdk_audio_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct snd_soc_card *card = &smdk;
@@ -164,7 +164,7 @@ static int __devinit smdk_audio_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit smdk_audio_remove(struct platform_device *pdev)
+static int smdk_audio_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -179,7 +179,7 @@ static struct platform_driver smdk_audio_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= smdk_audio_probe,
-	.remove		= __devexit_p(smdk_audio_remove),
+	.remove		= smdk_audio_remove,
 };
 
 module_platform_driver(smdk_audio_driver);

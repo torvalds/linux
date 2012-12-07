@@ -320,7 +320,7 @@ static struct snd_soc_card speyside = {
 	.late_probe = speyside_late_probe,
 };
 
-static __devinit int speyside_probe(struct platform_device *pdev)
+static int speyside_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &speyside;
 	int ret;
@@ -337,7 +337,7 @@ static __devinit int speyside_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit speyside_remove(struct platform_device *pdev)
+static int speyside_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -353,7 +353,7 @@ static struct platform_driver speyside_driver = {
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = speyside_probe,
-	.remove = __devexit_p(speyside_remove),
+	.remove = speyside_remove,
 };
 
 module_platform_driver(speyside_driver);

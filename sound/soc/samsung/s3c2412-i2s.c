@@ -160,7 +160,7 @@ static struct snd_soc_dai_driver s3c2412_i2s_dai = {
 	.ops = &s3c2412_i2s_dai_ops,
 };
 
-static __devinit int s3c2412_iis_dev_probe(struct platform_device *pdev)
+static int s3c2412_iis_dev_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 
@@ -182,7 +182,7 @@ err:
 	return ret;
 }
 
-static __devexit int s3c2412_iis_dev_remove(struct platform_device *pdev)
+static int s3c2412_iis_dev_remove(struct platform_device *pdev)
 {
 	asoc_dma_platform_unregister(&pdev->dev);
 	snd_soc_unregister_dai(&pdev->dev);
@@ -191,7 +191,7 @@ static __devexit int s3c2412_iis_dev_remove(struct platform_device *pdev)
 
 static struct platform_driver s3c2412_iis_driver = {
 	.probe  = s3c2412_iis_dev_probe,
-	.remove = __devexit_p(s3c2412_iis_dev_remove),
+	.remove = s3c2412_iis_dev_remove,
 	.driver = {
 		.name = "s3c2412-iis",
 		.owner = THIS_MODULE,

@@ -412,7 +412,7 @@ static struct snd_soc_card bells_cards[] = {
 };
 
 
-static __devinit int bells_probe(struct platform_device *pdev)
+static int bells_probe(struct platform_device *pdev)
 {
 	int ret;
 
@@ -429,7 +429,7 @@ static __devinit int bells_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit bells_remove(struct platform_device *pdev)
+static int bells_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_card(&bells_cards[pdev->id]);
 
@@ -443,7 +443,7 @@ static struct platform_driver bells_driver = {
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = bells_probe,
-	.remove = __devexit_p(bells_remove),
+	.remove = bells_remove,
 };
 
 module_platform_driver(bells_driver);
