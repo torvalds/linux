@@ -10,6 +10,13 @@ enum dcb_gpio_func_name {
 	DCB_GPIO_UNUSED = 0xff
 };
 
+#define DCB_GPIO_LOG_DIR     0x02
+#define DCB_GPIO_LOG_DIR_OUT 0x00
+#define DCB_GPIO_LOG_DIR_IN  0x02
+#define DCB_GPIO_LOG_VAL     0x01
+#define DCB_GPIO_LOG_VAL_LO  0x00
+#define DCB_GPIO_LOG_VAL_HI  0x01
+
 struct dcb_gpio_func {
 	u8 func;
 	u8 line;

@@ -214,14 +214,23 @@ nouveau_therm_fan_ctor(struct nouveau_therm *therm)
 
 	/* attempt to locate a drivable fan, and determine control method */
 	ret = gpio->find(gpio, 0, DCB_GPIO_FAN, 0xff, &func);
-	if (ret == 0)
-		ret = nouveau_fanpwm_create(therm, &func);
-	if (ret != 0)
-		ret = nouveau_fantog_create(therm, &func);
-	if (ret != 0)
+	if (ret == 0) {
+		if (func.log[0] & DCB_GPIO_LOG_DIR_IN) {
+			nv_debug(therm, "GPIO_FAN is in input mode\n");
+			ret = -EINVAL;
+		} else {
+			ret = nouveau_fanpwm_create(therm, &func);
+			if (ret != 0)
+				ret = nouveau_fantog_create(therm, &func);
+		}
+	}
+
+	/* no controllable fan found, create a dummy fan module */
+	if (ret != 0) {
 		ret = nouveau_fannil_create(therm);
-	if (ret)
-		return ret;
+		if (ret)
+			return ret;
+	}
 
 	nv_info(therm, "FAN control: %s\n", priv->fan->type);
 
