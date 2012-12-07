@@ -1834,15 +1834,6 @@ enum {
 /* Number of 100 microseconds we wait for PCI Express master disable */
 #define IXGBE_PCI_MASTER_DISABLE_TIMEOUT 800
 
-/* Check whether address is multicast.  This is little-endian specific check.*/
-#define IXGBE_IS_MULTICAST(Address) \
-                (bool)(((u8 *)(Address))[0] & ((u8)0x01))
-
-/* Check whether an address is broadcast. */
-#define IXGBE_IS_BROADCAST(Address)                      \
-                ((((u8 *)(Address))[0] == ((u8)0xff)) && \
-                (((u8 *)(Address))[1] == ((u8)0xff)))
-
 /* RAH */
 #define IXGBE_RAH_VIND_MASK     0x003C0000
 #define IXGBE_RAH_VIND_SHIFT    18
@@ -1962,6 +1953,8 @@ enum {
 #define IXGBE_MRQC_RSS_FIELD_IPV6_UDP    0x00800000
 #define IXGBE_MRQC_RSS_FIELD_IPV6_EX_UDP 0x01000000
 #define IXGBE_MRQC_L3L4TXSWEN            0x00008000
+
+#define IXGBE_FWSM_TS_ENABLED	0x1
 
 /* Queue Drop Enable */
 #define IXGBE_QDE_ENABLE     0x00000001

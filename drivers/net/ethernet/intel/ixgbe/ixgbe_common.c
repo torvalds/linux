@@ -1783,29 +1783,6 @@ s32 ixgbe_update_eeprom_checksum_generic(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_validate_mac_addr - Validate MAC address
- *  @mac_addr: pointer to MAC address.
- *
- *  Tests a MAC address to ensure it is a valid Individual Address
- **/
-s32 ixgbe_validate_mac_addr(u8 *mac_addr)
-{
-	s32 status = 0;
-
-	/* Make sure it is not a multicast address */
-	if (IXGBE_IS_MULTICAST(mac_addr))
-		status = IXGBE_ERR_INVALID_MAC_ADDR;
-	/* Not a broadcast address */
-	else if (IXGBE_IS_BROADCAST(mac_addr))
-		status = IXGBE_ERR_INVALID_MAC_ADDR;
-	/* Reject the zero address */
-	else if (is_zero_ether_addr(mac_addr))
-		status = IXGBE_ERR_INVALID_MAC_ADDR;
-
-	return status;
-}
-
-/**
  *  ixgbe_set_rar_generic - Set Rx address register
  *  @hw: pointer to hardware structure
  *  @index: Receive address register to write
@@ -1909,8 +1886,7 @@ s32 ixgbe_init_rx_addrs_generic(struct ixgbe_hw *hw)
 	 * to the permanent address.
 	 * Otherwise, use the permanent address from the eeprom.
 	 */
-	if (ixgbe_validate_mac_addr(hw->mac.addr) ==
-	    IXGBE_ERR_INVALID_MAC_ADDR) {
+	if (!is_valid_ether_addr(hw->mac.addr)) {
 		/* Get the MAC address from the RAR0 for later reference */
 		hw->mac.ops.get_mac_addr(hw, hw->mac.addr);
 
