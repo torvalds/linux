@@ -18,7 +18,6 @@
 #define _BRCMF_DBG_H_
 
 /* message levels */
-#define BRCMF_ERROR_VAL	0x0001
 #define BRCMF_TRACE_VAL	0x0002
 #define BRCMF_INFO_VAL	0x0004
 #define BRCMF_DATA_VAL	0x0008
@@ -33,22 +32,26 @@
 #define BRCMF_FIL_VAL	0x1000
 #define BRCMF_USB_VAL	0x2000
 
+/* Macro for error messages. net_ratelimit() is used when driver
+ * debugging is not selected. When debugging the driver error
+ * messages are as important as other tracing or even more so.
+ */
+#ifdef CONFIG_BRCMDBG
+#define brcmf_err(fmt, ...)	pr_err("%s: " fmt, __func__, ##__VA_ARGS__)
+#else
+#define brcmf_err(fmt, ...)						\
+	do {								\
+		if (net_ratelimit())					\
+			pr_err("%s: " fmt, __func__, ##__VA_ARGS__);	\
+	} while (0)
+#endif
+
 #if defined(DEBUG)
 
-#define brcmf_dbg(level, fmt, ...)					\
-do {									\
-	if (BRCMF_ERROR_VAL == BRCMF_##level##_VAL) {			\
-		if (brcmf_msg_level & BRCMF_##level##_VAL) {		\
-			if (net_ratelimit())				\
-				pr_debug("%s: " fmt,			\
-					 __func__, ##__VA_ARGS__);	\
-		}							\
-	} else {							\
-		if (brcmf_msg_level & BRCMF_##level##_VAL) {		\
-			pr_debug("%s: " fmt,				\
-				 __func__, ##__VA_ARGS__);		\
-		}							\
-	}								\
+#define brcmf_dbg(level, fmt, ...)				\
+do {								\
+	if (brcmf_msg_level & BRCMF_##level##_VAL)		\
+		pr_debug("%s: " fmt, __func__, ##__VA_ARGS__);	\
 } while (0)
 
 #define BRCMF_DATA_ON()		(brcmf_msg_level & BRCMF_DATA_VAL)

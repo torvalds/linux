@@ -39,19 +39,19 @@ MODULE_LICENSE("Dual BSD/GPL");
 #define MAX_WAIT_FOR_8021X_TX		50	/* msecs */
 
 /* Error bits */
-int brcmf_msg_level = BRCMF_ERROR_VAL;
+int brcmf_msg_level;
 module_param(brcmf_msg_level, int, 0);
 
 
 char *brcmf_ifname(struct brcmf_pub *drvr, int ifidx)
 {
 	if (ifidx < 0 || ifidx >= BRCMF_MAX_IFS) {
-		brcmf_dbg(ERROR, "ifidx %d out of range\n", ifidx);
+		brcmf_err("ifidx %d out of range\n", ifidx);
 		return "<if_bad>";
 	}
 
 	if (drvr->iflist[ifidx] == NULL) {
-		brcmf_dbg(ERROR, "null i/f %d\n", ifidx);
+		brcmf_err("null i/f %d\n", ifidx);
 		return "<if_null>";
 	}
 
@@ -102,7 +102,7 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 
 	err = brcmf_fil_iovar_data_set(ifp, "mcast_list", buf, buflen);
 	if (err < 0) {
-		brcmf_dbg(ERROR, "Setting mcast_list failed, %d\n", err);
+		brcmf_err("Setting mcast_list failed, %d\n", err);
 		cmd_value = cnt ? true : cmd_value;
 	}
 
@@ -115,13 +115,13 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 	 */
 	err = brcmf_fil_iovar_int_set(ifp, "allmulti", cmd_value);
 	if (err < 0)
-		brcmf_dbg(ERROR, "Setting allmulti failed, %d\n", err);
+		brcmf_err("Setting allmulti failed, %d\n", err);
 
 	/*Finally, pick up the PROMISC flag */
 	cmd_value = (ndev->flags & IFF_PROMISC) ? true : false;
 	err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_PROMISC, cmd_value);
 	if (err < 0)
-		brcmf_dbg(ERROR, "Setting BRCMF_C_SET_PROMISC failed, %d\n",
+		brcmf_err("Setting BRCMF_C_SET_PROMISC failed, %d\n",
 			  err);
 }
 
@@ -137,7 +137,7 @@ _brcmf_set_mac_address(struct work_struct *work)
 	err = brcmf_fil_iovar_data_set(ifp, "cur_etheraddr", ifp->mac_addr,
 				       ETH_ALEN);
 	if (err < 0) {
-		brcmf_dbg(ERROR, "Setting cur_etheraddr failed, %d\n", err);
+		brcmf_err("Setting cur_etheraddr failed, %d\n", err);
 	} else {
 		brcmf_dbg(TRACE, "MAC address updated to %pM\n",
 			  ifp->mac_addr);
@@ -173,7 +173,7 @@ static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	/* Reject if down */
 	if (!drvr->bus_if->drvr_up ||
 	    (drvr->bus_if->state != BRCMF_BUS_DATA)) {
-		brcmf_dbg(ERROR, "xmit rejected drvup=%d state=%d\n",
+		brcmf_err("xmit rejected drvup=%d state=%d\n",
 			  drvr->bus_if->drvr_up,
 			  drvr->bus_if->state);
 		netif_stop_queue(ndev);
@@ -181,7 +181,7 @@ static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	}
 
 	if (!drvr->iflist[ifp->idx]) {
-		brcmf_dbg(ERROR, "bad ifidx %d\n", ifp->idx);
+		brcmf_err("bad ifidx %d\n", ifp->idx);
 		netif_stop_queue(ndev);
 		return -ENODEV;
 	}
@@ -197,7 +197,7 @@ static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		dev_kfree_skb(skb);
 		skb = skb2;
 		if (skb == NULL) {
-			brcmf_dbg(ERROR, "%s: skb_realloc_headroom failed\n",
+			brcmf_err("%s: skb_realloc_headroom failed\n",
 				  brcmf_ifname(drvr, ifp->idx));
 			ret = -ENOMEM;
 			goto done;
@@ -377,13 +377,13 @@ static int brcmf_toe_set(struct brcmf_if *ifp, u32 toe_ol)
 
 	err = brcmf_fil_iovar_int_set(ifp, "toe_ol", toe_ol);
 	if (err < 0) {
-		brcmf_dbg(ERROR, "Setting toe_ol failed, %d\n", err);
+		brcmf_err("Setting toe_ol failed, %d\n", err);
 		return err;
 	}
 
 	err = brcmf_fil_iovar_int_set(ifp, "toe", (toe_ol != 0));
 	if (err < 0)
-		brcmf_dbg(ERROR, "Setting toe failed, %d\n", err);
+		brcmf_err("Setting toe failed, %d\n", err);
 
 	return err;
 
@@ -440,7 +440,7 @@ static int brcmf_ethtool(struct brcmf_if *ifp, void __user *uaddr)
 
 		/* otherwise, require dongle to be up */
 		else if (!drvr->bus_if->drvr_up) {
-			brcmf_dbg(ERROR, "dongle is not up\n");
+			brcmf_err("dongle is not up\n");
 			return -ENODEV;
 		}
 		/* finally, report dongle driver type */
@@ -559,7 +559,7 @@ static int brcmf_netdev_open(struct net_device *ndev)
 
 	/* If bus is not ready, can't continue */
 	if (bus_if->state != BRCMF_BUS_DATA) {
-		brcmf_dbg(ERROR, "failed bus is not ready\n");
+		brcmf_err("failed bus is not ready\n");
 		return -EAGAIN;
 	}
 
@@ -583,7 +583,7 @@ static int brcmf_netdev_open(struct net_device *ndev)
 	netif_start_queue(ndev);
 	drvr->bus_if->drvr_up = true;
 	if (brcmf_cfg80211_up(ndev)) {
-		brcmf_dbg(ERROR, "failed to bring up cfg80211\n");
+		brcmf_err("failed to bring up cfg80211\n");
 		return -1;
 	}
 
@@ -634,7 +634,7 @@ int brcmf_net_attach(struct brcmf_if *ifp)
 	memcpy(ndev->dev_addr, ifp->mac_addr, ETH_ALEN);
 
 	if (register_netdev(ndev) != 0) {
-		brcmf_dbg(ERROR, "couldn't register the net device\n");
+		brcmf_err("couldn't register the net device\n");
 		goto fail;
 	}
 
@@ -662,7 +662,7 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, int ifidx, s32 bssidx,
 	 * in case we missed the BRCMF_E_IF_DEL event.
 	 */
 	if (ifp) {
-		brcmf_dbg(ERROR, "ERROR: netdev:%s already exists\n",
+		brcmf_err("ERROR: netdev:%s already exists\n",
 			  ifp->ndev->name);
 		if (ifidx) {
 			netif_stop_queue(ifp->ndev);
@@ -670,7 +670,7 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, int ifidx, s32 bssidx,
 			free_netdev(ifp->ndev);
 			drvr->iflist[ifidx] = NULL;
 		} else {
-			brcmf_dbg(ERROR, "ignore IF event\n");
+			brcmf_err("ignore IF event\n");
 			return ERR_PTR(-EINVAL);
 		}
 	}
@@ -678,7 +678,7 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, int ifidx, s32 bssidx,
 	/* Allocate netdev, including space for private structure */
 	ndev = alloc_netdev(sizeof(struct brcmf_if), name, ether_setup);
 	if (!ndev) {
-		brcmf_dbg(ERROR, "OOM - alloc_netdev\n");
+		brcmf_err("OOM - alloc_netdev\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -710,7 +710,7 @@ void brcmf_del_if(struct brcmf_pub *drvr, int ifidx)
 
 	ifp = drvr->iflist[ifidx];
 	if (!ifp) {
-		brcmf_dbg(ERROR, "Null interface\n");
+		brcmf_err("Null interface\n");
 		return;
 	}
 	if (ifp->ndev) {
@@ -760,7 +760,7 @@ int brcmf_attach(uint bus_hdrlen, struct device *dev)
 	/* Attach and link in the protocol */
 	ret = brcmf_proto_attach(drvr);
 	if (ret != 0) {
-		brcmf_dbg(ERROR, "brcmf_prot_attach failed\n");
+		brcmf_err("brcmf_prot_attach failed\n");
 		goto fail;
 	}
 
@@ -791,7 +791,7 @@ int brcmf_bus_start(struct device *dev)
 	/* Bring up the bus */
 	ret = brcmf_bus_init(bus_if);
 	if (ret != 0) {
-		brcmf_dbg(ERROR, "brcmf_sdbrcm_bus_init failed %d\n", ret);
+		brcmf_err("brcmf_sdbrcm_bus_init failed %d\n", ret);
 		return ret;
 	}
 
@@ -821,7 +821,7 @@ int brcmf_bus_start(struct device *dev)
 	ret = brcmf_net_attach(ifp);
 fail:
 	if (ret < 0) {
-		brcmf_dbg(ERROR, "failed: %d\n", ret);
+		brcmf_err("failed: %d\n", ret);
 		if (drvr->config)
 			brcmf_cfg80211_detach(drvr->config);
 		free_netdev(drvr->iflist[0]->ndev);

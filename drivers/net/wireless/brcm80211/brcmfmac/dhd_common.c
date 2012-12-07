@@ -80,7 +80,7 @@ bool brcmf_c_prec_enq(struct device *dev, struct pktq *q,
 		p = discard_oldest ? brcmu_pktq_pdeq(q, eprec) :
 			brcmu_pktq_pdeq_tail(q, eprec);
 		if (p == NULL)
-			brcmf_dbg(ERROR, "brcmu_pktq_penq() failed, oldest %d\n",
+			brcmf_err("brcmu_pktq_penq() failed, oldest %d\n",
 				  discard_oldest);
 
 		brcmu_pkt_buf_free_skb(p);
@@ -89,7 +89,7 @@ bool brcmf_c_prec_enq(struct device *dev, struct pktq *q,
 	/* Enqueue */
 	p = brcmu_pktq_penq(q, prec, pkt);
 	if (p == NULL)
-		brcmf_dbg(ERROR, "brcmu_pktq_penq() failed\n");
+		brcmf_err("brcmu_pktq_penq() failed\n");
 
 	return p != NULL;
 }
@@ -99,12 +99,12 @@ static int brcmf_c_pattern_atoh(char *src, char *dst)
 {
 	int i;
 	if (strncmp(src, "0x", 2) != 0 && strncmp(src, "0X", 2) != 0) {
-		brcmf_dbg(ERROR, "Mask invalid format. Needs to start with 0x\n");
+		brcmf_err("Mask invalid format. Needs to start with 0x\n");
 		return -EINVAL;
 	}
 	src = src + 2;		/* Skip past 0x */
 	if (strlen(src) % 2 != 0) {
-		brcmf_dbg(ERROR, "Mask invalid format. Length must be even.\n");
+		brcmf_err("Mask invalid format. Length must be even.\n");
 		return -EINVAL;
 	}
 	for (i = 0; *src != '\0'; i++) {
@@ -139,7 +139,7 @@ brcmf_c_pktfilter_offload_enable(struct brcmf_if *ifp, char *arg, int enable,
 	argv = strsep(&arg_save, " ");
 
 	if (argv == NULL) {
-		brcmf_dbg(ERROR, "No args provided\n");
+		brcmf_err("No args provided\n");
 		goto fail;
 	}
 
@@ -154,12 +154,12 @@ brcmf_c_pktfilter_offload_enable(struct brcmf_if *ifp, char *arg, int enable,
 	err = brcmf_fil_iovar_data_set(ifp, "pkt_filter_enable", &enable_parm,
 				       sizeof(enable_parm));
 	if (err)
-		brcmf_dbg(ERROR, "Set pkt_filter_enable error (%d)\n", err);
+		brcmf_err("Set pkt_filter_enable error (%d)\n", err);
 
 	/* Control the master mode */
 	err = brcmf_fil_iovar_int_set(ifp, "pkt_filter_mode", master_mode);
 	if (err)
-		brcmf_dbg(ERROR, "Set pkt_filter_mode error (%d)\n", err);
+		brcmf_err("Set pkt_filter_mode error (%d)\n", err);
 
 fail:
 	kfree(arg_org);
@@ -191,14 +191,14 @@ static void brcmf_c_pktfilter_offload_set(struct brcmf_if *ifp, char *arg)
 	while (argv[i]) {
 		i++;
 		if (i >= 8) {
-			brcmf_dbg(ERROR, "Too many parameters\n");
+			brcmf_err("Too many parameters\n");
 			goto fail;
 		}
 		argv[i] = strsep(&arg_save, " ");
 	}
 
 	if (i != 6) {
-		brcmf_dbg(ERROR, "Not enough args provided %d\n", i);
+		brcmf_err("Not enough args provided %d\n", i);
 		goto fail;
 	}
 
@@ -233,7 +233,7 @@ static void brcmf_c_pktfilter_offload_set(struct brcmf_if *ifp, char *arg)
 		(char *)&pkt_filter->u.pattern.mask_and_pattern[mask_size]);
 
 	if (mask_size != pattern_size) {
-		brcmf_dbg(ERROR, "Mask and pattern not the same size\n");
+		brcmf_err("Mask and pattern not the same size\n");
 		goto fail;
 	}
 
@@ -245,7 +245,7 @@ static void brcmf_c_pktfilter_offload_set(struct brcmf_if *ifp, char *arg)
 	err = brcmf_fil_iovar_data_set(ifp, "pkt_filter_add", pkt_filter,
 				       buf_len);
 	if (err)
-		brcmf_dbg(ERROR, "Set pkt_filter_add error (%d)\n", err);
+		brcmf_err("Set pkt_filter_add error (%d)\n", err);
 
 fail:
 	kfree(arg_org);
@@ -266,7 +266,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	err = brcmf_fil_iovar_data_get(ifp, "cur_etheraddr", ifp->mac_addr,
 				       sizeof(ifp->mac_addr));
 	if (err < 0) {
-		brcmf_dbg(ERROR, "Retreiving cur_etheraddr failed, %d\n",
+		brcmf_err("Retreiving cur_etheraddr failed, %d\n",
 			  err);
 		goto done;
 	}
@@ -277,14 +277,14 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	strcpy(buf, "ver");
 	err = brcmf_fil_iovar_data_get(ifp, "ver", buf, sizeof(buf));
 	if (err < 0) {
-		brcmf_dbg(ERROR, "Retreiving version information failed, %d\n",
+		brcmf_err("Retreiving version information failed, %d\n",
 			  err);
 		goto done;
 	}
 	ptr = (char *)buf;
 	strsep(&ptr, "\n");
 	/* Print fw version info */
-	brcmf_dbg(ERROR, "Firmware version = %s\n", buf);
+	brcmf_err("Firmware version = %s\n", buf);
 
 	/*
 	 * Setup timeout if Beacons are lost and roam is off to report
@@ -293,7 +293,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	err = brcmf_fil_iovar_int_set(ifp, "bcn_timeout",
 				      BRCMF_DEFAULT_BCN_TIMEOUT);
 	if (err) {
-		brcmf_dbg(ERROR, "bcn_timeout error (%d)\n", err);
+		brcmf_err("bcn_timeout error (%d)\n", err);
 		goto done;
 	}
 
@@ -302,7 +302,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	 */
 	err = brcmf_fil_iovar_int_set(ifp, "roam_off", 1);
 	if (err) {
-		brcmf_dbg(ERROR, "roam_off error (%d)\n", err);
+		brcmf_err("roam_off error (%d)\n", err);
 		goto done;
 	}
 
@@ -310,14 +310,14 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	err = brcmf_fil_iovar_data_get(ifp, "event_msgs", eventmask,
 				       BRCMF_EVENTING_MASK_LEN);
 	if (err) {
-		brcmf_dbg(ERROR, "Get event_msgs error (%d)\n", err);
+		brcmf_err("Get event_msgs error (%d)\n", err);
 		goto done;
 	}
 	setbit(eventmask, BRCMF_E_IF);
 	err = brcmf_fil_iovar_data_set(ifp, "event_msgs", eventmask,
 				       BRCMF_EVENTING_MASK_LEN);
 	if (err) {
-		brcmf_dbg(ERROR, "Set event_msgs error (%d)\n", err);
+		brcmf_err("Set event_msgs error (%d)\n", err);
 		goto done;
 	}
 
@@ -325,7 +325,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_SCAN_CHANNEL_TIME,
 				    BRCMF_DEFAULT_SCAN_CHANNEL_TIME);
 	if (err) {
-		brcmf_dbg(ERROR, "BRCMF_C_SET_SCAN_CHANNEL_TIME error (%d)\n",
+		brcmf_err("BRCMF_C_SET_SCAN_CHANNEL_TIME error (%d)\n",
 			  err);
 		goto done;
 	}
@@ -334,7 +334,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_SCAN_UNASSOC_TIME,
 				    BRCMF_DEFAULT_SCAN_UNASSOC_TIME);
 	if (err) {
-		brcmf_dbg(ERROR, "BRCMF_C_SET_SCAN_UNASSOC_TIME error (%d)\n",
+		brcmf_err("BRCMF_C_SET_SCAN_UNASSOC_TIME error (%d)\n",
 			  err);
 		goto done;
 	}
