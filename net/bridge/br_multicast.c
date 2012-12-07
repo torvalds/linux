@@ -1605,6 +1605,7 @@ void br_multicast_init(struct net_bridge *br)
 		    br_multicast_querier_expired, (unsigned long)br);
 	setup_timer(&br->multicast_query_timer, br_multicast_query_expired,
 		    (unsigned long)br);
+	br_mdb_init();
 }
 
 void br_multicast_open(struct net_bridge *br)

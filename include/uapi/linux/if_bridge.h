@@ -116,4 +116,59 @@ enum {
 	__IFLA_BRIDGE_MAX,
 };
 #define IFLA_BRIDGE_MAX (__IFLA_BRIDGE_MAX - 1)
+
+/* Bridge multicast database attributes
+ * [MDBA_MDB] = {
+ *     [MDBA_MDB_ENTRY] = {
+ *         [MDBA_MDB_ENTRY_INFO]
+ *     }
+ * }
+ * [MDBA_ROUTER] = {
+ *    [MDBA_ROUTER_PORT]
+ * }
+ */
+enum {
+	MDBA_UNSPEC,
+	MDBA_MDB,
+	MDBA_ROUTER,
+	__MDBA_MAX,
+};
+#define MDBA_MAX (__MDBA_MAX - 1)
+
+enum {
+	MDBA_MDB_UNSPEC,
+	MDBA_MDB_ENTRY,
+	__MDBA_MDB_MAX,
+};
+#define MDBA_MDB_MAX (__MDBA_MDB_MAX - 1)
+
+enum {
+	MDBA_MDB_ENTRY_UNSPEC,
+	MDBA_MDB_ENTRY_INFO,
+	__MDBA_MDB_ENTRY_MAX,
+};
+#define MDBA_MDB_ENTRY_MAX (__MDBA_MDB_ENTRY_MAX - 1)
+
+enum {
+	MDBA_ROUTER_UNSPEC,
+	MDBA_ROUTER_PORT,
+	__MDBA_ROUTER_MAX,
+};
+#define MDBA_ROUTER_MAX (__MDBA_ROUTER_MAX - 1)
+
+struct br_port_msg {
+	__u32 ifindex;
+};
+
+struct br_mdb_entry {
+	__u32 ifindex;
+	struct {
+		union {
+			__be32	ip4;
+			struct in6_addr ip6;
+		} u;
+		__be16		proto;
+	} addr;
+};
+
 #endif /* _UAPI_LINUX_IF_BRIDGE_H */
