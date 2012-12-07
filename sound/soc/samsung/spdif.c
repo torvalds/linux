@@ -437,8 +437,15 @@ static __devinit int spdif_probe(struct platform_device *pdev)
 
 	spdif->dma_playback = &spdif_stereo_out;
 
-	return 0;
+	ret = asoc_dma_platform_register(&pdev->dev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register DMA: %d\n", ret);
+		goto err5;
+	}
 
+	return 0;
+err5:
+	snd_soc_unregister_dai(&pdev->dev);
 err4:
 	iounmap(spdif->regs);
 err3:
@@ -458,6 +465,7 @@ static __devexit int spdif_remove(struct platform_device *pdev)
 	struct samsung_spdif_info *spdif = &spdif_info;
 	struct resource *mem_res;
 
+	asoc_dma_platform_unregister(&pdev->dev);
 	snd_soc_unregister_dai(&pdev->dev);
 
 	iounmap(spdif->regs);

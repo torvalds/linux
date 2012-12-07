@@ -135,7 +135,7 @@ static struct snd_soc_dai_link smdk_dai[] = {
 		.stream_name = "Capture",
 		.cpu_dai_name = "samsung-pcm.0",
 		.codec_dai_name = "wm8580-hifi-capture",
-		.platform_name = "samsung-audio",
+		.platform_name = "samsung-pcm.0",
 		.codec_name = "wm8580.0-001b",
 		.ops = &smdk_wm8580_pcm_ops,
 	},

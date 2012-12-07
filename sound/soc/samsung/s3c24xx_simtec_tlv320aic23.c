@@ -71,7 +71,7 @@ static struct snd_soc_dai_link simtec_dai_aic23 = {
 	.codec_name	= "tlv320aic3x-codec.0-001a",
 	.cpu_dai_name	= "s3c24xx-iis",
 	.codec_dai_name = "tlv320aic3x-hifi",
-	.platform_name	= "samsung-audio",
+	.platform_name	= "s3c24xx-iis",
 	.init		= simtec_tlv320aic23_init,
 };
 

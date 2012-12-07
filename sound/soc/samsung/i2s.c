@@ -1009,6 +1009,7 @@ static __devinit int samsung_i2s_probe(struct platform_device *pdev)
 		sec_dai = dev_get_drvdata(&pdev->dev);
 		snd_soc_register_dai(&sec_dai->pdev->dev,
 			&sec_dai->i2s_dai_drv);
+		asoc_dma_platform_register(&pdev->dev);
 		return 0;
 	}
 
@@ -1107,6 +1108,8 @@ static __devinit int samsung_i2s_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
+	asoc_dma_platform_register(&pdev->dev);
+
 	return 0;
 err:
 	release_mem_region(regs_base, resource_size(res));
@@ -1135,6 +1138,7 @@ static __devexit int samsung_i2s_remove(struct platform_device *pdev)
 	i2s->pri_dai = NULL;
 	i2s->sec_dai = NULL;
 
+	asoc_dma_platform_unregister(&pdev->dev);
 	snd_soc_unregister_dai(&pdev->dev);
 
 	return 0;
