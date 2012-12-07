@@ -576,9 +576,9 @@ static int __init vfio_pci_init(void)
 
 	return 0;
 
-out_virqfd:
-	vfio_pci_virqfd_exit();
 out_driver:
+	vfio_pci_virqfd_exit();
+out_virqfd:
 	vfio_pci_uninit_perm_bits();
 	return ret;
 }
