@@ -607,7 +607,7 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
 	return 0;
 }
 
-static long vhost_set_vring(struct vhost_dev *d, int ioctl, void __user *argp)
+long vhost_vring_ioctl(struct vhost_dev *d, int ioctl, void __user *argp)
 {
 	struct file *eventfp, *filep = NULL;
 	bool pollstart = false, pollstop = false;
@@ -802,9 +802,8 @@ static long vhost_set_vring(struct vhost_dev *d, int ioctl, void __user *argp)
 }
 
 /* Caller must have device mutex */
-long vhost_dev_ioctl(struct vhost_dev *d, unsigned int ioctl, unsigned long arg)
+long vhost_dev_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *argp)
 {
-	void __user *argp = (void __user *)arg;
 	struct file *eventfp, *filep = NULL;
 	struct eventfd_ctx *ctx = NULL;
 	u64 p;
@@ -875,7 +874,7 @@ long vhost_dev_ioctl(struct vhost_dev *d, unsigned int ioctl, unsigned long arg)
 			fput(filep);
 		break;
 	default:
-		r = vhost_set_vring(d, ioctl, argp);
+		r = -ENOIOCTLCMD;
 		break;
 	}
 done:
