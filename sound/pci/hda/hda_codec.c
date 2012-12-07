@@ -738,7 +738,7 @@ static int snd_hda_bus_dev_register(struct snd_device *device)
  *
  * Returns 0 if successful, or a negative error code.
  */
-int /*__devinit*/ snd_hda_bus_new(struct snd_card *card,
+int snd_hda_bus_new(struct snd_card *card,
 			      const struct hda_bus_template *temp,
 			      struct hda_bus **busp)
 {
@@ -908,7 +908,7 @@ static int get_codec_name(struct hda_codec *codec)
 /*
  * look for an AFG and MFG nodes
  */
-static void /*__devinit*/ setup_fg_nodes(struct hda_codec *codec)
+static void setup_fg_nodes(struct hda_codec *codec)
 {
 	int i, total_nodes, function_id;
 	hda_nid_t nid;
@@ -1212,7 +1212,7 @@ static unsigned int hda_set_power_state(struct hda_codec *codec,
  *
  * Returns 0 if successful, or a negative error code.
  */
-int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus,
+int snd_hda_codec_new(struct hda_bus *bus,
 				unsigned int codec_addr,
 				struct hda_codec **codecp)
 {
@@ -1567,7 +1567,7 @@ static void hda_cleanup_all_streams(struct hda_codec *codec)
 #define INFO_AMP_VOL(ch)	(1 << (1 + (ch)))
 
 /* initialize the hash table */
-static void /*__devinit*/ init_hda_cache(struct hda_cache_rec *cache,
+static void init_hda_cache(struct hda_cache_rec *cache,
 				     unsigned int record_size)
 {
 	memset(cache, 0, sizeof(*cache));
@@ -3684,7 +3684,7 @@ static void hda_call_codec_resume(struct hda_codec *codec)
  *
  * Returns 0 if successful, otherwise a negative error code.
  */
-int /*__devinit*/ snd_hda_build_controls(struct hda_bus *bus)
+int snd_hda_build_controls(struct hda_bus *bus)
 {
 	struct hda_codec *codec;
 
