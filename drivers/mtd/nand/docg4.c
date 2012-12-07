@@ -214,15 +214,17 @@ struct docg4_priv {
 #define DOCG4_FACTORY_BBT_PAGE 16 /* page where read-only factory bbt lives */
 
 /*
- * Oob bytes 0 - 6 are available to the user.
- * Byte 7 is hamming ecc for first 7 bytes.  Bytes 8 - 14 are hw-generated ecc.
+ * Bytes 0, 1 are used as badblock marker.
+ * Bytes 2 - 6 are available to the user.
+ * Byte 7 is hamming ecc for first 7 oob bytes only.
+ * Bytes 8 - 14 are hw-generated ecc covering entire page + oob bytes 0 - 14.
  * Byte 15 (the last) is used by the driver as a "page written" flag.
  */
 static struct nand_ecclayout docg4_oobinfo = {
 	.eccbytes = 9,
 	.eccpos = {7, 8, 9, 10, 11, 12, 13, 14, 15},
-	.oobavail = 7,
-	.oobfree = { {0, 7} }
+	.oobavail = 5,
+	.oobfree = { {.offset = 2, .length = 5} }
 };
 
 /*
