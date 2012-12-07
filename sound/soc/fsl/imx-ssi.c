@@ -639,7 +639,7 @@ failed_clk:
 	return ret;
 }
 
-static int __devexit imx_ssi_remove(struct platform_device *pdev)
+static int imx_ssi_remove(struct platform_device *pdev)
 {
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct imx_ssi *ssi = platform_get_drvdata(pdev);
@@ -660,7 +660,7 @@ static int __devexit imx_ssi_remove(struct platform_device *pdev)
 
 static struct platform_driver imx_ssi_driver = {
 	.probe = imx_ssi_probe,
-	.remove = __devexit_p(imx_ssi_remove),
+	.remove = imx_ssi_remove,
 
 	.driver = {
 		.name = "imx-ssi",

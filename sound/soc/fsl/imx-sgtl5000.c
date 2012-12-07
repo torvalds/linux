@@ -56,7 +56,7 @@ static const struct snd_soc_dapm_widget imx_sgtl5000_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("Ext Spk", NULL),
 };
 
-static int __devinit imx_sgtl5000_probe(struct platform_device *pdev)
+static int imx_sgtl5000_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *ssi_np, *codec_np;
@@ -185,7 +185,7 @@ fail:
 	return ret;
 }
 
-static int __devexit imx_sgtl5000_remove(struct platform_device *pdev)
+static int imx_sgtl5000_remove(struct platform_device *pdev)
 {
 	struct imx_sgtl5000_data *data = platform_get_drvdata(pdev);
 
@@ -211,7 +211,7 @@ static struct platform_driver imx_sgtl5000_driver = {
 		.of_match_table = imx_sgtl5000_dt_ids,
 	},
 	.probe = imx_sgtl5000_probe,
-	.remove = __devexit_p(imx_sgtl5000_remove),
+	.remove = imx_sgtl5000_remove,
 };
 module_platform_driver(imx_sgtl5000_driver);
 

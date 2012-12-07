@@ -326,7 +326,7 @@ error_put:
  *
  * This function is called when the platform device is removed.
  */
-static int __devexit p1022_rdk_remove(struct platform_device *pdev)
+static int p1022_rdk_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct machine_data *mdata =
@@ -340,7 +340,7 @@ static int __devexit p1022_rdk_remove(struct platform_device *pdev)
 
 static struct platform_driver p1022_rdk_driver = {
 	.probe = p1022_rdk_probe,
-	.remove = __devexit_p(p1022_rdk_remove),
+	.remove = p1022_rdk_remove,
 	.driver = {
 		/*
 		 * The name must match 'compatible' property in the device tree,
