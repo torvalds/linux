@@ -239,7 +239,7 @@ int br_setlink(struct net_device *dev, struct nlmsghdr *nlh)
 	struct ifinfomsg *ifm;
 	struct nlattr *protinfo;
 	struct net_bridge_port *p;
-	struct nlattr *tb[IFLA_BRPORT_MAX];
+	struct nlattr *tb[IFLA_BRPORT_MAX + 1];
 	int err;
 
 	ifm = nlmsg_data(nlh);
