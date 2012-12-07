@@ -5114,13 +5114,13 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 	right_path->search_commit_root = 1;
 	right_path->skip_locking = 1;
 
-	spin_lock(&left_root->root_times_lock);
+	spin_lock(&left_root->root_item_lock);
 	left_start_ctransid = btrfs_root_ctransid(&left_root->root_item);
-	spin_unlock(&left_root->root_times_lock);
+	spin_unlock(&left_root->root_item_lock);
 
-	spin_lock(&right_root->root_times_lock);
+	spin_lock(&right_root->root_item_lock);
 	right_start_ctransid = btrfs_root_ctransid(&right_root->root_item);
-	spin_unlock(&right_root->root_times_lock);
+	spin_unlock(&right_root->root_item_lock);
 
 	trans = btrfs_join_transaction(left_root);
 	if (IS_ERR(trans)) {
@@ -5215,15 +5215,15 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 				goto out;
 			}
 
-			spin_lock(&left_root->root_times_lock);
+			spin_lock(&left_root->root_item_lock);
 			ctransid = btrfs_root_ctransid(&left_root->root_item);
-			spin_unlock(&left_root->root_times_lock);
+			spin_unlock(&left_root->root_item_lock);
 			if (ctransid != left_start_ctransid)
 				left_start_ctransid = 0;
 
-			spin_lock(&right_root->root_times_lock);
+			spin_lock(&right_root->root_item_lock);
 			ctransid = btrfs_root_ctransid(&right_root->root_item);
-			spin_unlock(&right_root->root_times_lock);
+			spin_unlock(&right_root->root_item_lock);
 			if (ctransid != right_start_ctransid)
 				right_start_ctransid = 0;
 

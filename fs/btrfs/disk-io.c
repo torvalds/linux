@@ -1204,7 +1204,7 @@ static void __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->root_key.objectid = objectid;
 	root->anon_dev = 0;
 
-	spin_lock_init(&root->root_times_lock);
+	spin_lock_init(&root->root_item_lock);
 }
 
 static int __must_check find_and_setup_root(struct btrfs_root *tree_root,
