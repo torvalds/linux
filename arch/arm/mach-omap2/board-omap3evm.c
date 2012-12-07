@@ -202,22 +202,11 @@ static struct omap_dss_device omap3_evm_lcd_device = {
 	.data			= &omap3_evm_lcd_data,
 };
 
-static int omap3_evm_enable_tv(struct omap_dss_device *dssdev)
-{
-	return 0;
-}
-
-static void omap3_evm_disable_tv(struct omap_dss_device *dssdev)
-{
-}
-
 static struct omap_dss_device omap3_evm_tv_device = {
 	.name			= "tv",
 	.driver_name		= "venc",
 	.type			= OMAP_DISPLAY_TYPE_VENC,
 	.phy.venc.type		= OMAP_DSS_VENC_TYPE_SVIDEO,
-	.platform_enable	= omap3_evm_enable_tv,
-	.platform_disable	= omap3_evm_disable_tv,
 };
 
 static struct tfp410_platform_data dvi_panel = {

@@ -190,15 +190,6 @@ static inline void cm_t35_init_nand(void) {}
 #define CM_T35_LCD_BL_GPIO 58
 #define CM_T35_DVI_EN_GPIO 54
 
-static int cm_t35_panel_enable_tv(struct omap_dss_device *dssdev)
-{
-	return 0;
-}
-
-static void cm_t35_panel_disable_tv(struct omap_dss_device *dssdev)
-{
-}
-
 static struct panel_generic_dpi_data lcd_panel = {
 	.name			= "toppoly_tdo35s",
 	.num_gpios		= 1,
@@ -233,8 +224,6 @@ static struct omap_dss_device cm_t35_tv_device = {
 	.driver_name		= "venc",
 	.type			= OMAP_DISPLAY_TYPE_VENC,
 	.phy.venc.type		= OMAP_DSS_VENC_TYPE_SVIDEO,
-	.platform_enable	= cm_t35_panel_enable_tv,
-	.platform_disable	= cm_t35_panel_disable_tv,
 };
 
 static struct omap_dss_device *cm_t35_dss_devices[] = {

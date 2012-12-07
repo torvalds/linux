@@ -126,15 +126,6 @@ static void __init sdp3430_display_init(void)
 
 }
 
-static int sdp3430_panel_enable_tv(struct omap_dss_device *dssdev)
-{
-	return 0;
-}
-
-static void sdp3430_panel_disable_tv(struct omap_dss_device *dssdev)
-{
-}
-
 static struct panel_sharp_ls037v7dw01_data sdp3430_lcd_data = {
 	.resb_gpio = SDP3430_LCD_PANEL_ENABLE_GPIO,
 	.ini_gpio = -1,
@@ -169,8 +160,6 @@ static struct omap_dss_device sdp3430_tv_device = {
 	.driver_name		= "venc",
 	.type			= OMAP_DISPLAY_TYPE_VENC,
 	.phy.venc.type		= OMAP_DSS_VENC_TYPE_SVIDEO,
-	.platform_enable	= sdp3430_panel_enable_tv,
-	.platform_disable	= sdp3430_panel_disable_tv,
 };
 
 

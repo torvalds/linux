@@ -138,22 +138,11 @@ static struct omap_dss_device am3517_evm_lcd_device = {
 	.phy.dpi.data_lines 	= 16,
 };
 
-static int am3517_evm_panel_enable_tv(struct omap_dss_device *dssdev)
-{
-	return 0;
-}
-
-static void am3517_evm_panel_disable_tv(struct omap_dss_device *dssdev)
-{
-}
-
 static struct omap_dss_device am3517_evm_tv_device = {
 	.type 			= OMAP_DISPLAY_TYPE_VENC,
 	.name 			= "tv",
 	.driver_name		= "venc",
 	.phy.venc.type		= OMAP_DSS_VENC_TYPE_SVIDEO,
-	.platform_enable	= am3517_evm_panel_enable_tv,
-	.platform_disable	= am3517_evm_panel_disable_tv,
 };
 
 static struct tfp410_platform_data dvi_panel = {
