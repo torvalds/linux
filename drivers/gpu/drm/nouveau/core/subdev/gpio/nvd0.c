@@ -33,11 +33,11 @@ nvd0_gpio_reset(struct nouveau_gpio *gpio)
 {
 	struct nouveau_bios *bios = nouveau_bios(gpio);
 	struct nvd0_gpio_priv *priv = (void *)gpio;
+	u8 ver, len;
 	u16 entry;
-	u8 ver;
 	int ent = -1;
 
-	while ((entry = dcb_gpio_entry(bios, 0, ++ent, &ver))) {
+	while ((entry = dcb_gpio_entry(bios, 0, ++ent, &ver, &len))) {
 		u32 data = nv_ro32(bios, entry);
 		u8  line =   (data & 0x0000003f);
 		u8  defs = !!(data & 0x00000080);

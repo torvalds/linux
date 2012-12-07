@@ -43,10 +43,15 @@ static int
 nouveau_gpio_find(struct nouveau_gpio *gpio, int idx, u8 tag, u8 line,
 		  struct dcb_gpio_func *func)
 {
+	struct nouveau_bios *bios = nouveau_bios(gpio);
+	u8  ver, len;
+	u16 data;
+
 	if (line == 0xff && tag == 0xff)
 		return -EINVAL;
 
-	if (!dcb_gpio_parse(nouveau_bios(gpio), idx, tag, line, func))
+	data = dcb_gpio_match(bios, idx, tag, line, &ver, &len, func);
+	if (data)
 		return 0;
 
 	/* Apple iMac G4 NV18 */
