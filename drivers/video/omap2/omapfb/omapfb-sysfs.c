@@ -441,6 +441,7 @@ static ssize_t store_size(struct device *dev, struct device_attribute *attr,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 	struct omapfb2_device *fbdev = ofbi->fbdev;
+	struct omap_dss_device *display = fb2display(fbi);
 	struct omapfb2_mem_region *rg;
 	unsigned long size;
 	int r;
@@ -454,6 +455,9 @@ static ssize_t store_size(struct device *dev, struct device_attribute *attr,
 
 	if (!lock_fb_info(fbi))
 		return -ENODEV;
+
+	if (display && display->driver->sync)
+		display->driver->sync(display);
 
 	rg = ofbi->region;
 

@@ -1611,7 +1611,6 @@ int omapfb_realloc_fbmem(struct fb_info *fbi, unsigned long size, int type)
 {
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 	struct omapfb2_device *fbdev = ofbi->fbdev;
-	struct omap_dss_device *display = fb2display(fbi);
 	struct omapfb2_mem_region *rg = ofbi->region;
 	unsigned long old_size = rg->size;
 	unsigned long old_paddr = rg->paddr;
@@ -1625,9 +1624,6 @@ int omapfb_realloc_fbmem(struct fb_info *fbi, unsigned long size, int type)
 
 	if (old_size == size && old_type == type)
 		return 0;
-
-	if (display && display->driver->sync)
-			display->driver->sync(display);
 
 	omapfb_free_fbmem(fbi);
 

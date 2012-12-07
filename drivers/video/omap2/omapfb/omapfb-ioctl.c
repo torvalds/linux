@@ -211,6 +211,7 @@ static int omapfb_setup_mem(struct fb_info *fbi, struct omapfb_mem_info *mi)
 {
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 	struct omapfb2_device *fbdev = ofbi->fbdev;
+	struct omap_dss_device *display = fb2display(fbi);
 	struct omapfb2_mem_region *rg;
 	int r = 0, i;
 	size_t size;
@@ -219,6 +220,9 @@ static int omapfb_setup_mem(struct fb_info *fbi, struct omapfb_mem_info *mi)
 		return -EINVAL;
 
 	size = PAGE_ALIGN(mi->size);
+
+	if (display && display->driver->sync)
+		display->driver->sync(display);
 
 	rg = ofbi->region;
 
