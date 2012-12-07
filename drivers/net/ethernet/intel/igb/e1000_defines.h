@@ -470,6 +470,7 @@
 #define E1000_ERR_NO_SPACE          17
 #define E1000_ERR_NVM_PBA_SECTION   18
 #define E1000_ERR_INVM_VALUE_NOT_FOUND	19
+#define E1000_ERR_I2C               20
 
 /* Loop limit on how long we wait for auto-negotiation to complete */
 #define COPPER_LINK_UP_LIMIT              10

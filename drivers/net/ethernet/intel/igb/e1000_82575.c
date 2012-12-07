@@ -33,6 +33,7 @@
 
 #include <linux/types.h>
 #include <linux/if_ether.h>
+#include <linux/i2c.h>
 
 #include "e1000_mac.h"
 #include "e1000_82575.h"
@@ -2314,6 +2315,8 @@ static struct e1000_phy_operations e1000_phy_ops_82575 = {
 	.acquire              = igb_acquire_phy_82575,
 	.get_cfg_done         = igb_get_cfg_done_82575,
 	.release              = igb_release_phy_82575,
+	.write_i2c_byte       = igb_write_i2c_byte,
+	.read_i2c_byte        = igb_read_i2c_byte,
 };
 
 static struct e1000_nvm_operations e1000_nvm_ops_82575 = {

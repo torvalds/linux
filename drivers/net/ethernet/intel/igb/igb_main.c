@@ -57,6 +57,7 @@
 #ifdef CONFIG_IGB_DCA
 #include <linux/dca.h>
 #endif
+#include <linux/i2c.h>
 #include "igb.h"
 
 #define MAJ 4
@@ -566,6 +567,91 @@ rx_ring_summary:
 exit:
 	return;
 }
+
+/*  igb_get_i2c_data - Reads the I2C SDA data bit
+ *  @hw: pointer to hardware structure
+ *  @i2cctl: Current value of I2CCTL register
+ *
+ *  Returns the I2C data bit value
+ */
+static int igb_get_i2c_data(void *data)
+{
+	struct igb_adapter *adapter = (struct igb_adapter *)data;
+	struct e1000_hw *hw = &adapter->hw;
+	s32 i2cctl = rd32(E1000_I2CPARAMS);
+
+	return ((i2cctl & E1000_I2C_DATA_IN) != 0);
+}
+
+/* igb_set_i2c_data - Sets the I2C data bit
+ *  @data: pointer to hardware structure
+ *  @state: I2C data value (0 or 1) to set
+ *
+ *  Sets the I2C data bit
+ */
+static void igb_set_i2c_data(void *data, int state)
+{
+	struct igb_adapter *adapter = (struct igb_adapter *)data;
+	struct e1000_hw *hw = &adapter->hw;
+	s32 i2cctl = rd32(E1000_I2CPARAMS);
+
+	if (state)
+		i2cctl |= E1000_I2C_DATA_OUT;
+	else
+		i2cctl &= ~E1000_I2C_DATA_OUT;
+
+	i2cctl &= ~E1000_I2C_DATA_OE_N;
+	i2cctl |= E1000_I2C_CLK_OE_N;
+	wr32(E1000_I2CPARAMS, i2cctl);
+	wrfl();
+
+}
+
+/* igb_set_i2c_clk - Sets the I2C SCL clock
+ *  @data: pointer to hardware structure
+ *  @state: state to set clock
+ *
+ *  Sets the I2C clock line to state
+ */
+static void igb_set_i2c_clk(void *data, int state)
+{
+	struct igb_adapter *adapter = (struct igb_adapter *)data;
+	struct e1000_hw *hw = &adapter->hw;
+	s32 i2cctl = rd32(E1000_I2CPARAMS);
+
+	if (state) {
+		i2cctl |= E1000_I2C_CLK_OUT;
+		i2cctl &= ~E1000_I2C_CLK_OE_N;
+	} else {
+		i2cctl &= ~E1000_I2C_CLK_OUT;
+		i2cctl &= ~E1000_I2C_CLK_OE_N;
+	}
+	wr32(E1000_I2CPARAMS, i2cctl);
+	wrfl();
+}
+
+/* igb_get_i2c_clk - Gets the I2C SCL clock state
+ *  @data: pointer to hardware structure
+ *
+ *  Gets the I2C clock state
+ */
+static int igb_get_i2c_clk(void *data)
+{
+	struct igb_adapter *adapter = (struct igb_adapter *)data;
+	struct e1000_hw *hw = &adapter->hw;
+	s32 i2cctl = rd32(E1000_I2CPARAMS);
+
+	return ((i2cctl & E1000_I2C_CLK_IN) != 0);
+}
+
+static const struct i2c_algo_bit_data igb_i2c_algo = {
+	.setsda		= igb_set_i2c_data,
+	.setscl		= igb_set_i2c_clk,
+	.getsda		= igb_get_i2c_data,
+	.getscl		= igb_get_i2c_clk,
+	.udelay		= 5,
+	.timeout	= 20,
+};
 
 /**
  * igb_get_hw_dev - return device
@@ -1824,6 +1910,37 @@ void igb_set_fw_version(struct igb_adapter *adapter)
 	return;
 }
 
+static const struct i2c_board_info i350_sensor_info = {
+	I2C_BOARD_INFO("i350bb", 0Xf8),
+};
+
+/*  igb_init_i2c - Init I2C interface
+ *  @adapter: pointer to adapter structure
+ *
+ */
+static s32 igb_init_i2c(struct igb_adapter *adapter)
+{
+	s32 status = E1000_SUCCESS;
+
+	/* I2C interface supported on i350 devices */
+	if (adapter->hw.mac.type != e1000_i350)
+		return E1000_SUCCESS;
+
+	/* Initialize the i2c bus which is controlled by the registers.
+	 * This bus will use the i2c_algo_bit structue that implements
+	 * the protocol through toggling of the 4 bits in the register.
+	 */
+	adapter->i2c_adap.owner = THIS_MODULE;
+	adapter->i2c_algo = igb_i2c_algo;
+	adapter->i2c_algo.data = adapter;
+	adapter->i2c_adap.algo_data = &adapter->i2c_algo;
+	adapter->i2c_adap.dev.parent = &adapter->pdev->dev;
+	strlcpy(adapter->i2c_adap.name, "igb BB",
+		sizeof(adapter->i2c_adap.name));
+	status = i2c_bit_add_bus(&adapter->i2c_adap);
+	return status;
+}
+
 /**
  * igb_probe - Device Initialization Routine
  * @pdev: PCI device information struct
@@ -2116,6 +2233,13 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* reset the hardware with the new settings */
 	igb_reset(adapter);
 
+	/* Init the I2C interface */
+	err = igb_init_i2c(adapter);
+	if (err) {
+		dev_err(&pdev->dev, "failed to init i2c interface\n");
+		goto err_eeprom;
+	}
+
 	/* let the f/w know that the h/w is now under the control of the
 	 * driver. */
 	igb_get_hw_control(adapter);
@@ -2177,6 +2301,7 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 err_register:
 	igb_release_hw_control(adapter);
+	memset(&adapter->i2c_adap, 0, sizeof(adapter->i2c_adap));
 err_eeprom:
 	if (!igb_check_reset_block(hw))
 		igb_reset_phy(hw);
@@ -2290,6 +2415,18 @@ out:
 }
 
 #endif
+/*
+ *  igb_remove_i2c - Cleanup  I2C interface
+ *  @adapter: pointer to adapter structure
+ *
+ */
+static void igb_remove_i2c(struct igb_adapter *adapter)
+{
+
+	/* free the adapter bus structure */
+	i2c_del_adapter(&adapter->i2c_adap);
+}
+
 /**
  * igb_remove - Device Removal Routine
  * @pdev: PCI device information struct
@@ -2306,6 +2443,8 @@ static void igb_remove(struct pci_dev *pdev)
 	struct e1000_hw *hw = &adapter->hw;
 
 	pm_runtime_get_noresume(&pdev->dev);
+	igb_remove_i2c(adapter);
+
 	igb_ptp_stop(adapter);
 
 	/*
@@ -7425,4 +7564,134 @@ static void igb_init_dmac(struct igb_adapter *adapter, u32 pba)
 	}
 }
 
+static DEFINE_SPINLOCK(i2c_clients_lock);
+
+/*  igb_get_i2c_client - returns matching client
+ *  in adapters's client list.
+ *  @adapter: adapter struct
+ *  @dev_addr: device address of i2c needed.
+ */
+struct i2c_client *
+igb_get_i2c_client(struct igb_adapter *adapter, u8 dev_addr)
+{
+	ulong flags;
+	struct igb_i2c_client_list *client_list;
+	struct i2c_client *client = NULL;
+	struct i2c_board_info client_info = {
+		I2C_BOARD_INFO("igb", 0x00),
+	};
+
+	spin_lock_irqsave(&i2c_clients_lock, flags);
+	client_list = adapter->i2c_clients;
+
+	/* See if we already have an i2c_client */
+	while (client_list) {
+		if (client_list->client->addr == (dev_addr >> 1)) {
+			client = client_list->client;
+			goto exit;
+		} else {
+			client_list = client_list->next;
+		}
+	}
+
+	/* no client_list found, create a new one */
+	client_list = kzalloc(sizeof(*client_list), GFP_KERNEL);
+	if (client_list == NULL)
+		goto exit;
+
+	/* dev_addr passed to us is left-shifted by 1 bit
+	 * i2c_new_device call expects it to be flush to the right.
+	 */
+	client_info.addr = dev_addr >> 1;
+	client_info.platform_data = adapter;
+	client_list->client = i2c_new_device(&adapter->i2c_adap, &client_info);
+	if (client_list->client == NULL) {
+		dev_info(&adapter->pdev->dev, "Failed to create new i2c device..\n");
+		goto err_no_client;
+	}
+
+	/* insert new client at head of list */
+	client_list->next = adapter->i2c_clients;
+	adapter->i2c_clients = client_list;
+
+	spin_unlock_irqrestore(&i2c_clients_lock, flags);
+
+	client = client_list->client;
+	goto exit;
+
+err_no_client:
+	kfree(client_list);
+exit:
+	spin_unlock_irqrestore(&i2c_clients_lock, flags);
+	return client;
+}
+
+/*  igb_read_i2c_byte - Reads 8 bit word over I2C
+ *  @hw: pointer to hardware structure
+ *  @byte_offset: byte offset to read
+ *  @dev_addr: device address
+ *  @data: value read
+ *
+ *  Performs byte read operation over I2C interface at
+ *  a specified device address.
+ */
+s32 igb_read_i2c_byte(struct e1000_hw *hw, u8 byte_offset,
+				u8 dev_addr, u8 *data)
+{
+	struct igb_adapter *adapter = container_of(hw, struct igb_adapter, hw);
+	struct i2c_client *this_client = igb_get_i2c_client(adapter, dev_addr);
+	s32 status;
+	u16 swfw_mask = 0;
+
+	if (!this_client)
+		return E1000_ERR_I2C;
+
+	swfw_mask = E1000_SWFW_PHY0_SM;
+
+	if (hw->mac.ops.acquire_swfw_sync(hw, swfw_mask)
+	    != E1000_SUCCESS)
+		return E1000_ERR_SWFW_SYNC;
+
+	status = i2c_smbus_read_byte_data(this_client, byte_offset);
+	hw->mac.ops.release_swfw_sync(hw, swfw_mask);
+
+	if (status < 0)
+		return E1000_ERR_I2C;
+	else {
+		*data = status;
+		return E1000_SUCCESS;
+	}
+}
+
+/*  igb_write_i2c_byte - Writes 8 bit word over I2C
+ *  @hw: pointer to hardware structure
+ *  @byte_offset: byte offset to write
+ *  @dev_addr: device address
+ *  @data: value to write
+ *
+ *  Performs byte write operation over I2C interface at
+ *  a specified device address.
+ */
+s32 igb_write_i2c_byte(struct e1000_hw *hw, u8 byte_offset,
+				 u8 dev_addr, u8 data)
+{
+	struct igb_adapter *adapter = container_of(hw, struct igb_adapter, hw);
+	struct i2c_client *this_client = igb_get_i2c_client(adapter, dev_addr);
+	s32 status;
+	u16 swfw_mask = E1000_SWFW_PHY0_SM;
+
+	if (!this_client)
+		return E1000_ERR_I2C;
+
+	if (hw->mac.ops.acquire_swfw_sync(hw, swfw_mask) != E1000_SUCCESS)
+		return E1000_ERR_SWFW_SYNC;
+	status = i2c_smbus_write_byte_data(this_client, byte_offset, data);
+	hw->mac.ops.release_swfw_sync(hw, swfw_mask);
+
+	if (status)
+		return E1000_ERR_I2C;
+	else
+		return E1000_SUCCESS;
+
+}
 /* igb_main.c */

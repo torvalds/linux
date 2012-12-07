@@ -32,6 +32,10 @@ extern void igb_shutdown_serdes_link_82575(struct e1000_hw *hw);
 extern void igb_power_up_serdes_link_82575(struct e1000_hw *hw);
 extern void igb_power_down_phy_copper_82575(struct e1000_hw *hw);
 extern void igb_rx_fifo_flush_82575(struct e1000_hw *hw);
+extern s32 igb_read_i2c_byte(struct e1000_hw *hw, u8 byte_offset,
+				u8 dev_addr, u8 *data);
+extern s32 igb_write_i2c_byte(struct e1000_hw *hw, u8 byte_offset,
+				 u8 dev_addr, u8 data);
 
 #define ID_LED_DEFAULT_82575_SERDES ((ID_LED_DEF1_DEF2 << 12) | \
                                      (ID_LED_DEF1_DEF2 <<  8) | \
@@ -260,5 +264,7 @@ void igb_vmdq_set_loopback_pf(struct e1000_hw *, bool);
 void igb_vmdq_set_replication_pf(struct e1000_hw *, bool);
 u16 igb_rxpbs_adjust_82580(u32 data);
 s32 igb_set_eee_i350(struct e1000_hw *);
+
+#define E1000_I2C_THERMAL_SENSOR_ADDR	0xF8
 
 #endif
