@@ -1513,7 +1513,7 @@ int rk29sdk_wifi_power(int on)
         pr_info("%s: %d\n", __func__, on);
          if (on){
 		#if defined(CONFIG_USB_WIFI_POWER_CONTROLED_BY_GPIO) 
-                gpio_set_value(RK30SDK_WIFI_GPIO_POWER_N, RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE);
+                gpio_set_value(rk_platform_wifi_gpio.power_n.io, rk_platform_wifi_gpio.power_n.enable);
                 mdelay(100);		
 		#else         	
                 if(usbwifi_power_status == 1) {
@@ -1526,7 +1526,7 @@ int rk29sdk_wifi_power(int on)
                  pr_info("wifi turn on power\n");  	
         }else{
 		#if defined(CONFIG_USB_WIFI_POWER_CONTROLED_BY_GPIO) 
-                gpio_set_value(RK30SDK_WIFI_GPIO_POWER_N, !RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE);
+                gpio_set_value(rk_platform_wifi_gpio.power_n.io, !(rk_platform_wifi_gpio.power_n.enable));
                 mdelay(100);		
 		#else
                 rkusb_wifi_power(0);
