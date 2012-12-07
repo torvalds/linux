@@ -148,11 +148,13 @@ static void __init mpc83xx_km_setup_arch(void)
 
 		for_each_node_by_name(np, "ucc")
 			par_io_of_config(np);
-	}
-	np = of_find_compatible_node(NULL, "network", "ucc_geth");
-	if (np != NULL) {
-		quirk_mpc8360e_qe_enet10();
-		of_node_put(np);
+
+		/* Only apply this quirk when par_io is available */
+		np = of_find_compatible_node(NULL, "network", "ucc_geth");
+		if (np != NULL) {
+			quirk_mpc8360e_qe_enet10();
+			of_node_put(np);
+		}
 	}
 #endif	/* CONFIG_QUICC_ENGINE */
 }
