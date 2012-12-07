@@ -282,6 +282,12 @@ config REGULATOR_ACT8931
 	help
 	  Support the voltage and current regulators of the ACT8931 series of PMIC devices.
 
+config REGULATOR_ACT8846
+	tristate "Active Semi ACT8846 PMIC regulators"
+	depends on I2C
+	help
+	  Support the voltage and current regulators of the ACT8846 series of PMIC devices.
+
 config RK29_PWM_REGULATOR
 	tristate "rk2918 pwm voltage regulator"
 	help
