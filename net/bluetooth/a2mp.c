@@ -499,8 +499,16 @@ send_rsp:
 	if (hdev)
 		hci_dev_put(hdev);
 
-	a2mp_send(mgr, A2MP_CREATEPHYSLINK_RSP, hdr->ident, sizeof(rsp),
-		  &rsp);
+	/* Reply error now and success after HCI Write Remote AMP Assoc
+	   command complete with success status
+	 */
+	if (rsp.status != A2MP_STATUS_SUCCESS) {
+		a2mp_send(mgr, A2MP_CREATEPHYSLINK_RSP, hdr->ident,
+			  sizeof(rsp), &rsp);
+	} else {
+		mgr->state = WRITE_REMOTE_AMP_ASSOC;
+		mgr->ident = hdr->ident;
+	}
 
 	skb_pull(skb, le16_to_cpu(hdr->len));
 	return 0;
@@ -947,6 +955,32 @@ void a2mp_send_create_phy_link_req(struct hci_dev *hdev, u8 status)
 clean:
 	amp_mgr_put(mgr);
 	kfree(req);
+}
+
+void a2mp_send_create_phy_link_rsp(struct hci_dev *hdev, u8 status)
+{
+	struct amp_mgr *mgr;
+	struct a2mp_physlink_rsp rsp;
+	struct hci_conn *hs_hcon;
+
+	mgr = amp_mgr_lookup_by_state(WRITE_REMOTE_AMP_ASSOC);
+	if (!mgr)
+		return;
+
+	hs_hcon = hci_conn_hash_lookup_state(hdev, AMP_LINK, BT_CONNECT);
+	if (!hs_hcon) {
+		rsp.status = A2MP_STATUS_UNABLE_START_LINK_CREATION;
+	} else {
+		rsp.remote_id = hs_hcon->remote_id;
+		rsp.status = A2MP_STATUS_SUCCESS;
+	}
+
+	BT_DBG("%s mgr %p hs_hcon %p status %u", hdev->name, mgr, hs_hcon,
+	       status);
+
+	rsp.local_id = hdev->id;
+	a2mp_send(mgr, A2MP_CREATEPHYSLINK_RSP, mgr->ident, sizeof(rsp), &rsp);
+	amp_mgr_put(mgr);
 }
 
 void a2mp_discover_amp(struct l2cap_chan *chan)

@@ -317,7 +317,9 @@ void amp_write_rem_assoc_continue(struct hci_dev *hdev, u8 handle)
 	if (!hcon)
 		return;
 
-	amp_write_rem_assoc_frag(hdev, hcon);
+	/* Send A2MP create phylink rsp when all fragments are written */
+	if (amp_write_rem_assoc_frag(hdev, hcon))
+		a2mp_send_create_phy_link_rsp(hdev, 0);
 }
 
 void amp_write_remote_assoc(struct hci_dev *hdev, u8 handle)
