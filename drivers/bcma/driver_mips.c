@@ -171,7 +171,7 @@ u32 bcma_cpu_clock(struct bcma_drv_mips *mcore)
 	struct bcma_bus *bus = mcore->core->bus;
 
 	if (bus->drv_cc.capabilities & BCMA_CC_CAP_PMU)
-		return bcma_pmu_get_clockcpu(&bus->drv_cc);
+		return bcma_pmu_get_cpu_clock(&bus->drv_cc);
 
 	bcma_err(bus, "No PMU available, need this to get the cpu clock\n");
 	return 0;
