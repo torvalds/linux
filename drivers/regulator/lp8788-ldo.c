@@ -662,14 +662,6 @@ static int lp8788_config_ldo_enable_mode(struct lp8788_ldo *ldo,
 		[EN_DLDO7]   = LP8788_EN_SEL_DLDO7_M,
 		[EN_DLDO911] = LP8788_EN_SEL_DLDO911_M,
 	};
-	u8 val[] = {
-		[EN_ALDO1]   = 0 << 5,
-		[EN_ALDO234] = 0 << 4,
-		[EN_ALDO5]   = 0 << 3,
-		[EN_ALDO7]   = 0 << 2,
-		[EN_DLDO7]   = 0 << 1,
-		[EN_DLDO911] = 0 << 0,
-	};
 
 	switch (id) {
 	case DLDO7:
@@ -708,8 +700,7 @@ static int lp8788_config_ldo_enable_mode(struct lp8788_ldo *ldo,
 	return ret;
 
 set_default_ldo_enable_mode:
-	return lp8788_update_bits(lp, LP8788_EN_SEL, en_mask[enable_id],
-				val[enable_id]);
+	return lp8788_update_bits(lp, LP8788_EN_SEL, en_mask[enable_id], 0);
 }
 
 static __devinit int lp8788_dldo_probe(struct platform_device *pdev)
