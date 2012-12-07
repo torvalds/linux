@@ -15,3 +15,9 @@ config ARCH_SOCFPGA
 	select MIGHT_HAVE_CACHE_L2X0
 	select SPARSE_IRQ
 	select USE_OF
+
+config FPGA_SDRAM
+	bool "Enables FPGA SDRAM"
+	depends on ARCH_SOCFPGA
+	help
+		This enables the SDRAM controller that is connected to the FGPA.
