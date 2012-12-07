@@ -1700,6 +1700,7 @@ EXPORT_SYMBOL(i2c_master_reg8_direct_send);
 
 int i2c_master_reg8_direct_recv(const struct i2c_client *client, const char reg, char *buf, int count, int scl_rate)
 {
+#ifdef CONFIG_ARCH_RK29
 	struct i2c_adapter *adap=client->adapter;
 	struct i2c_msg msg;
 	int ret;
@@ -1716,6 +1717,30 @@ int i2c_master_reg8_direct_recv(const struct i2c_client *client, const char reg,
 	ret = i2c_transfer(adap, &msg, 1);
 	memcpy(buf, tx_buf + 1, count);
 	return (ret == 1) ? count : ret;
+#else
+	struct i2c_adapter *adap=client->adapter;
+	struct i2c_msg msgs[2];
+	int ret;
+	char reg_buf = reg;
+	
+	msgs[0].addr = client->addr;
+	msgs[0].flags = client->flags | I2C_M_RD;
+	msgs[0].len = 1;
+	msgs[0].buf = &reg_buf;
+	msgs[0].scl_rate = scl_rate;
+	msgs[0].udelay = client->udelay;
+
+	msgs[1].addr = client->addr;
+	msgs[1].flags = client->flags | I2C_M_RD;
+	msgs[1].len = count;
+	msgs[1].buf = (char *)buf;
+	msgs[1].scl_rate = scl_rate;
+	msgs[1].udelay = client->udelay;
+
+	ret = i2c_transfer(adap, msgs, 2);
+
+	return (ret == 2)? count : ret;
+#endif
 }
 EXPORT_SYMBOL(i2c_master_reg8_direct_recv);
 
