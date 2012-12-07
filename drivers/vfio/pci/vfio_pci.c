@@ -327,15 +327,10 @@ static long vfio_pci_ioctl(void *device_data,
 			    hdr.count > vfio_pci_get_irq_count(vdev, hdr.index))
 				return -EINVAL;
 
-			data = kmalloc(hdr.count * size, GFP_KERNEL);
-			if (!data)
-				return -ENOMEM;
-
-			if (copy_from_user(data, (void __user *)(arg + minsz),
-					   hdr.count * size)) {
-				kfree(data);
-				return -EFAULT;
-			}
+			data = memdup_user((void __user *)(arg + minsz),
+					   hdr.count * size);
+			if (IS_ERR(data))
+				return PTR_ERR(data);
 		}
 
 		mutex_lock(&vdev->igate);
