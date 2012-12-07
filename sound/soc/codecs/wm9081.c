@@ -1327,8 +1327,8 @@ static const struct regmap_config wm9081_regmap = {
 };
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-static __devinit int wm9081_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm9081_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct wm9081_priv *wm9081;
 	unsigned int reg;
@@ -1386,7 +1386,7 @@ static __devinit int wm9081_i2c_probe(struct i2c_client *i2c,
 	return 0;
 }
 
-static __devexit int wm9081_i2c_remove(struct i2c_client *client)
+static int wm9081_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	return 0;
@@ -1404,7 +1404,7 @@ static struct i2c_driver wm9081_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm9081_i2c_probe,
-	.remove =   __devexit_p(wm9081_i2c_remove),
+	.remove =   wm9081_i2c_remove,
 	.id_table = wm9081_i2c_id,
 };
 #endif

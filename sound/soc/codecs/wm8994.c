@@ -4287,7 +4287,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8994 = {
 	.set_bias_level = wm8994_set_bias_level,
 };
 
-static int __devinit wm8994_probe(struct platform_device *pdev)
+static int wm8994_probe(struct platform_device *pdev)
 {
 	struct wm8994_priv *wm8994;
 
@@ -4303,7 +4303,7 @@ static int __devinit wm8994_probe(struct platform_device *pdev)
 			wm8994_dai, ARRAY_SIZE(wm8994_dai));
 }
 
-static int __devexit wm8994_remove(struct platform_device *pdev)
+static int wm8994_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
@@ -4347,7 +4347,7 @@ static struct platform_driver wm8994_codec_driver = {
 		.pm = &wm8994_pm_ops,
 	},
 	.probe = wm8994_probe,
-	.remove = __devexit_p(wm8994_remove),
+	.remove = wm8994_remove,
 };
 
 module_platform_driver(wm8994_codec_driver);

@@ -1484,8 +1484,8 @@ static const struct regmap_config da9055_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int __devinit da9055_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int da9055_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct da9055_priv *da9055;
 	struct da9055_platform_data *pdata = dev_get_platdata(&i2c->dev);
@@ -1517,7 +1517,7 @@ static int __devinit da9055_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static int __devexit da9055_remove(struct i2c_client *client)
+static int da9055_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	return 0;
@@ -1536,7 +1536,7 @@ static struct i2c_driver da9055_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe		= da9055_i2c_probe,
-	.remove		= __devexit_p(da9055_remove),
+	.remove		= da9055_remove,
 	.id_table	= da9055_i2c_id,
 };
 

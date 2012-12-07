@@ -992,7 +992,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm5110 = {
 	.num_dapm_routes = ARRAY_SIZE(wm5110_dapm_routes),
 };
 
-static int __devinit wm5110_probe(struct platform_device *pdev)
+static int wm5110_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
 	struct wm5110_priv *wm5110;
@@ -1031,7 +1031,7 @@ static int __devinit wm5110_probe(struct platform_device *pdev)
 				      wm5110_dai, ARRAY_SIZE(wm5110_dai));
 }
 
-static int __devexit wm5110_remove(struct platform_device *pdev)
+static int wm5110_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -1045,7 +1045,7 @@ static struct platform_driver wm5110_codec_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = wm5110_probe,
-	.remove = __devexit_p(wm5110_remove),
+	.remove = wm5110_remove,
 };
 
 module_platform_driver(wm5110_codec_driver);

@@ -1111,7 +1111,7 @@ static const struct regmap_config wm8985_regmap = {
 };
 
 #if defined(CONFIG_SPI_MASTER)
-static int __devinit wm8985_spi_probe(struct spi_device *spi)
+static int wm8985_spi_probe(struct spi_device *spi)
 {
 	struct wm8985_priv *wm8985;
 	int ret;
@@ -1135,7 +1135,7 @@ static int __devinit wm8985_spi_probe(struct spi_device *spi)
 	return ret;
 }
 
-static int __devexit wm8985_spi_remove(struct spi_device *spi)
+static int wm8985_spi_remove(struct spi_device *spi)
 {
 	snd_soc_unregister_codec(&spi->dev);
 	return 0;
@@ -1147,13 +1147,13 @@ static struct spi_driver wm8985_spi_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = wm8985_spi_probe,
-	.remove = __devexit_p(wm8985_spi_remove)
+	.remove = wm8985_spi_remove
 };
 #endif
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-static __devinit int wm8985_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm8985_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct wm8985_priv *wm8985;
 	int ret;
@@ -1177,7 +1177,7 @@ static __devinit int wm8985_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static __devexit int wm8985_i2c_remove(struct i2c_client *i2c)
+static int wm8985_i2c_remove(struct i2c_client *i2c)
 {
 	snd_soc_unregister_codec(&i2c->dev);
 	return 0;
@@ -1195,7 +1195,7 @@ static struct i2c_driver wm8985_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = wm8985_i2c_probe,
-	.remove = __devexit_p(wm8985_i2c_remove),
+	.remove = wm8985_i2c_remove,
 	.id_table = wm8985_i2c_id
 };
 #endif

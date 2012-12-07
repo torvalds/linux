@@ -159,8 +159,8 @@ static const struct regmap_config max9768_i2c_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int __devinit max9768_i2c_probe(struct i2c_client *client,
-	const struct i2c_device_id *id)
+static int max9768_i2c_probe(struct i2c_client *client,
+			     const struct i2c_device_id *id)
 {
 	struct max9768 *max9768;
 	struct max9768_pdata *pdata = client->dev.platform_data;
@@ -208,7 +208,7 @@ static int __devinit max9768_i2c_probe(struct i2c_client *client,
 	return err;
 }
 
-static int __devexit max9768_i2c_remove(struct i2c_client *client)
+static int max9768_i2c_remove(struct i2c_client *client)
 {
 	struct max9768 *max9768 = i2c_get_clientdata(client);
 
@@ -234,7 +234,7 @@ static struct i2c_driver max9768_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = max9768_i2c_probe,
-	.remove = __devexit_p(max9768_i2c_remove),
+	.remove = max9768_i2c_remove,
 	.id_table = max9768_i2c_id,
 };
 module_i2c_driver(max9768_i2c_driver);

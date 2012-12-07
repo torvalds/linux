@@ -764,8 +764,8 @@ static struct snd_soc_codec_driver soc_codec_dev_wm2000 = {
 	.num_controls = ARRAY_SIZE(wm2000_controls),
 };
 
-static int __devinit wm2000_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *i2c_id)
+static int wm2000_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *i2c_id)
 {
 	struct wm2000_priv *wm2000;
 	struct wm2000_platform_data *pdata;
@@ -871,7 +871,7 @@ out:
 	return ret;
 }
 
-static __devexit int wm2000_i2c_remove(struct i2c_client *i2c)
+static int wm2000_i2c_remove(struct i2c_client *i2c)
 {
 	snd_soc_unregister_codec(&i2c->dev);
 
@@ -890,7 +890,7 @@ static struct i2c_driver wm2000_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = wm2000_i2c_probe,
-	.remove = __devexit_p(wm2000_i2c_remove),
+	.remove = wm2000_i2c_remove,
 	.id_table = wm2000_i2c_id,
 };
 

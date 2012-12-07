@@ -885,7 +885,7 @@ static int wm0010_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int __devinit wm0010_spi_probe(struct spi_device *spi)
+static int wm0010_spi_probe(struct spi_device *spi)
 {
 	unsigned long gpio_flags;
 	int ret;
@@ -985,7 +985,7 @@ static int __devinit wm0010_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit wm0010_spi_remove(struct spi_device *spi)
+static int wm0010_spi_remove(struct spi_device *spi)
 {
 	struct wm0010_priv *wm0010 = spi_get_drvdata(spi);
 
@@ -1007,7 +1007,7 @@ static struct spi_driver wm0010_spi_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= wm0010_spi_probe,
-	.remove		= __devexit_p(wm0010_spi_remove),
+	.remove		= wm0010_spi_remove,
 };
 
 module_spi_driver(wm0010_spi_driver);

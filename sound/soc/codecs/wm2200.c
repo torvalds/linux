@@ -2184,8 +2184,8 @@ static const unsigned int wm2200_mic_ctrl_reg[] = {
 	WM2200_IN3L_CONTROL,
 };
 
-static __devinit int wm2200_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm2200_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct wm2200_pdata *pdata = dev_get_platdata(&i2c->dev);
 	struct wm2200_priv *wm2200;
@@ -2385,7 +2385,7 @@ err_enable:
 	return ret;
 }
 
-static __devexit int wm2200_i2c_remove(struct i2c_client *i2c)
+static int wm2200_i2c_remove(struct i2c_client *i2c)
 {
 	struct wm2200_priv *wm2200 = i2c_get_clientdata(i2c);
 
@@ -2458,7 +2458,7 @@ static struct i2c_driver wm2200_i2c_driver = {
 		.pm = &wm2200_pm,
 	},
 	.probe =    wm2200_i2c_probe,
-	.remove =   __devexit_p(wm2200_i2c_remove),
+	.remove =   wm2200_i2c_remove,
 	.id_table = wm2200_i2c_id,
 };
 

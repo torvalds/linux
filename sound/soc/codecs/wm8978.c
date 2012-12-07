@@ -1035,8 +1035,8 @@ static const struct regmap_config wm8978_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(wm8978_reg_defaults),
 };
 
-static __devinit int wm8978_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm8978_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct wm8978_priv *wm8978;
 	int ret;
@@ -1072,7 +1072,7 @@ static __devinit int wm8978_i2c_probe(struct i2c_client *i2c,
 	return 0;
 }
 
-static __devexit int wm8978_i2c_remove(struct i2c_client *client)
+static int wm8978_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 
@@ -1091,7 +1091,7 @@ static struct i2c_driver wm8978_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8978_i2c_probe,
-	.remove =   __devexit_p(wm8978_i2c_remove),
+	.remove =   wm8978_i2c_remove,
 	.id_table = wm8978_i2c_id,
 };
 
