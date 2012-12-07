@@ -130,6 +130,19 @@
 #endif
 #endif
 
+# define cpu_has_mips_1		(cpu_data[0].isa_level & MIPS_CPU_ISA_I)
+#ifndef cpu_has_mips_2
+# define cpu_has_mips_2		(cpu_data[0].isa_level & MIPS_CPU_ISA_II)
+#endif
+#ifndef cpu_has_mips_3
+# define cpu_has_mips_3		(cpu_data[0].isa_level & MIPS_CPU_ISA_III)
+#endif
+#ifndef cpu_has_mips_4
+# define cpu_has_mips_4		(cpu_data[0].isa_level & MIPS_CPU_ISA_IV)
+#endif
+#ifndef cpu_has_mips_5
+# define cpu_has_mips_5		(cpu_data[0].isa_level & MIPS_CPU_ISA_V)
+#endif
 # ifndef cpu_has_mips32r1
 # define cpu_has_mips32r1	(cpu_data[0].isa_level & MIPS_CPU_ISA_M32R1)
 # endif
