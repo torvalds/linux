@@ -465,8 +465,9 @@ static int vfio_dev_viable(struct device *dev, void *data)
 {
 	struct vfio_group *group = data;
 	struct vfio_device *device;
+	struct device_driver *drv = ACCESS_ONCE(dev->driver);
 
-	if (!dev->driver || vfio_whitelisted_driver(dev->driver))
+	if (!drv || vfio_whitelisted_driver(drv))
 		return 0;
 
 	device = vfio_group_get_device(group, dev);
