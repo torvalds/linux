@@ -39,6 +39,7 @@
 #include <linux/proc_fs.h>
 #include <linux/memblock.h>
 #include <linux/of_fdt.h>
+#include <linux/of_platform.h>
 
 #include <asm/cputype.h>
 #include <asm/elf.h>
@@ -288,6 +289,13 @@ static int __init topology_init(void)
 	return 0;
 }
 subsys_initcall(topology_init);
+
+static int __init arm64_device_probe(void)
+{
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	return 0;
+}
+device_initcall(arm64_device_probe);
 
 static const char *hwcap_str[] = {
 	"fp",
