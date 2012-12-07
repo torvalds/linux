@@ -455,7 +455,6 @@ __sys_trace:
 
 __sys_trace_return:
 	str	r0, [sp, #S_R0 + S_OFF]!	@ save returned r0
-	mov	r1, scno
 	mov	r0, sp
 	bl	syscall_trace_exit
 	b	ret_slow_syscall

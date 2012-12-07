@@ -957,17 +957,23 @@ asmlinkage int syscall_trace_enter(struct pt_regs *regs, int scno)
 	return scno;
 }
 
-asmlinkage int syscall_trace_exit(struct pt_regs *regs, int scno)
+asmlinkage void syscall_trace_exit(struct pt_regs *regs)
 {
-	current_thread_info()->syscall = scno;
-
-	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		scno = tracehook_report_syscall(regs, PTRACE_SYSCALL_EXIT);
-
-	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
-		trace_sys_exit(regs, scno);
-
+	/*
+	 * Audit the syscall before anything else, as a debugger may
+	 * come in and change the current registers.
+	 */
 	audit_syscall_exit(regs);
 
-	return scno;
+	/*
+	 * Note that we haven't updated the ->syscall field for the
+	 * current thread. This isn't a problem because it will have
+	 * been set on syscall entry and there hasn't been an opportunity
+	 * for a PTRACE_SET_SYSCALL since then.
+	 */
+	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
+		trace_sys_exit(regs, regs_return_value(regs));
+
+	if (test_thread_flag(TIF_SYSCALL_TRACE))
+		tracehook_report_syscall(regs, PTRACE_SYSCALL_EXIT);
 }
