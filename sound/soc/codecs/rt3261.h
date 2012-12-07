@@ -150,6 +150,7 @@
 #define RT3261_BIAS_CUR1			0x12
 #define RT3261_BIAS_CUR3			0x14
 #define RT3261_CLSD_INT_REG1			0x1c
+#define RT3261_CHPUMP_INT_REG1      0x24 //bard 11-6
 #define RT3261_MAMP_INT_REG2			0x37
 #define RT3261_CHOP_DAC_ADC			0x3d
 #define RT3261_MIXER_INT_REG			0x3f

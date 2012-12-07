@@ -782,6 +782,7 @@ void hp_amp_power(struct snd_soc_codec *codec, int on)
 			snd_soc_update_bits(codec, RT3261_PWR_DIG1,
 				RT3261_PWR_I2S1, RT3261_PWR_I2S1);
 			/* depop parameters */
+			rt3261_index_update_bits(codec, RT3261_CHPUMP_INT_REG1,0x0700, 0x0200); //bard 12-6
 			snd_soc_update_bits(codec, RT3261_DEPOP_M2,
 				RT3261_DEPOP_MASK, RT3261_DEPOP_MAN);
 			snd_soc_update_bits(codec, RT3261_DEPOP_M1,
@@ -808,6 +809,7 @@ void hp_amp_power(struct snd_soc_codec *codec, int on)
 			snd_soc_update_bits(codec, RT3261_DEPOP_M1,
 				RT3261_HP_CO_MASK | RT3261_HP_SG_MASK,
 				RT3261_HP_CO_EN | RT3261_HP_SG_EN);
+			rt3261_index_update_bits(codec, RT3261_CHPUMP_INT_REG1,0x0700, 0x0400); //bard 12-6
 		}
 		hp_amp_power_count++;
 	} else {
@@ -1814,6 +1816,7 @@ static void rt3261_pmu_depop(struct snd_soc_codec *codec)
 {
 #if 0
 	/* depop parameters */
+	rt3261_index_update_bits(codec, RT3261_CHPUMP_INT_REG1,0x0700, 0x0200); //bard 12-6
 	snd_soc_update_bits(codec, RT3261_DEPOP_M2,
 		RT3261_DEPOP_MASK, RT3261_DEPOP_MAN);
 	snd_soc_update_bits(codec, RT3261_DEPOP_M1,
@@ -1841,6 +1844,7 @@ static void rt3261_pmu_depop(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, RT3261_DEPOP_M1,
 		RT3261_HP_CO_MASK | RT3261_HP_SG_MASK,
 		RT3261_HP_CO_EN | RT3261_HP_SG_EN);
+	rt3261_index_update_bits(codec, RT3261_CHPUMP_INT_REG1,0x0700, 0x0400); //bard 12-6
 #else
 	hp_amp_power(codec, 1);
 #endif
@@ -1922,6 +1926,7 @@ static void rt3261_pmd_depop(struct snd_soc_codec *codec)
 static void rt3261_pmu_depop(struct snd_soc_codec *codec)
 {
 	/* depop parameters */
+	rt3261_index_update_bits(codec, RT3261_CHPUMP_INT_REG1,0x0700, 0x0200); //bard 12-6
 	snd_soc_update_bits(codec, RT3261_DEPOP_M2,
 		RT3261_DEPOP_MASK, RT3261_DEPOP_MAN);
 	snd_soc_update_bits(codec, RT3261_DEPOP_M1,
@@ -1956,6 +1961,7 @@ static void rt3261_pmu_depop(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, RT3261_DEPOP_M1,
 		RT3261_HP_CP_MASK | RT3261_HP_SG_MASK,
 		RT3261_HP_CP_PD | RT3261_HP_SG_EN);
+	rt3261_index_update_bits(codec, RT3261_CHPUMP_INT_REG1,0x0700, 0x0400); //bard 12-6
 	msleep(10);
 	snd_soc_update_bits(codec, RT3261_HP_VOL,
 		RT3261_L_MUTE | RT3261_R_MUTE, 0);
