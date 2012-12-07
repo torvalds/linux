@@ -194,7 +194,8 @@ struct mxt_data {
 	char phys[64];		/* device physical location */
 	const struct mxt_platform_data *pdata;
 	struct mxt_object *object_table;
-	struct mxt_info info;
+	struct mxt_info *info;
+	void *raw_info_block;
 	unsigned int irq;
 	unsigned int max_x;
 	unsigned int max_y;
@@ -360,12 +361,13 @@ static int mxt_lookup_bootloader_address(struct mxt_data *data, bool retry)
 {
 	u8 appmode = data->client->addr;
 	u8 bootloader;
+	u8 family_id = data->info ? data->info->family_id : 0;
 
 	switch (appmode) {
 	case 0x4a:
 	case 0x4b:
 		/* Chips after 1664S use different scheme */
-		if (retry || data->info.family_id >= 0xa2) {
+		if (retry || family_id >= 0xa2) {
 			bootloader = appmode - 0x24;
 			break;
 		}
@@ -605,7 +607,7 @@ mxt_get_object(struct mxt_data *data, u8 type)
 	struct mxt_object *object;
 	int i;
 
-	for (i = 0; i < data->info.object_num; i++) {
+	for (i = 0; i < data->info->object_num; i++) {
 		object = data->object_table + i;
 		if (object->type == type)
 			return object;
@@ -1236,13 +1238,13 @@ static int mxt_check_reg_init(struct mxt_data *data)
 		data_pos += offset;
 	}
 
-	if (cfg_info.family_id != data->info.family_id) {
+	if (cfg_info.family_id != data->info->family_id) {
 		dev_err(dev, "Family ID mismatch!\n");
 		ret = -EINVAL;
 		goto release;
 	}
 
-	if (cfg_info.variant_id != data->info.variant_id) {
+	if (cfg_info.variant_id != data->info->variant_id) {
 		dev_err(dev, "Variant ID mismatch!\n");
 		ret = -EINVAL;
 		goto release;
@@ -1291,7 +1293,7 @@ static int mxt_check_reg_init(struct mxt_data *data)
 
 	/* Malloc memory to store configuration */
 	cfg_start_ofs = MXT_OBJECT_START +
-			data->info.object_num * sizeof(struct mxt_object) +
+			data->info->object_num * sizeof(struct mxt_object) +
 			MXT_INFO_CHECKSUM_SIZE;
 	config_mem_size = data->mem_size - cfg_start_ofs;
 	config_mem = kzalloc(config_mem_size, GFP_KERNEL);
@@ -1502,24 +1504,12 @@ static int mxt_acquire_irq(struct mxt_data *data)
 	return 0;
 }
 
-static int mxt_get_info(struct mxt_data *data)
-{
-	struct i2c_client *client = data->client;
-	struct mxt_info *info = &data->info;
-	int error;
-
-	/* Read 7-byte info block starting at address 0 */
-	error = __mxt_read_reg(client, 0, sizeof(*info), info);
-	if (error)
-		return error;
-
-	return 0;
-}
-
 static void mxt_free_object_table(struct mxt_data *data)
 {
-	kfree(data->object_table);
+	kfree(data->raw_info_block);
 	data->object_table = NULL;
+	data->info = NULL;
+	data->raw_info_block = NULL;
 	kfree(data->msg_buf);
 	data->msg_buf = NULL;
 	data->T5_address = 0;
@@ -1540,34 +1530,18 @@ static void mxt_free_object_table(struct mxt_data *data)
 	data->max_reportid = 0;
 }
 
-static int mxt_get_object_table(struct mxt_data *data)
+static int mxt_parse_object_table(struct mxt_data *data,
+				  struct mxt_object *object_table)
 {
 	struct i2c_client *client = data->client;
-	size_t table_size;
-	struct mxt_object *object_table;
-	int error;
 	int i;
 	u8 reportid;
 	u16 end_address;
 
-	table_size = data->info.object_num * sizeof(struct mxt_object);
-	object_table = kzalloc(table_size, GFP_KERNEL);
-	if (!object_table) {
-		dev_err(&data->client->dev, "Failed to allocate memory\n");
-		return -ENOMEM;
-	}
-
-	error = __mxt_read_reg(client, MXT_OBJECT_START, table_size,
-			object_table);
-	if (error) {
-		kfree(object_table);
-		return error;
-	}
-
 	/* Valid Report IDs start counting from 1 */
 	reportid = 1;
 	data->mem_size = 0;
-	for (i = 0; i < data->info.object_num; i++) {
+	for (i = 0; i < data->info->object_num; i++) {
 		struct mxt_object *object = object_table + i;
 		u8 min_id, max_id;
 
@@ -1591,7 +1565,7 @@ static int mxt_get_object_table(struct mxt_data *data)
 
 		switch (object->type) {
 		case MXT_GEN_MESSAGE_T5:
-			if (data->info.family_id == 0x80) {
+			if (data->info->family_id == 0x80) {
 				/*
 				 * On mXT224 read and discard unused CRC byte
 				 * otherwise DMA reads are misaligned
@@ -1653,24 +1627,108 @@ static int mxt_get_object_table(struct mxt_data *data)
 	/* If T44 exists, T5 position has to be directly after */
 	if (data->T44_address && (data->T5_address != data->T44_address + 1)) {
 		dev_err(&client->dev, "Invalid T44 position\n");
-		error = -EINVAL;
-		goto free_object_table;
+		return -EINVAL;
 	}
 
 	data->msg_buf = kcalloc(data->max_reportid,
 				data->T5_msg_size, GFP_KERNEL);
 	if (!data->msg_buf) {
 		dev_err(&client->dev, "Failed to allocate message buffer\n");
-		error = -ENOMEM;
-		goto free_object_table;
+		return -ENOMEM;
 	}
 
-	data->object_table = object_table;
+	return 0;
+}
+
+static int mxt_read_info_block(struct mxt_data *data)
+{
+	struct i2c_client *client = data->client;
+	int error;
+	size_t size;
+	void *id_buf, *buf;
+	uint8_t num_objects;
+	u32 calculated_crc;
+	u8 *crc_ptr;
+
+	/* If info block already allocated, free it */
+	if (data->raw_info_block != NULL)
+		mxt_free_object_table(data);
+
+	/* Read 7-byte ID information block starting at address 0 */
+	size = sizeof(struct mxt_info);
+	id_buf = kzalloc(size, GFP_KERNEL);
+	if (!id_buf) {
+		dev_err(&client->dev, "Failed to allocate memory\n");
+		return -ENOMEM;
+	}
+
+	error = __mxt_read_reg(client, 0, size, id_buf);
+	if (error) {
+		kfree(id_buf);
+		return error;
+	}
+
+	/* Resize buffer to give space for rest of info block */
+	num_objects = ((struct mxt_info *)id_buf)->object_num;
+	size += (num_objects * sizeof(struct mxt_object))
+		+ MXT_INFO_CHECKSUM_SIZE;
+
+	buf = krealloc(id_buf, size, GFP_KERNEL);
+	if (!buf) {
+		dev_err(&client->dev, "Failed to allocate memory\n");
+		error = -ENOMEM;
+		goto err_free_mem;
+	}
+
+	/* Read rest of info block */
+	error = __mxt_read_reg(client, MXT_OBJECT_START,
+			       size - MXT_OBJECT_START,
+			       buf + MXT_OBJECT_START);
+	if (error)
+		goto err_free_mem;
+
+	/* Extract & calculate checksum */
+	crc_ptr = buf + size - MXT_INFO_CHECKSUM_SIZE;
+	data->info_crc = crc_ptr[0] | (crc_ptr[1] << 8) | (crc_ptr[2] << 16);
+
+	calculated_crc = mxt_calculate_crc(buf, 0,
+					   size - MXT_INFO_CHECKSUM_SIZE);
+
+	/*
+	 * CRC mismatch can be caused by data corruption due to I2C comms
+	 * issue or else device is not using Object Based Protocol (eg i2c-hid)
+	 */
+	if ((data->info_crc == 0) || (data->info_crc != calculated_crc)) {
+		dev_err(&client->dev,
+			"Info Block CRC error calculated=0x%06X read=0x%06X\n",
+			data->info_crc, calculated_crc);
+		error = -EIO;
+		goto err_free_mem;
+	}
+
+	data->raw_info_block = buf;
+	data->info = (struct mxt_info *)buf;
+
+	dev_info(&client->dev,
+		 "Family: %u Variant: %u Firmware V%u.%u.%02X Objects: %u\n",
+		 data->info->family_id, data->info->variant_id,
+		 data->info->version >> 4, data->info->version & 0xf,
+		 data->info->build, data->info->object_num);
+
+	/* Parse object table information */
+	error = mxt_parse_object_table(data, buf + MXT_OBJECT_START);
+	if (error) {
+		dev_err(&client->dev, "Error %d parsing object table\n", error);
+		mxt_free_object_table(data);
+		return error;
+	}
+
+	data->object_table = (struct mxt_object *)(buf + MXT_OBJECT_START);
 
 	return 0;
 
-free_object_table:
-	mxt_free_object_table(data);
+err_free_mem:
+	kfree(buf);
 	return error;
 }
 
@@ -1725,13 +1783,12 @@ static int mxt_read_t9_resolution(struct mxt_data *data)
 static int mxt_initialize(struct mxt_data *data)
 {
 	struct i2c_client *client = data->client;
-	struct mxt_info *info = &data->info;
 	int error;
 	bool alt_bootloader_addr = false;
 	bool retry = false;
 
 retry_info:
-	error = mxt_get_info(data);
+	error = mxt_read_info_block(data);
 	if (error) {
 retry_bootloader:
 		error = mxt_probe_bootloader(data, alt_bootloader_addr);
@@ -1765,14 +1822,7 @@ retry_bootloader:
 		}
 	}
 
-	/* Get object table information */
-	error = mxt_get_object_table(data);
-	if (error) {
-		dev_err(&client->dev, "Error %d reading object table\n", error);
-		return error;
-	}
-
-	mxt_acquire_irq(data);
+	error = mxt_acquire_irq(data);
 	if (error)
 		goto err_free_object_table;
 
@@ -1790,17 +1840,6 @@ retry_bootloader:
 		goto err_free_object_table;
 	}
 
-	error = mxt_read_t9_resolution(data);
-	if (error) {
-		dev_err(&client->dev, "Failed to initialize T9 resolution\n");
-		goto err_free_object_table;
-	}
-
-	dev_info(&client->dev,
-		 "Family: %u Variant: %u Firmware V%u.%u.%02X Objects: %u\n",
-		 info->family_id, info->variant_id, info->version >> 4,
-		 info->version & 0xf, info->build, info->object_num);
-
 	return 0;
 
 err_free_object_table:
@@ -1813,9 +1852,9 @@ static ssize_t mxt_fw_version_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct mxt_data *data = dev_get_drvdata(dev);
-	struct mxt_info *info = &data->info;
 	return scnprintf(buf, PAGE_SIZE, "%u.%u.%02X\n",
-			 info->version >> 4, info->version & 0xf, info->build);
+			 data->info->version >> 4, data->info->version & 0xf,
+			 data->info->build);
 }
 
 /* Hardware Version is returned as FamilyID.VariantID */
@@ -1823,9 +1862,8 @@ static ssize_t mxt_hw_version_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct mxt_data *data = dev_get_drvdata(dev);
-	struct mxt_info *info = &data->info;
 	return scnprintf(buf, PAGE_SIZE, "%u.%u\n",
-			 info->family_id, info->variant_id);
+			data->info->family_id, data->info->variant_id);
 }
 
 static ssize_t mxt_show_instance(char *buf, int count,
@@ -1862,7 +1900,7 @@ static ssize_t mxt_object_show(struct device *dev,
 		return -ENOMEM;
 
 	error = 0;
-	for (i = 0; i < data->info.object_num; i++) {
+	for (i = 0; i < data->info->object_num; i++) {
 		object = data->object_table + i;
 
 		if (!mxt_object_readable(object->type))
@@ -2108,6 +2146,10 @@ static int mxt_initialize_t9_input_device(struct mxt_data *data)
 	unsigned int num_mt_slots;
 	unsigned int mt_flags = 0;
 	int i;
+
+	error = mxt_read_t9_resolution(data);
+	if (error)
+		dev_warn(dev, "Failed to initialize T9 resolution\n");
 
 	input_dev = input_allocate_device();
 	if (!input_dev) {
