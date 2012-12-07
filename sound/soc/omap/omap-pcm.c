@@ -297,13 +297,13 @@ static struct snd_soc_platform_driver omap_soc_platform = {
 	.pcm_free	= omap_pcm_free_dma_buffers,
 };
 
-static __devinit int omap_pcm_probe(struct platform_device *pdev)
+static int omap_pcm_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_platform(&pdev->dev,
 			&omap_soc_platform);
 }
 
-static int __devexit omap_pcm_remove(struct platform_device *pdev)
+static int omap_pcm_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_platform(&pdev->dev);
 	return 0;
@@ -316,7 +316,7 @@ static struct platform_driver omap_pcm_driver = {
 	},
 
 	.probe = omap_pcm_probe,
-	.remove = __devexit_p(omap_pcm_remove),
+	.remove = omap_pcm_remove,
 };
 
 module_platform_driver(omap_pcm_driver);
