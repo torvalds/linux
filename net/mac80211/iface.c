@@ -223,6 +223,47 @@ static int ieee80211_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+static int ieee80211_verify_mac(struct ieee80211_local *local, u8 *addr)
+{
+	struct ieee80211_sub_if_data *sdata;
+	u64 new, mask, tmp;
+	u8 *m;
+	int ret = 0;
+
+	if (is_zero_ether_addr(local->hw.wiphy->addr_mask))
+		return 0;
+
+	m = addr;
+	new =	((u64)m[0] << 5*8) | ((u64)m[1] << 4*8) |
+		((u64)m[2] << 3*8) | ((u64)m[3] << 2*8) |
+		((u64)m[4] << 1*8) | ((u64)m[5] << 0*8);
+
+	m = local->hw.wiphy->addr_mask;
+	mask =	((u64)m[0] << 5*8) | ((u64)m[1] << 4*8) |
+		((u64)m[2] << 3*8) | ((u64)m[3] << 2*8) |
+		((u64)m[4] << 1*8) | ((u64)m[5] << 0*8);
+
+
+	mutex_lock(&local->iflist_mtx);
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		if (sdata->vif.type == NL80211_IFTYPE_MONITOR)
+			continue;
+
+		m = sdata->vif.addr;
+		tmp =	((u64)m[0] << 5*8) | ((u64)m[1] << 4*8) |
+			((u64)m[2] << 3*8) | ((u64)m[3] << 2*8) |
+			((u64)m[4] << 1*8) | ((u64)m[5] << 0*8);
+
+		if ((new & ~mask) != (tmp & ~mask)) {
+			ret = -EINVAL;
+			break;
+		}
+	}
+	mutex_unlock(&local->iflist_mtx);
+
+	return ret;
+}
+
 static int ieee80211_change_mac(struct net_device *dev, void *addr)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
@@ -231,6 +272,10 @@ static int ieee80211_change_mac(struct net_device *dev, void *addr)
 
 	if (ieee80211_sdata_running(sdata))
 		return -EBUSY;
+
+	ret = ieee80211_verify_mac(sdata->local, sa->sa_data);
+	if (ret)
+		return ret;
 
 	ret = eth_mac_addr(dev, sa);
 

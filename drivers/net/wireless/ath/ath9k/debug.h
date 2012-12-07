@@ -307,7 +307,22 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 		       struct ath_tx_status *ts, struct ath_txq *txq,
 		       unsigned int flags);
 void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs);
-
+int ath9k_get_et_sset_count(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif, int sset);
+void ath9k_get_et_stats(struct ieee80211_hw *hw,
+			struct ieee80211_vif *vif,
+			struct ethtool_stats *stats, u64 *data);
+void ath9k_get_et_strings(struct ieee80211_hw *hw,
+			  struct ieee80211_vif *vif,
+			  u32 sset, u8 *data);
+void ath9k_sta_add_debugfs(struct ieee80211_hw *hw,
+			   struct ieee80211_vif *vif,
+			   struct ieee80211_sta *sta,
+			   struct dentry *dir);
+void ath9k_sta_remove_debugfs(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      struct ieee80211_sta *sta,
+			      struct dentry *dir);
 #else
 
 #define RX_STAT_INC(c) /* NOP */

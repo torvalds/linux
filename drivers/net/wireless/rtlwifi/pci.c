@@ -1756,7 +1756,7 @@ static bool _rtl_pci_find_adapter(struct pci_dev *pdev,
 	return true;
 }
 
-int __devinit rtl_pci_probe(struct pci_dev *pdev,
+int rtl_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *id)
 {
 	struct ieee80211_hw *hw = NULL;
@@ -1982,6 +1982,7 @@ void rtl_pci_disconnect(struct pci_dev *pdev)
 }
 EXPORT_SYMBOL(rtl_pci_disconnect);
 
+#ifdef CONFIG_PM_SLEEP
 /***************************************
 kernel pci power state define:
 PCI_D0         ((pci_power_t __force) 0)
@@ -2021,6 +2022,7 @@ int rtl_pci_resume(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(rtl_pci_resume);
+#endif /* CONFIG_PM_SLEEP */
 
 struct rtl_intf_ops rtl_pci_ops = {
 	.read_efuse_byte = read_efuse_byte,

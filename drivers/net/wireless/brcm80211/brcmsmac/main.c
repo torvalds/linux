@@ -1044,11 +1044,17 @@ brcms_b_txstatus(struct brcms_hardware *wlc_hw, bool bound, bool *fatal)
 	s1 = bcma_read32(core, D11REGOFFS(frmtxstatus));
 	while (!(*fatal)
 	       && (s1 & TXS_V)) {
+		/* !give others some time to run! */
+		if (n >= max_tx_num) {
+			morepending = true;
+			break;
+		}
 
 		if (s1 == 0xffffffff) {
 			brcms_err(core, "wl%d: %s: dead chip\n", wlc_hw->unit,
 				  __func__);
-			return morepending;
+			*fatal = true;
+			return false;
 		}
 		s2 = bcma_read32(core, D11REGOFFS(frmtxstatus2));
 
@@ -1060,17 +1066,12 @@ brcms_b_txstatus(struct brcms_hardware *wlc_hw, bool bound, bool *fatal)
 
 		*fatal = brcms_c_dotxstatus(wlc_hw->wlc, txs);
 
-		/* !give others some time to run! */
-		if (++n >= max_tx_num)
-			break;
 		s1 = bcma_read32(core, D11REGOFFS(frmtxstatus));
+		n++;
 	}
 
 	if (*fatal)
-		return 0;
-
-	if (n >= max_tx_num)
-		morepending = true;
+		return false;
 
 	return morepending;
 }
@@ -2546,10 +2547,6 @@ static inline u32 wlc_intstatus(struct brcms_c_info *wlc, bool in_isr)
 	if (macintstatus == 0)
 		return 0;
 
-	/* interrupts are already turned off for CFE build
-	 * Caution: For CFE Turning off the interrupts again has some undesired
-	 * consequences
-	 */
 	/* turn off the interrupts */
 	bcma_write32(core, D11REGOFFS(macintmask), 0);
 	(void)bcma_read32(core, D11REGOFFS(macintmask));
@@ -2592,16 +2589,14 @@ bool brcms_c_intrsupd(struct brcms_c_info *wlc)
 
 /*
  * First-level interrupt processing.
- * Return true if this was our interrupt, false otherwise.
- * *wantdpc will be set to true if further brcms_c_dpc() processing is required,
+ * Return true if this was our interrupt
+ * and if further brcms_c_dpc() processing is required,
  * false otherwise.
  */
-bool brcms_c_isr(struct brcms_c_info *wlc, bool *wantdpc)
+bool brcms_c_isr(struct brcms_c_info *wlc)
 {
 	struct brcms_hardware *wlc_hw = wlc->hw;
 	u32 macintstatus;
-
-	*wantdpc = false;
 
 	if (!wlc_hw->up || !wlc->macintmask)
 		return false;
@@ -2609,15 +2604,15 @@ bool brcms_c_isr(struct brcms_c_info *wlc, bool *wantdpc)
 	/* read and clear macintstatus and intstatus registers */
 	macintstatus = wlc_intstatus(wlc, true);
 
-	if (macintstatus == 0xffffffff)
+	if (macintstatus == 0xffffffff) {
 		brcms_err(wlc_hw->d11core,
 			  "DEVICEREMOVED detected in the ISR code path\n");
+		return false;
+	}
 
 	/* it is not for us */
 	if (macintstatus == 0)
 		return false;
-
-	*wantdpc = true;
 
 	/* save interrupt status bits */
 	wlc->macintstatus = macintstatus;
@@ -6928,17 +6923,20 @@ static int brcms_c_tx(struct brcms_c_info *wlc, struct sk_buff *skb)
 	return ret;
 }
 
-void brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc, struct sk_buff *sdu,
+bool brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc, struct sk_buff *sdu,
 			      struct ieee80211_hw *hw)
 {
 	uint fifo;
 	struct scb *scb = &wlc->pri_scb;
 
 	fifo = brcms_ac_to_fifo(skb_get_queue_mapping(sdu));
-	if (brcms_c_d11hdrs_mac80211(wlc, hw, sdu, scb, 0, 1, fifo, 0))
-		return;
-	if (brcms_c_tx(wlc, sdu))
-		dev_kfree_skb_any(sdu);
+	brcms_c_d11hdrs_mac80211(wlc, hw, sdu, scb, 0, 1, fifo, 0);
+	if (!brcms_c_tx(wlc, sdu))
+		return true;
+
+	/* packet discarded */
+	dev_kfree_skb_any(sdu);
+	return false;
 }
 
 int
@@ -7634,16 +7632,19 @@ brcms_b_recv(struct brcms_hardware *wlc_hw, uint fifo, bool bound)
 
 	uint n = 0;
 	uint bound_limit = bound ? RXBND : -1;
+	bool morepending;
 
 	skb_queue_head_init(&recv_frames);
 
 	/* gather received frames */
-	while (dma_rx(wlc_hw->di[fifo], &recv_frames)) {
-
+	do {
 		/* !give others some time to run! */
-		if (++n >= bound_limit)
+		if (n >= bound_limit)
 			break;
-	}
+
+		morepending = dma_rx(wlc_hw->di[fifo], &recv_frames);
+		n++;
+	} while (morepending);
 
 	/* post more rbufs */
 	dma_rxfill(wlc_hw->di[fifo]);
@@ -7673,7 +7674,7 @@ brcms_b_recv(struct brcms_hardware *wlc_hw, uint fifo, bool bound)
 		brcms_c_recv(wlc_hw->wlc, p);
 	}
 
-	return n >= bound_limit;
+	return morepending;
 }
 
 /* second-level interrupt processing

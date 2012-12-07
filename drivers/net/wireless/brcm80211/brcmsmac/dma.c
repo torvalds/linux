@@ -349,10 +349,8 @@ static uint _dma_ctrlflags(struct dma_info *di, uint mask, uint flags)
 {
 	uint dmactrlflags;
 
-	if (di == NULL) {
-		brcms_dbg_dma(di->core, "NULL dma handle\n");
+	if (di == NULL)
 		return 0;
-	}
 
 	dmactrlflags = di->dma.dmactrlflags;
 	dmactrlflags &= ~mask;

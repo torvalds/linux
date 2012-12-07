@@ -112,10 +112,30 @@ void ssb_extif_get_clockcontrol(struct ssb_extif *extif,
 	*m = extif_read32(extif, SSB_EXTIF_CLOCK_SB);
 }
 
-void ssb_extif_watchdog_timer_set(struct ssb_extif *extif,
-				  u32 ticks)
+u32 ssb_extif_watchdog_timer_set_wdt(struct bcm47xx_wdt *wdt, u32 ticks)
 {
+	struct ssb_extif *extif = bcm47xx_wdt_get_drvdata(wdt);
+
+	return ssb_extif_watchdog_timer_set(extif, ticks);
+}
+
+u32 ssb_extif_watchdog_timer_set_ms(struct bcm47xx_wdt *wdt, u32 ms)
+{
+	struct ssb_extif *extif = bcm47xx_wdt_get_drvdata(wdt);
+	u32 ticks = (SSB_EXTIF_WATCHDOG_CLK / 1000) * ms;
+
+	ticks = ssb_extif_watchdog_timer_set(extif, ticks);
+
+	return (ticks * 1000) / SSB_EXTIF_WATCHDOG_CLK;
+}
+
+u32 ssb_extif_watchdog_timer_set(struct ssb_extif *extif, u32 ticks)
+{
+	if (ticks > SSB_EXTIF_WATCHDOG_MAX_TIMER)
+		ticks = SSB_EXTIF_WATCHDOG_MAX_TIMER;
 	extif_write32(extif, SSB_EXTIF_WATCHDOG, ticks);
+
+	return ticks;
 }
 
 u32 ssb_extif_gpio_in(struct ssb_extif *extif, u32 mask)

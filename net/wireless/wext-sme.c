@@ -242,13 +242,17 @@ int cfg80211_mgd_wext_giwessid(struct net_device *dev,
 
 	wdev_lock(wdev);
 	if (wdev->current_bss) {
-		const u8 *ie = ieee80211_bss_get_ie(&wdev->current_bss->pub,
-						    WLAN_EID_SSID);
+		const u8 *ie;
+
+		rcu_read_lock();
+		ie = ieee80211_bss_get_ie(&wdev->current_bss->pub,
+					  WLAN_EID_SSID);
 		if (ie) {
 			data->flags = 1;
 			data->length = ie[1];
 			memcpy(ssid, ie + 2, data->length);
 		}
+		rcu_read_unlock();
 	} else if (wdev->wext.connect.ssid && wdev->wext.connect.ssid_len) {
 		data->flags = 1;
 		data->length = wdev->wext.connect.ssid_len;

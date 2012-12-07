@@ -6812,7 +6812,6 @@ static int ipw_wx_get_auth(struct net_device *dev,
 	struct libipw_device *ieee = priv->ieee;
 	struct lib80211_crypt_data *crypt;
 	struct iw_param *param = &wrqu->param;
-	int ret = 0;
 
 	switch (param->flags & IW_AUTH_INDEX) {
 	case IW_AUTH_WPA_VERSION:
@@ -6822,8 +6821,7 @@ static int ipw_wx_get_auth(struct net_device *dev,
 		/*
 		 * wpa_supplicant will control these internally
 		 */
-		ret = -EOPNOTSUPP;
-		break;
+		return -EOPNOTSUPP;
 
 	case IW_AUTH_TKIP_COUNTERMEASURES:
 		crypt = priv->ieee->crypt_info.crypt[priv->ieee->crypt_info.tx_keyidx];
@@ -10774,7 +10772,7 @@ static void ipw_bg_link_down(struct work_struct *work)
 	mutex_unlock(&priv->mutex);
 }
 
-static int __devinit ipw_setup_deferred_work(struct ipw_priv *priv)
+static int ipw_setup_deferred_work(struct ipw_priv *priv)
 {
 	int ret = 0;
 
@@ -11728,7 +11726,7 @@ static const struct net_device_ops ipw_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int __devinit ipw_pci_probe(struct pci_dev *pdev,
+static int ipw_pci_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *ent)
 {
 	int err = 0;
@@ -11901,7 +11899,7 @@ static int __devinit ipw_pci_probe(struct pci_dev *pdev,
 	return err;
 }
 
-static void __devexit ipw_pci_remove(struct pci_dev *pdev)
+static void ipw_pci_remove(struct pci_dev *pdev)
 {
 	struct ipw_priv *priv = pci_get_drvdata(pdev);
 	struct list_head *p, *q;
@@ -12063,7 +12061,7 @@ static struct pci_driver ipw_driver = {
 	.name = DRV_NAME,
 	.id_table = card_ids,
 	.probe = ipw_pci_probe,
-	.remove = __devexit_p(ipw_pci_remove),
+	.remove = ipw_pci_remove,
 #ifdef CONFIG_PM
 	.suspend = ipw_pci_suspend,
 	.resume = ipw_pci_resume,

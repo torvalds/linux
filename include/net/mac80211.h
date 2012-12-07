@@ -164,7 +164,7 @@ enum ieee80211_chanctx_change {
  *	active on the channel to receive MIMO transmissions
  * @rx_chains_dynamic: The number of RX chains that must be enabled
  *	after RTS/CTS handshake to receive SMPS MIMO transmissions;
- *	this will always be >= @rx_chains_always.
+ *	this will always be >= @rx_chains_static.
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *), size is determined in hw information.
  */
@@ -1473,6 +1473,10 @@ enum ieee80211_hw_flags {
  *	include _FMT. Use %IEEE80211_RADIOTAP_MCS_HAVE_* values, only
  *	adding _BW is supported today.
  *
+ * @radiotap_vht_details: lists which VHT MCS information the HW reports,
+ *	the default is _GI | _BANDWIDTH.
+ *	Use the %IEEE80211_RADIOTAP_VHT_KNOWN_* values.
+ *
  * @netdev_features: netdev features to be set in each netdev created
  *	from this HW. Note only HW checksum features are currently
  *	compatible with mac80211. Other feature bits will be rejected.
@@ -1499,6 +1503,7 @@ struct ieee80211_hw {
 	u8 max_tx_aggregation_subframes;
 	u8 offchannel_tx_hw_queue;
 	u8 radiotap_mcs_details;
+	u16 radiotap_vht_details;
 	netdev_features_t netdev_features;
 };
 
@@ -3139,8 +3144,7 @@ struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  * @ssid: SSID buffer
  * @ssid_len: length of SSID
- * @ie: buffer containing all IEs except SSID for the template
- * @ie_len: length of the IE buffer
+ * @tailroom: tailroom to reserve at end of SKB for IEs
  *
  * Creates a Probe Request template which can, for example, be uploaded to
  * hardware.
@@ -3148,7 +3152,7 @@ struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
 struct sk_buff *ieee80211_probereq_get(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
 				       const u8 *ssid, size_t ssid_len,
-				       const u8 *ie, size_t ie_len);
+				       size_t tailroom);
 
 /**
  * ieee80211_rts_get - RTS frame generation function

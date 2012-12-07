@@ -985,15 +985,18 @@ static void nfc_llcp_recv_hdlc(struct nfc_llcp_local *local,
 	/* Remove skbs from the pending queue */
 	if (llcp_sock->send_ack_n != nr) {
 		struct sk_buff *s, *tmp;
+		u8 n;
 
 		llcp_sock->send_ack_n = nr;
 
 		/* Remove and free all skbs until ns == nr */
 		skb_queue_walk_safe(&llcp_sock->tx_pending_queue, s, tmp) {
+			n = nfc_llcp_ns(s);
+
 			skb_unlink(s, &llcp_sock->tx_pending_queue);
 			kfree_skb(s);
 
-			if (nfc_llcp_ns(s) == nr)
+			if (n == nr)
 				break;
 		}
 

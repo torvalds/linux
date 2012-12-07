@@ -376,7 +376,7 @@ extern int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt);
 extern int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb,
 			      u16 flags);
 
-extern int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr);
+extern int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags);
 extern void sco_connect_cfm(struct hci_conn *hcon, __u8 status);
 extern void sco_disconn_cfm(struct hci_conn *hcon, __u8 reason);
 extern int sco_recv_scodata(struct hci_conn *hcon, struct sk_buff *skb);
@@ -577,6 +577,7 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst);
 int hci_conn_del(struct hci_conn *conn);
 void hci_conn_hash_flush(struct hci_dev *hdev);
 void hci_conn_check_pending(struct hci_dev *hdev);
+void hci_conn_accept(struct hci_conn *conn, int mask);
 
 struct hci_chan *hci_chan_create(struct hci_conn *conn);
 void hci_chan_del(struct hci_chan *chan);
@@ -766,7 +767,7 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define lmp_sniffsubr_capable(dev) ((dev)->features[5] & LMP_SNIFF_SUBR)
 #define lmp_pause_enc_capable(dev) ((dev)->features[5] & LMP_PAUSE_ENC)
 #define lmp_ext_inq_capable(dev)   ((dev)->features[6] & LMP_EXT_INQ)
-#define lmp_le_br_capable(dev)     ((dev)->features[6] & LMP_SIMUL_LE_BR)
+#define lmp_le_br_capable(dev)     !!((dev)->features[6] & LMP_SIMUL_LE_BR)
 #define lmp_ssp_capable(dev)       ((dev)->features[6] & LMP_SIMPLE_PAIR)
 #define lmp_no_flush_capable(dev)  ((dev)->features[6] & LMP_NO_FLUSH)
 #define lmp_lsto_capable(dev)      ((dev)->features[7] & LMP_LSTO)
@@ -775,12 +776,30 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 
 /* ----- Extended LMP capabilities ----- */
 #define lmp_host_ssp_capable(dev)  ((dev)->host_features[0] & LMP_HOST_SSP)
-#define lmp_host_le_capable(dev)   ((dev)->host_features[0] & LMP_HOST_LE)
-#define lmp_host_le_br_capable(dev) ((dev)->host_features[0] & LMP_HOST_LE_BREDR)
+#define lmp_host_le_capable(dev)   !!((dev)->host_features[0] & LMP_HOST_LE)
+#define lmp_host_le_br_capable(dev) !!((dev)->host_features[0] & LMP_HOST_LE_BREDR)
+
+/* returns true if at least one AMP active */
+static inline bool hci_amp_capable(void)
+{
+	struct hci_dev *hdev;
+	bool ret = false;
+
+	read_lock(&hci_dev_list_lock);
+	list_for_each_entry(hdev, &hci_dev_list, list)
+		if (hdev->amp_type == HCI_AMP &&
+		    test_bit(HCI_UP, &hdev->flags))
+			ret = true;
+	read_unlock(&hci_dev_list_lock);
+
+	return ret;
+}
 
 /* ----- HCI protocols ----- */
+#define HCI_PROTO_DEFER             0x01
+
 static inline int hci_proto_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr,
-								__u8 type)
+					__u8 type, __u8 *flags)
 {
 	switch (type) {
 	case ACL_LINK:
@@ -788,7 +807,7 @@ static inline int hci_proto_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr,
 
 	case SCO_LINK:
 	case ESCO_LINK:
-		return sco_connect_ind(hdev, bdaddr);
+		return sco_connect_ind(hdev, bdaddr, flags);
 
 	default:
 		BT_ERR("unknown link type %d", type);

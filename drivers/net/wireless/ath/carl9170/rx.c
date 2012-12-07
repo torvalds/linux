@@ -814,6 +814,8 @@ static void carl9170_rx_untie_data(struct ar9170 *ar, u8 *buf, int len)
 
 	if (phy)
 		carl9170_rx_phy_status(ar, phy, &status);
+	else
+		status.flag |= RX_FLAG_NO_SIGNAL_VAL;
 
 	if (carl9170_handle_mpdu(ar, buf, mpdu_len, &status))
 		goto drop;

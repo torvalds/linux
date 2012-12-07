@@ -538,7 +538,7 @@ DECLARE_PCI_FIXUP_EARLY(PCI_ANY_ID, PCI_ANY_ID, bcma_core_pci_fixup_pcibridge);
 static void bcma_core_pci_fixup_addresses(struct pci_dev *dev)
 {
 	struct resource *res;
-	int pos;
+	int pos, err;
 
 	if (dev->bus->ops->read != bcma_core_pci_hostmode_read_config) {
 		/* This is not a device on the PCI-core bridge. */
@@ -551,8 +551,12 @@ static void bcma_core_pci_fixup_addresses(struct pci_dev *dev)
 
 	for (pos = 0; pos < 6; pos++) {
 		res = &dev->resource[pos];
-		if (res->flags & (IORESOURCE_IO | IORESOURCE_MEM))
-			pci_assign_resource(dev, pos);
+		if (res->flags & (IORESOURCE_IO | IORESOURCE_MEM)) {
+			err = pci_assign_resource(dev, pos);
+			if (err)
+				pr_err("PCI: Problem fixing up the addresses on %s\n",
+				       pci_name(dev));
+		}
 	}
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, bcma_core_pci_fixup_addresses);

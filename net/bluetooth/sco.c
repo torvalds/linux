@@ -131,15 +131,6 @@ static int sco_conn_del(struct hci_conn *hcon, int err)
 		sco_sock_clear_timer(sk);
 		sco_chan_del(sk, err);
 		bh_unlock_sock(sk);
-
-		sco_conn_lock(conn);
-		conn->sk = NULL;
-		sco_pi(sk)->conn = NULL;
-		sco_conn_unlock(conn);
-
-		if (conn->hcon)
-			hci_conn_put(conn->hcon);
-
 		sco_sock_kill(sk);
 	}
 
@@ -397,6 +388,7 @@ static void sco_sock_init(struct sock *sk, struct sock *parent)
 
 	if (parent) {
 		sk->sk_type = parent->sk_type;
+		bt_sk(sk)->flags = bt_sk(parent)->flags;
 		security_sk_clone(parent, sk);
 	}
 }
@@ -662,16 +654,57 @@ static int sco_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	return err;
 }
 
+static int sco_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
+			    struct msghdr *msg, size_t len, int flags)
+{
+	struct sock *sk = sock->sk;
+	struct sco_pinfo *pi = sco_pi(sk);
+
+	lock_sock(sk);
+
+	if (sk->sk_state == BT_CONNECT2 &&
+	    test_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags)) {
+		hci_conn_accept(pi->conn->hcon, 0);
+		sk->sk_state = BT_CONFIG;
+
+		release_sock(sk);
+		return 0;
+	}
+
+	release_sock(sk);
+
+	return bt_sock_recvmsg(iocb, sock, msg, len, flags);
+}
+
 static int sco_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	int err = 0;
+	u32 opt;
 
 	BT_DBG("sk %p", sk);
 
 	lock_sock(sk);
 
 	switch (optname) {
+
+	case BT_DEFER_SETUP:
+		if (sk->sk_state != BT_BOUND && sk->sk_state != BT_LISTEN) {
+			err = -EINVAL;
+			break;
+		}
+
+		if (get_user(opt, (u32 __user *) optval)) {
+			err = -EFAULT;
+			break;
+		}
+
+		if (opt)
+			set_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags);
+		else
+			clear_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags);
+		break;
+
 	default:
 		err = -ENOPROTOOPT;
 		break;
@@ -753,6 +786,19 @@ static int sco_sock_getsockopt(struct socket *sock, int level, int optname, char
 	lock_sock(sk);
 
 	switch (optname) {
+
+	case BT_DEFER_SETUP:
+		if (sk->sk_state != BT_BOUND && sk->sk_state != BT_LISTEN) {
+			err = -EINVAL;
+			break;
+		}
+
+		if (put_user(test_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags),
+			     (u32 __user *) optval))
+			err = -EFAULT;
+
+		break;
+
 	default:
 		err = -ENOPROTOOPT;
 		break;
@@ -830,6 +876,16 @@ static void sco_chan_del(struct sock *sk, int err)
 
 	BT_DBG("sk %p, conn %p, err %d", sk, conn, err);
 
+	if (conn) {
+		sco_conn_lock(conn);
+		conn->sk = NULL;
+		sco_pi(sk)->conn = NULL;
+		sco_conn_unlock(conn);
+
+		if (conn->hcon)
+			hci_conn_put(conn->hcon);
+	}
+
 	sk->sk_state = BT_CLOSED;
 	sk->sk_err   = err;
 	sk->sk_state_change(sk);
@@ -874,7 +930,10 @@ static void sco_conn_ready(struct sco_conn *conn)
 		hci_conn_hold(conn->hcon);
 		__sco_chan_add(conn, sk, parent);
 
-		sk->sk_state = BT_CONNECTED;
+		if (test_bit(BT_SK_DEFER_SETUP, &bt_sk(parent)->flags))
+			sk->sk_state = BT_CONNECT2;
+		else
+			sk->sk_state = BT_CONNECTED;
 
 		/* Wake up parent */
 		parent->sk_data_ready(parent, 1);
@@ -887,7 +946,7 @@ done:
 }
 
 /* ----- SCO interface with lower layer (HCI) ----- */
-int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr)
+int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags)
 {
 	struct sock *sk;
 	struct hlist_node *node;
@@ -904,6 +963,9 @@ int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr)
 		if (!bacmp(&bt_sk(sk)->src, &hdev->bdaddr) ||
 		    !bacmp(&bt_sk(sk)->src, BDADDR_ANY)) {
 			lm |= HCI_LM_ACCEPT;
+
+			if (test_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags))
+				*flags |= HCI_PROTO_DEFER;
 			break;
 		}
 	}
@@ -992,7 +1054,7 @@ static const struct proto_ops sco_sock_ops = {
 	.accept		= sco_sock_accept,
 	.getname	= sco_sock_getname,
 	.sendmsg	= sco_sock_sendmsg,
-	.recvmsg	= bt_sock_recvmsg,
+	.recvmsg	= sco_sock_recvmsg,
 	.poll		= bt_sock_poll,
 	.ioctl		= bt_sock_ioctl,
 	.mmap		= sock_no_mmap,

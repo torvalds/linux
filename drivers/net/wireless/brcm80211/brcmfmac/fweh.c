@@ -314,7 +314,7 @@ static void brcmf_fweh_event_worker(struct work_struct *work)
 	while ((event = brcmf_fweh_dequeue_event(fweh))) {
 		ifp = drvr->iflist[event->ifidx];
 
-		brcmf_dbg(EVENT, "event %s (%u) ifidx %u bsscfg %u addr %pM:\n",
+		brcmf_dbg(EVENT, "event %s (%u) ifidx %u bsscfg %u addr %pM\n",
 			  brcmf_fweh_event_name(event->code), event->code,
 			  event->emsg.ifidx, event->emsg.bsscfgidx,
 			  event->emsg.addr);
@@ -337,7 +337,7 @@ static void brcmf_fweh_event_worker(struct work_struct *work)
 			  emsg.version, emsg.flags, emsg.status, emsg.reason);
 		brcmf_dbg_hex_dump(BRCMF_EVENT_ON(), event->data,
 				   min_t(u32, emsg.datalen, 64),
-				   "appended:");
+				   "event payload, len=%d\n", emsg.datalen);
 
 		/* special handling of interface event */
 		if (event->code == BRCMF_E_IF) {

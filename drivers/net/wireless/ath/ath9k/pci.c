@@ -287,7 +287,7 @@ static void ath_pci_remove(struct pci_dev *pdev)
 	pci_release_region(pdev, 0);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 
 static int ath_pci_suspend(struct device *device)
 {
@@ -333,22 +333,15 @@ static int ath_pci_resume(struct device *device)
 	return 0;
 }
 
-static const struct dev_pm_ops ath9k_pm_ops = {
-	.suspend = ath_pci_suspend,
-	.resume = ath_pci_resume,
-	.freeze = ath_pci_suspend,
-	.thaw = ath_pci_resume,
-	.poweroff = ath_pci_suspend,
-	.restore = ath_pci_resume,
-};
+static SIMPLE_DEV_PM_OPS(ath9k_pm_ops, ath_pci_suspend, ath_pci_resume);
 
 #define ATH9K_PM_OPS	(&ath9k_pm_ops)
 
-#else /* !CONFIG_PM */
+#else /* !CONFIG_PM_SLEEP */
 
 #define ATH9K_PM_OPS	NULL
 
-#endif /* !CONFIG_PM */
+#endif /* !CONFIG_PM_SLEEP */
 
 
 MODULE_DEVICE_TABLE(pci, ath_pci_id_table);

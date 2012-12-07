@@ -1,6 +1,8 @@
 #ifndef LINUX_BCMA_DRIVER_CC_H_
 #define LINUX_BCMA_DRIVER_CC_H_
 
+#include <linux/platform_device.h>
+
 /** ChipCommon core registers. **/
 #define BCMA_CC_ID			0x0000
 #define  BCMA_CC_ID_ID			0x0000FFFF
@@ -570,6 +572,8 @@ struct bcma_drv_cc {
 	int nr_serial_ports;
 	struct bcma_serial_port serial_ports[4];
 #endif /* CONFIG_BCMA_DRIVER_MIPS */
+	u32 ticks_per_ms;
+	struct platform_device *watchdog;
 };
 
 /* Register access */
@@ -593,8 +597,7 @@ extern void bcma_chipco_resume(struct bcma_drv_cc *cc);
 
 void bcma_chipco_bcm4331_ext_pa_lines_ctl(struct bcma_drv_cc *cc, bool enable);
 
-extern void bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc,
-					  u32 ticks);
+extern u32 bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc, u32 ticks);
 
 void bcma_chipco_irq_mask(struct bcma_drv_cc *cc, u32 mask, u32 value);
 
