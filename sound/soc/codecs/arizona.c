@@ -749,6 +749,9 @@ static int arizona_dai_set_sysclk(struct snd_soc_dai *dai,
 		return -EBUSY;
 	}
 
+	dev_dbg(codec->dev, "Setting AIF%d to %s\n", dai->id + 1,
+		arizona_dai_clk_str(clk_id));
+
 	memset(&routes, 0, sizeof(routes));
 	routes[0].sink = dai->driver->capture.stream_name;
 	routes[1].sink = dai->driver->playback.stream_name;
