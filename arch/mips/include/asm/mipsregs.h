@@ -1197,6 +1197,94 @@ do {									\
 
 #else
 
+#ifdef CONFIG_CPU_MICROMIPS
+#define rddsp(mask)							\
+({									\
+	unsigned int __res;						\
+									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	noat					\n"	\
+	"	# rddsp $1, %x1					\n"	\
+	"	.hword	((0x0020067c | (%x1 << 14)) >> 16)	\n"	\
+	"	.hword	((0x0020067c | (%x1 << 14)) & 0xffff)	\n"	\
+	"	move	%0, $1					\n"	\
+	"	.set	pop					\n"	\
+	: "=r" (__res)							\
+	: "i" (mask));							\
+	__res;								\
+})
+
+#define wrdsp(val, mask)						\
+do {									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	noat					\n"	\
+	"	move	$1, %0					\n"	\
+	"	# wrdsp $1, %x1					\n"	\
+	"	.hword	((0x0020167c | (%x1 << 14)) >> 16)	\n"	\
+	"	.hword	((0x0020167c | (%x1 << 14)) & 0xffff)	\n"	\
+	"	.set	pop					\n"	\
+	:								\
+	: "r" (val), "i" (mask));					\
+} while (0)
+
+#define _umips_dsp_mfxxx(ins)						\
+({									\
+	unsigned long __treg;						\
+									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	noat					\n"	\
+	"	.hword	0x0001					\n"	\
+	"	.hword	%x1					\n"	\
+	"	move	%0, $1					\n"	\
+	"	.set	pop					\n"	\
+	: "=r" (__treg)							\
+	: "i" (ins));							\
+	__treg;								\
+})
+
+#define _umips_dsp_mtxxx(val, ins)					\
+do {									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	noat					\n"	\
+	"	move	$1, %0					\n"	\
+	"	.hword	0x0001					\n"	\
+	"	.hword	%x1					\n"	\
+	"	.set	pop					\n"	\
+	:								\
+	: "r" (val), "i" (ins));					\
+} while (0)
+
+#define _umips_dsp_mflo(reg) _umips_dsp_mfxxx((reg << 14) | 0x107c)
+#define _umips_dsp_mfhi(reg) _umips_dsp_mfxxx((reg << 14) | 0x007c)
+
+#define _umips_dsp_mtlo(val, reg) _umips_dsp_mtxxx(val, ((reg << 14) | 0x307c))
+#define _umips_dsp_mthi(val, reg) _umips_dsp_mtxxx(val, ((reg << 14) | 0x207c))
+
+#define mflo0() _umips_dsp_mflo(0)
+#define mflo1() _umips_dsp_mflo(1)
+#define mflo2() _umips_dsp_mflo(2)
+#define mflo3() _umips_dsp_mflo(3)
+
+#define mfhi0() _umips_dsp_mfhi(0)
+#define mfhi1() _umips_dsp_mfhi(1)
+#define mfhi2() _umips_dsp_mfhi(2)
+#define mfhi3() _umips_dsp_mfhi(3)
+
+#define mtlo0(x) _umips_dsp_mtlo(x, 0)
+#define mtlo1(x) _umips_dsp_mtlo(x, 1)
+#define mtlo2(x) _umips_dsp_mtlo(x, 2)
+#define mtlo3(x) _umips_dsp_mtlo(x, 3)
+
+#define mthi0(x) _umips_dsp_mthi(x, 0)
+#define mthi1(x) _umips_dsp_mthi(x, 1)
+#define mthi2(x) _umips_dsp_mthi(x, 2)
+#define mthi3(x) _umips_dsp_mthi(x, 3)
+
+#else  /* !CONFIG_CPU_MICROMIPS */
 #define rddsp(mask)							\
 ({									\
 	unsigned int __res;						\
@@ -1450,6 +1538,7 @@ do {									\
 	: "r" (x));							\
 } while (0)
 
+#endif /* CONFIG_CPU_MICROMIPS */
 #endif
 
 /*
