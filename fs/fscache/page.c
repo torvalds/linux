@@ -699,9 +699,27 @@ static void fscache_write_op(struct fscache_operation *_op)
 	spin_lock(&object->lock);
 	cookie = object->cookie;
 
-	if (!fscache_object_is_active(object) || !cookie) {
+	if (!fscache_object_is_active(object)) {
+		/* If we get here, then the on-disk cache object likely longer
+		 * exists, so we should just cancel this write operation.
+		 */
 		spin_unlock(&object->lock);
-		_leave("");
+		op->op.state = FSCACHE_OP_ST_CANCELLED;
+		_leave(" [inactive]");
+		return;
+	}
+
+	if (!cookie) {
+		/* If we get here, then the cookie belonging to the object was
+		 * detached, probably by the cookie being withdrawn due to
+		 * memory pressure, which means that the pages we might write
+		 * to the cache from no longer exist - therefore, we can just
+		 * cancel this write operation.
+		 */
+		spin_unlock(&object->lock);
+		op->op.state = FSCACHE_OP_ST_CANCELLED;
+		_leave(" [cancel] op{f=%lx s=%u} obj{s=%u f=%lx}",
+		       _op->flags, _op->state, object->state, object->flags);
 		return;
 	}
 
