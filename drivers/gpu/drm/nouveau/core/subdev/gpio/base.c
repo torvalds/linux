@@ -270,7 +270,7 @@ nouveau_gpio_init(struct nouveau_gpio *gpio)
 	int ret = nouveau_subdev_init(&gpio->base);
 	if (ret == 0 && gpio->reset) {
 		if (dmi_check_system(gpio_reset_ids))
-			gpio->reset(gpio);
+			gpio->reset(gpio, DCB_GPIO_UNUSED);
 	}
 	return ret;
 }

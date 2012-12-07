@@ -29,7 +29,7 @@ struct nv50_gpio_priv {
 };
 
 static void
-nv50_gpio_reset(struct nouveau_gpio *gpio)
+nv50_gpio_reset(struct nouveau_gpio *gpio, u8 match)
 {
 	struct nouveau_bios *bios = nouveau_bios(gpio);
 	struct nv50_gpio_priv *priv = (void *)gpio;
@@ -48,7 +48,8 @@ nv50_gpio_reset(struct nouveau_gpio *gpio)
 		u32 val = (unk1 << 16) | unk0;
 		u32 reg = regs[line >> 4]; line &= 0x0f;
 
-		if (func == 0xff)
+		if ( func  == DCB_GPIO_UNUSED ||
+		    (match != DCB_GPIO_UNUSED && match != func))
 			continue;
 
 		gpio->set(gpio, 0, func, line, defs);

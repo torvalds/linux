@@ -2,11 +2,12 @@
 #include <core/device.h>
 
 #include <subdev/bios.h>
-#include <subdev/bios/conn.h>
 #include <subdev/bios/bmp.h>
 #include <subdev/bios/bit.h>
+#include <subdev/bios/conn.h>
 #include <subdev/bios/dcb.h>
 #include <subdev/bios/dp.h>
+#include <subdev/bios/gpio.h>
 #include <subdev/bios/init.h>
 #include <subdev/devinit.h>
 #include <subdev/clock.h>
@@ -1781,7 +1782,7 @@ init_gpio(struct nvbios_init *init)
 	init->offset += 1;
 
 	if (init_exec(init) && gpio && gpio->reset)
-		gpio->reset(gpio);
+		gpio->reset(gpio, DCB_GPIO_UNUSED);
 }
 
 /**
@@ -1995,6 +1996,47 @@ init_i2c_long_if(struct nvbios_init *init)
 	init_exec_set(init, false);
 }
 
+/**
+ * INIT_GPIO_NE - opcode 0xa9
+ *
+ */
+static void
+init_gpio_ne(struct nvbios_init *init)
+{
+	struct nouveau_bios *bios = init->bios;
+	struct nouveau_gpio *gpio = nouveau_gpio(bios);
+	struct dcb_gpio_func func;
+	u8 count = nv_ro08(bios, init->offset + 1);
+	u8 idx = 0, ver, len;
+	u16 data, i;
+
+	trace("GPIO_NE\t");
+	init->offset += 2;
+
+	for (i = init->offset; i < init->offset + count; i++)
+		cont("0x%02x ", nv_ro08(bios, i));
+	cont("\n");
+
+	while ((data = dcb_gpio_parse(bios, 0, idx++, &ver, &len, &func))) {
+		if (func.func != DCB_GPIO_UNUSED) {
+			for (i = init->offset; i < init->offset + count; i++) {
+				if (func.func == nv_ro08(bios, i))
+					break;
+			}
+
+			trace("\tFUNC[0x%02x]", func.func);
+			if (i == (init->offset + count)) {
+				cont(" *");
+				if (init_exec(init) && gpio && gpio->reset)
+					gpio->reset(gpio, func.func);
+			}
+			cont("\n");
+		}
+	}
+
+	init->offset += count;
+}
+
 static struct nvbios_init_opcode {
 	void (*exec)(struct nvbios_init *);
 } init_opcode[] = {
@@ -2059,6 +2101,7 @@ static struct nvbios_init_opcode {
 	[0x98] = { init_auxch },
 	[0x99] = { init_zm_auxch },
 	[0x9a] = { init_i2c_long_if },
+	[0xa9] = { init_gpio_ne },
 };
 
 #define init_opcode_nr (sizeof(init_opcode) / sizeof(init_opcode[0]))
