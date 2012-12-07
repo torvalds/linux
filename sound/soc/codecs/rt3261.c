@@ -3097,27 +3097,8 @@ static int rt3261_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
-		/* headphone mute sequence */
-		snd_soc_update_bits(codec, RT3261_DEPOP_M3,
-			RT3261_CP_FQ1_MASK | RT3261_CP_FQ2_MASK | RT3261_CP_FQ3_MASK,
-			(RT3261_CP_FQ_96_KHZ << RT3261_CP_FQ1_SFT) |
-			(RT3261_CP_FQ_12_KHZ << RT3261_CP_FQ2_SFT) |
-			(RT3261_CP_FQ_96_KHZ << RT3261_CP_FQ3_SFT));
-		rt3261_index_write(codec, RT3261_MAMP_INT_REG2, 0xfc00);
-		snd_soc_update_bits(codec, RT3261_DEPOP_M1,
-			RT3261_HP_SG_MASK, RT3261_HP_SG_EN);
-		snd_soc_update_bits(codec, RT3261_DEPOP_M1,
-			RT3261_RSTP_MASK, RT3261_RSTP_EN);
-		snd_soc_update_bits(codec, RT3261_DEPOP_M1,
-			RT3261_RSTP_MASK | RT3261_HP_L_SMT_MASK |
-			RT3261_HP_R_SMT_MASK, RT3261_RSTP_DIS |
-			RT3261_HP_L_SMT_EN | RT3261_HP_R_SMT_EN);
-
 		snd_soc_update_bits(codec, RT3261_HP_VOL,
-			RT3261_L_MUTE | RT3261_R_MUTE, RT3261_L_MUTE | RT3261_R_MUTE);
-		msleep(30);
-		snd_soc_write(codec, RT3261_DEPOP_M1, 0x0004);
-
+			RT3261_L_MUTE | RT3261_R_MUTE, RT3261_L_MUTE | RT3261_R_MUTE); //bard 12-7
 		snd_soc_update_bits(codec, RT3261_SPK_VOL,
 			RT3261_L_MUTE | RT3261_R_MUTE,
 			RT3261_L_MUTE | RT3261_R_MUTE);
