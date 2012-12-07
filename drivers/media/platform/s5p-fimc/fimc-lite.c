@@ -611,7 +611,7 @@ static void fimc_lite_try_crop(struct fimc_lite *fimc, struct v4l2_rect *r)
 	r->left = round_down(r->left, fimc->variant->win_hor_offs_align);
 	r->top  = clamp_t(u32, r->top, 0, frame->f_height - r->height);
 
-	v4l2_dbg(1, debug, &fimc->subdev, "(%d,%d)/%dx%d, sink fmt: %dx%d",
+	v4l2_dbg(1, debug, &fimc->subdev, "(%d,%d)/%dx%d, sink fmt: %dx%d\n",
 		 r->left, r->top, r->width, r->height,
 		 frame->f_width, frame->f_height);
 }
@@ -631,7 +631,7 @@ static void fimc_lite_try_compose(struct fimc_lite *fimc, struct v4l2_rect *r)
 	r->left = round_down(r->left, fimc->variant->out_hor_offs_align);
 	r->top  = clamp_t(u32, r->top, 0, fimc->out_frame.f_height - r->height);
 
-	v4l2_dbg(1, debug, &fimc->subdev, "(%d,%d)/%dx%d, source fmt: %dx%d",
+	v4l2_dbg(1, debug, &fimc->subdev, "(%d,%d)/%dx%d, source fmt: %dx%d\n",
 		 r->left, r->top, r->width, r->height,
 		 frame->f_width, frame->f_height);
 }
@@ -1011,7 +1011,7 @@ static int fimc_lite_link_setup(struct media_entity *entity,
 	if (WARN_ON(fimc == NULL))
 		return 0;
 
-	v4l2_dbg(1, debug, sd, "%s: %s --> %s, flags: 0x%x. source_id: 0x%x",
+	v4l2_dbg(1, debug, sd, "%s: %s --> %s, flags: 0x%x. source_id: 0x%x\n",
 		 __func__, remote->entity->name, local->entity->name,
 		 flags, fimc->source_subdev_grp_id);
 
@@ -1120,7 +1120,7 @@ static int fimc_lite_subdev_set_fmt(struct v4l2_subdev *sd,
 	struct flite_frame *source = &fimc->out_frame;
 	const struct fimc_fmt *ffmt;
 
-	v4l2_dbg(1, debug, sd, "pad%d: code: 0x%x, %dx%d",
+	v4l2_dbg(1, debug, sd, "pad%d: code: 0x%x, %dx%d\n",
 		 fmt->pad, mf->code, mf->width, mf->height);
 
 	mf->colorspace = V4L2_COLORSPACE_JPEG;
@@ -1196,7 +1196,7 @@ static int fimc_lite_subdev_get_selection(struct v4l2_subdev *sd,
 	}
 	mutex_unlock(&fimc->lock);
 
-	v4l2_dbg(1, debug, sd, "%s: (%d,%d) %dx%d, f_w: %d, f_h: %d",
+	v4l2_dbg(1, debug, sd, "%s: (%d,%d) %dx%d, f_w: %d, f_h: %d\n",
 		 __func__, f->rect.left, f->rect.top, f->rect.width,
 		 f->rect.height, f->f_width, f->f_height);
 
@@ -1230,7 +1230,7 @@ static int fimc_lite_subdev_set_selection(struct v4l2_subdev *sd,
 	}
 	mutex_unlock(&fimc->lock);
 
-	v4l2_dbg(1, debug, sd, "%s: (%d,%d) %dx%d, f_w: %d, f_h: %d",
+	v4l2_dbg(1, debug, sd, "%s: (%d,%d) %dx%d, f_w: %d, f_h: %d\n",
 		 __func__, f->rect.left, f->rect.top, f->rect.width,
 		 f->rect.height, f->f_width, f->f_height);
 

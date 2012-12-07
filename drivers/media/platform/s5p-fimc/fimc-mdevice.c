@@ -556,7 +556,7 @@ static int __fimc_md_create_fimc_sink_links(struct fimc_md *fmd,
 		if (ret)
 			break;
 
-		v4l2_info(&fmd->v4l2_dev, "created link [%s] %c> [%s]",
+		v4l2_info(&fmd->v4l2_dev, "created link [%s] %c> [%s]\n",
 			  source->name, flags ? '=' : '-', sink->name);
 	}
 	return 0;
@@ -640,7 +640,7 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 			if (ret)
 				return ret;
 
-			v4l2_info(&fmd->v4l2_dev, "created link [%s] => [%s]",
+			v4l2_info(&fmd->v4l2_dev, "created link [%s] => [%s]\n",
 				  sensor->entity.name, csis->entity.name);
 
 			source = NULL;

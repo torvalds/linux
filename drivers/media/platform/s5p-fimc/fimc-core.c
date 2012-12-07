@@ -257,14 +257,14 @@ int fimc_set_scaler_info(struct fimc_ctx *ctx)
 		ty = d_frame->height;
 	}
 	if (tx <= 0 || ty <= 0) {
-		dev_err(dev, "Invalid target size: %dx%d", tx, ty);
+		dev_err(dev, "Invalid target size: %dx%d\n", tx, ty);
 		return -EINVAL;
 	}
 
 	sx = s_frame->width;
 	sy = s_frame->height;
 	if (sx <= 0 || sy <= 0) {
-		dev_err(dev, "Invalid source size: %dx%d", sx, sy);
+		dev_err(dev, "Invalid source size: %dx%d\n", sx, sy);
 		return -EINVAL;
 	}
 	sc->real_width = sx;
