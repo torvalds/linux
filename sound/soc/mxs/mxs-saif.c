@@ -657,7 +657,7 @@ static irqreturn_t mxs_saif_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit mxs_saif_probe(struct platform_device *pdev)
+static int mxs_saif_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct resource *iores, *dmares;
@@ -792,7 +792,7 @@ failed_pdev_alloc:
 	return ret;
 }
 
-static int __devexit mxs_saif_remove(struct platform_device *pdev)
+static int mxs_saif_remove(struct platform_device *pdev)
 {
 	mxs_pcm_platform_unregister(&pdev->dev);
 	snd_soc_unregister_dai(&pdev->dev);
@@ -808,7 +808,7 @@ MODULE_DEVICE_TABLE(of, mxs_saif_dt_ids);
 
 static struct platform_driver mxs_saif_driver = {
 	.probe = mxs_saif_probe,
-	.remove = __devexit_p(mxs_saif_remove),
+	.remove = mxs_saif_remove,
 
 	.driver = {
 		.name = "mxs-saif",
