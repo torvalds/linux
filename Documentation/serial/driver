@@ -242,9 +242,8 @@ hardware.
 
   pm(port,state,oldstate)
 	Perform any power management related activities on the specified
-	port.  State indicates the new state (defined by ACPI D0-D3),
-	oldstate indicates the previous state.  Essentially, D0 means
-	fully on, D3 means powered down.
+	port.  State indicates the new state (defined by
+	enum uart_pm_state), oldstate indicates the previous state.
 
 	This function should not be used to grab any resources.
 

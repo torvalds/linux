@@ -59,7 +59,8 @@ static struct lock_class_key port_lock_key;
 static void uart_change_speed(struct tty_struct *tty, struct uart_state *state,
 					struct ktermios *old_termios);
 static void uart_wait_until_sent(struct tty_struct *tty, int timeout);
-static void uart_change_pm(struct uart_state *state, int pm_state);
+static void uart_change_pm(struct uart_state *state,
+			   enum uart_pm_state pm_state);
 
 static void uart_port_shutdown(struct tty_port *port);
 
@@ -1365,7 +1366,7 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 		spin_lock_irqsave(&port->lock, flags);
 	} else if (!uart_console(uport)) {
 		spin_unlock_irqrestore(&port->lock, flags);
-		uart_change_pm(state, 3);
+		uart_change_pm(state, UART_PM_STATE_OFF);
 		spin_lock_irqsave(&port->lock, flags);
 	}
 
@@ -1579,7 +1580,7 @@ static int uart_open(struct tty_struct *tty, struct file *filp)
 	 * Make sure the device is in D0 state.
 	 */
 	if (port->count == 1)
-		uart_change_pm(state, 0);
+		uart_change_pm(state, UART_PM_STATE_ON);
 
 	/*
 	 * Start up the serial port.
@@ -1620,7 +1621,7 @@ static void uart_line_info(struct seq_file *m, struct uart_driver *drv, int i)
 {
 	struct uart_state *state = drv->state + i;
 	struct tty_port *port = &state->port;
-	int pm_state;
+	enum uart_pm_state pm_state;
 	struct uart_port *uport = state->uart_port;
 	char stat_buf[32];
 	unsigned int status;
@@ -1645,12 +1646,12 @@ static void uart_line_info(struct seq_file *m, struct uart_driver *drv, int i)
 	if (capable(CAP_SYS_ADMIN)) {
 		mutex_lock(&port->mutex);
 		pm_state = state->pm_state;
-		if (pm_state)
-			uart_change_pm(state, 0);
+		if (pm_state != UART_PM_STATE_ON)
+			uart_change_pm(state, UART_PM_STATE_ON);
 		spin_lock_irq(&uport->lock);
 		status = uport->ops->get_mctrl(uport);
 		spin_unlock_irq(&uport->lock);
-		if (pm_state)
+		if (pm_state != UART_PM_STATE_ON)
 			uart_change_pm(state, pm_state);
 		mutex_unlock(&port->mutex);
 
@@ -1897,7 +1898,8 @@ EXPORT_SYMBOL_GPL(uart_set_options);
  *
  * Locking: port->mutex has to be held
  */
-static void uart_change_pm(struct uart_state *state, int pm_state)
+static void uart_change_pm(struct uart_state *state,
+			   enum uart_pm_state pm_state)
 {
 	struct uart_port *port = state->uart_port;
 
@@ -1982,7 +1984,7 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 		console_stop(uport->cons);
 
 	if (console_suspend_enabled || !uart_console(uport))
-		uart_change_pm(state, 3);
+		uart_change_pm(state, UART_PM_STATE_OFF);
 
 	mutex_unlock(&port->mutex);
 
@@ -2027,7 +2029,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 			termios = port->tty->termios;
 
 		if (console_suspend_enabled)
-			uart_change_pm(state, 0);
+			uart_change_pm(state, UART_PM_STATE_ON);
 		uport->ops->set_termios(uport, &termios, NULL);
 		if (console_suspend_enabled)
 			console_start(uport->cons);
@@ -2037,7 +2039,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 		const struct uart_ops *ops = uport->ops;
 		int ret;
 
-		uart_change_pm(state, 0);
+		uart_change_pm(state, UART_PM_STATE_ON);
 		spin_lock_irq(&uport->lock);
 		ops->set_mctrl(uport, 0);
 		spin_unlock_irq(&uport->lock);
@@ -2137,7 +2139,7 @@ uart_configure_port(struct uart_driver *drv, struct uart_state *state,
 		uart_report_port(drv, port);
 
 		/* Power up port for set_mctrl() */
-		uart_change_pm(state, 0);
+		uart_change_pm(state, UART_PM_STATE_ON);
 
 		/*
 		 * Ensure that the modem control lines are de-activated.
@@ -2161,7 +2163,7 @@ uart_configure_port(struct uart_driver *drv, struct uart_state *state,
 		 * console if we have one.
 		 */
 		if (!uart_console(port))
-			uart_change_pm(state, 3);
+			uart_change_pm(state, UART_PM_STATE_OFF);
 	}
 }
 
@@ -2588,7 +2590,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	}
 
 	state->uart_port = uport;
-	state->pm_state = -1;
+	state->pm_state = UART_PM_STATE_UNDEFINED;
 
 	uport->cons = drv->cons;
 	uport->state = state;

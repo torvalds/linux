@@ -208,13 +208,25 @@ static inline void serial_port_out(struct uart_port *up, int offset, int value)
 	up->serial_out(up, offset, value);
 }
 
+/**
+ * enum uart_pm_state - power states for UARTs
+ * @UART_PM_STATE_ON: UART is powered, up and operational
+ * @UART_PM_STATE_OFF: UART is powered off
+ * @UART_PM_STATE_UNDEFINED: sentinel
+ */
+enum uart_pm_state {
+	UART_PM_STATE_ON = 0,
+	UART_PM_STATE_OFF = 3, /* number taken from ACPI */
+	UART_PM_STATE_UNDEFINED,
+};
+
 /*
  * This is the state information which is persistent across opens.
  */
 struct uart_state {
 	struct tty_port		port;
 
-	int			pm_state;
+	enum uart_pm_state	pm_state;
 	struct circ_buf		xmit;
 
 	struct uart_port	*uart_port;
