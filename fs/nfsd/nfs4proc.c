@@ -194,6 +194,7 @@ static __be32
 do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open *open)
 {
 	struct svc_fh *resfh;
+	int accmode;
 	__be32 status;
 
 	resfh = kmalloc(sizeof(struct svc_fh), GFP_KERNEL);
@@ -253,9 +254,10 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 	/* set reply cache */
 	fh_copy_shallow(&open->op_openowner->oo_owner.so_replay.rp_openfh,
 			&resfh->fh_handle);
-	if (!open->op_created)
-		status = do_open_permission(rqstp, resfh, open,
-					    NFSD_MAY_NOP);
+	accmode = NFSD_MAY_NOP;
+	if (open->op_created)
+		accmode |= NFSD_MAY_OWNER_OVERRIDE;
+	status = do_open_permission(rqstp, resfh, open, accmode);
 	set_change_info(&open->op_cinfo, current_fh);
 	fh_dup2(current_fh, resfh);
 out:
