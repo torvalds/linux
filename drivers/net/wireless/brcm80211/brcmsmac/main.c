@@ -4500,7 +4500,8 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 
 	/* check device id(srom, nvram etc.) to set bands */
 	if (wlc_hw->deviceid == BCM43224_D11N_ID ||
-	    wlc_hw->deviceid == BCM43224_D11N_ID_VEN1)
+	    wlc_hw->deviceid == BCM43224_D11N_ID_VEN1 ||
+	    wlc_hw->deviceid == BCM43224_CHIP_ID)
 		/* Dualband boards */
 		wlc_hw->_nbands = 2;
 	else
@@ -5653,7 +5654,7 @@ static bool brcms_c_chipmatch_pci(struct bcma_device *core)
 		return false;
 	}
 
-	if (device == BCM43224_D11N_ID_VEN1)
+	if (device == BCM43224_D11N_ID_VEN1 || device == BCM43224_CHIP_ID)
 		return true;
 	if ((device == BCM43224_D11N_ID) || (device == BCM43225_D11N2G_ID))
 		return true;
