@@ -61,8 +61,9 @@ char *machine__mmap_name(struct machine *machine, char *bf, size_t size);
 
 int machine__init(struct machine *machine, const char *root_dir, pid_t pid);
 void machine__exit(struct machine *machine);
+void machine__delete_dead_threads(struct machine *machine);
+void machine__delete_threads(struct machine *machine);
 void machine__delete(struct machine *machine);
-
 
 struct branch_info *machine__resolve_bstack(struct machine *machine,
 					    struct thread *thread,
