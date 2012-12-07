@@ -675,6 +675,18 @@
 #define NVM_COMB_VER_SHFT               8
 #define NVM_VER_INVALID            0xFFFF
 #define NVM_ETRACK_SHIFT               16
+#define NVM_ETS_CFG			0x003E
+#define NVM_ETS_LTHRES_DELTA_MASK	0x07C0
+#define NVM_ETS_LTHRES_DELTA_SHIFT	6
+#define NVM_ETS_TYPE_MASK		0x0038
+#define NVM_ETS_TYPE_SHIFT		3
+#define NVM_ETS_TYPE_EMC		0x000
+#define NVM_ETS_NUM_SENSORS_MASK	0x0007
+#define NVM_ETS_DATA_LOC_MASK		0x3C00
+#define NVM_ETS_DATA_LOC_SHIFT		10
+#define NVM_ETS_DATA_INDEX_MASK		0x0300
+#define NVM_ETS_DATA_INDEX_SHIFT	8
+#define NVM_ETS_DATA_HTHRESH_MASK	0x00FF
 
 #define E1000_NVM_CFG_DONE_PORT_0  0x040000 /* MNG config cycle done */
 #define E1000_NVM_CFG_DONE_PORT_1  0x080000 /* ...for second port */

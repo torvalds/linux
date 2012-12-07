@@ -132,6 +132,14 @@
 
 /* Split and Replication RX Control - RW */
 #define E1000_RXPBS    0x02404  /* Rx Packet Buffer Size - RW */
+
+/* Thermal sensor configuration and status registers */
+#define E1000_THMJT	0x08100 /* Junction Temperature */
+#define E1000_THLOWTC	0x08104 /* Low Threshold Control */
+#define E1000_THMIDTC	0x08108 /* Mid Threshold Control */
+#define E1000_THHIGHTC	0x0810C /* High Threshold Control */
+#define E1000_THSTAT	0x08110 /* Thermal Sensor Status */
+
 /*
  * Convenience macros
  *

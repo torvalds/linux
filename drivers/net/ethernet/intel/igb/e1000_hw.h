@@ -356,6 +356,19 @@ struct e1000_nvm_operations {
 	s32  (*valid_led_default)(struct e1000_hw *, u16 *);
 };
 
+#define E1000_MAX_SENSORS		3
+
+struct e1000_thermal_diode_data {
+	u8 location;
+	u8 temp;
+	u8 caution_thresh;
+	u8 max_op_thresh;
+};
+
+struct e1000_thermal_sensor_data {
+	struct e1000_thermal_diode_data sensor[E1000_MAX_SENSORS];
+};
+
 struct e1000_info {
 	s32 (*get_invariants)(struct e1000_hw *);
 	struct e1000_mac_operations *mac_ops;
@@ -401,6 +414,7 @@ struct e1000_mac_info {
 	bool report_tx_early;
 	bool serdes_has_link;
 	bool tx_pkt_filtering;
+	struct e1000_thermal_sensor_data thermal_sensor_data;
 };
 
 struct e1000_phy_info {
