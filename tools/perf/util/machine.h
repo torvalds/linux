@@ -5,6 +5,7 @@
 #include <linux/rbtree.h>
 #include "map.h"
 
+struct addr_location;
 struct branch_stack;
 struct perf_evsel;
 struct perf_sample;
@@ -83,7 +84,8 @@ int machine__resolve_callchain(struct machine *machine,
 			       struct perf_evsel *evsel,
 			       struct thread *thread,
 			       struct perf_sample *sample,
-			       struct symbol **parent);
+			       struct symbol **parent,
+			       struct addr_location *root_al);
 
 /*
  * Default guest kernel is defined by parameter --guestkallsyms

@@ -1058,11 +1058,10 @@ int machine__process_event(struct machine *machine, union perf_event *event)
 	return ret;
 }
 
-static bool symbol__match_parent_regex(struct symbol *sym)
+static bool symbol__match_regex(struct symbol *sym, regex_t *regex)
 {
-	if (sym->name && !regexec(&parent_regex, sym->name, 0, NULL, 0))
+	if (sym->name && !regexec(regex, sym->name, 0, NULL, 0))
 		return 1;
-
 	return 0;
 }
 
@@ -1159,8 +1158,8 @@ struct branch_info *machine__resolve_bstack(struct machine *machine,
 static int machine__resolve_callchain_sample(struct machine *machine,
 					     struct thread *thread,
 					     struct ip_callchain *chain,
-					     struct symbol **parent)
-
+					     struct symbol **parent,
+					     struct addr_location *root_al)
 {
 	u8 cpumode = PERF_RECORD_MISC_USER;
 	unsigned int i;
@@ -1211,8 +1210,15 @@ static int machine__resolve_callchain_sample(struct machine *machine,
 					   MAP__FUNCTION, ip, &al, NULL);
 		if (al.sym != NULL) {
 			if (sort__has_parent && !*parent &&
-			    symbol__match_parent_regex(al.sym))
+			    symbol__match_regex(al.sym, &parent_regex))
 				*parent = al.sym;
+			else if (have_ignore_callees && root_al &&
+			  symbol__match_regex(al.sym, &ignore_callees_regex)) {
+				/* Treat this symbol as the root,
+				   forgetting its callees. */
+				*root_al = al;
+				callchain_cursor_reset(&callchain_cursor);
+			}
 			if (!symbol_conf.use_callchain)
 				break;
 		}
@@ -1237,13 +1243,13 @@ int machine__resolve_callchain(struct machine *machine,
 			       struct perf_evsel *evsel,
 			       struct thread *thread,
 			       struct perf_sample *sample,
-			       struct symbol **parent)
-
+			       struct symbol **parent,
+			       struct addr_location *root_al)
 {
 	int ret;
 
 	ret = machine__resolve_callchain_sample(machine, thread,
-						sample->callchain, parent);
+						sample->callchain, parent, root_al);
 	if (ret)
 		return ret;
 

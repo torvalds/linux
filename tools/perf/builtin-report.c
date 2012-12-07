@@ -89,7 +89,7 @@ static int perf_report__add_mem_hist_entry(struct perf_tool *tool,
 	if ((sort__has_parent || symbol_conf.use_callchain) &&
 	    sample->callchain) {
 		err = machine__resolve_callchain(machine, evsel, al->thread,
-						 sample, &parent);
+						 sample, &parent, al);
 		if (err)
 			return err;
 	}
@@ -180,7 +180,7 @@ static int perf_report__add_branch_hist_entry(struct perf_tool *tool,
 	if ((sort__has_parent || symbol_conf.use_callchain)
 	    && sample->callchain) {
 		err = machine__resolve_callchain(machine, evsel, al->thread,
-						 sample, &parent);
+						 sample, &parent, al);
 		if (err)
 			return err;
 	}
@@ -254,7 +254,7 @@ static int perf_evsel__add_hist_entry(struct perf_evsel *evsel,
 
 	if ((sort__has_parent || symbol_conf.use_callchain) && sample->callchain) {
 		err = machine__resolve_callchain(machine, evsel, al->thread,
-						 sample, &parent);
+						 sample, &parent, al);
 		if (err)
 			return err;
 	}
@@ -681,6 +681,24 @@ setup:
 	return 0;
 }
 
+int
+report_parse_ignore_callees_opt(const struct option *opt __maybe_unused,
+				const char *arg, int unset __maybe_unused)
+{
+	if (arg) {
+		int err = regcomp(&ignore_callees_regex, arg, REG_EXTENDED);
+		if (err) {
+			char buf[BUFSIZ];
+			regerror(err, &ignore_callees_regex, buf, sizeof(buf));
+			pr_err("Invalid --ignore-callees regex: %s\n%s", arg, buf);
+			return -1;
+		}
+		have_ignore_callees = 1;
+	}
+
+	return 0;
+}
+
 static int
 parse_branch_mode(const struct option *opt __maybe_unused,
 		  const char *str __maybe_unused, int unset)
@@ -771,6 +789,9 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "Default: fractal,0.5,callee", &parse_callchain_opt, callchain_default_opt),
 	OPT_BOOLEAN('G', "inverted", &report.inverted_callchain,
 		    "alias for inverted call graph"),
+	OPT_CALLBACK(0, "ignore-callees", NULL, "regex",
+		   "ignore callees of these functions in call graphs",
+		   report_parse_ignore_callees_opt),
 	OPT_STRING('d', "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
 		   "only consider symbols in these dsos"),
 	OPT_STRING('c', "comms", &symbol_conf.comm_list_str, "comm[,comm...]",

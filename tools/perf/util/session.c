@@ -1406,9 +1406,8 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
 
 	if (symbol_conf.use_callchain && sample->callchain) {
 
-
 		if (machine__resolve_callchain(machine, evsel, al.thread,
-					       sample, NULL) != 0) {
+					       sample, NULL, NULL) != 0) {
 			if (verbose)
 				error("Failed to resolve callchain. Skipping\n");
 			return;
