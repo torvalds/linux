@@ -91,5 +91,22 @@ AC_ARG_WITH([usbids-dir],
 	    [USBIDS_DIR=$withval], [USBIDS_DIR="/usr/share/hwdata/"])
 AC_SUBST([USBIDS_DIR])
 
+# use _FORTIFY_SOURCE
+AC_MSG_CHECKING([whether to use fortify])
+AC_ARG_WITH([fortify],
+	    [AS_HELP_STRING([--with-fortify],
+			    [use _FORTIFY_SROUCE option when compiling)])],
+			    dnl [ACTION-IF-GIVEN]
+			    [if test "$withval" = "yes"; then
+				AC_MSG_RESULT([yes])
+				CFLAGS="$CFLAGS -D_FORTIFY_SOURCE -O"
+			     else
+			     	AC_MSG_RESULT([no])
+				CFLAGS="$CFLAGS -U_FORTIFY_SOURCE"
+			     fi
+			    ],
+			    dnl [ACTION-IF-NOT-GIVEN]
+			    [AC_MSG_RESULT([default])])
+
 AC_CONFIG_FILES([Makefile libsrc/Makefile src/Makefile])
 AC_OUTPUT
