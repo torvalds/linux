@@ -4623,7 +4623,7 @@ u64 nfsd_forget_client(struct nfs4_client *clp, u64 max)
 u64 nfsd_print_client(struct nfs4_client *clp, u64 num)
 {
 	char buf[INET6_ADDRSTRLEN];
-	rpc_ntop((struct sockaddr *)&clp->cl_addr, buf, 129);
+	rpc_ntop((struct sockaddr *)&clp->cl_addr, buf, sizeof(buf));
 	printk(KERN_INFO "NFS Client: %s\n", buf);
 	return 1;
 }
@@ -4632,7 +4632,7 @@ static void nfsd_print_count(struct nfs4_client *clp, unsigned int count,
 			     const char *type)
 {
 	char buf[INET6_ADDRSTRLEN];
-	rpc_ntop((struct sockaddr *)&clp->cl_addr, buf, 129);
+	rpc_ntop((struct sockaddr *)&clp->cl_addr, buf, sizeof(buf));
 	printk(KERN_INFO "NFS Client: %s has %u %s\n", buf, count, type);
 }
 

@@ -79,7 +79,7 @@ static void nfsd_inject_set_client(struct nfsd_fault_inject_op *op,
 	clp = nfsd_find_client(addr, addr_size);
 	if (clp) {
 		count = op->forget(clp, 0);
-		rpc_ntop((struct sockaddr *)&clp->cl_addr, buf, 129);
+		rpc_ntop((struct sockaddr *)&clp->cl_addr, buf, sizeof(buf));
 		printk(KERN_INFO "NFSD [%s]: Client %s had %llu state object(s)\n", op->file, buf, count);
 	}
 	nfs4_unlock_state();
