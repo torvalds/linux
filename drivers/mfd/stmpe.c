@@ -7,6 +7,7 @@
  * Author: Rabin Vincent <rabin.vincent@stericsson.com> for ST-Ericsson
  */
 
+#include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
@@ -14,6 +15,7 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
 #include <linux/mfd/core.h>
@@ -1012,6 +1014,9 @@ void __devinit stmpe_of_probe(struct stmpe_platform_data *pdata,
 {
 	struct device_node *child;
 
+	pdata->id = -1;
+	pdata->irq_trigger = IRQF_TRIGGER_NONE;
+
 	of_property_read_u32(np, "st,autosleep-timeout",
 			&pdata->autosleep_timeout);
 
@@ -1020,15 +1025,16 @@ void __devinit stmpe_of_probe(struct stmpe_platform_data *pdata,
 	for_each_child_of_node(np, child) {
 		if (!strcmp(child->name, "stmpe_gpio")) {
 			pdata->blocks |= STMPE_BLOCK_GPIO;
-		}
-		if (!strcmp(child->name, "stmpe_keypad")) {
+		} else if (!strcmp(child->name, "stmpe_keypad")) {
 			pdata->blocks |= STMPE_BLOCK_KEYPAD;
-		}
-		if (!strcmp(child->name, "stmpe_touchscreen")) {
+		} else if (!strcmp(child->name, "stmpe_touchscreen")) {
 			pdata->blocks |= STMPE_BLOCK_TOUCHSCREEN;
-		}
-		if (!strcmp(child->name, "stmpe_adc")) {
+		} else if (!strcmp(child->name, "stmpe_adc")) {
 			pdata->blocks |= STMPE_BLOCK_ADC;
+		} else if (!strcmp(child->name, "stmpe_pwm")) {
+			pdata->blocks |= STMPE_BLOCK_PWM;
+		} else if (!strcmp(child->name, "stmpe_rotator")) {
+			pdata->blocks |= STMPE_BLOCK_ROTATOR;
 		}
 	}
 }
@@ -1099,6 +1105,9 @@ int __devinit stmpe_probe(struct stmpe_client_info *ci, int partnum)
 			return -ENODEV;
 		}
 		stmpe->variant = stmpe_noirq_variant_info[stmpe->partnum];
+	} else if (pdata->irq_trigger == IRQF_TRIGGER_NONE) {
+		pdata->irq_trigger =
+			irqd_get_trigger_type(irq_get_irq_data(stmpe->irq));
 	}
 
 	ret = stmpe_chip_init(stmpe);

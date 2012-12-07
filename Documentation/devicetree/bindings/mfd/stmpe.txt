@@ -1,8 +1,11 @@
-* STMPE Multi-Functional Device
+* ST Microelectronics STMPE Multi-Functional Device
+
+STMPE is an MFD device which may expose the following inbuilt devices: gpio,
+keypad, touchscreen, adc, pwm, rotator.
 
 Required properties:
- - compatible                   : "st,stmpe[811|1601|2401|2403]"
- - reg                          : I2C address of the device
+ - compatible                   : "st,stmpe[610|801|811|1601|2401|2403]"
+ - reg                          : I2C/SPI address of the device
 
 Optional properties:
  - interrupts                   : The interrupt outputs from the controller
