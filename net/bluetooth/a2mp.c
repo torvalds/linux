@@ -290,7 +290,7 @@ static int a2mp_getinfo_req(struct amp_mgr *mgr, struct sk_buff *skb,
 		goto done;
 	}
 
-	mgr->state = READ_LOC_AMP_INFO;
+	set_bit(READ_LOC_AMP_INFO, &mgr->state);
 	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_AMP_INFO, 0, NULL);
 
 done:
@@ -506,7 +506,7 @@ send_rsp:
 		a2mp_send(mgr, A2MP_CREATEPHYSLINK_RSP, hdr->ident,
 			  sizeof(rsp), &rsp);
 	} else {
-		mgr->state = WRITE_REMOTE_AMP_ASSOC;
+		set_bit(WRITE_REMOTE_AMP_ASSOC, &mgr->state);
 		mgr->ident = hdr->ident;
 	}
 
@@ -848,7 +848,7 @@ struct amp_mgr *amp_mgr_lookup_by_state(u8 state)
 
 	mutex_lock(&amp_mgr_list_lock);
 	list_for_each_entry(mgr, &amp_mgr_list, list) {
-		if (mgr->state == state) {
+		if (test_and_clear_bit(state, &mgr->state)) {
 			amp_mgr_get(mgr);
 			mutex_unlock(&amp_mgr_list_lock);
 			return mgr;

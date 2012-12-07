@@ -236,7 +236,7 @@ void amp_read_loc_assoc(struct hci_dev *hdev, struct amp_mgr *mgr)
 
 	cp.max_len = cpu_to_le16(hdev->amp_assoc_size);
 
-	mgr->state = READ_LOC_AMP_ASSOC;
+	set_bit(READ_LOC_AMP_ASSOC, &mgr->state);
 	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_AMP_ASSOC, sizeof(cp), &cp);
 }
 
@@ -250,7 +250,7 @@ void amp_read_loc_assoc_final_data(struct hci_dev *hdev,
 	cp.len_so_far = cpu_to_le16(0);
 	cp.max_len = cpu_to_le16(hdev->amp_assoc_size);
 
-	mgr->state = READ_LOC_AMP_ASSOC_FINAL;
+	set_bit(READ_LOC_AMP_ASSOC_FINAL, &mgr->state);
 
 	/* Read Local AMP Assoc final link information data */
 	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_AMP_ASSOC, sizeof(cp), &cp);

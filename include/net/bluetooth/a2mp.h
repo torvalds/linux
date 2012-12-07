@@ -34,7 +34,7 @@ struct amp_mgr {
 	struct kref		kref;
 	__u8			ident;
 	__u8			handle;
-	enum amp_mgr_state	state;
+	unsigned long		state;
 	unsigned long		flags;
 
 	struct list_head	amp_ctrls;
