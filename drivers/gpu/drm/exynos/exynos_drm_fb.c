@@ -297,9 +297,7 @@ struct exynos_drm_gem_buf *exynos_drm_fb_buffer(struct drm_framebuffer *fb,
 	if (!buffer)
 		return NULL;
 
-	DRM_DEBUG_KMS("vaddr = 0x%lx, dma_addr = 0x%lx\n",
-			(unsigned long)buffer->kvaddr,
-			(unsigned long)buffer->dma_addr);
+	DRM_DEBUG_KMS("dma_addr = 0x%lx\n", (unsigned long)buffer->dma_addr);
 
 	return buffer;
 }

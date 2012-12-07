@@ -65,7 +65,7 @@ static int exynos_drm_fb_mmap(struct fb_info *info,
 	if (vm_size > buffer->size)
 		return -EINVAL;
 
-	ret = dma_mmap_attrs(helper->dev->dev, vma, buffer->kvaddr,
+	ret = dma_mmap_attrs(helper->dev->dev, vma, buffer->pages,
 		buffer->dma_addr, buffer->size, &buffer->dma_attrs);
 	if (ret < 0) {
 		DRM_ERROR("failed to mmap.\n");
@@ -107,6 +107,17 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 	if (!buffer) {
 		DRM_LOG_KMS("buffer is null.\n");
 		return -EFAULT;
+	}
+
+	/* map pages with kernel virtual space. */
+	if (!buffer->kvaddr) {
+		unsigned int nr_pages = buffer->size >> PAGE_SHIFT;
+		buffer->kvaddr = vmap(buffer->pages, nr_pages, VM_MAP,
+					pgprot_writecombine(PAGE_KERNEL));
+		if (!buffer->kvaddr) {
+			DRM_ERROR("failed to map pages to kernel space.\n");
+			return -EIO;
+		}
 	}
 
 	/* buffer count to framebuffer always is 1 at booting time. */
@@ -305,7 +316,12 @@ err_init:
 static void exynos_drm_fbdev_destroy(struct drm_device *dev,
 				      struct drm_fb_helper *fb_helper)
 {
+	struct exynos_drm_fbdev *exynos_fbd = to_exynos_fbdev(fb_helper);
+	struct exynos_drm_gem_obj *exynos_gem_obj = exynos_fbd->exynos_gem_obj;
 	struct drm_framebuffer *fb;
+
+	if (exynos_gem_obj->buffer->kvaddr)
+		vunmap(exynos_gem_obj->buffer->kvaddr);
 
 	/* release drm framebuffer and real buffer */
 	if (fb_helper->fb && fb_helper->fb->funcs) {
