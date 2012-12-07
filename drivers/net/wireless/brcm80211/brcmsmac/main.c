@@ -2920,7 +2920,7 @@ brcms_b_write_objmem(struct brcms_hardware *wlc_hw, uint offset, u16 v,
 	if (offset & 2)
 		objoff += 2;
 
-	bcma_write16(core, objoff, v);
+	bcma_wflush16(core, objoff, v);
 }
 
 /*
