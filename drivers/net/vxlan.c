@@ -607,7 +607,17 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 	__skb_tunnel_rx(skb, vxlan->dev);
 	skb_reset_network_header(skb);
-	skb->ip_summed = CHECKSUM_NONE;
+
+	/* If the NIC driver gave us an encapsulated packet with
+	 * CHECKSUM_UNNECESSARY and Rx checksum feature is enabled,
+	 * leave the CHECKSUM_UNNECESSARY, the device checksummed it
+	 * for us. Otherwise force the upper layers to verify it.
+	 */
+	if (skb->ip_summed != CHECKSUM_UNNECESSARY || !skb->encapsulation ||
+	    !(vxlan->dev->features & NETIF_F_RXCSUM))
+		skb->ip_summed = CHECKSUM_NONE;
+
+	skb->encapsulation = 0;
 
 	err = IP_ECN_decapsulate(oip, skb);
 	if (unlikely(err)) {
@@ -1175,7 +1185,9 @@ static void vxlan_setup(struct net_device *dev)
 	dev->features	|= NETIF_F_LLTX;
 	dev->features	|= NETIF_F_NETNS_LOCAL;
 	dev->features	|= NETIF_F_SG | NETIF_F_HW_CSUM;
-	dev->hw_features |= NETIF_F_SG | NETIF_F_HW_CSUM;
+	dev->features   |= NETIF_F_RXCSUM;
+
+	dev->hw_features |= NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_RXCSUM;
 	dev->priv_flags	&= ~IFF_XMIT_DST_RELEASE;
 
 	spin_lock_init(&vxlan->hash_lock);
