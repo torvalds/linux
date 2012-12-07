@@ -126,8 +126,8 @@ static int cfusbl_device_notify(struct notifier_block *me, unsigned long what,
 	struct net_device *dev = arg;
 	struct caif_dev_common common;
 	struct cflayer *layer, *link_support;
-	struct usbnet	*usbnet = netdev_priv(dev);
-	struct usb_device	*usbdev = usbnet->udev;
+	struct usbnet *usbnet;
+	struct usb_device *usbdev;
 	struct ethtool_drvinfo drvinfo;
 
 	/*
@@ -140,6 +140,9 @@ static int cfusbl_device_notify(struct notifier_block *me, unsigned long what,
 	dev->ethtool_ops->get_drvinfo(dev, &drvinfo);
 	if (strncmp(drvinfo.driver, "cdc_ncm", 7) != 0)
 		return 0;
+
+	usbnet = netdev_priv(dev);
+	usbdev = usbnet->udev;
 
 	pr_debug("USB CDC NCM device VID:0x%4x PID:0x%4x\n",
 		le16_to_cpu(usbdev->descriptor.idVendor),
