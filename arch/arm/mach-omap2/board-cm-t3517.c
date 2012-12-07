@@ -32,6 +32,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mmc/host.h>
 #include <linux/can/platform/ti_hecc.h>
 
 #include <asm/mach-types.h>
@@ -46,6 +47,7 @@
 
 #include "mux.h"
 #include "control.h"
+#include "hsmmc.h"
 #include "common-board-devices.h"
 #include "am35xx-emac.h"
 #include "gpmc-nand.h"
@@ -119,6 +121,26 @@ static void cm_t3517_init_hecc(void)
 }
 #else
 static inline void cm_t3517_init_hecc(void) {}
+#endif
+
+#if defined(CONFIG_MMC_OMAP_HS) || defined(CONFIG_MMC_OMAP_HS_MODULE)
+static struct omap2_hsmmc_info cm_t3517_mmc[] = {
+	{
+		.mmc		= 1,
+		.caps		= MMC_CAP_4_BIT_DATA,
+		.gpio_cd	= 144,
+		.gpio_wp	= 59,
+	},
+	{
+		.mmc		= 2,
+		.caps		= MMC_CAP_4_BIT_DATA,
+		.gpio_cd	= -EINVAL,
+		.gpio_wp	= -EINVAL,
+	},
+	{}	/* Terminator */
+};
+#else
+#define cm_t3517_mmc NULL
 #endif
 
 #if defined(CONFIG_RTC_DRV_V3020) || defined(CONFIG_RTC_DRV_V3020_MODULE)
@@ -271,6 +293,10 @@ static struct omap_board_mux board_mux[] __initdata = {
 	/* CM-T3517 USB HUB nRESET */
 	OMAP3_MUX(MCBSP4_CLKX, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
 
+	/* CD - GPIO144 and WP - GPIO59 for MMC1 - SB-T35 */
+	OMAP3_MUX(UART2_CTS, OMAP_MUX_MODE4 | OMAP_PIN_INPUT_PULLUP),
+	OMAP3_MUX(GPMC_CLK, OMAP_MUX_MODE4 | OMAP_PIN_INPUT_PULLUP),
+
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
 #endif
@@ -286,6 +312,7 @@ static void __init cm_t3517_init(void)
 	cm_t3517_init_usbh();
 	cm_t3517_init_hecc();
 	am35xx_emac_init(AM35XX_DEFAULT_MDIO_FREQUENCY, 1);
+	omap_hsmmc_init(cm_t3517_mmc);
 }
 
 MACHINE_START(CM_T3517, "Compulab CM-T3517")
