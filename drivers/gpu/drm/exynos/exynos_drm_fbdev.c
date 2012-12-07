@@ -164,7 +164,7 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	exynos_gem_obj = exynos_drm_gem_create(dev, 0, size);
 	if (IS_ERR(exynos_gem_obj)) {
 		ret = PTR_ERR(exynos_gem_obj);
-		goto out;
+		goto err_release_framebuffer;
 	}
 
 	exynos_fbdev->exynos_gem_obj = exynos_gem_obj;
@@ -174,7 +174,7 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	if (IS_ERR_OR_NULL(helper->fb)) {
 		DRM_ERROR("failed to create drm framebuffer.\n");
 		ret = PTR_ERR(helper->fb);
-		goto out;
+		goto err_destroy_gem;
 	}
 
 	helper->fbdev = fbi;
@@ -186,14 +186,24 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	ret = fb_alloc_cmap(&fbi->cmap, 256, 0);
 	if (ret) {
 		DRM_ERROR("failed to allocate cmap.\n");
-		goto out;
+		goto err_destroy_framebuffer;
 	}
 
 	ret = exynos_drm_fbdev_update(helper, helper->fb);
-	if (ret < 0) {
-		fb_dealloc_cmap(&fbi->cmap);
-		goto out;
-	}
+	if (ret < 0)
+		goto err_dealloc_cmap;
+
+	mutex_unlock(&dev->struct_mutex);
+	return ret;
+
+err_dealloc_cmap:
+	fb_dealloc_cmap(&fbi->cmap);
+err_destroy_framebuffer:
+	drm_framebuffer_cleanup(helper->fb);
+err_destroy_gem:
+	exynos_drm_gem_destroy(exynos_gem_obj);
+err_release_framebuffer:
+	framebuffer_release(fbi);
 
 /*
  * if failed, all resources allocated above would be released by
