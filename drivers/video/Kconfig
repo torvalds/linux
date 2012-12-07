@@ -2442,4 +2442,19 @@ config FB_SH_MOBILE_MERAM
 	  Up to 4 memory channels can be configured, allowing 4 RGB or
 	  2 YCbCr framebuffers to be configured.
 
+config FB_SSD1307
+	tristate "Solomon SSD1307 framebuffer support"
+	depends on FB && I2C
+	depends on OF
+	depends on GENERIC_GPIO
+	select FB_SYS_FOPS
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select FB_DEFERRED_IO
+	select PWM
+	help
+	  This driver implements support for the Solomon SSD1307
+	  OLED controller over I2C.
+
 endmenu
