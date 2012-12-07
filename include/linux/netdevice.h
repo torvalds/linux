@@ -1063,6 +1063,12 @@ struct net_device {
 	netdev_features_t	wanted_features;
 	/* mask of features inheritable by VLAN devices */
 	netdev_features_t	vlan_features;
+	/* mask of features inherited by encapsulating devices
+	 * This field indicates what encapsulation offloads
+	 * the hardware is capable of doing, and drivers will
+	 * need to set them appropriately.
+	 */
+	netdev_features_t	hw_enc_features;
 
 	/* Interface index. Unique device identifier	*/
 	int			ifindex;

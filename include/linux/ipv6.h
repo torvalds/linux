@@ -67,6 +67,11 @@ static inline struct ipv6hdr *ipv6_hdr(const struct sk_buff *skb)
 	return (struct ipv6hdr *)skb_network_header(skb);
 }
 
+static inline struct ipv6hdr *inner_ipv6_hdr(const struct sk_buff *skb)
+{
+	return (struct ipv6hdr *)skb_inner_network_header(skb);
+}
+
 static inline struct ipv6hdr *ipipv6_hdr(const struct sk_buff *skb)
 {
 	return (struct ipv6hdr *)skb_transport_header(skb);

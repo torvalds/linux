@@ -682,11 +682,14 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	new->transport_header	= old->transport_header;
 	new->network_header	= old->network_header;
 	new->mac_header		= old->mac_header;
+	new->inner_transport_header = old->inner_transport_header;
+	new->inner_network_header = old->inner_transport_header;
 	skb_dst_copy(new, old);
 	new->rxhash		= old->rxhash;
 	new->ooo_okay		= old->ooo_okay;
 	new->l4_rxhash		= old->l4_rxhash;
 	new->no_fcs		= old->no_fcs;
+	new->encapsulation	= old->encapsulation;
 #ifdef CONFIG_XFRM
 	new->sp			= secpath_get(old->sp);
 #endif
@@ -892,6 +895,8 @@ static void copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	new->network_header   += offset;
 	if (skb_mac_header_was_set(new))
 		new->mac_header	      += offset;
+	new->inner_transport_header += offset;
+	new->inner_network_header   += offset;
 #endif
 	skb_shinfo(new)->gso_size = skb_shinfo(old)->gso_size;
 	skb_shinfo(new)->gso_segs = skb_shinfo(old)->gso_segs;
@@ -1089,6 +1094,8 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	skb->network_header   += off;
 	if (skb_mac_header_was_set(skb))
 		skb->mac_header += off;
+	skb->inner_transport_header += off;
+	skb->inner_network_header += off;
 	/* Only adjust this if it actually is csum_start rather than csum */
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
 		skb->csum_start += nhead;
@@ -1188,6 +1195,8 @@ struct sk_buff *skb_copy_expand(const struct sk_buff *skb,
 	n->network_header   += off;
 	if (skb_mac_header_was_set(skb))
 		n->mac_header += off;
+	n->inner_transport_header += off;
+	n->inner_network_header	   += off;
 #endif
 
 	return n;

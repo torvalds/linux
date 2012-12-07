@@ -376,6 +376,8 @@ typedef unsigned char *sk_buff_data_t;
  *	@mark: Generic packet mark
  *	@dropcount: total number of sk_receive_queue overflows
  *	@vlan_tci: vlan tag control information
+ *	@inner_transport_header: Inner transport layer header (encapsulation)
+ *	@inner_network_header: Network layer header (encapsulation)
  *	@transport_header: Transport layer header
  *	@network_header: Network layer header
  *	@mac_header: Link layer header
@@ -471,7 +473,13 @@ struct sk_buff {
 	__u8			wifi_acked:1;
 	__u8			no_fcs:1;
 	__u8			head_frag:1;
-	/* 8/10 bit hole (depending on ndisc_nodetype presence) */
+	/* Encapsulation protocol and NIC drivers should use
+	 * this flag to indicate to each other if the skb contains
+	 * encapsulated packet or not and maybe use the inner packet
+	 * headers if needed
+	 */
+	__u8			encapsulation:1;
+	/* 7/9 bit hole (depending on ndisc_nodetype presence) */
 	kmemcheck_bitfield_end(flags2);
 
 #ifdef CONFIG_NET_DMA
@@ -486,6 +494,8 @@ struct sk_buff {
 		__u32		avail_size;
 	};
 
+	sk_buff_data_t		inner_transport_header;
+	sk_buff_data_t		inner_network_header;
 	sk_buff_data_t		transport_header;
 	sk_buff_data_t		network_header;
 	sk_buff_data_t		mac_header;
@@ -1435,12 +1445,53 @@ static inline void skb_reserve(struct sk_buff *skb, int len)
 	skb->tail += len;
 }
 
+static inline void skb_reset_inner_headers(struct sk_buff *skb)
+{
+	skb->inner_network_header = skb->network_header;
+	skb->inner_transport_header = skb->transport_header;
+}
+
 static inline void skb_reset_mac_len(struct sk_buff *skb)
 {
 	skb->mac_len = skb->network_header - skb->mac_header;
 }
 
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
+static inline unsigned char *skb_inner_transport_header(const struct sk_buff
+							*skb)
+{
+	return skb->head + skb->inner_transport_header;
+}
+
+static inline void skb_reset_inner_transport_header(struct sk_buff *skb)
+{
+	skb->inner_transport_header = skb->data - skb->head;
+}
+
+static inline void skb_set_inner_transport_header(struct sk_buff *skb,
+						   const int offset)
+{
+	skb_reset_inner_transport_header(skb);
+	skb->inner_transport_header += offset;
+}
+
+static inline unsigned char *skb_inner_network_header(const struct sk_buff *skb)
+{
+	return skb->head + skb->inner_network_header;
+}
+
+static inline void skb_reset_inner_network_header(struct sk_buff *skb)
+{
+	skb->inner_network_header = skb->data - skb->head;
+}
+
+static inline void skb_set_inner_network_header(struct sk_buff *skb,
+						const int offset)
+{
+	skb_reset_inner_network_header(skb);
+	skb->inner_network_header += offset;
+}
+
 static inline unsigned char *skb_transport_header(const struct sk_buff *skb)
 {
 	return skb->head + skb->transport_header;
@@ -1496,6 +1547,38 @@ static inline void skb_set_mac_header(struct sk_buff *skb, const int offset)
 }
 
 #else /* NET_SKBUFF_DATA_USES_OFFSET */
+static inline unsigned char *skb_inner_transport_header(const struct sk_buff
+							*skb)
+{
+	return skb->inner_transport_header;
+}
+
+static inline void skb_reset_inner_transport_header(struct sk_buff *skb)
+{
+	skb->inner_transport_header = skb->data;
+}
+
+static inline void skb_set_inner_transport_header(struct sk_buff *skb,
+						   const int offset)
+{
+	skb->inner_transport_header = skb->data + offset;
+}
+
+static inline unsigned char *skb_inner_network_header(const struct sk_buff *skb)
+{
+	return skb->inner_network_header;
+}
+
+static inline void skb_reset_inner_network_header(struct sk_buff *skb)
+{
+	skb->inner_network_header = skb->data;
+}
+
+static inline void skb_set_inner_network_header(struct sk_buff *skb,
+						const int offset)
+{
+	skb->inner_network_header = skb->data + offset;
+}
 
 static inline unsigned char *skb_transport_header(const struct sk_buff *skb)
 {
@@ -1574,9 +1657,19 @@ static inline u32 skb_network_header_len(const struct sk_buff *skb)
 	return skb->transport_header - skb->network_header;
 }
 
+static inline u32 skb_inner_network_header_len(const struct sk_buff *skb)
+{
+	return skb->inner_transport_header - skb->inner_network_header;
+}
+
 static inline int skb_network_offset(const struct sk_buff *skb)
 {
 	return skb_network_header(skb) - skb->data;
+}
+
+static inline int skb_inner_network_offset(const struct sk_buff *skb)
+{
+	return skb_inner_network_header(skb) - skb->data;
 }
 
 static inline int pskb_network_may_pull(struct sk_buff *skb, unsigned int len)
