@@ -2008,6 +2008,8 @@ static bool NVInitVBIOS(struct drm_device *dev)
 
 	legacy->data = bios->data;
 	legacy->length = bios->size;
+	legacy->major_version = bios->version.major;
+	legacy->chip_version = bios->version.chip;
 	if (bios->bit_offset) {
 		legacy->type = NVBIOS_BIT;
 		legacy->offset = bios->bit_offset;
@@ -2019,8 +2021,6 @@ static bool NVInitVBIOS(struct drm_device *dev)
 		return !parse_bmp_structure(dev, legacy, legacy->offset);
 	}
 
-	legacy->major_version = bios->version.major;
-	legacy->chip_version = bios->version.chip;
 	return false;
 }
 
