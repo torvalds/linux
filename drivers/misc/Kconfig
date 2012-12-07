@@ -499,6 +499,17 @@ config USB_SWITCH_FSA9480
 	  stereo and mono audio, video, microphone and UART data to use
 	  a common connector port.
 
+config LATTICE_ECP3_CONFIG
+	tristate "Lattice ECP3 FPGA bitstream configuration via SPI"
+	depends on SPI && SYSFS
+	select FW_LOADER
+	default	n
+	help
+	  This option enables support for bitstream configuration (programming
+	  or loading) of the Lattice ECP3 FPGA family via SPI.
+
+	  If unsure, say N.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
