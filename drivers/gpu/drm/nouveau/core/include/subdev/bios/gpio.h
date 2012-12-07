@@ -1,8 +1,6 @@
 #ifndef __NVBIOS_GPIO_H__
 #define __NVBIOS_GPIO_H__
 
-struct nouveau_bios;
-
 enum dcb_gpio_func_name {
 	DCB_GPIO_PANEL_POWER = 0x01,
 	DCB_GPIO_TVDAC0 = 0x0c,

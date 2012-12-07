@@ -40,6 +40,7 @@ nouveau-y += core/subdev/bios/mxm.o
 nouveau-y += core/subdev/bios/perf.o
 nouveau-y += core/subdev/bios/pll.o
 nouveau-y += core/subdev/bios/therm.o
+nouveau-y += core/subdev/bios/xpio.o
 nouveau-y += core/subdev/bus/nv04.o
 nouveau-y += core/subdev/bus/nv31.o
 nouveau-y += core/subdev/bus/nv50.o
