@@ -2246,7 +2246,7 @@ static struct pciserial_board pci_boards[] = {
 
 	[pbn_b0_8_1152000_200] = {
 		.flags		= FL_BASE0,
-		.num_ports	= 2,
+		.num_ports	= 8,
 		.base_baud	= 1152000,
 		.uart_offset	= 0x200,
 	},
