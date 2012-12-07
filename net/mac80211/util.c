@@ -1864,7 +1864,7 @@ u8 *ieee80211_ie_build_ht_cap(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 }
 
 u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
-							   u32 cap)
+			       u32 cap)
 {
 	__le32 tmp;
 
