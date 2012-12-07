@@ -319,7 +319,7 @@ static int fscache_wait_for_retrieval_activation(struct fscache_object *object,
 	fscache_stat(stat_op_waits);
 	if (wait_on_bit(&op->op.flags, FSCACHE_OP_WAITING,
 			fscache_wait_bit_interruptible,
-			TASK_INTERRUPTIBLE) < 0) {
+			TASK_INTERRUPTIBLE) != 0) {
 		ret = fscache_cancel_op(&op->op);
 		if (ret == 0)
 			return -ERESTARTSYS;
