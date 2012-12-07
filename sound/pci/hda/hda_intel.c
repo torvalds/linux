@@ -603,15 +603,7 @@ enum {
 #define use_vga_switcheroo(chip)	0
 #endif
 
-#if defined(SUPPORT_VGA_SWITCHEROO) || defined(CONFIG_SND_HDA_PATCH_LOADER)
-#define DELAYED_INIT_MARK
-#define DELAYED_INITDATA_MARK
-#else
-#define DELAYED_INIT_MARK
-#define DELAYED_INITDATA_MARK
-#endif
-
-static char *driver_short_names[] DELAYED_INITDATA_MARK = {
+static char *driver_short_names[] = {
 	[AZX_DRIVER_ICH] = "HDA Intel",
 	[AZX_DRIVER_PCH] = "HDA Intel PCH",
 	[AZX_DRIVER_SCH] = "HDA Intel MID",
@@ -1624,12 +1616,12 @@ static int get_jackpoll_interval(struct azx *chip)
  */
 
 /* number of codec slots for each chipset: 0 = default slots (i.e. 4) */
-static unsigned int azx_max_codecs[AZX_NUM_DRIVERS] DELAYED_INITDATA_MARK = {
+static unsigned int azx_max_codecs[AZX_NUM_DRIVERS] = {
 	[AZX_DRIVER_NVIDIA] = 8,
 	[AZX_DRIVER_TERA] = 1,
 };
 
-static int DELAYED_INIT_MARK azx_codec_create(struct azx *chip, const char *model)
+static int azx_codec_create(struct azx *chip, const char *model)
 {
 	struct hda_bus_template bus_temp;
 	int c, codecs, err;
@@ -2736,8 +2728,8 @@ static void azx_notifier_unregister(struct azx *chip)
 		unregister_reboot_notifier(&chip->reboot_notifier);
 }
 
-static int DELAYED_INIT_MARK azx_first_init(struct azx *chip);
-static int DELAYED_INIT_MARK azx_probe_continue(struct azx *chip);
+static int azx_first_init(struct azx *chip);
+static int azx_probe_continue(struct azx *chip);
 
 #ifdef SUPPORT_VGA_SWITCHEROO
 static struct pci_dev *get_bound_vga(struct pci_dev *pci);
@@ -3204,7 +3196,7 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 	return 0;
 }
 
-static int DELAYED_INIT_MARK azx_first_init(struct azx *chip)
+static int azx_first_init(struct azx *chip)
 {
 	int dev = chip->dev_index;
 	struct pci_dev *pci = chip->pci;
@@ -3494,7 +3486,7 @@ out_free:
 	return err;
 }
 
-static int DELAYED_INIT_MARK azx_probe_continue(struct azx *chip)
+static int azx_probe_continue(struct azx *chip)
 {
 	int dev = chip->dev_index;
 	int err;
