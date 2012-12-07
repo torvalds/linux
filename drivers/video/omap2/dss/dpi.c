@@ -477,9 +477,18 @@ static void __init dpi_probe_pdata(struct platform_device *dpidev)
 		return;
 	}
 
+	r = omapdss_output_set_device(&dpi.output, dssdev);
+	if (r) {
+		DSSERR("failed to connect output to new device: %s\n",
+				dssdev->name);
+		dss_put_device(dssdev);
+		return;
+	}
+
 	r = dss_add_device(dssdev);
 	if (r) {
 		DSSERR("device %s register failed: %d\n", dssdev->name, r);
+		omapdss_output_unset_device(&dpi.output);
 		dss_put_device(dssdev);
 		return;
 	}

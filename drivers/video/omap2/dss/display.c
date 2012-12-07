@@ -79,16 +79,7 @@ EXPORT_SYMBOL(omapdss_default_get_timings);
 int dss_init_device(struct platform_device *pdev,
 		struct omap_dss_device *dssdev)
 {
-	struct omap_dss_output *out;
 	int r;
-
-	out = omapdss_get_output_from_dssdev(dssdev);
-
-	r = omapdss_output_set_device(out, dssdev);
-	if (r) {
-		DSSERR("failed to connect output to new device\n");
-		return r;
-	}
 
 	r = display_init_sysfs(pdev, dssdev);
 	if (r) {
@@ -103,9 +94,6 @@ void dss_uninit_device(struct platform_device *pdev,
 		struct omap_dss_device *dssdev)
 {
 	display_uninit_sysfs(pdev, dssdev);
-
-	if (dssdev->output)
-		omapdss_output_unset_device(dssdev->output);
 }
 
 static int dss_suspend_device(struct device *dev, void *data)

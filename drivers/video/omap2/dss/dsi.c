@@ -5146,6 +5146,7 @@ static struct omap_dss_device * __init dsi_find_dssdev(struct platform_device *p
 
 static void __init dsi_probe_pdata(struct platform_device *dsidev)
 {
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct omap_dss_device *plat_dssdev;
 	struct omap_dss_device *dssdev;
 	int r;
@@ -5168,9 +5169,18 @@ static void __init dsi_probe_pdata(struct platform_device *dsidev)
 		return;
 	}
 
+	r = omapdss_output_set_device(&dsi->output, dssdev);
+	if (r) {
+		DSSERR("failed to connect output to new device: %s\n",
+				dssdev->name);
+		dss_put_device(dssdev);
+		return;
+	}
+
 	r = dss_add_device(dssdev);
 	if (r) {
 		DSSERR("device %s register failed: %d\n", dssdev->name, r);
+		omapdss_output_unset_device(&dsi->output);
 		dss_put_device(dssdev);
 		return;
 	}

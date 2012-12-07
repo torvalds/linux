@@ -795,9 +795,18 @@ static void __init venc_probe_pdata(struct platform_device *vencdev)
 		return;
 	}
 
+	r = omapdss_output_set_device(&venc.output, dssdev);
+	if (r) {
+		DSSERR("failed to connect output to new device: %s\n",
+				dssdev->name);
+		dss_put_device(dssdev);
+		return;
+	}
+
 	r = dss_add_device(dssdev);
 	if (r) {
 		DSSERR("device %s register failed: %d\n", dssdev->name, r);
+		omapdss_output_unset_device(&venc.output);
 		dss_put_device(dssdev);
 		return;
 	}

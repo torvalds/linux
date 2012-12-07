@@ -1026,9 +1026,18 @@ static void __init hdmi_probe_pdata(struct platform_device *pdev)
 		return;
 	}
 
+	r = omapdss_output_set_device(&hdmi.output, dssdev);
+	if (r) {
+		DSSERR("failed to connect output to new device: %s\n",
+				dssdev->name);
+		dss_put_device(dssdev);
+		return;
+	}
+
 	r = dss_add_device(dssdev);
 	if (r) {
 		DSSERR("device %s register failed: %d\n", dssdev->name, r);
+		omapdss_output_unset_device(&hdmi.output);
 		hdmi_uninit_display(dssdev);
 		dss_put_device(dssdev);
 		return;
