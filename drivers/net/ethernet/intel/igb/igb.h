@@ -308,6 +308,27 @@ struct igb_i2c_client_list {
 	struct igb_i2c_client_list *next;
 };
 
+#ifdef CONFIG_IGB_HWMON
+
+#define IGB_HWMON_TYPE_LOC	0
+#define IGB_HWMON_TYPE_TEMP	1
+#define IGB_HWMON_TYPE_CAUTION	2
+#define IGB_HWMON_TYPE_MAX	3
+
+struct hwmon_attr {
+	struct device_attribute dev_attr;
+	struct e1000_hw *hw;
+	struct e1000_thermal_diode_data *sensor;
+	char name[12];
+	};
+
+struct hwmon_buff {
+	struct device *device;
+	struct hwmon_attr *hwmon_list;
+	unsigned int n_hwmon;
+	};
+#endif
+
 /* board specific private data structure */
 struct igb_adapter {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
@@ -398,6 +419,10 @@ struct igb_adapter {
 	struct timecounter tc;
 
 	char fw_version[32];
+#ifdef CONFIG_IGB_HWMON
+	struct hwmon_buff igb_hwmon_buff;
+	bool ets;
+#endif
 	struct i2c_algo_bit_data i2c_algo;
 	struct i2c_adapter i2c_adap;
 	struct igb_i2c_client_list *i2c_clients;
@@ -476,6 +501,10 @@ static inline void igb_ptp_rx_hwtstamp(struct igb_q_vector *q_vector,
 
 extern int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 				  struct ifreq *ifr, int cmd);
+#ifdef CONFIG_IGB_HWMON
+extern void igb_sysfs_exit(struct igb_adapter *adapter);
+extern int igb_sysfs_init(struct igb_adapter *adapter);
+#endif
 static inline s32 igb_reset_phy(struct e1000_hw *hw)
 {
 	if (hw->phy.ops.reset)

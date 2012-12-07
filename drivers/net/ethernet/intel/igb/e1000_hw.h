@@ -325,6 +325,10 @@ struct e1000_mac_operations {
 	s32  (*get_speed_and_duplex)(struct e1000_hw *, u16 *, u16 *);
 	s32  (*acquire_swfw_sync)(struct e1000_hw *, u16);
 	void (*release_swfw_sync)(struct e1000_hw *, u16);
+#ifdef CONFIG_IGB_HWMON
+	s32 (*get_thermal_sensor_data)(struct e1000_hw *);
+	s32 (*init_thermal_sensor_thresh)(struct e1000_hw *);
+#endif
 
 };
 

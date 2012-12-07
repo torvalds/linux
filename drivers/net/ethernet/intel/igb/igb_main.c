@@ -1796,6 +1796,18 @@ void igb_reset(struct igb_adapter *adapter)
 		igb_force_mac_fc(hw);
 
 	igb_init_dmac(adapter, pba);
+#ifdef CONFIG_IGB_HWMON
+	/* Re-initialize the thermal sensor on i350 devices. */
+	if (!test_bit(__IGB_DOWN, &adapter->state)) {
+		if (mac->type == e1000_i350 && hw->bus.func == 0) {
+			/* If present, re-initialize the external thermal sensor
+			 * interface.
+			 */
+			if (adapter->ets)
+				mac->ops.init_thermal_sensor_thresh(hw);
+		}
+	}
+#endif
 	if (!netif_running(adapter->netdev))
 		igb_power_down_link(adapter);
 
@@ -2260,7 +2272,27 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 #endif
+#ifdef CONFIG_IGB_HWMON
+	/* Initialize the thermal sensor on i350 devices. */
+	if (hw->mac.type == e1000_i350 && hw->bus.func == 0) {
+		u16 ets_word;
 
+		/*
+		 * Read the NVM to determine if this i350 device supports an
+		 * external thermal sensor.
+		 */
+		hw->nvm.ops.read(hw, NVM_ETS_CFG, 1, &ets_word);
+		if (ets_word != 0x0000 && ets_word != 0xFFFF)
+			adapter->ets = true;
+		else
+			adapter->ets = false;
+		if (igb_sysfs_init(adapter))
+			dev_err(&pdev->dev,
+				"failed to allocate sysfs resources\n");
+	} else {
+		adapter->ets = false;
+	}
+#endif
 	/* do hw tstamp init after resetting */
 	igb_ptp_init(adapter);
 
@@ -2443,10 +2475,11 @@ static void igb_remove(struct pci_dev *pdev)
 	struct e1000_hw *hw = &adapter->hw;
 
 	pm_runtime_get_noresume(&pdev->dev);
+#ifdef CONFIG_IGB_HWMON
+	igb_sysfs_exit(adapter);
+#endif
 	igb_remove_i2c(adapter);
-
 	igb_ptp_stop(adapter);
-
 	/*
 	 * The watchdog timer may be rescheduled, so explicitly
 	 * disable watchdog from being rescheduled.
@@ -7594,7 +7627,12 @@ igb_get_i2c_client(struct igb_adapter *adapter, u8 dev_addr)
 		}
 	}
 
-	/* no client_list found, create a new one */
+	/* no client_list found, create a new one as long as
+	 * irqs are not disabled
+	 */
+	if (unlikely(irqs_disabled()))
+		goto exit;
+
 	client_list = kzalloc(sizeof(*client_list), GFP_KERNEL);
 	if (client_list == NULL)
 		goto exit;
@@ -7606,15 +7644,14 @@ igb_get_i2c_client(struct igb_adapter *adapter, u8 dev_addr)
 	client_info.platform_data = adapter;
 	client_list->client = i2c_new_device(&adapter->i2c_adap, &client_info);
 	if (client_list->client == NULL) {
-		dev_info(&adapter->pdev->dev, "Failed to create new i2c device..\n");
+		dev_info(&adapter->pdev->dev,
+			"Failed to create new i2c device..\n");
 		goto err_no_client;
 	}
 
 	/* insert new client at head of list */
 	client_list->next = adapter->i2c_clients;
 	adapter->i2c_clients = client_list;
-
-	spin_unlock_irqrestore(&i2c_clients_lock, flags);
 
 	client = client_list->client;
 	goto exit;

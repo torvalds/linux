@@ -264,6 +264,8 @@ void igb_vmdq_set_loopback_pf(struct e1000_hw *, bool);
 void igb_vmdq_set_replication_pf(struct e1000_hw *, bool);
 u16 igb_rxpbs_adjust_82580(u32 data);
 s32 igb_set_eee_i350(struct e1000_hw *);
+s32 igb_init_thermal_sensor_thresh_generic(struct e1000_hw *);
+s32 igb_get_thermal_sensor_data_generic(struct e1000_hw *hw);
 
 #define E1000_I2C_THERMAL_SENSOR_ADDR	0xF8
 #define E1000_EMC_INTERNAL_DATA		0x00
