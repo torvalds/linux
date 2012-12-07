@@ -836,7 +836,7 @@ static void blkif_free(struct blkfront_info *info, int suspend)
 static void blkif_completion(struct blk_shadow *s, struct blkfront_info *info,
 			     struct blkif_response *bret)
 {
-	int i;
+	int i = 0;
 	struct bio_vec *bvec;
 	struct req_iterator iter;
 	unsigned long flags;
@@ -853,7 +853,8 @@ static void blkif_completion(struct blk_shadow *s, struct blkfront_info *info,
 		 */
 		rq_for_each_segment(bvec, s->request, iter) {
 			BUG_ON((bvec->bv_offset + bvec->bv_len) > PAGE_SIZE);
-			i = offset >> PAGE_SHIFT;
+			if (bvec->bv_offset < offset)
+				i++;
 			BUG_ON(i >= s->req.u.rw.nr_segments);
 			shared_data = kmap_atomic(
 				pfn_to_page(s->grants_used[i]->pfn));
@@ -862,7 +863,7 @@ static void blkif_completion(struct blk_shadow *s, struct blkfront_info *info,
 				bvec->bv_len);
 			bvec_kunmap_irq(bvec_data, &flags);
 			kunmap_atomic(shared_data);
-			offset += bvec->bv_len;
+			offset = bvec->bv_offset + bvec->bv_len;
 		}
 	}
 	/* Add the persistent grant into the list of free grants */
