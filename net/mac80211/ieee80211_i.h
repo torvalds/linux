@@ -405,6 +405,8 @@ struct ieee80211_mgd_assoc_data {
 
 	u8 ap_ht_param;
 
+	struct ieee80211_vht_cap ap_vht_cap;
+
 	size_t ie_len;
 	u8 ie[];
 };
