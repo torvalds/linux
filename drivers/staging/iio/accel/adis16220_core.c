@@ -486,7 +486,7 @@ static int adis16220_read_raw(struct iio_dev *indio_dev,
 		break;
 	case IIO_CHAN_INFO_OFFSET:
 		if (chan->type == IIO_TEMP) {
-			*val = 25;
+			*val = 25000 / -470 - 1278; /* 25 C = 1278 */
 			return IIO_VAL_INT;
 		}
 		addrind = 1;
@@ -495,19 +495,22 @@ static int adis16220_read_raw(struct iio_dev *indio_dev,
 		addrind = 2;
 		break;
 	case IIO_CHAN_INFO_SCALE:
-		*val = 0;
 		switch (chan->type) {
 		case IIO_TEMP:
-			*val2 = -470000;
+			*val = -470; /* -0.47 C */
+			*val2 = 0;
 			return IIO_VAL_INT_PLUS_MICRO;
 		case IIO_ACCEL:
-			*val2 = 1887042;
+			*val2 = IIO_G_TO_M_S_2(19073); /* 19.073 g */
 			return IIO_VAL_INT_PLUS_MICRO;
 		case IIO_VOLTAGE:
-			if (chan->channel == 0)
-				*val2 = 0012221;
-			else /* Should really be dependent on VDD */
-				*val2 = 305;
+			if (chan->channel == 0) {
+				*val = 1;
+				*val2 = 220700; /* 1.2207 mV */
+			} else {
+				/* Should really be dependent on VDD */
+				*val2 = 305180; /* 305.18 uV */
+			}
 			return IIO_VAL_INT_PLUS_MICRO;
 		default:
 			return -EINVAL;

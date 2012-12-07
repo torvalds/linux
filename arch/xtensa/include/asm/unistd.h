@@ -1,15 +1,8 @@
-/*
- * include/asm-xtensa/unistd.h
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * Copyright (C) 2001 - 2005 Tensilica Inc.
- */
+#ifndef _XTENSA_UNISTD_H
+#define _XTENSA_UNISTD_H
 
+#define __ARCH_WANT_SYS_EXECVE
 #include <uapi/asm/unistd.h>
-
 
 /*
  * "Conditional" syscalls
@@ -37,3 +30,5 @@
 #define __IGNORE_mmap				/* use mmap2 */
 #define __IGNORE_vfork				/* use clone */
 #define __IGNORE_fadvise64			/* use fadvise64_64 */
+
+#endif /* _XTENSA_UNISTD_H */

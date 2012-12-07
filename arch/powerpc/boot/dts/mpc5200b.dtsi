@@ -231,6 +231,12 @@
 			interrupts = <2 7 0>;
 		};
 
+		sclpc@3c00 {
+			compatible = "fsl,mpc5200-lpbfifo";
+			reg = <0x3c00 0x60>;
+			interrupts = <2 23 0>;
+		};
+
 		i2c@3d00 {
 			#address-cells = <1>;
 			#size-cells = <0>;

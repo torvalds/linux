@@ -111,7 +111,7 @@ static struct xt_target xt_nat_target_reg[] __read_mostly = {
 		.family		= NFPROTO_IPV4,
 		.table		= "nat",
 		.hooks		= (1 << NF_INET_POST_ROUTING) |
-				  (1 << NF_INET_LOCAL_OUT),
+				  (1 << NF_INET_LOCAL_IN),
 		.me		= THIS_MODULE,
 	},
 	{
@@ -123,7 +123,7 @@ static struct xt_target xt_nat_target_reg[] __read_mostly = {
 		.family		= NFPROTO_IPV4,
 		.table		= "nat",
 		.hooks		= (1 << NF_INET_PRE_ROUTING) |
-				  (1 << NF_INET_LOCAL_IN),
+				  (1 << NF_INET_LOCAL_OUT),
 		.me		= THIS_MODULE,
 	},
 	{
@@ -133,7 +133,7 @@ static struct xt_target xt_nat_target_reg[] __read_mostly = {
 		.targetsize	= sizeof(struct nf_nat_range),
 		.table		= "nat",
 		.hooks		= (1 << NF_INET_POST_ROUTING) |
-				  (1 << NF_INET_LOCAL_OUT),
+				  (1 << NF_INET_LOCAL_IN),
 		.me		= THIS_MODULE,
 	},
 	{
@@ -143,7 +143,7 @@ static struct xt_target xt_nat_target_reg[] __read_mostly = {
 		.targetsize	= sizeof(struct nf_nat_range),
 		.table		= "nat",
 		.hooks		= (1 << NF_INET_PRE_ROUTING) |
-				  (1 << NF_INET_LOCAL_IN),
+				  (1 << NF_INET_LOCAL_OUT),
 		.me		= THIS_MODULE,
 	},
 };

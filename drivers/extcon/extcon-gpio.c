@@ -26,7 +26,6 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/extcon.h>
 #include <linux/workqueue.h>
 #include <linux/gpio.h>
 #include <linux/extcon.h>

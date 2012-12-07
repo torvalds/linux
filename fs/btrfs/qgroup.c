@@ -790,8 +790,10 @@ int btrfs_quota_enable(struct btrfs_trans_handle *trans,
 	}
 
 	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
+	if (!path) {
+		ret = -ENOMEM;
+		goto out_free_root;
+	}
 
 	key.objectid = 0;
 	key.type = BTRFS_QGROUP_STATUS_KEY;
@@ -800,7 +802,7 @@ int btrfs_quota_enable(struct btrfs_trans_handle *trans,
 	ret = btrfs_insert_empty_item(trans, quota_root, path, &key,
 				      sizeof(*ptr));
 	if (ret)
-		goto out;
+		goto out_free_path;
 
 	leaf = path->nodes[0];
 	ptr = btrfs_item_ptr(leaf, path->slots[0],
@@ -818,8 +820,15 @@ int btrfs_quota_enable(struct btrfs_trans_handle *trans,
 	fs_info->quota_root = quota_root;
 	fs_info->pending_quota_state = 1;
 	spin_unlock(&fs_info->qgroup_lock);
-out:
+out_free_path:
 	btrfs_free_path(path);
+out_free_root:
+	if (ret) {
+		free_extent_buffer(quota_root->node);
+		free_extent_buffer(quota_root->commit_root);
+		kfree(quota_root);
+	}
+out:
 	return ret;
 }
 

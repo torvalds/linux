@@ -2,7 +2,7 @@
  * fam15h_power.c - AMD Family 15h processor power monitoring
  *
  * Copyright (c) 2011 Advanced Micro Devices, Inc.
- * Author: Andreas Herrmann <andreas.herrmann3@amd.com>
+ * Author: Andreas Herrmann <herrmann.der.user@googlemail.com>
  *
  *
  * This driver is free software; you can redistribute it and/or
@@ -28,7 +28,7 @@
 #include <asm/processor.h>
 
 MODULE_DESCRIPTION("AMD Family 15h CPU processor power monitor");
-MODULE_AUTHOR("Andreas Herrmann <andreas.herrmann3@amd.com>");
+MODULE_AUTHOR("Andreas Herrmann <herrmann.der.user@googlemail.com>");
 MODULE_LICENSE("GPL");
 
 /* D18F3 */

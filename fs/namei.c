@@ -705,8 +705,8 @@ static inline void put_link(struct nameidata *nd, struct path *link, void *cooki
 	path_put(link);
 }
 
-int sysctl_protected_symlinks __read_mostly = 1;
-int sysctl_protected_hardlinks __read_mostly = 1;
+int sysctl_protected_symlinks __read_mostly = 0;
+int sysctl_protected_hardlinks __read_mostly = 0;
 
 /**
  * may_follow_link - Check symlink following for unsafe situations
@@ -2130,6 +2130,11 @@ struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 	this.hash = full_name_hash(name, len);
 	if (!len)
 		return ERR_PTR(-EACCES);
+
+	if (unlikely(name[0] == '.')) {
+		if (len < 2 || (len == 2 && name[1] == '.'))
+			return ERR_PTR(-EACCES);
+	}
 
 	while (len--) {
 		c = *(const unsigned char *)name++;

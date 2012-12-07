@@ -382,7 +382,7 @@ static void cancel_transfers(struct b43legacy_pioqueue *queue)
 {
 	struct b43legacy_pio_txpacket *packet, *tmp_packet;
 
-	tasklet_disable(&queue->txtask);
+	tasklet_kill(&queue->txtask);
 
 	list_for_each_entry_safe(packet, tmp_packet, &queue->txrunning, list)
 		free_txpacket(packet, 0);

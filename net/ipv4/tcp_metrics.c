@@ -1,7 +1,6 @@
 #include <linux/rcupdate.h>
 #include <linux/spinlock.h>
 #include <linux/jiffies.h>
-#include <linux/bootmem.h>
 #include <linux/module.h>
 #include <linux/cache.h>
 #include <linux/slab.h>
@@ -9,6 +8,7 @@
 #include <linux/tcp.h>
 #include <linux/hash.h>
 #include <linux/tcp_metrics.h>
+#include <linux/vmalloc.h>
 
 #include <net/inet_connection_sock.h>
 #include <net/net_namespace.h>
@@ -864,7 +864,7 @@ static int parse_nl_addr(struct genl_info *info, struct inetpeer_addr *addr,
 	}
 	a = info->attrs[TCP_METRICS_ATTR_ADDR_IPV6];
 	if (a) {
-		if (nla_len(a) != sizeof(sizeof(struct in6_addr)))
+		if (nla_len(a) != sizeof(struct in6_addr))
 			return -EINVAL;
 		addr->family = AF_INET6;
 		memcpy(addr->addr.a6, nla_data(a), sizeof(addr->addr.a6));
@@ -1034,7 +1034,10 @@ static int __net_init tcp_net_metrics_init(struct net *net)
 	net->ipv4.tcp_metrics_hash_log = order_base_2(slots);
 	size = sizeof(struct tcpm_hash_bucket) << net->ipv4.tcp_metrics_hash_log;
 
-	net->ipv4.tcp_metrics_hash = kzalloc(size, GFP_KERNEL);
+	net->ipv4.tcp_metrics_hash = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
+	if (!net->ipv4.tcp_metrics_hash)
+		net->ipv4.tcp_metrics_hash = vzalloc(size);
+
 	if (!net->ipv4.tcp_metrics_hash)
 		return -ENOMEM;
 
@@ -1055,7 +1058,10 @@ static void __net_exit tcp_net_metrics_exit(struct net *net)
 			tm = next;
 		}
 	}
-	kfree(net->ipv4.tcp_metrics_hash);
+	if (is_vmalloc_addr(net->ipv4.tcp_metrics_hash))
+		vfree(net->ipv4.tcp_metrics_hash);
+	else
+		kfree(net->ipv4.tcp_metrics_hash);
 }
 
 static __net_initdata struct pernet_operations tcp_net_metrics_ops = {

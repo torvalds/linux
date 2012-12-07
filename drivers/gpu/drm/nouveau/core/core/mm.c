@@ -218,13 +218,16 @@ nouveau_mm_init(struct nouveau_mm *mm, u32 offset, u32 length, u32 block)
 	node = kzalloc(sizeof(*node), GFP_KERNEL);
 	if (!node)
 		return -ENOMEM;
-	node->offset = roundup(offset, mm->block_size);
-	node->length = rounddown(offset + length, mm->block_size) - node->offset;
+
+	if (length) {
+		node->offset  = roundup(offset, mm->block_size);
+		node->length  = rounddown(offset + length, mm->block_size);
+		node->length -= node->offset;
+	}
 
 	list_add_tail(&node->nl_entry, &mm->nodes);
 	list_add_tail(&node->fl_entry, &mm->free);
 	mm->heap_nodes++;
-	mm->heap_size += length;
 	return 0;
 }
 

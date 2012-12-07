@@ -39,7 +39,6 @@ int thread__set_comm(struct thread *self, const char *comm)
 	err = self->comm == NULL ? -ENOMEM : 0;
 	if (!err) {
 		self->comm_set = true;
-		map_groups__flush(&self->mg);
 	}
 	return err;
 }

@@ -244,6 +244,8 @@ static int digi_startup_device(struct usb_serial *serial);
 static int digi_startup(struct usb_serial *serial);
 static void digi_disconnect(struct usb_serial *serial);
 static void digi_release(struct usb_serial *serial);
+static int digi_port_probe(struct usb_serial_port *port);
+static int digi_port_remove(struct usb_serial_port *port);
 static void digi_read_bulk_callback(struct urb *urb);
 static int digi_read_inb_callback(struct urb *urb);
 static int digi_read_oob_callback(struct urb *urb);
@@ -294,6 +296,8 @@ static struct usb_serial_driver digi_acceleport_2_device = {
 	.attach =			digi_startup,
 	.disconnect =			digi_disconnect,
 	.release =			digi_release,
+	.port_probe =			digi_port_probe,
+	.port_remove =			digi_port_remove,
 };
 
 static struct usb_serial_driver digi_acceleport_4_device = {
@@ -320,6 +324,8 @@ static struct usb_serial_driver digi_acceleport_4_device = {
 	.attach =			digi_startup,
 	.disconnect =			digi_disconnect,
 	.release =			digi_release,
+	.port_probe =			digi_port_probe,
+	.port_remove =			digi_port_remove,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
@@ -1240,59 +1246,50 @@ static int digi_startup_device(struct usb_serial *serial)
 	return ret;
 }
 
+static int digi_port_init(struct usb_serial_port *port, unsigned port_num)
+{
+	struct digi_port *priv;
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	spin_lock_init(&priv->dp_port_lock);
+	priv->dp_port_num = port_num;
+	init_waitqueue_head(&priv->dp_modem_change_wait);
+	init_waitqueue_head(&priv->dp_transmit_idle_wait);
+	init_waitqueue_head(&priv->dp_flush_wait);
+	init_waitqueue_head(&priv->dp_close_wait);
+	INIT_WORK(&priv->dp_wakeup_work, digi_wakeup_write_lock);
+	priv->dp_port = port;
+
+	init_waitqueue_head(&port->write_wait);
+
+	usb_set_serial_port_data(port, priv);
+
+	return 0;
+}
 
 static int digi_startup(struct usb_serial *serial)
 {
-
-	int i;
-	struct digi_port *priv;
 	struct digi_serial *serial_priv;
+	int ret;
 
-	/* allocate the private data structures for all ports */
-	/* number of regular ports + 1 for the out-of-band port */
-	for (i = 0; i < serial->type->num_ports + 1; i++) {
-		/* allocate port private structure */
-		priv = kmalloc(sizeof(struct digi_port), GFP_KERNEL);
-		if (priv == NULL) {
-			while (--i >= 0)
-				kfree(usb_get_serial_port_data(serial->port[i]));
-			return 1;			/* error */
-		}
+	serial_priv = kzalloc(sizeof(*serial_priv), GFP_KERNEL);
+	if (!serial_priv)
+		return -ENOMEM;
 
-		/* initialize port private structure */
-		spin_lock_init(&priv->dp_port_lock);
-		priv->dp_port_num = i;
-		priv->dp_out_buf_len = 0;
-		priv->dp_write_urb_in_use = 0;
-		priv->dp_modem_signals = 0;
-		init_waitqueue_head(&priv->dp_modem_change_wait);
-		priv->dp_transmit_idle = 0;
-		init_waitqueue_head(&priv->dp_transmit_idle_wait);
-		priv->dp_throttled = 0;
-		priv->dp_throttle_restart = 0;
-		init_waitqueue_head(&priv->dp_flush_wait);
-		init_waitqueue_head(&priv->dp_close_wait);
-		INIT_WORK(&priv->dp_wakeup_work, digi_wakeup_write_lock);
-		priv->dp_port = serial->port[i];
-		/* initialize write wait queue for this port */
-		init_waitqueue_head(&serial->port[i]->write_wait);
-
-		usb_set_serial_port_data(serial->port[i], priv);
-	}
-
-	/* allocate serial private structure */
-	serial_priv = kmalloc(sizeof(struct digi_serial), GFP_KERNEL);
-	if (serial_priv == NULL) {
-		for (i = 0; i < serial->type->num_ports + 1; i++)
-			kfree(usb_get_serial_port_data(serial->port[i]));
-		return 1;			/* error */
-	}
-
-	/* initialize serial private structure */
 	spin_lock_init(&serial_priv->ds_serial_lock);
 	serial_priv->ds_oob_port_num = serial->type->num_ports;
 	serial_priv->ds_oob_port = serial->port[serial_priv->ds_oob_port_num];
-	serial_priv->ds_device_started = 0;
+
+	ret = digi_port_init(serial_priv->ds_oob_port,
+						serial_priv->ds_oob_port_num);
+	if (ret) {
+		kfree(serial_priv);
+		return ret;
+	}
+
 	usb_set_serial_data(serial, serial_priv);
 
 	return 0;
@@ -1313,15 +1310,35 @@ static void digi_disconnect(struct usb_serial *serial)
 
 static void digi_release(struct usb_serial *serial)
 {
-	int i;
+	struct digi_serial *serial_priv;
+	struct digi_port *priv;
 
-	/* free the private data structures for all ports */
-	/* number of regular ports + 1 for the out-of-band port */
-	for (i = 0; i < serial->type->num_ports + 1; i++)
-		kfree(usb_get_serial_port_data(serial->port[i]));
-	kfree(usb_get_serial_data(serial));
+	serial_priv = usb_get_serial_data(serial);
+
+	priv = usb_get_serial_port_data(serial_priv->ds_oob_port);
+	kfree(priv);
+
+	kfree(serial_priv);
 }
 
+static int digi_port_probe(struct usb_serial_port *port)
+{
+	unsigned port_num;
+
+	port_num = port->number - port->serial->minor;
+
+	return digi_port_init(port, port_num);
+}
+
+static int digi_port_remove(struct usb_serial_port *port)
+{
+	struct digi_port *priv;
+
+	priv = usb_get_serial_port_data(port);
+	kfree(priv);
+
+	return 0;
+}
 
 static void digi_read_bulk_callback(struct urb *urb)
 {
