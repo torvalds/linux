@@ -3724,14 +3724,17 @@ void e1000e_reset(struct e1000_adapter *adapter)
 		break;
 	case e1000_pch2lan:
 	case e1000_pch_lpt:
-		fc->high_water = 0x05C20;
-		fc->low_water = 0x05048;
-		fc->pause_time = 0x0650;
 		fc->refresh_time = 0x0400;
-		if (adapter->netdev->mtu > ETH_DATA_LEN) {
-			pba = 14;
-			ew32(PBA, pba);
+
+		if (adapter->netdev->mtu <= ETH_DATA_LEN) {
+			fc->high_water = 0x05C20;
+			fc->low_water = 0x05048;
+			fc->pause_time = 0x0650;
+			break;
 		}
+
+		fc->high_water = ((pba << 10) * 9 / 10) & E1000_FCRTH_RTH;
+		fc->low_water = ((pba << 10) * 8 / 10) & E1000_FCRTL_RTL;
 		break;
 	}
 
