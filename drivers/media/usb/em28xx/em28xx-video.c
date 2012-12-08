@@ -359,57 +359,26 @@ static inline void print_err_status(struct em28xx *dev,
 }
 
 /*
- * video-buf generic routine to get the next available buffer
+ * get the next available buffer from dma queue
  */
-static inline void get_next_buf(struct em28xx_dmaqueue *dma_q,
-					  struct em28xx_buffer **buf)
+static inline struct em28xx_buffer *get_next_buf(struct em28xx *dev,
+						 struct em28xx_dmaqueue *dma_q)
 {
-	struct em28xx *dev = container_of(dma_q, struct em28xx, vidq);
+	struct em28xx_buffer *buf;
 	char *outp;
 
 	if (list_empty(&dma_q->active)) {
 		em28xx_isocdbg("No active queue to serve\n");
-		dev->usb_ctl.vid_buf = NULL;
-		*buf = NULL;
-		return;
+		return NULL;
 	}
 
 	/* Get the next buffer */
-	*buf = list_entry(dma_q->active.next, struct em28xx_buffer, vb.queue);
+	buf = list_entry(dma_q->active.next, struct em28xx_buffer, vb.queue);
 	/* Cleans up buffer - Useful for testing for frame/URB loss */
-	outp = videobuf_to_vmalloc(&(*buf)->vb);
-	memset(outp, 0, (*buf)->vb.size);
+	outp = videobuf_to_vmalloc(&buf->vb);
+	memset(outp, 0, buf->vb.size);
 
-	dev->usb_ctl.vid_buf = *buf;
-
-	return;
-}
-
-/*
- * video-buf generic routine to get the next available VBI buffer
- */
-static inline void vbi_get_next_buf(struct em28xx_dmaqueue *dma_q,
-				    struct em28xx_buffer **buf)
-{
-	struct em28xx *dev = container_of(dma_q, struct em28xx, vbiq);
-	char *outp;
-
-	if (list_empty(&dma_q->active)) {
-		em28xx_isocdbg("No active queue to serve\n");
-		dev->usb_ctl.vbi_buf = NULL;
-		*buf = NULL;
-		return;
-	}
-
-	/* Get the next buffer */
-	*buf = list_entry(dma_q->active.next, struct em28xx_buffer, vb.queue);
-	/* Cleans up buffer - Useful for testing for frame/URB loss */
-	outp = videobuf_to_vmalloc(&(*buf)->vb);
-	memset(outp, 0x00, (*buf)->vb.size);
-
-	dev->usb_ctl.vbi_buf = *buf;
-
-	return;
+	return buf;
 }
 
 /* Processes and copies the URB data content (video and VBI data) */
@@ -519,7 +488,8 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 						vbi_buffer_filled(dev,
 								  vbi_dma_q,
 								  vbi_buf);
-					vbi_get_next_buf(vbi_dma_q, &vbi_buf);
+					vbi_buf = get_next_buf(dev, vbi_dma_q);
+					dev->usb_ctl.vbi_buf = vbi_buf;
 					if (vbi_buf == NULL)
 						vbioutp = NULL;
 					else
@@ -530,7 +500,8 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 				if (dev->vbi_read == 0) {
 					vbi_dma_q->pos = 0;
 					if (vbi_buf != NULL)
-						vbi_buf->top_field = dev->top_field;
+						vbi_buf->top_field
+						  = dev->top_field;
 				}
 
 				dev->vbi_read += len;
@@ -554,7 +525,8 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 			if (dev->progressive || dev->top_field) {
 				if (buf != NULL)
 					buffer_filled(dev, dma_q, buf);
-				get_next_buf(dma_q, &buf);
+				buf = get_next_buf(dev, dma_q);
+				dev->usb_ctl.vid_buf = buf;
 				if (buf == NULL)
 					outp = NULL;
 				else
