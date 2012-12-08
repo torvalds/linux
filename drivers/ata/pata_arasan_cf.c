@@ -317,6 +317,12 @@ static int cf_init(struct arasan_cf_dev *acdev)
 		return ret;
 	}
 
+	ret = clk_set_rate(acdev->clk, 166000000);
+	if (ret) {
+		dev_warn(acdev->host->dev, "clock set rate failed");
+		return ret;
+	}
+
 	spin_lock_irqsave(&acdev->host->lock, flags);
 	/* configure CF interface clock */
 	writel((pdata->cf_if_clk <= CF_IF_CLK_200M) ? pdata->cf_if_clk :
@@ -908,7 +914,7 @@ static int __devexit arasan_cf_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int arasan_cf_suspend(struct device *dev)
 {
 	struct ata_host *host = dev_get_drvdata(dev);

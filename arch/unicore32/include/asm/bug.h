@@ -19,9 +19,4 @@ extern void die(const char *msg, struct pt_regs *regs, int err);
 extern void uc32_notify_die(const char *str, struct pt_regs *regs,
 		struct siginfo *info, unsigned long err, unsigned long trap);
 
-extern asmlinkage void __backtrace(void);
-extern asmlinkage void c_backtrace(unsigned long fp, int pmode);
-
-extern void __show_regs(struct pt_regs *);
-
 #endif /* __UNICORE_BUG_H__ */

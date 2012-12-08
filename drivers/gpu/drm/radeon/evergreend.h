@@ -91,6 +91,10 @@
 #define		FB_READ_EN					(1 << 0)
 #define		FB_WRITE_EN					(1 << 1)
 
+#define	CP_STRMOUT_CNTL					0x84FC
+
+#define	CP_COHER_CNTL					0x85F0
+#define	CP_COHER_SIZE					0x85F4
 #define	CP_COHER_BASE					0x85F8
 #define	CP_STALLED_STAT1			0x8674
 #define	CP_STALLED_STAT2			0x8678
@@ -350,6 +354,54 @@
 #       define AFMT_AUDIO_INFO_UPDATE        (1 << 7)
 #       define AFMT_MPEG_INFO_UPDATE         (1 << 10)
 #define AFMT_GENERIC0_7                      0x7138
+
+/* DCE4/5 ELD audio interface */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR0        0x5f84 /* LPCM */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR1        0x5f88 /* AC3 */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR2        0x5f8c /* MPEG1 */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR3        0x5f90 /* MP3 */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR4        0x5f94 /* MPEG2 */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR5        0x5f98 /* AAC */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR6        0x5f9c /* DTS */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR7        0x5fa0 /* ATRAC */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR8        0x5fa4 /* one bit audio - leave at 0 (default) */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR9        0x5fa8 /* Dolby Digital */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR10       0x5fac /* DTS-HD */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR11       0x5fb0 /* MAT-MLP */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR12       0x5fb4 /* DTS */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR13       0x5fb8 /* WMA Pro */
+#       define MAX_CHANNELS(x)                            (((x) & 0x7) << 0)
+/* max channels minus one.  7 = 8 channels */
+#       define SUPPORTED_FREQUENCIES(x)                   (((x) & 0xff) << 8)
+#       define DESCRIPTOR_BYTE_2(x)                       (((x) & 0xff) << 16)
+#       define SUPPORTED_FREQUENCIES_STEREO(x)            (((x) & 0xff) << 24) /* LPCM only */
+/* SUPPORTED_FREQUENCIES, SUPPORTED_FREQUENCIES_STEREO
+ * bit0 = 32 kHz
+ * bit1 = 44.1 kHz
+ * bit2 = 48 kHz
+ * bit3 = 88.2 kHz
+ * bit4 = 96 kHz
+ * bit5 = 176.4 kHz
+ * bit6 = 192 kHz
+ */
+
+#define AZ_HOT_PLUG_CONTROL                               0x5e78
+#       define AZ_FORCE_CODEC_WAKE                        (1 << 0)
+#       define PIN0_JACK_DETECTION_ENABLE                 (1 << 4)
+#       define PIN1_JACK_DETECTION_ENABLE                 (1 << 5)
+#       define PIN2_JACK_DETECTION_ENABLE                 (1 << 6)
+#       define PIN3_JACK_DETECTION_ENABLE                 (1 << 7)
+#       define PIN0_UNSOLICITED_RESPONSE_ENABLE           (1 << 8)
+#       define PIN1_UNSOLICITED_RESPONSE_ENABLE           (1 << 9)
+#       define PIN2_UNSOLICITED_RESPONSE_ENABLE           (1 << 10)
+#       define PIN3_UNSOLICITED_RESPONSE_ENABLE           (1 << 11)
+#       define CODEC_HOT_PLUG_ENABLE                      (1 << 12)
+#       define PIN0_AUDIO_ENABLED                         (1 << 24)
+#       define PIN1_AUDIO_ENABLED                         (1 << 25)
+#       define PIN2_AUDIO_ENABLED                         (1 << 26)
+#       define PIN3_AUDIO_ENABLED                         (1 << 27)
+#       define AUDIO_ENABLED                              (1 << 31)
+
 
 #define	GC_USER_SHADER_PIPE_CONFIG			0x8954
 #define		INACTIVE_QD_PIPES(x)				((x) << 8)
@@ -647,6 +699,7 @@
 #define		PAGE_TABLE_DEPTH(x)				(((x) & 3) << 1)
 #define		RANGE_PROTECTION_FAULT_ENABLE_DEFAULT		(1 << 4)
 #define VM_CONTEXT1_CNTL				0x1414
+#define VM_CONTEXT1_CNTL2				0x1434
 #define	VM_CONTEXT0_PAGE_TABLE_BASE_ADDR		0x153C
 #define	VM_CONTEXT0_PAGE_TABLE_END_ADDR			0x157C
 #define	VM_CONTEXT0_PAGE_TABLE_START_ADDR		0x155C
@@ -668,6 +721,8 @@
 #define		CACHE_UPDATE_MODE(x)				((x) << 6)
 #define	VM_L2_STATUS					0x140C
 #define		L2_BUSY						(1 << 0)
+#define	VM_CONTEXT1_PROTECTION_FAULT_ADDR		0x14FC
+#define	VM_CONTEXT1_PROTECTION_FAULT_STATUS		0x14DC
 
 #define	WAIT_UNTIL					0x8040
 

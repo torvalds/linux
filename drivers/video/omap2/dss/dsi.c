@@ -365,11 +365,20 @@ struct platform_device *dsi_get_dsidev_from_id(int module)
 	struct omap_dss_output *out;
 	enum omap_dss_output_id	id;
 
-	id = module == 0 ? OMAP_DSS_OUTPUT_DSI1 : OMAP_DSS_OUTPUT_DSI2;
+	switch (module) {
+	case 0:
+		id = OMAP_DSS_OUTPUT_DSI1;
+		break;
+	case 1:
+		id = OMAP_DSS_OUTPUT_DSI2;
+		break;
+	default:
+		return NULL;
+	}
 
 	out = omap_dss_get_output(id);
 
-	return out->pdev;
+	return out ? out->pdev : NULL;
 }
 
 static inline void dsi_write_reg(struct platform_device *dsidev,

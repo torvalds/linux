@@ -241,6 +241,10 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 
 	if (unlikely(!abi16))
 		return -ENOMEM;
+
+	if (!drm->channel)
+		return nouveau_abi16_put(abi16, -ENODEV);
+
 	client = nv_client(abi16->client);
 	device = nv_device(abi16->device);
 	imem   = nouveau_instmem(device);

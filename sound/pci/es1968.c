@@ -2581,9 +2581,14 @@ static u8 snd_es1968_tea575x_get_pins(struct snd_tea575x *tea)
 	struct es1968 *chip = tea->private_data;
 	unsigned long io = chip->io_port + GPIO_DATA;
 	u16 val = inw(io);
+	u8 ret;
 
-	return  (val & STR_DATA) ? TEA575X_DATA : 0 |
-		(val & STR_MOST) ? TEA575X_MOST : 0;
+	ret = 0;
+	if (val & STR_DATA)
+		ret |= TEA575X_DATA;
+	if (val & STR_MOST)
+		ret |= TEA575X_MOST;
+	return ret;
 }
 
 static void snd_es1968_tea575x_set_direction(struct snd_tea575x *tea, bool output)
@@ -2655,6 +2660,8 @@ static struct ess_device_list pm_whitelist[] __devinitdata = {
 	{ TYPE_MAESTRO2E, 0x1179 },
 	{ TYPE_MAESTRO2E, 0x14c0 },	/* HP omnibook 4150 */
 	{ TYPE_MAESTRO2E, 0x1558 },
+	{ TYPE_MAESTRO2E, 0x125d },	/* a PCI card, e.g. Terratec DMX */
+	{ TYPE_MAESTRO2, 0x125d },	/* a PCI card, e.g. SF64-PCE2 */
 };
 
 static struct ess_device_list mpu_blacklist[] __devinitdata = {

@@ -538,4 +538,14 @@ void exynos_drm_encoder_plane_disable(struct drm_encoder *encoder, void *data)
 
 	if (overlay_ops && overlay_ops->disable)
 		overlay_ops->disable(manager->dev, zpos);
+
+	/*
+	 * wait for vblank interrupt
+	 * - this makes sure that hardware overlay is disabled to avoid
+	 * for the dma accesses to memory after gem buffer was released
+	 * because the setting for disabling the overlay will be updated
+	 * at vsync.
+	 */
+	if (overlay_ops && overlay_ops->wait_for_vblank)
+		overlay_ops->wait_for_vblank(manager->dev);
 }

@@ -551,6 +551,54 @@
 #define HDMI_OFFSET0                      (0x7400 - 0x7400)
 #define HDMI_OFFSET1                      (0x7800 - 0x7400)
 
+/* DCE3.2 ELD audio interface */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR0        0x71c8 /* LPCM */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR1        0x71cc /* AC3 */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR2        0x71d0 /* MPEG1 */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR3        0x71d4 /* MP3 */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR4        0x71d8 /* MPEG2 */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR5        0x71dc /* AAC */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR6        0x71e0 /* DTS */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR7        0x71e4 /* ATRAC */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR8        0x71e8 /* one bit audio - leave at 0 (default) */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR9        0x71ec /* Dolby Digital */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR10       0x71f0 /* DTS-HD */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR11       0x71f4 /* MAT-MLP */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR12       0x71f8 /* DTS */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR13       0x71fc /* WMA Pro */
+#       define MAX_CHANNELS(x)                            (((x) & 0x7) << 0)
+/* max channels minus one.  7 = 8 channels */
+#       define SUPPORTED_FREQUENCIES(x)                   (((x) & 0xff) << 8)
+#       define DESCRIPTOR_BYTE_2(x)                       (((x) & 0xff) << 16)
+#       define SUPPORTED_FREQUENCIES_STEREO(x)            (((x) & 0xff) << 24) /* LPCM only */
+/* SUPPORTED_FREQUENCIES, SUPPORTED_FREQUENCIES_STEREO
+ * bit0 = 32 kHz
+ * bit1 = 44.1 kHz
+ * bit2 = 48 kHz
+ * bit3 = 88.2 kHz
+ * bit4 = 96 kHz
+ * bit5 = 176.4 kHz
+ * bit6 = 192 kHz
+ */
+
+#define AZ_HOT_PLUG_CONTROL                               0x7300
+#       define AZ_FORCE_CODEC_WAKE                        (1 << 0)
+#       define PIN0_JACK_DETECTION_ENABLE                 (1 << 4)
+#       define PIN1_JACK_DETECTION_ENABLE                 (1 << 5)
+#       define PIN2_JACK_DETECTION_ENABLE                 (1 << 6)
+#       define PIN3_JACK_DETECTION_ENABLE                 (1 << 7)
+#       define PIN0_UNSOLICITED_RESPONSE_ENABLE           (1 << 8)
+#       define PIN1_UNSOLICITED_RESPONSE_ENABLE           (1 << 9)
+#       define PIN2_UNSOLICITED_RESPONSE_ENABLE           (1 << 10)
+#       define PIN3_UNSOLICITED_RESPONSE_ENABLE           (1 << 11)
+#       define CODEC_HOT_PLUG_ENABLE                      (1 << 12)
+#       define PIN0_AUDIO_ENABLED                         (1 << 24)
+#       define PIN1_AUDIO_ENABLED                         (1 << 25)
+#       define PIN2_AUDIO_ENABLED                         (1 << 26)
+#       define PIN3_AUDIO_ENABLED                         (1 << 27)
+#       define AUDIO_ENABLED                              (1 << 31)
+
+
 #define D1GRPH_PRIMARY_SURFACE_ADDRESS                    0x6110
 #define D1GRPH_PRIMARY_SURFACE_ADDRESS_HIGH               0x6914
 #define D2GRPH_PRIMARY_SURFACE_ADDRESS_HIGH               0x6114

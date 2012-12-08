@@ -9941,7 +9941,7 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 		else
 			rc = bnx2x_8483x_disable_eee(phy, params, vars);
 		if (rc) {
-			DP(NETIF_MSG_LINK, "Failed to set EEE advertisment\n");
+			DP(NETIF_MSG_LINK, "Failed to set EEE advertisement\n");
 			return rc;
 		}
 	} else {
@@ -12987,7 +12987,7 @@ static u8 bnx2x_analyze_link_error(struct link_params *params,
 		DP(NETIF_MSG_LINK, "Analyze TX Fault\n");
 		break;
 	default:
-		DP(NETIF_MSG_LINK, "Analyze UNKOWN\n");
+		DP(NETIF_MSG_LINK, "Analyze UNKNOWN\n");
 	}
 	DP(NETIF_MSG_LINK, "Link changed:[%x %x]->%x\n", vars->link_up,
 	   old_status, status);
