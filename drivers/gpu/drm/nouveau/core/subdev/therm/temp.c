@@ -58,11 +58,18 @@ static void
 nouveau_therm_temp_safety_checks(struct nouveau_therm *therm)
 {
 	struct nouveau_therm_priv *priv = (void *)therm;
+	struct nvbios_therm_sensor *s = &priv->bios_sensor;
 
 	if (!priv->bios_sensor.slope_div)
 		priv->bios_sensor.slope_div = 1;
 	if (!priv->bios_sensor.offset_den)
 		priv->bios_sensor.offset_den = 1;
+
+	/* enforce a minimum hysteresis on thresholds */
+	s->thrs_fan_boost.hysteresis = max_t(u8, s->thrs_fan_boost.hysteresis, 2);
+	s->thrs_down_clock.hysteresis = max_t(u8, s->thrs_down_clock.hysteresis, 2);
+	s->thrs_critical.hysteresis = max_t(u8, s->thrs_critical.hysteresis, 2);
+	s->thrs_shutdown.hysteresis = max_t(u8, s->thrs_shutdown.hysteresis, 2);
 }
 
 /* must be called with alarm_program_lock taken ! */
