@@ -44,7 +44,6 @@
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_coproc.h>
 #include <asm/kvm_psci.h>
-#include <asm/opcodes.h>
 
 #ifdef REQUIRES_VIRT
 __asm__(".arch_extension	virt");
@@ -544,50 +543,6 @@ static exit_handle_fn arm_exit_handlers[] = {
 	[HSR_EC_DABT]		= kvm_handle_guest_abort,
 	[HSR_EC_DABT_HYP]	= handle_dabt_hyp,
 };
-
-/*
- * A conditional instruction is allowed to trap, even though it
- * wouldn't be executed.  So let's re-implement the hardware, in
- * software!
- */
-static bool kvm_condition_valid(struct kvm_vcpu *vcpu)
-{
-	unsigned long cpsr, cond, insn;
-
-	/*
-	 * Exception Code 0 can only happen if we set HCR.TGE to 1, to
-	 * catch undefined instructions, and then we won't get past
-	 * the arm_exit_handlers test anyway.
-	 */
-	BUG_ON(!kvm_vcpu_trap_get_class(vcpu));
-
-	/* Top two bits non-zero?  Unconditional. */
-	if (kvm_vcpu_get_hsr(vcpu) >> 30)
-		return true;
-
-	cpsr = *vcpu_cpsr(vcpu);
-
-	/* Is condition field valid? */
-	if ((kvm_vcpu_get_hsr(vcpu) & HSR_CV) >> HSR_CV_SHIFT)
-		cond = (kvm_vcpu_get_hsr(vcpu) & HSR_COND) >> HSR_COND_SHIFT;
-	else {
-		/* This can happen in Thumb mode: examine IT state. */
-		unsigned long it;
-
-		it = ((cpsr >> 8) & 0xFC) | ((cpsr >> 25) & 0x3);
-
-		/* it == 0 => unconditional. */
-		if (it == 0)
-			return true;
-
-		/* The cond for this insn works out as the top 4 bits. */
-		cond = (it >> 4);
-	}
-
-	/* Shift makes it look like an ARM-mode instruction */
-	insn = cond << 28;
-	return arm_check_condition(insn, cpsr) != ARM_OPCODE_CONDTEST_FAIL;
-}
 
 /*
  * Return > 0 to return to guest, < 0 on error, 0 (and set exit_reason) on
