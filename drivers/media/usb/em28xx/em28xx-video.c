@@ -168,28 +168,27 @@ static inline void finish_buffer(struct em28xx *dev,
 }
 
 /*
- * Identify the buffer header type and properly handles
+ * Copy picture data from USB buffer to videobuf buffer
  */
 static void em28xx_copy_video(struct em28xx *dev,
 			      struct em28xx_buffer *buf,
-			      unsigned char *p,
+			      unsigned char *usb_buf,
 			      unsigned long len)
 {
 	void *fieldstart, *startwrite, *startread;
 	int  linesdone, currlinedone, offset, lencopy, remain;
 	int bytesperline = dev->width << 1;
-	unsigned char *outp = buf->vb_buf;
 
 	if (buf->pos + len > buf->vb.size)
 		len = buf->vb.size - buf->pos;
 
-	startread = p;
+	startread = usb_buf;
 	remain = len;
 
 	if (dev->progressive || buf->top_field)
-		fieldstart = outp;
+		fieldstart = buf->vb_buf;
 	else /* interlaced mode, even nr. of lines */
-		fieldstart = outp + bytesperline;
+		fieldstart = buf->vb_buf + bytesperline;
 
 	linesdone = buf->pos / bytesperline;
 	currlinedone = buf->pos % bytesperline;
@@ -203,11 +202,12 @@ static void em28xx_copy_video(struct em28xx *dev,
 	lencopy = bytesperline - currlinedone;
 	lencopy = lencopy > remain ? remain : lencopy;
 
-	if ((char *)startwrite + lencopy > (char *)outp + buf->vb.size) {
+	if ((char *)startwrite + lencopy > (char *)buf->vb_buf + buf->vb.size) {
 		em28xx_isocdbg("Overflow of %zi bytes past buffer end (1)\n",
-			       ((char *)startwrite + lencopy) -
-			       ((char *)outp + buf->vb.size));
-		remain = (char *)outp + buf->vb.size - (char *)startwrite;
+			      ((char *)startwrite + lencopy) -
+			      ((char *)buf->vb_buf + buf->vb.size));
+		remain = (char *)buf->vb_buf + buf->vb.size -
+			 (char *)startwrite;
 		lencopy = remain;
 	}
 	if (lencopy <= 0)
@@ -227,13 +227,13 @@ static void em28xx_copy_video(struct em28xx *dev,
 		else
 			lencopy = bytesperline;
 
-		if ((char *)startwrite + lencopy > (char *)outp +
+		if ((char *)startwrite + lencopy > (char *)buf->vb_buf +
 		    buf->vb.size) {
 			em28xx_isocdbg("Overflow of %zi bytes past buffer end"
 				       "(2)\n",
 				       ((char *)startwrite + lencopy) -
-				       ((char *)outp + buf->vb.size));
-			lencopy = remain = (char *)outp + buf->vb.size -
+				       ((char *)buf->vb_buf + buf->vb.size));
+			lencopy = remain = (char *)buf->vb_buf + buf->vb.size -
 					   (char *)startwrite;
 		}
 		if (lencopy <= 0)
@@ -247,50 +247,25 @@ static void em28xx_copy_video(struct em28xx *dev,
 	buf->pos += len;
 }
 
+/*
+ * Copy VBI data from USB buffer to videobuf buffer
+ */
 static void em28xx_copy_vbi(struct em28xx *dev,
 			    struct em28xx_buffer *buf,
-			    unsigned char *p,
+			    unsigned char *usb_buf,
 			    unsigned long len)
 {
-	void *startwrite, *startread;
-	int  offset;
-	int bytesperline;
-	unsigned char *outp;
-
-	if (dev == NULL) {
-		em28xx_isocdbg("dev is null\n");
-		return;
-	}
-	bytesperline = dev->vbi_width;
-
-	if (buf == NULL) {
-		return;
-	}
-	if (p == NULL) {
-		em28xx_isocdbg("p is null\n");
-		return;
-	}
-	outp = buf->vb_buf;
-	if (outp == NULL) {
-		em28xx_isocdbg("outp is null\n");
-		return;
-	}
+	unsigned int offset;
 
 	if (buf->pos + len > buf->vb.size)
 		len = buf->vb.size - buf->pos;
 
-	startread = p;
-
-	startwrite = outp + buf->pos;
 	offset = buf->pos;
-
 	/* Make sure the bottom field populates the second half of the frame */
-	if (buf->top_field == 0) {
-		startwrite += bytesperline * dev->vbi_height;
-		offset += bytesperline * dev->vbi_height;
-	}
+	if (buf->top_field == 0)
+		offset += dev->vbi_width * dev->vbi_height;
 
-	memcpy(startwrite, startread, len);
+	memcpy(buf->vb_buf + offset, usb_buf, len);
 	buf->pos += len;
 }
 
