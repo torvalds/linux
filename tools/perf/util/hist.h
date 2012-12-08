@@ -195,7 +195,7 @@ static inline int hist_entry__tui_annotate(struct hist_entry *self
 	return 0;
 }
 
-static inline int script_browse(const char *script_opt)
+static inline int script_browse(const char *script_opt __maybe_unused)
 {
 	return 0;
 }

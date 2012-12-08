@@ -27,6 +27,7 @@
 #include "../perf.h"
 #include "util.h"
 #include "exec_cmd.h"
+#include "tests.h"
 
 #define ENV "PERF_TEST_ATTR"
 
@@ -151,7 +152,7 @@ static int run_dir(const char *d, const char *perf)
 	return system(cmd);
 }
 
-int test_attr__run(void)
+int test__attr(void)
 {
 	struct stat st;
 	char path_perf[PATH_MAX];

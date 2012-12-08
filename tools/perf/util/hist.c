@@ -742,9 +742,8 @@ static struct hist_entry *hists__add_dummy_entry(struct hists *hists,
 
 	he = hist_entry__new(pair);
 	if (he) {
-		he->stat.nr_events = 0;
-		he->stat.period    = 0;
-		he->hists	   = hists;
+		memset(&he->stat, 0, sizeof(he->stat));
+		he->hists = hists;
 		rb_link_node(&he->rb_node, parent, p);
 		rb_insert_color(&he->rb_node, &hists->entries);
 		hists__inc_nr_entries(hists, he);

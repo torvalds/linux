@@ -11,7 +11,5 @@ group_fd=-1
 fd=2
 group_fd=1
 config=1
-# TODO both disabled and enable_on_exec are disabled for --group option,
-#      enabled otherwise, check why..
-disabled=1
-enable_on_exec=1
+disabled=0
+enable_on_exec=0

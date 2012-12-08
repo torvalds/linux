@@ -8,6 +8,7 @@
 
 #include "machine.h"
 #include "symbol.h"
+#include "tests.h"
 
 #define TEST_ASSERT_VAL(text, cond) \
 do { \
@@ -25,6 +26,10 @@ static char *test_file(int size)
 	unsigned char *buf;
 
 	fd = mkstemp(templ);
+	if (fd < 0) {
+		perror("mkstemp failed");
+		return NULL;
+	}
 
 	buf = malloc(size);
 	if (!buf) {
@@ -95,7 +100,7 @@ struct test_data_offset offsets[] = {
 	},
 };
 
-int dso__test_data(void)
+int test__dso_data(void)
 {
 	struct machine machine;
 	struct dso *dso;
