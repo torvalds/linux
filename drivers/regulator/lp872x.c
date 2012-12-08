@@ -181,20 +181,6 @@ static inline int lp872x_update_bits(struct lp872x *lp, u8 addr,
 	return regmap_update_bits(lp->regmap, addr, mask, data);
 }
 
-static int _rdev_to_offset(struct regulator_dev *rdev)
-{
-	enum lp872x_regulator_id id = rdev_get_id(rdev);
-
-	switch (id) {
-	case LP8720_ID_LDO1 ... LP8720_ID_BUCK:
-		return id;
-	case LP8725_ID_LDO1 ... LP8725_ID_BUCK2:
-		return id - LP8725_ID_BASE;
-	default:
-		return -EINVAL;
-	}
-}
-
 static int lp872x_get_timestep_usec(struct lp872x *lp)
 {
 	enum lp872x_id chip = lp->chipid;
@@ -234,28 +220,20 @@ static int lp872x_get_timestep_usec(struct lp872x *lp)
 static int lp872x_regulator_enable_time(struct regulator_dev *rdev)
 {
 	struct lp872x *lp = rdev_get_drvdata(rdev);
-	enum lp872x_regulator_id regulator = rdev_get_id(rdev);
+	enum lp872x_regulator_id rid = rdev_get_id(rdev);
 	int time_step_us = lp872x_get_timestep_usec(lp);
-	int ret, offset;
+	int ret;
 	u8 addr, val;
 
 	if (time_step_us < 0)
 		return -EINVAL;
 
-	switch (regulator) {
-	case LP8720_ID_LDO1 ... LP8720_ID_LDO5:
-	case LP8725_ID_LDO1 ... LP8725_ID_LILO2:
-		offset = _rdev_to_offset(rdev);
-		if (offset < 0)
-			return -EINVAL;
-
-		addr = LP872X_LDO1_VOUT + offset;
+	switch (rid) {
+	case LP8720_ID_LDO1 ... LP8720_ID_BUCK:
+		addr = LP872X_LDO1_VOUT + rid;
 		break;
-	case LP8720_ID_BUCK:
-		addr = LP8720_BUCK_VOUT1;
-		break;
-	case LP8725_ID_BUCK1:
-		addr = LP8725_BUCK1_VOUT1;
+	case LP8725_ID_LDO1 ... LP8725_ID_BUCK1:
+		addr = LP872X_LDO1_VOUT + rid - LP8725_ID_BASE;
 		break;
 	case LP8725_ID_BUCK2:
 		addr = LP8725_BUCK2_VOUT1;
