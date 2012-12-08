@@ -1544,6 +1544,22 @@ ssize_t blkdev_aio_write(struct kiocb *iocb, const struct iovec *iov,
 }
 EXPORT_SYMBOL_GPL(blkdev_aio_write);
 
+static ssize_t blkdev_aio_read(struct kiocb *iocb, const struct iovec *iov,
+			 unsigned long nr_segs, loff_t pos)
+{
+	struct file *file = iocb->ki_filp;
+	struct inode *bd_inode = file->f_mapping->host;
+	loff_t size = i_size_read(bd_inode);
+
+	if (pos >= size)
+		return 0;
+
+	size -= pos;
+	if (size < INT_MAX)
+		nr_segs = iov_shorten((struct iovec *)iov, nr_segs, size);
+	return generic_file_aio_read(iocb, iov, nr_segs, pos);
+}
+
 /*
  * Try to release a page associated with block device when the system
  * is under memory pressure.
@@ -1574,7 +1590,7 @@ const struct file_operations def_blk_fops = {
 	.llseek		= block_llseek,
 	.read		= do_sync_read,
 	.write		= do_sync_write,
-	.aio_read	= generic_file_aio_read,
+	.aio_read	= blkdev_aio_read,
 	.aio_write	= blkdev_aio_write,
 	.mmap		= generic_file_mmap,
 	.fsync		= blkdev_fsync,
