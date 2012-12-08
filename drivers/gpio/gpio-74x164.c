@@ -153,7 +153,7 @@ static int __devinit gen_74x164_probe(struct spi_device *spi)
 	}
 
 	chip->gpio_chip.ngpio = GEN_74X164_NUMBER_GPIOS * chip->registers;
-	chip->buffer = devm_kzalloc(&spi->dev, chip->gpio_chip.ngpio, GFP_KERNEL);
+	chip->buffer = devm_kzalloc(&spi->dev, chip->registers, GFP_KERNEL);
 	if (!chip->buffer) {
 		ret = -ENOMEM;
 		goto exit_destroy;

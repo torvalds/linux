@@ -289,6 +289,8 @@ static void pci_8255_detach(struct comedi_device *dev)
 	struct comedi_subdevice *s;
 	int i;
 
+	if (!board || !devpriv)
+		return;
 	if (dev->subdevices) {
 		for (i = 0; i < board->n_8255; i++) {
 			s = &dev->subdevices[i];

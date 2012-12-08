@@ -26,6 +26,7 @@ config ARCH_OMAP2PLUS
 	select CLKDEV_LOOKUP
 	select GENERIC_IRQ_CHIP
 	select OMAP_DM_TIMER
+	select PINCTRL
 	select PROC_DEVICETREE if PROC_FS
 	select SPARSE_IRQ
 	select USE_OF

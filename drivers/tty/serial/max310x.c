@@ -1239,6 +1239,7 @@ static int __devexit max310x_remove(struct spi_device *spi)
 static const struct spi_device_id max310x_id_table[] = {
 	{ "max3107",	MAX310X_TYPE_MAX3107 },
 	{ "max3108",	MAX310X_TYPE_MAX3108 },
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, max310x_id_table);
 

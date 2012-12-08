@@ -21,10 +21,10 @@ struct key *modsign_keyring;
 extern __initdata const u8 modsign_certificate_list[];
 extern __initdata const u8 modsign_certificate_list_end[];
 asm(".section .init.data,\"aw\"\n"
-    "modsign_certificate_list:\n"
+    SYMBOL_PREFIX "modsign_certificate_list:\n"
     ".incbin \"signing_key.x509\"\n"
     ".incbin \"extra_certificates\"\n"
-    "modsign_certificate_list_end:"
+    SYMBOL_PREFIX "modsign_certificate_list_end:"
     );
 
 /*

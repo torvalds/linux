@@ -3,6 +3,7 @@ menu "Xen driver support"
 
 config XEN_BALLOON
 	bool "Xen memory balloon driver"
+	depends on !ARM
 	default y
 	help
 	  The balloon driver allows the Xen domain to request more memory from
@@ -145,6 +146,7 @@ config SWIOTLB_XEN
 
 config XEN_TMEM
 	bool
+	depends on !ARM
 	default y if (CLEANCACHE || FRONTSWAP)
 	help
 	  Shim to interface in-kernel Transcendent Memory hooks

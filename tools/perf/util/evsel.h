@@ -4,7 +4,7 @@
 #include <linux/list.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include "../../../include/uapi/linux/perf_event.h"
+#include <linux/perf_event.h>
 #include "types.h"
 #include "xyarray.h"
 #include "cgroup.h"

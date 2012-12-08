@@ -1167,6 +1167,8 @@ int batadv_bla_init(struct batadv_priv *bat_priv)
 	uint16_t crc;
 	unsigned long entrytime;
 
+	spin_lock_init(&bat_priv->bla.bcast_duplist_lock);
+
 	batadv_dbg(BATADV_DBG_BLA, bat_priv, "bla hash registering\n");
 
 	/* setting claim destination address */
@@ -1210,8 +1212,8 @@ int batadv_bla_init(struct batadv_priv *bat_priv)
 /**
  * batadv_bla_check_bcast_duplist
  * @bat_priv: the bat priv with all the soft interface information
- * @bcast_packet: originator mac address
- * @hdr_size: maximum length of the frame
+ * @bcast_packet: encapsulated broadcast frame plus batman header
+ * @bcast_packet_len: length of encapsulated broadcast frame plus batman header
  *
  * check if it is on our broadcast list. Another gateway might
  * have sent the same packet because it is connected to the same backbone,
@@ -1224,19 +1226,21 @@ int batadv_bla_init(struct batadv_priv *bat_priv)
  */
 int batadv_bla_check_bcast_duplist(struct batadv_priv *bat_priv,
 				   struct batadv_bcast_packet *bcast_packet,
-				   int hdr_size)
+				   int bcast_packet_len)
 {
-	int i, length, curr;
+	int i, length, curr, ret = 0;
 	uint8_t *content;
 	uint16_t crc;
 	struct batadv_bcast_duplist_entry *entry;
 
-	length = hdr_size - sizeof(*bcast_packet);
+	length = bcast_packet_len - sizeof(*bcast_packet);
 	content = (uint8_t *)bcast_packet;
 	content += sizeof(*bcast_packet);
 
 	/* calculate the crc ... */
 	crc = crc16(0, content, length);
+
+	spin_lock_bh(&bat_priv->bla.bcast_duplist_lock);
 
 	for (i = 0; i < BATADV_DUPLIST_SIZE; i++) {
 		curr = (bat_priv->bla.bcast_duplist_curr + i);
@@ -1259,9 +1263,12 @@ int batadv_bla_check_bcast_duplist(struct batadv_priv *bat_priv,
 		/* this entry seems to match: same crc, not too old,
 		 * and from another gw. therefore return 1 to forbid it.
 		 */
-		return 1;
+		ret = 1;
+		goto out;
 	}
-	/* not found, add a new entry (overwrite the oldest entry) */
+	/* not found, add a new entry (overwrite the oldest entry)
+	 * and allow it, its the first occurence.
+	 */
 	curr = (bat_priv->bla.bcast_duplist_curr + BATADV_DUPLIST_SIZE - 1);
 	curr %= BATADV_DUPLIST_SIZE;
 	entry = &bat_priv->bla.bcast_duplist[curr];
@@ -1270,8 +1277,10 @@ int batadv_bla_check_bcast_duplist(struct batadv_priv *bat_priv,
 	memcpy(entry->orig, bcast_packet->orig, ETH_ALEN);
 	bat_priv->bla.bcast_duplist_curr = curr;
 
-	/* allow it, its the first occurence. */
-	return 0;
+out:
+	spin_unlock_bh(&bat_priv->bla.bcast_duplist_lock);
+
+	return ret;
 }
 
 

@@ -409,38 +409,45 @@ int mlx4_ib_find_real_gid(struct ib_device *ibdev, u8 port, __be64 guid)
 }
 
 
-static int get_pkey_phys_indices(struct mlx4_ib_dev *ibdev, u8 port, u8 ph_pkey_ix,
-				 u8 *full_pk_ix, u8 *partial_pk_ix,
-				 int *is_full_member)
+static int find_slave_port_pkey_ix(struct mlx4_ib_dev *dev, int slave,
+				   u8 port, u16 pkey, u16 *ix)
 {
-	u16 search_pkey;
-	int fm;
-	int err = 0;
-	u16 pk;
+	int i, ret;
+	u8 unassigned_pkey_ix, pkey_ix, partial_ix = 0xFF;
+	u16 slot_pkey;
 
-	err = ib_get_cached_pkey(&ibdev->ib_dev, port, ph_pkey_ix, &search_pkey);
-	if (err)
-		return err;
+	if (slave == mlx4_master_func_num(dev->dev))
+		return ib_find_cached_pkey(&dev->ib_dev, port, pkey, ix);
 
-	fm = (search_pkey & 0x8000) ? 1 : 0;
-	if (fm) {
-		*full_pk_ix = ph_pkey_ix;
-		search_pkey &= 0x7FFF;
-	} else {
-		*partial_pk_ix = ph_pkey_ix;
-		search_pkey |= 0x8000;
+	unassigned_pkey_ix = dev->dev->phys_caps.pkey_phys_table_len[port] - 1;
+
+	for (i = 0; i < dev->dev->caps.pkey_table_len[port]; i++) {
+		if (dev->pkeys.virt2phys_pkey[slave][port - 1][i] == unassigned_pkey_ix)
+			continue;
+
+		pkey_ix = dev->pkeys.virt2phys_pkey[slave][port - 1][i];
+
+		ret = ib_get_cached_pkey(&dev->ib_dev, port, pkey_ix, &slot_pkey);
+		if (ret)
+			continue;
+		if ((slot_pkey & 0x7FFF) == (pkey & 0x7FFF)) {
+			if (slot_pkey & 0x8000) {
+				*ix = (u16) pkey_ix;
+				return 0;
+			} else {
+				/* take first partial pkey index found */
+				if (partial_ix == 0xFF)
+					partial_ix = pkey_ix;
+			}
+		}
 	}
 
-	if (ib_find_exact_cached_pkey(&ibdev->ib_dev, port, search_pkey, &pk))
-		pk = 0xFFFF;
+	if (partial_ix < 0xFF) {
+		*ix = (u16) partial_ix;
+		return 0;
+	}
 
-	if (fm)
-		*partial_pk_ix = (pk & 0xFF);
-	else
-		*full_pk_ix = (pk & 0xFF);
-
-	*is_full_member = fm;
-	return err;
+	return -EINVAL;
 }
 
 int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
@@ -458,10 +465,8 @@ int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 	unsigned tun_tx_ix = 0;
 	int dqpn;
 	int ret = 0;
-	int i;
-	int is_full_member = 0;
 	u16 tun_pkey_ix;
-	u8 ph_pkey_ix, full_pk_ix = 0, partial_pk_ix = 0;
+	u16 cached_pkey;
 
 	if (dest_qpt > IB_QPT_GSI)
 		return -EINVAL;
@@ -481,27 +486,17 @@ int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 	else
 		tun_qp = &tun_ctx->qp[1];
 
-	/* compute pkey index for slave */
-	/* get physical pkey -- virtualized Dom0 pkey to phys*/
+	/* compute P_Key index to put in tunnel header for slave */
 	if (dest_qpt) {
-		ph_pkey_ix =
-			dev->pkeys.virt2phys_pkey[mlx4_master_func_num(dev->dev)][port - 1][wc->pkey_index];
-
-		/* now, translate this to the slave pkey index */
-		ret = get_pkey_phys_indices(dev, port, ph_pkey_ix, &full_pk_ix,
-					    &partial_pk_ix, &is_full_member);
+		u16 pkey_ix;
+		ret = ib_get_cached_pkey(&dev->ib_dev, port, wc->pkey_index, &cached_pkey);
 		if (ret)
 			return -EINVAL;
 
-		for (i = 0; i < dev->dev->caps.pkey_table_len[port]; i++) {
-			if ((dev->pkeys.virt2phys_pkey[slave][port - 1][i] == full_pk_ix) ||
-			    (is_full_member &&
-			     (dev->pkeys.virt2phys_pkey[slave][port - 1][i] == partial_pk_ix)))
-				break;
-		}
-		if (i == dev->dev->caps.pkey_table_len[port])
+		ret = find_slave_port_pkey_ix(dev, slave, port, cached_pkey, &pkey_ix);
+		if (ret)
 			return -EINVAL;
-		tun_pkey_ix = i;
+		tun_pkey_ix = pkey_ix;
 	} else
 		tun_pkey_ix = dev->pkeys.virt2phys_pkey[slave][port - 1][0];
 
