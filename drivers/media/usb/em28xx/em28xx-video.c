@@ -173,11 +173,12 @@ static inline void finish_buffer(struct em28xx *dev,
 static void em28xx_copy_video(struct em28xx *dev,
 			      struct em28xx_buffer *buf,
 			      unsigned char *p,
-			      unsigned char *outp, unsigned long len)
+			      unsigned long len)
 {
 	void *fieldstart, *startwrite, *startread;
 	int  linesdone, currlinedone, offset, lencopy, remain;
 	int bytesperline = dev->width << 1;
+	unsigned char *outp = buf->vb_buf;
 
 	if (buf->pos + len > buf->vb.size)
 		len = buf->vb.size - buf->pos;
@@ -249,11 +250,12 @@ static void em28xx_copy_video(struct em28xx *dev,
 static void em28xx_copy_vbi(struct em28xx *dev,
 			    struct em28xx_buffer *buf,
 			    unsigned char *p,
-			    unsigned char *outp, unsigned long len)
+			    unsigned long len)
 {
 	void *startwrite, *startread;
 	int  offset;
 	int bytesperline;
+	unsigned char *outp;
 
 	if (dev == NULL) {
 		em28xx_isocdbg("dev is null\n");
@@ -268,6 +270,7 @@ static void em28xx_copy_vbi(struct em28xx *dev,
 		em28xx_isocdbg("p is null\n");
 		return;
 	}
+	outp = buf->vb_buf;
 	if (outp == NULL) {
 		em28xx_isocdbg("outp is null\n");
 		return;
@@ -350,6 +353,7 @@ static inline struct em28xx_buffer *get_next_buf(struct em28xx *dev,
 	outp = videobuf_to_vmalloc(&buf->vb);
 	memset(outp, 0, buf->vb.size);
 	buf->pos = 0;
+	buf->vb_buf = outp;
 
 	return buf;
 }
@@ -362,7 +366,7 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 	struct em28xx_dmaqueue  *vbi_dma_q = &dev->vbiq;
 	int xfer_bulk, num_packets, i, rc = 1;
 	unsigned int actual_length, len = 0;
-	unsigned char *p, *outp = NULL, *vbioutp = NULL;
+	unsigned char *p;
 
 	if (!dev)
 		return 0;
@@ -376,12 +380,7 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 	xfer_bulk = usb_pipebulk(urb->pipe);
 
 	buf = dev->usb_ctl.vid_buf;
-	if (buf != NULL)
-		outp = videobuf_to_vmalloc(&buf->vb);
-
 	vbi_buf = dev->usb_ctl.vbi_buf;
-	if (vbi_buf != NULL)
-		vbioutp = videobuf_to_vmalloc(&vbi_buf->vb);
 
 	if (xfer_bulk) /* bulk */
 		num_packets = 1;
@@ -455,11 +454,6 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 					finish_buffer(dev, vbi_buf);
 				vbi_buf = get_next_buf(dev, vbi_dma_q);
 				dev->usb_ctl.vbi_buf = vbi_buf;
-				if (vbi_buf == NULL)
-					vbioutp = NULL;
-				else
-					vbioutp =
-					  videobuf_to_vmalloc(&vbi_buf->vb);
 			}
 			if (vbi_buf != NULL) {
 				vbi_buf->top_field = dev->top_field;
@@ -474,8 +468,7 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 
 			/* Copy VBI data */
 			if (vbi_buf != NULL)
-				em28xx_copy_vbi(dev, vbi_buf, p, vbioutp,
-						vbi_data_len);
+				em28xx_copy_vbi(dev, vbi_buf, p, vbi_data_len);
 			dev->vbi_read += vbi_data_len;
 
 			if (vbi_data_len < len) {
@@ -493,10 +486,6 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 					finish_buffer(dev, buf);
 				buf = get_next_buf(dev, dma_q);
 				dev->usb_ctl.vid_buf = buf;
-				if (buf == NULL)
-					outp = NULL;
-				else
-					outp = videobuf_to_vmalloc(&buf->vb);
 			}
 			if (buf != NULL) {
 				buf->top_field = dev->top_field;
@@ -505,7 +494,7 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 		}
 
 		if (buf != NULL && dev->capture_type == 3 && len > 0)
-			em28xx_copy_video(dev, buf, p, outp, len);
+			em28xx_copy_video(dev, buf, p, len);
 	}
 	return rc;
 }

@@ -258,6 +258,9 @@ struct em28xx_buffer {
 	unsigned int pos;
 	/* NOTE; in interlaced mode, this value is reset to zero at
 	 * the start of each new field (not frame !)		   */
+
+	/* pointer to vmalloc memory address in vb */
+	char *vb_buf;
 };
 
 struct em28xx_dmaqueue {
