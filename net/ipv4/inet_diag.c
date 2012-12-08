@@ -432,25 +432,31 @@ static int inet_diag_bc_run(const struct nlattr *_bc,
 				break;
 			}
 
-			if (cond->prefix_len == 0)
-				break;
-
 			if (op->code == INET_DIAG_BC_S_COND)
 				addr = entry->saddr;
 			else
 				addr = entry->daddr;
 
+			if (cond->family != AF_UNSPEC &&
+			    cond->family != entry->family) {
+				if (entry->family == AF_INET6 &&
+				    cond->family == AF_INET) {
+					if (addr[0] == 0 && addr[1] == 0 &&
+					    addr[2] == htonl(0xffff) &&
+					    bitstring_match(addr + 3,
+							    cond->addr,
+							    cond->prefix_len))
+						break;
+				}
+				yes = 0;
+				break;
+			}
+
+			if (cond->prefix_len == 0)
+				break;
 			if (bitstring_match(addr, cond->addr,
 					    cond->prefix_len))
 				break;
-			if (entry->family == AF_INET6 &&
-			    cond->family == AF_INET) {
-				if (addr[0] == 0 && addr[1] == 0 &&
-				    addr[2] == htonl(0xffff) &&
-				    bitstring_match(addr + 3, cond->addr,
-						    cond->prefix_len))
-					break;
-			}
 			yes = 0;
 			break;
 		}
