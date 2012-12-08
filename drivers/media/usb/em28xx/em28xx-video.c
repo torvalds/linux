@@ -154,37 +154,15 @@ static struct v4l2_queryctrl ac97_qctrl[] = {
    ------------------------------------------------------------------*/
 
 /*
- * Announces that a buffer were filled and request the next
+ * Finish the current buffer
  */
-static inline void buffer_filled(struct em28xx *dev,
-				  struct em28xx_dmaqueue *dma_q,
-				  struct em28xx_buffer *buf)
+static inline void finish_buffer(struct em28xx *dev,
+				 struct em28xx_buffer *buf)
 {
-	/* Advice that buffer was filled */
 	em28xx_isocdbg("[%p/%d] wakeup\n", buf, buf->vb.i);
 	buf->vb.state = VIDEOBUF_DONE;
 	buf->vb.field_count++;
 	v4l2_get_timestamp(&buf->vb.ts);
-
-	dev->usb_ctl.vid_buf = NULL;
-
-	list_del(&buf->vb.queue);
-	wake_up(&buf->vb.done);
-}
-
-static inline void vbi_buffer_filled(struct em28xx *dev,
-				     struct em28xx_dmaqueue *dma_q,
-				     struct em28xx_buffer *buf)
-{
-	/* Advice that buffer was filled */
-	em28xx_isocdbg("[%p/%d] wakeup\n", buf, buf->vb.i);
-
-	buf->vb.state = VIDEOBUF_DONE;
-	buf->vb.field_count++;
-	v4l2_get_timestamp(&buf->vb.ts);
-
-	dev->usb_ctl.vbi_buf = NULL;
-
 	list_del(&buf->vb.queue);
 	wake_up(&buf->vb.done);
 }
@@ -485,9 +463,7 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 				if (dev->vbi_read == 0 && dev->top_field) {
 					/* Brand new frame */
 					if (vbi_buf != NULL)
-						vbi_buffer_filled(dev,
-								  vbi_dma_q,
-								  vbi_buf);
+						finish_buffer(dev, vbi_buf);
 					vbi_buf = get_next_buf(dev, vbi_dma_q);
 					dev->usb_ctl.vbi_buf = vbi_buf;
 					if (vbi_buf == NULL)
@@ -524,7 +500,7 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 			dev->capture_type = 2;
 			if (dev->progressive || dev->top_field) {
 				if (buf != NULL)
-					buffer_filled(dev, dma_q, buf);
+					finish_buffer(dev, buf);
 				buf = get_next_buf(dev, dma_q);
 				dev->usb_ctl.vid_buf = buf;
 				if (buf == NULL)
