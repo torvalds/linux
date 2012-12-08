@@ -253,15 +253,17 @@ struct em28xx_buffer {
 	struct videobuf_buffer vb;
 
 	int top_field;
+
+	/* counter to control buffer fill */
+	unsigned int pos;
+	/* NOTE; in interlaced mode, this value is reset to zero at
+	 * the start of each new field (not frame !)		   */
 };
 
 struct em28xx_dmaqueue {
 	struct list_head       active;
 
 	wait_queue_head_t          wq;
-
-	/* Counters to control buffer fill */
-	int                        pos;
 };
 
 /* inputs */

@@ -171,7 +171,6 @@ static inline void finish_buffer(struct em28xx *dev,
  * Identify the buffer header type and properly handles
  */
 static void em28xx_copy_video(struct em28xx *dev,
-			      struct em28xx_dmaqueue  *dma_q,
 			      struct em28xx_buffer *buf,
 			      unsigned char *p,
 			      unsigned char *outp, unsigned long len)
@@ -180,8 +179,8 @@ static void em28xx_copy_video(struct em28xx *dev,
 	int  linesdone, currlinedone, offset, lencopy, remain;
 	int bytesperline = dev->width << 1;
 
-	if (dma_q->pos + len > buf->vb.size)
-		len = buf->vb.size - dma_q->pos;
+	if (buf->pos + len > buf->vb.size)
+		len = buf->vb.size - buf->pos;
 
 	startread = p;
 	remain = len;
@@ -191,8 +190,8 @@ static void em28xx_copy_video(struct em28xx *dev,
 	else /* interlaced mode, even nr. of lines */
 		fieldstart = outp + bytesperline;
 
-	linesdone = dma_q->pos / bytesperline;
-	currlinedone = dma_q->pos % bytesperline;
+	linesdone = buf->pos / bytesperline;
+	currlinedone = buf->pos % bytesperline;
 
 	if (dev->progressive)
 		offset = linesdone * bytesperline + currlinedone;
@@ -244,14 +243,13 @@ static void em28xx_copy_video(struct em28xx *dev,
 		remain -= lencopy;
 	}
 
-	dma_q->pos += len;
+	buf->pos += len;
 }
 
 static void em28xx_copy_vbi(struct em28xx *dev,
-			      struct em28xx_dmaqueue  *dma_q,
-			      struct em28xx_buffer *buf,
-			      unsigned char *p,
-			      unsigned char *outp, unsigned long len)
+			    struct em28xx_buffer *buf,
+			    unsigned char *p,
+			    unsigned char *outp, unsigned long len)
 {
 	void *startwrite, *startread;
 	int  offset;
@@ -263,10 +261,6 @@ static void em28xx_copy_vbi(struct em28xx *dev,
 	}
 	bytesperline = dev->vbi_width;
 
-	if (dma_q == NULL) {
-		em28xx_isocdbg("dma_q is null\n");
-		return;
-	}
 	if (buf == NULL) {
 		return;
 	}
@@ -279,13 +273,13 @@ static void em28xx_copy_vbi(struct em28xx *dev,
 		return;
 	}
 
-	if (dma_q->pos + len > buf->vb.size)
-		len = buf->vb.size - dma_q->pos;
+	if (buf->pos + len > buf->vb.size)
+		len = buf->vb.size - buf->pos;
 
 	startread = p;
 
-	startwrite = outp + dma_q->pos;
-	offset = dma_q->pos;
+	startwrite = outp + buf->pos;
+	offset = buf->pos;
 
 	/* Make sure the bottom field populates the second half of the frame */
 	if (buf->top_field == 0) {
@@ -294,7 +288,7 @@ static void em28xx_copy_vbi(struct em28xx *dev,
 	}
 
 	memcpy(startwrite, startread, len);
-	dma_q->pos += len;
+	buf->pos += len;
 }
 
 static inline void print_err_status(struct em28xx *dev,
@@ -355,6 +349,7 @@ static inline struct em28xx_buffer *get_next_buf(struct em28xx *dev,
 	/* Cleans up buffer - Useful for testing for frame/URB loss */
 	outp = videobuf_to_vmalloc(&buf->vb);
 	memset(outp, 0, buf->vb.size);
+	buf->pos = 0;
 
 	return buf;
 }
@@ -474,22 +469,22 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 				}
 
 				if (dev->vbi_read == 0) {
-					vbi_dma_q->pos = 0;
-					if (vbi_buf != NULL)
+					if (vbi_buf != NULL) {
 						vbi_buf->top_field
 						  = dev->top_field;
+						vbi_buf->pos = 0;
+					}
 				}
 
 				dev->vbi_read += len;
-				em28xx_copy_vbi(dev, vbi_dma_q, vbi_buf, p,
-						vbioutp, len);
+				em28xx_copy_vbi(dev, vbi_buf, p, vbioutp, len);
 			} else {
 				/* Some of this frame is VBI data and some is
 				   video data */
 				int vbi_data_len = vbi_size - dev->vbi_read;
 				dev->vbi_read += vbi_data_len;
-				em28xx_copy_vbi(dev, vbi_dma_q, vbi_buf, p,
-						vbioutp, vbi_data_len);
+				em28xx_copy_vbi(dev, vbi_buf, p, vbioutp,
+						vbi_data_len);
 				dev->capture_type = 1;
 				p += vbi_data_len;
 				len -= vbi_data_len;
@@ -508,14 +503,14 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 				else
 					outp = videobuf_to_vmalloc(&buf->vb);
 			}
-			if (buf != NULL)
+			if (buf != NULL) {
 				buf->top_field = dev->top_field;
-
-			dma_q->pos = 0;
+				buf->pos = 0;
+			}
 		}
 
 		if (buf != NULL && dev->capture_type == 2 && len > 0)
-			em28xx_copy_video(dev, dma_q, buf, p, outp, len);
+			em28xx_copy_video(dev, buf, p, outp, len);
 	}
 	return rc;
 }
