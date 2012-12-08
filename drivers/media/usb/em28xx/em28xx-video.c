@@ -358,6 +358,27 @@ static inline struct em28xx_buffer *get_next_buf(struct em28xx *dev,
 	return buf;
 }
 
+/*
+ * Finish the current buffer if completed and prepare for the next field
+ */
+static struct em28xx_buffer *
+finish_field_prepare_next(struct em28xx *dev,
+			  struct em28xx_buffer *buf,
+			  struct em28xx_dmaqueue *dma_q)
+{
+	if (dev->progressive || dev->top_field) { /* Brand new frame */
+		if (buf != NULL)
+			finish_buffer(dev, buf);
+		buf = get_next_buf(dev, dma_q);
+	}
+	if (buf != NULL) {
+		buf->top_field = dev->top_field;
+		buf->pos = 0;
+	}
+
+	return buf;
+}
+
 /* Processes and copies the URB data content (video and VBI data) */
 static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 {
@@ -448,17 +469,9 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 		 * have no continuation header */
 
 		if (dev->capture_type == 0) {
+			vbi_buf = finish_field_prepare_next(dev, vbi_buf, vbi_dma_q);
+			dev->usb_ctl.vbi_buf = vbi_buf;
 			dev->capture_type = 1;
-			if (dev->top_field) { /* Brand new frame */
-				if (vbi_buf != NULL)
-					finish_buffer(dev, vbi_buf);
-				vbi_buf = get_next_buf(dev, vbi_dma_q);
-				dev->usb_ctl.vbi_buf = vbi_buf;
-			}
-			if (vbi_buf != NULL) {
-				vbi_buf->top_field = dev->top_field;
-				vbi_buf->pos = 0;
-			}
 		}
 
 		if (dev->capture_type == 1) {
@@ -480,17 +493,9 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 		}
 
 		if (dev->capture_type == 2) {
+			buf = finish_field_prepare_next(dev, buf, dma_q);
+			dev->usb_ctl.vid_buf = buf;
 			dev->capture_type = 3;
-			if (dev->progressive || dev->top_field) {
-				if (buf != NULL)
-					finish_buffer(dev, buf);
-				buf = get_next_buf(dev, dma_q);
-				dev->usb_ctl.vid_buf = buf;
-			}
-			if (buf != NULL) {
-				buf->top_field = dev->top_field;
-				buf->pos = 0;
-			}
 		}
 
 		if (buf != NULL && dev->capture_type == 3 && len > 0)
