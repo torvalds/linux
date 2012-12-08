@@ -89,6 +89,25 @@ out:
 
 }
 
+static void wlcore_started_vifs_iter(void *data, u8 *mac,
+				     struct ieee80211_vif *vif)
+{
+	int *count = (int *)data;
+
+	if (!vif->bss_conf.idle)
+		(*count)++;
+}
+
+static int wlcore_count_started_vifs(struct wl1271 *wl)
+{
+	int count = 0;
+
+	ieee80211_iterate_active_interfaces_atomic(wl->hw,
+					IEEE80211_IFACE_ITER_RESUME_ALL,
+					wlcore_started_vifs_iter, &count);
+	return count;
+}
+
 static int
 wlcore_scan_get_channels(struct wl1271 *wl,
 			 struct ieee80211_channel *req_channels[],
@@ -109,9 +128,14 @@ wlcore_scan_get_channels(struct wl1271 *wl,
 	/* configure dwell times according to scan type */
 	if (scan_type == SCAN_TYPE_SEARCH) {
 		struct conf_scan_settings *c = &wl->conf.scan;
+		bool active_vif_exists = !!wlcore_count_started_vifs(wl);
 
-		min_dwell_time_active = c->min_dwell_time_active;
-		max_dwell_time_active = c->max_dwell_time_active;
+		min_dwell_time_active = active_vif_exists ?
+			c->min_dwell_time_active :
+			c->min_dwell_time_active_long;
+		max_dwell_time_active = active_vif_exists ?
+			c->max_dwell_time_active :
+			c->max_dwell_time_active_long;
 		dwell_time_passive = c->dwell_time_passive;
 		dwell_time_dfs = c->dwell_time_dfs;
 	} else {

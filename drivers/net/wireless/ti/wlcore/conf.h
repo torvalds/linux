@@ -1088,6 +1088,7 @@ struct conf_roam_trigger_settings {
 struct conf_scan_settings {
 	/*
 	 * The minimum time to wait on each channel for active scans
+	 * This value will be used whenever there's a connected interface.
 	 *
 	 * Range: u32 tu/1000
 	 */
@@ -1095,10 +1096,31 @@ struct conf_scan_settings {
 
 	/*
 	 * The maximum time to wait on each channel for active scans
+	 * This value will be currently used whenever there's a
+	 * connected interface. It shouldn't exceed 30000 (~30ms) to avoid
+	 * possible interference of voip traffic going on while scanning.
 	 *
 	 * Range: u32 tu/1000
 	 */
 	u32 max_dwell_time_active;
+
+	/* The minimum time to wait on each channel for active scans
+	 * when it's possible to have longer scan dwell times.
+	 * Currently this is used whenever we're idle on all interfaces.
+	 * Longer dwell times improve detection of networks within a
+	 * single scan.
+	 *
+	 * Range: u32 tu/1000
+	 */
+	u32 min_dwell_time_active_long;
+
+	/* The maximum time to wait on each channel for active scans
+	 * when it's possible to have longer scan dwell times.
+	 * See min_dwell_time_active_long
+	 *
+	 * Range: u32 tu/1000
+	 */
+	u32 max_dwell_time_active_long;
 
 	/* time to wait on the channel for passive scans (in TU/1000) */
 	u32 dwell_time_passive;
