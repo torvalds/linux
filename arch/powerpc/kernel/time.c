@@ -297,6 +297,8 @@ static u64 vtime_delta(struct task_struct *tsk,
 	u64 now, nowscaled, deltascaled;
 	u64 udelta, delta, user_scaled;
 
+	WARN_ON_ONCE(!irqs_disabled());
+
 	now = mftb();
 	nowscaled = read_spurr(now);
 	get_paca()->system_time += now - get_paca()->starttime;
@@ -336,7 +338,7 @@ static u64 vtime_delta(struct task_struct *tsk,
 	return delta;
 }
 
-void __vtime_account_system(struct task_struct *tsk)
+void vtime_account_system(struct task_struct *tsk)
 {
 	u64 delta, sys_scaled, stolen;
 
@@ -346,7 +348,7 @@ void __vtime_account_system(struct task_struct *tsk)
 		account_steal_time(stolen);
 }
 
-void __vtime_account_idle(struct task_struct *tsk)
+void vtime_account_idle(struct task_struct *tsk)
 {
 	u64 delta, sys_scaled, stolen;
 
@@ -355,15 +357,15 @@ void __vtime_account_idle(struct task_struct *tsk)
 }
 
 /*
- * Transfer the user and system times accumulated in the paca
- * by the exception entry and exit code to the generic process
- * user and system time records.
+ * Transfer the user time accumulated in the paca
+ * by the exception entry and exit code to the generic
+ * process user time records.
  * Must be called with interrupts disabled.
- * Assumes that vtime_account() has been called recently
- * (i.e. since the last entry from usermode) so that
+ * Assumes that vtime_account_system/idle() has been called
+ * recently (i.e. since the last entry from usermode) so that
  * get_paca()->user_time_scaled is up to date.
  */
-void account_process_tick(struct task_struct *tsk, int user_tick)
+void vtime_account_user(struct task_struct *tsk)
 {
 	cputime_t utime, utimescaled;
 
@@ -373,12 +375,6 @@ void account_process_tick(struct task_struct *tsk, int user_tick)
 	get_paca()->user_time_scaled = 0;
 	get_paca()->utime_sspurr = 0;
 	account_user_time(tsk, utime, utimescaled);
-}
-
-void vtime_task_switch(struct task_struct *prev)
-{
-	vtime_account(prev);
-	account_process_tick(prev, 0);
 }
 
 #else /* ! CONFIG_VIRT_CPU_ACCOUNTING */

@@ -461,20 +461,33 @@ void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime
 	*st = cputime.stime;
 }
 
-void vtime_account_system(struct task_struct *tsk)
+void vtime_account_system_irqsafe(struct task_struct *tsk)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
-	__vtime_account_system(tsk);
+	vtime_account_system(tsk);
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL_GPL(vtime_account_system);
+EXPORT_SYMBOL_GPL(vtime_account_system_irqsafe);
+
+#ifndef __ARCH_HAS_VTIME_TASK_SWITCH
+void vtime_task_switch(struct task_struct *prev)
+{
+	if (is_idle_task(prev))
+		vtime_account_idle(prev);
+	else
+		vtime_account_system(prev);
+
+	vtime_account_user(prev);
+	arch_vtime_task_switch(prev);
+}
+#endif
 
 /*
  * Archs that account the whole time spent in the idle task
  * (outside irq) as idle time can rely on this and just implement
- * __vtime_account_system() and __vtime_account_idle(). Archs that
+ * vtime_account_system() and vtime_account_idle(). Archs that
  * have other meaning of the idle time (s390 only includes the
  * time spent by the CPU when it's in low power mode) must override
  * vtime_account().
@@ -482,16 +495,10 @@ EXPORT_SYMBOL_GPL(vtime_account_system);
 #ifndef __ARCH_HAS_VTIME_ACCOUNT
 void vtime_account(struct task_struct *tsk)
 {
-	unsigned long flags;
-
-	local_irq_save(flags);
-
 	if (in_interrupt() || !is_idle_task(tsk))
-		__vtime_account_system(tsk);
+		vtime_account_system(tsk);
 	else
-		__vtime_account_idle(tsk);
-
-	local_irq_restore(flags);
+		vtime_account_idle(tsk);
 }
 EXPORT_SYMBOL_GPL(vtime_account);
 #endif /* __ARCH_HAS_VTIME_ACCOUNT */
