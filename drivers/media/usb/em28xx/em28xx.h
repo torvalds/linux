@@ -252,7 +252,6 @@ struct em28xx_buffer {
 	/* common v4l buffer stuff -- must be first */
 	struct videobuf_buffer vb;
 
-	struct list_head frame;
 	int top_field;
 };
 
