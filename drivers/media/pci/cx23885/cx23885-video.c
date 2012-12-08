@@ -509,7 +509,8 @@ static int cx23885_video_mux(struct cx23885_dev *dev, unsigned int input)
 		(dev->board == CX23885_BOARD_HAUPPAUGE_HVR1255) ||
 		(dev->board == CX23885_BOARD_HAUPPAUGE_HVR1255_22111) ||
 		(dev->board == CX23885_BOARD_HAUPPAUGE_HVR1850) ||
-		(dev->board == CX23885_BOARD_MYGICA_X8507)) {
+		(dev->board == CX23885_BOARD_MYGICA_X8507) ||
+		(dev->board == CX23885_BOARD_AVERMEDIA_HC81R)) {
 		/* Configure audio routing */
 		v4l2_subdev_call(dev->sd_cx25840, audio, s_routing,
 			INPUT(input)->amux, 0, 0);
@@ -1870,6 +1871,18 @@ int cx23885_video_register(struct cx23885_dev *dev)
 			if (dev->board == CX23885_BOARD_LEADTEK_WINFAST_PXTV1200) {
 				struct xc2028_ctrl ctrl = {
 					.fname = XC2028_DEFAULT_FIRMWARE,
+					.max_len = 64
+				};
+				struct v4l2_priv_tun_config cfg = {
+					.tuner = dev->tuner_type,
+					.priv = &ctrl
+				};
+				v4l2_subdev_call(sd, tuner, s_config, &cfg);
+			}
+
+			if (dev->board == CX23885_BOARD_AVERMEDIA_HC81R) {
+				struct xc2028_ctrl ctrl = {
+					.fname = "xc3028L-v36.fw",
 					.max_len = 64
 				};
 				struct v4l2_priv_tun_config cfg = {
