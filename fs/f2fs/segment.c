@@ -647,28 +647,18 @@ struct bio *f2fs_bio_alloc(struct block_device *bdev, sector_t first_sector,
 					int nr_vecs, gfp_t gfp_flags)
 {
 	struct bio *bio;
-repeat:
+
 	/* allocate new bio */
 	bio = bio_alloc(gfp_flags, nr_vecs);
 
-	if (bio == NULL && (current->flags & PF_MEMALLOC)) {
-		while (!bio && (nr_vecs /= 2))
-			bio = bio_alloc(gfp_flags, nr_vecs);
-	}
-	if (bio) {
-		bio->bi_bdev = bdev;
-		bio->bi_sector = first_sector;
+	bio->bi_bdev = bdev;
+	bio->bi_sector = first_sector;
 retry:
-		bio->bi_private = kmalloc(sizeof(struct bio_private),
-						GFP_NOFS | __GFP_HIGH);
-		if (!bio->bi_private) {
-			cond_resched();
-			goto retry;
-		}
-	}
-	if (bio == NULL) {
+	bio->bi_private = kmalloc(sizeof(struct bio_private),
+					GFP_NOFS | __GFP_HIGH);
+	if (!bio->bi_private) {
 		cond_resched();
-		goto repeat;
+		goto retry;
 	}
 	return bio;
 }
