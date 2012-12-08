@@ -514,10 +514,9 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 		ClearPageUptodate(page);
 		dec_page_count(sbi, F2FS_DIRTY_DENTS);
 		inode_dec_dirty_dents(dir);
-		f2fs_put_page(page, 1);
-	} else {
-		f2fs_put_page(page, 1);
 	}
+	f2fs_put_page(page, 1);
+
 	mutex_unlock_op(sbi, DENTRY_OPS);
 }
 
