@@ -513,6 +513,44 @@ static int valid_cc(const void *bc, int len, int cc)
 	return 0;
 }
 
+/* Validate an inet_diag_hostcond. */
+static bool valid_hostcond(const struct inet_diag_bc_op *op, int len,
+			   int *min_len)
+{
+	int addr_len;
+	struct inet_diag_hostcond *cond;
+
+	/* Check hostcond space. */
+	*min_len += sizeof(struct inet_diag_hostcond);
+	if (len < *min_len)
+		return false;
+	cond = (struct inet_diag_hostcond *)(op + 1);
+
+	/* Check address family and address length. */
+	switch (cond->family) {
+	case AF_UNSPEC:
+		addr_len = 0;
+		break;
+	case AF_INET:
+		addr_len = sizeof(struct in_addr);
+		break;
+	case AF_INET6:
+		addr_len = sizeof(struct in6_addr);
+		break;
+	default:
+		return false;
+	}
+	*min_len += addr_len;
+	if (len < *min_len)
+		return false;
+
+	/* Check prefix length (in bits) vs address length (in bytes). */
+	if (cond->prefix_len > 8 * addr_len)
+		return false;
+
+	return true;
+}
+
 static int inet_diag_bc_audit(const void *bytecode, int bytecode_len)
 {
 	const void *bc = bytecode;
@@ -520,18 +558,22 @@ static int inet_diag_bc_audit(const void *bytecode, int bytecode_len)
 
 	while (len > 0) {
 		const struct inet_diag_bc_op *op = bc;
+		int min_len = sizeof(struct inet_diag_bc_op);
 
 //printk("BC: %d %d %d {%d} / %d\n", op->code, op->yes, op->no, op[1].no, len);
 		switch (op->code) {
-		case INET_DIAG_BC_AUTO:
 		case INET_DIAG_BC_S_COND:
 		case INET_DIAG_BC_D_COND:
+			if (!valid_hostcond(bc, len, &min_len))
+				return -EINVAL;
+			/* fall through */
+		case INET_DIAG_BC_AUTO:
 		case INET_DIAG_BC_S_GE:
 		case INET_DIAG_BC_S_LE:
 		case INET_DIAG_BC_D_GE:
 		case INET_DIAG_BC_D_LE:
 		case INET_DIAG_BC_JMP:
-			if (op->no < 4 || op->no > len + 4 || op->no & 3)
+			if (op->no < min_len || op->no > len + 4 || op->no & 3)
 				return -EINVAL;
 			if (op->no < len &&
 			    !valid_cc(bytecode, bytecode_len, len - op->no))
@@ -542,7 +584,7 @@ static int inet_diag_bc_audit(const void *bytecode, int bytecode_len)
 		default:
 			return -EINVAL;
 		}
-		if (op->yes < 4 || op->yes > len + 4 || op->yes & 3)
+		if (op->yes < min_len || op->yes > len + 4 || op->yes & 3)
 			return -EINVAL;
 		bc  += op->yes;
 		len -= op->yes;
