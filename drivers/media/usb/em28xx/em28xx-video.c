@@ -418,8 +418,9 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 		}
 
 		/* capture type 0 = vbi start
-		   capture type 1 = video start
-		   capture type 2 = video in progress */
+		   capture type 1 = vbi in progress
+		   capture type 2 = video start
+		   capture type 3 = video in progress */
 		len = actual_length;
 		if (len >= 4) {
 			/* NOTE: headers are always 4 bytes and
@@ -438,7 +439,7 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 				len -= 4;
 			} else if (p[0] == 0x22 && p[1] == 0x5a) {
 				/* start video */
-				dev->capture_type = 1;
+				dev->capture_type = 2;
 				dev->top_field = !(p[2] & 1);
 				p += 4;
 				len -= 4;
@@ -448,51 +449,45 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 		 * have no continuation header */
 
 		if (dev->capture_type == 0) {
+			dev->capture_type = 1;
+			if (dev->top_field) { /* Brand new frame */
+				if (vbi_buf != NULL)
+					finish_buffer(dev, vbi_buf);
+				vbi_buf = get_next_buf(dev, vbi_dma_q);
+				dev->usb_ctl.vbi_buf = vbi_buf;
+				if (vbi_buf == NULL)
+					vbioutp = NULL;
+				else
+					vbioutp =
+					  videobuf_to_vmalloc(&vbi_buf->vb);
+			}
+			if (vbi_buf != NULL) {
+				vbi_buf->top_field = dev->top_field;
+				vbi_buf->pos = 0;
+			}
+		}
+
+		if (dev->capture_type == 1) {
 			int vbi_size = dev->vbi_width * dev->vbi_height;
-			if (dev->vbi_read >= vbi_size) {
-				/* We've already read all the VBI data, so
-				   treat the rest as video */
-				em28xx_isocdbg("dev->vbi_read > vbi_size\n");
-			} else if ((dev->vbi_read + len) < vbi_size) {
-				/* This entire frame is VBI data */
-				if (dev->vbi_read == 0 && dev->top_field) {
-					/* Brand new frame */
-					if (vbi_buf != NULL)
-						finish_buffer(dev, vbi_buf);
-					vbi_buf = get_next_buf(dev, vbi_dma_q);
-					dev->usb_ctl.vbi_buf = vbi_buf;
-					if (vbi_buf == NULL)
-						vbioutp = NULL;
-					else
-						vbioutp = videobuf_to_vmalloc(
-							&vbi_buf->vb);
-				}
+			int vbi_data_len = ((dev->vbi_read + len) > vbi_size) ?
+					   (vbi_size - dev->vbi_read) : len;
 
-				if (dev->vbi_read == 0) {
-					if (vbi_buf != NULL) {
-						vbi_buf->top_field
-						  = dev->top_field;
-						vbi_buf->pos = 0;
-					}
-				}
-
-				dev->vbi_read += len;
-				em28xx_copy_vbi(dev, vbi_buf, p, vbioutp, len);
-			} else {
-				/* Some of this frame is VBI data and some is
-				   video data */
-				int vbi_data_len = vbi_size - dev->vbi_read;
-				dev->vbi_read += vbi_data_len;
+			/* Copy VBI data */
+			if (vbi_buf != NULL)
 				em28xx_copy_vbi(dev, vbi_buf, p, vbioutp,
 						vbi_data_len);
-				dev->capture_type = 1;
+			dev->vbi_read += vbi_data_len;
+
+			if (vbi_data_len < len) {
+				/* Continue with copying video data */
+				dev->capture_type = 2;
 				p += vbi_data_len;
 				len -= vbi_data_len;
 			}
 		}
 
-		if (dev->capture_type == 1) {
-			dev->capture_type = 2;
+		if (dev->capture_type == 2) {
+			dev->capture_type = 3;
 			if (dev->progressive || dev->top_field) {
 				if (buf != NULL)
 					finish_buffer(dev, buf);
@@ -509,7 +504,7 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 			}
 		}
 
-		if (buf != NULL && dev->capture_type == 2 && len > 0)
+		if (buf != NULL && dev->capture_type == 3 && len > 0)
 			em28xx_copy_video(dev, buf, p, outp, len);
 	}
 	return rc;
