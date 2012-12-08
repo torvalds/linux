@@ -684,7 +684,7 @@ static int carl9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len,
 	if (!skb)
 		return -ENOMEM;
 
-	memcpy(IEEE80211_SKB_RXCB(skb), &status, sizeof(status));
+	memcpy(IEEE80211_SKB_RXCB(skb), status, sizeof(*status));
 	ieee80211_rx(ar->hw, skb);
 	return 0;
 }
