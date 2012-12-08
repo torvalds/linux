@@ -99,8 +99,7 @@ static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
 					NR_DENTRY_IN_BLOCK, 0);
 	while (bit_pos < NR_DENTRY_IN_BLOCK) {
 		de = &dentry_blk->dentry[bit_pos];
-		slots = (le16_to_cpu(de->name_len) + F2FS_NAME_LEN - 1) /
-							F2FS_NAME_LEN;
+		slots = GET_DENTRY_SLOTS(le16_to_cpu(de->name_len));
 
 		if (early_match_name(name, namelen, namehash, de)) {
 			if (!memcmp(dentry_blk->filename[bit_pos],
@@ -130,7 +129,7 @@ static struct f2fs_dir_entry *find_in_level(struct inode *dir,
 		unsigned int level, const char *name, int namelen,
 			f2fs_hash_t namehash, struct page **res_page)
 {
-	int s = (namelen + F2FS_NAME_LEN - 1) / F2FS_NAME_LEN;
+	int s = GET_DENTRY_SLOTS(namelen);
 	unsigned int nbucket, nblock;
 	unsigned int bidx, end_block;
 	struct page *dentry_page;
@@ -383,7 +382,7 @@ int f2fs_add_link(struct dentry *dentry, struct inode *inode)
 	int namelen = dentry->d_name.len;
 	struct page *dentry_page = NULL;
 	struct f2fs_dentry_block *dentry_blk = NULL;
-	int slots = (namelen + F2FS_NAME_LEN - 1) / F2FS_NAME_LEN;
+	int slots = GET_DENTRY_SLOTS(namelen);
 	int err = 0;
 	int i;
 
@@ -465,8 +464,7 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 	struct address_space *mapping = page->mapping;
 	struct inode *dir = mapping->host;
 	struct f2fs_sb_info *sbi = F2FS_SB(dir->i_sb);
-	int slots = (le16_to_cpu(dentry->name_len) + F2FS_NAME_LEN - 1) /
-							F2FS_NAME_LEN;
+	int slots = GET_DENTRY_SLOTS(le16_to_cpu(dentry->name_len));
 	void *kaddr = page_address(page);
 	int i;
 
@@ -641,8 +639,7 @@ static int f2fs_readdir(struct file *file, void *dirent, filldir_t filldir)
 				file->f_pos += bit_pos - start_bit_pos;
 				goto success;
 			}
-			slots = (le16_to_cpu(de->name_len) + F2FS_NAME_LEN - 1)
-								/ F2FS_NAME_LEN;
+			slots = GET_DENTRY_SLOTS(le16_to_cpu(de->name_len));
 			bit_pos += slots;
 		}
 		bit_pos = 0;
