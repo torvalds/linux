@@ -98,6 +98,9 @@ static void __init kirkwood_dt_init(void)
 	if (of_machine_is_compatible("globalscale,dreamplug"))
 		dreamplug_init();
 
+	if (of_machine_is_compatible("globalscale,guruplug"))
+		guruplug_dt_init();
+
 	if (of_machine_is_compatible("dlink,dns-kirkwood"))
 		dnskw_init();
 
@@ -149,6 +152,7 @@ static void __init kirkwood_dt_init(void)
 
 static const char * const kirkwood_dt_board_compat[] = {
 	"globalscale,dreamplug",
+	"globalscale,guruplug",
 	"dlink,dns-320",
 	"dlink,dns-325",
 	"iom,iconnect",
