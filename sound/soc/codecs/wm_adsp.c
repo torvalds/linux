@@ -544,6 +544,28 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+		/*
+		 * For simplicity set the DSP clock rate to be the
+		 * SYSCLK rate rather than making it configurable.
+		 */
+		ret = regmap_read(dsp->regmap, ARIZONA_SYSTEM_CLOCK_1, &val);
+		if (ret != 0) {
+			adsp_err(dsp, "Failed to read SYSCLK state: %d\n",
+				 ret);
+			return ret;
+		}
+		val = (val & ARIZONA_SYSCLK_FREQ_MASK)
+			>> ARIZONA_SYSCLK_FREQ_SHIFT;
+
+		ret = regmap_update_bits(dsp->regmap,
+					 dsp->base + ADSP2_CLOCKING,
+					 ADSP2_CLK_SEL_MASK, val);
+		if (ret != 0) {
+			adsp_err(dsp, "Failed to set clock rate: %d\n",
+				 ret);
+			return ret;
+		}
+
 		if (dsp->dvfs) {
 			ret = regmap_read(dsp->regmap,
 					  dsp->base + ADSP2_CLOCKING, &val);
@@ -630,6 +652,17 @@ EXPORT_SYMBOL_GPL(wm_adsp2_event);
 int wm_adsp2_init(struct wm_adsp *adsp, bool dvfs)
 {
 	int ret;
+
+	/*
+	 * Disable the DSP memory by default when in reset for a small
+	 * power saving.
+	 */
+	ret = regmap_update_bits(adsp->regmap, adsp->base + ADSP2_CONTROL,
+				 ADSP2_MEM_ENA, 0);
+	if (ret != 0) {
+		adsp_err(adsp, "Failed to clear memory retention: %d\n", ret);
+		return ret;
+	}
 
 	if (dvfs) {
 		adsp->dvfs = devm_regulator_get(adsp->dev, "DCVDD");
