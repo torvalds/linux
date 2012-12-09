@@ -48,18 +48,16 @@ static int anatop_regmap_set_voltage_sel(struct regulator_dev *reg,
 					unsigned selector)
 {
 	struct anatop_regulator *anatop_reg = rdev_get_drvdata(reg);
-	u32 val, mask;
+	u32 mask;
 
 	if (!anatop_reg->control_reg)
 		return -ENOTSUPP;
 
-	val = anatop_reg->min_bit_val + selector;
-	dev_dbg(&reg->dev, "%s: calculated val %d\n", __func__, val);
 	mask = ((1 << anatop_reg->vol_bit_width) - 1) <<
 		anatop_reg->vol_bit_shift;
-	val <<= anatop_reg->vol_bit_shift;
+	selector <<= anatop_reg->vol_bit_shift;
 	regmap_update_bits(anatop_reg->anatop, anatop_reg->control_reg,
-				mask, val);
+				mask, selector);
 
 	return 0;
 }
@@ -77,7 +75,7 @@ static int anatop_regmap_get_voltage_sel(struct regulator_dev *reg)
 		anatop_reg->vol_bit_shift;
 	val = (val & mask) >> anatop_reg->vol_bit_shift;
 
-	return val - anatop_reg->min_bit_val;
+	return val;
 }
 
 static struct regulator_ops anatop_rops = {
@@ -158,10 +156,11 @@ static int __devinit anatop_regulator_probe(struct platform_device *pdev)
 		goto anatop_probe_end;
 	}
 
-	rdesc->n_voltages = (sreg->max_voltage - sreg->min_voltage)
-		/ 25000 + 1;
+	rdesc->n_voltages = (sreg->max_voltage - sreg->min_voltage) / 25000 + 1
+			    + sreg->min_bit_val;
 	rdesc->min_uV = sreg->min_voltage;
 	rdesc->uV_step = 25000;
+	rdesc->linear_min_sel = sreg->min_bit_val;
 
 	config.dev = &pdev->dev;
 	config.init_data = initdata;
