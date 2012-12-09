@@ -25,7 +25,7 @@ static int fc0012_writereg(struct fc0012_priv *priv, u8 reg, u8 val)
 {
 	u8 buf[2] = {reg, val};
 	struct i2c_msg msg = {
-		.addr = priv->addr, .flags = 0, .buf = buf, .len = 2
+		.addr = priv->cfg->i2c_address, .flags = 0, .buf = buf, .len = 2
 	};
 
 	if (i2c_transfer(priv->i2c, &msg, 1) != 1) {
@@ -38,8 +38,10 @@ static int fc0012_writereg(struct fc0012_priv *priv, u8 reg, u8 val)
 static int fc0012_readreg(struct fc0012_priv *priv, u8 reg, u8 *val)
 {
 	struct i2c_msg msg[2] = {
-		{ .addr = priv->addr, .flags = 0, .buf = &reg, .len = 1 },
-		{ .addr = priv->addr, .flags = I2C_M_RD, .buf = val, .len = 1 },
+		{ .addr = priv->cfg->i2c_address, .flags = 0,
+			.buf = &reg, .len = 1 },
+		{ .addr = priv->cfg->i2c_address, .flags = I2C_M_RD,
+			.buf = val, .len = 1 },
 	};
 
 	if (i2c_transfer(priv->i2c, msg, 2) != 2) {
@@ -88,7 +90,7 @@ static int fc0012_init(struct dvb_frontend *fe)
 		0x04,	/* reg. 0x15: Enable LNA COMPS */
 	};
 
-	switch (priv->xtal_freq) {
+	switch (priv->cfg->xtal_freq) {
 	case FC_XTAL_27_MHZ:
 	case FC_XTAL_28_8_MHZ:
 		reg[0x07] |= 0x20;
@@ -98,7 +100,7 @@ static int fc0012_init(struct dvb_frontend *fe)
 		break;
 	}
 
-	if (priv->dual_master)
+	if (priv->cfg->dual_master)
 		reg[0x0c] |= 0x02;
 
 	if (priv->cfg->loop_through)
@@ -147,7 +149,7 @@ static int fc0012_set_params(struct dvb_frontend *fe)
 			goto exit;
 	}
 
-	switch (priv->xtal_freq) {
+	switch (priv->cfg->xtal_freq) {
 	case FC_XTAL_27_MHZ:
 		xtal_freq_khz_2 = 27000 / 2;
 		break;
@@ -449,9 +451,6 @@ struct dvb_frontend *fc0012_attach(struct dvb_frontend *fe,
 
 	priv->i2c = i2c;
 	priv->cfg = cfg;
-	priv->dual_master = cfg->dual_master;
-	priv->addr = cfg->i2c_address;
-	priv->xtal_freq = cfg->xtal_freq;
 
 	info("Fitipower FC0012 successfully attached.");
 

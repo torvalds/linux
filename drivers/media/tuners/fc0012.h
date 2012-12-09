@@ -35,7 +35,7 @@ struct fc0012_config {
 	 */
 	enum fc001x_xtal_freq xtal_freq;
 
-	int dual_master;
+	bool dual_master;
 
 	/*
 	 * RF loop-through

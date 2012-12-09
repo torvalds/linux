@@ -906,13 +906,13 @@ static const struct fc0012_config af9035_fc0012_config[] = {
 	{
 		.i2c_address = 0x63,
 		.xtal_freq = FC_XTAL_36_MHZ,
-		.dual_master = 1,
+		.dual_master = true,
 		.loop_through = true,
 		.clock_out = true,
 	}, {
 		.i2c_address = 0x63 | 0x80, /* I2C bus select hack */
 		.xtal_freq = FC_XTAL_36_MHZ,
-		.dual_master = 1,
+		.dual_master = true,
 	}
 };
 
