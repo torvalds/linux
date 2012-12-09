@@ -34,7 +34,7 @@ struct inode *au_igrab(struct inode *inode)
 static void au_refresh_hinode_attr(struct inode *inode, int do_version)
 {
 	au_cpup_attr_all(inode, /*force*/0);
-	au_update_iigen(inode);
+	au_update_iigen(inode, /*half*/1);
 	if (do_version)
 		inode->i_version++;
 }
@@ -253,6 +253,8 @@ out:
 static int reval_inode(struct inode *inode, struct dentry *dentry)
 {
 	int err;
+	unsigned int gen;
+	struct au_iigen iigen;
 	aufs_bindex_t bindex, bend;
 	struct inode *h_inode, *h_dinode;
 
@@ -271,12 +273,20 @@ static int reval_inode(struct inode *inode, struct dentry *dentry)
 	bend = au_ibend(inode);
 	for (bindex = au_ibstart(inode); bindex <= bend; bindex++) {
 		h_inode = au_h_iptr(inode, bindex);
-		if (h_inode && h_inode == h_dinode) {
-			err = 0;
-			if (au_iigen_test(inode, au_digen(dentry)))
-				err = au_refresh_hinode(inode, dentry);
+		if (!h_inode || h_inode != h_dinode)
+			continue;
+
+		err = 0;
+		gen = au_iigen(inode, &iigen);
+		if (gen == au_digen(dentry)
+		    && !au_ig_ftest(iigen.ig_flags, HALF_REFRESHED))
 			break;
-		}
+
+		/* fully refresh inode using dentry */
+		err = au_refresh_hinode(inode, dentry);
+		if (!err)
+			au_update_iigen(inode, /*half*/0);
+		break;
 	}
 
 	if (unlikely(err))
