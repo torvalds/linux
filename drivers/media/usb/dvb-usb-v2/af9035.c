@@ -597,6 +597,8 @@ static int af9035_read_config(struct dvb_usb_device *d)
 		/* disable dual mode if driver does not support it */
 		if (i == 1)
 			switch (tmp) {
+			case AF9033_TUNER_FC0012:
+				break;
 			default:
 				state->dual_mode = false;
 				dev_info(&d->udev->dev, "%s: driver does not " \
@@ -900,10 +902,18 @@ static const struct fc2580_config af9035_fc2580_config = {
 	.clock = 16384000,
 };
 
-static const struct fc0012_config af9035_fc0012_config = {
-	.i2c_address = 0x63,
-	.xtal_freq = FC_XTAL_36_MHZ,
-	.dual_master = 1,
+static const struct fc0012_config af9035_fc0012_config[] = {
+	{
+		.i2c_address = 0x63,
+		.xtal_freq = FC_XTAL_36_MHZ,
+		.dual_master = 1,
+		.loop_through = true,
+		.clock_out = true,
+	}, {
+		.i2c_address = 0x63 | 0x80, /* I2C bus select hack */
+		.xtal_freq = FC_XTAL_36_MHZ,
+		.dual_master = 1,
+	}
 };
 
 static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
@@ -912,6 +922,7 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 	struct dvb_usb_device *d = adap_to_d(adap);
 	int ret;
 	struct dvb_frontend *fe;
+	struct i2c_msg msg[1];
 	u8 tuner_addr;
 	/*
 	 * XXX: Hack used in that function: we abuse unused I2C address bit [7]
@@ -1034,23 +1045,38 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 		 * my test I didn't find any difference.
 		 */
 
-		/* configure gpiot2 as output and high */
-		ret = af9035_wr_reg_mask(d, 0xd8eb, 0x01, 0x01);
-		if (ret < 0)
-			goto err;
+		if (adap->id == 0) {
+			/* configure gpiot2 as output and high */
+			ret = af9035_wr_reg_mask(d, 0xd8eb, 0x01, 0x01);
+			if (ret < 0)
+				goto err;
 
-		ret = af9035_wr_reg_mask(d, 0xd8ec, 0x01, 0x01);
-		if (ret < 0)
-			goto err;
+			ret = af9035_wr_reg_mask(d, 0xd8ec, 0x01, 0x01);
+			if (ret < 0)
+				goto err;
 
-		ret = af9035_wr_reg_mask(d, 0xd8ed, 0x01, 0x01);
-		if (ret < 0)
-			goto err;
+			ret = af9035_wr_reg_mask(d, 0xd8ed, 0x01, 0x01);
+			if (ret < 0)
+				goto err;
+		} else {
+			/*
+			 * FIXME: That belongs for the FC0012 driver.
+			 * Write 02 to FC0012 master tuner register 0d directly
+			 * in order to make slave tuner working.
+			 */
+			msg[0].addr = 0x63;
+			msg[0].flags = 0;
+			msg[0].len = 2;
+			msg[0].buf = "\x0d\x02";
+			ret = i2c_transfer(&d->i2c_adap, msg, 1);
+			if (ret < 0)
+				goto err;
+		}
 
 		usleep_range(10000, 50000);
 
 		fe = dvb_attach(fc0012_attach, adap->fe[0], &d->i2c_adap,
-				&af9035_fc0012_config);
+				&af9035_fc0012_config[adap->id]);
 		break;
 	default:
 		fe = NULL;
