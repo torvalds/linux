@@ -1500,7 +1500,7 @@ static  int wm8350_codec_probe(struct snd_soc_codec *codec)
 	for (i = 0; i < ARRAY_SIZE(supply_names); i++)
 		priv->supplies[i].supply = supply_names[i];
 
-	ret = regulator_bulk_get(wm8350->dev, ARRAY_SIZE(priv->supplies),
+	ret = devm_regulator_bulk_get(wm8350->dev, ARRAY_SIZE(priv->supplies),
 				 priv->supplies);
 	if (ret != 0)
 		return ret;
@@ -1606,8 +1606,6 @@ static int  wm8350_codec_remove(struct snd_soc_codec *codec)
 	wm8350_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	wm8350_clear_bits(wm8350, WM8350_POWER_MGMT_5, WM8350_CODEC_ENA);
-
-	regulator_bulk_free(ARRAY_SIZE(priv->supplies), priv->supplies);
 
 	return 0;
 }
