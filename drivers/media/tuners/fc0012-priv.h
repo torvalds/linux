@@ -32,6 +32,7 @@
 
 struct fc0012_priv {
 	struct i2c_adapter *i2c;
+	const struct fc0012_config *cfg;
 	u8 addr;
 	u8 dual_master;
 	u8 xtal_freq;

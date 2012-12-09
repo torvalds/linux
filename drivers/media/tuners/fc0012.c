@@ -101,6 +101,9 @@ static int fc0012_init(struct dvb_frontend *fe)
 	if (priv->dual_master)
 		reg[0x0c] |= 0x02;
 
+	if (priv->cfg->loop_through)
+		reg[0x09] |= 0x01;
+
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1); /* open I2C-gate */
 
@@ -445,6 +448,7 @@ struct dvb_frontend *fc0012_attach(struct dvb_frontend *fe,
 		return NULL;
 
 	priv->i2c = i2c;
+	priv->cfg = cfg;
 	priv->dual_master = cfg->dual_master;
 	priv->addr = cfg->i2c_address;
 	priv->xtal_freq = cfg->xtal_freq;
@@ -452,6 +456,9 @@ struct dvb_frontend *fc0012_attach(struct dvb_frontend *fe,
 	info("Fitipower FC0012 successfully attached.");
 
 	fe->tuner_priv = priv;
+
+	if (priv->cfg->loop_through)
+		fc0012_writereg(priv, 0x09, 0x6f);
 
 	memcpy(&fe->ops.tuner_ops, &fc0012_tuner_ops,
 		sizeof(struct dvb_tuner_ops));

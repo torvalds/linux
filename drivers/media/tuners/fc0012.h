@@ -36,6 +36,11 @@ struct fc0012_config {
 	enum fc001x_xtal_freq xtal_freq;
 
 	int dual_master;
+
+	/*
+	 * RF loop-through
+	 */
+	bool loop_through;
 };
 
 #if defined(CONFIG_MEDIA_TUNER_FC0012) || \
