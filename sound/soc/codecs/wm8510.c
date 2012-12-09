@@ -608,10 +608,7 @@ static int wm8510_probe(struct snd_soc_codec *codec)
 /* power down chip */
 static int wm8510_remove(struct snd_soc_codec *codec)
 {
-	struct wm8510_priv *wm8510 = snd_soc_codec_get_drvdata(codec);
-
 	wm8510_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	kfree(wm8510);
 	return 0;
 }
 
