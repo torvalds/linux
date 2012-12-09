@@ -34,7 +34,6 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
-#include <plat/cpu.h>
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 #include "mcbsp.h"
 #include "omap-mcbsp.h"
@@ -512,7 +511,7 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 		regs->srgr2	|= CLKSM;
 		break;
 	case OMAP_MCBSP_SYSCLK_CLKS_FCLK:
-		if (cpu_class_is_omap1()) {
+		if (mcbsp_omap1()) {
 			err = -EINVAL;
 			break;
 		}
@@ -520,7 +519,7 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 					       MCBSP_CLKS_PRCM_SRC);
 		break;
 	case OMAP_MCBSP_SYSCLK_CLKS_EXT:
-		if (cpu_class_is_omap1()) {
+		if (mcbsp_omap1()) {
 			err = 0;
 			break;
 		}
