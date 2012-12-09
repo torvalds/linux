@@ -69,7 +69,8 @@ struct sw_hcd_hw_ep;
 //---------------------------------------------------------------
 
 #define	is_host_capable()			(1)
-#define SW_HCD_C_NUM_EPS      		USBC_MAX_EP_NUM
+/* Needs to be USBC_MAX_EP_NUM as we have separate in/out per ep!!! */
+#define SW_HCD_C_NUM_EPS		(USBC_MAX_EP_NUM * 2)
 #define	is_host_enabled(sw_usb)		is_host_capable()
 
 /* host side ep0 states */
