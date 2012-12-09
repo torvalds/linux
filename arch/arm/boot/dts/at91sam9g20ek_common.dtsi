@@ -30,6 +30,16 @@
 
 	ahb {
 		apb {
+			pinctrl@fffff400 {
+				board {
+					pinctrl_pck0_as_mck: pck0_as_mck {
+						atmel,pins =
+							<2 1 0x2 0x0>;	/* PC1 periph B */
+					};
+
+				};
+			};
+
 			dbgu: serial@fffff200 {
 				status = "okay";
 			};
@@ -50,6 +60,11 @@
 			usb1: gadget@fffa4000 {
 				atmel,vbus-gpio = <&pioC 5 0>;
 				status = "okay";
+			};
+
+			ssc0: ssc@fffbc000 {
+				status = "okay";
+				pinctrl-0 = <&pinctrl_ssc0_tx>;
 			};
 		};
 
@@ -114,7 +129,7 @@
 			reg = <0x50>;
 		};
 
-		wm8731@1b {
+		wm8731: wm8731@1b {
 			compatible = "wm8731";
 			reg = <0x1b>;
 		};
@@ -138,5 +153,20 @@
 			linux,code = <0x104>;
 			gpio-key,wakeup;
 		};
+	};
+
+	sound {
+		compatible = "atmel,at91sam9g20ek-wm8731-audio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pck0_as_mck>;
+
+		atmel,model = "wm8731 @ AT91SAMG20EK";
+
+		atmel,audio-routing =
+			"Ext Spk", "LHPOUT",
+			"Int Mic", "MICIN";
+
+		atmel,ssc-controller = <&ssc0>;
+		atmel,audio-codec = <&wm8731>;
 	};
 };

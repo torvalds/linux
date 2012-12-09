@@ -25,6 +25,8 @@
 		gpio4 = &pioE;
 		tcb0 = &tcb0;
 		i2c0 = &i2c0;
+		ssc0 = &ssc0;
+		ssc1 = &ssc1;
 	};
 	cpus {
 		cpu@0 {
@@ -171,6 +173,20 @@
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
 				status = "disabled";
+			};
+
+			ssc0: ssc@fff98000 {
+				compatible = "atmel,at91rm9200-ssc";
+				reg = <0xfff98000 0x4000>;
+				interrupts = <16 4 5>;
+				status = "disable";
+			};
+
+			ssc1: ssc@fff9c000 {
+				compatible = "atmel,at91rm9200-ssc";
+				reg = <0xfff9c000 0x4000>;
+				interrupts = <17 4 5>;
+				status = "disable";
 			};
 
 			macb0: ethernet@fffbc000 {
