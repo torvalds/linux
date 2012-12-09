@@ -162,11 +162,29 @@ static struct snd_soc_dai_driver s3c2412_i2s_dai = {
 
 static __devinit int s3c2412_iis_dev_probe(struct platform_device *pdev)
 {
-	return s3c_i2sv2_register_dai(&pdev->dev, -1, &s3c2412_i2s_dai);
+	int ret = 0;
+
+	ret = s3c_i2sv2_register_dai(&pdev->dev, -1, &s3c2412_i2s_dai);
+	if (ret) {
+		pr_err("failed to register the dai\n");
+		return ret;
+	}
+
+	ret = asoc_dma_platform_register(&pdev->dev);
+	if (ret) {
+		pr_err("failed to register the DMA: %d\n", ret);
+		goto err;
+	}
+
+	return 0;
+err:
+	snd_soc_unregister_dai(&pdev->dev);
+	return ret;
 }
 
 static __devexit int s3c2412_iis_dev_remove(struct platform_device *pdev)
 {
+	asoc_dma_platform_unregister(&pdev->dev);
 	snd_soc_unregister_dai(&pdev->dev);
 	return 0;
 }

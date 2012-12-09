@@ -357,7 +357,6 @@ static struct platform_device *crag6410_devices[] __initdata = {
 	&s3c_device_timer[0],
 	&s3c64xx_device_iis0,
 	&s3c64xx_device_iis1,
-	&samsung_asoc_dma,
 	&samsung_device_keypad,
 	&crag6410_gpio_keydev,
 	&crag6410_dm9k_device,

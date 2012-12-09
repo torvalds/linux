@@ -543,7 +543,7 @@ static __devinit int s3c_pcm_dev_probe(struct platform_device *pdev)
 		ret = PTR_ERR(pcm->cclk);
 		goto err1;
 	}
-	clk_enable(pcm->cclk);
+	clk_prepare_enable(pcm->cclk);
 
 	/* record our pcm structure for later use in the callbacks */
 	dev_set_drvdata(&pdev->dev, pcm);
@@ -568,7 +568,7 @@ static __devinit int s3c_pcm_dev_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto err4;
 	}
-	clk_enable(pcm->pclk);
+	clk_prepare_enable(pcm->pclk);
 
 	s3c_pcm_stereo_in[pdev->id].dma_addr = mem_res->start
 							+ S3C_PCM_RXFIFO;
@@ -589,17 +589,25 @@ static __devinit int s3c_pcm_dev_probe(struct platform_device *pdev)
 		goto err5;
 	}
 
+	ret = asoc_dma_platform_register(&pdev->dev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to get register DMA: %d\n", ret);
+		goto err6;
+	}
+
 	return 0;
 
+err6:
+	snd_soc_unregister_dai(&pdev->dev);
 err5:
-	clk_disable(pcm->pclk);
+	clk_disable_unprepare(pcm->pclk);
 	clk_put(pcm->pclk);
 err4:
 	iounmap(pcm->regs);
 err3:
 	release_mem_region(mem_res->start, resource_size(mem_res));
 err2:
-	clk_disable(pcm->cclk);
+	clk_disable_unprepare(pcm->cclk);
 	clk_put(pcm->cclk);
 err1:
 	return ret;
@@ -610,6 +618,7 @@ static __devexit int s3c_pcm_dev_remove(struct platform_device *pdev)
 	struct s3c_pcm_info *pcm = &s3c_pcm[pdev->id];
 	struct resource *mem_res;
 
+	asoc_dma_platform_unregister(&pdev->dev);
 	snd_soc_unregister_dai(&pdev->dev);
 
 	pm_runtime_disable(&pdev->dev);
@@ -619,8 +628,8 @@ static __devexit int s3c_pcm_dev_remove(struct platform_device *pdev)
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(mem_res->start, resource_size(mem_res));
 
-	clk_disable(pcm->cclk);
-	clk_disable(pcm->pclk);
+	clk_disable_unprepare(pcm->cclk);
+	clk_disable_unprepare(pcm->pclk);
 	clk_put(pcm->pclk);
 	clk_put(pcm->cclk);
 
