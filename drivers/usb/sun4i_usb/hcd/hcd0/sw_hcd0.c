@@ -1014,23 +1014,19 @@ enum { SW_HCD_CONTROLLER_MHDRC, SW_HCD_CONTROLLER_HDRC, };
 static int sw_hcd_core_init(u16 sw_hcd_type, struct sw_hcd *sw_hcd)
 {
 	u8              reg         = 0;
-	char            *type       = NULL;
 	char            aInfo[128];
-	char            aRevision[32];
-	char            aDate[12];
 	void __iomem    *usbc_base  = sw_hcd->mregs;
 	int             status      = 0;
 	int             i           = 0;
 
-    memset(aInfo, 0, sizeof(aInfo));
-    memset(aRevision, 0, sizeof(aRevision));
-    memset(aDate, 0, sizeof(aDate));
+	memset(aInfo, 0, sizeof(aInfo));
 
 	/* log core options (read using indexed model) */
 	sw_hcd_ep_select(usbc_base, 0);
 	reg = sw_hcd_read_configdata(usbc_base);
 
-    strcpy(aInfo, (reg & (1 << USBC_BP_CONFIGDATA_UTMI_DATAWIDTH)) ? "UTMI-16" : "UTMI-8");
+	strcpy(aInfo, (reg & (1 << USBC_BP_CONFIGDATA_UTMI_DATAWIDTH)) ?
+		      "UTMI-16" : "UTMI-8");
 
 	if (reg & (1 << USBC_BP_CONFIGDATA_DYNFIFO_SIZING)){
 		strcat(aInfo, ", dyn FIFOs");
@@ -1062,17 +1058,13 @@ static int sw_hcd_core_init(u16 sw_hcd_type, struct sw_hcd *sw_hcd)
 		strcat(aInfo, ", SoftConn");
 	}
 
-//	DMSG_INFO_HCD0("%s: ConfigData=0x%02x (%s)\n", sw_hcd_driver_name, reg, aInfo);
-
-	aDate[0] = 0;
+	DMSG_INFO_HCD0("%s: ConfigData=0x%02x (%s)\n", sw_hcd_driver_name,
+		       reg, aInfo);
 
 	if (SW_HCD_CONTROLLER_MHDRC == sw_hcd_type) {
 		sw_hcd->is_multipoint = 1;
-		type = "M";
 	} else {
 	    sw_hcd->is_multipoint = 0;
-		type = "";
-
 		DMSG_INFO_HCD0("%s: kernel must blacklist external hubs\n", sw_hcd_driver_name);
 	}
 
