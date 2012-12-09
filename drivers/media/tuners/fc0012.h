@@ -41,6 +41,11 @@ struct fc0012_config {
 	 * RF loop-through
 	 */
 	bool loop_through;
+
+	/*
+	 * clock output
+	 */
+	bool clock_out;
 };
 
 #if defined(CONFIG_MEDIA_TUNER_FC0012) || \

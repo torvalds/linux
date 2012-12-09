@@ -460,6 +460,13 @@ struct dvb_frontend *fc0012_attach(struct dvb_frontend *fe,
 	if (priv->cfg->loop_through)
 		fc0012_writereg(priv, 0x09, 0x6f);
 
+	/*
+	 * TODO: Clock out en or div?
+	 * For dual tuner configuration clearing bit [0] is required.
+	 */
+	if (priv->cfg->clock_out)
+		fc0012_writereg(priv, 0x0b, 0x82);
+
 	memcpy(&fe->ops.tuner_ops, &fc0012_tuner_ops,
 		sizeof(struct dvb_tuner_ops));
 
