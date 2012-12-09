@@ -29,7 +29,9 @@ static int fc0012_writereg(struct fc0012_priv *priv, u8 reg, u8 val)
 	};
 
 	if (i2c_transfer(priv->i2c, &msg, 1) != 1) {
-		err("I2C write reg failed, reg: %02x, val: %02x", reg, val);
+		dev_err(&priv->i2c->dev,
+			"%s: I2C write reg failed, reg: %02x, val: %02x\n",
+			KBUILD_MODNAME, reg, val);
 		return -EREMOTEIO;
 	}
 	return 0;
@@ -45,7 +47,9 @@ static int fc0012_readreg(struct fc0012_priv *priv, u8 reg, u8 *val)
 	};
 
 	if (i2c_transfer(priv->i2c, msg, 2) != 2) {
-		err("I2C read reg failed, reg: %02x", reg);
+		dev_err(&priv->i2c->dev,
+			"%s: I2C read reg failed, reg: %02x\n",
+			KBUILD_MODNAME, reg);
 		return -EREMOTEIO;
 	}
 	return 0;
@@ -119,7 +123,8 @@ static int fc0012_init(struct dvb_frontend *fe)
 		fe->ops.i2c_gate_ctrl(fe, 0); /* close I2C-gate */
 
 	if (ret)
-		err("fc0012_writereg failed: %d", ret);
+		dev_err(&priv->i2c->dev, "%s: fc0012_writereg failed: %d\n",
+				KBUILD_MODNAME, ret);
 
 	return ret;
 }
@@ -261,7 +266,8 @@ static int fc0012_set_params(struct dvb_frontend *fe)
 			break;
 		}
 	} else {
-		err("%s: modulation type not supported!", __func__);
+		dev_err(&priv->i2c->dev, "%s: modulation type not supported!\n",
+				KBUILD_MODNAME);
 		return -EINVAL;
 	}
 
@@ -323,7 +329,8 @@ exit:
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0); /* close I2C-gate */
 	if (ret)
-		warn("%s: failed: %d", __func__, ret);
+		dev_warn(&priv->i2c->dev, "%s: %s failed: %d\n",
+				KBUILD_MODNAME, __func__, ret);
 	return ret;
 }
 
@@ -413,7 +420,8 @@ err:
 		fe->ops.i2c_gate_ctrl(fe, 0); /* close I2C-gate */
 exit:
 	if (ret)
-		warn("%s: failed: %d", __func__, ret);
+		dev_warn(&priv->i2c->dev, "%s: %s failed: %d\n",
+				KBUILD_MODNAME, __func__, ret);
 	return ret;
 }
 
