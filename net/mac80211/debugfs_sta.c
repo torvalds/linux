@@ -221,6 +221,9 @@ static ssize_t sta_agg_status_write(struct file *file, const char __user *userbu
 		return -EINVAL;
 
 	tid = simple_strtoul(buf, NULL, 0);
+	ret = kstrtoul(buf, 0, &tid);
+	if (ret)
+		return ret;
 
 	if (tid >= IEEE80211_NUM_TIDS)
 		return -EINVAL;
