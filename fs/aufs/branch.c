@@ -635,7 +635,7 @@ static int test_inode_busy(struct super_block *sb, aufs_bindex_t bindex,
 			continue;
 
 		/* AuDbgInode(i); */
-		if (au_iigen(i) == sigen)
+		if (au_iigen(i, NULL) == sigen)
 			ii_read_lock_child(i);
 		else {
 			ii_write_lock_child(i);
