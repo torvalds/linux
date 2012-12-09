@@ -669,7 +669,6 @@ int schedule_nes_timer(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	struct nes_cm_core *cm_core = cm_node->cm_core;
 	struct nes_timer_entry *new_send;
 	int ret = 0;
-	u32 was_timer_set;
 
 	new_send = kzalloc(sizeof(*new_send), GFP_ATOMIC);
 	if (!new_send)
@@ -721,12 +720,8 @@ int schedule_nes_timer(struct nes_cm_node *cm_node, struct sk_buff *skb,
 		}
 	}
 
-	was_timer_set = timer_pending(&cm_core->tcp_timer);
-
-	if (!was_timer_set) {
-		cm_core->tcp_timer.expires = new_send->timetosend;
-		add_timer(&cm_core->tcp_timer);
-	}
+	if (!timer_pending(&cm_core->tcp_timer))
+		mod_timer(&cm_core->tcp_timer, new_send->timetosend);
 
 	return ret;
 }
@@ -944,10 +939,8 @@ static void nes_cm_timer_tick(unsigned long pass)
 	}
 
 	if (settimer) {
-		if (!timer_pending(&cm_core->tcp_timer)) {
-			cm_core->tcp_timer.expires = nexttimeout;
-			add_timer(&cm_core->tcp_timer);
-		}
+		if (!timer_pending(&cm_core->tcp_timer))
+			mod_timer(&cm_core->tcp_timer, nexttimeout);
 	}
 }
 
@@ -1312,8 +1305,6 @@ static int mini_cm_del_listen(struct nes_cm_core *cm_core,
 static inline int mini_cm_accelerated(struct nes_cm_core *cm_core,
 				      struct nes_cm_node *cm_node)
 {
-	u32 was_timer_set;
-
 	cm_node->accelerated = 1;
 
 	if (cm_node->accept_pend) {
@@ -1323,11 +1314,8 @@ static inline int mini_cm_accelerated(struct nes_cm_core *cm_core,
 		BUG_ON(atomic_read(&cm_node->listener->pend_accepts_cnt) < 0);
 	}
 
-	was_timer_set = timer_pending(&cm_core->tcp_timer);
-	if (!was_timer_set) {
-		cm_core->tcp_timer.expires = jiffies + NES_SHORT_TIME;
-		add_timer(&cm_core->tcp_timer);
-	}
+	if (!timer_pending(&cm_core->tcp_timer))
+		mod_timer(&cm_core->tcp_timer, (jiffies + NES_SHORT_TIME));
 
 	return 0;
 }
