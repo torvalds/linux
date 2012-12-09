@@ -527,9 +527,6 @@ static int wm8978_configure_pll(struct snd_soc_codec *codec)
 			return idx;
 
 		wm8978->mclk_idx = idx;
-
-		/* GPIO1 into default mode as input - before configuring PLL */
-		snd_soc_update_bits(codec, WM8978_GPIO_CONTROL, 7, 0);
 	} else {
 		return -EINVAL;
 	}
@@ -1049,7 +1046,7 @@ static __devinit int wm8978_i2c_probe(struct i2c_client *i2c,
 	if (wm8978 == NULL)
 		return -ENOMEM;
 
-	wm8978->regmap = regmap_init_i2c(i2c, &wm8978_regmap_config);
+	wm8978->regmap = devm_regmap_init_i2c(i2c, &wm8978_regmap_config);
 	if (IS_ERR(wm8978->regmap)) {
 		ret = PTR_ERR(wm8978->regmap);
 		dev_err(&i2c->dev, "Failed to allocate regmap: %d\n", ret);
@@ -1062,29 +1059,22 @@ static __devinit int wm8978_i2c_probe(struct i2c_client *i2c,
 	ret = regmap_write(wm8978->regmap, WM8978_RESET, 0);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to issue reset: %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8978, &wm8978_dai, 1);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to register CODEC: %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	return 0;
-
-err:
-	regmap_exit(wm8978->regmap);
-	return ret;
 }
 
 static __devexit int wm8978_i2c_remove(struct i2c_client *client)
 {
-	struct wm8978_priv *wm8978 = i2c_get_clientdata(client);
-
 	snd_soc_unregister_codec(&client->dev);
-	regmap_exit(wm8978->regmap);
 
 	return 0;
 }
