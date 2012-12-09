@@ -436,8 +436,7 @@ static const struct dvb_tuner_ops fc0012_tuner_ops = {
 };
 
 struct dvb_frontend *fc0012_attach(struct dvb_frontend *fe,
-	struct i2c_adapter *i2c, u8 i2c_address, int dual_master,
-	enum fc001x_xtal_freq xtal_freq)
+	struct i2c_adapter *i2c, const struct fc0012_config *cfg)
 {
 	struct fc0012_priv *priv = NULL;
 
@@ -446,9 +445,9 @@ struct dvb_frontend *fc0012_attach(struct dvb_frontend *fe,
 		return NULL;
 
 	priv->i2c = i2c;
-	priv->dual_master = dual_master;
-	priv->addr = i2c_address;
-	priv->xtal_freq = xtal_freq;
+	priv->dual_master = cfg->dual_master;
+	priv->addr = cfg->i2c_address;
+	priv->xtal_freq = cfg->xtal_freq;
 
 	info("Fitipower FC0012 successfully attached.");
 

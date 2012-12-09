@@ -835,6 +835,11 @@ static struct tua9001_config rtl2832u_tua9001_config = {
 	.i2c_addr = 0x60,
 };
 
+static const struct fc0012_config rtl2832u_fc0012_config = {
+	.i2c_address = 0x63, /* 0xc6 >> 1 */
+	.xtal_freq = FC_XTAL_28_8_MHZ,
+};
+
 static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	int ret;
@@ -847,7 +852,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 	switch (priv->tuner) {
 	case TUNER_RTL2832_FC0012:
 		fe = dvb_attach(fc0012_attach, adap->fe[0],
-			&d->i2c_adap, 0xc6>>1, 0, FC_XTAL_28_8_MHZ);
+			&d->i2c_adap, &rtl2832u_fc0012_config);
 
 		/* since fc0012 includs reading the signal strength delegate
 		 * that to the tuner driver */

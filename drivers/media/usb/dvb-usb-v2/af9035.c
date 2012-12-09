@@ -900,6 +900,12 @@ static const struct fc2580_config af9035_fc2580_config = {
 	.clock = 16384000,
 };
 
+static const struct fc0012_config af9035_fc0012_config = {
+	.i2c_address = 0x63,
+	.xtal_freq = FC_XTAL_36_MHZ,
+	.dual_master = 1,
+};
+
 static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	struct state *state = adap_to_priv(adap);
@@ -1043,8 +1049,8 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 
 		usleep_range(10000, 50000);
 
-		fe = dvb_attach(fc0012_attach, adap->fe[0], &d->i2c_adap, 0x63,
-				1, FC_XTAL_36_MHZ);
+		fe = dvb_attach(fc0012_attach, adap->fe[0], &d->i2c_adap,
+				&af9035_fc0012_config);
 		break;
 	default:
 		fe = NULL;
