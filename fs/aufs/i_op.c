@@ -164,15 +164,21 @@ static struct dentry *aufs_lookup(struct inode *dir, struct dentry *dentry,
 
 	IMustLock(dir);
 
+	/* todo: support rcu-walk? */
+	ret = ERR_PTR(-ECHILD);
+	if (nd && (nd->flags & LOOKUP_RCU))
+		goto out;
+
+	ret = ERR_PTR(-ENAMETOOLONG);
+	if (unlikely(dentry->d_name.len > AUFS_MAX_NAMELEN))
+		goto out;
+
 	sb = dir->i_sb;
 	err = si_read_lock(sb, AuLock_FLUSH | AuLock_NOPLM);
 	ret = ERR_PTR(err);
 	if (unlikely(err))
 		goto out;
 
-	ret = ERR_PTR(-ENAMETOOLONG);
-	if (unlikely(dentry->d_name.len > AUFS_MAX_NAMELEN))
-		goto out_si;
 	err = au_di_init(dentry);
 	ret = ERR_PTR(err);
 	if (unlikely(err))
