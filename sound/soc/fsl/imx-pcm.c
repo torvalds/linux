@@ -103,3 +103,7 @@ void imx_pcm_free(struct snd_pcm *pcm)
 	}
 }
 EXPORT_SYMBOL_GPL(imx_pcm_free);
+
+MODULE_DESCRIPTION("Freescale i.MX PCM driver");
+MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");
+MODULE_LICENSE("GPL");

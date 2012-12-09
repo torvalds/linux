@@ -29,14 +29,14 @@ struct pcm030_audio_data {
 
 static struct snd_soc_dai_link pcm030_fabric_dai[] = {
 {
-	.name = "AC97",
+	.name = "AC97.0",
 	.stream_name = "AC97 Analog",
 	.codec_dai_name = "wm9712-hifi",
 	.cpu_dai_name = "mpc5200-psc-ac97.0",
 	.codec_name = "wm9712-codec",
 },
 {
-	.name = "AC97",
+	.name = "AC97.1",
 	.stream_name = "AC97 IEC958",
 	.codec_dai_name = "wm9712-aux",
 	.cpu_dai_name = "mpc5200-psc-ac97.1",
