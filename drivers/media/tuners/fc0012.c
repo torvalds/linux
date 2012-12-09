@@ -129,12 +129,6 @@ static int fc0012_init(struct dvb_frontend *fe)
 	return ret;
 }
 
-static int fc0012_sleep(struct dvb_frontend *fe)
-{
-	/* nothing to do here */
-	return 0;
-}
-
 static int fc0012_set_params(struct dvb_frontend *fe)
 {
 	struct fc0012_priv *priv = fe->tuner_priv;
@@ -343,8 +337,7 @@ static int fc0012_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 
 static int fc0012_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
-	/* CHECK: always ? */
-	*frequency = 0;
+	*frequency = 0; /* Zero-IF */
 	return 0;
 }
 
@@ -437,7 +430,6 @@ static const struct dvb_tuner_ops fc0012_tuner_ops = {
 	.release	= fc0012_release,
 
 	.init		= fc0012_init,
-	.sleep		= fc0012_sleep,
 
 	.set_params	= fc0012_set_params,
 
