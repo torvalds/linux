@@ -437,6 +437,10 @@ static int af9035_download_firmware(struct dvb_usb_device *d,
 				__func__, fw->size - i);
 	}
 
+	/* print warn if firmware is bad, continue and see what happens */
+	if (i)
+		dev_warn(&d->udev->dev, "%s: bad firmware\n", KBUILD_MODNAME);
+
 	/* firmware loaded, request boot */
 	req.cmd = CMD_FW_BOOT;
 	ret = af9035_ctrl_msg(d, &req);
