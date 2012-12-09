@@ -84,9 +84,9 @@
 #define RK29SDK_SD_CARD_INSERT_LEVEL            GPIO_LOW         // set the voltage of insert-card. Please pay attention to the default setting.
 #define RK29SDK_SD_CARD_DETECT_PIN_NAME         GPIO3B0_SDMMC0DETECTN_NAME
 #define RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO      GPIO3B_GPIO3B0
-#define RK29SDK_SD_CARD_DETECT_IOMUX_FMUX       GPIO3B_SDMMC0_DETECT_N
+#define RK29SDK_SD_CARD_DETECT_IOMUX_FMUX       GPIO3B_SDMMC0DETECTN
 
-#elif defined(CONFIG_ARCH_RK30)
+#elif defined(CONFIG_ARCH_RK30)&& !defined(CONFIG_ARCH_RK3066B) //for RK30,RK3066 SDK
 //refer to file /arch/arm/mach-rk30/include/mach/Iomux.h
 //define reset-pin
 #define RK29SDK_SD_CARD_DETECT_N                RK30_PIN3_PB6  //According to your own project to set the value of card-detect-pin.
@@ -119,7 +119,8 @@
 // Define wifi module's power and reset gpio, and gpio sensitive level.
 // Please set the value according to your own project.
 //
-#if defined(CONFIG_ARCH_RK30) // refer to file /arch/arm/mach-rk30/include/mach/Iomux.h
+#if defined(CONFIG_ARCH_RK30) && !defined(CONFIG_ARCH_RK3066B) //for RK30,RK3066 SDK
+    // refer to file /arch/arm/mach-rk30/include/mach/Iomux.h
     #define WIFI_HOST_WAKE RK30_PIN3_PD2
 
     #if defined(CONFIG_RK903) || defined(CONFIG_RK901) || defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU)
@@ -346,18 +347,18 @@
     #if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) 
         #define RK30SDK_WIFI_GPIO_POWER_N               RK30_PIN3_PD0            
         #define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_HIGH        
-        #define RK30SDK_WIFI_GPIO_POWER_PIN_NAME        GPIO3D0_SDMMC1PWREN_NAME
+        #define RK30SDK_WIFI_GPIO_POWER_PIN_NAME        GPIO3D0_SDMMC1PWREN_MIIMD_NAME
         #define RK30SDK_WIFI_GPIO_POWER_IOMUX_FGPIO     GPIO3D_GPIO3D0
         
     #elif defined(CONFIG_BCM4329) || defined(CONFIG_BCM4319) || defined(CONFIG_RK903) || defined(CONFIG_RK901)
         #define RK30SDK_WIFI_GPIO_POWER_N               RK30_PIN3_PD0                 
         #define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_HIGH                   
-        #define RK30SDK_WIFI_GPIO_POWER_PIN_NAME        GPIO3D0_SDMMC1PWREN_NAME
+        #define RK30SDK_WIFI_GPIO_POWER_PIN_NAME        GPIO3D0_SDMMC1PWREN_MIIMD_NAME
         #define RK30SDK_WIFI_GPIO_POWER_IOMUX_FGPIO     GPIO3D_GPIO3D0
 
         #define RK30SDK_WIFI_GPIO_RESET_N               RK30_PIN2_PA7
         #define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE    GPIO_HIGH 
-        #define RK30SDK_WIFI_GPIO_RESET_PIN_NAME        GPIO2A7_LCDC1DATA7_SMCADDR11_NAME
+        #define RK30SDK_WIFI_GPIO_RESET_PIN_NAME        GPIO2A7_LCDC1DATA7_SMCDATA7_TRACEDATA7_NAME
         #define RK30SDK_WIFI_GPIO_RESET_IOMUX_FGPIO     GPIO2A_GPIO2A7
     #endif   
 #elif defined(CONFIG_ARCH_RK2928) //refer to file ./arch/arm/mach-rk2928/include/mach/iomux.h
@@ -419,7 +420,7 @@
 #define RK29SDK_SD_CARD_PWR_EN_IOMUX_FGPIO      GPIO3A_GPIO3A1
 #define RK29SDK_SD_CARD_PWR_EN_IOMUX_FMUX       GPIO3A_SDMMC0PWREN
 
-#elif defined(CONFIG_ARCH_RK30)
+#elif defined(CONFIG_ARCH_RK30)&& !defined(CONFIG_ARCH_RK3066B) //for RK30,RK3066 SDK
 //refer to file /arch/arm/mach-rk30/include/mach/Iomux.h
 //define PowerEn-pin
 #define RK29SDK_SD_CARD_PWR_EN                  RK30_PIN3_PA7 
@@ -439,7 +440,7 @@
 
 #endif
 
-#if defined(CONFIG_ARCH_RK30)
+#if defined(CONFIG_ARCH_RK30)&& !defined(CONFIG_ARCH_RK3066B)//for RK30,RK3066 SDK
 /*
 * define the gpio for sdmmc0
 */
@@ -504,26 +505,48 @@ struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
             .fmux       = GPIO3B_SDMMC0_DATA3,
         },
     }, 
-
-    .power_en_gpio      = {
+    
+    .power_en_gpio      = {   
+#if defined(RK29SDK_SD_CARD_PWR_EN) || (INVALID_GPIO != RK29SDK_SD_CARD_PWR_EN)
         .io             = RK29SDK_SD_CARD_PWR_EN,
         .enable         = RK29SDK_SD_CARD_PWR_EN_LEVEL,
+        #ifdef RK29SDK_SD_CARD_PWR_EN_PIN_NAME
         .iomux          = {
             .name       = RK29SDK_SD_CARD_PWR_EN_PIN_NAME,
+            #ifdef RK29SDK_SD_CARD_PWR_EN_IOMUX_FGPIO
             .fgpio      = RK29SDK_SD_CARD_PWR_EN_IOMUX_FGPIO,
+            #endif
+            #ifdef RK29SDK_SD_CARD_PWR_EN_IOMUX_FMUX
             .fmux       = RK29SDK_SD_CARD_PWR_EN_IOMUX_FMUX,
+            #endif
         },
+        #endif
+#else
+        .io             = INVALID_GPIO,
+        .enable         = GPIO_LOW,
+#endif
     }, 
 
     .detect_irq       = {
+#if defined(RK29SDK_SD_CARD_DETECT_N) || (INVALID_GPIO != RK29SDK_SD_CARD_DETECT_N)  
         .io             = RK29SDK_SD_CARD_DETECT_N,
         .enable         = RK29SDK_SD_CARD_INSERT_LEVEL,
+        #ifdef RK29SDK_SD_CARD_DETECT_PIN_NAME
         .iomux          = {
             .name       = RK29SDK_SD_CARD_DETECT_PIN_NAME,
+            #ifdef RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO
             .fgpio      = RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO,
+            #endif
+            #ifdef RK29SDK_SD_CARD_DETECT_IOMUX_FMUX
             .fmux       = RK29SDK_SD_CARD_DETECT_IOMUX_FMUX,
+            #endif
         },
-    },   
+        #endif
+#else
+        .io             = INVALID_GPIO,
+        .enable         = GPIO_LOW,
+#endif            
+    },
 };
 
 
@@ -592,7 +615,7 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
         },
     }, 
 };
- // ---end -#if defined(CONFIG_ARCH_RK30)
+ // ---end -#if defined(CONFIG_ARCH_RK30)&& !defined(CONFIG_ARCH_RK3066B)
 
 #elif defined(CONFIG_ARCH_RK3066B)
 
@@ -661,25 +684,49 @@ static struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
         },
     }, 
 
-    .power_en_gpio      = {
-        .io             = RK29SDK_SD_CARD_PWR_EN,
-        .enable         = RK29SDK_SD_CARD_PWR_EN_LEVEL,
-        .iomux          = {
-            .name       = RK29SDK_SD_CARD_PWR_EN_PIN_NAME,
-            .fgpio      = RK29SDK_SD_CARD_PWR_EN_IOMUX_FGPIO,
-            .fmux       = RK29SDK_SD_CARD_PWR_EN_IOMUX_FMUX,
-        },
-    }, 
+               
+    .power_en_gpio      = {   
+#if defined(RK29SDK_SD_CARD_PWR_EN) || (INVALID_GPIO != RK29SDK_SD_CARD_PWR_EN)
+                    .io             = RK29SDK_SD_CARD_PWR_EN,
+                    .enable         = RK29SDK_SD_CARD_PWR_EN_LEVEL,
+        #ifdef RK29SDK_SD_CARD_PWR_EN_PIN_NAME
+                    .iomux          = {
+                        .name       = RK29SDK_SD_CARD_PWR_EN_PIN_NAME,
+            #ifdef RK29SDK_SD_CARD_PWR_EN_IOMUX_FGPIO
+                        .fgpio      = RK29SDK_SD_CARD_PWR_EN_IOMUX_FGPIO,
+            #endif
+            #ifdef RK29SDK_SD_CARD_PWR_EN_IOMUX_FMUX
+                        .fmux       = RK29SDK_SD_CARD_PWR_EN_IOMUX_FMUX,
+            #endif
+                    },
+        #endif
+#else
+                    .io             = INVALID_GPIO,
+                    .enable         = GPIO_LOW,
+#endif
+                }, 
+            
+        .detect_irq       = {
+#if defined(RK29SDK_SD_CARD_DETECT_N) || (INVALID_GPIO != RK29SDK_SD_CARD_DETECT_N)  
+                    .io             = RK29SDK_SD_CARD_DETECT_N,
+                    .enable         = RK29SDK_SD_CARD_INSERT_LEVEL,
+        #ifdef RK29SDK_SD_CARD_DETECT_PIN_NAME
+                    .iomux          = {
+                        .name       = RK29SDK_SD_CARD_DETECT_PIN_NAME,
+            #ifdef RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO
+                        .fgpio      = RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO,
+            #endif
+            #ifdef RK29SDK_SD_CARD_DETECT_IOMUX_FMUX
+                        .fmux       = RK29SDK_SD_CARD_DETECT_IOMUX_FMUX,
+            #endif
+                    },
+        #endif
+#else
+                    .io             = INVALID_GPIO,
+                    .enable         = GPIO_LOW,
+#endif            
+    },
 
-    .detect_irq       = {
-        .io             = RK29SDK_SD_CARD_DETECT_N,
-        .enable         = RK29SDK_SD_CARD_INSERT_LEVEL,
-        .iomux          = {
-            .name       = RK29SDK_SD_CARD_DETECT_PIN_NAME,
-            .fgpio      = RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO,
-            .fmux       = RK29SDK_SD_CARD_DETECT_IOMUX_FMUX,
-        },
-    },   
 };
 
 
@@ -816,26 +863,48 @@ static struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
         },
     }, 
 
-    .power_en_gpio      = {
+   
+    .power_en_gpio      = {   
+#if defined(RK29SDK_SD_CARD_PWR_EN) || (INVALID_GPIO != RK29SDK_SD_CARD_PWR_EN)
         .io             = RK29SDK_SD_CARD_PWR_EN,
         .enable         = RK29SDK_SD_CARD_PWR_EN_LEVEL,
+        #ifdef RK29SDK_SD_CARD_PWR_EN_PIN_NAME
         .iomux          = {
             .name       = RK29SDK_SD_CARD_PWR_EN_PIN_NAME,
+            #ifdef RK29SDK_SD_CARD_PWR_EN_IOMUX_FGPIO
             .fgpio      = RK29SDK_SD_CARD_PWR_EN_IOMUX_FGPIO,
+            #endif
+            #ifdef RK29SDK_SD_CARD_PWR_EN_IOMUX_FMUX
             .fmux       = RK29SDK_SD_CARD_PWR_EN_IOMUX_FMUX,
+            #endif
         },
+        #endif
+#else
+        .io             = INVALID_GPIO,
+        .enable         = GPIO_LOW,
+#endif
     }, 
 
     .detect_irq       = {
+#if defined(RK29SDK_SD_CARD_DETECT_N) || (INVALID_GPIO != RK29SDK_SD_CARD_DETECT_N)  
         .io             = RK29SDK_SD_CARD_DETECT_N,
         .enable         = RK29SDK_SD_CARD_INSERT_LEVEL,
+        #ifdef RK29SDK_SD_CARD_DETECT_PIN_NAME
         .iomux          = {
             .name       = RK29SDK_SD_CARD_DETECT_PIN_NAME,
+            #ifdef RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO
             .fgpio      = RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO,
+            #endif
+            #ifdef RK29SDK_SD_CARD_DETECT_IOMUX_FMUX
             .fmux       = RK29SDK_SD_CARD_DETECT_IOMUX_FMUX,
+            #endif
         },
-    },
-    
+        #endif
+#else
+        .io             = INVALID_GPIO,
+        .enable         = GPIO_LOW,
+#endif            
+    }, 
 };
 
 
