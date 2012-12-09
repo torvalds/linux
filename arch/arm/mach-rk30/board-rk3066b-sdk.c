@@ -862,9 +862,13 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
     .register_status_notify = rk29sdk_wifi_mmc0_status_register,
 #endif
 
+#if defined(RK29SDK_SD_CARD_PWR_EN) || (INVALID_GPIO != RK29SDK_SD_CARD_PWR_EN)
     .power_en = RK29SDK_SD_CARD_PWR_EN,
     .power_en_level = RK29SDK_SD_CARD_PWR_EN_LEVEL,
-    
+#else
+    .power_en = INVALID_GPIO,
+    .power_en_level = GPIO_LOW,
+#endif    
 	.enable_sd_wakeup = 0,
 
 #if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
@@ -874,15 +878,27 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 	.write_prt = INVALID_GPIO,
 #endif
 
-    .det_pin_info = {
+    .det_pin_info = {    
+    #if defined(RK29SDK_SD_CARD_DETECT_N) || (INVALID_GPIO != RK29SDK_SD_CARD_DETECT_N)  
         .io             = RK29SDK_SD_CARD_DETECT_N, //INVALID_GPIO,
         .enable         = RK29SDK_SD_CARD_INSERT_LEVEL,
+        #ifdef RK29SDK_SD_CARD_DETECT_PIN_NAME
         .iomux          = {
             .name       = RK29SDK_SD_CARD_DETECT_PIN_NAME,
+            #ifdef RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO
             .fgpio      = RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO,
+            #endif
+            #ifdef RK29SDK_SD_CARD_DETECT_IOMUX_FMUX
             .fmux       = RK29SDK_SD_CARD_DETECT_IOMUX_FMUX,
+            #endif
         },
-    },   
+        #endif
+    #else
+        .io             = INVALID_GPIO,
+        .enable         = GPIO_LOW,
+    #endif    
+    }, 
+
 };
 #endif // CONFIG_SDMMC0_RK29
 
@@ -953,17 +969,27 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
     #endif
 
     .det_pin_info = {    
-#if !defined(CONFIG_USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD)    
+#if !defined(CONFIG_USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD)
+     #if defined(RK29SDK_SD_CARD_DETECT_N) || (INVALID_GPIO != RK29SDK_SD_CARD_DETECT_N)  
         .io             = RK29SDK_SD_CARD_DETECT_N,
+     #else
+         .io             = INVALID_GPIO,
+     #endif   
 #else
         .io             = INVALID_GPIO,
 #endif
         .enable         = RK29SDK_SD_CARD_INSERT_LEVEL,
+        #ifdef RK29SDK_SD_CARD_DETECT_PIN_NAME
         .iomux          = {
             .name       = RK29SDK_SD_CARD_DETECT_PIN_NAME,
+            #ifdef RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO
             .fgpio      = RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO,
+            #endif
+            #ifdef RK29SDK_SD_CARD_DETECT_IOMUX_FMUX
             .fmux       = RK29SDK_SD_CARD_DETECT_IOMUX_FMUX,
+            #endif
         },
+        #endif
     }, 
     
 	.enable_sd_wakeup = 0,
