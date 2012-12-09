@@ -166,7 +166,7 @@ nve0_graph_intr(struct nouveau_subdev *subdev)
 	if (stat & 0x00100000) {
 		nv_error(priv, "DATA_ERROR [");
 		nouveau_enum_print(nv50_data_error_names, code);
-		printk("] ch %d [0x%010llx] subc %d class 0x%04x "
+		pr_cont("] ch %d [0x%010llx] subc %d class 0x%04x "
 		       "mthd 0x%04x data 0x%08x\n",
 		       chid, inst, subc, class, mthd, data);
 		nv_wr32(priv, 0x400100, 0x00100000);

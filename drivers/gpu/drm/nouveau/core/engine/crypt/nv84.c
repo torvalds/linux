@@ -128,7 +128,7 @@ nv84_crypt_intr(struct nouveau_subdev *subdev)
 	if (stat) {
 		nv_error(priv, "");
 		nouveau_bitfield_print(nv84_crypt_intr_mask, stat);
-		printk(" ch %d [0x%010llx] mthd 0x%04x data 0x%08x\n",
+		pr_cont(" ch %d [0x%010llx] mthd 0x%04x data 0x%08x\n",
 		       chid, (u64)inst << 12, mthd, data);
 	}
 

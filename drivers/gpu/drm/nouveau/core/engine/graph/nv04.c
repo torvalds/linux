@@ -1299,11 +1299,11 @@ nv04_graph_intr(struct nouveau_subdev *subdev)
 	if (show) {
 		nv_error(priv, "");
 		nouveau_bitfield_print(nv04_graph_intr_name, show);
-		printk(" nsource:");
+		pr_cont(" nsource:");
 		nouveau_bitfield_print(nv04_graph_nsource, nsource);
-		printk(" nstatus:");
+		pr_cont(" nstatus:");
 		nouveau_bitfield_print(nv04_graph_nstatus, nstatus);
-		printk("\n");
+		pr_cont("\n");
 		nv_error(priv, "ch %d/%d class 0x%04x "
 			       "mthd 0x%04x data 0x%08x\n",
 			 chid, subc, class, mthd, data);

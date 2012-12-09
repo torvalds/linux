@@ -372,30 +372,30 @@ nv50_fb_intr(struct nouveau_subdev *subdev)
 
 	en = nouveau_enum_find(vm_engine, st0);
 	if (en)
-		printk("%s/", en->name);
+		pr_cont("%s/", en->name);
 	else
-		printk("%02x/", st0);
+		pr_cont("%02x/", st0);
 
 	cl = nouveau_enum_find(vm_client, st2);
 	if (cl)
-		printk("%s/", cl->name);
+		pr_cont("%s/", cl->name);
 	else
-		printk("%02x/", st2);
+		pr_cont("%02x/", st2);
 
 	if      (cl && cl->data) cl = nouveau_enum_find(cl->data, st3);
 	else if (en && en->data) cl = nouveau_enum_find(en->data, st3);
 	else                     cl = NULL;
 	if (cl)
-		printk("%s", cl->name);
+		pr_cont("%s", cl->name);
 	else
-		printk("%02x", st3);
+		pr_cont("%02x", st3);
 
-	printk(" reason: ");
+	pr_cont(" reason: ");
 	en = nouveau_enum_find(vm_fault, st1);
 	if (en)
-		printk("%s\n", en->name);
+		pr_cont("%s\n", en->name);
 	else
-		printk("0x%08x\n", st1);
+		pr_cont("0x%08x\n", st1);
 }
 
 static int

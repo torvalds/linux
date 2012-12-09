@@ -418,7 +418,7 @@ nv50_priv_mp_trap(struct nv50_graph_priv *priv, int tpid, int display)
 			nv_error(priv, "TRAP_MP_EXEC - "
 					"TP %d MP %d: ", tpid, i);
 			nouveau_enum_print(nv50_mp_exec_error_names, status);
-			printk(" at %06x warp %d, opcode %08x %08x\n",
+			pr_cont(" at %06x warp %d, opcode %08x %08x\n",
 					pc&0xffffff, pc >> 24,
 					oplow, ophigh);
 		}
@@ -623,7 +623,7 @@ nv50_graph_trap_handler(struct nv50_graph_priv *priv, u32 display,
 		if (display) {
 			nv_error(priv, "TRAP_M2MF");
 			nouveau_bitfield_print(nv50_graph_trap_m2mf, ustatus);
-			printk("\n");
+			pr_cont("\n");
 			nv_error(priv, "TRAP_M2MF %08x %08x %08x %08x\n",
 				nv_rd32(priv, 0x406804), nv_rd32(priv, 0x406808),
 				nv_rd32(priv, 0x40680c), nv_rd32(priv, 0x406810));
@@ -644,7 +644,7 @@ nv50_graph_trap_handler(struct nv50_graph_priv *priv, u32 display,
 		if (display) {
 			nv_error(priv, "TRAP_VFETCH");
 			nouveau_bitfield_print(nv50_graph_trap_vfetch, ustatus);
-			printk("\n");
+			pr_cont("\n");
 			nv_error(priv, "TRAP_VFETCH %08x %08x %08x %08x\n",
 				nv_rd32(priv, 0x400c00), nv_rd32(priv, 0x400c08),
 				nv_rd32(priv, 0x400c0c), nv_rd32(priv, 0x400c10));
@@ -661,7 +661,7 @@ nv50_graph_trap_handler(struct nv50_graph_priv *priv, u32 display,
 		if (display) {
 			nv_error(priv, "TRAP_STRMOUT");
 			nouveau_bitfield_print(nv50_graph_trap_strmout, ustatus);
-			printk("\n");
+			pr_cont("\n");
 			nv_error(priv, "TRAP_STRMOUT %08x %08x %08x %08x\n",
 				nv_rd32(priv, 0x401804), nv_rd32(priv, 0x401808),
 				nv_rd32(priv, 0x40180c), nv_rd32(priv, 0x401810));
@@ -682,7 +682,7 @@ nv50_graph_trap_handler(struct nv50_graph_priv *priv, u32 display,
 		if (display) {
 			nv_error(priv, "TRAP_CCACHE");
 			nouveau_bitfield_print(nv50_graph_trap_ccache, ustatus);
-			printk("\n");
+			pr_cont("\n");
 			nv_error(priv, "TRAP_CCACHE %08x %08x %08x %08x"
 				     " %08x %08x %08x\n",
 				nv_rd32(priv, 0x405000), nv_rd32(priv, 0x405004),
@@ -774,7 +774,7 @@ nv50_graph_intr(struct nouveau_subdev *subdev)
 		u32 ecode = nv_rd32(priv, 0x400110);
 		nv_error(priv, "DATA_ERROR ");
 		nouveau_enum_print(nv50_data_error_names, ecode);
-		printk("\n");
+		pr_cont("\n");
 	}
 
 	if (stat & 0x00200000) {
@@ -788,7 +788,7 @@ nv50_graph_intr(struct nouveau_subdev *subdev)
 	if (show) {
 		nv_error(priv, "");
 		nouveau_bitfield_print(nv50_graph_intr_name, show);
-		printk("\n");
+		pr_cont("\n");
 		nv_error(priv, "ch %d [0x%010llx] subc %d class 0x%04x "
 			       "mthd 0x%04x data 0x%08x\n",
 			 chid, (u64)inst << 12, subc, class, mthd, data);

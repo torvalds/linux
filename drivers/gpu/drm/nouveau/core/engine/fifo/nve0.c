@@ -416,16 +416,16 @@ nve0_fifo_isr_vm_fault(struct nve0_fifo_priv *priv, int unit)
 	nv_error(priv, "PFIFO: %s fault at 0x%010llx [", (stat & 0x00000080) ?
 		       "write" : "read", (u64)vahi << 32 | valo);
 	nouveau_enum_print(nve0_fifo_fault_reason, stat & 0x0000000f);
-	printk("] from ");
+	pr_cont("] from ");
 	nouveau_enum_print(nve0_fifo_fault_unit, unit);
 	if (stat & 0x00000040) {
-		printk("/");
+		pr_cont("/");
 		nouveau_enum_print(nve0_fifo_fault_hubclient, client);
 	} else {
-		printk("/GPC%d/", (stat & 0x1f000000) >> 24);
+		pr_cont("/GPC%d/", (stat & 0x1f000000) >> 24);
 		nouveau_enum_print(nve0_fifo_fault_gpcclient, client);
 	}
-	printk(" on channel 0x%010llx\n", (u64)inst << 12);
+	pr_cont(" on channel 0x%010llx\n", (u64)inst << 12);
 }
 
 static int
@@ -480,7 +480,7 @@ nve0_fifo_isr_subfifo_intr(struct nve0_fifo_priv *priv, int unit)
 	if (show) {
 		nv_error(priv, "SUBFIFO%d:", unit);
 		nouveau_bitfield_print(nve0_fifo_subfifo_intr, show);
-		printk("\n");
+		pr_cont("\n");
 		nv_error(priv, "SUBFIFO%d: ch %d subc %d mthd 0x%04x "
 			       "data 0x%08x\n",
 			 unit, chid, subc, mthd, data);
