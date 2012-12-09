@@ -186,7 +186,7 @@ static struct dentry *aufs_lookup(struct inode *dir, struct dentry *dentry,
 		err = au_digen_test(parent, au_sigen(sb));
 	if (!err) {
 		npositive = au_lkup_dentry(dentry, au_dbstart(parent),
-					   /*type*/0, flags);
+					   /*type*/0);
 		err = npositive;
 	}
 	di_read_unlock(parent, AuLock_IR);
