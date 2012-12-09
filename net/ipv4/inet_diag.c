@@ -557,6 +557,17 @@ static bool valid_hostcond(const struct inet_diag_bc_op *op, int len,
 	return true;
 }
 
+/* Validate a port comparison operator. */
+static inline bool valid_port_comparison(const struct inet_diag_bc_op *op,
+					 int len, int *min_len)
+{
+	/* Port comparisons put the port in a follow-on inet_diag_bc_op. */
+	*min_len += sizeof(struct inet_diag_bc_op);
+	if (len < *min_len)
+		return false;
+	return true;
+}
+
 static int inet_diag_bc_audit(const void *bytecode, int bytecode_len)
 {
 	const void *bc = bytecode;
@@ -572,24 +583,30 @@ static int inet_diag_bc_audit(const void *bytecode, int bytecode_len)
 		case INET_DIAG_BC_D_COND:
 			if (!valid_hostcond(bc, len, &min_len))
 				return -EINVAL;
-			/* fall through */
-		case INET_DIAG_BC_AUTO:
+			break;
 		case INET_DIAG_BC_S_GE:
 		case INET_DIAG_BC_S_LE:
 		case INET_DIAG_BC_D_GE:
 		case INET_DIAG_BC_D_LE:
-		case INET_DIAG_BC_JMP:
-			if (op->no < min_len || op->no > len + 4 || op->no & 3)
-				return -EINVAL;
-			if (op->no < len &&
-			    !valid_cc(bytecode, bytecode_len, len - op->no))
+			if (!valid_port_comparison(bc, len, &min_len))
 				return -EINVAL;
 			break;
+		case INET_DIAG_BC_AUTO:
+		case INET_DIAG_BC_JMP:
 		case INET_DIAG_BC_NOP:
 			break;
 		default:
 			return -EINVAL;
 		}
+
+		if (op->code != INET_DIAG_BC_NOP) {
+			if (op->no < min_len || op->no > len + 4 || op->no & 3)
+				return -EINVAL;
+			if (op->no < len &&
+			    !valid_cc(bytecode, bytecode_len, len - op->no))
+				return -EINVAL;
+		}
+
 		if (op->yes < min_len || op->yes > len + 4 || op->yes & 3)
 			return -EINVAL;
 		bc  += op->yes;
