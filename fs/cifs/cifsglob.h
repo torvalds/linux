@@ -367,6 +367,8 @@ struct smb_version_operations {
 	void (*set_lease_key)(struct inode *, struct cifs_fid *fid);
 	/* generate new lease key */
 	void (*new_lease_key)(struct cifs_fid *fid);
+	int (*calc_signature)(struct smb_rqst *rqst,
+				   struct TCP_Server_Info *server);
 };
 
 struct smb_version_values {
@@ -1489,6 +1491,6 @@ extern struct smb_version_values smb20_values;
 extern struct smb_version_operations smb21_operations;
 extern struct smb_version_values smb21_values;
 #define SMB30_VERSION_STRING	"3.0"
-/*extern struct smb_version_operations smb30_operations; */ /* not needed yet */
+extern struct smb_version_operations smb30_operations;
 extern struct smb_version_values smb30_values;
 #endif	/* _CIFS_GLOB_H */

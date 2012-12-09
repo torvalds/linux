@@ -1085,7 +1085,7 @@ cifs_parse_smb_version(char *value, struct smb_vol *vol)
 		vol->vals = &smb21_values;
 		break;
 	case Smb_30:
-		vol->ops = &smb21_operations; /* currently identical with 2.1 */
+		vol->ops = &smb30_operations;
 		vol->vals = &smb30_values;
 		break;
 #endif
