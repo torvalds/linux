@@ -1773,6 +1773,7 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_VPA_ADDR  | 64
   PPC   | KVM_REG_PPC_VPA_SLB   | 128
   PPC   | KVM_REG_PPC_VPA_DTL   | 128
+  PPC   | KVM_REG_PPC_EPCR	| 32
 
 4.69 KVM_GET_ONE_REG
 
@@ -2070,6 +2071,60 @@ KVM_S390_INT_EMERGENCY (vcpu) - sigp emergency; source cpu in parm
 KVM_S390_INT_EXTERNAL_CALL (vcpu) - sigp external call; source cpu in parm
 
 Note that the vcpu ioctl is asynchronous to vcpu execution.
+
+4.78 KVM_PPC_GET_HTAB_FD
+
+Capability: KVM_CAP_PPC_HTAB_FD
+Architectures: powerpc
+Type: vm ioctl
+Parameters: Pointer to struct kvm_get_htab_fd (in)
+Returns: file descriptor number (>= 0) on success, -1 on error
+
+This returns a file descriptor that can be used either to read out the
+entries in the guest's hashed page table (HPT), or to write entries to
+initialize the HPT.  The returned fd can only be written to if the
+KVM_GET_HTAB_WRITE bit is set in the flags field of the argument, and
+can only be read if that bit is clear.  The argument struct looks like
+this:
+
+/* For KVM_PPC_GET_HTAB_FD */
+struct kvm_get_htab_fd {
+	__u64	flags;
+	__u64	start_index;
+	__u64	reserved[2];
+};
+
+/* Values for kvm_get_htab_fd.flags */
+#define KVM_GET_HTAB_BOLTED_ONLY	((__u64)0x1)
+#define KVM_GET_HTAB_WRITE		((__u64)0x2)
+
+The `start_index' field gives the index in the HPT of the entry at
+which to start reading.  It is ignored when writing.
+
+Reads on the fd will initially supply information about all
+"interesting" HPT entries.  Interesting entries are those with the
+bolted bit set, if the KVM_GET_HTAB_BOLTED_ONLY bit is set, otherwise
+all entries.  When the end of the HPT is reached, the read() will
+return.  If read() is called again on the fd, it will start again from
+the beginning of the HPT, but will only return HPT entries that have
+changed since they were last read.
+
+Data read or written is structured as a header (8 bytes) followed by a
+series of valid HPT entries (16 bytes) each.  The header indicates how
+many valid HPT entries there are and how many invalid entries follow
+the valid entries.  The invalid entries are not represented explicitly
+in the stream.  The header format is:
+
+struct kvm_get_htab_header {
+	__u32	index;
+	__u16	n_valid;
+	__u16	n_invalid;
+};
+
+Writes to the fd create HPT entries starting at the index given in the
+header; first `n_valid' valid entries with contents from the data
+written, then `n_invalid' invalid entries, invalidating any previously
+valid entries found.
 
 
 5. The kvm_run structure

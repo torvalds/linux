@@ -27,6 +27,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/exception-64s.h>
 #include <asm/kvm_book3s_asm.h>
+#include <asm/mmu-hash64.h>
 
 /*****************************************************************************
  *                                                                           *
@@ -313,7 +314,33 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	mtspr	SPRN_SDR1,r6		/* switch to partition page table */
 	mtspr	SPRN_LPID,r7
 	isync
+
+	/* See if we need to flush the TLB */
+	lhz	r6,PACAPACAINDEX(r13)	/* test_bit(cpu, need_tlb_flush) */
+	clrldi	r7,r6,64-6		/* extract bit number (6 bits) */
+	srdi	r6,r6,6			/* doubleword number */
+	sldi	r6,r6,3			/* address offset */
+	add	r6,r6,r9
+	addi	r6,r6,KVM_NEED_FLUSH	/* dword in kvm->arch.need_tlb_flush */
 	li	r0,1
+	sld	r0,r0,r7
+	ld	r7,0(r6)
+	and.	r7,r7,r0
+	beq	22f
+23:	ldarx	r7,0,r6			/* if set, clear the bit */
+	andc	r7,r7,r0
+	stdcx.	r7,0,r6
+	bne	23b
+	li	r6,128			/* and flush the TLB */
+	mtctr	r6
+	li	r7,0x800		/* IS field = 0b10 */
+	ptesync
+28:	tlbiel	r7
+	addi	r7,r7,0x1000
+	bdnz	28b
+	ptesync
+
+22:	li	r0,1
 	stb	r0,VCORE_IN_GUEST(r5)	/* signal secondaries to continue */
 	b	10f
 
@@ -335,36 +362,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	li	r12,BOOK3S_INTERRUPT_HV_DECREMENTER
 	mr	r9,r4
 	blt	hdec_soon
-
-	/*
-	 * Invalidate the TLB if we could possibly have stale TLB
-	 * entries for this partition on this core due to the use
-	 * of tlbiel.
-	 * XXX maybe only need this on primary thread?
-	 */
-	ld	r9,VCPU_KVM(r4)		/* pointer to struct kvm */
-	lwz	r5,VCPU_VCPUID(r4)
-	lhz	r6,PACAPACAINDEX(r13)
-	rldimi	r6,r5,0,62		/* XXX map as if threads 1:1 p:v */
-	lhz	r8,VCPU_LAST_CPU(r4)
-	sldi	r7,r6,1			/* see if this is the same vcpu */
-	add	r7,r7,r9		/* as last ran on this pcpu */
-	lhz	r0,KVM_LAST_VCPU(r7)
-	cmpw	r6,r8			/* on the same cpu core as last time? */
-	bne	3f
-	cmpw	r0,r5			/* same vcpu as this core last ran? */
-	beq	1f
-3:	sth	r6,VCPU_LAST_CPU(r4)	/* if not, invalidate partition TLB */
-	sth	r5,KVM_LAST_VCPU(r7)
-	li	r6,128
-	mtctr	r6
-	li	r7,0x800		/* IS field = 0b10 */
-	ptesync
-2:	tlbiel	r7
-	addi	r7,r7,0x1000
-	bdnz	2b
-	ptesync
-1:
 
 	/* Save purr/spurr */
 	mfspr	r5,SPRN_PURR
@@ -682,8 +679,7 @@ BEGIN_FTR_SECTION
 1:
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 
-nohpte_cont:
-hcall_real_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
+guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	/* Save DEC */
 	mfspr	r5,SPRN_DEC
 	mftb	r6
@@ -703,6 +699,11 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 	std	r6, VCPU_FAULT_DAR(r9)
 	stw	r7, VCPU_FAULT_DSISR(r9)
+
+	/* See if it is a machine check */
+	cmpwi	r12, BOOK3S_INTERRUPT_MACHINE_CHECK
+	beq	machine_check_realmode
+mc_cont:
 
 	/* Save guest CTRL register, set runlatch to 1 */
 6:	mfspr	r6,SPRN_CTRLF
@@ -1116,37 +1117,40 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	/*
 	 * For external and machine check interrupts, we need
 	 * to call the Linux handler to process the interrupt.
-	 * We do that by jumping to the interrupt vector address
-	 * which we have in r12.  The [h]rfid at the end of the
+	 * We do that by jumping to absolute address 0x500 for
+	 * external interrupts, or the machine_check_fwnmi label
+	 * for machine checks (since firmware might have patched
+	 * the vector area at 0x200).  The [h]rfid at the end of the
 	 * handler will return to the book3s_hv_interrupts.S code.
 	 * For other interrupts we do the rfid to get back
-	 * to the book3s_interrupts.S code here.
+	 * to the book3s_hv_interrupts.S code here.
 	 */
 	ld	r8, HSTATE_VMHANDLER(r13)
 	ld	r7, HSTATE_HOST_MSR(r13)
 
+	cmpwi	cr1, r12, BOOK3S_INTERRUPT_MACHINE_CHECK
 	cmpwi	r12, BOOK3S_INTERRUPT_EXTERNAL
+BEGIN_FTR_SECTION
 	beq	11f
-	cmpwi	r12, BOOK3S_INTERRUPT_MACHINE_CHECK
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 
 	/* RFI into the highmem handler, or branch to interrupt handler */
-12:	mfmsr	r6
-	mtctr	r12
+	mfmsr	r6
 	li	r0, MSR_RI
 	andc	r6, r6, r0
 	mtmsrd	r6, 1			/* Clear RI in MSR */
 	mtsrr0	r8
 	mtsrr1	r7
-	beqctr
+	beqa	0x500			/* external interrupt (PPC970) */
+	beq	cr1, 13f		/* machine check */
 	RFI
 
-11:
-BEGIN_FTR_SECTION
-	b	12b
-END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
-	mtspr	SPRN_HSRR0, r8
+	/* On POWER7, we have external interrupts set to use HSRR0/1 */
+11:	mtspr	SPRN_HSRR0, r8
 	mtspr	SPRN_HSRR1, r7
 	ba	0x500
+
+13:	b	machine_check_fwnmi
 
 /*
  * Check whether an HDSI is an HPTE not found fault or something else.
@@ -1180,7 +1184,7 @@ kvmppc_hdsi:
 	cmpdi	r3, 0			/* retry the instruction */
 	beq	6f
 	cmpdi	r3, -1			/* handle in kernel mode */
-	beq	nohpte_cont
+	beq	guest_exit_cont
 	cmpdi	r3, -2			/* MMIO emulation; need instr word */
 	beq	2f
 
@@ -1194,6 +1198,7 @@ kvmppc_hdsi:
 	li	r10, BOOK3S_INTERRUPT_DATA_STORAGE
 	li	r11, (MSR_ME << 1) | 1	/* synthesize MSR_SF | MSR_ME */
 	rotldi	r11, r11, 63
+fast_interrupt_c_return:
 6:	ld	r7, VCPU_CTR(r9)
 	lwz	r8, VCPU_XER(r9)
 	mtctr	r7
@@ -1226,7 +1231,7 @@ kvmppc_hdsi:
 	/* Unset guest mode. */
 	li	r0, KVM_GUEST_MODE_NONE
 	stb	r0, HSTATE_IN_GUEST(r13)
-	b	nohpte_cont
+	b	guest_exit_cont
 
 /*
  * Similarly for an HISI, reflect it to the guest as an ISI unless
@@ -1252,9 +1257,9 @@ kvmppc_hisi:
 	ld	r11, VCPU_MSR(r9)
 	li	r12, BOOK3S_INTERRUPT_H_INST_STORAGE
 	cmpdi	r3, 0			/* retry the instruction */
-	beq	6f
+	beq	fast_interrupt_c_return
 	cmpdi	r3, -1			/* handle in kernel mode */
-	beq	nohpte_cont
+	beq	guest_exit_cont
 
 	/* Synthesize an ISI for the guest */
 	mr	r11, r3
@@ -1263,12 +1268,7 @@ kvmppc_hisi:
 	li	r10, BOOK3S_INTERRUPT_INST_STORAGE
 	li	r11, (MSR_ME << 1) | 1	/* synthesize MSR_SF | MSR_ME */
 	rotldi	r11, r11, 63
-6:	ld	r7, VCPU_CTR(r9)
-	lwz	r8, VCPU_XER(r9)
-	mtctr	r7
-	mtxer	r8
-	mr	r4, r9
-	b	fast_guest_return
+	b	fast_interrupt_c_return
 
 3:	ld	r6, VCPU_KVM(r9)	/* not relocated, use VRMA */
 	ld	r5, KVM_VRMA_SLB_V(r6)
@@ -1284,14 +1284,14 @@ kvmppc_hisi:
 hcall_try_real_mode:
 	ld	r3,VCPU_GPR(R3)(r9)
 	andi.	r0,r11,MSR_PR
-	bne	hcall_real_cont
+	bne	guest_exit_cont
 	clrrdi	r3,r3,2
 	cmpldi	r3,hcall_real_table_end - hcall_real_table
-	bge	hcall_real_cont
+	bge	guest_exit_cont
 	LOAD_REG_ADDR(r4, hcall_real_table)
 	lwzx	r3,r3,r4
 	cmpwi	r3,0
-	beq	hcall_real_cont
+	beq	guest_exit_cont
 	add	r3,r3,r4
 	mtctr	r3
 	mr	r3,r9		/* get vcpu pointer */
@@ -1312,7 +1312,7 @@ hcall_real_fallback:
 	li	r12,BOOK3S_INTERRUPT_SYSCALL
 	ld	r9, HSTATE_KVM_VCPU(r13)
 
-	b	hcall_real_cont
+	b	guest_exit_cont
 
 	.globl	hcall_real_table
 hcall_real_table:
@@ -1570,6 +1570,21 @@ kvm_cede_prodded:
 kvm_cede_exit:
 	li	r3,H_TOO_HARD
 	blr
+
+	/* Try to handle a machine check in real mode */
+machine_check_realmode:
+	mr	r3, r9		/* get vcpu pointer */
+	bl	.kvmppc_realmode_machine_check
+	nop
+	cmpdi	r3, 0		/* continue exiting from guest? */
+	ld	r9, HSTATE_KVM_VCPU(r13)
+	li	r12, BOOK3S_INTERRUPT_MACHINE_CHECK
+	beq	mc_cont
+	/* If not, deliver a machine check.  SRR0/1 are already set */
+	li	r10, BOOK3S_INTERRUPT_MACHINE_CHECK
+	li	r11, (MSR_ME << 1) | 1	/* synthesize MSR_SF | MSR_ME */
+	rotldi	r11, r11, 63
+	b	fast_interrupt_c_return
 
 secondary_too_late:
 	ld	r5,HSTATE_KVM_VCORE(r13)

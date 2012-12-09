@@ -164,6 +164,8 @@ extern void kvmppc_bookehv_exit(void);
 
 extern int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu);
 
+extern int kvm_vm_ioctl_get_htab_fd(struct kvm *kvm, struct kvm_get_htab_fd *);
+
 /*
  * Cuts out inst bits with ordering according to spec.
  * That means the leftmost bit is zero. All given bits are included.
@@ -291,6 +293,27 @@ static inline void kvmppc_lazy_ee_enable(void)
 	local_paca->irq_happened = 0;
 	local_paca->soft_enabled = 1;
 #endif
+}
+
+static inline ulong kvmppc_get_ea_indexed(struct kvm_vcpu *vcpu, int ra, int rb)
+{
+	ulong ea;
+	ulong msr_64bit = 0;
+
+	ea = kvmppc_get_gpr(vcpu, rb);
+	if (ra)
+		ea += kvmppc_get_gpr(vcpu, ra);
+
+#if defined(CONFIG_PPC_BOOK3E_64)
+	msr_64bit = MSR_CM;
+#elif defined(CONFIG_PPC_BOOK3S_64)
+	msr_64bit = MSR_SF;
+#endif
+
+	if (!(vcpu->arch.shared->msr & msr_64bit))
+		ea = (uint32_t)ea;
+
+	return ea;
 }
 
 #endif /* __POWERPC_KVM_PPC_H__ */

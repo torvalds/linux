@@ -36,6 +36,7 @@
 #include <asm/dbell.h>
 #include <asm/hw_irq.h>
 #include <asm/irq.h>
+#include <asm/time.h>
 
 #include "timing.h"
 #include "booke.h"
@@ -311,6 +312,7 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 	bool crit;
 	bool keep_irq = false;
 	enum int_class int_class;
+	ulong new_msr = vcpu->arch.shared->msr;
 
 	/* Truncate crit indicators in 32 bit mode */
 	if (!(vcpu->arch.shared->msr & MSR_SF)) {
@@ -406,7 +408,13 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 			set_guest_esr(vcpu, vcpu->arch.queued_esr);
 		if (update_dear == true)
 			set_guest_dear(vcpu, vcpu->arch.queued_dear);
-		kvmppc_set_msr(vcpu, vcpu->arch.shared->msr & msr_mask);
+
+		new_msr &= msr_mask;
+#if defined(CONFIG_64BIT)
+		if (vcpu->arch.epcr & SPRN_EPCR_ICM)
+			new_msr |= MSR_CM;
+#endif
+		kvmppc_set_msr(vcpu, new_msr);
 
 		if (!keep_irq)
 			clear_bit(priority, &vcpu->arch.pending_exceptions);
@@ -1380,6 +1388,11 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 				 &vcpu->arch.dbg_reg.dac[dac], sizeof(u64));
 		break;
 	}
+#if defined(CONFIG_64BIT)
+	case KVM_REG_PPC_EPCR:
+		r = put_user(vcpu->arch.epcr, (u32 __user *)(long)reg->addr);
+		break;
+#endif
 	default:
 		break;
 	}
@@ -1407,6 +1420,15 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 			     (u64 __user *)(long)reg->addr, sizeof(u64));
 		break;
 	}
+#if defined(CONFIG_64BIT)
+	case KVM_REG_PPC_EPCR: {
+		u32 new_epcr;
+		r = get_user(new_epcr, (u32 __user *)(long)reg->addr);
+		if (r == 0)
+			kvmppc_set_epcr(vcpu, new_epcr);
+		break;
+	}
+#endif
 	default:
 		break;
 	}
@@ -1463,6 +1485,18 @@ void kvmppc_core_commit_memory_region(struct kvm *kvm,
 
 void kvmppc_core_flush_memslot(struct kvm *kvm, struct kvm_memory_slot *memslot)
 {
+}
+
+void kvmppc_set_epcr(struct kvm_vcpu *vcpu, u32 new_epcr)
+{
+#if defined(CONFIG_64BIT)
+	vcpu->arch.epcr = new_epcr;
+#ifdef CONFIG_KVM_BOOKE_HV
+	vcpu->arch.shadow_epcr &= ~SPRN_EPCR_GICM;
+	if (vcpu->arch.epcr  & SPRN_EPCR_ICM)
+		vcpu->arch.shadow_epcr |= SPRN_EPCR_GICM;
+#endif
+#endif
 }
 
 void kvmppc_set_tcr(struct kvm_vcpu *vcpu, u32 new_tcr)

@@ -545,6 +545,17 @@ static int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	case BOOK3S_INTERRUPT_PERFMON:
 		r = RESUME_GUEST;
 		break;
+	case BOOK3S_INTERRUPT_MACHINE_CHECK:
+		/*
+		 * Deliver a machine check interrupt to the guest.
+		 * We have to do this, even if the host has handled the
+		 * machine check, because machine checks use SRR0/1 and
+		 * the interrupt might have trashed guest state in them.
+		 */
+		kvmppc_book3s_queue_irqprio(vcpu,
+					    BOOK3S_INTERRUPT_MACHINE_CHECK);
+		r = RESUME_GUEST;
+		break;
 	case BOOK3S_INTERRUPT_PROGRAM:
 	{
 		ulong flags;
@@ -853,7 +864,6 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 		goto free_vcpu;
 
 	vcpu->arch.shared = &vcpu->arch.shregs;
-	vcpu->arch.last_cpu = -1;
 	vcpu->arch.mmcr[0] = MMCR0_FC;
 	vcpu->arch.ctrl = CTRL_RUNLATCH;
 	/* default to host PVR, since we can't spoof it */
@@ -880,6 +890,7 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 			vcore->preempt_tb = TB_NIL;
 		}
 		kvm->arch.vcores[core] = vcore;
+		kvm->arch.online_vcores++;
 	}
 	mutex_unlock(&kvm->lock);
 
@@ -1563,18 +1574,6 @@ out:
 	return r;
 }
 
-static unsigned long slb_pgsize_encoding(unsigned long psize)
-{
-	unsigned long senc = 0;
-
-	if (psize > 0x1000) {
-		senc = SLB_VSID_L;
-		if (psize == 0x10000)
-			senc |= SLB_VSID_LP_01;
-	}
-	return senc;
-}
-
 static void unpin_slot(struct kvm_memory_slot *memslot)
 {
 	unsigned long *physp;
@@ -1813,6 +1812,13 @@ int kvmppc_core_init_vm(struct kvm *kvm)
 	if (lpid < 0)
 		return -ENOMEM;
 	kvm->arch.lpid = lpid;
+
+	/*
+	 * Since we don't flush the TLB when tearing down a VM,
+	 * and this lpid might have previously been used,
+	 * make sure we flush on each core before running the new VM.
+	 */
+	cpumask_setall(&kvm->arch.need_tlb_flush);
 
 	INIT_LIST_HEAD(&kvm->arch.spapr_tce_tables);
 

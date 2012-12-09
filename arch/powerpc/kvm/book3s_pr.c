@@ -81,9 +81,7 @@ void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu)
 	svcpu_put(svcpu);
 #endif
 
-	kvmppc_giveup_ext(vcpu, MSR_FP);
-	kvmppc_giveup_ext(vcpu, MSR_VEC);
-	kvmppc_giveup_ext(vcpu, MSR_VSX);
+	kvmppc_giveup_ext(vcpu, MSR_FP | MSR_VEC | MSR_VSX);
 	vcpu->cpu = -1;
 }
 
@@ -147,7 +145,7 @@ static void kvmppc_recalc_shadow_msr(struct kvm_vcpu *vcpu)
 	ulong smsr = vcpu->arch.shared->msr;
 
 	/* Guest MSR values */
-	smsr &= MSR_FE0 | MSR_FE1 | MSR_SF | MSR_SE | MSR_BE | MSR_DE;
+	smsr &= MSR_FE0 | MSR_FE1 | MSR_SF | MSR_SE | MSR_BE;
 	/* Process MSR values */
 	smsr |= MSR_ME | MSR_RI | MSR_IR | MSR_DR | MSR_PR | MSR_EE;
 	/* External providers the guest reserved */
@@ -433,10 +431,7 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 static inline int get_fpr_index(int i)
 {
-#ifdef CONFIG_VSX
-	i *= 2;
-#endif
-	return i;
+	return i * TS_FPRWIDTH;
 }
 
 /* Give up external provider (FPU, Altivec, VSX) */
@@ -450,41 +445,49 @@ void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr)
 	u64 *thread_fpr = (u64*)t->fpr;
 	int i;
 
-	if (!(vcpu->arch.guest_owned_ext & msr))
+	/*
+	 * VSX instructions can access FP and vector registers, so if
+	 * we are giving up VSX, make sure we give up FP and VMX as well.
+	 */
+	if (msr & MSR_VSX)
+		msr |= MSR_FP | MSR_VEC;
+
+	msr &= vcpu->arch.guest_owned_ext;
+	if (!msr)
 		return;
 
 #ifdef DEBUG_EXT
 	printk(KERN_INFO "Giving up ext 0x%lx\n", msr);
 #endif
 
-	switch (msr) {
-	case MSR_FP:
+	if (msr & MSR_FP) {
+		/*
+		 * Note that on CPUs with VSX, giveup_fpu stores
+		 * both the traditional FP registers and the added VSX
+		 * registers into thread.fpr[].
+		 */
 		giveup_fpu(current);
 		for (i = 0; i < ARRAY_SIZE(vcpu->arch.fpr); i++)
 			vcpu_fpr[i] = thread_fpr[get_fpr_index(i)];
 
 		vcpu->arch.fpscr = t->fpscr.val;
-		break;
-	case MSR_VEC:
+
+#ifdef CONFIG_VSX
+		if (cpu_has_feature(CPU_FTR_VSX))
+			for (i = 0; i < ARRAY_SIZE(vcpu->arch.vsr) / 2; i++)
+				vcpu_vsx[i] = thread_fpr[get_fpr_index(i) + 1];
+#endif
+	}
+
 #ifdef CONFIG_ALTIVEC
+	if (msr & MSR_VEC) {
 		giveup_altivec(current);
 		memcpy(vcpu->arch.vr, t->vr, sizeof(vcpu->arch.vr));
 		vcpu->arch.vscr = t->vscr;
-#endif
-		break;
-	case MSR_VSX:
-#ifdef CONFIG_VSX
-		__giveup_vsx(current);
-		for (i = 0; i < ARRAY_SIZE(vcpu->arch.vsr); i++)
-			vcpu_vsx[i] = thread_fpr[get_fpr_index(i) + 1];
-#endif
-		break;
-	default:
-		BUG();
 	}
+#endif
 
-	vcpu->arch.guest_owned_ext &= ~msr;
-	current->thread.regs->msr &= ~msr;
+	vcpu->arch.guest_owned_ext &= ~(msr | MSR_VSX);
 	kvmppc_recalc_shadow_msr(vcpu);
 }
 
@@ -544,10 +547,27 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 		return RESUME_GUEST;
 	}
 
-	/* We already own the ext */
-	if (vcpu->arch.guest_owned_ext & msr) {
-		return RESUME_GUEST;
+	if (msr == MSR_VSX) {
+		/* No VSX?  Give an illegal instruction interrupt */
+#ifdef CONFIG_VSX
+		if (!cpu_has_feature(CPU_FTR_VSX))
+#endif
+		{
+			kvmppc_core_queue_program(vcpu, SRR1_PROGILL);
+			return RESUME_GUEST;
+		}
+
+		/*
+		 * We have to load up all the FP and VMX registers before
+		 * we can let the guest use VSX instructions.
+		 */
+		msr = MSR_FP | MSR_VEC | MSR_VSX;
 	}
+
+	/* See if we already own all the ext(s) needed */
+	msr &= ~vcpu->arch.guest_owned_ext;
+	if (!msr)
+		return RESUME_GUEST;
 
 #ifdef DEBUG_EXT
 	printk(KERN_INFO "Loading up ext 0x%lx\n", msr);
@@ -555,36 +575,28 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 
 	current->thread.regs->msr |= msr;
 
-	switch (msr) {
-	case MSR_FP:
+	if (msr & MSR_FP) {
 		for (i = 0; i < ARRAY_SIZE(vcpu->arch.fpr); i++)
 			thread_fpr[get_fpr_index(i)] = vcpu_fpr[i];
-
+#ifdef CONFIG_VSX
+		for (i = 0; i < ARRAY_SIZE(vcpu->arch.vsr) / 2; i++)
+			thread_fpr[get_fpr_index(i) + 1] = vcpu_vsx[i];
+#endif
 		t->fpscr.val = vcpu->arch.fpscr;
 		t->fpexc_mode = 0;
 		kvmppc_load_up_fpu();
-		break;
-	case MSR_VEC:
+	}
+
+	if (msr & MSR_VEC) {
 #ifdef CONFIG_ALTIVEC
 		memcpy(t->vr, vcpu->arch.vr, sizeof(vcpu->arch.vr));
 		t->vscr = vcpu->arch.vscr;
 		t->vrsave = -1;
 		kvmppc_load_up_altivec();
 #endif
-		break;
-	case MSR_VSX:
-#ifdef CONFIG_VSX
-		for (i = 0; i < ARRAY_SIZE(vcpu->arch.vsr); i++)
-			thread_fpr[get_fpr_index(i) + 1] = vcpu_vsx[i];
-		kvmppc_load_up_vsx();
-#endif
-		break;
-	default:
-		BUG();
 	}
 
 	vcpu->arch.guest_owned_ext |= msr;
-
 	kvmppc_recalc_shadow_msr(vcpu);
 
 	return RESUME_GUEST;
@@ -1134,7 +1146,7 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	/* Save VSX state in stack */
 	used_vsr = current->thread.used_vsr;
 	if (used_vsr && (current->thread.regs->msr & MSR_VSX))
-			__giveup_vsx(current);
+		__giveup_vsx(current);
 #endif
 
 	/* Remember the MSR with disabled extensions */
@@ -1151,14 +1163,12 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	/* No need for kvm_guest_exit. It's done in handle_exit.
 	   We also get here with interrupts enabled. */
 
+	/* Make sure we save the guest FPU/Altivec/VSX state */
+	kvmppc_giveup_ext(vcpu, MSR_FP | MSR_VEC | MSR_VSX);
+
 	current->thread.regs->msr = ext_msr;
 
-	/* Make sure we save the guest FPU/Altivec/VSX state */
-	kvmppc_giveup_ext(vcpu, MSR_FP);
-	kvmppc_giveup_ext(vcpu, MSR_VEC);
-	kvmppc_giveup_ext(vcpu, MSR_VSX);
-
-	/* Restore FPU state from stack */
+	/* Restore FPU/VSX state from stack */
 	memcpy(current->thread.fpr, fpr, sizeof(current->thread.fpr));
 	current->thread.fpscr.val = fpscr;
 	current->thread.fpexc_mode = fpexc_mode;

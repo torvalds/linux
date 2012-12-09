@@ -314,6 +314,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_PPC_IRQ_LEVEL:
 	case KVM_CAP_ENABLE_CAP:
 	case KVM_CAP_ONE_REG:
+	case KVM_CAP_IOEVENTFD:
 		r = 1;
 		break;
 #ifndef CONFIG_KVM_BOOK3S_64_HV
@@ -353,6 +354,12 @@ int kvm_dev_ioctl_check_extension(long ext)
 		r = 1;
 #else
 		r = 0;
+		break;
+#endif
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+	case KVM_CAP_PPC_HTAB_FD:
+		r = 1;
+		break;
 #endif
 		break;
 	case KVM_CAP_NR_VCPUS:
@@ -618,6 +625,13 @@ int kvmppc_handle_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	vcpu->mmio_is_write = 0;
 	vcpu->arch.mmio_sign_extend = 0;
 
+	if (!kvm_io_bus_read(vcpu->kvm, KVM_MMIO_BUS, run->mmio.phys_addr,
+			     bytes, &run->mmio.data)) {
+		kvmppc_complete_mmio_load(vcpu, run);
+		vcpu->mmio_needed = 0;
+		return EMULATE_DONE;
+	}
+
 	return EMULATE_DO_MMIO;
 }
 
@@ -627,8 +641,8 @@ int kvmppc_handle_loads(struct kvm_run *run, struct kvm_vcpu *vcpu,
 {
 	int r;
 
-	r = kvmppc_handle_load(run, vcpu, rt, bytes, is_bigendian);
 	vcpu->arch.mmio_sign_extend = 1;
+	r = kvmppc_handle_load(run, vcpu, rt, bytes, is_bigendian);
 
 	return r;
 }
@@ -664,6 +678,13 @@ int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		case 2: st_le16(data, val); break;
 		case 1: *(u8 *)data = val; break;
 		}
+	}
+
+	if (!kvm_io_bus_write(vcpu->kvm, KVM_MMIO_BUS, run->mmio.phys_addr,
+			      bytes, &run->mmio.data)) {
+		kvmppc_complete_mmio_load(vcpu, run);
+		vcpu->mmio_needed = 0;
+		return EMULATE_DONE;
 	}
 
 	return EMULATE_DO_MMIO;
@@ -937,6 +958,17 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		if (put_user(htab_order, (u32 __user *)argp))
 			break;
 		r = 0;
+		break;
+	}
+
+	case KVM_PPC_GET_HTAB_FD: {
+		struct kvm *kvm = filp->private_data;
+		struct kvm_get_htab_fd ghf;
+
+		r = -EFAULT;
+		if (copy_from_user(&ghf, argp, sizeof(ghf)))
+			break;
+		r = kvm_vm_ioctl_get_htab_fd(kvm, &ghf);
 		break;
 	}
 #endif /* CONFIG_KVM_BOOK3S_64_HV */

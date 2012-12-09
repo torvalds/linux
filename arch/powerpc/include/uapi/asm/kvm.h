@@ -331,6 +331,31 @@ struct kvm_book3e_206_tlb_params {
 	__u32 reserved[8];
 };
 
+/* For KVM_PPC_GET_HTAB_FD */
+struct kvm_get_htab_fd {
+	__u64	flags;
+	__u64	start_index;
+	__u64	reserved[2];
+};
+
+/* Values for kvm_get_htab_fd.flags */
+#define KVM_GET_HTAB_BOLTED_ONLY	((__u64)0x1)
+#define KVM_GET_HTAB_WRITE		((__u64)0x2)
+
+/*
+ * Data read on the file descriptor is formatted as a series of
+ * records, each consisting of a header followed by a series of
+ * `n_valid' HPTEs (16 bytes each), which are all valid.  Following
+ * those valid HPTEs there are `n_invalid' invalid HPTEs, which
+ * are not represented explicitly in the stream.  The same format
+ * is used for writing.
+ */
+struct kvm_get_htab_header {
+	__u32	index;
+	__u16	n_valid;
+	__u16	n_invalid;
+};
+
 #define KVM_REG_PPC_HIOR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x1)
 #define KVM_REG_PPC_IAC1	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x2)
 #define KVM_REG_PPC_IAC2	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x3)
@@ -385,5 +410,7 @@ struct kvm_book3e_206_tlb_params {
 #define KVM_REG_PPC_VPA_ADDR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x82)
 #define KVM_REG_PPC_VPA_SLB	(KVM_REG_PPC | KVM_REG_SIZE_U128 | 0x83)
 #define KVM_REG_PPC_VPA_DTL	(KVM_REG_PPC | KVM_REG_SIZE_U128 | 0x84)
+
+#define KVM_REG_PPC_EPCR	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x85)
 
 #endif /* __LINUX_KVM_POWERPC_H */

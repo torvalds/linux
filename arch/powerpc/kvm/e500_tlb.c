@@ -415,7 +415,8 @@ static inline void kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	struct tlbe_ref *ref)
 {
 	struct kvm_memory_slot *slot;
-	unsigned long pfn, hva;
+	unsigned long pfn = 0; /* silence GCC warning */
+	unsigned long hva;
 	int pfnmap = 0;
 	int tsize = BOOK3E_PAGESZ_4K;
 
@@ -688,14 +689,11 @@ int kvmppc_e500_emul_mt_mmucsr0(struct kvmppc_vcpu_e500 *vcpu_e500, ulong value)
 	return EMULATE_DONE;
 }
 
-int kvmppc_e500_emul_tlbivax(struct kvm_vcpu *vcpu, int ra, int rb)
+int kvmppc_e500_emul_tlbivax(struct kvm_vcpu *vcpu, gva_t ea)
 {
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
 	unsigned int ia;
 	int esel, tlbsel;
-	gva_t ea;
-
-	ea = ((ra) ? kvmppc_get_gpr(vcpu, ra) : 0) + kvmppc_get_gpr(vcpu, rb);
 
 	ia = (ea >> 2) & 0x1;
 
@@ -722,7 +720,7 @@ int kvmppc_e500_emul_tlbivax(struct kvm_vcpu *vcpu, int ra, int rb)
 }
 
 static void tlbilx_all(struct kvmppc_vcpu_e500 *vcpu_e500, int tlbsel,
-		       int pid, int rt)
+		       int pid, int type)
 {
 	struct kvm_book3e_206_tlb_entry *tlbe;
 	int tid, esel;
@@ -731,7 +729,7 @@ static void tlbilx_all(struct kvmppc_vcpu_e500 *vcpu_e500, int tlbsel,
 	for (esel = 0; esel < vcpu_e500->gtlb_params[tlbsel].entries; esel++) {
 		tlbe = get_entry(vcpu_e500, tlbsel, esel);
 		tid = get_tlb_tid(tlbe);
-		if (rt == 0 || tid == pid) {
+		if (type == 0 || tid == pid) {
 			inval_gtlbe_on_host(vcpu_e500, tlbsel, esel);
 			kvmppc_e500_gtlbe_invalidate(vcpu_e500, tlbsel, esel);
 		}
@@ -739,14 +737,9 @@ static void tlbilx_all(struct kvmppc_vcpu_e500 *vcpu_e500, int tlbsel,
 }
 
 static void tlbilx_one(struct kvmppc_vcpu_e500 *vcpu_e500, int pid,
-		       int ra, int rb)
+		       gva_t ea)
 {
 	int tlbsel, esel;
-	gva_t ea;
-
-	ea = kvmppc_get_gpr(&vcpu_e500->vcpu, rb);
-	if (ra)
-		ea += kvmppc_get_gpr(&vcpu_e500->vcpu, ra);
 
 	for (tlbsel = 0; tlbsel < 2; tlbsel++) {
 		esel = kvmppc_e500_tlb_index(vcpu_e500, ea, tlbsel, pid, -1);
@@ -758,16 +751,16 @@ static void tlbilx_one(struct kvmppc_vcpu_e500 *vcpu_e500, int pid,
 	}
 }
 
-int kvmppc_e500_emul_tlbilx(struct kvm_vcpu *vcpu, int rt, int ra, int rb)
+int kvmppc_e500_emul_tlbilx(struct kvm_vcpu *vcpu, int type, gva_t ea)
 {
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
 	int pid = get_cur_spid(vcpu);
 
-	if (rt == 0 || rt == 1) {
-		tlbilx_all(vcpu_e500, 0, pid, rt);
-		tlbilx_all(vcpu_e500, 1, pid, rt);
-	} else if (rt == 3) {
-		tlbilx_one(vcpu_e500, pid, ra, rb);
+	if (type == 0 || type == 1) {
+		tlbilx_all(vcpu_e500, 0, pid, type);
+		tlbilx_all(vcpu_e500, 1, pid, type);
+	} else if (type == 3) {
+		tlbilx_one(vcpu_e500, pid, ea);
 	}
 
 	return EMULATE_DONE;
@@ -792,16 +785,13 @@ int kvmppc_e500_emul_tlbre(struct kvm_vcpu *vcpu)
 	return EMULATE_DONE;
 }
 
-int kvmppc_e500_emul_tlbsx(struct kvm_vcpu *vcpu, int rb)
+int kvmppc_e500_emul_tlbsx(struct kvm_vcpu *vcpu, gva_t ea)
 {
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
 	int as = !!get_cur_sas(vcpu);
 	unsigned int pid = get_cur_spid(vcpu);
 	int esel, tlbsel;
 	struct kvm_book3e_206_tlb_entry *gtlbe = NULL;
-	gva_t ea;
-
-	ea = kvmppc_get_gpr(vcpu, rb);
 
 	for (tlbsel = 0; tlbsel < 2; tlbsel++) {
 		esel = kvmppc_e500_tlb_index(vcpu_e500, ea, tlbsel, pid, as);
@@ -881,6 +871,8 @@ int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 
 	gtlbe->mas1 = vcpu->arch.shared->mas1;
 	gtlbe->mas2 = vcpu->arch.shared->mas2;
+	if (!(vcpu->arch.shared->msr & MSR_CM))
+		gtlbe->mas2 &= 0xffffffffUL;
 	gtlbe->mas7_3 = vcpu->arch.shared->mas7_3;
 
 	trace_kvm_booke206_gtlb_write(vcpu->arch.shared->mas0, gtlbe->mas1,
