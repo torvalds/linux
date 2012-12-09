@@ -165,7 +165,7 @@ static struct dentry *aufs_lookup(struct inode *dir, struct dentry *dentry,
 
 	/* todo: support rcu-walk? */
 	ret = ERR_PTR(-ECHILD);
-	if (nd && (nd->flags & LOOKUP_RCU))
+	if (flags & LOOKUP_RCU)
 		goto out;
 
 	ret = ERR_PTR(-ENAMETOOLONG);
