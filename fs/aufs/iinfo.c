@@ -110,10 +110,22 @@ void au_set_hi_wh(struct inode *inode, aufs_bindex_t bindex,
 	hinode->hi_whdentry = h_wh;
 }
 
-void au_update_iigen(struct inode *inode)
+void au_update_iigen(struct inode *inode, int half)
 {
-	atomic_set(&au_ii(inode)->ii_generation, au_sigen(inode->i_sb));
-	/* smp_mb(); */ /* atomic_set */
+	struct au_iinfo *iinfo;
+	struct au_iigen *iigen;
+	unsigned int sigen;
+
+	sigen = au_sigen(inode->i_sb);
+	iinfo = au_ii(inode);
+	iigen = &iinfo->ii_generation;
+	spin_lock(&iinfo->ii_genspin);
+	iigen->ig_generation = sigen;
+	if (half)
+		au_ig_fset(iigen->ig_flags, HALF_REFRESHED);
+	else
+		au_ig_fclr(iigen->ig_flags, HALF_REFRESHED);
+	spin_unlock(&iinfo->ii_genspin);
 }
 
 /* it may be called at remount time, too */
@@ -164,6 +176,7 @@ void au_icntnr_init_once(void *_c)
 	struct au_iinfo *iinfo = &c->iinfo;
 	static struct lock_class_key aufs_ii;
 
+	spin_lock_init(&iinfo->ii_genspin);
 	au_rw_init(&iinfo->ii_rwsem);
 	au_rw_class(&iinfo->ii_rwsem, &aufs_ii);
 	inode_init_once(&c->vfs_inode);
@@ -186,8 +199,7 @@ int au_iinfo_init(struct inode *inode)
 		for (i = 0; i < nbr; i++)
 			iinfo->ii_hinode[i].hi_id = -1;
 
-		atomic_set(&iinfo->ii_generation, au_sigen(sb));
-		/* smp_mb(); */ /* atomic_set */
+		iinfo->ii_generation.ig_generation = au_sigen(sb);
 		iinfo->ii_bstart = -1;
 		iinfo->ii_bend = -1;
 		iinfo->ii_vdir = NULL;
