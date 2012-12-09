@@ -396,6 +396,8 @@ static int add_inbuf(struct virtqueue *vq, struct port_buffer *buf)
 
 	ret = virtqueue_add_buf(vq, sg, 0, 1, buf, GFP_ATOMIC);
 	virtqueue_kick(vq);
+	if (!ret)
+		ret = vq->num_free;
 	return ret;
 }
 
