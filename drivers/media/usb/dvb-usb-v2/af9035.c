@@ -1146,6 +1146,7 @@ err:
 	return ret;
 }
 
+#if defined(CONFIG_RC_CORE) || defined(CONFIG_RC_CORE_MODULE)
 static int af9035_rc_query(struct dvb_usb_device *d)
 {
 	unsigned int key;
@@ -1220,6 +1221,9 @@ err:
 
 	return ret;
 }
+#else
+	#define af9035_get_rc_config NULL
+#endif
 
 /* interface 0 is used by DVB-T receiver and
    interface 1 is for remote controller (HID) */
