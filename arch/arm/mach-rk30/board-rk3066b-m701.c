@@ -1126,15 +1126,13 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
     #endif
 
     .det_pin_info = {    
-#if !defined(CONFIG_USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD)
+#if defined(CONFIG_USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD)
      #if defined(RK29SDK_SD_CARD_DETECT_N) || (INVALID_GPIO != RK29SDK_SD_CARD_DETECT_N)  
         .io             = RK29SDK_SD_CARD_DETECT_N,
      #else
          .io             = INVALID_GPIO,
      #endif   
-#else
-        .io             = INVALID_GPIO,
-#endif
+
         .enable         = RK29SDK_SD_CARD_INSERT_LEVEL,
         #ifdef RK29SDK_SD_CARD_DETECT_PIN_NAME
         .iomux          = {
@@ -1147,8 +1145,12 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
             #endif
         },
         #endif
-    }, 
-    
+ #else
+        .io             = INVALID_GPIO,
+        .enable         = GPIO_LOW,
+#endif
+    },
+   
 	.enable_sd_wakeup = 0,
 };
 #endif //endif--#ifdef CONFIG_SDMMC1_RK29
