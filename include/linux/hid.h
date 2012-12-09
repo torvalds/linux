@@ -167,6 +167,7 @@ struct hid_item {
 #define HID_UP_MSVENDOR		0xff000000
 #define HID_UP_CUSTOM		0x00ff0000
 #define HID_UP_LOGIVENDOR	0xffbc0000
+#define HID_UP_SENSOR		0x00200000
 
 #define HID_USAGE		0x0000ffff
 
@@ -292,6 +293,7 @@ struct hid_item {
  */
 #define HID_GROUP_GENERIC			0x0001
 #define HID_GROUP_MULTITOUCH			0x0002
+#define HID_GROUP_SENSOR_HUB			0x0003
 
 /*
  * This is the global environment of the parser. This information is

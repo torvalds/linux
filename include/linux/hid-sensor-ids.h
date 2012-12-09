@@ -19,7 +19,6 @@
 #ifndef _HID_SENSORS_IDS_H
 #define _HID_SENSORS_IDS_H
 
-#define HID_UP_SENSOR						0x00200000
 #define HID_MAX_PHY_DEVICES					0xFF
 
 /* Accel 3D (200073) */

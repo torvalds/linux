@@ -713,7 +713,12 @@ static int hid_scan_report(struct hid_device *hid)
 					hid_scan_usage(hid, u);
 				break;
 			}
-		}
+		} else if (page == HID_UP_SENSOR &&
+			item.type == HID_ITEM_TYPE_MAIN &&
+			item.tag == HID_MAIN_ITEM_TAG_BEGIN_COLLECTION &&
+			(item_udata(&item) & 0xff) == HID_COLLECTION_PHYSICAL &&
+			hid->bus == BUS_USB)
+			hid->group = HID_GROUP_SENSOR_HUB;
 	}
 
 	return 0;
@@ -1465,6 +1470,10 @@ EXPORT_SYMBOL_GPL(hid_disconnect);
  * there is a proper autodetection and autoloading in place (based on presence
  * of HID_DG_CONTACTID), so those devices don't need to be added to this list,
  * as we are doing the right thing in hid_scan_usage().
+ *
+ * Autodetection for (USB) HID sensor hubs exists too. If a collection of type
+ * physical is found inside a usage page of type sensor, hid-sensor-hub will be
+ * used as a driver. See hid_scan_report().
  */
 static const struct hid_device_id hid_have_special_driver[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_A4TECH, USB_DEVICE_ID_A4TECH_WCP32PU) },
