@@ -659,7 +659,7 @@ static int au_refresh_i(struct super_block *sb)
 	sigen = au_sigen(sb);
 	for (ull = 0; ull < max; ull++) {
 		inode = array[ull];
-		if (au_iigen(inode) != sigen) {
+		if (au_iigen(inode, NULL) != sigen) {
 			ii_write_lock_child(inode);
 			e = au_refresh_hinode_self(inode);
 			ii_write_unlock(inode);
