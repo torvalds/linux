@@ -373,7 +373,7 @@ static int __devexit tegra20_spdif_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct dev_pm_ops tegra20_spdif_pm_ops __devinitconst = {
+static const struct dev_pm_ops tegra20_spdif_pm_ops = {
 	SET_RUNTIME_PM_OPS(tegra20_spdif_runtime_suspend,
 			   tegra20_spdif_runtime_resume, NULL)
 };

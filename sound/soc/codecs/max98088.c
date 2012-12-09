@@ -2098,13 +2098,13 @@ static const struct i2c_device_id max98088_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, max98088_i2c_id);
 
 static struct i2c_driver max98088_i2c_driver = {
-       .driver = {
-               .name = "max98088",
-               .owner = THIS_MODULE,
-       },
-       .probe  = max98088_i2c_probe,
-       .remove = __devexit_p(max98088_i2c_remove),
-       .id_table = max98088_i2c_id,
+	.driver = {
+		.name = "max98088",
+		.owner = THIS_MODULE,
+	},
+	.probe  = max98088_i2c_probe,
+	.remove = max98088_i2c_remove,
+	.id_table = max98088_i2c_id,
 };
 
 module_i2c_driver(max98088_i2c_driver);

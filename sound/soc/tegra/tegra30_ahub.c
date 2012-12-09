@@ -288,7 +288,7 @@ int tegra30_ahub_unset_rx_cif_source(enum tegra30_ahub_rxcif rxcif)
 }
 EXPORT_SYMBOL_GPL(tegra30_ahub_unset_rx_cif_source);
 
-static const char * const configlink_clocks[] __devinitconst = {
+static const char * const configlink_clocks[] = {
 	"i2s0",
 	"i2s1",
 	"i2s2",
@@ -603,12 +603,12 @@ static int __devexit tegra30_ahub_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id tegra30_ahub_of_match[] __devinitconst = {
+static const struct of_device_id tegra30_ahub_of_match[] = {
 	{ .compatible = "nvidia,tegra30-ahub", },
 	{},
 };
 
-static const struct dev_pm_ops tegra30_ahub_pm_ops __devinitconst = {
+static const struct dev_pm_ops tegra30_ahub_pm_ops = {
 	SET_RUNTIME_PM_OPS(tegra30_ahub_runtime_suspend,
 			   tegra30_ahub_runtime_resume, NULL)
 };
