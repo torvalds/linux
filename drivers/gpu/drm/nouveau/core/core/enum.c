@@ -40,7 +40,7 @@ nouveau_enum_find(const struct nouveau_enum *en, u32 value)
 	return NULL;
 }
 
-void
+const struct nouveau_enum *
 nouveau_enum_print(const struct nouveau_enum *en, u32 value)
 {
 	en = nouveau_enum_find(en, value);
@@ -48,6 +48,7 @@ nouveau_enum_print(const struct nouveau_enum *en, u32 value)
 		pr_cont("%s", en->name);
 	else
 		pr_cont("(unknown enum 0x%08x)", value);
+	return en;
 }
 
 void

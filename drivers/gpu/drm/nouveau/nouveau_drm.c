@@ -543,10 +543,11 @@ nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 	struct pci_dev *pdev = dev->pdev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_cli *cli;
-	char name[16];
+	char name[32], tmpname[TASK_COMM_LEN];
 	int ret;
 
-	snprintf(name, sizeof(name), "%d", pid_nr(fpriv->pid));
+	get_task_comm(tmpname, current);
+	snprintf(name, sizeof(name), "%s[%d]", tmpname, pid_nr(fpriv->pid));
 
 	ret = nouveau_cli_create(pdev, name, sizeof(*cli), (void **)&cli);
 	if (ret)

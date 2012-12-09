@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 
+#include <core/client.h>
 #include <core/object.h>
 #include <core/handle.h>
 #include <core/class.h>
@@ -144,6 +145,20 @@ nouveau_fifo_chid(struct nouveau_fifo *priv, struct nouveau_object *object)
 	}
 
 	return -1;
+}
+
+const char *
+nouveau_client_name_for_fifo_chid(struct nouveau_fifo *fifo, u32 chid)
+{
+	struct nouveau_fifo_chan *chan = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&fifo->lock, flags);
+	if (chid >= fifo->min && chid <= fifo->max)
+		chan = (void *)fifo->channel[chid];
+	spin_unlock_irqrestore(&fifo->lock, flags);
+
+	return nouveau_client_name(chan);
 }
 
 void
