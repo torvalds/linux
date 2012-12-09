@@ -24,6 +24,7 @@
 
 #include <core/os.h>
 #include <core/class.h>
+#include <core/client.h>
 #include <core/handle.h>
 #include <core/engctx.h>
 #include <core/enum.h>
@@ -532,7 +533,7 @@ nv50_priv_tp_trap(struct nv50_graph_priv *priv, int type, u32 ustatus_old,
 
 static int
 nv50_graph_trap_handler(struct nv50_graph_priv *priv, u32 display,
-			int chid, u64 inst)
+			int chid, u64 inst, struct nouveau_object *engctx)
 {
 	u32 status = nv_rd32(priv, 0x400108);
 	u32 ustatus;
@@ -565,12 +566,11 @@ nv50_graph_trap_handler(struct nv50_graph_priv *priv, u32 display,
 
 			nv_error(priv, "TRAP DISPATCH_FAULT\n");
 			if (display && (addr & 0x80000000)) {
-				nv_error(priv, "ch %d [0x%010llx] "
-					     "subc %d class 0x%04x mthd 0x%04x "
-					     "data 0x%08x%08x "
-					     "400808 0x%08x 400848 0x%08x\n",
-					chid, inst, subc, class, mthd, datah,
-					datal, addr, r848);
+				nv_error(priv,
+					 "ch %d [0x%010llx %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x%08x 400808 0x%08x 400848 0x%08x\n",
+					 chid, inst,
+					 nouveau_client_name(engctx), subc,
+					 class, mthd, datah, datal, addr, r848);
 			} else
 			if (display) {
 				nv_error(priv, "no stuck command?\n");
@@ -591,11 +591,11 @@ nv50_graph_trap_handler(struct nv50_graph_priv *priv, u32 display,
 
 			nv_error(priv, "TRAP DISPATCH_QUERY\n");
 			if (display && (addr & 0x80000000)) {
-				nv_error(priv, "ch %d [0x%010llx] "
-					     "subc %d class 0x%04x mthd 0x%04x "
-					     "data 0x%08x 40084c 0x%08x\n",
-					chid, inst, subc, class, mthd,
-					data, addr);
+				nv_error(priv,
+					 "ch %d [0x%010llx %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x 40084c 0x%08x\n",
+					 chid, inst,
+					 nouveau_client_name(engctx), subc,
+					 class, mthd, data, addr);
 			} else
 			if (display) {
 				nv_error(priv, "no stuck command?\n");
@@ -778,7 +778,8 @@ nv50_graph_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (stat & 0x00200000) {
-		if (!nv50_graph_trap_handler(priv, show, chid, (u64)inst << 12))
+		if (!nv50_graph_trap_handler(priv, show, chid, (u64)inst << 12,
+				engctx))
 			show &= ~0x00200000;
 	}
 
@@ -789,9 +790,10 @@ nv50_graph_intr(struct nouveau_subdev *subdev)
 		nv_error(priv, "");
 		nouveau_bitfield_print(nv50_graph_intr_name, show);
 		pr_cont("\n");
-		nv_error(priv, "ch %d [0x%010llx] subc %d class 0x%04x "
-			       "mthd 0x%04x data 0x%08x\n",
-			 chid, (u64)inst << 12, subc, class, mthd, data);
+		nv_error(priv,
+			 "ch %d [0x%010llx %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
+			 chid, (u64)inst << 12, nouveau_client_name(engctx),
+			 subc, class, mthd, data);
 	}
 
 	if (nv_rd32(priv, 0x400824) & (1 << 31))

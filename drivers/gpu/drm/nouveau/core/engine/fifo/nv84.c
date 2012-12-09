@@ -100,7 +100,8 @@ nv84_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 	done = nv_wait_ne(priv, 0x0032fc, 0xffffffff, 0xffffffff);
 	nv_wr32(priv, 0x002520, save);
 	if (!done) {
-		nv_error(priv, "channel %d unload timeout\n", chan->base.chid);
+		nv_error(priv, "channel %d [%s] unload timeout\n",
+			 chan->base.chid, nouveau_client_name(chan));
 		if (suspend)
 			return -EBUSY;
 	}

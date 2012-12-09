@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 
+#include <core/client.h>
 #include <core/os.h>
 #include <core/class.h>
 #include <core/handle.h>
@@ -328,9 +329,10 @@ nv40_graph_intr(struct nouveau_subdev *subdev)
 		pr_cont(" nstatus:");
 		nouveau_bitfield_print(nv10_graph_nstatus, nstatus);
 		pr_cont("\n");
-		nv_error(priv, "ch %d [0x%08x] subc %d class 0x%04x "
-			       "mthd 0x%04x data 0x%08x\n",
-			 chid, inst << 4, subc, class, mthd, data);
+		nv_error(priv,
+			 "ch %d [0x%08x %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
+			 chid, inst << 4, nouveau_client_name(engctx), subc,
+			 class, mthd, data);
 	}
 
 	nouveau_engctx_put(engctx);

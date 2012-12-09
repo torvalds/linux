@@ -184,7 +184,8 @@ nve0_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 
 	nv_wr32(priv, 0x002634, chan->base.chid);
 	if (!nv_wait(priv, 0x002634, 0xffffffff, chan->base.chid)) {
-		nv_error(priv, "channel %d kick timeout\n", chan->base.chid);
+		nv_error(priv, "channel %d [%s] kick timeout\n",
+			 chan->base.chid, nouveau_client_name(chan));
 		if (suspend)
 			return -EBUSY;
 	}
@@ -412,12 +413,15 @@ nve0_fifo_isr_vm_fault(struct nve0_fifo_priv *priv, int unit)
 	u32 vahi = nv_rd32(priv, 0x2808 + (unit * 0x10));
 	u32 stat = nv_rd32(priv, 0x280c + (unit * 0x10));
 	u32 client = (stat & 0x00001f00) >> 8;
+	const struct nouveau_enum *en;
+	struct nouveau_engine *engine;
+	struct nouveau_object *engctx = NULL;
 
 	nv_error(priv, "PFIFO: %s fault at 0x%010llx [", (stat & 0x00000080) ?
 		       "write" : "read", (u64)vahi << 32 | valo);
 	nouveau_enum_print(nve0_fifo_fault_reason, stat & 0x0000000f);
 	pr_cont("] from ");
-	nouveau_enum_print(nve0_fifo_fault_unit, unit);
+	en = nouveau_enum_print(nve0_fifo_fault_unit, unit);
 	if (stat & 0x00000040) {
 		pr_cont("/");
 		nouveau_enum_print(nve0_fifo_fault_hubclient, client);
@@ -425,7 +429,18 @@ nve0_fifo_isr_vm_fault(struct nve0_fifo_priv *priv, int unit)
 		pr_cont("/GPC%d/", (stat & 0x1f000000) >> 24);
 		nouveau_enum_print(nve0_fifo_fault_gpcclient, client);
 	}
-	pr_cont(" on channel 0x%010llx\n", (u64)inst << 12);
+
+	if (en && en->data2) {
+		engine = nouveau_engine(priv, en->data2);
+		if (engine)
+			engctx = nouveau_engctx_get(engine, inst);
+
+	}
+
+	pr_cont(" on channel 0x%010llx [%s]\n", (u64)inst << 12,
+			nouveau_client_name(engctx));
+
+	nouveau_engctx_put(engctx);
 }
 
 static int
@@ -481,9 +496,11 @@ nve0_fifo_isr_subfifo_intr(struct nve0_fifo_priv *priv, int unit)
 		nv_error(priv, "SUBFIFO%d:", unit);
 		nouveau_bitfield_print(nve0_fifo_subfifo_intr, show);
 		pr_cont("\n");
-		nv_error(priv, "SUBFIFO%d: ch %d subc %d mthd 0x%04x "
-			       "data 0x%08x\n",
-			 unit, chid, subc, mthd, data);
+		nv_error(priv,
+			 "SUBFIFO%d: ch %d [%s] subc %d mthd 0x%04x data 0x%08x\n",
+			 unit, chid,
+			 nouveau_client_name_for_fifo_chid(&priv->base, chid),
+			 subc, mthd, data);
 	}
 
 	nv_wr32(priv, 0x0400c0 + (unit * 0x2000), 0x80600008);

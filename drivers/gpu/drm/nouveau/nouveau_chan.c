@@ -58,7 +58,8 @@ nouveau_channel_idle(struct nouveau_channel *chan)
 	}
 
 	if (ret)
-		NV_ERROR(cli, "failed to idle channel 0x%08x\n", chan->handle);
+		NV_ERROR(cli, "failed to idle channel 0x%08x [%s]\n",
+			 chan->handle, cli->base.name);
 	return ret;
 }
 

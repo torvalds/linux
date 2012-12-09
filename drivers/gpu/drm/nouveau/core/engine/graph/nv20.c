@@ -1,3 +1,4 @@
+#include <core/client.h>
 #include <core/os.h>
 #include <core/class.h>
 #include <core/engctx.h>
@@ -231,8 +232,10 @@ nv20_graph_intr(struct nouveau_subdev *subdev)
 		pr_cont(" nstatus:");
 		nouveau_bitfield_print(nv10_graph_nstatus, nstatus);
 		pr_cont("\n");
-		nv_error(priv, "ch %d/%d class 0x%04x mthd 0x%04x data 0x%08x\n",
-			chid, subc, class, mthd, data);
+		nv_error(priv,
+			 "ch %d [%s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
+			 chid, nouveau_client_name(engctx), subc, class, mthd,
+			 data);
 	}
 
 	nouveau_engctx_put(engctx);

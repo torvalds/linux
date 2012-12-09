@@ -421,9 +421,12 @@ nv04_fifo_cache_error(struct nouveau_device *device,
 	}
 
 	if (!nv04_fifo_swmthd(priv, chid, mthd, data)) {
+		const char *client_name =
+			nouveau_client_name_for_fifo_chid(&priv->base, chid);
 		nv_error(priv,
-			 "CACHE_ERROR - Ch %d/%d Mthd 0x%04x Data 0x%08x\n",
-			 chid, (mthd >> 13) & 7, mthd & 0x1ffc, data);
+			 "CACHE_ERROR - ch %d [%s] subc %d mthd 0x%04x data 0x%08x\n",
+			 chid, client_name, (mthd >> 13) & 7, mthd & 0x1ffc,
+			 data);
 	}
 
 	nv_wr32(priv, NV04_PFIFO_CACHE1_DMA_PUSH, 0);
@@ -445,10 +448,13 @@ static void
 nv04_fifo_dma_pusher(struct nouveau_device *device, struct nv04_fifo_priv *priv,
 		u32 chid)
 {
+	const char *client_name;
 	u32 dma_get = nv_rd32(priv, 0x003244);
 	u32 dma_put = nv_rd32(priv, 0x003240);
 	u32 push = nv_rd32(priv, 0x003220);
 	u32 state = nv_rd32(priv, 0x003228);
+
+	client_name = nouveau_client_name_for_fifo_chid(&priv->base, chid);
 
 	if (device->card_type == NV_50) {
 		u32 ho_get = nv_rd32(priv, 0x003328);
@@ -457,9 +463,9 @@ nv04_fifo_dma_pusher(struct nouveau_device *device, struct nv04_fifo_priv *priv,
 		u32 ib_put = nv_rd32(priv, 0x003330);
 
 		nv_error(priv,
-			 "DMA_PUSHER - Ch %d Get 0x%02x%08x Put 0x%02x%08x IbGet 0x%08x IbPut 0x%08x State 0x%08x (err: %s) Push 0x%08x\n",
-			 chid, ho_get, dma_get, ho_put, dma_put, ib_get, ib_put,
-			 state, nv_dma_state_err(state), push);
+			 "DMA_PUSHER - ch %d [%s] get 0x%02x%08x put 0x%02x%08x ib_get 0x%08x ib_put 0x%08x state 0x%08x (err: %s) push 0x%08x\n",
+			 chid, client_name, ho_get, dma_get, ho_put, dma_put,
+			 ib_get, ib_put, state, nv_dma_state_err(state), push);
 
 		/* METHOD_COUNT, in DMA_STATE on earlier chipsets */
 		nv_wr32(priv, 0x003364, 0x00000000);
@@ -471,9 +477,9 @@ nv04_fifo_dma_pusher(struct nouveau_device *device, struct nv04_fifo_priv *priv,
 			nv_wr32(priv, 0x003334, ib_put);
 	} else {
 		nv_error(priv,
-			 "DMA_PUSHER - Ch %d Get 0x%08x Put 0x%08x State 0x%08x (err: %s) Push 0x%08x\n",
-			 chid, dma_get, dma_put, state, nv_dma_state_err(state),
-			 push);
+			 "DMA_PUSHER - ch %d [%s] get 0x%08x put 0x%08x state 0x%08x (err: %s) push 0x%08x\n",
+			 chid, client_name, dma_get, dma_put, state,
+			 nv_dma_state_err(state), push);
 
 		if (dma_get != dma_put)
 			nv_wr32(priv, 0x003244, dma_put);
