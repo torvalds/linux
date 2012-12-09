@@ -211,6 +211,13 @@ static struct dentry *aufs_lookup(struct inode *dir, struct dentry *dentry,
 	}
 
 	ret = d_splice_alias(inode, dentry);
+#if 0
+	if (unlikely(d_need_lookup(dentry))) {
+		spin_lock(&dentry->d_lock);
+		dentry->d_flags &= ~DCACHE_NEED_LOOKUP;
+		spin_unlock(&dentry->d_lock);
+	} else
+#endif
 	if (unlikely(IS_ERR(ret) && inode)) {
 		ii_write_unlock(inode);
 		iput(inode);
