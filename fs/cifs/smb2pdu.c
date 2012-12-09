@@ -612,7 +612,8 @@ ssetup_ntlmssp_authenticate:
 
 	/* BB add code to build os and lm fields */
 
-	rc = SendReceive2(xid, ses, iov, 2, &resp_buftype, CIFS_LOG_ERROR);
+	rc = SendReceive2(xid, ses, iov, 2, &resp_buftype,
+			  CIFS_LOG_ERROR | CIFS_NEG_OP);
 
 	kfree(security_blob);
 	rsp = (struct smb2_sess_setup_rsp *)iov[0].iov_base;
