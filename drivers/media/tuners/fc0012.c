@@ -443,31 +443,70 @@ static const struct dvb_tuner_ops fc0012_tuner_ops = {
 struct dvb_frontend *fc0012_attach(struct dvb_frontend *fe,
 	struct i2c_adapter *i2c, const struct fc0012_config *cfg)
 {
-	struct fc0012_priv *priv = NULL;
+	struct fc0012_priv *priv;
+	int ret;
+	u8 chip_id;
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 
 	priv = kzalloc(sizeof(struct fc0012_priv), GFP_KERNEL);
-	if (priv == NULL)
-		return NULL;
+	if (!priv) {
+		ret = -ENOMEM;
+		dev_err(&i2c->dev, "%s: kzalloc() failed\n", KBUILD_MODNAME);
+		goto err;
+	}
 
-	priv->i2c = i2c;
 	priv->cfg = cfg;
+	priv->i2c = i2c;
 
-	info("Fitipower FC0012 successfully attached.");
+	/* check if the tuner is there */
+	ret = fc0012_readreg(priv, 0x00, &chip_id);
+	if (ret < 0)
+		goto err;
 
-	fe->tuner_priv = priv;
+	dev_dbg(&i2c->dev, "%s: chip_id=%02x\n", __func__, chip_id);
 
-	if (priv->cfg->loop_through)
-		fc0012_writereg(priv, 0x09, 0x6f);
+	switch (chip_id) {
+	case 0xa1:
+		break;
+	default:
+		ret = -ENODEV;
+		goto err;
+	}
+
+	dev_info(&i2c->dev, "%s: Fitipower FC0012 successfully identified\n",
+			KBUILD_MODNAME);
+
+	if (priv->cfg->loop_through) {
+		ret = fc0012_writereg(priv, 0x09, 0x6f);
+		if (ret < 0)
+			goto err;
+	}
 
 	/*
 	 * TODO: Clock out en or div?
 	 * For dual tuner configuration clearing bit [0] is required.
 	 */
-	if (priv->cfg->clock_out)
-		fc0012_writereg(priv, 0x0b, 0x82);
+	if (priv->cfg->clock_out) {
+		ret =  fc0012_writereg(priv, 0x0b, 0x82);
+		if (ret < 0)
+			goto err;
+	}
 
+	fe->tuner_priv = priv;
 	memcpy(&fe->ops.tuner_ops, &fc0012_tuner_ops,
 		sizeof(struct dvb_tuner_ops));
+
+err:
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0);
+
+	if (ret) {
+		dev_dbg(&i2c->dev, "%s: failed: %d\n", __func__, ret);
+		kfree(priv);
+		return NULL;
+	}
 
 	return fe;
 }
