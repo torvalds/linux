@@ -1665,9 +1665,6 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	if ((nlh->nlmsg_type == RTM_SETDCB) && !capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	if (!net_eq(net, &init_net))
-		return -EINVAL;
-
 	ret = nlmsg_parse(nlh, sizeof(*dcb), tb, DCB_ATTR_MAX,
 			  dcbnl_rtnl_policy);
 	if (ret < 0)
@@ -1684,7 +1681,7 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	if (!tb[DCB_ATTR_IFNAME])
 		return -EINVAL;
 
-	netdev = dev_get_by_name(&init_net, nla_data(tb[DCB_ATTR_IFNAME]));
+	netdev = dev_get_by_name(net, nla_data(tb[DCB_ATTR_IFNAME]));
 	if (!netdev)
 		return -ENODEV;
 
@@ -1708,7 +1705,7 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 
 	nlmsg_end(reply_skb, reply_nlh);
 
-	ret = rtnl_unicast(reply_skb, &init_net, portid);
+	ret = rtnl_unicast(reply_skb, net, portid);
 out:
 	dev_put(netdev);
 	return ret;
