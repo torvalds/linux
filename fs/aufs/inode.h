@@ -51,9 +51,22 @@ struct au_hinode {
 	struct dentry		*hi_whdentry;
 };
 
+/* ig_flags */
+#define AuIG_HALF_REFRESHED		1
+#define au_ig_ftest(flags, name)	((flags) & AuIG_##name)
+#define au_ig_fset(flags, name) \
+	do { (flags) |= AuIG_##name; } while (0)
+#define au_ig_fclr(flags, name) \
+	do { (flags) &= ~AuIG_##name; } while (0)
+
+struct au_iigen {
+	__u32		ig_generation, ig_flags;
+};
+
 struct au_vdir;
 struct au_iinfo {
-	atomic_t		ii_generation;
+	spinlock_t		ii_genspin;
+	struct au_iigen 	ii_generation;
 	struct super_block	*ii_hsb1;	/* no get/put */
 
 	struct au_rwsem		ii_rwsem;
@@ -202,7 +215,7 @@ unsigned int au_hi_flags(struct inode *inode, int isdir);
 void au_set_h_iptr(struct inode *inode, aufs_bindex_t bindex,
 		   struct inode *h_inode, unsigned int flags);
 
-void au_update_iigen(struct inode *inode);
+void au_update_iigen(struct inode *inode, int half);
 void au_update_ibrange(struct inode *inode, int do_put_zero);
 
 void au_icntnr_init_once(void *_c);
@@ -310,9 +323,19 @@ static inline void au_icntnr_init(struct au_icntnr *c)
 #endif
 }
 
-static inline unsigned int au_iigen(struct inode *inode)
+static inline unsigned int au_iigen(struct inode *inode, struct au_iigen *iigen)
 {
-	return atomic_read(&au_ii(inode)->ii_generation);
+	unsigned int gen;
+	struct au_iinfo *iinfo;
+
+	iinfo = au_ii(inode);
+	spin_lock(&iinfo->ii_genspin);
+	if (iigen)
+		*iigen = iinfo->ii_generation;
+	gen = iinfo->ii_generation.ig_generation;
+	spin_unlock(&iinfo->ii_genspin);
+
+	return gen;
 }
 
 /* tiny test for inode number */
@@ -329,7 +352,12 @@ static inline int au_test_higen(struct inode *inode, struct inode *h_inode)
 
 static inline void au_iigen_dec(struct inode *inode)
 {
-	atomic_dec(&au_ii(inode)->ii_generation);
+	struct au_iinfo *iinfo;
+
+	iinfo = au_ii(inode);
+	spin_lock(&iinfo->ii_genspin);
+	iinfo->ii_generation.ig_generation--;
+	spin_unlock(&iinfo->ii_genspin);
 }
 
 static inline int au_iigen_test(struct inode *inode, unsigned int sigen)
@@ -337,7 +365,7 @@ static inline int au_iigen_test(struct inode *inode, unsigned int sigen)
 	int err;
 
 	err = 0;
-	if (unlikely(inode && au_iigen(inode) != sigen))
+	if (unlikely(inode && au_iigen(inode, NULL) != sigen))
 		err = -EIO;
 
 	return err;
