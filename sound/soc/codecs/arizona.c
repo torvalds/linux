@@ -226,6 +226,31 @@ EXPORT_SYMBOL_GPL(arizona_mixer_values);
 const DECLARE_TLV_DB_SCALE(arizona_mixer_tlv, -3200, 100, 0);
 EXPORT_SYMBOL_GPL(arizona_mixer_tlv);
 
+static const char *arizona_vol_ramp_text[] = {
+	"0ms/6dB", "0.5ms/6dB", "1ms/6dB", "2ms/6dB", "4ms/6dB", "8ms/6dB",
+	"15ms/6dB", "30ms/6dB",
+};
+
+const struct soc_enum arizona_in_vd_ramp =
+	SOC_ENUM_SINGLE(ARIZONA_INPUT_VOLUME_RAMP,
+			ARIZONA_IN_VD_RAMP_SHIFT, 7, arizona_vol_ramp_text);
+EXPORT_SYMBOL_GPL(arizona_in_vd_ramp);
+
+const struct soc_enum arizona_in_vi_ramp =
+	SOC_ENUM_SINGLE(ARIZONA_INPUT_VOLUME_RAMP,
+			ARIZONA_IN_VI_RAMP_SHIFT, 7, arizona_vol_ramp_text);
+EXPORT_SYMBOL_GPL(arizona_in_vi_ramp);
+
+const struct soc_enum arizona_out_vd_ramp =
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_VOLUME_RAMP,
+			ARIZONA_OUT_VD_RAMP_SHIFT, 7, arizona_vol_ramp_text);
+EXPORT_SYMBOL_GPL(arizona_out_vd_ramp);
+
+const struct soc_enum arizona_out_vi_ramp =
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_VOLUME_RAMP,
+			ARIZONA_OUT_VI_RAMP_SHIFT, 7, arizona_vol_ramp_text);
+EXPORT_SYMBOL_GPL(arizona_out_vi_ramp);
+
 static const char *arizona_lhpf_mode_text[] = {
 	"Low-pass", "High-pass"
 };

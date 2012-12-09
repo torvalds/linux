@@ -165,6 +165,12 @@ extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 	ARIZONA_MIXER_ROUTES(name, name "L"), \
 	ARIZONA_MIXER_ROUTES(name, name "R")
 
+extern const struct soc_enum arizona_in_vi_ramp;
+extern const struct soc_enum arizona_in_vd_ramp;
+
+extern const struct soc_enum arizona_out_vi_ramp;
+extern const struct soc_enum arizona_out_vd_ramp;
+
 extern const struct soc_enum arizona_lhpf1_mode;
 extern const struct soc_enum arizona_lhpf2_mode;
 extern const struct soc_enum arizona_lhpf3_mode;
