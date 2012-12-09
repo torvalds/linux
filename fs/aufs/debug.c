@@ -124,7 +124,7 @@ void au_dpri_inode(struct inode *inode)
 	if (!iinfo)
 		return;
 	dpri("i-1: bstart %d, bend %d, gen %d\n",
-	     iinfo->ii_bstart, iinfo->ii_bend, au_iigen(inode));
+	     iinfo->ii_bstart, iinfo->ii_bend, au_iigen(inode, NULL));
 	if (iinfo->ii_bstart < 0)
 		return;
 	hn = 0;
