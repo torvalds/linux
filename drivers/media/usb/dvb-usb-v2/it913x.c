@@ -309,7 +309,6 @@ static struct i2c_algorithm it913x_i2c_algo = {
 
 /* Callbacks for DVB USB */
 #if defined(CONFIG_RC_CORE) || defined(CONFIG_RC_CORE_MODULE)
-#define IT913X_POLL 250
 static int it913x_rc_query(struct dvb_usb_device *d)
 {
 	u8 ibuf[4];
@@ -814,7 +813,7 @@ module_usb_driver(it913x_driver);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("it913x USB 2 Driver");
-MODULE_VERSION("1.32");
+MODULE_VERSION("1.33");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(FW_IT9135_V1);
 MODULE_FIRMWARE(FW_IT9135_V2);
