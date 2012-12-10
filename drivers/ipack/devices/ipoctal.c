@@ -38,7 +38,6 @@ struct ipoctal_channel {
 	spinlock_t			lock;
 	unsigned int			pointer_read;
 	unsigned int			pointer_write;
-	atomic_t			open;
 	struct tty_port			tty_port;
 	union scc2698_channel __iomem	*regs;
 	union scc2698_block __iomem	*block_regs;
@@ -70,22 +69,12 @@ static int ipoctal_port_activate(struct tty_port *port, struct tty_struct *tty)
 
 static int ipoctal_open(struct tty_struct *tty, struct file *file)
 {
-	int res;
 	struct ipoctal_channel *channel;
 
 	channel = dev_get_drvdata(tty->dev);
-
-	if (atomic_read(&channel->open))
-		return -EBUSY;
-
 	tty->driver_data = channel;
 
-	res = tty_port_open(&channel->tty_port, tty, file);
-	if (res)
-		return res;
-
-	atomic_inc(&channel->open);
-	return 0;
+	return tty_port_open(&channel->tty_port, tty, file);
 }
 
 static void ipoctal_reset_stats(struct ipoctal_stats *stats)
@@ -111,9 +100,7 @@ static void ipoctal_close(struct tty_struct *tty, struct file *filp)
 	struct ipoctal_channel *channel = tty->driver_data;
 
 	tty_port_close(&channel->tty_port, tty, filp);
-
-	if (atomic_dec_and_test(&channel->open))
-		ipoctal_free_channel(channel);
+	ipoctal_free_channel(channel);
 }
 
 static int ipoctal_get_icount(struct tty_struct *tty,
@@ -204,10 +191,6 @@ static void ipoctal_irq_channel(struct ipoctal_channel *channel)
 {
 	u8 isr, sr;
 	struct tty_struct *tty;
-
-	/* If there is no client, skip the check */
-	if (!atomic_read(&channel->open))
-		return;
 
 	tty = tty_port_tty_get(&channel->tty_port);
 	if (!tty)
