@@ -965,8 +965,12 @@ EXPORT_SYMBOL(ar9003_paprd_init_table);
 bool ar9003_paprd_is_done(struct ath_hw *ah)
 {
 	int paprd_done, agc2_pwr;
+
 	paprd_done = REG_READ_FIELD(ah, AR_PHY_PAPRD_TRAINER_STAT1,
 				AR_PHY_PAPRD_TRAINER_STAT1_PAPRD_TRAIN_DONE);
+
+	if (AR_SREV_9485(ah))
+		goto exit;
 
 	if (paprd_done == 0x1) {
 		agc2_pwr = REG_READ_FIELD(ah, AR_PHY_PAPRD_TRAINER_STAT1,
@@ -983,7 +987,7 @@ bool ar9003_paprd_is_done(struct ath_hw *ah)
 		if (agc2_pwr <= PAPRD_IDEAL_AGC2_PWR_RANGE)
 			paprd_done = 0;
 	}
-
+exit:
 	return !!paprd_done;
 }
 EXPORT_SYMBOL(ar9003_paprd_is_done);
