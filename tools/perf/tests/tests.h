@@ -16,7 +16,4 @@ int test__attr(void);
 int test__dso_data(void);
 int test__parse_events(void);
 
-/* Util */
-int trace_event__id(const char *evname);
-
 #endif /* TESTS_H */
