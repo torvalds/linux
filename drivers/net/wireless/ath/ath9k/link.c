@@ -188,7 +188,6 @@ static void ath_paprd_activate(struct ath_softc *sc)
 		return;
 	}
 
-	ath9k_ps_wakeup(sc);
 	ar9003_paprd_enable(ah, false);
 	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
 		if (!(ah->txchainmask & BIT(chain)))
@@ -199,7 +198,6 @@ static void ath_paprd_activate(struct ath_softc *sc)
 
 	ath_dbg(common, CALIBRATE, "Activating PAPRD\n");
 	ar9003_paprd_enable(ah, true);
-	ath9k_ps_restore(sc);
 }
 
 static bool ath_paprd_send_frame(struct ath_softc *sc, struct sk_buff *skb, int chain)
@@ -436,11 +434,15 @@ set_timer:
 		cal_interval = min(cal_interval, (u32)short_cal_interval);
 
 	mod_timer(&common->ani.timer, jiffies + msecs_to_jiffies(cal_interval));
+
 	if (ah->eep_ops->get_eeprom(ah, EEP_PAPRD) && ah->caldata) {
-		if (!ah->caldata->paprd_done)
+		if (!ah->caldata->paprd_done) {
 			ieee80211_queue_work(sc->hw, &sc->paprd_work);
-		else if (!ah->paprd_table_write_done)
+		} else if (!ah->paprd_table_write_done) {
+			ath9k_ps_wakeup(sc);
 			ath_paprd_activate(sc);
+			ath9k_ps_restore(sc);
+		}
 	}
 }
 
