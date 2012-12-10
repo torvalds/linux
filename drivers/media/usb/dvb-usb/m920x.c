@@ -84,7 +84,7 @@ static int m920x_init(struct dvb_usb_device *d, struct m920x_inits *rc_seq)
 	int adap_enabled[M9206_MAX_ADAPTERS] = { 0 };
 
 	/* Remote controller init. */
-	if (d->props.rc.legacy.rc_query) {
+	if (d->props.rc.legacy.rc_query || d->props.rc.core.rc_query) {
 		deb("Initialising remote control\n");
 		ret = m920x_write_seq(d->udev, M9206_CORE, rc_seq);
 		if (ret != 0) {
