@@ -54,6 +54,13 @@ ifneq ($(CONFIG_LD_NO_RELAX),)
 LDFLAGS := --no-relax
 endif
 
+ifeq ($(shell echo -e __XTENSA_EB__ | $(CC) -E - | grep -v "\#"),1)
+CHECKFLAGS += -D__XTENSA_EB__
+endif
+ifeq ($(shell echo -e __XTENSA_EL__ | $(CC) -E - | grep -v "\#"),1)
+CHECKFLAGS += -D__XTENSA_EL__
+endif
+
 vardirs := $(patsubst %,arch/xtensa/variants/%/,$(variant-y))
 plfdirs := $(patsubst %,arch/xtensa/platforms/%/,$(platform-y))
 
