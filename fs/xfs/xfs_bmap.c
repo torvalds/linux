@@ -3099,8 +3099,6 @@ xfs_bmap_extents_to_btree(
 		args.fsbno = *firstblock;
 	}
 	args.minlen = args.maxlen = args.prod = 1;
-	args.total = args.minleft = args.alignment = args.mod = args.isfl =
-		args.minalignslop = 0;
 	args.wasdel = wasdel;
 	*logflagsp = 0;
 	if ((error = xfs_alloc_vextent(&args))) {
@@ -3259,8 +3257,6 @@ xfs_bmap_local_to_extents(
 			args.type = XFS_ALLOCTYPE_NEAR_BNO;
 		}
 		args.total = total;
-		args.mod = args.minleft = args.alignment = args.wasdel =
-			args.isfl = args.minalignslop = 0;
 		args.minlen = args.maxlen = args.prod = 1;
 		if ((error = xfs_alloc_vextent(&args)))
 			goto done;
