@@ -117,10 +117,8 @@ static int br_mdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 	rcu_read_lock();
 
-	/* TODO: in case of rehashing, we need to check
-	 * consistency for dumping.
-	 */
-	cb->seq = net->dev_base_seq;
+	/* In theory this could be wrapped to 0... */
+	cb->seq = net->dev_base_seq + br_mdb_rehash_seq;
 
 	for_each_netdev_rcu(net, dev) {
 		if (dev->priv_flags & IFF_EBRIDGE) {

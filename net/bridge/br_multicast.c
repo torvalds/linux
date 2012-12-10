@@ -37,6 +37,7 @@
 	rcu_dereference_protected(X, lockdep_is_held(&br->multicast_lock))
 
 static void br_multicast_start_querier(struct net_bridge *br);
+unsigned int br_mdb_rehash_seq;
 
 #if IS_ENABLED(CONFIG_IPV6)
 static inline int ipv6_is_transient_multicast(const struct in6_addr *addr)
@@ -338,6 +339,7 @@ static int br_mdb_rehash(struct net_bridge_mdb_htable __rcu **mdbp, int max,
 		return err;
 	}
 
+	br_mdb_rehash_seq++;
 	call_rcu_bh(&mdb->rcu, br_mdb_free);
 
 out:

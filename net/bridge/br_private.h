@@ -411,6 +411,7 @@ extern int br_ioctl_deviceless_stub(struct net *net, unsigned int cmd, void __us
 
 /* br_multicast.c */
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+extern unsigned int br_mdb_rehash_seq;
 extern int br_multicast_rcv(struct net_bridge *br,
 			    struct net_bridge_port *port,
 			    struct sk_buff *skb);
