@@ -56,8 +56,8 @@ int drm_create_iommu_mapping(struct drm_device *drm_dev)
 	mapping = arm_iommu_create_mapping(&platform_bus_type, priv->da_start,
 						priv->da_space_size,
 						priv->da_space_order);
-	if (!mapping)
-		return -ENOMEM;
+	if (IS_ERR(mapping))
+		return PTR_ERR(mapping);
 
 	dev->dma_parms = devm_kzalloc(dev, sizeof(*dev->dma_parms),
 					GFP_KERNEL);
