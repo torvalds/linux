@@ -113,8 +113,9 @@ void ath9k_hw_usb_gen_fill_eeprom(struct ath_hw *ah, u16 *eep_data,
 	}
 }
 
-bool ath9k_hw_nvram_read(struct ath_common *common, u32 off, u16 *data)
+bool ath9k_hw_nvram_read(struct ath_hw *ah, u32 off, u16 *data)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
 	bool ret;
 
 	ret = common->bus_ops->eeprom_read(common, off, data);

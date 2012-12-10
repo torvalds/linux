@@ -3001,24 +3001,24 @@ static u32 ath9k_hw_ar9300_get_eeprom(struct ath_hw *ah,
 	}
 }
 
-static bool ar9300_eeprom_read_byte(struct ath_common *common, int address,
+static bool ar9300_eeprom_read_byte(struct ath_hw *ah, int address,
 				    u8 *buffer)
 {
 	u16 val;
 
-	if (unlikely(!ath9k_hw_nvram_read(common, address / 2, &val)))
+	if (unlikely(!ath9k_hw_nvram_read(ah, address / 2, &val)))
 		return false;
 
 	*buffer = (val >> (8 * (address % 2))) & 0xff;
 	return true;
 }
 
-static bool ar9300_eeprom_read_word(struct ath_common *common, int address,
+static bool ar9300_eeprom_read_word(struct ath_hw *ah, int address,
 				    u8 *buffer)
 {
 	u16 val;
 
-	if (unlikely(!ath9k_hw_nvram_read(common, address / 2, &val)))
+	if (unlikely(!ath9k_hw_nvram_read(ah, address / 2, &val)))
 		return false;
 
 	buffer[0] = val >> 8;
@@ -3044,14 +3044,14 @@ static bool ar9300_read_eeprom(struct ath_hw *ah, int address, u8 *buffer,
 	 * the 16-bit word at that address
 	 */
 	if (address % 2 == 0) {
-		if (!ar9300_eeprom_read_byte(common, address--, buffer++))
+		if (!ar9300_eeprom_read_byte(ah, address--, buffer++))
 			goto error;
 
 		count--;
 	}
 
 	for (i = 0; i < count / 2; i++) {
-		if (!ar9300_eeprom_read_word(common, address, buffer))
+		if (!ar9300_eeprom_read_word(ah, address, buffer))
 			goto error;
 
 		address -= 2;
@@ -3059,7 +3059,7 @@ static bool ar9300_read_eeprom(struct ath_hw *ah, int address, u8 *buffer,
 	}
 
 	if (count % 2)
-		if (!ar9300_eeprom_read_byte(common, address, buffer))
+		if (!ar9300_eeprom_read_byte(ah, address, buffer))
 			goto error;
 
 	return true;
@@ -3236,12 +3236,11 @@ static bool ar9300_check_eeprom_header(struct ath_hw *ah, eeprom_read_op read,
 static int ar9300_eeprom_restore_flash(struct ath_hw *ah, u8 *mptr,
 				       int mdata_size)
 {
-	struct ath_common *common = ath9k_hw_common(ah);
 	u16 *data = (u16 *) mptr;
 	int i;
 
 	for (i = 0; i < mdata_size / 2; i++, data++)
-		ath9k_hw_nvram_read(common, i, data);
+		ath9k_hw_nvram_read(ah, i, data);
 
 	return 0;
 }
