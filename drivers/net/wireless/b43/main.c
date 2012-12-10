@@ -3393,7 +3393,7 @@ static void b43_tx_work(struct work_struct *work)
 				break;
 			}
 			if (unlikely(err))
-				dev_kfree_skb(skb); /* Drop it */
+				ieee80211_free_txskb(wl->hw, skb);
 			err = 0;
 		}
 
@@ -3414,7 +3414,7 @@ static void b43_op_tx(struct ieee80211_hw *hw,
 
 	if (unlikely(skb->len < 2 + 2 + 6)) {
 		/* Too short, this can't be a valid frame. */
-		dev_kfree_skb_any(skb);
+		ieee80211_free_txskb(hw, skb);
 		return;
 	}
 	B43_WARN_ON(skb_shinfo(skb)->nr_frags);
@@ -4210,8 +4210,12 @@ redo:
 
 	/* Drain all TX queues. */
 	for (queue_num = 0; queue_num < B43_QOS_QUEUE_NUM; queue_num++) {
-		while (skb_queue_len(&wl->tx_queue[queue_num]))
-			dev_kfree_skb(skb_dequeue(&wl->tx_queue[queue_num]));
+		while (skb_queue_len(&wl->tx_queue[queue_num])) {
+			struct sk_buff *skb;
+
+			skb = skb_dequeue(&wl->tx_queue[queue_num]);
+			ieee80211_free_txskb(wl->hw, skb);
+		}
 	}
 
 	b43_mac_suspend(dev);
