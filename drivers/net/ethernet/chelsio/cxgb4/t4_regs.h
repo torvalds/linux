@@ -1064,4 +1064,37 @@
 #define  ADDRESS(x)     ((x) << ADDRESS_SHIFT)
 
 #define XGMAC_PORT_INT_CAUSE 0x10dc
+
+#define A_TP_TX_MOD_QUEUE_REQ_MAP 0x7e28
+
+#define A_TP_TX_MOD_CHANNEL_WEIGHT 0x7e34
+
+#define S_TX_MOD_QUEUE_REQ_MAP    0
+#define M_TX_MOD_QUEUE_REQ_MAP    0xffffU
+#define V_TX_MOD_QUEUE_REQ_MAP(x) ((x) << S_TX_MOD_QUEUE_REQ_MAP)
+
+#define A_TP_TX_MOD_QUEUE_WEIGHT0 0x7e30
+
+#define S_TX_MODQ_WEIGHT3    24
+#define M_TX_MODQ_WEIGHT3    0xffU
+#define V_TX_MODQ_WEIGHT3(x) ((x) << S_TX_MODQ_WEIGHT3)
+
+#define S_TX_MODQ_WEIGHT2    16
+#define M_TX_MODQ_WEIGHT2    0xffU
+#define V_TX_MODQ_WEIGHT2(x) ((x) << S_TX_MODQ_WEIGHT2)
+
+#define S_TX_MODQ_WEIGHT1    8
+#define M_TX_MODQ_WEIGHT1    0xffU
+#define V_TX_MODQ_WEIGHT1(x) ((x) << S_TX_MODQ_WEIGHT1)
+
+#define S_TX_MODQ_WEIGHT0    0
+#define M_TX_MODQ_WEIGHT0    0xffU
+#define V_TX_MODQ_WEIGHT0(x) ((x) << S_TX_MODQ_WEIGHT0)
+
+#define A_TP_TX_SCHED_HDR 0x23
+
+#define A_TP_TX_SCHED_FIFO 0x24
+
+#define A_TP_TX_SCHED_PCMD 0x25
+
 #endif /* __T4_REGS_H */

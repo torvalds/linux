@@ -2481,8 +2481,34 @@ int cxgb4_alloc_stid(struct tid_info *t, int family, void *data)
 }
 EXPORT_SYMBOL(cxgb4_alloc_stid);
 
-/*
- * Release a server TID.
+/* Allocate a server filter TID and set it to the supplied value.
+ */
+int cxgb4_alloc_sftid(struct tid_info *t, int family, void *data)
+{
+	int stid;
+
+	spin_lock_bh(&t->stid_lock);
+	if (family == PF_INET) {
+		stid = find_next_zero_bit(t->stid_bmap,
+				t->nstids + t->nsftids, t->nstids);
+		if (stid < (t->nstids + t->nsftids))
+			__set_bit(stid, t->stid_bmap);
+		else
+			stid = -1;
+	} else {
+		stid = -1;
+	}
+	if (stid >= 0) {
+		t->stid_tab[stid].data = data;
+		stid += t->stid_base;
+		t->stids_in_use++;
+	}
+	spin_unlock_bh(&t->stid_lock);
+	return stid;
+}
+EXPORT_SYMBOL(cxgb4_alloc_sftid);
+
+/* Release a server TID.
  */
 void cxgb4_free_stid(struct tid_info *t, unsigned int stid, int family)
 {
@@ -2597,12 +2623,14 @@ static int tid_init(struct tid_info *t)
 	unsigned int stid_bmap_size;
 	unsigned int natids = t->natids;
 
-	stid_bmap_size = BITS_TO_LONGS(t->nstids);
+	stid_bmap_size = BITS_TO_LONGS(t->nstids + t->nsftids);
 	size = t->ntids * sizeof(*t->tid_tab) +
 	       natids * sizeof(*t->atid_tab) +
 	       t->nstids * sizeof(*t->stid_tab) +
+	       t->nsftids * sizeof(*t->stid_tab) +
 	       stid_bmap_size * sizeof(long) +
-	       t->nftids * sizeof(*t->ftid_tab);
+	       t->nftids * sizeof(*t->ftid_tab) +
+	       t->nsftids * sizeof(*t->ftid_tab);
 
 	t->tid_tab = t4_alloc_mem(size);
 	if (!t->tid_tab)
@@ -2610,7 +2638,7 @@ static int tid_init(struct tid_info *t)
 
 	t->atid_tab = (union aopen_entry *)&t->tid_tab[t->ntids];
 	t->stid_tab = (struct serv_entry *)&t->atid_tab[natids];
-	t->stid_bmap = (unsigned long *)&t->stid_tab[t->nstids];
+	t->stid_bmap = (unsigned long *)&t->stid_tab[t->nstids + t->nsftids];
 	t->ftid_tab = (struct filter_entry *)&t->stid_bmap[stid_bmap_size];
 	spin_lock_init(&t->stid_lock);
 	spin_lock_init(&t->atid_lock);
@@ -2626,7 +2654,7 @@ static int tid_init(struct tid_info *t)
 			t->atid_tab[natids - 1].next = &t->atid_tab[natids];
 		t->afree = t->atid_tab;
 	}
-	bitmap_zero(t->stid_bmap, t->nstids);
+	bitmap_zero(t->stid_bmap, t->nstids + t->nsftids);
 	return 0;
 }
 
@@ -2988,6 +3016,7 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 {
 	void *handle;
 	struct cxgb4_lld_info lli;
+	unsigned short i;
 
 	lli.pdev = adap->pdev;
 	lli.l2t = adap->l2t;
@@ -3014,10 +3043,16 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	lli.ucq_density = 1 << QUEUESPERPAGEPF0_GET(
 			t4_read_reg(adap, SGE_INGRESS_QUEUES_PER_PAGE_PF) >>
 			(adap->fn * 4));
+	lli.filt_mode = tp_vlan_pri_map;
+	/* MODQ_REQ_MAP sets queues 0-3 to chan 0-3 */
+	for (i = 0; i < NCHAN; i++)
+		lli.tx_modq[i] = i;
 	lli.gts_reg = adap->regs + MYPF_REG(SGE_PF_GTS);
 	lli.db_reg = adap->regs + MYPF_REG(SGE_PF_KDOORBELL);
 	lli.fw_vers = adap->params.fw_vers;
 	lli.dbfifo_int_thresh = dbfifo_int_thresh;
+	lli.sge_pktshift = adap->sge.pktshift;
+	lli.enable_fw_ofld_conn = adap->flags & FW_OFLD_CONN;
 
 	handle = ulds[uld].add(&lli);
 	if (IS_ERR(handle)) {
@@ -3258,7 +3293,7 @@ static int delete_filter(struct adapter *adapter, unsigned int fidx)
 	struct filter_entry *f;
 	int ret;
 
-	if (fidx >= adapter->tids.nftids)
+	if (fidx >= adapter->tids.nftids + adapter->tids.nsftids)
 		return -EINVAL;
 
 	f = &adapter->tids.ftid_tab[fidx];
@@ -3270,6 +3305,77 @@ static int delete_filter(struct adapter *adapter, unsigned int fidx)
 
 	return 0;
 }
+
+int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
+		__be32 sip, __be16 sport, unsigned int queue)
+{
+	int ret;
+	struct filter_entry *f;
+	struct adapter *adap;
+	int i;
+	u8 *val;
+
+	adap = netdev2adap(dev);
+
+	/* Check to make sure the filter requested is writable ...
+	 */
+	f = &adap->tids.ftid_tab[stid];
+	ret = writable_filter(f);
+	if (ret)
+		return ret;
+
+	/* Clear out any old resources being used by the filter before
+	 * we start constructing the new filter.
+	 */
+	if (f->valid)
+		clear_filter(adap, f);
+
+	/* Clear out filter specifications */
+	memset(&f->fs, 0, sizeof(struct ch_filter_specification));
+	f->fs.val.lport = cpu_to_be16(sport);
+	f->fs.mask.lport  = ~0;
+	val = (u8 *)&sip;
+	if ((val[0] | val[1] | val[2] | val[3]) != 0)
+		for (i = 0; i < 4; i++) {
+			f->fs.val.lip[i] = val[i];
+			f->fs.mask.lip[i] = ~0;
+		}
+
+	f->fs.dirsteer = 1;
+	f->fs.iq = queue;
+	/* Mark filter as locked */
+	f->locked = 1;
+	f->fs.rpttid = 1;
+
+	ret = set_filter_wr(adap, stid);
+	if (ret) {
+		clear_filter(adap, f);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(cxgb4_create_server_filter);
+
+int cxgb4_remove_server_filter(const struct net_device *dev, unsigned int stid,
+		unsigned int queue, bool ipv6)
+{
+	int ret;
+	struct filter_entry *f;
+	struct adapter *adap;
+
+	adap = netdev2adap(dev);
+	f = &adap->tids.ftid_tab[stid];
+	/* Unlock the filter */
+	f->locked = 0;
+
+	ret = delete_filter(adap, stid);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL(cxgb4_remove_server_filter);
 
 static struct rtnl_link_stats64 *cxgb_get_stats(struct net_device *dev,
 						struct rtnl_link_stats64 *ns)
@@ -3516,6 +3622,34 @@ static int adap_init1(struct adapter *adap, struct fw_caps_config_cmd *c)
 	t4_write_reg(adap, TP_PIO_ADDR, TP_INGRESS_CONFIG);
 	v = t4_read_reg(adap, TP_PIO_DATA);
 	t4_write_reg(adap, TP_PIO_DATA, v & ~CSUM_HAS_PSEUDO_HDR);
+
+	/* first 4 Tx modulation queues point to consecutive Tx channels */
+	adap->params.tp.tx_modq_map = 0xE4;
+	t4_write_reg(adap, A_TP_TX_MOD_QUEUE_REQ_MAP,
+		     V_TX_MOD_QUEUE_REQ_MAP(adap->params.tp.tx_modq_map));
+
+	/* associate each Tx modulation queue with consecutive Tx channels */
+	v = 0x84218421;
+	t4_write_indirect(adap, TP_PIO_ADDR, TP_PIO_DATA,
+			  &v, 1, A_TP_TX_SCHED_HDR);
+	t4_write_indirect(adap, TP_PIO_ADDR, TP_PIO_DATA,
+			  &v, 1, A_TP_TX_SCHED_FIFO);
+	t4_write_indirect(adap, TP_PIO_ADDR, TP_PIO_DATA,
+			  &v, 1, A_TP_TX_SCHED_PCMD);
+
+#define T4_TX_MODQ_10G_WEIGHT_DEFAULT 16 /* in KB units */
+	if (is_offload(adap)) {
+		t4_write_reg(adap, A_TP_TX_MOD_QUEUE_WEIGHT0,
+			     V_TX_MODQ_WEIGHT0(T4_TX_MODQ_10G_WEIGHT_DEFAULT) |
+			     V_TX_MODQ_WEIGHT1(T4_TX_MODQ_10G_WEIGHT_DEFAULT) |
+			     V_TX_MODQ_WEIGHT2(T4_TX_MODQ_10G_WEIGHT_DEFAULT) |
+			     V_TX_MODQ_WEIGHT3(T4_TX_MODQ_10G_WEIGHT_DEFAULT));
+		t4_write_reg(adap, A_TP_TX_MOD_CHANNEL_WEIGHT,
+			     V_TX_MODQ_WEIGHT0(T4_TX_MODQ_10G_WEIGHT_DEFAULT) |
+			     V_TX_MODQ_WEIGHT1(T4_TX_MODQ_10G_WEIGHT_DEFAULT) |
+			     V_TX_MODQ_WEIGHT2(T4_TX_MODQ_10G_WEIGHT_DEFAULT) |
+			     V_TX_MODQ_WEIGHT3(T4_TX_MODQ_10G_WEIGHT_DEFAULT));
+	}
 
 	/* get basic stuff going */
 	return t4_early_init(adap, adap->fn);
@@ -4938,7 +5072,8 @@ static void remove_one(struct pci_dev *pdev)
 		 */
 		if (adapter->tids.ftid_tab) {
 			struct filter_entry *f = &adapter->tids.ftid_tab[0];
-			for (i = 0; i < adapter->tids.nftids; i++, f++)
+			for (i = 0; i < (adapter->tids.nftids +
+					adapter->tids.nsftids); i++, f++)
 				if (f->valid)
 					clear_filter(adapter, f);
 		}

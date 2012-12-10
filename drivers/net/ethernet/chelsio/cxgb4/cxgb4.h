@@ -35,6 +35,8 @@
 #ifndef __CXGB4_H__
 #define __CXGB4_H__
 
+#include "t4_hw.h"
+
 #include <linux/bitops.h>
 #include <linux/cache.h>
 #include <linux/interrupt.h>
@@ -212,6 +214,8 @@ struct tp_err_stats {
 struct tp_params {
 	unsigned int ntxchan;        /* # of Tx channels */
 	unsigned int tre;            /* log2 of core clocks per TP tick */
+	unsigned short tx_modq_map;  /* TX modulation scheduler queue to */
+				     /* channel map */
 
 	uint32_t dack_re;            /* DACK timer resolution */
 	unsigned short tx_modq[NCHAN];	/* channel to modulation queue map */

@@ -131,7 +131,7 @@ static inline void *lookup_atid(const struct tid_info *t, unsigned int atid)
 static inline void *lookup_stid(const struct tid_info *t, unsigned int stid)
 {
 	stid -= t->stid_base;
-	return stid < t->nstids ? t->stid_tab[stid].data : NULL;
+	return stid < (t->nstids + t->nsftids) ? t->stid_tab[stid].data : NULL;
 }
 
 static inline void cxgb4_insert_tid(struct tid_info *t, void *data,
@@ -143,6 +143,7 @@ static inline void cxgb4_insert_tid(struct tid_info *t, void *data,
 
 int cxgb4_alloc_atid(struct tid_info *t, void *data);
 int cxgb4_alloc_stid(struct tid_info *t, int family, void *data);
+int cxgb4_alloc_sftid(struct tid_info *t, int family, void *data);
 void cxgb4_free_atid(struct tid_info *t, unsigned int atid);
 void cxgb4_free_stid(struct tid_info *t, unsigned int stid, int family);
 void cxgb4_remove_tid(struct tid_info *t, unsigned int qid, unsigned int tid);
@@ -151,7 +152,10 @@ struct in6_addr;
 
 int cxgb4_create_server(const struct net_device *dev, unsigned int stid,
 			__be32 sip, __be16 sport, unsigned int queue);
-
+int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
+			       __be32 sip, __be16 sport, unsigned int queue);
+int cxgb4_remove_server_filter(const struct net_device *dev, unsigned int stid,
+			       unsigned int queue, bool ipv6);
 static inline void set_wr_txq(struct sk_buff *skb, int prio, int queue)
 {
 	skb_set_queue_mapping(skb, (queue << 1) | prio);
@@ -223,9 +227,16 @@ struct cxgb4_lld_info {
 	unsigned int iscsi_iolen;            /* iSCSI max I/O length */
 	unsigned short udb_density;          /* # of user DB/page */
 	unsigned short ucq_density;          /* # of user CQs/page */
+	unsigned short filt_mode;            /* filter optional components */
+	unsigned short tx_modq[NCHAN];       /* maps each tx channel to a */
+					     /* scheduler queue */
 	void __iomem *gts_reg;               /* address of GTS register */
 	void __iomem *db_reg;                /* address of kernel doorbell */
 	int dbfifo_int_thresh;		     /* doorbell fifo int threshold */
+	unsigned int sge_pktshift;           /* Padding between CPL and */
+					     /*	packet data */
+	bool enable_fw_ofld_conn;            /* Enable connection through fw */
+					     /* WR */
 };
 
 struct cxgb4_uld_info {
