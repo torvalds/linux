@@ -335,7 +335,6 @@ struct pn533 {
 	struct work_struct mi_work;
 	struct work_struct tg_work;
 	struct timer_list listen_timer;
-	struct pn533_frame *wq_in_frame;
 	int wq_in_error;
 	int cancel_listen;
 
@@ -467,8 +466,6 @@ static void pn533_recv_response(struct urb *urb)
 	struct pn533 *dev = urb->context;
 	struct pn533_frame *in_frame;
 
-	dev->wq_in_frame = NULL;
-
 	switch (urb->status) {
 	case 0:
 		break; /* success */
@@ -508,7 +505,6 @@ static void pn533_recv_response(struct urb *urb)
 	}
 
 	dev->wq_in_error = 0;
-	dev->wq_in_frame = in_frame;
 
 sched_wq:
 	queue_work(dev->wq, &dev->cmd_complete_work);
@@ -565,7 +561,6 @@ static void pn533_recv_ack(struct urb *urb)
 	return;
 
 sched_wq:
-	dev->wq_in_frame = NULL;
 	queue_work(dev->wq, &dev->cmd_complete_work);
 }
 
