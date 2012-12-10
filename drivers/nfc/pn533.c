@@ -329,7 +329,6 @@ struct pn533 {
 	struct pn533_frame *out_frame;
 
 	struct urb *in_urb;
-	struct pn533_frame *in_frame;
 
 	struct sk_buff_head resp_q;
 
@@ -371,13 +370,9 @@ struct pn533 {
 
 struct pn533_cmd {
 	struct list_head queue;
-	struct pn533_frame *out_frame;
-	struct pn533_frame *in_frame;
-	int in_frame_len;
 	u8 cmd_code;
 	struct sk_buff *req;
 	struct sk_buff *resp;
-	pn533_cmd_complete_t cmd_complete;
 	void *arg;
 };
 
@@ -911,67 +906,14 @@ static void pn533_wq_cmd(struct work_struct *work)
 
 	mutex_unlock(&dev->cmd_lock);
 
-	if (cmd->cmd_code != PN533_CMD_UNDEF)
-		__pn533_send_cmd_frame_async(dev,
-					     (struct pn533_frame *)cmd->req->data,
-					     (struct pn533_frame *)cmd->resp->data,
-					     PN533_NORMAL_FRAME_MAX_LEN,
-					     pn533_send_async_complete,
-					     cmd->arg);
-	else
-		__pn533_send_cmd_frame_async(dev, cmd->out_frame, cmd->in_frame,
-					     cmd->in_frame_len,
-					     cmd->cmd_complete, cmd->arg);
+	__pn533_send_cmd_frame_async(dev,
+				     (struct pn533_frame *)cmd->req->data,
+				     (struct pn533_frame *)cmd->resp->data,
+				     PN533_NORMAL_FRAME_MAX_LEN,
+				     pn533_send_async_complete,
+				     cmd->arg);
 
 	kfree(cmd);
-}
-
-static int pn533_send_cmd_frame_async(struct pn533 *dev,
-					struct pn533_frame *out_frame,
-					struct pn533_frame *in_frame,
-					int in_frame_len,
-					pn533_cmd_complete_t cmd_complete,
-					void *arg)
-{
-	struct pn533_cmd *cmd;
-	int rc = 0;
-
-	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
-
-	mutex_lock(&dev->cmd_lock);
-
-	if (!dev->cmd_pending) {
-		rc = __pn533_send_cmd_frame_async(dev, out_frame, in_frame,
-						  in_frame_len, cmd_complete,
-						  arg);
-		if (!rc)
-			dev->cmd_pending = 1;
-
-		goto unlock;
-	}
-
-	nfc_dev_dbg(&dev->interface->dev, "%s Queueing command", __func__);
-
-	cmd = kzalloc(sizeof(struct pn533_cmd), GFP_KERNEL);
-	if (!cmd) {
-		rc = -ENOMEM;
-		goto unlock;
-	}
-
-	INIT_LIST_HEAD(&cmd->queue);
-	cmd->out_frame = out_frame;
-	cmd->in_frame = in_frame;
-	cmd->in_frame_len = in_frame_len;
-	cmd->cmd_code = PN533_CMD_UNDEF;
-	cmd->cmd_complete = cmd_complete;
-	cmd->arg = arg;
-
-	list_add_tail(&cmd->queue, &dev->cmd_queue);
-
-unlock:
-	mutex_unlock(&dev->cmd_lock);
-
-	return rc;
 }
 
 struct pn533_sync_cmd_response {
@@ -2527,12 +2469,11 @@ static int pn533_probe(struct usb_interface *interface,
 		goto error;
 	}
 
-	dev->in_frame = kmalloc(PN533_NORMAL_FRAME_MAX_LEN, GFP_KERNEL);
 	dev->in_urb = usb_alloc_urb(0, GFP_KERNEL);
 	dev->out_frame = kmalloc(PN533_NORMAL_FRAME_MAX_LEN, GFP_KERNEL);
 	dev->out_urb = usb_alloc_urb(0, GFP_KERNEL);
 
-	if (!dev->in_frame || !dev->out_frame || !dev->in_urb || !dev->out_urb)
+	if (!dev->out_frame || !dev->in_urb || !dev->out_urb)
 		goto error;
 
 	usb_fill_bulk_urb(dev->in_urb, dev->udev,
@@ -2616,7 +2557,6 @@ free_nfc_dev:
 destroy_wq:
 	destroy_workqueue(dev->wq);
 error:
-	kfree(dev->in_frame);
 	usb_free_urb(dev->in_urb);
 	kfree(dev->out_frame);
 	usb_free_urb(dev->out_urb);
@@ -2649,7 +2589,6 @@ static void pn533_disconnect(struct usb_interface *interface)
 		kfree(cmd);
 	}
 
-	kfree(dev->in_frame);
 	usb_free_urb(dev->in_urb);
 	kfree(dev->out_frame);
 	usb_free_urb(dev->out_urb);
