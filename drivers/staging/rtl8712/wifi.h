@@ -437,11 +437,7 @@ static inline unsigned char *get_hdr_bssid(unsigned char *pframe)
 #define _SSID_IE_		0
 #define _SUPPORTEDRATES_IE_	1
 #define _DSSET_IE_		3
-#define _TIM_IE_		5
 #define _IBSS_PARA_IE_		6
-#define _CHLGETXT_IE_		16
-#define _RSN_IE_2_		48`
-#define _SSN_IE_1_		221
 #define _ERPINFO_IE_		42
 #define _EXT_SUPPORTEDRATES_IE_	50
 
