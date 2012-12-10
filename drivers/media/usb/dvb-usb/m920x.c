@@ -140,9 +140,50 @@ static int m920x_init_ep(struct usb_interface *intf)
 				 alt->desc.bAlternateSetting);
 }
 
-static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
+static inline void m920x_parse_rc_state(struct dvb_usb_device *d, u8 rc_state,
+					int *state)
 {
 	struct m920x_state *m = d->priv;
+
+	switch (rc_state) {
+	case 0x80:
+		*state = REMOTE_NO_KEY_PRESSED;
+		break;
+
+	case 0x88: /* framing error or "invalid code" */
+	case 0x99:
+	case 0xc0:
+	case 0xd8:
+		*state = REMOTE_NO_KEY_PRESSED;
+		m->rep_count = 0;
+		break;
+
+	case 0x93:
+	case 0x92:
+	case 0x83: /* pinnacle PCTV310e */
+	case 0x82:
+		m->rep_count = 0;
+		*state = REMOTE_KEY_PRESSED;
+		break;
+
+	case 0x91:
+	case 0x81: /* pinnacle PCTV310e */
+		/* prevent immediate auto-repeat */
+		if (++m->rep_count > 2)
+			*state = REMOTE_KEY_REPEAT;
+		else
+			*state = REMOTE_NO_KEY_PRESSED;
+		break;
+
+	default:
+		deb("Unexpected rc state %02x\n", rc_state);
+		*state = REMOTE_NO_KEY_PRESSED;
+		break;
+	}
+}
+
+static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
+{
 	int i, ret = 0;
 	u8 *rc_state;
 
@@ -159,42 +200,8 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	for (i = 0; i < d->props.rc.legacy.rc_map_size; i++)
 		if (rc5_data(&d->props.rc.legacy.rc_map_table[i]) == rc_state[1]) {
 			*event = d->props.rc.legacy.rc_map_table[i].keycode;
-
-			switch(rc_state[0]) {
-			case 0x80:
-				*state = REMOTE_NO_KEY_PRESSED;
-				goto out;
-
-			case 0x88: /* framing error or "invalid code" */
-			case 0x99:
-			case 0xc0:
-			case 0xd8:
-				*state = REMOTE_NO_KEY_PRESSED;
-				m->rep_count = 0;
-				goto out;
-
-			case 0x93:
-			case 0x92:
-			case 0x83: /* pinnacle PCTV310e */
-			case 0x82:
-				m->rep_count = 0;
-				*state = REMOTE_KEY_PRESSED;
-				goto out;
-
-			case 0x91:
-			case 0x81: /* pinnacle PCTV310e */
-				/* prevent immediate auto-repeat */
-				if (++m->rep_count > 2)
-					*state = REMOTE_KEY_REPEAT;
-				else
-					*state = REMOTE_NO_KEY_PRESSED;
-				goto out;
-
-			default:
-				deb("Unexpected rc state %02x\n", rc_state[0]);
-				*state = REMOTE_NO_KEY_PRESSED;
-				goto out;
-			}
+			m920x_parse_rc_state(d, rc_state[0], state);
+			goto out;
 		}
 
 	if (rc_state[1] != 0)
