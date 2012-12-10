@@ -109,8 +109,6 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 
 /* PN533 Commands */
 #define PN533_FRAME_CMD(f) (f->data[1])
-#define PN533_FRAME_CMD_PARAMS_PTR(f) (&f->data[2])
-#define PN533_FRAME_CMD_PARAMS_LEN(f) (f->datalen - 2)
 
 #define PN533_CMD_GET_FIRMWARE_VERSION 0x02
 #define PN533_CMD_RF_CONFIGURATION 0x32
@@ -135,8 +133,7 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 
 struct pn533;
 
-typedef int (*pn533_cmd_complete_t) (struct pn533 *dev, void *arg,
-					u8 *params, int params_len);
+typedef int (*pn533_cmd_complete_t) (struct pn533 *dev, void *arg, int status);
 
 typedef int (*pn533_send_async_complete_t) (struct pn533 *dev, void *arg,
 					struct sk_buff *resp);
@@ -458,19 +455,9 @@ static bool pn533_rx_frame_is_cmd_response(struct pn533_frame *frame, u8 cmd)
 static void pn533_wq_cmd_complete(struct work_struct *work)
 {
 	struct pn533 *dev = container_of(work, struct pn533, cmd_complete_work);
-	struct pn533_frame *in_frame;
 	int rc;
 
-	in_frame = dev->wq_in_frame;
-
-	if (dev->wq_in_error)
-		rc = dev->cmd_complete(dev, dev->cmd_complete_arg, NULL,
-							dev->wq_in_error);
-	else
-		rc = dev->cmd_complete(dev, dev->cmd_complete_arg,
-					PN533_FRAME_CMD_PARAMS_PTR(in_frame),
-					PN533_FRAME_CMD_PARAMS_LEN(in_frame));
-
+	rc = dev->cmd_complete(dev, dev->cmd_complete_arg, dev->wq_in_error);
 	if (rc != -EINPROGRESS)
 		queue_work(dev->wq, &dev->cmd_work);
 }
@@ -664,8 +651,7 @@ struct pn533_send_async_complete_arg {
 	struct sk_buff *req;
 };
 
-static int pn533_send_async_complete(struct pn533 *dev, void *_arg, u8 *params,
-				     int params_len)
+static int pn533_send_async_complete(struct pn533 *dev, void *_arg, int status)
 {
 	struct pn533_send_async_complete_arg *arg = _arg;
 
@@ -677,12 +663,12 @@ static int pn533_send_async_complete(struct pn533 *dev, void *_arg, u8 *params,
 
 	dev_kfree_skb(req);
 
-	if (params_len < 0) {
+	if (status < 0) {
 		arg->complete_cb(dev, arg->complete_cb_context,
-				 ERR_PTR(params_len));
-		rc = params_len;
+				 ERR_PTR(status));
 		dev_kfree_skb(resp);
-		goto out;
+		kfree(arg);
+		return status;
 	}
 
 	skb_put(resp, PN533_FRAME_SIZE(frame));
@@ -691,7 +677,6 @@ static int pn533_send_async_complete(struct pn533 *dev, void *_arg, u8 *params,
 
 	rc = arg->complete_cb(dev, arg->complete_cb_context, resp);
 
-out:
 	kfree(arg);
 	return rc;
 }
