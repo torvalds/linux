@@ -2946,9 +2946,7 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 
 	/* see 7.1.7.6 */
 	if (hub_is_superspeed(hub->hdev))
-		status = set_port_feature(hub->hdev,
-				port1 | (USB_SS_PORT_LS_U3 << 3),
-				USB_PORT_FEAT_LINK_STATE);
+		status = hub_set_port_link_state(hub, port1, USB_SS_PORT_LS_U3);
 	else
 		status = set_port_feature(hub->hdev, port1,
 						USB_PORT_FEAT_SUSPEND);
@@ -3118,9 +3116,7 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 
 	/* see 7.1.7.7; affects power usage, but not budgeting */
 	if (hub_is_superspeed(hub->hdev))
-		status = set_port_feature(hub->hdev,
-				port1 | (USB_SS_PORT_LS_U0 << 3),
-				USB_PORT_FEAT_LINK_STATE);
+		status = hub_set_port_link_state(hub, port1, USB_SS_PORT_LS_U0);
 	else
 		status = clear_port_feature(hub->hdev,
 				port1, USB_PORT_FEAT_SUSPEND);
