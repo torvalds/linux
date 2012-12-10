@@ -192,6 +192,7 @@ extern int ext4_try_to_evict_inline_data(handle_t *handle,
 					 int needed);
 extern void ext4_inline_data_truncate(struct inode *inode, int *has_inline);
 
+extern int ext4_convert_inline_data(struct inode *inode);
 # else  /* CONFIG_EXT4_FS_XATTR */
 
 static inline int
@@ -420,6 +421,10 @@ static inline void ext4_inline_data_truncate(struct inode *inode,
 	return;
 }
 
+static inline int ext4_convert_inline_data(struct inode *inode)
+{
+	return 0;
+}
 # endif  /* CONFIG_EXT4_FS_XATTR */
 
 #ifdef CONFIG_EXT4_FS_SECURITY
