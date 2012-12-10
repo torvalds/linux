@@ -1969,6 +1969,21 @@ extern int ext4_htree_store_dirent(struct file *dir_file, __u32 hash,
 				    __u32 minor_hash,
 				    struct ext4_dir_entry_2 *dirent);
 extern void ext4_htree_free_dir_info(struct dir_private_info *p);
+extern int ext4_find_dest_de(struct inode *dir, struct inode *inode,
+			     struct buffer_head *bh,
+			     void *buf, int buf_size,
+			     const char *name, int namelen,
+			     struct ext4_dir_entry_2 **dest_de);
+void ext4_insert_dentry(struct inode *inode,
+			struct ext4_dir_entry_2 *de,
+			int buf_size,
+			const char *name, int namelen);
+static inline void ext4_update_dx_flag(struct inode *inode)
+{
+	if (!EXT4_HAS_COMPAT_FEATURE(inode->i_sb,
+				     EXT4_FEATURE_COMPAT_DIR_INDEX))
+		ext4_clear_inode_flag(inode, EXT4_INODE_INDEX);
+}
 
 /* fsync.c */
 extern int ext4_sync_file(struct file *, loff_t, loff_t, int);

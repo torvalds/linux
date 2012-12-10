@@ -1084,13 +1084,6 @@ static void dx_insert_block(struct dx_frame *frame, u32 hash, ext4_lblk_t block)
 	dx_set_count(entries, count + 1);
 }
 
-static void ext4_update_dx_flag(struct inode *inode)
-{
-	if (!EXT4_HAS_COMPAT_FEATURE(inode->i_sb,
-				     EXT4_FEATURE_COMPAT_DIR_INDEX))
-		ext4_clear_inode_flag(inode, EXT4_INODE_INDEX);
-}
-
 /*
  * NOTE! unlike strncmp, ext4_match returns 1 for success, 0 for failure.
  *
@@ -1614,6 +1607,63 @@ errout:
 	return NULL;
 }
 
+int ext4_find_dest_de(struct inode *dir, struct inode *inode,
+		      struct buffer_head *bh,
+		      void *buf, int buf_size,
+		      const char *name, int namelen,
+		      struct ext4_dir_entry_2 **dest_de)
+{
+	struct ext4_dir_entry_2 *de;
+	unsigned short reclen = EXT4_DIR_REC_LEN(namelen);
+	int nlen, rlen;
+	unsigned int offset = 0;
+	char *top;
+
+	de = (struct ext4_dir_entry_2 *)buf;
+	top = buf + buf_size - reclen;
+	while ((char *) de <= top) {
+		if (ext4_check_dir_entry(dir, NULL, de, bh,
+					 buf, buf_size, offset))
+			return -EIO;
+		if (ext4_match(namelen, name, de))
+			return -EEXIST;
+		nlen = EXT4_DIR_REC_LEN(de->name_len);
+		rlen = ext4_rec_len_from_disk(de->rec_len, buf_size);
+		if ((de->inode ? rlen - nlen : rlen) >= reclen)
+			break;
+		de = (struct ext4_dir_entry_2 *)((char *)de + rlen);
+		offset += rlen;
+	}
+	if ((char *) de > top)
+		return -ENOSPC;
+
+	*dest_de = de;
+	return 0;
+}
+
+void ext4_insert_dentry(struct inode *inode,
+			struct ext4_dir_entry_2 *de,
+			int buf_size,
+			const char *name, int namelen)
+{
+
+	int nlen, rlen;
+
+	nlen = EXT4_DIR_REC_LEN(de->name_len);
+	rlen = ext4_rec_len_from_disk(de->rec_len, buf_size);
+	if (de->inode) {
+		struct ext4_dir_entry_2 *de1 =
+				(struct ext4_dir_entry_2 *)((char *)de + nlen);
+		de1->rec_len = ext4_rec_len_to_disk(rlen - nlen, buf_size);
+		de->rec_len = ext4_rec_len_to_disk(nlen, buf_size);
+		de = de1;
+	}
+	de->file_type = EXT4_FT_UNKNOWN;
+	de->inode = cpu_to_le32(inode->i_ino);
+	ext4_set_de_type(inode->i_sb, de, inode->i_mode);
+	de->name_len = namelen;
+	memcpy(de->name, name, namelen);
+}
 /*
  * Add a new entry into a directory (leaf) block.  If de is non-NULL,
  * it points to a directory entry which is guaranteed to be large
@@ -1629,12 +1679,10 @@ static int add_dirent_to_buf(handle_t *handle, struct dentry *dentry,
 	struct inode	*dir = dentry->d_parent->d_inode;
 	const char	*name = dentry->d_name.name;
 	int		namelen = dentry->d_name.len;
-	unsigned int	offset = 0;
 	unsigned int	blocksize = dir->i_sb->s_blocksize;
 	unsigned short	reclen;
-	int		nlen, rlen, err;
-	char		*top;
 	int		csum_size = 0;
+	int		err;
 
 	if (EXT4_HAS_RO_COMPAT_FEATURE(inode->i_sb,
 				       EXT4_FEATURE_RO_COMPAT_METADATA_CSUM))
@@ -1642,23 +1690,11 @@ static int add_dirent_to_buf(handle_t *handle, struct dentry *dentry,
 
 	reclen = EXT4_DIR_REC_LEN(namelen);
 	if (!de) {
-		de = (struct ext4_dir_entry_2 *)bh->b_data;
-		top = bh->b_data + (blocksize - csum_size) - reclen;
-		while ((char *) de <= top) {
-			if (ext4_check_dir_entry(dir, NULL, de, bh, bh->b_data,
-						 bh->b_size, offset))
-				return -EIO;
-			if (ext4_match(namelen, name, de))
-				return -EEXIST;
-			nlen = EXT4_DIR_REC_LEN(de->name_len);
-			rlen = ext4_rec_len_from_disk(de->rec_len, blocksize);
-			if ((de->inode? rlen - nlen: rlen) >= reclen)
-				break;
-			de = (struct ext4_dir_entry_2 *)((char *)de + rlen);
-			offset += rlen;
-		}
-		if ((char *) de > top)
-			return -ENOSPC;
+		err = ext4_find_dest_de(dir, inode,
+					bh, bh->b_data, blocksize - csum_size,
+					name, namelen, &de);
+		if (err)
+			return err;
 	}
 	BUFFER_TRACE(bh, "get_write_access");
 	err = ext4_journal_get_write_access(handle, bh);
@@ -1668,19 +1704,8 @@ static int add_dirent_to_buf(handle_t *handle, struct dentry *dentry,
 	}
 
 	/* By now the buffer is marked for journaling */
-	nlen = EXT4_DIR_REC_LEN(de->name_len);
-	rlen = ext4_rec_len_from_disk(de->rec_len, blocksize);
-	if (de->inode) {
-		struct ext4_dir_entry_2 *de1 = (struct ext4_dir_entry_2 *)((char *)de + nlen);
-		de1->rec_len = ext4_rec_len_to_disk(rlen - nlen, blocksize);
-		de->rec_len = ext4_rec_len_to_disk(nlen, blocksize);
-		de = de1;
-	}
-	de->file_type = EXT4_FT_UNKNOWN;
-	de->inode = cpu_to_le32(inode->i_ino);
-	ext4_set_de_type(dir->i_sb, de, inode->i_mode);
-	de->name_len = namelen;
-	memcpy(de->name, name, namelen);
+	ext4_insert_dentry(inode, de, blocksize, name, namelen);
+
 	/*
 	 * XXX shouldn't update any times until successful
 	 * completion of syscall, but too many callers depend
