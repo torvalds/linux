@@ -72,7 +72,7 @@ static int is_dx_dir(struct inode *inode)
 int __ext4_check_dir_entry(const char *function, unsigned int line,
 			   struct inode *dir, struct file *filp,
 			   struct ext4_dir_entry_2 *de,
-			   struct buffer_head *bh,
+			   struct buffer_head *bh, char *buf, int size,
 			   unsigned int offset)
 {
 	const char *error_msg = NULL;
@@ -85,9 +85,8 @@ int __ext4_check_dir_entry(const char *function, unsigned int line,
 		error_msg = "rec_len % 4 != 0";
 	else if (unlikely(rlen < EXT4_DIR_REC_LEN(de->name_len)))
 		error_msg = "rec_len is too small for name_len";
-	else if (unlikely(((char *) de - bh->b_data) + rlen >
-			  dir->i_sb->s_blocksize))
-		error_msg = "directory entry across blocks";
+	else if (unlikely(((char *) de - buf) + rlen > size))
+		error_msg = "directory entry across range";
 	else if (unlikely(le32_to_cpu(de->inode) >
 			le32_to_cpu(EXT4_SB(dir->i_sb)->s_es->s_inodes_count)))
 		error_msg = "inode out of bounds";
@@ -98,14 +97,14 @@ int __ext4_check_dir_entry(const char *function, unsigned int line,
 		ext4_error_file(filp, function, line, bh->b_blocknr,
 				"bad entry in directory: %s - offset=%u(%u), "
 				"inode=%u, rec_len=%d, name_len=%d",
-				error_msg, (unsigned) (offset % bh->b_size),
+				error_msg, (unsigned) (offset % size),
 				offset, le32_to_cpu(de->inode),
 				rlen, de->name_len);
 	else
 		ext4_error_inode(dir, function, line, bh->b_blocknr,
 				"bad entry in directory: %s - offset=%u(%u), "
 				"inode=%u, rec_len=%d, name_len=%d",
-				error_msg, (unsigned) (offset % bh->b_size),
+				error_msg, (unsigned) (offset % size),
 				offset, le32_to_cpu(de->inode),
 				rlen, de->name_len);
 
@@ -221,8 +220,9 @@ revalidate:
 		while (!error && filp->f_pos < inode->i_size
 		       && offset < sb->s_blocksize) {
 			de = (struct ext4_dir_entry_2 *) (bh->b_data + offset);
-			if (ext4_check_dir_entry(inode, filp, de,
-						 bh, offset)) {
+			if (ext4_check_dir_entry(inode, filp, de, bh,
+						 bh->b_data, bh->b_size,
+						 offset)) {
 				/*
 				 * On error, skip the f_pos to the next block
 				 */
