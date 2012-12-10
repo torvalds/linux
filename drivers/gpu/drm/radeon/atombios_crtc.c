@@ -1696,42 +1696,22 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 			return ATOM_PPLL2;
 		DRM_ERROR("unable to allocate a PPLL\n");
 		return ATOM_PPLL_INVALID;
-	} else if (ASIC_IS_AVIVO(rdev)) {
-		/* in DP mode, the DP ref clock can come from either PPLL
-		 * depending on the asic:
-		 * DCE3: PPLL1 or PPLL2
-		 */
-		if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(radeon_crtc->encoder))) {
-			/* use the same PPLL for all DP monitors */
-			pll = radeon_get_shared_dp_ppll(crtc);
-			if (pll != ATOM_PPLL_INVALID)
-				return pll;
-		} else {
-			/* use the same PPLL for all monitors with the same clock */
-			pll = radeon_get_shared_nondp_ppll(crtc);
-			if (pll != ATOM_PPLL_INVALID)
-				return pll;
-		}
-		/* all other cases */
-		pll_in_use = radeon_get_pll_use_mask(crtc);
-		/* the order shouldn't matter here, but we probably
-		 * need this until we have atomic modeset
-		 */
-		if (rdev->flags & RADEON_IS_IGP) {
-			if (!(pll_in_use & (1 << ATOM_PPLL1)))
-				return ATOM_PPLL1;
-			if (!(pll_in_use & (1 << ATOM_PPLL2)))
-				return ATOM_PPLL2;
-		} else {
-			if (!(pll_in_use & (1 << ATOM_PPLL2)))
-				return ATOM_PPLL2;
-			if (!(pll_in_use & (1 << ATOM_PPLL1)))
-				return ATOM_PPLL1;
-		}
-		DRM_ERROR("unable to allocate a PPLL\n");
-		return ATOM_PPLL_INVALID;
 	} else {
 		/* on pre-R5xx asics, the crtc to pll mapping is hardcoded */
+		/* some atombios (observed in some DCE2/DCE3) code have a bug,
+		 * the matching btw pll and crtc is done through
+		 * PCLK_CRTC[1|2]_CNTL (0x480/0x484) but atombios code use the
+		 * pll (1 or 2) to select which register to write. ie if using
+		 * pll1 it will use PCLK_CRTC1_CNTL (0x480) and if using pll2
+		 * it will use PCLK_CRTC2_CNTL (0x484), it then use crtc id to
+		 * choose which value to write. Which is reverse order from
+		 * register logic. So only case that works is when pllid is
+		 * same as crtcid or when both pll and crtc are enabled and
+		 * both use same clock.
+		 *
+		 * So just return crtc id as if crtc and pll were hard linked
+		 * together even if they aren't
+		 */
 		return radeon_crtc->crtc_id;
 	}
 }
