@@ -22,6 +22,7 @@
 #include <linux/clockchips.h>
 #include <linux/hrtimer.h>
 #include <linux/tick.h>
+#include <linux/notifier.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
 #include <linux/string.h>
@@ -347,9 +348,33 @@ EXPORT_SYMBOL_GPL(bL_switch_request);
  */
 
 static DEFINE_MUTEX(bL_switcher_activation_lock);
+static BLOCKING_NOTIFIER_HEAD(bL_activation_notifier);
 static unsigned int bL_switcher_active;
 static unsigned int bL_switcher_cpu_original_cluster[NR_CPUS];
 static cpumask_t bL_switcher_removed_logical_cpus;
+
+int bL_switcher_register_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&bL_activation_notifier, nb);
+}
+EXPORT_SYMBOL_GPL(bL_switcher_register_notifier);
+
+int bL_switcher_unregister_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&bL_activation_notifier, nb);
+}
+EXPORT_SYMBOL_GPL(bL_switcher_unregister_notifier);
+
+static int bL_activation_notify(unsigned long val)
+{
+	int ret;
+       
+	ret = blocking_notifier_call_chain(&bL_activation_notifier, val, NULL);
+	if (ret & NOTIFY_STOP_MASK)
+		pr_err("%s: notifier chain failed with status 0x%x\n",
+			__func__, ret);
+	return notifier_to_errno(ret);
+}
 
 static void bL_switcher_restore_cpus(void)
 {
@@ -468,12 +493,13 @@ static int bL_switcher_enable(void)
 
 	pr_info("big.LITTLE switcher initializing\n");
 
+	ret = bL_activation_notify(BL_NOTIFY_PRE_ENABLE);
+	if (ret)
+		goto error;
+
 	ret = bL_switcher_halve_cpus();
-	if (ret) {
-		cpu_hotplug_driver_unlock();
-		mutex_unlock(&bL_switcher_activation_lock);
-		return ret;
-	}
+	if (ret)
+		goto error;
 
 	for_each_online_cpu(cpu) {
 		struct bL_thread *t = &bL_threads[cpu];
@@ -484,11 +510,18 @@ static int bL_switcher_enable(void)
 	}
 
 	bL_switcher_active = 1;
+	bL_activation_notify(BL_NOTIFY_POST_ENABLE);
 	pr_info("big.LITTLE switcher initialized\n");
+	goto out;
 
+error:
+	pr_warning("big.LITTLE switcher initialization failed\n");
+	bL_activation_notify(BL_NOTIFY_POST_DISABLE);
+
+out:
 	cpu_hotplug_driver_unlock();
 	mutex_unlock(&bL_switcher_activation_lock);
-	return 0;
+	return ret;
 }
 
 #ifdef CONFIG_SYSFS
@@ -501,11 +534,15 @@ static void bL_switcher_disable(void)
 
 	mutex_lock(&bL_switcher_activation_lock);
 	cpu_hotplug_driver_lock();
-	if (!bL_switcher_active) {
-		cpu_hotplug_driver_unlock();
-		mutex_unlock(&bL_switcher_activation_lock);
-		return;
+
+	if (!bL_switcher_active)
+		goto out;
+
+	if (bL_activation_notify(BL_NOTIFY_PRE_DISABLE) != 0) {
+		bL_activation_notify(BL_NOTIFY_POST_ENABLE);
+		goto out;
 	}
+
 	bL_switcher_active = 0;
 
 	/*
@@ -547,6 +584,9 @@ static void bL_switcher_disable(void)
 	}
 
 	bL_switcher_restore_cpus();
+	bL_activation_notify(BL_NOTIFY_POST_DISABLE);
+
+out:
 	cpu_hotplug_driver_unlock();
 	mutex_unlock(&bL_switcher_activation_lock);
 }
