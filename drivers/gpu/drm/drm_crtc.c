@@ -356,6 +356,9 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 	if (ret)
 		goto out;
 
+	/* Grab the idr reference. */
+	drm_framebuffer_reference(fb);
+
 	dev->mode_config.num_fb++;
 	list_add(&fb->head, &dev->mode_config.fb_list);
 out:
@@ -372,6 +375,23 @@ static void drm_framebuffer_free(struct kref *kref)
 	fb->funcs->destroy(fb);
 }
 
+static struct drm_framebuffer *__drm_framebuffer_lookup(struct drm_device *dev,
+							uint32_t id)
+{
+	struct drm_mode_object *obj = NULL;
+	struct drm_framebuffer *fb;
+
+	mutex_lock(&dev->mode_config.idr_mutex);
+	obj = idr_find(&dev->mode_config.crtc_idr, id);
+	if (!obj || (obj->type != DRM_MODE_OBJECT_FB) || (obj->id != id))
+		fb = NULL;
+	else
+		fb = obj_to_fb(obj);
+	mutex_unlock(&dev->mode_config.idr_mutex);
+
+	return fb;
+}
+
 /**
  * drm_framebuffer_lookup - look up a drm framebuffer and grab a reference
  * @dev: drm device
@@ -384,22 +404,12 @@ static void drm_framebuffer_free(struct kref *kref)
 struct drm_framebuffer *drm_framebuffer_lookup(struct drm_device *dev,
 					       uint32_t id)
 {
-	struct drm_mode_object *obj = NULL;
 	struct drm_framebuffer *fb;
 
 	mutex_lock(&dev->mode_config.fb_lock);
-
-	mutex_lock(&dev->mode_config.idr_mutex);
-	obj = idr_find(&dev->mode_config.crtc_idr, id);
-	if (!obj || (obj->type != DRM_MODE_OBJECT_FB) || (obj->id != id))
-		fb = NULL;
-	else
-		fb = obj_to_fb(obj);
-	mutex_unlock(&dev->mode_config.idr_mutex);
-
+	fb = __drm_framebuffer_lookup(dev, id);
 	if (fb)
 		kref_get(&fb->refcount);
-
 	mutex_unlock(&dev->mode_config.fb_lock);
 
 	return fb;
@@ -430,6 +440,24 @@ void drm_framebuffer_reference(struct drm_framebuffer *fb)
 }
 EXPORT_SYMBOL(drm_framebuffer_reference);
 
+static void drm_framebuffer_free_bug(struct kref *kref)
+{
+	BUG();
+}
+
+/* dev->mode_config.fb_lock must be held! */
+static void __drm_framebuffer_unregister(struct drm_device *dev,
+					 struct drm_framebuffer *fb)
+{
+	mutex_lock(&dev->mode_config.idr_mutex);
+	idr_remove(&dev->mode_config.crtc_idr, fb->base.id);
+	mutex_unlock(&dev->mode_config.idr_mutex);
+
+	fb->base.id = 0;
+
+	kref_put(&fb->refcount, drm_framebuffer_free_bug);
+}
+
 /**
  * drm_framebuffer_unregister_private - unregister a private fb from the lookup idr
  * @fb: fb to unregister
@@ -441,6 +469,12 @@ EXPORT_SYMBOL(drm_framebuffer_reference);
  */
 void drm_framebuffer_unregister_private(struct drm_framebuffer *fb)
 {
+	struct drm_device *dev = fb->dev;
+
+	mutex_lock(&dev->mode_config.fb_lock);
+	/* Mark fb as reaped and drop idr ref. */
+	__drm_framebuffer_unregister(dev, fb);
+	mutex_unlock(&dev->mode_config.fb_lock);
 }
 EXPORT_SYMBOL(drm_framebuffer_unregister_private);
 
@@ -464,14 +498,6 @@ void drm_framebuffer_cleanup(struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = fb->dev;
 
-	/*
-	 * This could be moved to drm_framebuffer_remove(), but for
-	 * debugging is nice to keep around the list of fb's that are
-	 * no longer associated w/ a drm_file but are not unreferenced
-	 * yet.  (i915 and omapdrm have debugfs files which will show
-	 * this.)
-	 */
-	drm_mode_object_put(dev, &fb->base);
 	mutex_lock(&dev->mode_config.fb_lock);
 	list_del(&fb->head);
 	dev->mode_config.num_fb--;
@@ -1181,9 +1207,15 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 		drm_property_destroy(dev, property);
 	}
 
-	/* Single-threaded teardown context, so it's not requied to grab the
+	/*
+	 * Single-threaded teardown context, so it's not required to grab the
 	 * fb_lock to protect against concurrent fb_list access. Contrary, it
-	 * would actually deadlock with the drm_framebuffer_cleanup function. */
+	 * would actually deadlock with the drm_framebuffer_cleanup function.
+	 *
+	 * Also, if there are any framebuffers left, that's a driver leak now,
+	 * so politely WARN about this.
+	 */
+	WARN_ON(!list_empty(&dev->mode_config.fb_list));
 	list_for_each_entry_safe(fb, fbt, &dev->mode_config.fb_list, head) {
 		drm_framebuffer_remove(fb);
 	}
@@ -2464,39 +2496,41 @@ int drm_mode_rmfb(struct drm_device *dev,
 	struct drm_framebuffer *fb = NULL;
 	struct drm_framebuffer *fbl = NULL;
 	uint32_t *id = data;
-	int ret = 0;
 	int found = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	drm_modeset_lock_all(dev);
-	fb = drm_framebuffer_lookup(dev, *id);
-	if (!fb) {
-		ret = -EINVAL;
-		goto out;
-	}
-	/* fb is protect by the mode_config lock, so drop the ref immediately */
-	drm_framebuffer_unreference(fb);
-
 	mutex_lock(&file_priv->fbs_lock);
+	mutex_lock(&dev->mode_config.fb_lock);
+	fb = __drm_framebuffer_lookup(dev, *id);
+	if (!fb)
+		goto fail_lookup;
+
 	list_for_each_entry(fbl, &file_priv->fbs, filp_head)
 		if (fb == fbl)
 			found = 1;
-	if (!found) {
-		ret = -EINVAL;
-		mutex_unlock(&file_priv->fbs_lock);
-		goto out;
-	}
+	if (!found)
+		goto fail_lookup;
+
+	/* Mark fb as reaped, we still have a ref from fpriv->fbs. */
+	__drm_framebuffer_unregister(dev, fb);
 
 	list_del_init(&fb->filp_head);
+	mutex_unlock(&dev->mode_config.fb_lock);
 	mutex_unlock(&file_priv->fbs_lock);
 
+	drm_modeset_lock_all(dev);
 	drm_framebuffer_remove(fb);
-out:
 	drm_modeset_unlock_all(dev);
 
-	return ret;
+	return 0;
+
+fail_lookup:
+	mutex_unlock(&dev->mode_config.fb_lock);
+	mutex_unlock(&file_priv->fbs_lock);
+
+	return -EINVAL;
 }
 
 /**
@@ -2639,7 +2673,15 @@ void drm_fb_release(struct drm_file *priv)
 	drm_modeset_lock_all(dev);
 	mutex_lock(&priv->fbs_lock);
 	list_for_each_entry_safe(fb, tfb, &priv->fbs, filp_head) {
+
+		mutex_lock(&dev->mode_config.fb_lock);
+		/* Mark fb as reaped, we still have a ref from fpriv->fbs. */
+		__drm_framebuffer_unregister(dev, fb);
+		mutex_unlock(&dev->mode_config.fb_lock);
+
 		list_del_init(&fb->filp_head);
+
+		/* This will also drop the fpriv->fbs reference. */
 		drm_framebuffer_remove(fb);
 	}
 	mutex_unlock(&priv->fbs_lock);
