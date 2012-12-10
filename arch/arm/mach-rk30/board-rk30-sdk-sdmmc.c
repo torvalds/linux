@@ -346,7 +346,7 @@
      
     #if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) 
         #define RK30SDK_WIFI_GPIO_POWER_N               RK30_PIN3_PD0            
-        #define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_HIGH        
+        #define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_LOW//GPIO_HIGH        
         #define RK30SDK_WIFI_GPIO_POWER_PIN_NAME        GPIO3D0_SDMMC1PWREN_MIIMD_NAME
         #define RK30SDK_WIFI_GPIO_POWER_IOMUX_FGPIO     GPIO3D_GPIO3D0
         
@@ -625,7 +625,7 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
 static struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
 
      .clk_gpio       = {
-        .io             = RK30_PIN3_PB0,
+        .io             = RK30_PIN3_PA2,
         .enable         = GPIO_HIGH,
         .iomux          = {
             .name       = GPIO3A2_SDMMC0CLKOUT_NAME,
@@ -635,7 +635,7 @@ static struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
     },   
 
     .cmd_gpio           = {
-        .io             = RK30_PIN3_PB1,
+        .io             = RK30_PIN3_PA3,
         .enable         = GPIO_HIGH,
         .iomux          = {
             .name       = GPIO3A3_SDMMC0CMD_NAME,
@@ -645,7 +645,7 @@ static struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
     },      
 
    .data0_gpio       = {
-        .io             = RK30_PIN3_PB2,
+        .io             = RK30_PIN3_PA4,
         .enable         = GPIO_HIGH,
         .iomux          = {
             .name       = GPIO3A4_SDMMC0DATA0_NAME,
@@ -655,7 +655,7 @@ static struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
     },      
 
     .data1_gpio       = {
-        .io             = RK30_PIN3_PB3,
+        .io             = RK30_PIN3_PA5,
         .enable         = GPIO_HIGH,
         .iomux          = {
             .name       = GPIO3A5_SDMMC0DATA1_NAME,
@@ -665,7 +665,7 @@ static struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
     },      
 
     .data2_gpio       = {
-        .io             = RK30_PIN3_PB4,
+        .io             = RK30_PIN3_PA6,
         .enable         = GPIO_HIGH,
         .iomux          = {
             .name       = GPIO3A6_SDMMC0DATA2_NAME,
@@ -675,7 +675,7 @@ static struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
     }, 
 
     .data3_gpio       = {
-        .io             = RK30_PIN3_PB5,
+        .io             = RK30_PIN3_PA7,
         .enable         = GPIO_HIGH,
         .iomux          = {
             .name       = GPIO3A7_SDMMC0DATA3_NAME,
