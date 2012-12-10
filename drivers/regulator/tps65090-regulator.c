@@ -269,3 +269,4 @@ module_exit(tps65090_regulator_exit);
 MODULE_DESCRIPTION("tps65090 regulator driver");
 MODULE_AUTHOR("Venu Byravarasu <vbyravarasu@nvidia.com>");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:tps65090-pmic");
