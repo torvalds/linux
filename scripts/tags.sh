@@ -96,6 +96,32 @@ all_sources()
 	find_other_sources '*.[chS]'
 }
 
+all_compiled_sources()
+{
+	for i in $(all_sources); do
+		case "$i" in
+			*.[cS])
+				j=${i/\.[cS]/\.o}
+				if [ -e $j ]; then
+					echo $i
+				fi
+				;;
+			*)
+				echo $i
+				;;
+		esac
+	done
+}
+
+all_target_sources()
+{
+	if [ -n "$COMPILED_SOURCE" ]; then
+		all_compiled_sources
+	else
+		all_sources
+	fi
+}
+
 all_kconfigs()
 {
 	for arch in $ALLSOURCE_ARCHS; do
@@ -111,18 +137,18 @@ all_defconfigs()
 
 docscope()
 {
-	(echo \-k; echo \-q; all_sources) > cscope.files
+	(echo \-k; echo \-q; all_target_sources) > cscope.files
 	cscope -b -f cscope.out
 }
 
 dogtags()
 {
-	all_sources | gtags -i -f -
+	all_target_sources | gtags -i -f -
 }
 
 exuberant()
 {
-	all_sources | xargs $1 -a                               \
+	all_target_sources | xargs $1 -a                        \
 	-I __initdata,__exitdata,__acquires,__releases          \
 	-I __read_mostly,____cacheline_aligned                  \
 	-I ____cacheline_aligned_in_smp                         \
@@ -174,7 +200,7 @@ exuberant()
 
 emacs()
 {
-	all_sources | xargs $1 -a                               \
+	all_target_sources | xargs $1 -a                        \
 	--regex='/^(ENTRY|_GLOBAL)(\([^)]*\)).*/\2/'            \
 	--regex='/^SYSCALL_DEFINE[0-9]?(\([^,)]*\).*/sys_\1/'   \
 	--regex='/^TRACE_EVENT(\([^,)]*\).*/trace_\1/'		\
@@ -221,10 +247,9 @@ xtags()
 	elif $1 --version 2>&1 | grep -iq emacs; then
 		emacs $1
 	else
-		all_sources | xargs $1 -a
+		all_target_sources | xargs $1 -a
         fi
 }
-
 
 # Support um (which uses SUBARCH)
 if [ "${ARCH}" = "um" ]; then
