@@ -181,6 +181,9 @@ extern int ext4_delete_inline_entry(handle_t *handle,
 				    struct buffer_head *bh,
 				    int *has_inline_data);
 extern int empty_inline_dir(struct inode *dir, int *has_inline_data);
+extern struct buffer_head *ext4_get_first_inline_block(struct inode *inode,
+					struct ext4_dir_entry_2 **parent_de,
+					int *retval);
 # else  /* CONFIG_EXT4_FS_XATTR */
 
 static inline int
@@ -386,6 +389,14 @@ static inline int ext4_delete_inline_entry(handle_t *handle,
 static inline int empty_inline_dir(struct inode *dir, int *has_inline_data)
 {
 	return 0;
+}
+
+static inline struct buffer_head *
+ext4_get_first_inline_block(struct inode *inode,
+			    struct ext4_dir_entry_2 **parent_de,
+			    int *retval)
+{
+	return NULL;
 }
 # endif  /* CONFIG_EXT4_FS_XATTR */
 

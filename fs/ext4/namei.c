@@ -1176,7 +1176,8 @@ static int is_dx_internal_node(struct inode *dir, ext4_lblk_t block,
  */
 static struct buffer_head * ext4_find_entry (struct inode *dir,
 					const struct qstr *d_name,
-					struct ext4_dir_entry_2 ** res_dir)
+					struct ext4_dir_entry_2 **res_dir,
+					int *inlined)
 {
 	struct super_block *sb;
 	struct buffer_head *bh_use[NAMEI_RA_SIZE];
@@ -1202,8 +1203,11 @@ static struct buffer_head * ext4_find_entry (struct inode *dir,
 		int has_inline_data = 1;
 		ret = ext4_find_inline_entry(dir, d_name, res_dir,
 					     &has_inline_data);
-		if (has_inline_data)
+		if (has_inline_data) {
+			if (inlined)
+				*inlined = 1;
 			return ret;
+		}
 	}
 
 	if ((namelen <= 2) && (name[0] == '.') &&
@@ -1390,7 +1394,7 @@ static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, unsi
 	if (dentry->d_name.len > EXT4_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	bh = ext4_find_entry(dir, &dentry->d_name, &de);
+	bh = ext4_find_entry(dir, &dentry->d_name, &de, NULL);
 	inode = NULL;
 	if (bh) {
 		__u32 ino = le32_to_cpu(de->inode);
@@ -1424,7 +1428,7 @@ struct dentry *ext4_get_parent(struct dentry *child)
 	struct ext4_dir_entry_2 * de;
 	struct buffer_head *bh;
 
-	bh = ext4_find_entry(child->d_inode, &dotdot, &de);
+	bh = ext4_find_entry(child->d_inode, &dotdot, &de, NULL);
 	if (!bh)
 		return ERR_PTR(-ENOENT);
 	ino = le32_to_cpu(de->inode);
@@ -2725,7 +2729,7 @@ static int ext4_rmdir(struct inode *dir, struct dentry *dentry)
 		return PTR_ERR(handle);
 
 	retval = -ENOENT;
-	bh = ext4_find_entry(dir, &dentry->d_name, &de);
+	bh = ext4_find_entry(dir, &dentry->d_name, &de, NULL);
 	if (!bh)
 		goto end_rmdir;
 
@@ -2790,7 +2794,7 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 		ext4_handle_sync(handle);
 
 	retval = -ENOENT;
-	bh = ext4_find_entry(dir, &dentry->d_name, &de);
+	bh = ext4_find_entry(dir, &dentry->d_name, &de, NULL);
 	if (!bh)
 		goto end_unlink;
 
@@ -2972,8 +2976,39 @@ retry:
 	return err;
 }
 
-#define PARENT_INO(buffer, size) \
-	(ext4_next_entry((struct ext4_dir_entry_2 *)(buffer), size)->inode)
+
+/*
+ * Try to find buffer head where contains the parent block.
+ * It should be the inode block if it is inlined or the 1st block
+ * if it is a normal dir.
+ */
+static struct buffer_head *ext4_get_first_dir_block(handle_t *handle,
+					struct inode *inode,
+					int *retval,
+					struct ext4_dir_entry_2 **parent_de,
+					int *inlined)
+{
+	struct buffer_head *bh;
+
+	if (!ext4_has_inline_data(inode)) {
+		if (!(bh = ext4_bread(handle, inode, 0, 0, retval))) {
+			if (!*retval) {
+				*retval = -EIO;
+				ext4_error(inode->i_sb,
+					   "Directory hole detected on inode %lu\n",
+					   inode->i_ino);
+			}
+			return NULL;
+		}
+		*parent_de = ext4_next_entry(
+					(struct ext4_dir_entry_2 *)bh->b_data,
+					inode->i_sb->s_blocksize);
+		return bh;
+	}
+
+	*inlined = 1;
+	return ext4_get_first_inline_block(inode, parent_de, retval);
+}
 
 /*
  * Anybody can rename anything with this: the permission checks are left to the
@@ -2987,6 +3022,8 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct buffer_head *old_bh, *new_bh, *dir_bh;
 	struct ext4_dir_entry_2 *old_de, *new_de;
 	int retval, force_da_alloc = 0;
+	int inlined = 0, new_inlined = 0;
+	struct ext4_dir_entry_2 *parent_de;
 
 	dquot_initialize(old_dir);
 	dquot_initialize(new_dir);
@@ -3006,7 +3043,7 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (IS_DIRSYNC(old_dir) || IS_DIRSYNC(new_dir))
 		ext4_handle_sync(handle);
 
-	old_bh = ext4_find_entry(old_dir, &old_dentry->d_name, &old_de);
+	old_bh = ext4_find_entry(old_dir, &old_dentry->d_name, &old_de, NULL);
 	/*
 	 *  Check for inode number is _not_ due to possible IO errors.
 	 *  We might rmdir the source, keep it as pwd of some process
@@ -3019,7 +3056,8 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 		goto end_rename;
 
 	new_inode = new_dentry->d_inode;
-	new_bh = ext4_find_entry(new_dir, &new_dentry->d_name, &new_de);
+	new_bh = ext4_find_entry(new_dir, &new_dentry->d_name,
+				 &new_de, &new_inlined);
 	if (new_bh) {
 		if (!new_inode) {
 			brelse(new_bh);
@@ -3033,22 +3071,17 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 				goto end_rename;
 		}
 		retval = -EIO;
-		if (!(dir_bh = ext4_bread(handle, old_inode, 0, 0, &retval))) {
-			if (!retval) {
-				retval = -EIO;
-				ext4_error(old_inode->i_sb,
-					   "Directory hole detected on inode %lu\n",
-					   old_inode->i_ino);
-			}
+		dir_bh = ext4_get_first_dir_block(handle, old_inode,
+						  &retval, &parent_de,
+						  &inlined);
+		if (!dir_bh)
 			goto end_rename;
-		}
-		if (!buffer_verified(dir_bh) &&
+		if (!inlined && !buffer_verified(dir_bh) &&
 		    !ext4_dirent_csum_verify(old_inode,
 				(struct ext4_dir_entry *)dir_bh->b_data))
 			goto end_rename;
 		set_buffer_verified(dir_bh);
-		if (le32_to_cpu(PARENT_INO(dir_bh->b_data,
-				old_dir->i_sb->s_blocksize)) != old_dir->i_ino)
+		if (le32_to_cpu(parent_de->inode) != old_dir->i_ino)
 			goto end_rename;
 		retval = -EMLINK;
 		if (!new_inode && new_dir != old_dir &&
@@ -3077,10 +3110,13 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 					ext4_current_time(new_dir);
 		ext4_mark_inode_dirty(handle, new_dir);
 		BUFFER_TRACE(new_bh, "call ext4_handle_dirty_metadata");
-		retval = ext4_handle_dirty_dirent_node(handle, new_dir, new_bh);
-		if (unlikely(retval)) {
-			ext4_std_error(new_dir->i_sb, retval);
-			goto end_rename;
+		if (!new_inlined) {
+			retval = ext4_handle_dirty_dirent_node(handle,
+							       new_dir, new_bh);
+			if (unlikely(retval)) {
+				ext4_std_error(new_dir->i_sb, retval);
+				goto end_rename;
+			}
 		}
 		brelse(new_bh);
 		new_bh = NULL;
@@ -3108,7 +3144,8 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 		struct buffer_head *old_bh2;
 		struct ext4_dir_entry_2 *old_de2;
 
-		old_bh2 = ext4_find_entry(old_dir, &old_dentry->d_name, &old_de2);
+		old_bh2 = ext4_find_entry(old_dir, &old_dentry->d_name,
+					  &old_de2, NULL);
 		if (old_bh2) {
 			retval = ext4_delete_entry(handle, old_dir,
 						   old_de2, old_bh2);
@@ -3128,17 +3165,19 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 	old_dir->i_ctime = old_dir->i_mtime = ext4_current_time(old_dir);
 	ext4_update_dx_flag(old_dir);
 	if (dir_bh) {
-		PARENT_INO(dir_bh->b_data, new_dir->i_sb->s_blocksize) =
-						cpu_to_le32(new_dir->i_ino);
+		parent_de->inode = cpu_to_le32(new_dir->i_ino);
 		BUFFER_TRACE(dir_bh, "call ext4_handle_dirty_metadata");
-		if (is_dx(old_inode)) {
-			retval = ext4_handle_dirty_dx_node(handle,
-							   old_inode,
-							   dir_bh);
+		if (!inlined) {
+			if (is_dx(old_inode)) {
+				retval = ext4_handle_dirty_dx_node(handle,
+								   old_inode,
+								   dir_bh);
+			} else {
+				retval = ext4_handle_dirty_dirent_node(handle,
+							old_inode, dir_bh);
+			}
 		} else {
-			retval = ext4_handle_dirty_dirent_node(handle,
-							       old_inode,
-							       dir_bh);
+			retval = ext4_mark_inode_dirty(handle, old_inode);
 		}
 		if (retval) {
 			ext4_std_error(old_dir->i_sb, retval);
