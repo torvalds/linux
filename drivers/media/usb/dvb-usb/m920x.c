@@ -197,10 +197,11 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	if ((ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_KEY, rc_state + 1, 1)) != 0)
 		goto out;
 
+	m920x_parse_rc_state(d, rc_state[0], state);
+
 	for (i = 0; i < d->props.rc.legacy.rc_map_size; i++)
 		if (rc5_data(&d->props.rc.legacy.rc_map_table[i]) == rc_state[1]) {
 			*event = d->props.rc.legacy.rc_map_table[i].keycode;
-			m920x_parse_rc_state(d, rc_state[0], state);
 			goto out;
 		}
 
