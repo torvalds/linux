@@ -333,7 +333,7 @@ struct pci_dev {
 	};
 	struct pci_ats	*ats;	/* Address Translation Service */
 #endif
-	void *rom; /* Physical pointer to ROM if it's not from the BAR */
+	phys_addr_t rom; /* Physical address of ROM if it's not from the BAR */
 	size_t romlen; /* Length of ROM if it's not from the BAR */
 };
 

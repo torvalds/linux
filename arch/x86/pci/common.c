@@ -628,8 +628,8 @@ int pcibios_add_device(struct pci_dev *dev)
 			    (PCI_FUNC(dev->devfn) == rom->function) &&
 			    (dev->vendor == rom->vendor) &&
 			    (dev->device == rom->devid)) {
-				dev->rom = (void *)(unsigned long)(pa_data +
-				      offsetof(struct pci_setup_rom, romdata));
+				dev->rom = pa_data +
+				      offsetof(struct pci_setup_rom, romdata);
 				dev->romlen = rom->pcilen;
 			}
 		}
