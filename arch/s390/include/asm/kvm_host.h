@@ -20,7 +20,7 @@
 #include <asm/cpu.h>
 
 #define KVM_MAX_VCPUS 64
-#define KVM_MEMORY_SLOTS 32
+#define KVM_USER_MEM_SLOTS 32
 /* memory slots that does not exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS 4
 
