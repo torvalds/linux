@@ -14,6 +14,7 @@
 #include "ext4_jbd2.h"
 #include "ext4.h"
 #include "xattr.h"
+#include "truncate.h"
 
 #define EXT4_XATTR_SYSTEM_DATA	"data"
 #define EXT4_MIN_INLINE_DATA_SIZE	((sizeof(__le32) * EXT4_N_BLOCKS))
@@ -514,6 +515,238 @@ int ext4_readpage_inline(struct inode *inode, struct page *page)
 	unlock_page(page);
 	return ret >= 0 ? 0 : ret;
 }
+
+static int ext4_convert_inline_data_to_extent(struct address_space *mapping,
+					      struct inode *inode,
+					      unsigned flags)
+{
+	int ret, needed_blocks;
+	handle_t *handle = NULL;
+	int retries = 0, sem_held = 0;
+	struct page *page = NULL;
+	unsigned from, to;
+	struct ext4_iloc iloc;
+
+	if (!ext4_has_inline_data(inode)) {
+		/*
+		 * clear the flag so that no new write
+		 * will trap here again.
+		 */
+		ext4_clear_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA);
+		return 0;
+	}
+
+	needed_blocks = ext4_writepage_trans_blocks(inode);
+
+	ret = ext4_get_inode_loc(inode, &iloc);
+	if (ret)
+		return ret;
+
+retry:
+	handle = ext4_journal_start(inode, needed_blocks);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		handle = NULL;
+		goto out;
+	}
+
+	/* We cannot recurse into the filesystem as the transaction is already
+	 * started */
+	flags |= AOP_FLAG_NOFS;
+
+	page = grab_cache_page_write_begin(mapping, 0, flags);
+	if (!page) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	down_write(&EXT4_I(inode)->xattr_sem);
+	sem_held = 1;
+	/* If some one has already done this for us, just exit. */
+	if (!ext4_has_inline_data(inode)) {
+		ret = 0;
+		goto out;
+	}
+
+	from = 0;
+	to = ext4_get_inline_size(inode);
+	if (!PageUptodate(page)) {
+		ret = ext4_read_inline_page(inode, page);
+		if (ret < 0)
+			goto out;
+	}
+
+	ret = ext4_destroy_inline_data_nolock(handle, inode);
+	if (ret)
+		goto out;
+
+	if (ext4_should_dioread_nolock(inode))
+		ret = __block_write_begin(page, from, to, ext4_get_block_write);
+	else
+		ret = __block_write_begin(page, from, to, ext4_get_block);
+
+	if (!ret && ext4_should_journal_data(inode)) {
+		ret = ext4_walk_page_buffers(handle, page_buffers(page),
+					     from, to, NULL,
+					     do_journal_get_write_access);
+	}
+
+	if (ret) {
+		unlock_page(page);
+		page_cache_release(page);
+		ext4_orphan_add(handle, inode);
+		up_write(&EXT4_I(inode)->xattr_sem);
+		sem_held = 0;
+		ext4_journal_stop(handle);
+		handle = NULL;
+		ext4_truncate_failed_write(inode);
+		/*
+		 * If truncate failed early the inode might
+		 * still be on the orphan list; we need to
+		 * make sure the inode is removed from the
+		 * orphan list in that case.
+		 */
+		if (inode->i_nlink)
+			ext4_orphan_del(NULL, inode);
+	}
+
+	if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
+		goto retry;
+
+	block_commit_write(page, from, to);
+out:
+	if (page) {
+		unlock_page(page);
+		page_cache_release(page);
+	}
+	if (sem_held)
+		up_write(&EXT4_I(inode)->xattr_sem);
+	if (handle)
+		ext4_journal_stop(handle);
+	brelse(iloc.bh);
+	return ret;
+}
+
+/*
+ * Try to write data in the inode.
+ * If the inode has inline data, check whether the new write can be
+ * in the inode also. If not, create the page the handle, move the data
+ * to the page make it update and let the later codes create extent for it.
+ */
+int ext4_try_to_write_inline_data(struct address_space *mapping,
+				  struct inode *inode,
+				  loff_t pos, unsigned len,
+				  unsigned flags,
+				  struct page **pagep)
+{
+	int ret;
+	handle_t *handle;
+	struct page *page;
+	struct ext4_iloc iloc;
+
+	if (pos + len > ext4_get_max_inline_size(inode))
+		goto convert;
+
+	ret = ext4_get_inode_loc(inode, &iloc);
+	if (ret)
+		return ret;
+
+	/*
+	 * The possible write could happen in the inode,
+	 * so try to reserve the space in inode first.
+	 */
+	handle = ext4_journal_start(inode, 1);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		handle = NULL;
+		goto out;
+	}
+
+	ret = ext4_prepare_inline_data(handle, inode, pos + len);
+	if (ret && ret != -ENOSPC)
+		goto out;
+
+	/* We don't have space in inline inode, so convert it to extent. */
+	if (ret == -ENOSPC) {
+		ext4_journal_stop(handle);
+		brelse(iloc.bh);
+		goto convert;
+	}
+
+	flags |= AOP_FLAG_NOFS;
+
+	page = grab_cache_page_write_begin(mapping, 0, flags);
+	if (!page) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	*pagep = page;
+	down_read(&EXT4_I(inode)->xattr_sem);
+	if (!ext4_has_inline_data(inode)) {
+		ret = 0;
+		unlock_page(page);
+		page_cache_release(page);
+		goto out_up_read;
+	}
+
+	if (!PageUptodate(page)) {
+		ret = ext4_read_inline_page(inode, page);
+		if (ret < 0)
+			goto out_up_read;
+	}
+
+	ret = 1;
+	handle = NULL;
+out_up_read:
+	up_read(&EXT4_I(inode)->xattr_sem);
+out:
+	if (handle)
+		ext4_journal_stop(handle);
+	brelse(iloc.bh);
+	return ret;
+convert:
+	return ext4_convert_inline_data_to_extent(mapping,
+						  inode, flags);
+}
+
+int ext4_write_inline_data_end(struct inode *inode, loff_t pos, unsigned len,
+			       unsigned copied, struct page *page)
+{
+	int ret;
+	void *kaddr;
+	struct ext4_iloc iloc;
+
+	if (unlikely(copied < len)) {
+		if (!PageUptodate(page)) {
+			copied = 0;
+			goto out;
+		}
+	}
+
+	ret = ext4_get_inode_loc(inode, &iloc);
+	if (ret) {
+		ext4_std_error(inode->i_sb, ret);
+		copied = 0;
+		goto out;
+	}
+
+	down_write(&EXT4_I(inode)->xattr_sem);
+	BUG_ON(!ext4_has_inline_data(inode));
+
+	kaddr = kmap_atomic(page);
+	ext4_write_inline_data(inode, &iloc, kaddr, pos, len);
+	kunmap_atomic(kaddr);
+	SetPageUptodate(page);
+	/* clear page dirty so that writepages wouldn't work for us. */
+	ClearPageDirty(page);
+
+	up_write(&EXT4_I(inode)->xattr_sem);
+	brelse(iloc.bh);
+out:
+	return copied;
+}
+
 
 int ext4_destroy_inline_data(handle_t *handle, struct inode *inode)
 {

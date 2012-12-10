@@ -42,6 +42,7 @@
 #include <linux/fiemap.h>
 #include "ext4_jbd2.h"
 #include "ext4_extents.h"
+#include "xattr.h"
 
 #include <trace/events/ext4.h>
 
@@ -2310,7 +2311,13 @@ int ext4_ext_calc_credits_for_single_extent(struct inode *inode, int nrblocks,
 int ext4_ext_index_trans_blocks(struct inode *inode, int nrblocks, int chunk)
 {
 	int index;
-	int depth = ext_depth(inode);
+	int depth;
+
+	/* If we are converting the inline data, only one is needed here. */
+	if (ext4_has_inline_data(inode))
+		return 1;
+
+	depth = ext_depth(inode);
 
 	if (chunk)
 		index = depth * 2;

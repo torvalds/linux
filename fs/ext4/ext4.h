@@ -2018,8 +2018,19 @@ struct buffer_head *ext4_getblk(handle_t *, struct inode *,
 						ext4_lblk_t, int, int *);
 struct buffer_head *ext4_bread(handle_t *, struct inode *,
 						ext4_lblk_t, int, int *);
+int ext4_get_block_write(struct inode *inode, sector_t iblock,
+			 struct buffer_head *bh_result, int create);
 int ext4_get_block(struct inode *inode, sector_t iblock,
 				struct buffer_head *bh_result, int create);
+int ext4_walk_page_buffers(handle_t *handle,
+			   struct buffer_head *head,
+			   unsigned from,
+			   unsigned to,
+			   int *partial,
+			   int (*fn)(handle_t *handle,
+				     struct buffer_head *bh));
+int do_journal_get_write_access(handle_t *handle,
+				struct buffer_head *bh);
 
 extern struct inode *ext4_iget(struct super_block *, unsigned long);
 extern int  ext4_write_inode(struct inode *, struct writeback_control *);

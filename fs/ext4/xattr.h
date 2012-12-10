@@ -141,6 +141,15 @@ extern int ext4_init_inline_data(handle_t *handle, struct inode *inode,
 extern int ext4_destroy_inline_data(handle_t *handle, struct inode *inode);
 
 extern int ext4_readpage_inline(struct inode *inode, struct page *page);
+extern int ext4_try_to_write_inline_data(struct address_space *mapping,
+					 struct inode *inode,
+					 loff_t pos, unsigned len,
+					 unsigned flags,
+					 struct page **pagep);
+extern int ext4_write_inline_data_end(struct inode *inode,
+				      loff_t pos, unsigned len,
+				      unsigned copied,
+				      struct page *page);
 # else  /* CONFIG_EXT4_FS_XATTR */
 
 static inline int
@@ -259,6 +268,23 @@ static inline int ext4_destroy_inline_data(handle_t *handle,
 }
 
 static inline int ext4_readpage_inline(struct inode *inode, struct page *page)
+{
+	return 0;
+}
+
+static inline int ext4_try_to_write_inline_data(struct address_space *mapping,
+						struct inode *inode,
+						loff_t pos, unsigned len,
+						unsigned flags,
+						struct page **pagep)
+{
+	return 0;
+}
+
+static inline int ext4_write_inline_data_end(struct inode *inode,
+					     loff_t pos, unsigned len,
+					     unsigned copied,
+					     struct page *page)
 {
 	return 0;
 }
