@@ -119,6 +119,11 @@ struct virtio_driver {
 #endif
 };
 
+static inline struct virtio_driver *drv_to_virtio(struct device_driver *drv)
+{
+	return container_of(drv, struct virtio_driver, driver);
+}
+
 int register_virtio_driver(struct virtio_driver *drv);
 void unregister_virtio_driver(struct virtio_driver *drv);
 #endif /* _LINUX_VIRTIO_H */

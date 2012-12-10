@@ -73,7 +73,7 @@ static int virtio_dev_match(struct device *_dv, struct device_driver *_dr)
 	struct virtio_device *dev = dev_to_virtio(_dv);
 	const struct virtio_device_id *ids;
 
-	ids = container_of(_dr, struct virtio_driver, driver)->id_table;
+	ids = drv_to_virtio(_dr)->id_table;
 	for (i = 0; ids[i].device; i++)
 		if (virtio_id_match(dev, &ids[i]))
 			return 1;
@@ -97,8 +97,7 @@ void virtio_check_driver_offered_feature(const struct virtio_device *vdev,
 					 unsigned int fbit)
 {
 	unsigned int i;
-	struct virtio_driver *drv = container_of(vdev->dev.driver,
-						 struct virtio_driver, driver);
+	struct virtio_driver *drv = drv_to_virtio(vdev->dev.driver);
 
 	for (i = 0; i < drv->feature_table_size; i++)
 		if (drv->feature_table[i] == fbit)
@@ -111,8 +110,7 @@ static int virtio_dev_probe(struct device *_d)
 {
 	int err, i;
 	struct virtio_device *dev = dev_to_virtio(_d);
-	struct virtio_driver *drv = container_of(dev->dev.driver,
-						 struct virtio_driver, driver);
+	struct virtio_driver *drv = drv_to_virtio(dev->dev.driver);
 	u32 device_features;
 
 	/* We have a driver! */
@@ -152,8 +150,7 @@ static int virtio_dev_probe(struct device *_d)
 static int virtio_dev_remove(struct device *_d)
 {
 	struct virtio_device *dev = dev_to_virtio(_d);
-	struct virtio_driver *drv = container_of(dev->dev.driver,
-						 struct virtio_driver, driver);
+	struct virtio_driver *drv = drv_to_virtio(dev->dev.driver);
 
 	drv->remove(dev);
 
