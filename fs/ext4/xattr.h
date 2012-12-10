@@ -184,6 +184,9 @@ extern int empty_inline_dir(struct inode *dir, int *has_inline_data);
 extern struct buffer_head *ext4_get_first_inline_block(struct inode *inode,
 					struct ext4_dir_entry_2 **parent_de,
 					int *retval);
+extern int ext4_inline_data_fiemap(struct inode *inode,
+				   struct fiemap_extent_info *fieinfo,
+				   int *has_inline);
 # else  /* CONFIG_EXT4_FS_XATTR */
 
 static inline int
@@ -397,6 +400,13 @@ ext4_get_first_inline_block(struct inode *inode,
 			    int *retval)
 {
 	return NULL;
+}
+
+static inline int ext4_inline_data_fiemap(struct inode *inode,
+					  struct fiemap_extent_info *fieinfo,
+					  int *has_inline)
+{
+	return 0;
 }
 # endif  /* CONFIG_EXT4_FS_XATTR */
 
