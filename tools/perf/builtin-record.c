@@ -286,7 +286,7 @@ try_again:
 					 */
 					opts->sample_id_all_missing = true;
 					if (!opts->sample_time && !opts->raw_samples && !time_needed)
-						attr->sample_type &= ~PERF_SAMPLE_TIME;
+						perf_evsel__reset_sample_bit(pos, TIME);
 
 					goto retry_sample_id;
 				}

@@ -901,24 +901,25 @@ static void perf_top__start_counters(struct perf_top *top)
 	list_for_each_entry(counter, &evlist->entries, node) {
 		struct perf_event_attr *attr = &counter->attr;
 
-		attr->sample_type = PERF_SAMPLE_IP | PERF_SAMPLE_TID;
+		perf_evsel__set_sample_bit(counter, IP);
+		perf_evsel__set_sample_bit(counter, TID);
 
 		if (top->freq) {
-			attr->sample_type |= PERF_SAMPLE_PERIOD;
+			perf_evsel__set_sample_bit(counter, PERIOD);
 			attr->freq	  = 1;
 			attr->sample_freq = top->freq;
 		}
 
 		if (evlist->nr_entries > 1) {
-			attr->sample_type |= PERF_SAMPLE_ID;
+			perf_evsel__set_sample_bit(counter, ID);
 			attr->read_format |= PERF_FORMAT_ID;
 		}
 
 		if (perf_target__has_cpu(&top->target))
-			attr->sample_type |= PERF_SAMPLE_CPU;
+			perf_evsel__set_sample_bit(counter, CPU);
 
 		if (symbol_conf.use_callchain)
-			attr->sample_type |= PERF_SAMPLE_CALLCHAIN;
+			perf_evsel__set_sample_bit(counter, CALLCHAIN);
 
 		attr->mmap = 1;
 		attr->comm = 1;

@@ -61,7 +61,7 @@ void perf_evlist__config_attrs(struct perf_evlist *evlist,
 		perf_evsel__config(evsel, opts);
 
 		if (evlist->nr_entries > 1)
-			evsel->attr.sample_type |= PERF_SAMPLE_ID;
+			perf_evsel__set_sample_bit(evsel, ID);
 	}
 }
 

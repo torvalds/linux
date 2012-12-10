@@ -103,9 +103,9 @@ int test__PERF_RECORD(void)
 	 * Config the evsels, setting attr->comm on the first one, etc.
 	 */
 	evsel = perf_evlist__first(evlist);
-	evsel->attr.sample_type |= PERF_SAMPLE_CPU;
-	evsel->attr.sample_type |= PERF_SAMPLE_TID;
-	evsel->attr.sample_type |= PERF_SAMPLE_TIME;
+	perf_evsel__set_sample_bit(evsel, CPU);
+	perf_evsel__set_sample_bit(evsel, TID);
+	perf_evsel__set_sample_bit(evsel, TIME);
 	perf_evlist__config_attrs(evlist, &opts);
 
 	err = sched__get_first_possible_cpu(evlist->workload.pid, &cpu_mask);

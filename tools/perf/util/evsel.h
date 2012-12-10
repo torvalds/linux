@@ -118,6 +118,17 @@ void perf_evsel__free_fd(struct perf_evsel *evsel);
 void perf_evsel__free_id(struct perf_evsel *evsel);
 void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads);
 
+void __perf_evsel__set_sample_bit(struct perf_evsel *evsel,
+				  enum perf_event_sample_format bit);
+void __perf_evsel__reset_sample_bit(struct perf_evsel *evsel,
+				    enum perf_event_sample_format bit);
+
+#define perf_evsel__set_sample_bit(evsel, bit) \
+	__perf_evsel__set_sample_bit(evsel, PERF_SAMPLE_##bit)
+
+#define perf_evsel__reset_sample_bit(evsel, bit) \
+	__perf_evsel__reset_sample_bit(evsel, PERF_SAMPLE_##bit)
+
 int perf_evsel__set_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
 			   const char *filter);
 
