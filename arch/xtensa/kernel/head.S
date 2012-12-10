@@ -124,7 +124,7 @@ ENTRY(_startup)
 
 	/* Disable coprocessors. */
 
-#if XCHAL_CP_NUM > 0
+#if XCHAL_HAVE_CP
 	wsr	a0, cpenable
 #endif
 
