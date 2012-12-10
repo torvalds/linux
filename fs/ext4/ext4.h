@@ -848,7 +848,6 @@ struct ext4_inode_info {
 #endif
 	unsigned long	i_flags;
 
-#ifdef CONFIG_EXT4_FS_XATTR
 	/*
 	 * Extended attributes can be read independently of the main file
 	 * data. Taking i_mutex even when reading would cause contention
@@ -857,7 +856,6 @@ struct ext4_inode_info {
 	 * EAs.
 	 */
 	struct rw_semaphore xattr_sem;
-#endif
 
 	struct list_head i_orphan;	/* unlinked but open inodes */
 

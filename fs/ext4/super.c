@@ -997,9 +997,7 @@ static void init_once(void *foo)
 	struct ext4_inode_info *ei = (struct ext4_inode_info *) foo;
 
 	INIT_LIST_HEAD(&ei->i_orphan);
-#ifdef CONFIG_EXT4_FS_XATTR
 	init_rwsem(&ei->xattr_sem);
-#endif
 	init_rwsem(&ei->i_data_sem);
 	inode_init_once(&ei->vfs_inode);
 }
@@ -1449,13 +1447,8 @@ static const struct mount_opts {
 	{Opt_data_journal, EXT4_MOUNT_JOURNAL_DATA, MOPT_DATAJ},
 	{Opt_data_ordered, EXT4_MOUNT_ORDERED_DATA, MOPT_DATAJ},
 	{Opt_data_writeback, EXT4_MOUNT_WRITEBACK_DATA, MOPT_DATAJ},
-#ifdef CONFIG_EXT4_FS_XATTR
 	{Opt_user_xattr, EXT4_MOUNT_XATTR_USER, MOPT_SET},
 	{Opt_nouser_xattr, EXT4_MOUNT_XATTR_USER, MOPT_CLEAR},
-#else
-	{Opt_user_xattr, 0, MOPT_NOSUPPORT},
-	{Opt_nouser_xattr, 0, MOPT_NOSUPPORT},
-#endif
 #ifdef CONFIG_EXT4_FS_POSIX_ACL
 	{Opt_acl, EXT4_MOUNT_POSIX_ACL, MOPT_SET},
 	{Opt_noacl, EXT4_MOUNT_POSIX_ACL, MOPT_CLEAR},
@@ -3368,9 +3361,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	if (def_mount_opts & EXT4_DEFM_UID16)
 		set_opt(sb, NO_UID32);
 	/* xattr user namespace & acls are now defaulted on */
-#ifdef CONFIG_EXT4_FS_XATTR
 	set_opt(sb, XATTR_USER);
-#endif
 #ifdef CONFIG_EXT4_FS_POSIX_ACL
 	set_opt(sb, POSIX_ACL);
 #endif
