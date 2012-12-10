@@ -3072,8 +3072,8 @@ static struct mfd_cell db8500_prcmu_devs[] = {
 		.pdata_size = sizeof(db8500_regulators),
 	},
 	{
-		.name = "cpufreq-u8500",
-		.of_compatible = "stericsson,cpufreq-u8500",
+		.name = "cpufreq-ux500",
+		.of_compatible = "stericsson,cpufreq-ux500",
 		.platform_data = &db8500_cpufreq_table,
 		.pdata_size = sizeof(db8500_cpufreq_table),
 	},
