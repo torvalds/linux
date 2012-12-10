@@ -63,6 +63,21 @@ static inline int m920x_write(struct usb_device *udev, u8 request,
 	return ret;
 }
 
+static inline int m920x_write_seq(struct usb_device *udev, u8 request,
+				  struct m920x_inits *seq)
+{
+	int ret;
+	while (seq->address) {
+		ret = m920x_write(udev, request, seq->data, seq->address);
+		if (ret != 0)
+			return ret;
+
+		seq++;
+	}
+
+	return ret;
+}
+
 static int m920x_init(struct dvb_usb_device *d, struct m920x_inits *rc_seq)
 {
 	int ret = 0, i, epi, flags = 0;
@@ -71,15 +86,10 @@ static int m920x_init(struct dvb_usb_device *d, struct m920x_inits *rc_seq)
 	/* Remote controller init. */
 	if (d->props.rc.legacy.rc_query) {
 		deb("Initialising remote control\n");
-		while (rc_seq->address) {
-			if ((ret = m920x_write(d->udev, M9206_CORE,
-					       rc_seq->data,
-					       rc_seq->address)) != 0) {
-				deb("Initialising remote control failed\n");
-				return ret;
-			}
-
-			rc_seq++;
+		ret = m920x_write_seq(d->udev, M9206_CORE, rc_seq);
+		if (ret != 0) {
+			deb("Initialising remote control failed\n");
+			return ret;
 		}
 
 		deb("Initialising remote control success\n");
