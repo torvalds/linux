@@ -2230,20 +2230,86 @@ retry:
 	return err;
 }
 
-static int ext4_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+struct ext4_dir_entry_2 *ext4_init_dot_dotdot(struct inode *inode,
+			  struct ext4_dir_entry_2 *de,
+			  int blocksize, int csum_size,
+			  unsigned int parent_ino, int dotdot_real_len)
 {
-	handle_t *handle;
-	struct inode *inode;
+	de->inode = cpu_to_le32(inode->i_ino);
+	de->name_len = 1;
+	de->rec_len = ext4_rec_len_to_disk(EXT4_DIR_REC_LEN(de->name_len),
+					   blocksize);
+	strcpy(de->name, ".");
+	ext4_set_de_type(inode->i_sb, de, S_IFDIR);
+
+	de = ext4_next_entry(de, blocksize);
+	de->inode = cpu_to_le32(parent_ino);
+	de->name_len = 2;
+	if (!dotdot_real_len)
+		de->rec_len = ext4_rec_len_to_disk(blocksize -
+					(csum_size + EXT4_DIR_REC_LEN(1)),
+					blocksize);
+	else
+		de->rec_len = ext4_rec_len_to_disk(
+				EXT4_DIR_REC_LEN(de->name_len), blocksize);
+	strcpy(de->name, "..");
+	ext4_set_de_type(inode->i_sb, de, S_IFDIR);
+
+	return ext4_next_entry(de, blocksize);
+}
+
+static int ext4_init_new_dir(handle_t *handle, struct inode *dir,
+			     struct inode *inode)
+{
 	struct buffer_head *dir_block = NULL;
 	struct ext4_dir_entry_2 *de;
 	struct ext4_dir_entry_tail *t;
 	unsigned int blocksize = dir->i_sb->s_blocksize;
 	int csum_size = 0;
-	int err, retries = 0;
+	int err;
 
 	if (EXT4_HAS_RO_COMPAT_FEATURE(dir->i_sb,
 				       EXT4_FEATURE_RO_COMPAT_METADATA_CSUM))
 		csum_size = sizeof(struct ext4_dir_entry_tail);
+
+	inode->i_size = EXT4_I(inode)->i_disksize = blocksize;
+	dir_block = ext4_bread(handle, inode, 0, 1, &err);
+	if (!(dir_block = ext4_bread(handle, inode, 0, 1, &err))) {
+		if (!err) {
+			err = -EIO;
+			ext4_error(inode->i_sb,
+				   "Directory hole detected on inode %lu\n",
+				   inode->i_ino);
+		}
+		goto out;
+	}
+	BUFFER_TRACE(dir_block, "get_write_access");
+	err = ext4_journal_get_write_access(handle, dir_block);
+	if (err)
+		goto out;
+	de = (struct ext4_dir_entry_2 *)dir_block->b_data;
+	ext4_init_dot_dotdot(inode, de, blocksize, csum_size, dir->i_ino, 0);
+	set_nlink(inode, 2);
+	if (csum_size) {
+		t = EXT4_DIRENT_TAIL(dir_block->b_data, blocksize);
+		initialize_dirent_tail(t, blocksize);
+	}
+
+	BUFFER_TRACE(dir_block, "call ext4_handle_dirty_metadata");
+	err = ext4_handle_dirty_dirent_node(handle, inode, dir_block);
+	if (err)
+		goto out;
+	set_buffer_verified(dir_block);
+out:
+	brelse(dir_block);
+	return err;
+}
+
+static int ext4_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+{
+	handle_t *handle;
+	struct inode *inode;
+	int err, retries = 0;
 
 	if (EXT4_DIR_LINK_MAX(dir))
 		return -EMLINK;
@@ -2268,47 +2334,9 @@ retry:
 
 	inode->i_op = &ext4_dir_inode_operations;
 	inode->i_fop = &ext4_dir_operations;
-	inode->i_size = EXT4_I(inode)->i_disksize = inode->i_sb->s_blocksize;
-	if (!(dir_block = ext4_bread(handle, inode, 0, 1, &err))) {
-		if (!err) {
-			err = -EIO;
-			ext4_error(inode->i_sb,
-				   "Directory hole detected on inode %lu\n",
-				   inode->i_ino);
-		}
-		goto out_clear_inode;
-	}
-	BUFFER_TRACE(dir_block, "get_write_access");
-	err = ext4_journal_get_write_access(handle, dir_block);
+	err = ext4_init_new_dir(handle, dir, inode);
 	if (err)
 		goto out_clear_inode;
-	de = (struct ext4_dir_entry_2 *) dir_block->b_data;
-	de->inode = cpu_to_le32(inode->i_ino);
-	de->name_len = 1;
-	de->rec_len = ext4_rec_len_to_disk(EXT4_DIR_REC_LEN(de->name_len),
-					   blocksize);
-	strcpy(de->name, ".");
-	ext4_set_de_type(dir->i_sb, de, S_IFDIR);
-	de = ext4_next_entry(de, blocksize);
-	de->inode = cpu_to_le32(dir->i_ino);
-	de->rec_len = ext4_rec_len_to_disk(blocksize -
-					   (csum_size + EXT4_DIR_REC_LEN(1)),
-					   blocksize);
-	de->name_len = 2;
-	strcpy(de->name, "..");
-	ext4_set_de_type(dir->i_sb, de, S_IFDIR);
-	set_nlink(inode, 2);
-
-	if (csum_size) {
-		t = EXT4_DIRENT_TAIL(dir_block->b_data, blocksize);
-		initialize_dirent_tail(t, blocksize);
-	}
-
-	BUFFER_TRACE(dir_block, "call ext4_handle_dirty_metadata");
-	err = ext4_handle_dirty_dirent_node(handle, inode, dir_block);
-	if (err)
-		goto out_clear_inode;
-	set_buffer_verified(dir_block);
 	err = ext4_mark_inode_dirty(handle, inode);
 	if (!err)
 		err = ext4_add_entry(handle, dentry, inode);
@@ -2328,7 +2356,6 @@ out_clear_inode:
 	unlock_new_inode(inode);
 	d_instantiate(dentry, inode);
 out_stop:
-	brelse(dir_block);
 	ext4_journal_stop(handle);
 	if (err == -ENOSPC && ext4_should_retry_alloc(dir->i_sb, &retries))
 		goto retry;
