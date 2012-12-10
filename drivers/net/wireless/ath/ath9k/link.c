@@ -435,7 +435,7 @@ set_timer:
 
 	mod_timer(&common->ani.timer, jiffies + msecs_to_jiffies(cal_interval));
 
-	if (ah->eep_ops->get_eeprom(ah, EEP_PAPRD) && ah->caldata) {
+	if (ar9003_is_paprd_enabled(ah) && ah->caldata) {
 		if (!ah->caldata->paprd_done) {
 			ieee80211_queue_work(sc->hw, &sc->paprd_work);
 		} else if (!ah->paprd_table_write_done) {

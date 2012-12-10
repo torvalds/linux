@@ -2987,10 +2987,6 @@ static u32 ath9k_hw_ar9300_get_eeprom(struct ath_hw *ah,
 	case EEP_RX_MASK:
 		return pBase->txrxMask & 0xf;
 	case EEP_PAPRD:
-		if (AR_SREV_9462(ah))
-			return false;
-		if (!ah->config.enable_paprd)
-			return false;
 		return !!(pBase->featureEnable & BIT(5));
 	case EEP_CHAIN_MASK_REDUCE:
 		return (pBase->miscConfiguration >> 0x3) & 0x1;
@@ -5097,7 +5093,7 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 	 */
 	ar9003_hw_get_target_power_eeprom(ah, chan, targetPowerValT2);
 
-	if (ah->eep_ops->get_eeprom(ah, EEP_PAPRD)) {
+	if (ar9003_is_paprd_enabled(ah)) {
 		if (IS_CHAN_2GHZ(chan))
 			modal_hdr = &eep->modalHeader2G;
 		else
@@ -5138,7 +5134,7 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 					   twiceAntennaReduction,
 					   powerLimit);
 
-	if (ah->eep_ops->get_eeprom(ah, EEP_PAPRD)) {
+	if (ar9003_is_paprd_enabled(ah)) {
 		for (i = 0; i < ar9300RateSize; i++) {
 			if ((ah->paprd_ratemask & (1 << i)) &&
 			    (abs(targetPowerValT2[i] -

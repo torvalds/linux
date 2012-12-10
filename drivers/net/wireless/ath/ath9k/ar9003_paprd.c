@@ -991,3 +991,12 @@ exit:
 	return !!paprd_done;
 }
 EXPORT_SYMBOL(ar9003_paprd_is_done);
+
+bool ar9003_is_paprd_enabled(struct ath_hw *ah)
+{
+	if ((ah->caps.hw_caps & ATH9K_HW_CAP_PAPRD) && ah->config.enable_paprd)
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL(ar9003_is_paprd_enabled);

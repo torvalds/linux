@@ -2599,6 +2599,10 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 			pCap->hw_caps |= ATH9K_HW_WOW_PATTERN_MATCH_DWORD;
 	}
 
+	if (AR_SREV_9300_20_OR_LATER(ah) &&
+	    ah->eep_ops->get_eeprom(ah, EEP_PAPRD))
+			pCap->hw_caps |= ATH9K_HW_CAP_PAPRD;
+
 	return 0;
 }
 
