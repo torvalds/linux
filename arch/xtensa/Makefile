@@ -88,7 +88,7 @@ core-y		+= $(buildvar) $(buildplf)
 libs-y		+= arch/xtensa/lib/ $(LIBGCC)
 
 ifneq ($(CONFIG_BUILTIN_DTB),"")
-core-y += arch/xtensa/boot/
+core-$(CONFIG_OF) += arch/xtensa/boot/
 endif
 
 boot		:= arch/xtensa/boot

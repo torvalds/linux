@@ -28,7 +28,7 @@ bootdir-$(CONFIG_XTENSA_PLATFORM_XTFPGA) += boot-redboot boot-elf boot-uboot
 
 BUILTIN_DTB := $(patsubst "%",%,$(CONFIG_BUILTIN_DTB)).dtb.o
 ifneq ($(CONFIG_BUILTIN_DTB),"")
-obj-y += $(BUILTIN_DTB)
+obj-$(CONFIG_OF) += $(BUILTIN_DTB)
 endif
 
 # Rule to build device tree blobs
