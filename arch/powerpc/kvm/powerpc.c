@@ -412,7 +412,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
                                    struct kvm_memory_slot *memslot,
                                    struct kvm_memory_slot old,
                                    struct kvm_userspace_memory_region *mem,
-                                   int user_alloc)
+                                   bool user_alloc)
 {
 	return kvmppc_core_prepare_memory_region(kvm, memslot, mem);
 }
@@ -420,7 +420,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 void kvm_arch_commit_memory_region(struct kvm *kvm,
                struct kvm_userspace_memory_region *mem,
                struct kvm_memory_slot old,
-               int user_alloc)
+               bool user_alloc)
 {
 	kvmppc_core_commit_memory_region(kvm, mem, old);
 }

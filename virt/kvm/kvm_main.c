@@ -709,7 +709,7 @@ static int check_memory_region_flags(struct kvm_userspace_memory_region *mem)
  */
 int __kvm_set_memory_region(struct kvm *kvm,
 			    struct kvm_userspace_memory_region *mem,
-			    int user_alloc)
+			    bool user_alloc)
 {
 	int r;
 	gfn_t base_gfn;
@@ -889,7 +889,7 @@ EXPORT_SYMBOL_GPL(__kvm_set_memory_region);
 
 int kvm_set_memory_region(struct kvm *kvm,
 			  struct kvm_userspace_memory_region *mem,
-			  int user_alloc)
+			  bool user_alloc)
 {
 	int r;
 
@@ -903,7 +903,7 @@ EXPORT_SYMBOL_GPL(kvm_set_memory_region);
 int kvm_vm_ioctl_set_memory_region(struct kvm *kvm,
 				   struct
 				   kvm_userspace_memory_region *mem,
-				   int user_alloc)
+				   bool user_alloc)
 {
 	if (mem->slot >= KVM_USER_MEM_SLOTS)
 		return -EINVAL;
@@ -2148,7 +2148,7 @@ static long kvm_vm_ioctl(struct file *filp,
 						sizeof kvm_userspace_mem))
 			goto out;
 
-		r = kvm_vm_ioctl_set_memory_region(kvm, &kvm_userspace_mem, 1);
+		r = kvm_vm_ioctl_set_memory_region(kvm, &kvm_userspace_mem, true);
 		break;
 	}
 	case KVM_GET_DIRTY_LOG: {
