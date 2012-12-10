@@ -203,10 +203,9 @@ static int nfsd_init_socks(int port, struct net *net)
 
 static bool nfsd_up = false;
 
-static int nfsd_startup(unsigned short port, int nrservs)
+static int nfsd_startup(unsigned short port, int nrservs, struct net *net)
 {
 	int ret;
-	struct net *net = &init_net;
 
 	if (nfsd_up)
 		return 0;
@@ -221,7 +220,7 @@ static int nfsd_startup(unsigned short port, int nrservs)
 	ret = nfsd_init_socks(port, net);
 	if (ret)
 		goto out_racache;
-	ret = lockd_up(&init_net);
+	ret = lockd_up(net);
 	if (ret)
 		goto out_racache;
 	ret = nfs4_state_start();
@@ -230,13 +229,13 @@ static int nfsd_startup(unsigned short port, int nrservs)
 	nfsd_up = true;
 	return 0;
 out_lockd:
-	lockd_down(&init_net);
+	lockd_down(net);
 out_racache:
 	nfsd_racache_shutdown();
 	return ret;
 }
 
-static void nfsd_shutdown(void)
+static void nfsd_shutdown(struct net *net)
 {
 	/*
 	 * write_ports can create the server without actually starting
@@ -247,14 +246,14 @@ static void nfsd_shutdown(void)
 	if (!nfsd_up)
 		return;
 	nfs4_state_shutdown();
-	lockd_down(&init_net);
+	lockd_down(net);
 	nfsd_racache_shutdown();
 	nfsd_up = false;
 }
 
 static void nfsd_last_thread(struct svc_serv *serv, struct net *net)
 {
-	nfsd_shutdown();
+	nfsd_shutdown(net);
 
 	svc_rpcb_cleanup(serv, net);
 
@@ -458,7 +457,7 @@ nfsd_svc(unsigned short port, int nrservs)
 
 	nfsd_up_before = nfsd_up;
 
-	error = nfsd_startup(port, nrservs);
+	error = nfsd_startup(port, nrservs, net);
 	if (error)
 		goto out_destroy;
 	error = svc_set_num_threads(nfsd_serv, NULL, nrservs);
@@ -471,7 +470,7 @@ nfsd_svc(unsigned short port, int nrservs)
 	error = nfsd_serv->sv_nrthreads - 1;
 out_shutdown:
 	if (error < 0 && !nfsd_up_before)
-		nfsd_shutdown();
+		nfsd_shutdown(net);
 out_destroy:
 	nfsd_destroy(net);		/* Release server */
 out:
