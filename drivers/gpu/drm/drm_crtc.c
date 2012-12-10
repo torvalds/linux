@@ -2282,13 +2282,13 @@ int drm_mode_addfb(struct drm_device *dev,
 		drm_modeset_unlock_all(dev);
 		return PTR_ERR(fb);
 	}
+	drm_modeset_unlock_all(dev);
 
 	mutex_lock(&file_priv->fbs_lock);
 	or->fb_id = fb->base.id;
 	list_add(&fb->filp_head, &file_priv->fbs);
 	DRM_DEBUG_KMS("[FB:%d]\n", fb->base.id);
 	mutex_unlock(&file_priv->fbs_lock);
-	drm_modeset_unlock_all(dev);
 
 	return ret;
 }
@@ -2465,6 +2465,7 @@ int drm_mode_addfb2(struct drm_device *dev,
 		drm_modeset_unlock_all(dev);
 		return PTR_ERR(fb);
 	}
+	drm_modeset_unlock_all(dev);
 
 	mutex_lock(&file_priv->fbs_lock);
 	r->fb_id = fb->base.id;
@@ -2472,7 +2473,6 @@ int drm_mode_addfb2(struct drm_device *dev,
 	DRM_DEBUG_KMS("[FB:%d]\n", fb->base.id);
 	mutex_unlock(&file_priv->fbs_lock);
 
-	drm_modeset_unlock_all(dev);
 
 	return ret;
 }
@@ -2670,7 +2670,6 @@ void drm_fb_release(struct drm_file *priv)
 	struct drm_device *dev = priv->minor->dev;
 	struct drm_framebuffer *fb, *tfb;
 
-	drm_modeset_lock_all(dev);
 	mutex_lock(&priv->fbs_lock);
 	list_for_each_entry_safe(fb, tfb, &priv->fbs, filp_head) {
 
@@ -2682,10 +2681,11 @@ void drm_fb_release(struct drm_file *priv)
 		list_del_init(&fb->filp_head);
 
 		/* This will also drop the fpriv->fbs reference. */
+		drm_modeset_lock_all(dev);
 		drm_framebuffer_remove(fb);
+		drm_modeset_unlock_all(dev);
 	}
 	mutex_unlock(&priv->fbs_lock);
-	drm_modeset_unlock_all(dev);
 }
 
 /**
