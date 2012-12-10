@@ -2194,7 +2194,6 @@ ext4_ext_in_cache(struct inode *inode, ext4_lblk_t block,
 		  struct ext4_extent *ex)
 {
 	struct ext4_ext_cache *cex;
-	struct ext4_sb_info *sbi;
 	int ret = 0;
 
 	/*
@@ -2202,7 +2201,6 @@ ext4_ext_in_cache(struct inode *inode, ext4_lblk_t block,
 	 */
 	spin_lock(&EXT4_I(inode)->i_block_reservation_lock);
 	cex = &EXT4_I(inode)->i_cached_extent;
-	sbi = EXT4_SB(inode->i_sb);
 
 	/* has cache valid data? */
 	if (cex->ec_len == 0)
