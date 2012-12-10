@@ -591,7 +591,7 @@ static struct m920x_inits tvwalkertwin_rc_init [] = {
 };
 
 static struct m920x_inits pinnacle310e_init[] = {
-	/* without these the tuner don't work */
+	/* without these the tuner doesn't work */
 	{ 0xff20,         0x9b },
 	{ 0xff22,         0x70 },
 
