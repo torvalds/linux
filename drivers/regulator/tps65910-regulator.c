@@ -38,6 +38,11 @@ static const unsigned int VIO_VSEL_table[] = {
 
 /* VSEL tables for TPS65910 specific LDOs and dcdc's */
 
+/* supported VRTC voltages in microvolts */
+static const unsigned int VRTC_VSEL_table[] = {
+	1800000,
+};
+
 /* supported VDD3 voltages in microvolts */
 static const unsigned int VDD3_VSEL_table[] = {
 	5000000,
@@ -95,6 +100,8 @@ static struct tps_info tps65910_regs[] = {
 	{
 		.name = "vrtc",
 		.vin_name = "vcc7",
+		.n_voltages = ARRAY_SIZE(VRTC_VSEL_table),
+		.voltage_table = VRTC_VSEL_table,
 		.enable_time_us = 2200,
 	},
 	{
