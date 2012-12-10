@@ -48,7 +48,7 @@ char *
 cifs_build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
 			struct cifs_tcon *tcon)
 {
-	int pplen = vol->prepath ? strlen(vol->prepath) : 0;
+	int pplen = vol->prepath ? strlen(vol->prepath) + 1 : 0;
 	int dfsplen;
 	char *full_path = NULL;
 
@@ -69,7 +69,8 @@ cifs_build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
 
 	if (dfsplen)
 		strncpy(full_path, tcon->treeName, dfsplen);
-	strncpy(full_path + dfsplen, vol->prepath, pplen);
+	full_path[dfsplen] = CIFS_DIR_SEP(cifs_sb);
+	strncpy(full_path + dfsplen + 1, vol->prepath, pplen);
 	convert_delimiter(full_path, CIFS_DIR_SEP(cifs_sb));
 	full_path[dfsplen + pplen] = 0; /* add trailing null */
 	return full_path;

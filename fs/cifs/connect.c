@@ -1612,31 +1612,14 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			}
 			break;
 		case Opt_prefixpath:
-			string = match_strdup(args);
-			if (string == NULL)
+			/* skip over any leading delimiter */
+			if (*args[0].from == '/' || *args[0].from == '\\')
+				args[0].from++;
+
+			kfree(vol->prepath);
+			vol->prepath = match_strdup(args);
+			if (vol->prepath == NULL)
 				goto out_nomem;
-
-			temp_len = strnlen(string, 1024);
-			if (string[0] != '/')
-				temp_len++; /* missing leading slash */
-			if (temp_len > 1024) {
-				printk(KERN_WARNING "CIFS: prefix too long\n");
-				goto cifs_parse_mount_err;
-			}
-
-			vol->prepath = kmalloc(temp_len+1, GFP_KERNEL);
-			if (vol->prepath == NULL) {
-				printk(KERN_WARNING "CIFS: no memory "
-						    "for path prefix\n");
-				goto cifs_parse_mount_err;
-			}
-
-			if (string[0] != '/') {
-				vol->prepath[0] = '/';
-				strcpy(vol->prepath+1, string);
-			} else
-				strcpy(vol->prepath, string);
-
 			break;
 		case Opt_iocharset:
 			string = match_strdup(args);
@@ -3236,7 +3219,7 @@ build_unc_path_to_root(const struct smb_vol *vol,
 		const struct cifs_sb_info *cifs_sb)
 {
 	char *full_path, *pos;
-	unsigned int pplen = vol->prepath ? strlen(vol->prepath) : 0;
+	unsigned int pplen = vol->prepath ? strlen(vol->prepath) + 1 : 0;
 	unsigned int unc_len = strnlen(vol->UNC, MAX_TREE_SIZE + 1);
 
 	full_path = kmalloc(unc_len + pplen + 1, GFP_KERNEL);
@@ -3247,6 +3230,7 @@ build_unc_path_to_root(const struct smb_vol *vol,
 	pos = full_path + unc_len;
 
 	if (pplen) {
+		*pos++ = CIFS_DIR_SEP(cifs_sb);
 		strncpy(pos, vol->prepath, pplen);
 		pos += pplen;
 	}
