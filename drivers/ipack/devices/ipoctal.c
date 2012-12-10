@@ -177,10 +177,6 @@ static void ipoctal_irq_tx(struct ipoctal_channel *channel)
 	(*pointer_write)++;
 	*pointer_write = *pointer_write % PAGE_SIZE;
 	channel->nb_bytes--;
-
-	if (channel->nb_bytes == 0 &&
-	    channel->board_id != IPACK1_DEVICE_ID_SBS_OCTAL_485)
-		iowrite8(CR_DISABLE_TX, &channel->regs->w.cr);
 }
 
 static void ipoctal_irq_channel(struct ipoctal_channel *channel)
@@ -196,14 +192,14 @@ static void ipoctal_irq_channel(struct ipoctal_channel *channel)
 	isr = ioread8(&channel->block_regs->r.isr);
 	sr = ioread8(&channel->regs->r.sr);
 
-	/* In case of RS-485, change from TX to RX when finishing TX.
-	 * Half-duplex. */
-	if ((channel->board_id == IPACK1_DEVICE_ID_SBS_OCTAL_485) &&
-	    (sr & SR_TX_EMPTY) && (channel->nb_bytes == 0)) {
+	if ((sr & SR_TX_EMPTY) && (channel->nb_bytes == 0)) {
 		iowrite8(CR_DISABLE_TX, &channel->regs->w.cr);
-		iowrite8(CR_CMD_NEGATE_RTSN, &channel->regs->w.cr);
-		iowrite8(CR_ENABLE_RX, &channel->regs->w.cr);
-		iowrite8(CR_DISABLE_TX, &channel->regs->w.cr);
+		/* In case of RS-485, change from TX to RX when finishing TX.
+		 * Half-duplex. */
+		if (channel->board_id == IPACK1_DEVICE_ID_SBS_OCTAL_485) {
+			iowrite8(CR_CMD_NEGATE_RTSN, &channel->regs->w.cr);
+			iowrite8(CR_ENABLE_RX, &channel->regs->w.cr);
+		}
 	}
 
 	/* RX data */
