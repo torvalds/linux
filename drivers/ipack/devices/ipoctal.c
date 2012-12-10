@@ -195,13 +195,10 @@ static void ipoctal_irq_tx(struct ipoctal_channel *channel)
 	*pointer_write = *pointer_write % PAGE_SIZE;
 	channel->nb_bytes--;
 
-	if ((channel->nb_bytes == 0) &&
-	    (waitqueue_active(&channel->queue))) {
-
-		if (channel->board_id != IPACK1_DEVICE_ID_SBS_OCTAL_485) {
-			*channel->board_write = 1;
-			wake_up_interruptible(&channel->queue);
-		}
+	if (channel->nb_bytes == 0 &&
+	    channel->board_id != IPACK1_DEVICE_ID_SBS_OCTAL_485) {
+		*channel->board_write = 1;
+		wake_up_interruptible(&channel->queue);
 	}
 }
 
