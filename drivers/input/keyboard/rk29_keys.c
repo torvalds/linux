@@ -101,7 +101,7 @@ static ssize_t rk29key_set(struct device *dev,
 		p = strstr(buf,Arrary[i].keyArrary);
 		if(p==0)
               {
-                   dev_dbg(" rk29key_set p == 0 error ...............\n");
+                   dev_dbg(dev," rk29key_set p == 0 error ...............\n");
                    continue;
               }
 		
