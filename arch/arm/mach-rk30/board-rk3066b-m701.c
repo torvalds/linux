@@ -951,22 +951,11 @@ static struct platform_device device_ion = {
 #endif
 
 /**************************************************************************************************
- * SDMMC devices,  include the module of SD,MMC,and sdio.noted by xbw at 2012-03-05
+ * SDMMC devices,  include the module of SD,MMC,and SDIO.noted by xbw at 2012-03-05
 **************************************************************************************************/
 #ifdef CONFIG_SDMMC_RK29
-#include "board-rk3066b-sdk-sdmmc.c"
-
-#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
-#define SDMMC0_WRITE_PROTECT_PIN	RK30_PIN3_PB7	//According to your own project to set the value of write-protect-pin.
+#include "board-rk30-sdk-sdmmc.c"
 #endif
-
-#if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
-#define SDMMC1_WRITE_PROTECT_PIN	RK30_PIN3_PC7	//According to your own project to set the value of write-protect-pin.
-#endif
-
-#define RK29SDK_WIFI_SDIO_CARD_DETECT_N    RK30_PIN6_PB2
-
-#endif //endif ---#ifdef CONFIG_SDMMC_RK29
 
 #ifdef CONFIG_SDMMC0_RK29
 static int rk29_sdmmc0_cfg_gpio(void)
@@ -986,14 +975,18 @@ static int rk29_sdmmc0_cfg_gpio(void)
 	gpio_direction_output(RK30_PIN3_PA7, GPIO_LOW);
 
 #else
-	rk29_sdmmc_set_iomux(0, 0xFFFF);
+	    rk29_sdmmc_set_iomux(0, 0xFFFF);
 
-	rk30_mux_api_set(GPIO3B0_SDMMC0DETECTN_NAME, GPIO3B_SDMMC0DETECTN);
+    #if defined(CONFIG_SDMMC0_RK29_SDCARD_DET_FROM_GPIO)
+        rk30_mux_api_set(RK29SDK_SD_CARD_DETECT_PIN_NAME, RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO);
+    #else
+	    rk30_mux_api_set(RK29SDK_SD_CARD_DETECT_PIN_NAME, RK29SDK_SD_CARD_DETECT_IOMUX_FMUX);
+    #endif	
 
-#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
-	gpio_request(SDMMC0_WRITE_PROTECT_PIN, "sdmmc-wp");
-	gpio_direction_input(SDMMC0_WRITE_PROTECT_PIN);
-#endif
+    #if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
+	    gpio_request(SDMMC0_WRITE_PROTECT_PIN, "sdmmc-wp");
+	    gpio_direction_input(SDMMC0_WRITE_PROTECT_PIN);
+    #endif
 
 #endif
 
@@ -1020,14 +1013,49 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 #else
 	.use_dma = 0,
 #endif
-	.detect_irq = RK30_PIN3_PB6,	// INVALID_GPIO
+
+#if defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC) && defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
+    .status = rk29sdk_wifi_mmc0_status,
+    .register_status_notify = rk29sdk_wifi_mmc0_status_register,
+#endif
+
+#if defined(RK29SDK_SD_CARD_PWR_EN) || (INVALID_GPIO != RK29SDK_SD_CARD_PWR_EN)
+    .power_en = RK29SDK_SD_CARD_PWR_EN,
+    .power_en_level = RK29SDK_SD_CARD_PWR_EN_LEVEL,
+#else
+    .power_en = INVALID_GPIO,
+    .power_en_level = GPIO_LOW,
+#endif    
 	.enable_sd_wakeup = 0,
 
 #if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
 	.write_prt = SDMMC0_WRITE_PROTECT_PIN,
+	.write_prt_enalbe_level = SDMMC0_WRITE_PROTECT_ENABLE_VALUE;
 #else
 	.write_prt = INVALID_GPIO,
 #endif
+
+    .det_pin_info = {    
+    #if defined(RK29SDK_SD_CARD_DETECT_N) || (INVALID_GPIO != RK29SDK_SD_CARD_DETECT_N)  
+        .io             = RK29SDK_SD_CARD_DETECT_N, //INVALID_GPIO,
+        .enable         = RK29SDK_SD_CARD_INSERT_LEVEL,
+        #ifdef RK29SDK_SD_CARD_DETECT_PIN_NAME
+        .iomux          = {
+            .name       = RK29SDK_SD_CARD_DETECT_PIN_NAME,
+            #ifdef RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO
+            .fgpio      = RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO,
+            #endif
+            #ifdef RK29SDK_SD_CARD_DETECT_IOMUX_FMUX
+            .fmux       = RK29SDK_SD_CARD_DETECT_IOMUX_FMUX,
+            #endif
+        },
+        #endif
+    #else
+        .io             = INVALID_GPIO,
+        .enable         = GPIO_LOW,
+    #endif    
+    }, 
+
 };
 #endif // CONFIG_SDMMC0_RK29
 
@@ -1042,8 +1070,6 @@ static int rk29_sdmmc1_cfg_gpio(void)
 	rk30_mux_api_set(GPIO3C2_SDMMC1DATA1_NAME, GPIO3C_SDMMC1_DATA1);
 	rk30_mux_api_set(GPIO3C3_SDMMC1DATA2_NAME, GPIO3C_SDMMC1_DATA2);
 	rk30_mux_api_set(GPIO3C4_SDMMC1DATA3_NAME, GPIO3C_SDMMC1_DATA3);
-	//rk30_mux_api_set(GPIO3C6_SDMMC1DETECTN_NAME, GPIO3C_SDMMC1_DETECT_N);
-
 #else
 
 #if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
@@ -1083,26 +1109,49 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 	.use_dma = 0,
 #endif
 
-#if !defined(CONFIG_USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD)
-#ifdef CONFIG_WIFI_CONTROL_FUNC
-	.status = rk29sdk_wifi_status,
-	.register_status_notify = rk29sdk_wifi_status_register,
-#endif
-#if 0
-	.detect_irq = RK29SDK_WIFI_SDIO_CARD_DETECT_N,
+#if defined(CONFIG_WIFI_CONTROL_FUNC) || defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
+    .status = rk29sdk_wifi_status,
+    .register_status_notify = rk29sdk_wifi_status_register,
 #endif
 
-#if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
-	.write_prt = SDMMC1_WRITE_PROTECT_PIN,
-#else
-	.write_prt = INVALID_GPIO,
-#endif
+    #if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+    	.write_prt = SDMMC1_WRITE_PROTECT_PIN,    	
+	    .write_prt_enalbe_level = SDMMC1_WRITE_PROTECT_ENABLE_VALUE;
+    #else
+    	.write_prt = INVALID_GPIO,
+    #endif
 
-#else
-	.detect_irq = INVALID_GPIO,
+    #if defined(CONFIG_RK29_SDIO_IRQ_FROM_GPIO)
+        .sdio_INT_gpio = RK29SDK_WIFI_SDIO_CARD_INT,
+    #endif
+
+    .det_pin_info = {    
+#if defined(CONFIG_USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD)
+     #if defined(RK29SDK_SD_CARD_DETECT_N) || (INVALID_GPIO != RK29SDK_SD_CARD_DETECT_N)  
+        .io             = RK29SDK_SD_CARD_DETECT_N,
+     #else
+         .io             = INVALID_GPIO,
+     #endif   
+
+        .enable         = RK29SDK_SD_CARD_INSERT_LEVEL,
+        #ifdef RK29SDK_SD_CARD_DETECT_PIN_NAME
+        .iomux          = {
+            .name       = RK29SDK_SD_CARD_DETECT_PIN_NAME,
+            #ifdef RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO
+            .fgpio      = RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO,
+            #endif
+            #ifdef RK29SDK_SD_CARD_DETECT_IOMUX_FMUX
+            .fmux       = RK29SDK_SD_CARD_DETECT_IOMUX_FMUX,
+            #endif
+        },
+        #endif
+ #else
+        .io             = INVALID_GPIO,
+        .enable         = GPIO_LOW,
+#endif
+    },
+   
 	.enable_sd_wakeup = 0,
-#endif
-
 };
 #endif //endif--#ifdef CONFIG_SDMMC1_RK29
 

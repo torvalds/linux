@@ -104,7 +104,6 @@ static ssize_t rk29key_set(struct device *dev,
                    dev_dbg(dev," rk29key_set p == 0 error ...............\n");
                    continue;
               }
-		
 		start = strcspn(p,":");
 		
 		if(i<6)
