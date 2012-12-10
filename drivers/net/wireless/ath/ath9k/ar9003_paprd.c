@@ -204,7 +204,20 @@ static int ar9003_paprd_setup_single_table(struct ath_hw *ah)
 		      AR_PHY_PAPRD_TRAINER_CNTL1_CF_PAPRD_AGC2_SETTLING, 28);
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL1,
 		      AR_PHY_PAPRD_TRAINER_CNTL1_CF_CF_PAPRD_TRAIN_ENABLE, 1);
-	val = AR_SREV_9462(ah) ? 0x91 : 147;
+
+	if (AR_SREV_9485(ah)) {
+		val = 148;
+	} else {
+		if (IS_CHAN_2GHZ(ah->curchan)) {
+			if (AR_SREV_9462(ah) || AR_SREV_9565(ah))
+				val = 145;
+			else
+				val = 147;
+		} else {
+			val = 137;
+		}
+	}
+
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL2,
 		      AR_PHY_PAPRD_TRAINER_CNTL2_CF_PAPRD_INIT_RX_BB_GAIN, val);
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL3,
@@ -215,15 +228,24 @@ static int ar9003_paprd_setup_single_table(struct ath_hw *ah)
 		      AR_PHY_PAPRD_TRAINER_CNTL3_CF_PAPRD_NUM_CORR_STAGES, 7);
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL3,
 		      AR_PHY_PAPRD_TRAINER_CNTL3_CF_PAPRD_MIN_LOOPBACK_DEL, 1);
-	if (AR_SREV_9485(ah) || AR_SREV_9462(ah) || AR_SREV_9550(ah))
+
+	if (AR_SREV_9485(ah) ||
+	    AR_SREV_9462(ah) ||
+	    AR_SREV_9565(ah) ||
+	    AR_SREV_9550(ah) ||
+	    AR_SREV_9330(ah) ||
+	    AR_SREV_9340(ah))
 		REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL3,
-			      AR_PHY_PAPRD_TRAINER_CNTL3_CF_PAPRD_QUICK_DROP,
-			      -3);
+			      AR_PHY_PAPRD_TRAINER_CNTL3_CF_PAPRD_QUICK_DROP, -3);
 	else
 		REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL3,
-			      AR_PHY_PAPRD_TRAINER_CNTL3_CF_PAPRD_QUICK_DROP,
-			      -6);
-	val = AR_SREV_9462(ah) ? -10 : -15;
+			      AR_PHY_PAPRD_TRAINER_CNTL3_CF_PAPRD_QUICK_DROP, -6);
+
+	val = -10;
+
+	if (IS_CHAN_2GHZ(ah->curchan) && !AR_SREV_9462(ah) && !AR_SREV_9565(ah))
+		val = -15;
+
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL3,
 		      AR_PHY_PAPRD_TRAINER_CNTL3_CF_PAPRD_ADC_DESIRED_SIZE,
 		      val);
