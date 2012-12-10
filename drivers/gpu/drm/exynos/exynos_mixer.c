@@ -42,9 +42,7 @@
 
 struct hdmi_win_data {
 	dma_addr_t		dma_addr;
-	void __iomem		*vaddr;
 	dma_addr_t		chroma_dma_addr;
-	void __iomem		*chroma_vaddr;
 	uint32_t		pixel_format;
 	unsigned int		bpp;
 	unsigned int		crtc_x;
@@ -749,9 +747,7 @@ static void mixer_win_mode_set(void *ctx,
 	win_data = &mixer_ctx->win_data[win];
 
 	win_data->dma_addr = overlay->dma_addr[0];
-	win_data->vaddr = overlay->vaddr[0];
 	win_data->chroma_dma_addr = overlay->dma_addr[1];
-	win_data->chroma_vaddr = overlay->vaddr[1];
 	win_data->pixel_format = overlay->pixel_format;
 	win_data->bpp = overlay->bpp;
 

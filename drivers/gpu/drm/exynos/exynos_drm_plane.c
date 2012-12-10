@@ -93,11 +93,9 @@ int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 		}
 
 		overlay->dma_addr[i] = buffer->dma_addr;
-		overlay->vaddr[i] = buffer->kvaddr;
 
-		DRM_DEBUG_KMS("buffer: %d, vaddr = 0x%lx, dma_addr = 0x%lx\n",
-				i, (unsigned long)overlay->vaddr[i],
-				(unsigned long)overlay->dma_addr[i]);
+		DRM_DEBUG_KMS("buffer: %d, dma_addr = 0x%lx\n",
+				i, (unsigned long)overlay->dma_addr[i]);
 	}
 
 	actual_w = exynos_plane_get_size(crtc_x, crtc_w, crtc->mode.hdisplay);
