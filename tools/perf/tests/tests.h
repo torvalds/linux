@@ -15,5 +15,6 @@ int test__pmu(void);
 int test__attr(void);
 int test__dso_data(void);
 int test__parse_events(void);
+int test__hists_link(void);
 
 #endif /* TESTS_H */
