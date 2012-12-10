@@ -1076,6 +1076,30 @@ void pinctrl_unregister_map(struct pinctrl_map const *map)
 	}
 }
 
+/**
+ * pinctrl_force_sleep() - turn a given controller device into sleep state
+ * @pctldev: pin controller device
+ */
+int pinctrl_force_sleep(struct pinctrl_dev *pctldev)
+{
+	if (!IS_ERR(pctldev->p) && !IS_ERR(pctldev->hog_sleep))
+		return pinctrl_select_state(pctldev->p, pctldev->hog_sleep);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pinctrl_force_sleep);
+
+/**
+ * pinctrl_force_default() - turn a given controller device into default state
+ * @pctldev: pin controller device
+ */
+int pinctrl_force_default(struct pinctrl_dev *pctldev)
+{
+	if (!IS_ERR(pctldev->p) && !IS_ERR(pctldev->hog_default))
+		return pinctrl_select_state(pctldev->p, pctldev->hog_default);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pinctrl_force_default);
+
 #ifdef CONFIG_DEBUG_FS
 
 static int pinctrl_pins_show(struct seq_file *s, void *what)
@@ -1521,16 +1545,23 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 
 	pctldev->p = pinctrl_get_locked(pctldev->dev);
 	if (!IS_ERR(pctldev->p)) {
-		struct pinctrl_state *s =
+		pctldev->hog_default =
 			pinctrl_lookup_state_locked(pctldev->p,
 						    PINCTRL_STATE_DEFAULT);
-		if (IS_ERR(s)) {
+		if (IS_ERR(pctldev->hog_default)) {
 			dev_dbg(dev, "failed to lookup the default state\n");
 		} else {
-			if (pinctrl_select_state_locked(pctldev->p, s))
+			if (pinctrl_select_state_locked(pctldev->p,
+						pctldev->hog_default))
 				dev_err(dev,
 					"failed to select default state\n");
 		}
+
+		pctldev->hog_sleep =
+			pinctrl_lookup_state_locked(pctldev->p,
+						    PINCTRL_STATE_SLEEP);
+		if (IS_ERR(pctldev->hog_sleep))
+			dev_dbg(dev, "failed to lookup the sleep state\n");
 	}
 
 	mutex_unlock(&pinctrl_mutex);
