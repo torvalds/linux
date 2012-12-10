@@ -463,25 +463,22 @@ enum {
 	EXT4_INODE_RESERVED	= 31,	/* reserved for ext4 lib */
 };
 
-#define TEST_FLAG_VALUE(FLAG) (EXT4_##FLAG##_FL == (1 << EXT4_INODE_##FLAG))
-#define CHECK_FLAG_VALUE(FLAG) if (!TEST_FLAG_VALUE(FLAG)) { \
-	printk(KERN_EMERG "EXT4 flag fail: " #FLAG ": %d %d\n", \
-		EXT4_##FLAG##_FL, EXT4_INODE_##FLAG); BUG_ON(1); }
-
 /*
- * Since it's pretty easy to mix up bit numbers and hex values, and we
- * can't do a compile-time test for ENUM values, we use a run-time
- * test to make sure that EXT4_XXX_FL is consistent with respect to
- * EXT4_INODE_XXX.  If all is well the printk and BUG_ON will all drop
- * out so it won't cost any extra space in the compiled kernel image.
- * But it's important that these values are the same, since we are
- * using EXT4_INODE_XXX to test for the flag values, but EXT4_XX_FL
- * must be consistent with the values of FS_XXX_FL defined in
- * include/linux/fs.h and the on-disk values found in ext2, ext3, and
- * ext4 filesystems, and of course the values defined in e2fsprogs.
+ * Since it's pretty easy to mix up bit numbers and hex values, we use a
+ * build-time check to make sure that EXT4_XXX_FL is consistent with respect to
+ * EXT4_INODE_XXX. If all is well, the macros will be dropped, so, it won't cost
+ * any extra space in the compiled kernel image, otherwise, the build will fail.
+ * It's important that these values are the same, since we are using
+ * EXT4_INODE_XXX to test for flag values, but EXT4_XXX_FL must be consistent
+ * with the values of FS_XXX_FL defined in include/linux/fs.h and the on-disk
+ * values found in ext2, ext3 and ext4 filesystems, and of course the values
+ * defined in e2fsprogs.
  *
  * It's not paranoia if the Murphy's Law really *is* out to get you.  :-)
  */
+#define TEST_FLAG_VALUE(FLAG) (EXT4_##FLAG##_FL == (1 << EXT4_INODE_##FLAG))
+#define CHECK_FLAG_VALUE(FLAG) BUILD_BUG_ON(!TEST_FLAG_VALUE(FLAG))
+
 static inline void ext4_check_flag_values(void)
 {
 	CHECK_FLAG_VALUE(SECRM);
