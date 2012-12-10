@@ -191,6 +191,8 @@ static void ipoctal_irq_channel(struct ipoctal_channel *channel)
 	tty = tty_port_tty_get(&channel->tty_port);
 	if (!tty)
 		return;
+
+	spin_lock(&channel->lock);
 	/* The HW is organized in pair of channels.  See which register we need
 	 * to read from */
 	isr = ioread8(&channel->block_regs->r.isr);
@@ -216,6 +218,7 @@ static void ipoctal_irq_channel(struct ipoctal_channel *channel)
 
 	tty_flip_buffer_push(tty);
 	tty_kref_put(tty);
+	spin_unlock(&channel->lock);
 }
 
 static irqreturn_t ipoctal_irq_handler(void *arg)
