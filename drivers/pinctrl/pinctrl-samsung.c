@@ -37,7 +37,7 @@
 #define FSUFFIX_LEN		sizeof(FUNCTION_SUFFIX)
 
 /* list of all possible config options supported */
-struct pin_config {
+static struct pin_config {
 	char		*prop_cfg;
 	unsigned int	cfg_type;
 } pcfgs[] = {
