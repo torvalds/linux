@@ -905,6 +905,37 @@
 #       define DC_HPDx_RX_INT_TIMER(x)                    ((x) << 16)
 #       define DC_HPDx_EN                                 (1 << 28)
 
+/* ASYNC DMA */
+#define DMA_RB_RPTR                                       0xd008
+#define DMA_RB_WPTR                                       0xd00c
+
+#define DMA_CNTL                                          0xd02c
+#       define TRAP_ENABLE                                (1 << 0)
+#       define SEM_INCOMPLETE_INT_ENABLE                  (1 << 1)
+#       define SEM_WAIT_INT_ENABLE                        (1 << 2)
+#       define DATA_SWAP_ENABLE                           (1 << 3)
+#       define FENCE_SWAP_ENABLE                          (1 << 4)
+#       define CTXEMPTY_INT_ENABLE                        (1 << 28)
+#define DMA_TILING_CONFIG  				  0xD0B8
+
+#define CAYMAN_DMA1_CNTL                                  0xd82c
+
+/* async DMA packets */
+#define DMA_PACKET(cmd, t, s, n)	((((cmd) & 0xF) << 28) |	\
+					 (((t) & 0x1) << 23) |		\
+					 (((s) & 0x1) << 22) |		\
+					 (((n) & 0xFFFFF) << 0))
+/* async DMA Packet types */
+#define	DMA_PACKET_WRITE				  0x2
+#define	DMA_PACKET_COPY					  0x3
+#define	DMA_PACKET_INDIRECT_BUFFER			  0x4
+#define	DMA_PACKET_SEMAPHORE				  0x5
+#define	DMA_PACKET_FENCE				  0x6
+#define	DMA_PACKET_TRAP					  0x7
+#define	DMA_PACKET_SRBM_WRITE				  0x9
+#define	DMA_PACKET_CONSTANT_FILL			  0xd
+#define	DMA_PACKET_NOP					  0xf
+
 /* PCIE link stuff */
 #define PCIE_LC_TRAINING_CNTL                             0xa1 /* PCIE_P */
 #define PCIE_LC_LINK_WIDTH_CNTL                           0xa2 /* PCIE_P */
