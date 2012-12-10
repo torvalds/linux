@@ -1566,29 +1566,15 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			got_ip = true;
 			break;
 		case Opt_unc:
-			string = match_strdup(args);
-			if (string == NULL)
+			kfree(vol->UNC);
+			vol->UNC = match_strdup(args);
+			if (vol->UNC == NULL)
 				goto out_nomem;
 
-			temp_len = strnlen(string, 300);
-			if (temp_len  == 300) {
-				printk(KERN_WARNING "CIFS: UNC name too long\n");
-				goto cifs_parse_mount_err;
-			}
-
-			vol->UNC = kmalloc(temp_len+1, GFP_KERNEL);
-			if (vol->UNC == NULL) {
-				printk(KERN_WARNING "CIFS: no memory for UNC\n");
-				goto cifs_parse_mount_err;
-			}
-			strcpy(vol->UNC, string);
-
-			if (strncmp(string, "//", 2) == 0) {
-				vol->UNC[0] = '\\';
-				vol->UNC[1] = '\\';
-			} else if (strncmp(string, "\\\\", 2) != 0) {
+			convert_delimiter(vol->UNC, '\\');
+			if (vol->UNC[0] != '\\' || vol->UNC[1] != '\\') {
 				printk(KERN_WARNING "CIFS: UNC Path does not "
-						    "begin with // or \\\\\n");
+						"begin with // or \\\\\n");
 				goto cifs_parse_mount_err;
 			}
 
@@ -1810,6 +1796,12 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	if (!vol->UNC) {
 		cERROR(1, "CIFS mount error: No UNC path (e.g. -o "
 			"unc=\\\\192.168.1.100\\public) specified");
+		goto cifs_parse_mount_err;
+	}
+
+	/* make sure UNC has a share name */
+	if (!strchr(vol->UNC + 3, '\\')) {
+		cERROR(1, "Malformed UNC. Unable to find share name.");
 		goto cifs_parse_mount_err;
 	}
 
@@ -2573,13 +2565,6 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 			rc = -ENOMEM;
 			goto out_fail;
 		}
-	}
-
-	if (strchr(volume_info->UNC + 3, '\\') == NULL
-	    && strchr(volume_info->UNC + 3, '/') == NULL) {
-		cERROR(1, "Missing share name");
-		rc = -ENODEV;
-		goto out_fail;
 	}
 
 	/*
