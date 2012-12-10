@@ -90,9 +90,7 @@ static int notrace tc2_powerdown_finisher(unsigned long arg)
 	unsigned int cpu = mpidr & 0xf;
 
 	bL_set_entry_vector(cpu, cluster, cpu_resume);
-	vexpress_spc_write_bxaddr_reg(cluster, cpu,
-					       virt_to_phys(bL_entry_point));
-	bL_cpu_power_down();
+	bL_cpu_suspend(0);  /* 0 should be replaced with better value here */
 	return 1;
 }
 
