@@ -421,15 +421,19 @@ static int smsc95xx_write_eeprom(struct usbnet *dev, u32 offset, u32 length,
 }
 
 static int __must_check smsc95xx_write_reg_async(struct usbnet *dev, u16 index,
-						 u32 *data)
+						 u32 data)
 {
 	const u16 size = 4;
+	u32 buf;
 	int ret;
+
+	buf = data;
+	cpu_to_le32s(&buf);
 
 	ret = usbnet_write_cmd_async(dev, USB_VENDOR_REQUEST_WRITE_REGISTER,
 				     USB_DIR_OUT | USB_TYPE_VENDOR |
 				     USB_RECIP_DEVICE,
-				     0, index, data, size);
+				     0, index, &buf, size);
 	if (ret < 0)
 		netdev_warn(dev->net, "Error write async cmd, sts=%d\n",
 			    ret);
@@ -490,15 +494,15 @@ static void smsc95xx_set_multicast(struct net_device *netdev)
 	spin_unlock_irqrestore(&pdata->mac_cr_lock, flags);
 
 	/* Initiate async writes, as we can't wait for completion here */
-	ret = smsc95xx_write_reg_async(dev, HASHH, &pdata->hash_hi);
+	ret = smsc95xx_write_reg_async(dev, HASHH, pdata->hash_hi);
 	if (ret < 0)
 		netdev_warn(dev->net, "failed to initiate async write to HASHH\n");
 
-	ret = smsc95xx_write_reg_async(dev, HASHL, &pdata->hash_lo);
+	ret = smsc95xx_write_reg_async(dev, HASHL, pdata->hash_lo);
 	if (ret < 0)
 		netdev_warn(dev->net, "failed to initiate async write to HASHL\n");
 
-	ret = smsc95xx_write_reg_async(dev, MAC_CR, &pdata->mac_cr);
+	ret = smsc95xx_write_reg_async(dev, MAC_CR, pdata->mac_cr);
 	if (ret < 0)
 		netdev_warn(dev->net, "failed to initiate async write to MAC_CR\n");
 }
