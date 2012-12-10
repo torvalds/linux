@@ -2360,9 +2360,9 @@ ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 
 	return RX_MGMT_CFG80211_RX_ASSOC;
 }
+
 static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
-				  struct ieee80211_mgmt *mgmt,
-				  size_t len,
+				  struct ieee80211_mgmt *mgmt, size_t len,
 				  struct ieee80211_rx_status *rx_status,
 				  struct ieee802_11_elems *elems,
 				  bool beacon)
