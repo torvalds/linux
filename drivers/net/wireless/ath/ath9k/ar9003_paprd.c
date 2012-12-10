@@ -287,9 +287,6 @@ static void ar9003_paprd_get_gain_table(struct ath_hw *ah)
 	u32 reg = AR_PHY_TXGAIN_TABLE;
 	int i;
 
-	memset(entry, 0, sizeof(ah->paprd_gain_table_entries));
-	memset(index, 0, sizeof(ah->paprd_gain_table_index));
-
 	for (i = 0; i < PAPRD_GAIN_TABLE_ENTRIES; i++) {
 		entry[i] = REG_READ(ah, reg);
 		index[i] = (entry[i] >> 24) & 0xff;
@@ -788,7 +785,7 @@ void ar9003_paprd_populate_single_table(struct ath_hw *ah,
 }
 EXPORT_SYMBOL(ar9003_paprd_populate_single_table);
 
-int ar9003_paprd_setup_gain_table(struct ath_hw *ah, int chain)
+void ar9003_paprd_setup_gain_table(struct ath_hw *ah, int chain)
 {
 	unsigned int i, desired_gain, gain_index;
 	unsigned int train_power = ah->paprd_training_power;
@@ -806,8 +803,6 @@ int ar9003_paprd_setup_gain_table(struct ath_hw *ah, int chain)
 
 	REG_CLR_BIT(ah, AR_PHY_PAPRD_TRAINER_STAT1,
 			AR_PHY_PAPRD_TRAINER_STAT1_PAPRD_TRAIN_DONE);
-
-	return 0;
 }
 EXPORT_SYMBOL(ar9003_paprd_setup_gain_table);
 
@@ -919,7 +914,7 @@ int ar9003_paprd_create_curve(struct ath_hw *ah,
 
 	memset(caldata->pa_table[chain], 0, sizeof(caldata->pa_table[chain]));
 
-	buf = kmalloc(2 * 48 * sizeof(u32), GFP_ATOMIC);
+	buf = kmalloc(2 * 48 * sizeof(u32), GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
