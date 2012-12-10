@@ -45,9 +45,6 @@ struct zero_bulkout_context {
 	void *padapter;
 };
 
-#define usb_write_cmd r8712_usb_write_mem
-#define usb_write_cmd_complete usb_write_mem_complete
-
 uint r8712_usb_init_intf_priv(struct intf_priv *pintfpriv)
 {
 	pintfpriv->piorw_urb = usb_alloc_urb(0, GFP_ATOMIC);
