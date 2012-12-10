@@ -207,8 +207,8 @@ out:
 /*
  * write the buffer to the inline inode.
  * If 'create' is set, we don't need to do the extra copy in the xattr
- * value since it is already handled by ext4_xattr_ibody_set. That saves
- * us one memcpy.
+ * value since it is already handled by ext4_xattr_ibody_inline_set.
+ * That saves us one memcpy.
  */
 void ext4_write_inline_data(struct inode *inode, struct ext4_iloc *iloc,
 			    void *buffer, loff_t pos, unsigned int len)
@@ -285,7 +285,7 @@ static int ext4_create_inline_data(handle_t *handle,
 
 	BUG_ON(!is.s.not_found);
 
-	error = ext4_xattr_ibody_set(handle, inode, &i, &is);
+	error = ext4_xattr_ibody_inline_set(handle, inode, &i, &is);
 	if (error) {
 		if (error == -ENOSPC)
 			ext4_clear_inode_state(inode,
@@ -354,7 +354,7 @@ static int ext4_update_inline_data(handle_t *handle, struct inode *inode,
 	i.value = value;
 	i.value_len = len;
 
-	error = ext4_xattr_ibody_set(handle, inode, &i, &is);
+	error = ext4_xattr_ibody_inline_set(handle, inode, &i, &is);
 	if (error)
 		goto out;
 
@@ -427,7 +427,7 @@ static int ext4_destroy_inline_data_nolock(handle_t *handle,
 	if (error)
 		goto out;
 
-	error = ext4_xattr_ibody_set(handle, inode, &i, &is);
+	error = ext4_xattr_ibody_inline_set(handle, inode, &i, &is);
 	if (error)
 		goto out;
 
@@ -1714,4 +1714,42 @@ int ext4_inline_data_fiemap(struct inode *inode,
 out:
 	up_read(&EXT4_I(inode)->xattr_sem);
 	return (error < 0 ? error : 0);
+}
+
+/*
+ * Called during xattr set, and if we can sparse space 'needed',
+ * just create the extent tree evict the data to the outer block.
+ *
+ * We use jbd2 instead of page cache to move data to the 1st block
+ * so that the whole transaction can be committed as a whole and
+ * the data isn't lost because of the delayed page cache write.
+ */
+int ext4_try_to_evict_inline_data(handle_t *handle,
+				  struct inode *inode,
+				  int needed)
+{
+	int error;
+	struct ext4_xattr_entry *entry;
+	struct ext4_xattr_ibody_header *header;
+	struct ext4_inode *raw_inode;
+	struct ext4_iloc iloc;
+
+	error = ext4_get_inode_loc(inode, &iloc);
+	if (error)
+		return error;
+
+	raw_inode = ext4_raw_inode(&iloc);
+	header = IHDR(inode, raw_inode);
+	entry = (struct ext4_xattr_entry *)((void *)raw_inode +
+					    EXT4_I(inode)->i_inline_off);
+	if (EXT4_XATTR_LEN(entry->e_name_len) +
+	    EXT4_XATTR_SIZE(le32_to_cpu(entry->e_value_size)) < needed) {
+		error = -ENOSPC;
+		goto out;
+	}
+
+	error = ext4_convert_inline_data_nolock(handle, inode, &iloc);
+out:
+	brelse(iloc.bh);
+	return error;
 }
