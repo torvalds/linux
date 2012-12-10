@@ -121,11 +121,12 @@ static void ipoctal_irq_rx(struct ipoctal_channel *channel,
 			   struct tty_struct *tty, u8 sr)
 {
 	unsigned char value;
-	unsigned char flag = TTY_NORMAL;
+	unsigned char flag;
 	u8 isr;
 
 	do {
 		value = ioread8(&channel->regs->r.rhr);
+		flag = TTY_NORMAL;
 		/* Error: count statistics */
 		if (sr & SR_ERROR) {
 			iowrite8(CR_CMD_RESET_ERR_STATUS, &channel->regs->w.cr);
