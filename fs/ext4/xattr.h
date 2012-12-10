@@ -21,6 +21,7 @@
 #define EXT4_XATTR_INDEX_TRUSTED		4
 #define	EXT4_XATTR_INDEX_LUSTRE			5
 #define EXT4_XATTR_INDEX_SECURITY	        6
+#define EXT4_XATTR_INDEX_SYSTEM			7
 
 struct ext4_xattr_header {
 	__le32	h_magic;	/* magic number for identification */
@@ -125,6 +126,19 @@ extern int ext4_xattr_ibody_set(handle_t *handle, struct inode *inode,
 				struct ext4_xattr_info *i,
 				struct ext4_xattr_ibody_find *is);
 
+extern int ext4_has_inline_data(struct inode *inode);
+extern int ext4_get_inline_size(struct inode *inode);
+extern int ext4_get_max_inline_size(struct inode *inode);
+extern int ext4_find_inline_data_nolock(struct inode *inode);
+extern void ext4_write_inline_data(struct inode *inode,
+				   struct ext4_iloc *iloc,
+				   void *buffer, loff_t pos,
+				   unsigned int len);
+extern int ext4_prepare_inline_data(handle_t *handle, struct inode *inode,
+				    unsigned int len);
+extern int ext4_init_inline_data(handle_t *handle, struct inode *inode,
+				 unsigned int len);
+extern int ext4_destroy_inline_data(handle_t *handle, struct inode *inode);
 # else  /* CONFIG_EXT4_FS_XATTR */
 
 static inline int
@@ -201,6 +215,46 @@ ext4_xattr_ibody_get(struct inode *inode, int name_index,
 	return -EOPNOTSUPP;
 }
 
+static inline int ext4_find_inline_data_nolock(struct inode *inode)
+{
+	return 0;
+}
+
+static inline int ext4_has_inline_data(struct inode *inode)
+{
+	return 0;
+}
+
+static inline int ext4_get_inline_size(struct inode *inode)
+{
+	return 0;
+}
+
+static inline int ext4_get_max_inline_size(struct inode *inode)
+{
+	return 0;
+}
+
+static inline void ext4_write_inline_data(struct inode *inode,
+					  struct ext4_iloc *iloc,
+					  void *buffer, loff_t pos,
+					  unsigned int len)
+{
+	return;
+}
+
+static inline int ext4_init_inline_data(handle_t *handle,
+					struct inode *inode,
+					unsigned int len)
+{
+	return 0;
+}
+
+static inline int ext4_destroy_inline_data(handle_t *handle,
+					   struct inode *inode)
+{
+	return 0;
+}
 # endif  /* CONFIG_EXT4_FS_XATTR */
 
 #ifdef CONFIG_EXT4_FS_SECURITY
