@@ -640,7 +640,7 @@ static int __pn533_send_cmd_frame_async(struct pn533 *dev,
 	int rc;
 
 	nfc_dev_dbg(&dev->interface->dev, "Sending command 0x%x",
-						PN533_FRAME_CMD(out_frame));
+		    PN533_FRAME_CMD(out_frame));
 
 	dev->cmd = PN533_FRAME_CMD(out_frame);
 	dev->cmd_complete = cmd_complete;
@@ -1107,9 +1107,9 @@ static bool pn533_target_type_a_is_valid(struct pn533_target_type_a *type_a,
 	platconf = PN533_TYPE_A_SENS_RES_PLATCONF(type_a->sens_res);
 
 	if ((ssd == PN533_TYPE_A_SENS_RES_SSD_JEWEL &&
-			platconf != PN533_TYPE_A_SENS_RES_PLATCONF_JEWEL) ||
-			(ssd != PN533_TYPE_A_SENS_RES_SSD_JEWEL &&
-			platconf == PN533_TYPE_A_SENS_RES_PLATCONF_JEWEL))
+	     platconf != PN533_TYPE_A_SENS_RES_PLATCONF_JEWEL) ||
+	    (ssd != PN533_TYPE_A_SENS_RES_SSD_JEWEL &&
+	     platconf == PN533_TYPE_A_SENS_RES_PLATCONF_JEWEL))
 		return false;
 
 	/* Requirements 4.8.2.1, 4.8.2.3, 4.8.2.5 and 4.8.2.7 from NFC Forum */
@@ -1187,9 +1187,8 @@ static int pn533_target_found_felica(struct nfc_target *nfc_tgt, u8 *tgt_data,
 	if (!pn533_target_felica_is_valid(tgt_felica, tgt_data_len))
 		return -EPROTO;
 
-	if (tgt_felica->nfcid2[0] == PN533_FELICA_SENSF_NFCID2_DEP_B1 &&
-					tgt_felica->nfcid2[1] ==
-					PN533_FELICA_SENSF_NFCID2_DEP_B2)
+	if ((tgt_felica->nfcid2[0] == PN533_FELICA_SENSF_NFCID2_DEP_B1) &&
+	    (tgt_felica->nfcid2[1] == PN533_FELICA_SENSF_NFCID2_DEP_B2))
 		nfc_tgt->supported_protocols = NFC_PROTO_NFC_DEP_MASK;
 	else
 		nfc_tgt->supported_protocols = NFC_PROTO_FELICA_MASK;
@@ -1219,9 +1218,9 @@ static bool pn533_target_jewel_is_valid(struct pn533_target_jewel *jewel,
 	platconf = PN533_TYPE_A_SENS_RES_PLATCONF(jewel->sens_res);
 
 	if ((ssd == PN533_TYPE_A_SENS_RES_SSD_JEWEL &&
-			platconf != PN533_TYPE_A_SENS_RES_PLATCONF_JEWEL) ||
-			(ssd != PN533_TYPE_A_SENS_RES_SSD_JEWEL &&
-			platconf == PN533_TYPE_A_SENS_RES_PLATCONF_JEWEL))
+	     platconf != PN533_TYPE_A_SENS_RES_PLATCONF_JEWEL) ||
+	    (ssd != PN533_TYPE_A_SENS_RES_SSD_JEWEL &&
+	     platconf == PN533_TYPE_A_SENS_RES_PLATCONF_JEWEL))
 		return false;
 
 	return true;
@@ -1810,7 +1809,7 @@ static int pn533_activate_target(struct nfc_dev *nfc_dev,
 	int rc;
 
 	nfc_dev_dbg(&dev->interface->dev, "%s - protocol=%u", __func__,
-								protocol);
+		    protocol);
 
 	if (dev->poll_mod_count) {
 		nfc_dev_err(&dev->interface->dev,
@@ -1908,7 +1907,7 @@ static int pn533_in_dep_link_up_complete(struct pn533 *dev, void *arg,
 	if (dev->tgt_available_prots &&
 	    !(dev->tgt_available_prots & (1 << NFC_PROTO_NFC_DEP))) {
 		nfc_dev_err(&dev->interface->dev,
-			"The target does not support DEP");
+			    "The target does not support DEP");
 		rc =  -EINVAL;
 		goto error;
 	}
@@ -1918,7 +1917,7 @@ static int pn533_in_dep_link_up_complete(struct pn533 *dev, void *arg,
 	rc = rsp->status & PN533_CMD_RET_MASK;
 	if (rc != PN533_CMD_RET_SUCCESS) {
 		nfc_dev_err(&dev->interface->dev,
-				"Bringing DEP link up failed %d", rc);
+			    "Bringing DEP link up failed %d", rc);
 		goto error;
 	}
 
@@ -1982,13 +1981,13 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 
 	if (dev->poll_mod_count) {
 		nfc_dev_err(&dev->interface->dev,
-				"Cannot bring the DEP link up while polling");
+			    "Cannot bring the DEP link up while polling");
 		return -EBUSY;
 	}
 
 	if (dev->tgt_active_prot) {
 		nfc_dev_err(&dev->interface->dev,
-				"There is already an active target");
+			    "There is already an active target");
 		return -EBUSY;
 	}
 
@@ -2533,17 +2532,15 @@ static int pn533_probe(struct usb_interface *interface,
 	dev->out_frame = kmalloc(PN533_NORMAL_FRAME_MAX_LEN, GFP_KERNEL);
 	dev->out_urb = usb_alloc_urb(0, GFP_KERNEL);
 
-	if (!dev->in_frame || !dev->out_frame ||
-		!dev->in_urb || !dev->out_urb)
+	if (!dev->in_frame || !dev->out_frame || !dev->in_urb || !dev->out_urb)
 		goto error;
 
 	usb_fill_bulk_urb(dev->in_urb, dev->udev,
-			usb_rcvbulkpipe(dev->udev, in_endpoint),
-			NULL, 0, NULL, dev);
+			  usb_rcvbulkpipe(dev->udev, in_endpoint),
+			  NULL, 0, NULL, dev);
 	usb_fill_bulk_urb(dev->out_urb, dev->udev,
-			usb_sndbulkpipe(dev->udev, out_endpoint),
-			NULL, 0,
-			pn533_send_complete, dev);
+			  usb_sndbulkpipe(dev->udev, out_endpoint),
+			  NULL, 0, pn533_send_complete, dev);
 
 	INIT_WORK(&dev->cmd_work, pn533_wq_cmd);
 	INIT_WORK(&dev->cmd_complete_work, pn533_wq_cmd_complete);
