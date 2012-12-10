@@ -48,14 +48,10 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *v)
 	if (!irqchip_in_kernel(v->kvm))
 		return v->arch.interrupt.pending;
 
-	if (kvm_apic_has_interrupt(v) == -1) {	/* LAPIC */
-		if (kvm_apic_accept_pic_intr(v)) {
-			s = pic_irqchip(v->kvm);	/* PIC */
-			return s->output;
-		} else
-			return 0;
-	}
-	return 1;
+	if (kvm_apic_accept_pic_intr(v) && pic_irqchip(v->kvm)->output)
+		return pic_irqchip(v->kvm)->output;	/* PIC */
+
+	return kvm_apic_has_interrupt(v) != -1;	/* LAPIC */
 }
 EXPORT_SYMBOL_GPL(kvm_cpu_has_interrupt);
 
@@ -65,20 +61,14 @@ EXPORT_SYMBOL_GPL(kvm_cpu_has_interrupt);
 int kvm_cpu_get_interrupt(struct kvm_vcpu *v)
 {
 	struct kvm_pic *s;
-	int vector;
 
 	if (!irqchip_in_kernel(v->kvm))
 		return v->arch.interrupt.nr;
 
-	vector = kvm_get_apic_interrupt(v);	/* APIC */
-	if (vector == -1) {
-		if (kvm_apic_accept_pic_intr(v)) {
-			s = pic_irqchip(v->kvm);
-			s->output = 0;		/* PIC */
-			vector = kvm_pic_read_irq(v->kvm);
-		}
-	}
-	return vector;
+	if (kvm_apic_accept_pic_intr(v) && pic_irqchip(v->kvm)->output)
+		return kvm_pic_read_irq(v->kvm);	/* PIC */
+
+	return kvm_get_apic_interrupt(v);	/* APIC */
 }
 EXPORT_SYMBOL_GPL(kvm_cpu_get_interrupt);
 
