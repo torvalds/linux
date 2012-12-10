@@ -547,6 +547,7 @@ config ARCH_KIRKWOOD
 	select CPU_FEROCEON
 	select GENERIC_CLOCKEVENTS
 	select PCI
+	select PCI_QUIRKS
 	select PLAT_ORION_LEGACY
 	help
 	  Support for the following Marvell Kirkwood series SoCs:

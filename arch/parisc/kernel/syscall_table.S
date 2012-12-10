@@ -60,7 +60,7 @@
 	ENTRY_SAME(fork_wrapper)
 	ENTRY_SAME(read)
 	ENTRY_SAME(write)
-	ENTRY_SAME(open)		/* 5 */
+	ENTRY_COMP(open)		/* 5 */
 	ENTRY_SAME(close)
 	ENTRY_SAME(waitpid)
 	ENTRY_SAME(creat)

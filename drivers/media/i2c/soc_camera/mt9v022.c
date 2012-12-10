@@ -263,9 +263,14 @@ static int mt9v022_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 		if (ret & 1) /* Autoexposure */
 			ret = reg_write(client, mt9v022->reg->max_total_shutter_width,
 					rect.height + mt9v022->y_skip_top + 43);
-		else
-			ret = reg_write(client, MT9V022_TOTAL_SHUTTER_WIDTH,
-					rect.height + mt9v022->y_skip_top + 43);
+		/*
+		 * If autoexposure is off, there is no need to set
+		 * MT9V022_TOTAL_SHUTTER_WIDTH here. Autoexposure can be off
+		 * only if the user has set exposure manually, using the
+		 * V4L2_CID_EXPOSURE_AUTO with the value V4L2_EXPOSURE_MANUAL.
+		 * In this case the register MT9V022_TOTAL_SHUTTER_WIDTH
+		 * already contains the correct value.
+		 */
 	}
 	/* Setup frame format: defaults apart from width and height */
 	if (!ret)
