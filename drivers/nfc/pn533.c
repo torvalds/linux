@@ -94,7 +94,8 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 
 #define PN533_FRAME_SIZE(f) (sizeof(struct pn533_frame) + f->datalen + \
 				PN533_FRAME_TAIL_LEN)
-#define PN533_FRAME_ACK_SIZE (sizeof(struct pn533_frame) + 1)
+#define PN533_FRAME_ACK_SIZE 6 /* Preamble (1), SoPC (2), ACK Code (2),
+				  Postamble (1) */
 #define PN533_FRAME_CHECKSUM(f) (f->data[f->datalen])
 #define PN533_FRAME_POSTAMBLE(f) (f->data[f->datalen + 1])
 
@@ -402,26 +403,6 @@ static u8 pn533_data_checksum(u8 *data, int datalen)
 	return pn533_checksum(sum);
 }
 
-/**
- * pn533_tx_frame_ack - create a ack frame
- * @frame:	The frame to be set as ack
- *
- * Ack is different type of standard frame. As a standard frame, it has
- * preamble and start_frame. However the checksum of this frame must fail,
- * i.e. datalen + datalen_checksum must NOT be zero. When the checksum test
- * fails and datalen = 0 and datalen_checksum = 0xFF, the frame is a ack.
- * After datalen_checksum field, the postamble is placed.
- */
-static void pn533_tx_frame_ack(struct pn533_frame *frame)
-{
-	frame->preamble = 0;
-	frame->start_frame = cpu_to_be16(PN533_SOF);
-	frame->datalen = 0;
-	frame->datalen_checksum = 0xFF;
-	/* data[0] is used as postamble */
-	frame->data[0] = 0;
-}
-
 static void pn533_tx_frame_init(struct pn533_frame *frame, u8 cmd)
 {
 	frame->preamble = 0;
@@ -612,14 +593,14 @@ static int pn533_submit_urb_for_ack(struct pn533 *dev, gfp_t flags)
 
 static int pn533_send_ack(struct pn533 *dev, gfp_t flags)
 {
+	u8 ack[PN533_FRAME_ACK_SIZE] = {0x00, 0x00, 0xff, 0x00, 0xff, 0x00};
+	/* spec 7.1.1.3:  Preamble, SoPC (2), ACK Code (2), Postamble */
 	int rc;
 
 	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
 
-	pn533_tx_frame_ack(dev->out_frame);
-
-	dev->out_urb->transfer_buffer = dev->out_frame;
-	dev->out_urb->transfer_buffer_length = PN533_FRAME_ACK_SIZE;
+	dev->out_urb->transfer_buffer = ack;
+	dev->out_urb->transfer_buffer_length = sizeof(ack);
 	rc = usb_submit_urb(dev->out_urb, flags);
 
 	return rc;
