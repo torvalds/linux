@@ -392,7 +392,7 @@ typedef struct __device_opt {
 } OPTIONS, *POPTIONS;
 
 
-typedef struct __device_info {
+typedef struct vnt_private {
 
 // netdev
 	struct usb_device*          usb;
@@ -525,6 +525,7 @@ typedef struct __device_info {
 
 
     // 802.11 management
+	struct vnt_manager vnt_mgmt;
     SMgmtObject                 sMgmtObj;
 
 	u64 qwCurrTSF;

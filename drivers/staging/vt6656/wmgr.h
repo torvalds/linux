@@ -218,8 +218,8 @@ typedef enum tagWMAC_POWER_MODE {
 
 
 
-// Tx Management Packet descriptor
-typedef struct tagSTxMgmtPacket {
+/* Tx Management Packet descriptor */
+typedef struct vnt_tx_mgmt {
 
     PUWLAN_80211HDR     p80211Header;
     unsigned int                cbMPDULen;
@@ -228,8 +228,8 @@ typedef struct tagSTxMgmtPacket {
 } STxMgmtPacket, *PSTxMgmtPacket;
 
 
-// Rx Management Packet descriptor
-typedef struct tagSRxMgmtPacket {
+/* Rx Management Packet descriptor */
+typedef struct vnt_rx_mgmt {
 
     PUWLAN_80211HDR     p80211Header;
 	u64 qwLocalTSF;
@@ -244,7 +244,7 @@ typedef struct tagSRxMgmtPacket {
 
 
 
-typedef struct tagSMgmtObject
+typedef struct vnt_manager
 {
 	void *pAdapter;
     // MAC address
