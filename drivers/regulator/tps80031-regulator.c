@@ -1,7 +1,7 @@
 /*
  * tps80031-regulator.c -- TI TPS80031 regulator driver.
  *
- * Regulator driver for TITPS80031/TPS80032 Fully Integrated Power
+ * Regulator driver for TI TPS80031/TPS80032 Fully Integrated Power
  * Management with Power Path and Battery Charger.
  *
  * Copyright (c) 2012, NVIDIA Corporation.
@@ -284,14 +284,6 @@ static int tps80031_ldo_get_voltage_sel(struct regulator_dev *rdev)
 	return vsel & rdev->desc->vsel_mask;
 }
 
-static int tps80031_ldo_list_voltage(struct regulator_dev *rdev, unsigned sel)
-{
-	if (sel == 0)
-		return 0;
-	else
-		return regulator_list_voltage_linear(rdev, sel - 1);
-}
-
 static int tps80031_vbus_is_enabled(struct regulator_dev *rdev)
 {
 	struct tps80031_regulator *ri = rdev_get_drvdata(rdev);
@@ -311,7 +303,7 @@ static int tps80031_vbus_is_enabled(struct regulator_dev *rdev)
 				TPS80031_CHARGERUSB_CTRL3, &ctrl3);
 	if (ret < 0) {
 		dev_err(ri->dev, "reg 0x%02x read failed, e = %d\n",
-			TPS80031_CHARGERUSB_CTRL1, ret);
+			TPS80031_CHARGERUSB_CTRL3, ret);
 		return ret;
 	}
 	if ((ctrl1 & OPA_MODE_EN) && (ctrl3 & BOOST_HW_PWR_EN))
@@ -398,7 +390,7 @@ static struct regulator_ops tps80031_dcdc_ops = {
 };
 
 static struct regulator_ops tps80031_ldo_ops = {
-	.list_voltage		= tps80031_ldo_list_voltage,
+	.list_voltage		= regulator_list_voltage_linear,
 	.set_voltage_sel	= tps80031_ldo_set_voltage_sel,
 	.get_voltage_sel	= tps80031_ldo_get_voltage_sel,
 	.enable			= tps80031_reg_enable,
@@ -407,15 +399,18 @@ static struct regulator_ops tps80031_ldo_ops = {
 };
 
 static struct regulator_ops tps80031_vbus_sw_ops = {
+	.list_voltage	= regulator_list_voltage_linear,
 	.enable		= tps80031_vbus_enable,
 	.disable	= tps80031_vbus_disable,
 	.is_enabled	= tps80031_vbus_is_enabled,
 };
 
 static struct regulator_ops tps80031_vbus_hw_ops = {
+	.list_voltage	= regulator_list_voltage_linear,
 };
 
 static struct regulator_ops tps80031_ext_reg_ops = {
+	.list_voltage	= regulator_list_voltage_linear,
 	.enable		= tps80031_reg_enable,
 	.disable	= tps80031_reg_disable,
 	.is_enabled	= tps80031_reg_is_enabled,
@@ -462,6 +457,7 @@ static struct regulator_ops tps80031_ext_reg_ops = {
 		.type = REGULATOR_VOLTAGE,			\
 		.min_uV = 1000000,				\
 		.uV_step = 100000,				\
+		.linear_min_sel = 1,				\
 		.n_voltages = 25,				\
 		.vsel_mask = LDO_VSEL_MASK,			\
 		.enable_time = 500,				\
@@ -477,7 +473,8 @@ static struct regulator_ops tps80031_ext_reg_ops = {
 	.desc = {						\
 		.name = "tps80031_"#_id,			\
 		.id = TPS80031_REGULATOR_##_id,			\
-		.n_voltages = 2,				\
+		.min_uV = max_mV * 1000,			\
+		.n_voltages = 1,				\
 		.ops = &_ops,					\
 		.type = REGULATOR_VOLTAGE,			\
 		.owner = THIS_MODULE,				\
@@ -679,7 +676,6 @@ static int tps80031_regulator_probe(struct platform_device *pdev)
 {
 	struct tps80031_platform_data *pdata;
 	struct tps80031_regulator_platform_data *tps_pdata;
-	struct tps80031_regulator_info *rinfo;
 	struct tps80031_regulator *ri;
 	struct tps80031_regulator *pmic;
 	struct regulator_dev *rdev;
@@ -703,9 +699,8 @@ static int tps80031_regulator_probe(struct platform_device *pdev)
 
 	for (num = 0; num < TPS80031_REGULATOR_MAX; ++num) {
 		tps_pdata = pdata->regulator_pdata[num];
-		rinfo = &tps80031_rinfo[num];
 		ri = &pmic[num];
-		ri->rinfo = rinfo;
+		ri->rinfo = &tps80031_rinfo[num];
 		ri->dev = &pdev->dev;
 
 		check_smps_mode_mult(pdev->dev.parent, ri);
@@ -788,6 +783,6 @@ static void __exit tps80031_regulator_exit(void)
 module_exit(tps80031_regulator_exit);
 
 MODULE_ALIAS("platform:tps80031-regulator");
-MODULE_DESCRIPTION("Regulator Driver for TI TPS80031 PMIC");
+MODULE_DESCRIPTION("Regulator Driver for TI TPS80031/TPS80032 PMIC");
 MODULE_AUTHOR("Laxman Dewangan <ldewangan@nvidia.com>");
 MODULE_LICENSE("GPL v2");
