@@ -113,12 +113,29 @@ void ath9k_hw_usb_gen_fill_eeprom(struct ath_hw *ah, u16 *eep_data,
 	}
 }
 
+static bool ath9k_hw_nvram_read_blob(struct ath_hw *ah, u32 off,
+				     u16 *data)
+{
+	u16 *blob_data;
+
+	if (off * sizeof(u16) > ah->eeprom_blob->size)
+		return false;
+
+	blob_data = (u16 *)ah->eeprom_blob->data;
+	*data =  blob_data[off];
+	return true;
+}
+
 bool ath9k_hw_nvram_read(struct ath_hw *ah, u32 off, u16 *data)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	bool ret;
 
-	ret = common->bus_ops->eeprom_read(common, off, data);
+	if (ah->eeprom_blob)
+		ret = ath9k_hw_nvram_read_blob(ah, off, data);
+	else
+		ret = common->bus_ops->eeprom_read(common, off, data);
+
 	if (!ret)
 		ath_dbg(common, EEPROM,
 			"unable to read eeprom region at offset %u\n", off);
