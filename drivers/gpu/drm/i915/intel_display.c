@@ -6789,8 +6789,10 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 		intel_encoder->new_crtc = NULL;
 		intel_set_mode(crtc, NULL, 0, 0, NULL);
 
-		if (old->release_fb)
-			old->release_fb->funcs->destroy(old->release_fb);
+		if (old->release_fb) {
+			drm_framebuffer_unregister_private(old->release_fb);
+			drm_framebuffer_unreference(old->release_fb);
+		}
 
 		return;
 	}

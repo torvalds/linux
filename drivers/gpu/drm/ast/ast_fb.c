@@ -290,6 +290,7 @@ static void ast_fbdev_destroy(struct drm_device *dev,
 	drm_fb_helper_fini(&afbdev->helper);
 
 	vfree(afbdev->sysram);
+	drm_framebuffer_unregister_private(&afb->base);
 	drm_framebuffer_cleanup(&afb->base);
 }
 

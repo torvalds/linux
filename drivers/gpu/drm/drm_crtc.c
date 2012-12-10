@@ -68,6 +68,7 @@ void drm_modeset_unlock_all(struct drm_device *dev)
 
 	mutex_unlock(&dev->mode_config.mutex);
 }
+
 EXPORT_SYMBOL(drm_modeset_unlock_all);
 
 /* Avoid boilerplate.  I'm tired of typing. */
@@ -430,11 +431,34 @@ void drm_framebuffer_reference(struct drm_framebuffer *fb)
 EXPORT_SYMBOL(drm_framebuffer_reference);
 
 /**
+ * drm_framebuffer_unregister_private - unregister a private fb from the lookup idr
+ * @fb: fb to unregister
+ *
+ * Drivers need to call this when cleaning up driver-private framebuffers, e.g.
+ * those used for fbdev. Note that the caller must hold a reference of it's own,
+ * i.e. the object may not be destroyed through this call (since it'll lead to a
+ * locking inversion).
+ */
+void drm_framebuffer_unregister_private(struct drm_framebuffer *fb)
+{
+}
+EXPORT_SYMBOL(drm_framebuffer_unregister_private);
+
+/**
  * drm_framebuffer_cleanup - remove a framebuffer object
  * @fb: framebuffer to remove
  *
- * Scans all the CRTCs in @dev's mode_config.  If they're using @fb, removes
- * it, setting it to NULL.
+ * Cleanup references to a user-created framebuffer. This function is intended
+ * to be used from the drivers ->destroy callback.
+ *
+ * Note that this function does not remove the fb from active usuage - if it is
+ * still used anywhere, hilarity can ensue since userspace could call getfb on
+ * the id and get back -EINVAL. Obviously no concern at driver unload time.
+ *
+ * Also, the framebuffer will not be removed from the lookup idr - for
+ * user-created framebuffers this will happen in in the rmfb ioctl. For
+ * driver-private objects (e.g. for fbdev) drivers need to explicitly call
+ * drm_framebuffer_unregister_private.
  */
 void drm_framebuffer_cleanup(struct drm_framebuffer *fb)
 {
@@ -460,7 +484,8 @@ EXPORT_SYMBOL(drm_framebuffer_cleanup);
  * @fb: framebuffer to remove
  *
  * Scans all the CRTCs and planes in @dev's mode_config.  If they're
- * using @fb, removes it, setting it to NULL.
+ * using @fb, removes it, setting it to NULL. Then drops the reference to the
+ * passed-in framebuffer.
  */
 void drm_framebuffer_remove(struct drm_framebuffer *fb)
 {

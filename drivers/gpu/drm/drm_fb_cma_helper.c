@@ -266,6 +266,7 @@ static int drm_fbdev_cma_create(struct drm_fb_helper *helper,
 	return 0;
 
 err_drm_fb_cma_destroy:
+	drm_framebuffer_unregister_private(fb);
 	drm_fb_cma_destroy(fb);
 err_framebuffer_release:
 	framebuffer_release(fbi);
@@ -370,8 +371,10 @@ void drm_fbdev_cma_fini(struct drm_fbdev_cma *fbdev_cma)
 		framebuffer_release(info);
 	}
 
-	if (fbdev_cma->fb)
+	if (fbdev_cma->fb) {
+		drm_framebuffer_unregister_private(&fbdev_cma->fb->fb);
 		drm_fb_cma_destroy(&fbdev_cma->fb->fb);
+	}
 
 	drm_fb_helper_fini(&fbdev_cma->fb_helper);
 	kfree(fbdev_cma);
