@@ -327,8 +327,6 @@ struct pn533 {
 	struct nfc_dev *nfc_dev;
 
 	struct urb *out_urb;
-	struct pn533_frame *out_frame;
-
 	struct urb *in_urb;
 
 	struct sk_buff_head resp_q;
@@ -2427,10 +2425,9 @@ static int pn533_probe(struct usb_interface *interface,
 	}
 
 	dev->in_urb = usb_alloc_urb(0, GFP_KERNEL);
-	dev->out_frame = kmalloc(PN533_NORMAL_FRAME_MAX_LEN, GFP_KERNEL);
 	dev->out_urb = usb_alloc_urb(0, GFP_KERNEL);
 
-	if (!dev->out_frame || !dev->in_urb || !dev->out_urb)
+	if (!dev->in_urb || !dev->out_urb)
 		goto error;
 
 	usb_fill_bulk_urb(dev->in_urb, dev->udev,
@@ -2515,7 +2512,6 @@ destroy_wq:
 	destroy_workqueue(dev->wq);
 error:
 	usb_free_urb(dev->in_urb);
-	kfree(dev->out_frame);
 	usb_free_urb(dev->out_urb);
 	kfree(dev);
 	return rc;
@@ -2547,7 +2543,6 @@ static void pn533_disconnect(struct usb_interface *interface)
 	}
 
 	usb_free_urb(dev->in_urb);
-	kfree(dev->out_frame);
 	usb_free_urb(dev->out_urb);
 	kfree(dev);
 
