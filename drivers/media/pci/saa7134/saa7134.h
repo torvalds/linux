@@ -29,6 +29,7 @@
 #include <linux/notifier.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
+#include <linux/pm_qos.h>
 
 #include <asm/io.h>
 
@@ -469,6 +470,7 @@ struct saa7134_fh {
 	enum v4l2_buf_type         type;
 	unsigned int               resources;
 	enum v4l2_priority	   prio;
+	struct pm_qos_request	   qos_request;
 
 	/* video overlay */
 	struct v4l2_window         win;
