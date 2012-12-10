@@ -119,7 +119,8 @@ bool ath9k_hw_nvram_read(struct ath_common *common, u32 off, u16 *data)
 
 	ret = common->bus_ops->eeprom_read(common, off, data);
 	if (!ret)
-		ath_dbg(common, EEPROM, "Unable to read eeprom region\n");
+		ath_dbg(common, EEPROM,
+			"unable to read eeprom region at offset %u\n", off);
 
 	return ret;
 }
