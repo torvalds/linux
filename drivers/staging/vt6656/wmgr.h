@@ -220,32 +220,26 @@ typedef enum tagWMAC_POWER_MODE {
 
 /* Tx Management Packet descriptor */
 typedef struct vnt_tx_mgmt {
-
-    PUWLAN_80211HDR     p80211Header;
-    unsigned int                cbMPDULen;
-    unsigned int                cbPayloadLen;
-
+	PUWLAN_80211HDR p80211Header;
+	u32 cbMPDULen;
+	u32 cbPayloadLen;
 } STxMgmtPacket, *PSTxMgmtPacket;
 
 
 /* Rx Management Packet descriptor */
 typedef struct vnt_rx_mgmt {
-
-    PUWLAN_80211HDR     p80211Header;
+	PUWLAN_80211HDR p80211Header;
 	u64 qwLocalTSF;
-    unsigned int                cbMPDULen;
-    unsigned int                cbPayloadLen;
-    unsigned int                uRSSI;
-    BYTE                bySQ;
-    BYTE                byRxRate;
-    BYTE                byRxChannel;
-
+	u32 cbMPDULen;
+	u32 cbPayloadLen;
+	u32 uRSSI;
+	u8 bySQ;
+	u8 byRxRate;
+	u8 byRxChannel;
 } SRxMgmtPacket, *PSRxMgmtPacket;
 
 
-
-typedef struct vnt_manager
-{
+typedef struct vnt_manager {
 	void *pAdapter;
     // MAC address
     BYTE                    abyMACAddr[WLAN_ADDR_LEN];
@@ -334,7 +328,8 @@ typedef struct vnt_manager
     WORD                    wCountToWakeUp;
     BOOL                    bInTIMWake;
     PBYTE                   pbyPSPacketPool;
-    BYTE                    byPSPacketPool[sizeof(STxMgmtPacket) + WLAN_NULLDATA_FR_MAXLEN];
+	u8 byPSPacketPool[sizeof(struct vnt_tx_mgmt)
+		+ WLAN_NULLDATA_FR_MAXLEN];
     BOOL                    bRxBeaconInTBTTWake;
     BYTE                    abyPSTxMap[MAX_NODE_NUM + 1];
 
@@ -344,14 +339,15 @@ typedef struct vnt_manager
 
     // management packet pool
     PBYTE                   pbyMgmtPacketPool;
-    BYTE                    byMgmtPacketPool[sizeof(STxMgmtPacket) + WLAN_A3FR_MAXLEN];
+	u8 byMgmtPacketPool[sizeof(struct vnt_tx_mgmt)
+		+ WLAN_A3FR_MAXLEN];
 
 
     // One second callback timer
 	struct timer_list	    sTimerSecondCallback;
 
-    // Temporarily Rx Mgmt Packet Descriptor
-    SRxMgmtPacket           sRxPacket;
+	/* Temporarily Rx Mgmt Packet Descriptor */
+	struct vnt_rx_mgmt sRxPacket;
 
     // link list of known bss's (scan results)
     KnownBSS                sBSSList[MAX_BSS_NUM];
@@ -385,8 +381,10 @@ typedef struct vnt_manager
     BYTE                    byNewChannel;
     PWLAN_IE_MEASURE_REP    pCurrMeasureEIDRep;
     unsigned int                    uLengthOfRepEIDs;
-    BYTE                    abyCurrentMSRReq[sizeof(STxMgmtPacket) + WLAN_A3FR_MAXLEN];
-    BYTE                    abyCurrentMSRRep[sizeof(STxMgmtPacket) + WLAN_A3FR_MAXLEN];
+	u8 abyCurrentMSRReq[sizeof(struct vnt_tx_mgmt)
+		+ WLAN_A3FR_MAXLEN];
+	u8 abyCurrentMSRRep[sizeof(struct vnt_tx_mgmt)
+		+ WLAN_A3FR_MAXLEN];
     BYTE                    abyIECountry[WLAN_A3FR_MAXLEN];
     BYTE                    abyIBSSDFSOwner[6];
     BYTE                    byIBSSDFSRecovery;
@@ -399,35 +397,29 @@ typedef struct vnt_manager
 
 /*---------------------  Export Functions  --------------------------*/
 
-void vMgrObjectInit(void *hDeviceContext);
+void vMgrObjectInit(struct vnt_private *pDevice);
 
-void vMgrAssocBeginSta(void *hDeviceContext,
-		       PSMgmtObject pMgmt,
-		       PCMD_STATUS pStatus);
+void vMgrAssocBeginSta(struct vnt_private *pDevice,
+		struct vnt_manager *, PCMD_STATUS pStatus);
 
-void vMgrReAssocBeginSta(void *hDeviceContext,
-			 PSMgmtObject pMgmt,
-			 PCMD_STATUS pStatus);
+void vMgrReAssocBeginSta(struct vnt_private *pDevice,
+		struct vnt_manager *, PCMD_STATUS pStatus);
 
-void vMgrDisassocBeginSta(void *hDeviceContext,
-			  PSMgmtObject pMgmt,
-			  PBYTE abyDestAddress,
-			  WORD wReason,
-			  PCMD_STATUS pStatus);
+void vMgrDisassocBeginSta(struct vnt_private *pDevice,
+	struct vnt_manager *, u8 *abyDestAddress, u16 wReason,
+	PCMD_STATUS pStatus);
 
-void vMgrAuthenBeginSta(void *hDeviceContext,
-			PSMgmtObject pMgmt,
-			PCMD_STATUS pStatus);
+void vMgrAuthenBeginSta(struct vnt_private *pDevice,
+	struct vnt_manager *, PCMD_STATUS pStatus);
 
-void vMgrCreateOwnIBSS(void *hDeviceContext,
-		       PCMD_STATUS pStatus);
+void vMgrCreateOwnIBSS(struct vnt_private *pDevice,
+	PCMD_STATUS pStatus);
 
-void vMgrJoinBSSBegin(void *hDeviceContext,
-		      PCMD_STATUS pStatus);
+void vMgrJoinBSSBegin(struct vnt_private *pDevice,
+	PCMD_STATUS pStatus);
 
-void vMgrRxManagePacket(void *hDeviceContext,
-			PSMgmtObject pMgmt,
-			PSRxMgmtPacket pRxPacket);
+void vMgrRxManagePacket(struct vnt_private *pDevice,
+	struct vnt_manager *, struct vnt_rx_mgmt *);
 
 /*
 void
@@ -437,19 +429,16 @@ vMgrScanBegin(
     );
 */
 
-void vMgrDeAuthenBeginSta(void *hDeviceContext,
-			  PSMgmtObject pMgmt,
-			  PBYTE abyDestAddress,
-			  WORD wReason,
-			  PCMD_STATUS pStatus);
+void vMgrDeAuthenBeginSta(struct vnt_private *pDevice,
+	struct vnt_manager *, u8 *abyDestAddress, u16 wReason,
+	PCMD_STATUS pStatus);
 
-BOOL bMgrPrepareBeaconToSend(void *hDeviceContext,
-			     PSMgmtObject pMgmt);
+int bMgrPrepareBeaconToSend(struct vnt_private *pDevice,
+	struct vnt_manager *);
 
-BOOL bAdd_PMKID_Candidate(void *hDeviceContext,
-			  PBYTE pbyBSSID,
-			  PSRSNCapObject psRSNCapObj);
+int bAdd_PMKID_Candidate(struct vnt_private *pDevice,
+	u8 *pbyBSSID, PSRSNCapObject psRSNCapObj);
 
-void vFlush_PMKID_Candidate(void *hDeviceContext);
+void vFlush_PMKID_Candidate(struct vnt_private *pDevice);
 
 #endif /* __WMGR_H__ */
