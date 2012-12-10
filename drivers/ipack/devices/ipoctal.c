@@ -20,7 +20,6 @@
 #include <linux/serial.h>
 #include <linux/tty_flip.h>
 #include <linux/slab.h>
-#include <linux/atomic.h>
 #include <linux/io.h>
 #include <linux/ipack.h>
 #include "ipoctal.h"
@@ -42,7 +41,6 @@ struct ipoctal_channel {
 	union scc2698_channel __iomem	*regs;
 	union scc2698_block __iomem	*block_regs;
 	unsigned int			board_id;
-	unsigned char			*board_write;
 	u8				isr_rx_rdy_mask;
 	u8				isr_tx_rdy_mask;
 };
@@ -51,7 +49,6 @@ struct ipoctal {
 	struct ipack_device		*dev;
 	unsigned int			board_id;
 	struct ipoctal_channel		channel[NR_CHANNELS];
-	unsigned char			write;
 	struct tty_driver		*tty_drv;
 	u8 __iomem			*mem8_space;
 	u8 __iomem			*int_space;
@@ -181,10 +178,8 @@ static void ipoctal_irq_tx(struct ipoctal_channel *channel)
 	channel->nb_bytes--;
 
 	if (channel->nb_bytes == 0 &&
-	    channel->board_id != IPACK1_DEVICE_ID_SBS_OCTAL_485) {
-		*channel->board_write = 1;
-		wake_up_interruptible(&channel->queue);
-	}
+	    channel->board_id != IPACK1_DEVICE_ID_SBS_OCTAL_485)
+		iowrite8(CR_DISABLE_TX, &channel->regs->w.cr);
 }
 
 static void ipoctal_irq_channel(struct ipoctal_channel *channel)
@@ -207,8 +202,7 @@ static void ipoctal_irq_channel(struct ipoctal_channel *channel)
 		iowrite8(CR_DISABLE_TX, &channel->regs->w.cr);
 		iowrite8(CR_CMD_NEGATE_RTSN, &channel->regs->w.cr);
 		iowrite8(CR_ENABLE_RX, &channel->regs->w.cr);
-		*channel->board_write = 1;
-		wake_up_interruptible(&channel->queue);
+		iowrite8(CR_DISABLE_TX, &channel->regs->w.cr);
 	}
 
 	/* RX data */
@@ -302,7 +296,6 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 		struct ipoctal_channel *channel = &ipoctal->channel[i];
 		channel->regs = chan_regs + i;
 		channel->block_regs = block_regs + (i >> 1);
-		channel->board_write = &ipoctal->write;
 		channel->board_id = ipoctal->board_id;
 		if (i & 1) {
 			channel->isr_tx_rdy_mask = ISR_TxRDY_B;
@@ -385,8 +378,6 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 
 		ipoctal_reset_stats(&channel->stats);
 		channel->nb_bytes = 0;
-		init_waitqueue_head(&channel->queue);
-
 		spin_lock_init(&channel->lock);
 		channel->pointer_read = 0;
 		channel->pointer_write = 0;
@@ -450,10 +441,6 @@ static int ipoctal_write_tty(struct tty_struct *tty,
 	 * operations
 	 */
 	iowrite8(CR_ENABLE_TX, &channel->regs->w.cr);
-	wait_event_interruptible(channel->queue, *channel->board_write);
-	iowrite8(CR_DISABLE_TX, &channel->regs->w.cr);
-
-	*channel->board_write = 0;
 	return char_copied;
 }
 
