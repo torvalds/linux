@@ -1565,6 +1565,96 @@ out:
 	return err;
 }
 
+/*
+ * Get the inline dentry at offset.
+ */
+static inline struct ext4_dir_entry_2 *
+ext4_get_inline_entry(struct inode *inode,
+		      struct ext4_iloc *iloc,
+		      unsigned int offset,
+		      void **inline_start,
+		      int *inline_size)
+{
+	void *inline_pos;
+
+	BUG_ON(offset > ext4_get_inline_size(inode));
+
+	if (offset < EXT4_MIN_INLINE_DATA_SIZE) {
+		inline_pos = (void *)ext4_raw_inode(iloc)->i_block;
+		*inline_size = EXT4_MIN_INLINE_DATA_SIZE;
+	} else {
+		inline_pos = ext4_get_inline_xattr_pos(inode, iloc);
+		offset -= EXT4_MIN_INLINE_DATA_SIZE;
+		*inline_size = ext4_get_inline_size(inode) -
+				EXT4_MIN_INLINE_DATA_SIZE;
+	}
+
+	if (inline_start)
+		*inline_start = inline_pos;
+	return (struct ext4_dir_entry_2 *)(inline_pos + offset);
+}
+
+int empty_inline_dir(struct inode *dir, int *has_inline_data)
+{
+	int err, inline_size;
+	struct ext4_iloc iloc;
+	void *inline_pos;
+	unsigned int offset;
+	struct ext4_dir_entry_2 *de;
+	int ret = 1;
+
+	err = ext4_get_inode_loc(dir, &iloc);
+	if (err) {
+		EXT4_ERROR_INODE(dir, "error %d getting inode %lu block",
+				 err, dir->i_ino);
+		return 1;
+	}
+
+	down_read(&EXT4_I(dir)->xattr_sem);
+	if (!ext4_has_inline_data(dir)) {
+		*has_inline_data = 0;
+		goto out;
+	}
+
+	de = (struct ext4_dir_entry_2 *)ext4_raw_inode(&iloc)->i_block;
+	if (!le32_to_cpu(de->inode)) {
+		ext4_warning(dir->i_sb,
+			     "bad inline directory (dir #%lu) - no `..'",
+			     dir->i_ino);
+		ret = 1;
+		goto out;
+	}
+
+	offset = EXT4_INLINE_DOTDOT_SIZE;
+	while (offset < dir->i_size) {
+		de = ext4_get_inline_entry(dir, &iloc, offset,
+					   &inline_pos, &inline_size);
+		if (ext4_check_dir_entry(dir, NULL, de,
+					 iloc.bh, inline_pos,
+					 inline_size, offset)) {
+			ext4_warning(dir->i_sb,
+				     "bad inline directory (dir #%lu) - "
+				     "inode %u, rec_len %u, name_len %d"
+				     "inline size %d\n",
+				     dir->i_ino, le32_to_cpu(de->inode),
+				     le16_to_cpu(de->rec_len), de->name_len,
+				     inline_size);
+			ret = 1;
+			goto out;
+		}
+		if (le32_to_cpu(de->inode)) {
+			ret = 0;
+			goto out;
+		}
+		offset += ext4_rec_len_from_disk(de->rec_len, inline_size);
+	}
+
+out:
+	up_read(&EXT4_I(dir)->xattr_sem);
+	brelse(iloc.bh);
+	return ret;
+}
+
 int ext4_destroy_inline_data(handle_t *handle, struct inode *inode)
 {
 	int ret;
