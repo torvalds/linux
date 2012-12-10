@@ -225,26 +225,27 @@ static void device_set_multi(struct net_device *dev);
 static int  device_close(struct net_device *dev);
 static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 
-static BOOL device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType);
-static BOOL device_init_defrag_cb(PSDevice pDevice);
-static void device_init_diversity_timer(PSDevice pDevice);
+static int device_init_registers(struct vnt_private *pDevice,
+	DEVICE_INIT_TYPE InitType);
+static BOOL device_init_defrag_cb(struct vnt_private *pDevice);
+static void device_init_diversity_timer(struct vnt_private *pDevice);
 static int  device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev);
 
 static int  ethtool_ioctl(struct net_device *dev, void *useraddr);
-static void device_free_tx_bufs(PSDevice pDevice);
-static void device_free_rx_bufs(PSDevice pDevice);
-static void device_free_int_bufs(PSDevice pDevice);
-static void device_free_frag_bufs(PSDevice pDevice);
-static BOOL device_alloc_bufs(PSDevice pDevice);
+static void device_free_tx_bufs(struct vnt_private *pDevice);
+static void device_free_rx_bufs(struct vnt_private *pDevice);
+static void device_free_int_bufs(struct vnt_private *pDevice);
+static void device_free_frag_bufs(struct vnt_private *pDevice);
+static BOOL device_alloc_bufs(struct vnt_private *pDevice);
 
-static int Read_config_file(PSDevice pDevice);
-static unsigned char *Config_FileOperation(PSDevice pDevice);
+static int Read_config_file(struct vnt_private *pDevice);
+static unsigned char *Config_FileOperation(struct vnt_private *pDevice);
 static int Config_FileGetParameter(unsigned char *string,
 				   unsigned char *dest,
 				   unsigned char *source);
 
 
-static void usb_device_reset(PSDevice pDevice);
+static void usb_device_reset(struct vnt_private *pDevice);
 
 
 
@@ -254,7 +255,7 @@ static void usb_device_reset(PSDevice pDevice);
 
 
 static void
-device_set_options(PSDevice pDevice) {
+device_set_options(struct vnt_private *pDevice) {
 
     BYTE    abyBroadcastAddr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
     BYTE    abySNAP_RFC1042[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00};
@@ -292,7 +293,7 @@ device_set_options(PSDevice pDevice) {
 }
 
 
-static void device_init_diversity_timer(PSDevice pDevice)
+static void device_init_diversity_timer(struct vnt_private *pDevice)
 {
     init_timer(&pDevice->TimerSQ3Tmax1);
     pDevice->TimerSQ3Tmax1.data = (unsigned long)pDevice;
@@ -317,21 +318,21 @@ static void device_init_diversity_timer(PSDevice pDevice)
 // Initialization of MAC & BBP registers
 //
 
-static BOOL device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
+static int device_init_registers(struct vnt_private *pDevice,
+	DEVICE_INIT_TYPE InitType)
 {
-    u8 abyBroadcastAddr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-    u8 abySNAP_RFC1042[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00};
-    u8 abySNAP_Bridgetunnel[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0xF8};
-    BYTE            byAntenna;
-    unsigned int            ii;
-    CMD_CARD_INIT   sInitCmd;
-    int ntStatus = STATUS_SUCCESS;
-    RSP_CARD_INIT   sInitRsp;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    BYTE            byTmp;
-    BYTE            byCalibTXIQ = 0;
-    BYTE            byCalibTXDC = 0;
-    BYTE            byCalibRXIQ = 0;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	u8 abyBroadcastAddr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	u8 abySNAP_RFC1042[ETH_ALEN] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
+	u8 abySNAP_Bridgetunnel[ETH_ALEN]
+		= {0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8};
+	u8 byAntenna;
+	int ii;
+	CMD_CARD_INIT sInitCmd;
+	int ntStatus = STATUS_SUCCESS;
+	RSP_CARD_INIT   sInitRsp;
+	u8 byTmp;
+	u8 byCalibTXIQ = 0, byCalibTXDC = 0, byCalibRXIQ = 0;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "---->INIbInitAdapter. [%d][%d]\n", InitType, pDevice->byPacketType);
 	spin_lock_irq(&pDevice->lock);
@@ -636,7 +637,7 @@ static BOOL device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 
 static int vt6656_suspend(struct usb_interface *intf, pm_message_t message)
 {
-	PSDevice device = usb_get_intfdata(intf);
+	struct vnt_private *device = usb_get_intfdata(intf);
 
 	if (!device || !device->dev)
 		return -ENODEV;
@@ -651,7 +652,7 @@ static int vt6656_suspend(struct usb_interface *intf, pm_message_t message)
 
 static int vt6656_resume(struct usb_interface *intf)
 {
-	PSDevice device = usb_get_intfdata(intf);
+	struct vnt_private *device = usb_get_intfdata(intf);
 
 	if (!device || !device->dev)
 		return -ENODEV;
@@ -682,13 +683,13 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	struct usb_device *udev = interface_to_usbdev(intf);
 	int rc = 0;
 	struct net_device *netdev = NULL;
-	PSDevice pDevice = NULL;
+	struct vnt_private *pDevice;
 
 	printk(KERN_NOTICE "%s Ver. %s\n", DEVICE_FULL_DRV_NAM, DEVICE_VERSION);
 	printk(KERN_NOTICE "Copyright (c) 2004 VIA Networking Technologies, Inc.\n");
 
 	udev = usb_get_dev(udev);
-	netdev = alloc_etherdev(sizeof(DEVICE_INFO));
+	netdev = alloc_etherdev(sizeof(struct vnt_private));
 	if (!netdev) {
 		printk(KERN_ERR DEVICE_NAME ": allocate net device failed\n");
 		rc = -ENOMEM;
@@ -696,7 +697,7 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	}
 
 	pDevice = netdev_priv(netdev);
-	memset(pDevice, 0, sizeof(DEVICE_INFO));
+	memset(pDevice, 0, sizeof(struct vnt_private));
 
 	pDevice->dev = netdev;
 	pDevice->usb = udev;
@@ -732,7 +733,7 @@ err_nomem:
 	return rc;
 }
 
-static void device_free_tx_bufs(PSDevice pDevice)
+static void device_free_tx_bufs(struct vnt_private *pDevice)
 {
     PUSB_SEND_CONTEXT pTxContext;
     int ii;
@@ -751,7 +752,7 @@ static void device_free_tx_bufs(PSDevice pDevice)
 }
 
 
-static void device_free_rx_bufs(PSDevice pDevice)
+static void device_free_rx_bufs(struct vnt_private *pDevice)
 {
     PRCB pRCB;
     int ii;
@@ -773,7 +774,7 @@ static void device_free_rx_bufs(PSDevice pDevice)
     return;
 }
 
-static void usb_device_reset(PSDevice pDevice)
+static void usb_device_reset(struct vnt_private *pDevice)
 {
  int status;
  status = usb_reset_device(pDevice->usb);
@@ -782,14 +783,15 @@ static void usb_device_reset(PSDevice pDevice)
 	return ;
 }
 
-static void device_free_int_bufs(PSDevice pDevice)
+static void device_free_int_bufs(struct vnt_private *pDevice)
 {
     kfree(pDevice->intBuf.pDataBuf);
     return;
 }
 
 
-static BOOL device_alloc_bufs(PSDevice pDevice) {
+static BOOL device_alloc_bufs(struct vnt_private *pDevice)
+{
 
     PUSB_SEND_CONTEXT pTxContext;
     PRCB pRCB;
@@ -888,9 +890,10 @@ free_tx:
 
 
 
-static BOOL device_init_defrag_cb(PSDevice pDevice) {
-    int i;
-    PSDeFragControlBlock pDeF;
+static BOOL device_init_defrag_cb(struct vnt_private *pDevice)
+{
+	int i;
+	PSDeFragControlBlock pDeF;
 
     /* Init the fragment ctl entries */
     for (i = 0; i < CB_MAX_RX_FRAG; i++) {
@@ -912,9 +915,10 @@ free_frag:
 
 
 
-static void device_free_frag_bufs(PSDevice pDevice) {
-    PSDeFragControlBlock pDeF;
-    int i;
+static void device_free_frag_bufs(struct vnt_private *pDevice)
+{
+	PSDeFragControlBlock pDeF;
+	int i;
 
     for (i = 0; i < CB_MAX_RX_FRAG; i++) {
 
@@ -927,7 +931,9 @@ static void device_free_frag_bufs(PSDevice pDevice) {
 
 
 
-BOOL device_alloc_frag_buf(PSDevice pDevice, PSDeFragControlBlock pDeF) {
+int device_alloc_frag_buf(struct vnt_private *pDevice,
+		PSDeFragControlBlock pDeF)
+{
 
     pDeF->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
     if (pDeF->skb == NULL)
@@ -941,8 +947,9 @@ BOOL device_alloc_frag_buf(PSDevice pDevice, PSDeFragControlBlock pDeF) {
 
 /*-----------------------------------------------------------------*/
 
-static int  device_open(struct net_device *dev) {
-    PSDevice    pDevice=(PSDevice) netdev_priv(dev);
+static int  device_open(struct net_device *dev)
+{
+	struct vnt_private *pDevice = netdev_priv(dev);
 
      pDevice->fWPA_Authened = FALSE;
 
@@ -1061,13 +1068,13 @@ free_rx_tx:
 
 
 
-static int  device_close(struct net_device *dev) {
-    PSDevice    pDevice=(PSDevice) netdev_priv(dev);
-    PSMgmtObject     pMgmt = &(pDevice->sMgmtObj);
+static int device_close(struct net_device *dev)
+{
+	struct vnt_private *pDevice = netdev_priv(dev);
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	int uu;
 
-        int uu;
-
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_close1 \n");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_close1\n");
     if (pDevice == NULL)
         return -ENODEV;
 
@@ -1136,7 +1143,7 @@ static int  device_close(struct net_device *dev) {
 
 static void vt6656_disconnect(struct usb_interface *intf)
 {
-	PSDevice device = usb_get_intfdata(intf);
+	struct vnt_private *device = usb_get_intfdata(intf);
 
 	if (!device)
 		return;
@@ -1156,7 +1163,7 @@ static void vt6656_disconnect(struct usb_interface *intf)
 
 static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev)
 {
-	PSDevice pDevice = netdev_priv(dev);
+	struct vnt_private *pDevice = netdev_priv(dev);
 
 	spin_lock_irq(&pDevice->lock);
 
@@ -1172,7 +1179,7 @@ static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev)
 
 static int device_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	PSDevice pDevice = netdev_priv(dev);
+	struct vnt_private *pDevice = netdev_priv(dev);
 	struct net_device_stats *stats = &pDevice->stats;
 
 	spin_lock_irq(&pDevice->lock);
@@ -1290,7 +1297,7 @@ static int Config_FileGetParameter(unsigned char *string,
 }
 
 //if read fail,return NULL,or return data pointer;
-static unsigned char *Config_FileOperation(PSDevice pDevice)
+static unsigned char *Config_FileOperation(struct vnt_private *pDevice)
 {
     unsigned char *config_path = CONFIG_PATH;
     unsigned char *buffer = NULL;
@@ -1354,10 +1361,11 @@ if(result!=0) {
 }
 
 //return --->-1:fail;  >=0:successful
-static int Read_config_file(PSDevice pDevice) {
-  int result = 0;
-  unsigned char tmpbuffer[100];
-  unsigned char *buffer = NULL;
+static int Read_config_file(struct vnt_private *pDevice)
+{
+	int result = 0;
+	unsigned char tmpbuffer[100];
+	unsigned char *buffer = NULL;
 
   //init config setting
  pDevice->config_file.ZoneType = -1;
@@ -1406,15 +1414,16 @@ static int Read_config_file(PSDevice pDevice) {
   return result;
 }
 
-static void device_set_multi(struct net_device *dev) {
-    PSDevice         pDevice = (PSDevice) netdev_priv(dev);
-    PSMgmtObject     pMgmt = &(pDevice->sMgmtObj);
-    u32              mc_filter[2];
-    int              ii;
-    struct netdev_hw_addr *ha;
-    BYTE             pbyData[8] = {0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff};
-    BYTE             byTmpMode = 0;
-    int              rc;
+static void device_set_multi(struct net_device *dev)
+{
+	struct vnt_private *pDevice = netdev_priv(dev);
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	struct netdev_hw_addr *ha;
+	u32 mc_filter[2];
+	int ii;
+	u8 pbyData[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	u8 byTmpMode = 0;
+	int rc;
 
 
 	spin_lock_irq(&pDevice->lock);
@@ -1472,14 +1481,14 @@ static void device_set_multi(struct net_device *dev) {
 
 static struct net_device_stats *device_get_stats(struct net_device *dev)
 {
-    PSDevice pDevice=(PSDevice) netdev_priv(dev);
+	struct vnt_private *pDevice = netdev_priv(dev);
 
-    return &pDevice->stats;
+	return &pDevice->stats;
 }
 
 static int device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	PSDevice pDevice = (PSDevice)netdev_priv(dev);
+	struct vnt_private *pDevice = netdev_priv(dev);
 	struct iwreq *wrq = (struct iwreq *) rq;
 	int rc = 0;
 

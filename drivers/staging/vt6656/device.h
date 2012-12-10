@@ -174,13 +174,13 @@ typedef enum _CONTEXT_TYPE {
 // RCB (Receive Control Block)
 typedef struct _RCB
 {
-    void *Next;
-    signed long                    Ref;
-    void *pDevice;
-    struct urb              *pUrb;
-    SRxMgmtPacket           sMngPacket;
-    struct sk_buff*         skb;
-    BOOL                    bBoolInUse;
+	void *Next;
+	signed long Ref;
+	void *pDevice;
+	struct urb *pUrb;
+	struct vnt_rx_mgmt sMngPacket;
+	struct sk_buff *skb;
+	int bBoolInUse;
 
 } RCB, *PRCB;
 
@@ -872,9 +872,6 @@ typedef struct vnt_private {
 
 /*---------------------  Export Functions  --------------------------*/
 
-/* BOOL device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb,
- *                       unsigned int uNodeIndex);
- */
-BOOL device_alloc_frag_buf(PSDevice pDevice, PSDeFragControlBlock pDeF);
+int device_alloc_frag_buf(struct vnt_private *, PSDeFragControlBlock pDeF);
 
 #endif
