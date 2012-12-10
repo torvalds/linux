@@ -90,7 +90,7 @@ static ssize_t regmap_map_read_file(struct file *file, char __user *user_buf,
 		/* If we're in the region the user is trying to read */
 		if (p >= *ppos) {
 			/* ...but not beyond it */
-			if (buf_pos >= count - 1 - tot_len)
+			if (buf_pos + 1 + tot_len >= count)
 				break;
 
 			/* Format the register */
