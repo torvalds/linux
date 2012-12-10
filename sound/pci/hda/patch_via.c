@@ -77,6 +77,7 @@ enum VIA_HDA_CODEC {
 	VT1812,
 	VT1802,
 	VT1705CF,
+	VT1808,
 	CODEC_TYPES,
 };
 
@@ -300,6 +301,8 @@ static enum VIA_HDA_CODEC get_codec_type(struct hda_codec *codec)
 		codec_type = VT1802;
 	else if (dev_id == 0x4760)
 		codec_type = VT1705CF;
+	else if (dev_id == 0x4761 || dev_id == 0x4762)
+		codec_type = VT1808;
 	else
 		codec_type = UNKNOWN;
 	return codec_type;
@@ -1112,6 +1115,7 @@ static void __analog_low_current_mode(struct hda_codec *codec, bool force)
 		parm = enable ? 0x00 : 0xe0; /* 0x00: 4/40x, 0xe0: 1x */
 		break;
 	case VT1705CF:
+	case VT1808:
 		verb = 0xf82;
 		parm = enable ? 0x00 : 0xe0;  /* 0x00: 4/40x, 0xe0: 1x */
 		break;
@@ -4060,6 +4064,10 @@ static const struct hda_codec_preset snd_hda_preset_via[] = {
 	{ .id = 0x11068446, .name = "VT1802",
 		.patch = patch_vt2002P},
 	{ .id = 0x11064760, .name = "VT1705CF",
+		.patch = patch_vt3476},
+	{ .id = 0x11064761, .name = "VT1708SCE",
+		.patch = patch_vt3476},
+	{ .id = 0x11064762, .name = "VT1808",
 		.patch = patch_vt3476},
 	{} /* terminator */
 };
