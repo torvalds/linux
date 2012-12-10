@@ -111,7 +111,7 @@ ENTRY(_startup)
 	/* Disable all timers. */
 
 	.set	_index, 0
-	.rept	XCHAL_NUM_TIMERS - 1
+	.rept	XCHAL_NUM_TIMERS
 	wsr	a0, SREG_CCOMPARE + _index
 	.set	_index, _index + 1
 	.endr
