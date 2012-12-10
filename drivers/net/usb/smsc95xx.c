@@ -691,7 +691,7 @@ static int smsc95xx_ethtool_set_eeprom(struct net_device *netdev,
 static int smsc95xx_ethtool_getregslen(struct net_device *netdev)
 {
 	/* all smsc95xx registers */
-	return COE_CR - ID_REV + 1;
+	return COE_CR - ID_REV + sizeof(u32);
 }
 
 static void
