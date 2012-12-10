@@ -223,7 +223,7 @@ static int wm831x_buckv_map_voltage(struct regulator_dev *rdev,
 	if (min_uV < 600000)
 		vsel = 0;
 	else if (min_uV <= 1800000)
-		vsel = ((min_uV - 600000) / 12500) + 8;
+		vsel = DIV_ROUND_UP(min_uV - 600000, 12500) + 8;
 	else
 		return -EINVAL;
 
@@ -993,4 +993,5 @@ MODULE_DESCRIPTION("WM831x DC-DC convertor driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:wm831x-buckv");
 MODULE_ALIAS("platform:wm831x-buckp");
+MODULE_ALIAS("platform:wm831x-boostp");
 MODULE_ALIAS("platform:wm831x-epe");
