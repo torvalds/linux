@@ -60,6 +60,10 @@ static int ipoctal_port_activate(struct tty_port *port, struct tty_struct *tty)
 
 	channel = dev_get_drvdata(tty->dev);
 
+	/*
+	 * Enable RX. TX will be enabled when
+	 * there is something to send
+	 */
 	iowrite8(CR_ENABLE_RX, &channel->regs->w.cr);
 	return 0;
 }
@@ -385,12 +389,6 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 			continue;
 		}
 		dev_set_drvdata(tty_dev, channel);
-
-		/*
-		 * Enable again the RX. TX will be enabled when
-		 * there is something to send
-		 */
-		iowrite8(CR_ENABLE_RX, &channel->regs->w.cr);
 	}
 
 	return 0;
