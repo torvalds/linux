@@ -671,7 +671,7 @@ typedef struct drm_i915_private {
 
 	struct pci_dev *bridge_dev;
 	struct intel_ring_buffer ring[I915_NUM_RINGS];
-	uint32_t next_seqno;
+	uint32_t last_seqno, next_seqno;
 
 	drm_dma_handle_t *status_page_dmah;
 	struct resource mch_res;

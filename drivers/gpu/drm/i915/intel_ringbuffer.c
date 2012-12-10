@@ -596,6 +596,13 @@ gen6_add_request(struct intel_ring_buffer *ring)
 	return 0;
 }
 
+static inline bool i915_gem_has_seqno_wrapped(struct drm_device *dev,
+					      u32 seqno)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	return dev_priv->last_seqno < seqno;
+}
+
 /**
  * intel_ring_sync - sync the waiter to the signaller on seqno
  *
@@ -626,11 +633,20 @@ gen6_ring_sync(struct intel_ring_buffer *waiter,
 	if (ret)
 		return ret;
 
-	intel_ring_emit(waiter,
-			dw1 | signaller->semaphore_register[waiter->id]);
-	intel_ring_emit(waiter, seqno);
-	intel_ring_emit(waiter, 0);
-	intel_ring_emit(waiter, MI_NOOP);
+	/* If seqno wrap happened, omit the wait with no-ops */
+	if (likely(!i915_gem_has_seqno_wrapped(waiter->dev, seqno))) {
+		intel_ring_emit(waiter,
+				dw1 |
+				signaller->semaphore_register[waiter->id]);
+		intel_ring_emit(waiter, seqno);
+		intel_ring_emit(waiter, 0);
+		intel_ring_emit(waiter, MI_NOOP);
+	} else {
+		intel_ring_emit(waiter, MI_NOOP);
+		intel_ring_emit(waiter, MI_NOOP);
+		intel_ring_emit(waiter, MI_NOOP);
+		intel_ring_emit(waiter, MI_NOOP);
+	}
 	intel_ring_advance(waiter);
 
 	return 0;

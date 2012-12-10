@@ -1969,7 +1969,7 @@ i915_gem_get_seqno(struct drm_device *dev, u32 *seqno)
 		dev_priv->next_seqno = 1;
 	}
 
-	*seqno = dev_priv->next_seqno++;
+	*seqno = dev_priv->last_seqno = dev_priv->next_seqno++;
 	return 0;
 }
 
