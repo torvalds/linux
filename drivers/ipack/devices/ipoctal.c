@@ -216,7 +216,6 @@ static void ipoctal_irq_channel(struct ipoctal_channel *channel)
 	if ((isr & channel->isr_tx_rdy_mask) && (sr & SR_TX_READY))
 		ipoctal_irq_tx(channel);
 
-	tty_flip_buffer_push(tty);
 	tty_kref_put(tty);
 	spin_unlock(&channel->lock);
 }
