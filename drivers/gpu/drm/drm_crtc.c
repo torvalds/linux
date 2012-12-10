@@ -2580,14 +2580,9 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	drm_modeset_lock_all(dev);
 	fb = drm_framebuffer_lookup(dev, r->fb_id);
-	if (!fb) {
-		ret = -EINVAL;
-		goto out_err1;
-	}
-	/* fb is protect by the mode_config lock, so drop the ref immediately */
-	drm_framebuffer_unreference(fb);
+	if (!fb)
+		return -EINVAL;
 
 	num_clips = r->num_clips;
 	clips_ptr = (struct drm_clip_rect __user *)(unsigned long)r->clips_ptr;
@@ -2625,17 +2620,19 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 	}
 
 	if (fb->funcs->dirty) {
+		drm_modeset_lock_all(dev);
 		ret = fb->funcs->dirty(fb, file_priv, flags, r->color,
 				       clips, num_clips);
+		drm_modeset_unlock_all(dev);
 	} else {
 		ret = -ENOSYS;
-		goto out_err2;
 	}
 
 out_err2:
 	kfree(clips);
 out_err1:
-	drm_modeset_unlock_all(dev);
+	drm_framebuffer_unreference(fb);
+
 	return ret;
 }
 
