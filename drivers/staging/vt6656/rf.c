@@ -69,7 +69,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
 
 
 
-BYTE abyAL2230InitTable[CB_AL2230_INIT_SEQ][3] = {
+u8 abyAL2230InitTable[CB_AL2230_INIT_SEQ][3] = {
     {0x03, 0xF7, 0x90},
     {0x03, 0x33, 0x31},
     {0x01, 0xB8, 0x02},
@@ -87,7 +87,7 @@ BYTE abyAL2230InitTable[CB_AL2230_INIT_SEQ][3] = {
     {0x00, 0x58, 0x0F}
     };
 
-BYTE abyAL2230ChannelTable0[CB_MAX_CHANNEL_24G][3] = {
+u8 abyAL2230ChannelTable0[CB_MAX_CHANNEL_24G][3] = {
     {0x03, 0xF7, 0x90}, // channel = 1, Tf = 2412MHz
     {0x03, 0xF7, 0x90}, // channel = 2, Tf = 2417MHz
     {0x03, 0xE7, 0x90}, // channel = 3, Tf = 2422MHz
@@ -104,7 +104,7 @@ BYTE abyAL2230ChannelTable0[CB_MAX_CHANNEL_24G][3] = {
     {0x03, 0xE7, 0xC0}  // channel = 14, Tf = 2412M
     };
 
-BYTE abyAL2230ChannelTable1[CB_MAX_CHANNEL_24G][3] = {
+u8 abyAL2230ChannelTable1[CB_MAX_CHANNEL_24G][3] = {
     {0x03, 0x33, 0x31}, // channel = 1, Tf = 2412MHz
     {0x0B, 0x33, 0x31}, // channel = 2, Tf = 2417MHz
     {0x03, 0x33, 0x31}, // channel = 3, Tf = 2422MHz
@@ -123,7 +123,7 @@ BYTE abyAL2230ChannelTable1[CB_MAX_CHANNEL_24G][3] = {
 
 // 40MHz reference frequency
 // Need to Pull PLLON(PE3) low when writing channel registers through 3-wire.
-BYTE abyAL7230InitTable[CB_AL7230_INIT_SEQ][3] = {
+u8 abyAL7230InitTable[CB_AL7230_INIT_SEQ][3] = {
     {0x20, 0x37, 0x90}, // Channel1 // Need modify for 11a
     {0x13, 0x33, 0x31}, // Channel1 // Need modify for 11a
     {0x84, 0x1F, 0xF2}, // Need modify for 11a: 451FE2
@@ -146,7 +146,7 @@ BYTE abyAL7230InitTable[CB_AL7230_INIT_SEQ][3] = {
     {0x1A, 0xBA, 0x8F} // Need modify for 11a: 12BACF
     };
 
-BYTE abyAL7230InitTableAMode[CB_AL7230_INIT_SEQ][3] = {
+u8 abyAL7230InitTableAMode[CB_AL7230_INIT_SEQ][3] = {
     {0x2F, 0xF5, 0x20}, // Channel184 // Need modify for 11b/g
     {0x00, 0x00, 0x01}, // Channel184 // Need modify for 11b/g
     {0x45, 0x1F, 0xE2}, // Need modify for 11b/g
@@ -165,7 +165,7 @@ BYTE abyAL7230InitTableAMode[CB_AL7230_INIT_SEQ][3] = {
     {0x12, 0xBA, 0xCF} // Need modify for 11b/g
     };
 
-BYTE abyAL7230ChannelTable0[CB_MAX_CHANNEL][3] = {
+u8 abyAL7230ChannelTable0[CB_MAX_CHANNEL][3] = {
     {0x20, 0x37, 0x90}, // channel =  1, Tf = 2412MHz
     {0x20, 0x37, 0x90}, // channel =  2, Tf = 2417MHz
     {0x20, 0x37, 0x90}, // channel =  3, Tf = 2422MHz
@@ -231,7 +231,7 @@ BYTE abyAL7230ChannelTable0[CB_MAX_CHANNEL][3] = {
     {0x2F, 0xF6, 0x10} // channel = 165, Tf = 5825MHz (56)
     };
 
-BYTE abyAL7230ChannelTable1[CB_MAX_CHANNEL][3] = {
+u8 abyAL7230ChannelTable1[CB_MAX_CHANNEL][3] = {
     {0x13, 0x33, 0x31}, // channel =  1, Tf = 2412MHz
     {0x1B, 0x33, 0x31}, // channel =  2, Tf = 2417MHz
     {0x03, 0x33, 0x31}, // channel =  3, Tf = 2422MHz
@@ -295,7 +295,7 @@ BYTE abyAL7230ChannelTable1[CB_MAX_CHANNEL][3] = {
     {0x02, 0xAA, 0xB1}  // channel = 165, Tf = 5825MHz (56)
     };
 
-BYTE abyAL7230ChannelTable2[CB_MAX_CHANNEL][3] = {
+u8 abyAL7230ChannelTable2[CB_MAX_CHANNEL][3] = {
     {0x7F, 0xD7, 0x84}, // channel =  1, Tf = 2412MHz
     {0x7F, 0xD7, 0x84}, // channel =  2, Tf = 2417MHz
     {0x7F, 0xD7, 0x84}, // channel =  3, Tf = 2422MHz
@@ -360,7 +360,7 @@ BYTE abyAL7230ChannelTable2[CB_MAX_CHANNEL][3] = {
     };
 
 ///{{RobertYu:20051111
-BYTE abyVT3226_InitTable[CB_VT3226_INIT_SEQ][3] = {
+u8 abyVT3226_InitTable[CB_VT3226_INIT_SEQ][3] = {
     {0x03, 0xFF, 0x80},
     {0x02, 0x82, 0xA1},
     {0x03, 0xC6, 0xA2},
@@ -374,7 +374,7 @@ BYTE abyVT3226_InitTable[CB_VT3226_INIT_SEQ][3] = {
     {0x02, 0x00, 0x2A}
     };
 
-BYTE abyVT3226D0_InitTable[CB_VT3226_INIT_SEQ][3] = {
+u8 abyVT3226D0_InitTable[CB_VT3226_INIT_SEQ][3] = {
     {0x03, 0xFF, 0x80},
     {0x03, 0x02, 0x21}, //RobertYu:20060327
     {0x03, 0xC6, 0xA2},
@@ -389,7 +389,7 @@ BYTE abyVT3226D0_InitTable[CB_VT3226_INIT_SEQ][3] = {
     };
 
 
-BYTE abyVT3226_ChannelTable0[CB_MAX_CHANNEL_24G][3] = {
+u8 abyVT3226_ChannelTable0[CB_MAX_CHANNEL_24G][3] = {
     {0x01, 0x97, 0x83}, // channel = 1, Tf = 2412MHz
     {0x01, 0x97, 0x83}, // channel = 2, Tf = 2417MHz
     {0x01, 0x97, 0x93}, // channel = 3, Tf = 2422MHz
@@ -406,7 +406,7 @@ BYTE abyVT3226_ChannelTable0[CB_MAX_CHANNEL_24G][3] = {
     {0x03, 0x37, 0xC3}  // channel = 14, Tf = 2484MHz
     };
 
-BYTE abyVT3226_ChannelTable1[CB_MAX_CHANNEL_24G][3] = {
+u8 abyVT3226_ChannelTable1[CB_MAX_CHANNEL_24G][3] = {
     {0x02, 0x66, 0x64}, // channel = 1, Tf = 2412MHz
     {0x03, 0x66, 0x64}, // channel = 2, Tf = 2417MHz
     {0x00, 0x66, 0x64}, // channel = 3, Tf = 2422MHz
@@ -426,7 +426,7 @@ BYTE abyVT3226_ChannelTable1[CB_MAX_CHANNEL_24G][3] = {
 
 
 //{{RobertYu:20060502, TWIF 1.14, LO Current for 11b mode
-DWORD dwVT3226D0LoCurrentTable[CB_MAX_CHANNEL_24G] = {
+u32 dwVT3226D0LoCurrentTable[CB_MAX_CHANNEL_24G] = {
     0x0135C600+(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW, // channel = 1, Tf = 2412MHz
     0x0135C600+(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW, // channel = 2, Tf = 2417MHz
     0x0235C600+(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW, // channel = 3, Tf = 2422MHz
@@ -446,7 +446,7 @@ DWORD dwVT3226D0LoCurrentTable[CB_MAX_CHANNEL_24G] = {
 
 
 //{{RobertYu:20060609
-BYTE abyVT3342A0_InitTable[CB_VT3342_INIT_SEQ][3] = { // 11b/g mode
+u8 abyVT3342A0_InitTable[CB_VT3342_INIT_SEQ][3] = { /* 11b/g mode */
     {0x03, 0xFF, 0x80}, //update for mode//
     {0x02, 0x08, 0x81},
     {0x00, 0xC6, 0x02},
@@ -469,7 +469,7 @@ BYTE abyVT3342A0_InitTable[CB_VT3342_INIT_SEQ][3] = { // 11b/g mode
  // channel56, 5280MHz  0x00C402 for disable Frac
  // other channels 0x00C602
 
-BYTE abyVT3342_ChannelTable0[CB_MAX_CHANNEL][3] = {
+u8 abyVT3342_ChannelTable0[CB_MAX_CHANNEL][3] = {
     {0x02, 0x05, 0x03}, // channel = 1, Tf = 2412MHz
     {0x01, 0x15, 0x03}, // channel = 2, Tf = 2417MHz
     {0x03, 0xC5, 0x03}, // channel = 3, Tf = 2422MHz
@@ -535,7 +535,7 @@ BYTE abyVT3342_ChannelTable0[CB_MAX_CHANNEL][3] = {
     {0x00, 0x06, 0x03}  // channel = 165, Tf = 5825MHz (56), TBD
     };
 
-BYTE abyVT3342_ChannelTable1[CB_MAX_CHANNEL][3] = {
+u8 abyVT3342_ChannelTable1[CB_MAX_CHANNEL][3] = {
     {0x01, 0x99, 0x94}, // channel = 1, Tf = 2412MHz
     {0x02, 0x44, 0x44}, // channel = 2, Tf = 2417MHz
     {0x02, 0xEE, 0xE4}, // channel = 3, Tf = 2422MHz
@@ -606,7 +606,7 @@ BYTE abyVT3342_ChannelTable1[CB_MAX_CHANNEL][3] = {
  *
 -*/
 
-const DWORD dwAL2230PowerTable[AL2230_PWR_IDX_LEN] = {
+const u32 dwAL2230PowerTable[AL2230_PWR_IDX_LEN] = {
     0x04040900+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW,
     0x04041900+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW,
     0x04042900+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW,
@@ -682,7 +682,7 @@ const DWORD dwAL2230PowerTable[AL2230_PWR_IDX_LEN] = {
 // 5G => Ch 7, 8, 9, 11, 12, 16, 34, 36, 38, 40, 42, 44, 46, 48, 52, 56, 60, 64,
 // 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165  (Value 23 ~ 56)
 
-const BYTE RFaby11aChannelIndex[200] = {
+const u8 RFaby11aChannelIndex[200] = {
   // 1   2   3   4   5   6   7   8   9  10
     00, 00, 00, 00, 00, 00, 23, 24, 25, 00,  // 10
     26, 27, 00, 00, 00, 28, 00, 00, 00, 00,  // 20
@@ -722,24 +722,20 @@ const BYTE RFaby11aChannelIndex[200] = {
  * Return Value: TRUE if succeeded; FALSE if failed.
  *
  */
-BOOL IFRFbWriteEmbedded (PSDevice pDevice, DWORD dwData)
+int IFRFbWriteEmbedded(struct vnt_private *pDevice, u32 dwData)
 {
-    BYTE        pbyData[4];
+	u8 pbyData[4];
 
-    pbyData[0] = (BYTE)dwData;
-    pbyData[1] = (BYTE)(dwData>>8);
-    pbyData[2] = (BYTE)(dwData>>16);
-    pbyData[3] = (BYTE)(dwData>>24);
-    CONTROLnsRequestOut(pDevice,
-                    MESSAGE_TYPE_WRITE_IFRF,
-                    0,
-                    0,
-                    4,
-                    pbyData
-                        );
+	pbyData[0] = (u8)dwData;
+	pbyData[1] = (u8)(dwData >> 8);
+	pbyData[2] = (u8)(dwData >> 16);
+	pbyData[3] = (u8)(dwData >> 24);
+
+	CONTROLnsRequestOut(pDevice,
+		MESSAGE_TYPE_WRITE_IFRF, 0, 0, 4, pbyData);
 
 
-    return TRUE;
+	return TRUE;
 }
 
 
@@ -756,18 +752,13 @@ BOOL IFRFbWriteEmbedded (PSDevice pDevice, DWORD dwData)
  * Return Value: TRUE if succeeded; FALSE if failed.
  *
  */
-BOOL RFbSetPower (
-      PSDevice  pDevice,
-      unsigned int      uRATE,
-      unsigned int      uCH
-    )
+int RFbSetPower(struct vnt_private *pDevice, u32 uRATE, u32 uCH)
 {
-BOOL    bResult = TRUE;
-BYTE    byPwr = pDevice->byCCKPwr;
+	int bResult = TRUE;
+	u8 byPwr = pDevice->byCCKPwr;
 
-    if (pDevice->dwDiagRefCount != 0) {
-        return TRUE;
-    }
+	if (pDevice->dwDiagRefCount)
+		return TRUE;
 
 	if (uCH == 0)
 		return -EINVAL;
@@ -813,13 +804,10 @@ BYTE    byPwr = pDevice->byCCKPwr;
  * Return Value: TRUE if succeeded; FALSE if failed.
  *
  */
-BOOL RFbRawSetPower (
-      PSDevice  pDevice,
-      BYTE      byPwr,
-      unsigned int      uRATE
-    )
+
+int RFbRawSetPower(struct vnt_private *pDevice, u8 byPwr, u32 uRATE)
 {
-BOOL        bResult = TRUE;
+	int bResult = TRUE;
 
     if (pDevice->byCurPwr == byPwr)
         return TRUE;
@@ -957,17 +945,12 @@ BOOL        bResult = TRUE;
  * Return Value: none
  *
 -*/
-void
-RFvRSSITodBm (
-      PSDevice pDevice,
-      BYTE     byCurrRSSI,
-    long *    pldBm
-    )
+void RFvRSSITodBm(struct vnt_private *pDevice, u8 byCurrRSSI, long *pldBm)
 {
-    BYTE byIdx = (((byCurrRSSI & 0xC0) >> 6) & 0x03);
-    signed long b = (byCurrRSSI & 0x3F);
-    signed long a = 0;
-    BYTE abyAIROHARF[4] = {0, 18, 0, 40};
+	u8 byIdx = (((byCurrRSSI & 0xC0) >> 6) & 0x03);
+	signed long b = (byCurrRSSI & 0x3F);
+	signed long a = 0;
+	u8 abyAIROHARF[4] = {0, 18, 0, 40};
 
     switch (pDevice->byRFType) {
         case RF_AL2230:
@@ -987,15 +970,12 @@ RFvRSSITodBm (
 
 
 
-void
-RFbRFTableDownload (
-      PSDevice pDevice
-    )
+void RFbRFTableDownload(struct vnt_private *pDevice)
 {
-WORD    wLength1 = 0,wLength2 = 0 ,wLength3 = 0;
-PBYTE   pbyAddr1 = NULL,pbyAddr2 = NULL,pbyAddr3 = NULL;
-WORD    wLength,wValue;
-BYTE    abyArray[256];
+	u16 wLength1 = 0, wLength2 = 0, wLength3 = 0;
+	u8 *pbyAddr1 = NULL, *pbyAddr2 = NULL, *pbyAddr3 = NULL;
+	u16 wLength, wValue;
+	u8 abyArray[256];
 
     switch ( pDevice->byRFType ) {
         case RF_AL2230:
@@ -1134,21 +1114,19 @@ BYTE    abyArray[256];
 
 }
 
-// RobertYu:20060412, TWIF1.11 adjust LO Current for 11b mode
-BOOL s_bVT3226D0_11bLoCurrentAdjust(
-      PSDevice    pDevice,
-      BYTE        byChannel,
-      BOOL        b11bMode)
+int s_bVT3226D0_11bLoCurrentAdjust(struct vnt_private *pDevice, u8 byChannel,
+	int b11bMode)
 {
-    BOOL    bResult;
+	int bResult = TRUE;
 
-    bResult = TRUE;
-    if( b11bMode )
-        bResult &= IFRFbWriteEmbedded(pDevice, dwVT3226D0LoCurrentTable[byChannel-1]);
-    else
-        bResult &= IFRFbWriteEmbedded(pDevice, 0x016BC600+(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW); //RobertYu:20060412
+	if (b11bMode)
+		bResult &= IFRFbWriteEmbedded(pDevice,
+			dwVT3226D0LoCurrentTable[byChannel-1]);
+	else
+		bResult &= IFRFbWriteEmbedded(pDevice, 0x016bc600 +
+			(BY_VT3226_REG_LEN << 3) + IFREGCTL_REGW);
 
-    return bResult;
+	return bResult;
 }
 
 
