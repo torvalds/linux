@@ -90,14 +90,14 @@ static void gpio_nand_writebuf(struct mtd_info *mtd, const u_char *buf, int len)
 {
 	struct nand_chip *this = mtd->priv;
 
-	writesb(this->IO_ADDR_W, buf, len);
+	iowrite8_rep(this->IO_ADDR_W, buf, len);
 }
 
 static void gpio_nand_readbuf(struct mtd_info *mtd, u_char *buf, int len)
 {
 	struct nand_chip *this = mtd->priv;
 
-	readsb(this->IO_ADDR_R, buf, len);
+	ioread8_rep(this->IO_ADDR_R, buf, len);
 }
 
 static void gpio_nand_writebuf16(struct mtd_info *mtd, const u_char *buf,
@@ -106,7 +106,7 @@ static void gpio_nand_writebuf16(struct mtd_info *mtd, const u_char *buf,
 	struct nand_chip *this = mtd->priv;
 
 	if (IS_ALIGNED((unsigned long)buf, 2)) {
-		writesw(this->IO_ADDR_W, buf, len>>1);
+		iowrite16_rep(this->IO_ADDR_W, buf, len>>1);
 	} else {
 		int i;
 		unsigned short *ptr = (unsigned short *)buf;
@@ -121,7 +121,7 @@ static void gpio_nand_readbuf16(struct mtd_info *mtd, u_char *buf, int len)
 	struct nand_chip *this = mtd->priv;
 
 	if (IS_ALIGNED((unsigned long)buf, 2)) {
-		readsw(this->IO_ADDR_R, buf, len>>1);
+		ioread16_rep(this->IO_ADDR_R, buf, len>>1);
 	} else {
 		int i;
 		unsigned short *ptr = (unsigned short *)buf;
