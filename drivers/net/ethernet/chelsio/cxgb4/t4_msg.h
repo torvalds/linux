@@ -199,6 +199,18 @@ struct work_request_hdr {
 
 #define WR_HDR struct work_request_hdr wr
 
+/* option 0 fields */
+#define S_MSS_IDX    60
+#define M_MSS_IDX    0xF
+#define V_MSS_IDX(x) ((__u64)(x) << S_MSS_IDX)
+#define G_MSS_IDX(x) (((x) >> S_MSS_IDX) & M_MSS_IDX)
+
+/* option 2 fields */
+#define S_RSS_QUEUE    0
+#define M_RSS_QUEUE    0x3FF
+#define V_RSS_QUEUE(x) ((x) << S_RSS_QUEUE)
+#define G_RSS_QUEUE(x) (((x) >> S_RSS_QUEUE) & M_RSS_QUEUE)
+
 struct cpl_pass_open_req {
 	WR_HDR;
 	union opcode_tid ot;
@@ -300,6 +312,9 @@ struct cpl_pass_establish {
 	union opcode_tid ot;
 	__be32 rsvd;
 	__be32 tos_stid;
+#define PASS_OPEN_TID(x) ((x) << 0)
+#define PASS_OPEN_TOS(x) ((x) << 24)
+#define GET_PASS_OPEN_TID(x)	(((x) >> 0) & 0xFFFFFF)
 #define GET_POPEN_TID(x) ((x) & 0xffffff)
 #define GET_POPEN_TOS(x) (((x) >> 24) & 0xff)
 	__be16 mac_idx;
@@ -544,6 +559,37 @@ struct cpl_rx_pkt {
 	__be16 hdr_len;
 	__be16 err_vec;
 };
+
+/* rx_pkt.l2info fields */
+#define S_RX_ETHHDR_LEN    0
+#define M_RX_ETHHDR_LEN    0x1F
+#define V_RX_ETHHDR_LEN(x) ((x) << S_RX_ETHHDR_LEN)
+#define G_RX_ETHHDR_LEN(x) (((x) >> S_RX_ETHHDR_LEN) & M_RX_ETHHDR_LEN)
+
+#define S_RX_MACIDX    8
+#define M_RX_MACIDX    0x1FF
+#define V_RX_MACIDX(x) ((x) << S_RX_MACIDX)
+#define G_RX_MACIDX(x) (((x) >> S_RX_MACIDX) & M_RX_MACIDX)
+
+#define S_RXF_SYN    21
+#define V_RXF_SYN(x) ((x) << S_RXF_SYN)
+#define F_RXF_SYN    V_RXF_SYN(1U)
+
+#define S_RX_CHAN    28
+#define M_RX_CHAN    0xF
+#define V_RX_CHAN(x) ((x) << S_RX_CHAN)
+#define G_RX_CHAN(x) (((x) >> S_RX_CHAN) & M_RX_CHAN)
+
+/* rx_pkt.hdr_len fields */
+#define S_RX_TCPHDR_LEN    0
+#define M_RX_TCPHDR_LEN    0x3F
+#define V_RX_TCPHDR_LEN(x) ((x) << S_RX_TCPHDR_LEN)
+#define G_RX_TCPHDR_LEN(x) (((x) >> S_RX_TCPHDR_LEN) & M_RX_TCPHDR_LEN)
+
+#define S_RX_IPHDR_LEN    6
+#define M_RX_IPHDR_LEN    0x3FF
+#define V_RX_IPHDR_LEN(x) ((x) << S_RX_IPHDR_LEN)
+#define G_RX_IPHDR_LEN(x) (((x) >> S_RX_IPHDR_LEN) & M_RX_IPHDR_LEN)
 
 struct cpl_trace_pkt {
 	u8 opcode;

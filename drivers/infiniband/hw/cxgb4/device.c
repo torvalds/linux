@@ -279,6 +279,7 @@ static int stats_show(struct seq_file *seq, void *v)
 	seq_printf(seq, " DB State: %s Transitions %llu\n",
 		   db_state_str[dev->db_state],
 		   dev->rdev.stats.db_state_transitions);
+	seq_printf(seq, "TCAM_FULL: %10llu\n", dev->rdev.stats.tcam_full);
 	return 0;
 }
 
@@ -577,14 +578,76 @@ out:
 	return ctx;
 }
 
+static inline struct sk_buff *copy_gl_to_skb_pkt(const struct pkt_gl *gl,
+						 const __be64 *rsp,
+						 u32 pktshift)
+{
+	struct sk_buff *skb;
+
+	/*
+	 * Allocate space for cpl_pass_accept_req which will be synthesized by
+	 * driver. Once the driver synthesizes the request the skb will go
+	 * through the regular cpl_pass_accept_req processing.
+	 * The math here assumes sizeof cpl_pass_accept_req >= sizeof
+	 * cpl_rx_pkt.
+	 */
+	skb = alloc_skb(gl->tot_len + sizeof(struct cpl_pass_accept_req) +
+			sizeof(struct rss_header) - pktshift, GFP_ATOMIC);
+	if (unlikely(!skb))
+		return NULL;
+
+	 __skb_put(skb, gl->tot_len + sizeof(struct cpl_pass_accept_req) +
+		   sizeof(struct rss_header) - pktshift);
+
+	/*
+	 * This skb will contain:
+	 *   rss_header from the rspq descriptor (1 flit)
+	 *   cpl_rx_pkt struct from the rspq descriptor (2 flits)
+	 *   space for the difference between the size of an
+	 *      rx_pkt and pass_accept_req cpl (1 flit)
+	 *   the packet data from the gl
+	 */
+	skb_copy_to_linear_data(skb, rsp, sizeof(struct cpl_pass_accept_req) +
+				sizeof(struct rss_header));
+	skb_copy_to_linear_data_offset(skb, sizeof(struct rss_header) +
+				       sizeof(struct cpl_pass_accept_req),
+				       gl->va + pktshift,
+				       gl->tot_len - pktshift);
+	return skb;
+}
+
+static inline int recv_rx_pkt(struct c4iw_dev *dev, const struct pkt_gl *gl,
+			   const __be64 *rsp)
+{
+	unsigned int opcode = *(u8 *)rsp;
+	struct sk_buff *skb;
+
+	if (opcode != CPL_RX_PKT)
+		goto out;
+
+	skb = copy_gl_to_skb_pkt(gl , rsp, dev->rdev.lldi.sge_pktshift);
+	if (skb == NULL)
+		goto out;
+
+	if (c4iw_handlers[opcode] == NULL) {
+		pr_info("%s no handler opcode 0x%x...\n", __func__,
+		       opcode);
+		kfree_skb(skb);
+		goto out;
+	}
+	c4iw_handlers[opcode](dev, skb);
+	return 1;
+out:
+	return 0;
+}
+
 static int c4iw_uld_rx_handler(void *handle, const __be64 *rsp,
 			const struct pkt_gl *gl)
 {
 	struct uld_ctx *ctx = handle;
 	struct c4iw_dev *dev = ctx->dev;
 	struct sk_buff *skb;
-	const struct cpl_act_establish *rpl;
-	unsigned int opcode;
+	u8 opcode;
 
 	if (gl == NULL) {
 		/* omit RSS and rsp_ctrl at end of descriptor */
@@ -601,19 +664,29 @@ static int c4iw_uld_rx_handler(void *handle, const __be64 *rsp,
 		u32 qid = be32_to_cpu(rc->pldbuflen_qid);
 		c4iw_ev_handler(dev, qid);
 		return 0;
+	} else if (unlikely(*(u8 *)rsp != *(u8 *)gl->va)) {
+		if (recv_rx_pkt(dev, gl, rsp))
+			return 0;
+
+		pr_info("%s: unexpected FL contents at %p, " \
+		       "RSS %#llx, FL %#llx, len %u\n",
+		       pci_name(ctx->lldi.pdev), gl->va,
+		       (unsigned long long)be64_to_cpu(*rsp),
+		       (unsigned long long)be64_to_cpu(*(u64 *)gl->va),
+		       gl->tot_len);
+
+		return 0;
 	} else {
 		skb = cxgb4_pktgl_to_skb(gl, 128, 128);
 		if (unlikely(!skb))
 			goto nomem;
 	}
 
-	rpl = cplhdr(skb);
-	opcode = rpl->ot.opcode;
-
+	opcode = *(u8 *)rsp;
 	if (c4iw_handlers[opcode])
 		c4iw_handlers[opcode](dev, skb);
 	else
-		printk(KERN_INFO "%s no handler opcode 0x%x...\n", __func__,
+		pr_info("%s no handler opcode 0x%x...\n", __func__,
 		       opcode);
 
 	return 0;
