@@ -845,7 +845,7 @@ void bpf_jit_compile(struct sk_filter *fp)
 	ctx.skf		= fp;
 	ctx.ret0_fp_idx = -1;
 
-	ctx.offsets = kzalloc(GFP_KERNEL, 4 * (ctx.skf->len + 1));
+	ctx.offsets = kzalloc(4 * (ctx.skf->len + 1), GFP_KERNEL);
 	if (ctx.offsets == NULL)
 		return;
 
@@ -864,7 +864,7 @@ void bpf_jit_compile(struct sk_filter *fp)
 
 	ctx.idx += ctx.imm_count;
 	if (ctx.imm_count) {
-		ctx.imms = kzalloc(GFP_KERNEL, 4 * ctx.imm_count);
+		ctx.imms = kzalloc(4 * ctx.imm_count, GFP_KERNEL);
 		if (ctx.imms == NULL)
 			goto out;
 	}
