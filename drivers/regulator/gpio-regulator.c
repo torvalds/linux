@@ -82,7 +82,7 @@ static int gpio_regulator_set_voltage(struct regulator_dev *dev,
 
 	for (ptr = 0; ptr < data->nr_gpios; ptr++) {
 		state = (target & (1 << ptr)) >> ptr;
-		gpio_set_value(data->gpios[ptr].gpio, state);
+		gpio_set_value_cansleep(data->gpios[ptr].gpio, state);
 	}
 	data->state = target;
 
@@ -119,7 +119,7 @@ static int gpio_regulator_set_current_limit(struct regulator_dev *dev,
 
 	for (ptr = 0; ptr < data->nr_gpios; ptr++) {
 		state = (target & (1 << ptr)) >> ptr;
-		gpio_set_value(data->gpios[ptr].gpio, state);
+		gpio_set_value_cansleep(data->gpios[ptr].gpio, state);
 	}
 	data->state = target;
 
@@ -174,7 +174,7 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np)
 	if (!config->gpios)
 		return ERR_PTR(-ENOMEM);
 
-	for (i = 0; config->nr_gpios; i++) {
+	for (i = 0; i < config->nr_gpios; i++) {
 		gpio = of_get_named_gpio(np, "gpios", i);
 		if (gpio < 0)
 			break;
