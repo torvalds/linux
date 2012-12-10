@@ -1376,13 +1376,13 @@ static void pn533_poll_create_mod_list(struct pn533 *dev,
 {
 	pn533_poll_reset_mod_list(dev);
 
-	if (im_protocols & NFC_PROTO_MIFARE_MASK
-	    || im_protocols & NFC_PROTO_ISO14443_MASK
-	    || im_protocols & NFC_PROTO_NFC_DEP_MASK)
+	if ((im_protocols & NFC_PROTO_MIFARE_MASK) ||
+	    (im_protocols & NFC_PROTO_ISO14443_MASK) ||
+	    (im_protocols & NFC_PROTO_NFC_DEP_MASK))
 		pn533_poll_add_mod(dev, PN533_POLL_MOD_106KBPS_A);
 
-	if (im_protocols & NFC_PROTO_FELICA_MASK
-	    || im_protocols & NFC_PROTO_NFC_DEP_MASK) {
+	if (im_protocols & NFC_PROTO_FELICA_MASK ||
+	    im_protocols & NFC_PROTO_NFC_DEP_MASK) {
 		pn533_poll_add_mod(dev, PN533_POLL_MOD_212KBPS_FELICA);
 		pn533_poll_add_mod(dev, PN533_POLL_MOD_424KBPS_FELICA);
 	}
