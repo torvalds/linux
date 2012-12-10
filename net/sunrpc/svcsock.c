@@ -952,8 +952,8 @@ static int svc_tcp_recv_record(struct svc_sock *svsk, struct svc_rqst *rqstp)
 		dprintk("svc: TCP record, %d bytes\n", svc_sock_reclen(svsk));
 		if (svc_sock_reclen(svsk) + svsk->sk_datalen >
 							serv->sv_max_mesg) {
-			net_notice_ratelimited("RPC: fragment too large: 0x%08lx\n",
-					       (unsigned long)svsk->sk_reclen);
+			net_notice_ratelimited("RPC: fragment too large: %d\n",
+					svc_sock_reclen(svsk));
 			goto err_delete;
 		}
 	}
@@ -1080,8 +1080,8 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 		if (len == want)
 			svc_tcp_fragment_received(svsk);
 		else
-			dprintk("svc: incomplete TCP record (%ld of %d)\n",
-				svsk->sk_tcplen - sizeof(rpc_fraghdr),
+			dprintk("svc: incomplete TCP record (%d of %d)\n",
+				(int)(svsk->sk_tcplen - sizeof(rpc_fraghdr)),
 				svc_sock_reclen(svsk));
 		goto err_noclose;
 	}
