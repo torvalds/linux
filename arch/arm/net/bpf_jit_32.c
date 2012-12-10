@@ -42,7 +42,7 @@
 #define r_skb_hl	ARM_R8
 
 #define SCRATCH_SP_OFFSET	0
-#define SCRATCH_OFF(k)		(SCRATCH_SP_OFFSET + (k))
+#define SCRATCH_OFF(k)		(SCRATCH_SP_OFFSET + 4 * (k))
 
 #define SEEN_MEM		((1 << BPF_MEMWORDS) - 1)
 #define SEEN_MEM_WORD(k)	(1 << (k))
