@@ -285,7 +285,7 @@ static void insert_hist_entry_by_name(struct rb_root *root,
 	while (*p != NULL) {
 		parent = *p;
 		iter = rb_entry(parent, struct hist_entry, rb_node);
-		if (hist_entry__cmp(he, iter) < 0)
+		if (hist_entry__cmp(iter, he) < 0)
 			p = &(*p)->rb_left;
 		else
 			p = &(*p)->rb_right;
