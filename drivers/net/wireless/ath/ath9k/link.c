@@ -179,11 +179,14 @@ void ath_rx_poll(unsigned long data)
 static void ath_paprd_activate(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_hw_cal_data *caldata = ah->caldata;
 	int chain;
 
-	if (!caldata || !caldata->paprd_done)
+	if (!caldata || !caldata->paprd_done) {
+		ath_dbg(common, CALIBRATE, "Failed to activate PAPRD\n");
 		return;
+	}
 
 	ath9k_ps_wakeup(sc);
 	ar9003_paprd_enable(ah, false);
@@ -194,6 +197,7 @@ static void ath_paprd_activate(struct ath_softc *sc)
 		ar9003_paprd_populate_single_table(ah, caldata, chain);
 	}
 
+	ath_dbg(common, CALIBRATE, "Activating PAPRD\n");
 	ar9003_paprd_enable(ah, true);
 	ath9k_ps_restore(sc);
 }
@@ -253,8 +257,10 @@ void ath_paprd_calibrate(struct work_struct *work)
 	int len = 1800;
 	int ret;
 
-	if (!caldata || !caldata->paprd_packet_sent || caldata->paprd_done)
+	if (!caldata || !caldata->paprd_packet_sent || caldata->paprd_done) {
+		ath_dbg(common, CALIBRATE, "Skipping PAPRD calibration\n");
 		return;
+	}
 
 	ath9k_ps_wakeup(sc);
 
