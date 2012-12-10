@@ -633,7 +633,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	ath_read_cachesize(common, &csz);
 	common->cachelsz = csz << 2; /* convert to bytes */
 
-	if (pdata->eeprom_name) {
+	if (pdata && pdata->eeprom_name) {
 		ret = ath9k_eeprom_request(sc, pdata->eeprom_name);
 		if (ret)
 			goto err_eeprom;
