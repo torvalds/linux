@@ -1228,3 +1228,80 @@ u64 perf_evsel__intval(struct perf_evsel *evsel, struct perf_sample *sample,
 
 	return 0;
 }
+
+static int comma_fprintf(FILE *fp, bool *first, const char *fmt, ...)
+{
+	va_list args;
+	int ret = 0;
+
+	if (!*first) {
+		ret += fprintf(fp, ",");
+	} else {
+		ret += fprintf(fp, ":");
+		*first = false;
+	}
+
+	va_start(args, fmt);
+	ret += vfprintf(fp, fmt, args);
+	va_end(args);
+	return ret;
+}
+
+static int __if_fprintf(FILE *fp, bool *first, const char *field, u64 value)
+{
+	if (value == 0)
+		return 0;
+
+	return comma_fprintf(fp, first, " %s: %" PRIu64, field, value);
+}
+
+#define if_print(field) printed += __if_fprintf(fp, &first, #field, evsel->attr.field)
+
+int perf_evsel__fprintf(struct perf_evsel *evsel,
+			struct perf_attr_details *details, FILE *fp)
+{
+	bool first = true;
+	int printed = fprintf(fp, "%s", perf_evsel__name(evsel));
+
+	if (details->verbose || details->freq) {
+		printed += comma_fprintf(fp, &first, " sample_freq=%" PRIu64,
+					 (u64)evsel->attr.sample_freq);
+	}
+
+	if (details->verbose) {
+		if_print(type);
+		if_print(config);
+		if_print(config1);
+		if_print(config2);
+		if_print(size);
+		if_print(sample_type);
+		if_print(read_format);
+		if_print(disabled);
+		if_print(inherit);
+		if_print(pinned);
+		if_print(exclusive);
+		if_print(exclude_user);
+		if_print(exclude_kernel);
+		if_print(exclude_hv);
+		if_print(exclude_idle);
+		if_print(mmap);
+		if_print(comm);
+		if_print(freq);
+		if_print(inherit_stat);
+		if_print(enable_on_exec);
+		if_print(task);
+		if_print(watermark);
+		if_print(precise_ip);
+		if_print(mmap_data);
+		if_print(sample_id_all);
+		if_print(exclude_host);
+		if_print(exclude_guest);
+		if_print(__reserved_1);
+		if_print(wakeup_events);
+		if_print(bp_type);
+		if_print(branch_sample_type);
+	}
+
+	fputc('\n', fp);
+	return ++printed;
+}
