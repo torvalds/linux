@@ -1422,7 +1422,6 @@ int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp)
 	if (!nf_conntrack_htable_size)
 		return param_set_uint(val, kp);
 
-	hashsize = simple_strtoul(val, NULL, 0);
 	rc = kstrtouint(val, 0, &hashsize);
 	if (rc)
 		return rc;

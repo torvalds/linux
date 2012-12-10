@@ -706,7 +706,6 @@ int netpoll_parse_options(struct netpoll *np, char *opt)
 		*delim = 0;
 		if (*cur == ' ' || *cur == '\t')
 			np_info(np, "warning: whitespace is not allowed\n");
-		np->remote_port = simple_strtol(cur, NULL, 10);
 		if (kstrtou16(cur, 10, &np->remote_port))
 			goto parse_failed;
 		cur = delim;
