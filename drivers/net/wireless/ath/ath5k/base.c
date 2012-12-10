@@ -1336,20 +1336,9 @@ ath5k_receive_frame(struct ath5k_hw *ah, struct sk_buff *skb,
 	 * 15bit only. that means TSF extension has to be done within
 	 * 32768usec (about 32ms). it might be necessary to move this to
 	 * the interrupt handler, like it is done in madwifi.
-	 *
-	 * Unfortunately we don't know when the hardware takes the rx
-	 * timestamp (beginning of phy frame, data frame, end of rx?).
-	 * The only thing we know is that it is hardware specific...
-	 * On AR5213 it seems the rx timestamp is at the end of the
-	 * frame, but I'm not sure.
-	 *
-	 * NOTE: mac80211 defines mactime at the beginning of the first
-	 * data symbol. Since we don't have any time references it's
-	 * impossible to comply to that. This affects IBSS merge only
-	 * right now, so it's not too bad...
 	 */
 	rxs->mactime = ath5k_extend_tsf(ah, rs->rs_tstamp);
-	rxs->flag |= RX_FLAG_MACTIME_START;
+	rxs->flag |= RX_FLAG_MACTIME_END;
 
 	rxs->freq = ah->curchan->center_freq;
 	rxs->band = ah->curchan->band;
