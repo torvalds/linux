@@ -2852,6 +2852,27 @@ static int em_das(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_aad(struct x86_emulate_ctxt *ctxt)
+{
+	u8 al = ctxt->dst.val & 0xff;
+	u8 ah = (ctxt->dst.val >> 8) & 0xff;
+
+	al = (al + (ah * ctxt->src.val)) & 0xff;
+
+	ctxt->dst.val = (ctxt->dst.val & 0xffff0000) | al;
+
+	ctxt->eflags &= ~(X86_EFLAGS_PF | X86_EFLAGS_SF | X86_EFLAGS_ZF);
+
+	if (!al)
+		ctxt->eflags |= X86_EFLAGS_ZF;
+	if (!(al & 1))
+		ctxt->eflags |= X86_EFLAGS_PF;
+	if (al & 0x80)
+		ctxt->eflags |= X86_EFLAGS_SF;
+
+	return X86EMUL_CONTINUE;
+}
+
 static int em_call(struct x86_emulate_ctxt *ctxt)
 {
 	long rel = ctxt->src.val;
@@ -3801,7 +3822,7 @@ static const struct opcode opcode_table[256] = {
 	D(ImplicitOps | No64), II(ImplicitOps, em_iret, iret),
 	/* 0xD0 - 0xD7 */
 	D2bv(DstMem | SrcOne | ModRM), D2bv(DstMem | ModRM),
-	N, N, N, N,
+	N, I(DstAcc | SrcImmByte | No64, em_aad), N, N,
 	/* 0xD8 - 0xDF */
 	N, N, N, N, N, N, N, N,
 	/* 0xE0 - 0xE7 */
