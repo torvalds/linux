@@ -664,7 +664,7 @@ static ssize_t __write_ports_addfd(char *buf)
 	if (err != 0 || fd < 0)
 		return -EINVAL;
 
-	err = nfsd_create_serv();
+	err = nfsd_create_serv(net);
 	if (err != 0)
 		return err;
 
@@ -696,7 +696,7 @@ static ssize_t __write_ports_addxprt(char *buf)
 	if (port < 1 || port > USHRT_MAX)
 		return -EINVAL;
 
-	err = nfsd_create_serv();
+	err = nfsd_create_serv(net);
 	if (err != 0)
 		return err;
 
