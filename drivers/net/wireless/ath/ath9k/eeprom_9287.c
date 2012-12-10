@@ -40,11 +40,8 @@ static bool __ath9k_hw_ar9287_fill_eeprom(struct ath_hw *ah)
 
 	for (addr = 0; addr < SIZE_EEPROM_AR9287; addr++) {
 		if (!ath9k_hw_nvram_read(common, addr + eep_start_loc,
-					 eep_data)) {
-			ath_dbg(common, EEPROM,
-				"Unable to read eeprom region\n");
+					 eep_data))
 			return false;
-		}
 		eep_data++;
 	}
 

@@ -37,11 +37,9 @@ static bool __ath9k_hw_4k_fill_eeprom(struct ath_hw *ah)
 	int addr, eep_start_loc = 64;
 
 	for (addr = 0; addr < SIZE_EEPROM_4K; addr++) {
-		if (!ath9k_hw_nvram_read(common, addr + eep_start_loc, eep_data)) {
-			ath_dbg(common, EEPROM,
-				"Unable to read eeprom region\n");
+		if (!ath9k_hw_nvram_read(common, addr + eep_start_loc,
+					 eep_data))
 			return false;
-		}
 		eep_data++;
 	}
 

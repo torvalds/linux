@@ -97,11 +97,8 @@ static bool __ath9k_hw_def_fill_eeprom(struct ath_hw *ah)
 
 	for (addr = 0; addr < SIZE_EEPROM_DEF; addr++) {
 		if (!ath9k_hw_nvram_read(common, addr + ar5416_eep_start_loc,
-					 eep_data)) {
-			ath_err(ath9k_hw_common(ah),
-				"Unable to read eeprom region\n");
+					 eep_data))
 			return false;
-		}
 		eep_data++;
 	}
 	return true;

@@ -115,7 +115,13 @@ void ath9k_hw_usb_gen_fill_eeprom(struct ath_hw *ah, u16 *eep_data,
 
 bool ath9k_hw_nvram_read(struct ath_common *common, u32 off, u16 *data)
 {
-	return common->bus_ops->eeprom_read(common, off, data);
+	bool ret;
+
+	ret = common->bus_ops->eeprom_read(common, off, data);
+	if (!ret)
+		ath_dbg(common, EEPROM, "Unable to read eeprom region\n");
+
+	return ret;
 }
 
 void ath9k_hw_fill_vpd_table(u8 pwrMin, u8 pwrMax, u8 *pPwrList,
