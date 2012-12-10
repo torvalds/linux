@@ -246,6 +246,9 @@ struct mxt_data {
 
 	/* for config update handling */
 	struct completion crc_completion;
+
+	/* Indicates whether device is in suspend */
+	bool suspended;
 };
 
 static size_t mxt_obj_size(const struct mxt_object *obj)
@@ -885,10 +888,10 @@ static int mxt_proc_message(struct mxt_data *data, u8 *message)
 		mxt_proc_t42_messages(data, message);
 	} else if (report_id == data->T48_reportid) {
 		mxt_proc_t48_messages(data, message);
-	} else if (!data->input_dev) {
+	} else if (!data->input_dev || data->suspended) {
 		/*
-		 * do not report events if input device
-		 * is not yet registered
+		 * do not report events if input device is not
+		 * yet registered or returning from suspend
 		 */
 		mxt_dump_message(data, message);
 	} else if (report_id >= data->T9_reportid_min
@@ -2026,6 +2029,11 @@ static int mxt_load_fw(struct device *dev, const char *fn)
 	if (ret)
 		goto release_firmware;
 
+	if (data->suspended) {
+		enable_irq(data->irq);
+		data->suspended = false;
+	}
+
 	if (!data->in_bootloader) {
 		/* Change to the bootloader mode */
 		data->in_bootloader = true;
@@ -2138,6 +2146,8 @@ static ssize_t mxt_update_fw_store(struct device *dev,
 	} else {
 		dev_info(dev, "The firmware update succeeded\n");
 
+		data->suspended = false;
+
 		error = mxt_initialize(data);
 		if (error)
 			return error;
@@ -2163,17 +2173,53 @@ static const struct attribute_group mxt_attr_group = {
 	.attrs = mxt_attrs,
 };
 
+static void mxt_reset_slots(struct mxt_data *data)
+{
+	struct input_dev *input_dev = data->input_dev;
+	unsigned int num_mt_slots;
+	int id;
+
+	num_mt_slots = data->num_touchids + data->num_stylusids;
+
+	for (id = 0; id < num_mt_slots; id++) {
+		input_mt_slot(input_dev, id);
+		input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, 0);
+	}
+
+	mxt_input_sync(input_dev);
+}
+
 static void mxt_start(struct mxt_data *data)
 {
+	if (!data->suspended || data->in_bootloader)
+		return;
+
+	/*
+	 * Discard any touch messages still in message buffer
+	 * from before chip went to sleep
+	 */
+	mxt_process_messages_until_invalid(data);
+
 	mxt_set_t7_power_cfg(data, MXT_POWER_CFG_RUN);
 
 	/* Recalibrate since chip has been in deep sleep */
 	mxt_t6_command(data, MXT_COMMAND_CALIBRATE, 1, false);
+
+	mxt_acquire_irq(data);
+	data->suspended = false;
 }
 
 static void mxt_stop(struct mxt_data *data)
 {
+	if (data->suspended || data->in_bootloader)
+		return;
+
+	disable_irq(data->irq);
+
 	mxt_set_t7_power_cfg(data, MXT_POWER_CFG_DEEPSLEEP);
+
+	mxt_reset_slots(data);
+	data->suspended = true;
 }
 
 static int mxt_input_open(struct input_dev *dev)
