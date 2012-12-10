@@ -74,15 +74,23 @@ static int ar9003_get_training_power_2g(struct ath_hw *ah)
 	unsigned int power, scale, delta;
 
 	scale = ar9003_get_paprd_scale_factor(ah, chan);
-	power = REG_READ_FIELD(ah, AR_PHY_POWERTX_RATE5,
-			       AR_PHY_POWERTX_RATE5_POWERTXHT20_0);
 
-	delta = abs((int) ah->paprd_target_power - (int) power);
-	if (delta > scale)
-		return -1;
+	if (AR_SREV_9330(ah) || AR_SREV_9340(ah) ||
+	    AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
+		power = ah->paprd_target_power + 2;
+	} else if (AR_SREV_9485(ah)) {
+		power = 25;
+	} else {
+		power = REG_READ_FIELD(ah, AR_PHY_POWERTX_RATE5,
+				       AR_PHY_POWERTX_RATE5_POWERTXHT20_0);
 
-	if (delta < 4)
-		power -= 4 - delta;
+		delta = abs((int) ah->paprd_target_power - (int) power);
+		if (delta > scale)
+			return -1;
+
+		if (delta < 4)
+			power -= 4 - delta;
+	}
 
 	return power;
 }

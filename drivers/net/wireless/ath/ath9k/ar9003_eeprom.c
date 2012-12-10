@@ -5072,6 +5072,33 @@ static inline u8 mcsidx_to_tgtpwridx(unsigned int mcs_idx, u8 base_pwridx)
 		return base_pwridx + 4 * (mcs_idx / 8) + mod_idx - 2;
 }
 
+static void ar9003_paprd_set_txpower(struct ath_hw *ah,
+				     struct ath9k_channel *chan,
+				     u8 *targetPowerValT2)
+{
+	int i;
+
+	if (!ar9003_is_paprd_enabled(ah))
+		return;
+
+	if (IS_CHAN_HT40(chan))
+		i = ALL_TARGET_HT40_7;
+	else
+		i = ALL_TARGET_HT20_7;
+
+	if (IS_CHAN_2GHZ(chan)) {
+		if (!AR_SREV_9330(ah) && !AR_SREV_9340(ah) &&
+		    !AR_SREV_9462(ah) && !AR_SREV_9565(ah)) {
+			if (IS_CHAN_HT40(chan))
+				i = ALL_TARGET_HT40_0_8_16;
+			else
+				i = ALL_TARGET_HT20_0_8_16;
+		}
+	}
+
+	ah->paprd_target_power = targetPowerValT2[i];
+}
+
 static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 					struct ath9k_channel *chan, u16 cfgCtl,
 					u8 twiceAntennaReduction,
@@ -5166,19 +5193,7 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 	/* Write target power array to registers */
 	ar9003_hw_tx_power_regwrite(ah, targetPowerValT2);
 	ar9003_hw_calibration_apply(ah, chan->channel);
-
-	if (IS_CHAN_2GHZ(chan)) {
-		if (IS_CHAN_HT40(chan))
-			i = ALL_TARGET_HT40_0_8_16;
-		else
-			i = ALL_TARGET_HT20_0_8_16;
-	} else {
-		if (IS_CHAN_HT40(chan))
-			i = ALL_TARGET_HT40_7;
-		else
-			i = ALL_TARGET_HT20_7;
-	}
-	ah->paprd_target_power = targetPowerValT2[i];
+	ar9003_paprd_set_txpower(ah, chan, targetPowerValT2);
 }
 
 static u16 ath9k_hw_ar9300_get_spur_channel(struct ath_hw *ah,
