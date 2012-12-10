@@ -182,18 +182,18 @@ int nfsd_nrthreads(void)
 	return rv;
 }
 
-static int nfsd_init_socks(int port)
+static int nfsd_init_socks(int port, struct net *net)
 {
 	int error;
 	if (!list_empty(&nfsd_serv->sv_permsocks))
 		return 0;
 
-	error = svc_create_xprt(nfsd_serv, "udp", &init_net, PF_INET, port,
+	error = svc_create_xprt(nfsd_serv, "udp", net, PF_INET, port,
 					SVC_SOCK_DEFAULTS);
 	if (error < 0)
 		return error;
 
-	error = svc_create_xprt(nfsd_serv, "tcp", &init_net, PF_INET, port,
+	error = svc_create_xprt(nfsd_serv, "tcp", net, PF_INET, port,
 					SVC_SOCK_DEFAULTS);
 	if (error < 0)
 		return error;
@@ -206,6 +206,7 @@ static bool nfsd_up = false;
 static int nfsd_startup(unsigned short port, int nrservs)
 {
 	int ret;
+	struct net *net = &init_net;
 
 	if (nfsd_up)
 		return 0;
@@ -217,7 +218,7 @@ static int nfsd_startup(unsigned short port, int nrservs)
 	ret = nfsd_racache_init(2*nrservs);
 	if (ret)
 		return ret;
-	ret = nfsd_init_socks(port);
+	ret = nfsd_init_socks(port, net);
 	if (ret)
 		goto out_racache;
 	ret = lockd_up(&init_net);
