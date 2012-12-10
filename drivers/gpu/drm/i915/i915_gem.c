@@ -1938,11 +1938,15 @@ i915_gem_handle_seqno_wrap(struct drm_device *dev)
 	if (ret == 0)
 		return ret;
 
-	ret = i915_gpu_idle(dev);
-	if (ret)
-		return ret;
-
+	/* Carefully retire all requests without writing to the rings */
+	for_each_ring(ring, dev_priv, i) {
+		ret = intel_ring_idle(ring);
+		if (ret)
+			return ret;
+	}
 	i915_gem_retire_requests(dev);
+
+	/* Finally reset hw state */
 	for_each_ring(ring, dev_priv, i) {
 		ret = intel_ring_handle_seqno_wrap(ring);
 		if (ret)
