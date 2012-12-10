@@ -601,6 +601,7 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 		rqstp->rq_respages = rqstp->rq_pages + 1 +
 			DIV_ROUND_UP(rqstp->rq_arg.page_len, PAGE_SIZE);
 	}
+	rqstp->rq_next_page = rqstp->rq_respages+1;
 
 	if (serv->sv_stats)
 		serv->sv_stats->netudpcnt++;
@@ -1066,6 +1067,7 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 						svsk->sk_datalen + want);
 
 	rqstp->rq_respages = &rqstp->rq_pages[pnum];
+	rqstp->rq_next_page = rqstp->rq_respages + 1;
 
 	/* Now receive data */
 	len = svc_partial_recvfrom(rqstp, vec, pnum, want, base);

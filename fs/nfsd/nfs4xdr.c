@@ -2906,7 +2906,8 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 		  struct nfsd4_read *read)
 {
 	u32 eof;
-	int v, pn;
+	int v;
+	struct page *page;
 	unsigned long maxcount; 
 	long len;
 	__be32 *p;
@@ -2925,16 +2926,15 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 	len = maxcount;
 	v = 0;
 	while (len > 0) {
-		pn = resp->rqstp->rq_resused;
-		if (!resp->rqstp->rq_respages[pn]) { /* ran out of pages */
+		page = *(resp->rqstp->rq_next_page);
+		if (!page) { /* ran out of pages */
 			maxcount -= len;
 			break;
 		}
-		resp->rqstp->rq_vec[v].iov_base =
-			page_address(resp->rqstp->rq_respages[pn]);
+		resp->rqstp->rq_vec[v].iov_base = page_address(page);
 		resp->rqstp->rq_vec[v].iov_len =
 			len < PAGE_SIZE ? len : PAGE_SIZE;
-		resp->rqstp->rq_resused++;
+		resp->rqstp->rq_next_page++;
 		v++;
 		len -= PAGE_SIZE;
 	}
@@ -2980,10 +2980,10 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd
 		return nfserr;
 	if (resp->xbuf->page_len)
 		return nfserr_resource;
-	if (!resp->rqstp->rq_respages[resp->rqstp->rq_resused])
+	if (!*resp->rqstp->rq_next_page)
 		return nfserr_resource;
 
-	page = page_address(resp->rqstp->rq_respages[resp->rqstp->rq_resused++]);
+	page = page_address(*(resp->rqstp->rq_next_page++));
 
 	maxcount = PAGE_SIZE;
 	RESERVE_SPACE(4);
@@ -3031,7 +3031,7 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 		return nfserr;
 	if (resp->xbuf->page_len)
 		return nfserr_resource;
-	if (!resp->rqstp->rq_respages[resp->rqstp->rq_resused])
+	if (!*resp->rqstp->rq_next_page)
 		return nfserr_resource;
 
 	RESERVE_SPACE(NFS4_VERIFIER_SIZE);
@@ -3059,7 +3059,7 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 		goto err_no_verf;
 	}
 
-	page = page_address(resp->rqstp->rq_respages[resp->rqstp->rq_resused++]);
+	page = page_address(*(resp->rqstp->rq_next_page++));
 	readdir->common.err = 0;
 	readdir->buflen = maxcount;
 	readdir->buffer = page;
@@ -3082,8 +3082,8 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 	p = readdir->buffer;
 	*p++ = 0;	/* no more entries */
 	*p++ = htonl(readdir->common.err == nfserr_eof);
-	resp->xbuf->page_len = ((char*)p) - (char*)page_address(
-		resp->rqstp->rq_respages[resp->rqstp->rq_resused-1]);
+	resp->xbuf->page_len = ((char*)p) -
+		(char*)page_address(*(resp->rqstp->rq_next_page-1));
 
 	/* Use rest of head for padding and remaining ops: */
 	resp->xbuf->tail[0].iov_base = tailbase;
