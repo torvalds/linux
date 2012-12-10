@@ -747,6 +747,30 @@ out:
 	return copied;
 }
 
+struct buffer_head *
+ext4_journalled_write_inline_data(struct inode *inode,
+				  unsigned len,
+				  struct page *page)
+{
+	int ret;
+	void *kaddr;
+	struct ext4_iloc iloc;
+
+	ret = ext4_get_inode_loc(inode, &iloc);
+	if (ret) {
+		ext4_std_error(inode->i_sb, ret);
+		return NULL;
+	}
+
+	down_write(&EXT4_I(inode)->xattr_sem);
+	kaddr = kmap_atomic(page);
+	ext4_write_inline_data(inode, &iloc, kaddr, 0, len);
+	kunmap_atomic(kaddr);
+	up_write(&EXT4_I(inode)->xattr_sem);
+
+	return iloc.bh;
+}
+
 
 int ext4_destroy_inline_data(handle_t *handle, struct inode *inode)
 {
