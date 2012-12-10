@@ -784,13 +784,19 @@ int __kvm_set_memory_region(struct kvm *kvm,
 
 	r = -ENOMEM;
 
-	/* Allocate if a slot is being created */
+	/*
+	 * Allocate if a slot is being created.  If modifying a slot,
+	 * the userspace_addr cannot change.
+	 */
 	if (!old.npages) {
 		new.user_alloc = user_alloc;
 		new.userspace_addr = mem->userspace_addr;
 
 		if (kvm_arch_create_memslot(&new, npages))
 			goto out_free;
+	} else if (npages && mem->userspace_addr != old.userspace_addr) {
+		r = -EINVAL;
+		goto out_free;
 	}
 
 	/* Allocate page dirty bitmap if needed */
