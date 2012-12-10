@@ -7561,6 +7561,12 @@ F:	Documentation/backlight/lp855x-driver.txt
 F:	drivers/video/backlight/lp855x_bl.c
 F:	include/linux/platform_data/lp855x.h
 
+TI LP8727 CHARGER DRIVER
+M:	Milo Kim <milo.kim@ti.com>
+S:	Maintained
+F:	drivers/power/lp8727_charger.c
+F:	include/linux/platform_data/lp8727.h
+
 TI TWL4030 SERIES SOC CODEC DRIVER
 M:	Peter Ujfalusi <peter.ujfalusi@ti.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
