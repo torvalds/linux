@@ -128,6 +128,7 @@ int test__basic_mmap(void)
 			goto out_munmap;
 		}
 
+		err = -1;
 		evsel = perf_evlist__id2evsel(evlist, sample.id);
 		if (evsel == NULL) {
 			pr_debug("event with id %" PRIu64
@@ -137,16 +138,17 @@ int test__basic_mmap(void)
 		nr_events[evsel->idx]++;
 	}
 
+	err = 0;
 	list_for_each_entry(evsel, &evlist->entries, node) {
 		if (nr_events[evsel->idx] != expected_nr_events[evsel->idx]) {
 			pr_debug("expected %d %s events, got %d\n",
 				 expected_nr_events[evsel->idx],
 				 perf_evsel__name(evsel), nr_events[evsel->idx]);
+			err = -1;
 			goto out_munmap;
 		}
 	}
 
-	err = 0;
 out_munmap:
 	perf_evlist__munmap(evlist);
 out_close_fd:
