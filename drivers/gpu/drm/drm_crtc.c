@@ -2271,18 +2271,12 @@ int drm_mode_addfb(struct drm_device *dev,
 	if ((config->min_height > r.height) || (r.height > config->max_height))
 		return -EINVAL;
 
-	drm_modeset_lock_all(dev);
-
-	/* TODO check buffer is sufficiently large */
-	/* TODO setup destructor callback */
-
 	fb = dev->mode_config.funcs->fb_create(dev, file_priv, &r);
 	if (IS_ERR(fb)) {
 		DRM_DEBUG_KMS("could not create framebuffer\n");
 		drm_modeset_unlock_all(dev);
 		return PTR_ERR(fb);
 	}
-	drm_modeset_unlock_all(dev);
 
 	mutex_lock(&file_priv->fbs_lock);
 	or->fb_id = fb->base.id;
@@ -2457,15 +2451,12 @@ int drm_mode_addfb2(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	drm_modeset_lock_all(dev);
-
 	fb = dev->mode_config.funcs->fb_create(dev, file_priv, r);
 	if (IS_ERR(fb)) {
 		DRM_DEBUG_KMS("could not create framebuffer\n");
 		drm_modeset_unlock_all(dev);
 		return PTR_ERR(fb);
 	}
-	drm_modeset_unlock_all(dev);
 
 	mutex_lock(&file_priv->fbs_lock);
 	r->fb_id = fb->base.id;
