@@ -190,6 +190,8 @@ extern int ext4_inline_data_fiemap(struct inode *inode,
 extern int ext4_try_to_evict_inline_data(handle_t *handle,
 					 struct inode *inode,
 					 int needed);
+extern void ext4_inline_data_truncate(struct inode *inode, int *has_inline);
+
 # else  /* CONFIG_EXT4_FS_XATTR */
 
 static inline int
@@ -411,6 +413,13 @@ static inline int ext4_inline_data_fiemap(struct inode *inode,
 {
 	return 0;
 }
+
+static inline void ext4_inline_data_truncate(struct inode *inode,
+					     int *has_inline)
+{
+	return;
+}
+
 # endif  /* CONFIG_EXT4_FS_XATTR */
 
 #ifdef CONFIG_EXT4_FS_SECURITY

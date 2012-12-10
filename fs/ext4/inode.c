@@ -3594,6 +3594,14 @@ void ext4_truncate(struct inode *inode)
 	if (inode->i_size == 0 && !test_opt(inode->i_sb, NO_AUTO_DA_ALLOC))
 		ext4_set_inode_state(inode, EXT4_STATE_DA_ALLOC_CLOSE);
 
+	if (ext4_has_inline_data(inode)) {
+		int has_inline = 1;
+
+		ext4_inline_data_truncate(inode, &has_inline);
+		if (has_inline)
+			return;
+	}
+
 	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
 		ext4_ext_truncate(inode);
 	else
