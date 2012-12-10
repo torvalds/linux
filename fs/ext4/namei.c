@@ -202,13 +202,8 @@ static int ext4_dx_add_entry(handle_t *handle, struct dentry *dentry,
 			     struct inode *inode);
 
 /* checksumming functions */
-#define EXT4_DIRENT_TAIL(block, blocksize) \
-	((struct ext4_dir_entry_tail *)(((void *)(block)) + \
-					((blocksize) - \
-					 sizeof(struct ext4_dir_entry_tail))))
-
-static void initialize_dirent_tail(struct ext4_dir_entry_tail *t,
-				   unsigned int blocksize)
+void initialize_dirent_tail(struct ext4_dir_entry_tail *t,
+			    unsigned int blocksize)
 {
 	memset(t, 0, sizeof(struct ext4_dir_entry_tail));
 	t->det_rec_len = ext4_rec_len_to_disk(
@@ -307,9 +302,9 @@ static void ext4_dirent_csum_set(struct inode *inode,
 					   (void *)t - (void *)dirent);
 }
 
-static inline int ext4_handle_dirty_dirent_node(handle_t *handle,
-						struct inode *inode,
-						struct buffer_head *bh)
+int ext4_handle_dirty_dirent_node(handle_t *handle,
+				  struct inode *inode,
+				  struct buffer_head *bh)
 {
 	ext4_dirent_csum_set(inode, (struct ext4_dir_entry *)bh->b_data);
 	return ext4_handle_dirty_metadata(handle, inode, bh);
@@ -1878,6 +1873,17 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 	blocksize = sb->s_blocksize;
 	if (!dentry->d_name.len)
 		return -EINVAL;
+
+	if (ext4_has_inline_data(dir)) {
+		retval = ext4_try_add_inline_entry(handle, dentry, inode);
+		if (retval < 0)
+			return retval;
+		if (retval == 1) {
+			retval = 0;
+			return retval;
+		}
+	}
+
 	if (is_dx(dir)) {
 		retval = ext4_dx_add_entry(handle, dentry, inode);
 		if (!retval || (retval != ERR_BAD_DX_DIR))
@@ -2300,6 +2306,14 @@ static int ext4_init_new_dir(handle_t *handle, struct inode *dir,
 	if (EXT4_HAS_RO_COMPAT_FEATURE(dir->i_sb,
 				       EXT4_FEATURE_RO_COMPAT_METADATA_CSUM))
 		csum_size = sizeof(struct ext4_dir_entry_tail);
+
+	if (ext4_test_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA)) {
+		err = ext4_try_create_inline_dir(handle, dir, inode);
+		if (err < 0 && err != -ENOSPC)
+			goto out;
+		if (!err)
+			goto out;
+	}
 
 	inode->i_size = EXT4_I(inode)->i_disksize = blocksize;
 	dir_block = ext4_bread(handle, inode, 0, 1, &err);
