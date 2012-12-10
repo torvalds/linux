@@ -223,13 +223,13 @@ static irqreturn_t ipoctal_irq_handler(void *arg)
 	unsigned int i;
 	struct ipoctal *ipoctal = (struct ipoctal *) arg;
 
-	/* Check all channels */
-	for (i = 0; i < NR_CHANNELS; i++)
-		ipoctal_irq_channel(&ipoctal->channel[i]);
-
 	/* Clear the IPack device interrupt */
 	readw(ipoctal->int_space + ACK_INT_REQ0);
 	readw(ipoctal->int_space + ACK_INT_REQ1);
+
+	/* Check all channels */
+	for (i = 0; i < NR_CHANNELS; i++)
+		ipoctal_irq_channel(&ipoctal->channel[i]);
 
 	return IRQ_HANDLED;
 }
