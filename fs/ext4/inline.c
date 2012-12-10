@@ -1510,6 +1510,61 @@ out_find:
 	return iloc.bh;
 }
 
+int ext4_delete_inline_entry(handle_t *handle,
+			     struct inode *dir,
+			     struct ext4_dir_entry_2 *de_del,
+			     struct buffer_head *bh,
+			     int *has_inline_data)
+{
+	int err, inline_size;
+	struct ext4_iloc iloc;
+	void *inline_start;
+
+	err = ext4_get_inode_loc(dir, &iloc);
+	if (err)
+		return err;
+
+	down_write(&EXT4_I(dir)->xattr_sem);
+	if (!ext4_has_inline_data(dir)) {
+		*has_inline_data = 0;
+		goto out;
+	}
+
+	if ((void *)de_del - ((void *)ext4_raw_inode(&iloc)->i_block) <
+		EXT4_MIN_INLINE_DATA_SIZE) {
+		inline_start = (void *)ext4_raw_inode(&iloc)->i_block +
+					EXT4_INLINE_DOTDOT_SIZE;
+		inline_size = EXT4_MIN_INLINE_DATA_SIZE -
+				EXT4_INLINE_DOTDOT_SIZE;
+	} else {
+		inline_start = ext4_get_inline_xattr_pos(dir, &iloc);
+		inline_size = ext4_get_inline_size(dir) -
+				EXT4_MIN_INLINE_DATA_SIZE;
+	}
+
+	err = ext4_journal_get_write_access(handle, bh);
+	if (err)
+		goto out;
+
+	err = ext4_generic_delete_entry(handle, dir, de_del, bh,
+					inline_start, inline_size, 0);
+	if (err)
+		goto out;
+
+	BUFFER_TRACE(bh, "call ext4_handle_dirty_metadata");
+	err = ext4_mark_inode_dirty(handle, dir);
+	if (unlikely(err))
+		goto out;
+
+	ext4_show_inline_dir(dir, iloc.bh, inline_start, inline_size);
+out:
+	up_write(&EXT4_I(dir)->xattr_sem);
+	brelse(iloc.bh);
+	if (err != -ENOENT)
+		ext4_std_error(dir->i_sb, err);
+	return err;
+}
+
 int ext4_destroy_inline_data(handle_t *handle, struct inode *inode)
 {
 	int ret;

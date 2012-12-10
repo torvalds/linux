@@ -2158,6 +2158,14 @@ static int ext4_delete_entry(handle_t *handle,
 {
 	int err, csum_size = 0;
 
+	if (ext4_has_inline_data(dir)) {
+		int has_inline_data = 1;
+		err = ext4_delete_inline_entry(handle, dir, de_del, bh,
+					       &has_inline_data);
+		if (has_inline_data)
+			return err;
+	}
+
 	if (EXT4_HAS_RO_COMPAT_FEATURE(dir->i_sb,
 				       EXT4_FEATURE_RO_COMPAT_METADATA_CSUM))
 		csum_size = sizeof(struct ext4_dir_entry_tail);
