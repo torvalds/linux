@@ -2129,6 +2129,13 @@ extern int search_dir(struct buffer_head *bh,
 		      const struct qstr *d_name,
 		      unsigned int offset,
 		      struct ext4_dir_entry_2 **res_dir);
+extern int ext4_generic_delete_entry(handle_t *handle,
+				     struct inode *dir,
+				     struct ext4_dir_entry_2 *de_del,
+				     struct buffer_head *bh,
+				     void *entry_buf,
+				     int buf_size,
+				     int csum_size);
 
 /* resize.c */
 extern int ext4_group_add(struct super_block *sb,
