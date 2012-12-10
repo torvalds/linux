@@ -232,11 +232,6 @@ static int __init omap_dss_probe(struct platform_device *pdev)
 
 	dss_features_init(omapdss_get_version());
 
-	dss_apply_init();
-
-	dss_init_overlay_managers(pdev);
-	dss_init_overlays(pdev);
-
 	r = dss_initialize_debugfs();
 	if (r)
 		goto err_debugfs;
@@ -260,9 +255,6 @@ static int omap_dss_remove(struct platform_device *pdev)
 	unregister_pm_notifier(&omap_dss_pm_notif_block);
 
 	dss_uninitialize_debugfs();
-
-	dss_uninit_overlays(pdev);
-	dss_uninit_overlay_managers(pdev);
 
 	return 0;
 }
@@ -351,15 +343,10 @@ static int dss_driver_probe(struct device *dev)
 				dev_name(dev), dssdev->driver_name,
 				dssdrv->driver.name);
 
-	r = dss_init_device(core.pdev, dssdev);
-	if (r)
-		return r;
-
 	r = dssdrv->probe(dssdev);
 
 	if (r) {
 		DSSERR("driver probe failed: %d\n", r);
-		dss_uninit_device(core.pdev, dssdev);
 		return r;
 	}
 
@@ -379,8 +366,6 @@ static int dss_driver_remove(struct device *dev)
 			dssdev->driver_name);
 
 	dssdrv->remove(dssdev);
-
-	dss_uninit_device(core.pdev, dssdev);
 
 	dssdev->driver = NULL;
 

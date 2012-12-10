@@ -23,6 +23,8 @@
 #ifndef __OMAP2_DSS_H
 #define __OMAP2_DSS_H
 
+#include <linux/interrupt.h>
+
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
@@ -177,38 +179,6 @@ void dss_put_device(struct omap_dss_device *dssdev);
 void dss_copy_device_pdata(struct omap_dss_device *dst,
 		const struct omap_dss_device *src);
 
-/* apply */
-void dss_apply_init(void);
-int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr);
-int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl);
-void dss_mgr_start_update(struct omap_overlay_manager *mgr);
-int omap_dss_mgr_apply(struct omap_overlay_manager *mgr);
-
-int dss_mgr_enable(struct omap_overlay_manager *mgr);
-void dss_mgr_disable(struct omap_overlay_manager *mgr);
-int dss_mgr_set_info(struct omap_overlay_manager *mgr,
-		struct omap_overlay_manager_info *info);
-void dss_mgr_get_info(struct omap_overlay_manager *mgr,
-		struct omap_overlay_manager_info *info);
-int dss_mgr_set_output(struct omap_overlay_manager *mgr,
-		struct omap_dss_output *output);
-int dss_mgr_unset_output(struct omap_overlay_manager *mgr);
-void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
-		const struct omap_video_timings *timings);
-void dss_mgr_set_lcd_config(struct omap_overlay_manager *mgr,
-		const struct dss_lcd_mgr_config *config);
-
-bool dss_ovl_is_enabled(struct omap_overlay *ovl);
-int dss_ovl_enable(struct omap_overlay *ovl);
-int dss_ovl_disable(struct omap_overlay *ovl);
-int dss_ovl_set_info(struct omap_overlay *ovl,
-		struct omap_overlay_info *info);
-void dss_ovl_get_info(struct omap_overlay *ovl,
-		struct omap_overlay_info *info);
-int dss_ovl_set_manager(struct omap_overlay *ovl,
-		struct omap_overlay_manager *mgr);
-int dss_ovl_unset_manager(struct omap_overlay *ovl);
-
 /* output */
 void dss_register_output(struct omap_dss_output *out);
 void dss_unregister_output(struct omap_dss_output *out);
@@ -217,11 +187,6 @@ void dss_unregister_output(struct omap_dss_output *out);
 int dss_suspend_all_devices(void);
 int dss_resume_all_devices(void);
 void dss_disable_all_devices(void);
-
-int dss_init_device(struct platform_device *pdev,
-		struct omap_dss_device *dssdev);
-void dss_uninit_device(struct platform_device *pdev,
-		struct omap_dss_device *dssdev);
 
 int display_init_sysfs(struct platform_device *pdev,
 		struct omap_dss_device *dssdev);
@@ -400,13 +365,6 @@ void dpi_uninit_platform_driver(void) __exit;
 int dispc_init_platform_driver(void) __init;
 void dispc_uninit_platform_driver(void) __exit;
 void dispc_dump_clocks(struct seq_file *s);
-u32 dispc_read_irqstatus(void);
-void dispc_clear_irqstatus(u32 mask);
-u32 dispc_read_irqenable(void);
-void dispc_write_irqenable(u32 mask);
-
-int dispc_runtime_get(void);
-void dispc_runtime_put(void);
 
 void dispc_enable_sidle(void);
 void dispc_disable_sidle(void);
@@ -430,27 +388,7 @@ void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high);
 void dispc_ovl_compute_fifo_thresholds(enum omap_plane plane,
 		u32 *fifo_low, u32 *fifo_high, bool use_fifomerge,
 		bool manual_update);
-int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
-		bool replication, const struct omap_video_timings *mgr_timings,
-		bool mem_to_mem);
-int dispc_ovl_enable(enum omap_plane plane, bool enable);
-bool dispc_ovl_enabled(enum omap_plane plane);
-void dispc_ovl_set_channel_out(enum omap_plane plane,
-		enum omap_channel channel);
 
-u32 dispc_mgr_get_vsync_irq(enum omap_channel channel);
-u32 dispc_mgr_get_framedone_irq(enum omap_channel channel);
-u32 dispc_mgr_get_sync_lost_irq(enum omap_channel channel);
-bool dispc_mgr_go_busy(enum omap_channel channel);
-void dispc_mgr_go(enum omap_channel channel);
-void dispc_mgr_enable(enum omap_channel channel, bool enable);
-bool dispc_mgr_is_enabled(enum omap_channel channel);
-void dispc_mgr_enable_sync(enum omap_channel channel);
-void dispc_mgr_disable_sync(enum omap_channel channel);
-void dispc_mgr_set_lcd_config(enum omap_channel channel,
-		const struct dss_lcd_mgr_config *config);
-void dispc_mgr_set_timings(enum omap_channel channel,
-		const struct omap_video_timings *timings);
 unsigned long dispc_mgr_lclk_rate(enum omap_channel channel);
 unsigned long dispc_mgr_pclk_rate(enum omap_channel channel);
 unsigned long dispc_core_clk_rate(void);
@@ -458,8 +396,6 @@ void dispc_mgr_set_clock_div(enum omap_channel channel,
 		const struct dispc_clock_info *cinfo);
 int dispc_mgr_get_clock_div(enum omap_channel channel,
 		struct dispc_clock_info *cinfo);
-void dispc_mgr_setup(enum omap_channel channel,
-		const struct omap_overlay_manager_info *info);
 
 u32 dispc_wb_get_framedone_irq(void);
 bool dispc_wb_go_busy(void);

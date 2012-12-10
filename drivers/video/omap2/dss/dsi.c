@@ -4535,7 +4535,7 @@ static void dsi_framedone_timeout_work_callback(struct work_struct *work)
 	dsi_handle_framedone(dsi->pdev, -ETIMEDOUT);
 }
 
-static void dsi_framedone_irq_callback(void *data, u32 mask)
+static void dsi_framedone_irq_callback(void *data)
 {
 	struct platform_device *dsidev = (struct platform_device *) data;
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
@@ -4609,7 +4609,6 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct omap_overlay_manager *mgr = dssdev->output->manager;
 	int r;
-	u32 irq = 0;
 
 	if (dsi->mode == OMAP_DSS_DSI_CMD_MODE) {
 		dsi->timings.hsw = 1;
@@ -4619,12 +4618,10 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 		dsi->timings.vfp = 0;
 		dsi->timings.vbp = 0;
 
-		irq = dispc_mgr_get_framedone_irq(mgr->id);
-
-		r = omap_dispc_register_isr(dsi_framedone_irq_callback,
-			(void *) dsidev, irq);
+		r = dss_mgr_register_framedone_handler(mgr,
+				dsi_framedone_irq_callback, dsidev);
 		if (r) {
-			DSSERR("can't get FRAMEDONE irq\n");
+			DSSERR("can't register FRAMEDONE handler\n");
 			goto err;
 		}
 
@@ -4662,8 +4659,8 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 	return 0;
 err1:
 	if (dsi->mode == OMAP_DSS_DSI_CMD_MODE)
-		omap_dispc_unregister_isr(dsi_framedone_irq_callback,
-			(void *) dsidev, irq);
+		dss_mgr_unregister_framedone_handler(mgr,
+				dsi_framedone_irq_callback, dsidev);
 err:
 	return r;
 }
@@ -4674,14 +4671,9 @@ static void dsi_display_uninit_dispc(struct omap_dss_device *dssdev)
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct omap_overlay_manager *mgr = dssdev->output->manager;
 
-	if (dsi->mode == OMAP_DSS_DSI_CMD_MODE) {
-		u32 irq;
-
-		irq = dispc_mgr_get_framedone_irq(mgr->id);
-
-		omap_dispc_unregister_isr(dsi_framedone_irq_callback,
-			(void *) dsidev, irq);
-	}
+	if (dsi->mode == OMAP_DSS_DSI_CMD_MODE)
+		dss_mgr_unregister_framedone_handler(mgr,
+				dsi_framedone_irq_callback, dsidev);
 }
 
 static int dsi_configure_dsi_clocks(struct omap_dss_device *dssdev)
