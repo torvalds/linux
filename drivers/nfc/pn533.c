@@ -542,6 +542,9 @@ static void pn533_recv_response(struct urb *urb)
 
 	in_frame = dev->in_urb->transfer_buffer;
 
+	print_hex_dump(KERN_DEBUG, "PN533 RX: ", DUMP_PREFIX_NONE, 16, 1,
+		       in_frame, PN533_FRAME_SIZE(in_frame), false);
+
 	if (!pn533_rx_frame_is_valid(in_frame)) {
 		nfc_dev_err(&dev->interface->dev, "Received an invalid frame");
 		dev->wq_in_error = -EIO;
@@ -663,6 +666,9 @@ static int __pn533_send_cmd_frame_async(struct pn533 *dev,
 
 	dev->in_urb->transfer_buffer = in_frame;
 	dev->in_urb->transfer_buffer_length = in_frame_len;
+
+	print_hex_dump(KERN_DEBUG, "PN533 TX: ", DUMP_PREFIX_NONE, 16, 1,
+		       out_frame, PN533_FRAME_SIZE(out_frame), false);
 
 	rc = usb_submit_urb(dev->out_urb, GFP_KERNEL);
 	if (rc)
