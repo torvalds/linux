@@ -236,6 +236,21 @@ static int tps51632_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
+	if (pdata->enable_pwm_dvfs) {
+		if ((pdata->base_voltage_uV < TPS51632_MIN_VOLATGE) ||
+		    (pdata->base_voltage_uV > TPS51632_MAX_VOLATGE)) {
+			dev_err(&client->dev, "Invalid base_voltage_uV setting\n");
+			return -EINVAL;
+		}
+
+		if ((pdata->max_voltage_uV) &&
+		    ((pdata->max_voltage_uV < TPS51632_MIN_VOLATGE) ||
+		     (pdata->max_voltage_uV > TPS51632_MAX_VOLATGE))) {
+			dev_err(&client->dev, "Invalid max_voltage_uV setting\n");
+			return -EINVAL;
+		}
+	}
+
 	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps) {
 		dev_err(&client->dev, "Memory allocation failed\n");
