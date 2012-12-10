@@ -20,17 +20,17 @@
 static struct cpufreq_frequency_table *freq_table;
 static struct clk *armss_clk;
 
-static struct freq_attr *db8500_cpufreq_attr[] = {
+static struct freq_attr *dbx500_cpufreq_attr[] = {
 	&cpufreq_freq_attr_scaling_available_freqs,
 	NULL,
 };
 
-static int db8500_cpufreq_verify_speed(struct cpufreq_policy *policy)
+static int dbx500_cpufreq_verify_speed(struct cpufreq_policy *policy)
 {
 	return cpufreq_frequency_table_verify(policy, freq_table);
 }
 
-static int db8500_cpufreq_target(struct cpufreq_policy *policy,
+static int dbx500_cpufreq_target(struct cpufreq_policy *policy,
 				unsigned int target_freq,
 				unsigned int relation)
 {
@@ -61,7 +61,7 @@ static int db8500_cpufreq_target(struct cpufreq_policy *policy,
 
 	/* update armss clk frequency */
 	if (clk_set_rate(armss_clk, freq_table[idx].frequency * 1000)) {
-		pr_err("db8500-cpufreq: Failed to update armss clk\n");
+		pr_err("dbx500-cpufreq: Failed to update armss clk\n");
 		return -EINVAL;
 	}
 
@@ -72,7 +72,7 @@ static int db8500_cpufreq_target(struct cpufreq_policy *policy,
 	return 0;
 }
 
-static unsigned int db8500_cpufreq_getspeed(unsigned int cpu)
+static unsigned int dbx500_cpufreq_getspeed(unsigned int cpu)
 {
 	int i = 0;
 	unsigned long freq = clk_get_rate(armss_clk) / 1000;
@@ -84,22 +84,22 @@ static unsigned int db8500_cpufreq_getspeed(unsigned int cpu)
 	}
 
 	/* We could not find a corresponding frequency. */
-	pr_err("db8500-cpufreq: Failed to find cpufreq speed\n");
+	pr_err("dbx500-cpufreq: Failed to find cpufreq speed\n");
 	return 0;
 }
 
-static int __cpuinit db8500_cpufreq_init(struct cpufreq_policy *policy)
+static int __cpuinit dbx500_cpufreq_init(struct cpufreq_policy *policy)
 {
 	int i = 0;
 	int res;
 
 	armss_clk = clk_get(NULL, "armss");
 	if (IS_ERR(armss_clk)) {
-		pr_err("db8500-cpufreq : Failed to get armss clk\n");
+		pr_err("dbx500-cpufreq : Failed to get armss clk\n");
 		return PTR_ERR(armss_clk);
 	}
 
-	pr_info("db8500-cpufreq : Available frequencies:\n");
+	pr_info("dbx500-cpufreq : Available frequencies:\n");
 	while (freq_table[i].frequency != CPUFREQ_TABLE_END) {
 		pr_info("  %d Mhz\n", freq_table[i].frequency/1000);
 		i++;
@@ -110,14 +110,14 @@ static int __cpuinit db8500_cpufreq_init(struct cpufreq_policy *policy)
 	if (!res)
 		cpufreq_frequency_table_get_attr(freq_table, policy->cpu);
 	else {
-		pr_err("db8500-cpufreq : Failed to read policy table\n");
+		pr_err("dbx500-cpufreq : Failed to read policy table\n");
 		clk_put(armss_clk);
 		return res;
 	}
 
 	policy->min = policy->cpuinfo.min_freq;
 	policy->max = policy->cpuinfo.max_freq;
-	policy->cur = db8500_cpufreq_getspeed(policy->cpu);
+	policy->cur = dbx500_cpufreq_getspeed(policy->cpu);
 	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 
 	/*
@@ -135,45 +135,45 @@ static int __cpuinit db8500_cpufreq_init(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static struct cpufreq_driver db8500_cpufreq_driver = {
+static struct cpufreq_driver dbx500_cpufreq_driver = {
 	.flags  = CPUFREQ_STICKY,
-	.verify = db8500_cpufreq_verify_speed,
-	.target = db8500_cpufreq_target,
-	.get    = db8500_cpufreq_getspeed,
-	.init   = db8500_cpufreq_init,
-	.name   = "DB8500",
-	.attr   = db8500_cpufreq_attr,
+	.verify = dbx500_cpufreq_verify_speed,
+	.target = dbx500_cpufreq_target,
+	.get    = dbx500_cpufreq_getspeed,
+	.init   = dbx500_cpufreq_init,
+	.name   = "DBX500",
+	.attr   = dbx500_cpufreq_attr,
 };
 
-static int db8500_cpufreq_probe(struct platform_device *pdev)
+static int dbx500_cpufreq_probe(struct platform_device *pdev)
 {
 	freq_table = dev_get_platdata(&pdev->dev);
 
 	if (!freq_table) {
-		pr_err("db8500-cpufreq: Failed to fetch cpufreq table\n");
+		pr_err("dbx500-cpufreq: Failed to fetch cpufreq table\n");
 		return -ENODEV;
 	}
 
-	return cpufreq_register_driver(&db8500_cpufreq_driver);
+	return cpufreq_register_driver(&dbx500_cpufreq_driver);
 }
 
-static struct platform_driver db8500_cpufreq_plat_driver = {
+static struct platform_driver dbx500_cpufreq_plat_driver = {
 	.driver = {
-		.name = "cpufreq-u8500",
+		.name = "cpufreq-ux500",
 		.owner = THIS_MODULE,
 	},
-	.probe = db8500_cpufreq_probe,
+	.probe = dbx500_cpufreq_probe,
 };
 
-static int __init db8500_cpufreq_register(void)
+static int __init dbx500_cpufreq_register(void)
 {
 	if (!cpu_is_u8500_family())
 		return -ENODEV;
 
-	pr_info("cpufreq for DB8500 started\n");
-	return platform_driver_register(&db8500_cpufreq_plat_driver);
+	pr_info("cpufreq for DBX500 started\n");
+	return platform_driver_register(&dbx500_cpufreq_plat_driver);
 }
-device_initcall(db8500_cpufreq_register);
+device_initcall(dbx500_cpufreq_register);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("cpufreq driver for DB8500");
+MODULE_DESCRIPTION("cpufreq driver for DBX500");
