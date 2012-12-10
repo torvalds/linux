@@ -1300,6 +1300,14 @@ S:	Maintained
 F:	arch/arm64/
 F:	Documentation/arm64/
 
+AS3645A LED FLASH CONTROLLER DRIVER
+M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/i2c/as3645a.c
+F:	include/media/as3645a.h
+
 ASC7621 HARDWARE MONITOR DRIVER
 M:	George Joseph <george.joseph@fairview5.com>
 L:	lm-sensors@lm-sensors.org
