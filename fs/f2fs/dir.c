@@ -256,13 +256,16 @@ void f2fs_set_link(struct inode *dir, struct f2fs_dir_entry *de,
 	set_page_dirty(page);
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
 	mark_inode_dirty(dir);
+
+	/* update parent inode number before releasing dentry page */
+	F2FS_I(inode)->i_pino = dir->i_ino;
+
 	f2fs_put_page(page, 1);
 	mutex_unlock_op(sbi, DENTRY_OPS);
 }
 
 void init_dent_inode(struct dentry *dentry, struct page *ipage)
 {
-	struct inode *dir = dentry->d_parent->d_inode;
 	struct f2fs_node *rn;
 
 	if (IS_ERR(ipage))
@@ -272,7 +275,6 @@ void init_dent_inode(struct dentry *dentry, struct page *ipage)
 
 	/* copy dentry info. to this inode page */
 	rn = (struct f2fs_node *)page_address(ipage);
-	rn->i.i_pino = cpu_to_le32(dir->i_ino);
 	rn->i.i_namelen = cpu_to_le32(dentry->d_name.len);
 	memcpy(rn->i.i_name, dentry->d_name.name, dentry->d_name.len);
 	set_page_dirty(ipage);
@@ -444,7 +446,11 @@ add_dentry:
 	for (i = 0; i < slots; i++)
 		test_and_set_bit_le(bit_pos + i, &dentry_blk->dentry_bitmap);
 	set_page_dirty(dentry_page);
+
 	update_parent_metadata(dir, inode, current_depth);
+
+	/* update parent inode number before releasing dentry page */
+	F2FS_I(inode)->i_pino = dir->i_ino;
 fail:
 	kunmap(dentry_page);
 	f2fs_put_page(dentry_page, 1);

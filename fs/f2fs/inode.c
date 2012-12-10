@@ -107,6 +107,7 @@ static int do_read_inode(struct inode *inode)
 	fi->flags = 0;
 	fi->data_version = le64_to_cpu(F2FS_CKPT(sbi)->checkpoint_ver) - 1;
 	fi->i_advise = ri->i_advise;
+	fi->i_pino = le32_to_cpu(ri->i_pino);
 	get_extent_info(&fi->ext, ri->i_ext);
 	f2fs_put_page(node_page, 1);
 	return 0;
@@ -200,6 +201,7 @@ void update_inode(struct inode *inode, struct page *node_page)
 	ri->i_current_depth = cpu_to_le32(F2FS_I(inode)->i_current_depth);
 	ri->i_xattr_nid = cpu_to_le32(F2FS_I(inode)->i_xattr_nid);
 	ri->i_flags = cpu_to_le32(F2FS_I(inode)->i_flags);
+	ri->i_pino = cpu_to_le32(F2FS_I(inode)->i_pino);
 	ri->i_generation = cpu_to_le32(inode->i_generation);
 	set_page_dirty(node_page);
 }
