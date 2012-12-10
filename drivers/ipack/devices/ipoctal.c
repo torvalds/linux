@@ -43,6 +43,7 @@ struct ipoctal_channel {
 	unsigned int			board_id;
 	u8				isr_rx_rdy_mask;
 	u8				isr_tx_rdy_mask;
+	unsigned int			rx_enable;
 };
 
 struct ipoctal {
@@ -65,6 +66,7 @@ static int ipoctal_port_activate(struct tty_port *port, struct tty_struct *tty)
 	 * there is something to send
 	 */
 	iowrite8(CR_ENABLE_RX, &channel->regs->w.cr);
+	channel->rx_enable = 1;
 	return 0;
 }
 
@@ -309,6 +311,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 		}
 
 		iowrite8(CR_DISABLE_RX | CR_DISABLE_TX, &channel->regs->w.cr);
+		channel->rx_enable = 0;
 		iowrite8(CR_CMD_RESET_RX, &channel->regs->w.cr);
 		iowrite8(CR_CMD_RESET_TX, &channel->regs->w.cr);
 		iowrite8(MR1_CHRL_8_BITS | MR1_ERROR_CHAR | MR1_RxINT_RxRDY,
@@ -430,6 +433,7 @@ static int ipoctal_write_tty(struct tty_struct *tty,
 	/* As the IP-OCTAL 485 only supports half duplex, do it manually */
 	if (channel->board_id == IPACK1_DEVICE_ID_SBS_OCTAL_485) {
 		iowrite8(CR_DISABLE_RX, &channel->regs->w.cr);
+		channel->rx_enable = 0;
 		iowrite8(CR_CMD_ASSERT_RTSN, &channel->regs->w.cr);
 	}
 
@@ -589,8 +593,9 @@ static void ipoctal_set_termios(struct tty_struct *tty,
 	iowrite8(mr2, &channel->regs->w.mr);
 	iowrite8(csr, &channel->regs->w.csr);
 
-	/* Enable again the RX */
-	iowrite8(CR_ENABLE_RX, &channel->regs->w.cr);
+	/* Enable again the RX, if it was before */
+	if (channel->rx_enable)
+		iowrite8(CR_ENABLE_RX, &channel->regs->w.cr);
 }
 
 static void ipoctal_hangup(struct tty_struct *tty)
@@ -610,6 +615,7 @@ static void ipoctal_hangup(struct tty_struct *tty)
 	tty_port_hangup(&channel->tty_port);
 
 	iowrite8(CR_DISABLE_RX | CR_DISABLE_TX, &channel->regs->w.cr);
+	channel->rx_enable = 0;
 	iowrite8(CR_CMD_RESET_RX, &channel->regs->w.cr);
 	iowrite8(CR_CMD_RESET_TX, &channel->regs->w.cr);
 	iowrite8(CR_CMD_RESET_ERR_STATUS, &channel->regs->w.cr);
