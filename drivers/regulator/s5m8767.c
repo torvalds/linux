@@ -272,17 +272,17 @@ static int s5m8767_get_voltage_register(struct regulator_dev *rdev, int *_reg)
 		reg = S5M8767_REG_BUCK1CTRL2;
 		break;
 	case S5M8767_BUCK2:
-		reg = S5M8767_REG_BUCK2DVS2;
+		reg = S5M8767_REG_BUCK2DVS1;
 		if (s5m8767->buck2_gpiodvs)
 			reg += s5m8767->buck_gpioindex;
 		break;
 	case S5M8767_BUCK3:
-		reg = S5M8767_REG_BUCK3DVS2;
+		reg = S5M8767_REG_BUCK3DVS1;
 		if (s5m8767->buck3_gpiodvs)
 			reg += s5m8767->buck_gpioindex;
 		break;
 	case S5M8767_BUCK4:
-		reg = S5M8767_REG_BUCK4DVS2;
+		reg = S5M8767_REG_BUCK4DVS1;
 		if (s5m8767->buck4_gpiodvs)
 			reg += s5m8767->buck_gpioindex;
 		break;
