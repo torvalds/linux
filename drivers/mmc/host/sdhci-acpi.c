@@ -87,7 +87,15 @@ static const struct sdhci_ops sdhci_acpi_ops_dflt = {
 	.enable_dma = sdhci_acpi_enable_dma,
 };
 
+static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sdio = {
+	.quirks2 = SDHCI_QUIRK2_HOST_OFF_CARD_ON,
+	.caps    = MMC_CAP_NONREMOVABLE | MMC_CAP_POWER_OFF_CARD,
+	.flags   = SDHCI_ACPI_RUNTIME_PM,
+	.pm_caps = MMC_PM_KEEP_POWER,
+};
+
 static const struct acpi_device_id sdhci_acpi_ids[] = {
+	{ "INT33C6", (kernel_ulong_t)&sdhci_acpi_slot_int_sdio },
 	{ "PNP0D40" },
 	{ },
 };
