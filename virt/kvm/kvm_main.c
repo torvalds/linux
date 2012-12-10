@@ -758,9 +758,14 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	new.npages = npages;
 	new.flags = mem->flags;
 
-	/* Disallow changing a memory slot's size. */
+	/*
+	 * Disallow changing a memory slot's size or changing anything about
+	 * zero sized slots that doesn't involve making them non-zero.
+	 */
 	r = -EINVAL;
 	if (npages && old.npages && npages != old.npages)
+		goto out_free;
+	if (!npages && !old.npages)
 		goto out_free;
 
 	/* Check for overlaps */
@@ -780,7 +785,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	r = -ENOMEM;
 
 	/* Allocate if a slot is being created */
-	if (npages && !old.npages) {
+	if (!old.npages) {
 		new.user_alloc = user_alloc;
 		new.userspace_addr = mem->userspace_addr;
 
