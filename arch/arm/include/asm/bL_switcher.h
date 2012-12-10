@@ -14,4 +14,7 @@
 
 int bL_switch_request(unsigned int cpu, unsigned int new_cluster_id);
 
+bool bL_switcher_get_enabled(void);
+void bL_switcher_put_enabled(void);
+
 #endif
