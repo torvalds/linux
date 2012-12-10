@@ -70,8 +70,7 @@ int test__basic_mmap(void)
 		}
 
 		evsels[i]->attr.wakeup_events = 1;
-		evsels[i]->attr.read_format |= PERF_FORMAT_ID;
-		perf_evsel__set_sample_bit(evsels[i], ID);
+		perf_evsel__set_sample_id(evsels[i]);
 
 		perf_evlist__add(evlist, evsels[i]);
 

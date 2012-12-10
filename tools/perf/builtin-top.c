@@ -910,10 +910,8 @@ static void perf_top__start_counters(struct perf_top *top)
 			attr->sample_freq = top->freq;
 		}
 
-		if (evlist->nr_entries > 1) {
-			perf_evsel__set_sample_bit(counter, ID);
-			attr->read_format |= PERF_FORMAT_ID;
-		}
+		if (evlist->nr_entries > 1)
+			perf_evsel__set_sample_id(counter);
 
 		if (perf_target__has_cpu(&top->target))
 			perf_evsel__set_sample_bit(counter, CPU);

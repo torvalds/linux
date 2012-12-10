@@ -68,6 +68,12 @@ void __perf_evsel__reset_sample_bit(struct perf_evsel *evsel,
 	}
 }
 
+void perf_evsel__set_sample_id(struct perf_evsel *evsel)
+{
+	perf_evsel__set_sample_bit(evsel, ID);
+	evsel->attr.read_format |= PERF_FORMAT_ID;
+}
+
 void perf_evsel__init(struct perf_evsel *evsel,
 		      struct perf_event_attr *attr, int idx)
 {
