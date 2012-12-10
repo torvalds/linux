@@ -357,7 +357,7 @@ static struct snd_soc_dai_driver samsung_spdif_dai = {
 	.resume = spdif_resume,
 };
 
-static __devinit int spdif_probe(struct platform_device *pdev)
+static int spdif_probe(struct platform_device *pdev)
 {
 	struct s3c_audio_pdata *spdif_pdata;
 	struct resource *mem_res, *dma_res;
@@ -437,8 +437,15 @@ static __devinit int spdif_probe(struct platform_device *pdev)
 
 	spdif->dma_playback = &spdif_stereo_out;
 
-	return 0;
+	ret = asoc_dma_platform_register(&pdev->dev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register DMA: %d\n", ret);
+		goto err5;
+	}
 
+	return 0;
+err5:
+	snd_soc_unregister_dai(&pdev->dev);
 err4:
 	iounmap(spdif->regs);
 err3:
@@ -453,11 +460,12 @@ err0:
 	return ret;
 }
 
-static __devexit int spdif_remove(struct platform_device *pdev)
+static int spdif_remove(struct platform_device *pdev)
 {
 	struct samsung_spdif_info *spdif = &spdif_info;
 	struct resource *mem_res;
 
+	asoc_dma_platform_unregister(&pdev->dev);
 	snd_soc_unregister_dai(&pdev->dev);
 
 	iounmap(spdif->regs);
@@ -476,7 +484,7 @@ static __devexit int spdif_remove(struct platform_device *pdev)
 
 static struct platform_driver samsung_spdif_driver = {
 	.probe	= spdif_probe,
-	.remove	= __devexit_p(spdif_remove),
+	.remove	= spdif_remove,
 	.driver	= {
 		.name	= "samsung-spdif",
 		.owner	= THIS_MODULE,

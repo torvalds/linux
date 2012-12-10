@@ -593,6 +593,10 @@ static int davinci_mcasp_set_clkdiv(struct snd_soc_dai *dai, int div_id, int div
 			       ACLKRDIV(div - 1), ACLKRDIV_MASK);
 		break;
 
+	case 2:		/* BCLK/LRCLK ratio */
+		dev->bclk_lrclk_ratio = div;
+		break;
+
 	default:
 		return -EINVAL;
 	}
@@ -619,57 +623,25 @@ static int davinci_mcasp_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 }
 
 static int davinci_config_channel_size(struct davinci_audio_dev *dev,
-				       int channel_size)
+				       int word_length)
 {
-	u32 fmt = 0;
-	u32 mask, rotate;
+	u32 fmt;
+	u32 rotate = (32 - word_length) / 4;
+	u32 mask = (1ULL << word_length) - 1;
 
-	switch (channel_size) {
-	case DAVINCI_AUDIO_WORD_8:
-		fmt = 0x03;
-		rotate = 6;
-		mask = 0x000000ff;
-		break;
+	/*
+	 * if s BCLK-to-LRCLK ratio has been configured via the set_clkdiv()
+	 * callback, take it into account here. That allows us to for example
+	 * send 32 bits per channel to the codec, while only 16 of them carry
+	 * audio payload.
+	 * The clock ratio is given for a full period of data (both left and
+	 * right channels), so it has to be divided by 2.
+	 */
+	if (dev->bclk_lrclk_ratio)
+		word_length = dev->bclk_lrclk_ratio / 2;
 
-	case DAVINCI_AUDIO_WORD_12:
-		fmt = 0x05;
-		rotate = 5;
-		mask = 0x00000fff;
-		break;
-
-	case DAVINCI_AUDIO_WORD_16:
-		fmt = 0x07;
-		rotate = 4;
-		mask = 0x0000ffff;
-		break;
-
-	case DAVINCI_AUDIO_WORD_20:
-		fmt = 0x09;
-		rotate = 3;
-		mask = 0x000fffff;
-		break;
-
-	case DAVINCI_AUDIO_WORD_24:
-		fmt = 0x0B;
-		rotate = 2;
-		mask = 0x00ffffff;
-		break;
-
-	case DAVINCI_AUDIO_WORD_28:
-		fmt = 0x0D;
-		rotate = 1;
-		mask = 0x0fffffff;
-		break;
-
-	case DAVINCI_AUDIO_WORD_32:
-		fmt = 0x0F;
-		rotate = 0;
-		mask = 0xffffffff;
-		break;
-
-	default:
-		return -EINVAL;
-	}
+	/* mapping of the XSSZ bit-field as described in the datasheet */
+	fmt = (word_length >> 1) - 1;
 
 	mcasp_mod_bits(dev->base + DAVINCI_MCASP_RXFMT_REG,
 					RXSSZ(fmt), RXSSZ(0x0F));
@@ -856,19 +828,19 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_FORMAT_U8:
 	case SNDRV_PCM_FORMAT_S8:
 		dma_params->data_type = 1;
-		word_length = DAVINCI_AUDIO_WORD_8;
+		word_length = 8;
 		break;
 
 	case SNDRV_PCM_FORMAT_U16_LE:
 	case SNDRV_PCM_FORMAT_S16_LE:
 		dma_params->data_type = 2;
-		word_length = DAVINCI_AUDIO_WORD_16;
+		word_length = 16;
 		break;
 
 	case SNDRV_PCM_FORMAT_U24_3LE:
 	case SNDRV_PCM_FORMAT_S24_3LE:
 		dma_params->data_type = 3;
-		word_length = DAVINCI_AUDIO_WORD_24;
+		word_length = 24;
 		break;
 
 	case SNDRV_PCM_FORMAT_U24_LE:
@@ -876,7 +848,7 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_FORMAT_U32_LE:
 	case SNDRV_PCM_FORMAT_S32_LE:
 		dma_params->data_type = 4;
-		word_length = DAVINCI_AUDIO_WORD_32;
+		word_length = 32;
 		break;
 
 	default:
@@ -1158,7 +1130,6 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	dev->tdm_slots = pdata->tdm_slots;
 	dev->num_serializer = pdata->num_serializer;
 	dev->serial_dir = pdata->serial_dir;
-	dev->codec_fmt = pdata->codec_fmt;
 	dev->version = pdata->version;
 	dev->txnumevt = pdata->txnumevt;
 	dev->rxnumevt = pdata->rxnumevt;

@@ -282,7 +282,7 @@ static struct snd_soc_platform_driver ux500_pcm_soc_drv = {
 	.pcm_new        = ux500_pcm_new,
 };
 
-int __devinit ux500_pcm_register_platform(struct platform_device *pdev)
+int ux500_pcm_register_platform(struct platform_device *pdev)
 {
 	int ret;
 
@@ -298,7 +298,7 @@ int __devinit ux500_pcm_register_platform(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(ux500_pcm_register_platform);
 
-int __devexit ux500_pcm_unregister_platform(struct platform_device *pdev)
+int ux500_pcm_unregister_platform(struct platform_device *pdev)
 {
 	snd_soc_unregister_platform(&pdev->dev);
 

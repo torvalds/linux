@@ -273,7 +273,7 @@ static struct snd_soc_card omap_abe_card = {
 	.num_dapm_routes = ARRAY_SIZE(audio_map),
 };
 
-static __devinit int omap_abe_probe(struct platform_device *pdev)
+static int omap_abe_probe(struct platform_device *pdev)
 {
 	struct omap_abe_twl6040_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device_node *node = pdev->dev.of_node;
@@ -390,7 +390,7 @@ err_unregister:
 	return ret;
 }
 
-static int __devexit omap_abe_remove(struct platform_device *pdev)
+static int omap_abe_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct abe_twl6040 *priv = snd_soc_card_get_drvdata(card);
@@ -417,7 +417,7 @@ static struct platform_driver omap_abe_driver = {
 		.of_match_table = omap_abe_of_match,
 	},
 	.probe = omap_abe_probe,
-	.remove = __devexit_p(omap_abe_remove),
+	.remove = omap_abe_remove,
 };
 
 module_platform_driver(omap_abe_driver);

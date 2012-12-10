@@ -451,7 +451,7 @@ static struct snd_soc_dai_driver kirkwood_i2s_dai_extclk = {
 	.ops = &kirkwood_i2s_dai_ops,
 };
 
-static __devinit int kirkwood_i2s_dev_probe(struct platform_device *pdev)
+static int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 {
 	struct kirkwood_asoc_platform_data *data = pdev->dev.platform_data;
 	struct snd_soc_dai_driver *soc_dai = &kirkwood_i2s_dai;
@@ -540,7 +540,7 @@ static __devinit int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 	return err;
 }
 
-static __devexit int kirkwood_i2s_dev_remove(struct platform_device *pdev)
+static int kirkwood_i2s_dev_remove(struct platform_device *pdev)
 {
 	struct kirkwood_dma_data *priv = dev_get_drvdata(&pdev->dev);
 
@@ -557,7 +557,7 @@ static __devexit int kirkwood_i2s_dev_remove(struct platform_device *pdev)
 
 static struct platform_driver kirkwood_i2s_driver = {
 	.probe  = kirkwood_i2s_dev_probe,
-	.remove = __devexit_p(kirkwood_i2s_dev_remove),
+	.remove = kirkwood_i2s_dev_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,

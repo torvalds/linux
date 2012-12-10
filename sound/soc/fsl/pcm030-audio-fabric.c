@@ -101,7 +101,7 @@ static int __init pcm030_fabric_probe(struct platform_device *op)
 	return ret;
 }
 
-static int __devexit pcm030_fabric_remove(struct platform_device *op)
+static int pcm030_fabric_remove(struct platform_device *op)
 {
 	struct pcm030_audio_data *pdata = platform_get_drvdata(op);
 	int ret;
@@ -120,7 +120,7 @@ MODULE_DEVICE_TABLE(of, pcm030_audio_match);
 
 static struct platform_driver pcm030_fabric_driver = {
 	.probe		= pcm030_fabric_probe,
-	.remove		= __devexit_p(pcm030_fabric_remove),
+	.remove		= pcm030_fabric_remove,
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,

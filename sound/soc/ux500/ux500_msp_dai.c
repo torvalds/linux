@@ -768,7 +768,7 @@ static struct snd_soc_dai_driver ux500_msp_dai_drv[UX500_NBR_OF_DAI] = {
 	},
 };
 
-static int __devinit ux500_msp_drv_probe(struct platform_device *pdev)
+static int ux500_msp_drv_probe(struct platform_device *pdev)
 {
 	struct ux500_msp_i2s_drvdata *drvdata;
 	int ret = 0;
@@ -855,7 +855,7 @@ err_pclk:
 	return ret;
 }
 
-static int __devexit ux500_msp_drv_remove(struct platform_device *pdev)
+static int ux500_msp_drv_remove(struct platform_device *pdev)
 {
 	struct ux500_msp_i2s_drvdata *drvdata = dev_get_drvdata(&pdev->dev);
 

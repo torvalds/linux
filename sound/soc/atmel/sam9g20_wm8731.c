@@ -197,7 +197,7 @@ static struct snd_soc_card snd_soc_at91sam9g20ek = {
 	.set_bias_level = at91sam9g20ek_set_bias_level,
 };
 
-static int __devinit at91sam9g20ek_audio_probe(struct platform_device *pdev)
+static int at91sam9g20ek_audio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *codec_np, *cpu_np;
@@ -301,7 +301,7 @@ err:
 	return ret;
 }
 
-static int __devexit at91sam9g20ek_audio_remove(struct platform_device *pdev)
+static int at91sam9g20ek_audio_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -328,7 +328,7 @@ static struct platform_driver at91sam9g20ek_audio_driver = {
 		.of_match_table = of_match_ptr(at91sam9g20ek_wm8731_dt_ids),
 	},
 	.probe	= at91sam9g20ek_audio_probe,
-	.remove	= __devexit_p(at91sam9g20ek_audio_remove),
+	.remove	= at91sam9g20ek_audio_remove,
 };
 
 module_platform_driver(at91sam9g20ek_audio_driver);

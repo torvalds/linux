@@ -1483,8 +1483,8 @@ static const struct regmap_config lm49453_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static __devinit int lm49453_i2c_probe(struct i2c_client *i2c,
-				       const struct i2c_device_id *id)
+static int lm49453_i2c_probe(struct i2c_client *i2c,
+			     const struct i2c_device_id *id)
 {
 	struct lm49453_priv *lm49453;
 	int ret = 0;
@@ -1514,7 +1514,7 @@ static __devinit int lm49453_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static int __devexit lm49453_i2c_remove(struct i2c_client *client)
+static int lm49453_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	return 0;
@@ -1532,7 +1532,7 @@ static struct i2c_driver lm49453_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = lm49453_i2c_probe,
-	.remove = __devexit_p(lm49453_i2c_remove),
+	.remove = lm49453_i2c_remove,
 	.id_table = lm49453_i2c_id,
 };
 

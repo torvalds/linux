@@ -23,7 +23,6 @@ struct snd_platform_data {
 	u32 rx_dma_offset;
 	int asp_chan_q;	/* event queue number for ASP channel */
 	int ram_chan_q;	/* event queue number for RAM channel */
-	unsigned int codec_fmt;
 	/*
 	 * Allowing this is more efficient and eliminates left and right swaps
 	 * caused by underruns, but will swap the left and right channels

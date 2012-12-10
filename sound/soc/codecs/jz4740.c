@@ -348,7 +348,7 @@ static const struct regmap_config jz4740_codec_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int __devinit jz4740_codec_probe(struct platform_device *pdev)
+static int jz4740_codec_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct jz4740_codec *jz4740_codec;
@@ -380,7 +380,7 @@ static int __devinit jz4740_codec_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit jz4740_codec_remove(struct platform_device *pdev)
+static int jz4740_codec_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 
@@ -391,7 +391,7 @@ static int __devexit jz4740_codec_remove(struct platform_device *pdev)
 
 static struct platform_driver jz4740_codec_driver = {
 	.probe = jz4740_codec_probe,
-	.remove = __devexit_p(jz4740_codec_remove),
+	.remove = jz4740_codec_remove,
 	.driver = {
 		.name = "jz4740-codec",
 		.owner = THIS_MODULE,

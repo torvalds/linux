@@ -1625,13 +1625,13 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8350 = {
 	.num_dapm_routes = ARRAY_SIZE(wm8350_dapm_routes),
 };
 
-static int __devinit wm8350_probe(struct platform_device *pdev)
+static int wm8350_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm8350,
 			&wm8350_dai, 1);
 }
 
-static int __devexit wm8350_remove(struct platform_device *pdev)
+static int wm8350_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
@@ -1643,7 +1643,7 @@ static struct platform_driver wm8350_codec_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = wm8350_probe,
-	.remove = __devexit_p(wm8350_remove),
+	.remove = wm8350_remove,
 };
 
 module_platform_driver(wm8350_codec_driver);

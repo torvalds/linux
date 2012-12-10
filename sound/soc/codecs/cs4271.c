@@ -570,7 +570,7 @@ static struct snd_soc_codec_driver soc_codec_dev_cs4271 = {
 };
 
 #if defined(CONFIG_SPI_MASTER)
-static int __devinit cs4271_spi_probe(struct spi_device *spi)
+static int cs4271_spi_probe(struct spi_device *spi)
 {
 	struct cs4271_private *cs4271;
 
@@ -585,7 +585,7 @@ static int __devinit cs4271_spi_probe(struct spi_device *spi)
 		&cs4271_dai, 1);
 }
 
-static int __devexit cs4271_spi_remove(struct spi_device *spi)
+static int cs4271_spi_remove(struct spi_device *spi)
 {
 	snd_soc_unregister_codec(&spi->dev);
 	return 0;
@@ -598,7 +598,7 @@ static struct spi_driver cs4271_spi_driver = {
 		.of_match_table = of_match_ptr(cs4271_dt_ids),
 	},
 	.probe		= cs4271_spi_probe,
-	.remove		= __devexit_p(cs4271_spi_remove),
+	.remove		= cs4271_spi_remove,
 };
 #endif /* defined(CONFIG_SPI_MASTER) */
 
@@ -609,8 +609,8 @@ static const struct i2c_device_id cs4271_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, cs4271_i2c_id);
 
-static int __devinit cs4271_i2c_probe(struct i2c_client *client,
-				      const struct i2c_device_id *id)
+static int cs4271_i2c_probe(struct i2c_client *client,
+			    const struct i2c_device_id *id)
 {
 	struct cs4271_private *cs4271;
 
@@ -625,7 +625,7 @@ static int __devinit cs4271_i2c_probe(struct i2c_client *client,
 		&cs4271_dai, 1);
 }
 
-static int __devexit cs4271_i2c_remove(struct i2c_client *client)
+static int cs4271_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	return 0;
@@ -639,7 +639,7 @@ static struct i2c_driver cs4271_i2c_driver = {
 	},
 	.id_table	= cs4271_i2c_id,
 	.probe		= cs4271_i2c_probe,
-	.remove		= __devexit_p(cs4271_i2c_remove),
+	.remove		= cs4271_i2c_remove,
 };
 #endif /* defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE) */
 

@@ -650,7 +650,7 @@ static const struct regmap_config wm8770_regmap = {
 	.volatile_reg = wm8770_volatile_reg,
 };
 
-static int __devinit wm8770_spi_probe(struct spi_device *spi)
+static int wm8770_spi_probe(struct spi_device *spi)
 {
 	struct wm8770_priv *wm8770;
 	int ret, i;
@@ -697,7 +697,7 @@ static int __devinit wm8770_spi_probe(struct spi_device *spi)
 	return ret;
 }
 
-static int __devexit wm8770_spi_remove(struct spi_device *spi)
+static int wm8770_spi_remove(struct spi_device *spi)
 {
 	struct wm8770_priv *wm8770 = spi_get_drvdata(spi);
 	int i;
@@ -718,7 +718,7 @@ static struct spi_driver wm8770_spi_driver = {
 		.of_match_table = wm8770_of_match,
 	},
 	.probe = wm8770_spi_probe,
-	.remove = __devexit_p(wm8770_spi_remove)
+	.remove = wm8770_spi_remove
 };
 
 module_spi_driver(wm8770_spi_driver);
