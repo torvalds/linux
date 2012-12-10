@@ -51,28 +51,14 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-void ControlvWriteByte(
-     PSDevice pDevice,
-     BYTE byRegType,
-     BYTE byRegOfs,
-     BYTE byData
-    );
+void ControlvWriteByte(struct vnt_private *pDevice, u8 reg, u8 reg_off,
+			u8 data);
 
+void ControlvReadByte(struct vnt_private *pDevice, u8 reg, u8 reg_off,
+			u8 *data);
 
-void ControlvReadByte(
-     PSDevice pDevice,
-     BYTE byRegType,
-     BYTE byRegOfs,
-     PBYTE pbyData
-    );
+void ControlvMaskByte(struct vnt_private *pDevice, u8 reg_type, u8 reg_off,
+			u8 reg_mask, u8 data);
 
-
-void ControlvMaskByte(
-     PSDevice pDevice,
-     BYTE byRegType,
-     BYTE byRegOfs,
-     BYTE byMask,
-     BYTE byData
-    );
 
 #endif /* __CONTROL_H__ */

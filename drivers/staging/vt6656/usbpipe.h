@@ -41,35 +41,15 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-int PIPEnsControlOut(
-     PSDevice     pDevice,
-     BYTE         byRequest,
-     WORD         wValue,
-     WORD         wIndex,
-     WORD         wLength,
-     PBYTE        pbyBuffer
-    );
+int PIPEnsControlOut(struct vnt_private *, u8 byRequest, u16 wValue,
+		u16 wIndex, u16 wLength, u8 *pbyBuffer);
+int PIPEnsControlOutAsyn(struct vnt_private *, u8 byRequest,
+	u16 wValue, u16 wIndex, u16 wLength, u8 *pbyBuffer);
+int PIPEnsControlIn(struct vnt_private *, u8 byRequest, u16 wValue,
+	u16 wIndex, u16 wLength,  u8 *pbyBuffer);
 
-int PIPEnsControlOutAsyn(
-     PSDevice     pDevice,
-     BYTE         byRequest,
-     WORD         wValue,
-     WORD         wIndex,
-     WORD         wLength,
-     PBYTE        pbyBuffer
-    );
-
-int PIPEnsControlIn(
-     PSDevice     pDevice,
-     BYTE         byRequest,
-     WORD         wValue,
-     WORD         wIndex,
-     WORD         wLength,
-       PBYTE   pbyBuffer
-    );
-
-int PIPEnsInterruptRead(PSDevice pDevice);
-int PIPEnsBulkInUsbRead(PSDevice pDevice, PRCB pRCB);
-int PIPEnsSendBulkOut(PSDevice pDevice, PUSB_SEND_CONTEXT pContext);
+int PIPEnsInterruptRead(struct vnt_private *);
+int PIPEnsBulkInUsbRead(struct vnt_private *, PRCB pRCB);
+int PIPEnsSendBulkOut(struct vnt_private *, PUSB_SEND_CONTEXT pContext);
 
 #endif /* __USBPIPE_H__ */

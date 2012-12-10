@@ -56,10 +56,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
 /*---------------------  Export Functions  --------------------------*/
 
 
-BOOL
-FIRMWAREbDownload(
-     PSDevice pDevice
-    )
+int FIRMWAREbDownload(struct vnt_private *pDevice)
 {
 	struct device *dev = &pDevice->usb->dev;
 	const struct firmware *fw;
@@ -114,12 +111,9 @@ out:
 }
 MODULE_FIRMWARE(FIRMWARE_NAME);
 
-BOOL
-FIRMWAREbBrach2Sram(
-     PSDevice pDevice
-    )
+int FIRMWAREbBrach2Sram(struct vnt_private *pDevice)
 {
-    int NdisStatus;
+	int NdisStatus;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Branch to Sram\n");
 
@@ -139,10 +133,7 @@ FIRMWAREbBrach2Sram(
 }
 
 
-BOOL
-FIRMWAREbCheckVersion(
-     PSDevice pDevice
-    )
+int FIRMWAREbCheckVersion(struct vnt_private *pDevice)
 {
 	int ntStatus;
 

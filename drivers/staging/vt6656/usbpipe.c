@@ -67,51 +67,18 @@ static int          msglevel                =MSG_LEVEL_INFO;
 /*---------------------  Static Variables  --------------------------*/
 
 /*---------------------  Static Functions  --------------------------*/
-static
-void
-s_nsInterruptUsbIoCompleteRead(
-     struct urb *urb
-    );
-
-
-static
-void
-s_nsBulkInUsbIoCompleteRead(
-     struct urb *urb
-    );
-
-
-static
-void
-s_nsBulkOutIoCompleteWrite(
-     struct urb *urb
-    );
-
-
-static
-void
-s_nsControlInUsbIoCompleteRead(
-     struct urb *urb
-    );
-
-static
-void
-s_nsControlInUsbIoCompleteWrite(
-     struct urb *urb
-    );
+static void s_nsInterruptUsbIoCompleteRead(struct urb *urb);
+static void s_nsBulkInUsbIoCompleteRead(struct urb *urb);
+static void s_nsBulkOutIoCompleteWrite(struct urb *urb);
+static void s_nsControlInUsbIoCompleteRead(struct urb *urb);
+static void s_nsControlInUsbIoCompleteWrite(struct urb *urb);
 
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
 
-int PIPEnsControlOutAsyn(
-     PSDevice     pDevice,
-     BYTE         byRequest,
-     WORD         wValue,
-     WORD         wIndex,
-     WORD         wLength,
-     PBYTE        pbyBuffer
-    )
+int PIPEnsControlOutAsyn(struct vnt_private *pDevice, u8 byRequest,
+	u16 wValue, u16 wIndex, u16 wLength, u8 *pbyBuffer)
 {
 	int ntStatus;
 
@@ -147,17 +114,11 @@ int PIPEnsControlOutAsyn(
     return ntStatus;
 }
 
-int PIPEnsControlOut(
-     PSDevice     pDevice,
-     BYTE         byRequest,
-     WORD         wValue,
-     WORD         wIndex,
-     WORD         wLength,
-     PBYTE        pbyBuffer
-    )
+int PIPEnsControlOut(struct vnt_private *pDevice, u8 byRequest, u16 wValue,
+		u16 wIndex, u16 wLength, u8 *pbyBuffer)
 {
 	int ntStatus = 0;
-    int ii;
+	int ii;
 
     if (pDevice->Flags & fMP_DISCONNECTED)
         return STATUS_FAILURE;
@@ -206,17 +167,11 @@ int PIPEnsControlOut(
     return STATUS_SUCCESS;
 }
 
-int PIPEnsControlIn(
-     PSDevice     pDevice,
-     BYTE         byRequest,
-     WORD         wValue,
-     WORD         wIndex,
-     WORD         wLength,
-       PBYTE   pbyBuffer
-    )
+int PIPEnsControlIn(struct vnt_private *pDevice, u8 byRequest, u16 wValue,
+	u16 wIndex, u16 wLength,  u8 *pbyBuffer)
 {
 	int ntStatus = 0;
-    int ii;
+	int ii;
 
     if (pDevice->Flags & fMP_DISCONNECTED)
         return STATUS_FAILURE;
@@ -263,13 +218,9 @@ int PIPEnsControlIn(
     return ntStatus;
 }
 
-static
-void
-s_nsControlInUsbIoCompleteWrite(
-     struct urb *urb
-    )
+static void s_nsControlInUsbIoCompleteWrite(struct urb *urb)
 {
-    PSDevice        pDevice;
+	struct vnt_private *pDevice = (struct vnt_private *)urb->context;
 
 	pDevice = urb->context;
 	switch (urb->status) {
@@ -304,15 +255,11 @@ s_nsControlInUsbIoCompleteWrite(
  * Return Value: STATUS_INSUFFICIENT_RESOURCES or result of IoCallDriver
  *
  */
-static
-void
-s_nsControlInUsbIoCompleteRead(
-     struct urb *urb
-    )
-{
-    PSDevice        pDevice;
 
-	pDevice = urb->context;
+static void s_nsControlInUsbIoCompleteRead(struct urb *urb)
+{
+	struct vnt_private *pDevice = (struct vnt_private *)urb->context;
+
 	switch (urb->status) {
 	case 0:
 		break;
@@ -345,9 +292,10 @@ s_nsControlInUsbIoCompleteRead(
  * Return Value: STATUS_INSUFFICIENT_RESOURCES or result of IoCallDriver
  *
  */
-int PIPEnsInterruptRead(PSDevice pDevice)
+
+int PIPEnsInterruptRead(struct vnt_private *pDevice)
 {
-    int ntStatus = STATUS_FAILURE;
+	int ntStatus = STATUS_FAILURE;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsStartInterruptUsbRead()\n");
 
@@ -396,21 +344,16 @@ usb_fill_bulk_urb(pDevice->pInterruptURB,
  * Return Value: STATUS_INSUFFICIENT_RESOURCES or result of IoCallDriver
  *
  */
-static
-void
-s_nsInterruptUsbIoCompleteRead(
-     struct urb *urb
-    )
 
+static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
 {
-    PSDevice        pDevice;
-    int ntStatus;
+	struct vnt_private *pDevice = (struct vnt_private *)urb->context;
+	int ntStatus;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsInterruptUsbIoCompleteRead\n");
     //
     // The context given to IoSetCompletionRoutine is the receive buffer object
     //
-    pDevice = (PSDevice)urb->context;
 
     //
     // We have a number of cases:
@@ -483,10 +426,11 @@ s_nsInterruptUsbIoCompleteRead(
  * Return Value: STATUS_INSUFFICIENT_RESOURCES or result of IoCallDriver
  *
  */
-int PIPEnsBulkInUsbRead(PSDevice pDevice, PRCB pRCB)
+
+int PIPEnsBulkInUsbRead(struct vnt_private *pDevice, PRCB pRCB)
 {
 	int ntStatus = 0;
-    struct urb          *pUrb;
+	struct urb *pUrb;
 
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsStartBulkInUsbRead\n");
@@ -543,19 +487,15 @@ int PIPEnsBulkInUsbRead(PSDevice pDevice, PRCB pRCB)
  * Return Value: STATUS_INSUFFICIENT_RESOURCES or result of IoCallDriver
  *
  */
-static
-void
-s_nsBulkInUsbIoCompleteRead(
-     struct urb *urb
-    )
 
+static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
 {
-    PRCB    pRCB = (PRCB)urb->context;
-    PSDevice pDevice = (PSDevice)pRCB->pDevice;
-    unsigned long   bytesRead;
-    BOOL    bIndicateReceive = FALSE;
-    BOOL    bReAllocSkb = FALSE;
-    int status;
+	PRCB pRCB = (PRCB)urb->context;
+	struct vnt_private *pDevice = pRCB->pDevice;
+	unsigned long   bytesRead;
+	int bIndicateReceive = FALSE;
+	int bReAllocSkb = FALSE;
+	int status;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsBulkInUsbIoCompleteRead\n");
     status = urb->status;
@@ -618,14 +558,11 @@ s_nsBulkInUsbIoCompleteRead(
  * Return Value: STATUS_INSUFFICIENT_RESOURCES or result of IoCallDriver
  *
  */
-int
-PIPEnsSendBulkOut(
-      PSDevice pDevice,
-      PUSB_SEND_CONTEXT pContext
-    )
+
+int PIPEnsSendBulkOut(struct vnt_private *pDevice, PUSB_SEND_CONTEXT pContext)
 {
-    int status;
-    struct urb          *pUrb;
+	int status;
+	struct urb          *pUrb;
 
 
 
@@ -699,17 +636,14 @@ PIPEnsSendBulkOut(
  *               (IofCompleteRequest) to stop working on the irp.
  *
  */
-static
-void
-s_nsBulkOutIoCompleteWrite(
-     struct urb *urb
-    )
+
+static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 {
-    PSDevice            pDevice;
-    int status;
-    CONTEXT_TYPE        ContextType;
-    unsigned long               ulBufLen;
-    PUSB_SEND_CONTEXT   pContext;
+	struct vnt_private *pDevice;
+	int status;
+	CONTEXT_TYPE ContextType;
+	unsigned long ulBufLen;
+	PUSB_SEND_CONTEXT pContext;
 
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsBulkOutIoCompleteWrite\n");

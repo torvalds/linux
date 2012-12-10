@@ -436,11 +436,10 @@ CHvChannelGetList (
 }
 
 
-void CHvInitChannelTable(void *pDeviceHandler)
+void CHvInitChannelTable(struct vnt_private *pDevice)
 {
-    PSDevice    pDevice = (PSDevice) pDeviceHandler;
-    BOOL        bMultiBand = FALSE;
-    unsigned int ii;
+	int bMultiBand = FALSE;
+	int ii;
 
     for (ii = 1; ii <= CB_MAX_CHANNEL; ii++)
 	sChannelTbl[ii].bValid = FALSE;

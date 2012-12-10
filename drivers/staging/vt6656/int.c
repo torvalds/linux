@@ -75,9 +75,8 @@ static int msglevel = MSG_LEVEL_INFO; /* MSG_LEVEL_DEBUG */
  *  if we've gotten no data
  *
 -*/
-void INTvWorkItem(void *Context)
+void INTvWorkItem(struct vnt_private *pDevice)
 {
-	PSDevice pDevice = Context;
 	int ntStatus;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Interrupt Polling Thread\n");
@@ -88,10 +87,10 @@ void INTvWorkItem(void *Context)
 	spin_unlock_irq(&pDevice->lock);
 }
 
-void INTnsProcessData(PSDevice pDevice)
+void INTnsProcessData(struct vnt_private *pDevice)
 {
 	PSINTData pINTData;
-	PSMgmtObject pMgmt = &(pDevice->sMgmtObj);
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	struct net_device_stats *pStats = &pDevice->stats;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsInterruptProcessData\n");

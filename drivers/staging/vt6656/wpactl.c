@@ -67,10 +67,10 @@ static int msglevel = MSG_LEVEL_INFO;
  * Return Value:
  *
  */
-int wpa_set_keys(PSDevice pDevice, void *ctx)
+int wpa_set_keys(struct vnt_private *pDevice, void *ctx)
 {
 	struct viawget_wpa_param *param = ctx;
-	PSMgmtObject pMgmt = &pDevice->sMgmtObj;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	DWORD dwKeyIndex = 0;
 	BYTE abyKey[MAX_KEY_LEN];
 	BYTE abySeq[MAX_KEY_LEN];
