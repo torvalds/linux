@@ -106,29 +106,23 @@ static int tps51632_dcdc_get_voltage_sel(struct regulator_dev *rdev)
 	}
 
 	vsel = data & TPS51632_VOUT_MASK;
-
-	if (vsel < TPS51632_MIN_VSEL)
-		return 0;
-	else
-		return vsel - TPS51632_MIN_VSEL;
+	return vsel;
 }
 
 static int tps51632_dcdc_set_voltage_sel(struct regulator_dev *rdev,
 		unsigned selector)
 {
 	struct tps51632_chip *tps = rdev_get_drvdata(rdev);
-	int vsel;
 	int ret;
 	unsigned int reg = TPS51632_VOLTAGE_SELECT_REG;
 
 	if (tps->enable_pwm_dvfs)
 		reg = TPS51632_VOLTAGE_BASE_REG;
 
-	vsel = selector + TPS51632_MIN_VSEL;
-	if (vsel > TPS51632_MAX_VSEL)
+	if (selector > TPS51632_MAX_VSEL)
 		return -EINVAL;
 
-	ret = regmap_write(tps->regmap, TPS51632_VOLTAGE_SELECT_REG, vsel);
+	ret = regmap_write(tps->regmap, reg, selector);
 	if (ret < 0)
 		dev_err(tps->dev, "reg write failed, err %d\n", ret);
 	return ret;
@@ -254,7 +248,8 @@ static int tps51632_probe(struct i2c_client *client,
 	tps->desc.ramp_delay = TPS51632_DEFAULT_RAMP_DELAY;
 	tps->desc.min_uV = TPS51632_MIN_VOLATGE;
 	tps->desc.uV_step = TPS51632_VOLATGE_STEP_10mV;
-	tps->desc.n_voltages = (TPS51632_MAX_VSEL - TPS51632_MIN_VSEL) + 1;
+	tps->desc.linear_min_sel = TPS51632_MIN_VSEL;
+	tps->desc.n_voltages = TPS51632_MAX_VSEL + 1;
 	tps->desc.ops = &tps51632_dcdc_ops;
 	tps->desc.type = REGULATOR_VOLTAGE;
 	tps->desc.owner = THIS_MODULE;
