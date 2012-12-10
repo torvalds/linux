@@ -79,9 +79,6 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 #define PN533_LISTEN_TIME 2
 
 /* frame definitions */
-#define PN533_NORMAL_FRAME_MAX_LEN 262  /* 6   (PREAMBLE, SOF, LEN, LCS, TFI)
-					   254 (DATA)
-					   2   (DCS, postamble) */
 #define PN533_FRAME_HEADER_LEN (sizeof(struct pn533_frame) \
 					+ 2) /* data[0] TFI, data[1] CC */
 #define PN533_FRAME_TAIL_LEN 2 /* data[len] DCS, data[len + 1] postamble*/
@@ -92,8 +89,6 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
  */
 #define PN533_FRAME_MAX_PAYLOAD_LEN 263
 
-#define PN533_FRAME_SIZE(f) (sizeof(struct pn533_frame) + f->datalen + \
-				PN533_FRAME_TAIL_LEN)
 #define PN533_FRAME_ACK_SIZE 6 /* Preamble (1), SoPC (2), ACK Code (2),
 				  Postamble (1) */
 #define PN533_FRAME_CHECKSUM(f) (f->data[f->datalen])
@@ -361,6 +356,8 @@ struct pn533 {
 
 	struct list_head cmd_queue;
 	u8 cmd_pending;
+
+	struct pn533_frame_ops *ops;
 };
 
 struct pn533_cmd {
@@ -368,6 +365,7 @@ struct pn533_cmd {
 	u8 cmd_code;
 	struct sk_buff *req;
 	struct sk_buff *resp;
+	int resp_len;
 	void *arg;
 };
 
@@ -378,6 +376,22 @@ struct pn533_frame {
 	u8 datalen_checksum;
 	u8 data[];
 } __packed;
+
+struct pn533_frame_ops {
+	void (*tx_frame_init)(void *frame, u8 cmd_code);
+	void (*tx_frame_finish)(void *frame);
+	void (*tx_update_payload_len)(void *frame, int len);
+	int tx_header_len;
+	int tx_tail_len;
+
+	bool (*rx_is_frame_valid)(void *frame);
+	int (*rx_frame_size)(void *frame);
+	int rx_header_len;
+	int rx_tail_len;
+
+	int max_payload_len;
+	u8 (*get_cmd_code)(void *frame);
+};
 
 /* The rule: value + checksum = 0 */
 static inline u8 pn533_checksum(u8 value)
@@ -397,17 +411,21 @@ static u8 pn533_data_checksum(u8 *data, int datalen)
 	return pn533_checksum(sum);
 }
 
-static void pn533_tx_frame_init(struct pn533_frame *frame, u8 cmd)
+static void pn533_tx_frame_init(void *_frame, u8 cmd_code)
 {
+	struct pn533_frame *frame = _frame;
+
 	frame->preamble = 0;
 	frame->start_frame = cpu_to_be16(PN533_SOF);
 	PN533_FRAME_IDENTIFIER(frame) = PN533_DIR_OUT;
-	PN533_FRAME_CMD(frame) = cmd;
+	PN533_FRAME_CMD(frame) = cmd_code;
 	frame->datalen = 2;
 }
 
-static void pn533_tx_frame_finish(struct pn533_frame *frame)
+static void pn533_tx_frame_finish(void *_frame)
 {
+	struct pn533_frame *frame = _frame;
+
 	frame->datalen_checksum = pn533_checksum(frame->datalen);
 
 	PN533_FRAME_CHECKSUM(frame) =
@@ -416,9 +434,17 @@ static void pn533_tx_frame_finish(struct pn533_frame *frame)
 	PN533_FRAME_POSTAMBLE(frame) = 0;
 }
 
-static bool pn533_rx_frame_is_valid(struct pn533_frame *frame)
+static void pn533_tx_update_payload_len(void *_frame, int len)
+{
+	struct pn533_frame *frame = _frame;
+
+	frame->datalen += len;
+}
+
+static bool pn533_rx_frame_is_valid(void *_frame)
 {
 	u8 checksum;
+	struct pn533_frame *frame = _frame;
 
 	if (frame->start_frame != cpu_to_be16(PN533_SOF))
 		return false;
@@ -445,9 +471,39 @@ static bool pn533_rx_frame_is_ack(struct pn533_frame *frame)
 	return true;
 }
 
-static bool pn533_rx_frame_is_cmd_response(struct pn533_frame *frame, u8 cmd)
+static inline int pn533_rx_frame_size(void *frame)
 {
-	return (PN533_FRAME_CMD(frame) == PN533_CMD_RESPONSE(cmd));
+	struct pn533_frame *f = frame;
+
+	return sizeof(struct pn533_frame) + f->datalen + PN533_FRAME_TAIL_LEN;
+}
+
+static u8 pn533_get_cmd_code(void *frame)
+{
+	struct pn533_frame *f = frame;
+
+	return PN533_FRAME_CMD(f);
+}
+
+struct pn533_frame_ops pn533_std_frame_ops = {
+	.tx_frame_init = pn533_tx_frame_init,
+	.tx_frame_finish = pn533_tx_frame_finish,
+	.tx_update_payload_len = pn533_tx_update_payload_len,
+	.tx_header_len = PN533_FRAME_HEADER_LEN,
+	.tx_tail_len = PN533_FRAME_TAIL_LEN,
+
+	.rx_is_frame_valid = pn533_rx_frame_is_valid,
+	.rx_frame_size = pn533_rx_frame_size,
+	.rx_header_len = PN533_FRAME_HEADER_LEN,
+	.rx_tail_len = PN533_FRAME_TAIL_LEN,
+
+	.max_payload_len =  PN533_FRAME_MAX_PAYLOAD_LEN,
+	.get_cmd_code = pn533_get_cmd_code,
+};
+
+static bool pn533_rx_frame_is_cmd_response(struct pn533 *dev, void *frame)
+{
+	return (dev->ops->get_cmd_code(frame) == PN533_CMD_RESPONSE(dev->cmd));
 }
 
 
@@ -464,7 +520,7 @@ static void pn533_wq_cmd_complete(struct work_struct *work)
 static void pn533_recv_response(struct urb *urb)
 {
 	struct pn533 *dev = urb->context;
-	struct pn533_frame *in_frame;
+	u8 *in_frame;
 
 	switch (urb->status) {
 	case 0:
@@ -489,15 +545,15 @@ static void pn533_recv_response(struct urb *urb)
 
 	nfc_dev_dbg(&dev->interface->dev, "Received a frame.");
 	print_hex_dump(KERN_DEBUG, "PN533 RX: ", DUMP_PREFIX_NONE, 16, 1,
-		       in_frame, PN533_FRAME_SIZE(in_frame), false);
+		       in_frame, dev->ops->rx_frame_size(in_frame), false);
 
-	if (!pn533_rx_frame_is_valid(in_frame)) {
+	if (!dev->ops->rx_is_frame_valid(in_frame)) {
 		nfc_dev_err(&dev->interface->dev, "Received an invalid frame");
 		dev->wq_in_error = -EIO;
 		goto sched_wq;
 	}
 
-	if (!pn533_rx_frame_is_cmd_response(in_frame, dev->cmd)) {
+	if (!pn533_rx_frame_is_cmd_response(dev, in_frame)) {
 		nfc_dev_err(&dev->interface->dev,
 			    "It it not the response to the last command");
 		dev->wq_in_error = -EIO;
@@ -595,7 +651,7 @@ static int __pn533_send_frame_async(struct pn533 *dev,
 {
 	int rc;
 
-	dev->cmd = PN533_FRAME_CMD(((struct pn533_frame *)out->data));
+	dev->cmd = dev->ops->get_cmd_code(out->data);
 	dev->cmd_complete = cmd_complete;
 	dev->cmd_complete_arg = arg;
 
@@ -623,20 +679,20 @@ error:
 	return rc;
 }
 
-static void pn533_build_cmd_frame(u8 cmd_code, struct sk_buff *skb)
+static void pn533_build_cmd_frame(struct pn533 *dev, u8 cmd_code,
+				  struct sk_buff *skb)
 {
-	struct pn533_frame *frame;
 	/* payload is already there, just update datalen */
 	int payload_len = skb->len;
+	struct pn533_frame_ops *ops = dev->ops;
 
-	skb_push(skb, PN533_FRAME_HEADER_LEN);
-	skb_put(skb, PN533_FRAME_TAIL_LEN);
 
-	frame = (struct pn533_frame *)skb->data;
+	skb_push(skb, ops->tx_header_len);
+	skb_put(skb, ops->tx_tail_len);
 
-	pn533_tx_frame_init(frame, cmd_code);
-	frame->datalen += payload_len;
-	pn533_tx_frame_finish(frame);
+	ops->tx_frame_init(skb->data, cmd_code);
+	ops->tx_update_payload_len(skb->data, payload_len);
+	ops->tx_frame_finish(skb->data);
 }
 
 struct pn533_send_async_complete_arg {
@@ -653,7 +709,6 @@ static int pn533_send_async_complete(struct pn533 *dev, void *_arg, int status)
 	struct sk_buff *req = arg->req;
 	struct sk_buff *resp = arg->resp;
 
-	struct pn533_frame *frame = (struct pn533_frame *)resp->data;
 	int rc;
 
 	dev_kfree_skb(req);
@@ -666,9 +721,9 @@ static int pn533_send_async_complete(struct pn533 *dev, void *_arg, int status)
 		return status;
 	}
 
-	skb_put(resp, PN533_FRAME_SIZE(frame));
-	skb_pull(resp, PN533_FRAME_HEADER_LEN);
-	skb_trim(resp, resp->len - PN533_FRAME_TAIL_LEN);
+	skb_put(resp, dev->ops->rx_frame_size(resp->data));
+	skb_pull(resp, dev->ops->rx_header_len);
+	skb_trim(resp, resp->len - dev->ops->rx_tail_len);
 
 	rc = arg->complete_cb(dev, arg->complete_cb_context, resp);
 
@@ -697,7 +752,7 @@ static int __pn533_send_async(struct pn533 *dev, u8 cmd_code,
 	arg->resp = resp;
 	arg->req = req;
 
-	pn533_build_cmd_frame(cmd_code, req);
+	pn533_build_cmd_frame(dev, cmd_code, req);
 
 	mutex_lock(&dev->cmd_lock);
 
@@ -724,6 +779,7 @@ static int __pn533_send_async(struct pn533 *dev, u8 cmd_code,
 	cmd->cmd_code = cmd_code;
 	cmd->req = req;
 	cmd->resp = resp;
+	cmd->resp_len = resp_len;
 	cmd->arg = arg;
 
 	list_add_tail(&cmd->queue, &dev->cmd_queue);
@@ -744,9 +800,9 @@ static int pn533_send_data_async(struct pn533 *dev, u8 cmd_code,
 {
 	struct sk_buff *resp;
 	int rc;
-	int  resp_len = PN533_FRAME_HEADER_LEN +
-			PN533_FRAME_MAX_PAYLOAD_LEN +
-			PN533_FRAME_TAIL_LEN;
+	int  resp_len = dev->ops->rx_header_len +
+			dev->ops->max_payload_len +
+			dev->ops->rx_tail_len;
 
 	resp = nfc_alloc_recv_skb(resp_len, GFP_KERNEL);
 	if (!resp)
@@ -767,14 +823,16 @@ static int pn533_send_cmd_async(struct pn533 *dev, u8 cmd_code,
 {
 	struct sk_buff *resp;
 	int rc;
+	int  resp_len = dev->ops->rx_header_len +
+			dev->ops->max_payload_len +
+			dev->ops->rx_tail_len;
 
-	resp = alloc_skb(PN533_NORMAL_FRAME_MAX_LEN, GFP_KERNEL);
+	resp = alloc_skb(resp_len, GFP_KERNEL);
 	if (!resp)
 		return -ENOMEM;
 
-	rc = __pn533_send_async(dev, cmd_code, req, resp,
-				PN533_NORMAL_FRAME_MAX_LEN,
-				complete_cb, complete_cb_context);
+	rc = __pn533_send_async(dev, cmd_code, req, resp, resp_len, complete_cb,
+				complete_cb_context);
 	if (rc)
 		dev_kfree_skb(resp);
 
@@ -797,9 +855,9 @@ static int pn533_send_cmd_direct_async(struct pn533 *dev, u8 cmd_code,
 	struct pn533_send_async_complete_arg *arg;
 	struct sk_buff *resp;
 	int rc;
-	int resp_len = PN533_FRAME_HEADER_LEN +
-		       PN533_FRAME_MAX_PAYLOAD_LEN +
-		       PN533_FRAME_TAIL_LEN;
+	int resp_len = dev->ops->rx_header_len +
+		       dev->ops->max_payload_len +
+		       dev->ops->rx_tail_len;
 
 	resp = alloc_skb(resp_len, GFP_KERNEL);
 	if (!resp)
@@ -816,7 +874,7 @@ static int pn533_send_cmd_direct_async(struct pn533 *dev, u8 cmd_code,
 	arg->resp = resp;
 	arg->req = req;
 
-	pn533_build_cmd_frame(cmd_code, req);
+	pn533_build_cmd_frame(dev, cmd_code, req);
 
 	rc = __pn533_send_frame_async(dev, req, resp, resp_len,
 				      pn533_send_async_complete, arg);
@@ -847,10 +905,8 @@ static void pn533_wq_cmd(struct work_struct *work)
 
 	mutex_unlock(&dev->cmd_lock);
 
-	__pn533_send_frame_async(dev, cmd->req, cmd->resp,
-				 PN533_NORMAL_FRAME_MAX_LEN,
-				 pn533_send_async_complete,
-				 cmd->arg);
+	__pn533_send_frame_async(dev, cmd->req, cmd->resp, cmd->resp_len,
+				 pn533_send_async_complete, cmd->arg);
 
 	kfree(cmd);
 }
@@ -928,16 +984,16 @@ static void pn533_send_complete(struct urb *urb)
 	}
 }
 
-static struct sk_buff *pn533_alloc_skb(unsigned int size)
+static struct sk_buff *pn533_alloc_skb(struct pn533 *dev, unsigned int size)
 {
 	struct sk_buff *skb;
 
-	skb = alloc_skb(PN533_FRAME_HEADER_LEN +
+	skb = alloc_skb(dev->ops->tx_header_len +
 			size +
-			PN533_FRAME_TAIL_LEN, GFP_KERNEL);
+			dev->ops->tx_tail_len, GFP_KERNEL);
 
 	if (skb)
-		skb_reserve(skb, PN533_FRAME_HEADER_LEN);
+		skb_reserve(skb, dev->ops->tx_header_len);
 
 	return skb;
 }
@@ -1297,10 +1353,13 @@ static int pn533_start_poll_complete(struct pn533 *dev, struct sk_buff *resp)
 	return -EAGAIN;
 }
 
-static struct sk_buff *pn533_alloc_poll_tg_frame(u8 *gbytes, size_t gbytes_len)
+static struct sk_buff *pn533_alloc_poll_tg_frame(struct pn533 *dev)
 {
 	struct sk_buff *skb;
 	u8 *felica, *nfcid3, *gb;
+
+	u8 *gbytes = dev->gb;
+	size_t gbytes_len = dev->gb_len;
 
 	u8 felica_params[18] = {0x1, 0xfe, /* DEP */
 				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, /* random */
@@ -1316,7 +1375,7 @@ static struct sk_buff *pn533_alloc_poll_tg_frame(u8 *gbytes, size_t gbytes_len)
 			       gbytes_len +
 			       1;  /* len Tk*/
 
-	skb = pn533_alloc_skb(skb_len);
+	skb = pn533_alloc_skb(dev, skb_len);
 	if (!skb)
 		return NULL;
 
@@ -1382,7 +1441,7 @@ static void pn533_wq_tg_get_data(struct work_struct *work)
 
 	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
 
-	skb = pn533_alloc_skb(0);
+	skb = pn533_alloc_skb(dev, 0);
 	if (!skb)
 		return;
 
@@ -1507,12 +1566,12 @@ stop_poll:
 	return rc;
 }
 
-static struct sk_buff *pn533_alloc_poll_in_frame(struct pn533_poll_modulations
-						 *mod)
+static struct sk_buff *pn533_alloc_poll_in_frame(struct pn533 *dev,
+					struct pn533_poll_modulations *mod)
 {
 	struct sk_buff *skb;
 
-	skb = pn533_alloc_skb(mod->len);
+	skb = pn533_alloc_skb(dev, mod->len);
 	if (!skb)
 		return NULL;
 
@@ -1535,10 +1594,10 @@ static int pn533_send_poll_frame(struct pn533 *dev)
 
 	if (mod->len == 0) {  /* Listen mode */
 		cmd_code = PN533_CMD_TG_INIT_AS_TARGET;
-		skb = pn533_alloc_poll_tg_frame(dev->gb, dev->gb_len);
+		skb = pn533_alloc_poll_tg_frame(dev);
 	} else {  /* Polling mode */
 		cmd_code =  PN533_CMD_IN_LIST_PASSIVE_TARGET;
-		skb = pn533_alloc_poll_in_frame(mod);
+		skb = pn533_alloc_poll_in_frame(dev, mod);
 	}
 
 	if (!skb) {
@@ -1652,7 +1711,7 @@ static int pn533_activate_target_nfcdep(struct pn533 *dev)
 
 	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
 
-	skb = pn533_alloc_skb(sizeof(u8) * 2); /*TG + Next*/
+	skb = pn533_alloc_skb(dev, sizeof(u8) * 2); /*TG + Next*/
 	if (!skb)
 		return -ENOMEM;
 
@@ -1746,7 +1805,7 @@ static void pn533_deactivate_target(struct nfc_dev *nfc_dev,
 	dev->tgt_active_prot = 0;
 	skb_queue_purge(&dev->resp_q);
 
-	skb = pn533_alloc_skb(sizeof(u8));
+	skb = pn533_alloc_skb(dev, sizeof(u8));
 	if (!skb)
 		return;
 
@@ -1877,7 +1936,7 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	if (comm_mode == NFC_COMM_PASSIVE)
 		skb_len += PASSIVE_DATA_LEN;
 
-	skb = pn533_alloc_skb(skb_len);
+	skb = pn533_alloc_skb(dev, skb_len);
 	if (!skb)
 		return -ENOMEM;
 
@@ -2161,7 +2220,7 @@ static void pn533_wq_mi_recv(struct work_struct *work)
 
 	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
 
-	skb = pn533_alloc_skb(PN533_CMD_DATAEXCH_HEAD_LEN);
+	skb = pn533_alloc_skb(dev, PN533_CMD_DATAEXCH_HEAD_LEN);
 	if (!skb)
 		goto error;
 
@@ -2214,7 +2273,7 @@ static int pn533_set_configuration(struct pn533 *dev, u8 cfgitem, u8 *cfgdata,
 
 	skb_len = sizeof(cfgitem) + cfgdata_len; /* cfgitem + cfgdata */
 
-	skb = pn533_alloc_skb(skb_len);
+	skb = pn533_alloc_skb(dev, skb_len);
 	if (!skb)
 		return -ENOMEM;
 
@@ -2235,7 +2294,7 @@ static int pn533_get_firmware_version(struct pn533 *dev,
 	struct sk_buff *skb;
 	struct sk_buff *resp;
 
-	skb = pn533_alloc_skb(0);
+	skb = pn533_alloc_skb(dev, 0);
 	if (!skb)
 		return -ENOMEM;
 
@@ -2259,7 +2318,7 @@ static int pn533_fw_reset(struct pn533 *dev)
 
 	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
 
-	skb = pn533_alloc_skb(sizeof(u8));
+	skb = pn533_alloc_skb(dev, sizeof(u8));
 	if (!skb)
 		return -ENOMEM;
 
@@ -2436,14 +2495,7 @@ static int pn533_probe(struct usb_interface *interface,
 
 	usb_set_intfdata(interface, dev);
 
-	memset(&fw_ver, 0, sizeof(fw_ver));
-	rc = pn533_get_firmware_version(dev, &fw_ver);
-	if (rc < 0)
-		goto destroy_wq;
-
-	nfc_dev_info(&dev->interface->dev,
-		     "NXP PN533 firmware ver %d.%d now attached",
-		     fw_ver.ver, fw_ver.rev);
+	dev->ops = &pn533_std_frame_ops;
 
 	dev->device_type = id->driver_info;
 	switch (dev->device_type) {
@@ -2462,10 +2514,20 @@ static int pn533_probe(struct usb_interface *interface,
 		goto destroy_wq;
 	}
 
+	memset(&fw_ver, 0, sizeof(fw_ver));
+	rc = pn533_get_firmware_version(dev, &fw_ver);
+	if (rc < 0)
+		goto destroy_wq;
+
+	nfc_dev_info(&dev->interface->dev,
+		     "NXP PN533 firmware ver %d.%d now attached",
+		     fw_ver.ver, fw_ver.rev);
+
+
 	dev->nfc_dev = nfc_allocate_device(&pn533_nfc_ops, protocols,
-					   PN533_FRAME_HEADER_LEN +
+					   dev->ops->tx_header_len +
 					   PN533_CMD_DATAEXCH_HEAD_LEN,
-					   PN533_FRAME_TAIL_LEN);
+					   dev->ops->tx_tail_len);
 	if (!dev->nfc_dev)
 		goto destroy_wq;
 
