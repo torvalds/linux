@@ -505,18 +505,19 @@ static void pn533_recv_response(struct urb *urb)
 
 	switch (urb->status) {
 	case 0:
-		/* success */
-		break;
+		break; /* success */
 	case -ECONNRESET:
 	case -ENOENT:
-	case -ESHUTDOWN:
 		nfc_dev_dbg(&dev->interface->dev,
-			    "Urb shutting down with status: %d", urb->status);
+			    "The urb has been canceled (status %d)",
+			    urb->status);
 		dev->wq_in_error = urb->status;
 		goto sched_wq;
+		break;
+	case -ESHUTDOWN:
 	default:
 		nfc_dev_err(&dev->interface->dev,
-			    "Nonzero urb status received: %d", urb->status);
+			    "Urb failure (status %d)", urb->status);
 		dev->wq_in_error = urb->status;
 		goto sched_wq;
 	}
@@ -562,18 +563,19 @@ static void pn533_recv_ack(struct urb *urb)
 
 	switch (urb->status) {
 	case 0:
-		/* success */
-		break;
+		break; /* success */
 	case -ECONNRESET:
 	case -ENOENT:
-	case -ESHUTDOWN:
 		nfc_dev_dbg(&dev->interface->dev,
-			    "Urb shutting down with status: %d", urb->status);
+			    "The urb has been stopped (status %d)",
+			    urb->status);
 		dev->wq_in_error = urb->status;
 		goto sched_wq;
+		break;
+	case -ESHUTDOWN:
 	default:
 		nfc_dev_err(&dev->interface->dev,
-			    "Nonzero urb status received: %d", urb->status);
+			    "Urb failure (status %d)", urb->status);
 		dev->wq_in_error = urb->status;
 		goto sched_wq;
 	}
@@ -981,17 +983,17 @@ static void pn533_send_complete(struct urb *urb)
 
 	switch (urb->status) {
 	case 0:
-		/* success */
-		break;
+		break; /* success */
 	case -ECONNRESET:
 	case -ENOENT:
-	case -ESHUTDOWN:
 		nfc_dev_dbg(&dev->interface->dev,
-			    "Urb shutting down with status: %d", urb->status);
+			    "The urb has been stopped (status %d)",
+			    urb->status);
 		break;
+	case -ESHUTDOWN:
 	default:
-		nfc_dev_dbg(&dev->interface->dev,
-			    "Nonzero urb status received: %d", urb->status);
+		nfc_dev_err(&dev->interface->dev,
+			    "Urb failure (status %d)", urb->status);
 	}
 }
 
