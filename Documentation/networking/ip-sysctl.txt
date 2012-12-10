@@ -224,15 +224,14 @@ tcp_fack - BOOLEAN
 	The value is not used, if tcp_sack is not enabled.
 
 tcp_fin_timeout - INTEGER
-	Time to hold socket in state FIN-WAIT-2, if it was closed
-	by our side. Peer can be broken and never close its side,
-	or even died unexpectedly. Default value is 60sec.
-	Usual value used in 2.2 was 180 seconds, you may restore
-	it, but remember that if your machine is even underloaded WEB server,
-	you risk to overflow memory with kilotons of dead sockets,
-	FIN-WAIT-2 sockets are less dangerous than FIN-WAIT-1,
-	because they eat maximum 1.5K of memory, but they tend
-	to live longer.	Cf. tcp_max_orphans.
+	The length of time an orphaned (no longer referenced by any
+	application) connection will remain in the FIN_WAIT_2 state
+	before it is aborted at the local end.  While a perfectly
+	valid "receive only" state for an un-orphaned connection, an
+	orphaned connection in FIN_WAIT_2 state could otherwise wait
+	forever for the remote to close its end of the connection.
+	Cf. tcp_max_orphans
+	Default: 60 seconds
 
 tcp_frto - INTEGER
 	Enables Forward RTO-Recovery (F-RTO) defined in RFC4138.
