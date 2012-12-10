@@ -442,6 +442,8 @@ static int max77693_muic_dock_handler(struct max77693_muic_info *info,
 		int cable_type, bool attached)
 {
 	int ret = 0;
+	int vbvolt;
+	bool cable_attached;
 	char dock_name[CABLE_NAME_MAX];
 
 	dev_info(info->dev,
@@ -450,14 +452,45 @@ static int max77693_muic_dock_handler(struct max77693_muic_info *info,
 
 	switch (cable_type) {
 	case MAX77693_MUIC_ADC_RESERVED_ACC_3:		/* Dock-Smart */
-		/* PATH:AP_USB */
-		ret = max77693_muic_set_path(info,
-				CONTROL1_SW_USB, attached);
-		if (ret < 0)
-			goto out;
+		/*
+		 * Check power cable whether attached or detached state.
+		 * The Dock-Smart device need surely external power supply.
+		 * If power cable(USB/TA) isn't connected to Dock device,
+		 * user can't use Dock-Smart for desktop mode.
+		 */
+		vbvolt = max77693_muic_get_cable_type(info,
+				MAX77693_CABLE_GROUP_VBVOLT, &cable_attached);
+		if (attached && !vbvolt) {
+			dev_warn(info->dev,
+				"Cannot detect external power supply\n");
+			return 0;
+		}
 
-		/* Dock-Smart */
+		/*
+		 * Notify Dock-Smart/MHL state.
+		 * - Dock-Smart device include three type of cable which
+		 * are HDMI, USB for mouse/keyboard and micro-usb port
+		 * for USB/TA cable. Dock-Smart device need always exteranl
+		 * power supply(USB/TA cable through micro-usb cable). Dock-
+		 * Smart device support screen output of target to separate
+		 * monitor and mouse/keyboard for desktop mode.
+		 *
+		 * Features of 'USB/TA cable with Dock-Smart device'
+		 * - Support MHL
+		 * - Support external output feature of audio
+		 * - Support charging through micro-usb port without data
+		 *	     connection if TA cable is connected to target.
+		 * - Support charging and data connection through micro-usb port
+		 *           if USB cable is connected between target and host
+		 *	     device.
+		 * - Support OTG device (Mouse/Keyboard)
+		 */
+		ret = max77693_muic_set_path(info, info->path_usb, attached);
+		if (ret < 0)
+			return ret;
+
 		extcon_set_cable_state(info->edev, "Dock-Smart", attached);
+		extcon_set_cable_state(info->edev, "MHL", attached);
 		goto out;
 	case MAX77693_MUIC_ADC_FACTORY_MODE_UART_ON:	/* Dock-Car */
 		strcpy(dock_name, "Dock-Car");
@@ -475,11 +508,11 @@ static int max77693_muic_dock_handler(struct max77693_muic_info *info,
 	/* Dock-Car/Desk/Audio, PATH:AUDIO */
 	ret = max77693_muic_set_path(info, CONTROL1_SW_AUDIO, attached);
 	if (ret < 0)
-		goto out;
+		return ret;
 	extcon_set_cable_state(info->edev, dock_name, attached);
 
 out:
-	return ret;
+	return 0;
 }
 
 static int max77693_muic_dock_button_handler(struct max77693_muic_info *info,
@@ -737,79 +770,124 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 
 	switch (chg_type) {
 	case MAX77693_CHARGER_TYPE_USB:
+	case MAX77693_CHARGER_TYPE_DEDICATED_CHG:
 	case MAX77693_CHARGER_TYPE_NONE:
-		/*
-		 * MHL_TA(USB/TA) with MHL cable
-		 * - MHL cable include two port(HDMI line and separate micro
-		 * -usb port. When the target connect MHL cable, extcon driver
-		 * check whether MHL_TA(USB/TA) cable is connected. If MHL_TA
-		 * cable is connected, extcon driver notify state to notifiee
-		 * for charging battery.
-		 */
+		/* Check MAX77693_CABLE_GROUP_ADC_GND type */
 		cable_type_gnd = max77693_muic_get_cable_type(info,
 					MAX77693_CABLE_GROUP_ADC_GND,
 					&cable_attached);
-		if (cable_type_gnd == MAX77693_MUIC_GND_MHL
-			|| cable_type_gnd == MAX77693_MUIC_GND_MHL_VB) {
+		switch (cable_type_gnd) {
+		case MAX77693_MUIC_GND_MHL:
+		case MAX77693_MUIC_GND_MHL_VB:
+			/*
+			 * MHL cable with MHL_TA(USB/TA) cable
+			 * - MHL cable include two port(HDMI line and separate micro-
+			 * usb port. When the target connect MHL cable, extcon driver
+			 * check whether MHL_TA(USB/TA) cable is connected. If MHL_TA
+			 * cable is connected, extcon driver notify state to notifiee
+			 * for charging battery.
+			 *
+			 * Features of 'MHL_TA(USB/TA) with MHL cable'
+			 * - Support MHL
+			 * - Support charging through micro-usb port without data connection
+			 */
 			extcon_set_cable_state(info->edev, "MHL_TA", attached);
-
 			if (!cable_attached)
-				extcon_set_cable_state(info->edev,
-					"MHL", false);
-			goto out;
+				extcon_set_cable_state(info->edev, "MHL", cable_attached);
+			break;
 		}
 
-		/*
-		 * USB/TA cable with Dock-Audio device
-		 * - Dock device include two port(Dock-Audio and micro-usb
-		 * port). When the target connect Dock-Audio device, extcon
-		 * driver check whether USB/TA cable is connected.
-		 * If USB/TA cable is connected, extcon driver notify state
-		 * to notifiee for charging battery.
-		 */
+		/* Check MAX77693_CABLE_GROUP_ADC type */
 		cable_type = max77693_muic_get_cable_type(info,
 					MAX77693_CABLE_GROUP_ADC,
 					&cable_attached);
-		if (cable_type == MAX77693_MUIC_ADC_AV_CABLE_NOLOAD) {
+		switch (cable_type) {
+		case MAX77693_MUIC_ADC_AV_CABLE_NOLOAD:		/* Dock-Audio */
+			/*
+			 * Dock-Audio device with USB/TA cable
+			 * - Dock device include two port(Dock-Audio and micro-usb
+			 * port). When the target connect Dock-Audio device, extcon
+			 * driver check whether USB/TA cable is connected. If USB/TA
+			 * cable is connected, extcon driver notify state to notifiee
+			 * for charging battery.
+			 *
+			 * Features of 'USB/TA cable with Dock-Audio device'
+			 * - Support external output feature of audio.
+			 * - Support charging through micro-usb port without data
+			 *           connection.
+			 */
 			extcon_set_cable_state(info->edev, "USB", attached);
 
 			if (!cable_attached)
-				extcon_set_cable_state(info->edev,
-						"Dock-Audio", false);
-			goto out;
+				extcon_set_cable_state(info->edev, "Dock-Audio", cable_attached);
+			break;
+		case MAX77693_MUIC_ADC_RESERVED_ACC_3:		/* Dock-Smart */
+			/*
+			 * Dock-Smart device with USB/TA cable
+			 * - Dock-Desk device include three type of cable which
+			 * are HDMI, USB for mouse/keyboard and micro-usb port
+			 * for USB/TA cable. Dock-Smart device need always exteranl
+			 * power supply(USB/TA cable through micro-usb cable). Dock-
+			 * Smart device support screen output of target to separate
+			 * monitor and mouse/keyboard for desktop mode.
+			 *
+			 * Features of 'USB/TA cable with Dock-Smart device'
+			 * - Support MHL
+			 * - Support external output feature of audio
+			 * - Support charging through micro-usb port without data
+			 *	     connection if TA cable is connected to target.
+			 * - Support charging and data connection through micro-usb port
+			 *           if USB cable is connected between target and host
+			 *	     device.
+			 * - Support OTG device (Mouse/Keyboard)
+			 */
+			ret = max77693_muic_set_path(info, info->path_usb, attached);
+			if (ret < 0)
+				return ret;
+
+			extcon_set_cable_state(info->edev, "Dock-Smart", attached);
+			extcon_set_cable_state(info->edev, "MHL", attached);
+
+			break;
 		}
 
-		/*
-		 * When MHL(with USB/TA cable) or Dock-Audio with USB/TA cable
-		 * is attached, muic device happen below two interrupt.
-		 * - 'MAX77693_MUIC_IRQ_INT1_ADC' for detecting MHL/Dock-Audio.
-		 * - 'MAX77693_MUIC_IRQ_INT2_CHGTYP' for detecting USB/TA cable
-		 *   connected to MHL or Dock-Audio.
-		 * Always, happen eariler MAX77693_MUIC_IRQ_INT1_ADC interrupt
-		 * than MAX77693_MUIC_IRQ_INT2_CHGTYP interrupt.
-		 *
-		 * If user attach MHL (with USB/TA cable and immediately detach
-		 * MHL with USB/TA cable before MAX77693_MUIC_IRQ_INT2_CHGTYP
-		 * interrupt is happened, USB/TA cable remain connected state to
-		 * target. But USB/TA cable isn't connected to target. The user
-		 * be face with unusual action. So, driver should check this
-		 * situation in spite of, that previous charger type is N/A.
-		 */
-		if (chg_type == MAX77693_CHARGER_TYPE_NONE)
+		/* Check MAX77693_CABLE_GROUP_CHG type */
+		switch (chg_type) {
+		case MAX77693_CHARGER_TYPE_NONE:
+			/*
+			 * When MHL(with USB/TA cable) or Dock-Audio with USB/TA cable
+			 * is attached, muic device happen below two interrupt.
+			 * - 'MAX77693_MUIC_IRQ_INT1_ADC' for detecting MHL/Dock-Audio.
+			 * - 'MAX77693_MUIC_IRQ_INT2_CHGTYP' for detecting USB/TA cable
+			 *   connected to MHL or Dock-Audio.
+			 * Always, happen eariler MAX77693_MUIC_IRQ_INT1_ADC interrupt
+			 * than MAX77693_MUIC_IRQ_INT2_CHGTYP interrupt.
+			 *
+			 * If user attach MHL (with USB/TA cable and immediately detach
+			 * MHL with USB/TA cable before MAX77693_MUIC_IRQ_INT2_CHGTYP
+			 * interrupt is happened, USB/TA cable remain connected state to
+			 * target. But USB/TA cable isn't connected to target. The user
+			 * be face with unusual action. So, driver should check this
+			 * situation in spite of, that previous charger type is N/A.
+			 */
 			break;
+		case MAX77693_CHARGER_TYPE_USB:
+			/* Only USB cable, PATH:AP_USB */
+			ret = max77693_muic_set_path(info, info->path_usb, attached);
+			if (ret < 0)
+				return ret;
 
-		/* Only USB cable, PATH:AP_USB */
-		ret = max77693_muic_set_path(info, CONTROL1_SW_USB, attached);
-		if (ret < 0)
-			goto out;
-		extcon_set_cable_state(info->edev, "USB", attached);
+			extcon_set_cable_state(info->edev, "USB", attached);
+			break;
+		case MAX77693_CHARGER_TYPE_DEDICATED_CHG:
+			/* Only TA cable */
+			extcon_set_cable_state(info->edev, "TA", attached);
+			break;
+		}
 		break;
 	case MAX77693_CHARGER_TYPE_DOWNSTREAM_PORT:
 		extcon_set_cable_state(info->edev,
 				"Charge-downstream", attached);
-		break;
-	case MAX77693_CHARGER_TYPE_DEDICATED_CHG:
-		extcon_set_cable_state(info->edev, "TA", attached);
 		break;
 	case MAX77693_CHARGER_TYPE_APPLE_500MA:
 		extcon_set_cable_state(info->edev, "Slow-charger", attached);
@@ -823,12 +901,10 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 		dev_err(info->dev,
 			"failed to detect %s accessory (chg_type:0x%x)\n",
 			attached ? "attached" : "detached", chg_type);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
-out:
-	return ret;
+	return 0;
 }
 
 static void max77693_muic_irq_work(struct work_struct *work)
