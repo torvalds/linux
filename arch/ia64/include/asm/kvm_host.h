@@ -24,8 +24,6 @@
 #define __ASM_KVM_HOST_H
 
 #define KVM_USER_MEM_SLOTS 32
-/* memory slots that does not exposed to userspace */
-#define KVM_PRIVATE_MEM_SLOTS 4
 
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 
