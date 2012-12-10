@@ -171,6 +171,10 @@ extern int ext4_try_create_inline_dir(handle_t *handle,
 extern int ext4_read_inline_dir(struct file *filp,
 				void *dirent, filldir_t filldir,
 				int *has_inline_data);
+extern struct buffer_head *ext4_find_inline_entry(struct inode *dir,
+					const struct qstr *d_name,
+					struct ext4_dir_entry_2 **res_dir,
+					int *has_inline_data);
 # else  /* CONFIG_EXT4_FS_XATTR */
 
 static inline int
@@ -354,6 +358,15 @@ static inline int ext4_read_inline_dir(struct file *filp,
 				       int *has_inline_data)
 {
 	return 0;
+}
+
+static inline struct buffer_head *
+ext4_find_inline_entry(struct inode *dir,
+		       const struct qstr *d_name,
+		       struct ext4_dir_entry_2 **res_dir,
+		       int *has_inline_data)
+{
+	return NULL;
 }
 # endif  /* CONFIG_EXT4_FS_XATTR */
 

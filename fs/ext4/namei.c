@@ -1015,7 +1015,6 @@ static inline int search_dirblock(struct buffer_head *bh,
 			  d_name, offset, res_dir);
 }
 
-
 /*
  * Directory block splitting, compacting
  */
@@ -1198,6 +1197,15 @@ static struct buffer_head * ext4_find_entry (struct inode *dir,
 	namelen = d_name->len;
 	if (namelen > EXT4_NAME_LEN)
 		return NULL;
+
+	if (ext4_has_inline_data(dir)) {
+		int has_inline_data = 1;
+		ret = ext4_find_inline_entry(dir, d_name, res_dir,
+					     &has_inline_data);
+		if (has_inline_data)
+			return ret;
+	}
+
 	if ((namelen <= 2) && (name[0] == '.') &&
 	    (name[1] == '.' || name[1] == '\0')) {
 		/*
