@@ -109,7 +109,7 @@ nouveau_handle_create(struct nouveau_object *parent, u32 _parent, u32 _handle,
 	while (!nv_iclass(namedb, NV_NAMEDB_CLASS))
 		namedb = namedb->parent;
 
-	handle = *phandle = kzalloc(sizeof(*handle), GFP_KERNEL);
+	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
 	if (!handle)
 		return -ENOMEM;
 
@@ -146,6 +146,9 @@ nouveau_handle_create(struct nouveau_object *parent, u32 _parent, u32 _handle,
 	}
 
 	hprintk(handle, TRACE, "created\n");
+
+	*phandle = handle;
+
 	return 0;
 }
 
