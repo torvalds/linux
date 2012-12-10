@@ -455,7 +455,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		goto out_delete_evlist;
 	}
 
-	perf_evlist__config_attrs(evlist, &trace->opts);
+	perf_evlist__config(evlist, &trace->opts);
 
 	signal(SIGCHLD, sig_handler);
 	signal(SIGINT, sig_handler);

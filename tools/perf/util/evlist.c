@@ -49,10 +49,16 @@ struct perf_evlist *perf_evlist__new(struct cpu_map *cpus,
 	return evlist;
 }
 
-void perf_evlist__config_attrs(struct perf_evlist *evlist,
-			       struct perf_record_opts *opts)
+void perf_evlist__config(struct perf_evlist *evlist,
+			struct perf_record_opts *opts)
 {
 	struct perf_evsel *evsel;
+	/*
+	 * Set the evsel leader links before we configure attributes,
+	 * since some might depend on this info.
+	 */
+	if (opts->group)
+		perf_evlist__set_leader(evlist);
 
 	if (evlist->cpus->map[0] < 0)
 		opts->no_inherit = true;
