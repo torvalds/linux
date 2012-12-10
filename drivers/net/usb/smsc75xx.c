@@ -1054,8 +1054,6 @@ static int smsc75xx_reset(struct usbnet *dev)
 
 	netif_dbg(dev, ifup, dev->net, "PHY reset complete\n");
 
-	smsc75xx_init_mac_address(dev);
-
 	ret = smsc75xx_set_mac_address(dev);
 	if (ret < 0) {
 		netdev_warn(dev->net, "Failed to set mac address\n");
@@ -1421,6 +1419,14 @@ static int smsc75xx_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	dev->net->hw_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 		NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_RXCSUM;
+
+	ret = smsc75xx_wait_ready(dev, 0);
+	if (ret < 0) {
+		netdev_warn(dev->net, "device not ready in smsc75xx_bind\n");
+		return ret;
+	}
+
+	smsc75xx_init_mac_address(dev);
 
 	/* Init all registers */
 	ret = smsc75xx_reset(dev);
