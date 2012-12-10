@@ -1374,7 +1374,9 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 		   fb->base.bits_per_pixel);
 	describe_obj(m, fb->obj);
 	seq_printf(m, "\n");
+	mutex_unlock(&dev->mode_config.mutex);
 
+	mutex_lock(&dev->mode_config.fb_lock);
 	list_for_each_entry(fb, &dev->mode_config.fb_list, base.head) {
 		if (&fb->base == ifbdev->helper.fb)
 			continue;
@@ -1387,8 +1389,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 		describe_obj(m, fb->obj);
 		seq_printf(m, "\n");
 	}
-
-	mutex_unlock(&dev->mode_config.mutex);
+	mutex_unlock(&dev->mode_config.fb_lock);
 
 	return 0;
 }

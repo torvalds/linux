@@ -254,6 +254,10 @@ struct drm_framebuffer {
 	 * userspace perspective.
 	 */
 	struct kref refcount;
+	/*
+	 * Place on the dev->mode_config.fb_list, access protected by
+	 * dev->mode_config.fb_lock.
+	 */
 	struct list_head head;
 	struct drm_mode_object base;
 	const struct drm_framebuffer_funcs *funcs;
@@ -780,8 +784,18 @@ struct drm_mode_config {
 	struct mutex idr_mutex; /* for IDR management */
 	struct idr crtc_idr; /* use this idr for all IDs, fb, crtc, connector, modes - just makes life easier */
 	/* this is limited to one for now */
+
+
+	/**
+	 * fb_lock - mutex to protect fb state
+	 *
+	 * Besides the global fb list his also protects the fbs list in the
+	 * file_priv
+	 */
+	struct mutex fb_lock;
 	int num_fb;
 	struct list_head fb_list;
+
 	int num_connector;
 	struct list_head connector_list;
 	int num_encoder;

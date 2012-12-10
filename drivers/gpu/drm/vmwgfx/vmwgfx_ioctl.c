@@ -165,7 +165,9 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 
 	drm_modeset_lock_all(dev);
 
+	mutex_lock(&dev->mode_config.fb_lock);
 	obj = drm_mode_object_find(dev, arg->fb_id, DRM_MODE_OBJECT_FB);
+	mutex_unlock(&dev->mode_config.fb_lock);
 	if (!obj) {
 		DRM_ERROR("Invalid framebuffer id.\n");
 		ret = -EINVAL;
@@ -248,7 +250,9 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 
 	drm_modeset_lock_all(dev);
 
+	mutex_lock(&dev->mode_config.fb_lock);
 	obj = drm_mode_object_find(dev, arg->fb_id, DRM_MODE_OBJECT_FB);
+	mutex_unlock(&dev->mode_config.fb_lock);
 	if (!obj) {
 		DRM_ERROR("Invalid framebuffer id.\n");
 		ret = -EINVAL;
