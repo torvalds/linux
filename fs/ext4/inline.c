@@ -771,6 +771,183 @@ ext4_journalled_write_inline_data(struct inode *inode,
 	return iloc.bh;
 }
 
+/*
+ * Try to make the page cache and handle ready for the inline data case.
+ * We can call this function in 2 cases:
+ * 1. The inode is created and the first write exceeds inline size. We can
+ *    clear the inode state safely.
+ * 2. The inode has inline data, then we need to read the data, make it
+ *    update and dirty so that ext4_da_writepages can handle it. We don't
+ *    need to start the journal since the file's metatdata isn't changed now.
+ */
+static int ext4_da_convert_inline_data_to_extent(struct address_space *mapping,
+						 struct inode *inode,
+						 unsigned flags,
+						 void **fsdata)
+{
+	int ret = 0, inline_size;
+	struct page *page;
+
+	page = grab_cache_page_write_begin(mapping, 0, flags);
+	if (!page)
+		return -ENOMEM;
+
+	down_read(&EXT4_I(inode)->xattr_sem);
+	if (!ext4_has_inline_data(inode)) {
+		ext4_clear_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA);
+		goto out;
+	}
+
+	inline_size = ext4_get_inline_size(inode);
+
+	if (!PageUptodate(page)) {
+		ret = ext4_read_inline_page(inode, page);
+		if (ret < 0)
+			goto out;
+	}
+
+	ret = __block_write_begin(page, 0, inline_size,
+				  ext4_da_get_block_prep);
+	if (ret) {
+		ext4_truncate_failed_write(inode);
+		goto out;
+	}
+
+	SetPageDirty(page);
+	SetPageUptodate(page);
+	ext4_clear_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA);
+	*fsdata = (void *)CONVERT_INLINE_DATA;
+
+out:
+	up_read(&EXT4_I(inode)->xattr_sem);
+	if (page) {
+		unlock_page(page);
+		page_cache_release(page);
+	}
+	return ret;
+}
+
+/*
+ * Prepare the write for the inline data.
+ * If the the data can be written into the inode, we just read
+ * the page and make it uptodate, and start the journal.
+ * Otherwise read the page, makes it dirty so that it can be
+ * handle in writepages(the i_disksize update is left to the
+ * normal ext4_da_write_end).
+ */
+int ext4_da_write_inline_data_begin(struct address_space *mapping,
+				    struct inode *inode,
+				    loff_t pos, unsigned len,
+				    unsigned flags,
+				    struct page **pagep,
+				    void **fsdata)
+{
+	int ret, inline_size;
+	handle_t *handle;
+	struct page *page;
+	struct ext4_iloc iloc;
+
+	ret = ext4_get_inode_loc(inode, &iloc);
+	if (ret)
+		return ret;
+
+	handle = ext4_journal_start(inode, 1);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		handle = NULL;
+		goto out;
+	}
+
+	inline_size = ext4_get_max_inline_size(inode);
+
+	ret = -ENOSPC;
+	if (inline_size >= pos + len) {
+		ret = ext4_prepare_inline_data(handle, inode, pos + len);
+		if (ret && ret != -ENOSPC)
+			goto out;
+	}
+
+	if (ret == -ENOSPC) {
+		ret = ext4_da_convert_inline_data_to_extent(mapping,
+							    inode,
+							    flags,
+							    fsdata);
+		goto out;
+	}
+
+	/*
+	 * We cannot recurse into the filesystem as the transaction
+	 * is already started.
+	 */
+	flags |= AOP_FLAG_NOFS;
+
+	page = grab_cache_page_write_begin(mapping, 0, flags);
+	if (!page) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	down_read(&EXT4_I(inode)->xattr_sem);
+	if (!ext4_has_inline_data(inode)) {
+		ret = 0;
+		goto out_release_page;
+	}
+
+	if (!PageUptodate(page)) {
+		ret = ext4_read_inline_page(inode, page);
+		if (ret < 0)
+			goto out_release_page;
+	}
+
+	up_read(&EXT4_I(inode)->xattr_sem);
+	*pagep = page;
+	handle = NULL;
+	brelse(iloc.bh);
+	return 1;
+out_release_page:
+	up_read(&EXT4_I(inode)->xattr_sem);
+	unlock_page(page);
+	page_cache_release(page);
+out:
+	if (handle)
+		ext4_journal_stop(handle);
+	brelse(iloc.bh);
+	return ret;
+}
+
+int ext4_da_write_inline_data_end(struct inode *inode, loff_t pos,
+				  unsigned len, unsigned copied,
+				  struct page *page)
+{
+	int i_size_changed = 0;
+
+	copied = ext4_write_inline_data_end(inode, pos, len, copied, page);
+
+	/*
+	 * No need to use i_size_read() here, the i_size
+	 * cannot change under us because we hold i_mutex.
+	 *
+	 * But it's important to update i_size while still holding page lock:
+	 * page writeout could otherwise come in and zero beyond i_size.
+	 */
+	if (pos+copied > inode->i_size) {
+		i_size_write(inode, pos+copied);
+		i_size_changed = 1;
+	}
+	unlock_page(page);
+	page_cache_release(page);
+
+	/*
+	 * Don't mark the inode dirty under page lock. First, it unnecessarily
+	 * makes the holding time of page lock longer. Second, it forces lock
+	 * ordering of page lock and transaction start for journaling
+	 * filesystems.
+	 */
+	if (i_size_changed)
+		mark_inode_dirty(inode);
+
+	return copied;
+}
 
 int ext4_destroy_inline_data(handle_t *handle, struct inode *inode)
 {
