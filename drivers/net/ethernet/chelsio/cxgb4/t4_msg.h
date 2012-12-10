@@ -332,6 +332,7 @@ struct cpl_set_tcb_field {
 	__be16 word_cookie;
 #define TCB_WORD(x)   ((x) << 0)
 #define TCB_COOKIE(x) ((x) << 5)
+#define GET_TCB_COOKIE(x) (((x) >> 5) & 7)
 	__be64 mask;
 	__be64 val;
 };

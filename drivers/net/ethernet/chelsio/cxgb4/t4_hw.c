@@ -109,7 +109,7 @@ void t4_set_reg_field(struct adapter *adapter, unsigned int addr, u32 mask,
  *	Reads registers that are accessed indirectly through an address/data
  *	register pair.
  */
-static void t4_read_indirect(struct adapter *adap, unsigned int addr_reg,
+void t4_read_indirect(struct adapter *adap, unsigned int addr_reg,
 			     unsigned int data_reg, u32 *vals,
 			     unsigned int nregs, unsigned int start_idx)
 {
@@ -2266,6 +2266,26 @@ int t4_wol_pat_enable(struct adapter *adap, unsigned int port, unsigned int map,
 
 	t4_set_reg_field(adap, PORT_REG(port, XGMAC_PORT_CFG2), 0, PATEN);
 	return 0;
+}
+
+/*     t4_mk_filtdelwr - create a delete filter WR
+ *     @ftid: the filter ID
+ *     @wr: the filter work request to populate
+ *     @qid: ingress queue to receive the delete notification
+ *
+ *     Creates a filter work request to delete the supplied filter.  If @qid is
+ *     negative the delete notification is suppressed.
+ */
+void t4_mk_filtdelwr(unsigned int ftid, struct fw_filter_wr *wr, int qid)
+{
+	memset(wr, 0, sizeof(*wr));
+	wr->op_pkd = htonl(FW_WR_OP(FW_FILTER_WR));
+	wr->len16_pkd = htonl(FW_WR_LEN16(sizeof(*wr) / 16));
+	wr->tid_to_iq = htonl(V_FW_FILTER_WR_TID(ftid) |
+			V_FW_FILTER_WR_NOREPLY(qid < 0));
+	wr->del_filter_to_l2tix = htonl(F_FW_FILTER_WR_DEL_FILTER);
+	if (qid >= 0)
+		wr->rx_chan_rx_rpl_iq = htons(V_FW_FILTER_WR_RX_RPL_IQ(qid));
 }
 
 #define INIT_CMD(var, cmd, rd_wr) do { \

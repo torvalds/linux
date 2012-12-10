@@ -175,6 +175,30 @@ enum {
 	MIN_FL_ENTRIES       = 16
 };
 
+/* Host shadow copy of ingress filter entry.  This is in host native format
+ * and doesn't match the ordering or bit order, etc. of the hardware of the
+ * firmware command.  The use of bit-field structure elements is purely to
+ * remind ourselves of the field size limitations and save memory in the case
+ * where the filter table is large.
+ */
+struct filter_entry {
+	/* Administrative fields for filter.
+	 */
+	u32 valid:1;            /* filter allocated and valid */
+	u32 locked:1;           /* filter is administratively locked */
+
+	u32 pending:1;          /* filter action is pending firmware reply */
+	u32 smtidx:8;           /* Source MAC Table index for smac */
+	struct l2t_entry *l2t;  /* Layer Two Table entry for dmac */
+
+	/* The filter itself.  Most of this is a straight copy of information
+	 * provided by the extended ioctl().  Some fields are translated to
+	 * internal forms -- for instance the Ingress Queue ID passed in from
+	 * the ioctl() is translated into the Absolute Ingress Queue ID.
+	 */
+	struct ch_filter_specification fs;
+};
+
 #define DFLT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK | \
 			 NETIF_MSG_TIMER | NETIF_MSG_IFDOWN | NETIF_MSG_IFUP |\
 			 NETIF_MSG_RX_ERR | NETIF_MSG_TX_ERR)
@@ -324,6 +348,9 @@ enum {
 };
 
 static unsigned int tp_vlan_pri_map = TP_VLAN_PRI_MAP_DEFAULT;
+
+module_param(tp_vlan_pri_map, uint, 0644);
+MODULE_PARM_DESC(tp_vlan_pri_map, "global compressed filter configuration");
 
 static struct dentry *cxgb4_debugfs_root;
 
@@ -506,8 +533,67 @@ static int link_start(struct net_device *dev)
 	return ret;
 }
 
-/*
- * Response queue handler for the FW event queue.
+/* Clear a filter and release any of its resources that we own.  This also
+ * clears the filter's "pending" status.
+ */
+static void clear_filter(struct adapter *adap, struct filter_entry *f)
+{
+	/* If the new or old filter have loopback rewriteing rules then we'll
+	 * need to free any existing Layer Two Table (L2T) entries of the old
+	 * filter rule.  The firmware will handle freeing up any Source MAC
+	 * Table (SMT) entries used for rewriting Source MAC Addresses in
+	 * loopback rules.
+	 */
+	if (f->l2t)
+		cxgb4_l2t_release(f->l2t);
+
+	/* The zeroing of the filter rule below clears the filter valid,
+	 * pending, locked flags, l2t pointer, etc. so it's all we need for
+	 * this operation.
+	 */
+	memset(f, 0, sizeof(*f));
+}
+
+/* Handle a filter write/deletion reply.
+ */
+static void filter_rpl(struct adapter *adap, const struct cpl_set_tcb_rpl *rpl)
+{
+	unsigned int idx = GET_TID(rpl);
+	unsigned int nidx = idx - adap->tids.ftid_base;
+	unsigned int ret;
+	struct filter_entry *f;
+
+	if (idx >= adap->tids.ftid_base && nidx <
+	   (adap->tids.nftids + adap->tids.nsftids)) {
+		idx = nidx;
+		ret = GET_TCB_COOKIE(rpl->cookie);
+		f = &adap->tids.ftid_tab[idx];
+
+		if (ret == FW_FILTER_WR_FLT_DELETED) {
+			/* Clear the filter when we get confirmation from the
+			 * hardware that the filter has been deleted.
+			 */
+			clear_filter(adap, f);
+		} else if (ret == FW_FILTER_WR_SMT_TBL_FULL) {
+			dev_err(adap->pdev_dev, "filter %u setup failed due to full SMT\n",
+				idx);
+			clear_filter(adap, f);
+		} else if (ret == FW_FILTER_WR_FLT_ADDED) {
+			f->smtidx = (be64_to_cpu(rpl->oldval) >> 24) & 0xff;
+			f->pending = 0;  /* asynchronous setup completed */
+			f->valid = 1;
+		} else {
+			/* Something went wrong.  Issue a warning about the
+			 * problem and clear everything out.
+			 */
+			dev_err(adap->pdev_dev, "filter %u setup failed with error %u\n",
+				idx, ret);
+			clear_filter(adap, f);
+		}
+	}
+}
+
+/* Response queue handler for the FW event queue.
  */
 static int fwevtq_handler(struct sge_rspq *q, const __be64 *rsp,
 			  const struct pkt_gl *gl)
@@ -542,6 +628,10 @@ static int fwevtq_handler(struct sge_rspq *q, const __be64 *rsp,
 		const struct cpl_l2t_write_rpl *p = (void *)rsp;
 
 		do_l2t_write_rpl(q->adap, p);
+	} else if (opcode == CPL_SET_TCB_RPL) {
+		const struct cpl_set_tcb_rpl *p = (void *)rsp;
+
+		filter_rpl(q->adap, p);
 	} else
 		dev_err(q->adap->pdev_dev,
 			"unexpected CPL %#x on FW event queue\n", opcode);
@@ -981,6 +1071,148 @@ static void t4_free_mem(void *addr)
 		vfree(addr);
 	else
 		kfree(addr);
+}
+
+/* Send a Work Request to write the filter at a specified index.  We construct
+ * a Firmware Filter Work Request to have the work done and put the indicated
+ * filter into "pending" mode which will prevent any further actions against
+ * it till we get a reply from the firmware on the completion status of the
+ * request.
+ */
+static int set_filter_wr(struct adapter *adapter, int fidx)
+{
+	struct filter_entry *f = &adapter->tids.ftid_tab[fidx];
+	struct sk_buff *skb;
+	struct fw_filter_wr *fwr;
+	unsigned int ftid;
+
+	/* If the new filter requires loopback Destination MAC and/or VLAN
+	 * rewriting then we need to allocate a Layer 2 Table (L2T) entry for
+	 * the filter.
+	 */
+	if (f->fs.newdmac || f->fs.newvlan) {
+		/* allocate L2T entry for new filter */
+		f->l2t = t4_l2t_alloc_switching(adapter->l2t);
+		if (f->l2t == NULL)
+			return -EAGAIN;
+		if (t4_l2t_set_switching(adapter, f->l2t, f->fs.vlan,
+					f->fs.eport, f->fs.dmac)) {
+			cxgb4_l2t_release(f->l2t);
+			f->l2t = NULL;
+			return -ENOMEM;
+		}
+	}
+
+	ftid = adapter->tids.ftid_base + fidx;
+
+	skb = alloc_skb(sizeof(*fwr), GFP_KERNEL | __GFP_NOFAIL);
+	fwr = (struct fw_filter_wr *)__skb_put(skb, sizeof(*fwr));
+	memset(fwr, 0, sizeof(*fwr));
+
+	/* It would be nice to put most of the following in t4_hw.c but most
+	 * of the work is translating the cxgbtool ch_filter_specification
+	 * into the Work Request and the definition of that structure is
+	 * currently in cxgbtool.h which isn't appropriate to pull into the
+	 * common code.  We may eventually try to come up with a more neutral
+	 * filter specification structure but for now it's easiest to simply
+	 * put this fairly direct code in line ...
+	 */
+	fwr->op_pkd = htonl(FW_WR_OP(FW_FILTER_WR));
+	fwr->len16_pkd = htonl(FW_WR_LEN16(sizeof(*fwr)/16));
+	fwr->tid_to_iq =
+		htonl(V_FW_FILTER_WR_TID(ftid) |
+		      V_FW_FILTER_WR_RQTYPE(f->fs.type) |
+		      V_FW_FILTER_WR_NOREPLY(0) |
+		      V_FW_FILTER_WR_IQ(f->fs.iq));
+	fwr->del_filter_to_l2tix =
+		htonl(V_FW_FILTER_WR_RPTTID(f->fs.rpttid) |
+		      V_FW_FILTER_WR_DROP(f->fs.action == FILTER_DROP) |
+		      V_FW_FILTER_WR_DIRSTEER(f->fs.dirsteer) |
+		      V_FW_FILTER_WR_MASKHASH(f->fs.maskhash) |
+		      V_FW_FILTER_WR_DIRSTEERHASH(f->fs.dirsteerhash) |
+		      V_FW_FILTER_WR_LPBK(f->fs.action == FILTER_SWITCH) |
+		      V_FW_FILTER_WR_DMAC(f->fs.newdmac) |
+		      V_FW_FILTER_WR_SMAC(f->fs.newsmac) |
+		      V_FW_FILTER_WR_INSVLAN(f->fs.newvlan == VLAN_INSERT ||
+					     f->fs.newvlan == VLAN_REWRITE) |
+		      V_FW_FILTER_WR_RMVLAN(f->fs.newvlan == VLAN_REMOVE ||
+					    f->fs.newvlan == VLAN_REWRITE) |
+		      V_FW_FILTER_WR_HITCNTS(f->fs.hitcnts) |
+		      V_FW_FILTER_WR_TXCHAN(f->fs.eport) |
+		      V_FW_FILTER_WR_PRIO(f->fs.prio) |
+		      V_FW_FILTER_WR_L2TIX(f->l2t ? f->l2t->idx : 0));
+	fwr->ethtype = htons(f->fs.val.ethtype);
+	fwr->ethtypem = htons(f->fs.mask.ethtype);
+	fwr->frag_to_ovlan_vldm =
+		(V_FW_FILTER_WR_FRAG(f->fs.val.frag) |
+		 V_FW_FILTER_WR_FRAGM(f->fs.mask.frag) |
+		 V_FW_FILTER_WR_IVLAN_VLD(f->fs.val.ivlan_vld) |
+		 V_FW_FILTER_WR_OVLAN_VLD(f->fs.val.ovlan_vld) |
+		 V_FW_FILTER_WR_IVLAN_VLDM(f->fs.mask.ivlan_vld) |
+		 V_FW_FILTER_WR_OVLAN_VLDM(f->fs.mask.ovlan_vld));
+	fwr->smac_sel = 0;
+	fwr->rx_chan_rx_rpl_iq =
+		htons(V_FW_FILTER_WR_RX_CHAN(0) |
+		      V_FW_FILTER_WR_RX_RPL_IQ(adapter->sge.fw_evtq.abs_id));
+	fwr->maci_to_matchtypem =
+		htonl(V_FW_FILTER_WR_MACI(f->fs.val.macidx) |
+		      V_FW_FILTER_WR_MACIM(f->fs.mask.macidx) |
+		      V_FW_FILTER_WR_FCOE(f->fs.val.fcoe) |
+		      V_FW_FILTER_WR_FCOEM(f->fs.mask.fcoe) |
+		      V_FW_FILTER_WR_PORT(f->fs.val.iport) |
+		      V_FW_FILTER_WR_PORTM(f->fs.mask.iport) |
+		      V_FW_FILTER_WR_MATCHTYPE(f->fs.val.matchtype) |
+		      V_FW_FILTER_WR_MATCHTYPEM(f->fs.mask.matchtype));
+	fwr->ptcl = f->fs.val.proto;
+	fwr->ptclm = f->fs.mask.proto;
+	fwr->ttyp = f->fs.val.tos;
+	fwr->ttypm = f->fs.mask.tos;
+	fwr->ivlan = htons(f->fs.val.ivlan);
+	fwr->ivlanm = htons(f->fs.mask.ivlan);
+	fwr->ovlan = htons(f->fs.val.ovlan);
+	fwr->ovlanm = htons(f->fs.mask.ovlan);
+	memcpy(fwr->lip, f->fs.val.lip, sizeof(fwr->lip));
+	memcpy(fwr->lipm, f->fs.mask.lip, sizeof(fwr->lipm));
+	memcpy(fwr->fip, f->fs.val.fip, sizeof(fwr->fip));
+	memcpy(fwr->fipm, f->fs.mask.fip, sizeof(fwr->fipm));
+	fwr->lp = htons(f->fs.val.lport);
+	fwr->lpm = htons(f->fs.mask.lport);
+	fwr->fp = htons(f->fs.val.fport);
+	fwr->fpm = htons(f->fs.mask.fport);
+	if (f->fs.newsmac)
+		memcpy(fwr->sma, f->fs.smac, sizeof(fwr->sma));
+
+	/* Mark the filter as "pending" and ship off the Filter Work Request.
+	 * When we get the Work Request Reply we'll clear the pending status.
+	 */
+	f->pending = 1;
+	set_wr_txq(skb, CPL_PRIORITY_CONTROL, f->fs.val.iport & 0x3);
+	t4_ofld_send(adapter, skb);
+	return 0;
+}
+
+/* Delete the filter at a specified index.
+ */
+static int del_filter_wr(struct adapter *adapter, int fidx)
+{
+	struct filter_entry *f = &adapter->tids.ftid_tab[fidx];
+	struct sk_buff *skb;
+	struct fw_filter_wr *fwr;
+	unsigned int len, ftid;
+
+	len = sizeof(*fwr);
+	ftid = adapter->tids.ftid_base + fidx;
+
+	skb = alloc_skb(len, GFP_KERNEL | __GFP_NOFAIL);
+	fwr = (struct fw_filter_wr *)__skb_put(skb, len);
+	t4_mk_filtdelwr(ftid, fwr, adapter->sge.fw_evtq.abs_id);
+
+	/* Mark the filter as "pending" and ship off the Filter Work Request.
+	 * When we get the Work Request Reply we'll clear the pending status.
+	 */
+	f->pending = 1;
+	t4_mgmt_tx(adapter, skb);
+	return 0;
 }
 
 static inline int is_offload(const struct adapter *adap)
@@ -2195,7 +2427,7 @@ int cxgb4_alloc_atid(struct tid_info *t, void *data)
 	if (t->afree) {
 		union aopen_entry *p = t->afree;
 
-		atid = p - t->atid_tab;
+		atid = (p - t->atid_tab) + t->atid_base;
 		t->afree = p->next;
 		p->data = data;
 		t->atids_in_use++;
@@ -2210,7 +2442,7 @@ EXPORT_SYMBOL(cxgb4_alloc_atid);
  */
 void cxgb4_free_atid(struct tid_info *t, unsigned int atid)
 {
-	union aopen_entry *p = &t->atid_tab[atid];
+	union aopen_entry *p = &t->atid_tab[atid - t->atid_base];
 
 	spin_lock_bh(&t->atid_lock);
 	p->next = t->afree;
@@ -2362,11 +2594,16 @@ EXPORT_SYMBOL(cxgb4_remove_tid);
 static int tid_init(struct tid_info *t)
 {
 	size_t size;
+	unsigned int stid_bmap_size;
 	unsigned int natids = t->natids;
 
-	size = t->ntids * sizeof(*t->tid_tab) + natids * sizeof(*t->atid_tab) +
+	stid_bmap_size = BITS_TO_LONGS(t->nstids);
+	size = t->ntids * sizeof(*t->tid_tab) +
+	       natids * sizeof(*t->atid_tab) +
 	       t->nstids * sizeof(*t->stid_tab) +
-	       BITS_TO_LONGS(t->nstids) * sizeof(long);
+	       stid_bmap_size * sizeof(long) +
+	       t->nftids * sizeof(*t->ftid_tab);
+
 	t->tid_tab = t4_alloc_mem(size);
 	if (!t->tid_tab)
 		return -ENOMEM;
@@ -2374,6 +2611,7 @@ static int tid_init(struct tid_info *t)
 	t->atid_tab = (union aopen_entry *)&t->tid_tab[t->ntids];
 	t->stid_tab = (struct serv_entry *)&t->atid_tab[natids];
 	t->stid_bmap = (unsigned long *)&t->stid_tab[t->nstids];
+	t->ftid_tab = (struct filter_entry *)&t->stid_bmap[stid_bmap_size];
 	spin_lock_init(&t->stid_lock);
 	spin_lock_init(&t->atid_lock);
 
@@ -2997,6 +3235,40 @@ static int cxgb_close(struct net_device *dev)
 	netif_tx_stop_all_queues(dev);
 	netif_carrier_off(dev);
 	return t4_enable_vi(adapter, adapter->fn, pi->viid, false, false);
+}
+
+/* Return an error number if the indicated filter isn't writable ...
+ */
+static int writable_filter(struct filter_entry *f)
+{
+	if (f->locked)
+		return -EPERM;
+	if (f->pending)
+		return -EBUSY;
+
+	return 0;
+}
+
+/* Delete the filter at the specified index (if valid).  The checks for all
+ * the common problems with doing this like the filter being locked, currently
+ * pending in another operation, etc.
+ */
+static int delete_filter(struct adapter *adapter, unsigned int fidx)
+{
+	struct filter_entry *f;
+	int ret;
+
+	if (fidx >= adapter->tids.nftids)
+		return -EINVAL;
+
+	f = &adapter->tids.ftid_tab[fidx];
+	ret = writable_filter(f);
+	if (ret)
+		return ret;
+	if (f->valid)
+		return del_filter_wr(adapter, fidx);
+
+	return 0;
 }
 
 static struct rtnl_link_stats64 *cxgb_get_stats(struct net_device *dev,
@@ -4660,6 +4932,16 @@ static void remove_one(struct pci_dev *pdev)
 
 		if (adapter->debugfs_root)
 			debugfs_remove_recursive(adapter->debugfs_root);
+
+		/* If we allocated filters, free up state associated with any
+		 * valid filters ...
+		 */
+		if (adapter->tids.ftid_tab) {
+			struct filter_entry *f = &adapter->tids.ftid_tab[0];
+			for (i = 0; i < adapter->tids.nftids; i++, f++)
+				if (f->valid)
+					clear_filter(adapter, f);
+		}
 
 		if (adapter->flags & FULL_INIT_DONE)
 			cxgb_down(adapter);
