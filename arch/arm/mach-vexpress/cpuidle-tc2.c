@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/tick.h>
 #include <linux/vexpress.h>
+#include <asm/bL_entry.h>
 #include <asm/cpuidle.h>
 #include <asm/cputype.h>
 #include <asm/idmap.h>
@@ -51,7 +52,7 @@ static int tc2_cpuidle_simple_enter(struct cpuidle_device *dev,
 	return index;
 }
 
-static int tc2_enter_coupled(struct cpuidle_device *dev,
+static int tc2_enter_powerdown(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv, int idx);
 
 static struct cpuidle_state tc2_cpuidle_set[] __initdata = {
@@ -65,11 +66,10 @@ static struct cpuidle_state tc2_cpuidle_set[] __initdata = {
 		.desc                   = "ARM WFI",
 	},
 	[1] = {
-		.enter			= tc2_enter_coupled,
+		.enter			= tc2_enter_powerdown,
 		.exit_latency		= 300,
 		.target_residency	= 1000,
-		.flags			= CPUIDLE_FLAG_TIME_VALID |
-							CPUIDLE_FLAG_COUPLED,
+		.flags			= CPUIDLE_FLAG_TIME_VALID,
 		.name			= "C1",
 		.desc			= "ARM power down",
 	},
@@ -83,45 +83,21 @@ struct cpuidle_driver tc2_idle_driver = {
 
 static DEFINE_PER_CPU(struct cpuidle_device, tc2_idle_dev);
 
-#define NR_CLUSTERS 2
-static cpumask_t cluster_mask = CPU_MASK_NONE;
-
-extern void disable_clean_inv_dcache(int);
-static atomic_t abort_barrier[NR_CLUSTERS];
-
-extern void tc2_cpu_resume(void);
-extern void disable_snoops(void);
-
-static int notrace tc2_coupled_finisher(unsigned long arg)
+static int notrace tc2_powerdown_finisher(unsigned long arg)
 {
 	unsigned int mpidr = read_cpuid_mpidr();
-	unsigned int cpu = smp_processor_id();
 	unsigned int cluster = (mpidr >> 8) & 0xf;
-	unsigned int weight = cpumask_weight(topology_core_cpumask(cpu));
-	u8 wfi_weight = 0;
+	unsigned int cpu = mpidr & 0xf;
 
-	cpuidle_coupled_parallel_barrier((struct cpuidle_device *)arg,
-					&abort_barrier[cluster]);
-	if (mpidr & 0xf) {
-		disable_clean_inv_dcache(0);
-		wfi();
-		/* not reached */
-	}
-
-	while (wfi_weight != (weight - 1)) {
-		wfi_weight = vexpress_spc_wfi_cpustat(cluster);
-		wfi_weight = hweight8(wfi_weight);
-	}
-
-	vexpress_spc_powerdown_enable(cluster, 1);
-	disable_clean_inv_dcache(1);
-	disable_cci(cluster);
-	disable_snoops();
+	bL_set_entry_vector(cpu, cluster, cpu_resume);
+	vexpress_spc_write_bxaddr_reg(cluster, cpu,
+					       virt_to_phys(bL_entry_point));
+	bL_cpu_power_down();
 	return 1;
 }
 
 /*
- * tc2_enter_coupled - Programs CPU to enter the specified state
+ * tc2_enter_powerdown - Programs CPU to enter the specified state
  * @dev: cpuidle device
  * @drv: The target state to be programmed
  * @idx: state index
@@ -129,20 +105,14 @@ static int notrace tc2_coupled_finisher(unsigned long arg)
  * Called from the CPUidle framework to program the device to the
  * specified target state selected by the governor.
  */
-static int tc2_enter_coupled(struct cpuidle_device *dev,
+static int tc2_enter_powerdown(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv, int idx)
 {
 	struct timespec ts_preidle, ts_postidle, ts_idle;
 	int ret;
-	int cluster = (read_cpuid_mpidr() >> 8) & 0xf;
+
 	/* Used to keep track of the total time in idle */
 	getnstimeofday(&ts_preidle);
-
-	if (!cpu_isset(cluster, cluster_mask)) {
-			cpuidle_coupled_parallel_barrier(dev,
-					&abort_barrier[cluster]);
-			goto shallow_out;
-	}
 
 	BUG_ON(!irqs_disabled());
 
@@ -150,63 +120,24 @@ static int tc2_enter_coupled(struct cpuidle_device *dev,
 
 	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &dev->cpu);
 
-	ret = cpu_suspend((unsigned long) dev, tc2_coupled_finisher);
-
+	ret = cpu_suspend((unsigned long) dev, tc2_powerdown_finisher);
 	if (ret)
 		BUG();
+
+	bL_cpu_powered_up();
 
 	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &dev->cpu);
 
 	cpu_pm_exit();
 
-shallow_out:
 	getnstimeofday(&ts_postidle);
+	local_irq_enable();
 	ts_idle = timespec_sub(ts_postidle, ts_preidle);
 
 	dev->last_residency = ts_idle.tv_nsec / NSEC_PER_USEC +
 					ts_idle.tv_sec * USEC_PER_SEC;
 	return idx;
 }
-
-static int idle_mask_show(struct seq_file *f, void *p)
-{
-	char buf[256];
-	bitmap_scnlistprintf(buf, 256, cpumask_bits(&cluster_mask),
-							NR_CLUSTERS);
-
-	seq_printf(f, "%s\n", buf);
-
-	return 0;
-}
-
-static int idle_mask_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, idle_mask_show, inode->i_private);
-}
-
-static const struct file_operations cpuidle_fops = {
-	.open		= idle_mask_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static int idle_debug_set(void *data, u64 val)
-{
-	if (val >= (unsigned)NR_CLUSTERS && val != 0xff) {
-		pr_warning("Wrong parameter passed\n");
-		return -EINVAL;
-	}
-	cpuidle_pause_and_lock();
-	if (val == 0xff)
-		cpumask_clear(&cluster_mask);
-	else
-		cpumask_set_cpu(val, &cluster_mask);
-
-	cpuidle_resume_and_unlock();
-	return 0;
-}
-DEFINE_SIMPLE_ATTRIBUTE(idle_debug_fops, NULL, idle_debug_set, "%llu\n");
 
 /*
  * tc2_idle_init
@@ -218,7 +149,6 @@ int __init tc2_idle_init(void)
 {
 	struct cpuidle_device *dev;
 	int i, cpu_id;
-	struct dentry *idle_debug, *file_debug;
 	struct cpuidle_driver *drv = &tc2_idle_driver;
 
 	if (!vexpress_spc_check_loaded()) {
@@ -240,10 +170,7 @@ int __init tc2_idle_init(void)
 		pr_err("CPUidle for CPU%d registered\n", cpu_id);
 		dev = &per_cpu(tc2_idle_dev, cpu_id);
 		dev->cpu = cpu_id;
-		dev->safe_state_index = 0;
 
-		cpumask_copy(&dev->coupled_cpus,
-				topology_core_cpumask(cpu_id));
 		dev->state_count = drv->state_count;
 
 		if (cpuidle_register_device(dev)) {
@@ -252,40 +179,6 @@ int __init tc2_idle_init(void)
 			return -EIO;
 		}
 	}
-
-	idle_debug = debugfs_create_dir("idle_debug", NULL);
-
-	if (IS_ERR_OR_NULL(idle_debug)) {
-		printk(KERN_INFO "Error in creating idle debugfs directory\n");
-		return 0;
-	}
-
-	file_debug = debugfs_create_file("enable_idle", S_IRUGO | S_IWGRP,
-				   idle_debug, NULL, &idle_debug_fops);
-
-	if (IS_ERR_OR_NULL(file_debug)) {
-		printk(KERN_INFO "Error in creating enable_idle file\n");
-		return 0;
-	}
-
-	file_debug = debugfs_create_file("enable_mask", S_IRUGO | S_IWGRP,
-					idle_debug, NULL, &cpuidle_fops);
-
-	if (IS_ERR_OR_NULL(file_debug))
-		printk(KERN_INFO "Error in creating enable_mask file\n");
-
-	/* enable all wake-up IRQs by default */
-	vexpress_spc_set_wake_intr(0x7ff);
-	vexpress_flags_set(virt_to_phys(tc2_cpu_resume));
-
-	/*
-	 * Enable idle by default for all possible clusters.
-	 * This must be done after all other setup to prevent the 
-	 * possibility of clusters being powered down before they
-	 * are fully configured.
-	 */
-	for (i = 0; i < NR_CLUSTERS; i++)
-		cpumask_set_cpu(i, &cluster_mask);
 
 	return 0;
 }

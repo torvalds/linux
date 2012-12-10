@@ -54,20 +54,6 @@ config ARCH_VEXPRESS_CORTEX_A5_A9_ERRATA
 	  build a working kernel, you must also enable relevant core
 	  tile support or Flattened Device Tree based support options.
 
-config ARCH_VEXPRESS_TC2_PM
-	bool "Power Management Support for TC2 test-chip (EXPERIMENTAL)"
-	depends on CPU_IDLE && PM
-	select ARM_CPU_SUSPEND
-	select ARCH_NEEDS_CPU_IDLE_COUPLED
-	select ARM_SPC
-	select ARM_CCI
-	help
-	  Provides code that enables CPU idle power management on the
-	  TC2 testchip. It enables the CPU idle driver so that the kernel
-	  can enter cluster power down states provided by the power
-	  controller. Code is built on top of coupled C-state idle code
-	  since all CPUs need to be idle to enter cluster shutdown.
-
 config ARCH_VEXPRESS_CA9X4
 	bool "Versatile Express Cortex-A9x4 tile"
 
@@ -78,5 +64,16 @@ config ARCH_VEXPRESS_TC2
 	select ARM_CCI
 	help
 	  Support for CPU and cluster power management on TC2.
+
+config VEXPRESS_TC2_CPUIDLE
+	bool "cpuidle support for TC2 test-chip (EXPERIMENTAL)"
+	depends on CPU_IDLE && PM && ARCH_VEXPRESS_TC2
+	select ARM_CPU_SUSPEND
+	select ARM_SPC
+	help
+	  Provides code that enables CPU idle power management on the
+	  TC2 testchip. It enables the CPU idle driver so that the kernel
+	  can enter cluster power down states provided by the power
+	  controller.
 
 endmenu

@@ -80,7 +80,7 @@ static int tc2_pm_power_up(unsigned int cpu, unsigned int cluster)
 	return 0;
 }
 
-static void tc2_pm_power_down(void)
+static void tc2_pm_down(u64 residency)
 {
 	unsigned int mpidr, cpu, cluster;
 	bool last_man = false, skip_wfi = false;
@@ -101,7 +101,8 @@ static void tc2_pm_power_down(void)
 		vexpress_spc_set_cpu_wakeup_irq(cpu, cluster, 1);
 		if (!tc2_pm_use_count[0][cluster] &&
 		    !tc2_pm_use_count[1][cluster] &&
-		    !tc2_pm_use_count[2][cluster]) {
+		    !tc2_pm_use_count[2][cluster] &&
+		    (!residency || residency > 5000)) {
 			vexpress_spc_powerdown_enable(cluster, 1);
 			vexpress_spc_set_global_wakeup_intr(1);
 			last_man = true;
@@ -164,6 +165,23 @@ static void tc2_pm_power_down(void)
 	/* Not dead at this point?  Let our caller cope. */
 }
 
+static void tc2_pm_power_down(void)
+{
+	tc2_pm_down(0);
+}
+
+static void tc2_pm_suspend(u64 residency)
+{
+	unsigned int mpidr, cpu, cluster;
+
+	mpidr = read_cpuid_mpidr();
+	cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
+	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
+	vexpress_spc_write_bxaddr_reg(cluster, cpu,
+				      virt_to_phys(mcpm_entry_point));
+	tc2_pm_down(residency);
+}
+
 static void tc2_pm_powered_up(void)
 {
 	unsigned int mpidr, cpu, cluster;
@@ -199,6 +217,7 @@ static void tc2_pm_powered_up(void)
 static const struct mcpm_platform_ops tc2_pm_power_ops = {
 	.power_up	= tc2_pm_power_up,
 	.power_down	= tc2_pm_power_down,
+	.suspend	= tc2_pm_suspend,
 	.powered_up	= tc2_pm_powered_up,
 };
 
