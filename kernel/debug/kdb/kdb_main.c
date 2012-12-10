@@ -2739,7 +2739,7 @@ int kdb_register_repeat(char *cmd,
 			  (kdb_max_commands - KDB_BASE_CMD_MAX) * sizeof(*new));
 			kfree(kdb_commands);
 		}
-		memset(new + kdb_max_commands, 0,
+		memset(new + kdb_max_commands - KDB_BASE_CMD_MAX, 0,
 		       kdb_command_extend * sizeof(*new));
 		kdb_commands = new;
 		kp = kdb_commands + kdb_max_commands - KDB_BASE_CMD_MAX;
