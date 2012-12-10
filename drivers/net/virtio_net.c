@@ -1347,7 +1347,7 @@ static int virtnet_alloc_queues(struct virtnet_info *vi)
 	if (!vi->sq)
 		goto err_sq;
 	vi->rq = kzalloc(sizeof(*vi->rq) * vi->max_queue_pairs, GFP_KERNEL);
-	if (!vi->sq)
+	if (!vi->rq)
 		goto err_rq;
 
 	INIT_DELAYED_WORK(&vi->refill, refill_work);
