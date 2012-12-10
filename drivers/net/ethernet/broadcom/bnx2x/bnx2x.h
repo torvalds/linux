@@ -489,7 +489,7 @@ struct bnx2x_fastpath {
 	u32			ustorm_rx_prods_offset;
 
 	u32			rx_buf_size;
-
+	u32			rx_frag_size; /* 0 if kmalloced(), or rx_buf_size + NET_SKB_PAD */
 	dma_addr_t		status_blk_mapping;
 
 	enum bnx2x_tpa_mode_t	mode;
