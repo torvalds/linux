@@ -92,6 +92,35 @@ struct kvm_sync_regs {
 struct kvm_arch_memory_slot {
 };
 
+/* If you need to interpret the index values, here is the key: */
+#define KVM_REG_ARM_COPROC_MASK		0x000000000FFF0000
+#define KVM_REG_ARM_COPROC_SHIFT	16
+
+/* Normal registers are mapped as coprocessor 16. */
+#define KVM_REG_ARM_CORE		(0x0010 << KVM_REG_ARM_COPROC_SHIFT)
+#define KVM_REG_ARM_CORE_REG(name)	(offsetof(struct kvm_regs, name) / sizeof(__u32))
+
+/* Some registers need more space to represent values. */
+#define KVM_REG_ARM_DEMUX		(0x0011 << KVM_REG_ARM_COPROC_SHIFT)
+#define KVM_REG_ARM_DEMUX_ID_MASK	0x000000000000FF00
+#define KVM_REG_ARM_DEMUX_ID_SHIFT	8
+#define KVM_REG_ARM_DEMUX_ID_CCSIDR	(0x00 << KVM_REG_ARM_DEMUX_ID_SHIFT)
+#define KVM_REG_ARM_DEMUX_VAL_MASK	0x00000000000000FF
+#define KVM_REG_ARM_DEMUX_VAL_SHIFT	0
+
+/* AArch64 system registers */
+#define KVM_REG_ARM64_SYSREG		(0x0013 << KVM_REG_ARM_COPROC_SHIFT)
+#define KVM_REG_ARM64_SYSREG_OP0_MASK	0x000000000000c000
+#define KVM_REG_ARM64_SYSREG_OP0_SHIFT	14
+#define KVM_REG_ARM64_SYSREG_OP1_MASK	0x0000000000003800
+#define KVM_REG_ARM64_SYSREG_OP1_SHIFT	11
+#define KVM_REG_ARM64_SYSREG_CRN_MASK	0x0000000000000780
+#define KVM_REG_ARM64_SYSREG_CRN_SHIFT	7
+#define KVM_REG_ARM64_SYSREG_CRM_MASK	0x0000000000000078
+#define KVM_REG_ARM64_SYSREG_CRM_SHIFT	3
+#define KVM_REG_ARM64_SYSREG_OP2_MASK	0x0000000000000007
+#define KVM_REG_ARM64_SYSREG_OP2_SHIFT	0
+
 /* KVM_IRQ_LINE irq field index values */
 #define KVM_ARM_IRQ_TYPE_SHIFT		24
 #define KVM_ARM_IRQ_TYPE_MASK		0xff
