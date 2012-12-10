@@ -168,6 +168,9 @@ extern int ext4_try_add_inline_entry(handle_t *handle, struct dentry *dentry,
 extern int ext4_try_create_inline_dir(handle_t *handle,
 				      struct inode *parent,
 				      struct inode *inode);
+extern int ext4_read_inline_dir(struct file *filp,
+				void *dirent, filldir_t filldir,
+				int *has_inline_data);
 # else  /* CONFIG_EXT4_FS_XATTR */
 
 static inline int
@@ -343,6 +346,12 @@ static inline int ext4_try_add_inline_entry(handle_t *handle,
 static inline int ext4_try_create_inline_dir(handle_t *handle,
 					     struct inode *parent,
 					     struct inode *inode)
+{
+	return 0;
+}
+static inline int ext4_read_inline_dir(struct file *filp,
+				       void *dirent, filldir_t filldir,
+				       int *has_inline_data)
 {
 	return 0;
 }

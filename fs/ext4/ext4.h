@@ -1989,6 +1989,18 @@ static inline void ext4_update_dx_flag(struct inode *inode)
 				     EXT4_FEATURE_COMPAT_DIR_INDEX))
 		ext4_clear_inode_flag(inode, EXT4_INODE_INDEX);
 }
+static unsigned char ext4_filetype_table[] = {
+	DT_UNKNOWN, DT_REG, DT_DIR, DT_CHR, DT_BLK, DT_FIFO, DT_SOCK, DT_LNK
+};
+
+static inline  unsigned char get_dtype(struct super_block *sb, int filetype)
+{
+	if (!EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_FILETYPE) ||
+	    (filetype >= EXT4_FT_MAX))
+		return DT_UNKNOWN;
+
+	return ext4_filetype_table[filetype];
+}
 
 /* fsync.c */
 extern int ext4_sync_file(struct file *, loff_t, loff_t, int);

@@ -1288,6 +1288,142 @@ out:
 	return ret;
 }
 
+int ext4_read_inline_dir(struct file *filp,
+			 void *dirent, filldir_t filldir,
+			 int *has_inline_data)
+{
+	int error = 0;
+	unsigned int offset, parent_ino;
+	int i, stored;
+	struct ext4_dir_entry_2 *de;
+	struct super_block *sb;
+	struct inode *inode = filp->f_path.dentry->d_inode;
+	int ret, inline_size = 0;
+	struct ext4_iloc iloc;
+	void *dir_buf = NULL;
+
+	ret = ext4_get_inode_loc(inode, &iloc);
+	if (ret)
+		return ret;
+
+	down_read(&EXT4_I(inode)->xattr_sem);
+	if (!ext4_has_inline_data(inode)) {
+		up_read(&EXT4_I(inode)->xattr_sem);
+		*has_inline_data = 0;
+		goto out;
+	}
+
+	inline_size = ext4_get_inline_size(inode);
+	dir_buf = kmalloc(inline_size, GFP_NOFS);
+	if (!dir_buf) {
+		ret = -ENOMEM;
+		up_read(&EXT4_I(inode)->xattr_sem);
+		goto out;
+	}
+
+	ret = ext4_read_inline_data(inode, dir_buf, inline_size, &iloc);
+	up_read(&EXT4_I(inode)->xattr_sem);
+	if (ret < 0)
+		goto out;
+
+	sb = inode->i_sb;
+	stored = 0;
+	parent_ino = le32_to_cpu(((struct ext4_dir_entry_2 *)dir_buf)->inode);
+
+	while (!error && !stored && filp->f_pos < inode->i_size) {
+revalidate:
+		/*
+		 * If the version has changed since the last call to
+		 * readdir(2), then we might be pointing to an invalid
+		 * dirent right now.  Scan from the start of the inline
+		 * dir to make sure.
+		 */
+		if (filp->f_version != inode->i_version) {
+			for (i = 0;
+			     i < inode->i_size && i < offset;) {
+				if (!i) {
+					/* skip "." and ".." if needed. */
+					i += EXT4_INLINE_DOTDOT_SIZE;
+					continue;
+				}
+				de = (struct ext4_dir_entry_2 *)
+					(dir_buf + i);
+				/* It's too expensive to do a full
+				 * dirent test each time round this
+				 * loop, but we do have to test at
+				 * least that it is non-zero.  A
+				 * failure will be detected in the
+				 * dirent test below. */
+				if (ext4_rec_len_from_disk(de->rec_len,
+					inline_size) < EXT4_DIR_REC_LEN(1))
+					break;
+				i += ext4_rec_len_from_disk(de->rec_len,
+							    inline_size);
+			}
+			offset = i;
+			filp->f_pos = offset;
+			filp->f_version = inode->i_version;
+		}
+
+		while (!error && filp->f_pos < inode->i_size) {
+			if (filp->f_pos == 0) {
+				error = filldir(dirent, ".", 1, 0, inode->i_ino,
+						DT_DIR);
+				if (error)
+					break;
+				stored++;
+
+				error = filldir(dirent, "..", 2, 0, parent_ino,
+						DT_DIR);
+				if (error)
+					break;
+				stored++;
+
+				filp->f_pos = offset = EXT4_INLINE_DOTDOT_SIZE;
+				continue;
+			}
+
+			de = (struct ext4_dir_entry_2 *)(dir_buf + offset);
+			if (ext4_check_dir_entry(inode, filp, de,
+						 iloc.bh, dir_buf,
+						 inline_size, offset)) {
+				ret = stored;
+				goto out;
+			}
+			offset += ext4_rec_len_from_disk(de->rec_len,
+							 inline_size);
+			if (le32_to_cpu(de->inode)) {
+				/* We might block in the next section
+				 * if the data destination is
+				 * currently swapped out.  So, use a
+				 * version stamp to detect whether or
+				 * not the directory has been modified
+				 * during the copy operation.
+				 */
+				u64 version = filp->f_version;
+
+				error = filldir(dirent, de->name,
+						de->name_len,
+						filp->f_pos,
+						le32_to_cpu(de->inode),
+						get_dtype(sb, de->file_type));
+				if (error)
+					break;
+				if (version != filp->f_version)
+					goto revalidate;
+				stored++;
+			}
+			filp->f_pos += ext4_rec_len_from_disk(de->rec_len,
+							      inline_size);
+		}
+		offset = 0;
+	}
+out:
+	kfree(dir_buf);
+	brelse(iloc.bh);
+	return ret;
+}
+
 /*
  * Try to create the inline data for the new dir.
  * If it succeeds, return 0, otherwise return the error.
