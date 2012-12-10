@@ -470,14 +470,6 @@ static void mx1_camera_remove_device(struct soc_camera_device *icd)
 	pcdev->icd = NULL;
 }
 
-static int mx1_camera_set_crop(struct soc_camera_device *icd,
-			       struct v4l2_crop *a)
-{
-	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-
-	return v4l2_subdev_call(sd, video, s_crop, a);
-}
-
 static int mx1_camera_set_bus_param(struct soc_camera_device *icd)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
@@ -689,7 +681,6 @@ static struct soc_camera_host_ops mx1_soc_camera_host_ops = {
 	.add		= mx1_camera_add_device,
 	.remove		= mx1_camera_remove_device,
 	.set_bus_param	= mx1_camera_set_bus_param,
-	.set_crop	= mx1_camera_set_crop,
 	.set_fmt	= mx1_camera_set_fmt,
 	.try_fmt	= mx1_camera_try_fmt,
 	.init_videobuf	= mx1_camera_init_videobuf,
