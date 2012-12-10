@@ -55,12 +55,14 @@
  * u8:  max 3 bytes in decimal
  * u32: max 10 bytes in decimal
  *
- * "S-" + 3 bytes for version field + 4 bytes for each authority field (3 bytes
- * per number + 1 for '-') + NULL terminator.
+ * "S-" + 3 bytes for version field + 15 for authority field + NULL terminator
+ *
+ * For authority field, max is when all 6 values are non-zero and it must be
+ * represented in hex. So "-0x" + 12 hex digits.
  *
  * Add 11 bytes for each subauthority field (10 bytes each + 1 for '-')
  */
-#define SID_STRING_BASE_SIZE (2 + 3 + (4 * NUM_AUTHS) + 1)
+#define SID_STRING_BASE_SIZE (2 + 3 + 15 + 1)
 #define SID_STRING_SUBAUTH_SIZE (11) /* size of a single subauth string */
 
 struct cifs_ntsd {
