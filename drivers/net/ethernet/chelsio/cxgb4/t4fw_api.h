@@ -35,8 +35,43 @@
 #ifndef _T4FW_INTERFACE_H_
 #define _T4FW_INTERFACE_H_
 
-enum fw_ret_val {
-	FW_ENOEXEC      = 8,            /* Exec format error; inv microcode */
+enum fw_retval {
+	FW_SUCCESS		= 0,	/* completed sucessfully */
+	FW_EPERM		= 1,	/* operation not permitted */
+	FW_ENOENT		= 2,	/* no such file or directory */
+	FW_EIO			= 5,	/* input/output error; hw bad */
+	FW_ENOEXEC		= 8,	/* exec format error; inv microcode */
+	FW_EAGAIN		= 11,	/* try again */
+	FW_ENOMEM		= 12,	/* out of memory */
+	FW_EFAULT		= 14,	/* bad address; fw bad */
+	FW_EBUSY		= 16,	/* resource busy */
+	FW_EEXIST		= 17,	/* file exists */
+	FW_EINVAL		= 22,	/* invalid argument */
+	FW_ENOSPC		= 28,	/* no space left on device */
+	FW_ENOSYS		= 38,	/* functionality not implemented */
+	FW_EPROTO		= 71,	/* protocol error */
+	FW_EADDRINUSE		= 98,	/* address already in use */
+	FW_EADDRNOTAVAIL	= 99,	/* cannot assigned requested address */
+	FW_ENETDOWN		= 100,	/* network is down */
+	FW_ENETUNREACH		= 101,	/* network is unreachable */
+	FW_ENOBUFS		= 105,	/* no buffer space available */
+	FW_ETIMEDOUT		= 110,	/* timeout */
+	FW_EINPROGRESS		= 115,	/* fw internal */
+	FW_SCSI_ABORT_REQUESTED	= 128,	/* */
+	FW_SCSI_ABORT_TIMEDOUT	= 129,	/* */
+	FW_SCSI_ABORTED		= 130,	/* */
+	FW_SCSI_CLOSE_REQUESTED	= 131,	/* */
+	FW_ERR_LINK_DOWN	= 132,	/* */
+	FW_RDEV_NOT_READY	= 133,	/* */
+	FW_ERR_RDEV_LOST	= 134,	/* */
+	FW_ERR_RDEV_LOGO	= 135,	/* */
+	FW_FCOE_NO_XCHG		= 136,	/* */
+	FW_SCSI_RSP_ERR		= 137,	/* */
+	FW_ERR_RDEV_IMPL_LOGO	= 138,	/* */
+	FW_SCSI_UNDER_FLOW_ERR  = 139,	/* */
+	FW_SCSI_OVER_FLOW_ERR   = 140,	/* */
+	FW_SCSI_DDP_ERR		= 141,	/* DDP error*/
+	FW_SCSI_TASK_ERR	= 142,	/* No SCSI tasks available */
 };
 
 #define FW_T4VF_SGE_BASE_ADDR      0x0000
@@ -50,6 +85,7 @@ enum fw_wr_opcodes {
 	FW_ULPTX_WR                    = 0x04,
 	FW_TP_WR                       = 0x05,
 	FW_ETH_TX_PKT_WR               = 0x08,
+	FW_OFLD_CONNECTION_WR          = 0x2f,
 	FW_FLOWC_WR                    = 0x0a,
 	FW_OFLD_TX_DATA_WR             = 0x0b,
 	FW_CMD_WR                      = 0x10,
@@ -85,6 +121,7 @@ struct fw_wr_hdr {
 #define FW_WR_LEN16(x)	((x) << 0)
 
 #define HW_TPL_FR_MT_PR_IV_P_FC         0X32B
+#define HW_TPL_FR_MT_PR_OV_P_FC         0X327
 
 /* filter wr reply code in cookie in CPL_SET_TCB_RPL */
 enum fw_filter_wr_cookie {
@@ -378,6 +415,108 @@ struct fw_eth_tx_pkt_wr {
 	__be32 equiq_to_len16;
 	__be64 r3;
 };
+
+struct fw_ofld_connection_wr {
+	__be32 op_compl;
+	__be32 len16_pkd;
+	__u64  cookie;
+	__be64 r2;
+	__be64 r3;
+	struct fw_ofld_connection_le {
+		__be32 version_cpl;
+		__be32 filter;
+		__be32 r1;
+		__be16 lport;
+		__be16 pport;
+		union fw_ofld_connection_leip {
+			struct fw_ofld_connection_le_ipv4 {
+				__be32 pip;
+				__be32 lip;
+				__be64 r0;
+				__be64 r1;
+				__be64 r2;
+			} ipv4;
+			struct fw_ofld_connection_le_ipv6 {
+				__be64 pip_hi;
+				__be64 pip_lo;
+				__be64 lip_hi;
+				__be64 lip_lo;
+			} ipv6;
+		} u;
+	} le;
+	struct fw_ofld_connection_tcb {
+		__be32 t_state_to_astid;
+		__be16 cplrxdataack_cplpassacceptrpl;
+		__be16 rcv_adv;
+		__be32 rcv_nxt;
+		__be32 tx_max;
+		__be64 opt0;
+		__be32 opt2;
+		__be32 r1;
+		__be64 r2;
+		__be64 r3;
+	} tcb;
+};
+
+#define S_FW_OFLD_CONNECTION_WR_VERSION                31
+#define M_FW_OFLD_CONNECTION_WR_VERSION                0x1
+#define V_FW_OFLD_CONNECTION_WR_VERSION(x)     \
+	((x) << S_FW_OFLD_CONNECTION_WR_VERSION)
+#define G_FW_OFLD_CONNECTION_WR_VERSION(x)     \
+	(((x) >> S_FW_OFLD_CONNECTION_WR_VERSION) & \
+	M_FW_OFLD_CONNECTION_WR_VERSION)
+#define F_FW_OFLD_CONNECTION_WR_VERSION        \
+	V_FW_OFLD_CONNECTION_WR_VERSION(1U)
+
+#define S_FW_OFLD_CONNECTION_WR_CPL    30
+#define M_FW_OFLD_CONNECTION_WR_CPL    0x1
+#define V_FW_OFLD_CONNECTION_WR_CPL(x) ((x) << S_FW_OFLD_CONNECTION_WR_CPL)
+#define G_FW_OFLD_CONNECTION_WR_CPL(x) \
+	(((x) >> S_FW_OFLD_CONNECTION_WR_CPL) & M_FW_OFLD_CONNECTION_WR_CPL)
+#define F_FW_OFLD_CONNECTION_WR_CPL    V_FW_OFLD_CONNECTION_WR_CPL(1U)
+
+#define S_FW_OFLD_CONNECTION_WR_T_STATE                28
+#define M_FW_OFLD_CONNECTION_WR_T_STATE                0xf
+#define V_FW_OFLD_CONNECTION_WR_T_STATE(x)     \
+	((x) << S_FW_OFLD_CONNECTION_WR_T_STATE)
+#define G_FW_OFLD_CONNECTION_WR_T_STATE(x)     \
+	(((x) >> S_FW_OFLD_CONNECTION_WR_T_STATE) & \
+	M_FW_OFLD_CONNECTION_WR_T_STATE)
+
+#define S_FW_OFLD_CONNECTION_WR_RCV_SCALE      24
+#define M_FW_OFLD_CONNECTION_WR_RCV_SCALE      0xf
+#define V_FW_OFLD_CONNECTION_WR_RCV_SCALE(x)   \
+	((x) << S_FW_OFLD_CONNECTION_WR_RCV_SCALE)
+#define G_FW_OFLD_CONNECTION_WR_RCV_SCALE(x)   \
+	(((x) >> S_FW_OFLD_CONNECTION_WR_RCV_SCALE) & \
+	M_FW_OFLD_CONNECTION_WR_RCV_SCALE)
+
+#define S_FW_OFLD_CONNECTION_WR_ASTID          0
+#define M_FW_OFLD_CONNECTION_WR_ASTID          0xffffff
+#define V_FW_OFLD_CONNECTION_WR_ASTID(x)       \
+	((x) << S_FW_OFLD_CONNECTION_WR_ASTID)
+#define G_FW_OFLD_CONNECTION_WR_ASTID(x)       \
+	(((x) >> S_FW_OFLD_CONNECTION_WR_ASTID) & M_FW_OFLD_CONNECTION_WR_ASTID)
+
+#define S_FW_OFLD_CONNECTION_WR_CPLRXDATAACK   15
+#define M_FW_OFLD_CONNECTION_WR_CPLRXDATAACK   0x1
+#define V_FW_OFLD_CONNECTION_WR_CPLRXDATAACK(x)        \
+	((x) << S_FW_OFLD_CONNECTION_WR_CPLRXDATAACK)
+#define G_FW_OFLD_CONNECTION_WR_CPLRXDATAACK(x)        \
+	(((x) >> S_FW_OFLD_CONNECTION_WR_CPLRXDATAACK) & \
+	M_FW_OFLD_CONNECTION_WR_CPLRXDATAACK)
+#define F_FW_OFLD_CONNECTION_WR_CPLRXDATAACK   \
+	V_FW_OFLD_CONNECTION_WR_CPLRXDATAACK(1U)
+
+#define S_FW_OFLD_CONNECTION_WR_CPLPASSACCEPTRPL       14
+#define M_FW_OFLD_CONNECTION_WR_CPLPASSACCEPTRPL       0x1
+#define V_FW_OFLD_CONNECTION_WR_CPLPASSACCEPTRPL(x)    \
+	((x) << S_FW_OFLD_CONNECTION_WR_CPLPASSACCEPTRPL)
+#define G_FW_OFLD_CONNECTION_WR_CPLPASSACCEPTRPL(x)    \
+	(((x) >> S_FW_OFLD_CONNECTION_WR_CPLPASSACCEPTRPL) & \
+	M_FW_OFLD_CONNECTION_WR_CPLPASSACCEPTRPL)
+#define F_FW_OFLD_CONNECTION_WR_CPLPASSACCEPTRPL       \
+	V_FW_OFLD_CONNECTION_WR_CPLPASSACCEPTRPL(1U)
 
 enum fw_flowc_mnem {
 	FW_FLOWC_MNEM_PFNVFN,		/* PFN [15:8] VFN [7:0] */

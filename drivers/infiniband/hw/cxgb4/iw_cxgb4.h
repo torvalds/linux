@@ -130,6 +130,7 @@ struct c4iw_stats {
 	u64  db_empty;
 	u64  db_drop;
 	u64  db_state_transitions;
+	u64  tcam_full;
 };
 
 struct c4iw_rdev {

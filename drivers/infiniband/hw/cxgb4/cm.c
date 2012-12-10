@@ -61,6 +61,14 @@ static char *states[] = {
 	NULL,
 };
 
+static int nocong;
+module_param(nocong, int, 0644);
+MODULE_PARM_DESC(nocong, "Turn of congestion control (default=0)");
+
+static int enable_ecn;
+module_param(enable_ecn, int, 0644);
+MODULE_PARM_DESC(enable_ecn, "Enable ECN (default=0/disabled)");
+
 static int dack_mode = 1;
 module_param(dack_mode, int, 0644);
 MODULE_PARM_DESC(dack_mode, "Delayed ack mode (default=1)");
@@ -441,6 +449,50 @@ static int send_abort(struct c4iw_ep *ep, struct sk_buff *skb, gfp_t gfp)
 	return c4iw_l2t_send(&ep->com.dev->rdev, skb, ep->l2t);
 }
 
+#define VLAN_NONE 0xfff
+#define FILTER_SEL_VLAN_NONE 0xffff
+#define FILTER_SEL_WIDTH_P_FC (3+1) /* port uses 3 bits, FCoE one bit */
+#define FILTER_SEL_WIDTH_VIN_P_FC \
+	(6 + 7 + FILTER_SEL_WIDTH_P_FC) /* 6 bits are unused, VF uses 7 bits*/
+#define FILTER_SEL_WIDTH_TAG_P_FC \
+	(3 + FILTER_SEL_WIDTH_VIN_P_FC) /* PF uses 3 bits */
+#define FILTER_SEL_WIDTH_VLD_TAG_P_FC (1 + FILTER_SEL_WIDTH_TAG_P_FC)
+
+static unsigned int select_ntuple(struct c4iw_dev *dev, struct dst_entry *dst,
+				  struct l2t_entry *l2t)
+{
+	unsigned int ntuple = 0;
+	u32 viid;
+
+	switch (dev->rdev.lldi.filt_mode) {
+
+	/* default filter mode */
+	case HW_TPL_FR_MT_PR_IV_P_FC:
+		if (l2t->vlan == VLAN_NONE)
+			ntuple |= FILTER_SEL_VLAN_NONE << FILTER_SEL_WIDTH_P_FC;
+		else {
+			ntuple |= l2t->vlan << FILTER_SEL_WIDTH_P_FC;
+			ntuple |= 1 << FILTER_SEL_WIDTH_VLD_TAG_P_FC;
+		}
+		ntuple |= l2t->lport << S_PORT | IPPROTO_TCP <<
+			  FILTER_SEL_WIDTH_VLD_TAG_P_FC;
+		break;
+	case HW_TPL_FR_MT_PR_OV_P_FC: {
+		viid = cxgb4_port_viid(l2t->neigh->dev);
+
+		ntuple |= FW_VIID_VIN_GET(viid) << FILTER_SEL_WIDTH_P_FC;
+		ntuple |= FW_VIID_PFN_GET(viid) << FILTER_SEL_WIDTH_VIN_P_FC;
+		ntuple |= FW_VIID_VIVLD_GET(viid) << FILTER_SEL_WIDTH_TAG_P_FC;
+		ntuple |= l2t->lport << S_PORT | IPPROTO_TCP <<
+			  FILTER_SEL_WIDTH_VLD_TAG_P_FC;
+		break;
+	}
+	default:
+		break;
+	}
+	return ntuple;
+}
+
 static int send_connect(struct c4iw_ep *ep)
 {
 	struct cpl_act_open_req *req;
@@ -463,7 +515,8 @@ static int send_connect(struct c4iw_ep *ep)
 
 	cxgb4_best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx);
 	wscale = compute_wscale(rcv_win);
-	opt0 = KEEP_ALIVE(1) |
+	opt0 = (nocong ? NO_CONG(1) : 0) |
+	       KEEP_ALIVE(1) |
 	       DELACK(1) |
 	       WND_SCALE(wscale) |
 	       MSS_IDX(mtu_idx) |
@@ -474,6 +527,7 @@ static int send_connect(struct c4iw_ep *ep)
 	       ULP_MODE(ULP_MODE_TCPDDP) |
 	       RCV_BUFSIZ(rcv_win>>10);
 	opt2 = RX_CHANNEL(0) |
+	       CCTRL_ECN(enable_ecn) |
 	       RSS_QUEUE_VALID | RSS_QUEUE(ep->rss_qid);
 	if (enable_tcp_timestamps)
 		opt2 |= TSTAMPS_EN(1);
@@ -492,7 +546,7 @@ static int send_connect(struct c4iw_ep *ep)
 	req->local_ip = ep->com.local_addr.sin_addr.s_addr;
 	req->peer_ip = ep->com.remote_addr.sin_addr.s_addr;
 	req->opt0 = cpu_to_be64(opt0);
-	req->params = 0;
+	req->params = cpu_to_be32(select_ntuple(ep->com.dev, ep->dst, ep->l2t));
 	req->opt2 = cpu_to_be32(opt2);
 	return c4iw_l2t_send(&ep->com.dev->rdev, skb, ep->l2t);
 }
@@ -1383,6 +1437,61 @@ static int abort_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	return 0;
 }
 
+static void send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
+{
+	struct sk_buff *skb;
+	struct fw_ofld_connection_wr *req;
+	unsigned int mtu_idx;
+	int wscale;
+
+	skb = get_skb(NULL, sizeof(*req), GFP_KERNEL);
+	req = (struct fw_ofld_connection_wr *)__skb_put(skb, sizeof(*req));
+	memset(req, 0, sizeof(*req));
+	req->op_compl = htonl(V_WR_OP(FW_OFLD_CONNECTION_WR));
+	req->len16_pkd = htonl(FW_WR_LEN16(DIV_ROUND_UP(sizeof(*req), 16)));
+	req->le.filter = cpu_to_be32(select_ntuple(ep->com.dev, ep->dst,
+				     ep->l2t));
+	req->le.lport = ep->com.local_addr.sin_port;
+	req->le.pport = ep->com.remote_addr.sin_port;
+	req->le.u.ipv4.lip = ep->com.local_addr.sin_addr.s_addr;
+	req->le.u.ipv4.pip = ep->com.remote_addr.sin_addr.s_addr;
+	req->tcb.t_state_to_astid =
+			htonl(V_FW_OFLD_CONNECTION_WR_T_STATE(TCP_SYN_SENT) |
+			V_FW_OFLD_CONNECTION_WR_ASTID(atid));
+	req->tcb.cplrxdataack_cplpassacceptrpl =
+			htons(F_FW_OFLD_CONNECTION_WR_CPLRXDATAACK);
+	req->tcb.tx_max = jiffies;
+	cxgb4_best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx);
+	wscale = compute_wscale(rcv_win);
+	req->tcb.opt0 = TCAM_BYPASS(1) |
+		(nocong ? NO_CONG(1) : 0) |
+		KEEP_ALIVE(1) |
+		DELACK(1) |
+		WND_SCALE(wscale) |
+		MSS_IDX(mtu_idx) |
+		L2T_IDX(ep->l2t->idx) |
+		TX_CHAN(ep->tx_chan) |
+		SMAC_SEL(ep->smac_idx) |
+		DSCP(ep->tos) |
+		ULP_MODE(ULP_MODE_TCPDDP) |
+		RCV_BUFSIZ(rcv_win >> 10);
+	req->tcb.opt2 = PACE(1) |
+		TX_QUEUE(ep->com.dev->rdev.lldi.tx_modq[ep->tx_chan]) |
+		RX_CHANNEL(0) |
+		CCTRL_ECN(enable_ecn) |
+		RSS_QUEUE_VALID | RSS_QUEUE(ep->rss_qid);
+	if (enable_tcp_timestamps)
+		req->tcb.opt2 |= TSTAMPS_EN(1);
+	if (enable_tcp_sack)
+		req->tcb.opt2 |= SACK_EN(1);
+	if (wscale && enable_tcp_window_scaling)
+		req->tcb.opt2 |= WND_SCALE_EN(1);
+	req->tcb.opt0 = cpu_to_be64(req->tcb.opt0);
+	req->tcb.opt2 = cpu_to_be32(req->tcb.opt2);
+	set_wr_txq(skb, CPL_PRIORITY_CONTROL, 0);
+	c4iw_l2t_send(&ep->com.dev->rdev, skb, ep->l2t);
+}
+
 /*
  * Return whether a failed active open has allocated a TID
  */
@@ -1418,6 +1527,14 @@ static int act_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	switch (status) {
 	case CPL_ERR_CONN_RESET:
 	case CPL_ERR_CONN_TIMEDOUT:
+		break;
+	case CPL_ERR_TCAM_FULL:
+		mutex_lock(&dev->rdev.stats.lock);
+		dev->rdev.stats.tcam_full++;
+		mutex_unlock(&dev->rdev.stats.lock);
+		send_fw_act_open_req(ep,
+			GET_TID_TID(GET_AOPEN_ATID(ntohl(rpl->atid_status))));
+		return 0;
 		break;
 	default:
 		printk(KERN_INFO MOD "Active open failure - "
@@ -1510,14 +1627,15 @@ static void accept_cr(struct c4iw_ep *ep, __be32 peer_ip, struct sk_buff *skb,
 	skb_get(skb);
 	cxgb4_best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx);
 	wscale = compute_wscale(rcv_win);
-	opt0 = KEEP_ALIVE(1) |
+	opt0 = (nocong ? NO_CONG(1) : 0) |
+	       KEEP_ALIVE(1) |
 	       DELACK(1) |
 	       WND_SCALE(wscale) |
 	       MSS_IDX(mtu_idx) |
 	       L2T_IDX(ep->l2t->idx) |
 	       TX_CHAN(ep->tx_chan) |
 	       SMAC_SEL(ep->smac_idx) |
-	       DSCP(ep->tos) |
+	       DSCP(ep->tos >> 2) |
 	       ULP_MODE(ULP_MODE_TCPDDP) |
 	       RCV_BUFSIZ(rcv_win>>10);
 	opt2 = RX_CHANNEL(0) |
@@ -1529,6 +1647,15 @@ static void accept_cr(struct c4iw_ep *ep, __be32 peer_ip, struct sk_buff *skb,
 		opt2 |= SACK_EN(1);
 	if (wscale && enable_tcp_window_scaling)
 		opt2 |= WND_SCALE_EN(1);
+	if (enable_ecn) {
+		const struct tcphdr *tcph;
+		u32 hlen = ntohl(req->hdr_len);
+
+		tcph = (const void *)(req + 1) + G_ETH_HDR_LEN(hlen) +
+			G_IP_HDR_LEN(hlen);
+		if (tcph->ece && tcph->cwr)
+			opt2 |= CCTRL_ECN(1);
+	}
 
 	rpl = cplhdr(skb);
 	INIT_TP_WR(rpl, ep->hwtid);
@@ -2647,11 +2774,14 @@ static int fw6_msg(struct c4iw_dev *dev, struct sk_buff *skb)
 	struct cpl_fw6_msg *rpl = cplhdr(skb);
 	struct c4iw_wr_wait *wr_waitp;
 	int ret;
+	u8 opcode;
+	struct cpl_fw6_msg_ofld_connection_wr_rpl *req;
+	struct c4iw_ep *ep;
 
 	PDBG("%s type %u\n", __func__, rpl->type);
 
 	switch (rpl->type) {
-	case 1:
+	case FW6_TYPE_WR_RPL:
 		ret = (int)((be64_to_cpu(rpl->data[0]) >> 8) & 0xff);
 		wr_waitp = (struct c4iw_wr_wait *)(__force unsigned long) rpl->data[1];
 		PDBG("%s wr_waitp %p ret %u\n", __func__, wr_waitp, ret);
@@ -2659,8 +2789,24 @@ static int fw6_msg(struct c4iw_dev *dev, struct sk_buff *skb)
 			c4iw_wake_up(wr_waitp, ret ? -ret : 0);
 		kfree_skb(skb);
 		break;
-	case 2:
+	case FW6_TYPE_CQE:
 		sched(dev, skb);
+		break;
+	case FW6_TYPE_OFLD_CONNECTION_WR_RPL:
+		opcode = *(const u8 *)rpl->data;
+		if (opcode == FW_OFLD_CONNECTION_WR) {
+			req =
+			(struct cpl_fw6_msg_ofld_connection_wr_rpl *)rpl->data;
+			if (req->t_state == TCP_SYN_SENT
+			    && (req->retval == FW_ENOMEM
+				|| req->retval == FW_EADDRINUSE)) {
+				ep = (struct c4iw_ep *)
+				     lookup_atid(dev->rdev.lldi.tids,
+						 req->tid);
+				c4iw_l2t_send(&dev->rdev, skb, ep->l2t);
+				return 0;
+			}
+		}
 		break;
 	default:
 		printk(KERN_ERR MOD "%s unexpected fw6 msg type %u\n", __func__,

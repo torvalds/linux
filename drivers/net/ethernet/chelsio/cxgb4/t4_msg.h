@@ -193,6 +193,10 @@ struct work_request_hdr {
 	__be64 wr_lo;
 };
 
+/* wr_hi fields */
+#define S_WR_OP    24
+#define V_WR_OP(x) ((__u64)(x) << S_WR_OP)
+
 #define WR_HDR struct work_request_hdr wr
 
 struct cpl_pass_open_req {
@@ -204,12 +208,14 @@ struct cpl_pass_open_req {
 	__be32 peer_ip;
 	__be64 opt0;
 #define TX_CHAN(x)    ((x) << 2)
+#define NO_CONG(x)    ((x) << 4)
 #define DELACK(x)     ((x) << 5)
 #define ULP_MODE(x)   ((x) << 8)
 #define RCV_BUFSIZ(x) ((x) << 12)
 #define DSCP(x)       ((x) << 22)
 #define SMAC_SEL(x)   ((u64)(x) << 28)
 #define L2T_IDX(x)    ((u64)(x) << 36)
+#define TCAM_BYPASS(x) ((u64)(x) << 48)
 #define NAGLE(x)      ((u64)(x) << 49)
 #define WND_SCALE(x)  ((u64)(x) << 50)
 #define KEEP_ALIVE(x) ((u64)(x) << 54)
@@ -247,8 +253,10 @@ struct cpl_pass_accept_rpl {
 #define RSS_QUEUE_VALID      (1 << 10)
 #define RX_COALESCE_VALID(x) ((x) << 11)
 #define RX_COALESCE(x)       ((x) << 12)
+#define PACE(x)	      ((x) << 16)
 #define TX_QUEUE(x)          ((x) << 23)
 #define RX_CHANNEL(x)        ((x) << 26)
+#define CCTRL_ECN(x)         ((x) << 27)
 #define WND_SCALE_EN(x)      ((x) << 28)
 #define TSTAMPS_EN(x)        ((x) << 29)
 #define SACK_EN(x)           ((x) << 30)
@@ -635,6 +643,17 @@ struct cpl_fw6_msg {
 /* cpl_fw6_msg.type values */
 enum {
 	FW6_TYPE_CMD_RPL = 0,
+	FW6_TYPE_WR_RPL = 1,
+	FW6_TYPE_CQE = 2,
+	FW6_TYPE_OFLD_CONNECTION_WR_RPL = 3,
+};
+
+struct cpl_fw6_msg_ofld_connection_wr_rpl {
+	__u64   cookie;
+	__be32  tid;    /* or atid in case of active failure */
+	__u8    t_state;
+	__u8    retval;
+	__u8    rsvd[2];
 };
 
 enum {
