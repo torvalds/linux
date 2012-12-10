@@ -465,8 +465,6 @@ void perf_evsel__config(struct perf_evsel *evsel,
 
 	attr->sample_id_all = opts->sample_id_all_missing ? 0 : 1;
 	attr->inherit	    = !opts->no_inherit;
-	attr->read_format   = PERF_FORMAT_TOTAL_TIME_ENABLED |
-			      PERF_FORMAT_TOTAL_TIME_RUNNING;
 
 	perf_evsel__set_sample_bit(evsel, IP);
 	perf_evsel__set_sample_bit(evsel, TID);

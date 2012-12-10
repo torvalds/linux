@@ -6,7 +6,7 @@ args    = -e '{cycles,instructions}' kill >/tmp/krava 2>&1
 fd=1
 group_fd=-1
 sample_type=327
-read_format=7
+read_format=4
 
 [event-2:base-record]
 fd=2
@@ -14,7 +14,7 @@ group_fd=1
 type=0
 config=1
 sample_type=327
-read_format=7
+read_format=4
 mmap=0
 comm=0
 enable_on_exec=0
