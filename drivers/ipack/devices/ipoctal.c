@@ -183,10 +183,8 @@ static void ipoctal_irq_tx(struct ipoctal_channel *channel)
 	unsigned char value;
 	unsigned int *pointer_write = &channel->pointer_write;
 
-	if (channel->nb_bytes <= 0) {
-		channel->nb_bytes = 0;
+	if (channel->nb_bytes == 0)
 		return;
-	}
 
 	value = channel->tty_port.xmit_buf[*pointer_write];
 	iowrite8(value, &channel->regs->w.thr);
