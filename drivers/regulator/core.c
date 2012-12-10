@@ -199,8 +199,11 @@ static int regulator_check_consumers(struct regulator_dev *rdev,
 			*min_uV = regulator->min_uV;
 	}
 
-	if (*min_uV > *max_uV)
+	if (*min_uV > *max_uV) {
+		dev_err(regulator->dev, "Restricting voltage, %u-%uuV\n",
+			regulator->min_uV, regulator->max_uV);
 		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -880,7 +883,9 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 
 		/* final: [min_uV..max_uV] valid iff constraints valid */
 		if (max_uV < min_uV) {
-			rdev_err(rdev, "unsupportable voltage constraints\n");
+			rdev_err(rdev,
+				 "unsupportable voltage constraints %u-%uuV\n",
+				 min_uV, max_uV);
 			return -EINVAL;
 		}
 
