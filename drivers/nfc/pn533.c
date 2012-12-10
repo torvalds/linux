@@ -1124,7 +1124,7 @@ static int pn533_target_found_type_a(struct nfc_target *nfc_tgt, u8 *tgt_data,
 {
 	struct pn533_target_type_a *tgt_type_a;
 
-	tgt_type_a = (struct pn533_target_type_a *) tgt_data;
+	tgt_type_a = (struct pn533_target_type_a *)tgt_data;
 
 	if (!pn533_target_type_a_is_valid(tgt_type_a, tgt_data_len))
 		return -EPROTO;
@@ -1182,7 +1182,7 @@ static int pn533_target_found_felica(struct nfc_target *nfc_tgt, u8 *tgt_data,
 {
 	struct pn533_target_felica *tgt_felica;
 
-	tgt_felica = (struct pn533_target_felica *) tgt_data;
+	tgt_felica = (struct pn533_target_felica *)tgt_data;
 
 	if (!pn533_target_felica_is_valid(tgt_felica, tgt_data_len))
 		return -EPROTO;
@@ -1232,7 +1232,7 @@ static int pn533_target_found_jewel(struct nfc_target *nfc_tgt, u8 *tgt_data,
 {
 	struct pn533_target_jewel *tgt_jewel;
 
-	tgt_jewel = (struct pn533_target_jewel *) tgt_data;
+	tgt_jewel = (struct pn533_target_jewel *)tgt_data;
 
 	if (!pn533_target_jewel_is_valid(tgt_jewel, tgt_data_len))
 		return -EPROTO;
@@ -1291,7 +1291,7 @@ static int pn533_target_found_type_b(struct nfc_target *nfc_tgt, u8 *tgt_data,
 {
 	struct pn533_target_type_b *tgt_type_b;
 
-	tgt_type_b = (struct pn533_target_type_b *) tgt_data;
+	tgt_type_b = (struct pn533_target_type_b *)tgt_data;
 
 	if (!pn533_target_type_b_is_valid(tgt_type_b, tgt_data_len))
 		return -EPROTO;
@@ -1368,7 +1368,7 @@ static void pn533_poll_reset_mod_list(struct pn533 *dev)
 static void pn533_poll_add_mod(struct pn533 *dev, u8 mod_index)
 {
 	dev->poll_mod_active[dev->poll_mod_count] =
-		(struct pn533_poll_modulations *) &poll_mod[mod_index];
+		(struct pn533_poll_modulations *)&poll_mod[mod_index];
 	dev->poll_mod_count++;
 }
 
@@ -1565,7 +1565,7 @@ static int pn533_init_target_complete(struct pn533 *dev, struct sk_buff *resp)
 
 static void pn533_listen_mode_timer(unsigned long data)
 {
-	struct pn533 *dev = (struct pn533 *) data;
+	struct pn533 *dev = (struct pn533 *)data;
 
 	nfc_dev_dbg(&dev->interface->dev, "Listen mode timeout");
 
@@ -1789,7 +1789,7 @@ static int pn533_activate_target_nfcdep(struct pn533 *dev)
 	if (IS_ERR(resp))
 		return PTR_ERR(resp);
 
-	rsp = (struct pn533_cmd_activate_response *) resp->data;
+	rsp = (struct pn533_cmd_activate_response *)resp->data;
 	rc = rsp->status & PN533_CMD_RET_MASK;
 	if (rc != PN533_CMD_RET_SUCCESS)
 		dev_kfree_skb(resp);
@@ -1969,7 +1969,7 @@ static int pn533_mod_to_baud(struct pn533 *dev)
 
 #define PASSIVE_DATA_LEN 5
 static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
-			     u8 comm_mode, u8* gb, size_t gb_len)
+			     u8 comm_mode, u8 *gb, size_t gb_len)
 {
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
 	struct sk_buff *skb;
