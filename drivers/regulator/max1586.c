@@ -125,7 +125,7 @@ static struct regulator_desc max1586_reg[] = {
 	},
 };
 
-static int __devinit max1586_pmic_probe(struct i2c_client *client,
+static int max1586_pmic_probe(struct i2c_client *client,
 					const struct i2c_device_id *i2c_id)
 {
 	struct regulator_dev **rdev;
@@ -188,7 +188,7 @@ err:
 	return ret;
 }
 
-static int __devexit max1586_pmic_remove(struct i2c_client *client)
+static int max1586_pmic_remove(struct i2c_client *client)
 {
 	struct max1586_data *max1586 = i2c_get_clientdata(client);
 	int i;
@@ -207,7 +207,7 @@ MODULE_DEVICE_TABLE(i2c, max1586_id);
 
 static struct i2c_driver max1586_pmic_driver = {
 	.probe = max1586_pmic_probe,
-	.remove = __devexit_p(max1586_pmic_remove),
+	.remove = max1586_pmic_remove,
 	.driver		= {
 		.name	= "max1586",
 		.owner	= THIS_MODULE,

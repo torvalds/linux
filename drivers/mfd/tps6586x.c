@@ -24,8 +24,6 @@
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
-#include <linux/regulator/of_regulator.h>
-#include <linux/regulator/machine.h>
 
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps6586x.h>
@@ -97,6 +95,9 @@ static const struct tps6586x_irq_data tps6586x_irqs[] = {
 static struct mfd_cell tps6586x_cell[] = {
 	{
 		.name = "tps6586x-gpio",
+	},
+	{
+		.name = "tps6586x-pmic",
 	},
 	{
 		.name = "tps6586x-rtc",
@@ -350,80 +351,19 @@ failed:
 }
 
 #ifdef CONFIG_OF
-static struct of_regulator_match tps6586x_matches[] = {
-	{ .name = "sys",     .driver_data = (void *)TPS6586X_ID_SYS     },
-	{ .name = "sm0",     .driver_data = (void *)TPS6586X_ID_SM_0    },
-	{ .name = "sm1",     .driver_data = (void *)TPS6586X_ID_SM_1    },
-	{ .name = "sm2",     .driver_data = (void *)TPS6586X_ID_SM_2    },
-	{ .name = "ldo0",    .driver_data = (void *)TPS6586X_ID_LDO_0   },
-	{ .name = "ldo1",    .driver_data = (void *)TPS6586X_ID_LDO_1   },
-	{ .name = "ldo2",    .driver_data = (void *)TPS6586X_ID_LDO_2   },
-	{ .name = "ldo3",    .driver_data = (void *)TPS6586X_ID_LDO_3   },
-	{ .name = "ldo4",    .driver_data = (void *)TPS6586X_ID_LDO_4   },
-	{ .name = "ldo5",    .driver_data = (void *)TPS6586X_ID_LDO_5   },
-	{ .name = "ldo6",    .driver_data = (void *)TPS6586X_ID_LDO_6   },
-	{ .name = "ldo7",    .driver_data = (void *)TPS6586X_ID_LDO_7   },
-	{ .name = "ldo8",    .driver_data = (void *)TPS6586X_ID_LDO_8   },
-	{ .name = "ldo9",    .driver_data = (void *)TPS6586X_ID_LDO_9   },
-	{ .name = "ldo_rtc", .driver_data = (void *)TPS6586X_ID_LDO_RTC },
-};
-
 static struct tps6586x_platform_data *tps6586x_parse_dt(struct i2c_client *client)
 {
-	const unsigned int num = ARRAY_SIZE(tps6586x_matches);
 	struct device_node *np = client->dev.of_node;
 	struct tps6586x_platform_data *pdata;
-	struct tps6586x_subdev_info *devs;
-	struct device_node *regs;
-	const char *sys_rail_name = NULL;
-	unsigned int count;
-	unsigned int i, j;
-	int err;
-
-	regs = of_find_node_by_name(np, "regulators");
-	if (!regs)
-		return NULL;
-
-	err = of_regulator_match(&client->dev, regs, tps6586x_matches, num);
-	if (err < 0) {
-		of_node_put(regs);
-		return NULL;
-	}
-
-	of_node_put(regs);
-	count = err;
-
-	devs = devm_kzalloc(&client->dev, count * sizeof(*devs), GFP_KERNEL);
-	if (!devs)
-		return NULL;
-
-	for (i = 0, j = 0; i < num && j < count; i++) {
-		struct regulator_init_data *reg_idata;
-
-		if (!tps6586x_matches[i].init_data)
-			continue;
-
-		reg_idata  = tps6586x_matches[i].init_data;
-		devs[j].name = "tps6586x-regulator";
-		devs[j].platform_data = tps6586x_matches[i].init_data;
-		devs[j].id = (int)tps6586x_matches[i].driver_data;
-		if (devs[j].id == TPS6586X_ID_SYS)
-			sys_rail_name = reg_idata->constraints.name;
-
-		if ((devs[j].id == TPS6586X_ID_LDO_5) ||
-			(devs[j].id == TPS6586X_ID_LDO_RTC))
-			reg_idata->supply_regulator = sys_rail_name;
-
-		devs[j].of_node = tps6586x_matches[i].of_node;
-		j++;
-	}
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
+	if (!pdata) {
+		dev_err(&client->dev, "Memory allocation failed\n");
 		return NULL;
+	}
 
-	pdata->num_subdevs = count;
-	pdata->subdevs = devs;
+	pdata->num_subdevs = 0;
+	pdata->subdevs = NULL;
 	pdata->gpio_base = -1;
 	pdata->irq_base = -1;
 	pdata->pm_off = of_property_read_bool(np, "ti,system-power-controller");

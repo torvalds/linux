@@ -220,7 +220,7 @@ static struct regulator_ops gpio_regulator_current_ops = {
 	.set_current_limit = gpio_regulator_set_current_limit,
 };
 
-static int __devinit gpio_regulator_probe(struct platform_device *pdev)
+static int gpio_regulator_probe(struct platform_device *pdev)
 {
 	struct gpio_regulator_config *config = pdev->dev.platform_data;
 	struct device_node *np = pdev->dev.of_node;
@@ -348,7 +348,7 @@ err:
 	return ret;
 }
 
-static int __devexit gpio_regulator_remove(struct platform_device *pdev)
+static int gpio_regulator_remove(struct platform_device *pdev)
 {
 	struct gpio_regulator_data *drvdata = platform_get_drvdata(pdev);
 
@@ -373,7 +373,7 @@ static const struct of_device_id regulator_gpio_of_match[] __devinitconst = {
 
 static struct platform_driver gpio_regulator_driver = {
 	.probe		= gpio_regulator_probe,
-	.remove		= __devexit_p(gpio_regulator_remove),
+	.remove		= gpio_regulator_remove,
 	.driver		= {
 		.name		= "gpio-regulator",
 		.owner		= THIS_MODULE,

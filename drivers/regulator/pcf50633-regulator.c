@@ -196,7 +196,7 @@ static const struct regulator_desc regulators[] = {
 	[PCF50633_REGULATOR_MEMLDO] = PCF50633_REGULATOR("memldo", MEMLDO, 28),
 };
 
-static int __devinit pcf50633_regulator_probe(struct platform_device *pdev)
+static int pcf50633_regulator_probe(struct platform_device *pdev)
 {
 	struct regulator_dev *rdev;
 	struct pcf50633 *pcf;
@@ -222,7 +222,7 @@ static int __devinit pcf50633_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit pcf50633_regulator_remove(struct platform_device *pdev)
+static int pcf50633_regulator_remove(struct platform_device *pdev)
 {
 	struct regulator_dev *rdev = platform_get_drvdata(pdev);
 
@@ -237,7 +237,7 @@ static struct platform_driver pcf50633_regulator_driver = {
 		.name = "pcf50633-regltr",
 	},
 	.probe = pcf50633_regulator_probe,
-	.remove = __devexit_p(pcf50633_regulator_remove),
+	.remove = pcf50633_regulator_remove,
 };
 
 static int __init pcf50633_regulator_init(void)
