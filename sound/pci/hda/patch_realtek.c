@@ -102,8 +102,8 @@ enum {
 #define MAX_NID_PATH_DEPTH	5
 
 /* output-path: DAC -> ... -> pin
- * idx[] contains the source index number of the next widget;
- * e.g. idx[0] is the index of the DAC selected by path[1] widget
+ * idx[i] contains the source index number to select on of the widget path[i];
+ * e.g. idx[1] is the index of the DAC (path[0]) selected by path[1] widget
  * multi[] indicates whether it's a selector widget with multi-connectors
  * (i.e. the connection selection is mandatory)
  * vol_ctl and mute_ctl contains the NIDs for the assigned mixers
@@ -2937,9 +2937,9 @@ static bool __parse_output_path(struct hda_codec *codec, hda_nid_t nid,
 
  found:
 	path->path[path->depth] = conn[i];
-	path->idx[path->depth] = i;
+	path->idx[path->depth + 1] = i;
 	if (nums > 1 && get_wcaps_type(get_wcaps(codec, nid)) != AC_WID_AUD_MIX)
-		path->multi[path->depth] = 1;
+		path->multi[path->depth + 1] = 1;
 	path->depth++;
 	return true;
 }
@@ -3846,10 +3846,10 @@ static void alc_auto_set_output_and_unmute(struct hda_codec *codec,
 
 	for (i = path->depth - 1; i >= 0; i--) {
 		hda_nid_t nid = path->path[i];
-		if (i > 0 && path->multi[i - 1])
+		if (path->multi[i])
 			snd_hda_codec_write(codec, nid, 0,
 					    AC_VERB_SET_CONNECT_SEL,
-					    path->idx[i - 1]);
+					    path->idx[i]);
 
 		if (i != 0 && i != path->depth - 1 &&
 		    (get_wcaps(codec, nid) & AC_WCAP_IN_AMP) &&
