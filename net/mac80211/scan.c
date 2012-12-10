@@ -113,18 +113,6 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 			bss->valid_data |= IEEE80211_BSS_VALID_ERP;
 	}
 
-	if (elems->tim && (!elems->parse_error ||
-			   !(bss->valid_data & IEEE80211_BSS_VALID_DTIM))) {
-		struct ieee80211_tim_ie *tim_ie = elems->tim;
-		bss->dtim_period = tim_ie->dtim_period;
-		if (!elems->parse_error)
-			bss->valid_data |= IEEE80211_BSS_VALID_DTIM;
-	}
-
-	/* If the beacon had no TIM IE, or it was invalid, use 1 */
-	if (beacon && !bss->dtim_period)
-		bss->dtim_period = 1;
-
 	/* replace old supported rates if we get new values */
 	if (!elems->parse_error ||
 	    !(bss->valid_data & IEEE80211_BSS_VALID_RATES)) {
