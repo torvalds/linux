@@ -96,6 +96,7 @@ void hists__decay_entries_threaded(struct hists *hists, bool zap_user,
 				   bool zap_kernel);
 void hists__output_recalc_col_len(struct hists *hists, int max_rows);
 
+void hists__inc_nr_entries(struct hists *hists, struct hist_entry *h);
 void hists__inc_nr_events(struct hists *self, u32 type);
 size_t hists__fprintf_nr_events(struct hists *self, FILE *fp);
 
