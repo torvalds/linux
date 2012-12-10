@@ -188,8 +188,7 @@ static inline char *translate_scan(struct _adapter *padapter,
 	/* Add the ESSID */
 	iwe.cmd = SIOCGIWESSID;
 	iwe.u.data.flags = 1;
-	iwe.u.data.length = (u16)min((u16)pnetwork->network.Ssid.SsidLength,
-			    (u16)32);
+	iwe.u.data.length = min_t(u32, pnetwork->network.Ssid.SsidLength, 32);
 	start = iwe_stream_add_point(info, start, stop, &iwe,
 				     pnetwork->network.Ssid.Ssid);
 	/* parsing HT_CAP_IE */
@@ -1194,8 +1193,7 @@ static int r8711_wx_set_scan(struct net_device *dev,
 		if (wrqu->data.flags & IW_SCAN_THIS_ESSID) {
 			struct ndis_802_11_ssid ssid;
 			unsigned long irqL;
-			u32 len = (u32) min((u8)req->essid_len,
-				  (u8)IW_ESSID_MAX_SIZE);
+			u32 len = min_t(u8, req->essid_len, IW_ESSID_MAX_SIZE);
 			memset((unsigned char *)&ssid, 0,
 				 sizeof(struct ndis_802_11_ssid));
 			memcpy(ssid.Ssid, req->essid, len);
