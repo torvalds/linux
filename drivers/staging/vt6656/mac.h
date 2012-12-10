@@ -420,24 +420,21 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-void MACvSetMultiAddrByHash(PSDevice pDevice, BYTE byHashIdx);
-void MACvWriteMultiAddr(PSDevice pDevice, unsigned int uByteIdx, BYTE byData);
-void MACbShutdown(PSDevice pDevice);
-void MACvSetBBType(PSDevice pDevice, BYTE byType);
-void MACvSetMISCFifo(PSDevice pDevice, WORD wOffset, DWORD dwData);
-void MACvDisableKeyEntry(PSDevice pDevice, unsigned int uEntryIdx);
-void MACvSetKeyEntry(PSDevice pDevice, WORD wKeyCtl, unsigned int uEntryIdx,
-		     unsigned int uKeyIdx, PBYTE pbyAddr, PDWORD pdwKey);
-
-void MACvRegBitsOff(PSDevice pDevice, BYTE byRegOfs, BYTE byBits);
-void MACvRegBitsOn(PSDevice pDevice, BYTE byRegOfs, BYTE byBits);
-void MACvWriteWord(PSDevice pDevice, BYTE byRegOfs, WORD wData);
-
-void MACvWriteBSSIDAddress(PSDevice pDevice, PBYTE pbyEtherAddr);
-void MACvEnableProtectMD(PSDevice pDevice);
-void MACvDisableProtectMD(PSDevice pDevice);
-void MACvEnableBarkerPreambleMd(PSDevice pDevice);
-void MACvDisableBarkerPreambleMd(PSDevice pDevice);
-void MACvWriteBeaconInterval(PSDevice pDevice, WORD wInterval);
+void MACvSetMultiAddrByHash(struct vnt_private *, u8);
+void MACvWriteMultiAddr(struct vnt_private *, u32, u8);
+void MACbShutdown(struct vnt_private *);
+void MACvSetBBType(struct vnt_private *, u8);
+void MACvSetMISCFifo(struct vnt_private *pDevice, u16, u32);
+void MACvDisableKeyEntry(struct vnt_private *, u32);
+void MACvSetKeyEntry(struct vnt_private *, u16, u32, u32, u8 *, u32 *);
+void MACvRegBitsOff(struct vnt_private *, u8, u8);
+void MACvRegBitsOn(struct vnt_private *, u8, u8);
+void MACvWriteWord(struct vnt_private *, u8, u16);
+void MACvWriteBSSIDAddress(struct vnt_private *, u8 *);
+void MACvEnableProtectMD(struct vnt_private *);
+void MACvDisableProtectMD(struct vnt_private *);
+void MACvEnableBarkerPreambleMd(struct vnt_private *);
+void MACvDisableBarkerPreambleMd(struct vnt_private *);
+void MACvWriteBeaconInterval(struct vnt_private *, u16);
 
 #endif /* __MAC_H__ */

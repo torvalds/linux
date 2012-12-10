@@ -68,33 +68,17 @@ static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 /*---------------------  Static Functions  --------------------------*/
 
-static
-void
-s_vProbeChannel(
-     PSDevice pDevice
-    );
+static void s_vProbeChannel(struct vnt_private *);
+
+static struct vnt_tx_mgmt *s_MgrMakeProbeRequest(struct vnt_private *,
+	struct vnt_manager *pMgmt, u8 *pScanBSSID, PWLAN_IE_SSID pSSID,
+	PWLAN_IE_SUPP_RATES pCurrRates, PWLAN_IE_SUPP_RATES pCurrExtSuppRates);
 
 
-static
-PSTxMgmtPacket
-s_MgrMakeProbeRequest(
-     PSDevice pDevice,
-     PSMgmtObject pMgmt,
-     PBYTE pScanBSSID,
-     PWLAN_IE_SSID pSSID,
-     PWLAN_IE_SUPP_RATES pCurrRates,
-     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
-    );
+static int s_bCommandComplete(struct vnt_private *);
 
 
-static
-BOOL
-s_bCommandComplete (
-    PSDevice pDevice
-    );
-
-
-static BOOL s_bClearBSSID_SCAN(void *hDeviceContext);
+static int s_bClearBSSID_SCAN(struct vnt_private *);
 
 /*---------------------  Export Variables  --------------------------*/
 
@@ -114,13 +98,10 @@ static BOOL s_bClearBSSID_SCAN(void *hDeviceContext);
  *
  */
 
-static
-void
-vAdHocBeaconStop(PSDevice  pDevice)
+static void vAdHocBeaconStop(struct vnt_private *pDevice)
 {
-
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    BOOL            bStop;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	int bStop;
 
     /*
      * temporarily stop Beacon packet for AdHoc Server
@@ -171,11 +152,9 @@ vAdHocBeaconStop(PSDevice  pDevice)
  * Return Value: none
  *
  */
-static
-void
-vAdHocBeaconRestart(PSDevice pDevice)
+static void vAdHocBeaconRestart(struct vnt_private *pDevice)
 {
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 
     /*
      * Restart Beacon packet for AdHoc Server
@@ -204,22 +183,22 @@ vAdHocBeaconRestart(PSDevice pDevice)
  *
 -*/
 
-static
-void
-s_vProbeChannel(
-     PSDevice pDevice
-    )
+static void s_vProbeChannel(struct vnt_private *pDevice)
 {
-                                                     //1M,   2M,   5M,   11M,  18M,  24M,  36M,  54M
-    BYTE abyCurrSuppRatesG[] = {WLAN_EID_SUPP_RATES, 8, 0x02, 0x04, 0x0B, 0x16, 0x24, 0x30, 0x48, 0x6C};
-    BYTE abyCurrExtSuppRatesG[] = {WLAN_EID_EXTSUPP_RATES, 4, 0x0C, 0x12, 0x18, 0x60};
-                                                           //6M,   9M,   12M,  48M
-    BYTE abyCurrSuppRatesA[] = {WLAN_EID_SUPP_RATES, 8, 0x0C, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6C};
-    BYTE abyCurrSuppRatesB[] = {WLAN_EID_SUPP_RATES, 4, 0x02, 0x04, 0x0B, 0x16};
-    PBYTE           pbyRate;
-    PSTxMgmtPacket  pTxPacket;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    unsigned int            ii;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	struct vnt_tx_mgmt *pTxPacket;
+	u8 abyCurrSuppRatesG[] = {WLAN_EID_SUPP_RATES,
+			8, 0x02, 0x04, 0x0B, 0x16, 0x24, 0x30, 0x48, 0x6C};
+			/* 1M,   2M,   5M,   11M,  18M,  24M,  36M,  54M*/
+	u8 abyCurrExtSuppRatesG[] = {WLAN_EID_EXTSUPP_RATES,
+			4, 0x0C, 0x12, 0x18, 0x60};
+			/* 6M,   9M,   12M,  48M*/
+	u8 abyCurrSuppRatesA[] = {WLAN_EID_SUPP_RATES,
+			8, 0x0C, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6C};
+	u8 abyCurrSuppRatesB[] = {WLAN_EID_SUPP_RATES,
+			4, 0x02, 0x04, 0x0B, 0x16};
+	u8 *pbyRate;
+	int ii;
 
 
     if (pDevice->byBBType == BB_TYPE_11A) {
@@ -268,24 +247,19 @@ s_vProbeChannel(
 -*/
 
 
-PSTxMgmtPacket
-s_MgrMakeProbeRequest(
-     PSDevice pDevice,
-     PSMgmtObject pMgmt,
-     PBYTE pScanBSSID,
-     PWLAN_IE_SSID pSSID,
-     PWLAN_IE_SUPP_RATES pCurrRates,
-     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
-
-    )
+struct vnt_tx_mgmt *s_MgrMakeProbeRequest(struct vnt_private *pDevice,
+	struct vnt_manager *pMgmt, u8 *pScanBSSID, PWLAN_IE_SSID pSSID,
+	PWLAN_IE_SUPP_RATES pCurrRates, PWLAN_IE_SUPP_RATES pCurrExtSuppRates)
 {
-    PSTxMgmtPacket      pTxPacket = NULL;
-    WLAN_FR_PROBEREQ    sFrame;
+	struct vnt_tx_mgmt *pTxPacket = NULL;
+	WLAN_FR_PROBEREQ sFrame;
 
 
-    pTxPacket = (PSTxMgmtPacket)pMgmt->pbyMgmtPacketPool;
-    memset(pTxPacket, 0, sizeof(STxMgmtPacket) + WLAN_PROBEREQ_FR_MAXLEN);
-    pTxPacket->p80211Header = (PUWLAN_80211HDR)((PBYTE)pTxPacket + sizeof(STxMgmtPacket));
+	pTxPacket = (struct vnt_tx_mgmt *)pMgmt->pbyMgmtPacketPool;
+	memset(pTxPacket, 0, sizeof(struct vnt_tx_mgmt)
+		+ WLAN_PROBEREQ_FR_MAXLEN);
+	pTxPacket->p80211Header = (PUWLAN_80211HDR)((u8 *)pTxPacket
+		+ sizeof(struct vnt_tx_mgmt));
     sFrame.pBuf = (PBYTE)pTxPacket->p80211Header;
     sFrame.len = WLAN_PROBEREQ_FR_MAXLEN;
     vMgrEncodeProbeRequest(&sFrame);
@@ -316,9 +290,8 @@ s_MgrMakeProbeRequest(
     return pTxPacket;
 }
 
-void vCommandTimerWait(void *hDeviceContext, unsigned long MSecond)
+void vCommandTimerWait(struct vnt_private *pDevice, unsigned long MSecond)
 {
-	PSDevice pDevice = (PSDevice)hDeviceContext;
 
 	init_timer(&pDevice->sTimerCommand);
 
@@ -331,18 +304,17 @@ void vCommandTimerWait(void *hDeviceContext, unsigned long MSecond)
 	return;
 }
 
-void vRunCommand(void *hDeviceContext)
+void vRunCommand(struct vnt_private *pDevice)
 {
-    PSDevice        pDevice = (PSDevice)hDeviceContext;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    PWLAN_IE_SSID   pItemSSID;
-    PWLAN_IE_SSID   pItemSSIDCurr;
-    CMD_STATUS      Status;
-    unsigned int            ii;
-    BYTE            byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
-    struct sk_buff  *skb;
-    BYTE            byData;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	PWLAN_IE_SSID pItemSSID;
+	PWLAN_IE_SSID pItemSSIDCurr;
+	CMD_STATUS Status;
+	struct sk_buff  *skb;
 	union iwreq_data wrqu;
+	int ii;
+	u8 byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
+	u8 byData;
 
 
     if (pDevice->dwDiagRefCount != 0)
@@ -1043,17 +1015,12 @@ void vRunCommand(void *hDeviceContext)
 }
 
 
-static
-BOOL
-s_bCommandComplete (
-    PSDevice pDevice
-    )
+static int s_bCommandComplete(struct vnt_private *pDevice)
 {
-    PWLAN_IE_SSID pSSID;
-    BOOL          bRadioCmd = FALSE;
-    //WORD          wDeAuthenReason = 0;
-    BOOL          bForceSCAN = TRUE;
-    PSMgmtObject  pMgmt = &(pDevice->sMgmtObj);
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	PWLAN_IE_SSID pSSID;
+	int bRadioCmd = FALSE;
+	int bForceSCAN = TRUE;
 
 
     pDevice->eCommandState = WLAN_CMD_IDLE;
@@ -1146,18 +1113,15 @@ s_bCommandComplete (
                 break;
 
         }
-	vCommandTimerWait((void *) pDevice, 0);
+	vCommandTimerWait(pDevice, 0);
     }
 
     return TRUE;
 }
 
-BOOL bScheduleCommand(void *hDeviceContext,
-		      CMD_CODE eCommand,
-		      PBYTE pbyItem0)
+int bScheduleCommand(struct vnt_private *pDevice,
+		CMD_CODE eCommand, u8 *pbyItem0)
 {
-    PSDevice        pDevice = (PSDevice)hDeviceContext;
-
 
     if (pDevice->cbFreeCmdQueue == 0) {
         return (FALSE);
@@ -1222,11 +1186,10 @@ BOOL bScheduleCommand(void *hDeviceContext,
  * Return Value: TRUE if success; otherwise FALSE
  *
  */
-static BOOL s_bClearBSSID_SCAN(void *hDeviceContext)
+static int s_bClearBSSID_SCAN(struct vnt_private *pDevice)
 {
-    PSDevice        pDevice = (PSDevice)hDeviceContext;
-    unsigned int            uCmdDequeueIdx = pDevice->uCmdDequeueIdx;
-    unsigned int            ii;
+	unsigned int uCmdDequeueIdx = pDevice->uCmdDequeueIdx;
+	unsigned int ii;
 
     if ((pDevice->cbFreeCmdQueue < CMD_Q_SIZE) && (uCmdDequeueIdx != pDevice->uCmdEnqueueIdx)) {
         for (ii = 0; ii < (CMD_Q_SIZE - pDevice->cbFreeCmdQueue); ii ++) {
@@ -1242,9 +1205,8 @@ static BOOL s_bClearBSSID_SCAN(void *hDeviceContext)
 
 
 //mike add:reset command timer
-void vResetCommandTimer(void *hDeviceContext)
+void vResetCommandTimer(struct vnt_private *pDevice)
 {
-	PSDevice pDevice = (PSDevice)hDeviceContext;
 
 	//delete timer
 	del_timer(&pDevice->sTimerCommand);
@@ -1261,10 +1223,9 @@ void vResetCommandTimer(void *hDeviceContext)
 	pDevice->bCmdClear = FALSE;
 }
 
-void BSSvSecondTxData(void *hDeviceContext)
+void BSSvSecondTxData(struct vnt_private *pDevice)
 {
-	PSDevice pDevice = (PSDevice)hDeviceContext;
-	PSMgmtObject pMgmt = &(pDevice->sMgmtObj);
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 
 	pDevice->nTxDataTimeCout++;
 

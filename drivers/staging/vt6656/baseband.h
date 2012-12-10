@@ -104,33 +104,26 @@ BBuGetFrameTime(
      WORD wRate
     );
 
-void BBvCalculateParameter(PSDevice pDevice,
-			  unsigned int cbFrameLength,
-			  WORD wRate,
-			  BYTE byPacketType,
-			  PWORD pwPhyLen,
-			  PBYTE pbyPhySrv,
-			  PBYTE pbyPhySgn);
+void BBvCalculateParameter(struct vnt_private *, u32 cbFrameLength,
+	u16 wRate, u8 byPacketType, u16 *pwPhyLen, u8 *pbyPhySrv,
+	u8 *pbyPhySgn);
 
 // timer for antenna diversity
 
-void TimerSQ3CallBack(void *hDeviceContext);
-void TimerSQ3Tmax3CallBack(void *hDeviceContext);
+void TimerSQ3CallBack(struct vnt_private *);
+void TimerSQ3Tmax3CallBack(struct vnt_private *);
 
-void BBvAntennaDiversity(PSDevice pDevice, BYTE byRxRate, BYTE bySQ3);
-void BBvLoopbackOn(PSDevice pDevice);
-void BBvLoopbackOff(PSDevice pDevice);
-void BBvSoftwareReset(PSDevice pDevice);
+void BBvAntennaDiversity(struct vnt_private *, u8 byRxRate, u8 bySQ3);
+void BBvLoopbackOn(struct vnt_private *);
+void BBvLoopbackOff(struct vnt_private *);
+void BBvSoftwareReset(struct vnt_private *);
 
-void BBvSetShortSlotTime(PSDevice pDevice);
-void BBvSetVGAGainOffset(PSDevice pDevice, BYTE byData);
-void BBvSetAntennaMode(PSDevice pDevice, BYTE byAntennaMode);
-BOOL BBbVT3184Init(PSDevice pDevice);
-void BBvSetDeepSleep(PSDevice pDevice);
-void BBvExitDeepSleep(PSDevice pDevice);
-void BBvUpdatePreEDThreshold(
-       PSDevice    pDevice,
-       BOOL        bScanning
-     );
+void BBvSetShortSlotTime(struct vnt_private *);
+void BBvSetVGAGainOffset(struct vnt_private *, u8 byData);
+void BBvSetAntennaMode(struct vnt_private *, u8 byAntennaMode);
+int BBbVT3184Init(struct vnt_private *);
+void BBvSetDeepSleep(struct vnt_private *);
+void BBvExitDeepSleep(struct vnt_private *);
+void BBvUpdatePreEDThreshold(struct vnt_private *, int bScanning);
 
 #endif /* __BASEBAND_H__ */
