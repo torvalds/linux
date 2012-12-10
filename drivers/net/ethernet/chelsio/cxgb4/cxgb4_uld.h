@@ -38,6 +38,7 @@
 #include <linux/cache.h>
 #include <linux/spinlock.h>
 #include <linux/skbuff.h>
+#include <linux/inetdevice.h>
 #include <linux/atomic.h>
 
 /* CPL message priority levels */
@@ -151,9 +152,12 @@ void cxgb4_remove_tid(struct tid_info *t, unsigned int qid, unsigned int tid);
 struct in6_addr;
 
 int cxgb4_create_server(const struct net_device *dev, unsigned int stid,
-			__be32 sip, __be16 sport, unsigned int queue);
+			__be32 sip, __be16 sport, __be16 vlan,
+			unsigned int queue);
 int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
-			       __be32 sip, __be16 sport, unsigned int queue);
+			       __be32 sip, __be16 sport, __be16 vlan,
+			       unsigned int queue,
+			       unsigned char port, unsigned char mask);
 int cxgb4_remove_server_filter(const struct net_device *dev, unsigned int stid,
 			       unsigned int queue, bool ipv6);
 static inline void set_wr_txq(struct sk_buff *skb, int prio, int queue)

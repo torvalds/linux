@@ -2670,7 +2670,8 @@ static int tid_init(struct tid_info *t)
  *	Returns <0 on error and one of the %NET_XMIT_* values on success.
  */
 int cxgb4_create_server(const struct net_device *dev, unsigned int stid,
-			__be32 sip, __be16 sport, unsigned int queue)
+			__be32 sip, __be16 sport, __be16 vlan,
+			unsigned int queue)
 {
 	unsigned int chan;
 	struct sk_buff *skb;
@@ -3043,7 +3044,7 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	lli.ucq_density = 1 << QUEUESPERPAGEPF0_GET(
 			t4_read_reg(adap, SGE_INGRESS_QUEUES_PER_PAGE_PF) >>
 			(adap->fn * 4));
-	lli.filt_mode = tp_vlan_pri_map;
+	lli.filt_mode = adap->filter_mode;
 	/* MODQ_REQ_MAP sets queues 0-3 to chan 0-3 */
 	for (i = 0; i < NCHAN; i++)
 		lli.tx_modq[i] = i;
@@ -3307,7 +3308,8 @@ static int delete_filter(struct adapter *adapter, unsigned int fidx)
 }
 
 int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
-		__be32 sip, __be16 sport, unsigned int queue)
+		__be32 sip, __be16 sport, __be16 vlan,
+		unsigned int queue, unsigned char port, unsigned char mask)
 {
 	int ret;
 	struct filter_entry *f;
@@ -3339,11 +3341,16 @@ int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
 	f->fs.val.lport = cpu_to_be16(sport);
 	f->fs.mask.lport  = ~0;
 	val = (u8 *)&sip;
-	if ((val[0] | val[1] | val[2] | val[3]) != 0)
+	if ((val[0] | val[1] | val[2] | val[3]) != 0) {
 		for (i = 0; i < 4; i++) {
 			f->fs.val.lip[i] = val[i];
 			f->fs.mask.lip[i] = ~0;
 		}
+		if (adap->filter_mode & F_PORT) {
+			f->fs.val.iport = port;
+			f->fs.mask.iport = mask;
+		}
+	}
 
 	f->fs.dirsteer = 1;
 	f->fs.iq = queue;
@@ -4449,6 +4456,10 @@ static int adap_init0(struct adapter *adap)
 	/* MODQ_REQ_MAP defaults to setting queues 0-3 to chan 0-3 */
 	for (j = 0; j < NCHAN; j++)
 		adap->params.tp.tx_modq[j] = j;
+
+	t4_read_indirect(adap, TP_PIO_ADDR, TP_PIO_DATA,
+			 &adap->filter_mode, 1,
+			 TP_VLAN_PRI_MAP);
 
 	adap->flags |= FW_OK;
 	return 0;

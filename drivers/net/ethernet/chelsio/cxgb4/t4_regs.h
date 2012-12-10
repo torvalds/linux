@@ -1098,5 +1098,7 @@
 #define A_TP_TX_SCHED_PCMD 0x25
 
 #define S_PORT    1
+#define V_PORT(x) ((x) << S_PORT)
+#define F_PORT    V_PORT(1U)
 
 #endif /* __T4_REGS_H */

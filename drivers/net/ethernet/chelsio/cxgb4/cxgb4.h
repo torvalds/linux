@@ -530,6 +530,7 @@ struct adapter {
 	struct net_device *port[MAX_NPORTS];
 	u8 chan_map[NCHAN];                   /* channel -> port map */
 
+	u32 filter_mode;
 	unsigned int l2t_start;
 	unsigned int l2t_end;
 	struct l2t_data *l2t;
