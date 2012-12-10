@@ -82,6 +82,9 @@
 	(BITS_TO_LONGS(nr) * sizeof(unsigned long))
 #define TOTAL_SEGS(sbi)	(SM_I(sbi)->main_segments)
 
+#define SECTOR_FROM_BLOCK(sbi, blk_addr)				\
+	(blk_addr << ((sbi)->log_blocksize - F2FS_LOG_SECTOR_SIZE))
+
 /* during checkpoint, bio_private is used to synchronize the last bio */
 struct bio_private {
 	struct f2fs_sb_info *sbi;

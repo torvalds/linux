@@ -643,23 +643,21 @@ static void f2fs_end_io_write(struct bio *bio, int err)
 	bio_put(bio);
 }
 
-struct bio *f2fs_bio_alloc(struct block_device *bdev, sector_t first_sector,
-					int nr_vecs, gfp_t gfp_flags)
+struct bio *f2fs_bio_alloc(struct block_device *bdev, int npages)
 {
 	struct bio *bio;
-
-	/* allocate new bio */
-	bio = bio_alloc(gfp_flags, nr_vecs);
-
-	bio->bi_bdev = bdev;
-	bio->bi_sector = first_sector;
+	struct bio_private *priv;
 retry:
-	bio->bi_private = kmalloc(sizeof(struct bio_private),
-					GFP_NOFS | __GFP_HIGH);
-	if (!bio->bi_private) {
+	priv = kmalloc(sizeof(struct bio_private), GFP_NOFS);
+	if (!priv) {
 		cond_resched();
 		goto retry;
 	}
+
+	/* No failure on bio allocation */
+	bio = bio_alloc(GFP_NOIO, npages);
+	bio->bi_bdev = bdev;
+	bio->bi_private = priv;
 	return bio;
 }
 
@@ -711,10 +709,15 @@ static void submit_write_page(struct f2fs_sb_info *sbi, struct page *page,
 	if (sbi->bio[type] && sbi->last_block_in_bio[type] != blk_addr - 1)
 		do_submit_bio(sbi, type, false);
 alloc_new:
-	if (sbi->bio[type] == NULL)
-		sbi->bio[type] = f2fs_bio_alloc(bdev,
-				blk_addr << (sbi->log_blocksize - 9),
-				bio_get_nr_vecs(bdev), GFP_NOFS | __GFP_HIGH);
+	if (sbi->bio[type] == NULL) {
+		sbi->bio[type] = f2fs_bio_alloc(bdev, bio_get_nr_vecs(bdev));
+		sbi->bio[type]->bi_sector = SECTOR_FROM_BLOCK(sbi, blk_addr);
+		/*
+		 * The end_io will be assigned at the sumbission phase.
+		 * Until then, let bio_add_page() merge consecutive IOs as much
+		 * as possible.
+		 */
+	}
 
 	if (bio_add_page(sbi->bio[type], page, PAGE_CACHE_SIZE, 0) <
 							PAGE_CACHE_SIZE) {
