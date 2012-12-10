@@ -168,7 +168,7 @@ static unsigned int s5m8767_opmode_reg[][4] = {
 static int s5m8767_get_register(struct regulator_dev *rdev, int *reg,
 				int *enable_ctrl)
 {
-	int reg_id = rdev_get_id(rdev);
+	int i, reg_id = rdev_get_id(rdev);
 	unsigned int mode;
 	struct s5m8767_info *s5m8767 = rdev_get_drvdata(rdev);
 
@@ -195,8 +195,17 @@ static int s5m8767_get_register(struct regulator_dev *rdev, int *reg,
 		return -EINVAL;
 	}
 
-	mode = s5m8767->opmode[reg_id].mode;
-	*enable_ctrl = s5m8767_opmode_reg[reg_id][mode] << S5M8767_ENCTRL_SHIFT;
+	for (i = 0; i < s5m8767->num_regulators; i++) {
+		if (s5m8767->opmode[i].id == reg_id) {
+			mode = s5m8767->opmode[i].mode;
+			break;
+		}
+	}
+
+	if (i < s5m8767->num_regulators)
+		*enable_ctrl =
+		s5m8767_opmode_reg[reg_id][mode] << S5M8767_ENCTRL_SHIFT;
+
 	return 0;
 }
 
@@ -547,7 +556,7 @@ static __devinit int s5m8767_pmic_probe(struct platform_device *pdev)
 	rdev = s5m8767->rdev;
 	s5m8767->dev = &pdev->dev;
 	s5m8767->iodev = iodev;
-	s5m8767->num_regulators = S5M8767_REG_MAX - 2;
+	s5m8767->num_regulators = pdata->num_regulators;
 	platform_set_drvdata(pdev, s5m8767);
 
 	s5m8767->buck_gpioindex = pdata->buck_default_idx;
