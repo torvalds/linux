@@ -90,20 +90,7 @@ static unsigned int dbx500_cpufreq_getspeed(unsigned int cpu)
 
 static int __cpuinit dbx500_cpufreq_init(struct cpufreq_policy *policy)
 {
-	int i = 0;
 	int res;
-
-	armss_clk = clk_get(NULL, "armss");
-	if (IS_ERR(armss_clk)) {
-		pr_err("dbx500-cpufreq : Failed to get armss clk\n");
-		return PTR_ERR(armss_clk);
-	}
-
-	pr_info("dbx500-cpufreq : Available frequencies:\n");
-	while (freq_table[i].frequency != CPUFREQ_TABLE_END) {
-		pr_info("  %d Mhz\n", freq_table[i].frequency/1000);
-		i++;
-	}
 
 	/* get policy fields based on the table */
 	res = cpufreq_frequency_table_cpuinfo(policy, freq_table);
@@ -111,7 +98,6 @@ static int __cpuinit dbx500_cpufreq_init(struct cpufreq_policy *policy)
 		cpufreq_frequency_table_get_attr(freq_table, policy->cpu);
 	else {
 		pr_err("dbx500-cpufreq : Failed to read policy table\n");
-		clk_put(armss_clk);
 		return res;
 	}
 
@@ -147,11 +133,24 @@ static struct cpufreq_driver dbx500_cpufreq_driver = {
 
 static int dbx500_cpufreq_probe(struct platform_device *pdev)
 {
-	freq_table = dev_get_platdata(&pdev->dev);
+	int i = 0;
 
+	freq_table = dev_get_platdata(&pdev->dev);
 	if (!freq_table) {
 		pr_err("dbx500-cpufreq: Failed to fetch cpufreq table\n");
 		return -ENODEV;
+	}
+
+	armss_clk = clk_get(&pdev->dev, "armss");
+	if (IS_ERR(armss_clk)) {
+		pr_err("dbx500-cpufreq : Failed to get armss clk\n");
+		return PTR_ERR(armss_clk);
+	}
+
+	pr_info("dbx500-cpufreq : Available frequencies:\n");
+	while (freq_table[i].frequency != CPUFREQ_TABLE_END) {
+		pr_info("  %d Mhz\n", freq_table[i].frequency/1000);
+		i++;
 	}
 
 	return cpufreq_register_driver(&dbx500_cpufreq_driver);
