@@ -22,52 +22,52 @@
 #define IPV6_DESTOPTS_HDR_OPTIONSIZE 0x8
 
 typedef struct IPV6HeaderFormatTag {
-	UCHAR  ucVersionPrio;
-	UCHAR  aucFlowLabel[3];
+	unsigned char  ucVersionPrio;
+	unsigned char  aucFlowLabel[3];
 	unsigned short usPayloadLength;
-	UCHAR  ucNextHeader;
-	UCHAR  ucHopLimit;
+	unsigned char  ucNextHeader;
+	unsigned char  ucHopLimit;
 	unsigned long  ulSrcIpAddress[4];
 	unsigned long  ulDestIpAddress[4];
 } IPV6Header;
 
 typedef struct IPV6RoutingHeaderFormatTag {
-	UCHAR ucNextHeader;
-	UCHAR ucRoutingType;
-	UCHAR ucNumAddresses;
-	UCHAR ucNextAddress;
+	unsigned char ucNextHeader;
+	unsigned char ucRoutingType;
+	unsigned char ucNumAddresses;
+	unsigned char ucNextAddress;
 	unsigned long ulReserved;
 } IPV6RoutingHeader;
 
 typedef struct IPV6FragmentHeaderFormatTag {
-	UCHAR  ucNextHeader;
-	UCHAR  ucReserved;
+	unsigned char  ucNextHeader;
+	unsigned char  ucReserved;
 	unsigned short usFragmentOffset;
 	unsigned long  ulIdentification;
 } IPV6FragmentHeader;
 
 typedef struct IPV6DestOptionsHeaderFormatTag {
-	UCHAR ucNextHeader;
-	UCHAR ucHdrExtLen;
-	UCHAR ucDestOptions[6];
+	unsigned char ucNextHeader;
+	unsigned char ucHdrExtLen;
+	unsigned char ucDestOptions[6];
 } IPV6DestOptionsHeader;
 
 typedef struct IPV6HopByHopOptionsHeaderFormatTag {
-	UCHAR ucNextHeader;
-	UCHAR ucMisc[3];
+	unsigned char ucNextHeader;
+	unsigned char ucMisc[3];
 	unsigned long ulJumboPayloadLen;
 } IPV6HopByHopOptionsHeader;
 
 typedef struct IPV6AuthenticationHeaderFormatTag {
-	UCHAR  ucNextHeader;
-	UCHAR  ucLength;
+	unsigned char  ucNextHeader;
+	unsigned char  ucLength;
 	unsigned short usReserved;
 	unsigned long  ulSecurityParametersIndex;
 } IPV6AuthenticationHeader;
 
 typedef struct IPV6IcmpHeaderFormatTag {
-	UCHAR  ucType;
-	UCHAR  ucCode;
+	unsigned char  ucType;
+	unsigned char  ucCode;
 	unsigned short usChecksum;
 } IPV6IcmpHeader;
 
@@ -86,6 +86,6 @@ VOID DumpIpv6Address(unsigned long *puIpv6Address);
 
 extern BOOLEAN MatchSrcPort(struct bcm_classifier_rule *pstClassifierRule, unsigned short ushSrcPort);
 extern BOOLEAN MatchDestPort(struct bcm_classifier_rule *pstClassifierRule, unsigned short ushSrcPort);
-extern BOOLEAN MatchProtocol(struct bcm_classifier_rule *pstClassifierRule, UCHAR ucProtocol);
+extern BOOLEAN MatchProtocol(struct bcm_classifier_rule *pstClassifierRule, unsigned char ucProtocol);
 
 #endif
