@@ -430,6 +430,8 @@ static void snd_audigy2nx_proc_read(struct snd_info_entry *entry,
 	}
 }
 
+/* ASUS Xonar U1 / U3 controls */
+
 static int snd_xonar_u1_switch_get(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
@@ -1305,8 +1307,9 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 		err = snd_ftu_create_mixer(mixer);
 		break;
 
-	case USB_ID(0x0b05, 0x1739):
-	case USB_ID(0x0b05, 0x1743):
+	case USB_ID(0x0b05, 0x1739): /* ASUS Xonar U1 */
+	case USB_ID(0x0b05, 0x1743): /* ASUS Xonar U1 (2) */
+	case USB_ID(0x0b05, 0x17a0): /* ASUS Xonar U3 */
 		err = snd_xonar_u1_controls_create(mixer);
 		break;
 
