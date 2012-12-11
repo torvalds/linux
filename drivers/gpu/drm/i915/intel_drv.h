@@ -393,6 +393,7 @@ struct intel_dp {
 struct intel_digital_port {
 	struct intel_encoder base;
 	enum port port;
+	u32 port_reversal;
 	struct intel_dp dp;
 	struct intel_hdmi hdmi;
 };
