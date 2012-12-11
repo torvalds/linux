@@ -265,8 +265,7 @@ static int fops_release(struct file *file)
 
 	DEB_EE("file:%p\n", file);
 
-	if (mutex_lock_interruptible(vdev->lock))
-		return -ERESTARTSYS;
+	mutex_lock(vdev->lock);
 
 	if (vdev->vfl_type == VFL_TYPE_VBI) {
 		if (dev->ext_vv_data->capabilities & V4L2_CAP_VBI_CAPTURE)
