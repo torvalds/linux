@@ -76,7 +76,7 @@ static UCHAR *GetNextIPV6ChainedHeader(UCHAR **ppucPayload,
 		break;
 	case IPV6HDR_TYPE_AUTHENTICATION:
 		{
-			IPV6AuthenticationHeader *pstIpv6AuthHdr = (IPV6AuthenticationHeader *)pucPayloadPtr;
+			struct bcm_ipv6_authentication_hdr *pstIpv6AuthHdr = (struct bcm_ipv6_authentication_hdr *)pucPayloadPtr;
 			int nHdrLen = pstIpv6AuthHdr->ucLength;
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
 					DBG_LVL_ALL,

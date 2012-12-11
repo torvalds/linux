@@ -58,12 +58,12 @@ typedef struct IPV6HopByHopOptionsHeaderFormatTag {
 	unsigned long ulJumboPayloadLen;
 } IPV6HopByHopOptionsHeader;
 
-typedef struct IPV6AuthenticationHeaderFormatTag {
+struct bcm_ipv6_authentication_hdr {
 	unsigned char  ucNextHeader;
 	unsigned char  ucLength;
 	unsigned short usReserved;
 	unsigned long  ulSecurityParametersIndex;
-} IPV6AuthenticationHeader;
+};
 
 enum bcm_ipaddr_context {
 	eSrcIpAddress,
