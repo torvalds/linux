@@ -136,8 +136,12 @@ ifeq ($(CONFIG_MODULE_SIG),y)
 #
 # Pull the signing certificate and any extra certificates into the kernel
 #
+
+quiet_cmd_touch = TOUCH   $@
+      cmd_touch = touch   $@
+
 extra_certificates:
-	touch $@
+	$(call cmd,touch)
 
 kernel/modsign_certificate.o: signing_key.x509 extra_certificates
 
