@@ -205,6 +205,7 @@ static const u8 NCT6775_CR_CASEOPEN_CLR_MASK[] = { 0x20, 0x01 };
 
 static const u16 NCT6775_REG_FAN[] = { 0x630, 0x632, 0x634, 0x636, 0x638 };
 static const u16 NCT6775_REG_FAN_MIN[] = { 0x3b, 0x3c, 0x3d };
+static const u16 NCT6775_REG_FAN_PULSES[] = { 0x641, 0x642, 0x643, 0x644, 0 };
 
 static const u16 NCT6775_REG_TEMP[] = {
 	0x27, 0x150, 0x250, 0x62b, 0x62c, 0x62d };
@@ -264,6 +265,7 @@ static const s8 NCT6776_ALARM_BITS[] = {
 	12, 9 };			/* intrusion0, intrusion1 */
 
 static const u16 NCT6776_REG_FAN_MIN[] = { 0x63a, 0x63c, 0x63e, 0x640, 0x642 };
+static const u16 NCT6776_REG_FAN_PULSES[] = { 0x644, 0x645, 0x646, 0, 0 };
 
 static const u16 NCT6776_REG_TEMP_CONFIG[ARRAY_SIZE(NCT6775_REG_TEMP)] = {
 	0x18, 0x152, 0x252, 0x628, 0x629, 0x62A };
@@ -319,6 +321,8 @@ static const s8 NCT6779_ALARM_BITS[] = {
 	12, 9 };			/* intrusion0, intrusion1 */
 
 static const u16 NCT6779_REG_FAN[] = { 0x4b0, 0x4b2, 0x4b4, 0x4b6, 0x4b8 };
+static const u16 NCT6779_REG_FAN_PULSES[] = {
+	0x644, 0x645, 0x646, 0x647, 0x648 };
 
 static const u16 NCT6779_REG_TEMP[] = { 0x27, 0x150 };
 static const u16 NCT6779_REG_TEMP_CONFIG[ARRAY_SIZE(NCT6779_REG_TEMP)] = {
@@ -462,6 +466,7 @@ struct nct6775_data {
 
 	const u16 *REG_FAN;
 	const u16 *REG_FAN_MIN;
+	const u16 *REG_FAN_PULSES;
 
 	const u16 *REG_TEMP_SOURCE;	/* temp register sources */
 	const u16 *REG_TEMP_OFFSET;
@@ -481,6 +486,7 @@ struct nct6775_data {
 	u8 in[15][3];		/* [0]=in, [1]=in_max, [2]=in_min */
 	unsigned int rpm[5];
 	u16 fan_min[5];
+	u8 fan_pulses[5];
 	u8 fan_div[5];
 	u8 has_fan;		/* some fan inputs can be disabled */
 	u8 has_fan_min;		/* some fans don't have min register */
@@ -802,6 +808,8 @@ static struct nct6775_data *nct6775_update_device(struct device *dev)
 			if (data->has_fan_min & (1 << i))
 				data->fan_min[i] = nct6775_read_value(data,
 					   data->REG_FAN_MIN[i]);
+			data->fan_pulses[i] =
+			  nct6775_read_value(data, data->REG_FAN_PULSES[i]);
 
 			nct6775_select_fan_div(dev, data, i, reg);
 		}
@@ -1225,6 +1233,41 @@ write_min:
 	return count;
 }
 
+static ssize_t
+show_fan_pulses(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct nct6775_data *data = nct6775_update_device(dev);
+	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
+	int p = data->fan_pulses[sattr->index];
+
+	return sprintf(buf, "%d\n", p ? : 4);
+}
+
+static ssize_t
+store_fan_pulses(struct device *dev, struct device_attribute *attr,
+		 const char *buf, size_t count)
+{
+	struct nct6775_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
+	int nr = sattr->index;
+	unsigned long val;
+	int err;
+
+	err = kstrtoul(buf, 10, &val);
+	if (err < 0)
+		return err;
+
+	if (val > 4)
+		return -EINVAL;
+
+	mutex_lock(&data->update_lock);
+	data->fan_pulses[nr] = val & 3;
+	nct6775_write_value(data, data->REG_FAN_PULSES[nr], val & 3);
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
 static struct sensor_device_attribute sda_fan_input[] = {
 	SENSOR_ATTR(fan1_input, S_IRUGO, show_fan, NULL, 0),
 	SENSOR_ATTR(fan2_input, S_IRUGO, show_fan, NULL, 1),
@@ -1252,6 +1295,19 @@ static struct sensor_device_attribute sda_fan_min[] = {
 		    store_fan_min, 3),
 	SENSOR_ATTR(fan5_min, S_IWUSR | S_IRUGO, show_fan_min,
 		    store_fan_min, 4),
+};
+
+static struct sensor_device_attribute sda_fan_pulses[] = {
+	SENSOR_ATTR(fan1_pulses, S_IWUSR | S_IRUGO, show_fan_pulses,
+		    store_fan_pulses, 0),
+	SENSOR_ATTR(fan2_pulses, S_IWUSR | S_IRUGO, show_fan_pulses,
+		    store_fan_pulses, 1),
+	SENSOR_ATTR(fan3_pulses, S_IWUSR | S_IRUGO, show_fan_pulses,
+		    store_fan_pulses, 2),
+	SENSOR_ATTR(fan4_pulses, S_IWUSR | S_IRUGO, show_fan_pulses,
+		    store_fan_pulses, 3),
+	SENSOR_ATTR(fan5_pulses, S_IWUSR | S_IRUGO, show_fan_pulses,
+		    store_fan_pulses, 4),
 };
 
 static struct sensor_device_attribute sda_fan_div[] = {
@@ -1621,6 +1677,7 @@ static void nct6775_device_remove_files(struct device *dev)
 		device_remove_file(dev, &sda_fan_alarm[i].dev_attr);
 		device_remove_file(dev, &sda_fan_div[i].dev_attr);
 		device_remove_file(dev, &sda_fan_min[i].dev_attr);
+		device_remove_file(dev, &sda_fan_pulses[i].dev_attr);
 	}
 	for (i = 0; i < NUM_TEMP; i++) {
 		if (!(data->have_temp & (1 << i)))
@@ -1809,6 +1866,7 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_IN_MINMAX[1] = NCT6775_REG_IN_MAX;
 		data->REG_FAN = NCT6775_REG_FAN;
 		data->REG_FAN_MIN = NCT6775_REG_FAN_MIN;
+		data->REG_FAN_PULSES = NCT6775_REG_FAN_PULSES;
 		data->REG_TEMP_OFFSET = NCT6775_REG_TEMP_OFFSET;
 		data->REG_TEMP_SOURCE = NCT6775_REG_TEMP_SOURCE;
 		data->REG_ALARM = NCT6775_REG_ALARM;
@@ -1843,6 +1901,7 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_IN_MINMAX[1] = NCT6775_REG_IN_MAX;
 		data->REG_FAN = NCT6775_REG_FAN;
 		data->REG_FAN_MIN = NCT6776_REG_FAN_MIN;
+		data->REG_FAN_PULSES = NCT6776_REG_FAN_PULSES;
 		data->REG_TEMP_OFFSET = NCT6775_REG_TEMP_OFFSET;
 		data->REG_TEMP_SOURCE = NCT6775_REG_TEMP_SOURCE;
 		data->REG_ALARM = NCT6775_REG_ALARM;
@@ -1877,6 +1936,7 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_IN_MINMAX[1] = NCT6775_REG_IN_MAX;
 		data->REG_FAN = NCT6779_REG_FAN;
 		data->REG_FAN_MIN = NCT6776_REG_FAN_MIN;
+		data->REG_FAN_PULSES = NCT6779_REG_FAN_PULSES;
 		data->REG_TEMP_OFFSET = NCT6779_REG_TEMP_OFFSET;
 		data->REG_TEMP_SOURCE = NCT6775_REG_TEMP_SOURCE;
 		data->REG_ALARM = NCT6779_REG_ALARM;
@@ -2094,6 +2154,10 @@ static int nct6775_probe(struct platform_device *pdev)
 				if (err)
 					goto exit_remove;
 			}
+			err = device_create_file(dev,
+						 &sda_fan_pulses[i].dev_attr);
+			if (err)
+				goto exit_remove;
 		}
 	}
 
