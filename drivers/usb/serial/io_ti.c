@@ -40,10 +40,6 @@
 #include "io_usbvend.h"
 #include "io_ti.h"
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v0.7mode043006"
 #define DRIVER_AUTHOR "Greg Kroah-Hartman <greg@kroah.com> and David Iacovelli"
 #define DRIVER_DESC "Edgeport USB Serial Driver"
 

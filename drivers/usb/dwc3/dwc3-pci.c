@@ -58,7 +58,7 @@ struct dwc3_pci {
 	struct platform_device	*usb3_phy;
 };
 
-static int __devinit dwc3_pci_register_phys(struct dwc3_pci *glue)
+static int dwc3_pci_register_phys(struct dwc3_pci *glue)
 {
 	struct nop_usb_xceiv_platform_data pdata;
 	struct platform_device	*pdev;
@@ -112,14 +112,13 @@ err1:
 	return ret;
 }
 
-static int __devinit dwc3_pci_probe(struct pci_dev *pci,
+static int dwc3_pci_probe(struct pci_dev *pci,
 		const struct pci_device_id *id)
 {
 	struct resource		res[2];
 	struct platform_device	*dwc3;
 	struct dwc3_pci		*glue;
 	int			ret = -ENOMEM;
-	int			devid;
 	struct device		*dev = &pci->dev;
 
 	glue = devm_kzalloc(dev, sizeof(*glue), GFP_KERNEL);
@@ -145,13 +144,7 @@ static int __devinit dwc3_pci_probe(struct pci_dev *pci,
 		return ret;
 	}
 
-	devid = dwc3_get_device_id();
-	if (devid < 0) {
-		ret = -ENOMEM;
-		goto err1;
-	}
-
-	dwc3 = platform_device_alloc("dwc3", devid);
+	dwc3 = platform_device_alloc("dwc3", PLATFORM_DEVID_AUTO);
 	if (!dwc3) {
 		dev_err(dev, "couldn't allocate dwc3 device\n");
 		ret = -ENOMEM;
@@ -172,7 +165,7 @@ static int __devinit dwc3_pci_probe(struct pci_dev *pci,
 	ret = platform_device_add_resources(dwc3, res, ARRAY_SIZE(res));
 	if (ret) {
 		dev_err(dev, "couldn't add resources to dwc3 device\n");
-		goto err2;
+		goto err1;
 	}
 
 	pci_set_drvdata(pci, glue);
@@ -195,23 +188,18 @@ static int __devinit dwc3_pci_probe(struct pci_dev *pci,
 err3:
 	pci_set_drvdata(pci, NULL);
 	platform_device_put(dwc3);
-
-err2:
-	dwc3_put_device_id(devid);
-
 err1:
 	pci_disable_device(pci);
 
 	return ret;
 }
 
-static void __devexit dwc3_pci_remove(struct pci_dev *pci)
+static void dwc3_pci_remove(struct pci_dev *pci)
 {
 	struct dwc3_pci	*glue = pci_get_drvdata(pci);
 
 	platform_device_unregister(glue->usb2_phy);
 	platform_device_unregister(glue->usb3_phy);
-	dwc3_put_device_id(glue->dwc3->id);
 	platform_device_unregister(glue->dwc3);
 	pci_set_drvdata(pci, NULL);
 	pci_disable_device(pci);
@@ -230,7 +218,7 @@ static struct pci_driver dwc3_pci_driver = {
 	.name		= "dwc3-pci",
 	.id_table	= dwc3_pci_id_table,
 	.probe		= dwc3_pci_probe,
-	.remove		= __devexit_p(dwc3_pci_remove),
+	.remove		= dwc3_pci_remove,
 };
 
 MODULE_AUTHOR("Felipe Balbi <balbi@ti.com>");

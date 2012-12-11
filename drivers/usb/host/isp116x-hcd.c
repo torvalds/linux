@@ -1557,7 +1557,7 @@ static int isp116x_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit isp116x_probe(struct platform_device *pdev)
+static int isp116x_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
 	struct isp116x *isp116x;
