@@ -143,7 +143,7 @@ static void intel_crt_dpms(struct drm_connector *connector, int mode)
 	int old_dpms;
 
 	/* PCH platforms and VLV only support on/off. */
-	if (INTEL_INFO(dev)->gen < 5 && mode != DRM_MODE_DPMS_ON)
+	if (INTEL_INFO(dev)->gen >= 5 && mode != DRM_MODE_DPMS_ON)
 		mode = DRM_MODE_DPMS_OFF;
 
 	if (mode == connector->dpms)
@@ -219,20 +219,7 @@ static void intel_crt_mode_set(struct drm_encoder *encoder,
 		intel_encoder_to_crt(to_intel_encoder(encoder));
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int dpll_md_reg;
-	u32 adpa, dpll_md;
-
-	dpll_md_reg = DPLL_MD(intel_crtc->pipe);
-
-	/*
-	 * Disable separate mode multiplier used when cloning SDVO to CRT
-	 * XXX this needs to be adjusted when we really are cloning
-	 */
-	if (INTEL_INFO(dev)->gen >= 4 && !HAS_PCH_SPLIT(dev)) {
-		dpll_md = I915_READ(dpll_md_reg);
-		I915_WRITE(dpll_md_reg,
-			   dpll_md & ~DPLL_MD_UDI_MULTIPLIER_MASK);
-	}
+	u32 adpa;
 
 	adpa = ADPA_HOTPLUG_BITS;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
@@ -742,7 +729,7 @@ void intel_crt_init(struct drm_device *dev)
 
 	crt->base.type = INTEL_OUTPUT_ANALOG;
 	crt->base.cloneable = true;
-	if (IS_HASWELL(dev))
+	if (IS_HASWELL(dev) || IS_I830(dev))
 		crt->base.crtc_mask = (1 << 0);
 	else
 		crt->base.crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);

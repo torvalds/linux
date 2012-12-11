@@ -795,6 +795,7 @@ static void xfer_work(struct work_struct *work)
 	dev_dbg(dev, "  %s %d (%d/ %d)\n",
 		fifo->name, usbhs_pipe_number(pipe), pkt->length, pkt->zero);
 
+	usbhs_pipe_enable(pipe);
 	usbhsf_dma_start(pipe, fifo);
 	dma_async_issue_pending(chan);
 }

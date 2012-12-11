@@ -225,6 +225,8 @@ static int  edge_get_icount(struct tty_struct *tty,
 static int  edge_startup(struct usb_serial *serial);
 static void edge_disconnect(struct usb_serial *serial);
 static void edge_release(struct usb_serial *serial);
+static int edge_port_probe(struct usb_serial_port *port);
+static int edge_port_remove(struct usb_serial_port *port);
 
 #include "io_tables.h"	/* all of the devices that this driver supports */
 
@@ -2875,10 +2877,9 @@ static void load_application_firmware(struct edgeport_serial *edge_serial)
 static int edge_startup(struct usb_serial *serial)
 {
 	struct edgeport_serial *edge_serial;
-	struct edgeport_port *edge_port;
 	struct usb_device *dev;
 	struct device *ddev = &serial->dev->dev;
-	int i, j;
+	int i;
 	int response;
 	bool interrupt_in_found;
 	bool bulk_in_found;
@@ -2960,25 +2961,6 @@ static int edge_startup(struct usb_serial *serial)
 
 	/* we set up the pointers to the endpoints in the edge_open function,
 	 * as the structures aren't created yet. */
-
-	/* set up our port private structures */
-	for (i = 0; i < serial->num_ports; ++i) {
-		edge_port = kzalloc(sizeof(struct edgeport_port), GFP_KERNEL);
-		if (edge_port == NULL) {
-			dev_err(ddev, "%s - Out of memory\n", __func__);
-			for (j = 0; j < i; ++j) {
-				kfree(usb_get_serial_port_data(serial->port[j]));
-				usb_set_serial_port_data(serial->port[j],
-									NULL);
-			}
-			usb_set_serial_data(serial, NULL);
-			kfree(edge_serial);
-			return -ENOMEM;
-		}
-		spin_lock_init(&edge_port->ep_lock);
-		edge_port->port = serial->port[i];
-		usb_set_serial_port_data(serial->port[i], edge_port);
-	}
 
 	response = 0;
 
@@ -3120,12 +3102,34 @@ static void edge_disconnect(struct usb_serial *serial)
 static void edge_release(struct usb_serial *serial)
 {
 	struct edgeport_serial *edge_serial = usb_get_serial_data(serial);
-	int i;
-
-	for (i = 0; i < serial->num_ports; ++i)
-		kfree(usb_get_serial_port_data(serial->port[i]));
 
 	kfree(edge_serial);
+}
+
+static int edge_port_probe(struct usb_serial_port *port)
+{
+	struct edgeport_port *edge_port;
+
+	edge_port = kzalloc(sizeof(*edge_port), GFP_KERNEL);
+	if (!edge_port)
+		return -ENOMEM;
+
+	spin_lock_init(&edge_port->ep_lock);
+	edge_port->port = port;
+
+	usb_set_serial_port_data(port, edge_port);
+
+	return 0;
+}
+
+static int edge_port_remove(struct usb_serial_port *port)
+{
+	struct edgeport_port *edge_port;
+
+	edge_port = usb_get_serial_port_data(port);
+	kfree(edge_port);
+
+	return 0;
 }
 
 module_usb_serial_driver(serial_drivers, id_table_combined);

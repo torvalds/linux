@@ -521,7 +521,7 @@
  */
 # define _3D_CHICKEN2_WM_READ_PIPELINED			(1 << 14)
 #define _3D_CHICKEN3	0x02090
-#define  _3D_CHICKEN_SF_DISABLE_FASTCLIP_CULL		(1 << 5)
+#define  _3D_CHICKEN3_SF_DISABLE_FASTCLIP_CULL		(1 << 5)
 
 #define MI_MODE		0x0209c
 # define VS_TIMER_DISPATCH				(1 << 6)

@@ -1348,6 +1348,7 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 					ret = -EFAULT;
 					goto error;
 				}
+				uurb->buffer += u;
 			}
 			totlen -= u;
 		}

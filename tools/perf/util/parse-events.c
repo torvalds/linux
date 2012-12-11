@@ -1,4 +1,4 @@
-#include "../../../include/linux/hw_breakpoint.h"
+#include <linux/hw_breakpoint.h>
 #include "util.h"
 #include "../perf.h"
 #include "evlist.h"
@@ -690,6 +690,9 @@ static int get_event_modifier(struct event_modifier *mod, char *str,
 			eH = 0;
 		} else if (*str == 'p') {
 			precise++;
+			/* use of precise requires exclude_guest */
+			if (!exclude_GH)
+				eG = 1;
 		} else
 			break;
 

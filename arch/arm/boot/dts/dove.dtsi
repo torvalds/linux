@@ -4,21 +4,32 @@
 	compatible = "marvell,dove";
 	model = "Marvell Armada 88AP510 SoC";
 
-	interrupt-parent = <&intc>;
-
-	intc: interrupt-controller {
-		compatible = "marvell,orion-intc";
-		interrupt-controller;
-		#interrupt-cells = <1>;
-		reg = <0xf1020204 0x04>,
-		      <0xf1020214 0x04>;
-	};
-
-	mbus@f1000000 {
+	soc@f1000000 {
 		compatible = "simple-bus";
-		ranges = <0 0xf1000000 0x4000000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
+		interrupt-parent = <&intc>;
+
+		ranges = <0xc8000000 0xc8000000 0x0100000   /* CESA SRAM   1M */
+		          0xe0000000 0xe0000000 0x8000000   /* PCIe0 Mem 128M */
+		          0xe8000000 0xe8000000 0x8000000   /* PCIe1 Mem 128M */
+		          0xf0000000 0xf0000000 0x0100000   /* ScratchPad  1M */
+		          0x00000000 0xf1000000 0x1000000   /* SB/NB regs 16M */
+		          0xf2000000 0xf2000000 0x0100000   /* PCIe0 I/O   1M */
+		          0xf2100000 0xf2100000 0x0100000   /* PCIe0 I/O   1M */
+		          0xf8000000 0xf8000000 0x8000000>; /* BootROM   128M */
+
+		l2: l2-cache {
+			compatible = "marvell,tauros2-cache";
+			marvell,tauros2-cache-features = <0>;
+		};
+
+		intc: interrupt-controller {
+			compatible = "marvell,orion-intc";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			reg = <0x20204 0x04>, <0x20214 0x04>;
+		};
 
 		uart0: serial@12000 {
 			compatible = "ns16550a";
@@ -54,11 +65,6 @@
 			interrupts = <10>;
 			clock-frequency = <166666667>;
 			status = "disabled";
-		};
-
-		wdt: wdt@20300 {
-			compatible = "marvell,orion-wdt";
-			reg = <0x20300 0x28>;
 		};
 
 		gpio0: gpio@d0400 {
@@ -138,6 +144,15 @@
 			interrupts = <62>;
 			nr-ports = <1>;
 			status = "disabled";
+		};
+
+		crypto: crypto@30000 {
+			compatible = "marvell,orion-crypto";
+			reg = <0x30000 0x10000>,
+			      <0xc8000000 0x800>;
+			reg-names = "regs", "sram";
+			interrupts = <31>;
+			status = "okay";
 		};
 	};
 };

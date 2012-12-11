@@ -219,13 +219,11 @@ nv50_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 			     ((priv->base.ram.size & 0x000000ff) << 32);
 
 	tags = nv_rd32(priv, 0x100320);
-	if (tags) {
-		ret = nouveau_mm_init(&priv->base.tags, 0, tags, 1);
-		if (ret)
-			return ret;
+	ret = nouveau_mm_init(&priv->base.tags, 0, tags, 1);
+	if (ret)
+		return ret;
 
-		nv_debug(priv, "%d compression tags\n", tags);
-	}
+	nv_debug(priv, "%d compression tags\n", tags);
 
 	size = (priv->base.ram.size >> 12) - rsvd_head - rsvd_tail;
 	switch (device->chipset) {
@@ -237,6 +235,7 @@ nv50_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 			return ret;
 
 		priv->base.ram.stolen = (u64)nv_rd32(priv, 0x100e10) << 12;
+		priv->base.ram.type = NV_MEM_TYPE_STOLEN;
 		break;
 	default:
 		ret = nouveau_mm_init(&priv->base.vram, rsvd_head, size,
@@ -277,7 +276,6 @@ nv50_fb_dtor(struct nouveau_object *object)
 		__free_page(priv->r100c08_page);
 	}
 
-	nouveau_mm_fini(&priv->base.vram);
 	nouveau_fb_destroy(&priv->base);
 }
 

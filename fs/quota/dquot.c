@@ -1160,6 +1160,8 @@ static int need_print_warning(struct dquot_warn *warn)
 			return uid_eq(current_fsuid(), warn->w_dq_id.uid);
 		case GRPQUOTA:
 			return in_group_p(warn->w_dq_id.gid);
+		case PRJQUOTA:	/* Never taken... Just make gcc happy */
+			return 0;
 	}
 	return 0;
 }

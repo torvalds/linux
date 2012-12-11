@@ -60,6 +60,7 @@ static const struct hc_driver uhci_platform_hc_driver = {
 	.hub_control =		uhci_hub_control,
 };
 
+static u64 platform_uhci_dma_mask = DMA_BIT_MASK(32);
 
 static int __devinit uhci_hcd_platform_probe(struct platform_device *pdev)
 {
@@ -70,6 +71,14 @@ static int __devinit uhci_hcd_platform_probe(struct platform_device *pdev)
 
 	if (usb_disabled())
 		return -ENODEV;
+
+	/*
+	 * Right now device-tree probed devices don't get dma_mask set.
+	 * Since shared usb code relies on it, set it here for now.
+	 * Once we have dma capability bindings this can go away.
+	 */
+	if (!pdev->dev.dma_mask)
+		pdev->dev.dma_mask = &platform_uhci_dma_mask;
 
 	hcd = usb_create_hcd(&uhci_platform_hc_driver, &pdev->dev,
 			pdev->name);

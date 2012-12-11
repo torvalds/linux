@@ -10,7 +10,7 @@
 #include <xen/interface/grant_table.h>
 
 #define pfn_to_mfn(pfn)			(pfn)
-#define phys_to_machine_mapping_valid	(1)
+#define phys_to_machine_mapping_valid(pfn) (1)
 #define mfn_to_pfn(mfn)			(mfn)
 #define mfn_to_virt(m)			(__va(mfn_to_pfn(m) << PAGE_SHIFT))
 
@@ -29,6 +29,8 @@ typedef struct xpaddr {
 
 #define XMADDR(x)	((xmaddr_t) { .maddr = (x) })
 #define XPADDR(x)	((xpaddr_t) { .paddr = (x) })
+
+#define INVALID_P2M_ENTRY      (~0UL)
 
 static inline xmaddr_t phys_to_machine(xpaddr_t phys)
 {
@@ -74,9 +76,14 @@ static inline int m2p_remove_override(struct page *page, bool clear_pte)
 	return 0;
 }
 
+static inline bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
+{
+	BUG_ON(pfn != mfn && mfn != INVALID_P2M_ENTRY);
+	return true;
+}
+
 static inline bool set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 {
-	BUG();
-	return false;
+	return __set_phys_to_machine(pfn, mfn);
 }
 #endif /* _ASM_ARM_XEN_PAGE_H */

@@ -2957,9 +2957,13 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_shinfo(skb)->nr_frags +
 			BDS_PER_TX_PKT +
 			NEXT_CNT_PER_TX_PKT(MAX_BDS_PER_TX_PKT))) {
-		bnx2x_fp_qstats(bp, txdata->parent_fp)->driver_xoff++;
-		netif_tx_stop_queue(txq);
-		BNX2X_ERR("BUG! Tx ring full when queue awake!\n");
+		/* Handle special storage cases separately */
+		if (txdata->tx_ring_size != 0) {
+			BNX2X_ERR("BUG! Tx ring full when queue awake!\n");
+			bnx2x_fp_qstats(bp, txdata->parent_fp)->driver_xoff++;
+			netif_tx_stop_queue(txq);
+		}
+
 		return NETDEV_TX_BUSY;
 	}
 

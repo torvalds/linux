@@ -2373,15 +2373,9 @@ int intel_enable_rc6(const struct drm_device *dev)
 	if (i915_enable_rc6 >= 0)
 		return i915_enable_rc6;
 
-	if (INTEL_INFO(dev)->gen == 5) {
-#ifdef CONFIG_INTEL_IOMMU
-		/* Disable rc6 on ilk if VT-d is on. */
-		if (intel_iommu_gfx_mapped)
-			return false;
-#endif
-		DRM_DEBUG_DRIVER("Ironlake: only RC6 available\n");
-		return INTEL_RC6_ENABLE;
-	}
+	/* Disable RC6 on Ironlake */
+	if (INTEL_INFO(dev)->gen == 5)
+		return 0;
 
 	if (IS_HASWELL(dev)) {
 		DRM_DEBUG_DRIVER("Haswell: only RC6 available\n");
@@ -3442,8 +3436,8 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 		   GEN6_RCCUNIT_CLOCK_GATE_DISABLE);
 
 	/* Bspec says we need to always set all mask bits. */
-	I915_WRITE(_3D_CHICKEN, (0xFFFF << 16) |
-		   _3D_CHICKEN_SF_DISABLE_FASTCLIP_CULL);
+	I915_WRITE(_3D_CHICKEN3, (0xFFFF << 16) |
+		   _3D_CHICKEN3_SF_DISABLE_FASTCLIP_CULL);
 
 	/*
 	 * According to the spec the following bits should be

@@ -580,6 +580,7 @@ retry:
 	if (unlikely(ret != 0))
 		return ret;
 
+retry_reserve:
 	spin_lock(&glob->lru_lock);
 
 	if (unlikely(list_empty(&bo->ddestroy))) {
@@ -587,13 +588,19 @@ retry:
 		return 0;
 	}
 
-	ret = ttm_bo_reserve_locked(bo, interruptible,
-				    no_wait_reserve, false, 0);
+	ret = ttm_bo_reserve_locked(bo, false, true, false, 0);
 
-	if (unlikely(ret != 0)) {
+	if (unlikely(ret == -EBUSY)) {
 		spin_unlock(&glob->lru_lock);
-		return ret;
+		if (likely(!no_wait_reserve))
+			ret = ttm_bo_wait_unreserved(bo, interruptible);
+		if (unlikely(ret != 0))
+			return ret;
+
+		goto retry_reserve;
 	}
+
+	BUG_ON(ret != 0);
 
 	/**
 	 * We can re-check for sync object without taking
@@ -811,17 +818,14 @@ retry:
 					  no_wait_reserve, no_wait_gpu);
 		kref_put(&bo->list_kref, ttm_bo_release_list);
 
-		if (likely(ret == 0 || ret == -ERESTARTSYS))
-			return ret;
-
-		goto retry;
+		return ret;
 	}
 
-	ret = ttm_bo_reserve_locked(bo, false, no_wait_reserve, false, 0);
+	ret = ttm_bo_reserve_locked(bo, false, true, false, 0);
 
 	if (unlikely(ret == -EBUSY)) {
 		spin_unlock(&glob->lru_lock);
-		if (likely(!no_wait_gpu))
+		if (likely(!no_wait_reserve))
 			ret = ttm_bo_wait_unreserved(bo, interruptible);
 
 		kref_put(&bo->list_kref, ttm_bo_release_list);

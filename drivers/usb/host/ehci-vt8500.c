@@ -85,6 +85,8 @@ static const struct hc_driver vt8500_ehci_hc_driver = {
 	.clear_tt_buffer_complete	= ehci_clear_tt_buffer_complete,
 };
 
+static u64 vt8500_ehci_dma_mask = DMA_BIT_MASK(32);
+
 static int vt8500_ehci_drv_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
@@ -94,6 +96,14 @@ static int vt8500_ehci_drv_probe(struct platform_device *pdev)
 
 	if (usb_disabled())
 		return -ENODEV;
+
+	/*
+	 * Right now device-tree probed devices don't get dma_mask set.
+	 * Since shared usb code relies on it, set it here for now.
+	 * Once we have dma capability bindings this can go away.
+	 */
+	if (!pdev->dev.dma_mask)
+		pdev->dev.dma_mask = &vt8500_ehci_dma_mask;
 
 	if (pdev->resource[1].flags != IORESOURCE_IRQ) {
 		pr_debug("resource[1] is not IORESOURCE_IRQ");

@@ -1200,7 +1200,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	btrfs_i_size_write(parent_inode, parent_inode->i_size +
 					 dentry->d_name.len * 2);
 	parent_inode->i_mtime = parent_inode->i_ctime = CURRENT_TIME;
-	ret = btrfs_update_inode(trans, parent_root, parent_inode);
+	ret = btrfs_update_inode_fallback(trans, parent_root, parent_inode);
 	if (ret)
 		btrfs_abort_transaction(trans, root, ret);
 fail:

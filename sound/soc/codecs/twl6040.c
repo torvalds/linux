@@ -820,10 +820,10 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"VIBRA DAC", NULL, "Vibra Playback"},
 
 	/* ADC -> Stream mapping */
-	{"ADC Left", NULL, "Legacy Capture"},
-	{"ADC Left", NULL, "Capture"},
-	{"ADC Right", NULL, "Legacy Capture"},
-	{"ADC Right", NULL, "Capture"},
+	{"Legacy Capture" , NULL, "ADC Left"},
+	{"Capture", NULL, "ADC Left"},
+	{"Legacy Capture", NULL, "ADC Right"},
+	{"Capture" , NULL, "ADC Right"},
 
 	/* Capture path */
 	{"Analog Left Capture Route", "Headset Mic", "HSMIC"},

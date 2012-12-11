@@ -1322,9 +1322,7 @@ EXPORT_SYMBOL_GPL(kvm_release_page_clean);
 
 void kvm_release_pfn_clean(pfn_t pfn)
 {
-	WARN_ON(is_error_pfn(pfn));
-
-	if (!kvm_is_mmio_pfn(pfn))
+	if (!is_error_pfn(pfn) && !kvm_is_mmio_pfn(pfn))
 		put_page(pfn_to_page(pfn));
 }
 EXPORT_SYMBOL_GPL(kvm_release_pfn_clean);

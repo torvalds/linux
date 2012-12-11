@@ -251,6 +251,8 @@ struct adapter_params {
 	unsigned char rev;                /* chip revision */
 	unsigned char offload;
 
+	unsigned char bypass;
+
 	unsigned int ofldq_wr_cred;
 };
 
@@ -641,6 +643,23 @@ extern int dbfifo_int_thresh;
 
 #define for_each_port(adapter, iter) \
 	for (iter = 0; iter < (adapter)->params.nports; ++iter)
+
+static inline int is_bypass(struct adapter *adap)
+{
+	return adap->params.bypass;
+}
+
+static inline int is_bypass_device(int device)
+{
+	/* this should be set based upon device capabilities */
+	switch (device) {
+	case 0x440b:
+	case 0x440c:
+		return 1;
+	default:
+		return 0;
+	}
+}
 
 static inline unsigned int core_ticks_per_usec(const struct adapter *adap)
 {
