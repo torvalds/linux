@@ -207,11 +207,12 @@ static bool ixgbe_vfs_are_assigned(struct ixgbe_adapter *adapter)
 }
 
 #endif /* #ifdef CONFIG_PCI_IOV */
-void ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
+int ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 gpie;
 	u32 vmdctl;
+	int rss;
 
 	/* set num VFs to 0 to prevent access to vfinfo */
 	adapter->num_vfs = 0;
@@ -226,7 +227,7 @@ void ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 
 	/* if SR-IOV is already disabled then there is nothing to do */
 	if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED))
-		return;
+		return 0;
 
 #ifdef CONFIG_PCI_IOV
 	/*
@@ -236,7 +237,7 @@ void ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 	 */
 	if (ixgbe_vfs_are_assigned(adapter)) {
 		e_dev_warn("Unloading driver while VFs are assigned - VFs will not be deallocated\n");
-		return;
+		return -EPERM;
 	}
 	/* disable iov and allow time for transactions to clear */
 	pci_disable_sriov(adapter->pdev);
@@ -259,10 +260,94 @@ void ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 		adapter->flags &= ~IXGBE_FLAG_VMDQ_ENABLED;
 	adapter->ring_feature[RING_F_VMDQ].offset = 0;
 
+	rss = min_t(int, IXGBE_MAX_RSS_INDICES, num_online_cpus());
+	adapter->ring_feature[RING_F_RSS].limit = rss;
+
 	/* take a breather then clean up driver data */
 	msleep(100);
 
 	adapter->flags &= ~IXGBE_FLAG_SRIOV_ENABLED;
+	return 0;
+}
+
+static int ixgbe_pci_sriov_enable(struct pci_dev *dev, int num_vfs)
+{
+#ifdef CONFIG_PCI_IOV
+	struct ixgbe_adapter *adapter = pci_get_drvdata(dev);
+	int err = 0;
+	int i;
+	int pre_existing_vfs = pci_num_vf(dev);
+
+	if (pre_existing_vfs && pre_existing_vfs != num_vfs)
+		err = ixgbe_disable_sriov(adapter);
+	else if (pre_existing_vfs && pre_existing_vfs == num_vfs)
+		goto out;
+
+	if (err)
+		goto err_out;
+
+	/* While the SR-IOV capability structure reports total VFs to be
+	 * 64 we limit the actual number that can be allocated to 63 so
+	 * that some transmit/receive resources can be reserved to the
+	 * PF.  The PCI bus driver already checks for other values out of
+	 * range.
+	 */
+	if (num_vfs > 63) {
+		err = -EPERM;
+		goto err_out;
+	}
+
+	adapter->num_vfs = num_vfs;
+
+	err = __ixgbe_enable_sriov(adapter);
+	if (err)
+		goto err_out;
+
+	for (i = 0; i < adapter->num_vfs; i++)
+		ixgbe_vf_configuration(dev, (i | 0x10000000));
+
+	err = pci_enable_sriov(dev, num_vfs);
+	if (err) {
+		e_dev_warn("Failed to enable PCI sriov: %d\n", err);
+		goto err_out;
+	}
+	ixgbe_sriov_reinit(adapter);
+
+out:
+	return num_vfs;
+
+err_out:
+	return err;
+#endif
+	return 0;
+}
+
+static int ixgbe_pci_sriov_disable(struct pci_dev *dev)
+{
+	struct ixgbe_adapter *adapter = pci_get_drvdata(dev);
+	int err;
+	u32 current_flags = adapter->flags;
+
+	err = ixgbe_disable_sriov(adapter);
+
+	/* Only reinit if no error and state changed */
+	if (!err && current_flags != adapter->flags) {
+		/* ixgbe_disable_sriov() doesn't clear VMDQ flag */
+		adapter->flags &= ~IXGBE_FLAG_VMDQ_ENABLED;
+#ifdef CONFIG_PCI_IOV
+		ixgbe_sriov_reinit(adapter);
+#endif
+	}
+
+	return err;
+}
+
+int ixgbe_pci_sriov_configure(struct pci_dev *dev, int num_vfs)
+{
+	if (num_vfs == 0)
+		return ixgbe_pci_sriov_disable(dev);
+	else
+		return ixgbe_pci_sriov_enable(dev, num_vfs);
 }
 
 static int ixgbe_set_vf_multicasts(struct ixgbe_adapter *adapter,
