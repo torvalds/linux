@@ -65,8 +65,8 @@ extern int user_path_at_empty(int, const char __user *, unsigned, struct path *,
 
 extern int kern_path(const char *, unsigned, struct path *);
 
-extern struct dentry *kern_path_create(int, const char *, struct path *, int);
-extern struct dentry *user_path_create(int, const char __user *, struct path *, int);
+extern struct dentry *kern_path_create(int, const char *, struct path *, unsigned int);
+extern struct dentry *user_path_create(int, const char __user *, struct path *, unsigned int);
 extern void done_path_create(struct path *, struct dentry *);
 extern struct dentry *kern_path_locked(const char *, struct path *);
 extern int vfs_path_lookup(struct dentry *, struct vfsmount *,

@@ -3030,12 +3030,22 @@ struct file *do_file_open_root(struct dentry *dentry, struct vfsmount *mnt,
 	return file;
 }
 
-struct dentry *kern_path_create(int dfd, const char *pathname, struct path *path, int is_dir)
+struct dentry *kern_path_create(int dfd, const char *pathname,
+				struct path *path, unsigned int lookup_flags)
 {
 	struct dentry *dentry = ERR_PTR(-EEXIST);
 	struct nameidata nd;
 	int err2;
-	int error = do_path_lookup(dfd, pathname, LOOKUP_PARENT, &nd);
+	int error;
+	bool is_dir = (lookup_flags & LOOKUP_DIRECTORY);
+
+	/*
+	 * Note that only LOOKUP_REVAL and LOOKUP_DIRECTORY matter here. Any
+	 * other flags passed in are ignored!
+	 */
+	lookup_flags &= LOOKUP_REVAL;
+
+	error = do_path_lookup(dfd, pathname, LOOKUP_PARENT|lookup_flags, &nd);
 	if (error)
 		return ERR_PTR(error);
 
@@ -3099,13 +3109,14 @@ void done_path_create(struct path *path, struct dentry *dentry)
 }
 EXPORT_SYMBOL(done_path_create);
 
-struct dentry *user_path_create(int dfd, const char __user *pathname, struct path *path, int is_dir)
+struct dentry *user_path_create(int dfd, const char __user *pathname,
+				struct path *path, unsigned int lookup_flags)
 {
 	struct filename *tmp = getname(pathname);
 	struct dentry *res;
 	if (IS_ERR(tmp))
 		return ERR_CAST(tmp);
-	res = kern_path_create(dfd, tmp->name, path, is_dir);
+	res = kern_path_create(dfd, tmp->name, path, lookup_flags);
 	putname(tmp);
 	return res;
 }
@@ -3228,7 +3239,7 @@ SYSCALL_DEFINE3(mkdirat, int, dfd, const char __user *, pathname, umode_t, mode)
 	struct path path;
 	int error;
 
-	dentry = user_path_create(dfd, pathname, &path, 1);
+	dentry = user_path_create(dfd, pathname, &path, LOOKUP_DIRECTORY);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
