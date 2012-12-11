@@ -77,6 +77,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_Flip          0
 #ifdef CONFIG_OV5642_AUTOFOCUS
 #define CONFIG_SENSOR_Focus         1
+#define CONFIG_SENSOR_FocusContinues          0
 #include "ov5642_af_firmware.c"
 #else
 #define CONFIG_SENSOR_Focus         0
@@ -3242,7 +3243,9 @@ static  struct v4l2_queryctrl sensor_controls[] =
         .maximum	= 1,
         .step		= 1,
         .default_value = 0,
-    },{
+    },
+    #if CONFIG_SENSOR_FocusContinues
+    {
         .id		= V4L2_CID_FOCUS_CONTINUOUS,
         .type		= V4L2_CTRL_TYPE_BOOLEAN,
         .name		= "Focus Control",
@@ -3251,6 +3254,7 @@ static  struct v4l2_queryctrl sensor_controls[] =
         .step		= 1,
         .default_value = 0,
     },
+    #endif
     #endif
 
 	#if CONFIG_SENSOR_Flash
@@ -4051,14 +4055,12 @@ static int sensor_af_workqueue_set(struct soc_camera_device *icd, enum sensor_wq
     wk = kzalloc(sizeof(struct sensor_work), GFP_KERNEL);
     if (wk) {
 	    wk->client = client;
-	    INIT_WORK(&(wk->dwork.work), sensor_af_workqueue);
+	    INIT_DELAYED_WORK(&wk->dwork, sensor_af_workqueue);
         wk->cmd = cmd;
         wk->result = WqRet_inval;
         wk->wait = wait;
         wk->var = var;
         init_waitqueue_head(&wk->done);
-        
-	    queue_delayed_work(sensor->sensor_wq,&(wk->dwork),0);
         
         /* ddl@rock-chips.com: 
         * video_lock is been locked in v4l2_ioctl function, but auto focus may slow,
@@ -4067,14 +4069,17 @@ static int sensor_af_workqueue_set(struct soc_camera_device *icd, enum sensor_wq
         * and VIDIOC_DQBUF is sched. so unlock video_lock here.
         */
         if (wait == true) {
+            queue_delayed_work(sensor->sensor_wq,&(wk->dwork),0);
             mutex_unlock(&icd->video_lock);                     
-            if (wait_event_timeout(wk->done, (wk->result != WqRet_inval), msecs_to_jiffies(2500)) == 0) {
+            if (wait_event_timeout(wk->done, (wk->result != WqRet_inval), msecs_to_jiffies(5000)) == 0) {
                 SENSOR_TR("%s %s cmd(%d) is timeout!",SENSOR_NAME_STRING(),__FUNCTION__,cmd);                        
             }
 			flush_workqueue(sensor->sensor_wq);
             ret = wk->result;
             kfree((void*)wk);
             mutex_lock(&icd->video_lock);  
+        } else {
+            queue_delayed_work(sensor->sensor_wq,&(wk->dwork),msecs_to_jiffies(10));
         }
         
     } else {
@@ -4831,7 +4836,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
             #if CONFIG_SENSOR_Focus   
             if (sensor->info_priv.auto_focus != SENSOR_AF_MODE_INFINITY) { 
                 /* ddl@rock-chips.com: The af operation is not necessary, if user don't care whether in focus after preview*/
-                if (sensor_af_workqueue_set(icd, WqCmd_af_update_zone,0,true) == 0) {
+                if (sensor_af_workqueue_set(icd, WqCmd_af_update_zone,0,false) == 0) {
                     if (sensor->info_priv.auto_focus == SENSOR_AF_MODE_CONTINUOUS) {
                         sensor_af_workqueue_set(icd, WqCmd_af_continues,0,false);
             		} else if (sensor->info_priv.auto_focus == SENSOR_AF_MODE_AUTO) {
@@ -5704,14 +5709,17 @@ static int sensor_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
             }
 		case V4L2_CID_FOCUS_AUTO:
 			{
-				if (ext_ctrl->value == 1) {
-					if (sensor_set_focus_mode(icd, qctrl,SENSOR_AF_MODE_AUTO) != 0) {
-						if(0 == (sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK)) {
-							sensor->info_priv.auto_focus = SENSOR_AF_MODE_AUTO;
-						}
-						return -EINVAL;
-					}
-					sensor->info_priv.auto_focus = SENSOR_AF_MODE_AUTO;
+				if (ext_ctrl->value) {
+                    if ((ext_ctrl->value==1) || (SENSOR_AF_MODE_AUTO == sensor->info_priv.auto_focus)) {
+    					if (sensor_set_focus_mode(icd, qctrl,SENSOR_AF_MODE_AUTO) != 0) {
+    						if(0 == (sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK)) {
+    							sensor->info_priv.auto_focus = SENSOR_AF_MODE_AUTO;
+    						}
+    						return -EINVAL;
+    					}
+                    }
+                    if (ext_ctrl->value == 1)
+					    sensor->info_priv.auto_focus = SENSOR_AF_MODE_AUTO;
 				} else if (SENSOR_AF_MODE_AUTO == sensor->info_priv.auto_focus){
 					if (ext_ctrl->value == 0)
 						sensor->info_priv.auto_focus = SENSOR_AF_MODE_CLOSE;

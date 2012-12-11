@@ -69,6 +69,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #ifdef CONFIG_OV5640_AUTOFOCUS
 #define CONFIG_SENSOR_Focus         1
 #define CONFIG_SENSOR_FocusCenterInCapture    0
+#define CONFIG_SENSOR_FocusContinues          0
 #include "ov5640_af_firmware.c"
 #else
 #define CONFIG_SENSOR_Focus         0
@@ -112,6 +113,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SENSOR_AF_MODE_CLOSE       5*/
 #define SENSOR_AF_MODE_AUTO        0
 #define SENSOR_AF_MODE_CLOSE       1
+#define SENSOR_AF_MODE_CONTINUOUS  2
 #endif
 
 #if CONFIG_SENSOR_Focus
@@ -204,7 +206,7 @@ static struct reginfo sensor_init_data[] =
 	{0x3034, 0x1a},
 	{0x3035, 0x21},
 	{0x3036, 0x46},
-	{0x3037, 0x03},
+	{0x3037, 0x12},
 	{0x3108, 0x01},
 	{0x3630, 0x36},
 	{0x3631, 0x0e},
@@ -449,7 +451,7 @@ static struct reginfo sensor_init_data[] =
 	{0x3a11, 0x60},
 	{0x3a1f, 0x14},
 	{0x3008, 0x02},
-	
+	{0x302c, 0xc2},
 	{SEQUENCE_END, 0x00}
 };
 
@@ -1440,7 +1442,9 @@ static  struct v4l2_queryctrl sensor_controls[] =
         .maximum	= 1,
         .step		= 1,
         .default_value = 0,
-    },/*{
+    },
+    #if CONFIG_SENSOR_FocusContinues
+    {
         .id		= V4L2_CID_FOCUS_CONTINUOUS,
         .type		= V4L2_CTRL_TYPE_BOOLEAN,
         .name		= "Focus Control",
@@ -1448,7 +1452,8 @@ static  struct v4l2_queryctrl sensor_controls[] =
         .maximum	= 1,
         .step		= 1,
         .default_value = 0,
-    },*/
+    },
+    #endif
     #endif
 
 	#if CONFIG_SENSOR_Flash
@@ -1906,7 +1911,7 @@ static int sensor_af_cmdset(struct i2c_client *client, int cmd_main, struct af_c
 		}
 		
 	} else {
-		if (sensor_write(client, CMD_ACK_Reg, 0xff)) {
+		if (sensor_write(client, CMD_ACK_Reg, 0x01)) {
 			SENSOR_TR("%s write CMD_ACK_Reg(main:0x%x no tag) error!\n",SENSOR_NAME_STRING(),cmd_main);
 			goto sensor_af_cmdset_err;
 		}
@@ -1974,17 +1979,17 @@ static int sensor_af_touch_zone(struct i2c_client *client, int *zone_center_pos)
 	cmdinfo.validate_bit = 0x83;
     if (zone_center_pos[0]<=8)
         cmdinfo.cmd_para[0] = 0;
-    else if ((zone_center_pos[0]>8) && (zone_center_pos[0]<64))
+    else if ((zone_center_pos[0]>8) && (zone_center_pos[0]<72))
         cmdinfo.cmd_para[0] = zone_center_pos[0]-8;
     else 
-        cmdinfo.cmd_para[0] = 64; 
+        cmdinfo.cmd_para[0] = 72; 
     
     if (zone_center_pos[1]<=6)
         cmdinfo.cmd_para[1] = 0;
-    else if ((zone_center_pos[1]>6) && (zone_center_pos[1]<48))
+    else if ((zone_center_pos[1]>6) && (zone_center_pos[1]<54))
         cmdinfo.cmd_para[1] = zone_center_pos[1]-6;
     else 
-        cmdinfo.cmd_para[1] = 48;
+        cmdinfo.cmd_para[1] = 54;
     
     ret = sensor_af_cmdset(client, TouchZoneConfig_Cmd, &cmdinfo);
 	if(0 != ret) {
@@ -2000,6 +2005,7 @@ static int sensor_af_single(struct i2c_client *client)
 	int ret = 0;
 	char state,cnt;
 	struct af_cmdinfo cmdinfo;
+    char s_zone[5],i;
     
 	cmdinfo.cmd_tag = 0x01;
 	cmdinfo.validate_bit = 0x80;
@@ -2029,8 +2035,9 @@ static int sensor_af_single(struct i2c_client *client)
         SENSOR_TR("%s[%d] focus state(0x%x) is error!\n",SENSOR_NAME_STRING(),__LINE__,state);
 		ret = -1;
 		goto sensor_af_single_end;
-    }
-
+    } else {
+        SENSOR_DG("%s[%d] single focus mode set success!\n",SENSOR_NAME_STRING(),__LINE__);    
+	}
 sensor_af_single_end:
 	return ret;
 }
@@ -2038,11 +2045,35 @@ sensor_af_single_end:
 static int sensor_af_const(struct i2c_client *client)
 {
 	int ret = 0;
+	struct af_cmdinfo cmdinfo;
 
-
+    
+	cmdinfo.cmd_tag = 0x01;
+    cmdinfo.cmd_para[0] = 0x00;
+	cmdinfo.validate_bit = 0x81;
+    
+	if (sensor_af_cmdset(client, ConstFocus_Cmd, &cmdinfo)) {
+		SENSOR_TR("%s[%d] const focus mode set error!\n",SENSOR_NAME_STRING(),__LINE__);
+		ret = -1;
+		goto sensor_af_const_end;
+	} else {
+        SENSOR_DG("%s[%d] const focus mode set success!\n",SENSOR_NAME_STRING(),__LINE__);    
+	}
+sensor_af_const_end:
 	return ret;
 }
-
+static int sensor_af_pause2capture(struct i2c_client *client)
+{
+	int ret = 0; 
+    
+	if (sensor_af_cmdset(client, PauseFocus_Cmd, NULL)) {
+		SENSOR_TR("%s pause focus mode set error!\n",SENSOR_NAME_STRING());
+		ret = -1;
+		goto sensor_af_pause_end;
+	}
+sensor_af_pause_end:
+	return ret;
+}
 
 static int sensor_af_init(struct i2c_client *client)
 {
@@ -2116,6 +2147,11 @@ static int sensor_af_downfirmware(struct i2c_client *client)
     				ret = 0;
     				break;
     			}
+                case SENSOR_AF_MODE_CONTINUOUS:
+                {
+                    ret = sensor_af_const(client);
+                    break;
+                }
     			default:
                 {
     				SENSOR_DG("%s focus mode(0x%x) is unkonwn\n",SENSOR_NAME_STRING(),sensor->info_priv.auto_focus);
@@ -2251,7 +2287,7 @@ static int sensor_af_workqueue_set(struct soc_camera_device *icd, enum sensor_wq
     wk = kzalloc(sizeof(struct sensor_work), GFP_KERNEL);
     if (wk) {
 	    wk->client = client;
-	    INIT_WORK(&(wk->dwork.work), sensor_af_workqueue);
+	    INIT_DELAYED_WORK(&wk->dwork, sensor_af_workqueue);
         wk->cmd = cmd;
         wk->result = WqRet_inval;
         wk->wait = wait;
@@ -2277,9 +2313,7 @@ static int sensor_af_workqueue_set(struct soc_camera_device *icd, enum sensor_wq
         }
         
         init_waitqueue_head(&wk->done);
-        
-	    queue_delayed_work(sensor->sensor_wq,&(wk->dwork),0);
-        
+            
         /* ddl@rock-chips.com: 
         * video_lock is been locked in v4l2_ioctl function, but auto focus may slow,
         * As a result any other ioctl calls will proceed very, very slowly since each call
@@ -2287,6 +2321,7 @@ static int sensor_af_workqueue_set(struct soc_camera_device *icd, enum sensor_wq
         * and VIDIOC_DQBUF is sched. so unlock video_lock here.
         */
         if (wait == true) {
+            queue_delayed_work(sensor->sensor_wq,&(wk->dwork),0);
             mutex_unlock(&icd->video_lock);
             if (wait_event_timeout(wk->done, (wk->result != WqRet_inval), msecs_to_jiffies(5000)) == 0) {  //hhb
                 SENSOR_TR("%s %s cmd(%d) is timeout!\n",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
@@ -2294,6 +2329,8 @@ static int sensor_af_workqueue_set(struct soc_camera_device *icd, enum sensor_wq
             ret = wk->result;
             kfree((void*)wk);
             mutex_lock(&icd->video_lock);  
+        } else {
+            queue_delayed_work(sensor->sensor_wq,&(wk->dwork),msecs_to_jiffies(10));
         }
         
     } else {
@@ -2834,11 +2871,10 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,struct v4l2_mbus_framefmt *mf)
     {
 		if (sensor_fmt_capturechk(sd,mf) == true) {					/* ddl@rock-chips.com : Capture */
 			sensor_parameter_record(client);
-		/*#if CONFIG_SENSOR_Focus
-			sensor_af_idlechk(client);
+		#if CONFIG_SENSOR_Focus			
 			if (sensor->info_priv.auto_focus == SENSOR_AF_MODE_CONTINUOUS)
-				sensor_af_cmdset(client, PauseFocus_Cmd, NULL);
-		#endif*/
+				sensor_af_pause2capture(client);
+		#endif
 		#if CONFIG_SENSOR_Flash
             if ((sensor->info_priv.flash == 1) || (sensor->info_priv.flash == 2)) {
                 sensor_ioctrl(icd, Sensor_Flash, Flash_On);
@@ -2902,12 +2938,14 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,struct v4l2_mbus_framefmt *mf)
 				qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_DO_WHITE_BALANCE);
 				sensor_set_whiteBalance(icd, qctrl,sensor->info_priv.whiteBalance);
 			}
-            #if CONFIG_SENSOR_Focus
-            if (sensor->info_priv.auto_focus == SENSOR_AF_MODE_AUTO) {
-                sensor_af_workqueue_set(icd,WqCmd_af_return_idle,0,true,NULL);
-                msleep(200);
-            } else {
+            #if CONFIG_SENSOR_Focus            
+            if (sensor->info_priv.auto_focus == SENSOR_AF_MODE_CLOSE) {
                 msleep(500);
+            } else {
+                sensor_af_workqueue_set(icd,WqCmd_af_return_idle,0,false,NULL);
+                if (sensor->info_priv.auto_focus == SENSOR_AF_MODE_CONTINUOUS) {
+                    sensor_af_workqueue_set(icd,WqCmd_af_continues,0,false,NULL); 
+                }
             }
             #else   
             msleep(500);
@@ -3379,12 +3417,12 @@ static int sensor_set_focus_mode(struct soc_camera_device *icd, const struct v4l
 				ret = sensor_set_focus_absolute(icd, qctrl, 0x00);
 				break;
 			}
-			
+			*/
 			case SENSOR_AF_MODE_CONTINUOUS:
 			{
 				ret = sensor_af_workqueue_set(icd, WqCmd_af_continues, 0, true,NULL);
 				break;
-			}*/
+			}
 			default:
 				SENSOR_TR("\n %s..%s AF value(0x%x) is error!\n",SENSOR_NAME_STRING(),__FUNCTION__,value);
 				break;
@@ -3740,32 +3778,39 @@ static int sensor_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
             }
 		case V4L2_CID_FOCUS_AUTO:
 			{
-				if (ext_ctrl->value == 1) {
-					if (sensor_set_focus_mode(icd, qctrl,SENSOR_AF_MODE_AUTO,ext_ctrl->rect) != 0) {
-						if(0 == (sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK)) {
-							sensor->info_priv.auto_focus = SENSOR_AF_MODE_AUTO;
-						}
-						return -EINVAL;
-					}
-					sensor->info_priv.auto_focus = SENSOR_AF_MODE_AUTO;
+				if (ext_ctrl->value) {
+                    if ((ext_ctrl->value==1) || (SENSOR_AF_MODE_AUTO == sensor->info_priv.auto_focus)) {
+    					if (sensor_set_focus_mode(icd, qctrl,SENSOR_AF_MODE_AUTO,ext_ctrl->rect) != 0) {
+    						if(0 == (sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK)) {
+    							sensor->info_priv.auto_focus = SENSOR_AF_MODE_AUTO;
+    						}
+    						return -EINVAL;
+    					}
+                    }
+                    if (ext_ctrl->value == 1)
+					    sensor->info_priv.auto_focus = SENSOR_AF_MODE_AUTO;
 				} else if (SENSOR_AF_MODE_AUTO == sensor->info_priv.auto_focus){
 					if (ext_ctrl->value == 0)
 						sensor->info_priv.auto_focus = SENSOR_AF_MODE_CLOSE;
-				}
+				} 
 				break;
 			}
 		case V4L2_CID_FOCUS_CONTINUOUS:
 			{
-				/*if (SENSOR_AF_MODE_CONTINUOUS != sensor->info_priv.auto_focus) {
+				if (SENSOR_AF_MODE_CONTINUOUS != sensor->info_priv.auto_focus) {
 					if (ext_ctrl->value == 1) {
-						if (sensor_set_focus_mode(icd, qctrl,SENSOR_AF_MODE_CONTINUOUS) != 0)
-							return -EINVAL;
+						if (sensor_set_focus_mode(icd, qctrl,SENSOR_AF_MODE_CONTINUOUS,NULL) != 0) {
+    						if(0 == (sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK)) {
+    							sensor->info_priv.auto_focus = SENSOR_AF_MODE_CONTINUOUS;
+    						}
+    						return -EINVAL;
+						}
 						sensor->info_priv.auto_focus = SENSOR_AF_MODE_CONTINUOUS;
 					}
 				} else {
 					if (ext_ctrl->value == 0)
 						sensor->info_priv.auto_focus = SENSOR_AF_MODE_CLOSE;
-				}*/
+				}
 				break;
 			}
 #endif
@@ -4085,7 +4130,7 @@ static int sensor_probe(struct i2c_client *client,
 		sensor = NULL;
     } else {
 		#if CONFIG_SENSOR_Focus
-		sensor->sensor_wq = create_workqueue(SENSOR_NAME_STRING(_af_workqueue));
+		sensor->sensor_wq = create_singlethread_workqueue(SENSOR_NAME_STRING(_af_workqueue));
 		if (sensor->sensor_wq == NULL)
 			SENSOR_TR("%s create fail!", SENSOR_NAME_STRING(_af_workqueue));
 		mutex_init(&sensor->wq_lock);
