@@ -284,8 +284,8 @@ struct bnad {
 	u8			tx_coalescing_timeo;
 	u8			rx_coalescing_timeo;
 
-	struct bna_rx_config rx_config[BNAD_MAX_RX];
-	struct bna_tx_config tx_config[BNAD_MAX_TX];
+	struct bna_rx_config rx_config[BNAD_MAX_RX] ____cacheline_aligned;
+	struct bna_tx_config tx_config[BNAD_MAX_TX] ____cacheline_aligned;
 
 	void __iomem		*bar0;	/* BAR0 address */
 
