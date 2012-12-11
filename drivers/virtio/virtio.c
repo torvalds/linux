@@ -10,33 +10,32 @@ static DEFINE_IDA(virtio_index_ida);
 static ssize_t device_show(struct device *_d,
 			   struct device_attribute *attr, char *buf)
 {
-	struct virtio_device *dev = container_of(_d,struct virtio_device,dev);
+	struct virtio_device *dev = dev_to_virtio(_d);
 	return sprintf(buf, "0x%04x\n", dev->id.device);
 }
 static ssize_t vendor_show(struct device *_d,
 			   struct device_attribute *attr, char *buf)
 {
-	struct virtio_device *dev = container_of(_d,struct virtio_device,dev);
+	struct virtio_device *dev = dev_to_virtio(_d);
 	return sprintf(buf, "0x%04x\n", dev->id.vendor);
 }
 static ssize_t status_show(struct device *_d,
 			   struct device_attribute *attr, char *buf)
 {
-	struct virtio_device *dev = container_of(_d,struct virtio_device,dev);
+	struct virtio_device *dev = dev_to_virtio(_d);
 	return sprintf(buf, "0x%08x\n", dev->config->get_status(dev));
 }
 static ssize_t modalias_show(struct device *_d,
 			     struct device_attribute *attr, char *buf)
 {
-	struct virtio_device *dev = container_of(_d,struct virtio_device,dev);
-
+	struct virtio_device *dev = dev_to_virtio(_d);
 	return sprintf(buf, "virtio:d%08Xv%08X\n",
 		       dev->id.device, dev->id.vendor);
 }
 static ssize_t features_show(struct device *_d,
 			     struct device_attribute *attr, char *buf)
 {
-	struct virtio_device *dev = container_of(_d, struct virtio_device, dev);
+	struct virtio_device *dev = dev_to_virtio(_d);
 	unsigned int i;
 	ssize_t len = 0;
 
@@ -71,7 +70,7 @@ static inline int virtio_id_match(const struct virtio_device *dev,
 static int virtio_dev_match(struct device *_dv, struct device_driver *_dr)
 {
 	unsigned int i;
-	struct virtio_device *dev = container_of(_dv,struct virtio_device,dev);
+	struct virtio_device *dev = dev_to_virtio(_dv);
 	const struct virtio_device_id *ids;
 
 	ids = container_of(_dr, struct virtio_driver, driver)->id_table;
@@ -83,7 +82,7 @@ static int virtio_dev_match(struct device *_dv, struct device_driver *_dr)
 
 static int virtio_uevent(struct device *_dv, struct kobj_uevent_env *env)
 {
-	struct virtio_device *dev = container_of(_dv,struct virtio_device,dev);
+	struct virtio_device *dev = dev_to_virtio(_dv);
 
 	return add_uevent_var(env, "MODALIAS=virtio:d%08Xv%08X",
 			      dev->id.device, dev->id.vendor);
@@ -111,7 +110,7 @@ EXPORT_SYMBOL_GPL(virtio_check_driver_offered_feature);
 static int virtio_dev_probe(struct device *_d)
 {
 	int err, i;
-	struct virtio_device *dev = container_of(_d,struct virtio_device,dev);
+	struct virtio_device *dev = dev_to_virtio(_d);
 	struct virtio_driver *drv = container_of(dev->dev.driver,
 						 struct virtio_driver, driver);
 	u32 device_features;
@@ -152,7 +151,7 @@ static int virtio_dev_probe(struct device *_d)
 
 static int virtio_dev_remove(struct device *_d)
 {
-	struct virtio_device *dev = container_of(_d,struct virtio_device,dev);
+	struct virtio_device *dev = dev_to_virtio(_d);
 	struct virtio_driver *drv = container_of(dev->dev.driver,
 						 struct virtio_driver, driver);
 
