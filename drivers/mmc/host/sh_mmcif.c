@@ -1404,8 +1404,6 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 	return ret;
 
 emmcaddh:
-	if (pd && pd->use_cd_gpio)
-		mmc_gpio_free_cd(mmc);
 erqcd:
 	free_irq(irq[1], host);
 ereqirq1:
@@ -1427,7 +1425,6 @@ ealloch:
 static int sh_mmcif_remove(struct platform_device *pdev)
 {
 	struct sh_mmcif_host *host = platform_get_drvdata(pdev);
-	struct sh_mmcif_plat_data *pd = pdev->dev.platform_data;
 	int irq[2];
 
 	host->dying = true;
@@ -1435,9 +1432,6 @@ static int sh_mmcif_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	dev_pm_qos_hide_latency_limit(&pdev->dev);
-
-	if (pd && pd->use_cd_gpio)
-		mmc_gpio_free_cd(host->mmc);
 
 	mmc_remove_host(host->mmc);
 	sh_mmcif_writel(host->addr, MMCIF_CE_INT_MASK, MASK_ALL);
