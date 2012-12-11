@@ -1257,6 +1257,53 @@ static int __if_fprintf(FILE *fp, bool *first, const char *field, u64 value)
 
 #define if_print(field) printed += __if_fprintf(fp, &first, #field, evsel->attr.field)
 
+struct bit_names {
+	int bit;
+	const char *name;
+};
+
+static int bits__fprintf(FILE *fp, const char *field, u64 value,
+			 struct bit_names *bits, bool *first)
+{
+	int i = 0, printed = comma_fprintf(fp, first, " %s: ", field);
+	bool first_bit = true;
+
+	do {
+		if (value & bits[i].bit) {
+			printed += fprintf(fp, "%s%s", first_bit ? "" : "|", bits[i].name);
+			first_bit = false;
+		}
+	} while (bits[++i].name != NULL);
+
+	return printed;
+}
+
+static int sample_type__fprintf(FILE *fp, bool *first, u64 value)
+{
+#define bit_name(n) { PERF_SAMPLE_##n, #n }
+	struct bit_names bits[] = {
+		bit_name(IP), bit_name(TID), bit_name(TIME), bit_name(ADDR),
+		bit_name(READ), bit_name(CALLCHAIN), bit_name(ID), bit_name(CPU),
+		bit_name(PERIOD), bit_name(STREAM_ID), bit_name(RAW),
+		bit_name(BRANCH_STACK), bit_name(REGS_USER), bit_name(STACK_USER),
+		{ .name = NULL, }
+	};
+#undef bit_name
+	return bits__fprintf(fp, "sample_type", value, bits, first);
+}
+
+static int read_format__fprintf(FILE *fp, bool *first, u64 value)
+{
+#define bit_name(n) { PERF_FORMAT_##n, #n }
+	struct bit_names bits[] = {
+		bit_name(TOTAL_TIME_ENABLED), bit_name(TOTAL_TIME_RUNNING),
+		bit_name(ID), bit_name(GROUP),
+		{ .name = NULL, }
+	};
+#undef bit_name
+	return bits__fprintf(fp, "read_format", value, bits, first);
+}
+
 int perf_evsel__fprintf(struct perf_evsel *evsel,
 			struct perf_attr_details *details, FILE *fp)
 {
@@ -1274,8 +1321,9 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 		if_print(config1);
 		if_print(config2);
 		if_print(size);
-		if_print(sample_type);
-		if_print(read_format);
+		printed += sample_type__fprintf(fp, &first, evsel->attr.sample_type);
+		if (evsel->attr.read_format)
+			printed += read_format__fprintf(fp, &first, evsel->attr.read_format);
 		if_print(disabled);
 		if_print(inherit);
 		if_print(pinned);
