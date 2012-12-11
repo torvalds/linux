@@ -319,7 +319,7 @@ static void mxs_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 		seq_printf(s, "0x%lx", config);
 }
 
-struct pinconf_ops mxs_pinconf_ops = {
+static struct pinconf_ops mxs_pinconf_ops = {
 	.pin_config_get = mxs_pinconf_get,
 	.pin_config_set = mxs_pinconf_set,
 	.pin_config_group_get = mxs_pinconf_group_get,

@@ -24,7 +24,6 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 
-#include "core.h"
 #include "pinctrl-mvebu.h"
 
 #define MPPS_PER_REG	8

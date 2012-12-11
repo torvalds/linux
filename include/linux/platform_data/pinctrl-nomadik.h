@@ -1,16 +1,17 @@
 /*
- * Copyright (C) ST-Ericsson SA 2010
+ * Structures and registers for GPIO access in the Nomadik SoC
  *
- * License terms: GNU General Public License, version 2
- * Author: Rabin Vincent <rabin.vincent@stericsson.com> for ST-Ericsson
+ * Copyright (C) 2008 STMicroelectronics
+ *     Author: Prafulla WADASKAR <prafulla.wadaskar@st.com>
+ * Copyright (C) 2009 Alessandro Rubini <rubini@unipv.it>
  *
- * Based on arch/arm/mach-pxa/include/mach/mfp.h:
- *   Copyright (C) 2007 Marvell International Ltd.
- *   eric miao <eric.miao@marvell.com>
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  */
 
-#ifndef __PLAT_PINCFG_H
-#define __PLAT_PINCFG_H
+#ifndef __PLAT_NOMADIK_GPIO
+#define __PLAT_NOMADIK_GPIO
 
 /*
  * pin configurations are represented by 32-bit integers:
@@ -166,8 +167,100 @@ typedef unsigned long pin_cfg_t;
 	(PIN_CFG_DEFAULT |\
 	 (PIN_NUM(num) | PIN_##alt | PIN_OUTPUT_##val))
 
+/*
+ * "nmk_gpio" and "NMK_GPIO" stand for "Nomadik GPIO", leaving
+ * the "gpio" namespace for generic and cross-machine functions
+ */
+
+#define GPIO_BLOCK_SHIFT 5
+#define NMK_GPIO_PER_CHIP (1 << GPIO_BLOCK_SHIFT)
+
+/* Register in the logic block */
+#define NMK_GPIO_DAT	0x00
+#define NMK_GPIO_DATS	0x04
+#define NMK_GPIO_DATC	0x08
+#define NMK_GPIO_PDIS	0x0c
+#define NMK_GPIO_DIR	0x10
+#define NMK_GPIO_DIRS	0x14
+#define NMK_GPIO_DIRC	0x18
+#define NMK_GPIO_SLPC	0x1c
+#define NMK_GPIO_AFSLA	0x20
+#define NMK_GPIO_AFSLB	0x24
+#define NMK_GPIO_LOWEMI	0x28
+
+#define NMK_GPIO_RIMSC	0x40
+#define NMK_GPIO_FIMSC	0x44
+#define NMK_GPIO_IS	0x48
+#define NMK_GPIO_IC	0x4c
+#define NMK_GPIO_RWIMSC	0x50
+#define NMK_GPIO_FWIMSC	0x54
+#define NMK_GPIO_WKS	0x58
+/* These appear in DB8540 and later ASICs */
+#define NMK_GPIO_EDGELEVEL 0x5C
+#define NMK_GPIO_LEVEL	0x60
+
+/* Alternate functions: function C is set in hw by setting both A and B */
+#define NMK_GPIO_ALT_GPIO	0
+#define NMK_GPIO_ALT_A	1
+#define NMK_GPIO_ALT_B	2
+#define NMK_GPIO_ALT_C	(NMK_GPIO_ALT_A | NMK_GPIO_ALT_B)
+
+#define NMK_GPIO_ALT_CX_SHIFT 2
+#define NMK_GPIO_ALT_C1	((1<<NMK_GPIO_ALT_CX_SHIFT) | NMK_GPIO_ALT_C)
+#define NMK_GPIO_ALT_C2	((2<<NMK_GPIO_ALT_CX_SHIFT) | NMK_GPIO_ALT_C)
+#define NMK_GPIO_ALT_C3	((3<<NMK_GPIO_ALT_CX_SHIFT) | NMK_GPIO_ALT_C)
+#define NMK_GPIO_ALT_C4	((4<<NMK_GPIO_ALT_CX_SHIFT) | NMK_GPIO_ALT_C)
+
+/* Pull up/down values */
+enum nmk_gpio_pull {
+	NMK_GPIO_PULL_NONE,
+	NMK_GPIO_PULL_UP,
+	NMK_GPIO_PULL_DOWN,
+};
+
+/* Sleep mode */
+enum nmk_gpio_slpm {
+	NMK_GPIO_SLPM_INPUT,
+	NMK_GPIO_SLPM_WAKEUP_ENABLE = NMK_GPIO_SLPM_INPUT,
+	NMK_GPIO_SLPM_NOCHANGE,
+	NMK_GPIO_SLPM_WAKEUP_DISABLE = NMK_GPIO_SLPM_NOCHANGE,
+};
+
+/* Older deprecated pin config API that should go away soon */
 extern int nmk_config_pin(pin_cfg_t cfg, bool sleep);
 extern int nmk_config_pins(pin_cfg_t *cfgs, int num);
 extern int nmk_config_pins_sleep(pin_cfg_t *cfgs, int num);
-
+extern int nmk_gpio_set_slpm(int gpio, enum nmk_gpio_slpm mode);
+extern int nmk_gpio_set_pull(int gpio, enum nmk_gpio_pull pull);
+#ifdef CONFIG_PINCTRL_NOMADIK
+extern int nmk_gpio_set_mode(int gpio, int gpio_mode);
+#else
+static inline int nmk_gpio_set_mode(int gpio, int gpio_mode)
+{
+	return -ENODEV;
+}
 #endif
+extern int nmk_gpio_get_mode(int gpio);
+
+extern void nmk_gpio_wakeups_suspend(void);
+extern void nmk_gpio_wakeups_resume(void);
+
+extern void nmk_gpio_clocks_enable(void);
+extern void nmk_gpio_clocks_disable(void);
+
+extern void nmk_gpio_read_pull(int gpio_bank, u32 *pull_up);
+
+/*
+ * Platform data to register a block: only the initial gpio/irq number.
+ */
+struct nmk_gpio_platform_data {
+	char *name;
+	int first_gpio;
+	int first_irq;
+	int num_gpio;
+	u32 (*get_secondary_status)(unsigned int bank);
+	void (*set_ioforce)(bool enable);
+	bool supports_sleepmode;
+};
+
+#endif /* __PLAT_NOMADIK_GPIO */

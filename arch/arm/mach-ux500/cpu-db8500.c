@@ -17,14 +17,14 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/mfd/abx500/ab8500.h>
+#include <linux/platform_data/usb-musb-ux500.h>
+#include <linux/platform_data/pinctrl-nomadik.h>
 
 #include <asm/pmu.h>
 #include <asm/mach/map.h>
-#include <plat/gpio-nomadik.h>
 #include <mach/hardware.h>
 #include <mach/setup.h>
 #include <mach/devices.h>
-#include <linux/platform_data/usb-musb-ux500.h>
 #include <mach/db8500-regs.h>
 
 #include "devices-db8500.h"
@@ -158,7 +158,7 @@ static void __init db8500_add_gpios(struct device *parent)
 
 	dbx500_add_gpios(parent, ARRAY_AND_SIZE(db8500_gpio_base),
 			 IRQ_DB8500_GPIO0, &pdata);
-	dbx500_add_pinctrl(parent, "pinctrl-db8500");
+	dbx500_add_pinctrl(parent, "pinctrl-db8500", U8500_PRCMU_BASE);
 }
 
 static int usb_db8500_rx_dma_cfg[] = {
