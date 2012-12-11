@@ -137,7 +137,7 @@ out:
 	return retval;
 }
 
-static int __devexit ssc_remove(struct platform_device *pdev)
+static int ssc_remove(struct platform_device *pdev)
 {
 	struct ssc_device *ssc = platform_get_drvdata(pdev);
 
@@ -152,7 +152,7 @@ static int __devexit ssc_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver ssc_driver = {
-	.remove		= __devexit_p(ssc_remove),
+	.remove		= ssc_remove,
 	.driver		= {
 		.name		= "ssc",
 		.owner		= THIS_MODULE,

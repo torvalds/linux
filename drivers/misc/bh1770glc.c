@@ -1162,7 +1162,7 @@ static struct attribute_group bh1770_attribute_group = {
 	.attrs = sysfs_attrs
 };
 
-static int __devinit bh1770_probe(struct i2c_client *client,
+static int bh1770_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	struct bh1770_chip *chip;
@@ -1285,7 +1285,7 @@ fail1:
 	return err;
 }
 
-static int __devexit bh1770_remove(struct i2c_client *client)
+static int bh1770_remove(struct i2c_client *client)
 {
 	struct bh1770_chip *chip = i2c_get_clientdata(client);
 
@@ -1395,7 +1395,7 @@ static struct i2c_driver bh1770_driver = {
 		.pm	= &bh1770_pm_ops,
 	},
 	.probe	  = bh1770_probe,
-	.remove	  = __devexit_p(bh1770_remove),
+	.remove	  = bh1770_remove,
 	.id_table = bh1770_id,
 };
 

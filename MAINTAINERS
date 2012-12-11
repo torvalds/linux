@@ -3596,7 +3596,6 @@ S:	Maintained
 F:	drivers/hv/
 F:	drivers/hid/hid-hyperv.c
 F:	drivers/net/hyperv/
-F:	drivers/staging/hv/
 
 I2C OVER PARALLEL PORT
 M:	Jean Delvare <khali@linux-fr.org>

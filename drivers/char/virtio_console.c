@@ -1846,7 +1846,7 @@ static void remove_controlq_data(struct ports_device *portdev)
  * config space to see how many ports the host has spawned.  We
  * initialize each port found.
  */
-static int __devinit virtcons_probe(struct virtio_device *vdev)
+static int virtcons_probe(struct virtio_device *vdev)
 {
 	struct ports_device *portdev;
 	int err;

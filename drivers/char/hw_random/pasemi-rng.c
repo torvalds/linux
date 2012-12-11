@@ -122,7 +122,7 @@ static int __devinit rng_probe(struct platform_device *ofdev)
 	return err;
 }
 
-static int __devexit rng_remove(struct platform_device *dev)
+static int rng_remove(struct platform_device *dev)
 {
 	void __iomem *rng_regs = (void __iomem *)pasemi_rng.priv;
 

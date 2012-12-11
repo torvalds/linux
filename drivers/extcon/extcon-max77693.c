@@ -648,7 +648,7 @@ out:
 	return ret;
 }
 
-static int __devinit max77693_muic_probe(struct platform_device *pdev)
+static int max77693_muic_probe(struct platform_device *pdev)
 {
 	struct max77693_dev *max77693 = dev_get_drvdata(pdev->dev.parent);
 	struct max77693_platform_data *pdata = dev_get_platdata(max77693->dev);
@@ -774,7 +774,7 @@ err_kfree:
 	return ret;
 }
 
-static int __devexit max77693_muic_remove(struct platform_device *pdev)
+static int max77693_muic_remove(struct platform_device *pdev)
 {
 	struct max77693_muic_info *info = platform_get_drvdata(pdev);
 	int i;
@@ -795,7 +795,7 @@ static struct platform_driver max77693_muic_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= max77693_muic_probe,
-	.remove		= __devexit_p(max77693_muic_remove),
+	.remove		= max77693_muic_remove,
 };
 
 module_platform_driver(max77693_muic_driver);

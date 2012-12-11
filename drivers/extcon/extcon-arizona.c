@@ -337,7 +337,7 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit arizona_extcon_probe(struct platform_device *pdev)
+static int arizona_extcon_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
 	struct arizona_pdata *pdata;
@@ -517,7 +517,7 @@ err:
 	return ret;
 }
 
-static int __devexit arizona_extcon_remove(struct platform_device *pdev)
+static int arizona_extcon_remove(struct platform_device *pdev)
 {
 	struct arizona_extcon_info *info = platform_get_drvdata(pdev);
 	struct arizona *arizona = info->arizona;
@@ -544,7 +544,7 @@ static struct platform_driver arizona_extcon_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= arizona_extcon_probe,
-	.remove		= __devexit_p(arizona_extcon_remove),
+	.remove		= arizona_extcon_remove,
 };
 
 module_platform_driver(arizona_extcon_driver);

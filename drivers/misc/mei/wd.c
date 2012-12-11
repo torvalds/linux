@@ -62,6 +62,7 @@ static void mei_wd_set_start_timeout(struct mei_device *dev, u16 timeout)
  */
 int mei_wd_host_init(struct mei_device *dev)
 {
+	int id;
 	mei_cl_init(&dev->wd_cl, dev);
 
 	/* look for WD client and connect to it */
@@ -69,12 +70,11 @@ int mei_wd_host_init(struct mei_device *dev)
 	dev->wd_timeout = MEI_WD_DEFAULT_TIMEOUT;
 	dev->wd_state = MEI_WD_IDLE;
 
-	/* find ME WD client */
-	mei_me_cl_update_filext(dev, &dev->wd_cl,
+	/* Connect WD ME client to the host client */
+	id = mei_me_cl_link(dev, &dev->wd_cl,
 				&mei_wd_guid, MEI_WD_HOST_CLIENT_ID);
 
-	dev_dbg(&dev->pdev->dev, "wd: check client\n");
-	if (MEI_FILE_CONNECTING != dev->wd_cl.state) {
+	if (id < 0) {
 		dev_info(&dev->pdev->dev, "wd: failed to find the client\n");
 		return -ENOENT;
 	}
@@ -85,7 +85,7 @@ int mei_wd_host_init(struct mei_device *dev)
 		dev->wd_cl.host_client_id = 0;
 		return -EIO;
 	}
-	dev->wd_cl.timer_count = CONNECT_TIMEOUT;
+	dev->wd_cl.timer_count = MEI_CONNECT_TIMEOUT;
 
 	return 0;
 }
@@ -360,23 +360,20 @@ void mei_watchdog_register(struct mei_device *dev)
 	if (watchdog_register_device(&amt_wd_dev)) {
 		dev_err(&dev->pdev->dev,
 			"wd: unable to register watchdog device.\n");
-		dev->wd_interface_reg = false;
 		return;
 	}
 
 	dev_dbg(&dev->pdev->dev,
 		"wd: successfully register watchdog interface.\n");
-	dev->wd_interface_reg = true;
 	watchdog_set_drvdata(&amt_wd_dev, dev);
 }
 
 void mei_watchdog_unregister(struct mei_device *dev)
 {
-	if (!dev->wd_interface_reg)
+	if (test_bit(WDOG_UNREGISTERED, &amt_wd_dev.status))
 		return;
 
 	watchdog_set_drvdata(&amt_wd_dev, NULL);
 	watchdog_unregister_device(&amt_wd_dev);
-	dev->wd_interface_reg = false;
 }
 
