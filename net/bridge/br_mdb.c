@@ -155,6 +155,86 @@ out:
 	return skb->len;
 }
 
+static int nlmsg_populate_mdb_fill(struct sk_buff *skb,
+				   struct net_device *dev,
+				   struct br_mdb_entry *entry, u32 pid,
+				   u32 seq, int type, unsigned int flags)
+{
+	struct nlmsghdr *nlh;
+	struct br_port_msg *bpm;
+	struct nlattr *nest, *nest2;
+
+	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*bpm), NLM_F_MULTI);
+	if (!nlh)
+		return -EMSGSIZE;
+
+	bpm = nlmsg_data(nlh);
+	bpm->family  = AF_BRIDGE;
+	bpm->ifindex = dev->ifindex;
+	nest = nla_nest_start(skb, MDBA_MDB);
+	if (nest == NULL)
+		goto cancel;
+	nest2 = nla_nest_start(skb, MDBA_MDB_ENTRY);
+	if (nest2 == NULL)
+		goto end;
+
+	if (nla_put(skb, MDBA_MDB_ENTRY_INFO, sizeof(*entry), entry))
+		goto end;
+
+	nla_nest_end(skb, nest2);
+	nla_nest_end(skb, nest);
+	return nlmsg_end(skb, nlh);
+
+end:
+	nla_nest_end(skb, nest);
+cancel:
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
+}
+
+static inline size_t rtnl_mdb_nlmsg_size(void)
+{
+	return NLMSG_ALIGN(sizeof(struct br_port_msg))
+		+ nla_total_size(sizeof(struct br_mdb_entry));
+}
+
+static void __br_mdb_notify(struct net_device *dev, struct br_mdb_entry *entry,
+			    int type)
+{
+	struct net *net = dev_net(dev);
+	struct sk_buff *skb;
+	int err = -ENOBUFS;
+
+	skb = nlmsg_new(rtnl_mdb_nlmsg_size(), GFP_ATOMIC);
+	if (!skb)
+		goto errout;
+
+	err = nlmsg_populate_mdb_fill(skb, dev, entry, 0, 0, type, NTF_SELF);
+	if (err < 0) {
+		kfree_skb(skb);
+		goto errout;
+	}
+
+	rtnl_notify(skb, net, 0, RTNLGRP_MDB, NULL, GFP_ATOMIC);
+	return;
+errout:
+	rtnl_set_sk_err(net, RTNLGRP_MDB, err);
+}
+
+void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
+		   struct br_ip *group, int type)
+{
+	struct br_mdb_entry entry;
+
+	entry.ifindex = port->dev->ifindex;
+	entry.addr.proto = group->proto;
+	entry.addr.u.ip4 = group->u.ip4;
+#if IS_ENABLED(CONFIG_IPV6)
+	entry.addr.u.ip6 = group->u.ip6;
+#endif
+	__br_mdb_notify(dev, &entry, type);
+}
+
 void br_mdb_init(void)
 {
 	rtnl_register(PF_BRIDGE, RTM_GETMDB, NULL, br_mdb_dump, NULL);
