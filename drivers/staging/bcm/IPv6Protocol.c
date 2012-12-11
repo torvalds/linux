@@ -58,7 +58,7 @@ static UCHAR *GetNextIPV6ChainedHeader(UCHAR **ppucPayload,
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
 					DBG_LVL_ALL,
 					"\nIPv6 Fragmentation Header");
-			usNextHeaderOffset += sizeof(IPV6FragmentHeader);
+			usNextHeaderOffset += sizeof(struct bcm_ipv6_fragment_hdr);
 
 		}
 		break;

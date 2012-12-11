@@ -39,12 +39,12 @@ typedef struct IPV6RoutingHeaderFormatTag {
 	unsigned long ulReserved;
 } IPV6RoutingHeader;
 
-typedef struct IPV6FragmentHeaderFormatTag {
+struct bcm_ipv6_fragment_hdr {
 	unsigned char  ucNextHeader;
 	unsigned char  ucReserved;
 	unsigned short usFragmentOffset;
 	unsigned long  ulIdentification;
-} IPV6FragmentHeader;
+};
 
 struct bcm_ipv6_dest_options_hdr {
 	unsigned char ucNextHeader;
