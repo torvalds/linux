@@ -245,7 +245,7 @@ bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 	int i, ret;
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_mode_set *mode_set = &fb_helper->crtc_info[i].mode_set;
-		ret = mode_set->crtc->funcs->set_config(mode_set);
+		ret = drm_mode_set_config_internal(mode_set);
 		if (ret)
 			error = true;
 	}
@@ -675,7 +675,7 @@ int drm_fb_helper_set_par(struct fb_info *info)
 	mutex_lock(&dev->mode_config.mutex);
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		crtc = fb_helper->crtc_info[i].mode_set.crtc;
-		ret = crtc->funcs->set_config(&fb_helper->crtc_info[i].mode_set);
+		ret = drm_mode_set_config_internal(&fb_helper->crtc_info[i].mode_set);
 		if (ret) {
 			mutex_unlock(&dev->mode_config.mutex);
 			return ret;
@@ -711,7 +711,7 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 		modeset->y = var->yoffset;
 
 		if (modeset->num_connectors) {
-			ret = crtc->funcs->set_config(modeset);
+			ret = drm_mode_set_config_internal(modeset);
 			if (!ret) {
 				info->var.xoffset = var->xoffset;
 				info->var.yoffset = var->yoffset;

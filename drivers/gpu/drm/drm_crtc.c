@@ -381,7 +381,7 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 			memset(&set, 0, sizeof(struct drm_mode_set));
 			set.crtc = crtc;
 			set.fb = NULL;
-			ret = crtc->funcs->set_config(&set);
+			ret = drm_mode_set_config_internal(&set);
 			if (ret)
 				DRM_ERROR("failed to reset crtc %p when fb was deleted\n", crtc);
 		}
@@ -1801,6 +1801,21 @@ out:
 }
 
 /**
+ * drm_mode_set_config_internal - helper to call ->set_config
+ * @set: modeset config to set
+ *
+ * This is a little helper to wrap internal calls to the ->set_config driver
+ * interface. The only thing it adds is correct refcounting dance.
+ */
+int drm_mode_set_config_internal(struct drm_mode_set *set)
+{
+	struct drm_crtc *crtc = set->crtc;
+
+	return crtc->funcs->set_config(set);
+}
+EXPORT_SYMBOL(drm_mode_set_config_internal);
+
+/**
  * drm_mode_setcrtc - set CRTC configuration
  * @dev: drm device for the ioctl
  * @data: data pointer for the ioctl
@@ -1963,7 +1978,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	set.connectors = connector_set;
 	set.num_connectors = crtc_req->count_connectors;
 	set.fb = fb;
-	ret = crtc->funcs->set_config(&set);
+	ret = drm_mode_set_config_internal(&set);
 
 out:
 	kfree(connector_set);
