@@ -82,7 +82,7 @@ unsigned short IpVersion6(struct bcm_mini_adapter *Adapter, /* < Pointer to the 
 					void *pcIpHeader, /* <Pointer to the IP Hdr of the packet */
 					struct bcm_classifier_rule *pstClassifierRule);
 
-VOID DumpIpv6Address(unsigned long *puIpv6Address);
+void DumpIpv6Address(unsigned long *puIpv6Address);
 
 extern BOOLEAN MatchSrcPort(struct bcm_classifier_rule *pstClassifierRule, unsigned short ushSrcPort);
 extern BOOLEAN MatchDestPort(struct bcm_classifier_rule *pstClassifierRule, unsigned short ushSrcPort);
