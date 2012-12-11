@@ -1984,8 +1984,21 @@ out:
 int drm_mode_set_config_internal(struct drm_mode_set *set)
 {
 	struct drm_crtc *crtc = set->crtc;
+	struct drm_framebuffer *fb, *old_fb;
+	int ret;
 
-	return crtc->funcs->set_config(set);
+	old_fb = crtc->fb;
+	fb = set->fb;
+
+	ret = crtc->funcs->set_config(set);
+	if (ret == 0) {
+		if (old_fb)
+			drm_framebuffer_unreference(old_fb);
+		if (fb)
+			drm_framebuffer_reference(fb);
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL(drm_mode_set_config_internal);
 
@@ -2046,6 +2059,8 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 				goto out;
 			}
 			fb = crtc->fb;
+			/* Make refcounting symmetric with the lookup path. */
+			drm_framebuffer_reference(fb);
 		} else {
 			fb = drm_framebuffer_lookup(dev, crtc_req->fb_id);
 			if (!fb) {
@@ -2054,9 +2069,6 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 				ret = -EINVAL;
 				goto out;
 			}
-			/* fb is protect by the mode_config lock, so drop the
-			 * ref immediately */
-			drm_framebuffer_unreference(fb);
 		}
 
 		mode = drm_mode_create(dev);
@@ -2156,6 +2168,9 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	ret = drm_mode_set_config_internal(&set);
 
 out:
+	if (fb)
+		drm_framebuffer_unreference(fb);
+
 	kfree(connector_set);
 	drm_mode_destroy(dev, mode);
 	drm_modeset_unlock_all(dev);
@@ -3656,7 +3671,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	struct drm_mode_crtc_page_flip *page_flip = data;
 	struct drm_mode_object *obj;
 	struct drm_crtc *crtc;
-	struct drm_framebuffer *fb;
+	struct drm_framebuffer *fb = NULL, *old_fb = NULL;
 	struct drm_pending_vblank_event *e = NULL;
 	unsigned long flags;
 	int hdisplay, vdisplay;
@@ -3687,8 +3702,6 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	fb = drm_framebuffer_lookup(dev, page_flip->fb_id);
 	if (!fb)
 		goto out;
-	/* fb is protect by the mode_config lock, so drop the ref immediately */
-	drm_framebuffer_unreference(fb);
 
 	hdisplay = crtc->mode.hdisplay;
 	vdisplay = crtc->mode.vdisplay;
@@ -3734,6 +3747,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 			(void (*) (struct drm_pending_event *)) kfree;
 	}
 
+	old_fb = crtc->fb;
 	ret = crtc->funcs->page_flip(crtc, fb, e);
 	if (ret) {
 		if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
@@ -3742,9 +3756,18 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 			spin_unlock_irqrestore(&dev->event_lock, flags);
 			kfree(e);
 		}
+		/* Keep the old fb, don't unref it. */
+		old_fb = NULL;
+	} else {
+		/* Unref only the old framebuffer. */
+		fb = NULL;
 	}
 
 out:
+	if (fb)
+		drm_framebuffer_unreference(fb);
+	if (old_fb)
+		drm_framebuffer_unreference(old_fb);
 	drm_modeset_unlock_all(dev);
 	return ret;
 }
