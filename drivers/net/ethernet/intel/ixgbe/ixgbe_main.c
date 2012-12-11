@@ -7362,7 +7362,14 @@ static int ixgbe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 #ifdef CONFIG_PCI_IOV
-	ixgbe_enable_sriov(adapter, ii);
+	/* SR-IOV not supported on the 82598 */
+	if (adapter->hw.mac.type == ixgbe_mac_82598EB)
+		goto skip_sriov;
+	/* Mailbox */
+	ixgbe_init_mbx_params_pf(hw);
+	memcpy(&hw->mbx.ops, ii->mbx_ops, sizeof(hw->mbx.ops));
+	ixgbe_enable_sriov(adapter);
+skip_sriov:
 
 #endif
 	netdev->features = NETIF_F_SG |

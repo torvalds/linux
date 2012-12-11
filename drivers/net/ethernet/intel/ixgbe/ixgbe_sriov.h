@@ -43,8 +43,7 @@ int ixgbe_ndo_get_vf_config(struct net_device *netdev,
 void ixgbe_check_vf_rate_limit(struct ixgbe_adapter *adapter);
 void ixgbe_disable_sriov(struct ixgbe_adapter *adapter);
 #ifdef CONFIG_PCI_IOV
-void ixgbe_enable_sriov(struct ixgbe_adapter *adapter,
-			const struct ixgbe_info *ii);
+void ixgbe_enable_sriov(struct ixgbe_adapter *adapter);
 #endif
 
 static inline void ixgbe_set_vmvir(struct ixgbe_adapter *adapter,
