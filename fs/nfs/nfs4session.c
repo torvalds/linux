@@ -273,20 +273,28 @@ void nfs41_wake_slot_table(struct nfs4_slot_table *tbl)
 	}
 }
 
+static void nfs41_set_max_slotid_locked(struct nfs4_slot_table *tbl,
+		u32 target_highest_slotid)
+{
+	u32 max_slotid;
+
+	max_slotid = min(NFS4_MAX_SLOT_TABLE - 1, target_highest_slotid);
+	if (max_slotid > tbl->server_highest_slotid)
+		max_slotid = tbl->server_highest_slotid;
+	if (max_slotid > tbl->target_highest_slotid)
+		max_slotid = tbl->target_highest_slotid;
+	tbl->max_slotid = max_slotid;
+	nfs41_wake_slot_table(tbl);
+}
+
 /* Update the client's idea of target_highest_slotid */
 static void nfs41_set_target_slotid_locked(struct nfs4_slot_table *tbl,
 		u32 target_highest_slotid)
 {
-	unsigned int max_slotid;
-
 	if (tbl->target_highest_slotid == target_highest_slotid)
 		return;
 	tbl->target_highest_slotid = target_highest_slotid;
 	tbl->generation++;
-
-	max_slotid = min(NFS4_MAX_SLOT_TABLE - 1, tbl->target_highest_slotid);
-	tbl->max_slotid = max_slotid;
-	nfs41_wake_slot_table(tbl);
 }
 
 void nfs41_set_target_slotid(struct nfs4_slot_table *tbl,
@@ -296,6 +304,7 @@ void nfs41_set_target_slotid(struct nfs4_slot_table *tbl,
 	nfs41_set_target_slotid_locked(tbl, target_highest_slotid);
 	tbl->d_target_highest_slotid = 0;
 	tbl->d2_target_highest_slotid = 0;
+	nfs41_set_max_slotid_locked(tbl, target_highest_slotid);
 	spin_unlock(&tbl->slot_tbl_lock);
 }
 
@@ -370,6 +379,7 @@ void nfs41_update_target_slotid(struct nfs4_slot_table *tbl,
 		nfs41_set_target_slotid_locked(tbl, res->sr_target_highest_slotid);
 	if (tbl->generation == slot->generation)
 		nfs41_set_server_slotid_locked(tbl, res->sr_highest_slotid);
+	nfs41_set_max_slotid_locked(tbl, res->sr_target_highest_slotid);
 	spin_unlock(&tbl->slot_tbl_lock);
 }
 
