@@ -3911,7 +3911,7 @@
 #define  FDI_10BPC                      (1<<16)
 #define  FDI_6BPC                       (2<<16)
 #define  FDI_12BPC                      (3<<16)
-#define  FDI_LINK_REVERSE_OVERWRITE     (1<<15)
+#define  FDI_RX_LINK_REVERSAL_OVERRIDE  (1<<15)
 #define  FDI_DMI_LINK_REVERSE_MASK      (1<<14)
 #define  FDI_RX_PLL_ENABLE              (1<<13)
 #define  FDI_FS_ERR_CORRECT_ENABLE      (1<<11)
