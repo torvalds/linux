@@ -31,7 +31,6 @@
  * All global storage allocation.
  ************************************************************************/
 
-extern int dgrp_rawreadok;  /* Allow raw writing of input */
 extern int dgrp_register_cudevices; /* enable legacy cu devices */
 extern int dgrp_register_prdevices; /* enable transparent print devices */
 extern int dgrp_poll_tick;          /* Poll interval - in ms */

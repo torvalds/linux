@@ -939,14 +939,9 @@ static void fwserial_destroy(struct kref *kref)
 
 	mutex_lock(&port_table_lock);
 	for (j = 0; j < num_ports; ++i, ++j) {
-		static bool once;
-		int corrupt = port_table[i] != ports[j];
-		if (corrupt && !once) {
-			WARN(corrupt, "port_table[%d]: %p != ports[%d]: %p",
-			     i, port_table[i], j, ports[j]);
-			once = true;
-			port_table_corrupt = true;
-		}
+		port_table_corrupt |= port_table[i] != ports[j];
+		WARN_ONCE(port_table_corrupt, "port_table[%d]: %p != ports[%d]: %p",
+		     i, port_table[i], j, ports[j]);
 
 		port_table[i] = NULL;
 	}
@@ -954,7 +949,7 @@ static void fwserial_destroy(struct kref *kref)
 
 	for (j = 0; j < num_ports; ++j) {
 		fw_core_remove_address_handler(&ports[j]->rx_handler);
-		dma_fifo_free(&ports[j]->tx_fifo);
+		tty_port_destroy(&ports[j]->port);
 		kfree(ports[j]);
 	}
 	kfree(serial);
@@ -2369,8 +2364,10 @@ unregister_ttys:
 	return err;
 
 free_ports:
-	for (--i; i >= 0; --i)
+	for (--i; i >= 0; --i) {
+		tty_port_destroy(&serial->ports[i]->port);
 		kfree(serial->ports[i]);
+	}
 	kfree(serial);
 	return err;
 }

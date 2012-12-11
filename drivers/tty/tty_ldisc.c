@@ -26,7 +26,7 @@
  *	callers who will do ldisc lookups and cannot sleep.
  */
 
-static DEFINE_SPINLOCK(tty_ldisc_lock);
+static DEFINE_RAW_SPINLOCK(tty_ldisc_lock);
 static DECLARE_WAIT_QUEUE_HEAD(tty_ldisc_wait);
 /* Line disc dispatch table */
 static struct tty_ldisc_ops *tty_ldiscs[NR_LDISCS];
@@ -49,21 +49,21 @@ static void put_ldisc(struct tty_ldisc *ld)
 	 * If this is the last user, free the ldisc, and
 	 * release the ldisc ops.
 	 *
-	 * We really want an "atomic_dec_and_lock_irqsave()",
+	 * We really want an "atomic_dec_and_raw_lock_irqsave()",
 	 * but we don't have it, so this does it by hand.
 	 */
-	local_irq_save(flags);
-	if (atomic_dec_and_lock(&ld->users, &tty_ldisc_lock)) {
+	raw_spin_lock_irqsave(&tty_ldisc_lock, flags);
+	if (atomic_dec_and_test(&ld->users)) {
 		struct tty_ldisc_ops *ldo = ld->ops;
 
 		ldo->refcount--;
 		module_put(ldo->owner);
-		spin_unlock_irqrestore(&tty_ldisc_lock, flags);
+		raw_spin_unlock_irqrestore(&tty_ldisc_lock, flags);
 
 		kfree(ld);
 		return;
 	}
-	local_irq_restore(flags);
+	raw_spin_unlock_irqrestore(&tty_ldisc_lock, flags);
 	wake_up(&ld->wq_idle);
 }
 
@@ -88,11 +88,11 @@ int tty_register_ldisc(int disc, struct tty_ldisc_ops *new_ldisc)
 	if (disc < N_TTY || disc >= NR_LDISCS)
 		return -EINVAL;
 
-	spin_lock_irqsave(&tty_ldisc_lock, flags);
+	raw_spin_lock_irqsave(&tty_ldisc_lock, flags);
 	tty_ldiscs[disc] = new_ldisc;
 	new_ldisc->num = disc;
 	new_ldisc->refcount = 0;
-	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
+	raw_spin_unlock_irqrestore(&tty_ldisc_lock, flags);
 
 	return ret;
 }
@@ -118,12 +118,12 @@ int tty_unregister_ldisc(int disc)
 	if (disc < N_TTY || disc >= NR_LDISCS)
 		return -EINVAL;
 
-	spin_lock_irqsave(&tty_ldisc_lock, flags);
+	raw_spin_lock_irqsave(&tty_ldisc_lock, flags);
 	if (tty_ldiscs[disc]->refcount)
 		ret = -EBUSY;
 	else
 		tty_ldiscs[disc] = NULL;
-	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
+	raw_spin_unlock_irqrestore(&tty_ldisc_lock, flags);
 
 	return ret;
 }
@@ -134,7 +134,7 @@ static struct tty_ldisc_ops *get_ldops(int disc)
 	unsigned long flags;
 	struct tty_ldisc_ops *ldops, *ret;
 
-	spin_lock_irqsave(&tty_ldisc_lock, flags);
+	raw_spin_lock_irqsave(&tty_ldisc_lock, flags);
 	ret = ERR_PTR(-EINVAL);
 	ldops = tty_ldiscs[disc];
 	if (ldops) {
@@ -144,7 +144,7 @@ static struct tty_ldisc_ops *get_ldops(int disc)
 			ret = ldops;
 		}
 	}
-	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
+	raw_spin_unlock_irqrestore(&tty_ldisc_lock, flags);
 	return ret;
 }
 
@@ -152,10 +152,10 @@ static void put_ldops(struct tty_ldisc_ops *ldops)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&tty_ldisc_lock, flags);
+	raw_spin_lock_irqsave(&tty_ldisc_lock, flags);
 	ldops->refcount--;
 	module_put(ldops->owner);
-	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
+	raw_spin_unlock_irqrestore(&tty_ldisc_lock, flags);
 }
 
 /**
@@ -287,11 +287,11 @@ static struct tty_ldisc *tty_ldisc_try(struct tty_struct *tty)
 	unsigned long flags;
 	struct tty_ldisc *ld;
 
-	spin_lock_irqsave(&tty_ldisc_lock, flags);
+	raw_spin_lock_irqsave(&tty_ldisc_lock, flags);
 	ld = NULL;
 	if (test_bit(TTY_LDISC, &tty->flags))
 		ld = get_ldisc(tty->ldisc);
-	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
+	raw_spin_unlock_irqrestore(&tty_ldisc_lock, flags);
 	return ld;
 }
 
@@ -512,7 +512,7 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
 static int tty_ldisc_halt(struct tty_struct *tty)
 {
 	clear_bit(TTY_LDISC, &tty->flags);
-	return cancel_work_sync(&tty->buf.work);
+	return cancel_work_sync(&tty->port->buf.work);
 }
 
 /**
@@ -525,7 +525,7 @@ static void tty_ldisc_flush_works(struct tty_struct *tty)
 {
 	flush_work(&tty->hangup_work);
 	flush_work(&tty->SAK_work);
-	flush_work(&tty->buf.work);
+	flush_work(&tty->port->buf.work);
 }
 
 /**
@@ -704,9 +704,9 @@ enable:
 	/* Restart the work queue in case no characters kick it off. Safe if
 	   already running */
 	if (work)
-		schedule_work(&tty->buf.work);
+		schedule_work(&tty->port->buf.work);
 	if (o_work)
-		schedule_work(&o_tty->buf.work);
+		schedule_work(&o_tty->port->buf.work);
 	mutex_unlock(&tty->ldisc_mutex);
 	tty_unlock(tty);
 	return retval;
@@ -817,7 +817,7 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 	 */
 	clear_bit(TTY_LDISC, &tty->flags);
 	tty_unlock(tty);
-	cancel_work_sync(&tty->buf.work);
+	cancel_work_sync(&tty->port->buf.work);
 	mutex_unlock(&tty->ldisc_mutex);
 retry:
 	tty_lock(tty);
@@ -897,6 +897,11 @@ int tty_ldisc_setup(struct tty_struct *tty, struct tty_struct *o_tty)
 
 static void tty_ldisc_kill(struct tty_struct *tty)
 {
+	/* There cannot be users from userspace now. But there still might be
+	 * drivers holding a reference via tty_ldisc_ref. Do not steal them the
+	 * ldisc until they are done. */
+	tty_ldisc_wait_idle(tty, MAX_SCHEDULE_TIMEOUT);
+
 	mutex_lock(&tty->ldisc_mutex);
 	/*
 	 * Now kill off the ldisc
