@@ -545,15 +545,6 @@ static int usbhsg_pipe_disable(struct usbhsg_uep *uep)
 	return 0;
 }
 
-static void usbhsg_uep_init(struct usbhsg_gpriv *gpriv)
-{
-	int i;
-	struct usbhsg_uep *uep;
-
-	usbhsg_for_each_uep_with_dcp(uep, gpriv, i)
-		uep->pipe = NULL;
-}
-
 /*
  *
  *		usb_ep_ops
@@ -761,7 +752,6 @@ static int usbhsg_try_start(struct usbhs_priv *priv, u32 status)
 	usbhs_pipe_init(priv,
 			usbhsg_dma_map_ctrl);
 	usbhs_fifo_init(priv);
-	usbhsg_uep_init(gpriv);
 
 	/* dcp init */
 	dcp->pipe		= usbhs_dcp_malloc(priv);
@@ -998,6 +988,7 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	 */
 	usbhsg_for_each_uep_with_dcp(uep, gpriv, i) {
 		uep->gpriv	= gpriv;
+		uep->pipe	= NULL;
 		snprintf(uep->ep_name, EP_NAME_SIZE, "ep%d", i);
 
 		uep->ep.name		= uep->ep_name;
