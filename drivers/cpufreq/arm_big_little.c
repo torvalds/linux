@@ -34,6 +34,10 @@
 
 #include "arm_big_little.h"
 
+#ifdef CONFIG_BL_SWITCHER
+bool bL_switching_enabled;
+#endif
+
 #define ACTUAL_FREQ(cluster, freq)	((cluster == A7_CLUSTER) ? freq << 1 : freq)
 #define VIRT_FREQ(cluster, freq)	((cluster == A7_CLUSTER) ? freq >> 1 : freq)
 
@@ -500,6 +504,38 @@ static struct cpufreq_driver bL_cpufreq_driver = {
 	.attr			= bL_cpufreq_attr,
 };
 
+static int bL_cpufreq_switcher_notifier(struct notifier_block *nfb,
+					unsigned long action, void *_arg)
+{
+	pr_debug("%s: action: %ld\n", __func__, action);
+
+	switch (action) {
+	case BL_NOTIFY_PRE_ENABLE:
+	case BL_NOTIFY_PRE_DISABLE:
+		cpufreq_unregister_driver(&bL_cpufreq_driver);
+		break;
+
+	case BL_NOTIFY_POST_ENABLE:
+		set_switching_enabled(true);
+		cpufreq_register_driver(&bL_cpufreq_driver);
+		break;
+
+	case BL_NOTIFY_POST_DISABLE:
+		set_switching_enabled(false);
+		cpufreq_register_driver(&bL_cpufreq_driver);
+		break;
+
+	default:
+		return NOTIFY_DONE;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block bL_switcher_notifier = {
+	.notifier_call = bL_cpufreq_switcher_notifier,
+};
+
 int bL_cpufreq_register(struct cpufreq_arm_bL_ops *ops)
 {
 	int ret, i;
@@ -517,6 +553,9 @@ int bL_cpufreq_register(struct cpufreq_arm_bL_ops *ops)
 
 	arm_bL_ops = ops;
 
+	ret = bL_switcher_get_enabled();
+	set_switching_enabled(ret);
+
 	for (i = 0; i < MAX_CLUSTERS; i++)
 		mutex_init(&cluster_lock[i]);
 
@@ -526,10 +565,17 @@ int bL_cpufreq_register(struct cpufreq_arm_bL_ops *ops)
 				__func__, ops->name, ret);
 		arm_bL_ops = NULL;
 	} else {
-		pr_info("%s: Registered platform driver: %s\n", __func__,
-				ops->name);
+		ret = bL_switcher_register_notifier(&bL_switcher_notifier);
+		if (ret) {
+			cpufreq_unregister_driver(&bL_cpufreq_driver);
+			arm_bL_ops = NULL;
+		} else {
+			pr_info("%s: Registered platform driver: %s\n",
+					__func__, ops->name);
+		}
 	}
 
+	bL_switcher_put_enabled();
 	return ret;
 }
 EXPORT_SYMBOL_GPL(bL_cpufreq_register);
@@ -542,7 +588,10 @@ void bL_cpufreq_unregister(struct cpufreq_arm_bL_ops *ops)
 		return;
 	}
 
+	bL_switcher_get_enabled();
+	bL_switcher_unregister_notifier(&bL_switcher_notifier);
 	cpufreq_unregister_driver(&bL_cpufreq_driver);
+	bL_switcher_put_enabled();
 	pr_info("%s: Un-registered platform driver: %s\n", __func__,
 			arm_bL_ops->name);
 	arm_bL_ops = NULL;

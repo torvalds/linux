@@ -29,9 +29,12 @@
 #define MAX_CLUSTERS	2
 
 #ifdef CONFIG_BL_SWITCHER
-#define is_bL_switching_enabled()		true
+extern bool bL_switching_enabled;
+#define is_bL_switching_enabled()		bL_switching_enabled
+#define set_switching_enabled(x) 		(bL_switching_enabled = (x))
 #else
 #define is_bL_switching_enabled()		false
+#define set_switching_enabled(x) 		do { } while (0)
 #endif
 
 struct cpufreq_arm_bL_ops {
