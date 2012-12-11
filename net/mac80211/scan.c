@@ -118,7 +118,7 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 		struct ieee80211_tim_ie *tim_ie = elems->tim;
 		bss->dtim_period = tim_ie->dtim_period;
 		if (!elems->parse_error)
-				bss->valid_data |= IEEE80211_BSS_VALID_DTIM;
+			bss->valid_data |= IEEE80211_BSS_VALID_DTIM;
 	}
 
 	/* If the beacon had no TIM IE, or it was invalid, use 1 */

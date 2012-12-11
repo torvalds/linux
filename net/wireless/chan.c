@@ -265,6 +265,9 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 
 	/* TODO: missing regulatory check on 80/160 bandwidth */
 
+	if (width > 20)
+		prohibited_flags |= IEEE80211_CHAN_NO_OFDM;
+
 	if (!cfg80211_secondary_chans_ok(wiphy, chandef->center_freq1,
 					 width, prohibited_flags))
 		return false;
