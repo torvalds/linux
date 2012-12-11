@@ -3316,7 +3316,7 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 	 * unrestricted guest like Westmere to older host that don't have
 	 * unrestricted guest like Nehelem.
 	 */
-	if (!enable_unrestricted_guest && vmx->rmode.vm86_active) {
+	if (vmx->rmode.vm86_active) {
 		switch (seg) {
 		case VCPU_SREG_CS:
 			vmcs_write32(GUEST_CS_AR_BYTES, 0xf3);
