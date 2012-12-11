@@ -44,49 +44,11 @@
 #include "ixgbe_sriov.h"
 
 #ifdef CONFIG_PCI_IOV
-void ixgbe_enable_sriov(struct ixgbe_adapter *adapter)
+static int __ixgbe_enable_sriov(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	int num_vf_macvlans, i;
 	struct vf_macvlans *mv_list;
-	int pre_existing_vfs = 0;
-
-	pre_existing_vfs = pci_num_vf(adapter->pdev);
-	if (!pre_existing_vfs && !adapter->num_vfs)
-		return;
-
-	/* If there are pre-existing VFs then we have to force
-	 * use of that many because they were not deleted the last
-	 * time someone removed the PF driver.  That would have
-	 * been because they were allocated to guest VMs and can't
-	 * be removed.  Go ahead and just re-enable the old amount.
-	 * If the user wants to change the number of VFs they can
-	 * use ethtool while making sure no VFs are allocated to
-	 * guest VMs... i.e. the right way.
-	 */
-	if (pre_existing_vfs) {
-		adapter->num_vfs = pre_existing_vfs;
-		dev_warn(&adapter->pdev->dev, "Virtual Functions already "
-			 "enabled for this device - Please reload all "
-			 "VF drivers to avoid spoofed packet errors\n");
-	} else {
-		int err;
-		/*
-		 * The 82599 supports up to 64 VFs per physical function
-		 * but this implementation limits allocation to 63 so that
-		 * basic networking resources are still available to the
-		 * physical function.  If the user requests greater thn
-		 * 63 VFs then it is an error - reset to default of zero.
-		 */
-		adapter->num_vfs = min_t(unsigned int, adapter->num_vfs, 63);
-
-		err = pci_enable_sriov(adapter->pdev, adapter->num_vfs);
-		if (err) {
-			e_err(probe, "Failed to enable PCI sriov: %d\n", err);
-			adapter->num_vfs = 0;
-			return;
-		}
-	}
 
 	adapter->flags |= IXGBE_FLAG_SRIOV_ENABLED;
 	e_info(probe, "SR-IOV enabled with %d VFs\n", adapter->num_vfs);
@@ -150,10 +112,62 @@ void ixgbe_enable_sriov(struct ixgbe_adapter *adapter)
 		/* enable spoof checking for all VFs */
 		for (i = 0; i < adapter->num_vfs; i++)
 			adapter->vfinfo[i].spoofchk_enabled = true;
-		return;
+		return 0;
 	}
 
-	/* Oh oh */
+	return -ENOMEM;
+}
+
+/* Note this function is called when the user wants to enable SR-IOV
+ * VFs using the now deprecated module parameter
+ */
+void ixgbe_enable_sriov(struct ixgbe_adapter *adapter)
+{
+	int pre_existing_vfs = 0;
+
+	pre_existing_vfs = pci_num_vf(adapter->pdev);
+	if (!pre_existing_vfs && !adapter->num_vfs)
+		return;
+
+	if (!pre_existing_vfs)
+		dev_warn(&adapter->pdev->dev,
+			 "Enabling SR-IOV VFs using the module parameter is deprecated - please use the pci sysfs interface.\n");
+
+	/* If there are pre-existing VFs then we have to force
+	 * use of that many - over ride any module parameter value.
+	 * This may result from the user unloading the PF driver
+	 * while VFs were assigned to guest VMs or because the VFs
+	 * have been created via the new PCI SR-IOV sysfs interface.
+	 */
+	if (pre_existing_vfs) {
+		adapter->num_vfs = pre_existing_vfs;
+		dev_warn(&adapter->pdev->dev,
+			 "Virtual Functions already enabled for this device - Please reload all VF drivers to avoid spoofed packet errors\n");
+	} else {
+		int err;
+		/*
+		 * The 82599 supports up to 64 VFs per physical function
+		 * but this implementation limits allocation to 63 so that
+		 * basic networking resources are still available to the
+		 * physical function.  If the user requests greater thn
+		 * 63 VFs then it is an error - reset to default of zero.
+		 */
+		adapter->num_vfs = min_t(unsigned int, adapter->num_vfs, 63);
+
+		err = pci_enable_sriov(adapter->pdev, adapter->num_vfs);
+		if (err) {
+			e_err(probe, "Failed to enable PCI sriov: %d\n", err);
+			adapter->num_vfs = 0;
+			return;
+		}
+	}
+
+	if (!__ixgbe_enable_sriov(adapter))
+		return;
+
+	/* If we have gotten to this point then there is no memory available
+	 * to manage the VF devices - print message and bail.
+	 */
 	e_err(probe, "Unable to allocate memory for VF Data Storage - "
 	      "SRIOV disabled\n");
 	ixgbe_disable_sriov(adapter);
