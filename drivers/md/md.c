@@ -1414,12 +1414,11 @@ static __le32 calc_sb_1_csum(struct mdp_superblock_1 * sb)
 	unsigned long long newcsum;
 	int size = 256 + le32_to_cpu(sb->max_dev)*2;
 	__le32 *isuper = (__le32*)sb;
-	int i;
 
 	disk_csum = sb->sb_csum;
 	sb->sb_csum = 0;
 	newcsum = 0;
-	for (i=0; size>=4; size -= 4 )
+	for (; size >= 4; size -= 4)
 		newcsum += le32_to_cpu(*isuper++);
 
 	if (size == 2)
