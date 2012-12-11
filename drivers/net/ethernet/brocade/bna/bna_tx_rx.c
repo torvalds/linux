@@ -3569,7 +3569,7 @@ bna_tx_create(struct bna *bna, struct bnad *bnad,
 		if (intr_info->intr_type == BNA_INTR_T_INTX)
 			txq->ib.intr_vector = (1 <<  txq->ib.intr_vector);
 		txq->ib.coalescing_timeo = tx_cfg->coalescing_timeo;
-		txq->ib.interpkt_timeo = 0; /* Not used */
+		txq->ib.interpkt_timeo = BFI_TX_INTERPKT_TIMEO;
 		txq->ib.interpkt_count = BFI_TX_INTERPKT_COUNT;
 
 		/* TCB */
