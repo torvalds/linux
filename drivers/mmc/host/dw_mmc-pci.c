@@ -134,7 +134,7 @@ static struct pci_driver dw_mci_pci_driver = {
 	.name		= "dw_mmc_pci",
 	.id_table	= dw_mci_pci_id,
 	.probe		= dw_mci_pci_probe,
-	.remove		= dw_mci_pci_remove,
+	.remove		= __devexit_p(dw_mci_pci_remove),
 	.driver		=	{
 		.pm =   &dw_mci_pci_pmops
 	},

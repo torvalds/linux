@@ -123,7 +123,6 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 	struct tmio_mmc_data *mmc_data;
 	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
 	struct tmio_mmc_host *host;
-	char clk_name[8];
 	int irq, ret, i = 0;
 	bool multiplexed_isr = true;
 
@@ -144,11 +143,10 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 		}
 	}
 
-	snprintf(clk_name, sizeof(clk_name), "sdhi%d", pdev->id);
-	priv->clk = clk_get(&pdev->dev, clk_name);
+	priv->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
-		dev_err(&pdev->dev, "cannot get clock \"%s\"\n", clk_name);
 		ret = PTR_ERR(priv->clk);
+		dev_err(&pdev->dev, "cannot get clock: %d\n", ret);
 		goto eclkget;
 	}
 
@@ -250,7 +248,7 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "%s base at 0x%08lx clock rate %u MHz\n",
 		 mmc_hostname(host->mmc), (unsigned long)
 		 (platform_get_resource(pdev, IORESOURCE_MEM, 0)->start),
-		 mmc_data->hclk / 1000000);
+		 host->mmc->f_max / 1000000);
 
 	return ret;
 

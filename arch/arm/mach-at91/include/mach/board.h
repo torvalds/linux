@@ -70,16 +70,6 @@ struct at91_cf_data {
 extern void __init at91_add_device_cf(struct at91_cf_data *data);
 
  /* MMC / SD */
-  /* at91_mci platform config */
-struct at91_mmc_data {
-	int		det_pin;	/* card detect IRQ */
-	unsigned	slot_b:1;	/* uses Slot B */
-	unsigned	wire4:1;	/* (SD) supports DAT0..DAT3 */
-	int		wp_pin;		/* (SD) writeprotect detect */
-	int		vcc_pin;	/* power switching (high == on) */
-};
-extern void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data);
-
   /* atmel-mci platform config */
 extern void __init at91_add_device_mci(short mmc_id, struct mci_platform_data *data);
 

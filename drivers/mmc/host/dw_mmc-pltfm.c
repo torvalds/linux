@@ -119,7 +119,8 @@ static const struct of_device_id dw_mci_pltfm_match[] = {
 MODULE_DEVICE_TABLE(of, dw_mci_pltfm_match);
 
 static struct platform_driver dw_mci_pltfm_driver = {
-	.remove		= __exit_p(dw_mci_pltfm_remove),
+	.probe		= dw_mci_pltfm_probe,
+	.remove		= __devexit_p(dw_mci_pltfm_remove),
 	.driver		= {
 		.name		= "dw_mmc",
 		.of_match_table	= of_match_ptr(dw_mci_pltfm_match),
@@ -127,18 +128,7 @@ static struct platform_driver dw_mci_pltfm_driver = {
 	},
 };
 
-static int __init dw_mci_init(void)
-{
-	return platform_driver_probe(&dw_mci_pltfm_driver, dw_mci_pltfm_probe);
-}
-
-static void __exit dw_mci_exit(void)
-{
-	platform_driver_unregister(&dw_mci_pltfm_driver);
-}
-
-module_init(dw_mci_init);
-module_exit(dw_mci_exit);
+module_platform_driver(dw_mci_pltfm_driver);
 
 MODULE_DESCRIPTION("DW Multimedia Card Interface driver");
 MODULE_AUTHOR("NXP Semiconductor VietNam");
