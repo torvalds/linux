@@ -883,7 +883,7 @@ static int balloon_probe(struct hv_device *dev,
 			balloon_onchannelcallback, dev);
 
 	if (ret)
-		return ret;
+		goto probe_error0;
 
 	dm_device.dev = dev;
 	dm_device.state = DM_INITIALIZING;
@@ -895,7 +895,7 @@ static int balloon_probe(struct hv_device *dev,
 		 kthread_run(dm_thread_func, &dm_device, "hv_balloon");
 	if (IS_ERR(dm_device.thread)) {
 		ret = PTR_ERR(dm_device.thread);
-		goto probe_error0;
+		goto probe_error1;
 	}
 
 	hv_set_drvdata(dev, &dm_device);
@@ -918,12 +918,12 @@ static int balloon_probe(struct hv_device *dev,
 				VM_PKT_DATA_INBAND,
 				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret)
-		goto probe_error1;
+		goto probe_error2;
 
 	t = wait_for_completion_timeout(&dm_device.host_event, 5*HZ);
 	if (t == 0) {
 		ret = -ETIMEDOUT;
-		goto probe_error1;
+		goto probe_error2;
 	}
 
 	/*
@@ -932,7 +932,7 @@ static int balloon_probe(struct hv_device *dev,
 	 */
 	if (dm_device.state == DM_INIT_ERROR) {
 		ret = -ETIMEDOUT;
-		goto probe_error1;
+		goto probe_error2;
 	}
 	/*
 	 * Now submit our capabilities to the host.
@@ -965,12 +965,12 @@ static int balloon_probe(struct hv_device *dev,
 				VM_PKT_DATA_INBAND,
 				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret)
-		goto probe_error1;
+		goto probe_error2;
 
 	t = wait_for_completion_timeout(&dm_device.host_event, 5*HZ);
 	if (t == 0) {
 		ret = -ETIMEDOUT;
-		goto probe_error1;
+		goto probe_error2;
 	}
 
 	/*
@@ -979,18 +979,20 @@ static int balloon_probe(struct hv_device *dev,
 	 */
 	if (dm_device.state == DM_INIT_ERROR) {
 		ret = -ETIMEDOUT;
-		goto probe_error1;
+		goto probe_error2;
 	}
 
 	dm_device.state = DM_INITIALIZED;
 
 	return 0;
 
-probe_error1:
+probe_error2:
 	kthread_stop(dm_device.thread);
 
-probe_error0:
+probe_error1:
 	vmbus_close(dev->channel);
+probe_error0:
+	kfree(send_buffer);
 	return ret;
 }
 
@@ -1003,6 +1005,7 @@ static int balloon_remove(struct hv_device *dev)
 
 	vmbus_close(dev->channel);
 	kthread_stop(dm->thread);
+	kfree(send_buffer);
 
 	return 0;
 }
