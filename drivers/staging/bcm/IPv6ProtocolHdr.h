@@ -21,8 +21,7 @@
  */
 #define IPV6_DESTOPTS_HDR_OPTIONSIZE 0x8
 
-typedef struct IPV6HeaderFormatTag
-{
+typedef struct IPV6HeaderFormatTag {
 	UCHAR  ucVersionPrio;
 	UCHAR  aucFlowLabel[3];
 	USHORT usPayloadLength;
@@ -32,8 +31,7 @@ typedef struct IPV6HeaderFormatTag
 	ULONG  ulDestIpAddress[4];
 } IPV6Header;
 
-typedef struct IPV6RoutingHeaderFormatTag
-{
+typedef struct IPV6RoutingHeaderFormatTag {
 	UCHAR ucNextHeader;
 	UCHAR ucRoutingType;
 	UCHAR ucNumAddresses;
@@ -41,45 +39,39 @@ typedef struct IPV6RoutingHeaderFormatTag
 	ULONG ulReserved;
 } IPV6RoutingHeader;
 
-typedef struct IPV6FragmentHeaderFormatTag
-{
+typedef struct IPV6FragmentHeaderFormatTag {
 	UCHAR  ucNextHeader;
 	UCHAR  ucReserved;
 	USHORT usFragmentOffset;
 	ULONG  ulIdentification;
 } IPV6FragmentHeader;
 
-typedef struct IPV6DestOptionsHeaderFormatTag
-{
+typedef struct IPV6DestOptionsHeaderFormatTag {
 	UCHAR ucNextHeader;
 	UCHAR ucHdrExtLen;
 	UCHAR ucDestOptions[6];
 } IPV6DestOptionsHeader;
 
-typedef struct IPV6HopByHopOptionsHeaderFormatTag
-{
+typedef struct IPV6HopByHopOptionsHeaderFormatTag {
 	UCHAR ucNextHeader;
 	UCHAR ucMisc[3];
 	ULONG ulJumboPayloadLen;
 } IPV6HopByHopOptionsHeader;
 
-typedef struct IPV6AuthenticationHeaderFormatTag
-{
+typedef struct IPV6AuthenticationHeaderFormatTag {
 	UCHAR  ucNextHeader;
 	UCHAR  ucLength;
 	USHORT usReserved;
 	ULONG  ulSecurityParametersIndex;
 } IPV6AuthenticationHeader;
 
-typedef struct IPV6IcmpHeaderFormatTag
-{
+typedef struct IPV6IcmpHeaderFormatTag {
 	UCHAR  ucType;
 	UCHAR  ucCode;
 	USHORT usChecksum;
 } IPV6IcmpHeader;
 
-typedef enum _E_IPADDR_CONTEXT
-{
+typedef enum _E_IPADDR_CONTEXT {
 	eSrcIpAddress,
 	eDestIpAddress
 } E_IPADDR_CONTEXT;
