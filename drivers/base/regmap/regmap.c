@@ -814,7 +814,7 @@ static int _regmap_raw_write(struct regmap *map, unsigned int reg,
 					     ival);
 			if (ret) {
 				dev_err(map->dev,
-				   "Error in caching of register: %u ret: %d\n",
+					"Error in caching of register: %x ret: %d\n",
 					reg + i, ret);
 				return ret;
 			}
