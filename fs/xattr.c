@@ -505,12 +505,17 @@ SYSCALL_DEFINE4(lgetxattr, const char __user *, pathname,
 {
 	struct path path;
 	ssize_t error;
-
-	error = user_lpath(pathname, &path);
+	unsigned int lookup_flags = 0;
+retry:
+	error = user_path_at(AT_FDCWD, pathname, lookup_flags, &path);
 	if (error)
 		return error;
 	error = getxattr(path.dentry, name, value, size);
 	path_put(&path);
+	if (retry_estale(error, lookup_flags)) {
+		lookup_flags |= LOOKUP_REVAL;
+		goto retry;
+	}
 	return error;
 }
 
