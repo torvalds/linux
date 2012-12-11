@@ -337,6 +337,13 @@ W:	http://wireless.kernel.org/
 S:	Orphan
 F:	drivers/net/wireless/adm8211.*
 
+ADP1653 FLASH CONTROLLER DRIVER
+M:	Sakari Ailus <sakari.ailus@iki.fi>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/i2c/adp1653.c
+F:	include/media/adp1653.h
+
 ADP5520 BACKLIGHT DRIVER WITH IO EXPANDER (ADP5520/ADP5501)
 M:	Michael Hennerich <michael.hennerich@analog.com>
 L:	device-drivers-devel@blackfin.uclinux.org
@@ -1488,6 +1495,14 @@ F:	include/linux/ax25.h
 F:	include/net/ax25.h
 F:	net/ax25/
 
+AZ6007 DVB DRIVER
+M:	Mauro Carvalho Chehab <mchehab@redhat.com>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/usb/dvb-usb-v2/az6007.c
+
 B43 WIRELESS DRIVER
 M:	Stefano Brivio <stefano.brivio@polimi.it>
 L:	linux-wireless@vger.kernel.org
@@ -1740,11 +1755,11 @@ F:	Documentation/filesystems/btrfs.txt
 F:	fs/btrfs/
 
 BTTV VIDEO4LINUX DRIVER
-M:	Mauro Carvalho Chehab <mchehab@infradead.org>
+M:	Mauro Carvalho Chehab <mchehab@redhat.com>
 L:	linux-media@vger.kernel.org
 W:	http://linuxtv.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
-S:	Maintained
+T:	git git://linuxtv.org/media_tree.git
+S:	Odd fixes
 F:	Documentation/video4linux/bttv/
 F:	drivers/media/pci/bt8xx/bttv*
 
@@ -1773,7 +1788,7 @@ F:	fs/cachefiles/
 CAFE CMOS INTEGRATED CAMERA CONTROLLER DRIVER
 M:	Jonathan Corbet <corbet@lwn.net>
 L:	linux-media@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
+T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	Documentation/video4linux/cafe_ccic
 F:	drivers/media/platform/marvell-ccic/
@@ -2160,12 +2175,22 @@ CX18 VIDEO4LINUX DRIVER
 M:	Andy Walls <awalls@md.metrocast.net>
 L:	ivtv-devel@ivtvdriver.org (moderated for non-subscribers)
 L:	linux-media@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
+T:	git git://linuxtv.org/media_tree.git
 W:	http://linuxtv.org
 W:	http://www.ivtvdriver.org/index.php/Cx18
 S:	Maintained
 F:	Documentation/video4linux/cx18.txt
 F:	drivers/media/pci/cx18/
+F:	include/uapi/linux/ivtv*
+
+CX88 VIDEO4LINUX DRIVER
+M:	Mauro Carvalho Chehab <mchehab@redhat.com>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Odd fixes
+F:	Documentation/video4linux/cx88/
+F:	drivers/media/pci/cx88/
 
 CXD2820R MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>
@@ -2852,6 +2877,14 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/ibm/ehea/
 
+EM28XX VIDEO4LINUX DRIVER
+M:	Mauro Carvalho Chehab <mchehab@redhat.com>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/usb/em28xx/
+
 EMBEDDED LINUX
 M:	Paul Gortmaker <paul.gortmaker@windriver.com>
 M:	Matt Mackall <mpm@selenic.com>
@@ -3049,6 +3082,14 @@ L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 T:	git git://git.alsa-project.org/alsa-kernel.git
 S:	Maintained
 F:	sound/firewire/
+
+FIREWIRE MEDIA DRIVERS (firedtv)
+M:	Stefan Richter <stefanr@s5r6.in-berlin.de>
+L:	linux-media@vger.kernel.org
+L:	linux1394-devel@lists.sourceforge.net
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
+S:	Maintained
+F:	drivers/media/firewire/
 
 FIREWIRE SBP-2 TARGET
 M:	Chris Boot <bootc@bootc.net>
@@ -3336,56 +3377,56 @@ F:	drivers/net/ethernet/aeroflex/
 GSPCA FINEPIX SUBDRIVER
 M:	Frank Zago <frank@zago.net>
 L:	linux-media@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
+T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/usb/gspca/finepix.c
 
 GSPCA GL860 SUBDRIVER
 M:	Olivier Lorin <o.lorin@laposte.net>
 L:	linux-media@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
+T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/usb/gspca/gl860/
 
 GSPCA M5602 SUBDRIVER
 M:	Erik Andren <erik.andren@gmail.com>
 L:	linux-media@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
+T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/usb/gspca/m5602/
 
 GSPCA PAC207 SONIXB SUBDRIVER
 M:	Hans de Goede <hdegoede@redhat.com>
 L:	linux-media@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
+T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/usb/gspca/pac207.c
 
 GSPCA SN9C20X SUBDRIVER
 M:	Brian Johnson <brijohn@gmail.com>
 L:	linux-media@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
+T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/usb/gspca/sn9c20x.c
 
 GSPCA T613 SUBDRIVER
 M:	Leandro Costantino <lcostantino@gmail.com>
 L:	linux-media@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
+T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/usb/gspca/t613.c
 
 GSPCA USB WEBCAM DRIVER
 M:	Hans de Goede <hdegoede@redhat.com>
 L:	linux-media@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
+T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/usb/gspca/
 
 STK1160 USB VIDEO CAPTURE DRIVER
 M:	Ezequiel Garcia <elezegarcia@gmail.com>
 L:	linux-media@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
+T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/usb/stk1160/
 
@@ -3784,6 +3825,12 @@ F:	net/ieee802154/
 F:	net/mac802154/
 F:	drivers/ieee802154/
 
+IGUANAWORKS USB IR TRANSCEIVER
+M:	Sean Young <sean@mess.org>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/rc/iguanair.c
+
 IIO SUBSYSTEM AND DRIVERS
 M:	Jonathan Cameron <jic23@cam.ac.uk>
 L:	linux-iio@vger.kernel.org
@@ -4158,16 +4205,40 @@ S:	Maintained
 F:	Documentation/hwmon/it87
 F:	drivers/hwmon/it87.c
 
+IT913X MEDIA DRIVER
+M:	Malcolm Priestley <tvboxspy@gmail.com>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org/
+Q:	http://patchwork.linuxtv.org/project/linux-media/list/
+S:	Maintained
+F:	drivers/media/usb/dvb-usb-v2/it913x*
+
+IT913X FE MEDIA DRIVER
+M:	Malcolm Priestley <tvboxspy@gmail.com>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org/
+Q:	http://patchwork.linuxtv.org/project/linux-media/list/
+S:	Maintained
+F:	drivers/media/dvb-frontends/it913x-fe*
+
 IVTV VIDEO4LINUX DRIVER
 M:	Andy Walls <awalls@md.metrocast.net>
 L:	ivtv-devel@ivtvdriver.org (moderated for non-subscribers)
 L:	linux-media@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
+T:	git git://linuxtv.org/media_tree.git
 W:	http://www.ivtvdriver.org
 S:	Maintained
 F:	Documentation/video4linux/*.ivtv
 F:	drivers/media/pci/ivtv/
 F:	include/linux/ivtv*
+
+IX2505V MEDIA DRIVER
+M:	Malcolm Priestley <tvboxspy@gmail.com>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org/
+Q:	http://patchwork.linuxtv.org/project/linux-media/list/
+S:	Maintained
+F:	drivers/media/dvb-frontends/ix2505v*
 
 JC42.4 TEMPERATURE SENSOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
@@ -4613,6 +4684,14 @@ S:	Maintained
 F:	Documentation/hwmon/lm90
 F:	drivers/hwmon/lm90.c
 
+LME2510 MEDIA DRIVER
+M:	Malcolm Priestley <tvboxspy@gmail.com>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org/
+Q:	http://patchwork.linuxtv.org/project/linux-media/list/
+S:	Maintained
+F:	drivers/media/usb/dvb-usb-v2/lmedm04*
+
 LOCKDEP AND LOCKSTAT
 M:	Peter Zijlstra <peterz@infradead.org>
 M:	Ingo Molnar <mingo@redhat.com>
@@ -4702,6 +4781,14 @@ M:	Philip Blundell <philb@gnu.org>
 W:	http://www.tazenda.demon.co.uk/phil/linux-hp
 S:	Maintained
 F:	arch/m68k/hp300/
+
+M88RS2000 MEDIA DRIVER
+M:	Malcolm Priestley <tvboxspy@gmail.com>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org/
+Q:	http://patchwork.linuxtv.org/project/linux-media/list/
+S:	Maintained
+F:	drivers/media/dvb-frontends/m88rs2000*
 
 MAC80211
 M:	Johannes Berg <johannes@sipsolutions.net>
@@ -4795,12 +4882,12 @@ F:	Documentation/hwmon/max6650
 F:	drivers/hwmon/max6650.c
 
 MEDIA INPUT INFRASTRUCTURE (V4L/DVB)
-M:	Mauro Carvalho Chehab <mchehab@infradead.org>
+M:	Mauro Carvalho Chehab <mchehab@redhat.com>
 P:	LinuxTV.org Project
 L:	linux-media@vger.kernel.org
 W:	http://linuxtv.org
 Q:	http://patchwork.kernel.org/project/linux-media/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
+T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	Documentation/dvb/
 F:	Documentation/video4linux/
@@ -4808,8 +4895,13 @@ F:	Documentation/DocBook/media/
 F:	drivers/media/
 F:	drivers/staging/media/
 F:	include/media/
-F:	include/linux/dvb/
-F:	include/linux/videodev*.h
+F:	include/uapi/linux/dvb/
+F:	include/uapi/linux/videodev2.h
+F:	include/uapi/linux/media.h
+F:	include/uapi/linux/v4l2-*
+F:	include/uapi/linux/meye.h
+F:	include/uapi/linux/ivtv*
+F:	include/uapi/linux/uvcvideo.h
 
 MEGARAID SCSI DRIVERS
 M:	Neela Syam Kolli <megaraidlinux@lsi.com>
@@ -4883,7 +4975,7 @@ W:	http://popies.net/meye/
 S:	Orphan
 F:	Documentation/video4linux/meye.txt
 F:	drivers/media/pci/meye/
-F:	include/linux/meye.h
+F:	include/uapi/linux/meye.h
 
 MOTOROLA IMX MMC/SD HOST CONTROLLER INTERFACE DRIVER
 M:	Pavel Pisa <ppisa@pikron.com>
@@ -4896,6 +4988,13 @@ M:	Jiri Slaby <jirislaby@gmail.com>
 S:	Maintained
 F:	Documentation/serial/moxa-smartio
 F:	drivers/tty/mxser.*
+
+MR800 AVERMEDIA USB FM RADIO DRIVER
+M:	Alexey Klimov <klimov.linux@gmail.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/radio/radio-mr800.c
 
 MSI LAPTOP SUPPORT
 M:	"Lee, Chun-Yi" <jlee@novell.com>
@@ -5357,7 +5456,7 @@ F:	drivers/char/pcmcia/cm4040_cs.*
 OMNIVISION OV7670 SENSOR DRIVER
 M:	Jonathan Corbet <corbet@lwn.net>
 L:	linux-media@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
+T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/i2c/ov7670.c
 
@@ -5900,10 +5999,17 @@ M:	Mike Isely <isely@pobox.com>
 L:	pvrusb2@isely.net	(subscribers-only)
 L:	linux-media@vger.kernel.org
 W:	http://www.isely.net/pvrusb2/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
+T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	Documentation/video4linux/README.pvrusb2
 F:	drivers/media/usb/pvrusb2/
+
+PWC WEBCAM DRIVER
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/usb/pwc/*
 
 PWM SUBSYSTEM
 M:	Thierry Reding <thierry.reding@avionic-design.de>
@@ -6046,6 +6152,21 @@ L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/aty/radeon*
 F:	include/linux/radeonfb.h
+
+RADIOSHARK RADIO DRIVER
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/radio/radio-shark.c
+
+RADIOSHARK2 RADIO DRIVER
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/radio/radio-shark2.c
+F:	drivers/media/radio/radio-tea5777.c
 
 RAGE128 FRAMEBUFFER DISPLAY DRIVER
 M:	Paul Mackerras <paulus@samba.org>
@@ -6287,10 +6408,19 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 F:	drivers/mmc/host/s3cmci.*
 
+SAA7134 VIDEO4LINUX DRIVER
+M:	Mauro Carvalho Chehab <mchehab@redhat.com>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Odd fixes
+F:	Documentation/video4linux/saa7134/
+F:	drivers/media/pci/saa7134/
+
 SAA7146 VIDEO4LINUX-2 DRIVER
 M:	Michael Hunold <michael@mihu.de>
 L:	linux-media@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
+T:	git git://linuxtv.org/media_tree.git
 W:	http://www.mihu.de/linux/saa7146
 S:	Maintained
 F:	drivers/media/common/saa7146/
@@ -6324,6 +6454,14 @@ F:	drivers/regulator/s2m*.c
 F:	drivers/regulator/s5m*.c
 F:	drivers/rtc/rtc-sec.c
 F:	include/linux/mfd/samsung/
+
+SAMSUNG S3C24XX/S3C64XX SOC SERIES CAMIF DRIVER
+M:	Sylwester Nawrocki <sylvester.nawrocki@gmail.com>
+L:	linux-media@vger.kernel.org
+L:	linux-samsung-soc@vger.kernel.org (moderated for non-subscribers)
+S:	Maintained
+F:	drivers/media/platform/s3c-camif/
+F:	include/media/s3c_camif.h
 
 SERIAL DRIVERS
 M:	Alan Cox <alan@linux.intel.com>
@@ -6618,6 +6756,18 @@ S:	Supported
 F:	arch/arm/mach-davinci
 F:	drivers/i2c/busses/i2c-davinci.c
 
+TI DAVINCI SERIES MEDIA DRIVER
+M:	Manjunath Hadli <manjunath.hadli@ti.com>
+M:	Prabhakar Lad <prabhakar.lad@ti.com>
+L:	linux-media@vger.kernel.org
+L:	davinci-linux-open-source@linux.davincidsp.com (moderated for non-subscribers)
+W:	http://linuxtv.org/
+Q:	http://patchwork.linuxtv.org/project/linux-media/list/
+T:	git git://linuxtv.org/mhadli/v4l-dvb-davinci_devices.git
+S:	Supported
+F:	drivers/media/platform/davinci/
+F:	include/media/davinci/
+
 SIS 190 ETHERNET DRIVER
 M:	Francois Romieu <romieu@fr.zoreil.com>
 L:	netdev@vger.kernel.org
@@ -6684,6 +6834,15 @@ M:	Nicolas Pitre <nico@fluxnic.net>
 S:	Odd Fixes
 F:	drivers/net/ethernet/smsc/smc91x.*
 
+SMIA AND SMIA++ IMAGE SENSOR DRIVER
+M:	Sakari Ailus <sakari.ailus@iki.fi>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/i2c/smiapp
+F:	include/media/smiapp.h
+F:	drivers/media/i2c/smiapp-pll.c
+F:	drivers/media/i2c/smiapp-pll.h
+
 SMM665 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	lm-sensors@lm-sensors.org
@@ -6742,7 +6901,7 @@ F:	arch/ia64/sn/
 SOC-CAMERA V4L2 SUBSYSTEM
 M:	Guennadi Liakhovetski <g.liakhovetski@gmx.de>
 L:	linux-media@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
+T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	include/media/soc*
 F:	drivers/media/i2c/soc_camera/
@@ -7232,12 +7391,34 @@ T:	git git://linuxtv.org/mkrufky/tuners.git
 S:	Maintained
 F:	drivers/media/tuners/tda8290.*
 
+TEA5761 TUNER DRIVER
+M:	Mauro Carvalho Chehab <mchehab@redhat.com>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Odd fixes
+F:	drivers/media/tuners/tea5761.*
+
+TEA5767 TUNER DRIVER
+M:	Mauro Carvalho Chehab <mchehab@redhat.com>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/tuners/tea5767.*
+
 TEAM DRIVER
 M:	Jiri Pirko <jpirko@redhat.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/team/
 F:	include/linux/if_team.h
+
+TECHNOTREND USB IR RECEIVER
+M:	Sean Young <sean@mess.org>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/rc/ttusbir.c
 
 TEGRA SUPPORT
 M:	Stephen Warren <swarren@wwwdotorg.org>
@@ -7390,6 +7571,14 @@ L:	linux-mm@kvack.org
 S:	Maintained
 F:	include/linux/shmem_fs.h
 F:	mm/shmem.c
+
+TM6000 VIDEO4LINUX DRIVER
+M:	Mauro Carvalho Chehab <mchehab@redhat.com>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Odd fixes
+F:	drivers/media/usb/tm6000/
 
 TPM DEVICE DRIVER
 M:	Kent Yoder <key@linux.vnet.ibm.com>
@@ -7785,7 +7974,7 @@ USB SN9C1xx DRIVER
 M:	Luca Risolia <luca.risolia@studio.unibo.it>
 L:	linux-usb@vger.kernel.org
 L:	linux-media@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
+T:	git git://linuxtv.org/media_tree.git
 W:	http://www.linux-projects.org
 S:	Maintained
 F:	Documentation/video4linux/sn9c102.txt
@@ -7821,10 +8010,11 @@ USB VIDEO CLASS
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	linux-uvc-devel@lists.sourceforge.net (subscribers-only)
 L:	linux-media@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
+T:	git git://linuxtv.org/media_tree.git
 W:	http://www.ideasonboard.org/uvc/
 S:	Maintained
 F:	drivers/media/usb/uvc/
+F:	include/uapi/linux/uvcvideo.h
 
 USB WEBCAM GADGET
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
@@ -7856,7 +8046,7 @@ USB ZR364XX DRIVER
 M:	Antoine Jacquet <royale@zerezo.com>
 L:	linux-usb@vger.kernel.org
 L:	linux-media@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
+T:	git git://linuxtv.org/media_tree.git
 W:	http://royale.zerezo.com/zr364xx/
 S:	Maintained
 F:	Documentation/video4linux/zr364xx.txt
@@ -8210,6 +8400,14 @@ M:	Borislav Petkov <bp@alien8.de>
 L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	arch/x86/kernel/cpu/mcheck/*
+
+XC2028/3028 TUNER DRIVER
+M:	Mauro Carvalho Chehab <mchehab@redhat.com>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/tuners/tuner-xc2028.*
 
 XEN HYPERVISOR INTERFACE
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>

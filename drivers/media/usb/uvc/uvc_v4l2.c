@@ -165,17 +165,18 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 			fcc[0], fcc[1], fcc[2], fcc[3],
 			fmt->fmt.pix.width, fmt->fmt.pix.height);
 
-	/* Check if the hardware supports the requested format. */
+	/* Check if the hardware supports the requested format, use the default
+	 * format otherwise.
+	 */
 	for (i = 0; i < stream->nformats; ++i) {
 		format = &stream->format[i];
 		if (format->fcc == fmt->fmt.pix.pixelformat)
 			break;
 	}
 
-	if (format == NULL || format->fcc != fmt->fmt.pix.pixelformat) {
-		uvc_trace(UVC_TRACE_FORMAT, "Unsupported format 0x%08x.\n",
-				fmt->fmt.pix.pixelformat);
-		return -EINVAL;
+	if (i == stream->nformats) {
+		format = stream->def_format;
+		fmt->fmt.pix.pixelformat = format->fcc;
 	}
 
 	/* Find the closest image size. The distance between image sizes is
@@ -564,14 +565,29 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		usb_make_path(stream->dev->udev,
 			      cap->bus_info, sizeof(cap->bus_info));
 		cap->version = LINUX_VERSION_CODE;
+		cap->capabilities = V4L2_CAP_DEVICE_CAPS | V4L2_CAP_STREAMING
+				  | chain->caps;
 		if (stream->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
-			cap->capabilities = V4L2_CAP_VIDEO_CAPTURE
-					  | V4L2_CAP_STREAMING;
+			cap->device_caps = V4L2_CAP_VIDEO_CAPTURE
+					 | V4L2_CAP_STREAMING;
 		else
-			cap->capabilities = V4L2_CAP_VIDEO_OUTPUT
-					  | V4L2_CAP_STREAMING;
+			cap->device_caps = V4L2_CAP_VIDEO_OUTPUT
+					 | V4L2_CAP_STREAMING;
 		break;
 	}
+
+	/* Priority */
+	case VIDIOC_G_PRIORITY:
+		*(u32 *)arg = v4l2_prio_max(vdev->prio);
+		break;
+
+	case VIDIOC_S_PRIORITY:
+		ret = v4l2_prio_check(vdev->prio, handle->vfh.prio);
+		if (ret < 0)
+			return ret;
+
+		return v4l2_prio_change(vdev->prio, &handle->vfh.prio,
+					*(u32 *)arg);
 
 	/* Get, Set & Query control */
 	case VIDIOC_QUERYCTRL:
@@ -591,8 +607,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 		ret = uvc_ctrl_get(chain, &xctrl);
 		uvc_ctrl_rollback(handle);
-		if (ret >= 0)
-			ctrl->value = xctrl.value;
+		if (ret < 0)
+			return ret == -ENOENT ? -EINVAL : ret;
+
+		ctrl->value = xctrl.value;
 		break;
 	}
 
@@ -600,6 +618,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	{
 		struct v4l2_control *ctrl = arg;
 		struct v4l2_ext_control xctrl;
+
+		ret = v4l2_prio_check(vdev->prio, handle->vfh.prio);
+		if (ret < 0)
+			return ret;
 
 		memset(&xctrl, 0, sizeof xctrl);
 		xctrl.id = ctrl->id;
@@ -612,7 +634,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		ret = uvc_ctrl_set(chain, &xctrl);
 		if (ret < 0) {
 			uvc_ctrl_rollback(handle);
-			return ret;
+			return ret == -ENOENT ? -EINVAL : ret;
 		}
 		ret = uvc_ctrl_commit(handle, &xctrl, 1);
 		if (ret == 0)
@@ -637,8 +659,9 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			ret = uvc_ctrl_get(chain, ctrl);
 			if (ret < 0) {
 				uvc_ctrl_rollback(handle);
-				ctrls->error_idx = i;
-				return ret;
+				ctrls->error_idx = ret == -ENOENT
+						 ? ctrls->count : i;
+				return ret == -ENOENT ? -EINVAL : ret;
 			}
 		}
 		ctrls->error_idx = 0;
@@ -647,6 +670,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	}
 
 	case VIDIOC_S_EXT_CTRLS:
+		ret = v4l2_prio_check(vdev->prio, handle->vfh.prio);
+		if (ret < 0)
+			return ret;
+		/* Fall through */
 	case VIDIOC_TRY_EXT_CTRLS:
 	{
 		struct v4l2_ext_controls *ctrls = arg;
@@ -661,8 +688,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			ret = uvc_ctrl_set(chain, ctrl);
 			if (ret < 0) {
 				uvc_ctrl_rollback(handle);
-				ctrls->error_idx = i;
-				return ret;
+				ctrls->error_idx = (ret == -ENOENT &&
+						    cmd == VIDIOC_S_EXT_CTRLS)
+						 ? ctrls->count : i;
+				return ret == -ENOENT ? -EINVAL : ret;
 			}
 		}
 
@@ -739,6 +768,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	{
 		u32 input = *(u32 *)arg + 1;
 
+		ret = v4l2_prio_check(vdev->prio, handle->vfh.prio);
+		if (ret < 0)
+			return ret;
+
 		if ((ret = uvc_acquire_privileges(handle)) < 0)
 			return ret;
 
@@ -792,6 +825,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	}
 
 	case VIDIOC_S_FMT:
+		ret = v4l2_prio_check(vdev->prio, handle->vfh.prio);
+		if (ret < 0)
+			return ret;
+
 		if ((ret = uvc_acquire_privileges(handle)) < 0)
 			return ret;
 
@@ -894,6 +931,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		return uvc_v4l2_get_streamparm(stream, arg);
 
 	case VIDIOC_S_PARM:
+		ret = v4l2_prio_check(vdev->prio, handle->vfh.prio);
+		if (ret < 0)
+			return ret;
+
 		if ((ret = uvc_acquire_privileges(handle)) < 0)
 			return ret;
 
@@ -924,10 +965,14 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	case VIDIOC_G_CROP:
 	case VIDIOC_S_CROP:
-		return -EINVAL;
+		return -ENOTTY;
 
 	/* Buffers & streaming */
 	case VIDIOC_REQBUFS:
+		ret = v4l2_prio_check(vdev->prio, handle->vfh.prio);
+		if (ret < 0)
+			return ret;
+
 		if ((ret = uvc_acquire_privileges(handle)) < 0)
 			return ret;
 
@@ -973,6 +1018,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		if (*type != stream->type)
 			return -EINVAL;
 
+		ret = v4l2_prio_check(vdev->prio, handle->vfh.prio);
+		if (ret < 0)
+			return ret;
+
 		if (!uvc_has_privileges(handle))
 			return -EBUSY;
 
@@ -990,6 +1039,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 		if (*type != stream->type)
 			return -EINVAL;
+
+		ret = v4l2_prio_check(vdev->prio, handle->vfh.prio);
+		if (ret < 0)
+			return ret;
 
 		if (!uvc_has_privileges(handle))
 			return -EBUSY;
@@ -1030,7 +1083,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	case VIDIOC_ENUMOUTPUT:
 		uvc_trace(UVC_TRACE_IOCTL, "Unsupported ioctl 0x%08x\n", cmd);
-		return -EINVAL;
+		return -ENOTTY;
 
 	case UVCIOC_CTRL_MAP:
 		return uvc_ioctl_ctrl_map(chain, arg);

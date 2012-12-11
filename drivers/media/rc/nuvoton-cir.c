@@ -472,6 +472,7 @@ static void nvt_enable_wake(struct nvt_dev *nvt)
 	nvt_cir_wake_reg_write(nvt, 0, CIR_WAKE_IREN);
 }
 
+#if 0 /* Currently unused */
 /* rx carrier detect only works in learning mode, must be called w/nvt_lock */
 static u32 nvt_rx_carrier_detect(struct nvt_dev *nvt)
 {
@@ -504,7 +505,7 @@ static u32 nvt_rx_carrier_detect(struct nvt_dev *nvt)
 
 	return carrier;
 }
-
+#endif
 /*
  * set carrier frequency
  *
@@ -620,7 +621,6 @@ static void nvt_dump_rx_buf(struct nvt_dev *nvt)
 static void nvt_process_rx_ir_data(struct nvt_dev *nvt)
 {
 	DEFINE_IR_RAW_EVENT(rawir);
-	u32 carrier;
 	u8 sample;
 	int i;
 
@@ -628,9 +628,6 @@ static void nvt_process_rx_ir_data(struct nvt_dev *nvt)
 
 	if (debug)
 		nvt_dump_rx_buf(nvt);
-
-	if (nvt->carrier_detect_enabled)
-		carrier = nvt_rx_carrier_detect(nvt);
 
 	nvt_dbg_verbose("Processing buffer of len %d", nvt->pkts);
 
@@ -1045,7 +1042,7 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	/* Set up the rc device */
 	rdev->priv = nvt;
 	rdev->driver_type = RC_DRIVER_IR_RAW;
-	rdev->allowed_protos = RC_TYPE_ALL;
+	rdev->allowed_protos = RC_BIT_ALL;
 	rdev->open = nvt_open;
 	rdev->close = nvt_close;
 	rdev->tx_ir = nvt_tx_ir;
@@ -1220,12 +1217,12 @@ static struct pnp_driver nvt_driver = {
 	.shutdown	= nvt_shutdown,
 };
 
-int nvt_init(void)
+static int nvt_init(void)
 {
 	return pnp_register_driver(&nvt_driver);
 }
 
-void nvt_exit(void)
+static void nvt_exit(void)
 {
 	pnp_unregister_driver(&nvt_driver);
 }

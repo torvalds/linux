@@ -102,7 +102,8 @@ static const struct isp_res_mapping isp_res_maps[] = {
 		       1 << OMAP3_ISP_IOMEM_RESZ |
 		       1 << OMAP3_ISP_IOMEM_SBL |
 		       1 << OMAP3_ISP_IOMEM_CSI2A_REGS1 |
-		       1 << OMAP3_ISP_IOMEM_CSIPHY2,
+		       1 << OMAP3_ISP_IOMEM_CSIPHY2 |
+		       1 << OMAP3_ISP_IOMEM_343X_CONTROL_CSIRXFE,
 	},
 	{
 		.isp_rev = ISP_REVISION_15_0,
@@ -119,7 +120,8 @@ static const struct isp_res_mapping isp_res_maps[] = {
 		       1 << OMAP3_ISP_IOMEM_CSI2A_REGS2 |
 		       1 << OMAP3_ISP_IOMEM_CSI2C_REGS1 |
 		       1 << OMAP3_ISP_IOMEM_CSIPHY1 |
-		       1 << OMAP3_ISP_IOMEM_CSI2C_REGS2,
+		       1 << OMAP3_ISP_IOMEM_CSI2C_REGS2 |
+		       1 << OMAP3_ISP_IOMEM_3630_CONTROL_CAMERA_PHY_CTRL,
 	},
 };
 
@@ -1330,7 +1332,8 @@ void omap3isp_subclk_disable(struct isp_device *isp,
  * isp_enable_clocks - Enable ISP clocks
  * @isp: OMAP3 ISP device
  *
- * Return 0 if successful, or clk_enable return value if any of tthem fails.
+ * Return 0 if successful, or clk_prepare_enable return value if any of them
+ * fails.
  */
 static int isp_enable_clocks(struct isp_device *isp)
 {
@@ -1347,14 +1350,11 @@ static int isp_enable_clocks(struct isp_device *isp)
 	 * has to be twice of what is set on OMAP3430 to get
 	 * the required value for cam_mclk
 	 */
-	if (cpu_is_omap3630())
-		divisor = 1;
-	else
-		divisor = 2;
+	divisor = isp->revision == ISP_REVISION_15_0 ? 1 : 2;
 
-	r = clk_enable(isp->clock[ISP_CLK_CAM_ICK]);
+	r = clk_prepare_enable(isp->clock[ISP_CLK_CAM_ICK]);
 	if (r) {
-		dev_err(isp->dev, "clk_enable cam_ick failed\n");
+		dev_err(isp->dev, "failed to enable cam_ick clock\n");
 		goto out_clk_enable_ick;
 	}
 	r = clk_set_rate(isp->clock[ISP_CLK_DPLL4_M5_CK],
@@ -1363,9 +1363,9 @@ static int isp_enable_clocks(struct isp_device *isp)
 		dev_err(isp->dev, "clk_set_rate for dpll4_m5_ck failed\n");
 		goto out_clk_enable_mclk;
 	}
-	r = clk_enable(isp->clock[ISP_CLK_CAM_MCLK]);
+	r = clk_prepare_enable(isp->clock[ISP_CLK_CAM_MCLK]);
 	if (r) {
-		dev_err(isp->dev, "clk_enable cam_mclk failed\n");
+		dev_err(isp->dev, "failed to enable cam_mclk clock\n");
 		goto out_clk_enable_mclk;
 	}
 	rate = clk_get_rate(isp->clock[ISP_CLK_CAM_MCLK]);
@@ -1373,17 +1373,17 @@ static int isp_enable_clocks(struct isp_device *isp)
 		dev_warn(isp->dev, "unexpected cam_mclk rate:\n"
 				   " expected : %d\n"
 				   " actual   : %ld\n", CM_CAM_MCLK_HZ, rate);
-	r = clk_enable(isp->clock[ISP_CLK_CSI2_FCK]);
+	r = clk_prepare_enable(isp->clock[ISP_CLK_CSI2_FCK]);
 	if (r) {
-		dev_err(isp->dev, "clk_enable csi2_fck failed\n");
+		dev_err(isp->dev, "failed to enable csi2_fck clock\n");
 		goto out_clk_enable_csi2_fclk;
 	}
 	return 0;
 
 out_clk_enable_csi2_fclk:
-	clk_disable(isp->clock[ISP_CLK_CAM_MCLK]);
+	clk_disable_unprepare(isp->clock[ISP_CLK_CAM_MCLK]);
 out_clk_enable_mclk:
-	clk_disable(isp->clock[ISP_CLK_CAM_ICK]);
+	clk_disable_unprepare(isp->clock[ISP_CLK_CAM_ICK]);
 out_clk_enable_ick:
 	return r;
 }
@@ -1394,9 +1394,9 @@ out_clk_enable_ick:
  */
 static void isp_disable_clocks(struct isp_device *isp)
 {
-	clk_disable(isp->clock[ISP_CLK_CAM_ICK]);
-	clk_disable(isp->clock[ISP_CLK_CAM_MCLK]);
-	clk_disable(isp->clock[ISP_CLK_CSI2_FCK]);
+	clk_disable_unprepare(isp->clock[ISP_CLK_CAM_ICK]);
+	clk_disable_unprepare(isp->clock[ISP_CLK_CAM_MCLK]);
+	clk_disable_unprepare(isp->clock[ISP_CLK_CSI2_FCK]);
 }
 
 static const char *isp_clocks[] = {
@@ -1677,7 +1677,7 @@ isp_register_subdev_group(struct isp_device *isp,
 
 		adapter = i2c_get_adapter(board_info->i2c_adapter_id);
 		if (adapter == NULL) {
-			printk(KERN_ERR "%s: Unable to get I2C adapter %d for "
+			dev_err(isp->dev, "%s: Unable to get I2C adapter %d for "
 				"device %s\n", __func__,
 				board_info->i2c_adapter_id,
 				board_info->board_info->type);
@@ -1687,7 +1687,7 @@ isp_register_subdev_group(struct isp_device *isp,
 		subdev = v4l2_i2c_new_subdev_board(&isp->v4l2_dev, adapter,
 				board_info->board_info, NULL);
 		if (subdev == NULL) {
-			printk(KERN_ERR "%s: Unable to register subdev %s\n",
+			dev_err(isp->dev, "%s: Unable to register subdev %s\n",
 				__func__, board_info->board_info->type);
 			continue;
 		}
@@ -1712,7 +1712,7 @@ static int isp_register_entities(struct isp_device *isp)
 	isp->media_dev.link_notify = isp_pipeline_link_notify;
 	ret = media_device_register(&isp->media_dev);
 	if (ret < 0) {
-		printk(KERN_ERR "%s: Media device registration failed (%d)\n",
+		dev_err(isp->dev, "%s: Media device registration failed (%d)\n",
 			__func__, ret);
 		return ret;
 	}
@@ -1720,7 +1720,7 @@ static int isp_register_entities(struct isp_device *isp)
 	isp->v4l2_dev.mdev = &isp->media_dev;
 	ret = v4l2_device_register(isp->dev, &isp->v4l2_dev);
 	if (ret < 0) {
-		printk(KERN_ERR "%s: V4L2 device registration failed (%d)\n",
+		dev_err(isp->dev, "%s: V4L2 device registration failed (%d)\n",
 			__func__, ret);
 		goto done;
 	}
@@ -1765,6 +1765,7 @@ static int isp_register_entities(struct isp_device *isp)
 		struct media_entity *input;
 		unsigned int flags;
 		unsigned int pad;
+		unsigned int i;
 
 		sensor = isp_register_subdev_group(isp, subdevs->subdevs);
 		if (sensor == NULL)
@@ -1806,13 +1807,25 @@ static int isp_register_entities(struct isp_device *isp)
 			break;
 
 		default:
-			printk(KERN_ERR "%s: invalid interface type %u\n",
-			       __func__, subdevs->interface);
+			dev_err(isp->dev, "%s: invalid interface type %u\n",
+				__func__, subdevs->interface);
 			ret = -EINVAL;
 			goto done;
 		}
 
-		ret = media_entity_create_link(&sensor->entity, 0, input, pad,
+		for (i = 0; i < sensor->entity.num_pads; i++) {
+			if (sensor->entity.pads[i].flags & MEDIA_PAD_FL_SOURCE)
+				break;
+		}
+		if (i == sensor->entity.num_pads) {
+			dev_err(isp->dev,
+				"%s: no source pad in external entity\n",
+				__func__);
+			ret = -EINVAL;
+			goto done;
+		}
+
+		ret = media_entity_create_link(&sensor->entity, i, input, pad,
 					       flags);
 		if (ret < 0)
 			goto done;
@@ -2095,7 +2108,11 @@ static int __devinit isp_probe(struct platform_device *pdev)
 	isp->isp_csiphy1.vdd = regulator_get(&pdev->dev, "VDD_CSIPHY1");
 	isp->isp_csiphy2.vdd = regulator_get(&pdev->dev, "VDD_CSIPHY2");
 
-	/* Clocks */
+	/* Clocks
+	 *
+	 * The ISP clock tree is revision-dependent. We thus need to enable ICLK
+	 * manually to read the revision before calling __omap3isp_get().
+	 */
 	ret = isp_map_mem_resource(pdev, isp, OMAP3_ISP_IOMEM_MAIN);
 	if (ret < 0)
 		goto error;
@@ -2103,6 +2120,16 @@ static int __devinit isp_probe(struct platform_device *pdev)
 	ret = isp_get_clocks(isp);
 	if (ret < 0)
 		goto error;
+
+	ret = clk_enable(isp->clock[ISP_CLK_CAM_ICK]);
+	if (ret < 0)
+		goto error;
+
+	isp->revision = isp_reg_readl(isp, OMAP3_ISP_IOMEM_MAIN, ISP_REVISION);
+	dev_info(isp->dev, "Revision %d.%d found\n",
+		 (isp->revision & 0xf0) >> 4, isp->revision & 0x0f);
+
+	clk_disable(isp->clock[ISP_CLK_CAM_ICK]);
 
 	if (__omap3isp_get(isp, false) == NULL) {
 		ret = -ENODEV;
@@ -2114,10 +2141,6 @@ static int __devinit isp_probe(struct platform_device *pdev)
 		goto error_isp;
 
 	/* Memory resources */
-	isp->revision = isp_reg_readl(isp, OMAP3_ISP_IOMEM_MAIN, ISP_REVISION);
-	dev_info(isp->dev, "Revision %d.%d found\n",
-		 (isp->revision & 0xf0) >> 4, isp->revision & 0x0f);
-
 	for (m = 0; m < ARRAY_SIZE(isp_res_maps); m++)
 		if (isp->revision == isp_res_maps[m].isp_rev)
 			break;
