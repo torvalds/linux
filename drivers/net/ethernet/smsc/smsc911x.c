@@ -253,7 +253,7 @@ smsc911x_tx_writefifo(struct smsc911x_data *pdata, unsigned int *buf,
 	}
 
 	if (pdata->config.flags & SMSC911X_USE_32BIT) {
-		writesl(pdata->ioaddr + TX_DATA_FIFO, buf, wordcount);
+		iowrite32_rep(pdata->ioaddr + TX_DATA_FIFO, buf, wordcount);
 		goto out;
 	}
 
@@ -285,7 +285,7 @@ smsc911x_tx_writefifo_shift(struct smsc911x_data *pdata, unsigned int *buf,
 	}
 
 	if (pdata->config.flags & SMSC911X_USE_32BIT) {
-		writesl(pdata->ioaddr + __smsc_shift(pdata,
+		iowrite32_rep(pdata->ioaddr + __smsc_shift(pdata,
 						TX_DATA_FIFO), buf, wordcount);
 		goto out;
 	}
@@ -319,7 +319,7 @@ smsc911x_rx_readfifo(struct smsc911x_data *pdata, unsigned int *buf,
 	}
 
 	if (pdata->config.flags & SMSC911X_USE_32BIT) {
-		readsl(pdata->ioaddr + RX_DATA_FIFO, buf, wordcount);
+		ioread32_rep(pdata->ioaddr + RX_DATA_FIFO, buf, wordcount);
 		goto out;
 	}
 
@@ -351,7 +351,7 @@ smsc911x_rx_readfifo_shift(struct smsc911x_data *pdata, unsigned int *buf,
 	}
 
 	if (pdata->config.flags & SMSC911X_USE_32BIT) {
-		readsl(pdata->ioaddr + __smsc_shift(pdata,
+		ioread32_rep(pdata->ioaddr + __smsc_shift(pdata,
 						RX_DATA_FIFO), buf, wordcount);
 		goto out;
 	}
