@@ -708,6 +708,7 @@ config ARCH_SUN3I
 	# select COMMON_CLKDEV
 	select ICST
 	select GENERIC_CLOCKEVENTS
+	select NEED_MACH_IO_H
 	help
 	  This enables support for Allwinner Technology Co., Ltd F20 SoC based systems
 
@@ -722,6 +723,7 @@ config ARCH_SUN4I
 	select GENERIC_CLOCKEVENTS
 	select ARCH_HAS_CPUFREQ
 	select ARM_L1_CACHE_SHIFT_6
+	select NEED_MACH_IO_H
 	help
 	  This enables support for Allwinner Technology Co., Ltd A10 SoC based systems
 
@@ -736,6 +738,7 @@ config ARCH_SUN5I
         select GENERIC_CLOCKEVENTS
         select ARCH_HAS_CPUFREQ
         select ARM_L1_CACHE_SHIFT_6
+	select NEED_MACH_IO_H
         help
           This enables support for Allwinner Technology Co., Ltd A12/A13 SoC based systems
 
