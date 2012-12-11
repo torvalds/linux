@@ -38,7 +38,7 @@ static UCHAR *GetNextIPV6ChainedHeader(UCHAR **ppucPayload,
 
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
 					DBG_LVL_ALL, "\nIPv6 HopByHop Header");
-			usNextHeaderOffset += sizeof(IPV6HopByHopOptionsHeader);
+			usNextHeaderOffset += sizeof(struct bcm_ipv6_options_hdr);
 		}
 		break;
 

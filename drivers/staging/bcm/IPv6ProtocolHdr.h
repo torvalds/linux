@@ -52,11 +52,11 @@ typedef struct IPV6DestOptionsHeaderFormatTag {
 	unsigned char ucDestOptions[6];
 } IPV6DestOptionsHeader;
 
-typedef struct IPV6HopByHopOptionsHeaderFormatTag {
+struct bcm_ipv6_options_hdr {
 	unsigned char ucNextHeader;
 	unsigned char ucMisc[3];
 	unsigned long ulJumboPayloadLen;
-} IPV6HopByHopOptionsHeader;
+};
 
 struct bcm_ipv6_authentication_hdr {
 	unsigned char  ucNextHeader;
