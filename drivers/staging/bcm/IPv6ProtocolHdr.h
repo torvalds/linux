@@ -27,8 +27,8 @@ typedef struct IPV6HeaderFormatTag {
 	unsigned short usPayloadLength;
 	UCHAR  ucNextHeader;
 	UCHAR  ucHopLimit;
-	ULONG  ulSrcIpAddress[4];
-	ULONG  ulDestIpAddress[4];
+	unsigned long  ulSrcIpAddress[4];
+	unsigned long  ulDestIpAddress[4];
 } IPV6Header;
 
 typedef struct IPV6RoutingHeaderFormatTag {
@@ -36,14 +36,14 @@ typedef struct IPV6RoutingHeaderFormatTag {
 	UCHAR ucRoutingType;
 	UCHAR ucNumAddresses;
 	UCHAR ucNextAddress;
-	ULONG ulReserved;
+	unsigned long ulReserved;
 } IPV6RoutingHeader;
 
 typedef struct IPV6FragmentHeaderFormatTag {
 	UCHAR  ucNextHeader;
 	UCHAR  ucReserved;
 	unsigned short usFragmentOffset;
-	ULONG  ulIdentification;
+	unsigned long  ulIdentification;
 } IPV6FragmentHeader;
 
 typedef struct IPV6DestOptionsHeaderFormatTag {
@@ -55,14 +55,14 @@ typedef struct IPV6DestOptionsHeaderFormatTag {
 typedef struct IPV6HopByHopOptionsHeaderFormatTag {
 	UCHAR ucNextHeader;
 	UCHAR ucMisc[3];
-	ULONG ulJumboPayloadLen;
+	unsigned long ulJumboPayloadLen;
 } IPV6HopByHopOptionsHeader;
 
 typedef struct IPV6AuthenticationHeaderFormatTag {
 	UCHAR  ucNextHeader;
 	UCHAR  ucLength;
 	unsigned short usReserved;
-	ULONG  ulSecurityParametersIndex;
+	unsigned long  ulSecurityParametersIndex;
 } IPV6AuthenticationHeader;
 
 typedef struct IPV6IcmpHeaderFormatTag {
@@ -82,7 +82,7 @@ unsigned short IpVersion6(struct bcm_mini_adapter *Adapter, /* < Pointer to the 
 					PVOID pcIpHeader, /* <Pointer to the IP Hdr of the packet */
 					struct bcm_classifier_rule *pstClassifierRule);
 
-VOID DumpIpv6Address(ULONG *puIpv6Address);
+VOID DumpIpv6Address(unsigned long *puIpv6Address);
 
 extern BOOLEAN MatchSrcPort(struct bcm_classifier_rule *pstClassifierRule, unsigned short ushSrcPort);
 extern BOOLEAN MatchDestPort(struct bcm_classifier_rule *pstClassifierRule, unsigned short ushSrcPort);
