@@ -38,12 +38,12 @@ int in_crash_kexec;
  *
  * protected by rcu.
  */
-void (*crash_vmclear_loaded_vmcss)(void) = NULL;
+crash_vmclear_fn __rcu *crash_vmclear_loaded_vmcss = NULL;
 EXPORT_SYMBOL_GPL(crash_vmclear_loaded_vmcss);
 
 static inline void cpu_crash_vmclear_loaded_vmcss(void)
 {
-	void (*do_vmclear_operation)(void) = NULL;
+	crash_vmclear_fn *do_vmclear_operation = NULL;
 
 	rcu_read_lock();
 	do_vmclear_operation = rcu_dereference(crash_vmclear_loaded_vmcss);

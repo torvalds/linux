@@ -163,7 +163,8 @@ struct kimage_arch {
 };
 #endif
 
-extern void (*crash_vmclear_loaded_vmcss)(void);
+typedef void crash_vmclear_fn(void);
+extern crash_vmclear_fn __rcu *crash_vmclear_loaded_vmcss;
 
 #endif /* __ASSEMBLY__ */
 
