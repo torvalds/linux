@@ -548,7 +548,6 @@ static struct platform_device fsi_ak4648_device = {
 /* I2C */
 static struct pcf857x_platform_data pcf8575_pdata = {
 	.gpio_base	= GPIO_PCF8575_BASE,
-	.irq		= intcs_evt2irq(0x3260), /* IRQ19 */
 };
 
 static struct i2c_board_info i2c0_devices[] = {
@@ -570,6 +569,7 @@ static struct i2c_board_info i2c1_devices[] = {
 static struct i2c_board_info i2c3_devices[] = {
 	{
 		I2C_BOARD_INFO("pcf8575", 0x20),
+		.irq		= intcs_evt2irq(0x3260), /* IRQ19 */
 		.platform_data = &pcf8575_pdata,
 	},
 };
