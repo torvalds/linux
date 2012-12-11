@@ -79,7 +79,7 @@ typedef enum _E_IPADDR_CONTEXT {
 /* Function Prototypes */
 
 unsigned short IpVersion6(struct bcm_mini_adapter *Adapter, /* < Pointer to the driver control structure */
-					PVOID pcIpHeader, /* <Pointer to the IP Hdr of the packet */
+					void *pcIpHeader, /* <Pointer to the IP Hdr of the packet */
 					struct bcm_classifier_rule *pstClassifierRule);
 
 VOID DumpIpv6Address(unsigned long *puIpv6Address);
