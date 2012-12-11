@@ -71,10 +71,10 @@ typedef struct IPV6IcmpHeaderFormatTag {
 	unsigned short usChecksum;
 } IPV6IcmpHeader;
 
-typedef enum _E_IPADDR_CONTEXT {
+enum bcm_ipaddr_context {
 	eSrcIpAddress,
 	eDestIpAddress
-} E_IPADDR_CONTEXT;
+};
 
 /* Function Prototypes */
 
