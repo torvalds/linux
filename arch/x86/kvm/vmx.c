@@ -2766,6 +2766,7 @@ static void fix_pmode_dataseg(struct kvm_vcpu *vcpu, int seg, struct kvm_segment
 	if (!(vmcs_readl(sf->base) == tmp.base && tmp.s)) {
 		tmp.base = vmcs_readl(sf->base);
 		tmp.selector = vmcs_read16(sf->selector);
+		tmp.dpl = tmp.selector & SELECTOR_RPL_MASK;
 		tmp.s = 1;
 	}
 	vmx_set_segment(vcpu, &tmp, seg);
