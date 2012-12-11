@@ -1908,6 +1908,9 @@ bna_rxq_qpt_setup(struct bna_rxq *rxq,
 		struct bna_mem_descr *swqpt_mem,
 		struct bna_mem_descr *page_mem)
 {
+	u8 *kva;
+	u64 dma;
+	struct bna_dma_addr bna_dma;
 	int	i;
 
 	rxq->qpt.hw_qpt_ptr.lsb = qpt_mem->dma.lsb;
@@ -1917,13 +1920,21 @@ bna_rxq_qpt_setup(struct bna_rxq *rxq,
 	rxq->qpt.page_size = page_size;
 
 	rxq->rcb->sw_qpt = (void **) swqpt_mem->kva;
+	rxq->rcb->sw_q = page_mem->kva;
+
+	kva = page_mem->kva;
+	BNA_GET_DMA_ADDR(&page_mem->dma, dma);
 
 	for (i = 0; i < rxq->qpt.page_count; i++) {
-		rxq->rcb->sw_qpt[i] = page_mem[i].kva;
+		rxq->rcb->sw_qpt[i] = kva;
+		kva += PAGE_SIZE;
+
+		BNA_SET_DMA_ADDR(dma, &bna_dma);
 		((struct bna_dma_addr *)rxq->qpt.kv_qpt_ptr)[i].lsb =
-			page_mem[i].dma.lsb;
+			bna_dma.lsb;
 		((struct bna_dma_addr *)rxq->qpt.kv_qpt_ptr)[i].msb =
-			page_mem[i].dma.msb;
+			bna_dma.msb;
+		dma += PAGE_SIZE;
 	}
 }
 
@@ -1935,6 +1946,9 @@ bna_rxp_cqpt_setup(struct bna_rxp *rxp,
 		struct bna_mem_descr *swqpt_mem,
 		struct bna_mem_descr *page_mem)
 {
+	u8 *kva;
+	u64 dma;
+	struct bna_dma_addr bna_dma;
 	int	i;
 
 	rxp->cq.qpt.hw_qpt_ptr.lsb = qpt_mem->dma.lsb;
@@ -1944,14 +1958,21 @@ bna_rxp_cqpt_setup(struct bna_rxp *rxp,
 	rxp->cq.qpt.page_size = page_size;
 
 	rxp->cq.ccb->sw_qpt = (void **) swqpt_mem->kva;
+	rxp->cq.ccb->sw_q = page_mem->kva;
+
+	kva = page_mem->kva;
+	BNA_GET_DMA_ADDR(&page_mem->dma, dma);
 
 	for (i = 0; i < rxp->cq.qpt.page_count; i++) {
-		rxp->cq.ccb->sw_qpt[i] = page_mem[i].kva;
+		rxp->cq.ccb->sw_qpt[i] = kva;
+		kva += PAGE_SIZE;
 
+		BNA_SET_DMA_ADDR(dma, &bna_dma);
 		((struct bna_dma_addr *)rxp->cq.qpt.kv_qpt_ptr)[i].lsb =
-			page_mem[i].dma.lsb;
+			bna_dma.lsb;
 		((struct bna_dma_addr *)rxp->cq.qpt.kv_qpt_ptr)[i].msb =
-			page_mem[i].dma.msb;
+			bna_dma.msb;
+		dma += PAGE_SIZE;
 	}
 }
 
@@ -2250,8 +2271,8 @@ bna_rx_res_req(struct bna_rx_config *q_cfg, struct bna_res_info *res_info)
 	res_info[BNA_RX_RES_MEM_T_CQPT_PAGE].res_type = BNA_RES_T_MEM;
 	mem_info = &res_info[BNA_RX_RES_MEM_T_CQPT_PAGE].res_u.mem_info;
 	mem_info->mem_type = BNA_MEM_T_DMA;
-	mem_info->len = PAGE_SIZE;
-	mem_info->num = cpage_count * q_cfg->num_paths;
+	mem_info->len = PAGE_SIZE * cpage_count;
+	mem_info->num = q_cfg->num_paths;
 
 	res_info[BNA_RX_RES_MEM_T_DQPT].res_type = BNA_RES_T_MEM;
 	mem_info = &res_info[BNA_RX_RES_MEM_T_DQPT].res_u.mem_info;
@@ -2268,8 +2289,8 @@ bna_rx_res_req(struct bna_rx_config *q_cfg, struct bna_res_info *res_info)
 	res_info[BNA_RX_RES_MEM_T_DPAGE].res_type = BNA_RES_T_MEM;
 	mem_info = &res_info[BNA_RX_RES_MEM_T_DPAGE].res_u.mem_info;
 	mem_info->mem_type = BNA_MEM_T_DMA;
-	mem_info->len = PAGE_SIZE;
-	mem_info->num = dpage_count * q_cfg->num_paths;
+	mem_info->len = PAGE_SIZE * dpage_count;
+	mem_info->num = q_cfg->num_paths;
 
 	res_info[BNA_RX_RES_MEM_T_HQPT].res_type = BNA_RES_T_MEM;
 	mem_info = &res_info[BNA_RX_RES_MEM_T_HQPT].res_u.mem_info;
@@ -2286,8 +2307,8 @@ bna_rx_res_req(struct bna_rx_config *q_cfg, struct bna_res_info *res_info)
 	res_info[BNA_RX_RES_MEM_T_HPAGE].res_type = BNA_RES_T_MEM;
 	mem_info = &res_info[BNA_RX_RES_MEM_T_HPAGE].res_u.mem_info;
 	mem_info->mem_type = BNA_MEM_T_DMA;
-	mem_info->len = (hpage_count ? PAGE_SIZE : 0);
-	mem_info->num = (hpage_count ? (hpage_count * q_cfg->num_paths) : 0);
+	mem_info->len = PAGE_SIZE * hpage_count;
+	mem_info->num = (hpage_count ? q_cfg->num_paths : 0);
 
 	res_info[BNA_RX_RES_MEM_T_IBIDX].res_type = BNA_RES_T_MEM;
 	mem_info = &res_info[BNA_RX_RES_MEM_T_IBIDX].res_u.mem_info;
@@ -2332,7 +2353,7 @@ bna_rx_create(struct bna *bna, struct bnad *bnad,
 	struct bna_mem_descr *dsqpt_mem;
 	struct bna_mem_descr *hpage_mem;
 	struct bna_mem_descr *dpage_mem;
-	int i, cpage_idx = 0, dpage_idx = 0, hpage_idx = 0;
+	int i;
 	int dpage_count, hpage_count, rcb_idx;
 
 	if (!bna_rx_res_check(rx_mod, rx_cfg))
@@ -2352,14 +2373,14 @@ bna_rx_create(struct bna *bna, struct bnad *bnad,
 	hpage_mem = &res_info[BNA_RX_RES_MEM_T_HPAGE].res_u.mem_info.mdl[0];
 	dpage_mem = &res_info[BNA_RX_RES_MEM_T_DPAGE].res_u.mem_info.mdl[0];
 
-	page_count = res_info[BNA_RX_RES_MEM_T_CQPT_PAGE].res_u.mem_info.num /
-			rx_cfg->num_paths;
+	page_count = res_info[BNA_RX_RES_MEM_T_CQPT_PAGE].res_u.mem_info.len /
+			PAGE_SIZE;
 
-	dpage_count = res_info[BNA_RX_RES_MEM_T_DPAGE].res_u.mem_info.num /
-			rx_cfg->num_paths;
+	dpage_count = res_info[BNA_RX_RES_MEM_T_DPAGE].res_u.mem_info.len /
+			PAGE_SIZE;
 
-	hpage_count = res_info[BNA_RX_RES_MEM_T_HPAGE].res_u.mem_info.num /
-			rx_cfg->num_paths;
+	hpage_count = res_info[BNA_RX_RES_MEM_T_HPAGE].res_u.mem_info.len /
+			PAGE_SIZE;
 
 	rx = bna_rx_get(rx_mod, rx_cfg->rx_type);
 	rx->bna = bna;
@@ -2446,10 +2467,7 @@ bna_rx_create(struct bna *bna, struct bnad *bnad,
 		q0->rx_packets_with_error = q0->rxbuf_alloc_failed = 0;
 
 		bna_rxq_qpt_setup(q0, rxp, dpage_count, PAGE_SIZE,
-			&dqpt_mem[i], &dsqpt_mem[i], &dpage_mem[dpage_idx]);
-		q0->rcb->page_idx = dpage_idx;
-		q0->rcb->page_count = dpage_count;
-		dpage_idx += dpage_count;
+			&dqpt_mem[i], &dsqpt_mem[i], &dpage_mem[i]);
 
 		if (rx->rcb_setup_cbfn)
 			rx->rcb_setup_cbfn(bnad, q0->rcb);
@@ -2475,10 +2493,7 @@ bna_rx_create(struct bna *bna, struct bnad *bnad,
 
 			bna_rxq_qpt_setup(q1, rxp, hpage_count, PAGE_SIZE,
 				&hqpt_mem[i], &hsqpt_mem[i],
-				&hpage_mem[hpage_idx]);
-			q1->rcb->page_idx = hpage_idx;
-			q1->rcb->page_count = hpage_count;
-			hpage_idx += hpage_count;
+				&hpage_mem[i]);
 
 			if (rx->rcb_setup_cbfn)
 				rx->rcb_setup_cbfn(bnad, q1->rcb);
@@ -2510,10 +2525,7 @@ bna_rx_create(struct bna *bna, struct bnad *bnad,
 		rxp->cq.ccb->id = i;
 
 		bna_rxp_cqpt_setup(rxp, page_count, PAGE_SIZE,
-			&cqpt_mem[i], &cswqpt_mem[i], &cpage_mem[cpage_idx]);
-		rxp->cq.ccb->page_idx = cpage_idx;
-		rxp->cq.ccb->page_count = page_count;
-		cpage_idx += page_count;
+			&cqpt_mem[i], &cswqpt_mem[i], &cpage_mem[i]);
 
 		if (rx->ccb_setup_cbfn)
 			rx->ccb_setup_cbfn(bnad, rxp->cq.ccb);
@@ -3230,6 +3242,9 @@ bna_txq_qpt_setup(struct bna_txq *txq, int page_count, int page_size,
 		struct bna_mem_descr *swqpt_mem,
 		struct bna_mem_descr *page_mem)
 {
+	u8 *kva;
+	u64 dma;
+	struct bna_dma_addr bna_dma;
 	int i;
 
 	txq->qpt.hw_qpt_ptr.lsb = qpt_mem->dma.lsb;
@@ -3239,14 +3254,21 @@ bna_txq_qpt_setup(struct bna_txq *txq, int page_count, int page_size,
 	txq->qpt.page_size = page_size;
 
 	txq->tcb->sw_qpt = (void **) swqpt_mem->kva;
+	txq->tcb->sw_q = page_mem->kva;
+
+	kva = page_mem->kva;
+	BNA_GET_DMA_ADDR(&page_mem->dma, dma);
 
 	for (i = 0; i < page_count; i++) {
-		txq->tcb->sw_qpt[i] = page_mem[i].kva;
+		txq->tcb->sw_qpt[i] = kva;
+		kva += PAGE_SIZE;
 
+		BNA_SET_DMA_ADDR(dma, &bna_dma);
 		((struct bna_dma_addr *)txq->qpt.kv_qpt_ptr)[i].lsb =
-			page_mem[i].dma.lsb;
+			bna_dma.lsb;
 		((struct bna_dma_addr *)txq->qpt.kv_qpt_ptr)[i].msb =
-			page_mem[i].dma.msb;
+			bna_dma.msb;
+		dma += PAGE_SIZE;
 	}
 }
 
@@ -3430,8 +3452,8 @@ bna_tx_res_req(int num_txq, int txq_depth, struct bna_res_info *res_info)
 	res_info[BNA_TX_RES_MEM_T_PAGE].res_type = BNA_RES_T_MEM;
 	mem_info = &res_info[BNA_TX_RES_MEM_T_PAGE].res_u.mem_info;
 	mem_info->mem_type = BNA_MEM_T_DMA;
-	mem_info->len = PAGE_SIZE;
-	mem_info->num = num_txq * page_count;
+	mem_info->len = PAGE_SIZE * page_count;
+	mem_info->num = num_txq;
 
 	res_info[BNA_TX_RES_MEM_T_IBIDX].res_type = BNA_RES_T_MEM;
 	mem_info = &res_info[BNA_TX_RES_MEM_T_IBIDX].res_u.mem_info;
@@ -3457,14 +3479,11 @@ bna_tx_create(struct bna *bna, struct bnad *bnad,
 	struct bna_txq *txq;
 	struct list_head *qe;
 	int page_count;
-	int page_size;
-	int page_idx;
 	int i;
 
 	intr_info = &res_info[BNA_TX_RES_INTR_T_TXCMPL].res_u.intr_info;
-	page_count = (res_info[BNA_TX_RES_MEM_T_PAGE].res_u.mem_info.num) /
-			tx_cfg->num_txq;
-	page_size = res_info[BNA_TX_RES_MEM_T_PAGE].res_u.mem_info.len;
+	page_count = (res_info[BNA_TX_RES_MEM_T_PAGE].res_u.mem_info.len) /
+					PAGE_SIZE;
 
 	/**
 	 * Get resources
@@ -3529,7 +3548,6 @@ bna_tx_create(struct bna *bna, struct bnad *bnad,
 	/* TxQ */
 
 	i = 0;
-	page_idx = 0;
 	list_for_each(qe, &tx->txq_q) {
 		txq = (struct bna_txq *)qe;
 		txq->tcb = (struct bna_tcb *)
@@ -3569,14 +3587,11 @@ bna_tx_create(struct bna *bna, struct bnad *bnad,
 		txq->tcb->id = i;
 
 		/* QPT, SWQPT, Pages */
-		bna_txq_qpt_setup(txq, page_count, page_size,
+		bna_txq_qpt_setup(txq, page_count, PAGE_SIZE,
 			&res_info[BNA_TX_RES_MEM_T_QPT].res_u.mem_info.mdl[i],
 			&res_info[BNA_TX_RES_MEM_T_SWQPT].res_u.mem_info.mdl[i],
 			&res_info[BNA_TX_RES_MEM_T_PAGE].
-				  res_u.mem_info.mdl[page_idx]);
-		txq->tcb->page_idx = page_idx;
-		txq->tcb->page_count = page_count;
-		page_idx += page_count;
+				  res_u.mem_info.mdl[i]);
 
 		/* Callback to bnad for setting up TCB */
 		if (tx->tcb_setup_cbfn)

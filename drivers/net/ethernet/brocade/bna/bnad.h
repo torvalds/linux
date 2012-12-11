@@ -83,12 +83,9 @@ struct bnad_rx_ctrl {
 
 #define BNAD_IOCETH_TIMEOUT	     10000
 
-#define BNAD_MAX_Q_DEPTH		0x10000
-#define BNAD_MIN_Q_DEPTH		0x200
-
-#define BNAD_MAX_RXQ_DEPTH		(BNAD_MAX_Q_DEPTH / bnad_rxqs_per_cq)
-/* keeping MAX TX and RX Q depth equal */
-#define BNAD_MAX_TXQ_DEPTH		BNAD_MAX_RXQ_DEPTH
+#define BNAD_MIN_Q_DEPTH		512
+#define BNAD_MAX_RXQ_DEPTH		2048
+#define BNAD_MAX_TXQ_DEPTH		2048
 
 #define BNAD_JUMBO_MTU			9000
 
@@ -101,9 +98,8 @@ struct bnad_rx_ctrl {
 #define BNAD_TXQ_TX_STARTED		1
 
 /* Bit positions for rcb->flags */
-#define BNAD_RXQ_REFILL			0
-#define BNAD_RXQ_STARTED		1
-#define BNAD_RXQ_POST_OK		2
+#define BNAD_RXQ_STARTED		0
+#define BNAD_RXQ_POST_OK		1
 
 /* Resource limits */
 #define BNAD_NUM_TXQ			(bnad->num_tx * bnad->num_txq_per_tx)
@@ -221,18 +217,24 @@ struct bnad_rx_info {
 	struct work_struct rx_cleanup_work;
 } ____cacheline_aligned;
 
-/* Unmap queues for Tx / Rx cleanup */
-struct bnad_skb_unmap {
-	struct sk_buff		*skb;
+struct bnad_tx_vector {
 	DEFINE_DMA_UNMAP_ADDR(dma_addr);
 };
 
-struct bnad_unmap_q {
-	u32		producer_index;
-	u32		consumer_index;
-	u32		q_depth;
-	/* This should be the last one */
-	struct bnad_skb_unmap unmap_array[1];
+struct bnad_tx_unmap {
+	struct sk_buff		*skb;
+	u32			nvecs;
+	struct bnad_tx_vector	vectors[BFI_TX_MAX_VECTORS_PER_WI];
+};
+
+struct bnad_rx_vector {
+	DEFINE_DMA_UNMAP_ADDR(dma_addr);
+	u32			len;
+};
+
+struct bnad_rx_unmap {
+	struct sk_buff		*skb;
+	struct bnad_rx_vector	vector;
 };
 
 /* Bit mask values for bnad->cfg_flags */
@@ -251,11 +253,6 @@ struct bnad_unmap_q {
 #define BNAD_RF_DIM_TIMER_RUNNING	4
 #define BNAD_RF_STATS_TIMER_RUNNING	5
 #define BNAD_RF_TX_PRIO_SET		6
-
-
-/* Define for Fast Path flags */
-/* Defined as bit positions */
-#define BNAD_FP_IN_RX_PATH	      0
 
 struct bnad {
 	struct net_device	*netdev;
