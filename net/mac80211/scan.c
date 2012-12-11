@@ -761,9 +761,9 @@ int ieee80211_request_scan(struct ieee80211_sub_if_data *sdata,
 	return res;
 }
 
-int ieee80211_request_internal_scan(struct ieee80211_sub_if_data *sdata,
-				    const u8 *ssid, u8 ssid_len,
-				    struct ieee80211_channel *chan)
+int ieee80211_request_ibss_scan(struct ieee80211_sub_if_data *sdata,
+				const u8 *ssid, u8 ssid_len,
+				struct ieee80211_channel *chan)
 {
 	struct ieee80211_local *local = sdata->local;
 	int ret = -EBUSY;
@@ -777,22 +777,36 @@ int ieee80211_request_internal_scan(struct ieee80211_sub_if_data *sdata,
 
 	/* fill internal scan request */
 	if (!chan) {
-		int i, nchan = 0;
+		int i, max_n;
+		int n_ch = 0;
 
 		for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 			if (!local->hw.wiphy->bands[band])
 				continue;
-			for (i = 0;
-			     i < local->hw.wiphy->bands[band]->n_channels;
-			     i++) {
-				local->int_scan_req->channels[nchan] =
+
+			max_n = local->hw.wiphy->bands[band]->n_channels;
+			for (i = 0; i < max_n; i++) {
+				struct ieee80211_channel *tmp_ch =
 				    &local->hw.wiphy->bands[band]->channels[i];
-				nchan++;
+
+				if (tmp_ch->flags & (IEEE80211_CHAN_NO_IBSS |
+						     IEEE80211_CHAN_DISABLED))
+					continue;
+
+				local->int_scan_req->channels[n_ch] = tmp_ch;
+				n_ch++;
 			}
 		}
 
-		local->int_scan_req->n_channels = nchan;
+		if (WARN_ON_ONCE(n_ch == 0))
+			goto unlock;
+
+		local->int_scan_req->n_channels = n_ch;
 	} else {
+		if (WARN_ON_ONCE(chan->flags & (IEEE80211_CHAN_NO_IBSS |
+						IEEE80211_CHAN_DISABLED)))
+			goto unlock;
+
 		local->int_scan_req->channels[0] = chan;
 		local->int_scan_req->n_channels = 1;
 	}
