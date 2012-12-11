@@ -868,7 +868,8 @@ static int get_stack_size(char *str, unsigned long *_size)
 }
 #endif /* LIBUNWIND_SUPPORT */
 
-static int parse_callchain_opt(const struct option *opt, const char *arg, int unset)
+int record_parse_callchain_opt(const struct option *opt,
+			       const char *arg, int unset)
 {
 	struct perf_record_opts *opts = opt->value;
 	char *tok, *name, *saveptr = NULL;
@@ -973,9 +974,9 @@ static struct perf_record record = {
 #define CALLCHAIN_HELP "do call-graph (stack chain/backtrace) recording: "
 
 #ifdef LIBUNWIND_SUPPORT
-static const char callchain_help[] = CALLCHAIN_HELP "[fp] dwarf";
+const char record_callchain_help[] = CALLCHAIN_HELP "[fp] dwarf";
 #else
-static const char callchain_help[] = CALLCHAIN_HELP "[fp]";
+const char record_callchain_help[] = CALLCHAIN_HELP "[fp]";
 #endif
 
 /*
@@ -1020,8 +1021,8 @@ const struct option record_options[] = {
 	OPT_BOOLEAN(0, "group", &record.opts.group,
 		    "put the counters into a counter group"),
 	OPT_CALLBACK_DEFAULT('g', "call-graph", &record.opts,
-			     "mode[,dump_size]", callchain_help,
-			     &parse_callchain_opt, "fp"),
+			     "mode[,dump_size]", record_callchain_help,
+			     &record_parse_callchain_opt, "fp"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_BOOLEAN('q', "quiet", &quiet, "don't print any message"),
