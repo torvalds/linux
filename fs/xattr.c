@@ -595,12 +595,17 @@ SYSCALL_DEFINE3(llistxattr, const char __user *, pathname, char __user *, list,
 {
 	struct path path;
 	ssize_t error;
-
-	error = user_lpath(pathname, &path);
+	unsigned int lookup_flags = 0;
+retry:
+	error = user_path_at(AT_FDCWD, pathname, lookup_flags, &path);
 	if (error)
 		return error;
 	error = listxattr(path.dentry, list, size);
 	path_put(&path);
+	if (retry_estale(error, lookup_flags)) {
+		lookup_flags |= LOOKUP_REVAL;
+		goto retry;
+	}
 	return error;
 }
 
