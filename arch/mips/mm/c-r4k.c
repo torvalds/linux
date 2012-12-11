@@ -936,7 +936,6 @@ static void __cpuinit probe_pcache(void)
 	case CPU_RM7000:
 		rm7k_erratum31();
 
-	case CPU_RM9000:
 		icache_size = 1 << (12 + ((config & CONF_IC) >> 9));
 		c->icache.linesz = 16 << ((config & CONF_IB) >> 5);
 		c->icache.ways = 4;
@@ -947,9 +946,7 @@ static void __cpuinit probe_pcache(void)
 		c->dcache.ways = 4;
 		c->dcache.waybit = __ffs(dcache_size / c->dcache.ways);
 
-#if !defined(CONFIG_SMP) || !defined(RM9000_CDEX_SMP_WAR)
 		c->options |= MIPS_CPU_CACHE_CDEX_P;
-#endif
 		c->options |= MIPS_CPU_PREFETCH;
 		break;
 
@@ -1234,7 +1231,6 @@ static void __cpuinit setup_scache(void)
                 return;
 
 	case CPU_RM7000:
-	case CPU_RM9000:
 #ifdef CONFIG_RM7000_CPU_SCACHE
 		rm7k_sc_init();
 #endif

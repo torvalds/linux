@@ -140,15 +140,6 @@ static void __cpuinit set_prefetch_parameters(void)
 			pref_bias_copy_load = 256;
 			break;
 
-		case CPU_RM9000:
-			/*
-			 * As a workaround for erratum G105 which make the
-			 * PrepareForStore hint unusable we fall back to
-			 * StoreRetained on the RM9000.  Once it is known which
-			 * versions of the RM9000 we'll be able to condition-
-			 * alize this.
-			 */
-
 		case CPU_R10000:
 		case CPU_R12000:
 		case CPU_R14000:

@@ -603,24 +603,6 @@ static void __cpuinit build_tlb_write_entry(u32 **p, struct uasm_label **l,
 		tlbw(p);
 		break;
 
-	case CPU_RM9000:
-		/*
-		 * When the JTLB is updated by tlbwi or tlbwr, a subsequent
-		 * use of the JTLB for instructions should not occur for 4
-		 * cpu cycles and use for data translations should not occur
-		 * for 3 cpu cycles.
-		 */
-		uasm_i_ssnop(p);
-		uasm_i_ssnop(p);
-		uasm_i_ssnop(p);
-		uasm_i_ssnop(p);
-		tlbw(p);
-		uasm_i_ssnop(p);
-		uasm_i_ssnop(p);
-		uasm_i_ssnop(p);
-		uasm_i_ssnop(p);
-		break;
-
 	case CPU_VR4111:
 	case CPU_VR4121:
 	case CPU_VR4122:

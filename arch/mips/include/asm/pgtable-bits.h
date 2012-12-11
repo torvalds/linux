@@ -235,20 +235,6 @@ static inline uint64_t pte_to_entrylo(unsigned long pte_val)
 #define _CACHE_CACHABLE_NONCOHERENT (5<<_CACHE_SHIFT)
 #define _CACHE_UNCACHED_ACCELERATED (7<<_CACHE_SHIFT)
 
-#elif defined(CONFIG_CPU_RM9000)
-
-#define _CACHE_WT		    (0<<_CACHE_SHIFT)
-#define _CACHE_WTWA		    (1<<_CACHE_SHIFT)
-#define _CACHE_UC_B		    (2<<_CACHE_SHIFT)
-#define _CACHE_WB		    (3<<_CACHE_SHIFT)
-#define _CACHE_CWBEA		    (4<<_CACHE_SHIFT)
-#define _CACHE_CWB		    (5<<_CACHE_SHIFT)
-#define _CACHE_UCNB		    (6<<_CACHE_SHIFT)
-#define _CACHE_FPC		    (7<<_CACHE_SHIFT)
-
-#define _CACHE_UNCACHED		    _CACHE_UC_B
-#define _CACHE_CACHABLE_NONCOHERENT _CACHE_WB
-
 #else
 
 #define _CACHE_CACHABLE_NO_WA	    (0<<_CACHE_SHIFT)  /* R4600 only      */

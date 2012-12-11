@@ -977,10 +977,6 @@ do {									\
 #define read_c0_framemask()	__read_32bit_c0_register($21, 0)
 #define write_c0_framemask(val)	__write_32bit_c0_register($21, 0, val)
 
-/* RM9000 PerfControl performance counter control register */
-#define read_c0_perfcontrol()	__read_32bit_c0_register($22, 0)
-#define write_c0_perfcontrol(val) __write_32bit_c0_register($22, 0, val)
-
 #define read_c0_diag()		__read_32bit_c0_register($22, 0)
 #define write_c0_diag(val)	__write_32bit_c0_register($22, 0, val)
 
@@ -1032,10 +1028,6 @@ do {									\
 #define write_c0_perfcntr3(val)	__write_32bit_c0_register($25, 7, val)
 #define read_c0_perfcntr3_64()	__read_64bit_c0_register($25, 7)
 #define write_c0_perfcntr3_64(val) __write_64bit_c0_register($25, 7, val)
-
-/* RM9000 PerfCount performance counter register */
-#define read_c0_perfcount()	__read_64bit_c0_register($25, 0)
-#define write_c0_perfcount(val)	__write_64bit_c0_register($25, 0, val)
 
 #define read_c0_ecc()		__read_32bit_c0_register($26, 0)
 #define write_c0_ecc(val)	__write_32bit_c0_register($26, 0, val)

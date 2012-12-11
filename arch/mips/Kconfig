@@ -416,27 +416,6 @@ config PMC_MSP
 	  of integrated peripherals, interfaces and DSPs in addition to
 	  a variety of MIPS cores.
 
-config PMC_YOSEMITE
-	bool "PMC-Sierra Yosemite eval board"
-	select CEVT_R4K
-	select CSRC_R4K
-	select DMA_COHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select IRQ_CPU_RM7K
-	select IRQ_CPU_RM9K
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_RM9000
-	select SYS_HAS_EARLY_PRINTK
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_HIGHMEM
-	select SYS_SUPPORTS_SMP
-	help
-	  Yosemite is an evaluation board for the RM9000x2 processor
-	  manufactured by PMC-Sierra.
-
 config POWERTV
 	bool "Cisco PowerTV"
 	select BOOT_ELF32
@@ -1080,9 +1059,6 @@ config IRQ_CPU
 config IRQ_CPU_RM7K
 	bool
 
-config IRQ_CPU_RM9K
-	bool
-
 config IRQ_MSP_SLP
 	bool
 
@@ -1106,10 +1082,6 @@ config PCI_GT64XXX_PCI0
 
 config NO_EXCEPT_FILL
 	bool
-
-config MIPS_RM9122
-	bool
-	select SERIAL_RM9000
 
 config SOC_EMMA2RH
 	bool
@@ -1154,9 +1126,6 @@ config SOC_PNX8550
 	select GENERIC_GPIO
 
 config SWAP_IO_SPACE
-	bool
-
-config SERIAL_RM9000
 	bool
 
 config SGI_HAS_INDYDOG
@@ -1452,16 +1421,6 @@ config CPU_RM7000
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_HUGEPAGES
 
-config CPU_RM9000
-	bool "RM9000"
-	depends on SYS_HAS_CPU_RM9000
-	select CPU_HAS_PREFETCH
-	select CPU_SUPPORTS_32BIT_KERNEL
-	select CPU_SUPPORTS_64BIT_KERNEL
-	select CPU_SUPPORTS_HIGHMEM
-	select CPU_SUPPORTS_HUGEPAGES
-	select WEAK_ORDERING
-
 config CPU_SB1
 	bool "SB1"
 	depends on SYS_HAS_CPU_SB1
@@ -1678,9 +1637,6 @@ config SYS_HAS_CPU_R10000
 	bool
 
 config SYS_HAS_CPU_RM7000
-	bool
-
-config SYS_HAS_CPU_RM9000
 	bool
 
 config SYS_HAS_CPU_SB1
