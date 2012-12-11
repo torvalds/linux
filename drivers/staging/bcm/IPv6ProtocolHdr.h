@@ -65,12 +65,6 @@ typedef struct IPV6AuthenticationHeaderFormatTag {
 	unsigned long  ulSecurityParametersIndex;
 } IPV6AuthenticationHeader;
 
-typedef struct IPV6IcmpHeaderFormatTag {
-	unsigned char  ucType;
-	unsigned char  ucCode;
-	unsigned short usChecksum;
-} IPV6IcmpHeader;
-
 enum bcm_ipaddr_context {
 	eSrcIpAddress,
 	eDestIpAddress
