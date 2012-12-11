@@ -34,7 +34,6 @@
 #include <linux/list.h>
 #include <linux/platform_device.h>
 #include <linux/cpu.h>
-#include <linux/pci.h>
 #include <linux/smp.h>
 #include <linux/moduleparam.h>
 #include <asm/msr.h>
@@ -197,19 +196,33 @@ struct tjmax {
 };
 
 static const struct tjmax __cpuinitconst tjmax_table[] = {
-	{ "CPU D410", 100000 },
-	{ "CPU D425", 100000 },
-	{ "CPU D510", 100000 },
-	{ "CPU D525", 100000 },
-	{ "CPU N450", 100000 },
-	{ "CPU N455", 100000 },
-	{ "CPU N470", 100000 },
-	{ "CPU N475", 100000 },
 	{ "CPU  230", 100000 },		/* Model 0x1c, stepping 2	*/
 	{ "CPU  330", 125000 },		/* Model 0x1c, stepping 2	*/
 	{ "CPU CE4110", 110000 },	/* Model 0x1c, stepping 10	*/
 	{ "CPU CE4150", 110000 },	/* Model 0x1c, stepping 10	*/
 	{ "CPU CE4170", 110000 },	/* Model 0x1c, stepping 10	*/
+};
+
+struct tjmax_model {
+	u8 model;
+	u8 mask;
+	int tjmax;
+};
+
+#define ANY 0xff
+
+static const struct tjmax_model __cpuinitconst tjmax_model_table[] = {
+	{ 0x1c, 10, 100000 },	/* D4xx, N4xx, D5xx, N5xx */
+	{ 0x1c, ANY, 90000 },	/* Z5xx, N2xx, possibly others
+				 * Note: Also matches 230 and 330,
+				 * which are covered by tjmax_table
+				 */
+	{ 0x26, ANY, 90000 },	/* Atom Tunnel Creek (Exx), Lincroft (Z6xx)
+				 * Note: TjMax for E6xxT is 110C, but CPU type
+				 * is undetectable by software
+				 */
+	{ 0x27, ANY, 90000 },	/* Atom Medfield (Z2460) */
+	{ 0x36, ANY, 100000 },	/* Atom Cedar Trail/Cedarview (N2xxx, D2xxx) */
 };
 
 static int __cpuinit adjust_tjmax(struct cpuinfo_x86 *c, u32 id,
@@ -222,7 +235,6 @@ static int __cpuinit adjust_tjmax(struct cpuinfo_x86 *c, u32 id,
 	int usemsr_ee = 1;
 	int err;
 	u32 eax, edx;
-	struct pci_dev *host_bridge;
 	int i;
 
 	/* explicit tjmax table entries override heuristics */
@@ -231,31 +243,17 @@ static int __cpuinit adjust_tjmax(struct cpuinfo_x86 *c, u32 id,
 			return tjmax_table[i].tjmax;
 	}
 
+	for (i = 0; i < ARRAY_SIZE(tjmax_model_table); i++) {
+		const struct tjmax_model *tm = &tjmax_model_table[i];
+		if (c->x86_model == tm->model &&
+		    (tm->mask == ANY || c->x86_mask == tm->mask))
+			return tm->tjmax;
+	}
+
 	/* Early chips have no MSR for TjMax */
 
 	if (c->x86_model == 0xf && c->x86_mask < 4)
 		usemsr_ee = 0;
-
-	/* Atom CPUs */
-
-	if (c->x86_model == 0x1c || c->x86_model == 0x26
-	    || c->x86_model == 0x27) {
-		usemsr_ee = 0;
-
-		host_bridge = pci_get_bus_and_slot(0, PCI_DEVFN(0, 0));
-
-		if (host_bridge && host_bridge->vendor == PCI_VENDOR_ID_INTEL
-		    && (host_bridge->device == 0xa000	/* NM10 based nettop */
-		    || host_bridge->device == 0xa010))	/* NM10 based netbook */
-			tjmax = 100000;
-		else
-			tjmax = 90000;
-
-		pci_dev_put(host_bridge);
-	} else if (c->x86_model == 0x36) {
-		usemsr_ee = 0;
-		tjmax = 100000;
-	}
 
 	if (c->x86_model > 0xe && usemsr_ee) {
 		u8 platform_id;

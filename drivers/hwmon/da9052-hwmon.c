@@ -60,30 +60,17 @@ static inline int vbbat_reg_to_mV(int value)
 	return DIV_ROUND_CLOSEST(value * 2500, 512);
 }
 
-static int da9052_enable_vddout_channel(struct da9052 *da9052)
+static inline int da9052_enable_vddout_channel(struct da9052 *da9052)
 {
-	int ret;
-
-	ret = da9052_reg_read(da9052, DA9052_ADC_CONT_REG);
-	if (ret < 0)
-		return ret;
-
-	ret |= DA9052_ADCCONT_AUTOVDDEN;
-
-	return da9052_reg_write(da9052, DA9052_ADC_CONT_REG, ret);
+	return da9052_reg_update(da9052, DA9052_ADC_CONT_REG,
+				 DA9052_ADCCONT_AUTOVDDEN,
+				 DA9052_ADCCONT_AUTOVDDEN);
 }
 
-static int da9052_disable_vddout_channel(struct da9052 *da9052)
+static inline int da9052_disable_vddout_channel(struct da9052 *da9052)
 {
-	int ret;
-
-	ret = da9052_reg_read(da9052, DA9052_ADC_CONT_REG);
-	if (ret < 0)
-		return ret;
-
-	ret &= ~DA9052_ADCCONT_AUTOVDDEN;
-
-	return da9052_reg_write(da9052, DA9052_ADC_CONT_REG, ret);
+	return da9052_reg_update(da9052, DA9052_ADC_CONT_REG,
+				 DA9052_ADCCONT_AUTOVDDEN, 0);
 }
 
 static ssize_t da9052_read_vddout(struct device *dev,
