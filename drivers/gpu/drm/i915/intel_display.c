@@ -6700,6 +6700,8 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 	if (encoder->crtc) {
 		crtc = encoder->crtc;
 
+		mutex_lock(&crtc->mutex);
+
 		old->dpms_mode = connector->dpms;
 		old->load_detect_temp = false;
 
@@ -6729,6 +6731,7 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 		return false;
 	}
 
+	mutex_lock(&crtc->mutex);
 	intel_encoder->new_crtc = to_intel_crtc(crtc);
 	to_intel_connector(connector)->new_encoder = intel_encoder;
 
@@ -6756,6 +6759,7 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 		DRM_DEBUG_KMS("reusing fbdev for load-detection framebuffer\n");
 	if (IS_ERR(fb)) {
 		DRM_DEBUG_KMS("failed to allocate framebuffer for load-detection\n");
+		mutex_unlock(&crtc->mutex);
 		return false;
 	}
 
@@ -6763,6 +6767,7 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 		DRM_DEBUG_KMS("failed to set mode on load-detect pipe\n");
 		if (old->release_fb)
 			old->release_fb->funcs->destroy(old->release_fb);
+		mutex_unlock(&crtc->mutex);
 		return false;
 	}
 
@@ -6777,14 +6782,13 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 	struct intel_encoder *intel_encoder =
 		intel_attached_encoder(connector);
 	struct drm_encoder *encoder = &intel_encoder->base;
+	struct drm_crtc *crtc = encoder->crtc;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
 		      connector->base.id, drm_get_connector_name(connector),
 		      encoder->base.id, drm_get_encoder_name(encoder));
 
 	if (old->load_detect_temp) {
-		struct drm_crtc *crtc = encoder->crtc;
-
 		to_intel_connector(connector)->new_encoder = NULL;
 		intel_encoder->new_crtc = NULL;
 		intel_set_mode(crtc, NULL, 0, 0, NULL);
@@ -6800,6 +6804,8 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 	/* Switch crtc and encoder back off if necessary */
 	if (old->dpms_mode != DRM_MODE_DPMS_ON)
 		connector->funcs->dpms(connector, old->dpms_mode);
+
+	mutex_unlock(&crtc->mutex);
 }
 
 /* Returns the clock of the currently programmed mode of the given pipe. */
