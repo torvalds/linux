@@ -266,67 +266,146 @@ bnad_msix_tx(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static inline void
+bnad_rxq_alloc_uninit(struct bnad *bnad, struct bna_rcb *rcb)
+{
+	struct bnad_rx_unmap_q *unmap_q = rcb->unmap_q;
+
+	unmap_q->reuse_pi = -1;
+	unmap_q->alloc_order = -1;
+	unmap_q->map_size = 0;
+	unmap_q->type = BNAD_RXBUF_NONE;
+}
+
+/* Default is page-based allocation. Multi-buffer support - TBD */
+static int
+bnad_rxq_alloc_init(struct bnad *bnad, struct bna_rcb *rcb)
+{
+	struct bnad_rx_unmap_q *unmap_q = rcb->unmap_q;
+	int mtu, order;
+
+	bnad_rxq_alloc_uninit(bnad, rcb);
+
+	mtu = bna_enet_mtu_get(&bnad->bna.enet);
+	order = get_order(mtu);
+
+	if (bna_is_small_rxq(rcb->id)) {
+		unmap_q->alloc_order = 0;
+		unmap_q->map_size = rcb->rxq->buffer_size;
+	} else {
+		unmap_q->alloc_order = order;
+		unmap_q->map_size =
+			(rcb->rxq->buffer_size > 2048) ?
+			PAGE_SIZE << order : 2048;
+	}
+
+	BUG_ON(((PAGE_SIZE << order) % unmap_q->map_size));
+
+	unmap_q->type = BNAD_RXBUF_PAGE;
+
+	return 0;
+}
+
+static inline void
+bnad_rxq_cleanup_page(struct bnad *bnad, struct bnad_rx_unmap *unmap)
+{
+	if (!unmap->page)
+		return;
+
+	dma_unmap_page(&bnad->pcidev->dev,
+			dma_unmap_addr(&unmap->vector, dma_addr),
+			unmap->vector.len, DMA_FROM_DEVICE);
+	put_page(unmap->page);
+	unmap->page = NULL;
+	dma_unmap_addr_set(&unmap->vector, dma_addr, 0);
+	unmap->vector.len = 0;
+}
+
+static inline void
+bnad_rxq_cleanup_skb(struct bnad *bnad, struct bnad_rx_unmap *unmap)
+{
+	if (!unmap->skb)
+		return;
+
+	dma_unmap_single(&bnad->pcidev->dev,
+			dma_unmap_addr(&unmap->vector, dma_addr),
+			unmap->vector.len, DMA_FROM_DEVICE);
+	dev_kfree_skb_any(unmap->skb);
+	unmap->skb = NULL;
+	dma_unmap_addr_set(&unmap->vector, dma_addr, 0);
+	unmap->vector.len = 0;
+}
+
 static void
 bnad_rxq_cleanup(struct bnad *bnad, struct bna_rcb *rcb)
 {
-	struct bnad_rx_unmap *unmap_q = rcb->unmap_q;
-	struct sk_buff *skb;
+	struct bnad_rx_unmap_q *unmap_q = rcb->unmap_q;
 	int i;
 
 	for (i = 0; i < rcb->q_depth; i++) {
-		struct bnad_rx_unmap *unmap = &unmap_q[i];
+		struct bnad_rx_unmap *unmap = &unmap_q->unmap[i];
 
-		skb = unmap->skb;
-		if (!skb)
-			continue;
-
-		unmap->skb = NULL;
-		dma_unmap_single(&bnad->pcidev->dev,
-				dma_unmap_addr(&unmap->vector, dma_addr),
-				unmap->vector.len, DMA_FROM_DEVICE);
-		dma_unmap_addr_set(&unmap->vector, dma_addr, 0);
-		unmap->vector.len = 0;
-		dev_kfree_skb_any(skb);
+		if (BNAD_RXBUF_IS_PAGE(unmap_q->type))
+			bnad_rxq_cleanup_page(bnad, unmap);
+		else
+			bnad_rxq_cleanup_skb(bnad, unmap);
 	}
+	bnad_rxq_alloc_uninit(bnad, rcb);
 }
 
-/* Allocate and post BNAD_RXQ_REFILL_THRESHOLD_SHIFT buffers at a time */
-static void
-bnad_rxq_post(struct bnad *bnad, struct bna_rcb *rcb)
+static u32
+bnad_rxq_refill_page(struct bnad *bnad, struct bna_rcb *rcb, u32 nalloc)
 {
-	u32 to_alloc, alloced, prod, q_depth, buff_sz;
-	struct bnad_rx_unmap *unmap_q = rcb->unmap_q;
-	struct bnad_rx_unmap *unmap;
+	u32 alloced, prod, q_depth;
+	struct bnad_rx_unmap_q *unmap_q = rcb->unmap_q;
+	struct bnad_rx_unmap *unmap, *prev;
 	struct bna_rxq_entry *rxent;
-	struct sk_buff *skb;
+	struct page *page;
+	u32 page_offset, alloc_size;
 	dma_addr_t dma_addr;
-
-	buff_sz = rcb->rxq->buffer_size;
-	alloced = 0;
-	to_alloc = BNA_QE_FREE_CNT(rcb, rcb->q_depth);
-	if (!(to_alloc >> BNAD_RXQ_REFILL_THRESHOLD_SHIFT))
-		return;
 
 	prod = rcb->producer_index;
 	q_depth = rcb->q_depth;
 
-	while (to_alloc--) {
-		skb = netdev_alloc_skb_ip_align(bnad->netdev,
-						buff_sz);
-		if (unlikely(!skb)) {
+	alloc_size = PAGE_SIZE << unmap_q->alloc_order;
+	alloced = 0;
+
+	while (nalloc--) {
+		unmap = &unmap_q->unmap[prod];
+
+		if (unmap_q->reuse_pi < 0) {
+			page = alloc_pages(GFP_ATOMIC | __GFP_COMP,
+					unmap_q->alloc_order);
+			page_offset = 0;
+		} else {
+			prev = &unmap_q->unmap[unmap_q->reuse_pi];
+			page = prev->page;
+			page_offset = prev->page_offset + unmap_q->map_size;
+			get_page(page);
+		}
+
+		if (unlikely(!page)) {
 			BNAD_UPDATE_CTR(bnad, rxbuf_alloc_failed);
 			rcb->rxq->rxbuf_alloc_failed++;
 			goto finishing;
 		}
-		dma_addr = dma_map_single(&bnad->pcidev->dev, skb->data,
-					  buff_sz, DMA_FROM_DEVICE);
-		rxent = &((struct bna_rxq_entry *)rcb->sw_q)[prod];
 
-		BNA_SET_DMA_ADDR(dma_addr, &rxent->host_addr);
-		unmap = &unmap_q[prod];
-		unmap->skb = skb;
+		dma_addr = dma_map_page(&bnad->pcidev->dev, page, page_offset,
+				unmap_q->map_size, DMA_FROM_DEVICE);
+
+		unmap->page = page;
+		unmap->page_offset = page_offset;
 		dma_unmap_addr_set(&unmap->vector, dma_addr, dma_addr);
-		unmap->vector.len = buff_sz;
+		unmap->vector.len = unmap_q->map_size;
+		page_offset += unmap_q->map_size;
+
+		if (page_offset < alloc_size)
+			unmap_q->reuse_pi = prod;
+		else
+			unmap_q->reuse_pi = -1;
+
+		rxent = &((struct bna_rxq_entry *)rcb->sw_q)[prod];
+		BNA_SET_DMA_ADDR(dma_addr, &rxent->host_addr);
 		BNA_QE_INDX_INC(prod, q_depth);
 		alloced++;
 	}
@@ -338,6 +417,73 @@ finishing:
 		if (likely(test_bit(BNAD_RXQ_POST_OK, &rcb->flags)))
 			bna_rxq_prod_indx_doorbell(rcb);
 	}
+
+	return alloced;
+}
+
+static u32
+bnad_rxq_refill_skb(struct bnad *bnad, struct bna_rcb *rcb, u32 nalloc)
+{
+	u32 alloced, prod, q_depth, buff_sz;
+	struct bnad_rx_unmap_q *unmap_q = rcb->unmap_q;
+	struct bnad_rx_unmap *unmap;
+	struct bna_rxq_entry *rxent;
+	struct sk_buff *skb;
+	dma_addr_t dma_addr;
+
+	buff_sz = rcb->rxq->buffer_size;
+	prod = rcb->producer_index;
+	q_depth = rcb->q_depth;
+
+	alloced = 0;
+	while (nalloc--) {
+		unmap = &unmap_q->unmap[prod];
+
+		skb = netdev_alloc_skb_ip_align(bnad->netdev, buff_sz);
+
+		if (unlikely(!skb)) {
+			BNAD_UPDATE_CTR(bnad, rxbuf_alloc_failed);
+			rcb->rxq->rxbuf_alloc_failed++;
+			goto finishing;
+		}
+		dma_addr = dma_map_single(&bnad->pcidev->dev, skb->data,
+					  buff_sz, DMA_FROM_DEVICE);
+
+		unmap->skb = skb;
+		dma_unmap_addr_set(&unmap->vector, dma_addr, dma_addr);
+		unmap->vector.len = buff_sz;
+
+		rxent = &((struct bna_rxq_entry *)rcb->sw_q)[prod];
+		BNA_SET_DMA_ADDR(dma_addr, &rxent->host_addr);
+		BNA_QE_INDX_INC(prod, q_depth);
+		alloced++;
+	}
+
+finishing:
+	if (likely(alloced)) {
+		rcb->producer_index = prod;
+		smp_mb();
+		if (likely(test_bit(BNAD_RXQ_POST_OK, &rcb->flags)))
+			bna_rxq_prod_indx_doorbell(rcb);
+	}
+
+	return alloced;
+}
+
+static inline void
+bnad_rxq_post(struct bnad *bnad, struct bna_rcb *rcb)
+{
+	struct bnad_rx_unmap_q *unmap_q = rcb->unmap_q;
+	u32 to_alloc;
+
+	to_alloc = BNA_QE_FREE_CNT(rcb, rcb->q_depth);
+	if (!(to_alloc >> BNAD_RXQ_REFILL_THRESHOLD_SHIFT))
+		return;
+
+	if (BNAD_RXBUF_IS_PAGE(unmap_q->type))
+		bnad_rxq_refill_page(bnad, rcb, to_alloc);
+	else
+		bnad_rxq_refill_skb(bnad, rcb, to_alloc);
 }
 
 #define flags_cksum_prot_mask (BNA_CQ_EF_IPV4 | BNA_CQ_EF_L3_CKSUM_OK | \
@@ -354,17 +500,62 @@ finishing:
 #define flags_udp6 (BNA_CQ_EF_IPV6 | \
 				BNA_CQ_EF_UDP | BNA_CQ_EF_L4_CKSUM_OK)
 
+static inline struct sk_buff *
+bnad_cq_prepare_skb(struct bnad_rx_ctrl *rx_ctrl,
+		struct bnad_rx_unmap_q *unmap_q,
+		struct bnad_rx_unmap *unmap,
+		u32 length, u32 flags)
+{
+	struct bnad *bnad = rx_ctrl->bnad;
+	struct sk_buff *skb;
+
+	if (BNAD_RXBUF_IS_PAGE(unmap_q->type)) {
+		skb = napi_get_frags(&rx_ctrl->napi);
+		if (unlikely(!skb))
+			return NULL;
+
+		dma_unmap_page(&bnad->pcidev->dev,
+				dma_unmap_addr(&unmap->vector, dma_addr),
+				unmap->vector.len, DMA_FROM_DEVICE);
+		skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
+				unmap->page, unmap->page_offset, length);
+		skb->len += length;
+		skb->data_len += length;
+		skb->truesize += length;
+
+		unmap->page = NULL;
+		unmap->vector.len = 0;
+
+		return skb;
+	}
+
+	skb = unmap->skb;
+	BUG_ON(!skb);
+
+	dma_unmap_single(&bnad->pcidev->dev,
+			dma_unmap_addr(&unmap->vector, dma_addr),
+			unmap->vector.len, DMA_FROM_DEVICE);
+
+	skb_put(skb, length);
+
+	skb->protocol = eth_type_trans(skb, bnad->netdev);
+
+	unmap->skb = NULL;
+	unmap->vector.len = 0;
+	return skb;
+}
+
 static u32
 bnad_cq_process(struct bnad *bnad, struct bna_ccb *ccb, int budget)
 {
-	struct bna_cq_entry *cq, *cmpl, *next_cmpl;
+	struct bna_cq_entry *cq, *cmpl;
 	struct bna_rcb *rcb = NULL;
-	struct bnad_rx_unmap *unmap_q, *unmap;
-	unsigned int packets = 0;
+	struct bnad_rx_unmap_q *unmap_q;
+	struct bnad_rx_unmap *unmap;
 	struct sk_buff *skb;
-	u32 flags, masked_flags;
 	struct bna_pkt_rate *pkt_rt = &ccb->pkt_rate;
-	struct bnad_rx_ctrl *rx_ctrl = (struct bnad_rx_ctrl *)(ccb->ctrl);
+	struct bnad_rx_ctrl *rx_ctrl = ccb->ctrl;
+	u32 packets = 0, length = 0, flags, masked_flags;
 
 	prefetch(bnad->netdev);
 
@@ -373,6 +564,8 @@ bnad_cq_process(struct bnad *bnad, struct bna_ccb *ccb, int budget)
 
 	while (cmpl->valid && (packets < budget)) {
 		packets++;
+		flags = ntohl(cmpl->flags);
+		length = ntohs(cmpl->length);
 		BNA_UPDATE_PKT_CNT(pkt_rt, ntohs(cmpl->length));
 
 		if (bna_is_small_rxq(cmpl->rxq_id))
@@ -381,32 +574,25 @@ bnad_cq_process(struct bnad *bnad, struct bna_ccb *ccb, int budget)
 			rcb = ccb->rcb[0];
 
 		unmap_q = rcb->unmap_q;
-		unmap = &unmap_q[rcb->consumer_index];
+		unmap = &unmap_q->unmap[rcb->consumer_index];
 
-		skb = unmap->skb;
-		BUG_ON(!(skb));
-		unmap->skb = NULL;
-		dma_unmap_single(&bnad->pcidev->dev,
-				 dma_unmap_addr(&unmap->vector, dma_addr),
-				 unmap->vector.len, DMA_FROM_DEVICE);
-		unmap->vector.len = 0;
-		BNA_QE_INDX_INC(rcb->consumer_index, rcb->q_depth);
-		BNA_QE_INDX_INC(ccb->producer_index, ccb->q_depth);
-		next_cmpl = &cq[ccb->producer_index];
+		if (unlikely(flags & (BNA_CQ_EF_MAC_ERROR |
+					BNA_CQ_EF_FCS_ERROR |
+					BNA_CQ_EF_TOO_LONG))) {
+			if (BNAD_RXBUF_IS_PAGE(unmap_q->type))
+				bnad_rxq_cleanup_page(bnad, unmap);
+			else
+				bnad_rxq_cleanup_skb(bnad, unmap);
 
-		prefetch(next_cmpl);
-
-		flags = ntohl(cmpl->flags);
-		if (unlikely
-		    (flags &
-		     (BNA_CQ_EF_MAC_ERROR | BNA_CQ_EF_FCS_ERROR |
-		      BNA_CQ_EF_TOO_LONG))) {
-			dev_kfree_skb_any(skb);
 			rcb->rxq->rx_packets_with_error++;
 			goto next;
 		}
 
-		skb_put(skb, ntohs(cmpl->length));
+		skb = bnad_cq_prepare_skb(ccb->ctrl, unmap_q, unmap,
+				length, flags);
+
+		if (unlikely(!skb))
+			break;
 
 		masked_flags = flags & flags_cksum_prot_mask;
 
@@ -421,22 +607,24 @@ bnad_cq_process(struct bnad *bnad, struct bna_ccb *ccb, int budget)
 			skb_checksum_none_assert(skb);
 
 		rcb->rxq->rx_packets++;
-		rcb->rxq->rx_bytes += skb->len;
-		skb->protocol = eth_type_trans(skb, bnad->netdev);
+		rcb->rxq->rx_bytes += length;
 
 		if (flags & BNA_CQ_EF_VLAN)
 			__vlan_hwaccel_put_tag(skb, ntohs(cmpl->vlan_tag));
 
-		if (skb->ip_summed == CHECKSUM_UNNECESSARY)
-			napi_gro_receive(&rx_ctrl->napi, skb);
+		if (BNAD_RXBUF_IS_PAGE(unmap_q->type))
+			napi_gro_frags(&rx_ctrl->napi);
 		else
 			netif_receive_skb(skb);
 
 next:
 		cmpl->valid = 0;
-		cmpl = next_cmpl;
+		BNA_QE_INDX_INC(rcb->consumer_index, rcb->q_depth);
+		BNA_QE_INDX_INC(ccb->producer_index, ccb->q_depth);
+		cmpl = &cq[ccb->producer_index];
 	}
 
+	napi_gro_flush(&rx_ctrl->napi, false);
 	if (likely(test_bit(BNAD_RXQ_STARTED, &ccb->rcb[0]->flags)))
 		bna_ib_ack_disable_irq(ccb->i_dbell, packets);
 
@@ -956,8 +1144,7 @@ bnad_cb_rx_post(struct bnad *bnad, struct bna_rx *rx)
 	struct bna_ccb *ccb;
 	struct bna_rcb *rcb;
 	struct bnad_rx_ctrl *rx_ctrl;
-	int i;
-	int j;
+	int i, j;
 
 	for (i = 0; i < BNAD_MAX_RXP_PER_RX; i++) {
 		rx_ctrl = &rx_info->rx_ctrl[i];
@@ -972,6 +1159,7 @@ bnad_cb_rx_post(struct bnad *bnad, struct bna_rx *rx)
 			if (!rcb)
 				continue;
 
+			bnad_rxq_alloc_init(bnad, rcb);
 			set_bit(BNAD_RXQ_STARTED, &rcb->flags);
 			set_bit(BNAD_RXQ_POST_OK, &rcb->flags);
 			bnad_rxq_post(bnad, rcb);
@@ -1861,9 +2049,11 @@ bnad_setup_rx(struct bnad *bnad, u32 rx_id)
 
 	/* Fill Unmap Q memory requirements */
 	BNAD_FILL_UNMAPQ_MEM_REQ(&res_info[BNA_RX_RES_MEM_T_UNMAPQ],
-		rx_config->num_paths + ((rx_config->rxp_type == BNA_RXP_SINGLE)
-			? 0 : rx_config->num_paths), (bnad->rxq_depth *
-			sizeof(struct bnad_rx_unmap)));
+			rx_config->num_paths +
+			((rx_config->rxp_type == BNA_RXP_SINGLE) ?
+			 0 : rx_config->num_paths),
+			((bnad->rxq_depth * sizeof(struct bnad_rx_unmap)) +
+			 sizeof(struct bnad_rx_unmap_q)));
 
 	/* Allocate resource */
 	err = bnad_rx_res_alloc(bnad, res_info, rx_id);

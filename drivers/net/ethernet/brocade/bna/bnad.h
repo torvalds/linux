@@ -233,8 +233,27 @@ struct bnad_rx_vector {
 };
 
 struct bnad_rx_unmap {
+	struct page		*page;
+	u32			page_offset;
 	struct sk_buff		*skb;
 	struct bnad_rx_vector	vector;
+};
+
+enum bnad_rxbuf_type {
+	BNAD_RXBUF_NONE		= 0,
+	BNAD_RXBUF_SKB		= 1,
+	BNAD_RXBUF_PAGE		= 2,
+	BNAD_RXBUF_MULTI	= 3
+};
+
+#define BNAD_RXBUF_IS_PAGE(_type)	((_type) == BNAD_RXBUF_PAGE)
+
+struct bnad_rx_unmap_q {
+	int			reuse_pi;
+	int			alloc_order;
+	u32			map_size;
+	enum bnad_rxbuf_type	type;
+	struct bnad_rx_unmap	unmap[0];
 };
 
 /* Bit mask values for bnad->cfg_flags */
