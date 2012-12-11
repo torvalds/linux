@@ -703,8 +703,8 @@ static void ieee80211_sta_merge_ibss(struct ieee80211_sub_if_data *sdata)
 	sdata_info(sdata,
 		   "No active IBSS STAs - trying to scan for other IBSS networks with same SSID (merge)\n");
 
-	ieee80211_request_internal_scan(sdata,
-			ifibss->ssid, ifibss->ssid_len, NULL);
+	ieee80211_request_ibss_scan(sdata, ifibss->ssid, ifibss->ssid_len,
+				    NULL);
 }
 
 static void ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
@@ -802,9 +802,8 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 					IEEE80211_SCAN_INTERVAL)) {
 		sdata_info(sdata, "Trigger new scan to find an IBSS to join\n");
 
-		ieee80211_request_internal_scan(sdata,
-				ifibss->ssid, ifibss->ssid_len,
-				ifibss->fixed_channel ? ifibss->channel : NULL);
+		ieee80211_request_ibss_scan(sdata, ifibss->ssid,
+					    ifibss->ssid_len, chan);
 	} else {
 		int interval = IEEE80211_SCAN_INTERVAL;
 
