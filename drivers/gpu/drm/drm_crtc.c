@@ -3699,12 +3699,12 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	    page_flip->reserved != 0)
 		return -EINVAL;
 
-	drm_modeset_lock_all(dev);
 	obj = drm_mode_object_find(dev, page_flip->crtc_id, DRM_MODE_OBJECT_CRTC);
 	if (!obj)
-		goto out;
+		return -EINVAL;
 	crtc = obj_to_crtc(obj);
 
+	mutex_lock(&crtc->mutex);
 	if (crtc->fb == NULL) {
 		/* The framebuffer is currently unbound, presumably
 		 * due to a hotplug event, that userspace has not
@@ -3786,7 +3786,8 @@ out:
 		drm_framebuffer_unreference(fb);
 	if (old_fb)
 		drm_framebuffer_unreference(old_fb);
-	drm_modeset_unlock_all(dev);
+	mutex_unlock(&crtc->mutex);
+
 	return ret;
 }
 
