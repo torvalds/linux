@@ -117,7 +117,7 @@ BOOLEAN MatchTos(struct bcm_classifier_rule *pstClassifierRule,UCHAR ucTypeOfSer
 *
 * Returns     - TRUE(If address matches) else FAIL.
 ****************************************************************************/
-BOOLEAN MatchProtocol(struct bcm_classifier_rule *pstClassifierRule,UCHAR ucProtocol)
+bool MatchProtocol(struct bcm_classifier_rule *pstClassifierRule,UCHAR ucProtocol)
 {
    	UCHAR 	ucLoopIndex=0;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -146,7 +146,7 @@ BOOLEAN MatchProtocol(struct bcm_classifier_rule *pstClassifierRule,UCHAR ucProt
 *
 * Returns     - TRUE(If address matches) else FAIL.
 ***************************************************************************/
-BOOLEAN MatchSrcPort(struct bcm_classifier_rule *pstClassifierRule,USHORT ushSrcPort)
+bool MatchSrcPort(struct bcm_classifier_rule *pstClassifierRule,USHORT ushSrcPort)
 {
     	UCHAR 	ucLoopIndex=0;
 
@@ -178,7 +178,7 @@ BOOLEAN MatchSrcPort(struct bcm_classifier_rule *pstClassifierRule,USHORT ushSrc
 *
 * Returns     - TRUE(If address matches) else FAIL.
 ***************************************************************************/
-BOOLEAN MatchDestPort(struct bcm_classifier_rule *pstClassifierRule,USHORT ushDestPort)
+bool MatchDestPort(struct bcm_classifier_rule *pstClassifierRule,USHORT ushDestPort)
 {
     	UCHAR 	ucLoopIndex=0;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);

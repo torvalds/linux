@@ -84,8 +84,8 @@ unsigned short IpVersion6(struct bcm_mini_adapter *Adapter, /* < Pointer to the 
 
 void DumpIpv6Address(unsigned long *puIpv6Address);
 
-extern BOOLEAN MatchSrcPort(struct bcm_classifier_rule *pstClassifierRule, unsigned short ushSrcPort);
-extern BOOLEAN MatchDestPort(struct bcm_classifier_rule *pstClassifierRule, unsigned short ushSrcPort);
-extern BOOLEAN MatchProtocol(struct bcm_classifier_rule *pstClassifierRule, unsigned char ucProtocol);
+extern bool MatchSrcPort(struct bcm_classifier_rule *pstClassifierRule, unsigned short ushSrcPort);
+extern bool MatchDestPort(struct bcm_classifier_rule *pstClassifierRule, unsigned short ushSrcPort);
+extern bool MatchProtocol(struct bcm_classifier_rule *pstClassifierRule, unsigned char ucProtocol);
 
 #endif
