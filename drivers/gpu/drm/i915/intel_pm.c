@@ -1286,6 +1286,7 @@ static void valleyview_update_wm(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int planea_wm, planeb_wm, cursora_wm, cursorb_wm;
 	int plane_sr, cursor_sr;
+	int ignore_plane_sr, ignore_cursor_sr;
 	unsigned int enabled = 0;
 
 	vlv_update_drain_latency(dev);
@@ -1308,7 +1309,12 @@ static void valleyview_update_wm(struct drm_device *dev)
 			     sr_latency_ns,
 			     &valleyview_wm_info,
 			     &valleyview_cursor_wm_info,
-			     &plane_sr, &cursor_sr))
+			     &plane_sr, &ignore_cursor_sr) &&
+	    g4x_compute_srwm(dev, ffs(enabled) - 1,
+			     2*sr_latency_ns,
+			     &valleyview_wm_info,
+			     &valleyview_cursor_wm_info,
+			     &ignore_plane_sr, &cursor_sr))
 		I915_WRITE(FW_BLC_SELF_VLV, FW_CSPWRDWNEN);
 	else
 		I915_WRITE(FW_BLC_SELF_VLV,
