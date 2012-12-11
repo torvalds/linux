@@ -994,7 +994,7 @@ err:
 	return rc;
 }
 
-static int __devexit ghes_remove(struct platform_device *ghes_dev)
+static int ghes_remove(struct platform_device *ghes_dev)
 {
 	struct ghes *ghes;
 	struct acpi_hest_generic *generic;

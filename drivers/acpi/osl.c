@@ -932,7 +932,7 @@ static acpi_status __acpi_os_execute(acpi_execute_type type,
 	 * having a static work_struct.
 	 */
 
-	dpc = kmalloc(sizeof(struct acpi_os_dpc), GFP_ATOMIC);
+	dpc = kzalloc(sizeof(struct acpi_os_dpc), GFP_ATOMIC);
 	if (!dpc)
 		return AE_NO_MEMORY;
 
@@ -944,17 +944,22 @@ static acpi_status __acpi_os_execute(acpi_execute_type type,
 	 * because the hotplug code may call driver .remove() functions,
 	 * which invoke flush_scheduled_work/acpi_os_wait_events_complete
 	 * to flush these workqueues.
+	 *
+	 * To prevent lockdep from complaining unnecessarily, make sure that
+	 * there is a different static lockdep key for each workqueue by using
+	 * INIT_WORK() for each of them separately.
 	 */
-	queue = hp ? kacpi_hotplug_wq :
-		(type == OSL_NOTIFY_HANDLER ? kacpi_notify_wq : kacpid_wq);
-	dpc->wait = hp ? 1 : 0;
-
-	if (queue == kacpi_hotplug_wq)
+	if (hp) {
+		queue = kacpi_hotplug_wq;
+		dpc->wait = 1;
 		INIT_WORK(&dpc->work, acpi_os_execute_deferred);
-	else if (queue == kacpi_notify_wq)
+	} else if (type == OSL_NOTIFY_HANDLER) {
+		queue = kacpi_notify_wq;
 		INIT_WORK(&dpc->work, acpi_os_execute_deferred);
-	else
+	} else {
+		queue = kacpid_wq;
 		INIT_WORK(&dpc->work, acpi_os_execute_deferred);
+	}
 
 	/*
 	 * On some machines, a software-initiated SMI causes corruption unless
@@ -986,6 +991,7 @@ acpi_status acpi_os_hotplug_execute(acpi_osd_exec_callback function,
 {
 	return __acpi_os_execute(0, function, context, 1);
 }
+EXPORT_SYMBOL(acpi_os_hotplug_execute);
 
 void acpi_os_wait_events_complete(void)
 {

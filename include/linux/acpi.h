@@ -25,7 +25,9 @@
 #ifndef _LINUX_ACPI_H
 #define _LINUX_ACPI_H
 
+#include <linux/errno.h>
 #include <linux/ioport.h>	/* for struct resource */
+#include <linux/device.h>
 
 #ifdef	CONFIG_ACPI
 
@@ -250,6 +252,26 @@ extern int pnpacpi_disabled;
 
 #define PXM_INVAL	(-1)
 
+bool acpi_dev_resource_memory(struct acpi_resource *ares, struct resource *res);
+bool acpi_dev_resource_io(struct acpi_resource *ares, struct resource *res);
+bool acpi_dev_resource_address_space(struct acpi_resource *ares,
+				     struct resource *res);
+bool acpi_dev_resource_ext_address_space(struct acpi_resource *ares,
+					 struct resource *res);
+unsigned long acpi_dev_irq_flags(u8 triggering, u8 polarity, u8 shareable);
+bool acpi_dev_resource_interrupt(struct acpi_resource *ares, int index,
+				 struct resource *res);
+
+struct resource_list_entry {
+	struct list_head node;
+	struct resource res;
+};
+
+void acpi_dev_free_resource_list(struct list_head *list);
+int acpi_dev_get_resources(struct acpi_device *adev, struct list_head *list,
+			   int (*preproc)(struct acpi_resource *, void *),
+			   void *preproc_data);
+
 int acpi_check_resource_conflict(const struct resource *res);
 
 int acpi_check_region(resource_size_t start, resource_size_t n,
@@ -257,10 +279,14 @@ int acpi_check_region(resource_size_t start, resource_size_t n,
 
 int acpi_resources_are_enforced(void);
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_HIBERNATION
 void __init acpi_no_s4_hw_signature(void);
+#endif
+
+#ifdef CONFIG_PM_SLEEP
 void __init acpi_old_suspend_ordering(void);
 void __init acpi_nvs_nosave(void);
+void __init acpi_nvs_nosave_s3(void);
 #endif /* CONFIG_PM_SLEEP */
 
 struct acpi_osc_context {
@@ -364,6 +390,17 @@ extern int acpi_nvs_register(__u64 start, __u64 size);
 extern int acpi_nvs_for_each_region(int (*func)(__u64, __u64, void *),
 				    void *data);
 
+const struct acpi_device_id *acpi_match_device(const struct acpi_device_id *ids,
+					       const struct device *dev);
+
+static inline bool acpi_driver_match_device(struct device *dev,
+					    const struct device_driver *drv)
+{
+	return !!acpi_match_device(drv->acpi_match_table, dev);
+}
+
+#define ACPI_PTR(_ptr)	(_ptr)
+
 #else	/* !CONFIG_ACPI */
 
 #define acpi_disabled 1
@@ -418,6 +455,22 @@ static inline int acpi_nvs_for_each_region(int (*func)(__u64, __u64, void *),
 	return 0;
 }
 
+struct acpi_device_id;
+
+static inline const struct acpi_device_id *acpi_match_device(
+	const struct acpi_device_id *ids, const struct device *dev)
+{
+	return NULL;
+}
+
+static inline bool acpi_driver_match_device(struct device *dev,
+					    const struct device_driver *drv)
+{
+	return false;
+}
+
+#define ACPI_PTR(_ptr)	(NULL)
+
 #endif	/* !CONFIG_ACPI */
 
 #ifdef CONFIG_ACPI
@@ -428,6 +481,86 @@ acpi_status acpi_os_prepare_sleep(u8 sleep_state,
 				  u32 pm1a_control, u32 pm1b_control);
 #else
 #define acpi_os_set_prepare_sleep(func, pm1a_ctrl, pm1b_ctrl) do { } while (0)
+#endif
+
+#if defined(CONFIG_ACPI) && defined(CONFIG_PM_RUNTIME)
+int acpi_dev_runtime_suspend(struct device *dev);
+int acpi_dev_runtime_resume(struct device *dev);
+int acpi_subsys_runtime_suspend(struct device *dev);
+int acpi_subsys_runtime_resume(struct device *dev);
+#else
+static inline int acpi_dev_runtime_suspend(struct device *dev) { return 0; }
+static inline int acpi_dev_runtime_resume(struct device *dev) { return 0; }
+static inline int acpi_subsys_runtime_suspend(struct device *dev) { return 0; }
+static inline int acpi_subsys_runtime_resume(struct device *dev) { return 0; }
+#endif
+
+#ifdef CONFIG_ACPI_SLEEP
+int acpi_dev_suspend_late(struct device *dev);
+int acpi_dev_resume_early(struct device *dev);
+int acpi_subsys_prepare(struct device *dev);
+int acpi_subsys_suspend_late(struct device *dev);
+int acpi_subsys_resume_early(struct device *dev);
+#else
+static inline int acpi_dev_suspend_late(struct device *dev) { return 0; }
+static inline int acpi_dev_resume_early(struct device *dev) { return 0; }
+static inline int acpi_subsys_prepare(struct device *dev) { return 0; }
+static inline int acpi_subsys_suspend_late(struct device *dev) { return 0; }
+static inline int acpi_subsys_resume_early(struct device *dev) { return 0; }
+#endif
+
+#if defined(CONFIG_ACPI) && defined(CONFIG_PM)
+int acpi_dev_pm_attach(struct device *dev, bool power_on);
+void acpi_dev_pm_detach(struct device *dev, bool power_off);
+#else
+static inline int acpi_dev_pm_attach(struct device *dev, bool power_on)
+{
+	return -ENODEV;
+}
+static inline void acpi_dev_pm_detach(struct device *dev, bool power_off) {}
+#endif
+
+#ifdef CONFIG_ACPI
+__printf(3, 4)
+void acpi_handle_printk(const char *level, acpi_handle handle,
+			const char *fmt, ...);
+#else	/* !CONFIG_ACPI */
+static inline __printf(3, 4) void
+acpi_handle_printk(const char *level, void *handle, const char *fmt, ...) {}
+#endif	/* !CONFIG_ACPI */
+
+/*
+ * acpi_handle_<level>: Print message with ACPI prefix and object path
+ *
+ * These interfaces acquire the global namespace mutex to obtain an object
+ * path.  In interrupt context, it shows the object path as <n/a>.
+ */
+#define acpi_handle_emerg(handle, fmt, ...)				\
+	acpi_handle_printk(KERN_EMERG, handle, fmt, ##__VA_ARGS__)
+#define acpi_handle_alert(handle, fmt, ...)				\
+	acpi_handle_printk(KERN_ALERT, handle, fmt, ##__VA_ARGS__)
+#define acpi_handle_crit(handle, fmt, ...)				\
+	acpi_handle_printk(KERN_CRIT, handle, fmt, ##__VA_ARGS__)
+#define acpi_handle_err(handle, fmt, ...)				\
+	acpi_handle_printk(KERN_ERR, handle, fmt, ##__VA_ARGS__)
+#define acpi_handle_warn(handle, fmt, ...)				\
+	acpi_handle_printk(KERN_WARNING, handle, fmt, ##__VA_ARGS__)
+#define acpi_handle_notice(handle, fmt, ...)				\
+	acpi_handle_printk(KERN_NOTICE, handle, fmt, ##__VA_ARGS__)
+#define acpi_handle_info(handle, fmt, ...)				\
+	acpi_handle_printk(KERN_INFO, handle, fmt, ##__VA_ARGS__)
+
+/* REVISIT: Support CONFIG_DYNAMIC_DEBUG when necessary */
+#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
+#define acpi_handle_debug(handle, fmt, ...)				\
+	acpi_handle_printk(KERN_DEBUG, handle, fmt, ##__VA_ARGS__)
+#else
+#define acpi_handle_debug(handle, fmt, ...)				\
+({									\
+	if (0)								\
+		acpi_handle_printk(KERN_DEBUG, handle, fmt, ##__VA_ARGS__); \
+	0;								\
+})
 #endif
 
 #endif	/*_LINUX_ACPI_H*/

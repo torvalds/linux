@@ -49,6 +49,10 @@ config OF_GPIO
 	def_bool y
 	depends on OF
 
+config GPIO_ACPI
+	def_bool y
+	depends on ACPI
+
 config DEBUG_GPIO
 	bool "Debug GPIO calls"
 	depends on DEBUG_KERNEL

@@ -96,8 +96,8 @@ acpi_status acpi_ns_initialize_objects(void)
 	/* Walk entire namespace from the supplied root */
 
 	status = acpi_walk_namespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
-				     ACPI_UINT32_MAX, acpi_ns_init_one_object, NULL,
-				     &info, NULL);
+				     ACPI_UINT32_MAX, acpi_ns_init_one_object,
+				     NULL, &info, NULL);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "During WalkNamespace"));
 	}
