@@ -1355,6 +1355,8 @@ bfa_fsm_state_decl(bna_rx, stopped,
 	struct bna_rx, enum bna_rx_event);
 bfa_fsm_state_decl(bna_rx, start_wait,
 	struct bna_rx, enum bna_rx_event);
+bfa_fsm_state_decl(bna_rx, start_stop_wait,
+	struct bna_rx, enum bna_rx_event);
 bfa_fsm_state_decl(bna_rx, rxf_start_wait,
 	struct bna_rx, enum bna_rx_event);
 bfa_fsm_state_decl(bna_rx, started,
@@ -1432,7 +1434,7 @@ static void bna_rx_sm_start_wait(struct bna_rx *rx,
 {
 	switch (event) {
 	case RX_E_STOP:
-		bfa_fsm_set_state(rx, bna_rx_sm_stop_wait);
+		bfa_fsm_set_state(rx, bna_rx_sm_start_stop_wait);
 		break;
 
 	case RX_E_FAIL:
@@ -1486,6 +1488,29 @@ bna_rx_sm_rxf_stop_wait(struct bna_rx *rx, enum bna_rx_event event)
 		break;
 	}
 
+}
+
+static void
+bna_rx_sm_start_stop_wait_entry(struct bna_rx *rx)
+{
+}
+
+static void
+bna_rx_sm_start_stop_wait(struct bna_rx *rx, enum bna_rx_event event)
+{
+	switch (event) {
+	case RX_E_FAIL:
+	case RX_E_STOPPED:
+		bfa_fsm_set_state(rx, bna_rx_sm_stopped);
+		break;
+
+	case RX_E_STARTED:
+		bna_rx_enet_stop(rx);
+		break;
+
+	default:
+		bfa_sm_fault(event);
+	}
 }
 
 void
