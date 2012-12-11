@@ -46,11 +46,11 @@ typedef struct IPV6FragmentHeaderFormatTag {
 	unsigned long  ulIdentification;
 } IPV6FragmentHeader;
 
-typedef struct IPV6DestOptionsHeaderFormatTag {
+struct bcm_ipv6_dest_options_hdr {
 	unsigned char ucNextHeader;
 	unsigned char ucHdrExtLen;
 	unsigned char ucDestOptions[6];
-} IPV6DestOptionsHeader;
+};
 
 struct bcm_ipv6_options_hdr {
 	unsigned char ucNextHeader;

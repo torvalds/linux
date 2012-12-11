@@ -64,12 +64,12 @@ static UCHAR *GetNextIPV6ChainedHeader(UCHAR **ppucPayload,
 		break;
 	case IPV6HDR_TYPE_DESTOPTS:
 		{
-			IPV6DestOptionsHeader *pstIpv6DestOptsHdr = (IPV6DestOptionsHeader *)pucPayloadPtr;
+			struct bcm_ipv6_dest_options_hdr *pstIpv6DestOptsHdr = (struct bcm_ipv6_dest_options_hdr *)pucPayloadPtr;
 			int nTotalOptions = pstIpv6DestOptsHdr->ucHdrExtLen;
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
 					DBG_LVL_ALL,
 					"\nIPv6 DestOpts Header Header");
-			usNextHeaderOffset += sizeof(IPV6DestOptionsHeader);
+			usNextHeaderOffset += sizeof(struct bcm_ipv6_dest_options_hdr);
 			usNextHeaderOffset += nTotalOptions * IPV6_DESTOPTS_HDR_OPTIONSIZE ;
 
 		}
