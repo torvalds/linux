@@ -268,7 +268,7 @@ static int ext4_create_inline_data(handle_t *handle,
 		goto out;
 
 	if (len > EXT4_MIN_INLINE_DATA_SIZE) {
-		value = (void *)empty_zero_page;
+		value = EXT4_ZERO_XATTR_VALUE;
 		len -= EXT4_MIN_INLINE_DATA_SIZE;
 	} else {
 		value = "";

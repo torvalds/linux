@@ -628,9 +628,14 @@ ext4_xattr_set_entry(struct ext4_xattr_info *i, struct ext4_xattr_search *s)
 				   size. Just replace. */
 				s->here->e_value_size =
 					cpu_to_le32(i->value_len);
-				memset(val + size - EXT4_XATTR_PAD, 0,
-				       EXT4_XATTR_PAD); /* Clear pad bytes. */
-				memcpy(val, i->value, i->value_len);
+				if (i->value == EXT4_ZERO_XATTR_VALUE) {
+					memset(val, 0, size);
+				} else {
+					/* Clear pad bytes first. */
+					memset(val + size - EXT4_XATTR_PAD, 0,
+					       EXT4_XATTR_PAD);
+					memcpy(val, i->value, i->value_len);
+				}
 				return 0;
 			}
 
@@ -669,9 +674,14 @@ ext4_xattr_set_entry(struct ext4_xattr_info *i, struct ext4_xattr_search *s)
 			size_t size = EXT4_XATTR_SIZE(i->value_len);
 			void *val = s->base + min_offs - size;
 			s->here->e_value_offs = cpu_to_le16(min_offs - size);
-			memset(val + size - EXT4_XATTR_PAD, 0,
-			       EXT4_XATTR_PAD); /* Clear the pad bytes. */
-			memcpy(val, i->value, i->value_len);
+			if (i->value == EXT4_ZERO_XATTR_VALUE) {
+				memset(val, 0, size);
+			} else {
+				/* Clear the pad bytes first. */
+				memset(val + size - EXT4_XATTR_PAD, 0,
+				       EXT4_XATTR_PAD);
+				memcpy(val, i->value, i->value_len);
+			}
 		}
 	}
 	return 0;

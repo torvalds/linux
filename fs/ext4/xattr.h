@@ -71,6 +71,7 @@ struct ext4_xattr_entry {
 #define BFIRST(bh) ENTRY(BHDR(bh)+1)
 #define IS_LAST_ENTRY(entry) (*(__u32 *)(entry) == 0)
 
+#define EXT4_ZERO_XATTR_VALUE ((void *)-1)
 
 struct ext4_xattr_info {
 	int name_index;
