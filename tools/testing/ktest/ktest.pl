@@ -1147,6 +1147,9 @@ sub wait_for_monitor;
 sub reboot {
     my ($time) = @_;
 
+    # Make sure everything has been written to disk
+    run_ssh("sync");
+
     if (defined($time)) {
 	start_monitor;
 	# flush out current monitor
