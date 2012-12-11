@@ -86,7 +86,7 @@ enum pcie_bus_config_types pcie_bus_config = PCIE_BUS_TUNE_OFF;
  * the dfl or actual value as it sees fit.  Don't forget this is
  * measured in 32-bit words, not bytes.
  */
-u8 pci_dfl_cache_line_size __devinitdata = L1_CACHE_BYTES >> 2;
+u8 pci_dfl_cache_line_size = L1_CACHE_BYTES >> 2;
 u8 pci_cache_line_size;
 
 /*
@@ -3857,7 +3857,7 @@ static int __init pci_resource_alignment_sysfs_init(void)
 
 late_initcall(pci_resource_alignment_sysfs_init);
 
-static void __devinit pci_no_domains(void)
+static void pci_no_domains(void)
 {
 #ifdef CONFIG_PCI_DOMAINS
 	pci_domains_supported = 0;

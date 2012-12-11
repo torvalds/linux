@@ -1214,7 +1214,7 @@ static const struct mmc_host_ops mmc_omap_ops = {
 	.set_ios	= mmc_omap_set_ios,
 };
 
-static int __devinit mmc_omap_new_slot(struct mmc_omap_host *host, int id)
+static int mmc_omap_new_slot(struct mmc_omap_host *host, int id)
 {
 	struct mmc_omap_slot *slot = NULL;
 	struct mmc_host *mmc;
@@ -1309,7 +1309,7 @@ static void mmc_omap_remove_slot(struct mmc_omap_slot *slot)
 	mmc_free_host(mmc);
 }
 
-static int __devinit mmc_omap_probe(struct platform_device *pdev)
+static int mmc_omap_probe(struct platform_device *pdev)
 {
 	struct omap_mmc_platform_data *pdata = pdev->dev.platform_data;
 	struct mmc_omap_host *host = NULL;
@@ -1478,7 +1478,7 @@ err_free_mem_region:
 	return ret;
 }
 
-static int __devexit mmc_omap_remove(struct platform_device *pdev)
+static int mmc_omap_remove(struct platform_device *pdev)
 {
 	struct mmc_omap_host *host = platform_get_drvdata(pdev);
 	int i;
@@ -1566,7 +1566,7 @@ static int mmc_omap_resume(struct platform_device *pdev)
 
 static struct platform_driver mmc_omap_driver = {
 	.probe		= mmc_omap_probe,
-	.remove		= __devexit_p(mmc_omap_remove),
+	.remove		= mmc_omap_remove,
 	.suspend	= mmc_omap_suspend,
 	.resume		= mmc_omap_resume,
 	.driver		= {

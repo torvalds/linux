@@ -729,7 +729,7 @@ static void tpm_tis_reenable_interrupts(struct tpm_chip *chip)
 #endif
 
 #ifdef CONFIG_PNP
-static int __devinit tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
+static int tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 				      const struct pnp_device_id *pnp_id)
 {
 	resource_size_t start, len;

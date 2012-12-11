@@ -69,7 +69,7 @@ static struct sta2x11_mfd *sta2x11_mfd_find(struct pci_dev *pdev)
 	return NULL;
 }
 
-static int __devinit sta2x11_mfd_add(struct pci_dev *pdev, gfp_t flags)
+static int sta2x11_mfd_add(struct pci_dev *pdev, gfp_t flags)
 {
 	struct sta2x11_mfd *mfd = sta2x11_mfd_find(pdev);
 	struct sta2x11_instance *instance;
@@ -89,7 +89,7 @@ static int __devinit sta2x11_mfd_add(struct pci_dev *pdev, gfp_t flags)
 	return 0;
 }
 
-static int __devexit mfd_remove(struct pci_dev *pdev)
+static int mfd_remove(struct pci_dev *pdev)
 {
 	struct sta2x11_mfd *mfd = sta2x11_mfd_find(pdev);
 
@@ -305,7 +305,7 @@ enum bar1_cells {
 		.flags = IORESOURCE_MEM, \
 		}
 
-static const __devinitconst struct resource gpio_resources[] = {
+static const struct resource gpio_resources[] = {
 	{
 		.name = "sta2x11_gpio", /* 4 consecutive cells, 1 driver */
 		.start = 0,
@@ -313,31 +313,31 @@ static const __devinitconst struct resource gpio_resources[] = {
 		.flags = IORESOURCE_MEM,
 	}
 };
-static const __devinitconst struct resource sctl_resources[] = {
+static const struct resource sctl_resources[] = {
 	CELL_4K("sta2x11-sctl", STA2X11_SCTL),
 };
-static const __devinitconst struct resource scr_resources[] = {
+static const struct resource scr_resources[] = {
 	CELL_4K("sta2x11-scr", STA2X11_SCR),
 };
-static const __devinitconst struct resource time_resources[] = {
+static const struct resource time_resources[] = {
 	CELL_4K("sta2x11-time", STA2X11_TIME),
 };
 
-static const __devinitconst struct resource apbreg_resources[] = {
+static const struct resource apbreg_resources[] = {
 	CELL_4K("sta2x11-apbreg", STA2X11_APBREG),
 };
 
 #define DEV(_name, _r) \
 	{ .name = _name, .num_resources = ARRAY_SIZE(_r), .resources = _r, }
 
-static __devinitdata struct mfd_cell sta2x11_mfd_bar0[] = {
+static struct mfd_cell sta2x11_mfd_bar0[] = {
 	DEV("sta2x11-gpio", gpio_resources), /* offset 0: we add pdata later */
 	DEV("sta2x11-sctl", sctl_resources),
 	DEV("sta2x11-scr", scr_resources),
 	DEV("sta2x11-time", time_resources),
 };
 
-static __devinitdata struct mfd_cell sta2x11_mfd_bar1[] = {
+static struct mfd_cell sta2x11_mfd_bar1[] = {
 	DEV("sta2x11-apbreg", apbreg_resources),
 };
 
@@ -363,7 +363,7 @@ static int sta2x11_mfd_resume(struct pci_dev *pdev)
 	return 0;
 }
 
-static int __devinit sta2x11_mfd_probe(struct pci_dev *pdev,
+static int sta2x11_mfd_probe(struct pci_dev *pdev,
 				       const struct pci_device_id *pci_id)
 {
 	int err, i;

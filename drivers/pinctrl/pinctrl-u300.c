@@ -1095,7 +1095,7 @@ static int __devinit u300_pmx_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit u300_pmx_remove(struct platform_device *pdev)
+static int u300_pmx_remove(struct platform_device *pdev)
 {
 	struct u300_pmx *upmx = platform_get_drvdata(pdev);
 
@@ -1111,7 +1111,7 @@ static struct platform_driver u300_pmx_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = u300_pmx_probe,
-	.remove = __devexit_p(u300_pmx_remove),
+	.remove = u300_pmx_remove,
 };
 
 static int __init u300_pmx_init(void)

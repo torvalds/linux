@@ -222,7 +222,7 @@ static inline struct sdhci_pxa_platdata *pxav3_get_mmc_pdata(struct device *dev)
 }
 #endif
 
-static int __devinit sdhci_pxav3_probe(struct platform_device *pdev)
+static int sdhci_pxav3_probe(struct platform_device *pdev)
 {
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_pxa_platdata *pdata = pdev->dev.platform_data;
@@ -324,7 +324,7 @@ err_clk_get:
 	return ret;
 }
 
-static int __devexit sdhci_pxav3_remove(struct platform_device *pdev)
+static int sdhci_pxav3_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -357,7 +357,7 @@ static struct platform_driver sdhci_pxav3_driver = {
 		.pm	= SDHCI_PLTFM_PMOPS,
 	},
 	.probe		= sdhci_pxav3_probe,
-	.remove		= __devexit_p(sdhci_pxav3_remove),
+	.remove		= sdhci_pxav3_remove,
 };
 
 module_platform_driver(sdhci_pxav3_driver);

@@ -184,7 +184,7 @@ static const struct pwm_ops ecap_pwm_ops = {
 	.owner		= THIS_MODULE,
 };
 
-static int __devinit ecap_pwm_probe(struct platform_device *pdev)
+static int ecap_pwm_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct resource *r;
@@ -235,7 +235,7 @@ static int __devinit ecap_pwm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit ecap_pwm_remove(struct platform_device *pdev)
+static int ecap_pwm_remove(struct platform_device *pdev)
 {
 	struct ecap_pwm_chip *pc = platform_get_drvdata(pdev);
 
@@ -249,7 +249,7 @@ static struct platform_driver ecap_pwm_driver = {
 		.name = "ecap",
 	},
 	.probe = ecap_pwm_probe,
-	.remove = __devexit_p(ecap_pwm_remove),
+	.remove = ecap_pwm_remove,
 };
 
 module_platform_driver(ecap_pwm_driver);

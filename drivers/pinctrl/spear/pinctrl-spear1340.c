@@ -2008,7 +2008,7 @@ static struct spear_pinctrl_machdata spear1340_machdata = {
 	.modes_supported = false,
 };
 
-static struct of_device_id spear1340_pinctrl_of_match[] __devinitdata = {
+static struct of_device_id spear1340_pinctrl_of_match[] = {
 	{
 		.compatible = "st,spear1340-pinmux",
 	},
@@ -2020,7 +2020,7 @@ static int __devinit spear1340_pinctrl_probe(struct platform_device *pdev)
 	return spear_pinctrl_probe(pdev, &spear1340_machdata);
 }
 
-static int __devexit spear1340_pinctrl_remove(struct platform_device *pdev)
+static int spear1340_pinctrl_remove(struct platform_device *pdev)
 {
 	return spear_pinctrl_remove(pdev);
 }
@@ -2032,7 +2032,7 @@ static struct platform_driver spear1340_pinctrl_driver = {
 		.of_match_table = spear1340_pinctrl_of_match,
 	},
 	.probe = spear1340_pinctrl_probe,
-	.remove = __devexit_p(spear1340_pinctrl_remove),
+	.remove = spear1340_pinctrl_remove,
 };
 
 static int __init spear1340_pinctrl_init(void)

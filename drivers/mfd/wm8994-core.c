@@ -374,21 +374,21 @@ static int wm8994_ldo_in_use(struct wm8994_pdata *pdata, int ldo)
 }
 #endif
 
-static const __devinitconst struct reg_default wm8994_revc_patch[] = {
+static const struct reg_default wm8994_revc_patch[] = {
 	{ 0x102, 0x3 },
 	{ 0x56, 0x3 },
 	{ 0x817, 0x0 },
 	{ 0x102, 0x0 },
 };
 
-static const __devinitconst struct reg_default wm8958_reva_patch[] = {
+static const struct reg_default wm8958_reva_patch[] = {
 	{ 0x102, 0x3 },
 	{ 0xcb, 0x81 },
 	{ 0x817, 0x0 },
 	{ 0x102, 0x0 },
 };
 
-static const __devinitconst struct reg_default wm1811_reva_patch[] = {
+static const struct reg_default wm1811_reva_patch[] = {
 	{ 0x102, 0x3 },
 	{ 0x56, 0xc07 },
 	{ 0x5d, 0x7e },
@@ -399,7 +399,7 @@ static const __devinitconst struct reg_default wm1811_reva_patch[] = {
 /*
  * Instantiate the generic non-control parts of the device.
  */
-static __devinit int wm8994_device_init(struct wm8994 *wm8994, int irq)
+static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 {
 	struct wm8994_pdata *pdata = wm8994->dev->platform_data;
 	struct regmap_config *regmap_config;
@@ -671,7 +671,7 @@ err:
 	return ret;
 }
 
-static __devexit void wm8994_device_exit(struct wm8994 *wm8994)
+static void wm8994_device_exit(struct wm8994 *wm8994)
 {
 	pm_runtime_disable(wm8994->dev);
 	mfd_remove_devices(wm8994->dev);
@@ -689,7 +689,7 @@ static const struct of_device_id wm8994_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, wm8994_of_match);
 
-static __devinit int wm8994_i2c_probe(struct i2c_client *i2c,
+static int wm8994_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
 	struct wm8994 *wm8994;
@@ -715,7 +715,7 @@ static __devinit int wm8994_i2c_probe(struct i2c_client *i2c,
 	return wm8994_device_init(wm8994, i2c->irq);
 }
 
-static __devexit int wm8994_i2c_remove(struct i2c_client *i2c)
+static int wm8994_i2c_remove(struct i2c_client *i2c)
 {
 	struct wm8994 *wm8994 = i2c_get_clientdata(i2c);
 
@@ -744,7 +744,7 @@ static struct i2c_driver wm8994_i2c_driver = {
 		.of_match_table = wm8994_of_match,
 	},
 	.probe = wm8994_i2c_probe,
-	.remove = __devexit_p(wm8994_i2c_remove),
+	.remove = wm8994_i2c_remove,
 	.id_table = wm8994_i2c_id,
 };
 

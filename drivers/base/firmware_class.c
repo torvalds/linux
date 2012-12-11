@@ -143,7 +143,7 @@ struct fw_cache_entry {
 };
 
 struct firmware_priv {
-	struct timer_list timeout;
+	struct delayed_work timeout_work;
 	bool nowait;
 	struct device dev;
 	struct firmware_buf *buf;
@@ -246,7 +246,6 @@ static void __fw_free_buf(struct kref *ref)
 		 __func__, buf->fw_id, buf, buf->data,
 		 (unsigned int)buf->size);
 
-	spin_lock(&fwc->lock);
 	list_del(&buf->list);
 	spin_unlock(&fwc->lock);
 
@@ -263,19 +262,32 @@ static void __fw_free_buf(struct kref *ref)
 
 static void fw_free_buf(struct firmware_buf *buf)
 {
-	kref_put(&buf->ref, __fw_free_buf);
+	struct firmware_cache *fwc = buf->fwc;
+	spin_lock(&fwc->lock);
+	if (!kref_put(&buf->ref, __fw_free_buf))
+		spin_unlock(&fwc->lock);
 }
 
 /* direct firmware loading support */
-static const char *fw_path[] = {
+static char fw_path_para[256];
+static const char * const fw_path[] = {
+	fw_path_para,
 	"/lib/firmware/updates/" UTS_RELEASE,
 	"/lib/firmware/updates",
 	"/lib/firmware/" UTS_RELEASE,
 	"/lib/firmware"
 };
 
+/*
+ * Typical usage is that passing 'firmware_class.path=$CUSTOMIZED_PATH'
+ * from kernel command line because firmware_class is generally built in
+ * kernel instead of module.
+ */
+module_param_string(path, fw_path_para, sizeof(fw_path_para), 0644);
+MODULE_PARM_DESC(path, "customized firmware image search path with a higher priority than default path");
+
 /* Don't inline this: 'struct kstat' is biggish */
-static noinline long fw_file_size(struct file *file)
+static noinline_for_stack long fw_file_size(struct file *file)
 {
 	struct kstat st;
 	if (vfs_getattr(file->f_path.mnt, file->f_path.dentry, &st))
@@ -315,6 +327,11 @@ static bool fw_get_filesystem_firmware(struct firmware_buf *buf)
 
 	for (i = 0; i < ARRAY_SIZE(fw_path); i++) {
 		struct file *file;
+
+		/* skip the unset customized path */
+		if (!fw_path[i][0])
+			continue;
+
 		snprintf(path, PATH_MAX, "%s/%s", fw_path[i], buf->fw_id);
 
 		file = filp_open(path, O_RDONLY, 0);
@@ -667,11 +684,18 @@ static struct bin_attribute firmware_attr_data = {
 	.write = firmware_data_write,
 };
 
-static void firmware_class_timeout(u_long data)
+static void firmware_class_timeout_work(struct work_struct *work)
 {
-	struct firmware_priv *fw_priv = (struct firmware_priv *) data;
+	struct firmware_priv *fw_priv = container_of(work,
+			struct firmware_priv, timeout_work.work);
 
+	mutex_lock(&fw_lock);
+	if (test_bit(FW_STATUS_DONE, &(fw_priv->buf->status))) {
+		mutex_unlock(&fw_lock);
+		return;
+	}
 	fw_load_abort(fw_priv);
+	mutex_unlock(&fw_lock);
 }
 
 static struct firmware_priv *
@@ -690,8 +714,8 @@ fw_create_instance(struct firmware *firmware, const char *fw_name,
 
 	fw_priv->nowait = nowait;
 	fw_priv->fw = firmware;
-	setup_timer(&fw_priv->timeout,
-		    firmware_class_timeout, (u_long) fw_priv);
+	INIT_DELAYED_WORK(&fw_priv->timeout_work,
+		firmware_class_timeout_work);
 
 	f_dev = &fw_priv->dev;
 
@@ -858,7 +882,9 @@ static int _request_firmware_load(struct firmware_priv *fw_priv, bool uevent,
 		dev_dbg(f_dev->parent, "firmware: direct-loading"
 			" firmware %s\n", buf->fw_id);
 
+		mutex_lock(&fw_lock);
 		set_bit(FW_STATUS_DONE, &buf->status);
+		mutex_unlock(&fw_lock);
 		complete_all(&buf->completion);
 		direct_load = 1;
 		goto handle_fw;
@@ -894,15 +920,14 @@ static int _request_firmware_load(struct firmware_priv *fw_priv, bool uevent,
 		dev_set_uevent_suppress(f_dev, false);
 		dev_dbg(f_dev, "firmware: requesting %s\n", buf->fw_id);
 		if (timeout != MAX_SCHEDULE_TIMEOUT)
-			mod_timer(&fw_priv->timeout,
-				  round_jiffies_up(jiffies + timeout));
+			schedule_delayed_work(&fw_priv->timeout_work, timeout);
 
 		kobject_uevent(&fw_priv->dev.kobj, KOBJ_ADD);
 	}
 
 	wait_for_completion(&buf->completion);
 
-	del_timer_sync(&fw_priv->timeout);
+	cancel_delayed_work_sync(&fw_priv->timeout_work);
 
 handle_fw:
 	mutex_lock(&fw_lock);
@@ -963,6 +988,9 @@ err_put_dev:
  *      firmware image for this or any other device.
  *
  *	Caller must hold the reference count of @device.
+ *
+ *	The function can be called safely inside device's suspend and
+ *	resume callback.
  **/
 int
 request_firmware(const struct firmware **firmware_p, const char *name,

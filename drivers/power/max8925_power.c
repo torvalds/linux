@@ -356,7 +356,7 @@ do {									\
 			_irq, ret);					\
 } while (0)
 
-static __devinit int max8925_init_charger(struct max8925_chip *chip,
+static int max8925_init_charger(struct max8925_chip *chip,
 					  struct max8925_power_info *info)
 {
 	int ret;
@@ -414,7 +414,7 @@ static __devinit int max8925_init_charger(struct max8925_chip *chip,
 	return 0;
 }
 
-static __devexit int max8925_deinit_charger(struct max8925_power_info *info)
+static int max8925_deinit_charger(struct max8925_power_info *info)
 {
 	struct max8925_chip *chip = info->chip;
 	int irq;
@@ -426,7 +426,7 @@ static __devexit int max8925_deinit_charger(struct max8925_power_info *info)
 	return 0;
 }
 
-static __devinit int max8925_power_probe(struct platform_device *pdev)
+static int max8925_power_probe(struct platform_device *pdev)
 {
 	struct max8925_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct max8925_power_pdata *pdata = NULL;
@@ -501,7 +501,7 @@ out:
 	return ret;
 }
 
-static __devexit int max8925_power_remove(struct platform_device *pdev)
+static int max8925_power_remove(struct platform_device *pdev)
 {
 	struct max8925_power_info *info = platform_get_drvdata(pdev);
 
@@ -517,7 +517,7 @@ static __devexit int max8925_power_remove(struct platform_device *pdev)
 
 static struct platform_driver max8925_power_driver = {
 	.probe	= max8925_power_probe,
-	.remove	= __devexit_p(max8925_power_remove),
+	.remove	= max8925_power_remove,
 	.driver	= {
 		.name	= "max8925-power",
 	},

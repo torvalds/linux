@@ -375,7 +375,7 @@ static struct tegra_gpio_soc_config tegra30_gpio_config = {
 	.upper_offset = 0x80,
 };
 
-static struct of_device_id tegra_gpio_of_match[] __devinitdata = {
+static struct of_device_id tegra_gpio_of_match[] = {
 	{ .compatible = "nvidia,tegra30-gpio", .data = &tegra30_gpio_config },
 	{ .compatible = "nvidia,tegra20-gpio", .data = &tegra20_gpio_config },
 	{ },
@@ -386,7 +386,7 @@ static struct of_device_id tegra_gpio_of_match[] __devinitdata = {
  */
 static struct lock_class_key gpio_lock_class;
 
-static int __devinit tegra_gpio_probe(struct platform_device *pdev)
+static int tegra_gpio_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct tegra_gpio_soc_config *config;

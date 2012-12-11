@@ -238,7 +238,7 @@ static void r_tpu_set_brightness(struct led_classdev *ldev,
 	schedule_work(&p->work);
 }
 
-static int __devinit r_tpu_probe(struct platform_device *pdev)
+static int r_tpu_probe(struct platform_device *pdev)
 {
 	struct led_renesas_tpu_config *cfg = pdev->dev.platform_data;
 	struct r_tpu_priv *p;
@@ -309,7 +309,7 @@ static int __devinit r_tpu_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit r_tpu_remove(struct platform_device *pdev)
+static int r_tpu_remove(struct platform_device *pdev)
 {
 	struct r_tpu_priv *p = platform_get_drvdata(pdev);
 
@@ -328,7 +328,7 @@ static int __devexit r_tpu_remove(struct platform_device *pdev)
 
 static struct platform_driver r_tpu_device_driver = {
 	.probe		= r_tpu_probe,
-	.remove		= __devexit_p(r_tpu_remove),
+	.remove		= r_tpu_remove,
 	.driver		= {
 		.name	= "leds-renesas-tpu",
 	}

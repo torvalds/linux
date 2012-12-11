@@ -270,7 +270,7 @@ static struct attribute *da9052_attr[] = {
 
 static const struct attribute_group da9052_attr_group = {.attrs = da9052_attr};
 
-static int __devinit da9052_hwmon_probe(struct platform_device *pdev)
+static int da9052_hwmon_probe(struct platform_device *pdev)
 {
 	struct da9052_hwmon *hwmon;
 	int ret;
@@ -303,7 +303,7 @@ err_mem:
 	return ret;
 }
 
-static int __devexit da9052_hwmon_remove(struct platform_device *pdev)
+static int da9052_hwmon_remove(struct platform_device *pdev)
 {
 	struct da9052_hwmon *hwmon = platform_get_drvdata(pdev);
 
@@ -315,7 +315,7 @@ static int __devexit da9052_hwmon_remove(struct platform_device *pdev)
 
 static struct platform_driver da9052_hwmon_driver = {
 	.probe = da9052_hwmon_probe,
-	.remove = __devexit_p(da9052_hwmon_remove),
+	.remove = da9052_hwmon_remove,
 	.driver = {
 		.name = "da9052-hwmon",
 		.owner = THIS_MODULE,

@@ -227,7 +227,7 @@ static struct ili9320_client vgg2432a4_client = {
 
 /* Device probe */
 
-static int __devinit vgg2432a4_probe(struct spi_device *spi)
+static int vgg2432a4_probe(struct spi_device *spi)
 {
 	int ret;
 
@@ -240,7 +240,7 @@ static int __devinit vgg2432a4_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit vgg2432a4_remove(struct spi_device *spi)
+static int vgg2432a4_remove(struct spi_device *spi)
 {
 	return ili9320_remove(dev_get_drvdata(&spi->dev));
 }
@@ -256,7 +256,7 @@ static struct spi_driver vgg2432a4_driver = {
 		.owner		= THIS_MODULE,
 	},
 	.probe		= vgg2432a4_probe,
-	.remove		= __devexit_p(vgg2432a4_remove),
+	.remove		= vgg2432a4_remove,
 	.shutdown	= vgg2432a4_shutdown,
 	.suspend	= vgg2432a4_suspend,
 	.resume		= vgg2432a4_resume,

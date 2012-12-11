@@ -417,7 +417,7 @@ int __devinit spear_pinctrl_probe(struct platform_device *pdev,
 	return 0;
 }
 
-int __devexit spear_pinctrl_remove(struct platform_device *pdev)
+int spear_pinctrl_remove(struct platform_device *pdev)
 {
 	struct spear_pmx *pmx = platform_get_drvdata(pdev);
 

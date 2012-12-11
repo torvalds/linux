@@ -3410,7 +3410,7 @@ static struct spear_function *spear320_functions[] = {
 	&i2c2_function,
 };
 
-static struct of_device_id spear320_pinctrl_of_match[] __devinitdata = {
+static struct of_device_id spear320_pinctrl_of_match[] = {
 	{
 		.compatible = "st,spear320-pinmux",
 	},
@@ -3441,7 +3441,7 @@ static int __devinit spear320_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit spear320_pinctrl_remove(struct platform_device *pdev)
+static int spear320_pinctrl_remove(struct platform_device *pdev)
 {
 	return spear_pinctrl_remove(pdev);
 }
@@ -3453,7 +3453,7 @@ static struct platform_driver spear320_pinctrl_driver = {
 		.of_match_table = spear320_pinctrl_of_match,
 	},
 	.probe = spear320_pinctrl_probe,
-	.remove = __devexit_p(spear320_pinctrl_remove),
+	.remove = spear320_pinctrl_remove,
 };
 
 static int __init spear320_pinctrl_init(void)

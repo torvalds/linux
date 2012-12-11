@@ -623,7 +623,7 @@ static struct resource __devinitdata ab9540_gpio_resources[] = {
 	}
 };
 
-static struct resource __devinitdata ab8500_gpadc_resources[] = {
+static struct resource ab8500_gpadc_resources[] = {
 	{
 		.name	= "HW_CONV_END",
 		.start	= AB8500_INT_GP_HW_ADC_CONV_END,
@@ -638,7 +638,7 @@ static struct resource __devinitdata ab8500_gpadc_resources[] = {
 	},
 };
 
-static struct resource __devinitdata ab8500_rtc_resources[] = {
+static struct resource ab8500_rtc_resources[] = {
 	{
 		.name	= "60S",
 		.start	= AB8500_INT_RTC_60S,
@@ -653,7 +653,7 @@ static struct resource __devinitdata ab8500_rtc_resources[] = {
 	},
 };
 
-static struct resource __devinitdata ab8500_poweronkey_db_resources[] = {
+static struct resource ab8500_poweronkey_db_resources[] = {
 	{
 		.name	= "ONKEY_DBF",
 		.start	= AB8500_INT_PON_KEY1DB_F,
@@ -668,7 +668,7 @@ static struct resource __devinitdata ab8500_poweronkey_db_resources[] = {
 	},
 };
 
-static struct resource __devinitdata ab8500_av_acc_detect_resources[] = {
+static struct resource ab8500_av_acc_detect_resources[] = {
 	{
 	       .name = "ACC_DETECT_1DB_F",
 	       .start = AB8500_INT_ACC_DETECT_1DB_F,
@@ -707,7 +707,7 @@ static struct resource __devinitdata ab8500_av_acc_detect_resources[] = {
 	},
 };
 
-static struct resource __devinitdata ab8500_charger_resources[] = {
+static struct resource ab8500_charger_resources[] = {
 	{
 		.name = "MAIN_CH_UNPLUG_DET",
 		.start = AB8500_INT_MAIN_CH_UNPLUG_DET,
@@ -788,7 +788,7 @@ static struct resource __devinitdata ab8500_charger_resources[] = {
 	},
 };
 
-static struct resource __devinitdata ab8500_btemp_resources[] = {
+static struct resource ab8500_btemp_resources[] = {
 	{
 		.name = "BAT_CTRL_INDB",
 		.start = AB8500_INT_BAT_CTRL_INDB,
@@ -821,7 +821,7 @@ static struct resource __devinitdata ab8500_btemp_resources[] = {
 	},
 };
 
-static struct resource __devinitdata ab8500_fg_resources[] = {
+static struct resource ab8500_fg_resources[] = {
 	{
 		.name = "NCONV_ACCU",
 		.start = AB8500_INT_CCN_CONV_ACC,
@@ -860,10 +860,10 @@ static struct resource __devinitdata ab8500_fg_resources[] = {
 	},
 };
 
-static struct resource __devinitdata ab8500_chargalg_resources[] = {};
+static struct resource ab8500_chargalg_resources[] = {};
 
 #ifdef CONFIG_DEBUG_FS
-static struct resource __devinitdata ab8500_debug_resources[] = {
+static struct resource ab8500_debug_resources[] = {
 	{
 		.name	= "IRQ_FIRST",
 		.start	= AB8500_INT_MAIN_EXT_CH_NOT_OK,
@@ -879,7 +879,7 @@ static struct resource __devinitdata ab8500_debug_resources[] = {
 };
 #endif
 
-static struct resource __devinitdata ab8500_usb_resources[] = {
+static struct resource ab8500_usb_resources[] = {
 	{
 		.name = "ID_WAKEUP_R",
 		.start = AB8500_INT_ID_WAKEUP_R,
@@ -924,7 +924,7 @@ static struct resource __devinitdata ab8500_usb_resources[] = {
 	},
 };
 
-static struct resource __devinitdata ab8505_iddet_resources[] = {
+static struct resource ab8505_iddet_resources[] = {
 	{
 		.name  = "KeyDeglitch",
 		.start = AB8505_INT_KEYDEGLITCH,
@@ -957,7 +957,7 @@ static struct resource __devinitdata ab8505_iddet_resources[] = {
 	},
 };
 
-static struct resource __devinitdata ab8500_temp_resources[] = {
+static struct resource ab8500_temp_resources[] = {
 	{
 		.name  = "AB8500_TEMP_WARM",
 		.start = AB8500_INT_TEMP_WARM,
@@ -966,7 +966,7 @@ static struct resource __devinitdata ab8500_temp_resources[] = {
 	},
 };
 
-static struct mfd_cell __devinitdata abx500_common_devs[] = {
+static struct mfd_cell abx500_common_devs[] = {
 #ifdef CONFIG_DEBUG_FS
 	{
 		.name = "ab8500-debug",
@@ -1038,7 +1038,7 @@ static struct mfd_cell __devinitdata abx500_common_devs[] = {
 	},
 };
 
-static struct mfd_cell __devinitdata ab8500_bm_devs[] = {
+static struct mfd_cell ab8500_bm_devs[] = {
 	{
 		.name = "ab8500-charger",
 		.num_resources = ARRAY_SIZE(ab8500_charger_resources),
@@ -1061,7 +1061,7 @@ static struct mfd_cell __devinitdata ab8500_bm_devs[] = {
 	},
 };
 
-static struct mfd_cell __devinitdata ab8500_devs[] = {
+static struct mfd_cell ab8500_devs[] = {
 	{
 		.name = "ab8500-gpio",
 		.of_compatible = "stericsson,ab8500-gpio",
@@ -1080,7 +1080,7 @@ static struct mfd_cell __devinitdata ab8500_devs[] = {
 	},
 };
 
-static struct mfd_cell __devinitdata ab9540_devs[] = {
+static struct mfd_cell ab9540_devs[] = {
 	{
 		.name = "ab8500-gpio",
 		.num_resources = ARRAY_SIZE(ab9540_gpio_resources),
@@ -1097,7 +1097,7 @@ static struct mfd_cell __devinitdata ab9540_devs[] = {
 };
 
 /* Device list common to ab9540 and ab8505 */
-static struct mfd_cell __devinitdata ab9540_ab8505_devs[] = {
+static struct mfd_cell ab9540_ab8505_devs[] = {
 	{
 		.name = "ab-iddet",
 		.num_resources = ARRAY_SIZE(ab8505_iddet_resources),
@@ -1248,7 +1248,7 @@ static struct attribute_group ab9540_attr_group = {
 	.attrs	= ab9540_sysfs_entries,
 };
 
-static int __devinit ab8500_probe(struct platform_device *pdev)
+static int ab8500_probe(struct platform_device *pdev)
 {
 	static char *switch_off_status[] = {
 		"Swoff bit programming",
@@ -1473,7 +1473,7 @@ out_free_ab8500:
 	return ret;
 }
 
-static int __devexit ab8500_remove(struct platform_device *pdev)
+static int ab8500_remove(struct platform_device *pdev)
 {
 	struct ab8500 *ab8500 = platform_get_drvdata(pdev);
 
@@ -1506,7 +1506,7 @@ static struct platform_driver ab8500_core_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe	= ab8500_probe,
-	.remove	= __devexit_p(ab8500_remove),
+	.remove	= ab8500_remove,
 	.id_table = ab8500_id,
 };
 

@@ -884,7 +884,7 @@ static int sht15_invalidate_voltage(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static int __devinit sht15_probe(struct platform_device *pdev)
+static int sht15_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct sht15_data *data;
@@ -1002,7 +1002,7 @@ err_release_reg:
 	return ret;
 }
 
-static int __devexit sht15_remove(struct platform_device *pdev)
+static int sht15_remove(struct platform_device *pdev)
 {
 	struct sht15_data *data = platform_get_drvdata(pdev);
 
@@ -1043,7 +1043,7 @@ static struct platform_driver sht15_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = sht15_probe,
-	.remove = __devexit_p(sht15_remove),
+	.remove = sht15_remove,
 	.id_table = sht15_device_ids,
 };
 module_platform_driver(sht15_driver);

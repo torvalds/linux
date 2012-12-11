@@ -729,7 +729,7 @@ static const struct attribute_group lp8788_attr_group = {
 	.attrs = lp8788_charger_attr,
 };
 
-static __devinit int lp8788_charger_probe(struct platform_device *pdev)
+static int lp8788_charger_probe(struct platform_device *pdev)
 {
 	struct lp8788 *lp = dev_get_drvdata(pdev->dev.parent);
 	struct lp8788_charger *pchg;
@@ -766,7 +766,7 @@ static __devinit int lp8788_charger_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit lp8788_charger_remove(struct platform_device *pdev)
+static int lp8788_charger_remove(struct platform_device *pdev)
 {
 	struct lp8788_charger *pchg = platform_get_drvdata(pdev);
 
@@ -781,7 +781,7 @@ static int __devexit lp8788_charger_remove(struct platform_device *pdev)
 
 static struct platform_driver lp8788_charger_driver = {
 	.probe = lp8788_charger_probe,
-	.remove = __devexit_p(lp8788_charger_remove),
+	.remove = lp8788_charger_remove,
 	.driver = {
 		.name = LP8788_DEV_CHARGER,
 		.owner = THIS_MODULE,

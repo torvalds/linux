@@ -99,7 +99,7 @@ static const struct backlight_ops pcf50633_bl_ops = {
 	.options	= BL_CORE_SUSPENDRESUME,
 };
 
-static int __devinit pcf50633_bl_probe(struct platform_device *pdev)
+static int pcf50633_bl_probe(struct platform_device *pdev)
 {
 	struct pcf50633_bl *pcf_bl;
 	struct device *parent = pdev->dev.parent;
@@ -145,7 +145,7 @@ static int __devinit pcf50633_bl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit pcf50633_bl_remove(struct platform_device *pdev)
+static int pcf50633_bl_remove(struct platform_device *pdev)
 {
 	struct pcf50633_bl *pcf_bl = platform_get_drvdata(pdev);
 
@@ -158,7 +158,7 @@ static int __devexit pcf50633_bl_remove(struct platform_device *pdev)
 
 static struct platform_driver pcf50633_bl_driver = {
 	.probe =	pcf50633_bl_probe,
-	.remove =	__devexit_p(pcf50633_bl_remove),
+	.remove =	pcf50633_bl_remove,
 	.driver = {
 		.name = "pcf50633-backlight",
 	},

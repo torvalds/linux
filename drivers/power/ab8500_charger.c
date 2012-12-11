@@ -2490,7 +2490,7 @@ static int ab8500_charger_suspend(struct platform_device *pdev,
 #define ab8500_charger_resume       NULL
 #endif
 
-static int __devexit ab8500_charger_remove(struct platform_device *pdev)
+static int ab8500_charger_remove(struct platform_device *pdev)
 {
 	struct ab8500_charger *di = platform_get_drvdata(pdev);
 	int i, irq, ret;
@@ -2531,7 +2531,7 @@ static int __devexit ab8500_charger_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit ab8500_charger_probe(struct platform_device *pdev)
+static int ab8500_charger_probe(struct platform_device *pdev)
 {
 	int irq, i, charger_status, ret = 0;
 	struct abx500_bm_plat_data *plat_data = pdev->dev.platform_data;
@@ -2765,7 +2765,7 @@ free_device_info:
 
 static struct platform_driver ab8500_charger_driver = {
 	.probe = ab8500_charger_probe,
-	.remove = __devexit_p(ab8500_charger_remove),
+	.remove = ab8500_charger_remove,
 	.suspend = ab8500_charger_suspend,
 	.resume = ab8500_charger_resume,
 	.driver = {

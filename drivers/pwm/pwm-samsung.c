@@ -273,7 +273,7 @@ static int s3c_pwm_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit s3c_pwm_remove(struct platform_device *pdev)
+static int s3c_pwm_remove(struct platform_device *pdev)
 {
 	struct s3c_chip *s3c = platform_get_drvdata(pdev);
 	int err;
@@ -327,7 +327,7 @@ static struct platform_driver s3c_pwm_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= s3c_pwm_probe,
-	.remove		= __devexit_p(s3c_pwm_remove),
+	.remove		= s3c_pwm_remove,
 	.suspend	= s3c_pwm_suspend,
 	.resume		= s3c_pwm_resume,
 };

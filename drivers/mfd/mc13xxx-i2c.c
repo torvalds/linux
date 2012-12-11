@@ -85,7 +85,7 @@ static int mc13xxx_i2c_probe(struct i2c_client *client,
 	return ret;
 }
 
-static int __devexit mc13xxx_i2c_remove(struct i2c_client *client)
+static int mc13xxx_i2c_remove(struct i2c_client *client)
 {
 	struct mc13xxx *mc13xxx = dev_get_drvdata(&client->dev);
 
@@ -102,7 +102,7 @@ static struct i2c_driver mc13xxx_i2c_driver = {
 		.of_match_table = mc13xxx_dt_ids,
 	},
 	.probe = mc13xxx_i2c_probe,
-	.remove = __devexit_p(mc13xxx_i2c_remove),
+	.remove = mc13xxx_i2c_remove,
 };
 
 static int __init mc13xxx_i2c_init(void)

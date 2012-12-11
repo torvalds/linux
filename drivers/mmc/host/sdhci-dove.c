@@ -97,7 +97,7 @@ static struct sdhci_pltfm_data sdhci_dove_pdata = {
 		  SDHCI_QUIRK_NO_HISPD_BIT,
 };
 
-static int __devinit sdhci_dove_probe(struct platform_device *pdev)
+static int sdhci_dove_probe(struct platform_device *pdev)
 {
 	struct sdhci_host *host;
 	struct sdhci_pltfm_host *pltfm_host;
@@ -178,7 +178,7 @@ err_sdhci_pltfm_init:
 	return ret;
 }
 
-static int __devexit sdhci_dove_remove(struct platform_device *pdev)
+static int sdhci_dove_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -197,7 +197,7 @@ static int __devexit sdhci_dove_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id sdhci_dove_of_match_table[] __devinitdata = {
+static const struct of_device_id sdhci_dove_of_match_table[] = {
 	{ .compatible = "marvell,dove-sdhci", },
 	{}
 };
@@ -211,7 +211,7 @@ static struct platform_driver sdhci_dove_driver = {
 		.of_match_table = of_match_ptr(sdhci_dove_of_match_table),
 	},
 	.probe		= sdhci_dove_probe,
-	.remove		= __devexit_p(sdhci_dove_remove),
+	.remove		= sdhci_dove_remove,
 };
 
 module_platform_driver(sdhci_dove_driver);

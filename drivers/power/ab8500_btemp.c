@@ -938,7 +938,7 @@ static int ab8500_btemp_suspend(struct platform_device *pdev,
 #define ab8500_btemp_resume       NULL
 #endif
 
-static int __devexit ab8500_btemp_remove(struct platform_device *pdev)
+static int ab8500_btemp_remove(struct platform_device *pdev)
 {
 	struct ab8500_btemp *di = platform_get_drvdata(pdev);
 	int i, irq;
@@ -960,7 +960,7 @@ static int __devexit ab8500_btemp_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit ab8500_btemp_probe(struct platform_device *pdev)
+static int ab8500_btemp_probe(struct platform_device *pdev)
 {
 	int irq, i, ret = 0;
 	u8 val;
@@ -1101,7 +1101,7 @@ free_device_info:
 
 static struct platform_driver ab8500_btemp_driver = {
 	.probe = ab8500_btemp_probe,
-	.remove = __devexit_p(ab8500_btemp_remove),
+	.remove = ab8500_btemp_remove,
 	.suspend = ab8500_btemp_suspend,
 	.resume = ab8500_btemp_resume,
 	.driver = {

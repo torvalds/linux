@@ -326,7 +326,7 @@ static irqreturn_t pch_gpio_handler(int irq, void *dev_id)
 	return ret;
 }
 
-static __devinit void pch_gpio_alloc_generic_chip(struct pch_gpio *chip,
+static void pch_gpio_alloc_generic_chip(struct pch_gpio *chip,
 				unsigned int irq_start, unsigned int num)
 {
 	struct irq_chip_generic *gc;
@@ -346,7 +346,7 @@ static __devinit void pch_gpio_alloc_generic_chip(struct pch_gpio *chip,
 			       IRQ_NOREQUEST | IRQ_NOPROBE, 0);
 }
 
-static int __devinit pch_gpio_probe(struct pci_dev *pdev,
+static int pch_gpio_probe(struct pci_dev *pdev,
 				    const struct pci_device_id *id)
 {
 	s32 ret;
@@ -443,7 +443,7 @@ err_pci_enable:
 	return ret;
 }
 
-static void __devexit pch_gpio_remove(struct pci_dev *pdev)
+static void pch_gpio_remove(struct pci_dev *pdev)
 {
 	int err;
 	struct pch_gpio *chip = pci_get_drvdata(pdev);
@@ -532,7 +532,7 @@ static struct pci_driver pch_gpio_driver = {
 	.name = "pch_gpio",
 	.id_table = pch_gpio_pcidev_id,
 	.probe = pch_gpio_probe,
-	.remove = __devexit_p(pch_gpio_remove),
+	.remove = pch_gpio_remove,
 	.suspend = pch_gpio_suspend,
 	.resume = pch_gpio_resume
 };

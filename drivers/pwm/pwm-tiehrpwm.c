@@ -392,7 +392,7 @@ static const struct pwm_ops ehrpwm_pwm_ops = {
 	.owner		= THIS_MODULE,
 };
 
-static int __devinit ehrpwm_pwm_probe(struct platform_device *pdev)
+static int ehrpwm_pwm_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct resource *r;
@@ -443,7 +443,7 @@ static int __devinit ehrpwm_pwm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit ehrpwm_pwm_remove(struct platform_device *pdev)
+static int ehrpwm_pwm_remove(struct platform_device *pdev)
 {
 	struct ehrpwm_pwm_chip *pc = platform_get_drvdata(pdev);
 
@@ -457,7 +457,7 @@ static struct platform_driver ehrpwm_pwm_driver = {
 		.name = "ehrpwm",
 	},
 	.probe = ehrpwm_pwm_probe,
-	.remove = __devexit_p(ehrpwm_pwm_remove),
+	.remove = ehrpwm_pwm_remove,
 };
 
 module_platform_driver(ehrpwm_pwm_driver);

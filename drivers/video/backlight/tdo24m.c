@@ -328,7 +328,7 @@ static struct lcd_ops tdo24m_ops = {
 	.set_mode	= tdo24m_set_mode,
 };
 
-static int __devinit tdo24m_probe(struct spi_device *spi)
+static int tdo24m_probe(struct spi_device *spi)
 {
 	struct tdo24m *lcd;
 	struct spi_message *m;
@@ -401,7 +401,7 @@ out_unregister:
 	return err;
 }
 
-static int __devexit tdo24m_remove(struct spi_device *spi)
+static int tdo24m_remove(struct spi_device *spi)
 {
 	struct tdo24m *lcd = dev_get_drvdata(&spi->dev);
 
@@ -444,7 +444,7 @@ static struct spi_driver tdo24m_driver = {
 		.owner		= THIS_MODULE,
 	},
 	.probe		= tdo24m_probe,
-	.remove		= __devexit_p(tdo24m_remove),
+	.remove		= tdo24m_remove,
 	.shutdown	= tdo24m_shutdown,
 	.suspend	= tdo24m_suspend,
 	.resume		= tdo24m_resume,

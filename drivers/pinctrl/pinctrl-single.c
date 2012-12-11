@@ -1062,7 +1062,7 @@ free:
 	return ret;
 }
 
-static int __devexit pcs_remove(struct platform_device *pdev)
+static int pcs_remove(struct platform_device *pdev)
 {
 	struct pcs_device *pcs = platform_get_drvdata(pdev);
 
@@ -1074,7 +1074,7 @@ static int __devexit pcs_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id pcs_of_match[] __devinitdata = {
+static struct of_device_id pcs_of_match[] = {
 	{ .compatible = DRIVER_NAME, },
 	{ },
 };
@@ -1082,7 +1082,7 @@ MODULE_DEVICE_TABLE(of, pcs_of_match);
 
 static struct platform_driver pcs_driver = {
 	.probe		= pcs_probe,
-	.remove		= __devexit_p(pcs_remove),
+	.remove		= pcs_remove,
 	.driver = {
 		.owner		= THIS_MODULE,
 		.name		= DRIVER_NAME,

@@ -464,7 +464,7 @@ static void omap_usbhs_deinit(struct device *dev)
  *
  * Allocates basic resources for this USB host controller.
  */
-static int __devinit usbhs_omap_probe(struct platform_device *pdev)
+static int usbhs_omap_probe(struct platform_device *pdev)
 {
 	struct device			*dev =  &pdev->dev;
 	struct usbhs_omap_platform_data	*pdata = dev->platform_data;
@@ -652,7 +652,7 @@ end_probe:
  *
  * Reverses the effect of usbhs_omap_probe().
  */
-static int __devexit usbhs_omap_remove(struct platform_device *pdev)
+static int usbhs_omap_remove(struct platform_device *pdev)
 {
 	struct usbhs_hcd_omap *omap = platform_get_drvdata(pdev);
 

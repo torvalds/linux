@@ -202,7 +202,7 @@ static struct mfd_cell jz4740_adc_cells[] = {
 	},
 };
 
-static int __devinit jz4740_adc_probe(struct platform_device *pdev)
+static int jz4740_adc_probe(struct platform_device *pdev)
 {
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
@@ -307,7 +307,7 @@ err_free:
 	return ret;
 }
 
-static int __devexit jz4740_adc_remove(struct platform_device *pdev)
+static int jz4740_adc_remove(struct platform_device *pdev)
 {
 	struct jz4740_adc *adc = platform_get_drvdata(pdev);
 
@@ -332,7 +332,7 @@ static int __devexit jz4740_adc_remove(struct platform_device *pdev)
 
 static struct platform_driver jz4740_adc_driver = {
 	.probe	= jz4740_adc_probe,
-	.remove = __devexit_p(jz4740_adc_remove),
+	.remove = jz4740_adc_remove,
 	.driver = {
 		.name = "jz4740-adc",
 		.owner = THIS_MODULE,

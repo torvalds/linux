@@ -529,7 +529,7 @@ static int setup_gpio_backlight(struct corgi_lcd *lcd,
 	return 0;
 }
 
-static int __devinit corgi_lcd_probe(struct spi_device *spi)
+static int corgi_lcd_probe(struct spi_device *spi)
 {
 	struct backlight_properties props;
 	struct corgi_lcd_platform_data *pdata = spi->dev.platform_data;
@@ -590,7 +590,7 @@ err_unregister_lcd:
 	return ret;
 }
 
-static int __devexit corgi_lcd_remove(struct spi_device *spi)
+static int corgi_lcd_remove(struct spi_device *spi)
 {
 	struct corgi_lcd *lcd = dev_get_drvdata(&spi->dev);
 
@@ -611,7 +611,7 @@ static struct spi_driver corgi_lcd_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= corgi_lcd_probe,
-	.remove		= __devexit_p(corgi_lcd_remove),
+	.remove		= corgi_lcd_remove,
 	.suspend	= corgi_lcd_suspend,
 	.resume		= corgi_lcd_resume,
 };

@@ -1305,7 +1305,7 @@ out_no_gpio_remap:
 	return ret;
 }
 
-static const struct of_device_id pinmux_ids[] __devinitconst = {
+static const struct of_device_id pinmux_ids[] = {
 	{ .compatible = "sirf,prima2-pinctrl" },
 	{ .compatible = "sirf,marco-pinctrl" },
 	{}

@@ -200,7 +200,7 @@ static unsigned ohci_omap3_fslsmode(enum usbhs_omap_port_mode mode)
  *
  * Allocates basic resources for this USB host controller.
  */
-static int __devinit usbtll_omap_probe(struct platform_device *pdev)
+static int usbtll_omap_probe(struct platform_device *pdev)
 {
 	struct device				*dev =  &pdev->dev;
 	struct usbtll_omap_platform_data	*pdata = dev->platform_data;
@@ -348,7 +348,7 @@ end:
  *
  * Reverses the effect of usbtll_omap_probe().
  */
-static int __devexit usbtll_omap_remove(struct platform_device *pdev)
+static int usbtll_omap_remove(struct platform_device *pdev)
 {
 	struct usbtll_omap *tll = platform_get_drvdata(pdev);
 
@@ -424,7 +424,7 @@ static struct platform_driver usbtll_omap_driver = {
 		.pm		= &usbtllomap_dev_pm_ops,
 	},
 	.probe		= usbtll_omap_probe,
-	.remove		= __devexit_p(usbtll_omap_remove),
+	.remove		= usbtll_omap_remove,
 };
 
 int omap_tll_enable(void)

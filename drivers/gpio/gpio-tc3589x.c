@@ -309,7 +309,7 @@ static int tc3589x_gpio_irq_init(struct tc3589x_gpio *tc3589x_gpio,
 	return 0;
 }
 
-static int __devinit tc3589x_gpio_probe(struct platform_device *pdev)
+static int tc3589x_gpio_probe(struct platform_device *pdev)
 {
 	struct tc3589x *tc3589x = dev_get_drvdata(pdev->dev.parent);
 	struct tc3589x_gpio_platform_data *pdata;
@@ -387,7 +387,7 @@ out_free:
 	return ret;
 }
 
-static int __devexit tc3589x_gpio_remove(struct platform_device *pdev)
+static int tc3589x_gpio_remove(struct platform_device *pdev)
 {
 	struct tc3589x_gpio *tc3589x_gpio = platform_get_drvdata(pdev);
 	struct tc3589x *tc3589x = tc3589x_gpio->tc3589x;
@@ -417,7 +417,7 @@ static struct platform_driver tc3589x_gpio_driver = {
 	.driver.name	= "tc3589x-gpio",
 	.driver.owner	= THIS_MODULE,
 	.probe		= tc3589x_gpio_probe,
-	.remove		= __devexit_p(tc3589x_gpio_remove),
+	.remove		= tc3589x_gpio_remove,
 };
 
 static int __init tc3589x_gpio_init(void)

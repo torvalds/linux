@@ -260,12 +260,12 @@ static struct sdhci_pltfm_data sdhci_esdhc_pdata = {
 	.ops = &sdhci_esdhc_ops,
 };
 
-static int __devinit sdhci_esdhc_probe(struct platform_device *pdev)
+static int sdhci_esdhc_probe(struct platform_device *pdev)
 {
 	return sdhci_pltfm_register(pdev, &sdhci_esdhc_pdata);
 }
 
-static int __devexit sdhci_esdhc_remove(struct platform_device *pdev)
+static int sdhci_esdhc_remove(struct platform_device *pdev)
 {
 	return sdhci_pltfm_unregister(pdev);
 }
@@ -286,7 +286,7 @@ static struct platform_driver sdhci_esdhc_driver = {
 		.pm = SDHCI_PLTFM_PMOPS,
 	},
 	.probe = sdhci_esdhc_probe,
-	.remove = __devexit_p(sdhci_esdhc_remove),
+	.remove = sdhci_esdhc_remove,
 };
 
 module_platform_driver(sdhci_esdhc_driver);

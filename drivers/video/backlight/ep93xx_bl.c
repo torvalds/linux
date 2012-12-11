@@ -141,7 +141,7 @@ static struct platform_driver ep93xxbl_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ep93xxbl_probe,
-	.remove		= __devexit_p(ep93xxbl_remove),
+	.remove		= ep93xxbl_remove,
 	.suspend	= ep93xxbl_suspend,
 	.resume		= ep93xxbl_resume,
 };

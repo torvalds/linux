@@ -428,7 +428,7 @@ static inline int has_old_autopwm(const struct it87_data *data)
 }
 
 static int it87_probe(struct platform_device *pdev);
-static int __devexit it87_remove(struct platform_device *pdev);
+static int it87_remove(struct platform_device *pdev);
 
 static int it87_read_value(struct it87_data *data, u8 reg);
 static void it87_write_value(struct it87_data *data, u8 reg, u8 value);
@@ -443,7 +443,7 @@ static struct platform_driver it87_driver = {
 		.name	= DRVNAME,
 	},
 	.probe	= it87_probe,
-	.remove	= __devexit_p(it87_remove),
+	.remove	= it87_remove,
 };
 
 static ssize_t show_in(struct device *dev, struct device_attribute *attr,
@@ -1966,7 +1966,7 @@ static void it87_remove_files(struct device *dev)
 	sysfs_remove_group(&dev->kobj, &it87_group_label);
 }
 
-static int __devinit it87_probe(struct platform_device *pdev)
+static int it87_probe(struct platform_device *pdev)
 {
 	struct it87_data *data;
 	struct resource *res;
@@ -2158,7 +2158,7 @@ error:
 	return err;
 }
 
-static int __devexit it87_remove(struct platform_device *pdev)
+static int it87_remove(struct platform_device *pdev)
 {
 	struct it87_data *data = platform_get_drvdata(pdev);
 
@@ -2191,7 +2191,7 @@ static void it87_write_value(struct it87_data *data, u8 reg, u8 value)
 }
 
 /* Return 1 if and only if the PWM interface is safe to use */
-static int __devinit it87_check_pwm(struct device *dev)
+static int it87_check_pwm(struct device *dev)
 {
 	struct it87_data *data = dev_get_drvdata(dev);
 	/*
@@ -2248,7 +2248,7 @@ static int __devinit it87_check_pwm(struct device *dev)
 }
 
 /* Called when we have found a new IT87. */
-static void __devinit it87_init_device(struct platform_device *pdev)
+static void it87_init_device(struct platform_device *pdev)
 {
 	struct it87_sio_data *sio_data = pdev->dev.platform_data;
 	struct it87_data *data = platform_get_drvdata(pdev);

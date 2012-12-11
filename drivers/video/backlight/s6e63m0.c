@@ -733,7 +733,7 @@ static ssize_t s6e63m0_sysfs_show_gamma_table(struct device *dev,
 static DEVICE_ATTR(gamma_table, 0444,
 		s6e63m0_sysfs_show_gamma_table, NULL);
 
-static int __devinit s6e63m0_probe(struct spi_device *spi)
+static int s6e63m0_probe(struct spi_device *spi)
 {
 	int ret = 0;
 	struct s6e63m0 *lcd = NULL;
@@ -825,7 +825,7 @@ out_lcd_unregister:
 	return ret;
 }
 
-static int __devexit s6e63m0_remove(struct spi_device *spi)
+static int s6e63m0_remove(struct spi_device *spi)
 {
 	struct s6e63m0 *lcd = dev_get_drvdata(&spi->dev);
 
@@ -897,7 +897,7 @@ static struct spi_driver s6e63m0_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= s6e63m0_probe,
-	.remove		= __devexit_p(s6e63m0_remove),
+	.remove		= s6e63m0_remove,
 	.shutdown	= s6e63m0_shutdown,
 	.suspend	= s6e63m0_suspend,
 	.resume		= s6e63m0_resume,

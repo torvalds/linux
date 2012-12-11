@@ -1782,7 +1782,7 @@ static int abx500_chargalg_suspend(struct platform_device *pdev,
 #define abx500_chargalg_resume       NULL
 #endif
 
-static int __devexit abx500_chargalg_remove(struct platform_device *pdev)
+static int abx500_chargalg_remove(struct platform_device *pdev)
 {
 	struct abx500_chargalg *di = platform_get_drvdata(pdev);
 
@@ -1800,7 +1800,7 @@ static int __devexit abx500_chargalg_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit abx500_chargalg_probe(struct platform_device *pdev)
+static int abx500_chargalg_probe(struct platform_device *pdev)
 {
 	struct abx500_bm_plat_data *plat_data;
 	int ret = 0;
@@ -1893,7 +1893,7 @@ free_device_info:
 
 static struct platform_driver abx500_chargalg_driver = {
 	.probe = abx500_chargalg_probe,
-	.remove = __devexit_p(abx500_chargalg_remove),
+	.remove = abx500_chargalg_remove,
 	.suspend = abx500_chargalg_suspend,
 	.resume = abx500_chargalg_resume,
 	.driver = {

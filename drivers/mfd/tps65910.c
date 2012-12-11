@@ -78,7 +78,7 @@ static const struct regmap_config tps65910_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int __devinit tps65910_ck32k_init(struct tps65910 *tps65910,
+static int tps65910_ck32k_init(struct tps65910 *tps65910,
 					struct tps65910_board *pmic_pdata)
 {
 	int ret;
@@ -96,7 +96,7 @@ static int __devinit tps65910_ck32k_init(struct tps65910 *tps65910,
 	return 0;
 }
 
-static int __devinit tps65910_sleepinit(struct tps65910 *tps65910,
+static int tps65910_sleepinit(struct tps65910 *tps65910,
 		struct tps65910_board *pmic_pdata)
 {
 	struct device *dev = NULL;
@@ -237,7 +237,7 @@ static void tps65910_power_off(void)
 			DEVCTRL_DEV_ON_MASK);
 }
 
-static __devinit int tps65910_i2c_probe(struct i2c_client *i2c,
+static int tps65910_i2c_probe(struct i2c_client *i2c,
 					const struct i2c_device_id *id)
 {
 	struct tps65910 *tps65910;
@@ -302,7 +302,7 @@ static __devinit int tps65910_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static __devexit int tps65910_i2c_remove(struct i2c_client *i2c)
+static int tps65910_i2c_remove(struct i2c_client *i2c)
 {
 	struct tps65910 *tps65910 = i2c_get_clientdata(i2c);
 
@@ -327,7 +327,7 @@ static struct i2c_driver tps65910_i2c_driver = {
 		   .of_match_table = of_match_ptr(tps65910_of_match),
 	},
 	.probe = tps65910_i2c_probe,
-	.remove = __devexit_p(tps65910_i2c_remove),
+	.remove = tps65910_i2c_remove,
 	.id_table = tps65910_i2c_id,
 };
 

@@ -3088,7 +3088,7 @@ static void db8500_prcmu_update_cpufreq(void)
  * prcmu_fw_init - arch init call for the Linux PRCMU fw init logic
  *
  */
-static int __devinit db8500_prcmu_probe(struct platform_device *pdev)
+static int db8500_prcmu_probe(struct platform_device *pdev)
 {
 	struct ab8500_platform_data *ab8500_platdata = pdev->dev.platform_data;
 	struct device_node *np = pdev->dev.of_node;

@@ -271,7 +271,7 @@ static struct of_device_id vt8500_gpio_dt_ids[] = {
 	{ /* Sentinel */ },
 };
 
-static int __devinit vt8500_gpio_probe(struct platform_device *pdev)
+static int vt8500_gpio_probe(struct platform_device *pdev)
 {
 	void __iomem *gpio_base;
 	struct device_node *np;

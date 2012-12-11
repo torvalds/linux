@@ -350,7 +350,7 @@ static struct clk_init_data wm831x_clkout_init = {
 	.flags = CLK_SET_RATE_PARENT,
 };
 
-static __devinit int wm831x_clk_probe(struct platform_device *pdev)
+static int wm831x_clk_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_clk *clkdata;
@@ -389,14 +389,14 @@ static __devinit int wm831x_clk_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit wm831x_clk_remove(struct platform_device *pdev)
+static int wm831x_clk_remove(struct platform_device *pdev)
 {
 	return 0;
 }
 
 static struct platform_driver wm831x_clk_driver = {
 	.probe = wm831x_clk_probe,
-	.remove = __devexit_p(wm831x_clk_remove),
+	.remove = wm831x_clk_remove,
 	.driver		= {
 		.name	= "wm831x-clk",
 		.owner	= THIS_MODULE,

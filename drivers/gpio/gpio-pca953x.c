@@ -616,7 +616,7 @@ pca953x_get_alt_pdata(struct i2c_client *client, int *gpio_base, u32 *invert)
 }
 #endif
 
-static int __devinit device_pca953x_init(struct pca953x_chip *chip, u32 invert)
+static int device_pca953x_init(struct pca953x_chip *chip, u32 invert)
 {
 	int ret;
 
@@ -635,7 +635,7 @@ out:
 	return ret;
 }
 
-static int __devinit device_pca957x_init(struct pca953x_chip *chip, u32 invert)
+static int device_pca957x_init(struct pca953x_chip *chip, u32 invert)
 {
 	int ret;
 	u32 val = 0;
@@ -666,7 +666,7 @@ out:
 	return ret;
 }
 
-static int __devinit pca953x_probe(struct i2c_client *client,
+static int pca953x_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	struct pca953x_platform_data *pdata;
