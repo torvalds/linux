@@ -21,7 +21,7 @@
  */
 #define IPV6_DESTOPTS_HDR_OPTIONSIZE 0x8
 
-typedef struct IPV6HeaderFormatTag {
+struct bcm_ipv6_hdr {
 	unsigned char  ucVersionPrio;
 	unsigned char  aucFlowLabel[3];
 	unsigned short usPayloadLength;
@@ -29,7 +29,7 @@ typedef struct IPV6HeaderFormatTag {
 	unsigned char  ucHopLimit;
 	unsigned long  ulSrcIpAddress[4];
 	unsigned long  ulDestIpAddress[4];
-} IPV6Header;
+};
 
 struct bcm_ipv6_routing_hdr {
 	unsigned char ucNextHeader;

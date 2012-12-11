@@ -1,10 +1,10 @@
 #include "headers.h"
 
 static BOOLEAN MatchSrcIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
-	IPV6Header *pstIpv6Header);
+	struct bcm_ipv6_hdr *pstIpv6Header);
 static BOOLEAN MatchDestIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
-	IPV6Header *pstIpv6Header);
-static VOID DumpIpv6Header(IPV6Header *pstIpv6Header);
+	struct bcm_ipv6_hdr *pstIpv6Header);
+static VOID DumpIpv6Header(struct bcm_ipv6_hdr *pstIpv6Header);
 
 static UCHAR *GetNextIPV6ChainedHeader(UCHAR **ppucPayload,
 	UCHAR *pucNextHeader, BOOLEAN *bParseDone, USHORT *pusPayloadLength)
@@ -186,13 +186,13 @@ USHORT	IpVersion6(struct bcm_mini_adapter *Adapter, PVOID pcIpHeader,
 	USHORT	ushDestPort = 0;
 	USHORT	ushSrcPort = 0;
 	UCHAR   ucNextProtocolAboveIP = 0;
-	IPV6Header *pstIpv6Header = NULL;
+	struct bcm_ipv6_hdr *pstIpv6Header = NULL;
 	BOOLEAN bClassificationSucceed = FALSE;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
 			DBG_LVL_ALL, "IpVersion6 ==========>\n");
 
-	pstIpv6Header = (IPV6Header *)pcIpHeader;
+	pstIpv6Header = (struct bcm_ipv6_hdr *)pcIpHeader;
 
 	DumpIpv6Header(pstIpv6Header);
 
@@ -200,7 +200,7 @@ USHORT	IpVersion6(struct bcm_mini_adapter *Adapter, PVOID pcIpHeader,
 	 * Try to get the next higher layer protocol
 	 * and the Ports Nos if TCP or UDP
 	 */
-	ucNextProtocolAboveIP = GetIpv6ProtocolPorts((UCHAR *)(pcIpHeader + sizeof(IPV6Header)),
+	ucNextProtocolAboveIP = GetIpv6ProtocolPorts((UCHAR *)(pcIpHeader + sizeof(struct bcm_ipv6_hdr)),
 							&ushSrcPort,
 							&ushDestPort,
 							pstIpv6Header->usPayloadLength,
@@ -289,7 +289,7 @@ USHORT	IpVersion6(struct bcm_mini_adapter *Adapter, PVOID pcIpHeader,
 
 
 static BOOLEAN MatchSrcIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
-	IPV6Header *pstIpv6Header)
+	struct bcm_ipv6_hdr *pstIpv6Header)
 {
 	UINT uiLoopIndex = 0;
 	UINT uiIpv6AddIndex = 0;
@@ -345,7 +345,7 @@ static BOOLEAN MatchSrcIpv6Address(struct bcm_classifier_rule *pstClassifierRule
 }
 
 static BOOLEAN MatchDestIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
-	IPV6Header *pstIpv6Header)
+	struct bcm_ipv6_hdr *pstIpv6Header)
 {
 	UINT uiLoopIndex = 0;
 	UINT uiIpv6AddIndex = 0;
@@ -414,7 +414,7 @@ VOID DumpIpv6Address(ULONG *puIpv6Address)
 
 }
 
-static VOID DumpIpv6Header(IPV6Header *pstIpv6Header)
+static VOID DumpIpv6Header(struct bcm_ipv6_hdr *pstIpv6Header)
 {
 	UCHAR ucVersion;
 	UCHAR ucPrio;
