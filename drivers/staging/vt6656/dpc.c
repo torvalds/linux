@@ -332,7 +332,7 @@ RXbBulkInProcessData (
     PBYTE           pbyFrame;
     BOOL            bDeFragRx = FALSE;
     unsigned int            cbHeaderOffset;
-    unsigned int            FrameSize;
+	u32 FrameSize;
     WORD            wEtherType = 0;
     signed int             iSANodeIndex = -1;
     signed int             iDANodeIndex = -1;
@@ -351,7 +351,7 @@ RXbBulkInProcessData (
     /* signed long ldBm = 0; */
     BOOL            bIsWEP = FALSE;
     BOOL            bExtIV = FALSE;
-    DWORD           dwWbkStatus;
+	u32 dwWbkStatus;
     PRCB            pRCBIndicate = pRCB;
     PBYTE           pbyDAddress;
     PWORD           pwPLCP_Length;
@@ -366,15 +366,15 @@ RXbBulkInProcessData (
 
     skb = pRCB->skb;
 
-    //[31:16]RcvByteCount ( not include 4-byte Status )
-    dwWbkStatus =  *( (PDWORD)(skb->data) );
-    FrameSize = (unsigned int)(dwWbkStatus >> 16);
-    FrameSize += 4;
+	/* [31:16]RcvByteCount ( not include 4-byte Status ) */
+	dwWbkStatus = *((u32 *)(skb->data));
+	FrameSize = dwWbkStatus >> 16;
+	FrameSize += 4;
 
-    if (BytesToIndicate != FrameSize) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---------- WRONG Length 1 \n");
-        return FALSE;
-    }
+	if (BytesToIndicate != FrameSize) {
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"------- WRONG Length 1\n");
+		return FALSE;
+	}
 
     if ((BytesToIndicate > 2372) || (BytesToIndicate <= 40)) {
         // Frame Size error drop this packet.
@@ -617,7 +617,7 @@ RXbBulkInProcessData (
                 //Discard beacon packet which channel is 0
                 if ( (WLAN_GET_FC_FSTYPE((pRxPacket->p80211Header->sA3.wFrameCtl)) == WLAN_FSTYPE_BEACON) ||
                      (WLAN_GET_FC_FSTYPE((pRxPacket->p80211Header->sA3.wFrameCtl)) == WLAN_FSTYPE_PROBERESP) ) {
-                    return TRUE;
+			return FALSE;
                 }
             }
             pRxPacket->byRxChannel = (*pbyRxSts) >> 2;
@@ -818,7 +818,6 @@ RXbBulkInProcessData (
             DWORD           dwMICKey0 = 0, dwMICKey1 = 0;
             DWORD           dwLocalMIC_L = 0;
             DWORD           dwLocalMIC_R = 0;
-            viawget_wpa_header *wpahdr;
 
 
             if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
@@ -864,7 +863,6 @@ RXbBulkInProcessData (
                             pDevice->dev->name);
                     }
                 }
-       #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 				//send event to wpa_supplicant
 				//if(pDevice->bWPASuppWextEnabled == TRUE)
 				{
@@ -889,31 +887,6 @@ RXbBulkInProcessData (
 					wireless_send_event(pDevice->dev, IWEVMICHAELMICFAILURE, &wrqu, (char *)&ev);
 
 				}
-         #endif
-
-
-                if ((pDevice->bWPADEVUp) && (pDevice->skb != NULL)) {
-                     wpahdr = (viawget_wpa_header *)pDevice->skb->data;
-                     if ((pMgmt->eCurrMode == WMAC_MODE_ESS_STA) &&
-                         (pMgmt->eCurrState == WMAC_STATE_ASSOC) &&
-                         (*pbyRsr & (RSR_ADDRBROAD | RSR_ADDRMULTI)) == 0) {
-                         //s802_11_Status.Flags = NDIS_802_11_AUTH_REQUEST_PAIRWISE_ERROR;
-                         wpahdr->type = VIAWGET_PTK_MIC_MSG;
-                     } else {
-                         //s802_11_Status.Flags = NDIS_802_11_AUTH_REQUEST_GROUP_ERROR;
-                         wpahdr->type = VIAWGET_GTK_MIC_MSG;
-                     }
-                     wpahdr->resp_ie_len = 0;
-                     wpahdr->req_ie_len = 0;
-                     skb_put(pDevice->skb, sizeof(viawget_wpa_header));
-                     pDevice->skb->dev = pDevice->wpadev;
-		     skb_reset_mac_header(pDevice->skb);
-                     pDevice->skb->pkt_type = PACKET_HOST;
-                     pDevice->skb->protocol = htons(ETH_P_802_2);
-                     memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
-                     netif_rx(pDevice->skb);
-                     pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-                 }
 
                 return FALSE;
 
@@ -1217,7 +1190,7 @@ static BOOL s_bHandleRxEncryption (
     if (byDecMode == KEY_CTL_WEP) {
         // handle WEP
         if ((pDevice->byLocalID <= REV_ID_VT3253_A1) ||
-            (((PSKeyTable)(pKey->pvKeyTable))->bSoftWEP == TRUE)) {
+		(((PSKeyTable)(&pKey->pvKeyTable))->bSoftWEP == TRUE)) {
             // Software WEP
             // 1. 3253A
             // 2. WEP 256
@@ -1238,7 +1211,7 @@ static BOOL s_bHandleRxEncryption (
 
         PayloadLen -= (WLAN_HDR_ADDR3_LEN + 8 + 4); // 24 is 802.11 header, 8 is IV&ExtIV, 4 is crc
         *pdwRxTSC47_16 = cpu_to_le32(*(PDWORD)(pbyIV + 4));
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ExtIV: %lx\n",*pdwRxTSC47_16);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ExtIV: %x\n", *pdwRxTSC47_16);
         if (byDecMode == KEY_CTL_TKIP) {
             *pwRxTSC15_0 = cpu_to_le16(MAKEWORD(*(pbyIV+2), *pbyIV));
         } else {
@@ -1324,9 +1297,9 @@ static BOOL s_bHostWepRxEncryption (
 
     if (byDecMode == KEY_CTL_WEP) {
         // handle WEP
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"byDecMode == KEY_CTL_WEP \n");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"byDecMode == KEY_CTL_WEP\n");
         if ((pDevice->byLocalID <= REV_ID_VT3253_A1) ||
-            (((PSKeyTable)(pKey->pvKeyTable))->bSoftWEP == TRUE) ||
+		(((PSKeyTable)(&pKey->pvKeyTable))->bSoftWEP == TRUE) ||
             (bOnFly == FALSE)) {
             // Software WEP
             // 1. 3253A
@@ -1349,7 +1322,7 @@ static BOOL s_bHostWepRxEncryption (
 
         PayloadLen -= (WLAN_HDR_ADDR3_LEN + 8 + 4); // 24 is 802.11 header, 8 is IV&ExtIV, 4 is crc
         *pdwRxTSC47_16 = cpu_to_le32(*(PDWORD)(pbyIV + 4));
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ExtIV: %lx\n",*pdwRxTSC47_16);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ExtIV: %x\n", *pdwRxTSC47_16);
 
         if (byDecMode == KEY_CTL_TKIP) {
             *pwRxTSC15_0 = cpu_to_le16(MAKEWORD(*(pbyIV+2), *pbyIV));
@@ -1533,6 +1506,11 @@ RXvFreeRCB(
 
     ASSERT(!pRCB->Ref);     // should be 0
     ASSERT(pRCB->pDevice);  // shouldn't be NULL
+
+	if (bReAllocSkb == FALSE) {
+		kfree_skb(pRCB->skb);
+		bReAllocSkb = TRUE;
+	}
 
     if (bReAllocSkb == TRUE) {
         pRCB->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);

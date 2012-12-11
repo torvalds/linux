@@ -158,6 +158,7 @@ struct lis3l02dq_state {
 	struct spi_device		*us;
 	struct iio_trigger		*trig;
 	struct mutex			buf_lock;
+	int				gpio;
 	bool				trigger_on;
 
 	u8	tx[LIS3L02DQ_MAX_RX] ____cacheline_aligned;

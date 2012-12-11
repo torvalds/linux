@@ -31,8 +31,8 @@
  *
  */
 
-#include "wpa2.h"
 #include "device.h"
+#include "wpa2.h"
 
 /*---------------------  Static Definitions -------------------------*/
 static int          msglevel                =MSG_LEVEL_INFO;

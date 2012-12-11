@@ -555,7 +555,7 @@ static int hmc5843_read_raw(struct iio_dev *indio_dev,
 		*val = 0;
 		*val2 = data->variant->regval_to_nanoscale[data->range];
 		return IIO_VAL_INT_PLUS_NANO;
-	};
+	}
 	return -EINVAL;
 }
 
@@ -665,7 +665,7 @@ static const struct iio_info hmc5843_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit hmc5843_probe(struct i2c_client *client,
+static int hmc5843_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct hmc5843_data *data;
@@ -704,7 +704,7 @@ exit:
 	return err;
 }
 
-static int __devexit hmc5843_remove(struct i2c_client *client)
+static int hmc5843_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
@@ -755,7 +755,7 @@ static struct i2c_driver hmc5843_driver = {
 	},
 	.id_table	= hmc5843_id,
 	.probe		= hmc5843_probe,
-	.remove		= __devexit_p(hmc5843_remove),
+	.remove		= hmc5843_remove,
 	.detect		= hmc5843_detect,
 	.address_list	= normal_i2c,
 };

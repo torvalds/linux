@@ -161,7 +161,6 @@ static struct dio_private *dio_private_word[]={
 };
 */
 
-#define devpriv ((struct s626_private *)dev->private)
 #define diopriv ((struct dio_private *)s->private)
 
 /*  COUNTER OBJECT ------------------------------------------------ */
@@ -232,6 +231,8 @@ static const struct comedi_lrange s626_range_table = { 2, {
 /*  critical section. */
 static void DEBItransfer(struct comedi_device *dev)
 {
+	struct s626_private *devpriv = dev->private;
+
 	/*  Initiate upload of shadow RAM to DEBI control register. */
 	MC_ENABLE(P_MC2, MC2_UPLD_DEBI);
 
@@ -249,6 +250,7 @@ static void DEBItransfer(struct comedi_device *dev)
 
 static uint16_t DEBIread(struct comedi_device *dev, uint16_t addr)
 {
+	struct s626_private *devpriv = dev->private;
 	uint16_t retval;
 
 	/*  Set up DEBI control register value in shadow RAM. */
@@ -267,6 +269,7 @@ static uint16_t DEBIread(struct comedi_device *dev, uint16_t addr)
 /*  Write a value to a gate array register. */
 static void DEBIwrite(struct comedi_device *dev, uint16_t addr, uint16_t wdata)
 {
+	struct s626_private *devpriv = dev->private;
 
 	/*  Set up DEBI control register value in shadow RAM. */
 	WR7146(P_DEBICMD, DEBI_CMD_WRWORD | addr);
@@ -283,6 +286,7 @@ static void DEBIwrite(struct comedi_device *dev, uint16_t addr, uint16_t wdata)
 static void DEBIreplace(struct comedi_device *dev, uint16_t addr, uint16_t mask,
 			uint16_t wdata)
 {
+	struct s626_private *devpriv = dev->private;
 
 	/*  Copy target gate array register into P_DEBIAD register. */
 	WR7146(P_DEBICMD, DEBI_CMD_RDWORD | addr);
@@ -302,6 +306,8 @@ static void DEBIreplace(struct comedi_device *dev, uint16_t addr, uint16_t mask,
 
 static uint32_t I2Chandshake(struct comedi_device *dev, uint32_t val)
 {
+	struct s626_private *devpriv = dev->private;
+
 	/*  Write I2C command to I2C Transfer Control shadow register. */
 	WR7146(P_I2CCTRL, val);
 
@@ -324,6 +330,7 @@ static uint32_t I2Chandshake(struct comedi_device *dev, uint32_t val)
 /*  Read uint8_t from EEPROM. */
 static uint8_t I2Cread(struct comedi_device *dev, uint8_t addr)
 {
+	struct s626_private *devpriv = dev->private;
 	uint8_t rtnval;
 
 	/*  Send EEPROM target address. */
@@ -375,6 +382,7 @@ static uint8_t trimadrs[] = { 0x40, 0x41, 0x42, 0x50, 0x51, 0x52, 0x53, 0x60, 0x
  */
 static void SendDAC(struct comedi_device *dev, uint32_t val)
 {
+	struct s626_private *devpriv = dev->private;
 
 	/* START THE SERIAL CLOCK RUNNING ------------- */
 
@@ -496,6 +504,7 @@ static void SendDAC(struct comedi_device *dev, uint32_t val)
 /*  Private helper function: Write setpoint to an application DAC channel. */
 static void SetDAC(struct comedi_device *dev, uint16_t chan, short dacdata)
 {
+	struct s626_private *devpriv = dev->private;
 	register uint16_t signmask;
 	register uint32_t WSImage;
 
@@ -553,6 +562,7 @@ static void SetDAC(struct comedi_device *dev, uint16_t chan, short dacdata)
 static void WriteTrimDAC(struct comedi_device *dev, uint8_t LogicalChan,
 			 uint8_t DacData)
 {
+	struct s626_private *devpriv = dev->private;
 	uint32_t chan;
 
 	/*  Save the new setpoint in case the application needs to read it back later. */
@@ -735,6 +745,7 @@ static int s626_dio_clear_irq(struct comedi_device *dev)
 static irqreturn_t s626_irq_handler(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct s626_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
 	struct comedi_cmd *cmd;
 	struct enc_private *k;
@@ -968,6 +979,7 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
  */
 static void ResetADC(struct comedi_device *dev, uint8_t *ppl)
 {
+	struct s626_private *devpriv = dev->private;
 	register uint32_t *pRPS;
 	uint32_t JmpAdrs;
 	uint16_t i;
@@ -1163,6 +1175,7 @@ static int s626_ai_insn_config(struct comedi_device *dev,
 
 /* static int s626_ai_rinsn(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data) */
 /* { */
+/*   struct s626_private *devpriv = dev->private; */
 /*   register uint8_t	i; */
 /*   register int32_t	*readaddr; */
 
@@ -1191,6 +1204,7 @@ static int s626_ai_insn_read(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
+	struct s626_private *devpriv = dev->private;
 	uint16_t chan = CR_CHAN(insn->chanspec);
 	uint16_t range = CR_RANGE(insn->chanspec);
 	uint16_t AdcSpec = 0;
@@ -1302,6 +1316,8 @@ static int s626_ai_load_polllist(uint8_t *ppl, struct comedi_cmd *cmd)
 static int s626_ai_inttrig(struct comedi_device *dev,
 			   struct comedi_subdevice *s, unsigned int trignum)
 {
+	struct s626_private *devpriv = dev->private;
+
 	if (trignum != 0)
 		return -EINVAL;
 
@@ -1378,7 +1394,7 @@ static void s626_timer_load(struct comedi_device *dev, struct enc_private *k,
 /*  TO COMPLETE  */
 static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-
+	struct s626_private *devpriv = dev->private;
 	uint8_t ppl[16];
 	struct comedi_cmd *cmd = &s->async->cmd;
 	struct enc_private *k;
@@ -1533,80 +1549,46 @@ static int s626_ai_cmdtest(struct comedi_device *dev,
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if (cmd->start_src != TRIG_EXT && cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	if (cmd->start_src != TRIG_EXT)
+		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	if (cmd->start_src == TRIG_EXT)
+		err |= cfc_check_trigger_arg_max(&cmd->start_arg, 39);
 
-	if (cmd->start_src == TRIG_EXT && cmd->start_arg > 39) {
-		cmd->start_arg = 39;
-		err++;
-	}
+	if (cmd->scan_begin_src == TRIG_EXT)
+		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg, 39);
 
-	if (cmd->scan_begin_src == TRIG_EXT && cmd->scan_begin_arg > 39) {
-		cmd->scan_begin_arg = 39;
-		err++;
-	}
+	if (cmd->convert_src == TRIG_EXT)
+		err |= cfc_check_trigger_arg_max(&cmd->convert_arg, 39);
 
-	if (cmd->convert_src == TRIG_EXT && cmd->convert_arg > 39) {
-		cmd->convert_arg = 39;
-		err++;
-	}
 #define MAX_SPEED	200000	/* in nanoseconds */
 #define MIN_SPEED	2000000000	/* in nanoseconds */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->scan_begin_arg < MAX_SPEED) {
-			cmd->scan_begin_arg = MAX_SPEED;
-			err++;
-		}
-		if (cmd->scan_begin_arg > MIN_SPEED) {
-			cmd->scan_begin_arg = MIN_SPEED;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+						 MAX_SPEED);
+		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
+						 MIN_SPEED);
 	} else {
 		/* external trigger */
 		/* should be level/edge, hi/lo specification here */
 		/* should specify multiple external triggers */
-/*     if(cmd->scan_begin_arg>9){ */
-/*       cmd->scan_begin_arg=9; */
-/*       err++; */
-/*     } */
+/*		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg, 9); */
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < MAX_SPEED) {
-			cmd->convert_arg = MAX_SPEED;
-			err++;
-		}
-		if (cmd->convert_arg > MIN_SPEED) {
-			cmd->convert_arg = MIN_SPEED;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg, MAX_SPEED);
+		err |= cfc_check_trigger_arg_max(&cmd->convert_arg, MIN_SPEED);
 	} else {
 		/* external trigger */
 		/* see above */
-/*     if(cmd->convert_arg>9){ */
-/*       cmd->convert_arg=9; */
-/*       err++; */
-/*     } */
+/*		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg, 9); */
 	}
 
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (cmd->stop_arg > 0x00ffffff) {
-			cmd->stop_arg = 0x00ffffff;
-			err++;
-		}
-	} else {
-		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_max(&cmd->stop_arg, 0x00ffffff);
+	else	/* TRIG_NONE */
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -1643,6 +1625,8 @@ static int s626_ai_cmdtest(struct comedi_device *dev,
 
 static int s626_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct s626_private *devpriv = dev->private;
+
 	/*  Stop RPS program in case it is currently running. */
 	MC_DISABLE(P_MC1, MC1_ERPS1);
 
@@ -1657,7 +1641,7 @@ static int s626_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 static int s626_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_insn *insn, unsigned int *data)
 {
-
+	struct s626_private *devpriv = dev->private;
 	int i;
 	uint16_t chan = CR_CHAN(insn->chanspec);
 	int16_t dacdata;
@@ -1676,6 +1660,7 @@ static int s626_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 static int s626_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_insn *insn, unsigned int *data)
 {
+	struct s626_private *devpriv = dev->private;
 	int i;
 
 	for (i = 0; i < insn->n; i++)
@@ -1974,6 +1959,7 @@ static uint16_t GetMode_B(struct comedi_device *dev, struct enc_private *k)
 static void SetMode_A(struct comedi_device *dev, struct enc_private *k,
 		      uint16_t Setup, uint16_t DisableIntSrc)
 {
+	struct s626_private *devpriv = dev->private;
 	register uint16_t cra;
 	register uint16_t crb;
 	register uint16_t setup = Setup;	/*  Cache the Standard Setup. */
@@ -2032,6 +2018,7 @@ static void SetMode_A(struct comedi_device *dev, struct enc_private *k,
 static void SetMode_B(struct comedi_device *dev, struct enc_private *k,
 		      uint16_t Setup, uint16_t DisableIntSrc)
 {
+	struct s626_private *devpriv = dev->private;
 	register uint16_t cra;
 	register uint16_t crb;
 	register uint16_t setup = Setup;	/*  Cache the Standard Setup. */
@@ -2165,6 +2152,8 @@ static uint16_t GetLoadTrig_B(struct comedi_device *dev, struct enc_private *k)
 static void SetIntSrc_A(struct comedi_device *dev, struct enc_private *k,
 			uint16_t IntSource)
 {
+	struct s626_private *devpriv = dev->private;
+
 	/*  Reset any pending counter overflow or index captures. */
 	DEBIreplace(dev, k->MyCRB, (uint16_t) (~CRBMSK_INTCTRL),
 		    CRBMSK_INTRESETCMD | CRBMSK_INTRESET_A);
@@ -2182,6 +2171,7 @@ static void SetIntSrc_A(struct comedi_device *dev, struct enc_private *k,
 static void SetIntSrc_B(struct comedi_device *dev, struct enc_private *k,
 			uint16_t IntSource)
 {
+	struct s626_private *devpriv = dev->private;
 	uint16_t crb;
 
 	/*  Cache writeable CRB register image. */
@@ -2412,6 +2402,7 @@ static void CountersInit(struct comedi_device *dev)
 static int s626_allocate_dma_buffers(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct s626_private *devpriv = dev->private;
 	void *addr;
 	dma_addr_t appdma;
 
@@ -2432,6 +2423,7 @@ static int s626_allocate_dma_buffers(struct comedi_device *dev)
 
 static void s626_initialize(struct comedi_device *dev)
 {
+	struct s626_private *devpriv = dev->private;
 	dma_addr_t pPhysBuf;
 	uint16_t chan;
 	int i;
@@ -2665,16 +2657,20 @@ static void s626_initialize(struct comedi_device *dev)
 	/* writel(IRQ_GPIO3 | IRQ_RPS1, devpriv->base_addr + P_IER); */
 }
 
-static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
+static int s626_auto_attach(struct comedi_device *dev,
+				      unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct s626_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
-	comedi_set_hw_dev(dev, &pcidev->dev);
 	dev->board_name = dev->driver->driver_name;
 
-	if (alloc_private(dev, sizeof(struct s626_private)) < 0)
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
 		return -ENOMEM;
+	dev->private = devpriv;
 
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
@@ -2794,6 +2790,7 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 static void s626_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct s626_private *devpriv = dev->private;
 
 	if (devpriv) {
 		/* stop ai_command */
@@ -2829,17 +2826,17 @@ static void s626_detach(struct comedi_device *dev)
 static struct comedi_driver s626_driver = {
 	.driver_name	= "s626",
 	.module		= THIS_MODULE,
-	.attach_pci	= s626_attach_pci,
+	.auto_attach	= s626_auto_attach,
 	.detach		= s626_detach,
 };
 
-static int __devinit s626_pci_probe(struct pci_dev *dev,
+static int s626_pci_probe(struct pci_dev *dev,
 				    const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &s626_driver);
 }
 
-static void __devexit s626_pci_remove(struct pci_dev *dev)
+static void s626_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
@@ -2860,7 +2857,7 @@ static struct pci_driver s626_pci_driver = {
 	.name		= "s626",
 	.id_table	= s626_pci_table,
 	.probe		= s626_pci_probe,
-	.remove		= __devexit_p(s626_pci_remove),
+	.remove		= s626_pci_remove,
 };
 module_comedi_pci_driver(s626_driver, s626_pci_driver);
 

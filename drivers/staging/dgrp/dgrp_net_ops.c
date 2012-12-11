@@ -1057,13 +1057,13 @@ static int dgrp_net_release(struct inode *inode, struct file *file)
 
 	spin_unlock_irqrestore(&dgrp_poll_data.poll_lock, lock_flags);
 
-done:
 	down(&nd->nd_net_semaphore);
 
 	dgrp_monitor_message(nd, "Net Close");
 
 	up(&nd->nd_net_semaphore);
 
+done:
 	module_put(THIS_MODULE);
 	file->private_data = NULL;
 	return 0;
@@ -1671,6 +1671,9 @@ static int dgrp_send(struct nd_struct *nd, long tmax)
 				 * do the job.
 				 */
 
+				/* FIXME: jiffies - ch->ch_waketime can never
+				   be < 0. Someone needs to work out what is
+				   actually intended here */
 				if (ch->ch_pun.un_open_count &&
 				    (ch->ch_pun.un_flag &
 				    (UN_EMPTY|UN_TIME|UN_LOW|UN_PWAIT)) != 0) {

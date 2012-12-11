@@ -45,7 +45,7 @@ static const char bsssymbol[] = { ".bss" };
  * Effect:
  *	Extracts the specified field and returns it.
  ************************************************************************* */
-rvalue dload_unpack(struct dload_state *dlthis, tgt_au_t * data, int fieldsz,
+rvalue dload_unpack(struct dload_state *dlthis, tgt_au_t *data, int fieldsz,
 		    int offset, unsigned sgn)
 {
 	register rvalue objval;
@@ -98,7 +98,7 @@ rvalue dload_unpack(struct dload_state *dlthis, tgt_au_t * data, int fieldsz,
  ************************************************************************* */
 static const unsigned char ovf_limit[] = { 1, 2, 2 };
 
-int dload_repack(struct dload_state *dlthis, rvalue val, tgt_au_t * data,
+int dload_repack(struct dload_state *dlthis, rvalue val, tgt_au_t *data,
 		 int fieldsz, int offset, unsigned sgn)
 {
 	register urvalue objval, mask;
@@ -161,7 +161,7 @@ static const u8 c60_scale[SCALE_MASK + 1] = {
  * Effect:
  *	Performs the specified relocation operation
  ************************************************************************* */
-void dload_relocate(struct dload_state *dlthis, tgt_au_t * data,
+void dload_relocate(struct dload_state *dlthis, tgt_au_t *data,
 		    struct reloc_record_t *rp, bool *tramps_generated,
 		    bool second_pass)
 {

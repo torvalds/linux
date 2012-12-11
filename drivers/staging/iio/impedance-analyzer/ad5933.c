@@ -647,7 +647,6 @@ static void ad5933_work(struct work_struct *work)
 	struct ad5933_state *st = container_of(work,
 		struct ad5933_state, work.work);
 	struct iio_dev *indio_dev = i2c_get_clientdata(st->client);
-	struct iio_buffer *ring = indio_dev->buffer;
 	signed short buf[2];
 	unsigned char status;
 
@@ -677,8 +676,7 @@ static void ad5933_work(struct work_struct *work)
 		} else {
 			buf[0] = be16_to_cpu(buf[0]);
 		}
-		/* save datum to the ring */
-		iio_push_to_buffer(ring, (u8 *)buf);
+		iio_push_to_buffers(indio_dev, (u8 *)buf);
 	} else {
 		/* no data available - try again later */
 		schedule_delayed_work(&st->work, st->poll_time_jiffies);
@@ -699,7 +697,7 @@ static void ad5933_work(struct work_struct *work)
 	mutex_unlock(&indio_dev->mlock);
 }
 
-static int __devinit ad5933_probe(struct i2c_client *client,
+static int ad5933_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	int ret, voltage_uv = 0;
@@ -789,7 +787,7 @@ error_put_reg:
 	return ret;
 }
 
-static __devexit int ad5933_remove(struct i2c_client *client)
+static int ad5933_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ad5933_state *st = iio_priv(indio_dev);
@@ -819,7 +817,7 @@ static struct i2c_driver ad5933_driver = {
 		.name = "ad5933",
 	},
 	.probe = ad5933_probe,
-	.remove = __devexit_p(ad5933_remove),
+	.remove = ad5933_remove,
 	.id_table = ad5933_id,
 };
 module_i2c_driver(ad5933_driver);

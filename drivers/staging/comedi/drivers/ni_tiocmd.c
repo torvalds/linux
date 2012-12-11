@@ -173,7 +173,8 @@ static int ni_tio_input_cmd(struct ni_gpct *counter, struct comedi_async *async)
 static int ni_tio_output_cmd(struct ni_gpct *counter,
 			     struct comedi_async *async)
 {
-	printk(KERN_ERR "ni_tio: output commands not yet implemented.\n");
+	dev_err(counter->counter_dev->dev->class_dev,
+		"output commands not yet implemented.\n");
 	return -ENOTSUPP;
 
 	counter->mite_chan->dir = COMEDI_OUTPUT;
@@ -219,7 +220,10 @@ int ni_tio_cmd(struct ni_gpct *counter, struct comedi_async *async)
 
 	spin_lock_irqsave(&counter->lock, flags);
 	if (counter->mite_chan == NULL) {
-		printk(KERN_ERR "ni_tio: commands only supported with DMA.  Interrupt-driven commands not yet implemented.\n");
+		dev_err(counter->counter_dev->dev->class_dev,
+			"commands only supported with DMA.  ");
+		dev_err(counter->counter_dev->dev->class_dev,
+			"Interrupt-driven commands not yet implemented.\n");
 		retval = -EIO;
 	} else {
 		retval = ni_tio_cmd_setup(counter, async);
@@ -271,37 +275,19 @@ int ni_tio_cmdtest(struct ni_gpct *counter, struct comedi_cmd *cmd)
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
-	if (cmd->start_src != TRIG_EXT) {
-		if (cmd->start_arg != 0) {
-			cmd->start_arg = 0;
-			err++;
-		}
-	}
-	if (cmd->scan_begin_src != TRIG_EXT) {
-		if (cmd->scan_begin_arg) {
-			cmd->scan_begin_arg = 0;
-			err++;
-		}
-	}
-	if (cmd->convert_src != TRIG_EXT) {
-		if (cmd->convert_arg) {
-			cmd->convert_arg = 0;
-			err++;
-		}
-	}
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+	if (cmd->start_src != TRIG_EXT)
+		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
-	if (cmd->stop_src == TRIG_NONE) {
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
+	if (cmd->scan_begin_src != TRIG_EXT)
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+
+	if (cmd->convert_src != TRIG_EXT)
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
+
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -427,8 +413,9 @@ void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error,
 				  NITIO_Gxx_Joint_Status2_Reg
 				  (counter->counter_index)) &
 		    Gi_Permanent_Stale_Bit(counter->counter_index)) {
-			printk(KERN_INFO "%s: Gi_Permanent_Stale_Data detected.\n",
-			       __func__);
+			dev_info(counter->counter_dev->dev->class_dev,
+				 "%s: Gi_Permanent_Stale_Data detected.\n",
+				 __func__);
 			if (perm_stale_data)
 				*perm_stale_data = 1;
 		}
@@ -448,7 +435,8 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter,
 	ni_tio_acknowledge_and_confirm(counter, &gate_error, &tc_error,
 				       &perm_stale_data, NULL);
 	if (gate_error) {
-		printk(KERN_NOTICE "%s: Gi_Gate_Error detected.\n", __func__);
+		dev_notice(counter->counter_dev->dev->class_dev,
+			   "%s: Gi_Gate_Error detected.\n", __func__);
 		s->async->events |= COMEDI_CB_OVERFLOW;
 	}
 	if (perm_stale_data)
@@ -459,8 +447,8 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter,
 		if (read_register(counter,
 				NITIO_Gi_DMA_Status_Reg
 				(counter->counter_index)) & Gi_DRQ_Error_Bit) {
-			printk(KERN_NOTICE "%s: Gi_DRQ_Error detected.\n",
-							__func__);
+			dev_notice(counter->counter_dev->dev->class_dev,
+				   "%s: Gi_DRQ_Error detected.\n", __func__);
 			s->async->events |= COMEDI_CB_OVERFLOW;
 		}
 		break;

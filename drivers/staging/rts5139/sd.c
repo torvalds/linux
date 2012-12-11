@@ -680,7 +680,7 @@ static int sd_set_init_para(struct rts51x_chip *chip)
 	return STATUS_SUCCESS;
 }
 
-int sd_select_card(struct rts51x_chip *chip, int select)
+int rts51x_sd_select_card(struct rts51x_chip *chip, int select)
 {
 	struct sd_info *sd_card = &(chip->sd_card);
 	int retval;
@@ -1747,7 +1747,7 @@ static int mmc_ddr_tuning(struct rts51x_chip *chip)
 	return STATUS_SUCCESS;
 }
 
-int sd_switch_clock(struct rts51x_chip *chip)
+int rts51x_sd_switch_clock(struct rts51x_chip *chip)
 {
 	struct sd_info *sd_card = &(chip->sd_card);
 	int retval;
@@ -1913,7 +1913,7 @@ static int sd_init_power(struct rts51x_chip *chip)
 #endif
 
 		/* Power on card */
-		retval = card_power_on(chip, SD_CARD);
+		retval = rts51x_card_power_on(chip, SD_CARD);
 		if (retval != STATUS_SUCCESS)
 			TRACE_RET(chip, retval);
 
@@ -2139,7 +2139,7 @@ RTY_CMD55:
 	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, retval);
 	/* Select SD card */
-	retval = sd_select_card(chip, 1);
+	retval = rts51x_sd_select_card(chip, 1);
 	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, retval);
 
@@ -2656,7 +2656,7 @@ RTY_MMC_RST:
 	spec_ver = (sd_card->raw_csd[0] & 0x3C) >> 2;
 
 	/* Select MMC card */
-	retval = sd_select_card(chip, 1);
+	retval = rts51x_sd_select_card(chip, 1);
 	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, retval);
 
@@ -2748,7 +2748,7 @@ RTY_MMC_RST:
 	return STATUS_SUCCESS;
 }
 
-int reset_sd_card(struct rts51x_chip *chip)
+int rts51x_reset_sd_card(struct rts51x_chip *chip)
 {
 	struct sd_info *sd_card = &(chip->sd_card);
 	int retval;
@@ -2764,7 +2764,7 @@ int reset_sd_card(struct rts51x_chip *chip)
 	sd_card->sd_switch_fail = 0;
 
 	sd_clear_reset_fail(chip);
-	enable_card_clock(chip, SD_CARD);
+	rts51x_enable_card_clock(chip, SD_CARD);
 
 	sd_init_power(chip);
 
@@ -2891,7 +2891,7 @@ static void sd_stop_seq_mode(struct rts51x_chip *chip)
 	int retval;
 
 	if (sd_card->seq_mode) {
-		retval = sd_switch_clock(chip);
+		retval = rts51x_sd_switch_clock(chip);
 		if (retval != STATUS_SUCCESS)
 			return;
 
@@ -2923,14 +2923,14 @@ static inline int sd_auto_tune_clock(struct rts51x_chip *chip)
 			sd_card->sd_clock = CLK_50;
 	}
 
-	retval = sd_switch_clock(chip);
+	retval = rts51x_sd_switch_clock(chip);
 	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, retval);
 
 	return STATUS_SUCCESS;
 }
 
-int sd_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip, u32 start_sector,
+int rts51x_sd_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip, u32 start_sector,
 	  u16 sector_cnt)
 {
 	struct sd_info *sd_card = &(chip->sd_card);
@@ -2947,11 +2947,11 @@ int sd_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip, u32 start_sector,
 	else
 		data_addr = start_sector;
 
-	RTS51X_DEBUGP("sd_rw, data_addr = 0x%x\n", data_addr);
+	RTS51X_DEBUGP("rts51x_sd_rw, data_addr = 0x%x\n", data_addr);
 
 	sd_clr_err_code(chip);
 
-	retval = sd_switch_clock(chip);
+	retval = rts51x_sd_switch_clock(chip);
 	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, retval);
 
@@ -3020,7 +3020,7 @@ int sd_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip, u32 start_sector,
 			       SD_NO_WAIT_BUSY_END | SD_NO_CHECK_CRC7 |
 			       SD_RSP_LEN_0);
 
-		trans_dma_enable(srb->sc_data_direction, chip, sector_cnt * 512,
+		rts51x_trans_dma_enable(srb->sc_data_direction, chip, sector_cnt * 512,
 				 DMA_512);
 
 		if (srb->sc_data_direction == DMA_FROM_DEVICE) {
@@ -3058,7 +3058,7 @@ int sd_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip, u32 start_sector,
 				       SD_NO_WAIT_BUSY_END | SD_CHECK_CRC7 |
 				       SD_RSP_LEN_6);
 
-			trans_dma_enable(srb->sc_data_direction, chip,
+			rts51x_trans_dma_enable(srb->sc_data_direction, chip,
 					 sector_cnt * 512, DMA_512);
 
 			rts51x_add_cmd(chip, WRITE_REG_CMD, SD_TRANSFER, 0xFF,
@@ -3099,7 +3099,7 @@ int sd_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip, u32 start_sector,
 				       SD_NO_WAIT_BUSY_END | SD_NO_CHECK_CRC7 |
 				       SD_RSP_LEN_0);
 
-			trans_dma_enable(srb->sc_data_direction, chip,
+			rts51x_trans_dma_enable(srb->sc_data_direction, chip,
 					 sector_cnt * 512, DMA_512);
 
 			rts51x_add_cmd(chip, WRITE_REG_CMD, SD_TRANSFER, 0xFF,
@@ -3168,7 +3168,7 @@ int sd_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip, u32 start_sector,
 	return STATUS_SUCCESS;
 }
 
-void sd_cleanup_work(struct rts51x_chip *chip)
+void rts51x_sd_cleanup_work(struct rts51x_chip *chip)
 {
 	struct sd_info *sd_card = &(chip->sd_card);
 
@@ -3220,12 +3220,12 @@ static int sd_power_off_card3v3(struct rts51x_chip *chip)
 	return STATUS_SUCCESS;
 }
 
-int release_sd_card(struct rts51x_chip *chip)
+int rts51x_release_sd_card(struct rts51x_chip *chip)
 {
 	struct sd_info *sd_card = &(chip->sd_card);
 	int retval;
 
-	RTS51X_DEBUGP("release_sd_card\n");
+	RTS51X_DEBUGP("rts51x_release_sd_card\n");
 
 	chip->card_ready &= ~SD_CARD;
 	chip->card_fail &= ~SD_CARD;

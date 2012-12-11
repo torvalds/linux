@@ -189,27 +189,25 @@ void TKIPvMixKey(
     PBYTE   pbyRC4Key
     )
 {
-    unsigned int p1k[5];
-//    unsigned int ttak0, ttak1, ttak2, ttak3, ttak4;
-    unsigned int tsc0, tsc1, tsc2;
-    unsigned int ppk0, ppk1, ppk2, ppk3, ppk4, ppk5;
-    unsigned long int pnl,pnh;
+	u32 p1k[5];
+	u32 tsc0, tsc1, tsc2;
+	u32 ppk0, ppk1, ppk2, ppk3, ppk4, ppk5;
+	u32 pnl, pnh;
+	int i, j;
 
-    int i, j;
+	pnl = (u32)wTSC15_0;
+	pnh = (u32)(dwTSC47_16 & 0xffffffff);
 
-    pnl = wTSC15_0;
-    pnh = dwTSC47_16;
+	tsc0 = (u32)((pnh >> 16) % 65536); /* msb */
+	tsc1 = (u32)(pnh % 65536);
+	tsc2 = (u32)(pnl % 65536); /* lsb */
 
-    tsc0 = (unsigned int)((pnh >> 16) % 65536); /* msb */
-    tsc1 = (unsigned int)(pnh % 65536);
-    tsc2 = (unsigned int)(pnl % 65536); /* lsb */
-
-    /* Phase 1, step 1 */
-    p1k[0] = tsc1;
-    p1k[1] = tsc0;
-    p1k[2] = (unsigned int)(pbyTA[0] + (pbyTA[1]*256));
-    p1k[3] = (unsigned int)(pbyTA[2] + (pbyTA[3]*256));
-    p1k[4] = (unsigned int)(pbyTA[4] + (pbyTA[5]*256));
+	/* Phase 1, step 1 */
+	p1k[0] = tsc1;
+	p1k[1] = tsc0;
+	p1k[2] = (u32)(pbyTA[0] + (pbyTA[1]*256));
+	p1k[3] = (u32)(pbyTA[2] + (pbyTA[3]*256));
+	p1k[4] = (u32)(pbyTA[4] + (pbyTA[5]*256));
 
     /* Phase 1, step 2 */
     for (i=0; i<8; i++) {
