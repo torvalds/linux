@@ -30,6 +30,8 @@ void exynos_init_late(void);
 void exynos4_clk_init(struct device_node *np);
 void exynos4_clk_register_fixed_ext(unsigned long, unsigned long);
 
+void exynos_firmware_init(void);
+
 #ifdef CONFIG_PM_GENERIC_DOMAINS
 int exynos_pm_late_initcall(void);
 #else
