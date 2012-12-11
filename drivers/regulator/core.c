@@ -1886,7 +1886,7 @@ int regulator_can_change_voltage(struct regulator *regulator)
 
 	if (rdev->constraints &&
 	    rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_VOLTAGE &&
-	    rdev->desc->n_voltages > 1)
+	    (rdev->desc->n_voltages - rdev->desc->linear_min_sel) > 1)
 		return 1;
 
 	return 0;
