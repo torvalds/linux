@@ -126,7 +126,6 @@ void ion_reserve(struct ion_platform_data *data);
  * @name:		used for debugging
  */
 struct ion_client *ion_client_create(struct ion_device *dev,
-				     unsigned int heap_type_mask,
 				     const char *name);
 
 /**
