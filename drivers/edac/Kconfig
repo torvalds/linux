@@ -42,10 +42,10 @@ config EDAC_LEGACY_SYSFS
 config EDAC_DEBUG
 	bool "Debugging"
 	help
-	  This turns on debugging information for the entire EDAC
-	  sub-system. You can insert module with "debug_level=x", current
-	  there're four debug levels (x=0,1,2,3 from low to high).
-	  Usually you should select 'N'.
+	  This turns on debugging information for the entire EDAC subsystem.
+	  You do so by inserting edac_module with "edac_debug_level=x." Valid
+	  levels are 0-4 (from low to high) and by default it is set to 2.
+	  Usually you should select 'N' here.
 
 config EDAC_DECODE_MCE
 	tristate "Decode MCEs in human-readable form (only on AMD for now)"
