@@ -31,13 +31,13 @@ typedef struct IPV6HeaderFormatTag {
 	unsigned long  ulDestIpAddress[4];
 } IPV6Header;
 
-typedef struct IPV6RoutingHeaderFormatTag {
+struct bcm_ipv6_routing_hdr {
 	unsigned char ucNextHeader;
 	unsigned char ucRoutingType;
 	unsigned char ucNumAddresses;
 	unsigned char ucNextAddress;
 	unsigned long ulReserved;
-} IPV6RoutingHeader;
+};
 
 struct bcm_ipv6_fragment_hdr {
 	unsigned char  ucNextHeader;

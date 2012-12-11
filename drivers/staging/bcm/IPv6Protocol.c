@@ -44,11 +44,11 @@ static UCHAR *GetNextIPV6ChainedHeader(UCHAR **ppucPayload,
 
 	case IPV6HDR_TYPE_ROUTING:
 		{
-			IPV6RoutingHeader *pstIpv6RoutingHeader;
+			struct bcm_ipv6_routing_hdr *pstIpv6RoutingHeader;
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
 					DBG_LVL_ALL, "\nIPv6 Routing Header");
-			pstIpv6RoutingHeader = (IPV6RoutingHeader *)pucPayloadPtr;
-			usNextHeaderOffset += sizeof(IPV6RoutingHeader);
+			pstIpv6RoutingHeader = (struct bcm_ipv6_routing_hdr *)pucPayloadPtr;
+			usNextHeaderOffset += sizeof(struct bcm_ipv6_routing_hdr);
 			usNextHeaderOffset += pstIpv6RoutingHeader->ucNumAddresses * IPV6_ADDRESS_SIZEINBYTES;
 
 		}
