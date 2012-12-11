@@ -2208,20 +2208,23 @@ static struct se_portal_group *sbp_make_tpg(
 	tport->mgt_agt = sbp_management_agent_register(tport);
 	if (IS_ERR(tport->mgt_agt)) {
 		ret = PTR_ERR(tport->mgt_agt);
-		kfree(tpg);
-		return ERR_PTR(ret);
+		goto out_free_tpg;
 	}
 
 	ret = core_tpg_register(&sbp_fabric_configfs->tf_ops, wwn,
 			&tpg->se_tpg, (void *)tpg,
 			TRANSPORT_TPG_TYPE_NORMAL);
-	if (ret < 0) {
-		sbp_management_agent_unregister(tport->mgt_agt);
-		kfree(tpg);
-		return ERR_PTR(ret);
-	}
+	if (ret < 0)
+		goto out_unreg_mgt_agt;
 
 	return &tpg->se_tpg;
+
+out_unreg_mgt_agt:
+	sbp_management_agent_unregister(tport->mgt_agt);
+out_free_tpg:
+	tport->tpg = NULL;
+	kfree(tpg);
+	return ERR_PTR(ret);
 }
 
 static void sbp_drop_tpg(struct se_portal_group *se_tpg)
