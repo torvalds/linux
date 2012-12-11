@@ -48,8 +48,8 @@ void bcma_chipco_serial_init(struct bcma_drv_cc *cc);
 #endif /* CONFIG_BCMA_DRIVER_MIPS */
 
 /* driver_chipcommon_pmu.c */
-u32 bcma_pmu_alp_clock(struct bcma_drv_cc *cc);
-u32 bcma_pmu_get_clockcpu(struct bcma_drv_cc *cc);
+u32 bcma_pmu_get_alp_clock(struct bcma_drv_cc *cc);
+u32 bcma_pmu_get_cpu_clock(struct bcma_drv_cc *cc);
 
 #ifdef CONFIG_BCMA_SFLASH
 /* driver_chipcommon_sflash.c */

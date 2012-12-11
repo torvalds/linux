@@ -168,7 +168,7 @@ void bcma_pmu_init(struct bcma_drv_cc *cc)
 	bcma_pmu_workarounds(cc);
 }
 
-u32 bcma_pmu_alp_clock(struct bcma_drv_cc *cc)
+u32 bcma_pmu_get_alp_clock(struct bcma_drv_cc *cc)
 {
 	struct bcma_bus *bus = cc->core->bus;
 
@@ -196,7 +196,7 @@ u32 bcma_pmu_alp_clock(struct bcma_drv_cc *cc)
 /* Find the output of the "m" pll divider given pll controls that start with
  * pllreg "pll0" i.e. 12 for main 6 for phy, 0 for misc.
  */
-static u32 bcma_pmu_clock(struct bcma_drv_cc *cc, u32 pll0, u32 m)
+static u32 bcma_pmu_pll_clock(struct bcma_drv_cc *cc, u32 pll0, u32 m)
 {
 	u32 tmp, div, ndiv, p1, p2, fc;
 	struct bcma_bus *bus = cc->core->bus;
@@ -225,14 +225,14 @@ static u32 bcma_pmu_clock(struct bcma_drv_cc *cc, u32 pll0, u32 m)
 	ndiv = (tmp & BCMA_CC_PPL_NDIV_MASK) >> BCMA_CC_PPL_NDIV_SHIFT;
 
 	/* Do calculation in Mhz */
-	fc = bcma_pmu_alp_clock(cc) / 1000000;
+	fc = bcma_pmu_get_alp_clock(cc) / 1000000;
 	fc = (p1 * ndiv * fc) / p2;
 
 	/* Return clock in Hertz */
 	return (fc / div) * 1000000;
 }
 
-static u32 bcma_pmu_clock_bcm4706(struct bcma_drv_cc *cc, u32 pll0, u32 m)
+static u32 bcma_pmu_pll_clock_bcm4706(struct bcma_drv_cc *cc, u32 pll0, u32 m)
 {
 	u32 tmp, ndiv, p1div, p2div;
 	u32 clock;
@@ -263,7 +263,7 @@ static u32 bcma_pmu_clock_bcm4706(struct bcma_drv_cc *cc, u32 pll0, u32 m)
 }
 
 /* query bus clock frequency for PMU-enabled chipcommon */
-static u32 bcma_pmu_get_clockcontrol(struct bcma_drv_cc *cc)
+static u32 bcma_pmu_get_bus_clock(struct bcma_drv_cc *cc)
 {
 	struct bcma_bus *bus = cc->core->bus;
 
@@ -271,40 +271,42 @@ static u32 bcma_pmu_get_clockcontrol(struct bcma_drv_cc *cc)
 	case BCMA_CHIP_ID_BCM4716:
 	case BCMA_CHIP_ID_BCM4748:
 	case BCMA_CHIP_ID_BCM47162:
-		return bcma_pmu_clock(cc, BCMA_CC_PMU4716_MAINPLL_PLL0,
-				      BCMA_CC_PMU5_MAINPLL_SSB);
+		return bcma_pmu_pll_clock(cc, BCMA_CC_PMU4716_MAINPLL_PLL0,
+					  BCMA_CC_PMU5_MAINPLL_SSB);
 	case BCMA_CHIP_ID_BCM5356:
-		return bcma_pmu_clock(cc, BCMA_CC_PMU5356_MAINPLL_PLL0,
-				      BCMA_CC_PMU5_MAINPLL_SSB);
+		return bcma_pmu_pll_clock(cc, BCMA_CC_PMU5356_MAINPLL_PLL0,
+					  BCMA_CC_PMU5_MAINPLL_SSB);
 	case BCMA_CHIP_ID_BCM5357:
 	case BCMA_CHIP_ID_BCM4749:
-		return bcma_pmu_clock(cc, BCMA_CC_PMU5357_MAINPLL_PLL0,
-				      BCMA_CC_PMU5_MAINPLL_SSB);
+		return bcma_pmu_pll_clock(cc, BCMA_CC_PMU5357_MAINPLL_PLL0,
+					  BCMA_CC_PMU5_MAINPLL_SSB);
 	case BCMA_CHIP_ID_BCM4706:
-		return bcma_pmu_clock_bcm4706(cc, BCMA_CC_PMU4706_MAINPLL_PLL0,
-					      BCMA_CC_PMU5_MAINPLL_SSB);
+		return bcma_pmu_pll_clock_bcm4706(cc,
+						  BCMA_CC_PMU4706_MAINPLL_PLL0,
+						  BCMA_CC_PMU5_MAINPLL_SSB);
 	case BCMA_CHIP_ID_BCM53572:
 		return 75000000;
 	default:
-		bcma_warn(bus, "No backplane clock specified for %04X device, pmu rev. %d, using default %d Hz\n",
+		bcma_warn(bus, "No bus clock specified for %04X device, pmu rev. %d, using default %d Hz\n",
 			  bus->chipinfo.id, cc->pmu.rev, BCMA_CC_PMU_HT_CLOCK);
 	}
 	return BCMA_CC_PMU_HT_CLOCK;
 }
 
 /* query cpu clock frequency for PMU-enabled chipcommon */
-u32 bcma_pmu_get_clockcpu(struct bcma_drv_cc *cc)
+u32 bcma_pmu_get_cpu_clock(struct bcma_drv_cc *cc)
 {
 	struct bcma_bus *bus = cc->core->bus;
 
 	if (bus->chipinfo.id == BCMA_CHIP_ID_BCM53572)
 		return 300000000;
 
+	/* New PMUs can have different clock for bus and CPU */
 	if (cc->pmu.rev >= 5) {
 		u32 pll;
 		switch (bus->chipinfo.id) {
 		case BCMA_CHIP_ID_BCM4706:
-			return bcma_pmu_clock_bcm4706(cc,
+			return bcma_pmu_pll_clock_bcm4706(cc,
 						BCMA_CC_PMU4706_MAINPLL_PLL0,
 						BCMA_CC_PMU5_MAINPLL_CPU);
 		case BCMA_CHIP_ID_BCM5356:
@@ -319,10 +321,11 @@ u32 bcma_pmu_get_clockcpu(struct bcma_drv_cc *cc)
 			break;
 		}
 
-		return bcma_pmu_clock(cc, pll, BCMA_CC_PMU5_MAINPLL_CPU);
+		return bcma_pmu_pll_clock(cc, pll, BCMA_CC_PMU5_MAINPLL_CPU);
 	}
 
-	return bcma_pmu_get_clockcontrol(cc);
+	/* On old PMUs CPU has the same clock as the bus */
+	return bcma_pmu_get_bus_clock(cc);
 }
 
 static void bcma_pmu_spuravoid_pll_write(struct bcma_drv_cc *cc, u32 offset,

@@ -107,15 +107,13 @@ static inline int brcmf_sdioh_f0_write_byte(struct brcmf_sdio_dev *sdiodev,
 				/* Enable Function 2 */
 				err_ret = sdio_enable_func(sdfunc);
 				if (err_ret)
-					brcmf_dbg(ERROR,
-						  "enable F2 failed:%d\n",
+					brcmf_err("enable F2 failed:%d\n",
 						  err_ret);
 			} else {
 				/* Disable Function 2 */
 				err_ret = sdio_disable_func(sdfunc);
 				if (err_ret)
-					brcmf_dbg(ERROR,
-						  "Disable F2 failed:%d\n",
+					brcmf_err("Disable F2 failed:%d\n",
 						  err_ret);
 			}
 		}
@@ -129,7 +127,7 @@ static inline int brcmf_sdioh_f0_write_byte(struct brcmf_sdio_dev *sdiodev,
 		sdio_writeb(sdfunc, *byte, regaddr, &err_ret);
 		kfree(sdfunc);
 	} else if (regaddr < 0xF0) {
-		brcmf_dbg(ERROR, "F0 Wr:0x%02x: write disallowed\n", regaddr);
+		brcmf_err("F0 Wr:0x%02x: write disallowed\n", regaddr);
 		err_ret = -EPERM;
 	} else {
 		sdio_f0_writeb(sdfunc, *byte, regaddr, &err_ret);
@@ -166,7 +164,7 @@ int brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw, uint func,
 	}
 
 	if (err_ret)
-		brcmf_dbg(ERROR, "Failed to %s byte F%d:@0x%05x=%02x, Err: %d\n",
+		brcmf_err("Failed to %s byte F%d:@0x%05x=%02x, Err: %d\n",
 			  rw ? "write" : "read", func, regaddr, *byte, err_ret);
 
 	return err_ret;
@@ -179,7 +177,7 @@ int brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev,
 	int err_ret = -EIO;
 
 	if (func == 0) {
-		brcmf_dbg(ERROR, "Only CMD52 allowed to F0\n");
+		brcmf_err("Only CMD52 allowed to F0\n");
 		return -EINVAL;
 	}
 
@@ -198,7 +196,7 @@ int brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev,
 			sdio_writew(sdiodev->func[func], (*word & 0xFFFF),
 				    addr, &err_ret);
 		else
-			brcmf_dbg(ERROR, "Invalid nbytes: %d\n", nbytes);
+			brcmf_err("Invalid nbytes: %d\n", nbytes);
 	} else {		/* CMD52 Read */
 		if (nbytes == 4)
 			*word = sdio_readl(sdiodev->func[func], addr, &err_ret);
@@ -206,11 +204,11 @@ int brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev,
 			*word = sdio_readw(sdiodev->func[func], addr,
 					   &err_ret) & 0xFFFF;
 		else
-			brcmf_dbg(ERROR, "Invalid nbytes: %d\n", nbytes);
+			brcmf_err("Invalid nbytes: %d\n", nbytes);
 	}
 
 	if (err_ret)
-		brcmf_dbg(ERROR, "Failed to %s word, Err: 0x%08x\n",
+		brcmf_err("Failed to %s word, Err: 0x%08x\n",
 			  rw ? "write" : "read", err_ret);
 
 	return err_ret;
@@ -270,7 +268,7 @@ brcmf_sdioh_request_chain(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
 		err_ret = brcmf_sdioh_request_data(sdiodev, write, fifo, func,
 						   addr, pkt, pkt_len);
 		if (err_ret) {
-			brcmf_dbg(ERROR, "%s FAILED %p[%d], addr=0x%05x, pkt_len=%d, ERR=0x%08x\n",
+			brcmf_err("%s FAILED %p[%d], addr=0x%05x, pkt_len=%d, ERR=0x%08x\n",
 				  write ? "TX" : "RX", pkt, SGCount, addr,
 				  pkt_len, err_ret);
 		} else {
@@ -315,7 +313,7 @@ int brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
 	status = brcmf_sdioh_request_data(sdiodev, write, fifo, func,
 					   addr, pkt, pkt_len);
 	if (status) {
-		brcmf_dbg(ERROR, "%s FAILED %p, addr=0x%05x, pkt_len=%d, ERR=0x%08x\n",
+		brcmf_err("%s FAILED %p, addr=0x%05x, pkt_len=%d, ERR=0x%08x\n",
 			  write ? "TX" : "RX", pkt, addr, pkt_len, status);
 	} else {
 		brcmf_dbg(TRACE, "%s xfr'd %p, addr=0x%05x, len=%d\n",
@@ -336,7 +334,7 @@ static int brcmf_sdioh_get_cisaddr(struct brcmf_sdio_dev *sdiodev, u32 regaddr)
 	for (i = 0; i < 3; i++) {
 		regdata = brcmf_sdio_regrl(sdiodev, regaddr, &ret);
 		if (ret != 0)
-			brcmf_dbg(ERROR, "Can't read!\n");
+			brcmf_err("Can't read!\n");
 
 		*ptr++ = (u8) regdata;
 		regaddr++;
@@ -374,7 +372,7 @@ static int brcmf_sdioh_enablefuncs(struct brcmf_sdio_dev *sdiodev)
 	/* Enable Function 1 */
 	err_ret = sdio_enable_func(sdiodev->func[1]);
 	if (err_ret)
-		brcmf_dbg(ERROR, "Failed to enable F1 Err: 0x%08x\n", err_ret);
+		brcmf_err("Failed to enable F1 Err: 0x%08x\n", err_ret);
 
 	return false;
 }
@@ -394,13 +392,13 @@ int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev)
 
 	err_ret = sdio_set_block_size(sdiodev->func[1], SDIO_FUNC1_BLOCKSIZE);
 	if (err_ret) {
-		brcmf_dbg(ERROR, "Failed to set F1 blocksize\n");
+		brcmf_err("Failed to set F1 blocksize\n");
 		goto out;
 	}
 
 	err_ret = sdio_set_block_size(sdiodev->func[2], SDIO_FUNC2_BLOCKSIZE);
 	if (err_ret) {
-		brcmf_dbg(ERROR, "Failed to set F2 blocksize\n");
+		brcmf_err("Failed to set F2 blocksize\n");
 		goto out;
 	}
 
@@ -434,7 +432,7 @@ static int brcmf_sdio_getintrcfg(struct brcmf_sdio_dev *sdiodev)
 	struct brcmf_sdio_oobirq *oobirq_entry;
 
 	if (list_empty(&oobirq_lh)) {
-		brcmf_dbg(ERROR, "no valid oob irq resource\n");
+		brcmf_err("no valid oob irq resource\n");
 		return -ENXIO;
 	}
 
@@ -508,7 +506,7 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 	brcmf_dbg(TRACE, "F2 found, calling brcmf_sdio_probe...\n");
 	err = brcmf_sdio_probe(sdiodev);
 	if (err) {
-		brcmf_dbg(ERROR, "F2 error, probe failed %d...\n", err);
+		brcmf_err("F2 error, probe failed %d...\n", err);
 		goto fail;
 	}
 	brcmf_dbg(TRACE, "F2 init completed...\n");
@@ -564,13 +562,13 @@ static int brcmf_sdio_suspend(struct device *dev)
 
 	sdio_flags = sdio_get_host_pm_caps(sdiodev->func[1]);
 	if (!(sdio_flags & MMC_PM_KEEP_POWER)) {
-		brcmf_dbg(ERROR, "Host can't keep power while suspended\n");
+		brcmf_err("Host can't keep power while suspended\n");
 		return -EINVAL;
 	}
 
 	ret = sdio_set_host_pm_flags(sdiodev->func[1], MMC_PM_KEEP_POWER);
 	if (ret) {
-		brcmf_dbg(ERROR, "Failed to set pm_flags\n");
+		brcmf_err("Failed to set pm_flags\n");
 		return ret;
 	}
 
@@ -635,7 +633,7 @@ static int brcmf_sdio_pd_probe(struct platform_device *pdev)
 	ret = sdio_register_driver(&brcmf_sdmmc_driver);
 
 	if (ret)
-		brcmf_dbg(ERROR, "sdio_register_driver failed: %d\n", ret);
+		brcmf_err("sdio_register_driver failed: %d\n", ret);
 
 	return ret;
 }
@@ -665,7 +663,7 @@ void brcmf_sdio_init(void)
 	ret = platform_driver_register(&brcmf_sdio_pd);
 
 	if (ret)
-		brcmf_dbg(ERROR, "platform_driver_register failed: %d\n", ret);
+		brcmf_err("platform_driver_register failed: %d\n", ret);
 }
 #else
 void brcmf_sdio_exit(void)
@@ -684,6 +682,6 @@ void brcmf_sdio_init(void)
 	ret = sdio_register_driver(&brcmf_sdmmc_driver);
 
 	if (ret)
-		brcmf_dbg(ERROR, "sdio_register_driver failed: %d\n", ret);
+		brcmf_err("sdio_register_driver failed: %d\n", ret);
 }
 #endif		/* CONFIG_BRCMFMAC_SDIO_OOB */

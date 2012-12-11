@@ -117,9 +117,7 @@ static int brcmf_proto_cdc_msg(struct brcmf_pub *drvr)
 		len = CDC_MAX_MSG_SIZE;
 
 	/* Send request */
-	return drvr->bus_if->brcmf_bus_txctl(drvr->dev,
-					     (unsigned char *)&prot->msg,
-					     len);
+	return brcmf_bus_txctl(drvr->bus_if, (unsigned char *)&prot->msg, len);
 }
 
 static int brcmf_proto_cdc_cmplt(struct brcmf_pub *drvr, u32 id, u32 len)
@@ -128,11 +126,10 @@ static int brcmf_proto_cdc_cmplt(struct brcmf_pub *drvr, u32 id, u32 len)
 	struct brcmf_proto *prot = drvr->prot;
 
 	brcmf_dbg(TRACE, "Enter\n");
-
+	len += sizeof(struct brcmf_proto_cdc_dcmd);
 	do {
-		ret = drvr->bus_if->brcmf_bus_rxctl(drvr->dev,
-				(unsigned char *)&prot->msg,
-				len + sizeof(struct brcmf_proto_cdc_dcmd));
+		ret = brcmf_bus_rxctl(drvr->bus_if, (unsigned char *)&prot->msg,
+				      len);
 		if (ret < 0)
 			break;
 	} while (CDC_DCMD_ID(le32_to_cpu(prot->msg.flags)) != id);
@@ -179,7 +176,7 @@ brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 
 	ret = brcmf_proto_cdc_msg(drvr);
 	if (ret < 0) {
-		brcmf_dbg(ERROR, "brcmf_proto_cdc_msg failed w/status %d\n",
+		brcmf_err("brcmf_proto_cdc_msg failed w/status %d\n",
 			  ret);
 		goto done;
 	}
@@ -196,7 +193,7 @@ retry:
 	if ((id < prot->reqid) && (++retries < RETRIES))
 		goto retry;
 	if (id != prot->reqid) {
-		brcmf_dbg(ERROR, "%s: unexpected request id %d (expected %d)\n",
+		brcmf_err("%s: unexpected request id %d (expected %d)\n",
 			  brcmf_ifname(drvr, ifidx), id, prot->reqid);
 		ret = -EINVAL;
 		goto done;
@@ -258,7 +255,7 @@ int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 	id = (flags & CDC_DCMD_ID_MASK) >> CDC_DCMD_ID_SHIFT;
 
 	if (id != prot->reqid) {
-		brcmf_dbg(ERROR, "%s: unexpected request id %d (expected %d)\n",
+		brcmf_err("%s: unexpected request id %d (expected %d)\n",
 			  brcmf_ifname(drvr, ifidx), id, prot->reqid);
 		ret = -EINVAL;
 		goto done;
@@ -320,7 +317,7 @@ int brcmf_proto_hdrpull(struct device *dev, int *ifidx,
 	/* Pop BDC header used to convey priority for buses that don't */
 
 	if (pktbuf->len < BDC_HEADER_LEN) {
-		brcmf_dbg(ERROR, "rx data too short (%d < %d)\n",
+		brcmf_err("rx data too short (%d < %d)\n",
 			  pktbuf->len, BDC_HEADER_LEN);
 		return -EBADE;
 	}
@@ -329,13 +326,13 @@ int brcmf_proto_hdrpull(struct device *dev, int *ifidx,
 
 	*ifidx = BDC_GET_IF_IDX(h);
 	if (*ifidx >= BRCMF_MAX_IFS) {
-		brcmf_dbg(ERROR, "rx data ifnum out of range (%d)\n", *ifidx);
+		brcmf_err("rx data ifnum out of range (%d)\n", *ifidx);
 		return -EBADE;
 	}
 
 	if (((h->flags & BDC_FLAG_VER_MASK) >> BDC_FLAG_VER_SHIFT) !=
 	    BDC_PROTO_VER) {
-		brcmf_dbg(ERROR, "%s: non-BDC packet received, flags 0x%x\n",
+		brcmf_err("%s: non-BDC packet received, flags 0x%x\n",
 			  brcmf_ifname(drvr, *ifidx), h->flags);
 		return -EBADE;
 	}
@@ -364,7 +361,7 @@ int brcmf_proto_attach(struct brcmf_pub *drvr)
 
 	/* ensure that the msg buf directly follows the cdc msg struct */
 	if ((unsigned long)(&cdc->msg + 1) != (unsigned long)cdc->buf) {
-		brcmf_dbg(ERROR, "struct brcmf_proto is not correctly defined\n");
+		brcmf_err("struct brcmf_proto is not correctly defined\n");
 		goto fail;
 	}
 

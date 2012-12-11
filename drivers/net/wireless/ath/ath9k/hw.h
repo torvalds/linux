@@ -20,6 +20,7 @@
 #include <linux/if_ether.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/firmware.h>
 
 #include "mac.h"
 #include "ani.h"
@@ -247,6 +248,7 @@ enum ath9k_hw_caps {
 	ATH9K_HW_WOW_DEVICE_CAPABLE		= BIT(17),
 	ATH9K_HW_WOW_PATTERN_MATCH_EXACT	= BIT(18),
 	ATH9K_HW_WOW_PATTERN_MATCH_DWORD	= BIT(19),
+	ATH9K_HW_CAP_PAPRD			= BIT(20),
 };
 
 /*
@@ -920,6 +922,8 @@ struct ath_hw {
 	bool is_clk_25mhz;
 	int (*get_mac_revision)(void);
 	int (*external_reset)(void);
+
+	const struct firmware *eeprom_blob;
 };
 
 struct ath_bus_ops {
@@ -1058,9 +1062,10 @@ void ar9003_paprd_populate_single_table(struct ath_hw *ah,
 					int chain);
 int ar9003_paprd_create_curve(struct ath_hw *ah,
 			      struct ath9k_hw_cal_data *caldata, int chain);
-int ar9003_paprd_setup_gain_table(struct ath_hw *ah, int chain);
+void ar9003_paprd_setup_gain_table(struct ath_hw *ah, int chain);
 int ar9003_paprd_init_table(struct ath_hw *ah);
 bool ar9003_paprd_is_done(struct ath_hw *ah);
+bool ar9003_is_paprd_enabled(struct ath_hw *ah);
 
 /* Hardware family op attach helpers */
 void ar5008_hw_attach_phy_ops(struct ath_hw *ah);

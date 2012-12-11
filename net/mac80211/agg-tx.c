@@ -445,7 +445,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 
 	trace_api_start_tx_ba_session(pubsta, tid);
 
-	if (WARN_ON(!local->ops->ampdu_action))
+	if (WARN_ON_ONCE(!local->ops->ampdu_action))
 		return -EINVAL;
 
 	if ((tid >= IEEE80211_NUM_TIDS) ||

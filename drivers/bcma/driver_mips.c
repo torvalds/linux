@@ -115,7 +115,7 @@ static void bcma_core_mips_set_irq(struct bcma_device *dev, unsigned int irq)
 			    bcma_read32(mdev, BCMA_MIPS_MIPS74K_INTMASK(0)) &
 			    ~(1 << irqflag));
 	else
-		bcma_write32(mdev, BCMA_MIPS_MIPS74K_INTMASK(irq), 0);
+		bcma_write32(mdev, BCMA_MIPS_MIPS74K_INTMASK(oldirq), 0);
 
 	/* assign the new one */
 	if (irq == 0) {
@@ -171,7 +171,7 @@ u32 bcma_cpu_clock(struct bcma_drv_mips *mcore)
 	struct bcma_bus *bus = mcore->core->bus;
 
 	if (bus->drv_cc.capabilities & BCMA_CC_CAP_PMU)
-		return bcma_pmu_get_clockcpu(&bus->drv_cc);
+		return bcma_pmu_get_cpu_clock(&bus->drv_cc);
 
 	bcma_err(bus, "No PMU available, need this to get the cpu clock\n");
 	return 0;

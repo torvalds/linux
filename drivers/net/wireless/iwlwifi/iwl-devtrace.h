@@ -133,6 +133,40 @@ TRACE_EVENT(iwlwifi_dev_iowrite32,
 		  __get_str(dev), __entry->offs, __entry->val)
 );
 
+TRACE_EVENT(iwlwifi_dev_iowrite_prph32,
+	TP_PROTO(const struct device *dev, u32 offs, u32 val),
+	TP_ARGS(dev, offs, val),
+	TP_STRUCT__entry(
+		DEV_ENTRY
+		__field(u32, offs)
+		__field(u32, val)
+	),
+	TP_fast_assign(
+		DEV_ASSIGN;
+		__entry->offs = offs;
+		__entry->val = val;
+	),
+	TP_printk("[%s] write PRPH[%#x] = %#x)",
+		  __get_str(dev), __entry->offs, __entry->val)
+);
+
+TRACE_EVENT(iwlwifi_dev_ioread_prph32,
+	TP_PROTO(const struct device *dev, u32 offs, u32 val),
+	TP_ARGS(dev, offs, val),
+	TP_STRUCT__entry(
+		DEV_ENTRY
+		__field(u32, offs)
+		__field(u32, val)
+	),
+	TP_fast_assign(
+		DEV_ASSIGN;
+		__entry->offs = offs;
+		__entry->val = val;
+	),
+	TP_printk("[%s] read PRPH[%#x] = %#x",
+		  __get_str(dev), __entry->offs, __entry->val)
+);
+
 TRACE_EVENT(iwlwifi_dev_irq,
 	TP_PROTO(const struct device *dev),
 	TP_ARGS(dev),

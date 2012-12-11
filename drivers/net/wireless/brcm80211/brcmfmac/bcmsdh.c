@@ -67,9 +67,8 @@ int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev)
 	u8 data;
 	unsigned long flags;
 
-	brcmf_dbg(TRACE, "Entering\n");
+	brcmf_dbg(TRACE, "Entering: irq %d\n", sdiodev->irq);
 
-	brcmf_dbg(ERROR, "requesting irq %d\n", sdiodev->irq);
 	ret = request_irq(sdiodev->irq, brcmf_sdio_irqhandler,
 			  sdiodev->irq_flags, "brcmf_oob_intr",
 			  &sdiodev->func[1]->dev);
@@ -184,7 +183,7 @@ brcmf_sdcard_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev, u32 address)
 		} while (err != 0 && retry++ < SDIOH_API_ACCESS_RETRY_LIMIT);
 
 		if (err) {
-			brcmf_dbg(ERROR, "failed at addr:0x%0x\n",
+			brcmf_err("failed at addr:0x%0x\n",
 				  SBSDIO_FUNC1_SBADDRLOW + i);
 			break;
 		}
@@ -246,7 +245,7 @@ brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
 	} while (ret != 0 && retry++ < SDIOH_API_ACCESS_RETRY_LIMIT);
 
 	if (ret != 0)
-		brcmf_dbg(ERROR, "failed with %d\n", ret);
+		brcmf_err("failed with %d\n", ret);
 
 	return ret;
 }
@@ -340,7 +339,7 @@ brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 
 	mypkt = brcmu_pkt_buf_get_skb(nbytes);
 	if (!mypkt) {
-		brcmf_dbg(ERROR, "brcmu_pkt_buf_get_skb failed: len %d\n",
+		brcmf_err("brcmu_pkt_buf_get_skb failed: len %d\n",
 			  nbytes);
 		return -EIO;
 	}
@@ -409,7 +408,7 @@ brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 
 	mypkt = brcmu_pkt_buf_get_skb(nbytes);
 	if (!mypkt) {
-		brcmf_dbg(ERROR, "brcmu_pkt_buf_get_skb failed: len %d\n",
+		brcmf_err("brcmu_pkt_buf_get_skb failed: len %d\n",
 			  nbytes);
 		return -EIO;
 	}
@@ -472,7 +471,7 @@ int brcmf_sdcard_rwdata(struct brcmf_sdio_dev *sdiodev, uint rw, u32 addr,
 
 	mypkt = brcmu_pkt_buf_get_skb(nbytes);
 	if (!mypkt) {
-		brcmf_dbg(ERROR, "brcmu_pkt_buf_get_skb failed: len %d\n",
+		brcmf_err("brcmu_pkt_buf_get_skb failed: len %d\n",
 			  nbytes);
 		return -EIO;
 	}
@@ -519,7 +518,7 @@ int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	/* try to attach to the target device */
 	sdiodev->bus = brcmf_sdbrcm_probe(regs, sdiodev);
 	if (!sdiodev->bus) {
-		brcmf_dbg(ERROR, "device attach failed\n");
+		brcmf_err("device attach failed\n");
 		ret = -ENODEV;
 		goto out;
 	}

@@ -2987,10 +2987,6 @@ static u32 ath9k_hw_ar9300_get_eeprom(struct ath_hw *ah,
 	case EEP_RX_MASK:
 		return pBase->txrxMask & 0xf;
 	case EEP_PAPRD:
-		if (AR_SREV_9462(ah))
-			return false;
-		if (!ah->config.enable_paprd)
-			return false;
 		return !!(pBase->featureEnable & BIT(5));
 	case EEP_CHAIN_MASK_REDUCE:
 		return (pBase->miscConfiguration >> 0x3) & 0x1;
@@ -3005,24 +3001,24 @@ static u32 ath9k_hw_ar9300_get_eeprom(struct ath_hw *ah,
 	}
 }
 
-static bool ar9300_eeprom_read_byte(struct ath_common *common, int address,
+static bool ar9300_eeprom_read_byte(struct ath_hw *ah, int address,
 				    u8 *buffer)
 {
 	u16 val;
 
-	if (unlikely(!ath9k_hw_nvram_read(common, address / 2, &val)))
+	if (unlikely(!ath9k_hw_nvram_read(ah, address / 2, &val)))
 		return false;
 
 	*buffer = (val >> (8 * (address % 2))) & 0xff;
 	return true;
 }
 
-static bool ar9300_eeprom_read_word(struct ath_common *common, int address,
+static bool ar9300_eeprom_read_word(struct ath_hw *ah, int address,
 				    u8 *buffer)
 {
 	u16 val;
 
-	if (unlikely(!ath9k_hw_nvram_read(common, address / 2, &val)))
+	if (unlikely(!ath9k_hw_nvram_read(ah, address / 2, &val)))
 		return false;
 
 	buffer[0] = val >> 8;
@@ -3048,14 +3044,14 @@ static bool ar9300_read_eeprom(struct ath_hw *ah, int address, u8 *buffer,
 	 * the 16-bit word at that address
 	 */
 	if (address % 2 == 0) {
-		if (!ar9300_eeprom_read_byte(common, address--, buffer++))
+		if (!ar9300_eeprom_read_byte(ah, address--, buffer++))
 			goto error;
 
 		count--;
 	}
 
 	for (i = 0; i < count / 2; i++) {
-		if (!ar9300_eeprom_read_word(common, address, buffer))
+		if (!ar9300_eeprom_read_word(ah, address, buffer))
 			goto error;
 
 		address -= 2;
@@ -3063,7 +3059,7 @@ static bool ar9300_read_eeprom(struct ath_hw *ah, int address, u8 *buffer,
 	}
 
 	if (count % 2)
-		if (!ar9300_eeprom_read_byte(common, address, buffer))
+		if (!ar9300_eeprom_read_byte(ah, address, buffer))
 			goto error;
 
 	return true;
@@ -3240,12 +3236,11 @@ static bool ar9300_check_eeprom_header(struct ath_hw *ah, eeprom_read_op read,
 static int ar9300_eeprom_restore_flash(struct ath_hw *ah, u8 *mptr,
 				       int mdata_size)
 {
-	struct ath_common *common = ath9k_hw_common(ah);
 	u16 *data = (u16 *) mptr;
 	int i;
 
 	for (i = 0; i < mdata_size / 2; i++, data++)
-		ath9k_hw_nvram_read(common, i, data);
+		ath9k_hw_nvram_read(ah, i, data);
 
 	return 0;
 }
@@ -5076,6 +5071,33 @@ static inline u8 mcsidx_to_tgtpwridx(unsigned int mcs_idx, u8 base_pwridx)
 		return base_pwridx + 4 * (mcs_idx / 8) + mod_idx - 2;
 }
 
+static void ar9003_paprd_set_txpower(struct ath_hw *ah,
+				     struct ath9k_channel *chan,
+				     u8 *targetPowerValT2)
+{
+	int i;
+
+	if (!ar9003_is_paprd_enabled(ah))
+		return;
+
+	if (IS_CHAN_HT40(chan))
+		i = ALL_TARGET_HT40_7;
+	else
+		i = ALL_TARGET_HT20_7;
+
+	if (IS_CHAN_2GHZ(chan)) {
+		if (!AR_SREV_9330(ah) && !AR_SREV_9340(ah) &&
+		    !AR_SREV_9462(ah) && !AR_SREV_9565(ah)) {
+			if (IS_CHAN_HT40(chan))
+				i = ALL_TARGET_HT40_0_8_16;
+			else
+				i = ALL_TARGET_HT20_0_8_16;
+		}
+	}
+
+	ah->paprd_target_power = targetPowerValT2[i];
+}
+
 static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 					struct ath9k_channel *chan, u16 cfgCtl,
 					u8 twiceAntennaReduction,
@@ -5097,7 +5119,7 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 	 */
 	ar9003_hw_get_target_power_eeprom(ah, chan, targetPowerValT2);
 
-	if (ah->eep_ops->get_eeprom(ah, EEP_PAPRD)) {
+	if (ar9003_is_paprd_enabled(ah)) {
 		if (IS_CHAN_2GHZ(chan))
 			modal_hdr = &eep->modalHeader2G;
 		else
@@ -5138,7 +5160,7 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 					   twiceAntennaReduction,
 					   powerLimit);
 
-	if (ah->eep_ops->get_eeprom(ah, EEP_PAPRD)) {
+	if (ar9003_is_paprd_enabled(ah)) {
 		for (i = 0; i < ar9300RateSize; i++) {
 			if ((ah->paprd_ratemask & (1 << i)) &&
 			    (abs(targetPowerValT2[i] -
@@ -5170,19 +5192,7 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 	/* Write target power array to registers */
 	ar9003_hw_tx_power_regwrite(ah, targetPowerValT2);
 	ar9003_hw_calibration_apply(ah, chan->channel);
-
-	if (IS_CHAN_2GHZ(chan)) {
-		if (IS_CHAN_HT40(chan))
-			i = ALL_TARGET_HT40_0_8_16;
-		else
-			i = ALL_TARGET_HT20_0_8_16;
-	} else {
-		if (IS_CHAN_HT40(chan))
-			i = ALL_TARGET_HT40_7;
-		else
-			i = ALL_TARGET_HT20_7;
-	}
-	ah->paprd_target_power = targetPowerValT2[i];
+	ar9003_paprd_set_txpower(ah, chan, targetPowerValT2);
 }
 
 static u16 ath9k_hw_ar9300_get_spur_channel(struct ath_hw *ah,

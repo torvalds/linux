@@ -95,76 +95,14 @@ struct brcmf_fweh_event_name {
 };
 
 #ifdef DEBUG
+#define BRCMF_ENUM_DEF(id, val) \
+	{ val, #id },
+
 /* array for mapping code to event name */
 static struct brcmf_fweh_event_name fweh_event_names[] = {
-	{ BRCMF_E_SET_SSID, "SET_SSID" },
-	{ BRCMF_E_JOIN, "JOIN" },
-	{ BRCMF_E_START, "START" },
-	{ BRCMF_E_AUTH, "AUTH" },
-	{ BRCMF_E_AUTH_IND, "AUTH_IND" },
-	{ BRCMF_E_DEAUTH, "DEAUTH" },
-	{ BRCMF_E_DEAUTH_IND, "DEAUTH_IND" },
-	{ BRCMF_E_ASSOC, "ASSOC" },
-	{ BRCMF_E_ASSOC_IND, "ASSOC_IND" },
-	{ BRCMF_E_REASSOC, "REASSOC" },
-	{ BRCMF_E_REASSOC_IND, "REASSOC_IND" },
-	{ BRCMF_E_DISASSOC, "DISASSOC" },
-	{ BRCMF_E_DISASSOC_IND, "DISASSOC_IND" },
-	{ BRCMF_E_QUIET_START, "START_QUIET" },
-	{ BRCMF_E_QUIET_END, "END_QUIET" },
-	{ BRCMF_E_BEACON_RX, "BEACON_RX" },
-	{ BRCMF_E_LINK, "LINK" },
-	{ BRCMF_E_MIC_ERROR, "MIC_ERROR" },
-	{ BRCMF_E_NDIS_LINK, "NDIS_LINK" },
-	{ BRCMF_E_ROAM, "ROAM" },
-	{ BRCMF_E_TXFAIL, "TXFAIL" },
-	{ BRCMF_E_PMKID_CACHE, "PMKID_CACHE" },
-	{ BRCMF_E_RETROGRADE_TSF, "RETROGRADE_TSF" },
-	{ BRCMF_E_PRUNE, "PRUNE" },
-	{ BRCMF_E_AUTOAUTH, "AUTOAUTH" },
-	{ BRCMF_E_EAPOL_MSG, "EAPOL_MSG" },
-	{ BRCMF_E_SCAN_COMPLETE, "SCAN_COMPLETE" },
-	{ BRCMF_E_ADDTS_IND, "ADDTS_IND" },
-	{ BRCMF_E_DELTS_IND, "DELTS_IND" },
-	{ BRCMF_E_BCNSENT_IND, "BCNSENT_IND" },
-	{ BRCMF_E_BCNRX_MSG, "BCNRX_MSG" },
-	{ BRCMF_E_BCNLOST_MSG, "BCNLOST_MSG" },
-	{ BRCMF_E_ROAM_PREP, "ROAM_PREP" },
-	{ BRCMF_E_PFN_NET_FOUND, "PNO_NET_FOUND" },
-	{ BRCMF_E_PFN_NET_LOST, "PNO_NET_LOST" },
-	{ BRCMF_E_RESET_COMPLETE, "RESET_COMPLETE" },
-	{ BRCMF_E_JOIN_START, "JOIN_START" },
-	{ BRCMF_E_ROAM_START, "ROAM_START" },
-	{ BRCMF_E_ASSOC_START, "ASSOC_START" },
-	{ BRCMF_E_IBSS_ASSOC, "IBSS_ASSOC" },
-	{ BRCMF_E_RADIO, "RADIO" },
-	{ BRCMF_E_PSM_WATCHDOG, "PSM_WATCHDOG" },
-	{ BRCMF_E_PROBREQ_MSG, "PROBREQ_MSG" },
-	{ BRCMF_E_SCAN_CONFIRM_IND, "SCAN_CONFIRM_IND" },
-	{ BRCMF_E_PSK_SUP, "PSK_SUP" },
-	{ BRCMF_E_COUNTRY_CODE_CHANGED, "COUNTRY_CODE_CHANGED" },
-	{ BRCMF_E_EXCEEDED_MEDIUM_TIME, "EXCEEDED_MEDIUM_TIME" },
-	{ BRCMF_E_ICV_ERROR, "ICV_ERROR" },
-	{ BRCMF_E_UNICAST_DECODE_ERROR, "UNICAST_DECODE_ERROR" },
-	{ BRCMF_E_MULTICAST_DECODE_ERROR, "MULTICAST_DECODE_ERROR" },
-	{ BRCMF_E_TRACE, "TRACE" },
-	{ BRCMF_E_IF, "IF" },
-	{ BRCMF_E_RSSI, "RSSI" },
-	{ BRCMF_E_PFN_SCAN_COMPLETE, "PFN_SCAN_COMPLETE" },
-	{ BRCMF_E_EXTLOG_MSG, "EXTLOG_MSG" },
-	{ BRCMF_E_ACTION_FRAME, "ACTION_FRAME" },
-	{ BRCMF_E_ACTION_FRAME_COMPLETE, "ACTION_FRAME_COMPLETE" },
-	{ BRCMF_E_PRE_ASSOC_IND, "PRE_ASSOC_IND" },
-	{ BRCMF_E_PRE_REASSOC_IND, "PRE_REASSOC_IND" },
-	{ BRCMF_E_CHANNEL_ADOPTED, "CHANNEL_ADOPTED" },
-	{ BRCMF_E_AP_STARTED, "AP_STARTED" },
-	{ BRCMF_E_DFS_AP_STOP, "DFS_AP_STOP" },
-	{ BRCMF_E_DFS_AP_RESUME, "DFS_AP_RESUME" },
-	{ BRCMF_E_ESCAN_RESULT, "ESCAN_RESULT" },
-	{ BRCMF_E_ACTION_FRAME_OFF_CHAN_COMPLETE, "ACTION_FRM_OFF_CHAN_CMPLT" },
-	{ BRCMF_E_DCS_REQUEST, "DCS_REQUEST" },
-	{ BRCMF_E_FIFO_CREDIT_MAP, "FIFO_CREDIT_MAP"}
+	BRCMF_FWEH_EVENT_ENUM_DEFLIST
 };
+#undef BRCMF_ENUM_DEF
 
 /**
  * brcmf_fweh_event_name() - returns name for given event code.
@@ -219,9 +157,9 @@ static int brcmf_fweh_call_event_handler(struct brcmf_if *ifp,
 		if (ifp->ndev && fweh->evt_handler[code])
 			err = fweh->evt_handler[code](ifp, emsg, data);
 		else
-			brcmf_dbg(ERROR, "unhandled event %d ignored\n", code);
+			brcmf_err("unhandled event %d ignored\n", code);
 	} else {
-		brcmf_dbg(ERROR, "no interface object\n");
+		brcmf_err("no interface object\n");
 	}
 	return err;
 }
@@ -246,7 +184,7 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 		  ifevent->bssidx, ifevent->flags);
 
 	if (ifevent->ifidx >= BRCMF_MAX_IFS) {
-		brcmf_dbg(ERROR, "invalid interface index: %u\n",
+		brcmf_err("invalid interface index: %u\n",
 			  ifevent->ifidx);
 		return;
 	}
@@ -348,7 +286,7 @@ static void brcmf_fweh_event_worker(struct work_struct *work)
 		err = brcmf_fweh_call_event_handler(ifp, event->code, &emsg,
 						    event->data);
 		if (err) {
-			brcmf_dbg(ERROR, "event handler failed (%d)\n",
+			brcmf_err("event handler failed (%d)\n",
 				  event->code);
 			err = 0;
 		}
@@ -405,7 +343,7 @@ int brcmf_fweh_register(struct brcmf_pub *drvr, enum brcmf_fweh_event_code code,
 			brcmf_fweh_handler_t handler)
 {
 	if (drvr->fweh.evt_handler[code]) {
-		brcmf_dbg(ERROR, "event code %d already registered\n", code);
+		brcmf_err("event code %d already registered\n", code);
 		return -ENOSPC;
 	}
 	drvr->fweh.evt_handler[code] = handler;
@@ -453,7 +391,7 @@ int brcmf_fweh_activate_events(struct brcmf_if *ifp)
 	err = brcmf_fil_iovar_data_set(ifp, "event_msgs",
 				       eventmask, BRCMF_EVENTING_MASK_LEN);
 	if (err)
-		brcmf_dbg(ERROR, "Set event_msgs error (%d)\n", err);
+		brcmf_err("Set event_msgs error (%d)\n", err);
 
 	return err;
 }

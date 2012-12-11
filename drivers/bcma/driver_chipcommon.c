@@ -25,10 +25,10 @@ static inline u32 bcma_cc_write32_masked(struct bcma_drv_cc *cc, u16 offset,
 	return value;
 }
 
-static u32 bcma_chipco_alp_clock(struct bcma_drv_cc *cc)
+static u32 bcma_chipco_get_alp_clock(struct bcma_drv_cc *cc)
 {
 	if (cc->capabilities & BCMA_CC_CAP_PMU)
-		return bcma_pmu_alp_clock(cc);
+		return bcma_pmu_get_alp_clock(cc);
 
 	return 20000000;
 }
@@ -79,12 +79,12 @@ static int bcma_chipco_watchdog_ticks_per_ms(struct bcma_drv_cc *cc)
 	if (cc->capabilities & BCMA_CC_CAP_PMU) {
 		if (bus->chipinfo.id == BCMA_CHIP_ID_BCM4706)
 			/* 4706 CC and PMU watchdogs are clocked at 1/4 of ALP clock */
-			return bcma_chipco_alp_clock(cc) / 4000;
+			return bcma_chipco_get_alp_clock(cc) / 4000;
 		else
 			/* based on 32KHz ILP clock */
 			return 32;
 	} else {
-		return bcma_chipco_alp_clock(cc) / 1000;
+		return bcma_chipco_get_alp_clock(cc) / 1000;
 	}
 }
 
@@ -236,7 +236,7 @@ void bcma_chipco_serial_init(struct bcma_drv_cc *cc)
 	struct bcma_serial_port *ports = cc->serial_ports;
 
 	if (ccrev >= 11 && ccrev != 15) {
-		baud_base = bcma_chipco_alp_clock(cc);
+		baud_base = bcma_chipco_get_alp_clock(cc);
 		if (ccrev >= 21) {
 			/* Turn off UART clock before switching clocksource. */
 			bcma_cc_write32(cc, BCMA_CC_CORECTL,

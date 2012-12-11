@@ -717,7 +717,7 @@ static void brcms_c_ucode_bsinit(struct brcms_hardware *wlc_hw)
 	brcms_c_write_mhf(wlc_hw, wlc_hw->band->mhfs);
 
 	/* do band-specific ucode IHR, SHM, and SCR inits */
-	if (D11REV_IS(wlc_hw->corerev, 23)) {
+	if (D11REV_IS(wlc_hw->corerev, 17) || D11REV_IS(wlc_hw->corerev, 23)) {
 		if (BRCMS_ISNPHY(wlc_hw->band))
 			brcms_c_write_inits(wlc_hw, ucode->d11n0bsinitvals16);
 		else
@@ -2264,7 +2264,7 @@ static void brcms_ucode_download(struct brcms_hardware *wlc_hw)
 	if (wlc_hw->ucode_loaded)
 		return;
 
-	if (D11REV_IS(wlc_hw->corerev, 23)) {
+	if (D11REV_IS(wlc_hw->corerev, 17) || D11REV_IS(wlc_hw->corerev, 23)) {
 		if (BRCMS_ISNPHY(wlc_hw->band)) {
 			brcms_ucode_write(wlc_hw, ucode->bcm43xx_16_mimo,
 					  ucode->bcm43xx_16_mimosz);
@@ -2920,7 +2920,7 @@ brcms_b_write_objmem(struct brcms_hardware *wlc_hw, uint offset, u16 v,
 	if (offset & 2)
 		objoff += 2;
 
-	bcma_write16(core, objoff, v);
+	bcma_wflush16(core, objoff, v);
 }
 
 /*
@@ -3216,7 +3216,7 @@ static void brcms_b_coreinit(struct brcms_c_info *wlc)
 
 	sflags = bcma_aread32(core, BCMA_IOST);
 
-	if (D11REV_IS(wlc_hw->corerev, 23)) {
+	if (D11REV_IS(wlc_hw->corerev, 17) || D11REV_IS(wlc_hw->corerev, 23)) {
 		if (BRCMS_ISNPHY(wlc_hw->band))
 			brcms_c_write_inits(wlc_hw, ucode->d11n0initvals16);
 		else
@@ -4500,7 +4500,8 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 
 	/* check device id(srom, nvram etc.) to set bands */
 	if (wlc_hw->deviceid == BCM43224_D11N_ID ||
-	    wlc_hw->deviceid == BCM43224_D11N_ID_VEN1)
+	    wlc_hw->deviceid == BCM43224_D11N_ID_VEN1 ||
+	    wlc_hw->deviceid == BCM43224_CHIP_ID)
 		/* Dualband boards */
 		wlc_hw->_nbands = 2;
 	else
@@ -5653,7 +5654,7 @@ static bool brcms_c_chipmatch_pci(struct bcma_device *core)
 		return false;
 	}
 
-	if (device == BCM43224_D11N_ID_VEN1)
+	if (device == BCM43224_D11N_ID_VEN1 || device == BCM43224_CHIP_ID)
 		return true;
 	if ((device == BCM43224_D11N_ID) || (device == BCM43225_D11N2G_ID))
 		return true;

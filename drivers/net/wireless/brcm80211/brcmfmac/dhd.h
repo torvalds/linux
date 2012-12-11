@@ -470,7 +470,6 @@ struct brcmf_pub {
 	struct brcmf_bus *bus_if;
 	struct brcmf_proto *prot;
 	struct brcmf_cfg80211_info *config;
-	struct device *dev;		/* fullmac dongle device pointer */
 
 	/* Internal brcmf items */
 	uint hdrlen;		/* Total BRCMF header length (proto + bus) */

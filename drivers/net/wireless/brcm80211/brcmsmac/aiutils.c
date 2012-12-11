@@ -721,7 +721,7 @@ void ai_epa_4313war(struct si_pub *sih)
 /* check if the device is removed */
 bool ai_deviceremoved(struct si_pub *sih)
 {
-	u32 w;
+	u32 w = 0;
 	struct si_info *sii;
 
 	sii = container_of(sih, struct si_info, pub);
