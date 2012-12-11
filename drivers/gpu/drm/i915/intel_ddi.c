@@ -203,7 +203,10 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 					DP_TP_CTL_LINK_TRAIN_PAT1 |
 					DP_TP_CTL_ENABLE);
 
-		/* Configure and enable DDI_BUF_CTL for DDI E with next voltage */
+		/* Configure and enable DDI_BUF_CTL for DDI E with next voltage.
+		 * DDI E does not support port reversal, the functionality is
+		 * achieved on the PCH side in FDI_RX_CTL, so no need to set the
+		 * port reversal bit */
 		I915_WRITE(DDI_BUF_CTL(PORT_E),
 			   DDI_BUF_CTL_ENABLE |
 			   ((intel_crtc->fdi_lanes - 1) << 1) |
@@ -677,8 +680,11 @@ static void intel_ddi_mode_set(struct drm_encoder *encoder,
 
 	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+		struct intel_digital_port *intel_dig_port =
+			enc_to_dig_port(encoder);
 
-		intel_dp->DP = DDI_BUF_CTL_ENABLE | DDI_BUF_EMP_400MV_0DB_HSW;
+		intel_dp->DP = intel_dig_port->port_reversal |
+			       DDI_BUF_CTL_ENABLE | DDI_BUF_EMP_400MV_0DB_HSW;
 		switch (intel_dp->lane_count) {
 		case 1:
 			intel_dp->DP |= DDI_PORT_WIDTH_X1;
@@ -1291,11 +1297,15 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder)
 	int type = intel_encoder->type;
 
 	if (type == INTEL_OUTPUT_HDMI) {
+		struct intel_digital_port *intel_dig_port =
+			enc_to_dig_port(encoder);
+
 		/* In HDMI/DVI mode, the port width, and swing/emphasis values
 		 * are ignored so nothing special needs to be done besides
 		 * enabling the port.
 		 */
-		I915_WRITE(DDI_BUF_CTL(port), DDI_BUF_CTL_ENABLE);
+		I915_WRITE(DDI_BUF_CTL(port),
+			   intel_dig_port->port_reversal | DDI_BUF_CTL_ENABLE);
 	} else if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
@@ -1457,6 +1467,7 @@ static const struct drm_encoder_helper_funcs intel_ddi_helper_funcs = {
 
 void intel_ddi_init(struct drm_device *dev, enum port port)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_digital_port *intel_dig_port;
 	struct intel_encoder *intel_encoder;
 	struct drm_encoder *encoder;
@@ -1497,6 +1508,8 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	intel_encoder->get_hw_state = intel_ddi_get_hw_state;
 
 	intel_dig_port->port = port;
+	intel_dig_port->port_reversal = I915_READ(DDI_BUF_CTL(port)) &
+					DDI_BUF_PORT_REVERSAL;
 	if (hdmi_connector)
 		intel_dig_port->hdmi.sdvox_reg = DDI_BUF_CTL(port);
 	else
