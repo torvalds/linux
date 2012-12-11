@@ -27,26 +27,13 @@
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ipv6.h>
 #include <net/mld.h>
-#include <net/addrconf.h>
 #include <net/ip6_checksum.h>
 #endif
 
 #include "br_private.h"
 
-#define mlock_dereference(X, br) \
-	rcu_dereference_protected(X, lockdep_is_held(&br->multicast_lock))
-
 static void br_multicast_start_querier(struct net_bridge *br);
 unsigned int br_mdb_rehash_seq;
-
-#if IS_ENABLED(CONFIG_IPV6)
-static inline int ipv6_is_transient_multicast(const struct in6_addr *addr)
-{
-	if (ipv6_addr_is_multicast(addr) && IPV6_ADDR_MC_FLAG_TRANSIENT(addr))
-		return 1;
-	return 0;
-}
-#endif
 
 static inline int br_ip_equal(const struct br_ip *a, const struct br_ip *b)
 {
@@ -104,8 +91,8 @@ static struct net_bridge_mdb_entry *__br_mdb_ip_get(
 	return NULL;
 }
 
-static struct net_bridge_mdb_entry *br_mdb_ip_get(
-	struct net_bridge_mdb_htable *mdb, struct br_ip *dst)
+struct net_bridge_mdb_entry *br_mdb_ip_get(struct net_bridge_mdb_htable *mdb,
+					   struct br_ip *dst)
 {
 	if (!mdb)
 		return NULL;
@@ -208,7 +195,7 @@ static int br_mdb_copy(struct net_bridge_mdb_htable *new,
 	return maxlen > elasticity ? -EINVAL : 0;
 }
 
-static void br_multicast_free_pg(struct rcu_head *head)
+void br_multicast_free_pg(struct rcu_head *head)
 {
 	struct net_bridge_port_group *p =
 		container_of(head, struct net_bridge_port_group, rcu);
@@ -584,9 +571,8 @@ err:
 	return mp;
 }
 
-static struct net_bridge_mdb_entry *br_multicast_new_group(
-	struct net_bridge *br, struct net_bridge_port *port,
-	struct br_ip *group)
+struct net_bridge_mdb_entry *br_multicast_new_group(struct net_bridge *br,
+	struct net_bridge_port *port, struct br_ip *group)
 {
 	struct net_bridge_mdb_htable *mdb;
 	struct net_bridge_mdb_entry *mp;
@@ -633,6 +619,26 @@ out:
 	return mp;
 }
 
+struct net_bridge_port_group *br_multicast_new_port_group(
+			struct net_bridge_port *port,
+			struct br_ip *group,
+			struct net_bridge_port_group *next)
+{
+	struct net_bridge_port_group *p;
+
+	p = kzalloc(sizeof(*p), GFP_ATOMIC);
+	if (unlikely(!p))
+		return NULL;
+
+	p->addr = *group;
+	p->port = port;
+	p->next = next;
+	hlist_add_head(&p->mglist, &port->mglist);
+	setup_timer(&p->timer, br_multicast_port_group_expired,
+		    (unsigned long)p);
+	return p;
+}
+
 static int br_multicast_add_group(struct net_bridge *br,
 				  struct net_bridge_port *port,
 				  struct br_ip *group)
@@ -668,18 +674,9 @@ static int br_multicast_add_group(struct net_bridge *br,
 			break;
 	}
 
-	p = kzalloc(sizeof(*p), GFP_ATOMIC);
-	err = -ENOMEM;
+	p = br_multicast_new_port_group(port, group, *pp);
 	if (unlikely(!p))
 		goto err;
-
-	p->addr = *group;
-	p->port = port;
-	p->next = *pp;
-	hlist_add_head(&p->mglist, &port->mglist);
-	setup_timer(&p->timer, br_multicast_port_group_expired,
-		    (unsigned long)p);
-
 	rcu_assign_pointer(*pp, p);
 	br_mdb_notify(br->dev, port, group, RTM_NEWMDB);
 

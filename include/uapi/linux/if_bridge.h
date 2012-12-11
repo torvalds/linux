@@ -157,6 +157,7 @@ enum {
 #define MDBA_ROUTER_MAX (__MDBA_ROUTER_MAX - 1)
 
 struct br_port_msg {
+	__u8  family;
 	__u32 ifindex;
 };
 
@@ -170,5 +171,12 @@ struct br_mdb_entry {
 		__be16		proto;
 	} addr;
 };
+
+enum {
+	MDBA_SET_ENTRY_UNSPEC,
+	MDBA_SET_ENTRY,
+	__MDBA_SET_ENTRY_MAX,
+};
+#define MDBA_SET_ENTRY_MAX (__MDBA_SET_ENTRY_MAX - 1)
 
 #endif /* _UAPI_LINUX_IF_BRIDGE_H */
