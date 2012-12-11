@@ -1995,7 +1995,6 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u32 enable_mask;
-	u32 hotplug_en = I915_READ(PORT_HOTPLUG_EN);
 	u32 pipestat_enable = PLANE_FLIP_DONE_INT_EN_VLV;
 	u32 render_irqs;
 	u16 msid;
@@ -2023,6 +2022,9 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 	msid &= 0xff; /* mask out delivery bits */
 	msid |= (1<<14);
 	pci_write_config_word(dev_priv->dev->pdev, 0x98, msid);
+
+	I915_WRITE(PORT_HOTPLUG_EN, 0);
+	POSTING_READ(PORT_HOTPLUG_EN);
 
 	I915_WRITE(VLV_IMR, dev_priv->irq_mask);
 	I915_WRITE(VLV_IER, enable_mask);
@@ -2053,6 +2055,15 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 #endif
 
 	I915_WRITE(VLV_MASTER_IER, MASTER_INTERRUPT_ENABLE);
+
+	return 0;
+}
+
+static void valleyview_hpd_irq_setup(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	u32 hotplug_en = I915_READ(PORT_HOTPLUG_EN);
+
 	/* Note HDMI and DP share bits */
 	if (dev_priv->hotplug_supported_mask & HDMIB_HOTPLUG_INT_STATUS)
 		hotplug_en |= HDMIB_HOTPLUG_INT_EN;
@@ -2070,8 +2081,6 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 	}
 
 	I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
-
-	return 0;
 }
 
 static void valleyview_irq_uninstall(struct drm_device *dev)
@@ -2301,6 +2310,9 @@ static int i915_irq_postinstall(struct drm_device *dev)
 		I915_USER_INTERRUPT;
 
 	if (I915_HAS_HOTPLUG(dev)) {
+		I915_WRITE(PORT_HOTPLUG_EN, 0);
+		POSTING_READ(PORT_HOTPLUG_EN);
+
 		/* Enable in IER... */
 		enable_mask |= I915_DISPLAY_PORT_INTERRUPT;
 		/* and unmask in IMR */
@@ -2311,8 +2323,18 @@ static int i915_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(IER, enable_mask);
 	POSTING_READ(IER);
 
+	intel_opregion_enable_asle(dev);
+
+	return 0;
+}
+
+static void i915_hpd_irq_setup(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	u32 hotplug_en;
+
 	if (I915_HAS_HOTPLUG(dev)) {
-		u32 hotplug_en = I915_READ(PORT_HOTPLUG_EN);
+		hotplug_en = I915_READ(PORT_HOTPLUG_EN);
 
 		if (dev_priv->hotplug_supported_mask & HDMIB_HOTPLUG_INT_STATUS)
 			hotplug_en |= HDMIB_HOTPLUG_INT_EN;
@@ -2333,10 +2355,6 @@ static int i915_irq_postinstall(struct drm_device *dev)
 
 		I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
 	}
-
-	intel_opregion_enable_asle(dev);
-
-	return 0;
 }
 
 static irqreturn_t i915_irq_handler(int irq, void *arg)
@@ -2496,7 +2514,6 @@ static void i965_irq_preinstall(struct drm_device * dev)
 static int i965_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	u32 hotplug_en;
 	u32 enable_mask;
 	u32 error_mask;
 
@@ -2538,6 +2555,19 @@ static int i965_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(IER, enable_mask);
 	POSTING_READ(IER);
 
+	I915_WRITE(PORT_HOTPLUG_EN, 0);
+	POSTING_READ(PORT_HOTPLUG_EN);
+
+	intel_opregion_enable_asle(dev);
+
+	return 0;
+}
+
+static void i965_hpd_irq_setup(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	u32 hotplug_en;
+
 	/* Note HDMI and DP share hotplug bits */
 	hotplug_en = 0;
 	if (dev_priv->hotplug_supported_mask & HDMIB_HOTPLUG_INT_STATUS)
@@ -2572,10 +2602,6 @@ static int i965_irq_postinstall(struct drm_device *dev)
 	/* Ignore TV since it's buggy */
 
 	I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
-
-	intel_opregion_enable_asle(dev);
-
-	return 0;
 }
 
 static irqreturn_t i965_irq_handler(int irq, void *arg)
@@ -2754,6 +2780,7 @@ void intel_irq_init(struct drm_device *dev)
 		dev->driver->irq_uninstall = valleyview_irq_uninstall;
 		dev->driver->enable_vblank = valleyview_enable_vblank;
 		dev->driver->disable_vblank = valleyview_disable_vblank;
+		dev_priv->display.hpd_irq_setup = valleyview_hpd_irq_setup;
 	} else if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
 		/* Share pre & uninstall handlers with ILK/SNB */
 		dev->driver->irq_handler = ivybridge_irq_handler;
@@ -2780,13 +2807,23 @@ void intel_irq_init(struct drm_device *dev)
 			dev->driver->irq_postinstall = i915_irq_postinstall;
 			dev->driver->irq_uninstall = i915_irq_uninstall;
 			dev->driver->irq_handler = i915_irq_handler;
+			dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;
 		} else {
 			dev->driver->irq_preinstall = i965_irq_preinstall;
 			dev->driver->irq_postinstall = i965_irq_postinstall;
 			dev->driver->irq_uninstall = i965_irq_uninstall;
 			dev->driver->irq_handler = i965_irq_handler;
+			dev_priv->display.hpd_irq_setup = i965_hpd_irq_setup;
 		}
 		dev->driver->enable_vblank = i915_enable_vblank;
 		dev->driver->disable_vblank = i915_disable_vblank;
 	}
+}
+
+void intel_hpd_init(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->display.hpd_irq_setup)
+		dev_priv->display.hpd_irq_setup(dev);
 }

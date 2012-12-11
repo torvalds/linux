@@ -243,8 +243,16 @@ int intel_fbdev_init(struct drm_device *dev)
 	}
 
 	drm_fb_helper_single_add_all_connectors(&ifbdev->helper);
-	drm_fb_helper_initial_config(&ifbdev->helper, 32);
+
 	return 0;
+}
+
+void intel_fbdev_initial_config(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	/* Due to peculiar init order wrt to hpd handling this is separate. */
+	drm_fb_helper_initial_config(&dev_priv->fbdev->helper, 32);
 }
 
 void intel_fbdev_fini(struct drm_device *dev)
