@@ -163,19 +163,21 @@ source "drivers/media/common/Kconfig"
 #
 
 config MEDIA_SUBDRV_AUTOSELECT
-	bool "Autoselect analog and hybrid tuner modules to build"
-	depends on MEDIA_TUNER
+	bool "Autoselect tuners and i2c modules to build"
+	depends on MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT || MEDIA_CAMERA_SUPPORT
 	default y
 	help
-	  By default, a TV driver auto-selects all possible tuners
-	  thar could be used by the driver.
+	  By default, a media driver auto-selects all possible i2c
+	  devices that are used by any of the supported devices.
 
 	  This is generally the right thing to do, except when there
-	  are strict constraints with regards to the kernel size.
+	  are strict constraints with regards to the kernel size,
+	  like on embedded systems.
 
-	  Use this option with care, as deselecting tuner drivers which
-	  are in fact necessary will result in TV devices which cannot
-	  be tuned due to lack of the tuning driver.
+	  Use this option with care, as deselecting ancillary drivers which
+	  are, in fact, necessary will result in the lack of the needed
+	  functionality for your device (it may not tune or may not have
+	  the need demodulers).
 
 	  If unsure say Y.
 

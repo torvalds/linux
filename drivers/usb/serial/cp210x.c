@@ -162,7 +162,7 @@ static const struct usb_device_id id_table[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table);
 
-struct cp210x_port_private {
+struct cp210x_serial_private {
 	__u8			bInterfaceNumber;
 };
 
@@ -276,7 +276,7 @@ static int cp210x_get_config(struct usb_serial_port *port, u8 request,
 		unsigned int *data, int size)
 {
 	struct usb_serial *serial = port->serial;
-	struct cp210x_port_private *port_priv = usb_get_serial_port_data(port);
+	struct cp210x_serial_private *spriv = usb_get_serial_data(serial);
 	__le32 *buf;
 	int result, i, length;
 
@@ -292,7 +292,7 @@ static int cp210x_get_config(struct usb_serial_port *port, u8 request,
 	/* Issue the request, attempting to read 'size' bytes */
 	result = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
 				request, REQTYPE_INTERFACE_TO_HOST, 0x0000,
-				port_priv->bInterfaceNumber, buf, size,
+				spriv->bInterfaceNumber, buf, size,
 				USB_CTRL_GET_TIMEOUT);
 
 	/* Convert data into an array of integers */
@@ -323,7 +323,7 @@ static int cp210x_set_config(struct usb_serial_port *port, u8 request,
 		unsigned int *data, int size)
 {
 	struct usb_serial *serial = port->serial;
-	struct cp210x_port_private *port_priv = usb_get_serial_port_data(port);
+	struct cp210x_serial_private *spriv = usb_get_serial_data(serial);
 	__le32 *buf;
 	int result, i, length;
 
@@ -345,13 +345,13 @@ static int cp210x_set_config(struct usb_serial_port *port, u8 request,
 		result = usb_control_msg(serial->dev,
 				usb_sndctrlpipe(serial->dev, 0),
 				request, REQTYPE_HOST_TO_INTERFACE, 0x0000,
-				port_priv->bInterfaceNumber, buf, size,
+				spriv->bInterfaceNumber, buf, size,
 				USB_CTRL_SET_TIMEOUT);
 	} else {
 		result = usb_control_msg(serial->dev,
 				usb_sndctrlpipe(serial->dev, 0),
 				request, REQTYPE_HOST_TO_INTERFACE, data[0],
-				port_priv->bInterfaceNumber, NULL, 0,
+				spriv->bInterfaceNumber, NULL, 0,
 				USB_CTRL_SET_TIMEOUT);
 	}
 
@@ -845,36 +845,30 @@ static void cp210x_break_ctl (struct tty_struct *tty, int break_state)
 
 static int cp210x_startup(struct usb_serial *serial)
 {
-	struct cp210x_port_private *port_priv;
-	int i;
+	struct usb_host_interface *cur_altsetting;
+	struct cp210x_serial_private *spriv;
 
 	/* cp210x buffers behave strangely unless device is reset */
 	usb_reset_device(serial->dev);
 
-	for (i = 0; i < serial->num_ports; i++) {
-		port_priv = kzalloc(sizeof(*port_priv), GFP_KERNEL);
-		if (!port_priv)
-			return -ENOMEM;
+	spriv = kzalloc(sizeof(*spriv), GFP_KERNEL);
+	if (!spriv)
+		return -ENOMEM;
 
-		port_priv->bInterfaceNumber =
-		    serial->interface->cur_altsetting->desc.bInterfaceNumber;
+	cur_altsetting = serial->interface->cur_altsetting;
+	spriv->bInterfaceNumber = cur_altsetting->desc.bInterfaceNumber;
 
-		usb_set_serial_port_data(serial->port[i], port_priv);
-	}
+	usb_set_serial_data(serial, spriv);
 
 	return 0;
 }
 
 static void cp210x_release(struct usb_serial *serial)
 {
-	struct cp210x_port_private *port_priv;
-	int i;
+	struct cp210x_serial_private *spriv;
 
-	for (i = 0; i < serial->num_ports; i++) {
-		port_priv = usb_get_serial_port_data(serial->port[i]);
-		kfree(port_priv);
-		usb_set_serial_port_data(serial->port[i], NULL);
-	}
+	spriv = usb_get_serial_data(serial);
+	kfree(spriv);
 }
 
 module_usb_serial_driver(serial_drivers, id_table);

@@ -42,7 +42,18 @@ struct global_reg_snapshot {
 	struct thread_info	*thread;
 	unsigned long		pad1;
 };
-extern struct global_reg_snapshot global_reg_snapshot[NR_CPUS];
+
+struct global_pmu_snapshot {
+	unsigned long		pcr[4];
+	unsigned long		pic[4];
+};
+
+union global_cpu_snapshot {
+	struct global_reg_snapshot	reg;
+	struct global_pmu_snapshot	pmu;
+};
+
+extern union global_cpu_snapshot global_cpu_snapshot[NR_CPUS];
 
 #define force_successful_syscall_return()	    \
 do {	current_thread_info()->syscall_noerror = 1; \

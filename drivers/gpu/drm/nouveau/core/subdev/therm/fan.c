@@ -134,7 +134,7 @@ nouveau_therm_fan_sense(struct nouveau_therm *therm)
 	end = ptimer->read(ptimer);
 
 	if (cycles == 5) {
-		tach = (u64)60000000000;
+		tach = (u64)60000000000ULL;
 		do_div(tach, (end - start));
 		return tach;
 	} else

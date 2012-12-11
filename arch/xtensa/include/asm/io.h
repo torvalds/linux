@@ -62,6 +62,10 @@ static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
 static inline void iounmap(volatile void __iomem *addr)
 {
 }
+
+#define virt_to_bus     virt_to_phys
+#define bus_to_virt     phys_to_virt
+
 #endif /* CONFIG_MMU */
 
 /*

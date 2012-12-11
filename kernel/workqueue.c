@@ -2982,7 +2982,7 @@ bool cancel_delayed_work(struct delayed_work *dwork)
 
 	set_work_cpu_and_clear_pending(&dwork->work, work_cpu(&dwork->work));
 	local_irq_restore(flags);
-	return true;
+	return ret;
 }
 EXPORT_SYMBOL(cancel_delayed_work);
 

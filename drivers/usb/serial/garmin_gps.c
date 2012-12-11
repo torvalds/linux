@@ -1405,11 +1405,10 @@ static void timeout_handler(unsigned long data)
 
 
 
-static int garmin_attach(struct usb_serial *serial)
+static int garmin_port_probe(struct usb_serial_port *port)
 {
-	int status = 0;
-	struct usb_serial_port *port = serial->port[0];
-	struct garmin_data *garmin_data_p = NULL;
+	int status;
+	struct garmin_data *garmin_data_p;
 
 	garmin_data_p = kzalloc(sizeof(struct garmin_data), GFP_KERNEL);
 	if (garmin_data_p == NULL) {
@@ -1434,22 +1433,14 @@ static int garmin_attach(struct usb_serial *serial)
 }
 
 
-static void garmin_disconnect(struct usb_serial *serial)
+static int garmin_port_remove(struct usb_serial_port *port)
 {
-	struct usb_serial_port *port = serial->port[0];
 	struct garmin_data *garmin_data_p = usb_get_serial_port_data(port);
 
 	usb_kill_urb(port->interrupt_in_urb);
 	del_timer_sync(&garmin_data_p->timer);
-}
-
-
-static void garmin_release(struct usb_serial *serial)
-{
-	struct usb_serial_port *port = serial->port[0];
-	struct garmin_data *garmin_data_p = usb_get_serial_port_data(port);
-
 	kfree(garmin_data_p);
+	return 0;
 }
 
 
@@ -1466,9 +1457,8 @@ static struct usb_serial_driver garmin_device = {
 	.close               = garmin_close,
 	.throttle            = garmin_throttle,
 	.unthrottle          = garmin_unthrottle,
-	.attach              = garmin_attach,
-	.disconnect          = garmin_disconnect,
-	.release             = garmin_release,
+	.port_probe		= garmin_port_probe,
+	.port_remove		= garmin_port_remove,
 	.write               = garmin_write,
 	.write_room          = garmin_write_room,
 	.write_bulk_callback = garmin_write_bulk_callback,

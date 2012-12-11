@@ -3294,7 +3294,7 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"auxclk5_src_ck",		&auxclk5_src_ck,	CK_443X),
 	CLK(NULL,	"auxclk5_ck",			&auxclk5_ck,	CK_443X),
 	CLK(NULL,	"auxclkreq5_ck",		&auxclkreq5_ck,	CK_443X),
-	CLK(NULL,	"gpmc_ck",			&dummy_ck,	CK_443X),
+	CLK("omap-gpmc",	"fck",				&dummy_ck,	CK_443X),
 	CLK("omap_i2c.1",	"ick",				&dummy_ck,	CK_443X),
 	CLK("omap_i2c.2",	"ick",				&dummy_ck,	CK_443X),
 	CLK("omap_i2c.3",	"ick",				&dummy_ck,	CK_443X),

@@ -107,7 +107,7 @@ static __be64 get_cached_alias_guid(struct mlx4_ib_dev *dev, int port, int index
 {
 	if (index >= NUM_ALIAS_GUID_PER_PORT) {
 		pr_err("%s: ERROR: asked for index:%d\n", __func__, index);
-		return  (__force __be64) ((u64) 0xFFFFFFFFFFFFFFFFUL);
+		return (__force __be64) -1;
 	}
 	return *(__be64 *)&dev->sriov.demux[port - 1].guid_cache[index];
 }

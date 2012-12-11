@@ -894,6 +894,8 @@ out:
 	return IRQ_HANDLED;
 }
 
+static void axienet_dma_err_handler(unsigned long data);
+
 /**
  * axienet_open - Driver open routine.
  * @ndev:	Pointer to net_device structure
@@ -942,6 +944,10 @@ static int axienet_open(struct net_device *ndev)
 		phy_start(lp->phy_dev);
 	}
 
+	/* Enable tasklets for Axi DMA error handling */
+	tasklet_init(&lp->dma_err_tasklet, axienet_dma_err_handler,
+		     (unsigned long) lp);
+
 	/* Enable interrupts for Axi DMA Tx */
 	ret = request_irq(lp->tx_irq, axienet_tx_irq, 0, ndev->name, ndev);
 	if (ret)
@@ -950,8 +956,7 @@ static int axienet_open(struct net_device *ndev)
 	ret = request_irq(lp->rx_irq, axienet_rx_irq, 0, ndev->name, ndev);
 	if (ret)
 		goto err_rx_irq;
-	/* Enable tasklets for Axi DMA error handling */
-	tasklet_enable(&lp->dma_err_tasklet);
+
 	return 0;
 
 err_rx_irq:
@@ -960,6 +965,7 @@ err_tx_irq:
 	if (lp->phy_dev)
 		phy_disconnect(lp->phy_dev);
 	lp->phy_dev = NULL;
+	tasklet_kill(&lp->dma_err_tasklet);
 	dev_err(lp->dev, "request_irq() failed\n");
 	return ret;
 }
@@ -990,7 +996,7 @@ static int axienet_stop(struct net_device *ndev)
 	axienet_setoptions(ndev, lp->options &
 			   ~(XAE_OPTION_TXEN | XAE_OPTION_RXEN));
 
-	tasklet_disable(&lp->dma_err_tasklet);
+	tasklet_kill(&lp->dma_err_tasklet);
 
 	free_irq(lp->tx_irq, ndev);
 	free_irq(lp->rx_irq, ndev);
@@ -1612,10 +1618,6 @@ static int __devinit axienet_of_probe(struct platform_device *op)
 		dev_err(lp->dev, "register_netdev() error (%i)\n", ret);
 		goto err_iounmap_2;
 	}
-
-	tasklet_init(&lp->dma_err_tasklet, axienet_dma_err_handler,
-		     (unsigned long) lp);
-	tasklet_disable(&lp->dma_err_tasklet);
 
 	return 0;
 

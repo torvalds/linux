@@ -2300,10 +2300,11 @@ restart:
 			mutex_unlock(&con->mutex);
 			return;
 		} else {
-			con->ops->put(con);
 			dout("con_work %p FAILED to back off %lu\n", con,
 			     con->delay);
+			set_bit(CON_FLAG_BACKOFF, &con->flags);
 		}
+		goto done;
 	}
 
 	if (con->state == CON_STATE_STANDBY) {
@@ -2749,7 +2750,8 @@ static int ceph_con_in_msg_alloc(struct ceph_connection *con, int *skip)
 		msg = con->ops->alloc_msg(con, hdr, skip);
 		mutex_lock(&con->mutex);
 		if (con->state != CON_STATE_OPEN) {
-			ceph_msg_put(msg);
+			if (msg)
+				ceph_msg_put(msg);
 			return -EAGAIN;
 		}
 		con->in_msg = msg;

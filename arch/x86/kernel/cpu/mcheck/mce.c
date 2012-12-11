@@ -2209,11 +2209,6 @@ static struct dev_ext_attribute dev_attr_cmci_disabled = {
 	&mce_cmci_disabled
 };
 
-static struct dev_ext_attribute dev_attr_bios_cmci_threshold = {
-	__ATTR(bios_cmci_threshold, 0444, device_show_int, NULL),
-	&mce_bios_cmci_threshold
-};
-
 static struct device_attribute *mce_device_attrs[] = {
 	&dev_attr_tolerant.attr,
 	&dev_attr_check_interval.attr,
@@ -2222,7 +2217,6 @@ static struct device_attribute *mce_device_attrs[] = {
 	&dev_attr_dont_log_ce.attr,
 	&dev_attr_ignore_ce.attr,
 	&dev_attr_cmci_disabled.attr,
-	&dev_attr_bios_cmci_threshold.attr,
 	NULL
 };
 

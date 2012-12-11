@@ -83,7 +83,7 @@ int jfs_ioc_trim(struct inode *ip, struct fstrim_range *range)
 	struct bmap *bmp = JFS_SBI(ip->i_sb)->bmap;
 	struct super_block *sb = ipbmap->i_sb;
 	int agno, agno_end;
-	s64 start, end, minlen;
+	u64 start, end, minlen;
 	u64 trimmed = 0;
 
 	/**
@@ -93,14 +93,18 @@ int jfs_ioc_trim(struct inode *ip, struct fstrim_range *range)
 	 * minlen:	minimum extent length in Bytes
 	 */
 	start = range->start >> sb->s_blocksize_bits;
-	if (start < 0)
-		start = 0;
 	end = start + (range->len >> sb->s_blocksize_bits) - 1;
+	minlen = range->minlen >> sb->s_blocksize_bits;
+	if (minlen == 0)
+		minlen = 1;
+
+	if (minlen > bmp->db_agsize ||
+	    start >= bmp->db_mapsize ||
+	    range->len < sb->s_blocksize)
+		return -EINVAL;
+
 	if (end >= bmp->db_mapsize)
 		end = bmp->db_mapsize - 1;
-	minlen = range->minlen >> sb->s_blocksize_bits;
-	if (minlen <= 0)
-		minlen = 1;
 
 	/**
 	 * we trim all ag's within the range

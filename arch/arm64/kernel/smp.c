@@ -46,7 +46,6 @@
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
 #include <asm/ptrace.h>
-#include <asm/mmu_context.h>
 
 /*
  * as from 2.5, kernels no longer have an init_tasks structure
@@ -212,8 +211,7 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	 * before we continue.
 	 */
 	set_cpu_online(cpu, true);
-	while (!cpu_active(cpu))
-		cpu_relax();
+	complete(&cpu_running);
 
 	/*
 	 * OK, it's off to the idle thread for us

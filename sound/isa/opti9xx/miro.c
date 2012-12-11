@@ -1286,7 +1286,6 @@ static int __devinit snd_miro_probe(struct snd_card *card)
 
 	error = snd_card_miro_aci_detect(card, miro);
 	if (error < 0) {
-		snd_card_free(card);
 		snd_printk(KERN_ERR "unable to detect aci chip\n");
 		return -ENODEV;
 	}

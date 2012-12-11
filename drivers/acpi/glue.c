@@ -159,6 +159,7 @@ static int acpi_bind_one(struct device *dev, acpi_handle handle)
 	if (physical_node->node_id >= ACPI_MAX_PHYSICAL_NODE) {
 		retval = -ENOSPC;
 		mutex_unlock(&acpi_dev->physical_node_lock);
+		kfree(physical_node);
 		goto err;
 	}
 

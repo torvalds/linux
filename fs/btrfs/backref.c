@@ -283,9 +283,7 @@ static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 
-	rcu_read_lock();
-	root_level = btrfs_header_level(root->node);
-	rcu_read_unlock();
+	root_level = btrfs_old_root_level(root, time_seq);
 
 	if (root_level + 1 == level)
 		goto out;
@@ -1177,16 +1175,15 @@ int btrfs_find_one_extref(struct btrfs_root *root, u64 inode_objectid,
 	return ret;
 }
 
-static char *ref_to_path(struct btrfs_root *fs_root,
-			 struct btrfs_path *path,
-			 u32 name_len, unsigned long name_off,
-			 struct extent_buffer *eb_in, u64 parent,
-			 char *dest, u32 size)
+char *btrfs_ref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
+			u32 name_len, unsigned long name_off,
+			struct extent_buffer *eb_in, u64 parent,
+			char *dest, u32 size)
 {
 	int slot;
 	u64 next_inum;
 	int ret;
-	s64 bytes_left = size - 1;
+	s64 bytes_left = ((s64)size) - 1;
 	struct extent_buffer *eb = eb_in;
 	struct btrfs_key found_key;
 	int leave_spinning = path->leave_spinning;
@@ -1266,10 +1263,10 @@ char *btrfs_iref_to_path(struct btrfs_root *fs_root,
 			 struct extent_buffer *eb_in, u64 parent,
 			 char *dest, u32 size)
 {
-	return ref_to_path(fs_root, path,
-			   btrfs_inode_ref_name_len(eb_in, iref),
-			   (unsigned long)(iref + 1),
-			   eb_in, parent, dest, size);
+	return btrfs_ref_to_path(fs_root, path,
+				 btrfs_inode_ref_name_len(eb_in, iref),
+				 (unsigned long)(iref + 1),
+				 eb_in, parent, dest, size);
 }
 
 /*
@@ -1715,9 +1712,8 @@ static int inode_to_path(u64 inum, u32 name_len, unsigned long name_off,
 					ipath->fspath->bytes_left - s_ptr : 0;
 
 	fspath_min = (char *)ipath->fspath->val + (i + 1) * s_ptr;
-	fspath = ref_to_path(ipath->fs_root, ipath->btrfs_path, name_len,
-			     name_off, eb, inum, fspath_min,
-			     bytes_left);
+	fspath = btrfs_ref_to_path(ipath->fs_root, ipath->btrfs_path, name_len,
+				   name_off, eb, inum, fspath_min, bytes_left);
 	if (IS_ERR(fspath))
 		return PTR_ERR(fspath);
 

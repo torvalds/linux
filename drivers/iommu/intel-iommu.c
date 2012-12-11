@@ -4108,7 +4108,7 @@ static void swap_pci_ref(struct pci_dev **from, struct pci_dev *to)
 static int intel_iommu_add_device(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct pci_dev *bridge, *dma_pdev;
+	struct pci_dev *bridge, *dma_pdev = NULL;
 	struct iommu_group *group;
 	int ret;
 
@@ -4122,7 +4122,7 @@ static int intel_iommu_add_device(struct device *dev)
 			dma_pdev = pci_get_domain_bus_and_slot(
 						pci_domain_nr(pdev->bus),
 						bridge->subordinate->number, 0);
-		else
+		if (!dma_pdev)
 			dma_pdev = pci_dev_get(bridge);
 	} else
 		dma_pdev = pci_dev_get(pdev);

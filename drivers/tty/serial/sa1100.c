@@ -29,6 +29,7 @@
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/sysrq.h>
+#include <linux/platform_data/sa11x0-serial.h>
 #include <linux/platform_device.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
@@ -39,7 +40,6 @@
 #include <asm/irq.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <asm/mach/serial_sa1100.h>
 
 /* We've been assigned a range on the "Low-density serial ports" major */
 #define SERIAL_SA1100_MAJOR	204

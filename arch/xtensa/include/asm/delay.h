@@ -27,7 +27,7 @@ static inline void __delay(unsigned long loops)
 static __inline__ u32 xtensa_get_ccount(void)
 {
 	u32 ccount;
-	asm volatile ("rsr %0, 234; # CCOUNT\n" : "=r" (ccount));
+	asm volatile ("rsr %0, ccount\n" : "=r" (ccount));
 	return ccount;
 }
 

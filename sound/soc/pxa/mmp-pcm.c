@@ -15,13 +15,13 @@
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
+#include <linux/platform_data/dma-mmp_tdma.h>
 #include <linux/platform_data/mmp_audio.h>
 #include <sound/pxa2xx-lib.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <mach/sram.h>
 #include <sound/dmaengine_pcm.h>
 
 struct mmp_dma_data {

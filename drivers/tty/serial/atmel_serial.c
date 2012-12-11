@@ -43,7 +43,6 @@
 #include <asm/io.h>
 #include <asm/ioctls.h>
 
-#include <asm/mach/serial_at91.h>
 #include <mach/board.h>
 
 #ifdef CONFIG_ARM
@@ -1511,23 +1510,6 @@ static void __devinit atmel_init_port(struct atmel_uart_port *atmel_port,
 	} else {
 		atmel_port->tx_done_mask = ATMEL_US_TXRDY;
 	}
-}
-
-/*
- * Register board-specific modem-control line handlers.
- */
-void __init atmel_register_uart_fns(struct atmel_port_fns *fns)
-{
-	if (fns->enable_ms)
-		atmel_pops.enable_ms = fns->enable_ms;
-	if (fns->get_mctrl)
-		atmel_pops.get_mctrl = fns->get_mctrl;
-	if (fns->set_mctrl)
-		atmel_pops.set_mctrl = fns->set_mctrl;
-	atmel_open_hook		= fns->open;
-	atmel_close_hook	= fns->close;
-	atmel_pops.pm		= fns->pm;
-	atmel_pops.set_wake	= fns->set_wake;
 }
 
 struct platform_device *atmel_default_console_device;	/* the serial console device */

@@ -305,6 +305,12 @@ static irqreturn_t am35x_musb_interrupt(int irq, void *hci)
 		ret = IRQ_HANDLED;
 	}
 
+	/* Drop spurious RX and TX if device is disconnected */
+	if (musb->int_usb & MUSB_INTR_DISCONNECT) {
+		musb->int_tx = 0;
+		musb->int_rx = 0;
+	}
+
 	if (musb->int_tx || musb->int_rx || musb->int_usb)
 		ret |= musb_interrupt(musb);
 

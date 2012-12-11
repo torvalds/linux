@@ -88,9 +88,9 @@ ENTRY(ret_from_fork)
 	bl	schedule_tail
 	cmp	r5, #0
 	movne	r0, r4
-	movne	lr, pc
+	adrne	lr, BSYM(1f)
 	movne	pc, r5
-	get_thread_info tsk
+1:	get_thread_info tsk
 	b	ret_slow_syscall
 ENDPROC(ret_from_fork)
 
@@ -417,16 +417,6 @@ local_restart:
 	ldr	r10, [tsk, #TI_FLAGS]		@ check for syscall tracing
 	stmdb	sp!, {r4, r5}			@ push fifth and sixth args
 
-#ifdef CONFIG_SECCOMP
-	tst	r10, #_TIF_SECCOMP
-	beq	1f
-	mov	r0, scno
-	bl	__secure_computing	
-	add	r0, sp, #S_R0 + S_OFF		@ pointer to regs
-	ldmia	r0, {r0 - r3}			@ have to reload r0 - r3
-1:
-#endif
-
 	tst	r10, #_TIF_SYSCALL_WORK		@ are we tracing syscalls?
 	bne	__sys_trace
 
@@ -458,11 +448,13 @@ __sys_trace:
 	ldmccia	r1, {r0 - r6}			@ have to reload r0 - r6
 	stmccia	sp, {r4, r5}			@ and update the stack args
 	ldrcc	pc, [tbl, scno, lsl #2]		@ call sys_* routine
-	b	2b
+	cmp	scno, #-1			@ skip the syscall?
+	bne	2b
+	add	sp, sp, #S_OFF			@ restore stack
+	b	ret_slow_syscall
 
 __sys_trace_return:
 	str	r0, [sp, #S_R0 + S_OFF]!	@ save returned r0
-	mov	r1, scno
 	mov	r0, sp
 	bl	syscall_trace_exit
 	b	ret_slow_syscall
