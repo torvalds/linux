@@ -1987,7 +1987,6 @@ F:	fs/coda/
 F:	include/linux/coda*.h
 
 COMMON CLK FRAMEWORK
-M:	Mike Turquette <mturquette@ti.com>
 M:	Mike Turquette <mturquette@linaro.org>
 L:	linux-arm-kernel@lists.infradead.org (same as CLK API & CLKDEV)
 T:	git git://git.linaro.org/people/mturquette/linux.git

@@ -170,9 +170,10 @@ void u8500_clk_init(void)
 	clk_register_clkdev(clk, NULL, "mtu0");
 	clk_register_clkdev(clk, NULL, "mtu1");
 
-	clk = clk_reg_prcmu_gate("sdmmcclk", NULL, PRCMU_SDMMCCLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_opp_volt_scalable("sdmmcclk", NULL, PRCMU_SDMMCCLK,
+					100000000,
+					CLK_IS_ROOT|CLK_SET_RATE_GATE);
 	clk_register_clkdev(clk, NULL, "sdmmc");
-
 
 	clk = clk_reg_prcmu_scalable("dsi_pll", "hdmiclk",
 				PRCMU_PLLDSI, 0, CLK_SET_RATE_GATE);
@@ -205,16 +206,18 @@ void u8500_clk_init(void)
 	clk_register_clkdev(clk, "dsilp2", "dsilink.2");
 	clk_register_clkdev(clk, "dsilp2", "mcde");
 
-	clk = clk_reg_prcmu_rate("smp_twd", NULL, PRCMU_ARMSS,
-				CLK_IS_ROOT|CLK_GET_RATE_NOCACHE|
-				CLK_IGNORE_UNUSED);
+	clk = clk_reg_prcmu_scalable_rate("armss", NULL,
+				PRCMU_ARMSS, 0, CLK_IS_ROOT|CLK_IGNORE_UNUSED);
+	clk_register_clkdev(clk, "armss", NULL);
+
+	clk = clk_register_fixed_factor(NULL, "smp_twd", "armss",
+				CLK_IGNORE_UNUSED, 1, 2);
 	clk_register_clkdev(clk, NULL, "smp_twd");
 
 	/*
 	 * FIXME: Add special handled PRCMU clocks here:
-	 * 1. clk_arm, use PRCMU_ARMCLK.
-	 * 2. clkout0yuv, use PRCMU as parent + need regulator + pinctrl.
-	 * 3. ab9540_clkout1yuv, see clkout0yuv
+	 * 1. clkout0yuv, use PRCMU as parent + need regulator + pinctrl.
+	 * 2. ab9540_clkout1yuv, see clkout0yuv
 	 */
 
 	/* PRCC P-clocks */
@@ -323,7 +326,7 @@ void u8500_clk_init(void)
 	clk_register_clkdev(clk, NULL, "gpioblock1");
 
 	clk = clk_reg_prcc_pclk("p2_pclk12", "per2clk", U8500_CLKRST2_BASE,
-				BIT(11), 0);
+				BIT(12), 0);
 
 	clk = clk_reg_prcc_pclk("p3_pclk0", "per3clk", U8500_CLKRST3_BASE,
 				BIT(0), 0);
@@ -347,6 +350,8 @@ void u8500_clk_init(void)
 
 	clk = clk_reg_prcc_pclk("p3_pclk5", "per3clk", U8500_CLKRST3_BASE,
 				BIT(5), 0);
+	clk_register_clkdev(clk, "apb_pclk", "ske");
+	clk_register_clkdev(clk, "apb_pclk", "nmk-ske-keypad");
 
 	clk = clk_reg_prcc_pclk("p3_pclk6", "per3clk", U8500_CLKRST3_BASE,
 				BIT(6), 0);
@@ -375,6 +380,7 @@ void u8500_clk_init(void)
 
 	clk = clk_reg_prcc_pclk("p6_pclk0", "per6clk", U8500_CLKRST6_BASE,
 				BIT(0), 0);
+	clk_register_clkdev(clk, "apb_pclk", "rng");
 
 	clk = clk_reg_prcc_pclk("p6_pclk1", "per6clk", U8500_CLKRST6_BASE,
 				BIT(1), 0);
@@ -503,6 +509,8 @@ void u8500_clk_init(void)
 
 	clk = clk_reg_prcc_kclk("p3_ske_kclk", "rtc32k",
 			U8500_CLKRST3_BASE, BIT(5), CLK_SET_RATE_GATE);
+	clk_register_clkdev(clk, NULL, "ske");
+	clk_register_clkdev(clk, NULL, "nmk-ske-keypad");
 
 	clk = clk_reg_prcc_kclk("p3_uart2_kclk", "uartclk",
 			U8500_CLKRST3_BASE, BIT(6), CLK_SET_RATE_GATE);
@@ -515,5 +523,5 @@ void u8500_clk_init(void)
 	/* Periph6 */
 	clk = clk_reg_prcc_kclk("p3_rng_kclk", "rngclk",
 			U8500_CLKRST6_BASE, BIT(0), CLK_SET_RATE_GATE);
-
+	clk_register_clkdev(clk, NULL, "rng");
 }

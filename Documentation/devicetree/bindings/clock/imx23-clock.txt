@@ -52,7 +52,7 @@ clocks and IDs.
 	lcdif		38
 	etm		39
 	usb		40
-	usb_pwr		41
+	usb_phy		41
 
 Examples:
 
