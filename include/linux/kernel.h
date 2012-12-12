@@ -687,13 +687,6 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
 /* Trap pasters of __FUNCTION__ at compile-time */
 #define __FUNCTION__ (__func__)
 
-/* This helps us avoid #ifdef CONFIG_COMPACTION */
-#ifdef CONFIG_COMPACTION
-#define COMPACTION_BUILD 1
-#else
-#define COMPACTION_BUILD 0
-#endif
-
 /* This helps us to avoid #ifdef CONFIG_SYMBOL_PREFIX */
 #ifdef CONFIG_SYMBOL_PREFIX
 #define SYMBOL_PREFIX CONFIG_SYMBOL_PREFIX
