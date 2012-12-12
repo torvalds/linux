@@ -799,7 +799,12 @@ static int azx_corb_send_cmd(struct hda_bus *bus, u32 val)
 	spin_lock_irq(&chip->reg_lock);
 
 	/* add command to corb */
-	wp = azx_readb(chip, CORBWP);
+	wp = azx_readw(chip, CORBWP);
+	if (wp == 0xffff) {
+		/* something wrong, controller likely turned to D3 */
+		spin_unlock_irq(&chip->reg_lock);
+		return -1;
+	}
 	wp++;
 	wp %= ICH6_MAX_CORB_ENTRIES;
 
@@ -821,7 +826,12 @@ static void azx_update_rirb(struct azx *chip)
 	unsigned int addr;
 	u32 res, res_ex;
 
-	wp = azx_readb(chip, RIRBWP);
+	wp = azx_readw(chip, RIRBWP);
+	if (wp == 0xffff) {
+		/* something wrong, controller likely turned to D3 */
+		return;
+	}
+
 	if (wp == chip->rirb.wp)
 		return;
 	chip->rirb.wp = wp;
