@@ -1385,7 +1385,7 @@ static int get_any_page(struct page *p, unsigned long pfn, int flags)
 	 * Isolate the page, so that it doesn't get reallocated if it
 	 * was free.
 	 */
-	set_migratetype_isolate(p);
+	set_migratetype_isolate(p, true);
 	/*
 	 * When the target page is a free hugepage, just remove it
 	 * from free hugepage list.
