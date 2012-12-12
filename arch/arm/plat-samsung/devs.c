@@ -1113,7 +1113,7 @@ struct platform_device s5p_device_onenand = {
 
 /* PMU */
 
-#ifdef CONFIG_PLAT_S5P
+#if defined(CONFIG_PLAT_S5P) && !defined(CONFIG_ARCH_EXYNOS)
 static struct resource s5p_pmu_resource[] = {
 	DEFINE_RES_IRQ(IRQ_PMU)
 };
