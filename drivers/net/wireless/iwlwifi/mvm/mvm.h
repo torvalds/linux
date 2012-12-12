@@ -266,6 +266,12 @@ struct iwl_mvm {
 
 	unsigned long status;
 
+	/*
+	 * for beacon filtering -
+	 * currently only one interface can be supported
+	 */
+	struct iwl_mvm_vif *bf_allowed_vif;
+
 	enum iwl_ucode_type cur_ucode;
 	bool ucode_loaded;
 	bool init_ucode_run;
@@ -532,5 +538,11 @@ int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			   enum ieee80211_rssi_event rssi_event);
 void iwl_mvm_bt_coex_vif_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+
+/* beacon filtering */
+int iwl_mvm_enable_beacon_filter(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif);
+int iwl_mvm_disable_beacon_filter(struct iwl_mvm *mvm,
+				  struct ieee80211_vif *vif);
 
 #endif /* __IWL_MVM_H__ */

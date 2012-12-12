@@ -292,6 +292,7 @@ static const char *iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(BT_COEX_PROT_ENV),
 	CMD(BT_PROFILE_NOTIFICATION),
 	CMD(BT_CONFIG),
+	CMD(REPLY_BEACON_FILTERING_CMD),
 };
 #undef CMD
 

@@ -530,6 +530,17 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	 */
 	iwl_mvm_power_update_mode(mvm, vif);
 
+	/* beacon filtering */
+	if (!mvm->bf_allowed_vif &&
+	    vif->type == NL80211_IFTYPE_STATION && !vif->p2p){
+		mvm->bf_allowed_vif = mvmvif;
+		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
+	}
+
+	ret = iwl_mvm_disable_beacon_filter(mvm, vif);
+	if (ret)
+		goto out_release;
+
 	/*
 	 * P2P_DEVICE interface does not have a channel context assigned to it,
 	 * so a dedicated PHY context is allocated to it and the corresponding
@@ -645,6 +656,11 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 	iwl_mvm_prepare_mac_removal(mvm, vif);
 
 	mutex_lock(&mvm->mutex);
+
+	if (mvm->bf_allowed_vif == mvmvif) {
+		mvm->bf_allowed_vif = NULL;
+		vif->driver_flags &= ~IEEE80211_VIF_BEACON_FILTER;
+	}
 
 	iwl_mvm_vif_dbgfs_clean(mvm, vif);
 
@@ -984,9 +1000,13 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 					     mvmvif->phy_ctxt->channel->band);
 	} else if (old_state == IEEE80211_STA_ASSOC &&
 		   new_state == IEEE80211_STA_AUTHORIZED) {
+		/* enable beacon filtering */
+		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif));
 		ret = 0;
 	} else if (old_state == IEEE80211_STA_AUTHORIZED &&
 		   new_state == IEEE80211_STA_ASSOC) {
+		/* disable beacon filtering */
+		WARN_ON(iwl_mvm_disable_beacon_filter(mvm, vif));
 		ret = 0;
 	} else if (old_state == IEEE80211_STA_ASSOC &&
 		   new_state == IEEE80211_STA_AUTH) {
