@@ -11,11 +11,11 @@
  */
 
 /dts-v1/;
-/include/ "sun4i.dtsi"
+/include/ "sun4i-a10.dtsi"
 
 / {
 	model = "Cubietech Cubieboard";
-	compatible = "cubietech,cubieboard", "allwinner,sun4i";
+	compatible = "cubietech,a10-cubieboard", "allwinner,sun4i-a10";
 
 	aliases {
 		serial0 = &uart0;
