@@ -400,7 +400,7 @@ config MACH_MINI2440
 	bool "MINI2440 development board"
 	select EEPROM_AT24
 	select LEDS_CLASS
-	select LEDS_TRIGGER
+	select LEDS_TRIGGERS
 	select LEDS_TRIGGER_BACKLIGHT
 	select NEW_LEDS
 	select S3C_DEV_NAND

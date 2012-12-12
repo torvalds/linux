@@ -275,6 +275,9 @@ static inline void __iomem *omap4_get_scu_base(void)
 #endif
 
 extern void __init gic_init_irq(void);
+extern void gic_dist_disable(void);
+extern bool gic_dist_disabled(void);
+extern void gic_timer_retrigger(void);
 extern void omap_smc1(u32 fn, u32 arg);
 extern void __iomem *omap4_get_sar_ram_base(void);
 extern void omap_do_wfi(void);
@@ -282,6 +285,7 @@ extern void omap_do_wfi(void);
 #ifdef CONFIG_SMP
 /* Needed for secondary core boot */
 extern void omap_secondary_startup(void);
+extern void omap_secondary_startup_4460(void);
 extern u32 omap_modify_auxcoreboot0(u32 set_mask, u32 clear_mask);
 extern void omap_auxcoreboot_addr(u32 cpu_addr);
 extern u32 omap_read_auxcoreboot0(void);

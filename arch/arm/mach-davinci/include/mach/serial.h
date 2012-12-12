@@ -38,7 +38,7 @@
 
 #ifndef __ASSEMBLY__
 struct davinci_uart_config {
-	/* Bit field of UARTs present; bit 0 --> UART1 */
+	/* Bit field of UARTs present; bit 0 --> UART0 */
 	unsigned int enabled_uarts;
 };
 
