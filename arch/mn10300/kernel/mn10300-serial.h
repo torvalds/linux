@@ -58,8 +58,8 @@ struct mn10300_serial_port {
 	volatile u16		*_control;	/* control register pointer */
 	volatile u8		*_status;	/* status register pointer */
 	volatile u8		*_intr;		/* interrupt register pointer */
-	volatile void		*_rxb;		/* receive buffer register pointer */
-	volatile void		*_txb;		/* transmit buffer register pointer */
+	volatile u8		*_rxb;		/* receive buffer register pointer */
+	volatile u8		*_txb;		/* transmit buffer register pointer */
 	volatile u16		*_tmicr;	/* timer interrupt control register */
 	volatile u8		*_tmxmd;	/* baud rate timer mode register */
 	volatile u16		*_tmxbr;	/* baud rate timer base register */

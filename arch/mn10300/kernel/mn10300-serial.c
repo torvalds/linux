@@ -1629,12 +1629,12 @@ static void mn10300_serial_console_write(struct console *co,
 
 		while (*port->_status & SC01STR_TBF)
 			continue;
-		*(u8 *) port->_txb = ch;
+		*port->_txb = ch;
 
 		if (ch == 0x0a) {
 			while (*port->_status & SC01STR_TBF)
 				continue;
-			*(u8 *) port->_txb = 0xd;
+			*port->_txb = 0xd;
 		}
 	}
 
@@ -1759,12 +1759,12 @@ static void mn10300_serial_poll_put_char(struct uart_port *_port,
 	tmp = *port->_intr;
 
 	if (ch == 0x0a) {
-		*(u8 *) port->_txb = 0x0d;
+		*port->_txb = 0x0d;
 		while (*port->_status & SC01STR_TBF)
 			continue;
 	}
 
-	*(u8 *) port->_txb = ch;
+	*port->_txb = ch;
 	while (*port->_status & SC01STR_TBF)
 		continue;
 
