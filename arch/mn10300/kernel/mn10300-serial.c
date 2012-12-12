@@ -487,16 +487,17 @@ static void mn10300_serial_receive_interrupt(struct mn10300_serial_port *port)
 
 try_again:
 	/* pull chars out of the hat */
-	ix = port->rx_outp;
-	if (ix == port->rx_inp) {
+	ix = ACCESS_ONCE(port->rx_outp);
+	if (CIRC_CNT(port->rx_inp, ix, MNSC_BUFFER_SIZE) == 0) {
 		if (push && !tty->low_latency)
 			tty_flip_buffer_push(tty);
 		return;
 	}
 
+	smp_read_barrier_depends();
 	ch = port->rx_buffer[ix++];
 	st = port->rx_buffer[ix++];
-	smp_rmb();
+	smp_mb();
 	port->rx_outp = ix & (MNSC_BUFFER_SIZE - 1);
 	port->uart.icount.rx++;
 
@@ -1657,13 +1658,14 @@ static int mn10300_serial_poll_get_char(struct uart_port *_port)
 
 	do {
 		/* pull chars out of the hat */
-		ix = port->rx_outp;
-		if (ix == port->rx_inp)
+		ix = ACCESS_ONCE(port->rx_outp);
+		if (CIRC_CNT(port->rx_inp, ix, MNSC_BUFFER_SIZE) == 0)
 			return NO_POLL_CHAR;
 
+		smp_read_barrier_depends();
 		ch = port->rx_buffer[ix++];
 		st = port->rx_buffer[ix++];
-		smp_rmb();
+		smp_mb();
 		port->rx_outp = ix & (MNSC_BUFFER_SIZE - 1);
 
 	} while (st & (SC01STR_FEF | SC01STR_PEF | SC01STR_OEF));
