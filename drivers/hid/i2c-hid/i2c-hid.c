@@ -33,6 +33,7 @@
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/hid.h>
+#include <linux/mutex.h>
 
 #include <linux/i2c/i2c-hid.h>
 
@@ -116,6 +117,8 @@ static const struct i2c_hid_cmd hid_set_power_cmd =	{ I2C_HID_CMD(0x08) };
  * static const struct i2c_hid_cmd hid_get_protocol_cmd = { I2C_HID_CMD(0x06) };
  * static const struct i2c_hid_cmd hid_set_protocol_cmd = { I2C_HID_CMD(0x07) };
  */
+
+static DEFINE_MUTEX(i2c_hid_open_mut);
 
 /* The main device structure */
 struct i2c_hid {
@@ -641,17 +644,20 @@ static int i2c_hid_open(struct hid_device *hid)
 {
 	struct i2c_client *client = hid->driver_data;
 	struct i2c_hid *ihid = i2c_get_clientdata(client);
-	int ret;
+	int ret = 0;
 
+	mutex_lock(&i2c_hid_open_mut);
 	if (!hid->open++) {
 		ret = i2c_hid_set_power(client, I2C_HID_PWR_ON);
 		if (ret) {
 			hid->open--;
-			return -EIO;
+			goto done;
 		}
 		set_bit(I2C_HID_STARTED, &ihid->flags);
 	}
-	return 0;
+done:
+	mutex_unlock(&i2c_hid_open_mut);
+	return ret;
 }
 
 static void i2c_hid_close(struct hid_device *hid)
@@ -663,12 +669,14 @@ static void i2c_hid_close(struct hid_device *hid)
 	 * data acquistion due to a resumption we no longer
 	 * care about
 	 */
+	mutex_lock(&i2c_hid_open_mut);
 	if (!--hid->open) {
 		clear_bit(I2C_HID_STARTED, &ihid->flags);
 
 		/* Save some power */
 		i2c_hid_set_power(client, I2C_HID_PWR_SLEEP);
 	}
+	mutex_unlock(&i2c_hid_open_mut);
 }
 
 static int i2c_hid_power(struct hid_device *hid, int lvl)
