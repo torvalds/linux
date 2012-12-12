@@ -337,7 +337,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	u8 *ds;
 	struct ath_buf *bf;
-	int i, bsize, error, desc_len;
+	int i, bsize, desc_len;
 
 	ath_dbg(common, CONFIG, "%s DMA: %u buffers %u desc/buf\n",
 		name, nbuf, ndesc);
@@ -353,8 +353,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 	if ((desc_len % 4) != 0) {
 		ath_err(common, "ath_desc not DWORD aligned\n");
 		BUG_ON((desc_len % 4) != 0);
-		error = -ENOMEM;
-		goto fail;
+		return -ENOMEM;
 	}
 
 	dd->dd_desc_len = desc_len * nbuf * ndesc;
@@ -378,12 +377,11 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 	}
 
 	/* allocate descriptors */
-	dd->dd_desc = dma_alloc_coherent(sc->dev, dd->dd_desc_len,
-					 &dd->dd_desc_paddr, GFP_KERNEL);
-	if (dd->dd_desc == NULL) {
-		error = -ENOMEM;
-		goto fail;
-	}
+	dd->dd_desc = dmam_alloc_coherent(sc->dev, dd->dd_desc_len,
+					  &dd->dd_desc_paddr, GFP_KERNEL);
+	if (!dd->dd_desc)
+		return -ENOMEM;
+
 	ds = (u8 *) dd->dd_desc;
 	ath_dbg(common, CONFIG, "%s DMA map: %p (%u) -> %llx (%u)\n",
 		name, ds, (u32) dd->dd_desc_len,
@@ -391,12 +389,9 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 
 	/* allocate buffers */
 	bsize = sizeof(struct ath_buf) * nbuf;
-	bf = kzalloc(bsize, GFP_KERNEL);
-	if (bf == NULL) {
-		error = -ENOMEM;
-		goto fail2;
-	}
-	dd->dd_bufptr = bf;
+	bf = devm_kzalloc(sc->dev, bsize, GFP_KERNEL);
+	if (!bf)
+		return -ENOMEM;
 
 	for (i = 0; i < nbuf; i++, bf++, ds += (desc_len * ndesc)) {
 		bf->bf_desc = ds;
@@ -422,12 +417,6 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 		list_add_tail(&bf->list, head);
 	}
 	return 0;
-fail2:
-	dma_free_coherent(sc->dev, dd->dd_desc_len, dd->dd_desc,
-			  dd->dd_desc_paddr);
-fail:
-	memset(dd, 0, sizeof(*dd));
-	return error;
 }
 
 static int ath9k_init_queues(struct ath_softc *sc)
@@ -457,11 +446,13 @@ static int ath9k_init_channels_rates(struct ath_softc *sc)
 		     ATH9K_NUM_CHANNELS);
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ) {
-		channels = kmemdup(ath9k_2ghz_chantable,
+		channels = devm_kzalloc(sc->dev,
 			sizeof(ath9k_2ghz_chantable), GFP_KERNEL);
 		if (!channels)
 		    return -ENOMEM;
 
+		memcpy(channels, ath9k_2ghz_chantable,
+		       sizeof(ath9k_2ghz_chantable));
 		sc->sbands[IEEE80211_BAND_2GHZ].channels = channels;
 		sc->sbands[IEEE80211_BAND_2GHZ].band = IEEE80211_BAND_2GHZ;
 		sc->sbands[IEEE80211_BAND_2GHZ].n_channels =
@@ -472,14 +463,13 @@ static int ath9k_init_channels_rates(struct ath_softc *sc)
 	}
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ) {
-		channels = kmemdup(ath9k_5ghz_chantable,
+		channels = devm_kzalloc(sc->dev,
 			sizeof(ath9k_5ghz_chantable), GFP_KERNEL);
-		if (!channels) {
-			if (sc->sbands[IEEE80211_BAND_2GHZ].channels)
-				kfree(sc->sbands[IEEE80211_BAND_2GHZ].channels);
+		if (!channels)
 			return -ENOMEM;
-		}
 
+		memcpy(channels, ath9k_5ghz_chantable,
+		       sizeof(ath9k_5ghz_chantable));
 		sc->sbands[IEEE80211_BAND_5GHZ].channels = channels;
 		sc->sbands[IEEE80211_BAND_5GHZ].band = IEEE80211_BAND_5GHZ;
 		sc->sbands[IEEE80211_BAND_5GHZ].n_channels =
@@ -565,7 +555,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	int ret = 0, i;
 	int csz = 0;
 
-	ah = kzalloc(sizeof(struct ath_hw), GFP_KERNEL);
+	ah = devm_kzalloc(sc->dev, sizeof(struct ath_hw), GFP_KERNEL);
 	if (!ah)
 		return -ENOMEM;
 
@@ -636,7 +626,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	if (pdata && pdata->eeprom_name) {
 		ret = ath9k_eeprom_request(sc, pdata->eeprom_name);
 		if (ret)
-			goto err_eeprom;
+			return ret;
 	}
 
 	/* Initializes the hardware for all supported chipsets */
@@ -676,10 +666,6 @@ err_queues:
 	ath9k_hw_deinit(ah);
 err_hw:
 	ath9k_eeprom_release(sc);
-err_eeprom:
-	kfree(ah);
-	sc->sc_ah = NULL;
-
 	return ret;
 }
 
@@ -844,8 +830,8 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc,
 
 	/* Bring up device */
 	error = ath9k_init_softc(devid, sc, bus_ops);
-	if (error != 0)
-		goto error_init;
+	if (error)
+		return error;
 
 	ah = sc->sc_ah;
 	common = ath9k_hw_common(ah);
@@ -855,19 +841,19 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc,
 	error = ath_regd_init(&common->regulatory, sc->hw->wiphy,
 			      ath9k_reg_notifier);
 	if (error)
-		goto error_regd;
+		goto deinit;
 
 	reg = &common->regulatory;
 
 	/* Setup TX DMA */
 	error = ath_tx_init(sc, ATH_TXBUF);
 	if (error != 0)
-		goto error_tx;
+		goto deinit;
 
 	/* Setup RX DMA */
 	error = ath_rx_init(sc, ATH_RXBUF);
 	if (error != 0)
-		goto error_rx;
+		goto deinit;
 
 	ath9k_init_txpower_limits(sc);
 
@@ -881,19 +867,19 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc,
 	/* Register with mac80211 */
 	error = ieee80211_register_hw(hw);
 	if (error)
-		goto error_register;
+		goto rx_cleanup;
 
 	error = ath9k_init_debug(ah);
 	if (error) {
 		ath_err(common, "Unable to create debugfs files\n");
-		goto error_world;
+		goto unregister;
 	}
 
 	/* Handle world regulatory */
 	if (!ath_is_world_regd(reg)) {
 		error = regulatory_hint(hw->wiphy, reg->alpha2);
 		if (error)
-			goto error_world;
+			goto unregister;
 	}
 
 	ath_init_leds(sc);
@@ -901,17 +887,12 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc,
 
 	return 0;
 
-error_world:
+unregister:
 	ieee80211_unregister_hw(hw);
-error_register:
+rx_cleanup:
 	ath_rx_cleanup(sc);
-error_rx:
-	ath_tx_cleanup(sc);
-error_tx:
-	/* Nothing */
-error_regd:
+deinit:
 	ath9k_deinit_softc(sc);
-error_init:
 	return error;
 }
 
@@ -922,12 +903,6 @@ error_init:
 static void ath9k_deinit_softc(struct ath_softc *sc)
 {
 	int i = 0;
-
-	if (sc->sbands[IEEE80211_BAND_2GHZ].channels)
-		kfree(sc->sbands[IEEE80211_BAND_2GHZ].channels);
-
-	if (sc->sbands[IEEE80211_BAND_5GHZ].channels)
-		kfree(sc->sbands[IEEE80211_BAND_5GHZ].channels);
 
 	ath9k_deinit_btcoex(sc);
 
@@ -940,8 +915,6 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
 		sc->dfs_detector->exit(sc->dfs_detector);
 
 	ath9k_eeprom_release(sc);
-	kfree(sc->sc_ah);
-	sc->sc_ah = NULL;
 }
 
 void ath9k_deinit_device(struct ath_softc *sc)
@@ -957,20 +930,7 @@ void ath9k_deinit_device(struct ath_softc *sc)
 
 	ieee80211_unregister_hw(hw);
 	ath_rx_cleanup(sc);
-	ath_tx_cleanup(sc);
 	ath9k_deinit_softc(sc);
-}
-
-void ath_descdma_cleanup(struct ath_softc *sc,
-			 struct ath_descdma *dd,
-			 struct list_head *head)
-{
-	dma_free_coherent(sc->dev, dd->dd_desc_len, dd->dd_desc,
-			  dd->dd_desc_paddr);
-
-	INIT_LIST_HEAD(head);
-	kfree(dd->dd_bufptr);
-	memset(dd, 0, sizeof(*dd));
 }
 
 /************************/

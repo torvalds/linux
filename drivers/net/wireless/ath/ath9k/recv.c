@@ -180,11 +180,6 @@ static void ath_rx_edma_cleanup(struct ath_softc *sc)
 			bf->bf_mpdu = NULL;
 		}
 	}
-
-	INIT_LIST_HEAD(&sc->rx.rxbuf);
-
-	kfree(sc->rx.rx_bufptr);
-	sc->rx.rx_bufptr = NULL;
 }
 
 static void ath_rx_edma_init_queue(struct ath_rx_edma *rx_edma, int size)
@@ -211,12 +206,11 @@ static int ath_rx_edma_init(struct ath_softc *sc, int nbufs)
 			       ah->caps.rx_hp_qdepth);
 
 	size = sizeof(struct ath_buf) * nbufs;
-	bf = kzalloc(size, GFP_KERNEL);
+	bf = devm_kzalloc(sc->dev, size, GFP_KERNEL);
 	if (!bf)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&sc->rx.rxbuf);
-	sc->rx.rx_bufptr = bf;
 
 	for (i = 0; i < nbufs; i++, bf++) {
 		skb = ath_rxbuf_alloc(common, common->rx_bufsize, GFP_KERNEL);
@@ -363,9 +357,6 @@ void ath_rx_cleanup(struct ath_softc *sc)
 				bf->bf_mpdu = NULL;
 			}
 		}
-
-		if (sc->rx.rxdma.dd_desc_len != 0)
-			ath_descdma_cleanup(sc, &sc->rx.rxdma, &sc->rx.rxbuf);
 	}
 }
 
