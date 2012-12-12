@@ -127,7 +127,7 @@ static void __init arch_timer_calibrate(void)
 
 	/* Cache the sched_clock multiplier to save a divide in the hot path. */
 
-	sched_clock_mult = NSEC_PER_SEC / arch_timer_rate;
+	sched_clock_mult = DIV_ROUND_CLOSEST(NSEC_PER_SEC, arch_timer_rate);
 
 	pr_info("Architected local timer running at %u.%02uMHz.\n",
 		 arch_timer_rate / 1000000, (arch_timer_rate / 10000) % 100);
@@ -221,10 +221,10 @@ int __init arm_generic_timer_init(void)
 	clocksource_register_hz(&clocksource_counter, arch_timer_rate);
 
 	/* Calibrate the delay loop directly */
-	lpj_fine = arch_timer_rate / HZ;
+	lpj_fine = DIV_ROUND_CLOSEST(arch_timer_rate, HZ);
 
 	/* Immediately configure the timer on the boot CPU */
-	arch_timer_setup(per_cpu_ptr(&arch_timer_evt, smp_processor_id()));
+	arch_timer_setup(this_cpu_ptr(&arch_timer_evt));
 
 	register_cpu_notifier(&arch_timer_cpu_nb);
 

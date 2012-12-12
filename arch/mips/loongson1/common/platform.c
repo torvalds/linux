@@ -13,6 +13,7 @@
 #include <linux/phy.h>
 #include <linux/serial_8250.h>
 #include <linux/stmmac.h>
+#include <linux/usb/ehci_pdriver.h>
 #include <asm-generic/sizes.h>
 
 #include <loongson1.h>
@@ -107,13 +108,17 @@ static struct resource ls1x_ehci_resources[] = {
 	},
 };
 
+static struct usb_ehci_pdata ls1x_ehci_pdata = {
+};
+
 struct platform_device ls1x_ehci_device = {
-	.name		= "ls1x-ehci",
+	.name		= "ehci-platform",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(ls1x_ehci_resources),
 	.resource	= ls1x_ehci_resources,
 	.dev		= {
 		.dma_mask = &ls1x_ehci_dmamask,
+		.platform_data = &ls1x_ehci_pdata,
 	},
 };
 

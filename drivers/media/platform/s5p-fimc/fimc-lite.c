@@ -491,8 +491,7 @@ static int fimc_lite_close(struct file *file)
 	struct fimc_lite *fimc = video_drvdata(file);
 	int ret;
 
-	if (mutex_lock_interruptible(&fimc->lock))
-		return -ERESTARTSYS;
+	mutex_lock(&fimc->lock);
 
 	if (--fimc->ref_count == 0 && fimc->out_path == FIMC_IO_DMA) {
 		clear_bit(ST_FLITE_IN_USE, &fimc->state);
@@ -1253,7 +1252,9 @@ static int fimc_lite_subdev_registered(struct v4l2_subdev *sd)
 	q->buf_struct_size = sizeof(struct flite_buffer);
 	q->drv_priv = fimc;
 
-	vb2_queue_init(q);
+	ret = vb2_queue_init(q);
+	if (ret < 0)
+		return ret;
 
 	fimc->vd_pad.flags = MEDIA_PAD_FL_SINK;
 	ret = media_entity_init(&vfd->entity, 1, &fimc->vd_pad, 0);
@@ -1261,10 +1262,12 @@ static int fimc_lite_subdev_registered(struct v4l2_subdev *sd)
 		return ret;
 
 	video_set_drvdata(vfd, fimc);
+	fimc->pipeline_ops = v4l2_get_subdev_hostdata(sd);
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
 	if (ret < 0) {
 		media_entity_cleanup(&vfd->entity);
+		fimc->pipeline_ops = NULL;
 		return ret;
 	}
 
@@ -1283,6 +1286,7 @@ static void fimc_lite_subdev_unregistered(struct v4l2_subdev *sd)
 	if (video_is_registered(&fimc->vfd)) {
 		video_unregister_device(&fimc->vfd);
 		media_entity_cleanup(&fimc->vfd.entity);
+		fimc->pipeline_ops = NULL;
 	}
 }
 

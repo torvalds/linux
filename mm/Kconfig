@@ -188,6 +188,21 @@ config SPLIT_PTLOCK_CPUS
 	default "4"
 
 #
+# support for memory balloon compaction
+config BALLOON_COMPACTION
+	bool "Allow for balloon memory compaction/migration"
+	def_bool y
+	depends on COMPACTION && VIRTIO_BALLOON
+	help
+	  Memory fragmentation introduced by ballooning might reduce
+	  significantly the number of 2MB contiguous memory blocks that can be
+	  used within a guest, thus imposing performance penalties associated
+	  with the reduced number of transparent huge pages that could be used
+	  by the guest workload. Allowing the compaction & migration for memory
+	  pages enlisted as being part of memory balloon devices avoids the
+	  scenario aforementioned and helps improving memory defragmentation.
+
+#
 # support for memory compaction
 config COMPACTION
 	bool "Allow for memory compaction"

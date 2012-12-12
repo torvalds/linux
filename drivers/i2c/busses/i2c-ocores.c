@@ -9,10 +9,6 @@
  * kind, whether express or implied.
  */
 
-/*
- * This driver can be used from the device tree, see
- *     Documentation/devicetree/bindings/i2c/ocore-i2c.txt
- */
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>

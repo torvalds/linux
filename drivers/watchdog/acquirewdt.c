@@ -240,7 +240,7 @@ static struct miscdevice acq_miscdev = {
  *	Init & exit routines
  */
 
-static int __devinit acq_probe(struct platform_device *dev)
+static int acq_probe(struct platform_device *dev)
 {
 	int ret;
 
@@ -275,7 +275,7 @@ out:
 	return ret;
 }
 
-static int __devexit acq_remove(struct platform_device *dev)
+static int acq_remove(struct platform_device *dev)
 {
 	misc_deregister(&acq_miscdev);
 	release_region(wdt_start, 1);
@@ -293,7 +293,7 @@ static void acq_shutdown(struct platform_device *dev)
 
 static struct platform_driver acquirewdt_driver = {
 	.probe		= acq_probe,
-	.remove		= __devexit_p(acq_remove),
+	.remove		= acq_remove,
 	.shutdown	= acq_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,

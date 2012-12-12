@@ -205,21 +205,14 @@ static inline bool user_64bit_mode(struct pt_regs *regs)
 }
 #endif
 
-/*
- * X86_32 CPUs don't save ss and esp if the CPU is already in kernel mode
- * when it traps.  The previous stack will be directly underneath the saved
- * registers, and 'sp/ss' won't even have been saved. Thus the '&regs->sp'.
- *
- * This is valid only for kernel mode traps.
- */
+#ifdef CONFIG_X86_32
+extern unsigned long kernel_stack_pointer(struct pt_regs *regs);
+#else
 static inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
 {
-#ifdef CONFIG_X86_32
-	return (unsigned long)(&regs->sp);
-#else
 	return regs->sp;
-#endif
 }
+#endif
 
 #define GET_IP(regs) ((regs)->ip)
 #define GET_FP(regs) ((regs)->bp)
@@ -246,6 +239,15 @@ static inline unsigned long regs_get_register(struct pt_regs *regs,
 {
 	if (unlikely(offset > MAX_REG_OFFSET))
 		return 0;
+#ifdef CONFIG_X86_32
+	/*
+	 * Traps from the kernel do not save sp and ss.
+	 * Use the helper function to retrieve sp.
+	 */
+	if (offset == offsetof(struct pt_regs, sp) &&
+	    regs->cs == __KERNEL_CS)
+		return kernel_stack_pointer(regs);
+#endif
 	return *(unsigned long *)((unsigned long)regs + offset);
 }
 

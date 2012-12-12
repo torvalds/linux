@@ -527,9 +527,6 @@ __ftrace_vprintk(unsigned long ip, const char *fmt, va_list ap);
 
 extern void ftrace_dump(enum ftrace_dump_mode oops_dump_mode);
 #else
-static inline __printf(1, 2)
-int trace_printk(const char *fmt, ...);
-
 static inline void tracing_start(void) { }
 static inline void tracing_stop(void) { }
 static inline void ftrace_off_permanent(void) { }
@@ -539,8 +536,8 @@ static inline void tracing_on(void) { }
 static inline void tracing_off(void) { }
 static inline int tracing_is_on(void) { return 0; }
 
-static inline int
-trace_printk(const char *fmt, ...)
+static inline __printf(1, 2)
+int trace_printk(const char *fmt, ...)
 {
 	return 0;
 }
@@ -687,18 +684,11 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
 /* Trap pasters of __FUNCTION__ at compile-time */
 #define __FUNCTION__ (__func__)
 
-/* This helps us to avoid #ifdef CONFIG_NUMA */
-#ifdef CONFIG_NUMA
-#define NUMA_BUILD 1
+/* This helps us to avoid #ifdef CONFIG_SYMBOL_PREFIX */
+#ifdef CONFIG_SYMBOL_PREFIX
+#define SYMBOL_PREFIX CONFIG_SYMBOL_PREFIX
 #else
-#define NUMA_BUILD 0
-#endif
-
-/* This helps us avoid #ifdef CONFIG_COMPACTION */
-#ifdef CONFIG_COMPACTION
-#define COMPACTION_BUILD 1
-#else
-#define COMPACTION_BUILD 0
+#define SYMBOL_PREFIX ""
 #endif
 
 /* Rebuild everything on CONFIG_FTRACE_MCOUNT_RECORD */

@@ -52,7 +52,7 @@ static struct stmpe_client_info i2c_ci = {
 	.write_block = i2c_block_write,
 };
 
-static int __devinit
+static int
 stmpe_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
 	i2c_ci.data = (void *)id;
@@ -63,7 +63,7 @@ stmpe_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	return stmpe_probe(&i2c_ci, id->driver_data);
 }
 
-static int __devexit stmpe_i2c_remove(struct i2c_client *i2c)
+static int stmpe_i2c_remove(struct i2c_client *i2c)
 {
 	struct stmpe *stmpe = dev_get_drvdata(&i2c->dev);
 
@@ -88,7 +88,7 @@ static struct i2c_driver stmpe_i2c_driver = {
 	.driver.pm	= &stmpe_dev_pm_ops,
 #endif
 	.probe		= stmpe_i2c_probe,
-	.remove		= __devexit_p(stmpe_i2c_remove),
+	.remove		= stmpe_i2c_remove,
 	.id_table	= stmpe_i2c_id,
 };
 

@@ -72,6 +72,7 @@
 #include <linux/slab.h>
 #include <linux/init_task.h>
 #include <linux/binfmts.h>
+#include <linux/context_tracking.h>
 
 #include <asm/switch_to.h>
 #include <asm/tlb.h>
@@ -952,6 +953,8 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 	trace_sched_migrate_task(p, new_cpu);
 
 	if (task_cpu(p) != new_cpu) {
+		if (p->sched_class->migrate_task_rq)
+			p->sched_class->migrate_task_rq(p, new_cpu);
 		p->se.nr_migrations++;
 		perf_sw_event(PERF_COUNT_SW_CPU_MIGRATIONS, 1, NULL, 0);
 	}
@@ -1524,6 +1527,15 @@ static void __sched_fork(struct task_struct *p)
 	p->se.vruntime			= 0;
 	INIT_LIST_HEAD(&p->se.group_node);
 
+/*
+ * Load-tracking only depends on SMP, FAIR_GROUP_SCHED dependency below may be
+ * removed when useful for applications beyond shares distribution (e.g.
+ * load-balance).
+ */
+#if defined(CONFIG_SMP) && defined(CONFIG_FAIR_GROUP_SCHED)
+	p->se.avg.runnable_avg_period = 0;
+	p->se.avg.runnable_avg_sum = 0;
+#endif
 #ifdef CONFIG_SCHEDSTATS
 	memset(&p->se.statistics, 0, sizeof(p->se.statistics));
 #endif
@@ -1886,8 +1898,8 @@ context_switch(struct rq *rq, struct task_struct *prev,
 	spin_release(&rq->lock.dep_map, 1, _THIS_IP_);
 #endif
 
+	context_tracking_task_switch(prev, next);
 	/* Here we just switch the register state and the stack. */
-	rcu_switch(prev, next);
 	switch_to(prev, next, prev);
 
 	barrier();
@@ -2911,7 +2923,7 @@ asmlinkage void __sched schedule(void)
 }
 EXPORT_SYMBOL(schedule);
 
-#ifdef CONFIG_RCU_USER_QS
+#ifdef CONFIG_CONTEXT_TRACKING
 asmlinkage void __sched schedule_user(void)
 {
 	/*
@@ -2920,9 +2932,9 @@ asmlinkage void __sched schedule_user(void)
 	 * we haven't yet exited the RCU idle mode. Do it here manually until
 	 * we find a better solution.
 	 */
-	rcu_user_exit();
+	user_exit();
 	schedule();
-	rcu_user_enter();
+	user_enter();
 }
 #endif
 
@@ -3027,7 +3039,7 @@ asmlinkage void __sched preempt_schedule_irq(void)
 	/* Catch callers which need to be fixed */
 	BUG_ON(ti->preempt_count || !irqs_disabled());
 
-	rcu_user_exit();
+	user_exit();
 	do {
 		add_preempt_count(PREEMPT_ACTIVE);
 		local_irq_enable();
@@ -4474,6 +4486,7 @@ static const char stat_nam[] = TASK_STATE_TO_CHAR_STR;
 void sched_show_task(struct task_struct *p)
 {
 	unsigned long free = 0;
+	int ppid;
 	unsigned state;
 
 	state = p->state ? __ffs(p->state) + 1 : 0;
@@ -4493,8 +4506,11 @@ void sched_show_task(struct task_struct *p)
 #ifdef CONFIG_DEBUG_STACK_USAGE
 	free = stack_not_used(p);
 #endif
+	rcu_read_lock();
+	ppid = task_pid_nr(rcu_dereference(p->real_parent));
+	rcu_read_unlock();
 	printk(KERN_CONT "%5lu %5d %6d 0x%08lx\n", free,
-		task_pid_nr(p), task_pid_nr(rcu_dereference(p->real_parent)),
+		task_pid_nr(p), ppid,
 		(unsigned long)task_thread_info(p)->flags);
 
 	show_stack(p, NULL);
@@ -8076,3 +8092,9 @@ struct cgroup_subsys cpuacct_subsys = {
 	.base_cftypes = files,
 };
 #endif	/* CONFIG_CGROUP_CPUACCT */
+
+void dump_cpu_task(int cpu)
+{
+	pr_info("Task dump for CPU %d:\n", cpu);
+	sched_show_task(cpu_curr(cpu));
+}

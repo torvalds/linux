@@ -41,7 +41,7 @@
 
 static const char hvc_opal_name[] = "hvc_opal";
 
-static struct of_device_id hvc_opal_match[] __devinitdata = {
+static struct of_device_id hvc_opal_match[] = {
 	{ .name = "serial", .compatible = "ibm,opal-console-raw" },
 	{ .name = "serial", .compatible = "ibm,opal-console-hvsi" },
 	{ },
@@ -161,7 +161,7 @@ static const struct hv_ops hvc_opal_hvsi_ops = {
 	.tiocmset = hvc_opal_hvsi_tiocmset,
 };
 
-static int __devinit hvc_opal_probe(struct platform_device *dev)
+static int hvc_opal_probe(struct platform_device *dev)
 {
 	const struct hv_ops *ops;
 	struct hvc_struct *hp;
@@ -222,7 +222,7 @@ static int __devinit hvc_opal_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit hvc_opal_remove(struct platform_device *dev)
+static int hvc_opal_remove(struct platform_device *dev)
 {
 	struct hvc_struct *hp = dev_get_drvdata(&dev->dev);
 	int rc, termno;
@@ -239,7 +239,7 @@ static int __devexit hvc_opal_remove(struct platform_device *dev)
 
 static struct platform_driver hvc_opal_driver = {
 	.probe		= hvc_opal_probe,
-	.remove		= __devexit_p(hvc_opal_remove),
+	.remove		= hvc_opal_remove,
 	.driver		= {
 		.name	= hvc_opal_name,
 		.owner	= THIS_MODULE,

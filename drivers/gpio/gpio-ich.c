@@ -238,7 +238,7 @@ static void ichx_gpio_set(struct gpio_chip *chip, unsigned nr, int val)
 	ichx_write_bit(GPIO_LVL, nr, val, 0);
 }
 
-static void __devinit ichx_gpiolib_setup(struct gpio_chip *chip)
+static void ichx_gpiolib_setup(struct gpio_chip *chip)
 {
 	chip->owner = THIS_MODULE;
 	chip->label = DRV_NAME;
@@ -313,7 +313,7 @@ static struct ichx_desc intel5_desc = {
 	.ngpio = 76,
 };
 
-static int __devinit ichx_gpio_request_regions(struct resource *res_base,
+static int ichx_gpio_request_regions(struct resource *res_base,
 						const char *name, u8 use_gpio)
 {
 	int i;
@@ -353,7 +353,7 @@ static void ichx_gpio_release_regions(struct resource *res_base, u8 use_gpio)
 	}
 }
 
-static int __devinit ichx_gpio_probe(struct platform_device *pdev)
+static int ichx_gpio_probe(struct platform_device *pdev)
 {
 	struct resource *res_base, *res_pm;
 	int err;
@@ -442,7 +442,7 @@ add_err:
 	return err;
 }
 
-static int __devexit ichx_gpio_remove(struct platform_device *pdev)
+static int ichx_gpio_remove(struct platform_device *pdev)
 {
 	int err;
 
@@ -467,7 +467,7 @@ static struct platform_driver ichx_gpio_driver = {
 		.name	= DRV_NAME,
 	},
 	.probe		= ichx_gpio_probe,
-	.remove		= __devexit_p(ichx_gpio_remove),
+	.remove		= ichx_gpio_remove,
 };
 
 module_platform_driver(ichx_gpio_driver);

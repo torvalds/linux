@@ -252,6 +252,24 @@ static inline void hugetlb_register_node(struct node *node) {}
 static inline void hugetlb_unregister_node(struct node *node) {}
 #endif
 
+static void node_device_release(struct device *dev)
+{
+	struct node *node = to_node(dev);
+
+#if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_HUGETLBFS)
+	/*
+	 * We schedule the work only when a memory section is
+	 * onlined/offlined on this node. When we come here,
+	 * all the memory on this node has been offlined,
+	 * so we won't enqueue new work to this work.
+	 *
+	 * The work is using node->node_work, so we should
+	 * flush work before freeing the memory.
+	 */
+	flush_work(&node->node_work);
+#endif
+	kfree(node);
+}
 
 /*
  * register_node - Setup a sysfs device for a node.
@@ -259,12 +277,13 @@ static inline void hugetlb_unregister_node(struct node *node) {}
  *
  * Initialize and register the node device.
  */
-int register_node(struct node *node, int num, struct node *parent)
+static int register_node(struct node *node, int num, struct node *parent)
 {
 	int error;
 
 	node->dev.id = num;
 	node->dev.bus = &node_subsys;
+	node->dev.release = node_device_release;
 	error = device_register(&node->dev);
 
 	if (!error){
@@ -306,7 +325,7 @@ void unregister_node(struct node *node)
 	device_unregister(&node->dev);
 }
 
-struct node node_devices[MAX_NUMNODES];
+struct node *node_devices[MAX_NUMNODES];
 
 /*
  * register cpu under node
@@ -323,15 +342,15 @@ int register_cpu_under_node(unsigned int cpu, unsigned int nid)
 	if (!obj)
 		return 0;
 
-	ret = sysfs_create_link(&node_devices[nid].dev.kobj,
+	ret = sysfs_create_link(&node_devices[nid]->dev.kobj,
 				&obj->kobj,
 				kobject_name(&obj->kobj));
 	if (ret)
 		return ret;
 
 	return sysfs_create_link(&obj->kobj,
-				 &node_devices[nid].dev.kobj,
-				 kobject_name(&node_devices[nid].dev.kobj));
+				 &node_devices[nid]->dev.kobj,
+				 kobject_name(&node_devices[nid]->dev.kobj));
 }
 
 int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
@@ -345,10 +364,10 @@ int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
 	if (!obj)
 		return 0;
 
-	sysfs_remove_link(&node_devices[nid].dev.kobj,
+	sysfs_remove_link(&node_devices[nid]->dev.kobj,
 			  kobject_name(&obj->kobj));
 	sysfs_remove_link(&obj->kobj,
-			  kobject_name(&node_devices[nid].dev.kobj));
+			  kobject_name(&node_devices[nid]->dev.kobj));
 
 	return 0;
 }
@@ -390,15 +409,15 @@ int register_mem_sect_under_node(struct memory_block *mem_blk, int nid)
 			continue;
 		if (page_nid != nid)
 			continue;
-		ret = sysfs_create_link_nowarn(&node_devices[nid].dev.kobj,
+		ret = sysfs_create_link_nowarn(&node_devices[nid]->dev.kobj,
 					&mem_blk->dev.kobj,
 					kobject_name(&mem_blk->dev.kobj));
 		if (ret)
 			return ret;
 
 		return sysfs_create_link_nowarn(&mem_blk->dev.kobj,
-				&node_devices[nid].dev.kobj,
-				kobject_name(&node_devices[nid].dev.kobj));
+				&node_devices[nid]->dev.kobj,
+				kobject_name(&node_devices[nid]->dev.kobj));
 	}
 	/* mem section does not span the specified node */
 	return 0;
@@ -431,10 +450,10 @@ int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
 			continue;
 		if (node_test_and_set(nid, *unlinked_nodes))
 			continue;
-		sysfs_remove_link(&node_devices[nid].dev.kobj,
+		sysfs_remove_link(&node_devices[nid]->dev.kobj,
 			 kobject_name(&mem_blk->dev.kobj));
 		sysfs_remove_link(&mem_blk->dev.kobj,
-			 kobject_name(&node_devices[nid].dev.kobj));
+			 kobject_name(&node_devices[nid]->dev.kobj));
 	}
 	NODEMASK_FREE(unlinked_nodes);
 	return 0;
@@ -500,7 +519,7 @@ static void node_hugetlb_work(struct work_struct *work)
 
 static void init_node_hugetlb_work(int nid)
 {
-	INIT_WORK(&node_devices[nid].node_work, node_hugetlb_work);
+	INIT_WORK(&node_devices[nid]->node_work, node_hugetlb_work);
 }
 
 static int node_memory_callback(struct notifier_block *self,
@@ -517,7 +536,7 @@ static int node_memory_callback(struct notifier_block *self,
 		 * when transitioning to/from memoryless state.
 		 */
 		if (nid != NUMA_NO_NODE)
-			schedule_work(&node_devices[nid].node_work);
+			schedule_work(&node_devices[nid]->node_work);
 		break;
 
 	case MEM_GOING_ONLINE:
@@ -558,9 +577,13 @@ int register_one_node(int nid)
 		struct node *parent = NULL;
 
 		if (p_node != nid)
-			parent = &node_devices[p_node];
+			parent = node_devices[p_node];
 
-		error = register_node(&node_devices[nid], nid, parent);
+		node_devices[nid] = kzalloc(sizeof(struct node), GFP_KERNEL);
+		if (!node_devices[nid])
+			return -ENOMEM;
+
+		error = register_node(node_devices[nid], nid, parent);
 
 		/* link cpu under this node */
 		for_each_present_cpu(cpu) {
@@ -581,7 +604,8 @@ int register_one_node(int nid)
 
 void unregister_one_node(int nid)
 {
-	unregister_node(&node_devices[nid]);
+	unregister_node(node_devices[nid]);
+	node_devices[nid] = NULL;
 }
 
 /*
@@ -614,23 +638,23 @@ static ssize_t show_node_state(struct device *dev,
 	{ __ATTR(name, 0444, show_node_state, NULL), state }
 
 static struct node_attr node_state_attr[] = {
-	_NODE_ATTR(possible, N_POSSIBLE),
-	_NODE_ATTR(online, N_ONLINE),
-	_NODE_ATTR(has_normal_memory, N_NORMAL_MEMORY),
-	_NODE_ATTR(has_cpu, N_CPU),
+	[N_POSSIBLE] = _NODE_ATTR(possible, N_POSSIBLE),
+	[N_ONLINE] = _NODE_ATTR(online, N_ONLINE),
+	[N_NORMAL_MEMORY] = _NODE_ATTR(has_normal_memory, N_NORMAL_MEMORY),
 #ifdef CONFIG_HIGHMEM
-	_NODE_ATTR(has_high_memory, N_HIGH_MEMORY),
+	[N_HIGH_MEMORY] = _NODE_ATTR(has_high_memory, N_HIGH_MEMORY),
 #endif
+	[N_CPU] = _NODE_ATTR(has_cpu, N_CPU),
 };
 
 static struct attribute *node_state_attrs[] = {
-	&node_state_attr[0].attr.attr,
-	&node_state_attr[1].attr.attr,
-	&node_state_attr[2].attr.attr,
-	&node_state_attr[3].attr.attr,
+	&node_state_attr[N_POSSIBLE].attr.attr,
+	&node_state_attr[N_ONLINE].attr.attr,
+	&node_state_attr[N_NORMAL_MEMORY].attr.attr,
 #ifdef CONFIG_HIGHMEM
-	&node_state_attr[4].attr.attr,
+	&node_state_attr[N_HIGH_MEMORY].attr.attr,
 #endif
+	&node_state_attr[N_CPU].attr.attr,
 	NULL
 };
 

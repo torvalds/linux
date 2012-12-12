@@ -1159,7 +1159,7 @@ void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
 	cred = current_cred();
 
 	spin_lock_irq(&tsk->sighand->siglock);
-	if (tsk->signal && tsk->signal->tty && tsk->signal->tty->name)
+	if (tsk->signal && tsk->signal->tty)
 		tty = tsk->signal->tty->name;
 	else
 		tty = "(none)";

@@ -102,7 +102,7 @@ static const struct file_operations sctp_snmp_seq_fops = {
 	.open	 = sctp_snmp_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = single_release,
+	.release = single_release_net,
 };
 
 /* Set up the proc fs entry for 'snmp' object. */
@@ -251,7 +251,7 @@ static const struct file_operations sctp_eps_seq_fops = {
 	.open	 = sctp_eps_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = seq_release,
+	.release = seq_release_net,
 };
 
 /* Set up the proc fs entry for 'eps' object. */
@@ -372,7 +372,7 @@ static const struct file_operations sctp_assocs_seq_fops = {
 	.open	 = sctp_assocs_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = seq_release,
+	.release = seq_release_net,
 };
 
 /* Set up the proc fs entry for 'assocs' object. */
@@ -517,7 +517,7 @@ static const struct file_operations sctp_remaddr_seq_fops = {
 	.open = sctp_remaddr_seq_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.release = seq_release,
+	.release = seq_release_net,
 };
 
 int __net_init sctp_remaddr_proc_init(struct net *net)

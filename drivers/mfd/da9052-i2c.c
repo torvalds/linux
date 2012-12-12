@@ -64,7 +64,7 @@ static const struct of_device_id dialog_dt_ids[] = {
 };
 #endif
 
-static int __devinit da9052_i2c_probe(struct i2c_client *client,
+static int da9052_i2c_probe(struct i2c_client *client,
 				       const struct i2c_device_id *id)
 {
 	struct da9052 *da9052;
@@ -121,7 +121,7 @@ static int __devinit da9052_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit da9052_i2c_remove(struct i2c_client *client)
+static int da9052_i2c_remove(struct i2c_client *client)
 {
 	struct da9052 *da9052 = i2c_get_clientdata(client);
 
@@ -131,7 +131,7 @@ static int __devexit da9052_i2c_remove(struct i2c_client *client)
 
 static struct i2c_driver da9052_i2c_driver = {
 	.probe = da9052_i2c_probe,
-	.remove = __devexit_p(da9052_i2c_remove),
+	.remove = da9052_i2c_remove,
 	.id_table = da9052_i2c_id,
 	.driver = {
 		.name = "da9052",

@@ -727,7 +727,7 @@ static int sirfsoc_uart_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id sirfsoc_uart_ids[] __devinitdata = {
+static struct of_device_id sirfsoc_uart_ids[] = {
 	{ .compatible = "sirf,prima2-uart", },
 	{}
 };
@@ -735,7 +735,7 @@ MODULE_DEVICE_TABLE(of, sirfsoc_serial_of_match);
 
 static struct platform_driver sirfsoc_uart_driver = {
 	.probe		= sirfsoc_uart_probe,
-	.remove		= __devexit_p(sirfsoc_uart_remove),
+	.remove		= sirfsoc_uart_remove,
 	.suspend	= sirfsoc_uart_suspend,
 	.resume		= sirfsoc_uart_resume,
 	.driver		= {

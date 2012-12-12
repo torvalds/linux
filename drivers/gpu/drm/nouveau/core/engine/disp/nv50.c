@@ -49,13 +49,7 @@ nv50_disp_intr_vblank(struct nv50_disp_priv *priv, int crtc)
 		if (chan->vblank.crtc != crtc)
 			continue;
 
-		if (nv_device(priv)->chipset == 0x50) {
-			nv_wr32(priv, 0x001704, chan->vblank.channel);
-			nv_wr32(priv, 0x001710, 0x80000000 | chan->vblank.ctxdma);
-			bar->flush(bar);
-			nv_wr32(priv, 0x001570, chan->vblank.offset);
-			nv_wr32(priv, 0x001574, chan->vblank.value);
-		} else {
+		if (nv_device(priv)->chipset >= 0xc0) {
 			nv_wr32(priv, 0x001718, 0x80000000 | chan->vblank.channel);
 			bar->flush(bar);
 			nv_wr32(priv, 0x06000c,
@@ -63,6 +57,17 @@ nv50_disp_intr_vblank(struct nv50_disp_priv *priv, int crtc)
 			nv_wr32(priv, 0x060010,
 				lower_32_bits(chan->vblank.offset));
 			nv_wr32(priv, 0x060014, chan->vblank.value);
+		} else {
+			nv_wr32(priv, 0x001704, chan->vblank.channel);
+			nv_wr32(priv, 0x001710, 0x80000000 | chan->vblank.ctxdma);
+			bar->flush(bar);
+			if (nv_device(priv)->chipset == 0x50) {
+				nv_wr32(priv, 0x001570, chan->vblank.offset);
+				nv_wr32(priv, 0x001574, chan->vblank.value);
+			} else {
+				nv_wr32(priv, 0x060010, chan->vblank.offset);
+				nv_wr32(priv, 0x060014, chan->vblank.value);
+			}
 		}
 
 		list_del(&chan->vblank.head);

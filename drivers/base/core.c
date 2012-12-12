@@ -1180,7 +1180,6 @@ void device_del(struct device *dev)
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_DEL_DEVICE, dev);
-	device_pm_remove(dev);
 	dpm_sysfs_remove(dev);
 	if (parent)
 		klist_del(&dev->p->knode_parent);
@@ -1205,6 +1204,7 @@ void device_del(struct device *dev)
 	device_remove_file(dev, &uevent_attr);
 	device_remove_attrs(dev);
 	bus_remove_device(dev);
+	device_pm_remove(dev);
 	driver_deferred_probe_del(dev);
 
 	/* Notify the platform of the removal, in case they
@@ -1399,7 +1399,7 @@ struct root_device {
 	struct module *owner;
 };
 
-inline struct root_device *to_root_device(struct device *d)
+static inline struct root_device *to_root_device(struct device *d)
 {
 	return container_of(d, struct root_device, dev);
 }
@@ -1840,10 +1840,12 @@ void device_shutdown(void)
 		pm_runtime_barrier(dev);
 
 		if (dev->bus && dev->bus->shutdown) {
-			dev_dbg(dev, "shutdown\n");
+			if (initcall_debug)
+				dev_info(dev, "shutdown\n");
 			dev->bus->shutdown(dev);
 		} else if (dev->driver && dev->driver->shutdown) {
-			dev_dbg(dev, "shutdown\n");
+			if (initcall_debug)
+				dev_info(dev, "shutdown\n");
 			dev->driver->shutdown(dev);
 		}
 

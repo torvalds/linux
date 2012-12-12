@@ -1,0 +1,79 @@
+/*
+ * at91rm9200ek.dts - Device Tree file for Atmel AT91RM9200 evaluation kit
+ *
+ *  Copyright (C) 2012 Joachim Eastwood <manabian@gmail.com>
+ *
+ * Licensed under GPLv2 only
+ */
+/dts-v1/;
+/include/ "at91rm9200.dtsi"
+
+/ {
+	model = "Atmel AT91RM9200 evaluation kit";
+	compatible = "atmel,at91rm9200ek", "atmel,at91rm9200";
+
+	memory {
+		reg = <0x20000000 0x4000000>;
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		main_clock: clock@0 {
+			compatible = "atmel,osc", "fixed-clock";
+			clock-frequency = <18432000>;
+		};
+	};
+
+	ahb {
+		apb {
+			dbgu: serial@fffff200 {
+				status = "okay";
+			};
+
+			usart1: serial@fffc4000 {
+				pinctrl-0 =
+						<&pinctrl_uart1
+						 &pinctrl_uart1_rts
+						 &pinctrl_uart1_cts
+						 &pinctrl_uart1_dtr_dsr
+						 &pinctrl_uart1_dcd
+						 &pinctrl_uart1_ri>;
+				status = "okay";
+			};
+
+			usb1: gadget@fffb0000 {
+				atmel,vbus-gpio = <&pioD 4 0>;
+				status = "okay";
+			};
+		};
+
+		usb0: ohci@00300000 {
+			num-ports = <2>;
+			status = "okay";
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		ds2 {
+			label = "green";
+			gpios = <&pioB 0 0x1>;
+			linux,default-trigger = "mmc0";
+		};
+
+		ds4 {
+			label = "yellow";
+			gpios = <&pioB 1 0x1>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		ds6 {
+			label = "red";
+			gpios = <&pioB 2 0x1>;
+		};
+	};
+};

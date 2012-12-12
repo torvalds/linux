@@ -2201,7 +2201,6 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 		connector->connector_type = DRM_MODE_CONNECTOR_HDMIA;
 		intel_sdvo->is_hdmi = true;
 	}
-	intel_sdvo->base.cloneable = true;
 
 	intel_sdvo_connector_init(intel_sdvo_connector, intel_sdvo);
 	if (intel_sdvo->is_hdmi)
@@ -2232,7 +2231,6 @@ intel_sdvo_tv_init(struct intel_sdvo *intel_sdvo, int type)
 
 	intel_sdvo->is_tv = true;
 	intel_sdvo->base.needs_tv_clock = true;
-	intel_sdvo->base.cloneable = false;
 
 	intel_sdvo_connector_init(intel_sdvo_connector, intel_sdvo);
 
@@ -2275,8 +2273,6 @@ intel_sdvo_analog_init(struct intel_sdvo *intel_sdvo, int device)
 		intel_sdvo_connector->output_flag = SDVO_OUTPUT_RGB1;
 	}
 
-	intel_sdvo->base.cloneable = true;
-
 	intel_sdvo_connector_init(intel_sdvo_connector,
 				  intel_sdvo);
 	return true;
@@ -2306,9 +2302,6 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 		intel_sdvo->controlled_output |= SDVO_OUTPUT_LVDS1;
 		intel_sdvo_connector->output_flag = SDVO_OUTPUT_LVDS1;
 	}
-
-	/* SDVO LVDS is not cloneable because the input mode gets adjusted by the encoder */
-	intel_sdvo->base.cloneable = false;
 
 	intel_sdvo_connector_init(intel_sdvo_connector, intel_sdvo);
 	if (!intel_sdvo_create_enhance_property(intel_sdvo, intel_sdvo_connector))
@@ -2380,6 +2373,18 @@ intel_sdvo_output_setup(struct intel_sdvo *intel_sdvo, uint16_t flags)
 	intel_sdvo->base.crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
 
 	return true;
+}
+
+static void intel_sdvo_output_cleanup(struct intel_sdvo *intel_sdvo)
+{
+	struct drm_device *dev = intel_sdvo->base.base.dev;
+	struct drm_connector *connector, *tmp;
+
+	list_for_each_entry_safe(connector, tmp,
+				 &dev->mode_config.connector_list, head) {
+		if (intel_attached_encoder(connector) == &intel_sdvo->base)
+			intel_sdvo_destroy(connector);
+	}
 }
 
 static bool intel_sdvo_tv_create_property(struct intel_sdvo *intel_sdvo,
@@ -2705,8 +2710,19 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 				    intel_sdvo->caps.output_flags) != true) {
 		DRM_DEBUG_KMS("SDVO output failed to setup on %s\n",
 			      SDVO_NAME(intel_sdvo));
-		goto err;
+		/* Output_setup can leave behind connectors! */
+		goto err_output;
 	}
+
+	/*
+	 * Cloning SDVO with anything is often impossible, since the SDVO
+	 * encoder can request a special input timing mode. And even if that's
+	 * not the case we have evidence that cloning a plain unscaled mode with
+	 * VGA doesn't really work. Furthermore the cloning flags are way too
+	 * simplistic anyway to express such constraints, so just give up on
+	 * cloning for SDVO encoders.
+	 */
+	intel_sdvo->base.cloneable = false;
 
 	/* Only enable the hotplug irq if we need it, to work around noisy
 	 * hotplug lines.
@@ -2718,12 +2734,12 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 
 	/* Set the input timing to the screen. Assume always input 0. */
 	if (!intel_sdvo_set_target_input(intel_sdvo))
-		goto err;
+		goto err_output;
 
 	if (!intel_sdvo_get_input_pixel_clock_range(intel_sdvo,
 						    &intel_sdvo->pixel_clock_min,
 						    &intel_sdvo->pixel_clock_max))
-		goto err;
+		goto err_output;
 
 	DRM_DEBUG_KMS("%s device VID/DID: %02X:%02X.%02X, "
 			"clock range %dMHz - %dMHz, "
@@ -2742,6 +2758,9 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 			intel_sdvo->caps.output_flags &
 			(SDVO_OUTPUT_TMDS1 | SDVO_OUTPUT_RGB1) ? 'Y' : 'N');
 	return true;
+
+err_output:
+	intel_sdvo_output_cleanup(intel_sdvo);
 
 err:
 	drm_encoder_cleanup(&intel_encoder->base);

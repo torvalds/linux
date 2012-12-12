@@ -16,7 +16,6 @@
 
 #include "audio.h"
 #include "capture.h"
-#include "control.h"
 #include "driver.h"
 #include "midi.h"
 #include "playback.h"
@@ -95,8 +94,6 @@ const unsigned char line6_midi_id[] = {
 static const char line6_request_version[] = {
 	0xf0, 0x7e, 0x7f, 0x06, 0x01, 0xf7
 };
-
-struct usb_line6 *line6_devices[LINE6_MAX_DEVICES];
 
 /**
 	 Class for asynchronous messages.
@@ -179,22 +176,6 @@ void line6_write_hexdump(struct usb_line6 *line6, char dir,
 }
 #endif
 
-#ifdef CONFIG_LINE6_USB_DUMP_CTRL
-/*
-	Dump URB data to syslog.
-*/
-static void line6_dump_urb(struct urb *urb)
-{
-	struct usb_line6 *line6 = (struct usb_line6 *)urb->context;
-
-	if (urb->status < 0)
-		return;
-
-	line6_write_hexdump(line6, 'R', (unsigned char *)urb->transfer_buffer,
-			    urb->actual_length);
-}
-#endif
-
 /*
 	Send raw message in pieces of wMaxPacketSize bytes.
 */
@@ -202,10 +183,6 @@ int line6_send_raw_message(struct usb_line6 *line6, const char *buffer,
 			   int size)
 {
 	int i, done = 0;
-
-#ifdef CONFIG_LINE6_USB_DUMP_CTRL
-	line6_write_hexdump(line6, 'S', buffer, size);
-#endif
 
 	for (i = 0; i < size; i += line6->max_packet_size) {
 		int partial;
@@ -260,10 +237,6 @@ static int line6_send_raw_message_async_part(struct message *msg,
 			 usb_sndintpipe(line6->usbdev, line6->ep_control_write),
 			 (char *)msg->buffer + done, bytes,
 			 line6_async_request_sent, msg, line6->interval);
-
-#ifdef CONFIG_LINE6_USB_DUMP_CTRL
-	line6_write_hexdump(line6, 'S', (char *)msg->buffer + done, bytes);
-#endif
 
 	msg->done += bytes;
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
@@ -405,19 +378,13 @@ static void line6_data_received(struct urb *urb)
 	if (urb->status == -ESHUTDOWN)
 		return;
 
-#ifdef CONFIG_LINE6_USB_DUMP_CTRL
-	line6_dump_urb(urb);
-#endif
-
 	done =
 	    line6_midibuf_write(mb, urb->transfer_buffer, urb->actual_length);
 
 	if (done < urb->actual_length) {
 		line6_midibuf_ignore(mb, done);
-		DEBUG_MESSAGES(dev_err
-			       (line6->ifcdev,
-				"%d %d buffer overflow - message skipped\n",
-				done, urb->actual_length));
+		dev_dbg(line6->ifcdev, "%d %d buffer overflow - message skipped\n",
+			done, urb->actual_length);
 	}
 
 	for (;;) {
@@ -428,15 +395,7 @@ static void line6_data_received(struct urb *urb)
 		if (done == 0)
 			break;
 
-		/* MIDI input filter */
-		if (line6_midibuf_skip_message
-		    (mb, line6->line6midi->midi_mask_receive))
-			continue;
-
 		line6->message_length = done;
-#ifdef CONFIG_LINE6_USB_DUMP_MIDI
-		line6_write_hexdump(line6, 'r', line6->buffer_message, done);
-#endif
 		line6_midi_receive(line6, line6->buffer_message, done);
 
 		switch (line6->usbdev->descriptor.idProduct) {
@@ -506,10 +465,6 @@ int line6_send_program(struct usb_line6 *line6, u8 value)
 	buffer[0] = LINE6_PROGRAM_CHANGE | LINE6_CHANNEL_HOST;
 	buffer[1] = value;
 
-#ifdef CONFIG_LINE6_USB_DUMP_CTRL
-	line6_write_hexdump(line6, 'S', buffer, 2);
-#endif
-
 	retval = usb_interrupt_msg(line6->usbdev,
 				   usb_sndintpipe(line6->usbdev,
 						  line6->ep_control_write),
@@ -542,10 +497,6 @@ int line6_transmit_parameter(struct usb_line6 *line6, int param, u8 value)
 	buffer[0] = LINE6_PARAM_CHANGE | LINE6_CHANNEL_HOST;
 	buffer[1] = param;
 	buffer[2] = value;
-
-#ifdef CONFIG_LINE6_USB_DUMP_CTRL
-	line6_write_hexdump(line6, 'S', buffer, 3);
-#endif
 
 	retval = usb_interrupt_msg(line6->usbdev,
 				   usb_sndintpipe(line6->usbdev,
@@ -690,20 +641,6 @@ ssize_t line6_nop_write(struct device *dev, struct device_attribute *attr,
 }
 
 /*
-	"write" request on "raw" special file.
-*/
-#ifdef CONFIG_LINE6_USB_RAW
-ssize_t line6_set_raw(struct device *dev, struct device_attribute *attr,
-		      const char *buf, size_t count)
-{
-	struct usb_interface *interface = to_usb_interface(dev);
-	struct usb_line6 *line6 = usb_get_intfdata(interface);
-	line6_send_raw_message(line6, buf, count);
-	return count;
-}
-#endif
-
-/*
 	Generic destructor.
 */
 static void line6_destruct(struct usb_interface *interface)
@@ -740,7 +677,6 @@ static int line6_probe(struct usb_interface *interface,
 	struct usb_device *usbdev;
 	struct usb_line6 *line6;
 	const struct line6_properties *properties;
-	int devnum;
 	int interface_number, alternate = 0;
 	int product;
 	int size = 0;
@@ -770,16 +706,6 @@ static int line6_probe(struct usb_interface *interface,
 	}
 
 	if (devtype < 0) {
-		ret = -ENODEV;
-		goto err_put;
-	}
-
-	/* find free slot in device table: */
-	for (devnum = 0; devnum < LINE6_MAX_DEVICES; ++devnum)
-		if (line6_devices[devnum] == NULL)
-			break;
-
-	if (devnum == LINE6_MAX_DEVICES) {
 		ret = -ENODEV;
 		goto err_put;
 	}
@@ -1112,7 +1038,6 @@ static int line6_probe(struct usb_interface *interface,
 
 	dev_info(&interface->dev, "Line6 %s now attached\n",
 		 line6->properties->name);
-	line6_devices[devnum] = line6;
 
 	switch (product) {
 	case LINE6_DEVID_PODX3:
@@ -1141,7 +1066,7 @@ static void line6_disconnect(struct usb_interface *interface)
 {
 	struct usb_line6 *line6;
 	struct usb_device *usbdev;
-	int interface_number, i;
+	int interface_number;
 
 	if (interface == NULL)
 		return;
@@ -1214,10 +1139,6 @@ static void line6_disconnect(struct usb_interface *interface)
 
 		dev_info(&interface->dev, "Line6 %s now disconnected\n",
 			 line6->properties->name);
-
-		for (i = LINE6_MAX_DEVICES; i--;)
-			if (line6_devices[i] == line6)
-				line6_devices[i] = NULL;
 	}
 
 	line6_destruct(interface);

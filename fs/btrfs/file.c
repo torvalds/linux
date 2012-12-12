@@ -1346,8 +1346,7 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 
 		cond_resched();
 
-		balance_dirty_pages_ratelimited_nr(inode->i_mapping,
-						   dirty_pages);
+		balance_dirty_pages_ratelimited(inode->i_mapping);
 		if (dirty_pages < (root->leafsize >> PAGE_CACHE_SHIFT) + 1)
 			btrfs_btree_balance_dirty(root, 1);
 

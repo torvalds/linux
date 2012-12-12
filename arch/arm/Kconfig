@@ -330,6 +330,8 @@ config ARCH_AT91
 	select IRQ_DOMAIN
 	select NEED_MACH_GPIO_H
 	select NEED_MACH_IO_H if PCCARD
+	select PINCTRL
+	select PINCTRL_AT91 if USE_OF
 	help
 	  This enables support for systems based on Atmel
 	  AT91RM9200 and AT91SAM9* processors.
@@ -364,6 +366,7 @@ config ARCH_CNS3XXX
 
 config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x/EP731x-based"
+	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_USES_GETTIMEOFFSET
 	select CLKDEV_LOOKUP
 	select COMMON_CLK
@@ -547,6 +550,7 @@ config ARCH_KIRKWOOD
 	select CPU_FEROCEON
 	select GENERIC_CLOCKEVENTS
 	select PCI
+	select PCI_QUIRKS
 	select PLAT_ORION_LEGACY
 	help
 	  Support for the following Marvell Kirkwood series SoCs:
@@ -586,6 +590,7 @@ config ARCH_MMP
 	select GPIO_PXA
 	select IRQ_DOMAIN
 	select NEED_MACH_GPIO_H
+	select PINCTRL
 	select PLAT_PXA
 	select SPARSE_IRQ
 	help
@@ -904,6 +909,7 @@ config ARCH_NOMADIK
 
 config PLAT_SPEAR
 	bool "ST SPEAr"
+	select ARCH_HAS_CPUFREQ
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select CLKDEV_LOOKUP

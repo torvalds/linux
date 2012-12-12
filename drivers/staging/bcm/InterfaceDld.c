@@ -6,7 +6,7 @@ int InterfaceFileDownload(PVOID arg, struct file *flp, unsigned int on_chip_loc)
 	mm_segment_t oldfs = {0};
 	int errno = 0, len = 0; /* ,is_config_file = 0 */
 	loff_t pos = 0;
-	PS_INTERFACE_ADAPTER psIntfAdapter = (PS_INTERFACE_ADAPTER)arg;
+	struct bcm_interface_adapter *psIntfAdapter = (struct bcm_interface_adapter *)arg;
 	/* struct bcm_mini_adapter *Adapter = psIntfAdapter->psAdapter; */
 	char *buff = kmalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_KERNEL);
 
@@ -61,7 +61,7 @@ int InterfaceFileReadbackFromChip(PVOID arg, struct file *flp, unsigned int on_c
 	loff_t pos = 0;
 	static int fw_down;
 	INT Status = STATUS_SUCCESS;
-	PS_INTERFACE_ADAPTER psIntfAdapter = (PS_INTERFACE_ADAPTER)arg;
+	struct bcm_interface_adapter *psIntfAdapter = (struct bcm_interface_adapter *)arg;
 	int bytes;
 
 	buff = kmalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_DMA);

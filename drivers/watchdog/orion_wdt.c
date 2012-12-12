@@ -142,7 +142,7 @@ static struct watchdog_device orion_wdt = {
 	.ops = &orion_wdt_ops,
 };
 
-static int __devinit orion_wdt_probe(struct platform_device *pdev)
+static int orion_wdt_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	int ret;
@@ -181,7 +181,7 @@ static int __devinit orion_wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit orion_wdt_remove(struct platform_device *pdev)
+static int orion_wdt_remove(struct platform_device *pdev)
 {
 	watchdog_unregister_device(&orion_wdt);
 	clk_disable_unprepare(clk);
@@ -193,7 +193,7 @@ static void orion_wdt_shutdown(struct platform_device *pdev)
 	orion_wdt_stop(&orion_wdt);
 }
 
-static const struct of_device_id orion_wdt_of_match_table[] __devinitdata = {
+static const struct of_device_id orion_wdt_of_match_table[] = {
 	{ .compatible = "marvell,orion-wdt", },
 	{},
 };
@@ -201,7 +201,7 @@ MODULE_DEVICE_TABLE(of, orion_wdt_of_match_table);
 
 static struct platform_driver orion_wdt_driver = {
 	.probe		= orion_wdt_probe,
-	.remove		= __devexit_p(orion_wdt_remove),
+	.remove		= orion_wdt_remove,
 	.shutdown	= orion_wdt_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,

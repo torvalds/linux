@@ -271,7 +271,7 @@ MODULE_DEVICE_TABLE(pci, sp5100_tco_pci_tbl);
  * Init & exit routines
  */
 
-static unsigned char __devinit sp5100_tco_setupdevice(void)
+static unsigned char sp5100_tco_setupdevice(void)
 {
 	struct pci_dev *dev = NULL;
 	u32 val;
@@ -361,7 +361,7 @@ exit:
 	return 0;
 }
 
-static int __devinit sp5100_tco_init(struct platform_device *dev)
+static int sp5100_tco_init(struct platform_device *dev)
 {
 	int ret;
 	u32 val;
@@ -412,7 +412,7 @@ exit:
 	return ret;
 }
 
-static void __devexit sp5100_tco_cleanup(void)
+static void sp5100_tco_cleanup(void)
 {
 	/* Stop the timer before we leave */
 	if (!nowayout)
@@ -425,7 +425,7 @@ static void __devexit sp5100_tco_cleanup(void)
 	release_region(pm_iobase, SP5100_PM_IOPORTS_SIZE);
 }
 
-static int __devexit sp5100_tco_remove(struct platform_device *dev)
+static int sp5100_tco_remove(struct platform_device *dev)
 {
 	if (tcobase)
 		sp5100_tco_cleanup();
@@ -439,7 +439,7 @@ static void sp5100_tco_shutdown(struct platform_device *dev)
 
 static struct platform_driver sp5100_tco_driver = {
 	.probe		= sp5100_tco_init,
-	.remove		= __devexit_p(sp5100_tco_remove),
+	.remove		= sp5100_tco_remove,
 	.shutdown	= sp5100_tco_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,

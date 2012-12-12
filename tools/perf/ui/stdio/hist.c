@@ -342,7 +342,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 	const char *sep = symbol_conf.field_sep;
 	const char *col_width = symbol_conf.col_width_list_str;
 	int idx, nr_rows = 0;
-	char bf[64];
+	char bf[96];
 	struct perf_hpp dummy_hpp = {
 		.buf	= bf,
 		.size	= sizeof(bf),

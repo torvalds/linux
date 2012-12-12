@@ -938,7 +938,7 @@ static int ab8500_btemp_suspend(struct platform_device *pdev,
 #define ab8500_btemp_resume       NULL
 #endif
 
-static int __devexit ab8500_btemp_remove(struct platform_device *pdev)
+static int ab8500_btemp_remove(struct platform_device *pdev)
 {
 	struct ab8500_btemp *di = platform_get_drvdata(pdev);
 	int i, irq;
@@ -964,7 +964,7 @@ static char *supply_interface[] = {
 	"ab8500_fg",
 };
 
-static int __devinit ab8500_btemp_probe(struct platform_device *pdev)
+static int ab8500_btemp_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct ab8500_btemp *di;
@@ -1103,7 +1103,7 @@ static const struct of_device_id ab8500_btemp_match[] = {
 
 static struct platform_driver ab8500_btemp_driver = {
 	.probe = ab8500_btemp_probe,
-	.remove = __devexit_p(ab8500_btemp_remove),
+	.remove = ab8500_btemp_remove,
 	.suspend = ab8500_btemp_suspend,
 	.resume = ab8500_btemp_resume,
 	.driver = {

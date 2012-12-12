@@ -1,7 +1,7 @@
 #ifndef __PERF_HEADER_H
 #define __PERF_HEADER_H
 
-#include "../../../include/uapi/linux/perf_event.h"
+#include <linux/perf_event.h>
 #include <sys/types.h>
 #include <stdbool.h>
 #include "types.h"
@@ -154,6 +154,7 @@ int perf_event__synthesize_build_id(struct perf_tool *tool,
 int perf_event__process_build_id(struct perf_tool *tool,
 				 union perf_event *event,
 				 struct perf_session *session);
+bool is_perf_magic(u64 magic);
 
 /*
  * arch specific callback

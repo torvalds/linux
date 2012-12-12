@@ -50,8 +50,8 @@ static void devres_log(struct device *dev, struct devres_node *node,
 		       const char *op)
 {
 	if (unlikely(log_devres))
-		dev_printk(KERN_ERR, dev, "DEVRES %3s %p %s (%lu bytes)\n",
-			   op, node, node->name, (unsigned long)node->size);
+		dev_err(dev, "DEVRES %3s %p %s (%lu bytes)\n",
+			op, node, node->name, (unsigned long)node->size);
 }
 #else /* CONFIG_DEBUG_DEVRES */
 #define set_node_dbginfo(node, n, s)	do {} while (0)

@@ -61,16 +61,16 @@ static void acpi_ns_resolve_references(struct acpi_evaluate_info *info);
  * PARAMETERS:  handle              - Object handle (optional)
  *              pathname            - Object pathname (optional)
  *              external_params     - List of parameters to pass to method,
- *                                    terminated by NULL.  May be NULL
+ *                                    terminated by NULL. May be NULL
  *                                    if no parameters are being passed.
  *              return_buffer       - Where to put method's return value (if
- *                                    any).  If NULL, no value is returned.
+ *                                    any). If NULL, no value is returned.
  *              return_type         - Expected type of return object
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Find and evaluate the given object, passing the given
- *              parameters if necessary.  One of "Handle" or "Pathname" must
+ *              parameters if necessary. One of "Handle" or "Pathname" must
  *              be valid (non-null)
  *
  ******************************************************************************/
@@ -155,15 +155,15 @@ ACPI_EXPORT_SYMBOL(acpi_evaluate_object_typed)
  * PARAMETERS:  handle              - Object handle (optional)
  *              pathname            - Object pathname (optional)
  *              external_params     - List of parameters to pass to method,
- *                                    terminated by NULL.  May be NULL
+ *                                    terminated by NULL. May be NULL
  *                                    if no parameters are being passed.
  *              return_buffer       - Where to put method's return value (if
- *                                    any).  If NULL, no value is returned.
+ *                                    any). If NULL, no value is returned.
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Find and evaluate the given object, passing the given
- *              parameters if necessary.  One of "Handle" or "Pathname" must
+ *              parameters if necessary. One of "Handle" or "Pathname" must
  *              be valid (non-null)
  *
  ******************************************************************************/
@@ -542,15 +542,15 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 	acpi_status status;
 	struct acpi_namespace_node *node;
 	u32 flags;
-	struct acpica_device_id *hid;
-	struct acpica_device_id_list *cid;
+	struct acpi_pnp_device_id *hid;
+	struct acpi_pnp_device_id_list *cid;
 	u32 i;
 	u8 found;
 	int no_match;
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
-		return (status);
+		return_ACPI_STATUS(status);
 	}
 
 	node = acpi_ns_validate_handle(obj_handle);
@@ -656,7 +656,7 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
  * DESCRIPTION: Performs a modified depth-first walk of the namespace tree,
  *              starting (and ending) at the object specified by start_handle.
  *              The user_function is called whenever an object of type
- *              Device is found.  If the user function returns
+ *              Device is found. If the user function returns
  *              a non-zero value, the search is terminated immediately and this
  *              value is returned to the caller.
  *

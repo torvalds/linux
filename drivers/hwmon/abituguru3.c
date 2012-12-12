@@ -966,7 +966,7 @@ static struct sensor_device_attribute_2 abituguru3_sysfs_attr[] = {
 	SENSOR_ATTR_2(name, 0444, show_name, NULL, 0, 0),
 };
 
-static int __devinit abituguru3_probe(struct platform_device *pdev)
+static int abituguru3_probe(struct platform_device *pdev)
 {
 	const int no_sysfs_attr[3] = { 10, 8, 7 };
 	int sensor_index[3] = { 0, 1, 1 };
@@ -1072,7 +1072,7 @@ abituguru3_probe_error:
 	return res;
 }
 
-static int __devexit abituguru3_remove(struct platform_device *pdev)
+static int abituguru3_remove(struct platform_device *pdev)
 {
 	int i;
 	struct abituguru3_data *data = platform_get_drvdata(pdev);
@@ -1171,7 +1171,7 @@ static struct platform_driver abituguru3_driver = {
 		.pm	= ABIT_UGURU3_PM
 	},
 	.probe	= abituguru3_probe,
-	.remove	= __devexit_p(abituguru3_remove),
+	.remove	= abituguru3_remove,
 };
 
 static int __init abituguru3_dmi_detect(void)

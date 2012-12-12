@@ -106,3 +106,39 @@ static inline int serial8250_pnp_init(void) { return 0; }
 static inline void serial8250_pnp_exit(void) { }
 #endif
 
+#ifdef CONFIG_ARCH_OMAP1
+static inline int is_omap1_8250(struct uart_8250_port *pt)
+{
+	int res;
+
+	switch (pt->port.mapbase) {
+	case OMAP1_UART1_BASE:
+	case OMAP1_UART2_BASE:
+	case OMAP1_UART3_BASE:
+		res = 1;
+		break;
+	default:
+		res = 0;
+		break;
+	}
+
+	return res;
+}
+
+static inline int is_omap1510_8250(struct uart_8250_port *pt)
+{
+	if (!cpu_is_omap1510())
+		return 0;
+
+	return is_omap1_8250(pt);
+}
+#else
+static inline int is_omap1_8250(struct uart_8250_port *pt)
+{
+	return 0;
+}
+static inline int is_omap1510_8250(struct uart_8250_port *pt)
+{
+	return 0;
+}
+#endif

@@ -53,6 +53,7 @@ int arch_get_memory_phys_device(unsigned long start_pfn);
 struct memory_notify {
 	unsigned long start_pfn;
 	unsigned long nr_pages;
+	int status_change_nid_normal;
 	int status_change_nid;
 };
 

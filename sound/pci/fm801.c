@@ -767,9 +767,14 @@ static u8 snd_fm801_tea575x_get_pins(struct snd_tea575x *tea)
 	struct fm801 *chip = tea->private_data;
 	unsigned short reg = inw(FM801_REG(chip, GPIO_CTRL));
 	struct snd_fm801_tea575x_gpio gpio = *get_tea575x_gpio(chip);
+	u8 ret;
 
-	return  (reg & FM801_GPIO_GP(gpio.data)) ? TEA575X_DATA : 0 |
-		(reg & FM801_GPIO_GP(gpio.most)) ? TEA575X_MOST : 0;
+	ret = 0;
+	if (reg & FM801_GPIO_GP(gpio.data))
+		ret |= TEA575X_DATA;
+	if (reg & FM801_GPIO_GP(gpio.most))
+		ret |= TEA575X_MOST;
+	return ret;
 }
 
 static void snd_fm801_tea575x_set_direction(struct snd_tea575x *tea, bool output)

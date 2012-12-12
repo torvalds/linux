@@ -150,7 +150,7 @@ static struct lcd_ops lms_ops = {
 	.get_power	= NULL,
 };
 
-static int __devinit lms283gf05_probe(struct spi_device *spi)
+static int lms283gf05_probe(struct spi_device *spi)
 {
 	struct lms283gf05_state *st;
 	struct lms283gf05_pdata *pdata = spi->dev.platform_data;
@@ -193,7 +193,7 @@ static int __devinit lms283gf05_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit lms283gf05_remove(struct spi_device *spi)
+static int lms283gf05_remove(struct spi_device *spi)
 {
 	struct lms283gf05_state *st = dev_get_drvdata(&spi->dev);
 
@@ -208,7 +208,7 @@ static struct spi_driver lms283gf05_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= lms283gf05_probe,
-	.remove		= __devexit_p(lms283gf05_remove),
+	.remove		= lms283gf05_remove,
 };
 
 module_spi_driver(lms283gf05_driver);

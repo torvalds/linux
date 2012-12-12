@@ -7,7 +7,7 @@
 #include <linux/list.h>
 #include <stdbool.h>
 #include "types.h"
-#include "../../../include/uapi/linux/perf_event.h"
+#include <linux/perf_event.h>
 #include "types.h"
 
 struct list_head;
@@ -76,6 +76,8 @@ int parse_events__term_num(struct parse_events__term **_term,
 			   int type_term, char *config, u64 num);
 int parse_events__term_str(struct parse_events__term **_term,
 			   int type_term, char *config, char *str);
+int parse_events__term_sym_hw(struct parse_events__term **term,
+			      char *config, unsigned idx);
 int parse_events__term_clone(struct parse_events__term **new,
 			     struct parse_events__term *term);
 void parse_events__free_terms(struct list_head *terms);
@@ -97,7 +99,6 @@ void parse_events__set_leader(char *name, struct list_head *list);
 void parse_events_update_lists(struct list_head *list_event,
 			       struct list_head *list_all);
 void parse_events_error(void *data, void *scanner, char const *msg);
-int parse_events__test(void);
 
 void print_events(const char *event_glob, bool name_only);
 void print_events_type(u8 type);

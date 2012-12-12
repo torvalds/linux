@@ -297,7 +297,7 @@ err_dev:
 	return ret;
 }
 
-static int __devexit lp855x_remove(struct i2c_client *cl)
+static int lp855x_remove(struct i2c_client *cl)
 {
 	struct lp855x *lp = i2c_get_clientdata(cl);
 
@@ -324,7 +324,7 @@ static struct i2c_driver lp855x_driver = {
 		   .name = "lp855x",
 		   },
 	.probe = lp855x_probe,
-	.remove = __devexit_p(lp855x_remove),
+	.remove = lp855x_remove,
 	.id_table = lp855x_ids,
 };
 

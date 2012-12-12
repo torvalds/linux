@@ -170,7 +170,7 @@ static const struct file_operations twl4030_wdt_fops = {
 	.write		= twl4030_wdt_write_fop,
 };
 
-static int __devinit twl4030_wdt_probe(struct platform_device *pdev)
+static int twl4030_wdt_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct twl4030_wdt *wdt;
@@ -204,7 +204,7 @@ static int __devinit twl4030_wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit twl4030_wdt_remove(struct platform_device *pdev)
+static int twl4030_wdt_remove(struct platform_device *pdev)
 {
 	struct twl4030_wdt *wdt = platform_get_drvdata(pdev);
 
@@ -247,7 +247,7 @@ static int twl4030_wdt_resume(struct platform_device *pdev)
 
 static struct platform_driver twl4030_wdt_driver = {
 	.probe		= twl4030_wdt_probe,
-	.remove		= __devexit_p(twl4030_wdt_remove),
+	.remove		= twl4030_wdt_remove,
 	.suspend	= twl4030_wdt_suspend,
 	.resume		= twl4030_wdt_resume,
 	.driver		= {

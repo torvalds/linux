@@ -45,7 +45,8 @@ struct alias_prop {
 
 static LIST_HEAD(aliases_lookup);
 
-struct device_node *allnodes;
+struct device_node *of_allnodes;
+EXPORT_SYMBOL(of_allnodes);
 struct device_node *of_chosen;
 struct device_node *of_aliases;
 
@@ -199,7 +200,7 @@ struct device_node *of_find_all_nodes(struct device_node *prev)
 	struct device_node *np;
 
 	read_lock(&devtree_lock);
-	np = prev ? prev->allnext : allnodes;
+	np = prev ? prev->allnext : of_allnodes;
 	for (; np != NULL; np = np->allnext)
 		if (of_node_get(np))
 			break;
@@ -422,7 +423,7 @@ EXPORT_SYMBOL(of_get_child_by_name);
  */
 struct device_node *of_find_node_by_path(const char *path)
 {
-	struct device_node *np = allnodes;
+	struct device_node *np = of_allnodes;
 
 	read_lock(&devtree_lock);
 	for (; np; np = np->allnext) {
@@ -452,7 +453,7 @@ struct device_node *of_find_node_by_name(struct device_node *from,
 	struct device_node *np;
 
 	read_lock(&devtree_lock);
-	np = from ? from->allnext : allnodes;
+	np = from ? from->allnext : of_allnodes;
 	for (; np; np = np->allnext)
 		if (np->name && (of_node_cmp(np->name, name) == 0)
 		    && of_node_get(np))
@@ -481,7 +482,7 @@ struct device_node *of_find_node_by_type(struct device_node *from,
 	struct device_node *np;
 
 	read_lock(&devtree_lock);
-	np = from ? from->allnext : allnodes;
+	np = from ? from->allnext : of_allnodes;
 	for (; np; np = np->allnext)
 		if (np->type && (of_node_cmp(np->type, type) == 0)
 		    && of_node_get(np))
@@ -512,7 +513,7 @@ struct device_node *of_find_compatible_node(struct device_node *from,
 	struct device_node *np;
 
 	read_lock(&devtree_lock);
-	np = from ? from->allnext : allnodes;
+	np = from ? from->allnext : of_allnodes;
 	for (; np; np = np->allnext) {
 		if (type
 		    && !(np->type && (of_node_cmp(np->type, type) == 0)))
@@ -545,7 +546,7 @@ struct device_node *of_find_node_with_property(struct device_node *from,
 	struct property *pp;
 
 	read_lock(&devtree_lock);
-	np = from ? from->allnext : allnodes;
+	np = from ? from->allnext : of_allnodes;
 	for (; np; np = np->allnext) {
 		for (pp = np->properties; pp; pp = pp->next) {
 			if (of_prop_cmp(pp->name, prop_name) == 0) {
@@ -594,27 +595,35 @@ const struct of_device_id *of_match_node(const struct of_device_id *matches,
 EXPORT_SYMBOL(of_match_node);
 
 /**
- *	of_find_matching_node - Find a node based on an of_device_id match
- *				table.
+ *	of_find_matching_node_and_match - Find a node based on an of_device_id
+ *					  match table.
  *	@from:		The node to start searching from or NULL, the node
  *			you pass will not be searched, only the next one
  *			will; typically, you pass what the previous call
  *			returned. of_node_put() will be called on it
  *	@matches:	array of of device match structures to search in
+ *	@match		Updated to point at the matches entry which matched
  *
  *	Returns a node pointer with refcount incremented, use
  *	of_node_put() on it when done.
  */
-struct device_node *of_find_matching_node(struct device_node *from,
-					  const struct of_device_id *matches)
+struct device_node *of_find_matching_node_and_match(struct device_node *from,
+					const struct of_device_id *matches,
+					const struct of_device_id **match)
 {
 	struct device_node *np;
 
+	if (match)
+		*match = NULL;
+
 	read_lock(&devtree_lock);
-	np = from ? from->allnext : allnodes;
+	np = from ? from->allnext : of_allnodes;
 	for (; np; np = np->allnext) {
-		if (of_match_node(matches, np) && of_node_get(np))
+		if (of_match_node(matches, np) && of_node_get(np)) {
+			if (match)
+				*match = matches;
 			break;
+		}
 	}
 	of_node_put(from);
 	read_unlock(&devtree_lock);
@@ -661,7 +670,7 @@ struct device_node *of_find_node_by_phandle(phandle handle)
 	struct device_node *np;
 
 	read_lock(&devtree_lock);
-	for (np = allnodes; np; np = np->allnext)
+	for (np = of_allnodes; np; np = np->allnext)
 		if (np->phandle == handle)
 			break;
 	of_node_get(np);
@@ -671,12 +680,89 @@ struct device_node *of_find_node_by_phandle(phandle handle)
 EXPORT_SYMBOL(of_find_node_by_phandle);
 
 /**
+ * of_property_read_u8_array - Find and read an array of u8 from a property.
+ *
+ * @np:		device node from which the property value is to be read.
+ * @propname:	name of the property to be searched.
+ * @out_value:	pointer to return value, modified only if return value is 0.
+ * @sz:		number of array elements to read
+ *
+ * Search for a property in a device node and read 8-bit value(s) from
+ * it. Returns 0 on success, -EINVAL if the property does not exist,
+ * -ENODATA if property does not have a value, and -EOVERFLOW if the
+ * property data isn't large enough.
+ *
+ * dts entry of array should be like:
+ *	property = /bits/ 8 <0x50 0x60 0x70>;
+ *
+ * The out_value is modified only if a valid u8 value can be decoded.
+ */
+int of_property_read_u8_array(const struct device_node *np,
+			const char *propname, u8 *out_values, size_t sz)
+{
+	struct property *prop = of_find_property(np, propname, NULL);
+	const u8 *val;
+
+	if (!prop)
+		return -EINVAL;
+	if (!prop->value)
+		return -ENODATA;
+	if ((sz * sizeof(*out_values)) > prop->length)
+		return -EOVERFLOW;
+
+	val = prop->value;
+	while (sz--)
+		*out_values++ = *val++;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(of_property_read_u8_array);
+
+/**
+ * of_property_read_u16_array - Find and read an array of u16 from a property.
+ *
+ * @np:		device node from which the property value is to be read.
+ * @propname:	name of the property to be searched.
+ * @out_value:	pointer to return value, modified only if return value is 0.
+ * @sz:		number of array elements to read
+ *
+ * Search for a property in a device node and read 16-bit value(s) from
+ * it. Returns 0 on success, -EINVAL if the property does not exist,
+ * -ENODATA if property does not have a value, and -EOVERFLOW if the
+ * property data isn't large enough.
+ *
+ * dts entry of array should be like:
+ *	property = /bits/ 16 <0x5000 0x6000 0x7000>;
+ *
+ * The out_value is modified only if a valid u16 value can be decoded.
+ */
+int of_property_read_u16_array(const struct device_node *np,
+			const char *propname, u16 *out_values, size_t sz)
+{
+	struct property *prop = of_find_property(np, propname, NULL);
+	const __be16 *val;
+
+	if (!prop)
+		return -EINVAL;
+	if (!prop->value)
+		return -ENODATA;
+	if ((sz * sizeof(*out_values)) > prop->length)
+		return -EOVERFLOW;
+
+	val = prop->value;
+	while (sz--)
+		*out_values++ = be16_to_cpup(val++);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(of_property_read_u16_array);
+
+/**
  * of_property_read_u32_array - Find and read an array of 32 bit integers
  * from a property.
  *
  * @np:		device node from which the property value is to be read.
  * @propname:	name of the property to be searched.
  * @out_value:	pointer to return value, modified only if return value is 0.
+ * @sz:		number of array elements to read
  *
  * Search for a property in a device node and read 32-bit value(s) from
  * it. Returns 0 on success, -EINVAL if the property does not exist,
@@ -893,8 +979,8 @@ EXPORT_SYMBOL_GPL(of_property_count_strings);
  * Returns the device_node pointer with refcount incremented.  Use
  * of_node_put() on it when done.
  */
-struct device_node *
-of_parse_phandle(struct device_node *np, const char *phandle_name, int index)
+struct device_node *of_parse_phandle(const struct device_node *np,
+				     const char *phandle_name, int index)
 {
 	const __be32 *phandle;
 	int size;
@@ -1169,9 +1255,9 @@ void of_attach_node(struct device_node *np)
 
 	write_lock_irqsave(&devtree_lock, flags);
 	np->sibling = np->parent->child;
-	np->allnext = allnodes;
+	np->allnext = of_allnodes;
 	np->parent->child = np;
-	allnodes = np;
+	of_allnodes = np;
 	write_unlock_irqrestore(&devtree_lock, flags);
 }
 
@@ -1192,11 +1278,11 @@ void of_detach_node(struct device_node *np)
 	if (!parent)
 		goto out_unlock;
 
-	if (allnodes == np)
-		allnodes = np->allnext;
+	if (of_allnodes == np)
+		of_allnodes = np->allnext;
 	else {
 		struct device_node *prev;
-		for (prev = allnodes;
+		for (prev = of_allnodes;
 		     prev->allnext != np;
 		     prev = prev->allnext)
 			;

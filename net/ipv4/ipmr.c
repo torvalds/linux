@@ -1318,6 +1318,10 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, unsi
 		if (get_user(v, (u32 __user *)optval))
 			return -EFAULT;
 
+		/* "pimreg%u" should not exceed 16 bytes (IFNAMSIZ) */
+		if (v != RT_TABLE_DEFAULT && v >= 1000000000)
+			return -EINVAL;
+
 		rtnl_lock();
 		ret = 0;
 		if (sk == rtnl_dereference(mrt->mroute_sk)) {

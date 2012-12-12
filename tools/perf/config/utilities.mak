@@ -180,9 +180,15 @@ _gea_warn = $(warning The path '$(1)' is not executable.)
 _gea_err  = $(if $(1),$(error Please set '$(1)' appropriately))
 
 # try-cc
-# Usage: option = $(call try-cc, source-to-build, cc-options)
+# Usage: option = $(call try-cc, source-to-build, cc-options, msg)
+ifndef V
+TRY_CC_OUTPUT= > /dev/null 2>&1
+endif
+TRY_CC_MSG=echo "    CHK $(3)" 1>&2;
+
 try-cc = $(shell sh -c						  \
 	'TMP="$(OUTPUT)$(TMPOUT).$$$$";				  \
+	 $(TRY_CC_MSG)						  \
 	 echo "$(1)" |						  \
-	 $(CC) -x c - $(2) -o "$$TMP" > /dev/null 2>&1 && echo y; \
+	 $(CC) -x c - $(2) -o "$$TMP" $(TRY_CC_OUTPUT) && echo y; \
 	 rm -f "$$TMP"')

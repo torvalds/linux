@@ -1800,7 +1800,7 @@ static void hugetlb_unregister_all_nodes(void)
 	 * remove hstate attributes from any nodes that have them.
 	 */
 	for (nid = 0; nid < nr_node_ids; nid++)
-		hugetlb_unregister_node(&node_devices[nid]);
+		hugetlb_unregister_node(node_devices[nid]);
 }
 
 /*
@@ -1845,7 +1845,7 @@ static void hugetlb_register_all_nodes(void)
 	int nid;
 
 	for_each_node_state(nid, N_HIGH_MEMORY) {
-		struct node *node = &node_devices[nid];
+		struct node *node = node_devices[nid];
 		if (node->dev.id == nid)
 			hugetlb_register_node(node);
 	}

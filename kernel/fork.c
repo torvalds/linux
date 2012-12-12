@@ -352,6 +352,7 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 	unsigned long charge;
 	struct mempolicy *pol;
 
+	uprobe_start_dup_mmap();
 	down_write(&oldmm->mmap_sem);
 	flush_cache_dup_mm(oldmm);
 	uprobe_dup_mmap(oldmm, mm);
@@ -469,6 +470,7 @@ out:
 	up_write(&mm->mmap_sem);
 	flush_tlb_mm(oldmm);
 	up_write(&oldmm->mmap_sem);
+	uprobe_end_dup_mmap();
 	return retval;
 fail_nomem_anon_vma_fork:
 	mpol_put(pol);
@@ -1222,7 +1224,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	p->utime = p->stime = p->gtime = 0;
 	p->utimescaled = p->stimescaled = 0;
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING
-	p->prev_utime = p->prev_stime = 0;
+	p->prev_cputime.utime = p->prev_cputime.stime = 0;
 #endif
 #if defined(SPLIT_RSS_COUNTING)
 	memset(&p->rss_stat, 0, sizeof(p->rss_stat));

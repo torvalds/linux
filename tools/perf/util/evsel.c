@@ -18,8 +18,8 @@
 #include "cpumap.h"
 #include "thread_map.h"
 #include "target.h"
-#include "../../../include/linux/hw_breakpoint.h"
-#include "../../../include/uapi/linux/perf_event.h"
+#include <linux/hw_breakpoint.h>
+#include <linux/perf_event.h>
 #include "perf_regs.h"
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
@@ -404,13 +404,40 @@ const char *perf_evsel__name(struct perf_evsel *evsel)
 	return evsel->name ?: "unknown";
 }
 
-void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts,
-			struct perf_evsel *first)
+/*
+ * The enable_on_exec/disabled value strategy:
+ *
+ *  1) For any type of traced program:
+ *    - all independent events and group leaders are disabled
+ *    - all group members are enabled
+ *
+ *     Group members are ruled by group leaders. They need to
+ *     be enabled, because the group scheduling relies on that.
+ *
+ *  2) For traced programs executed by perf:
+ *     - all independent events and group leaders have
+ *       enable_on_exec set
+ *     - we don't specifically enable or disable any event during
+ *       the record command
+ *
+ *     Independent events and group leaders are initially disabled
+ *     and get enabled by exec. Group members are ruled by group
+ *     leaders as stated in 1).
+ *
+ *  3) For traced programs attached by perf (pid/tid):
+ *     - we specifically enable or disable all events during
+ *       the record command
+ *
+ *     When attaching events to already running traced we
+ *     enable/disable events specifically, as there's no
+ *     initial traced exec call.
+ */
+void perf_evsel__config(struct perf_evsel *evsel,
+			struct perf_record_opts *opts)
 {
 	struct perf_event_attr *attr = &evsel->attr;
 	int track = !evsel->idx; /* only the first counter needs these */
 
-	attr->disabled = 1;
 	attr->sample_id_all = opts->sample_id_all_missing ? 0 : 1;
 	attr->inherit	    = !opts->no_inherit;
 	attr->read_format   = PERF_FORMAT_TOTAL_TIME_ENABLED |
@@ -486,10 +513,21 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts,
 	attr->mmap = track;
 	attr->comm = track;
 
-	if (perf_target__none(&opts->target) &&
-	    (!opts->group || evsel == first)) {
+	/*
+	 * XXX see the function comment above
+	 *
+	 * Disabling only independent events or group leaders,
+	 * keeping group members enabled.
+	 */
+	if (!perf_evsel__is_group_member(evsel))
+		attr->disabled = 1;
+
+	/*
+	 * Setting enable_on_exec for independent events and
+	 * group leaders for traced executed by perf.
+	 */
+	if (perf_target__none(&opts->target) && !perf_evsel__is_group_member(evsel))
 		attr->enable_on_exec = 1;
-	}
 }
 
 int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
@@ -669,7 +707,7 @@ static int get_group_fd(struct perf_evsel *evsel, int cpu, int thread)
 	struct perf_evsel *leader = evsel->leader;
 	int fd;
 
-	if (!leader)
+	if (!perf_evsel__is_group_member(evsel))
 		return -1;
 
 	/*

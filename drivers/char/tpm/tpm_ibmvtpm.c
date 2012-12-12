@@ -32,7 +32,7 @@
 
 static const char tpm_ibmvtpm_driver_name[] = "tpm_ibmvtpm";
 
-static struct vio_device_id tpm_ibmvtpm_device_table[] __devinitdata = {
+static struct vio_device_id tpm_ibmvtpm_device_table[] = {
 	{ "IBM,vtpm", "IBM,vtpm"},
 	{ "", "" }
 };
@@ -267,7 +267,7 @@ static int ibmvtpm_crq_send_init(struct ibmvtpm_dev *ibmvtpm)
  * Return value:
  *	0
  */
-static int __devexit tpm_ibmvtpm_remove(struct vio_dev *vdev)
+static int tpm_ibmvtpm_remove(struct vio_dev *vdev)
 {
 	struct ibmvtpm_dev *ibmvtpm = ibmvtpm_get_data(&vdev->dev);
 	int rc = 0;
@@ -602,7 +602,7 @@ static void ibmvtpm_tasklet(void *data)
  *	0 - Success
  *	Non-zero - Failure
  */
-static int __devinit tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
+static int tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 				   const struct vio_device_id *id)
 {
 	struct ibmvtpm_dev *ibmvtpm;

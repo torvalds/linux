@@ -229,15 +229,17 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID("usart", "f8028000.serial", &usart3_clk),
 	CLKDEV_CON_DEV_ID("t0_clk", "f8008000.timer", &tcb0_clk),
 	CLKDEV_CON_DEV_ID("t0_clk", "f800c000.timer", &tcb0_clk),
+	CLKDEV_CON_DEV_ID("mci_clk", "f0008000.mmc", &mmc0_clk),
+	CLKDEV_CON_DEV_ID("mci_clk", "f000c000.mmc", &mmc1_clk),
 	CLKDEV_CON_DEV_ID("dma_clk", "ffffec00.dma-controller", &dma0_clk),
 	CLKDEV_CON_DEV_ID("dma_clk", "ffffee00.dma-controller", &dma1_clk),
 	CLKDEV_CON_DEV_ID(NULL, "f8010000.i2c", &twi0_clk),
 	CLKDEV_CON_DEV_ID(NULL, "f8014000.i2c", &twi1_clk),
 	CLKDEV_CON_DEV_ID(NULL, "f8018000.i2c", &twi2_clk),
-	CLKDEV_CON_ID("pioA", &pioAB_clk),
-	CLKDEV_CON_ID("pioB", &pioAB_clk),
-	CLKDEV_CON_ID("pioC", &pioCD_clk),
-	CLKDEV_CON_ID("pioD", &pioCD_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffff400.gpio", &pioAB_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffff600.gpio", &pioAB_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffff800.gpio", &pioCD_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffffa00.gpio", &pioCD_clk),
 	/* additional fake clock for macb_hclk */
 	CLKDEV_CON_DEV_ID("hclk", "f802c000.ethernet", &macb0_clk),
 	CLKDEV_CON_DEV_ID("hclk", "f8030000.ethernet", &macb1_clk),
@@ -313,18 +315,11 @@ static void __init at91sam9x5_map_io(void)
 	at91_init_sram(0, AT91SAM9X5_SRAM_BASE, AT91SAM9X5_SRAM_SIZE);
 }
 
-void __init at91sam9x5_initialize(void)
-{
-	/* Register GPIO subsystem (using DT) */
-	at91_gpio_init(NULL, 0);
-}
-
 /* --------------------------------------------------------------------
  *  Interrupt initialization
  * -------------------------------------------------------------------- */
 
-struct at91_init_soc __initdata at91sam9x5_soc = {
+AT91_SOC_START(sam9x5)
 	.map_io = at91sam9x5_map_io,
 	.register_clocks = at91sam9x5_register_clocks,
-	.init = at91sam9x5_initialize,
-};
+AT91_SOC_END

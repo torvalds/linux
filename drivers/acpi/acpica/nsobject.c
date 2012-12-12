@@ -61,7 +61,7 @@ ACPI_MODULE_NAME("nsobject")
  * RETURN:      Status
  *
  * DESCRIPTION: Record the given object as the value associated with the
- *              name whose acpi_handle is passed.  If Object is NULL
+ *              name whose acpi_handle is passed. If Object is NULL
  *              and Type is ACPI_TYPE_ANY, set the name as having no value.
  *              Note: Future may require that the Node->Flags field be passed
  *              as a parameter.
@@ -133,7 +133,7 @@ acpi_ns_attach_object(struct acpi_namespace_node *node,
 		 ((struct acpi_namespace_node *)object)->object) {
 		/*
 		 * Value passed is a name handle and that name has a
-		 * non-null value.  Use that name's value and type.
+		 * non-null value. Use that name's value and type.
 		 */
 		obj_desc = ((struct acpi_namespace_node *)object)->object;
 		object_type = ((struct acpi_namespace_node *)object)->type;
@@ -321,7 +321,7 @@ union acpi_operand_object *acpi_ns_get_secondary_object(union
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Low-level attach data.  Create and attach a Data object.
+ * DESCRIPTION: Low-level attach data. Create and attach a Data object.
  *
  ******************************************************************************/
 
@@ -377,7 +377,7 @@ acpi_ns_attach_data(struct acpi_namespace_node *node,
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Low-level detach data.  Delete the data node, but the caller
+ * DESCRIPTION: Low-level detach data. Delete the data node, but the caller
  *              is responsible for the actual data.
  *
  ******************************************************************************/

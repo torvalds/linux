@@ -179,7 +179,7 @@ static const struct watchdog_ops da9052_wdt_ops = {
 };
 
 
-static int __devinit da9052_wdt_probe(struct platform_device *pdev)
+static int da9052_wdt_probe(struct platform_device *pdev)
 {
 	struct da9052 *da9052 = dev_get_drvdata(pdev->dev.parent);
 	struct da9052_wdt_data *driver_data;
@@ -224,7 +224,7 @@ err:
 	return ret;
 }
 
-static int __devexit da9052_wdt_remove(struct platform_device *pdev)
+static int da9052_wdt_remove(struct platform_device *pdev)
 {
 	struct da9052_wdt_data *driver_data = dev_get_drvdata(&pdev->dev);
 
@@ -236,7 +236,7 @@ static int __devexit da9052_wdt_remove(struct platform_device *pdev)
 
 static struct platform_driver da9052_wdt_driver = {
 	.probe = da9052_wdt_probe,
-	.remove = __devexit_p(da9052_wdt_remove),
+	.remove = da9052_wdt_remove,
 	.driver = {
 		.name	= "da9052-watchdog",
 	},

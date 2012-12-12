@@ -1679,11 +1679,22 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 
 	if (global_reclaim(sc)) {
 		free  = zone_page_state(zone, NR_FREE_PAGES);
-		/* If we have very few page cache pages,
-		   force-scan anon pages. */
 		if (unlikely(file + free <= high_wmark_pages(zone))) {
+			/*
+			 * If we have very few page cache pages, force-scan
+			 * anon pages.
+			 */
 			fraction[0] = 1;
 			fraction[1] = 0;
+			denominator = 1;
+			goto out;
+		} else if (!inactive_file_is_low_global(zone)) {
+			/*
+			 * There is enough inactive page cache, do not
+			 * reclaim anything from the working set right now.
+			 */
+			fraction[0] = 0;
+			fraction[1] = 1;
 			denominator = 1;
 			goto out;
 		}
@@ -1752,35 +1763,13 @@ out:
 /* Use reclaim/compaction for costly allocs or under memory pressure */
 static bool in_reclaim_compaction(struct scan_control *sc)
 {
-	if (COMPACTION_BUILD && sc->order &&
+	if (IS_ENABLED(CONFIG_COMPACTION) && sc->order &&
 			(sc->order > PAGE_ALLOC_COSTLY_ORDER ||
 			 sc->priority < DEF_PRIORITY - 2))
 		return true;
 
 	return false;
 }
-
-#ifdef CONFIG_COMPACTION
-/*
- * If compaction is deferred for sc->order then scale the number of pages
- * reclaimed based on the number of consecutive allocation failures
- */
-static unsigned long scale_for_compaction(unsigned long pages_for_compaction,
-			struct lruvec *lruvec, struct scan_control *sc)
-{
-	struct zone *zone = lruvec_zone(lruvec);
-
-	if (zone->compact_order_failed <= sc->order)
-		pages_for_compaction <<= zone->compact_defer_shift;
-	return pages_for_compaction;
-}
-#else
-static unsigned long scale_for_compaction(unsigned long pages_for_compaction,
-			struct lruvec *lruvec, struct scan_control *sc)
-{
-	return pages_for_compaction;
-}
-#endif
 
 /*
  * Reclaim/compaction is used for high-order allocation requests. It reclaims
@@ -1829,9 +1818,6 @@ static inline bool should_continue_reclaim(struct lruvec *lruvec,
 	 * inactive lists are large enough, continue reclaiming
 	 */
 	pages_for_compaction = (2UL << sc->order);
-
-	pages_for_compaction = scale_for_compaction(pages_for_compaction,
-						    lruvec, sc);
 	inactive_lru_pages = get_lru_size(lruvec, LRU_INACTIVE_FILE);
 	if (nr_swap_pages > 0)
 		inactive_lru_pages += get_lru_size(lruvec, LRU_INACTIVE_ANON);
@@ -2030,7 +2016,7 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
 			if (zone->all_unreclaimable &&
 					sc->priority != DEF_PRIORITY)
 				continue;	/* Let kswapd poll it */
-			if (COMPACTION_BUILD) {
+			if (IS_ENABLED(CONFIG_COMPACTION)) {
 				/*
 				 * If we already have plenty of memory free for
 				 * compaction in this zone, don't free any more.
@@ -2232,9 +2218,12 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
  * Throttle direct reclaimers if backing storage is backed by the network
  * and the PFMEMALLOC reserve for the preferred node is getting dangerously
  * depleted. kswapd will continue to make progress and wake the processes
- * when the low watermark is reached
+ * when the low watermark is reached.
+ *
+ * Returns true if a fatal signal was delivered during throttling. If this
+ * happens, the page allocator should not consider triggering the OOM killer.
  */
-static void throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
+static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
 					nodemask_t *nodemask)
 {
 	struct zone *zone;
@@ -2249,13 +2238,20 @@ static void throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
 	 * processes to block on log_wait_commit().
 	 */
 	if (current->flags & PF_KTHREAD)
-		return;
+		goto out;
+
+	/*
+	 * If a fatal signal is pending, this process should not throttle.
+	 * It should return quickly so it can exit and free its memory
+	 */
+	if (fatal_signal_pending(current))
+		goto out;
 
 	/* Check if the pfmemalloc reserves are ok */
 	first_zones_zonelist(zonelist, high_zoneidx, NULL, &zone);
 	pgdat = zone->zone_pgdat;
 	if (pfmemalloc_watermark_ok(pgdat))
-		return;
+		goto out;
 
 	/* Account for the throttling */
 	count_vm_event(PGSCAN_DIRECT_THROTTLE);
@@ -2271,12 +2267,20 @@ static void throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
 	if (!(gfp_mask & __GFP_FS)) {
 		wait_event_interruptible_timeout(pgdat->pfmemalloc_wait,
 			pfmemalloc_watermark_ok(pgdat), HZ);
-		return;
+
+		goto check_pending;
 	}
 
 	/* Throttle until kswapd wakes the process */
 	wait_event_killable(zone->zone_pgdat->pfmemalloc_wait,
 		pfmemalloc_watermark_ok(pgdat));
+
+check_pending:
+	if (fatal_signal_pending(current))
+		return true;
+
+out:
+	return false;
 }
 
 unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
@@ -2298,13 +2302,12 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 		.gfp_mask = sc.gfp_mask,
 	};
 
-	throttle_direct_reclaim(gfp_mask, zonelist, nodemask);
-
 	/*
-	 * Do not enter reclaim if fatal signal is pending. 1 is returned so
-	 * that the page allocator does not consider triggering OOM
+	 * Do not enter reclaim if fatal signal was delivered while throttled.
+	 * 1 is returned so that the page allocator does not OOM kill at this
+	 * point.
 	 */
-	if (fatal_signal_pending(current))
+	if (throttle_direct_reclaim(gfp_mask, zonelist, nodemask))
 		return 1;
 
 	trace_mm_vmscan_direct_reclaim_begin(order,
@@ -2422,6 +2425,20 @@ static void age_active_anon(struct zone *zone, struct scan_control *sc)
 	} while (memcg);
 }
 
+static bool zone_balanced(struct zone *zone, int order,
+			  unsigned long balance_gap, int classzone_idx)
+{
+	if (!zone_watermark_ok_safe(zone, order, high_wmark_pages(zone) +
+				    balance_gap, classzone_idx, 0))
+		return false;
+
+	if (IS_ENABLED(CONFIG_COMPACTION) && order &&
+	    !compaction_suitable(zone, order))
+		return false;
+
+	return true;
+}
+
 /*
  * pgdat_balanced is used when checking if a node is balanced for high-order
  * allocations. Only zones that meet watermarks and are in a zone allowed
@@ -2500,8 +2517,7 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
 			continue;
 		}
 
-		if (!zone_watermark_ok_safe(zone, order, high_wmark_pages(zone),
-							i, 0))
+		if (!zone_balanced(zone, order, 0, i))
 			all_zones_ok = false;
 		else
 			balanced += zone->present_pages;
@@ -2610,8 +2626,7 @@ loop_again:
 				break;
 			}
 
-			if (!zone_watermark_ok_safe(zone, order,
-					high_wmark_pages(zone), 0, 0)) {
+			if (!zone_balanced(zone, order, 0, 0)) {
 				end_zone = i;
 				break;
 			} else {
@@ -2681,15 +2696,14 @@ loop_again:
 			 * Do not reclaim more than needed for compaction.
 			 */
 			testorder = order;
-			if (COMPACTION_BUILD && order &&
+			if (IS_ENABLED(CONFIG_COMPACTION) && order &&
 					compaction_suitable(zone, order) !=
 						COMPACT_SKIPPED)
 				testorder = 0;
 
 			if ((buffer_heads_over_limit && is_highmem_idx(i)) ||
-				    !zone_watermark_ok_safe(zone, testorder,
-					high_wmark_pages(zone) + balance_gap,
-					end_zone, 0)) {
+			    !zone_balanced(zone, testorder,
+					   balance_gap, end_zone)) {
 				shrink_zone(zone, &sc);
 
 				reclaim_state->reclaimed_slab = 0;
@@ -2716,8 +2730,7 @@ loop_again:
 				continue;
 			}
 
-			if (!zone_watermark_ok_safe(zone, testorder,
-					high_wmark_pages(zone), end_zone, 0)) {
+			if (!zone_balanced(zone, testorder, 0, end_zone)) {
 				all_zones_ok = 0;
 				/*
 				 * We are still under min water mark.  This
@@ -2822,29 +2835,10 @@ out:
 			if (!populated_zone(zone))
 				continue;
 
-			if (zone->all_unreclaimable &&
-			    sc.priority != DEF_PRIORITY)
-				continue;
-
-			/* Would compaction fail due to lack of free memory? */
-			if (COMPACTION_BUILD &&
-			    compaction_suitable(zone, order) == COMPACT_SKIPPED)
-				goto loop_again;
-
-			/* Confirm the zone is balanced for order-0 */
-			if (!zone_watermark_ok(zone, 0,
-					high_wmark_pages(zone), 0, 0)) {
-				order = sc.order = 0;
-				goto loop_again;
-			}
-
 			/* Check if the memory needs to be defragmented. */
 			if (zone_watermark_ok(zone, order,
 				    low_wmark_pages(zone), *classzone_idx, 0))
 				zones_need_compaction = 0;
-
-			/* If balanced, clear the congested flag */
-			zone_clear_flag(zone, ZONE_CONGESTED);
 		}
 
 		if (zones_need_compaction)
@@ -2969,7 +2963,7 @@ static int kswapd(void *p)
 	classzone_idx = new_classzone_idx = pgdat->nr_zones - 1;
 	balanced_classzone_idx = classzone_idx;
 	for ( ; ; ) {
-		int ret;
+		bool ret;
 
 		/*
 		 * If the last balance_pgdat was unsuccessful it's unlikely a

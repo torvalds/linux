@@ -1153,14 +1153,13 @@ static const struct musb_platform_ops tusb_ops = {
 
 static u64 tusb_dmamask = DMA_BIT_MASK(32);
 
-static int __devinit tusb_probe(struct platform_device *pdev)
+static int tusb_probe(struct platform_device *pdev)
 {
 	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
 	struct platform_device		*musb;
 	struct tusb6010_glue		*glue;
 
 	int				ret = -ENOMEM;
-	int				musbid;
 
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
@@ -1168,21 +1167,12 @@ static int __devinit tusb_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	/* get the musb id */
-	musbid = musb_get_id(&pdev->dev, GFP_KERNEL);
-	if (musbid < 0) {
-		dev_err(&pdev->dev, "failed to allocate musb id\n");
-		ret = -ENOMEM;
+	musb = platform_device_alloc("musb-hdrc", PLATFORM_DEVID_AUTO);
+	if (!musb) {
+		dev_err(&pdev->dev, "failed to allocate musb device\n");
 		goto err1;
 	}
 
-	musb = platform_device_alloc("musb-hdrc", musbid);
-	if (!musb) {
-		dev_err(&pdev->dev, "failed to allocate musb device\n");
-		goto err2;
-	}
-
-	musb->id			= musbid;
 	musb->dev.parent		= &pdev->dev;
 	musb->dev.dma_mask		= &tusb_dmamask;
 	musb->dev.coherent_dma_mask	= tusb_dmamask;
@@ -1218,9 +1208,6 @@ static int __devinit tusb_probe(struct platform_device *pdev)
 err3:
 	platform_device_put(musb);
 
-err2:
-	musb_put_id(&pdev->dev, musbid);
-
 err1:
 	kfree(glue);
 
@@ -1228,13 +1215,11 @@ err0:
 	return ret;
 }
 
-static int __devexit tusb_remove(struct platform_device *pdev)
+static int tusb_remove(struct platform_device *pdev)
 {
 	struct tusb6010_glue		*glue = platform_get_drvdata(pdev);
 
-	musb_put_id(&pdev->dev, glue->musb->id);
-	platform_device_del(glue->musb);
-	platform_device_put(glue->musb);
+	platform_device_unregister(glue->musb);
 	kfree(glue);
 
 	return 0;
@@ -1242,7 +1227,7 @@ static int __devexit tusb_remove(struct platform_device *pdev)
 
 static struct platform_driver tusb_driver = {
 	.probe		= tusb_probe,
-	.remove		= __devexit_p(tusb_remove),
+	.remove		= tusb_remove,
 	.driver		= {
 		.name	= "musb-tusb",
 	},
@@ -1251,15 +1236,4 @@ static struct platform_driver tusb_driver = {
 MODULE_DESCRIPTION("TUSB6010 MUSB Glue Layer");
 MODULE_AUTHOR("Felipe Balbi <balbi@ti.com>");
 MODULE_LICENSE("GPL v2");
-
-static int __init tusb_init(void)
-{
-	return platform_driver_register(&tusb_driver);
-}
-module_init(tusb_init);
-
-static void __exit tusb_exit(void)
-{
-	platform_driver_unregister(&tusb_driver);
-}
-module_exit(tusb_exit);
+module_platform_driver(tusb_driver);

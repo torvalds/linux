@@ -401,7 +401,7 @@ EXPORT_SYMBOL_GPL(rio_release_inb_pwrite);
 /**
  * rio_map_inb_region -- Map inbound memory region.
  * @mport: Master port.
- * @lstart: physical address of memory region to be mapped
+ * @local: physical address of memory region to be mapped
  * @rbase: RIO base address assigned to this window
  * @size: Size of the memory region
  * @rflags: Flags for mapping.
@@ -1250,7 +1250,7 @@ static void rio_fixup_device(struct rio_dev *dev)
 {
 }
 
-static int __devinit rio_init(void)
+static int rio_init(void)
 {
 	struct rio_dev *dev = NULL;
 
@@ -1267,7 +1267,7 @@ struct rio_disc_work {
 	struct rio_mport	*mport;
 };
 
-static void __devinit disc_work_handler(struct work_struct *_work)
+static void disc_work_handler(struct work_struct *_work)
 {
 	struct rio_disc_work *work;
 
@@ -1277,7 +1277,7 @@ static void __devinit disc_work_handler(struct work_struct *_work)
 	rio_disc_mport(work->mport);
 }
 
-int __devinit rio_init_mports(void)
+int rio_init_mports(void)
 {
 	struct rio_mport *port;
 	struct rio_disc_work *work;

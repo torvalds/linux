@@ -272,7 +272,7 @@ static int __devinit imx23_pinctrl_probe(struct platform_device *pdev)
 	return mxs_pinctrl_probe(pdev, &imx23_pinctrl_data);
 }
 
-static struct of_device_id imx23_pinctrl_of_match[] __devinitdata = {
+static struct of_device_id imx23_pinctrl_of_match[] = {
 	{ .compatible = "fsl,imx23-pinctrl", },
 	{ /* sentinel */ }
 };
@@ -285,7 +285,7 @@ static struct platform_driver imx23_pinctrl_driver = {
 		.of_match_table = imx23_pinctrl_of_match,
 	},
 	.probe = imx23_pinctrl_probe,
-	.remove = __devexit_p(mxs_pinctrl_remove),
+	.remove = mxs_pinctrl_remove,
 };
 
 static int __init imx23_pinctrl_init(void)

@@ -327,7 +327,7 @@ static int __devinit agp_sgi_init(void)
 	return 0;
 }
 
-static void __devexit agp_sgi_cleanup(void)
+static void agp_sgi_cleanup(void)
 {
 	kfree(sgi_tioca_agp_bridges);
 	sgi_tioca_agp_bridges = NULL;

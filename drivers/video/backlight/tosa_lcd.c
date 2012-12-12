@@ -169,7 +169,7 @@ static struct lcd_ops tosa_lcd_ops = {
 	.set_mode = tosa_lcd_set_mode,
 };
 
-static int __devinit tosa_lcd_probe(struct spi_device *spi)
+static int tosa_lcd_probe(struct spi_device *spi)
 {
 	int ret;
 	struct tosa_lcd_data *data;
@@ -226,7 +226,7 @@ err_gpio_tg:
 	return ret;
 }
 
-static int __devexit tosa_lcd_remove(struct spi_device *spi)
+static int tosa_lcd_remove(struct spi_device *spi)
 {
 	struct tosa_lcd_data *data = dev_get_drvdata(&spi->dev);
 
@@ -275,7 +275,7 @@ static struct spi_driver tosa_lcd_driver = {
 		.owner		= THIS_MODULE,
 	},
 	.probe		= tosa_lcd_probe,
-	.remove		= __devexit_p(tosa_lcd_remove),
+	.remove		= tosa_lcd_remove,
 	.suspend	= tosa_lcd_suspend,
 	.resume		= tosa_lcd_resume,
 };

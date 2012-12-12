@@ -54,7 +54,7 @@ static int bcma_wait_bits(struct bcma_device *dev, u16 reg, u32 bitmask,
 	return -ETIMEDOUT;
 }
 
-static void __devinit bcma_hcd_4716wa(struct bcma_device *dev)
+static void bcma_hcd_4716wa(struct bcma_device *dev)
 {
 #ifdef CONFIG_BCMA_DRIVER_MIPS
 	/* Work around for 4716 failures. */
@@ -88,7 +88,7 @@ static void __devinit bcma_hcd_4716wa(struct bcma_device *dev)
 }
 
 /* based on arch/mips/brcm-boards/bcm947xx/pcibios.c */
-static void __devinit bcma_hcd_init_chip(struct bcma_device *dev)
+static void bcma_hcd_init_chip(struct bcma_device *dev)
 {
 	u32 tmp;
 
@@ -165,8 +165,7 @@ static const struct usb_ehci_pdata ehci_pdata = {
 static const struct usb_ohci_pdata ohci_pdata = {
 };
 
-static struct platform_device * __devinit
-bcma_hcd_create_pdev(struct bcma_device *dev, bool ohci, u32 addr)
+static struct platform_device *bcma_hcd_create_pdev(struct bcma_device *dev, bool ohci, u32 addr)
 {
 	struct platform_device *hci_dev;
 	struct resource hci_res[2];
@@ -212,7 +211,7 @@ err_alloc:
 	return ERR_PTR(ret);
 }
 
-static int __devinit bcma_hcd_probe(struct bcma_device *dev)
+static int bcma_hcd_probe(struct bcma_device *dev)
 {
 	int err;
 	u16 chipid_top;
@@ -266,7 +265,7 @@ err_free_usb_dev:
 	return err;
 }
 
-static void __devexit bcma_hcd_remove(struct bcma_device *dev)
+static void bcma_hcd_remove(struct bcma_device *dev)
 {
 	struct bcma_hcd_device *usb_dev = bcma_get_drvdata(dev);
 	struct platform_device *ohci_dev = usb_dev->ohci_dev;
@@ -306,7 +305,7 @@ static int bcma_hcd_resume(struct bcma_device *dev)
 #define bcma_hcd_resume	NULL
 #endif /* CONFIG_PM */
 
-static const struct bcma_device_id bcma_hcd_table[] __devinitconst = {
+static const struct bcma_device_id bcma_hcd_table[] = {
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_USB20_HOST, BCMA_ANY_REV, BCMA_ANY_CLASS),
 	BCMA_CORETABLE_END
 };
@@ -316,7 +315,7 @@ static struct bcma_driver bcma_hcd_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= bcma_hcd_table,
 	.probe		= bcma_hcd_probe,
-	.remove		= __devexit_p(bcma_hcd_remove),
+	.remove		= bcma_hcd_remove,
 	.shutdown	= bcma_hcd_shutdown,
 	.suspend	= bcma_hcd_suspend,
 	.resume		= bcma_hcd_resume,

@@ -316,17 +316,19 @@ s_MgrMakeProbeRequest(
     return pTxPacket;
 }
 
-void vCommandTimerWait(void *hDeviceContext, unsigned int MSecond)
+void vCommandTimerWait(void *hDeviceContext, unsigned long MSecond)
 {
-    PSDevice        pDevice = (PSDevice)hDeviceContext;
+	PSDevice pDevice = (PSDevice)hDeviceContext;
 
-    init_timer(&pDevice->sTimerCommand);
-    pDevice->sTimerCommand.data = (unsigned long)pDevice;
-    pDevice->sTimerCommand.function = (TimerFunction)vRunCommand;
-    // RUN_AT :1 msec ~= (HZ/1024)
-    pDevice->sTimerCommand.expires = (unsigned int)RUN_AT((MSecond * HZ) >> 10);
-    add_timer(&pDevice->sTimerCommand);
-    return;
+	init_timer(&pDevice->sTimerCommand);
+
+	pDevice->sTimerCommand.data = (unsigned long)pDevice;
+	pDevice->sTimerCommand.function = (TimerFunction)vRunCommand;
+	pDevice->sTimerCommand.expires = RUN_AT((MSecond * HZ) / 1000);
+
+	add_timer(&pDevice->sTimerCommand);
+
+	return;
 }
 
 void vRunCommand(void *hDeviceContext)
@@ -340,6 +342,7 @@ void vRunCommand(void *hDeviceContext)
     BYTE            byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
     struct sk_buff  *skb;
     BYTE            byData;
+	union iwreq_data wrqu;
 
 
     if (pDevice->dwDiagRefCount != 0)
@@ -501,16 +504,11 @@ void vRunCommand(void *hDeviceContext)
             pMgmt->eScanState = WMAC_NO_SCANNING;
             pDevice->bStopDataPkt = FALSE;
 
-#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-	if(pMgmt->eScanType == WMAC_SCAN_PASSIVE)
-		{
-			//send scan event to wpa_Supplicant
-				union iwreq_data wrqu;
-				PRINT_K("wireless_send_event--->SIOCGIWSCAN(scan done)\n");
-				memset(&wrqu, 0, sizeof(wrqu));
-				wireless_send_event(pDevice->dev, SIOCGIWSCAN, &wrqu, NULL);
-			}
-#endif
+		/*send scan event to wpa_Supplicant*/
+		PRINT_K("wireless_send_event--->SIOCGIWSCAN(scan done)\n");
+		memset(&wrqu, 0, sizeof(wrqu));
+		wireless_send_event(pDevice->dev, SIOCGIWSCAN, &wrqu, NULL);
+
             s_bCommandComplete(pDevice);
             break;
 
@@ -523,13 +521,11 @@ void vRunCommand(void *hDeviceContext)
                 return;
             } else {
 
-          #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 		      pDevice->bwextstep0 = FALSE;
                         pDevice->bwextstep1 = FALSE;
                         pDevice->bwextstep2 = FALSE;
                         pDevice->bwextstep3 = FALSE;
 		   pDevice->bWPASuppWextEnabled = FALSE;
-	 #endif
                    pDevice->fWPA_Authened = FALSE;
 
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Send Disassociation Packet..\n");
@@ -672,7 +668,6 @@ void vRunCommand(void *hDeviceContext)
                 }
                 else {
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Disconnect SSID none\n");
-                     #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
                     // if(pDevice->bWPASuppWextEnabled == TRUE)
                         {
                   	union iwreq_data  wrqu;
@@ -681,7 +676,6 @@ void vRunCommand(void *hDeviceContext)
                   	PRINT_K("wireless_send_event--->SIOCGIWAP(disassociated:vMgrJoinBSSBegin Fail !!)\n");
                   	wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
                        }
-                    #endif
                 }
             }
             s_bCommandComplete(pDevice);
@@ -924,7 +918,6 @@ void vRunCommand(void *hDeviceContext)
                 // unlock command busy
                         pMgmt->eCurrState = WMAC_STATE_IDLE;
                         pMgmt->sNodeDBTable[0].bActive = FALSE;
-                     #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
                     // if(pDevice->bWPASuppWextEnabled == TRUE)
                         {
                   	union iwreq_data  wrqu;
@@ -933,15 +926,12 @@ void vRunCommand(void *hDeviceContext)
                   	PRINT_K("wireless_send_event--->SIOCGIWAP(disassociated)\n");
                   	wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
                        }
-                    #endif
 	  	}
-	       #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 	               pDevice->bwextstep0 = FALSE;
                         pDevice->bwextstep1 = FALSE;
                         pDevice->bwextstep2 = FALSE;
                         pDevice->bwextstep3 = FALSE;
 		      pDevice->bWPASuppWextEnabled = FALSE;
-		#endif
 	                  //clear current SSID
                   pItemSSID = (PWLAN_IE_SSID)pMgmt->abyCurrSSID;
                   pItemSSID->len = 0;

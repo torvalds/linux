@@ -71,7 +71,6 @@ static irqreturn_t kirkwood_dma_irq(int irq, void *dev_id)
 		printk(KERN_WARNING "%s: got err interrupt 0x%lx\n",
 				__func__, cause);
 		writel(cause, priv->io + KIRKWOOD_ERR_CAUSE);
-		return IRQ_HANDLED;
 	}
 
 	/* we've enabled only bytes interrupts ... */
@@ -178,7 +177,7 @@ static int kirkwood_dma_open(struct snd_pcm_substream *substream)
 	}
 
 	dram = mv_mbus_dram_info();
-	addr = virt_to_phys(substream->dma_buffer.area);
+	addr = substream->dma_buffer.addr;
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		prdata->play_stream = substream;
 		kirkwood_dma_conf_mbus_windows(priv->io,

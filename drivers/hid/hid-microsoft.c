@@ -46,9 +46,9 @@ static __u8 *ms_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		rdesc[559] = 0x45;
 	}
 	/* the same as above (s/usage/physical/) */
-	if ((quirks & MS_RDESC_3K) && *rsize == 106 &&
-			!memcmp((char []){ 0x19, 0x00, 0x29, 0xff },
-				&rdesc[94], 4)) {
+	if ((quirks & MS_RDESC_3K) && *rsize == 106 && rdesc[94] == 0x19 &&
+			rdesc[95] == 0x00 && rdesc[96] == 0x29 &&
+			rdesc[97] == 0xff) {
 		rdesc[94] = 0x35;
 		rdesc[96] = 0x45;
 	}

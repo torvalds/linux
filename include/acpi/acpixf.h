@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Name: acpixf.h - External interfaces to the ACPI subsystem
@@ -47,7 +46,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20120913
+#define ACPI_CA_VERSION                 0x20121018
 
 #include <acpi/acconfig.h>
 #include <acpi/actypes.h>
@@ -178,8 +177,7 @@ acpi_status acpi_unload_table_id(acpi_owner_id id);
 
 acpi_status
 acpi_get_table_header(acpi_string signature,
-		      u32 instance,
-		      struct acpi_table_header *out_table_header);
+		      u32 instance, struct acpi_table_header *out_table_header);
 
 acpi_status
 acpi_get_table_with_size(acpi_string signature,
@@ -190,8 +188,7 @@ acpi_get_table(acpi_string signature,
 	       u32 instance, struct acpi_table_header **out_table);
 
 acpi_status
-acpi_get_table_by_index(u32 table_index,
-			struct acpi_table_header **out_table);
+acpi_get_table_by_index(u32 table_index, struct acpi_table_header **out_table);
 
 acpi_status
 acpi_install_table_handler(acpi_tbl_handler handler, void *context);
@@ -274,7 +271,7 @@ acpi_install_initialization_handler(acpi_init_handler handler, u32 function);
 
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				acpi_install_global_event_handler
-				(ACPI_GBL_EVENT_HANDLER handler, void *context))
+				(acpi_gbl_event_handler handler, void *context))
 
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				 acpi_install_fixed_event_handler(u32
@@ -300,10 +297,9 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 							 u32 gpe_number,
 							 acpi_gpe_handler
 							 address))
-acpi_status
-acpi_install_notify_handler(acpi_handle device,
-			    u32 handler_type,
-			    acpi_notify_handler handler, void *context);
+acpi_status acpi_install_notify_handler(acpi_handle device, u32 handler_type,
+					acpi_notify_handler handler,
+					void *context);
 
 acpi_status
 acpi_remove_notify_handler(acpi_handle device,

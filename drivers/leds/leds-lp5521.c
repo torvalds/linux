@@ -687,7 +687,7 @@ static void lp5521_unregister_sysfs(struct i2c_client *client)
 				&lp5521_led_attribute_group);
 }
 
-static int __devinit lp5521_init_led(struct lp5521_led *led,
+static int lp5521_init_led(struct lp5521_led *led,
 				struct i2c_client *client,
 				int chan, struct lp5521_platform_data *pdata)
 {
@@ -736,7 +736,7 @@ static int __devinit lp5521_init_led(struct lp5521_led *led,
 	return 0;
 }
 
-static int __devinit lp5521_probe(struct i2c_client *client,
+static int lp5521_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct lp5521_chip		*chip;
@@ -855,7 +855,7 @@ fail1:
 	return ret;
 }
 
-static int __devexit lp5521_remove(struct i2c_client *client)
+static int lp5521_remove(struct i2c_client *client)
 {
 	struct lp5521_chip *chip = i2c_get_clientdata(client);
 	int i;
@@ -886,7 +886,7 @@ static struct i2c_driver lp5521_driver = {
 		.name	= "lp5521",
 	},
 	.probe		= lp5521_probe,
-	.remove		= __devexit_p(lp5521_remove),
+	.remove		= lp5521_remove,
 	.id_table	= lp5521_id,
 };
 

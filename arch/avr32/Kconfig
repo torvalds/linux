@@ -193,9 +193,6 @@ source "kernel/Kconfig.preempt"
 config QUICKLIST
 	def_bool y
 
-config HAVE_ARCH_BOOTMEM
-	def_bool n
-
 config ARCH_HAVE_MEMORY_PRESENT
 	def_bool n
 

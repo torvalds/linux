@@ -1,9 +1,9 @@
 # Makefile for vm selftests
 
 CC = $(CROSS_COMPILE)gcc
-CFLAGS = -Wall -Wextra
+CFLAGS = -Wall
 
-all: hugepage-mmap hugepage-shm  map_hugetlb
+all: hugepage-mmap hugepage-shm  map_hugetlb thuge-gen
 %: %.c
 	$(CC) $(CFLAGS) -o $@ $^
 

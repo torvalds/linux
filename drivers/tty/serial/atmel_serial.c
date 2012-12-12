@@ -39,6 +39,7 @@
 #include <linux/atmel_pdc.h>
 #include <linux/atmel_serial.h>
 #include <linux/uaccess.h>
+#include <linux/pinctrl/consumer.h>
 
 #include <asm/io.h>
 #include <asm/ioctls.h>
@@ -1423,7 +1424,7 @@ static struct uart_ops atmel_pops = {
 #endif
 };
 
-static void __devinit atmel_of_init_port(struct atmel_uart_port *atmel_port,
+static void atmel_of_init_port(struct atmel_uart_port *atmel_port,
 					 struct device_node *np)
 {
 	u32 rs485_delay[2];
@@ -1458,7 +1459,7 @@ static void __devinit atmel_of_init_port(struct atmel_uart_port *atmel_port,
 /*
  * Configure the port from the platform device resource info.
  */
-static void __devinit atmel_init_port(struct atmel_uart_port *atmel_port,
+static void atmel_init_port(struct atmel_uart_port *atmel_port,
 				      struct platform_device *pdev)
 {
 	struct uart_port *port = &atmel_port->uart;
@@ -1766,13 +1767,14 @@ static int atmel_serial_resume(struct platform_device *pdev)
 #define atmel_serial_resume NULL
 #endif
 
-static int __devinit atmel_serial_probe(struct platform_device *pdev)
+static int atmel_serial_probe(struct platform_device *pdev)
 {
 	struct atmel_uart_port *port;
 	struct device_node *np = pdev->dev.of_node;
 	struct atmel_uart_data *pdata = pdev->dev.platform_data;
 	void *data;
 	int ret = -ENODEV;
+	struct pinctrl *pinctrl;
 
 	BUILD_BUG_ON(ATMEL_SERIAL_RINGSIZE & (ATMEL_SERIAL_RINGSIZE - 1));
 
@@ -1804,6 +1806,12 @@ static int __devinit atmel_serial_probe(struct platform_device *pdev)
 	port->uart.line = ret;
 
 	atmel_init_port(port, pdev);
+
+	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(pinctrl)) {
+		ret = PTR_ERR(pinctrl);
+		goto err;
+	}
 
 	if (!atmel_use_dma_rx(&port->uart)) {
 		ret = -ENOMEM;
@@ -1851,7 +1859,7 @@ err:
 	return ret;
 }
 
-static int __devexit atmel_serial_remove(struct platform_device *pdev)
+static int atmel_serial_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
@@ -1876,7 +1884,7 @@ static int __devexit atmel_serial_remove(struct platform_device *pdev)
 
 static struct platform_driver atmel_serial_driver = {
 	.probe		= atmel_serial_probe,
-	.remove		= __devexit_p(atmel_serial_remove),
+	.remove		= atmel_serial_remove,
 	.suspend	= atmel_serial_suspend,
 	.resume		= atmel_serial_resume,
 	.driver		= {

@@ -47,72 +47,16 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +-----------------------------------------------------------------------+
 */
 
-/*
-+----------------------------------------------------------------------------+
-|                               Included files                               |
-+----------------------------------------------------------------------------+
-*/
+#define APCI1710_30MHZ			30
+#define APCI1710_33MHZ			33
+#define APCI1710_40MHZ			40
 
-#include "APCI1710_Pwm.h"
+#define APCI1710_PWM_INIT		0
+#define APCI1710_PWM_GETINITDATA	1
 
-/*
-+----------------------------------------------------------------------------+
-| Function Name     :INT i_APCI1710_InsnConfigPWM(struct comedi_device *dev,
-struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)                        |
-+----------------------------------------------------------------------------+
-| Task              : Pwm Init and Get Pwm Initialisation                    |
-+----------------------------------------------------------------------------+
-| Input Parameters  :
-+----------------------------------------------------------------------------+
-| Output Parameters : -                                                      |
-+----------------------------------------------------------------------------+
-| Return Value      :
-+----------------------------------------------------------------------------+
-*/
-
-int i_APCI1710_InsnConfigPWM(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
-{
-	unsigned char b_ConfigType;
-	int i_ReturnValue = 0;
-	b_ConfigType = CR_CHAN(insn->chanspec);
-
-	switch (b_ConfigType) {
-	case APCI1710_PWM_INIT:
-		i_ReturnValue = i_APCI1710_InitPWM(dev, (unsigned char) CR_AREF(insn->chanspec),	/*   b_ModulNbr */
-			(unsigned char) data[0],	/* b_PWM */
-			(unsigned char) data[1],	/*  b_ClockSelection */
-			(unsigned char) data[2],	/*  b_TimingUnit */
-			(unsigned int) data[3],	/* ul_LowTiming */
-			(unsigned int) data[4],	/* ul_HighTiming */
-			(unsigned int *) &data[0],	/* pul_RealLowTiming */
-			(unsigned int *) &data[1]	/* pul_RealHighTiming */
-			);
-		break;
-
-	case APCI1710_PWM_GETINITDATA:
-		i_ReturnValue = i_APCI1710_GetPWMInitialisation(dev, (unsigned char) CR_AREF(insn->chanspec),	/*  b_ModulNbr */
-			(unsigned char) data[0],	/* b_PWM */
-			(unsigned char *) &data[0],	/* pb_TimingUnit */
-			(unsigned int *) &data[1],	/* pul_LowTiming */
-			(unsigned int *) &data[2],	/* pul_HighTiming */
-			(unsigned char *) &data[3],	/*  pb_StartLevel */
-			(unsigned char *) &data[4],	/*  pb_StopMode */
-			(unsigned char *) &data[5],	/*  pb_StopLevel */
-			(unsigned char *) &data[6],	/*  pb_ExternGate */
-			(unsigned char *) &data[7],	/*  pb_InterruptEnable */
-			(unsigned char *) &data[8]	/*  pb_Enable */
-			);
-		break;
-
-	default:
-		printk(" Config Parameter Wrong\n");
-	}
-
-	if (i_ReturnValue >= 0)
-		i_ReturnValue = insn->n;
-	return i_ReturnValue;
-}
+#define APCI1710_PWM_DISABLE		0
+#define APCI1710_PWM_ENABLE		1
+#define APCI1710_PWM_NEWTIMING		2
 
 /*
 +----------------------------------------------------------------------------+
@@ -178,16 +122,17 @@ int i_APCI1710_InsnConfigPWM(struct comedi_device *dev, struct comedi_subdevice 
 |                        this board                                          |
 +----------------------------------------------------------------------------+
 */
-
-int i_APCI1710_InitPWM(struct comedi_device *dev,
-	unsigned char b_ModulNbr,
-	unsigned char b_PWM,
-	unsigned char b_ClockSelection,
-	unsigned char b_TimingUnit,
-	unsigned int ul_LowTiming,
-	unsigned int ul_HighTiming,
-	unsigned int *pul_RealLowTiming, unsigned int *pul_RealHighTiming)
+static int i_APCI1710_InitPWM(struct comedi_device *dev,
+			      unsigned char b_ModulNbr,
+			      unsigned char b_PWM,
+			      unsigned char b_ClockSelection,
+			      unsigned char b_TimingUnit,
+			      unsigned int ul_LowTiming,
+			      unsigned int ul_HighTiming,
+			      unsigned int *pul_RealLowTiming,
+			      unsigned int *pul_RealHighTiming)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned int ul_LowTimerValue = 0;
 	unsigned int ul_HighTimerValue = 0;
@@ -1533,18 +1478,20 @@ int i_APCI1710_InitPWM(struct comedi_device *dev,
 |                         "i_APCI1710_InitPWM"                               |
 +----------------------------------------------------------------------------+
 */
-
-int i_APCI1710_GetPWMInitialisation(struct comedi_device *dev,
-	unsigned char b_ModulNbr,
-	unsigned char b_PWM,
-	unsigned char *pb_TimingUnit,
-	unsigned int *pul_LowTiming,
-	unsigned int *pul_HighTiming,
-	unsigned char *pb_StartLevel,
-	unsigned char *pb_StopMode,
-	unsigned char *pb_StopLevel,
-	unsigned char *pb_ExternGate, unsigned char *pb_InterruptEnable, unsigned char *pb_Enable)
+static int i_APCI1710_GetPWMInitialisation(struct comedi_device *dev,
+					   unsigned char b_ModulNbr,
+					   unsigned char b_PWM,
+					   unsigned char *pb_TimingUnit,
+					   unsigned int *pul_LowTiming,
+					   unsigned int *pul_HighTiming,
+					   unsigned char *pb_StartLevel,
+					   unsigned char *pb_StopMode,
+					   unsigned char *pb_StopLevel,
+					   unsigned char *pb_ExternGate,
+					   unsigned char *pb_InterruptEnable,
+					   unsigned char *pb_Enable)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned int dw_Status;
 	unsigned int dw_Command;
@@ -1669,51 +1616,47 @@ int i_APCI1710_GetPWMInitialisation(struct comedi_device *dev,
 }
 
 /*
-+----------------------------------------------------------------------------+
-| Function Name     :INT i_APCI1710_InsnWritePWM(struct comedi_device *dev,
-struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)                        |
-+----------------------------------------------------------------------------+
-| Task              : Pwm Enable Disable and Set New Timing                  |
-+----------------------------------------------------------------------------+
-| Input Parameters  :
-+----------------------------------------------------------------------------+
-| Output Parameters : -                                                      |
-+----------------------------------------------------------------------------+
-| Return Value      :
-+----------------------------------------------------------------------------+
-*/
-
-int i_APCI1710_InsnWritePWM(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+ * Pwm Init and Get Pwm Initialisation
+ */
+static int i_APCI1710_InsnConfigPWM(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
 {
-	unsigned char b_WriteType;
+	unsigned char b_ConfigType;
 	int i_ReturnValue = 0;
-	b_WriteType = CR_CHAN(insn->chanspec);
+	b_ConfigType = CR_CHAN(insn->chanspec);
 
-	switch (b_WriteType) {
-	case APCI1710_PWM_ENABLE:
-		i_ReturnValue = i_APCI1710_EnablePWM(dev,
-			(unsigned char) CR_AREF(insn->chanspec),
-			(unsigned char) data[0],
-			(unsigned char) data[1],
-			(unsigned char) data[2],
-			(unsigned char) data[3], (unsigned char) data[4], (unsigned char) data[5]);
+	switch (b_ConfigType) {
+	case APCI1710_PWM_INIT:
+		i_ReturnValue = i_APCI1710_InitPWM(dev, (unsigned char) CR_AREF(insn->chanspec),	/*   b_ModulNbr */
+			(unsigned char) data[0],	/* b_PWM */
+			(unsigned char) data[1],	/*  b_ClockSelection */
+			(unsigned char) data[2],	/*  b_TimingUnit */
+			(unsigned int) data[3],	/* ul_LowTiming */
+			(unsigned int) data[4],	/* ul_HighTiming */
+			(unsigned int *) &data[0],	/* pul_RealLowTiming */
+			(unsigned int *) &data[1]	/* pul_RealHighTiming */
+			);
 		break;
 
-	case APCI1710_PWM_DISABLE:
-		i_ReturnValue = i_APCI1710_DisablePWM(dev,
-			(unsigned char) CR_AREF(insn->chanspec), (unsigned char) data[0]);
-		break;
-
-	case APCI1710_PWM_NEWTIMING:
-		i_ReturnValue = i_APCI1710_SetNewPWMTiming(dev,
-			(unsigned char) CR_AREF(insn->chanspec),
-			(unsigned char) data[0],
-			(unsigned char) data[1], (unsigned int) data[2], (unsigned int) data[3]);
+	case APCI1710_PWM_GETINITDATA:
+		i_ReturnValue = i_APCI1710_GetPWMInitialisation(dev, (unsigned char) CR_AREF(insn->chanspec),	/*  b_ModulNbr */
+			(unsigned char) data[0],	/* b_PWM */
+			(unsigned char *) &data[0],	/* pb_TimingUnit */
+			(unsigned int *) &data[1],	/* pul_LowTiming */
+			(unsigned int *) &data[2],	/* pul_HighTiming */
+			(unsigned char *) &data[3],	/*  pb_StartLevel */
+			(unsigned char *) &data[4],	/*  pb_StopMode */
+			(unsigned char *) &data[5],	/*  pb_StopLevel */
+			(unsigned char *) &data[6],	/*  pb_ExternGate */
+			(unsigned char *) &data[7],	/*  pb_InterruptEnable */
+			(unsigned char *) &data[8]	/*  pb_Enable */
+			);
 		break;
 
 	default:
-		printk("Write Config Parameter Wrong\n");
+		printk(" Config Parameter Wrong\n");
 	}
 
 	if (i_ReturnValue >= 0)
@@ -1805,14 +1748,16 @@ int i_APCI1710_InsnWritePWM(struct comedi_device *dev, struct comedi_subdevice *
 |                         See function "i_APCI1710_SetBoardIntRoutineX"      |
 +----------------------------------------------------------------------------+
 */
-
-int i_APCI1710_EnablePWM(struct comedi_device *dev,
-	unsigned char b_ModulNbr,
-	unsigned char b_PWM,
-	unsigned char b_StartLevel,
-	unsigned char b_StopMode,
-	unsigned char b_StopLevel, unsigned char b_ExternGate, unsigned char b_InterruptEnable)
+static int i_APCI1710_EnablePWM(struct comedi_device *dev,
+				unsigned char b_ModulNbr,
+				unsigned char b_PWM,
+				unsigned char b_StartLevel,
+				unsigned char b_StopMode,
+				unsigned char b_StopLevel,
+				unsigned char b_ExternGate,
+				unsigned char b_InterruptEnable)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned int dw_Status;
 	unsigned int dw_Command;
@@ -2061,9 +2006,11 @@ int i_APCI1710_EnablePWM(struct comedi_device *dev,
 |                         "i_APCI1710_EnablePWM"                             |
 +----------------------------------------------------------------------------+
 */
-
-int i_APCI1710_DisablePWM(struct comedi_device *dev, unsigned char b_ModulNbr, unsigned char b_PWM)
+static int i_APCI1710_DisablePWM(struct comedi_device *dev,
+				 unsigned char b_ModulNbr,
+				 unsigned char b_PWM)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned int dw_Status;
 
@@ -2188,11 +2135,14 @@ int i_APCI1710_DisablePWM(struct comedi_device *dev, unsigned char b_ModulNbr, u
 |                    -8: High base timing selection is wrong                 |
 +----------------------------------------------------------------------------+
 */
-
-int i_APCI1710_SetNewPWMTiming(struct comedi_device *dev,
-	unsigned char b_ModulNbr,
-	unsigned char b_PWM, unsigned char b_TimingUnit, unsigned int ul_LowTiming, unsigned int ul_HighTiming)
+static int i_APCI1710_SetNewPWMTiming(struct comedi_device *dev,
+				      unsigned char b_ModulNbr,
+				      unsigned char b_PWM,
+				      unsigned char b_TimingUnit,
+				      unsigned int ul_LowTiming,
+				      unsigned int ul_HighTiming)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned char b_ClockSelection;
 	int i_ReturnValue = 0;
 	unsigned int ul_LowTimerValue = 0;
@@ -3415,6 +3365,49 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device *dev,
 }
 
 /*
+ * Pwm Enable Disable and Set New Timing
+ */
+static int i_APCI1710_InsnWritePWM(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
+{
+	unsigned char b_WriteType;
+	int i_ReturnValue = 0;
+	b_WriteType = CR_CHAN(insn->chanspec);
+
+	switch (b_WriteType) {
+	case APCI1710_PWM_ENABLE:
+		i_ReturnValue = i_APCI1710_EnablePWM(dev,
+			(unsigned char) CR_AREF(insn->chanspec),
+			(unsigned char) data[0],
+			(unsigned char) data[1],
+			(unsigned char) data[2],
+			(unsigned char) data[3], (unsigned char) data[4], (unsigned char) data[5]);
+		break;
+
+	case APCI1710_PWM_DISABLE:
+		i_ReturnValue = i_APCI1710_DisablePWM(dev,
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned char) data[0]);
+		break;
+
+	case APCI1710_PWM_NEWTIMING:
+		i_ReturnValue = i_APCI1710_SetNewPWMTiming(dev,
+			(unsigned char) CR_AREF(insn->chanspec),
+			(unsigned char) data[0],
+			(unsigned char) data[1], (unsigned int) data[2], (unsigned int) data[3]);
+		break;
+
+	default:
+		printk("Write Config Parameter Wrong\n");
+	}
+
+	if (i_ReturnValue >= 0)
+		i_ReturnValue = insn->n;
+	return i_ReturnValue;
+}
+
+/*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_GetPWMStatus                          |
 |                               (unsigned char_    b_BoardHandle,                     |
@@ -3459,13 +3452,14 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device *dev,
 |                     -6: PWM not enabled see function "i_APCI1710_EnablePWM"|
 +----------------------------------------------------------------------------+
 */
-
-int i_APCI1710_InsnReadGetPWMStatus(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1710_InsnReadGetPWMStatus(struct comedi_device *dev,
+					   struct comedi_subdevice *s,
+					   struct comedi_insn *insn,
+					   unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned int dw_Status;
-
 	unsigned char b_ModulNbr;
 	unsigned char b_PWM;
 	unsigned char *pb_PWMOutputStatus;
@@ -3561,9 +3555,13 @@ int i_APCI1710_InsnReadGetPWMStatus(struct comedi_device *dev, struct comedi_sub
 	return i_ReturnValue;
 }
 
-int i_APCI1710_InsnBitsReadPWMInterrupt(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1710_InsnBitsReadPWMInterrupt(struct comedi_device *dev,
+					       struct comedi_subdevice *s,
+					       struct comedi_insn *insn,
+					       unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
+
 	data[0] = devpriv->s_InterruptParameters.
 		s_FIFOInterruptParameters[devpriv->
 		s_InterruptParameters.ui_Read].b_OldModuleMask;

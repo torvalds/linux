@@ -584,7 +584,7 @@ static const struct of_device_id pxa_mmc_dt_ids[] = {
 
 MODULE_DEVICE_TABLE(of, pxa_mmc_dt_ids);
 
-static int __devinit pxamci_of_init(struct platform_device *pdev)
+static int pxamci_of_init(struct platform_device *pdev)
 {
         struct device_node *np = pdev->dev.of_node;
         struct pxamci_platform_data *pdata;
@@ -614,7 +614,7 @@ static int __devinit pxamci_of_init(struct platform_device *pdev)
         return 0;
 }
 #else
-static int __devinit pxamci_of_init(struct platform_device *pdev)
+static int pxamci_of_init(struct platform_device *pdev)
 {
         return 0;
 }

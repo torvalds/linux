@@ -82,7 +82,7 @@ static void lt3593_led_set(struct led_classdev *led_cdev,
 	schedule_work(&led_dat->work);
 }
 
-static int __devinit create_lt3593_led(const struct gpio_led *template,
+static int create_lt3593_led(const struct gpio_led *template,
 	struct lt3593_led_data *led_dat, struct device *parent)
 {
 	int ret, state;
@@ -140,7 +140,7 @@ static void delete_lt3593_led(struct lt3593_led_data *led)
 	gpio_free(led->gpio);
 }
 
-static int __devinit lt3593_led_probe(struct platform_device *pdev)
+static int lt3593_led_probe(struct platform_device *pdev)
 {
 	struct gpio_led_platform_data *pdata = pdev->dev.platform_data;
 	struct lt3593_led_data *leds_data;
@@ -173,7 +173,7 @@ err:
 	return ret;
 }
 
-static int __devexit lt3593_led_remove(struct platform_device *pdev)
+static int lt3593_led_remove(struct platform_device *pdev)
 {
 	int i;
 	struct gpio_led_platform_data *pdata = pdev->dev.platform_data;
@@ -189,7 +189,7 @@ static int __devexit lt3593_led_remove(struct platform_device *pdev)
 
 static struct platform_driver lt3593_led_driver = {
 	.probe		= lt3593_led_probe,
-	.remove		= __devexit_p(lt3593_led_remove),
+	.remove		= lt3593_led_remove,
 	.driver		= {
 		.name	= "leds-lt3593",
 		.owner	= THIS_MODULE,
