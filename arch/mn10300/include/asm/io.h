@@ -14,6 +14,7 @@
 #include <asm/page.h> /* I/O is all done through memory accesses */
 #include <asm/cpu-regs.h>
 #include <asm/cacheflush.h>
+#include <asm-generic/pci_iomap.h>
 
 #define mmiowb() do {} while (0)
 
