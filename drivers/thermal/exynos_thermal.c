@@ -808,8 +808,6 @@ static const struct of_device_id exynos_tmu_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, exynos_tmu_match);
-#else
-#define  exynos_tmu_match NULL
 #endif
 
 static struct platform_device_id exynos_tmu_driver_ids[] = {
@@ -1085,7 +1083,7 @@ static struct platform_driver exynos_tmu_driver = {
 		.name   = "exynos-tmu",
 		.owner  = THIS_MODULE,
 		.pm     = EXYNOS_TMU_PM,
-		.of_match_table = exynos_tmu_match,
+		.of_match_table = of_match_ptr(exynos_tmu_match),
 	},
 	.probe = exynos_tmu_probe,
 	.remove	= __devexit_p(exynos_tmu_remove),
