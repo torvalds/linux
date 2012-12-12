@@ -419,8 +419,6 @@ static void sh_mmcif_request_dma(struct sh_mmcif_host *host,
 	if (ret < 0)
 		goto ecfgrx;
 
-	init_completion(&host->dma_complete);
-
 	return;
 
 ecfgrx:
@@ -1060,6 +1058,12 @@ static bool sh_mmcif_end_cmd(struct sh_mmcif_host *host)
 
 	if (!data)
 		return false;
+
+	/*
+	 * Completion can be signalled from DMA callback and error, so, have to
+	 * reset here, before setting .dma_active
+	 */
+	init_completion(&host->dma_complete);
 
 	if (data->flags & MMC_DATA_READ) {
 		if (host->chan_rx)
