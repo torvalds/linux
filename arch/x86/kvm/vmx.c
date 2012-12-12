@@ -3315,30 +3315,8 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 	 * unrestricted guest like Westmere to older host that don't have
 	 * unrestricted guest like Nehelem.
 	 */
-	if (vmx->rmode.vm86_active) {
-		switch (seg) {
-		case VCPU_SREG_CS:
-			vmcs_write32(GUEST_CS_AR_BYTES, 0xf3);
-			vmcs_write32(GUEST_CS_LIMIT, 0xffff);
-			if (vmcs_readl(GUEST_CS_BASE) == 0xffff0000)
-				vmcs_writel(GUEST_CS_BASE, 0xf0000);
-			vmcs_write16(GUEST_CS_SELECTOR,
-				     vmcs_readl(GUEST_CS_BASE) >> 4);
-			break;
-		case VCPU_SREG_ES:
-		case VCPU_SREG_DS:
-		case VCPU_SREG_GS:
-		case VCPU_SREG_FS:
-			fix_rmode_seg(seg, &vmx->rmode.segs[seg]);
-			break;
-		case VCPU_SREG_SS:
-			vmcs_write16(GUEST_SS_SELECTOR,
-				     vmcs_readl(GUEST_SS_BASE) >> 4);
-			vmcs_write32(GUEST_SS_LIMIT, 0xffff);
-			vmcs_write32(GUEST_SS_AR_BYTES, 0xf3);
-			break;
-		}
-	}
+	if (vmx->rmode.vm86_active && var->s)
+		fix_rmode_seg(seg, &vmx->rmode.segs[seg]);
 }
 
 static void vmx_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l)
