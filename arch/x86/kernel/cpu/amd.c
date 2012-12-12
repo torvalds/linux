@@ -748,9 +748,6 @@ static unsigned int __cpuinit amd_size_cache(struct cpuinfo_x86 *c,
 
 static void __cpuinit cpu_set_tlb_flushall_shift(struct cpuinfo_x86 *c)
 {
-	if (!cpu_has_invlpg)
-		return;
-
 	tlb_flushall_shift = 5;
 
 	if (c->x86 <= 0x11)
