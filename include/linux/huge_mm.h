@@ -95,12 +95,14 @@ extern int handle_pte_fault(struct mm_struct *mm,
 			    struct vm_area_struct *vma, unsigned long address,
 			    pte_t *pte, pmd_t *pmd, unsigned int flags);
 extern int split_huge_page(struct page *page);
-extern void __split_huge_page_pmd(struct mm_struct *mm, pmd_t *pmd);
-#define split_huge_page_pmd(__mm, __pmd)				\
+extern void __split_huge_page_pmd(struct vm_area_struct *vma,
+		unsigned long address, pmd_t *pmd);
+#define split_huge_page_pmd(__vma, __address, __pmd)			\
 	do {								\
 		pmd_t *____pmd = (__pmd);				\
 		if (unlikely(pmd_trans_huge(*____pmd)))			\
-			__split_huge_page_pmd(__mm, ____pmd);		\
+			__split_huge_page_pmd(__vma, __address,		\
+					____pmd);			\
 	}  while (0)
 #define wait_split_huge_page(__anon_vma, __pmd)				\
 	do {								\
@@ -110,6 +112,8 @@ extern void __split_huge_page_pmd(struct mm_struct *mm, pmd_t *pmd);
 		BUG_ON(pmd_trans_splitting(*____pmd) ||			\
 		       pmd_trans_huge(*____pmd));			\
 	} while (0)
+extern void split_huge_page_pmd_mm(struct mm_struct *mm, unsigned long address,
+		pmd_t *pmd);
 #if HPAGE_PMD_ORDER > MAX_ORDER
 #error "hugepages can't be allocated by the buddy allocator"
 #endif
@@ -177,9 +181,11 @@ static inline int split_huge_page(struct page *page)
 {
 	return 0;
 }
-#define split_huge_page_pmd(__mm, __pmd)	\
+#define split_huge_page_pmd(__vma, __address, __pmd)	\
 	do { } while (0)
 #define wait_split_huge_page(__anon_vma, __pmd)	\
+	do { } while (0)
+#define split_huge_page_pmd_mm(__mm, __address, __pmd)	\
 	do { } while (0)
 #define compound_trans_head(page) compound_head(page)
 static inline int hugepage_madvise(struct vm_area_struct *vma,

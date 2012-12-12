@@ -2475,9 +2475,14 @@ static int khugepaged(void *none)
 	return 0;
 }
 
-void __split_huge_page_pmd(struct mm_struct *mm, pmd_t *pmd)
+void __split_huge_page_pmd(struct vm_area_struct *vma, unsigned long address,
+		pmd_t *pmd)
 {
 	struct page *page;
+	unsigned long haddr = address & HPAGE_PMD_MASK;
+	struct mm_struct *mm = vma->vm_mm;
+
+	BUG_ON(vma->vm_start > haddr || vma->vm_end < haddr + HPAGE_PMD_SIZE);
 
 	spin_lock(&mm->page_table_lock);
 	if (unlikely(!pmd_trans_huge(*pmd))) {
@@ -2495,6 +2500,16 @@ void __split_huge_page_pmd(struct mm_struct *mm, pmd_t *pmd)
 	BUG_ON(pmd_trans_huge(*pmd));
 }
 
+void split_huge_page_pmd_mm(struct mm_struct *mm, unsigned long address,
+		pmd_t *pmd)
+{
+	struct vm_area_struct *vma;
+
+	vma = find_vma(mm, address);
+	BUG_ON(vma == NULL);
+	split_huge_page_pmd(vma, address, pmd);
+}
+
 static void split_huge_page_address(struct mm_struct *mm,
 				    unsigned long address)
 {
@@ -2509,7 +2524,7 @@ static void split_huge_page_address(struct mm_struct *mm,
 	 * Caller holds the mmap_sem write mode, so a huge pmd cannot
 	 * materialize from under us.
 	 */
-	split_huge_page_pmd(mm, pmd);
+	split_huge_page_pmd_mm(mm, address, pmd);
 }
 
 void __vma_adjust_trans_huge(struct vm_area_struct *vma,

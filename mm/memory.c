@@ -1243,7 +1243,7 @@ static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
 					BUG();
 				}
 #endif
-				split_huge_page_pmd(vma->vm_mm, pmd);
+				split_huge_page_pmd(vma, addr, pmd);
 			} else if (zap_huge_pmd(tlb, vma, pmd, addr))
 				goto next;
 			/* fall through */
@@ -1512,7 +1512,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
 	}
 	if (pmd_trans_huge(*pmd)) {
 		if (flags & FOLL_SPLIT) {
-			split_huge_page_pmd(mm, pmd);
+			split_huge_page_pmd(vma, address, pmd);
 			goto split_fallthrough;
 		}
 		spin_lock(&mm->page_table_lock);
