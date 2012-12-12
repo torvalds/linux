@@ -457,11 +457,16 @@ choice
 
 endchoice
 
-config DEBUG_IMX6Q_UART_PORT
-	int "i.MX6Q Debug UART Port (1-5)" if DEBUG_IMX6Q_UART
-	range 1 5
+config DEBUG_IMX_UART_PORT
+	int "i.MX Debug UART Port Selection" if DEBUG_IMX1_UART || \
+						DEBUG_IMX25_UART || \
+						DEBUG_IMX21_IMX27_UART || \
+						DEBUG_IMX31_UART || \
+						DEBUG_IMX35_UART || \
+						DEBUG_IMX51_UART || \
+						DEBUG_IMX50_IMX53_UART || \
+						DEBUG_IMX6Q_UART
 	default 1
-	depends on SOC_IMX6Q
 	help
 	  Choose UART port on which kernel low-level debug messages
 	  should be output.
