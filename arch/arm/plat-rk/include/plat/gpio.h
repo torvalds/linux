@@ -1,6 +1,8 @@
 #ifndef __PLAT_GPIO_H
 #define __PLAT_GPIO_H
 
+#include <linux/types.h>
+
 /*
  * tp_int = <bank><goff><off><driving force><wake_en><irq_flags><reserve>
  * tp_rst = <bank><goff><off><driving force><active_low><pull_mode><reserve>
@@ -86,7 +88,24 @@ typedef enum GPIOIntType {
 	GPIOEdgelRising
 }eGPIOIntType_t;
 
-#ifndef __ASSEMBLY__                                         
+static inline bool gpio_is_valid(int number)
+{
+	return number >= PIN_BASE && number < ARCH_NR_GPIOS;
+}
+
+#define gpio_is_valid gpio_is_valid
+
+extern void __init rk30_gpio_init(void);
+
+static inline int gpio_to_irq(unsigned gpio)
+{
+	return gpio - PIN_BASE + NR_GIC_IRQS;
+}
+
+static inline int irq_to_gpio(unsigned irq)
+{
+	return irq - NR_GIC_IRQS + PIN_BASE;
+}
 
 #include <asm/errno.h>
 #include <asm-generic/gpio.h>		/* cansleep wrappers */
@@ -94,7 +113,5 @@ typedef enum GPIOIntType {
 #define gpio_get_value	__gpio_get_value
 #define gpio_set_value	__gpio_set_value
 #define gpio_cansleep	__gpio_cansleep
-
-#endif	/* __ASSEMBLY__ */
 
 #endif

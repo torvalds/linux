@@ -362,18 +362,4 @@
 
 #include <plat/gpio.h>
 
-#ifndef __ASSEMBLY__                                         
-extern void __init rk30_gpio_init(void); 
-static inline int gpio_to_irq(unsigned gpio)
-{
-	return gpio - PIN_BASE + NR_GIC_IRQS;
-}
-
-static inline int irq_to_gpio(unsigned irq)
-{
-	return irq - NR_GIC_IRQS + PIN_BASE;
-}
-
-#endif	/* __ASSEMBLY__ */
-
 #endif

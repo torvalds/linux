@@ -35,10 +35,12 @@
  * platform data and other tables.
  */
 
+#ifndef gpio_is_valid
 static inline bool gpio_is_valid(int number)
 {
 	return number >= 0 && number < ARCH_NR_GPIOS;
 }
+#endif
 
 struct device;
 struct seq_file;
