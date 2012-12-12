@@ -3268,7 +3268,6 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	const struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
-	u32 ar = 0;
 
 	vmx_segment_cache_clear(vmx);
 	__clear_bit(VCPU_EXREG_CPL, (ulong *)&vcpu->arch.regs_avail);
@@ -3285,7 +3284,6 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 	vmcs_writel(sf->base, var->base);
 	vmcs_write32(sf->limit, var->limit);
 	vmcs_write16(sf->selector, var->selector);
-	ar = vmx_segment_access_rights(var);
 
 	/*
 	 *   Fix the "Accessed" bit in AR field of segment registers for older
@@ -3299,9 +3297,9 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 	 * kvm hack.
 	 */
 	if (enable_unrestricted_guest && (seg != VCPU_SREG_LDTR))
-		ar |= 0x1; /* Accessed */
+		var->type |= 0x1; /* Accessed */
 
-	vmcs_write32(sf->ar_bytes, ar);
+	vmcs_write32(sf->ar_bytes, vmx_segment_access_rights(var));
 }
 
 static void vmx_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l)
