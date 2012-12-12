@@ -631,7 +631,6 @@ static void f2fs_end_io_write(struct bio *bio, int err)
 			if (page->mapping)
 				set_bit(AS_EIO, &page->mapping->flags);
 			set_ckpt_flags(p->sbi->ckpt, CP_ERROR_FLAG);
-			set_page_dirty(page);
 		}
 		end_page_writeback(page);
 		dec_page_count(p->sbi, F2FS_WRITEBACK);
