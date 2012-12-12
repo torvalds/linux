@@ -92,6 +92,11 @@ extern int isolate_lru_page(struct page *page);
 extern void putback_lru_page(struct page *page);
 
 /*
+ * in mm/rmap.c:
+ */
+extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
+
+/*
  * in mm/page_alloc.c
  */
 extern void __free_pages_bootmem(struct page *page, unsigned int order);
