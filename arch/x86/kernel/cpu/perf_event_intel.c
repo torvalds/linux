@@ -1603,6 +1603,13 @@ static struct attribute *intel_arch_formats_attr[] = {
 	NULL,
 };
 
+ssize_t intel_event_sysfs_show(char *page, u64 config)
+{
+	u64 event = (config & ARCH_PERFMON_EVENTSEL_EVENT);
+
+	return x86_event_sysfs_show(page, config, event);
+}
+
 static __initconst const struct x86_pmu core_pmu = {
 	.name			= "core",
 	.handle_irq		= x86_pmu_handle_irq,
@@ -1628,6 +1635,7 @@ static __initconst const struct x86_pmu core_pmu = {
 	.event_constraints	= intel_core_event_constraints,
 	.guest_get_msrs		= core_guest_get_msrs,
 	.format_attrs		= intel_arch_formats_attr,
+	.events_sysfs_show	= intel_event_sysfs_show,
 };
 
 struct intel_shared_regs *allocate_shared_regs(int cpu)
@@ -1766,6 +1774,7 @@ static __initconst const struct x86_pmu intel_pmu = {
 	.pebs_aliases		= intel_pebs_aliases_core2,
 
 	.format_attrs		= intel_arch3_formats_attr,
+	.events_sysfs_show	= intel_event_sysfs_show,
 
 	.cpu_prepare		= intel_pmu_cpu_prepare,
 	.cpu_starting		= intel_pmu_cpu_starting,

@@ -189,7 +189,7 @@ static int create_trace_uprobe(int argc, char **argv)
 	if (argv[0][0] == '-')
 		is_delete = true;
 	else if (argv[0][0] != 'p') {
-		pr_info("Probe definition must be started with 'p', 'r' or" " '-'.\n");
+		pr_info("Probe definition must be started with 'p' or '-'.\n");
 		return -EINVAL;
 	}
 
@@ -252,7 +252,7 @@ static int create_trace_uprobe(int argc, char **argv)
 	if (ret)
 		goto fail_address_parse;
 
-	ret = strict_strtoul(arg, 0, &offset);
+	ret = kstrtoul(arg, 0, &offset);
 	if (ret)
 		goto fail_address_parse;
 
