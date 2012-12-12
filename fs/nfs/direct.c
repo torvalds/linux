@@ -266,13 +266,8 @@ static void nfs_direct_read_completion(struct nfs_pgio_header *hdr)
 		struct nfs_page *req = nfs_list_entry(hdr->pages.next);
 		struct page *page = req->wb_page;
 
-		if (!PageCompound(page)) {
-			if (test_bit(NFS_IOHDR_ERROR, &hdr->flags)) {
-				if (bytes < hdr->good_bytes)
-					set_page_dirty(page);
-			} else
-				set_page_dirty(page);
-		}
+		if (!PageCompound(page) && bytes < hdr->good_bytes)
+			set_page_dirty(page);
 		bytes += req->wb_bytes;
 		nfs_list_remove_request(req);
 		nfs_direct_readpage_release(req);
