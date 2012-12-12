@@ -1151,9 +1151,11 @@ void page_remove_rmap(struct page *page)
 	 * containing the swap entry, but page not yet written to swap.
 	 *
 	 * And we can skip it on file pages, so long as the filesystem
-	 * participates in dirty tracking; but need to catch shm and tmpfs
-	 * and ramfs pages which have been modified since creation by read
-	 * fault.
+	 * participates in dirty tracking (note that this is not only an
+	 * optimization but also solves problems caused by dirty flag in
+	 * storage key getting set by a write from inside kernel); but need to
+	 * catch shm and tmpfs and ramfs pages which have been modified since
+	 * creation by read fault.
 	 *
 	 * Note that mapping must be decided above, before decrementing
 	 * mapcount (which luckily provides a barrier): once page is unmapped,
