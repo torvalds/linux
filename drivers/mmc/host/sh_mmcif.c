@@ -1238,7 +1238,9 @@ static irqreturn_t sh_mmcif_intr(int irq, void *dev_id)
 		sh_mmcif_writel(host->addr, MMCIF_CE_INT, ~INT_BUFREN);
 		sh_mmcif_bitclr(host, MMCIF_CE_INT_MASK, MASK_MBUFREN);
 	} else if (state & INT_BUFWEN) {
-		sh_mmcif_writel(host->addr, MMCIF_CE_INT, ~INT_BUFWEN);
+		sh_mmcif_writel(host->addr, MMCIF_CE_INT,
+				~(INT_BUFWEN | INT_DTRANE | INT_CMD12DRE |
+				  INT_CMD12RBE | INT_CMD12CRE));
 		sh_mmcif_bitclr(host, MMCIF_CE_INT_MASK, MASK_MBUFWEN);
 	} else if (state & INT_CMD12DRE) {
 		sh_mmcif_writel(host->addr, MMCIF_CE_INT,
