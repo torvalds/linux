@@ -913,12 +913,6 @@ static int ep_config_from_table(struct sw_hcd *sw_hcd)
 			return -EINVAL;
 		}
 
-		if (n >= SW_HCD_C_NUM_EPS) {
-			DMSG_PANIC("ERR: %s: too many eps in table %d > %d\n",
-				sw_hcd_driver_name, n + 1, SW_HCD_C_NUM_EPS);
-			return -EINVAL;
-		}
-
 		offset = fifo_setup(sw_hcd, hw_ep + epn, cfg++, offset);
 		if (offset < 0) {
 			DMSG_PANIC("ERR: %s: mem overrun, ep %d\n", sw_hcd_driver_name, epn);
@@ -930,8 +924,9 @@ static int ep_config_from_table(struct sw_hcd *sw_hcd)
 	}
 
 	DMSG_DBG_HCD("ep_config_from_table: %s: %d/%d max ep, %d/%d memory\n",
-		     sw_hcd_driver_name, n, SW_HCD_C_NUM_EPS,
-		     offset, sw_hcd->config->ram_size);
+                 sw_hcd_driver_name,
+			     n + 1, sw_hcd->config->num_eps * 2 - 1,
+			     offset, sw_hcd->config->ram_size);
 
 	if (!sw_hcd->bulk_ep) {
 		DMSG_PANIC("ERR: %s: missing bulk\n", sw_hcd_driver_name);
