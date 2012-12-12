@@ -399,7 +399,7 @@ struct ieee80211_mgd_assoc_data {
 	u8 ssid_len;
 	u8 supp_rates_len;
 	bool wmm, uapsd;
-	bool have_beacon;
+	bool have_beacon, need_beacon;
 	bool synced;
 
 	u8 ap_ht_param;

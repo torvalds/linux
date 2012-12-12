@@ -1445,7 +1445,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_led_assoc(local, 1);
 
-	if (local->hw.flags & IEEE80211_HW_NEED_DTIM_PERIOD) {
+	if (sdata->u.mgd.assoc_data->have_beacon) {
 		/*
 		 * If the AP is buggy we may get here with no DTIM period
 		 * known, so assume it's 1 which is the only safe assumption
@@ -1453,6 +1453,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 		 * probably just won't work at all.
 		 */
 		bss_conf->dtim_period = sdata->u.mgd.dtim_period ?: 1;
+		bss_info_changed |= BSS_CHANGED_DTIM_PERIOD;
 	} else {
 		bss_conf->dtim_period = 0;
 	}
@@ -2548,13 +2549,14 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	chan = chanctx_conf->def.chan;
 	rcu_read_unlock();
 
-	if (ifmgd->assoc_data && !ifmgd->assoc_data->have_beacon &&
+	if (ifmgd->assoc_data && ifmgd->assoc_data->need_beacon &&
 	    ether_addr_equal(mgmt->bssid, ifmgd->assoc_data->bss->bssid)) {
 		ieee802_11_parse_elems(mgmt->u.beacon.variable,
 				       len - baselen, &elems);
 
 		ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems);
 		ifmgd->assoc_data->have_beacon = true;
+		ifmgd->assoc_data->need_beacon = false;
 		/* continue assoc process */
 		ifmgd->assoc_data->timeout = jiffies;
 		run_again(ifmgd, ifmgd->assoc_data->timeout);
@@ -2710,6 +2712,19 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	if (ieee80211_sta_wmm_params(local, sdata, elems.wmm_param,
 				     elems.wmm_param_len))
 		changed |= BSS_CHANGED_QOS;
+
+	/*
+	 * If we haven't had a beacon before, tell the driver about the
+	 * DTIM period now.
+	 */
+	if (!bss_conf->dtim_period) {
+		/* a few bogus AP send dtim_period = 0 or no TIM IE */
+		if (elems.tim)
+			bss_conf->dtim_period = elems.tim->dtim_period ?: 1;
+		else
+			bss_conf->dtim_period = 1;
+		changed |= BSS_CHANGED_DTIM_PERIOD;
+	}
 
 	if (elems.erp_info && elems.erp_info_len >= 1) {
 		erp_valid = true;
@@ -2989,7 +3004,8 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 
 	if (ifmgd->assoc_data &&
 	    time_after(jiffies, ifmgd->assoc_data->timeout)) {
-		if (!ifmgd->assoc_data->have_beacon ||
+		if ((ifmgd->assoc_data->need_beacon &&
+		     !ifmgd->assoc_data->have_beacon) ||
 		    ieee80211_do_assoc(sdata)) {
 			u8 bssid[ETH_ALEN];
 
@@ -3776,6 +3792,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_bss *bss = (void *)req->bss->priv;
 	struct ieee80211_mgd_assoc_data *assoc_data;
+	const struct cfg80211_bss_ies *beacon_ies;
 	struct ieee80211_supported_band *sband;
 	const u8 *ssidie, *ht_ie, *vht_ie;
 	int i, err;
@@ -3941,38 +3958,35 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	if (err)
 		goto err_clear;
 
-	if (sdata->local->hw.flags & IEEE80211_HW_NEED_DTIM_PERIOD) {
-		const struct cfg80211_bss_ies *beacon_ies;
+	rcu_read_lock();
+	beacon_ies = rcu_dereference(req->bss->beacon_ies);
 
-		rcu_read_lock();
-		beacon_ies = rcu_dereference(req->bss->beacon_ies);
-		if (!beacon_ies) {
-			/*
-			 * Wait up to one beacon interval ...
-			 * should this be more if we miss one?
-			 */
-			sdata_info(sdata, "waiting for beacon from %pM\n",
-				   ifmgd->bssid);
-			assoc_data->timeout =
-				TU_TO_EXP_TIME(req->bss->beacon_interval);
-		} else {
-			const u8 *tim_ie = cfg80211_find_ie(WLAN_EID_TIM,
-							    beacon_ies->data,
-							    beacon_ies->len);
-			if (tim_ie && tim_ie[1] >=
-					sizeof(struct ieee80211_tim_ie)) {
-				const struct ieee80211_tim_ie *tim;
-				tim = (void *)(tim_ie + 2);
-				ifmgd->dtim_period = tim->dtim_period;
-			}
-			assoc_data->have_beacon = true;
-			assoc_data->timeout = jiffies;
+	if (sdata->local->hw.flags & IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC &&
+	    !beacon_ies) {
+		/*
+		 * Wait up to one beacon interval ...
+		 * should this be more if we miss one?
+		 */
+		sdata_info(sdata, "waiting for beacon from %pM\n",
+			   ifmgd->bssid);
+		assoc_data->timeout = TU_TO_EXP_TIME(req->bss->beacon_interval);
+		assoc_data->need_beacon = true;
+	} else if (beacon_ies) {
+		const u8 *tim_ie = cfg80211_find_ie(WLAN_EID_TIM,
+						    beacon_ies->data,
+						    beacon_ies->len);
+		if (tim_ie && tim_ie[1] >= sizeof(struct ieee80211_tim_ie)) {
+			const struct ieee80211_tim_ie *tim;
+			tim = (void *)(tim_ie + 2);
+			ifmgd->dtim_period = tim->dtim_period;
 		}
-		rcu_read_unlock();
-	} else {
 		assoc_data->have_beacon = true;
 		assoc_data->timeout = jiffies;
+	} else {
+		assoc_data->timeout = jiffies;
 	}
+	rcu_read_unlock();
+
 	run_again(ifmgd, assoc_data->timeout);
 
 	if (bss->corrupt_data) {
