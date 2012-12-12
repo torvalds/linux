@@ -118,16 +118,6 @@ static const struct of_device_id dw_mci_pltfm_match[] = {
 };
 MODULE_DEVICE_TABLE(of, dw_mci_pltfm_match);
 
-#ifdef CONFIG_OF
-static struct of_device_id dw_mci_of_match[] __devinitdata = {
-       { .compatible = "snps,dw-mmc", },
-       { /* end of table */}
-};
-MODULE_DEVICE_TABLE(of, dw_mci_of_match);
-#else
-#define dw_mci_of_match NULL
-#endif /* CONFIG_OF */
-
 static struct platform_driver dw_mci_pltfm_driver = {
 	.probe		= dw_mci_pltfm_probe,
 	.remove		= dw_mci_pltfm_remove,
@@ -135,7 +125,6 @@ static struct platform_driver dw_mci_pltfm_driver = {
 		.name		= "dw_mmc",
 		.of_match_table	= of_match_ptr(dw_mci_pltfm_match),
 		.pm		= &dw_mci_pltfm_pmops,
-		.of_match_table = dw_mci_of_match,
 	},
 };
 

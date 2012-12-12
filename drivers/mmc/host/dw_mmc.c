@@ -283,6 +283,9 @@ static u32 dw_mci_prepare_command(struct mmc_host *mmc, struct mmc_command *cmd)
 	if (drv_data && drv_data->prepare_command)
 		drv_data->prepare_command(slot->host, &cmdr);
 
+	if (slot->host->use_hold_reg)
+		cmdr |= SDMMC_CMD_USE_HOLD_REG;
+
 	return cmdr;
 }
 
@@ -2143,6 +2146,11 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 		return ERR_PTR(-ENOMEM);
 	}
 
+	if (of_property_read_u32(dev->of_node, "bus-hz", &pdata->bus_hz)) {
+		dev_err(dev, "couldn't determine bus-hz\n");
+		pdata->bus_hz = 50000000;
+	}
+
 	/* find out number of slots supported */
 	if (of_property_read_u32(dev->of_node, "num-slots",
 				&pdata->num_slots)) {
@@ -2198,36 +2206,6 @@ int dw_mci_probe(struct dw_mci *host)
 			return -EINVAL;
 		}
 	}
-
-#ifdef CONFIG_OF
-	if (of_property_read_u32(host->dev.of_node, "bus-hz", &prop)) {
-		dev_err(&host->dev, "couldn't determine bus-hz\n");
-		return -ENODEV;
-	}
-	host->pdata->bus_hz = prop;
-
-	if (of_property_read_u32(host->dev.of_node, "num-slots", &prop)) {
-		dev_err(&host->dev, "couldn't determine num-slots\n");
-		return -ENODEV;
-	}
-	host->pdata->num_slots = prop;
-
-	/* Optional parameter. */
-	if (!of_property_read_u32(host->dev.of_node, "fifo-depth", &prop)) {
-		host->pdata->fifo_depth = prop;
-	}
-
-	if (of_property_read_u32(host->dev.of_node, "bus-width", &prop)) {
-		dev_err(&host->dev, "couldn't determine bus-width\n");
-		return -ENODEV;
-	}
-
-	if (prop == 8)
-		host->pdata->caps |= (MMC_CAP_4_BIT_DATA |
-					MMC_CAP_8_BIT_DATA);
-	else if (prop == 4)
-		host->pdata->caps |= MMC_CAP_4_BIT_DATA;
-#endif
 
 	if (!host->pdata->select_slot && host->pdata->num_slots > 1) {
 		dev_err(host->dev,
@@ -2308,6 +2286,9 @@ int dw_mci_probe(struct dw_mci *host)
 		width = 32;
 		host->data_shift = 2;
 	}
+
+	/* Get the USE_HOLD_REG */
+	host->use_hold_reg = mci_readl(host, CMD) & SDMMC_CMD_USE_HOLD_REG;
 
 	/* Reset all blocks */
 	if (!mci_wait_reset(host->dev, host))

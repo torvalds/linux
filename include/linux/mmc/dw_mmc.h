@@ -187,6 +187,9 @@ struct dw_mci {
 	struct regulator	*vmmc;	/* Power regulator */
 	unsigned long		irq_flags; /* IRQ flags */
 	int			irq;
+
+	/* Set to one for SDR12 and SDR25 */
+	unsigned int use_hold_reg;
 };
 
 /* DMA ops for Internal/External DMAC interface */
