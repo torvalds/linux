@@ -197,6 +197,14 @@ thp_split is incremented every time a huge page is split into base
 	pages. This can happen for a variety of reasons but a common
 	reason is that a huge page is old and is being reclaimed.
 
+thp_zero_page_alloc is incremented every time a huge zero page is
+	successfully allocated. It includes allocations which where
+	dropped due race with other allocation. Note, it doesn't count
+	every map of the huge zero page, only its allocation.
+
+thp_zero_page_alloc_failed is incremented if kernel fails to allocate
+	huge zero page and falls back to using small pages.
+
 As the system ages, allocating huge pages may be expensive as the
 system uses memory compaction to copy data around memory to free a
 huge page for use. There are some counters in /proc/vmstat to help
