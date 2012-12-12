@@ -214,6 +214,88 @@ static void grow_zone_span(struct zone *zone, unsigned long start_pfn,
 	zone_span_writeunlock(zone);
 }
 
+static void resize_zone(struct zone *zone, unsigned long start_pfn,
+		unsigned long end_pfn)
+{
+	zone_span_writelock(zone);
+
+	zone->zone_start_pfn = start_pfn;
+	zone->spanned_pages = end_pfn - start_pfn;
+
+	zone_span_writeunlock(zone);
+}
+
+static void fix_zone_id(struct zone *zone, unsigned long start_pfn,
+		unsigned long end_pfn)
+{
+	enum zone_type zid = zone_idx(zone);
+	int nid = zone->zone_pgdat->node_id;
+	unsigned long pfn;
+
+	for (pfn = start_pfn; pfn < end_pfn; pfn++)
+		set_page_links(pfn_to_page(pfn), zid, nid, pfn);
+}
+
+static int move_pfn_range_left(struct zone *z1, struct zone *z2,
+		unsigned long start_pfn, unsigned long end_pfn)
+{
+	unsigned long flags;
+
+	pgdat_resize_lock(z1->zone_pgdat, &flags);
+
+	/* can't move pfns which are higher than @z2 */
+	if (end_pfn > z2->zone_start_pfn + z2->spanned_pages)
+		goto out_fail;
+	/* the move out part mast at the left most of @z2 */
+	if (start_pfn > z2->zone_start_pfn)
+		goto out_fail;
+	/* must included/overlap */
+	if (end_pfn <= z2->zone_start_pfn)
+		goto out_fail;
+
+	resize_zone(z1, z1->zone_start_pfn, end_pfn);
+	resize_zone(z2, end_pfn, z2->zone_start_pfn + z2->spanned_pages);
+
+	pgdat_resize_unlock(z1->zone_pgdat, &flags);
+
+	fix_zone_id(z1, start_pfn, end_pfn);
+
+	return 0;
+out_fail:
+	pgdat_resize_unlock(z1->zone_pgdat, &flags);
+	return -1;
+}
+
+static int move_pfn_range_right(struct zone *z1, struct zone *z2,
+		unsigned long start_pfn, unsigned long end_pfn)
+{
+	unsigned long flags;
+
+	pgdat_resize_lock(z1->zone_pgdat, &flags);
+
+	/* can't move pfns which are lower than @z1 */
+	if (z1->zone_start_pfn > start_pfn)
+		goto out_fail;
+	/* the move out part mast at the right most of @z1 */
+	if (z1->zone_start_pfn + z1->spanned_pages >  end_pfn)
+		goto out_fail;
+	/* must included/overlap */
+	if (start_pfn >= z1->zone_start_pfn + z1->spanned_pages)
+		goto out_fail;
+
+	resize_zone(z1, z1->zone_start_pfn, start_pfn);
+	resize_zone(z2, start_pfn, z2->zone_start_pfn + z2->spanned_pages);
+
+	pgdat_resize_unlock(z1->zone_pgdat, &flags);
+
+	fix_zone_id(z2, start_pfn, end_pfn);
+
+	return 0;
+out_fail:
+	pgdat_resize_unlock(z1->zone_pgdat, &flags);
+	return -1;
+}
+
 static void grow_pgdat_span(struct pglist_data *pgdat, unsigned long start_pfn,
 			    unsigned long end_pfn)
 {
@@ -508,7 +590,7 @@ static void node_states_set_node(int node, struct memory_notify *arg)
 }
 
 
-int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
+int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_type)
 {
 	unsigned long onlined_pages = 0;
 	struct zone *zone;
@@ -523,6 +605,22 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
 	 * The section can't be removed here because of the
 	 * memory_block->state_mutex.
 	 */
+	zone = page_zone(pfn_to_page(pfn));
+
+	if (online_type == ONLINE_KERNEL && zone_idx(zone) == ZONE_MOVABLE) {
+		if (move_pfn_range_left(zone - 1, zone, pfn, pfn + nr_pages)) {
+			unlock_memory_hotplug();
+			return -1;
+		}
+	}
+	if (online_type == ONLINE_MOVABLE && zone_idx(zone) == ZONE_MOVABLE - 1) {
+		if (move_pfn_range_right(zone, zone + 1, pfn, pfn + nr_pages)) {
+			unlock_memory_hotplug();
+			return -1;
+		}
+	}
+
+	/* Previous code may changed the zone of the pfn range */
 	zone = page_zone(pfn_to_page(pfn));
 
 	arg.start_pfn = pfn;

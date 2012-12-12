@@ -161,7 +161,8 @@ a recent addition and not present on older kernels.
 		    in the memory block.
 'state'           : read-write
                     at read:  contains online/offline state of memory.
-                    at write: user can specify "online", "offline" command
+                    at write: user can specify "online_kernel",
+                    "online_movable", "online", "offline" command
                     which will be performed on al sections in the block.
 'phys_device'     : read-only: designed to show the name of physical memory
                     device.  This is not well implemented now.
@@ -254,6 +255,17 @@ For using newly added memory, you have to "online" the memory section.
 For onlining, you have to write "online" to the section's state file as:
 
 % echo online > /sys/devices/system/memory/memoryXXX/state
+
+This onlining will not change the ZONE type of the target memory section,
+If the memory section is in ZONE_NORMAL, you can change it to ZONE_MOVABLE:
+
+% echo online_movable > /sys/devices/system/memory/memoryXXX/state
+(NOTE: current limit: this memory section must be adjacent to ZONE_MOVABLE)
+
+And if the memory section is in ZONE_MOVABLE, you can change it to ZONE_NORMAL:
+
+% echo online_kernel > /sys/devices/system/memory/memoryXXX/state
+(NOTE: current limit: this memory section must be adjacent to ZONE_NORMAL)
 
 After this, section memoryXXX's state will be 'online' and the amount of
 available memory will be increased.
