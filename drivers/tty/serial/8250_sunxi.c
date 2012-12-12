@@ -216,6 +216,7 @@ static int __devexit sw_serial_remove(struct platform_device *dev)
 	sw_serial[sport->port_no] = 0;
 	sw_serial_put_resource(sport);
 	
+	platform_set_drvdata(dev, NULL);
 	kfree(sport);
 	sport = NULL;
 	return 0;
@@ -265,15 +266,61 @@ static struct resource sw_uart_res[8][2] = {
     },
 };
 
-struct platform_device sw_uart_dev[] = {
-    [0] = {.name = "sunxi-uart", .id = 0, .num_resources = ARRAY_SIZE(sw_uart_res[0]), .resource = &sw_uart_res[0][0], .dev = {}},
-    [1] = {.name = "sunxi-uart", .id = 1, .num_resources = ARRAY_SIZE(sw_uart_res[1]), .resource = &sw_uart_res[1][0], .dev = {}},
-    [2] = {.name = "sunxi-uart", .id = 2, .num_resources = ARRAY_SIZE(sw_uart_res[2]), .resource = &sw_uart_res[2][0], .dev = {}},
-    [3] = {.name = "sunxi-uart", .id = 3, .num_resources = ARRAY_SIZE(sw_uart_res[3]), .resource = &sw_uart_res[3][0], .dev = {}},
-    [4] = {.name = "sunxi-uart", .id = 4, .num_resources = ARRAY_SIZE(sw_uart_res[4]), .resource = &sw_uart_res[4][0], .dev = {}},
-    [5] = {.name = "sunxi-uart", .id = 5, .num_resources = ARRAY_SIZE(sw_uart_res[5]), .resource = &sw_uart_res[5][0], .dev = {}},
-    [6] = {.name = "sunxi-uart", .id = 6, .num_resources = ARRAY_SIZE(sw_uart_res[6]), .resource = &sw_uart_res[6][0], .dev = {}},
-    [7] = {.name = "sunxi-uart", .id = 7, .num_resources = ARRAY_SIZE(sw_uart_res[7]), .resource = &sw_uart_res[7][0], .dev = {}},
+void
+sw_serial_device_release(struct device *dev)
+{
+	/* FILL ME! */
+}
+
+static struct platform_device sw_uart_dev[] = {
+	[0] = {.name = "sunxi-uart", .id = 0,
+			.num_resources = ARRAY_SIZE(sw_uart_res[0]),
+			.resource = &sw_uart_res[0][0], .dev = {
+					.release = &sw_serial_device_release
+			}
+	},
+	[1] = {.name = "sunxi-uart", .id = 1,
+			.num_resources = ARRAY_SIZE(sw_uart_res[1]),
+			.resource = &sw_uart_res[1][0], .dev = {
+					.release = &sw_serial_device_release
+			}
+	},
+	[2] = {.name = "sunxi-uart", .id = 2,
+			.num_resources = ARRAY_SIZE(sw_uart_res[2]),
+			.resource = &sw_uart_res[2][0], .dev = {
+					.release = &sw_serial_device_release
+			}
+	},
+	[3] = {.name = "sunxi-uart", .id = 3,
+			.num_resources = ARRAY_SIZE(sw_uart_res[3]),
+			.resource = &sw_uart_res[3][0], .dev = {
+			.release = &sw_serial_device_release
+			}
+	},
+	[4] = {.name = "sunxi-uart", .id = 4,
+			.num_resources = ARRAY_SIZE(sw_uart_res[4]),
+			.resource = &sw_uart_res[4][0], .dev = {
+					.release = &sw_serial_device_release
+			}
+	},
+	[5] = {.name = "sunxi-uart", .id = 5,
+			.num_resources = ARRAY_SIZE(sw_uart_res[5]),
+			.resource = &sw_uart_res[5][0], .dev = {
+					.release = &sw_serial_device_release
+			}
+	},
+	[6] = {.name = "sunxi-uart", .id = 6,
+			.num_resources = ARRAY_SIZE(sw_uart_res[6]),
+			.resource = &sw_uart_res[6][0], .dev = {
+					.release = &sw_serial_device_release
+			}
+	},
+	[7] = {.name = "sunxi-uart", .id = 7,
+			.num_resources = ARRAY_SIZE(sw_uart_res[7]),
+			.resource = &sw_uart_res[7][0], .dev = {
+					.release = &sw_serial_device_release
+			}
+	},
 };
 
 static int uart_used;
@@ -308,8 +355,14 @@ static int __init sw_serial_init(void)
 
 static void __exit sw_serial_exit(void)
 {
+	int i;
     if (uart_used)
 	    platform_driver_unregister(&sw_serial_driver);
+
+	for (i = 0; i < MAX_PORTS; i++) {
+		if (uart_used & (1 << i))
+			platform_device_unregister(&sw_uart_dev[i]);
+	}
 }
 
 MODULE_AUTHOR("Aaron.myeh<leafy.myeh@allwinnertech.com>");
