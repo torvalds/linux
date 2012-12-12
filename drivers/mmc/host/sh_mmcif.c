@@ -982,7 +982,7 @@ static void sh_mmcif_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			}
 		}
 		if (host->power) {
-			pm_runtime_put(&host->pd->dev);
+			pm_runtime_put_sync(&host->pd->dev);
 			clk_disable(host->hclk);
 			host->power = false;
 			if (ios->power_mode == MMC_POWER_OFF)
