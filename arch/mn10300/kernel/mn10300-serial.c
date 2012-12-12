@@ -1374,7 +1374,8 @@ timer_okay:
 	if ((new->c_cflag & CREAD) == 0)
 		port->uart.ignore_status_mask |= (1 << TTY_NORMAL);
 
-	scxctr |= *port->_control & (SC01CTR_TXE | SC01CTR_RXE | SC01CTR_BKE);
+	scxctr |= SC01CTR_TXE | SC01CTR_RXE;
+	scxctr |= *port->_control & SC01CTR_BKE;
 	*port->_control = scxctr;
 
 	spin_unlock_irqrestore(&port->uart.lock, flags);
@@ -1720,19 +1721,29 @@ static int mn10300_serial_poll_get_char(struct uart_port *_port)
 
 	_enter("%s", port->name);
 
-	do {
-		/* pull chars out of the hat */
-		ix = ACCESS_ONCE(port->rx_outp);
-		if (CIRC_CNT(port->rx_inp, ix, MNSC_BUFFER_SIZE) == 0)
-			return NO_POLL_CHAR;
+	if (mn10300_serial_int_tbl[port->rx_irq].port != NULL) {
+		do {
+			/* pull chars out of the hat */
+			ix = ACCESS_ONCE(port->rx_outp);
+			if (CIRC_CNT(port->rx_inp, ix, MNSC_BUFFER_SIZE) == 0)
+				return NO_POLL_CHAR;
 
-		smp_read_barrier_depends();
-		ch = port->rx_buffer[ix++];
-		st = port->rx_buffer[ix++];
-		smp_mb();
-		port->rx_outp = ix & (MNSC_BUFFER_SIZE - 1);
+			smp_read_barrier_depends();
+			ch = port->rx_buffer[ix++];
+			st = port->rx_buffer[ix++];
+			smp_mb();
+			port->rx_outp = ix & (MNSC_BUFFER_SIZE - 1);
 
-	} while (st & (SC01STR_FEF | SC01STR_PEF | SC01STR_OEF));
+		} while (st & (SC01STR_FEF | SC01STR_PEF | SC01STR_OEF));
+	} else {
+		do {
+			st = *port->_status;
+			if (st & (SC01STR_FEF | SC01STR_PEF | SC01STR_OEF))
+				continue;
+		} while (!(st & SC01STR_RBF));
+
+		ch = *port->_rxb;
+	}
 
 	return ch;
 }
