@@ -29,6 +29,7 @@
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/jiffies.h>
 
 /*
  * This driver supports various Lineage Compact Power Line DC/DC and AC/DC

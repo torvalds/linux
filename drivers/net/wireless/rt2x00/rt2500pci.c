@@ -205,7 +205,7 @@ static int rt2500pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 	u32 reg;
 
 	rt2x00pci_register_read(rt2x00dev, GPIOCSR, &reg);
-	return rt2x00_get_field32(reg, GPIOCSR_BIT0);
+	return rt2x00_get_field32(reg, GPIOCSR_VAL0);
 }
 
 #ifdef CONFIG_RT2X00_LIB_LEDS
@@ -2081,7 +2081,6 @@ static const struct data_queue_desc rt2500pci_queue_atim = {
 
 static const struct rt2x00_ops rt2500pci_ops = {
 	.name			= KBUILD_MODNAME,
-	.max_sta_intf		= 1,
 	.max_ap_intf		= 1,
 	.eeprom_size		= EEPROM_SIZE,
 	.rf_size		= RF_SIZE,

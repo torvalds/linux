@@ -1,50 +1,11 @@
 /*
- * Individual pin assignments for the B26/S26. Notice that the
- * actual usage of these pins depends on the PAD MUX settings, that
- * is why the same number can potentially appear several times.
- * In the reference design each pin is only used for one purpose.
- * These were determined by inspecting the B26/S26 schematic:
- * 2/1911-ROA 128 1603
- */
-#ifdef CONFIG_MACH_U300_BS2X
-#define U300_GPIO_PIN_UART_RX		0
-#define U300_GPIO_PIN_UART_TX		1
-#define U300_GPIO_PIN_GPIO02		2  /* Unrouted */
-#define U300_GPIO_PIN_GPIO03		3  /* Unrouted */
-#define U300_GPIO_PIN_CAM_SLEEP		4
-#define U300_GPIO_PIN_CAM_REG_EN	5
-#define U300_GPIO_PIN_GPIO06		6  /* Unrouted */
-#define U300_GPIO_PIN_GPIO07		7  /* Unrouted */
-
-#define U300_GPIO_PIN_GPIO08		8  /* Service point SP2321 */
-#define U300_GPIO_PIN_GPIO09		9  /* Service point SP2322 */
-#define U300_GPIO_PIN_PHFSENSE		10 /* Headphone jack sensing */
-#define U300_GPIO_PIN_MMC_CLKRET	11 /* Clock return from MMC/SD card */
-#define U300_GPIO_PIN_MMC_CD		12 /* MMC Card insertion detection */
-#define U300_GPIO_PIN_FLIPSENSE		13 /* Mechanical flip sensing */
-#define U300_GPIO_PIN_GPIO14		14 /* DSP JTAG Port RTCK */
-#define U300_GPIO_PIN_GPIO15		15 /* Unrouted */
-
-#define U300_GPIO_PIN_GPIO16		16 /* Unrouted */
-#define U300_GPIO_PIN_GPIO17		17 /* Unrouted */
-#define U300_GPIO_PIN_GPIO18		18 /* Unrouted */
-#define U300_GPIO_PIN_GPIO19		19 /* Unrouted */
-#define U300_GPIO_PIN_GPIO20		20 /* Unrouted */
-#define U300_GPIO_PIN_GPIO21		21 /* Unrouted */
-#define U300_GPIO_PIN_GPIO22		22 /* Unrouted */
-#define U300_GPIO_PIN_GPIO23		23 /* Unrouted */
-#endif
-
-/*
- * Individual pin assignments for the B330/S330 and B365/S365.
+ * Individual pin assignments for the B335/S335.
  * Notice that the actual usage of these pins depends on the
  * PAD MUX settings, that is why the same number can potentially
  * appear several times. In the reference design each pin is only
  * used for one purpose. These were determined by inspecting the
  * S365 schematic.
  */
-#if defined(CONFIG_MACH_U300_BS330) || defined(CONFIG_MACH_U300_BS365) || \
-    defined(CONFIG_MACH_U300_BS335)
 #define U300_GPIO_PIN_UART_RX		0
 #define U300_GPIO_PIN_UART_TX		1
 #define U300_GPIO_PIN_UART_CTS		2
@@ -90,8 +51,6 @@
 #define U300_GPIO_PIN_GPIO38		38 /* Unrouted */
 #define U300_GPIO_PIN_GPIO39		39 /* Unrouted */
 
-#ifdef CONFIG_MACH_U300_BS335
-
 #define U300_GPIO_PIN_GPIO40		40 /* Unrouted */
 #define U300_GPIO_PIN_GPIO41		41 /* Unrouted */
 #define U300_GPIO_PIN_GPIO42		42 /* Unrouted */
@@ -109,6 +68,3 @@
 #define U300_GPIO_PIN_GPIO53		53 /* Unrouted */
 #define U300_GPIO_PIN_GPIO54		54 /* Unrouted */
 #define U300_GPIO_PIN_GPIO55		55 /* Unrouted */
-#endif
-
-#endif

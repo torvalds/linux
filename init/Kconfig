@@ -496,6 +496,12 @@ config RCU_USER_QS
 	  excluded from the global RCU state machine and thus doesn't
 	  to keep the timer tick on for RCU.
 
+	  Unless you want to hack and help the development of the full
+	  tickless feature, you shouldn't enable this option. It adds
+	  unnecessary overhead.
+
+	  If unsure say N
+
 config RCU_USER_QS_FORCE
 	bool "Force userspace extended QS by default"
 	depends on RCU_USER_QS
@@ -503,6 +509,12 @@ config RCU_USER_QS_FORCE
 	  Set the hooks in user/kernel boundaries by default in order to
 	  test this feature that treats userspace as an extended quiescent
 	  state until we have a real user like a full adaptive nohz option.
+
+	  Unless you want to hack and help the development of the full
+	  tickless feature, you shouldn't enable this option. It adds
+	  unnecessary overhead.
+
+	  If unsure say N
 
 config RCU_FANOUT
 	int "Tree-based hierarchical RCU fanout value"
@@ -986,112 +998,23 @@ config UIDGID_CONVERTED
 	bool
 	default y
 
-	# List of kernel pieces that need user namespace work
-	# Features
-	depends on SYSVIPC = n
-	depends on IMA = n
-	depends on EVM = n
-	depends on KEYS = n
-	depends on AUDIT = n
-	depends on AUDITSYSCALL = n
-	depends on TASKSTATS = n
-	depends on TRACING = n
-	depends on FS_POSIX_ACL = n
-	depends on QUOTA = n
-	depends on QUOTACTL = n
-	depends on DEBUG_CREDENTIALS = n
-	depends on BSD_PROCESS_ACCT = n
-	depends on DRM = n
-	depends on PROC_EVENTS = n
-
 	# Networking
-	depends on NET = n
 	depends on NET_9P = n
-	depends on IPX = n
-	depends on PHONET = n
-	depends on NET_CLS_FLOW = n
-	depends on NETFILTER_XT_MATCH_OWNER = n
-	depends on NETFILTER_XT_MATCH_RECENT = n
-	depends on NETFILTER_XT_TARGET_LOG = n
-	depends on NETFILTER_NETLINK_LOG = n
-	depends on INET = n
-	depends on IPV6 = n
-	depends on IP_SCTP = n
-	depends on AF_RXRPC = n
-	depends on LLC2 = n
-	depends on NET_KEY = n
-	depends on INET_DIAG = n
-	depends on DNS_RESOLVER = n
-	depends on AX25 = n
-	depends on ATALK = n
 
 	# Filesystems
-	depends on USB_DEVICEFS = n
-	depends on USB_GADGETFS = n
-	depends on USB_FUNCTIONFS = n
-	depends on DEVTMPFS = n
-	depends on XENFS = n
-
 	depends on 9P_FS = n
-	depends on ADFS_FS = n
-	depends on AFFS_FS = n
 	depends on AFS_FS = n
 	depends on AUTOFS4_FS = n
-	depends on BEFS_FS = n
-	depends on BFS_FS = n
-	depends on BTRFS_FS = n
 	depends on CEPH_FS = n
 	depends on CIFS = n
 	depends on CODA_FS = n
-	depends on CONFIGFS_FS = n
-	depends on CRAMFS = n
-	depends on DEBUG_FS = n
-	depends on ECRYPT_FS = n
-	depends on EFS_FS = n
-	depends on EXOFS_FS = n
-	depends on FAT_FS = n
 	depends on FUSE_FS = n
 	depends on GFS2_FS = n
-	depends on HFS_FS = n
-	depends on HFSPLUS_FS = n
-	depends on HPFS_FS = n
-	depends on HUGETLBFS = n
-	depends on ISO9660_FS = n
-	depends on JFFS2_FS = n
-	depends on JFS_FS = n
-	depends on LOGFS = n
-	depends on MINIX_FS = n
 	depends on NCP_FS = n
 	depends on NFSD = n
 	depends on NFS_FS = n
-	depends on NILFS2_FS = n
-	depends on NTFS_FS = n
 	depends on OCFS2_FS = n
-	depends on OMFS_FS = n
-	depends on QNX4FS_FS = n
-	depends on QNX6FS_FS = n
-	depends on REISERFS_FS = n
-	depends on SQUASHFS = n
-	depends on SYSV_FS = n
-	depends on UBIFS_FS = n
-	depends on UDF_FS = n
-	depends on UFS_FS = n
-	depends on VXFS_FS = n
 	depends on XFS_FS = n
-
-	depends on !UML || HOSTFS = n
-
-	# The rare drivers that won't build
-	depends on AIRO = n
-	depends on AIRO_CS = n
-	depends on TUN = n
-	depends on INFINIBAND_QIB = n
-	depends on BLK_DEV_LOOP = n
-	depends on ANDROID_BINDER_IPC = n
-
-	# Security modules
-	depends on SECURITY_TOMOYO = n
-	depends on SECURITY_APPARMOR = n
 
 config UIDGID_STRICT_TYPE_CHECKS
 	bool "Require conversions between uid/gids and their internal representation"
@@ -1214,10 +1137,12 @@ menuconfig EXPERT
           environments which can tolerate a "non-standard" kernel.
           Only use this if you really know what you are doing.
 
+config HAVE_UID16
+	bool
+
 config UID16
 	bool "Enable 16-bit UID system calls" if EXPERT
-	depends on ARM || BLACKFIN || CRIS || FRV || H8300 || X86_32 || M68K || (S390 && !64BIT) || SUPERH || SPARC32 || (SPARC64 && COMPAT) || UML || (X86_64 && IA32_EMULATION) \
-		|| AARCH32_EMULATION
+	depends on HAVE_UID16
 	default y
 	help
 	  This enables the legacy 16-bit UID syscall wrappers.
@@ -1238,6 +1163,11 @@ config SYSCTL_SYSCALL
 	  making your kernel marginally smaller.
 
 	  If unsure say N here.
+
+config SYSCTL_EXCEPTION_TRACE
+	bool
+	help
+	  Enable support for /proc/sys/debug/exception-trace.
 
 config KALLSYMS
 	 bool "Load all symbols for debugging/ksymoops" if EXPERT
@@ -1288,6 +1218,7 @@ config BUG
           Just say Y.
 
 config ELF_CORE
+	depends on COREDUMP
 	default y
 	bool "Enable ELF core dumps" if EXPERT
 	help
@@ -1643,6 +1574,66 @@ config MODULE_SRCVERSION_ALL
 	  the version).  With this option, such a "srcversion" field
 	  will be created for all modules.  If unsure, say N.
 
+config MODULE_SIG
+	bool "Module signature verification"
+	depends on MODULES
+	select KEYS
+	select CRYPTO
+	select ASYMMETRIC_KEY_TYPE
+	select ASYMMETRIC_PUBLIC_KEY_SUBTYPE
+	select PUBLIC_KEY_ALGO_RSA
+	select ASN1
+	select OID_REGISTRY
+	select X509_CERTIFICATE_PARSER
+	help
+	  Check modules for valid signatures upon load: the signature
+	  is simply appended to the module. For more information see
+	  Documentation/module-signing.txt.
+
+	  !!!WARNING!!!  If you enable this option, you MUST make sure that the
+	  module DOES NOT get stripped after being signed.  This includes the
+	  debuginfo strip done by some packagers (such as rpmbuild) and
+	  inclusion into an initramfs that wants the module size reduced.
+
+config MODULE_SIG_FORCE
+	bool "Require modules to be validly signed"
+	depends on MODULE_SIG
+	help
+	  Reject unsigned modules or signed modules for which we don't have a
+	  key.  Without this, such modules will simply taint the kernel.
+
+choice
+	prompt "Which hash algorithm should modules be signed with?"
+	depends on MODULE_SIG
+	help
+	  This determines which sort of hashing algorithm will be used during
+	  signature generation.  This algorithm _must_ be built into the kernel
+	  directly so that signature verification can take place.  It is not
+	  possible to load a signed module containing the algorithm to check
+	  the signature on that module.
+
+config MODULE_SIG_SHA1
+	bool "Sign modules with SHA-1"
+	select CRYPTO_SHA1
+
+config MODULE_SIG_SHA224
+	bool "Sign modules with SHA-224"
+	select CRYPTO_SHA256
+
+config MODULE_SIG_SHA256
+	bool "Sign modules with SHA-256"
+	select CRYPTO_SHA256
+
+config MODULE_SIG_SHA384
+	bool "Sign modules with SHA-384"
+	select CRYPTO_SHA512
+
+config MODULE_SIG_SHA512
+	bool "Sign modules with SHA-512"
+	select CRYPTO_SHA512
+
+endchoice
+
 endif # MODULES
 
 config INIT_ALL_POSSIBLE
@@ -1669,5 +1660,19 @@ config PREEMPT_NOTIFIERS
 config PADATA
 	depends on SMP
 	bool
+
+# Can be selected by architectures with broken toolchains
+# that get confused by correct const<->read_only section
+# mappings
+config BROKEN_RODATA
+	bool
+
+config ASN1
+	tristate
+	help
+	  Build a simple ASN.1 grammar compiler that produces a bytecode output
+	  that can be interpreted by the ASN.1 stream decoder and used to
+	  inform it as to what tags are to be expected in a stream and what
+	  functions to call on what tags.
 
 source "kernel/Kconfig.locks"

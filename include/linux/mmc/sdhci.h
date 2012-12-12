@@ -91,13 +91,15 @@ struct sdhci_host {
 	unsigned int quirks2;	/* More deviations from spec. */
 
 #define SDHCI_QUIRK2_HOST_OFF_CARD_ON			(1<<0)
+#define SDHCI_QUIRK2_HOST_NO_CMD23			(1<<1)
 
 	int irq;		/* Device IRQ */
 	void __iomem *ioaddr;	/* Mapped address */
 
 	const struct sdhci_ops *ops;	/* Low level hw interface */
 
-	struct regulator *vmmc;	/* Power regulator */
+	struct regulator *vmmc;		/* Power regulator (vmmc) */
+	struct regulator *vqmmc;	/* Signaling regulator (vccq) */
 
 	/* Internal data */
 	struct mmc_host *mmc;	/* MMC structure */

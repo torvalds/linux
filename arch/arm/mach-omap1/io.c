@@ -16,7 +16,7 @@
 #include <asm/tlb.h>
 #include <asm/mach/map.h>
 
-#include <plat/mux.h>
+#include <mach/mux.h>
 #include <plat/tc.h>
 #include <plat/dma.h>
 

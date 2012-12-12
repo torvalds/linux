@@ -25,6 +25,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/export.h>
 #include <linux/platform_device.h>
+#include <linux/string.h>
 
 #include <video/omapdss.h>
 #include "dss.h"
@@ -34,10 +35,16 @@ static struct {
 	struct regulator *vdds_sdi_reg;
 
 	struct dss_lcd_mgr_config mgr_config;
+	struct omap_video_timings timings;
+	int datapairs;
+
+	struct omap_dss_output output;
 } sdi;
 
 static void sdi_config_lcd_manager(struct omap_dss_device *dssdev)
 {
+	struct omap_overlay_manager *mgr = dssdev->output->manager;
+
 	sdi.mgr_config.io_pad_mode = DSS_IO_PAD_MODE_BYPASS;
 
 	sdi.mgr_config.stallmode = false;
@@ -46,19 +53,20 @@ static void sdi_config_lcd_manager(struct omap_dss_device *dssdev)
 	sdi.mgr_config.video_port_width = 24;
 	sdi.mgr_config.lcden_sig_polarity = 1;
 
-	dss_mgr_set_lcd_config(dssdev->manager, &sdi.mgr_config);
+	dss_mgr_set_lcd_config(mgr, &sdi.mgr_config);
 }
 
 int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 {
-	struct omap_video_timings *t = &dssdev->panel.timings;
+	struct omap_dss_output *out = dssdev->output;
+	struct omap_video_timings *t = &sdi.timings;
 	struct dss_clock_info dss_cinfo;
 	struct dispc_clock_info dispc_cinfo;
 	unsigned long pck;
 	int r;
 
-	if (dssdev->manager == NULL) {
-		DSSERR("failed to enable display: no manager\n");
+	if (out == NULL || out->manager == NULL) {
+		DSSERR("failed to enable display: no output/manager\n");
 		return -ENODEV;
 	}
 
@@ -77,8 +85,8 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 		goto err_get_dispc;
 
 	/* 15.5.9.1.2 */
-	dssdev->panel.timings.data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
-	dssdev->panel.timings.sync_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
+	t->data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
+	t->sync_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
 
 	r = dss_calc_clock_div(t->pixel_clock * 1000, &dss_cinfo, &dispc_cinfo);
 	if (r)
@@ -97,7 +105,7 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	}
 
 
-	dss_mgr_set_timings(dssdev->manager, t);
+	dss_mgr_set_timings(out->manager, t);
 
 	r = dss_set_clock_div(&dss_cinfo);
 	if (r)
@@ -116,16 +124,15 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	 * need to care about the shadow register mechanism for pck-free. The
 	 * exact reason for this is unknown.
 	 */
-	dispc_mgr_set_clock_div(dssdev->manager->id,
-			&sdi.mgr_config.clock_info);
+	dispc_mgr_set_clock_div(out->manager->id, &sdi.mgr_config.clock_info);
 
-	dss_sdi_init(dssdev->phy.sdi.datapairs);
+	dss_sdi_init(sdi.datapairs);
 	r = dss_sdi_enable();
 	if (r)
 		goto err_sdi_enable;
 	mdelay(2);
 
-	r = dss_mgr_enable(dssdev->manager);
+	r = dss_mgr_enable(out->manager);
 	if (r)
 		goto err_mgr_enable;
 
@@ -148,7 +155,9 @@ EXPORT_SYMBOL(omapdss_sdi_display_enable);
 
 void omapdss_sdi_display_disable(struct omap_dss_device *dssdev)
 {
-	dss_mgr_disable(dssdev->manager);
+	struct omap_overlay_manager *mgr = dssdev->output->manager;
+
+	dss_mgr_disable(mgr);
 
 	dss_sdi_disable();
 
@@ -159,6 +168,19 @@ void omapdss_sdi_display_disable(struct omap_dss_device *dssdev)
 	omap_dss_stop_device(dssdev);
 }
 EXPORT_SYMBOL(omapdss_sdi_display_disable);
+
+void omapdss_sdi_set_timings(struct omap_dss_device *dssdev,
+		struct omap_video_timings *timings)
+{
+	sdi.timings = *timings;
+}
+EXPORT_SYMBOL(omapdss_sdi_set_timings);
+
+void omapdss_sdi_set_datapairs(struct omap_dss_device *dssdev, int datapairs)
+{
+	sdi.datapairs = datapairs;
+}
+EXPORT_SYMBOL(omapdss_sdi_set_datapairs);
 
 static int __init sdi_init_display(struct omap_dss_device *dssdev)
 {
@@ -180,10 +202,14 @@ static int __init sdi_init_display(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-static void __init sdi_probe_pdata(struct platform_device *pdev)
+static struct omap_dss_device * __init sdi_find_dssdev(struct platform_device *pdev)
 {
 	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
-	int i, r;
+	const char *def_disp_name = dss_get_default_display_name();
+	struct omap_dss_device *def_dssdev;
+	int i;
+
+	def_dssdev = NULL;
 
 	for (i = 0; i < pdata->num_devices; ++i) {
 		struct omap_dss_device *dssdev = pdata->devices[i];
@@ -191,21 +217,73 @@ static void __init sdi_probe_pdata(struct platform_device *pdev)
 		if (dssdev->type != OMAP_DISPLAY_TYPE_SDI)
 			continue;
 
-		r = sdi_init_display(dssdev);
-		if (r) {
-			DSSERR("device %s init failed: %d\n", dssdev->name, r);
-			continue;
-		}
+		if (def_dssdev == NULL)
+			def_dssdev = dssdev;
 
-		r = omap_dss_register_device(dssdev, &pdev->dev, i);
-		if (r)
-			DSSERR("device %s register failed: %d\n",
-					dssdev->name, r);
+		if (def_disp_name != NULL &&
+				strcmp(dssdev->name, def_disp_name) == 0) {
+			def_dssdev = dssdev;
+			break;
+		}
 	}
+
+	return def_dssdev;
+}
+
+static void __init sdi_probe_pdata(struct platform_device *sdidev)
+{
+	struct omap_dss_device *plat_dssdev;
+	struct omap_dss_device *dssdev;
+	int r;
+
+	plat_dssdev = sdi_find_dssdev(sdidev);
+
+	if (!plat_dssdev)
+		return;
+
+	dssdev = dss_alloc_and_init_device(&sdidev->dev);
+	if (!dssdev)
+		return;
+
+	dss_copy_device_pdata(dssdev, plat_dssdev);
+
+	r = sdi_init_display(dssdev);
+	if (r) {
+		DSSERR("device %s init failed: %d\n", dssdev->name, r);
+		dss_put_device(dssdev);
+		return;
+	}
+
+	r = dss_add_device(dssdev);
+	if (r) {
+		DSSERR("device %s register failed: %d\n", dssdev->name, r);
+		dss_put_device(dssdev);
+		return;
+	}
+}
+
+static void __init sdi_init_output(struct platform_device *pdev)
+{
+	struct omap_dss_output *out = &sdi.output;
+
+	out->pdev = pdev;
+	out->id = OMAP_DSS_OUTPUT_SDI;
+	out->type = OMAP_DISPLAY_TYPE_SDI;
+
+	dss_register_output(out);
+}
+
+static void __exit sdi_uninit_output(struct platform_device *pdev)
+{
+	struct omap_dss_output *out = &sdi.output;
+
+	dss_unregister_output(out);
 }
 
 static int __init omap_sdi_probe(struct platform_device *pdev)
 {
+	sdi_init_output(pdev);
+
 	sdi_probe_pdata(pdev);
 
 	return 0;
@@ -213,7 +291,9 @@ static int __init omap_sdi_probe(struct platform_device *pdev)
 
 static int __exit omap_sdi_remove(struct platform_device *pdev)
 {
-	omap_dss_unregister_child_devices(&pdev->dev);
+	dss_unregister_child_devices(&pdev->dev);
+
+	sdi_uninit_output(pdev);
 
 	return 0;
 }

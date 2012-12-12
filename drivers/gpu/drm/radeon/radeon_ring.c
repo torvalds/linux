@@ -28,8 +28,8 @@
  */
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include "drmP.h"
-#include "radeon_drm.h"
+#include <drm/drmP.h>
+#include <drm/radeon_drm.h>
 #include "radeon_reg.h"
 #include "radeon.h"
 #include "atom.h"
@@ -43,7 +43,7 @@
  * produce command buffers which are send to the kernel and
  * put in IBs for execution by the requested ring.
  */
-int radeon_debugfs_sa_init(struct radeon_device *rdev);
+static int radeon_debugfs_sa_init(struct radeon_device *rdev);
 
 /**
  * radeon_ib_get - request an IB (Indirect Buffer)
@@ -58,7 +58,8 @@ int radeon_debugfs_sa_init(struct radeon_device *rdev);
  * Returns 0 on success, error on failure.
  */
 int radeon_ib_get(struct radeon_device *rdev, int ring,
-		  struct radeon_ib *ib, unsigned size)
+		  struct radeon_ib *ib, struct radeon_vm *vm,
+		  unsigned size)
 {
 	int i, r;
 
@@ -76,8 +77,15 @@ int radeon_ib_get(struct radeon_device *rdev, int ring,
 	ib->ring = ring;
 	ib->fence = NULL;
 	ib->ptr = radeon_sa_bo_cpu_addr(ib->sa_bo);
-	ib->gpu_addr = radeon_sa_bo_gpu_addr(ib->sa_bo);
-	ib->vm_id = 0;
+	ib->vm = vm;
+	if (vm) {
+		/* ib pool is bound at RADEON_VA_IB_OFFSET in virtual address
+		 * space and soffset is the offset inside the pool bo
+		 */
+		ib->gpu_addr = ib->sa_bo->soffset + RADEON_VA_IB_OFFSET;
+	} else {
+		ib->gpu_addr = radeon_sa_bo_gpu_addr(ib->sa_bo);
+	}
 	ib->is_const_ib = false;
 	for (i = 0; i < RADEON_NUM_RINGS; ++i)
 		ib->sync_to[i] = NULL;
@@ -152,6 +160,10 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 	if (!need_sync) {
 		radeon_semaphore_free(rdev, &ib->semaphore, NULL);
 	}
+	/* if we can't remember our last VM flush then flush now! */
+	if (ib->vm && !ib->vm->last_flush) {
+		radeon_ring_vm_flush(rdev, ib->ring, ib->vm);
+	}
 	if (const_ib) {
 		radeon_ring_ib_execute(rdev, const_ib->ring, const_ib);
 		radeon_semaphore_free(rdev, &const_ib->semaphore, NULL);
@@ -165,6 +177,10 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 	}
 	if (const_ib) {
 		const_ib->fence = radeon_fence_ref(ib->fence);
+	}
+	/* we just flushed the VM, remember that */
+	if (ib->vm && !ib->vm->last_flush) {
+		ib->vm->last_flush = radeon_fence_ref(ib->fence);
 	}
 	radeon_ring_unlock_commit(rdev, ring);
 	return 0;
@@ -275,7 +291,7 @@ int radeon_ib_ring_tests(struct radeon_device *rdev)
  * wptr.  The GPU then starts fetching commands and executes
  * them until the pointers are equal again.
  */
-int radeon_debugfs_ring_init(struct radeon_device *rdev, struct radeon_ring *ring);
+static int radeon_debugfs_ring_init(struct radeon_device *rdev, struct radeon_ring *ring);
 
 /**
  * radeon_ring_write - write a value to the ring
@@ -289,7 +305,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v)
 {
 #if DRM_DEBUG_CODE
 	if (ring->count_dw <= 0) {
-		DRM_ERROR("radeon: writting more dword to ring than expected !\n");
+		DRM_ERROR("radeon: writing more dwords to the ring than expected!\n");
 	}
 #endif
 	ring->ring[ring->wptr++] = v;
@@ -803,7 +819,7 @@ static struct drm_info_list radeon_debugfs_sa_list[] = {
 
 #endif
 
-int radeon_debugfs_ring_init(struct radeon_device *rdev, struct radeon_ring *ring)
+static int radeon_debugfs_ring_init(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 #if defined(CONFIG_DEBUG_FS)
 	unsigned i;
@@ -823,7 +839,7 @@ int radeon_debugfs_ring_init(struct radeon_device *rdev, struct radeon_ring *rin
 	return 0;
 }
 
-int radeon_debugfs_sa_init(struct radeon_device *rdev)
+static int radeon_debugfs_sa_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
 	return radeon_debugfs_add_files(rdev, radeon_debugfs_sa_list, 1);

@@ -205,7 +205,7 @@ static int ip6mr_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 	return 0;
 }
 
-static const struct fib_rules_ops __net_initdata ip6mr_rules_ops_template = {
+static const struct fib_rules_ops __net_initconst ip6mr_rules_ops_template = {
 	.family		= RTNL_FAMILY_IP6MR,
 	.rule_size	= sizeof(struct ip6mr_rule),
 	.addr_size	= sizeof(struct in6_addr),
@@ -838,7 +838,7 @@ static void ip6mr_destroy_unres(struct mr6_table *mrt, struct mfc6_cache *c)
 			nlh->nlmsg_len = NLMSG_LENGTH(sizeof(struct nlmsgerr));
 			skb_trim(skb, nlh->nlmsg_len);
 			((struct nlmsgerr *)NLMSG_DATA(nlh))->error = -ETIMEDOUT;
-			rtnl_unicast(skb, net, NETLINK_CB(skb).pid);
+			rtnl_unicast(skb, net, NETLINK_CB(skb).portid);
 		} else
 			kfree_skb(skb);
 	}
@@ -1052,7 +1052,7 @@ static void ip6mr_cache_resolve(struct net *net, struct mr6_table *mrt,
 				skb_trim(skb, nlh->nlmsg_len);
 				((struct nlmsgerr *)NLMSG_DATA(nlh))->error = -EMSGSIZE;
 			}
-			rtnl_unicast(skb, net, NETLINK_CB(skb).pid);
+			rtnl_unicast(skb, net, NETLINK_CB(skb).portid);
 		} else
 			ip6_mr_forward(net, mrt, skb, c);
 	}
@@ -2202,12 +2202,12 @@ int ip6mr_get_route(struct net *net,
 }
 
 static int ip6mr_fill_mroute(struct mr6_table *mrt, struct sk_buff *skb,
-			     u32 pid, u32 seq, struct mfc6_cache *c)
+			     u32 portid, u32 seq, struct mfc6_cache *c)
 {
 	struct nlmsghdr *nlh;
 	struct rtmsg *rtm;
 
-	nlh = nlmsg_put(skb, pid, seq, RTM_NEWROUTE, sizeof(*rtm), NLM_F_MULTI);
+	nlh = nlmsg_put(skb, portid, seq, RTM_NEWROUTE, sizeof(*rtm), NLM_F_MULTI);
 	if (nlh == NULL)
 		return -EMSGSIZE;
 
@@ -2260,7 +2260,7 @@ static int ip6mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb)
 				if (e < s_e)
 					goto next_entry;
 				if (ip6mr_fill_mroute(mrt, skb,
-						      NETLINK_CB(cb->skb).pid,
+						      NETLINK_CB(cb->skb).portid,
 						      cb->nlh->nlmsg_seq,
 						      mfc) < 0)
 					goto done;

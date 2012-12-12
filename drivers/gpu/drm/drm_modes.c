@@ -33,9 +33,8 @@
 #include <linux/list.h>
 #include <linux/list_sort.h>
 #include <linux/export.h>
-#include "drmP.h"
-#include "drm.h"
-#include "drm_crtc.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
 
 /**
  * drm_mode_debug_printmodeline - debug print a mode

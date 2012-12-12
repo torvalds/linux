@@ -25,7 +25,7 @@ static int speyside_set_bias_level(struct snd_soc_card *card,
 				   struct snd_soc_dapm_context *dapm,
 				   enum snd_soc_bias_level level)
 {
-	struct snd_soc_dai *codec_dai = card->rtd[0].codec_dai;
+	struct snd_soc_dai *codec_dai = card->rtd[1].codec_dai;
 	int ret;
 
 	if (dapm->dev != codec_dai->dev)
@@ -57,7 +57,7 @@ static int speyside_set_bias_level_post(struct snd_soc_card *card,
 					struct snd_soc_dapm_context *dapm,
 					enum snd_soc_bias_level level)
 {
-	struct snd_soc_dai *codec_dai = card->rtd[0].codec_dai;
+	struct snd_soc_dai *codec_dai = card->rtd[1].codec_dai;
 	int ret;
 
 	if (dapm->dev != codec_dai->dev)
@@ -126,6 +126,18 @@ static void speyside_set_polarity(struct snd_soc_codec *codec,
 	snd_soc_dapm_sync(&codec->dapm);
 }
 
+static int speyside_wm0010_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_dai *dai = rtd->codec_dai;
+	int ret;
+
+	ret = snd_soc_dai_set_sysclk(dai, 0, MCLK_AUDIO_RATE, 0);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static int speyside_wm8996_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai *dai = rtd->codec_dai;
@@ -172,17 +184,37 @@ static int speyside_late_probe(struct snd_soc_card *card)
 	return 0;
 }
 
+static const struct snd_soc_pcm_stream dsp_codec_params = {
+	.formats = SNDRV_PCM_FMTBIT_S32_LE,
+	.rate_min = 48000,
+	.rate_max = 48000,
+	.channels_min = 2,
+	.channels_max = 2,
+};
+
 static struct snd_soc_dai_link speyside_dai[] = {
 	{
-		.name = "CPU",
-		.stream_name = "CPU",
+		.name = "CPU-DSP",
+		.stream_name = "CPU-DSP",
 		.cpu_dai_name = "samsung-i2s.0",
-		.codec_dai_name = "wm8996-aif1",
+		.codec_dai_name = "wm0010-sdi1",
 		.platform_name = "samsung-audio",
+		.codec_name = "spi0.0",
+		.init = speyside_wm0010_init,
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
+				| SND_SOC_DAIFMT_CBM_CFM,
+	},
+	{
+		.name = "DSP-CODEC",
+		.stream_name = "DSP-CODEC",
+		.cpu_dai_name = "wm0010-sdi2",
+		.codec_dai_name = "wm8996-aif1",
 		.codec_name = "wm8996.1-001a",
 		.init = speyside_wm8996_init,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
+		.params = &dsp_codec_params,
+		.ignore_suspend = 1,
 	},
 	{
 		.name = "Baseband",

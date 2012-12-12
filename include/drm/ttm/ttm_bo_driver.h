@@ -30,14 +30,14 @@
 #ifndef _TTM_BO_DRIVER_H_
 #define _TTM_BO_DRIVER_H_
 
-#include "ttm/ttm_bo_api.h"
-#include "ttm/ttm_memory.h"
-#include "ttm/ttm_module.h"
-#include "drm_mm.h"
-#include "drm_global.h"
-#include "linux/workqueue.h"
-#include "linux/fs.h"
-#include "linux/spinlock.h"
+#include <ttm/ttm_bo_api.h>
+#include <ttm/ttm_memory.h>
+#include <ttm/ttm_module.h>
+#include <drm/drm_mm.h>
+#include <drm/drm_global.h>
+#include <linux/workqueue.h>
+#include <linux/fs.h>
+#include <linux/spinlock.h>
 
 struct ttm_backend_func {
 	/**

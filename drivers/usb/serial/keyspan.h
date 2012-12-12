@@ -42,6 +42,8 @@ static void keyspan_dtr_rts		(struct usb_serial_port *port, int on);
 static int  keyspan_startup		(struct usb_serial *serial);
 static void keyspan_disconnect		(struct usb_serial *serial);
 static void keyspan_release		(struct usb_serial *serial);
+static int keyspan_port_probe(struct usb_serial_port *port);
+static int keyspan_port_remove(struct usb_serial_port *port);
 static int  keyspan_write_room		(struct tty_struct *tty);
 
 static int  keyspan_write		(struct tty_struct *tty,
@@ -64,19 +66,23 @@ static int  keyspan_tiocmset		(struct tty_struct *tty,
 					 unsigned int clear);
 static int  keyspan_fake_startup	(struct usb_serial *serial);
 
-static int  keyspan_usa19_calc_baud	(u32 baud_rate, u32 baudclk, 
+static int  keyspan_usa19_calc_baud	(struct usb_serial_port *port,
+					 u32 baud_rate, u32 baudclk,
 					 u8 *rate_hi, u8 *rate_low,
 					 u8 *prescaler, int portnum);
 
-static int  keyspan_usa19w_calc_baud	(u32 baud_rate, u32 baudclk,
+static int  keyspan_usa19w_calc_baud	(struct usb_serial_port *port,
+					 u32 baud_rate, u32 baudclk,
 					 u8 *rate_hi, u8 *rate_low,
 					 u8 *prescaler, int portnum);
 
-static int  keyspan_usa28_calc_baud	(u32 baud_rate, u32 baudclk,
+static int  keyspan_usa28_calc_baud	(struct usb_serial_port *port,
+					 u32 baud_rate, u32 baudclk,
 					 u8 *rate_hi, u8 *rate_low,
 					 u8 *prescaler, int portnum);
 
-static int  keyspan_usa19hs_calc_baud	(u32 baud_rate, u32 baudclk,
+static int  keyspan_usa19hs_calc_baud	(struct usb_serial_port *port,
+					 u32 baud_rate, u32 baudclk,
 					 u8 *rate_hi, u8 *rate_low,
 					 u8 *prescaler, int portnum);
 
@@ -188,8 +194,9 @@ struct keyspan_device_details {
 		/* Endpoint used for global control functions */
 	int	glocont_endpoint;
 
-	int	(*calculate_baud_rate) (u32 baud_rate, u32 baudclk,
-			u8 *rate_hi, u8 *rate_low, u8 *prescaler, int portnum);
+	int	(*calculate_baud_rate) (struct usb_serial_port *port,
+					u32 baud_rate, u32 baudclk,
+					u8 *rate_hi, u8 *rate_low, u8 *prescaler, int portnum);
 	u32	baudclk;
 }; 
 
@@ -562,6 +569,8 @@ static struct usb_serial_driver keyspan_1port_device = {
 	.attach			= keyspan_startup,
 	.disconnect		= keyspan_disconnect,
 	.release		= keyspan_release,
+	.port_probe		= keyspan_port_probe,
+	.port_remove		= keyspan_port_remove,
 };
 
 static struct usb_serial_driver keyspan_2port_device = {
@@ -584,6 +593,8 @@ static struct usb_serial_driver keyspan_2port_device = {
 	.attach			= keyspan_startup,
 	.disconnect		= keyspan_disconnect,
 	.release		= keyspan_release,
+	.port_probe		= keyspan_port_probe,
+	.port_remove		= keyspan_port_remove,
 };
 
 static struct usb_serial_driver keyspan_4port_device = {
@@ -606,6 +617,8 @@ static struct usb_serial_driver keyspan_4port_device = {
 	.attach			= keyspan_startup,
 	.disconnect		= keyspan_disconnect,
 	.release		= keyspan_release,
+	.port_probe		= keyspan_port_probe,
+	.port_remove		= keyspan_port_remove,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {

@@ -23,16 +23,12 @@
  * the runtime footprint, and giving us at least some parts of what
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
-#include "composite.c"
-#include "usbstring.c"
-#include "config.c"
-#include "epautoconf.c"
-
 #include "uvc_queue.c"
 #include "uvc_video.c"
 #include "uvc_v4l2.c"
 #include "f_uvc.c"
 
+USB_GADGET_COMPOSITE_OPTIONS();
 /* --------------------------------------------------------------------------
  * Device descriptor
  */
@@ -47,13 +43,12 @@ static char webcam_config_label[] = "Video";
 
 /* string IDs are assigned dynamically */
 
-#define STRING_MANUFACTURER_IDX		0
-#define STRING_PRODUCT_IDX		1
-#define STRING_DESCRIPTION_IDX		2
+#define STRING_DESCRIPTION_IDX		USB_GADGET_FIRST_AVAIL_IDX
 
 static struct usb_string webcam_strings[] = {
-	[STRING_MANUFACTURER_IDX].s = webcam_vendor_label,
-	[STRING_PRODUCT_IDX].s = webcam_product_label,
+	[USB_GADGET_MANUFACTURER_IDX].s = webcam_vendor_label,
+	[USB_GADGET_PRODUCT_IDX].s = webcam_product_label,
+	[USB_GADGET_SERIAL_IDX].s = "",
 	[STRING_DESCRIPTION_IDX].s = webcam_config_label,
 	{  }
 };
@@ -358,26 +353,22 @@ webcam_bind(struct usb_composite_dev *cdev)
 	/* Allocate string descriptor numbers ... note that string contents
 	 * can be overridden by the composite_dev glue.
 	 */
-	if ((ret = usb_string_id(cdev)) < 0)
+	ret = usb_string_ids_tab(cdev, webcam_strings);
+	if (ret < 0)
 		goto error;
-	webcam_strings[STRING_MANUFACTURER_IDX].id = ret;
-	webcam_device_descriptor.iManufacturer = ret;
-
-	if ((ret = usb_string_id(cdev)) < 0)
-		goto error;
-	webcam_strings[STRING_PRODUCT_IDX].id = ret;
-	webcam_device_descriptor.iProduct = ret;
-
-	if ((ret = usb_string_id(cdev)) < 0)
-		goto error;
-	webcam_strings[STRING_DESCRIPTION_IDX].id = ret;
-	webcam_config_driver.iConfiguration = ret;
+	webcam_device_descriptor.iManufacturer =
+		webcam_strings[USB_GADGET_MANUFACTURER_IDX].id;
+	webcam_device_descriptor.iProduct =
+		webcam_strings[USB_GADGET_PRODUCT_IDX].id;
+	webcam_config_driver.iConfiguration =
+		webcam_strings[STRING_DESCRIPTION_IDX].id;
 
 	/* Register our configuration. */
 	if ((ret = usb_add_config(cdev, &webcam_config_driver,
 					webcam_config_bind)) < 0)
 		goto error;
 
+	usb_composite_overwrite_options(cdev, &coverwrite);
 	INFO(cdev, "Webcam Video Gadget\n");
 	return 0;
 
@@ -390,18 +381,19 @@ error:
  * Driver
  */
 
-static struct usb_composite_driver webcam_driver = {
+static __refdata struct usb_composite_driver webcam_driver = {
 	.name		= "g_webcam",
 	.dev		= &webcam_device_descriptor,
 	.strings	= webcam_device_strings,
 	.max_speed	= USB_SPEED_SUPER,
+	.bind		= webcam_bind,
 	.unbind		= webcam_unbind,
 };
 
 static int __init
 webcam_init(void)
 {
-	return usb_composite_probe(&webcam_driver, webcam_bind);
+	return usb_composite_probe(&webcam_driver);
 }
 
 static void __exit

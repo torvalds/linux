@@ -156,8 +156,7 @@ static irqreturn_t qt2160_irq(int irq, void *_qt2160)
 
 	spin_lock_irqsave(&qt2160->lock, flags);
 
-	__cancel_delayed_work(&qt2160->dwork);
-	schedule_delayed_work(&qt2160->dwork, 0);
+	mod_delayed_work(system_wq, &qt2160->dwork, 0);
 
 	spin_unlock_irqrestore(&qt2160->lock, flags);
 

@@ -17,3 +17,12 @@ Description:
 		 device, like 'tty1'.
 		 The file supports poll() to detect virtual
 		 console switches.
+
+What:		/sys/class/tty/ttyS0/uartclk
+Date:		Sep 2012
+Contact:	Tomas Hlavacek <tmshlvck@gmail.com>
+Description:
+		 Shows the current uartclk value associated with the
+		 UART port in serial_core, that is bound to TTY like ttyS0.
+		 uartclk = 16 * baud_base
+

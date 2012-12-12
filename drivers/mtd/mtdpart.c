@@ -711,6 +711,8 @@ static const char *default_mtd_part_types[] = {
  * partition parsers, specified in @types. However, if @types is %NULL, then
  * the default list of parsers is used. The default list contains only the
  * "cmdlinepart" and "ofpart" parsers ATM.
+ * Note: If there are more then one parser in @types, the kernel only takes the
+ * partitions parsed out by the first parser.
  *
  * This function may return:
  * o a negative error code in case of failure
@@ -735,16 +737,17 @@ int parse_mtd_partitions(struct mtd_info *master, const char **types,
 		if (!parser)
 			continue;
 		ret = (*parser->parse_fn)(master, pparts, data);
+		put_partition_parser(parser);
 		if (ret > 0) {
 			printk(KERN_NOTICE "%d %s partitions found on MTD device %s\n",
 			       ret, parser->name, master->name);
+			break;
 		}
-		put_partition_parser(parser);
 	}
 	return ret;
 }
 
-int mtd_is_partition(struct mtd_info *mtd)
+int mtd_is_partition(const struct mtd_info *mtd)
 {
 	struct mtd_part *part;
 	int ispart = 0;
@@ -760,3 +763,13 @@ int mtd_is_partition(struct mtd_info *mtd)
 	return ispart;
 }
 EXPORT_SYMBOL_GPL(mtd_is_partition);
+
+/* Returns the size of the entire flash chip */
+uint64_t mtd_get_device_size(const struct mtd_info *mtd)
+{
+	if (!mtd_is_partition(mtd))
+		return mtd->size;
+
+	return PART(mtd)->master->size;
+}
+EXPORT_SYMBOL_GPL(mtd_get_device_size);

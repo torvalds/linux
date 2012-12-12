@@ -765,7 +765,7 @@ static void hvsi_flush_output(struct hvsi_struct *hp)
 
 	/* 'writer' could still be pending if it didn't see n_outbuf = 0 yet */
 	cancel_delayed_work_sync(&hp->writer);
-	flush_work_sync(&hp->handshaker);
+	flush_work(&hp->handshaker);
 
 	/*
 	 * it's also possible that our timeout expired and hvsi_write_worker
@@ -1079,6 +1079,8 @@ static int __init hvsi_init(void)
 	for (i=0; i < hvsi_count; i++) {
 		struct hvsi_struct *hp = &hvsi_ports[i];
 		int ret = 1;
+
+		tty_port_link_device(&hp->port, hvsi_driver, i);
 
 		ret = request_irq(hp->virq, hvsi_interrupt, 0, "hvsi", hp);
 		if (ret)

@@ -135,14 +135,22 @@ int hfsplus_parse_options(char *input, struct hfsplus_sb_info *sbi)
 				printk(KERN_ERR "hfs: uid requires an argument\n");
 				return 0;
 			}
-			sbi->uid = (uid_t)tmp;
+			sbi->uid = make_kuid(current_user_ns(), (uid_t)tmp);
+			if (!uid_valid(sbi->uid)) {
+				printk(KERN_ERR "hfs: invalid uid specified\n");
+				return 0;
+			}
 			break;
 		case opt_gid:
 			if (match_int(&args[0], &tmp)) {
 				printk(KERN_ERR "hfs: gid requires an argument\n");
 				return 0;
 			}
-			sbi->gid = (gid_t)tmp;
+			sbi->gid = make_kgid(current_user_ns(), (gid_t)tmp);
+			if (!gid_valid(sbi->gid)) {
+				printk(KERN_ERR "hfs: invalid gid specified\n");
+				return 0;
+			}
 			break;
 		case opt_part:
 			if (match_int(&args[0], &sbi->part)) {
@@ -215,7 +223,8 @@ int hfsplus_show_options(struct seq_file *seq, struct dentry *root)
 	if (sbi->type != HFSPLUS_DEF_CR_TYPE)
 		seq_printf(seq, ",type=%.4s", (char *)&sbi->type);
 	seq_printf(seq, ",umask=%o,uid=%u,gid=%u", sbi->umask,
-		sbi->uid, sbi->gid);
+			from_kuid_munged(&init_user_ns, sbi->uid),
+			from_kgid_munged(&init_user_ns, sbi->gid));
 	if (sbi->part >= 0)
 		seq_printf(seq, ",part=%u", sbi->part);
 	if (sbi->session >= 0)

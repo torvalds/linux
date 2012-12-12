@@ -21,6 +21,7 @@
 #ifdef CONFIG_COLDFIRE
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
+#include <asm/io.h>
 #endif
 
 /*---------------------------------------------------------------------------*/
@@ -86,16 +87,12 @@ static __inline__ void mcf_setppdata(unsigned int mask, unsigned int bits)
  */
 static __inline__ unsigned int mcf_getppdata(void)
 {
-	volatile unsigned short *pp;
-	pp = (volatile unsigned short *) (MCF_MBAR + MCFSIM_PBDAT);
-	return((unsigned int) *pp);
+	return readw(MCFSIM_PBDAT);
 }
 
 static __inline__ void mcf_setppdata(unsigned int mask, unsigned int bits)
 {
-	volatile unsigned short *pp;
-	pp = (volatile unsigned short *) (MCF_MBAR + MCFSIM_PBDAT);
-	*pp = (*pp & ~mask) | bits;
+	write((readw(MCFSIM_PBDAT) & ~mask) | bits, MCFSIM_PBDAT);
 }
 #endif
 

@@ -51,18 +51,21 @@
 #include <linux/bitops.h>
 #include <linux/jiffies.h>
 
+#include <linux/sunrpc/clnt.h>
+
 #include "nfs4_fs.h"
 #include "callback.h"
 #include "delegation.h"
 #include "internal.h"
 #include "pnfs.h"
+#include "netns.h"
 
 #define NFSDBG_FACILITY		NFSDBG_STATE
 
 #define OPENOWNER_POOL_SIZE	8
 
 const nfs4_stateid zero_stateid;
-
+static DEFINE_MUTEX(nfs_clid_init_mutex);
 static LIST_HEAD(nfs4_clientid_list);
 
 int nfs4_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)
@@ -73,12 +76,13 @@ int nfs4_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)
 	};
 	unsigned short port;
 	int status;
+	struct nfs_net *nn = net_generic(clp->cl_net, nfs_net_id);
 
 	if (test_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state))
 		goto do_confirm;
-	port = nfs_callback_tcpport;
+	port = nn->nfs_callback_tcpport;
 	if (clp->cl_addr.ss_family == AF_INET6)
-		port = nfs_callback_tcpport6;
+		port = nn->nfs_callback_tcpport6;
 
 	status = nfs4_proc_setclientid(clp, NFS4_CALLBACK, port, cred, &clid);
 	if (status != 0)
@@ -92,6 +96,56 @@ do_confirm:
 		goto out;
 	clear_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
 	nfs4_schedule_state_renewal(clp);
+out:
+	return status;
+}
+
+/**
+ * nfs40_discover_server_trunking - Detect server IP address trunking (mv0)
+ *
+ * @clp: nfs_client under test
+ * @result: OUT: found nfs_client, or clp
+ * @cred: credential to use for trunking test
+ *
+ * Returns zero, a negative errno, or a negative NFS4ERR status.
+ * If zero is returned, an nfs_client pointer is planted in
+ * "result".
+ *
+ * Note: The returned client may not yet be marked ready.
+ */
+int nfs40_discover_server_trunking(struct nfs_client *clp,
+				   struct nfs_client **result,
+				   struct rpc_cred *cred)
+{
+	struct nfs4_setclientid_res clid = {
+		.clientid = clp->cl_clientid,
+		.confirm = clp->cl_confirm,
+	};
+	struct nfs_net *nn = net_generic(clp->cl_net, nfs_net_id);
+	unsigned short port;
+	int status;
+
+	port = nn->nfs_callback_tcpport;
+	if (clp->cl_addr.ss_family == AF_INET6)
+		port = nn->nfs_callback_tcpport6;
+
+	status = nfs4_proc_setclientid(clp, NFS4_CALLBACK, port, cred, &clid);
+	if (status != 0)
+		goto out;
+	clp->cl_clientid = clid.clientid;
+	clp->cl_confirm = clid.confirm;
+
+	status = nfs40_walk_client_list(clp, result, cred);
+	switch (status) {
+	case -NFS4ERR_STALE_CLIENTID:
+		set_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
+	case 0:
+		/* Sustain the lease, even if it's empty.  If the clientid4
+		 * goes stale it's of no use for trunking discovery. */
+		nfs4_schedule_state_renewal(*result);
+		break;
+	}
+
 out:
 	return status;
 }
@@ -273,6 +327,33 @@ do_confirm:
 	nfs_mark_client_ready(clp, NFS_CS_READY);
 out:
 	return status;
+}
+
+/**
+ * nfs41_discover_server_trunking - Detect server IP address trunking (mv1)
+ *
+ * @clp: nfs_client under test
+ * @result: OUT: found nfs_client, or clp
+ * @cred: credential to use for trunking test
+ *
+ * Returns NFS4_OK, a negative errno, or a negative NFS4ERR status.
+ * If NFS4_OK is returned, an nfs_client pointer is planted in
+ * "result".
+ *
+ * Note: The returned client may not yet be marked ready.
+ */
+int nfs41_discover_server_trunking(struct nfs_client *clp,
+				   struct nfs_client **result,
+				   struct rpc_cred *cred)
+{
+	int status;
+
+	status = nfs4_proc_exchange_id(clp, cred);
+	if (status != NFS4_OK)
+		return status;
+	set_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
+
+	return nfs41_walk_client_list(clp, result, cred);
 }
 
 struct rpc_cred *nfs4_get_exchange_id_cred(struct nfs_client *clp)
@@ -729,11 +810,8 @@ static void __nfs4_close(struct nfs4_state *state,
 	if (!call_close) {
 		nfs4_put_open_state(state);
 		nfs4_put_state_owner(owner);
-	} else {
-		bool roc = pnfs_roc(state->inode);
-
-		nfs4_do_close(state, gfp_mask, wait, roc);
-	}
+	} else
+		nfs4_do_close(state, gfp_mask, wait);
 }
 
 void nfs4_close_state(struct nfs4_state *state, fmode_t fmode)
@@ -865,7 +943,7 @@ void nfs4_put_lock_state(struct nfs4_lock_state *lsp)
 	if (list_empty(&state->lock_states))
 		clear_bit(LK_STATE_IN_USE, &state->flags);
 	spin_unlock(&state->state_lock);
-	if (lsp->ls_flags & NFS_LOCK_INITIALIZED) {
+	if (test_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags)) {
 		if (nfs4_release_lockowner(lsp) == 0)
 			return;
 	}
@@ -911,17 +989,25 @@ int nfs4_set_lock_state(struct nfs4_state *state, struct file_lock *fl)
 }
 
 static bool nfs4_copy_lock_stateid(nfs4_stateid *dst, struct nfs4_state *state,
-		fl_owner_t fl_owner, pid_t fl_pid)
+		const struct nfs_lockowner *lockowner)
 {
 	struct nfs4_lock_state *lsp;
+	fl_owner_t fl_owner;
+	pid_t fl_pid;
 	bool ret = false;
+
+
+	if (lockowner == NULL)
+		goto out;
 
 	if (test_bit(LK_STATE_IN_USE, &state->flags) == 0)
 		goto out;
 
+	fl_owner = lockowner->l_owner;
+	fl_pid = lockowner->l_pid;
 	spin_lock(&state->state_lock);
 	lsp = __nfs4_find_lock_state(state, fl_owner, fl_pid, NFS4_ANY_LOCK_TYPE);
-	if (lsp != NULL && (lsp->ls_flags & NFS_LOCK_INITIALIZED) != 0) {
+	if (lsp != NULL && test_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags) != 0) {
 		nfs4_stateid_copy(dst, &lsp->ls_stateid);
 		ret = true;
 	}
@@ -946,11 +1032,11 @@ static void nfs4_copy_open_stateid(nfs4_stateid *dst, struct nfs4_state *state)
  * requests.
  */
 void nfs4_select_rw_stateid(nfs4_stateid *dst, struct nfs4_state *state,
-		fmode_t fmode, fl_owner_t fl_owner, pid_t fl_pid)
+		fmode_t fmode, const struct nfs_lockowner *lockowner)
 {
 	if (nfs4_copy_delegation_stateid(dst, state->inode, fmode))
 		return;
-	if (nfs4_copy_lock_stateid(dst, state, fl_owner, fl_pid))
+	if (nfs4_copy_lock_stateid(dst, state, lockowner))
 		return;
 	nfs4_copy_open_stateid(dst, state);
 }
@@ -1289,7 +1375,7 @@ restart:
 			if (status >= 0) {
 				spin_lock(&state->state_lock);
 				list_for_each_entry(lock, &state->lock_states, ls_locks) {
-					if (!(lock->ls_flags & NFS_LOCK_INITIALIZED))
+					if (!test_bit(NFS_LOCK_INITIALIZED, &lock->ls_flags))
 						pr_warn_ratelimited("NFS: "
 							"%s: Lock reclaim "
 							"failed!\n", __func__);
@@ -1361,7 +1447,7 @@ static void nfs4_clear_open_state(struct nfs4_state *state)
 	spin_lock(&state->state_lock);
 	list_for_each_entry(lock, &state->lock_states, ls_locks) {
 		lock->ls_seqid.flags = 0;
-		lock->ls_flags &= ~NFS_LOCK_INITIALIZED;
+		clear_bit(NFS_LOCK_INITIALIZED, &lock->ls_flags);
 	}
 	spin_unlock(&state->state_lock);
 }
@@ -1595,8 +1681,8 @@ out:
 	return nfs4_recovery_handle_error(clp, status);
 }
 
-/* Set NFS4CLNT_LEASE_EXPIRED for all v4.0 errors and for recoverable errors
- * on EXCHANGE_ID for v4.1
+/* Set NFS4CLNT_LEASE_EXPIRED and reclaim reboot state for all v4.0 errors
+ * and for recoverable errors on EXCHANGE_ID for v4.1
  */
 static int nfs4_handle_reclaim_lease_error(struct nfs_client *clp, int status)
 {
@@ -1606,8 +1692,12 @@ static int nfs4_handle_reclaim_lease_error(struct nfs_client *clp, int status)
 			return -ESERVERFAULT;
 		/* Lease confirmation error: retry after purging the lease */
 		ssleep(1);
+		clear_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
+		break;
 	case -NFS4ERR_STALE_CLIENTID:
 		clear_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
+		nfs4_state_clear_reclaim_reboot(clp);
+		nfs4_state_start_reclaim_reboot(clp);
 		break;
 	case -NFS4ERR_CLID_INUSE:
 		pr_err("NFS: Server %s reports our clientid is in use\n",
@@ -1696,6 +1786,109 @@ static int nfs4_purge_lease(struct nfs_client *clp)
 	set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
 	nfs4_state_start_reclaim_nograce(clp);
 	return 0;
+}
+
+/**
+ * nfs4_discover_server_trunking - Detect server IP address trunking
+ *
+ * @clp: nfs_client under test
+ * @result: OUT: found nfs_client, or clp
+ *
+ * Returns zero or a negative errno.  If zero is returned,
+ * an nfs_client pointer is planted in "result".
+ *
+ * Note: since we are invoked in process context, and
+ * not from inside the state manager, we cannot use
+ * nfs4_handle_reclaim_lease_error().
+ */
+int nfs4_discover_server_trunking(struct nfs_client *clp,
+				  struct nfs_client **result)
+{
+	const struct nfs4_state_recovery_ops *ops =
+				clp->cl_mvops->reboot_recovery_ops;
+	rpc_authflavor_t *flavors, flav, save;
+	struct rpc_clnt *clnt;
+	struct rpc_cred *cred;
+	int i, len, status;
+
+	dprintk("NFS: %s: testing '%s'\n", __func__, clp->cl_hostname);
+
+	len = NFS_MAX_SECFLAVORS;
+	flavors = kcalloc(len, sizeof(*flavors), GFP_KERNEL);
+	if (flavors == NULL) {
+		status = -ENOMEM;
+		goto out;
+	}
+	len = rpcauth_list_flavors(flavors, len);
+	if (len < 0) {
+		status = len;
+		goto out_free;
+	}
+	clnt = clp->cl_rpcclient;
+	save = clnt->cl_auth->au_flavor;
+	i = 0;
+
+	mutex_lock(&nfs_clid_init_mutex);
+	status  = -ENOENT;
+again:
+	cred = ops->get_clid_cred(clp);
+	if (cred == NULL)
+		goto out_unlock;
+
+	status = ops->detect_trunking(clp, result, cred);
+	put_rpccred(cred);
+	switch (status) {
+	case 0:
+		break;
+
+	case -EACCES:
+		if (clp->cl_machine_cred == NULL)
+			break;
+		/* Handle case where the user hasn't set up machine creds */
+		nfs4_clear_machine_cred(clp);
+	case -NFS4ERR_DELAY:
+	case -ETIMEDOUT:
+	case -EAGAIN:
+		ssleep(1);
+		dprintk("NFS: %s after status %d, retrying\n",
+			__func__, status);
+		goto again;
+
+	case -NFS4ERR_CLID_INUSE:
+	case -NFS4ERR_WRONGSEC:
+		status = -EPERM;
+		if (i >= len)
+			break;
+
+		flav = flavors[i++];
+		if (flav == save)
+			flav = flavors[i++];
+		clnt = rpc_clone_client_set_auth(clnt, flav);
+		if (IS_ERR(clnt)) {
+			status = PTR_ERR(clnt);
+			break;
+		}
+		clp->cl_rpcclient = clnt;
+		goto again;
+
+	case -NFS4ERR_MINOR_VERS_MISMATCH:
+		status = -EPROTONOSUPPORT;
+		break;
+
+	case -EKEYEXPIRED:
+		nfs4_warn_keyexpired(clp->cl_hostname);
+	case -NFS4ERR_NOT_SAME: /* FixMe: implement recovery
+				 * in nfs4_exchange_id */
+		status = -EKEYEXPIRED;
+	}
+
+out_unlock:
+	mutex_unlock(&nfs_clid_init_mutex);
+out_free:
+	kfree(flavors);
+out:
+	dprintk("NFS: %s: status = %d\n", __func__, status);
+	return status;
 }
 
 #ifdef CONFIG_NFS_V4_1
@@ -2008,6 +2201,7 @@ out_error:
 	pr_warn_ratelimited("NFS: state manager%s%s failed on NFSv4 server %s"
 			" with error %d\n", section_sep, section,
 			clp->cl_hostname, -status);
+	ssleep(1);
 	nfs4_end_drain_session(clp);
 	nfs4_clear_state_manager_bit(clp);
 }

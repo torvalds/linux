@@ -98,11 +98,6 @@ struct exception_table_entry {
  * PowerPC, we can just do these as direct assignments.  (Of course, the
  * exception handling means that it's no longer "just"...)
  *
- * The "user64" versions of the user access functions are versions that
- * allow access of 64-bit data. The "get_user" functions do not
- * properly handle 64-bit data because the value gets down cast to a long.
- * The "put_user" functions already handle 64-bit data properly but we add
- * "user64" versions for completeness
  */
 #define get_user(x, ptr) \
 	__get_user_check((x), (ptr), sizeof(*(ptr)))
@@ -113,12 +108,6 @@ struct exception_table_entry {
 	__get_user_nocheck((x), (ptr), sizeof(*(ptr)))
 #define __put_user(x, ptr) \
 	__put_user_nocheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
-
-#ifndef __powerpc64__
-#define __get_user64(x, ptr) \
-	__get_user64_nocheck((x), (ptr), sizeof(*(ptr)))
-#define __put_user64(x, ptr) __put_user(x, ptr)
-#endif
 
 #define __get_user_inatomic(x, ptr) \
 	__get_user_nosleep((x), (ptr), sizeof(*(ptr)))

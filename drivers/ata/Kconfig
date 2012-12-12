@@ -214,6 +214,14 @@ config SATA_DWC_VDEBUG
 	help
 	  This option enables the taskfile dumping and NCQ debugging.
 
+config SATA_HIGHBANK
+	tristate "Calxeda Highbank SATA support"
+	help
+	  This option enables support for the Calxeda Highbank SoC's
+	  onboard SATA.
+
+	  If unsure, say N.
+
 config SATA_MV
 	tristate "Marvell SATA support"
 	help

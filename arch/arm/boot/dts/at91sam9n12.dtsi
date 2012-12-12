@@ -26,6 +26,8 @@
 		gpio3 = &pioD;
 		tcb0 = &tcb0;
 		tcb1 = &tcb1;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
 	};
 	cpus {
 		cpu@0 {
@@ -180,6 +182,24 @@
 				interrupts = <8 4 5>;
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
+				status = "disabled";
+			};
+
+			i2c0: i2c@f8010000 {
+				compatible = "atmel,at91sam9x5-i2c";
+				reg = <0xf8010000 0x100>;
+				interrupts = <9 4 6>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			i2c1: i2c@f8014000 {
+				compatible = "atmel,at91sam9x5-i2c";
+				reg = <0xf8014000 0x100>;
+				interrupts = <10 4 6>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				status = "disabled";
 			};
 		};

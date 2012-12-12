@@ -23,6 +23,9 @@
 #define PALMAS_NUM_CLIENTS		3
 
 struct palmas_pmic;
+struct palmas_gpadc;
+struct palmas_resource;
+struct palmas_usb;
 
 struct palmas {
 	struct device *dev;
@@ -41,11 +44,31 @@ struct palmas {
 
 	/* Child Devices */
 	struct palmas_pmic *pmic;
+	struct palmas_gpadc *gpadc;
+	struct palmas_resource *resource;
+	struct palmas_usb *usb;
 
 	/* GPIO MUXing */
 	u8 gpio_muxed;
 	u8 led_muxed;
 	u8 pwm_muxed;
+};
+
+struct palmas_gpadc_platform_data {
+	/* Channel 3 current source is only enabled during conversion */
+	int ch3_current;
+
+	/* Channel 0 current source can be used for battery detection.
+	 * If used for battery detection this will cause a permanent current
+	 * consumption depending on current level set here.
+	 */
+	int ch0_current;
+
+	/* default BAT_REMOVAL_DAT setting on device probe */
+	int bat_removal;
+
+	/* Sets the START_POLARITY bit in the RT_CTRL register */
+	int start_polarity;
 };
 
 struct palmas_reg_init {
@@ -107,21 +130,94 @@ struct palmas_reg_init {
 
 };
 
+enum palmas_regulators {
+	/* SMPS regulators */
+	PALMAS_REG_SMPS12,
+	PALMAS_REG_SMPS123,
+	PALMAS_REG_SMPS3,
+	PALMAS_REG_SMPS45,
+	PALMAS_REG_SMPS457,
+	PALMAS_REG_SMPS6,
+	PALMAS_REG_SMPS7,
+	PALMAS_REG_SMPS8,
+	PALMAS_REG_SMPS9,
+	PALMAS_REG_SMPS10,
+	/* LDO regulators */
+	PALMAS_REG_LDO1,
+	PALMAS_REG_LDO2,
+	PALMAS_REG_LDO3,
+	PALMAS_REG_LDO4,
+	PALMAS_REG_LDO5,
+	PALMAS_REG_LDO6,
+	PALMAS_REG_LDO7,
+	PALMAS_REG_LDO8,
+	PALMAS_REG_LDO9,
+	PALMAS_REG_LDOLN,
+	PALMAS_REG_LDOUSB,
+	/* Total number of regulators */
+	PALMAS_NUM_REGS,
+};
+
 struct palmas_pmic_platform_data {
 	/* An array of pointers to regulator init data indexed by regulator
 	 * ID
 	 */
-	struct regulator_init_data **reg_data;
+	struct regulator_init_data *reg_data[PALMAS_NUM_REGS];
 
 	/* An array of pointers to structures containing sleep mode and DVS
 	 * configuration for regulators indexed by ID
 	 */
-	struct palmas_reg_init **reg_init;
+	struct palmas_reg_init *reg_init[PALMAS_NUM_REGS];
 
 	/* use LDO6 for vibrator control */
 	int ldo6_vibrator;
+};
 
+struct palmas_usb_platform_data {
+	/* Set this if platform wishes its own vbus control */
+	int no_control_vbus;
 
+	/* Do we enable the wakeup comparator on probe */
+	int wakeup;
+};
+
+struct palmas_resource_platform_data {
+	int regen1_mode_sleep;
+	int regen2_mode_sleep;
+	int sysen1_mode_sleep;
+	int sysen2_mode_sleep;
+
+	/* bitfield to be loaded to NSLEEP_RES_ASSIGN */
+	u8 nsleep_res;
+	/* bitfield to be loaded to NSLEEP_SMPS_ASSIGN */
+	u8 nsleep_smps;
+	/* bitfield to be loaded to NSLEEP_LDO_ASSIGN1 */
+	u8 nsleep_ldo1;
+	/* bitfield to be loaded to NSLEEP_LDO_ASSIGN2 */
+	u8 nsleep_ldo2;
+
+	/* bitfield to be loaded to ENABLE1_RES_ASSIGN */
+	u8 enable1_res;
+	/* bitfield to be loaded to ENABLE1_SMPS_ASSIGN */
+	u8 enable1_smps;
+	/* bitfield to be loaded to ENABLE1_LDO_ASSIGN1 */
+	u8 enable1_ldo1;
+	/* bitfield to be loaded to ENABLE1_LDO_ASSIGN2 */
+	u8 enable1_ldo2;
+
+	/* bitfield to be loaded to ENABLE2_RES_ASSIGN */
+	u8 enable2_res;
+	/* bitfield to be loaded to ENABLE2_SMPS_ASSIGN */
+	u8 enable2_smps;
+	/* bitfield to be loaded to ENABLE2_LDO_ASSIGN1 */
+	u8 enable2_ldo1;
+	/* bitfield to be loaded to ENABLE2_LDO_ASSIGN2 */
+	u8 enable2_ldo2;
+};
+
+struct palmas_clk_platform_data {
+	int clk32kg_mode_sleep;
+	int clk32kgaudio_mode_sleep;
 };
 
 struct palmas_platform_data {
@@ -138,7 +234,48 @@ struct palmas_platform_data {
 	u8 pad1, pad2;
 
 	struct palmas_pmic_platform_data *pmic_pdata;
+	struct palmas_gpadc_platform_data *gpadc_pdata;
+	struct palmas_usb_platform_data *usb_pdata;
+	struct palmas_resource_platform_data *resource_pdata;
+	struct palmas_clk_platform_data *clk_pdata;
 };
+
+struct palmas_gpadc_calibration {
+	s32 gain;
+	s32 gain_error;
+	s32 offset_error;
+};
+
+struct palmas_gpadc {
+	struct device *dev;
+	struct palmas *palmas;
+
+	int ch3_current;
+	int ch0_current;
+
+	int gpadc_force;
+
+	int bat_removal;
+
+	struct mutex reading_lock;
+	struct completion irq_complete;
+
+	int eoc_sw_irq;
+
+	struct palmas_gpadc_calibration *palmas_cal_tbl;
+
+	int conv0_channel;
+	int conv1_channel;
+	int rt_channel;
+};
+
+struct palmas_gpadc_result {
+	s32 raw_code;
+	s32 corrected_code;
+	s32 result;
+};
+
+#define PALMAS_MAX_CHANNELS 16
 
 /* Define the palmas IRQ numbers */
 enum palmas_irqs {
@@ -182,34 +319,6 @@ enum palmas_irqs {
 	PALMAS_NUM_IRQ,
 };
 
-enum palmas_regulators {
-	/* SMPS regulators */
-	PALMAS_REG_SMPS12,
-	PALMAS_REG_SMPS123,
-	PALMAS_REG_SMPS3,
-	PALMAS_REG_SMPS45,
-	PALMAS_REG_SMPS457,
-	PALMAS_REG_SMPS6,
-	PALMAS_REG_SMPS7,
-	PALMAS_REG_SMPS8,
-	PALMAS_REG_SMPS9,
-	PALMAS_REG_SMPS10,
-	/* LDO regulators */
-	PALMAS_REG_LDO1,
-	PALMAS_REG_LDO2,
-	PALMAS_REG_LDO3,
-	PALMAS_REG_LDO4,
-	PALMAS_REG_LDO5,
-	PALMAS_REG_LDO6,
-	PALMAS_REG_LDO7,
-	PALMAS_REG_LDO8,
-	PALMAS_REG_LDO9,
-	PALMAS_REG_LDOLN,
-	PALMAS_REG_LDOUSB,
-	/* Total number of regulators */
-	PALMAS_NUM_REGS,
-};
-
 struct palmas_pmic {
 	struct palmas *palmas;
 	struct device *dev;
@@ -221,6 +330,69 @@ struct palmas_pmic {
 	int smps457;
 
 	int range[PALMAS_REG_SMPS10];
+};
+
+struct palmas_resource {
+	struct palmas *palmas;
+	struct device *dev;
+};
+
+struct palmas_usb {
+	struct palmas *palmas;
+	struct device *dev;
+
+	/* for vbus reporting with irqs disabled */
+	spinlock_t lock;
+
+	struct regulator *vbus_reg;
+
+	/* used to set vbus, in atomic path */
+	struct work_struct set_vbus_work;
+
+	int irq1;
+	int irq2;
+	int irq3;
+	int irq4;
+
+	int vbus_enable;
+
+	u8 linkstat;
+};
+
+#define comparator_to_palmas(x) container_of((x), struct palmas_usb, comparator)
+
+enum usb_irq_events {
+	/* Wakeup events from INT3 */
+	PALMAS_USB_ID_WAKEPUP,
+	PALMAS_USB_VBUS_WAKEUP,
+
+	/* ID_OTG_EVENTS */
+	PALMAS_USB_ID_GND,
+	N_PALMAS_USB_ID_GND,
+	PALMAS_USB_ID_C,
+	N_PALMAS_USB_ID_C,
+	PALMAS_USB_ID_B,
+	N_PALMAS_USB_ID_B,
+	PALMAS_USB_ID_A,
+	N_PALMAS_USB_ID_A,
+	PALMAS_USB_ID_FLOAT,
+	N_PALMAS_USB_ID_FLOAT,
+
+	/* VBUS_OTG_EVENTS */
+	PALMAS_USB_VB_SESS_END,
+	N_PALMAS_USB_VB_SESS_END,
+	PALMAS_USB_VB_SESS_VLD,
+	N_PALMAS_USB_VB_SESS_VLD,
+	PALMAS_USB_VA_SESS_VLD,
+	N_PALMAS_USB_VA_SESS_VLD,
+	PALMAS_USB_VA_VBUS_VLD,
+	N_PALMAS_USB_VA_VBUS_VLD,
+	PALMAS_USB_VADP_SNS,
+	N_PALMAS_USB_VADP_SNS,
+	PALMAS_USB_VADP_PRB,
+	N_PALMAS_USB_VADP_PRB,
+	PALMAS_USB_VOTG_SESS_VLD,
+	N_PALMAS_USB_VOTG_SESS_VLD,
 };
 
 /* defines so we can store the mux settings */

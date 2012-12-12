@@ -381,6 +381,8 @@ dt3155_open(struct file *filp)
 	int ret = 0;
 	struct dt3155_priv *pd = video_drvdata(filp);
 
+	if (mutex_lock_interruptible(&pd->mux))
+		return -ERESTARTSYS;
 	if (!pd->users) {
 		pd->q = kzalloc(sizeof(*pd->q), GFP_KERNEL);
 		if (!pd->q) {
@@ -411,6 +413,7 @@ err_request_irq:
 	kfree(pd->q);
 	pd->q = NULL;
 err_alloc_queue:
+	mutex_unlock(&pd->mux);
 	return ret;
 }
 
@@ -419,6 +422,7 @@ dt3155_release(struct file *filp)
 {
 	struct dt3155_priv *pd = video_drvdata(filp);
 
+	mutex_lock(&pd->mux);
 	pd->users--;
 	BUG_ON(pd->users < 0);
 	if (!pd->users) {
@@ -429,6 +433,7 @@ dt3155_release(struct file *filp)
 		kfree(pd->q);
 		pd->q = NULL;
 	}
+	mutex_unlock(&pd->mux);
 	return 0;
 }
 
@@ -436,24 +441,38 @@ static ssize_t
 dt3155_read(struct file *filp, char __user *user, size_t size, loff_t *loff)
 {
 	struct dt3155_priv *pd = video_drvdata(filp);
+	ssize_t res;
 
-	return vb2_read(pd->q, user, size, loff, filp->f_flags & O_NONBLOCK);
+	if (mutex_lock_interruptible(&pd->mux))
+		return -ERESTARTSYS;
+	res = vb2_read(pd->q, user, size, loff, filp->f_flags & O_NONBLOCK);
+	mutex_unlock(&pd->mux);
+	return res;
 }
 
 static unsigned int
 dt3155_poll(struct file *filp, struct poll_table_struct *polltbl)
 {
 	struct dt3155_priv *pd = video_drvdata(filp);
+	unsigned int res;
 
-	return vb2_poll(pd->q, filp, polltbl);
+	mutex_lock(&pd->mux);
+	res = vb2_poll(pd->q, filp, polltbl);
+	mutex_unlock(&pd->mux);
+	return res;
 }
 
 static int
 dt3155_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct dt3155_priv *pd = video_drvdata(filp);
+	int res;
 
-	return vb2_mmap(pd->q, vma);
+	if (mutex_lock_interruptible(&pd->mux))
+		return -ERESTARTSYS;
+	res = vb2_mmap(pd->q, vma);
+	mutex_unlock(&pd->mux);
+	return res;
 }
 
 static const struct v4l2_file_operations dt3155_fops = {
@@ -898,10 +917,6 @@ dt3155_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	INIT_LIST_HEAD(&pd->dmaq);
 	mutex_init(&pd->mux);
 	pd->vdev->lock = &pd->mux; /* for locking v4l2_file_operations */
-	/* Locking in file operations other than ioctl should be done
-	   by the driver, not the V4L2 core.
-	   This driver needs auditing so that this flag can be removed. */
-	set_bit(V4L2_FL_LOCK_ALL_FOPS, &pd->vdev->flags);
 	spin_lock_init(&pd->lock);
 	pd->csr2 = csr2_init;
 	pd->config = config_init;

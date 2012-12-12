@@ -78,6 +78,9 @@ struct dw_dma_platform_data dmac_plat_data = {
 	.nr_channels = 8,
 	.chan_allocation_order = CHAN_ALLOCATION_DESCENDING,
 	.chan_priority = CHAN_PRIORITY_DESCENDING,
+	.block_size = 4095U,
+	.nr_masters = 2,
+	.data_width = { 3, 3, 0, 0 },
 };
 
 void __init spear13xx_l2x0_init(void)
@@ -114,17 +117,17 @@ void __init spear13xx_l2x0_init(void)
  */
 struct map_desc spear13xx_io_desc[] __initdata = {
 	{
-		.virtual	= VA_PERIP_GRP2_BASE,
+		.virtual	= (unsigned long)VA_PERIP_GRP2_BASE,
 		.pfn		= __phys_to_pfn(PERIP_GRP2_BASE),
 		.length		= SZ_16M,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= VA_PERIP_GRP1_BASE,
+		.virtual	= (unsigned long)VA_PERIP_GRP1_BASE,
 		.pfn		= __phys_to_pfn(PERIP_GRP1_BASE),
 		.length		= SZ_16M,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= VA_A9SM_AND_MPMC_BASE,
+		.virtual	= (unsigned long)VA_A9SM_AND_MPMC_BASE,
 		.pfn		= __phys_to_pfn(A9SM_AND_MPMC_BASE),
 		.length		= SZ_16M,
 		.type		= MT_DEVICE

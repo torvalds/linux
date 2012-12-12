@@ -552,6 +552,7 @@ static int __devinit arcfb_probe(struct platform_device *dev)
 				"arcfb", info)) {
 			printk(KERN_INFO
 				"arcfb: Failed req IRQ %d\n", par->irq);
+			retval = -EBUSY;
 			goto err1;
 		}
 	}

@@ -43,6 +43,7 @@
 #endif
 
 #include <video/platform_lcd.h>
+#include <video/samsung_fimd.h>
 
 #include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
@@ -60,8 +61,8 @@
 #include <mach/regs-gpio.h>
 #include <mach/regs-sys.h>
 #include <mach/regs-srom.h>
-#include <plat/ata.h>
-#include <plat/iic.h>
+#include <linux/platform_data/ata-samsung_cf.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/fb.h>
 #include <plat/gpio-cfg.h>
 
@@ -69,10 +70,9 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/adc.h>
-#include <plat/ts.h>
+#include <linux/platform_data/touchscreen-s3c2410.h>
 #include <plat/keypad.h>
 #include <plat/backlight.h>
-#include <plat/regs-fb-v4.h>
 
 #include "common.h"
 

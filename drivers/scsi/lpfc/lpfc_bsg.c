@@ -195,7 +195,7 @@ lpfc_bsg_send_mgmt_cmd_cmp(struct lpfc_hba *phba,
 
 	if (rsp->ulpStatus) {
 		if (rsp->ulpStatus == IOSTAT_LOCAL_REJECT) {
-			switch (rsp->un.ulpWord[4] & 0xff) {
+			switch (rsp->un.ulpWord[4] & IOERR_PARAM_MASK) {
 			case IOERR_SEQUENCE_TIMEOUT:
 				rc = -ETIMEDOUT;
 				break;
@@ -1234,7 +1234,7 @@ lpfc_issue_ct_rsp_cmp(struct lpfc_hba *phba,
 
 	if (rsp->ulpStatus) {
 		if (rsp->ulpStatus == IOSTAT_LOCAL_REJECT) {
-			switch (rsp->un.ulpWord[4] & 0xff) {
+			switch (rsp->un.ulpWord[4] & IOERR_PARAM_MASK) {
 			case IOERR_SEQUENCE_TIMEOUT:
 				rc = -ETIMEDOUT;
 				break;
@@ -1714,6 +1714,8 @@ lpfc_sli4_bsg_set_link_diag_state(struct lpfc_hba *phba, uint32_t diag)
 			phba->sli4_hba.lnk_info.lnk_no);
 
 	link_diag_state = &pmboxq->u.mqe.un.link_diag_state;
+	bf_set(lpfc_mbx_set_diag_state_diag_bit_valid, &link_diag_state->u.req,
+	       LPFC_DIAG_STATE_DIAG_BIT_VALID_CHANGE);
 	bf_set(lpfc_mbx_set_diag_state_link_num, &link_diag_state->u.req,
 	       phba->sli4_hba.lnk_info.lnk_no);
 	bf_set(lpfc_mbx_set_diag_state_link_type, &link_diag_state->u.req,
@@ -4796,7 +4798,7 @@ lpfc_bsg_menlo_cmd_cmp(struct lpfc_hba *phba,
 	menlo_resp->xri = rsp->ulpContext;
 	if (rsp->ulpStatus) {
 		if (rsp->ulpStatus == IOSTAT_LOCAL_REJECT) {
-			switch (rsp->un.ulpWord[4] & 0xff) {
+			switch (rsp->un.ulpWord[4] & IOERR_PARAM_MASK) {
 			case IOERR_SEQUENCE_TIMEOUT:
 				rc = -ETIMEDOUT;
 				break;

@@ -108,9 +108,8 @@ static int gru_file_mmap(struct file *file, struct vm_area_struct *vma)
 				vma->vm_end & (GRU_GSEG_PAGESIZE - 1))
 		return -EINVAL;
 
-	vma->vm_flags |=
-	    (VM_IO | VM_DONTCOPY | VM_LOCKED | VM_DONTEXPAND | VM_PFNMAP |
-			VM_RESERVED);
+	vma->vm_flags |= VM_IO | VM_PFNMAP | VM_LOCKED |
+			 VM_DONTCOPY | VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_page_prot = PAGE_SHARED;
 	vma->vm_ops = &gru_vm_ops;
 

@@ -49,7 +49,6 @@
 #define	FLERRADR(f)		(f->reg + 0x98)
 
 /* FLCMNCR control bits */
-#define ECCPOS2		(0x1 << 25)
 #define _4ECCCNTEN	(0x1 << 24)
 #define _4ECCEN		(0x1 << 23)
 #define _4ECCCORRECT	(0x1 << 22)
@@ -59,9 +58,6 @@
 #define QTSEL_E		(0x1 << 17)
 #define ENDIAN		(0x1 << 16)	/* 1 = little endian */
 #define FCKSEL_E	(0x1 << 15)
-#define ECCPOS_00	(0x00 << 12)
-#define ECCPOS_01	(0x01 << 12)
-#define ECCPOS_02	(0x02 << 12)
 #define ACM_SACCES_MODE	(0x01 << 10)
 #define NANWF_E		(0x1 << 9)
 #define SE_D		(0x1 << 8)	/* Spare area disable */
@@ -107,6 +103,14 @@
 #define DOCMD2_E	(0x1 << 17)	/* 2nd cmd stage execute */
 #define DOCMD1_E	(0x1 << 16)	/* 1st cmd stage execute */
 
+/* FLINTDMACR control bits */
+#define ESTERINTE	(0x1 << 24)	/* ECC error interrupt enable */
+#define AC1CLR		(0x1 << 19)	/* ECC FIFO clear */
+#define AC0CLR		(0x1 << 18)	/* Data FIFO clear */
+#define ECERB		(0x1 << 9)	/* ECC error */
+#define STERB		(0x1 << 8)	/* Status error */
+#define STERINTE	(0x1 << 4)	/* Status error enable */
+
 /* FLTRCR control bits */
 #define TRSTRT		(0x1 << 0)	/* translation start */
 #define TREND		(0x1 << 1)	/* translation end */
@@ -125,8 +129,14 @@
 #define	_4ECCEND	(0x1 << 1)	/* 4 symbols end */
 #define	_4ECCEXST	(0x1 << 0)	/* 4 symbols exist */
 
-#define INIT_FL4ECCRESULT_VAL	0x03FF03FF
 #define LOOP_TIMEOUT_MAX	0x00010000
+
+enum flctl_ecc_res_t {
+	FL_SUCCESS,
+	FL_REPAIRABLE,
+	FL_ERROR,
+	FL_TIMEOUT
+};
 
 struct sh_flctl {
 	struct mtd_info		mtd;
@@ -145,8 +155,7 @@ struct sh_flctl {
 	uint32_t erase_ADRCNT;		/* bits of FLCMDCR in ERASE1 cmd */
 	uint32_t rw_ADRCNT;	/* bits of FLCMDCR in READ WRITE cmd */
 	uint32_t flcmncr_base;	/* base value of FLCMNCR */
-
-	int	hwecc_cant_correct[4];
+	uint32_t flintdmacr_base;	/* irq enable bits */
 
 	unsigned page_size:1;	/* NAND page size (0 = 512, 1 = 2048) */
 	unsigned hwecc:1;	/* Hardware ECC (0 = disabled, 1 = enabled) */

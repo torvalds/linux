@@ -506,16 +506,8 @@ static int cdv_intel_lvds_set_property(struct drm_connector *connector,
 							property,
 							value))
 			return -1;
-		else {
-#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
-			struct drm_psb_private *dev_priv =
-						encoder->dev->dev_private;
-			struct backlight_device *bd =
-						dev_priv->backlight_device;
-			bd->props.brightness = value;
-			backlight_update_status(bd);
-#endif
-		}
+		else
+                        gma_backlight_set(encoder->dev, value);
 	} else if (!strcmp(property->name, "DPMS") && encoder) {
 		struct drm_encoder_helper_funcs *helpers =
 					encoder->helper_private;

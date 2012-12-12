@@ -21,15 +21,14 @@
 
 #include <linux/clk.h>
 #include <linux/platform_device.h>
+#include <linux/gpio.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
 
 #include <asm/mach-types.h>
-#include <mach/hardware.h>
-#include <mach/gpio.h>
-#include <mach/board-zoom.h>
-#include <plat/mcbsp.h>
+#include <linux/platform_data/asoc-ti-mcbsp.h>
+#include <linux/platform_data/gpio-omap.h>
 
 /* Register descriptions for twl4030 codec part */
 #include <linux/mfd/twl4030-audio.h>
@@ -191,9 +190,6 @@ static int __init zoom2_soc_init(void)
 	BUG_ON(gpio_request(ZOOM2_HEADSET_MUX_GPIO, "hs_mux") < 0);
 	gpio_direction_output(ZOOM2_HEADSET_MUX_GPIO, 0);
 
-	BUG_ON(gpio_request(ZOOM2_HEADSET_EXTMUTE_GPIO, "ext_mute") < 0);
-	gpio_direction_output(ZOOM2_HEADSET_EXTMUTE_GPIO, 0);
-
 	return 0;
 
 err1:
@@ -207,7 +203,6 @@ module_init(zoom2_soc_init);
 static void __exit zoom2_soc_exit(void)
 {
 	gpio_free(ZOOM2_HEADSET_MUX_GPIO);
-	gpio_free(ZOOM2_HEADSET_EXTMUTE_GPIO);
 
 	platform_device_unregister(zoom2_snd_device);
 }

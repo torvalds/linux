@@ -39,6 +39,49 @@ static bool phy_is_wideport_member(struct asd_sas_port *port, struct asd_sas_phy
 	return true;
 }
 
+static void sas_resume_port(struct asd_sas_phy *phy)
+{
+	struct domain_device *dev;
+	struct asd_sas_port *port = phy->port;
+	struct sas_ha_struct *sas_ha = phy->ha;
+	struct sas_internal *si = to_sas_internal(sas_ha->core.shost->transportt);
+
+	if (si->dft->lldd_port_formed)
+		si->dft->lldd_port_formed(phy);
+
+	if (port->suspended)
+		port->suspended = 0;
+	else {
+		/* we only need to handle "link returned" actions once */
+		return;
+	}
+
+	/* if the port came back:
+	 * 1/ presume every device came back
+	 * 2/ force the next revalidation to check all expander phys
+	 */
+	list_for_each_entry(dev, &port->dev_list, dev_list_node) {
+		int i, rc;
+
+		rc = sas_notify_lldd_dev_found(dev);
+		if (rc) {
+			sas_unregister_dev(port, dev);
+			continue;
+		}
+
+		if (dev->dev_type == EDGE_DEV || dev->dev_type == FANOUT_DEV) {
+			dev->ex_dev.ex_change_count = -1;
+			for (i = 0; i < dev->ex_dev.num_phys; i++) {
+				struct ex_phy *phy = &dev->ex_dev.ex_phy[i];
+
+				phy->phy_change_count = -1;
+			}
+		}
+	}
+
+	sas_discover_event(port, DISCE_RESUME);
+}
+
 /**
  * sas_form_port -- add this phy to a port
  * @phy: the phy of interest
@@ -58,7 +101,14 @@ static void sas_form_port(struct asd_sas_phy *phy)
 	if (port) {
 		if (!phy_is_wideport_member(port, phy))
 			sas_deform_port(phy, 0);
-		else {
+		else if (phy->suspended) {
+			phy->suspended = 0;
+			sas_resume_port(phy);
+
+			/* phy came back, try to cancel the timeout */
+			wake_up(&sas_ha->eh_wait_q);
+			return;
+		} else {
 			SAS_DPRINTK("%s: phy%d belongs to port%d already(%d)!\n",
 				    __func__, phy->id, phy->port->id,
 				    phy->port->num_phys);

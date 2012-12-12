@@ -56,6 +56,10 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 {
 	char tp_name[128];
 	struct syscall *sc;
+	const char *name = audit_syscall_to_name(id, trace->audit_machine);
+
+	if (name == NULL)
+		return -1;
 
 	if (id > trace->syscalls.max) {
 		struct syscall *nsyscalls = realloc(trace->syscalls.table, (id + 1) * sizeof(*sc));
@@ -75,11 +79,8 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	}
 
 	sc = trace->syscalls.table + id;
-	sc->name = audit_syscall_to_name(id, trace->audit_machine);
-	if (sc->name == NULL)
-		return -1;
-
-	sc->fmt = syscall_fmt__find(sc->name);
+	sc->name = name;
+	sc->fmt  = syscall_fmt__find(sc->name);
 
 	snprintf(tp_name, sizeof(tp_name), "sys_enter_%s", sc->name);
 	sc->tp_format = event_format__new("syscalls", tp_name);
@@ -114,10 +115,85 @@ static size_t syscall__fprintf_args(struct syscall *sc, unsigned long *args, FIL
 	return printed;
 }
 
+typedef int (*tracepoint_handler)(struct trace *trace, struct perf_evsel *evsel,
+				  struct perf_sample *sample);
+
+static struct syscall *trace__syscall_info(struct trace *trace,
+					   struct perf_evsel *evsel,
+					   struct perf_sample *sample)
+{
+	int id = perf_evsel__intval(evsel, sample, "id");
+
+	if (id < 0) {
+		printf("Invalid syscall %d id, skipping...\n", id);
+		return NULL;
+	}
+
+	if ((id > trace->syscalls.max || trace->syscalls.table[id].name == NULL) &&
+	    trace__read_syscall_info(trace, id))
+		goto out_cant_read;
+
+	if ((id > trace->syscalls.max || trace->syscalls.table[id].name == NULL))
+		goto out_cant_read;
+
+	return &trace->syscalls.table[id];
+
+out_cant_read:
+	printf("Problems reading syscall %d information\n", id);
+	return NULL;
+}
+
+static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
+			    struct perf_sample *sample)
+{
+	void *args;
+	struct syscall *sc = trace__syscall_info(trace, evsel, sample);
+
+	if (sc == NULL)
+		return -1;
+
+	args = perf_evsel__rawptr(evsel, sample, "args");
+	if (args == NULL) {
+		printf("Problems reading syscall arguments\n");
+		return -1;
+	}
+
+	printf("%s(", sc->name);
+	syscall__fprintf_args(sc, args, stdout);
+
+	return 0;
+}
+
+static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
+			   struct perf_sample *sample)
+{
+	int ret;
+	struct syscall *sc = trace__syscall_info(trace, evsel, sample);
+
+	if (sc == NULL)
+		return -1;
+
+	ret = perf_evsel__intval(evsel, sample, "ret");
+
+	if (ret < 0 && sc->fmt && sc->fmt->errmsg) {
+		char bf[256];
+		const char *emsg = strerror_r(-ret, bf, sizeof(bf)),
+			   *e = audit_errno_to_name(-ret);
+
+		printf(") = -1 %s %s", e, emsg);
+	} else if (ret == 0 && sc->fmt && sc->fmt->timeout)
+		printf(") = 0 Timeout");
+	else
+		printf(") = %d", ret);
+
+	putchar('\n');
+	return 0;
+}
+
 static int trace__run(struct trace *trace)
 {
 	struct perf_evlist *evlist = perf_evlist__new(NULL, NULL);
-	struct perf_evsel *evsel, *evsel_enter, *evsel_exit;
+	struct perf_evsel *evsel;
 	int err = -1, i, nr_events = 0, before;
 
 	if (evlist == NULL) {
@@ -125,21 +201,11 @@ static int trace__run(struct trace *trace)
 		goto out;
 	}
 
-	evsel_enter = perf_evsel__newtp("raw_syscalls", "sys_enter", 0);
-	if (evsel_enter == NULL) {
-		printf("Couldn't read the raw_syscalls:sys_enter tracepoint information!\n");
+	if (perf_evlist__add_newtp(evlist, "raw_syscalls", "sys_enter", trace__sys_enter) ||
+	    perf_evlist__add_newtp(evlist, "raw_syscalls", "sys_exit", trace__sys_exit)) {
+		printf("Couldn't read the raw_syscalls tracepoints information!\n");
 		goto out_delete_evlist;
 	}
-
-	perf_evlist__add(evlist, evsel_enter);
-
-	evsel_exit = perf_evsel__newtp("raw_syscalls", "sys_exit", 1);
-	if (evsel_exit == NULL) {
-		printf("Couldn't read the raw_syscalls:sys_exit tracepoint information!\n");
-		goto out_delete_evlist;
-	}
-
-	perf_evlist__add(evlist, evsel_exit);
 
 	err = perf_evlist__create_maps(evlist, &trace->opts.target);
 	if (err < 0) {
@@ -170,9 +236,8 @@ again:
 
 		while ((event = perf_evlist__mmap_read(evlist, i)) != NULL) {
 			const u32 type = event->header.type;
-			struct syscall *sc;
+			tracepoint_handler handler;
 			struct perf_sample sample;
-			int id;
 
 			++nr_events;
 
@@ -200,45 +265,18 @@ again:
 				continue;
 			}
 
-			id = perf_evsel__intval(evsel, &sample, "id");
-			if (id < 0) {
-				printf("Invalid syscall %d id, skipping...\n", id);
-				continue;
-			}
-
-			if ((id > trace->syscalls.max || trace->syscalls.table[id].name == NULL) &&
-			    trace__read_syscall_info(trace, id))
-				continue;
-
-			if ((id > trace->syscalls.max || trace->syscalls.table[id].name == NULL))
-				continue;
-
-			sc = &trace->syscalls.table[id];
-
 			if (evlist->threads->map[0] == -1 || evlist->threads->nr > 1)
 				printf("%d ", sample.tid);
 
-			if (evsel == evsel_enter) {
-				void *args = perf_evsel__rawptr(evsel, &sample, "args");
-
-				printf("%s(", sc->name);
-				syscall__fprintf_args(sc, args, stdout);
-			} else if (evsel == evsel_exit) {
-				int ret = perf_evsel__intval(evsel, &sample, "ret");
-
-				if (ret < 0 && sc->fmt && sc->fmt->errmsg) {
-					char bf[256];
-					const char *emsg = strerror_r(-ret, bf, sizeof(bf)),
-						   *e = audit_errno_to_name(-ret);
-
-					printf(") = -1 %s %s", e, emsg);
-				} else if (ret == 0 && sc->fmt && sc->fmt->timeout)
-					printf(") = 0 Timeout");
-				else
-					printf(") = %d", ret);
-
-				putchar('\n');
+			if (sample.raw_data == NULL) {
+				printf("%s sample with no payload for tid: %d, cpu %d, raw_size=%d, skipping...\n",
+				       perf_evsel__name(evsel), sample.tid,
+				       sample.cpu, sample.raw_size);
+				continue;
 			}
+
+			handler = evsel->handler.func;
+			handler(trace, evsel, &sample);
 		}
 	}
 

@@ -55,16 +55,23 @@ ext4_acl_from_disk(const void *value, size_t size)
 		case ACL_OTHER:
 			value = (char *)value +
 				sizeof(ext4_acl_entry_short);
-			acl->a_entries[n].e_id = ACL_UNDEFINED_ID;
 			break;
 
 		case ACL_USER:
+			value = (char *)value + sizeof(ext4_acl_entry);
+			if ((char *)value > end)
+				goto fail;
+			acl->a_entries[n].e_uid =
+				make_kuid(&init_user_ns,
+					  le32_to_cpu(entry->e_id));
+			break;
 		case ACL_GROUP:
 			value = (char *)value + sizeof(ext4_acl_entry);
 			if ((char *)value > end)
 				goto fail;
-			acl->a_entries[n].e_id =
-				le32_to_cpu(entry->e_id);
+			acl->a_entries[n].e_gid =
+				make_kgid(&init_user_ns,
+					  le32_to_cpu(entry->e_id));
 			break;
 
 		default:
@@ -98,13 +105,19 @@ ext4_acl_to_disk(const struct posix_acl *acl, size_t *size)
 	ext_acl->a_version = cpu_to_le32(EXT4_ACL_VERSION);
 	e = (char *)ext_acl + sizeof(ext4_acl_header);
 	for (n = 0; n < acl->a_count; n++) {
+		const struct posix_acl_entry *acl_e = &acl->a_entries[n];
 		ext4_acl_entry *entry = (ext4_acl_entry *)e;
-		entry->e_tag  = cpu_to_le16(acl->a_entries[n].e_tag);
-		entry->e_perm = cpu_to_le16(acl->a_entries[n].e_perm);
-		switch (acl->a_entries[n].e_tag) {
+		entry->e_tag  = cpu_to_le16(acl_e->e_tag);
+		entry->e_perm = cpu_to_le16(acl_e->e_perm);
+		switch (acl_e->e_tag) {
 		case ACL_USER:
+			entry->e_id = cpu_to_le32(
+				from_kuid(&init_user_ns, acl_e->e_uid));
+			e += sizeof(ext4_acl_entry);
+			break;
 		case ACL_GROUP:
-			entry->e_id = cpu_to_le32(acl->a_entries[n].e_id);
+			entry->e_id = cpu_to_le32(
+				from_kgid(&init_user_ns, acl_e->e_gid));
 			e += sizeof(ext4_acl_entry);
 			break;
 
@@ -374,7 +387,7 @@ ext4_xattr_get_acl(struct dentry *dentry, const char *name, void *buffer,
 		return PTR_ERR(acl);
 	if (acl == NULL)
 		return -ENODATA;
-	error = posix_acl_to_xattr(acl, buffer, size);
+	error = posix_acl_to_xattr(&init_user_ns, acl, buffer, size);
 	posix_acl_release(acl);
 
 	return error;
@@ -397,7 +410,7 @@ ext4_xattr_set_acl(struct dentry *dentry, const char *name, const void *value,
 		return -EPERM;
 
 	if (value) {
-		acl = posix_acl_from_xattr(value, size);
+		acl = posix_acl_from_xattr(&init_user_ns, value, size);
 		if (IS_ERR(acl))
 			return PTR_ERR(acl);
 		else if (acl) {

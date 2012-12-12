@@ -1382,6 +1382,12 @@ static void nilfs_segbuf_init_once(void *obj)
 
 static void nilfs_destroy_cachep(void)
 {
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
+
 	if (nilfs_inode_cachep)
 		kmem_cache_destroy(nilfs_inode_cachep);
 	if (nilfs_transaction_cachep)

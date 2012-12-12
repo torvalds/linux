@@ -171,18 +171,18 @@ struct ehci_regs {
 #define USBMODE_CM_HC	(3<<0)		/* host controller mode */
 #define USBMODE_CM_IDLE	(0<<0)		/* idle state */
 
-	u32		reserved4[7];
+	u32		reserved4[6];
 
 /* Moorestown has some non-standard registers, partially due to the fact that
  * its EHCI controller has both TT and LPM support. HOSTPCx are extensions to
  * PORTSCx
  */
 	/* HOSTPC: offset 0x84 */
-	u32		hostpc[0];	/* HOSTPC extension */
+	u32		hostpc[1];	/* HOSTPC extension */
 #define HOSTPC_PHCD	(1<<22)		/* Phy clock disable */
 #define HOSTPC_PSPD	(3<<25)		/* Port speed detection */
 
-	u32		reserved5[17];
+	u32		reserved5[16];
 
 	/* USBMODE_EX: offset 0xc8 */
 	u32		usbmode_ex;	/* USB Device mode extension */
@@ -221,18 +221,35 @@ extern int __init early_dbgp_init(char *s);
 extern struct console early_dbgp_console;
 #endif /* CONFIG_EARLY_PRINTK_DBGP */
 
-#ifdef CONFIG_EARLY_PRINTK_DBGP
-/* Call backs from ehci host driver to ehci debug driver */
-extern int dbgp_external_startup(void);
-extern int dbgp_reset_prep(void);
+struct usb_hcd;
+
+#ifdef CONFIG_XEN_DOM0
+extern int xen_dbgp_reset_prep(struct usb_hcd *);
+extern int xen_dbgp_external_startup(struct usb_hcd *);
 #else
-static inline int dbgp_reset_prep(void)
+static inline int xen_dbgp_reset_prep(struct usb_hcd *hcd)
 {
-	return 1;
+	return 1; /* Shouldn't this be 0? */
 }
-static inline int dbgp_external_startup(void)
+
+static inline int xen_dbgp_external_startup(struct usb_hcd *hcd)
 {
 	return -1;
+}
+#endif
+
+#ifdef CONFIG_EARLY_PRINTK_DBGP
+/* Call backs from ehci host driver to ehci debug driver */
+extern int dbgp_external_startup(struct usb_hcd *);
+extern int dbgp_reset_prep(struct usb_hcd *hcd);
+#else
+static inline int dbgp_reset_prep(struct usb_hcd *hcd)
+{
+	return xen_dbgp_reset_prep(hcd);
+}
+static inline int dbgp_external_startup(struct usb_hcd *hcd)
+{
+	return xen_dbgp_external_startup(hcd);
 }
 #endif
 

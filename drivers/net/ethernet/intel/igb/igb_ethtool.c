@@ -148,15 +148,30 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 				   SUPPORTED_100baseT_Full |
 				   SUPPORTED_1000baseT_Full|
 				   SUPPORTED_Autoneg |
-				   SUPPORTED_TP);
-		ecmd->advertising = (ADVERTISED_TP |
-				     ADVERTISED_Pause);
+				   SUPPORTED_TP |
+				   SUPPORTED_Pause);
+		ecmd->advertising = ADVERTISED_TP;
 
 		if (hw->mac.autoneg == 1) {
 			ecmd->advertising |= ADVERTISED_Autoneg;
 			/* the e1000 autoneg seems to match ethtool nicely */
 			ecmd->advertising |= hw->phy.autoneg_advertised;
 		}
+
+		if (hw->mac.autoneg != 1)
+			ecmd->advertising &= ~(ADVERTISED_Pause |
+					       ADVERTISED_Asym_Pause);
+
+		if (hw->fc.requested_mode == e1000_fc_full)
+			ecmd->advertising |= ADVERTISED_Pause;
+		else if (hw->fc.requested_mode == e1000_fc_rx_pause)
+			ecmd->advertising |= (ADVERTISED_Pause |
+					      ADVERTISED_Asym_Pause);
+		else if (hw->fc.requested_mode == e1000_fc_tx_pause)
+			ecmd->advertising |=  ADVERTISED_Asym_Pause;
+		else
+			ecmd->advertising &= ~(ADVERTISED_Pause |
+					       ADVERTISED_Asym_Pause);
 
 		ecmd->port = PORT_TP;
 		ecmd->phy_address = hw->phy.addr;
@@ -198,6 +213,19 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	}
 
 	ecmd->autoneg = hw->mac.autoneg ? AUTONEG_ENABLE : AUTONEG_DISABLE;
+
+	/* MDI-X => 2; MDI =>1; Invalid =>0 */
+	if (hw->phy.media_type == e1000_media_type_copper)
+		ecmd->eth_tp_mdix = hw->phy.is_mdix ? ETH_TP_MDI_X :
+						      ETH_TP_MDI;
+	else
+		ecmd->eth_tp_mdix = ETH_TP_MDI_INVALID;
+
+	if (hw->phy.mdix == AUTO_ALL_MODES)
+		ecmd->eth_tp_mdix_ctrl = ETH_TP_MDI_AUTO;
+	else
+		ecmd->eth_tp_mdix_ctrl = hw->phy.mdix;
+
 	return 0;
 }
 
@@ -214,6 +242,22 @@ static int igb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		return -EINVAL;
 	}
 
+	/*
+	 * MDI setting is only allowed when autoneg enabled because
+	 * some hardware doesn't allow MDI setting when speed or
+	 * duplex is forced.
+	 */
+	if (ecmd->eth_tp_mdix_ctrl) {
+		if (hw->phy.media_type != e1000_media_type_copper)
+			return -EOPNOTSUPP;
+
+		if ((ecmd->eth_tp_mdix_ctrl != ETH_TP_MDI_AUTO) &&
+		    (ecmd->autoneg != AUTONEG_ENABLE)) {
+			dev_err(&adapter->pdev->dev, "forcing MDI/MDI-X state is not supported when link speed and/or duplex are forced\n");
+			return -EINVAL;
+		}
+	}
+
 	while (test_and_set_bit(__IGB_RESETTING, &adapter->state))
 		msleep(1);
 
@@ -227,10 +271,23 @@ static int igb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 			hw->fc.requested_mode = e1000_fc_default;
 	} else {
 		u32 speed = ethtool_cmd_speed(ecmd);
+		/* calling this overrides forced MDI setting */
 		if (igb_set_spd_dplx(adapter, speed, ecmd->duplex)) {
 			clear_bit(__IGB_RESETTING, &adapter->state);
 			return -EINVAL;
 		}
+	}
+
+	/* MDI-X => 2; MDI => 1; Auto => 3 */
+	if (ecmd->eth_tp_mdix_ctrl) {
+		/*
+		 * fix up the value for auto (3 => 0) as zero is mapped
+		 * internally to auto
+		 */
+		if (ecmd->eth_tp_mdix_ctrl == ETH_TP_MDI_AUTO)
+			hw->phy.mdix = AUTO_ALL_MODES;
+		else
+			hw->phy.mdix = ecmd->eth_tp_mdix_ctrl;
 	}
 
 	/* reset the link */
@@ -1469,33 +1526,22 @@ static int igb_integrated_phy_loopback(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 ctrl_reg = 0;
-	u16 phy_reg = 0;
 
 	hw->mac.autoneg = false;
 
-	switch (hw->phy.type) {
-	case e1000_phy_m88:
-		/* Auto-MDI/MDIX Off */
-		igb_write_phy_reg(hw, M88E1000_PHY_SPEC_CTRL, 0x0808);
-		/* reset to update Auto-MDI/MDIX */
-		igb_write_phy_reg(hw, PHY_CONTROL, 0x9140);
-		/* autoneg off */
-		igb_write_phy_reg(hw, PHY_CONTROL, 0x8140);
-		break;
-	case e1000_phy_82580:
-		/* enable MII loopback */
-		igb_write_phy_reg(hw, I82580_PHY_LBK_CTRL, 0x8041);
-		break;
-	case e1000_phy_i210:
-		/* set loopback speed in PHY */
-		igb_read_phy_reg(hw, (GS40G_PAGE_SELECT & GS40G_PAGE_2),
-					&phy_reg);
-		phy_reg |= GS40G_MAC_SPEED_1G;
-		igb_write_phy_reg(hw, (GS40G_PAGE_SELECT & GS40G_PAGE_2),
-					phy_reg);
-		ctrl_reg = rd32(E1000_CTRL_EXT);
-	default:
-		break;
+	if (hw->phy.type == e1000_phy_m88) {
+		if (hw->phy.id != I210_I_PHY_ID) {
+			/* Auto-MDI/MDIX Off */
+			igb_write_phy_reg(hw, M88E1000_PHY_SPEC_CTRL, 0x0808);
+			/* reset to update Auto-MDI/MDIX */
+			igb_write_phy_reg(hw, PHY_CONTROL, 0x9140);
+			/* autoneg off */
+			igb_write_phy_reg(hw, PHY_CONTROL, 0x8140);
+		} else {
+			/* force 1000, set loopback  */
+			igb_write_phy_reg(hw, I347AT4_PAGE_SELECT, 0);
+			igb_write_phy_reg(hw, PHY_CONTROL, 0x4140);
+		}
 	}
 
 	/* add small delay to avoid loopback test failure */
@@ -1513,7 +1559,7 @@ static int igb_integrated_phy_loopback(struct igb_adapter *adapter)
 		     E1000_CTRL_FD |	 /* Force Duplex to FULL */
 		     E1000_CTRL_SLU);	 /* Set link up enable bit */
 
-	if ((hw->phy.type == e1000_phy_m88) || (hw->phy.type == e1000_phy_i210))
+	if (hw->phy.type == e1000_phy_m88)
 		ctrl_reg |= E1000_CTRL_ILOS; /* Invert Loss of Signal */
 
 	wr32(E1000_CTRL, ctrl_reg);
@@ -1521,11 +1567,10 @@ static int igb_integrated_phy_loopback(struct igb_adapter *adapter)
 	/* Disable the receiver on the PHY so when a cable is plugged in, the
 	 * PHY does not begin to autoneg when a cable is reconnected to the NIC.
 	 */
-	if ((hw->phy.type == e1000_phy_m88) || (hw->phy.type == e1000_phy_i210))
+	if (hw->phy.type == e1000_phy_m88)
 		igb_phy_disable_receiver(adapter);
 
-	udelay(500);
-
+	mdelay(500);
 	return 0;
 }
 
@@ -1782,13 +1827,6 @@ static int igb_loopback_test(struct igb_adapter *adapter, u64 *data)
 	if (igb_check_reset_block(&adapter->hw)) {
 		dev_err(&adapter->pdev->dev,
 			"Cannot do PHY loopback test when SoL/IDER is active.\n");
-		*data = 0;
-		goto out;
-	}
-	if ((adapter->hw.mac.type == e1000_i210)
-		|| (adapter->hw.mac.type == e1000_i211)) {
-		dev_err(&adapter->pdev->dev,
-			"Loopback test not supported on this part at this time.\n");
 		*data = 0;
 		goto out;
 	}
@@ -2257,6 +2295,54 @@ static void igb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 	}
 }
 
+static int igb_get_ts_info(struct net_device *dev,
+			   struct ethtool_ts_info *info)
+{
+	struct igb_adapter *adapter = netdev_priv(dev);
+
+	switch (adapter->hw.mac.type) {
+#ifdef CONFIG_IGB_PTP
+	case e1000_82576:
+	case e1000_82580:
+	case e1000_i350:
+	case e1000_i210:
+	case e1000_i211:
+		info->so_timestamping =
+			SOF_TIMESTAMPING_TX_HARDWARE |
+			SOF_TIMESTAMPING_RX_HARDWARE |
+			SOF_TIMESTAMPING_RAW_HARDWARE;
+
+		if (adapter->ptp_clock)
+			info->phc_index = ptp_clock_index(adapter->ptp_clock);
+		else
+			info->phc_index = -1;
+
+		info->tx_types =
+			(1 << HWTSTAMP_TX_OFF) |
+			(1 << HWTSTAMP_TX_ON);
+
+		info->rx_filters = 1 << HWTSTAMP_FILTER_NONE;
+
+		/* 82576 does not support timestamping all packets. */
+		if (adapter->hw.mac.type >= e1000_82580)
+			info->rx_filters |= 1 << HWTSTAMP_FILTER_ALL;
+		else
+			info->rx_filters |=
+				(1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
+				(1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
+				(1 << HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
+				(1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
+				(1 << HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ) |
+				(1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ) |
+				(1 << HWTSTAMP_FILTER_PTP_V2_EVENT);
+
+		return 0;
+#endif /* CONFIG_IGB_PTP */
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int igb_ethtool_begin(struct net_device *netdev)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
@@ -2270,38 +2356,6 @@ static void igb_ethtool_complete(struct net_device *netdev)
 	pm_runtime_put(&adapter->pdev->dev);
 }
 
-#ifdef CONFIG_IGB_PTP
-static int igb_ethtool_get_ts_info(struct net_device *dev,
-				   struct ethtool_ts_info *info)
-{
-	struct igb_adapter *adapter = netdev_priv(dev);
-
-	info->so_timestamping =
-		SOF_TIMESTAMPING_TX_HARDWARE |
-		SOF_TIMESTAMPING_RX_HARDWARE |
-		SOF_TIMESTAMPING_RAW_HARDWARE;
-
-	if (adapter->ptp_clock)
-		info->phc_index = ptp_clock_index(adapter->ptp_clock);
-	else
-		info->phc_index = -1;
-
-	info->tx_types =
-		(1 << HWTSTAMP_TX_OFF) |
-		(1 << HWTSTAMP_TX_ON);
-
-	info->rx_filters =
-		(1 << HWTSTAMP_FILTER_NONE) |
-		(1 << HWTSTAMP_FILTER_ALL) |
-		(1 << HWTSTAMP_FILTER_SOME) |
-		(1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
-		(1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_EVENT);
-
-	return 0;
-}
-
-#endif
 static const struct ethtool_ops igb_ethtool_ops = {
 	.get_settings           = igb_get_settings,
 	.set_settings           = igb_set_settings,
@@ -2328,11 +2382,9 @@ static const struct ethtool_ops igb_ethtool_ops = {
 	.get_ethtool_stats      = igb_get_ethtool_stats,
 	.get_coalesce           = igb_get_coalesce,
 	.set_coalesce           = igb_set_coalesce,
+	.get_ts_info            = igb_get_ts_info,
 	.begin			= igb_ethtool_begin,
 	.complete		= igb_ethtool_complete,
-#ifdef CONFIG_IGB_PTP
-	.get_ts_info		= igb_ethtool_get_ts_info,
-#endif
 };
 
 void igb_set_ethtool_ops(struct net_device *netdev)

@@ -21,8 +21,7 @@
 #include <linux/err.h>
 #include <asm/io.h>
 #include <asm/sizes.h>
-#include <mach/hardware.h>
-#include <plat/orion_nand.h>
+#include <linux/platform_data/mtd-orion_nand.h>
 
 static void orion_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 {

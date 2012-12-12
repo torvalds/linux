@@ -34,6 +34,7 @@
 #include <asm/mach/pci.h>
 #include <asm/system_info.h>
 #include <mach/orion5x.h>
+#include <plat/orion-gpio.h>
 #include "common.h"
 #include "mpp.h"
 
@@ -700,7 +701,7 @@ static void __init dns323_init(void)
 		 * Note: AFAIK, rev B1 needs the same treatement but I'll let
 		 * somebody else test it.
 		 */
-		writel(0x5, ORION5X_SATA_VIRT_BASE | 0x2c);
+		writel(0x5, ORION5X_SATA_VIRT_BASE + 0x2c);
 		break;
 	}
 }

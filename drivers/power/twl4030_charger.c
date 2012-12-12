@@ -41,16 +41,16 @@
 #define TWL4030_STS_VBUS	BIT(7)
 #define TWL4030_STS_USB_ID	BIT(2)
 #define TWL4030_BBCHEN		BIT(4)
-#define TWL4030_BBSEL_MASK	0b1100
-#define TWL4030_BBSEL_2V5	0b0000
-#define TWL4030_BBSEL_3V0	0b0100
-#define TWL4030_BBSEL_3V1	0b1000
-#define TWL4030_BBSEL_3V2	0b1100
-#define TWL4030_BBISEL_MASK	0b11
-#define TWL4030_BBISEL_25uA	0b00
-#define TWL4030_BBISEL_150uA	0b01
-#define TWL4030_BBISEL_500uA	0b10
-#define TWL4030_BBISEL_1000uA	0b11
+#define TWL4030_BBSEL_MASK	0x0c
+#define TWL4030_BBSEL_2V5	0x00
+#define TWL4030_BBSEL_3V0	0x04
+#define TWL4030_BBSEL_3V1	0x08
+#define TWL4030_BBSEL_3V2	0x0c
+#define TWL4030_BBISEL_MASK	0x03
+#define TWL4030_BBISEL_25uA	0x00
+#define TWL4030_BBISEL_150uA	0x01
+#define TWL4030_BBISEL_500uA	0x02
+#define TWL4030_BBISEL_1000uA	0x03
 
 /* BCI interrupts */
 #define TWL4030_WOVF		BIT(0) /* Watchdog overflow */
@@ -534,7 +534,8 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 	}
 
 	ret = request_threaded_irq(bci->irq_chg, NULL,
-			twl4030_charger_interrupt, 0, pdev->name, bci);
+			twl4030_charger_interrupt, IRQF_ONESHOT, pdev->name,
+			bci);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "could not request irq %d, status %d\n",
 			bci->irq_chg, ret);
@@ -542,7 +543,7 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 	}
 
 	ret = request_threaded_irq(bci->irq_bci, NULL,
-			twl4030_bci_interrupt, 0, pdev->name, bci);
+			twl4030_bci_interrupt, IRQF_ONESHOT, pdev->name, bci);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "could not request irq %d, status %d\n",
 			bci->irq_bci, ret);

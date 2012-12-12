@@ -403,7 +403,7 @@ asmlinkage long compat_sys_rt_sigaction(int sig,
 asmlinkage long sparc32_execve(struct pt_regs *regs)
 {
 	int error, base = 0;
-	char *filename;
+	struct filename *filename;
 
 	/* User register window flush is done by entry.S */
 
@@ -416,7 +416,7 @@ asmlinkage long sparc32_execve(struct pt_regs *regs)
 	if (IS_ERR(filename))
 		goto out;
 
-	error = compat_do_execve(filename,
+	error = compat_do_execve(filename->name,
 				 compat_ptr(regs->u_regs[base + UREG_I1]),
 				 compat_ptr(regs->u_regs[base + UREG_I2]), regs);
 
@@ -504,52 +504,6 @@ long compat_sys_fadvise64_64(int fd,
 				(offhi << 32) | offlo,
 				(lenhi << 32) | lenlo,
 				advice);
-}
-
-asmlinkage long compat_sys_sendfile(int out_fd, int in_fd,
-				    compat_off_t __user *offset,
-				    compat_size_t count)
-{
-	mm_segment_t old_fs = get_fs();
-	int ret;
-	off_t of;
-	
-	if (offset && get_user(of, offset))
-		return -EFAULT;
-		
-	set_fs(KERNEL_DS);
-	ret = sys_sendfile(out_fd, in_fd,
-			   offset ? (off_t __user *) &of : NULL,
-			   count);
-	set_fs(old_fs);
-	
-	if (offset && put_user(of, offset))
-		return -EFAULT;
-		
-	return ret;
-}
-
-asmlinkage long compat_sys_sendfile64(int out_fd, int in_fd,
-				      compat_loff_t __user *offset,
-				      compat_size_t count)
-{
-	mm_segment_t old_fs = get_fs();
-	int ret;
-	loff_t lof;
-	
-	if (offset && get_user(lof, offset))
-		return -EFAULT;
-		
-	set_fs(KERNEL_DS);
-	ret = sys_sendfile64(out_fd, in_fd,
-			     offset ? (loff_t __user *) &lof : NULL,
-			     count);
-	set_fs(old_fs);
-	
-	if (offset && put_user(lof, offset))
-		return -EFAULT;
-		
-	return ret;
 }
 
 /* This is just a version for 32-bit applications which does

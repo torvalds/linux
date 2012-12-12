@@ -72,7 +72,9 @@ flags, being a write-only ioctl it does not return the actual new standard as
 the current input does not support the requested standard the driver
 returns an &EINVAL;. When the standard set is ambiguous drivers may
 return <errorcode>EINVAL</errorcode> or choose any of the requested
-standards.</para>
+standards. If the current input or output does not support standard video timings (e.g. if
+&VIDIOC-ENUMINPUT; does not set the <constant>V4L2_IN_CAP_STD</constant> flag), then
+&ENODATA; is returned.</para>
   </refsect1>
 
   <refsect1>
@@ -83,6 +85,12 @@ standards.</para>
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
 	  <para>The <constant>VIDIOC_S_STD</constant> parameter was unsuitable.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>ENODATA</errorcode></term>
+	<listitem>
+	  <para>Standard video timings are not supported for this input or output.</para>
 	</listitem>
       </varlistentry>
     </variablelist>

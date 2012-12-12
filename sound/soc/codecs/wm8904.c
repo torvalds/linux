@@ -1185,8 +1185,6 @@ static int wm8904_add_widgets(struct snd_soc_codec *codec)
 		snd_soc_dapm_new_controls(dapm, wm8904_dapm_widgets,
 					  ARRAY_SIZE(wm8904_dapm_widgets));
 
-		snd_soc_dapm_add_routes(dapm, core_intercon,
-					ARRAY_SIZE(core_intercon));
 		snd_soc_dapm_add_routes(dapm, adc_intercon,
 					ARRAY_SIZE(adc_intercon));
 		snd_soc_dapm_add_routes(dapm, dac_intercon,

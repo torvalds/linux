@@ -100,6 +100,11 @@ struct tid_info {
 
 	unsigned int nftids;
 	unsigned int ftid_base;
+	unsigned int aftid_base;
+	unsigned int aftid_end;
+	/* Server filter region */
+	unsigned int sftid_base;
+	unsigned int nsftids;
 
 	spinlock_t atid_lock ____cacheline_aligned_in_smp;
 	union aopen_entry *afree;

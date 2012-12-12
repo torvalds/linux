@@ -105,11 +105,4 @@
 #define MSM_AD5_PHYS          0xAC000000
 #define MSM_AD5_SIZE          (SZ_1M*13)
 
-#ifndef __ASSEMBLY__
-
-extern void __iomem *__msm_ioremap_caller(unsigned long phys_addr, size_t size,
-					  unsigned int mtype, void *caller);
-
-#endif
-
 #endif

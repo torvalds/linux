@@ -102,21 +102,21 @@ struct kvm_vcpu_pv_apf_data {
 extern void kvmclock_init(void);
 extern int kvm_register_clock(char *txt);
 
-#ifdef CONFIG_KVM_CLOCK
+#ifdef CONFIG_KVM_GUEST
 bool kvm_check_and_clear_guest_paused(void);
 #else
 static inline bool kvm_check_and_clear_guest_paused(void)
 {
 	return false;
 }
-#endif /* CONFIG_KVMCLOCK */
+#endif /* CONFIG_KVM_GUEST */
 
 /* This instruction is vmcall.  On non-VT architectures, it will generate a
  * trap that we will then rewrite to the appropriate instruction.
  */
 #define KVM_HYPERCALL ".byte 0x0f,0x01,0xc1"
 
-/* For KVM hypercalls, a three-byte sequence of either the vmrun or the vmmrun
+/* For KVM hypercalls, a three-byte sequence of either the vmcall or the vmmcall
  * instruction.  The hypervisor may replace it with something else but only the
  * instructions are guaranteed to be supported.
  *

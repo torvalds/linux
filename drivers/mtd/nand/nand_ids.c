@@ -70,7 +70,7 @@ struct nand_flash_dev nand_flash_ids[] = {
 	 * These are the new chips with large page size. The pagesize and the
 	 * erasesize is determined from the extended id bytes
 	 */
-#define LP_OPTIONS (NAND_SAMSUNG_LP_OPTIONS | NAND_NO_READRDY)
+#define LP_OPTIONS NAND_SAMSUNG_LP_OPTIONS
 #define LP_OPTIONS16 (LP_OPTIONS | NAND_BUSWIDTH_16)
 
 	/* 512 Megabit */
@@ -157,7 +157,7 @@ struct nand_flash_dev nand_flash_ids[] = {
 	 * writes possible, but not implemented now
 	 */
 	{"AND 128MiB 3,3V 8-bit",	0x01, 2048, 128, 0x4000,
-	 NAND_IS_AND | NAND_NO_READRDY | NAND_4PAGE_ARRAY | BBT_AUTO_REFRESH},
+	 NAND_IS_AND | NAND_4PAGE_ARRAY | BBT_AUTO_REFRESH},
 
 	{NULL,}
 };
@@ -174,8 +174,9 @@ struct nand_manufacturers nand_manuf_ids[] = {
 	{NAND_MFR_STMICRO, "ST Micro"},
 	{NAND_MFR_HYNIX, "Hynix"},
 	{NAND_MFR_MICRON, "Micron"},
-	{NAND_MFR_AMD, "AMD"},
+	{NAND_MFR_AMD, "AMD/Spansion"},
 	{NAND_MFR_MACRONIX, "Macronix"},
+	{NAND_MFR_EON, "Eon"},
 	{0x0, "Unknown"}
 };
 

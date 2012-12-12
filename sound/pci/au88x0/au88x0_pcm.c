@@ -585,7 +585,7 @@ static int snd_vortex_pcm_vol_put(struct snd_kcontrol *kcontrol,
 				case 4:
 					mixin = p->mixin[i];
 					break;
-				};
+				}
 				vol = p->vol[i];
 				vortex_mix_setinputvolumebyte(vortex,
 					vortex->mixplayb[i], mixin, vol);

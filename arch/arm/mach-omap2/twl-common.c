@@ -29,6 +29,7 @@
 #include <plat/i2c.h>
 #include <plat/usb.h>
 
+#include "soc.h"
 #include "twl-common.h"
 #include "pm.h"
 #include "voltage.h"
@@ -37,16 +38,6 @@
 static struct i2c_board_info __initdata pmic_i2c_board_info = {
 	.addr		= 0x48,
 	.flags		= I2C_CLIENT_WAKE,
-};
-
-static struct i2c_board_info __initdata omap4_i2c1_board_info[] = {
-	{
-		.addr		= 0x48,
-		.flags		= I2C_CLIENT_WAKE,
-	},
-	{
-		I2C_BOARD_INFO("twl6040", 0x4b),
-	},
 };
 
 #if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
@@ -78,30 +69,25 @@ void __init omap_pmic_init(int bus, u32 clkrate,
 
 void __init omap4_pmic_init(const char *pmic_type,
 		    struct twl4030_platform_data *pmic_data,
-		    struct twl6040_platform_data *twl6040_data, int twl6040_irq)
+		    struct i2c_board_info *devices, int nr_devices)
 {
 	/* PMIC part*/
 	omap_mux_init_signal("sys_nirq1", OMAP_PIN_INPUT_PULLUP | OMAP_PIN_OFF_WAKEUPENABLE);
-	strncpy(omap4_i2c1_board_info[0].type, pmic_type,
-		sizeof(omap4_i2c1_board_info[0].type));
-	omap4_i2c1_board_info[0].irq = OMAP44XX_IRQ_SYS_1N;
-	omap4_i2c1_board_info[0].platform_data = pmic_data;
+	omap_pmic_init(1, 400, pmic_type, 7 + OMAP44XX_IRQ_GIC_START, pmic_data);
 
-	/* TWL6040 audio IC part */
-	omap4_i2c1_board_info[1].irq = twl6040_irq;
-	omap4_i2c1_board_info[1].platform_data = twl6040_data;
-
-	omap_register_i2c_bus(1, 400, omap4_i2c1_board_info, 2);
-
+	/* Register additional devices on i2c1 bus if needed */
+	if (devices)
+		i2c_register_board_info(1, devices, nr_devices);
 }
 
 void __init omap_pmic_late_init(void)
 {
-	/* Init the OMAP TWL parameters (if PMIC has been registered) */
-	if (pmic_i2c_board_info.irq)
-		omap3_twl_init();
-	if (omap4_i2c1_board_info[0].irq)
-		omap4_twl_init();
+	/* Init the OMAP TWL parameters (if PMIC has been registerd) */
+	if (!pmic_i2c_board_info.irq)
+		return;
+
+	omap3_twl_init();
+	omap4_twl_init();
 }
 
 #if defined(CONFIG_ARCH_OMAP3)
@@ -172,7 +158,7 @@ static struct regulator_init_data omap3_vpll2_idata = {
 };
 
 static struct regulator_consumer_supply omap3_vdd1_supply[] = {
-	REGULATOR_SUPPLY("vcc", "mpu.0"),
+	REGULATOR_SUPPLY("vcc", "cpu0"),
 };
 
 static struct regulator_consumer_supply omap3_vdd2_supply[] = {
@@ -251,11 +237,10 @@ void __init omap3_pmic_get_config(struct twl4030_platform_data *pmic_data,
 
 #if defined(CONFIG_ARCH_OMAP4)
 static struct twl4030_usb_data omap4_usb_pdata = {
-	.phy_init	= omap4430_phy_init,
-	.phy_exit	= omap4430_phy_exit,
-	.phy_power	= omap4430_phy_power,
-	.phy_set_clock	= omap4430_phy_set_clk,
-	.phy_suspend	= omap4430_phy_suspend,
+};
+
+static struct regulator_consumer_supply omap4_vdda_hdmi_dac_supplies[] = {
+	REGULATOR_SUPPLY("vdda_hdmi_dac", "omapdss_hdmi"),
 };
 
 static struct regulator_init_data omap4_vdac_idata = {
@@ -267,6 +252,8 @@ static struct regulator_init_data omap4_vdac_idata = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
+	.num_consumer_supplies	= ARRAY_SIZE(omap4_vdda_hdmi_dac_supplies),
+	.consumer_supplies	= omap4_vdda_hdmi_dac_supplies,
 	.supply_regulator	= "V2V1",
 };
 
@@ -538,3 +525,30 @@ void __init omap4_pmic_get_config(struct twl4030_platform_data *pmic_data,
 		pmic_data->v2v1 = &omap4_v2v1_idata;
 }
 #endif /* CONFIG_ARCH_OMAP4 */
+
+#if defined(CONFIG_SND_OMAP_SOC_OMAP_TWL4030) || \
+	defined(CONFIG_SND_OMAP_SOC_OMAP_TWL4030_MODULE)
+#include <linux/platform_data/omap-twl4030.h>
+
+static struct omap_tw4030_pdata omap_twl4030_audio_data;
+
+static struct platform_device audio_device = {
+	.name		= "omap-twl4030",
+	.id		= -1,
+	.dev = {
+		.platform_data = &omap_twl4030_audio_data,
+	},
+};
+
+void __init omap_twl4030_audio_init(char *card_name)
+{
+	omap_twl4030_audio_data.card_name = card_name;
+	platform_device_register(&audio_device);
+}
+
+#else /* SOC_OMAP_TWL4030 */
+void __init omap_twl4030_audio_init(char *card_name)
+{
+	return;
+}
+#endif /* SOC_OMAP_TWL4030 */

@@ -123,7 +123,8 @@ static int mwifiex_ret_802_11_rssi_info(struct mwifiex_private *priv,
 {
 	struct host_cmd_ds_802_11_rssi_info_rsp *rssi_info_rsp =
 						&resp->params.rssi_info_rsp;
-	struct mwifiex_ds_misc_subsc_evt subsc_evt;
+	struct mwifiex_ds_misc_subsc_evt *subsc_evt =
+						&priv->async_subsc_evt_storage;
 
 	priv->data_rssi_last = le16_to_cpu(rssi_info_rsp->data_rssi_last);
 	priv->data_nf_last = le16_to_cpu(rssi_info_rsp->data_nf_last);
@@ -140,26 +141,27 @@ static int mwifiex_ret_802_11_rssi_info(struct mwifiex_private *priv,
 	if (priv->subsc_evt_rssi_state == EVENT_HANDLED)
 		return 0;
 
+	memset(subsc_evt, 0x00, sizeof(struct mwifiex_ds_misc_subsc_evt));
+
 	/* Resubscribe low and high rssi events with new thresholds */
-	memset(&subsc_evt, 0x00, sizeof(struct mwifiex_ds_misc_subsc_evt));
-	subsc_evt.events = BITMASK_BCN_RSSI_LOW | BITMASK_BCN_RSSI_HIGH;
-	subsc_evt.action = HostCmd_ACT_BITWISE_SET;
+	subsc_evt->events = BITMASK_BCN_RSSI_LOW | BITMASK_BCN_RSSI_HIGH;
+	subsc_evt->action = HostCmd_ACT_BITWISE_SET;
 	if (priv->subsc_evt_rssi_state == RSSI_LOW_RECVD) {
-		subsc_evt.bcn_l_rssi_cfg.abs_value = abs(priv->bcn_rssi_avg -
+		subsc_evt->bcn_l_rssi_cfg.abs_value = abs(priv->bcn_rssi_avg -
 				priv->cqm_rssi_hyst);
-		subsc_evt.bcn_h_rssi_cfg.abs_value = abs(priv->cqm_rssi_thold);
+		subsc_evt->bcn_h_rssi_cfg.abs_value = abs(priv->cqm_rssi_thold);
 	} else if (priv->subsc_evt_rssi_state == RSSI_HIGH_RECVD) {
-		subsc_evt.bcn_l_rssi_cfg.abs_value = abs(priv->cqm_rssi_thold);
-		subsc_evt.bcn_h_rssi_cfg.abs_value = abs(priv->bcn_rssi_avg +
+		subsc_evt->bcn_l_rssi_cfg.abs_value = abs(priv->cqm_rssi_thold);
+		subsc_evt->bcn_h_rssi_cfg.abs_value = abs(priv->bcn_rssi_avg +
 				priv->cqm_rssi_hyst);
 	}
-	subsc_evt.bcn_l_rssi_cfg.evt_freq = 1;
-	subsc_evt.bcn_h_rssi_cfg.evt_freq = 1;
+	subsc_evt->bcn_l_rssi_cfg.evt_freq = 1;
+	subsc_evt->bcn_h_rssi_cfg.evt_freq = 1;
 
 	priv->subsc_evt_rssi_state = EVENT_HANDLED;
 
 	mwifiex_send_cmd_async(priv, HostCmd_CMD_802_11_SUBSCRIBE_EVENT,
-			       0, 0, &subsc_evt);
+			       0, 0, subsc_evt);
 
 	return 0;
 }
@@ -543,7 +545,7 @@ static int mwifiex_ret_802_11_deauthenticate(struct mwifiex_private *priv,
 	if (!memcmp(resp->params.deauth.mac_addr,
 		    &priv->curr_bss_params.bss_descriptor.mac_address,
 		    sizeof(resp->params.deauth.mac_addr)))
-		mwifiex_reset_connect_state(priv);
+		mwifiex_reset_connect_state(priv, WLAN_REASON_DEAUTH_LEAVING);
 
 	return 0;
 }
@@ -556,7 +558,7 @@ static int mwifiex_ret_802_11_deauthenticate(struct mwifiex_private *priv,
 static int mwifiex_ret_802_11_ad_hoc_stop(struct mwifiex_private *priv,
 					  struct host_cmd_ds_command *resp)
 {
-	mwifiex_reset_connect_state(priv);
+	mwifiex_reset_connect_state(priv, WLAN_REASON_DEAUTH_LEAVING);
 	return 0;
 }
 
@@ -652,6 +654,38 @@ static int mwifiex_ret_ver_ext(struct mwifiex_private *priv,
 }
 
 /*
+ * This function handles the command response of remain on channel.
+ */
+static int
+mwifiex_ret_remain_on_chan(struct mwifiex_private *priv,
+			   struct host_cmd_ds_command *resp,
+			   struct host_cmd_ds_remain_on_chan *roc_cfg)
+{
+	struct host_cmd_ds_remain_on_chan *resp_cfg = &resp->params.roc_cfg;
+
+	if (roc_cfg)
+		memcpy(roc_cfg, resp_cfg, sizeof(*roc_cfg));
+
+	return 0;
+}
+
+/*
+ * This function handles the command response of P2P mode cfg.
+ */
+static int
+mwifiex_ret_p2p_mode_cfg(struct mwifiex_private *priv,
+			 struct host_cmd_ds_command *resp,
+			 void *data_buf)
+{
+	struct host_cmd_ds_p2p_mode_cfg *mode_cfg = &resp->params.mode_cfg;
+
+	if (data_buf)
+		*((u16 *)data_buf) = le16_to_cpu(mode_cfg->mode);
+
+	return 0;
+}
+
+/*
  * This function handles the command response of register access.
  *
  * The register value and offset are returned to the user. For EEPROM
@@ -736,7 +770,6 @@ static int mwifiex_ret_ibss_coalescing_status(struct mwifiex_private *priv,
 {
 	struct host_cmd_ds_802_11_ibss_status *ibss_coal_resp =
 					&(resp->params.ibss_coalescing);
-	u8 zero_mac[ETH_ALEN] = { 0, 0, 0, 0, 0, 0 };
 
 	if (le16_to_cpu(ibss_coal_resp->action) == HostCmd_ACT_GEN_SET)
 		return 0;
@@ -745,7 +778,7 @@ static int mwifiex_ret_ibss_coalescing_status(struct mwifiex_private *priv,
 		"info: new BSSID %pM\n", ibss_coal_resp->bssid);
 
 	/* If rsp has NULL BSSID, Just return..... No Action */
-	if (!memcmp(ibss_coal_resp->bssid, zero_mac, ETH_ALEN)) {
+	if (is_zero_ether_addr(ibss_coal_resp->bssid)) {
 		dev_warn(priv->adapter->dev, "new BSSID is NULL\n");
 		return 0;
 	}
@@ -775,8 +808,7 @@ static int mwifiex_ret_ibss_coalescing_status(struct mwifiex_private *priv,
  * This function handles the command response for subscribe event command.
  */
 static int mwifiex_ret_subsc_evt(struct mwifiex_private *priv,
-				 struct host_cmd_ds_command *resp,
-				 struct mwifiex_ds_misc_subsc_evt *sub_event)
+				 struct host_cmd_ds_command *resp)
 {
 	struct host_cmd_ds_802_11_subsc_evt *cmd_sub_event =
 		&resp->params.subsc_evt;
@@ -785,10 +817,6 @@ static int mwifiex_ret_subsc_evt(struct mwifiex_private *priv,
 	 * current set of subscribed events*/
 	dev_dbg(priv->adapter->dev, "Bitmap of currently subscribed events: %16x\n",
 		le16_to_cpu(cmd_sub_event->events));
-
-	/*Return the subscribed event info for a Get request*/
-	if (sub_event)
-		sub_event->events = le16_to_cpu(cmd_sub_event->events);
 
 	return 0;
 }
@@ -879,6 +907,13 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 	case HostCmd_CMD_VERSION_EXT:
 		ret = mwifiex_ret_ver_ext(priv, resp, data_buf);
 		break;
+	case HostCmd_CMD_REMAIN_ON_CHAN:
+		ret = mwifiex_ret_remain_on_chan(priv, resp, data_buf);
+		break;
+	case HostCmd_CMD_P2P_MODE_CFG:
+		ret = mwifiex_ret_p2p_mode_cfg(priv, resp, data_buf);
+		break;
+	case HostCmd_CMD_MGMT_FRAME_REG:
 	case HostCmd_CMD_FUNC_INIT:
 	case HostCmd_CMD_FUNC_SHUTDOWN:
 		break;
@@ -913,7 +948,6 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 				le16_to_cpu(resp->params.tx_buf.mp_end_port));
 		break;
 	case HostCmd_CMD_AMSDU_AGGR_CTRL:
-		ret = mwifiex_ret_amsdu_aggr_ctrl(resp, data_buf);
 		break;
 	case HostCmd_CMD_WMM_GET_STATUS:
 		ret = mwifiex_ret_wmm_get_status(priv, resp);
@@ -932,12 +966,11 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 	case HostCmd_CMD_SET_BSS_MODE:
 		break;
 	case HostCmd_CMD_11N_CFG:
-		ret = mwifiex_ret_11n_cfg(resp, data_buf);
 		break;
 	case HostCmd_CMD_PCIE_DESC_DETAILS:
 		break;
 	case HostCmd_CMD_802_11_SUBSCRIBE_EVENT:
-		ret = mwifiex_ret_subsc_evt(priv, resp, data_buf);
+		ret = mwifiex_ret_subsc_evt(priv, resp);
 		break;
 	case HostCmd_CMD_UAP_SYS_CONFIG:
 		break;

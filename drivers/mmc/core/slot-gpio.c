@@ -100,7 +100,13 @@ int mmc_gpio_request_ro(struct mmc_host *host, unsigned int gpio)
 
 	ctx = host->slot.handler_priv;
 
-	return gpio_request_one(gpio, GPIOF_DIR_IN, ctx->ro_label);
+	ret = gpio_request_one(gpio, GPIOF_DIR_IN, ctx->ro_label);
+	if (ret < 0)
+		return ret;
+
+	ctx->ro_gpio = gpio;
+
+	return 0;
 }
 EXPORT_SYMBOL(mmc_gpio_request_ro);
 

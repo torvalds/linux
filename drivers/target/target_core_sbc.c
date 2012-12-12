@@ -40,16 +40,15 @@
 static int sbc_emulate_readcapacity(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
-	unsigned char *buf;
 	unsigned long long blocks_long = dev->transport->get_blocks(dev);
+	unsigned char *rbuf;
+	unsigned char buf[8];
 	u32 blocks;
 
 	if (blocks_long >= 0x00000000ffffffff)
 		blocks = 0xffffffff;
 	else
 		blocks = (u32)blocks_long;
-
-	buf = transport_kmap_data_sg(cmd);
 
 	buf[0] = (blocks >> 24) & 0xff;
 	buf[1] = (blocks >> 16) & 0xff;
@@ -60,7 +59,11 @@ static int sbc_emulate_readcapacity(struct se_cmd *cmd)
 	buf[6] = (dev->se_sub_dev->se_dev_attrib.block_size >> 8) & 0xff;
 	buf[7] = dev->se_sub_dev->se_dev_attrib.block_size & 0xff;
 
-	transport_kunmap_data_sg(cmd);
+	rbuf = transport_kmap_data_sg(cmd);
+	if (rbuf) {
+		memcpy(rbuf, buf, min_t(u32, sizeof(buf), cmd->data_length));
+		transport_kunmap_data_sg(cmd);
+	}
 
 	target_complete_cmd(cmd, GOOD);
 	return 0;
@@ -69,11 +72,11 @@ static int sbc_emulate_readcapacity(struct se_cmd *cmd)
 static int sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
-	unsigned char *buf;
+	unsigned char *rbuf;
+	unsigned char buf[32];
 	unsigned long long blocks = dev->transport->get_blocks(dev);
 
-	buf = transport_kmap_data_sg(cmd);
-
+	memset(buf, 0, sizeof(buf));
 	buf[0] = (blocks >> 56) & 0xff;
 	buf[1] = (blocks >> 48) & 0xff;
 	buf[2] = (blocks >> 40) & 0xff;
@@ -93,7 +96,11 @@ static int sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 	if (dev->se_sub_dev->se_dev_attrib.emulate_tpu || dev->se_sub_dev->se_dev_attrib.emulate_tpws)
 		buf[14] = 0x80;
 
-	transport_kunmap_data_sg(cmd);
+	rbuf = transport_kmap_data_sg(cmd);
+	if (rbuf) {
+		memcpy(rbuf, buf, min_t(u32, sizeof(buf), cmd->data_length));
+		transport_kunmap_data_sg(cmd);
+	}
 
 	target_complete_cmd(cmd, GOOD);
 	return 0;
@@ -123,6 +130,12 @@ int spc_get_write_same_sectors(struct se_cmd *cmd)
 EXPORT_SYMBOL(spc_get_write_same_sectors);
 
 static int sbc_emulate_verify(struct se_cmd *cmd)
+{
+	target_complete_cmd(cmd, GOOD);
+	return 0;
+}
+
+static int sbc_emulate_noop(struct se_cmd *cmd)
 {
 	target_complete_cmd(cmd, GOOD);
 	return 0;
@@ -523,6 +536,18 @@ int sbc_parse_cdb(struct se_cmd *cmd, struct spc_ops *ops)
 	case VERIFY:
 		size = 0;
 		cmd->execute_cmd = sbc_emulate_verify;
+		break;
+	case REZERO_UNIT:
+	case SEEK_6:
+	case SEEK_10:
+		/*
+		 * There are still clients out there which use these old SCSI-2
+		 * commands. This mainly happens when running VMs with legacy
+		 * guest systems, connected via SCSI command pass-through to
+		 * iSCSI targets. Make them happy and return status GOOD.
+		 */
+		size = 0;
+		cmd->execute_cmd = sbc_emulate_noop;
 		break;
 	default:
 		ret = spc_parse_cdb(cmd, &size);

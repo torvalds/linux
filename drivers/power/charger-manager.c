@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/power/charger-manager.h>
 #include <linux/regulator/consumer.h>
+#include <linux/sysfs.h>
 
 static const char * const default_event_names[] = {
 	[CM_EVENT_UNKNOWN] = "Unknown",
@@ -227,6 +228,58 @@ static bool is_charging(struct charger_manager *cm)
 }
 
 /**
+ * is_full_charged - Returns true if the battery is fully charged.
+ * @cm: the Charger Manager representing the battery.
+ */
+static bool is_full_charged(struct charger_manager *cm)
+{
+	struct charger_desc *desc = cm->desc;
+	union power_supply_propval val;
+	int ret = 0;
+	int uV;
+
+	/* If there is no battery, it cannot be charged */
+	if (!is_batt_present(cm)) {
+		val.intval = 0;
+		goto out;
+	}
+
+	if (cm->fuel_gauge && desc->fullbatt_full_capacity > 0) {
+		/* Not full if capacity of fuel gauge isn't full */
+		ret = cm->fuel_gauge->get_property(cm->fuel_gauge,
+				POWER_SUPPLY_PROP_CHARGE_FULL, &val);
+		if (!ret && val.intval > desc->fullbatt_full_capacity) {
+			val.intval = 1;
+			goto out;
+		}
+	}
+
+	/* Full, if it's over the fullbatt voltage */
+	if (desc->fullbatt_uV > 0) {
+		ret = get_batt_uV(cm, &uV);
+		if (!ret && uV >= desc->fullbatt_uV) {
+			val.intval = 1;
+			goto out;
+		}
+	}
+
+	/* Full, if the capacity is more than fullbatt_soc */
+	if (cm->fuel_gauge && desc->fullbatt_soc > 0) {
+		ret = cm->fuel_gauge->get_property(cm->fuel_gauge,
+				POWER_SUPPLY_PROP_CAPACITY, &val);
+		if (!ret && val.intval >= desc->fullbatt_soc) {
+			val.intval = 1;
+			goto out;
+		}
+	}
+
+	val.intval = 0;
+
+out:
+	return val.intval ? true : false;
+}
+
+/**
  * is_polling_required - Return true if need to continue polling for this CM.
  * @cm: the Charger Manager representing the battery.
  */
@@ -271,9 +324,45 @@ static int try_charger_enable(struct charger_manager *cm, bool enable)
 	if (enable) {
 		if (cm->emergency_stop)
 			return -EAGAIN;
-		for (i = 0 ; i < desc->num_charger_regulators ; i++)
-			regulator_enable(desc->charger_regulators[i].consumer);
+
+		/*
+		 * Save start time of charging to limit
+		 * maximum possible charging time.
+		 */
+		cm->charging_start_time = ktime_to_ms(ktime_get());
+		cm->charging_end_time = 0;
+
+		for (i = 0 ; i < desc->num_charger_regulators ; i++) {
+			if (desc->charger_regulators[i].externally_control)
+				continue;
+
+			err = regulator_enable(desc->charger_regulators[i].consumer);
+			if (err < 0) {
+				dev_warn(cm->dev,
+					"Cannot enable %s regulator\n",
+					desc->charger_regulators[i].regulator_name);
+			}
+		}
 	} else {
+		/*
+		 * Save end time of charging to maintain fully charged state
+		 * of battery after full-batt.
+		 */
+		cm->charging_start_time = 0;
+		cm->charging_end_time = ktime_to_ms(ktime_get());
+
+		for (i = 0 ; i < desc->num_charger_regulators ; i++) {
+			if (desc->charger_regulators[i].externally_control)
+				continue;
+
+			err = regulator_disable(desc->charger_regulators[i].consumer);
+			if (err < 0) {
+				dev_warn(cm->dev,
+					"Cannot disable %s regulator\n",
+					desc->charger_regulators[i].regulator_name);
+			}
+		}
+
 		/*
 		 * Abnormal battery state - Stop charging forcibly,
 		 * even if charger was enabled at the other places
@@ -400,15 +489,62 @@ static void fullbatt_vchk(struct work_struct *work)
 		return;
 	}
 
-	diff = cm->fullbatt_vchk_uV;
+	diff = desc->fullbatt_uV;
 	diff -= batt_uV;
 
-	dev_dbg(cm->dev, "VBATT dropped %duV after full-batt.\n", diff);
+	dev_info(cm->dev, "VBATT dropped %duV after full-batt.\n", diff);
 
 	if (diff > desc->fullbatt_vchkdrop_uV) {
 		try_charger_restart(cm);
-		uevent_notify(cm, "Recharge");
+		uevent_notify(cm, "Recharging");
 	}
+}
+
+/**
+ * check_charging_duration - Monitor charging/discharging duration
+ * @cm: the Charger Manager representing the battery.
+ *
+ * If whole charging duration exceed 'charging_max_duration_ms',
+ * cm stop charging to prevent overcharge/overheat. If discharging
+ * duration exceed 'discharging _max_duration_ms', charger cable is
+ * attached, after full-batt, cm start charging to maintain fully
+ * charged state for battery.
+ */
+static int check_charging_duration(struct charger_manager *cm)
+{
+	struct charger_desc *desc = cm->desc;
+	u64 curr = ktime_to_ms(ktime_get());
+	u64 duration;
+	int ret = false;
+
+	if (!desc->charging_max_duration_ms &&
+			!desc->discharging_max_duration_ms)
+		return ret;
+
+	if (cm->charger_enabled) {
+		duration = curr - cm->charging_start_time;
+
+		if (duration > desc->charging_max_duration_ms) {
+			dev_info(cm->dev, "Charging duration exceed %lldms",
+				 desc->charging_max_duration_ms);
+			uevent_notify(cm, "Discharging");
+			try_charger_enable(cm, false);
+			ret = true;
+		}
+	} else if (is_ext_pwr_online(cm) && !cm->charger_enabled) {
+		duration = curr - cm->charging_end_time;
+
+		if (duration > desc->charging_max_duration_ms &&
+				is_ext_pwr_online(cm)) {
+			dev_info(cm->dev, "DisCharging duration exceed %lldms",
+				 desc->discharging_max_duration_ms);
+			uevent_notify(cm, "Recharing");
+			try_charger_enable(cm, true);
+			ret = true;
+		}
+	}
+
+	return ret;
 }
 
 /**
@@ -426,10 +562,14 @@ static bool _cm_monitor(struct charger_manager *cm)
 	dev_dbg(cm->dev, "monitoring (%2.2d.%3.3dC)\n",
 		cm->last_temp_mC / 1000, cm->last_temp_mC % 1000);
 
-	/* It has been stopped or charging already */
-	if (!!temp == !!cm->emergency_stop)
+	/* It has been stopped already */
+	if (temp && cm->emergency_stop)
 		return false;
 
+	/*
+	 * Check temperature whether overheat or cold.
+	 * If temperature is out of range normal state, stop charging.
+	 */
 	if (temp) {
 		cm->emergency_stop = temp;
 		if (!try_charger_enable(cm, false)) {
@@ -438,10 +578,41 @@ static bool _cm_monitor(struct charger_manager *cm)
 			else
 				uevent_notify(cm, "COLD");
 		}
+
+	/*
+	 * Check whole charging duration and discharing duration
+	 * after full-batt.
+	 */
+	} else if (!cm->emergency_stop && check_charging_duration(cm)) {
+		dev_dbg(cm->dev,
+			"Charging/Discharging duration is out of range");
+	/*
+	 * Check dropped voltage of battery. If battery voltage is more
+	 * dropped than fullbatt_vchkdrop_uV after fully charged state,
+	 * charger-manager have to recharge battery.
+	 */
+	} else if (!cm->emergency_stop && is_ext_pwr_online(cm) &&
+			!cm->charger_enabled) {
+		fullbatt_vchk(&cm->fullbatt_vchk_work.work);
+
+	/*
+	 * Check whether fully charged state to protect overcharge
+	 * if charger-manager is charging for battery.
+	 */
+	} else if (!cm->emergency_stop && is_full_charged(cm) &&
+			cm->charger_enabled) {
+		dev_info(cm->dev, "EVENT_HANDLE: Battery Fully Charged.\n");
+		uevent_notify(cm, default_event_names[CM_EVENT_BATT_FULL]);
+
+		try_charger_enable(cm, false);
+
+		fullbatt_vchk(&cm->fullbatt_vchk_work.work);
 	} else {
 		cm->emergency_stop = 0;
-		if (!try_charger_enable(cm, true))
-			uevent_notify(cm, "CHARGING");
+		if (is_ext_pwr_online(cm)) {
+			if (!try_charger_enable(cm, true))
+				uevent_notify(cm, "CHARGING");
+		}
 	}
 
 	return true;
@@ -509,9 +680,8 @@ static void _setup_polling(struct work_struct *work)
 	if (!delayed_work_pending(&cm_monitor_work) ||
 	    (delayed_work_pending(&cm_monitor_work) &&
 	     time_after(next_polling, _next_polling))) {
-		cancel_delayed_work_sync(&cm_monitor_work);
 		next_polling = jiffies + polling_jiffy;
-		queue_delayed_work(cm_wq, &cm_monitor_work, polling_jiffy);
+		mod_delayed_work(cm_wq, &cm_monitor_work, polling_jiffy);
 	}
 
 out:
@@ -546,10 +716,8 @@ static void fullbatt_handler(struct charger_manager *cm)
 	if (cm_suspended)
 		device_set_wakeup_capable(cm->dev, true);
 
-	if (delayed_work_pending(&cm->fullbatt_vchk_work))
-		cancel_delayed_work(&cm->fullbatt_vchk_work);
-	queue_delayed_work(cm_wq, &cm->fullbatt_vchk_work,
-			   msecs_to_jiffies(desc->fullbatt_vchkdrop_ms));
+	mod_delayed_work(cm_wq, &cm->fullbatt_vchk_work,
+			 msecs_to_jiffies(desc->fullbatt_vchkdrop_ms));
 	cm->fullbatt_vchk_jiffies_at = jiffies + msecs_to_jiffies(
 				       desc->fullbatt_vchkdrop_ms);
 
@@ -704,47 +872,10 @@ static int charger_get_property(struct power_supply *psy,
 			val->intval = 0;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
-		if (cm->fuel_gauge) {
-			if (cm->fuel_gauge->get_property(cm->fuel_gauge,
-			    POWER_SUPPLY_PROP_CHARGE_FULL, val) == 0)
-				break;
-		}
-
-		if (is_ext_pwr_online(cm)) {
-			/* Not full if it's charging. */
-			if (is_charging(cm)) {
-				val->intval = 0;
-				break;
-			}
-			/*
-			 * Full if it's powered but not charging andi
-			 * not forced stop by emergency
-			 */
-			if (!cm->emergency_stop) {
-				val->intval = 1;
-				break;
-			}
-		}
-
-		/* Full if it's over the fullbatt voltage */
-		ret = get_batt_uV(cm, &uV);
-		if (!ret && desc->fullbatt_uV > 0 && uV >= desc->fullbatt_uV &&
-		    !is_charging(cm)) {
+		if (is_full_charged(cm))
 			val->intval = 1;
-			break;
-		}
-
-		/* Full if the cap is 100 */
-		if (cm->fuel_gauge) {
-			ret = cm->fuel_gauge->get_property(cm->fuel_gauge,
-					POWER_SUPPLY_PROP_CAPACITY, val);
-			if (!ret && val->intval >= 100 && !is_charging(cm)) {
-				val->intval = 1;
-				break;
-			}
-		}
-
-		val->intval = 0;
+		else
+			val->intval = 0;
 		ret = 0;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
@@ -1034,7 +1165,26 @@ static int charger_extcon_notifier(struct notifier_block *self,
 	struct charger_cable *cable =
 		container_of(self, struct charger_cable, nb);
 
+	/*
+	 * The newly state of charger cable.
+	 * If cable is attached, cable->attached is true.
+	 */
 	cable->attached = event;
+
+	/*
+	 * Setup monitoring to check battery state
+	 * when charger cable is attached.
+	 */
+	if (cable->attached && is_polling_required(cable->cm)) {
+		if (work_pending(&setup_polling))
+			cancel_work_sync(&setup_polling);
+		schedule_work(&setup_polling);
+	}
+
+	/*
+	 * Setup work for controlling charger(regulator)
+	 * according to charger cable.
+	 */
 	schedule_work(&cable->wq);
 
 	return NOTIFY_DONE;
@@ -1071,12 +1221,101 @@ static int charger_extcon_init(struct charger_manager *cm,
 	return ret;
 }
 
+/* help function of sysfs node to control charger(regulator) */
+static ssize_t charger_name_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct charger_regulator *charger
+		= container_of(attr, struct charger_regulator, attr_name);
+
+	return sprintf(buf, "%s\n", charger->regulator_name);
+}
+
+static ssize_t charger_state_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct charger_regulator *charger
+		= container_of(attr, struct charger_regulator, attr_state);
+	int state = 0;
+
+	if (!charger->externally_control)
+		state = regulator_is_enabled(charger->consumer);
+
+	return sprintf(buf, "%s\n", state ? "enabled" : "disabled");
+}
+
+static ssize_t charger_externally_control_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct charger_regulator *charger = container_of(attr,
+			struct charger_regulator, attr_externally_control);
+
+	return sprintf(buf, "%d\n", charger->externally_control);
+}
+
+static ssize_t charger_externally_control_store(struct device *dev,
+				struct device_attribute *attr, const char *buf,
+				size_t count)
+{
+	struct charger_regulator *charger
+		= container_of(attr, struct charger_regulator,
+					attr_externally_control);
+	struct charger_manager *cm = charger->cm;
+	struct charger_desc *desc = cm->desc;
+	int i;
+	int ret;
+	int externally_control;
+	int chargers_externally_control = 1;
+
+	ret = sscanf(buf, "%d", &externally_control);
+	if (ret == 0) {
+		ret = -EINVAL;
+		return ret;
+	}
+
+	if (!externally_control) {
+		charger->externally_control = 0;
+		return count;
+	}
+
+	for (i = 0; i < desc->num_charger_regulators; i++) {
+		if (&desc->charger_regulators[i] != charger &&
+			      !desc->charger_regulators[i].externally_control) {
+			/*
+			 * At least, one charger is controlled by
+			 * charger-manager
+			 */
+			chargers_externally_control = 0;
+			break;
+		}
+	}
+
+	if (!chargers_externally_control) {
+		if (cm->charger_enabled) {
+			try_charger_enable(charger->cm, false);
+			charger->externally_control = externally_control;
+			try_charger_enable(charger->cm, true);
+		} else {
+			charger->externally_control = externally_control;
+		}
+	} else {
+		dev_warn(cm->dev,
+			"'%s' regulator should be controlled "
+			"in charger-manager because charger-manager "
+			"must need at least one charger for charging\n",
+			charger->regulator_name);
+	}
+
+	return count;
+}
+
 static int charger_manager_probe(struct platform_device *pdev)
 {
 	struct charger_desc *desc = dev_get_platdata(&pdev->dev);
 	struct charger_manager *cm;
 	int ret = 0, i = 0;
 	int j = 0;
+	int chargers_externally_control = 1;
 	union power_supply_propval val;
 
 	if (g_desc && !rtc_dev && g_desc->rtc_name) {
@@ -1127,6 +1366,15 @@ static int charger_manager_probe(struct platform_device *pdev)
 				"checking mechanism as it is not supplied.");
 		desc->fullbatt_vchkdrop_ms = 0;
 		desc->fullbatt_vchkdrop_uV = 0;
+	}
+	if (desc->fullbatt_soc == 0) {
+		dev_info(&pdev->dev, "Ignoring full-battery soc(state of"
+					" charge) threshold as it is not"
+					" supplied.");
+	}
+	if (desc->fullbatt_full_capacity == 0) {
+		dev_info(&pdev->dev, "Ignoring full-battery full capacity"
+					" threshold as it is not supplied.");
 	}
 
 	if (!desc->charger_regulators || desc->num_charger_regulators < 1) {
@@ -1183,6 +1431,15 @@ static int charger_manager_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "there is no temperature_out_of_range\n");
 		ret = -EINVAL;
 		goto err_chg_stat;
+	}
+
+	if (!desc->charging_max_duration_ms ||
+			!desc->discharging_max_duration_ms) {
+		dev_info(&pdev->dev, "Cannot limit charging duration "
+			 "checking mechanism to prevent overcharge/overheat "
+			 "and control discharging duration");
+		desc->charging_max_duration_ms = 0;
+		desc->discharging_max_duration_ms = 0;
 	}
 
 	platform_set_drvdata(pdev, cm);
@@ -1248,6 +1505,8 @@ static int charger_manager_probe(struct platform_device *pdev)
 	for (i = 0 ; i < desc->num_charger_regulators ; i++) {
 		struct charger_regulator *charger
 					= &desc->charger_regulators[i];
+		char buf[11];
+		char *str;
 
 		charger->consumer = regulator_get(&pdev->dev,
 					charger->regulator_name);
@@ -1257,6 +1516,7 @@ static int charger_manager_probe(struct platform_device *pdev)
 			ret = -EINVAL;
 			goto err_chg_get;
 		}
+		charger->cm = cm;
 
 		for (j = 0 ; j < charger->num_cables ; j++) {
 			struct charger_cable *cable = &charger->cables[j];
@@ -1270,6 +1530,71 @@ static int charger_manager_probe(struct platform_device *pdev)
 			cable->charger = charger;
 			cable->cm = cm;
 		}
+
+		/* Create sysfs entry to control charger(regulator) */
+		snprintf(buf, 10, "charger.%d", i);
+		str = kzalloc(sizeof(char) * (strlen(buf) + 1), GFP_KERNEL);
+		if (!str) {
+			for (i--; i >= 0; i--) {
+				charger = &desc->charger_regulators[i];
+				kfree(charger->attr_g.name);
+			}
+			ret = -ENOMEM;
+
+			goto err_extcon;
+		}
+		strcpy(str, buf);
+
+		charger->attrs[0] = &charger->attr_name.attr;
+		charger->attrs[1] = &charger->attr_state.attr;
+		charger->attrs[2] = &charger->attr_externally_control.attr;
+		charger->attrs[3] = NULL;
+		charger->attr_g.name = str;
+		charger->attr_g.attrs = charger->attrs;
+
+		sysfs_attr_init(&charger->attr_name.attr);
+		charger->attr_name.attr.name = "name";
+		charger->attr_name.attr.mode = 0444;
+		charger->attr_name.show = charger_name_show;
+
+		sysfs_attr_init(&charger->attr_state.attr);
+		charger->attr_state.attr.name = "state";
+		charger->attr_state.attr.mode = 0444;
+		charger->attr_state.show = charger_state_show;
+
+		sysfs_attr_init(&charger->attr_externally_control.attr);
+		charger->attr_externally_control.attr.name
+				= "externally_control";
+		charger->attr_externally_control.attr.mode = 0644;
+		charger->attr_externally_control.show
+				= charger_externally_control_show;
+		charger->attr_externally_control.store
+				= charger_externally_control_store;
+
+		if (!desc->charger_regulators[i].externally_control ||
+				!chargers_externally_control) {
+			chargers_externally_control = 0;
+		}
+		dev_info(&pdev->dev, "'%s' regulator's externally_control"
+				"is %d\n", charger->regulator_name,
+				charger->externally_control);
+
+		ret = sysfs_create_group(&cm->charger_psy.dev->kobj,
+				&charger->attr_g);
+		if (ret < 0) {
+			dev_info(&pdev->dev, "Cannot create sysfs entry"
+					"of %s regulator\n",
+					charger->regulator_name);
+		}
+	}
+
+	if (chargers_externally_control) {
+		dev_err(&pdev->dev, "Cannot register regulator because "
+				"charger-manager must need at least "
+				"one charger for charging battery\n");
+
+		ret = -EINVAL;
+		goto err_chg_enable;
 	}
 
 	ret = try_charger_enable(cm, true);
@@ -1295,6 +1620,14 @@ static int charger_manager_probe(struct platform_device *pdev)
 	return 0;
 
 err_chg_enable:
+	for (i = 0; i < desc->num_charger_regulators; i++) {
+		struct charger_regulator *charger;
+
+		charger = &desc->charger_regulators[i];
+		sysfs_remove_group(&cm->charger_psy.dev->kobj,
+				&charger->attr_g);
+		kfree(charger->attr_g.name);
+	}
 err_extcon:
 	for (i = 0 ; i < desc->num_charger_regulators ; i++) {
 		struct charger_regulator *charger

@@ -13,7 +13,7 @@
 #include <wait.h>
 #include <sys/mman.h>
 #include <sys/utsname.h>
-#include "os.h"
+#include <os.h>
 
 void stack_protections(unsigned long address)
 {

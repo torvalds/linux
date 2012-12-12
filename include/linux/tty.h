@@ -1,41 +1,6 @@
 #ifndef _LINUX_TTY_H
 #define _LINUX_TTY_H
 
-/*
- * 'tty.h' defines some structures used by tty_io.c and some defines.
- */
-
-#define NR_LDISCS		30
-
-/* line disciplines */
-#define N_TTY		0
-#define N_SLIP		1
-#define N_MOUSE		2
-#define N_PPP		3
-#define N_STRIP		4
-#define N_AX25		5
-#define N_X25		6	/* X.25 async */
-#define N_6PACK		7
-#define N_MASC		8	/* Reserved for Mobitex module <kaz@cafe.net> */
-#define N_R3964		9	/* Reserved for Simatic R3964 module */
-#define N_PROFIBUS_FDL	10	/* Reserved for Profibus */
-#define N_IRDA		11	/* Linux IrDa - http://irda.sourceforge.net/ */
-#define N_SMSBLOCK	12	/* SMS block mode - for talking to GSM data */
-				/* cards about SMS messages */
-#define N_HDLC		13	/* synchronous HDLC */
-#define N_SYNC_PPP	14	/* synchronous PPP */
-#define N_HCI		15	/* Bluetooth HCI UART */
-#define N_GIGASET_M101	16	/* Siemens Gigaset M101 serial DECT adapter */
-#define N_SLCAN		17	/* Serial / USB serial CAN Adaptors */
-#define N_PPS		18	/* Pulse per Second */
-#define N_V253		19	/* Codec control over voice modem */
-#define N_CAIF		20      /* CAIF protocol for talking to modems */
-#define N_GSM0710	21	/* GSM 0710 Mux */
-#define N_TI_WL		22	/* for TI's WL BT, FM, GPS combo chips */
-#define N_TRACESINK	23	/* Trace data routing for MIPI P1149.7 */
-#define N_TRACEROUTER	24	/* Trace data routing for MIPI P1149.7 */
-
-#ifdef __KERNEL__
 #include <linux/fs.h>
 #include <linux/major.h>
 #include <linux/termios.h>
@@ -43,6 +8,8 @@
 #include <linux/tty_driver.h>
 #include <linux/tty_ldisc.h>
 #include <linux/mutex.h>
+#include <linux/tty_flags.h>
+#include <uapi/linux/tty.h>
 
 
 
@@ -103,28 +70,28 @@ struct tty_bufhead {
 #define TTY_PARITY	3
 #define TTY_OVERRUN	4
 
-#define INTR_CHAR(tty) ((tty)->termios->c_cc[VINTR])
-#define QUIT_CHAR(tty) ((tty)->termios->c_cc[VQUIT])
-#define ERASE_CHAR(tty) ((tty)->termios->c_cc[VERASE])
-#define KILL_CHAR(tty) ((tty)->termios->c_cc[VKILL])
-#define EOF_CHAR(tty) ((tty)->termios->c_cc[VEOF])
-#define TIME_CHAR(tty) ((tty)->termios->c_cc[VTIME])
-#define MIN_CHAR(tty) ((tty)->termios->c_cc[VMIN])
-#define SWTC_CHAR(tty) ((tty)->termios->c_cc[VSWTC])
-#define START_CHAR(tty) ((tty)->termios->c_cc[VSTART])
-#define STOP_CHAR(tty) ((tty)->termios->c_cc[VSTOP])
-#define SUSP_CHAR(tty) ((tty)->termios->c_cc[VSUSP])
-#define EOL_CHAR(tty) ((tty)->termios->c_cc[VEOL])
-#define REPRINT_CHAR(tty) ((tty)->termios->c_cc[VREPRINT])
-#define DISCARD_CHAR(tty) ((tty)->termios->c_cc[VDISCARD])
-#define WERASE_CHAR(tty) ((tty)->termios->c_cc[VWERASE])
-#define LNEXT_CHAR(tty)	((tty)->termios->c_cc[VLNEXT])
-#define EOL2_CHAR(tty) ((tty)->termios->c_cc[VEOL2])
+#define INTR_CHAR(tty) ((tty)->termios.c_cc[VINTR])
+#define QUIT_CHAR(tty) ((tty)->termios.c_cc[VQUIT])
+#define ERASE_CHAR(tty) ((tty)->termios.c_cc[VERASE])
+#define KILL_CHAR(tty) ((tty)->termios.c_cc[VKILL])
+#define EOF_CHAR(tty) ((tty)->termios.c_cc[VEOF])
+#define TIME_CHAR(tty) ((tty)->termios.c_cc[VTIME])
+#define MIN_CHAR(tty) ((tty)->termios.c_cc[VMIN])
+#define SWTC_CHAR(tty) ((tty)->termios.c_cc[VSWTC])
+#define START_CHAR(tty) ((tty)->termios.c_cc[VSTART])
+#define STOP_CHAR(tty) ((tty)->termios.c_cc[VSTOP])
+#define SUSP_CHAR(tty) ((tty)->termios.c_cc[VSUSP])
+#define EOL_CHAR(tty) ((tty)->termios.c_cc[VEOL])
+#define REPRINT_CHAR(tty) ((tty)->termios.c_cc[VREPRINT])
+#define DISCARD_CHAR(tty) ((tty)->termios.c_cc[VDISCARD])
+#define WERASE_CHAR(tty) ((tty)->termios.c_cc[VWERASE])
+#define LNEXT_CHAR(tty)	((tty)->termios.c_cc[VLNEXT])
+#define EOL2_CHAR(tty) ((tty)->termios.c_cc[VEOL2])
 
-#define _I_FLAG(tty, f)	((tty)->termios->c_iflag & (f))
-#define _O_FLAG(tty, f)	((tty)->termios->c_oflag & (f))
-#define _C_FLAG(tty, f)	((tty)->termios->c_cflag & (f))
-#define _L_FLAG(tty, f)	((tty)->termios->c_lflag & (f))
+#define _I_FLAG(tty, f)	((tty)->termios.c_iflag & (f))
+#define _O_FLAG(tty, f)	((tty)->termios.c_oflag & (f))
+#define _C_FLAG(tty, f)	((tty)->termios.c_cflag & (f))
+#define _L_FLAG(tty, f)	((tty)->termios.c_lflag & (f))
 
 #define I_IGNBRK(tty)	_I_FLAG((tty), IGNBRK)
 #define I_BRKINT(tty)	_I_FLAG((tty), BRKINT)
@@ -268,10 +235,11 @@ struct tty_struct {
 	struct mutex ldisc_mutex;
 	struct tty_ldisc *ldisc;
 
+	struct mutex legacy_mutex;
 	struct mutex termios_mutex;
 	spinlock_t ctrl_lock;
 	/* Termios values are protected by the termios mutex */
-	struct ktermios *termios, *termios_locked;
+	struct ktermios termios, termios_locked;
 	struct termiox *termiox;	/* May be NULL for unsupported */
 	char name[64];
 	struct pid *pgrp;		/* Protected by ctrl lock */
@@ -410,6 +378,10 @@ extern int tty_register_driver(struct tty_driver *driver);
 extern int tty_unregister_driver(struct tty_driver *driver);
 extern struct device *tty_register_device(struct tty_driver *driver,
 					  unsigned index, struct device *dev);
+extern struct device *tty_register_device_attr(struct tty_driver *driver,
+				unsigned index, struct device *device,
+				void *drvdata,
+				const struct attribute_group **attr_grp);
 extern void tty_unregister_device(struct tty_driver *driver, unsigned index);
 extern int tty_read_raw_data(struct tty_struct *tty, unsigned char *bufp,
 			     int buflen);
@@ -423,7 +395,6 @@ extern void tty_unthrottle(struct tty_struct *tty);
 extern int tty_do_resize(struct tty_struct *tty, struct winsize *ws);
 extern void tty_driver_remove_tty(struct tty_driver *driver,
 				  struct tty_struct *tty);
-extern void tty_shutdown(struct tty_struct *tty);
 extern void tty_free_termios(struct tty_struct *tty);
 extern int is_current_pgrp_orphaned(void);
 extern struct pid *tty_get_pgrp(struct tty_struct *tty);
@@ -497,6 +468,15 @@ extern int tty_write_lock(struct tty_struct *tty, int ndelay);
 #define tty_is_writelocked(tty)  (mutex_is_locked(&tty->atomic_write_lock))
 
 extern void tty_port_init(struct tty_port *port);
+extern void tty_port_link_device(struct tty_port *port,
+		struct tty_driver *driver, unsigned index);
+extern struct device *tty_port_register_device(struct tty_port *port,
+		struct tty_driver *driver, unsigned index,
+		struct device *device);
+extern struct device *tty_port_register_device_attr(struct tty_port *port,
+		struct tty_driver *driver, unsigned index,
+		struct device *device, void *drvdata,
+		const struct attribute_group **attr_grp);
 extern int tty_port_alloc_xmit_buf(struct tty_port *port);
 extern void tty_port_free_xmit_buf(struct tty_port *port);
 extern void tty_port_put(struct tty_port *port);
@@ -506,6 +486,12 @@ static inline struct tty_port *tty_port_get(struct tty_port *port)
 	if (port)
 		kref_get(&port->kref);
 	return port;
+}
+
+/* If the cts flow control is enabled, return true. */
+static inline bool tty_port_cts_enabled(struct tty_port *port)
+{
+	return port->flags & ASYNC_CTS_FLOW;
 }
 
 extern struct tty_struct *tty_port_tty_get(struct tty_port *port);
@@ -521,6 +507,8 @@ extern int tty_port_close_start(struct tty_port *port,
 extern void tty_port_close_end(struct tty_port *port, struct tty_struct *tty);
 extern void tty_port_close(struct tty_port *port,
 				struct tty_struct *tty, struct file *filp);
+extern int tty_port_install(struct tty_port *port, struct tty_driver *driver,
+				struct tty_struct *tty);
 extern int tty_port_open(struct tty_port *port,
 				struct tty_struct *tty, struct file *filp);
 static inline int tty_port_users(struct tty_port *port)
@@ -553,7 +541,7 @@ extern void tty_audit_fork(struct signal_struct *sig);
 extern void tty_audit_tiocsti(struct tty_struct *tty, char ch);
 extern void tty_audit_push(struct tty_struct *tty);
 extern int tty_audit_push_task(struct task_struct *tsk,
-			       uid_t loginuid, u32 sessionid);
+			       kuid_t loginuid, u32 sessionid);
 #else
 static inline void tty_audit_add_data(struct tty_struct *tty,
 				      unsigned char *data, size_t size)
@@ -572,7 +560,7 @@ static inline void tty_audit_push(struct tty_struct *tty)
 {
 }
 static inline int tty_audit_push_task(struct task_struct *tsk,
-				      uid_t loginuid, u32 sessionid)
+				      kuid_t loginuid, u32 sessionid)
 {
 	return 0;
 }
@@ -605,8 +593,12 @@ extern long vt_compat_ioctl(struct tty_struct *tty,
 
 /* tty_mutex.c */
 /* functions for preparation of BKL removal */
-extern void __lockfunc tty_lock(void) __acquires(tty_lock);
-extern void __lockfunc tty_unlock(void) __releases(tty_lock);
+extern void __lockfunc tty_lock(struct tty_struct *tty);
+extern void __lockfunc tty_unlock(struct tty_struct *tty);
+extern void __lockfunc tty_lock_pair(struct tty_struct *tty,
+				struct tty_struct *tty2);
+extern void __lockfunc tty_unlock_pair(struct tty_struct *tty,
+				struct tty_struct *tty2);
 
 /*
  * this shall be called only from where BTM is held (like close)
@@ -621,9 +613,9 @@ extern void __lockfunc tty_unlock(void) __releases(tty_lock);
 static inline void tty_wait_until_sent_from_close(struct tty_struct *tty,
 		long timeout)
 {
-	tty_unlock(); /* tty->ops->close holds the BTM, drop it while waiting */
+	tty_unlock(tty); /* tty->ops->close holds the BTM, drop it while waiting */
 	tty_wait_until_sent(tty, timeout);
-	tty_lock();
+	tty_lock(tty);
 }
 
 /*
@@ -638,16 +630,16 @@ static inline void tty_wait_until_sent_from_close(struct tty_struct *tty,
  *
  * Do not use in new code.
  */
-#define wait_event_interruptible_tty(wq, condition)			\
+#define wait_event_interruptible_tty(tty, wq, condition)		\
 ({									\
 	int __ret = 0;							\
 	if (!(condition)) {						\
-		__wait_event_interruptible_tty(wq, condition, __ret);	\
+		__wait_event_interruptible_tty(tty, wq, condition, __ret);	\
 	}								\
 	__ret;								\
 })
 
-#define __wait_event_interruptible_tty(wq, condition, ret)		\
+#define __wait_event_interruptible_tty(tty, wq, condition, ret)		\
 do {									\
 	DEFINE_WAIT(__wait);						\
 									\
@@ -656,9 +648,9 @@ do {									\
 		if (condition)						\
 			break;						\
 		if (!signal_pending(current)) {				\
-			tty_unlock();					\
+			tty_unlock(tty);					\
 			schedule();					\
-			tty_lock();					\
+			tty_lock(tty);					\
 			continue;					\
 		}							\
 		ret = -ERESTARTSYS;					\
@@ -668,5 +660,4 @@ do {									\
 } while (0)
 
 
-#endif /* __KERNEL__ */
 #endif

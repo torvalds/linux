@@ -30,23 +30,6 @@ enum help_format {
 	HELP_FORMAT_WEB,
 };
 
-static bool show_all = false;
-static enum help_format help_format = HELP_FORMAT_NONE;
-static struct option builtin_help_options[] = {
-	OPT_BOOLEAN('a', "all", &show_all, "print all available commands"),
-	OPT_SET_UINT('m', "man", &help_format, "show man page", HELP_FORMAT_MAN),
-	OPT_SET_UINT('w', "web", &help_format, "show manual in web browser",
-			HELP_FORMAT_WEB),
-	OPT_SET_UINT('i', "info", &help_format, "show info page",
-			HELP_FORMAT_INFO),
-	OPT_END(),
-};
-
-static const char * const builtin_help_usage[] = {
-	"perf help [--all] [--man|--web|--info] [command]",
-	NULL
-};
-
 static enum help_format parse_help_format(const char *format)
 {
 	if (!strcmp(format, "man"))
@@ -258,11 +241,13 @@ static int add_man_viewer_info(const char *var, const char *value)
 
 static int perf_help_config(const char *var, const char *value, void *cb)
 {
+	enum help_format *help_formatp = cb;
+
 	if (!strcmp(var, "help.format")) {
 		if (!value)
 			return config_error_nonbool(var);
-		help_format = parse_help_format(value);
-		if (help_format == HELP_FORMAT_NONE)
+		*help_formatp = parse_help_format(value);
+		if (*help_formatp == HELP_FORMAT_NONE)
 			return -1;
 		return 0;
 	}
@@ -428,12 +413,27 @@ static int show_html_page(const char *perf_cmd)
 
 int cmd_help(int argc, const char **argv, const char *prefix __maybe_unused)
 {
+	bool show_all = false;
+	enum help_format help_format = HELP_FORMAT_MAN;
+	struct option builtin_help_options[] = {
+	OPT_BOOLEAN('a', "all", &show_all, "print all available commands"),
+	OPT_SET_UINT('m', "man", &help_format, "show man page", HELP_FORMAT_MAN),
+	OPT_SET_UINT('w', "web", &help_format, "show manual in web browser",
+			HELP_FORMAT_WEB),
+	OPT_SET_UINT('i', "info", &help_format, "show info page",
+			HELP_FORMAT_INFO),
+	OPT_END(),
+	};
+	const char * const builtin_help_usage[] = {
+		"perf help [--all] [--man|--web|--info] [command]",
+		NULL
+	};
 	const char *alias;
 	int rc = 0;
 
 	load_command_list("perf-", &main_cmds, &other_cmds);
 
-	perf_config(perf_help_config, NULL);
+	perf_config(perf_help_config, &help_format);
 
 	argc = parse_options(argc, argv, builtin_help_options,
 			builtin_help_usage, 0);

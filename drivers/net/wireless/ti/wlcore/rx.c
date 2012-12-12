@@ -221,7 +221,7 @@ int wlcore_rx(struct wl1271 *wl, struct wl_fw_status_1 *status)
 			pkt_len = wlcore_rx_get_buf_size(wl, des);
 			align_pkt_len = wlcore_rx_get_align_buf_size(wl,
 								     pkt_len);
-			if (buf_size + align_pkt_len > WL1271_AGGR_BUFFER_SIZE)
+			if (buf_size + align_pkt_len > wl->aggr_buf_size)
 				break;
 			buf_size += align_pkt_len;
 			rx_counter++;

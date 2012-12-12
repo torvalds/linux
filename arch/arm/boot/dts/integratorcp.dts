@@ -1,0 +1,110 @@
+/*
+ * Device Tree for the ARM Integrator/CP platform
+ */
+
+/dts-v1/;
+/include/ "integrator.dtsi"
+
+/ {
+	model = "ARM Integrator/CP";
+	compatible = "arm,integrator-cp";
+
+	aliases {
+		arm,timer-primary = &timer2;
+		arm,timer-secondary = &timer1;
+	};
+
+	chosen {
+		bootargs = "root=/dev/ram0 console=ttyAMA0,38400n8 earlyprintk";
+	};
+
+	timer0: timer@13000000 {
+		compatible = "arm,sp804", "arm,primecell";
+	};
+
+	timer1: timer@13000100 {
+		compatible = "arm,sp804", "arm,primecell";
+	};
+
+	timer2: timer@13000200 {
+		compatible = "arm,sp804", "arm,primecell";
+	};
+
+	pic: pic@14000000 {
+		valid-mask = <0x1fc003ff>;
+	};
+
+	cic: cic@10000040 {
+		compatible = "arm,versatile-fpga-irq";
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		reg = <0x10000040 0x100>;
+		clear-mask = <0xffffffff>;
+		valid-mask = <0x00000007>;
+	};
+
+	sic: sic@ca000000 {
+		compatible = "arm,versatile-fpga-irq";
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		reg = <0xca000000 0x100>;
+		clear-mask = <0x00000fff>;
+		valid-mask = <0x00000fff>;
+	};
+
+	ethernet@c8000000 {
+		compatible = "smsc,lan91c111";
+		reg = <0xc8000000 0x10>;
+		interrupt-parent = <&pic>;
+		interrupts = <27>;
+	};
+
+	fpga {
+		/*
+		 * These PrimeCells are at the same location and using
+		 * the same interrupts in all Integrators, but in the CP
+		 * slightly newer versions are deployed.
+		 */
+		rtc@15000000 {
+			compatible = "arm,pl031", "arm,primecell";
+		};
+
+		uart@16000000 {
+			compatible = "arm,pl011", "arm,primecell";
+		};
+
+		uart@17000000 {
+			compatible = "arm,pl011", "arm,primecell";
+		};
+
+		kmi@18000000 {
+			compatible = "arm,pl050", "arm,primecell";
+		};
+
+		kmi@19000000 {
+			compatible = "arm,pl050", "arm,primecell";
+		};
+
+		/*
+		 * These PrimeCells are only available on the Integrator/CP
+		 */
+		mmc@1c000000 {
+			compatible = "arm,pl180", "arm,primecell";
+			reg = <0x1c000000 0x1000>;
+			interrupts = <23 24>;
+			max-frequency = <515633>;
+		};
+
+		aaci@1d000000 {
+			compatible = "arm,pl041", "arm,primecell";
+			reg = <0x1d000000 0x1000>;
+			interrupts = <25>;
+		};
+
+		clcd@c0000000 {
+			compatible = "arm,pl110", "arm,primecell";
+			reg = <0xC0000000 0x1000>;
+			interrupts = <22>;
+		};
+	};
+};

@@ -80,8 +80,7 @@ acpi_ev_update_gpe_enable_mask(struct acpi_gpe_event_info *gpe_event_info)
 		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
 
-	register_bit = acpi_hw_get_gpe_register_bit(gpe_event_info,
-						gpe_register_info);
+	register_bit = acpi_hw_get_gpe_register_bit(gpe_event_info);
 
 	/* Clear the run bit up front */
 
@@ -379,6 +378,18 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 			 */
 			if (!(gpe_register_info->enable_for_run |
 			      gpe_register_info->enable_for_wake)) {
+				ACPI_DEBUG_PRINT((ACPI_DB_INTERRUPTS,
+						  "Ignore disabled registers for GPE%02X-GPE%02X: "
+						  "RunEnable=%02X, WakeEnable=%02X\n",
+						  gpe_register_info->
+						  base_gpe_number,
+						  gpe_register_info->
+						  base_gpe_number +
+						  (ACPI_GPE_REGISTER_WIDTH - 1),
+						  gpe_register_info->
+						  enable_for_run,
+						  gpe_register_info->
+						  enable_for_wake));
 				continue;
 			}
 
@@ -401,9 +412,14 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 			}
 
 			ACPI_DEBUG_PRINT((ACPI_DB_INTERRUPTS,
-					  "Read GPE Register at GPE%02X: Status=%02X, Enable=%02X\n",
+					  "Read registers for GPE%02X-GPE%02X: Status=%02X, Enable=%02X, "
+					  "RunEnable=%02X, WakeEnable=%02X\n",
 					  gpe_register_info->base_gpe_number,
-					  status_reg, enable_reg));
+					  gpe_register_info->base_gpe_number +
+					  (ACPI_GPE_REGISTER_WIDTH - 1),
+					  status_reg, enable_reg,
+					  gpe_register_info->enable_for_run,
+					  gpe_register_info->enable_for_wake));
 
 			/* Check if there is anything active at all in this register */
 

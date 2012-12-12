@@ -21,12 +21,10 @@
  */
 
 #include <linux/module.h>
-#include <linux/jiffies.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
-#include <linux/delay.h>
 #include <linux/log2.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>

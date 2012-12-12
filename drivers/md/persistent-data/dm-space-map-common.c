@@ -434,14 +434,14 @@ int sm_ll_insert(struct ll_disk *ll, dm_block_t b,
 	if (ref_count && !old) {
 		*ev = SM_ALLOC;
 		ll->nr_allocated++;
-		ie_disk.nr_free = cpu_to_le32(le32_to_cpu(ie_disk.nr_free) - 1);
+		le32_add_cpu(&ie_disk.nr_free, -1);
 		if (le32_to_cpu(ie_disk.none_free_before) == bit)
 			ie_disk.none_free_before = cpu_to_le32(bit + 1);
 
 	} else if (old && !ref_count) {
 		*ev = SM_FREE;
 		ll->nr_allocated--;
-		ie_disk.nr_free = cpu_to_le32(le32_to_cpu(ie_disk.nr_free) + 1);
+		le32_add_cpu(&ie_disk.nr_free, 1);
 		ie_disk.none_free_before = cpu_to_le32(min(le32_to_cpu(ie_disk.none_free_before), bit));
 	}
 

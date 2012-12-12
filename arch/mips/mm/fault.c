@@ -114,7 +114,7 @@ good_area:
 		if (!(vma->vm_flags & VM_WRITE))
 			goto bad_area;
 	} else {
-		if (kernel_uses_smartmips_rixi) {
+		if (cpu_has_rixi) {
 			if (address == regs->cp0_epc && !(vma->vm_flags & VM_EXEC)) {
 #if 0
 				pr_notice("Cpu%d[%s:%d:%0*lx:%ld:%0*lx] XI violation\n",
@@ -171,6 +171,7 @@ good_area:
 		}
 		if (fault & VM_FAULT_RETRY) {
 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
+			flags |= FAULT_FLAG_TRIED;
 
 			/*
 			 * No need to up_read(&mm->mmap_sem) as we would

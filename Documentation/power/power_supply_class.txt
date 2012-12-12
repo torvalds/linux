@@ -81,6 +81,9 @@ This defines trickle and fast charges.  For batteries that
 are already charged or discharging, 'n/a' can be displayed (or
 'unknown', if the status is not known).
 
+AUTHENTIC - indicates the power supply (battery or charger) connected
+to the platform is authentic(1) or non authentic(0).
+
 HEALTH - represents health of the battery, values corresponds to
 POWER_SUPPLY_HEALTH_*, defined in battery.h.
 
@@ -113,8 +116,12 @@ be negative; there is no empty or full value.  It is only useful for
 relative, time-based measurements.
 
 CONSTANT_CHARGE_CURRENT - constant charge current programmed by charger.
+CONSTANT_CHARGE_CURRENT_MAX - maximum charge current supported by the
+power supply object.
 
 CONSTANT_CHARGE_VOLTAGE - constant charge voltage programmed by charger.
+CONSTANT_CHARGE_VOLTAGE_MAX - maximum charge voltage supported by the
+power supply object.
 
 ENERGY_FULL, ENERGY_EMPTY - same as above but for energy.
 

@@ -7,14 +7,13 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-
 #ifndef _LINUX_IF_TEAM_H_
 #define _LINUX_IF_TEAM_H_
 
-#ifdef __KERNEL__
 
 #include <linux/netpoll.h>
 #include <net/sch_generic.h>
+#include <uapi/linux/if_team.h>
 
 struct team_pcpu_stats {
 	u64			rx_packets;
@@ -67,6 +66,9 @@ struct team_port {
 	struct netpoll *np;
 #endif
 
+	s32 priority; /* lower number ~ higher priority */
+	u16 queue_id;
+	struct list_head qom_list; /* node in queue override mapping list */
 	long mode_priv[0];
 };
 
@@ -105,7 +107,7 @@ struct team_mode_ops {
 	bool (*transmit)(struct team *team, struct sk_buff *skb);
 	int (*port_enter)(struct team *team, struct team_port *port);
 	void (*port_leave)(struct team *team, struct team_port *port);
-	void (*port_change_mac)(struct team *team, struct team_port *port);
+	void (*port_change_dev_addr)(struct team *team, struct team_port *port);
 	void (*port_enabled)(struct team *team, struct team_port *port);
 	void (*port_disabled)(struct team *team, struct team_port *port);
 };
@@ -115,6 +117,7 @@ enum team_option_type {
 	TEAM_OPTION_TYPE_STRING,
 	TEAM_OPTION_TYPE_BINARY,
 	TEAM_OPTION_TYPE_BOOL,
+	TEAM_OPTION_TYPE_S32,
 };
 
 struct team_option_inst_info {
@@ -131,6 +134,7 @@ struct team_gsetter_ctx {
 			u32 len;
 		} bin_val;
 		bool bool_val;
+		s32 s32_val;
 	} data;
 	struct team_option_inst_info *info;
 };
@@ -182,6 +186,8 @@ struct team {
 
 	const struct team_mode *mode;
 	struct team_mode_ops ops;
+	bool queue_override_enabled;
+	struct list_head *qom_lists; /* array of queue override mapping lists */
 	long mode_priv[TEAM_MODE_PRIV_LONGS];
 };
 
@@ -231,7 +237,7 @@ static inline struct team_port *team_get_port_by_index_rcu(struct team *team,
 	return NULL;
 }
 
-extern int team_port_set_team_mac(struct team_port *port);
+extern int team_port_set_team_dev_addr(struct team_port *port);
 extern int team_options_register(struct team *team,
 				 const struct team_option *option,
 				 size_t option_count);
@@ -243,99 +249,5 @@ extern void team_mode_unregister(const struct team_mode *mode);
 
 #define TEAM_DEFAULT_NUM_TX_QUEUES 16
 #define TEAM_DEFAULT_NUM_RX_QUEUES 16
-
-#endif /* __KERNEL__ */
-
-#define TEAM_STRING_MAX_LEN 32
-
-/**********************************
- * NETLINK_GENERIC netlink family.
- **********************************/
-
-enum {
-	TEAM_CMD_NOOP,
-	TEAM_CMD_OPTIONS_SET,
-	TEAM_CMD_OPTIONS_GET,
-	TEAM_CMD_PORT_LIST_GET,
-
-	__TEAM_CMD_MAX,
-	TEAM_CMD_MAX = (__TEAM_CMD_MAX - 1),
-};
-
-enum {
-	TEAM_ATTR_UNSPEC,
-	TEAM_ATTR_TEAM_IFINDEX,		/* u32 */
-	TEAM_ATTR_LIST_OPTION,		/* nest */
-	TEAM_ATTR_LIST_PORT,		/* nest */
-
-	__TEAM_ATTR_MAX,
-	TEAM_ATTR_MAX = __TEAM_ATTR_MAX - 1,
-};
-
-/* Nested layout of get/set msg:
- *
- *	[TEAM_ATTR_LIST_OPTION]
- *		[TEAM_ATTR_ITEM_OPTION]
- *			[TEAM_ATTR_OPTION_*], ...
- *		[TEAM_ATTR_ITEM_OPTION]
- *			[TEAM_ATTR_OPTION_*], ...
- *		...
- *	[TEAM_ATTR_LIST_PORT]
- *		[TEAM_ATTR_ITEM_PORT]
- *			[TEAM_ATTR_PORT_*], ...
- *		[TEAM_ATTR_ITEM_PORT]
- *			[TEAM_ATTR_PORT_*], ...
- *		...
- */
-
-enum {
-	TEAM_ATTR_ITEM_OPTION_UNSPEC,
-	TEAM_ATTR_ITEM_OPTION,		/* nest */
-
-	__TEAM_ATTR_ITEM_OPTION_MAX,
-	TEAM_ATTR_ITEM_OPTION_MAX = __TEAM_ATTR_ITEM_OPTION_MAX - 1,
-};
-
-enum {
-	TEAM_ATTR_OPTION_UNSPEC,
-	TEAM_ATTR_OPTION_NAME,		/* string */
-	TEAM_ATTR_OPTION_CHANGED,	/* flag */
-	TEAM_ATTR_OPTION_TYPE,		/* u8 */
-	TEAM_ATTR_OPTION_DATA,		/* dynamic */
-	TEAM_ATTR_OPTION_REMOVED,	/* flag */
-	TEAM_ATTR_OPTION_PORT_IFINDEX,	/* u32 */ /* for per-port options */
-	TEAM_ATTR_OPTION_ARRAY_INDEX,	/* u32 */ /* for array options */
-
-	__TEAM_ATTR_OPTION_MAX,
-	TEAM_ATTR_OPTION_MAX = __TEAM_ATTR_OPTION_MAX - 1,
-};
-
-enum {
-	TEAM_ATTR_ITEM_PORT_UNSPEC,
-	TEAM_ATTR_ITEM_PORT,		/* nest */
-
-	__TEAM_ATTR_ITEM_PORT_MAX,
-	TEAM_ATTR_ITEM_PORT_MAX = __TEAM_ATTR_ITEM_PORT_MAX - 1,
-};
-
-enum {
-	TEAM_ATTR_PORT_UNSPEC,
-	TEAM_ATTR_PORT_IFINDEX,		/* u32 */
-	TEAM_ATTR_PORT_CHANGED,		/* flag */
-	TEAM_ATTR_PORT_LINKUP,		/* flag */
-	TEAM_ATTR_PORT_SPEED,		/* u32 */
-	TEAM_ATTR_PORT_DUPLEX,		/* u8 */
-	TEAM_ATTR_PORT_REMOVED,		/* flag */
-
-	__TEAM_ATTR_PORT_MAX,
-	TEAM_ATTR_PORT_MAX = __TEAM_ATTR_PORT_MAX - 1,
-};
-
-/*
- * NETLINK_GENERIC related info
- */
-#define TEAM_GENL_NAME "team"
-#define TEAM_GENL_VERSION 0x1
-#define TEAM_GENL_CHANGE_EVENT_MC_GRP_NAME "change_event"
 
 #endif /* _LINUX_IF_TEAM_H_ */

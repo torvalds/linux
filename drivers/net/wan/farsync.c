@@ -597,7 +597,7 @@ fst_q_work_item(u64 * queue, int card_index)
 	 * bottom half for the card.  Note the limitation of 64 cards.
 	 * That ought to be enough
 	 */
-	mask = 1 << card_index;
+	mask = (u64)1 << card_index;
 	*queue |= mask;
 	spin_unlock_irqrestore(&fst_work_q_lock, flags);
 }

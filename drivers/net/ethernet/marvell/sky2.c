@@ -4924,6 +4924,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 
 	if (~reg == 0) {
 		dev_err(&pdev->dev, "PCI configuration read error\n");
+		err = -EIO;
 		goto err_out;
 	}
 
@@ -4993,8 +4994,10 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	hw->st_size = hw->ports * roundup_pow_of_two(3*RX_MAX_PENDING + TX_MAX_PENDING);
 	hw->st_le = pci_alloc_consistent(pdev, hw->st_size * sizeof(struct sky2_status_le),
 					 &hw->st_dma);
-	if (!hw->st_le)
+	if (!hw->st_le) {
+		err = -ENOMEM;
 		goto err_out_reset;
+	}
 
 	dev_info(&pdev->dev, "Yukon-2 %s chip revision %d\n",
 		 sky2_name(hw->chip_id, buf1, sizeof(buf1)), hw->chip_rev);

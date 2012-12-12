@@ -443,7 +443,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 		spin_lock_init(&channel->lock);
 		channel->pointer_read = 0;
 		channel->pointer_write = 0;
-		tty_dev = tty_register_device(tty, i, NULL);
+		tty_dev = tty_port_register_device(&channel->tty_port, tty, i, NULL);
 		if (IS_ERR(tty_dev)) {
 			dev_err(&ipoctal->dev->dev, "Failed to register tty device.\n");
 			continue;
@@ -543,7 +543,7 @@ static void ipoctal_set_termios(struct tty_struct *tty,
 	struct ipoctal_channel *channel = tty->driver_data;
 	speed_t baud;
 
-	cflag = tty->termios->c_cflag;
+	cflag = tty->termios.c_cflag;
 
 	/* Disable and reset everything before change the setup */
 	iowrite8(CR_DISABLE_RX | CR_DISABLE_TX, &channel->regs->w.cr);
@@ -564,7 +564,7 @@ static void ipoctal_set_termios(struct tty_struct *tty,
 	default:
 		mr1 |= MR1_CHRL_8_BITS;
 		/* By default, select CS8 */
-		tty->termios->c_cflag = (cflag & ~CSIZE) | CS8;
+		tty->termios.c_cflag = (cflag & ~CSIZE) | CS8;
 		break;
 	}
 
@@ -578,7 +578,7 @@ static void ipoctal_set_termios(struct tty_struct *tty,
 		mr1 |= MR1_PARITY_OFF;
 
 	/* Mark or space parity is not supported */
-	tty->termios->c_cflag &= ~CMSPAR;
+	tty->termios.c_cflag &= ~CMSPAR;
 
 	/* Set stop bits */
 	if (cflag & CSTOPB)
@@ -611,10 +611,10 @@ static void ipoctal_set_termios(struct tty_struct *tty,
 	}
 
 	baud = tty_get_baud_rate(tty);
-	tty_termios_encode_baud_rate(tty->termios, baud, baud);
+	tty_termios_encode_baud_rate(&tty->termios, baud, baud);
 
 	/* Set baud rate */
-	switch (tty->termios->c_ospeed) {
+	switch (baud) {
 	case 75:
 		csr |= TX_CLK_75 | RX_CLK_75;
 		break;
@@ -655,7 +655,7 @@ static void ipoctal_set_termios(struct tty_struct *tty,
 	default:
 		csr |= TX_CLK_38400 | RX_CLK_38400;
 		/* In case of default, we establish 38400 bps */
-		tty_termios_encode_baud_rate(tty->termios, 38400, 38400);
+		tty_termios_encode_baud_rate(&tty->termios, 38400, 38400);
 		break;
 	}
 

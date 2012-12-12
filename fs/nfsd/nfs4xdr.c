@@ -2659,7 +2659,7 @@ static __be32 nfsd4_encode_bind_conn_to_session(struct nfsd4_compoundres *resp, 
 		RESERVE_SPACE(NFS4_MAX_SESSIONID_LEN + 8);
 		WRITEMEM(bcts->sessionid.data, NFS4_MAX_SESSIONID_LEN);
 		WRITE32(bcts->dir);
-		/* XXX: ? */
+		/* Sorry, we do not yet support RDMA over 4.1: */
 		WRITE32(0);
 		ADJUST_ARGS();
 	}

@@ -6,7 +6,7 @@
 #include <linux/err.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/clock.h>
+
 #include "clk.h"
 
 /**
@@ -29,8 +29,53 @@ static unsigned long clk_pllv1_recalc_rate(struct clk_hw *hw,
 		unsigned long parent_rate)
 {
 	struct clk_pllv1 *pll = to_clk_pllv1(hw);
+	long long ll;
+	int mfn_abs;
+	unsigned int mfi, mfn, mfd, pd;
+	u32 reg;
+	unsigned long rate;
 
-	return mxc_decode_pll(readl(pll->base), parent_rate);
+	reg = readl(pll->base);
+
+	/*
+	 * Get the resulting clock rate from a PLL register value and the input
+	 * frequency. PLLs with this register layout can be found on i.MX1,
+	 * i.MX21, i.MX27 and i,MX31
+	 *
+	 *                  mfi + mfn / (mfd + 1)
+	 *  f = 2 * f_ref * --------------------
+	 *                        pd + 1
+	 */
+
+	mfi = (reg >> 10) & 0xf;
+	mfn = reg & 0x3ff;
+	mfd = (reg >> 16) & 0x3ff;
+	pd =  (reg >> 26) & 0xf;
+
+	mfi = mfi <= 5 ? 5 : mfi;
+
+	mfn_abs = mfn;
+
+	/*
+	 * On all i.MXs except i.MX1 and i.MX21 mfn is a 10bit
+	 * 2's complements number
+	 */
+	if (!cpu_is_mx1() && !cpu_is_mx21() && mfn >= 0x200)
+		mfn_abs = 0x400 - mfn;
+
+	rate = parent_rate * 2;
+	rate /= pd + 1;
+
+	ll = (unsigned long long)rate * mfn_abs;
+
+	do_div(ll, mfd + 1);
+
+	if (!cpu_is_mx1() && !cpu_is_mx21() && mfn >= 0x200)
+		ll = -ll;
+
+	ll = (rate * mfi) + ll;
+
+	return ll;
 }
 
 struct clk_ops clk_pllv1_ops = {

@@ -795,7 +795,7 @@ static int sourcesink_setup(struct usb_configuration *c,
 	u16			w_value = le16_to_cpu(ctrl->wValue);
 	u16			w_length = le16_to_cpu(ctrl->wLength);
 
-	req->length = USB_BUFSIZ;
+	req->length = USB_COMP_EP0_BUFSIZ;
 
 	/* composite driver infrastructure handles everything except
 	 * the two control test requests.

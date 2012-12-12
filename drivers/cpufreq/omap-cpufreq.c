@@ -30,30 +30,12 @@
 #include <asm/smp_plat.h>
 #include <asm/cpu.h>
 
-#include <plat/clock.h>
-#include <plat/omap-pm.h>
-#include <plat/common.h>
-#include <plat/omap_device.h>
-
-#include <mach/hardware.h>
-
 /* OPP tolerance in percentage */
 #define	OPP_TOLERANCE	4
-
-#ifdef CONFIG_SMP
-struct lpj_info {
-	unsigned long	ref;
-	unsigned int	freq;
-};
-
-static DEFINE_PER_CPU(struct lpj_info, lpj_ref);
-static struct lpj_info global_lpj_ref;
-#endif
 
 static struct cpufreq_frequency_table *freq_table;
 static atomic_t freq_table_users = ATOMIC_INIT(0);
 static struct clk *mpu_clk;
-static char *mpu_clk_name;
 static struct device *mpu_dev;
 static struct regulator *mpu_reg;
 
@@ -118,6 +100,14 @@ static int omap_target(struct cpufreq_policy *policy,
 	}
 
 	freq = freqs.new * 1000;
+	ret = clk_round_rate(mpu_clk, freq);
+	if (IS_ERR_VALUE(ret)) {
+		dev_warn(mpu_dev,
+			 "CPUfreq: Cannot find matching frequency for %lu\n",
+			 freq);
+		return ret;
+	}
+	freq = ret;
 
 	if (mpu_reg) {
 		opp = opp_find_freq_ceil(mpu_dev, &freq);
@@ -161,31 +151,6 @@ static int omap_target(struct cpufreq_policy *policy,
 	}
 
 	freqs.new = omap_getspeed(policy->cpu);
-#ifdef CONFIG_SMP
-	/*
-	 * Note that loops_per_jiffy is not updated on SMP systems in
-	 * cpufreq driver. So, update the per-CPU loops_per_jiffy value
-	 * on frequency transition. We need to update all dependent CPUs.
-	 */
-	for_each_cpu(i, policy->cpus) {
-		struct lpj_info *lpj = &per_cpu(lpj_ref, i);
-		if (!lpj->freq) {
-			lpj->ref = per_cpu(cpu_data, i).loops_per_jiffy;
-			lpj->freq = freqs.old;
-		}
-
-		per_cpu(cpu_data, i).loops_per_jiffy =
-			cpufreq_scale(lpj->ref, lpj->freq, freqs.new);
-	}
-
-	/* And don't forget to adjust the global one */
-	if (!global_lpj_ref.freq) {
-		global_lpj_ref.ref = loops_per_jiffy;
-		global_lpj_ref.freq = freqs.old;
-	}
-	loops_per_jiffy = cpufreq_scale(global_lpj_ref.ref, global_lpj_ref.freq,
-					freqs.new);
-#endif
 
 done:
 	/* notifiers */
@@ -207,7 +172,7 @@ static int __cpuinit omap_cpu_init(struct cpufreq_policy *policy)
 {
 	int result = 0;
 
-	mpu_clk = clk_get(NULL, mpu_clk_name);
+	mpu_clk = clk_get(NULL, "cpufreq_ck");
 	if (IS_ERR(mpu_clk))
 		return PTR_ERR(mpu_clk);
 
@@ -288,19 +253,7 @@ static struct cpufreq_driver omap_driver = {
 
 static int __init omap_cpufreq_init(void)
 {
-	if (cpu_is_omap24xx())
-		mpu_clk_name = "virt_prcm_set";
-	else if (cpu_is_omap34xx())
-		mpu_clk_name = "dpll1_ck";
-	else if (cpu_is_omap44xx())
-		mpu_clk_name = "dpll_mpu_ck";
-
-	if (!mpu_clk_name) {
-		pr_err("%s: unsupported Silicon?\n", __func__);
-		return -EINVAL;
-	}
-
-	mpu_dev = omap_device_get_by_hwmod_name("mpu");
+	mpu_dev = get_cpu_device(0);
 	if (!mpu_dev) {
 		pr_warning("%s: unable to get the mpu device\n", __func__);
 		return -EINVAL;

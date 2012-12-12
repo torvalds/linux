@@ -21,10 +21,10 @@
 
 #include <linux/module.h>
 #include <linux/firmware.h>
-#include "drmP.h"
-#include "drm_crtc.h"
-#include "drm_crtc_helper.h"
-#include "drm_edid.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_edid.h>
 
 static char edid_firmware[PATH_MAX];
 module_param_string(edid_firmware, edid_firmware, sizeof(edid_firmware), 0644);
@@ -114,8 +114,8 @@ static u8 generic_edid[GENERIC_EDIDS][128] = {
 	},
 };
 
-static int edid_load(struct drm_connector *connector, char *name,
-		     char *connector_name)
+static u8 *edid_load(struct drm_connector *connector, char *name,
+			char *connector_name)
 {
 	const struct firmware *fw;
 	struct platform_device *pdev;
@@ -123,6 +123,7 @@ static int edid_load(struct drm_connector *connector, char *name,
 	int fwsize, expected;
 	int builtin = 0, err = 0;
 	int i, valid_extensions = 0;
+	bool print_bad_edid = !connector->bad_edid_counter || (drm_debug & DRM_UT_KMS);
 
 	pdev = platform_device_register_simple(connector_name, -1, NULL, 0);
 	if (IS_ERR(pdev)) {
@@ -173,7 +174,8 @@ static int edid_load(struct drm_connector *connector, char *name,
 	}
 	memcpy(edid, fwdata, fwsize);
 
-	if (!drm_edid_block_valid(edid, 0)) {
+	if (!drm_edid_block_valid(edid, 0, print_bad_edid)) {
+		connector->bad_edid_counter++;
 		DRM_ERROR("Base block of EDID firmware \"%s\" is invalid ",
 		    name);
 		kfree(edid);
@@ -185,7 +187,7 @@ static int edid_load(struct drm_connector *connector, char *name,
 		if (i != valid_extensions + 1)
 			memcpy(edid + (valid_extensions + 1) * EDID_LENGTH,
 			    edid + i * EDID_LENGTH, EDID_LENGTH);
-		if (drm_edid_block_valid(edid + i * EDID_LENGTH, i))
+		if (drm_edid_block_valid(edid + i * EDID_LENGTH, i, print_bad_edid))
 			valid_extensions++;
 	}
 
@@ -205,7 +207,6 @@ static int edid_load(struct drm_connector *connector, char *name,
 		edid = new_edid;
 	}
 
-	connector->display_info.raw_edid = edid;
 	DRM_INFO("Got %s EDID base block and %d extension%s from "
 	    "\"%s\" for connector \"%s\"\n", builtin ? "built-in" :
 	    "external", valid_extensions, valid_extensions == 1 ? "" : "s",
@@ -215,7 +216,10 @@ relfw_out:
 	release_firmware(fw);
 
 out:
-	return err;
+	if (err)
+		return ERR_PTR(err);
+
+	return edid;
 }
 
 int drm_load_edid_firmware(struct drm_connector *connector)
@@ -223,6 +227,7 @@ int drm_load_edid_firmware(struct drm_connector *connector)
 	char *connector_name = drm_get_connector_name(connector);
 	char *edidname = edid_firmware, *last, *colon;
 	int ret;
+	struct edid *edid;
 
 	if (*edidname == '\0')
 		return 0;
@@ -240,13 +245,13 @@ int drm_load_edid_firmware(struct drm_connector *connector)
 	if (*last == '\n')
 		*last = '\0';
 
-	ret = edid_load(connector, edidname, connector_name);
-	if (ret)
+	edid = (struct edid *) edid_load(connector, edidname, connector_name);
+	if (IS_ERR_OR_NULL(edid))
 		return 0;
 
-	drm_mode_connector_update_edid_property(connector,
-	    (struct edid *) connector->display_info.raw_edid);
+	drm_mode_connector_update_edid_property(connector, edid);
+	ret = drm_add_edid_modes(connector, edid);
+	kfree(edid);
 
-	return drm_add_edid_modes(connector, (struct edid *)
-	    connector->display_info.raw_edid);
+	return ret;
 }

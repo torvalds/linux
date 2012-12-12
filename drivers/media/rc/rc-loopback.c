@@ -105,17 +105,8 @@ static int loop_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 {
 	struct loopback_dev *lodev = dev->priv;
 	u32 rxmask;
-	unsigned total_duration = 0;
 	unsigned i;
 	DEFINE_IR_RAW_EVENT(rawir);
-
-	for (i = 0; i < count; i++)
-		total_duration += abs(txbuf[i]);
-
-	if (total_duration == 0) {
-		dprintk("invalid tx data, total duration zero\n");
-		return -EINVAL;
-	}
 
 	if (lodev->txcarrier < lodev->rxcarriermin ||
 	    lodev->txcarrier > lodev->rxcarriermax) {
@@ -148,9 +139,6 @@ static int loop_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 	ir_raw_event_handle(dev);
 
 out:
-	/* Lirc expects this function to take as long as the total duration */
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(usecs_to_jiffies(total_duration));
 	return count;
 }
 

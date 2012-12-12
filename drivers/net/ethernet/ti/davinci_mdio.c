@@ -36,6 +36,8 @@
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
 #include <linux/davinci_emac.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 /*
  * This timeout definition is a worst-case ultra defensive measure against
@@ -289,6 +291,25 @@ static int davinci_mdio_write(struct mii_bus *bus, int phy_id,
 	return 0;
 }
 
+static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
+			 struct platform_device *pdev)
+{
+	struct device_node *node = pdev->dev.of_node;
+	u32 prop;
+
+	if (!node)
+		return -EINVAL;
+
+	if (of_property_read_u32(node, "bus_freq", &prop)) {
+		pr_err("Missing bus_freq property in the DT.\n");
+		return -EINVAL;
+	}
+	data->bus_freq = prop;
+
+	return 0;
+}
+
+
 static int __devinit davinci_mdio_probe(struct platform_device *pdev)
 {
 	struct mdio_platform_data *pdata = pdev->dev.platform_data;
@@ -304,13 +325,21 @@ static int __devinit davinci_mdio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	data->pdata = pdata ? (*pdata) : default_pdata;
-
 	data->bus = mdiobus_alloc();
 	if (!data->bus) {
 		dev_err(dev, "failed to alloc mii bus\n");
 		ret = -ENOMEM;
 		goto bail_out;
+	}
+
+	if (dev->of_node) {
+		if (davinci_mdio_probe_dt(&data->pdata, pdev))
+			data->pdata = default_pdata;
+		snprintf(data->bus->id, MII_BUS_ID_SIZE, "%s", pdev->name);
+	} else {
+		data->pdata = pdata ? (*pdata) : default_pdata;
+		snprintf(data->bus->id, MII_BUS_ID_SIZE, "%s-%x",
+			 pdev->name, pdev->id);
 	}
 
 	data->bus->name		= dev_name(dev);
@@ -319,8 +348,6 @@ static int __devinit davinci_mdio_probe(struct platform_device *pdev)
 	data->bus->reset	= davinci_mdio_reset,
 	data->bus->parent	= dev;
 	data->bus->priv		= data;
-	snprintf(data->bus->id, MII_BUS_ID_SIZE, "%s-%x",
-		pdev->name, pdev->id);
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
@@ -456,11 +483,17 @@ static const struct dev_pm_ops davinci_mdio_pm_ops = {
 	.resume		= davinci_mdio_resume,
 };
 
+static const struct of_device_id davinci_mdio_of_mtable[] = {
+	{ .compatible = "ti,davinci_mdio", },
+	{ /* sentinel */ },
+};
+
 static struct platform_driver davinci_mdio_driver = {
 	.driver = {
 		.name	 = "davinci_mdio",
 		.owner	 = THIS_MODULE,
 		.pm	 = &davinci_mdio_pm_ops,
+		.of_match_table = of_match_ptr(davinci_mdio_of_mtable),
 	},
 	.probe = davinci_mdio_probe,
 	.remove = __devexit_p(davinci_mdio_remove),

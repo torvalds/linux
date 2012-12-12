@@ -509,6 +509,9 @@ static int rpm_resume(struct device *dev, int rpmflags)
  repeat:
 	if (dev->power.runtime_error)
 		retval = -EINVAL;
+	else if (dev->power.disable_depth == 1 && dev->power.is_suspended
+	    && dev->power.runtime_status == RPM_ACTIVE)
+		retval = 1;
 	else if (dev->power.disable_depth > 0)
 		retval = -EACCES;
 	if (retval)

@@ -18,8 +18,8 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 
-#include "drmP.h"
-#include "exynos_drm.h"
+#include <drm/drmP.h>
+#include <drm/exynos_drm.h>
 #include "exynos_drm_drv.h"
 #include "exynos_drm_gem.h"
 
@@ -122,6 +122,7 @@ struct g2d_runqueue_node {
 	struct list_head	list;
 	struct list_head	run_cmdlist;
 	struct list_head	event_list;
+	pid_t			pid;
 	struct completion	complete;
 	int			async;
 };
@@ -164,8 +165,7 @@ static int g2d_init_cmdlist(struct g2d_data *g2d)
 		return -ENOMEM;
 	}
 
-	node = kcalloc(G2D_CMDLIST_NUM, G2D_CMDLIST_NUM * sizeof(*node),
-			GFP_KERNEL);
+	node = kcalloc(G2D_CMDLIST_NUM, sizeof(*node), GFP_KERNEL);
 	if (!node) {
 		dev_err(dev, "failed to allocate memory\n");
 		ret = -ENOMEM;
@@ -679,6 +679,7 @@ int exynos_g2d_exec_ioctl(struct drm_device *drm_dev, void *data,
 	}
 
 	mutex_lock(&g2d->runqueue_mutex);
+	runqueue_node->pid = current->pid;
 	list_add_tail(&runqueue_node->list, &g2d->runqueue);
 	if (!g2d->runqueue_node)
 		g2d_exec_runqueue(g2d);
@@ -878,7 +879,7 @@ static int g2d_suspend(struct device *dev)
 		/* FIXME: good range? */
 		usleep_range(500, 1000);
 
-	flush_work_sync(&g2d->runqueue_work);
+	flush_work(&g2d->runqueue_work);
 
 	return 0;
 }

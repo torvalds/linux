@@ -25,10 +25,10 @@
 #define NA_DATAOUT_TIMEOUT_RETRIES	5
 #define NA_DATAOUT_TIMEOUT_RETRIES_MAX	15
 #define NA_DATAOUT_TIMEOUT_RETRIES_MIN	1
-#define NA_NOPIN_TIMEOUT		5
+#define NA_NOPIN_TIMEOUT		15
 #define NA_NOPIN_TIMEOUT_MAX		60
 #define NA_NOPIN_TIMEOUT_MIN		3
-#define NA_NOPIN_RESPONSE_TIMEOUT	5
+#define NA_NOPIN_RESPONSE_TIMEOUT	30
 #define NA_NOPIN_RESPONSE_TIMEOUT_MAX	60
 #define NA_NOPIN_RESPONSE_TIMEOUT_MIN	3
 #define NA_RANDOM_DATAIN_PDU_OFFSETS	0
@@ -239,6 +239,7 @@ struct iscsi_conn_ops {
 	u8	HeaderDigest;			/* [0,1] == [None,CRC32C] */
 	u8	DataDigest;			/* [0,1] == [None,CRC32C] */
 	u32	MaxRecvDataSegmentLength;	/* [512..2**24-1] */
+	u32	MaxXmitDataSegmentLength;	/* [512..2**24-1] */
 	u8	OFMarker;			/* [0,1] == [No,Yes] */
 	u8	IFMarker;			/* [0,1] == [No,Yes] */
 	u32	OFMarkInt;			/* [1..65535] */
@@ -360,7 +361,7 @@ struct iscsi_cmd {
 	/* Command flags */
 	enum cmd_flags_table	cmd_flags;
 	/* Initiator Task Tag assigned from Initiator */
-	u32			init_task_tag;
+	itt_t			init_task_tag;
 	/* Target Transfer Tag assigned from Target */
 	u32			targ_xfer_tag;
 	/* CmdSN assigned from Initiator */
@@ -478,7 +479,6 @@ struct iscsi_cmd {
 
 struct iscsi_tmr_req {
 	bool			task_reassign:1;
-	u32			ref_cmd_sn;
 	u32			exp_data_sn;
 	struct iscsi_cmd	*ref_cmd;
 	struct iscsi_conn_recovery *conn_recovery;
@@ -486,6 +486,7 @@ struct iscsi_tmr_req {
 };
 
 struct iscsi_conn {
+	wait_queue_head_t	queues_wq;
 	/* Authentication Successful for this connection */
 	u8			auth_complete;
 	/* State connection is currently in */
@@ -505,7 +506,7 @@ struct iscsi_conn {
 	u32			auth_id;
 	u32			conn_flags;
 	/* Used for iscsi_tx_login_rsp() */
-	u32			login_itt;
+	itt_t			login_itt;
 	u32			exp_statsn;
 	/* Per connection status sequence number */
 	u32			stat_sn;
@@ -578,6 +579,7 @@ struct iscsi_conn_recovery {
 	u16			cid;
 	u32			cmd_count;
 	u32			maxrecvdatasegmentlength;
+	u32			maxxmitdatasegmentlength;
 	int			ready_for_reallegiance;
 	struct list_head	conn_recovery_cmd_list;
 	spinlock_t		conn_recovery_cmd_lock;
@@ -597,7 +599,7 @@ struct iscsi_session {
 	/* state session is currently in */
 	u32			session_state;
 	/* session wide counter: initiator assigned task tag */
-	u32			init_task_tag;
+	itt_t			init_task_tag;
 	/* session wide counter: target assigned task tag */
 	u32			targ_xfer_tag;
 	u32			cmdsn_window;
@@ -663,7 +665,7 @@ struct iscsi_login {
 	u8 version_max;
 	char isid[6];
 	u32 cmd_sn;
-	u32 init_task_tag;
+	itt_t init_task_tag;
 	u32 initial_exp_statsn;
 	u32 rsp_length;
 	u16 cid;

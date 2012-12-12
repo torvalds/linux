@@ -25,11 +25,9 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/irqdomain.h>
+#include <linux/gpio.h>
+#include <linux/platform_data/gpio-omap.h>
 
-#include <mach/hardware.h>
-#include <asm/irq.h>
-#include <mach/irqs.h>
-#include <asm/gpio.h>
 #include <asm/mach/irq.h>
 
 #define OFF_MODE	1
@@ -253,6 +251,40 @@ static void _set_gpio_debounce(struct gpio_bank *bank, unsigned gpio,
 	}
 }
 
+/**
+ * _clear_gpio_debounce - clear debounce settings for a gpio
+ * @bank: the gpio bank we're acting upon
+ * @gpio: the gpio number on this @gpio
+ *
+ * If a gpio is using debounce, then clear the debounce enable bit and if
+ * this is the only gpio in this bank using debounce, then clear the debounce
+ * time too. The debounce clock will also be disabled when calling this function
+ * if this is the only gpio in the bank using debounce.
+ */
+static void _clear_gpio_debounce(struct gpio_bank *bank, unsigned gpio)
+{
+	u32 gpio_bit = GPIO_BIT(bank, gpio);
+
+	if (!bank->dbck_flag)
+		return;
+
+	if (!(bank->dbck_enable_mask & gpio_bit))
+		return;
+
+	bank->dbck_enable_mask &= ~gpio_bit;
+	bank->context.debounce_en &= ~gpio_bit;
+	__raw_writel(bank->context.debounce_en,
+		     bank->base + bank->regs->debounce_en);
+
+	if (!bank->dbck_enable_mask) {
+		bank->context.debounce = 0;
+		__raw_writel(bank->context.debounce, bank->base +
+			     bank->regs->debounce);
+		clk_disable(bank->dbck);
+		bank->dbck_enabled = false;
+	}
+}
+
 static inline void set_gpio_trigger(struct gpio_bank *bank, int gpio,
 						unsigned trigger)
 {
@@ -385,13 +417,16 @@ static int _set_gpio_triggering(struct gpio_bank *bank, int gpio,
 static int gpio_irq_type(struct irq_data *d, unsigned type)
 {
 	struct gpio_bank *bank = irq_data_get_irq_chip_data(d);
-	unsigned gpio;
+	unsigned gpio = 0;
 	int retval;
 	unsigned long flags;
 
-	if (!cpu_class_is_omap2() && d->irq > IH_MPUIO_BASE)
+#ifdef CONFIG_ARCH_OMAP1
+	if (d->irq > IH_MPUIO_BASE)
 		gpio = OMAP_MPUIO(d->irq - IH_MPUIO_BASE);
-	else
+#endif
+
+	if (!gpio)
 		gpio = irq_to_gpio(bank, d->irq);
 
 	if (type & ~IRQ_TYPE_SENSE_MASK)
@@ -538,6 +573,7 @@ static void _reset_gpio(struct gpio_bank *bank, int gpio)
 	_set_gpio_irqenable(bank, gpio, 0);
 	_clear_gpio_irqstatus(bank, gpio);
 	_set_gpio_triggering(bank, GPIO_INDEX(bank, gpio), IRQ_TYPE_NONE);
+	_clear_gpio_debounce(bank, gpio);
 }
 
 /* Use disable_irq_wake() and enable_irq_wake() functions from drivers */
@@ -1058,7 +1094,7 @@ static int __devinit omap_gpio_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
 	const struct of_device_id *match;
-	struct omap_gpio_platform_data *pdata;
+	const struct omap_gpio_platform_data *pdata;
 	struct resource *res;
 	struct gpio_bank *bank;
 	int ret = 0;
@@ -1440,19 +1476,19 @@ static struct omap_gpio_reg_offs omap4_gpio_regs = {
 	.fallingdetect =	OMAP4_GPIO_FALLINGDETECT,
 };
 
-static struct omap_gpio_platform_data omap2_pdata = {
+const static struct omap_gpio_platform_data omap2_pdata = {
 	.regs = &omap2_gpio_regs,
 	.bank_width = 32,
 	.dbck_flag = false,
 };
 
-static struct omap_gpio_platform_data omap3_pdata = {
+const static struct omap_gpio_platform_data omap3_pdata = {
 	.regs = &omap2_gpio_regs,
 	.bank_width = 32,
 	.dbck_flag = true,
 };
 
-static struct omap_gpio_platform_data omap4_pdata = {
+const static struct omap_gpio_platform_data omap4_pdata = {
 	.regs = &omap4_gpio_regs,
 	.bank_width = 32,
 	.dbck_flag = true,

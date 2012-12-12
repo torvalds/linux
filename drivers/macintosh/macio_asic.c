@@ -748,7 +748,7 @@ static void __devexit macio_pci_remove(struct pci_dev* pdev)
  * MacIO is matched against any Apple ID, it's probe() function
  * will then decide wether it applies or not
  */
-static const struct pci_device_id __devinitdata pci_ids [] = { {
+static const struct pci_device_id __devinitconst pci_ids[] = { {
 	.vendor		= PCI_VENDOR_ID_APPLE,
 	.device		= PCI_ANY_ID,
 	.subvendor	= PCI_ANY_ID,

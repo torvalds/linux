@@ -207,7 +207,7 @@ static int __devinit da9052_gpio_probe(struct platform_device *pdev)
 	struct da9052_pdata *pdata;
 	int ret;
 
-	gpio = kzalloc(sizeof(*gpio), GFP_KERNEL);
+	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (gpio == NULL)
 		return -ENOMEM;
 
@@ -221,28 +221,19 @@ static int __devinit da9052_gpio_probe(struct platform_device *pdev)
 	ret = gpiochip_add(&gpio->gp);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
-		goto err_mem;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, gpio);
 
 	return 0;
-
-err_mem:
-	kfree(gpio);
-	return ret;
 }
 
 static int __devexit da9052_gpio_remove(struct platform_device *pdev)
 {
 	struct da9052_gpio *gpio = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = gpiochip_remove(&gpio->gp);
-	if (ret == 0)
-		kfree(gpio);
-
-	return ret;
+	return gpiochip_remove(&gpio->gp);
 }
 
 static struct platform_driver da9052_gpio_driver = {

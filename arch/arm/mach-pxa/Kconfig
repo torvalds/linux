@@ -25,6 +25,18 @@ config PXA_V7_MACH_AUTO
 if !ARCH_PXA_V7
 comment "Intel/Marvell Dev Platforms (sorted by hardware release time)"
 
+config MACH_PXA3XX_DT
+	bool "Support PXA3xx platforms from device tree"
+	select CPU_PXA300
+	select HAVE_PWM
+	select POWER_SUPPLY
+	select PXA3xx
+	select USE_OF
+	help
+	  Include support for Marvell PXA3xx based platforms using
+	  the device tree. Needn't select any other machine while
+	  MACH_PXA3XX_DT is enabled.
+
 config ARCH_LUBBOCK
 	bool "Intel DBPXA250 Development Platform (aka Lubbock)"
 	select PXA25x
@@ -32,13 +44,13 @@ config ARCH_LUBBOCK
 
 config MACH_MAINSTONE
 	bool "Intel HCDDBBVA0 Development Platform (aka Mainstone)"
-	select PXA27x
 	select HAVE_PWM
+	select PXA27x
 
 config MACH_ZYLONITE
 	bool
-	select PXA3xx
 	select HAVE_PWM
+	select PXA3xx
 
 config MACH_ZYLONITE300
 	bool "PXA3xx Development Platform (aka Zylonite) PXA300/310"
@@ -53,19 +65,19 @@ config MACH_ZYLONITE320
 
 config MACH_LITTLETON
 	bool "PXA3xx Form Factor Platform (aka Littleton)"
-	select PXA3xx
 	select CPU_PXA300
 	select CPU_PXA310
+	select PXA3xx
 
 config MACH_TAVOREVB
 	bool "PXA930 Evaluation Board (aka TavorEVB)"
-	select PXA3xx
 	select CPU_PXA930
+	select PXA3xx
 
 config MACH_SAAR
 	bool "PXA930 Handheld Platform (aka SAAR)"
-	select PXA3xx
 	select CPU_PXA930
+	select PXA3xx
 
 comment "Third Party Dev Platforms (sorted by vendor name)"
 
@@ -75,29 +87,29 @@ config ARCH_PXA_IDP
 
 config ARCH_VIPER
 	bool "Arcom/Eurotech VIPER SBC"
-	select PXA25x
-	select ISA
-	select I2C_GPIO
-	select HAVE_PWM
-	select PXA_HAVE_ISA_IRQS
 	select ARCOM_PCMCIA
+	select HAVE_PWM
+	select I2C_GPIO
+	select ISA
+	select PXA25x
+	select PXA_HAVE_ISA_IRQS
 
 config MACH_ARCOM_ZEUS
 	bool "Arcom/Eurotech ZEUS SBC"
-	select PXA27x
-	select ISA
-	select PXA_HAVE_ISA_IRQS
 	select ARCOM_PCMCIA
+	select ISA
+	select PXA27x
+	select PXA_HAVE_ISA_IRQS
 
 config MACH_BALLOON3
 	bool "Balloon 3 board"
-	select PXA27x
 	select IWMMXT
+	select PXA27x
 
 config MACH_CSB726
 	bool "Enable Cogent CSB726 System On a Module"
-	select PXA27x
 	select IWMMXT
+	select PXA27x
 	help
 	  Say Y here if you intend to run this kernel on a Cogent
 	  CSB726 System On Module.
@@ -109,11 +121,11 @@ config CSB726_CSB701
 config MACH_ARMCORE
 	bool "CompuLab CM-X255/CM-X270 modules"
 	select ARCH_HAS_DMA_SET_COHERENT_MASK if PCI
-	select PXA27x
 	select IWMMXT
-	select PXA25x
 	select MIGHT_HAVE_PCI
 	select NEED_MACH_IO_H if PCI
+	select PXA25x
+	select PXA27x
 
 config MACH_EM_X270
 	bool "CompuLab EM-x270 platform"
@@ -125,10 +137,10 @@ config MACH_EXEDA
 
 config MACH_CM_X300
 	bool "CompuLab CM-X300 modules"
-	select PXA3xx
 	select CPU_PXA300
 	select CPU_PXA310
 	select HAVE_PWM
+	select PXA3xx
 
 config MACH_CAPC7117
 	bool "Embedian CAPC-7117 evaluation kit based on the MXM-8x10 CoM"
@@ -156,22 +168,22 @@ endchoice
 
 config MACH_INTELMOTE2
 	bool "Intel Mote 2 Platform"
-	select PXA27x
 	select IWMMXT
+	select PXA27x
 
 config MACH_STARGATE2
 	bool "Intel Stargate 2 Platform"
-	select PXA27x
 	select IWMMXT
+	select PXA27x
 
 config MACH_XCEP
 	bool "Iskratel Electronics XCEP"
-	select PXA25x
 	select MTD
-	select MTD_PHYSMAP
-	select MTD_CFI_INTELEXT
 	select MTD_CFI
+	select MTD_CFI_INTELEXT
 	select MTD_CHAR
+	select MTD_PHYSMAP
+	select PXA25x
 	select SMC91X
 	help
 	  PXA255 based Single Board Computer with SMC 91C111 ethernet chip and 64 MB of flash.
@@ -183,14 +195,14 @@ config TRIZEPS_PXA
 config MACH_TRIZEPS4
 	bool "Keith und Koep Trizeps4 DIMM-Module"
 	depends on TRIZEPS_PXA
-	select TRIZEPS_PCMCIA
 	select PXA27x
+	select TRIZEPS_PCMCIA
 
 config MACH_TRIZEPS4WL
 	bool "Keith und Koep Trizeps4-WL DIMM-Module"
 	depends on TRIZEPS_PXA
-	select TRIZEPS_PCMCIA
 	select PXA27x
+	select TRIZEPS_PCMCIA
 
 choice
 	prompt "Select base board for Trizeps module"
@@ -219,18 +231,18 @@ config TRIZEPS_PCMCIA
 
 config MACH_LOGICPD_PXA270
 	bool "LogicPD PXA270 Card Engine Development Platform"
-	select PXA27x
 	select HAVE_PWM
+	select PXA27x
 
 config MACH_PCM027
 	bool "Phytec phyCORE-PXA270 CPU module (PCM-027)"
-	select PXA27x
 	select IWMMXT
+	select PXA27x
 
 config MACH_PCM990_BASEBOARD
 	bool "PHYTEC PCM-990 development board"
-	select HAVE_PWM
 	depends on MACH_PCM027
+	select HAVE_PWM
 
 choice
 	prompt "display on pcm990"
@@ -254,19 +266,19 @@ config MACH_COLIBRI
 config MACH_COLIBRI_PXA270_INCOME
 	bool "Income s.r.o. PXA270 SBC"
 	depends on MACH_COLIBRI
-	select PXA27x
 	select HAVE_PWM
+	select PXA27x
 
 config MACH_COLIBRI300
 	bool "Toradex Colibri PXA300/310"
-	select PXA3xx
 	select CPU_PXA300
 	select CPU_PXA310
+	select PXA3xx
 
 config MACH_COLIBRI320
 	bool "Toradex Colibri PXA320"
-	select PXA3xx
 	select CPU_PXA320
+	select PXA3xx
 
 config MACH_COLIBRI_EVALBOARD
 	bool "Toradex Colibri Evaluation Carrier Board support"
@@ -274,8 +286,8 @@ config MACH_COLIBRI_EVALBOARD
 
 config MACH_VPAC270
 	bool "Voipac PXA270"
-	select PXA27x
 	select HAVE_PATA_PLATFORM
+	select PXA27x
 	help
 	  PXA270 based Single Board Computer.
 
@@ -283,9 +295,9 @@ comment "End-user Products (sorted by vendor name)"
 
 config MACH_H4700
 	bool "HP iPAQ hx4700"
-	select PXA27x
-	select IWMMXT
 	select HAVE_PWM
+	select IWMMXT
+	select PXA27x
 
 config MACH_H5000
 	bool "HP iPAQ h5000"
@@ -297,16 +309,16 @@ config MACH_HIMALAYA
 
 config MACH_MAGICIAN
 	bool "Enable HTC Magician Support"
-	select PXA27x
-	select IWMMXT
 	select HAVE_PWM
+	select IWMMXT
+	select PXA27x
 
 config MACH_MIOA701
 	bool "Mitac Mio A701 Support"
-	select PXA27x
-	select IWMMXT
-	select HAVE_PWM
 	select GPIO_SYSFS
+	select HAVE_PWM
+	select IWMMXT
+	select PXA27x
 	help
 	  Say Y here if you intend to run this kernel on a
 	  MIO A701. Currently there is only basic support
@@ -314,9 +326,9 @@ config MACH_MIOA701
 
 config PXA_EZX
 	bool "Motorola EZX Platform"
-	select PXA27x
-	select IWMMXT
 	select HAVE_PWM
+	select IWMMXT
+	select PXA27x
 
 config MACH_EZX_A780
 	bool "Motorola EZX A780"
@@ -381,9 +393,9 @@ config MACH_PALMT5
 	bool "Palm Tungsten|T5"
 	default y
 	depends on ARCH_PXA_PALM
-	select PXA27x
 	select IWMMXT
 	select MACH_PALM27X
+	select PXA27x
 	help
 	  Say Y here if you intend to run this kernel on a Palm Tungsten|T5
 	  handheld computer.
@@ -392,9 +404,9 @@ config MACH_PALMTX
 	bool "Palm T|X"
 	default y
 	depends on ARCH_PXA_PALM
-	select PXA27x
 	select IWMMXT
 	select MACH_PALM27X
+	select PXA27x
 	help
 	  Say Y here if you intend to run this kernel on a Palm T|X
 	  handheld computer.
@@ -403,9 +415,9 @@ config MACH_PALMZ72
 	bool "Palm Zire 72"
 	default y
 	depends on ARCH_PXA_PALM
-	select PXA27x
 	select IWMMXT
 	select MACH_PALM27X
+	select PXA27x
 	help
 	  Say Y here if you intend to run this kernel on Palm Zire 72
 	  handheld computer.
@@ -414,9 +426,9 @@ config MACH_PALMLD
 	bool "Palm LifeDrive"
 	default y
 	depends on ARCH_PXA_PALM
-	select PXA27x
 	select IWMMXT
 	select MACH_PALM27X
+	select PXA27x
 	help
 	  Say Y here if you intend to run this kernel on a Palm LifeDrive
 	  handheld computer.
@@ -429,10 +441,10 @@ config MACH_CENTRO
 	bool "Palm Centro 685 (GSM)"
 	default y
 	depends on ARCH_PXA_PALM
-	select MACH_PALM27X
-	select PXA27x
 	select IWMMXT
+	select MACH_PALM27X
 	select PALM_TREO
+	select PXA27x
 	help
 	  Say Y here if you intend to run this kernel on Palm Centro 685 (GSM)
 	  smartphone.
@@ -441,37 +453,37 @@ config MACH_TREO680
 	bool "Palm Treo 680"
 	default y
 	depends on ARCH_PXA_PALM
-	select MACH_PALM27X
-	select PXA27x
 	select IWMMXT
+	select MACH_PALM27X
 	select PALM_TREO
+	select PXA27x
 	help
 	  Say Y here if you intend to run this kernel on Palm Treo 680
 	  smartphone.
 
 config MACH_RAUMFELD_RC
 	bool "Raumfeld Controller"
-	select PXA3xx
 	select CPU_PXA300
-	select POWER_SUPPLY
 	select HAVE_PWM
+	select POWER_SUPPLY
+	select PXA3xx
 
 config MACH_RAUMFELD_CONNECTOR
 	bool "Raumfeld Connector"
+	select CPU_PXA300
 	select POWER_SUPPLY
 	select PXA3xx
-	select CPU_PXA300
 
 config MACH_RAUMFELD_SPEAKER
 	bool "Raumfeld Speaker"
+	select CPU_PXA300
 	select POWER_SUPPLY
 	select PXA3xx
-	select CPU_PXA300
 
 config PXA_SHARPSL
 	bool "SHARP Zaurus SL-5600, SL-C7xx and SL-Cxx00 Models"
-	select SHARP_SCOOP
 	select SHARP_PARAM
+	select SHARP_SCOOP
 	help
 	  Say Y here if you intend to run this kernel on a
 	  Sharp Zaurus SL-5600 (Poodle), SL-C700 (Corgi),
@@ -514,11 +526,11 @@ config MACH_HUSKY
 config MACH_AKITA
 	bool "Enable Sharp SL-1000 (Akita) Support"
 	depends on PXA_SHARPSL
-	select PXA27x
-	select PXA_SHARP_Cxx00
-	select MACH_SPITZ
 	select I2C
 	select I2C_PXA
+	select MACH_SPITZ
+	select PXA27x
+	select PXA_SHARP_Cxx00
 
 config MACH_SPITZ
 	bool "Enable Sharp Zaurus SL-3000 (Spitz) Support"
@@ -563,8 +575,8 @@ config MACH_ICONTROL
 
 config ARCH_PXA_ESERIES
 	bool "PXA based Toshiba e-series PDAs"
-	select PXA25x
 	select FB_W100
+	select PXA25x
 
 config MACH_E330
 	bool "Toshiba e330"
@@ -616,8 +628,8 @@ config MACH_E800
 
 config MACH_ZIPIT2
 	bool "Zipit Z2 Handheld"
-	select PXA27x
 	select HAVE_PWM
+	select PXA27x
 endif
 endmenu
 
@@ -708,9 +720,9 @@ config SHARPSL_PM
 config SHARPSL_PM_MAX1111
 	bool
 	select HWMON
+	select SENSORS_MAX1111
 	select SPI
 	select SPI_MASTER
-	select SENSORS_MAX1111
 
 config PXA_HAVE_ISA_IRQS
 	bool

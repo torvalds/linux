@@ -984,7 +984,7 @@ bad:
  * for now, we write only a single su, until we can
  * pass a stride back to the caller.
  */
-void ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
+int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 				   u64 off, u64 *plen,
 				   u64 *ono,
 				   u64 *oxoff, u64 *oxlen)
@@ -998,11 +998,17 @@ void ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 
 	dout("mapping %llu~%llu  osize %u fl_su %u\n", off, *plen,
 	     osize, su);
+	if (su == 0 || sc == 0)
+		goto invalid;
 	su_per_object = osize / su;
+	if (su_per_object == 0)
+		goto invalid;
 	dout("osize %u / su %u = su_per_object %u\n", osize, su,
 	     su_per_object);
 
-	BUG_ON((su & ~PAGE_MASK) != 0);
+	if ((su & ~PAGE_MASK) != 0)
+		goto invalid;
+
 	/* bl = *off / su; */
 	t = off;
 	do_div(t, su);
@@ -1030,6 +1036,14 @@ void ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 	*plen = *oxlen;
 
 	dout(" obj extent %llu~%llu\n", *oxoff, *oxlen);
+	return 0;
+
+invalid:
+	dout(" invalid layout\n");
+	*ono = 0;
+	*oxoff = 0;
+	*oxlen = 0;
+	return -EINVAL;
 }
 EXPORT_SYMBOL(ceph_calc_file_object_mapping);
 

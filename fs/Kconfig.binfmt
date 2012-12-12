@@ -164,3 +164,11 @@ config BINFMT_MISC
 	  You may say M here for module support and later load the module when
 	  you have use for it; the module is called binfmt_misc. If you
 	  don't know what to answer at this point, say Y.
+
+config COREDUMP
+	bool "Enable core dump support" if EXPERT
+	default y
+	help
+	  This option enables support for performing core dumps. You almost
+	  certainly want to say Y here. Not necessary on systems that never
+	  need debugging or only ever run flawless code.

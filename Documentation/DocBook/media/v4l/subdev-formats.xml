@@ -2565,5 +2565,49 @@
 	</tgroup>
       </table>
     </section>
+
+    <section id="v4l2-mbus-vendor-spec-fmts">
+      <title>Vendor and Device Specific Formats</title>
+
+      <note>
+	<title>Experimental</title>
+	<para>This is an <link linkend="experimental">experimental</link>
+interface and may change in the future.</para>
+      </note>
+
+      <para>This section lists complex data formats that are either vendor or
+	device specific.
+      </para>
+
+      <para>The following table lists the existing vendor and device specific
+	formats.</para>
+
+      <table pgwide="0" frame="none" id="v4l2-mbus-pixelcode-vendor-specific">
+	<title>Vendor and device specific formats</title>
+	<tgroup cols="3">
+	  <colspec colname="id" align="left" />
+	  <colspec colname="code" align="left"/>
+	  <colspec colname="remarks" align="left"/>
+	  <thead>
+	    <row>
+	      <entry>Identifier</entry>
+	      <entry>Code</entry>
+	      <entry>Comments</entry>
+	    </row>
+	  </thead>
+	  <tbody valign="top">
+	    <row id="V4L2-MBUS-FMT-S5C-UYVY-JPEG-1X8">
+	      <entry>V4L2_MBUS_FMT_S5C_UYVY_JPEG_1X8</entry>
+	      <entry>0x5001</entry>
+	      <entry>
+		Interleaved raw UYVY and JPEG image format with embedded
+		meta-data used by Samsung S3C73MX camera sensors.
+	      </entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </table>
+    </section>
+
   </section>
 </section>

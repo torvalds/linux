@@ -541,11 +541,6 @@ CONFIG_MSDOS_PARTITION=y
 # CONFIG_DLM is not set
 
 #
-# Xtensa initrd options
-#
-# CONFIG_EMBEDDED_RAMDISK is not set
-
-#
 # Kernel hacking
 #
 CONFIG_PRINTK_TIME=y

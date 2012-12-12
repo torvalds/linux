@@ -27,7 +27,7 @@ __cmpxchg_u32(volatile int *p, int old, int new)
 		       "bne	%0, %2, 1f             \n\t"
 		       "s32i    %3, %1, 0              \n\t"
 		       "1:                             \n\t"
-		       "wsr     a15, "__stringify(PS)" \n\t"
+		       "wsr     a15, ps                \n\t"
 		       "rsync                          \n\t"
 		       : "=&a" (old)
 		       : "a" (p), "a" (old), "r" (new)
@@ -97,7 +97,7 @@ static inline unsigned long xchg_u32(volatile int * m, unsigned long val)
   __asm__ __volatile__("rsil    a15, "__stringify(LOCKLEVEL)"\n\t"
 		       "l32i    %0, %1, 0              \n\t"
 		       "s32i    %2, %1, 0              \n\t"
-		       "wsr     a15, "__stringify(PS)" \n\t"
+		       "wsr     a15, ps                \n\t"
 		       "rsync                          \n\t"
 		       : "=&a" (tmp)
 		       : "a" (m), "a" (val)

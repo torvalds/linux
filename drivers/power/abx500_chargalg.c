@@ -1848,9 +1848,9 @@ static int __devinit abx500_chargalg_probe(struct platform_device *pdev)
 	}
 
 	/* Init work for chargalg */
-	INIT_DELAYED_WORK_DEFERRABLE(&di->chargalg_periodic_work,
+	INIT_DEFERRABLE_WORK(&di->chargalg_periodic_work,
 		abx500_chargalg_periodic_work);
-	INIT_DELAYED_WORK_DEFERRABLE(&di->chargalg_wd_work,
+	INIT_DEFERRABLE_WORK(&di->chargalg_wd_work,
 		abx500_chargalg_wd_work);
 
 	/* Init work for chargalg */

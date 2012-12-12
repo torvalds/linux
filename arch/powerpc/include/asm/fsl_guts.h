@@ -48,6 +48,8 @@ struct ccsr_guts {
         __be32  dmuxcr;		/* 0x.0068 - DMA Mux Control Register */
         u8	res06c[0x70 - 0x6c];
 	__be32	devdisr;	/* 0x.0070 - Device Disable Control */
+#define CCSR_GUTS_DEVDISR_TB1	0x00001000
+#define CCSR_GUTS_DEVDISR_TB0	0x00004000
 	__be32	devdisr2;	/* 0x.0074 - Device Disable Control 2 */
 	u8	res078[0x7c - 0x78];
 	__be32  pmjcr;		/* 0x.007c - 4 Power Management Jog Control Register */

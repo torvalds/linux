@@ -12,7 +12,9 @@
 #include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/irq.h>
+#include <linux/io.h>
 #include <mach/bridge-regs.h>
+#include <plat/orion-gpio.h>
 #include <plat/irq.h>
 
 static int __initdata gpio0_irqs[4] = {
@@ -24,11 +26,11 @@ static int __initdata gpio0_irqs[4] = {
 
 void __init orion5x_init_irq(void)
 {
-	orion_irq_init(0, (void __iomem *)MAIN_IRQ_MASK);
+	orion_irq_init(0, MAIN_IRQ_MASK);
 
 	/*
 	 * Initialize gpiolib for GPIOs 0-31.
 	 */
-	orion_gpio_init(NULL, 0, 32, (void __iomem *)GPIO_VIRT_BASE, 0,
+	orion_gpio_init(NULL, 0, 32, GPIO_VIRT_BASE, 0,
 			IRQ_ORION5X_GPIO_START, gpio0_irqs);
 }

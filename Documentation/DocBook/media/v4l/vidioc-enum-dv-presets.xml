@@ -229,6 +229,12 @@ intended for the user.</entry>
 is out of bounds.</para>
 	</listitem>
       </varlistentry>
+      <varlistentry>
+	<term><errorcode>ENODATA</errorcode></term>
+	<listitem>
+	  <para>Digital video presets are not supported for this input or output.</para>
+	</listitem>
+      </varlistentry>
     </variablelist>
   </refsect1>
 </refentry>

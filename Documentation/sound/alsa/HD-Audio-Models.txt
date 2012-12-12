@@ -74,7 +74,8 @@ CMI9880
 
 AD1882 / AD1882A
 ================
-  3stack	3-stack mode (default)
+  3stack	3-stack mode
+  3stack-automute 3-stack with automute front HP (default)
   6stack	6-stack mode
 
 AD1884A / AD1883 / AD1984A / AD1984B

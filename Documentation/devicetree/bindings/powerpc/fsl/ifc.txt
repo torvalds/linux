@@ -12,9 +12,12 @@ Properties:
 - #size-cells : Either one or two, depending on how large each chipselect
                 can be.
 - reg : Offset and length of the register set for the device
-- interrupts : IFC has two interrupts. The first one is the "common"
-               interrupt(CM_EVTER_STAT), and second is the NAND interrupt
-               (NAND_EVTER_STAT).
+- interrupts: IFC may have one or two interrupts.  If two interrupt
+              specifiers are present, the first is the "common"
+              interrupt (CM_EVTER_STAT), and the second is the NAND
+              interrupt (NAND_EVTER_STAT).  If there is only one,
+              that interrupt reports both types of event.
+
 
 - ranges : Each range corresponds to a single chipselect, and covers
            the entire access window as configured.

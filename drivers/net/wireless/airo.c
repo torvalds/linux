@@ -87,7 +87,6 @@ static struct pci_driver airo_driver = {
 /* Include Wireless Extension definition and check version - Jean II */
 #include <linux/wireless.h>
 #define WIRELESS_SPY		/* enable iwspy support */
-#include <net/iw_handler.h>	/* New driver API */
 
 #define CISCO_EXT		/* enable Cisco extensions */
 #ifdef CISCO_EXT
@@ -232,8 +231,10 @@ static int adhoc;
 
 static int probe = 1;
 
+static kuid_t proc_kuid;
 static int proc_uid /* = 0 */;
 
+static kgid_t proc_kgid;
 static int proc_gid /* = 0 */;
 
 static int airo_perm = 0555;
@@ -4499,78 +4500,79 @@ struct proc_data {
 static int setup_proc_entry( struct net_device *dev,
 			     struct airo_info *apriv ) {
 	struct proc_dir_entry *entry;
+
 	/* First setup the device directory */
 	strcpy(apriv->proc_name,dev->name);
 	apriv->proc_entry = proc_mkdir_mode(apriv->proc_name, airo_perm,
 					    airo_entry);
 	if (!apriv->proc_entry)
 		goto fail;
-	apriv->proc_entry->uid = proc_uid;
-	apriv->proc_entry->gid = proc_gid;
+	apriv->proc_entry->uid = proc_kuid;
+	apriv->proc_entry->gid = proc_kgid;
 
 	/* Setup the StatsDelta */
 	entry = proc_create_data("StatsDelta", S_IRUGO & proc_perm,
 				 apriv->proc_entry, &proc_statsdelta_ops, dev);
 	if (!entry)
 		goto fail_stats_delta;
-	entry->uid = proc_uid;
-	entry->gid = proc_gid;
+	entry->uid = proc_kuid;
+	entry->gid = proc_kgid;
 
 	/* Setup the Stats */
 	entry = proc_create_data("Stats", S_IRUGO & proc_perm,
 				 apriv->proc_entry, &proc_stats_ops, dev);
 	if (!entry)
 		goto fail_stats;
-	entry->uid = proc_uid;
-	entry->gid = proc_gid;
+	entry->uid = proc_kuid;
+	entry->gid = proc_kgid;
 
 	/* Setup the Status */
 	entry = proc_create_data("Status", S_IRUGO & proc_perm,
 				 apriv->proc_entry, &proc_status_ops, dev);
 	if (!entry)
 		goto fail_status;
-	entry->uid = proc_uid;
-	entry->gid = proc_gid;
+	entry->uid = proc_kuid;
+	entry->gid = proc_kgid;
 
 	/* Setup the Config */
 	entry = proc_create_data("Config", proc_perm,
 				 apriv->proc_entry, &proc_config_ops, dev);
 	if (!entry)
 		goto fail_config;
-	entry->uid = proc_uid;
-	entry->gid = proc_gid;
+	entry->uid = proc_kuid;
+	entry->gid = proc_kgid;
 
 	/* Setup the SSID */
 	entry = proc_create_data("SSID", proc_perm,
 				 apriv->proc_entry, &proc_SSID_ops, dev);
 	if (!entry)
 		goto fail_ssid;
-	entry->uid = proc_uid;
-	entry->gid = proc_gid;
+	entry->uid = proc_kuid;
+	entry->gid = proc_kgid;
 
 	/* Setup the APList */
 	entry = proc_create_data("APList", proc_perm,
 				 apriv->proc_entry, &proc_APList_ops, dev);
 	if (!entry)
 		goto fail_aplist;
-	entry->uid = proc_uid;
-	entry->gid = proc_gid;
+	entry->uid = proc_kuid;
+	entry->gid = proc_kgid;
 
 	/* Setup the BSSList */
 	entry = proc_create_data("BSSList", proc_perm,
 				 apriv->proc_entry, &proc_BSSList_ops, dev);
 	if (!entry)
 		goto fail_bsslist;
-	entry->uid = proc_uid;
-	entry->gid = proc_gid;
+	entry->uid = proc_kuid;
+	entry->gid = proc_kgid;
 
 	/* Setup the WepKey */
 	entry = proc_create_data("WepKey", proc_perm,
 				 apriv->proc_entry, &proc_wepkey_ops, dev);
 	if (!entry)
 		goto fail_wepkey;
-	entry->uid = proc_uid;
-	entry->gid = proc_gid;
+	entry->uid = proc_kuid;
+	entry->gid = proc_kgid;
 
 	return 0;
 
@@ -5697,11 +5699,16 @@ static int __init airo_init_module( void )
 {
 	int i;
 
+	proc_kuid = make_kuid(&init_user_ns, proc_uid);
+	proc_kgid = make_kgid(&init_user_ns, proc_gid);
+	if (!uid_valid(proc_kuid) || !gid_valid(proc_kgid))
+		return -EINVAL;
+
 	airo_entry = proc_mkdir_mode("driver/aironet", airo_perm, NULL);
 
 	if (airo_entry) {
-		airo_entry->uid = proc_uid;
-		airo_entry->gid = proc_gid;
+		airo_entry->uid = proc_kuid;
+		airo_entry->gid = proc_kgid;
 	}
 
 	for (i = 0; i < 4 && io[i] && irq[i]; i++) {
@@ -5976,13 +5983,11 @@ static int airo_set_wap(struct net_device *dev,
 	Cmd cmd;
 	Resp rsp;
 	APListRid APList_rid;
-	static const u8 any[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-	static const u8 off[ETH_ALEN] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 	if (awrq->sa_family != ARPHRD_ETHER)
 		return -EINVAL;
-	else if (!memcmp(any, awrq->sa_data, ETH_ALEN) ||
-	         !memcmp(off, awrq->sa_data, ETH_ALEN)) {
+	else if (is_broadcast_ether_addr(awrq->sa_data) ||
+		 is_zero_ether_addr(awrq->sa_data)) {
 		memset(&cmd, 0, sizeof(cmd));
 		cmd.cmd=CMD_LOSE_SYNC;
 		if (down_interruptible(&local->sem))

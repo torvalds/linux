@@ -3270,8 +3270,8 @@ static int delete_block_group_cache(struct btrfs_fs_info *fs_info,
 	key.offset = 0;
 
 	inode = btrfs_iget(fs_info->sb, &key, root, NULL);
-	if (IS_ERR_OR_NULL(inode) || is_bad_inode(inode)) {
-		if (inode && !IS_ERR(inode))
+	if (IS_ERR(inode) || is_bad_inode(inode)) {
+		if (!IS_ERR(inode))
 			iput(inode);
 		return -ENOENT;
 	}
@@ -3621,7 +3621,7 @@ next:
 
 		ret = find_first_extent_bit(&rc->processed_blocks,
 					    key.objectid, &start, &end,
-					    EXTENT_DIRTY);
+					    EXTENT_DIRTY, NULL);
 
 		if (ret == 0 && start <= key.objectid) {
 			btrfs_release_path(path);
@@ -3674,7 +3674,8 @@ int prepare_to_relocate(struct reloc_control *rc)
 	struct btrfs_trans_handle *trans;
 	int ret;
 
-	rc->block_rsv = btrfs_alloc_block_rsv(rc->extent_root);
+	rc->block_rsv = btrfs_alloc_block_rsv(rc->extent_root,
+					      BTRFS_BLOCK_RSV_TEMP);
 	if (!rc->block_rsv)
 		return -ENOMEM;
 
@@ -4057,7 +4058,7 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 	       (unsigned long long)rc->block_group->flags);
 
 	btrfs_start_delalloc_inodes(fs_info->tree_root, 0);
-	btrfs_wait_ordered_extents(fs_info->tree_root, 0, 0);
+	btrfs_wait_ordered_extents(fs_info->tree_root, 0);
 
 	while (1) {
 		mutex_lock(&fs_info->cleaner_mutex);

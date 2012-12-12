@@ -169,6 +169,7 @@ typedef void (*dma_isr_handler)(struct tegra_dma_channel *tdc,
 /* tegra_dma_channel: Channel specific information */
 struct tegra_dma_channel {
 	struct dma_chan		dma_chan;
+	char			name[30];
 	bool			config_init;
 	int			id;
 	int			irq;
@@ -201,7 +202,7 @@ struct tegra_dma {
 	struct clk			*dma_clk;
 	spinlock_t			global_lock;
 	void __iomem			*base_addr;
-	struct tegra_dma_chip_data	*chip_data;
+	const struct tegra_dma_chip_data *chip_data;
 
 	/* Some register need to be cache before suspend */
 	u32				reg_gen;
@@ -475,8 +476,7 @@ static void tegra_dma_abort_all(struct tegra_dma_channel *tdc)
 	while (!list_empty(&tdc->pending_sg_req)) {
 		sgreq = list_first_entry(&tdc->pending_sg_req,
 						typeof(*sgreq), node);
-		list_del(&sgreq->node);
-		list_add_tail(&sgreq->node, &tdc->free_sg_req);
+		list_move_tail(&sgreq->node, &tdc->free_sg_req);
 		if (sgreq->last_sg) {
 			dma_desc = sgreq->dma_desc;
 			dma_desc->dma_status = DMA_ERROR;
@@ -570,8 +570,7 @@ static void handle_cont_sngl_cycle_dma_done(struct tegra_dma_channel *tdc,
 
 	/* If not last req then put at end of pending list */
 	if (!list_is_last(&sgreq->node, &tdc->pending_sg_req)) {
-		list_del(&sgreq->node);
-		list_add_tail(&sgreq->node, &tdc->pending_sg_req);
+		list_move_tail(&sgreq->node, &tdc->pending_sg_req);
 		sgreq->configured = false;
 		st = handle_continuous_head_request(tdc, sgreq, to_terminate);
 		if (!st)
@@ -990,7 +989,7 @@ static struct dma_async_tx_descriptor *tegra_dma_prep_slave_sg(
 struct dma_async_tx_descriptor *tegra_dma_prep_dma_cyclic(
 	struct dma_chan *dc, dma_addr_t buf_addr, size_t buf_len,
 	size_t period_len, enum dma_transfer_direction direction,
-	void *context)
+	unsigned long flags, void *context)
 {
 	struct tegra_dma_channel *tdc = to_tegra_dma_chan(dc);
 	struct tegra_dma_desc *dma_desc = NULL;
@@ -1173,14 +1172,14 @@ static void tegra_dma_free_chan_resources(struct dma_chan *dc)
 }
 
 /* Tegra20 specific DMA controller information */
-static struct tegra_dma_chip_data tegra20_dma_chip_data = {
+static const struct tegra_dma_chip_data tegra20_dma_chip_data = {
 	.nr_channels		= 16,
 	.max_dma_count		= 1024UL * 64,
 };
 
 #if defined(CONFIG_OF)
 /* Tegra30 specific DMA controller information */
-static struct tegra_dma_chip_data tegra30_dma_chip_data = {
+static const struct tegra_dma_chip_data tegra30_dma_chip_data = {
 	.nr_channels		= 32,
 	.max_dma_count		= 1024UL * 64,
 };
@@ -1204,7 +1203,7 @@ static int __devinit tegra_dma_probe(struct platform_device *pdev)
 	struct tegra_dma *tdma;
 	int ret;
 	int i;
-	struct tegra_dma_chip_data *cdata = NULL;
+	const struct tegra_dma_chip_data *cdata = NULL;
 
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
@@ -1284,7 +1283,6 @@ static int __devinit tegra_dma_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&tdma->dma_dev.channels);
 	for (i = 0; i < cdata->nr_channels; i++) {
 		struct tegra_dma_channel *tdc = &tdma->channels[i];
-		char irq_name[30];
 
 		tdc->chan_base_offset = TEGRA_APBDMA_CHANNEL_BASE_ADD_OFFSET +
 					i * TEGRA_APBDMA_CHANNEL_REGISTER_SIZE;
@@ -1296,9 +1294,9 @@ static int __devinit tegra_dma_probe(struct platform_device *pdev)
 			goto err_irq;
 		}
 		tdc->irq = res->start;
-		snprintf(irq_name, sizeof(irq_name), "apbdma.%d", i);
+		snprintf(tdc->name, sizeof(tdc->name), "apbdma.%d", i);
 		ret = devm_request_irq(&pdev->dev, tdc->irq,
-				tegra_dma_isr, 0, irq_name, tdc);
+				tegra_dma_isr, 0, tdc->name, tdc);
 		if (ret) {
 			dev_err(&pdev->dev,
 				"request_irq failed with err %d channel %d\n",

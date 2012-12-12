@@ -250,6 +250,7 @@ xfs_ialloc_ag_alloc(
 					/* boundary */
 	struct xfs_perag *pag;
 
+	memset(&args, 0, sizeof(args));
 	args.tp = tp;
 	args.mp = tp->t_mountp;
 
@@ -431,7 +432,7 @@ xfs_ialloc_next_ag(
 
 	spin_lock(&mp->m_agirotor_lock);
 	agno = mp->m_agirotor;
-	if (++mp->m_agirotor == mp->m_maxagi)
+	if (++mp->m_agirotor >= mp->m_maxagi)
 		mp->m_agirotor = 0;
 	spin_unlock(&mp->m_agirotor_lock);
 

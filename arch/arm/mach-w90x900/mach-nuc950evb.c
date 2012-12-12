@@ -20,7 +20,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach-types.h>
 #include <mach/map.h>
-#include <mach/fb.h>
+#include <linux/platform_data/video-nuc900fb.h>
 
 #include "nuc950.h"
 

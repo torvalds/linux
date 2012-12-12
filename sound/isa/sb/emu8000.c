@@ -417,9 +417,6 @@ size_dram(struct snd_emu8000 *emu)
 		EMU8000_SMLD_READ(emu); /* discard stale data  */
 		if (EMU8000_SMLD_READ(emu) != UNIQUE_ID2)
 			break; /* no memory at this address */
-
-		detected_size = size;
-
 		snd_emu8000_read_wait(emu);
 
 		/*
@@ -432,6 +429,18 @@ size_dram(struct snd_emu8000 *emu)
 		if (EMU8000_SMLD_READ(emu) != UNIQUE_ID1)
 			break; /* we must have wrapped around */
 		snd_emu8000_read_wait(emu);
+
+		/* Otherwise, it's valid memory. */
+		detected_size = size + 512 * 1024;
+	}
+
+	/* Distinguish 512 KiB from 0. */
+	if (detected_size == 0) {
+		snd_emu8000_read_wait(emu);
+		EMU8000_SMALR_WRITE(emu, EMU8000_DRAM_OFFSET);
+		EMU8000_SMLD_READ(emu); /* discard stale data  */
+		if (EMU8000_SMLD_READ(emu) == UNIQUE_ID1)
+			detected_size = 512 * 1024;
 	}
 
 	/* wait until FULL bit in SMAxW register is false */

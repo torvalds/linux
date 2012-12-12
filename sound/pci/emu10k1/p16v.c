@@ -893,7 +893,7 @@ int __devinit snd_p16v_mixer(struct snd_emu10k1 *emu)
         return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 
 #define NUM_CHS	1	/* up to 4, but only first channel is used */
 

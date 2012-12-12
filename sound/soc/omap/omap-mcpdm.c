@@ -40,10 +40,10 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
-#include <plat/dma.h>
-#include <plat/omap_hwmod.h>
 #include "omap-mcpdm.h"
 #include "omap-pcm.h"
+
+#define OMAP44XX_MCPDM_L3_BASE		0x49032000
 
 struct omap_mcpdm {
 	struct device *dev;
@@ -71,17 +71,9 @@ struct omap_mcpdm {
 static struct omap_pcm_dma_data omap_mcpdm_dai_dma_params[] = {
 	{
 		.name = "Audio playback",
-		.dma_req = OMAP44XX_DMA_MCPDM_DL,
-		.data_type = OMAP_DMA_DATA_TYPE_S32,
-		.sync_mode = OMAP_DMA_SYNC_PACKET,
-		.port_addr = OMAP44XX_MCPDM_L3_BASE + MCPDM_REG_DN_DATA,
 	},
 	{
 		.name = "Audio capture",
-		.dma_req = OMAP44XX_DMA_MCPDM_UP,
-		.data_type = OMAP_DMA_DATA_TYPE_S32,
-		.sync_mode = OMAP_DMA_SYNC_PACKET,
-		.port_addr = OMAP44XX_MCPDM_L3_BASE + MCPDM_REG_UP_DATA,
 	},
 };
 
@@ -267,17 +259,15 @@ static int omap_mcpdm_dai_startup(struct snd_pcm_substream *substream,
 	mutex_lock(&mcpdm->mutex);
 
 	if (!dai->active) {
-		/* Enable watch dog for ES above ES 1.0 to avoid saturation */
-		if (omap_rev() != OMAP4430_REV_ES1_0) {
-			u32 ctrl = omap_mcpdm_read(mcpdm, MCPDM_REG_CTRL);
+		u32 ctrl = omap_mcpdm_read(mcpdm, MCPDM_REG_CTRL);
 
-			omap_mcpdm_write(mcpdm, MCPDM_REG_CTRL,
-					 ctrl | MCPDM_WD_EN);
-		}
+		omap_mcpdm_write(mcpdm, MCPDM_REG_CTRL, ctrl | MCPDM_WD_EN);
 		omap_mcpdm_open_streams(mcpdm);
 	}
-
 	mutex_unlock(&mcpdm->mutex);
+
+	snd_soc_dai_set_dma_data(dai, substream,
+				 &omap_mcpdm_dai_dma_params[substream->stream]);
 
 	return 0;
 }
@@ -333,7 +323,7 @@ static int omap_mcpdm_dai_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	dma_data = &omap_mcpdm_dai_dma_params[stream];
+	dma_data = snd_soc_dai_get_dma_data(dai, substream);
 
 	/* Configure McPDM channels, and DMA packet size */
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -344,8 +334,6 @@ static int omap_mcpdm_dai_hw_params(struct snd_pcm_substream *substream,
 		mcpdm->up_channels = link_mask << 0;
 		dma_data->packet_size = mcpdm->up_threshold * channels;
 	}
-
-	snd_soc_dai_set_dma_data(dai, substream, dma_data);
 
 	return 0;
 }
@@ -445,9 +433,8 @@ static __devinit int asoc_mcpdm_probe(struct platform_device *pdev)
 {
 	struct omap_mcpdm *mcpdm;
 	struct resource *res;
-	int ret = 0;
 
-	mcpdm = kzalloc(sizeof(struct omap_mcpdm), GFP_KERNEL);
+	mcpdm = devm_kzalloc(&pdev->dev, sizeof(struct omap_mcpdm), GFP_KERNEL);
 	if (!mcpdm)
 		return -ENOMEM;
 
@@ -455,56 +442,54 @@ static __devinit int asoc_mcpdm_probe(struct platform_device *pdev)
 
 	mutex_init(&mcpdm->mutex);
 
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dma");
+	if (res == NULL)
+		return -ENOMEM;
+
+	omap_mcpdm_dai_dma_params[0].port_addr = res->start + MCPDM_REG_DN_DATA;
+	omap_mcpdm_dai_dma_params[1].port_addr = res->start + MCPDM_REG_UP_DATA;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "no resource\n");
-		goto err_res;
-	}
+	if (res == NULL)
+		return -ENOMEM;
 
-	if (!request_mem_region(res->start, resource_size(res), "McPDM")) {
-		ret = -EBUSY;
-		goto err_res;
-	}
+	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "dn_link");
+	if (!res)
+		return -ENODEV;
 
-	mcpdm->io_base = ioremap(res->start, resource_size(res));
-	if (!mcpdm->io_base) {
-		ret = -ENOMEM;
-		goto err_iomap;
-	}
+	omap_mcpdm_dai_dma_params[0].dma_req = res->start;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "up_link");
+	if (!res)
+		return -ENODEV;
+
+	omap_mcpdm_dai_dma_params[1].dma_req = res->start;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpu");
+	if (res == NULL)
+		return -ENOMEM;
+
+	if (!devm_request_mem_region(&pdev->dev, res->start,
+				     resource_size(res), "McPDM"))
+		return -EBUSY;
+
+	mcpdm->io_base = devm_ioremap(&pdev->dev, res->start,
+				      resource_size(res));
+	if (!mcpdm->io_base)
+		return -ENOMEM;
 
 	mcpdm->irq = platform_get_irq(pdev, 0);
-	if (mcpdm->irq < 0) {
-		ret = mcpdm->irq;
-		goto err_irq;
-	}
+	if (mcpdm->irq < 0)
+		return mcpdm->irq;
 
 	mcpdm->dev = &pdev->dev;
 
-	ret = snd_soc_register_dai(&pdev->dev, &omap_mcpdm_dai);
-	if (!ret)
-		return 0;
-
-err_irq:
-	iounmap(mcpdm->io_base);
-err_iomap:
-	release_mem_region(res->start, resource_size(res));
-err_res:
-	kfree(mcpdm);
-	return ret;
+	return snd_soc_register_dai(&pdev->dev, &omap_mcpdm_dai);
 }
 
 static int __devexit asoc_mcpdm_remove(struct platform_device *pdev)
 {
-	struct omap_mcpdm *mcpdm = platform_get_drvdata(pdev);
-	struct resource *res;
-
 	snd_soc_unregister_dai(&pdev->dev);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	iounmap(mcpdm->io_base);
-	release_mem_region(res->start, resource_size(res));
-
-	kfree(mcpdm);
 	return 0;
 }
 

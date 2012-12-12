@@ -60,7 +60,9 @@ static inline int should_drop_frame(struct sk_buff *skb,
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 
-	if (status->flag & (RX_FLAG_FAILED_FCS_CRC | RX_FLAG_FAILED_PLCP_CRC))
+	if (status->flag & (RX_FLAG_FAILED_FCS_CRC |
+			    RX_FLAG_FAILED_PLCP_CRC |
+			    RX_FLAG_AMPDU_IS_ZEROLEN))
 		return 1;
 	if (unlikely(skb->len < 16 + present_fcs_len))
 		return 1;
@@ -91,10 +93,17 @@ ieee80211_rx_radiotap_len(struct ieee80211_local *local,
 	if (status->flag & RX_FLAG_HT) /* HT info */
 		len += 3;
 
+	if (status->flag & RX_FLAG_AMPDU_DETAILS) {
+		/* padding */
+		while (len & 3)
+			len++;
+		len += 8;
+	}
+
 	return len;
 }
 
-/**
+/*
  * ieee80211_add_rx_radiotap_header - add radiotap header
  *
  * add a radiotap header containing all the fields which the hardware provided.
@@ -214,6 +223,37 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 			*pos |= IEEE80211_RADIOTAP_MCS_FMT_GF;
 		pos++;
 		*pos++ = status->rate_idx;
+	}
+
+	if (status->flag & RX_FLAG_AMPDU_DETAILS) {
+		u16 flags = 0;
+
+		/* ensure 4 byte alignment */
+		while ((pos - (u8 *)rthdr) & 3)
+			pos++;
+		rthdr->it_present |=
+			cpu_to_le32(1 << IEEE80211_RADIOTAP_AMPDU_STATUS);
+		put_unaligned_le32(status->ampdu_reference, pos);
+		pos += 4;
+		if (status->flag & RX_FLAG_AMPDU_REPORT_ZEROLEN)
+			flags |= IEEE80211_RADIOTAP_AMPDU_REPORT_ZEROLEN;
+		if (status->flag & RX_FLAG_AMPDU_IS_ZEROLEN)
+			flags |= IEEE80211_RADIOTAP_AMPDU_IS_ZEROLEN;
+		if (status->flag & RX_FLAG_AMPDU_LAST_KNOWN)
+			flags |= IEEE80211_RADIOTAP_AMPDU_LAST_KNOWN;
+		if (status->flag & RX_FLAG_AMPDU_IS_LAST)
+			flags |= IEEE80211_RADIOTAP_AMPDU_IS_LAST;
+		if (status->flag & RX_FLAG_AMPDU_DELIM_CRC_ERROR)
+			flags |= IEEE80211_RADIOTAP_AMPDU_DELIM_CRC_ERR;
+		if (status->flag & RX_FLAG_AMPDU_DELIM_CRC_KNOWN)
+			flags |= IEEE80211_RADIOTAP_AMPDU_DELIM_CRC_KNOWN;
+		put_unaligned_le16(flags, pos);
+		pos += 2;
+		if (status->flag & RX_FLAG_AMPDU_DELIM_CRC_KNOWN)
+			*pos++ = status->ampdu_delimiter_crc;
+		else
+			*pos++ = 0;
+		*pos++ = 0;
 	}
 }
 
@@ -491,6 +531,11 @@ ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
 
 		if (ieee80211_is_action(hdr->frame_control)) {
 			u8 category;
+
+			/* make sure category field is present */
+			if (rx->skb->len < IEEE80211_MIN_ACTION_SIZE)
+				return RX_DROP_MONITOR;
+
 			mgmt = (struct ieee80211_mgmt *)hdr;
 			category = mgmt->u.action.category;
 			if (category != WLAN_CATEGORY_MESH_ACTION &&
@@ -843,14 +888,16 @@ ieee80211_rx_h_check(struct ieee80211_rx_data *rx)
 		 */
 		if (rx->sta && rx->sdata->vif.type == NL80211_IFTYPE_STATION &&
 		    ieee80211_is_data_present(hdr->frame_control)) {
-			u16 ethertype;
-			u8 *payload;
+			unsigned int hdrlen;
+			__be16 ethertype;
 
-			payload = rx->skb->data +
-				ieee80211_hdrlen(hdr->frame_control);
-			ethertype = (payload[6] << 8) | payload[7];
-			if (cpu_to_be16(ethertype) ==
-			    rx->sdata->control_port_protocol)
+			hdrlen = ieee80211_hdrlen(hdr->frame_control);
+
+			if (rx->skb->len < hdrlen + 8)
+				return RX_DROP_MONITOR;
+
+			skb_copy_bits(rx->skb, hdrlen + 6, &ethertype, 2);
+			if (ethertype == rx->sdata->control_port_protocol)
 				return RX_CONTINUE;
 		}
 
@@ -1422,11 +1469,14 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 
 	hdr = (struct ieee80211_hdr *)rx->skb->data;
 	fc = hdr->frame_control;
+
+	if (ieee80211_is_ctl(fc))
+		return RX_CONTINUE;
+
 	sc = le16_to_cpu(hdr->seq_ctrl);
 	frag = sc & IEEE80211_SCTL_FRAG;
 
 	if (likely((!ieee80211_has_morefrags(fc) && frag == 0) ||
-		   (rx->skb)->len < 24 ||
 		   is_multicast_ether_addr(hdr->addr1))) {
 		/* not fragmented */
 		goto out;
@@ -1849,6 +1899,20 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 
 	hdr = (struct ieee80211_hdr *) skb->data;
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
+
+	/* make sure fixed part of mesh header is there, also checks skb len */
+	if (!pskb_may_pull(rx->skb, hdrlen + 6))
+		return RX_DROP_MONITOR;
+
+	mesh_hdr = (struct ieee80211s_hdr *) (skb->data + hdrlen);
+
+	/* make sure full mesh header is there, also checks skb len */
+	if (!pskb_may_pull(rx->skb,
+			   hdrlen + ieee80211_get_mesh_hdrlen(mesh_hdr)))
+		return RX_DROP_MONITOR;
+
+	/* reload pointers */
+	hdr = (struct ieee80211_hdr *) skb->data;
 	mesh_hdr = (struct ieee80211s_hdr *) (skb->data + hdrlen);
 
 	/* frame is in RMC, don't forward */
@@ -1857,7 +1921,8 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 	    mesh_rmc_check(hdr->addr3, mesh_hdr, rx->sdata))
 		return RX_DROP_MONITOR;
 
-	if (!ieee80211_is_data(hdr->frame_control))
+	if (!ieee80211_is_data(hdr->frame_control) ||
+	    !(status->rx_flags & IEEE80211_RX_RA_MATCH))
 		return RX_CONTINUE;
 
 	if (!mesh_hdr->ttl)
@@ -1871,9 +1936,12 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 		if (is_multicast_ether_addr(hdr->addr1)) {
 			mpp_addr = hdr->addr3;
 			proxied_addr = mesh_hdr->eaddr1;
-		} else {
+		} else if (mesh_hdr->flags & MESH_FLAGS_AE_A5_A6) {
+			/* has_a4 already checked in ieee80211_rx_mesh_check */
 			mpp_addr = hdr->addr4;
 			proxied_addr = mesh_hdr->eaddr2;
+		} else {
+			return RX_DROP_MONITOR;
 		}
 
 		rcu_read_lock();
@@ -1901,12 +1969,9 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 	}
 	skb_set_queue_mapping(skb, q);
 
-	if (!(status->rx_flags & IEEE80211_RX_RA_MATCH))
-		goto out;
-
 	if (!--mesh_hdr->ttl) {
 		IEEE80211_IFSTA_MESH_CTR_INC(ifmsh, dropped_frames_ttl);
-		return RX_DROP_MONITOR;
+		goto out;
 	}
 
 	if (!ifmsh->mshcfg.dot11MeshForwarding)
@@ -2268,7 +2333,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 
 		goto queue;
 	case WLAN_CATEGORY_SPECTRUM_MGMT:
-		if (local->hw.conf.channel->band != IEEE80211_BAND_5GHZ)
+		if (status->band != IEEE80211_BAND_5GHZ)
 			break;
 
 		if (sdata->vif.type != NL80211_IFTYPE_STATION)
@@ -2313,6 +2378,10 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		}
 		break;
 	case WLAN_CATEGORY_SELF_PROTECTED:
+		if (len < (IEEE80211_MIN_ACTION_SIZE +
+			   sizeof(mgmt->u.action.u.self_prot.action_code)))
+			break;
+
 		switch (mgmt->u.action.u.self_prot.action_code) {
 		case WLAN_SP_MESH_PEERING_OPEN:
 		case WLAN_SP_MESH_PEERING_CLOSE:
@@ -2331,6 +2400,10 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		}
 		break;
 	case WLAN_CATEGORY_MESH_ACTION:
+		if (len < (IEEE80211_MIN_ACTION_SIZE +
+			   sizeof(mgmt->u.action.u.mesh_action.action_code)))
+			break;
+
 		if (!ieee80211_vif_is_mesh(&sdata->vif))
 			break;
 		if (mesh_action_is_path_sel(mgmt) &&
@@ -2772,8 +2845,7 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 		if (!bssid) {
 			if (!ether_addr_equal(sdata->vif.addr, hdr->addr1))
 				return 0;
-		} else if (!ieee80211_bssid_match(bssid,
-					sdata->vif.addr)) {
+		} else if (!ieee80211_bssid_match(bssid, sdata->vif.addr)) {
 			/*
 			 * Accept public action frames even when the
 			 * BSSID doesn't match, this is used for P2P
@@ -2793,9 +2865,18 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 		if (!ether_addr_equal(sdata->u.wds.remote_addr, hdr->addr2))
 			return 0;
 		break;
+	case NL80211_IFTYPE_P2P_DEVICE:
+		if (!ieee80211_is_public_action(hdr, skb->len) &&
+		    !ieee80211_is_probe_req(hdr->frame_control) &&
+		    !ieee80211_is_probe_resp(hdr->frame_control) &&
+		    !ieee80211_is_beacon(hdr->frame_control))
+			return 0;
+		if (!ether_addr_equal(sdata->vif.addr, hdr->addr1))
+			status->rx_flags &= ~IEEE80211_RX_RA_MATCH;
+		break;
 	default:
 		/* should never get here */
-		WARN_ON(1);
+		WARN_ON_ONCE(1);
 		break;
 	}
 
@@ -2865,10 +2946,15 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	if (ieee80211_is_data(fc) || ieee80211_is_mgmt(fc))
 		local->dot11ReceivedFragmentCount++;
 
-	if (ieee80211_is_mgmt(fc))
-		err = skb_linearize(skb);
-	else
+	if (ieee80211_is_mgmt(fc)) {
+		/* drop frame if too short for header */
+		if (skb->len < ieee80211_hdrlen(fc))
+			err = -ENOBUFS;
+		else
+			err = skb_linearize(skb);
+	} else {
 		err = !pskb_may_pull(skb, ieee80211_hdrlen(fc));
+	}
 
 	if (err) {
 		dev_kfree_skb(skb);

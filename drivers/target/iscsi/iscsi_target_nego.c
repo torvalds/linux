@@ -44,7 +44,7 @@ void convert_null_to_semi(char *buf, int len)
 			buf[i] = ';';
 }
 
-int strlen_semi(char *buf)
+static int strlen_semi(char *buf)
 {
 	int i = 0;
 
@@ -339,14 +339,14 @@ static int iscsi_target_do_tx_login_io(struct iscsi_conn *conn, struct iscsi_log
 	hton24(login_rsp->dlength, login->rsp_length);
 	memcpy(login_rsp->isid, login->isid, 6);
 	login_rsp->tsih			= cpu_to_be16(login->tsih);
-	login_rsp->itt			= cpu_to_be32(login->init_task_tag);
+	login_rsp->itt			= login->init_task_tag;
 	login_rsp->statsn		= cpu_to_be32(conn->stat_sn++);
 	login_rsp->exp_cmdsn		= cpu_to_be32(conn->sess->exp_cmd_sn);
 	login_rsp->max_cmdsn		= cpu_to_be32(conn->sess->max_cmd_sn);
 
 	pr_debug("Sending Login Response, Flags: 0x%02x, ITT: 0x%08x,"
 		" ExpCmdSN; 0x%08x, MaxCmdSN: 0x%08x, StatSN: 0x%08x, Length:"
-		" %u\n", login_rsp->flags, ntohl(login_rsp->itt),
+		" %u\n", login_rsp->flags, (__force u32)login_rsp->itt,
 		ntohl(login_rsp->exp_cmdsn), ntohl(login_rsp->max_cmdsn),
 		ntohl(login_rsp->statsn), login->rsp_length);
 
@@ -360,12 +360,9 @@ static int iscsi_target_do_tx_login_io(struct iscsi_conn *conn, struct iscsi_log
 		return -1;
 
 	login->rsp_length		= 0;
-	login_rsp->tsih			= be16_to_cpu(login_rsp->tsih);
-	login_rsp->itt			= be32_to_cpu(login_rsp->itt);
-	login_rsp->statsn		= be32_to_cpu(login_rsp->statsn);
 	mutex_lock(&sess->cmdsn_mutex);
-	login_rsp->exp_cmdsn		= be32_to_cpu(sess->exp_cmd_sn);
-	login_rsp->max_cmdsn		= be32_to_cpu(sess->max_cmd_sn);
+	login_rsp->exp_cmdsn		= cpu_to_be32(sess->exp_cmd_sn);
+	login_rsp->max_cmdsn		= cpu_to_be32(sess->max_cmd_sn);
 	mutex_unlock(&sess->cmdsn_mutex);
 
 	return 0;
@@ -381,11 +378,6 @@ static int iscsi_target_do_rx_login_io(struct iscsi_conn *conn, struct iscsi_log
 
 	login_req = (struct iscsi_login_req *) login->req;
 	payload_length			= ntoh24(login_req->dlength);
-	login_req->tsih			= be16_to_cpu(login_req->tsih);
-	login_req->itt			= be32_to_cpu(login_req->itt);
-	login_req->cid			= be16_to_cpu(login_req->cid);
-	login_req->cmdsn		= be32_to_cpu(login_req->cmdsn);
-	login_req->exp_statsn		= be32_to_cpu(login_req->exp_statsn);
 
 	pr_debug("Got Login Command, Flags 0x%02x, ITT: 0x%08x,"
 		" CmdSN: 0x%08x, ExpStatSN: 0x%08x, CID: %hu, Length: %u\n",
@@ -550,7 +542,7 @@ static int iscsi_target_handle_csg_zero(
 			SENDER_INITIATOR|SENDER_RECEIVER,
 			login->req_buf,
 			payload_length,
-			conn->param_list);
+			conn);
 	if (ret < 0)
 		return -1;
 
@@ -627,7 +619,7 @@ static int iscsi_target_handle_csg_one(struct iscsi_conn *conn, struct iscsi_log
 			SENDER_INITIATOR|SENDER_RECEIVER,
 			login->req_buf,
 			payload_length,
-			conn->param_list);
+			conn);
 	if (ret < 0)
 		return -1;
 
@@ -762,11 +754,11 @@ static int iscsi_target_locate_portal(
 	login->version_min	= login_req->min_version;
 	login->version_max	= login_req->max_version;
 	memcpy(login->isid, login_req->isid, 6);
-	login->cmd_sn		= login_req->cmdsn;
+	login->cmd_sn		= be32_to_cpu(login_req->cmdsn);
 	login->init_task_tag	= login_req->itt;
-	login->initial_exp_statsn = login_req->exp_statsn;
-	login->cid		= login_req->cid;
-	login->tsih		= login_req->tsih;
+	login->initial_exp_statsn = be32_to_cpu(login_req->exp_statsn);
+	login->cid		= be16_to_cpu(login_req->cid);
+	login->tsih		= be16_to_cpu(login_req->tsih);
 
 	if (iscsi_target_get_initial_payload(conn, login) < 0)
 		return -1;
@@ -1000,7 +992,6 @@ struct iscsi_login *iscsi_target_init_negotiation(
 	 *	Locates Target Portal from NP -> Target IQN
 	 */
 	if (iscsi_target_locate_portal(np, conn, login) < 0) {
-		pr_err("iSCSI Login negotiation failed.\n");
 		goto out;
 	}
 

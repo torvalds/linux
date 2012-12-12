@@ -70,8 +70,9 @@ static inline int xsave_user(struct xsave_struct __user *buf)
 	if (unlikely(err))
 		return -EFAULT;
 
-	__asm__ __volatile__("1: .byte " REX_PREFIX "0x0f,0xae,0x27\n"
-			     "2:\n"
+	__asm__ __volatile__(ASM_STAC "\n"
+			     "1: .byte " REX_PREFIX "0x0f,0xae,0x27\n"
+			     "2: " ASM_CLAC "\n"
 			     ".section .fixup,\"ax\"\n"
 			     "3:  movl $-1,%[err]\n"
 			     "    jmp  2b\n"
@@ -90,8 +91,9 @@ static inline int xrestore_user(struct xsave_struct __user *buf, u64 mask)
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
 
-	__asm__ __volatile__("1: .byte " REX_PREFIX "0x0f,0xae,0x2f\n"
-			     "2:\n"
+	__asm__ __volatile__(ASM_STAC "\n"
+			     "1: .byte " REX_PREFIX "0x0f,0xae,0x2f\n"
+			     "2: " ASM_CLAC "\n"
 			     ".section .fixup,\"ax\"\n"
 			     "3:  movl $-1,%[err]\n"
 			     "    jmp  2b\n"

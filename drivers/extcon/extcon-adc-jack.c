@@ -14,6 +14,7 @@
  *
  */
 
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -143,7 +144,7 @@ static int __devinit adc_jack_probe(struct platform_device *pdev)
 
 	data->handling_delay = msecs_to_jiffies(pdata->handling_delay_ms);
 
-	INIT_DELAYED_WORK_DEFERRABLE(&data->handler, adc_jack_handler);
+	INIT_DEFERRABLE_WORK(&data->handler, adc_jack_handler);
 
 	platform_set_drvdata(pdev, data);
 
@@ -161,13 +162,12 @@ static int __devinit adc_jack_probe(struct platform_device *pdev)
 	err = request_any_context_irq(data->irq, adc_jack_irq_thread,
 			pdata->irq_flags, pdata->name, data);
 
-	if (err) {
+	if (err < 0) {
 		dev_err(&pdev->dev, "error: irq %d\n", data->irq);
-		err = -EINVAL;
 		goto err_irq;
 	}
 
-	goto out;
+	return 0;
 
 err_irq:
 	extcon_dev_unregister(&data->edev);
@@ -196,3 +196,7 @@ static struct platform_driver adc_jack_driver = {
 };
 
 module_platform_driver(adc_jack_driver);
+
+MODULE_AUTHOR("MyungJoo Ham <myungjoo.ham@samsung.com>");
+MODULE_DESCRIPTION("ADC Jack extcon driver");
+MODULE_LICENSE("GPL v2");

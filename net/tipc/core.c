@@ -48,18 +48,13 @@
 
 
 /* global variables used by multiple sub-systems within TIPC */
-int tipc_random;
-
-const char tipc_alphabet[] =
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.";
+int tipc_random __read_mostly;
 
 /* configurable TIPC parameters */
-u32 tipc_own_addr;
-int tipc_max_ports;
-int tipc_max_subscriptions;
-int tipc_max_publications;
-int tipc_net_id;
-int tipc_remote_management;
+u32 tipc_own_addr __read_mostly;
+int tipc_max_ports __read_mostly;
+int tipc_net_id __read_mostly;
+int tipc_remote_management __read_mostly;
 
 
 /**
@@ -101,9 +96,8 @@ int tipc_core_start_net(unsigned long addr)
 {
 	int res;
 
-	res = tipc_net_start(addr);
-	if (!res)
-		res = tipc_eth_media_start();
+	tipc_net_start(addr);
+	res = tipc_eth_media_start();
 	if (res)
 		tipc_core_stop_net();
 	return res;
@@ -160,8 +154,6 @@ static int __init tipc_init(void)
 
 	tipc_own_addr = 0;
 	tipc_remote_management = 1;
-	tipc_max_publications = 10000;
-	tipc_max_subscriptions = 2000;
 	tipc_max_ports = CONFIG_TIPC_PORTS;
 	tipc_net_id = 4711;
 

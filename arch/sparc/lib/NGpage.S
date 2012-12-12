@@ -59,6 +59,8 @@ NGcopy_user_page:	/* %o0=dest, %o1=src, %o2=vaddr */
 	 restore
 
 	.align		32
+	.globl		NGclear_page
+	.globl		NGclear_user_page
 NGclear_page:		/* %o0=dest */
 NGclear_user_page:	/* %o0=dest, %o1=vaddr */
 	rd		%asi, %g3

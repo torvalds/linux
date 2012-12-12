@@ -24,22 +24,29 @@
 #define IMA_MASK 	0x0002
 #define IMA_FSMAGIC	0x0004
 #define IMA_UID		0x0008
+#define IMA_FOWNER	0x0010
 
-enum ima_action { UNKNOWN = -1, DONT_MEASURE = 0, MEASURE };
+#define UNKNOWN		0
+#define MEASURE		0x0001	/* same as IMA_MEASURE */
+#define DONT_MEASURE	0x0002
+#define APPRAISE	0x0004	/* same as IMA_APPRAISE */
+#define DONT_APPRAISE	0x0008
+#define AUDIT		0x0040
 
 #define MAX_LSM_RULES 6
 enum lsm_rule_types { LSM_OBJ_USER, LSM_OBJ_ROLE, LSM_OBJ_TYPE,
 	LSM_SUBJ_USER, LSM_SUBJ_ROLE, LSM_SUBJ_TYPE
 };
 
-struct ima_measure_rule_entry {
+struct ima_rule_entry {
 	struct list_head list;
-	enum ima_action action;
+	int action;
 	unsigned int flags;
 	enum ima_hooks func;
 	int mask;
 	unsigned long fsmagic;
-	uid_t uid;
+	kuid_t uid;
+	kuid_t fowner;
 	struct {
 		void *rule;	/* LSM file metadata specific */
 		int type;	/* audit type */
@@ -48,7 +55,7 @@ struct ima_measure_rule_entry {
 
 /*
  * Without LSM specific knowledge, the default policy can only be
- * written in terms of .action, .func, .mask, .fsmagic, and .uid
+ * written in terms of .action, .func, .mask, .fsmagic, .uid, and .fowner
  */
 
 /*
@@ -57,7 +64,7 @@ struct ima_measure_rule_entry {
  * normal users can easily run the machine out of memory simply building
  * and running executables.
  */
-static struct ima_measure_rule_entry default_rules[] = {
+static struct ima_rule_entry default_rules[] = {
 	{.action = DONT_MEASURE,.fsmagic = PROC_SUPER_MAGIC,.flags = IMA_FSMAGIC},
 	{.action = DONT_MEASURE,.fsmagic = SYSFS_MAGIC,.flags = IMA_FSMAGIC},
 	{.action = DONT_MEASURE,.fsmagic = DEBUGFS_MAGIC,.flags = IMA_FSMAGIC},
@@ -71,23 +78,45 @@ static struct ima_measure_rule_entry default_rules[] = {
 	 .flags = IMA_FUNC | IMA_MASK},
 	{.action = MEASURE,.func = BPRM_CHECK,.mask = MAY_EXEC,
 	 .flags = IMA_FUNC | IMA_MASK},
-	{.action = MEASURE,.func = FILE_CHECK,.mask = MAY_READ,.uid = 0,
+	{.action = MEASURE,.func = FILE_CHECK,.mask = MAY_READ,.uid = GLOBAL_ROOT_UID,
 	 .flags = IMA_FUNC | IMA_MASK | IMA_UID},
 };
 
-static LIST_HEAD(measure_default_rules);
-static LIST_HEAD(measure_policy_rules);
-static struct list_head *ima_measure;
+static struct ima_rule_entry default_appraise_rules[] = {
+	{.action = DONT_APPRAISE,.fsmagic = PROC_SUPER_MAGIC,.flags = IMA_FSMAGIC},
+	{.action = DONT_APPRAISE,.fsmagic = SYSFS_MAGIC,.flags = IMA_FSMAGIC},
+	{.action = DONT_APPRAISE,.fsmagic = DEBUGFS_MAGIC,.flags = IMA_FSMAGIC},
+	{.action = DONT_APPRAISE,.fsmagic = TMPFS_MAGIC,.flags = IMA_FSMAGIC},
+	{.action = DONT_APPRAISE,.fsmagic = RAMFS_MAGIC,.flags = IMA_FSMAGIC},
+	{.action = DONT_APPRAISE,.fsmagic = DEVPTS_SUPER_MAGIC,.flags = IMA_FSMAGIC},
+	{.action = DONT_APPRAISE,.fsmagic = BINFMTFS_MAGIC,.flags = IMA_FSMAGIC},
+	{.action = DONT_APPRAISE,.fsmagic = SECURITYFS_MAGIC,.flags = IMA_FSMAGIC},
+	{.action = DONT_APPRAISE,.fsmagic = SELINUX_MAGIC,.flags = IMA_FSMAGIC},
+	{.action = DONT_APPRAISE,.fsmagic = CGROUP_SUPER_MAGIC,.flags = IMA_FSMAGIC},
+	{.action = APPRAISE,.fowner = GLOBAL_ROOT_UID,.flags = IMA_FOWNER},
+};
 
-static DEFINE_MUTEX(ima_measure_mutex);
+static LIST_HEAD(ima_default_rules);
+static LIST_HEAD(ima_policy_rules);
+static struct list_head *ima_rules;
+
+static DEFINE_MUTEX(ima_rules_mutex);
 
 static bool ima_use_tcb __initdata;
-static int __init default_policy_setup(char *str)
+static int __init default_measure_policy_setup(char *str)
 {
 	ima_use_tcb = 1;
 	return 1;
 }
-__setup("ima_tcb", default_policy_setup);
+__setup("ima_tcb", default_measure_policy_setup);
+
+static bool ima_use_appraise_tcb __initdata;
+static int __init default_appraise_policy_setup(char *str)
+{
+	ima_use_appraise_tcb = 1;
+	return 1;
+}
+__setup("ima_appraise_tcb", default_appraise_policy_setup);
 
 /**
  * ima_match_rules - determine whether an inode matches the measure rule.
@@ -98,7 +127,7 @@ __setup("ima_tcb", default_policy_setup);
  *
  * Returns true on rule match, false on failure.
  */
-static bool ima_match_rules(struct ima_measure_rule_entry *rule,
+static bool ima_match_rules(struct ima_rule_entry *rule,
 			    struct inode *inode, enum ima_hooks func, int mask)
 {
 	struct task_struct *tsk = current;
@@ -112,7 +141,9 @@ static bool ima_match_rules(struct ima_measure_rule_entry *rule,
 	if ((rule->flags & IMA_FSMAGIC)
 	    && rule->fsmagic != inode->i_sb->s_magic)
 		return false;
-	if ((rule->flags & IMA_UID) && rule->uid != cred->uid)
+	if ((rule->flags & IMA_UID) && !uid_eq(rule->uid, cred->uid))
+		return false;
+	if ((rule->flags & IMA_FOWNER) && !uid_eq(rule->fowner, inode->i_uid))
 		return false;
 	for (i = 0; i < MAX_LSM_RULES; i++) {
 		int rc = 0;
@@ -163,39 +194,61 @@ static bool ima_match_rules(struct ima_measure_rule_entry *rule,
  * as elements in the list are never deleted, nor does the list
  * change.)
  */
-int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask)
+int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
+		     int flags)
 {
-	struct ima_measure_rule_entry *entry;
+	struct ima_rule_entry *entry;
+	int action = 0, actmask = flags | (flags << 1);
 
-	list_for_each_entry(entry, ima_measure, list) {
-		bool rc;
+	list_for_each_entry(entry, ima_rules, list) {
 
-		rc = ima_match_rules(entry, inode, func, mask);
-		if (rc)
-			return entry->action;
+		if (!(entry->action & actmask))
+			continue;
+
+		if (!ima_match_rules(entry, inode, func, mask))
+			continue;
+
+		action |= entry->action & IMA_DO_MASK;
+		if (entry->action & IMA_DO_MASK)
+			actmask &= ~(entry->action | entry->action << 1);
+		else
+			actmask &= ~(entry->action | entry->action >> 1);
+
+		if (!actmask)
+			break;
 	}
-	return 0;
+
+	return action;
 }
 
 /**
  * ima_init_policy - initialize the default measure rules.
  *
- * ima_measure points to either the measure_default_rules or the
- * the new measure_policy_rules.
+ * ima_rules points to either the ima_default_rules or the
+ * the new ima_policy_rules.
  */
 void __init ima_init_policy(void)
 {
-	int i, entries;
+	int i, measure_entries, appraise_entries;
 
 	/* if !ima_use_tcb set entries = 0 so we load NO default rules */
-	if (ima_use_tcb)
-		entries = ARRAY_SIZE(default_rules);
-	else
-		entries = 0;
+	measure_entries = ima_use_tcb ? ARRAY_SIZE(default_rules) : 0;
+	appraise_entries = ima_use_appraise_tcb ?
+			 ARRAY_SIZE(default_appraise_rules) : 0;
+	
+	for (i = 0; i < measure_entries + appraise_entries; i++) {
+		if (i < measure_entries)
+			list_add_tail(&default_rules[i].list,
+				      &ima_default_rules);
+		else {
+			int j = i - measure_entries;
 
-	for (i = 0; i < entries; i++)
-		list_add_tail(&default_rules[i].list, &measure_default_rules);
-	ima_measure = &measure_default_rules;
+			list_add_tail(&default_appraise_rules[j].list,
+				      &ima_default_rules);
+		}
+	}
+
+	ima_rules = &ima_default_rules;
 }
 
 /**
@@ -212,8 +265,8 @@ void ima_update_policy(void)
 	int result = 1;
 	int audit_info = 0;
 
-	if (ima_measure == &measure_default_rules) {
-		ima_measure = &measure_policy_rules;
+	if (ima_rules == &ima_default_rules) {
+		ima_rules = &ima_policy_rules;
 		cause = "complete";
 		result = 0;
 	}
@@ -224,14 +277,19 @@ void ima_update_policy(void)
 enum {
 	Opt_err = -1,
 	Opt_measure = 1, Opt_dont_measure,
+	Opt_appraise, Opt_dont_appraise,
+	Opt_audit,
 	Opt_obj_user, Opt_obj_role, Opt_obj_type,
 	Opt_subj_user, Opt_subj_role, Opt_subj_type,
-	Opt_func, Opt_mask, Opt_fsmagic, Opt_uid
+	Opt_func, Opt_mask, Opt_fsmagic, Opt_uid, Opt_fowner
 };
 
 static match_table_t policy_tokens = {
 	{Opt_measure, "measure"},
 	{Opt_dont_measure, "dont_measure"},
+	{Opt_appraise, "appraise"},
+	{Opt_dont_appraise, "dont_appraise"},
+	{Opt_audit, "audit"},
 	{Opt_obj_user, "obj_user=%s"},
 	{Opt_obj_role, "obj_role=%s"},
 	{Opt_obj_type, "obj_type=%s"},
@@ -242,10 +300,11 @@ static match_table_t policy_tokens = {
 	{Opt_mask, "mask=%s"},
 	{Opt_fsmagic, "fsmagic=%s"},
 	{Opt_uid, "uid=%s"},
+	{Opt_fowner, "fowner=%s"},
 	{Opt_err, NULL}
 };
 
-static int ima_lsm_rule_init(struct ima_measure_rule_entry *entry,
+static int ima_lsm_rule_init(struct ima_rule_entry *entry,
 			     char *args, int lsm_rule, int audit_type)
 {
 	int result;
@@ -269,7 +328,7 @@ static void ima_log_string(struct audit_buffer *ab, char *key, char *value)
 	audit_log_format(ab, " ");
 }
 
-static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
+static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 {
 	struct audit_buffer *ab;
 	char *p;
@@ -277,7 +336,8 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_INTEGRITY_RULE);
 
-	entry->uid = -1;
+	entry->uid = INVALID_UID;
+	entry->fowner = INVALID_UID;
 	entry->action = UNKNOWN;
 	while ((p = strsep(&rule, " \t")) != NULL) {
 		substring_t args[MAX_OPT_ARGS];
@@ -306,11 +366,35 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 
 			entry->action = DONT_MEASURE;
 			break;
+		case Opt_appraise:
+			ima_log_string(ab, "action", "appraise");
+
+			if (entry->action != UNKNOWN)
+				result = -EINVAL;
+
+			entry->action = APPRAISE;
+			break;
+		case Opt_dont_appraise:
+			ima_log_string(ab, "action", "dont_appraise");
+
+			if (entry->action != UNKNOWN)
+				result = -EINVAL;
+
+			entry->action = DONT_APPRAISE;
+			break;
+		case Opt_audit:
+			ima_log_string(ab, "action", "audit");
+
+			if (entry->action != UNKNOWN)
+				result = -EINVAL;
+
+			entry->action = AUDIT;
+			break;
 		case Opt_func:
 			ima_log_string(ab, "func", args[0].from);
 
 			if (entry->func)
-				result  = -EINVAL;
+				result = -EINVAL;
 
 			if (strcmp(args[0].from, "FILE_CHECK") == 0)
 				entry->func = FILE_CHECK;
@@ -361,18 +445,35 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 		case Opt_uid:
 			ima_log_string(ab, "uid", args[0].from);
 
-			if (entry->uid != -1) {
+			if (uid_valid(entry->uid)) {
 				result = -EINVAL;
 				break;
 			}
 
 			result = strict_strtoul(args[0].from, 10, &lnum);
 			if (!result) {
-				entry->uid = (uid_t) lnum;
-				if (entry->uid != lnum)
+				entry->uid = make_kuid(current_user_ns(), (uid_t)lnum);
+				if (!uid_valid(entry->uid) || (((uid_t)lnum) != lnum))
 					result = -EINVAL;
 				else
 					entry->flags |= IMA_UID;
+			}
+			break;
+		case Opt_fowner:
+			ima_log_string(ab, "fowner", args[0].from);
+
+			if (uid_valid(entry->fowner)) {
+				result = -EINVAL;
+				break;
+			}
+
+			result = strict_strtoul(args[0].from, 10, &lnum);
+			if (!result) {
+				entry->fowner = make_kuid(current_user_ns(), (uid_t)lnum);
+				if (!uid_valid(entry->fowner) || (((uid_t)lnum) != lnum))
+					result = -EINVAL;
+				else
+					entry->flags |= IMA_FOWNER;
 			}
 			break;
 		case Opt_obj_user:
@@ -426,7 +527,7 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 }
 
 /**
- * ima_parse_add_rule - add a rule to measure_policy_rules
+ * ima_parse_add_rule - add a rule to ima_policy_rules
  * @rule - ima measurement policy rule
  *
  * Uses a mutex to protect the policy list from multiple concurrent writers.
@@ -436,12 +537,12 @@ ssize_t ima_parse_add_rule(char *rule)
 {
 	const char *op = "update_policy";
 	char *p;
-	struct ima_measure_rule_entry *entry;
+	struct ima_rule_entry *entry;
 	ssize_t result, len;
 	int audit_info = 0;
 
 	/* Prevent installed policy from changing */
-	if (ima_measure != &measure_default_rules) {
+	if (ima_rules != &ima_default_rules) {
 		integrity_audit_msg(AUDIT_INTEGRITY_STATUS, NULL,
 				    NULL, op, "already exists",
 				    -EACCES, audit_info);
@@ -474,9 +575,9 @@ ssize_t ima_parse_add_rule(char *rule)
 		return result;
 	}
 
-	mutex_lock(&ima_measure_mutex);
-	list_add_tail(&entry->list, &measure_policy_rules);
-	mutex_unlock(&ima_measure_mutex);
+	mutex_lock(&ima_rules_mutex);
+	list_add_tail(&entry->list, &ima_policy_rules);
+	mutex_unlock(&ima_rules_mutex);
 
 	return len;
 }
@@ -484,12 +585,12 @@ ssize_t ima_parse_add_rule(char *rule)
 /* ima_delete_rules called to cleanup invalid policy */
 void ima_delete_rules(void)
 {
-	struct ima_measure_rule_entry *entry, *tmp;
+	struct ima_rule_entry *entry, *tmp;
 
-	mutex_lock(&ima_measure_mutex);
-	list_for_each_entry_safe(entry, tmp, &measure_policy_rules, list) {
+	mutex_lock(&ima_rules_mutex);
+	list_for_each_entry_safe(entry, tmp, &ima_policy_rules, list) {
 		list_del(&entry->list);
 		kfree(entry);
 	}
-	mutex_unlock(&ima_measure_mutex);
+	mutex_unlock(&ima_rules_mutex);
 }

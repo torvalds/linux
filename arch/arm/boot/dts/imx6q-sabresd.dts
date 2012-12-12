@@ -22,28 +22,51 @@
 	};
 
 	soc {
-
 		aips-bus@02000000 { /* AIPS1 */
 			spba-bus@02000000 {
 				uart1: serial@02020000 {
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_uart1_1>;
 					status = "okay";
+				};
+			};
+
+			iomuxc@020e0000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_hog>;
+
+				hog {
+					pinctrl_hog: hoggrp {
+						fsl,pins = <
+							1402 0x80000000	/* MX6Q_PAD_NANDF_D0__GPIO_2_0 */
+							1410 0x80000000	/* MX6Q_PAD_NANDF_D1__GPIO_2_1 */
+							1418 0x80000000	/* MX6Q_PAD_NANDF_D2__GPIO_2_2 */
+							1426 0x80000000	/* MX6Q_PAD_NANDF_D3__GPIO_2_3 */
+						>;
+					};
 				};
 			};
 		};
 
 		aips-bus@02100000 { /* AIPS2 */
 			ethernet@02188000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_enet_1>;
 				phy-mode = "rgmii";
 				status = "okay";
 			};
 
 			usdhc@02194000 { /* uSDHC2 */
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_usdhc2_1>;
 				cd-gpios = <&gpio2 2 0>;
 				wp-gpios = <&gpio2 3 0>;
 				status = "okay";
 			};
 
 			usdhc@02198000 { /* uSDHC3 */
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_usdhc3_1>;
 				cd-gpios = <&gpio2 0 0>;
 				wp-gpios = <&gpio2 1 0>;
 				status = "okay";

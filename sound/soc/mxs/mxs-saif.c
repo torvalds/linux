@@ -523,15 +523,23 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			/*
-			 * write a data to saif data register to trigger
-			 * the transfer
+			 * write data to saif data register to trigger
+			 * the transfer.
+			 * For 24-bit format the 32-bit FIFO register stores
+			 * only one channel, so we need to write twice.
+			 * This is also safe for the other non 24-bit formats.
 			 */
+			__raw_writel(0, saif->base + SAIF_DATA);
 			__raw_writel(0, saif->base + SAIF_DATA);
 		} else {
 			/*
-			 * read a data from saif data register to trigger
-			 * the receive
+			 * read data from saif data register to trigger
+			 * the receive.
+			 * For 24-bit format the 32-bit FIFO register stores
+			 * only one channel, so we need to read twice.
+			 * This is also safe for the other non 24-bit formats.
 			 */
+			__raw_readl(saif->base + SAIF_DATA);
 			__raw_readl(saif->base + SAIF_DATA);
 		}
 
@@ -704,7 +712,7 @@ static int __devinit mxs_saif_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	saif->clk = clk_get(&pdev->dev, NULL);
+	saif->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(saif->clk)) {
 		ret = PTR_ERR(saif->clk);
 		dev_err(&pdev->dev, "Cannot get the clock: %d\n",
@@ -717,8 +725,7 @@ static int __devinit mxs_saif_probe(struct platform_device *pdev)
 	saif->base = devm_request_and_ioremap(&pdev->dev, iores);
 	if (!saif->base) {
 		dev_err(&pdev->dev, "ioremap failed\n");
-		ret = -ENODEV;
-		goto failed_get_resource;
+		return -ENODEV;
 	}
 
 	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 0);
@@ -731,7 +738,7 @@ static int __devinit mxs_saif_probe(struct platform_device *pdev)
 					   &saif->dma_param.chan_num);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to get dma channel\n");
-			goto failed_get_resource;
+			return ret;
 		}
 	} else {
 		saif->dma_param.chan_num = dmares->start;
@@ -742,7 +749,7 @@ static int __devinit mxs_saif_probe(struct platform_device *pdev)
 		ret = saif->irq;
 		dev_err(&pdev->dev, "failed to get irq resource: %d\n",
 			ret);
-		goto failed_get_resource;
+		return ret;
 	}
 
 	saif->dev = &pdev->dev;
@@ -750,7 +757,7 @@ static int __devinit mxs_saif_probe(struct platform_device *pdev)
 			       "mxs-saif", saif);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request irq\n");
-		goto failed_get_resource;
+		return ret;
 	}
 
 	saif->dma_param.chan_irq = platform_get_irq(pdev, 1);
@@ -758,7 +765,7 @@ static int __devinit mxs_saif_probe(struct platform_device *pdev)
 		ret = saif->dma_param.chan_irq;
 		dev_err(&pdev->dev, "failed to get dma irq resource: %d\n",
 			ret);
-		goto failed_get_resource;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, saif);
@@ -766,7 +773,7 @@ static int __devinit mxs_saif_probe(struct platform_device *pdev)
 	ret = snd_soc_register_dai(&pdev->dev, &mxs_saif_dai);
 	if (ret) {
 		dev_err(&pdev->dev, "register DAI failed\n");
-		goto failed_get_resource;
+		return ret;
 	}
 
 	ret = mxs_pcm_platform_register(&pdev->dev);
@@ -779,19 +786,14 @@ static int __devinit mxs_saif_probe(struct platform_device *pdev)
 
 failed_pdev_alloc:
 	snd_soc_unregister_dai(&pdev->dev);
-failed_get_resource:
-	clk_put(saif->clk);
 
 	return ret;
 }
 
 static int __devexit mxs_saif_remove(struct platform_device *pdev)
 {
-	struct mxs_saif *saif = platform_get_drvdata(pdev);
-
 	mxs_pcm_platform_unregister(&pdev->dev);
 	snd_soc_unregister_dai(&pdev->dev);
-	clk_put(saif->clk);
 
 	return 0;
 }
@@ -818,3 +820,4 @@ module_platform_driver(mxs_saif_driver);
 MODULE_AUTHOR("Freescale Semiconductor, Inc.");
 MODULE_DESCRIPTION("MXS ASoC SAIF driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:mxs-saif");

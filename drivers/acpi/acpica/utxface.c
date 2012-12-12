@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Module Name: utxface - External interfaces for "global" ACPI functions
+ * Module Name: utxface - External interfaces, miscellaneous utility functions
  *
  *****************************************************************************/
 
@@ -53,271 +53,6 @@
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utxface")
 
-#ifndef ACPI_ASL_COMPILER
-/*******************************************************************************
- *
- * FUNCTION:    acpi_initialize_subsystem
- *
- * PARAMETERS:  None
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Initializes all global variables.  This is the first function
- *              called, so any early initialization belongs here.
- *
- ******************************************************************************/
-acpi_status __init acpi_initialize_subsystem(void)
-{
-	acpi_status status;
-
-	ACPI_FUNCTION_TRACE(acpi_initialize_subsystem);
-
-	acpi_gbl_startup_flags = ACPI_SUBSYSTEM_INITIALIZE;
-	ACPI_DEBUG_EXEC(acpi_ut_init_stack_ptr_trace());
-
-	/* Initialize the OS-Dependent layer */
-
-	status = acpi_os_initialize();
-	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "During OSL initialization"));
-		return_ACPI_STATUS(status);
-	}
-
-	/* Initialize all globals used by the subsystem */
-
-	status = acpi_ut_init_globals();
-	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status,
-				"During initialization of globals"));
-		return_ACPI_STATUS(status);
-	}
-
-	/* Create the default mutex objects */
-
-	status = acpi_ut_mutex_initialize();
-	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status,
-				"During Global Mutex creation"));
-		return_ACPI_STATUS(status);
-	}
-
-	/*
-	 * Initialize the namespace manager and
-	 * the root of the namespace tree
-	 */
-	status = acpi_ns_root_initialize();
-	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status,
-				"During Namespace initialization"));
-		return_ACPI_STATUS(status);
-	}
-
-	/* Initialize the global OSI interfaces list with the static names */
-
-	status = acpi_ut_initialize_interfaces();
-	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status,
-				"During OSI interfaces initialization"));
-		return_ACPI_STATUS(status);
-	}
-
-	/* If configured, initialize the AML debugger */
-
-	ACPI_DEBUGGER_EXEC(status = acpi_db_initialize());
-	return_ACPI_STATUS(status);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_enable_subsystem
- *
- * PARAMETERS:  flags           - Init/enable Options
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Completes the subsystem initialization including hardware.
- *              Puts system into ACPI mode if it isn't already.
- *
- ******************************************************************************/
-acpi_status acpi_enable_subsystem(u32 flags)
-{
-	acpi_status status = AE_OK;
-
-	ACPI_FUNCTION_TRACE(acpi_enable_subsystem);
-
-#if (!ACPI_REDUCED_HARDWARE)
-
-	/* Enable ACPI mode */
-
-	if (!(flags & ACPI_NO_ACPI_ENABLE)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "[Init] Going into ACPI mode\n"));
-
-		acpi_gbl_original_mode = acpi_hw_get_mode();
-
-		status = acpi_enable();
-		if (ACPI_FAILURE(status)) {
-			ACPI_WARNING((AE_INFO, "AcpiEnable failed"));
-			return_ACPI_STATUS(status);
-		}
-	}
-
-	/*
-	 * Obtain a permanent mapping for the FACS. This is required for the
-	 * Global Lock and the Firmware Waking Vector
-	 */
-	status = acpi_tb_initialize_facs();
-	if (ACPI_FAILURE(status)) {
-		ACPI_WARNING((AE_INFO, "Could not map the FACS table"));
-		return_ACPI_STATUS(status);
-	}
-#endif				/* !ACPI_REDUCED_HARDWARE */
-
-	/*
-	 * Install the default op_region handlers. These are installed unless
-	 * other handlers have already been installed via the
-	 * install_address_space_handler interface.
-	 */
-	if (!(flags & ACPI_NO_ADDRESS_SPACE_INIT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "[Init] Installing default address space handlers\n"));
-
-		status = acpi_ev_install_region_handlers();
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	}
-#if (!ACPI_REDUCED_HARDWARE)
-	/*
-	 * Initialize ACPI Event handling (Fixed and General Purpose)
-	 *
-	 * Note1: We must have the hardware and events initialized before we can
-	 * execute any control methods safely. Any control method can require
-	 * ACPI hardware support, so the hardware must be fully initialized before
-	 * any method execution!
-	 *
-	 * Note2: Fixed events are initialized and enabled here. GPEs are
-	 * initialized, but cannot be enabled until after the hardware is
-	 * completely initialized (SCI and global_lock activated)
-	 */
-	if (!(flags & ACPI_NO_EVENT_INIT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "[Init] Initializing ACPI events\n"));
-
-		status = acpi_ev_initialize_events();
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	}
-
-	/*
-	 * Install the SCI handler and Global Lock handler. This completes the
-	 * hardware initialization.
-	 */
-	if (!(flags & ACPI_NO_HANDLER_INIT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "[Init] Installing SCI/GL handlers\n"));
-
-		status = acpi_ev_install_xrupt_handlers();
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	}
-#endif				/* !ACPI_REDUCED_HARDWARE */
-
-	return_ACPI_STATUS(status);
-}
-
-ACPI_EXPORT_SYMBOL(acpi_enable_subsystem)
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_initialize_objects
- *
- * PARAMETERS:  flags           - Init/enable Options
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Completes namespace initialization by initializing device
- *              objects and executing AML code for Regions, buffers, etc.
- *
- ******************************************************************************/
-acpi_status acpi_initialize_objects(u32 flags)
-{
-	acpi_status status = AE_OK;
-
-	ACPI_FUNCTION_TRACE(acpi_initialize_objects);
-
-	/*
-	 * Run all _REG methods
-	 *
-	 * Note: Any objects accessed by the _REG methods will be automatically
-	 * initialized, even if they contain executable AML (see the call to
-	 * acpi_ns_initialize_objects below).
-	 */
-	if (!(flags & ACPI_NO_ADDRESS_SPACE_INIT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "[Init] Executing _REG OpRegion methods\n"));
-
-		status = acpi_ev_initialize_op_regions();
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	}
-
-	/*
-	 * Execute any module-level code that was detected during the table load
-	 * phase. Although illegal since ACPI 2.0, there are many machines that
-	 * contain this type of code. Each block of detected executable AML code
-	 * outside of any control method is wrapped with a temporary control
-	 * method object and placed on a global list. The methods on this list
-	 * are executed below.
-	 */
-	acpi_ns_exec_module_code_list();
-
-	/*
-	 * Initialize the objects that remain uninitialized. This runs the
-	 * executable AML that may be part of the declaration of these objects:
-	 * operation_regions, buffer_fields, Buffers, and Packages.
-	 */
-	if (!(flags & ACPI_NO_OBJECT_INIT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "[Init] Completing Initialization of ACPI Objects\n"));
-
-		status = acpi_ns_initialize_objects();
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	}
-
-	/*
-	 * Initialize all device objects in the namespace. This runs the device
-	 * _STA and _INI methods.
-	 */
-	if (!(flags & ACPI_NO_DEVICE_INIT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "[Init] Initializing ACPI Devices\n"));
-
-		status = acpi_ns_initialize_devices();
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	}
-
-	/*
-	 * Empty the caches (delete the cached objects) on the assumption that
-	 * the table load filled them up more than they will be at runtime --
-	 * thus wasting non-paged memory.
-	 */
-	status = acpi_purge_cached_objects();
-
-	acpi_gbl_startup_flags |= ACPI_INITIALIZED_OK;
-	return_ACPI_STATUS(status);
-}
-
-ACPI_EXPORT_SYMBOL(acpi_initialize_objects)
-
-#endif
 /*******************************************************************************
  *
  * FUNCTION:    acpi_terminate
@@ -683,3 +418,90 @@ acpi_check_address_range(acpi_adr_space_type space_id,
 
 ACPI_EXPORT_SYMBOL(acpi_check_address_range)
 #endif				/* !ACPI_ASL_COMPILER */
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_decode_pld_buffer
+ *
+ * PARAMETERS:  in_buffer           - Buffer returned by _PLD method
+ *              length              - Length of the in_buffer
+ *              return_buffer       - Where the decode buffer is returned
+ *
+ * RETURN:      Status and the decoded _PLD buffer. User must deallocate
+ *              the buffer via ACPI_FREE.
+ *
+ * DESCRIPTION: Decode the bit-packed buffer returned by the _PLD method into
+ *              a local struct that is much more useful to an ACPI driver.
+ *
+ ******************************************************************************/
+acpi_status
+acpi_decode_pld_buffer(u8 *in_buffer,
+		       acpi_size length, struct acpi_pld_info ** return_buffer)
+{
+	struct acpi_pld_info *pld_info;
+	u32 *buffer = ACPI_CAST_PTR(u32, in_buffer);
+	u32 dword;
+
+	/* Parameter validation */
+
+	if (!in_buffer || !return_buffer || (length < 16)) {
+		return (AE_BAD_PARAMETER);
+	}
+
+	pld_info = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_pld_info));
+	if (!pld_info) {
+		return (AE_NO_MEMORY);
+	}
+
+	/* First 32-bit DWord */
+
+	ACPI_MOVE_32_TO_32(&dword, &buffer[0]);
+	pld_info->revision = ACPI_PLD_GET_REVISION(&dword);
+	pld_info->ignore_color = ACPI_PLD_GET_IGNORE_COLOR(&dword);
+	pld_info->color = ACPI_PLD_GET_COLOR(&dword);
+
+	/* Second 32-bit DWord */
+
+	ACPI_MOVE_32_TO_32(&dword, &buffer[1]);
+	pld_info->width = ACPI_PLD_GET_WIDTH(&dword);
+	pld_info->height = ACPI_PLD_GET_HEIGHT(&dword);
+
+	/* Third 32-bit DWord */
+
+	ACPI_MOVE_32_TO_32(&dword, &buffer[2]);
+	pld_info->user_visible = ACPI_PLD_GET_USER_VISIBLE(&dword);
+	pld_info->dock = ACPI_PLD_GET_DOCK(&dword);
+	pld_info->lid = ACPI_PLD_GET_LID(&dword);
+	pld_info->panel = ACPI_PLD_GET_PANEL(&dword);
+	pld_info->vertical_position = ACPI_PLD_GET_VERTICAL(&dword);
+	pld_info->horizontal_position = ACPI_PLD_GET_HORIZONTAL(&dword);
+	pld_info->shape = ACPI_PLD_GET_SHAPE(&dword);
+	pld_info->group_orientation = ACPI_PLD_GET_ORIENTATION(&dword);
+	pld_info->group_token = ACPI_PLD_GET_TOKEN(&dword);
+	pld_info->group_position = ACPI_PLD_GET_POSITION(&dword);
+	pld_info->bay = ACPI_PLD_GET_BAY(&dword);
+
+	/* Fourth 32-bit DWord */
+
+	ACPI_MOVE_32_TO_32(&dword, &buffer[3]);
+	pld_info->ejectable = ACPI_PLD_GET_EJECTABLE(&dword);
+	pld_info->ospm_eject_required = ACPI_PLD_GET_OSPM_EJECT(&dword);
+	pld_info->cabinet_number = ACPI_PLD_GET_CABINET(&dword);
+	pld_info->card_cage_number = ACPI_PLD_GET_CARD_CAGE(&dword);
+	pld_info->reference = ACPI_PLD_GET_REFERENCE(&dword);
+	pld_info->rotation = ACPI_PLD_GET_ROTATION(&dword);
+	pld_info->order = ACPI_PLD_GET_ORDER(&dword);
+
+	if (length >= ACPI_PLD_BUFFER_SIZE) {
+
+		/* Fifth 32-bit DWord (Revision 2 of _PLD) */
+
+		ACPI_MOVE_32_TO_32(&dword, &buffer[4]);
+		pld_info->vertical_offset = ACPI_PLD_GET_VERT_OFFSET(&dword);
+		pld_info->horizontal_offset = ACPI_PLD_GET_HORIZ_OFFSET(&dword);
+	}
+
+	*return_buffer = pld_info;
+	return (AE_OK);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_decode_pld_buffer)

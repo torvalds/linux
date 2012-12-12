@@ -214,37 +214,36 @@ static struct max8925_regulator_info max8925_regulator_info[] = {
 	MAX8925_LDO(20, 750, 3900, 50),
 };
 
-static struct max8925_regulator_info * __devinit find_regulator_info(int id)
-{
-	struct max8925_regulator_info *ri;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(max8925_regulator_info); i++) {
-		ri = &max8925_regulator_info[i];
-		if (ri->desc.id == id)
-			return ri;
-	}
-	return NULL;
-}
-
 static int __devinit max8925_regulator_probe(struct platform_device *pdev)
 {
 	struct max8925_chip *chip = dev_get_drvdata(pdev->dev.parent);
-	struct max8925_platform_data *pdata = chip->dev->platform_data;
+	struct regulator_init_data *pdata = pdev->dev.platform_data;
 	struct regulator_config config = { };
 	struct max8925_regulator_info *ri;
+	struct resource *res;
 	struct regulator_dev *rdev;
+	int i;
 
-	ri = find_regulator_info(pdev->id);
-	if (ri == NULL) {
-		dev_err(&pdev->dev, "invalid regulator ID specified\n");
+	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "No REG resource!\n");
+		return -EINVAL;
+	}
+	for (i = 0; i < ARRAY_SIZE(max8925_regulator_info); i++) {
+		ri = &max8925_regulator_info[i];
+		if (ri->vol_reg == res->start)
+			break;
+	}
+	if (i == ARRAY_SIZE(max8925_regulator_info)) {
+		dev_err(&pdev->dev, "Failed to find regulator %llu\n",
+			(unsigned long long)res->start);
 		return -EINVAL;
 	}
 	ri->i2c = chip->i2c;
 	ri->chip = chip;
 
 	config.dev = &pdev->dev;
-	config.init_data = pdata->regulator[pdev->id];
+	config.init_data = pdata;
 	config.driver_data = ri;
 
 	rdev = regulator_register(&ri->desc, &config);

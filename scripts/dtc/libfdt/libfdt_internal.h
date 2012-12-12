@@ -62,8 +62,8 @@
 			return err; \
 	}
 
-uint32_t _fdt_next_tag(const void *fdt, int startoffset, int *nextoffset);
 int _fdt_check_node_offset(const void *fdt, int offset);
+int _fdt_check_prop_offset(const void *fdt, int offset);
 const char *_fdt_find_string(const char *strtab, int tabsize, const char *s);
 int _fdt_node_end_offset(void *fdt, int nodeoffset);
 

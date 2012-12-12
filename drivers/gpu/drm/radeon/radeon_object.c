@@ -32,7 +32,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <drm/drmP.h>
-#include "radeon_drm.h"
+#include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "radeon_trace.h"
 
@@ -52,7 +52,7 @@ void radeon_bo_clear_va(struct radeon_bo *bo)
 
 	list_for_each_entry_safe(bo_va, tmp, &bo->va, bo_list) {
 		/* remove from all vm address space */
-		radeon_vm_bo_rmv(bo->rdev, bo_va->vm, bo);
+		radeon_vm_bo_rmv(bo->rdev, bo_va);
 	}
 }
 
@@ -105,7 +105,6 @@ int radeon_bo_create(struct radeon_device *rdev,
 	struct radeon_bo *bo;
 	enum ttm_bo_type type;
 	unsigned long page_align = roundup(byte_align, PAGE_SIZE) >> PAGE_SHIFT;
-	unsigned long max_size = 0;
 	size_t acc_size;
 	int r;
 
@@ -121,18 +120,9 @@ int radeon_bo_create(struct radeon_device *rdev,
 	}
 	*bo_ptr = NULL;
 
-	/* maximun bo size is the minimun btw visible vram and gtt size */
-	max_size = min(rdev->mc.visible_vram_size, rdev->mc.gtt_size);
-	if ((page_align << PAGE_SHIFT) >= max_size) {
-		printk(KERN_WARNING "%s:%d alloc size %ldM bigger than %ldMb limit\n",
-			__func__, __LINE__, page_align  >> (20 - PAGE_SHIFT), max_size >> 20);
-		return -ENOMEM;
-	}
-
 	acc_size = ttm_bo_dma_acc_size(&rdev->mman.bdev, size,
 				       sizeof(struct radeon_bo));
 
-retry:
 	bo = kzalloc(sizeof(struct radeon_bo), GFP_KERNEL);
 	if (bo == NULL)
 		return -ENOMEM;
@@ -154,15 +144,6 @@ retry:
 			acc_size, sg, &radeon_ttm_bo_destroy);
 	up_read(&rdev->pm.mclk_lock);
 	if (unlikely(r != 0)) {
-		if (r != -ERESTARTSYS) {
-			if (domain == RADEON_GEM_DOMAIN_VRAM) {
-				domain |= RADEON_GEM_DOMAIN_GTT;
-				goto retry;
-			}
-			dev_err(rdev->dev,
-				"object_init failed for (%lu, 0x%08X)\n",
-				size, domain);
-		}
 		return r;
 	}
 	*bo_ptr = bo;
@@ -627,35 +608,21 @@ int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type, bool no_wait)
 /**
  * radeon_bo_reserve - reserve bo
  * @bo:		bo structure
- * @no_wait:		don't sleep while trying to reserve (return -EBUSY)
+ * @no_intr:	don't return -ERESTARTSYS on pending signal
  *
  * Returns:
- * -EBUSY: buffer is busy and @no_wait is true
  * -ERESTARTSYS: A wait for the buffer to become unreserved was interrupted by
  * a signal. Release all buffer reservations and return to user-space.
  */
-int radeon_bo_reserve(struct radeon_bo *bo, bool no_wait)
+int radeon_bo_reserve(struct radeon_bo *bo, bool no_intr)
 {
 	int r;
 
-	r = ttm_bo_reserve(&bo->tbo, true, no_wait, false, 0);
+	r = ttm_bo_reserve(&bo->tbo, !no_intr, false, false, 0);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			dev_err(bo->rdev->dev, "%p reserve failed\n", bo);
 		return r;
 	}
 	return 0;
-}
-
-/* object have to be reserved */
-struct radeon_bo_va *radeon_bo_va(struct radeon_bo *rbo, struct radeon_vm *vm)
-{
-	struct radeon_bo_va *bo_va;
-
-	list_for_each_entry(bo_va, &rbo->va, bo_list) {
-		if (bo_va->vm == vm) {
-			return bo_va;
-		}
-	}
-	return NULL;
 }

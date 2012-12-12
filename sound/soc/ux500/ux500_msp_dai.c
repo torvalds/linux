@@ -760,6 +760,9 @@ static int __devinit ux500_msp_drv_probe(struct platform_device *pdev)
 	drvdata = devm_kzalloc(&pdev->dev,
 				sizeof(struct ux500_msp_i2s_drvdata),
 				GFP_KERNEL);
+	if (!drvdata)
+		return -ENOMEM;
+
 	drvdata->fmt = 0;
 	drvdata->slots = 1;
 	drvdata->tx_mask = 0x01;
@@ -830,10 +833,16 @@ static int __devexit ux500_msp_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id ux500_msp_i2s_match[] = {
+	{ .compatible = "stericsson,ux500-msp-i2s", },
+	{},
+};
+
 static struct platform_driver msp_i2s_driver = {
 	.driver = {
 		.name = "ux500-msp-i2s",
 		.owner = THIS_MODULE,
+		.of_match_table = ux500_msp_i2s_match,
 	},
 	.probe = ux500_msp_drv_probe,
 	.remove = ux500_msp_drv_remove,

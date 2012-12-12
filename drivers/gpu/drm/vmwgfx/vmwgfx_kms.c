@@ -483,7 +483,6 @@ static int do_surface_dirty_sou(struct vmw_private *dev_priv,
 	}
 
 	/* only need to do this once */
-	memset(cmd, 0, fifo_size);
 	cmd->header.id = cpu_to_le32(SVGA_3D_CMD_BLIT_SURFACE_TO_SCREEN);
 	cmd->header.size = cpu_to_le32(fifo_size - sizeof(cmd->header));
 

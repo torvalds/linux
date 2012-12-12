@@ -30,16 +30,10 @@ void intel_gmch_remove(void);
 bool intel_enable_gtt(void);
 
 void intel_gtt_chipset_flush(void);
-void intel_gtt_unmap_memory(struct scatterlist *sg_list, int num_sg);
-void intel_gtt_clear_range(unsigned int first_entry, unsigned int num_entries);
-int intel_gtt_map_memory(struct page **pages, unsigned int num_entries,
-			 struct scatterlist **sg_list, int *num_sg);
-void intel_gtt_insert_sg_entries(struct scatterlist *sg_list,
-				 unsigned int sg_len,
+void intel_gtt_insert_sg_entries(struct sg_table *st,
 				 unsigned int pg_start,
 				 unsigned int flags);
-void intel_gtt_insert_pages(unsigned int first_entry, unsigned int num_entries,
-			    struct page **pages, unsigned int flags);
+void intel_gtt_clear_range(unsigned int first_entry, unsigned int num_entries);
 
 /* Special gtt memory types */
 #define AGP_DCACHE_MEMORY	1

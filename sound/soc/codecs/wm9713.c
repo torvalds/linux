@@ -1196,7 +1196,6 @@ static int wm9713_soc_probe(struct snd_soc_codec *codec)
 	if (wm9713 == NULL)
 		return -ENOMEM;
 	snd_soc_codec_set_drvdata(codec, wm9713);
-	codec->control_data = wm9713;	/* we don't use regmap! */
 
 	ret = snd_soc_new_ac97_codec(codec, &soc_ac97_ops, 0);
 	if (ret < 0)

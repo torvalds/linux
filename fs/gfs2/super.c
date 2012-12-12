@@ -810,7 +810,8 @@ static void gfs2_dirty_inode(struct inode *inode, int flags)
 			return;
 		}
 		need_unlock = 1;
-	}
+	} else if (WARN_ON_ONCE(ip->i_gl->gl_state != LM_ST_EXCLUSIVE))
+		return;
 
 	if (current->journal_info == NULL) {
 		ret = gfs2_trans_begin(sdp, RES_DINODE, 0);
@@ -1579,7 +1580,7 @@ out:
 	clear_inode(inode);
 	gfs2_dir_hash_inval(ip);
 	ip->i_gl->gl_object = NULL;
-	flush_delayed_work_sync(&ip->i_gl->gl_work);
+	flush_delayed_work(&ip->i_gl->gl_work);
 	gfs2_glock_add_to_lru(ip->i_gl);
 	gfs2_glock_put(ip->i_gl);
 	ip->i_gl = NULL;

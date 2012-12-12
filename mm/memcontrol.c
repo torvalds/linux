@@ -51,6 +51,7 @@
 #include <linux/oom.h>
 #include "internal.h"
 #include <net/sock.h>
+#include <net/ip.h>
 #include <net/tcp_memcontrol.h>
 
 #include <asm/uaccess.h>
@@ -326,7 +327,7 @@ struct mem_cgroup {
 	struct mem_cgroup_stat_cpu nocpu_base;
 	spinlock_t pcp_counter_lock;
 
-#ifdef CONFIG_INET
+#if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_INET)
 	struct tcp_memcontrol tcp_mem;
 #endif
 };
@@ -411,12 +412,14 @@ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *s)
 	return container_of(s, struct mem_cgroup, css);
 }
 
-/* Writing them here to avoid exposing memcg's inner layout */
-#ifdef CONFIG_MEMCG_KMEM
-#include <net/sock.h>
-#include <net/ip.h>
+static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
+{
+	return (memcg == root_mem_cgroup);
+}
 
-static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
+/* Writing them here to avoid exposing memcg's inner layout */
+#if defined(CONFIG_INET) && defined(CONFIG_MEMCG_KMEM)
+
 void sock_update_memcg(struct sock *sk)
 {
 	if (mem_cgroup_sockets_enabled) {
@@ -461,7 +464,6 @@ void sock_release_memcg(struct sock *sk)
 	}
 }
 
-#ifdef CONFIG_INET
 struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
 {
 	if (!memcg || mem_cgroup_is_root(memcg))
@@ -470,10 +472,7 @@ struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
 	return &memcg->tcp_mem.cg_proto;
 }
 EXPORT_SYMBOL(tcp_proto_cgroup);
-#endif /* CONFIG_INET */
-#endif /* CONFIG_MEMCG_KMEM */
 
-#if defined(CONFIG_INET) && defined(CONFIG_MEMCG_KMEM)
 static void disarm_sock_keys(struct mem_cgroup *memcg)
 {
 	if (!memcg_proto_activated(&memcg->tcp_mem.cg_proto))
@@ -1015,11 +1014,6 @@ void mem_cgroup_iter_break(struct mem_cgroup *root,
 	for (iter = mem_cgroup_iter(NULL, NULL, NULL);	\
 	     iter != NULL;				\
 	     iter = mem_cgroup_iter(NULL, iter, NULL))
-
-static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
-{
-	return (memcg == root_mem_cgroup);
-}
 
 void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
 {
@@ -4973,6 +4967,13 @@ mem_cgroup_create(struct cgroup *cont)
 	} else {
 		res_counter_init(&memcg->res, NULL);
 		res_counter_init(&memcg->memsw, NULL);
+		/*
+		 * Deeper hierachy with use_hierarchy == false doesn't make
+		 * much sense so let cgroup subsystem know about this
+		 * unfortunate state in our controller.
+		 */
+		if (parent && parent != root_mem_cgroup)
+			mem_cgroup_subsys.broken_hierarchy = true;
 	}
 	memcg->last_scanned_node = MAX_NUMNODES;
 	INIT_LIST_HEAD(&memcg->oom_notify);

@@ -74,7 +74,7 @@ static const struct rfkill_ops amilo_m7440_rfkill_ops = {
 	.set_block = amilo_m7440_rfkill_set_block
 };
 
-static const struct dmi_system_id __devinitdata amilo_rfkill_id_table[] = {
+static const struct dmi_system_id __devinitconst amilo_rfkill_id_table[] = {
 	{
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),

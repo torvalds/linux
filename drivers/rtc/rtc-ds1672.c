@@ -37,8 +37,17 @@ static int ds1672_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	unsigned char buf[4];
 
 	struct i2c_msg msgs[] = {
-		{client->addr, 0, 1, &addr},	/* setup read ptr */
-		{client->addr, I2C_M_RD, 4, buf},	/* read date */
+		{/* setup read ptr */
+			.addr = client->addr,
+			.len = 1,
+			.buf = &addr
+		},
+		{/* read date */
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = 4,
+			.buf = buf
+		},
 	};
 
 	/* read date registers */
@@ -99,8 +108,17 @@ static int ds1672_get_control(struct i2c_client *client, u8 *status)
 	unsigned char addr = DS1672_REG_CONTROL;
 
 	struct i2c_msg msgs[] = {
-		{client->addr, 0, 1, &addr},	/* setup read ptr */
-		{client->addr, I2C_M_RD, 1, status},	/* read control */
+		{/* setup read ptr */
+			.addr = client->addr,
+			.len = 1,
+			.buf = &addr
+		},
+		{/* read control */
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = 1,
+			.buf = status
+		},
 	};
 
 	/* read control register */

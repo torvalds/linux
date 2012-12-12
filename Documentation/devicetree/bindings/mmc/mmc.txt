@@ -9,12 +9,17 @@ Interpreted by the OF core:
 Required properties:
 - bus-width: Number of data lines, can be <1>, <4>, or <8>
 
+Card detection:
+If no property below is supplied, standard SDHCI card detect is used.
+Only one of the properties in this section should be supplied:
+  - broken-cd: There is no card detection available; polling must be used.
+  - cd-gpios: Specify GPIOs for card detection, see gpio binding
+  - non-removable: non-removable slot (like eMMC); assume always present.
+
 Optional properties:
-- cd-gpios: Specify GPIOs for card detection, see gpio binding
 - wp-gpios: Specify GPIOs for write protection, see gpio binding
 - cd-inverted: when present, polarity on the cd gpio line is inverted
 - wp-inverted: when present, polarity on the wp gpio line is inverted
-- non-removable: non-removable slot (like eMMC)
 - max-frequency: maximum operating clock frequency
 
 Example:

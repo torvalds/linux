@@ -59,9 +59,11 @@ int main(void)
   DEFINE(TI_USED_CP,		offsetof(struct thread_info, used_cp));
   DEFINE(TI_TP_VALUE,		offsetof(struct thread_info, tp_value));
   DEFINE(TI_FPSTATE,		offsetof(struct thread_info, fpstate));
+#ifdef CONFIG_VFP
   DEFINE(TI_VFPSTATE,		offsetof(struct thread_info, vfpstate));
 #ifdef CONFIG_SMP
   DEFINE(VFP_CPU,		offsetof(union vfp_state, hard.cpu));
+#endif
 #endif
 #ifdef CONFIG_ARM_THUMBEE
   DEFINE(TI_THUMBEE_STATE,	offsetof(struct thread_info, thumbee_state));

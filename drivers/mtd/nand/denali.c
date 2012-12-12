@@ -1028,7 +1028,7 @@ static void denali_setup_dma(struct denali_nand_info *denali, int op)
 
 /* writes a page. user specifies type, and this function handles the
  * configuration details. */
-static void write_page(struct mtd_info *mtd, struct nand_chip *chip,
+static int write_page(struct mtd_info *mtd, struct nand_chip *chip,
 			const uint8_t *buf, bool raw_xfer)
 {
 	struct denali_nand_info *denali = mtd_to_denali(mtd);
@@ -1078,6 +1078,8 @@ static void write_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 	denali_enable_dma(denali, false);
 	dma_sync_single_for_cpu(denali->dev, addr, size, DMA_TO_DEVICE);
+
+	return 0;
 }
 
 /* NAND core entry points */
@@ -1086,24 +1088,24 @@ static void write_page(struct mtd_info *mtd, struct nand_chip *chip,
  * writing a page with ECC or without is similar, all the work is done
  * by write_page above.
  * */
-static void denali_write_page(struct mtd_info *mtd, struct nand_chip *chip,
+static int denali_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 				const uint8_t *buf, int oob_required)
 {
 	/* for regular page writes, we let HW handle all the ECC
 	 * data written to the device. */
-	write_page(mtd, chip, buf, false);
+	return write_page(mtd, chip, buf, false);
 }
 
 /* This is the callback that the NAND core calls to write a page without ECC.
  * raw access is similar to ECC page writes, so all the work is done in the
  * write_page() function above.
  */
-static void denali_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
+static int denali_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 					const uint8_t *buf, int oob_required)
 {
 	/* for raw page writes, we want to disable ECC and simply write
 	   whatever data is in the buffer. */
-	write_page(mtd, chip, buf, true);
+	return write_page(mtd, chip, buf, true);
 }
 
 static int denali_write_oob(struct mtd_info *mtd, struct nand_chip *chip,

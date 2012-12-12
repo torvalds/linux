@@ -52,24 +52,24 @@ enum cvmx_mips_space {
 #define CVMX_ADD_IO_SEG(add) CVMX_ADD_SEG(CVMX_IO_SEG, (add))
 #endif
 
-#include "cvmx-asm.h"
-#include "cvmx-packet.h"
-#include "cvmx-sysinfo.h"
+#include <asm/octeon/cvmx-asm.h>
+#include <asm/octeon/cvmx-packet.h>
+#include <asm/octeon/cvmx-sysinfo.h>
 
-#include "cvmx-ciu-defs.h"
-#include "cvmx-gpio-defs.h"
-#include "cvmx-iob-defs.h"
-#include "cvmx-ipd-defs.h"
-#include "cvmx-l2c-defs.h"
-#include "cvmx-l2d-defs.h"
-#include "cvmx-l2t-defs.h"
-#include "cvmx-led-defs.h"
-#include "cvmx-mio-defs.h"
-#include "cvmx-pow-defs.h"
+#include <asm/octeon/cvmx-ciu-defs.h>
+#include <asm/octeon/cvmx-gpio-defs.h>
+#include <asm/octeon/cvmx-iob-defs.h>
+#include <asm/octeon/cvmx-ipd-defs.h>
+#include <asm/octeon/cvmx-l2c-defs.h>
+#include <asm/octeon/cvmx-l2d-defs.h>
+#include <asm/octeon/cvmx-l2t-defs.h>
+#include <asm/octeon/cvmx-led-defs.h>
+#include <asm/octeon/cvmx-mio-defs.h>
+#include <asm/octeon/cvmx-pow-defs.h>
 
-#include "cvmx-bootinfo.h"
-#include "cvmx-bootmem.h"
-#include "cvmx-l2c.h"
+#include <asm/octeon/cvmx-bootinfo.h>
+#include <asm/octeon/cvmx-bootmem.h>
+#include <asm/octeon/cvmx-l2c.h>
 
 #ifndef CVMX_ENABLE_DEBUG_PRINTS
 #define CVMX_ENABLE_DEBUG_PRINTS 1

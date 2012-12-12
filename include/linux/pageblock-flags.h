@@ -30,6 +30,9 @@ enum pageblock_bits {
 	PB_migrate,
 	PB_migrate_end = PB_migrate + 3 - 1,
 			/* 3 bits required for migrate types */
+#ifdef CONFIG_COMPACTION
+	PB_migrate_skip,/* If set the block is skipped by compaction */
+#endif /* CONFIG_COMPACTION */
 	NR_PAGEBLOCK_BITS
 };
 
@@ -65,10 +68,22 @@ unsigned long get_pageblock_flags_group(struct page *page,
 void set_pageblock_flags_group(struct page *page, unsigned long flags,
 					int start_bitidx, int end_bitidx);
 
+#ifdef CONFIG_COMPACTION
+#define get_pageblock_skip(page) \
+			get_pageblock_flags_group(page, PB_migrate_skip,     \
+							PB_migrate_skip)
+#define clear_pageblock_skip(page) \
+			set_pageblock_flags_group(page, 0, PB_migrate_skip,  \
+							PB_migrate_skip)
+#define set_pageblock_skip(page) \
+			set_pageblock_flags_group(page, 1, PB_migrate_skip,  \
+							PB_migrate_skip)
+#endif /* CONFIG_COMPACTION */
+
 #define get_pageblock_flags(page) \
-			get_pageblock_flags_group(page, 0, NR_PAGEBLOCK_BITS-1)
+			get_pageblock_flags_group(page, 0, PB_migrate_end)
 #define set_pageblock_flags(page, flags) \
 			set_pageblock_flags_group(page, flags,	\
-						  0, NR_PAGEBLOCK_BITS-1)
+						  0, PB_migrate_end)
 
 #endif	/* PAGEBLOCK_FLAGS_H */

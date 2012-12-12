@@ -56,13 +56,13 @@ static void init_timer_irq(void)
 #ifdef MCFSIM_ICR_AUTOVEC
 	/* Timer1 is always used as system timer */
 	writeb(MCFSIM_ICR_AUTOVEC | MCFSIM_ICR_LEVEL6 | MCFSIM_ICR_PRI3,
-		MCF_MBAR + MCFSIM_TIMER1ICR);
+		MCFSIM_TIMER1ICR);
 	mcf_mapirq2imr(MCF_IRQ_TIMER, MCFINTC_TIMER1);
 
 #ifdef CONFIG_HIGHPROFILE
 	/* Timer2 is to be used as a high speed profile timer  */
 	writeb(MCFSIM_ICR_AUTOVEC | MCFSIM_ICR_LEVEL7 | MCFSIM_ICR_PRI3,
-		MCF_MBAR + MCFSIM_TIMER2ICR);
+		MCFSIM_TIMER2ICR);
 	mcf_mapirq2imr(MCF_IRQ_PROFILER, MCFINTC_TIMER2);
 #endif
 #endif /* MCFSIM_ICR_AUTOVEC */

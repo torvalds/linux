@@ -190,13 +190,13 @@ out:
 static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 {
 	struct batadv_hard_iface *hard_iface;
-	struct delayed_work *delayed_work =
-		container_of(work, struct delayed_work, work);
+	struct delayed_work *delayed_work;
 	struct batadv_forw_packet *forw_packet;
 	struct sk_buff *skb1;
 	struct net_device *soft_iface;
 	struct batadv_priv *bat_priv;
 
+	delayed_work = container_of(work, struct delayed_work, work);
 	forw_packet = container_of(delayed_work, struct batadv_forw_packet,
 				   delayed_work);
 	soft_iface = forw_packet->if_incoming->soft_iface;
@@ -239,11 +239,11 @@ out:
 
 void batadv_send_outstanding_bat_ogm_packet(struct work_struct *work)
 {
-	struct delayed_work *delayed_work =
-		container_of(work, struct delayed_work, work);
+	struct delayed_work *delayed_work;
 	struct batadv_forw_packet *forw_packet;
 	struct batadv_priv *bat_priv;
 
+	delayed_work = container_of(work, struct delayed_work, work);
 	forw_packet = container_of(delayed_work, struct batadv_forw_packet,
 				   delayed_work);
 	bat_priv = netdev_priv(forw_packet->if_incoming->soft_iface);

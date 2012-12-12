@@ -332,7 +332,6 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
 	if (vma->vm_file)
 		fput(vma->vm_file);
 	vma->vm_file = asma->file;
-	vma->vm_flags |= VM_CAN_NONLINEAR;
 
 out:
 	mutex_unlock(&ashmem_mutex);

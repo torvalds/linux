@@ -25,23 +25,31 @@
 		aips@70000000 { /* aips-1 */
 			spba@70000000 {
 				esdhc@70004000 { /* ESDHC1 */
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_esdhc1_1>;
 					fsl,cd-controller;
 					fsl,wp-controller;
 					status = "okay";
 				};
 
 				esdhc@70008000 { /* ESDHC2 */
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_esdhc2_1>;
 					cd-gpios = <&gpio1 6 0>;
 					wp-gpios = <&gpio1 5 0>;
 					status = "okay";
 				};
 
 				uart3: serial@7000c000 {
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_uart3_1>;
 					fsl,uart-has-rtscts;
 					status = "okay";
 				};
 
 				ecspi@70010000 { /* ECSPI1 */
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_ecspi1_1>;
 					fsl,spi-num-chipselects = <2>;
 					cs-gpios = <&gpio4 24 0>, <&gpio4 25 0>;
 					status = "okay";
@@ -169,31 +177,43 @@
 				};
 			};
 
-			wdog@73f98000 { /* WDOG1 */
-				status = "okay";
-			};
-
 			iomuxc@73fa8000 {
-				compatible = "fsl,imx51-iomuxc-babbage";
-				reg = <0x73fa8000 0x4000>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_hog>;
+
+				hog {
+					pinctrl_hog: hoggrp {
+						fsl,pins = <
+							694  0x20d5	/* MX51_PAD_GPIO1_0__SD1_CD */
+							697  0x20d5	/* MX51_PAD_GPIO1_1__SD1_WP */
+							737  0x100	/* MX51_PAD_GPIO1_5__GPIO1_5 */
+							740  0x100	/* MX51_PAD_GPIO1_6__GPIO1_6 */
+							121  0x5	/* MX51_PAD_EIM_A27__GPIO2_21 */
+							402  0x85	/* MX51_PAD_CSPI1_SS0__GPIO4_24 */
+							405  0x85	/* MX51_PAD_CSPI1_SS1__GPIO4_25 */
+						>;
+					};
+				};
 			};
 
 			uart1: serial@73fbc000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart1_1>;
 				fsl,uart-has-rtscts;
 				status = "okay";
 			};
 
 			uart2: serial@73fc0000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart2_1>;
 				status = "okay";
 			};
 		};
 
 		aips@80000000 {	/* aips-2 */
-			sdma@83fb0000 {
-				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx51.bin";
-			};
-
 			i2c@83fc4000 { /* I2C2 */
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_i2c2_1>;
 				status = "okay";
 
 				sgtl5000: codec@0a {
@@ -206,10 +226,14 @@
 			};
 
 			audmux@83fd0000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_audmux_1>;
 				status = "okay";
 			};
 
 			ethernet@83fec000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_fec_1>;
 				phy-mode = "mii";
 				status = "okay";
 			};

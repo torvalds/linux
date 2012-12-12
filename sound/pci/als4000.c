@@ -987,7 +987,7 @@ static void __devexit snd_card_als4000_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int snd_als4000_suspend(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
@@ -1040,7 +1040,7 @@ static SIMPLE_DEV_PM_OPS(snd_als4000_pm, snd_als4000_suspend, snd_als4000_resume
 #define SND_ALS4000_PM_OPS	&snd_als4000_pm
 #else
 #define SND_ALS4000_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static struct pci_driver als4000_driver = {
 	.name = KBUILD_MODNAME,

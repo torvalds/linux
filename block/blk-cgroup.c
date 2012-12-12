@@ -285,6 +285,13 @@ static void blkg_destroy_all(struct request_queue *q)
 		blkg_destroy(blkg);
 		spin_unlock(&blkcg->lock);
 	}
+
+	/*
+	 * root blkg is destroyed.  Just clear the pointer since
+	 * root_rl does not take reference on root blkg.
+	 */
+	q->root_blkg = NULL;
+	q->root_rl.blkg = NULL;
 }
 
 static void blkg_rcu_free(struct rcu_head *rcu_head)
@@ -326,6 +333,9 @@ struct request_list *__blk_queue_next_rl(struct request_list *rl,
 	 */
 	if (rl == &q->root_rl) {
 		ent = &q->blkg_list;
+		/* There are no more block groups, hence no request lists */
+		if (list_empty(ent))
+			return NULL;
 	} else {
 		blkg = container_of(rl, struct blkcg_gq, rl);
 		ent = &blkg->q_node;
@@ -737,6 +747,14 @@ struct cgroup_subsys blkio_subsys = {
 	.subsys_id = blkio_subsys_id,
 	.base_cftypes = blkcg_files,
 	.module = THIS_MODULE,
+
+	/*
+	 * blkio subsystem is utterly broken in terms of hierarchy support.
+	 * It treats all cgroups equally regardless of where they're
+	 * located in the hierarchy - all cgroups are treated as if they're
+	 * right below the root.  Fix it and remove the following.
+	 */
+	.broken_hierarchy = true,
 };
 EXPORT_SYMBOL_GPL(blkio_subsys);
 

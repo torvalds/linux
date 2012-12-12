@@ -576,7 +576,23 @@ static int mpc_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			    mpc_write(i2c, pmsg->addr, pmsg->buf, pmsg->len, i);
 		}
 	}
-	mpc_i2c_stop(i2c);
+	mpc_i2c_stop(i2c); /* Initiate STOP */
+	orig_jiffies = jiffies;
+	/* Wait until STOP is seen, allow up to 1 s */
+	while (readb(i2c->base + MPC_I2C_SR) & CSR_MBB) {
+		if (time_after(jiffies, orig_jiffies + HZ)) {
+			u8 status = readb(i2c->base + MPC_I2C_SR);
+
+			dev_dbg(i2c->dev, "timeout\n");
+			if ((status & (CSR_MCF | CSR_MBB | CSR_RXAK)) != 0) {
+				writeb(status & ~CSR_MAL,
+				       i2c->base + MPC_I2C_SR);
+				mpc_i2c_fixup(i2c);
+			}
+			return -EIO;
+		}
+		cond_resched();
+	}
 	return (ret < 0) ? ret : num;
 }
 
@@ -647,7 +663,7 @@ static int __devinit fsl_i2c_probe(struct platform_device *op)
 	}
 
 	if (match->data) {
-		struct mpc_i2c_data *data = match->data;
+		const struct mpc_i2c_data *data = match->data;
 		data->setup(op->dev.of_node, i2c, clock, data->prescaler);
 	} else {
 		/* Backwards compatibility */
@@ -730,24 +746,24 @@ static int mpc_i2c_resume(struct device *dev)
 SIMPLE_DEV_PM_OPS(mpc_i2c_pm_ops, mpc_i2c_suspend, mpc_i2c_resume);
 #endif
 
-static struct mpc_i2c_data mpc_i2c_data_512x __devinitdata = {
+static const struct mpc_i2c_data mpc_i2c_data_512x __devinitdata = {
 	.setup = mpc_i2c_setup_512x,
 };
 
-static struct mpc_i2c_data mpc_i2c_data_52xx __devinitdata = {
+static const struct mpc_i2c_data mpc_i2c_data_52xx __devinitdata = {
 	.setup = mpc_i2c_setup_52xx,
 };
 
-static struct mpc_i2c_data mpc_i2c_data_8313 __devinitdata = {
+static const struct mpc_i2c_data mpc_i2c_data_8313 __devinitdata = {
 	.setup = mpc_i2c_setup_8xxx,
 };
 
-static struct mpc_i2c_data mpc_i2c_data_8543 __devinitdata = {
+static const struct mpc_i2c_data mpc_i2c_data_8543 __devinitdata = {
 	.setup = mpc_i2c_setup_8xxx,
 	.prescaler = 2,
 };
 
-static struct mpc_i2c_data mpc_i2c_data_8544 __devinitdata = {
+static const struct mpc_i2c_data mpc_i2c_data_8544 __devinitdata = {
 	.setup = mpc_i2c_setup_8xxx,
 	.prescaler = 3,
 };

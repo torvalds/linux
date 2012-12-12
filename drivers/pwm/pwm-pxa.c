@@ -70,9 +70,6 @@ static int pxa_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	unsigned long offset;
 	int rc;
 
-	if (period_ns == 0 || duty_ns > period_ns)
-		return -EINVAL;
-
 	offset = pwm->hwpwm ? 0x10 : 0;
 
 	c = clk_get_rate(pc->clk);

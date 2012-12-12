@@ -197,8 +197,8 @@ do_notify_resume_user(sigset_t *unused, struct sigscratch *scr, long in_syscall)
 		ia64_do_signal(scr, in_syscall);
 	}
 
-	if (test_thread_flag(TIF_NOTIFY_RESUME)) {
-		clear_thread_flag(TIF_NOTIFY_RESUME);
+	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME)) {
+		local_irq_enable();	/* force interrupt enable */
 		tracehook_notify_resume(&scr->pt);
 	}
 
@@ -614,14 +614,14 @@ sys_execve (const char __user *filename,
 	    const char __user *const __user *envp,
 	    struct pt_regs *regs)
 {
-	char *fname;
+	struct filename *fname;
 	int error;
 
 	fname = getname(filename);
 	error = PTR_ERR(fname);
 	if (IS_ERR(fname))
 		goto out;
-	error = do_execve(fname, argv, envp, regs);
+	error = do_execve(fname->name, argv, envp, regs);
 	putname(fname);
 out:
 	return error;

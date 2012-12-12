@@ -74,7 +74,7 @@ nfnl_cthelper_parse_tuple(struct nf_conntrack_tuple *tuple,
 	if (!tb[NFCTH_TUPLE_L3PROTONUM] || !tb[NFCTH_TUPLE_L4PROTONUM])
 		return -EINVAL;
 
-	tuple->src.l3num = ntohs(nla_get_u16(tb[NFCTH_TUPLE_L3PROTONUM]));
+	tuple->src.l3num = ntohs(nla_get_be16(tb[NFCTH_TUPLE_L3PROTONUM]));
 	tuple->dst.protonum = nla_get_u8(tb[NFCTH_TUPLE_L4PROTONUM]);
 
 	return 0;
@@ -84,6 +84,9 @@ static int
 nfnl_cthelper_from_nlattr(struct nlattr *attr, struct nf_conn *ct)
 {
 	const struct nf_conn_help *help = nfct_help(ct);
+
+	if (attr == NULL)
+		return -EINVAL;
 
 	if (help->helper->data_len == 0)
 		return -EINVAL;
@@ -395,16 +398,16 @@ nla_put_failure:
 }
 
 static int
-nfnl_cthelper_fill_info(struct sk_buff *skb, u32 pid, u32 seq, u32 type,
+nfnl_cthelper_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 			int event, struct nf_conntrack_helper *helper)
 {
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
-	unsigned int flags = pid ? NLM_F_MULTI : 0;
+	unsigned int flags = portid ? NLM_F_MULTI : 0;
 	int status;
 
 	event |= NFNL_SUBSYS_CTHELPER << 8;
-	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*nfmsg), flags);
+	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*nfmsg), flags);
 	if (nlh == NULL)
 		goto nlmsg_failure;
 
@@ -468,7 +471,7 @@ restart:
 				cb->args[1] = 0;
 			}
 			if (nfnl_cthelper_fill_info(skb,
-					    NETLINK_CB(cb->skb).pid,
+					    NETLINK_CB(cb->skb).portid,
 					    cb->nlh->nlmsg_seq,
 					    NFNL_MSG_TYPE(cb->nlh->nlmsg_type),
 					    NFNL_MSG_CTHELPER_NEW, cur) < 0) {
@@ -538,7 +541,7 @@ nfnl_cthelper_get(struct sock *nfnl, struct sk_buff *skb,
 				break;
 			}
 
-			ret = nfnl_cthelper_fill_info(skb2, NETLINK_CB(skb).pid,
+			ret = nfnl_cthelper_fill_info(skb2, NETLINK_CB(skb).portid,
 						nlh->nlmsg_seq,
 						NFNL_MSG_TYPE(nlh->nlmsg_type),
 						NFNL_MSG_CTHELPER_NEW, cur);
@@ -547,7 +550,7 @@ nfnl_cthelper_get(struct sock *nfnl, struct sk_buff *skb,
 				break;
 			}
 
-			ret = netlink_unicast(nfnl, skb2, NETLINK_CB(skb).pid,
+			ret = netlink_unicast(nfnl, skb2, NETLINK_CB(skb).portid,
 						MSG_DONTWAIT);
 			if (ret > 0)
 				ret = 0;

@@ -172,7 +172,7 @@ static void __init lite5200_setup_arch(void)
 	mpc52xx_setup_pci();
 }
 
-static const char *board[] __initdata = {
+static const char * const board[] __initconst = {
 	"fsl,lite5200",
 	"fsl,lite5200b",
 	NULL,

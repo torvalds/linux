@@ -30,7 +30,7 @@
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
 
-#include <mach/dma.h>
+#include <linux/platform_data/dma-imx.h>
 
 #include "imx-pcm.h"
 
@@ -109,6 +109,9 @@ static int snd_imx_open(struct snd_pcm_substream *substream)
 	dma_params = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	dma_data = kzalloc(sizeof(*dma_data), GFP_KERNEL);
+	if (!dma_data)
+		return -ENOMEM;
+
 	dma_data->peripheral_type = dma_params->shared_peripheral ?
 					IMX_DMATYPE_SSI_SP : IMX_DMATYPE_SSI;
 	dma_data->priority = DMA_PRIO_HIGH;
@@ -117,7 +120,7 @@ static int snd_imx_open(struct snd_pcm_substream *substream)
 	ret = snd_dmaengine_pcm_open(substream, filter, dma_data);
 	if (ret) {
 		kfree(dma_data);
-		return 0;
+		return ret;
 	}
 
 	snd_dmaengine_pcm_set_data(substream, dma_data);

@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
+#include <linux/random.h>
 
 #define PRINT_PREF KERN_INFO "mtd_stresstest: "
 
@@ -48,28 +49,13 @@ static int pgsize;
 static int bufsize;
 static int ebcnt;
 static int pgcnt;
-static unsigned long next = 1;
-
-static inline unsigned int simple_rand(void)
-{
-	next = next * 1103515245 + 12345;
-	return (unsigned int)((next / 65536) % 32768);
-}
-
-static inline void simple_srand(unsigned long seed)
-{
-	next = seed;
-}
 
 static int rand_eb(void)
 {
-	int eb;
+	unsigned int eb;
 
 again:
-	if (ebcnt < 32768)
-		eb = simple_rand();
-	else
-		eb = (simple_rand() << 15) | simple_rand();
+	eb = random32();
 	/* Read or write up 2 eraseblocks at a time - hence 'ebcnt - 1' */
 	eb %= (ebcnt - 1);
 	if (bbt[eb])
@@ -79,24 +65,18 @@ again:
 
 static int rand_offs(void)
 {
-	int offs;
+	unsigned int offs;
 
-	if (bufsize < 32768)
-		offs = simple_rand();
-	else
-		offs = (simple_rand() << 15) | simple_rand();
+	offs = random32();
 	offs %= bufsize;
 	return offs;
 }
 
 static int rand_len(int offs)
 {
-	int len;
+	unsigned int len;
 
-	if (bufsize < 32768)
-		len = simple_rand();
-	else
-		len = (simple_rand() << 15) | simple_rand();
+	len = random32();
 	len %= (bufsize - offs);
 	return len;
 }
@@ -211,7 +191,7 @@ static int do_write(void)
 
 static int do_operation(void)
 {
-	if (simple_rand() & 1)
+	if (random32() & 1)
 		return do_read();
 	else
 		return do_write();
@@ -302,9 +282,8 @@ static int __init mtd_stresstest_init(void)
 	}
 	for (i = 0; i < ebcnt; i++)
 		offsets[i] = mtd->erasesize;
-	simple_srand(current->pid);
 	for (i = 0; i < bufsize; i++)
-		writebuf[i] = simple_rand();
+		writebuf[i] = random32();
 
 	err = scan_for_bad_eraseblocks();
 	if (err)

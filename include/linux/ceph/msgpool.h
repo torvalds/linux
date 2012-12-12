@@ -2,7 +2,7 @@
 #define _FS_CEPH_MSGPOOL
 
 #include <linux/mempool.h>
-#include "messenger.h"
+#include <linux/ceph/messenger.h>
 
 /*
  * we use memory pools for preallocating messages we may receive, to

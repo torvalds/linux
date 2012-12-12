@@ -1028,7 +1028,7 @@ SOC_DOUBLE_R_TLV("OUT2 Digital Volume", WM2200_DAC_DIGITAL_VOLUME_2L,
 		 WM2200_DAC_DIGITAL_VOLUME_2R, WM2200_OUT2L_VOL_SHIFT, 0x9f, 0,
 		 digital_tlv),
 SOC_DOUBLE("OUT2 Switch", WM2200_PDM_1, WM2200_SPK1L_MUTE_SHIFT,
-	   WM2200_SPK1R_MUTE_SHIFT, 1, 0),
+	   WM2200_SPK1R_MUTE_SHIFT, 1, 1),
 };
 
 WM2200_MIXER_ENUMS(OUT1L, WM2200_OUT1LMIX_INPUT_1_SOURCE);
@@ -1117,8 +1117,8 @@ SND_SOC_DAPM_SUPPLY("MICBIAS1", WM2200_MIC_BIAS_CTRL_1, WM2200_MICB1_ENA_SHIFT,
 		    0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("MICBIAS2", WM2200_MIC_BIAS_CTRL_2, WM2200_MICB2_ENA_SHIFT,
 		    0, NULL, 0),
-SND_SOC_DAPM_REGULATOR_SUPPLY("CPVDD", 20),
-SND_SOC_DAPM_REGULATOR_SUPPLY("AVDD", 20),
+SND_SOC_DAPM_REGULATOR_SUPPLY("CPVDD", 20, 0),
+SND_SOC_DAPM_REGULATOR_SUPPLY("AVDD", 20, 0),
 
 SND_SOC_DAPM_INPUT("IN1L"),
 SND_SOC_DAPM_INPUT("IN1R"),
@@ -2091,6 +2091,7 @@ static __devinit int wm2200_i2c_probe(struct i2c_client *i2c,
 
 	switch (wm2200->rev) {
 	case 0:
+	case 1:
 		ret = regmap_register_patch(wm2200->regmap, wm2200_reva_patch,
 					    ARRAY_SIZE(wm2200_reva_patch));
 		if (ret != 0) {
@@ -2270,17 +2271,7 @@ static struct i2c_driver wm2200_i2c_driver = {
 	.id_table = wm2200_i2c_id,
 };
 
-static int __init wm2200_modinit(void)
-{
-	return i2c_add_driver(&wm2200_i2c_driver);
-}
-module_init(wm2200_modinit);
-
-static void __exit wm2200_exit(void)
-{
-	i2c_del_driver(&wm2200_i2c_driver);
-}
-module_exit(wm2200_exit);
+module_i2c_driver(wm2200_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM2200 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

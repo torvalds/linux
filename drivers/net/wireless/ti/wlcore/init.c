@@ -141,7 +141,7 @@ int wl1271_init_templates_config(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < CMD_TEMPL_KLV_IDX_MAX; i++) {
+	for (i = 0; i < WLCORE_MAX_KLV_TEMPLATES; i++) {
 		ret = wl1271_cmd_template_set(wl, WL12XX_INVALID_ROLE_ID,
 					      CMD_TEMPL_KLV, NULL,
 					      sizeof(struct ieee80211_qos_hdr),
@@ -371,15 +371,7 @@ static int wl1271_sta_hw_init_post_mem(struct wl1271 *wl,
 				       struct ieee80211_vif *vif)
 {
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
-	int ret, i;
-
-	/* disable all keep-alive templates */
-	for (i = 0; i < CMD_TEMPL_KLV_IDX_MAX; i++) {
-		ret = wl1271_acx_keep_alive_config(wl, wlvif, i,
-						   ACX_KEEP_ALIVE_TPL_INVALID);
-		if (ret < 0)
-			return ret;
-	}
+	int ret;
 
 	/* disable the keep-alive feature */
 	ret = wl1271_acx_keep_alive_mode(wl, wlvif, false);

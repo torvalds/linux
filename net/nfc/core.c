@@ -679,7 +679,7 @@ static void nfc_release(struct device *d)
 
 	if (dev->ops->check_presence) {
 		del_timer_sync(&dev->check_pres_timer);
-		destroy_workqueue(dev->check_pres_wq);
+		cancel_work_sync(&dev->check_pres_work);
 	}
 
 	nfc_genl_data_exit(&dev->genl_data);
@@ -715,7 +715,7 @@ static void nfc_check_pres_timeout(unsigned long data)
 {
 	struct nfc_dev *dev = (struct nfc_dev *)data;
 
-	queue_work(dev->check_pres_wq, &dev->check_pres_work);
+	schedule_work(&dev->check_pres_work);
 }
 
 struct class nfc_class = {
@@ -784,20 +784,11 @@ struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
 	dev->targets_generation = 1;
 
 	if (ops->check_presence) {
-		char name[32];
 		init_timer(&dev->check_pres_timer);
 		dev->check_pres_timer.data = (unsigned long)dev;
 		dev->check_pres_timer.function = nfc_check_pres_timeout;
 
 		INIT_WORK(&dev->check_pres_work, nfc_check_pres_work);
-		snprintf(name, sizeof(name), "nfc%d_check_pres_wq", dev->idx);
-		dev->check_pres_wq = alloc_workqueue(name, WQ_NON_REENTRANT |
-						     WQ_UNBOUND |
-						     WQ_MEM_RECLAIM, 1);
-		if (dev->check_pres_wq == NULL) {
-			kfree(dev);
-			return NULL;
-		}
 	}
 
 	return dev;

@@ -24,17 +24,17 @@
 #include <linux/clkdev.h>
 #include <mach/common.h>
 
-#define FRQMR   0xffc80014
-#define MSTPCR0 0xffc80030
-#define MSTPCR1 0xffc80034
-#define MSTPCR3 0xffc8003c
-#define MSTPSR1 0xffc80044
-#define MSTPSR4 0xffc80048
-#define MSTPSR6 0xffc8004c
-#define MSTPCR4 0xffc80050
-#define MSTPCR5 0xffc80054
-#define MSTPCR6 0xffc80058
-#define MSTPCR7 0xffc80040
+#define FRQMR		IOMEM(0xffc80014)
+#define MSTPCR0		IOMEM(0xffc80030)
+#define MSTPCR1		IOMEM(0xffc80034)
+#define MSTPCR3		IOMEM(0xffc8003c)
+#define MSTPSR1		IOMEM(0xffc80044)
+#define MSTPSR4		IOMEM(0xffc80048)
+#define MSTPSR6		IOMEM(0xffc8004c)
+#define MSTPCR4		IOMEM(0xffc80050)
+#define MSTPCR5		IOMEM(0xffc80054)
+#define MSTPCR6		IOMEM(0xffc80058)
+#define MSTPCR7		IOMEM(0xffc80040)
 
 /* ioremap() through clock mapping mandatory to avoid
  * collision with ARM coherent DMA virtual memory range.
@@ -86,11 +86,16 @@ static struct clk div4_clks[DIV4_NR] = {
 				      0x0300, CLK_ENABLE_ON_INIT),
 };
 
-enum { MSTP026, MSTP025, MSTP024, MSTP023, MSTP022, MSTP021,
+enum { MSTP323, MSTP322, MSTP321, MSTP320,
+	MSTP026, MSTP025, MSTP024, MSTP023, MSTP022, MSTP021,
 	MSTP016, MSTP015, MSTP014,
 	MSTP_NR };
 
 static struct clk mstp_clks[MSTP_NR] = {
+	[MSTP323] = SH_CLK_MSTP32(&div4_clks[DIV4_P], MSTPCR3, 23, 0), /* SDHI0 */
+	[MSTP322] = SH_CLK_MSTP32(&div4_clks[DIV4_P], MSTPCR3, 22, 0), /* SDHI1 */
+	[MSTP321] = SH_CLK_MSTP32(&div4_clks[DIV4_P], MSTPCR3, 21, 0), /* SDHI2 */
+	[MSTP320] = SH_CLK_MSTP32(&div4_clks[DIV4_P], MSTPCR3, 20, 0), /* SDHI3 */
 	[MSTP026] = SH_CLK_MSTP32(&div4_clks[DIV4_P], MSTPCR0, 26, 0), /* SCIF0 */
 	[MSTP025] = SH_CLK_MSTP32(&div4_clks[DIV4_P], MSTPCR0, 25, 0), /* SCIF1 */
 	[MSTP024] = SH_CLK_MSTP32(&div4_clks[DIV4_P], MSTPCR0, 24, 0), /* SCIF2 */
@@ -149,6 +154,10 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("sh-sci.3", &mstp_clks[MSTP023]), /* SCIF3 */
 	CLKDEV_DEV_ID("sh-sci.4", &mstp_clks[MSTP022]), /* SCIF4 */
 	CLKDEV_DEV_ID("sh-sci.5", &mstp_clks[MSTP021]), /* SCIF6 */
+	CLKDEV_DEV_ID("sh_mobile_sdhi.0", &mstp_clks[MSTP323]), /* SDHI0 */
+	CLKDEV_DEV_ID("sh_mobile_sdhi.1", &mstp_clks[MSTP322]), /* SDHI1 */
+	CLKDEV_DEV_ID("sh_mobile_sdhi.2", &mstp_clks[MSTP321]), /* SDHI2 */
+	CLKDEV_DEV_ID("sh_mobile_sdhi.3", &mstp_clks[MSTP320]), /* SDHI3 */
 };
 
 void __init r8a7779_clock_init(void)

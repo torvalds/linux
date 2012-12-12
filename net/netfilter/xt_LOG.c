@@ -151,10 +151,12 @@ static void dump_sk_uid_gid(struct sbuff *m, struct sock *sk)
 		return;
 
 	read_lock_bh(&sk->sk_callback_lock);
-	if (sk->sk_socket && sk->sk_socket->file)
+	if (sk->sk_socket && sk->sk_socket->file) {
+		const struct cred *cred = sk->sk_socket->file->f_cred;
 		sb_add(m, "UID=%u GID=%u ",
-			sk->sk_socket->file->f_cred->fsuid,
-			sk->sk_socket->file->f_cred->fsgid);
+			from_kuid_munged(&init_user_ns, cred->fsuid),
+			from_kgid_munged(&init_user_ns, cred->fsgid));
+	}
 	read_unlock_bh(&sk->sk_callback_lock);
 }
 

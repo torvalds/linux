@@ -37,8 +37,6 @@
 
 #include <linux/spi/spi.h>
 
-#include <plat/clock.h>
-
 #define OMAP1_SPI100K_MAX_FREQ          48000000
 
 #define ICR_SPITAS      (OMAP7XX_ICR_BASE + 0x12)

@@ -1012,7 +1012,7 @@ static struct sas_domain_function_template aic94xx_transport_functions = {
 	.lldd_ata_set_dmamode	= asd_set_dmamode,
 };
 
-static const struct pci_device_id aic94xx_pci_table[] __devinitdata = {
+static const struct pci_device_id aic94xx_pci_table[] __devinitconst = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ADAPTEC2, 0x410),0, 0, 1},
 	{PCI_DEVICE(PCI_VENDOR_ID_ADAPTEC2, 0x412),0, 0, 1},
 	{PCI_DEVICE(PCI_VENDOR_ID_ADAPTEC2, 0x416),0, 0, 1},

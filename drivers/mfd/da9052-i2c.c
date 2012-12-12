@@ -46,7 +46,7 @@ static int da9052_i2c_enable_multiwrite(struct da9052 *da9052)
 	return 0;
 }
 
-static struct i2c_device_id da9052_i2c_id[] = {
+static const struct i2c_device_id da9052_i2c_id[] = {
 	{"da9052", DA9052},
 	{"da9053-aa", DA9053_AA},
 	{"da9053-ba", DA9053_BA},
@@ -104,7 +104,7 @@ static int __devinit da9052_i2c_probe(struct i2c_client *client,
 		const struct of_device_id *deviceid;
 
 		deviceid = of_match_node(dialog_dt_ids, np);
-		id = (const struct i2c_device_id *)deviceid->data;
+		id = deviceid->data;
 	}
 #endif
 

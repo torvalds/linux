@@ -20,6 +20,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/hwmon-vid.h>
 #include <linux/err.h>
+#include <linux/jiffies.h>
 
 /* Indexes for the sysfs hooks */
 

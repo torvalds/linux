@@ -782,7 +782,7 @@ static int wm8978_hw_params(struct snd_pcm_substream *substream,
 		wm8978->mclk_idx = -1;
 		f_sel = wm8978->f_mclk;
 	} else {
-		if (!wm8978->f_pllout) {
+		if (!wm8978->f_opclk) {
 			/* We only enter here, if OPCLK is not used */
 			int ret = wm8978_configure_pll(codec);
 			if (ret < 0)
@@ -1105,23 +1105,7 @@ static struct i2c_driver wm8978_i2c_driver = {
 	.id_table = wm8978_i2c_id,
 };
 
-static int __init wm8978_modinit(void)
-{
-	int ret = 0;
-	ret = i2c_add_driver(&wm8978_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register WM8978 I2C driver: %d\n",
-		       ret);
-	}
-	return ret;
-}
-module_init(wm8978_modinit);
-
-static void __exit wm8978_exit(void)
-{
-	i2c_del_driver(&wm8978_i2c_driver);
-}
-module_exit(wm8978_exit);
+module_i2c_driver(wm8978_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM8978 codec driver");
 MODULE_AUTHOR("Guennadi Liakhovetski <g.liakhovetski@gmx.de>");

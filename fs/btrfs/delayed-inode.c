@@ -29,7 +29,7 @@ static struct kmem_cache *delayed_node_cache;
 
 int __init btrfs_delayed_inode_init(void)
 {
-	delayed_node_cache = kmem_cache_create("delayed_node",
+	delayed_node_cache = kmem_cache_create("btrfs_delayed_node",
 					sizeof(struct btrfs_delayed_node),
 					0,
 					SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
@@ -650,7 +650,7 @@ static int btrfs_delayed_inode_reserve_metadata(
 	 * we're accounted for.
 	 */
 	if (!src_rsv || (!trans->bytes_reserved &&
-	    src_rsv != &root->fs_info->delalloc_block_rsv)) {
+			 src_rsv->type != BTRFS_BLOCK_RSV_DELALLOC)) {
 		ret = btrfs_block_rsv_add_noflush(root, dst_rsv, num_bytes);
 		/*
 		 * Since we're under a transaction reserve_metadata_bytes could
@@ -668,7 +668,7 @@ static int btrfs_delayed_inode_reserve_metadata(
 						      num_bytes, 1);
 		}
 		return ret;
-	} else if (src_rsv == &root->fs_info->delalloc_block_rsv) {
+	} else if (src_rsv->type == BTRFS_BLOCK_RSV_DELALLOC) {
 		spin_lock(&BTRFS_I(inode)->lock);
 		if (test_and_clear_bit(BTRFS_INODE_DELALLOC_META_RESERVED,
 				       &BTRFS_I(inode)->runtime_flags)) {
@@ -1715,8 +1715,8 @@ static void fill_stack_inode_item(struct btrfs_trans_handle *trans,
 				  struct btrfs_inode_item *inode_item,
 				  struct inode *inode)
 {
-	btrfs_set_stack_inode_uid(inode_item, inode->i_uid);
-	btrfs_set_stack_inode_gid(inode_item, inode->i_gid);
+	btrfs_set_stack_inode_uid(inode_item, i_uid_read(inode));
+	btrfs_set_stack_inode_gid(inode_item, i_gid_read(inode));
 	btrfs_set_stack_inode_size(inode_item, BTRFS_I(inode)->disk_i_size);
 	btrfs_set_stack_inode_mode(inode_item, inode->i_mode);
 	btrfs_set_stack_inode_nlink(inode_item, inode->i_nlink);
@@ -1764,8 +1764,8 @@ int btrfs_fill_inode(struct inode *inode, u32 *rdev)
 
 	inode_item = &delayed_node->inode_item;
 
-	inode->i_uid = btrfs_stack_inode_uid(inode_item);
-	inode->i_gid = btrfs_stack_inode_gid(inode_item);
+	i_uid_write(inode, btrfs_stack_inode_uid(inode_item));
+	i_gid_write(inode, btrfs_stack_inode_gid(inode_item));
 	btrfs_i_size_write(inode, btrfs_stack_inode_size(inode_item));
 	inode->i_mode = btrfs_stack_inode_mode(inode_item);
 	set_nlink(inode, btrfs_stack_inode_nlink(inode_item));

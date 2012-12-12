@@ -23,9 +23,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "drmP.h"
-#include "drm.h"
-#include "exynos_drm.h"
+#include <drm/drmP.h>
+#include <drm/exynos_drm.h>
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_gem.h"

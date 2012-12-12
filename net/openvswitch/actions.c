@@ -266,7 +266,7 @@ static int do_output(struct datapath *dp, struct sk_buff *skb, int out_port)
 	if (unlikely(!skb))
 		return -ENOMEM;
 
-	vport = rcu_dereference(dp->ports[out_port]);
+	vport = ovs_vport_rcu(dp, out_port);
 	if (unlikely(!vport)) {
 		kfree_skb(skb);
 		return -ENODEV;
@@ -286,7 +286,7 @@ static int output_userspace(struct datapath *dp, struct sk_buff *skb,
 	upcall.cmd = OVS_PACKET_CMD_ACTION;
 	upcall.key = &OVS_CB(skb)->flow->key;
 	upcall.userdata = NULL;
-	upcall.pid = 0;
+	upcall.portid = 0;
 
 	for (a = nla_data(attr), rem = nla_len(attr); rem > 0;
 		 a = nla_next(a, &rem)) {
@@ -296,7 +296,7 @@ static int output_userspace(struct datapath *dp, struct sk_buff *skb,
 			break;
 
 		case OVS_USERSPACE_ATTR_PID:
-			upcall.pid = nla_get_u32(a);
+			upcall.portid = nla_get_u32(a);
 			break;
 		}
 	}

@@ -876,7 +876,6 @@ static int omap_aes_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(algs); i++) {
 		pr_debug("i: %d\n", i);
-		INIT_LIST_HEAD(&algs[i].cra_list);
 		err = crypto_register_alg(&algs[i]);
 		if (err)
 			goto err_algs;

@@ -90,8 +90,8 @@ static struct inode *get_cramfs_inode(struct super_block *sb,
 	}
 
 	inode->i_mode = cramfs_inode->mode;
-	inode->i_uid = cramfs_inode->uid;
-	inode->i_gid = cramfs_inode->gid;
+	i_uid_write(inode, cramfs_inode->uid);
+	i_gid_write(inode, cramfs_inode->gid);
 
 	/* if the lower 2 bits are zero, the inode contains data */
 	if (!(inode->i_ino & 3)) {

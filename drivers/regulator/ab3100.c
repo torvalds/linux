@@ -15,6 +15,7 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
+#include <linux/mfd/ab3100.h>
 #include <linux/mfd/abx500.h>
 
 /* LDO registers and some handy masking definitions for AB3100 */

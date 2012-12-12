@@ -1100,7 +1100,7 @@ static void ak4396_init(struct snd_ice1712 *ice)
 		ak4396_write(ice, ak4396_inits[i], ak4396_inits[i+1]);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int prodigy_hd2_resume(struct snd_ice1712 *ice)
 {
 	/* initialize ak4396 codec and restore previous mixer volumes */
@@ -1141,7 +1141,7 @@ static int __devinit prodigy_hd2_init(struct snd_ice1712 *ice)
 		return -ENOMEM;
 	ice->spec = spec;
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	ice->pm_resume = &prodigy_hd2_resume;
 	ice->pm_suspend_enabled = 1;
 #endif

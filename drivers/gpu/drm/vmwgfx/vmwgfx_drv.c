@@ -26,12 +26,12 @@
  **************************************************************************/
 #include <linux/module.h>
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "vmwgfx_drv.h"
-#include "ttm/ttm_placement.h"
-#include "ttm/ttm_bo_driver.h"
-#include "ttm/ttm_object.h"
-#include "ttm/ttm_module.h"
+#include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_object.h>
+#include <drm/ttm/ttm_module.h>
 
 #define VMWGFX_DRIVER_NAME "vmwgfx"
 #define VMWGFX_DRIVER_DESC "Linux drm driver for VMware graphics devices"
@@ -438,7 +438,6 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		DRM_ERROR("Failed allocating a device private struct.\n");
 		return -ENOMEM;
 	}
-	memset(dev_priv, 0, sizeof(*dev_priv));
 
 	pci_set_master(dev->pdev);
 
@@ -1098,6 +1097,11 @@ static void vmw_pm_complete(struct device *kdev)
 	struct pci_dev *pdev = to_pci_dev(kdev);
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct vmw_private *dev_priv = vmw_priv(dev);
+
+	mutex_lock(&dev_priv->hw_mutex);
+	vmw_write(dev_priv, SVGA_REG_ID, SVGA_ID_2);
+	(void) vmw_read(dev_priv, SVGA_REG_ID);
+	mutex_unlock(&dev_priv->hw_mutex);
 
 	/**
 	 * Reclaim 3d reference held by fbdev and potentially

@@ -66,7 +66,9 @@ USER_CFLAGS = $(patsubst $(KERNEL_DEFINES),,$(patsubst -D__KERNEL__,,\
 include $(srctree)/$(ARCH_DIR)/Makefile-os-$(OS)
 
 KBUILD_CPPFLAGS += -I$(srctree)/$(HOST_DIR)/include \
-		   -I$(HOST_DIR)/include/generated
+		   -I$(srctree)/$(HOST_DIR)/include/uapi \
+		   -I$(HOST_DIR)/include/generated \
+		   -I$(HOST_DIR)/include/generated/uapi
 
 # -Derrno=kernel_errno - This turns all kernel references to errno into
 # kernel_errno to separate them from the libc errno.  This allows -fno-common

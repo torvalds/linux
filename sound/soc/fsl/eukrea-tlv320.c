@@ -93,9 +93,7 @@ static struct snd_soc_card eukrea_tlv320 = {
 	.num_links	= 1,
 };
 
-static struct platform_device *eukrea_tlv320_snd_device;
-
-static int __init eukrea_tlv320_init(void)
+static int __devinit eukrea_tlv320_probe(struct platform_device *pdev)
 {
 	int ret;
 	int int_port = 0, ext_port;
@@ -136,29 +134,32 @@ static int __init eukrea_tlv320_init(void)
 		return 0;
 	}
 
-	eukrea_tlv320_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!eukrea_tlv320_snd_device)
-		return -ENOMEM;
-
-	platform_set_drvdata(eukrea_tlv320_snd_device, &eukrea_tlv320);
-	ret = platform_device_add(eukrea_tlv320_snd_device);
-
-	if (ret) {
-		printk(KERN_ERR "ASoC: Platform device allocation failed\n");
-		platform_device_put(eukrea_tlv320_snd_device);
-	}
+	eukrea_tlv320.dev = &pdev->dev;
+	ret = snd_soc_register_card(&eukrea_tlv320);
+	if (ret)
+		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n", ret);
 
 	return ret;
 }
 
-static void __exit eukrea_tlv320_exit(void)
+static int __devexit eukrea_tlv320_remove(struct platform_device *pdev)
 {
-	platform_device_unregister(eukrea_tlv320_snd_device);
+	snd_soc_unregister_card(&eukrea_tlv320);
+
+	return 0;
 }
 
-module_init(eukrea_tlv320_init);
-module_exit(eukrea_tlv320_exit);
+static struct platform_driver eukrea_tlv320_driver = {
+	.driver = {
+		.name = "eukrea_tlv320",
+		.owner = THIS_MODULE,
+	},
+	.probe = eukrea_tlv320_probe,
+	.remove = __devexit_p(eukrea_tlv320_remove),};
+
+module_platform_driver(eukrea_tlv320_driver);
 
 MODULE_AUTHOR("Eric Bénard <eric@eukrea.com>");
 MODULE_DESCRIPTION("CPUIMX ALSA SoC driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:eukrea_tlv320");

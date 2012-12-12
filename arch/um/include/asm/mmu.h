@@ -6,7 +6,7 @@
 #ifndef __ARCH_UM_MMU_H
 #define __ARCH_UM_MMU_H
 
-#include "mm_id.h"
+#include <mm_id.h>
 #include <asm/mm_context.h>
 
 typedef struct mm_context {

@@ -220,8 +220,7 @@ static void __pollwait(struct file *filp, wait_queue_head_t *wait_address,
 	struct poll_table_entry *entry = poll_get_entry(pwq);
 	if (!entry)
 		return;
-	get_file(filp);
-	entry->filp = filp;
+	entry->filp = get_file(filp);
 	entry->wait_address = wait_address;
 	entry->key = p->_key;
 	init_waitqueue_func_entry(&entry->wait, pollwake);
@@ -429,8 +428,6 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 		for (i = 0; i < n; ++rinp, ++routp, ++rexp) {
 			unsigned long in, out, ex, all_bits, bit = 1, mask, j;
 			unsigned long res_in = 0, res_out = 0, res_ex = 0;
-			const struct file_operations *f_op = NULL;
-			struct file *file = NULL;
 
 			in = *inp++; out = *outp++; ex = *exp++;
 			all_bits = in | out | ex;
@@ -440,20 +437,21 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 			}
 
 			for (j = 0; j < BITS_PER_LONG; ++j, ++i, bit <<= 1) {
-				int fput_needed;
+				struct fd f;
 				if (i >= n)
 					break;
 				if (!(bit & all_bits))
 					continue;
-				file = fget_light(i, &fput_needed);
-				if (file) {
-					f_op = file->f_op;
+				f = fdget(i);
+				if (f.file) {
+					const struct file_operations *f_op;
+					f_op = f.file->f_op;
 					mask = DEFAULT_POLLMASK;
 					if (f_op && f_op->poll) {
 						wait_key_set(wait, in, out, bit);
-						mask = (*f_op->poll)(file, wait);
+						mask = (*f_op->poll)(f.file, wait);
 					}
-					fput_light(file, fput_needed);
+					fdput(f);
 					if ((mask & POLLIN_SET) && (in & bit)) {
 						res_in |= bit;
 						retval++;
@@ -726,20 +724,17 @@ static inline unsigned int do_pollfd(struct pollfd *pollfd, poll_table *pwait)
 	mask = 0;
 	fd = pollfd->fd;
 	if (fd >= 0) {
-		int fput_needed;
-		struct file * file;
-
-		file = fget_light(fd, &fput_needed);
+		struct fd f = fdget(fd);
 		mask = POLLNVAL;
-		if (file != NULL) {
+		if (f.file) {
 			mask = DEFAULT_POLLMASK;
-			if (file->f_op && file->f_op->poll) {
+			if (f.file->f_op && f.file->f_op->poll) {
 				pwait->_key = pollfd->events|POLLERR|POLLHUP;
-				mask = file->f_op->poll(file, pwait);
+				mask = f.file->f_op->poll(f.file, pwait);
 			}
 			/* Mask out unneeded events. */
 			mask &= pollfd->events | POLLERR | POLLHUP;
-			fput_light(file, fput_needed);
+			fdput(f);
 		}
 	}
 	pollfd->revents = mask;

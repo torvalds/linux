@@ -198,20 +198,17 @@ static int __devinit ads7871_probe(struct spi_device *spi)
 	 * because there is no other error checking on an SPI bus
 	 * we need to make sure we really have a chip
 	 */
-	if (val != ret) {
-		err = -ENODEV;
-		goto exit;
-	}
+	if (val != ret)
+		return -ENODEV;
 
-	pdata = kzalloc(sizeof(struct ads7871_data), GFP_KERNEL);
-	if (!pdata) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	pdata = devm_kzalloc(&spi->dev, sizeof(struct ads7871_data),
+			     GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
 
 	err = sysfs_create_group(&spi->dev.kobj, &ads7871_group);
 	if (err < 0)
-		goto error_free;
+		return err;
 
 	spi_set_drvdata(spi, pdata);
 
@@ -225,9 +222,6 @@ static int __devinit ads7871_probe(struct spi_device *spi)
 
 error_remove:
 	sysfs_remove_group(&spi->dev.kobj, &ads7871_group);
-error_free:
-	kfree(pdata);
-exit:
 	return err;
 }
 
@@ -237,7 +231,6 @@ static int __devexit ads7871_remove(struct spi_device *spi)
 
 	hwmon_device_unregister(pdata->hwmon_dev);
 	sysfs_remove_group(&spi->dev.kobj, &ads7871_group);
-	kfree(pdata);
 	return 0;
 }
 

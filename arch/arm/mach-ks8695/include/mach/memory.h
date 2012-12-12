@@ -34,7 +34,8 @@ extern struct bus_type platform_bus_type;
 #define __arch_dma_to_virt(dev, x)	({ (void *) (is_lbus_device(dev) ? \
 					__phys_to_virt(x) : __bus_to_virt(x)); })
 #define __arch_virt_to_dma(dev, x)	({ is_lbus_device(dev) ? \
-					(dma_addr_t)__virt_to_phys(x) : (dma_addr_t)__virt_to_bus(x); })
+					(dma_addr_t)__virt_to_phys((unsigned long)x) \
+					: (dma_addr_t)__virt_to_bus(x); })
 #define __arch_pfn_to_dma(dev, pfn)	\
 	({ dma_addr_t __dma = __pfn_to_phys(pfn); \
 	   if (!is_lbus_device(dev)) \

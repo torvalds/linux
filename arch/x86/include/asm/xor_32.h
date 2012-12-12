@@ -822,7 +822,7 @@ static struct xor_block_template xor_block_pIII_sse = {
 };
 
 /* Also try the AVX routines */
-#include "xor_avx.h"
+#include <asm/xor_avx.h>
 
 /* Also try the generic routines.  */
 #include <asm-generic/xor.h>

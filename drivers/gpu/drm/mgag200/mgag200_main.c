@@ -10,9 +10,8 @@
  *          Matt Turner
  *          Dave Airlie
  */
-#include "drmP.h"
-#include "drm.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc_helper.h>
 #include "mgag200_drv.h"
 
 static void mga_user_framebuffer_destroy(struct drm_framebuffer *fb)

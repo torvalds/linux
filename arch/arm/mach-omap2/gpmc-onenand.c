@@ -15,19 +15,27 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/onenand_regs.h>
 #include <linux/io.h>
+#include <linux/platform_data/mtd-onenand-omap2.h>
 
 #include <asm/mach/flash.h>
 
-#include <plat/cpu.h>
-#include <plat/onenand.h>
-#include <plat/board.h>
 #include <plat/gpmc.h>
 
+#include "soc.h"
+
+#define	ONENAND_IO_SIZE	SZ_128K
+
 static struct omap_onenand_platform_data *gpmc_onenand_data;
+
+static struct resource gpmc_onenand_resource = {
+	.flags		= IORESOURCE_MEM,
+};
 
 static struct platform_device gpmc_onenand_device = {
 	.name		= "omap2-onenand",
 	.id		= -1,
+	.num_resources	= 1,
+	.resource	= &gpmc_onenand_resource,
 };
 
 static int omap2_onenand_set_async_mode(int cs, void __iomem *onenand_base)
@@ -390,6 +398,8 @@ static int gpmc_onenand_setup(void __iomem *onenand_base, int *freq_ptr)
 
 void __init gpmc_onenand_init(struct omap_onenand_platform_data *_onenand_data)
 {
+	int err;
+
 	gpmc_onenand_data = _onenand_data;
 	gpmc_onenand_data->onenand_setup = gpmc_onenand_setup;
 	gpmc_onenand_device.dev.platform_data = gpmc_onenand_data;
@@ -401,8 +411,19 @@ void __init gpmc_onenand_init(struct omap_onenand_platform_data *_onenand_data)
 		gpmc_onenand_data->flags |= ONENAND_SYNC_READ;
 	}
 
+	err = gpmc_cs_request(gpmc_onenand_data->cs, ONENAND_IO_SIZE,
+				(unsigned long *)&gpmc_onenand_resource.start);
+	if (err < 0) {
+		pr_err("%s: Cannot request GPMC CS\n", __func__);
+		return;
+	}
+
+	gpmc_onenand_resource.end = gpmc_onenand_resource.start +
+							ONENAND_IO_SIZE - 1;
+
 	if (platform_device_register(&gpmc_onenand_device) < 0) {
-		printk(KERN_ERR "Unable to register OneNAND device\n");
+		pr_err("%s: Unable to register OneNAND device\n", __func__);
+		gpmc_cs_free(gpmc_onenand_data->cs);
 		return;
 	}
 }

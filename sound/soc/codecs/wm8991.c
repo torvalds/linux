@@ -1363,7 +1363,7 @@ static __devinit int wm8991_i2c_probe(struct i2c_client *i2c,
 	struct wm8991_priv *wm8991;
 	int ret;
 
-	wm8991 = kzalloc(sizeof *wm8991, GFP_KERNEL);
+	wm8991 = devm_kzalloc(&i2c->dev, sizeof(*wm8991), GFP_KERNEL);
 	if (!wm8991)
 		return -ENOMEM;
 
@@ -1372,15 +1372,14 @@ static __devinit int wm8991_i2c_probe(struct i2c_client *i2c,
 
 	ret = snd_soc_register_codec(&i2c->dev,
 				     &soc_codec_dev_wm8991, &wm8991_dai, 1);
-	if (ret < 0)
-		kfree(wm8991);
+
 	return ret;
 }
 
 static __devexit int wm8991_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
+
 	return 0;
 }
 
@@ -1400,23 +1399,7 @@ static struct i2c_driver wm8991_i2c_driver = {
 	.id_table = wm8991_i2c_id,
 };
 
-static int __init wm8991_modinit(void)
-{
-	int ret;
-	ret = i2c_add_driver(&wm8991_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register WM8991 I2C driver: %d\n",
-		       ret);
-	}
-	return 0;
-}
-module_init(wm8991_modinit);
-
-static void __exit wm8991_exit(void)
-{
-	i2c_del_driver(&wm8991_i2c_driver);
-}
-module_exit(wm8991_exit);
+module_i2c_driver(wm8991_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM8991 driver");
 MODULE_AUTHOR("Graeme Gregory");

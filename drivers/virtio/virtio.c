@@ -159,7 +159,7 @@ static int virtio_dev_remove(struct device *_d)
 	drv->remove(dev);
 
 	/* Driver should have reset device. */
-	BUG_ON(dev->config->get_status(dev));
+	WARN_ON_ONCE(dev->config->get_status(dev));
 
 	/* Acknowledge the device's existence again. */
 	add_status(dev, VIRTIO_CONFIG_S_ACKNOWLEDGE);
@@ -225,8 +225,10 @@ EXPORT_SYMBOL_GPL(register_virtio_device);
 
 void unregister_virtio_device(struct virtio_device *dev)
 {
+	int index = dev->index; /* save for after device release */
+
 	device_unregister(&dev->dev);
-	ida_simple_remove(&virtio_index_ida, dev->index);
+	ida_simple_remove(&virtio_index_ida, index);
 }
 EXPORT_SYMBOL_GPL(unregister_virtio_device);
 

@@ -27,6 +27,7 @@
 #include <linux/cgroup.h>
 #include <linux/fs.h>
 #include <linux/file.h>
+#include <linux/pid_namespace.h>
 #include <net/genetlink.h>
 #include <linux/atomic.h>
 
@@ -174,7 +175,9 @@ static void send_cpu_listeners(struct sk_buff *skb,
 	up_write(&listeners->sem);
 }
 
-static void fill_stats(struct task_struct *tsk, struct taskstats *stats)
+static void fill_stats(struct user_namespace *user_ns,
+		       struct pid_namespace *pid_ns,
+		       struct task_struct *tsk, struct taskstats *stats)
 {
 	memset(stats, 0, sizeof(*stats));
 	/*
@@ -190,7 +193,7 @@ static void fill_stats(struct task_struct *tsk, struct taskstats *stats)
 	stats->version = TASKSTATS_VERSION;
 	stats->nvcsw = tsk->nvcsw;
 	stats->nivcsw = tsk->nivcsw;
-	bacct_add_tsk(stats, tsk);
+	bacct_add_tsk(user_ns, pid_ns, stats, tsk);
 
 	/* fill in extended acct fields */
 	xacct_add_tsk(stats, tsk);
@@ -207,7 +210,7 @@ static int fill_stats_for_pid(pid_t pid, struct taskstats *stats)
 	rcu_read_unlock();
 	if (!tsk)
 		return -ESRCH;
-	fill_stats(tsk, stats);
+	fill_stats(current_user_ns(), task_active_pid_ns(current), tsk, stats);
 	put_task_struct(tsk);
 	return 0;
 }
@@ -289,6 +292,12 @@ static int add_del_listener(pid_t pid, const struct cpumask *mask, int isadd)
 	unsigned int cpu;
 
 	if (!cpumask_subset(mask, cpu_possible_mask))
+		return -EINVAL;
+
+	if (current_user_ns() != &init_user_ns)
+		return -EINVAL;
+
+	if (task_active_pid_ns(current) != &init_pid_ns)
 		return -EINVAL;
 
 	if (isadd == REGISTER) {
@@ -415,16 +424,15 @@ static int cgroupstats_user_cmd(struct sk_buff *skb, struct genl_info *info)
 	struct nlattr *na;
 	size_t size;
 	u32 fd;
-	struct file *file;
-	int fput_needed;
+	struct fd f;
 
 	na = info->attrs[CGROUPSTATS_CMD_ATTR_FD];
 	if (!na)
 		return -EINVAL;
 
 	fd = nla_get_u32(info->attrs[CGROUPSTATS_CMD_ATTR_FD]);
-	file = fget_light(fd, &fput_needed);
-	if (!file)
+	f = fdget(fd);
+	if (!f.file)
 		return 0;
 
 	size = nla_total_size(sizeof(struct cgroupstats));
@@ -437,6 +445,7 @@ static int cgroupstats_user_cmd(struct sk_buff *skb, struct genl_info *info)
 	na = nla_reserve(rep_skb, CGROUPSTATS_TYPE_CGROUP_STATS,
 				sizeof(struct cgroupstats));
 	if (na == NULL) {
+		nlmsg_free(rep_skb);
 		rc = -EMSGSIZE;
 		goto err;
 	}
@@ -444,7 +453,7 @@ static int cgroupstats_user_cmd(struct sk_buff *skb, struct genl_info *info)
 	stats = nla_data(na);
 	memset(stats, 0, sizeof(*stats));
 
-	rc = cgroupstats_build(stats, file->f_dentry);
+	rc = cgroupstats_build(stats, f.file->f_dentry);
 	if (rc < 0) {
 		nlmsg_free(rep_skb);
 		goto err;
@@ -453,7 +462,7 @@ static int cgroupstats_user_cmd(struct sk_buff *skb, struct genl_info *info)
 	rc = send_reply(rep_skb, info);
 
 err:
-	fput_light(file, fput_needed);
+	fdput(f);
 	return rc;
 }
 
@@ -467,7 +476,7 @@ static int cmd_attr_register_cpumask(struct genl_info *info)
 	rc = parse(info->attrs[TASKSTATS_CMD_ATTR_REGISTER_CPUMASK], mask);
 	if (rc < 0)
 		goto out;
-	rc = add_del_listener(info->snd_pid, mask, REGISTER);
+	rc = add_del_listener(info->snd_portid, mask, REGISTER);
 out:
 	free_cpumask_var(mask);
 	return rc;
@@ -483,7 +492,7 @@ static int cmd_attr_deregister_cpumask(struct genl_info *info)
 	rc = parse(info->attrs[TASKSTATS_CMD_ATTR_DEREGISTER_CPUMASK], mask);
 	if (rc < 0)
 		goto out;
-	rc = add_del_listener(info->snd_pid, mask, DEREGISTER);
+	rc = add_del_listener(info->snd_portid, mask, DEREGISTER);
 out:
 	free_cpumask_var(mask);
 	return rc;
@@ -631,11 +640,12 @@ void taskstats_exit(struct task_struct *tsk, int group_dead)
 	if (rc < 0)
 		return;
 
-	stats = mk_reply(rep_skb, TASKSTATS_TYPE_PID, tsk->pid);
+	stats = mk_reply(rep_skb, TASKSTATS_TYPE_PID,
+			 task_pid_nr_ns(tsk, &init_pid_ns));
 	if (!stats)
 		goto err;
 
-	fill_stats(tsk, stats);
+	fill_stats(&init_user_ns, &init_pid_ns, tsk, stats);
 
 	/*
 	 * Doesn't matter if tsk is the leader or the last group member leaving
@@ -643,7 +653,8 @@ void taskstats_exit(struct task_struct *tsk, int group_dead)
 	if (!is_thread_group || !group_dead)
 		goto send;
 
-	stats = mk_reply(rep_skb, TASKSTATS_TYPE_TGID, tsk->tgid);
+	stats = mk_reply(rep_skb, TASKSTATS_TYPE_TGID,
+			 task_tgid_nr_ns(tsk, &init_pid_ns));
 	if (!stats)
 		goto err;
 

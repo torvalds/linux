@@ -2306,8 +2306,8 @@ pfm_smpl_buffer_alloc(struct task_struct *task, struct file *filp, pfm_context_t
 	 * partially initialize the vma for the sampling buffer
 	 */
 	vma->vm_mm	     = mm;
-	vma->vm_file	     = filp;
-	vma->vm_flags	     = VM_READ| VM_MAYREAD |VM_RESERVED;
+	vma->vm_file	     = get_file(filp);
+	vma->vm_flags	     = VM_READ|VM_MAYREAD|VM_DONTEXPAND|VM_DONTDUMP;
 	vma->vm_page_prot    = PAGE_READONLY; /* XXX may need to change */
 
 	/*
@@ -2345,8 +2345,6 @@ pfm_smpl_buffer_alloc(struct task_struct *task, struct file *filp, pfm_context_t
 		goto error;
 	}
 
-	get_file(filp);
-
 	/*
 	 * now insert the vma in the vm list for the process, must be
 	 * done with mmap lock held
@@ -2380,8 +2378,8 @@ static int
 pfm_bad_permissions(struct task_struct *task)
 {
 	const struct cred *tcred;
-	uid_t uid = current_uid();
-	gid_t gid = current_gid();
+	kuid_t uid = current_uid();
+	kgid_t gid = current_gid();
 	int ret;
 
 	rcu_read_lock();
@@ -2389,20 +2387,20 @@ pfm_bad_permissions(struct task_struct *task)
 
 	/* inspired by ptrace_attach() */
 	DPRINT(("cur: uid=%d gid=%d task: euid=%d suid=%d uid=%d egid=%d sgid=%d\n",
-		uid,
-		gid,
-		tcred->euid,
-		tcred->suid,
-		tcred->uid,
-		tcred->egid,
-		tcred->sgid));
+		from_kuid(&init_user_ns, uid),
+		from_kgid(&init_user_ns, gid),
+		from_kuid(&init_user_ns, tcred->euid),
+		from_kuid(&init_user_ns, tcred->suid),
+		from_kuid(&init_user_ns, tcred->uid),
+		from_kgid(&init_user_ns, tcred->egid),
+		from_kgid(&init_user_ns, tcred->sgid)));
 
-	ret = ((uid != tcred->euid)
-	       || (uid != tcred->suid)
-	       || (uid != tcred->uid)
-	       || (gid != tcred->egid)
-	       || (gid != tcred->sgid)
-	       || (gid != tcred->gid)) && !capable(CAP_SYS_PTRACE);
+	ret = ((!uid_eq(uid, tcred->euid))
+	       || (!uid_eq(uid, tcred->suid))
+	       || (!uid_eq(uid, tcred->uid))
+	       || (!gid_eq(gid, tcred->egid))
+	       || (!gid_eq(gid, tcred->sgid))
+	       || (!gid_eq(gid, tcred->gid))) && !capable(CAP_SYS_PTRACE);
 
 	rcu_read_unlock();
 	return ret;
@@ -4782,7 +4780,7 @@ recheck:
 asmlinkage long
 sys_perfmonctl (int fd, int cmd, void __user *arg, int count)
 {
-	struct file *file = NULL;
+	struct fd f = {NULL, 0};
 	pfm_context_t *ctx = NULL;
 	unsigned long flags = 0UL;
 	void *args_k = NULL;
@@ -4879,17 +4877,17 @@ restart_args:
 
 	ret = -EBADF;
 
-	file = fget(fd);
-	if (unlikely(file == NULL)) {
+	f = fdget(fd);
+	if (unlikely(f.file == NULL)) {
 		DPRINT(("invalid fd %d\n", fd));
 		goto error_args;
 	}
-	if (unlikely(PFM_IS_FILE(file) == 0)) {
+	if (unlikely(PFM_IS_FILE(f.file) == 0)) {
 		DPRINT(("fd %d not related to perfmon\n", fd));
 		goto error_args;
 	}
 
-	ctx = file->private_data;
+	ctx = f.file->private_data;
 	if (unlikely(ctx == NULL)) {
 		DPRINT(("no context for fd %d\n", fd));
 		goto error_args;
@@ -4919,8 +4917,8 @@ abort_locked:
 	if (call_made && PFM_CMD_RW_ARG(cmd) && copy_to_user(arg, args_k, base_sz*count)) ret = -EFAULT;
 
 error_args:
-	if (file)
-		fput(file);
+	if (f.file)
+		fdput(f);
 
 	kfree(args_k);
 

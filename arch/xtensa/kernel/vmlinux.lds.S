@@ -222,11 +222,6 @@ SECTIONS
   . = ALIGN(0x10);
   .bootstrap : { *(.bootstrap.literal .bootstrap.text .bootstrap.data) }
 
-  . = ALIGN(0x1000);
-  __initrd_start = .;
-  .initrd : { *(.initrd) }
-  __initrd_end = .;
-
   .ResetVector.text XCHAL_RESET_VECTOR_VADDR :
   {
     *(.ResetVector.text)

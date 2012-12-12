@@ -14,9 +14,7 @@
 
 
 #include <linux/kernel.h>
-#include <linux/utsname.h>
 #include <linux/module.h>
-
 
 #if defined USB_ETH_RNDIS
 #  undef USB_ETH_RNDIS
@@ -42,12 +40,6 @@ MODULE_LICENSE("GPL");
  * the runtime footprint, and giving us at least some parts of what
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
-
-#include "composite.c"
-#include "usbstring.c"
-#include "config.c"
-#include "epautoconf.c"
-
 #include "f_mass_storage.c"
 
 #include "u_serial.c"
@@ -61,7 +53,7 @@ MODULE_LICENSE("GPL");
 #endif
 #include "u_ether.c"
 
-
+USB_GADGET_COMPOSITE_OPTIONS();
 
 /***************************** Device Descriptor ****************************/
 
@@ -112,21 +104,16 @@ static const struct usb_descriptor_header *otg_desc[] = {
 
 
 enum {
-#ifdef CONFIG_USB_G_MULTI_RNDIS
-	MULTI_STRING_RNDIS_CONFIG_IDX,
-#endif
-#ifdef CONFIG_USB_G_MULTI_CDC
+	MULTI_STRING_RNDIS_CONFIG_IDX = USB_GADGET_FIRST_AVAIL_IDX,
 	MULTI_STRING_CDC_CONFIG_IDX,
-#endif
 };
 
 static struct usb_string strings_dev[] = {
-#ifdef CONFIG_USB_G_MULTI_RNDIS
+	[USB_GADGET_MANUFACTURER_IDX].s = "",
+	[USB_GADGET_PRODUCT_IDX].s = DRIVER_DESC,
+	[USB_GADGET_SERIAL_IDX].s = "",
 	[MULTI_STRING_RNDIS_CONFIG_IDX].s = "Multifunction with RNDIS",
-#endif
-#ifdef CONFIG_USB_G_MULTI_CDC
 	[MULTI_STRING_CDC_CONFIG_IDX].s   = "Multifunction with CDC ECM",
-#endif
 	{  } /* end of list */
 };
 
@@ -260,7 +247,7 @@ static int cdc_config_register(struct usb_composite_dev *cdev)
 static int __ref multi_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget *gadget = cdev->gadget;
-	int status, gcnum;
+	int status;
 
 	if (!can_support_ecm(cdev->gadget)) {
 		dev_err(&gadget->dev, "controller '%s' not usable\n",
@@ -288,19 +275,11 @@ static int __ref multi_bind(struct usb_composite_dev *cdev)
 		}
 	}
 
-	/* set bcdDevice */
-	gcnum = usb_gadget_controller_number(gadget);
-	if (gcnum >= 0) {
-		device_desc.bcdDevice = cpu_to_le16(0x0300 | gcnum);
-	} else {
-		WARNING(cdev, "controller '%s' not recognized\n", gadget->name);
-		device_desc.bcdDevice = cpu_to_le16(0x0300 | 0x0099);
-	}
-
 	/* allocate string IDs */
 	status = usb_string_ids_tab(cdev, strings_dev);
 	if (unlikely(status < 0))
 		goto fail2;
+	device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
 
 	/* register configurations */
 	status = rndis_config_register(cdev);
@@ -310,6 +289,7 @@ static int __ref multi_bind(struct usb_composite_dev *cdev)
 	status = cdc_config_register(cdev);
 	if (unlikely(status < 0))
 		goto fail2;
+	usb_composite_overwrite_options(cdev, &coverwrite);
 
 	/* we're done */
 	dev_info(&gadget->dev, DRIVER_DESC "\n");
@@ -338,20 +318,20 @@ static int __exit multi_unbind(struct usb_composite_dev *cdev)
 /****************************** Some noise ******************************/
 
 
-static struct usb_composite_driver multi_driver = {
+static __refdata struct usb_composite_driver multi_driver = {
 	.name		= "g_multi",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
 	.max_speed	= USB_SPEED_HIGH,
+	.bind		= multi_bind,
 	.unbind		= __exit_p(multi_unbind),
-	.iProduct	= DRIVER_DESC,
 	.needs_serial	= 1,
 };
 
 
 static int __init multi_init(void)
 {
-	return usb_composite_probe(&multi_driver, multi_bind);
+	return usb_composite_probe(&multi_driver);
 }
 module_init(multi_init);
 

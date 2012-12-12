@@ -66,10 +66,10 @@ static int pcxhr_init_board(struct pcxhr_mgr *mgr)
 	err = pcxhr_send_msg(mgr, &rmh);
 	if (err)
 		return err;
-	/* test 8 or 12 phys out */
-	if ((rmh.stat[0] & MASK_FIRST_FIELD) != mgr->playback_chips * 2)
+	/* test 4, 8 or 12 phys out */
+	if ((rmh.stat[0] & MASK_FIRST_FIELD) < mgr->playback_chips * 2)
 		return -EINVAL;
-	/* test 8 or 2 phys in */
+	/* test 4, 8 or 2 phys in */
 	if (((rmh.stat[0] >> (2 * FIELD_SIZE)) & MASK_FIRST_FIELD) <
 	    mgr->capture_chips * 2)
 		return -EINVAL;

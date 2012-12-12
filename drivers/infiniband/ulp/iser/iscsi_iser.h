@@ -177,6 +177,7 @@ struct iser_data_buf {
 
 /* fwd declarations */
 struct iser_device;
+struct iser_cq_desc;
 struct iscsi_iser_conn;
 struct iscsi_iser_task;
 struct iscsi_endpoint;
@@ -226,16 +227,21 @@ struct iser_rx_desc {
 	char		             pad[ISER_RX_PAD_SIZE];
 } __attribute__((packed));
 
+#define ISER_MAX_CQ 4
+
 struct iser_device {
 	struct ib_device             *ib_device;
 	struct ib_pd	             *pd;
-	struct ib_cq	             *rx_cq;
-	struct ib_cq	             *tx_cq;
+	struct ib_cq	             *rx_cq[ISER_MAX_CQ];
+	struct ib_cq	             *tx_cq[ISER_MAX_CQ];
 	struct ib_mr	             *mr;
-	struct tasklet_struct	     cq_tasklet;
+	struct tasklet_struct	     cq_tasklet[ISER_MAX_CQ];
 	struct ib_event_handler      event_handler;
 	struct list_head             ig_list; /* entry in ig devices list */
 	int                          refcount;
+	int                          cq_active_qps[ISER_MAX_CQ];
+	int			     cqs_used;
+	struct iser_cq_desc	     *cq_desc;
 };
 
 struct iser_conn {
@@ -285,6 +291,11 @@ struct iser_page_vec {
 	int length;
 	int offset;
 	int data_size;
+};
+
+struct iser_cq_desc {
+	struct iser_device           *device;
+	int                          cq_index;
 };
 
 struct iser_global {

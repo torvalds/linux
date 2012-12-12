@@ -794,6 +794,7 @@ int qeth_l3_add_vipa(struct qeth_card *card, enum qeth_prot_versions proto,
 		rc = -EEXIST;
 	spin_unlock_irqrestore(&card->ip_lock, flags);
 	if (rc) {
+		kfree(ipaddr);
 		return rc;
 	}
 	if (!qeth_l3_add_ip(card, ipaddr))
@@ -858,6 +859,7 @@ int qeth_l3_add_rxip(struct qeth_card *card, enum qeth_prot_versions proto,
 		rc = -EEXIST;
 	spin_unlock_irqrestore(&card->ip_lock, flags);
 	if (rc) {
+		kfree(ipaddr);
 		return rc;
 	}
 	if (!qeth_l3_add_ip(card, ipaddr))
@@ -3508,11 +3510,12 @@ static int qeth_l3_recover(void *ptr)
 		dev_info(&card->gdev->dev,
 			"Device successfully recovered!\n");
 	else {
-		rtnl_lock();
-		dev_close(card->dev);
-		rtnl_unlock();
-		dev_warn(&card->gdev->dev, "The qeth device driver "
-			"failed to recover an error on the device\n");
+		if (rtnl_trylock()) {
+			dev_close(card->dev);
+			rtnl_unlock();
+			dev_warn(&card->gdev->dev, "The qeth device driver "
+				"failed to recover an error on the device\n");
+		}
 	}
 	qeth_clear_thread_start_bit(card, QETH_RECOVER_THREAD);
 	qeth_clear_thread_running_bit(card, QETH_RECOVER_THREAD);

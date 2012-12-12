@@ -1,0 +1,68 @@
+/*
+ * Device Tree for the ARM Integrator/AP platform
+ */
+
+/dts-v1/;
+/include/ "integrator.dtsi"
+
+/ {
+	model = "ARM Integrator/AP";
+	compatible = "arm,integrator-ap";
+
+	aliases {
+		arm,timer-primary = &timer2;
+		arm,timer-secondary = &timer1;
+	};
+
+	chosen {
+		bootargs = "root=/dev/ram0 console=ttyAM0,38400n8 earlyprintk";
+	};
+
+	timer0: timer@13000000 {
+		compatible = "arm,integrator-timer";
+	};
+
+	timer1: timer@13000100 {
+		compatible = "arm,integrator-timer";
+	};
+
+	timer2: timer@13000200 {
+		compatible = "arm,integrator-timer";
+	};
+
+	pic: pic@14000000 {
+		valid-mask = <0x003fffff>;
+	};
+
+	fpga {
+		/*
+		 * The Integator/AP predates the idea to have magic numbers
+		 * identifying the PrimeCell in hardware, thus we have to
+		 * supply these from the device tree.
+		 */
+		rtc: rtc@15000000 {
+			compatible = "arm,pl030", "arm,primecell";
+			arm,primecell-periphid = <0x00041030>;
+		};
+
+		uart0: uart@16000000 {
+			compatible = "arm,pl010", "arm,primecell";
+			arm,primecell-periphid = <0x00041010>;
+		};
+
+		uart1: uart@17000000 {
+			compatible = "arm,pl010", "arm,primecell";
+			arm,primecell-periphid = <0x00041010>;
+		};
+
+		kmi0: kmi@18000000 {
+			compatible = "arm,pl050", "arm,primecell";
+			arm,primecell-periphid = <0x00041050>;
+		};
+
+		kmi1: kmi@19000000 {
+			compatible = "arm,pl050", "arm,primecell";
+			arm,primecell-periphid = <0x00041050>;
+		};
+	};
+};

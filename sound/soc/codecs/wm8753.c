@@ -1509,7 +1509,7 @@ static int wm8753_probe(struct snd_soc_codec *codec)
 /* power down chip */
 static int wm8753_remove(struct snd_soc_codec *codec)
 {
-	flush_delayed_work_sync(&codec->dapm.delayed_work);
+	flush_delayed_work(&codec->dapm.delayed_work);
 	wm8753_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;

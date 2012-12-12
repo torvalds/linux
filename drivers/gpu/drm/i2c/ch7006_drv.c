@@ -427,15 +427,10 @@ static int ch7006_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int ch7006_suspend(struct i2c_client *client, pm_message_t mesg)
+static int ch7006_resume(struct device *dev)
 {
-	ch7006_dbg(client, "\n");
+	struct i2c_client *client = to_i2c_client(dev);
 
-	return 0;
-}
-
-static int ch7006_resume(struct i2c_client *client)
-{
 	ch7006_dbg(client, "\n");
 
 	ch7006_write(client, 0x3d, 0x0);
@@ -499,15 +494,18 @@ static struct i2c_device_id ch7006_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ch7006_ids);
 
+static const struct dev_pm_ops ch7006_pm_ops = {
+	.resume = ch7006_resume,
+};
+
 static struct drm_i2c_encoder_driver ch7006_driver = {
 	.i2c_driver = {
 		.probe = ch7006_probe,
 		.remove = ch7006_remove,
-		.suspend = ch7006_suspend,
-		.resume = ch7006_resume,
 
 		.driver = {
 			.name = "ch7006",
+			.pm = &ch7006_pm_ops,
 		},
 
 		.id_table = ch7006_ids,

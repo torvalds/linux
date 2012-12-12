@@ -125,16 +125,6 @@ int apply_relocate(Elf_Shdr *sechdrs, const char *strtab,
 	return 0;
 }
 
-int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
-		unsigned int symindex, unsigned int relsec,
-		struct module *me)
-{
-	/* Non-standard return value... most other arch's return -ENOEXEC
-	 * for an unsupported relocation variant
-	 */
-	return 0;
-}
-
 /* Given an address, look for it in the module exception tables. */
 const struct exception_table_entry *search_module_dbetables(unsigned long addr)
 {

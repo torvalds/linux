@@ -312,6 +312,8 @@ int nfc_llcp_send_symm(struct nfc_dev *dev)
 
 	skb = llcp_add_header(skb, 0, 0, LLCP_PDU_SYMM);
 
+	nfc_llcp_send_to_raw_sock(local, skb, NFC_LLCP_DIRECTION_TX);
+
 	return nfc_data_exchange(dev, local->target_idx, skb,
 				 nfc_llcp_recv, local);
 }

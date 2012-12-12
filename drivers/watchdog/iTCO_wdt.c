@@ -37,6 +37,7 @@
  *	document number TBD                   : DH89xxCC
  *	document number TBD                   : Panther Point
  *	document number TBD                   : Lynx Point
+ *	document number TBD                   : Lynx Point-LP
  */
 
 /*

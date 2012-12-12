@@ -54,7 +54,7 @@
 #include <linux/pinctrl/consumer.h>
 
 #include <mach/hardware.h>
-#include <mach/i2c.h>
+#include <linux/platform_data/i2c-imx.h>
 
 /** Defines ********************************************************************
 *******************************************************************************/
@@ -272,9 +272,9 @@ static void __init i2c_imx_set_clk(struct imx_i2c_struct *i2c_imx,
 
 	/* dev_dbg() can't be used, because adapter is not yet registered */
 #ifdef CONFIG_I2C_DEBUG_BUS
-	printk(KERN_DEBUG "I2C: <%s> I2C_CLK=%d, REQ DIV=%d\n",
+	dev_dbg(&i2c_imx->adapter.dev, "<%s> I2C_CLK=%d, REQ DIV=%d\n",
 		__func__, i2c_clk_rate, div);
-	printk(KERN_DEBUG "I2C: <%s> IFDR[IC]=0x%x, REAL DIV=%d\n",
+	dev_dbg(&i2c_imx->adapter.dev, "<%s> IFDR[IC]=0x%x, REAL DIV=%d\n",
 		__func__, i2c_clk_div[i][1], i2c_clk_div[i][0]);
 #endif
 }
@@ -564,7 +564,7 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 		resource_size(res), res->start);
 	dev_dbg(&i2c_imx->adapter.dev, "adapter name: \"%s\"\n",
 		i2c_imx->adapter.name);
-	dev_dbg(&i2c_imx->adapter.dev, "IMX I2C adapter registered\n");
+	dev_info(&i2c_imx->adapter.dev, "IMX I2C adapter registered\n");
 
 	return 0;   /* Return OK */
 }

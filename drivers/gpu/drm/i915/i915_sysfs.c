@@ -46,32 +46,32 @@ static u32 calc_residency(struct drm_device *dev, const u32 reg)
 }
 
 static ssize_t
-show_rc6_mask(struct device *dev, struct device_attribute *attr, char *buf)
+show_rc6_mask(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *dminor = container_of(dev, struct drm_minor, kdev);
+	struct drm_minor *dminor = container_of(kdev, struct drm_minor, kdev);
 	return snprintf(buf, PAGE_SIZE, "%x", intel_enable_rc6(dminor->dev));
 }
 
 static ssize_t
-show_rc6_ms(struct device *dev, struct device_attribute *attr, char *buf)
+show_rc6_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *dminor = container_of(dev, struct drm_minor, kdev);
+	struct drm_minor *dminor = container_of(kdev, struct drm_minor, kdev);
 	u32 rc6_residency = calc_residency(dminor->dev, GEN6_GT_GFX_RC6);
 	return snprintf(buf, PAGE_SIZE, "%u", rc6_residency);
 }
 
 static ssize_t
-show_rc6p_ms(struct device *dev, struct device_attribute *attr, char *buf)
+show_rc6p_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *dminor = container_of(dev, struct drm_minor, kdev);
+	struct drm_minor *dminor = container_of(kdev, struct drm_minor, kdev);
 	u32 rc6p_residency = calc_residency(dminor->dev, GEN6_GT_GFX_RC6p);
 	return snprintf(buf, PAGE_SIZE, "%u", rc6p_residency);
 }
 
 static ssize_t
-show_rc6pp_ms(struct device *dev, struct device_attribute *attr, char *buf)
+show_rc6pp_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *dminor = container_of(dev, struct drm_minor, kdev);
+	struct drm_minor *dminor = container_of(kdev, struct drm_minor, kdev);
 	u32 rc6pp_residency = calc_residency(dminor->dev, GEN6_GT_GFX_RC6pp);
 	return snprintf(buf, PAGE_SIZE, "%u", rc6pp_residency);
 }
@@ -93,6 +93,7 @@ static struct attribute_group rc6_attr_group = {
 	.name = power_group_name,
 	.attrs =  rc6_attrs
 };
+#endif
 
 static int l3_access_valid(struct drm_device *dev, loff_t offset)
 {
@@ -202,37 +203,214 @@ static struct bin_attribute dpf_attrs = {
 	.mmap = NULL
 };
 
+static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_device *dev = minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
+	ret = dev_priv->rps.cur_delay * GT_FREQUENCY_MULTIPLIER;
+	mutex_unlock(&dev->struct_mutex);
+
+	return snprintf(buf, PAGE_SIZE, "%d", ret);
+}
+
+static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
+{
+	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_device *dev = minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
+	ret = dev_priv->rps.max_delay * GT_FREQUENCY_MULTIPLIER;
+	mutex_unlock(&dev->struct_mutex);
+
+	return snprintf(buf, PAGE_SIZE, "%d", ret);
+}
+
+static ssize_t gt_max_freq_mhz_store(struct device *kdev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_device *dev = minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 val, rp_state_cap, hw_max, hw_min;
+	ssize_t ret;
+
+	ret = kstrtou32(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	val /= GT_FREQUENCY_MULTIPLIER;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
+	hw_max = (rp_state_cap & 0xff);
+	hw_min = ((rp_state_cap & 0xff0000) >> 16);
+
+	if (val < hw_min || val > hw_max || val < dev_priv->rps.min_delay) {
+		mutex_unlock(&dev->struct_mutex);
+		return -EINVAL;
+	}
+
+	if (dev_priv->rps.cur_delay > val)
+		gen6_set_rps(dev_priv->dev, val);
+
+	dev_priv->rps.max_delay = val;
+
+	mutex_unlock(&dev->struct_mutex);
+
+	return count;
+}
+
+static ssize_t gt_min_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
+{
+	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_device *dev = minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
+	ret = dev_priv->rps.min_delay * GT_FREQUENCY_MULTIPLIER;
+	mutex_unlock(&dev->struct_mutex);
+
+	return snprintf(buf, PAGE_SIZE, "%d", ret);
+}
+
+static ssize_t gt_min_freq_mhz_store(struct device *kdev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_device *dev = minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 val, rp_state_cap, hw_max, hw_min;
+	ssize_t ret;
+
+	ret = kstrtou32(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	val /= GT_FREQUENCY_MULTIPLIER;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
+	hw_max = (rp_state_cap & 0xff);
+	hw_min = ((rp_state_cap & 0xff0000) >> 16);
+
+	if (val < hw_min || val > hw_max || val > dev_priv->rps.max_delay) {
+		mutex_unlock(&dev->struct_mutex);
+		return -EINVAL;
+	}
+
+	if (dev_priv->rps.cur_delay < val)
+		gen6_set_rps(dev_priv->dev, val);
+
+	dev_priv->rps.min_delay = val;
+
+	mutex_unlock(&dev->struct_mutex);
+
+	return count;
+
+}
+
+static DEVICE_ATTR(gt_cur_freq_mhz, S_IRUGO, gt_cur_freq_mhz_show, NULL);
+static DEVICE_ATTR(gt_max_freq_mhz, S_IRUGO | S_IWUSR, gt_max_freq_mhz_show, gt_max_freq_mhz_store);
+static DEVICE_ATTR(gt_min_freq_mhz, S_IRUGO | S_IWUSR, gt_min_freq_mhz_show, gt_min_freq_mhz_store);
+
+
+static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf);
+static DEVICE_ATTR(gt_RP0_freq_mhz, S_IRUGO, gt_rp_mhz_show, NULL);
+static DEVICE_ATTR(gt_RP1_freq_mhz, S_IRUGO, gt_rp_mhz_show, NULL);
+static DEVICE_ATTR(gt_RPn_freq_mhz, S_IRUGO, gt_rp_mhz_show, NULL);
+
+/* For now we have a static number of RP states */
+static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
+{
+	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_device *dev = minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 val, rp_state_cap;
+	ssize_t ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+	rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
+	mutex_unlock(&dev->struct_mutex);
+
+	if (attr == &dev_attr_gt_RP0_freq_mhz) {
+		val = ((rp_state_cap & 0x0000ff) >> 0) * GT_FREQUENCY_MULTIPLIER;
+	} else if (attr == &dev_attr_gt_RP1_freq_mhz) {
+		val = ((rp_state_cap & 0x00ff00) >> 8) * GT_FREQUENCY_MULTIPLIER;
+	} else if (attr == &dev_attr_gt_RPn_freq_mhz) {
+		val = ((rp_state_cap & 0xff0000) >> 16) * GT_FREQUENCY_MULTIPLIER;
+	} else {
+		BUG();
+	}
+	return snprintf(buf, PAGE_SIZE, "%d", val);
+}
+
+static const struct attribute *gen6_attrs[] = {
+	&dev_attr_gt_cur_freq_mhz.attr,
+	&dev_attr_gt_max_freq_mhz.attr,
+	&dev_attr_gt_min_freq_mhz.attr,
+	&dev_attr_gt_RP0_freq_mhz.attr,
+	&dev_attr_gt_RP1_freq_mhz.attr,
+	&dev_attr_gt_RPn_freq_mhz.attr,
+	NULL,
+};
+
 void i915_setup_sysfs(struct drm_device *dev)
 {
 	int ret;
 
+#ifdef CONFIG_PM
 	if (INTEL_INFO(dev)->gen >= 6) {
 		ret = sysfs_merge_group(&dev->primary->kdev.kobj,
 					&rc6_attr_group);
 		if (ret)
 			DRM_ERROR("RC6 residency sysfs setup failed\n");
 	}
-
-	if (IS_IVYBRIDGE(dev)) {
+#endif
+	if (HAS_L3_GPU_CACHE(dev)) {
 		ret = device_create_bin_file(&dev->primary->kdev, &dpf_attrs);
 		if (ret)
 			DRM_ERROR("l3 parity sysfs setup failed\n");
+	}
+
+	if (INTEL_INFO(dev)->gen >= 6) {
+		ret = sysfs_create_files(&dev->primary->kdev.kobj, gen6_attrs);
+		if (ret)
+			DRM_ERROR("gen6 sysfs setup failed\n");
 	}
 }
 
 void i915_teardown_sysfs(struct drm_device *dev)
 {
+	sysfs_remove_files(&dev->primary->kdev.kobj, gen6_attrs);
 	device_remove_bin_file(&dev->primary->kdev,  &dpf_attrs);
+#ifdef CONFIG_PM
 	sysfs_unmerge_group(&dev->primary->kdev.kobj, &rc6_attr_group);
+#endif
 }
-#else
-void i915_setup_sysfs(struct drm_device *dev)
-{
-	return;
-}
-
-void i915_teardown_sysfs(struct drm_device *dev)
-{
-	return;
-}
-#endif /* CONFIG_PM */

@@ -75,6 +75,7 @@
 #include <asm/mmu.h>
 #include <asm/pgtable.h>
 #include <asm/signal.h>
+#include <asm/registers.h>
 #include <asm/asm-offsets.h>
 
 #undef DEBUG
@@ -581,7 +582,7 @@ ex_handler_done:
 		 * tried to access a kernel or read-protected page - always
 		 * a SEGV). All other faults here must be stores, so no
 		 * need to check ESR_S as well. */
-		andi	r4, r4, 0x800		/* ESR_Z - zone protection */
+		andi	r4, r4, ESR_DIZ		/* ESR_Z - zone protection */
 		bnei	r4, ex2
 
 		ori	r4, r0, swapper_pg_dir
@@ -595,25 +596,25 @@ ex_handler_done:
 		 * tried to access a kernel or read-protected page - always
 		 * a SEGV). All other faults here must be stores, so no
 		 * need to check ESR_S as well. */
-		andi	r4, r4, 0x800		/* ESR_Z */
+		andi	r4, r4, ESR_DIZ		/* ESR_Z */
 		bnei	r4, ex2
 		/* get current task address */
 		addi	r4 ,CURRENT_TASK, TOPHYS(0);
 		lwi	r4, r4, TASK_THREAD+PGDIR
 	ex4:
 		tophys(r4,r4)
-		BSRLI(r5,r3,20)		/* Create L1 (pgdir/pmd) address */
-		andi	r5, r5, 0xffc
+		/* Create L1 (pgdir/pmd) address */
+		BSRLI(r5,r3, PGDIR_SHIFT - 2)
+		andi	r5, r5, PAGE_SIZE - 4
 /* Assume pgdir aligned on 4K boundary, no need for "andi r4,r4,0xfffff003" */
 		or	r4, r4, r5
 		lwi	r4, r4, 0		/* Get L1 entry */
-		andi	r5, r4, 0xfffff000 /* Extract L2 (pte) base address */
+		andi	r5, r4, PAGE_MASK /* Extract L2 (pte) base address */
 		beqi	r5, ex2			/* Bail if no table */
 
 		tophys(r5,r5)
-		BSRLI(r6,r3,10)			/* Compute PTE address */
-		andi	r6, r6, 0xffc
-		andi	r5, r5, 0xfffff003
+		BSRLI(r6,r3,PTE_SHIFT) /* Compute PTE address */
+		andi	r6, r6, PAGE_SIZE - 4
 		or	r5, r5, r6
 		lwi	r4, r5, 0		/* Get Linux PTE */
 
@@ -632,7 +633,9 @@ ex_handler_done:
 		 * Many of these bits are software only. Bits we don't set
 		 * here we (properly should) assume have the appropriate value.
 		 */
-		andni	r4, r4, 0x0ce2		/* Make sure 20, 21 are zero */
+/* Ignore memory coherent, just LSB on ZSEL is used + EX/WR */
+		andi	r4, r4, PAGE_MASK | TLB_EX | TLB_WR | \
+						TLB_ZSEL(1) | TLB_ATTR_MASK
 		ori	r4, r4, _PAGE_HWEXEC	/* make it executable */
 
 		/* find the TLB index that caused the fault. It has to be here*/
@@ -701,18 +704,18 @@ ex_handler_done:
 		lwi	r4, r4, TASK_THREAD+PGDIR
 	ex6:
 		tophys(r4,r4)
-		BSRLI(r5,r3,20)		/* Create L1 (pgdir/pmd) address */
-		andi	r5, r5, 0xffc
+		/* Create L1 (pgdir/pmd) address */
+		BSRLI(r5,r3, PGDIR_SHIFT - 2)
+		andi	r5, r5, PAGE_SIZE - 4
 /* Assume pgdir aligned on 4K boundary, no need for "andi r4,r4,0xfffff003" */
 		or	r4, r4, r5
 		lwi	r4, r4, 0		/* Get L1 entry */
-		andi	r5, r4, 0xfffff000 /* Extract L2 (pte) base address */
+		andi	r5, r4, PAGE_MASK /* Extract L2 (pte) base address */
 		beqi	r5, ex7			/* Bail if no table */
 
 		tophys(r5,r5)
-		BSRLI(r6,r3,10)			/* Compute PTE address */
-		andi	r6, r6, 0xffc
-		andi	r5, r5, 0xfffff003
+		BSRLI(r6,r3,PTE_SHIFT) /* Compute PTE address */
+		andi	r6, r6, PAGE_SIZE - 4
 		or	r5, r5, r6
 		lwi	r4, r5, 0		/* Get Linux PTE */
 
@@ -731,7 +734,8 @@ ex_handler_done:
 		 * here we (properly should) assume have the appropriate value.
 		 */
 		brid	finish_tlb_load
-		andni	r4, r4, 0x0ce2		/* Make sure 20, 21 are zero */
+		andi	r4, r4, PAGE_MASK | TLB_EX | TLB_WR | \
+						TLB_ZSEL(1) | TLB_ATTR_MASK
 	ex7:
 		/* The bailout. Restore registers to pre-exception conditions
 		 * and call the heavyweights to help us out.
@@ -771,18 +775,18 @@ ex_handler_done:
 		lwi	r4, r4, TASK_THREAD+PGDIR
 	ex9:
 		tophys(r4,r4)
-		BSRLI(r5,r3,20)		/* Create L1 (pgdir/pmd) address */
-		andi	r5, r5, 0xffc
+		/* Create L1 (pgdir/pmd) address */
+		BSRLI(r5,r3, PGDIR_SHIFT - 2)
+		andi	r5, r5, PAGE_SIZE - 4
 /* Assume pgdir aligned on 4K boundary, no need for "andi r4,r4,0xfffff003" */
 		or	r4, r4, r5
 		lwi	r4, r4, 0		/* Get L1 entry */
-		andi	r5, r4, 0xfffff000 /* Extract L2 (pte) base address */
+		andi	r5, r4, PAGE_MASK /* Extract L2 (pte) base address */
 		beqi	r5, ex10		/* Bail if no table */
 
 		tophys(r5,r5)
-		BSRLI(r6,r3,10)			/* Compute PTE address */
-		andi	r6, r6, 0xffc
-		andi	r5, r5, 0xfffff003
+		BSRLI(r6,r3,PTE_SHIFT) /* Compute PTE address */
+		andi	r6, r6, PAGE_SIZE - 4
 		or	r5, r5, r6
 		lwi	r4, r5, 0		/* Get Linux PTE */
 
@@ -801,7 +805,8 @@ ex_handler_done:
 		 * here we (properly should) assume have the appropriate value.
 		 */
 		brid	finish_tlb_load
-		andni	r4, r4, 0x0ce2		/* Make sure 20, 21 are zero */
+		andi	r4, r4, PAGE_MASK | TLB_EX | TLB_WR | \
+						TLB_ZSEL(1) | TLB_ATTR_MASK
 	ex10:
 		/* The bailout. Restore registers to pre-exception conditions
 		 * and call the heavyweights to help us out.
@@ -854,8 +859,14 @@ ex_handler_done:
 		 * set of bits. These are size, valid, E, U0, and ensure
 		 * bits 20 and 21 are zero.
 		 */
-		andi	r3, r3, 0xfffff000
-		ori	r3, r3, 0x0c0
+		andi	r3, r3, PAGE_MASK
+#ifdef CONFIG_MICROBLAZE_64K_PAGES
+		ori	r3, r3, TLB_VALID | TLB_PAGESZ(PAGESZ_64K)
+#elif CONFIG_MICROBLAZE_16K_PAGES
+		ori	r3, r3, TLB_VALID | TLB_PAGESZ(PAGESZ_16K)
+#else
+		ori	r3, r3, TLB_VALID | TLB_PAGESZ(PAGESZ_4K)
+#endif
 		mts	rtlbhi,	r3		/* Load TLB HI */
 		nop
 

@@ -1,3 +1,26 @@
+Release Date    : Mon. Oct 1, 2012 17:00:00 PST 2012 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford
+Current Version : 06.504.01.00-rc1
+Old Version     : 00.00.06.18-rc1
+    1. Removed un-needed completion_lock spinlock calls.
+    2. Add module param for configurable MSI-X vector count.
+    3. Load io_request DataLength in bytes.
+    4. Add array boundary check for SystemPD.
+    5. Add SystemPD FastPath support.
+    6. Remove duplicate code.
+    7. Version, Changelog, Copyright update.
+-------------------------------------------------------------------------------
+Release Date    : Tue. Jun 17, 2012 17:00:00 PST 2012 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford/Kashyap Desai
+Current Version : 00.00.06.18-rc1
+Old Version     : 00.00.06.15-rc1
+    1. Fix Copyright dates.
+    2. Add throttlequeuedepth module parameter.
+    3. Add resetwaittime module parameter.
+    4. Move poll_aen_lock initializer.
+-------------------------------------------------------------------------------
 Release Date    : Mon. Mar 19, 2012 17:00:00 PST 2012 -
 			(emaild-id:megaraidlinux@lsi.com)
 			Adam Radford

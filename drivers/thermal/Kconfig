@@ -19,6 +19,18 @@ config THERMAL_HWMON
 	depends on HWMON=y || HWMON=THERMAL
 	default y
 
+config CPU_THERMAL
+	bool "generic cpu cooling support"
+	depends on THERMAL && CPU_FREQ
+	select CPU_FREQ_TABLE
+	help
+	  This implements the generic cpu cooling mechanism through frequency
+	  reduction, cpu hotplug and any other ways of reducing temperature. An
+	  ACPI version of this already exists(drivers/acpi/processor_thermal.c).
+	  This will be useful for platforms using the generic thermal interface
+	  and not the ACPI interface.
+	  If you want this support, you should say Y here.
+
 config SPEAR_THERMAL
 	bool "SPEAr thermal sensor driver"
 	depends on THERMAL
@@ -27,3 +39,19 @@ config SPEAR_THERMAL
 	help
 	  Enable this to plug the SPEAr thermal sensor driver into the Linux
 	  thermal framework
+
+config RCAR_THERMAL
+	tristate "Renesas R-Car thermal driver"
+	depends on THERMAL
+	depends on ARCH_SHMOBILE
+	help
+	  Enable this to plug the R-Car thermal sensor driver into the Linux
+	  thermal framework
+
+config EXYNOS_THERMAL
+	tristate "Temperature sensor on Samsung EXYNOS"
+	depends on (ARCH_EXYNOS4 || ARCH_EXYNOS5) && THERMAL
+	select CPU_FREQ_TABLE
+	help
+	  If you say yes here you get support for TMU (Thermal Managment
+	  Unit) on SAMSUNG EXYNOS series of SoC.

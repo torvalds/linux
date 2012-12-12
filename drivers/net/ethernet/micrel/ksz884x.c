@@ -5407,8 +5407,8 @@ static int netdev_close(struct net_device *dev)
 		/* Delay for receive task to stop scheduling itself. */
 		msleep(2000 / HZ);
 
-		tasklet_disable(&hw_priv->rx_tasklet);
-		tasklet_disable(&hw_priv->tx_tasklet);
+		tasklet_kill(&hw_priv->rx_tasklet);
+		tasklet_kill(&hw_priv->tx_tasklet);
 		free_irq(dev->irq, hw_priv->dev);
 
 		transmit_cleanup(hw_priv, 0);

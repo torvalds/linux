@@ -1,4 +1,3 @@
-include include/asm-generic/Kbuild.asm
 
 generic-y += atomic.h
 generic-y += auxvec.h
@@ -12,6 +11,7 @@ generic-y += div64.h
 generic-y += dma.h
 generic-y += emergency-restart.h
 generic-y += errno.h
+generic-y += exec.h
 generic-y += fb.h
 generic-y += fcntl.h
 generic-y += futex.h
@@ -40,6 +40,7 @@ generic-y += sembuf.h
 generic-y += shmbuf.h
 generic-y += shmparam.h
 generic-y += siginfo.h
+generic-y += signal.h
 generic-y += socket.h
 generic-y += sockios.h
 generic-y += stat.h

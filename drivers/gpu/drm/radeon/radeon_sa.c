@@ -41,8 +41,7 @@
  * If we are asked to block we wait on all the oldest fence of all
  * rings. We just wait for any of those fence to complete.
  */
-#include "drmP.h"
-#include "drm.h"
+#include <drm/drmP.h>
 #include "radeon.h"
 
 static void radeon_sa_bo_remove_locked(struct radeon_sa_bo *sa_bo);
@@ -316,7 +315,7 @@ int radeon_sa_bo_new(struct radeon_device *rdev,
 {
 	struct radeon_fence *fences[RADEON_NUM_RINGS];
 	unsigned tries[RADEON_NUM_RINGS];
-	int i, r = -ENOMEM;
+	int i, r;
 
 	BUG_ON(align > RADEON_GPU_PAGE_SIZE);
 	BUG_ON(size > sa_manager->size);
@@ -331,7 +330,7 @@ int radeon_sa_bo_new(struct radeon_device *rdev,
 	INIT_LIST_HEAD(&(*sa_bo)->flist);
 
 	spin_lock(&sa_manager->wq.lock);
-	while(1) {
+	do {
 		for (i = 0; i < RADEON_NUM_RINGS; ++i) {
 			fences[i] = NULL;
 			tries[i] = 0;
@@ -349,26 +348,22 @@ int radeon_sa_bo_new(struct radeon_device *rdev,
 			/* see if we can skip over some allocations */
 		} while (radeon_sa_bo_next_hole(sa_manager, fences, tries));
 
-		if (!block) {
-			break;
-		}
-
 		spin_unlock(&sa_manager->wq.lock);
 		r = radeon_fence_wait_any(rdev, fences, false);
 		spin_lock(&sa_manager->wq.lock);
 		/* if we have nothing to wait for block */
-		if (r == -ENOENT) {
+		if (r == -ENOENT && block) {
 			r = wait_event_interruptible_locked(
 				sa_manager->wq, 
 				radeon_sa_event(sa_manager, size, align)
 			);
-		}
-		if (r) {
-			goto out_err;
-		}
-	};
 
-out_err:
+		} else if (r == -ENOENT) {
+			r = -ENOMEM;
+		}
+
+	} while (!r);
+
 	spin_unlock(&sa_manager->wq.lock);
 	kfree(*sa_bo);
 	*sa_bo = NULL;

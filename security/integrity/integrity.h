@@ -15,8 +15,22 @@
 #include <linux/integrity.h>
 #include <crypto/sha.h>
 
+/* iint action cache flags */
+#define IMA_MEASURE		0x0001
+#define IMA_MEASURED		0x0002
+#define IMA_APPRAISE		0x0004
+#define IMA_APPRAISED		0x0008
+/*#define IMA_COLLECT		0x0010  do not use this flag */
+#define IMA_COLLECTED		0x0020
+#define IMA_AUDIT		0x0040
+#define IMA_AUDITED		0x0080
+
 /* iint cache flags */
-#define IMA_MEASURED		0x01
+#define IMA_DIGSIG		0x0100
+
+#define IMA_DO_MASK		(IMA_MEASURE | IMA_APPRAISE | IMA_AUDIT)
+#define IMA_DONE_MASK		(IMA_MEASURED | IMA_APPRAISED | IMA_AUDITED \
+				 | IMA_COLLECTED)
 
 enum evm_ima_xattr_type {
 	IMA_XATTR_DIGEST = 0x01,
@@ -34,9 +48,9 @@ struct integrity_iint_cache {
 	struct rb_node rb_node; /* rooted in integrity_iint_tree */
 	struct inode *inode;	/* back pointer to inode in question */
 	u64 version;		/* track inode changes */
-	unsigned char flags;
-	u8 digest[SHA1_DIGEST_SIZE];
-	struct mutex mutex;	/* protects: version, flags, digest */
+	unsigned short flags;
+	struct evm_ima_xattr_data ima_xattr;
+	enum integrity_status ima_status;
 	enum integrity_status evm_status;
 };
 

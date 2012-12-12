@@ -8,6 +8,11 @@
 #define _ASM_ARM_SYSCALL_H
 
 #include <linux/err.h>
+#include <linux/sched.h>
+
+#include <asm/unistd.h>
+
+#define NR_syscalls (__NR_syscalls)
 
 extern const unsigned long sys_call_table[];
 

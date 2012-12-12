@@ -22,15 +22,14 @@
  * Authors: Ben Skeggs
  */
 
-#include "drmP.h"
-#include "nouveau_drv.h"
+#include <engine/fifo.h>
+
+#include "nouveau_drm.h"
 #include "nouveau_dma.h"
-#include "nouveau_ramht.h"
 #include "nouveau_fence.h"
 
 struct nv04_fence_chan {
 	struct nouveau_fence_chan base;
-	atomic_t sequence;
 };
 
 struct nv04_fence_priv {
@@ -57,84 +56,56 @@ nv04_fence_sync(struct nouveau_fence *fence,
 	return -ENODEV;
 }
 
-int
-nv04_fence_mthd(struct nouveau_channel *chan, u32 class, u32 mthd, u32 data)
-{
-	struct nv04_fence_chan *fctx = chan->engctx[NVOBJ_ENGINE_FENCE];
-	atomic_set(&fctx->sequence, data);
-	return 0;
-}
-
 static u32
 nv04_fence_read(struct nouveau_channel *chan)
 {
-	struct nv04_fence_chan *fctx = chan->engctx[NVOBJ_ENGINE_FENCE];
-	return atomic_read(&fctx->sequence);
+	struct nouveau_fifo_chan *fifo = (void *)chan->object;
+	return atomic_read(&fifo->refcnt);
 }
 
 static void
-nv04_fence_context_del(struct nouveau_channel *chan, int engine)
+nv04_fence_context_del(struct nouveau_channel *chan)
 {
-	struct nv04_fence_chan *fctx = chan->engctx[engine];
+	struct nv04_fence_chan *fctx = chan->fence;
 	nouveau_fence_context_del(&fctx->base);
-	chan->engctx[engine] = NULL;
+	chan->fence = NULL;
 	kfree(fctx);
 }
 
 static int
-nv04_fence_context_new(struct nouveau_channel *chan, int engine)
+nv04_fence_context_new(struct nouveau_channel *chan)
 {
 	struct nv04_fence_chan *fctx = kzalloc(sizeof(*fctx), GFP_KERNEL);
 	if (fctx) {
 		nouveau_fence_context_new(&fctx->base);
-		atomic_set(&fctx->sequence, 0);
-		chan->engctx[engine] = fctx;
+		chan->fence = fctx;
 		return 0;
 	}
 	return -ENOMEM;
 }
 
-static int
-nv04_fence_fini(struct drm_device *dev, int engine, bool suspend)
-{
-	return 0;
-}
-
-static int
-nv04_fence_init(struct drm_device *dev, int engine)
-{
-	return 0;
-}
-
 static void
-nv04_fence_destroy(struct drm_device *dev, int engine)
+nv04_fence_destroy(struct nouveau_drm *drm)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nv04_fence_priv *priv = nv_engine(dev, engine);
-
-	dev_priv->eng[engine] = NULL;
+	struct nv04_fence_priv *priv = drm->fence;
+	drm->fence = NULL;
 	kfree(priv);
 }
 
 int
-nv04_fence_create(struct drm_device *dev)
+nv04_fence_create(struct nouveau_drm *drm)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv04_fence_priv *priv;
-	int ret;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = drm->fence = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	priv->base.engine.destroy = nv04_fence_destroy;
-	priv->base.engine.init = nv04_fence_init;
-	priv->base.engine.fini = nv04_fence_fini;
-	priv->base.engine.context_new = nv04_fence_context_new;
-	priv->base.engine.context_del = nv04_fence_context_del;
+	priv->base.dtor = nv04_fence_destroy;
+	priv->base.context_new = nv04_fence_context_new;
+	priv->base.context_del = nv04_fence_context_del;
 	priv->base.emit = nv04_fence_emit;
 	priv->base.sync = nv04_fence_sync;
 	priv->base.read = nv04_fence_read;
-	dev_priv->eng[NVOBJ_ENGINE_FENCE] = &priv->base.engine;
-	return ret;
+	return 0;
 }

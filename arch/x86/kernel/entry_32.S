@@ -57,6 +57,7 @@
 #include <asm/cpufeature.h>
 #include <asm/alternative-asm.h>
 #include <asm/asm.h>
+#include <asm/smap.h>
 
 /* Avoid __ASSEMBLER__'ifying <linux/audit.h> just for this.  */
 #include <linux/elf-em.h>
@@ -298,6 +299,21 @@ ENTRY(ret_from_fork)
 	CFI_ENDPROC
 END(ret_from_fork)
 
+ENTRY(ret_from_kernel_thread)
+	CFI_STARTPROC
+	pushl_cfi %eax
+	call schedule_tail
+	GET_THREAD_INFO(%ebp)
+	popl_cfi %eax
+	pushl_cfi $0x0202		# Reset kernel eflags
+	popfl_cfi
+	movl PT_EBP(%esp),%eax
+	call *PT_EBX(%esp)
+	movl $0,PT_EAX(%esp)
+	jmp syscall_exit
+	CFI_ENDPROC
+ENDPROC(ret_from_kernel_thread)
+
 /*
  * Interrupt exit functions should be protected against kprobes
  */
@@ -322,8 +338,7 @@ ret_from_intr:
 	andl $(X86_EFLAGS_VM | SEGMENT_RPL_MASK), %eax
 #else
 	/*
-	 * We can be coming here from a syscall done in the kernel space,
-	 * e.g. a failed kernel_execve().
+	 * We can be coming here from child spawned by kernel_thread().
 	 */
 	movl PT_CS(%esp), %eax
 	andl $SEGMENT_RPL_MASK, %eax
@@ -407,7 +422,9 @@ sysenter_past_esp:
  */
 	cmpl $__PAGE_OFFSET-3,%ebp
 	jae syscall_fault
+	ASM_STAC
 1:	movl (%ebp),%ebp
+	ASM_CLAC
 	movl %ebp,PT_EBP(%esp)
 	_ASM_EXTABLE(1b,syscall_fault)
 
@@ -488,6 +505,7 @@ ENDPROC(ia32_sysenter_target)
 	# system call handler stub
 ENTRY(system_call)
 	RING0_INT_FRAME			# can't unwind into user space anyway
+	ASM_CLAC
 	pushl_cfi %eax			# save orig_eax
 	SAVE_ALL
 	GET_THREAD_INFO(%ebp)
@@ -612,22 +630,7 @@ work_notifysig:				# deal with pending signals and
 	movl %esp, %eax
 	jne work_notifysig_v86		# returning to kernel-space or
 					# vm86-space
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_NONE)
-	movb PT_CS(%esp), %bl
-	andb $SEGMENT_RPL_MASK, %bl
-	cmpb $USER_RPL, %bl
-	jb resume_kernel
-	xorl %edx, %edx
-	call do_notify_resume
-	jmp resume_userspace
-
-	ALIGN
-work_notifysig_v86:
-	pushl_cfi %ecx			# save ti_flags for do_notify_resume
-	call save_v86_state		# %eax contains pt_regs pointer
-	popl_cfi %ecx
-	movl %eax, %esp
+1:
 #else
 	movl %esp, %eax
 #endif
@@ -640,6 +643,16 @@ work_notifysig_v86:
 	xorl %edx, %edx
 	call do_notify_resume
 	jmp resume_userspace
+
+#ifdef CONFIG_VM86
+	ALIGN
+work_notifysig_v86:
+	pushl_cfi %ecx			# save ti_flags for do_notify_resume
+	call save_v86_state		# %eax contains pt_regs pointer
+	popl_cfi %ecx
+	movl %eax, %esp
+	jmp 1b
+#endif
 END(work_pending)
 
 	# perform syscall exit tracing
@@ -670,6 +683,7 @@ END(syscall_exit_work)
 
 	RING0_INT_FRAME			# can't unwind into user space anyway
 syscall_fault:
+	ASM_CLAC
 	GET_THREAD_INFO(%ebp)
 	movl $-EFAULT,PT_EAX(%esp)
 	jmp resume_userspace
@@ -727,7 +741,6 @@ ENDPROC(ptregs_##name)
 PTREGSCALL1(iopl)
 PTREGSCALL0(fork)
 PTREGSCALL0(vfork)
-PTREGSCALL3(execve)
 PTREGSCALL2(sigaltstack)
 PTREGSCALL0(sigreturn)
 PTREGSCALL0(rt_sigreturn)
@@ -825,6 +838,7 @@ END(interrupt)
  */
 	.p2align CONFIG_X86_L1_CACHE_SHIFT
 common_interrupt:
+	ASM_CLAC
 	addl $-0x80,(%esp)	/* Adjust vector into the [-256,-1] range */
 	SAVE_ALL
 	TRACE_IRQS_OFF
@@ -841,6 +855,7 @@ ENDPROC(common_interrupt)
 #define BUILD_INTERRUPT3(name, nr, fn)	\
 ENTRY(name)				\
 	RING0_INT_FRAME;		\
+	ASM_CLAC;			\
 	pushl_cfi $~(nr);		\
 	SAVE_ALL;			\
 	TRACE_IRQS_OFF			\
@@ -857,6 +872,7 @@ ENDPROC(name)
 
 ENTRY(coprocessor_error)
 	RING0_INT_FRAME
+	ASM_CLAC
 	pushl_cfi $0
 	pushl_cfi $do_coprocessor_error
 	jmp error_code
@@ -865,6 +881,7 @@ END(coprocessor_error)
 
 ENTRY(simd_coprocessor_error)
 	RING0_INT_FRAME
+	ASM_CLAC
 	pushl_cfi $0
 #ifdef CONFIG_X86_INVD_BUG
 	/* AMD 486 bug: invd from userspace calls exception 19 instead of #GP */
@@ -886,6 +903,7 @@ END(simd_coprocessor_error)
 
 ENTRY(device_not_available)
 	RING0_INT_FRAME
+	ASM_CLAC
 	pushl_cfi $-1			# mark this as an int
 	pushl_cfi $do_device_not_available
 	jmp error_code
@@ -906,6 +924,7 @@ END(native_irq_enable_sysexit)
 
 ENTRY(overflow)
 	RING0_INT_FRAME
+	ASM_CLAC
 	pushl_cfi $0
 	pushl_cfi $do_overflow
 	jmp error_code
@@ -914,6 +933,7 @@ END(overflow)
 
 ENTRY(bounds)
 	RING0_INT_FRAME
+	ASM_CLAC
 	pushl_cfi $0
 	pushl_cfi $do_bounds
 	jmp error_code
@@ -922,6 +942,7 @@ END(bounds)
 
 ENTRY(invalid_op)
 	RING0_INT_FRAME
+	ASM_CLAC
 	pushl_cfi $0
 	pushl_cfi $do_invalid_op
 	jmp error_code
@@ -930,6 +951,7 @@ END(invalid_op)
 
 ENTRY(coprocessor_segment_overrun)
 	RING0_INT_FRAME
+	ASM_CLAC
 	pushl_cfi $0
 	pushl_cfi $do_coprocessor_segment_overrun
 	jmp error_code
@@ -938,6 +960,7 @@ END(coprocessor_segment_overrun)
 
 ENTRY(invalid_TSS)
 	RING0_EC_FRAME
+	ASM_CLAC
 	pushl_cfi $do_invalid_TSS
 	jmp error_code
 	CFI_ENDPROC
@@ -945,6 +968,7 @@ END(invalid_TSS)
 
 ENTRY(segment_not_present)
 	RING0_EC_FRAME
+	ASM_CLAC
 	pushl_cfi $do_segment_not_present
 	jmp error_code
 	CFI_ENDPROC
@@ -952,6 +976,7 @@ END(segment_not_present)
 
 ENTRY(stack_segment)
 	RING0_EC_FRAME
+	ASM_CLAC
 	pushl_cfi $do_stack_segment
 	jmp error_code
 	CFI_ENDPROC
@@ -959,6 +984,7 @@ END(stack_segment)
 
 ENTRY(alignment_check)
 	RING0_EC_FRAME
+	ASM_CLAC
 	pushl_cfi $do_alignment_check
 	jmp error_code
 	CFI_ENDPROC
@@ -966,6 +992,7 @@ END(alignment_check)
 
 ENTRY(divide_error)
 	RING0_INT_FRAME
+	ASM_CLAC
 	pushl_cfi $0			# no error code
 	pushl_cfi $do_divide_error
 	jmp error_code
@@ -975,6 +1002,7 @@ END(divide_error)
 #ifdef CONFIG_X86_MCE
 ENTRY(machine_check)
 	RING0_INT_FRAME
+	ASM_CLAC
 	pushl_cfi $0
 	pushl_cfi machine_check_vector
 	jmp error_code
@@ -984,6 +1012,7 @@ END(machine_check)
 
 ENTRY(spurious_interrupt_bug)
 	RING0_INT_FRAME
+	ASM_CLAC
 	pushl_cfi $0
 	pushl_cfi $do_spurious_interrupt_bug
 	jmp error_code
@@ -993,16 +1022,6 @@ END(spurious_interrupt_bug)
  * End of kprobes section
  */
 	.popsection
-
-ENTRY(kernel_thread_helper)
-	pushl $0		# fake return address for unwinder
-	CFI_STARTPROC
-	movl %edi,%eax
-	call *%esi
-	call do_exit
-	ud2			# padding for call trace
-	CFI_ENDPROC
-ENDPROC(kernel_thread_helper)
 
 #ifdef CONFIG_XEN
 /* Xen doesn't set %esp to be precisely what the normal sysenter
@@ -1016,7 +1035,7 @@ ENTRY(xen_sysenter_target)
 
 ENTRY(xen_hypervisor_callback)
 	CFI_STARTPROC
-	pushl_cfi $0
+	pushl_cfi $-1 /* orig_ax = -1 => not a system call */
 	SAVE_ALL
 	TRACE_IRQS_OFF
 
@@ -1058,14 +1077,16 @@ ENTRY(xen_failsafe_callback)
 2:	mov 8(%esp),%es
 3:	mov 12(%esp),%fs
 4:	mov 16(%esp),%gs
+	/* EAX == 0 => Category 1 (Bad segment)
+	   EAX != 0 => Category 2 (Bad IRET) */
 	testl %eax,%eax
 	popl_cfi %eax
 	lea 16(%esp),%esp
 	CFI_ADJUST_CFA_OFFSET -16
 	jz 5f
 	addl $16,%esp
-	jmp iret_exc		# EAX != 0 => Category 2 (Bad IRET)
-5:	pushl_cfi $0		# EAX == 0 => Category 1 (Bad segment)
+	jmp iret_exc
+5:	pushl_cfi $-1 /* orig_ax = -1 => not a system call */
 	SAVE_ALL
 	jmp ret_from_exception
 	CFI_ENDPROC
@@ -1273,6 +1294,7 @@ return_to_handler:
 
 ENTRY(page_fault)
 	RING0_EC_FRAME
+	ASM_CLAC
 	pushl_cfi $do_page_fault
 	ALIGN
 error_code:
@@ -1345,6 +1367,7 @@ END(page_fault)
 
 ENTRY(debug)
 	RING0_INT_FRAME
+	ASM_CLAC
 	cmpl $ia32_sysenter_target,(%esp)
 	jne debug_stack_correct
 	FIX_STACK 12, debug_stack_correct, debug_esp_fix_insn
@@ -1369,6 +1392,7 @@ END(debug)
  */
 ENTRY(nmi)
 	RING0_INT_FRAME
+	ASM_CLAC
 	pushl_cfi %eax
 	movl %ss, %eax
 	cmpw $__ESPFIX_SS, %ax
@@ -1439,6 +1463,7 @@ END(nmi)
 
 ENTRY(int3)
 	RING0_INT_FRAME
+	ASM_CLAC
 	pushl_cfi $-1			# mark this as an int
 	SAVE_ALL
 	TRACE_IRQS_OFF
@@ -1459,6 +1484,7 @@ END(general_protection)
 #ifdef CONFIG_KVM_GUEST
 ENTRY(async_page_fault)
 	RING0_EC_FRAME
+	ASM_CLAC
 	pushl_cfi $do_async_page_fault
 	jmp error_code
 	CFI_ENDPROC

@@ -1346,10 +1346,7 @@ int __init ncm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 		return -ENOMEM;
 
 	/* export host's Ethernet address in CDC format */
-	snprintf(ncm->ethaddr, sizeof ncm->ethaddr,
-		"%02X%02X%02X%02X%02X%02X",
-		ethaddr[0], ethaddr[1], ethaddr[2],
-		ethaddr[3], ethaddr[4], ethaddr[5]);
+	snprintf(ncm->ethaddr, sizeof ncm->ethaddr, "%pm", ethaddr);
 	ncm_string_defs[1].s = ncm->ethaddr;
 
 	spin_lock_init(&ncm->lock);

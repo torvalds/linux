@@ -9,8 +9,8 @@
 #include <asm/siginfo.h>
 #include <asm/signal.h>
 #include <asm/unistd.h>
-#include "frame_kern.h"
-#include "kern_util.h"
+#include <frame_kern.h>
+#include <kern_util.h>
 
 EXPORT_SYMBOL(block_signals);
 EXPORT_SYMBOL(unblock_signals);

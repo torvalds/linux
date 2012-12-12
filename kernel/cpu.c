@@ -80,6 +80,10 @@ void put_online_cpus(void)
 	if (cpu_hotplug.active_writer == current)
 		return;
 	mutex_lock(&cpu_hotplug.lock);
+
+	if (WARN_ON(!cpu_hotplug.refcount))
+		cpu_hotplug.refcount++; /* try to fix things up */
+
 	if (!--cpu_hotplug.refcount && unlikely(cpu_hotplug.active_writer))
 		wake_up_process(cpu_hotplug.active_writer);
 	mutex_unlock(&cpu_hotplug.lock);

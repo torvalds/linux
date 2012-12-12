@@ -398,6 +398,8 @@ static void pci_device_shutdown(struct device *dev)
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct pci_driver *drv = pci_dev->driver;
 
+	pm_runtime_resume(dev);
+
 	if (drv && drv->shutdown)
 		drv->shutdown(pci_dev);
 	pci_msi_shutdown(pci_dev);
@@ -408,16 +410,6 @@ static void pci_device_shutdown(struct device *dev)
 	 * continue to do DMA
 	 */
 	pci_disable_device(pci_dev);
-
-	/*
-	 * Devices may be enabled to wake up by runtime PM, but they need not
-	 * be supposed to wake up the system from its "power off" state (e.g.
-	 * ACPI S5).  Therefore disable wakeup for all devices that aren't
-	 * supposed to wake up the system at this point.  The state argument
-	 * will be ignored by pci_enable_wake().
-	 */
-	if (!device_may_wakeup(dev))
-		pci_enable_wake(pci_dev, PCI_UNKNOWN, false);
 }
 
 #ifdef CONFIG_PM
@@ -607,21 +599,6 @@ static int pci_pm_prepare(struct device *dev)
 	int error = 0;
 
 	/*
-	 * If a PCI device configured to wake up the system from sleep states
-	 * has been suspended at run time and there's a resume request pending
-	 * for it, this is equivalent to the device signaling wakeup, so the
-	 * system suspend operation should be aborted.
-	 */
-	pm_runtime_get_noresume(dev);
-	if (pm_runtime_barrier(dev) && device_may_wakeup(dev))
-		pm_wakeup_event(dev, 0);
-
-	if (pm_wakeup_pending()) {
-		pm_runtime_put_sync(dev);
-		return -EBUSY;
-	}
-
-	/*
 	 * PCI devices suspended at run time need to be resumed at this
 	 * point, because in general it is necessary to reconfigure them for
 	 * system suspend.  Namely, if the device is supposed to wake up the
@@ -644,8 +621,6 @@ static void pci_pm_complete(struct device *dev)
 
 	if (drv && drv->pm && drv->pm->complete)
 		drv->pm->complete(dev);
-
-	pm_runtime_put_sync(dev);
 }
 
 #else /* !CONFIG_PM_SLEEP */

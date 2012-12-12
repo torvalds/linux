@@ -21,6 +21,9 @@
 /* Number of longs required to track all the VIs in a VF */
 #define VI_MASK_LENGTH BITS_TO_LONGS(1 << EFX_VI_SCALE_MAX)
 
+/* Maximum number of RX queues supported */
+#define VF_MAX_RX_QUEUES 63
+
 /**
  * enum efx_vf_tx_filter_mode - TX MAC filtering behaviour
  * @VF_TX_FILTER_OFF: Disabled
@@ -578,6 +581,7 @@ static int efx_vfdi_init_rxq(struct efx_vf *vf)
 	efx_oword_t reg;
 
 	if (bad_vf_index(efx, vf_evq) || bad_vf_index(efx, vf_rxq) ||
+	    vf_rxq >= VF_MAX_RX_QUEUES ||
 	    bad_buf_count(buf_count, EFX_MAX_DMAQ_SIZE)) {
 		if (net_ratelimit())
 			netif_err(efx, hw, efx->net_dev,
@@ -682,6 +686,9 @@ static int efx_vfdi_fini_all_queues(struct efx_vf *vf)
 	unsigned index, rxqs_count;
 	__le32 *rxqs;
 	int rc;
+
+	BUILD_BUG_ON(VF_MAX_RX_QUEUES >
+		     MC_CMD_FLUSH_RX_QUEUES_IN_QID_OFST_MAXNUM);
 
 	rxqs = kmalloc(count * sizeof(*rxqs), GFP_KERNEL);
 	if (rxqs == NULL)
@@ -1028,6 +1035,7 @@ efx_sriov_get_channel_name(struct efx_channel *channel, char *buf, size_t len)
 static const struct efx_channel_type efx_sriov_channel_type = {
 	.handle_no_channel	= efx_sriov_handle_no_channel,
 	.pre_probe		= efx_sriov_probe_channel,
+	.post_remove		= efx_channel_dummy_op_void,
 	.get_name		= efx_sriov_get_channel_name,
 	/* no copy operation; channel must not be reallocated */
 	.keep_eventq		= true,

@@ -28,6 +28,7 @@
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
+#include <linux/mmc/slot-gpio.h>
 
 #include "sdhci.h"
 
@@ -1293,6 +1294,13 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		present = sdhci_readl(host, SDHCI_PRESENT_STATE) &
 				SDHCI_CARD_PRESENT;
 
+	/* If we're using a cd-gpio, testing the presence bit might fail. */
+	if (!present) {
+		int ret = mmc_gpio_get_cd(host->mmc);
+		if (ret > 0)
+			present = true;
+	}
+
 	if (!present || host->flags & SDHCI_DEVICE_DEAD) {
 		host->mrq->cmd->error = -ENOMEDIUM;
 		tasklet_schedule(&host->finish_tasklet);
@@ -1307,16 +1315,19 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		 */
 		if ((host->flags & SDHCI_NEEDS_RETUNING) &&
 		    !(present_state & (SDHCI_DOING_WRITE | SDHCI_DOING_READ))) {
-			/* eMMC uses cmd21 while sd and sdio use cmd19 */
-			tuning_opcode = mmc->card->type == MMC_TYPE_MMC ?
-				MMC_SEND_TUNING_BLOCK_HS200 :
-				MMC_SEND_TUNING_BLOCK;
-			spin_unlock_irqrestore(&host->lock, flags);
-			sdhci_execute_tuning(mmc, tuning_opcode);
-			spin_lock_irqsave(&host->lock, flags);
+			if (mmc->card) {
+				/* eMMC uses cmd21 but sd and sdio use cmd19 */
+				tuning_opcode =
+					mmc->card->type == MMC_TYPE_MMC ?
+					MMC_SEND_TUNING_BLOCK_HS200 :
+					MMC_SEND_TUNING_BLOCK;
+				spin_unlock_irqrestore(&host->lock, flags);
+				sdhci_execute_tuning(mmc, tuning_opcode);
+				spin_lock_irqsave(&host->lock, flags);
 
-			/* Restore original mmc_request structure */
-			host->mrq = mrq;
+				/* Restore original mmc_request structure */
+				host->mrq = mrq;
+			}
 		}
 
 		if (mrq->sbc && !(host->flags & SDHCI_AUTO_CMD23))
@@ -1597,57 +1608,65 @@ static void sdhci_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
-static int sdhci_do_start_signal_voltage_switch(struct sdhci_host *host,
-						struct mmc_ios *ios)
+static int sdhci_do_3_3v_signal_voltage_switch(struct sdhci_host *host,
+						u16 ctrl)
 {
-	u8 pwr;
-	u16 clk, ctrl;
-	u32 present_state;
+	int ret;
 
-	/*
-	 * Signal Voltage Switching is only applicable for Host Controllers
-	 * v3.00 and above.
-	 */
-	if (host->version < SDHCI_SPEC_300)
-		return 0;
+	/* Set 1.8V Signal Enable in the Host Control2 register to 0 */
+	ctrl &= ~SDHCI_CTRL_VDD_180;
+	sdhci_writew(host, ctrl, SDHCI_HOST_CONTROL2);
 
-	/*
-	 * We first check whether the request is to set signalling voltage
-	 * to 3.3V. If so, we change the voltage to 3.3V and return quickly.
-	 */
-	ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
-	if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_330) {
-		/* Set 1.8V Signal Enable in the Host Control2 register to 0 */
-		ctrl &= ~SDHCI_CTRL_VDD_180;
-		sdhci_writew(host, ctrl, SDHCI_HOST_CONTROL2);
-
-		/* Wait for 5ms */
-		usleep_range(5000, 5500);
-
-		/* 3.3V regulator output should be stable within 5 ms */
-		ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
-		if (!(ctrl & SDHCI_CTRL_VDD_180))
-			return 0;
-		else {
-			pr_info(DRIVER_NAME ": Switching to 3.3V "
-				"signalling voltage failed\n");
+	if (host->vqmmc) {
+		ret = regulator_set_voltage(host->vqmmc, 3300000, 3300000);
+		if (ret) {
+			pr_warning("%s: Switching to 3.3V signalling voltage "
+				   " failed\n", mmc_hostname(host->mmc));
 			return -EIO;
 		}
-	} else if (!(ctrl & SDHCI_CTRL_VDD_180) &&
-		  (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_180)) {
-		/* Stop SDCLK */
-		clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
-		clk &= ~SDHCI_CLOCK_CARD_EN;
-		sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
+	}
+	/* Wait for 5ms */
+	usleep_range(5000, 5500);
 
-		/* Check whether DAT[3:0] is 0000 */
-		present_state = sdhci_readl(host, SDHCI_PRESENT_STATE);
-		if (!((present_state & SDHCI_DATA_LVL_MASK) >>
-		       SDHCI_DATA_LVL_SHIFT)) {
-			/*
-			 * Enable 1.8V Signal Enable in the Host Control2
-			 * register
-			 */
+	/* 3.3V regulator output should be stable within 5 ms */
+	ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+	if (!(ctrl & SDHCI_CTRL_VDD_180))
+		return 0;
+
+	pr_warning("%s: 3.3V regulator output did not became stable\n",
+		   mmc_hostname(host->mmc));
+
+	return -EIO;
+}
+
+static int sdhci_do_1_8v_signal_voltage_switch(struct sdhci_host *host,
+						u16 ctrl)
+{
+	u8 pwr;
+	u16 clk;
+	u32 present_state;
+	int ret;
+
+	/* Stop SDCLK */
+	clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+	clk &= ~SDHCI_CLOCK_CARD_EN;
+	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
+
+	/* Check whether DAT[3:0] is 0000 */
+	present_state = sdhci_readl(host, SDHCI_PRESENT_STATE);
+	if (!((present_state & SDHCI_DATA_LVL_MASK) >>
+	       SDHCI_DATA_LVL_SHIFT)) {
+		/*
+		 * Enable 1.8V Signal Enable in the Host Control2
+		 * register
+		 */
+		if (host->vqmmc)
+			ret = regulator_set_voltage(host->vqmmc,
+				1800000, 1800000);
+		else
+			ret = 0;
+
+		if (!ret) {
 			ctrl |= SDHCI_CTRL_VDD_180;
 			sdhci_writew(host, ctrl, SDHCI_HOST_CONTROL2);
 
@@ -1656,7 +1675,7 @@ static int sdhci_do_start_signal_voltage_switch(struct sdhci_host *host,
 
 			ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
 			if (ctrl & SDHCI_CTRL_VDD_180) {
-				/* Provide SDCLK again and wait for 1ms*/
+				/* Provide SDCLK again and wait for 1ms */
 				clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
 				clk |= SDHCI_CLOCK_CARD_EN;
 				sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
@@ -1673,29 +1692,55 @@ static int sdhci_do_start_signal_voltage_switch(struct sdhci_host *host,
 					return 0;
 			}
 		}
+	}
 
-		/*
-		 * If we are here, that means the switch to 1.8V signaling
-		 * failed. We power cycle the card, and retry initialization
-		 * sequence by setting S18R to 0.
-		 */
-		pwr = sdhci_readb(host, SDHCI_POWER_CONTROL);
-		pwr &= ~SDHCI_POWER_ON;
-		sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
-		if (host->vmmc)
-			regulator_disable(host->vmmc);
+	/*
+	 * If we are here, that means the switch to 1.8V signaling
+	 * failed. We power cycle the card, and retry initialization
+	 * sequence by setting S18R to 0.
+	 */
+	pwr = sdhci_readb(host, SDHCI_POWER_CONTROL);
+	pwr &= ~SDHCI_POWER_ON;
+	sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
+	if (host->vmmc)
+		regulator_disable(host->vmmc);
 
-		/* Wait for 1ms as per the spec */
-		usleep_range(1000, 1500);
-		pwr |= SDHCI_POWER_ON;
-		sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
-		if (host->vmmc)
-			regulator_enable(host->vmmc);
+	/* Wait for 1ms as per the spec */
+	usleep_range(1000, 1500);
+	pwr |= SDHCI_POWER_ON;
+	sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
+	if (host->vmmc)
+		regulator_enable(host->vmmc);
 
-		pr_info(DRIVER_NAME ": Switching to 1.8V signalling "
-			"voltage failed, retrying with S18R set to 0\n");
-		return -EAGAIN;
-	} else
+	pr_warning("%s: Switching to 1.8V signalling voltage failed, "
+		   "retrying with S18R set to 0\n", mmc_hostname(host->mmc));
+
+	return -EAGAIN;
+}
+
+static int sdhci_do_start_signal_voltage_switch(struct sdhci_host *host,
+						struct mmc_ios *ios)
+{
+	u16 ctrl;
+
+	/*
+	 * Signal Voltage Switching is only applicable for Host Controllers
+	 * v3.00 and above.
+	 */
+	if (host->version < SDHCI_SPEC_300)
+		return 0;
+
+	/*
+	 * We first check whether the request is to set signalling voltage
+	 * to 3.3V. If so, we change the voltage to 3.3V and return quickly.
+	 */
+	ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+	if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_330)
+		return sdhci_do_3_3v_signal_voltage_switch(host, ctrl);
+	else if (!(ctrl & SDHCI_CTRL_VDD_180) &&
+			(ios->signal_voltage == MMC_SIGNAL_VOLTAGE_180))
+		return sdhci_do_1_8v_signal_voltage_switch(host, ctrl);
+	else
 		/* No signal voltage switch required */
 		return 0;
 }
@@ -2795,12 +2840,30 @@ int sdhci_add_host(struct sdhci_host *host)
 	if (!(host->quirks & SDHCI_QUIRK_FORCE_1_BIT_DATA))
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
 
+	if (host->quirks2 & SDHCI_QUIRK2_HOST_NO_CMD23)
+		mmc->caps &= ~MMC_CAP_CMD23;
+
 	if (caps[0] & SDHCI_CAN_DO_HISPD)
 		mmc->caps |= MMC_CAP_SD_HIGHSPEED | MMC_CAP_MMC_HIGHSPEED;
 
 	if ((host->quirks & SDHCI_QUIRK_BROKEN_CARD_DETECTION) &&
 	    !(host->mmc->caps & MMC_CAP_NONREMOVABLE))
 		mmc->caps |= MMC_CAP_NEEDS_POLL;
+
+	/* If vqmmc regulator and no 1.8V signalling, then there's no UHS */
+	host->vqmmc = regulator_get(mmc_dev(mmc), "vqmmc");
+	if (IS_ERR_OR_NULL(host->vqmmc)) {
+		if (PTR_ERR(host->vqmmc) < 0) {
+			pr_info("%s: no vqmmc regulator found\n",
+				mmc_hostname(mmc));
+			host->vqmmc = NULL;
+		}
+	}
+	else if (regulator_is_supported_voltage(host->vqmmc, 1800000, 1800000))
+		regulator_enable(host->vqmmc);
+	else
+		caps[1] &= ~(SDHCI_SUPPORT_SDR104 | SDHCI_SUPPORT_SDR50 |
+		       SDHCI_SUPPORT_DDR50);
 
 	/* Any UHS-I mode in caps implies SDR12 and SDR25 support. */
 	if (caps[1] & (SDHCI_SUPPORT_SDR104 | SDHCI_SUPPORT_SDR50 |
@@ -2832,15 +2895,6 @@ int sdhci_add_host(struct sdhci_host *host)
 	if (caps[1] & SDHCI_DRIVER_TYPE_D)
 		mmc->caps |= MMC_CAP_DRIVER_TYPE_D;
 
-	/*
-	 * If Power Off Notify capability is enabled by the host,
-	 * set notify to short power off notify timeout value.
-	 */
-	if (mmc->caps2 & MMC_CAP2_POWEROFF_NOTIFY)
-		mmc->power_notify_type = MMC_HOST_PW_NOTIFY_SHORT;
-	else
-		mmc->power_notify_type = MMC_HOST_PW_NOTIFY_NONE;
-
 	/* Initial value for re-tuning timer count */
 	host->tuning_count = (caps[1] & SDHCI_RETUNING_TIMER_COUNT_MASK) >>
 			      SDHCI_RETUNING_TIMER_COUNT_SHIFT;
@@ -2859,10 +2913,14 @@ int sdhci_add_host(struct sdhci_host *host)
 	ocr_avail = 0;
 
 	host->vmmc = regulator_get(mmc_dev(mmc), "vmmc");
-	if (IS_ERR(host->vmmc)) {
-		pr_info("%s: no vmmc regulator found\n", mmc_hostname(mmc));
-		host->vmmc = NULL;
-	}
+	if (IS_ERR_OR_NULL(host->vmmc)) {
+		if (PTR_ERR(host->vmmc) < 0) {
+			pr_info("%s: no vmmc regulator found\n",
+				mmc_hostname(mmc));
+			host->vmmc = NULL;
+		}
+	} else
+		regulator_enable(host->vmmc);
 
 #ifdef CONFIG_REGULATOR
 	if (host->vmmc) {
@@ -3119,8 +3177,15 @@ void sdhci_remove_host(struct sdhci_host *host, int dead)
 	tasklet_kill(&host->card_tasklet);
 	tasklet_kill(&host->finish_tasklet);
 
-	if (host->vmmc)
+	if (host->vmmc) {
+		regulator_disable(host->vmmc);
 		regulator_put(host->vmmc);
+	}
+
+	if (host->vqmmc) {
+		regulator_disable(host->vqmmc);
+		regulator_put(host->vqmmc);
+	}
 
 	kfree(host->adma_desc);
 	kfree(host->align_buffer);

@@ -23,74 +23,6 @@ struct old_sigaction32 {
        __u32			sa_flags;
        __u32			sa_restorer;	/* Another 32 bit pointer */
 };
- 
-typedef struct compat_siginfo {
-	int	si_signo;
-	int	si_errno;
-	int	si_code;
-
-	union {
-		int _pad[((128/sizeof(int)) - 3)];
-
-		/* kill() */
-		struct {
-			pid_t	_pid;	/* sender's pid */
-			uid_t	_uid;	/* sender's uid */
-		} _kill;
-
-		/* POSIX.1b timers */
-		struct {
-			compat_timer_t _tid;		/* timer id */
-			int _overrun;		/* overrun count */
-			compat_sigval_t _sigval;	/* same as below */
-			int _sys_private;       /* not to be passed to user */
-		} _timer;
-
-		/* POSIX.1b signals */
-		struct {
-			pid_t			_pid;	/* sender's pid */
-			uid_t			_uid;	/* sender's uid */
-			compat_sigval_t		_sigval;
-		} _rt;
-
-		/* SIGCHLD */
-		struct {
-			pid_t			_pid;	/* which child */
-			uid_t			_uid;	/* sender's uid */
-			int			_status;/* exit code */
-			compat_clock_t		_utime;
-			compat_clock_t		_stime;
-		} _sigchld;
-
-		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */
-		struct {
-			__u32	_addr;	/* faulting insn/memory ref. - pointer */
-		} _sigfault;
-                          
-		/* SIGPOLL */
-		struct {
-			int	_band;	/* POLL_IN, POLL_OUT, POLL_MSG */
-			int	_fd;
-		} _sigpoll;
-	} _sifields;
-} compat_siginfo_t;
-
-/*
- * How these fields are to be accessed.
- */
-#define si_pid		_sifields._kill._pid
-#define si_uid		_sifields._kill._uid
-#define si_status	_sifields._sigchld._status
-#define si_utime	_sifields._sigchld._utime
-#define si_stime	_sifields._sigchld._stime
-#define si_value	_sifields._rt._sigval
-#define si_int		_sifields._rt._sigval.sival_int
-#define si_ptr		_sifields._rt._sigval.sival_ptr
-#define si_addr		_sifields._sigfault._addr
-#define si_band		_sifields._sigpoll._band
-#define si_fd		_sifields._sigpoll._fd    
-#define si_tid		_sifields._timer._tid
-#define si_overrun	_sifields._timer._overrun
 
 /* asm/sigcontext.h */
 typedef union
@@ -193,8 +125,6 @@ long sys32_rt_sigprocmask(int how, compat_sigset_t __user *set,
 			  compat_sigset_t __user *oset, size_t sigsetsize);
 long sys32_rt_sigpending(compat_sigset_t __user *set, size_t sigsetsize);
 long sys32_rt_sigqueueinfo(int pid, int sig, compat_siginfo_t __user *uinfo);
-long sys32_execve(const char __user *name, compat_uptr_t __user *argv,
-		  compat_uptr_t __user *envp);
 long sys32_init_module(void __user *umod, unsigned long len,
 		       const char __user *uargs);
 long sys32_delete_module(const char __user *name_user, unsigned int flags);

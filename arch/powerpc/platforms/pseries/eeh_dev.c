@@ -55,7 +55,7 @@ void * __devinit eeh_dev_init(struct device_node *dn, void *data)
 	struct eeh_dev *edev;
 
 	/* Allocate EEH device */
-	edev = zalloc_maybe_bootmem(sizeof(*edev), GFP_KERNEL);
+	edev = kzalloc(sizeof(*edev), GFP_KERNEL);
 	if (!edev) {
 		pr_warning("%s: out of memory\n", __func__);
 		return NULL;
@@ -65,6 +65,7 @@ void * __devinit eeh_dev_init(struct device_node *dn, void *data)
 	PCI_DN(dn)->edev = edev;
 	edev->dn  = dn;
 	edev->phb = phb;
+	INIT_LIST_HEAD(&edev->list);
 
 	return NULL;
 }
@@ -80,6 +81,9 @@ void __devinit eeh_dev_phb_init_dynamic(struct pci_controller *phb)
 {
 	struct device_node *dn = phb->dn;
 
+	/* EEH PE for PHB */
+	eeh_phb_pe_create(phb);
+
 	/* EEH device for PHB */
 	eeh_dev_init(dn, phb);
 
@@ -93,10 +97,16 @@ void __devinit eeh_dev_phb_init_dynamic(struct pci_controller *phb)
  * Scan all the existing PHBs and create EEH devices for their OF
  * nodes and their children OF nodes
  */
-void __init eeh_dev_phb_init(void)
+static int __init eeh_dev_phb_init(void)
 {
 	struct pci_controller *phb, *tmp;
 
 	list_for_each_entry_safe(phb, tmp, &hose_list, list_node)
 		eeh_dev_phb_init_dynamic(phb);
+
+	pr_info("EEH: devices created\n");
+
+	return 0;
 }
+
+core_initcall(eeh_dev_phb_init);

@@ -895,15 +895,11 @@ _GLOBAL(__setup_e500mc_ivors)
 	mtspr	SPRN_IVOR36,r3
 	li	r3,CriticalDoorbell@l
 	mtspr	SPRN_IVOR37,r3
+	sync
+	blr
 
-	/*
-	 * We only want to touch IVOR38-41 if we're running on hardware
-	 * that supports category E.HV.  The architectural way to determine
-	 * this is MMUCFG[LPIDSIZE].
-	 */
-	mfspr	r3, SPRN_MMUCFG
-	andis.	r3, r3, MMUCFG_LPIDSIZE@h
-	beq	no_hv
+/* setup ehv ivors for */
+_GLOBAL(__setup_ehv_ivors)
 	li	r3,GuestDoorbell@l
 	mtspr	SPRN_IVOR38,r3
 	li	r3,CriticalGuestDoorbell@l
@@ -912,14 +908,8 @@ _GLOBAL(__setup_e500mc_ivors)
 	mtspr	SPRN_IVOR40,r3
 	li	r3,Ehvpriv@l
 	mtspr	SPRN_IVOR41,r3
-skip_hv_ivors:
 	sync
 	blr
-no_hv:
-	lwz	r3, CPU_SPEC_FEATURES(r5)
-	rlwinm	r3, r3, 0, ~CPU_FTR_EMB_HV
-	stw	r3, CPU_SPEC_FEATURES(r5)
-	b	skip_hv_ivors
 
 #ifdef CONFIG_SPE
 /*
@@ -1039,6 +1029,34 @@ _GLOBAL(flush_dcache_L1)
 	
 	/* restore HID0 */
 	mtspr	SPRN_HID0,r8
+	isync
+
+	blr
+
+/* Flush L1 d-cache, invalidate and disable d-cache and i-cache */
+_GLOBAL(__flush_disable_L1)
+	mflr	r10
+	bl	flush_dcache_L1	/* Flush L1 d-cache */
+	mtlr	r10
+
+	mfspr	r4, SPRN_L1CSR0	/* Invalidate and disable d-cache */
+	li	r5, 2
+	rlwimi	r4, r5, 0, 3
+
+	msync
+	isync
+	mtspr	SPRN_L1CSR0, r4
+	isync
+
+1:	mfspr	r4, SPRN_L1CSR0	/* Wait for the invalidate to finish */
+	andi.	r4, r4, 2
+	bne	1b
+
+	mfspr	r4, SPRN_L1CSR1	/* Invalidate and disable i-cache */
+	li	r5, 2
+	rlwimi	r4, r5, 0, 3
+
+	mtspr	SPRN_L1CSR1, r4
 	isync
 
 	blr

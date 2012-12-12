@@ -230,8 +230,10 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
 		pindesc->name = name;
 	} else {
 		pindesc->name = kasprintf(GFP_KERNEL, "PIN%u", number);
-		if (pindesc->name == NULL)
+		if (pindesc->name == NULL) {
+			kfree(pindesc);
 			return -ENOMEM;
+		}
 		pindesc->dynamic_name = true;
 	}
 
@@ -1059,8 +1061,10 @@ static int pinctrl_groups_show(struct seq_file *s, void *what)
 			seq_printf(s, "group: %s\n", gname);
 			for (i = 0; i < num_pins; i++) {
 				pname = pin_get_name(pctldev, pins[i]);
-				if (WARN_ON(!pname))
+				if (WARN_ON(!pname)) {
+					mutex_unlock(&pinctrl_mutex);
 					return -EINVAL;
+				}
 				seq_printf(s, "pin %d (%s)\n", pins[i], pname);
 			}
 			seq_puts(s, "\n");

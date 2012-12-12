@@ -275,6 +275,31 @@ vsx_unavailable_pSeries_1:
 	STD_EXCEPTION_PSERIES(0x1300, 0x1300, instruction_breakpoint)
 	KVM_HANDLER_PR_SKIP(PACA_EXGEN, EXC_STD, 0x1300)
 
+	. = 0x1500
+	.global denorm_Hypervisor
+denorm_exception_hv:
+	HMT_MEDIUM
+	mtspr	SPRN_SPRG_HSCRATCH0,r13
+	mfspr	r13,SPRN_SPRG_HPACA
+	std	r9,PACA_EXGEN+EX_R9(r13)
+	std	r10,PACA_EXGEN+EX_R10(r13)
+	std	r11,PACA_EXGEN+EX_R11(r13)
+	std	r12,PACA_EXGEN+EX_R12(r13)
+	mfspr	r9,SPRN_SPRG_HSCRATCH0
+	std	r9,PACA_EXGEN+EX_R13(r13)
+	mfcr	r9
+
+#ifdef CONFIG_PPC_DENORMALISATION
+	mfspr	r10,SPRN_HSRR1
+	mfspr	r11,SPRN_HSRR0		/* save HSRR0 */
+	andis.	r10,r10,(HSRR1_DENORM)@h /* denorm? */
+	addi	r11,r11,-4		/* HSRR0 is next instruction */
+	bne+	denorm_assist
+#endif
+
+	EXCEPTION_PROLOG_PSERIES_1(denorm_common, EXC_HV)
+	KVM_HANDLER_SKIP(PACA_EXGEN, EXC_STD, 0x1500)
+
 #ifdef CONFIG_CBE_RAS
 	STD_EXCEPTION_HV(0x1600, 0x1602, cbe_maintenance)
 	KVM_HANDLER_SKIP(PACA_EXGEN, EXC_HV, 0x1602)
@@ -335,6 +360,103 @@ do_stab_bolted_pSeries:
 	KVM_HANDLER_PR(PACA_EXSLB, EXC_STD, 0x480)
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0x900)
 	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0x982)
+
+#ifdef CONFIG_PPC_DENORMALISATION
+denorm_assist:
+BEGIN_FTR_SECTION
+/*
+ * To denormalise we need to move a copy of the register to itself.
+ * For POWER6 do that here for all FP regs.
+ */
+	mfmsr	r10
+	ori	r10,r10,(MSR_FP|MSR_FE0|MSR_FE1)
+	xori	r10,r10,(MSR_FE0|MSR_FE1)
+	mtmsrd	r10
+	sync
+	fmr	0,0
+	fmr	1,1
+	fmr	2,2
+	fmr	3,3
+	fmr	4,4
+	fmr	5,5
+	fmr	6,6
+	fmr	7,7
+	fmr	8,8
+	fmr	9,9
+	fmr	10,10
+	fmr	11,11
+	fmr	12,12
+	fmr	13,13
+	fmr	14,14
+	fmr	15,15
+	fmr	16,16
+	fmr	17,17
+	fmr	18,18
+	fmr	19,19
+	fmr	20,20
+	fmr	21,21
+	fmr	22,22
+	fmr	23,23
+	fmr	24,24
+	fmr	25,25
+	fmr	26,26
+	fmr	27,27
+	fmr	28,28
+	fmr	29,29
+	fmr	30,30
+	fmr	31,31
+FTR_SECTION_ELSE
+/*
+ * To denormalise we need to move a copy of the register to itself.
+ * For POWER7 do that here for the first 32 VSX registers only.
+ */
+	mfmsr	r10
+	oris	r10,r10,MSR_VSX@h
+	mtmsrd	r10
+	sync
+	XVCPSGNDP(0,0,0)
+	XVCPSGNDP(1,1,1)
+	XVCPSGNDP(2,2,2)
+	XVCPSGNDP(3,3,3)
+	XVCPSGNDP(4,4,4)
+	XVCPSGNDP(5,5,5)
+	XVCPSGNDP(6,6,6)
+	XVCPSGNDP(7,7,7)
+	XVCPSGNDP(8,8,8)
+	XVCPSGNDP(9,9,9)
+	XVCPSGNDP(10,10,10)
+	XVCPSGNDP(11,11,11)
+	XVCPSGNDP(12,12,12)
+	XVCPSGNDP(13,13,13)
+	XVCPSGNDP(14,14,14)
+	XVCPSGNDP(15,15,15)
+	XVCPSGNDP(16,16,16)
+	XVCPSGNDP(17,17,17)
+	XVCPSGNDP(18,18,18)
+	XVCPSGNDP(19,19,19)
+	XVCPSGNDP(20,20,20)
+	XVCPSGNDP(21,21,21)
+	XVCPSGNDP(22,22,22)
+	XVCPSGNDP(23,23,23)
+	XVCPSGNDP(24,24,24)
+	XVCPSGNDP(25,25,25)
+	XVCPSGNDP(26,26,26)
+	XVCPSGNDP(27,27,27)
+	XVCPSGNDP(28,28,28)
+	XVCPSGNDP(29,29,29)
+	XVCPSGNDP(30,30,30)
+	XVCPSGNDP(31,31,31)
+ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_206)
+	mtspr	SPRN_HSRR0,r11
+	mtcrf	0x80,r9
+	ld	r9,PACA_EXGEN+EX_R9(r13)
+	ld	r10,PACA_EXGEN+EX_R10(r13)
+	ld	r11,PACA_EXGEN+EX_R11(r13)
+	ld	r12,PACA_EXGEN+EX_R12(r13)
+	ld	r13,PACA_EXGEN+EX_R13(r13)
+	HRFID
+	b	.
+#endif
 
 	.align	7
 	/* moved from 0xe00 */
@@ -495,6 +617,7 @@ machine_check_common:
         STD_EXCEPTION_COMMON(0xe60, hmi_exception, .unknown_exception)
 	STD_EXCEPTION_COMMON_ASYNC(0xf00, performance_monitor, .performance_monitor_exception)
 	STD_EXCEPTION_COMMON(0x1300, instruction_breakpoint, .instruction_breakpoint_exception)
+	STD_EXCEPTION_COMMON(0x1502, denorm, .unknown_exception)
 #ifdef CONFIG_ALTIVEC
 	STD_EXCEPTION_COMMON(0x1700, altivec_assist, .altivec_assist_exception)
 #else
@@ -960,7 +1083,9 @@ _GLOBAL(do_stab_bolted)
 	rldimi	r10,r11,7,52	/* r10 = first ste of the group */
 
 	/* Calculate VSID */
-	/* This is a kernel address, so protovsid = ESID */
+	/* This is a kernel address, so protovsid = ESID | 1 << 37 */
+	li	r9,0x1
+	rldimi  r11,r9,(CONTEXT_BITS + USER_ESID_BITS),0
 	ASM_VSID_SCRAMBLE(r11, r9, 256M)
 	rldic	r9,r11,12,16	/* r9 = vsid << 12 */
 

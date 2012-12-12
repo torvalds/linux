@@ -853,7 +853,6 @@ static struct crypto_alg khazad_alg = {
 	.cra_ctxsize		=	sizeof (struct khazad_ctx),
 	.cra_alignmask		=	7,
 	.cra_module		=	THIS_MODULE,
-	.cra_list		=	LIST_HEAD_INIT(khazad_alg.cra_list),
 	.cra_u			=	{ .cipher = {
 	.cia_min_keysize	=	KHAZAD_KEY_SIZE,
 	.cia_max_keysize	=	KHAZAD_KEY_SIZE,

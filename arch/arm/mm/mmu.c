@@ -31,6 +31,7 @@
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/mach/pci.h>
 
 #include "mm.h"
 
@@ -216,7 +217,7 @@ static struct mem_type mem_types[] = {
 		.prot_l1	= PMD_TYPE_TABLE,
 		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_WB,
 		.domain		= DOMAIN_IO,
-	},	
+	},
 	[MT_DEVICE_WC] = {	/* ioremap_wc */
 		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_WC,
 		.prot_l1	= PMD_TYPE_TABLE,
@@ -421,17 +422,6 @@ static void __init build_mem_type_table(void)
 	cp = &cache_policies[cachepolicy];
 	vecs_pgprot = kern_pgprot = user_pgprot = cp->pte;
 
-	/*
-	 * Enable CPU-specific coherency if supported.
-	 * (Only available on XSC3 at the moment.)
-	 */
-	if (arch_is_coherent() && cpu_is_xsc3()) {
-		mem_types[MT_MEMORY].prot_sect |= PMD_SECT_S;
-		mem_types[MT_MEMORY].prot_pte |= L_PTE_SHARED;
-		mem_types[MT_MEMORY_DMA_READY].prot_pte |= L_PTE_SHARED;
-		mem_types[MT_MEMORY_NONCACHED].prot_sect |= PMD_SECT_S;
-		mem_types[MT_MEMORY_NONCACHED].prot_pte |= L_PTE_SHARED;
-	}
 	/*
 	 * ARMv6 and above have extended page tables.
 	 */
@@ -777,12 +767,25 @@ void __init iotable_init(struct map_desc *io_desc, int nr)
 		create_mapping(md);
 		vm->addr = (void *)(md->virtual & PAGE_MASK);
 		vm->size = PAGE_ALIGN(md->length + (md->virtual & ~PAGE_MASK));
-		vm->phys_addr = __pfn_to_phys(md->pfn); 
-		vm->flags = VM_IOREMAP | VM_ARM_STATIC_MAPPING; 
+		vm->phys_addr = __pfn_to_phys(md->pfn);
+		vm->flags = VM_IOREMAP | VM_ARM_STATIC_MAPPING;
 		vm->flags |= VM_ARM_MTYPE(md->type);
 		vm->caller = iotable_init;
 		vm_area_add_early(vm++);
 	}
+}
+
+void __init vm_reserve_area_early(unsigned long addr, unsigned long size,
+				  void *caller)
+{
+	struct vm_struct *vm;
+
+	vm = early_alloc_aligned(sizeof(*vm), __alignof__(*vm));
+	vm->addr = (void *)addr;
+	vm->size = size;
+	vm->flags = VM_IOREMAP | VM_ARM_EMPTY_MAPPING;
+	vm->caller = caller;
+	vm_area_add_early(vm);
 }
 
 #ifndef CONFIG_ARM_LPAE
@@ -802,14 +805,7 @@ void __init iotable_init(struct map_desc *io_desc, int nr)
 
 static void __init pmd_empty_section_gap(unsigned long addr)
 {
-	struct vm_struct *vm;
-
-	vm = early_alloc_aligned(sizeof(*vm), __alignof__(*vm));
-	vm->addr = (void *)addr;
-	vm->size = SECTION_SIZE;
-	vm->flags = VM_IOREMAP | VM_ARM_EMPTY_MAPPING;
-	vm->caller = pmd_empty_section_gap;
-	vm_area_add_early(vm);
+	vm_reserve_area_early(addr, SECTION_SIZE, pmd_empty_section_gap);
 }
 
 static void __init fill_pmd_gaps(void)
@@ -856,6 +852,28 @@ static void __init fill_pmd_gaps(void)
 
 #else
 #define fill_pmd_gaps() do { } while (0)
+#endif
+
+#if defined(CONFIG_PCI) && !defined(CONFIG_NEED_MACH_IO_H)
+static void __init pci_reserve_io(void)
+{
+	struct vm_struct *vm;
+	unsigned long addr;
+
+	/* we're still single threaded hence no lock needed here */
+	for (vm = vmlist; vm; vm = vm->next) {
+		if (!(vm->flags & VM_ARM_STATIC_MAPPING))
+			continue;
+		addr = (unsigned long)vm->addr;
+		addr &= ~(SZ_2M - 1);
+		if (addr == PCI_IO_VIRT_BASE)
+			return;
+
+	}
+	vm_reserve_area_early(PCI_IO_VIRT_BASE, SZ_2M, pci_reserve_io);
+}
+#else
+#define pci_reserve_io() do { } while (0)
 #endif
 
 static void * __initdata vmalloc_min =
@@ -1140,6 +1158,9 @@ static void __init devicemaps_init(struct machine_desc *mdesc)
 	if (mdesc->map_io)
 		mdesc->map_io();
 	fill_pmd_gaps();
+
+	/* Reserve fixed i/o space in VMALLOC region */
+	pci_reserve_io();
 
 	/*
 	 * Finally flush the caches and tlb to ensure that we're in a

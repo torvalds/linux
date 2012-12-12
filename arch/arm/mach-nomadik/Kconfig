@@ -4,8 +4,8 @@ menu "Nomadik boards"
 
 config MACH_NOMADIK_8815NHK
 	bool "ST 8815 Nomadik Hardware Kit (evaluation board)"
-	select NOMADIK_8815
 	select HAS_MTU
+	select NOMADIK_8815
 
 endmenu
 
@@ -16,7 +16,7 @@ config I2C_BITBANG_8815NHK
 	tristate "Driver for bit-bang busses found on the 8815 NHK"
 	depends on I2C && MACH_NOMADIK_8815NHK
 	depends on PINCTRL_NOMADIK
-	select I2C_ALGOBIT
 	default y
+	select I2C_ALGOBIT
 
 endif

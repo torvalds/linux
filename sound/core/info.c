@@ -28,7 +28,7 @@
 #include <sound/core.h>
 #include <sound/minors.h>
 #include <sound/info.h>
-#include <sound/version.h>
+#include <linux/utsname.h>
 #include <linux/proc_fs.h>
 #include <linux/mutex.h>
 #include <stdarg.h>
@@ -986,9 +986,8 @@ static struct snd_info_entry *snd_info_version_entry;
 static void snd_info_version_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
 	snd_iprintf(buffer,
-		    "Advanced Linux Sound Architecture Driver Version "
-		    CONFIG_SND_VERSION CONFIG_SND_DATE ".\n"
-		   );
+		    "Advanced Linux Sound Architecture Driver Version k%s.\n",
+		    init_utsname()->release);
 }
 
 static int __init snd_info_version_init(void)

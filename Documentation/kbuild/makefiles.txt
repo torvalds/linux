@@ -45,7 +45,7 @@ This document describes the Linux kernel Makefiles.
 
 	=== 7 Kbuild syntax for exported headers
 		--- 7.1 header-y
-		--- 7.2 objhdr-y
+		--- 7.2 genhdr-y
 		--- 7.3 destination-y
 		--- 7.4 generic-y
 
@@ -1282,15 +1282,15 @@ See subsequent chapter for the syntax of the Kbuild file.
 
 	Subdirectories are visited before their parent directories.
 
-	--- 7.2 objhdr-y
+	--- 7.2 genhdr-y
 
-	objhdr-y specifies generated files to be exported.
+	genhdr-y specifies generated files to be exported.
 	Generated files are special as they need to be looked
 	up in another directory when doing 'make O=...' builds.
 
 		Example:
 			#include/linux/Kbuild
-			objhdr-y += version.h
+			genhdr-y += version.h
 
 	--- 7.3 destination-y
 

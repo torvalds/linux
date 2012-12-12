@@ -89,15 +89,6 @@ source "drivers/net/ethernet/marvell/Kconfig"
 source "drivers/net/ethernet/mellanox/Kconfig"
 source "drivers/net/ethernet/micrel/Kconfig"
 source "drivers/net/ethernet/microchip/Kconfig"
-
-config MIPS_SIM_NET
-	tristate "MIPS simulator Network device"
-	depends on MIPS_SIM
-	---help---
-	  The MIPSNET device is a simple Ethernet network device which is
-	  emulated by the MIPS Simulator.
-	  If you are not using a MIPSsim or are unsure, say N.
-
 source "drivers/net/ethernet/myricom/Kconfig"
 
 config FEALNX

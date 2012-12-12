@@ -30,6 +30,11 @@ struct nfc_hci_ops {
 	int (*open) (struct nfc_hci_dev *hdev);
 	void (*close) (struct nfc_hci_dev *hdev);
 	int (*hci_ready) (struct nfc_hci_dev *hdev);
+	/*
+	 * xmit must always send the complete buffer before
+	 * returning. Returned result must be 0 for success
+	 * or negative for failure.
+	 */
 	int (*xmit) (struct nfc_hci_dev *hdev, struct sk_buff *skb);
 	int (*start_poll) (struct nfc_hci_dev *hdev,
 			   u32 im_protocols, u32 tm_protocols);
@@ -38,8 +43,8 @@ struct nfc_hci_ops {
 	int (*complete_target_discovered) (struct nfc_hci_dev *hdev, u8 gate,
 					   struct nfc_target *target);
 	int (*data_exchange) (struct nfc_hci_dev *hdev,
-			      struct nfc_target *target,
-			      struct sk_buff *skb, struct sk_buff **res_skb);
+			      struct nfc_target *target, struct sk_buff *skb,
+			      data_exchange_cb_t cb, void *cb_context);
 	int (*check_presence)(struct nfc_hci_dev *hdev,
 			      struct nfc_target *target);
 };
@@ -74,7 +79,6 @@ struct nfc_hci_dev {
 
 	struct list_head msg_tx_queue;
 
-	struct workqueue_struct *msg_tx_wq;
 	struct work_struct msg_tx_work;
 
 	struct timer_list cmd_timer;
@@ -82,12 +86,13 @@ struct nfc_hci_dev {
 
 	struct sk_buff_head rx_hcp_frags;
 
-	struct workqueue_struct *msg_rx_wq;
 	struct work_struct msg_rx_work;
 
 	struct sk_buff_head msg_rx_queue;
 
 	struct nfc_hci_ops *ops;
+
+	struct nfc_llc *llc;
 
 	struct nfc_hci_init_data init_data;
 
@@ -105,12 +110,17 @@ struct nfc_hci_dev {
 	u8 hw_mpw;
 	u8 hw_software;
 	u8 hw_bsid;
+
+	int async_cb_type;
+	data_exchange_cb_t async_cb;
+	void *async_cb_context;
 };
 
 /* hci device allocation */
 struct nfc_hci_dev *nfc_hci_allocate_device(struct nfc_hci_ops *ops,
 					    struct nfc_hci_init_data *init_data,
 					    u32 protocols,
+					    const char *llc_name,
 					    int tx_headroom,
 					    int tx_tailroom,
 					    int max_link_payload);
@@ -202,6 +212,9 @@ int nfc_hci_set_param(struct nfc_hci_dev *hdev, u8 gate, u8 idx,
 		      const u8 *param, size_t param_len);
 int nfc_hci_send_cmd(struct nfc_hci_dev *hdev, u8 gate, u8 cmd,
 		     const u8 *param, size_t param_len, struct sk_buff **skb);
+int nfc_hci_send_cmd_async(struct nfc_hci_dev *hdev, u8 gate, u8 cmd,
+			   const u8 *param, size_t param_len,
+			   data_exchange_cb_t cb, void *cb_context);
 int nfc_hci_send_response(struct nfc_hci_dev *hdev, u8 gate, u8 response,
 			  const u8 *param, size_t param_len);
 int nfc_hci_send_event(struct nfc_hci_dev *hdev, u8 gate, u8 event,

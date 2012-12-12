@@ -236,7 +236,7 @@ struct es1938 {
 #ifdef SUPPORT_JOYSTICK
 	struct gameport *gameport;
 #endif
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	unsigned char saved_regs[SAVED_REG_SIZE];
 #endif
 };
@@ -1456,7 +1456,7 @@ static void snd_es1938_chip_init(struct es1938 *chip)
 	outb(0, SLDM_REG(chip, DMACLEAR));
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /*
  * PM support
  */
@@ -1536,7 +1536,7 @@ static SIMPLE_DEV_PM_OPS(es1938_pm, es1938_suspend, es1938_resume);
 #define ES1938_PM_OPS	&es1938_pm
 #else
 #define ES1938_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 #ifdef SUPPORT_JOYSTICK
 static int __devinit snd_es1938_create_gameport(struct es1938 *chip)

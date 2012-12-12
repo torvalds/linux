@@ -42,6 +42,12 @@ uint32_t radeon_atom_get_memory_clock(struct radeon_device *rdev);
 void radeon_atom_set_memory_clock(struct radeon_device *rdev, uint32_t mem_clock);
 void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable);
 
+void atombios_set_backlight_level(struct radeon_encoder *radeon_encoder, u8 level);
+u8 atombios_get_backlight_level(struct radeon_encoder *radeon_encoder);
+void radeon_legacy_set_backlight_level(struct radeon_encoder *radeon_encoder, u8 level);
+u8 radeon_legacy_get_backlight_level(struct radeon_encoder *radeon_encoder);
+
+
 /*
  * r100,rv100,rs100,rv200,rs200
  */
@@ -389,6 +395,7 @@ void r700_cp_fini(struct radeon_device *rdev);
 struct evergreen_mc_save {
 	u32 vga_render_control;
 	u32 vga_hdp_control;
+	bool crtc_enabled[RADEON_MAX_CRTCS];
 };
 
 void evergreen_pcie_gart_tlb_flush(struct radeon_device *rdev);
@@ -413,6 +420,7 @@ extern void evergreen_pm_misc(struct radeon_device *rdev);
 extern void evergreen_pm_prepare(struct radeon_device *rdev);
 extern void evergreen_pm_finish(struct radeon_device *rdev);
 extern void sumo_pm_init_profile(struct radeon_device *rdev);
+extern void btc_pm_init_profile(struct radeon_device *rdev);
 extern void evergreen_pre_page_flip(struct radeon_device *rdev, int crtc);
 extern u32 evergreen_page_flip(struct radeon_device *rdev, int crtc, u64 crtc_base);
 extern void evergreen_post_page_flip(struct radeon_device *rdev, int crtc);
@@ -435,14 +443,11 @@ int cayman_asic_reset(struct radeon_device *rdev);
 void cayman_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
 int cayman_vm_init(struct radeon_device *rdev);
 void cayman_vm_fini(struct radeon_device *rdev);
-int cayman_vm_bind(struct radeon_device *rdev, struct radeon_vm *vm, int id);
-void cayman_vm_unbind(struct radeon_device *rdev, struct radeon_vm *vm);
-void cayman_vm_tlb_flush(struct radeon_device *rdev, struct radeon_vm *vm);
-uint32_t cayman_vm_page_flags(struct radeon_device *rdev,
-			      struct radeon_vm *vm,
-			      uint32_t flags);
-void cayman_vm_set_page(struct radeon_device *rdev, struct radeon_vm *vm,
-			unsigned pfn, uint64_t addr, uint32_t flags);
+void cayman_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
+uint32_t cayman_vm_page_flags(struct radeon_device *rdev, uint32_t flags);
+void cayman_vm_set_page(struct radeon_device *rdev, uint64_t pe,
+			uint64_t addr, unsigned count,
+			uint32_t incr, uint32_t flags);
 int evergreen_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib);
 
 /* DCE6 - SI */
@@ -465,9 +470,10 @@ int si_irq_set(struct radeon_device *rdev);
 int si_irq_process(struct radeon_device *rdev);
 int si_vm_init(struct radeon_device *rdev);
 void si_vm_fini(struct radeon_device *rdev);
-int si_vm_bind(struct radeon_device *rdev, struct radeon_vm *vm, int id);
-void si_vm_unbind(struct radeon_device *rdev, struct radeon_vm *vm);
-void si_vm_tlb_flush(struct radeon_device *rdev, struct radeon_vm *vm);
+void si_vm_set_page(struct radeon_device *rdev, uint64_t pe,
+		    uint64_t addr, unsigned count,
+		    uint32_t incr, uint32_t flags);
+void si_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
 int si_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib);
 uint64_t si_get_gpu_clock(struct radeon_device *rdev);
 

@@ -46,7 +46,6 @@
 #include <linux/clockchips.h>
 #include <linux/io.h>
 
-#include <asm/leds.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>

@@ -2163,8 +2163,7 @@ int remap_vmalloc_range(struct vm_area_struct *vma, void *addr,
 		usize -= PAGE_SIZE;
 	} while (usize > 0);
 
-	/* Prevent "things" like memory migration? VM_flags need a cleanup... */
-	vma->vm_flags |= VM_RESERVED;
+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
 
 	return 0;
 }
@@ -2572,7 +2571,7 @@ static int s_show(struct seq_file *m, void *p)
 {
 	struct vm_struct *v = p;
 
-	seq_printf(m, "0x%p-0x%p %7ld",
+	seq_printf(m, "0x%pK-0x%pK %7ld",
 		v->addr, v->addr + v->size, v->size);
 
 	if (v->caller)

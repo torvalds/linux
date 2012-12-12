@@ -18,6 +18,7 @@
 #include <asm/mach/irq.h>
 #include <mach/pm.h>
 #include <mach/bridge-regs.h>
+#include <plat/orion-gpio.h>
 #include "common.h"
 
 static void pmu_irq_mask(struct irq_data *d)
@@ -99,19 +100,19 @@ void __init dove_init_irq(void)
 {
 	int i;
 
-	orion_irq_init(0, (void __iomem *)(IRQ_VIRT_BASE + IRQ_MASK_LOW_OFF));
-	orion_irq_init(32, (void __iomem *)(IRQ_VIRT_BASE + IRQ_MASK_HIGH_OFF));
+	orion_irq_init(0, IRQ_VIRT_BASE + IRQ_MASK_LOW_OFF);
+	orion_irq_init(32, IRQ_VIRT_BASE + IRQ_MASK_HIGH_OFF);
 
 	/*
 	 * Initialize gpiolib for GPIOs 0-71.
 	 */
-	orion_gpio_init(NULL, 0, 32, (void __iomem *)DOVE_GPIO_LO_VIRT_BASE, 0,
+	orion_gpio_init(NULL, 0, 32, DOVE_GPIO_LO_VIRT_BASE, 0,
 			IRQ_DOVE_GPIO_START, gpio0_irqs);
 
-	orion_gpio_init(NULL, 32, 32, (void __iomem *)DOVE_GPIO_HI_VIRT_BASE, 0,
+	orion_gpio_init(NULL, 32, 32, DOVE_GPIO_HI_VIRT_BASE, 0,
 			IRQ_DOVE_GPIO_START + 32, gpio1_irqs);
 
-	orion_gpio_init(NULL, 64, 8, (void __iomem *)DOVE_GPIO2_VIRT_BASE, 0,
+	orion_gpio_init(NULL, 64, 8, DOVE_GPIO2_VIRT_BASE, 0,
 			IRQ_DOVE_GPIO_START + 64, gpio2_irqs);
 
 	/*

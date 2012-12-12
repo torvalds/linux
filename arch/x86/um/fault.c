@@ -3,7 +3,7 @@
  * Licensed under the GPL
  */
 
-#include "sysdep/ptrace.h"
+#include <sysdep/ptrace.h>
 
 /* These two are from asm-um/uaccess.h and linux/module.h, check them. */
 struct exception_table_entry

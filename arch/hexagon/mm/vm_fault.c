@@ -1,7 +1,7 @@
 /*
  * Memory fault handling for Hexagon
  *
- * Copyright (c) 2010-2011 Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -113,6 +113,7 @@ good_area:
 				current->min_flt++;
 			if (fault & VM_FAULT_RETRY) {
 				flags &= ~FAULT_FLAG_ALLOW_RETRY;
+				flags |= FAULT_FLAG_TRIED;
 				goto retry;
 			}
 		}

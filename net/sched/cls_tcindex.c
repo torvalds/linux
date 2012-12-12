@@ -332,7 +332,8 @@ errout:
 }
 
 static int
-tcindex_change(struct tcf_proto *tp, unsigned long base, u32 handle,
+tcindex_change(struct sk_buff *in_skb,
+	       struct tcf_proto *tp, unsigned long base, u32 handle,
 	       struct nlattr **tca, unsigned long *arg)
 {
 	struct nlattr *opt = tca[TCA_OPTIONS];

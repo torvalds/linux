@@ -323,3 +323,9 @@ struct platform_device jz4740_wdt_device = {
 	.num_resources = ARRAY_SIZE(jz4740_wdt_resources),
 	.resource      = jz4740_wdt_resources,
 };
+
+/* PWM */
+struct platform_device jz4740_pwm_device = {
+	.name = "jz4740-pwm",
+	.id   = -1,
+};

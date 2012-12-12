@@ -31,9 +31,7 @@
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/leds.h>
 #include <asm/mach-types.h>
-#include <asm/pmu.h>
 #include <asm/pgtable.h>
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
@@ -264,7 +262,7 @@ static struct resource pmu_resources[] = {
 
 static struct platform_device pmu_device = {
 	.name			= "arm-pmu",
-	.id			= ARM_PMU_DEVICE_CPU,
+	.id			= -1,
 	.num_resources		= ARRAY_SIZE(pmu_resources),
 	.resource		= pmu_resources,
 };
@@ -359,15 +357,12 @@ static void __init realview_pb11mp_init(void)
 		struct amba_device *d = amba_devs[i];
 		amba_device_register(d, &iomem_resource);
 	}
-
-#ifdef CONFIG_LEDS
-	leds_event = realview_leds_event;
-#endif
 }
 
 MACHINE_START(REALVIEW_PB11MP, "ARM-RealView PB11MPCore")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
 	.atag_offset	= 0x100,
+	.smp		= smp_ops(realview_smp_ops),
 	.fixup		= realview_fixup,
 	.map_io		= realview_pb11mp_map_io,
 	.init_early	= realview_init_early,

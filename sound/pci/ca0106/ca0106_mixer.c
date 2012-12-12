@@ -907,7 +907,7 @@ int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
         return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 struct ca0106_vol_tbl {
 	unsigned int channel_id;
 	unsigned int reg;
@@ -953,4 +953,4 @@ void snd_ca0106_mixer_resume(struct snd_ca0106  *chip)
 	if (chip->details->i2c_adc)
 		ca0106_set_capture_mic_line_in(chip);
 }
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */

@@ -7,16 +7,12 @@
 
 #include "flowctrl.h"
 #include "reset.h"
+#include "sleep.h"
 
 #define APB_MISC_GP_HIDREV	0x804
 #define PMC_SCRATCH41	0x140
 
 #define RESET_DATA(x)	((TEGRA_RESET_##x)*4)
-
-	.macro mov32, reg, val
-	movw	\reg, #:lower16:\val
-	movt	\reg, #:upper16:\val
-	.endm
 
         .section ".text.head", "ax"
 	__CPUINIT

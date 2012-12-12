@@ -20,6 +20,7 @@
 #include <asm/sysinfo.h>
 #include "gaccess.h"
 #include "kvm-s390.h"
+#include "trace.h"
 
 static int handle_set_prefix(struct kvm_vcpu *vcpu)
 {
@@ -59,6 +60,7 @@ static int handle_set_prefix(struct kvm_vcpu *vcpu)
 	kvm_s390_set_prefix(vcpu, address);
 
 	VCPU_EVENT(vcpu, 5, "setting prefix to %x", address);
+	trace_kvm_s390_handle_prefix(vcpu, 1, address);
 out:
 	return 0;
 }
@@ -91,6 +93,7 @@ static int handle_store_prefix(struct kvm_vcpu *vcpu)
 	}
 
 	VCPU_EVENT(vcpu, 5, "storing prefix to %x", address);
+	trace_kvm_s390_handle_prefix(vcpu, 0, address);
 out:
 	return 0;
 }
@@ -119,6 +122,7 @@ static int handle_store_cpu_address(struct kvm_vcpu *vcpu)
 	}
 
 	VCPU_EVENT(vcpu, 5, "storing cpu address to %llx", useraddr);
+	trace_kvm_s390_handle_stap(vcpu, useraddr);
 out:
 	return 0;
 }
@@ -164,9 +168,11 @@ static int handle_stfl(struct kvm_vcpu *vcpu)
 			   &facility_list, sizeof(facility_list));
 	if (rc == -EFAULT)
 		kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-	else
+	else {
 		VCPU_EVENT(vcpu, 5, "store facility list value %x",
 			   facility_list);
+		trace_kvm_s390_handle_stfl(vcpu, facility_list);
+	}
 	return 0;
 }
 
@@ -278,6 +284,7 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 		kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 		goto out_mem;
 	}
+	trace_kvm_s390_handle_stsi(vcpu, fc, sel1, sel2, operand2);
 	free_page(mem);
 	vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);
 	vcpu->run->s.regs.gprs[0] = 0;

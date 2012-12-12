@@ -107,7 +107,7 @@ static struct linux_binfmt flat_format = {
 static int flat_core_dump(struct coredump_params *cprm)
 {
 	printk("Process %s:%d received signr %d and should have core dumped\n",
-			current->comm, current->pid, (int) cprm->signr);
+			current->comm, current->pid, (int) cprm->siginfo->si_signo);
 	return(1);
 }
 

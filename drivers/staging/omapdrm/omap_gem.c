@@ -246,7 +246,7 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 	 * DSS, GPU, etc. are not cache coherent:
 	 */
 	if (omap_obj->flags & (OMAP_BO_WC|OMAP_BO_UNCACHED)) {
-		addrs = kmalloc(npages * sizeof(addrs), GFP_KERNEL);
+		addrs = kmalloc(npages * sizeof(*addrs), GFP_KERNEL);
 		if (!addrs) {
 			ret = -ENOMEM;
 			goto free_pages;
@@ -257,7 +257,7 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 					0, PAGE_SIZE, DMA_BIDIRECTIONAL);
 		}
 	} else {
-		addrs = kzalloc(npages * sizeof(addrs), GFP_KERNEL);
+		addrs = kzalloc(npages * sizeof(*addrs), GFP_KERNEL);
 		if (!addrs) {
 			ret = -ENOMEM;
 			goto free_pages;
@@ -592,9 +592,8 @@ int omap_gem_mmap_obj(struct drm_gem_object *obj,
 		 * in particular in the case of mmap'd dmabufs)
 		 */
 		fput(vma->vm_file);
-		get_file(obj->filp);
 		vma->vm_pgoff = 0;
-		vma->vm_file  = obj->filp;
+		vma->vm_file  = get_file(obj->filp);
 
 		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
 	}

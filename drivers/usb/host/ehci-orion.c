@@ -13,7 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/mbus.h>
 #include <linux/clk.h>
-#include <plat/ehci-orion.h>
+#include <linux/platform_data/usb-ehci-orion.h>
 
 #define rdl(off)	__raw_readl(hcd->regs + (off))
 #define wrl(off, val)	__raw_writel((val), hcd->regs + (off))
@@ -160,7 +160,7 @@ static const struct hc_driver ehci_orion_hc_driver = {
 	.clear_tt_buffer_complete = ehci_clear_tt_buffer_complete,
 };
 
-static void __init
+static void __devinit
 ehci_orion_conf_mbus_windows(struct usb_hcd *hcd,
 			     const struct mbus_dram_target_info *dram)
 {

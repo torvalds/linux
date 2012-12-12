@@ -32,10 +32,10 @@
 #include <linux/slab.h>
 #include <linux/fb.h>
 #include <linux/module.h>
-#include "drmP.h"
-#include "drm_crtc.h"
-#include "drm_fb_helper.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_crtc_helper.h>
 
 MODULE_AUTHOR("David Airlie, Jesse Barnes");
 MODULE_DESCRIPTION("DRM KMS helper");
@@ -236,7 +236,7 @@ bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 }
 EXPORT_SYMBOL(drm_fb_helper_restore_fbdev_mode);
 
-bool drm_fb_helper_force_kernel_mode(void)
+static bool drm_fb_helper_force_kernel_mode(void)
 {
 	bool ret, error = false;
 	struct drm_fb_helper *helper;
@@ -330,7 +330,7 @@ static void drm_fb_helper_dpms(struct fb_info *info, int dpms_mode)
 		/* Walk the connectors & encoders on this fb turning them on/off */
 		for (j = 0; j < fb_helper->connector_count; j++) {
 			connector = fb_helper->connector_info[j]->connector;
-			drm_helper_connector_dpms(connector, dpms_mode);
+			connector->funcs->dpms(connector, dpms_mode);
 			drm_connector_property_set_value(connector,
 				dev->mode_config.dpms_property, dpms_mode);
 		}
@@ -1230,7 +1230,6 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_fb_helper_crtc **crtcs;
 	struct drm_display_mode **modes;
-	struct drm_encoder *encoder;
 	struct drm_mode_set *modeset;
 	bool *enabled;
 	int width, height;
@@ -1240,11 +1239,6 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 
 	width = dev->mode_config.max_width;
 	height = dev->mode_config.max_height;
-
-	/* clean out all the encoder/crtc combos */
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		encoder->crtc = NULL;
-	}
 
 	crtcs = kcalloc(dev->mode_config.num_connector,
 			sizeof(struct drm_fb_helper_crtc *), GFP_KERNEL);

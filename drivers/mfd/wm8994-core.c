@@ -374,23 +374,23 @@ static int wm8994_ldo_in_use(struct wm8994_pdata *pdata, int ldo)
 }
 #endif
 
-static const __devinitdata struct reg_default wm8994_revc_patch[] = {
+static const __devinitconst struct reg_default wm8994_revc_patch[] = {
 	{ 0x102, 0x3 },
 	{ 0x56, 0x3 },
 	{ 0x817, 0x0 },
 	{ 0x102, 0x0 },
 };
 
-static const __devinitdata struct reg_default wm8958_reva_patch[] = {
+static const __devinitconst struct reg_default wm8958_reva_patch[] = {
 	{ 0x102, 0x3 },
 	{ 0xcb, 0x81 },
 	{ 0x817, 0x0 },
 	{ 0x102, 0x0 },
 };
 
-static const __devinitdata struct reg_default wm1811_reva_patch[] = {
+static const __devinitconst struct reg_default wm1811_reva_patch[] = {
 	{ 0x102, 0x3 },
-	{ 0x56, 0x7 },
+	{ 0x56, 0xc07 },
 	{ 0x5d, 0x7e },
 	{ 0x5e, 0x0 },
 	{ 0x102, 0x0 },

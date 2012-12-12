@@ -163,7 +163,7 @@ static int opl3_get_voice(struct snd_opl3 *opl3, int instr_4op,
 	struct best *bp;
 
 	for (i = 0; i < END; i++) {
-		best[i].time = (unsigned int)(-1); /* XXX MAX_?INT really */;
+		best[i].time = (unsigned int)(-1); /* XXX MAX_?INT really */
 		best[i].voice = -1;
 	}
 

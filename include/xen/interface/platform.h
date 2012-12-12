@@ -27,7 +27,7 @@
 #ifndef __XEN_PUBLIC_PLATFORM_H__
 #define __XEN_PUBLIC_PLATFORM_H__
 
-#include "xen.h"
+#include <xen/interface/xen.h>
 
 #define XENPF_INTERFACE_VERSION 0x03000001
 
@@ -54,7 +54,7 @@ DEFINE_GUEST_HANDLE_STRUCT(xenpf_settime_t);
 #define XENPF_add_memtype         31
 struct xenpf_add_memtype {
 	/* IN variables. */
-	unsigned long mfn;
+	xen_pfn_t mfn;
 	uint64_t nr_mfns;
 	uint32_t type;
 	/* OUT variables. */
@@ -84,7 +84,7 @@ struct xenpf_read_memtype {
 	/* IN variables. */
 	uint32_t reg;
 	/* OUT variables. */
-	unsigned long mfn;
+	xen_pfn_t mfn;
 	uint64_t nr_mfns;
 	uint32_t type;
 };
@@ -112,6 +112,7 @@ DEFINE_GUEST_HANDLE_STRUCT(xenpf_platform_quirk_t);
 #define XEN_FW_DISK_INFO          1 /* from int 13 AH=08/41/48 */
 #define XEN_FW_DISK_MBR_SIGNATURE 2 /* from MBR offset 0x1b8 */
 #define XEN_FW_VBEDDC_INFO        3 /* from int 10 AX=4f15 */
+#define XEN_FW_KBD_SHIFT_FLAGS    5 /* Int16, Fn02: Get keyboard shift flags. */
 struct xenpf_firmware_info {
 	/* IN variables. */
 	uint32_t type;
@@ -142,6 +143,8 @@ struct xenpf_firmware_info {
 			/* must refer to 128-byte buffer */
 			GUEST_HANDLE(uchar) edid;
 		} vbeddc_info; /* XEN_FW_VBEDDC_INFO */
+
+		uint8_t kbd_shift_flags; /* XEN_FW_KBD_SHIFT_FLAGS */
 	} u;
 };
 DEFINE_GUEST_HANDLE_STRUCT(xenpf_firmware_info_t);

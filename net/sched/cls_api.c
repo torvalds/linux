@@ -319,7 +319,7 @@ replay:
 		}
 	}
 
-	err = tp->ops->change(tp, cl, t->tcm_handle, tca, &fh);
+	err = tp->ops->change(skb, tp, cl, t->tcm_handle, tca, &fh);
 	if (err == 0) {
 		if (tp_created) {
 			spin_lock_bh(root_lock);
@@ -343,13 +343,13 @@ errout:
 }
 
 static int tcf_fill_node(struct sk_buff *skb, struct tcf_proto *tp,
-			 unsigned long fh, u32 pid, u32 seq, u16 flags, int event)
+			 unsigned long fh, u32 portid, u32 seq, u16 flags, int event)
 {
 	struct tcmsg *tcm;
 	struct nlmsghdr  *nlh;
 	unsigned char *b = skb_tail_pointer(skb);
 
-	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*tcm), flags);
+	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*tcm), flags);
 	if (!nlh)
 		goto out_nlmsg_trim;
 	tcm = nlmsg_data(nlh);
@@ -381,18 +381,18 @@ static int tfilter_notify(struct net *net, struct sk_buff *oskb,
 			  unsigned long fh, int event)
 {
 	struct sk_buff *skb;
-	u32 pid = oskb ? NETLINK_CB(oskb).pid : 0;
+	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb)
 		return -ENOBUFS;
 
-	if (tcf_fill_node(skb, tp, fh, pid, n->nlmsg_seq, 0, event) <= 0) {
+	if (tcf_fill_node(skb, tp, fh, portid, n->nlmsg_seq, 0, event) <= 0) {
 		kfree_skb(skb);
 		return -EINVAL;
 	}
 
-	return rtnetlink_send(skb, net, pid, RTNLGRP_TC,
+	return rtnetlink_send(skb, net, portid, RTNLGRP_TC,
 			      n->nlmsg_flags & NLM_F_ECHO);
 }
 
@@ -407,7 +407,7 @@ static int tcf_node_dump(struct tcf_proto *tp, unsigned long n,
 {
 	struct tcf_dump_args *a = (void *)arg;
 
-	return tcf_fill_node(a->skb, tp, n, NETLINK_CB(a->cb->skb).pid,
+	return tcf_fill_node(a->skb, tp, n, NETLINK_CB(a->cb->skb).portid,
 			     a->cb->nlh->nlmsg_seq, NLM_F_MULTI, RTM_NEWTFILTER);
 }
 
@@ -465,7 +465,7 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 		if (t > s_t)
 			memset(&cb->args[1], 0, sizeof(cb->args)-sizeof(cb->args[0]));
 		if (cb->args[1] == 0) {
-			if (tcf_fill_node(skb, tp, 0, NETLINK_CB(cb->skb).pid,
+			if (tcf_fill_node(skb, tp, 0, NETLINK_CB(cb->skb).portid,
 					  cb->nlh->nlmsg_seq, NLM_F_MULTI,
 					  RTM_NEWTFILTER) <= 0)
 				break;

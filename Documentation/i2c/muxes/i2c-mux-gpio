@@ -63,3 +63,21 @@ static struct platform_device myboard_i2cmux = {
 		.platform_data	= &myboard_i2cmux_data,
 	},
 };
+
+If you don't know the absolute GPIO pin numbers at registration time,
+you can instead provide a chip name (.chip_name) and relative GPIO pin
+numbers, and the i2c-gpio-mux driver will do the work for you,
+including deferred probing if the GPIO chip isn't immediately
+available.
+
+Device Registration
+-------------------
+
+When registering your i2c-gpio-mux device, you should pass the number
+of any GPIO pin it uses as the device ID. This guarantees that every
+instance has a different ID.
+
+Alternatively, if you don't need a stable device name, you can simply
+pass PLATFORM_DEVID_AUTO as the device ID, and the platform core will
+assign a dynamic ID to your device. If you do not know the absolute
+GPIO pin numbers at registration time, this is even the only option.

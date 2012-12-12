@@ -1008,7 +1008,7 @@ static int snd_intel8x0m_free(struct intel8x0m *chip)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /*
  * power management
  */
@@ -1067,7 +1067,7 @@ static SIMPLE_DEV_PM_OPS(intel8x0m_pm, intel8x0m_suspend, intel8x0m_resume);
 #define INTEL8X0M_PM_OPS	&intel8x0m_pm
 #else
 #define INTEL8X0M_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_PROC_FS
 static void snd_intel8x0m_proc_read(struct snd_info_entry * entry,

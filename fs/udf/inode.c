@@ -95,9 +95,31 @@ void udf_evict_inode(struct inode *inode)
 	}
 }
 
+static void udf_write_failed(struct address_space *mapping, loff_t to)
+{
+	struct inode *inode = mapping->host;
+	struct udf_inode_info *iinfo = UDF_I(inode);
+	loff_t isize = inode->i_size;
+
+	if (to > isize) {
+		truncate_pagecache(inode, to, isize);
+		if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB) {
+			down_write(&iinfo->i_data_sem);
+			udf_truncate_extents(inode);
+			up_write(&iinfo->i_data_sem);
+		}
+	}
+}
+
 static int udf_writepage(struct page *page, struct writeback_control *wbc)
 {
 	return block_write_full_page(page, udf_get_block, wbc);
+}
+
+static int udf_writepages(struct address_space *mapping,
+			struct writeback_control *wbc)
+{
+	return mpage_writepages(mapping, wbc, udf_get_block);
 }
 
 static int udf_readpage(struct file *file, struct page *page)
@@ -118,21 +140,24 @@ static int udf_write_begin(struct file *file, struct address_space *mapping,
 	int ret;
 
 	ret = block_write_begin(mapping, pos, len, flags, pagep, udf_get_block);
-	if (unlikely(ret)) {
-		struct inode *inode = mapping->host;
-		struct udf_inode_info *iinfo = UDF_I(inode);
-		loff_t isize = inode->i_size;
+	if (unlikely(ret))
+		udf_write_failed(mapping, pos + len);
+	return ret;
+}
 
-		if (pos + len > isize) {
-			truncate_pagecache(inode, pos + len, isize);
-			if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB) {
-				down_write(&iinfo->i_data_sem);
-				udf_truncate_extents(inode);
-				up_write(&iinfo->i_data_sem);
-			}
-		}
-	}
+static ssize_t udf_direct_IO(int rw, struct kiocb *iocb,
+			     const struct iovec *iov,
+			     loff_t offset, unsigned long nr_segs)
+{
+	struct file *file = iocb->ki_filp;
+	struct address_space *mapping = file->f_mapping;
+	struct inode *inode = mapping->host;
+	ssize_t ret;
 
+	ret = blockdev_direct_IO(rw, iocb, inode, iov, offset, nr_segs,
+				  udf_get_block);
+	if (unlikely(ret < 0 && (rw & WRITE)))
+		udf_write_failed(mapping, offset + iov_length(iov, nr_segs));
 	return ret;
 }
 
@@ -145,8 +170,10 @@ const struct address_space_operations udf_aops = {
 	.readpage	= udf_readpage,
 	.readpages	= udf_readpages,
 	.writepage	= udf_writepage,
-	.write_begin		= udf_write_begin,
-	.write_end		= generic_write_end,
+	.writepages	= udf_writepages,
+	.write_begin	= udf_write_begin,
+	.write_end	= generic_write_end,
+	.direct_IO	= udf_direct_IO,
 	.bmap		= udf_bmap,
 };
 
@@ -1312,14 +1339,14 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 	}
 
 	read_lock(&sbi->s_cred_lock);
-	inode->i_uid = le32_to_cpu(fe->uid);
-	if (inode->i_uid == -1 ||
+	i_uid_write(inode, le32_to_cpu(fe->uid));
+	if (!uid_valid(inode->i_uid) ||
 	    UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_UID_IGNORE) ||
 	    UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_UID_SET))
 		inode->i_uid = UDF_SB(inode->i_sb)->s_uid;
 
-	inode->i_gid = le32_to_cpu(fe->gid);
-	if (inode->i_gid == -1 ||
+	i_gid_write(inode, le32_to_cpu(fe->gid));
+	if (!gid_valid(inode->i_gid) ||
 	    UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_GID_IGNORE) ||
 	    UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_GID_SET))
 		inode->i_gid = UDF_SB(inode->i_sb)->s_gid;
@@ -1542,12 +1569,12 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 	if (UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_UID_FORGET))
 		fe->uid = cpu_to_le32(-1);
 	else
-		fe->uid = cpu_to_le32(inode->i_uid);
+		fe->uid = cpu_to_le32(i_uid_read(inode));
 
 	if (UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_GID_FORGET))
 		fe->gid = cpu_to_le32(-1);
 	else
-		fe->gid = cpu_to_le32(inode->i_gid);
+		fe->gid = cpu_to_le32(i_gid_read(inode));
 
 	udfperms = ((inode->i_mode & S_IRWXO)) |
 		   ((inode->i_mode & S_IRWXG) << 2) |

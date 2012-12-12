@@ -84,7 +84,7 @@ static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID))
 		return;
 
-	rmap = real_vmalloc_addr(&memslot->rmap[gfn - memslot->base_gfn]);
+	rmap = real_vmalloc_addr(&memslot->arch.rmap[gfn - memslot->base_gfn]);
 	lock_rmap(rmap);
 
 	head = *rmap & KVMPPC_RMAP_INDEX;
@@ -180,7 +180,7 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	if (!slot_is_aligned(memslot, psize))
 		return H_PARAMETER;
 	slot_fn = gfn - memslot->base_gfn;
-	rmap = &memslot->rmap[slot_fn];
+	rmap = &memslot->arch.rmap[slot_fn];
 
 	if (!kvm->arch.using_mmu_notifiers) {
 		physp = kvm->arch.slot_phys[memslot->id];
@@ -197,7 +197,7 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 		pa &= PAGE_MASK;
 	} else {
 		/* Translate to host virtual address */
-		hva = gfn_to_hva_memslot(memslot, gfn);
+		hva = __gfn_to_hva_memslot(memslot, gfn);
 
 		/* Look up the Linux PTE for the backing page */
 		pte_size = psize;

@@ -33,6 +33,9 @@
 /* offset of Device Control register in PCIe extended capabilites space */
 #define PCIE_CONFIG_EXT_DEVICE_CONTROL_OFFSET	0x48
 
+/* check for erase mode support during secure erase */
+#define MTIP_SEC_ERASE_MODE     0x3
+
 /* # of times to retry timed out/failed IOs */
 #define MTIP_MAX_RETRIES	2
 

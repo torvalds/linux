@@ -17,8 +17,6 @@
 #define MAX_METRIC	0xffffffff
 #define ARITH_SHIFT	8
 
-/* Number of frames buffered per destination for unresolved destinations */
-#define MESH_FRAME_QUEUE_LEN	10
 #define MAX_PREQ_QUEUE_LEN	64
 
 /* Destination only */

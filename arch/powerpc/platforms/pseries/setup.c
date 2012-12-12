@@ -388,10 +388,8 @@ static void __init pSeries_setup_arch(void)
 
 	/* Find and initialize PCI host bridges */
 	init_pci_config_tokens();
-	eeh_pseries_init();
 	find_and_init_phbs();
 	pSeries_reconfig_notifier_register(&pci_dn_reconfig_nb);
-	eeh_init();
 
 	pSeries_nvram_init();
 
@@ -416,16 +414,20 @@ static int __init pSeries_init_panel(void)
 }
 machine_arch_initcall(pseries, pSeries_init_panel);
 
-static int pseries_set_dabr(unsigned long dabr)
+static int pseries_set_dabr(unsigned long dabr, unsigned long dabrx)
 {
 	return plpar_hcall_norets(H_SET_DABR, dabr);
 }
 
-static int pseries_set_xdabr(unsigned long dabr)
+static int pseries_set_xdabr(unsigned long dabr, unsigned long dabrx)
 {
-	/* We want to catch accesses from kernel and userspace */
-	return plpar_hcall_norets(H_SET_XDABR, dabr,
-			H_DABRX_KERNEL | H_DABRX_USER);
+	/* Have to set at least one bit in the DABRX according to PAPR */
+	if (dabrx == 0 && dabr == 0)
+		dabrx = DABRX_USER;
+	/* PAPR says we can only set kernel and user bits */
+	dabrx &= DABRX_KERNEL | DABRX_USER;
+
+	return plpar_hcall_norets(H_SET_XDABR, dabr, dabrx);
 }
 
 #define CMO_CHARACTERISTICS_TOKEN 44
@@ -529,10 +531,10 @@ static void __init pSeries_init_early(void)
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		hvc_vio_init_early();
 #endif
-	if (firmware_has_feature(FW_FEATURE_DABR))
-		ppc_md.set_dabr = pseries_set_dabr;
-	else if (firmware_has_feature(FW_FEATURE_XDABR))
+	if (firmware_has_feature(FW_FEATURE_XDABR))
 		ppc_md.set_dabr = pseries_set_xdabr;
+	else if (firmware_has_feature(FW_FEATURE_DABR))
+		ppc_md.set_dabr = pseries_set_dabr;
 
 	pSeries_cmo_feature_init();
 	iommu_init_early_pSeries();

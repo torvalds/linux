@@ -1,0 +1,59 @@
+.TH ACPIDUMP 8
+.SH NAME
+acpidump \- Dump system's ACPI tables to an ASCII file.
+.SH SYNOPSIS
+.ft B
+.B acpidump > acpidump.out
+.SH DESCRIPTION
+\fBacpidump \fP dumps the systems ACPI tables to an ASCII file
+appropriate for attaching to a bug report.
+
+Subsequently, they can be processed by utilities in the ACPICA package.
+.SS Options
+no options worth worrying about.
+.PP
+.SH EXAMPLE
+
+.nf
+# acpidump > acpidump.out
+
+$ acpixtract -a acpidump.out
+        Acpi table [DSDT] -  15974 bytes written to DSDT.dat
+        Acpi table [FACS] -     64 bytes written to FACS.dat
+        Acpi table [FACP] -    116 bytes written to FACP.dat
+        Acpi table [APIC] -    120 bytes written to APIC.dat
+        Acpi table [MCFG] -     60 bytes written to MCFG.dat
+        Acpi table [SSDT] -    444 bytes written to SSDT1.dat
+        Acpi table [SSDT] -    439 bytes written to SSDT2.dat
+        Acpi table [SSDT] -    439 bytes written to SSDT3.dat
+        Acpi table [SSDT] -    439 bytes written to SSDT4.dat
+        Acpi table [SSDT] -    439 bytes written to SSDT5.dat
+        Acpi table [RSDT] -     76 bytes written to RSDT.dat
+        Acpi table [RSDP] -     20 bytes written to RSDP.dat
+
+$ iasl -d *.dat
+...
+.fi
+creates *.dsl, a human readable form which can be edited
+and compiled using iasl.
+
+
+.SH NOTES
+
+.B "acpidump "
+must be run as root.
+
+.SH REFERENCES
+ACPICA: https://acpica.org/
+
+.SH FILES
+.ta
+.nf
+/dev/mem
+/sys/firmware/acpi/tables/dynamic/*
+.fi
+
+.PP
+.SH AUTHOR
+.nf
+Written by Len Brown <len.brown@intel.com>

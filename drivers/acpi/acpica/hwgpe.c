@@ -60,7 +60,6 @@ acpi_hw_enable_wakeup_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
  * FUNCTION:	acpi_hw_get_gpe_register_bit
  *
  * PARAMETERS:	gpe_event_info	    - Info block for the GPE
- *		gpe_register_info   - Info block for the GPE register
  *
  * RETURN:	Register mask with a one in the GPE bit position
  *
@@ -69,11 +68,10 @@ acpi_hw_enable_wakeup_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
  *
  ******************************************************************************/
 
-u32 acpi_hw_get_gpe_register_bit(struct acpi_gpe_event_info *gpe_event_info,
-			     struct acpi_gpe_register_info *gpe_register_info)
+u32 acpi_hw_get_gpe_register_bit(struct acpi_gpe_event_info *gpe_event_info)
 {
 	return (u32)1 << (gpe_event_info->gpe_number -
-				gpe_register_info->base_gpe_number);
+		 gpe_event_info->register_info->base_gpe_number);
 }
 
 /******************************************************************************
@@ -115,8 +113,7 @@ acpi_hw_low_set_gpe(struct acpi_gpe_event_info *gpe_event_info, u32 action)
 
 	/* Set or clear just the bit that corresponds to this GPE */
 
-	register_bit = acpi_hw_get_gpe_register_bit(gpe_event_info,
-						gpe_register_info);
+	register_bit = acpi_hw_get_gpe_register_bit(gpe_event_info);
 	switch (action) {
 	case ACPI_GPE_CONDITIONAL_ENABLE:
 
@@ -178,8 +175,7 @@ acpi_status acpi_hw_clear_gpe(struct acpi_gpe_event_info * gpe_event_info)
 	 * Write a one to the appropriate bit in the status register to
 	 * clear this GPE.
 	 */
-	register_bit =
-	    acpi_hw_get_gpe_register_bit(gpe_event_info, gpe_register_info);
+	register_bit = acpi_hw_get_gpe_register_bit(gpe_event_info);
 
 	status = acpi_hw_write(register_bit,
 			       &gpe_register_info->status_address);
@@ -222,8 +218,7 @@ acpi_hw_get_gpe_status(struct acpi_gpe_event_info * gpe_event_info,
 
 	/* Get the register bitmask for this GPE */
 
-	register_bit = acpi_hw_get_gpe_register_bit(gpe_event_info,
-						gpe_register_info);
+	register_bit = acpi_hw_get_gpe_register_bit(gpe_event_info);
 
 	/* GPE currently enabled? (enabled for runtime?) */
 

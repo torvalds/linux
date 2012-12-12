@@ -47,8 +47,8 @@ void kirkwood_enable_pcie(void)
 void kirkwood_pcie_id(u32 *dev, u32 *rev)
 {
 	kirkwood_enable_pcie();
-	*dev = orion_pcie_dev_id((void __iomem *)PCIE_VIRT_BASE);
-	*rev = orion_pcie_rev((void __iomem *)PCIE_VIRT_BASE);
+	*dev = orion_pcie_dev_id(PCIE_VIRT_BASE);
+	*rev = orion_pcie_rev(PCIE_VIRT_BASE);
 }
 
 struct pcie_port {
@@ -56,7 +56,7 @@ struct pcie_port {
 	void __iomem		*base;
 	spinlock_t		conf_lock;
 	int			irq;
-	struct resource		res[2];
+	struct resource		res;
 };
 
 static int pcie_port_map[2];
@@ -133,46 +133,30 @@ static struct pci_ops pcie_ops = {
 
 static void __init pcie0_ioresources_init(struct pcie_port *pp)
 {
-	pp->base = (void __iomem *)PCIE_VIRT_BASE;
+	pp->base = PCIE_VIRT_BASE;
 	pp->irq	= IRQ_KIRKWOOD_PCIE;
-
-	/*
-	 * IORESOURCE_IO
-	 */
-	pp->res[0].name = "PCIe 0 I/O Space";
-	pp->res[0].start = KIRKWOOD_PCIE_IO_BUS_BASE;
-	pp->res[0].end = pp->res[0].start + KIRKWOOD_PCIE_IO_SIZE - 1;
-	pp->res[0].flags = IORESOURCE_IO;
 
 	/*
 	 * IORESOURCE_MEM
 	 */
-	pp->res[1].name = "PCIe 0 MEM";
-	pp->res[1].start = KIRKWOOD_PCIE_MEM_PHYS_BASE;
-	pp->res[1].end = pp->res[1].start + KIRKWOOD_PCIE_MEM_SIZE - 1;
-	pp->res[1].flags = IORESOURCE_MEM;
+	pp->res.name = "PCIe 0 MEM";
+	pp->res.start = KIRKWOOD_PCIE_MEM_PHYS_BASE;
+	pp->res.end = pp->res.start + KIRKWOOD_PCIE_MEM_SIZE - 1;
+	pp->res.flags = IORESOURCE_MEM;
 }
 
 static void __init pcie1_ioresources_init(struct pcie_port *pp)
 {
-	pp->base = (void __iomem *)PCIE1_VIRT_BASE;
+	pp->base = PCIE1_VIRT_BASE;
 	pp->irq	= IRQ_KIRKWOOD_PCIE1;
-
-	/*
-	 * IORESOURCE_IO
-	 */
-	pp->res[0].name = "PCIe 1 I/O Space";
-	pp->res[0].start = KIRKWOOD_PCIE1_IO_BUS_BASE;
-	pp->res[0].end = pp->res[0].start + KIRKWOOD_PCIE1_IO_SIZE - 1;
-	pp->res[0].flags = IORESOURCE_IO;
 
 	/*
 	 * IORESOURCE_MEM
 	 */
-	pp->res[1].name = "PCIe 1 MEM";
-	pp->res[1].start = KIRKWOOD_PCIE1_MEM_PHYS_BASE;
-	pp->res[1].end = pp->res[1].start + KIRKWOOD_PCIE1_MEM_SIZE - 1;
-	pp->res[1].flags = IORESOURCE_MEM;
+	pp->res.name = "PCIe 1 MEM";
+	pp->res.start = KIRKWOOD_PCIE1_MEM_PHYS_BASE;
+	pp->res.end = pp->res.start + KIRKWOOD_PCIE1_MEM_SIZE - 1;
+	pp->res.flags = IORESOURCE_MEM;
 }
 
 static int __init kirkwood_pcie_setup(int nr, struct pci_sys_data *sys)
@@ -197,23 +181,21 @@ static int __init kirkwood_pcie_setup(int nr, struct pci_sys_data *sys)
 	case 0:
 		kirkwood_enable_pcie_clk("0");
 		pcie0_ioresources_init(pp);
+		pci_ioremap_io(SZ_64K * sys->busnr, KIRKWOOD_PCIE_IO_PHYS_BASE);
 		break;
 	case 1:
 		kirkwood_enable_pcie_clk("1");
 		pcie1_ioresources_init(pp);
+		pci_ioremap_io(SZ_64K * sys->busnr, KIRKWOOD_PCIE1_IO_PHYS_BASE);
 		break;
 	default:
 		panic("PCIe setup: invalid controller %d", index);
 	}
 
-	if (request_resource(&ioport_resource, &pp->res[0]))
-		panic("Request PCIe%d IO resource failed\n", index);
-	if (request_resource(&iomem_resource, &pp->res[1]))
+	if (request_resource(&iomem_resource, &pp->res))
 		panic("Request PCIe%d Memory resource failed\n", index);
 
-	sys->io_offset = 0;
-	pci_add_resource_offset(&sys->resources, &pp->res[0], sys->io_offset);
-	pci_add_resource_offset(&sys->resources, &pp->res[1], sys->mem_offset);
+	pci_add_resource_offset(&sys->resources, &pp->res, sys->mem_offset);
 
 	/*
 	 * Generic PCIe unit setup.
@@ -273,11 +255,11 @@ static struct hw_pci kirkwood_pci __initdata = {
 	.map_irq	= kirkwood_pcie_map_irq,
 };
 
-static void __init add_pcie_port(int index, unsigned long base)
+static void __init add_pcie_port(int index, void __iomem *base)
 {
 	printk(KERN_INFO "Kirkwood PCIe port %d: ", index);
 
-	if (orion_pcie_link_up((void __iomem *)base)) {
+	if (orion_pcie_link_up(base)) {
 		printk(KERN_INFO "link up\n");
 		pcie_port_map[num_pcie_ports++] = index;
 	} else

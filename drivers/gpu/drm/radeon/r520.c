@@ -25,7 +25,7 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "atom.h"
@@ -119,7 +119,7 @@ static void r520_vram_get_type(struct radeon_device *rdev)
 		rdev->mc.vram_width *= 2;
 }
 
-void r520_mc_init(struct radeon_device *rdev)
+static void r520_mc_init(struct radeon_device *rdev)
 {
 
 	r520_vram_get_type(rdev);
@@ -131,7 +131,7 @@ void r520_mc_init(struct radeon_device *rdev)
 	radeon_update_bandwidth_info(rdev);
 }
 
-void r520_mc_program(struct radeon_device *rdev)
+static void r520_mc_program(struct radeon_device *rdev)
 {
 	struct rv515_mc_save save;
 

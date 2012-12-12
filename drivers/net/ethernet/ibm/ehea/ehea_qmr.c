@@ -163,7 +163,7 @@ struct ehea_cq *ehea_create_cq(struct ehea_adapter *adapter,
 			goto out_kill_hwq;
 		}
 
-		rpage = virt_to_abs(vpage);
+		rpage = __pa(vpage);
 		hret = ehea_h_register_rpage(adapter->handle,
 					     0, EHEA_CQ_REGISTER_ORIG,
 					     cq->fw_handle, rpage, 1);
@@ -290,7 +290,7 @@ struct ehea_eq *ehea_create_eq(struct ehea_adapter *adapter,
 			goto out_kill_hwq;
 		}
 
-		rpage = virt_to_abs(vpage);
+		rpage = __pa(vpage);
 
 		hret = ehea_h_register_rpage(adapter->handle, 0,
 					     EHEA_EQ_REGISTER_ORIG,
@@ -395,7 +395,7 @@ static int ehea_qp_alloc_register(struct ehea_qp *qp, struct hw_queue *hw_queue,
 			pr_err("hw_qpageit_get_inc failed\n");
 			goto out_kill_hwq;
 		}
-		rpage = virt_to_abs(vpage);
+		rpage = __pa(vpage);
 		hret = ehea_h_register_rpage(adapter->handle,
 					     0, h_call_q_selector,
 					     qp->fw_handle, rpage, 1);
@@ -790,7 +790,7 @@ u64 ehea_map_vaddr(void *caddr)
 	if (!ehea_bmap)
 		return EHEA_INVAL_ADDR;
 
-	index = virt_to_abs(caddr) >> SECTION_SIZE_BITS;
+	index = __pa(caddr) >> SECTION_SIZE_BITS;
 	top = (index >> EHEA_TOP_INDEX_SHIFT) & EHEA_INDEX_MASK;
 	if (!ehea_bmap->top[top])
 		return EHEA_INVAL_ADDR;
@@ -812,7 +812,7 @@ static inline void *ehea_calc_sectbase(int top, int dir, int idx)
 	unsigned long ret = idx;
 	ret |= dir << EHEA_DIR_INDEX_SHIFT;
 	ret |= top << EHEA_TOP_INDEX_SHIFT;
-	return abs_to_virt(ret << SECTION_SIZE_BITS);
+	return __va(ret << SECTION_SIZE_BITS);
 }
 
 static u64 ehea_reg_mr_section(int top, int dir, int idx, u64 *pt,
@@ -822,7 +822,7 @@ static u64 ehea_reg_mr_section(int top, int dir, int idx, u64 *pt,
 	void *pg;
 	u64 j, m, hret;
 	unsigned long k = 0;
-	u64 pt_abs = virt_to_abs(pt);
+	u64 pt_abs = __pa(pt);
 
 	void *sectbase = ehea_calc_sectbase(top, dir, idx);
 
@@ -830,7 +830,7 @@ static u64 ehea_reg_mr_section(int top, int dir, int idx, u64 *pt,
 
 		for (m = 0; m < EHEA_MAX_RPAGE; m++) {
 			pg = sectbase + ((k++) * EHEA_PAGESIZE);
-			pt[m] = virt_to_abs(pg);
+			pt[m] = __pa(pg);
 		}
 		hret = ehea_h_register_rpage_mr(adapter->handle, mr->handle, 0,
 						0, pt_abs, EHEA_MAX_RPAGE);

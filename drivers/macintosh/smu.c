@@ -45,7 +45,6 @@
 #include <asm/pmac_feature.h>
 #include <asm/smu.h>
 #include <asm/sections.h>
-#include <asm/abs_addr.h>
 #include <asm/uaccess.h>
 
 #define VERSION "0.7"
@@ -502,7 +501,7 @@ int __init smu_init (void)
 	 * 32 bits value safely
 	 */
 	smu->cmd_buf_abs = (u32)smu_cmdbuf_abs;
-	smu->cmd_buf = (struct smu_cmd_buf *)abs_to_virt(smu_cmdbuf_abs);
+	smu->cmd_buf = __va(smu_cmdbuf_abs);
 
 	smu->db_node = of_find_node_by_name(NULL, "smu-doorbell");
 	if (smu->db_node == NULL) {

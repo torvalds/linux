@@ -44,7 +44,6 @@
 #define RAW3215_NR_CCWS	    3
 #define RAW3215_TIMEOUT	    HZ/10     /* time for delayed output */
 
-#define RAW3215_FIXED	    1	      /* 3215 console device is not be freed */
 #define RAW3215_WORKING	    4	      /* set if a request is being worked on */
 #define RAW3215_THROTTLED   8	      /* set if reading is disabled */
 #define RAW3215_STOPPED	    16	      /* set if writing is disabled */
@@ -339,8 +338,10 @@ static void raw3215_wakeup(unsigned long data)
 	struct tty_struct *tty;
 
 	tty = tty_port_tty_get(&raw->port);
-	tty_wakeup(tty);
-	tty_kref_put(tty);
+	if (tty) {
+		tty_wakeup(tty);
+		tty_kref_put(tty);
+	}
 }
 
 /*
@@ -629,8 +630,7 @@ static void raw3215_shutdown(struct raw3215_info *raw)
 	DECLARE_WAITQUEUE(wait, current);
 	unsigned long flags;
 
-	if (!(raw->port.flags & ASYNC_INITIALIZED) ||
-			(raw->flags & RAW3215_FIXED))
+	if (!(raw->port.flags & ASYNC_INITIALIZED))
 		return;
 	/* Wait for outstanding requests, then free irq */
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
@@ -716,10 +716,17 @@ static int raw3215_probe (struct ccw_device *cdev)
 static void raw3215_remove (struct ccw_device *cdev)
 {
 	struct raw3215_info *raw;
+	unsigned int line;
 
 	ccw_device_set_offline(cdev);
 	raw = dev_get_drvdata(&cdev->dev);
 	if (raw) {
+		spin_lock(&raw3215_device_lock);
+		for (line = 0; line < NR_3215; line++)
+			if (raw3215[line] == raw)
+				break;
+		raw3215[line] = NULL;
+		spin_unlock(&raw3215_device_lock);
 		dev_set_drvdata(&cdev->dev, NULL);
 		raw3215_free_info(raw);
 	}
@@ -919,8 +926,6 @@ static int __init con3215_init(void)
 	dev_set_drvdata(&cdev->dev, raw);
 	cdev->handler = raw3215_irq;
 
-	raw->flags |= RAW3215_FIXED;
-
 	/* Request the console irq */
 	if (raw3215_startup(raw) != 0) {
 		raw3215_free_info(raw);
@@ -935,6 +940,19 @@ static int __init con3215_init(void)
 console_initcall(con3215_init);
 #endif
 
+static int tty3215_install(struct tty_driver *driver, struct tty_struct *tty)
+{
+	struct raw3215_info *raw;
+
+	raw = raw3215[tty->index];
+	if (raw == NULL)
+		return -ENODEV;
+
+	tty->driver_data = raw;
+
+	return tty_port_install(&raw->port, driver, tty);
+}
+
 /*
  * tty3215_open
  *
@@ -942,14 +960,9 @@ console_initcall(con3215_init);
  */
 static int tty3215_open(struct tty_struct *tty, struct file * filp)
 {
-	struct raw3215_info *raw;
+	struct raw3215_info *raw = tty->driver_data;
 	int retval;
 
-	raw = raw3215[tty->index];
-	if (raw == NULL)
-		return -ENODEV;
-
-	tty->driver_data = raw;
 	tty_port_tty_set(&raw->port, tty);
 
 	tty->low_latency = 0;  /* don't use bottom half for pushing chars */
@@ -1110,6 +1123,7 @@ static void tty3215_start(struct tty_struct *tty)
 }
 
 static const struct tty_operations tty3215_ops = {
+	.install = tty3215_install,
 	.open = tty3215_open,
 	.close = tty3215_close,
 	.write = tty3215_write,

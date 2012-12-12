@@ -1309,13 +1309,9 @@ static int __devinit mmci_probe(struct amba_device *dev,
 		goto host_free;
 	}
 
-	ret = clk_prepare(host->clk);
+	ret = clk_prepare_enable(host->clk);
 	if (ret)
 		goto clk_free;
-
-	ret = clk_enable(host->clk);
-	if (ret)
-		goto clk_unprep;
 
 	host->plat = plat;
 	host->variant = variant;
@@ -1515,9 +1511,7 @@ static int __devinit mmci_probe(struct amba_device *dev,
  err_gpio_cd:
 	iounmap(host->base);
  clk_disable:
-	clk_disable(host->clk);
- clk_unprep:
-	clk_unprepare(host->clk);
+	clk_disable_unprepare(host->clk);
  clk_free:
 	clk_put(host->clk);
  host_free:
@@ -1564,8 +1558,7 @@ static int __devexit mmci_remove(struct amba_device *dev)
 			gpio_free(host->gpio_cd);
 
 		iounmap(host->base);
-		clk_disable(host->clk);
-		clk_unprepare(host->clk);
+		clk_disable_unprepare(host->clk);
 		clk_put(host->clk);
 
 		if (host->vcc)

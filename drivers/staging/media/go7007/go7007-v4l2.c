@@ -1372,7 +1372,7 @@ static int vidioc_g_crop(struct file *file, void *priv, struct v4l2_crop *crop)
 
 /* FIXME: vidioc_s_crop is not really implemented!!!
  */
-static int vidioc_s_crop(struct file *file, void *priv, struct v4l2_crop *crop)
+static int vidioc_s_crop(struct file *file, void *priv, const struct v4l2_crop *crop)
 {
 	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -1392,7 +1392,7 @@ static int vidioc_g_jpegcomp(struct file *file, void *priv,
 }
 
 static int vidioc_s_jpegcomp(struct file *file, void *priv,
-			 struct v4l2_jpegcompression *params)
+			 const struct v4l2_jpegcompression *params)
 {
 	if (params->quality != 50 ||
 			params->jpeg_markers != (V4L2_JPEG_MARKER_DHT |

@@ -190,6 +190,9 @@ static struct virtqueue *kvm_find_vq(struct virtio_device *vdev,
 	if (index >= kdev->desc->num_vq)
 		return ERR_PTR(-ENOENT);
 
+	if (!name)
+		return NULL;
+
 	config = kvm_vq_config(kdev->desc)+index;
 
 	err = vmem_add_mapping(config->address,
@@ -198,7 +201,7 @@ static struct virtqueue *kvm_find_vq(struct virtio_device *vdev,
 	if (err)
 		goto out;
 
-	vq = vring_new_virtqueue(config->num, KVM_S390_VIRTIO_RING_ALIGN,
+	vq = vring_new_virtqueue(index, config->num, KVM_S390_VIRTIO_RING_ALIGN,
 				 vdev, true, (void *) config->address,
 				 kvm_notify, callback, name);
 	if (!vq) {

@@ -16,6 +16,7 @@
 #include <linux/stat.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/irq.h>
 #include <linux/platform_data/clk-ux500.h>
 
 #include <asm/hardware/gic.h>
@@ -49,7 +50,9 @@ void __init ux500_init_irq(void)
 	void __iomem *dist_base;
 	void __iomem *cpu_base;
 
-	if (cpu_is_u8500_family()) {
+	gic_arch_extn.flags = IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MASK_ON_SUSPEND;
+
+	if (cpu_is_u8500_family() || cpu_is_ux540_family()) {
 		dist_base = __io_address(U8500_GIC_DIST_BASE);
 		cpu_base = __io_address(U8500_GIC_CPU_BASE);
 	} else

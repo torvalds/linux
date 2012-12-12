@@ -43,14 +43,16 @@ struct nf_conn_nat {
 	struct nf_conn *ct;
 	union nf_conntrack_nat_help help;
 #if defined(CONFIG_IP_NF_TARGET_MASQUERADE) || \
-    defined(CONFIG_IP_NF_TARGET_MASQUERADE_MODULE)
+    defined(CONFIG_IP_NF_TARGET_MASQUERADE_MODULE) || \
+    defined(CONFIG_IP6_NF_TARGET_MASQUERADE) || \
+    defined(CONFIG_IP6_NF_TARGET_MASQUERADE_MODULE)
 	int masq_index;
 #endif
 };
 
 /* Set up the info structure to map into this range. */
 extern unsigned int nf_nat_setup_info(struct nf_conn *ct,
-				      const struct nf_nat_ipv4_range *range,
+				      const struct nf_nat_range *range,
 				      enum nf_nat_manip_type maniptype);
 
 /* Is this tuple already taken? (not by us)*/

@@ -22,7 +22,6 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/init.h>
 #include <linux/err.h>
@@ -34,7 +33,7 @@
 #include <linux/hwmon-sysfs.h>
 
 #include <plat/adc.h>
-#include <plat/hwmon.h>
+#include <linux/platform_data/hwmon-s3c.h>
 
 struct s3c_hwmon_attr {
 	struct sensor_device_attribute	in;

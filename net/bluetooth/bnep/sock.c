@@ -29,6 +29,10 @@
 
 #include "bnep.h"
 
+static struct bt_sock_list bnep_sk_list = {
+	.lock = __RW_LOCK_UNLOCKED(bnep_sk_list.lock)
+};
+
 static int bnep_sock_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
@@ -37,6 +41,8 @@ static int bnep_sock_release(struct socket *sock)
 
 	if (!sk)
 		return 0;
+
+	bt_sock_unlink(&bnep_sk_list, sk);
 
 	sock_orphan(sk);
 	sock_put(sk);
@@ -204,6 +210,7 @@ static int bnep_sock_create(struct net *net, struct socket *sock, int protocol,
 	sk->sk_protocol = protocol;
 	sk->sk_state	= BT_OPEN;
 
+	bt_sock_link(&bnep_sk_list, sk);
 	return 0;
 }
 
@@ -222,19 +229,30 @@ int __init bnep_sock_init(void)
 		return err;
 
 	err = bt_sock_register(BTPROTO_BNEP, &bnep_sock_family_ops);
-	if (err < 0)
+	if (err < 0) {
+		BT_ERR("Can't register BNEP socket");
 		goto error;
+	}
+
+	err = bt_procfs_init(THIS_MODULE, &init_net, "bnep", &bnep_sk_list, NULL);
+	if (err < 0) {
+		BT_ERR("Failed to create BNEP proc file");
+		bt_sock_unregister(BTPROTO_BNEP);
+		goto error;
+	}
+
+	BT_INFO("BNEP socket layer initialized");
 
 	return 0;
 
 error:
-	BT_ERR("Can't register BNEP socket");
 	proto_unregister(&bnep_proto);
 	return err;
 }
 
 void __exit bnep_sock_cleanup(void)
 {
+	bt_procfs_cleanup(&init_net, "bnep");
 	if (bt_sock_unregister(BTPROTO_BNEP) < 0)
 		BT_ERR("Can't unregister BNEP socket");
 

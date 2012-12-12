@@ -16,15 +16,18 @@
 #include <linux/platform_device.h>
 #include <linux/davinci_emac.h>
 #include <linux/spi/spi.h>
+#include <linux/platform_data/davinci_asp.h>
+#include <linux/videodev2.h>
 
 #include <mach/serial.h>
 #include <mach/edma.h>
-#include <mach/i2c.h>
-#include <mach/asp.h>
-#include <mach/mmc.h>
-#include <mach/usb.h>
 #include <mach/pm.h>
-#include <mach/spi.h>
+#include <linux/platform_data/i2c-davinci.h>
+#include <linux/platform_data/mmc-davinci.h>
+#include <linux/platform_data/usb-davinci.h>
+#include <linux/platform_data/spi-davinci.h>
+
+#include <media/davinci/vpif_types.h>
 
 extern void __iomem *da8xx_syscfg0_base;
 extern void __iomem *da8xx_syscfg1_base;
@@ -63,6 +66,7 @@ extern unsigned int da850_max_speed;
 #define DA8XX_PLL0_BASE		0x01c11000
 #define DA8XX_TIMER64P0_BASE	0x01c20000
 #define DA8XX_TIMER64P1_BASE	0x01c21000
+#define DA8XX_VPIF_BASE		0x01e17000
 #define DA8XX_GPIO_BASE		0x01e26000
 #define DA8XX_PSC1_BASE		0x01e27000
 #define DA8XX_AEMIF_CS2_BASE	0x60000000
@@ -92,6 +96,11 @@ int da8xx_register_cpuidle(void);
 void __iomem * __init da8xx_get_mem_ctlr(void);
 int da850_register_pm(struct platform_device *pdev);
 int __init da850_register_sata(unsigned long refclkpn);
+int __init da850_register_vpif(void);
+int __init da850_register_vpif_display
+			(struct vpif_display_config *display_config);
+int __init da850_register_vpif_capture
+			(struct vpif_capture_config *capture_config);
 void da8xx_restart(char mode, const char *cmd);
 
 extern struct platform_device da8xx_serial_device;
@@ -126,6 +135,8 @@ extern const short da830_ecap1_pins[];
 extern const short da830_ecap2_pins[];
 extern const short da830_eqep0_pins[];
 extern const short da830_eqep1_pins[];
+extern const short da850_vpif_capture_pins[];
+extern const short da850_vpif_display_pins[];
 
 extern const short da850_i2c0_pins[];
 extern const short da850_i2c1_pins[];

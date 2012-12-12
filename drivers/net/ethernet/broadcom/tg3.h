@@ -2860,7 +2860,8 @@ struct tg3_rx_prodring_set {
 	dma_addr_t			rx_jmb_mapping;
 };
 
-#define TG3_IRQ_MAX_VECS_RSS		5
+#define TG3_RSS_MAX_NUM_QS		4
+#define TG3_IRQ_MAX_VECS_RSS		(TG3_RSS_MAX_NUM_QS + 1)
 #define TG3_IRQ_MAX_VECS		TG3_IRQ_MAX_VECS_RSS
 
 struct tg3_napi {
@@ -3037,6 +3038,9 @@ struct tg3 {
 	void				(*write32_tx_mbox) (struct tg3 *, u32,
 							    u32);
 	u32				dma_limit;
+	u32				txq_req;
+	u32				txq_cnt;
+	u32				txq_max;
 
 	/* begin "rx thread" cacheline section */
 	struct tg3_napi			napi[TG3_IRQ_MAX_VECS];
@@ -3051,6 +3055,9 @@ struct tg3 {
 	u32				rx_std_max_post;
 	u32				rx_offset;
 	u32				rx_pkt_map_sz;
+	u32				rxq_req;
+	u32				rxq_cnt;
+	u32				rxq_max;
 	bool				rx_refill;
 
 

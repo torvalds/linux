@@ -771,6 +771,7 @@ struct iwl_priv {
 	u8 agg_tids_count;
 
 	struct iwl_rx_phy_res last_phy_res;
+	u32 ampdu_ref;
 	bool last_phy_res_valid;
 
 	/*

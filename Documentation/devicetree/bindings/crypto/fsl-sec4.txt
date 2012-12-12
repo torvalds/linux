@@ -9,6 +9,7 @@ Copyright (C) 2008-2011 Freescale Semiconductor Inc.
    -Run Time Integrity Check (RTIC) Node
    -Run Time Integrity Check (RTIC) Memory Node
    -Secure Non-Volatile Storage (SNVS) Node
+   -Secure Non-Volatile Storage (SNVS) Low Power (LP) RTC Node
    -Full Example
 
 NOTE: the SEC 4 is also known as Freescale's Cryptographic Accelerator
@@ -294,6 +295,27 @@ Secure Non-Volatile Storage (SNVS) Node
           address and length of the SEC4 configuration
           registers.
 
+   - #address-cells
+       Usage: required
+       Value type: <u32>
+       Definition: A standard property.  Defines the number of cells
+           for representing physical addresses in child nodes.  Must
+           have a value of 1.
+
+   - #size-cells
+       Usage: required
+       Value type: <u32>
+       Definition: A standard property.  Defines the number of cells
+           for representing the size of physical addresses in
+           child nodes.  Must have a value of 1.
+
+   - ranges
+       Usage: required
+       Value type: <prop-encoded-array>
+       Definition: A standard property.  Specifies the physical address
+           range of the SNVS register space.  A triplet that includes
+           the child address, parent address, & length.
+
    - interrupts
       Usage: required
       Value type: <prop_encoded-array>
@@ -314,8 +336,31 @@ EXAMPLE
 	sec_mon@314000 {
 		compatible = "fsl,sec-v4.0-mon";
 		reg = <0x314000 0x1000>;
+		ranges = <0 0x314000 0x1000>;
 		interrupt-parent = <&mpic>;
 		interrupts = <93 2>;
+	};
+
+=====================================================================
+Secure Non-Volatile Storage (SNVS) Low Power (LP) RTC Node
+
+  A SNVS child node that defines SNVS LP RTC.
+
+  - compatible
+      Usage: required
+      Value type: <string>
+      Definition: Must include "fsl,sec-v4.0-mon-rtc-lp".
+
+  - reg
+      Usage: required
+      Value type: <prop-encoded-array>
+      Definition: A standard property.  Specifies the physical
+          address and length of the SNVS LP configuration registers.
+
+EXAMPLE
+	sec_mon_rtc_lp@314000 {
+		compatible = "fsl,sec-v4.0-mon-rtc-lp";
+		reg = <0x34 0x58>;
 	};
 
 =====================================================================
@@ -390,8 +435,14 @@ FULL EXAMPLE
 	sec_mon: sec_mon@314000 {
 		compatible = "fsl,sec-v4.0-mon";
 		reg = <0x314000 0x1000>;
+		ranges = <0 0x314000 0x1000>;
 		interrupt-parent = <&mpic>;
 		interrupts = <93 2>;
+
+		sec_mon_rtc_lp@34 {
+			compatible = "fsl,sec-v4.0-mon-rtc-lp";
+			reg = <0x34 0x58>;
+		};
 	};
 
 =====================================================================

@@ -1104,7 +1104,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 				pr_err("fill_trace bad get_inode "
 				       "%llx.%llx\n", vino.ino, vino.snap);
 				err = PTR_ERR(in);
-				d_delete(dn);
+				d_drop(dn);
 				goto done;
 			}
 			dn = splice_dentry(dn, in, &have_lease, true);
@@ -1277,7 +1277,7 @@ retry_lookup:
 			in = ceph_get_inode(parent->d_sb, vino);
 			if (IS_ERR(in)) {
 				dout("new_inode badness\n");
-				d_delete(dn);
+				d_drop(dn);
 				dput(dn);
 				err = PTR_ERR(in);
 				goto out;

@@ -66,6 +66,8 @@
 #include <asm/mach/arch.h>
 #include <asm/setup.h>
 
+#include "sh-gpio.h"
+
 /*
  * Address	Interface		BusWidth	note
  * ------------------------------------------------------------------
@@ -432,7 +434,7 @@ static void usb1_host_port_power(int port, int power)
 		return;
 
 	/* set VBOUT/PWEN and EXTLP1 in DVSTCTR */
-	__raw_writew(__raw_readw(0xE68B0008) | 0x600, 0xE68B0008);
+	__raw_writew(__raw_readw(IOMEM(0xE68B0008)) | 0x600, IOMEM(0xE68B0008));
 }
 
 static struct r8a66597_platdata usb1_host_data = {
@@ -1224,11 +1226,20 @@ static struct i2c_board_info i2c1_devices[] = {
 };
 
 
-#define GPIO_PORT9CR	0xE6051009
-#define GPIO_PORT10CR	0xE605100A
-#define USCCR1		0xE6058144
+#define GPIO_PORT9CR	IOMEM(0xE6051009)
+#define GPIO_PORT10CR	IOMEM(0xE605100A)
+#define USCCR1		IOMEM(0xE6058144)
 static void __init ap4evb_init(void)
 {
+	struct pm_domain_device domain_devices[] = {
+		{ "A4LC", &lcdc1_device, },
+		{ "A4LC", &lcdc_device, },
+		{ "A4MP", &fsi_device, },
+		{ "A3SP", &sh_mmcif_device, },
+		{ "A3SP", &sdhi0_device, },
+		{ "A3SP", &sdhi1_device, },
+		{ "A4R", &ceu_device, },
+	};
 	u32 srcr4;
 	struct clk *clk;
 
@@ -1304,7 +1315,7 @@ static void __init ap4evb_init(void)
 	gpio_request(GPIO_FN_OVCN2_1,    NULL);
 
 	/* setup USB phy */
-	__raw_writew(0x8a0a, 0xE6058130);	/* USBCR4 */
+	__raw_writew(0x8a0a, IOMEM(0xE6058130));	/* USBCR4 */
 
 	/* enable FSI2 port A (ak4643) */
 	gpio_request(GPIO_FN_FSIAIBT,	NULL);
@@ -1453,7 +1464,7 @@ static void __init ap4evb_init(void)
 	gpio_request(GPIO_FN_HDMI_CEC, NULL);
 
 	/* Reset HDMI, must be held at least one EXTALR (32768Hz) period */
-#define SRCR4 0xe61580bc
+#define SRCR4 IOMEM(0xe61580bc)
 	srcr4 = __raw_readl(SRCR4);
 	__raw_writel(srcr4 | (1 << 13), SRCR4);
 	udelay(50);
@@ -1461,14 +1472,8 @@ static void __init ap4evb_init(void)
 
 	platform_add_devices(ap4evb_devices, ARRAY_SIZE(ap4evb_devices));
 
-	rmobile_add_device_to_domain(&sh7372_pd_a4lc, &lcdc1_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4lc, &lcdc_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4mp, &fsi_device);
-
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sh_mmcif_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sdhi0_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sdhi1_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4r, &ceu_device);
+	rmobile_add_devices_to_domains(domain_devices,
+				       ARRAY_SIZE(domain_devices));
 
 	hdmi_init_pm_clock();
 	fsi_init_pm_clock();
@@ -1483,6 +1488,6 @@ MACHINE_START(AP4EVB, "ap4evb")
 	.init_irq	= sh7372_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= ap4evb_init,
-	.init_late	= shmobile_init_late,
+	.init_late	= sh7372_pm_init_late,
 	.timer		= &shmobile_timer,
 MACHINE_END

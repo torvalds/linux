@@ -28,21 +28,49 @@ void *module_alloc(unsigned long size);
 /* Free memory returned from module_alloc. */
 void module_free(struct module *mod, void *module_region);
 
-/* Apply the given relocation to the (simplified) ELF.  Return -error
-   or 0. */
+/*
+ * Apply the given relocation to the (simplified) ELF.  Return -error
+ * or 0.
+ */
+#ifdef CONFIG_MODULES_USE_ELF_REL
 int apply_relocate(Elf_Shdr *sechdrs,
 		   const char *strtab,
 		   unsigned int symindex,
 		   unsigned int relsec,
 		   struct module *mod);
+#else
+static inline int apply_relocate(Elf_Shdr *sechdrs,
+				 const char *strtab,
+				 unsigned int symindex,
+				 unsigned int relsec,
+				 struct module *me)
+{
+	printk(KERN_ERR "module %s: REL relocation unsupported\n", me->name);
+	return -ENOEXEC;
+}
+#endif
 
-/* Apply the given add relocation to the (simplified) ELF.  Return
-   -error or 0 */
+/*
+ * Apply the given add relocation to the (simplified) ELF.  Return
+ * -error or 0
+ */
+#ifdef CONFIG_MODULES_USE_ELF_RELA
 int apply_relocate_add(Elf_Shdr *sechdrs,
 		       const char *strtab,
 		       unsigned int symindex,
 		       unsigned int relsec,
 		       struct module *mod);
+#else
+static inline int apply_relocate_add(Elf_Shdr *sechdrs,
+				     const char *strtab,
+				     unsigned int symindex,
+				     unsigned int relsec,
+				     struct module *me)
+{
+	printk(KERN_ERR "module %s: REL relocation unsupported\n", me->name);
+	return -ENOEXEC;
+}
+#endif
 
 /* Any final processing of module before access.  Return -error or 0. */
 int module_finalize(const Elf_Ehdr *hdr,

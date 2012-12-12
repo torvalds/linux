@@ -478,7 +478,7 @@ nfsd_idmap_init(struct net *net)
 		goto destroy_idtoname_cache;
 	nn->nametoid_cache = cache_create_net(&nametoid_cache_template, net);
 	if (IS_ERR(nn->nametoid_cache)) {
-		rv = PTR_ERR(nn->idtoname_cache);
+		rv = PTR_ERR(nn->nametoid_cache);
 		goto unregister_idtoname_cache;
 	}
 	rv = cache_register_net(nn->nametoid_cache, net);
@@ -598,7 +598,7 @@ numeric_name_to_id(struct svc_rqst *rqstp, int type, const char *name, u32 namel
 	/* Just to make sure it's null-terminated: */
 	memcpy(buf, name, namelen);
 	buf[namelen] = '\0';
-	ret = kstrtouint(name, 10, id);
+	ret = kstrtouint(buf, 10, id);
 	return ret == 0;
 }
 

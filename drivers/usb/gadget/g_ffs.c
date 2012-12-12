@@ -13,7 +13,6 @@
 #define pr_fmt(fmt) "g_ffs: " fmt
 
 #include <linux/module.h>
-#include <linux/utsname.h>
 
 /*
  * kbuild is not very cooperative with respect to linking separately
@@ -22,12 +21,6 @@
  * the runtime footprint, and giving us at least some parts of what
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
-
-#include "composite.c"
-#include "usbstring.c"
-#include "config.c"
-#include "epautoconf.c"
-
 #if defined CONFIG_USB_FUNCTIONFS_ETH || defined CONFIG_USB_FUNCTIONFS_RNDIS
 #  if defined USB_ETH_RNDIS
 #    undef USB_ETH_RNDIS
@@ -76,6 +69,8 @@ struct gfs_ffs_obj {
 	struct ffs_data *ffs_data;
 };
 
+USB_GADGET_COMPOSITE_OPTIONS();
+
 static struct usb_device_descriptor gfs_dev_desc = {
 	.bLength		= sizeof gfs_dev_desc,
 	.bDescriptorType	= USB_DT_DEVICE,
@@ -117,6 +112,9 @@ static const struct usb_descriptor_header *gfs_otg_desc[] = {
 
 /* String IDs are assigned dynamically */
 static struct usb_string gfs_strings[] = {
+	[USB_GADGET_MANUFACTURER_IDX].s = "",
+	[USB_GADGET_PRODUCT_IDX].s = DRIVER_DESC,
+	[USB_GADGET_SERIAL_IDX].s = "",
 #ifdef CONFIG_USB_FUNCTIONFS_RNDIS
 	{ .s = "FunctionFS + RNDIS" },
 #endif
@@ -163,13 +161,13 @@ static int gfs_bind(struct usb_composite_dev *cdev);
 static int gfs_unbind(struct usb_composite_dev *cdev);
 static int gfs_do_config(struct usb_configuration *c);
 
-static struct usb_composite_driver gfs_driver = {
+static __refdata struct usb_composite_driver gfs_driver = {
 	.name		= DRIVER_NAME,
 	.dev		= &gfs_dev_desc,
 	.strings	= gfs_dev_strings,
 	.max_speed	= USB_SPEED_HIGH,
+	.bind		= gfs_bind,
 	.unbind		= gfs_unbind,
-	.iProduct	= DRIVER_DESC,
 };
 
 static DEFINE_MUTEX(gfs_lock);
@@ -268,7 +266,7 @@ static int functionfs_ready_callback(struct ffs_data *ffs)
 	}
 	gfs_registered = true;
 
-	ret = usb_composite_probe(&gfs_driver, gfs_bind);
+	ret = usb_composite_probe(&gfs_driver);
 	if (unlikely(ret < 0))
 		gfs_registered = false;
 
@@ -357,6 +355,7 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 	ret = usb_string_ids_tab(cdev, gfs_strings);
 	if (unlikely(ret < 0))
 		goto error;
+	gfs_dev_desc.iProduct = gfs_strings[USB_GADGET_PRODUCT_IDX].id;
 
 	for (i = func_num; --i; ) {
 		ret = functionfs_bind(ffs_tab[i].ffs_data, cdev);
@@ -369,9 +368,10 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 
 	for (i = 0; i < ARRAY_SIZE(gfs_configurations); ++i) {
 		struct gfs_configuration *c = gfs_configurations + i;
+		int sid = USB_GADGET_FIRST_AVAIL_IDX + i;
 
-		c->c.label			= gfs_strings[i].s;
-		c->c.iConfiguration		= gfs_strings[i].id;
+		c->c.label			= gfs_strings[sid].s;
+		c->c.iConfiguration		= gfs_strings[sid].id;
 		c->c.bConfigurationValue	= 1 + i;
 		c->c.bmAttributes		= USB_CONFIG_ATT_SELFPOWER;
 
@@ -379,7 +379,7 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 		if (unlikely(ret < 0))
 			goto error_unbind;
 	}
-
+	usb_composite_overwrite_options(cdev, &coverwrite);
 	return 0;
 
 error_unbind:

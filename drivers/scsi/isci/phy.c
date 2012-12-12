@@ -169,7 +169,7 @@ sci_phy_link_layer_initialization(struct isci_phy *iphy,
 	phy_cap.gen1_no_ssc = 1;
 	if (ihost->oem_parameters.controller.do_enable_ssc) {
 		struct scu_afe_registers __iomem *afe = &ihost->scu_registers->afe;
-		struct scu_afe_transceiver *xcvr = &afe->scu_afe_xcvr[phy_idx];
+		struct scu_afe_transceiver __iomem *xcvr = &afe->scu_afe_xcvr[phy_idx];
 		struct isci_pci_info *pci_info = to_pci_info(ihost->pdev);
 		bool en_sas = false;
 		bool en_sata = false;
@@ -1205,6 +1205,7 @@ static void scu_link_layer_start_oob(struct isci_phy *iphy)
 	/** Reset OOB sequence - start */
 	val = readl(&ll->phy_configuration);
 	val &= ~(SCU_SAS_PCFG_GEN_BIT(OOB_RESET) |
+		 SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE) |
 		 SCU_SAS_PCFG_GEN_BIT(HARD_RESET));
 	writel(val, &ll->phy_configuration);
 	readl(&ll->phy_configuration); /* flush */
@@ -1236,6 +1237,7 @@ static void scu_link_layer_tx_hard_reset(
 	 * to the starting state. */
 	phy_configuration_value =
 		readl(&iphy->link_layer_registers->phy_configuration);
+	phy_configuration_value &= ~(SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE));
 	phy_configuration_value |=
 		(SCU_SAS_PCFG_GEN_BIT(HARD_RESET) |
 		 SCU_SAS_PCFG_GEN_BIT(OOB_RESET));

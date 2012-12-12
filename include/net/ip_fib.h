@@ -102,6 +102,7 @@ struct fib_info {
 	unsigned char		fib_dead;
 	unsigned char		fib_protocol;
 	unsigned char		fib_scope;
+	unsigned char		fib_type;
 	__be32			fib_prefsrc;
 	u32			fib_priority;
 	u32			*fib_metrics;

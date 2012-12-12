@@ -54,13 +54,13 @@ asmlinkage long microblaze_execve(const char __user *filenamei,
 				  struct pt_regs *regs)
 {
 	int error;
-	char *filename;
+	struct filename *filename;
 
 	filename = getname(filenamei);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = do_execve(filename, argv, envp, regs);
+	error = do_execve(filename->name, argv, envp, regs);
 	putname(filename);
 out:
 	return error;

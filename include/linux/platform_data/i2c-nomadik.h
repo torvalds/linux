@@ -28,7 +28,7 @@ enum i2c_freq_mode {
  * @sm:		speed mode
  */
 struct nmk_i2c_controller {
-	unsigned long	clk_freq;
+	u32             clk_freq;
 	unsigned short	slsu;
 	unsigned char	tft;
 	unsigned char	rft;

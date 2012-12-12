@@ -16,6 +16,7 @@ config MICROBLAZE
 	select OF
 	select OF_EARLY_FLATTREE
 	select ARCH_WANT_IPC_PARSE_VERSION
+	select HAVE_DEBUG_KMEMLEAK
 	select IRQ_DOMAIN
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_PROBE
@@ -24,6 +25,7 @@ config MICROBLAZE
 	select GENERIC_CPU_DEVICES
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS
+	select MODULES_USE_ELF_RELA
 
 config SWAP
 	def_bool n
@@ -243,14 +245,11 @@ choice
 config MICROBLAZE_4K_PAGES
 	bool "4k page size"
 
-config MICROBLAZE_8K_PAGES
-	bool "8k page size"
-
 config MICROBLAZE_16K_PAGES
 	bool "16k page size"
 
-config MICROBLAZE_32K_PAGES
-	bool "32k page size"
+config MICROBLAZE_64K_PAGES
+	bool "64k page size"
 
 endchoice
 

@@ -31,8 +31,8 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include "drmP.h"
-#include "drm_edid.h"
+#include <drm/drmP.h>
+#include <drm/drm_edid.h>
 #include "drm_edid_modes.h"
 
 #define version_greater(edid, maj, min) \
@@ -161,7 +161,7 @@ MODULE_PARM_DESC(edid_fixup,
  * Sanity check the EDID block (base or extension).  Return 0 if the block
  * doesn't check out, or 1 if it's valid.
  */
-bool drm_edid_block_valid(u8 *raw_edid, int block)
+bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid)
 {
 	int i;
 	u8 csum = 0;
@@ -184,7 +184,9 @@ bool drm_edid_block_valid(u8 *raw_edid, int block)
 	for (i = 0; i < EDID_LENGTH; i++)
 		csum += raw_edid[i];
 	if (csum) {
-		DRM_ERROR("EDID checksum is invalid, remainder is %d\n", csum);
+		if (print_bad_edid) {
+			DRM_ERROR("EDID checksum is invalid, remainder is %d\n", csum);
+		}
 
 		/* allow CEA to slide through, switches mangle this */
 		if (raw_edid[0] != 0x02)
@@ -210,7 +212,7 @@ bool drm_edid_block_valid(u8 *raw_edid, int block)
 	return 1;
 
 bad:
-	if (raw_edid) {
+	if (raw_edid && print_bad_edid) {
 		printk(KERN_ERR "Raw EDID:\n");
 		print_hex_dump(KERN_ERR, " \t", DUMP_PREFIX_NONE, 16, 1,
 			       raw_edid, EDID_LENGTH, false);
@@ -234,7 +236,7 @@ bool drm_edid_is_valid(struct edid *edid)
 		return false;
 
 	for (i = 0; i <= edid->extensions; i++)
-		if (!drm_edid_block_valid(raw + i * EDID_LENGTH, i))
+		if (!drm_edid_block_valid(raw + i * EDID_LENGTH, i, true))
 			return false;
 
 	return true;
@@ -257,6 +259,8 @@ drm_do_probe_ddc_edid(struct i2c_adapter *adapter, unsigned char *buf,
 		      int block, int len)
 {
 	unsigned char start = block * EDID_LENGTH;
+	unsigned char segment = block >> 1;
+	unsigned char xfers = segment ? 3 : 2;
 	int ret, retries = 5;
 
 	/* The core i2c driver will automatically retry the transfer if the
@@ -268,6 +272,11 @@ drm_do_probe_ddc_edid(struct i2c_adapter *adapter, unsigned char *buf,
 	do {
 		struct i2c_msg msgs[] = {
 			{
+				.addr	= DDC_SEGMENT_ADDR,
+				.flags	= 0,
+				.len	= 1,
+				.buf	= &segment,
+			}, {
 				.addr	= DDC_ADDR,
 				.flags	= 0,
 				.len	= 1,
@@ -279,15 +288,21 @@ drm_do_probe_ddc_edid(struct i2c_adapter *adapter, unsigned char *buf,
 				.buf	= buf,
 			}
 		};
-		ret = i2c_transfer(adapter, msgs, 2);
+
+	/*
+	 * Avoid sending the segment addr to not upset non-compliant ddc
+	 * monitors.
+	 */
+		ret = i2c_transfer(adapter, &msgs[3 - xfers], xfers);
+
 		if (ret == -ENXIO) {
 			DRM_DEBUG_KMS("drm: skipping non-existent adapter %s\n",
 					adapter->name);
 			break;
 		}
-	} while (ret != 2 && --retries);
+	} while (ret != xfers && --retries);
 
-	return ret == 2 ? 0 : -1;
+	return ret == xfers ? 0 : -1;
 }
 
 static bool drm_edid_is_zero(u8 *in_edid, int length)
@@ -306,6 +321,7 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 {
 	int i, j = 0, valid_extensions = 0;
 	u8 *block, *new;
+	bool print_bad_edid = !connector->bad_edid_counter || (drm_debug & DRM_UT_KMS);
 
 	if ((block = kmalloc(EDID_LENGTH, GFP_KERNEL)) == NULL)
 		return NULL;
@@ -314,7 +330,7 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 	for (i = 0; i < 4; i++) {
 		if (drm_do_probe_ddc_edid(adapter, block, 0, EDID_LENGTH))
 			goto out;
-		if (drm_edid_block_valid(block, 0))
+		if (drm_edid_block_valid(block, 0, print_bad_edid))
 			break;
 		if (i == 0 && drm_edid_is_zero(block, EDID_LENGTH)) {
 			connector->null_edid_counter++;
@@ -339,7 +355,7 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 				  block + (valid_extensions + 1) * EDID_LENGTH,
 				  j, EDID_LENGTH))
 				goto out;
-			if (drm_edid_block_valid(block + (valid_extensions + 1) * EDID_LENGTH, j)) {
+			if (drm_edid_block_valid(block + (valid_extensions + 1) * EDID_LENGTH, j, print_bad_edid)) {
 				valid_extensions++;
 				break;
 			}
@@ -362,8 +378,11 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 	return block;
 
 carp:
-	dev_warn(connector->dev->dev, "%s: EDID block %d invalid.\n",
-		 drm_get_connector_name(connector), j);
+	if (print_bad_edid) {
+		dev_warn(connector->dev->dev, "%s: EDID block %d invalid.\n",
+			 drm_get_connector_name(connector), j);
+	}
+	connector->bad_edid_counter++;
 
 out:
 	kfree(block);
@@ -376,13 +395,14 @@ out:
  * \param adapter : i2c device adaptor
  * \return 1 on success
  */
-static bool
+bool
 drm_probe_ddc(struct i2c_adapter *adapter)
 {
 	unsigned char out;
 
 	return (drm_do_probe_ddc_edid(adapter, &out, 0, 1) == 0);
 }
+EXPORT_SYMBOL(drm_probe_ddc);
 
 /**
  * drm_get_edid - get EDID data, if available
@@ -402,10 +422,7 @@ struct edid *drm_get_edid(struct drm_connector *connector,
 	if (drm_probe_ddc(adapter))
 		edid = (struct edid *)drm_do_get_edid(connector, adapter);
 
-	connector->display_info.raw_edid = (char *)edid;
-
 	return edid;
-
 }
 EXPORT_SYMBOL(drm_get_edid);
 
@@ -1523,16 +1540,57 @@ do_cea_modes (struct drm_connector *connector, u8 *db, u8 len)
 }
 
 static int
+cea_db_payload_len(const u8 *db)
+{
+	return db[0] & 0x1f;
+}
+
+static int
+cea_db_tag(const u8 *db)
+{
+	return db[0] >> 5;
+}
+
+static int
+cea_revision(const u8 *cea)
+{
+	return cea[1];
+}
+
+static int
+cea_db_offsets(const u8 *cea, int *start, int *end)
+{
+	/* Data block offset in CEA extension block */
+	*start = 4;
+	*end = cea[2];
+	if (*end == 0)
+		*end = 127;
+	if (*end < 4 || *end > 127)
+		return -ERANGE;
+	return 0;
+}
+
+#define for_each_cea_db(cea, i, start, end) \
+	for ((i) = (start); (i) < (end) && (i) + cea_db_payload_len(&(cea)[(i)]) < (end); (i) += cea_db_payload_len(&(cea)[(i)]) + 1)
+
+static int
 add_cea_modes(struct drm_connector *connector, struct edid *edid)
 {
 	u8 * cea = drm_find_cea_extension(edid);
 	u8 * db, dbl;
 	int modes = 0;
 
-	if (cea && cea[1] >= 3) {
-		for (db = cea + 4; db < cea + cea[2]; db += dbl + 1) {
-			dbl = db[0] & 0x1f;
-			if (((db[0] & 0xe0) >> 5) == VIDEO_BLOCK)
+	if (cea && cea_revision(cea) >= 3) {
+		int i, start, end;
+
+		if (cea_db_offsets(cea, &start, &end))
+			return 0;
+
+		for_each_cea_db(cea, i, start, end) {
+			db = &cea[i];
+			dbl = cea_db_payload_len(db);
+
+			if (cea_db_tag(db) == VIDEO_BLOCK)
 				modes += do_cea_modes (connector, db+1, dbl);
 		}
 	}
@@ -1541,19 +1599,28 @@ add_cea_modes(struct drm_connector *connector, struct edid *edid)
 }
 
 static void
-parse_hdmi_vsdb(struct drm_connector *connector, uint8_t *db)
+parse_hdmi_vsdb(struct drm_connector *connector, const u8 *db)
 {
-	connector->eld[5] |= (db[6] >> 7) << 1;  /* Supports_AI */
+	u8 len = cea_db_payload_len(db);
 
-	connector->dvi_dual = db[6] & 1;
-	connector->max_tmds_clock = db[7] * 5;
-
-	connector->latency_present[0] = db[8] >> 7;
-	connector->latency_present[1] = (db[8] >> 6) & 1;
-	connector->video_latency[0] = db[9];
-	connector->audio_latency[0] = db[10];
-	connector->video_latency[1] = db[11];
-	connector->audio_latency[1] = db[12];
+	if (len >= 6) {
+		connector->eld[5] |= (db[6] >> 7) << 1;  /* Supports_AI */
+		connector->dvi_dual = db[6] & 1;
+	}
+	if (len >= 7)
+		connector->max_tmds_clock = db[7] * 5;
+	if (len >= 8) {
+		connector->latency_present[0] = db[8] >> 7;
+		connector->latency_present[1] = (db[8] >> 6) & 1;
+	}
+	if (len >= 9)
+		connector->video_latency[0] = db[9];
+	if (len >= 10)
+		connector->audio_latency[0] = db[10];
+	if (len >= 11)
+		connector->video_latency[1] = db[11];
+	if (len >= 12)
+		connector->audio_latency[1] = db[12];
 
 	DRM_LOG_KMS("HDMI: DVI dual %d, "
 		    "max TMDS clock %d, "
@@ -1575,6 +1642,21 @@ monitor_name(struct detailed_timing *t, void *data)
 {
 	if (t->data.other_data.type == EDID_DETAIL_MONITOR_NAME)
 		*(u8 **)data = t->data.other_data.data.str.str;
+}
+
+static bool cea_db_is_hdmi_vsdb(const u8 *db)
+{
+	int hdmi_id;
+
+	if (cea_db_tag(db) != VENDOR_BLOCK)
+		return false;
+
+	if (cea_db_payload_len(db) < 5)
+		return false;
+
+	hdmi_id = db[1] | (db[2] << 8) | (db[3] << 16);
+
+	return hdmi_id == HDMI_IDENTIFIER;
 }
 
 /**
@@ -1623,29 +1705,40 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 	eld[18] = edid->prod_code[0];
 	eld[19] = edid->prod_code[1];
 
-	if (cea[1] >= 3)
-		for (db = cea + 4; db < cea + cea[2]; db += dbl + 1) {
-			dbl = db[0] & 0x1f;
-			
-			switch ((db[0] & 0xe0) >> 5) {
+	if (cea_revision(cea) >= 3) {
+		int i, start, end;
+
+		if (cea_db_offsets(cea, &start, &end)) {
+			start = 0;
+			end = 0;
+		}
+
+		for_each_cea_db(cea, i, start, end) {
+			db = &cea[i];
+			dbl = cea_db_payload_len(db);
+
+			switch (cea_db_tag(db)) {
 			case AUDIO_BLOCK:
 				/* Audio Data Block, contains SADs */
 				sad_count = dbl / 3;
-				memcpy(eld + 20 + mnl, &db[1], dbl);
+				if (dbl >= 1)
+					memcpy(eld + 20 + mnl, &db[1], dbl);
 				break;
 			case SPEAKER_BLOCK:
-                                /* Speaker Allocation Data Block */
-				eld[7] = db[1];
+				/* Speaker Allocation Data Block */
+				if (dbl >= 1)
+					eld[7] = db[1];
 				break;
 			case VENDOR_BLOCK:
 				/* HDMI Vendor-Specific Data Block */
-				if (db[1] == 0x03 && db[2] == 0x0c && db[3] == 0)
+				if (cea_db_is_hdmi_vsdb(db))
 					parse_hdmi_vsdb(connector, db);
 				break;
 			default:
 				break;
 			}
 		}
+	}
 	eld[5] |= sad_count << 4;
 	eld[2] = (20 + mnl + sad_count * 3 + 3) / 4;
 
@@ -1723,38 +1816,26 @@ EXPORT_SYMBOL(drm_select_eld);
 bool drm_detect_hdmi_monitor(struct edid *edid)
 {
 	u8 *edid_ext;
-	int i, hdmi_id;
+	int i;
 	int start_offset, end_offset;
-	bool is_hdmi = false;
 
 	edid_ext = drm_find_cea_extension(edid);
 	if (!edid_ext)
-		goto end;
+		return false;
 
-	/* Data block offset in CEA extension block */
-	start_offset = 4;
-	end_offset = edid_ext[2];
+	if (cea_db_offsets(edid_ext, &start_offset, &end_offset))
+		return false;
 
 	/*
 	 * Because HDMI identifier is in Vendor Specific Block,
 	 * search it from all data blocks of CEA extension.
 	 */
-	for (i = start_offset; i < end_offset;
-		/* Increased by data block len */
-		i += ((edid_ext[i] & 0x1f) + 1)) {
-		/* Find vendor specific block */
-		if ((edid_ext[i] >> 5) == VENDOR_BLOCK) {
-			hdmi_id = edid_ext[i + 1] | (edid_ext[i + 2] << 8) |
-				  edid_ext[i + 3] << 16;
-			/* Find HDMI identifier */
-			if (hdmi_id == HDMI_IDENTIFIER)
-				is_hdmi = true;
-			break;
-		}
+	for_each_cea_db(edid_ext, i, start_offset, end_offset) {
+		if (cea_db_is_hdmi_vsdb(&edid_ext[i]))
+			return true;
 	}
 
-end:
-	return is_hdmi;
+	return false;
 }
 EXPORT_SYMBOL(drm_detect_hdmi_monitor);
 
@@ -1786,15 +1867,13 @@ bool drm_detect_monitor_audio(struct edid *edid)
 		goto end;
 	}
 
-	/* Data block offset in CEA extension block */
-	start_offset = 4;
-	end_offset = edid_ext[2];
+	if (cea_db_offsets(edid_ext, &start_offset, &end_offset))
+		goto end;
 
-	for (i = start_offset; i < end_offset;
-			i += ((edid_ext[i] & 0x1f) + 1)) {
-		if ((edid_ext[i] >> 5) == AUDIO_BLOCK) {
+	for_each_cea_db(edid_ext, i, start_offset, end_offset) {
+		if (cea_db_tag(&edid_ext[i]) == AUDIO_BLOCK) {
 			has_audio = true;
-			for (j = 1; j < (edid_ext[i] & 0x1f); j += 3)
+			for (j = 1; j < cea_db_payload_len(&edid_ext[i]) + 1; j += 3)
 				DRM_DEBUG_KMS("CEA audio format %d\n",
 					      (edid_ext[i + j] >> 3) & 0xf);
 			goto end;

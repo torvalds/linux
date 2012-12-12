@@ -38,4 +38,9 @@ extern struct kmem_cache *lio_cmd_cache;
 extern struct kmem_cache *lio_qr_cache;
 extern struct kmem_cache *lio_r2t_cache;
 
+extern struct idr sess_idr;
+extern struct mutex auth_id_lock;
+extern spinlock_t sess_idr_lock;
+
+
 #endif   /*** ISCSI_TARGET_H ***/

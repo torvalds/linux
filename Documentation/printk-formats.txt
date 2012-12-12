@@ -69,6 +69,7 @@ MAC/FDDI addresses:
 	%pMR	05:04:03:02:01:00
 	%pMF	00-01-02-03-04-05
 	%pm	000102030405
+	%pmR	050403020100
 
 	For printing 6-byte MAC/FDDI addresses in hex notation. The 'M' and 'm'
 	specifiers result in a printed address with ('M') or without ('m') byte

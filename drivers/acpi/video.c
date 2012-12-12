@@ -1345,12 +1345,15 @@ static int
 acpi_video_bus_get_devices(struct acpi_video_bus *video,
 			   struct acpi_device *device)
 {
-	int status;
+	int status = 0;
 	struct acpi_device *dev;
 
-	status = acpi_video_device_enumerate(video);
-	if (status)
-		return status;
+	/*
+	 * There are systems where video module known to work fine regardless
+	 * of broken _DOD and ignoring returned value here doesn't cause
+	 * any issues later.
+	 */
+	acpi_video_device_enumerate(video);
 
 	list_for_each_entry(dev, &device->children, node) {
 
@@ -1448,8 +1451,7 @@ static void acpi_video_bus_notify(struct acpi_device *device, u32 event)
 	case ACPI_VIDEO_NOTIFY_SWITCH:	/* User requested a switch,
 					 * most likely via hotkey. */
 		acpi_bus_generate_proc_event(device, event, 0);
-		if (!acpi_notifier_call_chain(device, event, 0))
-			keycode = KEY_SWITCHVIDEOMODE;
+		keycode = KEY_SWITCHVIDEOMODE;
 		break;
 
 	case ACPI_VIDEO_NOTIFY_PROBE:	/* User plugged in or removed a video
@@ -1479,8 +1481,9 @@ static void acpi_video_bus_notify(struct acpi_device *device, u32 event)
 		break;
 	}
 
-	if (event != ACPI_VIDEO_NOTIFY_SWITCH)
-		acpi_notifier_call_chain(device, event, 0);
+	if (acpi_notifier_call_chain(device, event, 0))
+		/* Something vetoed the keypress. */
+		keycode = 0;
 
 	if (keycode) {
 		input_report_key(input, keycode, 1);

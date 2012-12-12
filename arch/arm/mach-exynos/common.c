@@ -47,6 +47,7 @@
 #include <plat/fimc-core.h>
 #include <plat/iic-core.h>
 #include <plat/tv-core.h>
+#include <plat/spi-core.h>
 #include <plat/regs-serial.h>
 
 #include "common.h"
@@ -346,6 +347,8 @@ static void __init exynos4_map_io(void)
 
 	s5p_fb_setname(0, "exynos4-fb");
 	s5p_hdmi_setname("exynos4-hdmi");
+
+	s3c64xx_spi_setname("exynos4210-spi");
 }
 
 static void __init exynos5_map_io(void)
@@ -366,6 +369,8 @@ static void __init exynos5_map_io(void)
 	s3c_i2c0_setname("s3c2440-i2c");
 	s3c_i2c1_setname("s3c2440-i2c");
 	s3c_i2c2_setname("s3c2440-i2c");
+
+	s3c64xx_spi_setname("exynos4210-spi");
 }
 
 static void __init exynos4_init_clocks(int xtal)
@@ -979,6 +984,32 @@ static void exynos_irq_eint0_15(unsigned int irq, struct irq_desc *desc)
 static int __init exynos_init_irq_eint(void)
 {
 	int irq;
+
+#ifdef CONFIG_PINCTRL_SAMSUNG
+	/*
+	 * The Samsung pinctrl driver provides an integrated gpio/pinmux/pinconf
+	 * functionality along with support for external gpio and wakeup
+	 * interrupts. If the samsung pinctrl driver is enabled and includes
+	 * the wakeup interrupt support, then the setting up external wakeup
+	 * interrupts here can be skipped. This check here is temporary to
+	 * allow exynos4 platforms that do not use Samsung pinctrl driver to
+	 * co-exist with platforms that do. When all of the Samsung Exynos4
+	 * platforms switch over to using the pinctrl driver, the wakeup
+	 * interrupt support code here can be completely removed.
+	 */
+	struct device_node *pctrl_np, *wkup_np;
+	const char *pctrl_compat = "samsung,pinctrl-exynos4210";
+	const char *wkup_compat = "samsung,exynos4210-wakeup-eint";
+
+	for_each_compatible_node(pctrl_np, NULL, pctrl_compat) {
+		if (of_device_is_available(pctrl_np)) {
+			wkup_np = of_find_compatible_node(pctrl_np, NULL,
+							wkup_compat);
+			if (wkup_np)
+				return -ENODEV;
+		}
+	}
+#endif
 
 	if (soc_is_exynos5250())
 		exynos_eint_base = ioremap(EXYNOS5_PA_GPIO1, SZ_4K);

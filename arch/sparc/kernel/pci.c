@@ -779,7 +779,7 @@ static int __pci_mmap_make_offset(struct pci_dev *pdev,
 static void __pci_mmap_set_flags(struct pci_dev *dev, struct vm_area_struct *vma,
 					    enum pci_mmap_state mmap_state)
 {
-	vma->vm_flags |= (VM_IO | VM_RESERVED);
+	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
 }
 
 /* Set vm_page_prot of VMA, as appropriate for this architecture, for a pci

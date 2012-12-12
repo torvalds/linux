@@ -192,7 +192,6 @@ static int mpc8610_hpcd_probe(struct platform_device *pdev)
 		container_of(dev, struct platform_device, dev);
 	struct device_node *np = ssi_pdev->dev.of_node;
 	struct device_node *codec_np = NULL;
-	struct platform_device *sound_device = NULL;
 	struct mpc8610_hpcd_data *machine_data;
 	int ret = -ENODEV;
 	const char *sprop;
@@ -341,34 +340,22 @@ static int mpc8610_hpcd_probe(struct platform_device *pdev)
 	machine_data->card.probe = mpc8610_hpcd_machine_probe;
 	machine_data->card.remove = mpc8610_hpcd_machine_remove;
 	machine_data->card.name = pdev->name; /* The platform driver name */
+	machine_data->card.owner = THIS_MODULE;
+	machine_data->card.dev = &pdev->dev;
 	machine_data->card.num_links = 2;
 	machine_data->card.dai_link = machine_data->dai;
 
-	/* Allocate a new audio platform device structure */
-	sound_device = platform_device_alloc("soc-audio", -1);
-	if (!sound_device) {
-		dev_err(&pdev->dev, "platform device alloc failed\n");
-		ret = -ENOMEM;
+	/* Register with ASoC */
+	ret = snd_soc_register_card(&machine_data->card);
+	if (ret) {
+		dev_err(&pdev->dev, "could not register card\n");
 		goto error;
 	}
-
-	/* Associate the card data with the sound device */
-	platform_set_drvdata(sound_device, &machine_data->card);
-
-	/* Register with ASoC */
-	ret = platform_device_add(sound_device);
-	if (ret) {
-		dev_err(&pdev->dev, "platform device add failed\n");
-		goto error_sound;
-	}
-	dev_set_drvdata(&pdev->dev, sound_device);
 
 	of_node_put(codec_np);
 
 	return 0;
 
-error_sound:
-	platform_device_put(sound_device);
 error:
 	kfree(machine_data);
 error_alloc:
@@ -383,17 +370,12 @@ error_alloc:
  */
 static int __devexit mpc8610_hpcd_remove(struct platform_device *pdev)
 {
-	struct platform_device *sound_device = dev_get_drvdata(&pdev->dev);
-	struct snd_soc_card *card = platform_get_drvdata(sound_device);
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct mpc8610_hpcd_data *machine_data =
 		container_of(card, struct mpc8610_hpcd_data, card);
 
-	platform_device_unregister(sound_device);
-
+	snd_soc_unregister_card(card);
 	kfree(machine_data);
-	sound_device->dev.platform_data = NULL;
-
-	dev_set_drvdata(&pdev->dev, NULL);
 
 	return 0;
 }

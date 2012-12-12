@@ -80,7 +80,7 @@ define_machine(p2041_rdb) {
 	.power_save		= e500_idle,
 };
 
-machine_device_initcall(p2041_rdb, corenet_ds_publish_devices);
+machine_arch_initcall(p2041_rdb, corenet_ds_publish_devices);
 
 #ifdef CONFIG_SWIOTLB
 machine_arch_initcall(p2041_rdb, swiotlb_setup_bus_notifier);

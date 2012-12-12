@@ -101,10 +101,8 @@ struct inet_cork {
 	__be32			addr;
 	struct ip_options	*opt;
 	unsigned int		fragsize;
-	struct dst_entry	*dst;
 	int			length; /* Total length of all frames */
-	struct page		*page;
-	u32			off;
+	struct dst_entry	*dst;
 	u8			tx_flags;
 };
 

@@ -58,10 +58,10 @@
 #ifndef __CVMX_PKO_H__
 #define __CVMX_PKO_H__
 
-#include "cvmx-fpa.h"
-#include "cvmx-pow.h"
-#include "cvmx-cmd-queue.h"
-#include "cvmx-pko-defs.h"
+#include <asm/octeon/cvmx-fpa.h>
+#include <asm/octeon/cvmx-pow.h>
+#include <asm/octeon/cvmx-cmd-queue.h>
+#include <asm/octeon/cvmx-pko-defs.h>
 
 /* Adjust the command buffer size by 1 word so that in the case of using only
  * two word PKO commands no command words stradle buffers.  The useful values

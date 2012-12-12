@@ -346,11 +346,10 @@ static int usb6fire_fw_check(u8 *version)
 		if (!memcmp(version, known_fw_versions + i, 4))
 			return 0;
 
-	snd_printk(KERN_ERR PREFIX "invalid fimware version in device: "
-			"%02x %02x %02x %02x. "
+	snd_printk(KERN_ERR PREFIX "invalid fimware version in device: %*ph. "
 			"please reconnect to power. if this failure "
 			"still happens, check your firmware installation.",
-			version[0], version[1], version[2], version[3]);
+			4, version);
 	return -EINVAL;
 }
 

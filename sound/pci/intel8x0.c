@@ -1541,6 +1541,26 @@ static int __devinit snd_intel8x0_pcm1(struct intel8x0 *chip, int device,
 					      snd_dma_pci_data(chip->pci),
 					      rec->prealloc_size, rec->prealloc_max_size);
 
+	if (rec->ac97_idx == ICHD_PCMOUT && rec->playback_ops) {
+		struct snd_pcm_chmap *chmap;
+		int chs = 2;
+		if (rec->ac97_idx == ICHD_PCMOUT) {
+			if (chip->multi8)
+				chs = 8;
+			else if (chip->multi6)
+				chs = 6;
+			else if (chip->multi4)
+				chs = 4;
+		}
+		err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+					     snd_pcm_alt_chmaps, chs, 0,
+					     &chmap);
+		if (err < 0)
+			return err;
+		chmap->channel_mask = SND_PCM_CHMAP_MASK_2468;
+		chip->ac97[0]->chmaps[SNDRV_PCM_STREAM_PLAYBACK] = chmap;
+	}
+
 	return 0;
 }
 
@@ -2206,7 +2226,7 @@ static int __devinit snd_intel8x0_mixer(struct intel8x0 *chip, int ac97_clock,
 		case DEVICE_INTEL_ICH4:
 			chip->spdif_idx = ICHD_SPBAR;
 			break;
-		};
+		}
 	}
 
 	chip->in_ac97_init = 1;
@@ -2620,7 +2640,7 @@ static int snd_intel8x0_free(struct intel8x0 *chip)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /*
  * power management
  */
@@ -2741,7 +2761,7 @@ static SIMPLE_DEV_PM_OPS(intel8x0_pm, intel8x0_suspend, intel8x0_resume);
 #define INTEL8X0_PM_OPS	&intel8x0_pm
 #else
 #define INTEL8X0_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 #define INTEL8X0_TESTBUF_SIZE	32768	/* enough large for one shot */
 

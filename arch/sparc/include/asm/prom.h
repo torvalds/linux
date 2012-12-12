@@ -63,5 +63,10 @@ extern char *of_console_options;
 extern void irq_trans_init(struct device_node *dp);
 extern char *build_path_component(struct device_node *dp);
 
+/* SPARC has a local implementation */
+extern int of_address_to_resource(struct device_node *dev, int index,
+				  struct resource *r);
+#define of_address_to_resource of_address_to_resource
+
 #endif /* __KERNEL__ */
 #endif /* _SPARC_PROM_H */

@@ -344,7 +344,7 @@ static const struct ide_port_ops ich_port_ops = {
 		.udma_mask	= udma, \
 	}
 
-static const struct ide_port_info piix_pci_info[] __devinitdata = {
+static const struct ide_port_info piix_pci_info[] __devinitconst = {
 	/* 0: MPIIX */
 	{	/*
 		 * MPIIX actually has only a single IDE channel mapped to

@@ -1,11 +1,8 @@
 #ifndef _LINUX_SIGNAL_H
 #define _LINUX_SIGNAL_H
 
-#include <asm/signal.h>
-#include <asm/siginfo.h>
-
-#ifdef __KERNEL__
 #include <linux/list.h>
+#include <uapi/linux/signal.h>
 
 struct task_struct;
 
@@ -387,7 +384,5 @@ int unhandled_signal(struct task_struct *tsk, int sig);
 	 (t)->sighand->action[(signr)-1].sa.sa_handler == SIG_DFL)
 
 void signals_init(void);
-
-#endif /* __KERNEL__ */
 
 #endif /* _LINUX_SIGNAL_H */

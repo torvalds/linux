@@ -365,6 +365,12 @@ void b43_radio_set(struct b43_wldev *dev, u16 offset, u16 set);
 void b43_radio_maskset(struct b43_wldev *dev, u16 offset, u16 mask, u16 set);
 
 /**
+ * b43_radio_wait_value - Waits for a given value in masked register read
+ */
+bool b43_radio_wait_value(struct b43_wldev *dev, u16 offset, u16 mask,
+			  u16 value, int delay, int timeout);
+
+/**
  * b43_radio_lock - Lock firmware radio register access
  */
 void b43_radio_lock(struct b43_wldev *dev);

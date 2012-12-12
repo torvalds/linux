@@ -373,7 +373,7 @@ config MTD_FORTUNET
 	  have such a board, say 'Y'.
 
 config MTD_AUTCPU12
-	tristate "NV-RAM mapping AUTCPU12 board"
+	bool "NV-RAM mapping AUTCPU12 board"
 	depends on ARCH_AUTCPU12
 	help
 	  This enables access to the NV-RAM on autronix autcpu12 board.
@@ -443,21 +443,9 @@ config MTD_GPIO_ADDR
 
 config MTD_UCLINUX
 	bool "Generic uClinux RAM/ROM filesystem support"
-	depends on MTD_RAM=y && !MMU
+	depends on MTD_RAM=y && (!MMU || COLDFIRE)
 	help
 	  Map driver to support image based filesystems for uClinux.
-
-config MTD_WRSBC8260
-	tristate "Map driver for WindRiver PowerQUICC II MPC82xx board"
-	depends on (SBC82xx || SBC8560)
-	select MTD_MAP_BANK_WIDTH_4
-	select MTD_MAP_BANK_WIDTH_1
-	select MTD_CFI_I1
-	select MTD_CFI_I4
-	help
-	  Map driver for WindRiver PowerQUICC II MPC82xx board. Drives
-	  all three flash regions on CS0, CS1 and CS6 if they are configured
-	  correctly by the boot loader.
 
 config MTD_DMV182
         tristate "Map driver for Dy-4 SVME/DMV-182 board."

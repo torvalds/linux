@@ -85,12 +85,14 @@ struct soc_camera_host_ops {
 	void (*put_formats)(struct soc_camera_device *);
 	int (*cropcap)(struct soc_camera_device *, struct v4l2_cropcap *);
 	int (*get_crop)(struct soc_camera_device *, struct v4l2_crop *);
-	int (*set_crop)(struct soc_camera_device *, struct v4l2_crop *);
+	int (*set_crop)(struct soc_camera_device *, const struct v4l2_crop *);
+	int (*get_selection)(struct soc_camera_device *, struct v4l2_selection *);
+	int (*set_selection)(struct soc_camera_device *, struct v4l2_selection *);
 	/*
 	 * The difference to .set_crop() is, that .set_livecrop is not allowed
 	 * to change the output sizes
 	 */
-	int (*set_livecrop)(struct soc_camera_device *, struct v4l2_crop *);
+	int (*set_livecrop)(struct soc_camera_device *, const struct v4l2_crop *);
 	int (*set_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	int (*try_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	void (*init_videobuf)(struct videobuf_queue *,
@@ -253,6 +255,16 @@ unsigned long soc_camera_apply_sensor_flags(struct soc_camera_link *icl,
 					    unsigned long flags);
 unsigned long soc_camera_apply_board_flags(struct soc_camera_link *icl,
 					   const struct v4l2_mbus_config *cfg);
+
+int soc_camera_power_on(struct device *dev, struct soc_camera_link *icl);
+int soc_camera_power_off(struct device *dev, struct soc_camera_link *icl);
+
+static inline int soc_camera_set_power(struct device *dev,
+				       struct soc_camera_link *icl, bool on)
+{
+	return on ? soc_camera_power_on(dev, icl)
+		  : soc_camera_power_off(dev, icl);
+}
 
 /* This is only temporary here - until v4l2-subdev begins to link to video_device */
 #include <linux/i2c.h>

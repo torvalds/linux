@@ -194,7 +194,7 @@ static void rt2x00lib_bc_buffer_iter(void *data, u8 *mac,
 	 */
 	skb = ieee80211_get_buffered_bc(rt2x00dev->hw, vif);
 	while (skb) {
-		rt2x00mac_tx(rt2x00dev->hw, skb);
+		rt2x00mac_tx(rt2x00dev->hw, NULL, skb);
 		skb = ieee80211_get_buffered_bc(rt2x00dev->hw, vif);
 	}
 }
@@ -1118,12 +1118,45 @@ void rt2x00lib_stop(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->intf_associated = 0;
 }
 
+static inline void rt2x00lib_set_if_combinations(struct rt2x00_dev *rt2x00dev)
+{
+	struct ieee80211_iface_limit *if_limit;
+	struct ieee80211_iface_combination *if_combination;
+
+	/*
+	 * Build up AP interface limits structure.
+	 */
+	if_limit = &rt2x00dev->if_limits_ap;
+	if_limit->max = rt2x00dev->ops->max_ap_intf;
+	if_limit->types = BIT(NL80211_IFTYPE_AP);
+
+	/*
+	 * Build up AP interface combinations structure.
+	 */
+	if_combination = &rt2x00dev->if_combinations[IF_COMB_AP];
+	if_combination->limits = if_limit;
+	if_combination->n_limits = 1;
+	if_combination->max_interfaces = if_limit->max;
+	if_combination->num_different_channels = 1;
+
+	/*
+	 * Finally, specify the possible combinations to mac80211.
+	 */
+	rt2x00dev->hw->wiphy->iface_combinations = rt2x00dev->if_combinations;
+	rt2x00dev->hw->wiphy->n_iface_combinations = 1;
+}
+
 /*
  * driver allocation handlers.
  */
 int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 {
 	int retval = -ENOMEM;
+
+	/*
+	 * Set possible interface combinations.
+	 */
+	rt2x00lib_set_if_combinations(rt2x00dev);
 
 	/*
 	 * Allocate the driver data memory, if necessary.

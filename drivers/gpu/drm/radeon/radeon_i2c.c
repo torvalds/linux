@@ -25,9 +25,9 @@
  */
 #include <linux/export.h>
 
-#include "drmP.h"
-#include "drm_edid.h"
-#include "radeon_drm.h"
+#include <drm/drmP.h>
+#include <drm/drm_edid.h>
+#include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "atom.h"
 

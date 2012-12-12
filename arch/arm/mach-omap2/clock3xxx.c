@@ -21,9 +21,9 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <plat/hardware.h>
 #include <plat/clock.h>
 
+#include "soc.h"
 #include "clock.h"
 #include "clock3xxx.h"
 #include "prm2xxx_3xxx.h"
@@ -49,8 +49,7 @@ int omap3_dpll4_set_rate(struct clk *clk, unsigned long rate)
 	 * on DPLL4.
 	 */
 	if (omap_rev() == OMAP3430_REV_ES1_0) {
-		pr_err("clock: DPLL4 cannot change rate due to "
-		       "silicon 'Limitation 2.5' on 3430ES1.\n");
+		pr_err("clock: DPLL4 cannot change rate due to silicon 'Limitation 2.5' on 3430ES1.\n");
 		return -EINVAL;
 	}
 
@@ -64,15 +63,15 @@ void __init omap3_clk_lock_dpll5(void)
 
 	dpll5_clk = clk_get(NULL, "dpll5_ck");
 	clk_set_rate(dpll5_clk, DPLL5_FREQ_FOR_USBHOST);
-	clk_enable(dpll5_clk);
+	clk_prepare_enable(dpll5_clk);
 
 	/* Program dpll5_m2_clk divider for no division */
 	dpll5_m2_clk = clk_get(NULL, "dpll5_m2_ck");
-	clk_enable(dpll5_m2_clk);
+	clk_prepare_enable(dpll5_m2_clk);
 	clk_set_rate(dpll5_m2_clk, DPLL5_FREQ_FOR_USBHOST);
 
-	clk_disable(dpll5_m2_clk);
-	clk_disable(dpll5_clk);
+	clk_disable_unprepare(dpll5_m2_clk);
+	clk_disable_unprepare(dpll5_clk);
 	return;
 }
 

@@ -61,7 +61,7 @@ static int proc_parse_options(char *options, struct pid_namespace *pid)
 		if (!*p)
 			continue;
 
-		args[0].to = args[0].from = 0;
+		args[0].to = args[0].from = NULL;
 		token = match_token(p, tokens, args);
 		switch (token) {
 		case Opt_gid:

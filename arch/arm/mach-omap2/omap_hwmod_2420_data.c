@@ -12,17 +12,15 @@
  * XXX handle crossbar/shared link difference for L3?
  * XXX these should be marked initdata for multi-OMAP kernels
  */
+#include <linux/platform_data/spi-omap2-mcspi.h>
+
 #include <plat/omap_hwmod.h>
-#include <mach/irqs.h>
-#include <plat/cpu.h>
 #include <plat/dma.h>
 #include <plat/serial.h>
 #include <plat/i2c.h>
-#include <plat/gpio.h>
-#include <plat/mcspi.h>
 #include <plat/dmtimer.h>
-#include <plat/l3_2xxx.h>
-#include <plat/l4_2xxx.h>
+#include "l3_2xxx.h"
+#include "l4_2xxx.h"
 #include <plat/mmc.h>
 
 #include "omap_hwmod_common_data.h"
@@ -162,9 +160,9 @@ static struct omap_hwmod omap2420_dma_system_hwmod = {
 
 /* mailbox */
 static struct omap_hwmod_irq_info omap2420_mailbox_irqs[] = {
-	{ .name = "dsp", .irq = 26 },
-	{ .name = "iva", .irq = 34 },
-	{ .irq = -1 }
+	{ .name = "dsp", .irq = 26 + OMAP_INTC_START, },
+	{ .name = "iva", .irq = 34 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod omap2420_mailbox_hwmod = {
@@ -199,9 +197,9 @@ static struct omap_hwmod_opt_clk mcbsp_opt_clks[] = {
 
 /* mcbsp1 */
 static struct omap_hwmod_irq_info omap2420_mcbsp1_irqs[] = {
-	{ .name = "tx", .irq = 59 },
-	{ .name = "rx", .irq = 60 },
-	{ .irq = -1 }
+	{ .name = "tx", .irq = 59 + OMAP_INTC_START, },
+	{ .name = "rx", .irq = 60 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod omap2420_mcbsp1_hwmod = {
@@ -225,9 +223,9 @@ static struct omap_hwmod omap2420_mcbsp1_hwmod = {
 
 /* mcbsp2 */
 static struct omap_hwmod_irq_info omap2420_mcbsp2_irqs[] = {
-	{ .name = "tx", .irq = 62 },
-	{ .name = "rx", .irq = 63 },
-	{ .irq = -1 }
+	{ .name = "tx", .irq = 62 + OMAP_INTC_START, },
+	{ .name = "rx", .irq = 63 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod omap2420_mcbsp2_hwmod = {
@@ -265,8 +263,8 @@ static struct omap_hwmod_class omap2420_msdi_hwmod_class = {
 
 /* msdi1 */
 static struct omap_hwmod_irq_info omap2420_msdi1_irqs[] = {
-	{ .irq = 83 },
-	{ .irq = -1 }
+	{ .irq = 83 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod_dma_info omap2420_msdi1_sdma_reqs[] = {
@@ -538,11 +536,28 @@ static struct omap_hwmod_addr_space omap2420_counter_32k_addrs[] = {
 	{ }
 };
 
+static struct omap_hwmod_addr_space omap2420_gpmc_addrs[] = {
+	{
+		.pa_start	= 0x6800a000,
+		.pa_end		= 0x6800afff,
+		.flags		= ADDR_TYPE_RT
+	},
+	{ }
+};
+
 static struct omap_hwmod_ocp_if omap2420_l4_wkup__counter_32k = {
 	.master		= &omap2xxx_l4_wkup_hwmod,
 	.slave		= &omap2xxx_counter_32k_hwmod,
 	.clk		= "sync_32k_ick",
 	.addr		= omap2420_counter_32k_addrs,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+static struct omap_hwmod_ocp_if omap2420_l3__gpmc = {
+	.master		= &omap2xxx_l3_main_hwmod,
+	.slave		= &omap2xxx_gpmc_hwmod,
+	.clk		= "core_l3_ck",
+	.addr		= omap2420_gpmc_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -587,8 +602,10 @@ static struct omap_hwmod_ocp_if *omap2420_hwmod_ocp_ifs[] __initdata = {
 	&omap2420_l4_core__mcbsp1,
 	&omap2420_l4_core__mcbsp2,
 	&omap2420_l4_core__msdi1,
+	&omap2xxx_l4_core__rng,
 	&omap2420_l4_core__hdq1w,
 	&omap2420_l4_wkup__counter_32k,
+	&omap2420_l3__gpmc,
 	NULL,
 };
 

@@ -48,7 +48,8 @@ struct rtable {
 	int			rt_genid;
 	unsigned int		rt_flags;
 	__u16			rt_type;
-	__u16			rt_is_input;
+	__u8			rt_is_input;
+	__u8			rt_uses_gateway;
 
 	int			rt_iif;
 

@@ -213,6 +213,23 @@ enum tps65217_regulator_id {
 /* Number of total regulators available */
 #define TPS65217_NUM_REGULATOR		(TPS65217_NUM_DCDC + TPS65217_NUM_LDO)
 
+enum tps65217_bl_isel {
+	TPS65217_BL_ISET1 = 1,
+	TPS65217_BL_ISET2,
+};
+
+enum tps65217_bl_fdim {
+	TPS65217_BL_FDIM_100HZ,
+	TPS65217_BL_FDIM_200HZ,
+	TPS65217_BL_FDIM_500HZ,
+	TPS65217_BL_FDIM_1000HZ,
+};
+
+struct tps65217_bl_pdata {
+	enum tps65217_bl_isel isel;
+	enum tps65217_bl_fdim fdim;
+};
+
 /**
  * struct tps65217_board - packages regulator init data
  * @tps65217_regulator_data: regulator initialization values
@@ -222,6 +239,7 @@ enum tps65217_regulator_id {
 struct tps65217_board {
 	struct regulator_init_data *tps65217_init_data[TPS65217_NUM_REGULATOR];
 	struct device_node *of_node[TPS65217_NUM_REGULATOR];
+	struct tps65217_bl_pdata *bl_pdata;
 };
 
 /**

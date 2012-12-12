@@ -97,28 +97,3 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 		pcibios_enable_irq(dev);
 	return 0;
 }
-
-int pcibios_assign_resources(void)
-{
-	struct pci_dev *dev = NULL;
-	int idx;
-	struct resource *r;
-
-	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
-		int class = dev->class >> 8;
-
-		/* Don't touch classless devices and host bridges */
-		if (!class || class == PCI_CLASS_BRIDGE_HOST)
-			continue;
-
-		for(idx=0; idx<6; idx++) {
-			r = &dev->resource[idx];
-
-			if (!r->start && r->end)
-				pci_assign_resource(dev, idx);
-		}
-	}
-	return 0;
-}
-
-EXPORT_SYMBOL(pcibios_assign_resources);

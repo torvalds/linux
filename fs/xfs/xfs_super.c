@@ -88,6 +88,8 @@ mempool_t *xfs_ioend_pool;
 					 * unwritten extent conversion */
 #define MNTOPT_NOBARRIER "nobarrier"	/* .. disable */
 #define MNTOPT_64BITINODE   "inode64"	/* inodes can be allocated anywhere */
+#define MNTOPT_32BITINODE   "inode32"	/* inode allocation limited to
+					 * XFS_MAXINUMBER_32 */
 #define MNTOPT_IKEEP	"ikeep"		/* do not free empty inode clusters */
 #define MNTOPT_NOIKEEP	"noikeep"	/* free empty inode clusters */
 #define MNTOPT_LARGEIO	   "largeio"	/* report large I/O sizes in stat() */
@@ -120,12 +122,18 @@ mempool_t *xfs_ioend_pool;
  * in the future, too.
  */
 enum {
-	Opt_barrier, Opt_nobarrier, Opt_err
+	Opt_barrier,
+	Opt_nobarrier,
+	Opt_inode64,
+	Opt_inode32,
+	Opt_err
 };
 
 static const match_table_t tokens = {
 	{Opt_barrier, "barrier"},
 	{Opt_nobarrier, "nobarrier"},
+	{Opt_inode64, "inode64"},
+	{Opt_inode32, "inode32"},
 	{Opt_err, NULL}
 };
 
@@ -197,7 +205,9 @@ xfs_parseargs(
 	 */
 	mp->m_flags |= XFS_MOUNT_BARRIER;
 	mp->m_flags |= XFS_MOUNT_COMPAT_IOSIZE;
+#if !XFS_BIG_INUMS
 	mp->m_flags |= XFS_MOUNT_SMALL_INUMS;
+#endif
 
 	/*
 	 * These can be overridden by the mount option parsing.
@@ -294,6 +304,8 @@ xfs_parseargs(
 				return EINVAL;
 			}
 			dswidth = simple_strtoul(value, &eov, 10);
+		} else if (!strcmp(this_char, MNTOPT_32BITINODE)) {
+			mp->m_flags |= XFS_MOUNT_SMALL_INUMS;
 		} else if (!strcmp(this_char, MNTOPT_64BITINODE)) {
 			mp->m_flags &= ~XFS_MOUNT_SMALL_INUMS;
 #if !XFS_BIG_INUMS
@@ -492,6 +504,7 @@ xfs_showargs(
 		{ XFS_MOUNT_FILESTREAMS,	"," MNTOPT_FILESTREAM },
 		{ XFS_MOUNT_GRPID,		"," MNTOPT_GRPID },
 		{ XFS_MOUNT_DISCARD,		"," MNTOPT_DISCARD },
+		{ XFS_MOUNT_SMALL_INUMS,	"," MNTOPT_32BITINODE },
 		{ 0, NULL }
 	};
 	static struct proc_xfs_info xfs_info_unset[] = {
@@ -589,6 +602,80 @@ xfs_max_file_offset(
 #endif
 
 	return (((__uint64_t)pagefactor) << bitshift) - 1;
+}
+
+xfs_agnumber_t
+xfs_set_inode32(struct xfs_mount *mp)
+{
+	xfs_agnumber_t	index = 0;
+	xfs_agnumber_t	maxagi = 0;
+	xfs_sb_t	*sbp = &mp->m_sb;
+	xfs_agnumber_t	max_metadata;
+	xfs_agino_t	agino =	XFS_OFFBNO_TO_AGINO(mp, sbp->sb_agblocks -1, 0);
+	xfs_ino_t	ino = XFS_AGINO_TO_INO(mp, sbp->sb_agcount -1, agino);
+	xfs_perag_t	*pag;
+
+	/* Calculate how much should be reserved for inodes to meet
+	 * the max inode percentage.
+	 */
+	if (mp->m_maxicount) {
+		__uint64_t	icount;
+
+		icount = sbp->sb_dblocks * sbp->sb_imax_pct;
+		do_div(icount, 100);
+		icount += sbp->sb_agblocks - 1;
+		do_div(icount, sbp->sb_agblocks);
+		max_metadata = icount;
+	} else {
+		max_metadata = sbp->sb_agcount;
+	}
+
+	for (index = 0; index < sbp->sb_agcount; index++) {
+		ino = XFS_AGINO_TO_INO(mp, index, agino);
+
+		if (ino > XFS_MAXINUMBER_32) {
+			pag = xfs_perag_get(mp, index);
+			pag->pagi_inodeok = 0;
+			pag->pagf_metadata = 0;
+			xfs_perag_put(pag);
+			continue;
+		}
+
+		pag = xfs_perag_get(mp, index);
+		pag->pagi_inodeok = 1;
+		maxagi++;
+		if (index < max_metadata)
+			pag->pagf_metadata = 1;
+		xfs_perag_put(pag);
+	}
+	mp->m_flags |= (XFS_MOUNT_32BITINODES |
+			XFS_MOUNT_SMALL_INUMS);
+
+	return maxagi;
+}
+
+xfs_agnumber_t
+xfs_set_inode64(struct xfs_mount *mp)
+{
+	xfs_agnumber_t index = 0;
+
+	for (index = 0; index < mp->m_sb.sb_agcount; index++) {
+		struct xfs_perag	*pag;
+
+		pag = xfs_perag_get(mp, index);
+		pag->pagi_inodeok = 1;
+		pag->pagf_metadata = 0;
+		xfs_perag_put(pag);
+	}
+
+	/* There is no need for lock protection on m_flags,
+	 * the rw_semaphore of the VFS superblock is locked
+	 * during mount/umount/remount operations, so this is
+	 * enough to avoid concurency on the m_flags field
+	 */
+	mp->m_flags &= ~(XFS_MOUNT_32BITINODES |
+			 XFS_MOUNT_SMALL_INUMS);
+	return index;
 }
 
 STATIC int
@@ -954,7 +1041,7 @@ xfs_fs_sync_fs(
 		 * We schedule xfssyncd now (now that the disk is
 		 * active) instead of later (when it might not be).
 		 */
-		flush_delayed_work_sync(&mp->m_sync_work);
+		flush_delayed_work(&mp->m_sync_work);
 	}
 
 	return 0;
@@ -1055,6 +1142,12 @@ xfs_fs_remount(
 			break;
 		case Opt_nobarrier:
 			mp->m_flags &= ~XFS_MOUNT_BARRIER;
+			break;
+		case Opt_inode64:
+			mp->m_maxagi = xfs_set_inode64(mp);
+			break;
+		case Opt_inode32:
+			mp->m_maxagi = xfs_set_inode32(mp);
 			break;
 		default:
 			/*
@@ -1506,6 +1599,11 @@ xfs_init_zones(void)
 STATIC void
 xfs_destroy_zones(void)
 {
+	/*
+	 * Make sure all delayed rcu free are flushed before we
+	 * destroy caches.
+	 */
+	rcu_barrier();
 	kmem_zone_destroy(xfs_ili_zone);
 	kmem_zone_destroy(xfs_inode_zone);
 	kmem_zone_destroy(xfs_efi_zone);

@@ -240,10 +240,17 @@ acpi_table_parse_entries(char *id,
 	       table_end) {
 		if (entry->type == entry_id
 		    && (!max_entries || count++ < max_entries))
-			if (handler(entry, table_end)) {
-				early_acpi_os_unmap_memory((char *)table_header, tbl_size);
-				return -EINVAL;
-			}
+			if (handler(entry, table_end))
+				goto err;
+
+		/*
+		 * If entry->length is 0, break from this loop to avoid
+		 * infinite loop.
+		 */
+		if (entry->length == 0) {
+			pr_err(PREFIX "[%4.4s:0x%02x] Invalid zero length\n", id, entry_id);
+			goto err;
+		}
 
 		entry = (struct acpi_subtable_header *)
 		    ((unsigned long)entry + entry->length);
@@ -255,6 +262,9 @@ acpi_table_parse_entries(char *id,
 
 	early_acpi_os_unmap_memory((char *)table_header, tbl_size);
 	return count;
+err:
+	early_acpi_os_unmap_memory((char *)table_header, tbl_size);
+	return -EINVAL;
 }
 
 int __init

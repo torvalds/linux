@@ -41,6 +41,7 @@ static const char *sas_phye_str[] = {
 	[1] = "PHYE_OOB_DONE",
 	[2] = "PHYE_OOB_ERROR",
 	[3] = "PHYE_SPINUP_HOLD",
+	[4] = "PHYE_RESUME_TIMEOUT",
 };
 
 void sas_dprint_porte(int phyid, enum port_event pe)

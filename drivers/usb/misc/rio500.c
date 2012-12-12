@@ -338,7 +338,7 @@ write_rio(struct file *file, const char __user *buffer,
 				thistime -= partial;
 			} else
 				break;
-		};
+		}
 		if (result) {
 			dev_err(&rio->rio_dev->dev, "Write Whoops - %x\n",
 				result);

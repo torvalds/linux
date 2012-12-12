@@ -30,12 +30,15 @@
 #include <linux/regulator/consumer.h>
 #include <linux/gpio.h>
 #include <linux/gfp.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
+#include <linux/of_device.h>
 
 #include <asm/sizes.h>
 
 #include <mach/hardware.h>
 #include <mach/dma.h>
-#include <mach/mmc.h>
+#include <linux/platform_data/mmc-pxamci.h>
 
 #include "pxamci.h"
 
@@ -573,12 +576,60 @@ static irqreturn_t pxamci_detect_irq(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id pxa_mmc_dt_ids[] = {
+        { .compatible = "marvell,pxa-mmc" },
+        { }
+};
+
+MODULE_DEVICE_TABLE(of, pxa_mmc_dt_ids);
+
+static int __devinit pxamci_of_init(struct platform_device *pdev)
+{
+        struct device_node *np = pdev->dev.of_node;
+        struct pxamci_platform_data *pdata;
+        u32 tmp;
+
+        if (!np)
+                return 0;
+
+        pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+        if (!pdata)
+                return -ENOMEM;
+
+	pdata->gpio_card_detect =
+		of_get_named_gpio(np, "cd-gpios", 0);
+	pdata->gpio_card_ro =
+		of_get_named_gpio(np, "wp-gpios", 0);
+
+	/* pxa-mmc specific */
+	pdata->gpio_power =
+		of_get_named_gpio(np, "pxa-mmc,gpio-power", 0);
+
+	if (of_property_read_u32(np, "pxa-mmc,detect-delay-ms", &tmp) == 0)
+		pdata->detect_delay_ms = tmp;
+
+        pdev->dev.platform_data = pdata;
+
+        return 0;
+}
+#else
+static int __devinit pxamci_of_init(struct platform_device *pdev)
+{
+        return 0;
+}
+#endif
+
 static int pxamci_probe(struct platform_device *pdev)
 {
 	struct mmc_host *mmc;
 	struct pxamci_host *host = NULL;
 	struct resource *r, *dmarx, *dmatx;
 	int ret, irq, gpio_cd = -1, gpio_ro = -1, gpio_power = -1;
+
+	ret = pxamci_of_init(pdev);
+	if (ret)
+		return ret;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
@@ -866,6 +917,7 @@ static struct platform_driver pxamci_driver = {
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(pxa_mmc_dt_ids),
 #ifdef CONFIG_PM
 		.pm	= &pxamci_pm_ops,
 #endif

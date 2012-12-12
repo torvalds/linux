@@ -2,6 +2,7 @@ if LANTIQ
 
 config SOC_TYPE_XWAY
 	bool
+	select PINCTRL_XWAY
 	default n
 
 choice
@@ -19,6 +20,7 @@ config SOC_XWAY
 
 config SOC_FALCON
 	bool "FALCON"
+	select PINCTRL_FALCON
 
 endchoice
 

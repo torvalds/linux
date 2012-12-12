@@ -116,7 +116,7 @@ mISDN_freedchannel(struct dchannel *ch)
 	}
 	skb_queue_purge(&ch->squeue);
 	skb_queue_purge(&ch->rqueue);
-	flush_work_sync(&ch->workq);
+	flush_work(&ch->workq);
 	return 0;
 }
 EXPORT_SYMBOL(mISDN_freedchannel);

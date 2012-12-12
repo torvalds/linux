@@ -7,10 +7,10 @@
  *
  */
 
-#include "linux/init.h"
+#include <linux/init.h>
 #include <linux/netdevice.h>
-#include "net_kern.h"
-#include "net_user.h"
+#include <net_kern.h>
+#include <net_user.h>
 #include "vde.h"
 
 static void vde_init(struct net_device *dev, void *data)

@@ -11,8 +11,8 @@
 #include <string.h>
 #include <termios.h>
 #include "chan_user.h"
-#include "os.h"
-#include "um_malloc.h"
+#include <os.h>
+#include <um_malloc.h>
 #include "xterm.h"
 
 struct xterm_chan {

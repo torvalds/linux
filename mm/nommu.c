@@ -698,7 +698,7 @@ static void add_vma_to_mm(struct mm_struct *mm, struct vm_area_struct *vma)
 
 		mutex_lock(&mapping->i_mmap_mutex);
 		flush_dcache_mmap_lock(mapping);
-		vma_prio_tree_insert(vma, &mapping->i_mmap);
+		vma_interval_tree_insert(vma, &mapping->i_mmap);
 		flush_dcache_mmap_unlock(mapping);
 		mutex_unlock(&mapping->i_mmap_mutex);
 	}
@@ -764,7 +764,7 @@ static void delete_vma_from_mm(struct vm_area_struct *vma)
 
 		mutex_lock(&mapping->i_mmap_mutex);
 		flush_dcache_mmap_lock(mapping);
-		vma_prio_tree_remove(vma, &mapping->i_mmap);
+		vma_interval_tree_remove(vma, &mapping->i_mmap);
 		flush_dcache_mmap_unlock(mapping);
 		mutex_unlock(&mapping->i_mmap_mutex);
 	}
@@ -789,11 +789,8 @@ static void delete_vma(struct mm_struct *mm, struct vm_area_struct *vma)
 	kenter("%p", vma);
 	if (vma->vm_ops && vma->vm_ops->close)
 		vma->vm_ops->close(vma);
-	if (vma->vm_file) {
+	if (vma->vm_file)
 		fput(vma->vm_file);
-		if (vma->vm_flags & VM_EXECUTABLE)
-			removed_exe_file_vma(mm);
-	}
 	put_nommu_region(vma->vm_region);
 	kmem_cache_free(vm_area_cachep, vma);
 }
@@ -1282,14 +1279,8 @@ unsigned long do_mmap_pgoff(struct file *file,
 	vma->vm_pgoff = pgoff;
 
 	if (file) {
-		region->vm_file = file;
-		get_file(file);
-		vma->vm_file = file;
-		get_file(file);
-		if (vm_flags & VM_EXECUTABLE) {
-			added_exe_file_vma(current->mm);
-			vma->vm_mm = current->mm;
-		}
+		region->vm_file = get_file(file);
+		vma->vm_file = get_file(file);
 	}
 
 	down_write(&nommu_region_sem);
@@ -1442,8 +1433,6 @@ error:
 	kmem_cache_free(vm_region_jar, region);
 	if (vma->vm_file)
 		fput(vma->vm_file);
-	if (vma->vm_flags & VM_EXECUTABLE)
-		removed_exe_file_vma(vma->vm_mm);
 	kmem_cache_free(vm_area_cachep, vma);
 	kleave(" = %d", ret);
 	return ret;
@@ -1822,7 +1811,7 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 	if (addr != (pfn << PAGE_SHIFT))
 		return -EINVAL;
 
-	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
+	vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP;
 	return 0;
 }
 EXPORT_SYMBOL(remap_pfn_range);
@@ -1963,6 +1952,14 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 }
 EXPORT_SYMBOL(filemap_fault);
 
+int generic_file_remap_pages(struct vm_area_struct *vma, unsigned long addr,
+			     unsigned long size, pgoff_t pgoff)
+{
+	BUG();
+	return 0;
+}
+EXPORT_SYMBOL(generic_file_remap_pages);
+
 static int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
 		unsigned long addr, void *buf, int len, int write)
 {
@@ -2047,7 +2044,6 @@ int nommu_shrink_inode_mappings(struct inode *inode, size_t size,
 				size_t newsize)
 {
 	struct vm_area_struct *vma;
-	struct prio_tree_iter iter;
 	struct vm_region *region;
 	pgoff_t low, high;
 	size_t r_size, r_top;
@@ -2059,8 +2055,7 @@ int nommu_shrink_inode_mappings(struct inode *inode, size_t size,
 	mutex_lock(&inode->i_mapping->i_mmap_mutex);
 
 	/* search for VMAs that fall within the dead zone */
-	vma_prio_tree_foreach(vma, &iter, &inode->i_mapping->i_mmap,
-			      low, high) {
+	vma_interval_tree_foreach(vma, &inode->i_mapping->i_mmap, low, high) {
 		/* found one - only interested if it's shared out of the page
 		 * cache */
 		if (vma->vm_flags & VM_SHARED) {
@@ -2076,8 +2071,8 @@ int nommu_shrink_inode_mappings(struct inode *inode, size_t size,
 	 * we don't check for any regions that start beyond the EOF as there
 	 * shouldn't be any
 	 */
-	vma_prio_tree_foreach(vma, &iter, &inode->i_mapping->i_mmap,
-			      0, ULONG_MAX) {
+	vma_interval_tree_foreach(vma, &inode->i_mapping->i_mmap,
+				  0, ULONG_MAX) {
 		if (!(vma->vm_flags & VM_SHARED))
 			continue;
 

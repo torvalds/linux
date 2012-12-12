@@ -38,6 +38,7 @@ static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
 	{ PCI_VDEVICE(ATHEROS, 0x0033) }, /* PCI-E  AR9580 */
 	{ PCI_VDEVICE(ATHEROS, 0x0034) }, /* PCI-E  AR9462 */
 	{ PCI_VDEVICE(ATHEROS, 0x0037) }, /* PCI-E  AR1111/AR9485 */
+	{ PCI_VDEVICE(ATHEROS, 0x0036) }, /* PCI-E  AR9565 */
 	{ 0 }
 };
 
@@ -122,7 +123,8 @@ static void ath_pci_aspm_init(struct ath_common *common)
 	if (!parent)
 		return;
 
-	if (ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE) {
+	if ((ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE) &&
+	    (AR_SREV_9285(ah))) {
 		/* Bluetooth coexistance requires disabling ASPM. */
 		pcie_capability_clear_word(pdev, PCI_EXP_LNKCTL,
 			PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
@@ -322,6 +324,10 @@ static int ath_pci_suspend(struct device *device)
 static int ath_pci_resume(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
+	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
+	struct ath_softc *sc = hw->priv;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	u32 val;
 
 	/*
@@ -332,6 +338,9 @@ static int ath_pci_resume(struct device *device)
 	pci_read_config_dword(pdev, 0x40, &val);
 	if ((val & 0x0000ff00) != 0)
 		pci_write_config_dword(pdev, 0x40, val & 0xffff00ff);
+
+	ath_pci_aspm_init(common);
+	ah->reset_power_on = false;
 
 	return 0;
 }

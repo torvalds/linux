@@ -34,7 +34,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -121,6 +121,8 @@ int drm_open(struct inode *inode, struct file *filp)
 	int minor_id = iminor(inode);
 	struct drm_minor *minor;
 	int retcode = 0;
+	int need_setup = 0;
+	struct address_space *old_mapping;
 
 	minor = idr_find(&drm_minors_idr, minor_id);
 	if (!minor)
@@ -132,23 +134,37 @@ int drm_open(struct inode *inode, struct file *filp)
 	if (drm_device_is_unplugged(dev))
 		return -ENODEV;
 
-	retcode = drm_open_helper(inode, filp, dev);
-	if (!retcode) {
-		atomic_inc(&dev->counts[_DRM_STAT_OPENS]);
-		if (!dev->open_count++)
-			retcode = drm_setup(dev);
-	}
-	if (!retcode) {
-		mutex_lock(&dev->struct_mutex);
-		if (dev->dev_mapping == NULL)
-			dev->dev_mapping = &inode->i_data;
-		/* ihold ensures nobody can remove inode with our i_data */
-		ihold(container_of(dev->dev_mapping, struct inode, i_data));
-		inode->i_mapping = dev->dev_mapping;
-		filp->f_mapping = dev->dev_mapping;
-		mutex_unlock(&dev->struct_mutex);
-	}
+	if (!dev->open_count++)
+		need_setup = 1;
+	mutex_lock(&dev->struct_mutex);
+	old_mapping = dev->dev_mapping;
+	if (old_mapping == NULL)
+		dev->dev_mapping = &inode->i_data;
+	/* ihold ensures nobody can remove inode with our i_data */
+	ihold(container_of(dev->dev_mapping, struct inode, i_data));
+	inode->i_mapping = dev->dev_mapping;
+	filp->f_mapping = dev->dev_mapping;
+	mutex_unlock(&dev->struct_mutex);
 
+	retcode = drm_open_helper(inode, filp, dev);
+	if (retcode)
+		goto err_undo;
+	atomic_inc(&dev->counts[_DRM_STAT_OPENS]);
+	if (need_setup) {
+		retcode = drm_setup(dev);
+		if (retcode)
+			goto err_undo;
+	}
+	return 0;
+
+err_undo:
+	mutex_lock(&dev->struct_mutex);
+	filp->f_mapping = old_mapping;
+	inode->i_mapping = old_mapping;
+	iput(container_of(dev->dev_mapping, struct inode, i_data));
+	dev->dev_mapping = old_mapping;
+	mutex_unlock(&dev->struct_mutex);
+	dev->open_count--;
 	return retcode;
 }
 EXPORT_SYMBOL(drm_open);
@@ -251,7 +267,7 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 	filp->private_data = priv;
 	priv->filp = filp;
 	priv->uid = current_euid();
-	priv->pid = task_pid_nr(current);
+	priv->pid = get_pid(task_pid(current));
 	priv->minor = idr_find(&drm_minors_idr, minor_id);
 	priv->ioctl_count = 0;
 	/* for compatibility root is always authenticated */
@@ -524,6 +540,7 @@ int drm_release(struct inode *inode, struct file *filp)
 	if (drm_core_check_feature(dev, DRIVER_PRIME))
 		drm_prime_destroy_file_private(&file_priv->prime);
 
+	put_pid(file_priv->pid);
 	kfree(file_priv);
 
 	/* ========================================================

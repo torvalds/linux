@@ -583,11 +583,19 @@ You should also set these fields:
 
 - name: set to something descriptive and unique.
 
+- vfl_dir: set this to VFL_DIR_RX for capture devices (VFL_DIR_RX has value 0,
+  so this is normally already the default), set to VFL_DIR_TX for output
+  devices and VFL_DIR_M2M for mem2mem (codec) devices.
+
 - fops: set to the v4l2_file_operations struct.
 
 - ioctl_ops: if you use the v4l2_ioctl_ops to simplify ioctl maintenance
   (highly recommended to use this and it might become compulsory in the
-  future!), then set this to your v4l2_ioctl_ops struct.
+  future!), then set this to your v4l2_ioctl_ops struct. The vfl_type and
+  vfl_dir fields are used to disable ops that do not match the type/dir
+  combination. E.g. VBI ops are disabled for non-VBI nodes, and output ops
+  are disabled for a capture device. This makes it possible to provide
+  just one v4l2_ioctl_ops struct for both vbi and video nodes.
 
 - lock: leave to NULL if you want to do all the locking in the driver.
   Otherwise you give it a pointer to a struct mutex_lock and before the
@@ -1054,4 +1062,4 @@ The first event type in the class is reserved for future use, so the first
 available event type is 'class base + 1'.
 
 An example on how the V4L2 events may be used can be found in the OMAP
-3 ISP driver (drivers/media/video/omap3isp).
+3 ISP driver (drivers/media/platform/omap3isp).

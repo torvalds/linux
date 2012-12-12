@@ -33,9 +33,10 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/slab.h>
+#include <linux/of_device.h>
 
-#include <mach/nand.h>
-#include <mach/aemif.h>
+#include <linux/platform_data/mtd-davinci.h>
+#include <linux/platform_data/mtd-davinci-aemif.h>
 
 /*
  * This is a device driver for the NAND flash controller found on the
@@ -518,9 +519,75 @@ static struct nand_ecclayout hwecc4_2048 __initconst = {
 	},
 };
 
+#if defined(CONFIG_OF)
+static const struct of_device_id davinci_nand_of_match[] = {
+	{.compatible = "ti,davinci-nand", },
+	{},
+}
+MODULE_DEVICE_TABLE(of, davinci_nand_of_match);
+
+static struct davinci_nand_pdata
+	*nand_davinci_get_pdata(struct platform_device *pdev)
+{
+	if (!pdev->dev.platform_data && pdev->dev.of_node) {
+		struct davinci_nand_pdata *pdata;
+		const char *mode;
+		u32 prop;
+		int len;
+
+		pdata =  devm_kzalloc(&pdev->dev,
+				sizeof(struct davinci_nand_pdata),
+				GFP_KERNEL);
+		pdev->dev.platform_data = pdata;
+		if (!pdata)
+			return NULL;
+		if (!of_property_read_u32(pdev->dev.of_node,
+			"ti,davinci-chipselect", &prop))
+			pdev->id = prop;
+		if (!of_property_read_u32(pdev->dev.of_node,
+			"ti,davinci-mask-ale", &prop))
+			pdata->mask_ale = prop;
+		if (!of_property_read_u32(pdev->dev.of_node,
+			"ti,davinci-mask-cle", &prop))
+			pdata->mask_cle = prop;
+		if (!of_property_read_u32(pdev->dev.of_node,
+			"ti,davinci-mask-chipsel", &prop))
+			pdata->mask_chipsel = prop;
+		if (!of_property_read_string(pdev->dev.of_node,
+			"ti,davinci-ecc-mode", &mode)) {
+			if (!strncmp("none", mode, 4))
+				pdata->ecc_mode = NAND_ECC_NONE;
+			if (!strncmp("soft", mode, 4))
+				pdata->ecc_mode = NAND_ECC_SOFT;
+			if (!strncmp("hw", mode, 2))
+				pdata->ecc_mode = NAND_ECC_HW;
+		}
+		if (!of_property_read_u32(pdev->dev.of_node,
+			"ti,davinci-ecc-bits", &prop))
+			pdata->ecc_bits = prop;
+		if (!of_property_read_u32(pdev->dev.of_node,
+			"ti,davinci-nand-buswidth", &prop))
+			if (prop == 16)
+				pdata->options |= NAND_BUSWIDTH_16;
+		if (of_find_property(pdev->dev.of_node,
+			"ti,davinci-nand-use-bbt", &len))
+			pdata->bbt_options = NAND_BBT_USE_FLASH;
+	}
+
+	return pdev->dev.platform_data;
+}
+#else
+#define davinci_nand_of_match NULL
+static struct davinci_nand_pdata
+	*nand_davinci_get_pdata(struct platform_device *pdev)
+{
+	return pdev->dev.platform_data;
+}
+#endif
+
 static int __init nand_davinci_probe(struct platform_device *pdev)
 {
-	struct davinci_nand_pdata	*pdata = pdev->dev.platform_data;
+	struct davinci_nand_pdata	*pdata;
 	struct davinci_nand_info	*info;
 	struct resource			*res1;
 	struct resource			*res2;
@@ -530,6 +597,7 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 	uint32_t			val;
 	nand_ecc_modes_t		ecc_mode;
 
+	pdata = nand_davinci_get_pdata(pdev);
 	/* insist on board-specific configuration */
 	if (!pdata)
 		return -ENODEV;
@@ -656,7 +724,7 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	ret = clk_enable(info->clk);
+	ret = clk_prepare_enable(info->clk);
 	if (ret < 0) {
 		dev_dbg(&pdev->dev, "unable to enable AEMIF clock, err %d\n",
 			ret);
@@ -767,7 +835,7 @@ syndrome_done:
 
 err_scan:
 err_timing:
-	clk_disable(info->clk);
+	clk_disable_unprepare(info->clk);
 
 err_clk_enable:
 	clk_put(info->clk);
@@ -804,7 +872,7 @@ static int __exit nand_davinci_remove(struct platform_device *pdev)
 
 	nand_release(&info->mtd);
 
-	clk_disable(info->clk);
+	clk_disable_unprepare(info->clk);
 	clk_put(info->clk);
 
 	kfree(info);
@@ -816,6 +884,8 @@ static struct platform_driver nand_davinci_driver = {
 	.remove		= __exit_p(nand_davinci_remove),
 	.driver		= {
 		.name	= "davinci_nand",
+		.owner	= THIS_MODULE,
+		.of_match_table = davinci_nand_of_match,
 	},
 };
 MODULE_ALIAS("platform:davinci_nand");

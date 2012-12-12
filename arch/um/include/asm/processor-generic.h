@@ -10,9 +10,9 @@ struct pt_regs;
 
 struct task_struct;
 
-#include "asm/ptrace.h"
-#include "registers.h"
-#include "sysdep/archsetjmp.h"
+#include <asm/ptrace.h>
+#include <registers.h>
+#include <sysdep/archsetjmp.h>
 
 #include <linux/prefetch.h>
 
@@ -26,7 +26,6 @@ struct thread_struct {
 	jmp_buf *fault_catcher;
 	struct task_struct *prev_sched;
 	unsigned long temp_stack;
-	jmp_buf *exec_buf;
 	struct arch_thread arch;
 	jmp_buf switch_buf;
 	int mm_count;
@@ -54,7 +53,6 @@ struct thread_struct {
 	.fault_addr		= NULL, \
 	.prev_sched		= NULL, \
 	.temp_stack		= 0, \
-	.exec_buf		= NULL, \
 	.arch			= INIT_ARCH_THREAD, \
 	.request		= { 0 } \
 }
@@ -62,8 +60,6 @@ struct thread_struct {
 static inline void release_thread(struct task_struct *task)
 {
 }
-
-extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 
 extern unsigned long thread_saved_pc(struct task_struct *t);
 

@@ -32,6 +32,7 @@
 #include <asm/sigframe.h>
 #include <asm/sighandling.h>
 #include <asm/sys_ia32.h>
+#include <asm/smap.h>
 
 #define FIX_EFLAGS	__FIX_EFLAGS
 
@@ -251,10 +252,11 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 
 		get_user_ex(tmp, &sc->fpstate);
 		buf = compat_ptr(tmp);
-		err |= restore_xstate_sig(buf, 1);
 
 		get_user_ex(*pax, &sc->ax);
 	} get_user_catch(err);
+
+	err |= restore_xstate_sig(buf, 1);
 
 	return err;
 }
@@ -506,7 +508,6 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		put_user_ex(sig, &frame->sig);
 		put_user_ex(ptr_to_compat(&frame->info), &frame->pinfo);
 		put_user_ex(ptr_to_compat(&frame->uc), &frame->puc);
-		err |= copy_siginfo_to_user32(&frame->info, info);
 
 		/* Create the ucontext.  */
 		if (cpu_has_xsave)
@@ -518,9 +519,6 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		put_user_ex(sas_ss_flags(regs->sp),
 			    &frame->uc.uc_stack.ss_flags);
 		put_user_ex(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
-		err |= ia32_setup_sigcontext(&frame->uc.uc_mcontext, fpstate,
-					     regs, set->sig[0]);
-		err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 
 		if (ka->sa.sa_flags & SA_RESTORER)
 			restorer = ka->sa.sa_restorer;
@@ -535,6 +533,11 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		 */
 		put_user_ex(*((u64 *)&code), (u64 __user *)frame->retcode);
 	} put_user_catch(err);
+
+	err |= copy_siginfo_to_user32(&frame->info, info);
+	err |= ia32_setup_sigcontext(&frame->uc.uc_mcontext, fpstate,
+				     regs, set->sig[0]);
+	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 
 	if (err)
 		return -EFAULT;

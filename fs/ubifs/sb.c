@@ -391,9 +391,8 @@ static int validate_sb(struct ubifs_info *c, struct ubifs_sb_node *sup)
 	min_leb_cnt += c->lpt_lebs + c->orph_lebs + c->jhead_cnt + 6;
 
 	if (c->leb_cnt < min_leb_cnt || c->leb_cnt > c->vi.size) {
-		ubifs_err("bad LEB count: %d in superblock, %d on UBI volume, "
-			  "%d minimum required", c->leb_cnt, c->vi.size,
-			  min_leb_cnt);
+		ubifs_err("bad LEB count: %d in superblock, %d on UBI volume, %d minimum required",
+			  c->leb_cnt, c->vi.size, min_leb_cnt);
 		goto failed;
 	}
 
@@ -411,15 +410,14 @@ static int validate_sb(struct ubifs_info *c, struct ubifs_sb_node *sup)
 
 	max_bytes = (long long)c->leb_size * UBIFS_MIN_BUD_LEBS;
 	if (c->max_bud_bytes < max_bytes) {
-		ubifs_err("too small journal (%lld bytes), must be at least "
-			  "%lld bytes",  c->max_bud_bytes, max_bytes);
+		ubifs_err("too small journal (%lld bytes), must be at least %lld bytes",
+			  c->max_bud_bytes, max_bytes);
 		goto failed;
 	}
 
 	max_bytes = (long long)c->leb_size * c->main_lebs;
 	if (c->max_bud_bytes > max_bytes) {
-		ubifs_err("too large journal size (%lld bytes), only %lld bytes"
-			  "available in the main area",
+		ubifs_err("too large journal size (%lld bytes), only %lld bytes available in the main area",
 			  c->max_bud_bytes, max_bytes);
 		goto failed;
 	}
@@ -549,10 +547,9 @@ int ubifs_read_superblock(struct ubifs_info *c)
 		ubifs_assert(!c->ro_media || c->ro_mount);
 		if (!c->ro_mount ||
 		    c->ro_compat_version > UBIFS_RO_COMPAT_VERSION) {
-			ubifs_err("on-flash format version is w%d/r%d, but "
-				  "software only supports up to version "
-				  "w%d/r%d", c->fmt_version,
-				  c->ro_compat_version, UBIFS_FORMAT_VERSION,
+			ubifs_err("on-flash format version is w%d/r%d, but software only supports up to version w%d/r%d",
+				  c->fmt_version, c->ro_compat_version,
+				  UBIFS_FORMAT_VERSION,
 				  UBIFS_RO_COMPAT_VERSION);
 			if (c->ro_compat_version <= UBIFS_RO_COMPAT_VERSION) {
 				ubifs_msg("only R/O mounting is possible");
@@ -611,8 +608,8 @@ int ubifs_read_superblock(struct ubifs_info *c)
 	c->fanout        = le32_to_cpu(sup->fanout);
 	c->lsave_cnt     = le32_to_cpu(sup->lsave_cnt);
 	c->rp_size       = le64_to_cpu(sup->rp_size);
-	c->rp_uid        = le32_to_cpu(sup->rp_uid);
-	c->rp_gid        = le32_to_cpu(sup->rp_gid);
+	c->rp_uid        = make_kuid(&init_user_ns, le32_to_cpu(sup->rp_uid));
+	c->rp_gid        = make_kgid(&init_user_ns, le32_to_cpu(sup->rp_gid));
 	sup_flags        = le32_to_cpu(sup->flags);
 	if (!c->mount_opts.override_compr)
 		c->default_compr = le16_to_cpu(sup->default_compr);

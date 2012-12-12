@@ -34,19 +34,19 @@ struct machdep_calls {
 	char		*name;
 #ifdef CONFIG_PPC64
 	void            (*hpte_invalidate)(unsigned long slot,
-					   unsigned long va,
+					   unsigned long vpn,
 					   int psize, int ssize,
 					   int local);
 	long		(*hpte_updatepp)(unsigned long slot, 
 					 unsigned long newpp, 
-					 unsigned long va,
+					 unsigned long vpn,
 					 int psize, int ssize,
 					 int local);
 	void            (*hpte_updateboltedpp)(unsigned long newpp, 
 					       unsigned long ea,
 					       int psize, int ssize);
 	long		(*hpte_insert)(unsigned long hpte_group,
-				       unsigned long va,
+				       unsigned long vpn,
 				       unsigned long prpn,
 				       unsigned long rflags,
 				       unsigned long vflags,
@@ -180,7 +180,8 @@ struct machdep_calls {
 	void		(*enable_pmcs)(void);
 
 	/* Set DABR for this platform, leave empty for default implemenation */
-	int		(*set_dabr)(unsigned long dabr);
+	int		(*set_dabr)(unsigned long dabr,
+				    unsigned long dabrx);
 
 #ifdef CONFIG_PPC32	/* XXX for now */
 	/* A general init function, called by ppc_init in init/main.c.

@@ -33,8 +33,6 @@
 #define DRIVER_VERSION	"v0.10"
 #define DRIVER_DESC 	"SPCP8x5 USB to serial adaptor driver"
 
-static bool debug;
-
 #define SPCP8x5_007_VID		0x04FC
 #define SPCP8x5_007_PID		0x0201
 #define SPCP8x5_008_VID		0x04fc
@@ -159,13 +157,10 @@ struct spcp8x5_private {
 	u8 			line_status;
 };
 
-/* desc : when device plug in,this function would be called.
- * thanks to usb_serial subsystem,then do almost every things for us. And what
- * we should do just alloc the buffer */
-static int spcp8x5_startup(struct usb_serial *serial)
+static int spcp8x5_port_probe(struct usb_serial_port *port)
 {
+	struct usb_serial *serial = port->serial;
 	struct spcp8x5_private *priv;
-	int i;
 	enum spcp8x5_type type = SPCP825_007_TYPE;
 	u16 product = le16_to_cpu(serial->dev->descriptor.idProduct);
 
@@ -182,34 +177,27 @@ static int spcp8x5_startup(struct usb_serial *serial)
 		type = SPCP825_PHILIP_TYPE;
 	dev_dbg(&serial->dev->dev, "device type = %d\n", (int)type);
 
-	for (i = 0; i < serial->num_ports; ++i) {
-		priv = kzalloc(sizeof(struct spcp8x5_private), GFP_KERNEL);
-		if (!priv)
-			goto cleanup;
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
 
-		spin_lock_init(&priv->lock);
-		init_waitqueue_head(&priv->delta_msr_wait);
-		priv->type = type;
-		usb_set_serial_port_data(serial->port[i] , priv);
-	}
+	spin_lock_init(&priv->lock);
+	init_waitqueue_head(&priv->delta_msr_wait);
+	priv->type = type;
+
+	usb_set_serial_port_data(port , priv);
 
 	return 0;
-cleanup:
-	for (--i; i >= 0; --i) {
-		priv = usb_get_serial_port_data(serial->port[i]);
-		kfree(priv);
-		usb_set_serial_port_data(serial->port[i] , NULL);
-	}
-	return -ENOMEM;
 }
 
-/* call when the device plug out. free all the memory alloced by probe */
-static void spcp8x5_release(struct usb_serial *serial)
+static int spcp8x5_port_remove(struct usb_serial_port *port)
 {
-	int i;
+	struct spcp8x5_private *priv;
 
-	for (i = 0; i < serial->num_ports; i++)
-		kfree(usb_get_serial_port_data(serial->port[i]));
+	priv = usb_get_serial_port_data(port);
+	kfree(priv);
+
+	return 0;
 }
 
 /* set the modem control line of the device.
@@ -316,10 +304,10 @@ static void spcp8x5_dtr_rts(struct usb_serial_port *port, int on)
 static void spcp8x5_init_termios(struct tty_struct *tty)
 {
 	/* for the 1st time call this function */
-	*(tty->termios) = tty_std_termios;
-	tty->termios->c_cflag = B115200 | CS8 | CREAD | HUPCL | CLOCAL;
-	tty->termios->c_ispeed = 115200;
-	tty->termios->c_ospeed = 115200;
+	tty->termios = tty_std_termios;
+	tty->termios.c_cflag = B115200 | CS8 | CREAD | HUPCL | CLOCAL;
+	tty->termios.c_ispeed = 115200;
+	tty->termios.c_ospeed = 115200;
 }
 
 /* set the serial param for transfer. we should check if we really need to
@@ -330,7 +318,7 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 	struct usb_serial *serial = port->serial;
 	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
-	unsigned int cflag = tty->termios->c_cflag;
+	unsigned int cflag = tty->termios.c_cflag;
 	unsigned int old_cflag = old_termios->c_cflag;
 	unsigned short uartdata;
 	unsigned char buf[2] = {0, 0};
@@ -340,7 +328,7 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 
 
 	/* check that they really want us to change something */
-	if (!tty_termios_hw_change(tty->termios, old_termios))
+	if (!tty_termios_hw_change(&tty->termios, old_termios))
 		return;
 
 	/* set DTR/RTS active */
@@ -651,8 +639,8 @@ static struct usb_serial_driver spcp8x5_device = {
 	.ioctl 			= spcp8x5_ioctl,
 	.tiocmget 		= spcp8x5_tiocmget,
 	.tiocmset 		= spcp8x5_tiocmset,
-	.attach 		= spcp8x5_startup,
-	.release 		= spcp8x5_release,
+	.port_probe		= spcp8x5_port_probe,
+	.port_remove		= spcp8x5_port_remove,
 	.process_read_urb	= spcp8x5_process_read_urb,
 };
 
@@ -665,6 +653,3 @@ module_usb_serial_driver(serial_drivers, id_table);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");

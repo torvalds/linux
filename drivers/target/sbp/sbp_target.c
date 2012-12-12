@@ -660,8 +660,7 @@ static void session_reconnect_expired(struct sbp_session *sess)
 	spin_lock_bh(&sess->lock);
 	list_for_each_entry_safe(login, temp, &sess->login_list, link) {
 		login->sess = NULL;
-		list_del(&login->link);
-		list_add_tail(&login->link, &login_list);
+		list_move_tail(&login->link, &login_list);
 	}
 	spin_unlock_bh(&sess->lock);
 
@@ -1847,16 +1846,6 @@ static int sbp_queue_tm_rsp(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static u16 sbp_set_fabric_sense_len(struct se_cmd *se_cmd, u32 sense_length)
-{
-	return 0;
-}
-
-static u16 sbp_get_fabric_sense_len(void)
-{
-	return 0;
-}
-
 static int sbp_check_stop_free(struct se_cmd *se_cmd)
 {
 	struct sbp_target_request *req = container_of(se_cmd,
@@ -2068,7 +2057,7 @@ static int sbp_update_unit_directory(struct sbp_tport *tport)
 	return ret;
 }
 
-static ssize_t sbp_parse_wwn(const char *name, u64 *wwn, int strict)
+static ssize_t sbp_parse_wwn(const char *name, u64 *wwn)
 {
 	const char *cp;
 	char c, nibble;
@@ -2088,7 +2077,7 @@ static ssize_t sbp_parse_wwn(const char *name, u64 *wwn, int strict)
 		err = 3;
 		if (isdigit(c))
 			nibble = c - '0';
-		else if (isxdigit(c) && (islower(c) || !strict))
+		else if (isxdigit(c))
 			nibble = tolower(c) - 'a' + 10;
 		else
 			goto fail;
@@ -2117,7 +2106,7 @@ static struct se_node_acl *sbp_make_nodeacl(
 	u64 guid = 0;
 	u32 nexus_depth = 1;
 
-	if (sbp_parse_wwn(name, &guid, 1) < 0)
+	if (sbp_parse_wwn(name, &guid) < 0)
 		return ERR_PTR(-EINVAL);
 
 	se_nacl_new = sbp_alloc_fabric_acl(se_tpg);
@@ -2253,7 +2242,7 @@ static struct se_wwn *sbp_make_tport(
 	struct sbp_tport *tport;
 	u64 guid = 0;
 
-	if (sbp_parse_wwn(name, &guid, 1) < 0)
+	if (sbp_parse_wwn(name, &guid) < 0)
 		return ERR_PTR(-EINVAL);
 
 	tport = kzalloc(sizeof(*tport), GFP_KERNEL);
@@ -2534,8 +2523,6 @@ static struct target_core_fabric_ops sbp_ops = {
 	.queue_data_in			= sbp_queue_data_in,
 	.queue_status			= sbp_queue_status,
 	.queue_tm_rsp			= sbp_queue_tm_rsp,
-	.get_fabric_sense_len		= sbp_get_fabric_sense_len,
-	.set_fabric_sense_len		= sbp_set_fabric_sense_len,
 	.check_stop_free		= sbp_check_stop_free,
 
 	.fabric_make_wwn		= sbp_make_tport,
@@ -2556,9 +2543,9 @@ static int sbp_register_configfs(void)
 	int ret;
 
 	fabric = target_fabric_configfs_init(THIS_MODULE, "sbp");
-	if (!fabric) {
+	if (IS_ERR(fabric)) {
 		pr_err("target_fabric_configfs_init() failed\n");
-		return -ENOMEM;
+		return PTR_ERR(fabric);
 	}
 
 	fabric->tf_ops = sbp_ops;

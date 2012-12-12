@@ -4,7 +4,7 @@
  */
 
 #include <errno.h>
-#include "ptrace_user.h"
+#include <ptrace_user.h>
 
 int ptrace_getregs(long pid, unsigned long *regs_out)
 {

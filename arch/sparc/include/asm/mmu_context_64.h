@@ -36,7 +36,7 @@ static inline void tsb_context_switch(struct mm_struct *mm)
 {
 	__tsb_context_switch(__pa(mm->pgd),
 			     &mm->context.tsb_block[0],
-#ifdef CONFIG_HUGETLB_PAGE
+#if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
 			     (mm->context.tsb_block[1].tsb ?
 			      &mm->context.tsb_block[1] :
 			      NULL)

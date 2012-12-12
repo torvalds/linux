@@ -69,18 +69,7 @@ stack_done:
 1:	sw	v0, PT_R2(sp)		# result
 
 o32_syscall_exit:
-	local_irq_disable		# make sure need_resched and
-					# signals dont change between
-					# sampling and return
-	lw	a2, TI_FLAGS($28)	# current->work
-	li	t0, _TIF_ALLWORK_MASK
-	and	t0, a2
-	bnez	t0, o32_syscall_exit_work
-
-	j	restore_partial
-
-o32_syscall_exit_work:
-	j	syscall_exit_work_partial
+	j	syscall_exit_partial
 
 /* ------------------------------------------------------------------------ */
 
@@ -593,6 +582,7 @@ einval:	li	v0, -ENOSYS
 	sys	sys_setns		2
 	sys	sys_process_vm_readv	6	/* 4345 */
 	sys	sys_process_vm_writev	6
+	sys	sys_kcmp		5
 	.endm
 
 	/* We pre-compute the number of _instruction_ bytes needed to

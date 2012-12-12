@@ -180,13 +180,13 @@ static struct irqaction orion_timer_irq = {
 };
 
 void __init
-orion_time_set_base(u32 _timer_base)
+orion_time_set_base(void __iomem *_timer_base)
 {
-	timer_base = (void __iomem *)_timer_base;
+	timer_base = _timer_base;
 }
 
 void __init
-orion_time_init(u32 _bridge_base, u32 _bridge_timer1_clr_mask,
+orion_time_init(void __iomem *_bridge_base, u32 _bridge_timer1_clr_mask,
 		unsigned int irq, unsigned int tclk)
 {
 	u32 u;
@@ -194,7 +194,7 @@ orion_time_init(u32 _bridge_base, u32 _bridge_timer1_clr_mask,
 	/*
 	 * Set SoC-specific data.
 	 */
-	bridge_base = (void __iomem *)_bridge_base;
+	bridge_base = _bridge_base;
 	bridge_timer1_clr_mask = _bridge_timer1_clr_mask;
 
 	ticks_per_jiffy = (tclk + HZ/2) / HZ;

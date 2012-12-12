@@ -896,7 +896,7 @@ struct tstorm_tcp_tcp_ag_context_section {
 	u32 snd_nxt;
 	u32 rtt_seq;
 	u32 rtt_time;
-	u32 __reserved66;
+	u32 wnd_right_edge_local;
 	u32 wnd_right_edge;
 	u32 tcp_agg_vars1;
 #define TSTORM_TCP_TCP_AG_CONTEXT_SECTION_FIN_SENT_FLAG (0x1<<0)

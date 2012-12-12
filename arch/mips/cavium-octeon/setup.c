@@ -548,6 +548,8 @@ void __init prom_init(void)
 	}
 #endif
 
+	octeon_setup_delays();
+
 	/*
 	 * BIST should always be enabled when doing a soft reset. L2
 	 * Cache locking for instance is not cleared unless BIST is
@@ -611,7 +613,6 @@ void __init prom_init(void)
 	mips_hpt_frequency = octeon_get_clock_rate();
 
 	octeon_init_cvmcount();
-	octeon_setup_delays();
 
 	_machine_restart = octeon_restart;
 	_machine_halt = octeon_halt;

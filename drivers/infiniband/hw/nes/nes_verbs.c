@@ -80,7 +80,7 @@ static struct ib_mw *nes_alloc_mw(struct ib_pd *ibpd) {
 	next_stag_index %= nesadapter->max_mr;
 
 	ret = nes_alloc_resource(nesadapter, nesadapter->allocated_mrs,
-			nesadapter->max_mr, &stag_index, &next_stag_index);
+			nesadapter->max_mr, &stag_index, &next_stag_index, NES_RESOURCE_MW);
 	if (ret) {
 		return ERR_PTR(ret);
 	}
@@ -404,7 +404,7 @@ static struct ib_mr *nes_alloc_fast_reg_mr(struct ib_pd *ibpd, int max_page_list
 
 	err = nes_alloc_resource(nesadapter, nesadapter->allocated_mrs,
 				 nesadapter->max_mr, &stag_index,
-				 &next_stag_index);
+				 &next_stag_index, NES_RESOURCE_FAST_MR);
 	if (err)
 		return ERR_PTR(err);
 
@@ -780,7 +780,7 @@ static struct ib_pd *nes_alloc_pd(struct ib_device *ibdev,
 			netdev_refcnt_read(nesvnic->netdev));
 
 	err = nes_alloc_resource(nesadapter, nesadapter->allocated_pds,
-			nesadapter->max_pd, &pd_num, &nesadapter->next_pd);
+			nesadapter->max_pd, &pd_num, &nesadapter->next_pd, NES_RESOURCE_PD);
 	if (err) {
 		return ERR_PTR(err);
 	}
@@ -1157,7 +1157,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 			nes_debug(NES_DBG_QP, "RQ size=%u, SQ Size=%u\n", rq_size, sq_size);
 
 			ret = nes_alloc_resource(nesadapter, nesadapter->allocated_qps,
-					nesadapter->max_qp, &qp_num, &nesadapter->next_qp);
+					nesadapter->max_qp, &qp_num, &nesadapter->next_qp, NES_RESOURCE_QP);
 			if (ret) {
 				return ERR_PTR(ret);
 			}
@@ -1546,7 +1546,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 		return ERR_PTR(-EINVAL);
 
 	err = nes_alloc_resource(nesadapter, nesadapter->allocated_cqs,
-			nesadapter->max_cq, &cq_num, &nesadapter->next_cq);
+			nesadapter->max_cq, &cq_num, &nesadapter->next_cq, NES_RESOURCE_CQ);
 	if (err) {
 		return ERR_PTR(err);
 	}
@@ -2129,7 +2129,7 @@ static struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd,
 		return ERR_PTR(-EINVAL);
 
 	err = nes_alloc_resource(nesadapter, nesadapter->allocated_mrs, nesadapter->max_mr,
-			&stag_index, &next_stag_index);
+			&stag_index, &next_stag_index, NES_RESOURCE_PHYS_MR);
 	if (err) {
 		return ERR_PTR(err);
 	}
@@ -2360,7 +2360,7 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 			next_stag_index %= nesadapter->max_mr;
 
 			err = nes_alloc_resource(nesadapter, nesadapter->allocated_mrs,
-					nesadapter->max_mr, &stag_index, &next_stag_index);
+					nesadapter->max_mr, &stag_index, &next_stag_index, NES_RESOURCE_USER_MR);
 			if (err) {
 				ib_umem_release(region);
 				return ERR_PTR(err);
@@ -3006,6 +3006,7 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 					switch (nesqp->hw_iwarp_state) {
 						case NES_AEQE_IWARP_STATE_CLOSING:
 							next_iwarp_state = NES_CQP_QP_IWARP_STATE_CLOSING;
+							break;
 						case NES_AEQE_IWARP_STATE_TERMINATE:
 							next_iwarp_state = NES_CQP_QP_IWARP_STATE_TERMINATE;
 							break;
@@ -3068,18 +3069,9 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		}
 
 		nesqp->ibqp_state = attr->qp_state;
-		if (((nesqp->iwarp_state & NES_CQP_QP_IWARP_STATE_MASK) ==
-				(u32)NES_CQP_QP_IWARP_STATE_RTS) &&
-				((next_iwarp_state & NES_CQP_QP_IWARP_STATE_MASK) >
-				(u32)NES_CQP_QP_IWARP_STATE_RTS)) {
-			nesqp->iwarp_state = next_iwarp_state & NES_CQP_QP_IWARP_STATE_MASK;
-			nes_debug(NES_DBG_MOD_QP, "Change nesqp->iwarp_state=%08x\n",
-					nesqp->iwarp_state);
-		} else {
-			nesqp->iwarp_state = next_iwarp_state & NES_CQP_QP_IWARP_STATE_MASK;
-			nes_debug(NES_DBG_MOD_QP, "Change nesqp->iwarp_state=%08x\n",
-					nesqp->iwarp_state);
-		}
+		nesqp->iwarp_state = next_iwarp_state & NES_CQP_QP_IWARP_STATE_MASK;
+		nes_debug(NES_DBG_MOD_QP, "Change nesqp->iwarp_state=%08x\n",
+				nesqp->iwarp_state);
 	}
 
 	if (attr_mask & IB_QP_ACCESS_FLAGS) {

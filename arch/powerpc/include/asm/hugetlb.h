@@ -151,6 +151,10 @@ static inline void arch_release_hugepage(struct page *page)
 {
 }
 
+static inline void arch_clear_hugepage_flags(struct page *page)
+{
+}
+
 #else /* ! CONFIG_HUGETLB_PAGE */
 static inline void flush_hugetlb_page(struct vm_area_struct *vma,
 				      unsigned long vmaddr)

@@ -37,6 +37,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CX20442
 	select SND_SOC_DA7210 if I2C
 	select SND_SOC_DA732X if I2C
+	select SND_SOC_DA9055 if I2C
 	select SND_SOC_DFBMCS320
 	select SND_SOC_ISABELLE if I2C
 	select SND_SOC_JZ4740_CODEC
@@ -70,6 +71,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_UDA134X
 	select SND_SOC_UDA1380 if I2C
 	select SND_SOC_WL1273 if MFD_WL1273_CORE
+	select SND_SOC_WM0010 if SPI_MASTER
 	select SND_SOC_WM1250_EV1 if I2C
 	select SND_SOC_WM2000 if I2C
 	select SND_SOC_WM2200 if I2C
@@ -238,6 +240,9 @@ config SND_SOC_DA7210
 config SND_SOC_DA732X
         tristate
 
+config SND_SOC_DA9055
+	tristate
+
 config SND_SOC_DFBMCS320
 	tristate
 
@@ -324,6 +329,9 @@ config SND_SOC_UDA1380
         tristate
 
 config SND_SOC_WL1273
+	tristate
+
+config SND_SOC_WM0010
 	tristate
 
 config SND_SOC_WM1250_EV1

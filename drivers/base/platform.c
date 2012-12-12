@@ -23,6 +23,7 @@
 #include <linux/idr.h>
 
 #include "base.h"
+#include "power/power.h"
 
 /* For automatically allocated device IDs */
 static DEFINE_IDA(platform_devid_ida);
@@ -82,9 +83,16 @@ EXPORT_SYMBOL_GPL(platform_get_resource);
  */
 int platform_get_irq(struct platform_device *dev, unsigned int num)
 {
+#ifdef CONFIG_SPARC
+	/* sparc does not have irqs represented as IORESOURCE_IRQ resources */
+	if (!dev || num >= dev->archdata.num_irqs)
+		return -ENXIO;
+	return dev->archdata.irqs[num];
+#else
 	struct resource *r = platform_get_resource(dev, IORESOURCE_IRQ, num);
 
 	return r ? r->start : -ENXIO;
+#endif
 }
 EXPORT_SYMBOL_GPL(platform_get_irq);
 
@@ -983,6 +991,7 @@ void __init early_platform_add_devices(struct platform_device **devs, int num)
 		dev = &devs[i]->dev;
 
 		if (!dev->devres_head.next) {
+			pm_runtime_early_init(dev);
 			INIT_LIST_HEAD(&dev->devres_head);
 			list_add_tail(&dev->devres_head,
 				      &early_platform_device_list);

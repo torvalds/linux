@@ -156,9 +156,18 @@
 
 #define TSI721_IBWIN_NUM	8
 
-#define TSI721_IBWINLB(x)	(0x29000 + (x) * 0x20)
-#define TSI721_IBWINLB_BA	0xfffff000
-#define TSI721_IBWINLB_WEN	0x00000001
+#define TSI721_IBWIN_LB(x)	(0x29000 + (x) * 0x20)
+#define TSI721_IBWIN_LB_BA	0xfffff000
+#define TSI721_IBWIN_LB_WEN	0x00000001
+
+#define TSI721_IBWIN_UB(x)	(0x29004 + (x) * 0x20)
+#define TSI721_IBWIN_SZ(x)	(0x29008 + (x) * 0x20)
+#define TSI721_IBWIN_SZ_SIZE	0x00001f00
+#define TSI721_IBWIN_SIZE(size)	(__fls(size) - 12)
+
+#define TSI721_IBWIN_TLA(x)	(0x2900c + (x) * 0x20)
+#define TSI721_IBWIN_TLA_ADD	0xfffff000
+#define TSI721_IBWIN_TUA(x)	(0x29010 + (x) * 0x20)
 
 #define TSI721_SR2PC_GEN_INTE	0x29800
 #define TSI721_SR2PC_PWE	0x29804

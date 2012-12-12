@@ -56,7 +56,6 @@ void mesh_sync_adjust_tbtt(struct ieee80211_sub_if_data *sdata)
 	u64 tsfdelta;
 
 	spin_lock_bh(&ifmsh->sync_offset_lock);
-
 	if (ifmsh->sync_offset_clockdrift_max < beacon_int_fraction) {
 		msync_dbg(sdata, "TBTT : max clockdrift=%lld; adjusting\n",
 			  (long long) ifmsh->sync_offset_clockdrift_max);
@@ -69,11 +68,11 @@ void mesh_sync_adjust_tbtt(struct ieee80211_sub_if_data *sdata)
 		tsfdelta = -beacon_int_fraction;
 		ifmsh->sync_offset_clockdrift_max -= beacon_int_fraction;
 	}
+	spin_unlock_bh(&ifmsh->sync_offset_lock);
 
 	tsf = drv_get_tsf(local, sdata);
 	if (tsf != -1ULL)
 		drv_set_tsf(local, sdata, tsf + tsfdelta);
-	spin_unlock_bh(&ifmsh->sync_offset_lock);
 }
 
 static void mesh_sync_offset_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,

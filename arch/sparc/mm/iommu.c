@@ -90,8 +90,8 @@ static void __init sbus_iommu_init(struct platform_device *op)
            it to us. */
         tmp = __get_free_pages(GFP_KERNEL, IOMMU_ORDER);
 	if (!tmp) {
-		prom_printf("Unable to allocate iommu table [0x%08x]\n",
-			    IOMMU_NPTES*sizeof(iopte_t));
+		prom_printf("Unable to allocate iommu table [0x%lx]\n",
+			    IOMMU_NPTES * sizeof(iopte_t));
 		prom_halt();
 	}
 	iommu->page_table = (iopte_t *)tmp;

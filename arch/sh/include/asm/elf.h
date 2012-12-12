@@ -183,7 +183,8 @@ do {									\
 } while (0)
 #endif
 
-#define SET_PERSONALITY(ex) set_personality(PER_LINUX_32BIT)
+#define SET_PERSONALITY(ex) \
+	set_personality(PER_LINUX_32BIT | (current->personality & (~PER_MASK)))
 
 #ifdef CONFIG_VSYSCALL
 /* vDSO has arch_setup_additional_pages */

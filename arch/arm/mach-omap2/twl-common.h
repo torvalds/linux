@@ -1,7 +1,7 @@
 #ifndef __OMAP_PMIC_COMMON__
 #define __OMAP_PMIC_COMMON__
 
-#include <plat/irqs.h>
+#include "common.h"
 
 #define TWL_COMMON_PDATA_USB		(1 << 0)
 #define TWL_COMMON_PDATA_BCI		(1 << 1)
@@ -32,6 +32,7 @@
 
 struct twl4030_platform_data;
 struct twl6040_platform_data;
+struct i2c_board_info;
 
 void omap_pmic_init(int bus, u32 clkrate, const char *pmic_type, int pmic_irq,
 		    struct twl4030_platform_data *pmic_data);
@@ -40,23 +41,25 @@ void omap_pmic_late_init(void);
 static inline void omap2_pmic_init(const char *pmic_type,
 				   struct twl4030_platform_data *pmic_data)
 {
-	omap_pmic_init(2, 2600, pmic_type, INT_24XX_SYS_NIRQ, pmic_data);
+	omap_pmic_init(2, 2600, pmic_type, 7 + OMAP_INTC_START, pmic_data);
 }
 
 static inline void omap3_pmic_init(const char *pmic_type,
 				   struct twl4030_platform_data *pmic_data)
 {
-	omap_pmic_init(1, 2600, pmic_type, INT_34XX_SYS_NIRQ, pmic_data);
+	omap_pmic_init(1, 2600, pmic_type, 7 + OMAP_INTC_START, pmic_data);
 }
 
 void omap4_pmic_init(const char *pmic_type,
 		    struct twl4030_platform_data *pmic_data,
-		    struct twl6040_platform_data *audio_data, int twl6040_irq);
+		    struct i2c_board_info *devices, int nr_devices);
 
 void omap3_pmic_get_config(struct twl4030_platform_data *pmic_data,
 			   u32 pdata_flags, u32 regulators_flags);
 
 void omap4_pmic_get_config(struct twl4030_platform_data *pmic_data,
 			   u32 pdata_flags, u32 regulators_flags);
+
+void omap_twl4030_audio_init(char *card_name);
 
 #endif /* __OMAP_PMIC_COMMON__ */

@@ -62,7 +62,6 @@
 #include <asm/cputable.h>
 #include <asm/sections.h>
 #include <asm/iommu.h>
-#include <asm/abs_addr.h>
 #include <asm/vdso.h>
 
 #include "mmu_decl.h"

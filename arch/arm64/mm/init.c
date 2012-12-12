@@ -80,7 +80,7 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
 #ifdef CONFIG_ZONE_DMA32
 	/* 4GB maximum for 32-bit only capable devices */
 	max_dma32 = min(max, MAX_DMA32_PFN);
-	zone_size[ZONE_DMA32] = max_dma32 - min;
+	zone_size[ZONE_DMA32] = max(min, max_dma32) - min;
 #endif
 	zone_size[ZONE_NORMAL] = max - max_dma32;
 
@@ -301,10 +301,7 @@ void __init mem_init(void)
 	unsigned long reserved_pages, free_pages;
 	struct memblock_region *reg;
 
-#if CONFIG_SWIOTLB
-	extern void __init arm64_swiotlb_init(size_t max_size);
-	arm64_swiotlb_init(max_pfn << (PAGE_SHIFT - 1));
-#endif
+	arm64_swiotlb_init();
 
 	max_mapnr   = pfn_to_page(max_pfn + PHYS_PFN_OFFSET) - mem_map;
 

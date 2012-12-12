@@ -139,6 +139,7 @@ static inline int pm_qos_get_value(struct pm_qos_constraints *c)
 	default:
 		/* runtime check for not using enum */
 		BUG();
+		return PM_QOS_DEFAULT_VALUE;
 	}
 }
 

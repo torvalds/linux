@@ -139,7 +139,7 @@ static const struct ide_port_ops atiixp_port_ops = {
 	.cable_detect		= atiixp_cable_detect,
 };
 
-static const struct ide_port_info atiixp_pci_info[] __devinitdata = {
+static const struct ide_port_info atiixp_pci_info[] __devinitconst = {
 	{	/* 0: IXP200/300/400/700 */
 		.name		= DRV_NAME,
 		.enablebits	= {{0x48,0x01,0x00}, {0x48,0x08,0x00}},

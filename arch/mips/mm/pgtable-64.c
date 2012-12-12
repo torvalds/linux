@@ -26,17 +26,17 @@ void pgd_init(unsigned long page)
  	p = (unsigned long *) page;
 	end = p + PTRS_PER_PGD;
 
-	while (p < end) {
+	do {
 		p[0] = entry;
 		p[1] = entry;
 		p[2] = entry;
 		p[3] = entry;
 		p[4] = entry;
-		p[5] = entry;
-		p[6] = entry;
-		p[7] = entry;
 		p += 8;
-	}
+		p[-3] = entry;
+		p[-2] = entry;
+		p[-1] = entry;
+	} while (p != end);
 }
 
 #ifndef __PAGETABLE_PMD_FOLDED
@@ -47,17 +47,17 @@ void pmd_init(unsigned long addr, unsigned long pagetable)
  	p = (unsigned long *) addr;
 	end = p + PTRS_PER_PMD;
 
-	while (p < end) {
+	do {
 		p[0] = pagetable;
 		p[1] = pagetable;
 		p[2] = pagetable;
 		p[3] = pagetable;
 		p[4] = pagetable;
-		p[5] = pagetable;
-		p[6] = pagetable;
-		p[7] = pagetable;
 		p += 8;
-	}
+		p[-3] = pagetable;
+		p[-2] = pagetable;
+		p[-1] = pagetable;
+	} while (p != end);
 }
 #endif
 
