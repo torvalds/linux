@@ -1966,10 +1966,14 @@ sub make_oldconfig {
 
     if (!run_command "$make olddefconfig") {
 	# Perhaps olddefconfig doesn't exist in this version of the kernel
-	# try a yes '' | oldconfig
-	doprint "olddefconfig failed, trying yes '' | make oldconfig\n";
-	run_command "yes '' | $make oldconfig" or
-	    dodie "failed make config oldconfig";
+	# try oldnoconfig
+	doprint "olddefconfig failed, trying make oldnoconfig\n";
+	if (!run_command "$make oldnoconfig") {
+	    doprint "oldnoconfig failed, trying yes '' | make oldconfig\n";
+	    # try a yes '' | oldconfig
+	    run_command "yes '' | $make oldconfig" or
+		dodie "failed make config oldconfig";
+	}
     }
 }
 
