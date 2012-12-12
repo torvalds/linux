@@ -101,7 +101,11 @@ enum {
 
 #define MAX_NID_PATH_DEPTH	5
 
-/* output-path: DAC -> ... -> pin
+/* Widget connection path
+ *
+ * For output, stored in the order of DAC -> ... -> pin,
+ * for input, pin -> ... -> ADC.
+ *
  * idx[i] contains the source index number to select on of the widget path[i];
  * e.g. idx[1] is the index of the DAC (path[0]) selected by path[1] widget
  * multi[] indicates whether it's a selector widget with multi-connectors
@@ -195,6 +199,9 @@ struct alc_spec {
 
 	/* output paths */
 	struct snd_array out_path;
+
+	/* input paths */
+	struct snd_array in_path;
 
 	/* hooks */
 	void (*init_hook)(struct hda_codec *codec);
@@ -2428,6 +2435,7 @@ static void alc_free(struct hda_codec *codec)
 	alc_free_kctls(codec);
 	alc_free_bind_ctls(codec);
 	snd_array_free(&spec->out_path);
+	snd_array_free(&spec->in_path);
 	snd_hda_gen_free(&spec->gen);
 	kfree(spec);
 	snd_hda_detach_beep_device(codec);
@@ -2628,6 +2636,10 @@ static const char *alc_get_line_out_pfx(struct alc_spec *spec, int ch,
 	return channel_name[ch];
 }
 
+static bool parse_nid_path(struct hda_codec *codec, hda_nid_t from_nid,
+			   hda_nid_t to_nid, int with_aa_mix,
+			   struct nid_path *path);
+
 #ifdef CONFIG_PM
 /* add the powersave loopback-list entry */
 static void add_loopback_list(struct alc_spec *spec, hda_nid_t mix, int idx)
@@ -2663,6 +2675,28 @@ static int new_analog_input(struct alc_spec *spec, hda_nid_t pin,
 	if (err < 0)
 		return err;
 	add_loopback_list(spec, mix_nid, idx);
+	return 0;
+}
+
+static int new_capture_source(struct hda_codec *codec, int adc_idx,
+			      hda_nid_t pin, int idx, const char *label)
+{
+	struct alc_spec *spec = codec->spec;
+	struct hda_input_mux *imux = &spec->private_imux[0];
+	struct nid_path *path;
+
+	path = snd_array_new(&spec->in_path);
+	if (!path)
+		return -ENOMEM;
+	memset(path, 0, sizeof(*path));
+	if (!parse_nid_path(codec, pin, spec->adc_nids[adc_idx], 2, path)) {
+		snd_printd(KERN_ERR "invalid input path 0x%x -> 0x%x\n",
+			   pin, spec->adc_nids[adc_idx]);
+		return -EINVAL;
+	}
+
+	spec->imux_pins[imux->num_items] = pin;
+	snd_hda_add_imux_item(imux, label, idx, NULL);
 	return 0;
 }
 
@@ -2767,8 +2801,9 @@ static int alc_auto_create_input_ctls(struct hda_codec *codec)
 			hda_nid_t cap = get_capsrc(spec, c);
 			idx = get_connection_index(codec, cap, pin);
 			if (idx >= 0) {
-				spec->imux_pins[imux->num_items] = pin;
-				snd_hda_add_imux_item(imux, label, idx, NULL);
+				err = new_capture_source(codec, c, pin, idx, label);
+				if (err < 0)
+					return err;
 				break;
 			}
 		}
@@ -2897,40 +2932,45 @@ static hda_nid_t alc_auto_look_for_dac(struct hda_codec *codec, hda_nid_t pin)
 }
 
 /* called recursively */
-static bool __parse_output_path(struct hda_codec *codec, hda_nid_t nid,
-				hda_nid_t target_dac, int with_aa_mix,
-				struct nid_path *path, int depth)
+static bool __parse_nid_path(struct hda_codec *codec,
+			     hda_nid_t from_nid, hda_nid_t to_nid,
+			     int with_aa_mix, struct nid_path *path, int depth)
 {
 	struct alc_spec *spec = codec->spec;
-	hda_nid_t conn[8];
+	hda_nid_t conn[16];
 	int i, nums;
 
-	if (nid == spec->mixer_nid) {
+	if (to_nid == spec->mixer_nid) {
 		if (!with_aa_mix)
 			return false;
 		with_aa_mix = 2; /* mark aa-mix is included */
 	}
 
-	nums = snd_hda_get_connections(codec, nid, conn, ARRAY_SIZE(conn));
+	nums = snd_hda_get_connections(codec, to_nid, conn, ARRAY_SIZE(conn));
 	for (i = 0; i < nums; i++) {
-		if (get_wcaps_type(get_wcaps(codec, conn[i])) != AC_WID_AUD_OUT)
-			continue;
-		if (conn[i] == target_dac ||
-		    (!target_dac && !alc_is_dac_already_used(codec, conn[i]))) {
-			/* aa-mix is requested but not included? */
-			if (!(spec->mixer_nid && with_aa_mix == 1))
-				goto found;
+		if (conn[i] != from_nid) {
+			/* special case: when from_nid is 0,
+			 * try to find an empty DAC
+			 */
+			if (from_nid ||
+			    get_wcaps_type(get_wcaps(codec, conn[i])) != AC_WID_AUD_OUT ||
+			    alc_is_dac_already_used(codec, conn[i]))
+				continue;
 		}
+		/* aa-mix is requested but not included? */
+		if (!(spec->mixer_nid && with_aa_mix == 1))
+			goto found;
 	}
 	if (depth >= MAX_NID_PATH_DEPTH)
 		return false;
 	for (i = 0; i < nums; i++) {
 		unsigned int type;
 		type = get_wcaps_type(get_wcaps(codec, conn[i]));
-		if (type == AC_WID_AUD_OUT)
+		if (type == AC_WID_AUD_OUT || type == AC_WID_AUD_IN ||
+		    type == AC_WID_PIN)
 			continue;
-		if (__parse_output_path(codec, conn[i], target_dac,
-					with_aa_mix, path, depth + 1))
+		if (__parse_nid_path(codec, from_nid, conn[i],
+				     with_aa_mix, path, depth + 1))
 			goto found;
 	}
 	return false;
@@ -2938,25 +2978,27 @@ static bool __parse_output_path(struct hda_codec *codec, hda_nid_t nid,
  found:
 	path->path[path->depth] = conn[i];
 	path->idx[path->depth + 1] = i;
-	if (nums > 1 && get_wcaps_type(get_wcaps(codec, nid)) != AC_WID_AUD_MIX)
+	if (nums > 1 && get_wcaps_type(get_wcaps(codec, to_nid)) != AC_WID_AUD_MIX)
 		path->multi[path->depth + 1] = 1;
 	path->depth++;
 	return true;
 }
 
-/* parse the output path from the given nid to the target DAC;
- * when target_dac is 0, try to find an empty DAC;
- * when with_aa_mix is 0, paths with spec->mixer_nid are excluded
+/* parse the widget path from the given nid to the target nid;
+ * when @from_nid is 0, try to find an empty DAC;
+ * when @with_aa_mix is 0, paths with spec->mixer_nid are excluded.
+ * when @with_aa_mix is 1, paths without spec->mixer_nid are excluded.
+ * when @with_aa_mix is 2, no special handling about spec->mixer_nid.
  */
-static bool parse_output_path(struct hda_codec *codec, hda_nid_t nid,
-			      hda_nid_t target_dac, int with_aa_mix,
-			      struct nid_path *path)
+static bool parse_nid_path(struct hda_codec *codec, hda_nid_t from_nid,
+			   hda_nid_t to_nid, int with_aa_mix,
+			   struct nid_path *path)
 {
-	if (__parse_output_path(codec, nid, target_dac, with_aa_mix, path, 1)) {
-		path->path[path->depth] = nid;
+	if (__parse_nid_path(codec, from_nid, to_nid, with_aa_mix, path, 1)) {
+		path->path[path->depth] = to_nid;
 		path->depth++;
 #if 0
-		snd_printdd("output-path: depth=%d, %02x/%02x/%02x/%02x/%02x\n",
+		snd_printdd("path: depth=%d, %02x/%02x/%02x/%02x/%02x\n",
 			    path->depth, path->path[0], path->path[1],
 			    path->path[2], path->path[3], path->path[4]);
 #endif
@@ -3034,7 +3076,7 @@ static bool add_new_out_path(struct hda_codec *codec, hda_nid_t pin,
 	if (!path)
 		return false;
 	memset(path, 0, sizeof(*path));
-	if (parse_output_path(codec, pin, dac, 0, path))
+	if (parse_nid_path(codec, dac, pin, 0, path))
 		return true;
 	/* push back */
 	spec->out_path.used--;
@@ -4529,6 +4571,7 @@ static int alc_alloc_spec(struct hda_codec *codec, hda_nid_t mixer_nid)
 	snd_array_init(&spec->kctls, sizeof(struct snd_kcontrol_new), 32);
 	snd_array_init(&spec->bind_ctls, sizeof(struct hda_bind_ctls *), 8);
 	snd_array_init(&spec->out_path, sizeof(struct nid_path), 8);
+	snd_array_init(&spec->in_path, sizeof(struct nid_path), 8);
 
 	err = alc_codec_rename_from_preset(codec);
 	if (err < 0) {
