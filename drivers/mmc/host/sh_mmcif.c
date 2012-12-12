@@ -542,10 +542,7 @@ static bool sh_mmcif_next_block(struct sh_mmcif_host *host, u32 *p)
 		host->pio_ptr = p;
 	}
 
-	if (host->sg_idx == data->sg_len)
-		return false;
-
-	return true;
+	return host->sg_idx != data->sg_len;
 }
 
 static void sh_mmcif_single_read(struct sh_mmcif_host *host,
@@ -1071,9 +1068,7 @@ static bool sh_mmcif_end_cmd(struct sh_mmcif_host *host)
 
 	if (!host->dma_active) {
 		data->error = sh_mmcif_data_trans(host, host->mrq, cmd->opcode);
-		if (!data->error)
-			return true;
-		return false;
+		return !data->error;
 	}
 
 	/* Running in the IRQ thread, can sleep */
