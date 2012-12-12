@@ -2970,7 +2970,7 @@ unsigned long dispc_fclk_rate(void)
 
 	switch (dss_get_dispc_clk_source()) {
 	case OMAP_DSS_CLK_SRC_FCK:
-		r = clk_get_rate(dispc.dss_clk);
+		r = dss_get_dispc_clk_rate();
 		break;
 	case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
 		dsidev = dsi_get_dsidev_from_id(0);
@@ -3002,7 +3002,7 @@ unsigned long dispc_mgr_lclk_rate(enum omap_channel channel)
 
 		switch (dss_get_lcd_clk_source(channel)) {
 		case OMAP_DSS_CLK_SRC_FCK:
-			r = clk_get_rate(dispc.dss_clk);
+			r = dss_get_dispc_clk_rate();
 			break;
 		case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
 			dsidev = dsi_get_dsidev_from_id(0);

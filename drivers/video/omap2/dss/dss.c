@@ -77,6 +77,7 @@ static struct {
 
 	struct clk	*dpll4_m4_ck;
 	struct clk	*dss_clk;
+	unsigned long	dss_clk_rate;
 
 	unsigned long	cache_req_pck;
 	unsigned long	cache_prate;
@@ -489,6 +490,10 @@ int dss_set_clock_div(struct dss_clock_info *cinfo)
 			return -EINVAL;
 	}
 
+	dss.dss_clk_rate = clk_get_rate(dss.dss_clk);
+
+	WARN_ONCE(dss.dss_clk_rate != cinfo->fck, "clk rate mismatch");
+
 	DSSDBG("fck = %ld (%d)\n", cinfo->fck, cinfo->fck_div);
 
 	return 0;
@@ -500,6 +505,11 @@ unsigned long dss_get_dpll4_rate(void)
 		return clk_get_rate(clk_get_parent(dss.dpll4_m4_ck));
 	else
 		return 0;
+}
+
+unsigned long dss_get_dispc_clk_rate(void)
+{
+	return dss.dss_clk_rate;
 }
 
 static int dss_setup_default_clock(void)
@@ -952,6 +962,8 @@ static int __init omap_dsshw_probe(struct platform_device *pdev)
 	r = dss_runtime_get();
 	if (r)
 		goto err_runtime_get;
+
+	dss.dss_clk_rate = clk_get_rate(dss.dss_clk);
 
 	/* Select DPLL */
 	REG_FLD_MOD(DSS_CONTROL, 0, 0, 0);
