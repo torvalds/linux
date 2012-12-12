@@ -27,7 +27,7 @@ struct node {
 };
 
 struct memory_block;
-extern struct node node_devices[];
+extern struct node *node_devices[];
 typedef  void (*node_registration_func_t)(struct node *);
 
 extern int register_node(struct node *, int, struct node *);
