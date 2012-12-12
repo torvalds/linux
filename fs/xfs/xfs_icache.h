@@ -24,28 +24,30 @@ struct xfs_perag;
 #define SYNC_WAIT		0x0001	/* wait for i/o to complete */
 #define SYNC_TRYLOCK		0x0002  /* only try to lock inodes */
 
-extern struct workqueue_struct	*xfs_syncd_wq;	/* sync workqueue */
+int xfs_iget(struct xfs_mount *mp, struct xfs_trans *tp, xfs_ino_t ino,
+	     uint flags, uint lock_flags, xfs_inode_t **ipp);
 
-int xfs_syncd_init(struct xfs_mount *mp);
-void xfs_syncd_stop(struct xfs_mount *mp);
-
-int xfs_quiesce_data(struct xfs_mount *mp);
-void xfs_quiesce_attr(struct xfs_mount *mp);
-
-void xfs_flush_inodes(struct xfs_inode *ip);
+void xfs_reclaim_worker(struct work_struct *work);
 
 int xfs_reclaim_inodes(struct xfs_mount *mp, int mode);
 int xfs_reclaim_inodes_count(struct xfs_mount *mp);
 void xfs_reclaim_inodes_nr(struct xfs_mount *mp, int nr_to_scan);
 
 void xfs_inode_set_reclaim_tag(struct xfs_inode *ip);
-void __xfs_inode_set_reclaim_tag(struct xfs_perag *pag, struct xfs_inode *ip);
-void __xfs_inode_clear_reclaim_tag(struct xfs_mount *mp, struct xfs_perag *pag,
-				struct xfs_inode *ip);
+
+void xfs_inode_set_eofblocks_tag(struct xfs_inode *ip);
+void xfs_inode_clear_eofblocks_tag(struct xfs_inode *ip);
+int xfs_icache_free_eofblocks(struct xfs_mount *, struct xfs_eofblocks *);
+void xfs_eofblocks_worker(struct work_struct *);
 
 int xfs_sync_inode_grab(struct xfs_inode *ip);
 int xfs_inode_ag_iterator(struct xfs_mount *mp,
-	int (*execute)(struct xfs_inode *ip, struct xfs_perag *pag, int flags),
-	int flags);
+	int (*execute)(struct xfs_inode *ip, struct xfs_perag *pag,
+		int flags, void *args),
+	int flags, void *args);
+int xfs_inode_ag_iterator_tag(struct xfs_mount *mp,
+	int (*execute)(struct xfs_inode *ip, struct xfs_perag *pag,
+		int flags, void *args),
+	int flags, void *args, int tag);
 
 #endif
