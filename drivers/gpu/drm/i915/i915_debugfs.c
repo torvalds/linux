@@ -1633,7 +1633,7 @@ static int i915_dpio_info(struct seq_file *m, void *data)
 		return 0;
 	}
 
-	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
+	ret = mutex_lock_interruptible(&dev_priv->dpio_lock);
 	if (ret)
 		return ret;
 
@@ -1662,7 +1662,7 @@ static int i915_dpio_info(struct seq_file *m, void *data)
 	seq_printf(m, "DPIO_FASTCLK_DISABLE: 0x%08x\n",
 		   intel_dpio_read(dev_priv, DPIO_FASTCLK_DISABLE));
 
-	mutex_unlock(&dev->mode_config.mutex);
+	mutex_unlock(&dev_priv->dpio_lock);
 
 	return 0;
 }

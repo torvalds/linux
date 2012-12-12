@@ -686,7 +686,7 @@ typedef struct drm_i915_private {
 	struct pm_qos_request pm_qos;
 
 	/* DPIO indirect register protection */
-	spinlock_t dpio_lock;
+	struct mutex dpio_lock;
 
 	/** Cached value of IMR to avoid reads in updating the bitfield */
 	u32 pipestat[2];
