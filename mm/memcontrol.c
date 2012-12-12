@@ -1498,8 +1498,8 @@ static u64 mem_cgroup_get_limit(struct mem_cgroup *memcg)
 	return limit;
 }
 
-void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
-			      int order)
+static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+				     int order)
 {
 	struct mem_cgroup *iter;
 	unsigned long chosen_points = 0;

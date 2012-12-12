@@ -30,7 +30,7 @@ static void restore_pageblock_isolate(struct page *page, int migratetype)
 	zone->nr_pageblock_isolate--;
 }
 
-int set_migratetype_isolate(struct page *page)
+int set_migratetype_isolate(struct page *page, bool skip_hwpoisoned_pages)
 {
 	struct zone *zone;
 	unsigned long flags, pfn;
@@ -66,7 +66,8 @@ int set_migratetype_isolate(struct page *page)
 	 * FIXME: Now, memory hotplug doesn't call shrink_slab() by itself.
 	 * We just check MOVABLE pages.
 	 */
-	if (!has_unmovable_pages(zone, page, arg.pages_found))
+	if (!has_unmovable_pages(zone, page, arg.pages_found,
+				 skip_hwpoisoned_pages))
 		ret = 0;
 
 	/*
@@ -134,7 +135,7 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
  * Returns 0 on success and -EBUSY if any part of range cannot be isolated.
  */
 int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
-			     unsigned migratetype)
+			     unsigned migratetype, bool skip_hwpoisoned_pages)
 {
 	unsigned long pfn;
 	unsigned long undo_pfn;
@@ -147,7 +148,8 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 	     pfn < end_pfn;
 	     pfn += pageblock_nr_pages) {
 		page = __first_valid_page(pfn, pageblock_nr_pages);
-		if (page && set_migratetype_isolate(page)) {
+		if (page &&
+		    set_migratetype_isolate(page, skip_hwpoisoned_pages)) {
 			undo_pfn = pfn;
 			goto undo;
 		}
@@ -190,7 +192,8 @@ int undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
  * Returns 1 if all pages in the range are isolated.
  */
 static int
-__test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
+__test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
+				  bool skip_hwpoisoned_pages)
 {
 	struct page *page;
 
@@ -220,6 +223,14 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
 		else if (page_count(page) == 0 &&
 			get_freepage_migratetype(page) == MIGRATE_ISOLATE)
 			pfn += 1;
+		else if (skip_hwpoisoned_pages && PageHWPoison(page)) {
+			/*
+			 * The HWPoisoned page may be not in buddy
+			 * system, and page_count() is not 0.
+			 */
+			pfn++;
+			continue;
+		}
 		else
 			break;
 	}
@@ -228,7 +239,8 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
 	return 1;
 }
 
-int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
+int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
+			bool skip_hwpoisoned_pages)
 {
 	unsigned long pfn, flags;
 	struct page *page;
@@ -251,7 +263,8 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
 	/* Check all pages are free or Marked as ISOLATED */
 	zone = page_zone(page);
 	spin_lock_irqsave(&zone->lock, flags);
-	ret = __test_page_isolated_in_pageblock(start_pfn, end_pfn);
+	ret = __test_page_isolated_in_pageblock(start_pfn, end_pfn,
+						skip_hwpoisoned_pages);
 	spin_unlock_irqrestore(&zone->lock, flags);
 	return ret ? 0 : -EBUSY;
 }

@@ -1225,7 +1225,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 		}
 
 		defrag_count += ret;
-		balance_dirty_pages_ratelimited_nr(inode->i_mapping, ret);
+		balance_dirty_pages_ratelimited(inode->i_mapping);
 		mutex_unlock(&inode->i_mutex);
 
 		if (newer_than) {
