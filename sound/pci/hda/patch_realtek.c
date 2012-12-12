@@ -2672,6 +2672,10 @@ static int new_analog_input(struct hda_codec *codec, hda_nid_t pin,
 	struct nid_path *path;
 	int err, idx;
 
+	if (!nid_has_volume(codec, mix_nid, HDA_INPUT) &&
+	    !nid_has_mute(codec, mix_nid, HDA_INPUT))
+		return 0; /* no need for analog loopback */
+
 	path = snd_array_new(&spec->loopback_path);
 	if (!path)
 		return -ENOMEM;
@@ -2680,14 +2684,20 @@ static int new_analog_input(struct hda_codec *codec, hda_nid_t pin,
 		return -EINVAL;
 
 	idx = path->idx[path->depth - 1];
-	err = __add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL, ctlname, ctlidx,
+	if (nid_has_volume(codec, mix_nid, HDA_INPUT)) {
+		err = __add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL, ctlname, ctlidx,
 			  HDA_COMPOSE_AMP_VAL(mix_nid, 3, idx, HDA_INPUT));
-	if (err < 0)
-		return err;
-	err = __add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, ctlname, ctlidx,
+		if (err < 0)
+			return err;
+	}
+
+	if (nid_has_mute(codec, mix_nid, HDA_INPUT)) {
+		err = __add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, ctlname, ctlidx,
 			  HDA_COMPOSE_AMP_VAL(mix_nid, 3, idx, HDA_INPUT));
-	if (err < 0)
-		return err;
+		if (err < 0)
+			return err;
+	}
+
 	add_loopback_list(spec, mix_nid, idx);
 	return 0;
 }
