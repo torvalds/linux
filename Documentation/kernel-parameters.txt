@@ -2394,6 +2394,27 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	ramdisk_size=	[RAM] Sizes of RAM disks in kilobytes
 			See Documentation/blockdev/ramdisk.txt.
 
+	rcu_nocbs=	[KNL,BOOT]
+			In kernels built with CONFIG_RCU_NOCB_CPU=y, set
+			the specified list of CPUs to be no-callback CPUs.
+			Invocation of these CPUs' RCU callbacks will
+			be offloaded to "rcuoN" kthreads created for
+			that purpose.  This reduces OS jitter on the
+			offloaded CPUs, which can be useful for HPC and
+			real-time workloads.  It can also improve energy
+			efficiency for asymmetric multiprocessors.
+
+	rcu_nocbs_poll	[KNL,BOOT]
+			Rather than requiring that offloaded CPUs
+			(specified by rcu_nocbs= above) explicitly
+			awaken the corresponding "rcuoN" kthreads,
+			make these kthreads poll for callbacks.
+			This improves the real-time response for the
+			offloaded CPUs by relieving them of the need to
+			wake up the corresponding kthread, but degrades
+			energy efficiency by requiring that the kthreads
+			periodically wake up to do the polling.
+
 	rcutree.blimit=	[KNL,BOOT]
 			Set maximum number of finished RCU callbacks to process
 			in one batch.
