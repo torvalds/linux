@@ -115,8 +115,3 @@ static inline void arch_decomp_setup(void)
 		DEBUG_LL_OMAP1(3, sx1);
 	} while (0);
 }
-
-/*
- * nothing to do
- */
-#define arch_decomp_wdog()
