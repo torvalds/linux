@@ -199,7 +199,7 @@ int clk_init(void)
 
 	tmpSclk = clk_get(NULL, "apb1");
 	if (tmpSclk) {
-		struct clk *tmpClk = &ccu_sys_clk[AW_SYS_CLK_PLL6];
+		struct clk *tmpClk = &ccu_sys_clk[AW_SYS_CLK_HOSC];
 		clk_set_parent(tmpSclk, tmpClk);
 	} else {
 		CCU_ERR("try to get apb1 clock handle failed!\n");
