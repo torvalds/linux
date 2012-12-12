@@ -28,6 +28,7 @@
 #include "common.h"
 #include <plat/prcm.h>
 
+#include "soc.h"
 #include "clock.h"
 #include "clock2xxx.h"
 #include "cm2xxx_3xxx.h"

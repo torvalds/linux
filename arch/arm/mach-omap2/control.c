@@ -1,7 +1,7 @@
 /*
  * OMAP2/3 System Control Module register access
  *
- * Copyright (C) 2007 Texas Instruments, Inc.
+ * Copyright (C) 2007, 2012 Texas Instruments, Inc.
  * Copyright (C) 2007 Nokia Corporation
  *
  * Written by Paul Walmsley
@@ -15,15 +15,13 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 
-#include <plat/sdrc.h>
-
 #include "soc.h"
 #include "iomap.h"
 #include "common.h"
 #include "cm-regbits-34xx.h"
 #include "prm-regbits-34xx.h"
-#include "prm2xxx_3xxx.h"
-#include "cm2xxx_3xxx.h"
+#include "prm3xxx.h"
+#include "cm3xxx.h"
 #include "sdrc.h"
 #include "pm.h"
 #include "control.h"

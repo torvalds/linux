@@ -19,8 +19,7 @@
 
 #include "virt-dma.h"
 
-#include <plat/cpu.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 
 struct omap_dmadev {
 	struct dma_device ddev;
@@ -438,7 +437,7 @@ static struct dma_async_tx_descriptor *omap_dma_prep_dma_cyclic(
 		omap_disable_dma_irq(c->dma_ch, OMAP_DMA_BLOCK_IRQ);
 	}
 
-	if (!cpu_class_is_omap1()) {
+	if (dma_omap2plus()) {
 		omap_set_dma_src_burst_mode(c->dma_ch, OMAP_DMA_DATA_BURST_16);
 		omap_set_dma_dest_burst_mode(c->dma_ch, OMAP_DMA_DATA_BURST_16);
 	}

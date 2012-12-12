@@ -41,9 +41,9 @@
 #include <asm/mach/map.h>
 
 #include <mach/mux.h>
-#include <plat/tc.h>
+#include <mach/tc.h>
 #include <linux/platform_data/keypad-omap.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 #include <mach/flash.h>
 
 #include <mach/hardware.h>
@@ -452,7 +452,6 @@ MACHINE_START(OMAP_H3, "TI OMAP1710 H3 board")
 	.atag_offset	= 0x100,
 	.map_io		= omap16xx_map_io,
 	.init_early     = omap1_init_early,
-	.reserve	= omap_reserve,
 	.init_irq	= omap1_init_irq,
 	.init_machine	= h3_init,
 	.init_late	= omap1_init_late,

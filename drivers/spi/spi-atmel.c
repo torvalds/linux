@@ -19,9 +19,9 @@
 #include <linux/interrupt.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
+#include <linux/platform_data/atmel.h>
 
 #include <asm/io.h>
-#include <mach/board.h>
 #include <asm/gpio.h>
 #include <mach/cpu.h>
 

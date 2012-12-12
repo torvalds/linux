@@ -16,11 +16,11 @@
 #include <linux/platform_device.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
+#include <linux/platform_data/atmel.h>
 
 #include <mach/hardware.h>
 #include <asm/gpio.h>
 
-#include <mach/board.h>
 #include <mach/cpu.h>
 
 #ifndef CONFIG_ARCH_AT91

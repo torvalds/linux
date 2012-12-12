@@ -30,8 +30,68 @@
 #include <linux/io.h>
 #include <linux/omapfb.h>
 
-#include <mach/hardware.h>
 #include <asm/mach/map.h>
+
+#include <plat/cpu.h>
+
+#ifdef CONFIG_OMAP2_VRFB
+
+/*
+ * The first memory resource is the register region for VRFB,
+ * the rest are VRFB virtual memory areas for each VRFB context.
+ */
+
+static const struct resource omap2_vrfb_resources[] = {
+	DEFINE_RES_MEM_NAMED(0x68008000u, 0x40, "vrfb-regs"),
+	DEFINE_RES_MEM_NAMED(0x70000000u, 0x4000000, "vrfb-area-0"),
+	DEFINE_RES_MEM_NAMED(0x74000000u, 0x4000000, "vrfb-area-1"),
+	DEFINE_RES_MEM_NAMED(0x78000000u, 0x4000000, "vrfb-area-2"),
+	DEFINE_RES_MEM_NAMED(0x7c000000u, 0x4000000, "vrfb-area-3"),
+};
+
+static const struct resource omap3_vrfb_resources[] = {
+	DEFINE_RES_MEM_NAMED(0x6C000180u, 0xc0, "vrfb-regs"),
+	DEFINE_RES_MEM_NAMED(0x70000000u, 0x4000000, "vrfb-area-0"),
+	DEFINE_RES_MEM_NAMED(0x74000000u, 0x4000000, "vrfb-area-1"),
+	DEFINE_RES_MEM_NAMED(0x78000000u, 0x4000000, "vrfb-area-2"),
+	DEFINE_RES_MEM_NAMED(0x7c000000u, 0x4000000, "vrfb-area-3"),
+	DEFINE_RES_MEM_NAMED(0xe0000000u, 0x4000000, "vrfb-area-4"),
+	DEFINE_RES_MEM_NAMED(0xe4000000u, 0x4000000, "vrfb-area-5"),
+	DEFINE_RES_MEM_NAMED(0xe8000000u, 0x4000000, "vrfb-area-6"),
+	DEFINE_RES_MEM_NAMED(0xec000000u, 0x4000000, "vrfb-area-7"),
+	DEFINE_RES_MEM_NAMED(0xf0000000u, 0x4000000, "vrfb-area-8"),
+	DEFINE_RES_MEM_NAMED(0xf4000000u, 0x4000000, "vrfb-area-9"),
+	DEFINE_RES_MEM_NAMED(0xf8000000u, 0x4000000, "vrfb-area-10"),
+	DEFINE_RES_MEM_NAMED(0xfc000000u, 0x4000000, "vrfb-area-11"),
+};
+
+static int __init omap_init_vrfb(void)
+{
+	struct platform_device *pdev;
+	const struct resource *res;
+	unsigned int num_res;
+
+	if (cpu_is_omap24xx()) {
+		res = omap2_vrfb_resources;
+		num_res = ARRAY_SIZE(omap2_vrfb_resources);
+	} else if (cpu_is_omap34xx()) {
+		res = omap3_vrfb_resources;
+		num_res = ARRAY_SIZE(omap3_vrfb_resources);
+	} else {
+		return 0;
+	}
+
+	pdev = platform_device_register_resndata(NULL, "omapvrfb", -1,
+			res, num_res, NULL, 0);
+
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+	else
+		return 0;
+}
+
+arch_initcall(omap_init_vrfb);
+#endif
 
 #if defined(CONFIG_FB_OMAP) || defined(CONFIG_FB_OMAP_MODULE)
 

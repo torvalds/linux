@@ -17,8 +17,8 @@
 #include <asm/mach/map.h>
 
 #include <mach/mux.h>
-#include <plat/tc.h>
-#include <plat/dma.h>
+#include <mach/tc.h>
+#include <plat-omap/dma-omap.h>
 
 #include "iomap.h"
 #include "common.h"
@@ -134,7 +134,6 @@ void __init omap1_init_early(void)
 	 */
 	omap1_clk_init();
 	omap1_mux_init();
-	omap_init_consistent_dma_size();
 }
 
 void __init omap1_init_late(void)

@@ -22,7 +22,7 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <mach/board.h>
+#include <linux/platform_data/atmel.h>
 #include <mach/cpu.h>
 
 /* Register definitions based on AT91SAM9RL64 preliminary draft datasheet */

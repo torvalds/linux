@@ -39,9 +39,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
-#include <mach/hardware.h>
-#include <plat/mmc.h>
-#include <plat/cpu.h>
+#include <linux/platform_data/mmc-omap.h>
 
 /* OMAP HSMMC Host Controller Registers */
 #define OMAP_HSMMC_SYSSTATUS	0x0014

@@ -33,11 +33,10 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/platform_data/atmel.h>
 
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
-
-#include <mach/board.h>
 
 #define AT91_MB_MASK(i)		((1 << (i)) - 1)
 

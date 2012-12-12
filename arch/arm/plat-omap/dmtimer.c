@@ -42,9 +42,6 @@
 #include <linux/pm_runtime.h>
 
 #include <plat/dmtimer.h>
-#include <plat/omap-pm.h>
-
-#include <mach/hardware.h>
 
 static u32 omap_reserved_systimers;
 static LIST_HEAD(omap_timer_list);
@@ -271,7 +268,7 @@ int omap_dm_timer_get_irq(struct omap_dm_timer *timer)
 EXPORT_SYMBOL_GPL(omap_dm_timer_get_irq);
 
 #if defined(CONFIG_ARCH_OMAP1)
-
+#include <mach/hardware.h>
 /**
  * omap_dm_timer_modify_idlect_mask - Check if any running timers use ARMXOR
  * @inputmask: current value of idlect mask
@@ -348,7 +345,8 @@ int omap_dm_timer_start(struct omap_dm_timer *timer)
 	omap_dm_timer_enable(timer);
 
 	if (!(timer->capability & OMAP_TIMER_ALWON)) {
-		if (omap_pm_get_dev_context_loss_count(&timer->pdev->dev) !=
+		if (timer->get_context_loss_count &&
+			timer->get_context_loss_count(&timer->pdev->dev) !=
 				timer->ctx_loss_count)
 			omap_timer_restore_context(timer);
 	}
@@ -377,9 +375,11 @@ int omap_dm_timer_stop(struct omap_dm_timer *timer)
 
 	__omap_dm_timer_stop(timer, timer->posted, rate);
 
-	if (!(timer->capability & OMAP_TIMER_ALWON))
-		timer->ctx_loss_count =
-			omap_pm_get_dev_context_loss_count(&timer->pdev->dev);
+	if (!(timer->capability & OMAP_TIMER_ALWON)) {
+		if (timer->get_context_loss_count)
+			timer->ctx_loss_count =
+				timer->get_context_loss_count(&timer->pdev->dev);
+	}
 
 	/*
 	 * Since the register values are computed and written within
@@ -495,7 +495,8 @@ int omap_dm_timer_set_load_start(struct omap_dm_timer *timer, int autoreload,
 	omap_dm_timer_enable(timer);
 
 	if (!(timer->capability & OMAP_TIMER_ALWON)) {
-		if (omap_pm_get_dev_context_loss_count(&timer->pdev->dev) !=
+		if (timer->get_context_loss_count &&
+			timer->get_context_loss_count(&timer->pdev->dev) !=
 				timer->ctx_loss_count)
 			omap_timer_restore_context(timer);
 	}
@@ -729,6 +730,7 @@ static int __devinit omap_dm_timer_probe(struct platform_device *pdev)
 	timer->reserved = omap_dm_timer_reserved_systimer(timer->id);
 	timer->pdev = pdev;
 	timer->capability = pdata->timer_capability;
+	timer->get_context_loss_count = pdata->get_context_loss_count;
 
 	/* Skip pm_runtime_enable for OMAP1 */
 	if (!(timer->capability & OMAP_TIMER_NEEDS_RESET)) {

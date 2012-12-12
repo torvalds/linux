@@ -18,11 +18,11 @@
 #include <linux/platform_device.h>
 #include <linux/i2c-gpio.h>
 
-#include <mach/board.h>
 #include <mach/at91rm9200.h>
 #include <mach/at91rm9200_mc.h>
 #include <mach/at91_ramc.h>
 
+#include "board.h"
 #include "generic.h"
 
 

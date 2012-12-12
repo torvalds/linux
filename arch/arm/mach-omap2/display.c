@@ -25,11 +25,12 @@
 #include <linux/delay.h>
 
 #include <video/omapdss.h>
-#include <plat/omap_hwmod.h>
-#include <plat/omap_device.h>
-#include <plat/omap-pm.h>
+#include "omap_hwmod.h"
+#include "omap_device.h"
+#include "omap-pm.h"
 #include "common.h"
 
+#include "soc.h"
 #include "iomap.h"
 #include "mux.h"
 #include "control.h"
@@ -284,6 +285,35 @@ err:
 	return ERR_PTR(r);
 }
 
+static enum omapdss_version __init omap_display_get_version(void)
+{
+	if (cpu_is_omap24xx())
+		return OMAPDSS_VER_OMAP24xx;
+	else if (cpu_is_omap3630())
+		return OMAPDSS_VER_OMAP3630;
+	else if (cpu_is_omap34xx()) {
+		if (soc_is_am35xx()) {
+			return OMAPDSS_VER_AM35xx;
+		} else {
+			if (omap_rev() < OMAP3430_REV_ES3_0)
+				return OMAPDSS_VER_OMAP34xx_ES1;
+			else
+				return OMAPDSS_VER_OMAP34xx_ES3;
+		}
+	} else if (omap_rev() == OMAP4430_REV_ES1_0)
+		return OMAPDSS_VER_OMAP4430_ES1;
+	else if (omap_rev() == OMAP4430_REV_ES2_0 ||
+			omap_rev() == OMAP4430_REV_ES2_1 ||
+			omap_rev() == OMAP4430_REV_ES2_2)
+		return OMAPDSS_VER_OMAP4430_ES2;
+	else if (cpu_is_omap44xx())
+		return OMAPDSS_VER_OMAP4;
+	else if (soc_is_omap54xx())
+		return OMAPDSS_VER_OMAP5;
+	else
+		return OMAPDSS_VER_UNKNOWN;
+}
+
 int __init omap_display_init(struct omap_dss_board_info *board_data)
 {
 	int r = 0;
@@ -291,9 +321,18 @@ int __init omap_display_init(struct omap_dss_board_info *board_data)
 	int i, oh_count;
 	const struct omap_dss_hwmod_data *curr_dss_hwmod;
 	struct platform_device *dss_pdev;
+	enum omapdss_version ver;
 
 	/* create omapdss device */
 
+	ver = omap_display_get_version();
+
+	if (ver == OMAPDSS_VER_UNKNOWN) {
+		pr_err("DSS not supported on this SoC\n");
+		return -ENODEV;
+	}
+
+	board_data->version = ver;
 	board_data->dsi_enable_pads = omap_dsi_enable_pads;
 	board_data->dsi_disable_pads = omap_dsi_disable_pads;
 	board_data->get_context_loss_count = omap_pm_get_dev_context_loss_count;

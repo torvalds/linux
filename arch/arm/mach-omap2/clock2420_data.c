@@ -18,14 +18,12 @@
 #include <linux/clk.h>
 #include <linux/list.h>
 
-#include <plat/clkdev_omap.h>
-
 #include "soc.h"
 #include "iomap.h"
 #include "clock.h"
 #include "clock2xxx.h"
 #include "opp2xxx.h"
-#include "cm2xxx_3xxx.h"
+#include "cm2xxx.h"
 #include "prm2xxx_3xxx.h"
 #include "prm-regbits-24xx.h"
 #include "cm-regbits-24xx.h"
@@ -1934,8 +1932,6 @@ int __init omap2420_clk_init(void)
 	cm_idlest_pll = OMAP_CM_REGADDR(PLL_MOD, CM_IDLEST);
 	cpu_mask = RATE_IN_242X;
 	rate_table = omap2420_rate_table;
-
-	clk_init(&omap2_clk_functions);
 
 	for (c = omap2420_clks; c < omap2420_clks + ARRAY_SIZE(omap2420_clks);
 	     c++)

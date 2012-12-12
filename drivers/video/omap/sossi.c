@@ -25,7 +25,7 @@
 #include <linux/io.h>
 #include <linux/interrupt.h>
 
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 
 #include "omapfb.h"
 #include "lcdc.h"

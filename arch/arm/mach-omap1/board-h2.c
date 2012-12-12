@@ -39,8 +39,8 @@
 #include <asm/mach/map.h>
 
 #include <mach/mux.h>
-#include <plat/dma.h>
-#include <plat/tc.h>
+#include <plat-omap/dma-omap.h>
+#include <mach/tc.h>
 #include <mach/irda.h>
 #include <linux/platform_data/keypad-omap.h>
 #include <mach/flash.h>
@@ -50,6 +50,7 @@
 
 #include "common.h"
 #include "board-h2.h"
+#include "dma.h"
 
 /* At OMAP1610 Innovator the Ethernet is directly connected to CS1 */
 #define OMAP1610_ETHR_START		0x04000300
@@ -458,7 +459,6 @@ MACHINE_START(OMAP_H2, "TI-H2")
 	.atag_offset	= 0x100,
 	.map_io		= omap16xx_map_io,
 	.init_early     = omap1_init_early,
-	.reserve	= omap_reserve,
 	.init_irq	= omap1_init_irq,
 	.init_machine	= h2_init,
 	.init_late	= omap1_init_late,

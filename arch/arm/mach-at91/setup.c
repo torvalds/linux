@@ -19,8 +19,8 @@
 #include <mach/cpu.h>
 #include <mach/at91_dbgu.h>
 #include <mach/at91_pmc.h>
-#include <mach/at91_shdwc.h>
 
+#include "at91_shdwc.h"
 #include "soc.h"
 #include "generic.h"
 

@@ -26,7 +26,6 @@
 #include <asm/mach/map.h>
 
 #include "common.h"
-#include <plat/usb.h>
 
 #include "am35xx-emac.h"
 #include "mux.h"

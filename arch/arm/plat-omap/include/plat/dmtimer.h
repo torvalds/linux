@@ -94,6 +94,7 @@ struct dmtimer_platform_data {
 	/* set_timer_src - Only used for OMAP1 devices */
 	int (*set_timer_src)(struct platform_device *pdev, int source);
 	u32 timer_capability;
+	int (*get_context_loss_count)(struct device *);
 };
 
 int omap_dm_timer_reserve_systimer(int id);
@@ -263,6 +264,7 @@ struct omap_dm_timer {
 	unsigned reserved:1;
 	unsigned posted:1;
 	struct timer_regs context;
+	int (*get_context_loss_count)(struct device *);
 	int ctx_loss_count;
 	int revision;
 	u32 capability;

@@ -11,7 +11,7 @@
 #include <linux/io.h>
 #include <linux/err.h>
 
-#include <plat/omap_hwmod.h>
+#include "omap_hwmod.h"
 
 #include "wd_timer.h"
 #include "common.h"

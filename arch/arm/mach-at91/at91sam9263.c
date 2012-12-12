@@ -18,10 +18,10 @@
 #include <asm/mach/map.h>
 #include <asm/system_misc.h>
 #include <mach/at91sam9263.h>
-#include <mach/at91_aic.h>
 #include <mach/at91_pmc.h>
-#include <mach/at91_rstc.h>
 
+#include "at91_aic.h"
+#include "at91_rstc.h"
 #include "soc.h"
 #include "generic.h"
 #include "clock.h"

@@ -21,12 +21,11 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <plat/clock.h>
 #include <plat/prcm.h>
 
 #include "clock.h"
 #include "clock2xxx.h"
-#include "cm2xxx_3xxx.h"
+#include "cm2xxx.h"
 #include "cm-regbits-24xx.h"
 
 /* CM_CLKEN_PLL.EN_{54,96}M_PLL options (24XX) */

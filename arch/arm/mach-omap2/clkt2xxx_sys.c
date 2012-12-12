@@ -22,8 +22,6 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <plat/clock.h>
-
 #include "clock.h"
 #include "clock2xxx.h"
 #include "prm2xxx_3xxx.h"

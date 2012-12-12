@@ -19,14 +19,17 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/iommu.h>
+#include <linux/omap-iommu.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
+#include <linux/io.h>
 
 #include <asm/cacheflush.h>
 
-#include <plat/iommu.h>
+#include <linux/platform_data/iommu-omap.h>
 
-#include <plat/iopgtable.h>
+#include "omap-iopgtable.h"
+#include "omap-iommu.h"
 
 #define for_each_iotlb_cr(obj, n, __i, cr)				\
 	for (__i = 0;							\
@@ -49,6 +52,21 @@ struct omap_iommu_domain {
 	struct omap_iommu *iommu_dev;
 	struct device *dev;
 	spinlock_t lock;
+};
+
+#define MMU_LOCK_BASE_SHIFT	10
+#define MMU_LOCK_BASE_MASK	(0x1f << MMU_LOCK_BASE_SHIFT)
+#define MMU_LOCK_BASE(x)	\
+	((x & MMU_LOCK_BASE_MASK) >> MMU_LOCK_BASE_SHIFT)
+
+#define MMU_LOCK_VICT_SHIFT	4
+#define MMU_LOCK_VICT_MASK	(0x1f << MMU_LOCK_VICT_SHIFT)
+#define MMU_LOCK_VICT(x)	\
+	((x & MMU_LOCK_VICT_MASK) >> MMU_LOCK_VICT_SHIFT)
+
+struct iotlb_lock {
+	short base;
+	short vict;
 };
 
 /* accommodate the difference between omap1 and omap2/3 */
@@ -1013,6 +1031,23 @@ static struct platform_driver omap_iommu_driver = {
 static void iopte_cachep_ctor(void *iopte)
 {
 	clean_dcache_area(iopte, IOPTE_TABLE_SIZE);
+}
+
+static u32 iotlb_init_entry(struct iotlb_entry *e, u32 da, u32 pa,
+				   u32 flags)
+{
+	memset(e, 0, sizeof(*e));
+
+	e->da		= da;
+	e->pa		= pa;
+	e->valid	= 1;
+	/* FIXME: add OMAP1 support */
+	e->pgsz		= flags & MMU_CAM_PGSZ_MASK;
+	e->endian	= flags & MMU_RAM_ENDIAN_MASK;
+	e->elsz		= flags & MMU_RAM_ELSZ_MASK;
+	e->mixed	= flags & MMU_RAM_MIXED_MASK;
+
+	return iopgsz_to_bytes(e->pgsz);
 }
 
 static int omap_iommu_map(struct iommu_domain *domain, unsigned long da,

@@ -27,11 +27,11 @@
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/usb.h>
-
-#include <plat/usb.h>
+#include <linux/usb/musb.h>
 
 #include "soc.h"
 #include "control.h"
+#include "usb.h"
 
 void am35x_musb_reset(void)
 {
