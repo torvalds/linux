@@ -444,25 +444,53 @@ struct mn10300_serial_int mn10300_serial_int_tbl[NR_IRQS];
 
 static void mn10300_serial_dis_tx_intr(struct mn10300_serial_port *port)
 {
-	unsigned long flags;
+	int retries = 100;
 	u16 x;
 
-	flags = arch_local_cli_save();
-	*port->tx_icr = NUM2GxICR_LEVEL(CONFIG_MN10300_SERIAL_IRQ_LEVEL);
-	x = *port->tx_icr;
-	arch_local_irq_restore(flags);
+	/* nothing to do if irq isn't set up */
+	if (!mn10300_serial_int_tbl[port->tx_irq].port)
+		return;
+
+	port->tx_flags |= MNSCx_TX_STOP;
+	mb();
+
+	/*
+	 * Here we wait for the irq to be disabled. Either it already is
+	 * disabled or we wait some number of retries for the VDMA handler
+	 * to disable it. The retries give the VDMA handler enough time to
+	 * run to completion if it was already in progress. If the VDMA IRQ
+	 * is enabled but the handler is not yet running when arrive here,
+	 * the STOP flag will prevent the handler from conflicting with the
+	 * driver code following this loop.
+	 */
+	while ((*port->tx_icr & GxICR_ENABLE) && retries-- > 0)
+		;
+	if (retries <= 0) {
+		*port->tx_icr =
+			NUM2GxICR_LEVEL(CONFIG_MN10300_SERIAL_IRQ_LEVEL);
+		x = *port->tx_icr;
+	}
 }
 
 static void mn10300_serial_en_tx_intr(struct mn10300_serial_port *port)
 {
-	unsigned long flags;
 	u16 x;
 
-	flags = arch_local_cli_save();
+	/* nothing to do if irq isn't set up */
+	if (!mn10300_serial_int_tbl[port->tx_irq].port)
+		return;
+
+	/* stop vdma irq if not already stopped */
+	if (!(port->tx_flags & MNSCx_TX_STOP))
+		mn10300_serial_dis_tx_intr(port);
+
+	port->tx_flags &= ~MNSCx_TX_STOP;
+	mb();
+
 	*port->tx_icr =
-		NUM2GxICR_LEVEL(CONFIG_MN10300_SERIAL_IRQ_LEVEL) | GxICR_ENABLE;
+		NUM2GxICR_LEVEL(CONFIG_MN10300_SERIAL_IRQ_LEVEL) |
+		GxICR_ENABLE | GxICR_REQUEST | GxICR_DETECT;
 	x = *port->tx_icr;
-	arch_local_irq_restore(flags);
 }
 
 static void mn10300_serial_dis_rx_intr(struct mn10300_serial_port *port)
@@ -807,8 +835,6 @@ static void mn10300_serial_start_tx(struct uart_port *_port)
 	struct mn10300_serial_port *port =
 		container_of(_port, struct mn10300_serial_port, uart);
 
-	u16 x;
-
 	_enter("%s{%lu}",
 	       port->name,
 	       CIRC_CNT(&port->uart.state->xmit.head,
@@ -816,14 +842,7 @@ static void mn10300_serial_start_tx(struct uart_port *_port)
 			UART_XMIT_SIZE));
 
 	/* kick the virtual DMA controller */
-	arch_local_cli();
-	x = *port->tx_icr;
-	x |= GxICR_ENABLE;
-
-	if (*port->_status & SC01STR_TBF)
-		x &= ~(GxICR_REQUEST | GxICR_DETECT);
-	else
-		x |= GxICR_REQUEST | GxICR_DETECT;
+	mn10300_serial_en_tx_intr(port);
 
 	_debug("CTR=%04hx ICR=%02hx STR=%04x TMD=%02hx TBR=%04hx ICR=%04hx",
 	       *port->_control, *port->_intr, *port->_status,
@@ -831,10 +850,6 @@ static void mn10300_serial_start_tx(struct uart_port *_port)
 	       (port->div_timer == MNSCx_DIV_TIMER_8BIT) ?
 	           *(volatile u8 *)port->_tmxbr : *port->_tmxbr,
 	       *port->tx_icr);
-
-	*port->tx_icr = x;
-	x = *port->tx_icr;
-	arch_local_sti();
 }
 
 /*
@@ -844,13 +859,17 @@ static void mn10300_serial_send_xchar(struct uart_port *_port, char ch)
 {
 	struct mn10300_serial_port *port =
 		container_of(_port, struct mn10300_serial_port, uart);
+	unsigned long flags;
 
 	_enter("%s,%02x", port->name, ch);
 
 	if (likely(port->gdbstub)) {
 		port->tx_xchar = ch;
-		if (ch)
+		if (ch) {
+			spin_lock_irqsave(&port->uart.lock, flags);
 			mn10300_serial_en_tx_intr(port);
+			spin_unlock_irqrestore(&port->uart.lock, flags);
+		}
 	}
 }
 
@@ -911,18 +930,21 @@ static void mn10300_serial_break_ctl(struct uart_port *_port, int ctl)
 {
 	struct mn10300_serial_port *port =
 		container_of(_port, struct mn10300_serial_port, uart);
+	unsigned long flags;
 
 	_enter("%s,%d", port->name, ctl);
 
+	spin_lock_irqsave(&port->uart.lock, flags);
 	if (ctl) {
 		/* tell the virtual DMA handler to assert BREAK */
-		port->tx_break = 1;
+		port->tx_flags |= MNSCx_TX_BREAK;
 		mn10300_serial_en_tx_intr(port);
 	} else {
-		port->tx_break = 0;
+		port->tx_flags &= ~MNSCx_TX_BREAK;
 		*port->_control &= ~SC01CTR_BKE;
 		mn10300_serial_en_tx_intr(port);
 	}
+	spin_unlock_irqrestore(&port->uart.lock, flags);
 }
 
 /*
@@ -945,6 +967,7 @@ static int mn10300_serial_startup(struct uart_port *_port)
 		return -ENOMEM;
 
 	port->rx_inp = port->rx_outp = 0;
+	port->tx_flags = 0;
 
 	/* finally, enable the device */
 	*port->_intr = SC01ICR_TI;
@@ -994,14 +1017,22 @@ error:
  */
 static void mn10300_serial_shutdown(struct uart_port *_port)
 {
+	unsigned long flags;
 	u16 x;
 	struct mn10300_serial_port *port =
 		container_of(_port, struct mn10300_serial_port, uart);
 
 	_enter("%s", port->name);
 
+	spin_lock_irqsave(&_port->lock, flags);
+	mn10300_serial_dis_tx_intr(port);
+
+	*port->rx_icr = NUM2GxICR_LEVEL(CONFIG_MN10300_SERIAL_IRQ_LEVEL);
+	x = *port->rx_icr;
+	port->tx_flags = 0;
+	spin_unlock_irqrestore(&_port->lock, flags);
+
 	/* disable the serial port and its baud rate timer */
-	port->tx_break = 0;
 	*port->_control &= ~(SC01CTR_TXE | SC01CTR_RXE | SC01CTR_BKE);
 	*port->_tmxmd = 0;
 
@@ -1016,12 +1047,8 @@ static void mn10300_serial_shutdown(struct uart_port *_port)
 	free_irq(port->rx_irq, port);
 	free_irq(port->tx_irq, port);
 
-	arch_local_cli();
-	*port->rx_icr = NUM2GxICR_LEVEL(CONFIG_MN10300_SERIAL_IRQ_LEVEL);
-	x = *port->rx_icr;
-	*port->tx_icr = NUM2GxICR_LEVEL(CONFIG_MN10300_SERIAL_IRQ_LEVEL);
-	x = *port->tx_icr;
-	arch_local_sti();
+	mn10300_serial_int_tbl[port->tx_irq].port = NULL;
+	mn10300_serial_int_tbl[port->rx_irq].port = NULL;
 }
 
 /*
@@ -1549,17 +1576,24 @@ static void mn10300_serial_console_write(struct console *co,
 {
 	struct mn10300_serial_port *port;
 	unsigned i;
-	u16 scxctr, txicr, tmp;
+	u16 scxctr;
 	u8 tmxmd;
+	unsigned long flags;
+	int locked = 1;
 
 	port = mn10300_serial_ports[co->index];
 
+	local_irq_save(flags);
+	if (port->uart.sysrq) {
+		/* mn10300_serial_interrupt() already took the lock */
+		locked = 0;
+	} else if (oops_in_progress) {
+		locked = spin_trylock(&port->uart.lock);
+	} else
+		spin_lock(&port->uart.lock);
+
 	/* firstly hijack the serial port from the "virtual DMA" controller */
-	arch_local_cli();
-	txicr = *port->tx_icr;
-	*port->tx_icr = NUM2GxICR_LEVEL(CONFIG_MN10300_SERIAL_IRQ_LEVEL);
-	tmp = *port->tx_icr;
-	arch_local_sti();
+	mn10300_serial_dis_tx_intr(port);
 
 	/* the transmitter may be disabled */
 	scxctr = *port->_control;
@@ -1613,10 +1647,11 @@ static void mn10300_serial_console_write(struct console *co,
 	if (!(scxctr & SC01CTR_TXE))
 		*port->_control = scxctr;
 
-	arch_local_cli();
-	*port->tx_icr = txicr;
-	tmp = *port->tx_icr;
-	arch_local_sti();
+	mn10300_serial_en_tx_intr(port);
+
+	if (locked)
+		spin_unlock(&port->uart.lock);
+	local_irq_restore(flags);
 }
 
 /*

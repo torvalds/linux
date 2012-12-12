@@ -29,6 +29,10 @@
 #define MNSCx_TX_SPACE		0x04
 #define MNSCx_TX_EMPTY		0x08
 
+/* tx_flags bits */
+#define MNSCx_TX_BREAK		0x01
+#define MNSCx_TX_STOP		0x02
+
 #ifndef __ASSEMBLY__
 
 struct mn10300_serial_port {
@@ -36,7 +40,7 @@ struct mn10300_serial_port {
 	unsigned		rx_inp;		/* pointer to rx input offset */
 	unsigned		rx_outp;	/* pointer to rx output offset */
 	u8			tx_xchar;	/* high-priority XON/XOFF buffer */
-	u8			tx_break;	/* transmit break request */
+	u8			tx_flags;	/* transmit break/stop request */
 	u8			intr_flags;	/* interrupt flags */
 	volatile u16		*rx_icr;	/* Rx interrupt control register */
 	volatile u16		*tx_icr;	/* Tx interrupt control register */
