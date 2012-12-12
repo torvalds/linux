@@ -298,6 +298,14 @@ config GPIO_GE_FPGA
 	  and write pin state) for GPIO implemented in a number of GE single
 	  board computers.
 
+config GPIO_LYNXPOINT
+	bool "Intel Lynxpoint GPIO support"
+	depends on ACPI
+	select IRQ_DOMAIN
+	help
+	  driver for GPIO functionality on Intel Lynxpoint PCH chipset
+	  Requires ACPI device enumeration code to set up a platform device.
+
 comment "I2C GPIO expanders:"
 
 config GPIO_ARIZONA
