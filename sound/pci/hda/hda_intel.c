@@ -1054,7 +1054,7 @@ static void azx_power_notify(struct hda_bus *bus, bool power_up);
 /* reset codec link */
 static int azx_reset(struct azx *chip, int full_reset)
 {
-	int count;
+	unsigned long timeout;
 
 	if (!full_reset)
 		goto __skip;
@@ -1065,24 +1065,26 @@ static int azx_reset(struct azx *chip, int full_reset)
 	/* reset controller */
 	azx_writel(chip, GCTL, azx_readl(chip, GCTL) & ~ICH6_GCTL_RESET);
 
-	count = 50;
-	while (azx_readb(chip, GCTL) && --count)
-		msleep(1);
+	timeout = jiffies + msecs_to_jiffies(100);
+	while (azx_readb(chip, GCTL) &&
+			time_before(jiffies, timeout))
+		usleep_range(500, 1000);
 
 	/* delay for >= 100us for codec PLL to settle per spec
 	 * Rev 0.9 section 5.5.1
 	 */
-	msleep(1);
+	usleep_range(500, 1000);
 
 	/* Bring controller out of reset */
 	azx_writeb(chip, GCTL, azx_readb(chip, GCTL) | ICH6_GCTL_RESET);
 
-	count = 50;
-	while (!azx_readb(chip, GCTL) && --count)
-		msleep(1);
+	timeout = jiffies + msecs_to_jiffies(100);
+	while (!azx_readb(chip, GCTL) &&
+			time_before(jiffies, timeout))
+		usleep_range(500, 1000);
 
 	/* Brent Chartrand said to wait >= 540us for codecs to initialize */
-	msleep(1);
+	usleep_range(1000, 1200);
 
       __skip:
 	/* check to see if controller is ready */
