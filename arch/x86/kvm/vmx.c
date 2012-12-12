@@ -2856,6 +2856,8 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_DS], VCPU_SREG_DS);
 	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_FS], VCPU_SREG_FS);
 	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_GS], VCPU_SREG_GS);
+	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_SS], VCPU_SREG_SS);
+	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_CS], VCPU_SREG_CS);
 
 	vmx->emulation_required = 1;
 	vmx->rmode.vm86_active = 1;
@@ -3171,10 +3173,7 @@ static void vmx_get_segment(struct kvm_vcpu *vcpu,
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 ar;
 
-	if (vmx->rmode.vm86_active
-	    && (seg == VCPU_SREG_TR || seg == VCPU_SREG_ES
-		|| seg == VCPU_SREG_DS || seg == VCPU_SREG_FS
-		|| seg == VCPU_SREG_GS)) {
+	if (vmx->rmode.vm86_active && seg != VCPU_SREG_LDTR) {
 		*var = vmx->rmode.segs[seg];
 		if (seg == VCPU_SREG_TR
 		    || var->selector == vmx_read_guest_seg_selector(vmx, seg))
