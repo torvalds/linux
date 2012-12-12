@@ -298,10 +298,10 @@ static void omap2_mcspi_rx_callback(void *data)
 	struct omap2_mcspi *mcspi = spi_master_get_devdata(spi->master);
 	struct omap2_mcspi_dma *mcspi_dma = &mcspi->dma_channels[spi->chip_select];
 
-	complete(&mcspi_dma->dma_rx_completion);
-
 	/* We must disable the DMA RX request */
 	omap2_mcspi_set_dma_req(spi, 1, 0);
+
+	complete(&mcspi_dma->dma_rx_completion);
 }
 
 static void omap2_mcspi_tx_callback(void *data)
@@ -310,10 +310,10 @@ static void omap2_mcspi_tx_callback(void *data)
 	struct omap2_mcspi *mcspi = spi_master_get_devdata(spi->master);
 	struct omap2_mcspi_dma *mcspi_dma = &mcspi->dma_channels[spi->chip_select];
 
-	complete(&mcspi_dma->dma_tx_completion);
-
 	/* We must disable the DMA TX request */
 	omap2_mcspi_set_dma_req(spi, 0, 0);
+
+	complete(&mcspi_dma->dma_tx_completion);
 }
 
 static void omap2_mcspi_tx_dma(struct spi_device *spi,
