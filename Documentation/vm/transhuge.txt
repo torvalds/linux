@@ -116,6 +116,13 @@ echo always >/sys/kernel/mm/transparent_hugepage/defrag
 echo madvise >/sys/kernel/mm/transparent_hugepage/defrag
 echo never >/sys/kernel/mm/transparent_hugepage/defrag
 
+By default kernel tries to use huge zero page on read page fault.
+It's possible to disable huge zero page by writing 0 or enable it
+back by writing 1:
+
+echo 0 >/sys/kernel/mm/transparent_hugepage/khugepaged/use_zero_page
+echo 1 >/sys/kernel/mm/transparent_hugepage/khugepaged/use_zero_page
+
 khugepaged will be automatically started when
 transparent_hugepage/enabled is set to "always" or "madvise, and it'll
 be automatically shutdown if it's set to "never".
