@@ -1304,6 +1304,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	lapic		[X86-32,APIC] Enable the local APIC even if BIOS
 			disabled it.
 
+	lapic=		[x86,APIC] "notscdeadline" Do not use TSC deadline
+			value for LAPIC timer one-shot implementation. Default
+			back to the programmable timer unit in the LAPIC.
+
 	lapic_timer_c2_ok	[X86,APIC] trust the local apic timer
 			in C2 power state.
 

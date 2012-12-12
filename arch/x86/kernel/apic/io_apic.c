@@ -3305,8 +3305,9 @@ int arch_setup_hpet_msi(unsigned int irq, unsigned int id)
 	int ret;
 
 	if (irq_remapping_enabled) {
-		if (!setup_hpet_msi_remapped(irq, id))
-			return -1;
+		ret = setup_hpet_msi_remapped(irq, id);
+		if (ret)
+			return ret;
 	}
 
 	ret = msi_compose_msg(NULL, irq, &msg, id);
