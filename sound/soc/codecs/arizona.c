@@ -803,11 +803,27 @@ static int arizona_dai_set_sysclk(struct snd_soc_dai *dai,
 	return snd_soc_dapm_sync(&codec->dapm);
 }
 
+static int arizona_set_tristate(struct snd_soc_dai *dai, int tristate)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	int base = dai->driver->base;
+	unsigned int reg;
+
+	if (tristate)
+		reg = ARIZONA_AIF1_TRI;
+	else
+		reg = 0;
+
+	return snd_soc_update_bits(codec, base + ARIZONA_AIF_RATE_CTRL,
+				   ARIZONA_AIF1_TRI, reg);
+}
+
 const struct snd_soc_dai_ops arizona_dai_ops = {
 	.startup = arizona_startup,
 	.set_fmt = arizona_set_fmt,
 	.hw_params = arizona_hw_params,
 	.set_sysclk = arizona_dai_set_sysclk,
+	.set_tristate = arizona_set_tristate,
 };
 EXPORT_SYMBOL_GPL(arizona_dai_ops);
 
