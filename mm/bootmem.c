@@ -229,6 +229,22 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
 	return count;
 }
 
+static void reset_node_lowmem_managed_pages(pg_data_t *pgdat)
+{
+	struct zone *z;
+
+	/*
+	 * In free_area_init_core(), highmem zone's managed_pages is set to
+	 * present_pages, and bootmem allocator doesn't allocate from highmem
+	 * zones. So there's no need to recalculate managed_pages because all
+	 * highmem pages will be managed by the buddy system. Here highmem
+	 * zone also includes highmem movable zone.
+	 */
+	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
+		if (!is_highmem(z))
+			z->managed_pages = 0;
+}
+
 /**
  * free_all_bootmem_node - release a node's free pages to the buddy allocator
  * @pgdat: node to be released
@@ -238,6 +254,7 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
 unsigned long __init free_all_bootmem_node(pg_data_t *pgdat)
 {
 	register_page_bootmem_info_node(pgdat);
+	reset_node_lowmem_managed_pages(pgdat);
 	return free_all_bootmem_core(pgdat->bdata);
 }
 
@@ -250,6 +267,10 @@ unsigned long __init free_all_bootmem(void)
 {
 	unsigned long total_pages = 0;
 	bootmem_data_t *bdata;
+	struct pglist_data *pgdat;
+
+	for_each_online_pgdat(pgdat)
+		reset_node_lowmem_managed_pages(pgdat);
 
 	list_for_each_entry(bdata, &bdata_list, list)
 		total_pages += free_all_bootmem_core(bdata);
