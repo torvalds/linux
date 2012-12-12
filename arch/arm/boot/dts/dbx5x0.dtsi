@@ -203,6 +203,14 @@
 				reg = <0x80157450 0xC>;
 			};
 
+			thermal@801573c0 {
+				compatible = "stericsson,db8500-thermal";
+				reg = <0x801573c0 0x40>;
+				interrupts = <21 0x4>, <22 0x4>;
+				interrupt-names = "IRQ_HOTMON_LOW", "IRQ_HOTMON_HIGH";
+				status = "disabled";
+			 };
+
 			db8500-prcmu-regulators {
 				compatible = "stericsson,db8500-prcmu-regulator";
 
@@ -660,5 +668,11 @@
 			ranges = <0 0x50000000 0x4000000>;
 			status = "disabled";
 		};
+
+		cpufreq-cooling {
+			compatible = "stericsson,db8500-cpufreq-cooling";
+			status = "disabled";
+		 };
+
 	};
 };
