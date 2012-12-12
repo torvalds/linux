@@ -205,12 +205,19 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on i.MX28.
 
-	config DEBUG_IMX31_IMX35_UART
-		bool "i.MX31 and i.MX35 Debug UART"
-		depends on SOC_IMX31 || SOC_IMX35
+	config DEBUG_IMX31_UART
+		bool "i.MX31 Debug UART"
+		depends on SOC_IMX31
 		help
 		  Say Y here if you want kernel low-level debugging support
-		  on i.MX31 or i.MX35.
+		  on i.MX31.
+
+	config DEBUG_IMX35_UART
+		bool "i.MX35 Debug UART"
+		depends on SOC_IMX35
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX35.
 
 	config DEBUG_IMX51_UART
 		bool "i.MX51 Debug UART"
@@ -495,7 +502,8 @@ config DEBUG_LL_INCLUDE
 	default "debug/imx.S" if DEBUG_IMX1_UART || \
 				 DEBUG_IMX25_UART || \
 				 DEBUG_IMX21_IMX27_UART || \
-				 DEBUG_IMX31_IMX35_UART || \
+				 DEBUG_IMX31_UART || \
+				 DEBUG_IMX35_UART || \
 				 DEBUG_IMX51_UART || \
 				 DEBUG_IMX53_UART ||\
 				 DEBUG_IMX6Q_UART
