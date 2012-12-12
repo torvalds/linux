@@ -112,16 +112,22 @@ static struct irq_chip combiner_chip = {
 #endif
 };
 
-static void __init combiner_cascade_irq(unsigned int combiner_nr, unsigned int irq)
+static unsigned int max_combiner_nr(void)
 {
-	unsigned int max_nr;
-
 	if (soc_is_exynos5250())
-		max_nr = EXYNOS5_MAX_COMBINER_NR;
+		return EXYNOS5_MAX_COMBINER_NR;
+	else if (soc_is_exynos4412())
+		return EXYNOS4412_MAX_COMBINER_NR;
+	else if (soc_is_exynos4212())
+		return EXYNOS4212_MAX_COMBINER_NR;
 	else
-		max_nr = EXYNOS4_MAX_COMBINER_NR;
+		return EXYNOS4210_MAX_COMBINER_NR;
+}
 
-	if (combiner_nr >= max_nr)
+static void __init combiner_cascade_irq(unsigned int combiner_nr,
+					unsigned int irq)
+{
+	if (combiner_nr >= max_combiner_nr())
 		BUG();
 	if (irq_set_handler_data(irq, &combiner_data[combiner_nr]) != 0)
 		BUG();
@@ -186,23 +192,38 @@ static struct irq_domain_ops combiner_irq_domain_ops = {
 	.map	= combiner_irq_domain_map,
 };
 
+static unsigned int exynos4x12_combiner_extra_irq(int group)
+{
+	switch (group) {
+	case 16:
+		return IRQ_SPI(107);
+	case 17:
+		return IRQ_SPI(108);
+	case 18:
+		return IRQ_SPI(48);
+	case 19:
+		return IRQ_SPI(42);
+	default:
+		return 0;
+	}
+}
+
 void __init combiner_init(void __iomem *combiner_base,
 			  struct device_node *np)
 {
 	int i, irq, irq_base;
 	unsigned int max_nr, nr_irq;
 
+	max_nr = max_combiner_nr();
+
 	if (np) {
 		if (of_property_read_u32(np, "samsung,combiner-nr", &max_nr)) {
-			pr_warning("%s: number of combiners not specified, "
+			pr_info("%s: number of combiners not specified, "
 				"setting default as %d.\n",
-				__func__, EXYNOS4_MAX_COMBINER_NR);
-			max_nr = EXYNOS4_MAX_COMBINER_NR;
+				__func__, max_nr);
 		}
-	} else {
-		max_nr = soc_is_exynos5250() ? EXYNOS5_MAX_COMBINER_NR :
-						EXYNOS4_MAX_COMBINER_NR;
 	}
+
 	nr_irq = max_nr * MAX_IRQ_IN_COMBINER;
 
 	irq_base = irq_alloc_descs(COMBINER_IRQ(0, 0), 1, nr_irq, 0);
@@ -219,7 +240,10 @@ void __init combiner_init(void __iomem *combiner_base,
 	}
 
 	for (i = 0; i < max_nr; i++) {
-		irq = IRQ_SPI(i);
+		if (i < EXYNOS4210_MAX_COMBINER_NR || soc_is_exynos5250())
+			irq = IRQ_SPI(i);
+		else
+			irq = exynos4x12_combiner_extra_irq(i);
 #ifdef CONFIG_OF
 		if (np)
 			irq = irq_of_parse_and_map(np, i);
