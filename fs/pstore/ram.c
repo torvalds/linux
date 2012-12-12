@@ -189,7 +189,7 @@ static int notrace ramoops_pstore_write_buf(enum pstore_type_id type,
 					    struct pstore_info *psi)
 {
 	struct ramoops_context *cxt = psi->data;
-	struct persistent_ram_zone *prz = cxt->przs[cxt->dump_write_cnt];
+	struct persistent_ram_zone *prz;
 	size_t hlen;
 
 	if (type == PSTORE_TYPE_CONSOLE) {
@@ -225,6 +225,11 @@ static int notrace ramoops_pstore_write_buf(enum pstore_type_id type,
 	 */
 	if (part != 1)
 		return -ENOSPC;
+
+	if (!cxt->przs)
+		return -ENOSPC;
+
+	prz = cxt->przs[cxt->dump_write_cnt];
 
 	hlen = ramoops_write_kmsg_hdr(prz);
 	if (size + hlen > prz->buffer_size)
@@ -297,6 +302,11 @@ static int __devinit ramoops_init_przs(struct device *dev,
 	if (!cxt->record_size)
 		return 0;
 
+	if (*paddr + dump_mem_sz - cxt->phys_addr > cxt->size) {
+		dev_err(dev, "no room for dumps\n");
+		return -ENOMEM;
+	}
+
 	cxt->max_dump_cnt = dump_mem_sz / cxt->record_size;
 	if (!cxt->max_dump_cnt)
 		return -ENOMEM;
@@ -335,8 +345,12 @@ static int __devinit ramoops_init_prz(struct device *dev,
 	if (!sz)
 		return 0;
 
-	if (*paddr + sz > *paddr + cxt->size)
+	if (*paddr + sz - cxt->phys_addr > cxt->size) {
+		dev_err(dev, "no room for mem region (0x%zx@0x%llx) in (0x%lx@0x%llx)\n",
+			sz, (unsigned long long)*paddr,
+			cxt->size, (unsigned long long)cxt->phys_addr);
 		return -ENOMEM;
+	}
 
 	*prz = persistent_ram_new(*paddr, sz, sig, cxt->ecc_size);
 	if (IS_ERR(*prz)) {
