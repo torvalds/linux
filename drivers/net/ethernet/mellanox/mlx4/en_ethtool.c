@@ -613,8 +613,6 @@ static int mlx4_en_validate_flow(struct net_device *dev,
 	struct ethtool_usrip4_spec *l3_mask;
 	struct ethtool_tcpip4_spec *l4_mask;
 	struct ethhdr *eth_mask;
-	u64 full_mac = ~0ull;
-	u64 zero_mac = 0;
 
 	if (cmd->fs.location >= MAX_NUM_OF_FS_RULES)
 		return -EINVAL;
@@ -644,11 +642,11 @@ static int mlx4_en_validate_flow(struct net_device *dev,
 	case ETHER_FLOW:
 		eth_mask = &cmd->fs.m_u.ether_spec;
 		/* source mac mask must not be set */
-		if (memcmp(eth_mask->h_source, &zero_mac, ETH_ALEN))
+		if (!is_zero_ether_addr(eth_mask->h_source))
 			return -EINVAL;
 
 		/* dest mac mask must be ff:ff:ff:ff:ff:ff */
-		if (memcmp(eth_mask->h_dest, &full_mac, ETH_ALEN))
+		if (!is_broadcast_ether_addr(eth_mask->h_dest))
 			return -EINVAL;
 
 		if (!all_zeros_or_all_ones(eth_mask->h_proto))
