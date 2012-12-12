@@ -575,15 +575,6 @@ find_block:
 	return NULL;
 }
 
-static void * __init alloc_arch_preferred_bootmem(bootmem_data_t *bdata,
-					unsigned long size, unsigned long align,
-					unsigned long goal, unsigned long limit)
-{
-	if (WARN_ON_ONCE(slab_is_available()))
-		return kzalloc(size, GFP_NOWAIT);
-	return NULL;
-}
-
 static void * __init alloc_bootmem_core(unsigned long size,
 					unsigned long align,
 					unsigned long goal,
@@ -592,9 +583,8 @@ static void * __init alloc_bootmem_core(unsigned long size,
 	bootmem_data_t *bdata;
 	void *region;
 
-	region = alloc_arch_preferred_bootmem(NULL, size, align, goal, limit);
-	if (region)
-		return region;
+	if (WARN_ON_ONCE(slab_is_available()))
+		return kzalloc(size, GFP_NOWAIT);
 
 	list_for_each_entry(bdata, &bdata_list, list) {
 		if (goal && bdata->node_low_pfn <= PFN_DOWN(goal))
@@ -692,11 +682,9 @@ void * __init ___alloc_bootmem_node_nopanic(pg_data_t *pgdat,
 {
 	void *ptr;
 
+	if (WARN_ON_ONCE(slab_is_available()))
+		return kzalloc(size, GFP_NOWAIT);
 again:
-	ptr = alloc_arch_preferred_bootmem(pgdat->bdata, size,
-					   align, goal, limit);
-	if (ptr)
-		return ptr;
 
 	/* do not panic in alloc_bootmem_bdata() */
 	if (limit && goal + size > limit)
