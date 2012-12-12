@@ -2873,22 +2873,20 @@ static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 
 	ret = 0;
 
-	if (fll1 & WM8962_FLL_ENA) {
-		/* This should be a massive overestimate but go even
-		 * higher if we'll error out
-		 */
-		if (wm8962->irq)
-			timeout = msecs_to_jiffies(5);
-		else
-			timeout = msecs_to_jiffies(1);
+	/* This should be a massive overestimate but go even
+	 * higher if we'll error out
+	 */
+	if (wm8962->irq)
+		timeout = msecs_to_jiffies(5);
+	else
+		timeout = msecs_to_jiffies(1);
 
-		timeout = wait_for_completion_timeout(&wm8962->fll_lock,
-						      timeout);
+	timeout = wait_for_completion_timeout(&wm8962->fll_lock,
+					      timeout);
 
-		if (timeout == 0 && wm8962->irq) {
-			dev_err(codec->dev, "FLL lock timed out");
-			ret = -ETIMEDOUT;
-		}
+	if (timeout == 0 && wm8962->irq) {
+		dev_err(codec->dev, "FLL lock timed out");
+		ret = -ETIMEDOUT;
 	}
 
 	wm8962->fll_fref = Fref;
