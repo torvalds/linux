@@ -179,6 +179,8 @@ enum rk_plls_id {
 /*******************clksel10***************************/
 
 #define PERI_ACLK_DIV_MASK 0x1f
+#define PERI_ACLK_DIV_W_MSK	(PERI_ACLK_DIV_MASK << 16)
+#define PERI_ACLK_DIV(i)	(((i) - 1) & PERI_ACLK_DIV_MASK)
 #define PERI_ACLK_DIV_OFF 0
 
 #define PERI_HCLK_DIV_MASK 0x3

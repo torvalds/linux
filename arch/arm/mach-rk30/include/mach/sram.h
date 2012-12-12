@@ -8,6 +8,6 @@
 /* delay on slow mode */
 #define sram_udelay(usecs)	SRAM_LOOP((usecs)*SRAM_LOOPS_PER_USEC)
 /* delay on deep slow mode */
-#define sram_32k_udelay(usecs)	SRAM_LOOP(((usecs)*SRAM_LOOPS_PER_USEC)/(24000000/32768))
+#define sram_32k_udelay(usecs)	SRAM_LOOP(((usecs)*SRAM_LOOPS_PER_USEC)/(24000000/8192))
 
 #endif
