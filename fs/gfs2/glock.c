@@ -1017,11 +1017,11 @@ do_cancel:
 	return;
 
 trap_recursive:
-	print_symbol(KERN_ERR "original: %s\n", gh2->gh_ip);
+	printk(KERN_ERR "original: %pSR\n", (void *)gh2->gh_ip);
 	printk(KERN_ERR "pid: %d\n", pid_nr(gh2->gh_owner_pid));
 	printk(KERN_ERR "lock type: %d req lock state : %d\n",
 	       gh2->gh_gl->gl_name.ln_type, gh2->gh_state);
-	print_symbol(KERN_ERR "new: %s\n", gh->gh_ip);
+	printk(KERN_ERR "new: %pSR\n", (void *)gh->gh_ip);
 	printk(KERN_ERR "pid: %d\n", pid_nr(gh->gh_owner_pid));
 	printk(KERN_ERR "lock type: %d req lock state : %d\n",
 	       gh->gh_gl->gl_name.ln_type, gh->gh_state);
