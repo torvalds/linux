@@ -754,9 +754,33 @@ static ssize_t lio_target_nacl_store_cmdsn_depth(
 
 TF_NACL_BASE_ATTR(lio_target, cmdsn_depth, S_IRUGO | S_IWUSR);
 
+static ssize_t lio_target_nacl_show_tag(
+	struct se_node_acl *se_nacl,
+	char *page)
+{
+	return snprintf(page, PAGE_SIZE, "%s", se_nacl->acl_tag);
+}
+
+static ssize_t lio_target_nacl_store_tag(
+	struct se_node_acl *se_nacl,
+	const char *page,
+	size_t count)
+{
+	int ret;
+
+	ret = core_tpg_set_initiator_node_tag(se_nacl->se_tpg, se_nacl, page);
+
+	if (ret < 0)
+		return ret;
+	return count;
+}
+
+TF_NACL_BASE_ATTR(lio_target, tag, S_IRUGO | S_IWUSR);
+
 static struct configfs_attribute *lio_target_initiator_attrs[] = {
 	&lio_target_nacl_info.attr,
 	&lio_target_nacl_cmdsn_depth.attr,
+	&lio_target_nacl_tag.attr,
 	NULL,
 };
 

@@ -507,6 +507,8 @@ struct se_node_acl {
 	bool			acl_stop:1;
 	u32			queue_depth;
 	u32			acl_index;
+#define MAX_ACL_TAG_SIZE 64
+	char			acl_tag[MAX_ACL_TAG_SIZE];
 	u64			num_cmds;
 	u64			read_bytes;
 	u64			write_bytes;
