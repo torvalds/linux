@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
+#include <linux/irq.h>
 #include <asm/io.h>
 #include "pci-asb2305.h"
 
