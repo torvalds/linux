@@ -132,9 +132,8 @@ ramoops_get_next_prz(struct persistent_ram_zone *przs[], uint *c, uint max,
 }
 
 static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
-				   struct timespec *time,
-				   char **buf,
-				   struct pstore_info *psi)
+				   int *count, struct timespec *time,
+				   char **buf, struct pstore_info *psi)
 {
 	ssize_t size;
 	struct ramoops_context *cxt = psi->data;
@@ -236,8 +235,8 @@ static int notrace ramoops_pstore_write_buf(enum pstore_type_id type,
 	return 0;
 }
 
-static int ramoops_pstore_erase(enum pstore_type_id type, u64 id,
-				struct pstore_info *psi)
+static int ramoops_pstore_erase(enum pstore_type_id type, u64 id, int count,
+				struct timespec time, struct pstore_info *psi)
 {
 	struct ramoops_context *cxt = psi->data;
 	struct persistent_ram_zone *prz;
