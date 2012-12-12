@@ -78,7 +78,9 @@
 #ifdef CONFIG_SND_SOC_WM8994
 extern int wm8994_headset_mic_detect(bool headset_status);
 #endif
-
+#ifdef CONFIG_SND_SOC_RT5631_PHONE
+extern int rt5631_headset_mic_detect(bool headset_status);
+#endif
 #if defined (CONFIG_SND_SOC_RT3261) || defined (CONFIG_SND_SOC_RT3224)
 extern int rt3261_headset_mic_detect(int jack_insert);
 #endif
@@ -207,6 +209,9 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 			#if defined (CONFIG_SND_SOC_RT3261) || defined (CONFIG_SND_SOC_RT3224)
 			rt3261_headset_mic_detect(true);
 			#endif
+			#ifdef CONFIG_SND_SOC_RT5631_PHONE
+			rt5631_headset_mic_detect(true);
+			#endif			
 			//mdelay(400);
 			adc_value = adc_sync_read(headset_info->client);
 			if(adc_value >= 0 && adc_value < HOOK_LEVEL_LOW)
@@ -218,6 +223,9 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 				#if defined (CONFIG_SND_SOC_RT3261) || defined (CONFIG_SND_SOC_RT3224)
 				rt3261_headset_mic_detect(false);
 				#endif	
+				#ifdef CONFIG_SND_SOC_RT5631_PHONE
+				rt5631_headset_mic_detect(false);
+				#endif					
 			}	
 			else if(adc_value >= HOOK_LEVEL_HIGH)
 				headset_info->isMic = 1;//have mic
@@ -269,6 +277,9 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 			#if defined (CONFIG_SND_SOC_RT3261) || defined (CONFIG_SND_SOC_RT3224)
 			rt3261_headset_mic_detect(false);
 			#endif
+			#ifdef CONFIG_SND_SOC_RT5631_PHONE
+			rt5631_headset_mic_detect(false);
+			#endif				
 		}	
 		if(pdata->headset_in_type == HEADSET_IN_HIGH)
 			irq_set_irq_type(headset_info->irq[HEADSET],IRQF_TRIGGER_RISING);
@@ -372,9 +383,9 @@ static void hook_adc_callback(struct adc_client *client, void *client_param, int
 	else if(level > HOOK_LEVEL_HIGH && level < HOOK_DEFAULT_VAL)
 		headset->hook_status = HOOK_UP;
 	else{
-		DBG("hook_adc_callback read adc value.........outside showly....: %d\n",level);
+	//	DBG("hook_adc_callback read adc value.........outside showly....: %d\n",level);
 		del_timer(&headset->hook_timer);
-		mod_timer(&headset->hook_timer, jiffies + msecs_to_jiffies(500));
+		mod_timer(&headset->hook_timer, jiffies + msecs_to_jiffies(50));
 		return;
 	}
 	
