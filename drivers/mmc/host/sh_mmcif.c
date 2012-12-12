@@ -911,6 +911,7 @@ static void sh_mmcif_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		if ((mrq->cmd->flags & MMC_CMD_MASK) != MMC_CMD_BCR)
 			break;
 	case MMC_APP_CMD:
+	case SD_IO_RW_DIRECT:
 		host->state = STATE_IDLE;
 		mrq->cmd->error = -ETIMEDOUT;
 		mmc_request_done(mmc, mrq);
