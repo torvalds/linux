@@ -2212,6 +2212,9 @@ static noinline void unlock_up(struct btrfs_path *path, int level,
 	int no_skips = 0;
 	struct extent_buffer *t;
 
+	if (path->really_keep_locks)
+		return;
+
 	for (i = level; i < BTRFS_MAX_LEVEL; i++) {
 		if (!path->nodes[i])
 			break;
@@ -2259,7 +2262,7 @@ noinline void btrfs_unlock_up_safe(struct btrfs_path *path, int level)
 {
 	int i;
 
-	if (path->keep_locks)
+	if (path->keep_locks || path->really_keep_locks)
 		return;
 
 	for (i = level; i < BTRFS_MAX_LEVEL; i++) {
@@ -2492,7 +2495,7 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (!cow)
 		write_lock_level = -1;
 
-	if (cow && (p->keep_locks || p->lowest_level))
+	if (cow && (p->really_keep_locks || p->keep_locks || p->lowest_level))
 		write_lock_level = BTRFS_MAX_LEVEL;
 
 	min_write_lock_level = write_lock_level;
