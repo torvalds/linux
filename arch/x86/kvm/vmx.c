@@ -3383,6 +3383,8 @@ static bool rmode_segment_valid(struct kvm_vcpu *vcpu, int seg)
 	var.dpl = 0x3;
 	var.g = 0;
 	var.db = 0;
+	if (seg == VCPU_SREG_CS)
+		var.type = 0x3;
 	ar = vmx_segment_access_rights(&var);
 
 	if (var.base != (var.selector << 4))
