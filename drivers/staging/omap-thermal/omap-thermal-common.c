@@ -260,7 +260,7 @@ int omap_thermal_expose_sensor(struct omap_bandgap *bg_ptr, int id,
 
 	data = omap_bandgap_get_sensor_data(bg_ptr, id);
 
-	if (!data)
+	if (IS_ERR(data))
 		data = omap_thermal_build_data(bg_ptr, id);
 
 	if (!data)
@@ -309,7 +309,7 @@ int omap_thermal_register_cpu_cooling(struct omap_bandgap *bg_ptr, int id)
 	struct omap_thermal_data *data;
 
 	data = omap_bandgap_get_sensor_data(bg_ptr, id);
-	if (!data)
+	if (IS_ERR(data))
 		data = omap_thermal_build_data(bg_ptr, id);
 
 	if (!data)
