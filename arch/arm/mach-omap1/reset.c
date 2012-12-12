@@ -4,10 +4,9 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 
-#include <plat/prcm.h>
-
 #include <mach/hardware.h>
 
+#include "iomap.h"
 #include "common.h"
 
 /* ARM_SYSST bit shifts related to SoC reset sources */
@@ -43,12 +42,12 @@ void omap1_restart(char mode, const char *cmd)
  * Returns bits that represent the last reset source for the SoC.  The
  * format is standardized across OMAPs for use by the OMAP watchdog.
  */
-int omap1_get_reset_sources(void)
+u32 omap1_get_reset_sources(void)
 {
-	int ret = 0;
+	u32 ret = 0;
 	u16 rs;
 
-	rs = __raw_readw(ARM_SYSST);
+	rs = __raw_readw(OMAP1_IO_ADDRESS(ARM_SYSST));
 
 	if (rs & (1 << ARM_SYSST_POR_SHIFT))
 		ret |= 1 << OMAP_GLOBAL_COLD_RST_SRC_ID_SHIFT;

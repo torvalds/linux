@@ -14,7 +14,8 @@
 #include <asm/page.h>
 #include <asm/sizes.h>
 #include <asm/mach/map.h>
-#include <mach/hardware.h>
+
+#include "hardware.h"
 
 static struct map_desc imx_lluart_desc = {
 #ifdef CONFIG_DEBUG_IMX6Q_UART2

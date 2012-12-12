@@ -112,12 +112,10 @@ int omap2_sdrc_get_params(unsigned long r,
 }
 
 
-void __init omap2_set_globals_sdrc(struct omap_globals *omap2_globals)
+void __init omap2_set_globals_sdrc(void __iomem *sdrc, void __iomem *sms)
 {
-	if (omap2_globals->sdrc)
-		omap2_sdrc_base = omap2_globals->sdrc;
-	if (omap2_globals->sms)
-		omap2_sms_base = omap2_globals->sms;
+	omap2_sdrc_base = sdrc;
+	omap2_sms_base = sms;
 }
 
 /**

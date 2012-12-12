@@ -18,8 +18,6 @@
 
 #include <asm/assembler.h>
 
-#include <mach/iomap.h>
-
 #include "sleep.h"
 #include "flowctrl.h"
 

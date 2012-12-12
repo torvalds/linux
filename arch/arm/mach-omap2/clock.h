@@ -409,33 +409,6 @@ extern void omap2_clkt_iclk_deny_idle(struct clk *clk);
 u32 omap2_get_dpll_rate(struct clk *clk);
 void omap2_init_dpll_parent(struct clk *clk);
 
-int omap2_wait_clock_ready(void __iomem *reg, u32 cval, const char *name);
-
-
-#ifdef CONFIG_ARCH_OMAP2
-void omap2xxx_clk_prepare_for_reboot(void);
-#else
-static inline void omap2xxx_clk_prepare_for_reboot(void)
-{
-}
-#endif
-
-#ifdef CONFIG_ARCH_OMAP3
-void omap3_clk_prepare_for_reboot(void);
-#else
-static inline void omap3_clk_prepare_for_reboot(void)
-{
-}
-#endif
-
-#ifdef CONFIG_ARCH_OMAP4
-void omap4_clk_prepare_for_reboot(void);
-#else
-static inline void omap4_clk_prepare_for_reboot(void)
-{
-}
-#endif
-
 int omap2_dflt_clk_enable(struct clk *clk);
 void omap2_dflt_clk_disable(struct clk *clk);
 void omap2_clk_dflt_find_companion(struct clk *clk, void __iomem **other_reg,
@@ -454,7 +427,6 @@ extern const struct clkops clkops_dummy;
 extern const struct clkops clkops_omap2_dflt;
 
 extern struct clk_functions omap2_clk_functions;
-extern struct clk *vclk, *sclk;
 
 extern const struct clksel_rate gpt_32k_rates[];
 extern const struct clksel_rate gpt_sys_rates[];

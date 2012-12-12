@@ -148,7 +148,7 @@ MACHINE_START(NOKIA_RM680, "Nokia RM-680 board")
 	.init_machine	= rm680_init,
 	.init_late	= omap3630_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END
 
 MACHINE_START(NOKIA_RM696, "Nokia RM-696 board")
@@ -161,5 +161,5 @@ MACHINE_START(NOKIA_RM696, "Nokia RM-696 board")
 	.init_machine	= rm680_init,
 	.init_late	= omap3630_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END

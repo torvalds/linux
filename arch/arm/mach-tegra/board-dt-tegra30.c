@@ -33,11 +33,10 @@
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
 
-#include <mach/iomap.h>
-
 #include "board.h"
 #include "clock.h"
 #include "common.h"
+#include "iomap.h"
 
 struct of_dev_auxdata tegra30_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("nvidia,tegra20-sdhci", 0x78000000, "sdhci-tegra.0", NULL),

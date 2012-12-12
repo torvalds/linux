@@ -241,11 +241,4 @@ extern int omap2_clkdm_clear_all_wkdeps(struct clockdomain *clkdm);
 #define OMAP_LOGICRETSTATE_MASK				(1 << 2)
 
 
-/*
- * MAX_MODULE_HARDRESET_WAIT: Maximum microseconds to wait for an OMAP
- * submodule to exit hardreset
- */
-#define MAX_MODULE_HARDRESET_WAIT		10000
-
-
 #endif

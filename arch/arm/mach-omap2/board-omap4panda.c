@@ -524,5 +524,5 @@ MACHINE_START(OMAP4_PANDA, "OMAP4 Panda board")
 	.init_machine	= omap4_panda_init,
 	.init_late	= omap4430_init_late,
 	.timer		= &omap4_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap44xx_restart,
 MACHINE_END

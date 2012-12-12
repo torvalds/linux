@@ -111,7 +111,7 @@ static int fpga_probe(struct platform_device *pdev)
 	if (!iomem)
 		return -ENODEV;
 
-	fpga = ioremap(iomem->start, H2P2_DBG_FPGA_SIZE);
+	fpga = ioremap(iomem->start, resource_size(iomem));
 	__raw_writew(0xff, &fpga->leds);
 
 	for (i = 0; i < ARRAY_SIZE(dbg_leds); i++) {

@@ -34,12 +34,10 @@
 #include <linux/of_iommu.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/tegra-ahb.h>
 
 #include <asm/page.h>
 #include <asm/cacheflush.h>
-
-#include <mach/iomap.h>
-#include <mach/tegra-ahb.h>
 
 enum smmu_hwgrp {
 	HWGRP_AFI,

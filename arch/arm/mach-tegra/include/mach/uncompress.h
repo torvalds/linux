@@ -28,8 +28,8 @@
 #include <linux/types.h>
 #include <linux/serial_reg.h>
 
-#include <mach/iomap.h>
-#include <mach/irammap.h>
+#include "../../iomap.h"
+#include "../../irammap.h"
 
 #define BIT(x) (1 << (x))
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))

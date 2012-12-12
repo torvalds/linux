@@ -20,10 +20,11 @@
  */
 
 #include "soc.h"
-#include "common.h"
 #include "omap_hwmod.h"
 #include "omap_device.h"
 
+#include "prm.h"
+#include "common.h"
 #include "mux.h"
 #include "i2c.h"
 
@@ -31,9 +32,6 @@
 #define I2C_EN					BIT(15)
 #define OMAP2_I2C_CON_OFFSET			0x24
 #define OMAP4_I2C_CON_OFFSET			0xA4
-
-/* Maximum microseconds to wait for OMAP module to softreset */
-#define MAX_MODULE_SOFTRESET_WAIT	10000
 
 #define MAX_OMAP_I2C_HWMOD_NAME_LEN	16
 

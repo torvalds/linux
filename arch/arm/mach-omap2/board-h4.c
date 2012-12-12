@@ -386,5 +386,5 @@ MACHINE_START(OMAP_H4, "OMAP2420 H4 board")
 	.init_machine	= omap_h4_init,
 	.init_late	= omap2420_init_late,
 	.timer		= &omap2_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap2xxx_restart,
 MACHINE_END

@@ -26,7 +26,7 @@
 
 #include <asm/assembler.h>
 
-#include <mach/iomap.h>
+#include "iomap.h"
 
 #include "flowctrl.h"
 #include "sleep.h"

@@ -31,8 +31,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
-#include <mach/restart.h>
-
 #include "common.h"
 
 #define LEGACY_GPIO_BASE	0xD8110000

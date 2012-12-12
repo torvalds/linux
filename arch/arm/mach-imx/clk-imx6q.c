@@ -19,8 +19,9 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <mach/common.h>
+
 #include "clk.h"
+#include "common.h"
 
 #define CCGR0				0x68
 #define CCGR1				0x6c

@@ -51,6 +51,8 @@ static inline u32 sms_read_reg(u16 reg)
 	return __raw_readl(OMAP_SMS_REGADDR(reg));
 }
 
+extern void omap2_set_globals_sdrc(void __iomem *sdrc, void __iomem *sms);
+
 
 /**
  * struct omap_sdrc_params - SDRC parameters for a given SDRC clock rate

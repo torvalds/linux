@@ -20,7 +20,6 @@
 
 #include "common.h"
 #include <plat/cpu.h>
-#include <plat/prcm.h>
 
 #include "vp.h"
 #include "powerdomain.h"
@@ -67,6 +66,20 @@ static u32 omap2xxx_prm_read_reset_sources(void)
 	}
 
 	return r;
+}
+
+/**
+ * omap2xxx_prm_dpll_reset - use DPLL reset to reboot the OMAP SoC
+ *
+ * Set the DPLL reset bit, which should reboot the SoC.  This is the
+ * recommended way to restart the SoC.  No return value.
+ */
+void omap2xxx_prm_dpll_reset(void)
+{
+	omap2_prm_set_mod_reg_bits(OMAP_RST_DPLL3_MASK, WKUP_MOD,
+				   OMAP2_RM_RSTCTRL);
+	/* OCP barrier */
+	omap2_prm_read_mod_reg(WKUP_MOD, OMAP2_RM_RSTCTRL);
 }
 
 int omap2xxx_clkdm_sleep(struct clockdomain *clkdm)

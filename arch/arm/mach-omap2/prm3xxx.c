@@ -20,7 +20,6 @@
 
 #include "common.h"
 #include <plat/cpu.h>
-#include <plat/prcm.h>
 
 #include "vp.h"
 #include "powerdomain.h"
@@ -120,6 +119,21 @@ void omap3_prm_vcvp_write(u32 val, u8 offset)
 u32 omap3_prm_vcvp_rmw(u32 mask, u32 bits, u8 offset)
 {
 	return omap2_prm_rmw_mod_reg_bits(mask, bits, OMAP3430_GR_MOD, offset);
+}
+
+/**
+ * omap3xxx_prm_dpll3_reset - use DPLL3 reset to reboot the OMAP SoC
+ *
+ * Set the DPLL3 reset bit, which should reboot the SoC.  This is the
+ * recommended way to restart the SoC, considering Errata i520.  No
+ * return value.
+ */
+void omap3xxx_prm_dpll3_reset(void)
+{
+	omap2_prm_set_mod_reg_bits(OMAP_RST_DPLL3_MASK, OMAP3430_GR_MOD,
+				   OMAP2_RM_RSTCTRL);
+	/* OCP barrier */
+	omap2_prm_read_mod_reg(OMAP3430_GR_MOD, OMAP2_RM_RSTCTRL);
 }
 
 /**

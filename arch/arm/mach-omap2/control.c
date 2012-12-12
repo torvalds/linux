@@ -147,13 +147,11 @@ static struct omap3_control_regs control_context;
 #define OMAP_CTRL_REGADDR(reg)		(omap2_ctrl_base + (reg))
 #define OMAP4_CTRL_PAD_REGADDR(reg)	(omap4_ctrl_pad_base + (reg))
 
-void __init omap2_set_globals_control(struct omap_globals *omap2_globals)
+void __init omap2_set_globals_control(void __iomem *ctrl,
+				      void __iomem *ctrl_pad)
 {
-	if (omap2_globals->ctrl)
-		omap2_ctrl_base = omap2_globals->ctrl;
-
-	if (omap2_globals->ctrl_pad)
-		omap4_ctrl_pad_base = omap2_globals->ctrl_pad;
+	omap2_ctrl_base = ctrl;
+	omap4_ctrl_pad_base = ctrl_pad;
 }
 
 void __iomem *omap_ctrl_base_get(void)
