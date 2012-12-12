@@ -3268,7 +3268,7 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	const struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
-	u32 ar;
+	u32 ar = 0;
 
 	vmx_segment_cache_clear(vmx);
 
@@ -3280,15 +3280,9 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 	vmcs_writel(sf->base, var->base);
 	vmcs_write32(sf->limit, var->limit);
 	vmcs_write16(sf->selector, var->selector);
-	if (vmx->rmode.vm86_active && var->s) {
+	if (vmx->rmode.vm86_active && var->s)
 		vmx->rmode.segs[seg] = *var;
-		/*
-		 * Hack real-mode segments into vm86 compatibility.
-		 */
-		if (var->base == 0xffff0000 && var->selector == 0xf000)
-			vmcs_writel(sf->base, 0xf0000);
-		ar = 0xf3;
-	} else
+	else
 		ar = vmx_segment_access_rights(var);
 
 	/*
