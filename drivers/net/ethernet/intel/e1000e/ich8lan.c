@@ -363,10 +363,15 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 phy_reg;
 
+	/* Gate automatic PHY configuration by hardware on managed and
+	 * non-managed 82579 and newer adapters.
+	 */
+	e1000_gate_hw_phy_config_ich8lan(hw, true);
+
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val) {
 		e_dbg("Failed to initialize PHY flow\n");
-		return ret_val;
+		goto out;
 	}
 
 	/* The MAC-PHY interconnect may be in SMBus mode.  If the PHY is
@@ -387,13 +392,6 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 
 		/* fall-through */
 	case e1000_pch2lan:
-		/* Gate automatic PHY configuration by hardware on
-		 * non-managed 82579
-		 */
-		if ((hw->mac.type == e1000_pch2lan) &&
-		    !(fwsm & E1000_ICH_FWSM_FW_VALID))
-			e1000_gate_hw_phy_config_ich8lan(hw, true);
-
 		if (e1000_phy_is_accessible_pchlan(hw)) {
 			if (hw->mac.type == e1000_pch_lpt) {
 				/* Unforce SMBus mode in PHY */
@@ -461,6 +459,7 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 	 */
 	ret_val = e1000e_phy_hw_reset_generic(hw);
 
+out:
 	/* Ungate automatic PHY configuration on non-managed 82579 */
 	if ((hw->mac.type == e1000_pch2lan) &&
 	    !(fwsm & E1000_ICH_FWSM_FW_VALID)) {
@@ -762,13 +761,6 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 	/* Enable PCS Lock-loss workaround for ICH8 */
 	if (mac->type == e1000_ich8lan)
 		e1000e_set_kmrn_lock_loss_workaround_ich8lan(hw, true);
-
-	/* Gate automatic PHY configuration by hardware on managed
-	 * 82579 and i217
-	 */
-	if ((mac->type == e1000_pch2lan || mac->type == e1000_pch_lpt) &&
-	    (er32(FWSM) & E1000_ICH_FWSM_FW_VALID))
-		e1000_gate_hw_phy_config_ich8lan(hw, true);
 
 	return 0;
 }
