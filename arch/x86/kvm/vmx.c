@@ -3271,19 +3271,21 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 	u32 ar = 0;
 
 	vmx_segment_cache_clear(vmx);
+	__clear_bit(VCPU_EXREG_CPL, (ulong *)&vcpu->arch.regs_avail);
 
-	if (vmx->rmode.vm86_active && seg == VCPU_SREG_TR) {
-		vmcs_write16(sf->selector, var->selector);
-		vmx->rmode.segs[VCPU_SREG_TR] = *var;
+	if (vmx->rmode.vm86_active && seg != VCPU_SREG_LDTR) {
+		vmx->rmode.segs[seg] = *var;
+		if (seg == VCPU_SREG_TR)
+			vmcs_write16(sf->selector, var->selector);
+		else if (var->s)
+			fix_rmode_seg(seg, &vmx->rmode.segs[seg]);
 		return;
 	}
+
 	vmcs_writel(sf->base, var->base);
 	vmcs_write32(sf->limit, var->limit);
 	vmcs_write16(sf->selector, var->selector);
-	if (vmx->rmode.vm86_active && var->s)
-		vmx->rmode.segs[seg] = *var;
-	else
-		ar = vmx_segment_access_rights(var);
+	ar = vmx_segment_access_rights(var);
 
 	/*
 	 *   Fix the "Accessed" bit in AR field of segment registers for older
@@ -3300,17 +3302,6 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 		ar |= 0x1; /* Accessed */
 
 	vmcs_write32(sf->ar_bytes, ar);
-	__clear_bit(VCPU_EXREG_CPL, (ulong *)&vcpu->arch.regs_avail);
-
-	/*
-	 * Fix segments for real mode guest in hosts that don't have
-	 * "unrestricted_mode" or it was disabled.
-	 * This is done to allow migration of the guests from hosts with
-	 * unrestricted guest like Westmere to older host that don't have
-	 * unrestricted guest like Nehelem.
-	 */
-	if (vmx->rmode.vm86_active && var->s)
-		fix_rmode_seg(seg, &vmx->rmode.segs[seg]);
 }
 
 static void vmx_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l)
