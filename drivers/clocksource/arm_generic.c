@@ -109,7 +109,7 @@ static void __cpuinit arch_timer_setup(struct clock_event_device *clk)
 
 	enable_percpu_irq(clk->irq, 0);
 
-	/* Ensure the physical counter is visible to userspace for the vDSO. */
+	/* Ensure the virtual counter is visible to userspace for the vDSO. */
 	arch_counter_enable_user_access();
 }
 
