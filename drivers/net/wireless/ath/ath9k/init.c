@@ -559,6 +559,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	if (!ah)
 		return -ENOMEM;
 
+	ah->dev = sc->dev;
 	ah->hw = sc->hw;
 	ah->hw_version.devid = devid;
 	ah->reg_ops.read = ath9k_ioread32;

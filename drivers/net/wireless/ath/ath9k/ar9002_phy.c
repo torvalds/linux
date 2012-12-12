@@ -561,8 +561,6 @@ void ar9002_hw_attach_phy_ops(struct ath_hw *ah)
 	struct ath_hw_ops *ops = ath9k_hw_ops(ah);
 
 	priv_ops->set_rf_regs = NULL;
-	priv_ops->rf_alloc_ext_banks = NULL;
-	priv_ops->rf_free_ext_banks = NULL;
 	priv_ops->rf_set_freq = ar9002_hw_set_channel;
 	priv_ops->spur_mitigate_freq = ar9002_hw_spur_mitigate;
 	priv_ops->olc_init = ar9002_olc_init;

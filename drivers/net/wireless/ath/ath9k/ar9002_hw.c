@@ -102,7 +102,7 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 		u32 size = sizeof(u32) * addac->ia_rows * addac->ia_columns;
 		u32 *data;
 
-		data = kmalloc(size, GFP_KERNEL);
+		data = devm_kzalloc(ah->dev, size, GFP_KERNEL);
 		if (!data)
 			return;
 
@@ -409,22 +409,27 @@ void ar9002_hw_enable_async_fifo(struct ath_hw *ah)
 }
 
 /* Sets up the AR5008/AR9001/AR9002 hardware familiy callbacks */
-void ar9002_hw_attach_ops(struct ath_hw *ah)
+int ar9002_hw_attach_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
 	struct ath_hw_ops *ops = ath9k_hw_ops(ah);
+	int ret;
 
 	priv_ops->init_mode_regs = ar9002_hw_init_mode_regs;
 	priv_ops->init_mode_gain_regs = ar9002_hw_init_mode_gain_regs;
 
 	ops->config_pci_powersave = ar9002_hw_configpcipowersave;
 
-	ar5008_hw_attach_phy_ops(ah);
+	ret = ar5008_hw_attach_phy_ops(ah);
+	if (ret)
+		return ret;
+
 	if (AR_SREV_9280_20_OR_LATER(ah))
 		ar9002_hw_attach_phy_ops(ah);
 
 	ar9002_hw_attach_calib_ops(ah);
 	ar9002_hw_attach_mac_ops(ah);
+	return 0;
 }
 
 void ar9002_hw_load_ani_reg(struct ath_hw *ah, struct ath9k_channel *chan)

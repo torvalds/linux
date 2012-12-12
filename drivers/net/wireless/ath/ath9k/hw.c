@@ -554,14 +554,6 @@ static int ath9k_hw_post_init(struct ath_hw *ah)
 		ah->eep_ops->get_eeprom_ver(ah),
 		ah->eep_ops->get_eeprom_rev(ah));
 
-	ecode = ath9k_hw_rf_alloc_ext_banks(ah);
-	if (ecode) {
-		ath_err(ath9k_hw_common(ah),
-			"Failed allocating banks for external radio\n");
-		ath9k_hw_rf_free_ext_banks(ah);
-		return ecode;
-	}
-
 	if (ah->config.enable_ani) {
 		ath9k_hw_ani_setup(ah);
 		ath9k_hw_ani_init(ah);
@@ -570,12 +562,13 @@ static int ath9k_hw_post_init(struct ath_hw *ah)
 	return 0;
 }
 
-static void ath9k_hw_attach_ops(struct ath_hw *ah)
+static int ath9k_hw_attach_ops(struct ath_hw *ah)
 {
-	if (AR_SREV_9300_20_OR_LATER(ah))
-		ar9003_hw_attach_ops(ah);
-	else
-		ar9002_hw_attach_ops(ah);
+	if (!AR_SREV_9300_20_OR_LATER(ah))
+		return ar9002_hw_attach_ops(ah);
+
+	ar9003_hw_attach_ops(ah);
+	return 0;
 }
 
 /* Called for all hardware families */
@@ -611,7 +604,9 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	ath9k_hw_init_defaults(ah);
 	ath9k_hw_init_config(ah);
 
-	ath9k_hw_attach_ops(ah);
+	r = ath9k_hw_attach_ops(ah);
+	if (r)
+		return r;
 
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE)) {
 		ath_err(common, "Couldn't wakeup chip\n");
@@ -1153,12 +1148,9 @@ void ath9k_hw_deinit(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 
 	if (common->state < ATH_HW_INITIALIZED)
-		goto free_hw;
+		return;
 
 	ath9k_hw_setpower(ah, ATH9K_PM_FULL_SLEEP);
-
-free_hw:
-	ath9k_hw_rf_free_ext_banks(ah);
 }
 EXPORT_SYMBOL(ath9k_hw_deinit);
 

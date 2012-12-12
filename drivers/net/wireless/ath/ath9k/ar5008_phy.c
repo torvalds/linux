@@ -470,16 +470,15 @@ static void ar5008_hw_spur_mitigate(struct ath_hw *ah,
 static int ar5008_hw_rf_alloc_ext_banks(struct ath_hw *ah)
 {
 #define ATH_ALLOC_BANK(bank, size) do { \
-		bank = kzalloc((sizeof(u32) * size), GFP_KERNEL); \
-		if (!bank) { \
-			ath_err(common, "Cannot allocate RF banks\n"); \
-			return -ENOMEM; \
-		} \
+		bank = devm_kzalloc(ah->dev, sizeof(u32) * size, GFP_KERNEL); \
+		if (!bank) \
+			goto error; \
 	} while (0);
 
 	struct ath_common *common = ath9k_hw_common(ah);
 
-	BUG_ON(AR_SREV_9280_20_OR_LATER(ah));
+	if (AR_SREV_9280_20_OR_LATER(ah))
+	    return 0;
 
 	ATH_ALLOC_BANK(ah->analogBank0Data, ah->iniBank0.ia_rows);
 	ATH_ALLOC_BANK(ah->analogBank1Data, ah->iniBank1.ia_rows);
@@ -492,34 +491,11 @@ static int ar5008_hw_rf_alloc_ext_banks(struct ath_hw *ah)
 
 	return 0;
 #undef ATH_ALLOC_BANK
+error:
+	ath_err(common, "Cannot allocate RF banks\n");
+	return -ENOMEM;
 }
 
-
-/**
- * ar5008_hw_rf_free_ext_banks - Free memory for analog bank scratch buffers
- * @ah: atheros hardware struture
- * For the external AR2133/AR5133 radios banks.
- */
-static void ar5008_hw_rf_free_ext_banks(struct ath_hw *ah)
-{
-#define ATH_FREE_BANK(bank) do { \
-		kfree(bank); \
-		bank = NULL; \
-	} while (0);
-
-	BUG_ON(AR_SREV_9280_20_OR_LATER(ah));
-
-	ATH_FREE_BANK(ah->analogBank0Data);
-	ATH_FREE_BANK(ah->analogBank1Data);
-	ATH_FREE_BANK(ah->analogBank2Data);
-	ATH_FREE_BANK(ah->analogBank3Data);
-	ATH_FREE_BANK(ah->analogBank6Data);
-	ATH_FREE_BANK(ah->analogBank6TPCData);
-	ATH_FREE_BANK(ah->analogBank7Data);
-	ATH_FREE_BANK(ah->bank6Temp);
-
-#undef ATH_FREE_BANK
-}
 
 /* *
  * ar5008_hw_set_rf_regs - programs rf registers based on EEPROM
@@ -1380,7 +1356,7 @@ static void ar5008_hw_set_radar_conf(struct ath_hw *ah)
 	conf->radar_inband = 8;
 }
 
-void ar5008_hw_attach_phy_ops(struct ath_hw *ah)
+int ar5008_hw_attach_phy_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
 	static const u32 ar5416_cca_regs[6] = {
@@ -1391,12 +1367,15 @@ void ar5008_hw_attach_phy_ops(struct ath_hw *ah)
 		AR_PHY_CH1_EXT_CCA,
 		AR_PHY_CH2_EXT_CCA
 	};
+	int ret;
+
+	ret = ar5008_hw_rf_alloc_ext_banks(ah);
+	if (ret)
+	    return ret;
 
 	priv_ops->rf_set_freq = ar5008_hw_set_channel;
 	priv_ops->spur_mitigate_freq = ar5008_hw_spur_mitigate;
 
-	priv_ops->rf_alloc_ext_banks = ar5008_hw_rf_alloc_ext_banks;
-	priv_ops->rf_free_ext_banks = ar5008_hw_rf_free_ext_banks;
 	priv_ops->set_rf_regs = ar5008_hw_set_rf_regs;
 	priv_ops->set_channel_regs = ar5008_hw_set_channel_regs;
 	priv_ops->init_bb = ar5008_hw_init_bb;
@@ -1421,4 +1400,5 @@ void ar5008_hw_attach_phy_ops(struct ath_hw *ah)
 	ar5008_hw_set_nf_limits(ah);
 	ar5008_hw_set_radar_conf(ah);
 	memcpy(ah->nf_regs, ar5416_cca_regs, sizeof(ah->nf_regs));
+	return 0;
 }
