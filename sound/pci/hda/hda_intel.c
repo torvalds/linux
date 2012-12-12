@@ -2691,10 +2691,6 @@ static int azx_runtime_suspend(struct device *dev)
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
 
-	if (!power_save_controller ||
-	    !(chip->driver_caps & AZX_DCAPS_PM_RUNTIME))
-		return -EAGAIN;
-
 	azx_stop_chip(chip);
 	azx_clear_irq_pending(chip);
 	return 0;
@@ -2709,12 +2705,25 @@ static int azx_runtime_resume(struct device *dev)
 	azx_init_chip(chip, 1);
 	return 0;
 }
+
+static int azx_runtime_idle(struct device *dev)
+{
+	struct snd_card *card = dev_get_drvdata(dev);
+	struct azx *chip = card->private_data;
+
+	if (!power_save_controller ||
+	    !(chip->driver_caps & AZX_DCAPS_PM_RUNTIME))
+		return -EBUSY;
+
+	return 0;
+}
+
 #endif /* CONFIG_PM_RUNTIME */
 
 #ifdef CONFIG_PM
 static const struct dev_pm_ops azx_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(azx_suspend, azx_resume)
-	SET_RUNTIME_PM_OPS(azx_runtime_suspend, azx_runtime_resume, NULL)
+	SET_RUNTIME_PM_OPS(azx_runtime_suspend, azx_runtime_resume, azx_runtime_idle)
 };
 
 #define AZX_PM_OPS	&azx_pm
