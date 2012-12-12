@@ -7434,7 +7434,7 @@ unlock:
 device_initcall(perf_event_sysfs_init);
 
 #ifdef CONFIG_CGROUP_PERF
-static struct cgroup_subsys_state *perf_cgroup_create(struct cgroup *cont)
+static struct cgroup_subsys_state *perf_cgroup_css_alloc(struct cgroup *cont)
 {
 	struct perf_cgroup *jc;
 
@@ -7451,7 +7451,7 @@ static struct cgroup_subsys_state *perf_cgroup_create(struct cgroup *cont)
 	return &jc->css;
 }
 
-static void perf_cgroup_destroy(struct cgroup *cont)
+static void perf_cgroup_css_free(struct cgroup *cont)
 {
 	struct perf_cgroup *jc;
 	jc = container_of(cgroup_subsys_state(cont, perf_subsys_id),
@@ -7492,8 +7492,8 @@ static void perf_cgroup_exit(struct cgroup *cgrp, struct cgroup *old_cgrp,
 struct cgroup_subsys perf_subsys = {
 	.name		= "perf_event",
 	.subsys_id	= perf_subsys_id,
-	.create		= perf_cgroup_create,
-	.destroy	= perf_cgroup_destroy,
+	.css_alloc	= perf_cgroup_css_alloc,
+	.css_free	= perf_cgroup_css_free,
 	.exit		= perf_cgroup_exit,
 	.attach		= perf_cgroup_attach,
 

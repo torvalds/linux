@@ -77,7 +77,7 @@ static inline bool hugetlb_cgroup_have_usage(struct cgroup *cg)
 	return false;
 }
 
-static struct cgroup_subsys_state *hugetlb_cgroup_create(struct cgroup *cgroup)
+static struct cgroup_subsys_state *hugetlb_cgroup_css_alloc(struct cgroup *cgroup)
 {
 	int idx;
 	struct cgroup *parent_cgroup;
@@ -101,7 +101,7 @@ static struct cgroup_subsys_state *hugetlb_cgroup_create(struct cgroup *cgroup)
 	return &h_cgroup->css;
 }
 
-static void hugetlb_cgroup_destroy(struct cgroup *cgroup)
+static void hugetlb_cgroup_css_free(struct cgroup *cgroup)
 {
 	struct hugetlb_cgroup *h_cgroup;
 
@@ -155,18 +155,13 @@ out:
  * Force the hugetlb cgroup to empty the hugetlb resources by moving them to
  * the parent cgroup.
  */
-static int hugetlb_cgroup_pre_destroy(struct cgroup *cgroup)
+static void hugetlb_cgroup_css_offline(struct cgroup *cgroup)
 {
 	struct hstate *h;
 	struct page *page;
-	int ret = 0, idx = 0;
+	int idx = 0;
 
 	do {
-		if (cgroup_task_count(cgroup) ||
-		    !list_empty(&cgroup->children)) {
-			ret = -EBUSY;
-			goto out;
-		}
 		for_each_hstate(h) {
 			spin_lock(&hugetlb_lock);
 			list_for_each_entry(page, &h->hugepage_activelist, lru)
@@ -177,8 +172,6 @@ static int hugetlb_cgroup_pre_destroy(struct cgroup *cgroup)
 		}
 		cond_resched();
 	} while (hugetlb_cgroup_have_usage(cgroup));
-out:
-	return ret;
 }
 
 int hugetlb_cgroup_charge_cgroup(int idx, unsigned long nr_pages,
@@ -411,8 +404,8 @@ void hugetlb_cgroup_migrate(struct page *oldhpage, struct page *newhpage)
 
 struct cgroup_subsys hugetlb_subsys = {
 	.name = "hugetlb",
-	.create     = hugetlb_cgroup_create,
-	.pre_destroy = hugetlb_cgroup_pre_destroy,
-	.destroy    = hugetlb_cgroup_destroy,
-	.subsys_id  = hugetlb_subsys_id,
+	.css_alloc	= hugetlb_cgroup_css_alloc,
+	.css_offline	= hugetlb_cgroup_css_offline,
+	.css_free	= hugetlb_cgroup_css_free,
+	.subsys_id	= hugetlb_subsys_id,
 };
