@@ -1041,7 +1041,6 @@ static bool sh_mmcif_end_cmd(struct sh_mmcif_host *host)
 		case MMC_SELECT_CARD:
 		case MMC_APP_CMD:
 			cmd->error = -ETIMEDOUT;
-			host->sd_error = false;
 			break;
 		default:
 			cmd->error = sh_mmcif_error_manage(host);
@@ -1049,6 +1048,7 @@ static bool sh_mmcif_end_cmd(struct sh_mmcif_host *host)
 				cmd->opcode, cmd->error);
 			break;
 		}
+		host->sd_error = false;
 		return false;
 	}
 	if (!(cmd->flags & MMC_RSP_PRESENT)) {
