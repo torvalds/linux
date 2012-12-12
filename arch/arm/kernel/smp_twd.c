@@ -31,6 +31,8 @@ static void __iomem *twd_base;
 
 static struct clk *twd_clk;
 static unsigned long twd_timer_rate;
+static bool common_setup_called;
+static DEFINE_PER_CPU(bool, percpu_setup_called);
 
 static struct clock_event_device __percpu **twd_evt;
 static int twd_ppi;
@@ -248,17 +250,9 @@ static struct clk *twd_get_clock(void)
 		return clk;
 	}
 
-	err = clk_prepare(clk);
+	err = clk_prepare_enable(clk);
 	if (err) {
-		pr_err("smp_twd: clock failed to prepare: %d\n", err);
-		clk_put(clk);
-		return ERR_PTR(err);
-	}
-
-	err = clk_enable(clk);
-	if (err) {
-		pr_err("smp_twd: clock failed to enable: %d\n", err);
-		clk_unprepare(clk);
+		pr_err("smp_twd: clock failed to prepare+enable: %d\n", err);
 		clk_put(clk);
 		return ERR_PTR(err);
 	}
@@ -272,15 +266,45 @@ static struct clk *twd_get_clock(void)
 static int __cpuinit twd_timer_setup(struct clock_event_device *clk)
 {
 	struct clock_event_device **this_cpu_clk;
+	int cpu = smp_processor_id();
 
-	if (!twd_clk)
+	/*
+	 * If the basic setup for this CPU has been done before don't
+	 * bother with the below.
+	 */
+	if (per_cpu(percpu_setup_called, cpu)) {
+		__raw_writel(0, twd_base + TWD_TIMER_CONTROL);
+		clockevents_register_device(*__this_cpu_ptr(twd_evt));
+		enable_percpu_irq(clk->irq, 0);
+		return 0;
+	}
+	per_cpu(percpu_setup_called, cpu) = true;
+
+	/*
+	 * This stuff only need to be done once for the entire TWD cluster
+	 * during the runtime of the system.
+	 */
+	if (!common_setup_called) {
 		twd_clk = twd_get_clock();
 
-	if (!IS_ERR_OR_NULL(twd_clk))
-		twd_timer_rate = clk_get_rate(twd_clk);
-	else
-		twd_calibrate_rate();
+		/*
+		 * We use IS_ERR_OR_NULL() here, because if the clock stubs
+		 * are active we will get a valid clk reference which is
+		 * however NULL and will return the rate 0. In that case we
+		 * need to calibrate the rate instead.
+		 */
+		if (!IS_ERR_OR_NULL(twd_clk))
+			twd_timer_rate = clk_get_rate(twd_clk);
+		else
+			twd_calibrate_rate();
 
+		common_setup_called = true;
+	}
+
+	/*
+	 * The following is done once per CPU the first time .setup() is
+	 * called.
+	 */
 	__raw_writel(0, twd_base + TWD_TIMER_CONTROL);
 
 	clk->name = "local_timer";

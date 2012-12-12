@@ -34,6 +34,7 @@
 #include <linux/leds.h>
 
 #include <asm/cacheflush.h>
+#include <asm/idmap.h>
 #include <asm/processor.h>
 #include <asm/thread_notify.h>
 #include <asm/stacktrace.h>
@@ -56,8 +57,6 @@ static const char *isa_modes[] = {
   "ARM" , "Thumb" , "Jazelle", "ThumbEE"
 };
 
-extern void setup_mm_for_reboot(void);
-
 static volatile int hlt_counter;
 
 void disable_hlt(void)
@@ -70,6 +69,7 @@ EXPORT_SYMBOL(disable_hlt);
 void enable_hlt(void)
 {
 	hlt_counter--;
+	BUG_ON(hlt_counter < 0);
 }
 
 EXPORT_SYMBOL(enable_hlt);

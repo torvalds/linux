@@ -1,12 +1,12 @@
 /*
- *  arch/arm/include/asm/mach/serial_sa1100.h
- *
  *  Author: Nicolas Pitre
  *
  * Moved and changed lots, Russell King
  *
  * Low level machine dependent UART functions.
  */
+#ifndef SA11X0_SERIAL_H
+#define SA11X0_SERIAL_H
 
 struct uart_port;
 struct uart_info;
@@ -28,4 +28,6 @@ void sa1100_register_uart(int idx, int port);
 #else
 #define sa1100_register_uart_fns(fns) do { } while (0)
 #define sa1100_register_uart(idx,port) do { } while (0)
+#endif
+
 #endif
