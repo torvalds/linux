@@ -122,9 +122,17 @@ config CIFS_ACL
 	    Allows fetching CIFS/NTFS ACL from the server.  The DACL blob
 	    is handed over to the application/caller.
 
+config CIFS_DEBUG
+	bool "Enable CIFS debugging routines"
+	default y
+	depends on CIFS
+	help
+	   Enabling this option adds helpful debugging messages to
+	   the cifs code which increases the size of the cifs module.
+	   If unsure, say Y.
 config CIFS_DEBUG2
 	bool "Enable additional CIFS debugging routines"
-	depends on CIFS
+	depends on CIFS_DEBUG
 	help
 	   Enabling this option adds a few more debugging routines
 	   to the cifs code which slightly increases the size of
