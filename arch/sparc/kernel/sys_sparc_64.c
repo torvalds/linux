@@ -75,7 +75,7 @@ static inline int invalid_64bit_range(unsigned long addr, unsigned long len)
  *    the spitfire/niagara VA-hole.
  */
 
-static inline unsigned long COLOUR_ALIGN(unsigned long addr,
+static inline unsigned long COLOR_ALIGN(unsigned long addr,
 					 unsigned long pgoff)
 {
 	unsigned long base = (addr+SHMLBA-1)&~(SHMLBA-1);
@@ -113,7 +113,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 
 	if (addr) {
 		if (do_color_align)
-			addr = COLOUR_ALIGN(addr, pgoff);
+			addr = COLOR_ALIGN(addr, pgoff);
 		else
 			addr = PAGE_ALIGN(addr);
 
@@ -176,7 +176,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	/* requesting a specific address */
 	if (addr) {
 		if (do_color_align)
-			addr = COLOUR_ALIGN(addr, pgoff);
+			addr = COLOR_ALIGN(addr, pgoff);
 		else
 			addr = PAGE_ALIGN(addr);
 
