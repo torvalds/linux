@@ -408,6 +408,34 @@ static struct irq_chip mn10300_serial_pic = {
 	.irq_unmask	= mn10300_serial_nop,
 };
 
+static void mn10300_serial_low_mask(struct irq_data *d)
+{
+	unsigned long flags;
+	u16 tmp;
+
+	flags = arch_local_cli_save();
+	GxICR(d->irq) = NUM2GxICR_LEVEL(CONFIG_MN10300_SERIAL_IRQ_LEVEL);
+	tmp = GxICR(d->irq); /* flush write buffer */
+	arch_local_irq_restore(flags);
+}
+
+static void mn10300_serial_low_unmask(struct irq_data *d)
+{
+	unsigned long flags;
+	u16 tmp;
+
+	flags = arch_local_cli_save();
+	GxICR(d->irq) =
+		NUM2GxICR_LEVEL(CONFIG_MN10300_SERIAL_IRQ_LEVEL) | GxICR_ENABLE;
+	tmp = GxICR(d->irq); /* flush write buffer */
+	arch_local_irq_restore(flags);
+}
+
+static struct irq_chip mn10300_serial_low_pic = {
+	.name		= "mnserial-low",
+	.irq_mask	= mn10300_serial_low_mask,
+	.irq_unmask	= mn10300_serial_low_unmask,
+};
 
 /*
  * serial virtual DMA interrupt jump table
@@ -929,10 +957,8 @@ static int mn10300_serial_startup(struct uart_port *_port)
 	pint->port = port;
 	pint->vdma = mn10300_serial_vdma_tx_handler;
 
-	set_intr_level(port->rx_irq,
-		NUM2GxICR_LEVEL(CONFIG_MN10300_SERIAL_IRQ_LEVEL));
-	set_intr_level(port->tx_irq,
-		NUM2GxICR_LEVEL(CONFIG_MN10300_SERIAL_IRQ_LEVEL));
+	irq_set_chip(port->rx_irq, &mn10300_serial_low_pic);
+	irq_set_chip(port->tx_irq, &mn10300_serial_low_pic);
 	irq_set_chip(port->tm_irq, &mn10300_serial_pic);
 
 	if (request_irq(port->rx_irq, mn10300_serial_interrupt,
