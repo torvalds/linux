@@ -69,6 +69,8 @@ struct kvm_regs {
 #define KVM_VGIC_V2_DIST_SIZE		0x1000
 #define KVM_VGIC_V2_CPU_SIZE		0x2000
 
+#define KVM_ARM_VCPU_POWER_OFF		0 /* CPU is started in OFF state */
+
 struct kvm_vcpu_init {
 	__u32 target;
 	__u32 features[7];
@@ -140,6 +142,20 @@ struct kvm_arch_memory_slot {
 
 /* Highest supported SPI, from VGIC_NR_IRQS */
 #define KVM_ARM_IRQ_GIC_MAX		127
+
+/* PSCI interface */
+#define KVM_PSCI_FN_BASE		0x95c1ba5e
+#define KVM_PSCI_FN(n)			(KVM_PSCI_FN_BASE + (n))
+
+#define KVM_PSCI_FN_CPU_SUSPEND		KVM_PSCI_FN(0)
+#define KVM_PSCI_FN_CPU_OFF		KVM_PSCI_FN(1)
+#define KVM_PSCI_FN_CPU_ON		KVM_PSCI_FN(2)
+#define KVM_PSCI_FN_MIGRATE		KVM_PSCI_FN(3)
+
+#define KVM_PSCI_RET_SUCCESS		0
+#define KVM_PSCI_RET_NI			((unsigned long)-1)
+#define KVM_PSCI_RET_INVAL		((unsigned long)-2)
+#define KVM_PSCI_RET_DENIED		((unsigned long)-3)
 
 #endif
 
