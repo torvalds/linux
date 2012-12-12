@@ -36,7 +36,7 @@
 
 #define MILLI_TO_MICRO			1000
 #define FG_LSB_IN_MA			1627
-#define QLSB_NANO_AMP_HOURS_X10		1129
+#define QLSB_NANO_AMP_HOURS_X10		1071
 #define INS_CURR_TIMEOUT		(3 * HZ)
 
 #define SEC_TO_SAMPLE(S)		(S * 4)
@@ -672,11 +672,11 @@ int ab8500_fg_inst_curr_finalize(struct ab8500_fg *di, int *res)
 	/*
 	 * Convert to unit value in mA
 	 * Full scale input voltage is
-	 * 66.660mV => LSB = 66.660mV/(4096*res) = 1.627mA
+	 * 63.160mV => LSB = 63.160mV/(4096*res) = 1.542mA
 	 * Given a 250ms conversion cycle time the LSB corresponds
-	 * to 112.9 nAh. Convert to current by dividing by the conversion
+	 * to 107.1 nAh. Convert to current by dividing by the conversion
 	 * time in hours (250ms = 1 / (3600 * 4)h)
-	 * 112.9nAh assumes 10mOhm, but fg_res is in 0.1mOhm
+	 * 107.1nAh assumes 10mOhm, but fg_res is in 0.1mOhm
 	 */
 	val = (val * QLSB_NANO_AMP_HOURS_X10 * 36 * 4) /
 		(1000 * di->bm->fg_res);
