@@ -2502,6 +2502,8 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 		const struct of_device_id *match;
 		match = of_match_node(of_match_ptr(hdmi_match_types),
 					pdev->dev.of_node);
+		if (match == NULL)
+			return -ENODEV;
 		hdata->type = (enum hdmi_type)match->data;
 	} else {
 		hdata->type = (enum hdmi_type)platform_get_device_id
