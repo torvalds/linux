@@ -258,7 +258,7 @@ static inline void __iomem *__ioremap(unsigned long offset, unsigned long size,
 
 static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
 {
-	return (void __iomem *) offset;
+	return (void __iomem *)(offset & ~0x20000000);
 }
 
 /*
