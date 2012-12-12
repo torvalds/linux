@@ -144,9 +144,9 @@ Figure 1 shows the important aspects of the controller
 3. Each page has a pointer to the page_cgroup, which in turn knows the
    cgroup it belongs to
 
-The accounting is done as follows: mem_cgroup_charge() is invoked to set up
-the necessary data structures and check if the cgroup that is being charged
-is over its limit. If it is, then reclaim is invoked on the cgroup.
+The accounting is done as follows: mem_cgroup_charge_common() is invoked to
+set up the necessary data structures and check if the cgroup that is being
+charged is over its limit. If it is, then reclaim is invoked on the cgroup.
 More details can be found in the reclaim section of this document.
 If everything goes well, a page meta-data-structure called page_cgroup is
 updated. page_cgroup has its own LRU on cgroup.
