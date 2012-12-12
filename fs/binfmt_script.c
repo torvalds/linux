@@ -14,7 +14,7 @@
 #include <linux/err.h>
 #include <linux/fs.h>
 
-static int load_script(struct linux_binprm *bprm,struct pt_regs *regs)
+static int load_script(struct linux_binprm *bprm)
 {
 	const char *i_arg, *i_name;
 	char *cp;
@@ -95,7 +95,7 @@ static int load_script(struct linux_binprm *bprm,struct pt_regs *regs)
 	retval = prepare_binprm(bprm);
 	if (retval < 0)
 		return retval;
-	return search_binary_handler(bprm,regs);
+	return search_binary_handler(bprm);
 }
 
 static struct linux_binfmt script_format = {

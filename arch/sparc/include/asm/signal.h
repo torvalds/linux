@@ -26,7 +26,5 @@ struct k_sigaction {
 	void			__user *ka_restorer;
 };
 
-#define ptrace_signal_deliver(regs, cookie) do { } while (0)
-
 #endif /* !(__ASSEMBLY__) */
 #endif /* !(__SPARC_SIGNAL_H) */

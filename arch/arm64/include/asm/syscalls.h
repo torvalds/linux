@@ -27,12 +27,6 @@ asmlinkage long sys_rt_sigreturn_wrapper(void);
 asmlinkage long sys_sigaltstack_wrapper(const stack_t __user *uss,
 					stack_t __user *uoss);
 
-/*
- * AArch64 sys_clone implementation has a different prototype than the generic
- * one (additional TLS value argument).
- */
-#define sys_clone	sys_clone
-
 #include <asm-generic/syscalls.h>
 
 #endif	/* __ASM_SYSCALLS_H */

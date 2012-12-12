@@ -104,7 +104,7 @@ static Node *check_file(struct linux_binprm *bprm)
 /*
  * the loader itself
  */
-static int load_misc_binary(struct linux_binprm *bprm, struct pt_regs *regs)
+static int load_misc_binary(struct linux_binprm *bprm)
 {
 	Node *fmt;
 	struct file * interp_file = NULL;
@@ -199,7 +199,7 @@ static int load_misc_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 
 	bprm->recursion_depth++;
 
-	retval = search_binary_handler (bprm, regs);
+	retval = search_binary_handler(bprm);
 	if (retval < 0)
 		goto _error;
 

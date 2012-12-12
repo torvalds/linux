@@ -8,7 +8,7 @@
 #
 0	i386	restart_syscall		sys_restart_syscall
 1	i386	exit			sys_exit
-2	i386	fork			ptregs_fork			stub32_fork
+2	i386	fork			sys_fork			stub32_fork
 3	i386	read			sys_read
 4	i386	write			sys_write
 5	i386	open			sys_open			compat_sys_open
@@ -126,7 +126,7 @@
 117	i386	ipc			sys_ipc				sys32_ipc
 118	i386	fsync			sys_fsync
 119	i386	sigreturn		ptregs_sigreturn		stub32_sigreturn
-120	i386	clone			ptregs_clone			stub32_clone
+120	i386	clone			sys_clone			stub32_clone
 121	i386	setdomainname		sys_setdomainname
 122	i386	uname			sys_newuname
 123	i386	modify_ldt		sys_modify_ldt
@@ -196,7 +196,7 @@
 187	i386	sendfile		sys_sendfile			sys32_sendfile
 188	i386	getpmsg
 189	i386	putpmsg
-190	i386	vfork			ptregs_vfork			stub32_vfork
+190	i386	vfork			sys_vfork			stub32_vfork
 191	i386	ugetrlimit		sys_getrlimit			compat_sys_getrlimit
 192	i386	mmap2			sys_mmap_pgoff
 193	i386	truncate64		sys_truncate64			sys32_truncate64

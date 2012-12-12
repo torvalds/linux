@@ -1349,7 +1349,7 @@ EXPORT_SYMBOL(remove_arg_zero);
 /*
  * cycle the list of binary formats handler, until one recognizes the image
  */
-int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
+int search_binary_handler(struct linux_binprm *bprm)
 {
 	unsigned int depth = bprm->recursion_depth;
 	int try,retval;
@@ -1374,13 +1374,13 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 	for (try=0; try<2; try++) {
 		read_lock(&binfmt_lock);
 		list_for_each_entry(fmt, &formats, lh) {
-			int (*fn)(struct linux_binprm *, struct pt_regs *) = fmt->load_binary;
+			int (*fn)(struct linux_binprm *) = fmt->load_binary;
 			if (!fn)
 				continue;
 			if (!try_module_get(fmt->module))
 				continue;
 			read_unlock(&binfmt_lock);
-			retval = fn(bprm, regs);
+			retval = fn(bprm);
 			/*
 			 * Restore the depth counter to its starting value
 			 * in this call, so we don't have to rely on every
@@ -1439,8 +1439,7 @@ EXPORT_SYMBOL(search_binary_handler);
  */
 static int do_execve_common(const char *filename,
 				struct user_arg_ptr argv,
-				struct user_arg_ptr envp,
-				struct pt_regs *regs)
+				struct user_arg_ptr envp)
 {
 	struct linux_binprm *bprm;
 	struct file *file;
@@ -1524,7 +1523,7 @@ static int do_execve_common(const char *filename,
 	if (retval < 0)
 		goto out;
 
-	retval = search_binary_handler(bprm,regs);
+	retval = search_binary_handler(bprm);
 	if (retval < 0)
 		goto out;
 
@@ -1566,19 +1565,17 @@ out_ret:
 
 int do_execve(const char *filename,
 	const char __user *const __user *__argv,
-	const char __user *const __user *__envp,
-	struct pt_regs *regs)
+	const char __user *const __user *__envp)
 {
 	struct user_arg_ptr argv = { .ptr.native = __argv };
 	struct user_arg_ptr envp = { .ptr.native = __envp };
-	return do_execve_common(filename, argv, envp, regs);
+	return do_execve_common(filename, argv, envp);
 }
 
 #ifdef CONFIG_COMPAT
-int compat_do_execve(const char *filename,
+static int compat_do_execve(const char *filename,
 	const compat_uptr_t __user *__argv,
-	const compat_uptr_t __user *__envp,
-	struct pt_regs *regs)
+	const compat_uptr_t __user *__envp)
 {
 	struct user_arg_ptr argv = {
 		.is_compat = true,
@@ -1588,7 +1585,7 @@ int compat_do_execve(const char *filename,
 		.is_compat = true,
 		.ptr.compat = __envp,
 	};
-	return do_execve_common(filename, argv, envp, regs);
+	return do_execve_common(filename, argv, envp);
 }
 #endif
 
@@ -1669,7 +1666,7 @@ SYSCALL_DEFINE3(execve,
 	struct filename *path = getname(filename);
 	int error = PTR_ERR(path);
 	if (!IS_ERR(path)) {
-		error = do_execve(path->name, argv, envp, current_pt_regs());
+		error = do_execve(path->name, argv, envp);
 		putname(path);
 	}
 	return error;
@@ -1682,8 +1679,7 @@ asmlinkage long compat_sys_execve(const char __user * filename,
 	struct filename *path = getname(filename);
 	int error = PTR_ERR(path);
 	if (!IS_ERR(path)) {
-		error = compat_do_execve(path->name, argv, envp,
-							current_pt_regs());
+		error = compat_do_execve(path->name, argv, envp);
 		putname(path);
 	}
 	return error;
@@ -1696,12 +1692,9 @@ int kernel_execve(const char *filename,
 		  const char *const argv[],
 		  const char *const envp[])
 {
-	struct pt_regs *p = current_pt_regs();
-	int ret;
-
-	ret = do_execve(filename,
+	int ret = do_execve(filename,
 			(const char __user *const __user *)argv,
-			(const char __user *const __user *)envp, p);
+			(const char __user *const __user *)envp);
 	if (ret < 0)
 		return ret;
 
@@ -1709,6 +1702,6 @@ int kernel_execve(const char *filename,
 	 * We were successful.  We won't be returning to our caller, but
 	 * instead to user space by manipulating the kernel stack.
 	 */
-	ret_from_kernel_execve(p);
+	ret_from_kernel_execve(current_pt_regs());
 }
 #endif

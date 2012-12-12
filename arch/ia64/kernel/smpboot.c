@@ -460,11 +460,6 @@ start_secondary (void *unused)
 	return 0;
 }
 
-struct pt_regs * __cpuinit idle_regs(struct pt_regs *regs)
-{
-	return NULL;
-}
-
 static int __cpuinit
 do_boot_cpu (int sapicid, int cpu, struct task_struct *idle)
 {

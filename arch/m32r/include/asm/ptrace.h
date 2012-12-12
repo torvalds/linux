@@ -139,6 +139,8 @@ extern void withdraw_debug_trap(struct pt_regs *regs);
 
 #define task_pt_regs(task) \
         ((struct pt_regs *)(task_stack_page(task) + THREAD_SIZE) - 1)
+#define current_pt_regs() ((struct pt_regs *) \
+	((unsigned long)current_thread_info() + THREAD_SIZE) - 1)
 
 #endif /* __KERNEL */
 

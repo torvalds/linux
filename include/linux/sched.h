@@ -2303,7 +2303,7 @@ extern void mm_release(struct task_struct *, struct mm_struct *);
 extern struct mm_struct *dup_mm(struct task_struct *tsk);
 
 extern int copy_thread(unsigned long, unsigned long, unsigned long,
-			struct task_struct *, struct pt_regs *);
+			struct task_struct *);
 extern void flush_thread(void);
 extern void exit_thread(void);
 
@@ -2315,14 +2315,13 @@ extern void flush_itimer_signals(void);
 
 extern void do_group_exit(int);
 
-extern void daemonize(const char *, ...);
 extern int allow_signal(int);
 extern int disallow_signal(int);
 
 extern int do_execve(const char *,
 		     const char __user * const __user *,
-		     const char __user * const __user *, struct pt_regs *);
-extern long do_fork(unsigned long, unsigned long, struct pt_regs *, unsigned long, int __user *, int __user *);
+		     const char __user * const __user *);
+extern long do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *);
 struct task_struct *fork_idle(int);
 #ifdef CONFIG_GENERIC_KERNEL_THREAD
 extern pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);

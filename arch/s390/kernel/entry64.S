@@ -352,33 +352,17 @@ sysc_tracenogo:
 ENTRY(ret_from_fork)
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	lg	%r12,__LC_THREAD_INFO
+	brasl	%r14,schedule_tail
+	TRACE_IRQS_ON
+	ssm	__LC_SVC_NEW_PSW	# reenable interrupts
 	tm	__PT_PSW+1(%r11),0x01	# forking a kernel thread ?
-	je	1f
-	brasl	%r14,schedule_tail
-	TRACE_IRQS_ON
-	ssm	__LC_SVC_NEW_PSW	# reenable interrupts
-	j	sysc_tracenogo
-1:	# it's a kernel thread
-	stg	%r15,__PT_R15(%r11)	# store stack pointer for new kthread
-	brasl	%r14,schedule_tail
-	TRACE_IRQS_ON
-	ssm	__LC_SVC_NEW_PSW	# reenable interrupts
-	lmg	%r9,%r11,__PT_R9(%r11)	# load gprs
+	jne	sysc_tracenogo
+	# it's a kernel thread
+	lmg	%r9,%r10,__PT_R9(%r11)	# load gprs
 ENTRY(kernel_thread_starter)
 	la	%r2,0(%r10)
 	basr	%r14,%r9
-	la	%r2,0
-	br	%r11			# do_exit
-
-ENTRY(ret_from_kernel_execve)
-	ssm	__LC_PGM_NEW_PSW	# disable I/O and ext. interrupts
-	lgr	%r15,%r2
-	lgr	%r11,%r2
-	aghi	%r15,-STACK_FRAME_OVERHEAD
-	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
-	lg	%r12,__LC_THREAD_INFO
-	ssm	__LC_SVC_NEW_PSW	# reenable interrupts
-	j	sysc_return
+	j	sysc_tracenogo
 
 /*
  * Program check handler routine

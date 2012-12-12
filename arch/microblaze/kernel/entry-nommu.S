@@ -474,6 +474,14 @@ ENTRY(ret_from_fork)
 	brid	ret_to_user
 	nop
 
+ENTRY(ret_from_kernel_thread)
+	brlid	r15, schedule_tail
+	addk	r5, r0, r3
+	brald	r15, r20
+	addk	r5, r0, r19
+	brid	ret_to_user
+	addk	r3, r0, r0
+
 work_pending:
 	enable_irq
 
@@ -550,18 +558,6 @@ no_work_pending:
 
 	rtid	r14, 0
 	nop
-
-sys_vfork:
-	brid	microblaze_vfork
-	addk	r5, r1, r0
-
-sys_clone:
-	brid	microblaze_clone
-	addk	r7, r1, r0
-
-sys_execve:
-	brid	microblaze_execve
-	addk	r8, r1, r0
 
 sys_rt_sigreturn_wrapper:
 	brid	sys_rt_sigreturn

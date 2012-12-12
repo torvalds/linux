@@ -22,7 +22,7 @@
 #define EM86_INTERP	"/usr/bin/em86"
 #define EM86_I_NAME	"em86"
 
-static int load_em86(struct linux_binprm *bprm,struct pt_regs *regs)
+static int load_em86(struct linux_binprm *bprm)
 {
 	char *interp, *i_name, *i_arg;
 	struct file * file;
@@ -90,7 +90,7 @@ static int load_em86(struct linux_binprm *bprm,struct pt_regs *regs)
 	if (retval < 0)
 		return retval;
 
-	return search_binary_handler(bprm, regs);
+	return search_binary_handler(bprm);
 }
 
 static struct linux_binfmt em86_format = {

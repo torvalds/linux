@@ -149,10 +149,6 @@ typedef struct sigaltstack {
 
 #undef __HAVE_ARCH_SIG_BITOPS
 
-struct pt_regs;
-
-#define ptrace_signal_deliver(regs, cookie)	do { } while (0)
-
 #endif /* __KERNEL__ */
 
 #endif  /* _ASM_M32R_SIGNAL_H */

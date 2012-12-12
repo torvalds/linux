@@ -396,42 +396,6 @@ asmlinkage long compat_sys_rt_sigaction(int sig,
         return ret;
 }
 
-/*
- * sparc32_execve() executes a new program after the asm stub has set
- * things up for us.  This should basically do what I want it to.
- */
-asmlinkage long sparc32_execve(struct pt_regs *regs)
-{
-	int error, base = 0;
-	struct filename *filename;
-
-	/* User register window flush is done by entry.S */
-
-	/* Check for indirect call. */
-	if ((u32)regs->u_regs[UREG_G1] == 0)
-		base = 1;
-
-	filename = getname(compat_ptr(regs->u_regs[base + UREG_I0]));
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-
-	error = compat_do_execve(filename->name,
-				 compat_ptr(regs->u_regs[base + UREG_I1]),
-				 compat_ptr(regs->u_regs[base + UREG_I2]), regs);
-
-	putname(filename);
-
-	if (!error) {
-		fprs_write(0);
-		current_thread_info()->xfsr[0] = 0;
-		current_thread_info()->fpsaved[0] = 0;
-		regs->tstate &= ~TSTATE_PEF;
-	}
-out:
-	return error;
-}
-
 #ifdef CONFIG_MODULES
 
 asmlinkage long sys32_init_module(void __user *umod, u32 len,

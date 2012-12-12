@@ -4,3 +4,4 @@ header-y  += elf.h
 generic-y += clkdev.h
 generic-y += exec.h
 generic-y += trace_clock.h
+generic-y += syscalls.h
