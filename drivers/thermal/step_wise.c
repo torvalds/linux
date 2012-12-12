@@ -170,7 +170,7 @@ static int step_wise_throttle(struct thermal_zone_device *tz, int trip)
 }
 
 static struct thermal_governor thermal_gov_step_wise = {
-	.name		= DEFAULT_THERMAL_GOVERNOR,
+	.name		= "step_wise",
 	.throttle	= step_wise_throttle,
 	.owner		= THIS_MODULE,
 };
