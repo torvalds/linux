@@ -2,6 +2,8 @@
 #include <linux/init.h>
 
 #include <asm/cache.h>
+#include <asm/asm-offsets.h>
+#include <asm/hardware/cache-l2x0.h>
 
 #include "flowctrl.h"
 #include "iomap.h"
@@ -68,6 +70,64 @@ ENTRY(tegra_secondary_startup)
         b       secondary_startup
 ENDPROC(tegra_secondary_startup)
 
+#ifdef CONFIG_PM_SLEEP
+/*
+ *	tegra_resume
+ *
+ *	  CPU boot vector when restarting the a CPU following
+ *	  an LP2 transition. Also branched to by LP0 and LP1 resume after
+ *	  re-enabling sdram.
+ */
+ENTRY(tegra_resume)
+	bl	v7_invalidate_l1
+	/* Enable coresight */
+	mov32	r0, 0xC5ACCE55
+	mcr	p14, 0, r0, c7, c12, 6
+
+	cpu_id	r0
+	cmp	r0, #0				@ CPU0?
+	bne	cpu_resume			@ no
+
+#ifdef CONFIG_ARCH_TEGRA_3x_SOC
+	/* Are we on Tegra20? */
+	mov32	r6, TEGRA_APB_MISC_BASE
+	ldr	r0, [r6, #APB_MISC_GP_HIDREV]
+	and	r0, r0, #0xff00
+	cmp	r0, #(0x20 << 8)
+	beq	1f				@ Yes
+	/* Clear the flow controller flags for this CPU. */
+	mov32	r2, TEGRA_FLOW_CTRL_BASE + FLOW_CTRL_CPU0_CSR	@ CPU0 CSR
+	ldr	r1, [r2]
+	/* Clear event & intr flag */
+	orr	r1, r1, \
+		#FLOW_CTRL_CSR_INTR_FLAG | FLOW_CTRL_CSR_EVENT_FLAG
+	movw	r0, #0x0FFD	@ enable, cluster_switch, immed, & bitmaps
+	bic	r1, r1, r0
+	str	r1, [r2]
+1:
+#endif
+
+#ifdef CONFIG_HAVE_ARM_SCU
+	/* enable SCU */
+	mov32	r0, TEGRA_ARM_PERIF_BASE
+	ldr	r1, [r0]
+	orr	r1, r1, #1
+	str	r1, [r0]
+#endif
+
+	/* L2 cache resume & re-enable */
+	l2_cache_resume r0, r1, r2, l2x0_saved_regs_addr
+
+	b	cpu_resume
+ENDPROC(tegra_resume)
+#endif
+
+#ifdef CONFIG_CACHE_L2X0
+	.globl	l2x0_saved_regs_addr
+l2x0_saved_regs_addr:
+	.long	0
+#endif
+
 	.align L1_CACHE_SHIFT
 ENTRY(__tegra_cpu_reset_handler_start)
 
@@ -120,6 +180,17 @@ ENTRY(__tegra_cpu_reset_handler)
 	strne	r0, [r6, #PMC_SCRATCH41]
 1:
 #endif
+
+	/* Waking up from LP2? */
+	ldr	r9, [r12, #RESET_DATA(MASK_LP2)]
+	tst	r9, r11				@ if in_lp2
+	beq	__is_not_lp2
+	ldr	lr, [r12, #RESET_DATA(STARTUP_LP2)]
+	cmp	lr, #0
+	bleq	__die				@ no LP2 startup handler
+	bx	lr
+
+__is_not_lp2:
 
 #ifdef CONFIG_SMP
 	/*

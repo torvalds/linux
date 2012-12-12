@@ -324,13 +324,6 @@ config MTD_SOLUTIONENGINE
 	  This enables access to the flash chips on the Hitachi SolutionEngine and
 	  similar boards. Say 'Y' if you are building a kernel for such a board.
 
-config MTD_CDB89712
-	tristate "Cirrus CDB89712 evaluation board mappings"
-	depends on MTD_CFI && ARCH_CDB89712
-	help
-	  This enables access to the flash or ROM chips on the CDB89712 board.
-	  If you have such a board, say 'Y'.
-
 config MTD_SA1100
 	tristate "CFI Flash device mapped on StrongARM SA11x0"
 	depends on MTD_CFI && ARCH_SA1100

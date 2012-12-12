@@ -19,6 +19,7 @@
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/platform_data/usb-musb-ux500.h>
 #include <linux/platform_data/pinctrl-nomadik.h>
+#include <linux/random.h>
 
 #include <asm/pmu.h>
 #include <asm/mach/map.h>
@@ -187,6 +188,8 @@ static const char *db8500_read_soc_id(void)
 {
 	void __iomem *uid = __io_address(U8500_BB_UID_BASE);
 
+	/* Throw these device-specific numbers into the entropy pool */
+	add_device_randomness(uid, 0x14);
 	return kasprintf(GFP_KERNEL, "%08x%08x%08x%08x%08x",
 			 readl((u32 *)uid+1),
 			 readl((u32 *)uid+1), readl((u32 *)uid+2),

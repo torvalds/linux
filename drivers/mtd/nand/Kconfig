@@ -49,13 +49,6 @@ config MTD_NAND_MUSEUM_IDS
 	  NAND chips (page size 256 byte, erase size 4-8KiB). The IDs
 	  of these chips were reused by later, larger chips.
 
-config MTD_NAND_AUTCPU12
-	tristate "SmartMediaCard on autronix autcpu12 board"
-	depends on ARCH_AUTCPU12
-	help
-	  This enables the driver for the autronix autcpu12 board to
-	  access the SmartMediaCard.
-
 config MTD_NAND_DENALI
        depends on PCI
         tristate "Support Denali NAND controller on Intel Moorestown"
@@ -85,12 +78,6 @@ config MTD_NAND_GPIO
 	depends on GENERIC_GPIO && ARM
 	help
 	  This enables a GPIO based NAND flash driver.
-
-config MTD_NAND_SPIA
-	tristate "NAND Flash device on SPIA board"
-	depends on ARCH_P720T
-	help
-	  If you had to ask, you don't have one. Say 'N'.
 
 config MTD_NAND_AMS_DELTA
 	tristate "NAND Flash device on Amstrad E3"

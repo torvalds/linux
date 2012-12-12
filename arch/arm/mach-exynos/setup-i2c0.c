@@ -20,7 +20,7 @@ struct platform_device; /* don't need the contents */
 
 void s3c_i2c0_cfg_gpio(struct platform_device *dev)
 {
-	if (soc_is_exynos5250())
+	if (soc_is_exynos5250() || soc_is_exynos5440())
 		/* will be implemented with gpio function */
 		return;
 

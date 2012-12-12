@@ -6,15 +6,6 @@ config PLAT_VERSATILE_CLOCK
 config PLAT_VERSATILE_CLCD
 	bool
 
-config PLAT_VERSATILE_FPGA_IRQ
-	bool
-	select IRQ_DOMAIN
-
-config PLAT_VERSATILE_FPGA_IRQ_NR
-       int
-       default 4
-       depends on PLAT_VERSATILE_FPGA_IRQ
-
 config PLAT_VERSATILE_LEDS
 	def_bool y if NEW_LEDS
 	depends on ARCH_REALVIEW || ARCH_VERSATILE

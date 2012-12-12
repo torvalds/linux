@@ -286,8 +286,8 @@ config ARCH_INTEGRATOR
 	select MULTI_IRQ_HANDLER
 	select NEED_MACH_MEMORY_H
 	select PLAT_VERSATILE
-	select PLAT_VERSATILE_FPGA_IRQ
 	select SPARSE_IRQ
+	select VERSATILE_FPGA_IRQ
 	help
 	  Support for ARM's Integrator platform.
 
@@ -320,7 +320,7 @@ config ARCH_VERSATILE
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_CLCD
 	select PLAT_VERSATILE_CLOCK
-	select PLAT_VERSATILE_FPGA_IRQ
+	select VERSATILE_FPGA_IRQ
 	help
 	  This enables support for ARM Ltd Versatile board.
 
@@ -340,7 +340,7 @@ config ARCH_AT91
 
 config ARCH_BCM2835
 	bool "Broadcom BCM2835 family"
-	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select ARM_ERRATA_411920
 	select ARM_TIMER_SP804
@@ -348,7 +348,10 @@ config ARCH_BCM2835
 	select COMMON_CLK
 	select CPU_V6
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_GPIO
 	select MULTI_IRQ_HANDLER
+	select PINCTRL
+	select PINCTRL_BCM2835
 	select SPARSE_IRQ
 	select USE_OF
 	help
@@ -370,10 +373,14 @@ config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x/EP731x-based"
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_USES_GETTIMEOFFSET
+	select AUTO_ZRELADDR
 	select CLKDEV_LOOKUP
 	select COMMON_CLK
 	select CPU_ARM720T
+	select GENERIC_CLOCKEVENTS
+	select MULTI_IRQ_HANDLER
 	select NEED_MACH_MEMORY_H
+	select SPARSE_IRQ
 	help
 	  Support for Cirrus Logic 711x/721x/731x based boards.
 
@@ -1015,6 +1022,8 @@ source "arch/arm/mach-mvebu/Kconfig"
 
 source "arch/arm/mach-at91/Kconfig"
 
+source "arch/arm/mach-bcm/Kconfig"
+
 source "arch/arm/mach-clps711x/Kconfig"
 
 source "arch/arm/mach-cns3xxx/Kconfig"
@@ -1105,6 +1114,8 @@ source "arch/arm/mach-s5pv210/Kconfig"
 source "arch/arm/mach-exynos/Kconfig"
 
 source "arch/arm/mach-shmobile/Kconfig"
+
+source "arch/arm/mach-sunxi/Kconfig"
 
 source "arch/arm/mach-prima2/Kconfig"
 

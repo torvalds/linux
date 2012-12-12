@@ -32,23 +32,7 @@
 
 #define EMEV2_SCU_BASE 0x1e000000
 
-static DEFINE_SPINLOCK(scu_lock);
 static void __iomem *scu_base;
-
-static void modify_scu_cpu_psr(unsigned long set, unsigned long clr)
-{
-	unsigned long tmp;
-
-	/* we assume this code is running on a different cpu
-	 * than the one that is changing coherency setting */
-	spin_lock(&scu_lock);
-	tmp = readl(scu_base + 8);
-	tmp &= ~clr;
-	tmp |= set;
-	writel(tmp, scu_base + 8);
-	spin_unlock(&scu_lock);
-
-}
 
 static unsigned int __init emev2_get_core_count(void)
 {
@@ -95,7 +79,7 @@ static int __cpuinit emev2_boot_secondary(unsigned int cpu, struct task_struct *
 	cpu = cpu_logical_map(cpu);
 
 	/* enable cache coherency */
-	modify_scu_cpu_psr(0, 3 << (cpu * 8));
+	scu_power_mode(scu_base, 0);
 
 	/* Tell ROM loader about our vector (in headsmp.S) */
 	emev2_set_boot_vector(__pa(shmobile_secondary_vector));
@@ -106,12 +90,10 @@ static int __cpuinit emev2_boot_secondary(unsigned int cpu, struct task_struct *
 
 static void __init emev2_smp_prepare_cpus(unsigned int max_cpus)
 {
-	int cpu = cpu_logical_map(0);
-
 	scu_enable(scu_base);
 
 	/* enable cache coherency on CPU0 */
-	modify_scu_cpu_psr(0, 3 << (cpu * 8));
+	scu_power_mode(scu_base, 0);
 }
 
 static void __init emev2_smp_init_cpus(void)

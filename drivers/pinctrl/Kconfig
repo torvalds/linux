@@ -190,6 +190,11 @@ config PINCTRL_EXYNOS4
 	depends on OF && GPIOLIB
 	select PINCTRL_SAMSUNG
 
+config PINCTRL_EXYNOS5440
+	bool "Samsung EXYNOS5440 SoC pinctrl driver"
+	select PINMUX
+	select PINCONF
+
 source "drivers/pinctrl/mvebu/Kconfig"
 
 source "drivers/pinctrl/spear/Kconfig"
