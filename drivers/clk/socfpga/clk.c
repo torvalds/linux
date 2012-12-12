@@ -151,10 +151,6 @@ void __init socfpga_init_clocks(void)
 
 	clk = clk_register_fixed_rate(NULL, "s2f_usr_clk", NULL, CLK_IS_ROOT, SOCFPGA_S2F_USR_CLK);
 	clk_register_clkdev(clk, "s2f_usr_clk", NULL);
-
-	clk = clk_register_gate(NULL, "mmc_clk", "main_nand_sdmmc_clk", 0, clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
-			CLKMGR_SDMMC_CLK_EN, 0, &_lock);
-	clk_register_clkdev(clk, NULL, "ff704000.sdmmc");
 	
 	clk = clk_register_gate(NULL, "gmac_clk", "per_pll_clk", 0, clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
 			CLKMGR_EMAC0_CLK_EN, 0, &_lock);

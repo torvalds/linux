@@ -38,10 +38,6 @@ void __iomem *rst_manager_base_addr;
 unsigned long	cpu1start_addr;
 
 static const struct of_dev_auxdata socfpga_auxdata_lookup[] __initconst = {
-#ifdef CONFIG_MMC_DW
-	OF_DEV_AUXDATA("snps,dw-mmc", SOCFPGA_SDMMC_BASE, "snps,dw-mmc",
-		&sdmmc_platform_data),
-#endif
 	{ /* sentinel */ }
 };
 
