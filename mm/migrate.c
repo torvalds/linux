@@ -35,6 +35,7 @@
 #include <linux/hugetlb.h>
 #include <linux/hugetlb_cgroup.h>
 #include <linux/gfp.h>
+#include <linux/balloon_compaction.h>
 
 #include <asm/tlbflush.h>
 
@@ -79,7 +80,10 @@ void putback_lru_pages(struct list_head *l)
 		list_del(&page->lru);
 		dec_zone_page_state(page, NR_ISOLATED_ANON +
 				page_is_file_cache(page));
-		putback_lru_page(page);
+		if (unlikely(balloon_page_movable(page)))
+			balloon_page_putback(page);
+		else
+			putback_lru_page(page);
 	}
 }
 
@@ -768,6 +772,18 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
 		}
 	}
 
+	if (unlikely(balloon_page_movable(page))) {
+		/*
+		 * A ballooned page does not need any special attention from
+		 * physical to virtual reverse mapping procedures.
+		 * Skip any attempt to unmap PTEs or to remap swap cache,
+		 * in order to avoid burning cycles at rmap level, and perform
+		 * the page migration right away (proteced by page lock).
+		 */
+		rc = balloon_page_migrate(newpage, page, mode);
+		goto uncharge;
+	}
+
 	/*
 	 * Corner case handling:
 	 * 1. When a new swap-cache page is read into, it is added to the LRU
@@ -804,7 +820,9 @@ skip_unmap:
 		put_anon_vma(anon_vma);
 
 uncharge:
-	mem_cgroup_end_migration(mem, page, newpage, rc == MIGRATEPAGE_SUCCESS);
+	mem_cgroup_end_migration(mem, page, newpage,
+				 (rc == MIGRATEPAGE_SUCCESS ||
+				  rc == MIGRATEPAGE_BALLOON_SUCCESS));
 unlock:
 	unlock_page(page);
 out:
@@ -836,6 +854,18 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
 			goto out;
 
 	rc = __unmap_and_move(page, newpage, force, offlining, mode);
+
+	if (unlikely(rc == MIGRATEPAGE_BALLOON_SUCCESS)) {
+		/*
+		 * A ballooned page has been migrated already.
+		 * Now, it's the time to wrap-up counters,
+		 * handle the page back to Buddy and return.
+		 */
+		dec_zone_page_state(page, NR_ISOLATED_ANON +
+				    page_is_file_cache(page));
+		balloon_page_free(page);
+		return MIGRATEPAGE_SUCCESS;
+	}
 out:
 	if (rc != -EAGAIN) {
 		/*

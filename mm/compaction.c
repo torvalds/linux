@@ -14,6 +14,7 @@
 #include <linux/backing-dev.h>
 #include <linux/sysctl.h>
 #include <linux/sysfs.h>
+#include <linux/balloon_compaction.h>
 #include "internal.h"
 
 #if defined CONFIG_COMPACTION || defined CONFIG_CMA
@@ -565,9 +566,24 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 			goto next_pageblock;
 		}
 
-		/* Check may be lockless but that's ok as we recheck later */
-		if (!PageLRU(page))
+		/*
+		 * Check may be lockless but that's ok as we recheck later.
+		 * It's possible to migrate LRU pages and balloon pages
+		 * Skip any other type of page
+		 */
+		if (!PageLRU(page)) {
+			if (unlikely(balloon_page_movable(page))) {
+				if (locked && balloon_page_isolate(page)) {
+					/* Successfully isolated */
+					cc->finished_update_migrate = true;
+					list_add(&page->lru, migratelist);
+					cc->nr_migratepages++;
+					nr_isolated++;
+					goto check_compact_cluster;
+				}
+			}
 			continue;
+		}
 
 		/*
 		 * PageLRU is set. lru_lock normally excludes isolation
@@ -621,6 +637,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 		cc->nr_migratepages++;
 		nr_isolated++;
 
+check_compact_cluster:
 		/* Avoid isolating too much */
 		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX) {
 			++low_pfn;
