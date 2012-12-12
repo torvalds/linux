@@ -1807,6 +1807,14 @@ sub do_post_install {
 	dodie "Failed to run post install";
 }
 
+# Sometimes the reboot fails, and will hang. We try to ssh to the box
+# and if we fail, we force another reboot, that should powercycle it.
+sub test_booted {
+    if (!run_ssh "echo testing connection") {
+	reboot $sleep_time;
+    }
+}
+
 sub install {
 
     return if ($no_install);
@@ -1818,6 +1826,8 @@ sub install {
     }
 
     my $cp_target = eval_kernel_version $target_image;
+
+    test_booted;
 
     run_scp_install "$outputdir/$build_target", "$cp_target" or
 	dodie "failed to copy image";
