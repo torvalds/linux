@@ -2983,6 +2983,7 @@ out:
 	}
 	return;
 out_free:
+	unhash_stid(&dp->dl_stid);
 	nfs4_put_delegation(dp);
 out_no_deleg:
 	flag = NFS4_OPEN_DELEGATE_NONE;
