@@ -24,26 +24,24 @@
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_coproc.h>
 #include <asm/kvm_mmu.h>
+#include <asm/kvm_psci.h>
 
 typedef int (*exit_handle_fn)(struct kvm_vcpu *, struct kvm_run *);
 
 static int handle_hvc(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
-	/*
-	 * Guest called HVC instruction:
-	 * Let it know we don't want that by injecting an undefined exception.
-	 */
-	kvm_debug("hvc: %x (at %08lx)", kvm_vcpu_get_hsr(vcpu) & ((1 << 16) - 1),
-		  *vcpu_pc(vcpu));
-	kvm_debug("         HSR: %8x", kvm_vcpu_get_hsr(vcpu));
+	if (kvm_psci_call(vcpu))
+		return 1;
+
 	kvm_inject_undefined(vcpu);
 	return 1;
 }
 
 static int handle_smc(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
-	/* We don't support SMC; don't do that. */
-	kvm_debug("smc: at %08lx", *vcpu_pc(vcpu));
+	if (kvm_psci_call(vcpu))
+		return 1;
+
 	kvm_inject_undefined(vcpu);
 	return 1;
 }
