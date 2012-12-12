@@ -1,0 +1,12 @@
+Renesas MSIOF spi controller
+
+Required properties:
+- compatible : 	"renesas,sh-msiof" for SuperH or
+		"renesas,sh-mobile-msiof" for SH Mobile series
+- reg : Offset and length of the register set for the device
+- interrupts : interrupt line used by MSIOF
+
+Optional properties:
+- num-cs		: total number of chip-selects
+- renesas,tx-fifo-size	: Overrides the default tx fifo size given in words
+- renesas,rx-fifo-size	: Overrides the default rx fifo size given in words
