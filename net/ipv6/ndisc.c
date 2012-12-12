@@ -370,12 +370,12 @@ static void pndisc_destructor(struct pneigh_entry *n)
 	ipv6_dev_mc_dec(dev, &maddr);
 }
 
-struct sk_buff *ndisc_build_skb(struct net_device *dev,
-				const struct in6_addr *daddr,
-				const struct in6_addr *saddr,
-				struct icmp6hdr *icmp6h,
-				const struct in6_addr *target,
-				int llinfo)
+static struct sk_buff *ndisc_build_skb(struct net_device *dev,
+				       const struct in6_addr *daddr,
+				       const struct in6_addr *saddr,
+				       struct icmp6hdr *icmp6h,
+				       const struct in6_addr *target,
+				       int llinfo)
 {
 	struct net *net = dev_net(dev);
 	struct sock *sk = net->ipv6.ndisc_sk;
@@ -431,14 +431,11 @@ struct sk_buff *ndisc_build_skb(struct net_device *dev,
 	return skb;
 }
 
-EXPORT_SYMBOL(ndisc_build_skb);
-
-void ndisc_send_skb(struct sk_buff *skb,
-		    struct net_device *dev,
-		    struct neighbour *neigh,
-		    const struct in6_addr *daddr,
-		    const struct in6_addr *saddr,
-		    struct icmp6hdr *icmp6h)
+static void ndisc_send_skb(struct sk_buff *skb, struct net_device *dev,
+			   struct neighbour *neigh,
+			   const struct in6_addr *daddr,
+			   const struct in6_addr *saddr,
+			   struct icmp6hdr *icmp6h)
 {
 	struct flowi6 fl6;
 	struct dst_entry *dst;
@@ -472,8 +469,6 @@ void ndisc_send_skb(struct sk_buff *skb,
 
 	rcu_read_unlock();
 }
-
-EXPORT_SYMBOL(ndisc_send_skb);
 
 /*
  *	Send a Neighbour Discover packet
