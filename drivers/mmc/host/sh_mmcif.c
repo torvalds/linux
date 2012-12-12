@@ -263,15 +263,6 @@ static void mmcif_dma_complete(void *arg)
 		 dev_name(&host->pd->dev)))
 		return;
 
-	if (data->flags & MMC_DATA_READ)
-		dma_unmap_sg(host->chan_rx->device->dev,
-			     data->sg, data->sg_len,
-			     DMA_FROM_DEVICE);
-	else
-		dma_unmap_sg(host->chan_tx->device->dev,
-			     data->sg, data->sg_len,
-			     DMA_TO_DEVICE);
-
 	complete(&host->dma_complete);
 }
 
@@ -1088,14 +1079,20 @@ static bool sh_mmcif_end_cmd(struct sh_mmcif_host *host)
 	/* Running in the IRQ thread, can sleep */
 	time = wait_for_completion_interruptible_timeout(&host->dma_complete,
 							 host->timeout);
+
+	if (data->flags & MMC_DATA_READ)
+		dma_unmap_sg(host->chan_rx->device->dev,
+			     data->sg, data->sg_len,
+			     DMA_FROM_DEVICE);
+	else
+		dma_unmap_sg(host->chan_tx->device->dev,
+			     data->sg, data->sg_len,
+			     DMA_TO_DEVICE);
+
 	if (host->sd_error) {
 		dev_err(host->mmc->parent,
 			"Error IRQ while waiting for DMA completion!\n");
 		/* Woken up by an error IRQ: abort DMA */
-		if (data->flags & MMC_DATA_READ)
-			dmaengine_terminate_all(host->chan_rx);
-		else
-			dmaengine_terminate_all(host->chan_tx);
 		data->error = sh_mmcif_error_manage(host);
 	} else if (!time) {
 		data->error = -ETIMEDOUT;
@@ -1106,8 +1103,14 @@ static bool sh_mmcif_end_cmd(struct sh_mmcif_host *host)
 			BUF_ACC_DMAREN | BUF_ACC_DMAWEN);
 	host->dma_active = false;
 
-	if (data->error)
+	if (data->error) {
 		data->bytes_xfered = 0;
+		/* Abort DMA */
+		if (data->flags & MMC_DATA_READ)
+			dmaengine_terminate_all(host->chan_rx);
+		else
+			dmaengine_terminate_all(host->chan_tx);
+	}
 
 	return false;
 }
