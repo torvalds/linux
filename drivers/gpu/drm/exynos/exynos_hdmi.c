@@ -2440,6 +2440,7 @@ static struct platform_device_id hdmi_driver_types[] = {
 	}
 };
 
+#ifdef CONFIG_OF
 static struct of_device_id hdmi_match_types[] = {
 	{
 		.compatible = "samsung,exynos5-hdmi",
@@ -2448,6 +2449,7 @@ static struct of_device_id hdmi_match_types[] = {
 		/* end node */
 	}
 };
+#endif
 
 static int __devinit hdmi_probe(struct platform_device *pdev)
 {
@@ -2710,6 +2712,6 @@ struct platform_driver hdmi_driver = {
 		.name	= "exynos-hdmi",
 		.owner	= THIS_MODULE,
 		.pm	= &hdmi_pm_ops,
-		.of_match_table = hdmi_match_types,
+		.of_match_table = of_match_ptr(hdmi_match_types),
 	},
 };
