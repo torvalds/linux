@@ -304,9 +304,7 @@ static int __devinit is_valid_resource(struct pci_dev *dev, int idx)
 
 static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
 {
-	struct pci_bus_region region;
-	int i;
-	int limit;
+	int limit, i;
 
 	if (dev->bus->number != 0)
 		return;
