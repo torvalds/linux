@@ -681,14 +681,10 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 		goto out_err1;
 	}
 
-	ret = drm_framebuffer_init(dev, &vfbs->base.base,
-				   &vmw_framebuffer_surface_funcs);
-	if (ret)
-		goto out_err2;
-
 	if (!vmw_surface_reference(surface)) {
 		DRM_ERROR("failed to reference surface %p\n", surface);
-		goto out_err3;
+		ret = -EINVAL;
+		goto out_err2;
 	}
 
 	/* XXX get the first 3 from the surface info */
@@ -707,10 +703,15 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 
 	*out = &vfbs->base;
 
+	ret = drm_framebuffer_init(dev, &vfbs->base.base,
+				   &vmw_framebuffer_surface_funcs);
+	if (ret)
+		goto out_err3;
+
 	return 0;
 
 out_err3:
-	drm_framebuffer_cleanup(&vfbs->base.base);
+	vmw_surface_unreference(&surface);
 out_err2:
 	kfree(vfbs);
 out_err1:
@@ -1053,14 +1054,10 @@ static int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
 		goto out_err1;
 	}
 
-	ret = drm_framebuffer_init(dev, &vfbd->base.base,
-				   &vmw_framebuffer_dmabuf_funcs);
-	if (ret)
-		goto out_err2;
-
 	if (!vmw_dmabuf_reference(dmabuf)) {
 		DRM_ERROR("failed to reference dmabuf %p\n", dmabuf);
-		goto out_err3;
+		ret = -EINVAL;
+		goto out_err2;
 	}
 
 	vfbd->base.base.bits_per_pixel = mode_cmd->bpp;
@@ -1077,10 +1074,15 @@ static int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
 	vfbd->base.user_handle = mode_cmd->handle;
 	*out = &vfbd->base;
 
+	ret = drm_framebuffer_init(dev, &vfbd->base.base,
+				   &vmw_framebuffer_dmabuf_funcs);
+	if (ret)
+		goto out_err3;
+
 	return 0;
 
 out_err3:
-	drm_framebuffer_cleanup(&vfbd->base.base);
+	vmw_dmabuf_unreference(&dmabuf);
 out_err2:
 	kfree(vfbd);
 out_err1:
