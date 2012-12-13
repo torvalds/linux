@@ -237,8 +237,6 @@ struct perf_record_opts {
 	bool	     raw_samples;
 	bool	     sample_address;
 	bool	     sample_time;
-	bool	     sample_id_all_missing;
-	bool	     exclude_guest_missing;
 	bool	     period;
 	unsigned int freq;
 	unsigned int mmap_pages;

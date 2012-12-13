@@ -132,8 +132,6 @@ static struct stats walltime_nsecs_stats;
 static int create_perf_stat_counter(struct perf_evsel *evsel)
 {
 	struct perf_event_attr *attr = &evsel->attr;
-	bool exclude_guest_missing = false;
-	int ret;
 
 	if (scale)
 		attr->read_format = PERF_FORMAT_TOTAL_TIME_ENABLED |
@@ -141,16 +139,8 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 
 	attr->inherit = !no_inherit;
 
-retry:
-	if (exclude_guest_missing)
-		evsel->attr.exclude_guest = evsel->attr.exclude_host = 0;
-
-	if (perf_target__has_cpu(&target)) {
-		ret = perf_evsel__open_per_cpu(evsel, perf_evsel__cpus(evsel));
-		if (ret)
-			goto check_ret;
-		return 0;
-	}
+	if (perf_target__has_cpu(&target))
+		return perf_evsel__open_per_cpu(evsel, perf_evsel__cpus(evsel));
 
 	if (!perf_target__has_task(&target) &&
 	    perf_evsel__is_group_leader(evsel)) {
@@ -158,21 +148,7 @@ retry:
 		attr->enable_on_exec = 1;
 	}
 
-	ret = perf_evsel__open_per_thread(evsel, evsel_list->threads);
-	if (!ret)
-		return 0;
-	/* fall through */
-check_ret:
-	if (ret && errno == EINVAL) {
-		if (!exclude_guest_missing &&
-		    (evsel->attr.exclude_guest || evsel->attr.exclude_host)) {
-			pr_debug("Old kernel, cannot exclude "
-				 "guest or host samples.\n");
-			exclude_guest_missing = true;
-			goto retry;
-		}
-	}
-	return ret;
+	return perf_evsel__open_per_thread(evsel, evsel_list->threads);
 }
 
 /*

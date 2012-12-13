@@ -22,6 +22,11 @@
 #include <linux/perf_event.h>
 #include "perf_regs.h"
 
+static struct {
+	bool sample_id_all;
+	bool exclude_guest;
+} perf_missing_features;
+
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 
 static int __perf_evsel__sample_size(u64 sample_type)
@@ -463,7 +468,7 @@ void perf_evsel__config(struct perf_evsel *evsel,
 	struct perf_event_attr *attr = &evsel->attr;
 	int track = !evsel->idx; /* only the first counter needs these */
 
-	attr->sample_id_all = opts->sample_id_all_missing ? 0 : 1;
+	attr->sample_id_all = perf_missing_features.sample_id_all ? 0 : 1;
 	attr->inherit	    = !opts->no_inherit;
 
 	perf_evsel__set_sample_bit(evsel, IP);
@@ -513,7 +518,7 @@ void perf_evsel__config(struct perf_evsel *evsel,
 	if (opts->period)
 		perf_evsel__set_sample_bit(evsel, PERIOD);
 
-	if (!opts->sample_id_all_missing &&
+	if (!perf_missing_features.sample_id_all &&
 	    (opts->sample_time || !opts->no_inherit ||
 	     perf_target__has_cpu(&opts->target)))
 		perf_evsel__set_sample_bit(evsel, TIME);
@@ -761,6 +766,13 @@ static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 		pid = evsel->cgrp->fd;
 	}
 
+fallback_missing_features:
+	if (perf_missing_features.exclude_guest)
+		evsel->attr.exclude_guest = evsel->attr.exclude_host = 0;
+retry_sample_id:
+	if (perf_missing_features.sample_id_all)
+		evsel->attr.sample_id_all = 0;
+
 	for (cpu = 0; cpu < cpus->nr; cpu++) {
 
 		for (thread = 0; thread < threads->nr; thread++) {
@@ -777,12 +789,25 @@ static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 								     group_fd, flags);
 			if (FD(evsel, cpu, thread) < 0) {
 				err = -errno;
-				goto out_close;
+				goto try_fallback;
 			}
 		}
 	}
 
 	return 0;
+
+try_fallback:
+	if (err != -EINVAL || cpu > 0 || thread > 0)
+		goto out_close;
+
+	if (!perf_missing_features.exclude_guest &&
+	    (evsel->attr.exclude_guest || evsel->attr.exclude_host)) {
+		perf_missing_features.exclude_guest = true;
+		goto fallback_missing_features;
+	} else if (!perf_missing_features.sample_id_all) {
+		perf_missing_features.sample_id_all = true;
+		goto retry_sample_id;
+	}
 
 out_close:
 	do {
