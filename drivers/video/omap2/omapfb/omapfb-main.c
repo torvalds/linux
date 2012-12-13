@@ -1868,7 +1868,6 @@ static void omapfb_free_resources(struct omapfb2_device *fbdev)
 	}
 
 	dev_set_drvdata(fbdev->dev, NULL);
-	kfree(fbdev);
 }
 
 static int omapfb_create_framebuffers(struct omapfb2_device *fbdev)
@@ -2413,7 +2412,8 @@ static int __init omapfb_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	fbdev = kzalloc(sizeof(struct omapfb2_device), GFP_KERNEL);
+	fbdev = devm_kzalloc(&pdev->dev, sizeof(struct omapfb2_device),
+			GFP_KERNEL);
 	if (fbdev == NULL) {
 		r = -ENOMEM;
 		goto err0;
