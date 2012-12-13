@@ -121,6 +121,8 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 
 	/* remove all interfaces */
 	list_for_each_entry(sdata, &local->interfaces, list) {
+		u32 changed = BSS_CHANGED_BEACON_ENABLED;
+
 		if (!ieee80211_sdata_running(sdata))
 			continue;
 
@@ -129,14 +131,25 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 		case NL80211_IFTYPE_MONITOR:
 			/* skip these */
 			continue;
+		case NL80211_IFTYPE_STATION:
+			if (sdata->vif.bss_conf.assoc)
+				changed = BSS_CHANGED_ASSOC |
+					  BSS_CHANGED_BSSID |
+					  BSS_CHANGED_IDLE;
+			else
+				changed = 0;
+			/* fall through */
 		default:
 			ieee80211_quiesce(sdata);
 			break;
 		}
 
-		/* disable beaconing */
-		ieee80211_bss_info_change_notify(sdata,
-			BSS_CHANGED_BEACON_ENABLED);
+		sdata->suspend_bss_conf = sdata->vif.bss_conf;
+		memset(&sdata->vif.bss_conf, 0, sizeof(sdata->vif.bss_conf));
+		sdata->vif.bss_conf.idle = true;
+
+		/* disable beaconing or remove association */
+		ieee80211_bss_info_change_notify(sdata, changed);
 
 		if (sdata->vif.type == NL80211_IFTYPE_AP &&
 		    rcu_access_pointer(sdata->u.ap.beacon))

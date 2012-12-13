@@ -1526,6 +1526,11 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			  BSS_CHANGED_IDLE |
 			  BSS_CHANGED_TXPOWER;
 
+#ifdef CONFIG_PM
+		if (local->resuming)
+			sdata->vif.bss_conf = sdata->suspend_bss_conf;
+#endif
+
 		switch (sdata->vif.type) {
 		case NL80211_IFTYPE_STATION:
 			changed |= BSS_CHANGED_ASSOC |
