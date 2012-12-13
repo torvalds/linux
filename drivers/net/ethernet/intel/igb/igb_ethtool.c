@@ -2272,12 +2272,21 @@ static int igb_get_ts_info(struct net_device *dev,
 	struct igb_adapter *adapter = netdev_priv(dev);
 
 	switch (adapter->hw.mac.type) {
+	case e1000_82575:
+		info->so_timestamping =
+			SOF_TIMESTAMPING_TX_SOFTWARE |
+			SOF_TIMESTAMPING_RX_SOFTWARE |
+			SOF_TIMESTAMPING_SOFTWARE;
+		return 0;
 	case e1000_82576:
 	case e1000_82580:
 	case e1000_i350:
 	case e1000_i210:
 	case e1000_i211:
 		info->so_timestamping =
+			SOF_TIMESTAMPING_TX_SOFTWARE |
+			SOF_TIMESTAMPING_RX_SOFTWARE |
+			SOF_TIMESTAMPING_SOFTWARE |
 			SOF_TIMESTAMPING_TX_HARDWARE |
 			SOF_TIMESTAMPING_RX_HARDWARE |
 			SOF_TIMESTAMPING_RAW_HARDWARE;
