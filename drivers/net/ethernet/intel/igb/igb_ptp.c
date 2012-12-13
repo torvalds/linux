@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/pci.h>
+#include <linux/ptp_classify.h>
 
 #include "igb.h"
 
@@ -698,7 +699,6 @@ int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 	else
 		wr32(E1000_ETQF(3), 0);
 
-#define PTP_PORT 319
 	/* L4 Queue Filter[3]: filter by destination port and protocol */
 	if (is_l4) {
 		u32 ftqf = (IPPROTO_UDP /* UDP */
@@ -707,12 +707,12 @@ int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 			| E1000_FTQF_MASK); /* mask all inputs */
 		ftqf &= ~E1000_FTQF_MASK_PROTO_BP; /* enable protocol check */
 
-		wr32(E1000_IMIR(3), htons(PTP_PORT));
+		wr32(E1000_IMIR(3), htons(PTP_EV_PORT));
 		wr32(E1000_IMIREXT(3),
 		     (E1000_IMIREXT_SIZE_BP | E1000_IMIREXT_CTRL_BP));
 		if (hw->mac.type == e1000_82576) {
 			/* enable source port check */
-			wr32(E1000_SPQF(3), htons(PTP_PORT));
+			wr32(E1000_SPQF(3), htons(PTP_EV_PORT));
 			ftqf &= ~E1000_FTQF_MASK_SOURCE_PORT_BP;
 		}
 		wr32(E1000_FTQF(3), ftqf);
