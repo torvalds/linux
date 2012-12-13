@@ -151,8 +151,8 @@ static inline int ndisc_opt_addr_space(struct net_device *dev)
 static u8 *ndisc_fill_addr_option(u8 *opt, int type, void *data, int data_len,
 				  unsigned short addr_type)
 {
-	int space = NDISC_OPT_SPACE(data_len);
 	int pad   = ndisc_addr_option_pad(addr_type);
+	int space = NDISC_OPT_SPACE(data_len + pad);
 
 	opt[0] = type;
 	opt[1] = space>>3;

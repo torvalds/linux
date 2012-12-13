@@ -614,10 +614,6 @@ static int llcp_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 		if (msg->msg_namelen < sizeof(*addr)) {
 			release_sock(sk);
-
-			pr_err("Invalid socket address length %d\n",
-			       msg->msg_namelen);
-
 			return -EINVAL;
 		}
 
