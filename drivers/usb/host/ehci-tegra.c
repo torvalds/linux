@@ -43,6 +43,7 @@ struct tegra_ehci_hcd {
 	struct usb_phy *transceiver;
 	int host_resumed;
 	int port_resuming;
+	bool needs_double_reset;
 	enum tegra_usb_phy_port_speed port_speed;
 };
 
@@ -184,7 +185,7 @@ static int tegra_ehci_hub_control(
 	}
 
 	/* For USB1 port we need to issue Port Reset twice internally */
-	if (tegra->phy->instance == 0 &&
+	if (tegra->needs_double_reset &&
 	   (typeReq == SetPortFeature && wValue == USB_PORT_FEAT_RESET)) {
 		spin_unlock_irqrestore(&ehci->lock, flags);
 		return tegra_ehci_internal_port_reset(ehci, status_reg);
@@ -665,6 +666,9 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 
 	clk_prepare_enable(tegra->emc_clk);
 	clk_set_rate(tegra->emc_clk, 400000000);
+
+	tegra->needs_double_reset = of_property_read_bool(pdev->dev.of_node,
+		"nvidia,needs-double-reset");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
