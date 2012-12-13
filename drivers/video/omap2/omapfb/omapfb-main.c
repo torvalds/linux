@@ -2241,12 +2241,18 @@ static int omapfb_find_best_mode(struct omap_dss_device *display,
 
 	len = 0x80 * 2;
 	edid = kmalloc(len, GFP_KERNEL);
+	if (edid == NULL)
+		return -ENOMEM;
 
 	r = display->driver->read_edid(display, edid, len);
 	if (r < 0)
 		goto err1;
 
 	specs = kzalloc(sizeof(*specs), GFP_KERNEL);
+	if (specs == NULL) {
+		r = -ENOMEM;
+		goto err1;
+	}
 
 	fb_edid_to_monspecs(edid, specs);
 
