@@ -51,6 +51,22 @@ static struct {
 
 static struct platform_device *dpi_get_dsidev(enum omap_channel channel)
 {
+	/*
+	 * XXX we can't currently use DSI PLL for DPI with OMAP3, as the DSI PLL
+	 * would also be used for DISPC fclk. Meaning, when the DPI output is
+	 * disabled, DISPC clock will be disabled, and TV out will stop.
+	 */
+	switch (omapdss_get_version()) {
+	case OMAPDSS_VER_OMAP24xx:
+	case OMAPDSS_VER_OMAP34xx_ES1:
+	case OMAPDSS_VER_OMAP34xx_ES3:
+	case OMAPDSS_VER_OMAP3630:
+	case OMAPDSS_VER_AM35xx:
+		return NULL;
+	default:
+		break;
+	}
+
 	switch (channel) {
 	case OMAP_DSS_CHANNEL_LCD:
 		return dsi_get_dsidev_from_id(0);
