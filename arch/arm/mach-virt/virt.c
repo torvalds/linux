@@ -21,6 +21,7 @@
 #include <linux/irqchip.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/smp.h>
 
 #include <asm/arch_timer.h>
 #include <asm/mach/arch.h>
@@ -46,9 +47,12 @@ static struct sys_timer virt_timer = {
 	.init = virt_timer_init,
 };
 
+extern struct smp_operations virt_smp_ops;
+
 DT_MACHINE_START(VIRT, "Dummy Virtual Machine")
 	.init_irq	= irqchip_init,
 	.timer		= &virt_timer,
 	.init_machine	= virt_init,
+	.smp		= smp_ops(virt_smp_ops),
 	.dt_compat	= virt_dt_match,
 MACHINE_END
