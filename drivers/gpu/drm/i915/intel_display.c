@@ -997,22 +997,34 @@ bool ibx_digital_port_connected(struct drm_i915_private *dev_priv,
 {
 	u32 bit;
 
-	/* XXX: IBX has different SDEISR bits */
-	if (HAS_PCH_IBX(dev_priv->dev))
-		return true;
-
-	switch(port->port) {
-	case PORT_B:
-		bit = SDE_PORTB_HOTPLUG_CPT;
-		break;
-	case PORT_C:
-		bit = SDE_PORTC_HOTPLUG_CPT;
-		break;
-	case PORT_D:
-		bit = SDE_PORTD_HOTPLUG_CPT;
-		break;
-	default:
-		return true;
+	if (HAS_PCH_IBX(dev_priv->dev)) {
+		switch(port->port) {
+		case PORT_B:
+			bit = SDE_PORTB_HOTPLUG;
+			break;
+		case PORT_C:
+			bit = SDE_PORTC_HOTPLUG;
+			break;
+		case PORT_D:
+			bit = SDE_PORTD_HOTPLUG;
+			break;
+		default:
+			return true;
+		}
+	} else {
+		switch(port->port) {
+		case PORT_B:
+			bit = SDE_PORTB_HOTPLUG_CPT;
+			break;
+		case PORT_C:
+			bit = SDE_PORTC_HOTPLUG_CPT;
+			break;
+		case PORT_D:
+			bit = SDE_PORTD_HOTPLUG_CPT;
+			break;
+		default:
+			return true;
+		}
 	}
 
 	return I915_READ(SDEISR) & bit;
