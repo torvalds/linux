@@ -298,7 +298,7 @@ static void	usa26_indat_callback(struct urb *urb)
 	endpoint = usb_pipeendpoint(urb->pipe);
 
 	if (status) {
-		dev_dbg(&urb->dev->dev,"%s - nonzero status: %x on endpoint %d.\n",
+		dev_dbg(&urb->dev->dev, "%s - nonzero status: %x on endpoint %d.\n",
 			__func__, status, endpoint);
 		return;
 	}
@@ -532,7 +532,7 @@ static void	usa28_instat_callback(struct urb *urb)
 
 	/*
 	dev_dbg(&urb->dev->dev,
-	  	"%s %x %x %x %x %x %x %x %x %x %x %x %x", __func__,
+		"%s %x %x %x %x %x %x %x %x %x %x %x %x", __func__,
 		data[0], data[1], data[2], data[3], data[4], data[5],
 		data[6], data[7], data[8], data[9], data[10], data[11]);
 	*/
