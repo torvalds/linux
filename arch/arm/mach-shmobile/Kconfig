@@ -29,6 +29,8 @@ config ARCH_R8A7779
 	select ARM_GIC
 	select CPU_V7
 	select SH_CLK_CPG
+	select USB_ARCH_HAS_EHCI
+	select USB_ARCH_HAS_OHCI
 
 config ARCH_EMEV2
 	bool "Emma Mobile EV2"
