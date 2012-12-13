@@ -332,7 +332,7 @@ static struct tps65217_board *tps65217_parse_dt(struct platform_device *pdev)
 }
 #endif
 
-static int __devinit tps65217_regulator_probe(struct platform_device *pdev)
+static int tps65217_regulator_probe(struct platform_device *pdev)
 {
 	struct tps65217 *tps = dev_get_drvdata(pdev->dev.parent);
 	struct tps65217_board *pdata = dev_get_platdata(tps->dev);
@@ -397,7 +397,7 @@ err_unregister_regulator:
 	return ret;
 }
 
-static int __devexit tps65217_regulator_remove(struct platform_device *pdev)
+static int tps65217_regulator_remove(struct platform_device *pdev)
 {
 	struct tps65217 *tps = platform_get_drvdata(pdev);
 	unsigned int i;
@@ -415,7 +415,7 @@ static struct platform_driver tps65217_regulator_driver = {
 		.name = "tps65217-pmic",
 	},
 	.probe = tps65217_regulator_probe,
-	.remove = __devexit_p(tps65217_regulator_remove),
+	.remove = tps65217_regulator_remove,
 };
 
 static int __init tps65217_regulator_init(void)

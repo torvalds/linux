@@ -67,7 +67,93 @@ enum max77686_ramp_rate {
 
 struct max77686_data {
 	struct regulator_dev *rdev[MAX77686_REGULATORS];
+	unsigned int opmode[MAX77686_REGULATORS];
 };
+
+/* Some BUCKS supports Normal[ON/OFF] mode during suspend */
+static int max77686_buck_set_suspend_disable(struct regulator_dev *rdev)
+{
+	unsigned int val;
+	struct max77686_data *max77686 = rdev_get_drvdata(rdev);
+
+	if (rdev->desc->id == MAX77686_BUCK1)
+		val = 0x1;
+	else
+		val = 0x1 << MAX77686_OPMODE_BUCK234_SHIFT;
+
+	max77686->opmode[rdev->desc->id] = val;
+	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
+				  rdev->desc->enable_mask,
+				  val);
+}
+
+/* Some LDOs supports [LPM/Normal]ON mode during suspend state */
+static int max77686_set_suspend_mode(struct regulator_dev *rdev,
+				     unsigned int mode)
+{
+	struct max77686_data *max77686 = rdev_get_drvdata(rdev);
+	unsigned int val;
+
+	/* BUCK[5-9] doesn't support this feature */
+	if (rdev->desc->id >= MAX77686_BUCK5)
+		return 0;
+
+	switch (mode) {
+	case REGULATOR_MODE_IDLE:			/* ON in LP Mode */
+		val = 0x2 << MAX77686_OPMODE_SHIFT;
+		break;
+	case REGULATOR_MODE_NORMAL:			/* ON in Normal Mode */
+		val = 0x3 << MAX77686_OPMODE_SHIFT;
+		break;
+	default:
+		pr_warn("%s: regulator_suspend_mode : 0x%x not supported\n",
+			rdev->desc->name, mode);
+		return -EINVAL;
+	}
+
+	max77686->opmode[rdev->desc->id] = val;
+	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
+				  rdev->desc->enable_mask,
+				  val);
+}
+
+/* Some LDOs supports LPM-ON/OFF/Normal-ON mode during suspend state */
+static int max77686_ldo_set_suspend_mode(struct regulator_dev *rdev,
+				     unsigned int mode)
+{
+	unsigned int val;
+	struct max77686_data *max77686 = rdev_get_drvdata(rdev);
+
+	switch (mode) {
+	case REGULATOR_MODE_STANDBY:			/* switch off */
+		val = 0x1 << MAX77686_OPMODE_SHIFT;
+		break;
+	case REGULATOR_MODE_IDLE:			/* ON in LP Mode */
+		val = 0x2 << MAX77686_OPMODE_SHIFT;
+		break;
+	case REGULATOR_MODE_NORMAL:			/* ON in Normal Mode */
+		val = 0x3 << MAX77686_OPMODE_SHIFT;
+		break;
+	default:
+		pr_warn("%s: regulator_suspend_mode : 0x%x not supported\n",
+			rdev->desc->name, mode);
+		return -EINVAL;
+	}
+
+	max77686->opmode[rdev->desc->id] = val;
+	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
+				  rdev->desc->enable_mask,
+				  val);
+}
+
+static int max77686_enable(struct regulator_dev *rdev)
+{
+	struct max77686_data *max77686 = rdev_get_drvdata(rdev);
+
+	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
+				  rdev->desc->enable_mask,
+				  max77686->opmode[rdev->desc->id]);
+}
 
 static int max77686_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 {
@@ -98,23 +184,49 @@ static struct regulator_ops max77686_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= regulator_is_enabled_regmap,
-	.enable			= regulator_enable_regmap,
+	.enable			= max77686_enable,
 	.disable		= regulator_disable_regmap,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
+	.set_suspend_mode	= max77686_set_suspend_mode,
+};
+
+static struct regulator_ops max77686_ldo_ops = {
+	.list_voltage		= regulator_list_voltage_linear,
+	.map_voltage		= regulator_map_voltage_linear,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.enable			= max77686_enable,
+	.disable		= regulator_disable_regmap,
+	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
+	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
+	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
+	.set_suspend_mode	= max77686_ldo_set_suspend_mode,
+};
+
+static struct regulator_ops max77686_buck1_ops = {
+	.list_voltage		= regulator_list_voltage_linear,
+	.map_voltage		= regulator_map_voltage_linear,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.enable			= max77686_enable,
+	.disable		= regulator_disable_regmap,
+	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
+	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
+	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
+	.set_suspend_disable	= max77686_buck_set_suspend_disable,
 };
 
 static struct regulator_ops max77686_buck_dvs_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= regulator_is_enabled_regmap,
-	.enable			= regulator_enable_regmap,
+	.enable			= max77686_enable,
 	.disable		= regulator_disable_regmap,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
 	.set_ramp_delay		= max77686_set_ramp_delay,
+	.set_suspend_disable	= max77686_buck_set_suspend_disable,
 };
 
 #define regulator_desc_ldo(num)		{				\
@@ -133,7 +245,39 @@ static struct regulator_ops max77686_buck_dvs_ops = {
 	.enable_mask	= MAX77686_OPMODE_MASK				\
 			<< MAX77686_OPMODE_SHIFT,			\
 }
+#define regulator_desc_lpm_ldo(num)	{				\
+	.name		= "LDO"#num,					\
+	.id		= MAX77686_LDO##num,				\
+	.ops		= &max77686_ldo_ops,				\
+	.type		= REGULATOR_VOLTAGE,				\
+	.owner		= THIS_MODULE,					\
+	.min_uV		= MAX77686_LDO_MINUV,				\
+	.uV_step	= MAX77686_LDO_UVSTEP,				\
+	.ramp_delay	= MAX77686_RAMP_DELAY,				\
+	.n_voltages	= MAX77686_VSEL_MASK + 1,			\
+	.vsel_reg	= MAX77686_REG_LDO1CTRL1 + num - 1,		\
+	.vsel_mask	= MAX77686_VSEL_MASK,				\
+	.enable_reg	= MAX77686_REG_LDO1CTRL1 + num - 1,		\
+	.enable_mask	= MAX77686_OPMODE_MASK				\
+			<< MAX77686_OPMODE_SHIFT,			\
+}
 #define regulator_desc_ldo_low(num)		{			\
+	.name		= "LDO"#num,					\
+	.id		= MAX77686_LDO##num,				\
+	.ops		= &max77686_ldo_ops,				\
+	.type		= REGULATOR_VOLTAGE,				\
+	.owner		= THIS_MODULE,					\
+	.min_uV		= MAX77686_LDO_LOW_MINUV,			\
+	.uV_step	= MAX77686_LDO_LOW_UVSTEP,			\
+	.ramp_delay	= MAX77686_RAMP_DELAY,				\
+	.n_voltages	= MAX77686_VSEL_MASK + 1,			\
+	.vsel_reg	= MAX77686_REG_LDO1CTRL1 + num - 1,		\
+	.vsel_mask	= MAX77686_VSEL_MASK,				\
+	.enable_reg	= MAX77686_REG_LDO1CTRL1 + num - 1,		\
+	.enable_mask	= MAX77686_OPMODE_MASK				\
+			<< MAX77686_OPMODE_SHIFT,			\
+}
+#define regulator_desc_ldo1_low(num)		{			\
 	.name		= "LDO"#num,					\
 	.id		= MAX77686_LDO##num,				\
 	.ops		= &max77686_ops,				\
@@ -167,7 +311,7 @@ static struct regulator_ops max77686_buck_dvs_ops = {
 #define regulator_desc_buck1(num)		{			\
 	.name		= "BUCK"#num,					\
 	.id		= MAX77686_BUCK##num,				\
-	.ops		= &max77686_ops,				\
+	.ops		= &max77686_buck1_ops,				\
 	.type		= REGULATOR_VOLTAGE,				\
 	.owner		= THIS_MODULE,					\
 	.min_uV		= MAX77686_BUCK_MINUV,				\
@@ -197,7 +341,7 @@ static struct regulator_ops max77686_buck_dvs_ops = {
 }
 
 static struct regulator_desc regulators[] = {
-	regulator_desc_ldo_low(1),
+	regulator_desc_ldo1_low(1),
 	regulator_desc_ldo_low(2),
 	regulator_desc_ldo(3),
 	regulator_desc_ldo(4),
@@ -206,13 +350,13 @@ static struct regulator_desc regulators[] = {
 	regulator_desc_ldo_low(7),
 	regulator_desc_ldo_low(8),
 	regulator_desc_ldo(9),
-	regulator_desc_ldo(10),
-	regulator_desc_ldo(11),
-	regulator_desc_ldo(12),
+	regulator_desc_lpm_ldo(10),
+	regulator_desc_lpm_ldo(11),
+	regulator_desc_lpm_ldo(12),
 	regulator_desc_ldo(13),
-	regulator_desc_ldo(14),
+	regulator_desc_lpm_ldo(14),
 	regulator_desc_ldo_low(15),
-	regulator_desc_ldo(16),
+	regulator_desc_lpm_ldo(16),
 	regulator_desc_ldo(17),
 	regulator_desc_ldo(18),
 	regulator_desc_ldo(19),
@@ -280,7 +424,7 @@ static int max77686_pmic_dt_parse_pdata(struct max77686_dev *iodev,
 }
 #endif /* CONFIG_OF */
 
-static __devinit int max77686_pmic_probe(struct platform_device *pdev)
+static int max77686_pmic_probe(struct platform_device *pdev)
 {
 	struct max77686_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct max77686_platform_data *pdata = dev_get_platdata(iodev->dev);
@@ -314,12 +458,14 @@ static __devinit int max77686_pmic_probe(struct platform_device *pdev)
 
 	config.dev = &pdev->dev;
 	config.regmap = iodev->regmap;
+	config.driver_data = max77686;
 	platform_set_drvdata(pdev, max77686);
 
 	for (i = 0; i < MAX77686_REGULATORS; i++) {
 		config.init_data = pdata->regulators[i].initdata;
 		config.of_node = pdata->regulators[i].of_node;
 
+		max77686->opmode[i] = regulators[i].enable_mask;
 		max77686->rdev[i] = regulator_register(&regulators[i], &config);
 		if (IS_ERR(max77686->rdev[i])) {
 			ret = PTR_ERR(max77686->rdev[i]);
@@ -337,7 +483,7 @@ err:
 	return ret;
 }
 
-static int __devexit max77686_pmic_remove(struct platform_device *pdev)
+static int max77686_pmic_remove(struct platform_device *pdev)
 {
 	struct max77686_data *max77686 = platform_get_drvdata(pdev);
 	int i;
@@ -360,7 +506,7 @@ static struct platform_driver max77686_pmic_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = max77686_pmic_probe,
-	.remove = __devexit_p(max77686_pmic_remove),
+	.remove = max77686_pmic_remove,
 	.id_table = max77686_pmic_id,
 };
 
