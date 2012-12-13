@@ -7,25 +7,23 @@
 #include "led.h"
 
 /* return value indicates whether the driver should be further notified */
-static bool ieee80211_quiesce(struct ieee80211_sub_if_data *sdata)
+static void ieee80211_quiesce(struct ieee80211_sub_if_data *sdata)
 {
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_STATION:
 		ieee80211_sta_quiesce(sdata);
-		return true;
+		break;
 	case NL80211_IFTYPE_ADHOC:
 		ieee80211_ibss_quiesce(sdata);
-		return true;
+		break;
 	case NL80211_IFTYPE_MESH_POINT:
 		ieee80211_mesh_quiesce(sdata);
-		return true;
-	case NL80211_IFTYPE_AP_VLAN:
-	case NL80211_IFTYPE_MONITOR:
-		/* don't tell driver about this */
-		return false;
+		break;
 	default:
-		return true;
+		break;
 	}
+
+	cancel_work_sync(&sdata->work);
 }
 
 int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
@@ -94,10 +92,9 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 			WARN_ON(err != 1);
 			local->wowlan = false;
 		} else {
-			list_for_each_entry(sdata, &local->interfaces, list) {
-				cancel_work_sync(&sdata->work);
-				ieee80211_quiesce(sdata);
-			}
+			list_for_each_entry(sdata, &local->interfaces, list)
+				if (ieee80211_sdata_running(sdata))
+					ieee80211_quiesce(sdata);
 			goto suspend;
 		}
 	}
@@ -124,13 +121,18 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 
 	/* remove all interfaces */
 	list_for_each_entry(sdata, &local->interfaces, list) {
-		cancel_work_sync(&sdata->work);
-
-		if (!ieee80211_quiesce(sdata))
-			continue;
-
 		if (!ieee80211_sdata_running(sdata))
 			continue;
+
+		switch (sdata->vif.type) {
+		case NL80211_IFTYPE_AP_VLAN:
+		case NL80211_IFTYPE_MONITOR:
+			/* skip these */
+			continue;
+		default:
+			ieee80211_quiesce(sdata);
+			break;
+		}
 
 		/* disable beaconing */
 		ieee80211_bss_info_change_notify(sdata,
