@@ -3556,3 +3556,114 @@ int evergreen_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib)
 
 	return ret;
 }
+
+/**
+ * evergreen_dma_ib_parse() - parse the DMA IB for VM
+ * @rdev: radeon_device pointer
+ * @ib:	radeon_ib pointer
+ *
+ * Parses the DMA IB from the VM CS ioctl
+ * checks for errors. (Cayman-SI)
+ * Returns 0 for success and an error on failure.
+ **/
+int evergreen_dma_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib)
+{
+	u32 idx = 0;
+	u32 header, cmd, count, tiled, new_cmd, misc;
+
+	do {
+		header = ib->ptr[idx];
+		cmd = GET_DMA_CMD(header);
+		count = GET_DMA_COUNT(header);
+		tiled = GET_DMA_T(header);
+		new_cmd = GET_DMA_NEW(header);
+		misc = GET_DMA_MISC(header);
+
+		switch (cmd) {
+		case DMA_PACKET_WRITE:
+			if (tiled)
+				idx += count + 7;
+			else
+				idx += count + 3;
+			break;
+		case DMA_PACKET_COPY:
+			if (tiled) {
+				if (new_cmd) {
+					switch (misc) {
+					case 0:
+						/* L2T, frame to fields */
+						idx += 10;
+						break;
+					case 1:
+						/* L2T, T2L partial */
+						idx += 12;
+						break;
+					case 3:
+						/* L2T, broadcast */
+						idx += 10;
+						break;
+					case 4:
+						/* L2T, T2L */
+						idx += 9;
+						break;
+					case 5:
+						/* T2T partial */
+						idx += 13;
+						break;
+					case 7:
+						/* L2T, broadcast */
+						idx += 10;
+						break;
+					default:
+						DRM_ERROR("bad DMA_PACKET_COPY misc %u\n", misc);
+						return -EINVAL;
+					}
+				} else {
+					switch (misc) {
+					case 0:
+						idx += 9;
+						break;
+					default:
+						DRM_ERROR("bad DMA_PACKET_COPY misc %u\n", misc);
+						return -EINVAL;
+					}
+				}
+			} else {
+				if (new_cmd) {
+					switch (misc) {
+					case 0:
+						/* L2L, byte */
+						idx += 5;
+						break;
+					case 1:
+						/* L2L, partial */
+						idx += 9;
+						break;
+					case 4:
+						/* L2L, dw, broadcast */
+						idx += 7;
+						break;
+					default:
+						DRM_ERROR("bad DMA_PACKET_COPY misc %u\n", misc);
+						return -EINVAL;
+					}
+				} else {
+					/* L2L, dw */
+					idx += 5;
+				}
+			}
+			break;
+		case DMA_PACKET_CONSTANT_FILL:
+			idx += 4;
+			break;
+		case DMA_PACKET_NOP:
+			idx += 1;
+			break;
+		default:
+			DRM_ERROR("Unknown packet type %d at %d !\n", cmd, idx);
+			return -EINVAL;
+		}
+	} while (idx < ib->length_dw);
+
+	return 0;
+}

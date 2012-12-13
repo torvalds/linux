@@ -1484,6 +1484,7 @@ static struct radeon_asic cayman_asic = {
 		},
 		[R600_RING_TYPE_DMA_INDEX] = {
 			.ib_execute = &cayman_dma_ring_ib_execute,
+			.ib_parse = &evergreen_dma_ib_parse,
 			.emit_fence = &evergreen_dma_fence_ring_emit,
 			.emit_semaphore = &r600_dma_semaphore_ring_emit,
 			.cs_parse = &evergreen_dma_cs_parse,
@@ -1494,6 +1495,7 @@ static struct radeon_asic cayman_asic = {
 		},
 		[CAYMAN_RING_TYPE_DMA1_INDEX] = {
 			.ib_execute = &cayman_dma_ring_ib_execute,
+			.ib_parse = &evergreen_dma_ib_parse,
 			.emit_fence = &evergreen_dma_fence_ring_emit,
 			.emit_semaphore = &r600_dma_semaphore_ring_emit,
 			.cs_parse = &evergreen_dma_cs_parse,
@@ -1609,6 +1611,7 @@ static struct radeon_asic trinity_asic = {
 		},
 		[R600_RING_TYPE_DMA_INDEX] = {
 			.ib_execute = &cayman_dma_ring_ib_execute,
+			.ib_parse = &evergreen_dma_ib_parse,
 			.emit_fence = &evergreen_dma_fence_ring_emit,
 			.emit_semaphore = &r600_dma_semaphore_ring_emit,
 			.cs_parse = &evergreen_dma_cs_parse,
@@ -1619,6 +1622,7 @@ static struct radeon_asic trinity_asic = {
 		},
 		[CAYMAN_RING_TYPE_DMA1_INDEX] = {
 			.ib_execute = &cayman_dma_ring_ib_execute,
+			.ib_parse = &evergreen_dma_ib_parse,
 			.emit_fence = &evergreen_dma_fence_ring_emit,
 			.emit_semaphore = &r600_dma_semaphore_ring_emit,
 			.cs_parse = &evergreen_dma_cs_parse,
@@ -1734,6 +1738,7 @@ static struct radeon_asic si_asic = {
 		},
 		[R600_RING_TYPE_DMA_INDEX] = {
 			.ib_execute = &cayman_dma_ring_ib_execute,
+			.ib_parse = &evergreen_dma_ib_parse,
 			.emit_fence = &evergreen_dma_fence_ring_emit,
 			.emit_semaphore = &r600_dma_semaphore_ring_emit,
 			.cs_parse = NULL,
@@ -1744,6 +1749,7 @@ static struct radeon_asic si_asic = {
 		},
 		[CAYMAN_RING_TYPE_DMA1_INDEX] = {
 			.ib_execute = &cayman_dma_ring_ib_execute,
+			.ib_parse = &evergreen_dma_ib_parse,
 			.emit_fence = &evergreen_dma_fence_ring_emit,
 			.emit_semaphore = &r600_dma_semaphore_ring_emit,
 			.cs_parse = NULL,
