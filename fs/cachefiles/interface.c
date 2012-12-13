@@ -484,7 +484,7 @@ static void cachefiles_invalidate_object(struct fscache_operation *op)
 		}
 	}
 
-	fscache_op_complete(op);
+	fscache_op_complete(op, true);
 	_leave("");
 }
 

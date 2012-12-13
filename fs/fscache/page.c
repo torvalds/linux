@@ -171,7 +171,7 @@ static void fscache_attr_changed_op(struct fscache_operation *op)
 			fscache_abort_object(object);
 	}
 
-	fscache_op_complete(op);
+	fscache_op_complete(op, true);
 	_leave("");
 }
 
@@ -704,7 +704,7 @@ static void fscache_write_op(struct fscache_operation *_op)
 		 * exists, so we should just cancel this write operation.
 		 */
 		spin_unlock(&object->lock);
-		op->op.state = FSCACHE_OP_ST_CANCELLED;
+		fscache_op_complete(&op->op, false);
 		_leave(" [inactive]");
 		return;
 	}
@@ -717,7 +717,7 @@ static void fscache_write_op(struct fscache_operation *_op)
 		 * cancel this write operation.
 		 */
 		spin_unlock(&object->lock);
-		op->op.state = FSCACHE_OP_ST_CANCELLED;
+		fscache_op_complete(&op->op, false);
 		_leave(" [cancel] op{f=%lx s=%u} obj{s=%u f=%lx}",
 		       _op->flags, _op->state, object->state, object->flags);
 		return;
@@ -755,7 +755,7 @@ static void fscache_write_op(struct fscache_operation *_op)
 	fscache_end_page_write(object, page);
 	if (ret < 0) {
 		fscache_abort_object(object);
-		fscache_op_complete(&op->op);
+		fscache_op_complete(&op->op, true);
 	} else {
 		fscache_enqueue_operation(&op->op);
 	}
@@ -770,7 +770,7 @@ superseded:
 	spin_unlock(&cookie->stores_lock);
 	clear_bit(FSCACHE_OBJECT_PENDING_WRITE, &object->flags);
 	spin_unlock(&object->lock);
-	fscache_op_complete(&op->op);
+	fscache_op_complete(&op->op, true);
 	_leave("");
 }
 

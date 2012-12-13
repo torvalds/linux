@@ -363,9 +363,9 @@ void fscache_cancel_all_ops(struct fscache_object *object)
 }
 
 /*
- * Record the completion of an in-progress operation.
+ * Record the completion or cancellation of an in-progress operation.
  */
-void fscache_op_complete(struct fscache_operation *op)
+void fscache_op_complete(struct fscache_operation *op, bool cancelled)
 {
 	struct fscache_object *object = op->object;
 
@@ -380,7 +380,8 @@ void fscache_op_complete(struct fscache_operation *op)
 
 	spin_lock(&object->lock);
 
-	op->state = FSCACHE_OP_ST_COMPLETE;
+	op->state = cancelled ?
+		FSCACHE_OP_ST_CANCELLED : FSCACHE_OP_ST_COMPLETE;
 
 	if (test_bit(FSCACHE_OP_EXCLUSIVE, &op->flags))
 		object->n_exclusive--;
