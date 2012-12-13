@@ -622,7 +622,7 @@ out:
 struct net_bridge_port_group *br_multicast_new_port_group(
 			struct net_bridge_port *port,
 			struct br_ip *group,
-			struct net_bridge_port_group *next)
+			struct net_bridge_port_group __rcu *next)
 {
 	struct net_bridge_port_group *p;
 
@@ -632,7 +632,7 @@ struct net_bridge_port_group *br_multicast_new_port_group(
 
 	p->addr = *group;
 	p->port = port;
-	p->next = next;
+	rcu_assign_pointer(p->next, next);
 	hlist_add_head(&p->mglist, &port->mglist);
 	setup_timer(&p->timer, br_multicast_port_group_expired,
 		    (unsigned long)p);
@@ -1138,7 +1138,7 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 				  struct sk_buff *skb)
 {
 	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
-	struct mld_msg *mld = (struct mld_msg *) icmp6_hdr(skb);
+	struct mld_msg *mld;
 	struct net_bridge_mdb_entry *mp;
 	struct mld2_query *mld2q;
 	struct net_bridge_port_group *p;
@@ -1165,6 +1165,7 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 		if (max_delay)
 			group = &mld->mld_mca;
 	} else if (skb->len >= sizeof(*mld2q)) {
+		u16 mrc;
 		if (!pskb_may_pull(skb, sizeof(*mld2q))) {
 			err = -EINVAL;
 			goto out;
@@ -1172,7 +1173,8 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 		mld2q = (struct mld2_query *)icmp6_hdr(skb);
 		if (!mld2q->mld2q_nsrcs)
 			group = &mld2q->mld2q_mca;
-		max_delay = mld2q->mld2q_mrc ? MLDV2_MRC(mld2q->mld2q_mrc) : 1;
+		mrc = ntohs(mld2q->mld2q_mrc);
+		max_delay = mrc ? MLDV2_MRC(mrc) : 1;
 	}
 
 	if (!group)
