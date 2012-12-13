@@ -3621,9 +3621,10 @@ static int alc_auto_add_sw_ctl(struct hda_codec *codec,
 	val = amp_val_replace_channels(val, chs);
 	if (get_amp_direction_(val) == HDA_INPUT) {
 		hda_nid_t nid = get_amp_nid_(val);
-		if (snd_hda_get_num_conns(codec, nid) > 1) {
+		int nums = snd_hda_get_num_conns(codec, nid);
+		if (nums > 1) {
 			type = ALC_CTL_BIND_MUTE;
-			val |= 2 << 19; /* FIXME: fixed two widgets, so far */
+			val |= nums << 19;
 		}
 	}
 	return __add_pb_sw_ctrl(codec->spec, type, pfx, cidx, val);
@@ -3909,6 +3910,7 @@ static void alc_auto_set_output_and_unmute(struct hda_codec *codec,
 					   hda_nid_t pin, int pin_type,
 					   hda_nid_t dac, bool force)
 {
+	struct alc_spec *spec = codec->spec;
 	int i, val;
 	struct nid_path *path;
 
@@ -3928,13 +3930,19 @@ static void alc_auto_set_output_and_unmute(struct hda_codec *codec,
 		    (get_wcaps(codec, nid) & AC_WCAP_IN_AMP) &&
 		    (force || !is_out_ctl_present(codec, path, nid,
 						  HDA_INPUT))) {
+			hda_nid_t conn[16];
+			int n, nums;
+			nums = snd_hda_get_connections(codec, nid, conn,
+						       ARRAY_SIZE(conn));
 			val = get_default_amp_val(codec, nid, HDA_INPUT);
-			snd_hda_codec_write(codec, nid, 0,
+			for (n = 0; n < nums; n++) {
+				if (n != path->idx[i] &&
+				    conn[n] != spec->mixer_nid)
+					continue;
+				snd_hda_codec_write(codec, nid, 0,
 					    AC_VERB_SET_AMP_GAIN_MUTE,
-					    AMP_IN_UNMUTE(0) | val);
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_AMP_GAIN_MUTE,
-					    AMP_IN_UNMUTE(1) | val);
+					    AMP_IN_UNMUTE(n) | val);
+			}
 		}
 		if ((get_wcaps(codec, nid) & AC_WCAP_OUT_AMP) &&
 		    (force || !is_out_ctl_present(codec, path, nid,
