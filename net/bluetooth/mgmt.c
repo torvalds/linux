@@ -2254,13 +2254,6 @@ static int add_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 
 	hci_dev_lock(hdev);
 
-	if (!hdev_is_powered(hdev)) {
-		err = cmd_complete(sk, hdev->id, MGMT_OP_ADD_REMOTE_OOB_DATA,
-				   MGMT_STATUS_NOT_POWERED, &cp->addr,
-				   sizeof(cp->addr));
-		goto unlock;
-	}
-
 	err = hci_add_remote_oob_data(hdev, &cp->addr.bdaddr, cp->hash,
 				      cp->randomizer);
 	if (err < 0)
@@ -2271,7 +2264,6 @@ static int add_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 	err = cmd_complete(sk, hdev->id, MGMT_OP_ADD_REMOTE_OOB_DATA, status,
 			   &cp->addr, sizeof(cp->addr));
 
-unlock:
 	hci_dev_unlock(hdev);
 	return err;
 }
@@ -2287,14 +2279,6 @@ static int remove_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 
 	hci_dev_lock(hdev);
 
-	if (!hdev_is_powered(hdev)) {
-		err = cmd_complete(sk, hdev->id,
-				   MGMT_OP_REMOVE_REMOTE_OOB_DATA,
-				   MGMT_STATUS_NOT_POWERED, &cp->addr,
-				   sizeof(cp->addr));
-		goto unlock;
-	}
-
 	err = hci_remove_remote_oob_data(hdev, &cp->addr.bdaddr);
 	if (err < 0)
 		status = MGMT_STATUS_INVALID_PARAMS;
@@ -2304,7 +2288,6 @@ static int remove_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 	err = cmd_complete(sk, hdev->id, MGMT_OP_REMOVE_REMOTE_OOB_DATA,
 			   status, &cp->addr, sizeof(cp->addr));
 
-unlock:
 	hci_dev_unlock(hdev);
 	return err;
 }
