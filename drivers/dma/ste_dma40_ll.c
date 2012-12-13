@@ -251,7 +251,7 @@ d40_phy_buf_to_lli(struct d40_phy_lli *lli, dma_addr_t addr, u32 size,
 
 	return lli;
 
- err:
+err:
 	return NULL;
 }
 

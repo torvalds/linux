@@ -1609,13 +1609,11 @@ static void dma_tasklet(unsigned long data)
 		if (async_tx_test_ack(&d40d->txd)) {
 			d40_desc_remove(d40d);
 			d40_desc_free(d40c, d40d);
-		} else {
-			if (!d40d->is_in_client_list) {
-				d40_desc_remove(d40d);
-				d40_lcla_free_all(d40c, d40d);
-				list_add_tail(&d40d->node, &d40c->client);
-				d40d->is_in_client_list = true;
-			}
+		} else if (!d40d->is_in_client_list) {
+			d40_desc_remove(d40d);
+			d40_lcla_free_all(d40c, d40d);
+			list_add_tail(&d40d->node, &d40c->client);
+			d40d->is_in_client_list = true;
 		}
 	}
 
@@ -2123,7 +2121,6 @@ _exit:
 
 }
 
-
 static u32 stedma40_residue(struct dma_chan *chan)
 {
 	struct d40_chan *d40c =
@@ -2199,7 +2196,6 @@ d40_prep_sg_phy(struct d40_chan *chan, struct d40_desc *desc,
 	return ret < 0 ? ret : 0;
 }
 
-
 static struct d40_desc *
 d40_prep_desc(struct d40_chan *chan, struct scatterlist *sg,
 	      unsigned int sg_len, unsigned long dma_flags)
@@ -2224,7 +2220,6 @@ d40_prep_desc(struct d40_chan *chan, struct scatterlist *sg,
 		chan_err(chan, "Could not allocate lli\n");
 		goto err;
 	}
-
 
 	desc->lli_current = 0;
 	desc->txd.flags = dma_flags;
@@ -2273,7 +2268,6 @@ d40_prep_sg(struct dma_chan *dchan, struct scatterlist *sg_src,
 		chan_err(chan, "Cannot prepare unallocated channel\n");
 		return NULL;
 	}
-
 
 	spin_lock_irqsave(&chan->lock, flags);
 
@@ -2432,11 +2426,11 @@ static int d40_alloc_chan_resources(struct dma_chan *chan)
 
 		if (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_MEM)
 			d40c->lcpa = d40c->base->lcpa_base +
-			  d40c->dma_cfg.src_dev_type * D40_LCPA_CHAN_SIZE;
+				d40c->dma_cfg.src_dev_type * D40_LCPA_CHAN_SIZE;
 		else
 			d40c->lcpa = d40c->base->lcpa_base +
-			  d40c->dma_cfg.dst_dev_type *
-			  D40_LCPA_CHAN_SIZE + D40_LCPA_CHAN_DST_DELTA;
+				d40c->dma_cfg.dst_dev_type *
+				D40_LCPA_CHAN_SIZE + D40_LCPA_CHAN_DST_DELTA;
 	}
 
 	dev_dbg(chan2dev(d40c), "allocated %s channel (phy %d%s)\n",
@@ -2470,7 +2464,6 @@ static void d40_free_chan_resources(struct dma_chan *chan)
 		chan_err(d40c, "Cannot free unallocated channel\n");
 		return;
 	}
-
 
 	spin_lock_irqsave(&d40c->lock, flags);
 
@@ -2514,12 +2507,10 @@ d40_prep_memcpy_sg(struct dma_chan *chan,
 	return d40_prep_sg(chan, src_sg, dst_sg, src_nents, DMA_NONE, dma_flags);
 }
 
-static struct dma_async_tx_descriptor *d40_prep_slave_sg(struct dma_chan *chan,
-							 struct scatterlist *sgl,
-							 unsigned int sg_len,
-							 enum dma_transfer_direction direction,
-							 unsigned long dma_flags,
-							 void *context)
+static struct dma_async_tx_descriptor *
+d40_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
+		  unsigned int sg_len, enum dma_transfer_direction direction,
+		  unsigned long dma_flags, void *context)
 {
 	if (direction != DMA_DEV_TO_MEM && direction != DMA_MEM_TO_DEV)
 		return NULL;
