@@ -1345,8 +1345,8 @@ static struct regmap_config cs42l73_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static __devinit int cs42l73_i2c_probe(struct i2c_client *i2c_client,
-				       const struct i2c_device_id *id)
+static int cs42l73_i2c_probe(struct i2c_client *i2c_client,
+			     const struct i2c_device_id *id)
 {
 	struct cs42l73_private *cs42l73;
 	int ret;
@@ -1406,7 +1406,7 @@ static __devinit int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 	return 0;
 }
 
-static __devexit int cs42l73_i2c_remove(struct i2c_client *client)
+static int cs42l73_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	return 0;
@@ -1426,7 +1426,7 @@ static struct i2c_driver cs42l73_i2c_driver = {
 		   },
 	.id_table = cs42l73_id,
 	.probe = cs42l73_i2c_probe,
-	.remove = __devexit_p(cs42l73_i2c_remove),
+	.remove = cs42l73_i2c_remove,
 
 };
 

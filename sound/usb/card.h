@@ -27,6 +27,7 @@ struct audioformat {
 	unsigned int nr_rates;		/* number of rate table entries */
 	unsigned int *rate_table;	/* rate table */
 	unsigned char clock;		/* associated clock */
+	struct snd_pcm_chmap_elem *chmap; /* (optional) channel map */
 };
 
 struct snd_usb_substream;
@@ -109,6 +110,7 @@ struct snd_usb_substream {
 	struct audioformat *cur_audiofmt;	/* current audioformat pointer (for hw_params callback) */
 	snd_pcm_format_t pcm_format;	/* current audio format (for hw_params callback) */
 	unsigned int channels;		/* current number of channels (for hw_params callback) */
+	unsigned int channels_max;	/* max channels in the all audiofmts */
 	unsigned int cur_rate;		/* current rate (for hw_params callback) */
 	unsigned int period_bytes;	/* current period bytes (for hw_params callback) */
 	unsigned int altset_idx;     /* USB data format: index of alternate setting */

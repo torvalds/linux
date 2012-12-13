@@ -894,7 +894,7 @@ static struct snd_pcm_ops sis_capture_ops = {
 	.pointer = sis_pcm_pointer,
 };
 
-static int __devinit sis_pcm_create(struct sis7019 *sis)
+static int sis_pcm_create(struct sis7019 *sis)
 {
 	struct snd_pcm *pcm;
 	int rc;
@@ -1013,7 +1013,7 @@ static unsigned short sis_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 					(reg << 8) | cmd[ac97->num]);
 }
 
-static int __devinit sis_mixer_create(struct sis7019 *sis)
+static int sis_mixer_create(struct sis7019 *sis)
 {
 	struct snd_ac97_bus *bus;
 	struct snd_ac97_template ac97;
@@ -1326,8 +1326,8 @@ static int sis_alloc_suspend(struct sis7019 *sis)
 	return 0;
 }
 
-static int __devinit sis_chip_create(struct snd_card *card,
-					struct pci_dev *pci)
+static int sis_chip_create(struct snd_card *card,
+			   struct pci_dev *pci)
 {
 	struct sis7019 *sis = card->private_data;
 	struct voice *voice;
@@ -1417,8 +1417,8 @@ error_out:
 	return rc;
 }
 
-static int __devinit snd_sis7019_probe(struct pci_dev *pci,
-					const struct pci_device_id *pci_id)
+static int snd_sis7019_probe(struct pci_dev *pci,
+			     const struct pci_device_id *pci_id)
 {
 	struct snd_card *card;
 	struct sis7019 *sis;
@@ -1478,7 +1478,7 @@ error_out:
 	return rc;
 }
 
-static void __devexit snd_sis7019_remove(struct pci_dev *pci)
+static void snd_sis7019_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -1488,7 +1488,7 @@ static struct pci_driver sis7019_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_sis7019_ids,
 	.probe = snd_sis7019_probe,
-	.remove = __devexit_p(snd_sis7019_remove),
+	.remove = snd_sis7019_remove,
 	.driver = {
 		.pm = SIS_PM_OPS,
 	},

@@ -265,7 +265,11 @@ struct fsi_priv {
 
 	int chan_num:16;
 	int clk_master:1;
+	int clk_cpg:1;
 	int spdif:1;
+	int enable_stream:1;
+	int bit_clk_inv:1;
+	int lr_clk_inv:1;
 
 	long rate;
 };
@@ -393,6 +397,11 @@ static int fsi_is_port_a(struct fsi_priv *fsi)
 static int fsi_is_spdif(struct fsi_priv *fsi)
 {
 	return fsi->spdif;
+}
+
+static int fsi_is_enable_stream(struct fsi_priv *fsi)
+{
+	return fsi->enable_stream;
 }
 
 static int fsi_is_play(struct snd_pcm_substream *substream)
@@ -1138,10 +1147,9 @@ static int fsi_set_master_clk(struct device *dev, struct fsi_priv *fsi,
  */
 static void fsi_pio_push16(struct fsi_priv *fsi, u8 *_buf, int samples)
 {
-	u32 enable_stream = fsi_get_info_flags(fsi) & SH_FSI_ENABLE_STREAM_MODE;
 	int i;
 
-	if (enable_stream) {
+	if (fsi_is_enable_stream(fsi)) {
 		/*
 		 * stream mode
 		 * see
@@ -1299,8 +1307,6 @@ static void fsi_pio_start_stop(struct fsi_priv *fsi, struct fsi_stream *io,
 
 static int fsi_pio_push_init(struct fsi_priv *fsi, struct fsi_stream *io)
 {
-	u32 enable_stream = fsi_get_info_flags(fsi) & SH_FSI_ENABLE_STREAM_MODE;
-
 	/*
 	 * we can use 16bit stream mode
 	 * when "playback" and "16bit data"
@@ -1308,7 +1314,7 @@ static int fsi_pio_push_init(struct fsi_priv *fsi, struct fsi_stream *io)
 	 * see
 	 *	fsi_pio_push16()
 	 */
-	if (enable_stream)
+	if (fsi_is_enable_stream(fsi))
 		io->bus_option = BUSOP_SET(24, PACKAGE_24BITBUS_BACK) |
 				 BUSOP_SET(16, PACKAGE_16BITBUS_STREAM);
 	else
@@ -1642,6 +1648,16 @@ static int fsi_hw_startup(struct fsi_priv *fsi,
 
 	/* clock inversion (CKG2) */
 	data = 0;
+	if (fsi->bit_clk_inv)
+		data |= (1 << 0);
+	if (fsi->lr_clk_inv)
+		data |= (1 << 4);
+	if (fsi_is_clk_master(fsi))
+		data <<= 8;
+	/* FIXME
+	 *
+	 * SH_FSI_xxx_INV style will be removed
+	 */
 	if (SH_FSI_LRM_INV & flags)
 		data |= 1 << 12;
 	if (SH_FSI_BRM_INV & flags)
@@ -1772,7 +1788,6 @@ static int fsi_set_fmt_spdif(struct fsi_priv *fsi)
 
 	fsi->fmt = CR_DTMD_SPDIF_PCM | CR_PCM;
 	fsi->chan_num = 2;
-	fsi->spdif = 1;
 
 	return 0;
 }
@@ -1781,7 +1796,6 @@ static int fsi_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct fsi_priv *fsi = fsi_get_priv_frm_dai(dai);
 	set_rate_func set_rate = fsi_get_info_set_rate(fsi);
-	u32 flags = fsi_get_info_flags(fsi);
 	int ret;
 
 	/* set master/slave audio interface */
@@ -1795,6 +1809,27 @@ static int fsi_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
+	/* set clock inversion */
+	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
+	case SND_SOC_DAIFMT_NB_IF:
+		fsi->bit_clk_inv = 0;
+		fsi->lr_clk_inv = 1;
+		break;
+	case SND_SOC_DAIFMT_IB_NF:
+		fsi->bit_clk_inv = 1;
+		fsi->lr_clk_inv = 0;
+		break;
+	case SND_SOC_DAIFMT_IB_IF:
+		fsi->bit_clk_inv = 1;
+		fsi->lr_clk_inv = 1;
+		break;
+	case SND_SOC_DAIFMT_NB_NF:
+	default:
+		fsi->bit_clk_inv = 0;
+		fsi->lr_clk_inv = 0;
+		break;
+	}
+
 	if (fsi_is_clk_master(fsi)) {
 		/*
 		 * CAUTION
@@ -1804,29 +1839,19 @@ static int fsi_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		if (set_rate)
 			dev_warn(dai->dev, "set_rate will be removed soon\n");
 
-		switch (flags & SH_FSI_CLK_MASK) {
-		case SH_FSI_CLK_EXTERNAL:
-			fsi_clk_init(dai->dev, fsi, 1, 1, 0,
-				     fsi_clk_set_rate_external);
-			break;
-		case SH_FSI_CLK_CPG:
+		if (fsi->clk_cpg)
 			fsi_clk_init(dai->dev, fsi, 0, 1, 1,
 				     fsi_clk_set_rate_cpg);
-			break;
-		}
+		else
+			fsi_clk_init(dai->dev, fsi, 1, 1, 0,
+				     fsi_clk_set_rate_external);
 	}
 
 	/* set format */
-	switch (flags & SH_FSI_FMT_MASK) {
-	case SH_FSI_FMT_DAI:
-		ret = fsi_set_fmt_dai(fsi, fmt & SND_SOC_DAIFMT_FORMAT_MASK);
-		break;
-	case SH_FSI_FMT_SPDIF:
+	if (fsi_is_spdif(fsi))
 		ret = fsi_set_fmt_spdif(fsi);
-		break;
-	default:
-		ret = -EINVAL;
-	}
+	else
+		ret = fsi_set_fmt_dai(fsi, fmt & SND_SOC_DAIFMT_FORMAT_MASK);
 
 	return ret;
 }
@@ -1992,15 +2017,29 @@ static struct snd_soc_platform_driver fsi_soc_platform = {
 /*
  *		platform function
  */
-static void fsi_handler_init(struct fsi_priv *fsi)
+static void fsi_port_info_init(struct fsi_priv *fsi,
+			       struct sh_fsi_port_info *info)
+{
+	if (info->flags & SH_FSI_FMT_SPDIF)
+		fsi->spdif = 1;
+
+	if (info->flags & SH_FSI_CLK_CPG)
+		fsi->clk_cpg = 1;
+
+	if (info->flags & SH_FSI_ENABLE_STREAM_MODE)
+		fsi->enable_stream = 1;
+}
+
+static void fsi_handler_init(struct fsi_priv *fsi,
+			     struct sh_fsi_port_info *info)
 {
 	fsi->playback.handler	= &fsi_pio_push_handler; /* default PIO */
 	fsi->playback.priv	= fsi;
 	fsi->capture.handler	= &fsi_pio_pop_handler;  /* default PIO */
 	fsi->capture.priv	= fsi;
 
-	if (fsi->info->tx_id) {
-		fsi->playback.slave.shdma_slave.slave_id = fsi->info->tx_id;
+	if (info->tx_id) {
+		fsi->playback.slave.shdma_slave.slave_id = info->tx_id;
 		fsi->playback.handler = &fsi_dma_push_handler;
 	}
 }
@@ -2010,9 +2049,15 @@ static int fsi_probe(struct platform_device *pdev)
 	struct fsi_master *master;
 	const struct platform_device_id	*id_entry;
 	struct sh_fsi_platform_info *info = pdev->dev.platform_data;
+	struct sh_fsi_port_info nul_info, *pinfo;
+	struct fsi_priv *fsi;
 	struct resource *res;
 	unsigned int irq;
 	int ret;
+
+	nul_info.flags	= 0;
+	nul_info.tx_id	= 0;
+	nul_info.rx_id	= 0;
 
 	id_entry = pdev->id_entry;
 	if (!id_entry) {
@@ -2046,22 +2091,28 @@ static int fsi_probe(struct platform_device *pdev)
 	spin_lock_init(&master->lock);
 
 	/* FSI A setting */
-	master->fsia.base	= master->base;
-	master->fsia.master	= master;
-	master->fsia.info	= &info->port_a;
-	fsi_handler_init(&master->fsia);
-	ret = fsi_stream_probe(&master->fsia, &pdev->dev);
+	pinfo		= (info) ? &info->port_a : &nul_info;
+	fsi		= &master->fsia;
+	fsi->base	= master->base;
+	fsi->master	= master;
+	fsi->info	= pinfo;
+	fsi_port_info_init(fsi, pinfo);
+	fsi_handler_init(fsi, pinfo);
+	ret = fsi_stream_probe(fsi, &pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "FSIA stream probe failed\n");
 		return ret;
 	}
 
 	/* FSI B setting */
-	master->fsib.base	= master->base + 0x40;
-	master->fsib.master	= master;
-	master->fsib.info	= &info->port_b;
-	fsi_handler_init(&master->fsib);
-	ret = fsi_stream_probe(&master->fsib, &pdev->dev);
+	pinfo		= (info) ? &info->port_b : &nul_info;
+	fsi		= &master->fsib;
+	fsi->base	= master->base + 0x40;
+	fsi->master	= master;
+	fsi->info	= pinfo;
+	fsi_port_info_init(fsi, pinfo);
+	fsi_handler_init(fsi, pinfo);
+	ret = fsi_stream_probe(fsi, &pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "FSIB stream probe failed\n");
 		goto exit_fsia;

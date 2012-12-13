@@ -930,8 +930,7 @@ static const struct attribute_group sidetone_attr_group = {
 	.attrs = (struct attribute **)sidetone_attrs,
 };
 
-static int __devinit omap_st_add(struct omap_mcbsp *mcbsp,
-				 struct resource *res)
+static int omap_st_add(struct omap_mcbsp *mcbsp, struct resource *res)
 {
 	struct omap_mcbsp_st_data *st_data;
 	int err;
@@ -957,7 +956,7 @@ static int __devinit omap_st_add(struct omap_mcbsp *mcbsp,
  * McBSP1 and McBSP3 are directly mapped on 1610 and 1510.
  * 730 has only 2 McBSP, and both of them are MPU peripherals.
  */
-int __devinit omap_mcbsp_init(struct platform_device *pdev)
+int omap_mcbsp_init(struct platform_device *pdev)
 {
 	struct omap_mcbsp *mcbsp = platform_get_drvdata(pdev);
 	struct resource *res;
@@ -1085,7 +1084,7 @@ err_thres:
 	return ret;
 }
 
-void __devexit omap_mcbsp_sysfs_remove(struct omap_mcbsp *mcbsp)
+void omap_mcbsp_sysfs_remove(struct omap_mcbsp *mcbsp)
 {
 	if (mcbsp->pdata->buffer_size)
 		sysfs_remove_group(&mcbsp->dev->kobj, &additional_attr_group);

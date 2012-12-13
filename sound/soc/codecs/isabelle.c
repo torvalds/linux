@@ -1119,8 +1119,8 @@ static const struct regmap_config isabelle_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int __devinit isabelle_i2c_probe(struct i2c_client *i2c,
-					const struct i2c_device_id *id)
+static int isabelle_i2c_probe(struct i2c_client *i2c,
+			      const struct i2c_device_id *id)
 {
 	struct regmap *isabelle_regmap;
 	int ret = 0;
@@ -1145,7 +1145,7 @@ static int __devinit isabelle_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static int __devexit isabelle_i2c_remove(struct i2c_client *client)
+static int isabelle_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	return 0;
@@ -1163,7 +1163,7 @@ static struct i2c_driver isabelle_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = isabelle_i2c_probe,
-	.remove = __devexit_p(isabelle_i2c_remove),
+	.remove = isabelle_i2c_remove,
 	.id_table = isabelle_i2c_id,
 };
 

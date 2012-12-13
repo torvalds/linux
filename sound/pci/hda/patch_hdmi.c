@@ -1193,12 +1193,11 @@ static int hdmi_add_pin(struct hda_codec *codec, hda_nid_t pin_nid)
 	struct hdmi_spec_per_pin *per_pin;
 	int err;
 
-	caps = snd_hda_param_read(codec, pin_nid, AC_PAR_PIN_CAP);
+	caps = snd_hda_query_pin_caps(codec, pin_nid);
 	if (!(caps & (AC_PINCAP_HDMI | AC_PINCAP_DP)))
 		return 0;
 
-	config = snd_hda_codec_read(codec, pin_nid, 0,
-				AC_VERB_GET_CONFIG_DEFAULT, 0);
+	config = snd_hda_codec_get_pincfg(codec, pin_nid);
 	if (get_defcfg_connect(config) == AC_JACK_PORT_NONE)
 		return 0;
 
@@ -1272,7 +1271,7 @@ static int hdmi_parse_codec(struct hda_codec *codec)
 		unsigned int caps;
 		unsigned int type;
 
-		caps = snd_hda_param_read(codec, nid, AC_PAR_AUDIO_WIDGET_CAP);
+		caps = get_wcaps(codec, nid);
 		type = get_wcaps_type(caps);
 
 		if (!(caps & AC_WCAP_DIGITAL))
@@ -1288,13 +1287,17 @@ static int hdmi_parse_codec(struct hda_codec *codec)
 		}
 	}
 
+#ifdef CONFIG_PM
+	/* We're seeing some problems with unsolicited hot plug events on
+	 * PantherPoint after S3, if this is not enabled */
+	if (codec->vendor_id == 0x80862806)
+		codec->bus->power_keep_link_on = 1;
 	/*
 	 * G45/IbexPeak don't support EPSS: the unsolicited pin hot plug event
 	 * can be lost and presence sense verb will become inaccurate if the
 	 * HDA link is powered off at hot plug or hw initialization time.
 	 */
-#ifdef CONFIG_PM
-	if (!(snd_hda_param_read(codec, codec->afg, AC_PAR_POWER_STATE) &
+	else if (!(snd_hda_param_read(codec, codec->afg, AC_PAR_POWER_STATE) &
 	      AC_PWRST_EPSS))
 		codec->bus->power_keep_link_on = 1;
 #endif
@@ -1589,9 +1592,10 @@ static int generic_hdmi_build_controls(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 
-		err = snd_hda_create_spdif_out_ctls(codec,
-						    per_pin->pin_nid,
-						    per_pin->mux_nids[0]);
+		err = snd_hda_create_dig_out_ctls(codec,
+						  per_pin->pin_nid,
+						  per_pin->mux_nids[0],
+						  HDA_PCM_TYPE_HDMI);
 		if (err < 0)
 			return err;
 		snd_hda_spdif_ctls_unassign(codec, pin_idx);

@@ -88,7 +88,7 @@ static int snd_soc_flat_cache_sync(struct snd_soc_codec *codec)
 		ret = snd_soc_write(codec, i, val);
 		if (ret)
 			return ret;
-		dev_dbg(codec->dev, "Synced register %#x, value = %#x\n",
+		dev_dbg(codec->dev, "ASoC: Synced register %#x, value = %#x\n",
 			i, val);
 	}
 	return 0;
@@ -156,7 +156,7 @@ int snd_soc_cache_init(struct snd_soc_codec *codec)
 
 	/* Fall back to flat compression */
 	if (i == ARRAY_SIZE(cache_types)) {
-		dev_warn(codec->dev, "Could not match compress type: %d\n",
+		dev_warn(codec->dev, "ASoC: Could not match compress type: %d\n",
 			 codec->compress_type);
 		i = 0;
 	}
@@ -166,7 +166,7 @@ int snd_soc_cache_init(struct snd_soc_codec *codec)
 
 	if (codec->cache_ops->init) {
 		if (codec->cache_ops->name)
-			dev_dbg(codec->dev, "Initializing %s cache for %s codec\n",
+			dev_dbg(codec->dev, "ASoC: Initializing %s cache for %s codec\n",
 				codec->cache_ops->name, codec->name);
 		return codec->cache_ops->init(codec);
 	}
@@ -181,7 +181,7 @@ int snd_soc_cache_exit(struct snd_soc_codec *codec)
 {
 	if (codec->cache_ops && codec->cache_ops->exit) {
 		if (codec->cache_ops->name)
-			dev_dbg(codec->dev, "Destroying %s cache for %s codec\n",
+			dev_dbg(codec->dev, "ASoC: Destroying %s cache for %s codec\n",
 				codec->cache_ops->name, codec->name);
 		return codec->cache_ops->exit(codec);
 	}
@@ -265,7 +265,7 @@ int snd_soc_cache_sync(struct snd_soc_codec *codec)
 		name = "unknown";
 
 	if (codec->cache_ops->name)
-		dev_dbg(codec->dev, "Syncing %s cache for %s codec\n",
+		dev_dbg(codec->dev, "ASoC: Syncing %s cache for %s codec\n",
 			codec->cache_ops->name, codec->name);
 	trace_snd_soc_cache_sync(codec, name, "start");
 	ret = codec->cache_ops->sync(codec);
