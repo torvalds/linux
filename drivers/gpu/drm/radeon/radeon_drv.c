@@ -67,9 +67,10 @@
  *   2.24.0 - eg only: allow MIP_ADDRESS=0 for MSAA textures
  *   2.25.0 - eg+: new info request for num SE and num SH
  *   2.26.0 - r600-eg: fix htile size computation
+ *   2.27.0 - r600-SI: Add CS ioctl support for async DMA
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	26
+#define KMS_DRIVER_MINOR	27
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
