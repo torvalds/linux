@@ -507,20 +507,28 @@ static int evergreen_cs_track_validate_htile(struct radeon_cs_parser *p,
 		/* height is npipes htiles aligned == npipes * 8 pixel aligned */
 		nby = round_up(nby, track->npipes * 8);
 	} else {
+		/* always assume 8x8 htile */
+		/* align is htile align * 8, htile align vary according to
+		 * number of pipe and tile width and nby
+		 */
 		switch (track->npipes) {
 		case 8:
+			/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 8*/
 			nbx = round_up(nbx, 64 * 8);
 			nby = round_up(nby, 64 * 8);
 			break;
 		case 4:
+			/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 8*/
 			nbx = round_up(nbx, 64 * 8);
 			nby = round_up(nby, 32 * 8);
 			break;
 		case 2:
+			/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 8*/
 			nbx = round_up(nbx, 32 * 8);
 			nby = round_up(nby, 32 * 8);
 			break;
 		case 1:
+			/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 8*/
 			nbx = round_up(nbx, 32 * 8);
 			nby = round_up(nby, 16 * 8);
 			break;
@@ -531,9 +539,10 @@ static int evergreen_cs_track_validate_htile(struct radeon_cs_parser *p,
 		}
 	}
 	/* compute number of htile */
-	nbx = nbx / 8;
-	nby = nby / 8;
-	size = nbx * nby * 4;
+	nbx = nbx >> 3;
+	nby = nby >> 3;
+	/* size must be aligned on npipes * 2K boundary */
+	size = roundup(nbx * nby * 4, track->npipes * (2 << 10));
 	size += track->htile_offset;
 
 	if (size > radeon_bo_size(track->htile_bo)) {
@@ -1790,6 +1799,8 @@ static int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	case DB_HTILE_SURFACE:
 		/* 8x8 only */
 		track->htile_surface = radeon_get_ib_value(p, idx);
+		/* force 8x8 htile width and height */
+		ib[idx] |= 3;
 		track->db_dirty = true;
 		break;
 	case CB_IMMED0_BASE:

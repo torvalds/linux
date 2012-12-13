@@ -657,87 +657,30 @@ static int r600_cs_track_validate_db(struct radeon_cs_parser *p)
 			/* nby is npipes htiles aligned == npipes * 8 pixel aligned */
 			nby = round_up(nby, track->npipes * 8);
 		} else {
-			/* htile widht & nby (8 or 4) make 2 bits number */
-			tmp = track->htile_surface & 3;
+			/* always assume 8x8 htile */
 			/* align is htile align * 8, htile align vary according to
 			 * number of pipe and tile width and nby
 			 */
 			switch (track->npipes) {
 			case 8:
-				switch (tmp) {
-				case 3:	/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 8*/
-					nbx = round_up(nbx, 64 * 8);
-					nby = round_up(nby, 64 * 8);
-					break;
-				case 2:	/* HTILE_WIDTH = 4 & HTILE_HEIGHT = 8*/
-				case 1:	/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 4*/
-					nbx = round_up(nbx, 64 * 8);
-					nby = round_up(nby, 32 * 8);
-					break;
-				case 0:	/* HTILE_WIDTH = 4 & HTILE_HEIGHT = 4*/
-					nbx = round_up(nbx, 32 * 8);
-					nby = round_up(nby, 32 * 8);
-					break;
-				default:
-					return -EINVAL;
-				}
+				/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 8*/
+				nbx = round_up(nbx, 64 * 8);
+				nby = round_up(nby, 64 * 8);
 				break;
 			case 4:
-				switch (tmp) {
-				case 3:	/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 8*/
-					nbx = round_up(nbx, 64 * 8);
-					nby = round_up(nby, 32 * 8);
-					break;
-				case 2:	/* HTILE_WIDTH = 4 & HTILE_HEIGHT = 8*/
-				case 1:	/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 4*/
-					nbx = round_up(nbx, 32 * 8);
-					nby = round_up(nby, 32 * 8);
-					break;
-				case 0:	/* HTILE_WIDTH = 4 & HTILE_HEIGHT = 4*/
-					nbx = round_up(nbx, 32 * 8);
-					nby = round_up(nby, 16 * 8);
-					break;
-				default:
-					return -EINVAL;
-				}
+				/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 8*/
+				nbx = round_up(nbx, 64 * 8);
+				nby = round_up(nby, 32 * 8);
 				break;
 			case 2:
-				switch (tmp) {
-				case 3:	/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 8*/
-					nbx = round_up(nbx, 32 * 8);
-					nby = round_up(nby, 32 * 8);
-					break;
-				case 2:	/* HTILE_WIDTH = 4 & HTILE_HEIGHT = 8*/
-				case 1:	/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 4*/
-					nbx = round_up(nbx, 32 * 8);
-					nby = round_up(nby, 16 * 8);
-					break;
-				case 0:	/* HTILE_WIDTH = 4 & HTILE_HEIGHT = 4*/
-					nbx = round_up(nbx, 16 * 8);
-					nby = round_up(nby, 16 * 8);
-					break;
-				default:
-					return -EINVAL;
-				}
+				/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 8*/
+				nbx = round_up(nbx, 32 * 8);
+				nby = round_up(nby, 32 * 8);
 				break;
 			case 1:
-				switch (tmp) {
-				case 3:	/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 8*/
-					nbx = round_up(nbx, 32 * 8);
-					nby = round_up(nby, 16 * 8);
-					break;
-				case 2:	/* HTILE_WIDTH = 4 & HTILE_HEIGHT = 8*/
-				case 1:	/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 4*/
-					nbx = round_up(nbx, 16 * 8);
-					nby = round_up(nby, 16 * 8);
-					break;
-				case 0:	/* HTILE_WIDTH = 4 & HTILE_HEIGHT = 4*/
-					nbx = round_up(nbx, 16 * 8);
-					nby = round_up(nby, 8 * 8);
-					break;
-				default:
-					return -EINVAL;
-				}
+				/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 8*/
+				nbx = round_up(nbx, 32 * 8);
+				nby = round_up(nby, 16 * 8);
 				break;
 			default:
 				dev_warn(p->dev, "%s:%d invalid num pipes %d\n",
@@ -746,9 +689,10 @@ static int r600_cs_track_validate_db(struct radeon_cs_parser *p)
 			}
 		}
 		/* compute number of htile */
-		nbx = G_028D24_HTILE_WIDTH(track->htile_surface) ? nbx / 8 : nbx / 4;
-		nby = G_028D24_HTILE_HEIGHT(track->htile_surface) ? nby / 8 : nby / 4;
-		size = nbx * nby * 4;
+		nbx = nbx >> 3;
+		nby = nby >> 3;
+		/* size must be aligned on npipes * 2K boundary */
+		size = roundup(nbx * nby * 4, track->npipes * (2 << 10));
 		size += track->htile_offset;
 
 		if (size > radeon_bo_size(track->htile_bo)) {
@@ -1492,6 +1436,8 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 		break;
 	case DB_HTILE_SURFACE:
 		track->htile_surface = radeon_get_ib_value(p, idx);
+		/* force 8x8 htile width and height */
+		ib[idx] |= 3;
 		track->db_dirty = true;
 		break;
 	case SQ_PGM_START_FS:
