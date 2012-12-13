@@ -607,6 +607,12 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee80211_local *local = sdata->local;
+	u32 changed = BSS_CHANGED_BEACON |
+		      BSS_CHANGED_BEACON_ENABLED |
+		      BSS_CHANGED_HT |
+		      BSS_CHANGED_BASIC_RATES |
+		      BSS_CHANGED_BEACON_INT;
+	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
 
 	local->fif_other_bss++;
 	/* mesh ifaces must set allmulti to forward mcast traffic */
@@ -626,13 +632,14 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 				ifmsh->mshcfg.ht_opmode;
 	sdata->vif.bss_conf.beacon_int = MESH_DEFAULT_BEACON_INTERVAL;
 	sdata->vif.bss_conf.basic_rates =
-		ieee80211_mandatory_rates(sdata->local,
-					  ieee80211_get_sdata_band(sdata));
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON |
-						BSS_CHANGED_BEACON_ENABLED |
-						BSS_CHANGED_HT |
-						BSS_CHANGED_BASIC_RATES |
-						BSS_CHANGED_BEACON_INT);
+		ieee80211_mandatory_rates(local, band);
+
+	if (band == IEEE80211_BAND_5GHZ) {
+		sdata->vif.bss_conf.use_short_slot = true;
+		changed |= BSS_CHANGED_ERP_SLOT;
+	}
+
+	ieee80211_bss_info_change_notify(sdata, changed);
 
 	netif_carrier_on(sdata->dev);
 }
