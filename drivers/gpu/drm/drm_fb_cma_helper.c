@@ -85,17 +85,17 @@ static struct drm_fb_cma *drm_fb_cma_alloc(struct drm_device *dev,
 	if (!fb_cma)
 		return ERR_PTR(-ENOMEM);
 
+	drm_helper_mode_fill_fb_struct(&fb_cma->fb, mode_cmd);
+
+	for (i = 0; i < num_planes; i++)
+		fb_cma->obj[i] = obj[i];
+
 	ret = drm_framebuffer_init(dev, &fb_cma->fb, &drm_fb_cma_funcs);
 	if (ret) {
 		dev_err(dev->dev, "Failed to initalize framebuffer: %d\n", ret);
 		kfree(fb_cma);
 		return ERR_PTR(ret);
 	}
-
-	drm_helper_mode_fill_fb_struct(&fb_cma->fb, mode_cmd);
-
-	for (i = 0; i < num_planes; i++)
-		fb_cma->obj[i] = obj[i];
 
 	return fb_cma;
 }

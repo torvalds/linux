@@ -40,13 +40,15 @@ int mgag200_framebuffer_init(struct drm_device *dev,
 			     struct drm_mode_fb_cmd2 *mode_cmd,
 			     struct drm_gem_object *obj)
 {
-	int ret = drm_framebuffer_init(dev, &gfb->base, &mga_fb_funcs);
+	int ret;
+	
+	drm_helper_mode_fill_fb_struct(&gfb->base, mode_cmd);
+	gfb->obj = obj;
+	ret = drm_framebuffer_init(dev, &gfb->base, &mga_fb_funcs);
 	if (ret) {
 		DRM_ERROR("drm_framebuffer_init failed: %d\n", ret);
 		return ret;
 	}
-	drm_helper_mode_fill_fb_struct(&gfb->base, mode_cmd);
-	gfb->obj = obj;
 	return 0;
 }
 

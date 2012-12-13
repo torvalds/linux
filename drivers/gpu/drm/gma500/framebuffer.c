@@ -260,13 +260,13 @@ static int psb_framebuffer_init(struct drm_device *dev,
 	default:
 		return -EINVAL;
 	}
+	drm_helper_mode_fill_fb_struct(&fb->base, mode_cmd);
+	fb->gtt = gt;
 	ret = drm_framebuffer_init(dev, &fb->base, &psb_fb_funcs);
 	if (ret) {
 		dev_err(dev->dev, "framebuffer init failed: %d\n", ret);
 		return ret;
 	}
-	drm_helper_mode_fill_fb_struct(&fb->base, mode_cmd);
-	fb->gtt = gt;
 	return 0;
 }
 

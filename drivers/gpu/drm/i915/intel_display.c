@@ -8666,14 +8666,15 @@ int intel_framebuffer_init(struct drm_device *dev,
 	if (mode_cmd->offsets[0] != 0)
 		return -EINVAL;
 
+	drm_helper_mode_fill_fb_struct(&intel_fb->base, mode_cmd);
+	intel_fb->obj = obj;
+
 	ret = drm_framebuffer_init(dev, &intel_fb->base, &intel_fb_funcs);
 	if (ret) {
 		DRM_ERROR("framebuffer init failed %d\n", ret);
 		return ret;
 	}
 
-	drm_helper_mode_fill_fb_struct(&intel_fb->base, mode_cmd);
-	intel_fb->obj = obj;
 	return 0;
 }
 

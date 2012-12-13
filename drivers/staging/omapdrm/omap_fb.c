@@ -424,14 +424,6 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 	}
 
 	fb = &omap_fb->base;
-	ret = drm_framebuffer_init(dev, fb, &omap_framebuffer_funcs);
-	if (ret) {
-		dev_err(dev->dev, "framebuffer init failed: %d\n", ret);
-		goto fail;
-	}
-
-	DBG("create: FB ID: %d (%p)", fb->base.id, fb);
-
 	omap_fb->format = format;
 
 	for (i = 0; i < n; i++) {
@@ -461,6 +453,14 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 	}
 
 	drm_helper_mode_fill_fb_struct(fb, mode_cmd);
+
+	ret = drm_framebuffer_init(dev, fb, &omap_framebuffer_funcs);
+	if (ret) {
+		dev_err(dev->dev, "framebuffer init failed: %d\n", ret);
+		goto fail;
+	}
+
+	DBG("create: FB ID: %d (%p)", fb->base.id, fb);
 
 	return fb;
 

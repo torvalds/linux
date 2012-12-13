@@ -78,11 +78,6 @@ nouveau_framebuffer_init(struct drm_device *dev,
 	struct drm_framebuffer *fb = &nv_fb->base;
 	int ret;
 
-	ret = drm_framebuffer_init(dev, fb, &nouveau_framebuffer_funcs);
-	if (ret) {
-		return ret;
-	}
-
 	drm_helper_mode_fill_fb_struct(fb, mode_cmd);
 	nv_fb->nvbo = nvbo;
 
@@ -123,6 +118,11 @@ nouveau_framebuffer_init(struct drm_device *dev,
 				mode >>= 4;
 			nv_fb->r_pitch = ((fb->pitches[0] / 4) << 4) | mode;
 		}
+	}
+
+	ret = drm_framebuffer_init(dev, fb, &nouveau_framebuffer_funcs);
+	if (ret) {
+		return ret;
 	}
 
 	return 0;
