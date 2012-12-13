@@ -2533,11 +2533,12 @@ void r600_dma_fence_ring_emit(struct radeon_device *rdev,
 {
 	struct radeon_ring *ring = &rdev->ring[fence->ring];
 	u64 addr = rdev->fence_drv[fence->ring].gpu_addr;
+
 	/* write the fence */
 	radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_FENCE, 0, 0, 0));
 	radeon_ring_write(ring, addr & 0xfffffffc);
 	radeon_ring_write(ring, (upper_32_bits(addr) & 0xff));
-	radeon_ring_write(ring, fence->seq);
+	radeon_ring_write(ring, lower_32_bits(fence->seq));
 	/* generate an interrupt */
 	radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_TRAP, 0, 0, 0));
 }
