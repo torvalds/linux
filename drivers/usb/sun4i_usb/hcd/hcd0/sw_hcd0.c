@@ -1158,8 +1158,7 @@ static const struct hc_driver sw_hcd_hc_driver = {
 	.description		= "sw_hcd-hcd",
 	.product_desc		= "sw_hcd host driver",
 	.hcd_priv_size		= sizeof(struct sw_hcd),
-//	.flags              = HCD_USB2 | HCD_MEMORY,
-	.flags				= HCD_USB11 | HCD_MEMORY,
+	.flags			= HCD_USB2 | HCD_MEMORY,
 
 	/* not using irq handler or reset hooks from usbcore, since
 	 * those must be shared with peripheral code for OTG configs
