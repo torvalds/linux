@@ -2384,7 +2384,10 @@ int drm_mode_getfb(struct drm_device *dev,
 	r->depth = fb->depth;
 	r->bpp = fb->bits_per_pixel;
 	r->pitch = fb->pitches[0];
-	fb->funcs->create_handle(fb, file_priv, &r->handle);
+	if (fb->funcs->create_handle)
+		ret = fb->funcs->create_handle(fb, file_priv, &r->handle);
+	else
+		ret = -ENODEV;
 
 out:
 	mutex_unlock(&dev->mode_config.mutex);

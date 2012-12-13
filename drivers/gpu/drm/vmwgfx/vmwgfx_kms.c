@@ -373,16 +373,6 @@ void vmw_kms_cursor_post_execbuf(struct vmw_private *dev_priv)
  * Generic framebuffer code
  */
 
-int vmw_framebuffer_create_handle(struct drm_framebuffer *fb,
-				  struct drm_file *file_priv,
-				  unsigned int *handle)
-{
-	if (handle)
-		*handle = 0;
-
-	return 0;
-}
-
 /*
  * Surface framebuffer code
  */
@@ -610,7 +600,6 @@ int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 static struct drm_framebuffer_funcs vmw_framebuffer_surface_funcs = {
 	.destroy = vmw_framebuffer_surface_destroy,
 	.dirty = vmw_framebuffer_surface_dirty,
-	.create_handle = vmw_framebuffer_create_handle,
 };
 
 static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
@@ -961,7 +950,6 @@ int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 static struct drm_framebuffer_funcs vmw_framebuffer_dmabuf_funcs = {
 	.destroy = vmw_framebuffer_dmabuf_destroy,
 	.dirty = vmw_framebuffer_dmabuf_dirty,
-	.create_handle = vmw_framebuffer_create_handle,
 };
 
 /**

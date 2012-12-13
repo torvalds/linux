@@ -422,7 +422,6 @@ static void udl_user_framebuffer_destroy(struct drm_framebuffer *fb)
 static const struct drm_framebuffer_funcs udlfb_funcs = {
 	.destroy = udl_user_framebuffer_destroy,
 	.dirty = udl_user_framebuffer_dirty,
-	.create_handle = NULL,
 };
 
 

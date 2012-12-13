@@ -246,16 +246,8 @@ static void ast_user_framebuffer_destroy(struct drm_framebuffer *fb)
 	kfree(fb);
 }
 
-static int ast_user_framebuffer_create_handle(struct drm_framebuffer *fb,
-					      struct drm_file *file,
-					      unsigned int *handle)
-{
-	return -EINVAL;
-}
-
 static const struct drm_framebuffer_funcs ast_fb_funcs = {
 	.destroy = ast_user_framebuffer_destroy,
-	.create_handle = ast_user_framebuffer_create_handle,
 };
 
 
