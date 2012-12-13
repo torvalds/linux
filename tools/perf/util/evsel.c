@@ -1406,3 +1406,52 @@ bool perf_evsel__fallback(struct perf_evsel *evsel, int err,
 
 	return false;
 }
+
+int perf_evsel__open_strerror(struct perf_evsel *evsel,
+			      struct perf_target *target,
+			      int err, char *msg, size_t size)
+{
+	switch (err) {
+	case EPERM:
+	case EACCES:
+		return scnprintf(msg, size, "%s",
+		 "You may not have permission to collect %sstats.\n"
+		 "Consider tweaking /proc/sys/kernel/perf_event_paranoid:\n"
+		 " -1 - Not paranoid at all\n"
+		 "  0 - Disallow raw tracepoint access for unpriv\n"
+		 "  1 - Disallow cpu events for unpriv\n"
+		 "  2 - Disallow kernel profiling for unpriv",
+				 target->system_wide ? "system-wide " : "");
+	case ENOENT:
+		return scnprintf(msg, size, "The %s event is not supported.",
+				 perf_evsel__name(evsel));
+	case EMFILE:
+		return scnprintf(msg, size, "%s",
+			 "Too many events are opened.\n"
+			 "Try again after reducing the number of events.");
+	case ENODEV:
+		if (target->cpu_list)
+			return scnprintf(msg, size, "%s",
+	 "No such device - did you specify an out-of-range profile CPU?\n");
+		break;
+	case EOPNOTSUPP:
+		if (evsel->attr.precise_ip)
+			return scnprintf(msg, size, "%s",
+	"\'precise\' request may not be supported. Try removing 'p' modifier.");
+#if defined(__i386__) || defined(__x86_64__)
+		if (evsel->attr.type == PERF_TYPE_HARDWARE)
+			return scnprintf(msg, size, "%s",
+	"No hardware sampling interrupt available.\n"
+	"No APIC? If so then you can boot the kernel with the \"lapic\" boot parameter to force-enable it.");
+#endif
+		break;
+	default:
+		break;
+	}
+
+	return scnprintf(msg, size,
+	"The sys_perf_event_open() syscall returned with %d (%s) for event (%s).  \n"
+	"/bin/dmesg may provide additional information.\n"
+	"No CONFIG_PERF_EVENTS=y kernel support configured?\n",
+			 err, strerror(err), perf_evsel__name(evsel));
+}

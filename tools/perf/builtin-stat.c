@@ -247,6 +247,7 @@ static int read_counter(struct perf_evsel *counter)
 
 static int __run_perf_stat(int argc __maybe_unused, const char **argv)
 {
+	char msg[512];
 	unsigned long long t0, t1;
 	struct perf_evsel *counter;
 	int status = 0;
@@ -324,20 +325,13 @@ static int __run_perf_stat(int argc __maybe_unused, const char **argv)
 				continue;
 			}
 
-			if (errno == EPERM || errno == EACCES) {
-				error("You may not have permission to collect %sstats.\n"
-				      "\t Consider tweaking"
-				      " /proc/sys/kernel/perf_event_paranoid or running as root.",
-				      target.system_wide ? "system-wide " : "");
-			} else {
-				error("open_counter returned with %d (%s). "
-				      "/bin/dmesg may provide additional information.\n",
-				       errno, strerror(errno));
-			}
+			perf_evsel__open_strerror(counter, &target,
+						  errno, msg, sizeof(msg));
+			ui__error("%s\n", msg);
+
 			if (child_pid != -1)
 				kill(child_pid, SIGTERM);
 
-			pr_err("Not all events could be opened.\n");
 			return -1;
 		}
 		counter->supported = true;

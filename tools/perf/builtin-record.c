@@ -224,7 +224,7 @@ static bool perf_evlist__equal(struct perf_evlist *evlist,
 
 static int perf_record__open(struct perf_record *rec)
 {
-	char msg[128];
+	char msg[512];
 	struct perf_evsel *pos;
 	struct perf_evlist *evlist = rec->evlist;
 	struct perf_session *session = rec->session;
@@ -234,60 +234,18 @@ static int perf_record__open(struct perf_record *rec)
 	perf_evlist__config(evlist, opts);
 
 	list_for_each_entry(pos, &evlist->entries, node) {
-		struct perf_event_attr *attr = &pos->attr;
 try_again:
 		if (perf_evsel__open(pos, evlist->cpus, evlist->threads) < 0) {
-			int err = errno;
-
-			if (err == EPERM || err == EACCES) {
-				ui__error_paranoid();
-				rc = -err;
-				goto out;
-			} else if (err ==  ENODEV && opts->target.cpu_list) {
-				pr_err("No such device - did you specify"
-				       " an out-of-range profile CPU?\n");
-				rc = -err;
-				goto out;
-			}
-
-			if (perf_evsel__fallback(pos, err, msg, sizeof(msg))) {
+			if (perf_evsel__fallback(pos, errno, msg, sizeof(msg))) {
 				if (verbose)
 					ui__warning("%s\n", msg);
 				goto try_again;
 			}
 
-			if (err == ENOENT) {
-				ui__error("The %s event is not supported.\n",
-					  perf_evsel__name(pos));
-				rc = -err;
-				goto out;
-			} else if ((err == EOPNOTSUPP) && (attr->precise_ip)) {
-				ui__error("\'precise\' request may not be supported. "
-					  "Try removing 'p' modifier\n");
-				rc = -err;
-				goto out;
-			}
-
-			printf("\n");
-			error("sys_perf_event_open() syscall returned with %d "
-			      "(%s) for event %s. /bin/dmesg may provide "
-			      "additional information.\n",
-			      err, strerror(err), perf_evsel__name(pos));
-
-#if defined(__i386__) || defined(__x86_64__)
-			if (attr->type == PERF_TYPE_HARDWARE &&
-			    err == EOPNOTSUPP) {
-				pr_err("No hardware sampling interrupt available."
-				       " No APIC? If so then you can boot the kernel"
-				       " with the \"lapic\" boot parameter to"
-				       " force-enable it.\n");
-				rc = -err;
-				goto out;
-			}
-#endif
-
-			pr_err("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
-			rc = -err;
+			rc = -errno;
+			perf_evsel__open_strerror(pos, &opts->target,
+						  errno, msg, sizeof(msg));
+			ui__error("%s\n", msg);
 			goto out;
 		}
 	}

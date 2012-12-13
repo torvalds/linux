@@ -892,7 +892,7 @@ static void perf_top__mmap_read(struct perf_top *top)
 
 static void perf_top__start_counters(struct perf_top *top)
 {
-	char msg[128];
+	char msg[512];
 	struct perf_evsel *counter;
 	struct perf_evlist *evlist = top->evlist;
 	struct perf_record_opts *opts = &top->record_opts;
@@ -900,42 +900,18 @@ static void perf_top__start_counters(struct perf_top *top)
 	perf_evlist__config(evlist, opts);
 
 	list_for_each_entry(counter, &evlist->entries, node) {
-		struct perf_event_attr *attr = &counter->attr;
 try_again:
 		if (perf_evsel__open(counter, top->evlist->cpus,
 				     top->evlist->threads) < 0) {
-			int err = errno;
-
-			if (err == EPERM || err == EACCES) {
-				ui__error_paranoid();
-				goto out_err;
-			}
-
-			if (perf_evsel__fallback(counter, err, msg, sizeof(msg))) {
+			if (perf_evsel__fallback(counter, errno, msg, sizeof(msg))) {
 				if (verbose)
 					ui__warning("%s\n", msg);
 				goto try_again;
 			}
 
-			if (err == ENOENT) {
-				ui__error("The %s event is not supported.\n",
-					  perf_evsel__name(counter));
-				goto out_err;
-			} else if (err == EMFILE) {
-				ui__error("Too many events are opened.\n"
-					    "Try again after reducing the number of events\n");
-				goto out_err;
-			} else if ((err == EOPNOTSUPP) && (attr->precise_ip)) {
-				ui__error("\'precise\' request may not be supported. "
-					  "Try removing 'p' modifier\n");
-				goto out_err;
-			}
-
-			ui__error("The sys_perf_event_open() syscall "
-				    "returned with %d (%s).  /bin/dmesg "
-				    "may provide additional information.\n"
-				    "No CONFIG_PERF_EVENTS=y kernel support "
-				    "configured?\n", err, strerror(err));
+			perf_evsel__open_strerror(counter, &opts->target,
+						  errno, msg, sizeof(msg));
+			ui__error("%s\n", msg);
 			goto out_err;
 		}
 	}
