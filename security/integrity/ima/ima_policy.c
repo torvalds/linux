@@ -75,7 +75,7 @@ static struct ima_rule_entry default_rules[] = {
 	{.action = DONT_MEASURE,.fsmagic = BINFMTFS_MAGIC,.flags = IMA_FSMAGIC},
 	{.action = DONT_MEASURE,.fsmagic = SECURITYFS_MAGIC,.flags = IMA_FSMAGIC},
 	{.action = DONT_MEASURE,.fsmagic = SELINUX_MAGIC,.flags = IMA_FSMAGIC},
-	{.action = MEASURE,.func = FILE_MMAP,.mask = MAY_EXEC,
+	{.action = MEASURE,.func = MMAP_CHECK,.mask = MAY_EXEC,
 	 .flags = IMA_FUNC | IMA_MASK},
 	{.action = MEASURE,.func = BPRM_CHECK,.mask = MAY_EXEC,
 	 .flags = IMA_FUNC | IMA_MASK},
@@ -448,8 +448,9 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 				entry->func = FILE_CHECK;
 			else if (strcmp(args[0].from, "MODULE_CHECK") == 0)
 				entry->func = MODULE_CHECK;
-			else if (strcmp(args[0].from, "FILE_MMAP") == 0)
-				entry->func = FILE_MMAP;
+			else if ((strcmp(args[0].from, "FILE_MMAP") == 0)
+				|| (strcmp(args[0].from, "MMAP_CHECK") == 0))
+				entry->func = MMAP_CHECK;
 			else if (strcmp(args[0].from, "BPRM_CHECK") == 0)
 				entry->func = BPRM_CHECK;
 			else
