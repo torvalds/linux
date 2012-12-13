@@ -672,6 +672,8 @@ int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 
 	DBG("check_fb_var %d\n", ofbi->id);
 
+	WARN_ON(!atomic_read(&ofbi->region->lock_count));
+
 	r = fb_mode_to_dss_mode(var, &mode);
 	if (r) {
 		DBG("cannot convert var to omap dss mode\n");
@@ -853,6 +855,8 @@ int omapfb_setup_overlay(struct fb_info *fbi, struct omap_overlay *ovl,
 	int rotation = var->rotate;
 	int i;
 
+	WARN_ON(!atomic_read(&ofbi->region->lock_count));
+
 	for (i = 0; i < ofbi->num_overlays; i++) {
 		if (ovl != ofbi->overlays[i])
 			continue;
@@ -944,6 +948,8 @@ int omapfb_apply_changes(struct fb_info *fbi, int init)
 		fill_fb(fbi);
 #endif
 
+	WARN_ON(!atomic_read(&ofbi->region->lock_count));
+
 	for (i = 0; i < ofbi->num_overlays; i++) {
 		ovl = ofbi->overlays[i];
 
@@ -1002,16 +1008,15 @@ err:
 static int omapfb_check_var(struct fb_var_screeninfo *var, struct fb_info *fbi)
 {
 	struct omapfb_info *ofbi = FB2OFB(fbi);
-	struct omapfb2_device *fbdev = ofbi->fbdev;
 	int r;
 
 	DBG("check_var(%d)\n", FB2OFB(fbi)->id);
 
-	omapfb_lock(fbdev);
+	omapfb_get_mem_region(ofbi->region);
 
 	r = check_fb_var(fbi, var);
 
-	omapfb_unlock(fbdev);
+	omapfb_put_mem_region(ofbi->region);
 
 	return r;
 }
@@ -1020,12 +1025,11 @@ static int omapfb_check_var(struct fb_var_screeninfo *var, struct fb_info *fbi)
 static int omapfb_set_par(struct fb_info *fbi)
 {
 	struct omapfb_info *ofbi = FB2OFB(fbi);
-	struct omapfb2_device *fbdev = ofbi->fbdev;
 	int r;
 
 	DBG("set_par(%d)\n", FB2OFB(fbi)->id);
 
-	omapfb_lock(fbdev);
+	omapfb_get_mem_region(ofbi->region);
 
 	set_fb_fix(fbi);
 
@@ -1036,7 +1040,7 @@ static int omapfb_set_par(struct fb_info *fbi)
 	r = omapfb_apply_changes(fbi, 0);
 
  out:
-	omapfb_unlock(fbdev);
+	omapfb_put_mem_region(ofbi->region);
 
 	return r;
 }
@@ -1045,7 +1049,6 @@ static int omapfb_pan_display(struct fb_var_screeninfo *var,
 		struct fb_info *fbi)
 {
 	struct omapfb_info *ofbi = FB2OFB(fbi);
-	struct omapfb2_device *fbdev = ofbi->fbdev;
 	struct fb_var_screeninfo new_var;
 	int r;
 
@@ -1061,11 +1064,11 @@ static int omapfb_pan_display(struct fb_var_screeninfo *var,
 
 	fbi->var = new_var;
 
-	omapfb_lock(fbdev);
+	omapfb_get_mem_region(ofbi->region);
 
 	r = omapfb_apply_changes(fbi, 0);
 
-	omapfb_unlock(fbdev);
+	omapfb_put_mem_region(ofbi->region);
 
 	return r;
 }
@@ -1074,14 +1077,18 @@ static void mmap_user_open(struct vm_area_struct *vma)
 {
 	struct omapfb2_mem_region *rg = vma->vm_private_data;
 
+	omapfb_get_mem_region(rg);
 	atomic_inc(&rg->map_count);
+	omapfb_put_mem_region(rg);
 }
 
 static void mmap_user_close(struct vm_area_struct *vma)
 {
 	struct omapfb2_mem_region *rg = vma->vm_private_data;
 
+	omapfb_get_mem_region(rg);
 	atomic_dec(&rg->map_count);
+	omapfb_put_mem_region(rg);
 }
 
 static struct vm_operations_struct mmap_user_ops = {
@@ -1105,7 +1112,7 @@ static int omapfb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 		return -EINVAL;
 	off = vma->vm_pgoff << PAGE_SHIFT;
 
-	rg = ofbi->region;
+	rg = omapfb_get_mem_region(ofbi->region);
 
 	start = omapfb_get_region_paddr(ofbi);
 	len = fix->smem_len;
@@ -1133,9 +1140,13 @@ static int omapfb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 	/* vm_ops.open won't be called for mmap itself. */
 	atomic_inc(&rg->map_count);
 
+	omapfb_put_mem_region(rg);
+
 	return 0;
 
  error:
+	omapfb_put_mem_region(ofbi->region);
+
 	return r;
 }
 
@@ -1902,6 +1913,7 @@ static int omapfb_create_framebuffers(struct omapfb2_device *fbdev)
 
 		ofbi->region = &fbdev->regions[i];
 		ofbi->region->id = i;
+		init_rwsem(&ofbi->region->lock);
 
 		/* assign these early, so that fb alloc can use them */
 		ofbi->rotation_type = def_vrfb ? OMAP_DSS_ROT_VRFB :
@@ -1933,8 +1945,12 @@ static int omapfb_create_framebuffers(struct omapfb2_device *fbdev)
 	/* setup fb_infos */
 	for (i = 0; i < fbdev->num_fbs; i++) {
 		struct fb_info *fbi = fbdev->fbs[i];
+		struct omapfb_info *ofbi = FB2OFB(fbi);
 
+		omapfb_get_mem_region(ofbi->region);
 		r = omapfb_fb_init(fbdev, fbi);
+		omapfb_put_mem_region(ofbi->region);
+
 		if (r) {
 			dev_err(fbdev->dev, "failed to setup fb_info\n");
 			return r;
@@ -1966,8 +1982,12 @@ static int omapfb_create_framebuffers(struct omapfb2_device *fbdev)
 
 	for (i = 0; i < fbdev->num_fbs; i++) {
 		struct fb_info *fbi = fbdev->fbs[i];
+		struct omapfb_info *ofbi = FB2OFB(fbi);
 
+		omapfb_get_mem_region(ofbi->region);
 		r = omapfb_apply_changes(fbi, 1);
+		omapfb_put_mem_region(ofbi->region);
+
 		if (r) {
 			dev_err(fbdev->dev, "failed to change mode\n");
 			return r;
