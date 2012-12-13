@@ -92,6 +92,7 @@ static const struct igb_stats igb_gstrings_stats[] = {
 	IGB_STAT("os2bmc_tx_by_bmc", stats.b2ospc),
 	IGB_STAT("os2bmc_tx_by_host", stats.o2bspc),
 	IGB_STAT("os2bmc_rx_by_host", stats.b2ogprc),
+	IGB_STAT("tx_hwtstamp_timeouts", tx_hwtstamp_timeouts),
 };
 
 #define IGB_NETDEV_STAT(_net_stat) { \
