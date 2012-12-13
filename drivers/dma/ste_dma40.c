@@ -382,6 +382,7 @@ struct d40_base;
  * @client: Cliented owned descriptor list.
  * @pending_queue: Submitted jobs, to be issued by issue_pending()
  * @active: Active descriptor.
+ * @done: Completed jobs
  * @queue: Queued jobs.
  * @prepare_queue: Prepared jobs.
  * @dma_cfg: The client configuration of this dma channel.
@@ -407,6 +408,7 @@ struct d40_chan {
 	struct list_head		 client;
 	struct list_head		 pending_queue;
 	struct list_head		 active;
+	struct list_head		 done;
 	struct list_head		 queue;
 	struct list_head		 prepare_queue;
 	struct stedma40_chan_cfg	 dma_cfg;
@@ -754,6 +756,11 @@ static void d40_phy_lli_load(struct d40_chan *chan, struct d40_desc *desc)
 	writel(lli_dst->reg_lnk, base + D40_CHAN_REG_SDLNK);
 }
 
+static void d40_desc_done(struct d40_chan *d40c, struct d40_desc *desc)
+{
+	list_add_tail(&desc->node, &d40c->done);
+}
+
 static void d40_log_lli_to_lcxa(struct d40_chan *chan, struct d40_desc *desc)
 {
 	struct d40_lcla_pool *pool = &chan->base->lcla_pool;
@@ -912,6 +919,14 @@ static struct d40_desc *d40_first_queued(struct d40_chan *d40c)
 			     struct d40_desc,
 			     node);
 	return d;
+}
+
+static struct d40_desc *d40_first_done(struct d40_chan *d40c)
+{
+	if (list_empty(&d40c->done))
+		return NULL;
+
+	return list_first_entry(&d40c->done, struct d40_desc, node);
 }
 
 static int d40_psize_2_burst_size(bool is_log, int psize)
@@ -1103,6 +1118,12 @@ static void d40_term_all(struct d40_chan *d40c)
 {
 	struct d40_desc *d40d;
 	struct d40_desc *_d;
+
+	/* Release completed descriptors */
+	while ((d40d = d40_first_done(d40c))) {
+		d40_desc_remove(d40d);
+		d40_desc_free(d40c, d40d);
+	}
 
 	/* Release active descriptors */
 	while ((d40d = d40_first_active_get(d40c))) {
@@ -1541,6 +1562,9 @@ static void dma_tc_handle(struct d40_chan *d40c)
 		pm_runtime_put_autosuspend(d40c->base->dev);
 	}
 
+	d40_desc_remove(d40d);
+	d40_desc_done(d40c, d40d);
+
 	d40c->pending_tx++;
 	tasklet_schedule(&d40c->tasklet);
 
@@ -1556,10 +1580,14 @@ static void dma_tasklet(unsigned long data)
 
 	spin_lock_irqsave(&d40c->lock, flags);
 
-	/* Get first active entry from list */
-	d40d = d40_first_active_get(d40c);
-	if (d40d == NULL)
-		goto err;
+	/* Get first entry from the done list */
+	d40d = d40_first_done(d40c);
+	if (d40d == NULL) {
+		/* Check if we have reached here for cyclic job */
+		d40d = d40_first_active_get(d40c);
+		if (d40d == NULL || !d40d->cyclic)
+			goto err;
+	}
 
 	if (!d40d->cyclic)
 		dma_cookie_complete(&d40d->txd);
@@ -2823,6 +2851,7 @@ static void __init d40_chan_init(struct d40_base *base, struct dma_device *dma,
 
 		d40c->log_num = D40_PHY_CHAN;
 
+		INIT_LIST_HEAD(&d40c->done);
 		INIT_LIST_HEAD(&d40c->active);
 		INIT_LIST_HEAD(&d40c->queue);
 		INIT_LIST_HEAD(&d40c->pending_queue);
