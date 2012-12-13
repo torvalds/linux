@@ -263,6 +263,7 @@ const char *__clk_get_name(struct clk *clk)
 {
 	return !clk ? NULL : clk->name;
 }
+EXPORT_SYMBOL_GPL(__clk_get_name);
 
 struct clk_hw *__clk_get_hw(struct clk *clk)
 {
