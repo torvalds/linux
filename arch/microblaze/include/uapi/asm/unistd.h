@@ -394,7 +394,8 @@
 #define __NR_sendmmsg		376
 #define __NR_process_vm_readv	377
 #define __NR_process_vm_writev	378
+#define __NR_kcmp		379
 
-#define __NR_syscalls		379
+#define __NR_syscalls		380
 
 #endif /* _UAPI_ASM_MICROBLAZE_UNISTD_H */
