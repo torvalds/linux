@@ -67,7 +67,6 @@
 
 const nfs4_stateid zero_stateid;
 static DEFINE_MUTEX(nfs_clid_init_mutex);
-static LIST_HEAD(nfs4_clientid_list);
 
 int nfs4_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)
 {
