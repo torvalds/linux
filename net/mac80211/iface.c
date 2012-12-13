@@ -775,8 +775,10 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	 * This is relevant only in WDS mode, in all other modes we've
 	 * already removed all stations when disconnecting or similar,
 	 * so warn otherwise.
+	 *
+	 * We call sta_info_flush_cleanup() later, to combine RCU waits.
 	 */
-	flushed = sta_info_flush(sdata);
+	flushed = sta_info_flush_defer(sdata);
 	WARN_ON_ONCE((sdata->vif.type != NL80211_IFTYPE_WDS && flushed > 0) ||
 		     (sdata->vif.type == NL80211_IFTYPE_WDS && flushed != 1));
 
@@ -861,11 +863,14 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		cancel_work_sync(&sdata->work);
 		/*
 		 * When we get here, the interface is marked down.
-		 * Call synchronize_rcu() to wait for the RX path
-		 * should it be using the interface and enqueuing
-		 * frames at this very time on another CPU.
+		 * sta_info_flush_cleanup() calls rcu_barrier to
+		 * wait for the station call_rcu() calls to complete,
+		 * here we require it to wait for the RX path in case
+		 * it is using the interface and enqueuing frames at
+		 * this very time on another CPU.
 		 */
-		synchronize_rcu();
+		sta_info_flush_cleanup(sdata);
+
 		skb_queue_purge(&sdata->skb_queue);
 
 		/*

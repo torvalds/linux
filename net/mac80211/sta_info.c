@@ -104,6 +104,16 @@ static void cleanup_single_sta(struct sta_info *sta)
 	 * neither mac80211 nor the driver can reference this
 	 * sta struct any more except by still existing timers
 	 * associated with this station that we clean up below.
+	 *
+	 * Note though that this still uses the sdata and even
+	 * calls the driver in AP and mesh mode, so interfaces
+	 * of those types mush use call sta_info_flush_cleanup()
+	 * (typically via sta_info_flush()) before deconfiguring
+	 * the driver.
+	 *
+	 * In station mode, nothing happens here so it doesn't
+	 * have to (and doesn't) do that, this is intentional to
+	 * speed up roaming.
 	 */
 
 	if (test_sta_flag(sta, WLAN_STA_PS_STA)) {
@@ -887,14 +897,8 @@ void sta_info_stop(struct ieee80211_local *local)
 	del_timer_sync(&local->sta_cleanup);
 }
 
-/**
- * sta_info_flush - flush matching STA entries from the STA table
- *
- * Returns the number of removed STA entries.
- *
- * @sdata: sdata to remove all stations from
- */
-int sta_info_flush(struct ieee80211_sub_if_data *sdata)
+
+int sta_info_flush_defer(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta, *tmp;
@@ -911,12 +915,15 @@ int sta_info_flush(struct ieee80211_sub_if_data *sdata)
 	}
 	mutex_unlock(&local->sta_mtx);
 
+	return ret;
+}
+
+void sta_info_flush_cleanup(struct ieee80211_sub_if_data *sdata)
+{
 	rcu_barrier();
 
 	ieee80211_cleanup_sdata_stas(sdata);
 	cancel_work_sync(&sdata->cleanup_stations_wk);
-
-	return ret;
 }
 
 void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
