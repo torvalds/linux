@@ -407,6 +407,7 @@
 		phy_type = "utmi";
 		nvidia,has-legacy-mode;
 		clocks = <&tegra_car 22>;
+		nvidia,needs-double-reset;
 		status = "disabled";
 	};
 
