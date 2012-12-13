@@ -62,6 +62,9 @@ void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 	__check_htcap_disable(sdata, ht_cap, IEEE80211_HT_CAP_SUP_WIDTH_20_40);
 	__check_htcap_disable(sdata, ht_cap, IEEE80211_HT_CAP_SGI_40);
 
+	/* Allow user to disable SGI-20 (SGI-40 is handled above) */
+	__check_htcap_disable(sdata, ht_cap, IEEE80211_HT_CAP_SGI_20);
+
 	/* Allow user to disable the max-AMSDU bit. */
 	__check_htcap_disable(sdata, ht_cap, IEEE80211_HT_CAP_MAX_AMSDU);
 
