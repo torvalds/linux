@@ -3,7 +3,7 @@
 #
 
 # Common support
-obj-y := common.o sram.o dma.o fb.o counter_32k.o
+obj-y := sram.o dma.o fb.o counter_32k.o
 obj-m :=
 obj-n :=
 obj-  :=
@@ -19,4 +19,3 @@ obj-y += $(i2c-omap-m) $(i2c-omap-y)
 # OMAP mailbox framework
 obj-$(CONFIG_OMAP_MBOX_FWK) += mailbox.o
 
-obj-$(CONFIG_OMAP_PM_NOOP) += omap-pm-noop.o

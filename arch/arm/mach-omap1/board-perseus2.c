@@ -30,13 +30,13 @@
 
 #include <mach/tc.h>
 #include <mach/mux.h>
-#include <../plat-omap/fpga.h>
 #include <mach/flash.h>
 
 #include <mach/hardware.h>
 
 #include "iomap.h"
 #include "common.h"
+#include "fpga.h"
 
 static const unsigned int p2_keymap[] = {
 	KEY(0, 0, KEY_UP),

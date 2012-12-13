@@ -34,8 +34,6 @@
 
 #include <asm/proc-fns.h>
 
-#include "../plat-omap/common.h"
-
 #include "i2c.h"
 #include "serial.h"
 
@@ -84,6 +82,7 @@ extern void omap2_init_common_infrastructure(void);
 extern struct sys_timer omap2_timer;
 extern struct sys_timer omap3_timer;
 extern struct sys_timer omap3_secure_timer;
+extern struct sys_timer omap3_gp_timer;
 extern struct sys_timer omap3_am33xx_timer;
 extern struct sys_timer omap4_timer;
 extern struct sys_timer omap5_timer;
@@ -279,6 +278,9 @@ extern void omap_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 struct omap2_hsmmc_info;
 extern int omap4_twl6030_hsmmc_init(struct omap2_hsmmc_info *controllers);
 extern void omap_reserve(void);
+
+struct omap_hwmod;
+extern int omap_dss_reset(struct omap_hwmod *);
 
 #endif /* __ASSEMBLER__ */
 #endif /* __ARCH_ARM_MACH_OMAP2PLUS_COMMON_H */

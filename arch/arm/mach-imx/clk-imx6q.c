@@ -19,8 +19,9 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <mach/common.h>
+
 #include "clk.h"
+#include "common.h"
 
 #define CCGR0				0x68
 #define CCGR1				0x6c
@@ -405,6 +406,7 @@ int __init mx6q_clocks_init(void)
 	clk_register_clkdev(clk[cko1_sel], "cko1_sel", NULL);
 	clk_register_clkdev(clk[ahb], "ahb", NULL);
 	clk_register_clkdev(clk[cko1], "cko1", NULL);
+	clk_register_clkdev(clk[arm], NULL, "cpu0");
 
 	/*
 	 * The gpmi needs 100MHz frequency in the EDO/Sync mode,

@@ -1823,6 +1823,11 @@ S: Kattreinstr 38
 S: D-64295
 S: Germany
 
+N: Avi Kivity
+E: avi.kivity@gmail.com
+D: Kernel-based Virtual Machine (KVM)
+S: Ra'annana, Israel
+
 N: Andi Kleen
 E: andi@firstfloor.org
 U: http://www.halobates.de

@@ -25,9 +25,7 @@
 #include <asm/tlb.h>
 #include <asm/mach/map.h>
 
-#include <plat-omap/dma-omap.h>
-
-#include "../plat-omap/sram.h"
+#include <linux/omap-dma.h>
 
 #include "omap_hwmod.h"
 #include "soc.h"
@@ -44,6 +42,7 @@
 #include "sdrc.h"
 #include "control.h"
 #include "serial.h"
+#include "sram.h"
 #include "cm2xxx.h"
 #include "cm3xxx.h"
 #include "prm.h"
@@ -51,6 +50,10 @@
 #include "prcm_mpu44xx.h"
 #include "prminst44xx.h"
 #include "cminst44xx.h"
+#include "prm2xxx.h"
+#include "prm3xxx.h"
+#include "prm44xx.h"
+
 /*
  * The machine specific code may provide the extra mapping besides the
  * default mapping provided here.
@@ -361,11 +364,6 @@ static int _set_hwmod_postsetup_state(struct omap_hwmod *oh, void *data)
 	return omap_hwmod_set_postsetup_state(oh, *(u8 *)data);
 }
 
-static void __init omap_common_init_early(void)
-{
-	omap_init_consistent_dma_size();
-}
-
 static void __init omap_hwmod_init_postsetup(void)
 {
 	u8 postsetup_state;
@@ -392,8 +390,8 @@ void __init omap2420_init_early(void)
 	omap2_set_globals_prm(OMAP2_L4_IO_ADDRESS(OMAP2420_PRM_BASE));
 	omap2_set_globals_cm(OMAP2_L4_IO_ADDRESS(OMAP2420_CM_BASE), NULL);
 	omap2xxx_check_revision();
+	omap2xxx_prm_init();
 	omap2xxx_cm_init();
-	omap_common_init_early();
 	omap2xxx_voltagedomains_init();
 	omap242x_powerdomains_init();
 	omap242x_clockdomains_init();
@@ -422,8 +420,8 @@ void __init omap2430_init_early(void)
 	omap2_set_globals_prm(OMAP2_L4_IO_ADDRESS(OMAP2430_PRM_BASE));
 	omap2_set_globals_cm(OMAP2_L4_IO_ADDRESS(OMAP2430_CM_BASE), NULL);
 	omap2xxx_check_revision();
+	omap2xxx_prm_init();
 	omap2xxx_cm_init();
-	omap_common_init_early();
 	omap2xxx_voltagedomains_init();
 	omap243x_powerdomains_init();
 	omap243x_clockdomains_init();
@@ -457,8 +455,8 @@ void __init omap3_init_early(void)
 	omap2_set_globals_cm(OMAP2_L4_IO_ADDRESS(OMAP3430_CM_BASE), NULL);
 	omap3xxx_check_revision();
 	omap3xxx_check_features();
+	omap3xxx_prm_init();
 	omap3xxx_cm_init();
-	omap_common_init_early();
 	omap3xxx_voltagedomains_init();
 	omap3xxx_powerdomains_init();
 	omap3xxx_clockdomains_init();
@@ -497,7 +495,6 @@ void __init ti81xx_init_early(void)
 	omap2_set_globals_cm(OMAP2_L4_IO_ADDRESS(TI81XX_PRCM_BASE), NULL);
 	omap3xxx_check_revision();
 	ti81xx_check_features();
-	omap_common_init_early();
 	omap3xxx_voltagedomains_init();
 	omap3xxx_powerdomains_init();
 	omap3xxx_clockdomains_init();
@@ -566,7 +563,6 @@ void __init am33xx_init_early(void)
 	omap2_set_globals_cm(AM33XX_L4_WK_IO_ADDRESS(AM33XX_PRCM_BASE), NULL);
 	omap3xxx_check_revision();
 	ti81xx_check_features();
-	omap_common_init_early();
 	am33xx_voltagedomains_init();
 	am33xx_powerdomains_init();
 	am33xx_clockdomains_init();
@@ -591,7 +587,7 @@ void __init omap4430_init_early(void)
 	omap_cm_base_init();
 	omap4xxx_check_revision();
 	omap4xxx_check_features();
-	omap_common_init_early();
+	omap44xx_prm_init();
 	omap44xx_voltagedomains_init();
 	omap44xx_powerdomains_init();
 	omap44xx_clockdomains_init();
@@ -623,7 +619,6 @@ void __init omap5_init_early(void)
 	omap_prm_base_init();
 	omap_cm_base_init();
 	omap5xxx_check_revision();
-	omap_common_init_early();
 }
 #endif
 

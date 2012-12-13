@@ -703,7 +703,7 @@ void __init pxa_set_ohci_info(struct pxaohci_platform_data *info)
 }
 #endif /* CONFIG_PXA27x || CONFIG_PXA3xx */
 
-#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx) || defined(CONFIG_PXA95x)
+#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
 static struct resource pxa27x_resource_keypad[] = {
 	[0] = {
 		.start	= 0x41500000,
@@ -872,7 +872,7 @@ struct platform_device pxa27x_device_pwm1 = {
 	.resource	= pxa27x_resource_pwm1,
 	.num_resources	= ARRAY_SIZE(pxa27x_resource_pwm1),
 };
-#endif /* CONFIG_PXA27x || CONFIG_PXA3xx || CONFIG_PXA95x*/
+#endif /* CONFIG_PXA27x || CONFIG_PXA3xx */
 
 #ifdef CONFIG_PXA3xx
 static struct resource pxa3xx_resources_mci2[] = {
@@ -981,7 +981,7 @@ struct platform_device pxa3xx_device_gcu = {
 
 #endif /* CONFIG_PXA3xx */
 
-#if defined(CONFIG_PXA3xx) || defined(CONFIG_PXA95x)
+#if defined(CONFIG_PXA3xx)
 static struct resource pxa3xx_resources_i2c_power[] = {
 	{
 		.start  = 0x40f500c0,
@@ -1082,7 +1082,7 @@ struct platform_device pxa3xx_device_ssp4 = {
 	.resource	= pxa3xx_resource_ssp4,
 	.num_resources	= ARRAY_SIZE(pxa3xx_resource_ssp4),
 };
-#endif /* CONFIG_PXA3xx || CONFIG_PXA95x */
+#endif /* CONFIG_PXA3xx */
 
 struct resource pxa_resource_gpio[] = {
 	{

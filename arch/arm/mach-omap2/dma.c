@@ -28,7 +28,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 
-#include <plat-omap/dma-omap.h>
+#include <linux/omap-dma.h>
 
 #include "soc.h"
 #include "omap_hwmod.h"
@@ -275,6 +275,9 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 		dev_err(&pdev->dev, "%s: kzalloc fail\n", __func__);
 		return -ENOMEM;
 	}
+
+	if (cpu_is_omap34xx() && (omap_type() != OMAP2_DEVICE_TYPE_GP))
+		d->dev_caps |= HS_CHANNELS_RESERVED;
 
 	/* Check the capabilities register for descriptor loading feature */
 	if (dma_read(CAPS_0, 0) & DMA_HAS_DESCRIPTOR_CAPS)

@@ -58,7 +58,7 @@
 			reg = <0x10000000 0x10000000>;
 			ranges;
 
-			wdog@10002000 {
+			wdog: wdog@10002000 {
 				compatible = "fsl,imx27-wdt", "fsl,imx21-wdt";
 				reg = <0x10002000 0x4000>;
 				interrupts = <27>;
@@ -113,7 +113,7 @@
 			i2c1: i2c@10012000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "fsl,imx27-i2c", "fsl,imx1-i2c";
+				compatible = "fsl,imx27-i2c", "fsl,imx21-i2c";
 				reg = <0x10012000 0x1000>;
 				interrupts = <12>;
 				status = "disabled";
@@ -205,7 +205,7 @@
 			i2c2: i2c@1001d000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "fsl,imx27-i2c", "fsl,imx1-i2c";
+				compatible = "fsl,imx27-i2c", "fsl,imx21-i2c";
 				reg = <0x1001d000 0x1000>;
 				interrupts = <1>;
 				status = "disabled";
@@ -218,7 +218,8 @@
 				status = "disabled";
 			};
 		};
-		nand@d8000000 {
+
+		nfc: nand@d8000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 

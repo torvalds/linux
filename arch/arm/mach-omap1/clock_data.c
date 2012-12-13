@@ -27,10 +27,9 @@
 #include <mach/hardware.h>
 #include <mach/usb.h>   /* for OTG_BASE */
 
-#include "../plat-omap/sram.h"
-
 #include "iomap.h"
 #include "clock.h"
+#include "sram.h"
 
 /* Some ARM_IDLECT1 bit shifts - used in struct arm_idlect1_clk */
 #define IDL_CLKOUT_ARM_SHIFT			12

@@ -154,6 +154,7 @@ extern void omap3xxx_prm_restore_irqen(u32 *saved_mask);
 
 extern void omap3xxx_prm_dpll3_reset(void);
 
+extern int __init omap3xxx_prm_init(void);
 extern u32 omap3xxx_prm_get_reset_sources(void);
 
 #endif /* __ASSEMBLER */

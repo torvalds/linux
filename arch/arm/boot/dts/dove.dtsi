@@ -4,6 +4,12 @@
 	compatible = "marvell,dove";
 	model = "Marvell Armada 88AP510 SoC";
 
+	aliases {
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+		gpio2 = &gpio2;
+	};
+
 	soc@f1000000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -72,7 +78,8 @@
 			#gpio-cells = <2>;
 			gpio-controller;
 			reg = <0xd0400 0x20>;
-			ngpio = <32>;
+			ngpios = <32>;
+			interrupt-controller;
 			interrupts = <12>, <13>, <14>, <60>;
 		};
 
@@ -81,7 +88,8 @@
 			#gpio-cells = <2>;
 			gpio-controller;
 			reg = <0xd0420 0x20>;
-			ngpio = <32>;
+			ngpios = <32>;
+			interrupt-controller;
 			interrupts = <61>;
 		};
 
@@ -90,7 +98,12 @@
 			#gpio-cells = <2>;
 			gpio-controller;
 			reg = <0xe8400 0x0c>;
-			ngpio = <8>;
+			ngpios = <8>;
+		};
+
+		pinctrl: pinctrl@d0200 {
+			compatible = "marvell,dove-pinctrl";
+			reg = <0xd0200 0x10>;
 		};
 
 		spi0: spi@10600 {

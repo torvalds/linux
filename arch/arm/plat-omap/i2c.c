@@ -31,33 +31,12 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 
-#include <mach/irqs.h>
-
-#include "../mach-omap1/soc.h"
-#include "../mach-omap2/soc.h"
-
-#include "i2c.h"
+#include <plat/i2c.h>
 
 #define OMAP_I2C_MAX_CONTROLLERS 4
 static struct omap_i2c_bus_platform_data i2c_pdata[OMAP_I2C_MAX_CONTROLLERS];
 
 #define OMAP_I2C_CMDLINE_SETUP	(BIT(31))
-
-static int __init omap_i2c_nr_ports(void)
-{
-	int ports = 0;
-
-	if (cpu_class_is_omap1())
-		ports = 1;
-	else if (cpu_is_omap24xx())
-		ports = 2;
-	else if (cpu_is_omap34xx())
-		ports = 3;
-	else if (cpu_is_omap44xx())
-		ports = 4;
-
-	return ports;
-}
 
 /**
  * omap_i2c_bus_setup - Process command line options for the I2C bus speed
@@ -72,12 +51,11 @@ static int __init omap_i2c_nr_ports(void)
  */
 static int __init omap_i2c_bus_setup(char *str)
 {
-	int ports;
 	int ints[3];
 
-	ports = omap_i2c_nr_ports();
 	get_options(str, 3, ints);
-	if (ints[0] < 2 || ints[1] < 1 || ints[1] > ports)
+	if (ints[0] < 2 || ints[1] < 1 ||
+			ints[1] > OMAP_I2C_MAX_CONTROLLERS)
 		return 0;
 	i2c_pdata[ints[1] - 1].clkrate = ints[2];
 	i2c_pdata[ints[1] - 1].clkrate |= OMAP_I2C_CMDLINE_SETUP;
@@ -122,7 +100,7 @@ int __init omap_register_i2c_bus(int bus_id, u32 clkrate,
 {
 	int err;
 
-	BUG_ON(bus_id < 1 || bus_id > omap_i2c_nr_ports());
+	BUG_ON(bus_id < 1 || bus_id > OMAP_I2C_MAX_CONTROLLERS);
 
 	if (info) {
 		err = i2c_register_board_info(bus_id, info, len);

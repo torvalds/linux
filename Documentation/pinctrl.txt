@@ -1193,4 +1193,6 @@ foo_switch()
 	...
 }
 
-The above has to be done from process context.
+The above has to be done from process context. The reservation of the pins
+will be done when the state is activated, so in effect one specific pin
+can be used by different functions at different times on a running system.

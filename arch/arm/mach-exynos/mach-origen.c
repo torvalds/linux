@@ -23,7 +23,10 @@
 #include <linux/mfd/max8997.h>
 #include <linux/lcd.h>
 #include <linux/rfkill-gpio.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <linux/platform_data/s3c-hsotg.h>
+#include <linux/platform_data/usb-ehci-s5p.h>
+#include <linux/platform_data/usb-exynos.h>
 
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
@@ -36,8 +39,6 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/sdhci.h>
-#include <linux/platform_data/i2c-s3c2410.h>
-#include <linux/platform_data/usb-ehci-s5p.h>
 #include <plat/clock.h>
 #include <plat/gpio-cfg.h>
 #include <plat/backlight.h>
@@ -45,7 +46,6 @@
 #include <plat/mfc.h>
 #include <plat/hdmi.h>
 
-#include <linux/platform_data/usb-exynos.h>
 #include <mach/map.h>
 
 #include <drm/exynos_drm.h>
@@ -709,9 +709,6 @@ static struct platform_device *origen_devices[] __initdata = {
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
 	&s5p_device_mixer,
-#ifdef CONFIG_DRM_EXYNOS
-	&exynos_device_drm,
-#endif
 	&exynos4_device_ohci,
 	&origen_device_gpiokeys,
 	&origen_lcd_hv070wsa,

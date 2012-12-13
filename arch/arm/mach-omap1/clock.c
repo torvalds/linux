@@ -24,12 +24,11 @@
 
 #include <mach/hardware.h>
 
-#include "../plat-omap/sram.h"
-
 #include "soc.h"
 #include "iomap.h"
 #include "clock.h"
 #include "opp.h"
+#include "sram.h"
 
 __u32 arm_idlect1_mask;
 struct clk *api_ck_p, *ck_dpll1_p, *ck_ref_p;

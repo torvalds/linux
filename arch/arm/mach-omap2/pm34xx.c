@@ -28,19 +28,17 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/omap-dma.h>
 #include <linux/platform_data/gpio-omap.h>
 
 #include <trace/events/power.h>
 
+#include <asm/fncpy.h>
 #include <asm/suspend.h>
 #include <asm/system_misc.h>
 
 #include "clockdomain.h"
 #include "powerdomain.h"
-#include <plat-omap/dma-omap.h>
-
-#include "../plat-omap/sram.h"
-
 #include "soc.h"
 #include "common.h"
 #include "cm3xxx.h"
@@ -50,6 +48,7 @@
 #include "prm3xxx.h"
 #include "pm.h"
 #include "sdrc.h"
+#include "sram.h"
 #include "control.h"
 
 /* pm34xx errata defined in pm.h */

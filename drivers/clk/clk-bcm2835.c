@@ -55,5 +55,5 @@ void __init bcm2835_init_clocks(void)
 		pr_err("uart1_pclk not registered\n");
 	ret = clk_register_clkdev(clk, NULL, "20215000.uart");
 	if (ret)
-		pr_err("uart0_pclk alias not registered\n");
+		pr_err("uart1_pclk alias not registered\n");
 }

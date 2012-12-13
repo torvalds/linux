@@ -301,7 +301,7 @@ static inline void otg_device_init(struct omap_usb_config *pdata)
 
 #endif
 
-u32 __init omap1_usb0_init(unsigned nwires, unsigned is_device)
+static u32 __init omap1_usb0_init(unsigned nwires, unsigned is_device)
 {
 	u32	syscon1 = 0;
 
@@ -409,7 +409,7 @@ u32 __init omap1_usb0_init(unsigned nwires, unsigned is_device)
 	return syscon1 << 16;
 }
 
-u32 __init omap1_usb1_init(unsigned nwires)
+static u32 __init omap1_usb1_init(unsigned nwires)
 {
 	u32	syscon1 = 0;
 
@@ -475,7 +475,7 @@ bad:
 	return syscon1 << 20;
 }
 
-u32 __init omap1_usb2_init(unsigned nwires, unsigned alt_pingroup)
+static u32 __init omap1_usb2_init(unsigned nwires, unsigned alt_pingroup)
 {
 	u32	syscon1 = 0;
 

@@ -19,19 +19,21 @@
 #include <linux/cpumask.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/clk/zynq.h>
+#include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/of.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/mach/time.h>
 #include <asm/mach-types.h>
 #include <asm/page.h>
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 
 #include <mach/zynq_soc.h>
-#include <mach/clkdev.h>
 #include "common.h"
 
 static struct of_device_id zynq_of_bus_ids[] __initdata = {
@@ -45,22 +47,25 @@ static struct of_device_id zynq_of_bus_ids[] __initdata = {
  */
 static void __init xilinx_init_machine(void)
 {
-#ifdef CONFIG_CACHE_L2X0
 	/*
 	 * 64KB way size, 8-way associativity, parity disabled
 	 */
-	l2x0_init(PL310_L2CC_BASE, 0x02060000, 0xF0F0FFFF);
-#endif
+	l2x0_of_init(0x02060000, 0xF0F0FFFF);
 
 	of_platform_bus_probe(NULL, zynq_of_bus_ids, NULL);
 }
+
+static struct of_device_id irq_match[] __initdata = {
+	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
+	{ }
+};
 
 /**
  * xilinx_irq_init() - Interrupt controller initialization for the GIC.
  */
 static void __init xilinx_irq_init(void)
 {
-	gic_init(0, 29, SCU_GIC_DIST_BASE, SCU_GIC_CPU_BASE);
+	of_irq_init(irq_match);
 }
 
 /* The minimum devices needed to be mapped before the VM system is up and
@@ -71,29 +76,45 @@ static struct map_desc io_desc[] __initdata = {
 	{
 		.virtual	= TTC0_VIRT,
 		.pfn		= __phys_to_pfn(TTC0_PHYS),
-		.length		= SZ_4K,
+		.length		= TTC0_SIZE,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= SCU_PERIPH_VIRT,
 		.pfn		= __phys_to_pfn(SCU_PERIPH_PHYS),
-		.length		= SZ_8K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= PL310_L2CC_VIRT,
-		.pfn		= __phys_to_pfn(PL310_L2CC_PHYS),
-		.length		= SZ_4K,
+		.length		= SCU_PERIPH_SIZE,
 		.type		= MT_DEVICE,
 	},
 
 #ifdef CONFIG_DEBUG_LL
 	{
-		.virtual	= UART0_VIRT,
-		.pfn		= __phys_to_pfn(UART0_PHYS),
-		.length		= SZ_4K,
+		.virtual	= LL_UART_VADDR,
+		.pfn		= __phys_to_pfn(LL_UART_PADDR),
+		.length		= UART_SIZE,
 		.type		= MT_DEVICE,
 	},
 #endif
 
+};
+
+static void __init xilinx_zynq_timer_init(void)
+{
+	struct device_node *np;
+	void __iomem *slcr;
+
+	np = of_find_compatible_node(NULL, NULL, "xlnx,zynq-slcr");
+	slcr = of_iomap(np, 0);
+	WARN_ON(!slcr);
+
+	xilinx_zynq_clocks_init(slcr);
+
+	xttcpss_timer_init();
+}
+
+/*
+ * Instantiate and initialize the system timer structure
+ */
+static struct sys_timer xttcpss_sys_timer = {
+	.init		= xilinx_zynq_timer_init,
 };
 
 /**
@@ -105,7 +126,8 @@ static void __init xilinx_map_io(void)
 }
 
 static const char *xilinx_dt_match[] = {
-	"xlnx,zynq-ep107",
+	"xlnx,zynq-zc702",
+	"xlnx,zynq-7000",
 	NULL
 };
 

@@ -82,8 +82,6 @@ static struct map_desc u300_io_desc[] __initdata = {
 static void __init u300_map_io(void)
 {
 	iotable_init(u300_io_desc, ARRAY_SIZE(u300_io_desc));
-	/* We enable a real big DMA buffer if need be. */
-	init_consistent_dma_size(SZ_4M);
 }
 
 /*

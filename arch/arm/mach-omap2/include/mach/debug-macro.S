@@ -13,7 +13,7 @@
 
 #include <linux/serial_reg.h>
 
-#include <../mach-omap2/serial.h>
+#include <mach/serial.h>
 
 #define UART_OFFSET(addr)	((addr) & 0x00ffffff)
 

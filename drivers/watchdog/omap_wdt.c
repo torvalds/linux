@@ -45,8 +45,6 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
-#include <mach/hardware.h>
-
 #include <linux/platform_data/omap-wd-timer.h>
 
 #include "omap_wdt.h"

@@ -429,6 +429,17 @@ static struct attribute_group netstat_group = {
 	.name  = "statistics",
 	.attrs  = netstat_attrs,
 };
+
+#if IS_ENABLED(CONFIG_WIRELESS_EXT) || IS_ENABLED(CONFIG_CFG80211)
+static struct attribute *wireless_attrs[] = {
+	NULL
+};
+
+static struct attribute_group wireless_group = {
+	.name = "wireless",
+	.attrs = wireless_attrs,
+};
+#endif
 #endif /* CONFIG_SYSFS */
 
 #ifdef CONFIG_RPS
@@ -1409,6 +1420,15 @@ int netdev_register_kobject(struct net_device *net)
 		groups++;
 
 	*groups++ = &netstat_group;
+
+#if IS_ENABLED(CONFIG_WIRELESS_EXT) || IS_ENABLED(CONFIG_CFG80211)
+	if (net->ieee80211_ptr)
+		*groups++ = &wireless_group;
+#if IS_ENABLED(CONFIG_WIRELESS_EXT)
+	else if (net->wireless_handlers)
+		*groups++ = &wireless_group;
+#endif
+#endif
 #endif /* CONFIG_SYSFS */
 
 	error = device_add(dev);

@@ -27,7 +27,6 @@
 #include <linux/bch.h>
 #endif
 
-#include <plat-omap/dma-omap.h>
 #include <linux/platform_data/mtd-nand-omap2.h>
 
 #define	DRIVER_NAME	"omap2-nand"

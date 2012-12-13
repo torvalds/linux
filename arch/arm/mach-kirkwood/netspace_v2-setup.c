@@ -79,7 +79,7 @@ static struct platform_device netspace_v2_gpio_buttons = {
 	.name		= "gpio-keys",
 	.id		= -1,
 	.dev		= {
-		.platform_data 	= &netspace_v2_button_data,
+		.platform_data	= &netspace_v2_button_data,
 	},
 };
 
@@ -211,7 +211,7 @@ static unsigned int netspace_v2_mpp_config[] __initdata = {
 	MPP29_GPIO,		/* Blue led (slow register) */
 	MPP30_GPIO,		/* Blue led (command register) */
 	MPP31_GPIO,		/* Board power off */
-	MPP32_GPIO, 		/* Power button (0 = Released, 1 = Pushed) */
+	MPP32_GPIO,		/* Power button (0 = Released, 1 = Pushed) */
 	MPP33_GPO,		/* Fan speed (bit 2) */
 	0
 };

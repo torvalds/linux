@@ -13,6 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/errno.h>
 
 #include "cm2xxx.h"
 #include "cm3xxx.h"

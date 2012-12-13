@@ -28,8 +28,6 @@
 
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 
-#include <plat/cpu.h>
-
 #include "mcbsp.h"
 
 static void omap_mcbsp_write(struct omap_mcbsp *mcbsp, u16 reg, u32 val)
@@ -612,7 +610,7 @@ void omap_mcbsp_free(struct omap_mcbsp *mcbsp)
 	 * system will refuse to enter idle if the CLKS pin source is not reset
 	 * back to internal source.
 	 */
-	if (!cpu_class_is_omap1())
+	if (!mcbsp_omap1())
 		omap2_mcbsp_set_clks_src(mcbsp, MCBSP_CLKS_PRCM_SRC);
 
 	spin_lock(&mcbsp->lock);

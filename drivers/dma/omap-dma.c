@@ -19,14 +19,6 @@
 
 #include "virt-dma.h"
 
-#include <plat-omap/dma-omap.h>
-
-#ifdef CONFIG_ARCH_OMAP2PLUS
-#define dma_omap2plus()	1
-#else
-#define dma_omap2plus()	0
-#endif
-
 struct omap_dmadev {
 	struct dma_device ddev;
 	spinlock_t lock;

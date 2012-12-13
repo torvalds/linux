@@ -150,15 +150,6 @@ static struct platform_device snd_soc_mop500 = {
 	},
 };
 
-/* Platform device for Ux500-PCM */
-static struct platform_device ux500_pcm = {
-		.name = "ux500-pcm",
-		.id = 0,
-		.dev = {
-			.platform_data = NULL,
-		},
-};
-
 struct msp_i2s_platform_data msp2_platform_data = {
 	.id = MSP_I2S_2,
 	.msp_i2s_dma_rx = &msp2_dma_rx,
@@ -185,11 +176,4 @@ void mop500_audio_init(struct device *parent)
 			   &msp2_platform_data);
 	db8500_add_msp_i2s(parent, 3, U8500_MSP3_BASE, IRQ_DB8500_MSP1,
 			   &msp3_platform_data);
-}
-
-/* Due for removal once the MSP driver has been fully DT:ed. */
-void mop500_of_audio_init(struct device *parent)
-{
-	pr_info("%s: Register platform-device 'ux500-pcm'\n", __func__);
-	platform_device_register(&ux500_pcm);
 }

@@ -44,6 +44,7 @@
 #include <linux/io.h>
 #include <linux/atomic.h>
 
+#include <asm/fncpy.h>
 #include <asm/system_misc.h>
 #include <asm/irq.h>
 #include <asm/mach/time.h>
@@ -51,16 +52,15 @@
 
 #include <mach/tc.h>
 #include <mach/mux.h>
-#include <plat-omap/dma-omap.h>
+#include <linux/omap-dma.h>
 #include <plat/dmtimer.h>
 
 #include <mach/irqs.h>
 
-#include "../plat-omap/sram.h"
-
 #include "iomap.h"
 #include "clock.h"
 #include "pm.h"
+#include "sram.h"
 
 static unsigned int arm_sleep_save[ARM_SLEEP_SAVE_SIZE];
 static unsigned short dsp_sleep_save[DSP_SLEEP_SAVE_SIZE];

@@ -29,7 +29,7 @@
 #define __ASM_ARCH_OMAP_CPU_H
 
 #ifdef CONFIG_ARCH_OMAP1
-#include "../../mach-omap1/soc.h"
+#include <mach/soc.h>
 #endif
 
 #ifdef CONFIG_ARCH_OMAP2PLUS

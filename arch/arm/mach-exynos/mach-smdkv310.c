@@ -20,7 +20,10 @@
 #include <linux/input.h>
 #include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <linux/platform_data/s3c-hsotg.h>
+#include <linux/platform_data/usb-ehci-s5p.h>
+#include <linux/platform_data/usb-exynos.h>
 
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
@@ -35,16 +38,13 @@
 #include <plat/fb.h>
 #include <plat/keypad.h>
 #include <plat/sdhci.h>
-#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/gpio-cfg.h>
 #include <plat/backlight.h>
 #include <plat/mfc.h>
-#include <linux/platform_data/usb-ehci-s5p.h>
 #include <plat/clock.h>
 #include <plat/hdmi.h>
 
 #include <mach/map.h>
-#include <linux/platform_data/usb-exynos.h>
 
 #include <drm/exynos_drm.h>
 #include "common.h"
@@ -300,9 +300,6 @@ static struct platform_device *smdkv310_devices[] __initdata = {
 	&s5p_device_fimc_md,
 	&s5p_device_g2d,
 	&s5p_device_jpeg,
-#ifdef CONFIG_DRM_EXYNOS
-	&exynos_device_drm,
-#endif
 	&exynos4_device_ac97,
 	&exynos4_device_i2s0,
 	&exynos4_device_ohci,

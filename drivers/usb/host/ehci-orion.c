@@ -14,6 +14,9 @@
 #include <linux/mbus.h>
 #include <linux/clk.h>
 #include <linux/platform_data/usb-ehci-orion.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_irq.h>
 
 #define rdl(off)	__raw_readl(hcd->regs + (off))
 #define wrl(off, val)	__raw_writel((val), hcd->regs + (off))
@@ -181,6 +184,8 @@ ehci_orion_conf_mbus_windows(struct usb_hcd *hcd,
 	}
 }
 
+static u64 ehci_orion_dma_mask = DMA_BIT_MASK(32);
+
 static int __devinit ehci_orion_drv_probe(struct platform_device *pdev)
 {
 	struct orion_ehci_data *pd = pdev->dev.platform_data;
@@ -191,13 +196,17 @@ static int __devinit ehci_orion_drv_probe(struct platform_device *pdev)
 	struct clk *clk;
 	void __iomem *regs;
 	int irq, err;
+	enum orion_ehci_phy_ver phy_version;
 
 	if (usb_disabled())
 		return -ENODEV;
 
 	pr_debug("Initializing Orion-SoC USB Host Controller\n");
 
-	irq = platform_get_irq(pdev, 0);
+	if (pdev->dev.of_node)
+		irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	else
+		irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
 		dev_err(&pdev->dev,
 			"Found HC with no IRQ. Check %s setup!\n",
@@ -214,6 +223,14 @@ static int __devinit ehci_orion_drv_probe(struct platform_device *pdev)
 		err = -ENODEV;
 		goto err1;
 	}
+
+	/*
+	 * Right now device-tree probed devices don't get dma_mask
+	 * set. Since shared usb code relies on it, set it here for
+	 * now. Once we have dma capability bindings this can go away.
+	 */
+	if (!pdev->dev.dma_mask)
+		pdev->dev.dma_mask = &ehci_orion_dma_mask;
 
 	if (!request_mem_region(res->start, resource_size(res),
 				ehci_orion_hc_driver.description)) {
@@ -262,7 +279,12 @@ static int __devinit ehci_orion_drv_probe(struct platform_device *pdev)
 	/*
 	 * setup Orion USB controller.
 	 */
-	switch (pd->phy_version) {
+	if (pdev->dev.of_node)
+		phy_version = EHCI_PHY_NA;
+	else
+		phy_version = pd->phy_version;
+
+	switch (phy_version) {
 	case EHCI_PHY_NA:	/* dont change USB phy settings */
 		break;
 	case EHCI_PHY_ORION:
@@ -317,9 +339,19 @@ static int __exit ehci_orion_drv_remove(struct platform_device *pdev)
 
 MODULE_ALIAS("platform:orion-ehci");
 
+static const struct of_device_id ehci_orion_dt_ids[] __devinitdata = {
+	{ .compatible = "marvell,orion-ehci", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, ehci_orion_dt_ids);
+
 static struct platform_driver ehci_orion_driver = {
 	.probe		= ehci_orion_drv_probe,
 	.remove		= __exit_p(ehci_orion_drv_remove),
 	.shutdown	= usb_hcd_platform_shutdown,
-	.driver.name	= "orion-ehci",
+	.driver = {
+		.name	= "orion-ehci",
+		.owner  = THIS_MODULE,
+		.of_match_table = of_match_ptr(ehci_orion_dt_ids),
+	},
 };

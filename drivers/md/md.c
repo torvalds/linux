@@ -1817,10 +1817,10 @@ retry:
 			memset(bbp, 0xff, PAGE_SIZE);
 
 			for (i = 0 ; i < bb->count ; i++) {
-				u64 internal_bb = *p++;
+				u64 internal_bb = p[i];
 				u64 store_bb = ((BB_OFFSET(internal_bb) << 10)
 						| BB_LEN(internal_bb));
-				*bbp++ = cpu_to_le64(store_bb);
+				bbp[i] = cpu_to_le64(store_bb);
 			}
 			bb->changed = 0;
 			if (read_seqretry(&bb->lock, seq))
@@ -5294,7 +5294,7 @@ void md_stop_writes(struct mddev *mddev)
 }
 EXPORT_SYMBOL_GPL(md_stop_writes);
 
-void md_stop(struct mddev *mddev)
+static void __md_stop(struct mddev *mddev)
 {
 	mddev->ready = 0;
 	mddev->pers->stop(mddev);
@@ -5304,6 +5304,18 @@ void md_stop(struct mddev *mddev)
 	mddev->pers = NULL;
 	clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 }
+
+void md_stop(struct mddev *mddev)
+{
+	/* stop the array and free an attached data structures.
+	 * This is called from dm-raid
+	 */
+	__md_stop(mddev);
+	bitmap_destroy(mddev);
+	if (mddev->bio_set)
+		bioset_free(mddev->bio_set);
+}
+
 EXPORT_SYMBOL_GPL(md_stop);
 
 static int md_set_readonly(struct mddev *mddev, struct block_device *bdev)
@@ -5364,7 +5376,7 @@ static int do_md_stop(struct mddev * mddev, int mode,
 			set_disk_ro(disk, 0);
 
 		__md_stop_writes(mddev);
-		md_stop(mddev);
+		__md_stop(mddev);
 		mddev->queue->merge_bvec_fn = NULL;
 		mddev->queue->backing_dev_info.congested_fn = NULL;
 
@@ -7936,9 +7948,9 @@ int md_is_badblock(struct badblocks *bb, sector_t s, int sectors,
 		   sector_t *first_bad, int *bad_sectors)
 {
 	int hi;
-	int lo = 0;
+	int lo;
 	u64 *p = bb->page;
-	int rv = 0;
+	int rv;
 	sector_t target = s + sectors;
 	unsigned seq;
 
@@ -7953,7 +7965,8 @@ int md_is_badblock(struct badblocks *bb, sector_t s, int sectors,
 
 retry:
 	seq = read_seqbegin(&bb->lock);
-
+	lo = 0;
+	rv = 0;
 	hi = bb->count;
 
 	/* Binary search between lo and hi for 'target'

@@ -22,9 +22,8 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 
-#include <mach/iomap.h>
-
 #include "flowctrl.h"
+#include "iomap.h"
 
 u8 flowctrl_offset_halt_cpu[] = {
 	FLOW_CTRL_HALT_CPU0_EVENTS,
