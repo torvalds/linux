@@ -99,7 +99,7 @@ unsigned int get_irq(void)
 	return irq;
 }
 
-int xintc_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hw)
+static int xintc_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hw)
 {
 	u32 intr_mask = (u32)d->host_data;
 
