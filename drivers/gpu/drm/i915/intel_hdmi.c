@@ -793,16 +793,21 @@ static bool g4x_hdmi_connected(struct intel_hdmi *intel_hdmi)
 static enum drm_connector_status
 intel_hdmi_detect(struct drm_connector *connector, bool force)
 {
+	struct drm_device *dev = connector->dev;
 	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
 	struct intel_digital_port *intel_dig_port =
 		hdmi_to_dig_port(intel_hdmi);
 	struct intel_encoder *intel_encoder = &intel_dig_port->base;
-	struct drm_i915_private *dev_priv = connector->dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct edid *edid;
 	enum drm_connector_status status = connector_status_disconnected;
 
-	if (IS_G4X(connector->dev) && !g4x_hdmi_connected(intel_hdmi))
+
+	if (IS_G4X(dev) && !g4x_hdmi_connected(intel_hdmi))
 		return status;
+	else if (HAS_PCH_SPLIT(dev) &&
+		 !ibx_digital_port_connected(dev_priv, intel_dig_port))
+		 return status;
 
 	intel_hdmi->has_hdmi_sink = false;
 	intel_hdmi->has_audio = false;
