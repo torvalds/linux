@@ -381,7 +381,8 @@ void ieee80211_iter_chan_contexts_atomic(
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(ctx, &local->chanctx_list, list)
-		iter(hw, &ctx->conf, iter_data);
+		if (ctx->driver_present)
+			iter(hw, &ctx->conf, iter_data);
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(ieee80211_iter_chan_contexts_atomic);

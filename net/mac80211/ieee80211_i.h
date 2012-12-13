@@ -685,6 +685,7 @@ struct ieee80211_chanctx {
 
 	enum ieee80211_chanctx_mode mode;
 	int refcount;
+	bool driver_present;
 
 	struct ieee80211_chanctx_conf conf;
 };

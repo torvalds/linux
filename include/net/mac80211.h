@@ -3754,6 +3754,11 @@ void ieee80211_iter_keys(struct ieee80211_hw *hw,
  * The iterator will not find a context that's being added (during
  * the driver callback to add it) but will find it while it's being
  * removed.
+ *
+ * Note that during hardware restart, all contexts that existed
+ * before the restart are considered already present so will be
+ * found while iterating, whether they've been re-added already
+ * or not.
  */
 void ieee80211_iter_chan_contexts_atomic(
 	struct ieee80211_hw *hw,
