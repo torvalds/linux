@@ -1829,14 +1829,6 @@ int il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd);
  * PCI						     *
  *****************************************************/
 
-static inline u16
-il_pcie_link_ctl(struct il_priv *il)
-{
-	u16 pci_lnk_ctl;
-	pcie_capability_read_word(il->pci_dev, PCI_EXP_LNKCTL, &pci_lnk_ctl);
-	return pci_lnk_ctl;
-}
-
 void il_bg_watchdog(unsigned long data);
 u32 il_usecs_to_beacons(struct il_priv *il, u32 usec, u32 beacon_interval);
 __le32 il_add_beacon_time(struct il_priv *il, u32 base, u32 addon,
@@ -2433,10 +2425,6 @@ struct il_tfd {
 } __packed;
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
-
-/* PCI register values */
-#define PCI_CFG_LINK_CTRL_VAL_L0S_EN	0x01
-#define PCI_CFG_LINK_CTRL_VAL_L1_EN	0x02
 
 struct il_rate_info {
 	u8 plcp;		/* uCode API:  RATE_6M_PLCP, etc. */
