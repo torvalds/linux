@@ -25,6 +25,7 @@
 #include <lantiq_soc.h>
 #include <xway_dma.h>
 
+#define LTQ_DMA_ID		0x08
 #define LTQ_DMA_CTRL		0x10
 #define LTQ_DMA_CPOLL		0x14
 #define LTQ_DMA_CS		0x18
@@ -214,6 +215,7 @@ ltq_dma_init(struct platform_device *pdev)
 {
 	struct clk *clk;
 	struct resource *res;
+	unsigned id;
 	int i;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -243,7 +245,12 @@ ltq_dma_init(struct platform_device *pdev)
 		ltq_dma_w32(DMA_POLL | DMA_CLK_DIV4, LTQ_DMA_CPOLL);
 		ltq_dma_w32_mask(DMA_CHAN_ON, 0, LTQ_DMA_CCTRL);
 	}
-	dev_info(&pdev->dev, "init done\n");
+
+	id = ltq_dma_r32(LTQ_DMA_ID);
+	dev_info(&pdev->dev,
+		"Init done - hw rev: %X, ports: %d, channels: %d\n",
+		id & 0x1f, (id >> 16) & 0xf, id >> 20);
+
 	return 0;
 }
 

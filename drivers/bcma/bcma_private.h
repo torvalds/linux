@@ -89,4 +89,14 @@ bool __devinit bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc);
 void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc);
 #endif /* CONFIG_BCMA_DRIVER_PCI_HOSTMODE */
 
+#ifdef CONFIG_BCMA_DRIVER_GPIO
+/* driver_gpio.c */
+int bcma_gpio_init(struct bcma_drv_cc *cc);
+#else
+static inline int bcma_gpio_init(struct bcma_drv_cc *cc)
+{
+	return -ENOTSUPP;
+}
+#endif /* CONFIG_BCMA_DRIVER_GPIO */
+
 #endif

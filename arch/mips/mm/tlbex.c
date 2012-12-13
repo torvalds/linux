@@ -183,7 +183,9 @@ UASM_L_LA(_tlb_huge_update)
 
 static int __cpuinitdata hazard_instance;
 
-static void uasm_bgezl_hazard(u32 **p, struct uasm_reloc **r, int instance)
+static void __cpuinit uasm_bgezl_hazard(u32 **p,
+					struct uasm_reloc **r,
+					int instance)
 {
 	switch (instance) {
 	case 0 ... 7:
@@ -194,7 +196,9 @@ static void uasm_bgezl_hazard(u32 **p, struct uasm_reloc **r, int instance)
 	}
 }
 
-static void uasm_bgezl_label(struct uasm_label **l, u32 **p, int instance)
+static void __cpuinit uasm_bgezl_label(struct uasm_label **l,
+				       u32 **p,
+				       int instance)
 {
 	switch (instance) {
 	case 0 ... 7:

@@ -42,16 +42,17 @@ struct platform_device ls1x_uart_device = {
 	},
 };
 
-void __init ls1x_serial_setup(void)
+void __init ls1x_serial_setup(struct platform_device *pdev)
 {
 	struct clk *clk;
 	struct plat_serial8250_port *p;
 
-	clk = clk_get(NULL, "dc");
+	clk = clk_get(NULL, pdev->name);
 	if (IS_ERR(clk))
-		panic("unable to get dc clock, err=%ld", PTR_ERR(clk));
+		panic("unable to get %s clock, err=%ld",
+			pdev->name, PTR_ERR(clk));
 
-	for (p = ls1x_serial8250_port; p->flags != 0; ++p)
+	for (p = pdev->dev.platform_data; p->flags != 0; ++p)
 		p->uartclk = clk_get_rate(clk);
 }
 
@@ -70,7 +71,6 @@ static struct resource ls1x_eth0_resources[] = {
 };
 
 static struct stmmac_mdio_bus_data ls1x_mdio_bus_data = {
-	.bus_id		= 0,
 	.phy_mask	= 0,
 };
 
