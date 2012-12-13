@@ -429,6 +429,51 @@ static void igb_ptp_overflow_check(struct work_struct *work)
 }
 
 /**
+ * igb_ptp_rx_hang - detect error case when Rx timestamp registers latched
+ * @adapter: private network adapter structure
+ *
+ * This watchdog task is scheduled to detect error case where hardware has
+ * dropped an Rx packet that was timestamped when the ring is full. The
+ * particular error is rare but leaves the device in a state unable to timestamp
+ * any future packets.
+ */
+void igb_ptp_rx_hang(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	struct igb_ring *rx_ring;
+	u32 tsyncrxctl = rd32(E1000_TSYNCRXCTL);
+	unsigned long rx_event;
+	int n;
+
+	if (hw->mac.type != e1000_82576)
+		return;
+
+	/* If we don't have a valid timestamp in the registers, just update the
+	 * timeout counter and exit
+	 */
+	if (!(tsyncrxctl & E1000_TSYNCRXCTL_VALID)) {
+		adapter->last_rx_ptp_check = jiffies;
+		return;
+	}
+
+	/* Determine the most recent watchdog or rx_timestamp event */
+	rx_event = adapter->last_rx_ptp_check;
+	for (n = 0; n < adapter->num_rx_queues; n++) {
+		rx_ring = adapter->rx_ring[n];
+		if (time_after(rx_ring->last_rx_timestamp, rx_event))
+			rx_event = rx_ring->last_rx_timestamp;
+	}
+
+	/* Only need to read the high RXSTMP register to clear the lock */
+	if (time_is_before_jiffies(rx_event + 5 * HZ)) {
+		rd32(E1000_RXSTMPH);
+		adapter->last_rx_ptp_check = jiffies;
+		adapter->rx_hwtstamp_cleared++;
+		dev_warn(&adapter->pdev->dev, "clearing Rx timestamp hang");
+	}
+}
+
+/**
  * igb_ptp_tx_hwtstamp - utility function which checks for TX time stamp
  * @adapter: Board private structure.
  *
