@@ -58,6 +58,7 @@ static struct platform_device gpmc_smc91x_device = {
 static int smc91c96_gpmc_retime(void)
 {
 	struct gpmc_timings t;
+	struct gpmc_device_timings dev_t;
 	const int t3 = 10;	/* Figure 12.2 read and 12.4 write */
 	const int t4_r = 20;	/* Figure 12.2 read */
 	const int t4_w = 5;	/* Figure 12.4 write */
@@ -67,32 +68,6 @@ static int smc91c96_gpmc_retime(void)
 	const int t8 = 5;	/* Figure 12.4 write */
 	const int t20 = 185;	/* Figure 12.2 read and 12.4 write */
 	u32 l;
-
-	memset(&t, 0, sizeof(t));
-
-	/* Read timings */
-	t.cs_on = 0;
-	t.adv_on = t.cs_on;
-	t.oe_on = t.adv_on + t3;
-	t.access = t.oe_on + t5;
-	t.oe_off = t.access;
-	t.adv_rd_off = t.oe_off + max(t4_r, t6);
-	t.cs_rd_off = t.oe_off;
-	t.rd_cycle = t20 - t.oe_on;
-
-	/* Write timings */
-	t.we_on = t.adv_on + t3;
-
-	if (cpu_is_omap34xx() && (gpmc_cfg->flags & GPMC_MUX_ADD_DATA)) {
-		t.wr_data_mux_bus = t.we_on;
-		t.we_off = t.wr_data_mux_bus + t7;
-	} else
-		t.we_off = t.we_on + t7;
-	if (cpu_is_omap34xx())
-		t.wr_access = t.we_off;
-	t.adv_wr_off = t.we_off + max(t4_w, t8);
-	t.cs_wr_off = t.we_off + t4_w;
-	t.wr_cycle = t20 - t.we_on;
 
 	l = GPMC_CONFIG1_DEVICESIZE_16;
 	if (gpmc_cfg->flags & GPMC_MUX_ADD_DATA)
@@ -114,6 +89,22 @@ static int smc91c96_gpmc_retime(void)
 	 */
 	if (gpmc_cfg->flags & GPMC_MUX_ADD_DATA)
 		return 0;
+
+	memset(&dev_t, 0, sizeof(dev_t));
+
+	dev_t.t_oeasu = t3 * 1000;
+	dev_t.t_oe = t5 * 1000;
+	dev_t.t_cez_r = t4_r * 1000;
+	dev_t.t_oez = t6 * 1000;
+	dev_t.t_rd_cycle = (t20 - t3) * 1000;
+
+	dev_t.t_weasu = t3 * 1000;
+	dev_t.t_wpl = t7 * 1000;
+	dev_t.t_wph = t8 * 1000;
+	dev_t.t_cez_w = t4_w * 1000;
+	dev_t.t_wr_cycle = (t20 - t3) * 1000;
+
+	gpmc_calc_timings(&t, &dev_t);
 
 	return gpmc_cs_set_timings(gpmc_cfg->cs, &t);
 }

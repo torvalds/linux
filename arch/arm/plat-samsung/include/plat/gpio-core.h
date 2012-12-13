@@ -48,6 +48,7 @@ struct samsung_gpio_cfg;
  * @config: special function and pull-resistor control information.
  * @lock: Lock for exclusive access to this gpio bank.
  * @pm_save: Save information for suspend/resume support.
+ * @bitmap_gpio_int: Bitmap for representing GPIO interrupt or not.
  *
  * This wrapper provides the necessary information for the Samsung
  * specific gpios being registered with gpiolib.
@@ -71,6 +72,7 @@ struct samsung_gpio_chip {
 #ifdef CONFIG_PM
 	u32			pm_save[4];
 #endif
+	u32			bitmap_gpio_int;
 };
 
 static inline struct samsung_gpio_chip *to_samsung_gpio(struct gpio_chip *gpc)
