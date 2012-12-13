@@ -144,16 +144,16 @@ int omapfb_set_update_mode(struct fb_info *fbi, enum omapfb_update_mode mode);
 static inline struct omap_dss_device *fb2display(struct fb_info *fbi)
 {
 	struct omapfb_info *ofbi = FB2OFB(fbi);
-	int i;
+	struct omap_overlay *ovl;
 
 	/* XXX: returns the display connected to first attached overlay */
-	for (i = 0; i < ofbi->num_overlays; i++) {
-		struct omap_overlay *ovl = ofbi->overlays[i];
 
-		return ovl->get_device(ovl);
-	}
+	if (ofbi->num_overlays == 0)
+		return NULL;
 
-	return NULL;
+	ovl = ofbi->overlays[0];
+
+	return ovl->get_device(ovl);
 }
 
 static inline struct omapfb_display_data *get_display_data(
