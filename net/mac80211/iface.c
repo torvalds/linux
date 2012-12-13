@@ -868,20 +868,11 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		cancel_work_sync(&sdata->work);
 		/*
 		 * When we get here, the interface is marked down.
-		 * Call rcu_barrier() to wait both for the RX path
+		 * Call synchronize_rcu() to wait for the RX path
 		 * should it be using the interface and enqueuing
-		 * frames at this very time on another CPU, and
-		 * for the sta free call_rcu callbacks.
+		 * frames at this very time on another CPU.
 		 */
-		rcu_barrier();
-
-		/*
-		 * free_sta_rcu() enqueues a work for the actual
-		 * sta cleanup, so we need to flush it while
-		 * sdata is still valid.
-		 */
-		flush_workqueue(local->workqueue);
-
+		synchronize_rcu();
 		skb_queue_purge(&sdata->skb_queue);
 
 		/*
@@ -1501,6 +1492,15 @@ static void ieee80211_assign_perm_addr(struct ieee80211_local *local,
 	mutex_unlock(&local->iflist_mtx);
 }
 
+static void ieee80211_cleanup_sdata_stas_wk(struct work_struct *wk)
+{
+	struct ieee80211_sub_if_data *sdata;
+
+	sdata = container_of(wk, struct ieee80211_sub_if_data, cleanup_stations_wk);
+
+	ieee80211_cleanup_sdata_stas(sdata);
+}
+
 int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		     struct wireless_dev **new_wdev, enum nl80211_iftype type,
 		     struct vif_params *params)
@@ -1575,6 +1575,10 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		skb_queue_head_init(&sdata->fragments[i].skb_list);
 
 	INIT_LIST_HEAD(&sdata->key_list);
+
+	spin_lock_init(&sdata->cleanup_stations_lock);
+	INIT_LIST_HEAD(&sdata->cleanup_stations);
+	INIT_WORK(&sdata->cleanup_stations_wk, ieee80211_cleanup_sdata_stas_wk);
 
 	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
 		struct ieee80211_supported_band *sband;
