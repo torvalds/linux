@@ -12,6 +12,8 @@
  */
 unsigned int page_size;
 
+bool test_attr__enabled;
+
 bool perf_host  = true;
 bool perf_guest = false;
 

@@ -33,8 +33,6 @@
 
 extern int verbose;
 
-bool test_attr__enabled;
-
 static char *dir;
 
 void test_attr__init(void)
