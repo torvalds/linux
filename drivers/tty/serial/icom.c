@@ -505,7 +505,7 @@ static void load_code(struct icom_port *icom_port)
 		/* Stop processor */
 		stop_processor(icom_port);
 
-		dev_err(&icom_port->adapter->pci_dev->dev,"Port not opertional\n");
+		dev_err(&icom_port->adapter->pci_dev->dev,"Port not operational\n");
 	}
 
 	if (new_page != NULL)

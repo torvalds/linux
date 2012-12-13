@@ -105,7 +105,7 @@ struct watchdog_device {
 #define WATCHDOG_NOWAYOUT_INIT_STATUS	0
 #endif
 
-/* Use the following function to check wether or not the watchdog is active */
+/* Use the following function to check whether or not the watchdog is active */
 static inline bool watchdog_active(struct watchdog_device *wdd)
 {
 	return test_bit(WDOG_ACTIVE, &wdd->status);

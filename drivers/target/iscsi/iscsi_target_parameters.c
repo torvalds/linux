@@ -1432,6 +1432,7 @@ static struct iscsi_param *iscsi_check_key(
 			break;
 		case PHASE_OPERATIONAL:
 			pr_debug("Operational phase.\n");
+			break;
 		default:
 			pr_debug("Unknown phase.\n");
 		}

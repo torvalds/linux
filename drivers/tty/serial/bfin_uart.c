@@ -815,7 +815,7 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 		lcr = WLS(5);
 		break;
 	default:
-		printk(KERN_ERR "%s: word lengh not supported\n",
+		printk(KERN_ERR "%s: word length not supported\n",
 			__func__);
 	}
 

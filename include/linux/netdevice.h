@@ -369,7 +369,7 @@ typedef enum gro_result gro_result_t;
  *
  * If the rx_handler consider the skb should be ignored, it should return
  * RX_HANDLER_EXACT. The skb will only be delivered to protocol handlers that
- * are registred on exact device (ptype->dev == skb->dev).
+ * are registered on exact device (ptype->dev == skb->dev).
  *
  * If the rx_handler didn't changed skb->dev, but want the skb to be normally
  * delivered, it should return RX_HANDLER_PASS.

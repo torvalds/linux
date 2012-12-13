@@ -61,7 +61,7 @@
 #define STMMAC_CSR_I_16		0xE	/* clk_csr_i/16 */
 #define STMMAC_CSR_I_18		0xF	/* clk_csr_i/18 */
 
-/* AXI DMA Burst length suported */
+/* AXI DMA Burst length supported */
 #define DMA_AXI_BLEN_4		(1 << 1)
 #define DMA_AXI_BLEN_8		(1 << 2)
 #define DMA_AXI_BLEN_16		(1 << 3)

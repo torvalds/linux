@@ -2455,7 +2455,7 @@ TAS_BUFFER_FNS(Uninit, uninit)
 BUFFER_FNS(Da_Mapped, da_mapped)
 
 /*
- * Add new method to test wether block and inode bitmaps are properly
+ * Add new method to test whether block and inode bitmaps are properly
  * initialized. With uninit_bg reading the block from disk is not enough
  * to mark the bitmap uptodate. We need to also zero-out the bitmap
  */

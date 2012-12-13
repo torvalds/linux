@@ -164,7 +164,7 @@ Contact:	Rafael J. Wysocki <rjw@sisk.pl>
 Description:
 		The /sys/devices/.../wakeup_prevent_sleep_time_ms attribute
 		contains the total time the device has been preventing
-		opportunistic transitions to sleep states from occuring.
+		opportunistic transitions to sleep states from occurring.
 		This attribute is read-only.  If the device is not enabled to
 		wake up the system from sleep states, this attribute is not
 		present.

@@ -504,7 +504,7 @@ config GPIO_ADNP
 	help
 	  This option enables support for N GPIOs found on Avionic Design
 	  I2C GPIO expanders. The register space will be extended by powers
-	  of two, so the controller will need to accomodate for that. For
+	  of two, so the controller will need to accommodate for that. For
 	  example: if a controller provides 48 pins, 6 registers will be
 	  enough to represent all pins, but the driver will assume a
 	  register layout for 64 pins (8 registers).

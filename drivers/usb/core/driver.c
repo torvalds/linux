@@ -222,7 +222,7 @@ static int usb_probe_device(struct device *dev)
 	/* TODO: Add real matching code */
 
 	/* The device should always appear to be in use
-	 * unless the driver suports autosuspend.
+	 * unless the driver supports autosuspend.
 	 */
 	if (!udriver->supports_autosuspend)
 		error = usb_autoresume_device(udev);

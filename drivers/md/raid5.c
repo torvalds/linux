@@ -1576,7 +1576,7 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 	 * This happens in stages:
 	 * 1/ create a new kmem_cache and allocate the required number of
 	 *    stripe_heads.
-	 * 2/ gather all the old stripe_heads and tranfer the pages across
+	 * 2/ gather all the old stripe_heads and transfer the pages across
 	 *    to the new stripe_heads.  This will have the side effect of
 	 *    freezing the array as once all stripe_heads have been collected,
 	 *    no IO will be possible.  Old stripe heads are freed once their

@@ -313,7 +313,7 @@ static int hvc_vio_probe(struct vio_dev *vdev,
 		proto = HV_PROTOCOL_HVSI;
 		ops = &hvterm_hvsi_ops;
 	} else {
-		pr_err("hvc_vio: Unkown protocol for %s\n", vdev->dev.of_node->full_name);
+		pr_err("hvc_vio: Unknown protocol for %s\n", vdev->dev.of_node->full_name);
 		return -ENXIO;
 	}
 

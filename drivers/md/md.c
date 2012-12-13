@@ -4124,7 +4124,7 @@ static struct md_sysfs_entry md_size =
 __ATTR(component_size, S_IRUGO|S_IWUSR, size_show, size_store);
 
 
-/* Metdata version.
+/* Metadata version.
  * This is one of
  *   'none' for arrays with no metadata (good luck...)
  *   'external' for arrays with externally managed metadata,

@@ -3888,7 +3888,7 @@ static int flush_space(struct btrfs_root *root,
  * @root - the root we're allocating for
  * @block_rsv - the block_rsv we're allocating for
  * @orig_bytes - the number of bytes we want
- * @flush - wether or not we can flush to make our reservation
+ * @flush - whether or not we can flush to make our reservation
  *
  * This will reserve orgi_bytes number of bytes from the space info associated
  * with the block_rsv.  If there is not enough space it will make an attempt to

@@ -606,7 +606,7 @@ void __init mtrr_bp_init(void)
 
 		/*
 		 * This is an AMD specific MSR, but we assume(hope?) that
-		 * Intel will implement it to when they extend the address
+		 * Intel will implement it too when they extend the address
 		 * bus of the Xeon.
 		 */
 		if (cpuid_eax(0x80000000) >= 0x80000008) {

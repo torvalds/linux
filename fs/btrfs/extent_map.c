@@ -234,12 +234,11 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
 }
 
 /**
- * unpint_extent_cache - unpin an extent from the cache
+ * unpin_extent_cache - unpin an extent from the cache
  * @tree:	tree to unpin the extent in
  * @start:	logical offset in the file
  * @len:	length of the extent
  * @gen:	generation that this extent has been modified in
- * @prealloc:	if this is set we need to clear the prealloc flag
  *
  * Called after an extent has been written to disk properly.  Set the generation
  * to the generation that actually added the file item to the inode so we know

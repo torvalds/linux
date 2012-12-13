@@ -1344,7 +1344,7 @@ dasd_get_feature(struct ccw_device *cdev, int feature)
 
 /*
  * Set / reset given feature.
- * Flag indicates wether to set (!=0) or the reset (=0) the feature.
+ * Flag indicates whether to set (!=0) or the reset (=0) the feature.
  */
 int
 dasd_set_feature(struct ccw_device *cdev, int feature, int flag)
