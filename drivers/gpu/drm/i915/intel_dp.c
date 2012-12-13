@@ -2343,13 +2343,6 @@ intel_dp_get_edid_modes(struct drm_connector *connector, struct i2c_adapter *ada
 	return intel_ddc_get_modes(connector, adapter);
 }
 
-
-/**
- * Uses CRT_HOTPLUG_EN and CRT_HOTPLUG_STAT to detect DP connection.
- *
- * \return true if DP port is connected.
- * \return false if DP port is disconnected.
- */
 static enum drm_connector_status
 intel_dp_detect(struct drm_connector *connector, bool force)
 {
