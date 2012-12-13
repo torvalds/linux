@@ -2248,6 +2248,8 @@ static enum drm_connector_status
 ironlake_dp_detect(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	enum drm_connector_status status;
 
 	/* Can't disconnect eDP, but you can close the lid... */
@@ -2257,6 +2259,9 @@ ironlake_dp_detect(struct intel_dp *intel_dp)
 			status = connector_status_connected;
 		return status;
 	}
+
+	if (!ibx_digital_port_connected(dev_priv, intel_dig_port))
+		return connector_status_disconnected;
 
 	return intel_dp_detect_dpcd(intel_dp);
 }
