@@ -747,7 +747,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	unsigned long flags;
 	struct sk_buff *skb, *tmp;
 	u32 hw_reconf_flags = 0;
-	int i;
+	int i, flushed;
 
 	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 
@@ -772,11 +772,13 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	 * (because if we remove a STA after ops->remove_interface()
 	 * the driver will have removed the vif info already!)
 	 *
-	 * This is relevant only in AP, WDS and mesh modes, since in
-	 * all other modes we've already removed all stations when
-	 * disconnecting etc.
+	 * This is relevant only in WDS mode, in all other modes we've
+	 * already removed all stations when disconnecting or similar,
+	 * so warn otherwise.
 	 */
-	sta_info_flush(sdata);
+	flushed = sta_info_flush(sdata);
+	WARN_ON_ONCE((sdata->vif.type != NL80211_IFTYPE_WDS && flushed > 0) ||
+		     (sdata->vif.type == NL80211_IFTYPE_WDS && flushed != 1));
 
 	/*
 	 * Don't count this interface for promisc/allmulti while it
