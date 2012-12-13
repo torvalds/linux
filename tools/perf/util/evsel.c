@@ -1378,3 +1378,31 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 	fputc('\n', fp);
 	return ++printed;
 }
+
+bool perf_evsel__fallback(struct perf_evsel *evsel, int err,
+			  char *msg, size_t msgsize)
+{
+	if ((err == ENOENT || err == ENXIO) &&
+	    evsel->attr.type   == PERF_TYPE_HARDWARE &&
+	    evsel->attr.config == PERF_COUNT_HW_CPU_CYCLES) {
+		/*
+		 * If it's cycles then fall back to hrtimer based
+		 * cpu-clock-tick sw counter, which is always available even if
+		 * no PMU support.
+		 *
+		 * PPC returns ENXIO until 2.6.37 (behavior changed with commit
+		 * b0a873e).
+		 */
+		scnprintf(msg, msgsize, "%s",
+"The cycles event is not supported, trying to fall back to cpu-clock-ticks");
+
+		evsel->attr.type   = PERF_TYPE_SOFTWARE;
+		evsel->attr.config = PERF_COUNT_SW_CPU_CLOCK;
+
+		free(evsel->name);
+		evsel->name = NULL;
+		return true;
+	}
+
+	return false;
+}

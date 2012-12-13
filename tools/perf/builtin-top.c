@@ -892,6 +892,7 @@ static void perf_top__mmap_read(struct perf_top *top)
 
 static void perf_top__start_counters(struct perf_top *top)
 {
+	char msg[128];
 	struct perf_evsel *counter;
 	struct perf_evlist *evlist = top->evlist;
 	struct perf_record_opts *opts = &top->record_opts;
@@ -909,25 +910,10 @@ try_again:
 				ui__error_paranoid();
 				goto out_err;
 			}
-			/*
-			 * If it's cycles then fall back to hrtimer
-			 * based cpu-clock-tick sw counter, which
-			 * is always available even if no PMU support:
-			 */
-			if ((err == ENOENT || err == ENXIO) &&
-			    (attr->type == PERF_TYPE_HARDWARE) &&
-			    (attr->config == PERF_COUNT_HW_CPU_CYCLES)) {
 
+			if (perf_evsel__fallback(counter, err, msg, sizeof(msg))) {
 				if (verbose)
-					ui__warning("Cycles event not supported,\n"
-						    "trying to fall back to cpu-clock-ticks\n");
-
-				attr->type = PERF_TYPE_SOFTWARE;
-				attr->config = PERF_COUNT_SW_CPU_CLOCK;
-				if (counter->name) {
-					free(counter->name);
-					counter->name = NULL;
-				}
+					ui__warning("%s\n", msg);
 				goto try_again;
 			}
 

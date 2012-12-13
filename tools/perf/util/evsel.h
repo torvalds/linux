@@ -251,4 +251,7 @@ struct perf_attr_details {
 
 int perf_evsel__fprintf(struct perf_evsel *evsel,
 			struct perf_attr_details *details, FILE *fp);
+
+bool perf_evsel__fallback(struct perf_evsel *evsel, int err,
+			  char *msg, size_t msgsize);
 #endif /* __PERF_EVSEL_H */
