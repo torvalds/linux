@@ -76,6 +76,10 @@ f2fs_hash_t f2fs_dentry_hash(const char *name, int len)
 	const char *p;
 	__u32 in[8], buf[4];
 
+	if ((len <= 2) && (name[0] == '.') &&
+		(name[1] == '.' || name[1] == '\0'))
+		return 0;
+
 	/* Initialize the default seed for the hash checksum functions */
 	buf[0] = 0x67452301;
 	buf[1] = 0xefcdab89;
