@@ -531,8 +531,7 @@ static void source_sink_complete(struct usb_ep *ep, struct usb_request *req)
 			check_read_data(ss, req);
 			if (pattern != 2)
 				memset(req->buf, 0x55, req->length);
-		} else
-			reinit_write_data(ep, req);
+		}
 		break;
 
 	/* this endpoint is normally active while we're configured */
