@@ -30,10 +30,10 @@
 #include <asm/mach/time.h>
 #include <asm/mach-types.h>
 #include <asm/page.h>
+#include <asm/pgtable.h>
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 
-#include <mach/zynq_soc.h>
 #include "common.h"
 
 static struct of_device_id zynq_of_bus_ids[] __initdata = {
@@ -68,32 +68,15 @@ static void __init xilinx_irq_init(void)
 	of_irq_init(irq_match);
 }
 
-/* The minimum devices needed to be mapped before the VM system is up and
- * running include the GIC, UART and Timer Counter.
- */
+#define SCU_PERIPH_PHYS		0xF8F00000
+#define SCU_PERIPH_SIZE		SZ_8K
+#define SCU_PERIPH_VIRT		(VMALLOC_END - SCU_PERIPH_SIZE)
 
-static struct map_desc io_desc[] __initdata = {
-	{
-		.virtual	= TTC0_VIRT,
-		.pfn		= __phys_to_pfn(TTC0_PHYS),
-		.length		= TTC0_SIZE,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= SCU_PERIPH_VIRT,
-		.pfn		= __phys_to_pfn(SCU_PERIPH_PHYS),
-		.length		= SCU_PERIPH_SIZE,
-		.type		= MT_DEVICE,
-	},
-
-#ifdef CONFIG_DEBUG_LL
-	{
-		.virtual	= LL_UART_VADDR,
-		.pfn		= __phys_to_pfn(LL_UART_PADDR),
-		.length		= UART_SIZE,
-		.type		= MT_DEVICE,
-	},
-#endif
-
+static struct map_desc scu_desc __initdata = {
+	.virtual	= SCU_PERIPH_VIRT,
+	.pfn		= __phys_to_pfn(SCU_PERIPH_PHYS),
+	.length		= SCU_PERIPH_SIZE,
+	.type		= MT_DEVICE,
 };
 
 static void __init xilinx_zynq_timer_init(void)
@@ -122,7 +105,8 @@ static struct sys_timer xttcpss_sys_timer = {
  */
 static void __init xilinx_map_io(void)
 {
-	iotable_init(io_desc, ARRAY_SIZE(io_desc));
+	debug_ll_io_init();
+	iotable_init(&scu_desc, 1);
 }
 
 static const char *xilinx_dt_match[] = {

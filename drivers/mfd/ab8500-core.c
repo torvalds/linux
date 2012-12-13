@@ -565,15 +565,10 @@ static int ab8500_irq_init(struct ab8500 *ab8500, struct device_node *np)
 	else
 		num_irqs = AB8500_NR_IRQS;
 
-	if (ab8500->irq_base) {
-		ab8500->domain = irq_domain_add_legacy(
-			NULL, num_irqs, ab8500->irq_base,
-			0, &ab8500_irq_ops, ab8500);
-	}
-	else {
-		ab8500->domain = irq_domain_add_linear(
-			np, num_irqs, &ab8500_irq_ops, ab8500);
-	}
+	/* If ->irq_base is zero this will give a linear mapping */
+	ab8500->domain = irq_domain_add_simple(NULL,
+			num_irqs, ab8500->irq_base,
+			&ab8500_irq_ops, ab8500);
 
 	if (!ab8500->domain) {
 		dev_err(ab8500->dev, "Failed to create irqdomain\n");

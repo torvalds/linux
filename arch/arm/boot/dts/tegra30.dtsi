@@ -91,6 +91,12 @@
 		};
 	};
 
+	timer@50004600 {
+		compatible = "arm,cortex-a9-twd-timer";
+		reg = <0x50040600 0x20>;
+		interrupts = <1 13 0xf04>;
+	};
+
 	cache-controller@50043000 {
 		compatible = "arm,pl310-cache";
 		reg = <0x50043000 0x1000>;
@@ -106,6 +112,17 @@
 		       0x50040100 0x0100>;
 		interrupt-controller;
 		#interrupt-cells = <3>;
+	};
+
+	timer@60005000 {
+		compatible = "nvidia,tegra30-timer", "nvidia,tegra20-timer";
+		reg = <0x60005000 0x400>;
+		interrupts = <0 0 0x04
+			      0 1 0x04
+			      0 41 0x04
+			      0 42 0x04
+			      0 121 0x04
+			      0 122 0x04>;
 	};
 
 	apbdma: dma {
@@ -217,6 +234,12 @@
 		compatible = "nvidia,tegra30-pwm", "nvidia,tegra20-pwm";
 		reg = <0x7000a000 0x100>;
 		#pwm-cells = <2>;
+	};
+
+	rtc {
+		compatible = "nvidia,tegra30-rtc", "nvidia,tegra20-rtc";
+		reg = <0x7000e000 0x100>;
+		interrupts = <0 2 0x04>;
 	};
 
 	i2c@7000c000 {

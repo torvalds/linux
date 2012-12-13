@@ -18,8 +18,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/slab.h>
-
-#include <plat/ste_dma40.h>
+#include <linux/platform_data/dma-ste-dma40.h>
 
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>

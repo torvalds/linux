@@ -45,14 +45,15 @@
  * kernel is loaded. The data is declared here rather than debug-macro.S so
  * that multiple inclusions of debug-macro.S point at the same data.
  */
-#define TEGRA_DEBUG_UART_OFFSET (TEGRA_DEBUG_UART_BASE & 0xFFFF)
-u32 tegra_uart_config[3] = {
+u32 tegra_uart_config[4] = {
 	/* Debug UART initialization required */
 	1,
 	/* Debug UART physical address */
-	(u32)(IO_APB_PHYS + TEGRA_DEBUG_UART_OFFSET),
+	0,
 	/* Debug UART virtual address */
-	(u32)(IO_APB_VIRT + TEGRA_DEBUG_UART_OFFSET),
+	0,
+	/* Scratch space for debug macro */
+	0,
 };
 
 #ifdef CONFIG_OF

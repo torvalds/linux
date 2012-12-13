@@ -650,6 +650,7 @@ config ARCH_TEGRA
 	select HAVE_CLK
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
+	select SPARSE_IRQ
 	select USE_OF
 	help
 	  This enables support for NVIDIA Tegra based systems (Tegra APX,
@@ -891,6 +892,7 @@ config ARCH_U8500
 	select GENERIC_CLOCKEVENTS
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
+	select SPARSE_IRQ
 	help
 	  Support for ST-Ericsson's Ux500 architecture
 
@@ -905,6 +907,7 @@ config ARCH_NOMADIK
 	select MIGHT_HAVE_CACHE_L2X0
 	select PINCTRL
 	select PINCTRL_STN8815
+	select SPARSE_IRQ
 	help
 	  Support for the Nomadik platform by ST-Ericsson
 
@@ -948,7 +951,7 @@ config ARCH_OMAP
 	help
 	  Support for TI's OMAP platform (OMAP1/2/3/4).
 
-config ARCH_VT8500
+config ARCH_VT8500_SINGLE
 	bool "VIA/WonderMedia 85xx"
 	select ARCH_HAS_CPUFREQ
 	select ARCH_REQUIRE_GPIOLIB
@@ -958,22 +961,12 @@ config ARCH_VT8500
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_GPIO
 	select HAVE_CLK
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
 	select USE_OF
 	help
 	  Support for VIA/WonderMedia VT8500/WM85xx System-on-Chip.
 
-config ARCH_ZYNQ
-	bool "Xilinx Zynq ARM Cortex A9 Platform"
-	select ARM_AMBA
-	select ARM_GIC
-	select COMMON_CLK
-	select CPU_V7
-	select GENERIC_CLOCKEVENTS
-	select ICST
-	select MIGHT_HAVE_CACHE_L2X0
-	select USE_OF
-	help
-	  Support for Xilinx Zynq ARM Cortex A9 Platform
 endchoice
 
 menu "Multiple platform selection"
@@ -1074,7 +1067,6 @@ source "arch/arm/mach-mxs/Kconfig"
 source "arch/arm/mach-netx/Kconfig"
 
 source "arch/arm/mach-nomadik/Kconfig"
-source "arch/arm/plat-nomadik/Kconfig"
 
 source "arch/arm/plat-omap/Kconfig"
 
@@ -1137,7 +1129,11 @@ source "arch/arm/mach-versatile/Kconfig"
 source "arch/arm/mach-vexpress/Kconfig"
 source "arch/arm/plat-versatile/Kconfig"
 
+source "arch/arm/mach-vt8500/Kconfig"
+
 source "arch/arm/mach-w90x900/Kconfig"
+
+source "arch/arm/mach-zynq/Kconfig"
 
 # Definitions to make life easier
 config ARCH_ACORN

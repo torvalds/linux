@@ -21,16 +21,19 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/regulator/machine.h>
+#include <linux/platform_data/pinctrl-nomadik.h>
 #include <linux/random.h>
 
 #include <asm/pmu.h>
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
+
 #include <mach/hardware.h>
 #include <mach/setup.h>
 #include <mach/devices.h>
 #include <mach/db8500-regs.h>
+#include <mach/irqs.h>
 
 #include "devices-db8500.h"
 #include "ste-dma40-db8500.h"

@@ -379,6 +379,13 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on Allwinner A1X based platforms on the UART1.
 
+	config DEBUG_TEGRA_UART
+		depends on ARCH_TEGRA
+		bool "Use Tegra UART for low-level debug"
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on Tegra based platforms.
+
 	config DEBUG_VEXPRESS_UART0_DETECT
 		bool "Autodetect UART0 on Versatile Express Cortex-A core tiles"
 		depends on ARCH_VEXPRESS && CPU_CP15_MMU
@@ -452,6 +459,36 @@ config DEBUG_IMX6Q_UART_PORT
 	  Choose UART port on which kernel low-level debug messages
 	  should be output.
 
+choice
+	prompt "Low-level debug console UART"
+	depends on DEBUG_LL && DEBUG_TEGRA_UART
+
+	config TEGRA_DEBUG_UART_AUTO_ODMDATA
+	bool "Via ODMDATA"
+	help
+	  Automatically determines which UART to use for low-level debug based
+	  on the ODMDATA value. This value is part of the BCT, and is written
+	  to the boot memory device using nvflash, or other flashing tool.
+	  When bits 19:18 are 3, then bits 17:15 indicate which UART to use;
+	  0/1/2/3/4 are UART A/B/C/D/E.
+
+	config TEGRA_DEBUG_UARTA
+		bool "UART A"
+
+	config TEGRA_DEBUG_UARTB
+		bool "UART B"
+
+	config TEGRA_DEBUG_UARTC
+		bool "UART C"
+
+	config TEGRA_DEBUG_UARTD
+		bool "UART D"
+
+	config TEGRA_DEBUG_UARTE
+		bool "UART E"
+
+endchoice
+
 config DEBUG_LL_INCLUDE
 	string
 	default "debug/icedcc.S" if DEBUG_ICEDCC
@@ -469,6 +506,8 @@ config DEBUG_LL_INCLUDE
 	default "debug/sunxi.S" if DEBUG_SUNXI_UART0 || DEBUG_SUNXI_UART1
 	default "debug/vexpress.S" if DEBUG_VEXPRESS_UART0_DETECT || \
 		DEBUG_VEXPRESS_UART0_CA9 || DEBUG_VEXPRESS_UART0_RS1
+	default "debug/tegra.S" if DEBUG_TEGRA_UART
+	default "debug/zynq.S" if DEBUG_ZYNQ_UART0 || DEBUG_ZYNQ_UART1
 	default "mach/debug-macro.S"
 
 config EARLY_PRINTK

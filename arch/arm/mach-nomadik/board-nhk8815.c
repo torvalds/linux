@@ -25,18 +25,16 @@
 #include <linux/io.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_data/pinctrl-nomadik.h>
+#include <linux/platform_data/clocksource-nomadik-mtu.h>
+#include <linux/platform_data/mtd-nomadik-nand.h>
 #include <asm/hardware/vic.h>
 #include <asm/sizes.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/irq.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/time.h>
-
-#include <plat/mtu.h>
-
-#include <linux/platform_data/mtd-nomadik-nand.h>
 #include <mach/fsmc.h>
+#include <mach/irqs.h>
 
 #include "cpu-8815.h"
 
@@ -260,7 +258,7 @@ static void __init nomadik_timer_init(void)
 	src_cr |= SRC_CR_INIT_VAL;
 	writel(src_cr, io_p2v(NOMADIK_SRC_BASE));
 
-	nmdk_timer_init(io_p2v(NOMADIK_MTU0_BASE));
+	nmdk_timer_init(io_p2v(NOMADIK_MTU0_BASE), IRQ_MTU0);
 }
 
 static struct sys_timer nomadik_timer = {

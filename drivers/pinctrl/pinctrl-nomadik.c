@@ -31,9 +31,8 @@
 /* Since we request GPIOs from ourself */
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_data/pinctrl-nomadik.h>
-
 #include <asm/mach/irq.h>
-
+#include <mach/irqs.h>
 #include "pinctrl-nomadik.h"
 
 /*

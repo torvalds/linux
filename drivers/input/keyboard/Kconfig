@@ -409,7 +409,7 @@ config KEYBOARD_NEWTON
 
 config KEYBOARD_NOMADIK
 	tristate "ST-Ericsson Nomadik SKE keyboard"
-	depends on PLAT_NOMADIK
+	depends on (ARCH_NOMADIK || ARCH_U8500)
 	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use a keypad provided on the SKE controller
