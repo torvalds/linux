@@ -112,6 +112,18 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 		} else
 			p->ring = RADEON_RING_TYPE_GFX_INDEX;
 		break;
+	case RADEON_CS_RING_DMA:
+		if (p->rdev->family >= CHIP_CAYMAN) {
+			if (p->priority > 0)
+				p->ring = R600_RING_TYPE_DMA_INDEX;
+			else
+				p->ring = CAYMAN_RING_TYPE_DMA1_INDEX;
+		} else if (p->rdev->family >= CHIP_R600) {
+			p->ring = R600_RING_TYPE_DMA_INDEX;
+		} else {
+			return -EINVAL;
+		}
+		break;
 	}
 	return 0;
 }
