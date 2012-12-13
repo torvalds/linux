@@ -31,7 +31,7 @@
 #include <asm/mach/map.h>
 
 #include "common.h"
-#include <plat-omap/dma-omap.h>
+#include <linux/omap-dma.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-tfp410.h>
 

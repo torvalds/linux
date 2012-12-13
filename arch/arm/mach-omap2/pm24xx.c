@@ -25,7 +25,7 @@
 #include <linux/sysfs.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/irq.h>
 #include <linux/time.h>
 #include <linux/gpio.h>
@@ -38,7 +38,7 @@
 #include <asm/mach-types.h>
 #include <asm/system_misc.h>
 
-#include <plat-omap/dma-omap.h>
+#include <linux/omap-dma.h>
 
 #include "soc.h"
 #include "common.h"
@@ -203,7 +203,7 @@ static int omap2_can_sleep(void)
 {
 	if (omap2_fclks_active())
 		return 0;
-	if (osc_ck->usecount > 1)
+	if (__clk_is_enabled(osc_ck))
 		return 0;
 	if (omap_dma_running())
 		return 0;

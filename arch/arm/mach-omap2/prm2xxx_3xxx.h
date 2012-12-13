@@ -152,6 +152,7 @@ extern int omap2_clkdm_clear_all_wkdeps(struct clockdomain *clkdm);
 /* Named PRCM_CLKSRC_CTRL on the 24XX */
 #define OMAP_SYSCLKDIV_SHIFT				6
 #define OMAP_SYSCLKDIV_MASK				(0x3 << 6)
+#define OMAP_SYSCLKDIV_WIDTH				2
 #define OMAP_AUTOEXTCLKMODE_SHIFT			3
 #define OMAP_AUTOEXTCLKMODE_MASK			(0x3 << 3)
 #define OMAP_SYSCLKSEL_SHIFT				0

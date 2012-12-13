@@ -45,7 +45,7 @@
 #include <media/v4l2-ioctl.h>
 
 #include <plat/cpu.h>
-#include <plat-omap/dma-omap.h>
+#include <linux/omap-dma.h>
 #include <video/omapvrfb.h>
 #include <video/omapdss.h>
 

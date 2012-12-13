@@ -25,7 +25,7 @@
 #include <asm/tlb.h>
 #include <asm/mach/map.h>
 
-#include <plat-omap/dma-omap.h>
+#include <linux/omap-dma.h>
 
 #include "omap_hwmod.h"
 #include "soc.h"
@@ -50,6 +50,9 @@
 #include "prcm_mpu44xx.h"
 #include "prminst44xx.h"
 #include "cminst44xx.h"
+#include "prm2xxx.h"
+#include "prm3xxx.h"
+#include "prm44xx.h"
 
 /*
  * The machine specific code may provide the extra mapping besides the
@@ -387,6 +390,7 @@ void __init omap2420_init_early(void)
 	omap2_set_globals_prm(OMAP2_L4_IO_ADDRESS(OMAP2420_PRM_BASE));
 	omap2_set_globals_cm(OMAP2_L4_IO_ADDRESS(OMAP2420_CM_BASE), NULL);
 	omap2xxx_check_revision();
+	omap2xxx_prm_init();
 	omap2xxx_cm_init();
 	omap2xxx_voltagedomains_init();
 	omap242x_powerdomains_init();
@@ -401,6 +405,7 @@ void __init omap2420_init_late(void)
 	omap_mux_late_init();
 	omap2_common_pm_late_init();
 	omap2_pm_init();
+	omap2_clk_enable_autoidle_all();
 }
 #endif
 
@@ -415,6 +420,7 @@ void __init omap2430_init_early(void)
 	omap2_set_globals_prm(OMAP2_L4_IO_ADDRESS(OMAP2430_PRM_BASE));
 	omap2_set_globals_cm(OMAP2_L4_IO_ADDRESS(OMAP2430_CM_BASE), NULL);
 	omap2xxx_check_revision();
+	omap2xxx_prm_init();
 	omap2xxx_cm_init();
 	omap2xxx_voltagedomains_init();
 	omap243x_powerdomains_init();
@@ -429,6 +435,7 @@ void __init omap2430_init_late(void)
 	omap_mux_late_init();
 	omap2_common_pm_late_init();
 	omap2_pm_init();
+	omap2_clk_enable_autoidle_all();
 }
 #endif
 
@@ -448,6 +455,7 @@ void __init omap3_init_early(void)
 	omap2_set_globals_cm(OMAP2_L4_IO_ADDRESS(OMAP3430_CM_BASE), NULL);
 	omap3xxx_check_revision();
 	omap3xxx_check_features();
+	omap3xxx_prm_init();
 	omap3xxx_cm_init();
 	omap3xxx_voltagedomains_init();
 	omap3xxx_powerdomains_init();
@@ -500,6 +508,7 @@ void __init omap3_init_late(void)
 	omap_mux_late_init();
 	omap2_common_pm_late_init();
 	omap3_pm_init();
+	omap2_clk_enable_autoidle_all();
 }
 
 void __init omap3430_init_late(void)
@@ -507,6 +516,7 @@ void __init omap3430_init_late(void)
 	omap_mux_late_init();
 	omap2_common_pm_late_init();
 	omap3_pm_init();
+	omap2_clk_enable_autoidle_all();
 }
 
 void __init omap35xx_init_late(void)
@@ -514,6 +524,7 @@ void __init omap35xx_init_late(void)
 	omap_mux_late_init();
 	omap2_common_pm_late_init();
 	omap3_pm_init();
+	omap2_clk_enable_autoidle_all();
 }
 
 void __init omap3630_init_late(void)
@@ -521,6 +532,7 @@ void __init omap3630_init_late(void)
 	omap_mux_late_init();
 	omap2_common_pm_late_init();
 	omap3_pm_init();
+	omap2_clk_enable_autoidle_all();
 }
 
 void __init am35xx_init_late(void)
@@ -528,6 +540,7 @@ void __init am35xx_init_late(void)
 	omap_mux_late_init();
 	omap2_common_pm_late_init();
 	omap3_pm_init();
+	omap2_clk_enable_autoidle_all();
 }
 
 void __init ti81xx_init_late(void)
@@ -535,6 +548,7 @@ void __init ti81xx_init_late(void)
 	omap_mux_late_init();
 	omap2_common_pm_late_init();
 	omap3_pm_init();
+	omap2_clk_enable_autoidle_all();
 }
 #endif
 
@@ -573,6 +587,7 @@ void __init omap4430_init_early(void)
 	omap_cm_base_init();
 	omap4xxx_check_revision();
 	omap4xxx_check_features();
+	omap44xx_prm_init();
 	omap44xx_voltagedomains_init();
 	omap44xx_powerdomains_init();
 	omap44xx_clockdomains_init();
@@ -586,6 +601,7 @@ void __init omap4430_init_late(void)
 	omap_mux_late_init();
 	omap2_common_pm_late_init();
 	omap4_pm_init();
+	omap2_clk_enable_autoidle_all();
 }
 #endif
 

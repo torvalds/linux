@@ -383,16 +383,20 @@ static struct prm_ll_data omap3xxx_prm_ll_data = {
 	.read_reset_sources = &omap3xxx_prm_read_reset_sources,
 };
 
-static int __init omap3xxx_prm_init(void)
+int __init omap3xxx_prm_init(void)
+{
+	if (!cpu_is_omap34xx())
+		return 0;
+
+	return prm_register(&omap3xxx_prm_ll_data);
+}
+
+static int __init omap3xxx_prm_late_init(void)
 {
 	int ret;
 
 	if (!cpu_is_omap34xx())
 		return 0;
-
-	ret = prm_register(&omap3xxx_prm_ll_data);
-	if (ret)
-		return ret;
 
 	omap3xxx_prm_enable_io_wakeup();
 	ret = omap_prcm_register_chain_handler(&omap3_prcm_irq_setup);
@@ -400,10 +404,9 @@ static int __init omap3xxx_prm_init(void)
 		irq_set_status_flags(omap_prcm_event_to_irq("io"),
 				     IRQ_NOAUTOEN);
 
-
 	return ret;
 }
-subsys_initcall(omap3xxx_prm_init);
+subsys_initcall(omap3xxx_prm_late_init);
 
 static void __exit omap3xxx_prm_exit(void)
 {

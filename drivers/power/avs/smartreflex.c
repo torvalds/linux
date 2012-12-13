@@ -130,24 +130,21 @@ static irqreturn_t sr_interrupt(int irq, void *data)
 
 static void sr_set_clk_length(struct omap_sr *sr)
 {
-	struct clk *sys_ck;
-	u32 sys_clk_speed;
+	struct clk *fck;
+	u32 fclk_speed;
 
-	if (cpu_is_omap34xx())
-		sys_ck = clk_get(NULL, "sys_ck");
-	else
-		sys_ck = clk_get(NULL, "sys_clkin_ck");
+	fck = clk_get(&sr->pdev->dev, "fck");
 
-	if (IS_ERR(sys_ck)) {
-		dev_err(&sr->pdev->dev, "%s: unable to get sys clk\n",
-			__func__);
+	if (IS_ERR(fck)) {
+		dev_err(&sr->pdev->dev, "%s: unable to get fck for device %s\n",
+				__func__, dev_name(&sr->pdev->dev));
 		return;
 	}
 
-	sys_clk_speed = clk_get_rate(sys_ck);
-	clk_put(sys_ck);
+	fclk_speed = clk_get_rate(fck);
+	clk_put(fck);
 
-	switch (sys_clk_speed) {
+	switch (fclk_speed) {
 	case 12000000:
 		sr->clk_length = SRCLKLENGTH_12MHZ_SYSCLK;
 		break;
@@ -164,31 +161,9 @@ static void sr_set_clk_length(struct omap_sr *sr)
 		sr->clk_length = SRCLKLENGTH_38MHZ_SYSCLK;
 		break;
 	default:
-		dev_err(&sr->pdev->dev, "%s: Invalid sysclk value: %d\n",
-			__func__, sys_clk_speed);
+		dev_err(&sr->pdev->dev, "%s: Invalid fclk rate: %d\n",
+			__func__, fclk_speed);
 		break;
-	}
-}
-
-static void sr_set_regfields(struct omap_sr *sr)
-{
-	/*
-	 * For time being these values are defined in smartreflex.h
-	 * and populated during init. May be they can be moved to board
-	 * file or pmic specific data structure. In that case these structure
-	 * fields will have to be populated using the pdata or pmic structure.
-	 */
-	if (cpu_is_omap34xx() || cpu_is_omap44xx()) {
-		sr->err_weight = OMAP3430_SR_ERRWEIGHT;
-		sr->err_maxlimit = OMAP3430_SR_ERRMAXLIMIT;
-		sr->accum_data = OMAP3430_SR_ACCUMDATA;
-		if (!(strcmp(sr->name, "smartreflex_mpu_iva"))) {
-			sr->senn_avgweight = OMAP3430_SR1_SENNAVGWEIGHT;
-			sr->senp_avgweight = OMAP3430_SR1_SENPAVGWEIGHT;
-		} else {
-			sr->senn_avgweight = OMAP3430_SR2_SENNAVGWEIGHT;
-			sr->senp_avgweight = OMAP3430_SR2_SENPAVGWEIGHT;
-		}
 	}
 }
 
@@ -924,8 +899,14 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 	sr_info->nvalue_count = pdata->nvalue_count;
 	sr_info->senn_mod = pdata->senn_mod;
 	sr_info->senp_mod = pdata->senp_mod;
+	sr_info->err_weight = pdata->err_weight;
+	sr_info->err_maxlimit = pdata->err_maxlimit;
+	sr_info->accum_data = pdata->accum_data;
+	sr_info->senn_avgweight = pdata->senn_avgweight;
+	sr_info->senp_avgweight = pdata->senp_avgweight;
 	sr_info->autocomp_active = false;
 	sr_info->ip_type = pdata->ip_type;
+
 	sr_info->base = ioremap(mem->start, resource_size(mem));
 	if (!sr_info->base) {
 		dev_err(&pdev->dev, "%s: ioremap fail\n", __func__);
@@ -937,7 +918,6 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 		sr_info->irq = irq->start;
 
 	sr_set_clk_length(sr_info);
-	sr_set_regfields(sr_info);
 
 	list_add(&sr_info->node, &sr_list);
 

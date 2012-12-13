@@ -21,9 +21,10 @@
 #include <linux/io.h>
 #include <linux/platform_data/gpio-omap.h>
 #include <linux/power/smartreflex.h>
+#include <linux/platform_data/omap_ocp2scp.h>
 #include <linux/i2c-omap.h>
 
-#include <plat-omap/dma-omap.h>
+#include <linux/omap-dma.h>
 
 #include <linux/platform_data/omap_ocp2scp.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>

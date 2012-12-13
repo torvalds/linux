@@ -28,7 +28,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 
-#include <plat-omap/dma-omap.h>
+#include <linux/omap-dma.h>
 
 #include "soc.h"
 #include "omap_hwmod.h"

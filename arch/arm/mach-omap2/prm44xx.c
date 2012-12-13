@@ -346,6 +346,37 @@ static u32 omap44xx_prm_read_reset_sources(void)
 	return r;
 }
 
+/**
+ * omap44xx_prm_was_any_context_lost_old - was module hardware context lost?
+ * @part: PRM partition ID (e.g., OMAP4430_PRM_PARTITION)
+ * @inst: PRM instance offset (e.g., OMAP4430_PRM_MPU_INST)
+ * @idx: CONTEXT register offset
+ *
+ * Return 1 if any bits were set in the *_CONTEXT_* register
+ * identified by (@part, @inst, @idx), which means that some context
+ * was lost for that module; otherwise, return 0.
+ */
+static bool omap44xx_prm_was_any_context_lost_old(u8 part, s16 inst, u16 idx)
+{
+	return (omap4_prminst_read_inst_reg(part, inst, idx)) ? 1 : 0;
+}
+
+/**
+ * omap44xx_prm_clear_context_lost_flags_old - clear context loss flags
+ * @part: PRM partition ID (e.g., OMAP4430_PRM_PARTITION)
+ * @inst: PRM instance offset (e.g., OMAP4430_PRM_MPU_INST)
+ * @idx: CONTEXT register offset
+ *
+ * Clear hardware context loss bits for the module identified by
+ * (@part, @inst, @idx).  No return value.  XXX Writes to reserved bits;
+ * is there a way to avoid this?
+ */
+static void omap44xx_prm_clear_context_loss_flags_old(u8 part, s16 inst,
+						      u16 idx)
+{
+	omap4_prminst_write_inst_reg(0xffffffff, part, inst, idx);
+}
+
 /* Powerdomain low-level functions */
 
 static int omap4_pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)
@@ -613,24 +644,28 @@ struct pwrdm_ops omap4_pwrdm_operations = {
  */
 static struct prm_ll_data omap44xx_prm_ll_data = {
 	.read_reset_sources = &omap44xx_prm_read_reset_sources,
+	.was_any_context_lost_old = &omap44xx_prm_was_any_context_lost_old,
+	.clear_context_loss_flags_old = &omap44xx_prm_clear_context_loss_flags_old,
 };
 
-static int __init omap44xx_prm_init(void)
+int __init omap44xx_prm_init(void)
 {
-	int ret;
-
 	if (!cpu_is_omap44xx())
 		return 0;
 
-	ret = prm_register(&omap44xx_prm_ll_data);
-	if (ret)
-		return ret;
+	return prm_register(&omap44xx_prm_ll_data);
+}
+
+static int __init omap44xx_prm_late_init(void)
+{
+	if (!cpu_is_omap44xx())
+		return 0;
 
 	omap44xx_prm_enable_io_wakeup();
 
 	return omap_prcm_register_chain_handler(&omap4_prcm_irq_setup);
 }
-subsys_initcall(omap44xx_prm_init);
+subsys_initcall(omap44xx_prm_late_init);
 
 static void __exit omap44xx_prm_exit(void)
 {
