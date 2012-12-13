@@ -2542,19 +2542,14 @@ int drm_mode_getfb(struct drm_device *dev,
 {
 	struct drm_mode_fb_cmd *r = data;
 	struct drm_framebuffer *fb;
-	int ret = 0;
+	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	drm_modeset_lock_all(dev);
 	fb = drm_framebuffer_lookup(dev, r->fb_id);
-	if (!fb) {
-		ret = -EINVAL;
-		goto out;
-	}
-	/* fb is protect by the mode_config lock, so drop the ref immediately */
-	drm_framebuffer_unreference(fb);
+	if (!fb)
+		return -EINVAL;
 
 	r->height = fb->height;
 	r->width = fb->width;
@@ -2566,8 +2561,8 @@ int drm_mode_getfb(struct drm_device *dev,
 	else
 		ret = -ENODEV;
 
-out:
-	drm_modeset_unlock_all(dev);
+	drm_framebuffer_unreference(fb);
+
 	return ret;
 }
 
