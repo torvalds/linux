@@ -500,13 +500,15 @@ union ethtool_flow_union {
 	struct ethtool_ah_espip4_spec		esp_ip4_spec;
 	struct ethtool_usrip4_spec		usr_ip4_spec;
 	struct ethhdr				ether_spec;
-	__u8					hdata[60];
+	__u8					hdata[52];
 };
 
 struct ethtool_flow_ext {
-	__be16	vlan_etype;
-	__be16	vlan_tci;
-	__be32	data[2];
+	__u8		padding[2];
+	unsigned char	h_dest[ETH_ALEN];	/* destination eth addr	*/
+	__be16		vlan_etype;
+	__be16		vlan_tci;
+	__be32		data[2];
 };
 
 /**
@@ -1027,6 +1029,7 @@ enum ethtool_sfeatures_retval_bits {
 #define	ETHER_FLOW	0x12	/* spec only (ether_spec) */
 /* Flag to enable additional fields in struct ethtool_rx_flow_spec */
 #define	FLOW_EXT	0x80000000
+#define	FLOW_MAC_EXT	0x40000000
 
 /* L3-L4 network traffic flow hash options */
 #define	RXH_L2DA	(1 << 1)

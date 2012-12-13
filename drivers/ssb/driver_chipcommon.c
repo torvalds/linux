@@ -4,6 +4,7 @@
  *
  * Copyright 2005, Broadcom Corporation
  * Copyright 2006, 2007, Michael Buesch <m@bues.ch>
+ * Copyright 2012, Hauke Mehrtens <hauke@hauke-m.de>
  *
  * Licensed under the GNU/GPL. See COPYING for details.
  */
@@ -12,6 +13,7 @@
 #include <linux/ssb/ssb_regs.h>
 #include <linux/export.h>
 #include <linux/pci.h>
+#include <linux/bcm47xx_wdt.h>
 
 #include "ssb_private.h"
 
@@ -280,6 +282,69 @@ static void calc_fast_powerup_delay(struct ssb_chipcommon *cc)
 	cc->fast_pwrup_delay = tmp;
 }
 
+static u32 ssb_chipco_alp_clock(struct ssb_chipcommon *cc)
+{
+	if (cc->capabilities & SSB_CHIPCO_CAP_PMU)
+		return ssb_pmu_get_alp_clock(cc);
+
+	return 20000000;
+}
+
+static u32 ssb_chipco_watchdog_get_max_timer(struct ssb_chipcommon *cc)
+{
+	u32 nb;
+
+	if (cc->capabilities & SSB_CHIPCO_CAP_PMU) {
+		if (cc->dev->id.revision < 26)
+			nb = 16;
+		else
+			nb = (cc->dev->id.revision >= 37) ? 32 : 24;
+	} else {
+		nb = 28;
+	}
+	if (nb == 32)
+		return 0xffffffff;
+	else
+		return (1 << nb) - 1;
+}
+
+u32 ssb_chipco_watchdog_timer_set_wdt(struct bcm47xx_wdt *wdt, u32 ticks)
+{
+	struct ssb_chipcommon *cc = bcm47xx_wdt_get_drvdata(wdt);
+
+	if (cc->dev->bus->bustype != SSB_BUSTYPE_SSB)
+		return 0;
+
+	return ssb_chipco_watchdog_timer_set(cc, ticks);
+}
+
+u32 ssb_chipco_watchdog_timer_set_ms(struct bcm47xx_wdt *wdt, u32 ms)
+{
+	struct ssb_chipcommon *cc = bcm47xx_wdt_get_drvdata(wdt);
+	u32 ticks;
+
+	if (cc->dev->bus->bustype != SSB_BUSTYPE_SSB)
+		return 0;
+
+	ticks = ssb_chipco_watchdog_timer_set(cc, cc->ticks_per_ms * ms);
+	return ticks / cc->ticks_per_ms;
+}
+
+static int ssb_chipco_watchdog_ticks_per_ms(struct ssb_chipcommon *cc)
+{
+	struct ssb_bus *bus = cc->dev->bus;
+
+	if (cc->capabilities & SSB_CHIPCO_CAP_PMU) {
+			/* based on 32KHz ILP clock */
+			return 32;
+	} else {
+		if (cc->dev->id.revision < 18)
+			return ssb_clockspeed(bus) / 1000;
+		else
+			return ssb_chipco_alp_clock(cc) / 1000;
+	}
+}
+
 void ssb_chipcommon_init(struct ssb_chipcommon *cc)
 {
 	if (!cc->dev)
@@ -297,6 +362,11 @@ void ssb_chipcommon_init(struct ssb_chipcommon *cc)
 	chipco_powercontrol_init(cc);
 	ssb_chipco_set_clockmode(cc, SSB_CLKMODE_FAST);
 	calc_fast_powerup_delay(cc);
+
+	if (cc->dev->bus->bustype == SSB_BUSTYPE_SSB) {
+		cc->ticks_per_ms = ssb_chipco_watchdog_ticks_per_ms(cc);
+		cc->max_timer_ms = ssb_chipco_watchdog_get_max_timer(cc) / cc->ticks_per_ms;
+	}
 }
 
 void ssb_chipco_suspend(struct ssb_chipcommon *cc)
@@ -395,10 +465,27 @@ void ssb_chipco_timing_init(struct ssb_chipcommon *cc,
 }
 
 /* Set chip watchdog reset timer to fire in 'ticks' backplane cycles */
-void ssb_chipco_watchdog_timer_set(struct ssb_chipcommon *cc, u32 ticks)
+u32 ssb_chipco_watchdog_timer_set(struct ssb_chipcommon *cc, u32 ticks)
 {
-	/* instant NMI */
-	chipco_write32(cc, SSB_CHIPCO_WATCHDOG, ticks);
+	u32 maxt;
+	enum ssb_clkmode clkmode;
+
+	maxt = ssb_chipco_watchdog_get_max_timer(cc);
+	if (cc->capabilities & SSB_CHIPCO_CAP_PMU) {
+		if (ticks == 1)
+			ticks = 2;
+		else if (ticks > maxt)
+			ticks = maxt;
+		chipco_write32(cc, SSB_CHIPCO_PMU_WATCHDOG, ticks);
+	} else {
+		clkmode = ticks ? SSB_CLKMODE_FAST : SSB_CLKMODE_DYNAMIC;
+		ssb_chipco_set_clockmode(cc, clkmode);
+		if (ticks > maxt)
+			ticks = maxt;
+		/* instant NMI */
+		chipco_write32(cc, SSB_CHIPCO_WATCHDOG, ticks);
+	}
+	return ticks;
 }
 
 void ssb_chipco_irq_mask(struct ssb_chipcommon *cc, u32 mask, u32 value)
@@ -473,12 +560,7 @@ int ssb_chipco_serial_init(struct ssb_chipcommon *cc,
 				       chipco_read32(cc, SSB_CHIPCO_CORECTL)
 				       | SSB_CHIPCO_CORECTL_UARTCLK0);
 		} else if ((ccrev >= 11) && (ccrev != 15)) {
-			/* Fixed ALP clock */
-			baud_base = 20000000;
-			if (cc->capabilities & SSB_CHIPCO_CAP_PMU) {
-				/* FIXME: baud_base is different for devices with a PMU */
-				SSB_WARN_ON(1);
-			}
+			baud_base = ssb_chipco_alp_clock(cc);
 			div = 1;
 			if (ccrev >= 21) {
 				/* Turn off UART clock before switching clocksource. */

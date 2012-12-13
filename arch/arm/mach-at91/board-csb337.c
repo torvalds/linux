@@ -53,6 +53,8 @@ static void __init csb337_init_early(void)
 static struct macb_platform_data __initdata csb337_eth_data = {
 	.phy_irq_pin	= AT91_PIN_PC2,
 	.is_rmii	= 0,
+	/* The CSB337 bootloader stores the MAC the wrong-way around */
+	.rev_eth_addr	= 1,
 };
 
 static struct at91_usbh_data __initdata csb337_usbh_data = {

@@ -541,8 +541,9 @@ static int p54_parse_rssical(struct ieee80211_hw *dev,
 		entries = (len - offset) /
 			sizeof(struct pda_rssi_cal_ext_entry);
 
-		if ((len - offset) % sizeof(struct pda_rssi_cal_ext_entry) ||
-		    entries <= 0) {
+		if (len < offset ||
+		    (len - offset) % sizeof(struct pda_rssi_cal_ext_entry) ||
+		    entries == 0) {
 			wiphy_err(dev->wiphy, "invalid rssi database.\n");
 			goto err_data;
 		}

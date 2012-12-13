@@ -48,8 +48,8 @@ void bcma_chipco_serial_init(struct bcma_drv_cc *cc);
 #endif /* CONFIG_BCMA_DRIVER_MIPS */
 
 /* driver_chipcommon_pmu.c */
-u32 bcma_pmu_alp_clock(struct bcma_drv_cc *cc);
-u32 bcma_pmu_get_clockcpu(struct bcma_drv_cc *cc);
+u32 bcma_pmu_get_alp_clock(struct bcma_drv_cc *cc);
+u32 bcma_pmu_get_cpu_clock(struct bcma_drv_cc *cc);
 
 #ifdef CONFIG_BCMA_SFLASH
 /* driver_chipcommon_sflash.c */
@@ -83,6 +83,8 @@ extern void __exit bcma_host_pci_exit(void);
 
 /* driver_pci.c */
 u32 bcma_pcie_read(struct bcma_drv_pci *pc, u32 address);
+
+extern int bcma_chipco_watchdog_register(struct bcma_drv_cc *cc);
 
 #ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE
 bool __devinit bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc);

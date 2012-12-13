@@ -18,7 +18,6 @@
 #define _BRCMF_DBG_H_
 
 /* message levels */
-#define BRCMF_ERROR_VAL	0x0001
 #define BRCMF_TRACE_VAL	0x0002
 #define BRCMF_INFO_VAL	0x0004
 #define BRCMF_DATA_VAL	0x0008
@@ -27,27 +26,34 @@
 #define BRCMF_HDRS_VAL	0x0040
 #define BRCMF_BYTES_VAL	0x0080
 #define BRCMF_INTR_VAL	0x0100
-#define BRCMF_GLOM_VAL	0x0400
-#define BRCMF_EVENT_VAL	0x0800
-#define BRCMF_BTA_VAL	0x1000
-#define BRCMF_ISCAN_VAL 0x2000
+#define BRCMF_GLOM_VAL	0x0200
+#define BRCMF_EVENT_VAL	0x0400
+#define BRCMF_BTA_VAL	0x0800
+#define BRCMF_FIL_VAL	0x1000
+#define BRCMF_USB_VAL	0x2000
+#define BRCMF_SCAN_VAL	0x4000
+#define BRCMF_CONN_VAL	0x8000
+
+/* Macro for error messages. net_ratelimit() is used when driver
+ * debugging is not selected. When debugging the driver error
+ * messages are as important as other tracing or even more so.
+ */
+#ifdef CONFIG_BRCMDBG
+#define brcmf_err(fmt, ...)	pr_err("%s: " fmt, __func__, ##__VA_ARGS__)
+#else
+#define brcmf_err(fmt, ...)						\
+	do {								\
+		if (net_ratelimit())					\
+			pr_err("%s: " fmt, __func__, ##__VA_ARGS__);	\
+	} while (0)
+#endif
 
 #if defined(DEBUG)
 
-#define brcmf_dbg(level, fmt, ...)					\
-do {									\
-	if (BRCMF_ERROR_VAL == BRCMF_##level##_VAL) {			\
-		if (brcmf_msg_level & BRCMF_##level##_VAL) {		\
-			if (net_ratelimit())				\
-				pr_debug("%s: " fmt,			\
-					 __func__, ##__VA_ARGS__);	\
-		}							\
-	} else {							\
-		if (brcmf_msg_level & BRCMF_##level##_VAL) {		\
-			pr_debug("%s: " fmt,				\
-				 __func__, ##__VA_ARGS__);		\
-		}							\
-	}								\
+#define brcmf_dbg(level, fmt, ...)				\
+do {								\
+	if (brcmf_msg_level & BRCMF_##level##_VAL)		\
+		pr_debug("%s: " fmt, __func__, ##__VA_ARGS__);	\
 } while (0)
 
 #define BRCMF_DATA_ON()		(brcmf_msg_level & BRCMF_DATA_VAL)
@@ -56,6 +62,7 @@ do {									\
 #define BRCMF_BYTES_ON()	(brcmf_msg_level & BRCMF_BYTES_VAL)
 #define BRCMF_GLOM_ON()		(brcmf_msg_level & BRCMF_GLOM_VAL)
 #define BRCMF_EVENT_ON()	(brcmf_msg_level & BRCMF_EVENT_VAL)
+#define BRCMF_FIL_ON()		(brcmf_msg_level & BRCMF_FIL_VAL)
 
 #else	/* (defined DEBUG) || (defined DEBUG) */
 
@@ -67,6 +74,7 @@ do {									\
 #define BRCMF_BYTES_ON()	0
 #define BRCMF_GLOM_ON()		0
 #define BRCMF_EVENT_ON()	0
+#define BRCMF_FIL_ON()		0
 
 #endif				/* defined(DEBUG) */
 

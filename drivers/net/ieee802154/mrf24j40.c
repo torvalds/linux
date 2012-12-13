@@ -618,7 +618,7 @@ out:
 	enable_irq(devrec->spi->irq);
 }
 
-static int __devinit mrf24j40_probe(struct spi_device *spi)
+static int mrf24j40_probe(struct spi_device *spi)
 {
 	int ret = -ENOMEM;
 	u8 val;
@@ -711,7 +711,7 @@ err_devrec:
 	return ret;
 }
 
-static int __devexit mrf24j40_remove(struct spi_device *spi)
+static int mrf24j40_remove(struct spi_device *spi)
 {
 	struct mrf24j40 *devrec = dev_get_drvdata(&spi->dev);
 
@@ -746,7 +746,7 @@ static struct spi_driver mrf24j40_driver = {
 	},
 	.id_table = mrf24j40_ids,
 	.probe = mrf24j40_probe,
-	.remove = __devexit_p(mrf24j40_remove),
+	.remove = mrf24j40_remove,
 };
 
 static int __init mrf24j40_init(void)

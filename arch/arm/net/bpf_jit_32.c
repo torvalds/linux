@@ -16,6 +16,7 @@
 #include <linux/netdevice.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/if_vlan.h>
 #include <asm/cacheflush.h>
 #include <asm/hwcap.h>
 
@@ -168,6 +169,8 @@ static inline bool is_load_to_a(u16 inst)
 	case BPF_S_ANC_MARK:
 	case BPF_S_ANC_PROTOCOL:
 	case BPF_S_ANC_RXHASH:
+	case BPF_S_ANC_VLAN_TAG:
+	case BPF_S_ANC_VLAN_TAG_PRESENT:
 	case BPF_S_ANC_QUEUE:
 		return true;
 	default:
@@ -646,6 +649,16 @@ load_ind:
 			update_on_xread(ctx);
 			emit(ARM_ORR_R(r_A, r_A, r_X), ctx);
 			break;
+		case BPF_S_ALU_XOR_K:
+			/* A ^= K; */
+			OP_IMM3(ARM_EOR, r_A, r_A, k, ctx);
+			break;
+		case BPF_S_ANC_ALU_XOR_X:
+		case BPF_S_ALU_XOR_X:
+			/* A ^= X */
+			update_on_xread(ctx);
+			emit(ARM_EOR_R(r_A, r_A, r_X), ctx);
+			break;
 		case BPF_S_ALU_AND_K:
 			/* A &= K */
 			OP_IMM3(ARM_AND, r_A, r_A, k, ctx);
@@ -762,11 +775,6 @@ b_epilogue:
 			update_on_xread(ctx);
 			emit(ARM_MOV_R(r_A, r_X), ctx);
 			break;
-		case BPF_S_ANC_ALU_XOR_X:
-			/* A ^= X */
-			update_on_xread(ctx);
-			emit(ARM_EOR_R(r_A, r_A, r_X), ctx);
-			break;
 		case BPF_S_ANC_PROTOCOL:
 			/* A = ntohs(skb->protocol) */
 			ctx->seen |= SEEN_SKB;
@@ -809,6 +817,17 @@ b_epilogue:
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, rxhash) != 4);
 			off = offsetof(struct sk_buff, rxhash);
 			emit(ARM_LDR_I(r_A, r_skb, off), ctx);
+			break;
+		case BPF_S_ANC_VLAN_TAG:
+		case BPF_S_ANC_VLAN_TAG_PRESENT:
+			ctx->seen |= SEEN_SKB;
+			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, vlan_tci) != 2);
+			off = offsetof(struct sk_buff, vlan_tci);
+			emit(ARM_LDRH_I(r_A, r_skb, off), ctx);
+			if (inst->code == BPF_S_ANC_VLAN_TAG)
+				OP_IMM3(ARM_AND, r_A, r_A, VLAN_VID_MASK, ctx);
+			else
+				OP_IMM3(ARM_AND, r_A, r_A, VLAN_TAG_PRESENT, ctx);
 			break;
 		case BPF_S_ANC_QUEUE:
 			ctx->seen |= SEEN_SKB;

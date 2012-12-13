@@ -905,6 +905,24 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	gpt		[EFI] Forces disk with valid GPT signature but
 			invalid Protective MBR to be treated as GPT.
 
+	grcan.enable0=	[HW] Configuration of physical interface 0. Determines
+			the "Enable 0" bit of the configuration register.
+			Format: 0 | 1
+			Default: 0
+	grcan.enable1=	[HW] Configuration of physical interface 1. Determines
+			the "Enable 0" bit of the configuration register.
+			Format: 0 | 1
+			Default: 0
+	grcan.select=	[HW] Select which physical interface to use.
+			Format: 0 | 1
+			Default: 0
+	grcan.txsize=	[HW] Sets the size of the tx buffer.
+			Format: <unsigned int> such that (txsize & ~0x1fffc0) == 0.
+			Default: 1024
+	grcan.rxsize=	[HW] Sets the size of the rx buffer.
+			Format: <unsigned int> such that (rxsize & ~0x1fffc0) == 0.
+			Default: 1024
+
 	hashdist=	[KNL,NUMA] Large hashes allocated during boot
 			are distributed across NUMA nodes.  Defaults on
 			for 64-bit NUMA, off otherwise.

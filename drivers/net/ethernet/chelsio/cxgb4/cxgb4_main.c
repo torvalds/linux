@@ -2148,8 +2148,8 @@ static const struct file_operations mem_debugfs_fops = {
 	.llseek  = default_llseek,
 };
 
-static void __devinit add_debugfs_mem(struct adapter *adap, const char *name,
-				      unsigned int idx, unsigned int size_mb)
+static void add_debugfs_mem(struct adapter *adap, const char *name,
+			    unsigned int idx, unsigned int size_mb)
 {
 	struct dentry *de;
 
@@ -2159,7 +2159,7 @@ static void __devinit add_debugfs_mem(struct adapter *adap, const char *name,
 		de->d_inode->i_size = size_mb << 20;
 }
 
-static int __devinit setup_debugfs(struct adapter *adap)
+static int setup_debugfs(struct adapter *adap)
 {
 	int i;
 
@@ -4173,7 +4173,7 @@ static inline void init_rspq(struct sge_rspq *q, u8 timer_idx, u8 pkt_cnt_idx,
  * of ports we found and the number of available CPUs.  Most settings can be
  * modified by the admin prior to actual use.
  */
-static void __devinit cfg_queues(struct adapter *adap)
+static void cfg_queues(struct adapter *adap)
 {
 	struct sge *s = &adap->sge;
 	int i, q10g = 0, n10g = 0, qidx = 0;
@@ -4257,7 +4257,7 @@ static void __devinit cfg_queues(struct adapter *adap)
  * Reduce the number of Ethernet queues across all ports to at most n.
  * n provides at least one queue per port.
  */
-static void __devinit reduce_ethqs(struct adapter *adap, int n)
+static void reduce_ethqs(struct adapter *adap, int n)
 {
 	int i;
 	struct port_info *pi;
@@ -4284,7 +4284,7 @@ static void __devinit reduce_ethqs(struct adapter *adap, int n)
 /* 2 MSI-X vectors needed for the FW queue and non-data interrupts */
 #define EXTRA_VECS 2
 
-static int __devinit enable_msix(struct adapter *adap)
+static int enable_msix(struct adapter *adap)
 {
 	int ofld_need = 0;
 	int i, err, want, need;
@@ -4333,7 +4333,7 @@ static int __devinit enable_msix(struct adapter *adap)
 
 #undef EXTRA_VECS
 
-static int __devinit init_rss(struct adapter *adap)
+static int init_rss(struct adapter *adap)
 {
 	unsigned int i, j;
 
@@ -4349,7 +4349,7 @@ static int __devinit init_rss(struct adapter *adap)
 	return 0;
 }
 
-static void __devinit print_port_info(const struct net_device *dev)
+static void print_port_info(const struct net_device *dev)
 {
 	static const char *base[] = {
 		"R XFI", "R XAUI", "T SGMII", "T XFI", "T XAUI", "KX4", "CX4",
@@ -4386,7 +4386,7 @@ static void __devinit print_port_info(const struct net_device *dev)
 		    adap->params.vpd.sn, adap->params.vpd.ec);
 }
 
-static void __devinit enable_pcie_relaxed_ordering(struct pci_dev *dev)
+static void enable_pcie_relaxed_ordering(struct pci_dev *dev)
 {
 	pcie_capability_set_word(dev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_RELAX_EN);
 }
@@ -4419,8 +4419,7 @@ static void free_some_resources(struct adapter *adapter)
 #define VLAN_FEAT (NETIF_F_SG | NETIF_F_IP_CSUM | TSO_FLAGS | \
 		   NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
 
-static int __devinit init_one(struct pci_dev *pdev,
-			      const struct pci_device_id *ent)
+static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int func, i, err;
 	struct port_info *pi;
@@ -4640,7 +4639,7 @@ sriov:
 	return err;
 }
 
-static void __devexit remove_one(struct pci_dev *pdev)
+static void remove_one(struct pci_dev *pdev)
 {
 	struct adapter *adapter = pci_get_drvdata(pdev);
 
@@ -4680,7 +4679,7 @@ static struct pci_driver cxgb4_driver = {
 	.name     = KBUILD_MODNAME,
 	.id_table = cxgb4_pci_tbl,
 	.probe    = init_one,
-	.remove   = __devexit_p(remove_one),
+	.remove   = remove_one,
 	.err_handler = &cxgb4_eeh,
 };
 

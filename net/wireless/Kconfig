@@ -140,14 +140,13 @@ config CFG80211_WEXT
 	  extensions with cfg80211-based drivers.
 
 config LIB80211
-	tristate "Common routines for IEEE802.11 drivers"
+	tristate
 	default n
 	help
 	  This options enables a library of common routines used
 	  by IEEE802.11 wireless LAN drivers.
 
-	  Drivers should select this themselves if needed.  Say Y if
-	  you want this built into your kernel.
+	  Drivers should select this themselves if needed.
 
 config LIB80211_CRYPT_WEP
 	tristate

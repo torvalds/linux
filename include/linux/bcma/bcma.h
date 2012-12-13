@@ -157,6 +157,7 @@ struct bcma_host_ops {
 
 /* Chip IDs of SoCs */
 #define BCMA_CHIP_ID_BCM4706	0x5300
+#define  BCMA_PKG_ID_BCM4706L	1
 #define BCMA_CHIP_ID_BCM4716	0x4716
 #define  BCMA_PKG_ID_BCM4716	8
 #define  BCMA_PKG_ID_BCM4717	9
@@ -166,7 +167,11 @@ struct bcma_host_ops {
 #define BCMA_CHIP_ID_BCM4749	0x4749
 #define BCMA_CHIP_ID_BCM5356	0x5356
 #define BCMA_CHIP_ID_BCM5357	0x5357
+#define  BCMA_PKG_ID_BCM5358	9
+#define  BCMA_PKG_ID_BCM47186	10
+#define  BCMA_PKG_ID_BCM5357	11
 #define BCMA_CHIP_ID_BCM53572	53572
+#define  BCMA_PKG_ID_BCM47188	9
 
 struct bcma_device {
 	struct bcma_bus *bus;
@@ -251,7 +256,7 @@ struct bcma_bus {
 	u8 num;
 
 	struct bcma_drv_cc drv_cc;
-	struct bcma_drv_pci drv_pci;
+	struct bcma_drv_pci drv_pci[2];
 	struct bcma_drv_mips drv_mips;
 	struct bcma_drv_gmac_cmn drv_gmac_cmn;
 

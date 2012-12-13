@@ -34,13 +34,15 @@
 #define LMI_CCITT		3 /* ITU-T Annex A */
 #define LMI_CISCO		4 /* The "original" LMI, aka Gang of Four */
 
-typedef struct { 
+#ifndef __ASSEMBLY__
+
+typedef struct {
 	unsigned int clock_rate; /* bits per second */
 	unsigned int clock_type; /* internal, external, TX-internal etc. */
 	unsigned short loopback;
 } sync_serial_settings;          /* V.35, V.24, X.21 */
 
-typedef struct { 
+typedef struct {
 	unsigned int clock_rate; /* bits per second */
 	unsigned int clock_type; /* internal, external, TX-internal etc. */
 	unsigned short loopback;
@@ -78,4 +80,5 @@ typedef struct {
 
 /* PPP doesn't need any info now - supply length = 0 to ioctl */
 
+#endif /* __ASSEMBLY__ */
 #endif /* __HDLC_IOCTL_H__ */

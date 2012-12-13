@@ -480,8 +480,11 @@ normal:
 		 */
 		if (asoc && sctp_chunk_is_data(chunk))
 			asoc->peer.last_data_from = chunk->transport;
-		else
+		else {
 			SCTP_INC_STATS(sock_net(ep->base.sk), SCTP_MIB_INCTRLCHUNKS);
+			if (asoc)
+				asoc->stats.ictrlchunks++;
+		}
 
 		if (chunk->transport)
 			chunk->transport->last_time_heard = jiffies;

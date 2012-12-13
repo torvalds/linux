@@ -9,7 +9,6 @@ menuconfig IP_SCTP
 	select CRYPTO
 	select CRYPTO_HMAC
 	select CRYPTO_SHA1
-	select CRYPTO_MD5 if SCTP_HMAC_MD5
 	select LIBCRC32C
 	---help---
 	  Stream Control Transmission Protocol
@@ -68,33 +67,21 @@ config SCTP_DBG_OBJCNT
 
 	  If unsure, say N
 
-choice
-	prompt "SCTP: Cookie HMAC Algorithm"
-	default SCTP_HMAC_MD5
+config SCTP_COOKIE_HMAC_MD5
+	bool "Enable optional MD5 hmac cookie generation"
 	help
-	  HMAC algorithm to be used during association initialization.  It
-	  is strongly recommended to use HMAC-SHA1 or HMAC-MD5.  See 
-	  configuration for Cryptographic API and enable those algorithms
-          to make usable by SCTP. 
+	  Enable optional MD5 hmac based SCTP cookie generation
+	default y
+	select CRYPTO_HMAC if SCTP_COOKIE_HMAC_MD5
+	select CRYPTO_MD5 if SCTP_COOKIE_HMAC_MD5
 
-config SCTP_HMAC_NONE
-	bool "None"
-	help 
-	  Choosing this disables the use of an HMAC during association 
-	  establishment.  It is advised to use either HMAC-MD5 or HMAC-SHA1.
-
-config SCTP_HMAC_SHA1
-	bool "HMAC-SHA1"
-	help 
-	  Enable the use of HMAC-SHA1 during association establishment.  It 
-	  is advised to use either HMAC-MD5 or HMAC-SHA1.
-
-config SCTP_HMAC_MD5
-	bool "HMAC-MD5"
+config SCTP_COOKIE_HMAC_SHA1
+	bool "Enable optional SHA1 hmac cookie generation"
 	help
-	  Enable the use of HMAC-MD5 during association establishment.  It is 
-	  advised to use either HMAC-MD5 or HMAC-SHA1.
+	  Enable optional SHA1 hmac based SCTP cookie generation
+	default y
+	select CRYPTO_HMAC if SCTP_COOKIE_HMAC_SHA1
+	select CRYPTO_SHA1 if SCTP_COOKIE_HMAC_SHA1
 
-endchoice
 
 endif # IP_SCTP

@@ -164,7 +164,6 @@ static void fpga_queue(struct solos_card *card, int port, struct sk_buff *skb,
 static uint32_t fpga_tx(struct solos_card *);
 static irqreturn_t solos_irq(int irq, void *dev_id);
 static struct atm_vcc* find_vcc(struct atm_dev *dev, short vpi, int vci);
-static int list_vccs(int vci);
 static int atm_init(struct solos_card *, struct device *);
 static void atm_remove(struct solos_card *);
 static int send_command(struct solos_card *card, int dev, const char *buf, size_t size);
@@ -710,7 +709,8 @@ void solos_bh(unsigned long card_arg)
 						dev_warn(&card->dev->dev, "Received packet for unknown VPI.VCI %d.%d on port %d\n",
 							 le16_to_cpu(header->vpi), le16_to_cpu(header->vci),
 							 port);
-					continue;
+					dev_kfree_skb_any(skb);
+					break;
 				}
 				atm_charge(vcc, skb->truesize);
 				vcc->push(vcc, skb);
@@ -790,44 +790,6 @@ static struct atm_vcc *find_vcc(struct atm_dev *dev, short vpi, int vci)
 	return vcc;
 }
 
-static int list_vccs(int vci)
-{
-	struct hlist_head *head;
-	struct atm_vcc *vcc;
-	struct hlist_node *node;
-	struct sock *s;
-	int num_found = 0;
-	int i;
-
-	read_lock(&vcc_sklist_lock);
-	if (vci != 0){
-		head = &vcc_hash[vci & (VCC_HTABLE_SIZE -1)];
-		sk_for_each(s, node, head) {
-			num_found ++;
-			vcc = atm_sk(s);
-			printk(KERN_DEBUG "Device: %d Vpi: %d Vci: %d\n",
-			       vcc->dev->number,
-			       vcc->vpi,
-			       vcc->vci);
-		}
-	} else {
-		for(i = 0; i < VCC_HTABLE_SIZE; i++){
-			head = &vcc_hash[i];
-			sk_for_each(s, node, head) {
-				num_found ++;
-				vcc = atm_sk(s);
-				printk(KERN_DEBUG "Device: %d Vpi: %d Vci: %d\n",
-				       vcc->dev->number,
-				       vcc->vpi,
-				       vcc->vci);
-			}
-		}
-	}
-	read_unlock(&vcc_sklist_lock);
-	return num_found;
-}
-
-
 static int popen(struct atm_vcc *vcc)
 {
 	struct solos_card *card = vcc->dev->dev_data;
@@ -840,7 +802,7 @@ static int popen(struct atm_vcc *vcc)
 		return -EINVAL;
 	}
 
-	skb = alloc_skb(sizeof(*header), GFP_ATOMIC);
+	skb = alloc_skb(sizeof(*header), GFP_KERNEL);
 	if (!skb) {
 		if (net_ratelimit())
 			dev_warn(&card->dev->dev, "Failed to allocate sk_buff in popen()\n");
@@ -857,8 +819,6 @@ static int popen(struct atm_vcc *vcc)
 
 	set_bit(ATM_VF_ADDR, &vcc->flags);
 	set_bit(ATM_VF_READY, &vcc->flags);
-	list_vccs(0);
-
 
 	return 0;
 }
@@ -866,10 +826,21 @@ static int popen(struct atm_vcc *vcc)
 static void pclose(struct atm_vcc *vcc)
 {
 	struct solos_card *card = vcc->dev->dev_data;
-	struct sk_buff *skb;
+	unsigned char port = SOLOS_CHAN(vcc->dev);
+	struct sk_buff *skb, *tmpskb;
 	struct pkt_hdr *header;
 
-	skb = alloc_skb(sizeof(*header), GFP_ATOMIC);
+	/* Remove any yet-to-be-transmitted packets from the pending queue */
+	spin_lock(&card->tx_queue_lock);
+	skb_queue_walk_safe(&card->tx_queue[port], skb, tmpskb) {
+		if (SKB_CB(skb)->vcc == vcc) {
+			skb_unlink(skb, &card->tx_queue[port]);
+			solos_pop(vcc, skb);
+		}
+	}
+	spin_unlock(&card->tx_queue_lock);
+
+	skb = alloc_skb(sizeof(*header), GFP_KERNEL);
 	if (!skb) {
 		dev_warn(&card->dev->dev, "Failed to allocate sk_buff in pclose()\n");
 		return;
@@ -881,15 +852,22 @@ static void pclose(struct atm_vcc *vcc)
 	header->vci = cpu_to_le16(vcc->vci);
 	header->type = cpu_to_le16(PKT_PCLOSE);
 
-	fpga_queue(card, SOLOS_CHAN(vcc->dev), skb, NULL);
+	skb_get(skb);
+	fpga_queue(card, port, skb, NULL);
 
-	clear_bit(ATM_VF_ADDR, &vcc->flags);
-	clear_bit(ATM_VF_READY, &vcc->flags);
+	if (!wait_event_timeout(card->param_wq, !skb_shared(skb), 5 * HZ))
+		dev_warn(&card->dev->dev,
+			 "Timeout waiting for VCC close on port %d\n", port);
+
+	dev_kfree_skb(skb);
 
 	/* Hold up vcc_destroy_socket() (our caller) until solos_bh() in the
 	   tasklet has finished processing any incoming packets (and, more to
 	   the point, using the vcc pointer). */
 	tasklet_unlock_wait(&card->tlet);
+
+	clear_bit(ATM_VF_ADDR, &vcc->flags);
+
 	return;
 }
 
@@ -967,10 +945,11 @@ static uint32_t fpga_tx(struct solos_card *card)
 	for (port = 0; tx_pending; tx_pending >>= 1, port++) {
 		if (tx_pending & 1) {
 			struct sk_buff *oldskb = card->tx_skb[port];
-			if (oldskb)
+			if (oldskb) {
 				pci_unmap_single(card->dev, SKB_CB(oldskb)->dma_addr,
 						 oldskb->len, PCI_DMA_TODEVICE);
-
+				card->tx_skb[port] = NULL;
+			}
 			spin_lock(&card->tx_queue_lock);
 			skb = skb_dequeue(&card->tx_queue[port]);
 			if (!skb)
@@ -1011,9 +990,10 @@ static uint32_t fpga_tx(struct solos_card *card)
 			if (vcc) {
 				atomic_inc(&vcc->stats->tx);
 				solos_pop(vcc, oldskb);
-			} else
+			} else {
 				dev_kfree_skb_irq(oldskb);
-
+				wake_up(&card->param_wq);
+			}
 		}
 	}
 	/* For non-DMA TX, write the 'TX start' bit for all four ports simultaneously */
@@ -1248,7 +1228,7 @@ static int atm_init(struct solos_card *card, struct device *parent)
 		card->atmdev[i]->phy_data = (void *)(unsigned long)i;
 		atm_dev_signal_change(card->atmdev[i], ATM_PHY_SIG_FOUND);
 
-		skb = alloc_skb(sizeof(*header), GFP_ATOMIC);
+		skb = alloc_skb(sizeof(*header), GFP_KERNEL);
 		if (!skb) {
 			dev_warn(&card->dev->dev, "Failed to allocate sk_buff in atm_init()\n");
 			continue;
@@ -1345,6 +1325,8 @@ static struct pci_driver fpga_driver = {
 
 static int __init solos_pci_init(void)
 {
+	BUILD_BUG_ON(sizeof(struct solos_skb_cb) > sizeof(((struct sk_buff *)0)->cb));
+
 	printk(KERN_INFO "Solos PCI Driver Version %s\n", VERSION);
 	return pci_register_driver(&fpga_driver);
 }

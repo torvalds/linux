@@ -1002,7 +1002,7 @@ static const struct ethtool_ops temac_ethtool_ops = {
 	.get_ts_info = ethtool_op_get_ts_info,
 };
 
-static int __devinit temac_of_probe(struct platform_device *op)
+static int temac_of_probe(struct platform_device *op)
 {
 	struct device_node *np;
 	struct temac_local *lp;
@@ -1144,7 +1144,7 @@ static int __devinit temac_of_probe(struct platform_device *op)
 	return rc;
 }
 
-static int __devexit temac_of_remove(struct platform_device *op)
+static int temac_of_remove(struct platform_device *op)
 {
 	struct net_device *ndev = dev_get_drvdata(&op->dev);
 	struct temac_local *lp = netdev_priv(ndev);
@@ -1163,7 +1163,7 @@ static int __devexit temac_of_remove(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id temac_of_match[] __devinitdata = {
+static struct of_device_id temac_of_match[] = {
 	{ .compatible = "xlnx,xps-ll-temac-1.01.b", },
 	{ .compatible = "xlnx,xps-ll-temac-2.00.a", },
 	{ .compatible = "xlnx,xps-ll-temac-2.02.a", },
@@ -1174,7 +1174,7 @@ MODULE_DEVICE_TABLE(of, temac_of_match);
 
 static struct platform_driver temac_of_driver = {
 	.probe = temac_of_probe,
-	.remove = __devexit_p(temac_of_remove),
+	.remove = temac_of_remove,
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "xilinx_temac",

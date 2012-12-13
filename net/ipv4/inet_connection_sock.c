@@ -521,20 +521,30 @@ static inline void syn_ack_recalc(struct request_sock *req, const int thresh,
 				  int *expire, int *resend)
 {
 	if (!rskq_defer_accept) {
-		*expire = req->retrans >= thresh;
+		*expire = req->num_timeout >= thresh;
 		*resend = 1;
 		return;
 	}
-	*expire = req->retrans >= thresh &&
-		  (!inet_rsk(req)->acked || req->retrans >= max_retries);
+	*expire = req->num_timeout >= thresh &&
+		  (!inet_rsk(req)->acked || req->num_timeout >= max_retries);
 	/*
 	 * Do not resend while waiting for data after ACK,
 	 * start to resend on end of deferring period to give
 	 * last chance for data or ACK to create established socket.
 	 */
 	*resend = !inet_rsk(req)->acked ||
-		  req->retrans >= rskq_defer_accept - 1;
+		  req->num_timeout >= rskq_defer_accept - 1;
 }
+
+int inet_rtx_syn_ack(struct sock *parent, struct request_sock *req)
+{
+	int err = req->rsk_ops->rtx_syn_ack(parent, req, NULL);
+
+	if (!err)
+		req->num_retrans++;
+	return err;
+}
+EXPORT_SYMBOL(inet_rtx_syn_ack);
 
 void inet_csk_reqsk_queue_prune(struct sock *parent,
 				const unsigned long interval,
@@ -599,13 +609,14 @@ void inet_csk_reqsk_queue_prune(struct sock *parent,
 				req->rsk_ops->syn_ack_timeout(parent, req);
 				if (!expire &&
 				    (!resend ||
-				     !req->rsk_ops->rtx_syn_ack(parent, req, NULL) ||
+				     !inet_rtx_syn_ack(parent, req) ||
 				     inet_rsk(req)->acked)) {
 					unsigned long timeo;
 
-					if (req->retrans++ == 0)
+					if (req->num_timeout++ == 0)
 						lopt->qlen_young--;
-					timeo = min((timeout << req->retrans), max_rto);
+					timeo = min(timeout << req->num_timeout,
+						    max_rto);
 					req->expires = now + timeo;
 					reqp = &req->dl_next;
 					continue;
