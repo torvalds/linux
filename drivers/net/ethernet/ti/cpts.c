@@ -27,8 +27,6 @@
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
 
-#include <plat/clock.h>
-
 #include "cpts.h"
 
 #ifdef CONFIG_TI_CPTS
