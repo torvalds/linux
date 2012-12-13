@@ -151,12 +151,16 @@ long arch_ptrace(struct task_struct *child, long request,
 
 	case PTRACE_SETOPTIONS:
 		/* Support TILE-specific ptrace options. */
-		child->ptrace &= ~PT_TRACE_MASK_TILE;
+		BUILD_BUG_ON(PTRACE_O_MASK_TILE & PTRACE_O_MASK);
 		tmp = data & PTRACE_O_MASK_TILE;
 		data &= ~PTRACE_O_MASK_TILE;
 		ret = ptrace_request(child, request, addr, data);
-		if (tmp & PTRACE_O_TRACEMIGRATE)
-			child->ptrace |= PT_TRACE_MIGRATE;
+		if (ret == 0) {
+			unsigned int flags = child->ptrace;
+			flags &= ~(PTRACE_O_MASK_TILE << PT_OPT_FLAG_SHIFT);
+			flags |= (tmp << PT_OPT_FLAG_SHIFT);
+			child->ptrace = flags;
+		}
 		break;
 
 	default:

@@ -81,8 +81,8 @@ struct pt_regs {
 #define PTRACE_SETFPREGS	15
 
 /* Support TILE-specific ptrace options, with events starting at 16. */
-#define PTRACE_O_TRACEMIGRATE	0x00010000
 #define PTRACE_EVENT_MIGRATE	16
+#define PTRACE_O_TRACEMIGRATE	(1 << PTRACE_EVENT_MIGRATE)
 
 /*
  * Flag bits in pt_regs.flags that are part of the ptrace API.
