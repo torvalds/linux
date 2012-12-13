@@ -776,7 +776,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	 * all other modes we've already removed all stations when
 	 * disconnecting etc.
 	 */
-	sta_info_flush(local, sdata);
+	sta_info_flush(sdata);
 
 	/*
 	 * Don't count this interface for promisc/allmulti while it
@@ -961,7 +961,6 @@ static void ieee80211_set_multicast_list(struct net_device *dev)
  */
 static void ieee80211_teardown_sdata(struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_local *local = sdata->local;
 	int flushed;
 	int i;
 
@@ -977,7 +976,7 @@ static void ieee80211_teardown_sdata(struct ieee80211_sub_if_data *sdata)
 	if (ieee80211_vif_is_mesh(&sdata->vif))
 		mesh_rmc_free(sdata);
 
-	flushed = sta_info_flush(local, sdata);
+	flushed = sta_info_flush(sdata);
 	WARN_ON(flushed);
 }
 

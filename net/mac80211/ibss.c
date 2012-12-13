@@ -67,7 +67,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	skb_reserve(skb, sdata->local->hw.extra_tx_headroom);
 
 	if (!ether_addr_equal(ifibss->bssid, bssid))
-		sta_info_flush(sdata->local, sdata);
+		sta_info_flush(sdata);
 
 	/* if merging, indicate to driver that we leave the old IBSS */
 	if (sdata->vif.bss_conf.ibss_joined) {
@@ -1182,7 +1182,7 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 	memset(ifibss->bssid, 0, ETH_ALEN);
 	ifibss->ssid_len = 0;
 
-	sta_info_flush(sdata->local, sdata);
+	sta_info_flush(sdata);
 
 	spin_lock_bh(&ifibss->incomplete_lock);
 	while (!list_empty(&ifibss->incomplete_stations)) {

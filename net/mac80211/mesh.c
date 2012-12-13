@@ -656,7 +656,7 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
 
 	/* flush STAs and mpaths on this iface */
-	sta_info_flush(sdata->local, sdata);
+	sta_info_flush(sdata);
 	mesh_path_flush_by_iface(sdata);
 
 	del_timer_sync(&sdata->u.mesh.housekeeping_timer);
