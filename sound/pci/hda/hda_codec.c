@@ -1610,6 +1610,7 @@ static struct hda_cache_head  *get_alloc_hash(struct hda_cache_rec *cache,
 		cur = snd_array_index(&cache->buf, info);
 		info->key = key;
 		info->val = 0;
+		info->dirty = 0;
 		idx = key % (u16)ARRAY_SIZE(cache->hash);
 		info->next = cache->hash[idx];
 		cache->hash[idx] = cur;
@@ -1873,8 +1874,11 @@ int snd_hda_codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch,
 		return 0;
 	}
 	info->vol[ch] = val;
+	if (codec->cached_write)
+		info->head.dirty = 1;
 	mutex_unlock(&codec->hash_mutex);
-	put_vol_mute(codec, info, nid, ch, direction, idx, val);
+	if (!codec->cached_write)
+		put_vol_mute(codec, info, nid, ch, direction, idx, val);
 	return 1;
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_amp_update);
@@ -1905,7 +1909,6 @@ int snd_hda_codec_amp_stereo(struct hda_codec *codec, hda_nid_t nid,
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_amp_stereo);
 
-#ifdef CONFIG_PM
 /**
  * snd_hda_codec_resume_amp - Resume all AMP commands from the cache
  * @codec: HD-audio codec
@@ -1914,13 +1917,17 @@ EXPORT_SYMBOL_HDA(snd_hda_codec_amp_stereo);
  */
 void snd_hda_codec_resume_amp(struct hda_codec *codec)
 {
-	struct hda_amp_info *buffer = codec->amp_cache.buf.list;
 	int i;
 
-	for (i = 0; i < codec->amp_cache.buf.used; i++, buffer++) {
-		u32 key = buffer->head.key;
+	mutex_lock(&codec->hash_mutex);
+	for (i = 0; i < codec->amp_cache.buf.used; i++) {
+		struct hda_amp_info *buffer;
+		u32 key;
 		hda_nid_t nid;
 		unsigned int idx, dir, ch;
+
+		buffer = snd_array_elem(&codec->amp_cache.buf, i);
+		key = buffer->head.key;
 		if (!key)
 			continue;
 		nid = key & 0xff;
@@ -1929,13 +1936,18 @@ void snd_hda_codec_resume_amp(struct hda_codec *codec)
 		for (ch = 0; ch < 2; ch++) {
 			if (!(buffer->head.val & INFO_AMP_VOL(ch)))
 				continue;
+			if (!buffer->head.dirty)
+				continue;
+			buffer->head.dirty = 0;
+			mutex_unlock(&codec->hash_mutex);
 			put_vol_mute(codec, buffer, nid, ch, dir, idx,
 				     buffer->vol[ch]);
+			mutex_lock(&codec->hash_mutex);
 		}
 	}
+	mutex_unlock(&codec->hash_mutex);
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_resume_amp);
-#endif /* CONFIG_PM */
 
 static u32 get_amp_max_value(struct hda_codec *codec, hda_nid_t nid, int dir,
 			     unsigned int ofs)
@@ -3375,12 +3387,11 @@ int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid)
 }
 EXPORT_SYMBOL_HDA(snd_hda_create_spdif_in_ctls);
 
-#ifdef CONFIG_PM
 /*
  * command cache
  */
 
-/* build a 32bit cache key with the widget id and the command parameter */
+/* build a 31bit cache key with the widget id and the command parameter */
 #define build_cmd_cache_key(nid, verb)	((verb << 8) | nid)
 #define get_cmd_cache_nid(key)		((key) & 0xff)
 #define get_cmd_cache_cmd(key)		(((key) >> 8) & 0xffff)
@@ -3400,20 +3411,27 @@ EXPORT_SYMBOL_HDA(snd_hda_create_spdif_in_ctls);
 int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
 			      int direct, unsigned int verb, unsigned int parm)
 {
-	int err = snd_hda_codec_write(codec, nid, direct, verb, parm);
+	int err;
 	struct hda_cache_head *c;
 	u32 key;
 
-	if (err < 0)
-		return err;
+	if (!codec->cached_write) {
+		err = snd_hda_codec_write(codec, nid, direct, verb, parm);
+		if (err < 0)
+			return err;
+	}
+
 	/* parm may contain the verb stuff for get/set amp */
 	verb = verb | (parm >> 8);
 	parm &= 0xff;
 	key = build_cmd_cache_key(nid, verb);
 	mutex_lock(&codec->bus->cmd_mutex);
 	c = get_alloc_hash(&codec->cmd_cache, key);
-	if (c)
+	if (c) {
 		c->val = parm;
+		if (codec->cached_write)
+			c->dirty = 1;
+	}
 	mutex_unlock(&codec->bus->cmd_mutex);
 	return 0;
 }
@@ -3462,16 +3480,26 @@ EXPORT_SYMBOL_HDA(snd_hda_codec_update_cache);
  */
 void snd_hda_codec_resume_cache(struct hda_codec *codec)
 {
-	struct hda_cache_head *buffer = codec->cmd_cache.buf.list;
 	int i;
 
-	for (i = 0; i < codec->cmd_cache.buf.used; i++, buffer++) {
-		u32 key = buffer->key;
+	mutex_lock(&codec->hash_mutex);
+	for (i = 0; i < codec->cmd_cache.buf.used; i++) {
+		struct hda_cache_head *buffer;
+		u32 key;
+
+		buffer = snd_array_elem(&codec->cmd_cache.buf, i);
+		key = buffer->key;
 		if (!key)
 			continue;
+		if (!buffer->dirty)
+			continue;
+		buffer->dirty = 0;
+		mutex_unlock(&codec->hash_mutex);
 		snd_hda_codec_write(codec, get_cmd_cache_nid(key), 0,
 				    get_cmd_cache_cmd(key), buffer->val);
+		mutex_lock(&codec->hash_mutex);
 	}
+	mutex_unlock(&codec->hash_mutex);
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_resume_cache);
 
@@ -3492,7 +3520,6 @@ void snd_hda_sequence_write_cache(struct hda_codec *codec,
 					  seq->param);
 }
 EXPORT_SYMBOL_HDA(snd_hda_sequence_write_cache);
-#endif /* CONFIG_PM */
 
 void snd_hda_codec_set_power_to_all(struct hda_codec *codec, hda_nid_t fg,
 				    unsigned int power_state,
@@ -3640,12 +3667,30 @@ static unsigned int hda_call_codec_suspend(struct hda_codec *codec, bool in_wq)
 	return state;
 }
 
+/* mark all entries of cmd and amp caches dirty */
+static void hda_mark_cmd_cache_dirty(struct hda_codec *codec)
+{
+	int i;
+	for (i = 0; i < codec->cmd_cache.buf.used; i++) {
+		struct hda_cache_head *cmd;
+		cmd = snd_array_elem(&codec->cmd_cache.buf, i);
+		cmd->dirty = 1;
+	}
+	for (i = 0; i < codec->amp_cache.buf.used; i++) {
+		struct hda_amp_info *amp;
+		amp = snd_array_elem(&codec->cmd_cache.buf, i);
+		amp->head.dirty = 1;
+	}
+}
+
 /*
  * kick up codec; used both from PM and power-save
  */
 static void hda_call_codec_resume(struct hda_codec *codec)
 {
 	codec->in_pm = 1;
+
+	hda_mark_cmd_cache_dirty(codec);
 
 	/* set as if powered on for avoiding re-entering the resume
 	 * in the resume / power-save sequence
