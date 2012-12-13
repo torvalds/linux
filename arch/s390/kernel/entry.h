@@ -6,7 +6,6 @@
 #include <asm/ptrace.h>
 #include <asm/cputime.h>
 
-extern void (*pgm_check_table[128])(struct pt_regs *);
 extern void *restart_stack;
 
 void system_call(void);
@@ -24,6 +23,26 @@ asmlinkage void do_syscall_trace_exit(struct pt_regs *regs);
 void do_protection_exception(struct pt_regs *regs);
 void do_dat_exception(struct pt_regs *regs);
 void do_asce_exception(struct pt_regs *regs);
+
+void addressing_exception(struct pt_regs *regs);
+void data_exception(struct pt_regs *regs);
+void default_trap_handler(struct pt_regs *regs);
+void divide_exception(struct pt_regs *regs);
+void execute_exception(struct pt_regs *regs);
+void hfp_divide_exception(struct pt_regs *regs);
+void hfp_overflow_exception(struct pt_regs *regs);
+void hfp_significance_exception(struct pt_regs *regs);
+void hfp_sqrt_exception(struct pt_regs *regs);
+void hfp_underflow_exception(struct pt_regs *regs);
+void illegal_op(struct pt_regs *regs);
+void operand_exception(struct pt_regs *regs);
+void overflow_exception(struct pt_regs *regs);
+void privileged_op(struct pt_regs *regs);
+void space_switch_exception(struct pt_regs *regs);
+void special_op_exception(struct pt_regs *regs);
+void specification_exception(struct pt_regs *regs);
+void transaction_exception(struct pt_regs *regs);
+void translation_exception(struct pt_regs *regs);
 
 void do_per_trap(struct pt_regs *regs);
 void syscall_trace(struct pt_regs *regs, int entryexit);

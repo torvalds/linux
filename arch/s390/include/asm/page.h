@@ -30,6 +30,8 @@
 #include <asm/setup.h>
 #ifndef __ASSEMBLY__
 
+void storage_key_init_range(unsigned long start, unsigned long end);
+
 static unsigned long pfmf(unsigned long function, unsigned long address)
 {
 	asm volatile(

@@ -18,6 +18,9 @@ struct irb;
 struct ccw1;
 struct ccw_dev_id;
 
+/* from asm/schid.h */
+struct subchannel_id;
+
 /* simplified initializers for struct ccw_device:
  * CCW_DEVICE and CCW_DEVICE_DEVTYPE initialize one
  * entry in your MODULE_DEVICE_TABLE and set the match_flag correctly */
@@ -223,8 +226,7 @@ extern int ccw_device_force_console(void);
 
 int ccw_device_siosl(struct ccw_device *);
 
-// FIXME: these have to go
-extern int _ccw_device_get_subchannel_number(struct ccw_device *);
+extern void ccw_device_get_schid(struct ccw_device *, struct subchannel_id *);
 
 extern void *ccw_device_get_chp_desc(struct ccw_device *, int);
 #endif /* _S390_CCWDEV_H_ */
