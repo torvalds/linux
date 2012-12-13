@@ -27,6 +27,7 @@
 #include <linux/leds.h>
 #include <linux/leds_pwm.h>
 #include <linux/platform_data/omap4-keypad.h>
+#include <linux/usb/musb.h>
 
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
@@ -34,8 +35,6 @@
 #include <asm/mach/map.h>
 
 #include "common.h"
-#include <plat/usb.h>
-#include <plat/mmc.h>
 #include "omap4-keypad.h"
 #include <video/omapdss.h>
 #include <video/omap-panel-nokia-dsi.h>
@@ -45,6 +44,7 @@
 
 #include "soc.h"
 #include "mux.h"
+#include "mmc.h"
 #include "hsmmc.h"
 #include "control.h"
 #include "common-board-devices.h"
@@ -881,5 +881,5 @@ MACHINE_START(OMAP_4430SDP, "OMAP4430 4430SDP board")
 	.init_machine	= omap_4430sdp_init,
 	.init_late	= omap4430_init_late,
 	.timer		= &omap4_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap44xx_restart,
 MACHINE_END

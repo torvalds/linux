@@ -43,10 +43,10 @@
 #include <asm/sched_clock.h>
 
 #include <asm/arch_timer.h>
-#include <plat/omap_hwmod.h>
-#include <plat/omap_device.h>
+#include "omap_hwmod.h"
+#include "omap_device.h"
 #include <plat/dmtimer.h>
-#include <plat/omap-pm.h>
+#include "omap-pm.h"
 
 #include "soc.h"
 #include "common.h"

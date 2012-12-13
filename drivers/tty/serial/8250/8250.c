@@ -2349,16 +2349,14 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 			serial_port_out(port, UART_EFR, efr);
 	}
 
-#ifdef CONFIG_ARCH_OMAP1
 	/* Workaround to enable 115200 baud on OMAP1510 internal ports */
-	if (cpu_is_omap1510() && is_omap_port(up)) {
+	if (is_omap1510_8250(up)) {
 		if (baud == 115200) {
 			quot = 1;
 			serial_port_out(port, UART_OMAP_OSC_12M_SEL, 1);
 		} else
 			serial_port_out(port, UART_OMAP_OSC_12M_SEL, 0);
 	}
-#endif
 
 	/*
 	 * For NatSemi, switch to bank 2 not bank 1, to avoid resetting EXCR2,
@@ -2439,10 +2437,9 @@ static unsigned int serial8250_port_size(struct uart_8250_port *pt)
 {
 	if (pt->port.iotype == UPIO_AU)
 		return 0x1000;
-#ifdef CONFIG_ARCH_OMAP1
-	if (is_omap_port(pt))
+	if (is_omap1_8250(pt))
 		return 0x16 << pt->port.regshift;
-#endif
+
 	return 8 << pt->port.regshift;
 }
 

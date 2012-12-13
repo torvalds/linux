@@ -22,13 +22,12 @@
 
 #include <asm/mach-types.h>  /* for machine_is_* */
 
-#include <plat/clock.h>
-#include <plat/cpu.h>
-#include <plat/clkdev_omap.h>
-#include <plat/sram.h>	/* for omap_sram_reprogram_clock() */
+#include "soc.h"
 
 #include <mach/hardware.h>
 #include <mach/usb.h>   /* for OTG_BASE */
+
+#include "../plat-omap/sram.h"
 
 #include "iomap.h"
 #include "clock.h"
@@ -765,14 +764,6 @@ static struct omap_clk omap_clks[] = {
  * init
  */
 
-static struct clk_functions omap1_clk_functions = {
-	.clk_enable		= omap1_clk_enable,
-	.clk_disable		= omap1_clk_disable,
-	.clk_round_rate		= omap1_clk_round_rate,
-	.clk_set_rate		= omap1_clk_set_rate,
-	.clk_disable_unused	= omap1_clk_disable_unused,
-};
-
 static void __init omap1_show_rates(void)
 {
 	pr_notice("Clocking rate (xtal/DPLL1/MPU): %ld.%01ld/%ld.%01ld/%ld.%01ld MHz\n",
@@ -802,8 +793,6 @@ int __init omap1_clk_init(void)
 	omap_writew(reg, SOFT_REQ_REG);
 	if (!cpu_is_omap15xx())
 		omap_writew(0, SOFT_REQ_REG2);
-
-	clk_init(&omap1_clk_functions);
 
 	/* By default all idlect1 clocks are allowed to idle */
 	arm_idlect1_mask = ~0;

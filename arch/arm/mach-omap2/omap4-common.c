@@ -25,16 +25,18 @@
 #include <asm/mach/map.h>
 #include <asm/memblock.h>
 
-#include <plat/sram.h>
-#include <plat/omap-secure.h>
-#include <plat/mmc.h>
+#include "../plat-omap/sram.h"
 
 #include "omap-wakeupgen.h"
-
 #include "soc.h"
+#include "iomap.h"
 #include "common.h"
+#include "mmc.h"
 #include "hsmmc.h"
+#include "prminst44xx.h"
+#include "prcm_mpu44xx.h"
 #include "omap4-sar-layout.h"
+#include "omap-secure.h"
 
 #ifdef CONFIG_CACHE_L2X0
 static void __iomem *l2cache_base;
@@ -281,3 +283,19 @@ int __init omap4_twl6030_hsmmc_init(struct omap2_hsmmc_info *controllers)
 	return 0;
 }
 #endif
+
+/**
+ * omap44xx_restart - trigger a software restart of the SoC
+ * @mode: the "reboot mode", see arch/arm/kernel/{setup,process}.c
+ * @cmd: passed from the userspace program rebooting the system (if provided)
+ *
+ * Resets the SoC.  For @cmd, see the 'reboot' syscall in
+ * kernel/sys.c.  No return value.
+ */
+void omap44xx_restart(char mode, const char *cmd)
+{
+	/* XXX Should save 'cmd' into scratchpad for use after reboot */
+	omap4_prminst_global_warm_sw_reset(); /* never returns */
+	while (1);
+}
+

@@ -22,9 +22,8 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 
-/* Interface documentation is in mach/omap-pm.h */
-#include <plat/omap-pm.h>
-#include <plat/omap_device.h>
+#include "../mach-omap2/omap_device.h"
+#include "../mach-omap2/omap-pm.h"
 
 static bool off_mode_enabled;
 static int dummy_context_loss_counter;

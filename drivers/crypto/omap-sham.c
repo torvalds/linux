@@ -37,8 +37,7 @@
 #include <crypto/hash.h>
 #include <crypto/internal/hash.h>
 
-#include <plat/cpu.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 #include <mach/irqs.h>
 
 #define SHA_REG_DIGEST(x)		(0x00 + ((x) * 0x04))
@@ -1288,13 +1287,6 @@ static struct platform_driver omap_sham_driver = {
 static int __init omap_sham_mod_init(void)
 {
 	pr_info("loading %s driver\n", "omap-sham");
-
-	if (!cpu_class_is_omap2() ||
-		(omap_type() != OMAP2_DEVICE_TYPE_SEC &&
-			omap_type() != OMAP2_DEVICE_TYPE_EMU)) {
-		pr_err("Unsupported cpu\n");
-		return -ENODEV;
-	}
 
 	return platform_driver_register(&omap_sham_driver);
 }

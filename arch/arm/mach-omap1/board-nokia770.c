@@ -29,13 +29,13 @@
 #include <asm/mach/map.h>
 
 #include <mach/mux.h>
-#include <plat/mmc.h>
-#include <plat/clock.h>
 
 #include <mach/hardware.h>
 #include <mach/usb.h>
 
 #include "common.h"
+#include "clock.h"
+#include "mmc.h"
 
 #define ADS7846_PENDOWN_GPIO	15
 
@@ -251,7 +251,6 @@ MACHINE_START(NOKIA770, "Nokia 770")
 	.atag_offset	= 0x100,
 	.map_io		= omap16xx_map_io,
 	.init_early     = omap1_init_early,
-	.reserve	= omap_reserve,
 	.init_irq	= omap1_init_irq,
 	.init_machine	= omap_nokia770_init,
 	.init_late	= omap1_init_late,

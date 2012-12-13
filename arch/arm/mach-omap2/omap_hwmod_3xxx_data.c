@@ -14,16 +14,14 @@
  *
  * XXX these should be marked initdata for multi-OMAP kernels
  */
+
+#include <linux/i2c-omap.h>
 #include <linux/power/smartreflex.h>
 #include <linux/platform_data/gpio-omap.h>
 
-#include <plat/omap_hwmod.h>
-#include <plat/dma.h>
-#include <plat/serial.h>
+#include <plat-omap/dma-omap.h>
 #include "l3_3xxx.h"
 #include "l4_3xxx.h"
-#include <plat/i2c.h>
-#include <plat/mmc.h>
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include <plat/dmtimer.h>
@@ -32,10 +30,16 @@
 #include "am35xx.h"
 
 #include "soc.h"
+#include "omap_hwmod.h"
 #include "omap_hwmod_common_data.h"
 #include "prm-regbits-34xx.h"
 #include "cm-regbits-34xx.h"
+
+#include "dma.h"
+#include "i2c.h"
+#include "mmc.h"
 #include "wd_timer.h"
+#include "serial.h"
 
 /*
  * OMAP3xxx hardware module integration data
@@ -1406,7 +1410,7 @@ static struct omap_hwmod_irq_info omap3_smartreflex_mpu_irqs[] = {
 static struct omap_hwmod omap34xx_sr1_hwmod = {
 	.name		= "smartreflex_mpu_iva",
 	.class		= &omap34xx_smartreflex_hwmod_class,
-	.main_clk	= "smartreflex_mpu_iva_fck",
+	.main_clk	= "sr1_fck",
 	.prcm		= {
 		.omap2 = {
 			.prcm_reg_id = 1,
@@ -1424,7 +1428,7 @@ static struct omap_hwmod omap34xx_sr1_hwmod = {
 static struct omap_hwmod omap36xx_sr1_hwmod = {
 	.name		= "smartreflex_mpu_iva",
 	.class		= &omap36xx_smartreflex_hwmod_class,
-	.main_clk	= "smartreflex_mpu_iva_fck",
+	.main_clk	= "sr1_fck",
 	.prcm		= {
 		.omap2 = {
 			.prcm_reg_id = 1,
@@ -1451,7 +1455,7 @@ static struct omap_hwmod_irq_info omap3_smartreflex_core_irqs[] = {
 static struct omap_hwmod omap34xx_sr2_hwmod = {
 	.name		= "smartreflex_core",
 	.class		= &omap34xx_smartreflex_hwmod_class,
-	.main_clk	= "smartreflex_core_fck",
+	.main_clk	= "sr2_fck",
 	.prcm		= {
 		.omap2 = {
 			.prcm_reg_id = 1,
@@ -1469,7 +1473,7 @@ static struct omap_hwmod omap34xx_sr2_hwmod = {
 static struct omap_hwmod omap36xx_sr2_hwmod = {
 	.name		= "smartreflex_core",
 	.class		= &omap36xx_smartreflex_hwmod_class,
-	.main_clk	= "smartreflex_core_fck",
+	.main_clk	= "sr2_fck",
 	.prcm		= {
 		.omap2 = {
 			.prcm_reg_id = 1,

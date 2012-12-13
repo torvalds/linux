@@ -19,11 +19,25 @@
  *
  */
 
-#include <plat/i2c.h>
+#include <linux/i2c-omap.h>
 #include <mach/mux.h>
-#include <plat/cpu.h>
+#include "soc.h"
 
-void __init omap1_i2c_mux_pins(int bus_id)
+#include "../plat-omap/i2c.h"
+
+#define OMAP_I2C_SIZE		0x3f
+#define OMAP1_I2C_BASE		0xfffb3800
+#define OMAP1_INT_I2C		(32 + 4)
+
+static const char name[] = "omap_i2c";
+
+static struct resource i2c_resources[2] = {
+};
+
+static struct platform_device omap_i2c_devices[1] = {
+};
+
+static void __init omap1_i2c_mux_pins(int bus_id)
 {
 	if (cpu_is_omap7xx()) {
 		omap_cfg_reg(I2C_7XX_SDA);
@@ -32,4 +46,45 @@ void __init omap1_i2c_mux_pins(int bus_id)
 		omap_cfg_reg(I2C_SDA);
 		omap_cfg_reg(I2C_SCL);
 	}
+}
+
+int __init omap_i2c_add_bus(struct omap_i2c_bus_platform_data *pdata,
+				int bus_id)
+{
+	struct platform_device *pdev;
+	struct resource *res;
+
+	omap1_i2c_mux_pins(bus_id);
+
+	pdev = &omap_i2c_devices[bus_id - 1];
+	pdev->id = bus_id;
+	pdev->name = name;
+	pdev->num_resources = ARRAY_SIZE(i2c_resources);
+	res = i2c_resources;
+	res[0].start = OMAP1_I2C_BASE;
+	res[0].end = res[0].start + OMAP_I2C_SIZE;
+	res[0].flags = IORESOURCE_MEM;
+	res[1].start = OMAP1_INT_I2C;
+	res[1].flags = IORESOURCE_IRQ;
+	pdev->resource = res;
+
+	/* all OMAP1 have IP version 1 register set */
+	pdata->rev = OMAP_I2C_IP_VERSION_1;
+
+	/* all OMAP1 I2C are implemented like this */
+	pdata->flags = OMAP_I2C_FLAG_NO_FIFO |
+		       OMAP_I2C_FLAG_SIMPLE_CLOCK |
+		       OMAP_I2C_FLAG_16BIT_DATA_REG |
+		       OMAP_I2C_FLAG_ALWAYS_ARMXOR_CLK;
+
+	/* how the cpu bus is wired up differs for 7xx only */
+
+	if (cpu_is_omap7xx())
+		pdata->flags |= OMAP_I2C_FLAG_BUS_SHIFT_1;
+	else
+		pdata->flags |= OMAP_I2C_FLAG_BUS_SHIFT_2;
+
+	pdev->dev.platform_data = pdata;
+
+	return platform_device_register(pdev);
 }

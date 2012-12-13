@@ -22,7 +22,7 @@
 #include <linux/init.h>
 
 #include "common.h"
-
+#include "soc.h"
 #include "prm-regbits-44xx.h"
 #include "prm44xx.h"
 #include "prcm44xx.h"

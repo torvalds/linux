@@ -140,7 +140,7 @@ static void __init init_port(struct early_serial8250_device *device)
 	serial_out(port, UART_FCR, 0);		/* no fifo */
 	serial_out(port, UART_MCR, 0x3);	/* DTR + RTS */
 
-	divisor = port->uartclk / (16 * device->baud);
+	divisor = DIV_ROUND_CLOSEST(port->uartclk, 16 * device->baud);
 	c = serial_in(port, UART_LCR);
 	serial_out(port, UART_LCR, c | UART_LCR_DLAB);
 	serial_out(port, UART_DLL, divisor & 0xff);

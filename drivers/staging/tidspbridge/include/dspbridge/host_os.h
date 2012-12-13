@@ -40,7 +40,6 @@
 #include <linux/vmalloc.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
-#include <plat/clock.h>
 #include <linux/clk.h>
 #include <plat/mailbox.h>
 #include <linux/pagemap.h>

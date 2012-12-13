@@ -27,11 +27,12 @@
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 
-#include <plat/fpga.h>
+#include <../plat-omap/fpga.h>
 
 #include <mach/hardware.h>
 
 #include "iomap.h"
+#include "common.h"
 
 static void fpga_mask_irq(struct irq_data *d)
 {

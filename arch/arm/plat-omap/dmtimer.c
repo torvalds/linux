@@ -42,9 +42,10 @@
 #include <linux/pm_runtime.h>
 
 #include <plat/dmtimer.h>
-#include <plat/omap-pm.h>
 
 #include <mach/hardware.h>
+
+#include "../mach-omap2/omap-pm.h"
 
 static u32 omap_reserved_systimers;
 static LIST_HEAD(omap_timer_list);
