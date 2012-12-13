@@ -12,6 +12,8 @@
 #include <linux/of_platform.h>
 #include <linux/of_fdt.h>
 #include <linux/serial_core.h>
+#include <linux/memblock.h>
+#include <linux/of_fdt.h>
 
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
@@ -19,6 +21,7 @@
 
 #include <plat/cpu.h>
 #include <plat/regs-serial.h>
+#include <plat/mfc.h>
 
 #include "common.h"
 
@@ -48,6 +51,20 @@ static const struct of_dev_auxdata exynos5250_auxdata_lookup[] __initconst = {
 				"s3c2440-i2c.0", NULL),
 	OF_DEV_AUXDATA("samsung,s3c2440-i2c", EXYNOS5_PA_IIC(1),
 				"s3c2440-i2c.1", NULL),
+	OF_DEV_AUXDATA("samsung,s3c2440-i2c", EXYNOS5_PA_IIC(2),
+				"s3c2440-i2c.2", NULL),
+	OF_DEV_AUXDATA("samsung,s3c2440-i2c", EXYNOS5_PA_IIC(3),
+				"s3c2440-i2c.3", NULL),
+	OF_DEV_AUXDATA("samsung,s3c2440-i2c", EXYNOS5_PA_IIC(4),
+				"s3c2440-i2c.4", NULL),
+	OF_DEV_AUXDATA("samsung,s3c2440-i2c", EXYNOS5_PA_IIC(5),
+				"s3c2440-i2c.5", NULL),
+	OF_DEV_AUXDATA("samsung,s3c2440-i2c", EXYNOS5_PA_IIC(6),
+				"s3c2440-i2c.6", NULL),
+	OF_DEV_AUXDATA("samsung,s3c2440-i2c", EXYNOS5_PA_IIC(7),
+				"s3c2440-i2c.7", NULL),
+	OF_DEV_AUXDATA("samsung,s3c2440-hdmiphy-i2c", EXYNOS5_PA_IIC(8),
+				"s3c2440-hdmiphy-i2c", NULL),
 	OF_DEV_AUXDATA("samsung,exynos5250-dw-mshc", EXYNOS5_PA_DWMCI0,
 				"dw_mmc.0", NULL),
 	OF_DEV_AUXDATA("samsung,exynos5250-dw-mshc", EXYNOS5_PA_DWMCI1,
@@ -62,6 +79,12 @@ static const struct of_dev_auxdata exynos5250_auxdata_lookup[] __initconst = {
 				"exynos4210-spi.1", NULL),
 	OF_DEV_AUXDATA("samsung,exynos4210-spi", EXYNOS5_PA_SPI2,
 				"exynos4210-spi.2", NULL),
+	OF_DEV_AUXDATA("samsung,exynos5-sata-ahci", 0x122F0000,
+				"exynos5-sata", NULL),
+	OF_DEV_AUXDATA("samsung,exynos5-sata-phy", 0x12170000,
+				"exynos5-sata-phy", NULL),
+	OF_DEV_AUXDATA("samsung,exynos5-sata-phy-i2c", 0x121D0000,
+				"exynos5-sata-phy-i2c", NULL),
 	OF_DEV_AUXDATA("arm,pl330", EXYNOS5_PA_PDMA0, "dma-pl330.0", NULL),
 	OF_DEV_AUXDATA("arm,pl330", EXYNOS5_PA_PDMA1, "dma-pl330.1", NULL),
 	OF_DEV_AUXDATA("arm,pl330", EXYNOS5_PA_MDMA1, "dma-pl330.2", NULL),
@@ -73,6 +96,13 @@ static const struct of_dev_auxdata exynos5250_auxdata_lookup[] __initconst = {
 				"exynos-gsc.2", NULL),
 	OF_DEV_AUXDATA("samsung,exynos5-gsc", EXYNOS5_PA_GSC3,
 				"exynos-gsc.3", NULL),
+	OF_DEV_AUXDATA("samsung,exynos5-hdmi", 0x14530000,
+				"exynos5-hdmi", NULL),
+	OF_DEV_AUXDATA("samsung,exynos5-mixer", 0x14450000,
+				"exynos5-mixer", NULL),
+	OF_DEV_AUXDATA("samsung,mfc-v6", 0x11000000, "s5p-mfc-v6", NULL),
+	OF_DEV_AUXDATA("samsung,exynos5250-tmu", 0x10060000,
+				"exynos-tmu", NULL),
 	{},
 };
 
@@ -108,6 +138,17 @@ static char const *exynos5_dt_compat[] __initdata = {
 	NULL
 };
 
+static void __init exynos5_reserve(void)
+{
+	struct s5p_mfc_dt_meminfo mfc_mem;
+
+	/* Reserve memory for MFC only if it's available */
+	mfc_mem.compatible = "samsung,mfc-v6";
+	if (of_scan_flat_dt(s5p_fdt_find_mfc_mem, &mfc_mem))
+		s5p_mfc_reserve_mem(mfc_mem.roff, mfc_mem.rsize, mfc_mem.loff,
+				mfc_mem.lsize);
+}
+
 DT_MACHINE_START(EXYNOS5_DT, "SAMSUNG EXYNOS5 (Flattened Device Tree)")
 	/* Maintainer: Kukjin Kim <kgene.kim@samsung.com> */
 	.init_irq	= exynos5_init_irq,
@@ -119,4 +160,5 @@ DT_MACHINE_START(EXYNOS5_DT, "SAMSUNG EXYNOS5 (Flattened Device Tree)")
 	.timer		= &exynos4_timer,
 	.dt_compat	= exynos5_dt_compat,
 	.restart        = exynos5_restart,
+	.reserve	= exynos5_reserve,
 MACHINE_END

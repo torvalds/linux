@@ -25,8 +25,9 @@
  * address that is known to work.
  */
 #define UART0_PHYS		0xE0000000
-#define UART0_SIZE		SZ_4K
-#define UART0_VIRT		0xF0001000
+#define UART1_PHYS		0xE0001000
+#define UART_SIZE		SZ_4K
+#define UART_VIRT		0xF0001000
 
 #define TTC0_PHYS		0xF8001000
 #define TTC0_SIZE		SZ_4K
@@ -36,12 +37,17 @@
 #define SCU_PERIPH_SIZE		SZ_8K
 #define SCU_PERIPH_VIRT		(TTC0_VIRT - SCU_PERIPH_SIZE)
 
+#if IS_ENABLED(CONFIG_DEBUG_ZYNQ_UART1)
+# define LL_UART_PADDR		UART1_PHYS
+#else
+# define LL_UART_PADDR		UART0_PHYS
+#endif
+
+#define LL_UART_VADDR		UART_VIRT
+
 /* The following are intended for the devices that are mapped early */
 
 #define TTC0_BASE			IOMEM(TTC0_VIRT)
 #define SCU_PERIPH_BASE			IOMEM(SCU_PERIPH_VIRT)
-
-#define LL_UART_PADDR	UART0_PHYS
-#define LL_UART_VADDR	UART0_VIRT
 
 #endif

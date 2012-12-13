@@ -76,7 +76,6 @@ void __init usi_topkick_init(void)
 	/* SATA0 power enable */
 	gpio_set_value(TOPKICK_SATA0_PWR_ENABLE, 1);
 
-	kirkwood_ehci_init();
 	kirkwood_ge00_init(&topkick_ge00_data);
 	kirkwood_sdio_init(&topkick_mvsdio_data);
 }

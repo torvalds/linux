@@ -317,9 +317,6 @@ static struct platform_device *smdk4x12_devices[] __initdata = {
 	&s5p_device_mfc,
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
-#ifdef CONFIG_DRM_EXYNOS
-	&exynos_device_drm,
-#endif
 	&samsung_device_keypad,
 };
 

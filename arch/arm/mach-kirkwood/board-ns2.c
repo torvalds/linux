@@ -73,7 +73,6 @@ void __init ns2_init(void)
 	 */
 	kirkwood_mpp_conf(ns2_mpp_config);
 
-	kirkwood_ehci_init();
 	if (of_machine_is_compatible("lacie,netspace_lite_v2") ||
 	    of_machine_is_compatible("lacie,netspace_mini_v2"))
 		ns2_ge00_data.phy_addr = MV643XX_ETH_PHY_ADDR(0);

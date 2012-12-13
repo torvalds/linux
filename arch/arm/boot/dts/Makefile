@@ -34,6 +34,8 @@ dtb-$(CONFIG_ARCH_AT91) += at91sam9x35ek.dtb
 
 dtb-$(CONFIG_ARCH_BCM2835) += bcm2835-rpi-b.dtb
 dtb-$(CONFIG_ARCH_BCM) += bcm11351-brt.dtb
+dtb-$(CONFIG_ARCH_DAVINCI) += da850-enbw-cmc.dtb \
+	da850-evm.dtb
 dtb-$(CONFIG_ARCH_DOVE) += dove-cm-a510.dtb \
 	dove-cubox.dtb \
 	dove-dove-db.dtb
@@ -41,7 +43,10 @@ dtb-$(CONFIG_ARCH_EXYNOS) += exynos4210-origen.dtb \
 	exynos4210-smdkv310.dtb \
 	exynos4210-trats.dtb \
 	exynos5250-smdk5250.dtb \
-	exynos5440-ssdk5440.dtb
+	exynos5440-ssdk5440.dtb \
+	exynos4412-smdk4412.dtb \
+	exynos5250-smdk5250.dtb \
+	exynos5250-snow.dtb
 dtb-$(CONFIG_ARCH_HIGHBANK) += highbank.dtb \
 	ecx-2000.dtb
 dtb-$(CONFIG_ARCH_INTEGRATOR) += integratorap.dtb \
@@ -79,16 +84,20 @@ dtb-$(CONFIG_ARCH_MXC) += imx51-babbage.dtb \
 	imx53-qsb.dtb \
 	imx53-smd.dtb \
 	imx6q-arm2.dtb \
+	imx6q-sabreauto.dtb \
 	imx6q-sabrelite.dtb \
 	imx6q-sabresd.dtb
 dtb-$(CONFIG_ARCH_MXS) += imx23-evk.dtb \
 	imx23-olinuxino.dtb \
 	imx23-stmp378x_devb.dtb \
+	imx28-apf28.dtb \
+	imx28-apf28dev.dtb \
 	imx28-apx4devkit.dtb \
 	imx28-cfa10036.dtb \
 	imx28-cfa10049.dtb \
 	imx28-evk.dtb \
 	imx28-m28evk.dtb \
+	imx28-sps1.dtb \
 	imx28-tx28.dtb
 dtb-$(CONFIG_ARCH_OMAP2PLUS) += omap2420-h4.dtb \
 	omap3-beagle.dtb \
@@ -105,7 +114,10 @@ dtb-$(CONFIG_ARCH_OMAP2PLUS) += omap2420-h4.dtb \
 	am335x-bone.dtb
 dtb-$(CONFIG_ARCH_ORION5X) += orion5x-lacie-ethernet-disk-mini-v2.dtb
 dtb-$(CONFIG_ARCH_PRIMA2) += prima2-evb.dtb
-dtb-$(CONFIG_ARCH_U8500) += snowball.dtb
+dtb-$(CONFIG_ARCH_U8500) += snowball.dtb \
+	hrefprev60.dtb \
+	hrefv60plus.dtb \
+	ccu9540.dtb
 dtb-$(CONFIG_ARCH_SHMOBILE) += emev2-kzm9d.dtb \
 	r8a7740-armadillo800eva.dtb \
 	sh73a0-kzm9g.dtb \
@@ -137,6 +149,7 @@ dtb-$(CONFIG_ARCH_VEXPRESS) += vexpress-v2p-ca5s.dtb \
 dtb-$(CONFIG_ARCH_VT8500) += vt8500-bv07.dtb \
 	wm8505-ref.dtb \
 	wm8650-mid.dtb
+dtb-$(CONFIG_ARCH_ZYNQ) += zynq-zc702.dtb
 
 targets += dtbs
 endif

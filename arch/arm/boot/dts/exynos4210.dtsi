@@ -31,6 +31,11 @@
 		pinctrl2 = &pinctrl_2;
 	};
 
+	pd_lcd1: lcd1-power-domain@10023CA0 {
+		compatible = "samsung,exynos4210-pd";
+		reg = <0x10023CA0 0x20>;
+	};
+
 	gic:interrupt-controller@10490000 {
 		cpu-offset = <0x8000>;
 	};
@@ -63,5 +68,12 @@
 	pinctrl_2: pinctrl@03860000 {
 		compatible = "samsung,pinctrl-exynos4210";
 		reg = <0x03860000 0x1000>;
+	};
+
+	tmu@100C0000 {
+		compatible = "samsung,exynos4210-tmu";
+		interrupt-parent = <&combiner>;
+		reg = <0x100C0000 0x100>;
+		interrupts = <2 4>;
 	};
 };
