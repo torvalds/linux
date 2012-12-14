@@ -1347,7 +1347,6 @@ retry:
 	}
 
 	radeon_restore_bios_scratch_regs(rdev);
-	drm_helper_resume_force_mode(rdev->ddev);
 
 	if (!r) {
 		for (i = 0; i < RADEON_NUM_RINGS; ++i) {
@@ -1372,6 +1371,8 @@ retry:
 			kfree(ring_data[i]);
 		}
 	}
+
+	drm_helper_resume_force_mode(rdev->ddev);
 
 	ttm_bo_unlock_delayed_workqueue(&rdev->mman.bdev, resched);
 	if (r) {
