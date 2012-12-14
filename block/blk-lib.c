@@ -48,6 +48,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	struct bio_batch bb;
 	struct bio *bio;
 	int ret = 0;
+	struct blk_plug plug;
 
 	if (!q)
 		return -ENXIO;
@@ -82,6 +83,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	bb.flags = 1 << BIO_UPTODATE;
 	bb.wait = &wait;
 
+	blk_start_plug(&plug);
 	while (nr_sects) {
 		unsigned int req_sects;
 		sector_t end_sect, tmp;
@@ -120,6 +122,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		atomic_inc(&bb.done);
 		submit_bio(type, bio);
 	}
+	blk_finish_plug(&plug);
 
 	/* Wait for bios in-flight */
 	if (!atomic_dec_and_test(&bb.done))
