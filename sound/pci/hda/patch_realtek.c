@@ -3952,9 +3952,6 @@ static void activate_path(struct hda_codec *codec, struct nid_path *path,
 {
 	int i;
 
-	if (path->active == enable)
-		return;
-
 	if (!enable)
 		path->active = false;
 
@@ -3983,6 +3980,8 @@ static void alc_auto_set_output_and_unmute(struct hda_codec *codec,
 	snd_hda_set_pin_ctl_cache(codec, pin, pin_type);
 	path = get_nid_path(codec, dac, pin);
 	if (!path)
+		return;
+	if (path->active)
 		return;
 	activate_path(codec, path, true);
 }
@@ -4193,10 +4192,8 @@ static int alc_set_multi_io(struct hda_codec *codec, int idx, bool output)
 	if (!path)
 		return -EINVAL;
 
-	if (!spec->multi_io[idx].ctl_in)
-		spec->multi_io[idx].ctl_in =
-			snd_hda_codec_update_cache(codec, nid, 0,
-					   AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+	if (path->active == output)
+		return 0;
 
 	if (output) {
 		snd_hda_set_pin_ctl_cache(codec, nid, PIN_OUT);
@@ -4249,6 +4246,25 @@ static int alc_auto_add_multi_channel_mode(struct hda_codec *codec)
 			return -ENOMEM;
 	}
 	return 0;
+}
+
+static void alc_auto_init_multi_io(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	int i;
+
+	for (i = 0; i < spec->multi_ios; i++) {
+		hda_nid_t pin = spec->multi_io[i].pin;
+		struct nid_path *path;
+		path = get_nid_path(codec, spec->multi_io[i].dac, pin);
+		if (!path)
+			continue;
+		if (!spec->multi_io[i].ctl_in)
+			spec->multi_io[i].ctl_in =
+				snd_hda_codec_update_cache(codec, pin, 0,
+					   AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+		activate_path(codec, path, path->active);
+	}
 }
 
 /* filter out invalid adc_nids (and capsrc_nids) that don't give all
@@ -4489,6 +4505,7 @@ static void alc_auto_init_std(struct hda_codec *codec)
 {
 	alc_auto_init_multi_out(codec);
 	alc_auto_init_extra_out(codec);
+	alc_auto_init_multi_io(codec);
 	alc_auto_init_analog_input(codec);
 	alc_auto_init_input_src(codec);
 	alc_auto_init_digital(codec);
