@@ -429,3 +429,86 @@ void efx_nic_get_regs(struct efx_nic *efx, void *buf)
 		}
 	}
 }
+
+/**
+ * efx_nic_describe_stats - Describe supported statistics for ethtool
+ * @desc: Array of &struct efx_hw_stat_desc describing the statistics
+ * @count: Length of the @desc array
+ * @mask: Bitmask of which elements of @desc are enabled
+ * @names: Buffer to copy names to, or %NULL.  The names are copied
+ *	starting at intervals of %ETH_GSTRING_LEN bytes.
+ *
+ * Returns the number of visible statistics, i.e. the number of set
+ * bits in the first @count bits of @mask for which a name is defined.
+ */
+size_t efx_nic_describe_stats(const struct efx_hw_stat_desc *desc, size_t count,
+			      const unsigned long *mask, u8 *names)
+{
+	size_t visible = 0;
+	size_t index;
+
+	for_each_set_bit(index, mask, count) {
+		if (desc[index].name) {
+			if (names) {
+				strlcpy(names, desc[index].name,
+					ETH_GSTRING_LEN);
+				names += ETH_GSTRING_LEN;
+			}
+			++visible;
+		}
+	}
+
+	return visible;
+}
+
+/**
+ * efx_nic_update_stats - Convert statistics DMA buffer to array of u64
+ * @desc: Array of &struct efx_hw_stat_desc describing the DMA buffer
+ *	layout.  DMA widths of 0, 16, 32 and 64 are supported; where
+ *	the width is specified as 0 the corresponding element of
+ *	@stats is not updated.
+ * @count: Length of the @desc array
+ * @mask: Bitmask of which elements of @desc are enabled
+ * @stats: Buffer to update with the converted statistics.  The length
+ *	of this array must be at least the number of set bits in the
+ *	first @count bits of @mask.
+ * @dma_buf: DMA buffer containing hardware statistics
+ * @accumulate: If set, the converted values will be added rather than
+ *	directly stored to the corresponding elements of @stats
+ */
+void efx_nic_update_stats(const struct efx_hw_stat_desc *desc, size_t count,
+			  const unsigned long *mask,
+			  u64 *stats, const void *dma_buf, bool accumulate)
+{
+	size_t index;
+
+	for_each_set_bit(index, mask, count) {
+		if (desc[index].dma_width) {
+			const void *addr = dma_buf + desc[index].offset;
+			u64 val;
+
+			switch (desc[index].dma_width) {
+			case 16:
+				val = le16_to_cpup((__le16 *)addr);
+				break;
+			case 32:
+				val = le32_to_cpup((__le32 *)addr);
+				break;
+			case 64:
+				val = le64_to_cpup((__le64 *)addr);
+				break;
+			default:
+				WARN_ON(1);
+				val = 0;
+				break;
+			}
+
+			if (accumulate)
+				*stats += val;
+			else
+				*stats = val;
+		}
+
+		++stats;
+	}
+}

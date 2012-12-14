@@ -31,7 +31,7 @@
 
 /**************************************************************************
  *
- * MAC stats DMA format
+ * NIC stats
  *
  **************************************************************************
  */
@@ -134,27 +134,67 @@
 #define FALCON_XMAC_STATS_DMA_FLAG(efx)				\
 	(*(u32 *)((efx)->stats_buffer.addr + XgDmaDone_offset))
 
-#define FALCON_STAT_OFFSET(falcon_stat) EFX_VAL(falcon_stat, offset)
-#define FALCON_STAT_WIDTH(falcon_stat) EFX_VAL(falcon_stat, WIDTH)
+#define FALCON_DMA_STAT(ext_name, hw_name)				\
+	[FALCON_STAT_ ## ext_name] =					\
+	{ #ext_name,							\
+	  /* 48-bit stats are zero-padded to 64 on DMA */		\
+	  hw_name ## _ ## WIDTH == 48 ? 64 : hw_name ## _ ## WIDTH,	\
+	  hw_name ## _ ## offset }
+#define FALCON_OTHER_STAT(ext_name)					\
+	[FALCON_STAT_ ## ext_name] = { #ext_name, 0, 0 }
 
-/* Retrieve statistic from statistics block */
-#define FALCON_STAT(efx, falcon_stat, efx_stat) do {		\
-	if (FALCON_STAT_WIDTH(falcon_stat) == 16)		\
-		(efx)->mac_stats.efx_stat += le16_to_cpu(	\
-			*((__force __le16 *)				\
-			  (efx->stats_buffer.addr +		\
-			   FALCON_STAT_OFFSET(falcon_stat))));	\
-	else if (FALCON_STAT_WIDTH(falcon_stat) == 32)		\
-		(efx)->mac_stats.efx_stat += le32_to_cpu(	\
-			*((__force __le32 *)				\
-			  (efx->stats_buffer.addr +		\
-			   FALCON_STAT_OFFSET(falcon_stat))));	\
-	else							\
-		(efx)->mac_stats.efx_stat += le64_to_cpu(	\
-			*((__force __le64 *)				\
-			  (efx->stats_buffer.addr +		\
-			   FALCON_STAT_OFFSET(falcon_stat))));	\
-	} while (0)
+static const struct efx_hw_stat_desc falcon_stat_desc[FALCON_STAT_COUNT] = {
+	FALCON_DMA_STAT(tx_bytes, XgTxOctets),
+	FALCON_DMA_STAT(tx_packets, XgTxPkts),
+	FALCON_DMA_STAT(tx_pause, XgTxPausePkts),
+	FALCON_DMA_STAT(tx_control, XgTxControlPkts),
+	FALCON_DMA_STAT(tx_unicast, XgTxUnicastPkts),
+	FALCON_DMA_STAT(tx_multicast, XgTxMulticastPkts),
+	FALCON_DMA_STAT(tx_broadcast, XgTxBroadcastPkts),
+	FALCON_DMA_STAT(tx_lt64, XgTxUndersizePkts),
+	FALCON_DMA_STAT(tx_64, XgTxPkts64Octets),
+	FALCON_DMA_STAT(tx_65_to_127, XgTxPkts65to127Octets),
+	FALCON_DMA_STAT(tx_128_to_255, XgTxPkts128to255Octets),
+	FALCON_DMA_STAT(tx_256_to_511, XgTxPkts256to511Octets),
+	FALCON_DMA_STAT(tx_512_to_1023, XgTxPkts512to1023Octets),
+	FALCON_DMA_STAT(tx_1024_to_15xx, XgTxPkts1024to15xxOctets),
+	FALCON_DMA_STAT(tx_15xx_to_jumbo, XgTxPkts1519toMaxOctets),
+	FALCON_DMA_STAT(tx_gtjumbo, XgTxOversizePkts),
+	FALCON_DMA_STAT(tx_non_tcpudp, XgTxNonTcpUdpPkt),
+	FALCON_DMA_STAT(tx_mac_src_error, XgTxMacSrcErrPkt),
+	FALCON_DMA_STAT(tx_ip_src_error, XgTxIpSrcErrPkt),
+	FALCON_DMA_STAT(rx_bytes, XgRxOctets),
+	FALCON_DMA_STAT(rx_good_bytes, XgRxOctetsOK),
+	FALCON_OTHER_STAT(rx_bad_bytes),
+	FALCON_DMA_STAT(rx_packets, XgRxPkts),
+	FALCON_DMA_STAT(rx_good, XgRxPktsOK),
+	FALCON_DMA_STAT(rx_bad, XgRxFCSerrorPkts),
+	FALCON_DMA_STAT(rx_pause, XgRxPausePkts),
+	FALCON_DMA_STAT(rx_control, XgRxControlPkts),
+	FALCON_DMA_STAT(rx_unicast, XgRxUnicastPkts),
+	FALCON_DMA_STAT(rx_multicast, XgRxMulticastPkts),
+	FALCON_DMA_STAT(rx_broadcast, XgRxBroadcastPkts),
+	FALCON_DMA_STAT(rx_lt64, XgRxUndersizePkts),
+	FALCON_DMA_STAT(rx_64, XgRxPkts64Octets),
+	FALCON_DMA_STAT(rx_65_to_127, XgRxPkts65to127Octets),
+	FALCON_DMA_STAT(rx_128_to_255, XgRxPkts128to255Octets),
+	FALCON_DMA_STAT(rx_256_to_511, XgRxPkts256to511Octets),
+	FALCON_DMA_STAT(rx_512_to_1023, XgRxPkts512to1023Octets),
+	FALCON_DMA_STAT(rx_1024_to_15xx, XgRxPkts1024to15xxOctets),
+	FALCON_DMA_STAT(rx_15xx_to_jumbo, XgRxPkts15xxtoMaxOctets),
+	FALCON_DMA_STAT(rx_gtjumbo, XgRxOversizePkts),
+	FALCON_DMA_STAT(rx_bad_lt64, XgRxUndersizeFCSerrorPkts),
+	FALCON_DMA_STAT(rx_bad_gtjumbo, XgRxJabberPkts),
+	FALCON_DMA_STAT(rx_overflow, XgRxDropEvents),
+	FALCON_DMA_STAT(rx_symbol_error, XgRxSymbolError),
+	FALCON_DMA_STAT(rx_align_error, XgRxAlignError),
+	FALCON_DMA_STAT(rx_length_error, XgRxLengthError),
+	FALCON_DMA_STAT(rx_internal_error, XgRxInternalMACError),
+	FALCON_OTHER_STAT(rx_nodesc_drop_cnt),
+};
+static const unsigned long falcon_stat_mask[] = {
+	[0 ... BITS_TO_LONGS(FALCON_STAT_COUNT) - 1] = ~0UL,
+};
 
 /**************************************************************************
  *
@@ -1159,66 +1199,6 @@ static int falcon_reconfigure_xmac(struct efx_nic *efx)
 	return 0;
 }
 
-static void falcon_update_stats_xmac(struct efx_nic *efx)
-{
-	struct efx_mac_stats *mac_stats = &efx->mac_stats;
-
-	/* Update MAC stats from DMAed values */
-	FALCON_STAT(efx, XgRxOctets, rx_bytes);
-	FALCON_STAT(efx, XgRxOctetsOK, rx_good_bytes);
-	FALCON_STAT(efx, XgRxPkts, rx_packets);
-	FALCON_STAT(efx, XgRxPktsOK, rx_good);
-	FALCON_STAT(efx, XgRxBroadcastPkts, rx_broadcast);
-	FALCON_STAT(efx, XgRxMulticastPkts, rx_multicast);
-	FALCON_STAT(efx, XgRxUnicastPkts, rx_unicast);
-	FALCON_STAT(efx, XgRxUndersizePkts, rx_lt64);
-	FALCON_STAT(efx, XgRxOversizePkts, rx_gtjumbo);
-	FALCON_STAT(efx, XgRxJabberPkts, rx_bad_gtjumbo);
-	FALCON_STAT(efx, XgRxUndersizeFCSerrorPkts, rx_bad_lt64);
-	FALCON_STAT(efx, XgRxDropEvents, rx_overflow);
-	FALCON_STAT(efx, XgRxFCSerrorPkts, rx_bad);
-	FALCON_STAT(efx, XgRxAlignError, rx_align_error);
-	FALCON_STAT(efx, XgRxSymbolError, rx_symbol_error);
-	FALCON_STAT(efx, XgRxInternalMACError, rx_internal_error);
-	FALCON_STAT(efx, XgRxControlPkts, rx_control);
-	FALCON_STAT(efx, XgRxPausePkts, rx_pause);
-	FALCON_STAT(efx, XgRxPkts64Octets, rx_64);
-	FALCON_STAT(efx, XgRxPkts65to127Octets, rx_65_to_127);
-	FALCON_STAT(efx, XgRxPkts128to255Octets, rx_128_to_255);
-	FALCON_STAT(efx, XgRxPkts256to511Octets, rx_256_to_511);
-	FALCON_STAT(efx, XgRxPkts512to1023Octets, rx_512_to_1023);
-	FALCON_STAT(efx, XgRxPkts1024to15xxOctets, rx_1024_to_15xx);
-	FALCON_STAT(efx, XgRxPkts15xxtoMaxOctets, rx_15xx_to_jumbo);
-	FALCON_STAT(efx, XgRxLengthError, rx_length_error);
-	FALCON_STAT(efx, XgTxPkts, tx_packets);
-	FALCON_STAT(efx, XgTxOctets, tx_bytes);
-	FALCON_STAT(efx, XgTxMulticastPkts, tx_multicast);
-	FALCON_STAT(efx, XgTxBroadcastPkts, tx_broadcast);
-	FALCON_STAT(efx, XgTxUnicastPkts, tx_unicast);
-	FALCON_STAT(efx, XgTxControlPkts, tx_control);
-	FALCON_STAT(efx, XgTxPausePkts, tx_pause);
-	FALCON_STAT(efx, XgTxPkts64Octets, tx_64);
-	FALCON_STAT(efx, XgTxPkts65to127Octets, tx_65_to_127);
-	FALCON_STAT(efx, XgTxPkts128to255Octets, tx_128_to_255);
-	FALCON_STAT(efx, XgTxPkts256to511Octets, tx_256_to_511);
-	FALCON_STAT(efx, XgTxPkts512to1023Octets, tx_512_to_1023);
-	FALCON_STAT(efx, XgTxPkts1024to15xxOctets, tx_1024_to_15xx);
-	FALCON_STAT(efx, XgTxPkts1519toMaxOctets, tx_15xx_to_jumbo);
-	FALCON_STAT(efx, XgTxUndersizePkts, tx_lt64);
-	FALCON_STAT(efx, XgTxOversizePkts, tx_gtjumbo);
-	FALCON_STAT(efx, XgTxNonTcpUdpPkt, tx_non_tcpudp);
-	FALCON_STAT(efx, XgTxMacSrcErrPkt, tx_mac_src_error);
-	FALCON_STAT(efx, XgTxIpSrcErrPkt, tx_ip_src_error);
-
-	/* Update derived statistics */
-	efx_update_diff_stat(&mac_stats->tx_good_bytes,
-			     mac_stats->tx_bytes - mac_stats->tx_bad_bytes -
-			     mac_stats->tx_control * 64);
-	efx_update_diff_stat(&mac_stats->rx_bad_bytes,
-			     mac_stats->rx_bytes - mac_stats->rx_good_bytes -
-			     mac_stats->rx_control * 64);
-}
-
 static void falcon_poll_xmac(struct efx_nic *efx)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
@@ -1422,7 +1402,9 @@ static void falcon_stats_complete(struct efx_nic *efx)
 	nic_data->stats_pending = false;
 	if (FALCON_XMAC_STATS_DMA_FLAG(efx)) {
 		rmb(); /* read the done flag before the stats */
-		falcon_update_stats_xmac(efx);
+		efx_nic_update_stats(falcon_stat_desc, FALCON_STAT_COUNT,
+				     falcon_stat_mask, nic_data->stats,
+				     efx->stats_buffer.addr, true);
 	} else {
 		netif_err(efx, hw, efx->net_dev,
 			  "timed out waiting for statistics\n");
@@ -2538,23 +2520,65 @@ static void falcon_remove_nic(struct efx_nic *efx)
 	efx->nic_data = NULL;
 }
 
-static void falcon_update_nic_stats(struct efx_nic *efx)
+static size_t falcon_describe_nic_stats(struct efx_nic *efx, u8 *names)
+{
+	return efx_nic_describe_stats(falcon_stat_desc, FALCON_STAT_COUNT,
+				      falcon_stat_mask, names);
+}
+
+static size_t falcon_update_nic_stats(struct efx_nic *efx, u64 *full_stats,
+				      struct rtnl_link_stats64 *core_stats)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
+	u64 *stats = nic_data->stats;
 	efx_oword_t cnt;
 
-	if (nic_data->stats_disable_count)
-		return;
+	if (!nic_data->stats_disable_count) {
+		efx_reado(efx, &cnt, FR_AZ_RX_NODESC_DROP);
+		stats[FALCON_STAT_rx_nodesc_drop_cnt] +=
+			EFX_OWORD_FIELD(cnt, FRF_AB_RX_NODESC_DROP_CNT);
 
-	efx_reado(efx, &cnt, FR_AZ_RX_NODESC_DROP);
-	efx->n_rx_nodesc_drop_cnt +=
-		EFX_OWORD_FIELD(cnt, FRF_AB_RX_NODESC_DROP_CNT);
+		if (nic_data->stats_pending &&
+		    FALCON_XMAC_STATS_DMA_FLAG(efx)) {
+			nic_data->stats_pending = false;
+			rmb(); /* read the done flag before the stats */
+			efx_nic_update_stats(
+				falcon_stat_desc, FALCON_STAT_COUNT,
+				falcon_stat_mask,
+				stats, efx->stats_buffer.addr, true);
+		}
 
-	if (nic_data->stats_pending && FALCON_XMAC_STATS_DMA_FLAG(efx)) {
-		nic_data->stats_pending = false;
-		rmb(); /* read the done flag before the stats */
-		falcon_update_stats_xmac(efx);
+		/* Update derived statistic */
+		efx_update_diff_stat(&stats[FALCON_STAT_rx_bad_bytes],
+				     stats[FALCON_STAT_rx_bytes] -
+				     stats[FALCON_STAT_rx_good_bytes] -
+				     stats[FALCON_STAT_rx_control] * 64);
 	}
+
+	if (full_stats)
+		memcpy(full_stats, stats, sizeof(u64) * FALCON_STAT_COUNT);
+
+	if (core_stats) {
+		core_stats->rx_packets = stats[FALCON_STAT_rx_packets];
+		core_stats->tx_packets = stats[FALCON_STAT_tx_packets];
+		core_stats->rx_bytes = stats[FALCON_STAT_rx_bytes];
+		core_stats->tx_bytes = stats[FALCON_STAT_tx_bytes];
+		core_stats->rx_dropped = stats[FALCON_STAT_rx_nodesc_drop_cnt];
+		core_stats->multicast = stats[FALCON_STAT_rx_multicast];
+		core_stats->rx_length_errors =
+			stats[FALCON_STAT_rx_gtjumbo] +
+			stats[FALCON_STAT_rx_length_error];
+		core_stats->rx_crc_errors = stats[FALCON_STAT_rx_bad];
+		core_stats->rx_frame_errors = stats[FALCON_STAT_rx_align_error];
+		core_stats->rx_fifo_errors = stats[FALCON_STAT_rx_overflow];
+
+		core_stats->rx_errors = (core_stats->rx_length_errors +
+					 core_stats->rx_crc_errors +
+					 core_stats->rx_frame_errors +
+					 stats[FALCON_STAT_rx_symbol_error]);
+	}
+
+	return FALCON_STAT_COUNT;
 }
 
 void falcon_start_nic_stats(struct efx_nic *efx)
@@ -2643,6 +2667,7 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.fini_dmaq = efx_farch_fini_dmaq,
 	.prepare_flush = falcon_prepare_flush,
 	.finish_flush = efx_port_dummy_op_void,
+	.describe_stats = falcon_describe_nic_stats,
 	.update_stats = falcon_update_nic_stats,
 	.start_stats = falcon_start_nic_stats,
 	.stop_stats = falcon_stop_nic_stats,
@@ -2735,6 +2760,7 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.fini_dmaq = efx_farch_fini_dmaq,
 	.prepare_flush = falcon_prepare_flush,
 	.finish_flush = efx_port_dummy_op_void,
+	.describe_stats = falcon_describe_nic_stats,
 	.update_stats = falcon_update_nic_stats,
 	.start_stats = falcon_start_nic_stats,
 	.stop_stats = falcon_stop_nic_stats,

@@ -236,21 +236,10 @@ static int efx_mcdi_poll(struct efx_nic *efx)
  */
 int efx_mcdi_poll_reboot(struct efx_nic *efx)
 {
-	int rc;
-
 	if (!efx->mcdi)
 		return 0;
 
-	rc = efx->type->mcdi_poll_reboot(efx);
-	if (!rc)
-		return 0;
-
-	/* MAC statistics have been cleared on the NIC; clear our copy
-	 * so that efx_update_diff_stat() can continue to work.
-	 */
-	memset(&efx->mac_stats, 0, sizeof(efx->mac_stats));
-
-	return rc;
+	return efx->type->mcdi_poll_reboot(efx);
 }
 
 static void efx_mcdi_acquire(struct efx_mcdi_iface *mcdi)

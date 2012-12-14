@@ -595,75 +595,17 @@ static inline bool efx_phy_mode_disabled(enum efx_phy_mode mode)
 	return !!(mode & ~PHY_MODE_TX_DISABLED);
 }
 
-/*
- * Efx extended statistics
- *
- * Not all statistics are provided by all supported MACs.  The purpose
- * is this structure is to contain the raw statistics provided by each
- * MAC.
+/**
+ * struct efx_hw_stat_desc - Description of a hardware statistic
+ * @name: Name of the statistic as visible through ethtool, or %NULL if
+ *	it should not be exposed
+ * @dma_width: Width in bits (0 for non-DMA statistics)
+ * @offset: Offset within stats (ignored for non-DMA statistics)
  */
-struct efx_mac_stats {
-	u64 tx_bytes;
-	u64 tx_good_bytes;
-	u64 tx_bad_bytes;
-	u64 tx_packets;
-	u64 tx_bad;
-	u64 tx_pause;
-	u64 tx_control;
-	u64 tx_unicast;
-	u64 tx_multicast;
-	u64 tx_broadcast;
-	u64 tx_lt64;
-	u64 tx_64;
-	u64 tx_65_to_127;
-	u64 tx_128_to_255;
-	u64 tx_256_to_511;
-	u64 tx_512_to_1023;
-	u64 tx_1024_to_15xx;
-	u64 tx_15xx_to_jumbo;
-	u64 tx_gtjumbo;
-	u64 tx_collision;
-	u64 tx_single_collision;
-	u64 tx_multiple_collision;
-	u64 tx_excessive_collision;
-	u64 tx_deferred;
-	u64 tx_late_collision;
-	u64 tx_excessive_deferred;
-	u64 tx_non_tcpudp;
-	u64 tx_mac_src_error;
-	u64 tx_ip_src_error;
-	u64 rx_bytes;
-	u64 rx_good_bytes;
-	u64 rx_bad_bytes;
-	u64 rx_packets;
-	u64 rx_good;
-	u64 rx_bad;
-	u64 rx_pause;
-	u64 rx_control;
-	u64 rx_unicast;
-	u64 rx_multicast;
-	u64 rx_broadcast;
-	u64 rx_lt64;
-	u64 rx_64;
-	u64 rx_65_to_127;
-	u64 rx_128_to_255;
-	u64 rx_256_to_511;
-	u64 rx_512_to_1023;
-	u64 rx_1024_to_15xx;
-	u64 rx_15xx_to_jumbo;
-	u64 rx_gtjumbo;
-	u64 rx_bad_lt64;
-	u64 rx_bad_64_to_15xx;
-	u64 rx_bad_15xx_to_jumbo;
-	u64 rx_bad_gtjumbo;
-	u64 rx_overflow;
-	u64 rx_missed;
-	u64 rx_false_carrier;
-	u64 rx_symbol_error;
-	u64 rx_align_error;
-	u64 rx_length_error;
-	u64 rx_internal_error;
-	u64 rx_good_lt64;
+struct efx_hw_stat_desc {
+	const char *name;
+	u16 dma_width;
+	u16 offset;
 };
 
 /* Number of bits used in a multicast filter hash address */
@@ -795,12 +737,8 @@ struct vfdi_status;
  * @last_irq_cpu: Last CPU to handle a possible test interrupt.  This
  *	field is used by efx_test_interrupts() to verify that an
  *	interrupt has occurred.
- * @n_rx_nodesc_drop_cnt: RX no descriptor drop count
- * @mac_stats: MAC statistics. These include all statistics the MACs
- *	can provide.  Generic code converts these into a standard
- *	&struct net_device_stats.
- * @stats_lock: Statistics update lock. Serialises statistics fetches
- *	and access to @mac_stats.
+ * @stats_lock: Statistics update lock. Must be held when calling
+ *	efx_nic_type::{update,start,stop}_stats.
  *
  * This is stored in the private area of the &struct net_device.
  */
@@ -939,8 +877,6 @@ struct efx_nic {
 	struct delayed_work monitor_work ____cacheline_aligned_in_smp;
 	spinlock_t biu_lock;
 	int last_irq_cpu;
-	unsigned n_rx_nodesc_drop_cnt;
-	struct efx_mac_stats mac_stats;
 	spinlock_t stats_lock;
 };
 
@@ -984,7 +920,9 @@ struct efx_mtd_partition {
  *	(for Falcon architecture)
  * @finish_flush: Clean up after flushing the DMA queues (for Falcon
  *	architecture)
- * @update_stats: Update statistics not provided by event handling
+ * @describe_stats: Describe statistics for ethtool
+ * @update_stats: Update statistics not provided by event handling.
+ *	Either argument may be %NULL.
  * @start_stats: Start the regular fetching of statistics
  * @stop_stats: Stop the regular fetching of statistics
  * @set_id_led: Set state of identifying LED or revert to automatic function
@@ -1098,7 +1036,9 @@ struct efx_nic_type {
 	int (*fini_dmaq)(struct efx_nic *efx);
 	void (*prepare_flush)(struct efx_nic *efx);
 	void (*finish_flush)(struct efx_nic *efx);
-	void (*update_stats)(struct efx_nic *efx);
+	size_t (*describe_stats)(struct efx_nic *efx, u8 *names);
+	size_t (*update_stats)(struct efx_nic *efx, u64 *full_stats,
+			       struct rtnl_link_stats64 *core_stats);
 	void (*start_stats)(struct efx_nic *efx);
 	void (*stop_stats)(struct efx_nic *efx);
 	void (*set_id_led)(struct efx_nic *efx, enum efx_led_mode mode);

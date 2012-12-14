@@ -19,10 +19,9 @@
 #include "filter.h"
 #include "nic.h"
 
-struct efx_ethtool_stat {
+struct efx_sw_stat_desc {
 	const char *name;
 	enum {
-		EFX_ETHTOOL_STAT_SOURCE_mac_stats,
 		EFX_ETHTOOL_STAT_SOURCE_nic,
 		EFX_ETHTOOL_STAT_SOURCE_channel,
 		EFX_ETHTOOL_STAT_SOURCE_tx_queue
@@ -31,7 +30,7 @@ struct efx_ethtool_stat {
 	u64(*get_stat) (void *field); /* Reader function */
 };
 
-/* Initialiser for a struct #efx_ethtool_stat with type-checking */
+/* Initialiser for a struct efx_sw_stat_desc with type-checking */
 #define EFX_ETHTOOL_STAT(stat_name, source_name, field, field_type, \
 				get_stat_function) {			\
 	.name = #stat_name,						\
@@ -48,23 +47,10 @@ static u64 efx_get_uint_stat(void *field)
 	return *(unsigned int *)field;
 }
 
-static u64 efx_get_u64_stat(void *field)
-{
-	return *(u64 *) field;
-}
-
 static u64 efx_get_atomic_stat(void *field)
 {
 	return atomic_read((atomic_t *) field);
 }
-
-#define EFX_ETHTOOL_U64_MAC_STAT(field)				\
-	EFX_ETHTOOL_STAT(field, mac_stats, field,		\
-			  u64, efx_get_u64_stat)
-
-#define EFX_ETHTOOL_UINT_NIC_STAT(name)				\
-	EFX_ETHTOOL_STAT(name, nic, n_##name,			\
-			 unsigned int, efx_get_uint_stat)
 
 #define EFX_ETHTOOL_ATOMIC_NIC_ERROR_STAT(field)		\
 	EFX_ETHTOOL_STAT(field, nic, field,			\
@@ -78,72 +64,11 @@ static u64 efx_get_atomic_stat(void *field)
 	EFX_ETHTOOL_STAT(tx_##field, tx_queue, field,		\
 			 unsigned int, efx_get_uint_stat)
 
-static const struct efx_ethtool_stat efx_ethtool_stats[] = {
-	EFX_ETHTOOL_U64_MAC_STAT(tx_bytes),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_good_bytes),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_bad_bytes),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_packets),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_bad),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_pause),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_control),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_unicast),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_multicast),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_broadcast),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_lt64),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_64),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_65_to_127),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_128_to_255),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_256_to_511),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_512_to_1023),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_1024_to_15xx),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_15xx_to_jumbo),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_gtjumbo),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_collision),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_single_collision),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_multiple_collision),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_excessive_collision),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_deferred),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_late_collision),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_excessive_deferred),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_non_tcpudp),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_mac_src_error),
-	EFX_ETHTOOL_U64_MAC_STAT(tx_ip_src_error),
+static const struct efx_sw_stat_desc efx_sw_stat_desc[] = {
 	EFX_ETHTOOL_UINT_TXQ_STAT(tso_bursts),
 	EFX_ETHTOOL_UINT_TXQ_STAT(tso_long_headers),
 	EFX_ETHTOOL_UINT_TXQ_STAT(tso_packets),
 	EFX_ETHTOOL_UINT_TXQ_STAT(pushes),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_bytes),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_good_bytes),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_bad_bytes),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_packets),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_good),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_bad),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_pause),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_control),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_unicast),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_multicast),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_broadcast),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_lt64),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_64),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_65_to_127),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_128_to_255),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_256_to_511),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_512_to_1023),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_1024_to_15xx),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_15xx_to_jumbo),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_gtjumbo),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_bad_lt64),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_bad_64_to_15xx),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_bad_15xx_to_jumbo),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_bad_gtjumbo),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_overflow),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_missed),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_false_carrier),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_symbol_error),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_align_error),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_length_error),
-	EFX_ETHTOOL_U64_MAC_STAT(rx_internal_error),
-	EFX_ETHTOOL_UINT_NIC_STAT(rx_nodesc_drop_cnt),
 	EFX_ETHTOOL_ATOMIC_NIC_ERROR_STAT(rx_reset),
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_tobe_disc),
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_ip_hdr_chksum_err),
@@ -153,8 +78,7 @@ static const struct efx_ethtool_stat efx_ethtool_stats[] = {
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_nodesc_trunc),
 };
 
-/* Number of ethtool statistics */
-#define EFX_ETHTOOL_NUM_STATS ARRAY_SIZE(efx_ethtool_stats)
+#define EFX_ETHTOOL_SW_STAT_COUNT ARRAY_SIZE(efx_sw_stat_desc)
 
 #define EFX_ETHTOOL_EEPROM_MAGIC 0xEFAB
 
@@ -424,12 +348,14 @@ static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 static int efx_ethtool_get_sset_count(struct net_device *net_dev,
 				      int string_set)
 {
+	struct efx_nic *efx = netdev_priv(net_dev);
+
 	switch (string_set) {
 	case ETH_SS_STATS:
-		return EFX_ETHTOOL_NUM_STATS;
+		return efx->type->describe_stats(efx, NULL) +
+			EFX_ETHTOOL_SW_STAT_COUNT;
 	case ETH_SS_TEST:
-		return efx_ethtool_fill_self_tests(netdev_priv(net_dev),
-						   NULL, NULL, NULL);
+		return efx_ethtool_fill_self_tests(efx, NULL, NULL, NULL);
 	default:
 		return -EINVAL;
 	}
@@ -443,9 +369,11 @@ static void efx_ethtool_get_strings(struct net_device *net_dev,
 
 	switch (string_set) {
 	case ETH_SS_STATS:
-		for (i = 0; i < EFX_ETHTOOL_NUM_STATS; i++)
+		strings += (efx->type->describe_stats(efx, strings) *
+			    ETH_GSTRING_LEN);
+		for (i = 0; i < EFX_ETHTOOL_SW_STAT_COUNT; i++)
 			strlcpy(strings + i * ETH_GSTRING_LEN,
-				efx_ethtool_stats[i].name, ETH_GSTRING_LEN);
+				efx_sw_stat_desc[i].name, ETH_GSTRING_LEN);
 		break;
 	case ETH_SS_TEST:
 		efx_ethtool_fill_self_tests(efx, NULL, strings, NULL);
@@ -461,27 +389,20 @@ static void efx_ethtool_get_stats(struct net_device *net_dev,
 				  u64 *data)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	struct efx_mac_stats *mac_stats = &efx->mac_stats;
-	const struct efx_ethtool_stat *stat;
+	const struct efx_sw_stat_desc *stat;
 	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
 	int i;
 
-	EFX_BUG_ON_PARANOID(stats->n_stats != EFX_ETHTOOL_NUM_STATS);
-
 	spin_lock_bh(&efx->stats_lock);
 
-	/* Update MAC and NIC statistics */
-	efx->type->update_stats(efx);
+	/* Get NIC statistics */
+	data += efx->type->update_stats(efx, data, NULL);
 
-	/* Fill detailed statistics buffer */
-	for (i = 0; i < EFX_ETHTOOL_NUM_STATS; i++) {
-		stat = &efx_ethtool_stats[i];
+	/* Get software statistics */
+	for (i = 0; i < EFX_ETHTOOL_SW_STAT_COUNT; i++) {
+		stat = &efx_sw_stat_desc[i];
 		switch (stat->source) {
-		case EFX_ETHTOOL_STAT_SOURCE_mac_stats:
-			data[i] = stat->get_stat((void *)mac_stats +
-						 stat->offset);
-			break;
 		case EFX_ETHTOOL_STAT_SOURCE_nic:
 			data[i] = stat->get_stat((void *)efx + stat->offset);
 			break;
