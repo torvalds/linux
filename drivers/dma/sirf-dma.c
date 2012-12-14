@@ -313,6 +313,48 @@ static int sirfsoc_dma_terminate_all(struct sirfsoc_dma_chan *schan)
 	return 0;
 }
 
+static int sirfsoc_dma_pause_chan(struct sirfsoc_dma_chan *schan)
+{
+	struct sirfsoc_dma *sdma = dma_chan_to_sirfsoc_dma(&schan->chan);
+	int cid = schan->chan.chan_id;
+	unsigned long flags;
+
+	spin_lock_irqsave(&schan->lock, flags);
+
+	if (!sdma->is_marco)
+		writel_relaxed(readl_relaxed(sdma->base + SIRFSOC_DMA_CH_LOOP_CTRL)
+			& ~((1 << cid) | 1 << (cid + 16)),
+			sdma->base + SIRFSOC_DMA_CH_LOOP_CTRL);
+	else
+		writel_relaxed((1 << cid) | 1 << (cid + 16),
+			sdma->base + SIRFSOC_DMA_CH_LOOP_CTRL_CLR);
+
+	spin_unlock_irqrestore(&schan->lock, flags);
+
+	return 0;
+}
+
+static int sirfsoc_dma_resume_chan(struct sirfsoc_dma_chan *schan)
+{
+	struct sirfsoc_dma *sdma = dma_chan_to_sirfsoc_dma(&schan->chan);
+	int cid = schan->chan.chan_id;
+	unsigned long flags;
+
+	spin_lock_irqsave(&schan->lock, flags);
+
+	if (!sdma->is_marco)
+		writel_relaxed(readl_relaxed(sdma->base + SIRFSOC_DMA_CH_LOOP_CTRL)
+			| ((1 << cid) | 1 << (cid + 16)),
+			sdma->base + SIRFSOC_DMA_CH_LOOP_CTRL);
+	else
+		writel_relaxed((1 << cid) | 1 << (cid + 16),
+			sdma->base + SIRFSOC_DMA_CH_LOOP_CTRL);
+
+	spin_unlock_irqrestore(&schan->lock, flags);
+
+	return 0;
+}
+
 static int sirfsoc_dma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 	unsigned long arg)
 {
@@ -320,6 +362,10 @@ static int sirfsoc_dma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 	struct sirfsoc_dma_chan *schan = dma_chan_to_sirfsoc_dma_chan(chan);
 
 	switch (cmd) {
+	case DMA_PAUSE:
+		return sirfsoc_dma_pause_chan(schan);
+	case DMA_RESUME:
+		return sirfsoc_dma_resume_chan(schan);
 	case DMA_TERMINATE_ALL:
 		return sirfsoc_dma_terminate_all(schan);
 	case DMA_SLAVE_CONFIG:
