@@ -97,7 +97,7 @@ static inline int dib9000_set_slave_frontend(struct dvb_frontend *fe, struct dvb
 	return -ENODEV;
 }
 
-int dib9000_remove_slave_frontend(struct dvb_frontend *fe)
+static inline int dib9000_remove_slave_frontend(struct dvb_frontend *fe)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return -ENODEV;

@@ -826,7 +826,7 @@ static int az6007_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
 {
 	pr_debug("Getting az6007 Remote Control properties\n");
 
-	rc->allowed_protos = RC_TYPE_NEC;
+	rc->allowed_protos = RC_BIT_NEC;
 	rc->query          = az6007_rc_query;
 	rc->interval       = 400;
 

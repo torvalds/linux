@@ -1239,6 +1239,10 @@ static int __init lirc_serial_init_module(void)
 		}
 	}
 
+	/* make sure sense is either -1, 0, or 1 */
+	if (sense != -1)
+		sense = !!sense;
+
 	result = lirc_serial_init();
 	if (result)
 		return result;
@@ -1298,7 +1302,7 @@ MODULE_PARM_DESC(irq, "Interrupt (4 or 3)");
 module_param(share_irq, bool, S_IRUGO);
 MODULE_PARM_DESC(share_irq, "Share interrupts (0 = off, 1 = on)");
 
-module_param(sense, bool, S_IRUGO);
+module_param(sense, int, S_IRUGO);
 MODULE_PARM_DESC(sense, "Override autodetection of IR receiver circuit"
 		 " (0 = active high, 1 = active low )");
 

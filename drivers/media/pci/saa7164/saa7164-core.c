@@ -410,7 +410,7 @@ static void saa7164_work_enchandler(struct work_struct *w)
 		} else
 			rp = (port->last_svc_rp + 1) % 8;
 
-		if ((rp < 0) || (rp > (port->hwcfg.buffercount - 1))) {
+		if (rp > (port->hwcfg.buffercount - 1)) {
 			printk(KERN_ERR "%s() illegal rp count %d\n", __func__, rp);
 			break;
 		}
@@ -486,7 +486,7 @@ static void saa7164_work_vbihandler(struct work_struct *w)
 		} else
 			rp = (port->last_svc_rp + 1) % 8;
 
-		if ((rp < 0) || (rp > (port->hwcfg.buffercount - 1))) {
+		if (rp > (port->hwcfg.buffercount - 1)) {
 			printk(KERN_ERR "%s() illegal rp count %d\n", __func__, rp);
 			break;
 		}

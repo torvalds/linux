@@ -200,7 +200,7 @@ static void flush_request_modules(struct bttv *dev)
 }
 #else
 #define request_modules(dev)
-#define flush_request_modules(dev)
+#define flush_request_modules(dev) do {} while(0)
 #endif /* CONFIG_MODULES */
 
 
@@ -301,11 +301,10 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 			/* totalwidth */ 1135,
 			/* sqwidth */ 944,
 			/* vdelay */ 0x20,
-			/* sheight */ 576,
-			/* videostart0 */ 23)
 		/* bt878 (and bt848?) can capture another
 		   line below active video. */
-		.cropcap.bounds.height = (576 + 2) + 0x20 - 2,
+			/* sheight */ (576 + 2) + 0x20 - 2,
+			/* videostart0 */ 23)
 	},{
 		.v4l2_id        = V4L2_STD_NTSC_M | V4L2_STD_NTSC_M_KR,
 		.name           = "NTSC",

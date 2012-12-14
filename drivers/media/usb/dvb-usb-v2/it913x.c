@@ -659,13 +659,19 @@ static int it913x_frontend_attach(struct dvb_usb_adapter *adap)
 		it913x_wr_reg(d, DEV_0_DMOD, MP2IF2_SW_RST, 0x1);
 		it913x_wr_reg(d, DEV_0, EP0_TX_EN, 0x0f);
 		it913x_wr_reg(d, DEV_0, EP0_TX_NAK, 0x1b);
-		it913x_wr_reg(d, DEV_0, EP0_TX_EN, 0x2f);
+		if (st->proprietary_ir == false) /* Enable endpoint 3 */
+			it913x_wr_reg(d, DEV_0, EP0_TX_EN, 0x3f);
+		else
+			it913x_wr_reg(d, DEV_0, EP0_TX_EN, 0x2f);
 		it913x_wr_reg(d, DEV_0, EP4_TX_LEN_LSB,
 					ep_size & 0xff);
 		it913x_wr_reg(d, DEV_0, EP4_TX_LEN_MSB, ep_size >> 8);
 		ret = it913x_wr_reg(d, DEV_0, EP4_MAX_PKT, pkt_size);
 	} else if (adap->id == 1 && adap->fe[0]) {
-		it913x_wr_reg(d, DEV_0, EP0_TX_EN, 0x6f);
+		if (st->proprietary_ir == false)
+			it913x_wr_reg(d, DEV_0, EP0_TX_EN, 0x7f);
+		else
+			it913x_wr_reg(d, DEV_0, EP0_TX_EN, 0x6f);
 		it913x_wr_reg(d, DEV_0, EP5_TX_LEN_LSB,
 					ep_size & 0xff);
 		it913x_wr_reg(d, DEV_0, EP5_TX_LEN_MSB, ep_size >> 8);
@@ -698,7 +704,7 @@ static int it913x_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
 		return 0;
 	}
 
-	rc->allowed_protos = RC_TYPE_NEC;
+	rc->allowed_protos = RC_BIT_NEC;
 	rc->query = it913x_rc_query;
 	rc->interval = 250;
 
