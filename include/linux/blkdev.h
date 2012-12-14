@@ -1188,13 +1188,14 @@ static inline int queue_discard_alignment(struct request_queue *q)
 
 static inline int queue_limit_discard_alignment(struct queue_limits *lim, sector_t sector)
 {
-	unsigned int alignment = (sector << 9) & (lim->discard_granularity - 1);
+	sector_t alignment = sector << 9;
+	alignment = sector_div(alignment, lim->discard_granularity);
 
 	if (!lim->max_discard_sectors)
 		return 0;
 
-	return (lim->discard_granularity + lim->discard_alignment - alignment)
-		& (lim->discard_granularity - 1);
+	alignment = lim->discard_granularity + lim->discard_alignment - alignment;
+	return sector_div(alignment, lim->discard_granularity);
 }
 
 static inline int bdev_discard_alignment(struct block_device *bdev)
