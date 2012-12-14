@@ -111,7 +111,7 @@ static void restore_sigs(sigset_t *oldset)
 	sigprocmask(SIG_SETMASK, oldset, NULL);
 }
 
-static void __fuse_get_request(struct fuse_req *req)
+void __fuse_get_request(struct fuse_req *req)
 {
 	atomic_inc(&req->count);
 }

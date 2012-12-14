@@ -593,14 +593,16 @@ static size_t fuse_async_req_send(struct fuse_conn *fc, struct fuse_req *req,
 	req->io = io;
 	req->end = fuse_aio_complete_req;
 
+	__fuse_get_request(req);
 	fuse_request_send_background(fc, req);
 
 	return num_bytes;
 }
 
-static size_t fuse_send_read(struct fuse_req *req, struct file *file,
+static size_t fuse_send_read(struct fuse_req *req, struct fuse_io_priv *io,
 			     loff_t pos, size_t count, fl_owner_t owner)
 {
+	struct file *file = io->file;
 	struct fuse_file *ff = file->private_data;
 	struct fuse_conn *fc = ff->fc;
 
@@ -611,6 +613,10 @@ static size_t fuse_send_read(struct fuse_req *req, struct file *file,
 		inarg->read_flags |= FUSE_READ_LOCKOWNER;
 		inarg->lock_owner = fuse_lock_owner_id(fc, owner);
 	}
+
+	if (io->async)
+		return fuse_async_req_send(fc, req, count, io);
+
 	fuse_request_send(fc, req);
 	return req->out.args[0].size;
 }
@@ -631,6 +637,7 @@ static void fuse_read_update_size(struct inode *inode, loff_t size,
 
 static int fuse_readpage(struct file *file, struct page *page)
 {
+	struct fuse_io_priv io = { .async = 0, .file = file };
 	struct inode *inode = page->mapping->host;
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_req *req;
@@ -663,7 +670,7 @@ static int fuse_readpage(struct file *file, struct page *page)
 	req->num_pages = 1;
 	req->pages[0] = page;
 	req->page_descs[0].length = count;
-	num_read = fuse_send_read(req, file, pos, count, NULL);
+	num_read = fuse_send_read(req, &io, pos, count, NULL);
 	err = req->out.h.error;
 	fuse_put_request(fc, req);
 
@@ -873,9 +880,10 @@ static void fuse_write_fill(struct fuse_req *req, struct fuse_file *ff,
 	req->out.args[0].value = outarg;
 }
 
-static size_t fuse_send_write(struct fuse_req *req, struct file *file,
+static size_t fuse_send_write(struct fuse_req *req, struct fuse_io_priv *io,
 			      loff_t pos, size_t count, fl_owner_t owner)
 {
+	struct file *file = io->file;
 	struct fuse_file *ff = file->private_data;
 	struct fuse_conn *fc = ff->fc;
 	struct fuse_write_in *inarg = &req->misc.write.in;
@@ -886,6 +894,10 @@ static size_t fuse_send_write(struct fuse_req *req, struct file *file,
 		inarg->write_flags |= FUSE_WRITE_LOCKOWNER;
 		inarg->lock_owner = fuse_lock_owner_id(fc, owner);
 	}
+
+	if (io->async)
+		return fuse_async_req_send(fc, req, count, io);
+
 	fuse_request_send(fc, req);
 	return req->misc.write.out.size;
 }
@@ -909,11 +921,12 @@ static size_t fuse_send_write_pages(struct fuse_req *req, struct file *file,
 	size_t res;
 	unsigned offset;
 	unsigned i;
+	struct fuse_io_priv io = { .async = 0, .file = file };
 
 	for (i = 0; i < req->num_pages; i++)
 		fuse_wait_on_page_writeback(inode, req->pages[i]->index);
 
-	res = fuse_send_write(req, file, pos, count, NULL);
+	res = fuse_send_write(req, &io, pos, count, NULL);
 
 	offset = req->page_descs[0].offset;
 	count = res;
@@ -1251,10 +1264,11 @@ static inline int fuse_iter_npages(const struct iov_iter *ii_p)
 	return min(npages, FUSE_MAX_PAGES_PER_REQ);
 }
 
-ssize_t fuse_direct_io(struct file *file, const struct iovec *iov,
+ssize_t fuse_direct_io(struct fuse_io_priv *io, const struct iovec *iov,
 		       unsigned long nr_segs, size_t count, loff_t *ppos,
 		       int write)
 {
+	struct file *file = io->file;
 	struct fuse_file *ff = file->private_data;
 	struct fuse_conn *fc = ff->fc;
 	size_t nmax = write ? fc->max_write : fc->max_read;
@@ -1280,11 +1294,12 @@ ssize_t fuse_direct_io(struct file *file, const struct iovec *iov,
 		}
 
 		if (write)
-			nres = fuse_send_write(req, file, pos, nbytes, owner);
+			nres = fuse_send_write(req, io, pos, nbytes, owner);
 		else
-			nres = fuse_send_read(req, file, pos, nbytes, owner);
+			nres = fuse_send_read(req, io, pos, nbytes, owner);
 
-		fuse_release_user_pages(req, !write);
+		if (!io->async)
+			fuse_release_user_pages(req, !write);
 		if (req->out.h.error) {
 			if (!res)
 				res = req->out.h.error;
@@ -1314,16 +1329,18 @@ ssize_t fuse_direct_io(struct file *file, const struct iovec *iov,
 }
 EXPORT_SYMBOL_GPL(fuse_direct_io);
 
-static ssize_t __fuse_direct_read(struct file *file, const struct iovec *iov,
+static ssize_t __fuse_direct_read(struct fuse_io_priv *io,
+				  const struct iovec *iov,
 				  unsigned long nr_segs, loff_t *ppos)
 {
 	ssize_t res;
+	struct file *file = io->file;
 	struct inode *inode = file_inode(file);
 
 	if (is_bad_inode(inode))
 		return -EIO;
 
-	res = fuse_direct_io(file, iov, nr_segs, iov_length(iov, nr_segs),
+	res = fuse_direct_io(io, iov, nr_segs, iov_length(iov, nr_segs),
 			     ppos, 0);
 
 	fuse_invalidate_attr(inode);
@@ -1334,21 +1351,24 @@ static ssize_t __fuse_direct_read(struct file *file, const struct iovec *iov,
 static ssize_t fuse_direct_read(struct file *file, char __user *buf,
 				     size_t count, loff_t *ppos)
 {
+	struct fuse_io_priv io = { .async = 0, .file = file };
 	struct iovec iov = { .iov_base = buf, .iov_len = count };
-	return __fuse_direct_read(file, &iov, 1, ppos);
+	return __fuse_direct_read(&io, &iov, 1, ppos);
 }
 
-static ssize_t __fuse_direct_write(struct file *file, const struct iovec *iov,
+static ssize_t __fuse_direct_write(struct fuse_io_priv *io,
+				   const struct iovec *iov,
 				   unsigned long nr_segs, loff_t *ppos)
 {
+	struct file *file = io->file;
 	struct inode *inode = file_inode(file);
 	size_t count = iov_length(iov, nr_segs);
 	ssize_t res;
 
 	res = generic_write_checks(file, ppos, &count, 0);
 	if (!res) {
-		res = fuse_direct_io(file, iov, nr_segs, count, ppos, 1);
-		if (res > 0)
+		res = fuse_direct_io(io, iov, nr_segs, count, ppos, 1);
+		if (!io->async && res > 0)
 			fuse_write_update_size(inode, *ppos);
 	}
 
@@ -1363,13 +1383,14 @@ static ssize_t fuse_direct_write(struct file *file, const char __user *buf,
 	struct iovec iov = { .iov_base = (void __user *)buf, .iov_len = count };
 	struct inode *inode = file_inode(file);
 	ssize_t res;
+	struct fuse_io_priv io = { .async = 0, .file = file };
 
 	if (is_bad_inode(inode))
 		return -EIO;
 
 	/* Don't allow parallel writes to the same file */
 	mutex_lock(&inode->i_mutex);
-	res = __fuse_direct_write(file, &iov, 1, ppos);
+	res = __fuse_direct_write(&io, &iov, 1, ppos);
 	mutex_unlock(&inode->i_mutex);
 
 	return res;
@@ -2339,14 +2360,23 @@ fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	ssize_t ret = 0;
 	struct file *file = NULL;
 	loff_t pos = 0;
+	struct fuse_io_priv *io;
 
 	file = iocb->ki_filp;
 	pos = offset;
 
+	io = kzalloc(sizeof(struct fuse_io_priv), GFP_KERNEL);
+	if (!io)
+		return -ENOMEM;
+
+	io->file = file;
+
 	if (rw == WRITE)
-		ret = __fuse_direct_write(file, iov, nr_segs, &pos);
+		ret = __fuse_direct_write(io, iov, nr_segs, &pos);
 	else
-		ret = __fuse_direct_read(file, iov, nr_segs, &pos);
+		ret = __fuse_direct_read(io, iov, nr_segs, &pos);
+
+	kfree(io);
 
 	return ret;
 }
