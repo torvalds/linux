@@ -1166,6 +1166,9 @@ struct drm_i915_file_private {
 #define IS_IVB_GT1(dev)		((dev)->pci_device == 0x0156 || \
 				 (dev)->pci_device == 0x0152 ||	\
 				 (dev)->pci_device == 0x015a)
+#define IS_SNB_GT1(dev)		((dev)->pci_device == 0x0102 || \
+				 (dev)->pci_device == 0x0106 ||	\
+				 (dev)->pci_device == 0x010A)
 #define IS_VALLEYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview)
 #define IS_HASWELL(dev)	(INTEL_INFO(dev)->is_haswell)
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
