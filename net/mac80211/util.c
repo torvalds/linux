@@ -1555,9 +1555,11 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 
 			/* fall through */
 		case NL80211_IFTYPE_MESH_POINT:
-			changed |= BSS_CHANGED_BEACON |
-				   BSS_CHANGED_BEACON_ENABLED;
-			ieee80211_bss_info_change_notify(sdata, changed);
+			if (sdata->vif.bss_conf.enable_beacon) {
+				changed |= BSS_CHANGED_BEACON |
+					   BSS_CHANGED_BEACON_ENABLED;
+				ieee80211_bss_info_change_notify(sdata, changed);
+			}
 			break;
 		case NL80211_IFTYPE_WDS:
 			break;
