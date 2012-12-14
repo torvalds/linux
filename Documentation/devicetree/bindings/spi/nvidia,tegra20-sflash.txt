@@ -13,7 +13,7 @@ Recommended properties:
 
 Example:
 
-spi@7000d600 {
+spi@7000c380 {
 	compatible = "nvidia,tegra20-sflash";
 	reg = <0x7000c380 0x80>;
 	interrupts = <0 39 0x04>;
