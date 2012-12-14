@@ -1010,8 +1010,13 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 		kfree_rcu(old_probe_resp, rcu_head);
 
 	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
-		sta_info_flush(vlan);
-	sta_info_flush(sdata);
+		sta_info_flush_defer(vlan);
+	sta_info_flush_defer(sdata);
+	rcu_barrier();
+	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
+		sta_info_flush_cleanup(vlan);
+	sta_info_flush_cleanup(sdata);
+
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
 
 	drv_stop_ap(sdata->local, sdata);

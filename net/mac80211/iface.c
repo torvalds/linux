@@ -863,12 +863,15 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		cancel_work_sync(&sdata->work);
 		/*
 		 * When we get here, the interface is marked down.
-		 * sta_info_flush_cleanup() calls rcu_barrier to
-		 * wait for the station call_rcu() calls to complete,
-		 * here we require it to wait for the RX path in case
-		 * it is using the interface and enqueuing frames at
-		 * this very time on another CPU.
+		 *
+		 * sta_info_flush_cleanup() requires rcu_barrier()
+		 * first to wait for the station call_rcu() calls
+		 * to complete, here we need at least sychronize_rcu()
+		 * it to wait for the RX path in case it is using the
+		 * interface and enqueuing frames at this very time on
+		 * another CPU.
 		 */
+		rcu_barrier();
 		sta_info_flush_cleanup(sdata);
 
 		skb_queue_purge(&sdata->skb_queue);

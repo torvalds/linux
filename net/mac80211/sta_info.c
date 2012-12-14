@@ -920,8 +920,6 @@ int sta_info_flush_defer(struct ieee80211_sub_if_data *sdata)
 
 void sta_info_flush_cleanup(struct ieee80211_sub_if_data *sdata)
 {
-	rcu_barrier();
-
 	ieee80211_cleanup_sdata_stas(sdata);
 	cancel_work_sync(&sdata->cleanup_stations_wk);
 }
