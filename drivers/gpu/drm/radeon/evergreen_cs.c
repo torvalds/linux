@@ -2256,6 +2256,18 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 		command = radeon_get_ib_value(p, idx+4);
 		size = command & 0x1fffff;
 		info = radeon_get_ib_value(p, idx+1);
+		if ((((info & 0x60000000) >> 29) != 0) || /* src = GDS or DATA */
+		    (((info & 0x00300000) >> 20) != 0) || /* dst = GDS */
+		    ((((info & 0x00300000) >> 20) == 0) &&
+		     (command & PACKET3_CP_DMA_CMD_DAS)) || /* dst = register */
+		    ((((info & 0x60000000) >> 29) == 0) &&
+		     (command & PACKET3_CP_DMA_CMD_SAS))) { /* src = register */
+			/* non mem to mem copies requires dw aligned count */
+			if (size % 4) {
+				DRM_ERROR("CP DMA command requires dw count alignment\n");
+				return -EINVAL;
+			}
+		}
 		if (command & PACKET3_CP_DMA_CMD_SAS) {
 			/* src address space is register */
 			/* GDS is ok */
@@ -3472,6 +3484,18 @@ static int evergreen_vm_packet3_check(struct radeon_device *rdev,
 	case PACKET3_CP_DMA:
 		command = ib[idx + 4];
 		info = ib[idx + 1];
+		if ((((info & 0x60000000) >> 29) != 0) || /* src = GDS or DATA */
+		    (((info & 0x00300000) >> 20) != 0) || /* dst = GDS */
+		    ((((info & 0x00300000) >> 20) == 0) &&
+		     (command & PACKET3_CP_DMA_CMD_DAS)) || /* dst = register */
+		    ((((info & 0x60000000) >> 29) == 0) &&
+		     (command & PACKET3_CP_DMA_CMD_SAS))) { /* src = register */
+			/* non mem to mem copies requires dw aligned count */
+			if ((command & 0x1fffff) % 4) {
+				DRM_ERROR("CP DMA command requires dw count alignment\n");
+				return -EINVAL;
+			}
+		}
 		if (command & PACKET3_CP_DMA_CMD_SAS) {
 			/* src address space is register */
 			if (((info & 0x60000000) >> 29) == 0) {
