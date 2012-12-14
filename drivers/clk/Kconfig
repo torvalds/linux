@@ -64,3 +64,5 @@ config CLK_TWL6040
 	  as functional clock.
 
 endmenu
+
+source "drivers/clk/mvebu/Kconfig"
