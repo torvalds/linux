@@ -46,7 +46,6 @@
 #define __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND
 #define __ARCH_WANT_COMPAT_SYS_SENDFILE
 #endif
-#define __ARCH_WANT_SYS_EXECVE
 
 /*
  * "Conditional" syscalls
