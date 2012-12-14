@@ -857,7 +857,6 @@ asmlinkage long sys32_x32_rt_sigreturn(struct pt_regs *regs)
 	struct rt_sigframe_x32 __user *frame;
 	sigset_t set;
 	unsigned long ax;
-	struct pt_regs tregs;
 
 	frame = (struct rt_sigframe_x32 __user *)(regs->sp - 8);
 
@@ -871,8 +870,7 @@ asmlinkage long sys32_x32_rt_sigreturn(struct pt_regs *regs)
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &ax))
 		goto badframe;
 
-	tregs = *regs;
-	if (sys32_sigaltstack(&frame->uc.uc_stack, NULL, &tregs) == -EFAULT)
+	if (compat_restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
 
 	return ax;

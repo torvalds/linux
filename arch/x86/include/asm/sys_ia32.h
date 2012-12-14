@@ -69,8 +69,6 @@ asmlinkage long sys32_fallocate(int, int, unsigned,
 
 /* ia32/ia32_signal.c */
 asmlinkage long sys32_sigsuspend(int, int, old_sigset_t);
-asmlinkage long sys32_sigaltstack(const stack_ia32_t __user *,
-				  stack_ia32_t __user *, struct pt_regs *);
 asmlinkage long sys32_sigreturn(struct pt_regs *);
 asmlinkage long sys32_rt_sigreturn(struct pt_regs *);
 
