@@ -56,44 +56,46 @@ struct sh_cmt_priv {
 	bool cs_enabled;
 };
 
-static DEFINE_RAW_SPINLOCK(sh_cmt_lock);
+static inline unsigned long sh_cmt_read16(void __iomem *base,
+					  unsigned long offs)
+{
+	return ioread16(base + (offs << 1));
+}
 
-#define CMSTR -1 /* shared register */
+static inline void sh_cmt_write16(void __iomem *base, unsigned long offs,
+				  unsigned long value)
+{
+	iowrite16(value, base + (offs << 1));
+}
+
 #define CMCSR 0 /* channel register */
 #define CMCNT 1 /* channel register */
 #define CMCOR 2 /* channel register */
 
 static inline unsigned long sh_cmt_read(struct sh_cmt_priv *p, int reg_nr)
 {
-	struct sh_timer_config *cfg = p->pdev->dev.platform_data;
 	void __iomem *base = p->mapbase;
-	unsigned long offs;
+	unsigned long offs = reg_nr;
 
-	if (reg_nr == CMSTR) {
-		offs = 0;
-		base -= cfg->channel_offset;
-	} else
-		offs = reg_nr;
-
-	if (p->width == 16)
+	if (p->width == 16) {
 		offs <<= 1;
-	else {
+		return ioread16(base + offs);
+	} else {
 		offs <<= 2;
-		if ((reg_nr == CMCNT) || (reg_nr == CMCOR))
-			return ioread32(base + offs);
+		return ioread32(base + offs);
 	}
-
-	return ioread16(base + offs);
 }
 
 static inline unsigned long sh_cmt_read_cmstr(struct sh_cmt_priv *p)
 {
-	return sh_cmt_read(p, CMSTR);
+	struct sh_timer_config *cfg = p->pdev->dev.platform_data;
+
+	return sh_cmt_read16(p->mapbase - cfg->channel_offset, 0);
 }
 
 static inline unsigned long sh_cmt_read_cmcsr(struct sh_cmt_priv *p)
 {
-	return sh_cmt_read(p, CMCSR);
+	return sh_cmt_read16(p->mapbase, CMCSR);
 }
 
 static inline unsigned long sh_cmt_read_cmcnt(struct sh_cmt_priv *p)
@@ -104,39 +106,30 @@ static inline unsigned long sh_cmt_read_cmcnt(struct sh_cmt_priv *p)
 static inline void sh_cmt_write(struct sh_cmt_priv *p, int reg_nr,
 				unsigned long value)
 {
-	struct sh_timer_config *cfg = p->pdev->dev.platform_data;
 	void __iomem *base = p->mapbase;
-	unsigned long offs;
+	unsigned long offs = reg_nr;
 
-	if (reg_nr == CMSTR) {
-		offs = 0;
-		base -= cfg->channel_offset;
-	} else
-		offs = reg_nr;
-
-	if (p->width == 16)
+	if (p->width == 16) {
 		offs <<= 1;
-	else {
+		iowrite16(value, base + offs);
+	} else {
 		offs <<= 2;
-		if ((reg_nr == CMCNT) || (reg_nr == CMCOR)) {
-			iowrite32(value, base + offs);
-			return;
-		}
+		iowrite32(value, base + offs);
 	}
-
-	iowrite16(value, base + offs);
 }
 
 static inline void sh_cmt_write_cmstr(struct sh_cmt_priv *p,
 				      unsigned long value)
 {
-	sh_cmt_write(p, CMSTR, value);
+	struct sh_timer_config *cfg = p->pdev->dev.platform_data;
+
+	sh_cmt_write16(p->mapbase - cfg->channel_offset, 0, value);
 }
 
 static inline void sh_cmt_write_cmcsr(struct sh_cmt_priv *p,
 				      unsigned long value)
 {
-	sh_cmt_write(p, CMCSR, value);
+	sh_cmt_write16(p->mapbase, CMCSR, value);
 }
 
 static inline void sh_cmt_write_cmcnt(struct sh_cmt_priv *p,
@@ -173,6 +166,7 @@ static unsigned long sh_cmt_get_counter(struct sh_cmt_priv *p,
 	return v2;
 }
 
+static DEFINE_RAW_SPINLOCK(sh_cmt_lock);
 
 static void sh_cmt_start_stop_ch(struct sh_cmt_priv *p, int start)
 {
