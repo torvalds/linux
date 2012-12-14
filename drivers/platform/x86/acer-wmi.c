@@ -875,7 +875,7 @@ WMI_execute_u32(u32 method_id, u32 in, u32 *out)
 	struct acpi_buffer input = { (acpi_size) sizeof(u32), (void *)(&in) };
 	struct acpi_buffer result = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
-	u32 tmp;
+	u32 tmp = 0;
 	acpi_status status;
 
 	status = wmi_evaluate_method(WMID_GUID1, 1, method_id, &input, &result);
@@ -884,14 +884,14 @@ WMI_execute_u32(u32 method_id, u32 in, u32 *out)
 		return status;
 
 	obj = (union acpi_object *) result.pointer;
-	if (obj && obj->type == ACPI_TYPE_BUFFER &&
-		(obj->buffer.length == sizeof(u32) ||
-		obj->buffer.length == sizeof(u64))) {
-		tmp = *((u32 *) obj->buffer.pointer);
-	} else if (obj->type == ACPI_TYPE_INTEGER) {
-		tmp = (u32) obj->integer.value;
-	} else {
-		tmp = 0;
+	if (obj) {
+		if (obj->type == ACPI_TYPE_BUFFER &&
+			(obj->buffer.length == sizeof(u32) ||
+			obj->buffer.length == sizeof(u64))) {
+			tmp = *((u32 *) obj->buffer.pointer);
+		} else if (obj->type == ACPI_TYPE_INTEGER) {
+			tmp = (u32) obj->integer.value;
+		}
 	}
 
 	if (out)
@@ -1193,12 +1193,14 @@ static acpi_status WMID_set_capabilities(void)
 		return status;
 
 	obj = (union acpi_object *) out.pointer;
-	if (obj && obj->type == ACPI_TYPE_BUFFER &&
-		(obj->buffer.length == sizeof(u32) ||
-		obj->buffer.length == sizeof(u64))) {
-		devices = *((u32 *) obj->buffer.pointer);
-	} else if (obj->type == ACPI_TYPE_INTEGER) {
-		devices = (u32) obj->integer.value;
+	if (obj) {
+		if (obj->type == ACPI_TYPE_BUFFER &&
+			(obj->buffer.length == sizeof(u32) ||
+			obj->buffer.length == sizeof(u64))) {
+			devices = *((u32 *) obj->buffer.pointer);
+		} else if (obj->type == ACPI_TYPE_INTEGER) {
+			devices = (u32) obj->integer.value;
+		}
 	} else {
 		kfree(out.pointer);
 		return AE_ERROR;
@@ -1946,12 +1948,14 @@ static u32 get_wmid_devices(void)
 		return 0;
 
 	obj = (union acpi_object *) out.pointer;
-	if (obj && obj->type == ACPI_TYPE_BUFFER &&
-		(obj->buffer.length == sizeof(u32) ||
-		obj->buffer.length == sizeof(u64))) {
-		devices = *((u32 *) obj->buffer.pointer);
-	} else if (obj->type == ACPI_TYPE_INTEGER) {
-		devices = (u32) obj->integer.value;
+	if (obj) {
+		if (obj->type == ACPI_TYPE_BUFFER &&
+			(obj->buffer.length == sizeof(u32) ||
+			obj->buffer.length == sizeof(u64))) {
+			devices = *((u32 *) obj->buffer.pointer);
+		} else if (obj->type == ACPI_TYPE_INTEGER) {
+			devices = (u32) obj->integer.value;
+		}
 	}
 
 	kfree(out.pointer);
