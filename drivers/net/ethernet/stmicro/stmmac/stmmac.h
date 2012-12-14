@@ -127,14 +127,14 @@ static inline int stmmac_register_platform(void)
 }
 static inline void stmmac_unregister_platform(void)
 {
-	platform_driver_register(&stmmac_pltfr_driver);
+	platform_driver_unregister(&stmmac_pltfr_driver);
 }
 #else
 static inline int stmmac_register_platform(void)
 {
 	pr_debug("stmmac: do not register the platf driver\n");
 
-	return -EINVAL;
+	return 0;
 }
 static inline void stmmac_unregister_platform(void)
 {
@@ -162,7 +162,7 @@ static inline int stmmac_register_pci(void)
 {
 	pr_debug("stmmac: do not register the PCI driver\n");
 
-	return -EINVAL;
+	return 0;
 }
 static inline void stmmac_unregister_pci(void)
 {
