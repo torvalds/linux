@@ -43,8 +43,6 @@ EXPORT_SYMBOL(kvm_cpu_has_pending_timer);
  */
 int kvm_cpu_has_interrupt(struct kvm_vcpu *v)
 {
-	struct kvm_pic *s;
-
 	if (!irqchip_in_kernel(v->kvm))
 		return v->arch.interrupt.pending;
 
@@ -60,8 +58,6 @@ EXPORT_SYMBOL_GPL(kvm_cpu_has_interrupt);
  */
 int kvm_cpu_get_interrupt(struct kvm_vcpu *v)
 {
-	struct kvm_pic *s;
-
 	if (!irqchip_in_kernel(v->kvm))
 		return v->arch.interrupt.nr;
 
