@@ -65,6 +65,9 @@
 
 #endif /* CONFIG_HAVE_SYSCALL_WRAPPERS */
 
+#ifndef compat_user_stack_pointer
+#define compat_user_stack_pointer() current_user_stack_pointer()
+#endif
 #define compat_jiffies_to_clock_t(x)	\
 		(((unsigned long)(x) * COMPAT_USER_HZ) / HZ)
 
