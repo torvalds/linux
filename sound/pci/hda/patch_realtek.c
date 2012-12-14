@@ -3064,11 +3064,11 @@ static bool add_new_out_path(struct hda_codec *codec, hda_nid_t pin,
 	return false;
 }
 
-/* get the path pointing from the given dac to pin;
+/* get the path between the given NIDs;
  * passing 0 to either @pin or @dac behaves as a wildcard
  */
-static struct nid_path *get_out_path(struct hda_codec *codec, hda_nid_t pin,
-				     hda_nid_t dac)
+static struct nid_path *
+get_nid_path(struct hda_codec *codec, hda_nid_t from_nid, hda_nid_t to_nid)
 {
 	struct alc_spec *spec = codec->spec;
 	int i;
@@ -3077,8 +3077,8 @@ static struct nid_path *get_out_path(struct hda_codec *codec, hda_nid_t pin,
 		struct nid_path *path = snd_array_elem(&spec->paths, i);
 		if (path->depth <= 0)
 			continue;
-		if ((!dac || path->path[0] == dac) &&
-		    (!pin || path->path[path->depth - 1] == pin))
+		if ((!from_nid || path->path[0] == from_nid) &&
+		    (!to_nid || path->path[path->depth - 1] == to_nid))
 			return path;
 	}
 	return NULL;
@@ -3094,7 +3094,7 @@ static struct nid_path *get_out_path(struct hda_codec *codec, hda_nid_t pin,
 static int assign_out_path_ctls(struct hda_codec *codec, hda_nid_t pin,
 				hda_nid_t dac)
 {
-	struct nid_path *path = get_out_path(codec, pin, dac);
+	struct nid_path *path = get_nid_path(codec, dac, pin);
 	hda_nid_t nid;
 	unsigned int val;
 	int badness = 0;
@@ -3495,9 +3495,9 @@ static int alc_auto_fill_dac_nids(struct hda_codec *codec)
 	debug_show_configs(spec, cfg);
 
 	if (cfg->line_out_pins[0]) {
-		struct nid_path *path = get_out_path(codec,
-						     cfg->line_out_pins[0],
-						     spec->multiout.dac_nids[0]);
+		struct nid_path *path = get_nid_path(codec,
+						     spec->multiout.dac_nids[0],
+						     cfg->line_out_pins[0]);
 		if (path)
 			spec->vmaster_nid = alc_look_for_out_vol_nid(codec, path);
 	}
@@ -3641,7 +3641,7 @@ static int alc_auto_create_multi_out_ctls(struct hda_codec *codec,
 			name = alc_get_line_out_pfx(spec, i, true, &index);
 		}
 
-		path = get_out_path(codec, pin, dac);
+		path = get_nid_path(codec, dac, pin);
 		if (!path)
 			continue;
 		if (!name || !strcmp(name, "CLFE")) {
@@ -3677,7 +3677,7 @@ static int alc_auto_create_extra_out(struct hda_codec *codec, hda_nid_t pin,
 	struct nid_path *path;
 	int err;
 
-	path = get_out_path(codec, pin, dac);
+	path = get_nid_path(codec, dac, pin);
 	if (!path)
 		return 0;
 	/* bind volume control will be created in the case of dac = 0 */
@@ -3763,7 +3763,7 @@ static int alc_auto_create_extra_outs(struct hda_codec *codec, int num_pins,
 		struct nid_path *path;
 		if (!pins[i] || !dacs[i])
 			continue;
-		path = get_out_path(codec, pins[i], dacs[i]);
+		path = get_nid_path(codec, dacs[i], pins[i]);
 		if (!path)
 			continue;
 		vol = alc_look_for_out_vol_nid(codec, path);
@@ -3975,7 +3975,7 @@ static void alc_auto_set_output_and_unmute(struct hda_codec *codec,
 	struct nid_path *path;
 
 	snd_hda_set_pin_ctl_cache(codec, pin, pin_type);
-	path = get_out_path(codec, pin, dac);
+	path = get_nid_path(codec, dac, pin);
 	if (!path)
 		return;
 	activate_path(codec, path, true);
@@ -4183,7 +4183,7 @@ static int alc_set_multi_io(struct hda_codec *codec, int idx, bool output)
 	hda_nid_t nid = spec->multi_io[idx].pin;
 	struct nid_path *path;
 
-	path = get_out_path(codec, nid, spec->multi_io[idx].dac);
+	path = get_nid_path(codec, spec->multi_io[idx].dac, nid);
 	if (!path)
 		return -EINVAL;
 
