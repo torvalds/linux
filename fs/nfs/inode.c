@@ -107,6 +107,12 @@ u64 nfs_compat_user_ino64(u64 fileid)
 	return ino;
 }
 
+int nfs_drop_inode(struct inode *inode)
+{
+	return NFS_STALE(inode) || generic_drop_inode(inode);
+}
+EXPORT_SYMBOL_GPL(nfs_drop_inode);
+
 void nfs_clear_inode(struct inode *inode)
 {
 	/*
