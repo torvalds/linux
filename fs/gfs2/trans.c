@@ -143,6 +143,21 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 	sb_end_intwrite(sdp->sd_vfs);
 }
 
+static struct gfs2_bufdata *gfs2_alloc_bufdata(struct gfs2_glock *gl,
+					       struct buffer_head *bh,
+					       const struct gfs2_log_operations *lops)
+{
+	struct gfs2_bufdata *bd;
+
+	bd = kmem_cache_zalloc(gfs2_bufdata_cachep, GFP_NOFS | __GFP_NOFAIL);
+	bd->bd_bh = bh;
+	bd->bd_gl = gl;
+	bd->bd_ops = lops;
+	INIT_LIST_HEAD(&bd->bd_list);
+	bh->b_private = bd;
+	return bd;
+}
+
 /**
  * databuf_lo_add - Add a databuf to the transaction.
  *
@@ -190,16 +205,15 @@ void gfs2_trans_add_data(struct gfs2_glock *gl, struct buffer_head *bh)
 	lock_buffer(bh);
 	gfs2_log_lock(sdp);
 	bd = bh->b_private;
-	if (bd)
-		gfs2_assert(sdp, bd->bd_gl == gl);
-	else {
+	if (bd == NULL) {
 		gfs2_log_unlock(sdp);
 		unlock_buffer(bh);
-		gfs2_attach_bufdata(gl, bh, 0);
-		bd = bh->b_private;
+		if (bh->b_private == NULL)
+			bd = gfs2_alloc_bufdata(gl, bh, &gfs2_databuf_lops);
 		lock_buffer(bh);
 		gfs2_log_lock(sdp);
 	}
+	gfs2_assert(sdp, bd->bd_gl == gl);
 	databuf_lo_add(sdp, bd);
 	gfs2_log_unlock(sdp);
 	unlock_buffer(bh);
@@ -240,16 +254,17 @@ void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 	lock_buffer(bh);
 	gfs2_log_lock(sdp);
 	bd = bh->b_private;
-	if (bd)
-		gfs2_assert(sdp, bd->bd_gl == gl);
-	else {
+	if (bd == NULL) {
 		gfs2_log_unlock(sdp);
 		unlock_buffer(bh);
-		gfs2_attach_bufdata(gl, bh, 1);
-		bd = bh->b_private;
+		lock_page(bh->b_page);
+		if (bh->b_private == NULL)
+			bd = gfs2_alloc_bufdata(gl, bh, &gfs2_buf_lops);
+		unlock_page(bh->b_page);
 		lock_buffer(bh);
 		gfs2_log_lock(sdp);
 	}
+	gfs2_assert(sdp, bd->bd_gl == gl);
 	meta_lo_add(sdp, bd);
 	gfs2_log_unlock(sdp);
 	unlock_buffer(bh);
@@ -263,7 +278,7 @@ void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 	BUG_ON(!list_empty(&bd->bd_list));
 	BUG_ON(!list_empty(&bd->bd_ail_st_list));
 	BUG_ON(!list_empty(&bd->bd_ail_gl_list));
-	lops_init_le(bd, &gfs2_revoke_lops);
+	bd->bd_ops = &gfs2_revoke_lops;
 	tr->tr_touched = 1;
 	tr->tr_num_revoke++;
 	sdp->sd_log_num_revoke++;

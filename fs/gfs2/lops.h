@@ -47,13 +47,6 @@ static inline unsigned int databuf_limit(struct gfs2_sbd *sdp)
 	return limit;
 }
 
-static inline void lops_init_le(struct gfs2_bufdata *bd,
-				const struct gfs2_log_operations *lops)
-{
-	INIT_LIST_HEAD(&bd->bd_list);
-	bd->bd_ops = lops;
-}
-
 static inline void lops_before_commit(struct gfs2_sbd *sdp)
 {
 	int x;
