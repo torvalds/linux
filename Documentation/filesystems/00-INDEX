@@ -38,6 +38,8 @@ dnotify_test.c
 	- example program for dnotify
 ecryptfs.txt
 	- docs on eCryptfs: stacked cryptographic filesystem for Linux.
+efivarfs.txt
+	- info for the efivarfs filesystem.
 exofs.txt
 	- info, usage, mount options, design about EXOFS.
 ext2.txt
