@@ -55,6 +55,11 @@ struct sh_cmt_priv {
 	unsigned long total_cycles;
 	bool cs_enabled;
 
+	/* callbacks for CMSTR and CMCSR access */
+	unsigned long (*read_control)(void __iomem *base, unsigned long offs);
+	void (*write_control)(void __iomem *base, unsigned long offs,
+			      unsigned long value);
+
 	/* callbacks for CMCNT and CMCOR access */
 	unsigned long (*read_count)(void __iomem *base, unsigned long offs);
 	void (*write_count)(void __iomem *base, unsigned long offs,
@@ -91,12 +96,12 @@ static inline unsigned long sh_cmt_read_cmstr(struct sh_cmt_priv *p)
 {
 	struct sh_timer_config *cfg = p->pdev->dev.platform_data;
 
-	return sh_cmt_read16(p->mapbase - cfg->channel_offset, 0);
+	return p->read_control(p->mapbase - cfg->channel_offset, 0);
 }
 
 static inline unsigned long sh_cmt_read_cmcsr(struct sh_cmt_priv *p)
 {
-	return sh_cmt_read16(p->mapbase, CMCSR);
+	return p->read_control(p->mapbase, CMCSR);
 }
 
 static inline unsigned long sh_cmt_read_cmcnt(struct sh_cmt_priv *p)
@@ -109,13 +114,13 @@ static inline void sh_cmt_write_cmstr(struct sh_cmt_priv *p,
 {
 	struct sh_timer_config *cfg = p->pdev->dev.platform_data;
 
-	sh_cmt_write16(p->mapbase - cfg->channel_offset, 0, value);
+	p->write_control(p->mapbase - cfg->channel_offset, 0, value);
 }
 
 static inline void sh_cmt_write_cmcsr(struct sh_cmt_priv *p,
 				      unsigned long value)
 {
-	sh_cmt_write16(p->mapbase, CMCSR, value);
+	p->write_control(p->mapbase, CMCSR, value);
 }
 
 static inline void sh_cmt_write_cmcnt(struct sh_cmt_priv *p,
@@ -701,6 +706,9 @@ static int sh_cmt_setup(struct sh_cmt_priv *p, struct platform_device *pdev)
 		ret = PTR_ERR(p->clk);
 		goto err1;
 	}
+
+	p->read_control = sh_cmt_read16;
+	p->write_control = sh_cmt_write16;
 
 	if (resource_size(res) == 6) {
 		p->width = 16;
