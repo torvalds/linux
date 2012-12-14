@@ -17,6 +17,18 @@
 	compatible = "st,spear1310";
 
 	ahb {
+		spics: spics@e0700000{
+			compatible = "st,spear-spics-gpio";
+			reg = <0xe0700000 0x1000>;
+			st-spics,peripcfg-reg = <0x3b0>;
+			st-spics,sw-enable-bit = <12>;
+			st-spics,cs-value-bit = <11>;
+			st-spics,cs-enable-mask = <3>;
+			st-spics,cs-enable-shift = <8>;
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
 		ahci@b1000000 {
 			compatible = "snps,spear-ahci";
 			reg = <0xb1000000 0x10000>;
@@ -43,6 +55,7 @@
 			reg = <0x5c400000 0x8000>;
 			interrupts = <0 95 0x4>;
 			interrupt-names = "macirq";
+			phy-mode = "mii";
 			status = "disabled";
 		};
 
@@ -51,6 +64,7 @@
 			reg = <0x5c500000 0x8000>;
 			interrupts = <0 96 0x4>;
 			interrupt-names = "macirq";
+			phy-mode = "mii";
 			status = "disabled";
 		};
 
@@ -59,6 +73,7 @@
 			reg = <0x5c600000 0x8000>;
 			interrupts = <0 97 0x4>;
 			interrupt-names = "macirq";
+			phy-mode = "rmii";
 			status = "disabled";
 		};
 
@@ -67,6 +82,7 @@
 			reg = <0x5c700000 0x8000>;
 			interrupts = <0 98 0x4>;
 			interrupt-names = "macirq";
+			phy-mode = "rgmii";
 			status = "disabled";
 		};
 
@@ -74,13 +90,6 @@
 			compatible = "st,spear1310-pinmux";
 			reg = <0xe0700000 0x1000>;
 			#gpio-range-cells = <2>;
-		};
-
-		spi1: spi@5d400000 {
-			compatible = "arm,pl022", "arm,primecell";
-			reg = <0x5d400000 0x1000>;
-			interrupts = <0 99 0x4>;
-			status = "disabled";
 		};
 
 		apb {
@@ -144,6 +153,15 @@
 				compatible = "snps,designware-i2c";
 				reg = <0x5d300000 0x1000>;
 				interrupts = <0 93 0x4>;
+				status = "disabled";
+			};
+
+			spi1: spi@5d400000 {
+				compatible = "arm,pl022", "arm,primecell";
+				reg = <0x5d400000 0x1000>;
+				interrupts = <0 99 0x4>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				status = "disabled";
 			};
 

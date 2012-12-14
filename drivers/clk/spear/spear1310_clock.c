@@ -20,6 +20,7 @@
 #include <mach/spear.h>
 #include "clk.h"
 
+#define VA_SPEAR1310_RAS_BASE			IOMEM(UL(0xFA400000))
 /* PLL related registers and bit values */
 #define SPEAR1310_PLL_CFG			(VA_MISC_BASE + 0x210)
 	/* PLL_CFG bit values */
