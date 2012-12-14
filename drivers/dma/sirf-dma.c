@@ -291,6 +291,8 @@ static int sirfsoc_dma_terminate_all(struct sirfsoc_dma_chan *schan)
 	int cid = schan->chan.chan_id;
 	unsigned long flags;
 
+	spin_lock_irqsave(&schan->lock, flags);
+
 	if (!sdma->is_marco) {
 		writel_relaxed(readl_relaxed(sdma->base + SIRFSOC_DMA_INT_EN) &
 			~(1 << cid), sdma->base + SIRFSOC_DMA_INT_EN);
@@ -305,9 +307,9 @@ static int sirfsoc_dma_terminate_all(struct sirfsoc_dma_chan *schan)
 
 	writel_relaxed(1 << cid, sdma->base + SIRFSOC_DMA_CH_VALID);
 
-	spin_lock_irqsave(&schan->lock, flags);
 	list_splice_tail_init(&schan->active, &schan->free);
 	list_splice_tail_init(&schan->queued, &schan->free);
+
 	spin_unlock_irqrestore(&schan->lock, flags);
 
 	return 0;
