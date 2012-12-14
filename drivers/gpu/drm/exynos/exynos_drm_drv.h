@@ -232,8 +232,14 @@ struct exynos_drm_g2d_private {
 	struct list_head	userptr_list;
 };
 
+struct exynos_drm_ipp_private {
+	struct device	*dev;
+	struct list_head	event_list;
+};
+
 struct drm_exynos_file_private {
 	struct exynos_drm_g2d_private	*g2d_priv;
+	struct exynos_drm_ipp_private	*ipp_priv;
 };
 
 /*
@@ -343,4 +349,5 @@ extern struct platform_driver mixer_driver;
 extern struct platform_driver exynos_drm_common_hdmi_driver;
 extern struct platform_driver vidi_driver;
 extern struct platform_driver g2d_driver;
+extern struct platform_driver ipp_driver;
 #endif

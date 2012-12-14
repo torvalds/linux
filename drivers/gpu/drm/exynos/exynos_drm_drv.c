@@ -40,6 +40,7 @@
 #include "exynos_drm_vidi.h"
 #include "exynos_drm_dmabuf.h"
 #include "exynos_drm_g2d.h"
+#include "exynos_drm_ipp.h"
 #include "exynos_drm_iommu.h"
 
 #define DRIVER_NAME	"exynos"
@@ -249,6 +250,14 @@ static struct drm_ioctl_desc exynos_ioctls[] = {
 			exynos_g2d_set_cmdlist_ioctl, DRM_UNLOCKED | DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_EXEC,
 			exynos_g2d_exec_ioctl, DRM_UNLOCKED | DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_GET_PROPERTY,
+			exynos_drm_ipp_get_property, DRM_UNLOCKED | DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_SET_PROPERTY,
+			exynos_drm_ipp_set_property, DRM_UNLOCKED | DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_QUEUE_BUF,
+			exynos_drm_ipp_queue_buf, DRM_UNLOCKED | DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_CMD_CTRL,
+			exynos_drm_ipp_cmd_ctrl, DRM_UNLOCKED | DRM_AUTH),
 };
 
 static const struct file_operations exynos_drm_driver_fops = {
@@ -363,6 +372,12 @@ static int __init exynos_drm_init(void)
 		goto out_g2d;
 #endif
 
+#ifdef CONFIG_DRM_EXYNOS_IPP
+	ret = platform_driver_register(&ipp_driver);
+	if (ret < 0)
+		goto out_ipp;
+#endif
+
 	ret = platform_driver_register(&exynos_drm_platform_driver);
 	if (ret < 0)
 		goto out_drm;
@@ -380,6 +395,11 @@ out:
 	platform_driver_unregister(&exynos_drm_platform_driver);
 
 out_drm:
+#ifdef CONFIG_DRM_EXYNOS_IPP
+	platform_driver_unregister(&ipp_driver);
+out_ipp:
+#endif
+
 #ifdef CONFIG_DRM_EXYNOS_G2D
 	platform_driver_unregister(&g2d_driver);
 out_g2d:
@@ -415,6 +435,10 @@ static void __exit exynos_drm_exit(void)
 	platform_device_unregister(exynos_drm_pdev);
 
 	platform_driver_unregister(&exynos_drm_platform_driver);
+
+#ifdef CONFIG_DRM_EXYNOS_IPP
+	platform_driver_unregister(&ipp_driver);
+#endif
 
 #ifdef CONFIG_DRM_EXYNOS_G2D
 	platform_driver_unregister(&g2d_driver);
