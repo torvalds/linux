@@ -1411,7 +1411,8 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 #endif
 
 	if (__inet_inherit_port(sk, newsk) < 0) {
-		sock_put(newsk);
+		inet_csk_prepare_forced_close(newsk);
+		tcp_done(newsk);
 		goto out;
 	}
 	__inet6_hash(newsk, NULL);
