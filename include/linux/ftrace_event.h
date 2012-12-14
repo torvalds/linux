@@ -272,7 +272,7 @@ extern int trace_define_field(struct ftrace_event_call *call, const char *type,
 extern int trace_add_event_call(struct ftrace_event_call *call);
 extern void trace_remove_event_call(struct ftrace_event_call *call);
 
-#define is_signed_type(type)	(((type)(-1)) < 0)
+#define is_signed_type(type)	(((type)(-1)) < (type)0)
 
 int trace_set_clr_event(const char *system, const char *event, int set);
 
