@@ -73,7 +73,6 @@ struct wm2000_priv {
 	unsigned int anc_eng_ena:1;
 	unsigned int spk_ena:1;
 
-	unsigned int mclk_div:1;
 	unsigned int speech_clarity:1;
 
 	int anc_download_size;
@@ -133,6 +132,7 @@ static int wm2000_poll_bit(struct i2c_client *i2c,
 static int wm2000_power_up(struct i2c_client *i2c, int analogue)
 {
 	struct wm2000_priv *wm2000 = dev_get_drvdata(&i2c->dev);
+	unsigned long rate;
 	int ret;
 
 	BUG_ON(wm2000->anc_mode != ANC_OFF);
@@ -145,7 +145,8 @@ static int wm2000_power_up(struct i2c_client *i2c, int analogue)
 		return ret;
 	}
 
-	if (!wm2000->mclk_div) {
+	rate = clk_get_rate(wm2000->mclk);
+	if (rate <= 13500000) {
 		dev_dbg(&i2c->dev, "Disabling MCLK divider\n");
 		wm2000_write(i2c, WM2000_REG_SYS_CTL2,
 			     WM2000_MCLK_DIV2_ENA_CLR);
@@ -847,7 +848,6 @@ static int wm2000_i2c_probe(struct i2c_client *i2c,
 	filename = "wm2000_anc.bin";
 	pdata = dev_get_platdata(&i2c->dev);
 	if (pdata) {
-		wm2000->mclk_div = pdata->mclkdiv2;
 		wm2000->speech_clarity = !pdata->speech_enh_disable;
 
 		if (pdata->download_file)
