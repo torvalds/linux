@@ -6,6 +6,9 @@ Required properties:
 - interrupts    : Interrupts used by every GPIO group
 - gpio-controller : Indicates this device is a GPIO controller
 - interrupt-controller  : Marks the device node as an interrupt controller
+Optional properties:
+- sirf,pullups : if n-th bit of m-th bank is set, set a pullup on GPIO-n of bank m
+- sirf,pulldowns : if n-th bit of m-th bank is set, set a pulldown on GPIO-n of bank m
 
 Please refer to pinctrl-bindings.txt in this directory for details of the common
 pinctrl bindings used by client devices.
