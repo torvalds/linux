@@ -66,6 +66,21 @@ struct sh_cmt_priv {
 			    unsigned long value);
 };
 
+/* Examples of supported CMT timer register layouts and I/O access widths:
+ *
+ * "16-bit counter and 16-bit control" as found on sh7263:
+ * CMSTR 0xfffec000 16-bit
+ * CMCSR 0xfffec002 16-bit
+ * CMCNT 0xfffec004 16-bit
+ * CMCOR 0xfffec006 16-bit
+ *
+ * "32-bit counter and 16-bit control" as found on sh7372, sh73a0, r8a7740:
+ * CMSTR 0xffca0000 16-bit
+ * CMCSR 0xffca0060 16-bit
+ * CMCNT 0xffca0064 32-bit
+ * CMCOR 0xffca0068 32-bit
+ */
+
 static unsigned long sh_cmt_read16(void __iomem *base, unsigned long offs)
 {
 	return ioread16(base + (offs << 1));
