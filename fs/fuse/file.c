@@ -1331,7 +1331,8 @@ EXPORT_SYMBOL_GPL(fuse_direct_io);
 
 static ssize_t __fuse_direct_read(struct fuse_io_priv *io,
 				  const struct iovec *iov,
-				  unsigned long nr_segs, loff_t *ppos)
+				  unsigned long nr_segs, loff_t *ppos,
+				  size_t count)
 {
 	ssize_t res;
 	struct file *file = io->file;
@@ -1340,8 +1341,7 @@ static ssize_t __fuse_direct_read(struct fuse_io_priv *io,
 	if (is_bad_inode(inode))
 		return -EIO;
 
-	res = fuse_direct_io(io, iov, nr_segs, iov_length(iov, nr_segs),
-			     ppos, 0);
+	res = fuse_direct_io(io, iov, nr_segs, count, ppos, 0);
 
 	fuse_invalidate_attr(inode);
 
@@ -1353,7 +1353,7 @@ static ssize_t fuse_direct_read(struct file *file, char __user *buf,
 {
 	struct fuse_io_priv io = { .async = 0, .file = file };
 	struct iovec iov = { .iov_base = buf, .iov_len = count };
-	return __fuse_direct_read(&io, &iov, 1, ppos);
+	return __fuse_direct_read(&io, &iov, 1, ppos, count);
 }
 
 static ssize_t __fuse_direct_write(struct fuse_io_priv *io,
@@ -2369,6 +2369,13 @@ fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	inode = file->f_mapping->host;
 	i_size = i_size_read(inode);
 
+	/* optimization for short read */
+	if (rw != WRITE && offset + count > i_size) {
+		if (offset >= i_size)
+			return 0;
+		count = i_size - offset;
+	}
+
 	io = kmalloc(sizeof(struct fuse_io_priv), GFP_KERNEL);
 	if (!io)
 		return -ENOMEM;
@@ -2392,13 +2399,13 @@ fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	 * to wait on real async I/O requests, so we must submit this request
 	 * synchronously.
 	 */
-	if (!is_sync_kiocb(iocb) && (offset + count > i_size) && rw == WRITE)
+	if (!is_sync_kiocb(iocb) && (offset + count > i_size))
 		io->async = false;
 
 	if (rw == WRITE)
 		ret = __fuse_direct_write(io, iov, nr_segs, &pos);
 	else
-		ret = __fuse_direct_read(io, iov, nr_segs, &pos);
+		ret = __fuse_direct_read(io, iov, nr_segs, &pos, count);
 
 	if (io->async) {
 		fuse_aio_complete(io, ret < 0 ? ret : 0, -1);
