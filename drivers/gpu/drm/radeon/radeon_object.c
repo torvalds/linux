@@ -96,9 +96,9 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 	}
 	if (domain & RADEON_GEM_DOMAIN_CPU) {
 		if (rbo->rdev->flags & RADEON_IS_AGP) {
-			rbo->placements[c++] = TTM_PL_FLAG_WC | TTM_PL_FLAG_TT;
+			rbo->placements[c++] = TTM_PL_FLAG_WC | TTM_PL_FLAG_SYSTEM;
 		} else {
-			rbo->placements[c++] = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_TT;
+			rbo->placements[c++] = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_SYSTEM;
 		}
 	}
 	if (!c)
