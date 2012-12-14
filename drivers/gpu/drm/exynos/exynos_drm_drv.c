@@ -378,6 +378,12 @@ static int __init exynos_drm_init(void)
 		goto out_fimc;
 #endif
 
+#ifdef CONFIG_DRM_EXYNOS_ROTATOR
+	ret = platform_driver_register(&rotator_driver);
+	if (ret < 0)
+		goto out_rotator;
+#endif
+
 #ifdef CONFIG_DRM_EXYNOS_IPP
 	ret = platform_driver_register(&ipp_driver);
 	if (ret < 0)
@@ -404,6 +410,11 @@ out_drm:
 #ifdef CONFIG_DRM_EXYNOS_IPP
 	platform_driver_unregister(&ipp_driver);
 out_ipp:
+#endif
+
+#ifdef CONFIG_DRM_EXYNOS_ROTATOR
+	platform_driver_unregister(&rotator_driver);
+out_rotator:
 #endif
 
 #ifdef CONFIG_DRM_EXYNOS_FIMC
@@ -449,6 +460,10 @@ static void __exit exynos_drm_exit(void)
 
 #ifdef CONFIG_DRM_EXYNOS_IPP
 	platform_driver_unregister(&ipp_driver);
+#endif
+
+#ifdef CONFIG_DRM_EXYNOS_ROTATOR
+	platform_driver_unregister(&rotator_driver);
 #endif
 
 #ifdef CONFIG_DRM_EXYNOS_FIMC

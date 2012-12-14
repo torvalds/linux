@@ -350,5 +350,6 @@ extern struct platform_driver exynos_drm_common_hdmi_driver;
 extern struct platform_driver vidi_driver;
 extern struct platform_driver g2d_driver;
 extern struct platform_driver fimc_driver;
+extern struct platform_driver rotator_driver;
 extern struct platform_driver ipp_driver;
 #endif
