@@ -237,7 +237,8 @@ int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		r = RESUME_HOST;
 		break;
 	default:
-		BUG();
+		WARN_ON(1);
+		r = RESUME_GUEST;
 	}
 
 	return r;
