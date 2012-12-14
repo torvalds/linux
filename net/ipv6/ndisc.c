@@ -1314,6 +1314,12 @@ out:
 
 static void ndisc_redirect_rcv(struct sk_buff *skb)
 {
+	u8 *hdr;
+	struct ndisc_options ndopts;
+	struct rd_msg *msg = (struct rd_msg *)skb_transport_header(skb);
+	u32 ndoptlen = skb->tail - (skb->transport_header +
+				    offsetof(struct rd_msg, opt));
+
 #ifdef CONFIG_IPV6_NDISC_NODETYPE
 	switch (skb->ndisc_nodetype) {
 	case NDISC_NODETYPE_HOST:
@@ -1329,6 +1335,17 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 			  "Redirect: source address is not link-local\n");
 		return;
 	}
+
+	if (!ndisc_parse_options(msg->opt, ndoptlen, &ndopts))
+		return;
+
+	if (!ndopts.nd_opts_rh)
+		return;
+
+	hdr = (u8 *)ndopts.nd_opts_rh;
+	hdr += 8;
+	if (!pskb_pull(skb, hdr - skb_transport_header(skb)))
+		return;
 
 	icmpv6_notify(skb, NDISC_REDIRECT, 0, 0);
 }
