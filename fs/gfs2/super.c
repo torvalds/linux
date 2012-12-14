@@ -500,7 +500,7 @@ void gfs2_statfs_change(struct gfs2_sbd *sdp, s64 total, s64 free,
 	if (error)
 		return;
 
-	gfs2_trans_add_bh(l_ip->i_gl, l_bh, 1);
+	gfs2_trans_add_meta(l_ip->i_gl, l_bh);
 
 	spin_lock(&sdp->sd_statfs_spin);
 	l_sc->sc_total += total;
@@ -528,7 +528,7 @@ void update_statfs(struct gfs2_sbd *sdp, struct buffer_head *m_bh,
 	struct gfs2_statfs_change_host *m_sc = &sdp->sd_statfs_master;
 	struct gfs2_statfs_change_host *l_sc = &sdp->sd_statfs_local;
 
-	gfs2_trans_add_bh(l_ip->i_gl, l_bh, 1);
+	gfs2_trans_add_meta(l_ip->i_gl, l_bh);
 
 	spin_lock(&sdp->sd_statfs_spin);
 	m_sc->sc_total += l_sc->sc_total;
@@ -539,7 +539,7 @@ void update_statfs(struct gfs2_sbd *sdp, struct buffer_head *m_bh,
 	       0, sizeof(struct gfs2_statfs_change));
 	spin_unlock(&sdp->sd_statfs_spin);
 
-	gfs2_trans_add_bh(m_ip->i_gl, m_bh, 1);
+	gfs2_trans_add_meta(m_ip->i_gl, m_bh);
 	gfs2_statfs_change_out(m_sc, m_bh->b_data + sizeof(struct gfs2_dinode));
 }
 
@@ -824,7 +824,7 @@ static void gfs2_dirty_inode(struct inode *inode, int flags)
 
 	ret = gfs2_meta_inode_buffer(ip, &bh);
 	if (ret == 0) {
-		gfs2_trans_add_bh(ip->i_gl, bh, 1);
+		gfs2_trans_add_meta(ip->i_gl, bh);
 		gfs2_dinode_out(ip, bh->b_data);
 		brelse(bh);
 	}

@@ -93,7 +93,7 @@ static int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 	if (!gfs2_is_jdata(ip))
 		mark_buffer_dirty(bh);
 	if (!gfs2_is_writeback(ip))
-		gfs2_trans_add_bh(ip->i_gl, bh, 0);
+		gfs2_trans_add_data(ip->i_gl, bh);
 
 	if (release) {
 		unlock_page(page);
@@ -153,7 +153,7 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page)
 
 	/*  Set up the pointer to the new block  */
 
-	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	gfs2_trans_add_meta(ip->i_gl, dibh);
 	di = (struct gfs2_dinode *)dibh->b_data;
 	gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 
@@ -405,7 +405,7 @@ static inline __be64 *gfs2_indirect_init(struct metapath *mp,
 	BUG_ON(i < 1);
 	BUG_ON(mp->mp_bh[i] != NULL);
 	mp->mp_bh[i] = gfs2_meta_new(gl, bn);
-	gfs2_trans_add_bh(gl, mp->mp_bh[i], 1);
+	gfs2_trans_add_meta(gl, mp->mp_bh[i]);
 	gfs2_metatype_set(mp->mp_bh[i], GFS2_METATYPE_IN, GFS2_FORMAT_IN);
 	gfs2_buffer_clear_tail(mp->mp_bh[i], sizeof(struct gfs2_meta_header));
 	ptr += offset;
@@ -468,7 +468,7 @@ static int gfs2_bmap_alloc(struct inode *inode, const sector_t lblock,
 	BUG_ON(sheight < 1);
 	BUG_ON(dibh == NULL);
 
-	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	gfs2_trans_add_meta(ip->i_gl, dibh);
 
 	if (height == sheight) {
 		struct buffer_head *bh;
@@ -544,7 +544,7 @@ static int gfs2_bmap_alloc(struct inode *inode, const sector_t lblock,
 		/* Branching from existing tree */
 		case ALLOC_GROW_DEPTH:
 			if (i > 1 && i < height)
-				gfs2_trans_add_bh(ip->i_gl, mp->mp_bh[i-1], 1);
+				gfs2_trans_add_meta(ip->i_gl, mp->mp_bh[i-1]);
 			for (; i < height && n > 0; i++, n--)
 				gfs2_indirect_init(mp, ip->i_gl, i,
 						   mp->mp_list[i-1], bn++);
@@ -556,7 +556,7 @@ static int gfs2_bmap_alloc(struct inode *inode, const sector_t lblock,
 		case ALLOC_DATA:
 			BUG_ON(n > dblks);
 			BUG_ON(mp->mp_bh[end_of_metadata] == NULL);
-			gfs2_trans_add_bh(ip->i_gl, mp->mp_bh[end_of_metadata], 1);
+			gfs2_trans_add_meta(ip->i_gl, mp->mp_bh[end_of_metadata]);
 			dblks = n;
 			ptr = metapointer(end_of_metadata, mp);
 			dblock = bn;
@@ -796,8 +796,8 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 
 	down_write(&ip->i_rw_mutex);
 
-	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-	gfs2_trans_add_bh(ip->i_gl, bh, 1);
+	gfs2_trans_add_meta(ip->i_gl, dibh);
+	gfs2_trans_add_meta(ip->i_gl, bh);
 
 	bstart = 0;
 	blen = 0;
@@ -981,7 +981,7 @@ static int gfs2_block_truncate_page(struct address_space *mapping, loff_t from)
 	}
 
 	if (!gfs2_is_writeback(ip))
-		gfs2_trans_add_bh(ip->i_gl, bh, 0);
+		gfs2_trans_add_data(ip->i_gl, bh);
 
 	zero_user(page, offset, length);
 	mark_buffer_dirty(bh);
@@ -1046,7 +1046,7 @@ static int trunc_start(struct inode *inode, u64 oldsize, u64 newsize)
 	if (error)
 		goto out;
 
-	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	gfs2_trans_add_meta(ip->i_gl, dibh);
 
 	if (gfs2_is_stuffed(ip)) {
 		gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode) + newsize);
@@ -1141,7 +1141,7 @@ static int trunc_end(struct gfs2_inode *ip)
 	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
 	ip->i_diskflags &= ~GFS2_DIF_TRUNC_IN_PROG;
 
-	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	gfs2_trans_add_meta(ip->i_gl, dibh);
 	gfs2_dinode_out(ip, dibh->b_data);
 	brelse(dibh);
 
@@ -1246,7 +1246,7 @@ static int do_grow(struct inode *inode, u64 size)
 
 	i_size_write(inode, size);
 	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
-	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	gfs2_trans_add_meta(ip->i_gl, dibh);
 	gfs2_dinode_out(ip, dibh->b_data);
 	brelse(dibh);
 

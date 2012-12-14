@@ -150,7 +150,7 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
  *
  */
 
-void gfs2_trans_add_bh(struct gfs2_glock *gl, struct buffer_head *bh, int meta)
+static void gfs2_trans_add_bh(struct gfs2_glock *gl, struct buffer_head *bh, int meta)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct gfs2_bufdata *bd;
@@ -171,6 +171,16 @@ void gfs2_trans_add_bh(struct gfs2_glock *gl, struct buffer_head *bh, int meta)
 	lops_add(sdp, bd);
 	gfs2_log_unlock(sdp);
 	unlock_buffer(bh);
+}
+
+void gfs2_trans_add_data(struct gfs2_glock *gl, struct buffer_head *bh)
+{
+	return gfs2_trans_add_bh(gl, bh, 0);
+}
+
+void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
+{
+	return gfs2_trans_add_bh(gl, bh, 1);
 }
 
 void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
