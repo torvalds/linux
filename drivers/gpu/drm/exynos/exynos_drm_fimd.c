@@ -243,7 +243,9 @@ static void fimd_commit(struct device *dev)
 
 	/* setup horizontal and vertical display size. */
 	val = VIDTCON2_LINEVAL(timing->yres - 1) |
-	       VIDTCON2_HOZVAL(timing->xres - 1);
+	       VIDTCON2_HOZVAL(timing->xres - 1) |
+	       VIDTCON2_LINEVAL_E(timing->yres - 1) |
+	       VIDTCON2_HOZVAL_E(timing->xres - 1);
 	writel(val, ctx->regs + driver_data->timing_base + VIDTCON2);
 
 	/* setup clock source, clock divider, enable dma. */
@@ -518,12 +520,16 @@ static void fimd_win_commit(struct device *dev, int zpos)
 
 	/* buffer size */
 	val = VIDW_BUF_SIZE_OFFSET(win_data->buf_offsize) |
-		VIDW_BUF_SIZE_PAGEWIDTH(win_data->line_size);
+		VIDW_BUF_SIZE_PAGEWIDTH(win_data->line_size) |
+		VIDW_BUF_SIZE_OFFSET_E(win_data->buf_offsize) |
+		VIDW_BUF_SIZE_PAGEWIDTH_E(win_data->line_size);
 	writel(val, ctx->regs + VIDWx_BUF_SIZE(win, 0));
 
 	/* OSD position */
 	val = VIDOSDxA_TOPLEFT_X(win_data->offset_x) |
-		VIDOSDxA_TOPLEFT_Y(win_data->offset_y);
+		VIDOSDxA_TOPLEFT_Y(win_data->offset_y) |
+		VIDOSDxA_TOPLEFT_X_E(win_data->offset_x) |
+		VIDOSDxA_TOPLEFT_Y_E(win_data->offset_y);
 	writel(val, ctx->regs + VIDOSD_A(win));
 
 	last_x = win_data->offset_x + win_data->ovl_width;
@@ -533,7 +539,9 @@ static void fimd_win_commit(struct device *dev, int zpos)
 	if (last_y)
 		last_y--;
 
-	val = VIDOSDxB_BOTRIGHT_X(last_x) | VIDOSDxB_BOTRIGHT_Y(last_y);
+	val = VIDOSDxB_BOTRIGHT_X(last_x) | VIDOSDxB_BOTRIGHT_Y(last_y) |
+		VIDOSDxB_BOTRIGHT_X_E(last_x) | VIDOSDxB_BOTRIGHT_Y_E(last_y);
+
 	writel(val, ctx->regs + VIDOSD_B(win));
 
 	DRM_DEBUG_KMS("osd pos: tx = %d, ty = %d, bx = %d, by = %d\n",
