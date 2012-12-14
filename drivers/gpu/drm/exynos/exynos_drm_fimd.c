@@ -471,6 +471,8 @@ static void fimd_win_commit(struct device *dev, int zpos)
 	struct fimd_win_data *win_data;
 	int win = zpos;
 	unsigned long val, alpha, size;
+	unsigned int last_x;
+	unsigned int last_y;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -524,16 +526,18 @@ static void fimd_win_commit(struct device *dev, int zpos)
 		VIDOSDxA_TOPLEFT_Y(win_data->offset_y);
 	writel(val, ctx->regs + VIDOSD_A(win));
 
-	val = VIDOSDxB_BOTRIGHT_X(win_data->offset_x +
-					win_data->ovl_width - 1) |
-		VIDOSDxB_BOTRIGHT_Y(win_data->offset_y +
-					win_data->ovl_height - 1);
+	last_x = win_data->offset_x + win_data->ovl_width;
+	if (last_x)
+		last_x--;
+	last_y = win_data->offset_y + win_data->ovl_height;
+	if (last_y)
+		last_y--;
+
+	val = VIDOSDxB_BOTRIGHT_X(last_x) | VIDOSDxB_BOTRIGHT_Y(last_y);
 	writel(val, ctx->regs + VIDOSD_B(win));
 
 	DRM_DEBUG_KMS("osd pos: tx = %d, ty = %d, bx = %d, by = %d\n",
-			win_data->offset_x, win_data->offset_y,
-			win_data->offset_x + win_data->ovl_width - 1,
-			win_data->offset_y + win_data->ovl_height - 1);
+			win_data->offset_x, win_data->offset_y, last_x, last_y);
 
 	/* hardware window 0 doesn't support alpha channel. */
 	if (win != 0) {
