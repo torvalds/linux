@@ -279,7 +279,7 @@ static void br_multicast_port_group_expired(unsigned long data)
 
 	spin_lock(&br->multicast_lock);
 	if (!netif_running(br->dev) || timer_pending(&pg->timer) ||
-	    hlist_unhashed(&pg->mglist))
+	    hlist_unhashed(&pg->mglist) || pg->state & MDB_PERMANENT)
 		goto out;
 
 	br_multicast_del_pg(br, pg);
@@ -622,7 +622,8 @@ out:
 struct net_bridge_port_group *br_multicast_new_port_group(
 			struct net_bridge_port *port,
 			struct br_ip *group,
-			struct net_bridge_port_group __rcu *next)
+			struct net_bridge_port_group __rcu *next,
+			unsigned char state)
 {
 	struct net_bridge_port_group *p;
 
@@ -632,6 +633,7 @@ struct net_bridge_port_group *br_multicast_new_port_group(
 
 	p->addr = *group;
 	p->port = port;
+	p->state = state;
 	rcu_assign_pointer(p->next, next);
 	hlist_add_head(&p->mglist, &port->mglist);
 	setup_timer(&p->timer, br_multicast_port_group_expired,
@@ -674,7 +676,7 @@ static int br_multicast_add_group(struct net_bridge *br,
 			break;
 	}
 
-	p = br_multicast_new_port_group(port, group, *pp);
+	p = br_multicast_new_port_group(port, group, *pp, MDB_TEMPORARY);
 	if (unlikely(!p))
 		goto err;
 	rcu_assign_pointer(*pp, p);
