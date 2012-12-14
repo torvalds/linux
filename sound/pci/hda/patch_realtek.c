@@ -73,12 +73,6 @@ struct alc_multi_io {
 	unsigned int ctl_in;	/* cached input-pin control value */
 };
 
-enum {
-	ALC_AUTOMUTE_PIN,	/* change the pin control */
-	ALC_AUTOMUTE_AMP,	/* mute/unmute the pin AMP */
-	ALC_AUTOMUTE_MIXER,	/* mute/unmute mixer widget AMP */
-};
-
 #define MAX_VOL_NIDS	0x40
 
 /* make compatible with old code */
@@ -542,7 +536,6 @@ static void do_automute(struct hda_codec *codec, int num_pins, hda_nid_t *pins,
 			bool mute, bool hp_out)
 {
 	struct alc_spec *spec = codec->spec;
-	unsigned int mute_bits = mute ? HDA_AMP_MUTE : 0;
 	unsigned int pin_bits = mute ? 0 : (hp_out ? PIN_HP : PIN_OUT);
 	int i;
 
@@ -551,34 +544,17 @@ static void do_automute(struct hda_codec *codec, int num_pins, hda_nid_t *pins,
 		unsigned int val;
 		if (!nid)
 			break;
-		switch (spec->automute_mode) {
-		case ALC_AUTOMUTE_PIN:
-			/* don't reset VREF value in case it's controlling
-			 * the amp (see alc861_fixup_asus_amp_vref_0f())
-			 */
-			if (spec->keep_vref_in_automute) {
-				val = snd_hda_codec_read(codec, nid, 0,
+		/* don't reset VREF value in case it's controlling
+		 * the amp (see alc861_fixup_asus_amp_vref_0f())
+		 */
+		if (spec->keep_vref_in_automute) {
+			val = snd_hda_codec_read(codec, nid, 0,
 					AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
-				val &= ~PIN_HP;
-			} else
-				val = 0;
-			val |= pin_bits;
-			snd_hda_set_pin_ctl(codec, nid, val);
-			break;
-		case ALC_AUTOMUTE_AMP:
-			snd_hda_codec_amp_stereo(codec, nid, HDA_OUTPUT, 0,
-						 HDA_AMP_MUTE, mute_bits);
-			break;
-		case ALC_AUTOMUTE_MIXER:
-			nid = spec->automute_mixer_nid[i];
-			if (!nid)
-				break;
-			snd_hda_codec_amp_stereo(codec, nid, HDA_INPUT, 0,
-						 HDA_AMP_MUTE, mute_bits);
-			snd_hda_codec_amp_stereo(codec, nid, HDA_INPUT, 1,
-						 HDA_AMP_MUTE, mute_bits);
-			break;
-		}
+			val &= ~PIN_HP;
+		} else
+			val = 0;
+		val |= pin_bits;
+		snd_hda_set_pin_ctl(codec, nid, val);
 	}
 }
 
@@ -978,8 +954,6 @@ static int alc_init_automute(struct hda_codec *codec)
 		       sizeof(cfg->hp_pins));
 		cfg->hp_outs = cfg->line_outs;
 	}
-
-	spec->automute_mode = ALC_AUTOMUTE_PIN;
 
 	for (i = 0; i < cfg->hp_outs; i++) {
 		hda_nid_t nid = cfg->hp_pins[i];
