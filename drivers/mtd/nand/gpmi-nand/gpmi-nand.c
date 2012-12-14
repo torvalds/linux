@@ -920,8 +920,7 @@ static int gpmi_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	dma_addr_t    auxiliary_phys;
 	unsigned int  i;
 	unsigned char *status;
-	unsigned int  failed;
-	unsigned int  corrected;
+	unsigned int  max_bitflips = 0;
 	int           ret;
 
 	pr_debug("page number is : %d\n", page);
@@ -945,35 +944,25 @@ static int gpmi_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 			payload_virt, payload_phys);
 	if (ret) {
 		pr_err("Error in ECC-based read: %d\n", ret);
-		goto exit_nfc;
+		return ret;
 	}
 
 	/* handle the block mark swapping */
 	block_mark_swapping(this, payload_virt, auxiliary_virt);
 
 	/* Loop over status bytes, accumulating ECC status. */
-	failed		= 0;
-	corrected	= 0;
-	status		= auxiliary_virt + nfc_geo->auxiliary_status_offset;
+	status = auxiliary_virt + nfc_geo->auxiliary_status_offset;
 
 	for (i = 0; i < nfc_geo->ecc_chunk_count; i++, status++) {
 		if ((*status == STATUS_GOOD) || (*status == STATUS_ERASED))
 			continue;
 
 		if (*status == STATUS_UNCORRECTABLE) {
-			failed++;
+			mtd->ecc_stats.failed++;
 			continue;
 		}
-		corrected += *status;
-	}
-
-	/*
-	 * Propagate ECC status to the owning MTD only when failed or
-	 * corrected times nearly reaches our ECC correction threshold.
-	 */
-	if (failed || corrected >= (nfc_geo->ecc_strength - 1)) {
-		mtd->ecc_stats.failed    += failed;
-		mtd->ecc_stats.corrected += corrected;
+		mtd->ecc_stats.corrected += *status;
+		max_bitflips = max_t(unsigned int, max_bitflips, *status);
 	}
 
 	if (oob_required) {
@@ -995,8 +984,8 @@ static int gpmi_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 			this->payload_virt, this->payload_phys,
 			nfc_geo->payload_size,
 			payload_virt, payload_phys);
-exit_nfc:
-	return ret;
+
+	return max_bitflips;
 }
 
 static int gpmi_ecc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
