@@ -124,13 +124,10 @@ static int autofs4_dir_open(struct inode *inode, struct file *file)
 	 * it.
 	 */
 	spin_lock(&sbi->lookup_lock);
-	spin_lock(&dentry->d_lock);
-	if (!d_mountpoint(dentry) && list_empty(&dentry->d_subdirs)) {
-		spin_unlock(&dentry->d_lock);
+	if (!d_mountpoint(dentry) && simple_empty(dentry)) {
 		spin_unlock(&sbi->lookup_lock);
 		return -ENOENT;
 	}
-	spin_unlock(&dentry->d_lock);
 	spin_unlock(&sbi->lookup_lock);
 
 out:
@@ -386,12 +383,8 @@ static struct vfsmount *autofs4_d_automount(struct path *path)
 				goto done;
 			}
 		} else {
-			spin_lock(&dentry->d_lock);
-			if (!list_empty(&dentry->d_subdirs)) {
-				spin_unlock(&dentry->d_lock);
+			if (!simple_empty(dentry))
 				goto done;
-			}
-			spin_unlock(&dentry->d_lock);
 		}
 		ino->flags |= AUTOFS_INF_PENDING;
 		spin_unlock(&sbi->fs_lock);
@@ -610,9 +603,7 @@ static int autofs4_dir_unlink(struct inode *dir, struct dentry *dentry)
 
 	spin_lock(&sbi->lookup_lock);
 	__autofs4_add_expiring(dentry);
-	spin_lock(&dentry->d_lock);
-	__d_drop(dentry);
-	spin_unlock(&dentry->d_lock);
+	d_drop(dentry);
 	spin_unlock(&sbi->lookup_lock);
 
 	return 0;
@@ -683,15 +674,12 @@ static int autofs4_dir_rmdir(struct inode *dir, struct dentry *dentry)
 		return -EACCES;
 
 	spin_lock(&sbi->lookup_lock);
-	spin_lock(&dentry->d_lock);
-	if (!list_empty(&dentry->d_subdirs)) {
-		spin_unlock(&dentry->d_lock);
+	if (!simple_empty(dentry)) {
 		spin_unlock(&sbi->lookup_lock);
 		return -ENOTEMPTY;
 	}
 	__autofs4_add_expiring(dentry);
-	__d_drop(dentry);
-	spin_unlock(&dentry->d_lock);
+	d_drop(dentry);
 	spin_unlock(&sbi->lookup_lock);
 
 	if (sbi->version < 5)
