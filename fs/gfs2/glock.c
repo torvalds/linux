@@ -1376,22 +1376,18 @@ void gfs2_glock_complete(struct gfs2_glock *gl, int ret)
 		gfs2_glock_put(gl);
 }
 
+/**
+ * gfs2_scan_glock_lru - Scan the LRU looking for locks to demote
+ * @nr: The number of entries to scan
+ *
+ */
 
-static int gfs2_shrink_glock_memory(struct shrinker *shrink,
-				    struct shrink_control *sc)
+static void gfs2_scan_glock_lru(int nr)
 {
 	struct gfs2_glock *gl;
 	int may_demote;
 	int nr_skipped = 0;
-	int nr = sc->nr_to_scan;
-	gfp_t gfp_mask = sc->gfp_mask;
 	LIST_HEAD(skipped);
-
-	if (nr == 0)
-		goto out;
-
-	if (!(gfp_mask & __GFP_FS))
-		return -1;
 
 	spin_lock(&lru_lock);
 	while(nr && !list_empty(&lru_list)) {
@@ -1425,7 +1421,17 @@ static int gfs2_shrink_glock_memory(struct shrinker *shrink,
 	list_splice(&skipped, &lru_list);
 	atomic_add(nr_skipped, &lru_count);
 	spin_unlock(&lru_lock);
-out:
+}
+
+static int gfs2_shrink_glock_memory(struct shrinker *shrink,
+				    struct shrink_control *sc)
+{
+	if (sc->nr_to_scan) {
+		if (!(sc->gfp_mask & __GFP_FS))
+			return -1;
+		gfs2_scan_glock_lru(sc->nr_to_scan);
+	}
+
 	return (atomic_read(&lru_count) / 100) * sysctl_vfs_cache_pressure;
 }
 
