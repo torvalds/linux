@@ -215,13 +215,13 @@ static void p1022ds_set_monitor_port(enum fsl_diu_monitor_port port)
 	/* Map the global utilities registers. */
 	guts_node = of_find_compatible_node(NULL, NULL, "fsl,p1022-guts");
 	if (!guts_node) {
-		pr_err("p1022ds: missing global utilties device node\n");
+		pr_err("p1022ds: missing global utilities device node\n");
 		return;
 	}
 
 	guts = of_iomap(guts_node, 0);
 	if (!guts) {
-		pr_err("p1022ds: could not map global utilties device\n");
+		pr_err("p1022ds: could not map global utilities device\n");
 		goto exit;
 	}
 
@@ -416,14 +416,14 @@ void p1022ds_set_pixel_clock(unsigned int pixclock)
 	/* Map the global utilities registers. */
 	guts_np = of_find_compatible_node(NULL, NULL, "fsl,p1022-guts");
 	if (!guts_np) {
-		pr_err("p1022ds: missing global utilties device node\n");
+		pr_err("p1022ds: missing global utilities device node\n");
 		return;
 	}
 
 	guts = of_iomap(guts_np, 0);
 	of_node_put(guts_np);
 	if (!guts) {
-		pr_err("p1022ds: could not map global utilties device\n");
+		pr_err("p1022ds: could not map global utilities device\n");
 		return;
 	}
 
