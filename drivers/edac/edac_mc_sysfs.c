@@ -1159,8 +1159,7 @@ int __init edac_mc_sysfs_init(void)
 
 void __exit edac_mc_sysfs_exit(void)
 {
-	put_device(mci_pdev);
 	device_del(mci_pdev);
+	put_device(mci_pdev);
 	edac_put_sysfs_subsys();
-	kfree(mci_pdev);
 }
