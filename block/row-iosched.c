@@ -154,7 +154,7 @@ struct row_data {
 	unsigned int			cycle_flags;
 };
 
-#define RQ_ROWQ(rq) ((struct row_queue *) ((rq)->elv.priv[0]))
+#define RQ_ROWQ(rq) ((struct row_queue *) ((rq)->elevator_private[0]))
 
 #define row_log(q, fmt, args...)   \
 	blk_add_trace_msg(q, "%s():" fmt , __func__, ##args)
@@ -553,7 +553,7 @@ row_set_request(struct request_queue *q, struct request *rq, gfp_t gfp_mask)
 	unsigned long flags;
 
 	spin_lock_irqsave(q->queue_lock, flags);
-	rq->elv.priv[0] =
+	rq->elevator_private[0] =
 		(void *)(&rd->row_queues[get_queue_type(rq)]);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
