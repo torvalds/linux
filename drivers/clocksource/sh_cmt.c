@@ -54,37 +54,38 @@ struct sh_cmt_priv {
 	struct clocksource cs;
 	unsigned long total_cycles;
 	bool cs_enabled;
+
+	/* callbacks for CMCNT and CMCOR access */
+	unsigned long (*read_count)(void __iomem *base, unsigned long offs);
+	void (*write_count)(void __iomem *base, unsigned long offs,
+			    unsigned long value);
 };
 
-static inline unsigned long sh_cmt_read16(void __iomem *base,
-					  unsigned long offs)
+static unsigned long sh_cmt_read16(void __iomem *base, unsigned long offs)
 {
 	return ioread16(base + (offs << 1));
 }
 
-static inline void sh_cmt_write16(void __iomem *base, unsigned long offs,
-				  unsigned long value)
+static unsigned long sh_cmt_read32(void __iomem *base, unsigned long offs)
+{
+	return ioread32(base + (offs << 2));
+}
+
+static void sh_cmt_write16(void __iomem *base, unsigned long offs,
+			   unsigned long value)
 {
 	iowrite16(value, base + (offs << 1));
+}
+
+static void sh_cmt_write32(void __iomem *base, unsigned long offs,
+			   unsigned long value)
+{
+	iowrite32(value, base + (offs << 2));
 }
 
 #define CMCSR 0 /* channel register */
 #define CMCNT 1 /* channel register */
 #define CMCOR 2 /* channel register */
-
-static inline unsigned long sh_cmt_read(struct sh_cmt_priv *p, int reg_nr)
-{
-	void __iomem *base = p->mapbase;
-	unsigned long offs = reg_nr;
-
-	if (p->width == 16) {
-		offs <<= 1;
-		return ioread16(base + offs);
-	} else {
-		offs <<= 2;
-		return ioread32(base + offs);
-	}
-}
 
 static inline unsigned long sh_cmt_read_cmstr(struct sh_cmt_priv *p)
 {
@@ -100,22 +101,7 @@ static inline unsigned long sh_cmt_read_cmcsr(struct sh_cmt_priv *p)
 
 static inline unsigned long sh_cmt_read_cmcnt(struct sh_cmt_priv *p)
 {
-	return sh_cmt_read(p, CMCNT);
-}
-
-static inline void sh_cmt_write(struct sh_cmt_priv *p, int reg_nr,
-				unsigned long value)
-{
-	void __iomem *base = p->mapbase;
-	unsigned long offs = reg_nr;
-
-	if (p->width == 16) {
-		offs <<= 1;
-		iowrite16(value, base + offs);
-	} else {
-		offs <<= 2;
-		iowrite32(value, base + offs);
-	}
+	return p->read_count(p->mapbase, CMCNT);
 }
 
 static inline void sh_cmt_write_cmstr(struct sh_cmt_priv *p,
@@ -135,13 +121,13 @@ static inline void sh_cmt_write_cmcsr(struct sh_cmt_priv *p,
 static inline void sh_cmt_write_cmcnt(struct sh_cmt_priv *p,
 				      unsigned long value)
 {
-	sh_cmt_write(p, CMCNT, value);
+	p->write_count(p->mapbase, CMCNT, value);
 }
 
 static inline void sh_cmt_write_cmcor(struct sh_cmt_priv *p,
 				      unsigned long value)
 {
-	sh_cmt_write(p, CMCOR, value);
+	p->write_count(p->mapbase, CMCOR, value);
 }
 
 static unsigned long sh_cmt_get_counter(struct sh_cmt_priv *p,
@@ -718,10 +704,14 @@ static int sh_cmt_setup(struct sh_cmt_priv *p, struct platform_device *pdev)
 
 	if (resource_size(res) == 6) {
 		p->width = 16;
+		p->read_count = sh_cmt_read16;
+		p->write_count = sh_cmt_write16;
 		p->overflow_bit = 0x80;
 		p->clear_bits = ~0x80;
 	} else {
 		p->width = 32;
+		p->read_count = sh_cmt_read32;
+		p->write_count = sh_cmt_write32;
 		p->overflow_bit = 0x8000;
 		p->clear_bits = ~0xc000;
 	}
