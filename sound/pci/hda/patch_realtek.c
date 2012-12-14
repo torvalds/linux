@@ -3921,21 +3921,27 @@ static void activate_amp_in(struct hda_codec *codec, struct nid_path *path,
 {
 	struct alc_spec *spec = codec->spec;
 	hda_nid_t conn[16];
-	int n, nums;
+	int n, nums, idx;
 	hda_nid_t nid = path->path[i];
 
 	nums = snd_hda_get_connections(codec, nid, conn, ARRAY_SIZE(conn));
+	if (get_wcaps_type(get_wcaps(codec, nid)) == AC_WID_PIN) {
+		nums = 1;
+		idx = 0;
+	} else
+		idx = path->idx[i];
+
 	for (n = 0; n < nums; n++)
 		init_amp(codec, nid, HDA_INPUT, n);
 
-	if (is_ctl_associated(codec, nid, HDA_INPUT, path->idx[i]))
+	if (is_ctl_associated(codec, nid, HDA_INPUT, idx))
 		return;
 
 	/* here is a little bit tricky in comparison with activate_amp_out();
 	 * when aa-mixer is available, we need to enable the path as well
 	 */
 	for (n = 0; n < nums; n++) {
-		if (n != path->idx[i] && conn[n] != spec->mixer_nid)
+		if (n != idx && conn[n] != spec->mixer_nid)
 			continue;
 		activate_amp(codec, nid, HDA_INPUT, n, enable);
 	}
