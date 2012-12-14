@@ -95,6 +95,13 @@ struct alc_multi_io {
 
 #define MAX_NID_PATH_DEPTH	5
 
+enum {
+	NID_PATH_VOL_CTL,
+	NID_PATH_MUTE_CTL,
+	NID_PATH_BOOST_CTL,
+	NID_PATH_NUM_CTLS
+};
+
 /* Widget connection path
  *
  * For output, stored in the order of DAC -> ... -> pin,
@@ -111,11 +118,9 @@ struct nid_path {
 	hda_nid_t path[MAX_NID_PATH_DEPTH];
 	unsigned char idx[MAX_NID_PATH_DEPTH];
 	unsigned char multi[MAX_NID_PATH_DEPTH];
-	unsigned int ctls[2]; /* 0 = volume, 1 = mute */
+	unsigned int ctls[NID_PATH_NUM_CTLS]; /* NID_PATH_XXX_CTL */
 	bool active;
 };
-
-enum { NID_PATH_VOL_CTL = 0, NID_PATH_MUTE_CTL = 1 };
 
 struct alc_spec {
 	struct hda_gen_spec gen;
@@ -3809,7 +3814,7 @@ static bool is_ctl_associated(struct hda_codec *codec, hda_nid_t nid,
 		struct nid_path *p = snd_array_elem(&spec->paths, i);
 		if (p->depth <= 0)
 			continue;
-		for (type = 0; type < 2; type++) {
+		for (type = 0; type < NID_PATH_NUM_CTLS; type++) {
 			unsigned int val = p->ctls[type];
 			if (get_amp_nid_(val) == nid &&
 			    get_amp_direction_(val) == dir &&
@@ -4388,6 +4393,8 @@ static int alc_auto_add_mic_boost(struct hda_codec *codec)
 		if (get_wcaps(codec, nid) & AC_WCAP_IN_AMP) {
 			const char *label;
 			char boost_label[32];
+			struct nid_path *path;
+			unsigned int val;
 
 			label = hda_get_autocfg_input_label(codec, cfg, i);
 			if (spec->shared_mic_hp && !strcmp(label, "Misc"))
@@ -4400,11 +4407,15 @@ static int alc_auto_add_mic_boost(struct hda_codec *codec)
 
 			snprintf(boost_label, sizeof(boost_label),
 				 "%s Boost Volume", label);
+			val = HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_INPUT);
 			err = add_control(spec, ALC_CTL_WIDGET_VOL,
-					  boost_label, type_idx,
-				  HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_INPUT));
+					  boost_label, type_idx, val);
 			if (err < 0)
 				return err;
+
+			path = get_nid_path(codec, nid, 0);
+			if (path)
+				path->ctls[NID_PATH_BOOST_CTL] = val;
 		}
 	}
 	return 0;
