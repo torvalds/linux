@@ -34,7 +34,7 @@ static int lowlevel_buffer_allocate(struct drm_device *dev,
 		unsigned int flags, struct exynos_drm_gem_buf *buf)
 {
 	int ret = 0;
-	enum dma_attr attr = DMA_ATTR_FORCE_CONTIGUOUS;
+	enum dma_attr attr;
 	unsigned int nr_pages;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
@@ -46,8 +46,22 @@ static int lowlevel_buffer_allocate(struct drm_device *dev,
 
 	init_dma_attrs(&buf->dma_attrs);
 
-	if (flags & EXYNOS_BO_NONCONTIG)
+	/*
+	 * if EXYNOS_BO_CONTIG, fully physically contiguous memory
+	 * region will be allocated else physically contiguous
+	 * as possible.
+	 */
+	if (flags & EXYNOS_BO_CONTIG)
+		dma_set_attr(DMA_ATTR_FORCE_CONTIGUOUS, &buf->dma_attrs);
+
+	/*
+	 * if EXYNOS_BO_WC or EXYNOS_BO_NONCACHABLE, writecombine mapping
+	 * else cachable mapping.
+	 */
+	if (flags & EXYNOS_BO_WC || !(flags & EXYNOS_BO_CACHABLE))
 		attr = DMA_ATTR_WRITE_COMBINE;
+	else
+		attr = DMA_ATTR_NON_CONSISTENT;
 
 	dma_set_attr(attr, &buf->dma_attrs);
 	dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &buf->dma_attrs);
