@@ -125,7 +125,9 @@ static const struct key_entry acer_wmi_keymap[] = {
 	{KE_IGNORE, 0x63, {KEY_BRIGHTNESSDOWN} },
 	{KE_KEY, 0x64, {KEY_SWITCHVIDEOMODE} },	/* Display Switch */
 	{KE_IGNORE, 0x81, {KEY_SLEEP} },
-	{KE_KEY, 0x82, {KEY_TOUCHPAD_TOGGLE} },	/* Touch Pad On/Off */
+	{KE_KEY, 0x82, {KEY_TOUCHPAD_TOGGLE} },	/* Touch Pad Toggle */
+	{KE_KEY, KEY_TOUCHPAD_ON, {KEY_TOUCHPAD_ON} },
+	{KE_KEY, KEY_TOUCHPAD_OFF, {KEY_TOUCHPAD_OFF} },
 	{KE_IGNORE, 0x83, {KEY_TOUCHPAD_TOGGLE} },
 	{KE_END, 0}
 };
@@ -147,6 +149,7 @@ struct event_return_value {
 #define ACER_WMID3_GDS_THREEG		(1<<6)	/* 3G */
 #define ACER_WMID3_GDS_WIMAX		(1<<7)	/* WiMAX */
 #define ACER_WMID3_GDS_BLUETOOTH	(1<<11)	/* BT */
+#define ACER_WMID3_GDS_TOUCHPAD		(1<<1)	/* Touchpad */
 
 struct lm_input_params {
 	u8 function_num;        /* Function Number */
@@ -1678,6 +1681,7 @@ static void acer_wmi_notify(u32 value, void *context)
 	acpi_status status;
 	u16 device_state;
 	const struct key_entry *key;
+	u32 scancode;
 
 	status = wmi_get_event_data(value, &response);
 	if (status != AE_OK) {
@@ -1714,6 +1718,7 @@ static void acer_wmi_notify(u32 value, void *context)
 			pr_warn("Unknown key number - 0x%x\n",
 				return_value.key_num);
 		} else {
+			scancode = return_value.key_num;
 			switch (key->keycode) {
 			case KEY_WLAN:
 			case KEY_BLUETOOTH:
@@ -1727,9 +1732,11 @@ static void acer_wmi_notify(u32 value, void *context)
 					rfkill_set_sw_state(bluetooth_rfkill,
 						!(device_state & ACER_WMID3_GDS_BLUETOOTH));
 				break;
+			case KEY_TOUCHPAD_TOGGLE:
+				scancode = (device_state & ACER_WMID3_GDS_TOUCHPAD) ?
+						KEY_TOUCHPAD_ON : KEY_TOUCHPAD_OFF;
 			}
-			sparse_keymap_report_entry(acer_wmi_input_dev, key,
-						   1, true);
+			sparse_keymap_report_event(acer_wmi_input_dev, scancode, 1, true);
 		}
 		break;
 	case WMID_ACCEL_EVENT:
