@@ -1366,11 +1366,8 @@ static ssize_t __fuse_direct_write(struct fuse_io_priv *io,
 	ssize_t res;
 
 	res = generic_write_checks(file, ppos, &count, 0);
-	if (!res) {
+	if (!res)
 		res = fuse_direct_io(io, iov, nr_segs, count, ppos, 1);
-		if (!io->async && res > 0)
-			fuse_write_update_size(inode, *ppos);
-	}
 
 	fuse_invalidate_attr(inode);
 
@@ -1391,6 +1388,8 @@ static ssize_t fuse_direct_write(struct file *file, const char __user *buf,
 	/* Don't allow parallel writes to the same file */
 	mutex_lock(&inode->i_mutex);
 	res = __fuse_direct_write(&io, &iov, 1, ppos);
+	if (res > 0)
+		fuse_write_update_size(inode, *ppos);
 	mutex_unlock(&inode->i_mutex);
 
 	return res;
@@ -2360,23 +2359,61 @@ fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	ssize_t ret = 0;
 	struct file *file = NULL;
 	loff_t pos = 0;
+	struct inode *inode;
+	loff_t i_size;
+	size_t count = iov_length(iov, nr_segs);
 	struct fuse_io_priv *io;
 
 	file = iocb->ki_filp;
 	pos = offset;
+	inode = file->f_mapping->host;
+	i_size = i_size_read(inode);
 
-	io = kzalloc(sizeof(struct fuse_io_priv), GFP_KERNEL);
+	io = kmalloc(sizeof(struct fuse_io_priv), GFP_KERNEL);
 	if (!io)
 		return -ENOMEM;
-
+	spin_lock_init(&io->lock);
+	io->reqs = 1;
+	io->bytes = -1;
+	io->size = 0;
+	io->offset = offset;
+	io->write = (rw == WRITE);
+	io->err = 0;
 	io->file = file;
+	/*
+	 * By default, we want to optimize all I/Os with async request
+	 * submission to the client filesystem.
+	 */
+	io->async = 1;
+	io->iocb = iocb;
+
+	/*
+	 * We cannot asynchronously extend the size of a file. We have no method
+	 * to wait on real async I/O requests, so we must submit this request
+	 * synchronously.
+	 */
+	if (!is_sync_kiocb(iocb) && (offset + count > i_size) && rw == WRITE)
+		io->async = false;
 
 	if (rw == WRITE)
 		ret = __fuse_direct_write(io, iov, nr_segs, &pos);
 	else
 		ret = __fuse_direct_read(io, iov, nr_segs, &pos);
 
-	kfree(io);
+	if (io->async) {
+		fuse_aio_complete(io, ret < 0 ? ret : 0, -1);
+
+		/* we have a non-extending, async request, so return */
+		if (ret > 0 && !is_sync_kiocb(iocb))
+			return -EIOCBQUEUED;
+
+		ret = wait_on_sync_kiocb(iocb);
+	} else {
+		kfree(io);
+	}
+
+	if (rw == WRITE && ret > 0)
+		fuse_write_update_size(inode, pos);
 
 	return ret;
 }
