@@ -1765,7 +1765,7 @@ EXPORT_SYMBOL_HDA(snd_hda_override_pin_caps);
  */
 static struct hda_amp_info *
 update_amp_hash(struct hda_codec *codec, hda_nid_t nid, int ch,
-		int direction, int index)
+		int direction, int index, bool init_only)
 {
 	struct hda_amp_info *info;
 	unsigned int parm, val = 0;
@@ -1791,7 +1791,8 @@ update_amp_hash(struct hda_codec *codec, hda_nid_t nid, int ch,
 		}
 		info->vol[ch] = val;
 		info->head.val |= INFO_AMP_VOL(ch);
-	}
+	} else if (init_only)
+		return NULL;
 	return info;
 }
 
@@ -1832,13 +1833,43 @@ int snd_hda_codec_amp_read(struct hda_codec *codec, hda_nid_t nid, int ch,
 	unsigned int val = 0;
 
 	mutex_lock(&codec->hash_mutex);
-	info = update_amp_hash(codec, nid, ch, direction, index);
+	info = update_amp_hash(codec, nid, ch, direction, index, false);
 	if (info)
 		val = info->vol[ch];
 	mutex_unlock(&codec->hash_mutex);
 	return val;
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_amp_read);
+
+static int codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch,
+			    int direction, int idx, int mask, int val,
+			    bool init_only)
+{
+	struct hda_amp_info *info;
+
+	if (snd_BUG_ON(mask & ~0xff))
+		mask &= 0xff;
+	val &= mask;
+
+	mutex_lock(&codec->hash_mutex);
+	info = update_amp_hash(codec, nid, ch, direction, idx, init_only);
+	if (!info) {
+		mutex_unlock(&codec->hash_mutex);
+		return 0;
+	}
+	val |= info->vol[ch] & ~mask;
+	if (info->vol[ch] == val) {
+		mutex_unlock(&codec->hash_mutex);
+		return 0;
+	}
+	info->vol[ch] = val;
+	if (codec->cached_write)
+		info->head.dirty = 1;
+	mutex_unlock(&codec->hash_mutex);
+	if (!codec->cached_write)
+		put_vol_mute(codec, info, nid, ch, direction, idx, val);
+	return 1;
+}
 
 /**
  * snd_hda_codec_amp_update - update the AMP value
@@ -1856,30 +1887,7 @@ EXPORT_SYMBOL_HDA(snd_hda_codec_amp_read);
 int snd_hda_codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch,
 			     int direction, int idx, int mask, int val)
 {
-	struct hda_amp_info *info;
-
-	if (snd_BUG_ON(mask & ~0xff))
-		mask &= 0xff;
-	val &= mask;
-
-	mutex_lock(&codec->hash_mutex);
-	info = update_amp_hash(codec, nid, ch, direction, idx);
-	if (!info) {
-		mutex_unlock(&codec->hash_mutex);
-		return 0;
-	}
-	val |= info->vol[ch] & ~mask;
-	if (info->vol[ch] == val) {
-		mutex_unlock(&codec->hash_mutex);
-		return 0;
-	}
-	info->vol[ch] = val;
-	if (codec->cached_write)
-		info->head.dirty = 1;
-	mutex_unlock(&codec->hash_mutex);
-	if (!codec->cached_write)
-		put_vol_mute(codec, info, nid, ch, direction, idx, val);
-	return 1;
+	return codec_amp_update(codec, nid, ch, direction, idx, mask, val, false);
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_amp_update);
 
@@ -1908,6 +1916,31 @@ int snd_hda_codec_amp_stereo(struct hda_codec *codec, hda_nid_t nid,
 	return ret;
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_amp_stereo);
+
+/* Works like snd_hda_codec_amp_update() but it writes the value only at
+ * the first access.  If the amp was already initialized / updated beforehand,
+ * this does nothing.
+ */
+int snd_hda_codec_amp_init(struct hda_codec *codec, hda_nid_t nid, int ch,
+			   int dir, int idx, int mask, int val)
+{
+	return codec_amp_update(codec, nid, ch, dir, idx, mask, val, true);
+}
+EXPORT_SYMBOL_HDA(snd_hda_codec_amp_init);
+
+int snd_hda_codec_amp_init_stereo(struct hda_codec *codec, hda_nid_t nid,
+				  int dir, int idx, int mask, int val)
+{
+	int ch, ret = 0;
+
+	if (snd_BUG_ON(mask & ~0xff))
+		mask &= 0xff;
+	for (ch = 0; ch < 2; ch++)
+		ret |= snd_hda_codec_amp_init(codec, nid, ch, dir,
+					      idx, mask, val);
+	return ret;
+}
+EXPORT_SYMBOL_HDA(snd_hda_codec_amp_init_stereo);
 
 /**
  * snd_hda_codec_resume_amp - Resume all AMP commands from the cache
