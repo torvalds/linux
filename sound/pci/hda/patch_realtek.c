@@ -2639,6 +2639,7 @@ static int new_analog_input(struct hda_codec *codec, hda_nid_t pin,
 {
 	struct alc_spec *spec = codec->spec;
 	struct nid_path *path;
+	unsigned int val;
 	int err, idx;
 
 	if (!nid_has_volume(codec, mix_nid, HDA_INPUT) &&
@@ -2654,19 +2655,22 @@ static int new_analog_input(struct hda_codec *codec, hda_nid_t pin,
 
 	idx = path->idx[path->depth - 1];
 	if (nid_has_volume(codec, mix_nid, HDA_INPUT)) {
-		err = __add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL, ctlname, ctlidx,
-			  HDA_COMPOSE_AMP_VAL(mix_nid, 3, idx, HDA_INPUT));
+		val = HDA_COMPOSE_AMP_VAL(mix_nid, 3, idx, HDA_INPUT);
+		err = __add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL, ctlname, ctlidx, val);
 		if (err < 0)
 			return err;
+		path->ctls[NID_PATH_VOL_CTL] = val;
 	}
 
 	if (nid_has_mute(codec, mix_nid, HDA_INPUT)) {
-		err = __add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, ctlname, ctlidx,
-			  HDA_COMPOSE_AMP_VAL(mix_nid, 3, idx, HDA_INPUT));
+		val = HDA_COMPOSE_AMP_VAL(mix_nid, 3, idx, HDA_INPUT);
+		err = __add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, ctlname, ctlidx, val);
 		if (err < 0)
 			return err;
+		path->ctls[NID_PATH_MUTE_CTL] = val;
 	}
 
+	path->active = true;
 	add_loopback_list(spec, mix_nid, idx);
 	return 0;
 }
@@ -2848,6 +2852,11 @@ static int alc_auto_create_shared_input(struct hda_codec *codec)
 	return 0;
 }
 
+static struct nid_path *
+get_nid_path(struct hda_codec *codec, hda_nid_t from_nid, hda_nid_t to_nid);
+static void activate_path(struct hda_codec *codec, struct nid_path *path,
+			  bool enable);
+
 static int get_pin_type(int line_out_type)
 {
 	if (line_out_type == AUTO_PIN_HP_OUT)
@@ -2871,15 +2880,14 @@ static void alc_auto_init_analog_input(struct hda_codec *codec)
 						    AC_VERB_SET_AMP_GAIN_MUTE,
 						    AMP_OUT_MUTE);
 		}
-	}
 
-	/* mute all loopback inputs */
-	if (spec->mixer_nid) {
-		int nums = snd_hda_get_num_conns(codec, spec->mixer_nid);
-		for (i = 0; i < nums; i++)
-			snd_hda_codec_write(codec, spec->mixer_nid, 0,
-					    AC_VERB_SET_AMP_GAIN_MUTE,
-					    AMP_IN_MUTE(i));
+		/* mute loopback inputs */
+		if (spec->mixer_nid) {
+			struct nid_path *path;
+			path = get_nid_path(codec, nid, spec->mixer_nid);
+			if (path)
+				activate_path(codec, path, path->active);
+		}
 	}
 }
 
