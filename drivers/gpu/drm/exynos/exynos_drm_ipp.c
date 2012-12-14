@@ -24,6 +24,7 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_gem.h"
 #include "exynos_drm_ipp.h"
+#include "exynos_drm_iommu.h"
 
 /*
  * IPP is stand for Image Post Processing and
@@ -1771,9 +1772,23 @@ static int ipp_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 		ippdrv->event_workq = ctx->event_workq;
 		ippdrv->sched_event = ipp_sched_event;
 		INIT_LIST_HEAD(&ippdrv->cmd_list);
+
+		if (is_drm_iommu_supported(drm_dev)) {
+			ret = drm_iommu_attach_device(drm_dev, ippdrv->dev);
+			if (ret) {
+				DRM_ERROR("failed to activate iommu\n");
+				goto err_iommu;
+			}
+		}
 	}
 
 	return 0;
+
+err_iommu:
+	/* get ipp driver entry */
+	list_for_each_entry_reverse(ippdrv, &exynos_drm_ippdrv_list, drv_list)
+		if (is_drm_iommu_supported(drm_dev))
+			drm_iommu_detach_device(drm_dev, ippdrv->dev);
 
 err_idr:
 	idr_remove_all(&ctx->ipp_idr);
@@ -1791,6 +1806,9 @@ static void ipp_subdrv_remove(struct drm_device *drm_dev, struct device *dev)
 
 	/* get ipp driver entry */
 	list_for_each_entry(ippdrv, &exynos_drm_ippdrv_list, drv_list) {
+		if (is_drm_iommu_supported(drm_dev))
+			drm_iommu_detach_device(drm_dev, ippdrv->dev);
+
 		ippdrv->drm_dev = NULL;
 		exynos_drm_ippdrv_unregister(ippdrv);
 	}
