@@ -279,7 +279,8 @@ static int gab_probe(struct platform_device *pdev)
 	}
 
 	memcpy(psy->properties, gab_props, sizeof(gab_props));
-	properties = psy->properties + sizeof(gab_props);
+	properties = (enum power_supply_property *)
+				((char *)psy->properties + sizeof(gab_props));
 
 	/*
 	 * getting channel from iio and copying the battery properties
@@ -327,7 +328,7 @@ static int gab_probe(struct platform_device *pdev)
 		ret = request_any_context_irq(irq, gab_charged,
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				"battery charged", adc_bat);
-		if (ret)
+		if (ret < 0)
 			goto err_gpio;
 	}
 
