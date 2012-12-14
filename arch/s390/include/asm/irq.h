@@ -35,6 +35,7 @@ enum interruption_class {
 	IOINT_CSC,
 	IOINT_PCI,
 	IOINT_MSI,
+	IOINT_VIR,
 	NMI_NMI,
 	NR_IRQS,
 };
