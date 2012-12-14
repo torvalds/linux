@@ -89,7 +89,7 @@ static int omap2_nand_gpmc_retime(
 	return 0;
 }
 
-static bool __init gpmc_hwecc_bch_capable(enum omap_ecc ecc_opt)
+static bool gpmc_hwecc_bch_capable(enum omap_ecc ecc_opt)
 {
 	/* support only OMAP3 class */
 	if (!cpu_is_omap34xx()) {
@@ -110,8 +110,8 @@ static bool __init gpmc_hwecc_bch_capable(enum omap_ecc ecc_opt)
 	return 1;
 }
 
-int __init gpmc_nand_init(struct omap_nand_platform_data *gpmc_nand_data,
-			  struct gpmc_timings *gpmc_t)
+int gpmc_nand_init(struct omap_nand_platform_data *gpmc_nand_data,
+		   struct gpmc_timings *gpmc_t)
 {
 	int err	= 0;
 	struct device *dev = &gpmc_nand_device.dev;
