@@ -12,12 +12,18 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  */
-#ifndef _ASM_X86_IST_H
-#define _ASM_X86_IST_H
-
-#include <uapi/asm/ist.h>
+#ifndef _UAPI_ASM_X86_IST_H
+#define _UAPI_ASM_X86_IST_H
 
 
-extern struct ist_info ist_info;
 
-#endif /* _ASM_X86_IST_H */
+#include <linux/types.h>
+
+struct ist_info {
+	__u32 signature;
+	__u32 command;
+	__u32 event;
+	__u32 perf_level;
+};
+
+#endif /* _UAPI_ASM_X86_IST_H */
