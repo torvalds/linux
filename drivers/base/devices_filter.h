@@ -28,7 +28,10 @@ static usb_parameter skip_device_list[] = {
 	{0x12D1, 0x140C, NULL, NULL, NULL},
 	{0x12D1, 0x1003, NULL, NULL, NULL},
 	{0x12D1, 0x1001, NULL, NULL, NULL},
-
+        {0x12D1, 0x1505, NULL, NULL, NULL},
+        {0x12D1, 0x14FE, NULL, NULL, NULL}, 
+        {0x12D1, 0x1506, NULL, NULL, NULL},
+    
 	{0x19D2, 0xFFF5, NULL, NULL, NULL},
 	{0x19D2, 0xFFF1, NULL, NULL, NULL},
 	{0x19D2, 0x2000, NULL, NULL, NULL},
@@ -41,6 +44,8 @@ static usb_parameter skip_device_list[] = {
 	{0x19D2, 0x0026, NULL, NULL, NULL},
 	{0x19D2, 0x0017, NULL, NULL, NULL},
 	{0x19D2, 0x0015, NULL, NULL, NULL},
+        {0x19D2, 0x0154, NULL, NULL, NULL},        
+        {0x19D2, 0x2003, NULL, NULL, NULL},          
 
 	{0x04CC, 0x225A, NULL, NULL, NULL},
 	{0x04CC, 0x2259, NULL, NULL, NULL},
@@ -56,6 +61,8 @@ static usb_parameter skip_device_list[] = {
 // 山寨
 //	{0x05C6, -1, NULL, NULL, NULL},
 	{0x05C6, 0x1000, NULL, NULL, NULL},
+        {0x05C6, 0xF000, NULL, NULL, NULL},
+        {0x05C6, 0x0016, NULL, NULL, NULL},
 	{0x1AB7, 0x5700, NULL, NULL, NULL},
 	{0x20B9, 0x1682, NULL, NULL, NULL},
 
@@ -72,8 +79,16 @@ static usb_parameter skip_device_list[] = {
 
 	{0x0685, 0x7000, NULL, NULL, NULL},
 
-	{0x20A6, 0xF00E, NULL, NULL, NULL},
+	{0x20A6, 0x1105, NULL, NULL, NULL},
 	{0x1614, 0x0800, NULL, NULL, NULL},
+        {0x1A8D, 0x2000, NULL, NULL, NULL},
+        {0x1C9E, 0x9913, NULL, NULL, NULL},
+        {0x1C9E, 0x9915, NULL, NULL, NULL},
+        {0x230D, 0x000C, NULL, NULL, NULL},
+        {0x230D, 0x0003, NULL, NULL, NULL},
+        {0x257A, 0x2601, NULL, NULL, NULL},
+        {0x1E89, 0x1E16, NULL, NULL, NULL},
+        {0x1C9E, 0x9800, NULL, NULL, NULL}, 
 };
 
 /* 1 - match
