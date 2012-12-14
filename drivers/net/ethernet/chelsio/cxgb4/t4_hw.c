@@ -648,12 +648,12 @@ static int sf1_read(struct adapter *adapter, unsigned int byte_cnt, int cont,
 
 	if (!byte_cnt || byte_cnt > 4)
 		return -EINVAL;
-	if (t4_read_reg(adapter, SF_OP) & BUSY)
+	if (t4_read_reg(adapter, SF_OP) & SF_BUSY)
 		return -EBUSY;
 	cont = cont ? SF_CONT : 0;
 	lock = lock ? SF_LOCK : 0;
 	t4_write_reg(adapter, SF_OP, lock | cont | BYTECNT(byte_cnt - 1));
-	ret = t4_wait_op_done(adapter, SF_OP, BUSY, 0, SF_ATTEMPTS, 5);
+	ret = t4_wait_op_done(adapter, SF_OP, SF_BUSY, 0, SF_ATTEMPTS, 5);
 	if (!ret)
 		*valp = t4_read_reg(adapter, SF_DATA);
 	return ret;
@@ -676,14 +676,14 @@ static int sf1_write(struct adapter *adapter, unsigned int byte_cnt, int cont,
 {
 	if (!byte_cnt || byte_cnt > 4)
 		return -EINVAL;
-	if (t4_read_reg(adapter, SF_OP) & BUSY)
+	if (t4_read_reg(adapter, SF_OP) & SF_BUSY)
 		return -EBUSY;
 	cont = cont ? SF_CONT : 0;
 	lock = lock ? SF_LOCK : 0;
 	t4_write_reg(adapter, SF_DATA, val);
 	t4_write_reg(adapter, SF_OP, lock |
 		     cont | BYTECNT(byte_cnt - 1) | OP_WR);
-	return t4_wait_op_done(adapter, SF_OP, BUSY, 0, SF_ATTEMPTS, 5);
+	return t4_wait_op_done(adapter, SF_OP, SF_BUSY, 0, SF_ATTEMPTS, 5);
 }
 
 /**
@@ -2252,14 +2252,14 @@ int t4_wol_pat_enable(struct adapter *adap, unsigned int port, unsigned int map,
 		t4_write_reg(adap, EPIO_REG(DATA0), mask0);
 		t4_write_reg(adap, EPIO_REG(OP), ADDRESS(i) | EPIOWR);
 		t4_read_reg(adap, EPIO_REG(OP));                /* flush */
-		if (t4_read_reg(adap, EPIO_REG(OP)) & BUSY)
+		if (t4_read_reg(adap, EPIO_REG(OP)) & SF_BUSY)
 			return -ETIMEDOUT;
 
 		/* write CRC */
 		t4_write_reg(adap, EPIO_REG(DATA0), crc);
 		t4_write_reg(adap, EPIO_REG(OP), ADDRESS(i + 32) | EPIOWR);
 		t4_read_reg(adap, EPIO_REG(OP));                /* flush */
-		if (t4_read_reg(adap, EPIO_REG(OP)) & BUSY)
+		if (t4_read_reg(adap, EPIO_REG(OP)) & SF_BUSY)
 			return -ETIMEDOUT;
 	}
 #undef EPIO_REG
@@ -2405,7 +2405,7 @@ int t4_fw_hello(struct adapter *adap, unsigned int mbox, unsigned int evt_mbox,
 retry:
 	memset(&c, 0, sizeof(c));
 	INIT_CMD(c, HELLO, WRITE);
-	c.err_to_mbasyncnot = htonl(
+	c.err_to_clearinit = htonl(
 		FW_HELLO_CMD_MASTERDIS(master == MASTER_CANT) |
 		FW_HELLO_CMD_MASTERFORCE(master == MASTER_MUST) |
 		FW_HELLO_CMD_MBMASTER(master == MASTER_MUST ? mbox :
@@ -2426,7 +2426,7 @@ retry:
 		return ret;
 	}
 
-	v = ntohl(c.err_to_mbasyncnot);
+	v = ntohl(c.err_to_clearinit);
 	master_mbox = FW_HELLO_CMD_MBMASTER_GET(v);
 	if (state) {
 		if (v & FW_HELLO_CMD_ERR)
@@ -2774,7 +2774,7 @@ int t4_fw_config_file(struct adapter *adap, unsigned int mbox,
 		htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
 		      FW_CMD_REQUEST |
 		      FW_CMD_READ);
-	caps_cmd.retval_len16 =
+	caps_cmd.cfvalid_to_len16 =
 		htonl(FW_CAPS_CONFIG_CMD_CFVALID |
 		      FW_CAPS_CONFIG_CMD_MEMTYPE_CF(mtype) |
 		      FW_CAPS_CONFIG_CMD_MEMADDR64K_CF(maddr >> 16) |
@@ -2797,7 +2797,7 @@ int t4_fw_config_file(struct adapter *adap, unsigned int mbox,
 		htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
 		      FW_CMD_REQUEST |
 		      FW_CMD_WRITE);
-	caps_cmd.retval_len16 = htonl(FW_LEN16(caps_cmd));
+	caps_cmd.cfvalid_to_len16 = htonl(FW_LEN16(caps_cmd));
 	return t4_wr_mbox(adap, mbox, &caps_cmd, sizeof(caps_cmd), NULL);
 }
 

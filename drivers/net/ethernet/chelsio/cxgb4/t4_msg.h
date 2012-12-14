@@ -658,6 +658,7 @@ struct ulptx_sgl {
 	__be32 cmd_nsge;
 #define ULPTX_CMD(x) ((x) << 24)
 #define ULPTX_NSGE(x) ((x) << 0)
+#define ULPTX_MORE (1U << 23)
 	__be32 len0;
 	__be64 addr0;
 	struct ulptx_sge_pair sge[0];
