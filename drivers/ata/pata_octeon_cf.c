@@ -921,7 +921,6 @@ free_cf_port:
 
 static struct platform_driver octeon_cf_driver = {
 	.probe		= octeon_cf_probe,
-	.remove		= ata_platform_remove_one,
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
