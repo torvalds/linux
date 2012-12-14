@@ -2331,8 +2331,9 @@ int ata_dev_configure(struct ata_device *dev)
 
 		/* Obtain SATA Settings page from Identify Device Data Log,
 		 * which contains DevSlp timing variables etc.
+		 * Exclude old devices with ata_id_has_ncq()
 		 */
-		if (ata_id_has_hw_feature_ctrl(dev->id)) {
+		if (ata_id_has_ncq(dev->id)) {
 			err_mask = ata_read_log_page(dev,
 						     ATA_LOG_SATA_ID_DEV_DATA,
 						     ATA_LOG_SATA_SETTINGS,
