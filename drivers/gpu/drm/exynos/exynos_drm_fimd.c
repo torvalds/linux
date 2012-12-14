@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 
 #include <video/samsung_fimd.h>
@@ -106,9 +107,28 @@ struct fimd_context {
 	struct exynos_drm_panel_info *panel;
 };
 
+#ifdef CONFIG_OF
+static const struct of_device_id fimd_driver_dt_match[] = {
+	{ .compatible = "samsung,exynos4-fimd",
+	  .data = &exynos4_fimd_driver_data },
+	{ .compatible = "samsung,exynos5-fimd",
+	  .data = &exynos5_fimd_driver_data },
+	{},
+};
+MODULE_DEVICE_TABLE(of, fimd_driver_dt_match);
+#endif
+
 static inline struct fimd_driver_data *drm_fimd_get_driver_data(
 	struct platform_device *pdev)
 {
+#ifdef CONFIG_OF
+	const struct of_device_id *of_id =
+			of_match_device(fimd_driver_dt_match, &pdev->dev);
+
+	if (of_id)
+		return (struct fimd_driver_data *)of_id->data;
+#endif
+
 	return (struct fimd_driver_data *)
 		platform_get_device_id(pdev)->driver_data;
 }
@@ -1091,5 +1111,6 @@ struct platform_driver fimd_driver = {
 		.name	= "exynos4-fb",
 		.owner	= THIS_MODULE,
 		.pm	= &fimd_pm_ops,
+		.of_match_table = of_match_ptr(fimd_driver_dt_match),
 	},
 };
