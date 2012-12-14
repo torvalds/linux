@@ -63,6 +63,7 @@ struct getcpu_cache;
 struct old_linux_dirent;
 struct perf_event_attr;
 struct file_handle;
+struct sigaltstack;
 
 #include <linux/types.h>
 #include <linux/aio_abi.h>
@@ -299,6 +300,11 @@ asmlinkage long sys_personality(unsigned int personality);
 asmlinkage long sys_sigpending(old_sigset_t __user *set);
 asmlinkage long sys_sigprocmask(int how, old_sigset_t __user *set,
 				old_sigset_t __user *oset);
+#ifdef CONFIG_GENERIC_SIGALTSTACK
+asmlinkage long sys_sigaltstack(const struct sigaltstack __user *uss,
+				struct sigaltstack __user *uoss);
+#endif
+
 asmlinkage long sys_getitimer(int which, struct itimerval __user *value);
 asmlinkage long sys_setitimer(int which,
 				struct itimerval __user *value,

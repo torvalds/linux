@@ -3102,6 +3102,12 @@ do_sigaltstack (const stack_t __user *uss, stack_t __user *uoss, unsigned long s
 out:
 	return error;
 }
+#ifdef CONFIG_GENERIC_SIGALTSTACK
+SYSCALL_DEFINE2(sigaltstack,const stack_t __user *,uss, stack_t __user *,uoss)
+{
+	return do_sigaltstack(uss, uoss, current_user_stack_pointer());
+}
+#endif
 
 int restore_altstack(const stack_t __user *uss)
 {

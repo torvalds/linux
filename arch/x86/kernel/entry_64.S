@@ -864,7 +864,6 @@ END(stub_\func)
 	FORK_LIKE  clone
 	FORK_LIKE  fork
 	FORK_LIKE  vfork
-	PTREGSCALL stub_sigaltstack, sys_sigaltstack, %rdx
 	PTREGSCALL stub_iopl, sys_iopl, %rsi
 
 ENTRY(ptregscall_common)

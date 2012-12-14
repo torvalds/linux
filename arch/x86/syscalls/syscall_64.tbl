@@ -137,7 +137,7 @@
 128	64	rt_sigtimedwait		sys_rt_sigtimedwait
 129	64	rt_sigqueueinfo		sys_rt_sigqueueinfo
 130	common	rt_sigsuspend		sys_rt_sigsuspend
-131	64	sigaltstack		stub_sigaltstack
+131	64	sigaltstack		sys_sigaltstack
 132	common	utime			sys_utime
 133	common	mknod			sys_mknod
 134	64	uselib
