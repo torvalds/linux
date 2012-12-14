@@ -625,14 +625,6 @@ static int sh_cmt_register(struct sh_cmt_priv *p, char *name,
 			   unsigned long clockevent_rating,
 			   unsigned long clocksource_rating)
 {
-	if (p->width == (sizeof(p->max_match_value) * 8))
-		p->max_match_value = ~0;
-	else
-		p->max_match_value = (1 << p->width) - 1;
-
-	p->match_value = p->max_match_value;
-	raw_spin_lock_init(&p->lock);
-
 	if (clockevent_rating)
 		sh_cmt_register_clockevent(p, name, clockevent_rating);
 
@@ -702,6 +694,14 @@ static int sh_cmt_setup(struct sh_cmt_priv *p, struct platform_device *pdev)
 		p->overflow_bit = 0x8000;
 		p->clear_bits = ~0xc000;
 	}
+
+	if (p->width == (sizeof(p->max_match_value) * 8))
+		p->max_match_value = ~0;
+	else
+		p->max_match_value = (1 << p->width) - 1;
+
+	p->match_value = p->max_match_value;
+	raw_spin_lock_init(&p->lock);
 
 	ret = sh_cmt_register(p, (char *)dev_name(&p->pdev->dev),
 			      cfg->clockevent_rating,
