@@ -36,6 +36,7 @@ typedef unsigned long pt_reg_t;
 
 #define instruction_pointer(regs) ((regs)->pc)
 #define profile_pc(regs) instruction_pointer(regs)
+#define user_stack_pointer(regs) ((regs)->sp)
 
 /* Does the process account for user or for system time? */
 #define user_mode(regs) (EX1_PL((regs)->ex1) == USER_PL)

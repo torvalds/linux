@@ -83,6 +83,7 @@ struct task_struct;
 
 #define instruction_pointer(regs)	((unsigned long)(regs)->cp0_epc)
 #define profile_pc(regs)		instruction_pointer(regs)
+#define user_stack_pointer(r)		((unsigned long)(r)->regs[0])
 
 extern void do_syscall_trace(struct pt_regs *regs, int entryexit);
 extern int read_tsk_long(struct task_struct *, unsigned long, unsigned long *);

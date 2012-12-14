@@ -63,6 +63,8 @@ struct pt_regs {
 #  define profile_pc(regs) instruction_pointer(regs)
 # endif
 
+#define user_stack_pointer(regs) ((regs)->areg[1])
+
 #else	/* __ASSEMBLY__ */
 
 # include <asm/asm-offsets.h>
