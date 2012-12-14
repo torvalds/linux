@@ -692,6 +692,14 @@ out:
 	return err;
 }
 
+int tn_get_temp(struct radeon_device *rdev)
+{
+	u32 temp = RREG32_SMC(TN_CURRENT_GNB_TEMP) & 0x7ff;
+	int actual_temp = (temp / 8) - 49;
+
+	return actual_temp * 1000;
+}
+
 /*
  * Core functions
  */

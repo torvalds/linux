@@ -489,6 +489,9 @@
 #       define CACHE_FLUSH_AND_INV_EVENT_TS                     (0x14 << 0)
 #       define CACHE_FLUSH_AND_INV_EVENT                        (0x16 << 0)
 
+/* TN SMU registers */
+#define	TN_CURRENT_GNB_TEMP				0x1F390
+
 /*
  * UVD
  */
