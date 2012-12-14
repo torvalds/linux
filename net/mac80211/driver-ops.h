@@ -212,6 +212,8 @@ static inline void drv_bss_info_changed(struct ieee80211_local *local,
 		     sdata->vif.type != NL80211_IFTYPE_AP &&
 		     sdata->vif.type != NL80211_IFTYPE_ADHOC &&
 		     sdata->vif.type != NL80211_IFTYPE_MESH_POINT);
+	WARN_ON_ONCE(sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE &&
+		     changed & ~BSS_CHANGED_IDLE);
 
 	check_sdata_in_driver(sdata);
 

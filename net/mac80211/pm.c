@@ -121,6 +121,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 
 	/* remove all interfaces */
 	list_for_each_entry(sdata, &local->interfaces, list) {
+		static u8 zero_addr[ETH_ALEN] = {};
 		u32 changed = 0;
 
 		if (!ieee80211_sdata_running(sdata))
@@ -152,6 +153,8 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 		sdata->suspend_bss_conf = sdata->vif.bss_conf;
 		memset(&sdata->vif.bss_conf, 0, sizeof(sdata->vif.bss_conf));
 		sdata->vif.bss_conf.idle = true;
+		if (sdata->suspend_bss_conf.bssid)
+			sdata->vif.bss_conf.bssid = zero_addr;
 
 		/* disable beaconing or remove association */
 		ieee80211_bss_info_change_notify(sdata, changed);

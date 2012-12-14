@@ -207,29 +207,9 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 				      u32 changed)
 {
 	struct ieee80211_local *local = sdata->local;
-	static const u8 zero[ETH_ALEN] = { 0 };
 
 	if (!changed)
 		return;
-
-	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-		sdata->vif.bss_conf.bssid = sdata->u.mgd.bssid;
-	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
-		sdata->vif.bss_conf.bssid = sdata->u.ibss.bssid;
-	else if (sdata->vif.type == NL80211_IFTYPE_AP)
-		sdata->vif.bss_conf.bssid = sdata->vif.addr;
-	else if (sdata->vif.type == NL80211_IFTYPE_WDS)
-		sdata->vif.bss_conf.bssid = NULL;
-	else if (ieee80211_vif_is_mesh(&sdata->vif)) {
-		sdata->vif.bss_conf.bssid = zero;
-	} else if (sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE) {
-		sdata->vif.bss_conf.bssid = sdata->vif.addr;
-		WARN_ONCE(changed & ~(BSS_CHANGED_IDLE),
-			  "P2P Device BSS changed %#x", changed);
-	} else {
-		WARN_ON(1);
-		return;
-	}
 
 	drv_bss_info_changed(local, sdata, &sdata->vif.bss_conf, changed);
 }
