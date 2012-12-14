@@ -242,4 +242,21 @@ static inline int ssb_watchdog_register(struct ssb_bus *bus)
 }
 #endif /* CONFIG_SSB_EMBEDDED */
 
+#ifdef CONFIG_SSB_DRIVER_EXTIF
+extern void ssb_extif_init(struct ssb_extif *extif);
+#else
+static inline void ssb_extif_init(struct ssb_extif *extif)
+{
+}
+#endif
+
+#ifdef CONFIG_SSB_DRIVER_GPIO
+extern int ssb_gpio_init(struct ssb_bus *bus);
+#else /* CONFIG_SSB_DRIVER_GPIO */
+static inline int ssb_gpio_init(struct ssb_bus *bus)
+{
+	return -ENOTSUPP;
+}
+#endif /* CONFIG_SSB_DRIVER_GPIO */
+
 #endif /* LINUX_SSB_PRIVATE_H_ */

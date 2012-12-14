@@ -568,17 +568,20 @@ static void do_signal(struct pt_regs *regs)
 	}
 
 	if (regs->regs[0]) {
-		if (regs->regs[2] == ERESTARTNOHAND ||
-		    regs->regs[2] == ERESTARTSYS ||
-		    regs->regs[2] == ERESTARTNOINTR) {
+		switch (regs->regs[2]) {
+		case ERESTARTNOHAND:
+		case ERESTARTSYS:
+		case ERESTARTNOINTR:
 			regs->regs[2] = regs->regs[0];
 			regs->regs[7] = regs->regs[26];
 			regs->cp0_epc -= 4;
-		}
-		if (regs->regs[2] == ERESTART_RESTARTBLOCK) {
+			break;
+
+		case ERESTART_RESTARTBLOCK:
 			regs->regs[2] = current->thread.abi->restart;
 			regs->regs[7] = regs->regs[26];
 			regs->cp0_epc -= 4;
+			break;
 		}
 		regs->regs[0] = 0;	/* Don't deal with this again.  */
 	}

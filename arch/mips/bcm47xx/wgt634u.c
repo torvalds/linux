@@ -11,6 +11,7 @@
 #include <linux/leds.h>
 #include <linux/mtd/physmap.h>
 #include <linux/ssb/ssb.h>
+#include <linux/ssb/ssb_embedded.h>
 #include <linux/interrupt.h>
 #include <linux/reboot.h>
 #include <linux/gpio.h>
@@ -116,7 +117,8 @@ static irqreturn_t gpio_interrupt(int irq, void *ignored)
 
 	/* Interrupt are level triggered, revert the interrupt polarity
 	   to clear the interrupt. */
-	gpio_polarity(WGT634U_GPIO_RESET, state);
+	ssb_gpio_polarity(&bcm47xx_bus.ssb, 1 << WGT634U_GPIO_RESET,
+			  state ? 1 << WGT634U_GPIO_RESET : 0);
 
 	if (!state) {
 		printk(KERN_INFO "Reset button pressed");
@@ -150,7 +152,9 @@ static int __init wgt634u_init(void)
 				 gpio_interrupt, IRQF_SHARED,
 				 "WGT634U GPIO", &bcm47xx_bus.ssb.chipco)) {
 			gpio_direction_input(WGT634U_GPIO_RESET);
-			gpio_intmask(WGT634U_GPIO_RESET, 1);
+			ssb_gpio_intmask(&bcm47xx_bus.ssb,
+					 1 << WGT634U_GPIO_RESET,
+					 1 << WGT634U_GPIO_RESET);
 			ssb_chipco_irq_mask(&bcm47xx_bus.ssb.chipco,
 					    SSB_CHIPCO_IRQ_GPIO,
 					    SSB_CHIPCO_IRQ_GPIO);

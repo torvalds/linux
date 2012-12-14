@@ -2751,6 +2751,15 @@ W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/amd64_edac*
 
+EDAC-CAVIUM
+M:	Ralf Baechle <ralf@linux-mips.org>
+M:	David Daney <david.daney@cavium.com>
+L:	linux-edac@vger.kernel.org
+L:	linux-mips@linux-mips.org
+W:	bluesmoke.sourceforge.net
+S:	Supported
+F:	drivers/edac/octeon_edac*
+
 EDAC-E752X
 M:	Mark Gross <mark.gross@intel.com>
 M:	Doug Thompson <dougthompson@xmission.com>

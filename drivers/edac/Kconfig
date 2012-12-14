@@ -7,7 +7,7 @@
 menuconfig EDAC
 	bool "EDAC (Error Detection And Correction) reporting"
 	depends on HAS_IOMEM
-	depends on X86 || PPC || TILE || ARM
+	depends on X86 || PPC || TILE || ARM || EDAC_SUPPORT
 	help
 	  EDAC is designed to report errors in the core system.
 	  These are low-level errors that are reported in the CPU or
@@ -26,6 +26,9 @@ menuconfig EDAC
 
 	  There is also a mailing list for the EDAC project, which can
 	  be found via the sourceforge page.
+
+config EDAC_SUPPORT
+	bool
 
 if EDAC
 
@@ -315,5 +318,33 @@ config EDAC_HIGHBANK_L2
 	help
 	  Support for error detection and correction on the
 	  Calxeda Highbank memory controller.
+
+config EDAC_OCTEON_PC
+	tristate "Cavium Octeon Primary Caches"
+	depends on EDAC_MM_EDAC && CPU_CAVIUM_OCTEON
+	help
+	  Support for error detection and correction on the primary caches of
+	  the cnMIPS cores of Cavium Octeon family SOCs.
+
+config EDAC_OCTEON_L2C
+	tristate "Cavium Octeon Secondary Caches (L2C)"
+	depends on EDAC_MM_EDAC && CPU_CAVIUM_OCTEON
+	help
+	  Support for error detection and correction on the
+	  Cavium Octeon family of SOCs.
+
+config EDAC_OCTEON_LMC
+	tristate "Cavium Octeon DRAM Memory Controller (LMC)"
+	depends on EDAC_MM_EDAC && CPU_CAVIUM_OCTEON
+	help
+	  Support for error detection and correction on the
+	  Cavium Octeon family of SOCs.
+
+config EDAC_OCTEON_PCI
+	tristate "Cavium Octeon PCI Controller"
+	depends on EDAC_MM_EDAC && PCI && CPU_CAVIUM_OCTEON
+	help
+	  Support for error detection and correction on the
+	  Cavium Octeon family of SOCs.
 
 endif # EDAC
