@@ -170,7 +170,8 @@ static void ipcns_put(void *ns)
 static int ipcns_install(struct nsproxy *nsproxy, void *new)
 {
 	struct ipc_namespace *ns = new;
-	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN))
+	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN) ||
+	    !nsown_capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	/* Ditch state from the old ipc namespace */
