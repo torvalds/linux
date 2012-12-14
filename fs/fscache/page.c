@@ -303,6 +303,17 @@ static int fscache_wait_for_deferred_lookup(struct fscache_cookie *cookie)
 }
 
 /*
+ * Handle cancellation of a pending retrieval op
+ */
+static void fscache_do_cancel_retrieval(struct fscache_operation *_op)
+{
+	struct fscache_retrieval *op =
+		container_of(_op, struct fscache_retrieval, op);
+
+	op->n_pages = 0;
+}
+
+/*
  * wait for an object to become active (or dead)
  */
 static int fscache_wait_for_retrieval_activation(struct fscache_object *object,
@@ -320,7 +331,7 @@ static int fscache_wait_for_retrieval_activation(struct fscache_object *object,
 	if (wait_on_bit(&op->op.flags, FSCACHE_OP_WAITING,
 			fscache_wait_bit_interruptible,
 			TASK_INTERRUPTIBLE) != 0) {
-		ret = fscache_cancel_op(&op->op);
+		ret = fscache_cancel_op(&op->op, fscache_do_cancel_retrieval);
 		if (ret == 0)
 			return -ERESTARTSYS;
 
@@ -338,8 +349,8 @@ check_if_dead:
 		return -ENOBUFS;
 	}
 	if (unlikely(fscache_object_is_dead(object))) {
-		pr_err("%s() = -ENOBUFS [obj dead %d]", __func__, op->op.state);
-		fscache_cancel_op(&op->op);
+		pr_err("%s() = -ENOBUFS [obj dead %d]\n", __func__, op->op.state);
+		fscache_cancel_op(&op->op, fscache_do_cancel_retrieval);
 		fscache_stat(stat_object_dead);
 		return -ENOBUFS;
 	}

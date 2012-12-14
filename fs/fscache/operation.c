@@ -298,7 +298,8 @@ void fscache_start_operations(struct fscache_object *object)
 /*
  * cancel an operation that's pending on an object
  */
-int fscache_cancel_op(struct fscache_operation *op)
+int fscache_cancel_op(struct fscache_operation *op,
+		      void (*do_cancel)(struct fscache_operation *))
 {
 	struct fscache_object *object = op->object;
 	int ret;
@@ -316,6 +317,8 @@ int fscache_cancel_op(struct fscache_operation *op)
 		ASSERT(!list_empty(&op->pend_link));
 		fscache_stat(&fscache_n_op_cancelled);
 		list_del_init(&op->pend_link);
+		if (do_cancel)
+			do_cancel(op);
 		op->state = FSCACHE_OP_ST_CANCELLED;
 		if (test_bit(FSCACHE_OP_EXCLUSIVE, &op->flags))
 			object->n_exclusive--;
