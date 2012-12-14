@@ -131,8 +131,8 @@
 #define XgDmaDone_offset 0xD4
 #define XgDmaDone_WIDTH 32
 
-#define FALCON_STATS_NOT_DONE 0x00000000
-#define FALCON_STATS_DONE 0xffffffff
+#define FALCON_XMAC_STATS_DMA_FLAG(efx)				\
+	(*(u32 *)((efx)->stats_buffer.addr + XgDmaDone_offset))
 
 #define FALCON_STAT_OFFSET(falcon_stat) EFX_VAL(falcon_stat, offset)
 #define FALCON_STAT_WIDTH(falcon_stat) EFX_VAL(falcon_stat, WIDTH)
@@ -1398,10 +1398,7 @@ static void falcon_stats_request(struct efx_nic *efx)
 	WARN_ON(nic_data->stats_pending);
 	WARN_ON(nic_data->stats_disable_count);
 
-	if (nic_data->stats_dma_done == NULL)
-		return;	/* no mac selected */
-
-	*nic_data->stats_dma_done = FALCON_STATS_NOT_DONE;
+	FALCON_XMAC_STATS_DMA_FLAG(efx) = 0;
 	nic_data->stats_pending = true;
 	wmb(); /* ensure done flag is clear */
 
@@ -1423,7 +1420,7 @@ static void falcon_stats_complete(struct efx_nic *efx)
 		return;
 
 	nic_data->stats_pending = false;
-	if (*nic_data->stats_dma_done == FALCON_STATS_DONE) {
+	if (FALCON_XMAC_STATS_DMA_FLAG(efx)) {
 		rmb(); /* read the done flag before the stats */
 		falcon_update_stats_xmac(efx);
 	} else {
@@ -1706,7 +1703,6 @@ static int falcon_probe_port(struct efx_nic *efx)
 		  (u64)efx->stats_buffer.dma_addr,
 		  efx->stats_buffer.addr,
 		  (u64)virt_to_phys(efx->stats_buffer.addr));
-	nic_data->stats_dma_done = efx->stats_buffer.addr + XgDmaDone_offset;
 
 	return 0;
 }
@@ -2554,8 +2550,7 @@ static void falcon_update_nic_stats(struct efx_nic *efx)
 	efx->n_rx_nodesc_drop_cnt +=
 		EFX_OWORD_FIELD(cnt, FRF_AB_RX_NODESC_DROP_CNT);
 
-	if (nic_data->stats_pending &&
-	    *nic_data->stats_dma_done == FALCON_STATS_DONE) {
+	if (nic_data->stats_pending && FALCON_XMAC_STATS_DMA_FLAG(efx)) {
 		nic_data->stats_pending = false;
 		rmb(); /* read the done flag before the stats */
 		falcon_update_stats_xmac(efx);
@@ -2588,7 +2583,7 @@ void falcon_stop_nic_stats(struct efx_nic *efx)
 	/* Wait enough time for the most recent transfer to
 	 * complete. */
 	for (i = 0; i < 4 && nic_data->stats_pending; i++) {
-		if (*nic_data->stats_dma_done == FALCON_STATS_DONE)
+		if (FALCON_XMAC_STATS_DMA_FLAG(efx))
 			break;
 		msleep(1);
 	}

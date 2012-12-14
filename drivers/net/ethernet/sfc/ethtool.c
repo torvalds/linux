@@ -205,8 +205,6 @@ static int efx_ethtool_get_settings(struct net_device *net_dev,
 	efx->phy_op->get_settings(efx, ecmd);
 	mutex_unlock(&efx->mac_lock);
 
-	/* GMAC does not support 1000Mbps HD */
-	ecmd->supported &= ~SUPPORTED_1000baseT_Half;
 	/* Both MACs support pause frames (bidirectional and respond-only) */
 	ecmd->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
 

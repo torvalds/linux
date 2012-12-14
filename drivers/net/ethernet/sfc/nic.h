@@ -117,9 +117,6 @@ enum {
 	 (1 << LOOPBACK_XGXS) |			\
 	 (1 << LOOPBACK_XAUI))
 
-#define FALCON_GMAC_LOOPBACKS			\
-	(1 << LOOPBACK_GMAC)
-
 /* Alignment of PCIe DMA boundaries (4KB) */
 #define EFX_PAGE_SIZE	4096
 /* Size and alignment of buffer table entries (same) */
@@ -201,7 +198,6 @@ static inline bool falcon_spi_present(const struct falcon_spi_device *spi)
  * @stats_disable_count: Nest count for disabling statistics fetches
  * @stats_pending: Is there a pending DMA of MAC statistics.
  * @stats_timer: A timer for regularly fetching MAC statistics.
- * @stats_dma_done: Pointer to the flag which indicates DMA completion.
  * @spi_flash: SPI flash device
  * @spi_eeprom: SPI EEPROM device
  * @spi_lock: SPI bus lock
@@ -214,7 +210,6 @@ struct falcon_nic_data {
 	unsigned int stats_disable_count;
 	bool stats_pending;
 	struct timer_list stats_timer;
-	u32 *stats_dma_done;
 	struct falcon_spi_device spi_flash;
 	struct falcon_spi_device spi_eeprom;
 	struct mutex spi_lock;
