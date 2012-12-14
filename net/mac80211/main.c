@@ -231,20 +231,6 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 		return;
 	}
 
-	switch (sdata->vif.type) {
-	case NL80211_IFTYPE_AP:
-	case NL80211_IFTYPE_ADHOC:
-	case NL80211_IFTYPE_WDS:
-	case NL80211_IFTYPE_MESH_POINT:
-		break;
-	default:
-		/* do not warn to simplify caller in scan.c */
-		changed &= ~BSS_CHANGED_BEACON_ENABLED;
-		if (WARN_ON(changed & BSS_CHANGED_BEACON))
-			return;
-		break;
-	}
-
 	drv_bss_info_changed(local, sdata, &sdata->vif.bss_conf, changed);
 }
 

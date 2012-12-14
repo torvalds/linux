@@ -121,7 +121,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 
 	/* remove all interfaces */
 	list_for_each_entry(sdata, &local->interfaces, list) {
-		u32 changed = BSS_CHANGED_BEACON_ENABLED;
+		u32 changed = 0;
 
 		if (!ieee80211_sdata_running(sdata))
 			continue;
@@ -136,13 +136,18 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 				changed = BSS_CHANGED_ASSOC |
 					  BSS_CHANGED_BSSID |
 					  BSS_CHANGED_IDLE;
-			else
-				changed = 0;
-			/* fall through */
+			break;
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_ADHOC:
+		case NL80211_IFTYPE_MESH_POINT:
+			if (sdata->vif.bss_conf.enable_beacon)
+				changed = BSS_CHANGED_BEACON_ENABLED;
+			break;
 		default:
-			ieee80211_quiesce(sdata);
 			break;
 		}
+
+		ieee80211_quiesce(sdata);
 
 		sdata->suspend_bss_conf = sdata->vif.bss_conf;
 		memset(&sdata->vif.bss_conf, 0, sizeof(sdata->vif.bss_conf));
