@@ -51,3 +51,9 @@ config DRM_EXYNOS_IPP
 	depends on DRM_EXYNOS
 	help
 	  Choose this option if you want to use IPP feature for DRM.
+
+config DRM_EXYNOS_FIMC
+	bool "Exynos DRM FIMC"
+	depends on DRM_EXYNOS_IPP
+	help
+	  Choose this option if you want to use Exynos FIMC for DRM.
