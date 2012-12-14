@@ -600,20 +600,6 @@ static void buf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 	        jd->jd_jid, sdp->sd_replayed_blocks, sdp->sd_found_blocks);
 }
 
-static void revoke_lo_add(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
-{
-	struct gfs2_glock *gl = bd->bd_gl;
-	struct gfs2_trans *tr;
-
-	tr = current->journal_info;
-	tr->tr_touched = 1;
-	tr->tr_num_revoke++;
-	sdp->sd_log_num_revoke++;
-	atomic_inc(&gl->gl_revokes);
-	set_bit(GLF_LFLUSH, &gl->gl_flags);
-	list_add(&bd->bd_list, &sdp->sd_log_le_revoke);
-}
-
 static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 {
 	struct gfs2_meta_header *mh;
@@ -895,7 +881,6 @@ const struct gfs2_log_operations gfs2_buf_lops = {
 };
 
 const struct gfs2_log_operations gfs2_revoke_lops = {
-	.lo_add = revoke_lo_add,
 	.lo_before_commit = revoke_lo_before_commit,
 	.lo_after_commit = revoke_lo_after_commit,
 	.lo_before_scan = revoke_lo_before_scan,
