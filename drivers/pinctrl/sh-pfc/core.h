@@ -55,6 +55,7 @@ extern struct sh_pfc_soc_info r8a7740_pinmux_info;
 extern struct sh_pfc_soc_info r8a7779_pinmux_info;
 extern struct sh_pfc_soc_info sh7203_pinmux_info;
 extern struct sh_pfc_soc_info sh7264_pinmux_info;
+extern struct sh_pfc_soc_info sh7269_pinmux_info;
 extern struct sh_pfc_soc_info sh7372_pinmux_info;
 extern struct sh_pfc_soc_info sh73a0_pinmux_info;
 
