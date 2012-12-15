@@ -22,14 +22,14 @@
 		(Adapter->LEDInfo.LEDState[index].BitPolarity == 1) ?	\
 			wrmaltWithLock(Adapter, BCM_GPIO_OUTPUT_SET_REG, &gpio_val, sizeof(gpio_val)) : \
 			wrmaltWithLock(Adapter, BCM_GPIO_OUTPUT_CLR_REG, &gpio_val, sizeof(gpio_val)); \
-	} while (0);
+	} while (0)
 
 #define TURN_OFF_LED(GPIO, index)  do {					\
 		UINT gpio_val = GPIO;					\
 		(Adapter->LEDInfo.LEDState[index].BitPolarity == 1) ?	\
 			wrmaltWithLock(Adapter, BCM_GPIO_OUTPUT_CLR_REG, &gpio_val, sizeof(gpio_val)) : \
 			wrmaltWithLock(Adapter, BCM_GPIO_OUTPUT_SET_REG, &gpio_val, sizeof(gpio_val)); \
-	} while (0);
+	} while (0)
 
 #define B_ULONG32 unsigned long
 
