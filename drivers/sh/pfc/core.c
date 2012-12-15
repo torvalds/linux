@@ -21,6 +21,8 @@
 #include <linux/ioport.h>
 #include <linux/pinctrl/machine.h>
 
+#include "core.h"
+
 static struct sh_pfc sh_pfc __read_mostly;
 
 static void pfc_iounmap(struct sh_pfc *pfc)

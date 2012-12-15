@@ -24,6 +24,8 @@
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/pinconf-generic.h>
 
+#include "core.h"
+
 struct sh_pfc_pinctrl {
 	struct pinctrl_dev *pctl;
 	struct sh_pfc *pfc;

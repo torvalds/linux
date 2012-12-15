@@ -19,6 +19,8 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/sh_pfc.h>
 
+#include "core.h"
+
 struct sh_pfc_chip {
 	struct sh_pfc		*pfc;
 	struct gpio_chip	gpio_chip;
