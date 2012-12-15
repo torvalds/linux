@@ -69,13 +69,13 @@ typedef struct LedStateInfo_t {
 
 typedef struct _LED_INFO_STRUCT {
 	LEDStateInfo	LEDState[NUM_OF_LEDS];
-	BOOLEAN		bIdleMode_tx_from_host; /* Variable to notify whether driver came out from idlemode due to Host or target */
-	BOOLEAN		bIdle_led_off;
+	bool		bIdleMode_tx_from_host; /* Variable to notify whether driver came out from idlemode due to Host or target */
+	bool		bIdle_led_off;
 	wait_queue_head_t	notify_led_event;
 	wait_queue_head_t	idleModeSyncEvent;
 	struct task_struct	*led_cntrl_threadid;
 	int		led_thread_running;
-	BOOLEAN		bLedInitDone;
+	bool		bLedInitDone;
 
 } LED_INFO_STRUCT, *PLED_INFO_STRUCT;
 
