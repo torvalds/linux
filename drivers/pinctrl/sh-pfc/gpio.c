@@ -16,7 +16,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pinctrl/consumer.h>
-#include <linux/sh_pfc.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 

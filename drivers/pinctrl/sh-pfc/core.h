@@ -11,8 +11,9 @@
 #define __SH_PFC_CORE_H__
 
 #include <linux/compiler.h>
-#include <linux/sh_pfc.h>
 #include <linux/types.h>
+
+#include "sh_pfc.h"
 
 struct sh_pfc_window {
 	phys_addr_t phys;

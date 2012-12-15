@@ -19,8 +19,9 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/sh_pfc.h>
 #include <mach/r8a7779.h>
+
+#include "sh_pfc.h"
 
 #define CPU_32_PORT(fn, pfx, sfx)				\
 	PORT_10(fn, pfx, sfx), PORT_10(fn, pfx##1, sfx),	\

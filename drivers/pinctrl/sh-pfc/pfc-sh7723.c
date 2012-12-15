@@ -10,8 +10,9 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/sh_pfc.h>
 #include <cpu/sh7723.h>
+
+#include "sh_pfc.h"
 
 enum {
 	PINMUX_RESERVED = 0,

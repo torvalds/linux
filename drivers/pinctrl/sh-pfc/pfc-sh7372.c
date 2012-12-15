@@ -21,9 +21,10 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <linux/kernel.h>
-#include <linux/sh_pfc.h>
 #include <mach/irqs.h>
 #include <mach/sh7372.h>
+
+#include "sh_pfc.h"
 
 #define CPU_ALL_PORT(fn, pfx, sfx) \
 	PORT_10(fn, pfx, sfx),		PORT_90(fn, pfx, sfx), \

@@ -21,7 +21,6 @@
 #include <linux/module.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_device.h>
-#include <linux/sh_pfc.h>
 #include <linux/slab.h>
 
 #include "core.h"

@@ -10,8 +10,9 @@
 
 #include <linux/kernel.h>
 #include <linux/gpio.h>
-#include <linux/sh_pfc.h>
 #include <cpu/sh7203.h>
+
+#include "sh_pfc.h"
 
 enum {
 	PINMUX_RESERVED = 0,
