@@ -33,12 +33,12 @@
 
 #define B_ULONG32 unsigned long
 
-typedef enum _LEDColors {
+enum bcm_led_colors {
 	RED_LED		= 1,
 	BLUE_LED	= 2,
 	YELLOW_LED	= 3,
 	GREEN_LED	= 4
-} LEDColors; /* Enumerated values of different LED types */
+};
 
 enum bcm_led_events {
 	SHUTDOWN_EXIT		= 0x00,
