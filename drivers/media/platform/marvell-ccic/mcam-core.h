@@ -73,6 +73,14 @@ static inline int mcam_buffer_mode_supported(enum mcam_buffer_mode mode)
 	}
 }
 
+/*
+ * Basic frame states
+ */
+struct mcam_frame_state {
+	unsigned int frames;
+	unsigned int singles;
+	unsigned int delivered;
+};
 
 /*
  * A description of one of our devices.
@@ -108,6 +116,7 @@ struct mcam_camera {
 	unsigned long flags;		/* Buffer status, mainly (dev_lock) */
 	int users;			/* How many open FDs */
 
+	struct mcam_frame_state frame_state;	/* Frame state counter */
 	/*
 	 * Subsystem structures.
 	 */
