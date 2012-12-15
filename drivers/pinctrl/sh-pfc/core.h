@@ -62,5 +62,6 @@ extern struct sh_pfc_soc_info sh7720_pinmux_info;
 extern struct sh_pfc_soc_info sh7722_pinmux_info;
 extern struct sh_pfc_soc_info sh7723_pinmux_info;
 extern struct sh_pfc_soc_info sh7724_pinmux_info;
+extern struct sh_pfc_soc_info sh7734_pinmux_info;
 
 #endif /* __SH_PFC_CORE_H__ */
