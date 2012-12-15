@@ -28,31 +28,22 @@
 
 static int sh_pfc_ioremap(struct sh_pfc *pfc, struct platform_device *pdev)
 {
-	unsigned int num_resources;
 	struct resource *res;
 	int k;
 
-	if (pdev->num_resources) {
-		num_resources = pdev->num_resources;
-		res = pdev->resource;
-	} else {
-		num_resources = pfc->pdata->num_resources;
-		res = pfc->pdata->resource;
-	}
-
-	if (num_resources == 0) {
+	if (pdev->num_resources == 0) {
 		pfc->num_windows = 0;
 		return 0;
 	}
 
-	pfc->window = devm_kzalloc(pfc->dev, num_resources *
+	pfc->window = devm_kzalloc(pfc->dev, pdev->num_resources *
 				   sizeof(*pfc->window), GFP_NOWAIT);
 	if (!pfc->window)
 		return -ENOMEM;
 
-	pfc->num_windows = num_resources;
+	pfc->num_windows = pdev->num_resources;
 
-	for (k = 0; k < num_resources; k++, res++) {
+	for (k = 0, res = pdev->resource; k < pdev->num_resources; k++, res++) {
 		WARN_ON(resource_type(res) != IORESOURCE_MEM);
 		pfc->window[k].phys = res->start;
 		pfc->window[k].size = resource_size(res);

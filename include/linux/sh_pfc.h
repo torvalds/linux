@@ -111,9 +111,6 @@ struct sh_pfc_platform_data {
 	struct pinmux_irq *gpio_irq;
 	unsigned int gpio_irq_size;
 
-	struct resource *resource;
-	unsigned int num_resources;
-
 	unsigned long unlock_reg;
 };
 
