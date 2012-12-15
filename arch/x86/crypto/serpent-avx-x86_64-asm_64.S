@@ -24,7 +24,16 @@
  *
  */
 
+#include "glue_helper-asm-avx.S"
+
 .file "serpent-avx-x86_64-asm_64.S"
+
+.data
+.align 16
+
+.Lbswap128_mask:
+	.byte 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
+
 .text
 
 #define CTX %rdi
@@ -550,51 +559,27 @@
 	vpunpcklqdq		x3, t2, x2; \
 	vpunpckhqdq		x3, t2, x3;
 
-#define read_blocks(in, x0, x1, x2, x3, t0, t1, t2) \
-	vmovdqu (0*4*4)(in),	x0; \
-	vmovdqu (1*4*4)(in),	x1; \
-	vmovdqu (2*4*4)(in),	x2; \
-	vmovdqu (3*4*4)(in),	x3; \
-	\
+#define read_blocks(x0, x1, x2, x3, t0, t1, t2) \
 	transpose_4x4(x0, x1, x2, x3, t0, t1, t2)
 
-#define write_blocks(out, x0, x1, x2, x3, t0, t1, t2) \
-	transpose_4x4(x0, x1, x2, x3, t0, t1, t2) \
-	\
-	vmovdqu x0,		(0*4*4)(out); \
-	vmovdqu x1,		(1*4*4)(out); \
-	vmovdqu x2,		(2*4*4)(out); \
-	vmovdqu x3,		(3*4*4)(out);
-
-#define xor_blocks(out, x0, x1, x2, x3, t0, t1, t2) \
-	transpose_4x4(x0, x1, x2, x3, t0, t1, t2) \
-	\
-	vpxor (0*4*4)(out),	x0, x0;       \
-	vmovdqu x0,		(0*4*4)(out); \
-	vpxor (1*4*4)(out),	x1, x1;       \
-	vmovdqu x1,		(1*4*4)(out); \
-	vpxor (2*4*4)(out),	x2, x2;       \
-	vmovdqu x2,		(2*4*4)(out); \
-	vpxor (3*4*4)(out),	x3, x3;       \
-	vmovdqu x3,		(3*4*4)(out);
+#define write_blocks(x0, x1, x2, x3, t0, t1, t2) \
+	transpose_4x4(x0, x1, x2, x3, t0, t1, t2)
 
 .align 8
-.global __serpent_enc_blk_8way_avx
-.type   __serpent_enc_blk_8way_avx,@function;
+.type   __serpent_enc_blk8_avx,@function;
 
-__serpent_enc_blk_8way_avx:
+__serpent_enc_blk8_avx:
 	/* input:
 	 *	%rdi: ctx, CTX
-	 *	%rsi: dst
-	 *	%rdx: src
-	 *	%rcx: bool, if true: xor output
+	 *	RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2: blocks
+	 * output:
+	 *	RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2: encrypted blocks
 	 */
 
 	vpcmpeqd RNOT, RNOT, RNOT;
 
-	leaq (4*4*4)(%rdx), %rax;
-	read_blocks(%rdx, RA1, RB1, RC1, RD1, RK0, RK1, RK2);
-	read_blocks(%rax, RA2, RB2, RC2, RD2, RK0, RK1, RK2);
+	read_blocks(RA1, RB1, RC1, RD1, RK0, RK1, RK2);
+	read_blocks(RA2, RB2, RC2, RD2, RK0, RK1, RK2);
 
 						 K2(RA, RB, RC, RD, RE, 0);
 	S(S0, RA, RB, RC, RD, RE);		LK2(RC, RB, RD, RA, RE, 1);
@@ -630,38 +615,26 @@ __serpent_enc_blk_8way_avx:
 	S(S6, RA, RB, RD, RC, RE);		LK2(RD, RE, RB, RC, RA, 31);
 	S(S7, RD, RE, RB, RC, RA);		 K2(RA, RB, RC, RD, RE, 32);
 
-	leaq (4*4*4)(%rsi), %rax;
-
-	testb %cl, %cl;
-	jnz __enc_xor8;
-
-	write_blocks(%rsi, RA1, RB1, RC1, RD1, RK0, RK1, RK2);
-	write_blocks(%rax, RA2, RB2, RC2, RD2, RK0, RK1, RK2);
-
-	ret;
-
-__enc_xor8:
-	xor_blocks(%rsi, RA1, RB1, RC1, RD1, RK0, RK1, RK2);
-	xor_blocks(%rax, RA2, RB2, RC2, RD2, RK0, RK1, RK2);
+	write_blocks(RA1, RB1, RC1, RD1, RK0, RK1, RK2);
+	write_blocks(RA2, RB2, RC2, RD2, RK0, RK1, RK2);
 
 	ret;
 
 .align 8
-.global serpent_dec_blk_8way_avx
-.type   serpent_dec_blk_8way_avx,@function;
+.type   __serpent_dec_blk8_avx,@function;
 
-serpent_dec_blk_8way_avx:
+__serpent_dec_blk8_avx:
 	/* input:
 	 *	%rdi: ctx, CTX
-	 *	%rsi: dst
-	 *	%rdx: src
+	 *	RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2: encrypted blocks
+	 * output:
+	 *	RC1, RD1, RB1, RE1, RC2, RD2, RB2, RE2: decrypted blocks
 	 */
 
 	vpcmpeqd RNOT, RNOT, RNOT;
 
-	leaq (4*4*4)(%rdx), %rax;
-	read_blocks(%rdx, RA1, RB1, RC1, RD1, RK0, RK1, RK2);
-	read_blocks(%rax, RA2, RB2, RC2, RD2, RK0, RK1, RK2);
+	read_blocks(RA1, RB1, RC1, RD1, RK0, RK1, RK2);
+	read_blocks(RA2, RB2, RC2, RD2, RK0, RK1, RK2);
 
 						 K2(RA, RB, RC, RD, RE, 32);
 	SP(SI7, RA, RB, RC, RD, RE, 31);	KL2(RB, RD, RA, RE, RC, 31);
@@ -697,8 +670,85 @@ serpent_dec_blk_8way_avx:
 	SP(SI1, RD, RB, RC, RA, RE, 1);		KL2(RE, RB, RC, RA, RD, 1);
 	S(SI0, RE, RB, RC, RA, RD);		 K2(RC, RD, RB, RE, RA, 0);
 
-	leaq (4*4*4)(%rsi), %rax;
-	write_blocks(%rsi, RC1, RD1, RB1, RE1, RK0, RK1, RK2);
-	write_blocks(%rax, RC2, RD2, RB2, RE2, RK0, RK1, RK2);
+	write_blocks(RC1, RD1, RB1, RE1, RK0, RK1, RK2);
+	write_blocks(RC2, RD2, RB2, RE2, RK0, RK1, RK2);
+
+	ret;
+
+.align 8
+.global serpent_ecb_enc_8way_avx
+.type   serpent_ecb_enc_8way_avx,@function;
+
+serpent_ecb_enc_8way_avx:
+	/* input:
+	 *	%rdi: ctx, CTX
+	 *	%rsi: dst
+	 *	%rdx: src
+	 */
+
+	load_8way(%rdx, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
+
+	call __serpent_enc_blk8_avx;
+
+	store_8way(%rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
+
+	ret;
+
+.align 8
+.global serpent_ecb_dec_8way_avx
+.type   serpent_ecb_dec_8way_avx,@function;
+
+serpent_ecb_dec_8way_avx:
+	/* input:
+	 *	%rdi: ctx, CTX
+	 *	%rsi: dst
+	 *	%rdx: src
+	 */
+
+	load_8way(%rdx, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
+
+	call __serpent_dec_blk8_avx;
+
+	store_8way(%rsi, RC1, RD1, RB1, RE1, RC2, RD2, RB2, RE2);
+
+	ret;
+
+.align 8
+.global serpent_cbc_dec_8way_avx
+.type   serpent_cbc_dec_8way_avx,@function;
+
+serpent_cbc_dec_8way_avx:
+	/* input:
+	 *	%rdi: ctx, CTX
+	 *	%rsi: dst
+	 *	%rdx: src
+	 */
+
+	load_8way(%rdx, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
+
+	call __serpent_dec_blk8_avx;
+
+	store_cbc_8way(%rdx, %rsi, RC1, RD1, RB1, RE1, RC2, RD2, RB2, RE2);
+
+	ret;
+
+.align 8
+.global serpent_ctr_8way_avx
+.type   serpent_ctr_8way_avx,@function;
+
+serpent_ctr_8way_avx:
+	/* input:
+	 *	%rdi: ctx, CTX
+	 *	%rsi: dst
+	 *	%rdx: src
+	 *	%rcx: iv (little endian, 128bit)
+	 */
+
+	load_ctr_8way(%rcx, .Lbswap128_mask, RA1, RB1, RC1, RD1, RA2, RB2, RC2,
+		      RD2, RK0, RK1, RK2);
+
+	call __serpent_enc_blk8_avx;
+
+	store_ctr_8way(%rdx, %rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
 	ret;

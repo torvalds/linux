@@ -32,6 +32,8 @@
 
 #include <asm/cpufeature.h>
 #include <asm/cpu_device_id.h>
+#include <asm/i387.h>
+#include <asm/fpu-internal.h>
 
 #define CHKSUM_BLOCK_SIZE	1
 #define CHKSUM_DIGEST_SIZE	4
@@ -43,6 +45,31 @@
 #else
 #define REX_PRE
 #endif
+
+#ifdef CONFIG_X86_64
+/*
+ * use carryless multiply version of crc32c when buffer
+ * size is >= 512 (when eager fpu is enabled) or
+ * >= 1024 (when eager fpu is disabled) to account
+ * for fpu state save/restore overhead.
+ */
+#define CRC32C_PCL_BREAKEVEN_EAGERFPU	512
+#define CRC32C_PCL_BREAKEVEN_NOEAGERFPU	1024
+
+asmlinkage unsigned int crc_pcl(const u8 *buffer, int len,
+				unsigned int crc_init);
+static int crc32c_pcl_breakeven = CRC32C_PCL_BREAKEVEN_EAGERFPU;
+#if defined(X86_FEATURE_EAGER_FPU)
+#define set_pcl_breakeven_point()					\
+do {									\
+	if (!use_eager_fpu())						\
+		crc32c_pcl_breakeven = CRC32C_PCL_BREAKEVEN_NOEAGERFPU;	\
+} while (0)
+#else
+#define set_pcl_breakeven_point()					\
+	(crc32c_pcl_breakeven = CRC32C_PCL_BREAKEVEN_NOEAGERFPU)
+#endif
+#endif /* CONFIG_X86_64 */
 
 static u32 crc32c_intel_le_hw_byte(u32 crc, unsigned char const *data, size_t length)
 {
@@ -154,6 +181,52 @@ static int crc32c_intel_cra_init(struct crypto_tfm *tfm)
 	return 0;
 }
 
+#ifdef CONFIG_X86_64
+static int crc32c_pcl_intel_update(struct shash_desc *desc, const u8 *data,
+			       unsigned int len)
+{
+	u32 *crcp = shash_desc_ctx(desc);
+
+	/*
+	 * use faster PCL version if datasize is large enough to
+	 * overcome kernel fpu state save/restore overhead
+	 */
+	if (len >= crc32c_pcl_breakeven && irq_fpu_usable()) {
+		kernel_fpu_begin();
+		*crcp = crc_pcl(data, len, *crcp);
+		kernel_fpu_end();
+	} else
+		*crcp = crc32c_intel_le_hw(*crcp, data, len);
+	return 0;
+}
+
+static int __crc32c_pcl_intel_finup(u32 *crcp, const u8 *data, unsigned int len,
+				u8 *out)
+{
+	if (len >= crc32c_pcl_breakeven && irq_fpu_usable()) {
+		kernel_fpu_begin();
+		*(__le32 *)out = ~cpu_to_le32(crc_pcl(data, len, *crcp));
+		kernel_fpu_end();
+	} else
+		*(__le32 *)out =
+			~cpu_to_le32(crc32c_intel_le_hw(*crcp, data, len));
+	return 0;
+}
+
+static int crc32c_pcl_intel_finup(struct shash_desc *desc, const u8 *data,
+			      unsigned int len, u8 *out)
+{
+	return __crc32c_pcl_intel_finup(shash_desc_ctx(desc), data, len, out);
+}
+
+static int crc32c_pcl_intel_digest(struct shash_desc *desc, const u8 *data,
+			       unsigned int len, u8 *out)
+{
+	return __crc32c_pcl_intel_finup(crypto_shash_ctx(desc->tfm), data, len,
+				    out);
+}
+#endif /* CONFIG_X86_64 */
+
 static struct shash_alg alg = {
 	.setkey			=	crc32c_intel_setkey,
 	.init			=	crc32c_intel_init,
@@ -184,6 +257,14 @@ static int __init crc32c_intel_mod_init(void)
 {
 	if (!x86_match_cpu(crc32c_cpu_id))
 		return -ENODEV;
+#ifdef CONFIG_X86_64
+	if (cpu_has_pclmulqdq) {
+		alg.update = crc32c_pcl_intel_update;
+		alg.finup = crc32c_pcl_intel_finup;
+		alg.digest = crc32c_pcl_intel_digest;
+		set_pcl_breakeven_point();
+	}
+#endif
 	return crypto_register_shash(&alg);
 }
 
