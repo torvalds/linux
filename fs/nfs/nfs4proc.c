@@ -467,11 +467,19 @@ static int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *
 		 * The slot id we used was probably retired. Try again
 		 * using a different slot id.
 		 */
-		if (rpc_restart_call_prepare(task)) {
-			task->tk_status = 0;
-			ret = 0;
-		}
-		break;
+		goto retry_nowait;
+	case -NFS4ERR_SEQ_MISORDERED:
+		/*
+		 * Could this slot have been previously retired?
+		 * If so, then the server may be expecting seq_nr = 1!
+		 */
+		if (slot->seq_nr == 1)
+			break;
+		slot->seq_nr = 1;
+		goto retry_nowait;
+	case -NFS4ERR_SEQ_FALSE_RETRY:
+		++slot->seq_nr;
+		goto retry_nowait;
 	default:
 		/* Just update the slot sequence no. */
 		++slot->seq_nr;
@@ -481,6 +489,12 @@ out:
 	dprintk("%s: Error %d free the slot \n", __func__, res->sr_status);
 	nfs41_sequence_free_slot(res);
 	return ret;
+retry_nowait:
+	if (rpc_restart_call_prepare(task)) {
+		task->tk_status = 0;
+		ret = 0;
+	}
+	goto out;
 out_retry:
 	if (!rpc_restart_call(task))
 		goto out;
