@@ -177,6 +177,7 @@
 
 /* em2874 IR config register (0x50) */
 #define EM2874_IR_NEC           0x00
+#define EM2874_IR_NEC_NO_PARITY 0x01
 #define EM2874_IR_RC5           0x04
 #define EM2874_IR_RC6_MODE_0    0x08
 #define EM2874_IR_RC6_MODE_6A   0x0b
