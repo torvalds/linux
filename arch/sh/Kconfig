@@ -456,6 +456,7 @@ config CPU_SUBTYPE_SH7734
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select USB_ARCH_HAS_OHCI
 	select USB_ARCH_HAS_EHCI
+	select PINCTRL
 	help
 	  Select SH7734 if you have a SH4A SH7734 CPU.
 

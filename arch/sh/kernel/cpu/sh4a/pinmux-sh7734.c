@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/gpio.h>
 #include <linux/ioport.h>
+#include <cpu/pfc.h>
 #include <cpu/sh7734.h>
 
 #define CPU_32_PORT(fn, pfx, sfx)				\
@@ -2467,9 +2468,6 @@ static struct resource sh7734_pfc_resources[] = {
 static struct pinmux_info sh7734_pinmux_info = {
 	.name = "sh7734_pfc",
 
-	.resource = sh7734_pfc_resources,
-	.num_resources = ARRAY_SIZE(sh7734_pfc_resources),
-
 	.unlock_reg = 0xFFFC0000,
 
 	.reserved_id = PINMUX_RESERVED,
@@ -2492,6 +2490,8 @@ static struct pinmux_info sh7734_pinmux_info = {
 
 static int __init plat_pinmux_setup(void)
 {
-	return register_pinmux(&sh7734_pinmux_info);
+	return sh_pfc_register_info(NULL, sh7734_pfc_resources,
+				    ARRAY_SIZE(sh7734_pfc_resources),
+				    &sh7734_pinmux_info);
 }
 arch_initcall(plat_pinmux_setup);
