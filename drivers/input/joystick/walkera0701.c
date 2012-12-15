@@ -241,6 +241,7 @@ static int walkera0701_connect(struct walkera_dev *w, int parport)
 	w->input_dev->id.vendor = 0x0001;
 	w->input_dev->id.product = 0x0001;
 	w->input_dev->id.version = 0x0100;
+	w->input_dev->dev.parent = w->parport->dev;
 	w->input_dev->open = walkera0701_open;
 	w->input_dev->close = walkera0701_close;
 
