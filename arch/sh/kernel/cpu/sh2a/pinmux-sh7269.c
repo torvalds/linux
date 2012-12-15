@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/gpio.h>
+#include <cpu/pfc.h>
 #include <cpu/sh7269.h>
 
 enum {
@@ -2834,6 +2835,6 @@ static struct pinmux_info sh7269_pinmux_info = {
 
 static int __init plat_pinmux_setup(void)
 {
-	return register_pinmux(&sh7269_pinmux_info);
+	return sh_pfc_register_info(NULL, NULL, 0, &sh7269_pinmux_info);
 }
 arch_initcall(plat_pinmux_setup);
