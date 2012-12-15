@@ -734,7 +734,7 @@ static int ea_alloc_skeleton(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 	if (error)
 		return error;
 
-	error = gfs2_inplace_reserve(ip, blks);
+	error = gfs2_inplace_reserve(ip, blks, 0);
 	if (error)
 		goto out_gunlock_q;
 
