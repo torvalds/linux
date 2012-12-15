@@ -98,19 +98,12 @@ enum dss_range_param {
 	FEAT_PARAM_DSI_FCK,
 	FEAT_PARAM_DOWNSCALE,
 	FEAT_PARAM_LINEWIDTH,
-	FEAT_PARAM_MGR_WIDTH,
-	FEAT_PARAM_MGR_HEIGHT,
 };
 
 /* DSS Feature Functions */
-int dss_feat_get_num_mgrs(void);
-int dss_feat_get_num_ovls(void);
 int dss_feat_get_num_wbs(void);
 unsigned long dss_feat_get_param_min(enum dss_range_param param);
 unsigned long dss_feat_get_param_max(enum dss_range_param param);
-enum omap_display_type dss_feat_get_supported_displays(enum omap_channel channel);
-enum omap_dss_output_id dss_feat_get_supported_outputs(enum omap_channel channel);
-enum omap_color_mode dss_feat_get_supported_color_modes(enum omap_plane plane);
 enum omap_overlay_caps dss_feat_get_overlay_caps(enum omap_plane plane);
 bool dss_feat_color_mode_supported(enum omap_plane plane,
 		enum omap_color_mode color_mode);

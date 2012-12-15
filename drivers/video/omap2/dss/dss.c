@@ -32,6 +32,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/gfp.h>
+#include <linux/sizes.h>
 
 #include <video/omapdss.h>
 
@@ -76,6 +77,7 @@ static struct {
 
 	struct clk	*dpll4_m4_ck;
 	struct clk	*dss_clk;
+	unsigned long	dss_clk_rate;
 
 	unsigned long	cache_req_pck;
 	unsigned long	cache_prate;
@@ -96,6 +98,8 @@ static const char * const dss_generic_clk_source_names[] = {
 	[OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC]	= "DSI_PLL_HSDIV_DISPC",
 	[OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI]	= "DSI_PLL_HSDIV_DSI",
 	[OMAP_DSS_CLK_SRC_FCK]			= "DSS_FCK",
+	[OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC]	= "DSI_PLL2_HSDIV_DISPC",
+	[OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI]	= "DSI_PLL2_HSDIV_DSI",
 };
 
 static inline void dss_write_reg(const struct dss_reg idx, u32 val)
@@ -150,6 +154,21 @@ static void dss_restore_context(void)
 
 #undef SR
 #undef RR
+
+int dss_get_ctx_loss_count(void)
+{
+	struct omap_dss_board_info *board_data = dss.pdev->dev.platform_data;
+	int cnt;
+
+	if (!board_data->get_context_loss_count)
+		return -ENOENT;
+
+	cnt = board_data->get_context_loss_count(&dss.pdev->dev);
+
+	WARN_ONCE(cnt < 0, "get_context_loss_count failed: %d\n", cnt);
+
+	return cnt;
+}
 
 void dss_sdi_init(int datapairs)
 {
@@ -301,7 +320,7 @@ static void dss_dump_regs(struct seq_file *s)
 #undef DUMPREG
 }
 
-void dss_select_dispc_clk_source(enum omap_dss_clk_source clk_src)
+static void dss_select_dispc_clk_source(enum omap_dss_clk_source clk_src)
 {
 	struct platform_device *dsidev;
 	int b;
@@ -372,8 +391,10 @@ void dss_select_lcd_clk_source(enum omap_channel channel,
 	struct platform_device *dsidev;
 	int b, ix, pos;
 
-	if (!dss_has_feature(FEAT_LCD_CLK_SRC))
+	if (!dss_has_feature(FEAT_LCD_CLK_SRC)) {
+		dss_select_dispc_clk_source(clk_src);
 		return;
+	}
 
 	switch (clk_src) {
 	case OMAP_DSS_CLK_SRC_FCK:
@@ -429,6 +450,29 @@ enum omap_dss_clk_source dss_get_lcd_clk_source(enum omap_channel channel)
 	}
 }
 
+/* calculate clock rates using dividers in cinfo */
+int dss_calc_clock_rates(struct dss_clock_info *cinfo)
+{
+	if (dss.dpll4_m4_ck) {
+		unsigned long prate;
+
+		if (cinfo->fck_div > dss.feat->fck_div_max ||
+				cinfo->fck_div == 0)
+			return -EINVAL;
+
+		prate = clk_get_rate(clk_get_parent(dss.dpll4_m4_ck));
+
+		cinfo->fck = prate / cinfo->fck_div *
+			dss.feat->dss_fck_multiplier;
+	} else {
+		if (cinfo->fck_div != 0)
+			return -EINVAL;
+		cinfo->fck = clk_get_rate(dss.dss_clk);
+	}
+
+	return 0;
+}
+
 int dss_set_clock_div(struct dss_clock_info *cinfo)
 {
 	if (dss.dpll4_m4_ck) {
@@ -446,6 +490,10 @@ int dss_set_clock_div(struct dss_clock_info *cinfo)
 			return -EINVAL;
 	}
 
+	dss.dss_clk_rate = clk_get_rate(dss.dss_clk);
+
+	WARN_ONCE(dss.dss_clk_rate != cinfo->fck, "clk rate mismatch");
+
 	DSSDBG("fck = %ld (%d)\n", cinfo->fck, cinfo->fck_div);
 
 	return 0;
@@ -457,6 +505,41 @@ unsigned long dss_get_dpll4_rate(void)
 		return clk_get_rate(clk_get_parent(dss.dpll4_m4_ck));
 	else
 		return 0;
+}
+
+unsigned long dss_get_dispc_clk_rate(void)
+{
+	return dss.dss_clk_rate;
+}
+
+static int dss_setup_default_clock(void)
+{
+	unsigned long max_dss_fck, prate;
+	unsigned fck_div;
+	struct dss_clock_info dss_cinfo = { 0 };
+	int r;
+
+	if (dss.dpll4_m4_ck == NULL)
+		return 0;
+
+	max_dss_fck = dss_feat_get_param_max(FEAT_PARAM_DSS_FCK);
+
+	prate = dss_get_dpll4_rate();
+
+	fck_div = DIV_ROUND_UP(prate * dss.feat->dss_fck_multiplier,
+			max_dss_fck);
+
+	dss_cinfo.fck_div = fck_div;
+
+	r = dss_calc_clock_rates(&dss_cinfo);
+	if (r)
+		return r;
+
+	r = dss_set_clock_div(&dss_cinfo);
+	if (r)
+		return r;
+
+	return 0;
 }
 
 int dss_calc_clock_div(unsigned long req_pck, struct dss_clock_info *dss_cinfo,
@@ -748,7 +831,7 @@ static void dss_runtime_put(void)
 }
 
 /* DEBUGFS */
-#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_OMAP2_DSS_DEBUG_SUPPORT)
+#if defined(CONFIG_OMAP2_DSS_DEBUGFS)
 void dss_debug_dump_clocks(struct seq_file *s)
 {
 	dss_dump_clocks(s);
@@ -796,7 +879,6 @@ static const struct dss_features omap54xx_dss_feats __initconst = {
 
 static int __init dss_init_features(struct platform_device *pdev)
 {
-	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	const struct dss_features *src;
 	struct dss_features *dst;
 
@@ -806,7 +888,7 @@ static int __init dss_init_features(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	switch (pdata->version) {
+	switch (omapdss_get_version()) {
 	case OMAPDSS_VER_OMAP24xx:
 		src = &omap24xx_dss_feats;
 		break;
@@ -871,14 +953,22 @@ static int __init omap_dsshw_probe(struct platform_device *pdev)
 	if (r)
 		return r;
 
+	r = dss_setup_default_clock();
+	if (r)
+		goto err_setup_clocks;
+
 	pm_runtime_enable(&pdev->dev);
 
 	r = dss_runtime_get();
 	if (r)
 		goto err_runtime_get;
 
+	dss.dss_clk_rate = clk_get_rate(dss.dss_clk);
+
 	/* Select DPLL */
 	REG_FLD_MOD(DSS_CONTROL, 0, 0, 0);
+
+	dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
 
 #ifdef CONFIG_OMAP2_DSS_VENC
 	REG_FLD_MOD(DSS_CONTROL, 1, 4, 4);	/* venc dac demen */
@@ -903,6 +993,7 @@ static int __init omap_dsshw_probe(struct platform_device *pdev)
 
 err_runtime_get:
 	pm_runtime_disable(&pdev->dev);
+err_setup_clocks:
 	dss_put_clocks();
 	return r;
 }
