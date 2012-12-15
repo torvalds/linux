@@ -19,7 +19,6 @@ struct nfs4_slot {
 	struct nfs4_slot_table	*table;
 	struct nfs4_slot	*next;
 	unsigned long		generation;
-	unsigned long		renewal_time;
 	u32			slot_nr;
 	u32		 	seq_nr;
 };

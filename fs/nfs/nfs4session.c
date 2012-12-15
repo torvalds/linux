@@ -143,7 +143,6 @@ struct nfs4_slot *nfs4_alloc_slot(struct nfs4_slot_table *tbl)
 	if (slotid > tbl->highest_used_slotid ||
 			tbl->highest_used_slotid == NFS4_NO_SLOT)
 		tbl->highest_used_slotid = slotid;
-	ret->renewal_time = jiffies;
 	ret->generation = tbl->generation;
 
 out:
@@ -228,9 +227,9 @@ static bool nfs41_assign_slot(struct rpc_task *task, void *pslot)
 
 	if (nfs4_session_draining(tbl->session) && !args->sa_privileged)
 		return false;
-	slot->renewal_time = jiffies;
 	slot->generation = tbl->generation;
 	args->sa_slot = slot;
+	res->sr_timestamp = jiffies;
 	res->sr_slot = slot;
 	res->sr_status_flags = 0;
 	res->sr_status = 1;

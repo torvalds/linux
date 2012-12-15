@@ -419,7 +419,6 @@ static int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *
 {
 	struct nfs4_session *session;
 	struct nfs4_slot *slot;
-	unsigned long timestamp;
 	struct nfs_client *clp;
 	int ret = 1;
 
@@ -444,9 +443,8 @@ static int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *
 	case 0:
 		/* Update the slot's sequence and clientid lease timer */
 		++slot->seq_nr;
-		timestamp = slot->renewal_time;
 		clp = session->clp;
-		do_renew_lease(clp, timestamp);
+		do_renew_lease(clp, res->sr_timestamp);
 		/* Check sequence flags */
 		if (res->sr_status_flags != 0)
 			nfs4_schedule_lease_recovery(clp);
@@ -473,10 +471,11 @@ static int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *
 		 * Could this slot have been previously retired?
 		 * If so, then the server may be expecting seq_nr = 1!
 		 */
-		if (slot->seq_nr == 1)
-			break;
-		slot->seq_nr = 1;
-		goto retry_nowait;
+		if (slot->seq_nr != 1) {
+			slot->seq_nr = 1;
+			goto retry_nowait;
+		}
+		break;
 	case -NFS4ERR_SEQ_FALSE_RETRY:
 		++slot->seq_nr;
 		goto retry_nowait;
@@ -567,6 +566,7 @@ int nfs41_setup_sequence(struct nfs4_session *session,
 			slot->slot_nr, slot->seq_nr);
 
 	res->sr_slot = slot;
+	res->sr_timestamp = jiffies;
 	res->sr_status_flags = 0;
 	/*
 	 * sr_status is only set in decode_sequence, and so will remain
