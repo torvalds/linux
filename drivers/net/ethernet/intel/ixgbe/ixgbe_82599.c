@@ -234,13 +234,13 @@ static s32 ixgbe_init_phy_ops_82599(struct ixgbe_hw *hw)
  *  ixgbe_get_link_capabilities_82599 - Determines link capabilities
  *  @hw: pointer to hardware structure
  *  @speed: pointer to link speed
- *  @negotiation: true when autoneg or autotry is enabled
+ *  @autoneg: true when autoneg or autotry is enabled
  *
  *  Determines the link capabilities by reading the AUTOC register.
  **/
 static s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
                                              ixgbe_link_speed *speed,
-                                             bool *negotiation)
+					     bool *autoneg)
 {
 	s32 status = 0;
 	u32 autoc = 0;
@@ -251,7 +251,7 @@ static s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
 	    hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core0 ||
 	    hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core1) {
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;
-		*negotiation = true;
+		*autoneg = true;
 		goto out;
 	}
 
@@ -268,22 +268,22 @@ static s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
 	switch (autoc & IXGBE_AUTOC_LMS_MASK) {
 	case IXGBE_AUTOC_LMS_1G_LINK_NO_AN:
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;
-		*negotiation = false;
+		*autoneg = false;
 		break;
 
 	case IXGBE_AUTOC_LMS_10G_LINK_NO_AN:
 		*speed = IXGBE_LINK_SPEED_10GB_FULL;
-		*negotiation = false;
+		*autoneg = false;
 		break;
 
 	case IXGBE_AUTOC_LMS_1G_AN:
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;
-		*negotiation = true;
+		*autoneg = true;
 		break;
 
 	case IXGBE_AUTOC_LMS_10G_SERIAL:
 		*speed = IXGBE_LINK_SPEED_10GB_FULL;
-		*negotiation = false;
+		*autoneg = false;
 		break;
 
 	case IXGBE_AUTOC_LMS_KX4_KX_KR:
@@ -295,7 +295,7 @@ static s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
 			*speed |= IXGBE_LINK_SPEED_10GB_FULL;
 		if (autoc & IXGBE_AUTOC_KX_SUPP)
 			*speed |= IXGBE_LINK_SPEED_1GB_FULL;
-		*negotiation = true;
+		*autoneg = true;
 		break;
 
 	case IXGBE_AUTOC_LMS_KX4_KX_KR_SGMII:
@@ -306,12 +306,12 @@ static s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
 			*speed |= IXGBE_LINK_SPEED_10GB_FULL;
 		if (autoc & IXGBE_AUTOC_KX_SUPP)
 			*speed |= IXGBE_LINK_SPEED_1GB_FULL;
-		*negotiation = true;
+		*autoneg = true;
 		break;
 
 	case IXGBE_AUTOC_LMS_SGMII_1G_100M:
 		*speed = IXGBE_LINK_SPEED_1GB_FULL | IXGBE_LINK_SPEED_100_FULL;
-		*negotiation = false;
+		*autoneg = false;
 		break;
 
 	default:
@@ -323,7 +323,7 @@ static s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
 	if (hw->phy.multispeed_fiber) {
 		*speed |= IXGBE_LINK_SPEED_10GB_FULL |
 		          IXGBE_LINK_SPEED_1GB_FULL;
-		*negotiation = true;
+		*autoneg = true;
 	}
 
 out:
@@ -527,11 +527,10 @@ static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 	u32 esdp_reg = IXGBE_READ_REG(hw, IXGBE_ESDP);
 	u32 i = 0;
 	bool link_up = false;
-	bool negotiation;
 
 	/* Mask off requested but non-supported speeds */
 	status = hw->mac.ops.get_link_capabilities(hw, &link_speed,
-						   &negotiation);
+						   &autoneg);
 	if (status != 0)
 		return status;
 
