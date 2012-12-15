@@ -243,7 +243,7 @@ static ssize_t netxbig_led_sata_store(struct device *dev,
 	int mode_val;
 	int ret;
 
-	ret = strict_strtoul(buff, 10, &enable);
+	ret = kstrtoul(buff, 10, &enable);
 	if (ret < 0)
 		return ret;
 

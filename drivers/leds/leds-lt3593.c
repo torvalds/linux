@@ -89,14 +89,10 @@ static int create_lt3593_led(const struct gpio_led *template,
 
 	/* skip leds on GPIOs that aren't available */
 	if (!gpio_is_valid(template->gpio)) {
-		printk(KERN_INFO "%s: skipping unavailable LT3593 LED at gpio %d (%s)\n",
+		dev_info(parent, "%s: skipping unavailable LT3593 LED at gpio %d (%s)\n",
 				KBUILD_MODNAME, template->gpio, template->name);
 		return 0;
 	}
-
-	ret = gpio_request(template->gpio, template->name);
-	if (ret < 0)
-		return ret;
 
 	led_dat->cdev.name = template->name;
 	led_dat->cdev.default_trigger = template->default_trigger;
@@ -110,24 +106,21 @@ static int create_lt3593_led(const struct gpio_led *template,
 	if (!template->retain_state_suspended)
 		led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
 
-	ret = gpio_direction_output(led_dat->gpio, state);
+	ret = devm_gpio_request_one(parent, template->gpio,
+				    GPIOF_DIR_OUT | state, template->name);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	INIT_WORK(&led_dat->work, lt3593_led_work);
 
 	ret = led_classdev_register(parent, &led_dat->cdev);
 	if (ret < 0)
-		goto err;
+		return ret;
 
-	printk(KERN_INFO "%s: registered LT3593 LED '%s' at GPIO %d\n",
+	dev_info(parent, "%s: registered LT3593 LED '%s' at GPIO %d\n",
 		KBUILD_MODNAME, template->name, template->gpio);
 
 	return 0;
-
-err:
-	gpio_free(led_dat->gpio);
-	return ret;
 }
 
 static void delete_lt3593_led(struct lt3593_led_data *led)
@@ -137,7 +130,6 @@ static void delete_lt3593_led(struct lt3593_led_data *led)
 
 	led_classdev_unregister(&led->cdev);
 	cancel_work_sync(&led->work);
-	gpio_free(led->gpio);
 }
 
 static int lt3593_led_probe(struct platform_device *pdev)
