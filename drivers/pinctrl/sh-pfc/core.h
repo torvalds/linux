@@ -25,7 +25,7 @@ struct sh_pfc_pinctrl;
 
 struct sh_pfc {
 	struct device *dev;
-	struct sh_pfc_platform_data *pdata;
+	struct sh_pfc_soc_info *info;
 	spinlock_t lock;
 
 	unsigned int num_windows;

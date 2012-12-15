@@ -88,7 +88,7 @@ struct pinmux_range {
 	pinmux_enum_t force;
 };
 
-struct sh_pfc_platform_data {
+struct sh_pfc_soc_info {
 	char *name;
 	pinmux_enum_t reserved_id;
 	struct pinmux_range data;
@@ -115,7 +115,7 @@ struct sh_pfc_platform_data {
 };
 
 /* XXX compat for now */
-#define pinmux_info sh_pfc_platform_data
+#define pinmux_info sh_pfc_soc_info
 
 enum { GPIO_CFG_DRYRUN, GPIO_CFG_REQ, GPIO_CFG_FREE };
 

@@ -140,7 +140,7 @@ static int sh_pfc_reconfig_pin(struct sh_pfc *pfc, unsigned offset,
 
 	spin_lock_irqsave(&pfc->lock, flags);
 
-	pinmux_type = pfc->pdata->gpios[offset].flags & PINMUX_FLAG_TYPE;
+	pinmux_type = pfc->info->gpios[offset].flags & PINMUX_FLAG_TYPE;
 
 	/*
 	 * See if the present config needs to first be de-configured.
@@ -172,8 +172,8 @@ static int sh_pfc_reconfig_pin(struct sh_pfc *pfc, unsigned offset,
 			       GPIO_CFG_REQ) != 0)
 		goto err;
 
-	pfc->pdata->gpios[offset].flags &= ~PINMUX_FLAG_TYPE;
-	pfc->pdata->gpios[offset].flags |= new_type;
+	pfc->info->gpios[offset].flags &= ~PINMUX_FLAG_TYPE;
+	pfc->info->gpios[offset].flags |= new_type;
 
 	ret = 0;
 
@@ -195,7 +195,7 @@ static int sh_pfc_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 	spin_lock_irqsave(&pfc->lock, flags);
 
-	pinmux_type = pfc->pdata->gpios[offset].flags & PINMUX_FLAG_TYPE;
+	pinmux_type = pfc->info->gpios[offset].flags & PINMUX_FLAG_TYPE;
 
 	switch (pinmux_type) {
 	case PINMUX_TYPE_FUNCTION:
@@ -236,7 +236,7 @@ static void sh_pfc_gpio_disable_free(struct pinctrl_dev *pctldev,
 
 	spin_lock_irqsave(&pfc->lock, flags);
 
-	pinmux_type = pfc->pdata->gpios[offset].flags & PINMUX_FLAG_TYPE;
+	pinmux_type = pfc->info->gpios[offset].flags & PINMUX_FLAG_TYPE;
 
 	sh_pfc_config_gpio(pfc, offset, pinmux_type, GPIO_CFG_FREE);
 
@@ -270,7 +270,7 @@ static int sh_pfc_pinconf_get(struct pinctrl_dev *pctldev, unsigned pin,
 	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
 	struct sh_pfc *pfc = pmx->pfc;
 
-	*config = pfc->pdata->gpios[pin].flags & PINMUX_FLAG_TYPE;
+	*config = pfc->info->gpios[pin].flags & PINMUX_FLAG_TYPE;
 
 	return 0;
 }
@@ -354,7 +354,7 @@ static int sh_pfc_map_gpios(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 	unsigned long flags;
 	int i;
 
-	pmx->nr_pads = pfc->pdata->last_gpio - pfc->pdata->first_gpio + 1;
+	pmx->nr_pads = pfc->info->last_gpio - pfc->info->first_gpio + 1;
 
 	pmx->pads = devm_kzalloc(pfc->dev, sizeof(*pmx->pads) * pmx->nr_pads,
 				 GFP_KERNEL);
@@ -373,9 +373,9 @@ static int sh_pfc_map_gpios(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 	 */
 	for (i = 0; i < pmx->nr_pads; i++) {
 		struct pinctrl_pin_desc *pin = pmx->pads + i;
-		struct pinmux_gpio *gpio = pfc->pdata->gpios + i;
+		struct pinmux_gpio *gpio = pfc->info->gpios + i;
 
-		pin->number = pfc->pdata->first_gpio + i;
+		pin->number = pfc->info->first_gpio + i;
 		pin->name = gpio->name;
 
 		/* XXX */
@@ -406,7 +406,7 @@ static int sh_pfc_map_functions(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 	spin_lock_irqsave(&pmx->lock, flags);
 
 	for (i = fn = 0; i < pmx->nr_pads; i++) {
-		struct pinmux_gpio *gpio = pfc->pdata->gpios + i;
+		struct pinmux_gpio *gpio = pfc->info->gpios + i;
 
 		if ((gpio->flags & PINMUX_FLAG_TYPE) == PINMUX_TYPE_FUNCTION)
 			pmx->functions[fn++] = gpio;
@@ -443,10 +443,10 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 	if (IS_ERR(pmx->pctl))
 		return PTR_ERR(pmx->pctl);
 
-	sh_pfc_gpio_range.npins = pfc->pdata->last_gpio
-				- pfc->pdata->first_gpio + 1;
-	sh_pfc_gpio_range.base = pfc->pdata->first_gpio;
-	sh_pfc_gpio_range.pin_base = pfc->pdata->first_gpio;
+	sh_pfc_gpio_range.npins = pfc->info->last_gpio
+				- pfc->info->first_gpio + 1;
+	sh_pfc_gpio_range.base = pfc->info->first_gpio;
+	sh_pfc_gpio_range.pin_base = pfc->info->first_gpio;
 
 	pinctrl_add_gpio_range(pmx->pctl, &sh_pfc_gpio_range);
 

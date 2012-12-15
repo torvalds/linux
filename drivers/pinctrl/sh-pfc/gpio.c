@@ -106,11 +106,11 @@ static int sh_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 		if (pos <= 0 || !enum_id)
 			break;
 
-		for (i = 0; i < pfc->pdata->gpio_irq_size; i++) {
-			enum_ids = pfc->pdata->gpio_irq[i].enum_ids;
+		for (i = 0; i < pfc->info->gpio_irq_size; i++) {
+			enum_ids = pfc->info->gpio_irq[i].enum_ids;
 			for (k = 0; enum_ids[k]; k++) {
 				if (enum_ids[k] == enum_id)
-					return pfc->pdata->gpio_irq[i].irq;
+					return pfc->info->gpio_irq[i].irq;
 			}
 		}
 	}
@@ -131,12 +131,12 @@ static void sh_pfc_gpio_setup(struct sh_pfc_chip *chip)
 	gc->set = sh_gpio_set;
 	gc->to_irq = sh_gpio_to_irq;
 
-	WARN_ON(pfc->pdata->first_gpio != 0); /* needs testing */
+	WARN_ON(pfc->info->first_gpio != 0); /* needs testing */
 
-	gc->label = pfc->pdata->name;
+	gc->label = pfc->info->name;
 	gc->owner = THIS_MODULE;
-	gc->base = pfc->pdata->first_gpio;
-	gc->ngpio = (pfc->pdata->last_gpio - pfc->pdata->first_gpio) + 1;
+	gc->base = pfc->info->first_gpio;
+	gc->ngpio = (pfc->info->last_gpio - pfc->info->first_gpio) + 1;
 }
 
 int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
@@ -159,8 +159,8 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 	pfc->gpio = chip;
 
 	pr_info("%s handling gpio %d -> %d\n",
-		pfc->pdata->name, pfc->pdata->first_gpio,
-		pfc->pdata->last_gpio);
+		pfc->info->name, pfc->info->first_gpio,
+		pfc->info->last_gpio);
 
 	return 0;
 }
