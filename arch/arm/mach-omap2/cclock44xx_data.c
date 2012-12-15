@@ -365,6 +365,15 @@ static struct dpll_data dpll_iva_dd = {
 
 static struct clk dpll_iva_ck;
 
+static const struct clk_ops dpll_ck_ops = {
+	.enable		= &omap3_noncore_dpll_enable,
+	.disable	= &omap3_noncore_dpll_disable,
+	.recalc_rate	= &omap3_dpll_recalc,
+	.round_rate	= &omap2_dpll_round_rate,
+	.set_rate	= &omap3_noncore_dpll_set_rate,
+	.get_parent	= &omap2_init_dpll_parent,
+};
+
 static struct clk_hw_omap dpll_iva_ck_hw = {
 	.hw = {
 		.clk = &dpll_iva_ck,
@@ -373,7 +382,7 @@ static struct clk_hw_omap dpll_iva_ck_hw = {
 	.ops		= &clkhwops_omap3_dpll,
 };
 
-DEFINE_STRUCT_CLK(dpll_iva_ck, dpll_core_ck_parents, dpll_abe_ck_ops);
+DEFINE_STRUCT_CLK(dpll_iva_ck, dpll_core_ck_parents, dpll_ck_ops);
 
 static const char *dpll_iva_x2_ck_parents[] = {
 	"dpll_iva_ck",
@@ -426,7 +435,7 @@ static struct clk_hw_omap dpll_mpu_ck_hw = {
 	.ops		= &clkhwops_omap3_dpll,
 };
 
-DEFINE_STRUCT_CLK(dpll_mpu_ck, dpll_core_ck_parents, dpll_abe_ck_ops);
+DEFINE_STRUCT_CLK(dpll_mpu_ck, dpll_core_ck_parents, dpll_ck_ops);
 
 DEFINE_CLK_FIXED_FACTOR(mpu_periphclk, "dpll_mpu_ck", &dpll_mpu_ck, 0x0, 1, 2);
 
@@ -475,7 +484,7 @@ static struct clk_hw_omap dpll_per_ck_hw = {
 	.ops		= &clkhwops_omap3_dpll,
 };
 
-DEFINE_STRUCT_CLK(dpll_per_ck, dpll_core_ck_parents, dpll_abe_ck_ops);
+DEFINE_STRUCT_CLK(dpll_per_ck, dpll_core_ck_parents, dpll_ck_ops);
 
 DEFINE_CLK_DIVIDER(dpll_per_m2_ck, "dpll_per_ck", &dpll_per_ck, 0x0,
 		   OMAP4430_CM_DIV_M2_DPLL_PER, OMAP4430_DPLL_CLKOUT_DIV_SHIFT,
@@ -569,7 +578,7 @@ static struct clk_hw_omap dpll_usb_ck_hw = {
 	.ops		= &clkhwops_omap3_dpll,
 };
 
-DEFINE_STRUCT_CLK(dpll_usb_ck, dpll_core_ck_parents, dpll_abe_ck_ops);
+DEFINE_STRUCT_CLK(dpll_usb_ck, dpll_core_ck_parents, dpll_ck_ops);
 
 static const char *dpll_usb_clkdcoldo_ck_parents[] = {
 	"dpll_usb_ck",
