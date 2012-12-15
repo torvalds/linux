@@ -917,6 +917,7 @@ struct drm_radeon_gem_va {
 /* The second dword of RADEON_CHUNK_ID_FLAGS is a uint32 that sets the ring type */
 #define RADEON_CS_RING_GFX          0
 #define RADEON_CS_RING_COMPUTE      1
+#define RADEON_CS_RING_DMA          2
 /* The third dword of RADEON_CHUNK_ID_FLAGS is a sint32 that sets the priority */
 /* 0 = normal, + = higher priority, - = lower priority */
 

@@ -839,6 +839,7 @@ struct radeon_cs_parser {
 	struct radeon_cs_reloc	*relocs;
 	struct radeon_cs_reloc	**relocs_ptr;
 	struct list_head	validated;
+	unsigned		dma_reloc_idx;
 	/* indices of various chunks */
 	int			chunk_ib_idx;
 	int			chunk_relocs_idx;
@@ -1556,6 +1557,8 @@ struct radeon_device {
 	/* Register mmio */
 	resource_size_t			rmmio_base;
 	resource_size_t			rmmio_size;
+	/* protects concurrent MM_INDEX/DATA based register access */
+	spinlock_t mmio_idx_lock;
 	void __iomem			*rmmio;
 	radeon_rreg_t			mc_rreg;
 	radeon_wreg_t			mc_wreg;
@@ -1631,8 +1634,10 @@ int radeon_device_init(struct radeon_device *rdev,
 void radeon_device_fini(struct radeon_device *rdev);
 int radeon_gpu_wait_for_idle(struct radeon_device *rdev);
 
-uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg);
-void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
+uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg,
+		      bool always_indirect);
+void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v,
+		  bool always_indirect);
 u32 r100_io_rreg(struct radeon_device *rdev, u32 reg);
 void r100_io_wreg(struct radeon_device *rdev, u32 reg, u32 v);
 
@@ -1648,9 +1653,11 @@ void r100_io_wreg(struct radeon_device *rdev, u32 reg, u32 v);
 #define WREG8(reg, v) writeb(v, (rdev->rmmio) + (reg))
 #define RREG16(reg) readw((rdev->rmmio) + (reg))
 #define WREG16(reg, v) writew(v, (rdev->rmmio) + (reg))
-#define RREG32(reg) r100_mm_rreg(rdev, (reg))
-#define DREG32(reg) printk(KERN_INFO "REGISTER: " #reg " : 0x%08X\n", r100_mm_rreg(rdev, (reg)))
-#define WREG32(reg, v) r100_mm_wreg(rdev, (reg), (v))
+#define RREG32(reg) r100_mm_rreg(rdev, (reg), false)
+#define RREG32_IDX(reg) r100_mm_rreg(rdev, (reg), true)
+#define DREG32(reg) printk(KERN_INFO "REGISTER: " #reg " : 0x%08X\n", r100_mm_rreg(rdev, (reg), false))
+#define WREG32(reg, v) r100_mm_wreg(rdev, (reg), (v), false)
+#define WREG32_IDX(reg, v) r100_mm_wreg(rdev, (reg), (v), true)
 #define REG_SET(FIELD, v) (((v) << FIELD##_SHIFT) & FIELD##_MASK)
 #define REG_GET(FIELD, v) (((v) << FIELD##_SHIFT) & FIELD##_MASK)
 #define RREG32_PLL(reg) rdev->pll_rreg(rdev, (reg))
@@ -1675,7 +1682,7 @@ void r100_io_wreg(struct radeon_device *rdev, u32 reg, u32 v);
 		tmp_ |= ((val) & ~(mask));			\
 		WREG32_PLL(reg, tmp_);				\
 	} while (0)
-#define DREG32_SYS(sqf, rdev, reg) seq_printf((sqf), #reg " : 0x%08X\n", r100_mm_rreg((rdev), (reg)))
+#define DREG32_SYS(sqf, rdev, reg) seq_printf((sqf), #reg " : 0x%08X\n", r100_mm_rreg((rdev), (reg), false))
 #define RREG32_IO(reg) r100_io_rreg(rdev, (reg))
 #define WREG32_IO(reg, v) r100_io_wreg(rdev, (reg), (v))
 

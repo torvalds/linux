@@ -304,6 +304,7 @@ void r600_pcie_gart_tlb_flush(struct radeon_device *rdev);
 uint32_t r600_pciep_rreg(struct radeon_device *rdev, uint32_t reg);
 void r600_pciep_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 int r600_cs_parse(struct radeon_cs_parser *p);
+int r600_dma_cs_parse(struct radeon_cs_parser *p);
 void r600_fence_ring_emit(struct radeon_device *rdev,
 			  struct radeon_fence *fence);
 void r600_semaphore_ring_emit(struct radeon_device *rdev,
@@ -430,6 +431,7 @@ u32 evergreen_get_vblank_counter(struct radeon_device *rdev, int crtc);
 int evergreen_irq_set(struct radeon_device *rdev);
 int evergreen_irq_process(struct radeon_device *rdev);
 extern int evergreen_cs_parse(struct radeon_cs_parser *p);
+extern int evergreen_dma_cs_parse(struct radeon_cs_parser *p);
 extern void evergreen_pm_misc(struct radeon_device *rdev);
 extern void evergreen_pm_prepare(struct radeon_device *rdev);
 extern void evergreen_pm_finish(struct radeon_device *rdev);
@@ -471,6 +473,7 @@ void cayman_vm_set_page(struct radeon_device *rdev, uint64_t pe,
 			uint64_t addr, unsigned count,
 			uint32_t incr, uint32_t flags);
 int evergreen_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib);
+int evergreen_dma_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib);
 void cayman_dma_ring_ib_execute(struct radeon_device *rdev,
 				struct radeon_ib *ib);
 bool cayman_dma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring);

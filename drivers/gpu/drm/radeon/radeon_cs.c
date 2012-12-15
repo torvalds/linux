@@ -43,6 +43,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		return 0;
 	}
 	chunk = &p->chunks[p->chunk_relocs_idx];
+	p->dma_reloc_idx = 0;
 	/* FIXME: we assume that each relocs use 4 dwords */
 	p->nrelocs = chunk->length_dw / 4;
 	p->relocs_ptr = kcalloc(p->nrelocs, sizeof(void *), GFP_KERNEL);
@@ -110,6 +111,18 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 				p->ring = CAYMAN_RING_TYPE_CP2_INDEX;
 		} else
 			p->ring = RADEON_RING_TYPE_GFX_INDEX;
+		break;
+	case RADEON_CS_RING_DMA:
+		if (p->rdev->family >= CHIP_CAYMAN) {
+			if (p->priority > 0)
+				p->ring = R600_RING_TYPE_DMA_INDEX;
+			else
+				p->ring = CAYMAN_RING_TYPE_DMA1_INDEX;
+		} else if (p->rdev->family >= CHIP_R600) {
+			p->ring = R600_RING_TYPE_DMA_INDEX;
+		} else {
+			return -EINVAL;
+		}
 		break;
 	}
 	return 0;
