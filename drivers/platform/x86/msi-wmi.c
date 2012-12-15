@@ -60,6 +60,8 @@ static struct key_entry msi_wmi_keymap[] = {
 };
 static ktime_t last_pressed[ARRAY_SIZE(msi_wmi_keymap) - 1];
 
+static const char *event_wmi_guid;
+
 static struct backlight_device *backlight;
 
 static int backlight_map[] = { 0x00, 0x33, 0x66, 0x99, 0xCC, 0xFF };
@@ -184,7 +186,7 @@ static void msi_wmi_notify(u32 value, void *context)
 
 			if (key->type == KE_KEY &&
 			/* Brightness is served via acpi video driver */
-			(!acpi_video_backlight_support() ||
+			(backlight ||
 			(key->code != MSI_KEY_BRIGHTNESSUP &&
 			key->code != MSI_KEY_BRIGHTNESSDOWN))) {
 				pr_debug("Send key: 0x%X - "
@@ -200,6 +202,31 @@ static void msi_wmi_notify(u32 value, void *context)
 
 msi_wmi_notify_exit:
 	kfree(response.pointer);
+}
+
+static int __init msi_wmi_backlight_setup(void)
+{
+	int err;
+	struct backlight_properties props;
+
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_PLATFORM;
+	props.max_brightness = ARRAY_SIZE(backlight_map) - 1;
+	backlight = backlight_device_register(DRV_NAME, NULL, NULL,
+					      &msi_backlight_ops,
+					      &props);
+	if (IS_ERR(backlight))
+		return PTR_ERR(backlight);
+
+	err = bl_get(NULL);
+	if (err < 0) {
+		backlight_device_unregister(backlight);
+		return err;
+	}
+
+	backlight->props.brightness = err;
+
+	return 0;
 }
 
 static int __init msi_wmi_input_setup(void)
@@ -238,60 +265,60 @@ static int __init msi_wmi_init(void)
 {
 	int err;
 
-	if (!wmi_has_guid(MSIWMI_EVENT_GUID)) {
-		pr_err("This machine doesn't have MSI-hotkeys through WMI\n");
-		return -ENODEV;
-	}
-	err = wmi_install_notify_handler(MSIWMI_EVENT_GUID,
+	if (wmi_has_guid(MSIWMI_EVENT_GUID)) {
+		err = msi_wmi_input_setup();
+		if (err) {
+			pr_err("Unable to setup input device\n");
+			return err;
+		}
+
+		err = wmi_install_notify_handler(MSIWMI_EVENT_GUID,
 			msi_wmi_notify, NULL);
-	if (ACPI_FAILURE(err))
-		return -EINVAL;
-
-	err = msi_wmi_input_setup();
-	if (err)
-		goto err_uninstall_notifier;
-
-	if (!acpi_video_backlight_support()) {
-		struct backlight_properties props;
-		memset(&props, 0, sizeof(struct backlight_properties));
-		props.type = BACKLIGHT_PLATFORM;
-		props.max_brightness = ARRAY_SIZE(backlight_map) - 1;
-		backlight = backlight_device_register(DRV_NAME, NULL, NULL,
-						      &msi_backlight_ops,
-						      &props);
-		if (IS_ERR(backlight)) {
-			err = PTR_ERR(backlight);
+		if (ACPI_FAILURE(err)) {
+			pr_err("Unable to setup WMI notify handler\n");
 			goto err_free_input;
 		}
 
-		err = bl_get(NULL);
-		if (err < 0)
-			goto err_free_backlight;
-
-		backlight->props.brightness = err;
+		pr_debug("Event handler installed\n");
+		event_wmi_guid = MSIWMI_EVENT_GUID;
 	}
-	pr_debug("Event handler installed\n");
+
+	if (wmi_has_guid(MSIWMI_BIOS_GUID) && !acpi_video_backlight_support()) {
+		err = msi_wmi_backlight_setup();
+		if (err) {
+			pr_err("Unable to setup backlight device\n");
+			goto err_uninstall_handler;
+		}
+		pr_debug("Backlight device created\n");
+	}
+
+	if (!event_wmi_guid && !backlight) {
+		pr_err("This machine doesn't have neither MSI-hotkeys nor backlight through WMI\n");
+		return -ENODEV;
+	}
 
 	return 0;
 
-err_free_backlight:
-	backlight_device_unregister(backlight);
+err_uninstall_handler:
+	if (event_wmi_guid)
+		wmi_remove_notify_handler(event_wmi_guid);
 err_free_input:
-	sparse_keymap_free(msi_wmi_input_dev);
-	input_unregister_device(msi_wmi_input_dev);
-err_uninstall_notifier:
-	wmi_remove_notify_handler(MSIWMI_EVENT_GUID);
+	if (event_wmi_guid) {
+		sparse_keymap_free(msi_wmi_input_dev);
+		input_unregister_device(msi_wmi_input_dev);
+	}
 	return err;
 }
 
 static void __exit msi_wmi_exit(void)
 {
-	if (wmi_has_guid(MSIWMI_EVENT_GUID)) {
-		wmi_remove_notify_handler(MSIWMI_EVENT_GUID);
+	if (event_wmi_guid) {
+		wmi_remove_notify_handler(event_wmi_guid);
 		sparse_keymap_free(msi_wmi_input_dev);
 		input_unregister_device(msi_wmi_input_dev);
-		backlight_device_unregister(backlight);
 	}
+	if (backlight)
+		backlight_device_unregister(backlight);
 }
 
 module_init(msi_wmi_init);
