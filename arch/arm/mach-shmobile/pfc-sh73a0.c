@@ -20,6 +20,7 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/platform_device.h>
 #include <linux/sh_pfc.h>
 #include <mach/sh73a0.h>
 #include <mach/irqs.h>
@@ -2797,7 +2798,15 @@ static struct pinmux_info sh73a0_pinmux_info = {
 	.gpio_irq_size = ARRAY_SIZE(pinmux_irqs),
 };
 
+static struct platform_device sh73a0_pfc_device = {
+	.name		= "sh-pfc",
+	.id		= -1,
+	.dev = {
+		.platform_data = &sh73a0_pinmux_info,
+	},
+};
+
 void sh73a0_pinmux_init(void)
 {
-	register_pinmux(&sh73a0_pinmux_info);
+	platform_device_register(&sh73a0_pfc_device);
 }
