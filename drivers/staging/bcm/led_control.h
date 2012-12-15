@@ -60,11 +60,11 @@ typedef enum LedEvents {
  * and corresponding LED state information of driver states
  */
 typedef struct LedStateInfo_t {
-	UCHAR LED_Type; /* specify GPIO number - use 0xFF if not used */
-	UCHAR LED_On_State; /* Bits set or reset for different states */
-	UCHAR LED_Blink_State; /* Bits set or reset for blinking LEDs for different states */
-	UCHAR GPIO_Num;
-	UCHAR BitPolarity; /* To represent whether H/W is normal polarity or reverse polarity */
+	unsigned char LED_Type; /* specify GPIO number - use 0xFF if not used */
+	unsigned char LED_On_State; /* Bits set or reset for different states */
+	unsigned char LED_Blink_State; /* Bits set or reset for blinking LEDs for different states */
+	unsigned char GPIO_Num;
+	unsigned char BitPolarity; /* To represent whether H/W is normal polarity or reverse polarity */
 } LEDStateInfo, *pLEDStateInfo;
 
 typedef struct _LED_INFO_STRUCT {
