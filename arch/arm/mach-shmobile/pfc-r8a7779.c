@@ -19,6 +19,7 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/platform_device.h>
 #include <linux/sh_pfc.h>
 #include <linux/ioport.h>
 #include <mach/r8a7779.h>
@@ -2616,9 +2617,6 @@ static struct resource r8a7779_pfc_resources[] = {
 static struct pinmux_info r8a7779_pinmux_info = {
 	.name = "r8a7779_pfc",
 
-	.resource = r8a7779_pfc_resources,
-	.num_resources = ARRAY_SIZE(r8a7779_pfc_resources),
-
 	.unlock_reg = 0xfffc0000, /* PMMR */
 
 	.reserved_id = PINMUX_RESERVED,
@@ -2639,7 +2637,17 @@ static struct pinmux_info r8a7779_pinmux_info = {
 	.gpio_data_size = ARRAY_SIZE(pinmux_data),
 };
 
+static struct platform_device r8a7779_pfc_device = {
+	.name		= "sh-pfc",
+	.id		= -1,
+	.resource	= r8a7779_pfc_resources,
+	.num_resources	= ARRAY_SIZE(r8a7779_pfc_resources),
+	.dev = {
+		.platform_data = &r8a7779_pinmux_info,
+	},
+};
+
 void r8a7779_pinmux_init(void)
 {
-	register_pinmux(&r8a7779_pinmux_info);
+	platform_device_register(&r8a7779_pfc_device);
 }
