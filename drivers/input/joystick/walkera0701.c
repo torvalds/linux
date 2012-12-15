@@ -12,7 +12,7 @@
  * the Free Software Foundation.
 */
 
-/* #define WK0701_DEBUG */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define RESERVE 20000
 #define SYNC_PULSE 1306000
@@ -67,6 +67,7 @@ static inline void walkera0701_parse_frame(struct walkera_dev *w)
 {
 	int i;
 	int val1, val2, val3, val4, val5, val6, val7, val8;
+	int magic, magic_bit;
 	int crc1, crc2;
 
 	for (crc1 = crc2 = i = 0; i < 10; i++) {
@@ -102,17 +103,12 @@ static inline void walkera0701_parse_frame(struct walkera_dev *w)
 	val8 = (w->buf[18] & 1) << 8 | (w->buf[19] << 4) | w->buf[20];
 	val8 *= (w->buf[18] & 2) - 1;	/*sign */
 
-#ifdef WK0701_DEBUG
-	{
-		int magic, magic_bit;
-		magic = (w->buf[21] << 4) | w->buf[22];
-		magic_bit = (w->buf[24] & 8) >> 3;
-		printk(KERN_DEBUG
-		       "walkera0701: %4d %4d %4d %4d  %4d %4d %4d %4d (magic %2x %d)\n",
-		       val1, val2, val3, val4, val5, val6, val7, val8, magic,
-		       magic_bit);
-	}
-#endif
+	magic = (w->buf[21] << 4) | w->buf[22];
+	magic_bit = (w->buf[24] & 8) >> 3;
+	pr_debug("%4d %4d %4d %4d  %4d %4d %4d %4d (magic %2x %d)\n",
+		 val1, val2, val3, val4, val5, val6, val7, val8,
+		 magic, magic_bit);
+
 	input_report_abs(w->input_dev, ABS_X, val2);
 	input_report_abs(w->input_dev, ABS_Y, val1);
 	input_report_abs(w->input_dev, ABS_Z, val6);
@@ -208,7 +204,8 @@ static int walkera0701_connect(struct walkera_dev *w, int parport)
 		return -ENODEV;
 
 	if (w->parport->irq == -1) {
-		printk(KERN_ERR "walkera0701: parport without interrupt\n");
+		pr_err("parport %d does not have interrupt assigned\n",
+			parport);
 		goto init_err;
 	}
 
