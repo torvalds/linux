@@ -1,7 +1,6 @@
 #ifndef _LED_CONTROL_H
 #define _LED_CONTROL_H
 
-/*************************TYPE DEF**********************/
 #define NUM_OF_LEDS				4
 #define DSD_START_OFFSET			0x0200
 #define EEPROM_VERSION_OFFSET			0x020E
@@ -34,13 +33,12 @@
 
 #define B_ULONG32 unsigned long
 
-/*******************************************************/
 typedef enum _LEDColors {
 	RED_LED		= 1,
 	BLUE_LED	= 2,
 	YELLOW_LED	= 3,
 	GREEN_LED	= 4
-} LEDColors;	/*Enumerated values of different LED types*/
+} LEDColors; /* Enumerated values of different LED types */
 
 typedef enum LedEvents {
 	SHUTDOWN_EXIT		= 0x00,
@@ -71,7 +69,7 @@ typedef struct LedStateInfo_t {
 
 typedef struct _LED_INFO_STRUCT {
 	LEDStateInfo	LEDState[NUM_OF_LEDS];
-	BOOLEAN		bIdleMode_tx_from_host; /* Variable to notify whether driver came out from idlemode due to Host or target*/
+	BOOLEAN		bIdleMode_tx_from_host; /* Variable to notify whether driver came out from idlemode due to Host or target */
 	BOOLEAN		bIdle_led_off;
 	wait_queue_head_t	notify_led_event;
 	wait_queue_head_t	idleModeSyncEvent;
@@ -82,8 +80,8 @@ typedef struct _LED_INFO_STRUCT {
 } LED_INFO_STRUCT, *PLED_INFO_STRUCT;
 
 /* LED Thread state. */
-#define BCM_LED_THREAD_DISABLED		0 /* LED Thread is not running. */
-#define BCM_LED_THREAD_RUNNING_ACTIVELY	1 /* LED thread is running. */
-#define BCM_LED_THREAD_RUNNING_INACTIVELY 2 /*LED thread has been put on hold*/
+#define BCM_LED_THREAD_DISABLED		0   /* LED Thread is not running. */
+#define BCM_LED_THREAD_RUNNING_ACTIVELY	1   /* LED thread is running. */
+#define BCM_LED_THREAD_RUNNING_INACTIVELY 2 /* LED thread has been put on hold */
 
 #endif
