@@ -327,6 +327,14 @@ static int demod_attach_drxd(struct ngene_channel *chan)
 		pr_err("No DRXD found!\n");
 		return -ENODEV;
 	}
+	return 0;
+}
+
+static int tuner_attach_dtt7520x(struct ngene_channel *chan)
+{
+	struct drxd_config *feconf;
+
+	feconf = chan->dev->card_info->fe_config[chan->number];
 
 	if (!dvb_attach(dvb_pll_attach, chan->fe, feconf->pll_address,
 			&chan->i2c_adapter,
