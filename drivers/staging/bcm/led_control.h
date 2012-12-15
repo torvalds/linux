@@ -67,7 +67,7 @@ typedef struct LedStateInfo_t {
 	unsigned char BitPolarity; /* To represent whether H/W is normal polarity or reverse polarity */
 } LEDStateInfo, *pLEDStateInfo;
 
-typedef struct _LED_INFO_STRUCT {
+struct bcm_led_info {
 	LEDStateInfo	LEDState[NUM_OF_LEDS];
 	bool		bIdleMode_tx_from_host; /* Variable to notify whether driver came out from idlemode due to Host or target */
 	bool		bIdle_led_off;
@@ -76,8 +76,7 @@ typedef struct _LED_INFO_STRUCT {
 	struct task_struct	*led_cntrl_threadid;
 	int		led_thread_running;
 	bool		bLedInitDone;
-
-} LED_INFO_STRUCT, *PLED_INFO_STRUCT;
+};
 
 /* LED Thread state. */
 #define BCM_LED_THREAD_DISABLED		0   /* LED Thread is not running. */

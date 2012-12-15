@@ -303,7 +303,7 @@ struct bcm_mini_adapter {
 	struct task_struct	*transmit_packet_thread;
 
 	/* LED Related Structures */
-	LED_INFO_STRUCT		LEDInfo;
+	struct bcm_led_info	LEDInfo;
 
 	/* Driver State for LED Blinking */
 	LedEventInfo_t		DriverState;
