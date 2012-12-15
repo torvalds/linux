@@ -354,7 +354,11 @@ static int carl9170_fw(struct ar9170 *ar, const __u8 *data, size_t len)
 
 	ar->hw->wiphy->interface_modes |= if_comb_types;
 
-	ar->hw->wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
+	ar->hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
+
+	/* As IBSS Encryption is software-based, IBSS RSN is supported. */
+	ar->hw->wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
+		 WIPHY_FLAG_IBSS_RSN | WIPHY_FLAG_SUPPORTS_TDLS;
 
 #undef SUPPORTED
 	return carl9170_fw_tx_sequence(ar);
