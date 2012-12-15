@@ -1902,6 +1902,10 @@ static void xs_local_setup_socket(struct work_struct *work)
 		dprintk("RPC:       xprt %p: socket %s does not exist\n",
 				xprt, xprt->address_strings[RPC_DISPLAY_ADDR]);
 		break;
+	case -ECONNREFUSED:
+		dprintk("RPC:       xprt %p: connection refused for %s\n",
+				xprt, xprt->address_strings[RPC_DISPLAY_ADDR]);
+		break;
 	default:
 		printk(KERN_ERR "%s: unhandled error (%d) connecting to %s\n",
 				__func__, -status,
