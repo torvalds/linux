@@ -54,6 +54,7 @@ int sh_pfc_config_gpio(struct sh_pfc *pfc, unsigned gpio, int pinmux_type,
 extern struct sh_pfc_soc_info r8a7740_pinmux_info;
 extern struct sh_pfc_soc_info r8a7779_pinmux_info;
 extern struct sh_pfc_soc_info sh7203_pinmux_info;
+extern struct sh_pfc_soc_info sh7264_pinmux_info;
 extern struct sh_pfc_soc_info sh7372_pinmux_info;
 extern struct sh_pfc_soc_info sh73a0_pinmux_info;
 
