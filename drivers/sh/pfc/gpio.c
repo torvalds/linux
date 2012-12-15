@@ -11,6 +11,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME " gpio: " fmt
 
+#include <linux/device.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
@@ -143,7 +144,7 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 	struct sh_pfc_chip *chip;
 	int ret;
 
-	chip = kzalloc(sizeof(struct sh_pfc_chip), GFP_KERNEL);
+	chip = devm_kzalloc(pfc->dev, sizeof(*chip), GFP_KERNEL);
 	if (unlikely(!chip))
 		return -ENOMEM;
 
@@ -152,10 +153,8 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 	sh_pfc_gpio_setup(chip);
 
 	ret = gpiochip_add(&chip->gpio_chip);
-	if (unlikely(ret < 0)) {
-		kfree(chip);
+	if (unlikely(ret < 0))
 		return ret;
-	}
 
 	pfc->gpio = chip;
 
@@ -175,7 +174,6 @@ int sh_pfc_unregister_gpiochip(struct sh_pfc *pfc)
 	if (unlikely(ret < 0))
 		return ret;
 
-	kfree(chip);
 	pfc->gpio = NULL;
 	return 0;
 }

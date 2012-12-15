@@ -33,9 +33,6 @@ static void pfc_iounmap(struct sh_pfc *pfc)
 	for (k = 0; k < pfc->pdata->num_resources; k++)
 		if (pfc->window[k].virt)
 			iounmap(pfc->window[k].virt);
-
-	kfree(pfc->window);
-	pfc->window = NULL;
 }
 
 static int pfc_ioremap(struct sh_pfc *pfc)
@@ -46,10 +43,10 @@ static int pfc_ioremap(struct sh_pfc *pfc)
 	if (!pfc->pdata->num_resources)
 		return 0;
 
-	pfc->window = kzalloc(pfc->pdata->num_resources * sizeof(*pfc->window),
-			      GFP_NOWAIT);
+	pfc->window = devm_kzalloc(pfc->dev, pfc->pdata->num_resources *
+				   sizeof(*pfc->window), GFP_NOWAIT);
 	if (!pfc->window)
-		goto err1;
+		return -ENOMEM;
 
 	for (k = 0; k < pfc->pdata->num_resources; k++) {
 		res = pfc->pdata->resource + k;
@@ -58,16 +55,13 @@ static int pfc_ioremap(struct sh_pfc *pfc)
 		pfc->window[k].size = resource_size(res);
 		pfc->window[k].virt = ioremap_nocache(res->start,
 							 resource_size(res));
-		if (!pfc->window[k].virt)
-			goto err2;
+		if (!pfc->window[k].virt) {
+			pfc_iounmap(pfc);
+			return -ENOMEM;
+		}
 	}
 
 	return 0;
-
-err2:
-	pfc_iounmap(pfc);
-err1:
-	return -1;
 }
 
 static void __iomem *pfc_phys_to_virt(struct sh_pfc *pfc,

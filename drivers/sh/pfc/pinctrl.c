@@ -11,6 +11,7 @@
 #define DRV_NAME "sh-pfc"
 #define pr_fmt(fmt) KBUILD_MODNAME " pinctrl: " fmt
 
+#include <linux/device.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/sh_pfc.h>
@@ -357,8 +358,8 @@ static int sh_pfc_map_gpios(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 
 	pmx->nr_pads = pfc->pdata->last_gpio - pfc->pdata->first_gpio + 1;
 
-	pmx->pads = kmalloc(sizeof(struct pinctrl_pin_desc) * pmx->nr_pads,
-			    GFP_KERNEL);
+	pmx->pads = devm_kzalloc(pfc->dev, sizeof(*pmx->pads) * pmx->nr_pads,
+				 GFP_KERNEL);
 	if (unlikely(!pmx->pads)) {
 		pmx->nr_pads = 0;
 		return -ENOMEM;
@@ -399,8 +400,8 @@ static int sh_pfc_map_functions(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 	unsigned long flags;
 	int i, fn;
 
-	pmx->functions = kzalloc(pmx->nr_functions * sizeof(void *),
-				 GFP_KERNEL);
+	pmx->functions = devm_kzalloc(pfc->dev, pmx->nr_functions *
+				      sizeof(*pmx->functions), GFP_KERNEL);
 	if (unlikely(!pmx->functions))
 		return -ENOMEM;
 
@@ -423,7 +424,7 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 	struct sh_pfc_pinctrl *pmx;
 	int ret;
 
-	pmx = kzalloc(sizeof(struct sh_pfc_pinctrl), GFP_KERNEL);
+	pmx = devm_kzalloc(pfc->dev, sizeof(*pmx), GFP_KERNEL);
 	if (unlikely(!pmx))
 		return -ENOMEM;
 
@@ -438,13 +439,11 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 
 	ret = sh_pfc_map_functions(pfc, pmx);
 	if (unlikely(ret != 0))
-		goto free_pads;
+		return ret;
 
 	pmx->pctl = pinctrl_register(&sh_pfc_pinctrl_desc, pfc->dev, pmx);
-	if (IS_ERR(pmx->pctl)) {
-		ret = PTR_ERR(pmx->pctl);
-		goto free_functions;
-	}
+	if (IS_ERR(pmx->pctl))
+		return PTR_ERR(pmx->pctl);
 
 	sh_pfc_gpio_range.npins = pfc->pdata->last_gpio
 				- pfc->pdata->first_gpio + 1;
@@ -454,14 +453,6 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 	pinctrl_add_gpio_range(pmx->pctl, &sh_pfc_gpio_range);
 
 	return 0;
-
-free_functions:
-	kfree(pmx->functions);
-free_pads:
-	kfree(pmx->pads);
-	kfree(pmx);
-
-	return ret;
 }
 
 int sh_pfc_unregister_pinctrl(struct sh_pfc *pfc)
@@ -469,10 +460,6 @@ int sh_pfc_unregister_pinctrl(struct sh_pfc *pfc)
 	struct sh_pfc_pinctrl *pmx = pfc->pinctrl;
 
 	pinctrl_unregister(pmx->pctl);
-
-	kfree(pmx->functions);
-	kfree(pmx->pads);
-	kfree(pmx);
 
 	pfc->pinctrl = NULL;
 	return 0;
