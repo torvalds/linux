@@ -28,7 +28,9 @@ struct sh_pfc {
 	struct sh_pfc_platform_data *pdata;
 	spinlock_t lock;
 
+	unsigned int num_windows;
 	struct sh_pfc_window *window;
+
 	struct sh_pfc_chip *gpio;
 	struct sh_pfc_pinctrl *pinctrl;
 };

@@ -26,21 +26,33 @@
 
 #include "core.h"
 
-static int sh_pfc_ioremap(struct sh_pfc *pfc)
+static int sh_pfc_ioremap(struct sh_pfc *pfc, struct platform_device *pdev)
 {
+	unsigned int num_resources;
 	struct resource *res;
 	int k;
 
-	if (!pfc->pdata->num_resources)
-		return 0;
+	if (pdev->num_resources) {
+		num_resources = pdev->num_resources;
+		res = pdev->resource;
+	} else {
+		num_resources = pfc->pdata->num_resources;
+		res = pfc->pdata->resource;
+	}
 
-	pfc->window = devm_kzalloc(pfc->dev, pfc->pdata->num_resources *
+	if (num_resources == 0) {
+		pfc->num_windows = 0;
+		return 0;
+	}
+
+	pfc->window = devm_kzalloc(pfc->dev, num_resources *
 				   sizeof(*pfc->window), GFP_NOWAIT);
 	if (!pfc->window)
 		return -ENOMEM;
 
-	for (k = 0; k < pfc->pdata->num_resources; k++) {
-		res = pfc->pdata->resource + k;
+	pfc->num_windows = num_resources;
+
+	for (k = 0; k < num_resources; k++, res++) {
 		WARN_ON(resource_type(res) != IORESOURCE_MEM);
 		pfc->window[k].phys = res->start;
 		pfc->window[k].size = resource_size(res);
@@ -60,7 +72,7 @@ static void __iomem *sh_pfc_phys_to_virt(struct sh_pfc *pfc,
 	int k;
 
 	/* scan through physical windows and convert address */
-	for (k = 0; k < pfc->pdata->num_resources; k++) {
+	for (k = 0; k < pfc->num_windows; k++) {
 		window = pfc->window + k;
 
 		if (address < window->phys)
@@ -498,7 +510,7 @@ static int sh_pfc_probe(struct platform_device *pdev)
 	pfc->pdata = pdata;
 	pfc->dev = &pdev->dev;
 
-	ret = sh_pfc_ioremap(pfc);
+	ret = sh_pfc_ioremap(pfc, pdev);
 	if (unlikely(ret < 0))
 		return ret;
 
