@@ -31,8 +31,6 @@
 			wrmaltWithLock(Adapter, BCM_GPIO_OUTPUT_SET_REG, &gpio_val, sizeof(gpio_val)); \
 	} while (0)
 
-#define B_ULONG32 unsigned long
-
 enum bcm_led_colors {
 	RED_LED		= 1,
 	BLUE_LED	= 2,
