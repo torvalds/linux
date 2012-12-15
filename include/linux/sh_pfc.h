@@ -114,9 +114,6 @@ struct sh_pfc_soc_info {
 	unsigned long unlock_reg;
 };
 
-/* XXX compat for now */
-#define pinmux_info sh_pfc_soc_info
-
 enum { GPIO_CFG_DRYRUN, GPIO_CFG_REQ, GPIO_CFG_FREE };
 
 /* helper macro for port */
