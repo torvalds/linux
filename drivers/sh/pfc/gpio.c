@@ -103,11 +103,11 @@ static int sh_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 		if (pos <= 0 || !enum_id)
 			break;
 
-		for (i = 0; i < pfc->gpio_irq_size; i++) {
-			enum_ids = pfc->gpio_irq[i].enum_ids;
+		for (i = 0; i < pfc->pdata->gpio_irq_size; i++) {
+			enum_ids = pfc->pdata->gpio_irq[i].enum_ids;
 			for (k = 0; enum_ids[k]; k++) {
 				if (enum_ids[k] == enum_id)
-					return pfc->gpio_irq[i].irq;
+					return pfc->pdata->gpio_irq[i].irq;
 			}
 		}
 	}
@@ -128,12 +128,12 @@ static void sh_pfc_gpio_setup(struct sh_pfc_chip *chip)
 	gc->set = sh_gpio_set;
 	gc->to_irq = sh_gpio_to_irq;
 
-	WARN_ON(pfc->first_gpio != 0); /* needs testing */
+	WARN_ON(pfc->pdata->first_gpio != 0); /* needs testing */
 
-	gc->label = pfc->name;
+	gc->label = pfc->pdata->name;
 	gc->owner = THIS_MODULE;
-	gc->base = pfc->first_gpio;
-	gc->ngpio = (pfc->last_gpio - pfc->first_gpio) + 1;
+	gc->base = pfc->pdata->first_gpio;
+	gc->ngpio = (pfc->pdata->last_gpio - pfc->pdata->first_gpio) + 1;
 }
 
 int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
@@ -154,7 +154,8 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 		kfree(chip);
 
 	pr_info("%s handling gpio %d -> %d\n",
-		pfc->name, pfc->first_gpio, pfc->last_gpio);
+		pfc->pdata->name, pfc->pdata->first_gpio,
+		pfc->pdata->last_gpio);
 
 	return ret;
 }
@@ -179,7 +180,7 @@ static int sh_pfc_gpio_probe(struct platform_device *pdev)
 	chip = gpio_to_pfc_chip(gc);
 	platform_set_drvdata(pdev, chip);
 
-	pr_info("attaching to GPIO chip %s\n", chip->pfc->name);
+	pr_info("attaching to GPIO chip %s\n", chip->pfc->pdata->name);
 
 	return 0;
 }

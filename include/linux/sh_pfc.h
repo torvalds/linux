@@ -94,7 +94,7 @@ struct pfc_window {
 	unsigned long size;
 };
 
-struct sh_pfc {
+struct sh_pfc_platform_data {
 	char *name;
 	pinmux_enum_t reserved_id;
 	struct pinmux_range data;
@@ -117,17 +117,21 @@ struct sh_pfc {
 	struct pinmux_irq *gpio_irq;
 	unsigned int gpio_irq_size;
 
-	spinlock_t lock;
-
 	struct resource *resource;
 	unsigned int num_resources;
-	struct pfc_window *window;
 
 	unsigned long unlock_reg;
 };
 
+struct sh_pfc {
+	struct sh_pfc_platform_data *pdata;
+	spinlock_t lock;
+
+	struct pfc_window *window;
+};
+
 /* XXX compat for now */
-#define pinmux_info sh_pfc
+#define pinmux_info sh_pfc_platform_data
 
 /* drivers/sh/pfc/gpio.c */
 int sh_pfc_register_gpiochip(struct sh_pfc *pfc);
@@ -136,7 +140,7 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc);
 int sh_pfc_register_pinctrl(struct sh_pfc *pfc);
 
 /* drivers/sh/pfc/core.c */
-int register_sh_pfc(struct sh_pfc *pfc);
+int register_sh_pfc(struct sh_pfc_platform_data *pfc);
 
 int sh_pfc_read_bit(struct pinmux_data_reg *dr, unsigned long in_pos);
 void sh_pfc_write_bit(struct pinmux_data_reg *dr, unsigned long in_pos,
@@ -151,8 +155,8 @@ int sh_pfc_config_gpio(struct sh_pfc *pfc, unsigned gpio, int pinmux_type,
 /* xxx */
 static inline int register_pinmux(struct pinmux_info *pip)
 {
-	struct sh_pfc *pfc = pip;
-	return register_sh_pfc(pfc);
+	struct sh_pfc_platform_data *pdata = pip;
+	return register_sh_pfc(pdata);
 }
 
 enum { GPIO_CFG_DRYRUN, GPIO_CFG_REQ, GPIO_CFG_FREE };
