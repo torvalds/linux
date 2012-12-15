@@ -546,8 +546,6 @@ static DEVICE_ATTR(turbo_cooldown, 0444, show_turbo_cooldown, NULL);
 static DEVICE_ATTR(auto_fan, 0644, show_auto_fan, store_auto_fan);
 
 static struct attribute *msipf_attributes[] = {
-	&dev_attr_lcd_level.attr,
-	&dev_attr_auto_brightness.attr,
 	&dev_attr_bluetooth.attr,
 	&dev_attr_wlan.attr,
 	&dev_attr_touchpad.attr,
@@ -558,8 +556,18 @@ static struct attribute *msipf_attributes[] = {
 	NULL
 };
 
+static struct attribute *msipf_old_attributes[] = {
+	&dev_attr_lcd_level.attr,
+	&dev_attr_auto_brightness.attr,
+	NULL
+};
+
 static struct attribute_group msipf_attribute_group = {
 	.attrs = msipf_attributes
+};
+
+static struct attribute_group msipf_old_attribute_group = {
+	.attrs = msipf_old_attributes
 };
 
 static struct platform_driver msipf_driver = {
@@ -1062,7 +1070,7 @@ static int __init msi_init(void)
 
 	/* Register backlight stuff */
 
-	if (acpi_video_backlight_support()) {
+	if (!quirks->old_ec_model || acpi_video_backlight_support()) {
 		pr_info("Brightness ignored, must be controlled by ACPI video driver\n");
 	} else {
 		struct backlight_properties props;
@@ -1108,14 +1116,19 @@ static int __init msi_init(void)
 						&dev_attr_threeg);
 		if (ret)
 			goto fail_platform_device2;
+	} else {
+		ret = sysfs_create_group(&msipf_device->dev.kobj,
+					 &msipf_old_attribute_group);
+		if (ret)
+			goto fail_platform_device2;
+
+		/* Disable automatic brightness control by default because
+		 * this module was probably loaded to do brightness control in
+		 * software. */
+
+		if (auto_brightness != 2)
+			set_auto_brightness(auto_brightness);
 	}
-
-	/* Disable automatic brightness control by default because
-	 * this module was probably loaded to do brightness control in
-	 * software. */
-
-	if (auto_brightness != 2)
-		set_auto_brightness(auto_brightness);
 
 	pr_info("driver " MSI_DRIVER_VERSION " successfully loaded\n");
 
@@ -1163,9 +1176,11 @@ static void __exit msi_cleanup(void)
 	platform_driver_unregister(&msipf_driver);
 	backlight_device_unregister(msibl_device);
 
-	/* Enable automatic brightness control again */
-	if (auto_brightness != 2)
-		set_auto_brightness(1);
+	if (quirks->old_ec_model) {
+		/* Enable automatic brightness control again */
+		if (auto_brightness != 2)
+			set_auto_brightness(1);
+	}
 
 	pr_info("driver unloaded\n");
 }
