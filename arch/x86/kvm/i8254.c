@@ -122,7 +122,6 @@ static s64 __kpit_elapsed(struct kvm *kvm)
 	 */
 	remaining = hrtimer_get_remaining(&ps->timer);
 	elapsed = ps->period - ktime_to_ns(remaining);
-	elapsed = mod_64(elapsed, ps->period);
 
 	return elapsed;
 }
