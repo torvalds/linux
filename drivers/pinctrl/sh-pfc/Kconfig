@@ -1,18 +1,24 @@
-comment "Pin function controller options"
+#
+# Renesas SH and SH Mobile PINCTRL drivers
+#
 
-config SH_PFC
+if ARCH_SHMOBILE || SUPERH
+
+config PINCTRL_SH_PFC
 	# XXX move off the gpio dependency
 	depends on GENERIC_GPIO
 	select GPIO_SH_PFC if ARCH_REQUIRE_GPIOLIB
-	select PINCTRL_SH_PFC
-	select PINCTRL
 	select PINMUX
 	select PINCONF
 	def_bool y
+	help
+	  This enables pin control drivers for SH and SH Mobile platforms
 
 config GPIO_SH_PFC
 	bool "SuperH PFC GPIO support"
-	depends on SH_PFC && GPIOLIB
+	depends on PINCTRL_SH_PFC && GPIOLIB
 	help
 	  This enables support for GPIOs within the SoC's pin function
 	  controller.
+
+endif
