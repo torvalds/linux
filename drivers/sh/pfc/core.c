@@ -573,19 +573,16 @@ static struct platform_device sh_pfc_device = {
 
 int __init register_sh_pfc(struct sh_pfc_platform_data *pdata)
 {
-	int rc;
-
 	sh_pfc_device.dev.platform_data = pdata;
 
-	rc = platform_driver_register(&sh_pfc_driver);
-	if (likely(!rc)) {
-		rc = platform_device_register(&sh_pfc_device);
-		if (unlikely(rc))
-			platform_driver_unregister(&sh_pfc_driver);
-	}
-
-	return rc;
+	return platform_device_register(&sh_pfc_device);
 }
+
+static int __init sh_pfc_init(void)
+{
+	return platform_driver_register(&sh_pfc_driver);
+}
+postcore_initcall(sh_pfc_init);
 
 static void __exit sh_pfc_exit(void)
 {
