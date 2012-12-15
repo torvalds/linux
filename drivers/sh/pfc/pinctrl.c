@@ -7,8 +7,8 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
-#define DRV_NAME "pinctrl-sh_pfc"
 
+#define DRV_NAME "sh-pfc"
 #define pr_fmt(fmt) KBUILD_MODNAME " pinctrl: " fmt
 
 #include <linux/init.h>
@@ -17,7 +17,6 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/platform_device.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinconf.h>
@@ -38,8 +37,6 @@ struct sh_pfc_pinctrl {
 
 	spinlock_t lock;
 };
-
-static struct sh_pfc_pinctrl *sh_pfc_pmx;
 
 static int sh_pfc_get_groups_count(struct pinctrl_dev *pctldev)
 {
@@ -421,28 +418,31 @@ static int sh_pfc_map_functions(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 	return 0;
 }
 
-static int sh_pfc_pinctrl_probe(struct platform_device *pdev)
+int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 {
-	struct sh_pfc *pfc;
+	struct sh_pfc_pinctrl *pmx;
 	int ret;
 
-	if (unlikely(!sh_pfc_pmx))
-		return -ENODEV;
+	pmx = kzalloc(sizeof(struct sh_pfc_pinctrl), GFP_KERNEL);
+	if (unlikely(!pmx))
+		return -ENOMEM;
 
-	pfc = sh_pfc_pmx->pfc;
+	spin_lock_init(&pmx->lock);
 
-	ret = sh_pfc_map_gpios(pfc, sh_pfc_pmx);
+	pmx->pfc = pfc;
+	pfc->pinctrl = pmx;
+
+	ret = sh_pfc_map_gpios(pfc, pmx);
 	if (unlikely(ret != 0))
 		return ret;
 
-	ret = sh_pfc_map_functions(pfc, sh_pfc_pmx);
+	ret = sh_pfc_map_functions(pfc, pmx);
 	if (unlikely(ret != 0))
 		goto free_pads;
 
-	sh_pfc_pmx->pctl = pinctrl_register(&sh_pfc_pinctrl_desc, &pdev->dev,
-					    sh_pfc_pmx);
-	if (IS_ERR(sh_pfc_pmx->pctl)) {
-		ret = PTR_ERR(sh_pfc_pmx->pctl);
+	pmx->pctl = pinctrl_register(&sh_pfc_pinctrl_desc, pfc->dev, pmx);
+	if (IS_ERR(pmx->pctl)) {
+		ret = PTR_ERR(pmx->pctl);
 		goto free_functions;
 	}
 
@@ -451,79 +451,29 @@ static int sh_pfc_pinctrl_probe(struct platform_device *pdev)
 	sh_pfc_gpio_range.base = pfc->pdata->first_gpio;
 	sh_pfc_gpio_range.pin_base = pfc->pdata->first_gpio;
 
-	pinctrl_add_gpio_range(sh_pfc_pmx->pctl, &sh_pfc_gpio_range);
-
-	platform_set_drvdata(pdev, sh_pfc_pmx);
+	pinctrl_add_gpio_range(pmx->pctl, &sh_pfc_gpio_range);
 
 	return 0;
 
 free_functions:
-	kfree(sh_pfc_pmx->functions);
+	kfree(pmx->functions);
 free_pads:
-	kfree(sh_pfc_pmx->pads);
-	kfree(sh_pfc_pmx);
+	kfree(pmx->pads);
+	kfree(pmx);
 
 	return ret;
 }
 
-static int sh_pfc_pinctrl_remove(struct platform_device *pdev)
+int sh_pfc_unregister_pinctrl(struct sh_pfc *pfc)
 {
-	struct sh_pfc_pinctrl *pmx = platform_get_drvdata(pdev);
+	struct sh_pfc_pinctrl *pmx = pfc->pinctrl;
 
 	pinctrl_unregister(pmx->pctl);
 
-	platform_set_drvdata(pdev, NULL);
+	kfree(pmx->functions);
+	kfree(pmx->pads);
+	kfree(pmx);
 
-	kfree(sh_pfc_pmx->functions);
-	kfree(sh_pfc_pmx->pads);
-	kfree(sh_pfc_pmx);
-
+	pfc->pinctrl = NULL;
 	return 0;
 }
-
-static struct platform_driver sh_pfc_pinctrl_driver = {
-	.probe		= sh_pfc_pinctrl_probe,
-	.remove		= sh_pfc_pinctrl_remove,
-	.driver		= {
-		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
-	},
-};
-
-static struct platform_device sh_pfc_pinctrl_device = {
-	.name		= DRV_NAME,
-	.id		= -1,
-};
-
-static int sh_pfc_pinctrl_init(void)
-{
-	int rc;
-
-	rc = platform_driver_register(&sh_pfc_pinctrl_driver);
-	if (likely(!rc)) {
-		rc = platform_device_register(&sh_pfc_pinctrl_device);
-		if (unlikely(rc))
-			platform_driver_unregister(&sh_pfc_pinctrl_driver);
-	}
-
-	return rc;
-}
-
-int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
-{
-	sh_pfc_pmx = kzalloc(sizeof(struct sh_pfc_pinctrl), GFP_KERNEL);
-	if (unlikely(!sh_pfc_pmx))
-		return -ENOMEM;
-
-	spin_lock_init(&sh_pfc_pmx->lock);
-
-	sh_pfc_pmx->pfc = pfc;
-
-	return sh_pfc_pinctrl_init();
-}
-
-static void __exit sh_pfc_pinctrl_exit(void)
-{
-	platform_driver_unregister(&sh_pfc_pinctrl_driver);
-}
-module_exit(sh_pfc_pinctrl_exit);

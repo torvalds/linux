@@ -21,19 +21,23 @@ struct pfc_window {
 };
 
 struct sh_pfc_chip;
+struct sh_pfc_pinctrl;
 
 struct sh_pfc {
+	struct device *dev;
 	struct sh_pfc_platform_data *pdata;
 	spinlock_t lock;
 
 	struct pfc_window *window;
 	struct sh_pfc_chip *gpio;
+	struct sh_pfc_pinctrl *pinctrl;
 };
 
 int sh_pfc_register_gpiochip(struct sh_pfc *pfc);
 int sh_pfc_unregister_gpiochip(struct sh_pfc *pfc);
 
 int sh_pfc_register_pinctrl(struct sh_pfc *pfc);
+int sh_pfc_unregister_pinctrl(struct sh_pfc *pfc);
 
 int sh_pfc_read_bit(struct pinmux_data_reg *dr, unsigned long in_pos);
 void sh_pfc_write_bit(struct pinmux_data_reg *dr, unsigned long in_pos,

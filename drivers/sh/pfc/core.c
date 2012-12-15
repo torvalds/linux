@@ -8,6 +8,8 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
+
+#define DRV_NAME "sh-pfc"
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/errno.h>
@@ -20,10 +22,9 @@
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/pinctrl/machine.h>
+#include <linux/platform_device.h>
 
 #include "core.h"
-
-static struct sh_pfc sh_pfc __read_mostly;
 
 static void pfc_iounmap(struct sh_pfc *pfc)
 {
@@ -494,8 +495,10 @@ int sh_pfc_config_gpio(struct sh_pfc *pfc, unsigned gpio, int pinmux_type,
 	return -1;
 }
 
-int register_sh_pfc(struct sh_pfc_platform_data *pdata)
+static int sh_pfc_probe(struct platform_device *pdev)
 {
+	struct sh_pfc_platform_data *pdata = pdev->dev.platform_data;
+	struct sh_pfc *pfc;
 	int ret;
 
 	/*
@@ -503,26 +506,29 @@ int register_sh_pfc(struct sh_pfc_platform_data *pdata)
 	 */
 	BUILD_BUG_ON(PINMUX_FLAG_TYPE > ((1 << PINMUX_FLAG_DBIT_SHIFT) - 1));
 
-	if (sh_pfc.pdata)
-		return -EBUSY;
+	if (pdata == NULL)
+		return -ENODEV;
 
-	sh_pfc.pdata = pdata;
+	pfc = devm_kzalloc(&pdev->dev, sizeof(pfc), GFP_KERNEL);
+	if (pfc == NULL)
+		return -ENOMEM;
 
-	ret = pfc_ioremap(&sh_pfc);
-	if (unlikely(ret < 0)) {
-		sh_pfc.pdata = NULL;
+	pfc->pdata = pdata;
+	pfc->dev = &pdev->dev;
+
+	ret = pfc_ioremap(pfc);
+	if (unlikely(ret < 0))
 		return ret;
-	}
 
-	spin_lock_init(&sh_pfc.lock);
+	spin_lock_init(&pfc->lock);
 
 	pinctrl_provide_dummies();
-	setup_data_regs(&sh_pfc);
+	setup_data_regs(pfc);
 
 	/*
 	 * Initialize pinctrl bindings first
 	 */
-	ret = sh_pfc_register_pinctrl(&sh_pfc);
+	ret = sh_pfc_register_pinctrl(pfc);
 	if (unlikely(ret != 0))
 		goto err;
 
@@ -530,7 +536,7 @@ int register_sh_pfc(struct sh_pfc_platform_data *pdata)
 	/*
 	 * Then the GPIO chip
 	 */
-	ret = sh_pfc_register_gpiochip(&sh_pfc);
+	ret = sh_pfc_register_gpiochip(pfc);
 	if (unlikely(ret != 0)) {
 		/*
 		 * If the GPIO chip fails to come up we still leave the
@@ -541,16 +547,75 @@ int register_sh_pfc(struct sh_pfc_platform_data *pdata)
 	}
 #endif
 
-	pr_info("%s support registered\n", sh_pfc.pdata->name);
+	platform_set_drvdata(pdev, pfc);
+
+	pr_info("%s support registered\n", pdata->name);
 
 	return 0;
 
 err:
-	pfc_iounmap(&sh_pfc);
-	sh_pfc.pdata = NULL;
-
+	pfc_iounmap(pfc);
 	return ret;
 }
+
+static int sh_pfc_remove(struct platform_device *pdev)
+{
+	struct sh_pfc *pfc = platform_get_drvdata(pdev);
+
+#ifdef CONFIG_GPIO_SH_PFC
+	sh_pfc_unregister_gpiochip(pfc);
+#endif
+	sh_pfc_unregister_pinctrl(pfc);
+
+	pfc_iounmap(pfc);
+
+	platform_set_drvdata(pdev, NULL);
+
+	return 0;
+}
+
+static const struct platform_device_id sh_pfc_id_table[] = {
+	{ "sh-pfc", 0 },
+	{ },
+};
+MODULE_DEVICE_TABLE(platform, sh_pfc_id_table);
+
+static struct platform_driver sh_pfc_driver = {
+	.probe		= sh_pfc_probe,
+	.remove		= sh_pfc_remove,
+	.id_table	= sh_pfc_id_table,
+	.driver		= {
+		.name	= DRV_NAME,
+		.owner	= THIS_MODULE,
+	},
+};
+
+static struct platform_device sh_pfc_device = {
+	.name		= DRV_NAME,
+	.id		= -1,
+};
+
+int __init register_sh_pfc(struct sh_pfc_platform_data *pdata)
+{
+	int rc;
+
+	sh_pfc_device.dev.platform_data = pdata;
+
+	rc = platform_driver_register(&sh_pfc_driver);
+	if (likely(!rc)) {
+		rc = platform_device_register(&sh_pfc_device);
+		if (unlikely(rc))
+			platform_driver_unregister(&sh_pfc_driver);
+	}
+
+	return rc;
+}
+
+static void __exit sh_pfc_exit(void)
+{
+	platform_driver_unregister(&sh_pfc_driver);
+}
+module_exit(sh_pfc_exit);
 
 MODULE_AUTHOR("Magnus Damm, Paul Mundt, Laurent Pinchart");
 MODULE_DESCRIPTION("Pin Control and GPIO driver for SuperH pin function controller");
