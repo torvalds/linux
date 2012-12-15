@@ -99,6 +99,42 @@
 },
 
 /*
+ * HP Wireless Audio
+ * When not ignored, causes instability issues for some users, forcing them to
+ * blacklist the entire module.
+ */
+{
+	USB_DEVICE(0x0424, 0xb832),
+	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
+		.vendor_name = "Standard Microsystems Corp.",
+		.product_name = "HP Wireless Audio",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			/* Mixer */
+			{
+				.ifnum = 0,
+				.type = QUIRK_IGNORE_INTERFACE,
+			},
+			/* Playback */
+			{
+				.ifnum = 1,
+				.type = QUIRK_IGNORE_INTERFACE,
+			},
+			/* Capture */
+			{
+				.ifnum = 2,
+				.type = QUIRK_IGNORE_INTERFACE,
+			},
+			/* HID Device, .ifnum = 3 */
+			{
+				.ifnum = -1,
+			}
+		}
+	}
+},
+
+/*
  * Logitech QuickCam: bDeviceClass is vendor-specific, so generic interface
  * class matches do not take effect without an explicit ID match.
  */
