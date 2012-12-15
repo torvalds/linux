@@ -261,16 +261,9 @@ static int proc_notify_change(struct dentry *dentry, struct iattr *iattr)
 	if (error)
 		return error;
 
-	if ((iattr->ia_valid & ATTR_SIZE) &&
-	    iattr->ia_size != i_size_read(inode)) {
-		error = vmtruncate(inode, iattr->ia_size);
-		if (error)
-			return error;
-	}
-
 	setattr_copy(inode, iattr);
 	mark_inode_dirty(inode);
-	
+
 	de->uid = inode->i_uid;
 	de->gid = inode->i_gid;
 	de->mode = inode->i_mode;
