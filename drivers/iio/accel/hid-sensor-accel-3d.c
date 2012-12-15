@@ -43,7 +43,7 @@ enum accel_3d_channel {
 
 struct accel_3d_state {
 	struct hid_sensor_hub_callbacks callbacks;
-	struct hid_sensor_iio_common common_attributes;
+	struct hid_sensor_common common_attributes;
 	struct hid_sensor_hub_attribute_info accel[ACCEL_3D_CHANNEL_MAX];
 	u32 accel_val[ACCEL_3D_CHANNEL_MAX];
 };

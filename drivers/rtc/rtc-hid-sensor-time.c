@@ -39,7 +39,7 @@ enum hid_time_channel {
 
 struct hid_time_state {
 	struct hid_sensor_hub_callbacks callbacks;
-	struct hid_sensor_iio_common common_attributes;
+	struct hid_sensor_common common_attributes;
 	struct hid_sensor_hub_attribute_info info[TIME_RTC_CHANNEL_MAX];
 	struct rtc_time last_time;
 	spinlock_t lock_last_time;

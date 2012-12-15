@@ -43,7 +43,7 @@ enum gyro_3d_channel {
 
 struct gyro_3d_state {
 	struct hid_sensor_hub_callbacks callbacks;
-	struct hid_sensor_iio_common common_attributes;
+	struct hid_sensor_common common_attributes;
 	struct hid_sensor_hub_attribute_info gyro[GYRO_3D_CHANNEL_MAX];
 	u32 gyro_val[GYRO_3D_CHANNEL_MAX];
 };

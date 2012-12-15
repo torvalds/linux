@@ -43,7 +43,7 @@ enum magn_3d_channel {
 
 struct magn_3d_state {
 	struct hid_sensor_hub_callbacks callbacks;
-	struct hid_sensor_iio_common common_attributes;
+	struct hid_sensor_common common_attributes;
 	struct hid_sensor_hub_attribute_info magn[MAGN_3D_CHANNEL_MAX];
 	u32 magn_val[MAGN_3D_CHANNEL_MAX];
 };

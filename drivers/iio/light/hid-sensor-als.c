@@ -38,7 +38,7 @@
 
 struct als_state {
 	struct hid_sensor_hub_callbacks callbacks;
-	struct hid_sensor_iio_common common_attributes;
+	struct hid_sensor_common common_attributes;
 	struct hid_sensor_hub_attribute_info als_illum;
 	u32 illum;
 };
