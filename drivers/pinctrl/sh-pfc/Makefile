@@ -5,3 +5,4 @@ endif
 obj-$(CONFIG_PINCTRL_SH_PFC)	+= sh-pfc.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7740)	+= pfc-r8a7740.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7779)	+= pfc-r8a7779.o
+obj-$(CONFIG_PINCTRL_PFC_SH7372)	+= pfc-sh7372.o
