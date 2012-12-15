@@ -583,6 +583,9 @@ static const struct platform_device_id sh_pfc_id_table[] = {
 #ifdef CONFIG_PINCTRL_PFC_SH7722
 	{ "pfc-sh7722", (kernel_ulong_t)&sh7722_pinmux_info },
 #endif
+#ifdef CONFIG_PINCTRL_PFC_SH7723
+	{ "pfc-sh7723", (kernel_ulong_t)&sh7723_pinmux_info },
+#endif
 	{ "sh-pfc", 0 },
 	{ },
 };
