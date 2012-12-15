@@ -18,13 +18,9 @@
 
 #include <linux/types.h>
 
-struct pinmux_info;
 struct resource;
 
 int sh_pfc_register(const char *name,
 		    struct resource *resource, u32 num_resources);
-int sh_pfc_register_info(const char *name,
-			 struct resource *resource, u32 num_resources,
-			 struct pinmux_info *pdata);
 
 #endif /* __ARCH_SH_CPU_PFC_H__ */
