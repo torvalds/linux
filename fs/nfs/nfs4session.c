@@ -172,6 +172,7 @@ static void nfs4_reset_slot_table(struct nfs4_slot_table *tbl,
 	p = &tbl->slots;
 	while (*p) {
 		(*p)->seq_nr = ivalue;
+		(*p)->interrupted = 0;
 		p = &(*p)->next;
 	}
 	tbl->highest_used_slotid = NFS4_NO_SLOT;

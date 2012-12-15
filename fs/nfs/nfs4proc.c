@@ -420,16 +420,8 @@ static int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *
 	struct nfs4_session *session;
 	struct nfs4_slot *slot;
 	struct nfs_client *clp;
+	bool interrupted = false;
 	int ret = 1;
-
-	/*
-	 * sr_status remains 1 if an RPC level error occurred. The server
-	 * may or may not have processed the sequence operation..
-	 * Proceed as if the server received and processed the sequence
-	 * operation.
-	 */
-	if (res->sr_status == 1)
-		res->sr_status = NFS_OK;
 
 	/* don't increment the sequence number if the task wasn't sent */
 	if (!RPC_WAS_SENT(task))
@@ -437,6 +429,11 @@ static int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *
 
 	slot = res->sr_slot;
 	session = slot->table->session;
+
+	if (slot->interrupted) {
+		slot->interrupted = 0;
+		interrupted = true;
+	}
 
 	/* Check the SEQUENCE operation status */
 	switch (res->sr_status) {
@@ -450,6 +447,15 @@ static int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *
 			nfs4_schedule_lease_recovery(clp);
 		nfs41_update_target_slotid(slot->table, slot, res);
 		break;
+	case 1:
+		/*
+		 * sr_status remains 1 if an RPC level error occurred.
+		 * The server may or may not have processed the sequence
+		 * operation..
+		 * Mark the slot as having hosted an interrupted RPC call.
+		 */
+		slot->interrupted = 1;
+		goto out;
 	case -NFS4ERR_DELAY:
 		/* The server detected a resend of the RPC call and
 		 * returned NFS4ERR_DELAY as per Section 2.10.6.2
@@ -467,6 +473,14 @@ static int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *
 		 */
 		goto retry_nowait;
 	case -NFS4ERR_SEQ_MISORDERED:
+		/*
+		 * Was the last operation on this sequence interrupted?
+		 * If so, retry after bumping the sequence number.
+		 */
+		if (interrupted) {
+			++slot->seq_nr;
+			goto retry_nowait;
+		}
 		/*
 		 * Could this slot have been previously retired?
 		 * If so, then the server may be expecting seq_nr = 1!
