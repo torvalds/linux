@@ -306,7 +306,7 @@ struct bcm_mini_adapter {
 	struct bcm_led_info	LEDInfo;
 
 	/* Driver State for LED Blinking */
-	LedEventInfo_t		DriverState;
+	enum bcm_led_events	DriverState;
 	/* Interface Specific */
 	PVOID			pvInterfaceAdapter;
 	int (*bcm_file_download)(PVOID,

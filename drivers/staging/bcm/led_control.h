@@ -40,7 +40,7 @@ typedef enum _LEDColors {
 	GREEN_LED	= 4
 } LEDColors; /* Enumerated values of different LED types */
 
-typedef enum LedEvents {
+enum bcm_led_events {
 	SHUTDOWN_EXIT		= 0x00,
 	DRIVER_INIT		= 0x1,
 	FW_DOWNLOAD		= 0x2,
@@ -53,7 +53,7 @@ typedef enum LedEvents {
 	LED_THREAD_INACTIVE	= 0x100,  /* Makes the LED thread Inactivce. It wil be equivallent to putting the thread on hold. */
 	LED_THREAD_ACTIVE	= 0x200,  /* Makes the LED Thread Active back. */
 	DRIVER_HALT		= 0xff
-} LedEventInfo_t; /* Enumerated values of different driver states */
+}; /* Enumerated values of different driver states */
 
 /*
  * Structure which stores the information of different LED types
