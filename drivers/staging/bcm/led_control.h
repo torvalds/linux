@@ -59,16 +59,16 @@ typedef enum LedEvents {
  * Structure which stores the information of different LED types
  * and corresponding LED state information of driver states
  */
-typedef struct LedStateInfo_t {
+struct bcm_led_state_info {
 	unsigned char LED_Type; /* specify GPIO number - use 0xFF if not used */
 	unsigned char LED_On_State; /* Bits set or reset for different states */
 	unsigned char LED_Blink_State; /* Bits set or reset for blinking LEDs for different states */
 	unsigned char GPIO_Num;
 	unsigned char BitPolarity; /* To represent whether H/W is normal polarity or reverse polarity */
-} LEDStateInfo, *pLEDStateInfo;
+};
 
 struct bcm_led_info {
-	LEDStateInfo	LEDState[NUM_OF_LEDS];
+	struct bcm_led_state_info LEDState[NUM_OF_LEDS];
 	bool		bIdleMode_tx_from_host; /* Variable to notify whether driver came out from idlemode due to Host or target */
 	bool		bIdle_led_off;
 	wait_queue_head_t	notify_led_event;
