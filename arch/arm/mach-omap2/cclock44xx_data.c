@@ -243,7 +243,7 @@ static struct dpll_data dpll_core_dd = {
 
 
 static const char *dpll_core_ck_parents[] = {
-	"sys_clkin_ck",
+	"sys_clkin_ck", "core_hsd_byp_clk_mux_ck"
 };
 
 static struct clk dpll_core_ck;
@@ -373,6 +373,10 @@ static struct dpll_data dpll_iva_dd = {
 	.min_divider	= 1,
 };
 
+static const char *dpll_iva_ck_parents[] = {
+	"sys_clkin_ck", "iva_hsd_byp_clk_mux_ck"
+};
+
 static struct clk dpll_iva_ck;
 
 static const struct clk_ops dpll_ck_ops = {
@@ -392,7 +396,7 @@ static struct clk_hw_omap dpll_iva_ck_hw = {
 	.ops		= &clkhwops_omap3_dpll,
 };
 
-DEFINE_STRUCT_CLK(dpll_iva_ck, dpll_core_ck_parents, dpll_ck_ops);
+DEFINE_STRUCT_CLK(dpll_iva_ck, dpll_iva_ck_parents, dpll_ck_ops);
 
 static const char *dpll_iva_x2_ck_parents[] = {
 	"dpll_iva_ck",
@@ -435,6 +439,10 @@ static struct dpll_data dpll_mpu_dd = {
 	.min_divider	= 1,
 };
 
+static const char *dpll_mpu_ck_parents[] = {
+	"sys_clkin_ck", "div_mpu_hs_clk"
+};
+
 static struct clk dpll_mpu_ck;
 
 static struct clk_hw_omap dpll_mpu_ck_hw = {
@@ -445,7 +453,7 @@ static struct clk_hw_omap dpll_mpu_ck_hw = {
 	.ops		= &clkhwops_omap3_dpll,
 };
 
-DEFINE_STRUCT_CLK(dpll_mpu_ck, dpll_core_ck_parents, dpll_ck_ops);
+DEFINE_STRUCT_CLK(dpll_mpu_ck, dpll_mpu_ck_parents, dpll_ck_ops);
 
 DEFINE_CLK_FIXED_FACTOR(mpu_periphclk, "dpll_mpu_ck", &dpll_mpu_ck, 0x0, 1, 2);
 
@@ -483,6 +491,9 @@ static struct dpll_data dpll_per_dd = {
 	.min_divider	= 1,
 };
 
+static const char *dpll_per_ck_parents[] = {
+	"sys_clkin_ck", "per_hsd_byp_clk_mux_ck"
+};
 
 static struct clk dpll_per_ck;
 
@@ -494,7 +505,7 @@ static struct clk_hw_omap dpll_per_ck_hw = {
 	.ops		= &clkhwops_omap3_dpll,
 };
 
-DEFINE_STRUCT_CLK(dpll_per_ck, dpll_core_ck_parents, dpll_ck_ops);
+DEFINE_STRUCT_CLK(dpll_per_ck, dpll_per_ck_parents, dpll_ck_ops);
 
 DEFINE_CLK_DIVIDER(dpll_per_m2_ck, "dpll_per_ck", &dpll_per_ck, 0x0,
 		   OMAP4430_CM_DIV_M2_DPLL_PER, OMAP4430_DPLL_CLKOUT_DIV_SHIFT,
@@ -578,6 +589,10 @@ static struct dpll_data dpll_usb_dd = {
 	.min_divider	= 1,
 };
 
+static const char *dpll_usb_ck_parents[] = {
+	"sys_clkin_ck", "usb_hs_clk_div_ck"
+};
+
 static struct clk dpll_usb_ck;
 
 static struct clk_hw_omap dpll_usb_ck_hw = {
@@ -588,7 +603,7 @@ static struct clk_hw_omap dpll_usb_ck_hw = {
 	.ops		= &clkhwops_omap3_dpll,
 };
 
-DEFINE_STRUCT_CLK(dpll_usb_ck, dpll_core_ck_parents, dpll_ck_ops);
+DEFINE_STRUCT_CLK(dpll_usb_ck, dpll_usb_ck_parents, dpll_ck_ops);
 
 static const char *dpll_usb_clkdcoldo_ck_parents[] = {
 	"dpll_usb_ck",
@@ -715,9 +730,13 @@ DEFINE_CLK_DIVIDER(syc_clk_div_ck, "sys_clkin_ck", &sys_clkin_ck, 0x0,
 		   OMAP4430_CM_ABE_DSS_SYS_CLKSEL, OMAP4430_CLKSEL_0_0_SHIFT,
 		   OMAP4430_CLKSEL_0_0_WIDTH, 0x0, NULL);
 
+static const char *dbgclk_mux_ck_parents[] = {
+	"sys_clkin_ck"
+};
+
 static struct clk dbgclk_mux_ck;
 DEFINE_STRUCT_CLK_HW_OMAP(dbgclk_mux_ck, NULL);
-DEFINE_STRUCT_CLK(dbgclk_mux_ck, dpll_core_ck_parents,
+DEFINE_STRUCT_CLK(dbgclk_mux_ck, dbgclk_mux_ck_parents,
 		  dpll_usb_clkdcoldo_ck_ops);
 
 /* Leaf clocks controlled by modules */
