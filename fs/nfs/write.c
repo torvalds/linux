@@ -202,7 +202,6 @@ out:
 /* A writeback failed: mark the page as bad, and invalidate the page cache */
 static void nfs_set_pageerror(struct page *page)
 {
-	SetPageError(page);
 	nfs_zap_mapping(page_file_mapping(page)->host, page_file_mapping(page));
 }
 
