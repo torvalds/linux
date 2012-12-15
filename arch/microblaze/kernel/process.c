@@ -162,7 +162,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	 * excepting for VM and UMS
 	 * don't touch UMS , CARRY and cache bits
 	 * right now MSR is a copy of parent one */
-	childregs->msr |= MSR_BIP;
 	childregs->msr &= ~MSR_EIP;
 	childregs->msr |= MSR_IE;
 	childregs->msr &= ~MSR_VM;
