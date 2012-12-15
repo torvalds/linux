@@ -12,13 +12,13 @@
 #define pr_fmt(fmt) KBUILD_MODNAME " gpio: " fmt
 
 #include <linux/device.h>
-#include <linux/init.h>
 #include <linux/gpio.h>
-#include <linux/slab.h>
-#include <linux/spinlock.h>
+#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/sh_pfc.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
 
 #include "core.h"
 

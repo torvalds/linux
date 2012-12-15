@@ -12,17 +12,17 @@
 #define DRV_NAME "sh-pfc"
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/sh_pfc.h>
-#include <linux/module.h>
-#include <linux/err.h>
-#include <linux/io.h>
 #include <linux/bitops.h>
-#include <linux/slab.h>
+#include <linux/err.h>
+#include <linux/errno.h>
+#include <linux/io.h>
 #include <linux/ioport.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_device.h>
+#include <linux/sh_pfc.h>
+#include <linux/slab.h>
 
 #include "core.h"
 
