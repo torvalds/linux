@@ -149,7 +149,6 @@ int sh_pfc_read_bit(struct pinmux_data_reg *dr, unsigned long in_pos)
 
 	return (gpio_read_raw_reg(dr->mapped_reg, dr->reg_width) >> pos) & 1;
 }
-EXPORT_SYMBOL_GPL(sh_pfc_read_bit);
 
 void sh_pfc_write_bit(struct pinmux_data_reg *dr, unsigned long in_pos,
 		      unsigned long value)
@@ -169,7 +168,6 @@ void sh_pfc_write_bit(struct pinmux_data_reg *dr, unsigned long in_pos,
 
 	gpio_write_raw_reg(dr->mapped_reg, dr->reg_width, dr->reg_shadow);
 }
-EXPORT_SYMBOL_GPL(sh_pfc_write_bit);
 
 static void config_reg_helper(struct sh_pfc *pfc,
 			      struct pinmux_cfg_reg *crp,
@@ -307,7 +305,6 @@ int sh_pfc_get_data_reg(struct sh_pfc *pfc, unsigned gpio,
 	*bitp = n;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(sh_pfc_get_data_reg);
 
 static int get_config_reg(struct sh_pfc *pfc, pinmux_enum_t enum_id,
 			  struct pinmux_cfg_reg **crp,
@@ -384,7 +381,6 @@ int sh_pfc_gpio_to_enum(struct sh_pfc *pfc, unsigned gpio, int pos,
 	pr_err("cannot locate data/mark enum_id for gpio %d\n", gpio);
 	return -1;
 }
-EXPORT_SYMBOL_GPL(sh_pfc_gpio_to_enum);
 
 int sh_pfc_config_gpio(struct sh_pfc *pfc, unsigned gpio, int pinmux_type,
 		       int cfg_mode)
@@ -500,7 +496,6 @@ int sh_pfc_config_gpio(struct sh_pfc *pfc, unsigned gpio, int pinmux_type,
 
 int register_sh_pfc(struct sh_pfc_platform_data *pdata)
 {
-	int (*initroutine)(struct sh_pfc *) = NULL;
 	int ret;
 
 	/*
@@ -531,24 +526,20 @@ int register_sh_pfc(struct sh_pfc_platform_data *pdata)
 	if (unlikely(ret != 0))
 		goto err;
 
+#ifdef CONFIG_GPIO_SH_PFC
 	/*
 	 * Then the GPIO chip
 	 */
-	initroutine = symbol_request(sh_pfc_register_gpiochip);
-	if (initroutine) {
-		ret = (*initroutine)(&sh_pfc);
-		symbol_put_addr(initroutine);
-
+	ret = sh_pfc_register_gpiochip(&sh_pfc);
+	if (unlikely(ret != 0)) {
 		/*
 		 * If the GPIO chip fails to come up we still leave the
 		 * PFC state as it is, given that there are already
 		 * extant users of it that have succeeded by this point.
 		 */
-		if (unlikely(ret != 0)) {
-			pr_notice("failed to init GPIO chip, ignoring...\n");
-			ret = 0;
-		}
+		pr_notice("failed to init GPIO chip, ignoring...\n");
 	}
+#endif
 
 	pr_info("%s support registered\n", sh_pfc.pdata->name);
 
@@ -560,3 +551,7 @@ err:
 
 	return ret;
 }
+
+MODULE_AUTHOR("Magnus Damm, Paul Mundt, Laurent Pinchart");
+MODULE_DESCRIPTION("Pin Control and GPIO driver for SuperH pin function controller");
+MODULE_LICENSE("GPL v2");

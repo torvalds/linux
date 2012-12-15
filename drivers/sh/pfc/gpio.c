@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
-#include <linux/platform_device.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/sh_pfc.h>
 
@@ -152,44 +151,23 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 	sh_pfc_gpio_setup(chip);
 
 	ret = gpiochip_add(&chip->gpio_chip);
-	if (unlikely(ret < 0))
+	if (unlikely(ret < 0)) {
 		kfree(chip);
+		return ret;
+	}
+
+	pfc->gpio = chip;
 
 	pr_info("%s handling gpio %d -> %d\n",
 		pfc->pdata->name, pfc->pdata->first_gpio,
 		pfc->pdata->last_gpio);
 
-	return ret;
-}
-EXPORT_SYMBOL_GPL(sh_pfc_register_gpiochip);
-
-static int sh_pfc_gpio_match(struct gpio_chip *gc, void *data)
-{
-	return !!strstr(gc->label, data);
-}
-
-static int sh_pfc_gpio_probe(struct platform_device *pdev)
-{
-	struct sh_pfc_chip *chip;
-	struct gpio_chip *gc;
-
-	gc = gpiochip_find("_pfc", sh_pfc_gpio_match);
-	if (unlikely(!gc)) {
-		pr_err("Cant find gpio chip\n");
-		return -ENODEV;
-	}
-
-	chip = gpio_to_pfc_chip(gc);
-	platform_set_drvdata(pdev, chip);
-
-	pr_info("attaching to GPIO chip %s\n", chip->pfc->pdata->name);
-
 	return 0;
 }
 
-static int sh_pfc_gpio_remove(struct platform_device *pdev)
+int sh_pfc_unregister_gpiochip(struct sh_pfc *pfc)
 {
-	struct sh_pfc_chip *chip = platform_get_drvdata(pdev);
+	struct sh_pfc_chip *chip = pfc->gpio;
 	int ret;
 
 	ret = gpiochip_remove(&chip->gpio_chip);
@@ -197,47 +175,6 @@ static int sh_pfc_gpio_remove(struct platform_device *pdev)
 		return ret;
 
 	kfree(chip);
+	pfc->gpio = NULL;
 	return 0;
 }
-
-static struct platform_driver sh_pfc_gpio_driver = {
-	.probe		= sh_pfc_gpio_probe,
-	.remove		= sh_pfc_gpio_remove,
-	.driver		= {
-		.name	= KBUILD_MODNAME,
-		.owner	= THIS_MODULE,
-	},
-};
-
-static struct platform_device sh_pfc_gpio_device = {
-	.name		= KBUILD_MODNAME,
-	.id		= -1,
-};
-
-static int __init sh_pfc_gpio_init(void)
-{
-	int rc;
-
-	rc = platform_driver_register(&sh_pfc_gpio_driver);
-	if (likely(!rc)) {
-		rc = platform_device_register(&sh_pfc_gpio_device);
-		if (unlikely(rc))
-			platform_driver_unregister(&sh_pfc_gpio_driver);
-	}
-
-	return rc;
-}
-
-static void __exit sh_pfc_gpio_exit(void)
-{
-	platform_device_unregister(&sh_pfc_gpio_device);
-	platform_driver_unregister(&sh_pfc_gpio_driver);
-}
-
-module_init(sh_pfc_gpio_init);
-module_exit(sh_pfc_gpio_exit);
-
-MODULE_AUTHOR("Magnus Damm, Paul Mundt");
-MODULE_DESCRIPTION("GPIO driver for SuperH pin function controller");
-MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:pfc-gpio");

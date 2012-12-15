@@ -20,14 +20,18 @@ struct pfc_window {
 	unsigned long size;
 };
 
+struct sh_pfc_chip;
+
 struct sh_pfc {
 	struct sh_pfc_platform_data *pdata;
 	spinlock_t lock;
 
 	struct pfc_window *window;
+	struct sh_pfc_chip *gpio;
 };
 
 int sh_pfc_register_gpiochip(struct sh_pfc *pfc);
+int sh_pfc_unregister_gpiochip(struct sh_pfc *pfc);
 
 int sh_pfc_register_pinctrl(struct sh_pfc *pfc);
 
