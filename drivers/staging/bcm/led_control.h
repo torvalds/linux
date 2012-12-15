@@ -18,14 +18,14 @@
 #define MAX_FILE_NAME_BUFFER_SIZE		100
 
 #define TURN_ON_LED(GPIO, index) do {					\
-		UINT gpio_val = GPIO;					\
+		unsigned int gpio_val = GPIO;					\
 		(Adapter->LEDInfo.LEDState[index].BitPolarity == 1) ?	\
 			wrmaltWithLock(Adapter, BCM_GPIO_OUTPUT_SET_REG, &gpio_val, sizeof(gpio_val)) : \
 			wrmaltWithLock(Adapter, BCM_GPIO_OUTPUT_CLR_REG, &gpio_val, sizeof(gpio_val)); \
 	} while (0)
 
 #define TURN_OFF_LED(GPIO, index)  do {					\
-		UINT gpio_val = GPIO;					\
+		unsigned int gpio_val = GPIO;					\
 		(Adapter->LEDInfo.LEDState[index].BitPolarity == 1) ?	\
 			wrmaltWithLock(Adapter, BCM_GPIO_OUTPUT_CLR_REG, &gpio_val, sizeof(gpio_val)) : \
 			wrmaltWithLock(Adapter, BCM_GPIO_OUTPUT_SET_REG, &gpio_val, sizeof(gpio_val)); \
