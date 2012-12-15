@@ -367,6 +367,7 @@ config CPU_SUBTYPE_SH7720
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select USB_ARCH_HAS_OHCI
 	select USB_OHCI_SH if USB_OHCI_HCD
+	select PINCTRL
 	help
 	  Select SH7720 if you have a SH3-DSP SH7720 CPU.
 
