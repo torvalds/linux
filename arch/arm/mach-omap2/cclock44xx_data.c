@@ -40,6 +40,14 @@
 #define OMAP4430_MODULEMODE_HWCTRL_SHIFT		0
 #define OMAP4430_MODULEMODE_SWCTRL_SHIFT		1
 
+/*
+ * OMAP4 ABE DPLL default frequency. In OMAP4460 TRM version V, section
+ * "3.6.3.2.3 CM1_ABE Clock Generator" states that the "DPLL_ABE_X2_CLK
+ * must be set to 196.608 MHz" and hence, the DPLL locked frequency is
+ * half of this value.
+ */
+#define OMAP4_DPLL_ABE_DEFFREQ				98304000
+
 /* Root clocks */
 
 DEFINE_CLK_FIXED_RATE(extalt_clkin_ck, CLK_IS_ROOT, 59000000, 0x0);
@@ -1966,6 +1974,7 @@ int __init omap4xxx_clk_init(void)
 {
 	u32 cpu_clkflg;
 	struct omap_clk *c;
+	int rc;
 
 	if (cpu_is_omap443x()) {
 		cpu_mask = RATE_IN_4430;
@@ -1993,6 +2002,19 @@ int __init omap4xxx_clk_init(void)
 
 	omap2_clk_enable_init_clocks(enable_init_clks,
 				     ARRAY_SIZE(enable_init_clks));
+
+	/*
+	 * On OMAP4460 the ABE DPLL fails to turn on if in idle low-power
+	 * state when turning the ABE clock domain. Workaround this by
+	 * locking the ABE DPLL on boot.
+	 */
+	if (cpu_is_omap446x()) {
+		rc = clk_set_parent(&abe_dpll_refclk_mux_ck, &sys_32k_ck);
+		if (!rc)
+			rc = clk_set_rate(&dpll_abe_ck, OMAP4_DPLL_ABE_DEFFREQ);
+		if (rc)
+			pr_err("%s: failed to configure ABE DPLL!\n", __func__);
+	}
 
 	return 0;
 }
