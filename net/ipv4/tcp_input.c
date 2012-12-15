@@ -5645,7 +5645,11 @@ static bool tcp_rcv_fastopen_synack(struct sock *sk, struct sk_buff *synack,
 	tcp_fastopen_cache_set(sk, mss, cookie, syn_drop);
 
 	if (data) { /* Retransmit unacked data in SYN */
-		tcp_retransmit_skb(sk, data);
+		tcp_for_write_queue_from(data, sk) {
+			if (data == tcp_send_head(sk) ||
+			    __tcp_retransmit_skb(sk, data))
+				break;
+		}
 		tcp_rearm_rto(sk);
 		return true;
 	}

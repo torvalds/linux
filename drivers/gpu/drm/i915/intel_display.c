@@ -3845,7 +3845,7 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 			/* Use VBT settings if we have an eDP panel */
 			unsigned int edp_bpc = dev_priv->edp.bpp / 3;
 
-			if (edp_bpc < display_bpc) {
+			if (edp_bpc && edp_bpc < display_bpc) {
 				DRM_DEBUG_KMS("clamping display bpc (was %d) to eDP (%d)\n", display_bpc, edp_bpc);
 				display_bpc = edp_bpc;
 			}
