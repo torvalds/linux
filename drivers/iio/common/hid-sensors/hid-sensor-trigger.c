@@ -26,7 +26,6 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger.h>
 #include <linux/iio/sysfs.h>
-#include "hid-sensor-attributes.h"
 #include "hid-sensor-trigger.h"
 
 static int hid_sensor_data_rdy_trigger_set_state(struct iio_trigger *trig,

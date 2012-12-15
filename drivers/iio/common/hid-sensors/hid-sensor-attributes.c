@@ -25,7 +25,6 @@
 #include <linux/hid-sensor-hub.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
-#include "hid-sensor-attributes.h"
 
 static int pow_10(unsigned power)
 {
