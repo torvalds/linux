@@ -236,6 +236,8 @@ static int rk30_cpu_init(struct cpufreq_policy *policy)
 	if (policy->cpu == 0) {
 		int i;
 		struct clk *ddr_clk;
+	  	struct clk *aclk_vepu_clk;
+	
 		gpu_clk = clk_get(NULL, "gpu");
 		if (!IS_ERR(gpu_clk))
 			clk_enable_dvfs(gpu_clk);
@@ -276,6 +278,10 @@ static int rk30_cpu_init(struct cpufreq_policy *policy)
 			dvfs_clk_register_set_rate_callback(ddr_clk, ddr_scale_rate_for_dvfs);
 			clk_enable_dvfs(ddr_clk);
 		}
+
+		aclk_vepu_clk = clk_get(NULL, "aclk_vepu");
+		if (!IS_ERR(aclk_vepu_clk))
+			clk_enable_dvfs(aclk_vepu_clk);
 
 		freq_wq = create_singlethread_workqueue("rk30_cpufreqd");
 #ifdef CONFIG_RK30_CPU_FREQ_LIMIT_BY_TEMP

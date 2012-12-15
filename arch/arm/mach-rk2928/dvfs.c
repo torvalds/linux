@@ -1289,6 +1289,13 @@ static struct cpufreq_frequency_table peri_aclk_dvfs_table[] = {
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
+static struct cpufreq_frequency_table vpu_dvfs_table[] = {
+	{.frequency = 266 * DVFS_KHZ, .index = 1100 * DVFS_MV},
+	{.frequency = 300 * DVFS_KHZ, .index = 1100 * DVFS_MV},
+	{.frequency = 400 * DVFS_KHZ, .index = 1200 * DVFS_MV},
+	{.frequency = CPUFREQ_TABLE_END},
+};
+
 static struct cpufreq_frequency_table dep_cpu2core_table[] = {
 	// {.frequency = 252 * DVFS_KHZ, .index    = 1025 * DVFS_MV},
 	// {.frequency = 504 * DVFS_KHZ, .index    = 1025 * DVFS_MV},
@@ -1413,6 +1420,11 @@ static struct pds_list aclk_periph_pds[] = {
 	CLK_PDS(NULL),
 };
 
+static struct pds_list aclk_vepu_pds[] = {
+	CLK_PDS(&pd_video),
+	CLK_PDS(NULL),
+};
+
 #define RK_CLKS(_clk_name, _ppds, _dvfs_table, _dvfs_nb) \
 { \
 	.name	= _clk_name, \
@@ -1425,6 +1437,7 @@ static struct clk_node rk30_clks[] = {
 	RK_CLKS("cpu", cpu_pds, cpu_dvfs_table, &rk_dvfs_clk_notifier),
 	RK_CLKS("ddr", ddr_pds, ddr_dvfs_table, &rk_dvfs_clk_notifier),
 	RK_CLKS("gpu", gpu_pds, gpu_dvfs_table, &rk_dvfs_clk_notifier),
+	RK_CLKS("aclk_vepu", aclk_vepu_pds, vpu_dvfs_table, &rk_dvfs_clk_notifier),
 	//RK_CLKS("aclk_periph", aclk_periph_pds, peri_aclk_dvfs_table, &rk_dvfs_clk_notifier),
 };
 
