@@ -20,16 +20,11 @@
 int mesh_allocated;
 static struct kmem_cache *rm_cache;
 
-#ifdef CONFIG_MAC80211_MESH
 bool mesh_action_is_path_sel(struct ieee80211_mgmt *mgmt)
 {
 	return (mgmt->u.action.u.mesh_action.action_code ==
 			WLAN_MESH_ACTION_HWMP_PATH_SELECTION);
 }
-#else
-bool mesh_action_is_path_sel(struct ieee80211_mgmt *mgmt)
-{ return false; }
-#endif
 
 void ieee80211s_init(void)
 {
