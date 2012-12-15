@@ -291,7 +291,7 @@ static ssize_t show_wlan(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 
-	int ret, enabled;
+	int ret, enabled = 0;
 
 	if (old_ec_model) {
 		ret = get_wireless_state(&enabled, NULL);
@@ -315,7 +315,7 @@ static ssize_t show_bluetooth(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 
-	int ret, enabled;
+	int ret, enabled = 0;
 
 	if (old_ec_model) {
 		ret = get_wireless_state(NULL, &enabled);
