@@ -20,6 +20,7 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/platform_device.h>
 #include <linux/sh_pfc.h>
 #include <mach/r8a7740.h>
 #include <mach/irqs.h>
@@ -2611,7 +2612,15 @@ static struct pinmux_info r8a7740_pinmux_info = {
 	.gpio_irq_size	= ARRAY_SIZE(pinmux_irqs),
 };
 
+static struct platform_device r8a7740_pfc_device = {
+	.name		= "sh-pfc",
+	.id		= -1,
+	.dev = {
+		.platform_data = &r8a7740_pinmux_info,
+	},
+};
+
 void r8a7740_pinmux_init(void)
 {
-	register_pinmux(&r8a7740_pinmux_info);
+	platform_device_register(&r8a7740_pfc_device);
 }
