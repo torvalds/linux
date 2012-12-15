@@ -198,7 +198,7 @@ static ssize_t set_device_state(const char *buf, size_t count, u8 mask)
 	/* read current device state */
 	result = ec_read(MSI_STANDARD_EC_COMMAND_ADDRESS, &rdata);
 	if (result < 0)
-		return -EINVAL;
+		return result;
 
 	if (!!(rdata & mask) != status) {
 		/* reverse device bit */
@@ -209,7 +209,7 @@ static ssize_t set_device_state(const char *buf, size_t count, u8 mask)
 
 		result = ec_write(MSI_STANDARD_EC_COMMAND_ADDRESS, wdata);
 		if (result < 0)
-			return -EINVAL;
+			return result;
 	}
 
 	return count;
@@ -222,7 +222,7 @@ static int get_wireless_state(int *wlan, int *bluetooth)
 
 	result = ec_transaction(MSI_EC_COMMAND_WIRELESS, &wdata, 1, &rdata, 1);
 	if (result < 0)
-		return -1;
+		return result;
 
 	if (wlan)
 		*wlan = !!(rdata & 8);
@@ -240,7 +240,7 @@ static int get_wireless_state_ec_standard(void)
 
 	result = ec_read(MSI_STANDARD_EC_COMMAND_ADDRESS, &rdata);
 	if (result < 0)
-		return -1;
+		return result;
 
 	wlan_s = !!(rdata & MSI_STANDARD_EC_WLAN_MASK);
 
@@ -258,7 +258,7 @@ static int get_threeg_exists(void)
 
 	result = ec_read(MSI_STANDARD_EC_DEVICES_EXISTS_ADDRESS, &rdata);
 	if (result < 0)
-		return -1;
+		return result;
 
 	threeg_exists = !!(rdata & MSI_STANDARD_EC_3G_MASK);
 
@@ -343,7 +343,7 @@ static ssize_t show_threeg(struct device *dev,
 
 	/* old msi ec not support 3G */
 	if (old_ec_model)
-		return -1;
+		return -ENODEV;
 
 	ret = get_wireless_state_ec_standard();
 	if (ret < 0)
