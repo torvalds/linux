@@ -14,7 +14,7 @@
 #include <linux/sh_pfc.h>
 #include <linux/types.h>
 
-struct pfc_window {
+struct sh_pfc_window {
 	phys_addr_t phys;
 	void __iomem *virt;
 	unsigned long size;
@@ -28,7 +28,7 @@ struct sh_pfc {
 	struct sh_pfc_platform_data *pdata;
 	spinlock_t lock;
 
-	struct pfc_window *window;
+	struct sh_pfc_window *window;
 	struct sh_pfc_chip *gpio;
 	struct sh_pfc_pinctrl *pinctrl;
 };
