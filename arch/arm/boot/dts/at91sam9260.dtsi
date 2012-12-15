@@ -217,7 +217,7 @@
 				compatible = "atmel,at91rm9200-ssc";
 				reg = <0xfffbc000 0x4000>;
 				interrupts = <14 4 5>;
-				status = "disable";
+				status = "disabled";
 			};
 
 			adc0: adc@fffe0000 {
