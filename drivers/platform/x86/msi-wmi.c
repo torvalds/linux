@@ -37,17 +37,27 @@ MODULE_LICENSE("GPL");
 #define DRV_NAME "msi-wmi"
 
 #define MSIWMI_BIOS_GUID "551A1F84-FBDD-4125-91DB-3EA8F44F1D45"
-#define MSIWMI_EVENT_GUID "B6F3EEF2-3D2F-49DC-9DE3-85BCE18C62F2"
+#define MSIWMI_MSI_EVENT_GUID "B6F3EEF2-3D2F-49DC-9DE3-85BCE18C62F2"
+#define MSIWMI_WIND_EVENT_GUID "5B3CC38A-40D9-7245-8AE6-1145B751BE3F"
 
 MODULE_ALIAS("wmi:" MSIWMI_BIOS_GUID);
-MODULE_ALIAS("wmi:" MSIWMI_EVENT_GUID);
+MODULE_ALIAS("wmi:" MSIWMI_MSI_EVENT_GUID);
+MODULE_ALIAS("wmi:" MSIWMI_WIND_EVENT_GUID);
 
 enum msi_scancodes {
+	/* Generic MSI keys (not present on MSI Wind) */
 	MSI_KEY_BRIGHTNESSUP	= 0xD0,
 	MSI_KEY_BRIGHTNESSDOWN,
 	MSI_KEY_VOLUMEUP,
 	MSI_KEY_VOLUMEDOWN,
 	MSI_KEY_MUTE,
+	/* MSI Wind keys */
+	WIND_KEY_TOUCHPAD	= 0x08,	/* Fn+F3 touchpad toggle */
+	WIND_KEY_BLUETOOTH	= 0x56,	/* Fn+F11 Bluetooth toggle */
+	WIND_KEY_CAMERA,		/* Fn+F6 webcam toggle */
+	WIND_KEY_WLAN		= 0x5f,	/* Fn+F11 Wi-Fi toggle */
+	WIND_KEY_TURBO,			/* Fn+F10 turbo mode toggle */
+	WIND_KEY_ECO		= 0x69,	/* Fn+F10 ECO mode toggle */
 };
 static struct key_entry msi_wmi_keymap[] = {
 	{ KE_KEY, MSI_KEY_BRIGHTNESSUP,		{KEY_BRIGHTNESSUP} },
@@ -55,13 +65,34 @@ static struct key_entry msi_wmi_keymap[] = {
 	{ KE_KEY, MSI_KEY_VOLUMEUP,		{KEY_VOLUMEUP} },
 	{ KE_KEY, MSI_KEY_VOLUMEDOWN,		{KEY_VOLUMEDOWN} },
 	{ KE_KEY, MSI_KEY_MUTE,			{KEY_MUTE} },
+
+	/* These keys work without WMI. Ignore them to avoid double keycodes */
+	{ KE_IGNORE, WIND_KEY_TOUCHPAD,		{KEY_TOUCHPAD_TOGGLE} },
+	{ KE_IGNORE, WIND_KEY_BLUETOOTH,	{KEY_BLUETOOTH} },
+	{ KE_IGNORE, WIND_KEY_CAMERA,		{KEY_CAMERA} },
+	{ KE_IGNORE, WIND_KEY_WLAN,		{KEY_WLAN} },
+
+	/* These are unknown WMI events found on MSI Wind */
+	{ KE_IGNORE, 0x00 },
+	{ KE_IGNORE, 0x62 },
+	{ KE_IGNORE, 0x63 },
+
+	/* These are MSI Wind keys that should be handled via WMI */
+	{ KE_KEY, WIND_KEY_TURBO,		{KEY_PROG1} },
+	{ KE_KEY, WIND_KEY_ECO,			{KEY_PROG2} },
+
 	{ KE_END, 0 }
 };
 
 static ktime_t last_pressed;
-static bool quirk_last_pressed;
 
-static const char *event_wmi_guid;
+static const struct {
+	const char *guid;
+	bool quirk_last_pressed;
+} *event_wmi, event_wmis[] = {
+	{ MSIWMI_MSI_EVENT_GUID, true },
+	{ MSIWMI_WIND_EVENT_GUID, false },
+};
 
 static struct backlight_device *backlight;
 
@@ -174,7 +205,7 @@ static void msi_wmi_notify(u32 value, void *context)
 			goto msi_wmi_notify_exit;
 		}
 
-		if (quirk_last_pressed) {
+		if (event_wmi->quirk_last_pressed) {
 			ktime_t cur = ktime_get_real();
 			ktime_t diff = ktime_sub(cur, last_pressed);
 			/* Ignore event if any event happened in a 50 ms
@@ -265,15 +296,19 @@ err_free_dev:
 static int __init msi_wmi_init(void)
 {
 	int err;
+	int i;
 
-	if (wmi_has_guid(MSIWMI_EVENT_GUID)) {
+	for (i = 0; i < ARRAY_SIZE(event_wmis); i++) {
+		if (!wmi_has_guid(event_wmis[i].guid))
+			continue;
+
 		err = msi_wmi_input_setup();
 		if (err) {
 			pr_err("Unable to setup input device\n");
 			return err;
 		}
 
-		err = wmi_install_notify_handler(MSIWMI_EVENT_GUID,
+		err = wmi_install_notify_handler(event_wmis[i].guid,
 			msi_wmi_notify, NULL);
 		if (ACPI_FAILURE(err)) {
 			pr_err("Unable to setup WMI notify handler\n");
@@ -281,8 +316,8 @@ static int __init msi_wmi_init(void)
 		}
 
 		pr_debug("Event handler installed\n");
-		event_wmi_guid = MSIWMI_EVENT_GUID;
-		quirk_last_pressed = true;
+		event_wmi = &event_wmis[i];
+		break;
 	}
 
 	if (wmi_has_guid(MSIWMI_BIOS_GUID) && !acpi_video_backlight_support()) {
@@ -294,7 +329,7 @@ static int __init msi_wmi_init(void)
 		pr_debug("Backlight device created\n");
 	}
 
-	if (!event_wmi_guid && !backlight) {
+	if (!event_wmi && !backlight) {
 		pr_err("This machine doesn't have neither MSI-hotkeys nor backlight through WMI\n");
 		return -ENODEV;
 	}
@@ -302,10 +337,10 @@ static int __init msi_wmi_init(void)
 	return 0;
 
 err_uninstall_handler:
-	if (event_wmi_guid)
-		wmi_remove_notify_handler(event_wmi_guid);
+	if (event_wmi)
+		wmi_remove_notify_handler(event_wmi->guid);
 err_free_input:
-	if (event_wmi_guid) {
+	if (event_wmi) {
 		sparse_keymap_free(msi_wmi_input_dev);
 		input_unregister_device(msi_wmi_input_dev);
 	}
@@ -314,8 +349,8 @@ err_free_input:
 
 static void __exit msi_wmi_exit(void)
 {
-	if (event_wmi_guid) {
-		wmi_remove_notify_handler(event_wmi_guid);
+	if (event_wmi) {
+		wmi_remove_notify_handler(event_wmi->guid);
 		sparse_keymap_free(msi_wmi_input_dev);
 		input_unregister_device(msi_wmi_input_dev);
 	}
