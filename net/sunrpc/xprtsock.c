@@ -2400,7 +2400,6 @@ static int bc_send_request(struct rpc_task *task)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
 	struct svc_xprt	*xprt;
-	struct svc_sock         *svsk;
 	u32                     len;
 
 	dprintk("sending request with xid: %08x\n", ntohl(req->rq_xid));
@@ -2408,7 +2407,6 @@ static int bc_send_request(struct rpc_task *task)
 	 * Get the server socket associated with this callback xprt
 	 */
 	xprt = req->rq_xprt->bc_xprt;
-	svsk = container_of(xprt, struct svc_sock, sk_xprt);
 
 	/*
 	 * Grab the mutex to serialize data as the connection is shared
