@@ -23,7 +23,6 @@ smp-$(CONFIG_ARCH_EMEV2)	+= smp-emev2.o
 pfc-y				:=
 pfc-$(CONFIG_ARCH_SH7372)	+= pfc-sh7372.o
 pfc-$(CONFIG_ARCH_SH73A0)	+= pfc-sh73a0.o
-pfc-$(CONFIG_ARCH_R8A7779)	+= pfc-r8a7779.o
 
 # IRQ objects
 obj-$(CONFIG_ARCH_SH7372)	+= entry-intc.o
