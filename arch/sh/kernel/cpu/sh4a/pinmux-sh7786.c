@@ -825,7 +825,7 @@ static struct pinmux_info sh7786_pinmux_info = {
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
 
 	.first_gpio = GPIO_PA7,
-	.last_gpio = GPIO_FN_FSE,
+	.last_gpio = GPIO_FN_IRL4,
 
 	.gpios = pinmux_gpios,
 	.cfg_regs = pinmux_config_regs,
