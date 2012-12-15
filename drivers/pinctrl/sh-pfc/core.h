@@ -51,4 +51,6 @@ int sh_pfc_gpio_to_enum(struct sh_pfc *pfc, unsigned gpio, int pos,
 int sh_pfc_config_gpio(struct sh_pfc *pfc, unsigned gpio, int pinmux_type,
 		       int cfg_mode);
 
+extern struct sh_pfc_soc_info r8a7740_pinmux_info;
+
 #endif /* __SH_PFC_CORE_H__ */
