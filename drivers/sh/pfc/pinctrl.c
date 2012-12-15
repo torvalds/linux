@@ -9,7 +9,7 @@
  */
 #define DRV_NAME "pinctrl-sh_pfc"
 
-#define pr_fmt(fmt) DRV_NAME " " KBUILD_MODNAME ": " fmt
+#define pr_fmt(fmt) KBUILD_MODNAME " pinctrl: " fmt
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -521,7 +521,6 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 
 	return sh_pfc_pinctrl_init();
 }
-EXPORT_SYMBOL_GPL(sh_pfc_register_pinctrl);
 
 static void __exit sh_pfc_pinctrl_exit(void)
 {

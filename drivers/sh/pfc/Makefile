@@ -1,3 +1,3 @@
-obj-y				+= core.o
-obj-$(CONFIG_PINCTRL_SH_PFC)	+= pinctrl.o
+sh-pfc-objs			= core.o pinctrl.o
+obj-y				+= sh-pfc.o
 obj-$(CONFIG_GPIO_SH_PFC)	+= gpio.o

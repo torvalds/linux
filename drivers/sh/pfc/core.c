@@ -8,7 +8,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
-#define pr_fmt(fmt) "sh_pfc " KBUILD_MODNAME ": " fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -497,7 +497,6 @@ int sh_pfc_config_gpio(struct sh_pfc *pfc, unsigned gpio, int pinmux_type,
  out_err:
 	return -1;
 }
-EXPORT_SYMBOL_GPL(sh_pfc_config_gpio);
 
 int register_sh_pfc(struct sh_pfc_platform_data *pdata)
 {
@@ -528,17 +527,9 @@ int register_sh_pfc(struct sh_pfc_platform_data *pdata)
 	/*
 	 * Initialize pinctrl bindings first
 	 */
-	initroutine = symbol_request(sh_pfc_register_pinctrl);
-	if (initroutine) {
-		ret = (*initroutine)(&sh_pfc);
-		symbol_put_addr(initroutine);
-
-		if (unlikely(ret != 0))
-			goto err;
-	} else {
-		pr_err("failed to initialize pinctrl bindings\n");
+	ret = sh_pfc_register_pinctrl(&sh_pfc);
+	if (unlikely(ret != 0))
 		goto err;
-	}
 
 	/*
 	 * Then the GPIO chip
