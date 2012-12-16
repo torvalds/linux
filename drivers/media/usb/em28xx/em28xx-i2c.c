@@ -53,12 +53,11 @@ do {							\
  * em2800_i2c_send_max4()
  * send up to 4 bytes to the i2c device
  */
-static int em2800_i2c_send_max4(struct em28xx *dev, unsigned char addr,
-				char *buf, int len)
+static int em2800_i2c_send_max4(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 {
 	int ret;
 	int write_timeout;
-	unsigned char b2[6];
+	u8 b2[6];
 	BUG_ON(len < 1 || len > 4);
 	b2[5] = 0x80 + len - 1;
 	b2[4] = addr;
@@ -89,15 +88,13 @@ static int em2800_i2c_send_max4(struct em28xx *dev, unsigned char addr,
 /*
  * em2800_i2c_send_bytes()
  */
-static int em2800_i2c_send_bytes(void *data, unsigned char addr, char *buf,
-				 short len)
+static int em2800_i2c_send_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 {
-	char *bufPtr = buf;
+	u8 *bufPtr = buf;
 	int ret;
 	int wrcount = 0;
 	int count;
 	int maxLen = 4;
-	struct em28xx *dev = (struct em28xx *)data;
 	while (len > 0) {
 		count = (len > maxLen) ? maxLen : len;
 		ret = em2800_i2c_send_max4(dev, addr, bufPtr, count);
@@ -115,9 +112,9 @@ static int em2800_i2c_send_bytes(void *data, unsigned char addr, char *buf,
  * em2800_i2c_check_for_device()
  * check if there is a i2c_device at the supplied address
  */
-static int em2800_i2c_check_for_device(struct em28xx *dev, unsigned char addr)
+static int em2800_i2c_check_for_device(struct em28xx *dev, u8 addr)
 {
-	char msg;
+	u8 msg;
 	int ret;
 	int write_timeout;
 	msg = addr;
@@ -150,8 +147,7 @@ static int em2800_i2c_check_for_device(struct em28xx *dev, unsigned char addr)
  * em2800_i2c_recv_bytes()
  * read from the i2c device
  */
-static int em2800_i2c_recv_bytes(struct em28xx *dev, unsigned char addr,
-				 char *buf, int len)
+static int em2800_i2c_recv_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 {
 	int ret;
 	/* check for the device and set i2c read address */
@@ -174,11 +170,10 @@ static int em2800_i2c_recv_bytes(struct em28xx *dev, unsigned char addr,
 /*
  * em28xx_i2c_send_bytes()
  */
-static int em28xx_i2c_send_bytes(void *data, unsigned char addr, char *buf,
-				 short len, int stop)
+static int em28xx_i2c_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
+				 u16 len, int stop)
 {
 	int wrcount = 0;
-	struct em28xx *dev = (struct em28xx *)data;
 	int write_timeout, ret;
 
 	wrcount = dev->em28xx_write_regs_req(dev, stop ? 2 : 3, addr, buf, len);
@@ -199,8 +194,7 @@ static int em28xx_i2c_send_bytes(void *data, unsigned char addr, char *buf,
  * em28xx_i2c_recv_bytes()
  * read a byte from the i2c device
  */
-static int em28xx_i2c_recv_bytes(struct em28xx *dev, unsigned char addr,
-				 char *buf, int len)
+static int em28xx_i2c_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf, u16 len)
 {
 	int ret;
 	ret = dev->em28xx_read_reg_req_len(dev, 2, addr, buf, len);
@@ -217,7 +211,7 @@ static int em28xx_i2c_recv_bytes(struct em28xx *dev, unsigned char addr,
  * em28xx_i2c_check_for_device()
  * check if there is a i2c_device at the supplied address
  */
-static int em28xx_i2c_check_for_device(struct em28xx *dev, unsigned char addr)
+static int em28xx_i2c_check_for_device(struct em28xx *dev, u16 addr)
 {
 	int ret;
 
