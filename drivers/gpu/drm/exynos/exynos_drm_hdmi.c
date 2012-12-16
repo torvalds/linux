@@ -29,6 +29,9 @@
 #define get_ctx_from_subdrv(subdrv)	container_of(subdrv,\
 					struct drm_hdmi_context, subdrv);
 
+/* platform device pointer for common drm hdmi device. */
+static struct platform_device *exynos_drm_hdmi_pdev;
+
 /* Common hdmi subdrv needs to access the hdmi and mixer though context.
 * These should be initialied by the repective drivers */
 static struct exynos_drm_hdmi_context *hdmi_ctx;
@@ -45,6 +48,25 @@ struct drm_hdmi_context {
 
 	bool	enabled[MIXER_WIN_NR];
 };
+
+int exynos_platform_device_hdmi_register(void)
+{
+	if (exynos_drm_hdmi_pdev)
+		return -EEXIST;
+
+	exynos_drm_hdmi_pdev = platform_device_register_simple(
+			"exynos-drm-hdmi", -1, NULL, 0);
+	if (IS_ERR_OR_NULL(exynos_drm_hdmi_pdev))
+		return PTR_ERR(exynos_drm_hdmi_pdev);
+
+	return 0;
+}
+
+void exynos_platform_device_hdmi_unregister(void)
+{
+	if (exynos_drm_hdmi_pdev)
+		platform_device_unregister(exynos_drm_hdmi_pdev);
+}
 
 void exynos_hdmi_drv_attach(struct exynos_drm_hdmi_context *ctx)
 {
@@ -157,6 +179,16 @@ static void drm_hdmi_disable_vblank(struct device *subdrv_dev)
 		return mixer_ops->disable_vblank(ctx->mixer_ctx->ctx);
 }
 
+static void drm_hdmi_wait_for_vblank(struct device *subdrv_dev)
+{
+	struct drm_hdmi_context *ctx = to_context(subdrv_dev);
+
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	if (mixer_ops && mixer_ops->wait_for_vblank)
+		mixer_ops->wait_for_vblank(ctx->mixer_ctx->ctx);
+}
+
 static void drm_hdmi_mode_fixup(struct device *subdrv_dev,
 				struct drm_connector *connector,
 				const struct drm_display_mode *mode,
@@ -238,6 +270,7 @@ static struct exynos_drm_manager_ops drm_hdmi_manager_ops = {
 	.apply = drm_hdmi_apply,
 	.enable_vblank = drm_hdmi_enable_vblank,
 	.disable_vblank = drm_hdmi_disable_vblank,
+	.wait_for_vblank = drm_hdmi_wait_for_vblank,
 	.mode_fixup = drm_hdmi_mode_fixup,
 	.mode_set = drm_hdmi_mode_set,
 	.get_max_resol = drm_hdmi_get_max_resol,
@@ -291,21 +324,10 @@ static void drm_mixer_disable(struct device *subdrv_dev, int zpos)
 	ctx->enabled[win] = false;
 }
 
-static void drm_mixer_wait_for_vblank(struct device *subdrv_dev)
-{
-	struct drm_hdmi_context *ctx = to_context(subdrv_dev);
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
-	if (mixer_ops && mixer_ops->wait_for_vblank)
-		mixer_ops->wait_for_vblank(ctx->mixer_ctx->ctx);
-}
-
 static struct exynos_drm_overlay_ops drm_hdmi_overlay_ops = {
 	.mode_set = drm_mixer_mode_set,
 	.commit = drm_mixer_commit,
 	.disable = drm_mixer_disable,
-	.wait_for_vblank = drm_mixer_wait_for_vblank,
 };
 
 static struct exynos_drm_manager hdmi_manager = {

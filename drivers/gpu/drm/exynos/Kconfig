@@ -45,3 +45,27 @@ config DRM_EXYNOS_G2D
 	depends on DRM_EXYNOS && !VIDEO_SAMSUNG_S5P_G2D
 	help
 	  Choose this option if you want to use Exynos G2D for DRM.
+
+config DRM_EXYNOS_IPP
+	bool "Exynos DRM IPP"
+	depends on DRM_EXYNOS
+	help
+	  Choose this option if you want to use IPP feature for DRM.
+
+config DRM_EXYNOS_FIMC
+	bool "Exynos DRM FIMC"
+	depends on DRM_EXYNOS_IPP
+	help
+	  Choose this option if you want to use Exynos FIMC for DRM.
+
+config DRM_EXYNOS_ROTATOR
+	bool "Exynos DRM Rotator"
+	depends on DRM_EXYNOS_IPP
+	help
+	  Choose this option if you want to use Exynos Rotator for DRM.
+
+config DRM_EXYNOS_GSC
+	bool "Exynos DRM GSC"
+	depends on DRM_EXYNOS_IPP && ARCH_EXYNOS5
+	help
+	  Choose this option if you want to use Exynos GSC for DRM.

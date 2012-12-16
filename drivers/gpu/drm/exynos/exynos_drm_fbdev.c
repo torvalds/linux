@@ -65,7 +65,7 @@ static int exynos_drm_fb_mmap(struct fb_info *info,
 	if (vm_size > buffer->size)
 		return -EINVAL;
 
-	ret = dma_mmap_attrs(helper->dev->dev, vma, buffer->kvaddr,
+	ret = dma_mmap_attrs(helper->dev->dev, vma, buffer->pages,
 		buffer->dma_addr, buffer->size, &buffer->dma_attrs);
 	if (ret < 0) {
 		DRM_ERROR("failed to mmap.\n");
@@ -107,6 +107,17 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 	if (!buffer) {
 		DRM_LOG_KMS("buffer is null.\n");
 		return -EFAULT;
+	}
+
+	/* map pages with kernel virtual space. */
+	if (!buffer->kvaddr) {
+		unsigned int nr_pages = buffer->size >> PAGE_SHIFT;
+		buffer->kvaddr = vmap(buffer->pages, nr_pages, VM_MAP,
+					pgprot_writecombine(PAGE_KERNEL));
+		if (!buffer->kvaddr) {
+			DRM_ERROR("failed to map pages to kernel space.\n");
+			return -EIO;
+		}
 	}
 
 	/* buffer count to framebuffer always is 1 at booting time. */
@@ -164,7 +175,7 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	exynos_gem_obj = exynos_drm_gem_create(dev, 0, size);
 	if (IS_ERR(exynos_gem_obj)) {
 		ret = PTR_ERR(exynos_gem_obj);
-		goto out;
+		goto err_release_framebuffer;
 	}
 
 	exynos_fbdev->exynos_gem_obj = exynos_gem_obj;
@@ -174,7 +185,7 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	if (IS_ERR_OR_NULL(helper->fb)) {
 		DRM_ERROR("failed to create drm framebuffer.\n");
 		ret = PTR_ERR(helper->fb);
-		goto out;
+		goto err_destroy_gem;
 	}
 
 	helper->fbdev = fbi;
@@ -186,14 +197,24 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	ret = fb_alloc_cmap(&fbi->cmap, 256, 0);
 	if (ret) {
 		DRM_ERROR("failed to allocate cmap.\n");
-		goto out;
+		goto err_destroy_framebuffer;
 	}
 
 	ret = exynos_drm_fbdev_update(helper, helper->fb);
-	if (ret < 0) {
-		fb_dealloc_cmap(&fbi->cmap);
-		goto out;
-	}
+	if (ret < 0)
+		goto err_dealloc_cmap;
+
+	mutex_unlock(&dev->struct_mutex);
+	return ret;
+
+err_dealloc_cmap:
+	fb_dealloc_cmap(&fbi->cmap);
+err_destroy_framebuffer:
+	drm_framebuffer_cleanup(helper->fb);
+err_destroy_gem:
+	exynos_drm_gem_destroy(exynos_gem_obj);
+err_release_framebuffer:
+	framebuffer_release(fbi);
 
 /*
  * if failed, all resources allocated above would be released by
@@ -295,7 +316,12 @@ err_init:
 static void exynos_drm_fbdev_destroy(struct drm_device *dev,
 				      struct drm_fb_helper *fb_helper)
 {
+	struct exynos_drm_fbdev *exynos_fbd = to_exynos_fbdev(fb_helper);
+	struct exynos_drm_gem_obj *exynos_gem_obj = exynos_fbd->exynos_gem_obj;
 	struct drm_framebuffer *fb;
+
+	if (exynos_gem_obj->buffer->kvaddr)
+		vunmap(exynos_gem_obj->buffer->kvaddr);
 
 	/* release drm framebuffer and real buffer */
 	if (fb_helper->fb && fb_helper->fb->funcs) {

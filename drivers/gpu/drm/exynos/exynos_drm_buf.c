@@ -34,7 +34,8 @@ static int lowlevel_buffer_allocate(struct drm_device *dev,
 		unsigned int flags, struct exynos_drm_gem_buf *buf)
 {
 	int ret = 0;
-	enum dma_attr attr = DMA_ATTR_FORCE_CONTIGUOUS;
+	enum dma_attr attr;
+	unsigned int nr_pages;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -45,44 +46,49 @@ static int lowlevel_buffer_allocate(struct drm_device *dev,
 
 	init_dma_attrs(&buf->dma_attrs);
 
-	if (flags & EXYNOS_BO_NONCONTIG)
+	/*
+	 * if EXYNOS_BO_CONTIG, fully physically contiguous memory
+	 * region will be allocated else physically contiguous
+	 * as possible.
+	 */
+	if (flags & EXYNOS_BO_CONTIG)
+		dma_set_attr(DMA_ATTR_FORCE_CONTIGUOUS, &buf->dma_attrs);
+
+	/*
+	 * if EXYNOS_BO_WC or EXYNOS_BO_NONCACHABLE, writecombine mapping
+	 * else cachable mapping.
+	 */
+	if (flags & EXYNOS_BO_WC || !(flags & EXYNOS_BO_CACHABLE))
 		attr = DMA_ATTR_WRITE_COMBINE;
+	else
+		attr = DMA_ATTR_NON_CONSISTENT;
 
 	dma_set_attr(attr, &buf->dma_attrs);
+	dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &buf->dma_attrs);
 
-	buf->kvaddr = dma_alloc_attrs(dev->dev, buf->size,
+	buf->pages = dma_alloc_attrs(dev->dev, buf->size,
 			&buf->dma_addr, GFP_KERNEL, &buf->dma_attrs);
-	if (!buf->kvaddr) {
+	if (!buf->pages) {
 		DRM_ERROR("failed to allocate buffer.\n");
 		return -ENOMEM;
 	}
 
-	buf->sgt = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
+	nr_pages = buf->size >> PAGE_SHIFT;
+	buf->sgt = drm_prime_pages_to_sg(buf->pages, nr_pages);
 	if (!buf->sgt) {
-		DRM_ERROR("failed to allocate sg table.\n");
+		DRM_ERROR("failed to get sg table.\n");
 		ret = -ENOMEM;
 		goto err_free_attrs;
 	}
 
-	ret = dma_get_sgtable(dev->dev, buf->sgt, buf->kvaddr, buf->dma_addr,
-			buf->size);
-	if (ret < 0) {
-		DRM_ERROR("failed to get sgtable.\n");
-		goto err_free_sgt;
-	}
-
-	DRM_DEBUG_KMS("vaddr(0x%lx), dma_addr(0x%lx), size(0x%lx)\n",
-			(unsigned long)buf->kvaddr,
+	DRM_DEBUG_KMS("dma_addr(0x%lx), size(0x%lx)\n",
 			(unsigned long)buf->dma_addr,
 			buf->size);
 
 	return ret;
 
-err_free_sgt:
-	kfree(buf->sgt);
-	buf->sgt = NULL;
 err_free_attrs:
-	dma_free_attrs(dev->dev, buf->size, buf->kvaddr,
+	dma_free_attrs(dev->dev, buf->size, buf->pages,
 			(dma_addr_t)buf->dma_addr, &buf->dma_attrs);
 	buf->dma_addr = (dma_addr_t)NULL;
 
@@ -99,8 +105,7 @@ static void lowlevel_buffer_deallocate(struct drm_device *dev,
 		return;
 	}
 
-	DRM_DEBUG_KMS("vaddr(0x%lx), dma_addr(0x%lx), size(0x%lx)\n",
-			(unsigned long)buf->kvaddr,
+	DRM_DEBUG_KMS("dma_addr(0x%lx), size(0x%lx)\n",
 			(unsigned long)buf->dma_addr,
 			buf->size);
 
@@ -109,7 +114,7 @@ static void lowlevel_buffer_deallocate(struct drm_device *dev,
 	kfree(buf->sgt);
 	buf->sgt = NULL;
 
-	dma_free_attrs(dev->dev, buf->size, buf->kvaddr,
+	dma_free_attrs(dev->dev, buf->size, buf->pages,
 				(dma_addr_t)buf->dma_addr, &buf->dma_attrs);
 	buf->dma_addr = (dma_addr_t)NULL;
 }

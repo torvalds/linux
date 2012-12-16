@@ -237,8 +237,7 @@ static void exynos_drm_encoder_commit(struct drm_encoder *encoder)
 void exynos_drm_encoder_complete_scanout(struct drm_framebuffer *fb)
 {
 	struct exynos_drm_encoder *exynos_encoder;
-	struct exynos_drm_overlay_ops *overlay_ops;
-	struct exynos_drm_manager *manager;
+	struct exynos_drm_manager_ops *ops;
 	struct drm_device *dev = fb->dev;
 	struct drm_encoder *encoder;
 
@@ -248,21 +247,15 @@ void exynos_drm_encoder_complete_scanout(struct drm_framebuffer *fb)
 	 */
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		exynos_encoder = to_exynos_encoder(encoder);
-
-		/* if exynos was disabled, just ignor it. */
-		if (exynos_encoder->dpms > DRM_MODE_DPMS_ON)
-			continue;
-
-		manager = exynos_encoder->manager;
-		overlay_ops = manager->overlay_ops;
+		ops = exynos_encoder->manager->ops;
 
 		/*
 		 * wait for vblank interrupt
 		 * - this makes sure that overlay data are updated to
 		 *	real hardware.
 		 */
-		if (overlay_ops->wait_for_vblank)
-			overlay_ops->wait_for_vblank(manager->dev);
+		if (ops->wait_for_vblank)
+			ops->wait_for_vblank(exynos_encoder->manager->dev);
 	}
 }
 
@@ -538,14 +531,4 @@ void exynos_drm_encoder_plane_disable(struct drm_encoder *encoder, void *data)
 
 	if (overlay_ops && overlay_ops->disable)
 		overlay_ops->disable(manager->dev, zpos);
-
-	/*
-	 * wait for vblank interrupt
-	 * - this makes sure that hardware overlay is disabled to avoid
-	 * for the dma accesses to memory after gem buffer was released
-	 * because the setting for disabling the overlay will be updated
-	 * at vsync.
-	 */
-	if (overlay_ops && overlay_ops->wait_for_vblank)
-		overlay_ops->wait_for_vblank(manager->dev);
 }

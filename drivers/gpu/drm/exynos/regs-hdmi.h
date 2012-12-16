@@ -176,6 +176,11 @@
 #define HDMI_PHY_CMU			HDMI_CTRL_BASE(0x007C)
 #define HDMI_CORE_RSTOUT		HDMI_CTRL_BASE(0x0080)
 
+/* PHY Control bit definition */
+
+/* HDMI_PHY_CON_0 */
+#define HDMI_PHY_POWER_OFF_EN		(1 << 0)
+
 /* Video related registers */
 #define HDMI_YMAX			HDMI_CORE_BASE(0x0060)
 #define HDMI_YMIN			HDMI_CORE_BASE(0x0064)
