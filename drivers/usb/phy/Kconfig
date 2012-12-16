@@ -6,6 +6,7 @@ comment "USB Physical Layer drivers"
 
 config OMAP_USB2
 	tristate "OMAP USB2 PHY Driver"
+	depends on ARCH_OMAP2PLUS
 	select USB_OTG_UTILS
 	help
 	  Enable this to support the transceiver that is part of SOC. This
