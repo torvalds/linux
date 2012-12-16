@@ -211,3 +211,16 @@ out_put_node:
 	of_node_put(np);
 	return;
 }
+
+int __init psci_probe(void)
+{
+	struct device_node *np;
+	int ret = -ENODEV;
+
+	np = of_find_matching_node(NULL, psci_of_match);
+	if (np)
+		ret = 0;
+
+	of_node_put(np);
+	return ret;
+}
