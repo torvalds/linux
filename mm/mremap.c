@@ -104,7 +104,7 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 		}
 		if (vma->anon_vma) {
 			anon_vma = vma->anon_vma;
-			anon_vma_lock(anon_vma);
+			anon_vma_lock_write(anon_vma);
 		}
 	}
 

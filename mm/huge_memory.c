@@ -19,6 +19,7 @@
 #include <linux/freezer.h>
 #include <linux/mman.h>
 #include <linux/pagemap.h>
+#include <linux/migrate.h>
 
 #include <asm/tlb.h>
 #include <asm/pgalloc.h>
@@ -690,7 +691,7 @@ out:
 }
 __setup("transparent_hugepage=", setup_transparent_hugepage);
 
-static inline pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
+pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
 {
 	if (likely(vma->vm_flags & VM_WRITE))
 		pmd = pmd_mkwrite(pmd);
@@ -848,7 +849,8 @@ out:
 	 * run pte_offset_map on the pmd, if an huge pmd could
 	 * materialize from under us from a different thread.
 	 */
-	if (unlikely(__pte_alloc(mm, vma, pmd, address)))
+	if (unlikely(pmd_none(*pmd)) &&
+	    unlikely(__pte_alloc(mm, vma, pmd, address)))
 		return VM_FAULT_OOM;
 	/* if an huge pmd materialized from under us just retry later */
 	if (unlikely(pmd_trans_huge(*pmd)))
@@ -1287,6 +1289,81 @@ out:
 	return page;
 }
 
+/* NUMA hinting page fault entry point for trans huge pmds */
+int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+				unsigned long addr, pmd_t pmd, pmd_t *pmdp)
+{
+	struct page *page;
+	unsigned long haddr = addr & HPAGE_PMD_MASK;
+	int target_nid;
+	int current_nid = -1;
+	bool migrated;
+	bool page_locked = false;
+
+	spin_lock(&mm->page_table_lock);
+	if (unlikely(!pmd_same(pmd, *pmdp)))
+		goto out_unlock;
+
+	page = pmd_page(pmd);
+	get_page(page);
+	current_nid = page_to_nid(page);
+	count_vm_numa_event(NUMA_HINT_FAULTS);
+	if (current_nid == numa_node_id())
+		count_vm_numa_event(NUMA_HINT_FAULTS_LOCAL);
+
+	target_nid = mpol_misplaced(page, vma, haddr);
+	if (target_nid == -1) {
+		put_page(page);
+		goto clear_pmdnuma;
+	}
+
+	/* Acquire the page lock to serialise THP migrations */
+	spin_unlock(&mm->page_table_lock);
+	lock_page(page);
+	page_locked = true;
+
+	/* Confirm the PTE did not while locked */
+	spin_lock(&mm->page_table_lock);
+	if (unlikely(!pmd_same(pmd, *pmdp))) {
+		unlock_page(page);
+		put_page(page);
+		goto out_unlock;
+	}
+	spin_unlock(&mm->page_table_lock);
+
+	/* Migrate the THP to the requested node */
+	migrated = migrate_misplaced_transhuge_page(mm, vma,
+				pmdp, pmd, addr,
+				page, target_nid);
+	if (migrated)
+		current_nid = target_nid;
+	else {
+		spin_lock(&mm->page_table_lock);
+		if (unlikely(!pmd_same(pmd, *pmdp))) {
+			unlock_page(page);
+			goto out_unlock;
+		}
+		goto clear_pmdnuma;
+	}
+
+	task_numa_fault(current_nid, HPAGE_PMD_NR, migrated);
+	return 0;
+
+clear_pmdnuma:
+	pmd = pmd_mknonnuma(pmd);
+	set_pmd_at(mm, haddr, pmdp, pmd);
+	VM_BUG_ON(pmd_numa(*pmdp));
+	update_mmu_cache_pmd(vma, addr, pmdp);
+	if (page_locked)
+		unlock_page(page);
+
+out_unlock:
+	spin_unlock(&mm->page_table_lock);
+	if (current_nid != -1)
+		task_numa_fault(current_nid, HPAGE_PMD_NR, migrated);
+	return 0;
+}
+
 int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		 pmd_t *pmd, unsigned long addr)
 {
@@ -1375,7 +1452,7 @@ out:
 }
 
 int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-		unsigned long addr, pgprot_t newprot)
+		unsigned long addr, pgprot_t newprot, int prot_numa)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	int ret = 0;
@@ -1383,7 +1460,17 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 	if (__pmd_trans_huge_lock(pmd, vma) == 1) {
 		pmd_t entry;
 		entry = pmdp_get_and_clear(mm, addr, pmd);
-		entry = pmd_modify(entry, newprot);
+		if (!prot_numa)
+			entry = pmd_modify(entry, newprot);
+		else {
+			struct page *page = pmd_page(*pmd);
+
+			/* only check non-shared pages */
+			if (page_mapcount(page) == 1 &&
+			    !pmd_numa(*pmd)) {
+				entry = pmd_mknuma(entry);
+			}
+		}
 		BUG_ON(pmd_write(entry));
 		set_pmd_at(mm, addr, pmd, entry);
 		spin_unlock(&vma->vm_mm->page_table_lock);
@@ -1474,7 +1561,7 @@ static int __split_huge_page_splitting(struct page *page,
 		 * We can't temporarily set the pmd to null in order
 		 * to split it, the pmd must remain marked huge at all
 		 * times or the VM won't take the pmd_trans_huge paths
-		 * and it won't wait on the anon_vma->root->mutex to
+		 * and it won't wait on the anon_vma->root->rwsem to
 		 * serialize against split_huge_page*.
 		 */
 		pmdp_splitting_flush(vma, address, pmd);
@@ -1565,6 +1652,7 @@ static void __split_huge_page_refcount(struct page *page)
 		page_tail->mapping = page->mapping;
 
 		page_tail->index = page->index + i;
+		page_xchg_last_nid(page_tail, page_last_nid(page));
 
 		BUG_ON(!PageAnon(page_tail));
 		BUG_ON(!PageUptodate(page_tail));
@@ -1632,6 +1720,8 @@ static int __split_huge_page_map(struct page *page,
 				BUG_ON(page_mapcount(page) != 1);
 			if (!pmd_young(*pmd))
 				entry = pte_mkold(entry);
+			if (pmd_numa(*pmd))
+				entry = pte_mknuma(entry);
 			pte = pte_offset_map(&_pmd, haddr);
 			BUG_ON(!pte_none(*pte));
 			set_pte_at(mm, haddr, pte, entry);
@@ -1674,7 +1764,7 @@ static int __split_huge_page_map(struct page *page,
 	return ret;
 }
 
-/* must be called with anon_vma->root->mutex hold */
+/* must be called with anon_vma->root->rwsem held */
 static void __split_huge_page(struct page *page,
 			      struct anon_vma *anon_vma)
 {
@@ -1729,7 +1819,7 @@ int split_huge_page(struct page *page)
 
 	BUG_ON(is_huge_zero_pfn(page_to_pfn(page)));
 	BUG_ON(!PageAnon(page));
-	anon_vma = page_lock_anon_vma(page);
+	anon_vma = page_lock_anon_vma_read(page);
 	if (!anon_vma)
 		goto out;
 	ret = 0;
@@ -1742,7 +1832,7 @@ int split_huge_page(struct page *page)
 
 	BUG_ON(PageCompound(page));
 out_unlock:
-	page_unlock_anon_vma(anon_vma);
+	page_unlock_anon_vma_read(anon_vma);
 out:
 	return ret;
 }
@@ -2234,7 +2324,7 @@ static void collapse_huge_page(struct mm_struct *mm,
 	if (pmd_trans_huge(*pmd))
 		goto out;
 
-	anon_vma_lock(vma->anon_vma);
+	anon_vma_lock_write(vma->anon_vma);
 
 	pte = pte_offset_map(pmd, address);
 	ptl = pte_lockptr(mm, pmd);
