@@ -580,7 +580,7 @@ static int carl9170_op_add_interface(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif)
 {
 	struct carl9170_vif_info *vif_priv = (void *) vif->drv_priv;
-	struct ieee80211_vif *main_vif;
+	struct ieee80211_vif *main_vif, *old_main = NULL;
 	struct ar9170 *ar = hw->priv;
 	int vif_id = -1, err = 0;
 
@@ -602,6 +602,15 @@ static int carl9170_op_add_interface(struct ieee80211_hw *hw,
 		goto init;
 	}
 
+	/* Because the AR9170 HW's MAC doesn't provide full support for
+	 * multiple, independent interfaces [of different operation modes].
+	 * We have to select ONE main interface [main mode of HW], but we
+	 * can have multiple slaves [AKA: entry in the ACK-table].
+	 *
+	 * The first (from HEAD/TOP) interface in the ar->vif_list is
+	 * always the main intf. All following intfs in this list
+	 * are considered to be slave intfs.
+	 */
 	main_vif = carl9170_get_main_vif(ar);
 
 	if (main_vif) {
@@ -609,6 +618,18 @@ static int carl9170_op_add_interface(struct ieee80211_hw *hw,
 		case NL80211_IFTYPE_STATION:
 			if (vif->type == NL80211_IFTYPE_STATION)
 				break;
+
+			/* P2P GO [master] use-case
+			 * Because the P2P GO station is selected dynamically
+			 * by all participating peers of a WIFI Direct network,
+			 * the driver has be able to change the main interface
+			 * operating mode on the fly.
+			 */
+			if (main_vif->p2p && vif->p2p &&
+			    vif->type == NL80211_IFTYPE_AP) {
+				old_main = main_vif;
+				break;
+			}
 
 			err = -EBUSY;
 			rcu_read_unlock();
@@ -648,13 +669,40 @@ static int carl9170_op_add_interface(struct ieee80211_hw *hw,
 	vif_priv->id = vif_id;
 	vif_priv->enable_beacon = false;
 	ar->vifs++;
-	list_add_tail_rcu(&vif_priv->list, &ar->vif_list);
+	if (old_main) {
+		/* We end up in here, if the main interface is being replaced.
+		 * Put the new main interface at the HEAD of the list and the
+		 * previous inteface will automatically become second in line.
+		 */
+		list_add_rcu(&vif_priv->list, &ar->vif_list);
+	} else {
+		/* Add new inteface. If the list is empty, it will become the
+		 * main inteface, otherwise it will be slave.
+		 */
+		list_add_tail_rcu(&vif_priv->list, &ar->vif_list);
+	}
 	rcu_assign_pointer(ar->vif_priv[vif_id].vif, vif);
 
 init:
-	if (carl9170_get_main_vif(ar) == vif) {
+	main_vif = carl9170_get_main_vif(ar);
+
+	if (main_vif == vif) {
 		rcu_assign_pointer(ar->beacon_iter, vif_priv);
 		rcu_read_unlock();
+
+		if (old_main) {
+			struct carl9170_vif_info *old_main_priv =
+				(void *) old_main->drv_priv;
+			/* downgrade old main intf to slave intf.
+			 * NOTE: We are no longer under rcu_read_lock.
+			 * But we are still holding ar->mutex, so the
+			 * vif data [id, addr] is safe.
+			 */
+			err = carl9170_mod_virtual_mac(ar, old_main_priv->id,
+						       old_main->addr);
+			if (err)
+				goto unlock;
+		}
 
 		err = carl9170_init_interface(ar, vif);
 		if (err)
