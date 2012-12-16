@@ -346,18 +346,14 @@ init_cifs_idmap(void)
 	if (!cred)
 		return -ENOMEM;
 
-	keyring = key_alloc(&key_type_keyring, ".cifs_idmap", 0, 0, cred,
-			    (KEY_POS_ALL & ~KEY_POS_SETATTR) |
-			    KEY_USR_VIEW | KEY_USR_READ,
-			    KEY_ALLOC_NOT_IN_QUOTA);
+	keyring = keyring_alloc(".cifs_idmap", 0, 0, cred,
+				(KEY_POS_ALL & ~KEY_POS_SETATTR) |
+				KEY_USR_VIEW | KEY_USR_READ,
+				KEY_ALLOC_NOT_IN_QUOTA, NULL);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto failed_put_cred;
 	}
-
-	ret = key_instantiate_and_link(keyring, NULL, 0, NULL, NULL);
-	if (ret < 0)
-		goto failed_put_key;
 
 	ret = register_key_type(&cifs_idmap_key_type);
 	if (ret < 0)
