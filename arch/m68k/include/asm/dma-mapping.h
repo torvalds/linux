@@ -21,6 +21,22 @@ extern void *dma_alloc_coherent(struct device *, size_t,
 extern void dma_free_coherent(struct device *, size_t,
 			      void *, dma_addr_t);
 
+static inline void *dma_alloc_attrs(struct device *dev, size_t size,
+				    dma_addr_t *dma_handle, gfp_t flag,
+				    struct dma_attrs *attrs)
+{
+	/* attrs is not supported and ignored */
+	return dma_alloc_coherent(dev, size, dma_handle, flag);
+}
+
+static inline void dma_free_attrs(struct device *dev, size_t size,
+				  void *cpu_addr, dma_addr_t dma_handle,
+				  struct dma_attrs *attrs)
+{
+	/* attrs is not supported and ignored */
+	dma_free_coherent(dev, size, cpu_addr, dma_handle);
+}
+
 static inline void *dma_alloc_noncoherent(struct device *dev, size_t size,
 					  dma_addr_t *handle, gfp_t flag)
 {
