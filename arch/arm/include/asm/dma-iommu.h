@@ -7,6 +7,7 @@
 #include <linux/scatterlist.h>
 #include <linux/dma-debug.h>
 #include <linux/kmemcheck.h>
+#include <linux/kref.h>
 
 struct dma_iommu_mapping {
 	/* iommu specific data */
