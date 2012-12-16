@@ -1,8 +1,9 @@
 #include <linux/context_tracking.h>
+#include <linux/kvm_host.h>
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
 #include <linux/hardirq.h>
-
+#include <linux/export.h>
 
 DEFINE_PER_CPU(struct context_tracking, context_tracking) = {
 #ifdef CONFIG_CONTEXT_TRACKING_FORCE
@@ -60,6 +61,24 @@ void user_exit(void)
 	}
 	local_irq_restore(flags);
 }
+
+void guest_enter(void)
+{
+	if (vtime_accounting_enabled())
+		vtime_guest_enter(current);
+	else
+		__guest_enter();
+}
+EXPORT_SYMBOL_GPL(guest_enter);
+
+void guest_exit(void)
+{
+	if (vtime_accounting_enabled())
+		vtime_guest_exit(current);
+	else
+		__guest_exit();
+}
+EXPORT_SYMBOL_GPL(guest_exit);
 
 void context_tracking_task_switch(struct task_struct *prev,
 			     struct task_struct *next)

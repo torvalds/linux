@@ -741,7 +741,7 @@ static inline int kvm_deassign_device(struct kvm *kvm,
 }
 #endif /* CONFIG_IOMMU_API */
 
-static inline void guest_enter(void)
+static inline void __guest_enter(void)
 {
 	/*
 	 * This is running in ioctl context so we can avoid
@@ -751,7 +751,7 @@ static inline void guest_enter(void)
 	current->flags |= PF_VCPU;
 }
 
-static inline void guest_exit(void)
+static inline void __guest_exit(void)
 {
 	/*
 	 * This is running in ioctl context so we can avoid
@@ -760,6 +760,22 @@ static inline void guest_exit(void)
 	vtime_account_system(current);
 	current->flags &= ~PF_VCPU;
 }
+
+#ifdef CONFIG_CONTEXT_TRACKING
+extern void guest_enter(void);
+extern void guest_exit(void);
+
+#else /* !CONFIG_CONTEXT_TRACKING */
+static inline void guest_enter(void)
+{
+	__guest_enter();
+}
+
+static inline void guest_exit(void)
+{
+	__guest_exit();
+}
+#endif /* !CONFIG_CONTEXT_TRACKING */
 
 static inline void kvm_guest_enter(void)
 {
