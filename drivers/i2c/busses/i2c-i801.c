@@ -1109,6 +1109,7 @@ static int __devinit i801_probe(struct pci_dev *dev,
 		/* fall through */
 	default:
 		priv->features |= FEATURE_I2C_BLOCK_READ;
+		priv->features |= FEATURE_IRQ;
 		/* fall through */
 	case PCI_DEVICE_ID_INTEL_82801DB_3:
 		priv->features |= FEATURE_SMBUS_PEC;
@@ -1120,16 +1121,6 @@ static int __devinit i801_probe(struct pci_dev *dev,
 	case PCI_DEVICE_ID_INTEL_82801AA_3:
 		break;
 	}
-
-	/* IRQ processing tested on CougarPoint PCH, ICH5, ICH7-M and ICH10 */
-	if (dev->device == PCI_DEVICE_ID_INTEL_COUGARPOINT_SMBUS ||
-	    dev->device == PCI_DEVICE_ID_INTEL_82801EB_3 ||
-	    dev->device == PCI_DEVICE_ID_INTEL_ICH7_17 ||
-	    dev->device == PCI_DEVICE_ID_INTEL_ICH8_5 ||
-	    dev->device == PCI_DEVICE_ID_INTEL_ICH9_6 ||
-	    dev->device == PCI_DEVICE_ID_INTEL_ICH10_4 ||
-	    dev->device == PCI_DEVICE_ID_INTEL_ICH10_5)
-		priv->features |= FEATURE_IRQ;
 
 	/* Disable features on user request */
 	for (i = 0; i < ARRAY_SIZE(i801_feature_names); i++) {
