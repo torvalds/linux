@@ -66,6 +66,8 @@
 #include "stv090x.h"
 #include "stb6100.h"
 #include "stb6100_cfg.h"
+#include "tda10071.h"
+#include "a8293.h"
 
 static unsigned int debug;
 
@@ -659,6 +661,20 @@ static struct mt2063_config terratec_mt2063_config[] = {
 	},
 };
 
+static const struct tda10071_config hauppauge_tda10071_config = {
+	.i2c_address = 0x05,
+	.tuner_i2c_addr = 0x54,
+	.i2c_wr_max = 64,
+	.ts_mode = TDA10071_TS_SERIAL,
+	.spec_inv = 0,
+	.xtal = 40444000, /* 40.444 MHz */
+	.pll_multiplier = 20,
+};
+
+static const struct a8293_config hauppauge_a8293_config = {
+	.i2c_addr = 0x0b,
+};
+
 static int netup_altera_fpga_rw(void *device, int flag, int data, int read)
 {
 	struct cx23885_dev *dev = (struct cx23885_dev *)device;
@@ -1240,6 +1256,17 @@ static int dvb_register(struct cx23885_tsport *port)
 				goto frontend_detach;
 
 			fe0->dvb.frontend->ops.set_voltage = p8000_set_voltage;
+		}
+		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR4400:
+		i2c_bus = &dev->i2c_bus[0];
+		fe0->dvb.frontend = dvb_attach(tda10071_attach,
+						&hauppauge_tda10071_config,
+						&i2c_bus->i2c_adap);
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(a8293_attach, fe0->dvb.frontend,
+				   &i2c_bus->i2c_adap,
+				   &hauppauge_a8293_config);
 		}
 		break;
 	default:
