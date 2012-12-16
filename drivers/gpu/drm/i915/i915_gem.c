@@ -1341,6 +1341,12 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	trace_i915_gem_object_fault(obj, page_offset, true, write);
 
+	/* Access to snoopable pages through the GTT is incoherent. */
+	if (obj->cache_level != I915_CACHE_NONE && !HAS_LLC(dev)) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+
 	/* Now bind it into the GTT if needed */
 	ret = i915_gem_object_pin(obj, 0, true, false);
 	if (ret)
