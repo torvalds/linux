@@ -284,12 +284,16 @@ struct batadv_priv {
 	atomic_t gw_bandwidth;		/* gw bandwidth */
 	atomic_t orig_interval;		/* uint */
 	atomic_t hop_penalty;		/* uint */
+#ifdef CONFIG_BATMAN_ADV_DEBUG
 	atomic_t log_level;		/* uint */
+#endif
 	atomic_t bcast_seqno;
 	atomic_t bcast_queue_left;
 	atomic_t batman_queue_left;
 	char num_ifaces;
+#ifdef CONFIG_BATMAN_ADV_DEBUG
 	struct batadv_debug_log *debug_log;
+#endif
 	struct kobject *mesh_obj;
 	struct dentry *debug_dir;
 	struct hlist_head forw_bat_list;

@@ -229,7 +229,6 @@ static void batadv_debug_log_cleanup(struct batadv_priv *bat_priv)
 #else /* CONFIG_BATMAN_ADV_DEBUG */
 static int batadv_debug_log_setup(struct batadv_priv *bat_priv)
 {
-	bat_priv->debug_log = NULL;
 	return 0;
 }
 
