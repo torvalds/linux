@@ -714,7 +714,8 @@ static struct tda18271_config em28xx_cxd2820r_tda18271_config = {
 };
 
 static const struct tda10071_config em28xx_tda10071_config = {
-	.i2c_address = 0x55, /* (0xaa >> 1) */
+	.demod_i2c_addr = 0x55, /* (0xaa >> 1) */
+	.tuner_i2c_addr = 0x14,
 	.i2c_wr_max = 64,
 	.ts_mode = TDA10071_TS_SERIAL,
 	.spec_inv = 0,

@@ -28,10 +28,10 @@ struct tda10071_config {
 	 * Default: none, must set
 	 * Values: 0x55,
 	 */
-	u8 i2c_address;
+	u8 demod_i2c_addr;
 
 	/* Tuner I2C address.
-	 * Default: 0x14
+	 * Default: none, must set
 	 * Values: 0x14, 0x54, ...
 	 */
 	u8 tuner_i2c_addr;

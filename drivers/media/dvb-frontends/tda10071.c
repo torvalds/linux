@@ -30,7 +30,7 @@ static int tda10071_wr_regs(struct tda10071_priv *priv, u8 reg, u8 *val,
 	u8 buf[len+1];
 	struct i2c_msg msg[1] = {
 		{
-			.addr = priv->cfg.i2c_address,
+			.addr = priv->cfg.demod_i2c_addr,
 			.flags = 0,
 			.len = sizeof(buf),
 			.buf = buf,
@@ -59,12 +59,12 @@ static int tda10071_rd_regs(struct tda10071_priv *priv, u8 reg, u8 *val,
 	u8 buf[len];
 	struct i2c_msg msg[2] = {
 		{
-			.addr = priv->cfg.i2c_address,
+			.addr = priv->cfg.demod_i2c_addr,
 			.flags = 0,
 			.len = 1,
 			.buf = &reg,
 		}, {
-			.addr = priv->cfg.i2c_address,
+			.addr = priv->cfg.demod_i2c_addr,
 			.flags = I2C_M_RD,
 			.len = sizeof(buf),
 			.buf = buf,
@@ -1199,6 +1199,18 @@ struct dvb_frontend *tda10071_attach(const struct tda10071_config *config,
 	priv = kzalloc(sizeof(struct tda10071_priv), GFP_KERNEL);
 	if (priv == NULL) {
 		ret = -ENOMEM;
+		goto error;
+	}
+
+	/* make sure demod i2c address is specified */
+	if (!config->demod_i2c_addr) {
+		dev_dbg(&i2c->dev, "%s: invalid demod i2c address!\n", __func__);
+		goto error;
+	}
+
+	/* make sure tuner i2c address is specified */
+	if (!config->tuner_i2c_addr) {
+		dev_dbg(&i2c->dev, "%s: invalid tuner i2c address!\n", __func__);
 		goto error;
 	}
 

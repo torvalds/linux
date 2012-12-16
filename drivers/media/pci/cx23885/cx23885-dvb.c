@@ -662,7 +662,7 @@ static struct mt2063_config terratec_mt2063_config[] = {
 };
 
 static const struct tda10071_config hauppauge_tda10071_config = {
-	.i2c_address = 0x05,
+	.demod_i2c_addr = 0x05,
 	.tuner_i2c_addr = 0x54,
 	.i2c_wr_max = 64,
 	.ts_mode = TDA10071_TS_SERIAL,
