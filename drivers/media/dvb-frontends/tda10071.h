@@ -30,6 +30,12 @@ struct tda10071_config {
 	 */
 	u8 i2c_address;
 
+	/* Tuner I2C address.
+	 * Default: 0x14
+	 * Values: 0x14, 0x54, ...
+	 */
+	u8 tuner_i2c_addr;
+
 	/* Max bytes I2C provider can write at once.
 	 * Note: Buffer is taken from the stack currently!
 	 * Default: none, must set
