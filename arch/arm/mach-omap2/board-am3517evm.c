@@ -208,6 +208,7 @@ static struct omap_dss_device am3517_evm_tv_device = {
 
 static struct tfp410_platform_data dvi_panel = {
 	.power_down_gpio	= -1,
+	.i2c_bus_num		= -1,
 };
 
 static struct omap_dss_device am3517_evm_dvi_device = {
