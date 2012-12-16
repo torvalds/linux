@@ -696,10 +696,8 @@ static void __smmu_iommu_unmap(struct smmu_as *as, dma_addr_t iova)
 	*pte = _PTE_VACANT(iova);
 	FLUSH_CPU_DCACHE(pte, page, sizeof(*pte));
 	flush_ptc_and_tlb(as->smmu, as, iova, pte, page, 0);
-	if (!--(*count)) {
+	if (!--(*count))
 		free_ptbl(as, iova);
-		smmu_flush_regs(as->smmu, 0);
-	}
 }
 
 static void __smmu_iommu_map_pfn(struct smmu_as *as, dma_addr_t iova,
@@ -1234,6 +1232,7 @@ static int tegra_smmu_probe(struct platform_device *pdev)
 
 	smmu_debugfs_create(smmu);
 	smmu_handle = smmu;
+	bus_set_iommu(&platform_bus_type, &smmu_iommu_ops);
 	return 0;
 }
 
@@ -1278,7 +1277,6 @@ static struct platform_driver tegra_smmu_driver = {
 
 static int __devinit tegra_smmu_init(void)
 {
-	bus_set_iommu(&platform_bus_type, &smmu_iommu_ops);
 	return platform_driver_register(&tegra_smmu_driver);
 }
 
