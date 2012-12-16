@@ -45,7 +45,7 @@ struct pipe_control {
 
 static inline int ring_space(struct intel_ring_buffer *ring)
 {
-	int space = (ring->head & HEAD_ADDR) - (ring->tail + 8);
+	int space = (ring->head & HEAD_ADDR) - (ring->tail + I915_RING_FREE_SPACE);
 	if (space < 0)
 		space += ring->size;
 	return space;
@@ -555,12 +555,11 @@ static void render_ring_cleanup(struct intel_ring_buffer *ring)
 
 static void
 update_mboxes(struct intel_ring_buffer *ring,
-	    u32 seqno,
-	    u32 mmio_offset)
+	      u32 mmio_offset)
 {
 	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
 	intel_ring_emit(ring, mmio_offset);
-	intel_ring_emit(ring, seqno);
+	intel_ring_emit(ring, ring->outstanding_lazy_request);
 }
 
 /**
@@ -573,8 +572,7 @@ update_mboxes(struct intel_ring_buffer *ring,
  * This acts like a signal in the canonical semaphore.
  */
 static int
-gen6_add_request(struct intel_ring_buffer *ring,
-		 u32 *seqno)
+gen6_add_request(struct intel_ring_buffer *ring)
 {
 	u32 mbox1_reg;
 	u32 mbox2_reg;
@@ -587,13 +585,11 @@ gen6_add_request(struct intel_ring_buffer *ring,
 	mbox1_reg = ring->signal_mbox[0];
 	mbox2_reg = ring->signal_mbox[1];
 
-	*seqno = i915_gem_next_request_seqno(ring);
-
-	update_mboxes(ring, *seqno, mbox1_reg);
-	update_mboxes(ring, *seqno, mbox2_reg);
+	update_mboxes(ring, mbox1_reg);
+	update_mboxes(ring, mbox2_reg);
 	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
 	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-	intel_ring_emit(ring, *seqno);
+	intel_ring_emit(ring, ring->outstanding_lazy_request);
 	intel_ring_emit(ring, MI_USER_INTERRUPT);
 	intel_ring_advance(ring);
 
@@ -650,10 +646,8 @@ do {									\
 } while (0)
 
 static int
-pc_render_add_request(struct intel_ring_buffer *ring,
-		      u32 *result)
+pc_render_add_request(struct intel_ring_buffer *ring)
 {
-	u32 seqno = i915_gem_next_request_seqno(ring);
 	struct pipe_control *pc = ring->private;
 	u32 scratch_addr = pc->gtt_offset + 128;
 	int ret;
@@ -674,7 +668,7 @@ pc_render_add_request(struct intel_ring_buffer *ring,
 			PIPE_CONTROL_WRITE_FLUSH |
 			PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE);
 	intel_ring_emit(ring, pc->gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
-	intel_ring_emit(ring, seqno);
+	intel_ring_emit(ring, ring->outstanding_lazy_request);
 	intel_ring_emit(ring, 0);
 	PIPE_CONTROL_FLUSH(ring, scratch_addr);
 	scratch_addr += 128; /* write to separate cachelines */
@@ -693,11 +687,10 @@ pc_render_add_request(struct intel_ring_buffer *ring,
 			PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE |
 			PIPE_CONTROL_NOTIFY);
 	intel_ring_emit(ring, pc->gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
-	intel_ring_emit(ring, seqno);
+	intel_ring_emit(ring, ring->outstanding_lazy_request);
 	intel_ring_emit(ring, 0);
 	intel_ring_advance(ring);
 
-	*result = seqno;
 	return 0;
 }
 
@@ -885,25 +878,20 @@ bsd_ring_flush(struct intel_ring_buffer *ring,
 }
 
 static int
-i9xx_add_request(struct intel_ring_buffer *ring,
-		 u32 *result)
+i9xx_add_request(struct intel_ring_buffer *ring)
 {
-	u32 seqno;
 	int ret;
 
 	ret = intel_ring_begin(ring, 4);
 	if (ret)
 		return ret;
 
-	seqno = i915_gem_next_request_seqno(ring);
-
 	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
 	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-	intel_ring_emit(ring, seqno);
+	intel_ring_emit(ring, ring->outstanding_lazy_request);
 	intel_ring_emit(ring, MI_USER_INTERRUPT);
 	intel_ring_advance(ring);
 
-	*result = seqno;
 	return 0;
 }
 
@@ -1110,6 +1098,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	INIT_LIST_HEAD(&ring->active_list);
 	INIT_LIST_HEAD(&ring->request_list);
 	ring->size = 32 * PAGE_SIZE;
+	memset(ring->sync_seqno, 0, sizeof(ring->sync_seqno));
 
 	init_waitqueue_head(&ring->irq_queue);
 
@@ -1186,7 +1175,7 @@ void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring)
 
 	/* Disable the ring buffer. The ring must be idle at this point */
 	dev_priv = ring->dev->dev_private;
-	ret = intel_wait_ring_idle(ring);
+	ret = intel_ring_idle(ring);
 	if (ret)
 		DRM_ERROR("failed to quiesce %s whilst cleaning up: %d\n",
 			  ring->name, ret);
@@ -1203,28 +1192,6 @@ void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring)
 		ring->cleanup(ring);
 
 	cleanup_status_page(ring);
-}
-
-static int intel_wrap_ring_buffer(struct intel_ring_buffer *ring)
-{
-	uint32_t __iomem *virt;
-	int rem = ring->size - ring->tail;
-
-	if (ring->space < rem) {
-		int ret = intel_wait_ring_buffer(ring, rem);
-		if (ret)
-			return ret;
-	}
-
-	virt = ring->virtual_start + ring->tail;
-	rem /= 4;
-	while (rem--)
-		iowrite32(MI_NOOP, virt++);
-
-	ring->tail = 0;
-	ring->space = ring_space(ring);
-
-	return 0;
 }
 
 static int intel_ring_wait_seqno(struct intel_ring_buffer *ring, u32 seqno)
@@ -1260,7 +1227,7 @@ static int intel_ring_wait_request(struct intel_ring_buffer *ring, int n)
 		if (request->tail == -1)
 			continue;
 
-		space = request->tail - (ring->tail + 8);
+		space = request->tail - (ring->tail + I915_RING_FREE_SPACE);
 		if (space < 0)
 			space += ring->size;
 		if (space >= n) {
@@ -1295,7 +1262,7 @@ static int intel_ring_wait_request(struct intel_ring_buffer *ring, int n)
 	return 0;
 }
 
-int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
+static int ring_wait_for_space(struct intel_ring_buffer *ring, int n)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1338,6 +1305,60 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 	return -EBUSY;
 }
 
+static int intel_wrap_ring_buffer(struct intel_ring_buffer *ring)
+{
+	uint32_t __iomem *virt;
+	int rem = ring->size - ring->tail;
+
+	if (ring->space < rem) {
+		int ret = ring_wait_for_space(ring, rem);
+		if (ret)
+			return ret;
+	}
+
+	virt = ring->virtual_start + ring->tail;
+	rem /= 4;
+	while (rem--)
+		iowrite32(MI_NOOP, virt++);
+
+	ring->tail = 0;
+	ring->space = ring_space(ring);
+
+	return 0;
+}
+
+int intel_ring_idle(struct intel_ring_buffer *ring)
+{
+	u32 seqno;
+	int ret;
+
+	/* We need to add any requests required to flush the objects and ring */
+	if (ring->outstanding_lazy_request) {
+		ret = i915_add_request(ring, NULL, NULL);
+		if (ret)
+			return ret;
+	}
+
+	/* Wait upon the last request to be completed */
+	if (list_empty(&ring->request_list))
+		return 0;
+
+	seqno = list_entry(ring->request_list.prev,
+			   struct drm_i915_gem_request,
+			   list)->seqno;
+
+	return i915_wait_seqno(ring, seqno);
+}
+
+static int
+intel_ring_alloc_seqno(struct intel_ring_buffer *ring)
+{
+	if (ring->outstanding_lazy_request)
+		return 0;
+
+	return i915_gem_get_seqno(ring->dev, &ring->outstanding_lazy_request);
+}
+
 int intel_ring_begin(struct intel_ring_buffer *ring,
 		     int num_dwords)
 {
@@ -1349,6 +1370,11 @@ int intel_ring_begin(struct intel_ring_buffer *ring,
 	if (ret)
 		return ret;
 
+	/* Preallocate the olr before touching the ring */
+	ret = intel_ring_alloc_seqno(ring);
+	if (ret)
+		return ret;
+
 	if (unlikely(ring->tail + n > ring->effective_size)) {
 		ret = intel_wrap_ring_buffer(ring);
 		if (unlikely(ret))
@@ -1356,7 +1382,7 @@ int intel_ring_begin(struct intel_ring_buffer *ring,
 	}
 
 	if (unlikely(ring->space < n)) {
-		ret = intel_wait_ring_buffer(ring, n);
+		ret = ring_wait_for_space(ring, n);
 		if (unlikely(ret))
 			return ret;
 	}

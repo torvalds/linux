@@ -1120,6 +1120,8 @@ static void i915_record_ring_state(struct drm_device *dev,
 			= I915_READ(RING_SYNC_0(ring->mmio_base));
 		error->semaphore_mboxes[ring->id][1]
 			= I915_READ(RING_SYNC_1(ring->mmio_base));
+		error->semaphore_seqno[ring->id][0] = ring->sync_seqno[0];
+		error->semaphore_seqno[ring->id][1] = ring->sync_seqno[1];
 	}
 
 	if (INTEL_INFO(dev)->gen >= 4) {
@@ -1464,7 +1466,9 @@ static void i915_pageflip_stall_check(struct drm_device *dev, int pipe)
 	spin_lock_irqsave(&dev->event_lock, flags);
 	work = intel_crtc->unpin_work;
 
-	if (work == NULL || work->pending || !work->enable_stall_check) {
+	if (work == NULL ||
+	    atomic_read(&work->pending) >= INTEL_FLIP_COMPLETE ||
+	    !work->enable_stall_check) {
 		/* Either the pending flip IRQ arrived, or we're too early. Don't check */
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 		return;

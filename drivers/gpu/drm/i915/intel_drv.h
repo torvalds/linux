@@ -401,7 +401,10 @@ struct intel_unpin_work {
 	struct drm_i915_gem_object *old_fb_obj;
 	struct drm_i915_gem_object *pending_flip_obj;
 	struct drm_pending_vblank_event *event;
-	int pending;
+	atomic_t pending;
+#define INTEL_FLIP_INACTIVE	0
+#define INTEL_FLIP_PENDING	1
+#define INTEL_FLIP_COMPLETE	2
 	bool enable_stall_check;
 };
 
@@ -556,6 +559,7 @@ intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
 			     enum pipe pipe);
 extern void intel_wait_for_vblank(struct drm_device *dev, int pipe);
 extern void intel_wait_for_pipe_off(struct drm_device *dev, int pipe);
+extern int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp);
 
 struct intel_load_detect_pipe {
 	struct drm_framebuffer *release_fb;

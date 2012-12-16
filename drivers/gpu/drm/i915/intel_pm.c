@@ -1325,10 +1325,11 @@ static void valleyview_update_wm(struct drm_device *dev)
 		   (planeb_wm << DSPFW_PLANEB_SHIFT) |
 		   planea_wm);
 	I915_WRITE(DSPFW2,
-		   (I915_READ(DSPFW2) & DSPFW_CURSORA_MASK) |
+		   (I915_READ(DSPFW2) & ~DSPFW_CURSORA_MASK) |
 		   (cursora_wm << DSPFW_CURSORA_SHIFT));
 	I915_WRITE(DSPFW3,
-		   (I915_READ(DSPFW3) | (cursor_sr << DSPFW_CURSOR_SR_SHIFT)));
+		   (I915_READ(DSPFW3) & ~DSPFW_CURSOR_SR_MASK) |
+		   (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
 }
 
 static void g4x_update_wm(struct drm_device *dev)
@@ -1374,11 +1375,11 @@ static void g4x_update_wm(struct drm_device *dev)
 		   (planeb_wm << DSPFW_PLANEB_SHIFT) |
 		   planea_wm);
 	I915_WRITE(DSPFW2,
-		   (I915_READ(DSPFW2) & DSPFW_CURSORA_MASK) |
+		   (I915_READ(DSPFW2) & ~DSPFW_CURSORA_MASK) |
 		   (cursora_wm << DSPFW_CURSORA_SHIFT));
 	/* HPLL off in SR has some issues on G4x... disable it */
 	I915_WRITE(DSPFW3,
-		   (I915_READ(DSPFW3) & ~DSPFW_HPLL_SR_EN) |
+		   (I915_READ(DSPFW3) & ~(DSPFW_HPLL_SR_EN | DSPFW_CURSOR_SR_MASK)) |
 		   (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
 }
 
@@ -2647,6 +2648,7 @@ static void ironlake_enable_rc6(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
+	bool was_interruptible;
 	int ret;
 
 	/* rc6 disabled by default due to repeated reports of hanging during
@@ -2661,6 +2663,9 @@ static void ironlake_enable_rc6(struct drm_device *dev)
 	if (ret)
 		return;
 
+	was_interruptible = dev_priv->mm.interruptible;
+	dev_priv->mm.interruptible = false;
+
 	/*
 	 * GPU can automatically power down the render unit if given a page
 	 * to save state.
@@ -2668,6 +2673,7 @@ static void ironlake_enable_rc6(struct drm_device *dev)
 	ret = intel_ring_begin(ring, 6);
 	if (ret) {
 		ironlake_teardown_rc6(dev);
+		dev_priv->mm.interruptible = was_interruptible;
 		return;
 	}
 
@@ -2688,7 +2694,8 @@ static void ironlake_enable_rc6(struct drm_device *dev)
 	 * does an implicit flush, combined with MI_FLUSH above, it should be
 	 * safe to assume that renderctx is valid
 	 */
-	ret = intel_wait_ring_idle(ring);
+	ret = intel_ring_idle(ring);
+	dev_priv->mm.interruptible = was_interruptible;
 	if (ret) {
 		DRM_ERROR("failed to enable ironlake power power savings\n");
 		ironlake_teardown_rc6(dev);
@@ -3440,6 +3447,11 @@ static void cpt_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
 	I915_WRITE(SOUTH_CHICKEN2, I915_READ(SOUTH_CHICKEN2) |
 		   DPLS_EDP_PPS_FIX_DIS);
+	/* The below fixes the weird display corruption, a few pixels shifted
+	 * downward, on (only) LVDS of some HP laptops with IVY.
+	 */
+	for_each_pipe(pipe)
+		I915_WRITE(TRANS_CHICKEN2(pipe), TRANS_CHICKEN2_TIMING_OVERRIDE);
 	/* WADP0ClockGatingDisable */
 	for_each_pipe(pipe) {
 		I915_WRITE(TRANS_CHICKEN1(pipe),

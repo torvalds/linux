@@ -197,6 +197,7 @@ struct drm_i915_error_state {
 	u32 instdone[I915_NUM_RINGS];
 	u32 acthd[I915_NUM_RINGS];
 	u32 semaphore_mboxes[I915_NUM_RINGS][I915_NUM_RINGS - 1];
+	u32 semaphore_seqno[I915_NUM_RINGS][I915_NUM_RINGS - 1];
 	u32 rc_psmi[I915_NUM_RINGS]; /* sleep state */
 	/* our own tracking of ring head and tail */
 	u32 cpu_ring_head[I915_NUM_RINGS];
@@ -379,6 +380,11 @@ enum intel_pch {
 	PCH_IBX,	/* Ibexpeak PCH */
 	PCH_CPT,	/* Cougarpoint PCH */
 	PCH_LPT,	/* Lynxpoint PCH */
+};
+
+enum intel_sbi_destination {
+	SBI_ICLK,
+	SBI_MPHY,
 };
 
 #define QUIRK_PIPEA_FORCE (1<<0)
@@ -909,6 +915,8 @@ typedef struct drm_i915_private {
 	bool hw_contexts_disabled;
 	uint32_t hw_context_size;
 
+	bool fdi_rx_polarity_reversed;
+
 	struct i915_suspend_saved_registers regfile;
 
 	/* Old dri1 support infrastructure, beware the dragons ya fools entering
@@ -1417,8 +1425,7 @@ int __must_check i915_mutex_lock_interruptible(struct drm_device *dev);
 int i915_gem_object_sync(struct drm_i915_gem_object *obj,
 			 struct intel_ring_buffer *to);
 void i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
-				    struct intel_ring_buffer *ring,
-				    u32 seqno);
+				    struct intel_ring_buffer *ring);
 
 int i915_gem_dumb_create(struct drm_file *file_priv,
 			 struct drm_device *dev,
@@ -1436,7 +1443,7 @@ i915_seqno_passed(uint32_t seq1, uint32_t seq2)
 	return (int32_t)(seq1 - seq2) >= 0;
 }
 
-u32 i915_gem_next_request_seqno(struct intel_ring_buffer *ring);
+extern int i915_gem_get_seqno(struct drm_device *dev, u32 *seqno);
 
 int __must_check i915_gem_object_get_fence(struct drm_i915_gem_object *obj);
 int __must_check i915_gem_object_put_fence(struct drm_i915_gem_object *obj);
@@ -1652,11 +1659,12 @@ extern void intel_modeset_init(struct drm_device *dev);
 extern void intel_modeset_gem_init(struct drm_device *dev);
 extern void intel_modeset_cleanup(struct drm_device *dev);
 extern int intel_modeset_vga_set_state(struct drm_device *dev, bool state);
-extern void intel_modeset_setup_hw_state(struct drm_device *dev);
+extern void intel_modeset_setup_hw_state(struct drm_device *dev,
+					 bool force_restore);
 extern bool intel_fbc_enabled(struct drm_device *dev);
 extern void intel_disable_fbc(struct drm_device *dev);
 extern bool ironlake_set_drps(struct drm_device *dev, u8 val);
-extern void ironlake_init_pch_refclk(struct drm_device *dev);
+extern void intel_init_pch_refclk(struct drm_device *dev);
 extern void gen6_set_rps(struct drm_device *dev, u8 val);
 extern void intel_detect_pch(struct drm_device *dev);
 extern int intel_trans_dp_port_sel(struct drm_crtc *crtc);

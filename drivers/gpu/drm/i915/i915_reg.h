@@ -3843,7 +3843,9 @@
 #define  FDI_PHASE_SYNC_EN(pipe) (1<<(FDIA_PHASE_SYNC_SHIFT_EN - ((pipe) * 2)))
 #define  FDI_BC_BIFURCATION_SELECT	(1 << 12)
 #define SOUTH_CHICKEN2		0xc2004
-#define  DPLS_EDP_PPS_FIX_DIS	(1<<0)
+#define  FDI_MPHY_IOSFSB_RESET_STATUS	(1<<13)
+#define  FDI_MPHY_IOSFSB_RESET_CTL	(1<<12)
+#define  DPLS_EDP_PPS_FIX_DIS		(1<<0)
 
 #define _FDI_RXA_CHICKEN         0xc200c
 #define _FDI_RXB_CHICKEN         0xc2010
@@ -3915,6 +3917,7 @@
 #define  FDI_FS_ERRC_ENABLE		(1<<27)
 #define  FDI_FE_ERRC_ENABLE		(1<<26)
 #define  FDI_DP_PORT_WIDTH_X8           (7<<19)
+#define  FDI_RX_POLARITY_REVERSED_LPT	(1<<16)
 #define  FDI_8BPC                       (0<<16)
 #define  FDI_10BPC                      (1<<16)
 #define  FDI_6BPC                       (2<<16)
@@ -4534,6 +4537,10 @@
 #define SBI_ADDR			0xC6000
 #define SBI_DATA			0xC6004
 #define SBI_CTL_STAT			0xC6008
+#define  SBI_CTL_DEST_ICLK		(0x0<<16)
+#define  SBI_CTL_DEST_MPHY		(0x1<<16)
+#define  SBI_CTL_OP_IORD		(0x2<<8)
+#define  SBI_CTL_OP_IOWR		(0x3<<8)
 #define  SBI_CTL_OP_CRRD		(0x6<<8)
 #define  SBI_CTL_OP_CRWR		(0x7<<8)
 #define  SBI_RESPONSE_FAIL		(0x1<<1)
@@ -4551,10 +4558,12 @@
 #define   SBI_SSCDIVINTPHASE_PROPAGATE		(1<<0)
 #define  SBI_SSCCTL				0x020c
 #define  SBI_SSCCTL6				0x060C
+#define   SBI_SSCCTL_PATHALT			(1<<3)
 #define   SBI_SSCCTL_DISABLE			(1<<0)
 #define  SBI_SSCAUXDIV6				0x0610
 #define   SBI_SSCAUXDIV_FINALDIV2SEL(x)		((x)<<4)
 #define  SBI_DBUFF0				0x2a00
+#define   SBI_DBUFF0_ENABLE			(1<<0)
 
 /* LPT PIXCLK_GATE */
 #define PIXCLK_GATE			0xC6020

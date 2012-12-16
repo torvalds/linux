@@ -317,7 +317,7 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 			seq_printf(m, "No flip due on pipe %c (plane %c)\n",
 				   pipe, plane);
 		} else {
-			if (!work->pending) {
+			if (atomic_read(&work->pending) < INTEL_FLIP_COMPLETE) {
 				seq_printf(m, "Flip queued on pipe %c (plane %c)\n",
 					   pipe, plane);
 			} else {
@@ -328,7 +328,7 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 				seq_printf(m, "Stall check enabled, ");
 			else
 				seq_printf(m, "Stall check waiting for page flip ioctl, ");
-			seq_printf(m, "%d prepares\n", work->pending);
+			seq_printf(m, "%d prepares\n", atomic_read(&work->pending));
 
 			if (work->old_fb_obj) {
 				struct drm_i915_gem_object *obj = work->old_fb_obj;
@@ -655,10 +655,12 @@ static void i915_ring_error_state(struct seq_file *m,
 	if (INTEL_INFO(dev)->gen >= 6) {
 		seq_printf(m, "  RC PSMI: 0x%08x\n", error->rc_psmi[ring]);
 		seq_printf(m, "  FAULT_REG: 0x%08x\n", error->fault_reg[ring]);
-		seq_printf(m, "  SYNC_0: 0x%08x\n",
-			   error->semaphore_mboxes[ring][0]);
-		seq_printf(m, "  SYNC_1: 0x%08x\n",
-			   error->semaphore_mboxes[ring][1]);
+		seq_printf(m, "  SYNC_0: 0x%08x [last synced 0x%08x]\n",
+			   error->semaphore_mboxes[ring][0],
+			   error->semaphore_seqno[ring][0]);
+		seq_printf(m, "  SYNC_1: 0x%08x [last synced 0x%08x]\n",
+			   error->semaphore_mboxes[ring][1],
+			   error->semaphore_seqno[ring][1]);
 	}
 	seq_printf(m, "  seqno: 0x%08x\n", error->seqno[ring]);
 	seq_printf(m, "  waiting: %s\n", yesno(error->waiting[ring]));

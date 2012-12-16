@@ -141,7 +141,7 @@ void i915_kernel_lost_context(struct drm_device * dev)
 
 	ring->head = I915_READ_HEAD(ring) & HEAD_ADDR;
 	ring->tail = I915_READ_TAIL(ring) & TAIL_ADDR;
-	ring->space = ring->head - (ring->tail + 8);
+	ring->space = ring->head - (ring->tail + I915_RING_FREE_SPACE);
 	if (ring->space < 0)
 		ring->space += ring->size;
 
@@ -592,10 +592,8 @@ static int i915_dispatch_flip(struct drm_device * dev)
 
 static int i915_quiescent(struct drm_device *dev)
 {
-	struct intel_ring_buffer *ring = LP_RING(dev->dev_private);
-
 	i915_kernel_lost_context(dev);
-	return intel_wait_ring_idle(ring);
+	return intel_ring_idle(LP_RING(dev->dev_private));
 }
 
 static int i915_flush_ioctl(struct drm_device *dev, void *data,
@@ -1045,7 +1043,7 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	drm_i915_hws_addr_t *hws = data;
-	struct intel_ring_buffer *ring = LP_RING(dev_priv);
+	struct intel_ring_buffer *ring;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return -ENODEV;
@@ -1065,6 +1063,7 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 
 	DRM_DEBUG_DRIVER("set status page addr 0x%08x\n", (u32)hws->addr);
 
+	ring = LP_RING(dev_priv);
 	ring->status_page.gfx_addr = hws->addr & (0x1ffff<<12);
 
 	dev_priv->dri1.gfx_hws_cpu_addr =

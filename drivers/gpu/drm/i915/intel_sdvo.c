@@ -509,7 +509,7 @@ out:
 static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 				     void *response, int response_len)
 {
-	u8 retry = 5;
+	u8 retry = 15; /* 5 quick checks, followed by 10 long checks */
 	u8 status;
 	int i;
 
@@ -522,14 +522,27 @@ static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 	 * command to be complete.
 	 *
 	 * Check 5 times in case the hardware failed to read the docs.
+	 *
+	 * Also beware that the first response by many devices is to
+	 * reply PENDING and stall for time. TVs are notorious for
+	 * requiring longer than specified to complete their replies.
+	 * Originally (in the DDX long ago), the delay was only ever 15ms
+	 * with an additional delay of 30ms applied for TVs added later after
+	 * many experiments. To accommodate both sets of delays, we do a
+	 * sequence of slow checks if the device is falling behind and fails
+	 * to reply within 5*15µs.
 	 */
 	if (!intel_sdvo_read_byte(intel_sdvo,
 				  SDVO_I2C_CMD_STATUS,
 				  &status))
 		goto log_fail;
 
-	while (status == SDVO_CMD_STATUS_PENDING && retry--) {
-		udelay(15);
+	while (status == SDVO_CMD_STATUS_PENDING && --retry) {
+		if (retry < 10)
+			msleep(15);
+		else
+			udelay(15);
+
 		if (!intel_sdvo_read_byte(intel_sdvo,
 					  SDVO_I2C_CMD_STATUS,
 					  &status))
@@ -1535,15 +1548,9 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 	struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
 	enum drm_connector_status ret;
 
-	if (!intel_sdvo_write_cmd(intel_sdvo,
-				  SDVO_CMD_GET_ATTACHED_DISPLAYS, NULL, 0))
-		return connector_status_unknown;
-
-	/* add 30ms delay when the output type might be TV */
-	if (intel_sdvo->caps.output_flags & SDVO_TV_MASK)
-		msleep(30);
-
-	if (!intel_sdvo_read_response(intel_sdvo, &response, 2))
+	if (!intel_sdvo_get_value(intel_sdvo,
+				  SDVO_CMD_GET_ATTACHED_DISPLAYS,
+				  &response, 2))
 		return connector_status_unknown;
 
 	DRM_DEBUG_KMS("SDVO response %d %d [%x]\n",
