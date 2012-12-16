@@ -3712,7 +3712,7 @@ I2C/SMBUS STUB DRIVER
 M:	"Mark M. Hoffman" <mhoffman@lightlink.com>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
-F:	drivers/i2c/busses/i2c-stub.c
+F:	drivers/i2c/i2c-stub.c
 
 I2C SUBSYSTEM
 M:	Wolfram Sang <w.sang@pengutronix.de>
