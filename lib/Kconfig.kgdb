@@ -79,4 +79,22 @@ config KDB_KEYBOARD
 	help
 	  KDB can use a PS/2 type keyboard for an input device
 
+config KDB_CONTINUE_CATASTROPHIC
+	int "KDB: continue after catastrophic errors"
+	depends on KGDB_KDB
+	default "0"
+	help
+	  This integer controls the behaviour of kdb when the kernel gets a
+	  catastrophic error, i.e. for a panic or oops.
+	  When KDB is active and a catastrophic error occurs, nothing extra
+	  will happen until you type 'go'.
+	  CONFIG_KDB_CONTINUE_CATASTROPHIC == 0 (default). The first time
+	  you type 'go', you will be warned by kdb. The secend time you type
+	  'go', KDB tries to continue. No guarantees that the
+	  kernel is still usable in this situation.
+	  CONFIG_KDB_CONTINUE_CATASTROPHIC == 1. KDB tries to continue.
+	  No guarantees that the kernel is still usable in this situation.
+	  CONFIG_KDB_CONTINUE_CATASTROPHIC == 2. KDB forces a reboot.
+	  If you are not sure, say 0.
+
 endif # KGDB
