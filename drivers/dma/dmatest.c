@@ -367,14 +367,34 @@ static int dmatest_func(void *data)
 
 			dma_srcs[i] = dma_map_single(dev->dev, buf, len,
 						     DMA_TO_DEVICE);
+			ret = dma_mapping_error(dev->dev, dma_srcs[i]);
+			if (ret) {
+				unmap_src(dev->dev, dma_srcs, len, i);
+				pr_warn("%s: #%u: mapping error %d with "
+					"src_off=0x%x len=0x%x\n",
+					thread_name, total_tests - 1, ret,
+					src_off, len);
+				failed_tests++;
+				continue;
+			}
 		}
 		/* map with DMA_BIDIRECTIONAL to force writeback/invalidate */
 		for (i = 0; i < dst_cnt; i++) {
 			dma_dsts[i] = dma_map_single(dev->dev, thread->dsts[i],
 						     test_buf_size,
 						     DMA_BIDIRECTIONAL);
+			ret = dma_mapping_error(dev->dev, dma_dsts[i]);
+			if (ret) {
+				unmap_src(dev->dev, dma_srcs, len, src_cnt);
+				unmap_dst(dev->dev, dma_dsts, test_buf_size, i);
+				pr_warn("%s: #%u: mapping error %d with "
+					"dst_off=0x%x len=0x%x\n",
+					thread_name, total_tests - 1, ret,
+					dst_off, test_buf_size);
+				failed_tests++;
+				continue;
+			}
 		}
-
 
 		if (thread->type == DMA_MEMCPY)
 			tx = dev->device_prep_dma_memcpy(chan,
