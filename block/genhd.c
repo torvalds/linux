@@ -1245,7 +1245,7 @@ EXPORT_SYMBOL(blk_lookup_devt);
 
 struct gendisk *alloc_disk(int minors)
 {
-	return alloc_disk_node(minors, -1);
+	return alloc_disk_node(minors, NUMA_NO_NODE);
 }
 EXPORT_SYMBOL(alloc_disk);
 
