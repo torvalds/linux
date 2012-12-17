@@ -185,7 +185,11 @@ static int da9052_gpio_to_irq(struct gpio_chip *gc, u32 offset)
 	struct da9052_gpio *gpio = to_da9052_gpio(gc);
 	struct da9052 *da9052 = gpio->da9052;
 
-	return da9052->irq_base + DA9052_IRQ_GPI0 + offset;
+	int irq;
+
+	irq = regmap_irq_get_virq(da9052->irq_data, DA9052_IRQ_GPI0 + offset);
+
+	return irq;
 }
 
 static struct gpio_chip reference_gp = {

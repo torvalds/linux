@@ -818,6 +818,16 @@ config I2C_TINY_USB
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-tiny-usb.
 
+config I2C_VIPERBOARD
+	tristate "Viperboard I2C master support"
+	depends on MFD_VIPERBOARD && USB
+	help
+	  Say yes here to access the I2C part of the Nano River
+	  Technologies Viperboard as I2C master.
+          See viperboard API specification and Nano
+          River Tech's viperboard.h for detailed meaning
+          of the module parameters.
+
 comment "Other I2C/SMBus bus drivers"
 
 config I2C_ACORN

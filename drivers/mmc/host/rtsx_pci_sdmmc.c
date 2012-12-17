@@ -21,6 +21,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/highmem.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
@@ -382,8 +383,6 @@ static int sd_rw_multi(struct realtek_pci_sdmmc *host, struct mmc_request *mrq)
 			0xFF, (u8)data->blocks);
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SD_BLOCK_CNT_H,
 			0xFF, (u8)(data->blocks >> 8));
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD,
-			CARD_DATA_SOURCE, 0x01, RING_BUFFER);
 
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, IRQSTAT0,
 			DMA_DONE_INT, DMA_DONE_INT);
@@ -407,6 +406,7 @@ static int sd_rw_multi(struct realtek_pci_sdmmc *host, struct mmc_request *mrq)
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CARD_DATA_SOURCE,
 			0x01, RING_BUFFER);
 
+	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SD_CFG2, 0xFF, cfg2);
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SD_TRANSFER, 0xFF,
 			trans_mode | SD_TRANSFER_START);
 	rtsx_pci_add_cmd(pcr, CHECK_REG_CMD, SD_TRANSFER,

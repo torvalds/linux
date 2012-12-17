@@ -33,6 +33,7 @@
 /* Maximum number of main interrupts */
 #define MAX_MAIN_INTERRUPT		5
 #define RC5T583_MAX_GPEDGE_REG		2
+#define RC5T583_MAX_INTERRUPT_EN_REGS	8
 #define RC5T583_MAX_INTERRUPT_MASK_REGS	9
 
 /* Interrupt enable register */
@@ -304,7 +305,7 @@ struct rc5t583 {
 	uint8_t		intc_inten_reg;
 
 	/* For group interrupt bits and address */
-	uint8_t		irq_en_reg[RC5T583_MAX_INTERRUPT_MASK_REGS];
+	uint8_t		irq_en_reg[RC5T583_MAX_INTERRUPT_EN_REGS];
 
 	/* For gpio edge */
 	uint8_t		gpedge_reg[RC5T583_MAX_GPEDGE_REG];

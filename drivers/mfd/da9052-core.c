@@ -15,7 +15,6 @@
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/mfd/core.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -23,16 +22,6 @@
 #include <linux/mfd/da9052/da9052.h>
 #include <linux/mfd/da9052/pdata.h>
 #include <linux/mfd/da9052/reg.h>
-
-#define DA9052_NUM_IRQ_REGS		4
-#define DA9052_IRQ_MASK_POS_1		0x01
-#define DA9052_IRQ_MASK_POS_2		0x02
-#define DA9052_IRQ_MASK_POS_3		0x04
-#define DA9052_IRQ_MASK_POS_4		0x08
-#define DA9052_IRQ_MASK_POS_5		0x10
-#define DA9052_IRQ_MASK_POS_6		0x20
-#define DA9052_IRQ_MASK_POS_7		0x40
-#define DA9052_IRQ_MASK_POS_8		0x80
 
 static bool da9052_reg_readable(struct device *dev, unsigned int reg)
 {
@@ -425,15 +414,6 @@ err:
 }
 EXPORT_SYMBOL_GPL(da9052_adc_manual_read);
 
-static irqreturn_t da9052_auxadc_irq(int irq, void *irq_data)
-{
-	struct da9052 *da9052 = irq_data;
-
-	complete(&da9052->done);
-
-	return IRQ_HANDLED;
-}
-
 int da9052_adc_read_temp(struct da9052 *da9052)
 {
 	int tbat;
@@ -446,74 +426,6 @@ int da9052_adc_read_temp(struct da9052 *da9052)
 	return tbat_lookup[tbat - 1];
 }
 EXPORT_SYMBOL_GPL(da9052_adc_read_temp);
-
-static struct resource da9052_rtc_resource = {
-	.name = "ALM",
-	.start = DA9052_IRQ_ALARM,
-	.end   = DA9052_IRQ_ALARM,
-	.flags = IORESOURCE_IRQ,
-};
-
-static struct resource da9052_onkey_resource = {
-	.name = "ONKEY",
-	.start = DA9052_IRQ_NONKEY,
-	.end   = DA9052_IRQ_NONKEY,
-	.flags = IORESOURCE_IRQ,
-};
-
-static struct resource da9052_bat_resources[] = {
-	{
-		.name = "BATT TEMP",
-		.start = DA9052_IRQ_TBAT,
-		.end   = DA9052_IRQ_TBAT,
-		.flags = IORESOURCE_IRQ,
-	},
-	{
-		.name = "DCIN DET",
-		.start = DA9052_IRQ_DCIN,
-		.end   = DA9052_IRQ_DCIN,
-		.flags = IORESOURCE_IRQ,
-	},
-	{
-		.name = "DCIN REM",
-		.start = DA9052_IRQ_DCINREM,
-		.end   = DA9052_IRQ_DCINREM,
-		.flags = IORESOURCE_IRQ,
-	},
-	{
-		.name = "VBUS DET",
-		.start = DA9052_IRQ_VBUS,
-		.end   = DA9052_IRQ_VBUS,
-		.flags = IORESOURCE_IRQ,
-	},
-	{
-		.name = "VBUS REM",
-		.start = DA9052_IRQ_VBUSREM,
-		.end   = DA9052_IRQ_VBUSREM,
-		.flags = IORESOURCE_IRQ,
-	},
-	{
-		.name = "CHG END",
-		.start = DA9052_IRQ_CHGEND,
-		.end   = DA9052_IRQ_CHGEND,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-static struct resource da9052_tsi_resources[] = {
-	{
-		.name = "PENDWN",
-		.start = DA9052_IRQ_PENDOWN,
-		.end   = DA9052_IRQ_PENDOWN,
-		.flags = IORESOURCE_IRQ,
-	},
-	{
-		.name = "TSIRDY",
-		.start = DA9052_IRQ_TSIREADY,
-		.end   = DA9052_IRQ_TSIREADY,
-		.flags = IORESOURCE_IRQ,
-	},
-};
 
 static struct mfd_cell da9052_subdev_info[] = {
 	{
@@ -574,13 +486,9 @@ static struct mfd_cell da9052_subdev_info[] = {
 	},
 	{
 		.name = "da9052-onkey",
-		.resources = &da9052_onkey_resource,
-		.num_resources = 1,
 	},
 	{
 		.name = "da9052-rtc",
-		.resources = &da9052_rtc_resource,
-		.num_resources = 1,
 	},
 	{
 		.name = "da9052-gpio",
@@ -602,158 +510,13 @@ static struct mfd_cell da9052_subdev_info[] = {
 	},
 	{
 		.name = "da9052-tsi",
-		.resources = da9052_tsi_resources,
-		.num_resources = ARRAY_SIZE(da9052_tsi_resources),
 	},
 	{
 		.name = "da9052-bat",
-		.resources = da9052_bat_resources,
-		.num_resources = ARRAY_SIZE(da9052_bat_resources),
 	},
 	{
 		.name = "da9052-watchdog",
 	},
-};
-
-static struct regmap_irq da9052_irqs[] = {
-	[DA9052_IRQ_DCIN] = {
-		.reg_offset = 0,
-		.mask = DA9052_IRQ_MASK_POS_1,
-	},
-	[DA9052_IRQ_VBUS] = {
-		.reg_offset = 0,
-		.mask = DA9052_IRQ_MASK_POS_2,
-	},
-	[DA9052_IRQ_DCINREM] = {
-		.reg_offset = 0,
-		.mask = DA9052_IRQ_MASK_POS_3,
-	},
-	[DA9052_IRQ_VBUSREM] = {
-		.reg_offset = 0,
-		.mask = DA9052_IRQ_MASK_POS_4,
-	},
-	[DA9052_IRQ_VDDLOW] = {
-		.reg_offset = 0,
-		.mask = DA9052_IRQ_MASK_POS_5,
-	},
-	[DA9052_IRQ_ALARM] = {
-		.reg_offset = 0,
-		.mask = DA9052_IRQ_MASK_POS_6,
-	},
-	[DA9052_IRQ_SEQRDY] = {
-		.reg_offset = 0,
-		.mask = DA9052_IRQ_MASK_POS_7,
-	},
-	[DA9052_IRQ_COMP1V2] = {
-		.reg_offset = 0,
-		.mask = DA9052_IRQ_MASK_POS_8,
-	},
-	[DA9052_IRQ_NONKEY] = {
-		.reg_offset = 1,
-		.mask = DA9052_IRQ_MASK_POS_1,
-	},
-	[DA9052_IRQ_IDFLOAT] = {
-		.reg_offset = 1,
-		.mask = DA9052_IRQ_MASK_POS_2,
-	},
-	[DA9052_IRQ_IDGND] = {
-		.reg_offset = 1,
-		.mask = DA9052_IRQ_MASK_POS_3,
-	},
-	[DA9052_IRQ_CHGEND] = {
-		.reg_offset = 1,
-		.mask = DA9052_IRQ_MASK_POS_4,
-	},
-	[DA9052_IRQ_TBAT] = {
-		.reg_offset = 1,
-		.mask = DA9052_IRQ_MASK_POS_5,
-	},
-	[DA9052_IRQ_ADC_EOM] = {
-		.reg_offset = 1,
-		.mask = DA9052_IRQ_MASK_POS_6,
-	},
-	[DA9052_IRQ_PENDOWN] = {
-		.reg_offset = 1,
-		.mask = DA9052_IRQ_MASK_POS_7,
-	},
-	[DA9052_IRQ_TSIREADY] = {
-		.reg_offset = 1,
-		.mask = DA9052_IRQ_MASK_POS_8,
-	},
-	[DA9052_IRQ_GPI0] = {
-		.reg_offset = 2,
-		.mask = DA9052_IRQ_MASK_POS_1,
-	},
-	[DA9052_IRQ_GPI1] = {
-		.reg_offset = 2,
-		.mask = DA9052_IRQ_MASK_POS_2,
-	},
-	[DA9052_IRQ_GPI2] = {
-		.reg_offset = 2,
-		.mask = DA9052_IRQ_MASK_POS_3,
-	},
-	[DA9052_IRQ_GPI3] = {
-		.reg_offset = 2,
-		.mask = DA9052_IRQ_MASK_POS_4,
-	},
-	[DA9052_IRQ_GPI4] = {
-		.reg_offset = 2,
-		.mask = DA9052_IRQ_MASK_POS_5,
-	},
-	[DA9052_IRQ_GPI5] = {
-		.reg_offset = 2,
-		.mask = DA9052_IRQ_MASK_POS_6,
-	},
-	[DA9052_IRQ_GPI6] = {
-		.reg_offset = 2,
-		.mask = DA9052_IRQ_MASK_POS_7,
-	},
-	[DA9052_IRQ_GPI7] = {
-		.reg_offset = 2,
-		.mask = DA9052_IRQ_MASK_POS_8,
-	},
-	[DA9052_IRQ_GPI8] = {
-		.reg_offset = 3,
-		.mask = DA9052_IRQ_MASK_POS_1,
-	},
-	[DA9052_IRQ_GPI9] = {
-		.reg_offset = 3,
-		.mask = DA9052_IRQ_MASK_POS_2,
-	},
-	[DA9052_IRQ_GPI10] = {
-		.reg_offset = 3,
-		.mask = DA9052_IRQ_MASK_POS_3,
-	},
-	[DA9052_IRQ_GPI11] = {
-		.reg_offset = 3,
-		.mask = DA9052_IRQ_MASK_POS_4,
-	},
-	[DA9052_IRQ_GPI12] = {
-		.reg_offset = 3,
-		.mask = DA9052_IRQ_MASK_POS_5,
-	},
-	[DA9052_IRQ_GPI13] = {
-		.reg_offset = 3,
-		.mask = DA9052_IRQ_MASK_POS_6,
-	},
-	[DA9052_IRQ_GPI14] = {
-		.reg_offset = 3,
-		.mask = DA9052_IRQ_MASK_POS_7,
-	},
-	[DA9052_IRQ_GPI15] = {
-		.reg_offset = 3,
-		.mask = DA9052_IRQ_MASK_POS_8,
-	},
-};
-
-static struct regmap_irq_chip da9052_regmap_irq_chip = {
-	.name = "da9052_irq",
-	.status_base = DA9052_EVENT_A_REG,
-	.mask_base = DA9052_IRQ_MASK_A_REG,
-	.ack_base = DA9052_EVENT_A_REG,
-	.num_regs = DA9052_NUM_IRQ_REGS,
-	.irqs = da9052_irqs,
-	.num_irqs = ARRAY_SIZE(da9052_irqs),
 };
 
 struct regmap_config da9052_regmap_config = {
@@ -782,45 +545,31 @@ int da9052_device_init(struct da9052 *da9052, u8 chip_id)
 
 	da9052->chip_id = chip_id;
 
-	if (!pdata || !pdata->irq_base)
-		da9052->irq_base = -1;
-	else
-		da9052->irq_base = pdata->irq_base;
-
-	ret = regmap_add_irq_chip(da9052->regmap, da9052->chip_irq,
-				  IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-				  da9052->irq_base, &da9052_regmap_irq_chip,
-				  &da9052->irq_data);
-	if (ret < 0)
-		goto regmap_err;
-
-	da9052->irq_base = regmap_irq_chip_get_base(da9052->irq_data);
-
-	ret = request_threaded_irq(DA9052_IRQ_ADC_EOM, NULL, da9052_auxadc_irq,
-				   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-				   "adc irq", da9052);
-	if (ret != 0)
-		dev_err(da9052->dev, "DA9052 ADC IRQ failed ret=%d\n", ret);
+	ret = da9052_irq_init(da9052);
+	if (ret != 0) {
+		dev_err(da9052->dev, "da9052_irq_init failed: %d\n", ret);
+		return ret;
+	}
 
 	ret = mfd_add_devices(da9052->dev, -1, da9052_subdev_info,
 			      ARRAY_SIZE(da9052_subdev_info), NULL, 0, NULL);
-	if (ret)
+	if (ret) {
+		dev_err(da9052->dev, "mfd_add_devices failed: %d\n", ret);
 		goto err;
+	}
 
 	return 0;
 
 err:
-	free_irq(DA9052_IRQ_ADC_EOM, da9052);
-	mfd_remove_devices(da9052->dev);
-regmap_err:
+	da9052_irq_exit(da9052);
+
 	return ret;
 }
 
 void da9052_device_exit(struct da9052 *da9052)
 {
-	free_irq(DA9052_IRQ_ADC_EOM, da9052);
-	regmap_del_irq_chip(da9052->chip_irq, da9052->irq_data);
 	mfd_remove_devices(da9052->dev);
+	da9052_irq_exit(da9052);
 }
 
 MODULE_AUTHOR("David Dajun Chen <dchen@diasemi.com>");

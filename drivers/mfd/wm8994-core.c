@@ -535,10 +535,9 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 			break;
 		case 2:
 		case 3:
+		default:
 			regmap_patch = wm8994_revc_patch;
 			patch_regs = ARRAY_SIZE(wm8994_revc_patch);
-			break;
-		default:
 			break;
 		}
 		break;
@@ -558,17 +557,9 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		/* Revision C did not change the relevant layer */
 		if (wm8994->revision > 1)
 			wm8994->revision++;
-		switch (wm8994->revision) {
-		case 0:
-		case 1:
-		case 2:
-		case 3:
-			regmap_patch = wm1811_reva_patch;
-			patch_regs = ARRAY_SIZE(wm1811_reva_patch);
-			break;
-		default:
-			break;
-		}
+
+		regmap_patch = wm1811_reva_patch;
+		patch_regs = ARRAY_SIZE(wm1811_reva_patch);
 		break;
 
 	default:

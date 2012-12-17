@@ -37,7 +37,6 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
-#include <linux/err.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/twl6040.h>
 #include <linux/regulator/consumer.h>
@@ -104,7 +103,7 @@ int twl6040_clear_bits(struct twl6040 *twl6040, unsigned int reg, u8 mask)
 EXPORT_SYMBOL(twl6040_clear_bits);
 
 /* twl6040 codec manual power-up sequence */
-static int twl6040_power_up(struct twl6040 *twl6040)
+static int twl6040_power_up_manual(struct twl6040 *twl6040)
 {
 	u8 ldoctl, ncpctl, lppllctl;
 	int ret;
@@ -158,11 +157,12 @@ ncp_err:
 	ldoctl &= ~(TWL6040_HSLDOENA | TWL6040_REFENA | TWL6040_OSCENA);
 	twl6040_reg_write(twl6040, TWL6040_REG_LDOCTL, ldoctl);
 
+	dev_err(twl6040->dev, "manual power-up failed\n");
 	return ret;
 }
 
 /* twl6040 manual power-down sequence */
-static void twl6040_power_down(struct twl6040 *twl6040)
+static void twl6040_power_down_manual(struct twl6040 *twl6040)
 {
 	u8 ncpctl, ldoctl, lppllctl;
 
@@ -192,45 +192,48 @@ static void twl6040_power_down(struct twl6040 *twl6040)
 	twl6040_reg_write(twl6040, TWL6040_REG_LDOCTL, ldoctl);
 }
 
-static irqreturn_t twl6040_naudint_handler(int irq, void *data)
+static irqreturn_t twl6040_readyint_handler(int irq, void *data)
 {
 	struct twl6040 *twl6040 = data;
-	u8 intid, status;
 
-	intid = twl6040_reg_read(twl6040, TWL6040_REG_INTID);
+	complete(&twl6040->ready);
 
-	if (intid & TWL6040_READYINT)
-		complete(&twl6040->ready);
+	return IRQ_HANDLED;
+}
 
-	if (intid & TWL6040_THINT) {
-		status = twl6040_reg_read(twl6040, TWL6040_REG_STATUS);
-		if (status & TWL6040_TSHUTDET) {
-			dev_warn(twl6040->dev,
-				 "Thermal shutdown, powering-off");
-			twl6040_power(twl6040, 0);
-		} else {
-			dev_warn(twl6040->dev,
-				 "Leaving thermal shutdown, powering-on");
-			twl6040_power(twl6040, 1);
-		}
+static irqreturn_t twl6040_thint_handler(int irq, void *data)
+{
+	struct twl6040 *twl6040 = data;
+	u8 status;
+
+	status = twl6040_reg_read(twl6040, TWL6040_REG_STATUS);
+	if (status & TWL6040_TSHUTDET) {
+		dev_warn(twl6040->dev, "Thermal shutdown, powering-off");
+		twl6040_power(twl6040, 0);
+	} else {
+		dev_warn(twl6040->dev, "Leaving thermal shutdown, powering-on");
+		twl6040_power(twl6040, 1);
 	}
 
 	return IRQ_HANDLED;
 }
 
-static int twl6040_power_up_completion(struct twl6040 *twl6040,
-				       int naudint)
+static int twl6040_power_up_automatic(struct twl6040 *twl6040)
 {
 	int time_left;
-	u8 intid;
+
+	gpio_set_value(twl6040->audpwron, 1);
 
 	time_left = wait_for_completion_timeout(&twl6040->ready,
 						msecs_to_jiffies(144));
 	if (!time_left) {
+		u8 intid;
+
+		dev_warn(twl6040->dev, "timeout waiting for READYINT\n");
 		intid = twl6040_reg_read(twl6040, TWL6040_REG_INTID);
 		if (!(intid & TWL6040_READYINT)) {
-			dev_err(twl6040->dev,
-				"timeout waiting for READYINT\n");
+			dev_err(twl6040->dev, "automatic power-up failed\n");
+			gpio_set_value(twl6040->audpwron, 0);
 			return -ETIMEDOUT;
 		}
 	}
@@ -240,8 +243,6 @@ static int twl6040_power_up_completion(struct twl6040 *twl6040,
 
 int twl6040_power(struct twl6040 *twl6040, int on)
 {
-	int audpwron = twl6040->audpwron;
-	int naudint = twl6040->irq;
 	int ret = 0;
 
 	mutex_lock(&twl6040->mutex);
@@ -251,23 +252,17 @@ int twl6040_power(struct twl6040 *twl6040, int on)
 		if (twl6040->power_count++)
 			goto out;
 
-		if (gpio_is_valid(audpwron)) {
-			/* use AUDPWRON line */
-			gpio_set_value(audpwron, 1);
-			/* wait for power-up completion */
-			ret = twl6040_power_up_completion(twl6040, naudint);
+		if (gpio_is_valid(twl6040->audpwron)) {
+			/* use automatic power-up sequence */
+			ret = twl6040_power_up_automatic(twl6040);
 			if (ret) {
-				dev_err(twl6040->dev,
-					"automatic power-down failed\n");
 				twl6040->power_count = 0;
 				goto out;
 			}
 		} else {
 			/* use manual power-up sequence */
-			ret = twl6040_power_up(twl6040);
+			ret = twl6040_power_up_manual(twl6040);
 			if (ret) {
-				dev_err(twl6040->dev,
-					"manual power-up failed\n");
 				twl6040->power_count = 0;
 				goto out;
 			}
@@ -288,15 +283,15 @@ int twl6040_power(struct twl6040 *twl6040, int on)
 		if (--twl6040->power_count)
 			goto out;
 
-		if (gpio_is_valid(audpwron)) {
+		if (gpio_is_valid(twl6040->audpwron)) {
 			/* use AUDPWRON line */
-			gpio_set_value(audpwron, 0);
+			gpio_set_value(twl6040->audpwron, 0);
 
 			/* power-down sequence latency */
 			usleep_range(500, 700);
 		} else {
 			/* use manual power-down sequence */
-			twl6040_power_down(twl6040);
+			twl6040_power_down_manual(twl6040);
 		}
 		twl6040->sysclk = 0;
 		twl6040->mclk = 0;
@@ -503,6 +498,25 @@ static struct regmap_config twl6040_regmap_config = {
 	.readable_reg = twl6040_readable_reg,
 };
 
+static const struct regmap_irq twl6040_irqs[] = {
+	{ .reg_offset = 0, .mask = TWL6040_THINT, },
+	{ .reg_offset = 0, .mask = TWL6040_PLUGINT | TWL6040_UNPLUGINT, },
+	{ .reg_offset = 0, .mask = TWL6040_HOOKINT, },
+	{ .reg_offset = 0, .mask = TWL6040_HFINT, },
+	{ .reg_offset = 0, .mask = TWL6040_VIBINT, },
+	{ .reg_offset = 0, .mask = TWL6040_READYINT, },
+};
+
+static struct regmap_irq_chip twl6040_irq_chip = {
+	.name = "twl6040",
+	.irqs = twl6040_irqs,
+	.num_irqs = ARRAY_SIZE(twl6040_irqs),
+
+	.num_regs = 1,
+	.status_base = TWL6040_REG_INTID,
+	.mask_base = TWL6040_REG_INTMR,
+};
+
 static int __devinit twl6040_probe(struct i2c_client *client,
 				     const struct i2c_device_id *id)
 {
@@ -578,18 +592,31 @@ static int __devinit twl6040_probe(struct i2c_client *client,
 			goto gpio_err;
 	}
 
-	/* codec interrupt */
-	ret = twl6040_irq_init(twl6040);
-	if (ret)
+	ret = regmap_add_irq_chip(twl6040->regmap, twl6040->irq,
+			IRQF_ONESHOT, 0, &twl6040_irq_chip,
+			&twl6040->irq_data);
+	if (ret < 0)
 		goto irq_init_err;
 
-	ret = request_threaded_irq(twl6040->irq_base + TWL6040_IRQ_READY,
-				   NULL, twl6040_naudint_handler, IRQF_ONESHOT,
+	twl6040->irq_ready = regmap_irq_get_virq(twl6040->irq_data,
+					       TWL6040_IRQ_READY);
+	twl6040->irq_th = regmap_irq_get_virq(twl6040->irq_data,
+					       TWL6040_IRQ_TH);
+
+	ret = request_threaded_irq(twl6040->irq_ready, NULL,
+				   twl6040_readyint_handler, IRQF_ONESHOT,
 				   "twl6040_irq_ready", twl6040);
 	if (ret) {
-		dev_err(twl6040->dev, "READY IRQ request failed: %d\n",
-			ret);
-		goto irq_err;
+		dev_err(twl6040->dev, "READY IRQ request failed: %d\n", ret);
+		goto readyirq_err;
+	}
+
+	ret = request_threaded_irq(twl6040->irq_th, NULL,
+				   twl6040_thint_handler, IRQF_ONESHOT,
+				   "twl6040_irq_th", twl6040);
+	if (ret) {
+		dev_err(twl6040->dev, "Thermal IRQ request failed: %d\n", ret);
+		goto thirq_err;
 	}
 
 	/* dual-access registers controlled by I2C only */
@@ -601,7 +628,7 @@ static int __devinit twl6040_probe(struct i2c_client *client,
 	 * The ASoC codec can work without pdata, pass the platform_data only if
 	 * it has been provided.
 	 */
-	irq = twl6040->irq_base + TWL6040_IRQ_PLUG;
+	irq = regmap_irq_get_virq(twl6040->irq_data, TWL6040_IRQ_PLUG);
 	cell = &twl6040->cells[children];
 	cell->name = "twl6040-codec";
 	twl6040_codec_rsrc[0].start = irq;
@@ -615,7 +642,7 @@ static int __devinit twl6040_probe(struct i2c_client *client,
 	children++;
 
 	if (twl6040_has_vibra(pdata, node)) {
-		irq = twl6040->irq_base + TWL6040_IRQ_VIB;
+		irq = regmap_irq_get_virq(twl6040->irq_data, TWL6040_IRQ_VIB);
 
 		cell = &twl6040->cells[children];
 		cell->name = "twl6040-vibra";
@@ -654,9 +681,11 @@ static int __devinit twl6040_probe(struct i2c_client *client,
 	return 0;
 
 mfd_err:
-	free_irq(twl6040->irq_base + TWL6040_IRQ_READY, twl6040);
-irq_err:
-	twl6040_irq_exit(twl6040);
+	free_irq(twl6040->irq_th, twl6040);
+thirq_err:
+	free_irq(twl6040->irq_ready, twl6040);
+readyirq_err:
+	regmap_del_irq_chip(twl6040->irq, twl6040->irq_data);
 irq_init_err:
 	if (gpio_is_valid(twl6040->audpwron))
 		gpio_free(twl6040->audpwron);
@@ -680,8 +709,9 @@ static int __devexit twl6040_remove(struct i2c_client *client)
 	if (gpio_is_valid(twl6040->audpwron))
 		gpio_free(twl6040->audpwron);
 
-	free_irq(twl6040->irq_base + TWL6040_IRQ_READY, twl6040);
-	twl6040_irq_exit(twl6040);
+	free_irq(twl6040->irq_ready, twl6040);
+	free_irq(twl6040->irq_th, twl6040);
+	regmap_del_irq_chip(twl6040->irq, twl6040->irq_data);
 
 	mfd_remove_devices(&client->dev);
 	i2c_set_clientdata(client, NULL);
