@@ -817,7 +817,7 @@ void __init setup_arch(char **cmdline_p)
 	printk("KERNEL -> TEXT=0x%06x-0x%06x DATA=0x%06x-0x%06x BSS=0x%06x-0x%06x\n",
 	       (int) &_stext, (int) &_etext,
 	       (int) &_sdata, (int) &_edata,
-	       (int) &_sbss, (int) &_ebss);
+	       (int) &__bss_start, (int) &__bss_stop);
 #endif
 
 #ifdef CONFIG_VT
