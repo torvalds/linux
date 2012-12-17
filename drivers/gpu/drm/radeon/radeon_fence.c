@@ -868,6 +868,25 @@ void radeon_fence_driver_fini(struct radeon_device *rdev)
 	mutex_unlock(&rdev->ring_lock);
 }
 
+/**
+ * radeon_fence_driver_force_completion - force all fence waiter to complete
+ *
+ * @rdev: radeon device pointer
+ *
+ * In case of GPU reset failure make sure no process keep waiting on fence
+ * that will never complete.
+ */
+void radeon_fence_driver_force_completion(struct radeon_device *rdev)
+{
+	int ring;
+
+	for (ring = 0; ring < RADEON_NUM_RINGS; ring++) {
+		if (!rdev->fence_drv[ring].initialized)
+			continue;
+		radeon_fence_write(rdev, rdev->fence_drv[ring].sync_seq[ring], ring);
+	}
+}
+
 
 /*
  * Fence debugfs
