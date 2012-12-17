@@ -929,7 +929,7 @@ void task_numa_work(struct callback_head *work)
 			continue;
 
 		/* Skip small VMAs. They are not likely to be of relevance */
-		if (((vma->vm_end - vma->vm_start) >> PAGE_SHIFT) < HPAGE_PMD_NR)
+		if (vma->vm_end - vma->vm_start < HPAGE_SIZE)
 			continue;
 
 		do {
