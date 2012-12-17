@@ -8,6 +8,12 @@
 
 #define ADC_SAMPLE_TIME				100
 
+#define EV_ENCALL			KEY_F4
+#define EV_MENU				KEY_F1
+
+#define PRESS_LEV_LOW			1
+#define PRESS_LEV_HIGH			0
+
 struct rk29_keys_button {
 	int code;		
 	int code_long_press;
