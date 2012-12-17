@@ -1,8 +1,7 @@
 #ifndef TARGET_PARAMS_H
 #define TARGET_PARAMS_H
 
-typedef struct _TARGET_PARAMS
-{
+typedef struct _TARGET_PARAMS {
 	B_UINT32 m_u32CfgVersion;
 	B_UINT32 m_u32CenterFrequency;
 	B_UINT32 m_u32BandAScan;
