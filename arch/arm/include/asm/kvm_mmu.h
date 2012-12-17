@@ -21,6 +21,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/pgalloc.h>
+#include <asm/idmap.h>
 
 /*
  * We directly use the kernel VA for the HYP, as we can directly share
