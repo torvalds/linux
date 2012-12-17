@@ -183,4 +183,17 @@ int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 int kvm_perf_init(void);
 int kvm_perf_teardown(void);
 
+static inline void __cpu_init_hyp_mode(phys_addr_t boot_pgd_ptr,
+				       phys_addr_t pgd_ptr,
+				       unsigned long hyp_stack_ptr,
+				       unsigned long vector_ptr)
+{
+	/*
+	 * Call initialization code, and switch to the full blown
+	 * HYP code.
+	 */
+	kvm_call_hyp((void *)boot_pgd_ptr, pgd_ptr,
+		     hyp_stack_ptr, vector_ptr);
+}
+
 #endif /* __ARM64_KVM_HOST_H__ */
