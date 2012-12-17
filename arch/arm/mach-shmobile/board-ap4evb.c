@@ -657,14 +657,8 @@ static struct platform_device lcdc_device = {
 /* FSI */
 #define IRQ_FSI		evt2irq(0x1840)
 static struct sh_fsi_platform_info fsi_info = {
-	.port_a = {
-		.flags		= SH_FSI_BRS_INV,
-	},
 	.port_b = {
-		.flags		= SH_FSI_BRS_INV |
-				  SH_FSI_BRM_INV |
-				  SH_FSI_LRS_INV |
-				  SH_FSI_CLK_CPG |
+		.flags		= SH_FSI_CLK_CPG |
 				  SH_FSI_FMT_SPDIF,
 	},
 };
@@ -816,7 +810,8 @@ static struct platform_device lcdc1_device = {
 };
 
 static struct asoc_simple_dai_init_info fsi2_hdmi_init_info = {
-	.cpu_daifmt	= SND_SOC_DAIFMT_CBM_CFM,
+	.cpu_daifmt	= SND_SOC_DAIFMT_CBM_CFM |
+			  SND_SOC_DAIFMT_IB_NF,
 };
 
 static struct asoc_simple_card_info fsi2_hdmi_info = {

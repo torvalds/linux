@@ -251,7 +251,6 @@ struct fsi_clk {
 struct fsi_priv {
 	void __iomem *base;
 	struct fsi_master *master;
-	struct sh_fsi_port_info *info;
 
 	struct fsi_stream playback;
 	struct fsi_stream capture;
@@ -424,14 +423,6 @@ static struct fsi_priv *fsi_get_priv_frm_dai(struct snd_soc_dai *dai)
 static struct fsi_priv *fsi_get_priv(struct snd_pcm_substream *substream)
 {
 	return fsi_get_priv_frm_dai(fsi_get_dai(substream));
-}
-
-static u32 fsi_get_info_flags(struct fsi_priv *fsi)
-{
-	if (!fsi->info)
-		return 0;
-
-	return fsi->info->flags;
 }
 
 static u32 fsi_get_port_shift(struct fsi_priv *fsi, struct fsi_stream *io)
@@ -1543,7 +1534,6 @@ static int fsi_hw_startup(struct fsi_priv *fsi,
 			  struct fsi_stream *io,
 			  struct device *dev)
 {
-	u32 flags = fsi_get_info_flags(fsi);
 	u32 data = 0;
 
 	/* clock setting */
@@ -1560,19 +1550,6 @@ static int fsi_hw_startup(struct fsi_priv *fsi,
 		data |= (1 << 4);
 	if (fsi_is_clk_master(fsi))
 		data <<= 8;
-	/* FIXME
-	 *
-	 * SH_FSI_xxx_INV style will be removed
-	 */
-	if (SH_FSI_LRM_INV & flags)
-		data |= 1 << 12;
-	if (SH_FSI_BRM_INV & flags)
-		data |= 1 << 8;
-	if (SH_FSI_LRS_INV & flags)
-		data |= 1 << 4;
-	if (SH_FSI_BRS_INV & flags)
-		data |= 1 << 0;
-
 	fsi_reg_write(fsi, CKG2, data);
 
 	/* spdif ? */
@@ -1988,7 +1965,6 @@ static int fsi_probe(struct platform_device *pdev)
 	fsi		= &master->fsia;
 	fsi->base	= master->base;
 	fsi->master	= master;
-	fsi->info	= pinfo;
 	fsi_port_info_init(fsi, pinfo);
 	fsi_handler_init(fsi, pinfo);
 	ret = fsi_stream_probe(fsi, &pdev->dev);
@@ -2002,7 +1978,6 @@ static int fsi_probe(struct platform_device *pdev)
 	fsi		= &master->fsib;
 	fsi->base	= master->base + 0x40;
 	fsi->master	= master;
-	fsi->info	= pinfo;
 	fsi_port_info_init(fsi, pinfo);
 	fsi_handler_init(fsi, pinfo);
 	ret = fsi_stream_probe(fsi, &pdev->dev);

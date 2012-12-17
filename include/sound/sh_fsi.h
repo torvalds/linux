@@ -29,13 +29,6 @@
  * D:  clock selecter if master mode
  */
 
-/* A: clock inversion */
-#define SH_FSI_INVERSION_MASK	0x0000000F
-#define SH_FSI_LRM_INV		(1 << 0)
-#define SH_FSI_BRM_INV		(1 << 1)
-#define SH_FSI_LRS_INV		(1 << 2)
-#define SH_FSI_BRS_INV		(1 << 3)
-
 /* B: format mode */
 #define SH_FSI_FMT_MASK		0x000000F0
 #define SH_FSI_FMT_DAI		(0 << 4)
