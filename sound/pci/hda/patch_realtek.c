@@ -3969,7 +3969,7 @@ static void activate_path(struct hda_codec *codec, struct nid_path *path,
 		path->active = false;
 
 	for (i = path->depth - 1; i >= 0; i--) {
-		if (path->multi[i])
+		if (enable && path->multi[i])
 			snd_hda_codec_write_cache(codec, path->path[i], 0,
 					    AC_VERB_SET_CONNECT_SEL,
 					    path->idx[i]);
