@@ -179,7 +179,7 @@ static void __init tegra20_init_timer(void)
 
 	timer_reg_base = of_iomap(np, 0);
 	if (!timer_reg_base) {
-		pr_err("Can't map timer registers");
+		pr_err("Can't map timer registers\n");
 		BUG();
 	}
 
