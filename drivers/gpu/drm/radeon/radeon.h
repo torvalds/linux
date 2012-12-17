@@ -231,7 +231,7 @@ void radeon_fence_process(struct radeon_device *rdev, int ring);
 bool radeon_fence_signaled(struct radeon_fence *fence);
 int radeon_fence_wait(struct radeon_fence *fence, bool interruptible);
 int radeon_fence_wait_next_locked(struct radeon_device *rdev, int ring);
-void radeon_fence_wait_empty_locked(struct radeon_device *rdev, int ring);
+int radeon_fence_wait_empty_locked(struct radeon_device *rdev, int ring);
 int radeon_fence_wait_any(struct radeon_device *rdev,
 			  struct radeon_fence **fences,
 			  bool intr);
