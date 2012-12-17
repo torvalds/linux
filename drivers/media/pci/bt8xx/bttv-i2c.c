@@ -173,7 +173,7 @@ bttv_i2c_sendbytes(struct bttv *btv, const struct i2c_msg *msg, int last)
 		if (i2c_debug)
 			pr_cont(" %02x", msg->buf[cnt]);
 	}
-	if (!(xmit & BT878_I2C_NOSTOP))
+	if (i2c_debug && !(xmit & BT878_I2C_NOSTOP))
 		pr_cont(">\n");
 	return msg->len;
 
