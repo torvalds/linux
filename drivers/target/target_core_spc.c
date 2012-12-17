@@ -66,8 +66,8 @@ static void spc_fill_alua_data(struct se_port *port, unsigned char *buf)
 	spin_unlock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
 }
 
-static sense_reason_t
-spc_emulate_inquiry_std(struct se_cmd *cmd, char *buf)
+sense_reason_t
+spc_emulate_inquiry_std(struct se_cmd *cmd, unsigned char *buf)
 {
 	struct se_lun *lun = cmd->se_lun;
 	struct se_device *dev = cmd->se_dev;
@@ -104,6 +104,7 @@ spc_emulate_inquiry_std(struct se_cmd *cmd, char *buf)
 
 	return 0;
 }
+EXPORT_SYMBOL(spc_emulate_inquiry_std);
 
 /* unit serial number */
 static sense_reason_t
@@ -160,7 +161,7 @@ static void spc_parse_naa_6h_vendor_specific(struct se_device *dev,
  * Device identification VPD, for a complete list of
  * DESIGNATOR TYPEs see spc4r17 Table 459.
  */
-static sense_reason_t
+sense_reason_t
 spc_emulate_evpd_83(struct se_cmd *cmd, unsigned char *buf)
 {
 	struct se_device *dev = cmd->se_dev;
@@ -404,6 +405,7 @@ check_scsi_name:
 	buf[3] = (len & 0xff); /* Page Length for VPD 0x83 */
 	return 0;
 }
+EXPORT_SYMBOL(spc_emulate_evpd_83);
 
 /* Extended INQUIRY Data VPD Page */
 static sense_reason_t
