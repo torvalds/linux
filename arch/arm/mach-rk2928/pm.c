@@ -196,27 +196,47 @@ static noinline void rk2928_pm_dump_inten(void)
 
 static void pm_pll_wait_lock(int pll_idx)
 {
-	u32 pll_state[4] = { 1, 0, 2, 3 };
+	u32 pll_state[4] = {1, 0, 2, 3};
 	u32 bit = 0x10u << pll_state[pll_idx];
-	u32 delay = pll_idx == APLL_ID ? 24000000U : 2400000000U;
+	int delay = 24000000;
 	while (delay > 0) {
-		if (grf_readl(GRF_SOC_STATUS0) & bit)
+		if ((cru_readl(PLL_CONS(pll_idx, 1)) & (0x1 << PLL_LOCK_SHIFT))) {
 			break;
+		}
 		delay--;
 	}
 	if (delay == 0) {
-		//CRU_PRINTK_ERR("wait pll bit 0x%x time out!\n", bit);
 		sram_printch('p');
 		sram_printch('l');
 		sram_printch('l');
 		sram_printhex(pll_idx);
 		sram_printch('\n');
+		while(1);
 	}
 }
 
 #define power_on_pll(id) \
 	cru_writel(PLL_PWR_DN_W_MSK|PLL_PWR_ON,PLL_CONS((id),3));\
 	pm_pll_wait_lock((id))
+
+static int pm_pll_pwr_up(u8 pll_id)
+{
+	u32 pllcon0,pllcon1,pllcon2;
+	//enter slowmode
+	cru_writel(PLL_MODE_SLOW(pll_id), CRU_MODE_CON);
+	cru_writel( CRU_W_MSK(PLL_PWR_DN_SHIFT, 0x01), PLL_CONS(pll_id, 1));
+
+	if(pll_id==0) {
+		sram_udelay(100);
+	} else {
+		udelay(100);
+	}
+
+	pm_pll_wait_lock(pll_id);
+	//return form slow
+	//cru_writel(PLL_MODE_NORM(pll_id), CRU_MODE_CON);
+	return 0;
+}
 
 #define DDR_SAVE_SP(save_sp)		do { save_sp = ddr_save_sp(((unsigned long)SRAM_DATA_END & (~7))); } while (0)
 #define DDR_RESTORE_SP(save_sp)		do { ddr_save_sp(save_sp); } while (0)
@@ -330,7 +350,6 @@ static void __sramfunc rk2928_sram_suspend(void)
 	ddr_resume();
 	sram_printch('5');
 }
-
 static void noinline rk2928_suspend(void)
 {
 	DDR_SAVE_SP(save_sp);
@@ -456,17 +475,17 @@ static int rk2928_pm_enter(suspend_state_t state)
 	sram_printch('3');
 
 	//gpll
-	cru_writel( CRU_W_MSK(PLL_PWR_DN_SHIFT, 0x01)|gpll_con1, PLL_CONS(GPLL_ID, 1));
+	pm_pll_pwr_up(GPLL_ID);
 	cru_writel(0xffff0000 | clk_sel10, CRU_CLKSELS_CON(10));
 	cru_writel(clk_sel10, CRU_CLKSELS_CON(10));
 	cru_writel((PLL_MODE_MSK(GPLL_ID) << 16) | (PLL_MODE_MSK(GPLL_ID) & cru_mode_con), CRU_MODE_CON);
 
 	//cpll
-	cru_writel( CRU_W_MSK(PLL_PWR_DN_SHIFT, 0x01)|cpll_con1, PLL_CONS(CPLL_ID, 1));
+	pm_pll_pwr_up(CPLL_ID);
 	cru_writel((PLL_MODE_MSK(CPLL_ID) << 16) | (PLL_MODE_MSK(CPLL_ID) & cru_mode_con), CRU_MODE_CON);
 
 	//apll
-	cru_writel( CRU_W_MSK(PLL_PWR_DN_SHIFT, 0x01)|apll_con1, PLL_CONS(APLL_ID, 1));
+	pm_pll_pwr_up(APLL_ID);
 	cru_writel(0xffff0000 | clk_sel1, CRU_CLKSELS_CON(1));
 	cru_writel(0xffff0000 | clk_sel0, CRU_CLKSELS_CON(0));
 	cru_writel((PLL_MODE_MSK(APLL_ID) << 16) | (PLL_MODE_MSK(APLL_ID) & cru_mode_con), CRU_MODE_CON);
