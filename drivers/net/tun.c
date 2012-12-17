@@ -1199,6 +1199,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		skb_shinfo(skb)->tx_flags |= SKBTX_DEV_ZEROCOPY;
 	}
 
+	skb_reset_network_header(skb);
 	rxhash = skb_get_rxhash(skb);
 	netif_rx_ni(skb);
 
