@@ -216,17 +216,6 @@ static struct hid_driver pl_driver = {
 	.id_table = pl_devices,
 	.probe = pl_probe,
 };
+module_hid_driver(pl_driver);
 
-static int __init pl_init(void)
-{
-	return hid_register_driver(&pl_driver);
-}
-
-static void __exit pl_exit(void)
-{
-	hid_unregister_driver(&pl_driver);
-}
-
-module_init(pl_init);
-module_exit(pl_exit);
 MODULE_LICENSE("GPL");

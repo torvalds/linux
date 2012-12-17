@@ -229,17 +229,6 @@ static struct hid_driver sony_driver = {
 	.report_fixup = sony_report_fixup,
 	.raw_event = sony_raw_event
 };
+module_hid_driver(sony_driver);
 
-static int __init sony_init(void)
-{
-	return hid_register_driver(&sony_driver);
-}
-
-static void __exit sony_exit(void)
-{
-	hid_unregister_driver(&sony_driver);
-}
-
-module_init(sony_init);
-module_exit(sony_exit);
 MODULE_LICENSE("GPL");

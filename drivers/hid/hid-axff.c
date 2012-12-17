@@ -192,19 +192,7 @@ static struct hid_driver ax_driver = {
 	.probe		= ax_probe,
 	.remove		= ax_remove,
 };
-
-static int __init ax_init(void)
-{
-	return hid_register_driver(&ax_driver);
-}
-
-static void __exit ax_exit(void)
-{
-	hid_unregister_driver(&ax_driver);
-}
-
-module_init(ax_init);
-module_exit(ax_exit);
+module_hid_driver(ax_driver);
 
 MODULE_AUTHOR("Sergei Kolzun");
 MODULE_DESCRIPTION("Force feedback support for ACRUX game controllers");

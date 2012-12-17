@@ -47,17 +47,6 @@ static struct hid_driver ks_driver = {
 	.id_table = ks_devices,
 	.input_mapping = ks_input_mapping,
 };
+module_hid_driver(ks_driver);
 
-static int __init ks_init(void)
-{
-	return hid_register_driver(&ks_driver);
-}
-
-static void __exit ks_exit(void)
-{
-	hid_unregister_driver(&ks_driver);
-}
-
-module_init(ks_init);
-module_exit(ks_exit);
 MODULE_LICENSE("GPL");

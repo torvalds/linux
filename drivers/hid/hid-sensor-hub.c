@@ -627,19 +627,7 @@ static struct hid_driver sensor_hub_driver = {
 	.reset_resume =  sensor_hub_reset_resume,
 #endif
 };
-
-static int __init sensor_hub_init(void)
-{
-	return hid_register_driver(&sensor_hub_driver);
-}
-
-static void __exit sensor_hub_exit(void)
-{
-	hid_unregister_driver(&sensor_hub_driver);
-}
-
-module_init(sensor_hub_init);
-module_exit(sensor_hub_exit);
+module_hid_driver(sensor_hub_driver);
 
 MODULE_DESCRIPTION("HID Sensor Hub driver");
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@intel.com>");

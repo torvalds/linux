@@ -1026,17 +1026,6 @@ static struct hid_driver ntrig_driver = {
 	.usage_table = ntrig_grabbed_usages,
 	.event = ntrig_event,
 };
+module_hid_driver(ntrig_driver);
 
-static int __init ntrig_init(void)
-{
-	return hid_register_driver(&ntrig_driver);
-}
-
-static void __exit ntrig_exit(void)
-{
-	hid_unregister_driver(&ntrig_driver);
-}
-
-module_init(ntrig_init);
-module_exit(ntrig_exit);
 MODULE_LICENSE("GPL");

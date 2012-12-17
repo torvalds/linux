@@ -503,17 +503,6 @@ static struct hid_driver lg_driver = {
 	.probe = lg_probe,
 	.remove = lg_remove,
 };
+module_hid_driver(lg_driver);
 
-static int __init lg_init(void)
-{
-	return hid_register_driver(&lg_driver);
-}
-
-static void __exit lg_exit(void)
-{
-	hid_unregister_driver(&lg_driver);
-}
-
-module_init(lg_init);
-module_exit(lg_exit);
 MODULE_LICENSE("GPL");

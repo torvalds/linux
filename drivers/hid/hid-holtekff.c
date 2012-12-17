@@ -224,17 +224,4 @@ static struct hid_driver holtek_driver = {
 	.id_table = holtek_devices,
 	.probe = holtek_probe,
 };
-
-static int __init holtek_init(void)
-{
-	return hid_register_driver(&holtek_driver);
-}
-
-static void __exit holtek_exit(void)
-{
-	hid_unregister_driver(&holtek_driver);
-}
-
-module_init(holtek_init);
-module_exit(holtek_exit);
-
+module_hid_driver(holtek_driver);

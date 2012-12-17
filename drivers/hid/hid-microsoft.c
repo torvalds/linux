@@ -221,17 +221,6 @@ static struct hid_driver ms_driver = {
 	.event = ms_event,
 	.probe = ms_probe,
 };
+module_hid_driver(ms_driver);
 
-static int __init ms_init(void)
-{
-	return hid_register_driver(&ms_driver);
-}
-
-static void __exit ms_exit(void)
-{
-	hid_unregister_driver(&ms_driver);
-}
-
-module_init(ms_init);
-module_exit(ms_exit);
 MODULE_LICENSE("GPL");

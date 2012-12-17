@@ -1198,16 +1198,4 @@ static struct hid_driver mt_driver = {
 	.resume = mt_resume,
 #endif
 };
-
-static int __init mt_init(void)
-{
-	return hid_register_driver(&mt_driver);
-}
-
-static void __exit mt_exit(void)
-{
-	hid_unregister_driver(&mt_driver);
-}
-
-module_init(mt_init);
-module_exit(mt_exit);
+module_hid_driver(mt_driver);

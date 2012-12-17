@@ -650,17 +650,6 @@ static struct hid_driver uclogic_driver = {
 	.id_table = uclogic_devices,
 	.report_fixup = uclogic_report_fixup,
 };
+module_hid_driver(uclogic_driver);
 
-static int __init uclogic_init(void)
-{
-	return hid_register_driver(&uclogic_driver);
-}
-
-static void __exit uclogic_exit(void)
-{
-	hid_unregister_driver(&uclogic_driver);
-}
-
-module_init(uclogic_init);
-module_exit(uclogic_exit);
 MODULE_LICENSE("GPL");
