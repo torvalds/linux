@@ -358,8 +358,13 @@ static int carl9170_op_start(struct ieee80211_hw *hw)
 	ar->ps.last_action = jiffies;
 	ar->ps.last_slept = jiffies;
 	ar->erp_mode = CARL9170_ERP_AUTO;
-	ar->rx_software_decryption = false;
-	ar->disable_offload = false;
+
+	/* Set "disable hw crypto offload" whenever the module parameter
+	 * nohwcrypt is true or if the firmware does not support it.
+	 */
+	ar->disable_offload = modparam_nohwcrypt |
+		ar->fw.disable_offload_fw;
+	ar->rx_software_decryption = ar->disable_offload;
 
 	for (i = 0; i < ar->hw->queues; i++) {
 		ar->queue_stop_timeout[i] = jiffies;
@@ -565,12 +570,20 @@ static int carl9170_init_interface(struct ar9170 *ar,
 
 	memcpy(common->macaddr, vif->addr, ETH_ALEN);
 
-	if (modparam_nohwcrypt ||
-	    ((vif->type != NL80211_IFTYPE_STATION) &&
-	     (vif->type != NL80211_IFTYPE_AP))) {
-		ar->rx_software_decryption = true;
-		ar->disable_offload = true;
-	}
+	/* We have to fall back to software crypto, whenever
+	 * the user choose to participates in an IBSS. HW
+	 * offload for IBSS RSN is not supported by this driver.
+	 *
+	 * NOTE: If the previous main interface has already
+	 * disabled hw crypto offload, we have to keep this
+	 * previous disable_offload setting as it was.
+	 * Altough ideally, we should notify mac80211 and tell
+	 * it to forget about any HW crypto offload for now.
+	 */
+	ar->disable_offload |= ((vif->type != NL80211_IFTYPE_STATION) &&
+	    (vif->type != NL80211_IFTYPE_AP));
+
+	ar->rx_software_decryption = ar->disable_offload;
 
 	err = carl9170_set_operating_mode(ar);
 	return err;
@@ -1160,9 +1173,7 @@ static int carl9170_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (ar->disable_offload || !vif)
 		return -EOPNOTSUPP;
 
-	/*
-	 * We have to fall back to software encryption, whenever
-	 * the user choose to participates in an IBSS or is connected
+	/* Fall back to software encryption whenever the driver is connected
 	 * to more than one network.
 	 *
 	 * This is very unfortunate, because some machines cannot handle

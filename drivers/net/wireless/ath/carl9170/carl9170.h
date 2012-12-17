@@ -290,6 +290,7 @@ struct ar9170 {
 		unsigned int rx_size;
 		unsigned int tx_seq_table;
 		bool ba_filter;
+		bool disable_offload_fw;
 	} fw;
 
 	/* interface configuration combinations */
