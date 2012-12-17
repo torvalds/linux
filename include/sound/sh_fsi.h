@@ -11,37 +11,15 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
-#define FSI_PORT_A	0
-#define FSI_PORT_B	1
-
 #include <linux/clk.h>
 #include <sound/soc.h>
 
 /*
- * flags format
- *
- * 0x00000CBA
- *
- * A:  inversion
- * B:  format mode
- * C:  chip specific
- * D:  clock selecter if master mode
+ * flags
  */
-
-/* B: format mode */
-#define SH_FSI_FMT_MASK		0x000000F0
-#define SH_FSI_FMT_DAI		(0 << 4)
-#define SH_FSI_FMT_SPDIF	(1 << 4)
-
-/* C: chip specific */
-#define SH_FSI_OPTION_MASK	0x00000F00
-#define SH_FSI_ENABLE_STREAM_MODE	(1 << 8) /* for 16bit data */
-
-/* D:  clock selecter if master mode */
-#define SH_FSI_CLK_MASK		0x0000F000
-#define SH_FSI_CLK_EXTERNAL	(0 << 12)
-#define SH_FSI_CLK_CPG		(1 << 12) /* FSIxCK + FSI-DIV */
+#define SH_FSI_FMT_SPDIF		(1 << 0) /* spdif for HDMI */
+#define SH_FSI_ENABLE_STREAM_MODE	(1 << 1) /* for 16bit data */
+#define SH_FSI_CLK_CPG			(1 << 2) /* FSIxCK + FSI-DIV */
 
 struct sh_fsi_port_info {
 	unsigned long flags;
