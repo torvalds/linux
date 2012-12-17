@@ -23,6 +23,7 @@
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
 #include <asm/cp15.h>
+#include <asm/psci.h>
 
 #include <mach/motherboard.h>
 #include <mach/tc2.h>
@@ -247,6 +248,12 @@ extern void tc2_pm_power_up_setup(unsigned int affinity_level);
 static int __init tc2_pm_init(void)
 {
 	int ret;
+
+	ret = psci_probe();
+	if (!ret) {
+		pr_debug("psci found. Aborting native init\n");
+		return -ENODEV;
+	}
 
 	if (!vexpress_spc_check_loaded())
 		return -ENODEV;
