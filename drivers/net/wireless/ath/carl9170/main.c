@@ -583,6 +583,14 @@ static int carl9170_init_interface(struct ar9170 *ar,
 	ar->disable_offload |= ((vif->type != NL80211_IFTYPE_STATION) &&
 	    (vif->type != NL80211_IFTYPE_AP));
 
+	/* While the driver supports HW offload in a single
+	 * P2P client configuration, it doesn't support HW
+	 * offload in the favourit, concurrent P2P GO+CLIENT
+	 * configuration. Hence, HW offload will always be
+	 * disabled for P2P.
+	 */
+	ar->disable_offload |= vif->p2p;
+
 	ar->rx_software_decryption = ar->disable_offload;
 
 	err = carl9170_set_operating_mode(ar);
