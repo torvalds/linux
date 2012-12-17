@@ -337,6 +337,7 @@ static int parse_cmdline_partitions(struct mtd_info *master,
 			part->num_parts--;
 			memmove(&part->parts[i], &part->parts[i + 1],
 				sizeof(*part->parts) * (part->num_parts - i));
+			i--;
 			continue;
 		}
 
