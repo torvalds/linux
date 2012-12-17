@@ -864,7 +864,7 @@ static int parse_nl_addr(struct genl_info *info, struct inetpeer_addr *addr,
 	}
 	a = info->attrs[TCP_METRICS_ATTR_ADDR_IPV6];
 	if (a) {
-		if (nla_len(a) != sizeof(sizeof(struct in6_addr)))
+		if (nla_len(a) != sizeof(struct in6_addr))
 			return -EINVAL;
 		addr->family = AF_INET6;
 		memcpy(addr->addr.a6, nla_data(a), sizeof(addr->addr.a6));

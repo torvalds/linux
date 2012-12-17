@@ -194,7 +194,7 @@ void input_mt_report_pointer_emulation(struct input_dev *dev, bool use_count)
 	if (!mt)
 		return;
 
-	oldest = 0;
+	oldest = NULL;
 	oldid = mt->trkid;
 	count = 0;
 

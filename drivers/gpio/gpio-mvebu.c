@@ -244,6 +244,8 @@ static int mvebu_gpio_direction_output(struct gpio_chip *chip, unsigned pin,
 	if (ret)
 		return ret;
 
+	mvebu_gpio_set(chip, pin, value);
+
 	spin_lock_irqsave(&mvchip->lock, flags);
 	u = readl_relaxed(mvebu_gpioreg_io_conf(mvchip));
 	u &= ~(1 << pin);
@@ -644,7 +646,7 @@ static int __devinit mvebu_gpio_probe(struct platform_device *pdev)
 	ct->handler = handle_edge_irq;
 	ct->chip.name = mvchip->chip.label;
 
-	irq_setup_generic_chip(gc, IRQ_MSK(ngpios), IRQ_GC_INIT_MASK_CACHE,
+	irq_setup_generic_chip(gc, IRQ_MSK(ngpios), 0,
 			       IRQ_NOREQUEST, IRQ_LEVEL | IRQ_NOPROBE);
 
 	/* Setup irq domain on top of the generic chip. */

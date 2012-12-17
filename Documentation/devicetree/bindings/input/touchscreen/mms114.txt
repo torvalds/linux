@@ -1,0 +1,34 @@
+* MELFAS MMS114 touchscreen controller
+
+Required properties:
+- compatible: must be "melfas,mms114"
+- reg: I2C address of the chip
+- interrupts: interrupt to which the chip is connected
+- x-size: horizontal resolution of touchscreen
+- y-size: vertical resolution of touchscreen
+
+Optional properties:
+- contact-threshold:
+- moving-threshold:
+- x-invert: invert X axis
+- y-invert: invert Y axis
+
+Example:
+
+	i2c@00000000 {
+		/* ... */
+
+		touchscreen@48 {
+			compatible = "melfas,mms114";
+			reg = <0x48>;
+			interrupts = <39 0>;
+			x-size = <720>;
+			y-size = <1280>;
+			contact-threshold = <10>;
+			moving-threshold = <10>;
+			x-invert;
+			y-invert;
+		};
+
+		/* ... */
+	};

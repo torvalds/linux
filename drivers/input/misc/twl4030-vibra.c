@@ -207,7 +207,7 @@ static bool twl4030_vibra_check_coexist(struct twl4030_vibra_data *pdata,
 	return false;
 }
 
-static int __devinit twl4030_vibra_probe(struct platform_device *pdev)
+static int twl4030_vibra_probe(struct platform_device *pdev)
 {
 	struct twl4030_vibra_data *pdata = pdev->dev.platform_data;
 	struct device_node *twl4030_core_node = pdev->dev.parent->of_node;
@@ -269,7 +269,7 @@ err_kzalloc:
 	return ret;
 }
 
-static int __devexit twl4030_vibra_remove(struct platform_device *pdev)
+static int twl4030_vibra_remove(struct platform_device *pdev)
 {
 	struct vibra_info *info = platform_get_drvdata(pdev);
 
@@ -283,7 +283,7 @@ static int __devexit twl4030_vibra_remove(struct platform_device *pdev)
 
 static struct platform_driver twl4030_vibra_driver = {
 	.probe		= twl4030_vibra_probe,
-	.remove		= __devexit_p(twl4030_vibra_remove),
+	.remove		= twl4030_vibra_remove,
 	.driver		= {
 		.name	= "twl4030-vibra",
 		.owner	= THIS_MODULE,

@@ -63,8 +63,9 @@ MODULE_PARM_DESC(noaccel, "disable kernel/abi16 acceleration");
 static int nouveau_noaccel = 0;
 module_param_named(noaccel, nouveau_noaccel, int, 0400);
 
-MODULE_PARM_DESC(modeset, "enable driver");
-static int nouveau_modeset = -1;
+MODULE_PARM_DESC(modeset, "enable driver (default: auto, "
+		          "0 = disabled, 1 = enabled, 2 = headless)");
+int nouveau_modeset = -1;
 module_param_named(modeset, nouveau_modeset, int, 0400);
 
 static struct drm_driver driver;
@@ -363,7 +364,8 @@ nouveau_drm_unload(struct drm_device *dev)
 
 	nouveau_pm_fini(dev);
 
-	nouveau_display_fini(dev);
+	if (dev->mode_config.num_crtc)
+		nouveau_display_fini(dev);
 	nouveau_display_destroy(dev);
 
 	nouveau_irq_fini(dev);
@@ -403,13 +405,15 @@ nouveau_drm_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 	    pm_state.event == PM_EVENT_PRETHAW)
 		return 0;
 
-	NV_INFO(drm, "suspending fbcon...\n");
-	nouveau_fbcon_set_suspend(dev, 1);
+	if (dev->mode_config.num_crtc) {
+		NV_INFO(drm, "suspending fbcon...\n");
+		nouveau_fbcon_set_suspend(dev, 1);
 
-	NV_INFO(drm, "suspending display...\n");
-	ret = nouveau_display_suspend(dev);
-	if (ret)
-		return ret;
+		NV_INFO(drm, "suspending display...\n");
+		ret = nouveau_display_suspend(dev);
+		if (ret)
+			return ret;
+	}
 
 	NV_INFO(drm, "evicting buffers...\n");
 	ttm_bo_evict_mm(&drm->ttm.bdev, TTM_PL_VRAM);
@@ -445,8 +449,10 @@ fail_client:
 		nouveau_client_init(&cli->base);
 	}
 
-	NV_INFO(drm, "resuming display...\n");
-	nouveau_display_resume(dev);
+	if (dev->mode_config.num_crtc) {
+		NV_INFO(drm, "resuming display...\n");
+		nouveau_display_resume(dev);
+	}
 	return ret;
 }
 
@@ -486,8 +492,10 @@ nouveau_drm_resume(struct pci_dev *pdev)
 	nouveau_irq_postinstall(dev);
 	nouveau_pm_resume(dev);
 
-	NV_INFO(drm, "resuming display...\n");
-	nouveau_display_resume(dev);
+	if (dev->mode_config.num_crtc) {
+		NV_INFO(drm, "resuming display...\n");
+		nouveau_display_resume(dev);
+	}
 	return 0;
 }
 
@@ -662,9 +670,7 @@ nouveau_drm_init(void)
 #ifdef CONFIG_VGA_CONSOLE
 		if (vgacon_text_force())
 			nouveau_modeset = 0;
-		else
 #endif
-			nouveau_modeset = 1;
 	}
 
 	if (!nouveau_modeset)

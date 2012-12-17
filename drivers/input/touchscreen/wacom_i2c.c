@@ -144,7 +144,7 @@ static void wacom_i2c_close(struct input_dev *dev)
 	disable_irq(client->irq);
 }
 
-static int __devinit wacom_i2c_probe(struct i2c_client *client,
+static int wacom_i2c_probe(struct i2c_client *client,
 				     const struct i2c_device_id *id)
 {
 	struct wacom_i2c *wac_i2c;
@@ -225,7 +225,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit wacom_i2c_remove(struct i2c_client *client)
+static int wacom_i2c_remove(struct i2c_client *client)
 {
 	struct wacom_i2c *wac_i2c = i2c_get_clientdata(client);
 
@@ -272,7 +272,7 @@ static struct i2c_driver wacom_i2c_driver = {
 	},
 
 	.probe		= wacom_i2c_probe,
-	.remove		= __devexit_p(wacom_i2c_remove),
+	.remove		= wacom_i2c_remove,
 	.id_table	= wacom_i2c_id,
 };
 module_i2c_driver(wacom_i2c_driver);

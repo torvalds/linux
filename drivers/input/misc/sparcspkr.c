@@ -139,7 +139,7 @@ static int grover_spkr_event(struct input_dev *dev, unsigned int type, unsigned 
 	return 0;
 }
 
-static int __devinit sparcspkr_probe(struct device *dev)
+static int sparcspkr_probe(struct device *dev)
 {
 	struct sparcspkr_state *state = dev_get_drvdata(dev);
 	struct input_dev *input_dev;
@@ -182,7 +182,7 @@ static void sparcspkr_shutdown(struct platform_device *dev)
 	state->event(input_dev, EV_SND, SND_BELL, 0);
 }
 
-static int __devinit bbc_beep_probe(struct platform_device *op)
+static int bbc_beep_probe(struct platform_device *op)
 {
 	struct sparcspkr_state *state;
 	struct bbc_beep_info *info;
@@ -229,7 +229,7 @@ out_err:
 	return err;
 }
 
-static int __devexit bbc_remove(struct platform_device *op)
+static int bbc_remove(struct platform_device *op)
 {
 	struct sparcspkr_state *state = dev_get_drvdata(&op->dev);
 	struct input_dev *input_dev = state->input_dev;
@@ -263,11 +263,11 @@ static struct platform_driver bbc_beep_driver = {
 		.of_match_table = bbc_beep_match,
 	},
 	.probe		= bbc_beep_probe,
-	.remove		= __devexit_p(bbc_remove),
+	.remove		= bbc_remove,
 	.shutdown	= sparcspkr_shutdown,
 };
 
-static int __devinit grover_beep_probe(struct platform_device *op)
+static int grover_beep_probe(struct platform_device *op)
 {
 	struct sparcspkr_state *state;
 	struct grover_beep_info *info;
@@ -310,7 +310,7 @@ out_err:
 	return err;
 }
 
-static int __devexit grover_remove(struct platform_device *op)
+static int grover_remove(struct platform_device *op)
 {
 	struct sparcspkr_state *state = dev_get_drvdata(&op->dev);
 	struct grover_beep_info *info = &state->u.grover;
@@ -345,7 +345,7 @@ static struct platform_driver grover_beep_driver = {
 		.of_match_table = grover_beep_match,
 	},
 	.probe		= grover_beep_probe,
-	.remove		= __devexit_p(grover_remove),
+	.remove		= grover_remove,
 	.shutdown	= sparcspkr_shutdown,
 };
 
