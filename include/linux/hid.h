@@ -884,9 +884,6 @@ static inline int hid_hw_power(struct hid_device *hdev, int level)
 int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
 		int interrupt);
 
-extern int hid_generic_init(void);
-extern void hid_generic_exit(void);
-
 /* HID quirks API */
 u32 usbhid_lookup_quirk(const u16 idVendor, const u16 idProduct);
 int usbhid_quirks_init(char **quirks_param);
