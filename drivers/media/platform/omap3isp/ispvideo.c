@@ -792,7 +792,7 @@ isp_video_get_crop(struct file *file, void *fh, struct v4l2_crop *crop)
 }
 
 static int
-isp_video_set_crop(struct file *file, void *fh, struct v4l2_crop *crop)
+isp_video_set_crop(struct file *file, void *fh, const struct v4l2_crop *crop)
 {
 	struct isp_video *video = video_drvdata(file);
 	struct v4l2_subdev *subdev;
