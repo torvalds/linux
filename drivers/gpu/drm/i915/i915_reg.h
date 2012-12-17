@@ -2648,11 +2648,11 @@
 #define   PIPECONF_INTERLACED_DBL_ILK		(4 << 21) /* ilk/snb only */
 #define   PIPECONF_PFIT_PF_INTERLACED_DBL_ILK	(5 << 21) /* ilk/snb only */
 #define   PIPECONF_CXSR_DOWNCLOCK	(1<<16)
-#define   PIPECONF_BPP_MASK	(0x000000e0)
-#define   PIPECONF_BPP_8	(0<<5)
-#define   PIPECONF_BPP_10	(1<<5)
-#define   PIPECONF_BPP_6	(2<<5)
-#define   PIPECONF_BPP_12	(3<<5)
+#define   PIPECONF_BPC_MASK	(0x7 << 5)
+#define   PIPECONF_8BPC		(0<<5)
+#define   PIPECONF_10BPC	(1<<5)
+#define   PIPECONF_6BPC		(2<<5)
+#define   PIPECONF_12BPC	(3<<5)
 #define   PIPECONF_DITHER_EN	(1<<4)
 #define   PIPECONF_DITHER_TYPE_MASK (0x0000000c)
 #define   PIPECONF_DITHER_TYPE_SP (0<<2)
@@ -2696,11 +2696,6 @@
 #define   PIPE_START_VBLANK_INTERRUPT_STATUS	(1UL<<2) /* 965 or later */
 #define   PIPE_VBLANK_INTERRUPT_STATUS		(1UL<<1)
 #define   PIPE_OVERLAY_UPDATED_STATUS		(1UL<<0)
-#define   PIPE_BPC_MASK				(7 << 5) /* Ironlake */
-#define   PIPE_8BPC				(0 << 5)
-#define   PIPE_10BPC				(1 << 5)
-#define   PIPE_6BPC				(2 << 5)
-#define   PIPE_12BPC				(3 << 5)
 
 #define PIPESRC(pipe) _PIPE(pipe, _PIPEASRC, _PIPEBSRC)
 #define PIPECONF(tran) _TRANSCODER(tran, _PIPEACONF, _PIPEBCONF)

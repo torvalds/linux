@@ -1669,8 +1669,8 @@ static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 		 * make the BPC in transcoder be consistent with
 		 * that in pipeconf reg.
 		 */
-		val &= ~PIPE_BPC_MASK;
-		val |= pipeconf_val & PIPE_BPC_MASK;
+		val &= ~PIPECONF_BPC_MASK;
+		val |= pipeconf_val & PIPECONF_BPC_MASK;
 	}
 
 	val &= ~TRANS_INTERLACE_MASK;
@@ -2764,7 +2764,7 @@ static void ironlake_fdi_pll_enable(struct intel_crtc *intel_crtc)
 	temp = I915_READ(reg);
 	temp &= ~((0x7 << 19) | (0x7 << 16));
 	temp |= (intel_crtc->fdi_lanes - 1) << 19;
-	temp |= (I915_READ(PIPECONF(pipe)) & PIPE_BPC_MASK) << 11;
+	temp |= (I915_READ(PIPECONF(pipe)) & PIPECONF_BPC_MASK) << 11;
 	I915_WRITE(reg, temp | FDI_RX_PLL_ENABLE);
 
 	POSTING_READ(reg);
@@ -2845,7 +2845,7 @@ static void ironlake_fdi_disable(struct drm_crtc *crtc)
 	reg = FDI_RX_CTL(pipe);
 	temp = I915_READ(reg);
 	temp &= ~(0x7 << 16);
-	temp |= (I915_READ(PIPECONF(pipe)) & PIPE_BPC_MASK) << 11;
+	temp |= (I915_READ(PIPECONF(pipe)) & PIPECONF_BPC_MASK) << 11;
 	I915_WRITE(reg, temp & ~FDI_RX_ENABLE);
 
 	POSTING_READ(reg);
@@ -2876,7 +2876,7 @@ static void ironlake_fdi_disable(struct drm_crtc *crtc)
 	}
 	/* BPC in FDI rx is consistent with that in PIPECONF */
 	temp &= ~(0x07 << 16);
-	temp |= (I915_READ(PIPECONF(pipe)) & PIPE_BPC_MASK) << 11;
+	temp |= (I915_READ(PIPECONF(pipe)) & PIPECONF_BPC_MASK) << 11;
 	I915_WRITE(reg, temp);
 
 	POSTING_READ(reg);
@@ -3115,7 +3115,7 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	if (HAS_PCH_CPT(dev) &&
 	    (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT) ||
 	     intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP))) {
-		u32 bpc = (I915_READ(PIPECONF(pipe)) & PIPE_BPC_MASK) >> 5;
+		u32 bpc = (I915_READ(PIPECONF(pipe)) & PIPECONF_BPC_MASK) >> 5;
 		reg = TRANS_DP_CTL(pipe);
 		temp = I915_READ(reg);
 		temp &= ~(TRANS_DP_PORT_SEL_MASK |
@@ -4686,10 +4686,10 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	/* default to 8bpc */
-	pipeconf &= ~(PIPECONF_BPP_MASK | PIPECONF_DITHER_EN);
+	pipeconf &= ~(PIPECONF_BPC_MASK | PIPECONF_DITHER_EN);
 	if (is_dp) {
 		if (adjusted_mode->private_flags & INTEL_MODE_DP_FORCE_6BPC) {
-			pipeconf |= PIPECONF_BPP_6 |
+			pipeconf |= PIPECONF_6BPC |
 				    PIPECONF_DITHER_EN |
 				    PIPECONF_DITHER_TYPE_SP;
 		}
@@ -4697,7 +4697,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 
 	if (IS_VALLEYVIEW(dev) && intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP)) {
 		if (adjusted_mode->private_flags & INTEL_MODE_DP_FORCE_6BPC) {
-			pipeconf |= PIPECONF_BPP_6 |
+			pipeconf |= PIPECONF_6BPC |
 					PIPECONF_ENABLE |
 					I965_PIPECONF_ACTIVE;
 		}
@@ -4907,19 +4907,19 @@ static void ironlake_set_pipeconf(struct drm_crtc *crtc,
 
 	val = I915_READ(PIPECONF(pipe));
 
-	val &= ~PIPE_BPC_MASK;
+	val &= ~PIPECONF_BPC_MASK;
 	switch (intel_crtc->bpp) {
 	case 18:
-		val |= PIPE_6BPC;
+		val |= PIPECONF_6BPC;
 		break;
 	case 24:
-		val |= PIPE_8BPC;
+		val |= PIPECONF_8BPC;
 		break;
 	case 30:
-		val |= PIPE_10BPC;
+		val |= PIPECONF_10BPC;
 		break;
 	case 36:
-		val |= PIPE_12BPC;
+		val |= PIPECONF_12BPC;
 		break;
 	default:
 		/* Case prevented by intel_choose_pipe_bpp_dither. */
