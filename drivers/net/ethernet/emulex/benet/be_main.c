@@ -2398,13 +2398,22 @@ static int be_close(struct net_device *netdev)
 
 	be_roce_dev_close(adapter);
 
-	be_async_mcc_disable(adapter);
-
 	if (!lancer_chip(adapter))
 		be_intr_set(adapter, false);
 
-	for_all_evt_queues(adapter, eqo, i) {
+	for_all_evt_queues(adapter, eqo, i)
 		napi_disable(&eqo->napi);
+
+	be_async_mcc_disable(adapter);
+
+	/* Wait for all pending tx completions to arrive so that
+	 * all tx skbs are freed.
+	 */
+	be_tx_compl_clean(adapter);
+
+	be_rx_qs_destroy(adapter);
+
+	for_all_evt_queues(adapter, eqo, i) {
 		if (msix_enabled(adapter))
 			synchronize_irq(be_msix_vec_get(adapter, eqo));
 		else
@@ -2414,12 +2423,6 @@ static int be_close(struct net_device *netdev)
 
 	be_irq_unregister(adapter);
 
-	/* Wait for all pending tx completions to arrive so that
-	 * all tx skbs are freed.
-	 */
-	be_tx_compl_clean(adapter);
-
-	be_rx_qs_destroy(adapter);
 	return 0;
 }
 
