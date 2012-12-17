@@ -46,7 +46,7 @@
  *
  * Describe @mode using DRM_DEBUG.
  */
-void drm_mode_debug_printmodeline(struct drm_display_mode *mode)
+void drm_mode_debug_printmodeline(const struct drm_display_mode *mode)
 {
 	DRM_DEBUG_KMS("Modeline %d:\"%s\" %d %d %d %d %d %d %d %d %d %d "
 			"0x%x 0x%x\n",
@@ -558,7 +558,7 @@ EXPORT_SYMBOL(drm_mode_list_concat);
  * RETURNS:
  * @mode->hdisplay
  */
-int drm_mode_width(struct drm_display_mode *mode)
+int drm_mode_width(const struct drm_display_mode *mode)
 {
 	return mode->hdisplay;
 
@@ -579,7 +579,7 @@ EXPORT_SYMBOL(drm_mode_width);
  * RETURNS:
  * @mode->vdisplay
  */
-int drm_mode_height(struct drm_display_mode *mode)
+int drm_mode_height(const struct drm_display_mode *mode)
 {
 	return mode->vdisplay;
 }
@@ -768,7 +768,7 @@ EXPORT_SYMBOL(drm_mode_duplicate);
  * RETURNS:
  * True if the modes are equal, false otherwise.
  */
-bool drm_mode_equal(struct drm_display_mode *mode1, struct drm_display_mode *mode2)
+bool drm_mode_equal(const struct drm_display_mode *mode1, const struct drm_display_mode *mode2)
 {
 	/* do clock check convert to PICOS so fb modes get matched
 	 * the same */

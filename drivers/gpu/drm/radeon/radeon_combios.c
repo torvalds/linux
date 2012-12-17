@@ -3246,11 +3246,9 @@ static uint32_t combios_detect_ram(struct drm_device *dev, int ram,
 	while (ram--) {
 		addr = ram * 1024 * 1024;
 		/* write to each page */
-		WREG32(RADEON_MM_INDEX, (addr) | RADEON_MM_APER);
-		WREG32(RADEON_MM_DATA, 0xdeadbeef);
+		WREG32_IDX((addr) | RADEON_MM_APER, 0xdeadbeef);
 		/* read back and verify */
-		WREG32(RADEON_MM_INDEX, (addr) | RADEON_MM_APER);
-		if (RREG32(RADEON_MM_DATA) != 0xdeadbeef)
+		if (RREG32_IDX((addr) | RADEON_MM_APER) != 0xdeadbeef)
 			return 0;
 	}
 

@@ -1034,7 +1034,8 @@ static inline void __free_iova(struct dma_iommu_mapping *mapping,
 	spin_unlock_irqrestore(&mapping->lock, flags);
 }
 
-static struct page **__iommu_alloc_buffer(struct device *dev, size_t size, gfp_t gfp)
+static struct page **__iommu_alloc_buffer(struct device *dev, size_t size,
+					  gfp_t gfp, struct dma_attrs *attrs)
 {
 	struct page **pages;
 	int count = size >> PAGE_SHIFT;
@@ -1047,6 +1048,23 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size, gfp_t
 		pages = vzalloc(array_size);
 	if (!pages)
 		return NULL;
+
+	if (dma_get_attr(DMA_ATTR_FORCE_CONTIGUOUS, attrs))
+	{
+		unsigned long order = get_order(size);
+		struct page *page;
+
+		page = dma_alloc_from_contiguous(dev, count, order);
+		if (!page)
+			goto error;
+
+		__dma_clear_buffer(page, size);
+
+		for (i = 0; i < count; i++)
+			pages[i] = page + i;
+
+		return pages;
+	}
 
 	while (count) {
 		int j, order = __fls(count);
@@ -1081,14 +1099,21 @@ error:
 	return NULL;
 }
 
-static int __iommu_free_buffer(struct device *dev, struct page **pages, size_t size)
+static int __iommu_free_buffer(struct device *dev, struct page **pages,
+			       size_t size, struct dma_attrs *attrs)
 {
 	int count = size >> PAGE_SHIFT;
 	int array_size = count * sizeof(struct page *);
 	int i;
-	for (i = 0; i < count; i++)
-		if (pages[i])
-			__free_pages(pages[i], 0);
+
+	if (dma_get_attr(DMA_ATTR_FORCE_CONTIGUOUS, attrs)) {
+		dma_release_from_contiguous(dev, pages[0], count);
+	} else {
+		for (i = 0; i < count; i++)
+			if (pages[i])
+				__free_pages(pages[i], 0);
+	}
+
 	if (array_size <= PAGE_SIZE)
 		kfree(pages);
 	else
@@ -1250,7 +1275,7 @@ static void *arm_iommu_alloc_attrs(struct device *dev, size_t size,
 	if (gfp & GFP_ATOMIC)
 		return __iommu_alloc_atomic(dev, size, handle);
 
-	pages = __iommu_alloc_buffer(dev, size, gfp);
+	pages = __iommu_alloc_buffer(dev, size, gfp, attrs);
 	if (!pages)
 		return NULL;
 
@@ -1271,7 +1296,7 @@ static void *arm_iommu_alloc_attrs(struct device *dev, size_t size,
 err_mapping:
 	__iommu_remove_mapping(dev, *handle, size);
 err_buffer:
-	__iommu_free_buffer(dev, pages, size);
+	__iommu_free_buffer(dev, pages, size, attrs);
 	return NULL;
 }
 
@@ -1327,7 +1352,7 @@ void arm_iommu_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 	}
 
 	__iommu_remove_mapping(dev, handle, size);
-	__iommu_free_buffer(dev, pages, size);
+	__iommu_free_buffer(dev, pages, size, attrs);
 }
 
 static int arm_iommu_get_sgtable(struct device *dev, struct sg_table *sgt,
