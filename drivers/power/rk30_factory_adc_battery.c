@@ -919,6 +919,7 @@ static int rk30_adc_battery_voltage_to_capacity(struct rk30_adc_battery_data *ba
 
 		}
 
+	DBG("real_voltage_to_capacity =%d\n" ,capacity);
     return capacity;
 }
 
@@ -956,15 +957,33 @@ static void rk_usb_charger(struct rk30_adc_battery_data *bat)
 			}
 			bat->gBatCapacityChargeCnt = 0;
 			bat ->gBatCapacityusbdisChargeCnt = 0;//get_suspend_state(void)
-		}else if(( get_suspend_state() == PM_SUSPEND_MEM)&&(capacity < bat->bat_capacity)){
+		}else //if(( get_suspend_state() != PM_SUSPEND_MEM)&&(capacity < bat->bat_capacity)){
 		// if((gpio_get_value (bat->pdata->back_light_pin) == 1)&&(capacity < bat->bat_capacity)){
-			if (capacity < bat->bat_capacity){
-				if(capacity + 10 > bat->bat_capacity  )
-				        timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE -10;  //5s
-				else if(capacity  + 7 > bat->bat_capacity )
-				        timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE -5; //10s
-				        else if(capacity  + 3> bat->bat_capacity )
-				                timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE - 2; // 13
+		if((capacity < bat->bat_capacity)){
+				DBG("USB CHARGE DOWN\n");
+
+		//	if (capacity < bat->bat_capacity){
+				if(capacity <10){
+						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE - 40; // 13
+				}else if(capacity < 20){
+					if(capacity + 3 > bat->bat_capacity  )
+						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE -5;  //5s
+					else if(capacity  + 7 > bat->bat_capacity )
+						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE -10; //10s
+					else if(capacity  + 10> bat->bat_capacity )
+						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE -25; // 13
+					else
+						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE - 35; // 13
+				}else{
+					if(capacity + 3 > bat->bat_capacity  )
+						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE -5;  //5s
+					else if(capacity  + 7 > bat->bat_capacity )
+						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE -10; //10s
+					else if(capacity  + 10> bat->bat_capacity )
+						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE - 15; // 13
+					else
+						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE - 20; // 13
+			}
 				
 				if (++(bat->gBatCapacityusbdisChargeCnt) >= timer_of_discharge_sample){
 					bat->gBatCapacityusbdisChargeCnt = 0;
@@ -974,12 +993,13 @@ static void rk_usb_charger(struct rk30_adc_battery_data *bat)
 					}
 				}
 				
-			}
+			//}
 			bat->gBatCapacityusbChargeCnt  = 0;
 
 		}
-		else if(get_suspend_state() == PM_SUSPEND_MEM){
+		else //if(get_suspend_state() == PM_SUSPEND_MEM){
 			//if(gpio_get_value (bat->pdata->back_light_pin) == 0){
+			{
 
 
 			bat->gBatCapacityusbdisChargeCnt = 0;
@@ -1117,13 +1137,28 @@ static void rk_battery_charger(struct rk30_adc_battery_data *bat)
 	capacity = rk30_adc_battery_voltage_to_capacity(bat, bat->bat_voltage);
 
 		if (capacity < bat->bat_capacity){
-			if(capacity + 3 > bat->bat_capacity  )
-			        timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE -5;  //5s
-			else if(capacity  + 7 > bat->bat_capacity )
-			        timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE -10; //10s
-			        else if(capacity  + 10> bat->bat_capacity )
-			                timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE - 15; // 13
+				if(capacity <10){
+						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE - 40; // 13
+				}else if(capacity < 20){
+					if(capacity + 3 > bat->bat_capacity  )
+						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE -5;  //5s
+					else if(capacity  + 7 > bat->bat_capacity )
+						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE -10; //10s
+					else if(capacity  + 10> bat->bat_capacity )
+						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE -25; // 13
+					else
+						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE - 35; // 13
+				}else{
+					if(capacity + 3 > bat->bat_capacity  )
+						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE -5;  //5s
+					else if(capacity  + 7 > bat->bat_capacity )
+						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE -10; //10s
+					else if(capacity  + 10> bat->bat_capacity )
+						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE - 15; // 13
+					else
+						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE - 20; // 13
 
+			}
 			if (++(bat->gBatCapacityDisChargeCnt) >= timer_of_discharge_sample){
 				bat->gBatCapacityDisChargeCnt = 0;
 				if (bat->bat_capacity > 0){
@@ -1184,10 +1219,10 @@ static void rk30_adc_battery_poweron_capacity_check(struct rk30_adc_battery_data
      	 int cnt = 50 ;
 
 	new_capacity = bat ->bat_capacity;
-#if  defined (CONFIG_BATTERY_RK30_USB_CHARGE)
-	if(dwc_otg_check_dpdm() != 0)
-		bat ->bat_status = POWER_SUPPLY_STATUS_CHARGING; // add for charging.
-#endif
+//#if  defined (CONFIG_BATTERY_RK30_USB_CHARGE)
+//	if(dwc_vbus_status() != 0)
+//		bat ->bat_status = POWER_SUPPLY_STATUS_CHARGING; // add for charging.
+//#endif
 		
 	while( cnt -- ){
 	    old_capacity = rk30_adc_battery_load_capacity();
@@ -1288,9 +1323,10 @@ static int rk30_adc_battery_get_ac_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_ONLINE:
 		if (psy->type == POWER_SUPPLY_TYPE_MAINS){
 			val->intval = bat ->ac_charging;
-			if( 1 == bat->charge_full_flag)
-				val->intval = 0;
-
+			if (strstr(saved_command_line,"charger")  == NULL ){
+				if( 1 == bat->charge_full_flag)
+					val->intval = 0;
+			}
 		}
 		break;
 		
@@ -1529,11 +1565,12 @@ struct rk30_adc_battery_data  *bat = container_of((work), \
 
 #ifdef CONFIG_PM
 	if (bat ->resume) {
-		if( (bat->resume_time - bat->suspend_time) >= 3600 )
+		if( (bat->resume_time - bat->suspend_time) >= 1800 )
 			rk30_adc_battery_resume_check(bat);
 		else
 			bat->bat_capacity = bat->suspend_capacity;
 		bat ->resume = false;
+		bat ->bat_change =1;
 	}
 #endif
 
@@ -1906,29 +1943,6 @@ static int rk30_adc_battery_probe(struct platform_device *pdev)
 	}
 #endif
 
-	// batt low irq lowerpower_work
-	if( pdata->batt_low_pin != INVALID_GPIO){
-		
-		if (gpio_get_value(pdata->batt_low_pin) ==0){
-		       mdelay(20);	   
-		       if (gpio_get_value(pdata->batt_low_pin) ==0){
-		       	 printk("lower power\n");
-		               kernel_power_off(); 
-		       }
-		}
-		
-		INIT_WORK(&data->lowerpower_work, rk30_adc_battery_lowerpower_delaywork);		
-		irq = gpio_to_irq(pdata->batt_low_pin);		
-	    	ret = request_irq(irq, rk30_adc_battery_low_wakeup, IRQF_TRIGGER_LOW, "batt_low_irq", NULL);
-	    	if (ret) {
-			ret = -EINVAL;
-	    		printk("failed to request batt_low_irq irq\n");
-	    		goto err_lowpowerirq_failed;
-	    	}
-    		disable_irq(irq);
-
-    	}
-
 #ifdef BATTERY_APK
 	ret = device_create_file(&pdev->dev,&dev_attr_batparam);
 	if(ret){
@@ -1959,6 +1973,27 @@ static int rk30_adc_battery_probe(struct platform_device *pdev)
 		queue_delayed_work(data->wq, &data->delay_work, msecs_to_jiffies(TIMER_MS_COUNTS));
 		data ->poweron_check = 0;
 	}
+	if( pdata->batt_low_pin != INVALID_GPIO){
+		
+		if (gpio_get_value(pdata->batt_low_pin) ==0){
+		       mdelay(20);	   
+		       if (gpio_get_value(pdata->batt_low_pin) ==0){
+		       	 printk("lower power\n");
+		               kernel_power_off(); 
+		       }
+		}
+		
+		INIT_WORK(&data->lowerpower_work, rk30_adc_battery_lowerpower_delaywork);		
+		irq = gpio_to_irq(pdata->batt_low_pin);		
+	    	ret = request_irq(irq, rk30_adc_battery_low_wakeup, IRQF_TRIGGER_LOW, "batt_low_irq", NULL);
+	    	if (ret) {
+			ret = -EINVAL;
+	    		printk("failed to request batt_low_irq irq\n");
+	    		goto err_lowpowerirq_failed;
+	    	}
+    		disable_irq(irq);
+
+    	}
 
 	printk(KERN_INFO "rk30_adc_battery: driver initialized\n");
 	
@@ -1994,6 +2029,13 @@ static int rk30_adc_battery_remove(struct platform_device *pdev)
 	struct rk30_adc_battery_platform_data *pdata = pdev->dev.platform_data;
 
 	cancel_delayed_work(&data->delay_work);	
+#if  defined (CONFIG_BATTERY_RK30_AC_CHARGE)
+    if (pdata->dc_det_pin != INVALID_GPIO)
+        cancel_delayed_work_sync(&data->dcwakeup_work);
+#endif
+
+    if( pdata->batt_low_pin != INVALID_GPIO)
+        cancel_delayed_work_sync(&data->lowerpower_work);
 #if  defined (CONFIG_BATTERY_RK30_USB_CHARGE)
 		power_supply_unregister(&data ->usb);
 #endif
