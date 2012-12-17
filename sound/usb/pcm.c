@@ -459,7 +459,7 @@ static int configure_endpoint(struct snd_usb_substream *subs)
 		return ret;
 
 	if (subs->sync_endpoint)
-		ret = snd_usb_endpoint_set_params(subs->data_endpoint,
+		ret = snd_usb_endpoint_set_params(subs->sync_endpoint,
 						  subs->pcm_format,
 						  subs->channels,
 						  subs->period_bytes,
@@ -567,6 +567,9 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 		ret = -EIO;
 		goto unlock;
 	}
+
+	snd_usb_endpoint_sync_pending_stop(subs->sync_endpoint);
+	snd_usb_endpoint_sync_pending_stop(subs->data_endpoint);
 
 	ret = set_format(subs, subs->cur_audiofmt);
 	if (ret < 0)

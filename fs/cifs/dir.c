@@ -398,7 +398,16 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 	 * in network traffic in the other paths.
 	 */
 	if (!(oflags & O_CREAT)) {
-		struct dentry *res = cifs_lookup(inode, direntry, 0);
+		struct dentry *res;
+
+		/*
+		 * Check for hashed negative dentry. We have already revalidated
+		 * the dentry and it is fine. No need to perform another lookup.
+		 */
+		if (!d_unhashed(direntry))
+			return -ENOENT;
+
+		res = cifs_lookup(inode, direntry, 0);
 		if (IS_ERR(res))
 			return PTR_ERR(res);
 

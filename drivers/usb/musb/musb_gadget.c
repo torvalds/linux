@@ -707,11 +707,12 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 		fifo_count = musb_readw(epio, MUSB_RXCOUNT);
 
 		/*
-		 *  use mode 1 only if we expect data of at least ep packet_sz
-		 *  and have not yet received a short packet
+		 * Enable Mode 1 on RX transfers only when short_not_ok flag
+		 * is set. Currently short_not_ok flag is set only from
+		 * file_storage and f_mass_storage drivers
 		 */
-		if ((request->length - request->actual >= musb_ep->packet_sz) &&
-			(fifo_count >= musb_ep->packet_sz))
+
+		if (request->short_not_ok && fifo_count == musb_ep->packet_sz)
 			use_mode_1 = 1;
 		else
 			use_mode_1 = 0;
@@ -726,6 +727,27 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 
 				c = musb->dma_controller;
 				channel = musb_ep->dma;
+
+	/* We use DMA Req mode 0 in rx_csr, and DMA controller operates in
+	 * mode 0 only. So we do not get endpoint interrupts due to DMA
+	 * completion. We only get interrupts from DMA controller.
+	 *
+	 * We could operate in DMA mode 1 if we knew the size of the tranfer
+	 * in advance. For mass storage class, request->length = what the host
+	 * sends, so that'd work.  But for pretty much everything else,
+	 * request->length is routinely more than what the host sends. For
+	 * most these gadgets, end of is signified either by a short packet,
+	 * or filling the last byte of the buffer.  (Sending extra data in
+	 * that last pckate should trigger an overflow fault.)  But in mode 1,
+	 * we don't get DMA completion interrupt for short packets.
+	 *
+	 * Theoretically, we could enable DMAReq irq (MUSB_RXCSR_DMAMODE = 1),
+	 * to get endpoint interrupt on every DMA req, but that didn't seem
+	 * to work reliably.
+	 *
+	 * REVISIT an updated g_file_storage can set req->short_not_ok, which
+	 * then becomes usable as a runtime "use mode 1" hint...
+	 */
 
 				/* Experimental: Mode1 works with mass storage use cases */
 				if (use_mode_1) {

@@ -476,6 +476,3 @@ die:
 setup_corrupt:
 	.byte	7
 	.string	"No setup signature found...\n"
-
-	.data
-dummy:	.long	0

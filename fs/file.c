@@ -685,7 +685,6 @@ void do_close_on_exec(struct files_struct *files)
 	struct fdtable *fdt;
 
 	/* exec unshares first */
-	BUG_ON(atomic_read(&files->count) != 1);
 	spin_lock(&files->file_lock);
 	for (i = 0; ; i++) {
 		unsigned long set;
@@ -995,16 +994,18 @@ int iterate_fd(struct files_struct *files, unsigned n,
 		const void *p)
 {
 	struct fdtable *fdt;
-	struct file *file;
 	int res = 0;
 	if (!files)
 		return 0;
 	spin_lock(&files->file_lock);
-	fdt = files_fdtable(files);
-	while (!res && n < fdt->max_fds) {
-		file = rcu_dereference_check_fdtable(files, fdt->fd[n++]);
-		if (file)
-			res = f(p, file, n);
+	for (fdt = files_fdtable(files); n < fdt->max_fds; n++) {
+		struct file *file;
+		file = rcu_dereference_check_fdtable(files, fdt->fd[n]);
+		if (!file)
+			continue;
+		res = f(p, file, n);
+		if (res)
+			break;
 	}
 	spin_unlock(&files->file_lock);
 	return res;

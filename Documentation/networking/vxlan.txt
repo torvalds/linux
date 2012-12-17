@@ -32,7 +32,7 @@ no entry is in the forwarding table.
   # ip link delete vxlan0
 
 3. Show vxlan info
-  # ip -d show vxlan0
+  # ip -d link show vxlan0
 
 It is possible to create, destroy and display the vxlan
 forwarding table using the new bridge command.
@@ -41,7 +41,7 @@ forwarding table using the new bridge command.
   # bridge fdb add to 00:17:42:8a:b4:05 dst 192.19.0.2 dev vxlan0
 
 2. Delete forwarding table entry
-  # bridge fdb delete 00:17:42:8a:b4:05
+  # bridge fdb delete 00:17:42:8a:b4:05 dev vxlan0
 
 3. Show forwarding table
   # bridge fdb show dev vxlan0

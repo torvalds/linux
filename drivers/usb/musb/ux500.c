@@ -65,7 +65,7 @@ static int __devinit ux500_probe(struct platform_device *pdev)
 	struct platform_device		*musb;
 	struct ux500_glue		*glue;
 	struct clk			*clk;
-
+	int				musbid;
 	int				ret = -ENOMEM;
 
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);

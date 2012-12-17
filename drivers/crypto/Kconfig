@@ -224,7 +224,7 @@ config CRYPTO_DEV_TALITOS
 
 config CRYPTO_DEV_IXP4XX
 	tristate "Driver for IXP4xx crypto hardware acceleration"
-	depends on ARCH_IXP4XX
+	depends on ARCH_IXP4XX && IXP4XX_QMGR && IXP4XX_NPE
 	select CRYPTO_DES
 	select CRYPTO_ALGAPI
 	select CRYPTO_AUTHENC
