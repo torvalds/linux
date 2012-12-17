@@ -3,6 +3,7 @@
 #include "evsel.h"
 #include "evlist.h"
 #include "sysfs.h"
+#include "debugfs.h"
 #include "tests.h"
 #include <linux/hw_breakpoint.h>
 
@@ -782,6 +783,63 @@ static int test__group5(struct perf_evlist *evlist __maybe_unused)
 	return 0;
 }
 
+static int count_tracepoints(void)
+{
+	char events_path[PATH_MAX];
+	struct dirent *events_ent;
+	DIR *events_dir;
+	int cnt = 0;
+
+	scnprintf(events_path, PATH_MAX, "%s/tracing/events",
+		  debugfs_find_mountpoint());
+
+	events_dir = opendir(events_path);
+
+	TEST_ASSERT_VAL("Can't open events dir", events_dir);
+
+	while ((events_ent = readdir(events_dir))) {
+		char sys_path[PATH_MAX];
+		struct dirent *sys_ent;
+		DIR *sys_dir;
+
+		if (!strcmp(events_ent->d_name, ".")
+		    || !strcmp(events_ent->d_name, "..")
+		    || !strcmp(events_ent->d_name, "enable")
+		    || !strcmp(events_ent->d_name, "header_event")
+		    || !strcmp(events_ent->d_name, "header_page"))
+			continue;
+
+		scnprintf(sys_path, PATH_MAX, "%s/%s",
+			  events_path, events_ent->d_name);
+
+		sys_dir = opendir(sys_path);
+		TEST_ASSERT_VAL("Can't open sys dir", sys_dir);
+
+		while ((sys_ent = readdir(sys_dir))) {
+			if (!strcmp(sys_ent->d_name, ".")
+			    || !strcmp(sys_ent->d_name, "..")
+			    || !strcmp(sys_ent->d_name, "enable")
+			    || !strcmp(sys_ent->d_name, "filter"))
+				continue;
+
+			cnt++;
+		}
+
+		closedir(sys_dir);
+	}
+
+	closedir(events_dir);
+	return cnt;
+}
+
+static int test__all_tracepoints(struct perf_evlist *evlist)
+{
+	TEST_ASSERT_VAL("wrong events count",
+			count_tracepoints() == evlist->nr_entries);
+
+	return test__checkevent_tracepoint_multi(evlist);
+}
+
 struct test__event_st {
 	const char *name;
 	__u32 type;
@@ -920,6 +978,10 @@ static struct test__event_st test__events[] = {
 	[32] = {
 		.name  = "{cycles,instructions}:G,{cycles:G,instructions:G},cycles",
 		.check = test__group5,
+	},
+	[33] = {
+		.name  = "*:*",
+		.check = test__all_tracepoints,
 	},
 };
 
