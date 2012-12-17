@@ -599,14 +599,6 @@ static void conf(struct menu *menu, struct menu *active_menu)
 		build_conf(menu);
 		if (!child_count)
 			break;
-		if (menu == &rootmenu) {
-			item_make("--- ");
-			item_set_tag(':');
-			item_make(_("    Load an Alternate Configuration File"));
-			item_set_tag('L');
-			item_make(_("    Save an Alternate Configuration File"));
-			item_set_tag('S');
-		}
 		dialog_clear();
 		res = dialog_menu(prompt ? _(prompt) : _("Main Menu"),
 				  _(menu_instructions),
@@ -642,12 +634,6 @@ static void conf(struct menu *menu, struct menu *active_menu)
 				break;
 			case 's':
 				conf_string(submenu);
-				break;
-			case 'L':
-				conf_load();
-				break;
-			case 'S':
-				conf_save();
 				break;
 			}
 			break;
