@@ -2743,7 +2743,7 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
 		/* ILLEGAL REQUEST */
 		buffer[SPC_SENSE_KEY_OFFSET] = ILLEGAL_REQUEST;
 		/* LOGICAL UNIT COMMUNICATION FAILURE */
-		buffer[SPC_ASC_KEY_OFFSET] = 0x80;
+		buffer[SPC_ASC_KEY_OFFSET] = 0x08;
 		break;
 	}
 	/*
