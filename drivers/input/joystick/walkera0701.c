@@ -183,6 +183,9 @@ static int walkera0701_open(struct input_dev *dev)
 {
 	struct walkera_dev *w = input_get_drvdata(dev);
 
+	if (parport_claim(w->pardevice))
+		return -EBUSY;
+
 	parport_enable_irq(w->parport);
 	return 0;
 }
@@ -193,6 +196,8 @@ static void walkera0701_close(struct input_dev *dev)
 
 	parport_disable_irq(w->parport);
 	hrtimer_cancel(&w->timer);
+
+	parport_release(w->pardevice);
 }
 
 static int walkera0701_connect(struct walkera_dev *w, int parport)
@@ -227,12 +232,6 @@ static int walkera0701_connect(struct walkera_dev *w, int parport)
 		goto err_unregister_device;
 	}
 
-	if (parport_claim(w->pardevice)) {
-		pr_err("failed to claim parport\n");
-		error = -EBUSY;
-		goto err_unregister_device;
-	}
-
 	hrtimer_init(&w->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	w->timer.function = timer_handler;
 
@@ -240,7 +239,7 @@ static int walkera0701_connect(struct walkera_dev *w, int parport)
 	if (!w->input_dev) {
 		pr_err("failed to allocate input device\n");
 		error = -ENOMEM;
-		goto err_release_parport;
+		goto err_unregister_device;
 	}
 
 	input_set_drvdata(w->input_dev, w);
@@ -276,8 +275,6 @@ static int walkera0701_connect(struct walkera_dev *w, int parport)
 
 err_free_input_dev:
 	input_free_device(w->input_dev);
-err_release_parport:
-	parport_release(w->pardevice);
 err_unregister_device:
 	parport_unregister_device(w->pardevice);
 err_put_parport:
@@ -288,7 +285,6 @@ err_put_parport:
 static void walkera0701_disconnect(struct walkera_dev *w)
 {
 	input_unregister_device(w->input_dev);
-	parport_release(w->pardevice);
 	parport_unregister_device(w->pardevice);
 	parport_put_port(w->parport);
 }
