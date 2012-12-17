@@ -174,6 +174,12 @@ static void ddr_testmode(void)
 static void ddr_testmode(void) {}
 #endif
 
+#define DUMP_GPIO_INT_STATUS(ID) \
+do { \
+	if (irq_gpio & (1 << ID)) \
+		printk("wakeup gpio" #ID ": %08x\n", readl_relaxed(RK30_GPIO##ID##_BASE + GPIO_INT_STATUS)); \
+} while (0)
+
 static noinline void rk30_pm_dump_irq(void)
 {
 	u32 irq_gpio = (readl_relaxed(RK30_GICD_BASE + GIC_DIST_PENDING_SET + 8) >> 22) & 0x7F;
@@ -182,19 +188,13 @@ static noinline void rk30_pm_dump_irq(void)
 		readl_relaxed(RK30_GICD_BASE + GIC_DIST_PENDING_SET + 8),
 		readl_relaxed(RK30_GICD_BASE + GIC_DIST_PENDING_SET + 12),
 		readl_relaxed(RK30_GICD_BASE + GIC_DIST_PENDING_SET + 16));
-	if (irq_gpio & 1)
-		printk("wakeup gpio0: %08x\n", readl_relaxed(RK30_GPIO0_BASE + GPIO_INT_STATUS));
-	if (irq_gpio & 2)
-		printk("wakeup gpio1: %08x\n", readl_relaxed(RK30_GPIO1_BASE + GPIO_INT_STATUS));
-	if (irq_gpio & 4)
-		printk("wakeup gpio2: %08x\n", readl_relaxed(RK30_GPIO2_BASE + GPIO_INT_STATUS));
-	if (irq_gpio & 8)
-		printk("wakeup gpio3: %08x\n", readl_relaxed(RK30_GPIO3_BASE + GPIO_INT_STATUS));
+	DUMP_GPIO_INT_STATUS(0);
+	DUMP_GPIO_INT_STATUS(1);
+	DUMP_GPIO_INT_STATUS(2);
+	DUMP_GPIO_INT_STATUS(3);
 #if !defined(CONFIG_ARCH_RK3066B)
-	if (irq_gpio & 0x10)
-		printk("wakeup gpio4: %08x\n", readl_relaxed(RK30_GPIO4_BASE + GPIO_INT_STATUS));
-	if (irq_gpio & 0x40)
-		printk("wakeup gpio6: %08x\n", readl_relaxed(RK30_GPIO6_BASE + GPIO_INT_STATUS));
+	DUMP_GPIO_INT_STATUS(4);
+	DUMP_GPIO_INT_STATUS(6);
 #endif
 }
 
@@ -205,6 +205,7 @@ do { \
 		sram_printascii("GPIO" #ID "_INTEN: "); \
 		sram_printhex(en); \
 		sram_printch('\n'); \
+		printk(KERN_DEBUG "GPIO%d_INTEN: %08x\n", ID, en); \
 	} \
 } while (0)
 
