@@ -2597,6 +2597,16 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
 	 * SENSE KEY values from include/scsi/scsi.h
 	 */
 	switch (reason) {
+	case TCM_NO_SENSE:
+		/* CURRENT ERROR */
+		buffer[0] = 0x70;
+		buffer[SPC_ADD_SENSE_LEN_OFFSET] = 10;
+		/* Not Ready */
+		buffer[SPC_SENSE_KEY_OFFSET] = NOT_READY;
+		/* NO ADDITIONAL SENSE INFORMATION */
+		buffer[SPC_ASC_KEY_OFFSET] = 0;
+		buffer[SPC_ASCQ_KEY_OFFSET] = 0;
+		break;
 	case TCM_NON_EXISTENT_LUN:
 		/* CURRENT ERROR */
 		buffer[0] = 0x70;
