@@ -50,6 +50,7 @@ simtek
 sirf	SiRF Technology, Inc.
 snps 	Synopsys, Inc.
 st	STMicroelectronics
+ste	ST-Ericsson
 stericsson	ST-Ericsson
 ti	Texas Instruments
 via	VIA Technologies, Inc.
