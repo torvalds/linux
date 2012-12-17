@@ -204,9 +204,8 @@ static int __devinit piix4_setup(struct pci_dev *PIIX4_dev,
 			 */
 			pci_write_config_byte(PIIX4_dev, SMBHSTCFG,
 					      temp | 1);
-			dev_printk(KERN_NOTICE, &PIIX4_dev->dev,
-				"WARNING: SMBus interface has been "
-				"FORCEFULLY ENABLED!\n");
+			dev_notice(&PIIX4_dev->dev,
+				   "WARNING: SMBus interface has been FORCEFULLY ENABLED!\n");
 		} else {
 			dev_err(&PIIX4_dev->dev,
 				"Host SMBus controller not enabled!\n");
