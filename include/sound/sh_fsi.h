@@ -50,43 +50,10 @@
 #define SH_FSI_CLK_EXTERNAL	(0 << 12)
 #define SH_FSI_CLK_CPG		(1 << 12) /* FSIxCK + FSI-DIV */
 
-/*
- * set_rate return value
- *
- * see ACKMD/BPFMD on
- *     ACK_MD (FSI2)
- *     CKG1   (FSI)
- *
- * err		: return value <  0
- * no change	: return value == 0
- * change xMD	: return value >  0
- *
- * 0x-00000AB
- *
- * A:  ACKMD value
- * B:  BPFMD value
- */
-
-#define SH_FSI_ACKMD_MASK	(0xF << 0)
-#define SH_FSI_ACKMD_512	(1 << 0)
-#define SH_FSI_ACKMD_256	(2 << 0)
-#define SH_FSI_ACKMD_128	(3 << 0)
-#define SH_FSI_ACKMD_64		(4 << 0)
-#define SH_FSI_ACKMD_32		(5 << 0)
-
-#define SH_FSI_BPFMD_MASK	(0xF << 4)
-#define SH_FSI_BPFMD_512	(1 << 4)
-#define SH_FSI_BPFMD_256	(2 << 4)
-#define SH_FSI_BPFMD_128	(3 << 4)
-#define SH_FSI_BPFMD_64		(4 << 4)
-#define SH_FSI_BPFMD_32		(5 << 4)
-#define SH_FSI_BPFMD_16		(6 << 4)
-
 struct sh_fsi_port_info {
 	unsigned long flags;
 	int tx_id;
 	int rx_id;
-	int (*set_rate)(struct device *dev, int rate, int enable);
 };
 
 struct sh_fsi_platform_info {
