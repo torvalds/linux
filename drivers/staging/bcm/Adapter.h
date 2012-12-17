@@ -288,7 +288,7 @@ struct bcm_mini_adapter {
 	wait_queue_head_t	ioctl_fw_dnld_wait_queue;
 	BOOLEAN			waiting_to_fw_download_done;
 	pid_t			fw_download_process_pid;
-	PSTARGETPARAMS		pstargetparams;
+	struct bcm_target_params *pstargetparams;
 	BOOLEAN			device_removed;
 	BOOLEAN			DeviceAccess;
 	BOOLEAN			bIsAutoCorrectEnabled;

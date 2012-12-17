@@ -1,7 +1,7 @@
 #ifndef TARGET_PARAMS_H
 #define TARGET_PARAMS_H
 
-typedef struct _TARGET_PARAMS {
+struct bcm_target_params {
 	u32 m_u32CfgVersion;
 	u32 m_u32CenterFrequency;
 	u32 m_u32BandAScan;
@@ -52,6 +52,6 @@ typedef struct _TARGET_PARAMS {
 	 * bit 16-31 Band AMC Data configuration: Bit 16 = 1  Band AMC 2x3 support.
 	 */
 	u32 m_u32BandAMCEnable;
-} stTargetParams, TARGET_PARAMS, *PTARGET_PARAMS, STARGETPARAMS, *PSTARGETPARAMS;
+};
 
 #endif
