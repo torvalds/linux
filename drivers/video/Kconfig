@@ -33,6 +33,12 @@ config VIDEO_OUTPUT_CONTROL
 	  This framework adds support for low-level control of the video 
 	  output switch.
 
+config DISPLAY_TIMING
+       bool
+
+config VIDEOMODE
+       bool
+
 menuconfig FB
 	tristate "Support for frame buffer devices"
 	---help---
