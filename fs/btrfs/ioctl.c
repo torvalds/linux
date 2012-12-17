@@ -710,6 +710,16 @@ static noinline int btrfs_mksubvol(struct path *parent,
 	if (error)
 		goto out_dput;
 
+	/*
+	 * even if this name doesn't exist, we may get hash collisions.
+	 * check for them now when we can safely fail
+	 */
+	error = btrfs_check_dir_item_collision(BTRFS_I(dir)->root,
+					       dir->i_ino, name,
+					       namelen);
+	if (error)
+		goto out_dput;
+
 	down_read(&BTRFS_I(dir)->root->fs_info->subvol_sem);
 
 	if (btrfs_root_refs(&BTRFS_I(dir)->root->root_item) == 0)

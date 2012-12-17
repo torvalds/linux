@@ -4885,7 +4885,7 @@ int btrfs_add_link(struct btrfs_trans_handle *trans,
 	ret = btrfs_insert_dir_item(trans, root, name, name_len,
 				    parent_inode, &key,
 				    btrfs_inode_type(inode), index);
-	if (ret == -EEXIST)
+	if (ret == -EEXIST || ret == -EOVERFLOW)
 		goto fail_dir_item;
 	else if (ret) {
 		btrfs_abort_transaction(trans, root, ret);
@@ -7336,6 +7336,28 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (S_ISDIR(old_inode->i_mode) && new_inode &&
 	    new_inode->i_size > BTRFS_EMPTY_DIR_SIZE)
 		return -ENOTEMPTY;
+
+
+	/* check for collisions, even if the  name isn't there */
+	ret = btrfs_check_dir_item_collision(root, new_dir->i_ino,
+			     new_dentry->d_name.name,
+			     new_dentry->d_name.len);
+
+	if (ret) {
+		if (ret == -EEXIST) {
+			/* we shouldn't get
+			 * eexist without a new_inode */
+			if (!new_inode) {
+				WARN_ON(1);
+				return ret;
+			}
+		} else {
+			/* maybe -EOVERFLOW */
+			return ret;
+		}
+	}
+	ret = 0;
+
 	/*
 	 * we're using rename to replace one file with another.
 	 * and the replacement file is large.  Start IO on it now so
