@@ -330,6 +330,14 @@ static int parse_cmdline_partitions(struct mtd_info *master,
 		if (part->parts[i].size == SIZE_REMAINING)
 			part->parts[i].size = master->size - offset;
 
+		if (offset + part->parts[i].size > master->size) {
+			printk(KERN_WARNING ERRP
+			       "%s: partitioning exceeds flash size, truncating\n",
+			       part->mtd_id);
+			part->parts[i].size = master->size - offset;
+		}
+		offset += part->parts[i].size;
+
 		if (part->parts[i].size == 0) {
 			printk(KERN_WARNING ERRP
 			       "%s: skipping zero sized partition\n",
@@ -338,16 +346,7 @@ static int parse_cmdline_partitions(struct mtd_info *master,
 			memmove(&part->parts[i], &part->parts[i + 1],
 				sizeof(*part->parts) * (part->num_parts - i));
 			i--;
-			continue;
 		}
-
-		if (offset + part->parts[i].size > master->size) {
-			printk(KERN_WARNING ERRP
-			       "%s: partitioning exceeds flash size, truncating\n",
-			       part->mtd_id);
-			part->parts[i].size = master->size - offset;
-		}
-		offset += part->parts[i].size;
 	}
 
 	*pparts = kmemdup(part->parts, sizeof(*part->parts) * part->num_parts,
