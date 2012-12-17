@@ -4373,6 +4373,7 @@ static int alc_alloc_spec(struct hda_codec *codec, hda_nid_t mixer_nid)
 	if (!spec)
 		return -ENOMEM;
 	codec->spec = spec;
+	codec->single_adc_amp = 1;
 	spec->mixer_nid = mixer_nid;
 	snd_hda_gen_init(&spec->gen);
 	snd_array_init(&spec->kctls, sizeof(struct snd_kcontrol_new), 32);
