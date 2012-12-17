@@ -70,7 +70,7 @@
 		compatible = "arm,sp805", "arm,primecell";
 		status = "disabled";
 		reg = <0 0x2b060000 0 0x1000>;
-		interrupts = <98>;
+		interrupts = <0 98 4>;
 		clocks = <&oscclk7>;
 		clock-names = "apb_pclk";
 	};
