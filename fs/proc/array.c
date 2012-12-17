@@ -162,7 +162,7 @@ static inline const char *get_task_state(struct task_struct *tsk)
 static inline void task_state(struct seq_file *m, struct pid_namespace *ns,
 				struct pid *pid, struct task_struct *p)
 {
-	struct user_namespace *user_ns = current_user_ns();
+	struct user_namespace *user_ns = seq_user_ns(m);
 	struct group_info *group_info;
 	int g;
 	struct fdtable *fdt = NULL;
