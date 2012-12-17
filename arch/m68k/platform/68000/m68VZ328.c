@@ -1,7 +1,7 @@
 /***************************************************************************/
 
 /*
- *  linux/arch/m68knommu/platform/68VZ328/config.c
+ *  m68VZ328.c - 68VZ328 specific config
  *
  *  Copyright (C) 1993 Hamish Macdonald
  *  Copyright (C) 1999 D. Jeff Dionne
@@ -28,7 +28,7 @@
 #include <asm/bootstd.h>
 
 #ifdef CONFIG_INIT_LCD
-#include "bootlogo.h"
+#include "bootlogo-vz.h"
 #endif
 
 /***************************************************************************/
