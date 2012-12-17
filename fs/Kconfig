@@ -28,8 +28,8 @@ config FS_MBCACHE
 	tristate
 	default y if EXT2_FS=y && EXT2_FS_XATTR
 	default y if EXT3_FS=y && EXT3_FS_XATTR
-	default y if EXT4_FS=y && EXT4_FS_XATTR
-	default m if EXT2_FS_XATTR || EXT3_FS_XATTR || EXT4_FS_XATTR
+	default y if EXT4_FS=y
+	default m if EXT2_FS_XATTR || EXT3_FS_XATTR || EXT4_FS
 
 source "fs/reiserfs/Kconfig"
 source "fs/jfs/Kconfig"

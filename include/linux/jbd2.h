@@ -1096,7 +1096,6 @@ extern int	 jbd2_journal_get_undo_access(handle_t *, struct buffer_head *);
 void		 jbd2_journal_set_triggers(struct buffer_head *,
 					   struct jbd2_buffer_trigger_type *type);
 extern int	 jbd2_journal_dirty_metadata (handle_t *, struct buffer_head *);
-extern void	 jbd2_journal_release_buffer (handle_t *, struct buffer_head *);
 extern int	 jbd2_journal_forget (handle_t *, struct buffer_head *);
 extern void	 journal_sync_buffer (struct buffer_head *);
 extern void	 jbd2_journal_invalidatepage(journal_t *,
@@ -1303,14 +1302,20 @@ static inline int jbd_space_needed(journal_t *journal)
 
 extern int jbd_blocks_per_page(struct inode *inode);
 
+/* JBD uses a CRC32 checksum */
+#define JBD_MAX_CHECKSUM_SIZE 4
+
 static inline u32 jbd2_chksum(journal_t *journal, u32 crc,
 			      const void *address, unsigned int length)
 {
 	struct {
 		struct shash_desc shash;
-		char ctx[crypto_shash_descsize(journal->j_chksum_driver)];
+		char ctx[JBD_MAX_CHECKSUM_SIZE];
 	} desc;
 	int err;
+
+	BUG_ON(crypto_shash_descsize(journal->j_chksum_driver) >
+		JBD_MAX_CHECKSUM_SIZE);
 
 	desc.shash.tfm = journal->j_chksum_driver;
 	desc.shash.flags = 0;
