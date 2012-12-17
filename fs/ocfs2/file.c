@@ -2637,14 +2637,14 @@ bail:
 }
 
 /* Refer generic_file_llseek_unlocked() */
-static loff_t ocfs2_file_llseek(struct file *file, loff_t offset, int origin)
+static loff_t ocfs2_file_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct inode *inode = file->f_mapping->host;
 	int ret = 0;
 
 	mutex_lock(&inode->i_mutex);
 
-	switch (origin) {
+	switch (whence) {
 	case SEEK_SET:
 		break;
 	case SEEK_END:
@@ -2659,7 +2659,7 @@ static loff_t ocfs2_file_llseek(struct file *file, loff_t offset, int origin)
 		break;
 	case SEEK_DATA:
 	case SEEK_HOLE:
-		ret = ocfs2_seek_data_hole_offset(file, &offset, origin);
+		ret = ocfs2_seek_data_hole_offset(file, &offset, whence);
 		if (ret)
 			goto out;
 		break;

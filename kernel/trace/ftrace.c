@@ -2675,12 +2675,12 @@ ftrace_notrace_open(struct inode *inode, struct file *file)
 }
 
 loff_t
-ftrace_regex_lseek(struct file *file, loff_t offset, int origin)
+ftrace_regex_lseek(struct file *file, loff_t offset, int whence)
 {
 	loff_t ret;
 
 	if (file->f_mode & FMODE_READ)
-		ret = seq_lseek(file, offset, origin);
+		ret = seq_lseek(file, offset, whence);
 	else
 		file->f_pos = ret = 1;
 

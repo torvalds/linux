@@ -303,7 +303,7 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
  * page cache has data or not.
  */
 static int ext4_find_unwritten_pgoff(struct inode *inode,
-				     int origin,
+				     int whence,
 				     struct ext4_map_blocks *map,
 				     loff_t *offset)
 {
@@ -333,10 +333,10 @@ static int ext4_find_unwritten_pgoff(struct inode *inode,
 		nr_pages = pagevec_lookup(&pvec, inode->i_mapping, index,
 					  (pgoff_t)num);
 		if (nr_pages == 0) {
-			if (origin == SEEK_DATA)
+			if (whence == SEEK_DATA)
 				break;
 
-			BUG_ON(origin != SEEK_HOLE);
+			BUG_ON(whence != SEEK_HOLE);
 			/*
 			 * If this is the first time to go into the loop and
 			 * offset is not beyond the end offset, it will be a
@@ -352,7 +352,7 @@ static int ext4_find_unwritten_pgoff(struct inode *inode,
 		 * offset is smaller than the first page offset, it will be a
 		 * hole at this offset.
 		 */
-		if (lastoff == startoff && origin == SEEK_HOLE &&
+		if (lastoff == startoff && whence == SEEK_HOLE &&
 		    lastoff < page_offset(pvec.pages[0])) {
 			found = 1;
 			break;
@@ -366,7 +366,7 @@ static int ext4_find_unwritten_pgoff(struct inode *inode,
 			 * If the current offset is not beyond the end of given
 			 * range, it will be a hole.
 			 */
-			if (lastoff < endoff && origin == SEEK_HOLE &&
+			if (lastoff < endoff && whence == SEEK_HOLE &&
 			    page->index > end) {
 				found = 1;
 				*offset = lastoff;
@@ -391,10 +391,10 @@ static int ext4_find_unwritten_pgoff(struct inode *inode,
 				do {
 					if (buffer_uptodate(bh) ||
 					    buffer_unwritten(bh)) {
-						if (origin == SEEK_DATA)
+						if (whence == SEEK_DATA)
 							found = 1;
 					} else {
-						if (origin == SEEK_HOLE)
+						if (whence == SEEK_HOLE)
 							found = 1;
 					}
 					if (found) {
@@ -416,7 +416,7 @@ static int ext4_find_unwritten_pgoff(struct inode *inode,
 		 * The no. of pages is less than our desired, that would be a
 		 * hole in there.
 		 */
-		if (nr_pages < num && origin == SEEK_HOLE) {
+		if (nr_pages < num && whence == SEEK_HOLE) {
 			found = 1;
 			*offset = lastoff;
 			break;
@@ -609,7 +609,7 @@ static loff_t ext4_seek_hole(struct file *file, loff_t offset, loff_t maxsize)
  * by calling generic_file_llseek_size() with the appropriate maxbytes
  * value for each.
  */
-loff_t ext4_llseek(struct file *file, loff_t offset, int origin)
+loff_t ext4_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct inode *inode = file->f_mapping->host;
 	loff_t maxbytes;
@@ -619,11 +619,11 @@ loff_t ext4_llseek(struct file *file, loff_t offset, int origin)
 	else
 		maxbytes = inode->i_sb->s_maxbytes;
 
-	switch (origin) {
+	switch (whence) {
 	case SEEK_SET:
 	case SEEK_CUR:
 	case SEEK_END:
-		return generic_file_llseek_size(file, offset, origin,
+		return generic_file_llseek_size(file, offset, whence,
 						maxbytes, i_size_read(inode));
 	case SEEK_DATA:
 		return ext4_seek_data(file, offset, maxbytes);

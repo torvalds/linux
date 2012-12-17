@@ -1719,7 +1719,7 @@ static ssize_t shmem_file_splice_read(struct file *in, loff_t *ppos,
  * llseek SEEK_DATA or SEEK_HOLE through the radix_tree.
  */
 static pgoff_t shmem_seek_hole_data(struct address_space *mapping,
-				    pgoff_t index, pgoff_t end, int origin)
+				    pgoff_t index, pgoff_t end, int whence)
 {
 	struct page *page;
 	struct pagevec pvec;
@@ -1733,13 +1733,13 @@ static pgoff_t shmem_seek_hole_data(struct address_space *mapping,
 		pvec.nr = shmem_find_get_pages_and_swap(mapping, index,
 					pvec.nr, pvec.pages, indices);
 		if (!pvec.nr) {
-			if (origin == SEEK_DATA)
+			if (whence == SEEK_DATA)
 				index = end;
 			break;
 		}
 		for (i = 0; i < pvec.nr; i++, index++) {
 			if (index < indices[i]) {
-				if (origin == SEEK_HOLE) {
+				if (whence == SEEK_HOLE) {
 					done = true;
 					break;
 				}
@@ -1751,8 +1751,8 @@ static pgoff_t shmem_seek_hole_data(struct address_space *mapping,
 					page = NULL;
 			}
 			if (index >= end ||
-			    (page && origin == SEEK_DATA) ||
-			    (!page && origin == SEEK_HOLE)) {
+			    (page && whence == SEEK_DATA) ||
+			    (!page && whence == SEEK_HOLE)) {
 				done = true;
 				break;
 			}
@@ -1765,15 +1765,15 @@ static pgoff_t shmem_seek_hole_data(struct address_space *mapping,
 	return index;
 }
 
-static loff_t shmem_file_llseek(struct file *file, loff_t offset, int origin)
+static loff_t shmem_file_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct address_space *mapping = file->f_mapping;
 	struct inode *inode = mapping->host;
 	pgoff_t start, end;
 	loff_t new_offset;
 
-	if (origin != SEEK_DATA && origin != SEEK_HOLE)
-		return generic_file_llseek_size(file, offset, origin,
+	if (whence != SEEK_DATA && whence != SEEK_HOLE)
+		return generic_file_llseek_size(file, offset, whence,
 					MAX_LFS_FILESIZE, i_size_read(inode));
 	mutex_lock(&inode->i_mutex);
 	/* We're holding i_mutex so we can access i_size directly */
@@ -1785,12 +1785,12 @@ static loff_t shmem_file_llseek(struct file *file, loff_t offset, int origin)
 	else {
 		start = offset >> PAGE_CACHE_SHIFT;
 		end = (inode->i_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-		new_offset = shmem_seek_hole_data(mapping, start, end, origin);
+		new_offset = shmem_seek_hole_data(mapping, start, end, whence);
 		new_offset <<= PAGE_CACHE_SHIFT;
 		if (new_offset > offset) {
 			if (new_offset < inode->i_size)
 				offset = new_offset;
-			else if (origin == SEEK_DATA)
+			else if (whence == SEEK_DATA)
 				offset = -ENXIO;
 			else
 				offset = inode->i_size;
