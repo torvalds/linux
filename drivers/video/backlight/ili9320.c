@@ -59,7 +59,7 @@ int ili9320_write(struct ili9320 *ili, unsigned int reg, unsigned int value)
 EXPORT_SYMBOL_GPL(ili9320_write);
 
 int ili9320_write_regs(struct ili9320 *ili,
-		       struct ili9320_reg *values,
+		       const struct ili9320_reg *values,
 		       int nr_values)
 {
 	int index;
