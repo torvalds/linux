@@ -399,12 +399,9 @@ static void decode_mc1_mce(struct mce *m)
 		pr_emerg(HW_ERR "Corrupted MC1 MCE info?\n");
 }
 
-static void decode_mc2_mce(struct mce *m)
+static bool k8_mc2_mce(u16 ec, u8 xec)
 {
-	u16 ec = EC(m->status);
-	u8 xec = XEC(m->status, xec_mask);
-
-	pr_emerg(HW_ERR "MC2 Error");
+	bool ret = true;
 
 	if (xec == 0x1)
 		pr_cont(" in the write data buffers.\n");
@@ -429,24 +426,18 @@ static void decode_mc2_mce(struct mce *m)
 				pr_cont(": %s parity/ECC error during data "
 					"access from L2.\n", R4_MSG(ec));
 			else
-				goto wrong_mc2_mce;
+				ret = false;
 		} else
-			goto wrong_mc2_mce;
+			ret = false;
 	} else
-		goto wrong_mc2_mce;
+		ret = false;
 
-	return;
-
- wrong_mc2_mce:
-	pr_emerg(HW_ERR "Corrupted MC2 MCE info?\n");
+	return ret;
 }
 
-static void decode_f15_mc2_mce(struct mce *m)
+static bool f15h_mc2_mce(u16 ec, u8 xec)
 {
-	u16 ec = EC(m->status);
-	u8 xec = XEC(m->status, xec_mask);
-
-	pr_emerg(HW_ERR "MC2 Error: ");
+	bool ret = true;
 
 	if (TLB_ERROR(ec)) {
 		if (xec == 0x0)
@@ -454,10 +445,10 @@ static void decode_f15_mc2_mce(struct mce *m)
 		else if (xec == 0x1)
 			pr_cont("Poison data provided for TLB fill.\n");
 		else
-			goto wrong_f15_mc2_mce;
+			ret = false;
 	} else if (BUS_ERROR(ec)) {
 		if (xec > 2)
-			goto wrong_f15_mc2_mce;
+			ret = false;
 
 		pr_cont("Error during attempted NB data read.\n");
 	} else if (MEM_ERROR(ec)) {
@@ -471,14 +462,22 @@ static void decode_f15_mc2_mce(struct mce *m)
 			break;
 
 		default:
-			goto wrong_f15_mc2_mce;
+			ret = false;
 		}
 	}
 
-	return;
+	return ret;
+}
 
- wrong_f15_mc2_mce:
-	pr_emerg(HW_ERR "Corrupted MC2 MCE info?\n");
+static void decode_mc2_mce(struct mce *m)
+{
+	u16 ec = EC(m->status);
+	u8 xec = XEC(m->status, xec_mask);
+
+	pr_emerg(HW_ERR "MC2 Error: ");
+
+	if (!fam_ops->mc2_mce(ec, xec))
+		pr_cont(HW_ERR "Corrupted MC2 MCE info?\n");
 }
 
 static void decode_mc3_mce(struct mce *m)
@@ -702,10 +701,7 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 		break;
 
 	case 2:
-		if (c->x86 == 0x15)
-			decode_f15_mc2_mce(m);
-		else
-			decode_mc2_mce(m);
+		decode_mc2_mce(m);
 		break;
 
 	case 3:
@@ -783,33 +779,39 @@ static int __init mce_amd_init(void)
 	case 0xf:
 		fam_ops->mc0_mce = k8_mc0_mce;
 		fam_ops->mc1_mce = k8_mc1_mce;
+		fam_ops->mc2_mce = k8_mc2_mce;
 		break;
 
 	case 0x10:
 		fam_ops->mc0_mce = f10h_mc0_mce;
 		fam_ops->mc1_mce = k8_mc1_mce;
+		fam_ops->mc2_mce = k8_mc2_mce;
 		break;
 
 	case 0x11:
 		fam_ops->mc0_mce = k8_mc0_mce;
 		fam_ops->mc1_mce = k8_mc1_mce;
+		fam_ops->mc2_mce = k8_mc2_mce;
 		break;
 
 	case 0x12:
 		fam_ops->mc0_mce = f12h_mc0_mce;
 		fam_ops->mc1_mce = k8_mc1_mce;
+		fam_ops->mc2_mce = k8_mc2_mce;
 		break;
 
 	case 0x14:
 		nb_err_cpumask  = 0x3;
 		fam_ops->mc0_mce = f14h_mc0_mce;
 		fam_ops->mc1_mce = f14h_mc1_mce;
+		fam_ops->mc2_mce = k8_mc2_mce;
 		break;
 
 	case 0x15:
 		xec_mask = 0x1f;
 		fam_ops->mc0_mce = f15h_mc0_mce;
 		fam_ops->mc1_mce = f15h_mc1_mce;
+		fam_ops->mc2_mce = f15h_mc2_mce;
 		break;
 
 	default:

@@ -78,6 +78,7 @@ extern const char * const ii_msgs[];
 struct amd_decoder_ops {
 	bool (*mc0_mce)(u16, u8);
 	bool (*mc1_mce)(u16, u8);
+	bool (*mc2_mce)(u16, u8);
 };
 
 void amd_report_gart_errors(bool);
