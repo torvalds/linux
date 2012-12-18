@@ -663,8 +663,6 @@ static const struct of_device_id s3c_rtc_dt_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, s3c_rtc_dt_match);
-#else
-#define s3c_rtc_dt_match NULL
 #endif
 
 static struct platform_device_id s3c_rtc_driver_ids[] = {
@@ -695,7 +693,7 @@ static struct platform_driver s3c_rtc_driver = {
 	.driver		= {
 		.name	= "s3c-rtc",
 		.owner	= THIS_MODULE,
-		.of_match_table	= s3c_rtc_dt_match,
+		.of_match_table	= of_match_ptr(s3c_rtc_dt_match),
 	},
 };
 
