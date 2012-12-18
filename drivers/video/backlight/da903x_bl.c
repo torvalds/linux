@@ -164,15 +164,14 @@ static int da903x_backlight_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int da903x_backlight_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct backlight_device *bl = platform_get_drvdata(pdev);
+	struct backlight_device *bl = dev_get_drvdata(dev);
+
 	return da903x_backlight_set(bl, 0);
 }
 
 static int da903x_backlight_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct backlight_device *bl = platform_get_drvdata(pdev);
+	struct backlight_device *bl = dev_get_drvdata(dev);
 
 	backlight_update_status(bl);
 	return 0;
