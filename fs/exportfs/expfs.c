@@ -357,7 +357,7 @@ int exportfs_encode_fh(struct dentry *dentry, struct fid *fid, int *max_len,
 		 */
 		parent = p->d_inode;
 	}
-	if (nop->encode_fh)
+	if (nop && nop->encode_fh)
 		error = nop->encode_fh(inode, fid->raw, max_len, parent);
 	else
 		error = export_encode_fh(inode, fid, max_len, parent);
