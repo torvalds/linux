@@ -732,7 +732,7 @@ static int fimc_md_get_clocks(struct fimc_md *fmd)
 	for (i = 0; i < FIMC_MAX_CAMCLKS; i++) {
 		snprintf(clk_name, sizeof(clk_name), "sclk_cam%u", i);
 		clock = clk_get(NULL, clk_name);
-		if (IS_ERR_OR_NULL(clock)) {
+		if (IS_ERR(clock)) {
 			v4l2_err(&fmd->v4l2_dev, "Failed to get clock: %s",
 				  clk_name);
 			return -ENXIO;
