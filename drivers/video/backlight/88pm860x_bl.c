@@ -117,8 +117,8 @@ static int pm860x_backlight_set(struct backlight_device *bl, int brightness)
 	data->current_brightness = value;
 	return 0;
 out:
-	dev_dbg(chip->dev, "set brightness %d failure with return "
-		"value:%d\n", value, ret);
+	dev_dbg(chip->dev, "set brightness %d failure with return value: %d\n",
+		value, ret);
 	return ret;
 }
 
