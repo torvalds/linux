@@ -101,15 +101,6 @@ struct machine *perf_session__findnew_machine(struct perf_session *self, pid_t p
 	return machines__findnew(&self->machines, pid);
 }
 
-static inline
-void perf_session__process_machines(struct perf_session *self,
-				    struct perf_tool *tool,
-				    machine__process_t process)
-{
-	process(&self->host_machine, tool);
-	return machines__process(&self->machines, process, tool);
-}
-
 struct thread *perf_session__findnew(struct perf_session *self, pid_t pid);
 size_t perf_session__fprintf(struct perf_session *self, FILE *fp);
 

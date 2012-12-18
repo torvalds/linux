@@ -328,10 +328,6 @@ static void perf_event__synthesize_guest_os(struct machine *machine, void *data)
 {
 	int err;
 	struct perf_tool *tool = data;
-
-	if (machine__is_host(machine))
-		return;
-
 	/*
 	 *As for guest kernel when processing subcommand record&report,
 	 *we arrange module mmap prior to guest kernel mmap and trigger
@@ -574,9 +570,10 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 		       "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
 		       "Check /proc/modules permission or run as root.\n");
 
-	if (perf_guest)
-		perf_session__process_machines(session, tool,
-					       perf_event__synthesize_guest_os);
+	if (perf_guest) {
+		machines__process(&session->machines,
+				  perf_event__synthesize_guest_os, tool);
+	}
 
 	if (!opts->target.system_wide)
 		err = perf_event__synthesize_thread_map(tool, evsel_list->threads,
