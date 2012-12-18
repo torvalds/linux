@@ -461,6 +461,7 @@ aoedev_by_aoeaddr(ulong maj, int min, int do_alloc)
 	d->targets = kcalloc(NTARGETS, sizeof(*d->targets), GFP_ATOMIC);
 	if (!d->targets) {
 		kfree(d);
+		d = NULL;
 		goto out;
 	}
 	d->ntargets = NTARGETS;
