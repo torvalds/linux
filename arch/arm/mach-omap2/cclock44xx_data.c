@@ -40,6 +40,14 @@
 #define OMAP4430_MODULEMODE_HWCTRL_SHIFT		0
 #define OMAP4430_MODULEMODE_SWCTRL_SHIFT		1
 
+/*
+ * OMAP4 ABE DPLL default frequency. In OMAP4460 TRM version V, section
+ * "3.6.3.2.3 CM1_ABE Clock Generator" states that the "DPLL_ABE_X2_CLK
+ * must be set to 196.608 MHz" and hence, the DPLL locked frequency is
+ * half of this value.
+ */
+#define OMAP4_DPLL_ABE_DEFFREQ				98304000
+
 /* Root clocks */
 
 DEFINE_CLK_FIXED_RATE(extalt_clkin_ck, CLK_IS_ROOT, 59000000, 0x0);
@@ -124,6 +132,8 @@ static struct dpll_data dpll_abe_dd = {
 	.enable_mask	= OMAP4430_DPLL_EN_MASK,
 	.autoidle_mask	= OMAP4430_AUTO_DPLL_MODE_MASK,
 	.idlest_mask	= OMAP4430_ST_DPLL_CLK_MASK,
+	.m4xen_mask	= OMAP4430_DPLL_REGM4XEN_MASK,
+	.lpmode_mask	= OMAP4430_DPLL_LPMODE_EN_MASK,
 	.max_multiplier	= 2047,
 	.max_divider	= 128,
 	.min_divider	= 1,
@@ -233,7 +243,7 @@ static struct dpll_data dpll_core_dd = {
 
 
 static const char *dpll_core_ck_parents[] = {
-	"sys_clkin_ck",
+	"sys_clkin_ck", "core_hsd_byp_clk_mux_ck"
 };
 
 static struct clk dpll_core_ck;
@@ -286,9 +296,9 @@ DEFINE_CLK_DIVIDER(div_core_ck, "dpll_core_m5x2_ck", &dpll_core_m5x2_ck, 0x0,
 		   OMAP4430_CM_CLKSEL_CORE, OMAP4430_CLKSEL_CORE_SHIFT,
 		   OMAP4430_CLKSEL_CORE_WIDTH, 0x0, NULL);
 
-DEFINE_CLK_OMAP_HSDIVIDER(div_iva_hs_clk, "dpll_core_m5x2_ck",
-			  &dpll_core_m5x2_ck, 0x0, OMAP4430_CM_BYPCLK_DPLL_IVA,
-			  OMAP4430_CLKSEL_0_1_MASK);
+DEFINE_CLK_DIVIDER(div_iva_hs_clk, "dpll_core_m5x2_ck", &dpll_core_m5x2_ck,
+		   0x0, OMAP4430_CM_BYPCLK_DPLL_IVA, OMAP4430_CLKSEL_0_1_SHIFT,
+		   OMAP4430_CLKSEL_0_1_WIDTH, CLK_DIVIDER_POWER_OF_TWO, NULL);
 
 DEFINE_CLK_DIVIDER(div_mpu_hs_clk, "dpll_core_m5x2_ck", &dpll_core_m5x2_ck,
 		   0x0, OMAP4430_CM_BYPCLK_DPLL_MPU, OMAP4430_CLKSEL_0_1_SHIFT,
@@ -363,7 +373,20 @@ static struct dpll_data dpll_iva_dd = {
 	.min_divider	= 1,
 };
 
+static const char *dpll_iva_ck_parents[] = {
+	"sys_clkin_ck", "iva_hsd_byp_clk_mux_ck"
+};
+
 static struct clk dpll_iva_ck;
+
+static const struct clk_ops dpll_ck_ops = {
+	.enable		= &omap3_noncore_dpll_enable,
+	.disable	= &omap3_noncore_dpll_disable,
+	.recalc_rate	= &omap3_dpll_recalc,
+	.round_rate	= &omap2_dpll_round_rate,
+	.set_rate	= &omap3_noncore_dpll_set_rate,
+	.get_parent	= &omap2_init_dpll_parent,
+};
 
 static struct clk_hw_omap dpll_iva_ck_hw = {
 	.hw = {
@@ -373,7 +396,7 @@ static struct clk_hw_omap dpll_iva_ck_hw = {
 	.ops		= &clkhwops_omap3_dpll,
 };
 
-DEFINE_STRUCT_CLK(dpll_iva_ck, dpll_core_ck_parents, dpll_abe_ck_ops);
+DEFINE_STRUCT_CLK(dpll_iva_ck, dpll_iva_ck_parents, dpll_ck_ops);
 
 static const char *dpll_iva_x2_ck_parents[] = {
 	"dpll_iva_ck",
@@ -416,6 +439,10 @@ static struct dpll_data dpll_mpu_dd = {
 	.min_divider	= 1,
 };
 
+static const char *dpll_mpu_ck_parents[] = {
+	"sys_clkin_ck", "div_mpu_hs_clk"
+};
+
 static struct clk dpll_mpu_ck;
 
 static struct clk_hw_omap dpll_mpu_ck_hw = {
@@ -426,7 +453,7 @@ static struct clk_hw_omap dpll_mpu_ck_hw = {
 	.ops		= &clkhwops_omap3_dpll,
 };
 
-DEFINE_STRUCT_CLK(dpll_mpu_ck, dpll_core_ck_parents, dpll_abe_ck_ops);
+DEFINE_STRUCT_CLK(dpll_mpu_ck, dpll_mpu_ck_parents, dpll_ck_ops);
 
 DEFINE_CLK_FIXED_FACTOR(mpu_periphclk, "dpll_mpu_ck", &dpll_mpu_ck, 0x0, 1, 2);
 
@@ -464,6 +491,9 @@ static struct dpll_data dpll_per_dd = {
 	.min_divider	= 1,
 };
 
+static const char *dpll_per_ck_parents[] = {
+	"sys_clkin_ck", "per_hsd_byp_clk_mux_ck"
+};
 
 static struct clk dpll_per_ck;
 
@@ -475,7 +505,7 @@ static struct clk_hw_omap dpll_per_ck_hw = {
 	.ops		= &clkhwops_omap3_dpll,
 };
 
-DEFINE_STRUCT_CLK(dpll_per_ck, dpll_core_ck_parents, dpll_abe_ck_ops);
+DEFINE_STRUCT_CLK(dpll_per_ck, dpll_per_ck_parents, dpll_ck_ops);
 
 DEFINE_CLK_DIVIDER(dpll_per_m2_ck, "dpll_per_ck", &dpll_per_ck, 0x0,
 		   OMAP4430_CM_DIV_M2_DPLL_PER, OMAP4430_DPLL_CLKOUT_DIV_SHIFT,
@@ -559,6 +589,10 @@ static struct dpll_data dpll_usb_dd = {
 	.min_divider	= 1,
 };
 
+static const char *dpll_usb_ck_parents[] = {
+	"sys_clkin_ck", "usb_hs_clk_div_ck"
+};
+
 static struct clk dpll_usb_ck;
 
 static struct clk_hw_omap dpll_usb_ck_hw = {
@@ -569,7 +603,7 @@ static struct clk_hw_omap dpll_usb_ck_hw = {
 	.ops		= &clkhwops_omap3_dpll,
 };
 
-DEFINE_STRUCT_CLK(dpll_usb_ck, dpll_core_ck_parents, dpll_abe_ck_ops);
+DEFINE_STRUCT_CLK(dpll_usb_ck, dpll_usb_ck_parents, dpll_ck_ops);
 
 static const char *dpll_usb_clkdcoldo_ck_parents[] = {
 	"dpll_usb_ck",
@@ -696,9 +730,13 @@ DEFINE_CLK_DIVIDER(syc_clk_div_ck, "sys_clkin_ck", &sys_clkin_ck, 0x0,
 		   OMAP4430_CM_ABE_DSS_SYS_CLKSEL, OMAP4430_CLKSEL_0_0_SHIFT,
 		   OMAP4430_CLKSEL_0_0_WIDTH, 0x0, NULL);
 
+static const char *dbgclk_mux_ck_parents[] = {
+	"sys_clkin_ck"
+};
+
 static struct clk dbgclk_mux_ck;
 DEFINE_STRUCT_CLK_HW_OMAP(dbgclk_mux_ck, NULL);
-DEFINE_STRUCT_CLK(dbgclk_mux_ck, dpll_core_ck_parents,
+DEFINE_STRUCT_CLK(dbgclk_mux_ck, dbgclk_mux_ck_parents,
 		  dpll_usb_clkdcoldo_ck_ops);
 
 /* Leaf clocks controlled by modules */
@@ -1935,10 +1973,10 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK("4803e000.timer",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
 	CLK("48086000.timer",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
 	CLK("48088000.timer",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
-	CLK("49038000.timer",	"timer_sys_ck",	&syc_clk_div_ck,	CK_443X),
-	CLK("4903a000.timer",	"timer_sys_ck",	&syc_clk_div_ck,	CK_443X),
-	CLK("4903c000.timer",	"timer_sys_ck",	&syc_clk_div_ck,	CK_443X),
-	CLK("4903e000.timer",	"timer_sys_ck",	&syc_clk_div_ck,	CK_443X),
+	CLK("40138000.timer",	"timer_sys_ck",	&syc_clk_div_ck,	CK_443X),
+	CLK("4013a000.timer",	"timer_sys_ck",	&syc_clk_div_ck,	CK_443X),
+	CLK("4013c000.timer",	"timer_sys_ck",	&syc_clk_div_ck,	CK_443X),
+	CLK("4013e000.timer",	"timer_sys_ck",	&syc_clk_div_ck,	CK_443X),
 	CLK(NULL,	"cpufreq_ck",	&dpll_mpu_ck,	CK_443X),
 };
 
@@ -1955,6 +1993,7 @@ int __init omap4xxx_clk_init(void)
 {
 	u32 cpu_clkflg;
 	struct omap_clk *c;
+	int rc;
 
 	if (cpu_is_omap443x()) {
 		cpu_mask = RATE_IN_4430;
@@ -1982,6 +2021,19 @@ int __init omap4xxx_clk_init(void)
 
 	omap2_clk_enable_init_clocks(enable_init_clks,
 				     ARRAY_SIZE(enable_init_clks));
+
+	/*
+	 * On OMAP4460 the ABE DPLL fails to turn on if in idle low-power
+	 * state when turning the ABE clock domain. Workaround this by
+	 * locking the ABE DPLL on boot.
+	 */
+	if (cpu_is_omap446x()) {
+		rc = clk_set_parent(&abe_dpll_refclk_mux_ck, &sys_32k_ck);
+		if (!rc)
+			rc = clk_set_rate(&dpll_abe_ck, OMAP4_DPLL_ABE_DEFFREQ);
+		if (rc)
+			pr_err("%s: failed to configure ABE DPLL!\n", __func__);
+	}
 
 	return 0;
 }
