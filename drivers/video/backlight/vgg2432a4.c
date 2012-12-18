@@ -217,7 +217,7 @@ static int vgg2432a4_resume(struct spi_device *spi)
 }
 #else
 #define vgg2432a4_suspend	NULL
-#define vgg2432a4_resume 	NULL
+#define vgg2432a4_resume	NULL
 #endif
 
 static struct ili9320_client vgg2432a4_client = {
