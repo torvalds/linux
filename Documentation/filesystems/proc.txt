@@ -41,6 +41,7 @@ Table of Contents
   3.5	/proc/<pid>/mountinfo - Information about mounts
   3.6	/proc/<pid>/comm  & /proc/<pid>/task/<tid>/comm
   3.7   /proc/<pid>/task/<tid>/children - Information about task children
+  3.8   /proc/<pid>/fdinfo/<fd> - Information about opened file
 
   4	Configuring procfs
   4.1	Mount options
@@ -1631,6 +1632,87 @@ guarantee to provide precise results and some children might be
 skipped, especially if they've exited right after we printed their
 pids, so one need to either stop or freeze processes being inspected
 if precise results are needed.
+
+
+3.7	/proc/<pid>/fdinfo/<fd> - Information about opened file
+---------------------------------------------------------------
+This file provides information associated with an opened file. The regular
+files have at least two fields -- 'pos' and 'flags'. The 'pos' represents
+the current offset of the opened file in decimal form [see lseek(2) for
+details] and 'flags' denotes the octal O_xxx mask the file has been
+created with [see open(2) for details].
+
+A typical output is
+
+	pos:	0
+	flags:	0100002
+
+The files such as eventfd, fsnotify, signalfd, epoll among the regular pos/flags
+pair provide additional information particular to the objects they represent.
+
+	Eventfd files
+	~~~~~~~~~~~~~
+	pos:	0
+	flags:	04002
+	eventfd-count:	5a
+
+	where 'eventfd-count' is hex value of a counter.
+
+	Signalfd files
+	~~~~~~~~~~~~~~
+	pos:	0
+	flags:	04002
+	sigmask:	0000000000000200
+
+	where 'sigmask' is hex value of the signal mask associated
+	with a file.
+
+	Epoll files
+	~~~~~~~~~~~
+	pos:	0
+	flags:	02
+	tfd:        5 events:       1d data: ffffffffffffffff
+
+	where 'tfd' is a target file descriptor number in decimal form,
+	'events' is events mask being watched and the 'data' is data
+	associated with a target [see epoll(7) for more details].
+
+	Fsnotify files
+	~~~~~~~~~~~~~~
+	For inotify files the format is the following
+
+	pos:	0
+	flags:	02000000
+	inotify wd:3 ino:9e7e sdev:800013 mask:800afce ignored_mask:0 fhandle-bytes:8 fhandle-type:1 f_handle:7e9e0000640d1b6d
+
+	where 'wd' is a watch descriptor in decimal form, ie a target file
+	descriptor number, 'ino' and 'sdev' are inode and device where the
+	target file resides and the 'mask' is the mask of events, all in hex
+	form [see inotify(7) for more details].
+
+	If the kernel was built with exportfs support, the path to the target
+	file is encoded as a file handle.  The file handle is provided by three
+	fields 'fhandle-bytes', 'fhandle-type' and 'f_handle', all in hex
+	format.
+
+	If the kernel is built without exportfs support the file handle won't be
+	printed out.
+
+	For fanotify files the format is
+
+	pos:	0
+	flags:	02
+	fanotify ino:2 sdev:800013 mask:1 ignored_mask:40000000 fhandle-bytes:8 fhandle-type:1 f_handle:0200000000000000
+
+	or
+
+	pos:	0
+	flags:	02
+	fanotify mnt_id:13 mask:1 ignored_mask:40000000
+
+	where 'ino', 'sdev' are target inode and device, 'mnt_id' is the mount
+	point identifier, 'mask' is the events mask used and 'ignored_mask' is
+	the mask of events which are to be ignored. All in hex format.
 
 
 ------------------------------------------------------------------------------
