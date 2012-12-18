@@ -1565,7 +1565,14 @@ unsigned int disk_clear_events(struct gendisk *disk, unsigned int mask)
 
 	/* uncondtionally schedule event check and wait for it to finish */
 	disk_block_events(disk);
-	queue_delayed_work(system_freezable_wq, &ev->dwork, 0);
+	/*
+	 * We need to put the work on system_nrt_wq here since there is a
+	 * deadlock that happens while probing a usb device while suspending. If
+	 * we put work on a freezable workqueue here, a usb probe will wait here
+	 * until the workqueue is unfrozen during suspend. Since suspend waits
+	 * on all probes to complete, we have a deadlock
+	 */
+	queue_delayed_work(system_nrt_wq, &ev->dwork, 0);
 	flush_delayed_work(&ev->dwork);
 	__disk_unblock_events(disk, false);
 
