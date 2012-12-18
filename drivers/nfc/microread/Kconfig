@@ -1,0 +1,13 @@
+config NFC_MICROREAD
+	tristate "Inside Secure microread NFC driver"
+	depends on NFC_HCI
+	select CRC_CCITT
+	default n
+	---help---
+	  This module contains the main code for Inside Secure microread
+	  NFC chipsets. It implements the chipset HCI logic and hooks into
+	  the NFC kernel APIs. Physical layers will register against it.
+
+	  To compile this driver as a module, choose m here. The module will
+	  be called microread.
+	  Say N if unsure.

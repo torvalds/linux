@@ -27,5 +27,6 @@ config NFC_WILINK
 	  into the kernel or say M to compile it as module.
 
 source "drivers/nfc/pn544/Kconfig"
+source "drivers/nfc/microread/Kconfig"
 
 endmenu
