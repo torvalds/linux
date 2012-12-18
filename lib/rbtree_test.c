@@ -118,7 +118,7 @@ static void check(int nr_nodes)
 {
 	struct rb_node *rb;
 	int count = 0;
-	int blacks;
+	int blacks = 0;
 	u32 prev_key = 0;
 
 	for (rb = rb_first(&root); rb; rb = rb_next(rb)) {
