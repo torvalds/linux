@@ -37,7 +37,7 @@ enum lm3630_leds {
 	BLED_2
 };
 
-static const char *bled_name[] = {
+static const char * const bled_name[] = {
 	[BLED_ALL] = "lm3630_bled",	/*Bank1 controls all string */
 	[BLED_1] = "lm3630_bled1",	/*Bank1 controls bled1 */
 	[BLED_2] = "lm3630_bled2",	/*Bank1 or 2 controls bled2 */
