@@ -411,6 +411,8 @@ static int __devinit spear_rtc_probe(struct platform_device *pdev)
 		goto err_disable_clock;
 	}
 
+	config->rtc->uie_unsupported = 1;
+
 	if (!device_can_wakeup(&pdev->dev))
 		device_init_wakeup(&pdev->dev, 1);
 
