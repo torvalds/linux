@@ -20,6 +20,7 @@
 
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #include <linux/nfc.h>
 #include <net/nfc/hci.h>
@@ -862,6 +863,7 @@ err_alloc_hdev:
 err_info_alloc:
 	return r;
 }
+EXPORT_SYMBOL(pn544_hci_probe);
 
 void pn544_hci_remove(struct nfc_hci_dev *hdev)
 {
@@ -871,3 +873,7 @@ void pn544_hci_remove(struct nfc_hci_dev *hdev)
 	nfc_hci_free_device(hdev);
 	kfree(info);
 }
+EXPORT_SYMBOL(pn544_hci_remove);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION(DRIVER_DESC);
