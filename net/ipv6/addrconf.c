@@ -534,8 +534,7 @@ void inet6_netconf_notify_devconf(struct net *net, int type, int ifindex,
 	rtnl_notify(skb, net, 0, RTNLGRP_IPV6_NETCONF, NULL, GFP_ATOMIC);
 	return;
 errout:
-	if (err < 0)
-		rtnl_set_sk_err(net, RTNLGRP_IPV6_NETCONF, err);
+	rtnl_set_sk_err(net, RTNLGRP_IPV6_NETCONF, err);
 }
 
 static const struct nla_policy devconf_ipv6_policy[NETCONFA_MAX+1] = {
