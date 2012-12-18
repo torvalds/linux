@@ -3009,10 +3009,12 @@ sub process {
 				}
 			}
 
-# check for line continuations outside of #defines
+# check for line continuations outside of #defines, preprocessor #, and asm
 
 		} else {
 			if ($prevline !~ /^..*\\$/ &&
+			    $line !~ /^\+\s*\#.*\\$/ &&		# preprocessor
+			    $line !~ /^\+.*\b(__asm__|asm)\b.*\\$/ &&	# asm
 			    $line =~ /^\+.*\\$/) {
 				WARN("LINE_CONTINUATIONS",
 				     "Avoid unnecessary line continuations\n" . $herecurr);
