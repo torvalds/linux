@@ -17,7 +17,7 @@
 #include "usb.h"
 
 /* Active configuration fields */
-#define usb_actconfig_show(field, multiplier, format_string)		\
+#define usb_actconfig_show(field, format_string)			\
 static ssize_t  show_##field(struct device *dev,			\
 		struct device_attribute *attr, char *buf)		\
 {									\
@@ -28,18 +28,31 @@ static ssize_t  show_##field(struct device *dev,			\
 	actconfig = udev->actconfig;					\
 	if (actconfig)							\
 		return sprintf(buf, format_string,			\
-				actconfig->desc.field * multiplier);	\
+				actconfig->desc.field);			\
 	else								\
 		return 0;						\
 }									\
 
-#define usb_actconfig_attr(field, multiplier, format_string)		\
-usb_actconfig_show(field, multiplier, format_string)			\
-static DEVICE_ATTR(field, S_IRUGO, show_##field, NULL);
+#define usb_actconfig_attr(field, format_string)		\
+	usb_actconfig_show(field, format_string)		\
+	static DEVICE_ATTR(field, S_IRUGO, show_##field, NULL);
 
-usb_actconfig_attr(bNumInterfaces, 1, "%2d\n")
-usb_actconfig_attr(bmAttributes, 1, "%2x\n")
-usb_actconfig_attr(bMaxPower, 2, "%3dmA\n")
+usb_actconfig_attr(bNumInterfaces, "%2d\n")
+usb_actconfig_attr(bmAttributes, "%2x\n")
+
+static ssize_t show_bMaxPower(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct usb_device *udev;
+	struct usb_host_config *actconfig;
+
+	udev = to_usb_device(dev);
+	actconfig = udev->actconfig;
+	if (!actconfig)
+		return 0;
+	return sprintf(buf, "%dmA\n", usb_get_max_power(udev, actconfig));
+}
+static DEVICE_ATTR(bMaxPower, S_IRUGO, show_bMaxPower, NULL);
 
 static ssize_t show_configuration_string(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -56,7 +69,7 @@ static ssize_t show_configuration_string(struct device *dev,
 static DEVICE_ATTR(configuration, S_IRUGO, show_configuration_string, NULL);
 
 /* configuration value is always present, and r/w */
-usb_actconfig_show(bConfigurationValue, 1, "%u\n");
+usb_actconfig_show(bConfigurationValue, "%u\n");
 
 static ssize_t
 set_bConfigurationValue(struct device *dev, struct device_attribute *attr,

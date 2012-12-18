@@ -4211,7 +4211,7 @@ hub_power_remaining (struct usb_hub *hub)
 		/* Unconfigured devices may not use more than 100mA,
 		 * or 8mA for OTG ports */
 		if (udev->actconfig)
-			delta = udev->actconfig->desc.bMaxPower * 2;
+			delta = usb_get_max_power(udev, udev->actconfig);
 		else if (port1 != udev->bus->otg_port || hdev->parent)
 			delta = 100;
 		else

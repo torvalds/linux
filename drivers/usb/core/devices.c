@@ -316,17 +316,23 @@ static char *usb_dump_iad_descriptor(char *start, char *end,
  */
 static char *usb_dump_config_descriptor(char *start, char *end,
 				const struct usb_config_descriptor *desc,
-				int active)
+				int active, int speed)
 {
+	int mul;
+
 	if (start > end)
 		return start;
+	if (speed == USB_SPEED_SUPER)
+		mul = 8;
+	else
+		mul = 2;
 	start += sprintf(start, format_config,
 			 /* mark active/actual/current cfg. */
 			 active ? '*' : ' ',
 			 desc->bNumInterfaces,
 			 desc->bConfigurationValue,
 			 desc->bmAttributes,
-			 desc->bMaxPower * 2);
+			 desc->bMaxPower * mul);
 	return start;
 }
 
@@ -342,7 +348,8 @@ static char *usb_dump_config(int speed, char *start, char *end,
 	if (!config)
 		/* getting these some in 2.3.7; none in 2.3.6 */
 		return start + sprintf(start, "(null Cfg. desc.)\n");
-	start = usb_dump_config_descriptor(start, end, &config->desc, active);
+	start = usb_dump_config_descriptor(start, end, &config->desc, active,
+			speed);
 	for (i = 0; i < USB_MAXIADS; i++) {
 		if (config->intf_assoc[i] == NULL)
 			break;
