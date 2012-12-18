@@ -1,4 +1,4 @@
-#include <linux/mutex.h>
+#include <linux/atomic.h>
 #include <linux/rwsem.h>
 #include <linux/percpu.h>
 #include <linux/wait.h>
@@ -13,8 +13,8 @@ int percpu_init_rwsem(struct percpu_rw_semaphore *brw)
 	if (unlikely(!brw->fast_read_ctr))
 		return -ENOMEM;
 
-	mutex_init(&brw->writer_mutex);
 	init_rwsem(&brw->rw_sem);
+	atomic_set(&brw->write_ctr, 0);
 	atomic_set(&brw->slow_read_ctr, 0);
 	init_waitqueue_head(&brw->write_waitq);
 	return 0;
@@ -28,7 +28,7 @@ void percpu_free_rwsem(struct percpu_rw_semaphore *brw)
 
 /*
  * This is the fast-path for down_read/up_read, it only needs to ensure
- * there is no pending writer (!mutex_is_locked() check) and inc/dec the
+ * there is no pending writer (atomic_read(write_ctr) == 0) and inc/dec the
  * fast per-cpu counter. The writer uses synchronize_sched_expedited() to
  * serialize with the preempt-disabled section below.
  *
@@ -44,7 +44,7 @@ void percpu_free_rwsem(struct percpu_rw_semaphore *brw)
  * If this helper fails the callers rely on the normal rw_semaphore and
  * atomic_dec_and_test(), so in this case we have the necessary barriers.
  *
- * But if it succeeds we do not have any barriers, mutex_is_locked() or
+ * But if it succeeds we do not have any barriers, atomic_read(write_ctr) or
  * __this_cpu_add() below can be reordered with any LOAD/STORE done by the
  * reader inside the critical section. See the comments in down_write and
  * up_write below.
@@ -54,7 +54,7 @@ static bool update_fast_ctr(struct percpu_rw_semaphore *brw, unsigned int val)
 	bool success = false;
 
 	preempt_disable();
-	if (likely(!mutex_is_locked(&brw->writer_mutex))) {
+	if (likely(!atomic_read(&brw->write_ctr))) {
 		__this_cpu_add(*brw->fast_read_ctr, val);
 		success = true;
 	}
@@ -101,9 +101,8 @@ static int clear_fast_ctr(struct percpu_rw_semaphore *brw)
 }
 
 /*
- * A writer takes ->writer_mutex to exclude other writers and to force the
- * readers to switch to the slow mode, note the mutex_is_locked() check in
- * update_fast_ctr().
+ * A writer increments ->write_ctr to force the readers to switch to the
+ * slow mode, note the atomic_read() check in update_fast_ctr().
  *
  * After that the readers can only inc/dec the slow ->slow_read_ctr counter,
  * ->fast_read_ctr is stable. Once the writer moves its sum into the slow
@@ -114,11 +113,10 @@ static int clear_fast_ctr(struct percpu_rw_semaphore *brw)
  */
 void percpu_down_write(struct percpu_rw_semaphore *brw)
 {
-	/* also blocks update_fast_ctr() which checks mutex_is_locked() */
-	mutex_lock(&brw->writer_mutex);
-
+	/* tell update_fast_ctr() there is a pending writer */
+	atomic_inc(&brw->write_ctr);
 	/*
-	 * 1. Ensures mutex_is_locked() is visible to any down_read/up_read
+	 * 1. Ensures that write_ctr != 0 is visible to any down_read/up_read
 	 *    so that update_fast_ctr() can't succeed.
 	 *
 	 * 2. Ensures we see the result of every previous this_cpu_add() in
@@ -130,11 +128,11 @@ void percpu_down_write(struct percpu_rw_semaphore *brw)
 	 */
 	synchronize_sched_expedited();
 
+	/* exclude other writers, and block the new readers completely */
+	down_write(&brw->rw_sem);
+
 	/* nobody can use fast_read_ctr, move its sum into slow_read_ctr */
 	atomic_add(clear_fast_ctr(brw), &brw->slow_read_ctr);
-
-	/* block the new readers completely */
-	down_write(&brw->rw_sem);
 
 	/* wait for all readers to complete their percpu_up_read() */
 	wait_event(brw->write_waitq, !atomic_read(&brw->slow_read_ctr));
@@ -142,13 +140,13 @@ void percpu_down_write(struct percpu_rw_semaphore *brw)
 
 void percpu_up_write(struct percpu_rw_semaphore *brw)
 {
-	/* allow the new readers, but only the slow-path */
+	/* release the lock, but the readers can't use the fast-path */
 	up_write(&brw->rw_sem);
-
 	/*
 	 * Insert the barrier before the next fast-path in down_read,
 	 * see W_R case in the comment above update_fast_ctr().
 	 */
 	synchronize_sched_expedited();
-	mutex_unlock(&brw->writer_mutex);
+	/* the last writer unblocks update_fast_ctr() */
+	atomic_dec(&brw->write_ctr);
 }

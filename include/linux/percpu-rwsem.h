@@ -1,14 +1,14 @@
 #ifndef _LINUX_PERCPU_RWSEM_H
 #define _LINUX_PERCPU_RWSEM_H
 
-#include <linux/mutex.h>
+#include <linux/atomic.h>
 #include <linux/rwsem.h>
 #include <linux/percpu.h>
 #include <linux/wait.h>
 
 struct percpu_rw_semaphore {
 	unsigned int __percpu	*fast_read_ctr;
-	struct mutex		writer_mutex;
+	atomic_t		write_ctr;
 	struct rw_semaphore	rw_sem;
 	atomic_t		slow_read_ctr;
 	wait_queue_head_t	write_waitq;
