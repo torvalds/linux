@@ -812,7 +812,9 @@ rexmit_timer(ulong vp)
 		since = tsince_hr(f);
 		n = f->waited_total + since;
 		n /= USEC_PER_SEC;
-		if (n > aoe_deadsecs && !(f->flags & FFL_PROBE)) {
+		if (aoe_deadsecs
+		&& n > aoe_deadsecs
+		&& !(f->flags & FFL_PROBE)) {
 			/* Waited too long.  Device failure.
 			 * Hang all frames on first hash bucket for downdev
 			 * to clean up.
