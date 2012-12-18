@@ -133,7 +133,7 @@ struct aoetgt {
 	struct list_head ffree;			/* list of free frames */
 	struct aoeif ifs[NAOEIFS];
 	struct aoeif *ifp;	/* current aoeif in use */
-	ushort nout;		/* value of nout when skb was sent */
+	ushort nout;		/* number of AoE commands outstanding */
 	ushort maxout;		/* current value for max outstanding */
 	ushort next_cwnd;	/* incr maxout after decrementing to zero */
 	ushort ssthresh;	/* slow start threshold */
