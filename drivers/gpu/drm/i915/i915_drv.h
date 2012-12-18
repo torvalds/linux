@@ -801,7 +801,7 @@ typedef struct drm_i915_private {
 		unsigned long stolen_base; /* limited to low memory (32-bit) */
 
 		/** "Graphics Stolen Memory" holds the global PTEs */
-		uint32_t __iomem *gsm;
+		void __iomem *gsm;
 
 		struct io_mapping *gtt_mapping;
 		phys_addr_t gtt_base_addr;

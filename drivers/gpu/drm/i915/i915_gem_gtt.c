@@ -290,7 +290,7 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 		return;
 
 
-	pd_addr = dev_priv->mm.gsm + ppgtt->pd_offset/sizeof(gtt_pte_t);
+	pd_addr = (gtt_pte_t __iomem*)dev_priv->mm.gsm + ppgtt->pd_offset/sizeof(gtt_pte_t);
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
 		dma_addr_t pt_addr;
 
@@ -432,7 +432,8 @@ static void gen6_ggtt_bind_object(struct drm_i915_gem_object *obj,
 	struct scatterlist *sg = st->sgl;
 	const int first_entry = obj->gtt_space->start >> PAGE_SHIFT;
 	const int max_entries = dev_priv->mm.gtt->gtt_total_entries - first_entry;
-	gtt_pte_t __iomem *gtt_entries = dev_priv->mm.gsm + first_entry;
+	gtt_pte_t __iomem *gtt_entries =
+		(gtt_pte_t __iomem *)dev_priv->mm.gsm + first_entry;
 	int unused, i = 0;
 	unsigned int len, m = 0;
 	dma_addr_t addr;
