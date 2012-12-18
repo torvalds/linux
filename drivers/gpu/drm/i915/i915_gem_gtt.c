@@ -525,10 +525,10 @@ static void i915_gtt_color_adjust(struct drm_mm_node *node,
 	}
 }
 
-void i915_gem_init_global_gtt(struct drm_device *dev,
-			      unsigned long start,
-			      unsigned long mappable_end,
-			      unsigned long end)
+void i915_gem_setup_global_gtt(struct drm_device *dev,
+			       unsigned long start,
+			       unsigned long mappable_end,
+			       unsigned long end)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_mm_node *entry;
@@ -571,6 +571,57 @@ void i915_gem_init_global_gtt(struct drm_device *dev,
 
 	/* And finally clear the reserved guard page */
 	i915_ggtt_clear_range(dev, end / PAGE_SIZE - 1, 1);
+}
+
+static bool
+intel_enable_ppgtt(struct drm_device *dev)
+{
+	if (i915_enable_ppgtt >= 0)
+		return i915_enable_ppgtt;
+
+#ifdef CONFIG_INTEL_IOMMU
+	/* Disable ppgtt on SNB if VT-d is on. */
+	if (INTEL_INFO(dev)->gen == 6 && intel_iommu_gfx_mapped)
+		return false;
+#endif
+
+	return true;
+}
+
+void i915_gem_init_global_gtt(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long gtt_size, mappable_size;
+	int ret;
+
+	gtt_size = dev_priv->mm.gtt->gtt_total_entries << PAGE_SHIFT;
+	mappable_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
+
+	if (intel_enable_ppgtt(dev) && HAS_ALIASING_PPGTT(dev)) {
+		/* PPGTT pdes are stolen from global gtt ptes, so shrink the
+		 * aperture accordingly when using aliasing ppgtt. */
+		gtt_size -= I915_PPGTT_PD_ENTRIES*PAGE_SIZE;
+
+		i915_gem_setup_global_gtt(dev, 0, mappable_size, gtt_size);
+
+		ret = i915_gem_init_aliasing_ppgtt(dev);
+		if (ret) {
+			mutex_unlock(&dev->struct_mutex);
+			return;
+		}
+	} else {
+		/* Let GEM Manage all of the aperture.
+		 *
+		 * However, leave one page at the end still bound to the scratch
+		 * page.  There are a number of places where the hardware
+		 * apparently prefetches past the end of the object, and we've
+		 * seen multiple hangs with the GPU head pointer stuck in a
+		 * batchbuffer bound at the last page of the aperture.  One page
+		 * should be enough to keep any prefetching inside of the
+		 * aperture.
+		 */
+		i915_gem_setup_global_gtt(dev, 0, mappable_size, gtt_size);
+	}
 }
 
 static int setup_scratch_page(struct drm_device *dev)
