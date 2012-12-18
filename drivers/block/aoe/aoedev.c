@@ -69,25 +69,34 @@ minor_get_static(ulong *sysminor, ulong aoemaj, int aoemin)
 		NPERSHELF = 16,
 	};
 
+	if (aoemin >= NPERSHELF) {
+		pr_err("aoe: %s %d slots per shelf\n",
+			"static minor device numbers support only",
+			NPERSHELF);
+		error = -1;
+		goto out;
+	}
+
 	n = aoemaj * NPERSHELF + aoemin;
-	if (aoemin >= NPERSHELF || n >= N_DEVS) {
+	if (n >= N_DEVS) {
 		pr_err("aoe: %s with e%ld.%d\n",
 			"cannot use static minor device numbers",
 			aoemaj, aoemin);
 		error = -1;
-	} else {
-		spin_lock_irqsave(&used_minors_lock, flags);
-		if (test_bit(n, used_minors)) {
-			pr_err("aoe: %s %lu\n",
-				"existing device already has static minor number",
-				n);
-			error = -1;
-		} else
-			set_bit(n, used_minors);
-		spin_unlock_irqrestore(&used_minors_lock, flags);
+		goto out;
 	}
 
+	spin_lock_irqsave(&used_minors_lock, flags);
+	if (test_bit(n, used_minors)) {
+		pr_err("aoe: %s %lu\n",
+			"existing device already has static minor number",
+			n);
+		error = -1;
+	} else
+		set_bit(n, used_minors);
+	spin_unlock_irqrestore(&used_minors_lock, flags);
 	*sysminor = n;
+out:
 	return error;
 }
 
