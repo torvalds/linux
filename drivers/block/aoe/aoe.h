@@ -84,7 +84,7 @@ enum {
 enum {
 	DEFAULTBCNT = 2 * 512,	/* 2 sectors */
 	MIN_BUFS = 16,
-	NTARGETS = 8,
+	NTARGETS = 4,
 	NAOEIFS = 8,
 	NSKBPOOLMAX = 256,
 	NFACTIVE = 61,
@@ -185,9 +185,9 @@ struct aoedev {
 	ulong maxbcnt;
 	struct list_head factive[NFACTIVE];	/* hash of active frames */
 	struct list_head rexmitq; /* deferred retransmissions */
-	struct aoetgt *targets[NTARGETS];
+	struct aoetgt **targets;
+	ulong ntargets;		/* number of allocated aoetgt pointers */
 	struct aoetgt **tgt;	/* target in use when working */
-	ulong ntargets;
 	ulong kicked;
 	char ident[512];
 };

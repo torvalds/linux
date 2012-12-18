@@ -242,14 +242,14 @@ newframe(struct aoedev *d)
 	int use_tainted;
 	int has_untainted;
 
-	if (d->targets[0] == NULL) {	/* shouldn't happen, but I'm paranoid */
+	if (!d->targets || !d->targets[0]) {
 		printk(KERN_ERR "aoe: NULL TARGETS!\n");
 		return NULL;
 	}
 	tt = d->tgt;	/* last used target */
 	for (use_tainted = 0, has_untainted = 0;;) {
 		tt++;
-		if (tt >= &d->targets[NTARGETS] || !*tt)
+		if (tt >= &d->targets[d->ntargets] || !*tt)
 			tt = d->targets;
 		t = *tt;
 		if (!t->taint) {
@@ -1104,7 +1104,7 @@ gettgt(struct aoedev *d, char *addr)
 	struct aoetgt **t, **e;
 
 	t = d->targets;
-	e = t + NTARGETS;
+	e = t + d->ntargets;
 	for (; t < e && *t; t++)
 		if (memcmp((*t)->addr, addr, sizeof((*t)->addr)) == 0)
 			return *t;
@@ -1479,28 +1479,44 @@ aoecmd_ata_id(struct aoedev *d)
 	return skb;
 }
 
+static struct aoetgt **
+grow_targets(struct aoedev *d)
+{
+	ulong oldn, newn;
+	struct aoetgt **tt;
+
+	oldn = d->ntargets;
+	newn = oldn * 2;
+	tt = kcalloc(newn, sizeof(*d->targets), GFP_ATOMIC);
+	if (!tt)
+		return NULL;
+	memmove(tt, d->targets, sizeof(*d->targets) * oldn);
+	d->tgt = tt + (d->tgt - d->targets);
+	kfree(d->targets);
+	d->targets = tt;
+	d->ntargets = newn;
+
+	return &d->targets[oldn];
+}
+
 static struct aoetgt *
 addtgt(struct aoedev *d, char *addr, ulong nframes)
 {
 	struct aoetgt *t, **tt, **te;
 
 	tt = d->targets;
-	te = tt + NTARGETS;
+	te = tt + d->ntargets;
 	for (; tt < te && *tt; tt++)
 		;
 
 	if (tt == te) {
-		printk(KERN_INFO
-			"aoe: device addtgt failure; too many targets\n");
-		return NULL;
+		tt = grow_targets(d);
+		if (!tt)
+			goto nomem;
 	}
 	t = kzalloc(sizeof(*t), GFP_ATOMIC);
-	if (!t) {
-		printk(KERN_INFO "aoe: cannot allocate memory to add target\n");
-		return NULL;
-	}
-
-	d->ntargets++;
+	if (!t)
+		goto nomem;
 	t->nframes = nframes;
 	t->d = d;
 	memcpy(t->addr, addr, sizeof t->addr);
@@ -1509,6 +1525,10 @@ addtgt(struct aoedev *d, char *addr, ulong nframes)
 	t->maxout = t->nframes / 2;
 	INIT_LIST_HEAD(&t->ffree);
 	return *tt = t;
+
+ nomem:
+	pr_info("aoe: cannot allocate memory to add target\n");
+	return NULL;
 }
 
 static void
@@ -1518,7 +1538,7 @@ setdbcnt(struct aoedev *d)
 	int bcnt = 0;
 
 	t = d->targets;
-	e = t + NTARGETS;
+	e = t + d->ntargets;
 	for (; t < e && *t; t++)
 		if (bcnt == 0 || bcnt > (*t)->minbcnt)
 			bcnt = (*t)->minbcnt;
@@ -1662,7 +1682,7 @@ aoecmd_cleanslate(struct aoedev *d)
 	d->maxbcnt = 0;
 
 	t = d->targets;
-	te = t + NTARGETS;
+	te = t + d->ntargets;
 	for (; t < te && *t; t++)
 		aoecmd_wreset(*t);
 }

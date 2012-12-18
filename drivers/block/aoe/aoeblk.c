@@ -67,7 +67,7 @@ static ssize_t aoedisk_show_netif(struct device *dev,
 	nd = nds;
 	ne = nd + ARRAY_SIZE(nds);
 	t = d->targets;
-	te = t + NTARGETS;
+	te = t + d->ntargets;
 	for (; t < te && *t; t++) {
 		ifp = (*t)->ifs;
 		e = ifp + NAOEIFS;

@@ -214,7 +214,7 @@ aoedev_downdev(struct aoedev *d)
 
 	/* reset window dressings */
 	tt = d->targets;
-	te = tt + NTARGETS;
+	te = tt + d->ntargets;
 	for (; tt < te && (t = *tt); tt++) {
 		aoecmd_wreset(t);
 		t->nout = 0;
@@ -284,7 +284,7 @@ freedev(struct aoedev *d)
 		blk_cleanup_queue(d->blkq);
 	}
 	t = d->targets;
-	e = t + NTARGETS;
+	e = t + d->ntargets;
 	for (; t < e && *t; t++)
 		freetgt(d, *t);
 	if (d->bufpool)
@@ -376,6 +376,8 @@ restart:
 			dd = &d->next;
 		}
 		spin_unlock(&d->lock);
+		if (doomed)
+			kfree(doomed->targets);
 		kfree(doomed);
 	}
 	spin_unlock_irqrestore(&devlist_lock, flags);
@@ -456,6 +458,12 @@ aoedev_by_aoeaddr(ulong maj, int min, int do_alloc)
 	d = kcalloc(1, sizeof *d, GFP_ATOMIC);
 	if (!d)
 		goto out;
+	d->targets = kcalloc(NTARGETS, sizeof(*d->targets), GFP_ATOMIC);
+	if (!d->targets) {
+		kfree(d);
+		goto out;
+	}
+	d->ntargets = NTARGETS;
 	INIT_WORK(&d->work, aoecmd_sleepwork);
 	spin_lock_init(&d->lock);
 	skb_queue_head_init(&d->skbpool);
