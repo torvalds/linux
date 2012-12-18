@@ -170,30 +170,40 @@ aoe_failip(struct aoedev *d)
 		aoe_end_request(d, rq, 0);
 }
 
+static void
+downdev_frame(struct list_head *pos)
+{
+	struct frame *f;
+
+	f = list_entry(pos, struct frame, head);
+	list_del(pos);
+	if (f->buf) {
+		f->buf->nframesout--;
+		aoe_failbuf(f->t->d, f->buf);
+	}
+	aoe_freetframe(f);
+}
+
 void
 aoedev_downdev(struct aoedev *d)
 {
 	struct aoetgt *t, **tt, **te;
-	struct frame *f;
 	struct list_head *head, *pos, *nx;
 	struct request *rq;
 	int i;
 
 	d->flags &= ~DEVFL_UP;
 
-	/* clean out active buffers */
+	/* clean out active and to-be-retransmitted buffers */
 	for (i = 0; i < NFACTIVE; i++) {
 		head = &d->factive[i];
-		list_for_each_safe(pos, nx, head) {
-			f = list_entry(pos, struct frame, head);
-			list_del(pos);
-			if (f->buf) {
-				f->buf->nframesout--;
-				aoe_failbuf(d, f->buf);
-			}
-			aoe_freetframe(f);
-		}
+		list_for_each_safe(pos, nx, head)
+			downdev_frame(pos);
 	}
+	head = &d->rexmitq;
+	list_for_each_safe(pos, nx, head)
+		downdev_frame(pos);
+
 	/* reset window dressings */
 	tt = d->targets;
 	te = tt + NTARGETS;

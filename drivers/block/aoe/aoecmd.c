@@ -352,6 +352,7 @@ aoecmd_ata_rw(struct aoedev *d)
 	fhash(f);
 	t->nout++;
 	f->waited = 0;
+	f->waited_total = 0;
 	f->buf = buf;
 	f->bcnt = bcnt;
 	f->lba = buf->sector;
@@ -556,45 +557,68 @@ ejectif(struct aoetgt *t, struct aoeif *ifp)
 	dev_put(nd);
 }
 
+static struct frame *
+reassign_frame(struct list_head *pos)
+{
+	struct frame *f;
+	struct frame *nf;
+	struct sk_buff *skb;
+
+	f = list_entry(pos, struct frame, head);
+	nf = newframe(f->t->d);
+	if (!nf)
+		return NULL;
+
+	list_del(pos);
+
+	skb = nf->skb;
+	nf->skb = f->skb;
+	nf->buf = f->buf;
+	nf->bcnt = f->bcnt;
+	nf->lba = f->lba;
+	nf->bv = f->bv;
+	nf->bv_off = f->bv_off;
+	nf->waited = 0;
+	nf->waited_total = f->waited_total;
+	nf->sent = f->sent;
+	f->skb = skb;
+	aoe_freetframe(f);
+	f->t->nout--;
+	nf->t->nout++;
+
+	return nf;
+}
+
 static int
 sthtith(struct aoedev *d)
 {
 	struct frame *f, *nf;
 	struct list_head *nx, *pos, *head;
-	struct sk_buff *skb;
 	struct aoetgt *ht = d->htgt;
 	int i;
 
+	/* look through the active and pending retransmit frames */
 	for (i = 0; i < NFACTIVE; i++) {
 		head = &d->factive[i];
 		list_for_each_safe(pos, nx, head) {
 			f = list_entry(pos, struct frame, head);
 			if (f->t != ht)
 				continue;
-
-			nf = newframe(d);
+			nf = reassign_frame(pos);
 			if (!nf)
 				return 0;
-
-			/* remove frame from active list */
-			list_del(pos);
-
-			/* reassign all pertinent bits to new outbound frame */
-			skb = nf->skb;
-			nf->skb = f->skb;
-			nf->buf = f->buf;
-			nf->bcnt = f->bcnt;
-			nf->lba = f->lba;
-			nf->bv = f->bv;
-			nf->bv_off = f->bv_off;
-			nf->waited = 0;
-			nf->sent_jiffs = f->sent_jiffs;
-			f->skb = skb;
-			aoe_freetframe(f);
-			ht->nout--;
-			nf->t->nout++;
 			resend(d, nf);
 		}
+	}
+	head = &d->rexmitq;
+	list_for_each_safe(pos, nx, head) {
+		f = list_entry(pos, struct frame, head);
+		if (f->t != ht)
+			continue;
+		nf = reassign_frame(pos);
+		if (!nf)
+			return 0;
+		resend(d, nf);
 	}
 	/* We've cleaned up the outstanding so take away his
 	 * interfaces so he won't be used.  We should remove him from
@@ -612,6 +636,7 @@ rexmit_deferred(struct aoedev *d)
 	struct aoetgt *t;
 	struct frame *f;
 	struct list_head *pos, *nx, *head;
+	int since;
 
 	head = &d->rexmitq;
 	list_for_each_safe(pos, nx, head) {
@@ -621,6 +646,9 @@ rexmit_deferred(struct aoedev *d)
 			continue;
 		list_del(pos);
 		t->nout++;
+		since = tsince_hr(f);
+		f->waited += since;
+		f->waited_total += since;
 		resend(d, f);
 	}
 }
@@ -637,6 +665,7 @@ rexmit_timer(ulong vp)
 	register long timeout;
 	ulong flags, n;
 	int i;
+	int since;
 
 	d = (struct aoedev *) vp;
 
@@ -669,7 +698,8 @@ rexmit_timer(ulong vp)
 	while (!list_empty(&flist)) {
 		pos = flist.next;
 		f = list_entry(pos, struct frame, head);
-		n = f->waited += tsince_hr(f);
+		since = tsince_hr(f);
+		n = f->waited_total + since;
 		n /= USEC_PER_SEC;
 		if (n > aoe_deadsecs) {
 			/* Waited too long.  Device failure.
@@ -1301,6 +1331,7 @@ aoecmd_ata_id(struct aoedev *d)
 	fhash(f);
 	t->nout++;
 	f->waited = 0;
+	f->waited_total = 0;
 
 	/* set up ata header */
 	ah->scnt = 1;

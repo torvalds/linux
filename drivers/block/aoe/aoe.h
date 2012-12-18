@@ -108,6 +108,7 @@ struct frame {
 	struct timeval sent;	/* high-res time packet was sent */
 	u32 sent_jiffs;		/* low-res jiffies-based sent time */
 	ulong waited;
+	ulong waited_total;
 	struct aoetgt *t;		/* parent target I belong to */
 	sector_t lba;
 	struct sk_buff *skb;		/* command skb freed on module exit */
