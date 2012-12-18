@@ -86,8 +86,11 @@ enum {
 	NFACTIVE = 61,
 
 	TIMERTICK = HZ / 10,
-	MINTIMER = HZ >> 2,
+	RTTSCALE = 8,
+	RTTDSCALE = 3,
 	MAXTIMER = HZ << 1,
+	RTTAVG_INIT = HZ / 4 << RTTSCALE,
+	RTTDEV_INIT = RTTAVG_INIT / 4,
 };
 
 struct buf {
@@ -127,10 +130,11 @@ struct aoetgt {
 	struct list_head ffree;			/* list of free frames */
 	struct aoeif ifs[NAOEIFS];
 	struct aoeif *ifp;	/* current aoeif in use */
-	ushort nout;
+	ushort nout;		/* value of nout when skb was sent */
 	ushort maxout;		/* current value for max outstanding */
+	ushort next_cwnd;	/* incr maxout after decrementing to zero */
+	ushort ssthresh;	/* slow start threshold */
 	ulong falloc;		/* number of allocated frames */
-	ulong lastwadj;		/* last window adjustment */
 	int minbcnt;
 	int wpkts, rpkts;
 };
@@ -142,8 +146,8 @@ struct aoedev {
 	u16 aoeminor;
 	u16 flags;
 	u16 nopen;		/* (bd_openers isn't available without sleeping) */
-	u16 rttavg;		/* round trip average of requests/responses */
-	u16 mintimer;
+	u16 rttavg;		/* scaled AoE round trip time average */
+	u16 rttdev;		/* scaled round trip time mean deviation */
 	u16 fw_ver;		/* version of blade's firmware */
 	u16 lasttag;		/* last tag sent */
 	u16 useme;
@@ -164,6 +168,7 @@ struct aoedev {
 	} ip;
 	ulong maxbcnt;
 	struct list_head factive[NFACTIVE];	/* hash of active frames */
+	struct list_head rexmitq; /* deferred retransmissions */
 	struct aoetgt *targets[NTARGETS];
 	struct aoetgt **tgt;	/* target in use when working */
 	struct aoetgt *htgt;	/* target needing rexmit assistance */
@@ -196,6 +201,7 @@ void aoecmd_cfg(ushort aoemajor, unsigned char aoeminor);
 struct sk_buff *aoecmd_ata_rsp(struct sk_buff *);
 void aoecmd_cfg_rsp(struct sk_buff *);
 void aoecmd_sleepwork(struct work_struct *);
+void aoecmd_wreset(struct aoetgt *t);
 void aoecmd_cleanslate(struct aoedev *);
 void aoecmd_exit(void);
 int aoecmd_init(void);

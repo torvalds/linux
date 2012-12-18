@@ -198,7 +198,7 @@ aoedev_downdev(struct aoedev *d)
 	tt = d->targets;
 	te = tt + NTARGETS;
 	for (; tt < te && (t = *tt); tt++) {
-		t->maxout = t->nframes;
+		aoecmd_wreset(t);
 		t->nout = 0;
 	}
 
@@ -391,10 +391,12 @@ aoedev_by_aoeaddr(ulong maj, int min, int do_alloc)
 	d->ref = 1;
 	for (i = 0; i < NFACTIVE; i++)
 		INIT_LIST_HEAD(&d->factive[i]);
+	INIT_LIST_HEAD(&d->rexmitq);
 	d->sysminor = sysminor;
 	d->aoemajor = maj;
 	d->aoeminor = min;
-	d->mintimer = MINTIMER;
+	d->rttavg = RTTAVG_INIT;
+	d->rttdev = RTTDEV_INIT;
 	d->next = devlist;
 	devlist = d;
  out:
