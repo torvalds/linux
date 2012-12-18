@@ -1353,11 +1353,11 @@ size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp)
 	struct perf_evsel *pos;
 	size_t ret = fprintf(fp, "Aggregated stats:\n");
 
-	ret += hists__fprintf_nr_events(&session->hists, fp);
+	ret += events_stats__fprintf(&session->hists.stats, fp);
 
 	list_for_each_entry(pos, &session->evlist->entries, node) {
 		ret += fprintf(fp, "%s stats:\n", perf_evsel__name(pos));
-		ret += hists__fprintf_nr_events(&pos->hists, fp);
+		ret += events_stats__fprintf(&pos->hists.stats, fp);
 	}
 
 	return ret;

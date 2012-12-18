@@ -98,7 +98,7 @@ void hists__output_recalc_col_len(struct hists *hists, int max_rows);
 
 void hists__inc_nr_entries(struct hists *hists, struct hist_entry *h);
 void hists__inc_nr_events(struct hists *self, u32 type);
-size_t hists__fprintf_nr_events(struct hists *self, FILE *fp);
+size_t events_stats__fprintf(struct events_stats *stats, FILE *fp);
 
 size_t hists__fprintf(struct hists *self, bool show_header, int max_rows,
 		      int max_cols, FILE *fp);
