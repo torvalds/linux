@@ -128,7 +128,6 @@ struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
 void kmem_cache_destroy(struct kmem_cache *);
 int kmem_cache_shrink(struct kmem_cache *);
 void kmem_cache_free(struct kmem_cache *, void *);
-unsigned int kmem_cache_size(struct kmem_cache *);
 
 /*
  * Please use this macro to create slab caches. Simply specify the
@@ -386,6 +385,14 @@ static inline void *kzalloc(size_t size, gfp_t flags)
 static inline void *kzalloc_node(size_t size, gfp_t flags, int node)
 {
 	return kmalloc_node(size, flags | __GFP_ZERO, node);
+}
+
+/*
+ * Determine the size of a slab object
+ */
+static inline unsigned int kmem_cache_size(struct kmem_cache *s)
+{
+	return s->object_size;
 }
 
 void __init kmem_cache_init_late(void);

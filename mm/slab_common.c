@@ -73,6 +73,34 @@ static inline int kmem_cache_sanity_check(const char *name, size_t size)
 #endif
 
 /*
+ * Figure out what the alignment of the objects will be given a set of
+ * flags, a user specified alignment and the size of the objects.
+ */
+unsigned long calculate_alignment(unsigned long flags,
+		unsigned long align, unsigned long size)
+{
+	/*
+	 * If the user wants hardware cache aligned objects then follow that
+	 * suggestion if the object is sufficiently large.
+	 *
+	 * The hardware cache alignment cannot override the specified
+	 * alignment though. If that is greater then use it.
+	 */
+	if (flags & SLAB_HWCACHE_ALIGN) {
+		unsigned long ralign = cache_line_size();
+		while (size <= ralign / 2)
+			ralign /= 2;
+		align = max(align, ralign);
+	}
+
+	if (align < ARCH_SLAB_MINALIGN)
+		align = ARCH_SLAB_MINALIGN;
+
+	return ALIGN(align, sizeof(void *));
+}
+
+
+/*
  * kmem_cache_create - Create a cache.
  * @name: A string which is used in /proc/slabinfo to identify this cache.
  * @size: The size of objects to be created in this cache.
@@ -109,6 +137,13 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align
 	if (!kmem_cache_sanity_check(name, size) == 0)
 		goto out_locked;
 
+	/*
+	 * Some allocators will constraint the set of valid flags to a subset
+	 * of all flags. We expect them to define CACHE_CREATE_MASK in this
+	 * case, and we'll just provide them with a sanitized version of the
+	 * passed flags.
+	 */
+	flags &= CACHE_CREATE_MASK;
 
 	s = __kmem_cache_alias(name, size, align, flags, ctor);
 	if (s)
@@ -117,7 +152,7 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align
 	s = kmem_cache_zalloc(kmem_cache, GFP_KERNEL);
 	if (s) {
 		s->object_size = s->size = size;
-		s->align = align;
+		s->align = calculate_alignment(flags, align, size);
 		s->ctor = ctor;
 		s->name = kstrdup(name, GFP_KERNEL);
 		if (!s->name) {
@@ -194,6 +229,42 @@ int slab_is_available(void)
 {
 	return slab_state >= UP;
 }
+
+#ifndef CONFIG_SLOB
+/* Create a cache during boot when no slab services are available yet */
+void __init create_boot_cache(struct kmem_cache *s, const char *name, size_t size,
+		unsigned long flags)
+{
+	int err;
+
+	s->name = name;
+	s->size = s->object_size = size;
+	s->align = calculate_alignment(flags, ARCH_KMALLOC_MINALIGN, size);
+	err = __kmem_cache_create(s, flags);
+
+	if (err)
+		panic("Creation of kmalloc slab %s size=%zd failed. Reason %d\n",
+					name, size, err);
+
+	s->refcount = -1;	/* Exempt from merging for now */
+}
+
+struct kmem_cache *__init create_kmalloc_cache(const char *name, size_t size,
+				unsigned long flags)
+{
+	struct kmem_cache *s = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
+
+	if (!s)
+		panic("Out of memory when creating slab %s\n", name);
+
+	create_boot_cache(s, name, size, flags);
+	list_add(&s->list, &slab_caches);
+	s->refcount = 1;
+	return s;
+}
+
+#endif /* !CONFIG_SLOB */
+
 
 #ifdef CONFIG_SLABINFO
 static void print_slabinfo_header(struct seq_file *m)
