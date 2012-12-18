@@ -717,10 +717,15 @@ int hist_entry__annotate(struct hist_entry *he, size_t privsize)
 	return symbol__annotate(he->ms.sym, he->ms.map, privsize);
 }
 
+void events_stats__inc(struct events_stats *stats, u32 type)
+{
+	++stats->nr_events[0];
+	++stats->nr_events[type];
+}
+
 void hists__inc_nr_events(struct hists *hists, u32 type)
 {
-	++hists->stats.nr_events[0];
-	++hists->stats.nr_events[type];
+	events_stats__inc(&hists->stats, type);
 }
 
 static struct hist_entry *hists__add_dummy_entry(struct hists *hists,

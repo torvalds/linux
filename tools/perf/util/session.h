@@ -34,11 +34,7 @@ struct perf_session {
 	struct rb_root		machines;
 	struct perf_evlist	*evlist;
 	struct pevent		*pevent;
-	/*
-	 * FIXME: Need to split this up further, we need global
-	 *	  stats + per event stats.
-	 */
-	struct hists		hists;
+	struct events_stats	stats;
 	int			fd;
 	bool			fd_pipe;
 	bool			repipe;

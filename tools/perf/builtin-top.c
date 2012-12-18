@@ -728,7 +728,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 
 	if (!machine) {
 		pr_err("%u unprocessable samples recorded.\n",
-		       top->session->hists.stats.nr_unprocessable_samples++);
+		       top->session->stats.nr_unprocessable_samples++);
 		return;
 	}
 
@@ -878,7 +878,7 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 			hists__inc_nr_events(&evsel->hists, event->header.type);
 			machine__process_event(machine, event);
 		} else
-			++session->hists.stats.nr_unknown_events;
+			++session->stats.nr_unknown_events;
 	}
 }
 
