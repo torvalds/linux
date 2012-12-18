@@ -64,7 +64,9 @@ static void put_ldisc(struct tty_ldisc *ld)
 		return;
 	}
 	raw_spin_unlock_irqrestore(&tty_ldisc_lock, flags);
-	wake_up(&ld->wq_idle);
+
+	if (waitqueue_active(&ld->wq_idle))
+		wake_up(&ld->wq_idle);
 }
 
 /**
