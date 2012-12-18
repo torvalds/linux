@@ -282,7 +282,7 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 	uint32_t pd_offset;
 	struct intel_ring_buffer *ring;
 	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
-	uint32_t __iomem *pd_addr;
+	gtt_pte_t __iomem *pd_addr;
 	uint32_t pd_entry;
 	int i;
 
@@ -290,7 +290,7 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 		return;
 
 
-	pd_addr = dev_priv->mm.gtt->gtt + ppgtt->pd_offset/sizeof(uint32_t);
+	pd_addr = dev_priv->mm.gtt->gtt + ppgtt->pd_offset/sizeof(gtt_pte_t);
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
 		dma_addr_t pt_addr;
 
