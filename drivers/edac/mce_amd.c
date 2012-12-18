@@ -64,6 +64,9 @@ EXPORT_SYMBOL_GPL(to_msgs);
 const char * const ii_msgs[] = { "MEM", "RESV", "IO", "GEN" };
 EXPORT_SYMBOL_GPL(ii_msgs);
 
+/* internal error type */
+const char * const uu_msgs[] = { "RESV", "RESV", "HWA", "RESV" };
+
 static const char * const f15h_mc1_mce_desc[] = {
 	"UC during a demand linefill from L2",
 	"Parity error during data load from IC",
@@ -176,7 +179,7 @@ static bool k8_mc0_mce(u16 ec, u8 xec)
 	return f10h_mc0_mce(ec, xec);
 }
 
-static bool f14h_mc0_mce(u16 ec, u8 xec)
+static bool cat_mc0_mce(u16 ec, u8 xec)
 {
 	u8 r4	 = R4(ec);
 	bool ret = true;
@@ -330,22 +333,28 @@ static bool k8_mc1_mce(u16 ec, u8 xec)
 	return ret;
 }
 
-static bool f14h_mc1_mce(u16 ec, u8 xec)
+static bool cat_mc1_mce(u16 ec, u8 xec)
 {
 	u8 r4    = R4(ec);
 	bool ret = true;
 
-	if (MEM_ERROR(ec)) {
-		if (TT(ec) != 0 || LL(ec) != 1)
-			ret = false;
+	if (!MEM_ERROR(ec))
+		return false;
 
-		if (r4 == R4_IRD)
-			pr_cont("Data/tag array parity error for a tag hit.\n");
-		else if (r4 == R4_SNOOP)
-			pr_cont("Tag error during snoop/victimization.\n");
-		else
-			ret = false;
-	}
+	if (TT(ec) != TT_INSTR)
+		return false;
+
+	if (r4 == R4_IRD)
+		pr_cont("Data/tag array parity error for a tag hit.\n");
+	else if (r4 == R4_SNOOP)
+		pr_cont("Tag error during snoop/victimization.\n");
+	else if (xec == 0x0)
+		pr_cont("Tag parity error from victim castout.\n");
+	else if (xec == 0x2)
+		pr_cont("Microcode patch RAM parity error.\n");
+	else
+		ret = false;
+
 	return ret;
 }
 
@@ -469,6 +478,47 @@ static bool f15h_mc2_mce(u16 ec, u8 xec)
 	return ret;
 }
 
+static bool f16h_mc2_mce(u16 ec, u8 xec)
+{
+	u8 r4 = R4(ec);
+
+	if (!MEM_ERROR(ec))
+		return false;
+
+	switch (xec) {
+	case 0x04 ... 0x05:
+		pr_cont("%cBUFF parity error.\n", (r4 == R4_RD) ? 'I' : 'O');
+		break;
+
+	case 0x09 ... 0x0b:
+	case 0x0d ... 0x0f:
+		pr_cont("ECC error in L2 tag (%s).\n",
+			((r4 == R4_GEN)   ? "BankReq" :
+			((r4 == R4_SNOOP) ? "Prb"     : "Fill")));
+		break;
+
+	case 0x10 ... 0x19:
+	case 0x1b:
+		pr_cont("ECC error in L2 data array (%s).\n",
+			(((r4 == R4_RD) && !(xec & 0x3)) ? "Hit"  :
+			((r4 == R4_GEN)   ? "Attr" :
+			((r4 == R4_EVICT) ? "Vict" : "Fill"))));
+		break;
+
+	case 0x1c ... 0x1d:
+	case 0x1f:
+		pr_cont("Parity error in L2 attribute bits (%s).\n",
+			((r4 == R4_RD)  ? "Hit"  :
+			((r4 == R4_GEN) ? "Attr" : "Fill")));
+		break;
+
+	default:
+		return false;
+	}
+
+	return true;
+}
+
 static void decode_mc2_mce(struct mce *m)
 {
 	u16 ec = EC(m->status);
@@ -546,7 +596,7 @@ static void decode_mc4_mce(struct mce *m)
 		return;
 
 	case 0x19:
-		if (boot_cpu_data.x86 == 0x15)
+		if (boot_cpu_data.x86 == 0x15 || boot_cpu_data.x86 == 0x16)
 			pr_cont("Compute Unit Data Error.\n");
 		else
 			goto wrong_mc4_mce;
@@ -632,6 +682,10 @@ static void decode_mc6_mce(struct mce *m)
 
 static inline void amd_decode_err_code(u16 ec)
 {
+	if (INT_ERROR(ec)) {
+		pr_emerg(HW_ERR "internal: %s\n", UU_MSG(ec));
+		return;
+	}
 
 	pr_emerg(HW_ERR "cache level: %s", LL_MSG(ec));
 
@@ -736,7 +790,7 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 		((m->status & MCI_STATUS_PCC)	? "PCC"	  : "-"),
 		((m->status & MCI_STATUS_ADDRV)	? "AddrV" : "-"));
 
-	if (c->x86 == 0x15)
+	if (c->x86 == 0x15 || c->x86 == 0x16)
 		pr_cont("|%s|%s",
 			((m->status & MCI_STATUS_DEFERRED) ? "Deferred" : "-"),
 			((m->status & MCI_STATUS_POISON)   ? "Poison"   : "-"));
@@ -768,7 +822,7 @@ static int __init mce_amd_init(void)
 	if (c->x86_vendor != X86_VENDOR_AMD)
 		return 0;
 
-	if (c->x86 < 0xf || c->x86 > 0x15)
+	if (c->x86 < 0xf || c->x86 > 0x16)
 		return 0;
 
 	fam_ops = kzalloc(sizeof(struct amd_decoder_ops), GFP_KERNEL);
@@ -802,8 +856,8 @@ static int __init mce_amd_init(void)
 
 	case 0x14:
 		nb_err_cpumask  = 0x3;
-		fam_ops->mc0_mce = f14h_mc0_mce;
-		fam_ops->mc1_mce = f14h_mc1_mce;
+		fam_ops->mc0_mce = cat_mc0_mce;
+		fam_ops->mc1_mce = cat_mc1_mce;
 		fam_ops->mc2_mce = k8_mc2_mce;
 		break;
 
@@ -812,6 +866,13 @@ static int __init mce_amd_init(void)
 		fam_ops->mc0_mce = f15h_mc0_mce;
 		fam_ops->mc1_mce = f15h_mc1_mce;
 		fam_ops->mc2_mce = f15h_mc2_mce;
+		break;
+
+	case 0x16:
+		xec_mask = 0x1f;
+		fam_ops->mc0_mce = cat_mc0_mce;
+		fam_ops->mc1_mce = cat_mc1_mce;
+		fam_ops->mc2_mce = f16h_mc2_mce;
 		break;
 
 	default:
