@@ -53,9 +53,7 @@ struct cfg80211_registered_device {
 	int devlist_generation;
 	int opencount; /* also protected by devlist_mtx */
 	wait_queue_head_t dev_wait;
-//gwl 
-	u32 ap_beacons_nlpid;
-//=========
+
 	/* BSSes/scanning */
 	spinlock_t bss_lock;
 	struct list_head bss_list;
