@@ -2138,6 +2138,7 @@ config OLPC_XO1_RTC
 config OLPC_XO1_SCI
 	bool "OLPC XO-1 SCI extras"
 	depends on OLPC && OLPC_XO1_PM
+	depends on INPUT=y
 	select POWER_SUPPLY
 	select GPIO_CS5535
 	select MFD_CORE
