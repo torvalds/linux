@@ -220,7 +220,7 @@ static inline void task_state(struct seq_file *m, struct pid_namespace *ns,
 	seq_putc(m, '\n');
 }
 
-static void render_sigset_t(struct seq_file *m, const char *header,
+void render_sigset_t(struct seq_file *m, const char *header,
 				sigset_t *set)
 {
 	int i;
