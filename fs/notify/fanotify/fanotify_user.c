@@ -17,6 +17,7 @@
 #include <asm/ioctls.h>
 
 #include "../../mount.h"
+#include "../fdinfo.h"
 
 #define FANOTIFY_DEFAULT_MAX_EVENTS	16384
 #define FANOTIFY_DEFAULT_MAX_MARKS	8192
@@ -428,6 +429,7 @@ static long fanotify_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 }
 
 static const struct file_operations fanotify_fops = {
+	.show_fdinfo	= fanotify_show_fdinfo,
 	.poll		= fanotify_poll,
 	.read		= fanotify_read,
 	.write		= fanotify_write,
