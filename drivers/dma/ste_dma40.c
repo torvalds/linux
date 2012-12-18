@@ -639,19 +639,18 @@ static int d40_lcla_alloc_one(struct d40_chan *d40c,
 	unsigned long flags;
 	int i;
 	int ret = -EINVAL;
-	int p;
 
 	spin_lock_irqsave(&d40c->base->lcla_pool.lock, flags);
-
-	p = d40c->phy_chan->num * D40_LCLA_LINK_PER_EVENT_GRP;
 
 	/*
 	 * Allocate both src and dst at the same time, therefore the half
 	 * start on 1 since 0 can't be used since zero is used as end marker.
 	 */
 	for (i = 1 ; i < D40_LCLA_LINK_PER_EVENT_GRP / 2; i++) {
-		if (!d40c->base->lcla_pool.alloc_map[p + i]) {
-			d40c->base->lcla_pool.alloc_map[p + i] = d40d;
+		int idx = d40c->phy_chan->num * D40_LCLA_LINK_PER_EVENT_GRP + i;
+
+		if (!d40c->base->lcla_pool.alloc_map[idx]) {
+			d40c->base->lcla_pool.alloc_map[idx] = d40d;
 			d40d->lcla_alloc++;
 			ret = i;
 			break;
@@ -676,10 +675,10 @@ static int d40_lcla_free_all(struct d40_chan *d40c,
 	spin_lock_irqsave(&d40c->base->lcla_pool.lock, flags);
 
 	for (i = 1 ; i < D40_LCLA_LINK_PER_EVENT_GRP / 2; i++) {
-		if (d40c->base->lcla_pool.alloc_map[d40c->phy_chan->num *
-						    D40_LCLA_LINK_PER_EVENT_GRP + i] == d40d) {
-			d40c->base->lcla_pool.alloc_map[d40c->phy_chan->num *
-							D40_LCLA_LINK_PER_EVENT_GRP + i] = NULL;
+		int idx = d40c->phy_chan->num * D40_LCLA_LINK_PER_EVENT_GRP + i;
+
+		if (d40c->base->lcla_pool.alloc_map[idx] == d40d) {
+			d40c->base->lcla_pool.alloc_map[idx] = NULL;
 			d40d->lcla_alloc--;
 			if (d40d->lcla_alloc == 0) {
 				ret = 0;
