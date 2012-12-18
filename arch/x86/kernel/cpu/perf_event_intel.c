@@ -2087,6 +2087,7 @@ __init int intel_pmu_init(void)
 		pr_cont("SandyBridge events, ");
 		break;
 	case 58: /* IvyBridge */
+	case 62: /* IvyBridge EP */
 		memcpy(hw_cache_event_ids, snb_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
 		memcpy(hw_cache_extra_regs, snb_hw_cache_extra_regs,
