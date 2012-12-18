@@ -44,7 +44,7 @@
  * gfs2_llseek - seek to a location in a file
  * @file: the file
  * @offset: the offset
- * @origin: Where to seek from (SEEK_SET, SEEK_CUR, or SEEK_END)
+ * @whence: Where to seek from (SEEK_SET, SEEK_CUR, or SEEK_END)
  *
  * SEEK_END requires the glock for the file because it references the
  * file's size.
@@ -52,26 +52,26 @@
  * Returns: The new offset, or errno
  */
 
-static loff_t gfs2_llseek(struct file *file, loff_t offset, int origin)
+static loff_t gfs2_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct gfs2_inode *ip = GFS2_I(file->f_mapping->host);
 	struct gfs2_holder i_gh;
 	loff_t error;
 
-	switch (origin) {
+	switch (whence) {
 	case SEEK_END: /* These reference inode->i_size */
 	case SEEK_DATA:
 	case SEEK_HOLE:
 		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY,
 					   &i_gh);
 		if (!error) {
-			error = generic_file_llseek(file, offset, origin);
+			error = generic_file_llseek(file, offset, whence);
 			gfs2_glock_dq_uninit(&i_gh);
 		}
 		break;
 	case SEEK_CUR:
 	case SEEK_SET:
-		error = generic_file_llseek(file, offset, origin);
+		error = generic_file_llseek(file, offset, whence);
 		break;
 	default:
 		error = -EINVAL;

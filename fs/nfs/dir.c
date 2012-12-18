@@ -871,7 +871,7 @@ out:
 	return res;
 }
 
-static loff_t nfs_llseek_dir(struct file *filp, loff_t offset, int origin)
+static loff_t nfs_llseek_dir(struct file *filp, loff_t offset, int whence)
 {
 	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
@@ -880,10 +880,10 @@ static loff_t nfs_llseek_dir(struct file *filp, loff_t offset, int origin)
 	dfprintk(FILE, "NFS: llseek dir(%s/%s, %lld, %d)\n",
 			dentry->d_parent->d_name.name,
 			dentry->d_name.name,
-			offset, origin);
+			offset, whence);
 
 	mutex_lock(&inode->i_mutex);
-	switch (origin) {
+	switch (whence) {
 		case 1:
 			offset += filp->f_pos;
 		case 0:

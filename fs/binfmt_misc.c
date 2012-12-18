@@ -117,10 +117,6 @@ static int load_misc_binary(struct linux_binprm *bprm)
 	if (!enabled)
 		goto _ret;
 
-	retval = -ENOEXEC;
-	if (bprm->recursion_depth > BINPRM_MAX_RECURSION)
-		goto _ret;
-
 	/* to keep locking time low, we copy the interpreter string */
 	read_lock(&entries_lock);
 	fmt = check_file(bprm);
@@ -196,8 +192,6 @@ static int load_misc_binary(struct linux_binprm *bprm)
 
 	if (retval < 0)
 		goto _error;
-
-	bprm->recursion_depth++;
 
 	retval = search_binary_handler(bprm);
 	if (retval < 0)

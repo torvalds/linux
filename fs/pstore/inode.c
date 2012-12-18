@@ -151,13 +151,13 @@ static int pstore_file_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static loff_t pstore_file_llseek(struct file *file, loff_t off, int origin)
+static loff_t pstore_file_llseek(struct file *file, loff_t off, int whence)
 {
 	struct seq_file *sf = file->private_data;
 
 	if (sf->op)
-		return seq_lseek(file, off, origin);
-	return default_llseek(file, off, origin);
+		return seq_lseek(file, off, whence);
+	return default_llseek(file, off, whence);
 }
 
 static const struct file_operations pstore_file_operations = {

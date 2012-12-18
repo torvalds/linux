@@ -45,7 +45,7 @@ static inline int ili9320_write_spi(struct ili9320 *ili,
 	/* second message is the data to transfer */
 
 	data[0] = spi->id | ILI9320_SPI_DATA  | ILI9320_SPI_WRITE;
- 	data[1] = value >> 8;
+	data[1] = value >> 8;
 	data[2] = value;
 
 	return spi_sync(spi->dev, &spi->message);
@@ -56,11 +56,10 @@ int ili9320_write(struct ili9320 *ili, unsigned int reg, unsigned int value)
 	dev_dbg(ili->dev, "write: reg=%02x, val=%04x\n", reg, value);
 	return ili->write(ili, reg, value);
 }
-
 EXPORT_SYMBOL_GPL(ili9320_write);
 
 int ili9320_write_regs(struct ili9320 *ili,
-		       struct ili9320_reg *values,
+		       const struct ili9320_reg *values,
 		       int nr_values)
 {
 	int index;
@@ -74,7 +73,6 @@ int ili9320_write_regs(struct ili9320 *ili,
 
 	return 0;
 }
-
 EXPORT_SYMBOL_GPL(ili9320_write_regs);
 
 static void ili9320_reset(struct ili9320 *lcd)
@@ -260,7 +258,6 @@ int ili9320_probe_spi(struct spi_device *spi,
 
 	return ret;
 }
-
 EXPORT_SYMBOL_GPL(ili9320_probe_spi);
 
 int ili9320_remove(struct ili9320 *ili)
@@ -271,7 +268,6 @@ int ili9320_remove(struct ili9320 *ili)
 
 	return 0;
 }
-
 EXPORT_SYMBOL_GPL(ili9320_remove);
 
 #ifdef CONFIG_PM
@@ -296,20 +292,17 @@ int ili9320_suspend(struct ili9320 *lcd, pm_message_t state)
 
 	return 0;
 }
-
 EXPORT_SYMBOL_GPL(ili9320_suspend);
 
 int ili9320_resume(struct ili9320 *lcd)
 {
 	dev_info(lcd->dev, "resuming from power state %d\n", lcd->power);
 
-	if (lcd->platdata->suspend == ILI9320_SUSPEND_DEEP) {
+	if (lcd->platdata->suspend == ILI9320_SUSPEND_DEEP)
 		ili9320_write(lcd, ILI9320_POWER1, 0x00);
-	}
 
 	return ili9320_power(lcd, FB_BLANK_UNBLANK);
 }
-
 EXPORT_SYMBOL_GPL(ili9320_resume);
 #endif
 
@@ -318,7 +311,6 @@ void ili9320_shutdown(struct ili9320 *lcd)
 {
 	ili9320_power(lcd, FB_BLANK_POWERDOWN);
 }
-
 EXPORT_SYMBOL_GPL(ili9320_shutdown);
 
 MODULE_AUTHOR("Ben Dooks <ben-linux@fluff.org>");

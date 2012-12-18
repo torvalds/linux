@@ -116,8 +116,9 @@ void fsnotify_clear_inode_marks_by_group(struct fsnotify_group *group)
  * given a group and inode, find the mark associated with that combination.
  * if found take a reference to that mark and return it, else return NULL
  */
-struct fsnotify_mark *fsnotify_find_inode_mark_locked(struct fsnotify_group *group,
-						      struct inode *inode)
+static struct fsnotify_mark *fsnotify_find_inode_mark_locked(
+		struct fsnotify_group *group,
+		struct inode *inode)
 {
 	struct fsnotify_mark *mark;
 	struct hlist_node *pos;

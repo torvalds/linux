@@ -120,15 +120,13 @@ static int max8925_backlight_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "No REG resource for mode control!\n");
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 	data->reg_mode_cntl = res->start;
 	res = platform_get_resource(pdev, IORESOURCE_REG, 1);
 	if (!res) {
 		dev_err(&pdev->dev, "No REG resource for control!\n");
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 	data->reg_cntl = res->start;
 
@@ -142,8 +140,7 @@ static int max8925_backlight_probe(struct platform_device *pdev)
 					&max8925_backlight_ops, &props);
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");
-		ret = PTR_ERR(bl);
-		goto out;
+		return PTR_ERR(bl);
 	}
 	bl->props.brightness = MAX_BRIGHTNESS;
 
@@ -166,8 +163,6 @@ static int max8925_backlight_probe(struct platform_device *pdev)
 	return 0;
 out_brt:
 	backlight_device_unregister(bl);
-out:
-	devm_kfree(&pdev->dev, data);
 	return ret;
 }
 
