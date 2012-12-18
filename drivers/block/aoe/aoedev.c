@@ -383,7 +383,7 @@ aoedev_by_aoeaddr(ulong maj, int min, int do_alloc)
 	struct aoedev *d;
 	int i;
 	ulong flags;
-	ulong sysminor;
+	ulong sysminor = 0;
 
 	spin_lock_irqsave(&devlist_lock, flags);
 
