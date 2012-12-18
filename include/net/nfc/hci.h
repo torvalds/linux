@@ -82,6 +82,16 @@ typedef int (*xmit) (struct sk_buff *skb, void *cb_data);
 
 #define NFC_HCI_MAX_GATES		256
 
+/*
+ * These values can be specified by a driver to indicate it requires some
+ * adaptation of the HCI standard.
+ *
+ * NFC_HCI_QUIRK_SHORT_CLEAR - send HCI_ADM_CLEAR_ALL_PIPE cmd with no params
+ */
+enum {
+	NFC_HCI_QUIRK_SHORT_CLEAR	= 0,
+};
+
 struct nfc_hci_dev {
 	struct nfc_dev *ndev;
 
@@ -131,11 +141,14 @@ struct nfc_hci_dev {
 
 	u8 *gb;
 	size_t gb_len;
+
+	unsigned long quirks;
 };
 
 /* hci device allocation */
 struct nfc_hci_dev *nfc_hci_allocate_device(struct nfc_hci_ops *ops,
 					    struct nfc_hci_init_data *init_data,
+					    unsigned long quirks,
 					    u32 protocols,
 					    const char *llc_name,
 					    int tx_headroom,

@@ -833,7 +833,7 @@ int pn544_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
 		    NFC_PROTO_ISO14443_B_MASK |
 		    NFC_PROTO_NFC_DEP_MASK;
 
-	info->hdev = nfc_hci_allocate_device(&pn544_hci_ops, &init_data,
+	info->hdev = nfc_hci_allocate_device(&pn544_hci_ops, &init_data, 0,
 					     protocols, llc_name,
 					     phy_headroom + PN544_CMDS_HEADROOM,
 					     phy_tailroom, phy_payload);

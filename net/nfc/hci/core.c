@@ -795,6 +795,7 @@ static struct nfc_ops hci_nfc_ops = {
 
 struct nfc_hci_dev *nfc_hci_allocate_device(struct nfc_hci_ops *ops,
 					    struct nfc_hci_init_data *init_data,
+					    unsigned long quirks,
 					    u32 protocols,
 					    const char *llc_name,
 					    int tx_headroom,
@@ -837,6 +838,8 @@ struct nfc_hci_dev *nfc_hci_allocate_device(struct nfc_hci_ops *ops,
 	nfc_set_drvdata(hdev->ndev, hdev);
 
 	memset(hdev->gate2pipe, NFC_HCI_INVALID_PIPE, sizeof(hdev->gate2pipe));
+
+	hdev->quirks = quirks;
 
 	return hdev;
 }
