@@ -241,6 +241,30 @@ aoedev_freedev(struct aoedev *d)
 	kfree(d);
 }
 
+/* return whether the user asked for this particular
+ * device to be flushed
+ */
+static int
+user_req(char *s, size_t slen, struct aoedev *d)
+{
+	char *p;
+	size_t lim;
+
+	if (!d->gd)
+		return 0;
+	p = strrchr(d->gd->disk_name, '/');
+	if (!p)
+		p = d->gd->disk_name;
+	else
+		p += 1;
+	lim = sizeof(d->gd->disk_name);
+	lim -= p - d->gd->disk_name;
+	if (slen < lim)
+		lim = slen;
+
+	return !strncmp(s, p, lim);
+}
+
 int
 aoedev_flush(const char __user *str, size_t cnt)
 {
@@ -249,6 +273,7 @@ aoedev_flush(const char __user *str, size_t cnt)
 	struct aoedev *rmd = NULL;
 	char buf[16];
 	int all = 0;
+	int specified = 0;	/* flush a specific device */
 
 	if (cnt >= 3) {
 		if (cnt > sizeof buf)
@@ -256,26 +281,33 @@ aoedev_flush(const char __user *str, size_t cnt)
 		if (copy_from_user(buf, str, cnt))
 			return -EFAULT;
 		all = !strncmp(buf, "all", 3);
+		if (!all)
+			specified = 1;
 	}
 
 	spin_lock_irqsave(&devlist_lock, flags);
 	dd = &devlist;
 	while ((d = *dd)) {
 		spin_lock(&d->lock);
-		if ((!all && (d->flags & DEVFL_UP))
+		if (specified) {
+			if (!user_req(buf, cnt, d))
+				goto skip;
+		} else if ((!all && (d->flags & DEVFL_UP))
 		|| (d->flags & (DEVFL_GDALLOC|DEVFL_NEWSIZE))
 		|| d->nopen
-		|| d->ref) {
-			spin_unlock(&d->lock);
-			dd = &d->next;
-			continue;
-		}
+		|| d->ref)
+			goto skip;
+
 		*dd = d->next;
 		aoedev_downdev(d);
 		d->flags |= DEVFL_TKILL;
 		spin_unlock(&d->lock);
 		d->next = rmd;
 		rmd = d;
+		continue;
+skip:
+		spin_unlock(&d->lock);
+		dd = &d->next;
 	}
 	spin_unlock_irqrestore(&devlist_lock, flags);
 	while ((d = rmd)) {
