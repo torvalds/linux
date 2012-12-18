@@ -603,13 +603,13 @@ rexmit_timer(ulong vp)
 
 	d = (struct aoedev *) vp;
 
+	spin_lock_irqsave(&d->lock, flags);
+
 	/* timeout based on observed timings and variations */
 	timeout = 2 * d->rttavg >> RTTSCALE;
 	timeout += 8 * d->rttdev >> RTTDSCALE;
 	if (timeout == 0)
 		timeout = 1;
-
-	spin_lock_irqsave(&d->lock, flags);
 
 	if (d->flags & DEVFL_TKILL) {
 		spin_unlock_irqrestore(&d->lock, flags);
