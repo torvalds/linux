@@ -1681,6 +1681,30 @@ static const struct hda_codec_ops generic_hdmi_patch_ops = {
 	.unsol_event		= hdmi_unsol_event,
 };
 
+static void intel_haswell_fixup_connect_list(struct hda_codec *codec)
+{
+	unsigned int vendor_param;
+	hda_nid_t list[3] = {0x2, 0x3, 0x4};
+
+	vendor_param = snd_hda_codec_read(codec, 0x08, 0, 0xf81, 0);
+	if (vendor_param == -1 || vendor_param & 0x02)
+		return;
+
+	/* enable DP1.2 mode */
+	vendor_param |= 0x02;
+	snd_hda_codec_read(codec, 0x08, 0, 0x781, vendor_param);
+
+	vendor_param = snd_hda_codec_read(codec, 0x08, 0, 0xf81, 0);
+	if (vendor_param == -1 || !(vendor_param & 0x02))
+		return;
+
+	/* override 3 pins connection list */
+	snd_hda_override_conn_list(codec, 0x05, 3, list);
+	snd_hda_override_conn_list(codec, 0x06, 3, list);
+	snd_hda_override_conn_list(codec, 0x07, 3, list);
+}
+
+
 static int patch_generic_hdmi(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec;
@@ -1690,6 +1714,10 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 		return -ENOMEM;
 
 	codec->spec = spec;
+
+	if (codec->vendor_id == 0x80862807)
+		intel_haswell_fixup_connect_list(codec);
+
 	if (hdmi_parse_codec(codec) < 0) {
 		codec->spec = NULL;
 		kfree(spec);
