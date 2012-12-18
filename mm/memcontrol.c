@@ -547,6 +547,11 @@ static void disarm_kmem_keys(struct mem_cgroup *memcg)
 {
 	if (memcg_kmem_is_active(memcg))
 		static_key_slow_dec(&memcg_kmem_enabled_key);
+	/*
+	 * This check can't live in kmem destruction function,
+	 * since the charges will outlive the cgroup
+	 */
+	WARN_ON(res_counter_read_u64(&memcg->kmem, RES_USAGE) != 0);
 }
 #else
 static void disarm_kmem_keys(struct mem_cgroup *memcg)
@@ -4025,6 +4030,7 @@ static void mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
 static void mem_cgroup_reparent_charges(struct mem_cgroup *memcg)
 {
 	int node, zid;
+	u64 usage;
 
 	do {
 		/* This is for making all *used* pages to be on LRU. */
@@ -4045,13 +4051,20 @@ static void mem_cgroup_reparent_charges(struct mem_cgroup *memcg)
 		cond_resched();
 
 		/*
+		 * Kernel memory may not necessarily be trackable to a specific
+		 * process. So they are not migrated, and therefore we can't
+		 * expect their value to drop to 0 here.
+		 * Having res filled up with kmem only is enough.
+		 *
 		 * This is a safety check because mem_cgroup_force_empty_list
 		 * could have raced with mem_cgroup_replace_page_cache callers
 		 * so the lru seemed empty but the page could have been added
 		 * right after the check. RES_USAGE should be safe as we always
 		 * charge before adding to the LRU.
 		 */
-	} while (res_counter_read_u64(&memcg->res, RES_USAGE) > 0);
+		usage = res_counter_read_u64(&memcg->res, RES_USAGE) -
+			res_counter_read_u64(&memcg->kmem, RES_USAGE);
+	} while (usage > 0);
 }
 
 /*
