@@ -2649,7 +2649,7 @@ static void i915_gem_write_fence(struct drm_device *dev, int reg,
 	case 4: i965_write_fence_reg(dev, reg, obj); break;
 	case 3: i915_write_fence_reg(dev, reg, obj); break;
 	case 2: i830_write_fence_reg(dev, reg, obj); break;
-	default: break;
+	default: BUG();
 	}
 }
 

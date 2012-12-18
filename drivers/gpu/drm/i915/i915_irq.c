@@ -1106,6 +1106,8 @@ static void i915_gem_record_fences(struct drm_device *dev,
 			error->fence[i] = I915_READ(FENCE_REG_830_0 + (i * 4));
 		break;
 
+	default:
+		BUG();
 	}
 }
 
