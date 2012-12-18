@@ -697,7 +697,7 @@ static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
 		INIT_COMPLETION(sdd->xfer_completion);
 
 		/* Only BPW and Speed may change across transfers */
-		bpw = xfer->bits_per_word ? : spi->bits_per_word;
+		bpw = xfer->bits_per_word;
 		speed = xfer->speed_hz ? : spi->max_speed_hz;
 
 		if (xfer->len % (bpw / 8)) {

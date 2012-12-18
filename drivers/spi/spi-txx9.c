@@ -189,9 +189,8 @@ static void txx9spi_work_one(struct txx9spi *c, struct spi_message *m)
 		unsigned int len = t->len;
 		unsigned int wsize;
 		u32 speed_hz = t->speed_hz ? : spi->max_speed_hz;
-		u8 bits_per_word = t->bits_per_word ? : spi->bits_per_word;
+		u8 bits_per_word = t->bits_per_word;
 
-		bits_per_word = bits_per_word ? : 8;
 		wsize = bits_per_word >> 3; /* in bytes */
 
 		if (prev_speed_hz != speed_hz
@@ -316,9 +315,8 @@ static int txx9spi_transfer(struct spi_device *spi, struct spi_message *m)
 	/* check each transfer's parameters */
 	list_for_each_entry (t, &m->transfers, transfer_list) {
 		u32 speed_hz = t->speed_hz ? : spi->max_speed_hz;
-		u8 bits_per_word = t->bits_per_word ? : spi->bits_per_word;
+		u8 bits_per_word = t->bits_per_word;
 
-		bits_per_word = bits_per_word ? : 8;
 		if (!t->tx_buf && !t->rx_buf && t->len)
 			return -EINVAL;
 		if (bits_per_word != 8 && bits_per_word != 16)

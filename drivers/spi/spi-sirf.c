@@ -382,8 +382,7 @@ spi_sirfsoc_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 
 	sspi = spi_master_get_devdata(spi->master);
 
-	bits_per_word = t && t->bits_per_word ? t->bits_per_word :
-		spi->bits_per_word;
+	bits_per_word = (t) ? t->bits_per_word : spi->bits_per_word;
 	hz = t && t->speed_hz ? t->speed_hz : spi->max_speed_hz;
 
 	/* Enable IO mode for RX, TX */

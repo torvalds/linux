@@ -284,8 +284,7 @@ static unsigned tegra_slink_calculate_curr_xfer_param(
 	unsigned max_len;
 	unsigned total_fifo_words;
 
-	bits_per_word = t->bits_per_word ? t->bits_per_word :
-						spi->bits_per_word;
+	bits_per_word = t->bits_per_word;
 	tspi->bytes_per_word = (bits_per_word - 1) / 8 + 1;
 
 	if (bits_per_word == 8 || bits_per_word == 16) {
@@ -378,8 +377,7 @@ static unsigned int tegra_slink_read_rx_fifo_to_client_rxbuf(
 	} else {
 		unsigned int bits_per_word;
 
-		bits_per_word = t->bits_per_word ? t->bits_per_word :
-						tspi->cur_spi->bits_per_word;
+		bits_per_word = t->bits_per_word;
 		for (count = 0; count < rx_full_count; count++) {
 			x = tegra_slink_readl(tspi, SLINK_RX_FIFO);
 			for (i = 0; (i < tspi->bytes_per_word); i++)
@@ -444,8 +442,7 @@ static void tegra_slink_copy_spi_rxbuf_to_client_rxbuf(
 		unsigned int x;
 		unsigned int rx_mask, bits_per_word;
 
-		bits_per_word = t->bits_per_word ? t->bits_per_word :
-						tspi->cur_spi->bits_per_word;
+		bits_per_word = t->bits_per_word;
 		rx_mask = (1 << bits_per_word) - 1;
 		for (count = 0; count < tspi->curr_dma_words; count++) {
 			x = tspi->rx_dma_buf[count];
