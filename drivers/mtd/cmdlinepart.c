@@ -23,10 +23,21 @@
  * mtdparts=<mtddef>[;<mtddef]
  * <mtddef>  := <mtd-id>:<partdef>[,<partdef>]
  *              where <mtd-id> is the name from the "cat /proc/mtd" command
- * <partdef> := <size>[@offset][<name>][ro][lk]
+ * <partdef> := <size>[@<offset>][<name>][ro][lk]
  * <mtd-id>  := unique name used in mapping driver/device (mtd->name)
  * <size>    := standard linux memsize OR "-" to denote all remaining space
+ *              size is automatically truncated at end of device
+ *              if specified or trucated size is 0 the part is skipped
+ * <offset>  := standard linux memsize
+ *              if omitted the part will immediately follow the previous part
+ *              or 0 if the first part
  * <name>    := '(' NAME ')'
+ *
+ * <size> and <offset> can be specified such that the parts are out of order
+ * in physical memory and may even overlap.
+ *
+ * The parts are assigned MTD numbers in the order they are specified in the
+ * command line regardless of their order in physical memory.
  *
  * Examples:
  *
