@@ -1402,14 +1402,16 @@ static void alc_auto_parse_digital(struct hda_codec *codec)
 	if (spec->autocfg.dig_in_pin) {
 		dig_nid = codec->start_nid;
 		for (i = 0; i < codec->num_nodes; i++, dig_nid++) {
+			struct nid_path *path;
 			unsigned int wcaps = get_wcaps(codec, dig_nid);
 			if (get_wcaps_type(wcaps) != AC_WID_AUD_IN)
 				continue;
 			if (!(wcaps & AC_WCAP_DIGITAL))
 				continue;
-			if (!(wcaps & AC_WCAP_CONN_LIST))
-				continue;
-			if (err >= 0) {
+			path = add_new_nid_path(codec, spec->autocfg.dig_in_pin,
+						dig_nid, 2);
+			if (path) {
+				path->active = true;
 				spec->dig_in_nid = dig_nid;
 				break;
 			}
