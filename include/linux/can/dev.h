@@ -16,6 +16,7 @@
 #include <linux/can.h>
 #include <linux/can/netlink.h>
 #include <linux/can/error.h>
+#include <linux/can/led.h>
 
 /*
  * CAN mode
@@ -52,6 +53,13 @@ struct can_priv {
 
 	unsigned int echo_skb_max;
 	struct sk_buff **echo_skb;
+
+#ifdef CONFIG_CAN_LEDS
+	struct led_trigger *tx_led_trig;
+	char tx_led_trig_name[CAN_LED_NAME_SZ];
+	struct led_trigger *rx_led_trig;
+	char rx_led_trig_name[CAN_LED_NAME_SZ];
+#endif
 };
 
 /*
