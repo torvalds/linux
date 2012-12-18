@@ -487,6 +487,15 @@ int wiphy_register(struct wiphy *wiphy)
 	bool have_band = false;
 	int i;
 	u16 ifmodes = wiphy->interface_modes;
+//========= gwl ========
+	if (WARN_ON((wiphy->wowlan.flags & WIPHY_WOWLAN_GTK_REKEY_FAILURE) &&
+		    !(wiphy->wowlan.flags & WIPHY_WOWLAN_SUPPORTS_GTK_REKEY)))
+		return -EINVAL;
+
+	if (WARN_ON(wiphy->ap_sme_capa &&
+		    !(wiphy->flags & WIPHY_FLAG_HAVE_AP_SME)))
+		return -EINVAL;
+//===================
 
 	if (WARN_ON(wiphy->addresses && !wiphy->n_addresses))
 		return -EINVAL;
