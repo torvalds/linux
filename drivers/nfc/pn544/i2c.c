@@ -472,29 +472,7 @@ static struct i2c_driver pn544_hci_i2c_driver = {
 	.remove = __devexit_p(pn544_hci_i2c_remove),
 };
 
-static int __init pn544_hci_i2c_init(void)
-{
-	int r;
-
-	pr_debug(DRIVER_DESC ": %s\n", __func__);
-
-	r = i2c_add_driver(&pn544_hci_i2c_driver);
-	if (r) {
-		pr_err(PN544_HCI_I2C_DRIVER_NAME
-		       ": driver registration failed\n");
-		return r;
-	}
-
-	return 0;
-}
-
-static void __exit pn544_hci_i2c_exit(void)
-{
-	i2c_del_driver(&pn544_hci_i2c_driver);
-}
-
-module_init(pn544_hci_i2c_init);
-module_exit(pn544_hci_i2c_exit);
+module_i2c_driver(pn544_hci_i2c_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION(DRIVER_DESC);
