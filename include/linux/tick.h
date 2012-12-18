@@ -157,6 +157,13 @@ static inline u64 get_cpu_idle_time_us(int cpu, u64 *unused) { return -1; }
 static inline u64 get_cpu_iowait_time_us(int cpu, u64 *unused) { return -1; }
 # endif /* !NO_HZ */
 
+#ifdef CONFIG_NO_HZ_EXTENDED
+extern int tick_nohz_extended_cpu(int cpu);
+#else
+static inline int tick_nohz_extended_cpu(int cpu) { return 0; }
+#endif
+
+
 # ifdef CONFIG_CPU_IDLE_GOV_MENU
 extern void menu_hrtimer_cancel(void);
 # else

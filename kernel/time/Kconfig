@@ -79,6 +79,25 @@ config NO_HZ
 	  only trigger on an as-needed basis both when the system is
 	  busy and when the system is idle.
 
+config NO_HZ_EXTENDED
+       bool "Full dynticks system"
+       depends on NO_HZ && RCU_USER_QS && VIRT_CPU_ACCOUNTING_GEN && RCU_NOCB_CPU && SMP
+       select CONTEXT_TRACKING_FORCE
+       help
+         Adaptively try to shutdown the tick whenever possible, even when
+	 the CPU is running tasks. Typically this requires running a single
+	 task on the CPU. Chances for running tickless are maximized when
+	 the task mostly runs in userspace and has few kernel activity.
+
+	 You need to fill up the nohz_extended boot parameter with the
+	 desired range of dynticks CPUs.
+
+	 This is implemented at the expense of some overhead in user <-> kernel
+	 transitions: syscalls, exceptions and interrupts. Even when it's
+	 dynamically off.
+
+	 Say N.
+
 config HIGH_RES_TIMERS
 	bool "High Resolution Timer Support"
 	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
