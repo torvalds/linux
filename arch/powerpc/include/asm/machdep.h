@@ -166,9 +166,6 @@ struct machdep_calls {
 						unsigned long size,
 						pgprot_t vma_prot);
 
-	/* Idle loop for this platform, leave empty for default idle loop */
-	void		(*idle_loop)(void);
-
 	/*
 	 * Function for waiting for work with reduced power in idle loop;
 	 * called with interrupts disabled.

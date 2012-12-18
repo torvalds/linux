@@ -23,12 +23,12 @@
 #include <linux/delay.h>
 #include <linux/sched.h>	/* for idle_task_exit */
 #include <linux/cpu.h>
+#include <linux/of.h>
 #include <asm/prom.h>
 #include <asm/rtas.h>
 #include <asm/firmware.h>
 #include <asm/machdep.h>
 #include <asm/vdso_datapage.h>
-#include <asm/pSeries_reconfig.h>
 #include <asm/xics.h>
 #include "plpar_wrappers.h"
 #include "offline_states.h"
@@ -333,10 +333,10 @@ static int pseries_smp_notifier(struct notifier_block *nb,
 	int err = 0;
 
 	switch (action) {
-	case PSERIES_RECONFIG_ADD:
+	case OF_RECONFIG_ATTACH_NODE:
 		err = pseries_add_processor(node);
 		break;
-	case PSERIES_RECONFIG_REMOVE:
+	case OF_RECONFIG_DETACH_NODE:
 		pseries_remove_processor(node);
 		break;
 	}
@@ -399,7 +399,7 @@ static int __init pseries_cpu_hotplug_init(void)
 
 	/* Processors can be added/removed only on LPAR */
 	if (firmware_has_feature(FW_FEATURE_LPAR)) {
-		pSeries_reconfig_notifier_register(&pseries_smp_nb);
+		of_reconfig_notifier_register(&pseries_smp_nb);
 		cpu_maps_update_begin();
 		if (cede_offline_enabled && parse_cede_parameters() == 0) {
 			default_offline_state = CPU_STATE_INACTIVE;

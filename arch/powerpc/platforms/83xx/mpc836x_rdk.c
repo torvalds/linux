@@ -1,7 +1,7 @@
 /*
  * MPC8360E-RDK board file.
  *
- * Copyright (c) 2006  Freescale Semicondutor, Inc.
+ * Copyright (c) 2006  Freescale Semiconductor, Inc.
  * Copyright (c) 2007-2008  MontaVista Software, Inc.
  *
  * Author: Anton Vorontsov <avorontsov@ru.mvista.com>

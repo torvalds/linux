@@ -1192,14 +1192,14 @@ config MEMORY_NOTIFIER_ERROR_INJECT
 
 	  If unsure, say N.
 
-config PSERIES_RECONFIG_NOTIFIER_ERROR_INJECT
-	tristate "pSeries reconfig notifier error injection module"
-	depends on PPC_PSERIES && NOTIFIER_ERROR_INJECTION
+config OF_RECONFIG_NOTIFIER_ERROR_INJECT
+	tristate "OF reconfig notifier error injection module"
+	depends on OF_DYNAMIC && NOTIFIER_ERROR_INJECTION
 	help
 	  This option provides the ability to inject artificial errors to
-	  pSeries reconfig notifier chain callbacks.  It is controlled
+	  OF reconfig notifier chain callbacks.  It is controlled
 	  through debugfs interface under
-	  /sys/kernel/debug/notifier-error-inject/pSeries-reconfig/
+	  /sys/kernel/debug/notifier-error-inject/OF-reconfig/
 
 	  If the notifier call chain should be failed with some events
 	  notified, write the error code to "actions/<notifier event>/error".

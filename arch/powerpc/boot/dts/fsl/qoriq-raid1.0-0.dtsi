@@ -1,7 +1,7 @@
 /*
- * P5020/P5010 Silicon/SoC Device Tree Source (pre include)
+ * QorIQ RAID 1.0 device tree stub [ controller @ offset 0x320000 ]
  *
- * Copyright 2011 Freescale Semiconductor Inc.
+ * Copyright 2012 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,74 +32,54 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/dts-v1/;
+raideng: raideng@320000 {
+	compatible = "fsl,raideng-v1.0";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	reg = <0x320000 0x10000>;
+	ranges = <0 0x320000 0x10000>;
 
-/include/ "e5500_power_isa.dtsi"
+	raideng_jq0@1000 {
+		compatible = "fsl,raideng-v1.0-job-queue";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x1000 0x1000>;
+		ranges = <0x0 0x1000 0x1000>;
 
-/ {
-	compatible = "fsl,P5020";
-	#address-cells = <2>;
-	#size-cells = <2>;
-	interrupt-parent = <&mpic>;
+		raideng_jr0: jr@0 {
+			compatible = "fsl,raideng-v1.0-job-ring", "fsl,raideng-v1.0-hp-ring";
+			reg = <0x0 0x400>;
+			interrupts = <139 2 0 0>;
+			interrupt-parent = <&mpic>;
+		};
 
-	aliases {
-		ccsr = &soc;
-		dcsr = &dcsr;
-
-		serial0 = &serial0;
-		serial1 = &serial1;
-		serial2 = &serial2;
-		serial3 = &serial3;
-		pci0 = &pci0;
-		pci1 = &pci1;
-		pci2 = &pci2;
-		pci3 = &pci3;
-		usb0 = &usb0;
-		usb1 = &usb1;
-		dma0 = &dma0;
-		dma1 = &dma1;
-		sdhc = &sdhc;
-		msi0 = &msi0;
-		msi1 = &msi1;
-		msi2 = &msi2;
-
-		crypto = &crypto;
-		sec_jr0 = &sec_jr0;
-		sec_jr1 = &sec_jr1;
-		sec_jr2 = &sec_jr2;
-		sec_jr3 = &sec_jr3;
-		rtic_a = &rtic_a;
-		rtic_b = &rtic_b;
-		rtic_c = &rtic_c;
-		rtic_d = &rtic_d;
-		sec_mon = &sec_mon;
-
-		raideng = &raideng;
-		raideng_jr0 = &raideng_jr0;
-		raideng_jr1 = &raideng_jr1;
-		raideng_jr2 = &raideng_jr2;
-		raideng_jr3 = &raideng_jr3;
+		raideng_jr1: jr@400 {
+			compatible = "fsl,raideng-v1.0-job-ring", "fsl,raideng-v1.0-lp-ring";
+			reg = <0x400 0x400>;
+			interrupts = <140 2 0 0>;
+			interrupt-parent = <&mpic>;
+		};
 	};
 
-	cpus {
+	raideng_jq1@2000 {
+		compatible = "fsl,raideng-v1.0-job-queue";
 		#address-cells = <1>;
-		#size-cells = <0>;
+		#size-cells = <1>;
+		reg = <0x2000 0x1000>;
+		ranges = <0x0 0x2000 0x1000>;
 
-		cpu0: PowerPC,e5500@0 {
-			device_type = "cpu";
-			reg = <0>;
-			next-level-cache = <&L2_0>;
-			L2_0: l2-cache {
-				next-level-cache = <&cpc>;
-			};
+		raideng_jr2: jr@0 {
+			compatible = "fsl,raideng-v1.0-job-ring", "fsl,raideng-v1.0-hp-ring";
+			reg = <0x0 0x400>;
+			interrupts = <141 2 0 0>;
+			interrupt-parent = <&mpic>;
 		};
-		cpu1: PowerPC,e5500@1 {
-			device_type = "cpu";
-			reg = <1>;
-			next-level-cache = <&L2_1>;
-			L2_1: l2-cache {
-				next-level-cache = <&cpc>;
-			};
+
+		raideng_jr3: jr@400 {
+			compatible = "fsl,raideng-v1.0-job-ring", "fsl,raideng-v1.0-lp-ring";
+			reg = <0x400 0x400>;
+			interrupts = <142 2 0 0>;
+			interrupt-parent = <&mpic>;
 		};
 	};
 };
