@@ -2306,7 +2306,14 @@ static const char *alc_get_line_out_pfx(struct alc_spec *spec, int ch,
 	*index = 0;
 	if (cfg->line_outs == 1 && !spec->multi_ios &&
 	    !cfg->hp_outs && !cfg->speaker_outs && can_be_master)
-		return "Master";
+		return spec->vmaster_mute.hook ? "PCM" : "Master";
+
+	/* if there is really a single DAC used in the whole output paths,
+	 * use it master (or "PCM" if a vmaster hook is present)
+	 */
+	if (spec->multiout.num_dacs == 1 && !spec->mixer_nid &&
+	    !spec->multiout.hp_out_nid[0] && !spec->multiout.extra_out_nid[0])
+		return spec->vmaster_mute.hook ? "PCM" : "Master";
 
 	switch (cfg->line_out_type) {
 	case AUTO_PIN_SPEAKER_OUT:
