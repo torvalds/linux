@@ -1,4 +1,3 @@
-include include/asm-generic/Kbuild.asm
 
 generic-y += auxvec.h
 generic-y += bitsperlong.h
@@ -17,6 +16,7 @@ generic-y += ipcbuf.h
 generic-y += irq_regs.h
 generic-y += kdebug.h
 generic-y += kmap_types.h
+generic-y += kvm_para.h
 generic-y += local64.h
 generic-y += local.h
 generic-y += mman.h
@@ -44,7 +44,3 @@ generic-y += ucontext.h
 generic-y += unaligned.h
 generic-y += user.h
 generic-y += xor.h
-
-header-y += bfin_sport.h
-header-y += cachectl.h
-header-y += fixed_code.h
