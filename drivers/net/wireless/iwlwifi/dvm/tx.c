@@ -541,9 +541,9 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	spin_lock_bh(&priv->sta_lock);
 
 	tid_data = &priv->tid_data[sta_id][tid];
-	txq_id = priv->tid_data[sta_id][tid].agg.txq_id;
+	txq_id = tid_data->agg.txq_id;
 
-	switch (priv->tid_data[sta_id][tid].agg.state) {
+	switch (tid_data->agg.state) {
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
 		/*
 		* This can happen if the peer stops aggregation
@@ -563,9 +563,9 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	case IWL_AGG_ON:
 		break;
 	default:
-		IWL_WARN(priv, "Stopping AGG while state not ON "
-			 "or starting for %d on %d (%d)\n", sta_id, tid,
-			 priv->tid_data[sta_id][tid].agg.state);
+		IWL_WARN(priv,
+			 "Stopping AGG while state not ON or starting for %d on %d (%d)\n",
+			 sta_id, tid, tid_data->agg.state);
 		spin_unlock_bh(&priv->sta_lock);
 		return 0;
 	}
@@ -578,12 +578,11 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			"stopping AGG on STA/TID %d/%d but hwq %d not used\n",
 			sta_id, tid, txq_id);
 	} else if (tid_data->agg.ssn != tid_data->next_reclaimed) {
-		IWL_DEBUG_TX_QUEUES(priv, "Can't proceed: ssn %d, "
-				    "next_recl = %d\n",
+		IWL_DEBUG_TX_QUEUES(priv,
+				    "Can't proceed: ssn %d, next_recl = %d\n",
 				    tid_data->agg.ssn,
 				    tid_data->next_reclaimed);
-		priv->tid_data[sta_id][tid].agg.state =
-			IWL_EMPTYING_HW_QUEUE_DELBA;
+		tid_data->agg.state = IWL_EMPTYING_HW_QUEUE_DELBA;
 		spin_unlock_bh(&priv->sta_lock);
 		return 0;
 	}
@@ -591,8 +590,8 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	IWL_DEBUG_TX_QUEUES(priv, "Can proceed: ssn = next_recl = %d\n",
 			    tid_data->agg.ssn);
 turn_off:
-	agg_state = priv->tid_data[sta_id][tid].agg.state;
-	priv->tid_data[sta_id][tid].agg.state = IWL_AGG_OFF;
+	agg_state = tid_data->agg.state;
+	tid_data->agg.state = IWL_AGG_OFF;
 
 	spin_unlock_bh(&priv->sta_lock);
 
