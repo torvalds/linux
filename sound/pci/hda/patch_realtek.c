@@ -1687,6 +1687,8 @@ static int __alc_build_controls(struct hda_codec *codec)
 					    true, &spec->vmaster_mute.sw_kctl);
 		if (err < 0)
 			return err;
+		if (spec->vmaster_mute.hook)
+			snd_hda_add_vmaster_hook(codec, &spec->vmaster_mute, true);
 	}
 
 	alc_free_kctls(codec); /* no longer needed */
@@ -1744,6 +1746,9 @@ static int alc_init(struct hda_codec *codec)
 
 	snd_hda_gen_apply_verbs(codec);
 	alc_auto_init_std(codec);
+
+	if (spec->vmaster_mute.sw_kctl && spec->vmaster_mute.hook)
+		snd_hda_sync_vmaster_hook(&spec->vmaster_mute);
 
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_INIT);
 
@@ -6025,15 +6030,8 @@ static void alc269_fixup_mic1_mute(struct hda_codec *codec,
 				   const struct alc_fixup *fix, int action)
 {
 	struct alc_spec *spec = codec->spec;
-	switch (action) {
-	case ALC_FIXUP_ACT_BUILD:
+	if (action == ALC_FIXUP_ACT_PROBE)
 		spec->vmaster_mute.hook = alc269_fixup_mic1_mute_hook;
-		snd_hda_add_vmaster_hook(codec, &spec->vmaster_mute, true);
-		/* fallthru */
-	case ALC_FIXUP_ACT_INIT:
-		snd_hda_sync_vmaster_hook(&spec->vmaster_mute);
-		break;
-	}
 }
 
 /* update mute-LED according to the speaker mute state via mic2 VREF pin */
@@ -6048,15 +6046,8 @@ static void alc269_fixup_mic2_mute(struct hda_codec *codec,
 				   const struct alc_fixup *fix, int action)
 {
 	struct alc_spec *spec = codec->spec;
-	switch (action) {
-	case ALC_FIXUP_ACT_BUILD:
+	if (action == ALC_FIXUP_ACT_PROBE)
 		spec->vmaster_mute.hook = alc269_fixup_mic2_mute_hook;
-		snd_hda_add_vmaster_hook(codec, &spec->vmaster_mute, true);
-		/* fallthru */
-	case ALC_FIXUP_ACT_INIT:
-		snd_hda_sync_vmaster_hook(&spec->vmaster_mute);
-		break;
-	}
 }
 
 static void alc271_hp_gate_mic_jack(struct hda_codec *codec,
