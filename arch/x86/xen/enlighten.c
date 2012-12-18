@@ -193,10 +193,11 @@ void xen_vcpu_restore(void)
 {
 	int cpu;
 
-	for_each_online_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		bool other_cpu = (cpu != smp_processor_id());
+		bool is_up = HYPERVISOR_vcpu_op(VCPUOP_is_up, cpu, NULL);
 
-		if (other_cpu &&
+		if (other_cpu && is_up &&
 		    HYPERVISOR_vcpu_op(VCPUOP_down, cpu, NULL))
 			BUG();
 
@@ -205,7 +206,7 @@ void xen_vcpu_restore(void)
 		if (have_vcpu_info_placement)
 			xen_vcpu_setup(cpu);
 
-		if (other_cpu &&
+		if (other_cpu && is_up &&
 		    HYPERVISOR_vcpu_op(VCPUOP_up, cpu, NULL))
 			BUG();
 	}
