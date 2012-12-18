@@ -23,12 +23,12 @@
 #include <linux/ctype.h>
 #include <linux/kernel.h>
 #include <linux/kallsyms.h>
+#include <linux/math64.h>
 #include <linux/uaccess.h>
 #include <linux/ioport.h>
 #include <net/addrconf.h>
 
 #include <asm/page.h>		/* for PAGE_SIZE */
-#include <asm/div64.h>
 #include <asm/sections.h>	/* for dereference_function_descriptor() */
 
 #include "kstrtox.h"
@@ -2016,7 +2016,11 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 	char digit;
 	int num = 0;
 	u8 qualifier;
-	u8 base;
+	unsigned int base;
+	union {
+		long long s;
+		unsigned long long u;
+	} val;
 	s16 field_width;
 	bool is_sign;
 
@@ -2056,8 +2060,11 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 
 		/* get field width */
 		field_width = -1;
-		if (isdigit(*fmt))
+		if (isdigit(*fmt)) {
 			field_width = skip_atoi(&fmt);
+			if (field_width <= 0)
+				break;
+		}
 
 		/* get conversion qualifier */
 		qualifier = -1;
@@ -2157,58 +2164,61 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 		    || (base == 0 && !isdigit(digit)))
 			break;
 
+		if (is_sign)
+			val.s = qualifier != 'L' ?
+				simple_strtol(str, &next, base) :
+				simple_strtoll(str, &next, base);
+		else
+			val.u = qualifier != 'L' ?
+				simple_strtoul(str, &next, base) :
+				simple_strtoull(str, &next, base);
+
+		if (field_width > 0 && next - str > field_width) {
+			if (base == 0)
+				_parse_integer_fixup_radix(str, &base);
+			while (next - str > field_width) {
+				if (is_sign)
+					val.s = div_s64(val.s, base);
+				else
+					val.u = div_u64(val.u, base);
+				--next;
+			}
+		}
+
 		switch (qualifier) {
 		case 'H':	/* that's 'hh' in format */
-			if (is_sign) {
-				signed char *s = (signed char *)va_arg(args, signed char *);
-				*s = (signed char)simple_strtol(str, &next, base);
-			} else {
-				unsigned char *s = (unsigned char *)va_arg(args, unsigned char *);
-				*s = (unsigned char)simple_strtoul(str, &next, base);
-			}
+			if (is_sign)
+				*va_arg(args, signed char *) = val.s;
+			else
+				*va_arg(args, unsigned char *) = val.u;
 			break;
 		case 'h':
-			if (is_sign) {
-				short *s = (short *)va_arg(args, short *);
-				*s = (short)simple_strtol(str, &next, base);
-			} else {
-				unsigned short *s = (unsigned short *)va_arg(args, unsigned short *);
-				*s = (unsigned short)simple_strtoul(str, &next, base);
-			}
+			if (is_sign)
+				*va_arg(args, short *) = val.s;
+			else
+				*va_arg(args, unsigned short *) = val.u;
 			break;
 		case 'l':
-			if (is_sign) {
-				long *l = (long *)va_arg(args, long *);
-				*l = simple_strtol(str, &next, base);
-			} else {
-				unsigned long *l = (unsigned long *)va_arg(args, unsigned long *);
-				*l = simple_strtoul(str, &next, base);
-			}
+			if (is_sign)
+				*va_arg(args, long *) = val.s;
+			else
+				*va_arg(args, unsigned long *) = val.u;
 			break;
 		case 'L':
-			if (is_sign) {
-				long long *l = (long long *)va_arg(args, long long *);
-				*l = simple_strtoll(str, &next, base);
-			} else {
-				unsigned long long *l = (unsigned long long *)va_arg(args, unsigned long long *);
-				*l = simple_strtoull(str, &next, base);
-			}
+			if (is_sign)
+				*va_arg(args, long long *) = val.s;
+			else
+				*va_arg(args, unsigned long long *) = val.u;
 			break;
 		case 'Z':
 		case 'z':
-		{
-			size_t *s = (size_t *)va_arg(args, size_t *);
-			*s = (size_t)simple_strtoul(str, &next, base);
-		}
-		break;
+			*va_arg(args, size_t *) = val.u;
+			break;
 		default:
-			if (is_sign) {
-				int *i = (int *)va_arg(args, int *);
-				*i = (int)simple_strtol(str, &next, base);
-			} else {
-				unsigned int *i = (unsigned int *)va_arg(args, unsigned int*);
-				*i = (unsigned int)simple_strtoul(str, &next, base);
-			}
+			if (is_sign)
+				*va_arg(args, int *) = val.s;
+			else
+				*va_arg(args, unsigned int *) = val.u;
 			break;
 		}
 		num++;
