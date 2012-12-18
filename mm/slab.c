@@ -87,7 +87,6 @@
  */
 
 #include	<linux/slab.h>
-#include	"slab.h"
 #include	<linux/mm.h>
 #include	<linux/poison.h>
 #include	<linux/swap.h>
@@ -127,6 +126,8 @@
 #include <trace/events/kmem.h>
 
 #include	"internal.h"
+
+#include	"slab.h"
 
 /*
  * DEBUG	- 1 for kmem_cache_create() to honour; SLAB_RED_ZONE & SLAB_POISON.
@@ -3883,6 +3884,9 @@ EXPORT_SYMBOL(__kmalloc);
 void kmem_cache_free(struct kmem_cache *cachep, void *objp)
 {
 	unsigned long flags;
+	cachep = cache_from_obj(cachep, objp);
+	if (!cachep)
+		return;
 
 	local_irq_save(flags);
 	debug_check_no_locks_freed(objp, cachep->object_size);
