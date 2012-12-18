@@ -195,17 +195,13 @@ static int tosa_lcd_probe(struct spi_device *spi)
 	data->spi = spi;
 	dev_set_drvdata(&spi->dev, data);
 
-	ret = devm_gpio_request(&spi->dev, TOSA_GPIO_TG_ON, "tg #pwr");
+	ret = devm_gpio_request_one(&spi->dev, TOSA_GPIO_TG_ON,
+				GPIOF_OUT_INIT_LOW, "tg #pwr");
 	if (ret < 0)
 		goto err_gpio_tg;
 
 	mdelay(60);
 
-	ret = gpio_direction_output(TOSA_GPIO_TG_ON, 0);
-	if (ret < 0)
-		goto err_gpio_tg;
-
-	mdelay(60);
 	tosa_lcd_tg_init(data);
 
 	tosa_lcd_tg_on(data);
