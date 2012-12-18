@@ -88,8 +88,7 @@ enum {
 	TIMERTICK = HZ / 10,
 	RTTSCALE = 8,
 	RTTDSCALE = 3,
-	MAXTIMER = HZ << 1,
-	RTTAVG_INIT = HZ / 4 << RTTSCALE,
+	RTTAVG_INIT = USEC_PER_SEC / 4 << RTTSCALE,
 	RTTDEV_INIT = RTTAVG_INIT / 4,
 };
 
@@ -106,6 +105,8 @@ struct buf {
 struct frame {
 	struct list_head head;
 	u32 tag;
+	struct timeval sent;	/* high-res time packet was sent */
+	u32 sent_jiffs;		/* low-res jiffies-based sent time */
 	ulong waited;
 	struct aoetgt *t;		/* parent target I belong to */
 	sector_t lba;
@@ -143,11 +144,11 @@ struct aoedev {
 	struct aoedev *next;
 	ulong sysminor;
 	ulong aoemajor;
+	u32 rttavg;		/* scaled AoE round trip time average */
+	u32 rttdev;		/* scaled round trip time mean deviation */
 	u16 aoeminor;
 	u16 flags;
 	u16 nopen;		/* (bd_openers isn't available without sleeping) */
-	u16 rttavg;		/* scaled AoE round trip time average */
-	u16 rttdev;		/* scaled round trip time mean deviation */
 	u16 fw_ver;		/* version of blade's firmware */
 	u16 lasttag;		/* last tag sent */
 	u16 useme;
