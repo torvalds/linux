@@ -290,7 +290,7 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 		return;
 
 
-	pd_addr = dev_priv->mm.gtt->gtt + ppgtt->pd_offset/sizeof(gtt_pte_t);
+	pd_addr = dev_priv->mm.gsm + ppgtt->pd_offset/sizeof(gtt_pte_t);
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
 		dma_addr_t pt_addr;
 
@@ -367,7 +367,7 @@ static void i915_ggtt_clear_range(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	gtt_pte_t scratch_pte;
-	gtt_pte_t __iomem *gtt_base = dev_priv->mm.gtt->gtt + first_entry;
+	gtt_pte_t __iomem *gtt_base = (gtt_pte_t __iomem *) dev_priv->mm.gsm + first_entry;
 	const int max_entries = dev_priv->mm.gtt->gtt_total_entries - first_entry;
 	int i;
 
@@ -432,7 +432,7 @@ static void gen6_ggtt_bind_object(struct drm_i915_gem_object *obj,
 	struct scatterlist *sg = st->sgl;
 	const int first_entry = obj->gtt_space->start >> PAGE_SHIFT;
 	const int max_entries = dev_priv->mm.gtt->gtt_total_entries - first_entry;
-	gtt_pte_t __iomem *gtt_entries = dev_priv->mm.gtt->gtt + first_entry;
+	gtt_pte_t __iomem *gtt_entries = dev_priv->mm.gsm + first_entry;
 	int unused, i = 0;
 	unsigned int len, m = 0;
 	dma_addr_t addr;
@@ -747,9 +747,9 @@ int i915_gem_gtt_init(struct drm_device *dev)
 		goto err_out;
 	}
 
-	dev_priv->mm.gtt->gtt = ioremap_wc(gtt_bus_addr,
-					   dev_priv->mm.gtt->gtt_total_entries * sizeof(gtt_pte_t));
-	if (!dev_priv->mm.gtt->gtt) {
+	dev_priv->mm.gsm = ioremap_wc(gtt_bus_addr,
+				      dev_priv->mm.gtt->gtt_total_entries * sizeof(gtt_pte_t));
+	if (!dev_priv->mm.gsm) {
 		DRM_ERROR("Failed to map the gtt page table\n");
 		teardown_scratch_page(dev);
 		ret = -ENOMEM;
@@ -773,7 +773,7 @@ err_out:
 void i915_gem_gtt_fini(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	iounmap(dev_priv->mm.gtt->gtt);
+	iounmap(dev_priv->mm.gsm);
 	teardown_scratch_page(dev);
 	if (INTEL_INFO(dev)->gen < 6)
 		intel_gmch_remove();

@@ -602,7 +602,6 @@ static int intel_gtt_init(void)
 		iounmap(intel_private.registers);
 		return -ENOMEM;
 	}
-	intel_private.base.gtt = intel_private.gtt;
 
 	global_cache_flush();   /* FIXME: ? */
 
