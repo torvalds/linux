@@ -325,7 +325,8 @@ static int pidns_install(struct nsproxy *nsproxy, void *ns)
 	struct pid_namespace *active = task_active_pid_ns(current);
 	struct pid_namespace *ancestor, *new = ns;
 
-	if (!ns_capable(new->user_ns, CAP_SYS_ADMIN))
+	if (!ns_capable(new->user_ns, CAP_SYS_ADMIN) ||
+	    !nsown_capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	/*
