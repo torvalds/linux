@@ -132,7 +132,7 @@ static int max77686_clk_register(struct device *dev,
 
 	max77686->lookup = devm_kzalloc(dev, sizeof(struct clk_lookup),
 					GFP_KERNEL);
-	if (IS_ERR(max77686->lookup))
+	if (!max77686->lookup)
 		return -ENOMEM;
 
 	max77686->lookup->con_id = hw->init->name;
@@ -151,13 +151,13 @@ static int max77686_clk_probe(struct platform_device *pdev)
 
 	max77686_clks = devm_kzalloc(&pdev->dev, sizeof(struct max77686_clk *)
 					* MAX77686_CLKS_NUM, GFP_KERNEL);
-	if (IS_ERR(max77686_clks))
+	if (!max77686_clks)
 		return -ENOMEM;
 
 	for (i = 0; i < MAX77686_CLKS_NUM; i++) {
 		max77686_clks[i] = devm_kzalloc(&pdev->dev,
 					sizeof(struct max77686_clk), GFP_KERNEL);
-		if (IS_ERR(max77686_clks[i]))
+		if (!max77686_clks[i])
 			return -ENOMEM;
 	}
 
