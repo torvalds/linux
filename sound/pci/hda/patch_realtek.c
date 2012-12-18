@@ -209,7 +209,6 @@ struct alc_spec {
 	unsigned int line_jack_present:1;
 	unsigned int master_mute:1;
 	unsigned int auto_mic:1;
-	unsigned int auto_mic_valid_imux:1;	/* valid imux for auto-mic */
 	unsigned int automute_speaker:1; /* automute speaker outputs */
 	unsigned int automute_lo:1; /* automute LO outputs */
 	unsigned int detect_hp:1;	/* Headphone detection enabled */
@@ -622,7 +621,7 @@ static void alc_mic_automute(struct hda_codec *codec, struct hda_jack_tbl *jack)
 	struct alc_spec *spec = codec->spec;
 	hda_nid_t *pins = spec->imux_pins;
 
-	if (!spec->auto_mic || !spec->auto_mic_valid_imux)
+	if (!spec->auto_mic)
 		return;
 	if (snd_BUG_ON(spec->int_mic_idx < 0 || spec->ext_mic_idx < 0))
 		return;
@@ -1004,8 +1003,6 @@ static bool alc_auto_mic_check_imux(struct hda_codec *codec)
 		snd_hda_jack_detect_enable_callback(codec, spec->dock_mic_pin,
 						    ALC_MIC_EVENT,
 						    alc_mic_automute);
-
-	spec->auto_mic_valid_imux = 1;
 	return true;
 }
 
