@@ -122,14 +122,14 @@ struct aoeif {
 
 struct aoetgt {
 	unsigned char addr[6];
-	ushort nframes;
+	ushort nframes;		/* cap on frames to use */
 	struct aoedev *d;			/* parent device I belong to */
 	struct list_head ffree;			/* list of free frames */
 	struct aoeif ifs[NAOEIFS];
 	struct aoeif *ifp;	/* current aoeif in use */
 	ushort nout;
-	ushort maxout;
-	ulong falloc;
+	ushort maxout;		/* current value for max outstanding */
+	ulong falloc;		/* number of allocated frames */
 	ulong lastwadj;		/* last window adjustment */
 	int minbcnt;
 	int wpkts, rpkts;

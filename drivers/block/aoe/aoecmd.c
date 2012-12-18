@@ -1373,7 +1373,11 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 	spin_lock_irqsave(&d->lock, flags);
 
 	t = gettgt(d, h->src);
-	if (!t) {
+	if (t) {
+		t->nframes = n;
+		if (n < t->maxout)
+			t->maxout = n;
+	} else {
 		t = addtgt(d, h->src, n);
 		if (!t)
 			goto bail;
