@@ -590,18 +590,21 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
 }
 
 #ifdef CONFIG_MOVABLE_NODE
-/* when CONFIG_MOVABLE_NODE, we allow online node don't have normal memory */
+/*
+ * When CONFIG_MOVABLE_NODE, we permit onlining of a node which doesn't have
+ * normal memory.
+ */
 static bool can_online_high_movable(struct zone *zone)
 {
 	return true;
 }
-#else /* #ifdef CONFIG_MOVABLE_NODE */
+#else /* CONFIG_MOVABLE_NODE */
 /* ensure every online node has NORMAL memory */
 static bool can_online_high_movable(struct zone *zone)
 {
 	return node_state(zone_to_nid(zone), N_NORMAL_MEMORY);
 }
-#endif /* #ifdef CONFIG_MOVABLE_NODE */
+#endif /* CONFIG_MOVABLE_NODE */
 
 /* check which state of node_states will be changed when online memory */
 static void node_states_check_changes_online(unsigned long nr_pages,
@@ -1112,12 +1115,15 @@ check_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
 }
 
 #ifdef CONFIG_MOVABLE_NODE
-/* when CONFIG_MOVABLE_NODE, we allow online node don't have normal memory */
+/*
+ * When CONFIG_MOVABLE_NODE, we permit offlining of a node which doesn't have
+ * normal memory.
+ */
 static bool can_offline_normal(struct zone *zone, unsigned long nr_pages)
 {
 	return true;
 }
-#else /* #ifdef CONFIG_MOVABLE_NODE */
+#else /* CONFIG_MOVABLE_NODE */
 /* ensure the node has NORMAL memory if it is still online */
 static bool can_offline_normal(struct zone *zone, unsigned long nr_pages)
 {
@@ -1141,7 +1147,7 @@ static bool can_offline_normal(struct zone *zone, unsigned long nr_pages)
 	 */
 	return present_pages == 0;
 }
-#endif /* #ifdef CONFIG_MOVABLE_NODE */
+#endif /* CONFIG_MOVABLE_NODE */
 
 /* check which state of node_states will be changed when offline memory */
 static void node_states_check_changes_offline(unsigned long nr_pages,

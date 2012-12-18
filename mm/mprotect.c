@@ -114,7 +114,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 
 #ifdef CONFIG_NUMA_BALANCING
 static inline void change_pmd_protnuma(struct mm_struct *mm, unsigned long addr,
-		pmd_t *pmd)
+				       pmd_t *pmd)
 {
 	spin_lock(&mm->page_table_lock);
 	set_pmd_at(mm, addr & PMD_MASK, pmd, pmd_mknuma(*pmd));
@@ -122,15 +122,15 @@ static inline void change_pmd_protnuma(struct mm_struct *mm, unsigned long addr,
 }
 #else
 static inline void change_pmd_protnuma(struct mm_struct *mm, unsigned long addr,
-		pmd_t *pmd)
+				       pmd_t *pmd)
 {
 	BUG();
 }
 #endif /* CONFIG_NUMA_BALANCING */
 
-static inline unsigned long change_pmd_range(struct vm_area_struct *vma, pud_t *pud,
-		unsigned long addr, unsigned long end, pgprot_t newprot,
-		int dirty_accountable, int prot_numa)
+static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+		pud_t *pud, unsigned long addr, unsigned long end,
+		pgprot_t newprot, int dirty_accountable, int prot_numa)
 {
 	pmd_t *pmd;
 	unsigned long next;
@@ -143,7 +143,8 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma, pud_t *
 		if (pmd_trans_huge(*pmd)) {
 			if (next - addr != HPAGE_PMD_SIZE)
 				split_huge_page_pmd(vma, addr, pmd);
-			else if (change_huge_pmd(vma, pmd, addr, newprot, prot_numa)) {
+			else if (change_huge_pmd(vma, pmd, addr, newprot,
+						 prot_numa)) {
 				pages += HPAGE_PMD_NR;
 				continue;
 			}
@@ -167,9 +168,9 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma, pud_t *
 	return pages;
 }
 
-static inline unsigned long change_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
-		unsigned long addr, unsigned long end, pgprot_t newprot,
-		int dirty_accountable, int prot_numa)
+static inline unsigned long change_pud_range(struct vm_area_struct *vma,
+		pgd_t *pgd, unsigned long addr, unsigned long end,
+		pgprot_t newprot, int dirty_accountable, int prot_numa)
 {
 	pud_t *pud;
 	unsigned long next;
@@ -304,7 +305,8 @@ success:
 		dirty_accountable = 1;
 	}
 
-	change_protection(vma, start, end, vma->vm_page_prot, dirty_accountable, 0);
+	change_protection(vma, start, end, vma->vm_page_prot,
+			  dirty_accountable, 0);
 
 	vm_stat_account(mm, oldflags, vma->vm_file, -nrpages);
 	vm_stat_account(mm, newflags, vma->vm_file, nrpages);
@@ -361,8 +363,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
 		error = -EINVAL;
 		if (!(vma->vm_flags & VM_GROWSDOWN))
 			goto out;
-	}
-	else {
+	} else {
 		if (vma->vm_start > start)
 			goto out;
 		if (unlikely(grows & PROT_GROWSUP)) {
@@ -378,9 +379,10 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
 	for (nstart = start ; ; ) {
 		unsigned long newflags;
 
-		/* Here we know that  vma->vm_start <= nstart < vma->vm_end. */
+		/* Here we know that vma->vm_start <= nstart < vma->vm_end. */
 
-		newflags = vm_flags | (vma->vm_flags & ~(VM_READ | VM_WRITE | VM_EXEC));
+		newflags = vm_flags;
+		newflags |= (vma->vm_flags & ~(VM_READ | VM_WRITE | VM_EXEC));
 
 		/* newflags >> 4 shift VM_MAY% in place of VM_% */
 		if ((newflags & ~(newflags >> 4)) & (VM_READ | VM_WRITE | VM_EXEC)) {
