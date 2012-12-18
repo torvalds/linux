@@ -581,6 +581,7 @@ reassign_frame(struct list_head *pos)
 	nf->waited = 0;
 	nf->waited_total = f->waited_total;
 	nf->sent = f->sent;
+	nf->sent_jiffs = f->sent_jiffs;
 	f->skb = skb;
 	aoe_freetframe(f);
 	f->t->nout--;
