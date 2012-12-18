@@ -22,7 +22,7 @@ else
 endif
 
 run_tests: all
-	./kcmp_test
+	@./kcmp_test || echo "kcmp_test: [FAIL]"
 
 clean:
 	rm -fr ./run_test
