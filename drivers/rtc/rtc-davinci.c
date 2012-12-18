@@ -529,8 +529,9 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 	davinci_rtc->rtc = rtc_device_register(pdev->name, &pdev->dev,
 				    &davinci_rtc_ops, THIS_MODULE);
 	if (IS_ERR(davinci_rtc->rtc)) {
-		dev_err(dev, "unable to register RTC device, err %ld\n",
-				PTR_ERR(davinci_rtc->rtc));
+		ret = PTR_ERR(davinci_rtc->rtc);
+		dev_err(dev, "unable to register RTC device, err %d\n",
+				ret);
 		goto fail3;
 	}
 
