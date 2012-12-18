@@ -54,7 +54,6 @@
 #endif
 
 int cifsFYI = 0;
-int cifsERROR = 1;
 int traceSMB = 0;
 bool enable_oplocks = true;
 unsigned int linuxExtEnabled = 1;
