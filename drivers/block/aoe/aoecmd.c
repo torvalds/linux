@@ -1217,8 +1217,10 @@ noskb:		if (buf)
 	case ATA_CMD_PIO_READ:
 	case ATA_CMD_PIO_READ_EXT:
 		if (skb->len < n) {
-			pr_err("aoe: runt data size in read.  skb->len=%d need=%ld\n",
-				skb->len, n);
+			pr_err("%s e%ld.%d.  skb->len=%d need=%ld\n",
+				"aoe: runt data size in read from",
+				(long) d->aoemajor, d->aoeminor,
+			       skb->len, n);
 			clear_bit(BIO_UPTODATE, &buf->bio->bi_flags);
 			break;
 		}
@@ -1233,7 +1235,9 @@ noskb:		if (buf)
 		break;
 	case ATA_CMD_ID_ATA:
 		if (skb->len < 512) {
-			pr_info("aoe: runt data size in ataid.  skb->len=%d\n",
+			pr_info("%s e%ld.%d.  skb->len=%d need=512\n",
+				"aoe: runt data size in ataid from",
+				(long) d->aoemajor, d->aoeminor,
 				skb->len);
 			break;
 		}
