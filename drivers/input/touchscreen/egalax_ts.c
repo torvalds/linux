@@ -153,7 +153,7 @@ static int egalax_wake_up_device(struct i2c_client *client)
 	return 0;
 }
 
-static int __devinit egalax_firmware_version(struct i2c_client *client)
+static int egalax_firmware_version(struct i2c_client *client)
 {
 	static const u8 cmd[MAX_I2C_DATA_LEN] = { 0x03, 0x03, 0xa, 0x01, 0x41 };
 	int ret;
@@ -165,7 +165,7 @@ static int __devinit egalax_firmware_version(struct i2c_client *client)
 	return 0;
 }
 
-static int __devinit egalax_ts_probe(struct i2c_client *client,
+static int egalax_ts_probe(struct i2c_client *client,
 				       const struct i2c_device_id *id)
 {
 	struct egalax_ts *ts;
@@ -246,7 +246,7 @@ err_free_ts:
 	return error;
 }
 
-static __devexit int egalax_ts_remove(struct i2c_client *client)
+static int egalax_ts_remove(struct i2c_client *client)
 {
 	struct egalax_ts *ts = i2c_get_clientdata(client);
 
@@ -301,7 +301,7 @@ static struct i2c_driver egalax_ts_driver = {
 	},
 	.id_table	= egalax_ts_id,
 	.probe		= egalax_ts_probe,
-	.remove		= __devexit_p(egalax_ts_remove),
+	.remove		= egalax_ts_remove,
 };
 
 module_i2c_driver(egalax_ts_driver);

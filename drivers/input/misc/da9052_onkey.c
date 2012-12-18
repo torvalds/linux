@@ -70,7 +70,7 @@ static irqreturn_t da9052_onkey_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit da9052_onkey_probe(struct platform_device *pdev)
+static int da9052_onkey_probe(struct platform_device *pdev)
 {
 	struct da9052 *da9052 = dev_get_drvdata(pdev->dev.parent);
 	struct da9052_onkey *onkey;
@@ -129,7 +129,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit da9052_onkey_remove(struct platform_device *pdev)
+static int da9052_onkey_remove(struct platform_device *pdev)
 {
 	struct da9052_onkey *onkey = platform_get_drvdata(pdev);
 
@@ -144,7 +144,7 @@ static int __devexit da9052_onkey_remove(struct platform_device *pdev)
 
 static struct platform_driver da9052_onkey_driver = {
 	.probe	= da9052_onkey_probe,
-	.remove	= __devexit_p(da9052_onkey_remove),
+	.remove	= da9052_onkey_remove,
 	.driver = {
 		.name	= "da9052-onkey",
 		.owner	= THIS_MODULE,

@@ -141,7 +141,7 @@ static void da9052_ts_pen_work(struct work_struct *work)
 	}
 }
 
-static int __devinit da9052_ts_configure_gpio(struct da9052 *da9052)
+static int da9052_ts_configure_gpio(struct da9052 *da9052)
 {
 	int error;
 
@@ -160,7 +160,7 @@ static int __devinit da9052_ts_configure_gpio(struct da9052 *da9052)
 	return 0;
 }
 
-static int __devinit da9052_configure_tsi(struct da9052_tsi *tsi)
+static int da9052_configure_tsi(struct da9052_tsi *tsi)
 {
 	int error;
 
@@ -227,7 +227,7 @@ static void da9052_ts_input_close(struct input_dev *input_dev)
 	da9052_reg_update(tsi->da9052, DA9052_TSI_CONT_A_REG, 1 << 1, 0);
 }
 
-static int __devinit da9052_ts_probe(struct platform_device *pdev)
+static int da9052_ts_probe(struct platform_device *pdev)
 {
 	struct da9052 *da9052;
 	struct da9052_tsi *tsi;
@@ -317,7 +317,7 @@ err_free_mem:
 	return error;
 }
 
-static int  __devexit da9052_ts_remove(struct platform_device *pdev)
+static int  da9052_ts_remove(struct platform_device *pdev)
 {
 	struct da9052_tsi *tsi = platform_get_drvdata(pdev);
 
@@ -336,7 +336,7 @@ static int  __devexit da9052_ts_remove(struct platform_device *pdev)
 
 static struct platform_driver da9052_tsi_driver = {
 	.probe	= da9052_ts_probe,
-	.remove	= __devexit_p(da9052_ts_remove),
+	.remove	= da9052_ts_remove,
 	.driver	= {
 		.name	= "da9052-tsi",
 		.owner	= THIS_MODULE,

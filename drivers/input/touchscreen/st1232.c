@@ -139,7 +139,7 @@ end:
 	return IRQ_HANDLED;
 }
 
-static int __devinit st1232_ts_probe(struct i2c_client *client,
+static int st1232_ts_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct st1232_ts_data *ts;
@@ -206,7 +206,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit st1232_ts_remove(struct i2c_client *client)
+static int st1232_ts_remove(struct i2c_client *client)
 {
 	struct st1232_ts_data *ts = i2c_get_clientdata(client);
 
@@ -255,7 +255,7 @@ static const struct i2c_device_id st1232_ts_id[] = {
 MODULE_DEVICE_TABLE(i2c, st1232_ts_id);
 
 #ifdef CONFIG_OF
-static const struct of_device_id st1232_ts_dt_ids[] __devinitconst = {
+static const struct of_device_id st1232_ts_dt_ids[] = {
 	{ .compatible = "sitronix,st1232", },
 	{ }
 };
@@ -264,7 +264,7 @@ MODULE_DEVICE_TABLE(of, st1232_ts_dt_ids);
 
 static struct i2c_driver st1232_ts_driver = {
 	.probe		= st1232_ts_probe,
-	.remove		= __devexit_p(st1232_ts_remove),
+	.remove		= st1232_ts_remove,
 	.id_table	= st1232_ts_id,
 	.driver = {
 		.name	= ST1232_TS_NAME,

@@ -258,7 +258,7 @@ static irqreturn_t titsc_irq(int irq, void *dev)
  * The functions for inserting/removing driver as a module.
  */
 
-static int __devinit titsc_probe(struct platform_device *pdev)
+static int titsc_probe(struct platform_device *pdev)
 {
 	struct titsc *ts_dev;
 	struct input_dev *input_dev;
@@ -327,7 +327,7 @@ err_free_mem:
 	return err;
 }
 
-static int __devexit titsc_remove(struct platform_device *pdev)
+static int titsc_remove(struct platform_device *pdev)
 {
 	struct ti_tscadc_dev *tscadc_dev = pdev->dev.platform_data;
 	struct titsc *ts_dev = tscadc_dev->tsc;
@@ -384,7 +384,7 @@ static const struct dev_pm_ops titsc_pm_ops = {
 
 static struct platform_driver ti_tsc_driver = {
 	.probe	= titsc_probe,
-	.remove	= __devexit_p(titsc_remove),
+	.remove	= titsc_remove,
 	.driver	= {
 		.name   = "tsc",
 		.owner	= THIS_MODULE,
