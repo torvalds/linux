@@ -395,7 +395,7 @@ static int __devinit spear_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(config->clk))
 		return PTR_ERR(config->clk);
 
-	status = clk_enable(config->clk);
+	status = clk_prepare_enable(config->clk);
 	if (status < 0)
 		return status;
 
@@ -418,7 +418,7 @@ static int __devinit spear_rtc_probe(struct platform_device *pdev)
 
 err_disable_clock:
 	platform_set_drvdata(pdev, NULL);
-	clk_disable(config->clk);
+	clk_disable_unprepare(config->clk);
 
 	return status;
 }
@@ -429,7 +429,7 @@ static int __devexit spear_rtc_remove(struct platform_device *pdev)
 
 	rtc_device_unregister(config->rtc);
 	spear_rtc_disable_interrupt(config);
-	clk_disable(config->clk);
+	clk_disable_unprepare(config->clk);
 	device_init_wakeup(&pdev->dev, 0);
 
 	return 0;
