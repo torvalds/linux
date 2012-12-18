@@ -228,8 +228,7 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 	sprintf(name, "backlight-%d", pdev->id);
 	data->port = pdev->id;
 	data->chip = chip;
-	data->i2c = (chip->id == CHIP_PM8606) ? chip->client	\
-			: chip->companion;
+	data->i2c = (chip->id == CHIP_PM8606) ? chip->client : chip->companion;
 	data->current_brightness = MAX_BRIGHTNESS;
 	if (pm860x_backlight_dt_init(pdev, data, name)) {
 		if (pdata) {
