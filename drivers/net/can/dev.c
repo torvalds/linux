@@ -25,6 +25,7 @@
 #include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/can/netlink.h>
+#include <linux/can/led.h>
 #include <net/rtnetlink.h>
 
 #define MOD_DESC "CAN device driver interface"
@@ -811,6 +812,8 @@ static __init int can_dev_init(void)
 {
 	int err;
 
+	can_led_notifier_init();
+
 	err = rtnl_link_register(&can_link_ops);
 	if (!err)
 		printk(KERN_INFO MOD_DESC "\n");
@@ -822,6 +825,8 @@ module_init(can_dev_init);
 static __exit void can_dev_exit(void)
 {
 	rtnl_link_unregister(&can_link_ops);
+
+	can_led_notifier_exit();
 }
 module_exit(can_dev_exit);
 

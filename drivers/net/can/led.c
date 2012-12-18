@@ -1,5 +1,6 @@
 /*
  * Copyright 2012, Fabio Baltieri <fabio.baltieri@gmail.com>
+ * Copyright 2012, Kurt Van Dijck <kurt.van.dijck@eia.be>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -84,3 +85,40 @@ void devm_can_led_init(struct net_device *netdev)
 	devres_add(&netdev->dev, res);
 }
 EXPORT_SYMBOL_GPL(devm_can_led_init);
+
+/* NETDEV rename notifier to rename the associated led triggers too */
+static int can_led_notifier(struct notifier_block *nb, unsigned long msg,
+			void *data)
+{
+	struct net_device *netdev = data;
+	struct can_priv *priv = safe_candev_priv(netdev);
+	char name[CAN_LED_NAME_SZ];
+
+	if (!priv)
+		return NOTIFY_DONE;
+
+	if (msg == NETDEV_CHANGENAME) {
+		snprintf(name, sizeof(name), "%s-tx", netdev->name);
+		led_trigger_rename_static(name, priv->tx_led_trig);
+
+		snprintf(name, sizeof(name), "%s-rx", netdev->name);
+		led_trigger_rename_static(name, priv->rx_led_trig);
+	}
+
+	return NOTIFY_DONE;
+}
+
+/* notifier block for netdevice event */
+static struct notifier_block can_netdev_notifier __read_mostly = {
+	.notifier_call = can_led_notifier,
+};
+
+int __init can_led_notifier_init(void)
+{
+	return register_netdevice_notifier(&can_netdev_notifier);
+}
+
+void __exit can_led_notifier_exit(void)
+{
+	unregister_netdevice_notifier(&can_netdev_notifier);
+}
