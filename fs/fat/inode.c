@@ -972,41 +972,41 @@ static int parse_options(struct super_block *sb, char *options, int is_vfat,
 			break;
 		case Opt_uid:
 			if (match_int(&args[0], &option))
-				return 0;
+				return -EINVAL;
 			opts->fs_uid = make_kuid(current_user_ns(), option);
 			if (!uid_valid(opts->fs_uid))
-				return 0;
+				return -EINVAL;
 			break;
 		case Opt_gid:
 			if (match_int(&args[0], &option))
-				return 0;
+				return -EINVAL;
 			opts->fs_gid = make_kgid(current_user_ns(), option);
 			if (!gid_valid(opts->fs_gid))
-				return 0;
+				return -EINVAL;
 			break;
 		case Opt_umask:
 			if (match_octal(&args[0], &option))
-				return 0;
+				return -EINVAL;
 			opts->fs_fmask = opts->fs_dmask = option;
 			break;
 		case Opt_dmask:
 			if (match_octal(&args[0], &option))
-				return 0;
+				return -EINVAL;
 			opts->fs_dmask = option;
 			break;
 		case Opt_fmask:
 			if (match_octal(&args[0], &option))
-				return 0;
+				return -EINVAL;
 			opts->fs_fmask = option;
 			break;
 		case Opt_allow_utime:
 			if (match_octal(&args[0], &option))
-				return 0;
+				return -EINVAL;
 			opts->allow_utime = option & (S_IWGRP | S_IWOTH);
 			break;
 		case Opt_codepage:
 			if (match_int(&args[0], &option))
-				return 0;
+				return -EINVAL;
 			opts->codepage = option;
 			break;
 		case Opt_flush:
@@ -1014,9 +1014,9 @@ static int parse_options(struct super_block *sb, char *options, int is_vfat,
 			break;
 		case Opt_time_offset:
 			if (match_int(&args[0], &option))
-				return 0;
+				return -EINVAL;
 			if (option < -12 * 60 || option > 12 * 60)
-				return 0;
+				return -EINVAL;
 			opts->tz_set = 1;
 			opts->time_offset = option;
 			break;
