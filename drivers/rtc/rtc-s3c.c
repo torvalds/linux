@@ -501,8 +501,7 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 
 	if (s3c_rtc_mem == NULL) {
 		dev_err(&pdev->dev, "failed to reserve memory region\n");
-		ret = -ENOENT;
-		goto err_nores;
+		return -ENOENT;
 	}
 
 	s3c_rtc_base = ioremap(res->start, resource_size(res));
@@ -612,8 +611,6 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 
  err_nomap:
 	release_resource(s3c_rtc_mem);
-
- err_nores:
 	return ret;
 }
 
