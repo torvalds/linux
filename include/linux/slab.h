@@ -220,6 +220,10 @@ struct memcg_cache_params {
 
 int memcg_update_all_caches(int num_memcgs);
 
+struct seq_file;
+int cache_show(struct kmem_cache *s, struct seq_file *m);
+void print_slabinfo_header(struct seq_file *m);
+
 /*
  * Common kmalloc functions provided by all allocators
  */

@@ -572,7 +572,8 @@ static void disarm_sock_keys(struct mem_cgroup *memcg)
  * increase it.
  */
 static DEFINE_IDA(kmem_limited_groups);
-static int memcg_limited_groups_array_size;
+int memcg_limited_groups_array_size;
+
 /*
  * MIN_SIZE is different than 1, because we would like to avoid going through
  * the alloc/free process all the time. In a small machine, 4 kmem-limited
@@ -2793,6 +2794,27 @@ static struct kmem_cache *memcg_params_to_cache(struct memcg_cache_params *p)
 	cachep = p->root_cache;
 	return cachep->memcg_params->memcg_caches[memcg_cache_id(p->memcg)];
 }
+
+#ifdef CONFIG_SLABINFO
+static int mem_cgroup_slabinfo_read(struct cgroup *cont, struct cftype *cft,
+					struct seq_file *m)
+{
+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+	struct memcg_cache_params *params;
+
+	if (!memcg_can_account_kmem(memcg))
+		return -EIO;
+
+	print_slabinfo_header(m);
+
+	mutex_lock(&memcg->slab_caches_mutex);
+	list_for_each_entry(params, &memcg->memcg_slab_caches, list)
+		cache_show(memcg_params_to_cache(params), m);
+	mutex_unlock(&memcg->slab_caches_mutex);
+
+	return 0;
+}
+#endif
 
 static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
 {
@@ -5822,6 +5844,12 @@ static struct cftype mem_cgroup_files[] = {
 		.trigger = mem_cgroup_reset,
 		.read = mem_cgroup_read,
 	},
+#ifdef CONFIG_SLABINFO
+	{
+		.name = "kmem.slabinfo",
+		.read_seq_string = mem_cgroup_slabinfo_read,
+	},
+#endif
 #endif
 	{ },	/* terminate */
 };
