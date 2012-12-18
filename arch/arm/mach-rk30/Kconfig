@@ -44,6 +44,9 @@ choice
 
 config MACH_RK30_SDK
 	bool "RK30 SDK board"
+	
+config MACH_RK30_DS975
+	bool "RK30 DS975 board"
 
 config MACH_RK3066_SDK
 	bool "RK3066 SDK board"
