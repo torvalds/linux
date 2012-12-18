@@ -1698,21 +1698,27 @@ pair provide additional information particular to the objects they represent.
 	If the kernel is built without exportfs support the file handle won't be
 	printed out.
 
+	If there is no inotify mark attached yet the 'inotify' line will be omitted.
+
 	For fanotify files the format is
 
 	pos:	0
 	flags:	02
-	fanotify ino:2 sdev:800013 mask:1 ignored_mask:40000000 fhandle-bytes:8 fhandle-type:1 f_handle:0200000000000000
+	fanotify flags:10 event-flags:0
+	fanotify mnt_id:12 mflags:40 mask:38 ignored_mask:40000003
+	fanotify ino:4f969 sdev:800013 mflags:0 mask:3b ignored_mask:40000000 fhandle-bytes:8 fhandle-type:1 f_handle:69f90400c275b5b4
 
-	or
+	where fanotify 'flags' and 'event-flags' are values used in fanotify_init
+	call, 'mnt_id' is the mount point identifier, 'mflags' is the value of
+	flags associated with mark which are tracked separately from events
+	mask. 'ino', 'sdev' are target inode and device, 'mask' is the events
+	mask and 'ignored_mask' is the mask of events which are to be ignored.
+	All in hex format. Incorporation of 'mflags', 'mask' and 'ignored_mask'
+	does provide information about flags and mask used in fanotify_mark
+	call [see fsnotify manpage for details].
 
-	pos:	0
-	flags:	02
-	fanotify mnt_id:13 mask:1 ignored_mask:40000000
-
-	where 'ino', 'sdev' are target inode and device, 'mnt_id' is the mount
-	point identifier, 'mask' is the events mask used and 'ignored_mask' is
-	the mask of events which are to be ignored. All in hex format.
+	While the first three lines are mandatory and always printed, the rest is
+	optional and may be omitted if no marks created yet.
 
 
 ------------------------------------------------------------------------------
