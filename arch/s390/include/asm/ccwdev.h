@@ -12,14 +12,12 @@
 #include <linux/mod_devicetable.h>
 #include <asm/fcx.h>
 #include <asm/irq.h>
+#include <asm/schid.h>
 
 /* structs from asm/cio.h */
 struct irb;
 struct ccw1;
 struct ccw_dev_id;
-
-/* from asm/schid.h */
-struct subchannel_id;
 
 /* simplified initializers for struct ccw_device:
  * CCW_DEVICE and CCW_DEVICE_DEVTYPE initialize one
