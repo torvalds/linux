@@ -193,18 +193,15 @@ long arch_ptrace(struct task_struct *child, long request,
 		break;
 
 	case PTRACE_GETREGS:  /* Get all registers from the child. */
-		if (copy_to_user(datap, getregs(child, &copyregs),
-				 sizeof(struct pt_regs)) == 0) {
-			ret = 0;
-		}
+		ret = copy_regset_to_user(child, &tile_user_regset_view,
+					  REGSET_GPR, 0,
+					  sizeof(struct pt_regs), datap);
 		break;
 
 	case PTRACE_SETREGS:  /* Set all registers in the child. */
-		if (copy_from_user(&copyregs, datap,
-				   sizeof(struct pt_regs)) == 0) {
-			putregs(child, &copyregs);
-			ret = 0;
-		}
+		ret = copy_regset_from_user(child, &tile_user_regset_view,
+					    REGSET_GPR, 0,
+					    sizeof(struct pt_regs), datap);
 		break;
 
 	case PTRACE_GETFPREGS:  /* Get the child FPU state. */
