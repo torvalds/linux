@@ -68,6 +68,7 @@ struct btrfs_trans_handle {
 	struct btrfs_block_rsv *orig_rsv;
 	short aborted;
 	short adding_csums;
+	bool allocating_chunk;
 	enum btrfs_trans_type type;
 	/*
 	 * this root is only needed to validate that the root passed to
