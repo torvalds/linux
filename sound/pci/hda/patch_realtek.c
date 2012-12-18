@@ -653,14 +653,6 @@ static void alc880_unsol_event(struct hda_codec *codec, unsigned int res)
 	snd_hda_jack_unsol_event(codec, res >> 2);
 }
 
-/* call init functions of standard auto-mute helpers */
-static void alc_inithook(struct hda_codec *codec)
-{
-	alc_hp_automute(codec, NULL);
-	alc_line_automute(codec, NULL);
-	alc_mic_automute(codec, NULL);
-}
-
 /* additional initialization for ALC888 variants */
 static void alc888_coef_init(struct hda_codec *codec)
 {
@@ -1619,7 +1611,7 @@ static const struct snd_kcontrol_new alc_beep_mixer[] = {
 };
 #endif
 
-static int __alc_build_controls(struct hda_codec *codec)
+static int alc_build_controls(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	int i, err;
@@ -1693,13 +1685,6 @@ static int __alc_build_controls(struct hda_codec *codec)
 
 	alc_free_kctls(codec); /* no longer needed */
 
-	return 0;
-}
-
-static int alc_build_jacks(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
 	if (spec->shared_mic_hp) {
 		int err;
 		int nid = spec->autocfg.inputs[1].pin;
@@ -1711,18 +1696,10 @@ static int alc_build_jacks(struct hda_codec *codec)
 			return err;
 	}
 
-	return snd_hda_jack_add_kctls(codec, &spec->autocfg);
-}
-
-static int alc_build_controls(struct hda_codec *codec)
-{
-	int err = __alc_build_controls(codec);
+	err = snd_hda_jack_add_kctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
 
-	err = alc_build_jacks(codec);
-	if (err < 0)
-		return err;
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_BUILD);
 	return 0;
 }
@@ -4244,7 +4221,10 @@ static void alc_auto_init_std(struct hda_codec *codec)
 	alc_auto_init_analog_input(codec);
 	alc_auto_init_input_src(codec);
 	alc_auto_init_digital(codec);
-	alc_inithook(codec);
+	/* call init functions of standard auto-mute helpers */
+	alc_hp_automute(codec, NULL);
+	alc_line_automute(codec, NULL);
+	alc_mic_automute(codec, NULL);
 }
 
 /*
