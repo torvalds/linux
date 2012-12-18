@@ -19,7 +19,10 @@
 #include <linux/kprobes.h>
 #include <linux/compat.h>
 #include <linux/uaccess.h>
+#include <linux/regset.h>
+#include <linux/elf.h>
 #include <asm/traps.h>
+#include <arch/chip.h>
 
 void user_enable_single_step(struct task_struct *child)
 {
@@ -78,6 +81,65 @@ static void putregs(struct task_struct *child, struct pt_regs *uregs)
 	uregs->ex1 = PL_ICS_EX1(USER_PL, EX1_ICS(uregs->ex1));
 
 	*regs = *uregs;
+}
+
+enum tile_regset {
+	REGSET_GPR,
+};
+
+static int tile_gpr_get(struct task_struct *target,
+			  const struct user_regset *regset,
+			  unsigned int pos, unsigned int count,
+			  void *kbuf, void __user *ubuf)
+{
+	struct pt_regs regs;
+
+	getregs(target, &regs);
+
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, &regs, 0,
+				   sizeof(regs));
+}
+
+static int tile_gpr_set(struct task_struct *target,
+			  const struct user_regset *regset,
+			  unsigned int pos, unsigned int count,
+			  const void *kbuf, const void __user *ubuf)
+{
+	int ret;
+	struct pt_regs regs;
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &regs, 0,
+				 sizeof(regs));
+	if (ret)
+		return ret;
+
+	putregs(target, &regs);
+
+	return 0;
+}
+
+static const struct user_regset tile_user_regset[] = {
+	[REGSET_GPR] = {
+		.core_note_type = NT_PRSTATUS,
+		.n = ELF_NGREG,
+		.size = sizeof(elf_greg_t),
+		.align = sizeof(elf_greg_t),
+		.get = tile_gpr_get,
+		.set = tile_gpr_set,
+	},
+};
+
+static const struct user_regset_view tile_user_regset_view = {
+	.name = CHIP_ARCH_NAME,
+	.e_machine = ELF_ARCH,
+	.ei_osabi = ELF_OSABI,
+	.regsets = tile_user_regset,
+	.n = ARRAY_SIZE(tile_user_regset),
+};
+
+const struct user_regset_view *task_user_regset_view(struct task_struct *task)
+{
+	return &tile_user_regset_view;
 }
 
 long arch_ptrace(struct task_struct *child, long request,
