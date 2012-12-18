@@ -4,6 +4,9 @@
 #	Licensed and distributed under the GPL
 #
 
+config EDAC_SUPPORT
+	bool
+
 menuconfig EDAC
 	bool "EDAC (Error Detection And Correction) reporting"
 	depends on HAS_IOMEM
@@ -27,12 +30,7 @@ menuconfig EDAC
 	  There is also a mailing list for the EDAC project, which can
 	  be found via the sourceforge page.
 
-config EDAC_SUPPORT
-	bool
-
 if EDAC
-
-comment "Reporting subsystems"
 
 config EDAC_LEGACY_SYSFS
 	bool "EDAC legacy sysfs"
