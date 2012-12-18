@@ -346,6 +346,7 @@ struct mem_cgroup {
 /* internal only representation about the status of kmem accounting. */
 enum {
 	KMEM_ACCOUNTED_ACTIVE = 0, /* accounted by this cgroup itself */
+	KMEM_ACCOUNTED_DEAD, /* dead memcg with pending kmem charges */
 };
 
 #define KMEM_ACCOUNTED_MASK (1 << KMEM_ACCOUNTED_ACTIVE)
@@ -354,6 +355,23 @@ enum {
 static inline void memcg_kmem_set_active(struct mem_cgroup *memcg)
 {
 	set_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
+}
+
+static bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+{
+	return test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
+}
+
+static void memcg_kmem_mark_dead(struct mem_cgroup *memcg)
+{
+	if (test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags))
+		set_bit(KMEM_ACCOUNTED_DEAD, &memcg->kmem_account_flags);
+}
+
+static bool memcg_kmem_test_and_clear_dead(struct mem_cgroup *memcg)
+{
+	return test_and_clear_bit(KMEM_ACCOUNTED_DEAD,
+				  &memcg->kmem_account_flags);
 }
 #endif
 
@@ -2722,10 +2740,16 @@ static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
 
 static void memcg_uncharge_kmem(struct mem_cgroup *memcg, u64 size)
 {
-	res_counter_uncharge(&memcg->kmem, size);
 	res_counter_uncharge(&memcg->res, size);
 	if (do_swap_account)
 		res_counter_uncharge(&memcg->memsw, size);
+
+	/* Not down to 0 */
+	if (res_counter_uncharge(&memcg->kmem, size))
+		return;
+
+	if (memcg_kmem_test_and_clear_dead(memcg))
+		mem_cgroup_put(memcg);
 }
 
 /*
@@ -2764,13 +2788,9 @@ __memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **_memcg, int order)
 		return true;
 	}
 
-	mem_cgroup_get(memcg);
-
 	ret = memcg_charge_kmem(memcg, gfp, PAGE_SIZE << order);
 	if (!ret)
 		*_memcg = memcg;
-	else
-		mem_cgroup_put(memcg);
 
 	css_put(&memcg->css);
 	return (ret == 0);
@@ -2786,7 +2806,6 @@ void __memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg,
 	/* The page allocation failed. Revert */
 	if (!page) {
 		memcg_uncharge_kmem(memcg, PAGE_SIZE << order);
-		mem_cgroup_put(memcg);
 		return;
 	}
 
@@ -2827,7 +2846,6 @@ void __memcg_kmem_uncharge_pages(struct page *page, int order)
 
 	VM_BUG_ON(mem_cgroup_is_root(memcg));
 	memcg_uncharge_kmem(memcg, PAGE_SIZE << order);
-	mem_cgroup_put(memcg);
 }
 #endif /* CONFIG_MEMCG_KMEM */
 
@@ -4217,6 +4235,13 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
 		VM_BUG_ON(ret);
 
 		memcg_kmem_set_active(memcg);
+		/*
+		 * kmem charges can outlive the cgroup. In the case of slab
+		 * pages, for instance, a page contain objects from various
+		 * processes, so it is unfeasible to migrate them away. We
+		 * need to reference count the memcg because of that.
+		 */
+		mem_cgroup_get(memcg);
 	} else
 		ret = res_counter_set_limit(&memcg->kmem, val);
 out:
@@ -4232,6 +4257,10 @@ static void memcg_propagate_kmem(struct mem_cgroup *memcg)
 	if (!parent)
 		return;
 	memcg->kmem_account_flags = parent->kmem_account_flags;
+#ifdef CONFIG_MEMCG_KMEM
+	if (memcg_kmem_is_active(memcg))
+		mem_cgroup_get(memcg);
+#endif
 }
 
 /*
@@ -4920,6 +4949,20 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
 {
 	mem_cgroup_sockets_destroy(memcg);
+
+	memcg_kmem_mark_dead(memcg);
+
+	if (res_counter_read_u64(&memcg->kmem, RES_USAGE) != 0)
+		return;
+
+	/*
+	 * Charges already down to 0, undo mem_cgroup_get() done in the charge
+	 * path here, being careful not to race with memcg_uncharge_kmem: it is
+	 * possible that the charges went down to 0 between mark_dead and the
+	 * res_counter read, so in that case, we don't need the put
+	 */
+	if (memcg_kmem_test_and_clear_dead(memcg))
+		mem_cgroup_put(memcg);
 }
 #else
 static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
