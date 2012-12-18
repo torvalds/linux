@@ -169,6 +169,7 @@ struct aoedev {
 	struct aoetgt *htgt;	/* target needing rexmit assistance */
 	ulong ntargets;
 	ulong kicked;
+	char ident[512];
 };
 
 /* kthread tracking */

@@ -17,6 +17,7 @@
 #include <linux/mutex.h>
 #include <linux/export.h>
 #include <linux/moduleparam.h>
+#include <scsi/sg.h>
 #include "aoe.h"
 
 static DEFINE_MUTEX(aoeblk_mutex);
@@ -212,9 +213,38 @@ aoeblk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
+static int
+aoeblk_ioctl(struct block_device *bdev, fmode_t mode, uint cmd, ulong arg)
+{
+	struct aoedev *d;
+
+	if (!arg)
+		return -EINVAL;
+
+	d = bdev->bd_disk->private_data;
+	if ((d->flags & DEVFL_UP) == 0) {
+		pr_err("aoe: disk not up\n");
+		return -ENODEV;
+	}
+
+	if (cmd == HDIO_GET_IDENTITY) {
+		if (!copy_to_user((void __user *) arg, &d->ident,
+			sizeof(d->ident)))
+			return 0;
+		return -EFAULT;
+	}
+
+	/* udev calls scsi_id, which uses SG_IO, resulting in noise */
+	if (cmd != SG_IO)
+		pr_info("aoe: unknown ioctl 0x%x\n", cmd);
+
+	return -ENOTTY;
+}
+
 static const struct block_device_operations aoe_bdops = {
 	.open = aoeblk_open,
 	.release = aoeblk_release,
+	.ioctl = aoeblk_ioctl,
 	.getgeo = aoeblk_getgeo,
 	.owner = THIS_MODULE,
 };

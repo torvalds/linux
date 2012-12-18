@@ -799,6 +799,17 @@ aoecmd_sleepwork(struct work_struct *work)
 }
 
 static void
+ata_ident_fixstring(u16 *id, int ns)
+{
+	u16 s;
+
+	while (ns-- > 0) {
+		s = *id;
+		*id++ = s >> 8 | s << 8;
+	}
+}
+
+static void
 ataid_complete(struct aoedev *d, struct aoetgt *t, unsigned char *id)
 {
 	u64 ssize;
@@ -832,6 +843,11 @@ ataid_complete(struct aoedev *d, struct aoetgt *t, unsigned char *id)
 		d->geo.heads = get_unaligned_le16(&id[55 << 1]);
 		d->geo.sectors = get_unaligned_le16(&id[56 << 1]);
 	}
+
+	ata_ident_fixstring((u16 *) &id[10<<1], 10);	/* serial */
+	ata_ident_fixstring((u16 *) &id[23<<1], 4);	/* firmware */
+	ata_ident_fixstring((u16 *) &id[27<<1], 20);	/* model */
+	memcpy(d->ident, id, sizeof(d->ident));
 
 	if (d->ssize != ssize)
 		printk(KERN_INFO
