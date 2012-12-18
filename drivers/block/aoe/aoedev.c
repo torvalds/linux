@@ -223,7 +223,6 @@ aoedev_downdev(struct aoedev *d)
 
 	/* clean out the in-process request (if any) */
 	aoe_failip(d);
-	d->htgt = NULL;
 
 	/* fast fail all pending I/O */
 	if (d->blkq) {

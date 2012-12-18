@@ -91,6 +91,9 @@ enum {
 	RTTDSCALE = 3,
 	RTTAVG_INIT = USEC_PER_SEC / 4 << RTTSCALE,
 	RTTDEV_INIT = RTTAVG_INIT / 4,
+
+	HARD_SCORN_SECS = 10,	/* try another remote port after this */
+	MAX_TAINT = 1000,	/* cap on aoetgt taint */
 };
 
 struct buf {
@@ -101,6 +104,10 @@ struct buf {
 	struct bio *bio;
 	struct bio_vec *bv;
 	struct request *rq;
+};
+
+enum frame_flags {
+	FFL_PROBE = 1,
 };
 
 struct frame {
@@ -118,6 +125,7 @@ struct frame {
 	struct bio_vec *bv;
 	ulong bcnt;
 	ulong bv_off;
+	char flags;
 };
 
 struct aoeif {
@@ -138,8 +146,10 @@ struct aoetgt {
 	ushort next_cwnd;	/* incr maxout after decrementing to zero */
 	ushort ssthresh;	/* slow start threshold */
 	ulong falloc;		/* number of allocated frames */
+	int taint;		/* how much we want to avoid this aoetgt */
 	int minbcnt;
 	int wpkts, rpkts;
+	char nout_probes;
 };
 
 struct aoedev {
@@ -174,7 +184,6 @@ struct aoedev {
 	struct list_head rexmitq; /* deferred retransmissions */
 	struct aoetgt *targets[NTARGETS];
 	struct aoetgt **tgt;	/* target in use when working */
-	struct aoetgt *htgt;	/* target needing rexmit assistance */
 	ulong ntargets;
 	ulong kicked;
 	char ident[512];
