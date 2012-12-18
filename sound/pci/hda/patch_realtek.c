@@ -2755,13 +2755,8 @@ static void alc_auto_init_analog_input(struct hda_codec *codec)
 
 	for (i = 0; i < cfg->num_inputs; i++) {
 		hda_nid_t nid = cfg->inputs[i].pin;
-		if (alc_is_input_pin(codec, nid)) {
+		if (alc_is_input_pin(codec, nid))
 			alc_set_input_pin(codec, nid, cfg->inputs[i].type);
-			if (get_wcaps(codec, nid) & AC_WCAP_OUT_AMP)
-				snd_hda_codec_write(codec, nid, 0,
-						    AC_VERB_SET_AMP_GAIN_MUTE,
-						    AMP_OUT_MUTE);
-		}
 
 		/* mute loopback inputs */
 		if (spec->mixer_nid) {
