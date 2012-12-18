@@ -355,6 +355,7 @@ struct d40_lcla_pool {
  * @allocated_dst: Same as for src but is dst.
  * allocated_dst and allocated_src uses the D40_ALLOC* defines as well as
  * event line number.
+ * @use_soft_lli: To mark if the linked lists of channel are managed by SW.
  */
 struct d40_phy_res {
 	spinlock_t lock;
@@ -362,6 +363,7 @@ struct d40_phy_res {
 	int	   num;
 	u32	   allocated_src;
 	u32	   allocated_dst;
+	bool	   use_soft_lli;
 };
 
 struct d40_base;
@@ -783,7 +785,16 @@ static void d40_log_lli_to_lcxa(struct d40_chan *chan, struct d40_desc *desc)
 	 * can't link back to the one in LCPA space
 	 */
 	if (linkback || (lli_len - lli_current > 1)) {
-		curr_lcla = d40_lcla_alloc_one(chan, desc);
+		/*
+		 * If the channel is expected to use only soft_lli don't
+		 * allocate a lcla. This is to avoid a HW issue that exists
+		 * in some controller during a peripheral to memory transfer
+		 * that uses linked lists.
+		 */
+		if (!(chan->phy_chan->use_soft_lli &&
+			chan->dma_cfg.dir == STEDMA40_PERIPH_TO_MEM))
+			curr_lcla = d40_lcla_alloc_one(chan, desc);
+
 		first_lcla = curr_lcla;
 	}
 
@@ -3061,6 +3072,13 @@ static int __init d40_phy_res_init(struct d40_base *base)
 		gcc |= D40_DREG_GCC_EVTGRP_ENA(D40_PHYS_TO_GROUP(chan),
 					       D40_DREG_GCC_DST);
 		num_phy_chans_avail--;
+	}
+
+	/* Mark soft_lli channels */
+	for (i = 0; i < base->plat_data->num_of_soft_lli_chans; i++) {
+		int chan = base->plat_data->soft_lli_chans[i];
+
+		base->phy_res[chan].use_soft_lli = true;
 	}
 
 	dev_info(base->dev, "%d of %d physical DMA channels available\n",
