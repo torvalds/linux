@@ -3153,8 +3153,19 @@ int __kmem_cache_shutdown(struct kmem_cache *s)
 {
 	int rc = kmem_cache_close(s);
 
-	if (!rc)
+	if (!rc) {
+		/*
+		 * We do the same lock strategy around sysfs_slab_add, see
+		 * __kmem_cache_create. Because this is pretty much the last
+		 * operation we do and the lock will be released shortly after
+		 * that in slab_common.c, we could just move sysfs_slab_remove
+		 * to a later point in common code. We should do that when we
+		 * have a common sysfs framework for all allocators.
+		 */
+		mutex_unlock(&slab_mutex);
 		sysfs_slab_remove(s);
+		mutex_lock(&slab_mutex);
+	}
 
 	return rc;
 }
