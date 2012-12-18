@@ -1616,6 +1616,16 @@ void usbnet_device_suggests_idle(struct usbnet *dev)
 }
 EXPORT_SYMBOL(usbnet_device_suggests_idle);
 
+/*
+ * For devices that can do without special commands
+ */
+int usbnet_manage_power(struct usbnet *dev, int on)
+{
+	dev->intf->needs_remote_wakeup = on;
+	return 0;
+}
+EXPORT_SYMBOL(usbnet_manage_power);
+
 /*-------------------------------------------------------------------------*/
 static int __usbnet_read_cmd(struct usbnet *dev, u8 cmd, u8 reqtype,
 			     u16 value, u16 index, void *data, u16 size)
