@@ -31,7 +31,7 @@ struct lms283gf05_seq {
 };
 
 /* Magic sequences supplied by manufacturer, for details refer to datasheet */
-static struct lms283gf05_seq disp_initseq[] = {
+static const struct lms283gf05_seq disp_initseq[] = {
 	/* REG, VALUE, DELAY */
 	{ 0x07, 0x0000, 0 },
 	{ 0x13, 0x0000, 10 },
@@ -78,7 +78,7 @@ static struct lms283gf05_seq disp_initseq[] = {
 	{ 0x22, 0x0000, 0 }
 };
 
-static struct lms283gf05_seq disp_pdwnseq[] = {
+static const struct lms283gf05_seq disp_pdwnseq[] = {
 	{ 0x07, 0x0016, 30 },
 
 	{ 0x07, 0x0004, 0 },
@@ -104,7 +104,7 @@ static void lms283gf05_reset(unsigned long gpio, bool inverted)
 }
 
 static void lms283gf05_toggle(struct spi_device *spi,
-			struct lms283gf05_seq *seq, int sz)
+				const struct lms283gf05_seq *seq, int sz)
 {
 	char buf[3];
 	int i;
