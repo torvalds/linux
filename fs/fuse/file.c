@@ -2352,6 +2352,20 @@ int fuse_notify_poll_wakeup(struct fuse_conn *fc,
 	return 0;
 }
 
+static void fuse_do_truncate(struct file *file)
+{
+	struct inode *inode = file->f_mapping->host;
+	struct iattr attr;
+
+	attr.ia_valid = ATTR_SIZE;
+	attr.ia_size = i_size_read(inode);
+
+	attr.ia_file = file;
+	attr.ia_valid |= ATTR_FILE;
+
+	fuse_do_setattr(inode, &attr, file);
+}
+
 static ssize_t
 fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 			loff_t offset, unsigned long nr_segs)
@@ -2419,8 +2433,12 @@ fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 		kfree(io);
 	}
 
-	if (rw == WRITE && ret > 0)
-		fuse_write_update_size(inode, pos);
+	if (rw == WRITE) {
+		if (ret > 0)
+			fuse_write_update_size(inode, pos);
+		else if (ret < 0 && offset + count > i_size)
+			fuse_do_truncate(file);
+	}
 
 	return ret;
 }

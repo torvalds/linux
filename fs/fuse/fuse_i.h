@@ -863,4 +863,7 @@ int fuse_dev_release(struct inode *inode, struct file *file);
 
 void fuse_write_update_size(struct inode *inode, loff_t pos);
 
+int fuse_do_setattr(struct inode *inode, struct iattr *attr,
+		    struct file *file);
+
 #endif /* _FS_FUSE_I_H */
