@@ -159,7 +159,8 @@ static int lms283gf05_probe(struct spi_device *spi)
 
 	if (pdata != NULL) {
 		ret = devm_gpio_request_one(&spi->dev, pdata->reset_gpio,
-				GPIOF_DIR_OUT | !pdata->reset_inverted,
+				GPIOF_DIR_OUT | (!pdata->reset_inverted ?
+				GPIOF_INIT_HIGH : GPIOF_INIT_LOW),
 				"LMS285GF05 RESET");
 		if (ret)
 			return ret;
