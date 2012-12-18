@@ -3013,6 +3013,15 @@ sub process {
 					      "Macros with complex values should be enclosed in parenthesis\n" . "$herectx");
 				}
 			}
+
+# check for line continuations outside of #defines
+
+		} else {
+			if ($prevline !~ /^..*\\$/ &&
+			    $line =~ /^\+.*\\$/) {
+				WARN("LINE_CONTINUATIONS",
+				     "Avoid unnecessary line continuations\n" . $herecurr);
+			}
 		}
 
 # do {} while (0) macro tests:
