@@ -2,18 +2,21 @@
 #include <linux/rwsem.h>
 #include <linux/percpu.h>
 #include <linux/wait.h>
+#include <linux/lockdep.h>
 #include <linux/percpu-rwsem.h>
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
 
-int percpu_init_rwsem(struct percpu_rw_semaphore *brw)
+int __percpu_init_rwsem(struct percpu_rw_semaphore *brw,
+			const char *name, struct lock_class_key *rwsem_key)
 {
 	brw->fast_read_ctr = alloc_percpu(int);
 	if (unlikely(!brw->fast_read_ctr))
 		return -ENOMEM;
 
-	init_rwsem(&brw->rw_sem);
+	/* ->rw_sem represents the whole percpu_rw_semaphore for lockdep */
+	__init_rwsem(&brw->rw_sem, name, rwsem_key);
 	atomic_set(&brw->write_ctr, 0);
 	atomic_set(&brw->slow_read_ctr, 0);
 	init_waitqueue_head(&brw->write_waitq);
@@ -66,19 +69,29 @@ static bool update_fast_ctr(struct percpu_rw_semaphore *brw, unsigned int val)
 /*
  * Like the normal down_read() this is not recursive, the writer can
  * come after the first percpu_down_read() and create the deadlock.
+ *
+ * Note: returns with lock_is_held(brw->rw_sem) == T for lockdep,
+ * percpu_up_read() does rwsem_release(). This pairs with the usage
+ * of ->rw_sem in percpu_down/up_write().
  */
 void percpu_down_read(struct percpu_rw_semaphore *brw)
 {
-	if (likely(update_fast_ctr(brw, +1)))
+	might_sleep();
+	if (likely(update_fast_ctr(brw, +1))) {
+		rwsem_acquire_read(&brw->rw_sem.dep_map, 0, 0, _RET_IP_);
 		return;
+	}
 
 	down_read(&brw->rw_sem);
 	atomic_inc(&brw->slow_read_ctr);
-	up_read(&brw->rw_sem);
+	/* avoid up_read()->rwsem_release() */
+	__up_read(&brw->rw_sem);
 }
 
 void percpu_up_read(struct percpu_rw_semaphore *brw)
 {
+	rwsem_release(&brw->rw_sem.dep_map, 1, _RET_IP_);
+
 	if (likely(update_fast_ctr(brw, -1)))
 		return;
 
