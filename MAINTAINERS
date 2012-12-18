@@ -1929,7 +1929,7 @@ F:	scripts/checkpatch.pl
 
 CHINESE DOCUMENTATION
 M:	Harry Wei <harryxiyou@gmail.com>
-L:	xiyoulinuxkernelgroup@googlegroups.com
+L:	xiyoulinuxkernelgroup@googlegroups.com (subscribers-only)
 L:	linux-kernel@zh-kernel.org (moderated for non-subscribers)
 S:	Maintained
 F:	Documentation/zh_CN/
