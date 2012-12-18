@@ -275,6 +275,15 @@ const struct soc_enum arizona_lhpf4_mode =
 			arizona_lhpf_mode_text);
 EXPORT_SYMBOL_GPL(arizona_lhpf4_mode);
 
+static const char *arizona_ng_hold_text[] = {
+	"30ms", "120ms", "250ms", "500ms",
+};
+
+const struct soc_enum arizona_ng_hold =
+	SOC_ENUM_SINGLE(ARIZONA_NOISE_GATE_CONTROL, ARIZONA_NGATE_HOLD_SHIFT,
+			4, arizona_ng_hold_text);
+EXPORT_SYMBOL_GPL(arizona_ng_hold);
+
 int arizona_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 		  int event)
 {

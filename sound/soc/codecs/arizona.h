@@ -176,6 +176,8 @@ extern const struct soc_enum arizona_lhpf2_mode;
 extern const struct soc_enum arizona_lhpf3_mode;
 extern const struct soc_enum arizona_lhpf4_mode;
 
+extern const struct soc_enum arizona_ng_hold;
+
 extern int arizona_in_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol,
 			 int event);
