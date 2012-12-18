@@ -95,7 +95,7 @@ minor_get_static(ulong *sysminor, ulong aoemaj, int aoemin)
 	} else
 		set_bit(n, used_minors);
 	spin_unlock_irqrestore(&used_minors_lock, flags);
-	*sysminor = n;
+	*sysminor = n * AOE_PARTITIONS;
 out:
 	return error;
 }
