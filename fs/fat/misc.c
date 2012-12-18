@@ -212,8 +212,10 @@ void fat_time_fat2unix(struct msdos_sb_info *sbi, struct timespec *ts,
 		   + days_in_year[month] + day
 		   + DAYS_DELTA) * SECS_PER_DAY;
 
-	if (!sbi->options.tz_utc)
+	if (!sbi->options.tz_set)
 		second += sys_tz.tz_minuteswest * SECS_PER_MIN;
+	else
+		second -= sbi->options.time_offset * SECS_PER_MIN;
 
 	if (time_cs) {
 		ts->tv_sec = second + (time_cs / 100);
@@ -229,8 +231,9 @@ void fat_time_unix2fat(struct msdos_sb_info *sbi, struct timespec *ts,
 		       __le16 *time, __le16 *date, u8 *time_cs)
 {
 	struct tm tm;
-	time_to_tm(ts->tv_sec, sbi->options.tz_utc ? 0 :
-		   -sys_tz.tz_minuteswest * 60, &tm);
+	time_to_tm(ts->tv_sec,
+		   (sbi->options.tz_set ? sbi->options.time_offset :
+		   -sys_tz.tz_minuteswest) * SECS_PER_MIN, &tm);
 
 	/*  FAT can only support year between 1980 to 2107 */
 	if (tm.tm_year < 1980 - 1900) {
