@@ -287,12 +287,12 @@ static int dsos__write_buildid_table(struct perf_header *header, int fd)
 	struct perf_session *session = container_of(header,
 			struct perf_session, header);
 	struct rb_node *nd;
-	int err = machine__write_buildid_table(&session->host_machine, fd);
+	int err = machine__write_buildid_table(&session->machines.host, fd);
 
 	if (err)
 		return err;
 
-	for (nd = rb_first(&session->machines); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&session->machines.guests); nd; nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
 		err = machine__write_buildid_table(pos, fd);
 		if (err)
@@ -448,9 +448,9 @@ static int perf_session__cache_build_ids(struct perf_session *session)
 	if (mkdir(debugdir, 0755) != 0 && errno != EEXIST)
 		return -1;
 
-	ret = machine__cache_build_ids(&session->host_machine, debugdir);
+	ret = machine__cache_build_ids(&session->machines.host, debugdir);
 
-	for (nd = rb_first(&session->machines); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&session->machines.guests); nd; nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
 		ret |= machine__cache_build_ids(pos, debugdir);
 	}
@@ -467,9 +467,9 @@ static bool machine__read_build_ids(struct machine *machine, bool with_hits)
 static bool perf_session__read_build_ids(struct perf_session *session, bool with_hits)
 {
 	struct rb_node *nd;
-	bool ret = machine__read_build_ids(&session->host_machine, with_hits);
+	bool ret = machine__read_build_ids(&session->machines.host, with_hits);
 
-	for (nd = rb_first(&session->machines); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&session->machines.guests); nd; nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
 		ret |= machine__read_build_ids(pos, with_hits);
 	}

@@ -75,13 +75,11 @@ static struct {
 	{ "[kernel]", kernel_syms, ARRAY_SIZE(kernel_syms) },
 };
 
-static struct machine *setup_fake_machine(void)
+static struct machine *setup_fake_machine(struct machines *machines)
 {
-	struct rb_root machine_root = RB_ROOT;
-	struct machine *machine;
+	struct machine *machine = machines__find(machines, HOST_KERNEL_ID);
 	size_t i;
 
-	machine = machines__findnew(&machine_root, HOST_KERNEL_ID);
 	if (machine == NULL) {
 		pr_debug("Not enough memory for machine setup\n");
 		return NULL;
@@ -435,6 +433,7 @@ static void print_hists(struct hists *hists)
 int test__hists_link(void)
 {
 	int err = -1;
+	struct machines machines;
 	struct machine *machine = NULL;
 	struct perf_evsel *evsel, *first;
         struct perf_evlist *evlist = perf_evlist__new(NULL, NULL);
@@ -452,8 +451,10 @@ int test__hists_link(void)
 	/* default sort order (comm,dso,sym) will be used */
 	setup_sorting(NULL, NULL);
 
+	machines__init(&machines);
+
 	/* setup threads/dso/map/symbols also */
-	machine = setup_fake_machine();
+	machine = setup_fake_machine(&machines);
 	if (!machine)
 		goto out;
 
@@ -492,11 +493,7 @@ int test__hists_link(void)
 out:
 	/* tear down everything */
 	perf_evlist__delete(evlist);
-
-	if (machine) {
-		machine__delete_threads(machine);
-		machine__delete(machine);
-	}
+	machines__exit(&machines);
 
 	return err;
 }

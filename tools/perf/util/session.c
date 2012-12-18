@@ -86,13 +86,12 @@ void perf_session__set_id_hdr_size(struct perf_session *session)
 {
 	u16 id_hdr_size = perf_evlist__id_hdr_size(session->evlist);
 
-	session->host_machine.id_hdr_size = id_hdr_size;
 	machines__set_id_hdr_size(&session->machines, id_hdr_size);
 }
 
 int perf_session__create_kernel_maps(struct perf_session *self)
 {
-	int ret = machine__create_kernel_maps(&self->host_machine);
+	int ret = machine__create_kernel_maps(&self->machines.host);
 
 	if (ret >= 0)
 		ret = machines__create_guest_kernel_maps(&self->machines);
@@ -101,8 +100,7 @@ int perf_session__create_kernel_maps(struct perf_session *self)
 
 static void perf_session__destroy_kernel_maps(struct perf_session *self)
 {
-	machine__destroy_kernel_maps(&self->host_machine);
-	machines__destroy_guest_kernel_maps(&self->machines);
+	machines__destroy_kernel_maps(&self->machines);
 }
 
 struct perf_session *perf_session__new(const char *filename, int mode,
@@ -127,12 +125,11 @@ struct perf_session *perf_session__new(const char *filename, int mode,
 		goto out;
 
 	memcpy(self->filename, filename, len);
-	self->machines = RB_ROOT;
 	self->repipe = repipe;
 	INIT_LIST_HEAD(&self->ordered_samples.samples);
 	INIT_LIST_HEAD(&self->ordered_samples.sample_cache);
 	INIT_LIST_HEAD(&self->ordered_samples.to_free);
-	machine__init(&self->host_machine, "", HOST_KERNEL_ID);
+	machines__init(&self->machines);
 
 	if (mode == O_RDONLY) {
 		if (perf_session__open(self, force) < 0)
@@ -162,12 +159,12 @@ out_delete:
 
 static void perf_session__delete_dead_threads(struct perf_session *session)
 {
-	machine__delete_dead_threads(&session->host_machine);
+	machine__delete_dead_threads(&session->machines.host);
 }
 
 static void perf_session__delete_threads(struct perf_session *session)
 {
-	machine__delete_threads(&session->host_machine);
+	machine__delete_threads(&session->machines.host);
 }
 
 static void perf_session_env__delete(struct perf_session_env *env)
@@ -192,7 +189,7 @@ void perf_session__delete(struct perf_session *self)
 	perf_session__delete_dead_threads(self);
 	perf_session__delete_threads(self);
 	perf_session_env__delete(&self->header.env);
-	machine__exit(&self->host_machine);
+	machines__exit(&self->machines);
 	close(self->fd);
 	free(self);
 	vdso__exit();
@@ -998,7 +995,7 @@ void perf_event_header__bswap(struct perf_event_header *self)
 
 struct thread *perf_session__findnew(struct perf_session *session, pid_t pid)
 {
-	return machine__findnew_thread(&session->host_machine, pid);
+	return machine__findnew_thread(&session->machines.host, pid);
 }
 
 static struct thread *perf_session__register_idle_thread(struct perf_session *self)
@@ -1335,16 +1332,13 @@ int maps__set_kallsyms_ref_reloc_sym(struct map **maps,
 
 size_t perf_session__fprintf_dsos(struct perf_session *self, FILE *fp)
 {
-	return __dsos__fprintf(&self->host_machine.kernel_dsos, fp) +
-	       __dsos__fprintf(&self->host_machine.user_dsos, fp) +
-	       machines__fprintf_dsos(&self->machines, fp);
+	return machines__fprintf_dsos(&self->machines, fp);
 }
 
 size_t perf_session__fprintf_dsos_buildid(struct perf_session *self, FILE *fp,
 					  bool (skip)(struct dso *dso, int parm), int parm)
 {
-	size_t ret = machine__fprintf_dsos_buildid(&self->host_machine, fp, skip, parm);
-	return ret + machines__fprintf_dsos_buildid(&self->machines, fp, skip, parm);
+	return machines__fprintf_dsos_buildid(&self->machines, fp, skip, parm);
 }
 
 size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp)
@@ -1368,7 +1362,7 @@ size_t perf_session__fprintf(struct perf_session *session, FILE *fp)
 	 * FIXME: Here we have to actually print all the machines in this
 	 * session, not just the host...
 	 */
-	return machine__fprintf(&session->host_machine, fp);
+	return machine__fprintf(&session->machines.host, fp);
 }
 
 void perf_session__remove_thread(struct perf_session *session,
@@ -1377,10 +1371,10 @@ void perf_session__remove_thread(struct perf_session *session,
 	/*
 	 * FIXME: This one makes no sense, we need to remove the thread from
 	 * the machine it belongs to, perf_session can have many machines, so
-	 * doing it always on ->host_machine is wrong.  Fix when auditing all
+	 * doing it always on ->machines.host is wrong.  Fix when auditing all
 	 * the 'perf kvm' code.
 	 */
-	machine__remove_thread(&session->host_machine, th);
+	machine__remove_thread(&session->machines.host, th);
 }
 
 struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,

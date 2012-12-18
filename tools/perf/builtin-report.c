@@ -372,7 +372,7 @@ static int __cmd_report(struct perf_report *rep)
 	if (ret)
 		goto out_delete;
 
-	kernel_map = session->host_machine.vmlinux_maps[MAP__FUNCTION];
+	kernel_map = session->machines.host.vmlinux_maps[MAP__FUNCTION];
 	kernel_kmap = map__kmap(kernel_map);
 	if (kernel_map == NULL ||
 	    (kernel_map->dso->hit &&

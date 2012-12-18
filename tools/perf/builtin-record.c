@@ -571,8 +571,8 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 		       "Check /proc/modules permission or run as root.\n");
 
 	if (perf_guest) {
-		machines__process(&session->machines,
-				  perf_event__synthesize_guest_os, tool);
+		machines__process_guests(&session->machines,
+					 perf_event__synthesize_guest_os, tool);
 	}
 
 	if (!opts->target.system_wide)

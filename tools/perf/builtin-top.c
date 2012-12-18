@@ -966,10 +966,10 @@ static int __cmd_top(struct perf_top *top)
 	if (perf_target__has_task(&opts->target))
 		perf_event__synthesize_thread_map(&top->tool, top->evlist->threads,
 						  perf_event__process,
-						  &top->session->host_machine);
+						  &top->session->machines.host);
 	else
 		perf_event__synthesize_threads(&top->tool, perf_event__process,
-					       &top->session->host_machine);
+					       &top->session->machines.host);
 	perf_top__start_counters(top);
 	top->session->evlist = top->evlist;
 	perf_session__set_id_hdr_size(top->session);
