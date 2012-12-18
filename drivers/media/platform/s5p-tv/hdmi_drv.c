@@ -781,27 +781,27 @@ static int hdmi_resources_init(struct hdmi_device *hdev)
 	/* get clocks, power */
 
 	res->hdmi = clk_get(dev, "hdmi");
-	if (IS_ERR_OR_NULL(res->hdmi)) {
+	if (IS_ERR(res->hdmi)) {
 		dev_err(dev, "failed to get clock 'hdmi'\n");
 		goto fail;
 	}
 	res->sclk_hdmi = clk_get(dev, "sclk_hdmi");
-	if (IS_ERR_OR_NULL(res->sclk_hdmi)) {
+	if (IS_ERR(res->sclk_hdmi)) {
 		dev_err(dev, "failed to get clock 'sclk_hdmi'\n");
 		goto fail;
 	}
 	res->sclk_pixel = clk_get(dev, "sclk_pixel");
-	if (IS_ERR_OR_NULL(res->sclk_pixel)) {
+	if (IS_ERR(res->sclk_pixel)) {
 		dev_err(dev, "failed to get clock 'sclk_pixel'\n");
 		goto fail;
 	}
 	res->sclk_hdmiphy = clk_get(dev, "sclk_hdmiphy");
-	if (IS_ERR_OR_NULL(res->sclk_hdmiphy)) {
+	if (IS_ERR(res->sclk_hdmiphy)) {
 		dev_err(dev, "failed to get clock 'sclk_hdmiphy'\n");
 		goto fail;
 	}
 	res->hdmiphy = clk_get(dev, "hdmiphy");
-	if (IS_ERR_OR_NULL(res->hdmiphy)) {
+	if (IS_ERR(res->hdmiphy)) {
 		dev_err(dev, "failed to get clock 'hdmiphy'\n");
 		goto fail;
 	}
