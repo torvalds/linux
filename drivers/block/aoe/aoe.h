@@ -11,7 +11,7 @@
 #define AOE_PARTITIONS (16)
 #endif
 
-#define WHITESPACE " \t\v\f\n"
+#define WHITESPACE " \t\v\f\n,"
 
 enum {
 	AOECMD_ATA,
