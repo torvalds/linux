@@ -50,6 +50,7 @@
 #include <asm/tlbflush.h>
 #include <asm/traps.h>
 #include <asm/memblock.h>
+#include <asm/psci.h>
 
 unsigned int processor_id;
 EXPORT_SYMBOL(processor_id);
@@ -260,6 +261,8 @@ void __init setup_arch(char **cmdline_p)
 	request_standard_resources();
 
 	unflatten_device_tree();
+
+	psci_init();
 
 #ifdef CONFIG_SMP
 	smp_init_cpus();
