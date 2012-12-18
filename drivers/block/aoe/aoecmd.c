@@ -1204,12 +1204,14 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 			spin_unlock_irqrestore(&d->lock, flags);
 			aoedev_put(d);
 			snprintf(ebuf, sizeof(ebuf),
-				 "%15s e%d.%d    tag=%08x@%08lx\n",
+				 "%15s e%d.%d    tag=%08x@%08lx s=%pm d=%pm\n",
 				 "unexpected rsp",
 				 get_unaligned_be16(&h->major),
 				 h->minor,
 				 get_unaligned_be32(&h->tag),
-				 jiffies);
+				 jiffies,
+				 h->src,
+				 h->dst);
 			aoechr_error(ebuf);
 			return skb;
 		}
