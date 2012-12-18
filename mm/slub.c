@@ -5108,12 +5108,25 @@ static ssize_t slab_attr_store(struct kobject *kobj,
 		if (s->max_attr_size < len)
 			s->max_attr_size = len;
 
+		/*
+		 * This is a best effort propagation, so this function's return
+		 * value will be determined by the parent cache only. This is
+		 * basically because not all attributes will have a well
+		 * defined semantics for rollbacks - most of the actions will
+		 * have permanent effects.
+		 *
+		 * Returning the error value of any of the children that fail
+		 * is not 100 % defined, in the sense that users seeing the
+		 * error code won't be able to know anything about the state of
+		 * the cache.
+		 *
+		 * Only returning the error code for the parent cache at least
+		 * has well defined semantics. The cache being written to
+		 * directly either failed or succeeded, in which case we loop
+		 * through the descendants with best-effort propagation.
+		 */
 		for_each_memcg_cache_index(i) {
 			struct kmem_cache *c = cache_from_memcg(s, i);
-			/*
-			 * This function's return value is determined by the
-			 * parent cache only
-			 */
 			if (c)
 				attribute->store(c, buf, len);
 		}

@@ -422,6 +422,12 @@ static inline void sock_release_memcg(struct sock *sk)
 extern struct static_key memcg_kmem_enabled_key;
 
 extern int memcg_limited_groups_array_size;
+
+/*
+ * Helper macro to loop through all memcg-specific caches. Callers must still
+ * check if the cache is valid (it is either valid or NULL).
+ * the slab_mutex must be held when looping through those caches
+ */
 #define for_each_memcg_cache_index(_idx)	\
 	for ((_idx) = 0; i < memcg_limited_groups_array_size; (_idx)++)
 
