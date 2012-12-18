@@ -155,6 +155,13 @@ static inline struct kmem_cache *cache_from_memcg(struct kmem_cache *s, int idx)
 {
 	return s->memcg_params->memcg_caches[idx];
 }
+
+static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
+{
+	if (is_root_cache(s))
+		return s;
+	return s->memcg_params->root_cache;
+}
 #else
 static inline bool is_root_cache(struct kmem_cache *s)
 {
@@ -189,6 +196,11 @@ static inline const char *cache_name(struct kmem_cache *s)
 static inline struct kmem_cache *cache_from_memcg(struct kmem_cache *s, int idx)
 {
 	return NULL;
+}
+
+static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
+{
+	return s;
 }
 #endif
 
