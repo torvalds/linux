@@ -15,7 +15,6 @@
 #include "aoe.h"
 
 static void dummy_timer(ulong);
-static void aoedev_freedev(struct aoedev *);
 static void freetgt(struct aoedev *d, struct aoetgt *t);
 static void skbpoolfree(struct aoedev *d);
 
@@ -236,29 +235,6 @@ aoedev_downdev(struct aoedev *d)
 		set_capacity(d->gd, 0);
 }
 
-static void
-aoedev_freedev(struct aoedev *d)
-{
-	struct aoetgt **t, **e;
-
-	cancel_work_sync(&d->work);
-	if (d->gd) {
-		aoedisk_rm_sysfs(d);
-		del_gendisk(d->gd);
-		put_disk(d->gd);
-		blk_cleanup_queue(d->blkq);
-	}
-	t = d->targets;
-	e = t + NTARGETS;
-	for (; t < e && *t; t++)
-		freetgt(d, *t);
-	if (d->bufpool)
-		mempool_destroy(d->bufpool);
-	skbpoolfree(d);
-	minor_free(d->sysminor);
-	kfree(d);
-}
-
 /* return whether the user asked for this particular
  * device to be flushed
  */
@@ -283,17 +259,62 @@ user_req(char *s, size_t slen, struct aoedev *d)
 	return !strncmp(s, p, lim);
 }
 
-int
-aoedev_flush(const char __user *str, size_t cnt)
+static void
+freedev(struct aoedev *d)
+{
+	struct aoetgt **t, **e;
+	int freeing = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&d->lock, flags);
+	if (d->flags & DEVFL_TKILL
+	&& !(d->flags & DEVFL_FREEING)) {
+		d->flags |= DEVFL_FREEING;
+		freeing = 1;
+	}
+	spin_unlock_irqrestore(&d->lock, flags);
+	if (!freeing)
+		return;
+
+	del_timer_sync(&d->timer);
+	if (d->gd) {
+		aoedisk_rm_sysfs(d);
+		del_gendisk(d->gd);
+		put_disk(d->gd);
+		blk_cleanup_queue(d->blkq);
+	}
+	t = d->targets;
+	e = t + NTARGETS;
+	for (; t < e && *t; t++)
+		freetgt(d, *t);
+	if (d->bufpool)
+		mempool_destroy(d->bufpool);
+	skbpoolfree(d);
+	minor_free(d->sysminor);
+
+	spin_lock_irqsave(&d->lock, flags);
+	d->flags |= DEVFL_FREED;
+	spin_unlock_irqrestore(&d->lock, flags);
+}
+
+enum flush_parms {
+	NOT_EXITING = 0,
+	EXITING = 1,
+};
+
+static int
+flush(const char __user *str, size_t cnt, int exiting)
 {
 	ulong flags;
 	struct aoedev *d, **dd;
-	struct aoedev *rmd = NULL;
 	char buf[16];
 	int all = 0;
 	int specified = 0;	/* flush a specific device */
+	unsigned int skipflags;
 
-	if (cnt >= 3) {
+	skipflags = DEVFL_GDALLOC | DEVFL_NEWSIZE | DEVFL_TKILL;
+
+	if (!exiting && cnt >= 3) {
 		if (cnt > sizeof buf)
 			cnt = sizeof buf;
 		if (copy_from_user(buf, str, cnt))
@@ -303,37 +324,69 @@ aoedev_flush(const char __user *str, size_t cnt)
 			specified = 1;
 	}
 
+	flush_scheduled_work();
+	/* pass one: without sleeping, do aoedev_downdev */
 	spin_lock_irqsave(&devlist_lock, flags);
-	dd = &devlist;
-	while ((d = *dd)) {
+	for (d = devlist; d; d = d->next) {
 		spin_lock(&d->lock);
-		if (specified) {
+		if (exiting) {
+			/* unconditionally take each device down */
+		} else if (specified) {
 			if (!user_req(buf, cnt, d))
-				goto skip;
+				goto cont;
 		} else if ((!all && (d->flags & DEVFL_UP))
-		|| (d->flags & (DEVFL_GDALLOC|DEVFL_NEWSIZE))
+		|| d->flags & skipflags
 		|| d->nopen
 		|| d->ref)
-			goto skip;
+			goto cont;
 
-		*dd = d->next;
 		aoedev_downdev(d);
 		d->flags |= DEVFL_TKILL;
+cont:
 		spin_unlock(&d->lock);
-		d->next = rmd;
-		rmd = d;
-		continue;
-skip:
-		spin_unlock(&d->lock);
-		dd = &d->next;
 	}
 	spin_unlock_irqrestore(&devlist_lock, flags);
-	while ((d = rmd)) {
-		rmd = d->next;
-		del_timer_sync(&d->timer);
-		aoedev_freedev(d);	/* must be able to sleep */
+
+	/* pass two: call freedev, which might sleep,
+	 * for aoedevs marked with DEVFL_TKILL
+	 */
+restart:
+	spin_lock_irqsave(&devlist_lock, flags);
+	for (d = devlist; d; d = d->next) {
+		spin_lock(&d->lock);
+		if (d->flags & DEVFL_TKILL
+		&& !(d->flags & DEVFL_FREEING)) {
+			spin_unlock(&d->lock);
+			spin_unlock_irqrestore(&devlist_lock, flags);
+			freedev(d);
+			goto restart;
+		}
+		spin_unlock(&d->lock);
 	}
+
+	/* pass three: remove aoedevs marked with DEVFL_FREED */
+	for (dd = &devlist, d = *dd; d; d = *dd) {
+		struct aoedev *doomed = NULL;
+
+		spin_lock(&d->lock);
+		if (d->flags & DEVFL_FREED) {
+			*dd = d->next;
+			doomed = d;
+		} else {
+			dd = &d->next;
+		}
+		spin_unlock(&d->lock);
+		kfree(doomed);
+	}
+	spin_unlock_irqrestore(&devlist_lock, flags);
+
 	return 0;
+}
+
+int
+aoedev_flush(const char __user *str, size_t cnt)
+{
+	return flush(str, cnt, NOT_EXITING);
 }
 
 /* This has been confirmed to occur once with Tms=3*1000 due to the
@@ -388,7 +441,14 @@ aoedev_by_aoeaddr(ulong maj, int min, int do_alloc)
 
 	for (d=devlist; d; d=d->next)
 		if (d->aoemajor == maj && d->aoeminor == min) {
+			spin_lock(&d->lock);
+			if (d->flags & DEVFL_TKILL) {
+				spin_unlock(&d->lock);
+				d = NULL;
+				goto out;
+			}
 			d->ref++;
+			spin_unlock(&d->lock);
 			break;
 		}
 	if (d || !do_alloc || minor_get(&sysminor, maj, min) < 0)
@@ -448,21 +508,9 @@ freetgt(struct aoedev *d, struct aoetgt *t)
 void
 aoedev_exit(void)
 {
-	struct aoedev *d;
-	ulong flags;
-
+	flush_scheduled_work();
 	aoe_flush_iocq();
-	while ((d = devlist)) {
-		devlist = d->next;
-
-		spin_lock_irqsave(&d->lock, flags);
-		aoedev_downdev(d);
-		d->flags |= DEVFL_TKILL;
-		spin_unlock_irqrestore(&d->lock, flags);
-
-		del_timer_sync(&d->timer);
-		aoedev_freedev(d);
-	}
+	flush(NULL, 0, EXITING);
 }
 
 int __init
