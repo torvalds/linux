@@ -25,10 +25,17 @@ extern const struct file_operations random_fops, urandom_fops;
 unsigned int get_random_int(void);
 unsigned long randomize_range(unsigned long start, unsigned long end, unsigned long len);
 
-u32 random32(void);
-void srandom32(u32 seed);
+u32 prandom_u32(void);
+void prandom_seed(u32 seed);
 
-u32 prandom32(struct rnd_state *);
+/*
+ * These macros are preserved for backward compatibility and should be
+ * removed as soon as a transition is finished.
+ */
+#define random32() prandom_u32()
+#define srandom32(seed) prandom_seed(seed)
+
+u32 prandom_u32_state(struct rnd_state *);
 
 /*
  * Handle minimum values for seeds
@@ -39,11 +46,11 @@ static inline u32 __seed(u32 x, u32 m)
 }
 
 /**
- * prandom32_seed - set seed for prandom32().
+ * prandom_seed_state - set seed for prandom_u32_state().
  * @state: pointer to state structure to receive the seed.
  * @seed: arbitrary 64-bit value to use as a seed.
  */
-static inline void prandom32_seed(struct rnd_state *state, u64 seed)
+static inline void prandom_seed_state(struct rnd_state *state, u64 seed)
 {
 	u32 i = (seed >> 32) ^ (seed << 10) ^ seed;
 

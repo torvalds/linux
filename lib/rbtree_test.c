@@ -96,8 +96,8 @@ static void init(void)
 {
 	int i;
 	for (i = 0; i < NODES; i++) {
-		nodes[i].key = prandom32(&rnd);
-		nodes[i].val = prandom32(&rnd);
+		nodes[i].key = prandom_u32_state(&rnd);
+		nodes[i].val = prandom_u32_state(&rnd);
 	}
 }
 
@@ -155,7 +155,7 @@ static int rbtree_test_init(void)
 
 	printk(KERN_ALERT "rbtree testing");
 
-	prandom32_seed(&rnd, 3141592653589793238ULL);
+	prandom_seed_state(&rnd, 3141592653589793238ULL);
 	init();
 
 	time1 = get_cycles();

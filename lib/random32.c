@@ -42,13 +42,13 @@
 static DEFINE_PER_CPU(struct rnd_state, net_rand_state);
 
 /**
- *	prandom32 - seeded pseudo-random number generator.
+ *	prandom_u32_state - seeded pseudo-random number generator.
  *	@state: pointer to state structure holding seeded state.
  *
  *	This is used for pseudo-randomness with no outside seeding.
- *	For more random results, use random32().
+ *	For more random results, use prandom_u32().
  */
-u32 prandom32(struct rnd_state *state)
+u32 prandom_u32_state(struct rnd_state *state)
 {
 #define TAUSWORTHE(s,a,b,c,d) ((s&c)<<d) ^ (((s <<a) ^ s)>>b)
 
@@ -58,32 +58,32 @@ u32 prandom32(struct rnd_state *state)
 
 	return (state->s1 ^ state->s2 ^ state->s3);
 }
-EXPORT_SYMBOL(prandom32);
+EXPORT_SYMBOL(prandom_u32_state);
 
 /**
- *	random32 - pseudo random number generator
+ *	prandom_u32 - pseudo random number generator
  *
  *	A 32 bit pseudo-random number is generated using a fast
  *	algorithm suitable for simulation. This algorithm is NOT
  *	considered safe for cryptographic use.
  */
-u32 random32(void)
+u32 prandom_u32(void)
 {
 	unsigned long r;
 	struct rnd_state *state = &get_cpu_var(net_rand_state);
-	r = prandom32(state);
+	r = prandom_u32_state(state);
 	put_cpu_var(state);
 	return r;
 }
-EXPORT_SYMBOL(random32);
+EXPORT_SYMBOL(prandom_u32);
 
 /**
- *	srandom32 - add entropy to pseudo random number generator
+ *	prandom_seed - add entropy to pseudo random number generator
  *	@seed: seed value
  *
- *	Add some additional seeding to the random32() pool.
+ *	Add some additional seeding to the prandom pool.
  */
-void srandom32(u32 entropy)
+void prandom_seed(u32 entropy)
 {
 	int i;
 	/*
@@ -95,13 +95,13 @@ void srandom32(u32 entropy)
 		state->s1 = __seed(state->s1 ^ entropy, 1);
 	}
 }
-EXPORT_SYMBOL(srandom32);
+EXPORT_SYMBOL(prandom_seed);
 
 /*
  *	Generate some initially weak seeding values to allow
- *	to start the random32() engine.
+ *	to start the prandom_u32() engine.
  */
-static int __init random32_init(void)
+static int __init prandom_init(void)
 {
 	int i;
 
@@ -114,22 +114,22 @@ static int __init random32_init(void)
 		state->s3 = __seed(LCG(state->s2), 15);
 
 		/* "warm it up" */
-		prandom32(state);
-		prandom32(state);
-		prandom32(state);
-		prandom32(state);
-		prandom32(state);
-		prandom32(state);
+		prandom_u32_state(state);
+		prandom_u32_state(state);
+		prandom_u32_state(state);
+		prandom_u32_state(state);
+		prandom_u32_state(state);
+		prandom_u32_state(state);
 	}
 	return 0;
 }
-core_initcall(random32_init);
+core_initcall(prandom_init);
 
 /*
  *	Generate better values after random number generator
  *	is fully initialized.
  */
-static int __init random32_reseed(void)
+static int __init prandom_reseed(void)
 {
 	int i;
 
@@ -143,8 +143,8 @@ static int __init random32_reseed(void)
 		state->s3 = __seed(seeds[2], 15);
 
 		/* mix it in */
-		prandom32(state);
+		prandom_u32_state(state);
 	}
 	return 0;
 }
-late_initcall(random32_reseed);
+late_initcall(prandom_reseed);
