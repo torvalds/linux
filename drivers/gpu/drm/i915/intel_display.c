@@ -8637,7 +8637,7 @@ int intel_framebuffer_init(struct drm_device *dev,
 	case DRM_FORMAT_UYVY:
 	case DRM_FORMAT_YVYU:
 	case DRM_FORMAT_VYUY:
-		if (INTEL_INFO(dev)->gen < 6)
+		if (INTEL_INFO(dev)->gen < 5)
 			return -EINVAL;
 		break;
 	default:
