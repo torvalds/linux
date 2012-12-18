@@ -35,7 +35,6 @@ struct lp855x {
 	struct i2c_client *client;
 	struct backlight_device *bl;
 	struct device *dev;
-	struct mutex xfer_lock;
 	struct lp855x_platform_data *pdata;
 	struct pwm_device *pwm;
 };
@@ -44,14 +43,11 @@ static int lp855x_read_byte(struct lp855x *lp, u8 reg, u8 *data)
 {
 	int ret;
 
-	mutex_lock(&lp->xfer_lock);
 	ret = i2c_smbus_read_byte_data(lp->client, reg);
 	if (ret < 0) {
-		mutex_unlock(&lp->xfer_lock);
 		dev_err(lp->dev, "failed to read 0x%.2x\n", reg);
 		return ret;
 	}
-	mutex_unlock(&lp->xfer_lock);
 
 	*data = (u8)ret;
 	return 0;
@@ -59,13 +55,7 @@ static int lp855x_read_byte(struct lp855x *lp, u8 reg, u8 *data)
 
 static int lp855x_write_byte(struct lp855x *lp, u8 reg, u8 data)
 {
-	int ret;
-
-	mutex_lock(&lp->xfer_lock);
-	ret = i2c_smbus_write_byte_data(lp->client, reg, data);
-	mutex_unlock(&lp->xfer_lock);
-
-	return ret;
+	return i2c_smbus_write_byte_data(lp->client, reg, data);
 }
 
 static bool lp855x_is_valid_rom_area(struct lp855x *lp, u8 addr)
@@ -280,8 +270,6 @@ static int lp855x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	lp->chipname = id->name;
 	lp->chip_id = id->driver_data;
 	i2c_set_clientdata(cl, lp);
-
-	mutex_init(&lp->xfer_lock);
 
 	ret = lp855x_init_registers(lp);
 	if (ret) {
