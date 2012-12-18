@@ -187,6 +187,7 @@ struct alc_spec {
 	unsigned int dyn_adc_idx[HDA_MAX_NUM_INPUTS];
 	int int_mic_idx, ext_mic_idx, dock_mic_idx; /* for auto-mic */
 	hda_nid_t inv_dmic_pin;
+	hda_nid_t shared_mic_vref_pin;
 
 	/* DAC list */
 	int num_all_dacs;
@@ -343,15 +344,11 @@ static void update_shared_mic_hp(struct hda_codec *codec, bool set_as_mic)
 
 	/* This pin does not have vref caps - let's enable vref on pin 0x18
 	   instead, as suggested by Realtek */
-	if (val == AC_PINCTL_VREF_HIZ) {
-		const hda_nid_t vref_pin = 0x18;
-		/* Sanity check pin 0x18 */
-		if (get_wcaps_type(get_wcaps(codec, vref_pin)) == AC_WID_PIN &&
-		    get_defcfg_connect(snd_hda_codec_get_pincfg(codec, vref_pin)) == AC_JACK_PORT_NONE) {
-			unsigned int vref_val = snd_hda_get_default_vref(codec, vref_pin);
-			if (vref_val != AC_PINCTL_VREF_HIZ)
-				snd_hda_set_pin_ctl(codec, vref_pin, PIN_IN | (set_as_mic ? vref_val : 0));
-		}
+	if (val == AC_PINCTL_VREF_HIZ && spec->shared_mic_vref_pin) {
+		const hda_nid_t vref_pin = spec->shared_mic_vref_pin;
+		unsigned int vref_val = snd_hda_get_default_vref(codec, vref_pin);
+		if (vref_val != AC_PINCTL_VREF_HIZ)
+			snd_hda_set_pin_ctl(codec, vref_pin, PIN_IN | (set_as_mic ? vref_val : 0));
 	}
 
 	val = set_as_mic ? val | PIN_IN : PIN_HP;
@@ -5642,6 +5639,7 @@ static int patch_alc262(struct hda_codec *codec)
 		return err;
 
 	spec = codec->spec;
+	spec->shared_mic_vref_pin = 0x18;
 
 #if 0
 	/* pshou 07/11/05  set a zero PCM sample to DAC when FIFO is
@@ -6431,6 +6429,7 @@ static int patch_alc269(struct hda_codec *codec)
 		return err;
 
 	spec = codec->spec;
+	spec->shared_mic_vref_pin = 0x18;
 
 	alc_pick_fixup(codec, alc269_fixup_models,
 		       alc269_fixup_tbl, alc269_fixups);
