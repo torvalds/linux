@@ -396,7 +396,7 @@ static void tun_disable_queue(struct tun_struct *tun, struct tun_file *tfile)
 	++tun->numdisabled;
 }
 
-struct tun_struct *tun_enable_queue(struct tun_file *tfile)
+static struct tun_struct *tun_enable_queue(struct tun_file *tfile)
 {
 	struct tun_struct *tun = tfile->detached;
 
