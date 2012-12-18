@@ -2772,6 +2772,8 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
 	memcg_check_events(memcg, page);
 }
 
+static DEFINE_MUTEX(set_limit_mutex);
+
 #ifdef CONFIG_MEMCG_KMEM
 static inline bool memcg_can_account_kmem(struct mem_cgroup *memcg)
 {
@@ -3174,6 +3176,51 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
 out:
 	mutex_unlock(&memcg_cache_mutex);
 	return new_cachep;
+}
+
+void kmem_cache_destroy_memcg_children(struct kmem_cache *s)
+{
+	struct kmem_cache *c;
+	int i;
+
+	if (!s->memcg_params)
+		return;
+	if (!s->memcg_params->is_root_cache)
+		return;
+
+	/*
+	 * If the cache is being destroyed, we trust that there is no one else
+	 * requesting objects from it. Even if there are, the sanity checks in
+	 * kmem_cache_destroy should caught this ill-case.
+	 *
+	 * Still, we don't want anyone else freeing memcg_caches under our
+	 * noses, which can happen if a new memcg comes to life. As usual,
+	 * we'll take the set_limit_mutex to protect ourselves against this.
+	 */
+	mutex_lock(&set_limit_mutex);
+	for (i = 0; i < memcg_limited_groups_array_size; i++) {
+		c = s->memcg_params->memcg_caches[i];
+		if (!c)
+			continue;
+
+		/*
+		 * We will now manually delete the caches, so to avoid races
+		 * we need to cancel all pending destruction workers and
+		 * proceed with destruction ourselves.
+		 *
+		 * kmem_cache_destroy() will call kmem_cache_shrink internally,
+		 * and that could spawn the workers again: it is likely that
+		 * the cache still have active pages until this very moment.
+		 * This would lead us back to mem_cgroup_destroy_cache.
+		 *
+		 * But that will not execute at all if the "dead" flag is not
+		 * set, so flip it down to guarantee we are in control.
+		 */
+		c->memcg_params->dead = false;
+		cancel_delayed_work_sync(&c->memcg_params->destroy);
+		kmem_cache_destroy(c);
+	}
+	mutex_unlock(&set_limit_mutex);
 }
 
 struct create_work {
@@ -4283,8 +4330,6 @@ void mem_cgroup_print_bad_page(struct page *page)
 	}
 }
 #endif
-
-static DEFINE_MUTEX(set_limit_mutex);
 
 static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
 				unsigned long long val)
