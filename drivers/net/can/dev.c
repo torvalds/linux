@@ -794,6 +794,19 @@ void unregister_candev(struct net_device *dev)
 }
 EXPORT_SYMBOL_GPL(unregister_candev);
 
+/*
+ * Test if a network device is a candev based device
+ * and return the can_priv* if so.
+ */
+struct can_priv *safe_candev_priv(struct net_device *dev)
+{
+	if ((dev->type != ARPHRD_CAN) || (dev->rtnl_link_ops != &can_link_ops))
+		return NULL;
+
+	return netdev_priv(dev);
+}
+EXPORT_SYMBOL_GPL(safe_candev_priv);
+
 static __init int can_dev_init(void)
 {
 	int err;
