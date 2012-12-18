@@ -862,7 +862,10 @@ alc_kcontrol_new(struct alc_spec *spec, const char *name,
 	if (!knew)
 		return NULL;
 	*knew = *temp;
-	knew->name = kstrdup(name, GFP_KERNEL);
+	if (name)
+		knew->name = kstrdup(name, GFP_KERNEL);
+	else if (knew->name)
+		knew->name = kstrdup(knew->name, GFP_KERNEL);
 	if (!knew->name)
 		return NULL;
 	return knew;
@@ -872,7 +875,7 @@ static int alc_add_automute_mode_enum(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 
-	if (!alc_kcontrol_new(spec, "Auto-Mute Mode", &alc_automute_mode_enum))
+	if (!alc_kcontrol_new(spec, NULL, &alc_automute_mode_enum))
 		return -ENOMEM;
 	return 0;
 }
@@ -1556,6 +1559,7 @@ static int alc_inv_dmic_sw_put(struct snd_kcontrol *kcontrol,
 
 static const struct snd_kcontrol_new alc_inv_dmic_sw = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Inverted Internal Mic Capture Switch",
 	.info = snd_ctl_boolean_mono_info,
 	.get = alc_inv_dmic_sw_get,
 	.put = alc_inv_dmic_sw_put,
@@ -1565,8 +1569,7 @@ static int alc_add_inv_dmic_mixer(struct hda_codec *codec, hda_nid_t nid)
 {
 	struct alc_spec *spec = codec->spec;
 
-	if (!alc_kcontrol_new(spec, "Inverted Internal Mic Capture Switch",
-			      &alc_inv_dmic_sw))
+	if (!alc_kcontrol_new(spec, NULL, &alc_inv_dmic_sw))
 		return -ENOMEM;
 	spec->inv_dmic_fixup = 1;
 	spec->inv_dmic_muted = 0;
@@ -2555,7 +2558,7 @@ static int create_capture_mixers(struct hda_codec *codec)
 		nums = spec->num_adc_nids;
 
 	if (!spec->auto_mic && imux->num_items > 1) {
-		knew = alc_kcontrol_new(spec, "Input Source", &cap_src_temp);
+		knew = alc_kcontrol_new(spec, NULL, &cap_src_temp);
 		if (!knew)
 			return -ENOMEM;
 		knew->count = nums;
@@ -2579,8 +2582,7 @@ static int create_capture_mixers(struct hda_codec *codec)
 		}
 
 		if (vol) {
-			knew = alc_kcontrol_new(spec, "Capture Volume",
-						&cap_vol_temp);
+			knew = alc_kcontrol_new(spec, NULL, &cap_vol_temp);
 			if (!knew)
 				return -ENOMEM;
 			knew->index = n;
@@ -2588,8 +2590,7 @@ static int create_capture_mixers(struct hda_codec *codec)
 			knew->subdevice = HDA_SUBDEV_AMP_FLAG;
 		}
 		if (sw) {
-			knew = alc_kcontrol_new(spec, "Capture Switch",
-						&cap_sw_temp);
+			knew = alc_kcontrol_new(spec, NULL, &cap_sw_temp);
 			if (!knew)
 				return -ENOMEM;
 			knew->index = n;
@@ -4106,8 +4107,7 @@ static int alc_auto_add_multi_channel_mode(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 
 	if (spec->multi_ios > 0) {
-		if (!alc_kcontrol_new(spec, "Channel Mode",
-				      &alc_auto_channel_mode_enum))
+		if (!alc_kcontrol_new(spec, NULL, &alc_auto_channel_mode_enum))
 			return -ENOMEM;
 	}
 	return 0;
