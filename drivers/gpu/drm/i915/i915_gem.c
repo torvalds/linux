@@ -3897,8 +3897,10 @@ void i915_gem_init_swizzling(struct drm_device *dev)
 	I915_WRITE(TILECTL, I915_READ(TILECTL) | TILECTL_SWZCTL);
 	if (IS_GEN6(dev))
 		I915_WRITE(ARB_MODE, _MASKED_BIT_ENABLE(ARB_MODE_SWIZZLE_SNB));
-	else
+	else if (IS_GEN7(dev))
 		I915_WRITE(ARB_MODE, _MASKED_BIT_ENABLE(ARB_MODE_SWIZZLE_IVB));
+	else
+		BUG();
 }
 
 static bool
