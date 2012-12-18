@@ -496,7 +496,6 @@ struct l2cap_chan {
 	__u16		frames_sent;
 	__u16		unacked_frames;
 	__u8		retry_count;
-	__u16		srej_queue_next;
 	__u16		sdu_len;
 	struct sk_buff	*sdu;
 	struct sk_buff	*sdu_last_frag;
