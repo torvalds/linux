@@ -184,6 +184,7 @@ struct alc_spec {
 	int int_mic_idx, ext_mic_idx, dock_mic_idx; /* for auto-mic */
 	hda_nid_t inv_dmic_pin;
 	hda_nid_t shared_mic_vref_pin;
+	int inv_dmic_split_idx;	/* used internally for inv_dmic_split */
 
 	/* DAC list */
 	int num_all_dacs;
@@ -222,6 +223,7 @@ struct alc_spec {
 	unsigned int inv_dmic_muted:1; /* R-ch of inv d-mic is muted? */
 	unsigned int no_primary_hp:1; /* Don't prefer HP pins to speaker pins */
 	unsigned int multi_cap_vol:1; /* allow multiple capture xxx volumes */
+	unsigned int inv_dmic_split:1; /* inverted dmic w/a for conexant */
 
 	unsigned int parse_flags; /* passed to snd_hda_parse_pin_defcfg() */
 
@@ -2550,6 +2552,8 @@ static int parse_capvol_in_path(struct hda_codec *codec, struct nid_path *path)
 	return 0;
 }
 
+static unsigned int amp_val_replace_channels(unsigned int val, unsigned int chs);
+
 static int add_single_cap_ctl(struct hda_codec *codec, const char *label,
 			      int idx, bool is_switch, unsigned int ctl)
 {
@@ -2557,9 +2561,16 @@ static int add_single_cap_ctl(struct hda_codec *codec, const char *label,
 	char tmpname[44];
 	int type = is_switch ? ALC_CTL_WIDGET_MUTE : ALC_CTL_WIDGET_VOL;
 	const char *sfx = is_switch ? "Switch" : "Volume";
+	unsigned int chs;
+	int err;
 
 	if (!ctl)
 		return 0;
+
+	if (idx == spec->inv_dmic_split_idx)
+		chs = 1;
+	else
+		chs = 3;
 
 	if (label)
 		snprintf(tmpname, sizeof(tmpname),
@@ -2567,7 +2578,20 @@ static int add_single_cap_ctl(struct hda_codec *codec, const char *label,
 	else
 		snprintf(tmpname, sizeof(tmpname),
 			 "Capture %s", sfx);
-	return add_control(spec, type, tmpname, idx, ctl);
+	err = add_control(spec, type, tmpname, idx,
+			  amp_val_replace_channels(ctl, chs));
+	if (err < 0 || chs == 3)
+		return err;
+
+	/* Make independent right kcontrol */
+	if (label)
+		snprintf(tmpname, sizeof(tmpname),
+			 "Inverted %s Capture %s", label, sfx);
+	else
+		snprintf(tmpname, sizeof(tmpname),
+			 "Inverted Capture %s", sfx);
+	return add_control(spec, type, tmpname, idx,
+			   amp_val_replace_channels(ctl, 2));
 }
 
 /* create single (and simple) capture volume and switch controls */
@@ -2730,6 +2754,7 @@ static int alc_auto_create_input_ctls(struct hda_codec *codec)
 	if (num_adcs < 0)
 		return 0;
 
+	spec->inv_dmic_split_idx = -1;
 	for (i = 0; i < cfg->num_inputs; i++) {
 		hda_nid_t pin;
 		const char *label;
@@ -2781,6 +2806,14 @@ static int alc_auto_create_input_ctls(struct hda_codec *codec)
 				snd_hda_add_imux_item(imux, label,
 						      imux->num_items, NULL);
 				imux_added = true;
+			}
+		}
+
+		if (spec->inv_dmic_split) {
+			if (cfg->inputs[i].type == AUTO_PIN_MIC) {
+				unsigned int def_conf = snd_hda_codec_get_pincfg(codec, pin);
+				if (snd_hda_get_input_pin_attr(def_conf) == INPUT_PIN_ATTR_INT)
+					spec->inv_dmic_split_idx = i;
 			}
 		}
 	}
