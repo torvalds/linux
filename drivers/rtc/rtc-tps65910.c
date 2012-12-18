@@ -247,6 +247,13 @@ static int __devinit tps65910_rtc_probe(struct platform_device *pdev)
 		return ret;
 
 	dev_dbg(&pdev->dev, "Enabling rtc-tps65910.\n");
+
+	/* Enable RTC digital power domain */
+	ret = regmap_update_bits(tps65910->regmap, TPS65910_DEVCTRL,
+		DEVCTRL_RTC_PWDN_MASK, 0 << DEVCTRL_RTC_PWDN_SHIFT);
+	if (ret < 0)
+		return ret;
+
 	rtc_reg = TPS65910_RTC_CTRL_STOP_RTC;
 	ret = regmap_write(tps65910->regmap, TPS65910_RTC_CTRL, rtc_reg);
 	if (ret < 0)
