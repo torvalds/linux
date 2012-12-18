@@ -471,10 +471,7 @@ static int or51211_init(struct dvb_frontend* fe)
 			  i--;
 			}
 		}
-		dprintk("read_fwbits %x %x %x %x %x %x %x %x %x %x\n",
-			rec_buf[0], rec_buf[1], rec_buf[2], rec_buf[3],
-			rec_buf[4], rec_buf[5], rec_buf[6], rec_buf[7],
-			rec_buf[8], rec_buf[9]);
+		dprintk("read_fwbits %10ph\n", rec_buf);
 
 		printk(KERN_INFO "or51211: ver TU%02x%02x%02x VSB mode %02x"
 		       " Status %02x\n",
