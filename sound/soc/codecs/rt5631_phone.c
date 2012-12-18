@@ -2107,6 +2107,11 @@ static int rt5631_set_bias_level(struct snd_soc_codec *codec,
 			snd_soc_update_bits(codec, RT5631_PWR_MANAG_ADD3,
 				RT5631_PWR_FAST_VREF_CTRL,
 				RT5631_PWR_FAST_VREF_CTRL);
+			msleep(100);
+			snd_soc_update_bits(codec, RT5631_PWR_MANAG_ADD2,
+				RT5631_PWR_MICBIAS1_VOL | RT5631_PWR_MICBIAS2_VOL,
+				RT5631_PWR_MICBIAS1_VOL | RT5631_PWR_MICBIAS2_VOL);
+	
 			codec->cache_only = false;
 			codec->cache_sync = 1;
 			snd_soc_cache_sync(codec);
