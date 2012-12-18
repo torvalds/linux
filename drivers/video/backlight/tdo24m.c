@@ -2,7 +2,7 @@
  * tdo24m - SPI-based drivers for Toppoly TDO24M series LCD panels
  *
  * Copyright (C) 2008 Marvell International Ltd.
- * 	Eric Miao <eric.miao@marvell.com>
+ *	Eric Miao <eric.miao@marvell.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
@@ -90,7 +90,7 @@ static uint32_t lcd_qvga_pass_through_tdo24m[] = {
 };
 
 static uint32_t lcd_vga_transfer_tdo24m[] = {
-	CMD1(0xcf, 0x02), 	/* Blanking period control (1) */
+	CMD1(0xcf, 0x02),	/* Blanking period control (1) */
 	CMD2(0xd0, 0x08, 0x04),	/* Blanking period control (2) */
 	CMD1(0xd1, 0x01),	/* CKV timing control on/off */
 	CMD2(0xd2, 0x14, 0x00),	/* CKV 1,2 timing control */
@@ -132,7 +132,7 @@ static uint32_t lcd_qvga_pass_through_tdo35s[] = {
 };
 
 static uint32_t lcd_vga_transfer_tdo35s[] = {
-	CMD1(0xcf, 0x02), 	/* Blanking period control (1) */
+	CMD1(0xcf, 0x02),	/* Blanking period control (1) */
 	CMD2(0xd0, 0x08, 0x04),	/* Blanking period control (2) */
 	CMD1(0xd1, 0x01),	/* CKV timing control on/off */
 	CMD2(0xd2, 0x00, 0x1e),	/* CKV 1,2 timing control */
