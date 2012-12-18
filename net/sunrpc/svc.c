@@ -324,7 +324,9 @@ svc_pool_map_set_cpumask(struct task_struct *task, unsigned int pidx)
 	 * The caller checks for sv_nrpools > 1, which
 	 * implies that we've been initialized.
 	 */
-	BUG_ON(m->count == 0);
+	WARN_ON_ONCE(m->count == 0);
+	if (m->count == 0)
+		return;
 
 	switch (m->mode) {
 	case SVC_POOL_PERCPU:
@@ -585,7 +587,9 @@ svc_init_buffer(struct svc_rqst *rqstp, unsigned int size, int node)
 				       * We assume one is at most one page
 				       */
 	arghi = 0;
-	BUG_ON(pages > RPCSVC_MAXPAGES);
+	WARN_ON_ONCE(pages > RPCSVC_MAXPAGES);
+	if (pages > RPCSVC_MAXPAGES)
+		pages = RPCSVC_MAXPAGES;
 	while (pages) {
 		struct page *p = alloc_pages_node(node, GFP_KERNEL, 0);
 		if (!p)
@@ -946,7 +950,9 @@ int svc_register(const struct svc_serv *serv, struct net *net,
 	unsigned int		i;
 	int			error = 0;
 
-	BUG_ON(proto == 0 && port == 0);
+	WARN_ON_ONCE(proto == 0 && port == 0);
+	if (proto == 0 && port == 0)
+		return -EINVAL;
 
 	for (progp = serv->sv_program; progp; progp = progp->pg_next) {
 		for (i = 0; i < progp->pg_nvers; i++) {

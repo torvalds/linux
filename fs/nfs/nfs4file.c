@@ -20,7 +20,6 @@ nfs4_file_open(struct inode *inode, struct file *filp)
 	struct iattr attr;
 	int err;
 
-	BUG_ON(inode != dentry->d_inode);
 	/*
 	 * If no cached dentry exists or if it's negative, NFSv4 handled the
 	 * opens in ->lookup() or ->create().

@@ -979,10 +979,11 @@ static int nfs_is_exclusive_create(struct inode *dir, unsigned int flags)
  * particular file and the "nocto" mount flag is not set.
  *
  */
-static inline
+static
 int nfs_lookup_verify_inode(struct inode *inode, unsigned int flags)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
+	int ret;
 
 	if (IS_AUTOMOUNT(inode))
 		return 0;
@@ -993,9 +994,13 @@ int nfs_lookup_verify_inode(struct inode *inode, unsigned int flags)
 	if ((flags & LOOKUP_OPEN) && !(server->flags & NFS_MOUNT_NOCTO) &&
 	    (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode)))
 		goto out_force;
-	return 0;
+out:
+	return (inode->i_nlink == 0) ? -ENOENT : 0;
 out_force:
-	return __nfs_revalidate_inode(server, inode);
+	ret = __nfs_revalidate_inode(server, inode);
+	if (ret != 0)
+		return ret;
+	goto out;
 }
 
 /*
@@ -1156,11 +1161,14 @@ static int nfs_dentry_delete(const struct dentry *dentry)
 
 }
 
+/* Ensure that we revalidate inode->i_nlink */
 static void nfs_drop_nlink(struct inode *inode)
 {
 	spin_lock(&inode->i_lock);
-	if (inode->i_nlink > 0)
-		drop_nlink(inode);
+	/* drop the inode if we're reasonably sure this is the last link */
+	if (inode->i_nlink == 1)
+		clear_nlink(inode);
+	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATTR;
 	spin_unlock(&inode->i_lock);
 }
 
@@ -1175,8 +1183,8 @@ static void nfs_dentry_iput(struct dentry *dentry, struct inode *inode)
 		NFS_I(inode)->cache_validity |= NFS_INO_INVALID_DATA;
 
 	if (dentry->d_flags & DCACHE_NFSFS_RENAMED) {
-		drop_nlink(inode);
 		nfs_complete_unlink(dentry, inode);
+		nfs_drop_nlink(inode);
 	}
 	iput(inode);
 }
@@ -1647,10 +1655,8 @@ static int nfs_safe_remove(struct dentry *dentry)
 	if (inode != NULL) {
 		NFS_PROTO(inode)->return_delegation(inode);
 		error = NFS_PROTO(dir)->remove(dir, &dentry->d_name);
-		/* The VFS may want to delete this inode */
 		if (error == 0)
 			nfs_drop_nlink(inode);
-		nfs_mark_for_revalidate(inode);
 	} else
 		error = NFS_PROTO(dir)->remove(dir, &dentry->d_name);
 	if (error == -ENOENT)
