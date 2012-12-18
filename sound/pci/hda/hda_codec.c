@@ -1253,6 +1253,7 @@ int snd_hda_codec_new(struct hda_bus *bus,
 	snd_array_init(&codec->conn_lists, sizeof(hda_nid_t), 64);
 	snd_array_init(&codec->spdif_out, sizeof(struct hda_spdif_out), 16);
 	snd_array_init(&codec->jacktbl, sizeof(struct hda_jack_tbl), 16);
+	snd_array_init(&codec->verbs, sizeof(struct hda_verb *), 8);
 	INIT_DELAYED_WORK(&codec->jackpoll_work, hda_jackpoll_work);
 
 #ifdef CONFIG_PM
@@ -2407,6 +2408,7 @@ int snd_hda_codec_reset(struct hda_codec *codec)
 	snd_array_free(&codec->driver_pins);
 	snd_array_free(&codec->cvt_setups);
 	snd_array_free(&codec->spdif_out);
+	snd_array_free(&codec->verbs);
 	codec->num_pcms = 0;
 	codec->pcm_info = NULL;
 	codec->preset = NULL;

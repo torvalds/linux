@@ -67,8 +67,6 @@ struct imux_info {
 };
 
 struct conexant_spec {
-	struct hda_gen_spec gen;
-
 	const struct snd_kcontrol_new *mixers[5];
 	int num_mixers;
 	hda_nid_t vmaster_nid;
@@ -451,7 +449,6 @@ static int conexant_init(struct hda_codec *codec)
 static void conexant_free(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
-	snd_hda_gen_free(&spec->gen);
 	snd_hda_detach_beep_device(codec);
 	kfree(spec);
 }
@@ -4033,7 +4030,7 @@ static void cx_auto_init_digital(struct hda_codec *codec)
 static int cx_auto_init(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
-	snd_hda_gen_apply_verbs(codec);
+	snd_hda_apply_verbs(codec);
 	cx_auto_init_output(codec);
 	cx_auto_init_input(codec);
 	cx_auto_init_digital(codec);
@@ -4533,7 +4530,6 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 	codec->spec = spec;
-	snd_hda_gen_init(&spec->gen);
 
 	switch (codec->vendor_id) {
 	case 0x14f15045:

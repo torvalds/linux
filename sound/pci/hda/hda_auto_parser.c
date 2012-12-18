@@ -622,28 +622,27 @@ int snd_hda_get_pin_label(struct hda_codec *codec, hda_nid_t nid,
 }
 EXPORT_SYMBOL_HDA(snd_hda_get_pin_label);
 
-int snd_hda_gen_add_verbs(struct hda_gen_spec *spec,
-			  const struct hda_verb *list)
+int snd_hda_add_verbs(struct hda_codec *codec,
+		      const struct hda_verb *list)
 {
 	const struct hda_verb **v;
-	v = snd_array_new(&spec->verbs);
+	v = snd_array_new(&codec->verbs);
 	if (!v)
 		return -ENOMEM;
 	*v = list;
 	return 0;
 }
-EXPORT_SYMBOL_HDA(snd_hda_gen_add_verbs);
+EXPORT_SYMBOL_HDA(snd_hda_add_verbs);
 
-void snd_hda_gen_apply_verbs(struct hda_codec *codec)
+void snd_hda_apply_verbs(struct hda_codec *codec)
 {
-	struct hda_gen_spec *spec = codec->spec;
 	int i;
-	for (i = 0; i < spec->verbs.used; i++) {
-		struct hda_verb **v = snd_array_elem(&spec->verbs, i);
+	for (i = 0; i < codec->verbs.used; i++) {
+		struct hda_verb **v = snd_array_elem(&codec->verbs, i);
 		snd_hda_sequence_write(codec, *v);
 	}
 }
-EXPORT_SYMBOL_HDA(snd_hda_gen_apply_verbs);
+EXPORT_SYMBOL_HDA(snd_hda_apply_verbs);
 
 void snd_hda_apply_pincfgs(struct hda_codec *codec,
 			   const struct hda_pintbl *cfg)
@@ -655,18 +654,17 @@ EXPORT_SYMBOL_HDA(snd_hda_apply_pincfgs);
 
 void snd_hda_apply_fixup(struct hda_codec *codec, int action)
 {
-	struct hda_gen_spec *spec = codec->spec;
-	int id = spec->fixup_id;
+	int id = codec->fixup_id;
 #ifdef CONFIG_SND_DEBUG_VERBOSE
-	const char *modelname = spec->fixup_name;
+	const char *modelname = codec->fixup_name;
 #endif
 	int depth = 0;
 
-	if (!spec->fixup_list)
+	if (!codec->fixup_list)
 		return;
 
 	while (id >= 0) {
-		const struct hda_fixup *fix = spec->fixup_list + id;
+		const struct hda_fixup *fix = codec->fixup_list + id;
 
 		switch (fix->type) {
 		case HDA_FIXUP_PINS:
@@ -683,7 +681,7 @@ void snd_hda_apply_fixup(struct hda_codec *codec, int action)
 			snd_printdd(KERN_INFO SFX
 				    "%s: Apply fix-verbs for %s\n",
 				    codec->chip_name, modelname);
-			snd_hda_gen_add_verbs(codec->spec, fix->v.verbs);
+			snd_hda_add_verbs(codec, fix->v.verbs);
 			break;
 		case HDA_FIXUP_FUNC:
 			if (!fix->v.func)
@@ -713,15 +711,14 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 			const struct snd_pci_quirk *quirk,
 			const struct hda_fixup *fixlist)
 {
-	struct hda_gen_spec *spec = codec->spec;
 	const struct snd_pci_quirk *q;
 	int id = -1;
 	const char *name = NULL;
 
 	/* when model=nofixup is given, don't pick up any fixups */
 	if (codec->modelname && !strcmp(codec->modelname, "nofixup")) {
-		spec->fixup_list = NULL;
-		spec->fixup_id = -1;
+		codec->fixup_list = NULL;
+		codec->fixup_id = -1;
 		return;
 	}
 
@@ -759,10 +756,10 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 		}
 	}
 
-	spec->fixup_id = id;
+	codec->fixup_id = id;
 	if (id >= 0) {
-		spec->fixup_list = fixlist;
-		spec->fixup_name = name;
+		codec->fixup_list = fixlist;
+		codec->fixup_name = name;
 	}
 }
 EXPORT_SYMBOL_HDA(snd_hda_pick_fixup);

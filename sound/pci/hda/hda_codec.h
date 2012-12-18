@@ -896,6 +896,14 @@ struct hda_codec {
 	/* jack detection */
 	struct snd_array jacks;
 #endif
+
+	/* fix-up list */
+	int fixup_id;
+	const struct hda_fixup *fixup_list;
+	const char *fixup_name;
+
+	/* additional init verbs */
+	struct snd_array verbs;
 };
 
 /* direction */

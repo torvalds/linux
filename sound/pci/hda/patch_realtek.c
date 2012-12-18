@@ -121,8 +121,6 @@ struct nid_path {
 };
 
 struct alc_spec {
-	struct hda_gen_spec gen;
-
 	/* codec parameterization */
 	const struct snd_kcontrol_new *mixers[5];	/* mixer arrays */
 	unsigned int num_mixers;
@@ -1727,7 +1725,7 @@ static int alc_init(struct hda_codec *codec)
 	alc_fix_pll(codec);
 	alc_auto_init_amp(codec, spec->init_amp);
 
-	snd_hda_gen_apply_verbs(codec);
+	snd_hda_apply_verbs(codec);
 	alc_auto_init_std(codec);
 
 	if (spec->vmaster_mute.sw_kctl && spec->vmaster_mute.hook)
@@ -2117,7 +2115,6 @@ static void alc_free(struct hda_codec *codec)
 	alc_free_kctls(codec);
 	alc_free_bind_ctls(codec);
 	snd_array_free(&spec->paths);
-	snd_hda_gen_free(&spec->gen);
 	kfree(spec);
 	snd_hda_detach_beep_device(codec);
 }
@@ -4525,7 +4522,6 @@ static int alc_alloc_spec(struct hda_codec *codec, hda_nid_t mixer_nid)
 	codec->spec = spec;
 	codec->single_adc_amp = 1;
 	spec->mixer_nid = mixer_nid;
-	snd_hda_gen_init(&spec->gen);
 	snd_array_init(&spec->kctls, sizeof(struct snd_kcontrol_new), 32);
 	snd_array_init(&spec->bind_ctls, sizeof(struct hda_bind_ctls *), 8);
 	snd_array_init(&spec->paths, sizeof(struct nid_path), 8);
@@ -5001,7 +4997,7 @@ static void alc260_fixup_gpio1_toggle(struct hda_codec *codec,
 		spec->autocfg.hp_pins[0] = 0x0f; /* copy it for automute */
 		snd_hda_jack_detect_enable_callback(codec, 0x0f, ALC_HP_EVENT,
 						    alc_hp_automute);
-		snd_hda_gen_add_verbs(&spec->gen, alc_gpio1_init_verbs);
+		snd_hda_add_verbs(codec, alc_gpio1_init_verbs);
 	}
 }
 
@@ -5878,7 +5874,7 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 	if (err > 0) {
 		if (!spec->no_analog && spec->autocfg.speaker_pins[0] != 0x1d) {
 			add_mixer(spec, alc268_beep_mixer);
-			snd_hda_gen_add_verbs(&spec->gen, alc268_beep_init_verbs);
+			snd_hda_add_verbs(codec, alc268_beep_init_verbs);
 		}
 	}
 	return err;

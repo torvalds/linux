@@ -120,8 +120,6 @@ enum {
 };
 
 struct via_spec {
-	struct hda_gen_spec gen;
-
 	/* codec parameterization */
 	const struct snd_kcontrol_new *mixers[6];
 	unsigned int num_mixers;
@@ -252,7 +250,6 @@ static struct via_spec * via_new_spec(struct hda_codec *codec)
 	/* VT1708BCE & VT1708S are almost same */
 	if (spec->codec_type == VT1708BCE)
 		spec->codec_type = VT1708S;
-	snd_hda_gen_init(&spec->gen);
 	return spec;
 }
 
@@ -1657,7 +1654,6 @@ static void via_free(struct hda_codec *codec)
 	vt1708_stop_hp_work(spec);
 	kfree(spec->bind_cap_vol);
 	kfree(spec->bind_cap_sw);
-	snd_hda_gen_free(&spec->gen);
 	kfree(spec);
 }
 
