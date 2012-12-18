@@ -1139,8 +1139,6 @@ badrsp:
 	if (buf && --buf->nframesout == 0 && buf->resid == 0)
 		aoe_end_buf(d, buf);
 
-	aoecmd_work(d);
-
 	spin_unlock_irq(&d->lock);
 	aoedev_put(d);
 	dev_kfree_skb(skb);
