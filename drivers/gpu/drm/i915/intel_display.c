@@ -8133,10 +8133,6 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 			DRM_DEBUG_KMS("encoder changed, full mode switch\n");
 			config->mode_changed = true;
 		}
-
-		/* Disable all disconnected encoders. */
-		if (connector->base.status == connector_status_disconnected)
-			connector->new_encoder = NULL;
 	}
 	/* connector->new_encoder is now updated for all connectors. */
 
