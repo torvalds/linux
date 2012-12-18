@@ -136,6 +136,9 @@ config TOUCHSCREEN_GT8XX
                 help
                   goodix touch max y resolution
 
+config TOUCHSCREEN_CT36X
+	tristate "CT36X based touchscreens"
+
 config RK28_I2C_TS_NTP070
 	tristate "NTP070 based touchscreens: NTP070 Interface"
 	depends on I2C_RK2818

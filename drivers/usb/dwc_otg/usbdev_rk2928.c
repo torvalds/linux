@@ -114,11 +114,14 @@ void usb20otg_phy_suspend(void* pdata, int suspend)
 {
     struct dwc_otg_platform_data *usbpdata=pdata;
     unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON5);
+    unsigned int * otg_phy_con2 = (unsigned int*)(USBGRF_UOC0_CON0);
     if(suspend){
+        *otg_phy_con2 = (1<<12 | 1<<(12+16));//otg io set to High-Z state
         *otg_phy_con1 = 0x55 |(0x7f<<16);   // enter suspend.
         usbpdata->phy_status = 1;
     }
     else{
+        *otg_phy_con2 = 1<<(12+16);
         *otg_phy_con1 = (0x01<<16);    // exit suspend.
         usbpdata->phy_status = 0;
     }
@@ -268,11 +271,14 @@ void usb20host_phy_suspend(void* pdata, int suspend)
 {
     struct dwc_otg_platform_data *usbpdata=pdata;
     unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON5);
+    unsigned int * otg_phy_con2 = (unsigned int*)(USBGRF_UOC1_CON0);
     if(suspend){
+        *otg_phy_con2 = (1 << 12 | 1 << (12+16));//host io set to High-Z state
         *otg_phy_con1 = 0x1D5 |(0x1ff<<16);   // enter suspend.
         usbpdata->phy_status = 1;
     }
     else{
+        *otg_phy_con2 = (1 << 12+16);//host io exit High-Z state
         *otg_phy_con1 = (0x01<<16);    // exit suspend.
         usbpdata->phy_status = 0;
     }

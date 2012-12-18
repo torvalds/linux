@@ -220,6 +220,26 @@ static void dump_kernel_log(struct fiq_debugger_state *state)
 	oops_in_progress = saved_oip;
 }
 
+#ifdef CONFIG_RK29_LAST_LOG
+#include <linux/ctype.h>
+extern char *last_log_get(unsigned *size);
+static void dump_last_kernel_log(struct fiq_debugger_state *state)
+{
+	unsigned size, i, c;
+	char *s = last_log_get(&size);
+
+	for (i = 0; i < size; i++) {
+		c = s[i];
+		if (c == '\n') {
+			state->pdata->uart_putc(state->pdev, '\r');
+			state->pdata->uart_putc(state->pdev, c);
+		} else if (isascii(c) && isprint(c)) {
+			state->pdata->uart_putc(state->pdev, c);
+		}
+	}
+}
+#endif
+
 static char *mode_name(unsigned cpsr)
 {
 	switch (cpsr & MODE_MASK) {
@@ -581,6 +601,9 @@ static char cmd_buf[][16] = {
 		{"reboot"},
 		{"irqs"},
 		{"kmsg"},
+#ifdef CONFIG_RK29_LAST_LOG
+		{"last_kmsg"},
+#endif
 		{"version"},
 		{"sleep"},
 		{"nosleep"},
@@ -600,6 +623,9 @@ static void debug_help(struct fiq_debugger_state *state)
 				" reboot        Reboot\n"
 				" irqs          Interupt status\n"
 				" kmsg          Kernel log\n"
+#ifdef CONFIG_RK29_LAST_LOG
+				" last_kmsg     Last kernel log\n"
+#endif
 				" version       Kernel version\n");
 	debug_printf(state,	" sleep         Allow sleep while in FIQ\n"
 				" nosleep       Disable sleep while in FIQ\n"
@@ -669,6 +695,10 @@ static bool debug_fiq_exec(struct fiq_debugger_state *state,
 		dump_irqs(state);
 	} else if (!strcmp(cmd, "kmsg")) {
 		dump_kernel_log(state);
+#ifdef CONFIG_RK29_LAST_LOG
+	} else if (!strcmp(cmd, "last_kmsg")) {
+		dump_last_kernel_log(state);
+#endif
 	} else if (!strcmp(cmd, "version")) {
 		debug_printf(state, "%s\n", linux_banner);
 	} else if (!strcmp(cmd, "sleep")) {

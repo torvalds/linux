@@ -84,7 +84,96 @@
 #endif
 
 #include "board-rk30-sdk-camera.c"
-#include "board-rk30-sdk-key.c"
+
+#include <plat/key.h>
+static struct rk29_keys_button key_button[] = {
+	{
+		.desc	= "vol-",
+		.code	= KEY_VOLUMEDOWN,
+		.gpio	= RK30_PIN4_PC5,
+		.active_low = PRESS_LEV_LOW,
+	},
+	{
+		.desc	= "play",
+		.code	= KEY_POWER,
+		.gpio	= RK30_PIN6_PA2,
+		.active_low = PRESS_LEV_LOW,
+		//.code_long_press = EV_ENCALL,
+		.wakeup	= 1,
+	},
+	{
+		.desc	= "vol+",
+		.code	= KEY_VOLUMEUP,
+		.adc_value	= 1,
+		.gpio = INVALID_GPIO,
+		.active_low = PRESS_LEV_LOW,
+	},
+#ifndef RK3000_SDK
+	{
+		.desc	= "menu",
+		.code	= EV_MENU,
+		.adc_value	= 135,
+		.gpio = INVALID_GPIO,
+		.active_low = PRESS_LEV_LOW,
+	},
+	{
+		.desc	= "home",
+		.code	= KEY_HOME,
+		.adc_value	= 550,
+		.gpio = INVALID_GPIO,
+		.active_low = PRESS_LEV_LOW,
+	},
+	{
+		.desc	= "esc",
+		.code	= KEY_BACK,
+		.adc_value	= 334,
+		.gpio = INVALID_GPIO,
+		.active_low = PRESS_LEV_LOW,
+	},
+	{
+		.desc	= "camera",
+		.code	= KEY_CAMERA,
+		.adc_value	= 743,
+		.gpio = INVALID_GPIO,
+		.active_low = PRESS_LEV_LOW,
+	},
+#else
+	{
+		.desc	= "menu",
+		.code	= EV_MENU,
+		.adc_value	= 155,
+		.gpio = INVALID_GPIO,
+		.active_low = PRESS_LEV_LOW,
+	},
+	{
+		.desc	= "home",
+		.code	= KEY_HOME,
+		.adc_value	= 630,
+		.gpio = INVALID_GPIO,
+		.active_low = PRESS_LEV_LOW,
+	},
+	{
+		.desc	= "esc",
+		.code	= KEY_BACK,
+		.adc_value	= 386,
+		.gpio = INVALID_GPIO,
+		.active_low = PRESS_LEV_LOW,
+	},
+	{
+		.desc	= "camera",
+		.code	= KEY_CAMERA,
+		.adc_value	= 827,
+		.gpio = INVALID_GPIO,
+		.active_low = PRESS_LEV_LOW,
+	},
+#endif
+};
+
+struct rk29_keys_platform_data rk29_keys_pdata = {
+	.buttons	= key_button,
+	.nbuttons	= ARRAY_SIZE(key_button),
+	.chn	= 1,  //chn: 0-7, if do not use ADC,set 'chn' -1
+};
 
 #if defined(CONFIG_TOUCHSCREEN_GT8XX)
 #define TOUCH_RESET_PIN  RK30_PIN4_PD0
