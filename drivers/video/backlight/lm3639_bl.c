@@ -214,7 +214,7 @@ out_input:
 
 }
 
-static DEVICE_ATTR(bled_mode, 0666, NULL, lm3639_bled_mode_store);
+static DEVICE_ATTR(bled_mode, S_IWUSR, NULL, lm3639_bled_mode_store);
 
 /* torch */
 static void lm3639_torch_brightness_set(struct led_classdev *cdev,
