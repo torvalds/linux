@@ -60,9 +60,12 @@
 *v1.1 : 2012-08-23
 *		1. dma driver:make "when tx dma is only enable" work functionally  
 *v1.2 : 2012-08-28
-*		1. dma driver:serial rx use new dma interface  rk29_dma_enqueue_ring   
+*		1. dma driver:serial rx use new dma interface  rk29_dma_enqueue_ring 
+*v1.3 : 2012-12-14
+*		1. When enable Programmable THRE Interrupt Mode, in lsr register, only UART_LSR_TEMT means transmit empty, but
+		 UART_LSR_THRE doesn't. So, the macro BOTH_EMPTY should be replaced with UART_LSR_TEMT.
 */
-#define VERSION_AND_TIME  "rk_serial.c v1.2 2012-08-28"
+#define VERSION_AND_TIME  "rk_serial.c v1.3 2012-12-14"
 
 #define PORT_RK		90
 #define UART_USR	0x1F	/* UART Status Register */
@@ -72,9 +75,11 @@
 #define UART_SRR		0x22    /* software reset register */
 #define UART_RESET		0x01
 
-#define BOTH_EMPTY 	(UART_LSR_TEMT | UART_LSR_THRE)
+
+//#define BOTH_EMPTY 	(UART_LSR_TEMT | UART_LSR_THRE)
 
 #define UART_NR	4   //uart port number
+
 
 /* configurate whether the port transmit-receive by DMA in menuconfig*/
 #define OPEN_DMA      1
@@ -1071,7 +1076,7 @@ static unsigned int serial_rk_tx_empty(struct uart_port *port)
 	up->lsr_saved_flags |= lsr & LSR_SAVE_FLAGS;
 	spin_unlock_irqrestore(&up->port.lock, flags);
 
-	return (lsr & BOTH_EMPTY) == BOTH_EMPTY ? TIOCSER_TEMT : 0;
+	return (lsr & UART_LSR_TEMT) == UART_LSR_TEMT ? TIOCSER_TEMT : 0;
 }
 
 static unsigned int serial_rk_get_mctrl(struct uart_port *port)
@@ -1191,14 +1196,14 @@ static void serial_rk_put_poll_char(struct uart_port *port,
 	ier = serial_in(up, UART_IER);
 	serial_out(up, UART_IER, 0);
 
-	wait_for_xmitr(up, BOTH_EMPTY);
+	wait_for_xmitr(up, UART_LSR_TEMT);
 	/*
 	 *	Send the character out.
 	 *	If a LF, also do CR...
 	 */
 	serial_out(up, UART_TX, c);
 	if (c == 10) {
-		wait_for_xmitr(up, BOTH_EMPTY);
+		wait_for_xmitr(up, UART_LSR_TEMT);
 		serial_out(up, UART_TX, 13);
 	}
 
@@ -1206,7 +1211,7 @@ static void serial_rk_put_poll_char(struct uart_port *port,
 	 *	Finally, wait for transmitter to become empty
 	 *	and restore the IER
 	 */
-	wait_for_xmitr(up, BOTH_EMPTY);
+	wait_for_xmitr(up, UART_LSR_TEMT);
 	serial_out(up, UART_IER, ier);
 }
 
@@ -1702,7 +1707,7 @@ serial_rk_console_write(struct console *co, const char *s, unsigned int count)
 	 *	Finally, wait for transmitter to become empty
 	 *	and restore the IER
 	 */
-	wait_for_xmitr(up, BOTH_EMPTY);
+	wait_for_xmitr(up, UART_LSR_TEMT);
 	serial_out(up, UART_IER, ier);
 
 #if 0
