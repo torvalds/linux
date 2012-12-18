@@ -173,7 +173,10 @@ void i915_gem_stolen_cleanup_compression(struct drm_device *dev)
 
 void i915_gem_cleanup_stolen(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	i915_gem_stolen_cleanup_compression(dev);
+	drm_mm_takedown(&dev_priv->mm.stolen);
 }
 
 int i915_gem_init_stolen(struct drm_device *dev)

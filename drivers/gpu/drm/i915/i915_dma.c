@@ -1737,9 +1737,6 @@ int i915_driver_unload(struct drm_device *dev)
 		mutex_unlock(&dev->struct_mutex);
 		i915_gem_cleanup_aliasing_ppgtt(dev);
 		i915_gem_cleanup_stolen(dev);
-		drm_mm_takedown(&dev_priv->mm.stolen);
-
-		intel_cleanup_overlay(dev);
 
 		if (!I915_NEED_GFX_HWS(dev))
 			i915_free_hws(dev);
