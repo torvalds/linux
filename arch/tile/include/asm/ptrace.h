@@ -24,8 +24,7 @@ typedef unsigned long pt_reg_t;
 #include <uapi/asm/ptrace.h>
 
 #define PTRACE_O_MASK_TILE	(PTRACE_O_TRACEMIGRATE)
-#define PT_TRACE_MIGRATE	0x00080000
-#define PT_TRACE_MASK_TILE	(PT_TRACE_MIGRATE)
+#define PT_TRACE_MIGRATE	PT_EVENT_FLAG(PTRACE_EVENT_MIGRATE)
 
 /* Flag bits in pt_regs.flags */
 #define PT_FLAGS_DISABLE_IRQ    1  /* on return to kernel, disable irqs */
