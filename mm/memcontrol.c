@@ -341,6 +341,14 @@ struct mem_cgroup {
 #if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_INET)
 	struct tcp_memcontrol tcp_mem;
 #endif
+#if defined(CONFIG_MEMCG_KMEM)
+	/* analogous to slab_common's slab_caches list. per-memcg */
+	struct list_head memcg_slab_caches;
+	/* Not a spinlock, we can take a lot of time walking the list */
+	struct mutex slab_caches_mutex;
+        /* Index in the kmem_cache->memcg_params->memcg_caches array */
+	int kmemcg_id;
+#endif
 };
 
 /* internal only representation about the status of kmem accounting. */
@@ -2785,6 +2793,47 @@ static void memcg_uncharge_kmem(struct mem_cgroup *memcg, u64 size)
 		mem_cgroup_put(memcg);
 }
 
+void memcg_cache_list_add(struct mem_cgroup *memcg, struct kmem_cache *cachep)
+{
+	if (!memcg)
+		return;
+
+	mutex_lock(&memcg->slab_caches_mutex);
+	list_add(&cachep->memcg_params->list, &memcg->memcg_slab_caches);
+	mutex_unlock(&memcg->slab_caches_mutex);
+}
+
+/*
+ * helper for acessing a memcg's index. It will be used as an index in the
+ * child cache array in kmem_cache, and also to derive its name. This function
+ * will return -1 when this is not a kmem-limited memcg.
+ */
+int memcg_cache_id(struct mem_cgroup *memcg)
+{
+	return memcg ? memcg->kmemcg_id : -1;
+}
+
+int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s)
+{
+	size_t size = sizeof(struct memcg_cache_params);
+
+	if (!memcg_kmem_enabled())
+		return 0;
+
+	s->memcg_params = kzalloc(size, GFP_KERNEL);
+	if (!s->memcg_params)
+		return -ENOMEM;
+
+	if (memcg)
+		s->memcg_params->memcg = memcg;
+	return 0;
+}
+
+void memcg_release_cache(struct kmem_cache *s)
+{
+	kfree(s->memcg_params);
+}
+
 /*
  * We need to verify if the allocation against current->mm->owner's memcg is
  * possible for the given order. But the page is not allocated yet, so we'll
@@ -5026,7 +5075,9 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
 #ifdef CONFIG_MEMCG_KMEM
 static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 {
+	memcg->kmemcg_id = -1;
 	memcg_propagate_kmem(memcg);
+
 	return mem_cgroup_sockets_init(memcg, ss);
 };
 
