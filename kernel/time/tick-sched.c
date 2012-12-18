@@ -112,7 +112,8 @@ static void tick_sched_do_timer(ktime_t now)
 	 * this duty, then the jiffies update is still serialized by
 	 * jiffies_lock.
 	 */
-	if (unlikely(tick_do_timer_cpu == TICK_DO_TIMER_NONE))
+	if (unlikely(tick_do_timer_cpu == TICK_DO_TIMER_NONE)
+	    && !tick_nohz_extended_cpu(cpu))
 		tick_do_timer_cpu = cpu;
 #endif
 
@@ -166,6 +167,25 @@ static int __init tick_nohz_extended_setup(char *str)
 }
 __setup("nohz_extended=", tick_nohz_extended_setup);
 
+static int __cpuinit tick_nohz_cpu_down_callback(struct notifier_block *nfb,
+						 unsigned long action,
+						 void *hcpu)
+{
+	unsigned int cpu = (unsigned long)hcpu;
+
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_DOWN_PREPARE:
+		/*
+		 * If we handle the timekeeping duty for full dynticks CPUs,
+		 * we can't safely shutdown that CPU.
+		 */
+		if (have_nohz_extended_mask && tick_do_timer_cpu == cpu)
+			return -EINVAL;
+		break;
+	}
+	return NOTIFY_OK;
+}
+
 static int __init init_tick_nohz_extended(void)
 {
 	cpumask_var_t online_nohz;
@@ -173,6 +193,8 @@ static int __init init_tick_nohz_extended(void)
 
 	if (!have_nohz_extended_mask)
 		return 0;
+
+	cpu_notifier(tick_nohz_cpu_down_callback, 0);
 
 	if (!zalloc_cpumask_var(&online_nohz, GFP_KERNEL)) {
 		pr_warning("NO_HZ: Not enough memory to check extended nohz mask\n");
@@ -188,11 +210,17 @@ static int __init init_tick_nohz_extended(void)
 	/* Ensure we keep a CPU outside the dynticks range for timekeeping */
 	cpumask_and(online_nohz, cpu_online_mask, nohz_extended_mask);
 	if (cpumask_equal(online_nohz, cpu_online_mask)) {
-		cpu = cpumask_any(cpu_online_mask);
 		pr_warning("NO_HZ: Must keep at least one online CPU "
 			   "out of nohz_extended range\n");
+		/*
+		 * We know the current CPU doesn't have its tick stopped.
+		 * Let's use it for the timekeeping duty.
+		 */
+		preempt_disable();
+		cpu = smp_processor_id();
 		pr_warning("NO_HZ: Clearing %d from nohz_extended range\n", cpu);
 		cpumask_clear_cpu(cpu, nohz_extended_mask);
+		preempt_enable();
 	}
 	put_online_cpus();
 	free_cpumask_var(online_nohz);
@@ -549,6 +577,21 @@ static bool can_stop_idle_tick(int cpu, struct tick_sched *ts)
 			ratelimit++;
 		}
 		return false;
+	}
+
+	if (have_nohz_extended_mask) {
+		/*
+		 * Keep the tick alive to guarantee timekeeping progression
+		 * if there are full dynticks CPUs around
+		 */
+		if (tick_do_timer_cpu == cpu)
+			return false;
+		/*
+		 * Boot safety: make sure the timekeeping duty has been
+		 * assigned before entering dyntick-idle mode,
+		 */
+		if (tick_do_timer_cpu == TICK_DO_TIMER_NONE)
+			return false;
 	}
 
 	return true;
