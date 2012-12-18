@@ -89,6 +89,7 @@ obj-$(CONFIG_TOUCHSCREEN_SITRONIX_A720)	+= sitronix_ts_a720.o
 obj-$(CONFIG_TOUCHSCREEN_FT5306_WPX2)        += ft5306_ts_wpx2.o
 obj-$(CONFIG_TOUCHSCREEN_FT5306_AV) += ft5306_ts_av.o
 obj-$(CONFIG_TOUCHSCREEN_GT819)		+= gt819.o
+obj-$(CONFIG_TOUCHSCREEN_CT36X)		+= ct36x_ts.o
 obj-$(CONFIG_TOUCHSCREEN_NAS)		+= nas_ts.o
 obj-$(CONFIG_LAIBAO_TS)		+= ft5x0x_i2c_ts.o
 obj-$(CONFIG_TOUCHSCREEN_PIXCIR)      += pixcir_i2c_ts.o
