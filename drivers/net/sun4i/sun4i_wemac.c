@@ -1869,10 +1869,6 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 	ndev->watchdog_timeo	= msecs_to_jiffies(watchdog);
 	ndev->ethtool_ops	= &wemac_ethtool_ops;
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	ndev->poll_controller	 = &wemac_poll_controller;
-#endif
-
 	db->msg_enable       = 0xffffffff & (~NETIF_MSG_TX_DONE) & (~NETIF_MSG_INTR) & (~NETIF_MSG_RX_STATUS);
 	db->mii.phy_id_mask  = 0x1f;
 	db->mii.reg_num_mask = 0x1f;
