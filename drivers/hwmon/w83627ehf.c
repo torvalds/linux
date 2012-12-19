@@ -905,6 +905,8 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 				data->temp_max_hyst[i]
 				  = w83627ehf_read_temp(data,
 						data->reg_temp_hyst[i]);
+			if (i > 2)
+				continue;
 			if (data->have_temp_offset & (1 << i))
 				data->temp_offset[i]
 				  = w83627ehf_read_value(data,
@@ -2670,6 +2672,8 @@ static int w83627ehf_resume(struct device *dev)
 		if (data->reg_temp_hyst[i])
 			w83627ehf_write_temp(data, data->reg_temp_hyst[i],
 					     data->temp_max_hyst[i]);
+		if (i > 2)
+			continue;
 		if (data->have_temp_offset & (1 << i))
 			w83627ehf_write_value(data,
 					      W83627EHF_REG_TEMP_OFFSET[i],
