@@ -1,6 +1,12 @@
 #ifndef TESTS_H
 #define TESTS_H
 
+enum {
+	TEST_OK   =  0,
+	TEST_FAIL = -1,
+	TEST_SKIP = -2,
+};
+
 /* Tests */
 int test__vmlinux_matches_kallsyms(void);
 int test__open_syscall_event(void);

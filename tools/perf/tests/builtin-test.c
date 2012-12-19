@@ -129,10 +129,19 @@ static int __cmd_test(int argc, const char *argv[])
 		pr_debug("\n--- start ---\n");
 		err = tests[curr].func();
 		pr_debug("---- end ----\n%s:", tests[curr].desc);
-		if (err)
-			color_fprintf(stderr, PERF_COLOR_RED, " FAILED!\n");
-		else
+
+		switch (err) {
+		case TEST_OK:
 			pr_info(" Ok\n");
+			break;
+		case TEST_SKIP:
+			color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip\n");
+			break;
+		case TEST_FAIL:
+		default:
+			color_fprintf(stderr, PERF_COLOR_RED, " FAILED!\n");
+			break;
+		}
 	}
 
 	return 0;
