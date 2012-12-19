@@ -1009,6 +1009,22 @@ static bool ignore_reg_update(struct wiphy *wiphy,
 	return false;
 }
 
+static bool reg_is_world_roaming(struct wiphy *wiphy)
+{
+	const struct ieee80211_regdomain *cr = get_cfg80211_regdom();
+	const struct ieee80211_regdomain *wr = get_wiphy_regdom(wiphy);
+	struct regulatory_request *lr = get_last_request();
+
+	if (is_world_regdom(cr->alpha2) || (wr && is_world_regdom(wr->alpha2)))
+		return true;
+
+	if (lr && lr->initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE &&
+	    wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY)
+		return true;
+
+	return false;
+}
+
 static void handle_reg_beacon(struct wiphy *wiphy, unsigned int chan_idx,
 			      struct reg_beacon *reg_beacon)
 {
@@ -1083,22 +1099,6 @@ static void wiphy_update_beacon_reg(struct wiphy *wiphy)
 		for (i = 0; i < sband->n_channels; i++)
 			handle_reg_beacon(wiphy, i, reg_beacon);
 	}
-}
-
-static bool reg_is_world_roaming(struct wiphy *wiphy)
-{
-	const struct ieee80211_regdomain *cr = get_cfg80211_regdom();
-	const struct ieee80211_regdomain *wr = get_wiphy_regdom(wiphy);
-	struct regulatory_request *lr = get_last_request();
-
-	if (is_world_regdom(cr->alpha2) || (wr && is_world_regdom(wr->alpha2)))
-		return true;
-
-	if (lr && lr->initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE &&
-	    wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY)
-		return true;
-
-	return false;
 }
 
 /* Reap the advantages of previously found beacons */
