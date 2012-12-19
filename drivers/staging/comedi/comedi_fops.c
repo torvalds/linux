@@ -2376,8 +2376,8 @@ int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 	struct device *csdev;
 	unsigned i;
 
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
-	if (info == NULL)
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
 		return -ENOMEM;
 	info->device = dev;
 	info->read_subdevice = s;
