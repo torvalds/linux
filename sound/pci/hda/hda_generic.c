@@ -43,9 +43,9 @@ int snd_hda_gen_spec_init(struct hda_gen_spec *spec)
 }
 EXPORT_SYMBOL_HDA(snd_hda_gen_spec_init);
 
-static struct snd_kcontrol_new *
-add_kctl(struct hda_gen_spec *spec, const char *name,
-	 const struct snd_kcontrol_new *temp)
+struct snd_kcontrol_new *
+snd_hda_gen_add_kctl(struct hda_gen_spec *spec, const char *name,
+		     const struct snd_kcontrol_new *temp)
 {
 	struct snd_kcontrol_new *knew = snd_array_new(&spec->kctls);
 	if (!knew)
@@ -59,6 +59,7 @@ add_kctl(struct hda_gen_spec *spec, const char *name,
 		return NULL;
 	return knew;
 }
+EXPORT_SYMBOL_HDA(snd_hda_gen_add_kctl);
 
 static void free_kctls(struct hda_gen_spec *spec)
 {
@@ -548,7 +549,7 @@ static int add_control(struct hda_gen_spec *spec, int type, const char *name,
 {
 	struct snd_kcontrol_new *knew;
 
-	knew = add_kctl(spec, name, &control_templates[type]);
+	knew = snd_hda_gen_add_kctl(spec, name, &control_templates[type]);
 	if (!knew)
 		return -ENOMEM;
 	knew->index = cidx;
@@ -1527,7 +1528,7 @@ static int create_multi_channel_mode(struct hda_codec *codec)
 	struct hda_gen_spec *spec = codec->spec;
 
 	if (spec->multi_ios > 0) {
-		if (!add_kctl(spec, NULL, &channel_mode_enum))
+		if (!snd_hda_gen_add_kctl(spec, NULL, &channel_mode_enum))
 			return -ENOMEM;
 	}
 	return 0;
@@ -2086,7 +2087,7 @@ static int create_bind_cap_vol_ctl(struct hda_codec *codec, int idx,
 	struct snd_kcontrol_new *knew;
 
 	if (vol_ctl) {
-		knew = add_kctl(spec, NULL, &cap_vol_temp);
+		knew = snd_hda_gen_add_kctl(spec, NULL, &cap_vol_temp);
 		if (!knew)
 			return -ENOMEM;
 		knew->index = idx;
@@ -2094,7 +2095,7 @@ static int create_bind_cap_vol_ctl(struct hda_codec *codec, int idx,
 		knew->subdevice = HDA_SUBDEV_AMP_FLAG;
 	}
 	if (sw_ctl) {
-		knew = add_kctl(spec, NULL, &cap_sw_temp);
+		knew = snd_hda_gen_add_kctl(spec, NULL, &cap_sw_temp);
 		if (!knew)
 			return -ENOMEM;
 		knew->index = idx;
@@ -2171,7 +2172,7 @@ static int create_capture_mixers(struct hda_codec *codec)
 
 	if (!spec->auto_mic && imux->num_items > 1) {
 		struct snd_kcontrol_new *knew;
-		knew = add_kctl(spec, NULL, &cap_src_temp);
+		knew = snd_hda_gen_add_kctl(spec, NULL, &cap_src_temp);
 		if (!knew)
 			return -ENOMEM;
 		knew->count = nums;
@@ -2592,7 +2593,7 @@ static int add_automute_mode_enum(struct hda_codec *codec)
 {
 	struct hda_gen_spec *spec = codec->spec;
 
-	if (!add_kctl(spec, NULL, &automute_mode_enum))
+	if (!snd_hda_gen_add_kctl(spec, NULL, &automute_mode_enum))
 		return -ENOMEM;
 	return 0;
 }

@@ -192,6 +192,10 @@ snd_hda_add_new_path(struct hda_codec *codec, hda_nid_t from_nid,
 void snd_hda_activate_path(struct hda_codec *codec, struct nid_path *path,
 			   bool enable, bool add_aamix);
 
+struct snd_kcontrol_new *
+snd_hda_gen_add_kctl(struct hda_gen_spec *spec, const char *name,
+		     const struct snd_kcontrol_new *temp);
+
 int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 				  const hda_nid_t *ignore_nids);
 int snd_hda_gen_build_controls(struct hda_codec *codec);
