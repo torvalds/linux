@@ -606,9 +606,7 @@ acpi_walk_resources(acpi_handle device_handle,
 
 		/* Get the next resource descriptor */
 
-		resource =
-		    ACPI_ADD_PTR(struct acpi_resource, resource,
-				 resource->length);
+		resource = ACPI_NEXT_RESOURCE(resource);
 	}
 
 	ACPI_FREE(buffer.pointer);
