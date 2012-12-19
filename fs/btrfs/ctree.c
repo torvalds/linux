@@ -4611,12 +4611,6 @@ static void del_ptr(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	u32 nritems;
 	int ret;
 
-	if (level) {
-		ret = tree_mod_log_insert_key(root->fs_info, parent, slot,
-					      MOD_LOG_KEY_REMOVE);
-		BUG_ON(ret < 0);
-	}
-
 	nritems = btrfs_header_nritems(parent);
 	if (slot != nritems - 1) {
 		if (level)
@@ -4627,6 +4621,10 @@ static void del_ptr(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 			      btrfs_node_key_ptr_offset(slot + 1),
 			      sizeof(struct btrfs_key_ptr) *
 			      (nritems - slot - 1));
+	} else if (level) {
+		ret = tree_mod_log_insert_key(root->fs_info, parent, slot,
+					      MOD_LOG_KEY_REMOVE);
+		BUG_ON(ret < 0);
 	}
 
 	nritems--;
