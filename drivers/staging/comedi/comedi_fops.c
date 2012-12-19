@@ -86,6 +86,13 @@ MODULE_PARM_DESC(comedi_default_buf_maxsize_kb,
 		 "default maximum size of asynchronous buffer in KiB (default "
 		 __MODULE_STRING(CONFIG_COMEDI_DEFAULT_BUF_MAXSIZE_KB) ")");
 
+struct comedi_device_file_info {
+	struct comedi_device *device;
+	struct comedi_subdevice *read_subdevice;
+	struct comedi_subdevice *write_subdevice;
+	struct device *hardware_device;
+};
+
 static DEFINE_SPINLOCK(comedi_file_info_table_lock);
 static struct comedi_device_file_info
 *comedi_file_info_table[COMEDI_NUM_MINORS];
