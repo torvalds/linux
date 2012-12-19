@@ -1044,6 +1044,9 @@ static void handle_reg_beacon(struct wiphy *wiphy, unsigned int chan_idx,
 
 	chan->beacon_found = true;
 
+	if (!reg_is_world_roaming(wiphy))
+		return;
+
 	if (wiphy->flags & WIPHY_FLAG_DISABLE_BEACON_HINTS)
 		return;
 
@@ -1109,8 +1112,6 @@ static void reg_process_beacons(struct wiphy *wiphy)
 	 * have been processed yet.
 	 */
 	if (!last_request)
-		return;
-	if (!reg_is_world_roaming(wiphy))
 		return;
 	wiphy_update_beacon_reg(wiphy);
 }
@@ -1593,11 +1594,8 @@ static void reg_process_pending_beacon_hints(void)
 	struct cfg80211_registered_device *rdev;
 	struct reg_beacon *pending_beacon, *tmp;
 
-	/*
-	 * No need to hold the reg_mutex here as we just touch wiphys
-	 * and do not read or access regulatory variables.
-	 */
 	mutex_lock(&cfg80211_mutex);
+	mutex_lock(&reg_mutex);
 
 	/* This goes through the _pending_ beacon list */
 	spin_lock_bh(&reg_pending_beacons_lock);
@@ -1615,6 +1613,7 @@ static void reg_process_pending_beacon_hints(void)
 	}
 
 	spin_unlock_bh(&reg_pending_beacons_lock);
+	mutex_unlock(&reg_mutex);
 	mutex_unlock(&cfg80211_mutex);
 }
 
