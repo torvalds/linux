@@ -129,16 +129,15 @@ static int regmap_irq_set_wake(struct irq_data *data, unsigned int on)
 	struct regmap *map = d->map;
 	const struct regmap_irq *irq_data = irq_to_regmap_irq(d, data->hwirq);
 
-	if (!d->chip->wake_base)
-		return -EINVAL;
-
 	if (on) {
-		d->wake_buf[irq_data->reg_offset / map->reg_stride]
-			&= ~irq_data->mask;
+		if (d->wake_buf)
+			d->wake_buf[irq_data->reg_offset / map->reg_stride]
+				&= ~irq_data->mask;
 		d->wake_count++;
 	} else {
-		d->wake_buf[irq_data->reg_offset / map->reg_stride]
-			|= irq_data->mask;
+		if (d->wake_buf)
+			d->wake_buf[irq_data->reg_offset / map->reg_stride]
+				|= irq_data->mask;
 		d->wake_count--;
 	}
 
@@ -316,11 +315,6 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 
 	d->irq_chip = regmap_irq_chip;
 	d->irq_chip.name = chip->name;
-	if (!chip->wake_base) {
-		d->irq_chip.irq_set_wake = NULL;
-		d->irq_chip.flags |= IRQCHIP_MASK_ON_SUSPEND |
-				     IRQCHIP_SKIP_SET_WAKE;
-	}
 	d->irq = irq;
 	d->map = map;
 	d->chip = chip;
