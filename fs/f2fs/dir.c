@@ -11,6 +11,7 @@
 #include <linux/fs.h>
 #include <linux/f2fs_fs.h>
 #include "f2fs.h"
+#include "node.h"
 #include "acl.h"
 
 static unsigned long dir_blocks(struct inode *inode)
@@ -308,6 +309,7 @@ static int init_inode_metadata(struct inode *inode, struct dentry *dentry)
 		ipage = get_node_page(F2FS_SB(dir->i_sb), inode->i_ino);
 		if (IS_ERR(ipage))
 			return PTR_ERR(ipage);
+		set_cold_node(inode, ipage);
 		init_dent_inode(dentry, ipage);
 		f2fs_put_page(ipage, 1);
 	}

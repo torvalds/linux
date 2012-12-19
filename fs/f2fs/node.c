@@ -834,11 +834,11 @@ struct page *new_node_page(struct dnode_of_data *dn, unsigned int ofs)
 		goto fail;
 	}
 	set_node_addr(sbi, &new_ni, NEW_ADDR);
+	set_cold_node(dn->inode, page);
 
 	dn->node_page = page;
 	sync_inode_page(dn);
 	set_page_dirty(page);
-	set_cold_node(dn->inode, page);
 	if (ofs == 0)
 		inc_valid_inode_count(sbi);
 
