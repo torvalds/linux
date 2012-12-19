@@ -1932,18 +1932,6 @@ i915_gem_handle_seqno_wrap(struct drm_device *dev)
 	struct intel_ring_buffer *ring;
 	int ret, i, j;
 
-	/* The hardware uses various monotonic 32-bit counters, if we
-	 * detect that they will wraparound we need to idle the GPU
-	 * and reset those counters.
-	 */
-	ret = 0;
-	for_each_ring(ring, dev_priv, i) {
-		for (j = 0; j < ARRAY_SIZE(ring->sync_seqno); j++)
-			ret |= ring->sync_seqno[j] != 0;
-	}
-	if (ret == 0)
-		return ret;
-
 	/* Carefully retire all requests without writing to the rings */
 	for_each_ring(ring, dev_priv, i) {
 		ret = intel_ring_idle(ring);
