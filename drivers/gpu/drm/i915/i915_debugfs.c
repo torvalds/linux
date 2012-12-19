@@ -878,7 +878,6 @@ i915_next_seqno_write(struct file *filp,
 		      loff_t *ppos)
 {
 	struct drm_device *dev = filp->private_data;
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	char buf[20];
 	u32 val = 1;
 	int ret;
@@ -896,19 +895,11 @@ i915_next_seqno_write(struct file *filp,
 			return ret;
 	}
 
-	if (val == 0)
-		return -EINVAL;
-
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
-	if (i915_seqno_passed(val, dev_priv->next_seqno)) {
-		dev_priv->next_seqno = val;
-		DRM_DEBUG_DRIVER("Advancing seqno to %u\n", val);
-	} else {
-		ret = -EINVAL;
-	}
+	ret = i915_gem_set_seqno(dev, val);
 
 	mutex_unlock(&dev->struct_mutex);
 
