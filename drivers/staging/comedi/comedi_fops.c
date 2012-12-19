@@ -90,14 +90,6 @@ static DEFINE_SPINLOCK(comedi_file_info_table_lock);
 static struct comedi_device_file_info
 *comedi_file_info_table[COMEDI_NUM_MINORS];
 
-static void do_become_nonbusy(struct comedi_device *dev,
-			      struct comedi_subdevice *s);
-static int do_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
-
-static int comedi_fasync(int fd, struct file *file, int on);
-
-static int is_device_busy(struct comedi_device *dev);
-
 static int resize_async_buffer(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_async *async, unsigned new_size)
@@ -316,6 +308,70 @@ static struct device_attribute comedi_dev_attrs[] = {
 		show_write_buffer_kb, store_write_buffer_kb),
 	__ATTR_NULL
 };
+
+static void comedi_set_subdevice_runflags(struct comedi_subdevice *s,
+					  unsigned mask, unsigned bits)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&s->spin_lock, flags);
+	s->runflags &= ~mask;
+	s->runflags |= (bits & mask);
+	spin_unlock_irqrestore(&s->spin_lock, flags);
+}
+
+/*
+   This function restores a subdevice to an idle state.
+ */
+static void do_become_nonbusy(struct comedi_device *dev,
+			      struct comedi_subdevice *s)
+{
+	struct comedi_async *async = s->async;
+
+	comedi_set_subdevice_runflags(s, SRF_RUNNING, 0);
+	if (async) {
+		comedi_reset_async_buf(async);
+		async->inttrig = NULL;
+		kfree(async->cmd.chanlist);
+		async->cmd.chanlist = NULL;
+	} else {
+		dev_err(dev->class_dev,
+			"BUG: (?) do_become_nonbusy called with async=NULL\n");
+	}
+
+	s->busy = NULL;
+}
+
+static int do_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
+{
+	int ret = 0;
+
+	if ((comedi_get_subdevice_runflags(s) & SRF_RUNNING) && s->cancel)
+		ret = s->cancel(dev, s);
+
+	do_become_nonbusy(dev, s);
+
+	return ret;
+}
+
+static int is_device_busy(struct comedi_device *dev)
+{
+	struct comedi_subdevice *s;
+	int i;
+
+	if (!dev->attached)
+		return 0;
+
+	for (i = 0; i < dev->n_subdevices; i++) {
+		s = &dev->subdevices[i];
+		if (s->busy)
+			return 1;
+		if (s->async && s->async->mmap_count)
+			return 1;
+	}
+
+	return 0;
+}
 
 /*
 	COMEDI_DEVCONFIG
@@ -1123,17 +1179,6 @@ error:
 	return ret;
 }
 
-static void comedi_set_subdevice_runflags(struct comedi_subdevice *s,
-					  unsigned mask, unsigned bits)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&s->spin_lock, flags);
-	s->runflags &= ~mask;
-	s->runflags |= (bits & mask);
-	spin_unlock_irqrestore(&s->spin_lock, flags);
-}
-
 static int do_cmd_ioctl(struct comedi_device *dev,
 			struct comedi_cmd __user *arg, void *file)
 {
@@ -1621,19 +1666,6 @@ done:
 	return rc;
 }
 
-static int do_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	int ret = 0;
-
-	if ((comedi_get_subdevice_runflags(s) & SRF_RUNNING) && s->cancel)
-		ret = s->cancel(dev, s);
-
-	do_become_nonbusy(dev, s);
-
-	return ret;
-}
-
-
 static void comedi_vm_open(struct vm_area_struct *area)
 {
 	struct comedi_async *async;
@@ -2023,28 +2055,6 @@ done:
 	return count ? count : retval;
 }
 
-/*
-   This function restores a subdevice to an idle state.
- */
-static void do_become_nonbusy(struct comedi_device *dev,
-			      struct comedi_subdevice *s)
-{
-	struct comedi_async *async = s->async;
-
-	comedi_set_subdevice_runflags(s, SRF_RUNNING, 0);
-	if (async) {
-		comedi_reset_async_buf(async);
-		async->inttrig = NULL;
-		kfree(async->cmd.chanlist);
-		async->cmd.chanlist = NULL;
-	} else {
-		dev_err(dev->class_dev,
-			"BUG: (?) do_become_nonbusy called with async=NULL\n");
-	}
-
-	s->busy = NULL;
-}
-
 static int comedi_open(struct inode *inode, struct file *file)
 {
 	const unsigned minor = iminor(inode);
@@ -2125,6 +2135,22 @@ ok:
 	return 0;
 }
 
+static int comedi_fasync(int fd, struct file *file, int on)
+{
+	const unsigned minor = iminor(file->f_dentry->d_inode);
+	struct comedi_device_file_info *dev_file_info;
+	struct comedi_device *dev;
+	dev_file_info = comedi_get_device_file_info(minor);
+
+	if (dev_file_info == NULL)
+		return -ENODEV;
+	dev = dev_file_info->device;
+	if (dev == NULL)
+		return -ENODEV;
+
+	return fasync_helper(fd, file, on, &dev->async_queue);
+}
+
 static int comedi_close(struct inode *inode, struct file *file)
 {
 	const unsigned minor = iminor(inode);
@@ -2167,22 +2193,6 @@ static int comedi_close(struct inode *inode, struct file *file)
 		comedi_fasync(-1, file, 0);
 
 	return 0;
-}
-
-static int comedi_fasync(int fd, struct file *file, int on)
-{
-	const unsigned minor = iminor(file->f_dentry->d_inode);
-	struct comedi_device_file_info *dev_file_info;
-	struct comedi_device *dev;
-	dev_file_info = comedi_get_device_file_info(minor);
-
-	if (dev_file_info == NULL)
-		return -ENODEV;
-	dev = dev_file_info->device;
-	if (dev == NULL)
-		return -ENODEV;
-
-	return fasync_helper(fd, file, on, &dev->async_queue);
 }
 
 static const struct file_operations comedi_fops = {
@@ -2355,25 +2365,6 @@ unsigned comedi_get_subdevice_runflags(struct comedi_subdevice *s)
 	return runflags;
 }
 EXPORT_SYMBOL(comedi_get_subdevice_runflags);
-
-static int is_device_busy(struct comedi_device *dev)
-{
-	struct comedi_subdevice *s;
-	int i;
-
-	if (!dev->attached)
-		return 0;
-
-	for (i = 0; i < dev->n_subdevices; i++) {
-		s = &dev->subdevices[i];
-		if (s->busy)
-			return 1;
-		if (s->async && s->async->mmap_count)
-			return 1;
-	}
-
-	return 0;
-}
 
 static void comedi_device_init(struct comedi_device *dev)
 {
