@@ -360,7 +360,7 @@ static void update_shared_mic_hp(struct hda_codec *codec, bool set_as_mic)
 
 /* select the given imux item; either unmute exclusively or select the route */
 static int alc_mux_select(struct hda_codec *codec, unsigned int adc_idx,
-			  unsigned int idx, bool force)
+			  unsigned int idx)
 {
 	struct alc_spec *spec = codec->spec;
 	const struct hda_input_mux *imux;
@@ -372,7 +372,7 @@ static int alc_mux_select(struct hda_codec *codec, unsigned int adc_idx,
 
 	if (idx >= imux->num_items)
 		idx = imux->num_items - 1;
-	if (spec->cur_mux[adc_idx] == idx && !force)
+	if (spec->cur_mux[adc_idx] == idx)
 		return 0;
 
 	path = get_nid_path(codec, spec->imux_pins[spec->cur_mux[adc_idx]],
@@ -407,7 +407,7 @@ static int alc_mux_enum_put(struct snd_kcontrol *kcontrol,
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	return alc_mux_select(codec, adc_idx,
-			      ucontrol->value.enumerated.item[0], false);
+			      ucontrol->value.enumerated.item[0]);
 }
 
 /*
@@ -624,11 +624,11 @@ static void alc_mic_automute(struct hda_codec *codec, struct hda_jack_tbl *jack)
 
 	for (i = spec->am_num_entries - 1; i > 0; i--) {
 		if (snd_hda_jack_detect(codec, spec->am_entry[i].pin)) {
-			alc_mux_select(codec, 0, spec->am_entry[i].idx, false);
+			alc_mux_select(codec, 0, spec->am_entry[i].idx);
 			return;
 		}
 	}
-	alc_mux_select(codec, 0, spec->am_entry[0].idx, false);
+	alc_mux_select(codec, 0, spec->am_entry[0].idx);
 }
 
 /* update the master volume per volume-knob's unsol event */
