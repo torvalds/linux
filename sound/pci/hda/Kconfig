@@ -149,6 +149,7 @@ config SND_HDA_CODEC_HDMI
 config SND_HDA_CODEC_CIRRUS
 	bool "Build Cirrus Logic codec support"
 	default y
+	select SND_HDA_GENERIC
 	help
 	  Say Y here to include Cirrus Logic codec support in
 	  snd-hda-intel driver, such as CS4206.
