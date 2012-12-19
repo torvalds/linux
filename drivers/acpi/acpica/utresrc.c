@@ -127,7 +127,9 @@ const char *acpi_gbl_rw_decode[] = {
 
 const char *acpi_gbl_shr_decode[] = {
 	"Exclusive",
-	"Shared"
+	"Shared",
+	"ExclusiveAndWake",	/* ACPI 5.0 */
+	"SharedAndWake"		/* ACPI 5.0 */
 };
 
 const char *acpi_gbl_siz_decode[] = {
