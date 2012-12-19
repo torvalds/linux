@@ -223,8 +223,7 @@ static int tegra_crtc_mode_set(struct drm_crtc *crtc,
 	win.stride = crtc->fb->pitches[0];
 
 	/* program window registers */
-	value = tegra_dc_readl(dc, DC_CMD_DISPLAY_WINDOW_HEADER);
-	value |= WINDOW_A_SELECT;
+	value = WINDOW_A_SELECT;
 	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_WINDOW_HEADER);
 
 	tegra_dc_writel(dc, win.fmt, DC_WIN_COLOR_DEPTH);
