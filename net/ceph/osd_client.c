@@ -1284,6 +1284,24 @@ static void kick_requests(struct ceph_osd_client *osdc, int force_resend)
 	for (p = rb_first(&osdc->requests); p; ) {
 		req = rb_entry(p, struct ceph_osd_request, r_node);
 		p = rb_next(p);
+
+		/*
+		 * For linger requests that have not yet been
+		 * registered, move them to the linger list; they'll
+		 * be sent to the osd in the loop below.  Unregister
+		 * the request before re-registering it as a linger
+		 * request to ensure the __map_request() below
+		 * will decide it needs to be sent.
+		 */
+		if (req->r_linger && list_empty(&req->r_linger_item)) {
+			dout("%p tid %llu restart on osd%d\n",
+			     req, req->r_tid,
+			     req->r_osd ? req->r_osd->o_osd : -1);
+			__unregister_request(osdc, req);
+			__register_linger_request(osdc, req);
+			continue;
+		}
+
 		err = __map_request(osdc, req, force_resend);
 		if (err < 0)
 			continue;  /* error */
@@ -1298,17 +1316,6 @@ static void kick_requests(struct ceph_osd_client *osdc, int force_resend)
 				req->r_flags |= CEPH_OSD_FLAG_RETRY;
 			}
 		}
-		if (req->r_linger && list_empty(&req->r_linger_item)) {
-			/*
-			 * register as a linger so that we will
-			 * re-submit below and get a new tid
-			 */
-			dout("%p tid %llu restart on osd%d\n",
-			     req, req->r_tid,
-			     req->r_osd ? req->r_osd->o_osd : -1);
-			__register_linger_request(osdc, req);
-			__unregister_request(osdc, req);
-		}
 	}
 
 	list_for_each_entry_safe(req, nreq, &osdc->req_linger,
@@ -1316,6 +1323,7 @@ static void kick_requests(struct ceph_osd_client *osdc, int force_resend)
 		dout("linger req=%p req->r_osd=%p\n", req, req->r_osd);
 
 		err = __map_request(osdc, req, force_resend);
+		dout("__map_request returned %d\n", err);
 		if (err == 0)
 			continue;  /* no change and no osd was specified */
 		if (err < 0)
