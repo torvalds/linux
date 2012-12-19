@@ -1925,16 +1925,35 @@ static bool freq_is_chan_12_13_14(u16 freq)
 	return false;
 }
 
+static bool pending_reg_beacon(struct ieee80211_channel *beacon_chan)
+{
+	struct reg_beacon *pending_beacon;
+
+	list_for_each_entry(pending_beacon, &reg_pending_beacons, list)
+		if (beacon_chan->center_freq ==
+		    pending_beacon->chan.center_freq)
+			return true;
+	return false;
+}
+
 int regulatory_hint_found_beacon(struct wiphy *wiphy,
 				 struct ieee80211_channel *beacon_chan,
 				 gfp_t gfp)
 {
 	struct reg_beacon *reg_beacon;
+	bool processing;
 
 	if (beacon_chan->beacon_found ||
 	    beacon_chan->flags & IEEE80211_CHAN_RADAR ||
 	    (beacon_chan->band == IEEE80211_BAND_2GHZ &&
 	     !freq_is_chan_12_13_14(beacon_chan->center_freq)))
+		return 0;
+
+	spin_lock_bh(&reg_pending_beacons_lock);
+	processing = pending_reg_beacon(beacon_chan);
+	spin_unlock_bh(&reg_pending_beacons_lock);
+
+	if (processing)
 		return 0;
 
 	reg_beacon = kzalloc(sizeof(struct reg_beacon), gfp);
