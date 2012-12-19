@@ -1122,47 +1122,80 @@ static SENSOR_DEVICE_ATTR_2(fan5_input, S_IRUGO, show_fan, NULL, 4, 0);
 static SENSOR_DEVICE_ATTR_2(fan5_min, S_IRUGO | S_IWUSR, show_fan, set_fan,
 			    4, 1);
 
-#define show_pwm_offset(offset)						\
-static SENSOR_DEVICE_ATTR(pwm##offset##_enable, S_IRUGO | S_IWUSR,	\
-		show_pwm_enable, set_pwm_enable, offset - 1);		\
-static SENSOR_DEVICE_ATTR(pwm##offset, S_IRUGO | S_IWUSR,		\
-		show_pwm, set_pwm, offset - 1);				\
-static DEVICE_ATTR(pwm##offset##_freq,					\
-		(offset == 1 ? S_IRUGO | S_IWUSR : S_IRUGO),		\
-		show_pwm_freq, (offset == 1 ? set_pwm_freq : NULL));	\
-static SENSOR_DEVICE_ATTR(pwm##offset##_auto_channels_temp,		\
-		S_IRUGO | S_IWUSR, show_pwm_temp_map, set_pwm_temp_map,	\
-		offset - 1);						\
-static SENSOR_DEVICE_ATTR_2(pwm##offset##_auto_point1_pwm,		\
-		S_IRUGO | S_IWUSR, show_auto_pwm, set_auto_pwm,		\
-		offset - 1, 0);						\
-static SENSOR_DEVICE_ATTR_2(pwm##offset##_auto_point2_pwm,		\
-		S_IRUGO | S_IWUSR, show_auto_pwm, set_auto_pwm,		\
-		offset - 1, 1);						\
-static SENSOR_DEVICE_ATTR_2(pwm##offset##_auto_point3_pwm,		\
-		S_IRUGO | S_IWUSR, show_auto_pwm, set_auto_pwm,		\
-		offset - 1, 2);						\
-static SENSOR_DEVICE_ATTR_2(pwm##offset##_auto_point4_pwm,		\
-		S_IRUGO, show_auto_pwm, NULL, offset - 1, 3);		\
-static SENSOR_DEVICE_ATTR_2(pwm##offset##_auto_point1_temp,		\
-		S_IRUGO | S_IWUSR, show_auto_temp, set_auto_temp,	\
-		offset - 1, 1);						\
-static SENSOR_DEVICE_ATTR_2(pwm##offset##_auto_point1_temp_hyst,	\
-		S_IRUGO | S_IWUSR, show_auto_temp, set_auto_temp,	\
-		offset - 1, 0);						\
-static SENSOR_DEVICE_ATTR_2(pwm##offset##_auto_point2_temp,		\
-		S_IRUGO | S_IWUSR, show_auto_temp, set_auto_temp,	\
-		offset - 1, 2);						\
-static SENSOR_DEVICE_ATTR_2(pwm##offset##_auto_point3_temp,		\
-		S_IRUGO | S_IWUSR, show_auto_temp, set_auto_temp,	\
-		offset - 1, 3);						\
-static SENSOR_DEVICE_ATTR_2(pwm##offset##_auto_point4_temp,		\
-		S_IRUGO | S_IWUSR, show_auto_temp, set_auto_temp,	\
-		offset - 1, 4);
+static SENSOR_DEVICE_ATTR(pwm1_enable, S_IRUGO | S_IWUSR,
+			  show_pwm_enable, set_pwm_enable, 0);
+static SENSOR_DEVICE_ATTR(pwm1, S_IRUGO | S_IWUSR, show_pwm, set_pwm, 0);
+static DEVICE_ATTR(pwm1_freq, S_IRUGO | S_IWUSR, show_pwm_freq, set_pwm_freq);
+static SENSOR_DEVICE_ATTR(pwm1_auto_channels_temp, S_IRUGO | S_IWUSR,
+			  show_pwm_temp_map, set_pwm_temp_map, 0);
+static SENSOR_DEVICE_ATTR_2(pwm1_auto_point1_pwm, S_IRUGO | S_IWUSR,
+			    show_auto_pwm, set_auto_pwm, 0, 0);
+static SENSOR_DEVICE_ATTR_2(pwm1_auto_point2_pwm, S_IRUGO | S_IWUSR,
+			    show_auto_pwm, set_auto_pwm, 0, 1);
+static SENSOR_DEVICE_ATTR_2(pwm1_auto_point3_pwm, S_IRUGO | S_IWUSR,
+			    show_auto_pwm, set_auto_pwm, 0, 2);
+static SENSOR_DEVICE_ATTR_2(pwm1_auto_point4_pwm, S_IRUGO,
+			    show_auto_pwm, NULL, 0, 3);
+static SENSOR_DEVICE_ATTR_2(pwm1_auto_point1_temp, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 0, 1);
+static SENSOR_DEVICE_ATTR_2(pwm1_auto_point1_temp_hyst, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 0, 0);
+static SENSOR_DEVICE_ATTR_2(pwm1_auto_point2_temp, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 0, 2);
+static SENSOR_DEVICE_ATTR_2(pwm1_auto_point3_temp, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 0, 3);
+static SENSOR_DEVICE_ATTR_2(pwm1_auto_point4_temp, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 0, 4);
 
-show_pwm_offset(1);
-show_pwm_offset(2);
-show_pwm_offset(3);
+static SENSOR_DEVICE_ATTR(pwm2_enable, S_IRUGO | S_IWUSR,
+			  show_pwm_enable, set_pwm_enable, 1);
+static SENSOR_DEVICE_ATTR(pwm2, S_IRUGO | S_IWUSR, show_pwm, set_pwm, 1);
+static DEVICE_ATTR(pwm2_freq, S_IRUGO, show_pwm_freq, NULL);
+static SENSOR_DEVICE_ATTR(pwm2_auto_channels_temp, S_IRUGO | S_IWUSR,
+			  show_pwm_temp_map, set_pwm_temp_map, 1);
+static SENSOR_DEVICE_ATTR_2(pwm2_auto_point1_pwm, S_IRUGO | S_IWUSR,
+			    show_auto_pwm, set_auto_pwm, 1, 0);
+static SENSOR_DEVICE_ATTR_2(pwm2_auto_point2_pwm, S_IRUGO | S_IWUSR,
+			    show_auto_pwm, set_auto_pwm, 1, 1);
+static SENSOR_DEVICE_ATTR_2(pwm2_auto_point3_pwm, S_IRUGO | S_IWUSR,
+			    show_auto_pwm, set_auto_pwm, 1, 2);
+static SENSOR_DEVICE_ATTR_2(pwm2_auto_point4_pwm, S_IRUGO,
+			    show_auto_pwm, NULL, 1, 3);
+static SENSOR_DEVICE_ATTR_2(pwm2_auto_point1_temp, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 1, 1);
+static SENSOR_DEVICE_ATTR_2(pwm2_auto_point1_temp_hyst, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 1, 0);
+static SENSOR_DEVICE_ATTR_2(pwm2_auto_point2_temp, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 1, 2);
+static SENSOR_DEVICE_ATTR_2(pwm2_auto_point3_temp, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 1, 3);
+static SENSOR_DEVICE_ATTR_2(pwm2_auto_point4_temp, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 1, 4);
+
+static SENSOR_DEVICE_ATTR(pwm3_enable, S_IRUGO | S_IWUSR,
+			  show_pwm_enable, set_pwm_enable, 2);
+static SENSOR_DEVICE_ATTR(pwm3, S_IRUGO | S_IWUSR, show_pwm, set_pwm, 2);
+static DEVICE_ATTR(pwm3_freq, S_IRUGO, show_pwm_freq, NULL);
+static SENSOR_DEVICE_ATTR(pwm3_auto_channels_temp, S_IRUGO | S_IWUSR,
+			  show_pwm_temp_map, set_pwm_temp_map, 2);
+static SENSOR_DEVICE_ATTR_2(pwm3_auto_point1_pwm, S_IRUGO | S_IWUSR,
+			    show_auto_pwm, set_auto_pwm, 2, 0);
+static SENSOR_DEVICE_ATTR_2(pwm3_auto_point2_pwm, S_IRUGO | S_IWUSR,
+			    show_auto_pwm, set_auto_pwm, 2, 1);
+static SENSOR_DEVICE_ATTR_2(pwm3_auto_point3_pwm, S_IRUGO | S_IWUSR,
+			    show_auto_pwm, set_auto_pwm, 2, 2);
+static SENSOR_DEVICE_ATTR_2(pwm3_auto_point4_pwm, S_IRUGO,
+			    show_auto_pwm, NULL, 2, 3);
+static SENSOR_DEVICE_ATTR_2(pwm3_auto_point1_temp, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 2, 1);
+static SENSOR_DEVICE_ATTR_2(pwm3_auto_point1_temp_hyst, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 2, 0);
+static SENSOR_DEVICE_ATTR_2(pwm3_auto_point2_temp, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 2, 2);
+static SENSOR_DEVICE_ATTR_2(pwm3_auto_point3_temp, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 2, 3);
+static SENSOR_DEVICE_ATTR_2(pwm3_auto_point4_temp, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 2, 4);
 
 /* Alarms */
 static ssize_t show_alarms(struct device *dev, struct device_attribute *attr,
