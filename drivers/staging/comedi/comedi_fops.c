@@ -580,11 +580,10 @@ static int do_devinfo_ioctl(struct comedi_device *dev,
 			    struct comedi_devinfo __user *arg,
 			    struct file *file)
 {
-	struct comedi_devinfo devinfo;
 	const unsigned minor = iminor(file->f_dentry->d_inode);
 	struct comedi_file_info *info = comedi_file_info_from_minor(minor);
-	struct comedi_subdevice *read_subdev = comedi_read_subdevice(info);
-	struct comedi_subdevice *write_subdev = comedi_write_subdevice(info);
+	struct comedi_subdevice *s;
+	struct comedi_devinfo devinfo;
 
 	memset(&devinfo, 0, sizeof(devinfo));
 
@@ -594,13 +593,15 @@ static int do_devinfo_ioctl(struct comedi_device *dev,
 	strlcpy(devinfo.driver_name, dev->driver->driver_name, COMEDI_NAMELEN);
 	strlcpy(devinfo.board_name, dev->board_name, COMEDI_NAMELEN);
 
-	if (read_subdev)
-		devinfo.read_subdevice = read_subdev - dev->subdevices;
+	s = comedi_read_subdevice(info);
+	if (s)
+		devinfo.read_subdevice = s - dev->subdevices;
 	else
 		devinfo.read_subdevice = -1;
 
-	if (write_subdev)
-		devinfo.write_subdevice = write_subdev - dev->subdevices;
+	s = comedi_write_subdevice(info);
+	if (s)
+		devinfo.write_subdevice = s - dev->subdevices;
 	else
 		devinfo.write_subdevice = -1;
 
