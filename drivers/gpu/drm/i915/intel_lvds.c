@@ -535,6 +535,7 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 
 	mutex_lock(&dev->mode_config.mutex);
 	drm_helper_resume_force_mode(dev);
+	i915_redisable_vga(dev);
 	mutex_unlock(&dev->mode_config.mutex);
 
 	return NOTIFY_OK;
