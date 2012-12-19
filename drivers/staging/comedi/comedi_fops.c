@@ -1766,39 +1766,38 @@ static struct vm_operations_struct comedi_vm_ops = {
 static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	const unsigned minor = iminor(file->f_dentry->d_inode);
-	struct comedi_async *async = NULL;
+	struct comedi_file_info *info = comedi_file_info_from_minor(minor);
+	struct comedi_device *dev = comedi_dev_from_minor(minor);
+	struct comedi_subdevice *s;
+	struct comedi_async *async;
 	unsigned long start = vma->vm_start;
 	unsigned long size;
 	int n_pages;
 	int i;
 	int retval;
-	struct comedi_subdevice *s;
-	struct comedi_file_info *info = comedi_file_info_from_minor(minor);
-	struct comedi_device *dev;
 
-	if (info == NULL)
-		return -ENODEV;
-	dev = info->device;
-	if (dev == NULL)
+	if (!dev)
 		return -ENODEV;
 
 	mutex_lock(&dev->mutex);
+
 	if (!dev->attached) {
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
 		retval = -ENODEV;
 		goto done;
 	}
+
 	if (vma->vm_flags & VM_WRITE)
 		s = comedi_write_subdevice(info);
 	else
 		s = comedi_read_subdevice(info);
-
-	if (s == NULL) {
+	if (!s) {
 		retval = -EINVAL;
 		goto done;
 	}
+
 	async = s->async;
-	if (async == NULL) {
+	if (!async) {
 		retval = -EINVAL;
 		goto done;
 	}
@@ -1821,11 +1820,11 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 
 	n_pages = size >> PAGE_SHIFT;
 	for (i = 0; i < n_pages; ++i) {
+		struct comedi_buf_page *buf = &async->buf_page_list[i];
+
 		if (remap_pfn_range(vma, start,
-				    page_to_pfn(virt_to_page
-						(async->buf_page_list
-						 [i].virt_addr)), PAGE_SIZE,
-				    PAGE_SHARED)) {
+				    page_to_pfn(virt_to_page(buf->virt_addr)),
+				    PAGE_SIZE, PAGE_SHARED)) {
 			retval = -EAGAIN;
 			goto done;
 		}
