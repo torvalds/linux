@@ -1732,8 +1732,10 @@ static void w83627hf_init_device(struct platform_device *pdev)
 	/* Minimize conflicts with other winbond i2c-only clients...  */
 	/* disable i2c subclients... how to disable main i2c client?? */
 	/* force i2c address to relatively uncommon address */
-	w83627hf_write_value(data, W83781D_REG_I2C_SUBADDR, 0x89);
-	w83627hf_write_value(data, W83781D_REG_I2C_ADDR, force_i2c);
+	if (type == w83627hf) {
+		w83627hf_write_value(data, W83781D_REG_I2C_SUBADDR, 0x89);
+		w83627hf_write_value(data, W83781D_REG_I2C_ADDR, force_i2c);
+	}
 
 	/* Read VID only once */
 	if (type == w83627hf || type == w83637hf) {
