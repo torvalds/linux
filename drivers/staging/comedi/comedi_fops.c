@@ -2197,14 +2197,6 @@ static const struct file_operations comedi_fops = {
 static struct class *comedi_class;
 static struct cdev comedi_cdev;
 
-static void comedi_cleanup_legacy_minors(void)
-{
-	unsigned i;
-
-	for (i = 0; i < comedi_num_legacy_minors; i++)
-		comedi_free_board_minor(i);
-}
-
 void comedi_error(const struct comedi_device *dev, const char *s)
 {
 	dev_err(dev->class_dev, "%s: %s\n", dev->driver->driver_name, s);
@@ -2425,6 +2417,14 @@ void comedi_free_subdevice_minor(struct comedi_subdevice *s)
 		s->class_dev = NULL;
 	}
 	kfree(info);
+}
+
+static void comedi_cleanup_legacy_minors(void)
+{
+	unsigned i;
+
+	for (i = 0; i < comedi_num_legacy_minors; i++)
+		comedi_free_board_minor(i);
 }
 
 static int __init comedi_init(void)
