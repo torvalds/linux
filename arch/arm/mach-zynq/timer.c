@@ -267,6 +267,7 @@ static void __init zynq_ttc_setup_clockevent(struct device_node *np,
 	ttcce->ce.set_mode = xttcps_set_mode;
 	ttcce->ce.rating = 200;
 	ttcce->ce.irq = irq;
+	ttcce->ce.cpumask = cpu_possible_mask;
 
 	__raw_writel(0x23, ttcce->xttc.base_addr + XTTCPS_CNT_CNTRL_OFFSET);
 	__raw_writel(CLK_CNTRL_PRESCALE | CLK_CNTRL_PRESCALE_EN,
