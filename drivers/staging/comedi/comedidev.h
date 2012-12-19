@@ -280,8 +280,6 @@ enum comedi_minor_bits {
 static const unsigned COMEDI_SUBDEVICE_MINOR_SHIFT = 4;
 static const unsigned COMEDI_SUBDEVICE_MINOR_OFFSET = 1;
 
-struct comedi_device_file_info *comedi_get_device_file_info(unsigned minor);
-
 struct comedi_device *comedi_dev_from_minor(unsigned minor);
 
 int comedi_alloc_subdevices(struct comedi_device *, int);

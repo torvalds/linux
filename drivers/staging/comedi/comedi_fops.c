@@ -90,6 +90,18 @@ static DEFINE_SPINLOCK(comedi_file_info_table_lock);
 static struct comedi_device_file_info
 *comedi_file_info_table[COMEDI_NUM_MINORS];
 
+static struct comedi_device_file_info *
+comedi_get_device_file_info(unsigned minor)
+{
+	struct comedi_device_file_info *info;
+
+	BUG_ON(minor >= COMEDI_NUM_MINORS);
+	spin_lock(&comedi_file_info_table_lock);
+	info = comedi_file_info_table[minor];
+	spin_unlock(&comedi_file_info_table_lock);
+	return info;
+}
+
 struct comedi_device *comedi_dev_from_minor(unsigned minor)
 {
 	struct comedi_device_file_info *info;
@@ -2540,15 +2552,3 @@ void comedi_free_subdevice_minor(struct comedi_subdevice *s)
 	}
 	kfree(info);
 }
-
-struct comedi_device_file_info *comedi_get_device_file_info(unsigned minor)
-{
-	struct comedi_device_file_info *info;
-
-	BUG_ON(minor >= COMEDI_NUM_MINORS);
-	spin_lock(&comedi_file_info_table_lock);
-	info = comedi_file_info_table[minor];
-	spin_unlock(&comedi_file_info_table_lock);
-	return info;
-}
-EXPORT_SYMBOL_GPL(comedi_get_device_file_info);
