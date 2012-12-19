@@ -958,7 +958,7 @@ $(OUTPUT)tests/attr.o: tests/attr.c $(OUTPUT)PERF-CFLAGS
 
 $(OUTPUT)tests/python-use.o: tests/python-use.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) \
-		-DPYTHONPATH='"$(OUTPUT)/python"' \
+		-DPYTHONPATH='"$(OUTPUT)python"' \
 		-DPYTHON='"$(PYTHON_WORD)"' \
 		$<
 
