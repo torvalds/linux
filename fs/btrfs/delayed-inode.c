@@ -1065,32 +1065,25 @@ static void btrfs_release_delayed_inode(struct btrfs_delayed_node *delayed_node)
 	}
 }
 
-static int btrfs_update_delayed_inode(struct btrfs_trans_handle *trans,
-				      struct btrfs_root *root,
-				      struct btrfs_path *path,
-				      struct btrfs_delayed_node *node)
+static int __btrfs_update_delayed_inode(struct btrfs_trans_handle *trans,
+					struct btrfs_root *root,
+					struct btrfs_path *path,
+					struct btrfs_delayed_node *node)
 {
 	struct btrfs_key key;
 	struct btrfs_inode_item *inode_item;
 	struct extent_buffer *leaf;
 	int ret;
 
-	mutex_lock(&node->mutex);
-	if (!node->inode_dirty) {
-		mutex_unlock(&node->mutex);
-		return 0;
-	}
-
 	key.objectid = node->inode_id;
 	btrfs_set_key_type(&key, BTRFS_INODE_ITEM_KEY);
 	key.offset = 0;
+
 	ret = btrfs_lookup_inode(trans, root, path, &key, 1);
 	if (ret > 0) {
 		btrfs_release_path(path);
-		mutex_unlock(&node->mutex);
 		return -ENOENT;
 	} else if (ret < 0) {
-		mutex_unlock(&node->mutex);
 		return ret;
 	}
 
@@ -1105,9 +1098,26 @@ static int btrfs_update_delayed_inode(struct btrfs_trans_handle *trans,
 
 	btrfs_delayed_inode_release_metadata(root, node);
 	btrfs_release_delayed_inode(node);
-	mutex_unlock(&node->mutex);
 
 	return 0;
+}
+
+static inline int btrfs_update_delayed_inode(struct btrfs_trans_handle *trans,
+					     struct btrfs_root *root,
+					     struct btrfs_path *path,
+					     struct btrfs_delayed_node *node)
+{
+	int ret;
+
+	mutex_lock(&node->mutex);
+	if (!node->inode_dirty) {
+		mutex_unlock(&node->mutex);
+		return 0;
+	}
+
+	ret = __btrfs_update_delayed_inode(trans, root, path, node);
+	mutex_unlock(&node->mutex);
+	return ret;
 }
 
 static inline int
@@ -1226,6 +1236,60 @@ int btrfs_commit_inode_delayed_items(struct btrfs_trans_handle *trans,
 	btrfs_release_delayed_node(delayed_node);
 	btrfs_free_path(path);
 	trans->block_rsv = block_rsv;
+
+	return ret;
+}
+
+int btrfs_commit_inode_delayed_inode(struct inode *inode)
+{
+	struct btrfs_trans_handle *trans;
+	struct btrfs_delayed_node *delayed_node = btrfs_get_delayed_node(inode);
+	struct btrfs_path *path;
+	struct btrfs_block_rsv *block_rsv;
+	int ret;
+
+	if (!delayed_node)
+		return 0;
+
+	mutex_lock(&delayed_node->mutex);
+	if (!delayed_node->inode_dirty) {
+		mutex_unlock(&delayed_node->mutex);
+		btrfs_release_delayed_node(delayed_node);
+		return 0;
+	}
+	mutex_unlock(&delayed_node->mutex);
+
+	trans = btrfs_join_transaction(delayed_node->root);
+	if (IS_ERR(trans)) {
+		ret = PTR_ERR(trans);
+		goto out;
+	}
+
+	path = btrfs_alloc_path();
+	if (!path) {
+		ret = -ENOMEM;
+		goto trans_out;
+	}
+	path->leave_spinning = 1;
+
+	block_rsv = trans->block_rsv;
+	trans->block_rsv = &delayed_node->root->fs_info->delayed_block_rsv;
+
+	mutex_lock(&delayed_node->mutex);
+	if (delayed_node->inode_dirty)
+		ret = __btrfs_update_delayed_inode(trans, delayed_node->root,
+						   path, delayed_node);
+	else
+		ret = 0;
+	mutex_unlock(&delayed_node->mutex);
+
+	btrfs_free_path(path);
+	trans->block_rsv = block_rsv;
+trans_out:
+	btrfs_end_transaction(trans, delayed_node->root);
+	btrfs_btree_balance_dirty(delayed_node->root);
+out:
+	btrfs_release_delayed_node(delayed_node);
 
 	return ret;
 }

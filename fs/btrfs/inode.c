@@ -3904,6 +3904,12 @@ void btrfs_evict_inode(struct inode *inode)
 		goto no_delete;
 	}
 
+	ret = btrfs_commit_inode_delayed_inode(inode);
+	if (ret) {
+		btrfs_orphan_del(NULL, inode);
+		goto no_delete;
+	}
+
 	rsv = btrfs_alloc_block_rsv(root, BTRFS_BLOCK_RSV_TEMP);
 	if (!rsv) {
 		btrfs_orphan_del(NULL, inode);
@@ -3941,7 +3947,7 @@ void btrfs_evict_inode(struct inode *inode)
 			goto no_delete;
 		}
 
-		trans = btrfs_start_transaction_lflush(root, 1);
+		trans = btrfs_join_transaction(root);
 		if (IS_ERR(trans)) {
 			btrfs_orphan_del(NULL, inode);
 			btrfs_free_block_rsv(root, rsv);
@@ -3955,9 +3961,6 @@ void btrfs_evict_inode(struct inode *inode)
 			break;
 
 		trans->block_rsv = &root->fs_info->trans_block_rsv;
-		ret = btrfs_update_inode(trans, root, inode);
-		BUG_ON(ret);
-
 		btrfs_end_transaction(trans, root);
 		trans = NULL;
 		btrfs_btree_balance_dirty(root);
