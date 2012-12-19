@@ -1677,13 +1677,22 @@ static irqreturn_t d40_handle_interrupt(int irq, void *data)
 		row = chan / BITS_PER_LONG;
 		idx = chan & (BITS_PER_LONG - 1);
 
-		/* ACK interrupt */
-		writel(1 << idx, base->virtbase + il[row].clr);
-
 		if (il[row].offset == D40_PHY_CHAN)
 			d40c = base->lookup_phy_chans[idx];
 		else
 			d40c = base->lookup_log_chans[il[row].offset + idx];
+
+		if (!d40c) {
+			/*
+			 * No error because this can happen if something else
+			 * in the system is using the channel.
+			 */
+			continue;
+		}
+
+		/* ACK interrupt */
+		writel(1 << idx, base->virtbase + il[row].clr);
+
 		spin_lock(&d40c->lock);
 
 		if (!il[row].is_error)
