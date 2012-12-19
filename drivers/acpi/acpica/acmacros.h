@@ -49,14 +49,18 @@
  * get into potential aligment issues -- see the STORE macros below.
  * Use with care.
  */
-#define ACPI_GET8(ptr)                  *ACPI_CAST_PTR (u8, ptr)
-#define ACPI_GET16(ptr)                 *ACPI_CAST_PTR (u16, ptr)
-#define ACPI_GET32(ptr)                 *ACPI_CAST_PTR (u32, ptr)
-#define ACPI_GET64(ptr)                 *ACPI_CAST_PTR (u64, ptr)
-#define ACPI_SET8(ptr)                  *ACPI_CAST_PTR (u8, ptr)
-#define ACPI_SET16(ptr)                 *ACPI_CAST_PTR (u16, ptr)
-#define ACPI_SET32(ptr)                 *ACPI_CAST_PTR (u32, ptr)
-#define ACPI_SET64(ptr)                 *ACPI_CAST_PTR (u64, ptr)
+#define ACPI_CAST8(ptr)                 ACPI_CAST_PTR (u8, (ptr))
+#define ACPI_CAST16(ptr)                ACPI_CAST_PTR (u16, (ptr))
+#define ACPI_CAST32(ptr)                ACPI_CAST_PTR (u32, (ptr))
+#define ACPI_CAST64(ptr)                ACPI_CAST_PTR (u64, (ptr))
+#define ACPI_GET8(ptr)                  (*ACPI_CAST8 (ptr))
+#define ACPI_GET16(ptr)                 (*ACPI_CAST16 (ptr))
+#define ACPI_GET32(ptr)                 (*ACPI_CAST32 (ptr))
+#define ACPI_GET64(ptr)                 (*ACPI_CAST64 (ptr))
+#define ACPI_SET8(ptr, val)             (*ACPI_CAST8 (ptr) = (u8) (val))
+#define ACPI_SET16(ptr, val)            (*ACPI_CAST16 (ptr) = (u16) (val))
+#define ACPI_SET32(ptr, val)            (*ACPI_CAST32 (ptr) = (u32) (val))
+#define ACPI_SET64(ptr, val)            (*ACPI_CAST64 (ptr) = (u64) (val))
 
 /*
  * printf() format helpers
