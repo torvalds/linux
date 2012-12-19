@@ -217,4 +217,5 @@ Temperature offset attributes
 The driver supports temp[1-3]_offset sysfs attributes to adjust the reported
 temperature for thermal diodes or diode-connected thermal transistors.
 If a temperature sensor is configured for thermistors, the attribute values
-are ignored.
+are ignored. If the thermal sensor type is Intel PECI, the temperature offset
+must be programmed to the critical CPU temperature.
