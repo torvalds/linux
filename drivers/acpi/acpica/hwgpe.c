@@ -69,8 +69,10 @@ acpi_hw_enable_wakeup_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 
 u32 acpi_hw_get_gpe_register_bit(struct acpi_gpe_event_info *gpe_event_info)
 {
-	return (u32)1 << (gpe_event_info->gpe_number -
-		 gpe_event_info->register_info->base_gpe_number);
+
+	return ((u32)1 <<
+		(gpe_event_info->gpe_number -
+		 gpe_event_info->register_info->base_gpe_number));
 }
 
 /******************************************************************************

@@ -304,7 +304,7 @@ acpi_ex_region_read(union acpi_operand_object *obj_desc, u32 length, u8 *buffer)
 		    acpi_ev_address_space_dispatch(obj_desc, NULL, ACPI_READ,
 						   region_offset, 8, &value);
 		if (ACPI_FAILURE(status)) {
-			return status;
+			return (status);
 		}
 
 		*buffer = (u8)value;
@@ -312,7 +312,7 @@ acpi_ex_region_read(union acpi_operand_object *obj_desc, u32 length, u8 *buffer)
 		region_offset++;
 	}
 
-	return AE_OK;
+	return (AE_OK);
 }
 
 /*******************************************************************************

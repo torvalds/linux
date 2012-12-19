@@ -108,7 +108,7 @@ u16 acpi_rs_encode_bitmask(u8 * list, u8 count)
 		mask |= (0x1 << list[i]);
 	}
 
-	return mask;
+	return (mask);
 }
 
 /*******************************************************************************

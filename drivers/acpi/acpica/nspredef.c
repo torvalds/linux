@@ -147,7 +147,7 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 
 	pathname = acpi_ns_get_external_pathname(node);
 	if (!pathname) {
-		return AE_OK;	/* Could not get pathname, ignore */
+		return (AE_OK);	/* Could not get pathname, ignore */
 	}
 
 	/*
