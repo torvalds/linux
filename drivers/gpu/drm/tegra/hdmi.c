@@ -149,7 +149,7 @@ struct tmds_config {
 };
 
 static const struct tmds_config tegra2_tmds_config[] = {
-	{ /* 480p modes */
+	{ /* slow pixel clock modes */
 		.pclk = 27000000,
 		.pll0 = SOR_PLL_BG_V17_S(3) | SOR_PLL_ICHPMP(1) |
 			SOR_PLL_RESISTORSEL | SOR_PLL_VCOCAP(0) |
@@ -163,21 +163,8 @@ static const struct tmds_config tegra2_tmds_config[] = {
 			DRIVE_CURRENT_LANE1(DRIVE_CURRENT_7_125_mA) |
 			DRIVE_CURRENT_LANE2(DRIVE_CURRENT_7_125_mA) |
 			DRIVE_CURRENT_LANE3(DRIVE_CURRENT_7_125_mA),
-	}, { /* 720p modes */
-		.pclk = 74250000,
-		.pll0 = SOR_PLL_BG_V17_S(3) | SOR_PLL_ICHPMP(1) |
-			SOR_PLL_RESISTORSEL | SOR_PLL_VCOCAP(1) |
-			SOR_PLL_TX_REG_LOAD(3),
-		.pll1 = SOR_PLL_TMDS_TERM_ENABLE | SOR_PLL_PE_EN,
-		.pe_current = PE_CURRENT0(PE_CURRENT_6_0_mA) |
-			PE_CURRENT1(PE_CURRENT_6_0_mA) |
-			PE_CURRENT2(PE_CURRENT_6_0_mA) |
-			PE_CURRENT3(PE_CURRENT_6_0_mA),
-		.drive_current = DRIVE_CURRENT_LANE0(DRIVE_CURRENT_7_125_mA) |
-			DRIVE_CURRENT_LANE1(DRIVE_CURRENT_7_125_mA) |
-			DRIVE_CURRENT_LANE2(DRIVE_CURRENT_7_125_mA) |
-			DRIVE_CURRENT_LANE3(DRIVE_CURRENT_7_125_mA),
-	}, { /* 1080p modes */
+	},
+	{ /* high pixel clock modes */
 		.pclk = UINT_MAX,
 		.pll0 = SOR_PLL_BG_V17_S(3) | SOR_PLL_ICHPMP(1) |
 			SOR_PLL_RESISTORSEL | SOR_PLL_VCOCAP(1) |
