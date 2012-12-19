@@ -79,6 +79,8 @@ struct  intel_ring_buffer {
 	 */
 	u32		(*get_seqno)(struct intel_ring_buffer *ring,
 				     bool lazy_coherency);
+	void		(*set_seqno)(struct intel_ring_buffer *ring,
+				     u32 seqno);
 	int		(*dispatch_execbuffer)(struct intel_ring_buffer *ring,
 					       u32 offset, u32 length,
 					       unsigned flags);
@@ -164,6 +166,13 @@ intel_read_status_page(struct intel_ring_buffer *ring,
 	/* Ensure that the compiler doesn't optimize away the load. */
 	barrier();
 	return ring->status_page.page_addr[reg];
+}
+
+static inline void
+intel_write_status_page(struct intel_ring_buffer *ring,
+			int reg, u32 value)
+{
+	ring->status_page.page_addr[reg] = value;
 }
 
 /**

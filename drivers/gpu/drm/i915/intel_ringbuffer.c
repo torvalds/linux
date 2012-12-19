@@ -727,11 +727,24 @@ ring_get_seqno(struct intel_ring_buffer *ring, bool lazy_coherency)
 	return intel_read_status_page(ring, I915_GEM_HWS_INDEX);
 }
 
+static void
+ring_set_seqno(struct intel_ring_buffer *ring, u32 seqno)
+{
+	intel_write_status_page(ring, I915_GEM_HWS_INDEX, seqno);
+}
+
 static u32
 pc_render_get_seqno(struct intel_ring_buffer *ring, bool lazy_coherency)
 {
 	struct pipe_control *pc = ring->private;
 	return pc->cpu_page[0];
+}
+
+static void
+pc_render_set_seqno(struct intel_ring_buffer *ring, u32 seqno)
+{
+	struct pipe_control *pc = ring->private;
+	pc->cpu_page[0] = seqno;
 }
 
 static bool
@@ -1602,6 +1615,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		ring->irq_put = gen6_ring_put_irq;
 		ring->irq_enable_mask = GT_USER_INTERRUPT;
 		ring->get_seqno = gen6_ring_get_seqno;
+		ring->set_seqno = ring_set_seqno;
 		ring->sync_to = gen6_ring_sync;
 		ring->semaphore_register[0] = MI_SEMAPHORE_SYNC_INVALID;
 		ring->semaphore_register[1] = MI_SEMAPHORE_SYNC_RV;
@@ -1612,6 +1626,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		ring->add_request = pc_render_add_request;
 		ring->flush = gen4_render_ring_flush;
 		ring->get_seqno = pc_render_get_seqno;
+		ring->set_seqno = pc_render_set_seqno;
 		ring->irq_get = gen5_ring_get_irq;
 		ring->irq_put = gen5_ring_put_irq;
 		ring->irq_enable_mask = GT_USER_INTERRUPT | GT_PIPE_NOTIFY;
@@ -1622,6 +1637,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		else
 			ring->flush = gen4_render_ring_flush;
 		ring->get_seqno = ring_get_seqno;
+		ring->set_seqno = ring_set_seqno;
 		if (IS_GEN2(dev)) {
 			ring->irq_get = i8xx_ring_get_irq;
 			ring->irq_put = i8xx_ring_put_irq;
@@ -1672,6 +1688,7 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 	else
 		ring->flush = gen4_render_ring_flush;
 	ring->get_seqno = ring_get_seqno;
+	ring->set_seqno = ring_set_seqno;
 	if (IS_GEN2(dev)) {
 		ring->irq_get = i8xx_ring_get_irq;
 		ring->irq_put = i8xx_ring_put_irq;
@@ -1732,6 +1749,7 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 		ring->flush = gen6_ring_flush;
 		ring->add_request = gen6_add_request;
 		ring->get_seqno = gen6_ring_get_seqno;
+		ring->set_seqno = ring_set_seqno;
 		ring->irq_enable_mask = GEN6_BSD_USER_INTERRUPT;
 		ring->irq_get = gen6_ring_get_irq;
 		ring->irq_put = gen6_ring_put_irq;
@@ -1747,6 +1765,7 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 		ring->flush = bsd_ring_flush;
 		ring->add_request = i9xx_add_request;
 		ring->get_seqno = ring_get_seqno;
+		ring->set_seqno = ring_set_seqno;
 		if (IS_GEN5(dev)) {
 			ring->irq_enable_mask = GT_BSD_USER_INTERRUPT;
 			ring->irq_get = gen5_ring_get_irq;
@@ -1776,6 +1795,7 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 	ring->flush = blt_ring_flush;
 	ring->add_request = gen6_add_request;
 	ring->get_seqno = gen6_ring_get_seqno;
+	ring->set_seqno = ring_set_seqno;
 	ring->irq_enable_mask = GEN6_BLITTER_USER_INTERRUPT;
 	ring->irq_get = gen6_ring_get_irq;
 	ring->irq_put = gen6_ring_put_irq;
