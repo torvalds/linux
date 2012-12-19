@@ -290,7 +290,7 @@ acpi_get_object_info(acpi_handle handle,
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
-		goto cleanup;
+		return (status);
 	}
 
 	node = acpi_ns_validate_handle(handle);
