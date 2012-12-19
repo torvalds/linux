@@ -2143,7 +2143,6 @@ static int run_one_delayed_ref(struct btrfs_trans_handle *trans,
 						      node->num_bytes);
 			}
 		}
-		mutex_unlock(&head->mutex);
 		return ret;
 	}
 
@@ -2258,7 +2257,7 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 			 * process of being added. Don't run this ref yet.
 			 */
 			list_del_init(&locked_ref->cluster);
-			mutex_unlock(&locked_ref->mutex);
+			btrfs_delayed_ref_unlock(locked_ref);
 			locked_ref = NULL;
 			delayed_refs->num_heads_ready++;
 			spin_unlock(&delayed_refs->lock);
@@ -2297,25 +2296,22 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 				btrfs_free_delayed_extent_op(extent_op);
 
 				if (ret) {
-					list_del_init(&locked_ref->cluster);
-					mutex_unlock(&locked_ref->mutex);
-
-					printk(KERN_DEBUG "btrfs: run_delayed_extent_op returned %d\n", ret);
+					printk(KERN_DEBUG
+					       "btrfs: run_delayed_extent_op "
+					       "returned %d\n", ret);
 					spin_lock(&delayed_refs->lock);
+					btrfs_delayed_ref_unlock(locked_ref);
 					return ret;
 				}
 
 				goto next;
 			}
-
-			list_del_init(&locked_ref->cluster);
-			locked_ref = NULL;
 		}
 
 		ref->in_tree = 0;
 		rb_erase(&ref->rb_node, &delayed_refs->root);
 		delayed_refs->num_entries--;
-		if (locked_ref) {
+		if (!btrfs_delayed_ref_is_head(ref)) {
 			/*
 			 * when we play the delayed ref, also correct the
 			 * ref_mod on head
@@ -2337,20 +2333,29 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 		ret = run_one_delayed_ref(trans, root, ref, extent_op,
 					  must_insert_reserved);
 
-		btrfs_put_delayed_ref(ref);
 		btrfs_free_delayed_extent_op(extent_op);
-		count++;
-
 		if (ret) {
-			if (locked_ref) {
-				list_del_init(&locked_ref->cluster);
-				mutex_unlock(&locked_ref->mutex);
-			}
-			printk(KERN_DEBUG "btrfs: run_one_delayed_ref returned %d\n", ret);
+			btrfs_delayed_ref_unlock(locked_ref);
+			btrfs_put_delayed_ref(ref);
+			printk(KERN_DEBUG
+			       "btrfs: run_one_delayed_ref returned %d\n", ret);
 			spin_lock(&delayed_refs->lock);
 			return ret;
 		}
 
+		/*
+		 * If this node is a head, that means all the refs in this head
+		 * have been dealt with, and we will pick the next head to deal
+		 * with, so we must unlock the head and drop it from the cluster
+		 * list before we release it.
+		 */
+		if (btrfs_delayed_ref_is_head(ref)) {
+			list_del_init(&locked_ref->cluster);
+			btrfs_delayed_ref_unlock(locked_ref);
+			locked_ref = NULL;
+		}
+		btrfs_put_delayed_ref(ref);
+		count++;
 next:
 		cond_resched();
 		spin_lock(&delayed_refs->lock);
@@ -2500,6 +2505,7 @@ again:
 
 		ret = run_clustered_refs(trans, root, &cluster);
 		if (ret < 0) {
+			btrfs_release_ref_cluster(&cluster);
 			spin_unlock(&delayed_refs->lock);
 			btrfs_abort_transaction(trans, root, ret);
 			return ret;

@@ -426,6 +426,14 @@ again:
 	return 1;
 }
 
+void btrfs_release_ref_cluster(struct list_head *cluster)
+{
+	struct list_head *pos, *q;
+
+	list_for_each_safe(pos, q, cluster)
+		list_del_init(pos);
+}
+
 /*
  * helper function to update an extent delayed ref in the
  * rbtree.  existing and update must both have the same

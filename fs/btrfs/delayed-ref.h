@@ -211,8 +211,14 @@ struct btrfs_delayed_ref_head *
 btrfs_find_delayed_ref_head(struct btrfs_trans_handle *trans, u64 bytenr);
 int btrfs_delayed_ref_lock(struct btrfs_trans_handle *trans,
 			   struct btrfs_delayed_ref_head *head);
+static inline void btrfs_delayed_ref_unlock(struct btrfs_delayed_ref_head *head)
+{
+	mutex_unlock(&head->mutex);
+}
+
 int btrfs_find_ref_cluster(struct btrfs_trans_handle *trans,
 			   struct list_head *cluster, u64 search_start);
+void btrfs_release_ref_cluster(struct list_head *cluster);
 
 int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info,
 			    struct btrfs_delayed_ref_root *delayed_refs,
