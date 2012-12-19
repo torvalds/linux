@@ -118,9 +118,9 @@ comedi_read_subdevice(const struct comedi_file_info *info)
 {
 	if (info->read_subdevice)
 		return info->read_subdevice;
-	if (info->device == NULL)
-		return NULL;
-	return info->device->read_subdev;
+	if (info->device)
+		return info->device->read_subdev;
+	return NULL;
 }
 
 static struct comedi_subdevice *
@@ -128,9 +128,9 @@ comedi_write_subdevice(const struct comedi_file_info *info)
 {
 	if (info->write_subdevice)
 		return info->write_subdevice;
-	if (info->device == NULL)
-		return NULL;
-	return info->device->write_subdev;
+	if (info->device)
+		return info->device->write_subdev;
+	return NULL;
 }
 
 static int resize_async_buffer(struct comedi_device *dev,
