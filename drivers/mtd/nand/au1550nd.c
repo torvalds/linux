@@ -382,7 +382,7 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 	while(!this->dev_ready(mtd));
 }
 
-static int __devinit find_nand_cs(unsigned long nand_base)
+static int find_nand_cs(unsigned long nand_base)
 {
 	void __iomem *base =
 			(void __iomem *)KSEG1ADDR(AU1000_STATIC_MEM_PHYS_ADDR);
@@ -403,7 +403,7 @@ static int __devinit find_nand_cs(unsigned long nand_base)
 	return -ENODEV;
 }
 
-static int __devinit au1550nd_probe(struct platform_device *pdev)
+static int au1550nd_probe(struct platform_device *pdev)
 {
 	struct au1550nd_platdata *pd;
 	struct au1550nd_ctx *ctx;
@@ -491,7 +491,7 @@ out1:
 	return ret;
 }
 
-static int __devexit au1550nd_remove(struct platform_device *pdev)
+static int au1550nd_remove(struct platform_device *pdev)
 {
 	struct au1550nd_ctx *ctx = platform_get_drvdata(pdev);
 	struct resource *r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -509,7 +509,7 @@ static struct platform_driver au1550nd_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= au1550nd_probe,
-	.remove		= __devexit_p(au1550nd_remove),
+	.remove		= au1550nd_remove,
 };
 
 module_platform_driver(au1550nd_driver);

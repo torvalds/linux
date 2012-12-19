@@ -331,13 +331,13 @@ static void atmel_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
  *               12-bits                20-bytes                 21-bytes
  *               24-bits                39-bytes                 42-bytes
  */
-static int __devinit pmecc_get_ecc_bytes(int cap, int sector_size)
+static int pmecc_get_ecc_bytes(int cap, int sector_size)
 {
 	int m = 12 + sector_size / 512;
 	return (m * cap + 7) / 8;
 }
 
-static void __devinit pmecc_config_ecc_layout(struct nand_ecclayout *layout,
+static void pmecc_config_ecc_layout(struct nand_ecclayout *layout,
 	int oobsize, int ecc_len)
 {
 	int i;
@@ -353,7 +353,7 @@ static void __devinit pmecc_config_ecc_layout(struct nand_ecclayout *layout,
 		oobsize - ecc_len - layout->oobfree[0].offset;
 }
 
-static void __devinit __iomem *pmecc_get_alpha_to(struct atmel_nand_host *host)
+static void __iomem *pmecc_get_alpha_to(struct atmel_nand_host *host)
 {
 	int table_size;
 
@@ -375,7 +375,7 @@ static void pmecc_data_free(struct atmel_nand_host *host)
 	kfree(host->pmecc_delta);
 }
 
-static int __devinit pmecc_data_alloc(struct atmel_nand_host *host)
+static int pmecc_data_alloc(struct atmel_nand_host *host)
 {
 	const int cap = host->pmecc_corr_cap;
 
@@ -724,6 +724,7 @@ static int pmecc_correction(struct mtd_info *mtd, u32 pmecc_stat, uint8_t *buf,
 	struct atmel_nand_host *host = nand_chip->priv;
 	int i, err_nbr, eccbytes;
 	uint8_t *buf_pos;
+	int total_err = 0;
 
 	eccbytes = nand_chip->ecc.bytes;
 	for (i = 0; i < eccbytes; i++)
@@ -751,12 +752,13 @@ normal_check:
 				pmecc_correct_data(mtd, buf_pos, ecc, i,
 					host->pmecc_bytes_per_sector, err_nbr);
 				mtd->ecc_stats.corrected += err_nbr;
+				total_err += err_nbr;
 			}
 		}
 		pmecc_stat >>= 1;
 	}
 
-	return 0;
+	return total_err;
 }
 
 static int atmel_nand_pmecc_read_page(struct mtd_info *mtd,
@@ -768,6 +770,7 @@ static int atmel_nand_pmecc_read_page(struct mtd_info *mtd,
 	uint32_t *eccpos = chip->ecc.layout->eccpos;
 	uint32_t stat;
 	unsigned long end_time;
+	int bitflips = 0;
 
 	pmecc_writel(host->ecc, CTRL, PMECC_CTRL_RST);
 	pmecc_writel(host->ecc, CTRL, PMECC_CTRL_DISABLE);
@@ -790,11 +793,14 @@ static int atmel_nand_pmecc_read_page(struct mtd_info *mtd,
 	}
 
 	stat = pmecc_readl_relaxed(host->ecc, ISR);
-	if (stat != 0)
-		if (pmecc_correction(mtd, stat, buf, &oob[eccpos[0]]) != 0)
-			return -EIO;
+	if (stat != 0) {
+		bitflips = pmecc_correction(mtd, stat, buf, &oob[eccpos[0]]);
+		if (bitflips < 0)
+			/* uncorrectable errors */
+			return 0;
+	}
 
-	return 0;
+	return bitflips;
 }
 
 static int atmel_nand_pmecc_write_page(struct mtd_info *mtd,
@@ -1206,7 +1212,7 @@ static void atmel_nand_hwctl(struct mtd_info *mtd, int mode)
 }
 
 #if defined(CONFIG_OF)
-static int __devinit atmel_of_init_port(struct atmel_nand_host *host,
+static int atmel_of_init_port(struct atmel_nand_host *host,
 					 struct device_node *np)
 {
 	u32 val, table_offset;
@@ -1293,7 +1299,7 @@ static int __devinit atmel_of_init_port(struct atmel_nand_host *host,
 	return 0;
 }
 #else
-static int __devinit atmel_of_init_port(struct atmel_nand_host *host,
+static int atmel_of_init_port(struct atmel_nand_host *host,
 					 struct device_node *np)
 {
 	return -EINVAL;
