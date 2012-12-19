@@ -203,6 +203,8 @@ static const u8 IT87_REG_FAN[]		= { 0x0d, 0x0e, 0x0f, 0x80, 0x82 };
 static const u8 IT87_REG_FAN_MIN[]	= { 0x10, 0x11, 0x12, 0x84, 0x86 };
 static const u8 IT87_REG_FANX[]		= { 0x18, 0x19, 0x1a, 0x81, 0x83 };
 static const u8 IT87_REG_FANX_MIN[]	= { 0x1b, 0x1c, 0x1d, 0x85, 0x87 };
+static const u8 IT87_REG_TEMP_OFFSET[]	= { 0x56, 0x57, 0x59 };
+
 #define IT87_REG_FAN_MAIN_CTRL 0x13
 #define IT87_REG_FAN_CTL       0x14
 #define IT87_REG_PWM(nr)       (0x15 + (nr))
@@ -263,7 +265,7 @@ struct it87_data {
 	u16 fan[5];		/* Register values, possibly combined */
 	u16 fan_min[5];		/* Register values, possibly combined */
 	u8 has_temp;		/* Bitfield, temp sensors enabled */
-	s8 temp[3][3];		/* [nr][0]=temp, [1]=min, [2]=max */
+	s8 temp[3][4];		/* [nr][0]=temp, [1]=min, [2]=max, [3]=offset */
 	u8 sensor;		/* Register value */
 	u8 fan_div[3];		/* Register encoding, shifted right */
 	u8 vid;			/* Register encoding, combined */
@@ -310,6 +312,17 @@ static inline int has_newer_autopwm(const struct it87_data *data)
 	 */
 	return data->type == it8721
 	    || data->type == it8728;
+}
+
+static inline int has_temp_offset(const struct it87_data *data)
+{
+	return data->type == it8716
+	    || data->type == it8718
+	    || data->type == it8720
+	    || data->type == it8721
+	    || data->type == it8728
+	    || data->type == it8782
+	    || data->type == it8783;
 }
 
 static int adc_lsb(const struct it87_data *data, int nr)
@@ -546,16 +559,34 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *attr,
 	int index = sattr->index;
 	struct it87_data *data = dev_get_drvdata(dev);
 	long val;
+	u8 reg, regval;
 
 	if (kstrtol(buf, 10, &val) < 0)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
+
+	switch (index) {
+	default:
+	case 1:
+		reg = IT87_REG_TEMP_LOW(nr);
+		break;
+	case 2:
+		reg = IT87_REG_TEMP_HIGH(nr);
+		break;
+	case 3:
+		regval = it87_read_value(data, IT87_REG_BEEP_ENABLE);
+		if (!(regval & 0x80)) {
+			regval |= 0x80;
+			it87_write_value(data, IT87_REG_BEEP_ENABLE, regval);
+		}
+		data->valid = 0;
+		reg = IT87_REG_TEMP_OFFSET[nr];
+		break;
+	}
+
 	data->temp[nr][index] = TEMP_TO_REG(val);
-	it87_write_value(data,
-			 index == 1 ? IT87_REG_TEMP_LOW(nr)
-				    : IT87_REG_TEMP_HIGH(nr),
-			 data->temp[nr][index]);
+	it87_write_value(data, reg, data->temp[nr][index]);
 	mutex_unlock(&data->update_lock);
 	return count;
 }
@@ -565,16 +596,22 @@ static SENSOR_DEVICE_ATTR_2(temp1_min, S_IRUGO | S_IWUSR, show_temp, set_temp,
 			    0, 1);
 static SENSOR_DEVICE_ATTR_2(temp1_max, S_IRUGO | S_IWUSR, show_temp, set_temp,
 			    0, 2);
+static SENSOR_DEVICE_ATTR_2(temp1_offset, S_IRUGO | S_IWUSR, show_temp,
+			    set_temp, 0, 3);
 static SENSOR_DEVICE_ATTR_2(temp2_input, S_IRUGO, show_temp, NULL, 1, 0);
 static SENSOR_DEVICE_ATTR_2(temp2_min, S_IRUGO | S_IWUSR, show_temp, set_temp,
 			    1, 1);
 static SENSOR_DEVICE_ATTR_2(temp2_max, S_IRUGO | S_IWUSR, show_temp, set_temp,
 			    1, 2);
+static SENSOR_DEVICE_ATTR_2(temp2_offset, S_IRUGO | S_IWUSR, show_temp,
+			    set_temp, 1, 3);
 static SENSOR_DEVICE_ATTR_2(temp3_input, S_IRUGO, show_temp, NULL, 2, 0);
 static SENSOR_DEVICE_ATTR_2(temp3_min, S_IRUGO | S_IWUSR, show_temp, set_temp,
 			    2, 1);
 static SENSOR_DEVICE_ATTR_2(temp3_max, S_IRUGO | S_IWUSR, show_temp, set_temp,
 			    2, 2);
+static SENSOR_DEVICE_ATTR_2(temp3_offset, S_IRUGO | S_IWUSR, show_temp,
+			    set_temp, 2, 3);
 
 static ssize_t show_temp_type(struct device *dev, struct device_attribute *attr,
 			      char *buf)
@@ -1429,6 +1466,12 @@ static const struct attribute_group it87_group_temp[3] = {
 	{ .attrs = it87_attributes_temp[2] },
 };
 
+static struct attribute *it87_attributes_temp_offset[] = {
+	&sensor_dev_attr_temp1_offset.dev_attr.attr,
+	&sensor_dev_attr_temp2_offset.dev_attr.attr,
+	&sensor_dev_attr_temp3_offset.dev_attr.attr,
+};
+
 static struct attribute *it87_attributes[] = {
 	&dev_attr_alarms.attr,
 	&sensor_dev_attr_intrusion0_alarm.dev_attr.attr,
@@ -1899,6 +1942,9 @@ static void it87_remove_files(struct device *dev)
 		if (!(data->has_temp & (1 << i)))
 			continue;
 		sysfs_remove_group(&dev->kobj, &it87_group_temp[i]);
+		if (has_temp_offset(data))
+			sysfs_remove_file(&dev->kobj,
+					  it87_attributes_temp_offset[i]);
 		if (sio_data->beep_pin)
 			sysfs_remove_file(&dev->kobj,
 					  it87_attributes_temp_beep[i]);
@@ -2026,6 +2072,12 @@ static int it87_probe(struct platform_device *pdev)
 		err = sysfs_create_group(&dev->kobj, &it87_group_temp[i]);
 		if (err)
 			goto error;
+		if (has_temp_offset(data)) {
+			err = sysfs_create_file(&dev->kobj,
+						it87_attributes_temp_offset[i]);
+			if (err)
+				goto error;
+		}
 		if (sio_data->beep_pin) {
 			err = sysfs_create_file(&dev->kobj,
 						it87_attributes_temp_beep[i]);
@@ -2383,6 +2435,10 @@ static struct it87_data *it87_update_device(struct device *dev)
 				it87_read_value(data, IT87_REG_TEMP_LOW(i));
 			data->temp[i][2] =
 				it87_read_value(data, IT87_REG_TEMP_HIGH(i));
+			if (has_temp_offset(data))
+				data->temp[i][3] =
+				  it87_read_value(data,
+						  IT87_REG_TEMP_OFFSET[i]);
 		}
 
 		/* Newer chips don't have clock dividers */
