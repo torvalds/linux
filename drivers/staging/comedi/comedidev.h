@@ -282,26 +282,6 @@ static const unsigned COMEDI_SUBDEVICE_MINOR_OFFSET = 1;
 
 struct comedi_device_file_info *comedi_get_device_file_info(unsigned minor);
 
-static inline struct comedi_subdevice *comedi_get_read_subdevice(
-	const struct comedi_device_file_info *info)
-{
-	if (info->read_subdevice)
-		return info->read_subdevice;
-	if (info->device == NULL)
-		return NULL;
-	return info->device->read_subdev;
-}
-
-static inline struct comedi_subdevice *comedi_get_write_subdevice(
-	const struct comedi_device_file_info *info)
-{
-	if (info->write_subdevice)
-		return info->write_subdevice;
-	if (info->device == NULL)
-		return NULL;
-	return info->device->write_subdev;
-}
-
 int comedi_alloc_subdevices(struct comedi_device *, int);
 
 void comedi_device_detach(struct comedi_device *dev);

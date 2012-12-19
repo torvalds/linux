@@ -90,6 +90,26 @@ static DEFINE_SPINLOCK(comedi_file_info_table_lock);
 static struct comedi_device_file_info
 *comedi_file_info_table[COMEDI_NUM_MINORS];
 
+static struct comedi_subdevice *
+comedi_get_read_subdevice(const struct comedi_device_file_info *info)
+{
+	if (info->read_subdevice)
+		return info->read_subdevice;
+	if (info->device == NULL)
+		return NULL;
+	return info->device->read_subdev;
+}
+
+static struct comedi_subdevice *
+comedi_get_write_subdevice(const struct comedi_device_file_info *info)
+{
+	if (info->write_subdevice)
+		return info->write_subdevice;
+	if (info->device == NULL)
+		return NULL;
+	return info->device->write_subdev;
+}
+
 static int resize_async_buffer(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_async *async, unsigned new_size)
