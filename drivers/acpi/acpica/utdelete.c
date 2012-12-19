@@ -530,18 +530,42 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 			 */
 			for (i = 0; i < object->package.count; i++) {
 				/*
-				 * Push each element onto the stack for later processing.
-				 * Note: There can be null elements within the package,
-				 * these are simply ignored
+				 * Null package elements are legal and can be simply
+				 * ignored.
 				 */
-				status =
-				    acpi_ut_create_update_state_and_push
-				    (object->package.elements[i], action,
-				     &state_list);
-				if (ACPI_FAILURE(status)) {
-					goto error_exit;
+				next_object = object->package.elements[i];
+				if (!next_object) {
+					continue;
+				}
+
+				switch (next_object->common.type) {
+				case ACPI_TYPE_INTEGER:
+				case ACPI_TYPE_STRING:
+				case ACPI_TYPE_BUFFER:
+					/*
+					 * For these very simple sub-objects, we can just
+					 * update the reference count here and continue.
+					 * Greatly increases performance of this operation.
+					 */
+					acpi_ut_update_ref_count(next_object,
+								 action);
+					break;
+
+				default:
+					/*
+					 * For complex sub-objects, push them onto the stack
+					 * for later processing (this eliminates recursion.)
+					 */
+					status =
+					    acpi_ut_create_update_state_and_push
+					    (next_object, action, &state_list);
+					if (ACPI_FAILURE(status)) {
+						goto error_exit;
+					}
+					break;
 				}
 			}
+			next_object = NULL;
 			break;
 
 		case ACPI_TYPE_BUFFER_FIELD:
