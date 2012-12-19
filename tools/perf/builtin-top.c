@@ -847,13 +847,13 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 			++top->us_samples;
 			if (top->hide_user_symbols)
 				continue;
-			machine = perf_session__find_host_machine(session);
+			machine = &session->machines.host;
 			break;
 		case PERF_RECORD_MISC_KERNEL:
 			++top->kernel_samples;
 			if (top->hide_kernel_symbols)
 				continue;
-			machine = perf_session__find_host_machine(session);
+			machine = &session->machines.host;
 			break;
 		case PERF_RECORD_MISC_GUEST_KERNEL:
 			++top->guest_kernel_samples;

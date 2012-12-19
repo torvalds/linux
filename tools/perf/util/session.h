@@ -75,12 +75,6 @@ void perf_session__set_id_hdr_size(struct perf_session *session);
 void perf_session__remove_thread(struct perf_session *self, struct thread *th);
 
 static inline
-struct machine *perf_session__find_host_machine(struct perf_session *self)
-{
-	return &self->machines.host;
-}
-
-static inline
 struct machine *perf_session__find_machine(struct perf_session *self, pid_t pid)
 {
 	return machines__find(&self->machines, pid);

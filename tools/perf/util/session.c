@@ -821,7 +821,7 @@ static struct machine *
 		return perf_session__findnew_machine(session, pid);
 	}
 
-	return perf_session__find_host_machine(session);
+	return &session->machines.host;
 }
 
 static int perf_session_deliver_event(struct perf_session *session,

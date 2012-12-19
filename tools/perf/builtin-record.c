@@ -512,12 +512,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 
 	rec->post_processing_offset = lseek(output, 0, SEEK_CUR);
 
-	machine = perf_session__find_host_machine(session);
-	if (!machine) {
-		pr_err("Couldn't find native kernel information.\n");
-		err = -1;
-		goto out_delete_session;
-	}
+	machine = &session->machines.host;
 
 	if (opts->pipe_output) {
 		err = perf_event__synthesize_attrs(tool, session,
