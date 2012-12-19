@@ -373,7 +373,7 @@ Protocol:	2.00+
 	1  Loadlin
 	2  bootsect-loader	(0x20, all other values reserved)
 	3  Syslinux
-	4  Etherboot/gPXE
+	4  Etherboot/gPXE/iPXE
 	5  ELILO
 	7  GRUB
 	8  U-Boot
@@ -381,6 +381,7 @@ Protocol:	2.00+
 	A  Gujin
 	B  Qemu
 	C  Arcturus Networks uCbootloader
+	D  kexec-tools
 	E  Extended		(see ext_loader_type)
 	F  Special		(0xFF = undefined)
        10  Reserved
