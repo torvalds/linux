@@ -6313,7 +6313,7 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 		return false;
 	}
 
-	if (!intel_set_mode(crtc, mode, 0, 0, fb)) {
+	if (intel_set_mode(crtc, mode, 0, 0, fb)) {
 		DRM_DEBUG_KMS("failed to set mode on load-detect pipe\n");
 		if (old->release_fb)
 			old->release_fb->funcs->destroy(old->release_fb);
@@ -7426,22 +7426,20 @@ intel_modeset_check_state(struct drm_device *dev)
 	}
 }
 
-bool intel_set_mode(struct drm_crtc *crtc,
-		    struct drm_display_mode *mode,
-		    int x, int y, struct drm_framebuffer *fb)
+int intel_set_mode(struct drm_crtc *crtc,
+		   struct drm_display_mode *mode,
+		   int x, int y, struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = crtc->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_display_mode *adjusted_mode, *saved_mode, *saved_hwmode;
 	struct intel_crtc *intel_crtc;
 	unsigned disable_pipes, prepare_pipes, modeset_pipes;
-	bool ret = true;
+	int ret = 0;
 
 	saved_mode = kmalloc(2 * sizeof(*saved_mode), GFP_KERNEL);
-	if (!saved_mode) {
-		DRM_ERROR("i915: Could not allocate saved display mode.\n");
-		return false;
-	}
+	if (!saved_mode)
+		return -ENOMEM;
 	saved_hwmode = saved_mode + 1;
 
 	intel_modeset_affected_pipes(crtc, &modeset_pipes,
@@ -7465,7 +7463,7 @@ bool intel_set_mode(struct drm_crtc *crtc,
 	if (modeset_pipes) {
 		adjusted_mode = intel_modeset_adjusted_mode(crtc, mode);
 		if (IS_ERR(adjusted_mode)) {
-			ret = false;
+			ret = PTR_ERR(adjusted_mode);
 			goto out;
 		}
 	}
@@ -7492,11 +7490,11 @@ bool intel_set_mode(struct drm_crtc *crtc,
 	 * on the DPLL.
 	 */
 	for_each_intel_crtc_masked(dev, modeset_pipes, intel_crtc) {
-		ret = !intel_crtc_mode_set(&intel_crtc->base,
-					   mode, adjusted_mode,
-					   x, y, fb);
-		if (!ret)
-		    goto done;
+		ret = intel_crtc_mode_set(&intel_crtc->base,
+					  mode, adjusted_mode,
+					  x, y, fb);
+		if (ret)
+			goto done;
 	}
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
@@ -7517,7 +7515,7 @@ bool intel_set_mode(struct drm_crtc *crtc,
 	/* FIXME: add subpixel order */
 done:
 	drm_mode_destroy(dev, adjusted_mode);
-	if (!ret && crtc->enabled) {
+	if (ret && crtc->enabled) {
 		crtc->hwmode = *saved_hwmode;
 		crtc->mode = *saved_mode;
 	} else {
@@ -7527,6 +7525,11 @@ done:
 out:
 	kfree(saved_mode);
 	return ret;
+}
+
+void intel_crtc_restore_mode(struct drm_crtc *crtc)
+{
+	intel_set_mode(crtc, &crtc->mode, crtc->x, crtc->y, crtc->fb);
 }
 
 #undef for_each_intel_crtc_masked
@@ -7798,11 +7801,11 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 			drm_mode_debug_printmodeline(set->mode);
 		}
 
-		if (!intel_set_mode(set->crtc, set->mode,
-				    set->x, set->y, set->fb)) {
-			DRM_ERROR("failed to set mode on [CRTC:%d]\n",
-				  set->crtc->base.id);
-			ret = -EINVAL;
+		ret = intel_set_mode(set->crtc, set->mode,
+				     set->x, set->y, set->fb);
+		if (ret) {
+			DRM_ERROR("failed to set mode on [CRTC:%d], err = %d\n",
+				  set->crtc->base.id, ret);
 			goto fail;
 		}
 	} else if (config->fb_changed) {
@@ -7819,8 +7822,8 @@ fail:
 
 	/* Try to restore the config */
 	if (config->mode_changed &&
-	    !intel_set_mode(save_set.crtc, save_set.mode,
-			    save_set.x, save_set.y, save_set.fb))
+	    intel_set_mode(save_set.crtc, save_set.mode,
+			   save_set.x, save_set.y, save_set.fb))
 		DRM_ERROR("failed to restore config after modeset failure\n");
 
 out_config:
@@ -8804,11 +8807,8 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 	}
 
 	if (force_restore) {
-		for_each_pipe(pipe) {
-			crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
-			intel_set_mode(&crtc->base, &crtc->base.mode,
-				       crtc->base.x, crtc->base.y, crtc->base.fb);
-		}
+		for_each_pipe(pipe)
+			intel_crtc_restore_mode(dev_priv->pipe_to_crtc_mapping[pipe]);
 	} else {
 		intel_modeset_update_staged_output_state(dev);
 	}

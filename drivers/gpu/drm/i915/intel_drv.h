@@ -501,9 +501,10 @@ struct intel_set_config {
 	bool mode_changed;
 };
 
-extern bool intel_set_mode(struct drm_crtc *crtc, struct drm_display_mode *mode,
-			   int x, int y, struct drm_framebuffer *old_fb);
+extern int intel_set_mode(struct drm_crtc *crtc, struct drm_display_mode *mode,
+			  int x, int y, struct drm_framebuffer *old_fb);
 extern void intel_modeset_disable(struct drm_device *dev);
+extern void intel_crtc_restore_mode(struct drm_crtc *crtc);
 extern void intel_crtc_load_lut(struct drm_crtc *crtc);
 extern void intel_crtc_update_dpms(struct drm_crtc *crtc);
 extern void intel_encoder_noop(struct drm_encoder *encoder);

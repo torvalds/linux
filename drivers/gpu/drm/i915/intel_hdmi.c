@@ -917,11 +917,8 @@ intel_hdmi_set_property(struct drm_connector *connector,
 	return -EINVAL;
 
 done:
-	if (intel_dig_port->base.base.crtc) {
-		struct drm_crtc *crtc = intel_dig_port->base.base.crtc;
-		intel_set_mode(crtc, &crtc->mode,
-			       crtc->x, crtc->y, crtc->fb);
-	}
+	if (intel_dig_port->base.base.crtc)
+		intel_crtc_restore_mode(intel_dig_port->base.base.crtc);
 
 	return 0;
 }
