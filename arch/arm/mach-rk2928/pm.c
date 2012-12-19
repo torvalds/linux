@@ -225,13 +225,9 @@ static int pm_pll_pwr_up(u8 pll_id)
 	//enter slowmode
 	cru_writel(PLL_MODE_SLOW(pll_id), CRU_MODE_CON);
 	cru_writel( CRU_W_MSK(PLL_PWR_DN_SHIFT, 0x01), PLL_CONS(pll_id, 1));
-
-	if(pll_id==0) {
-		sram_udelay(100);
-	} else {
-		udelay(100);
-	}
-
+	
+	sram_udelay(100);
+	
 	pm_pll_wait_lock(pll_id);
 	//return form slow
 	//cru_writel(PLL_MODE_NORM(pll_id), CRU_MODE_CON);
@@ -481,6 +477,7 @@ static int rk2928_pm_enter(suspend_state_t state)
 	cru_writel((PLL_MODE_MSK(GPLL_ID) << 16) | (PLL_MODE_MSK(GPLL_ID) & cru_mode_con), CRU_MODE_CON);
 
 	//cpll
+	if(!(cpll_con1&(0x1<<PLL_PWR_DN_SHIFT)))
 	pm_pll_pwr_up(CPLL_ID);
 	cru_writel((PLL_MODE_MSK(CPLL_ID) << 16) | (PLL_MODE_MSK(CPLL_ID) & cru_mode_con), CRU_MODE_CON);
 
