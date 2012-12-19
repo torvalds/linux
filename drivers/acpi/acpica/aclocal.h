@@ -1029,6 +1029,31 @@ struct acpi_port_info {
 
 /*****************************************************************************
  *
+ * Disassembler
+ *
+ ****************************************************************************/
+
+struct acpi_external_list {
+	char *path;
+	char *internal_path;
+	struct acpi_external_list *next;
+	u32 value;
+	u16 length;
+	u8 type;
+	u8 flags;
+};
+
+/* Values for Flags field above */
+
+#define ACPI_IPATH_ALLOCATED    0x01
+
+struct acpi_external_file {
+	char *path;
+	struct acpi_external_file *next;
+};
+
+/*****************************************************************************
+ *
  * Debugger
  *
  ****************************************************************************/

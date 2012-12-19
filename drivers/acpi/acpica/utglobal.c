@@ -357,6 +357,10 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_root_node_struct.peer = NULL;
 	acpi_gbl_root_node_struct.object = NULL;
 
+#ifdef ACPI_DISASSEMBLER
+	acpi_gbl_external_list = NULL;
+#endif
+
 #ifdef ACPI_DEBUG_OUTPUT
 	acpi_gbl_lowest_stack_pointer = ACPI_CAST_PTR(acpi_size, ACPI_SIZE_MAX);
 #endif

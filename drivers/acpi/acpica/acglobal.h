@@ -415,6 +415,8 @@ ACPI_EXTERN u8 acpi_gbl_db_output_flags;
 
 ACPI_EXTERN u8 acpi_gbl_db_opt_disasm;
 ACPI_EXTERN u8 acpi_gbl_db_opt_verbose;
+ACPI_EXTERN struct acpi_external_list *acpi_gbl_external_list;
+ACPI_EXTERN struct acpi_external_file *acpi_gbl_external_file_list;
 #endif
 
 #ifdef ACPI_DEBUGGER
