@@ -175,7 +175,7 @@ static struct device_node * __init omap_get_timer_dt(struct of_device_id *match,
 			continue;
 		}
 
-		prom_add_property(np, &device_disabled);
+		of_add_property(np, &device_disabled);
 		return np;
 	}
 
