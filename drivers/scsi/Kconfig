@@ -882,7 +882,7 @@ config SCSI_IBMVSCSI
 	  This is the IBM POWER Virtual SCSI Client
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called ibmvscsic.
+	  module will be called ibmvscsi.
 
 config SCSI_IBMVSCSIS
 	tristate "IBM Virtual SCSI Server support"
