@@ -355,7 +355,7 @@ static int xscale_map_event(struct perf_event *event)
 
 static int xscale1pmu_init(struct arm_pmu *cpu_pmu)
 {
-	cpu_pmu->name		= "xscale1";
+	cpu_pmu->name		= "armv5_xscale1";
 	cpu_pmu->handle_irq	= xscale1pmu_handle_irq;
 	cpu_pmu->enable		= xscale1pmu_enable_event;
 	cpu_pmu->disable	= xscale1pmu_disable_event;
@@ -725,7 +725,7 @@ static inline void xscale2pmu_write_counter(struct perf_event *event, u32 val)
 
 static int xscale2pmu_init(struct arm_pmu *cpu_pmu)
 {
-	cpu_pmu->name		= "xscale2";
+	cpu_pmu->name		= "armv5_xscale2";
 	cpu_pmu->handle_irq	= xscale2pmu_handle_irq;
 	cpu_pmu->enable		= xscale2pmu_enable_event;
 	cpu_pmu->disable	= xscale2pmu_disable_event;

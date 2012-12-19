@@ -1008,7 +1008,7 @@ static u32 armv7_read_num_pmnc_events(void)
 static int armv7_a8_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7pmu_init(cpu_pmu);
-	cpu_pmu->name		= "ARMv7 Cortex-A8";
+	cpu_pmu->name		= "armv7_cortex_a8";
 	cpu_pmu->map_event	= armv7_a8_map_event;
 	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
 	return 0;
@@ -1017,7 +1017,7 @@ static int armv7_a8_pmu_init(struct arm_pmu *cpu_pmu)
 static int armv7_a9_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7pmu_init(cpu_pmu);
-	cpu_pmu->name		= "ARMv7 Cortex-A9";
+	cpu_pmu->name		= "armv7_cortex_a9";
 	cpu_pmu->map_event	= armv7_a9_map_event;
 	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
 	return 0;
@@ -1026,7 +1026,7 @@ static int armv7_a9_pmu_init(struct arm_pmu *cpu_pmu)
 static int armv7_a5_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7pmu_init(cpu_pmu);
-	cpu_pmu->name		= "ARMv7 Cortex-A5";
+	cpu_pmu->name		= "armv7_cortex_a5";
 	cpu_pmu->map_event	= armv7_a5_map_event;
 	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
 	return 0;
@@ -1035,7 +1035,7 @@ static int armv7_a5_pmu_init(struct arm_pmu *cpu_pmu)
 static int armv7_a15_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7pmu_init(cpu_pmu);
-	cpu_pmu->name		= "ARMv7 Cortex-A15";
+	cpu_pmu->name		= "armv7_cortex_a15";
 	cpu_pmu->map_event	= armv7_a15_map_event;
 	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
 	cpu_pmu->set_event_filter = armv7pmu_set_event_filter;
@@ -1045,7 +1045,7 @@ static int armv7_a15_pmu_init(struct arm_pmu *cpu_pmu)
 static int armv7_a7_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7pmu_init(cpu_pmu);
-	cpu_pmu->name		= "ARMv7 Cortex-A7";
+	cpu_pmu->name		= "armv7_cortex_a7";
 	cpu_pmu->map_event	= armv7_a7_map_event;
 	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
 	cpu_pmu->set_event_filter = armv7pmu_set_event_filter;
@@ -1055,7 +1055,7 @@ static int armv7_a7_pmu_init(struct arm_pmu *cpu_pmu)
 static int armv7_a12_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7pmu_init(cpu_pmu);
-	cpu_pmu->name		= "ARMv7 Cortex-A12";
+	cpu_pmu->name		= "armv7_cortex_a12";
 	cpu_pmu->map_event	= armv7_a12_map_event;
 	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
 	cpu_pmu->set_event_filter = armv7pmu_set_event_filter;
@@ -1065,7 +1065,7 @@ static int armv7_a12_pmu_init(struct arm_pmu *cpu_pmu)
 static int armv7_a17_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7_a12_pmu_init(cpu_pmu);
-	cpu_pmu->name = "ARMv7 Cortex-A17";
+	cpu_pmu->name = "armv7_cortex_a17";
 	return 0;
 }
 
@@ -1444,7 +1444,7 @@ static void krait_pmu_clear_event_idx(struct pmu_hw_events *cpuc,
 static int krait_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7pmu_init(cpu_pmu);
-	cpu_pmu->name		= "ARMv7 Krait";
+	cpu_pmu->name		= "armv7_krait";
 	/* Some early versions of Krait don't support PC write events */
 	if (of_property_read_bool(cpu_pmu->plat_device->dev.of_node,
 				  "qcom,no-pc-write"))

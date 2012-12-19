@@ -476,9 +476,8 @@ static int armv6_map_event(struct perf_event *event)
 				&armv6_perf_cache_map, 0xFF);
 }
 
-static int armv6pmu_init(struct arm_pmu *cpu_pmu)
+static void armv6pmu_init(struct arm_pmu *cpu_pmu)
 {
-	cpu_pmu->name		= "v6";
 	cpu_pmu->handle_irq	= armv6pmu_handle_irq;
 	cpu_pmu->enable		= armv6pmu_enable_event;
 	cpu_pmu->disable	= armv6pmu_disable_event;
@@ -490,7 +489,26 @@ static int armv6pmu_init(struct arm_pmu *cpu_pmu)
 	cpu_pmu->map_event	= armv6_map_event;
 	cpu_pmu->num_events	= 3;
 	cpu_pmu->max_period	= (1LLU << 32) - 1;
+}
 
+static int armv6_1136_pmu_init(struct arm_pmu *cpu_pmu)
+{
+	armv6pmu_init(cpu_pmu);
+	cpu_pmu->name		= "armv6_1136";
+	return 0;
+}
+
+static int armv6_1156_pmu_init(struct arm_pmu *cpu_pmu)
+{
+	armv6pmu_init(cpu_pmu);
+	cpu_pmu->name		= "armv6_1156";
+	return 0;
+}
+
+static int armv6_1176_pmu_init(struct arm_pmu *cpu_pmu)
+{
+	armv6pmu_init(cpu_pmu);
+	cpu_pmu->name		= "armv6_1176";
 	return 0;
 }
 
@@ -510,7 +528,7 @@ static int armv6mpcore_map_event(struct perf_event *event)
 
 static int armv6mpcore_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	cpu_pmu->name		= "v6mpcore";
+	cpu_pmu->name		= "armv6_11mpcore";
 	cpu_pmu->handle_irq	= armv6pmu_handle_irq;
 	cpu_pmu->enable		= armv6pmu_enable_event;
 	cpu_pmu->disable	= armv6mpcore_pmu_disable_event;
@@ -526,7 +544,17 @@ static int armv6mpcore_pmu_init(struct arm_pmu *cpu_pmu)
 	return 0;
 }
 #else
-static int armv6pmu_init(struct arm_pmu *cpu_pmu)
+static int armv6_1136_pmu_init(struct arm_pmu *cpu_pmu)
+{
+	return -ENODEV;
+}
+
+static int armv6_1156_pmu_init(struct arm_pmu *cpu_pmu)
+{
+	return -ENODEV;
+}
+
+static int armv6_1176_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	return -ENODEV;
 }
