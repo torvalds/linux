@@ -535,12 +535,15 @@ acpi_ut_display_init_pathname(u8 type,
  * utresrc
  */
 acpi_status
-acpi_ut_walk_aml_resources(u8 *aml,
+acpi_ut_walk_aml_resources(struct acpi_walk_state *walk_state,
+			   u8 *aml,
 			   acpi_size aml_length,
 			   acpi_walk_aml_callback user_function,
 			   void **context);
 
-acpi_status acpi_ut_validate_resource(void *aml, u8 *return_index);
+acpi_status
+acpi_ut_validate_resource(struct acpi_walk_state *walk_state,
+			  void *aml, u8 *return_index);
 
 u32 acpi_ut_get_descriptor_length(void *aml);
 

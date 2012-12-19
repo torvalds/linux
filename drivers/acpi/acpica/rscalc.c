@@ -407,7 +407,9 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 
 		/* Validate the Resource Type and Resource Length */
 
-		status = acpi_ut_validate_resource(aml_buffer, &resource_index);
+		status =
+		    acpi_ut_validate_resource(NULL, aml_buffer,
+					      &resource_index);
 		if (ACPI_FAILURE(status)) {
 			/*
 			 * Exit on failure. Cannot continue because the descriptor length

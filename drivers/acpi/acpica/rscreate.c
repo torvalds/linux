@@ -98,7 +98,7 @@ acpi_buffer_to_resource(u8 *aml_buffer,
 
 	/* Perform the AML-to-Resource conversion */
 
-	status = acpi_ut_walk_aml_resources(aml_buffer, aml_buffer_length,
+	status = acpi_ut_walk_aml_resources(NULL, aml_buffer, aml_buffer_length,
 					    acpi_rs_convert_aml_to_resources,
 					    &current_resource_ptr);
 	if (status == AE_AML_NO_RESOURCE_END_TAG) {
@@ -174,7 +174,7 @@ acpi_rs_create_resource_list(union acpi_operand_object *aml_buffer,
 	/* Do the conversion */
 
 	resource = output_buffer->pointer;
-	status = acpi_ut_walk_aml_resources(aml_start, aml_buffer_length,
+	status = acpi_ut_walk_aml_resources(NULL, aml_start, aml_buffer_length,
 					    acpi_rs_convert_aml_to_resources,
 					    &resource);
 	if (ACPI_FAILURE(status)) {
