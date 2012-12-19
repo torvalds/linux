@@ -2172,7 +2172,7 @@ __acquires(&gcwq->lock)
 
 	/* claim and dequeue */
 	debug_work_deactivate(work);
-	hash_add(gcwq->busy_hash, &worker->hentry, (unsigned long)worker);
+	hash_add(gcwq->busy_hash, &worker->hentry, (unsigned long)work);
 	worker->current_work = work;
 	worker->current_func = work->func;
 	worker->current_cwq = cwq;
