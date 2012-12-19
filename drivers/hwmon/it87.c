@@ -258,9 +258,7 @@ struct it87_data {
 	unsigned long last_updated;	/* In jiffies */
 
 	u16 in_scaled;		/* Internal voltage sensors are scaled */
-	u8 in[9];		/* Register value */
-	u8 in_max[8];		/* Register value */
-	u8 in_min[8];		/* Register value */
+	u8 in[9][3];		/* [nr][0]=in, [1]=min, [2]=max */
 	u8 has_fan;		/* Bitfield, fans enabled */
 	u16 fan[5];		/* Register values, possibly combined */
 	u16 fan_min[5];		/* Register values, possibly combined */
@@ -445,40 +443,22 @@ static struct platform_driver it87_driver = {
 };
 
 static ssize_t show_in(struct device *dev, struct device_attribute *attr,
-		char *buf)
+		       char *buf)
 {
-	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
-	int nr = sensor_attr->index;
+	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
+	int nr = sattr->nr;
+	int index = sattr->index;
 
 	struct it87_data *data = it87_update_device(dev);
-	return sprintf(buf, "%d\n", in_from_reg(data, nr, data->in[nr]));
+	return sprintf(buf, "%d\n", in_from_reg(data, nr, data->in[nr][index]));
 }
 
-static ssize_t show_in_min(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t set_in(struct device *dev, struct device_attribute *attr,
+		      const char *buf, size_t count)
 {
-	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
-	int nr = sensor_attr->index;
-
-	struct it87_data *data = it87_update_device(dev);
-	return sprintf(buf, "%d\n", in_from_reg(data, nr, data->in_min[nr]));
-}
-
-static ssize_t show_in_max(struct device *dev, struct device_attribute *attr,
-		char *buf)
-{
-	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
-	int nr = sensor_attr->index;
-
-	struct it87_data *data = it87_update_device(dev);
-	return sprintf(buf, "%d\n", in_from_reg(data, nr, data->in_max[nr]));
-}
-
-static ssize_t set_in_min(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
-{
-	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
-	int nr = sensor_attr->index;
+	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
+	int nr = sattr->nr;
+	int index = sattr->index;
 
 	struct it87_data *data = dev_get_drvdata(dev);
 	unsigned long val;
@@ -487,59 +467,64 @@ static ssize_t set_in_min(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
-	data->in_min[nr] = in_to_reg(data, nr, val);
-	it87_write_value(data, IT87_REG_VIN_MIN(nr),
-			data->in_min[nr]);
-	mutex_unlock(&data->update_lock);
-	return count;
-}
-static ssize_t set_in_max(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
-{
-	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
-	int nr = sensor_attr->index;
-
-	struct it87_data *data = dev_get_drvdata(dev);
-	unsigned long val;
-
-	if (kstrtoul(buf, 10, &val) < 0)
-		return -EINVAL;
-
-	mutex_lock(&data->update_lock);
-	data->in_max[nr] = in_to_reg(data, nr, val);
-	it87_write_value(data, IT87_REG_VIN_MAX(nr),
-			data->in_max[nr]);
+	data->in[nr][index] = in_to_reg(data, nr, val);
+	it87_write_value(data,
+			 index == 1 ? IT87_REG_VIN_MIN(nr)
+				    : IT87_REG_VIN_MAX(nr),
+			 data->in[nr][index]);
 	mutex_unlock(&data->update_lock);
 	return count;
 }
 
-#define show_in_offset(offset)					\
-static SENSOR_DEVICE_ATTR(in##offset##_input, S_IRUGO,		\
-		show_in, NULL, offset);
+static SENSOR_DEVICE_ATTR_2(in0_input, S_IRUGO, show_in, NULL, 0, 0);
+static SENSOR_DEVICE_ATTR_2(in0_min, S_IRUGO | S_IWUSR, show_in, set_in,
+			    0, 1);
+static SENSOR_DEVICE_ATTR_2(in0_max, S_IRUGO | S_IWUSR, show_in, set_in,
+			    0, 2);
 
-#define limit_in_offset(offset)					\
-static SENSOR_DEVICE_ATTR(in##offset##_min, S_IRUGO | S_IWUSR,	\
-		show_in_min, set_in_min, offset);		\
-static SENSOR_DEVICE_ATTR(in##offset##_max, S_IRUGO | S_IWUSR,	\
-		show_in_max, set_in_max, offset);
+static SENSOR_DEVICE_ATTR_2(in1_input, S_IRUGO, show_in, NULL, 1, 0);
+static SENSOR_DEVICE_ATTR_2(in1_min, S_IRUGO | S_IWUSR, show_in, set_in,
+			    1, 1);
+static SENSOR_DEVICE_ATTR_2(in1_max, S_IRUGO | S_IWUSR, show_in, set_in,
+			    1, 2);
 
-show_in_offset(0);
-limit_in_offset(0);
-show_in_offset(1);
-limit_in_offset(1);
-show_in_offset(2);
-limit_in_offset(2);
-show_in_offset(3);
-limit_in_offset(3);
-show_in_offset(4);
-limit_in_offset(4);
-show_in_offset(5);
-limit_in_offset(5);
-show_in_offset(6);
-limit_in_offset(6);
-show_in_offset(7);
-limit_in_offset(7);
-show_in_offset(8);
+static SENSOR_DEVICE_ATTR_2(in2_input, S_IRUGO, show_in, NULL, 2, 0);
+static SENSOR_DEVICE_ATTR_2(in2_min, S_IRUGO | S_IWUSR, show_in, set_in,
+			    2, 1);
+static SENSOR_DEVICE_ATTR_2(in2_max, S_IRUGO | S_IWUSR, show_in, set_in,
+			    2, 2);
+
+static SENSOR_DEVICE_ATTR_2(in3_input, S_IRUGO, show_in, NULL, 3, 0);
+static SENSOR_DEVICE_ATTR_2(in3_min, S_IRUGO | S_IWUSR, show_in, set_in,
+			    3, 1);
+static SENSOR_DEVICE_ATTR_2(in3_max, S_IRUGO | S_IWUSR, show_in, set_in,
+			    3, 2);
+
+static SENSOR_DEVICE_ATTR_2(in4_input, S_IRUGO, show_in, NULL, 4, 0);
+static SENSOR_DEVICE_ATTR_2(in4_min, S_IRUGO | S_IWUSR, show_in, set_in,
+			    4, 1);
+static SENSOR_DEVICE_ATTR_2(in4_max, S_IRUGO | S_IWUSR, show_in, set_in,
+			    4, 2);
+
+static SENSOR_DEVICE_ATTR_2(in5_input, S_IRUGO, show_in, NULL, 5, 0);
+static SENSOR_DEVICE_ATTR_2(in5_min, S_IRUGO | S_IWUSR, show_in, set_in,
+			    5, 1);
+static SENSOR_DEVICE_ATTR_2(in5_max, S_IRUGO | S_IWUSR, show_in, set_in,
+			    5, 2);
+
+static SENSOR_DEVICE_ATTR_2(in6_input, S_IRUGO, show_in, NULL, 6, 0);
+static SENSOR_DEVICE_ATTR_2(in6_min, S_IRUGO | S_IWUSR, show_in, set_in,
+			    6, 1);
+static SENSOR_DEVICE_ATTR_2(in6_max, S_IRUGO | S_IWUSR, show_in, set_in,
+			    6, 2);
+
+static SENSOR_DEVICE_ATTR_2(in7_input, S_IRUGO, show_in, NULL, 7, 0);
+static SENSOR_DEVICE_ATTR_2(in7_min, S_IRUGO | S_IWUSR, show_in, set_in,
+			    7, 1);
+static SENSOR_DEVICE_ATTR_2(in7_max, S_IRUGO | S_IWUSR, show_in, set_in,
+			    7, 2);
+
+static SENSOR_DEVICE_ATTR_2(in8_input, S_IRUGO, show_in, NULL, 8, 0);
 
 /* 3 temperatures */
 static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
@@ -2361,15 +2346,15 @@ static struct it87_data *it87_update_device(struct device *dev)
 				it87_read_value(data, IT87_REG_CONFIG) | 0x40);
 		}
 		for (i = 0; i <= 7; i++) {
-			data->in[i] =
+			data->in[i][0] =
 				it87_read_value(data, IT87_REG_VIN(i));
-			data->in_min[i] =
+			data->in[i][1] =
 				it87_read_value(data, IT87_REG_VIN_MIN(i));
-			data->in_max[i] =
+			data->in[i][2] =
 				it87_read_value(data, IT87_REG_VIN_MAX(i));
 		}
 		/* in8 (battery) has no limit registers */
-		data->in[8] = it87_read_value(data, IT87_REG_VIN(8));
+		data->in[8][0] = it87_read_value(data, IT87_REG_VIN(8));
 
 		for (i = 0; i < 5; i++) {
 			/* Skip disabled fans */
