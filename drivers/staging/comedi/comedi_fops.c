@@ -389,6 +389,13 @@ static bool comedi_is_subdevice_in_error(struct comedi_subdevice *s)
 	return (runflags & SRF_ERROR) ? true : false;
 }
 
+static bool comedi_is_subdevice_idle(struct comedi_subdevice *s)
+{
+	unsigned runflags = comedi_get_subdevice_runflags(s);
+
+	return (runflags & (SRF_ERROR | SRF_RUNNING)) ? false : true;
+}
+
 /*
    This function restores a subdevice to an idle state.
  */
@@ -834,9 +841,8 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 		bi.bytes_read = comedi_buf_read_alloc(async, bi.bytes_read);
 		comedi_buf_read_free(async, bi.bytes_read);
 
-		if (!(comedi_get_subdevice_runflags(s) & (SRF_ERROR |
-							  SRF_RUNNING))
-		    && async->buf_write_count == async->buf_read_count) {
+		if (comedi_is_subdevice_idle(s) &&
+		    async->buf_write_count == async->buf_read_count) {
 			do_become_nonbusy(dev, s);
 		}
 	}
@@ -2061,7 +2067,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		buf += n;
 		break;		/* makes device work like a pipe */
 	}
-	if (!(comedi_get_subdevice_runflags(s) & (SRF_ERROR | SRF_RUNNING)) &&
+	if (comedi_is_subdevice_idle(s) &&
 	    async->buf_read_count - async->buf_write_count == 0) {
 		do_become_nonbusy(dev, s);
 	}
