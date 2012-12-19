@@ -96,7 +96,7 @@ struct comedi_file_info {
 static DEFINE_SPINLOCK(comedi_file_info_table_lock);
 static struct comedi_file_info *comedi_file_info_table[COMEDI_NUM_MINORS];
 
-static struct comedi_file_info *comedi_get_device_file_info(unsigned minor)
+static struct comedi_file_info *comedi_file_info_from_minor(unsigned minor)
 {
 	struct comedi_file_info *info;
 
@@ -111,7 +111,7 @@ struct comedi_device *comedi_dev_from_minor(unsigned minor)
 {
 	struct comedi_file_info *info;
 
-	info = comedi_get_device_file_info(minor);
+	info = comedi_file_info_from_minor(minor);
 
 	return info ? info->device : NULL;
 }
@@ -582,7 +582,7 @@ static int do_devinfo_ioctl(struct comedi_device *dev,
 {
 	struct comedi_devinfo devinfo;
 	const unsigned minor = iminor(file->f_dentry->d_inode);
-	struct comedi_file_info *info = comedi_get_device_file_info(minor);
+	struct comedi_file_info *info = comedi_file_info_from_minor(minor);
 	struct comedi_subdevice *read_subdev =
 	    comedi_get_read_subdevice(info);
 	struct comedi_subdevice *write_subdev =
@@ -1750,7 +1750,7 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	int i;
 	int retval;
 	struct comedi_subdevice *s;
-	struct comedi_file_info *info = comedi_get_device_file_info(minor);
+	struct comedi_file_info *info = comedi_file_info_from_minor(minor);
 	struct comedi_device *dev;
 
 	if (info == NULL)
@@ -1826,7 +1826,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 	const unsigned minor = iminor(file->f_dentry->d_inode);
 	struct comedi_subdevice *read_subdev;
 	struct comedi_subdevice *write_subdev;
-	struct comedi_file_info *info = comedi_get_device_file_info(minor);
+	struct comedi_file_info *info = comedi_file_info_from_minor(minor);
 	struct comedi_device *dev;
 
 	if (info == NULL)
@@ -1879,7 +1879,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 	int n, m, count = 0, retval = 0;
 	DECLARE_WAITQUEUE(wait, current);
 	const unsigned minor = iminor(file->f_dentry->d_inode);
-	struct comedi_file_info *info = comedi_get_device_file_info(minor);
+	struct comedi_file_info *info = comedi_file_info_from_minor(minor);
 	struct comedi_device *dev;
 
 	if (info == NULL)
@@ -1989,7 +1989,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 	int n, m, count = 0, retval = 0;
 	DECLARE_WAITQUEUE(wait, current);
 	const unsigned minor = iminor(file->f_dentry->d_inode);
-	struct comedi_file_info *info = comedi_get_device_file_info(minor);
+	struct comedi_file_info *info = comedi_file_info_from_minor(minor);
 	struct comedi_device *dev;
 
 	if (info == NULL)
