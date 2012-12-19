@@ -2172,7 +2172,9 @@ static int create_capture_mixers(struct hda_codec *codec)
 
 	if (!spec->auto_mic && imux->num_items > 1) {
 		struct snd_kcontrol_new *knew;
-		knew = snd_hda_gen_add_kctl(spec, NULL, &cap_src_temp);
+		const char *name;
+		name = nums > 1 ? "Input Source" : "Capture Source";
+		knew = snd_hda_gen_add_kctl(spec, name, &cap_src_temp);
 		if (!knew)
 			return -ENOMEM;
 		knew->count = nums;
