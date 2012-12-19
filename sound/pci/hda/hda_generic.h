@@ -152,8 +152,6 @@ struct hda_gen_spec {
 	unsigned int inv_dmic_split:1; /* inverted dmic w/a for conexant */
 	unsigned int own_eapd_ctl:1; /* set EAPD by own function */
 
-	unsigned int parse_flags; /* passed to snd_hda_parse_pin_defcfg() */
-
 	/* for virtual master */
 	hda_nid_t vmaster_nid;
 	struct hda_vmaster_mute_hook vmaster_mute;
@@ -197,7 +195,7 @@ snd_hda_gen_add_kctl(struct hda_gen_spec *spec, const char *name,
 		     const struct snd_kcontrol_new *temp);
 
 int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
-				  const hda_nid_t *ignore_nids);
+				  struct auto_pin_cfg *cfg);
 int snd_hda_gen_build_controls(struct hda_codec *codec);
 int snd_hda_gen_build_pcms(struct hda_codec *codec);
 

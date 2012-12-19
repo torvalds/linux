@@ -2785,21 +2785,23 @@ static int check_auto_mic_availability(struct hda_codec *codec)
 }
 
 
-/* parse the BIOS configuration and set up the hda_gen_spec */
-/* return 1 if successful, 0 if the proper config is not found,
+/*
+ * Parse the given BIOS configuration and set up the hda_gen_spec
+ *
+ * return 1 if successful, 0 if the proper config is not found,
  * or a negative error code
  */
 int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
-				  const hda_nid_t *ignore_nids)
+				  struct auto_pin_cfg *cfg)
 {
 	struct hda_gen_spec *spec = codec->spec;
-	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int err;
 
-	err = snd_hda_parse_pin_defcfg(codec, cfg, ignore_nids,
-				       spec->parse_flags);
-	if (err < 0)
-		return err;
+	if (cfg != &spec->autocfg) {
+		spec->autocfg = *cfg;
+		cfg = &spec->autocfg;
+	}
+
 	if (!cfg->line_outs) {
 		if (cfg->dig_outs || cfg->dig_in_pin) {
 			spec->multiout.max_channels = 2;
@@ -3586,7 +3588,11 @@ int snd_hda_parse_generic_codec(struct hda_codec *codec)
 	snd_hda_gen_spec_init(spec);
 	codec->spec = spec;
 
-	err = snd_hda_gen_parse_auto_config(codec, NULL);
+	err = snd_hda_parse_pin_defcfg(codec, &spec->autocfg, NULL, 0);
+	if (err < 0)
+		return err;
+
+	err = snd_hda_gen_parse_auto_config(codec, &spec->autocfg);
 	if (err < 0)
 		goto error;
 
