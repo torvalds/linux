@@ -293,11 +293,11 @@ acpi_status acpi_ut_init_globals(void)
 
 	/* GPE support */
 
+	acpi_gbl_all_gpes_initialized = FALSE;
 	acpi_gbl_gpe_xrupt_list_head = NULL;
 	acpi_gbl_gpe_fadt_blocks[0] = NULL;
 	acpi_gbl_gpe_fadt_blocks[1] = NULL;
 	acpi_current_gpe_count = 0;
-	acpi_gbl_all_gpes_initialized = FALSE;
 
 	acpi_gbl_global_event_handler = NULL;
 
@@ -367,6 +367,7 @@ acpi_status acpi_ut_init_globals(void)
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 	acpi_gbl_display_final_mem_stats = FALSE;
+	acpi_gbl_disable_mem_tracking = FALSE;
 #endif
 
 	return_ACPI_STATUS(AE_OK);
