@@ -375,6 +375,14 @@ unsigned comedi_get_subdevice_runflags(struct comedi_subdevice *s)
 }
 EXPORT_SYMBOL(comedi_get_subdevice_runflags);
 
+bool comedi_is_subdevice_running(struct comedi_subdevice *s)
+{
+	unsigned runflags = comedi_get_subdevice_runflags(s);
+
+	return (runflags & SRF_RUNNING) ? true : false;
+}
+EXPORT_SYMBOL_GPL(comedi_is_subdevice_running);
+
 /*
    This function restores a subdevice to an idle state.
  */
