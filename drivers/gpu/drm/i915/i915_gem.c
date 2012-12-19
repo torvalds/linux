@@ -1926,7 +1926,7 @@ i915_gem_object_move_to_inactive(struct drm_i915_gem_object *obj)
 }
 
 static int
-i915_gem_handle_seqno_wrap(struct drm_device *dev)
+i915_gem_init_seqno(struct drm_device *dev, u32 seqno)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring;
@@ -1942,11 +1942,37 @@ i915_gem_handle_seqno_wrap(struct drm_device *dev)
 
 	/* Finally reset hw state */
 	for_each_ring(ring, dev_priv, i) {
-		intel_ring_init_seqno(ring, 0);
+		intel_ring_init_seqno(ring, seqno);
 
 		for (j = 0; j < ARRAY_SIZE(ring->sync_seqno); j++)
 			ring->sync_seqno[j] = 0;
 	}
+
+	return 0;
+}
+
+int i915_gem_set_seqno(struct drm_device *dev, u32 seqno)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	if (seqno == 0)
+		return -EINVAL;
+
+	/* HWS page needs to be set less than what we
+	 * will inject to ring
+	 */
+	ret = i915_gem_init_seqno(dev, seqno - 1);
+	if (ret)
+		return ret;
+
+	/* Carefully set the last_seqno value so that wrap
+	 * detection still works
+	 */
+	dev_priv->next_seqno = seqno;
+	dev_priv->last_seqno = seqno - 1;
+	if (dev_priv->last_seqno == 0)
+		dev_priv->last_seqno--;
 
 	return 0;
 }
@@ -1958,7 +1984,7 @@ i915_gem_get_seqno(struct drm_device *dev, u32 *seqno)
 
 	/* reserve 0 for non-seqno */
 	if (dev_priv->next_seqno == 0) {
-		int ret = i915_gem_handle_seqno_wrap(dev);
+		int ret = i915_gem_init_seqno(dev, 0);
 		if (ret)
 			return ret;
 

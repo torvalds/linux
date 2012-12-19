@@ -1479,8 +1479,8 @@ i915_seqno_passed(uint32_t seq1, uint32_t seq2)
 	return (int32_t)(seq1 - seq2) >= 0;
 }
 
-extern int i915_gem_get_seqno(struct drm_device *dev, u32 *seqno);
-
+int __must_check i915_gem_get_seqno(struct drm_device *dev, u32 *seqno);
+int __must_check i915_gem_set_seqno(struct drm_device *dev, u32 seqno);
 int __must_check i915_gem_object_get_fence(struct drm_i915_gem_object *obj);
 int __must_check i915_gem_object_put_fence(struct drm_i915_gem_object *obj);
 
