@@ -118,7 +118,7 @@ struct comedi_device *comedi_dev_from_minor(unsigned minor)
 EXPORT_SYMBOL_GPL(comedi_dev_from_minor);
 
 static struct comedi_subdevice *
-comedi_get_read_subdevice(const struct comedi_file_info *info)
+comedi_read_subdevice(const struct comedi_file_info *info)
 {
 	if (info->read_subdevice)
 		return info->read_subdevice;
@@ -128,7 +128,7 @@ comedi_get_read_subdevice(const struct comedi_file_info *info)
 }
 
 static struct comedi_subdevice *
-comedi_get_write_subdevice(const struct comedi_file_info *info)
+comedi_write_subdevice(const struct comedi_file_info *info)
 {
 	if (info->write_subdevice)
 		return info->write_subdevice;
@@ -183,7 +183,7 @@ static ssize_t show_max_read_buffer_kb(struct device *dev,
 				       struct device_attribute *attr, char *buf)
 {
 	struct comedi_file_info *info = dev_get_drvdata(dev);
-	struct comedi_subdevice *s = comedi_get_read_subdevice(info);
+	struct comedi_subdevice *s = comedi_read_subdevice(info);
 	unsigned int size = 0;
 
 	mutex_lock(&info->device->mutex);
@@ -199,7 +199,7 @@ static ssize_t store_max_read_buffer_kb(struct device *dev,
 					const char *buf, size_t count)
 {
 	struct comedi_file_info *info = dev_get_drvdata(dev);
-	struct comedi_subdevice *s = comedi_get_read_subdevice(info);
+	struct comedi_subdevice *s = comedi_read_subdevice(info);
 	unsigned int size;
 	int err;
 
@@ -224,7 +224,7 @@ static ssize_t show_read_buffer_kb(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct comedi_file_info *info = dev_get_drvdata(dev);
-	struct comedi_subdevice *s = comedi_get_read_subdevice(info);
+	struct comedi_subdevice *s = comedi_read_subdevice(info);
 	unsigned int size = 0;
 
 	mutex_lock(&info->device->mutex);
@@ -240,7 +240,7 @@ static ssize_t store_read_buffer_kb(struct device *dev,
 				    const char *buf, size_t count)
 {
 	struct comedi_file_info *info = dev_get_drvdata(dev);
-	struct comedi_subdevice *s = comedi_get_read_subdevice(info);
+	struct comedi_subdevice *s = comedi_read_subdevice(info);
 	unsigned int size;
 	int err;
 
@@ -266,7 +266,7 @@ static ssize_t show_max_write_buffer_kb(struct device *dev,
 					char *buf)
 {
 	struct comedi_file_info *info = dev_get_drvdata(dev);
-	struct comedi_subdevice *s = comedi_get_write_subdevice(info);
+	struct comedi_subdevice *s = comedi_write_subdevice(info);
 	unsigned int size = 0;
 
 	mutex_lock(&info->device->mutex);
@@ -282,7 +282,7 @@ static ssize_t store_max_write_buffer_kb(struct device *dev,
 					 const char *buf, size_t count)
 {
 	struct comedi_file_info *info = dev_get_drvdata(dev);
-	struct comedi_subdevice *s = comedi_get_write_subdevice(info);
+	struct comedi_subdevice *s = comedi_write_subdevice(info);
 	unsigned int size;
 	int err;
 
@@ -307,7 +307,7 @@ static ssize_t show_write_buffer_kb(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
 	struct comedi_file_info *info = dev_get_drvdata(dev);
-	struct comedi_subdevice *s = comedi_get_write_subdevice(info);
+	struct comedi_subdevice *s = comedi_write_subdevice(info);
 	unsigned int size = 0;
 
 	mutex_lock(&info->device->mutex);
@@ -323,7 +323,7 @@ static ssize_t store_write_buffer_kb(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct comedi_file_info *info = dev_get_drvdata(dev);
-	struct comedi_subdevice *s = comedi_get_write_subdevice(info);
+	struct comedi_subdevice *s = comedi_write_subdevice(info);
 	unsigned int size;
 	int err;
 
@@ -583,10 +583,8 @@ static int do_devinfo_ioctl(struct comedi_device *dev,
 	struct comedi_devinfo devinfo;
 	const unsigned minor = iminor(file->f_dentry->d_inode);
 	struct comedi_file_info *info = comedi_file_info_from_minor(minor);
-	struct comedi_subdevice *read_subdev =
-	    comedi_get_read_subdevice(info);
-	struct comedi_subdevice *write_subdev =
-	    comedi_get_write_subdevice(info);
+	struct comedi_subdevice *read_subdev = comedi_read_subdevice(info);
+	struct comedi_subdevice *write_subdev = comedi_write_subdevice(info);
 
 	memset(&devinfo, 0, sizeof(devinfo));
 
@@ -1766,9 +1764,9 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 		goto done;
 	}
 	if (vma->vm_flags & VM_WRITE)
-		s = comedi_get_write_subdevice(info);
+		s = comedi_write_subdevice(info);
 	else
-		s = comedi_get_read_subdevice(info);
+		s = comedi_read_subdevice(info);
 
 	if (s == NULL) {
 		retval = -EINVAL;
@@ -1843,7 +1841,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 	}
 
 	mask = 0;
-	read_subdev = comedi_get_read_subdevice(info);
+	read_subdev = comedi_read_subdevice(info);
 	if (read_subdev) {
 		poll_wait(file, &read_subdev->async->wait_head, wait);
 		if (!read_subdev->busy
@@ -1853,7 +1851,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 			mask |= POLLIN | POLLRDNORM;
 		}
 	}
-	write_subdev = comedi_get_write_subdevice(info);
+	write_subdev = comedi_write_subdevice(info);
 	if (write_subdev) {
 		poll_wait(file, &write_subdev->async->wait_head, wait);
 		comedi_buf_write_alloc(write_subdev->async,
@@ -1894,7 +1892,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		goto done;
 	}
 
-	s = comedi_get_write_subdevice(info);
+	s = comedi_write_subdevice(info);
 	if (s == NULL) {
 		retval = -EIO;
 		goto done;
@@ -2004,7 +2002,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		goto done;
 	}
 
-	s = comedi_get_read_subdevice(info);
+	s = comedi_read_subdevice(info);
 	if (s == NULL) {
 		retval = -EIO;
 		goto done;
