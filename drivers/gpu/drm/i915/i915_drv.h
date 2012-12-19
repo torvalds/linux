@@ -780,6 +780,7 @@ typedef struct drm_i915_private {
 		struct i915_hw_ppgtt *aliasing_ppgtt;
 
 		struct shrinker inactive_shrinker;
+		bool shrinker_no_lock_stealing;
 
 		/**
 		 * List of objects currently involved in rendering.

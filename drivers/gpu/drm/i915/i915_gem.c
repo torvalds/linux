@@ -4380,6 +4380,9 @@ i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
 		if (!mutex_is_locked_by(&dev->struct_mutex, current))
 			return 0;
 
+		if (dev_priv->mm.shrinker_no_lock_stealing)
+			return 0;
+
 		unlock = false;
 	}
 
