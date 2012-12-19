@@ -228,6 +228,63 @@ static const u8 IT87_REG_TEMP_OFFSET[]	= { 0x56, 0x57, 0x59 };
 #define IT87_REG_AUTO_TEMP(nr, i) (0x60 + (nr) * 8 + (i))
 #define IT87_REG_AUTO_PWM(nr, i)  (0x65 + (nr) * 8 + (i))
 
+struct it87_devices {
+	const char *name;
+	u16 features;
+};
+
+#define FEAT_12MV_ADC		(1 << 0)
+#define FEAT_NEWER_AUTOPWM	(1 << 1)
+#define FEAT_OLD_AUTOPWM	(1 << 2)
+#define FEAT_16BIT_FANS		(1 << 3)
+#define FEAT_TEMP_OFFSET	(1 << 4)
+
+static const struct it87_devices it87_devices[] = {
+	[it87] = {
+		.name = "it87",
+		.features = FEAT_OLD_AUTOPWM,	/* may need to overwrite */
+	},
+	[it8712] = {
+		.name = "it8712",
+		.features = FEAT_OLD_AUTOPWM,	/* may need to overwrite */
+	},
+	[it8716] = {
+		.name = "it8716",
+		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET,
+	},
+	[it8718] = {
+		.name = "it8718",
+		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET,
+	},
+	[it8720] = {
+		.name = "it8720",
+		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET,
+	},
+	[it8721] = {
+		.name = "it8721",
+		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
+		  | FEAT_TEMP_OFFSET,
+	},
+	[it8728] = {
+		.name = "it8728",
+		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
+		  | FEAT_TEMP_OFFSET,
+	},
+	[it8782] = {
+		.name = "it8782",
+		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET,
+	},
+	[it8783] = {
+		.name = "it8783",
+		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET,
+	},
+};
+
+#define has_16bit_fans(data)	((data)->features & FEAT_16BIT_FANS)
+#define has_12mv_adc(data)	((data)->features & FEAT_12MV_ADC)
+#define has_newer_autopwm(data)	((data)->features & FEAT_NEWER_AUTOPWM)
+#define has_old_autopwm(data)	((data)->features & FEAT_OLD_AUTOPWM)
+#define has_temp_offset(data)	((data)->features & FEAT_TEMP_OFFSET)
 
 struct it87_sio_data {
 	enum chips type;
@@ -251,7 +308,7 @@ struct it87_sio_data {
 struct it87_data {
 	struct device *hwmon_dev;
 	enum chips type;
-	u8 revision;
+	u16 features;
 
 	unsigned short addr;
 	const char *name;
@@ -292,37 +349,6 @@ struct it87_data {
 	u8 auto_pwm[3][4];	/* [nr][3] is hard-coded */
 	s8 auto_temp[3][5];	/* [nr][0] is point1_temp_hyst */
 };
-
-static inline int has_12mv_adc(const struct it87_data *data)
-{
-	/*
-	 * IT8721F and later have a 12 mV ADC, also with internal scaling
-	 * on selected inputs.
-	 */
-	return data->type == it8721
-	    || data->type == it8728;
-}
-
-static inline int has_newer_autopwm(const struct it87_data *data)
-{
-	/*
-	 * IT8721F and later have separate registers for the temperature
-	 * mapping and the manual duty cycle.
-	 */
-	return data->type == it8721
-	    || data->type == it8728;
-}
-
-static inline int has_temp_offset(const struct it87_data *data)
-{
-	return data->type == it8716
-	    || data->type == it8718
-	    || data->type == it8720
-	    || data->type == it8721
-	    || data->type == it8728
-	    || data->type == it8782
-	    || data->type == it8783;
-}
 
 static int adc_lsb(const struct it87_data *data, int nr)
 {
@@ -405,35 +431,6 @@ static const unsigned int pwm_freq[8] = {
 	1500000 / 128,
 	750000 / 128,
 };
-
-static inline int has_16bit_fans(const struct it87_data *data)
-{
-	/*
-	 * IT8705F Datasheet 0.4.1, 3h == Version G.
-	 * IT8712F Datasheet 0.9.1, section 8.3.5 indicates 8h == Version J.
-	 * These are the first revisions with 16-bit tachometer support.
-	 */
-	return (data->type == it87 && data->revision >= 0x03)
-	    || (data->type == it8712 && data->revision >= 0x08)
-	    || data->type == it8716
-	    || data->type == it8718
-	    || data->type == it8720
-	    || data->type == it8721
-	    || data->type == it8728
-	    || data->type == it8782
-	    || data->type == it8783;
-}
-
-static inline int has_old_autopwm(const struct it87_data *data)
-{
-	/*
-	 * The old automatic fan speed control interface is implemented
-	 * by IT8705F chips up to revision F and IT8712F chips up to
-	 * revision G.
-	 */
-	return (data->type == it87 && data->revision < 0x03)
-	    || (data->type == it8712 && data->revision < 0x08);
-}
 
 static int it87_probe(struct platform_device *pdev);
 static int it87_remove(struct platform_device *pdev);
@@ -1952,17 +1949,6 @@ static int it87_probe(struct platform_device *pdev)
 	int err = 0, i;
 	int enable_pwm_interface;
 	int fan_beep_need_rw;
-	static const char * const names[] = {
-		"it87",
-		"it8712",
-		"it8716",
-		"it8718",
-		"it8720",
-		"it8721",
-		"it8728",
-		"it8782",
-		"it8783",
-	};
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!devm_request_region(&pdev->dev, res->start, IT87_EC_EXTENT,
@@ -1979,8 +1965,29 @@ static int it87_probe(struct platform_device *pdev)
 
 	data->addr = res->start;
 	data->type = sio_data->type;
-	data->revision = sio_data->revision;
-	data->name = names[sio_data->type];
+	data->features = it87_devices[sio_data->type].features;
+	data->name = it87_devices[sio_data->type].name;
+	/*
+	 * IT8705F Datasheet 0.4.1, 3h == Version G.
+	 * IT8712F Datasheet 0.9.1, section 8.3.5 indicates 8h == Version J.
+	 * These are the first revisions with 16-bit tachometer support.
+	 */
+	switch (data->type) {
+	case it87:
+		if (sio_data->revision >= 0x03) {
+			data->features &= ~FEAT_OLD_AUTOPWM;
+			data->features |= FEAT_16BIT_FANS;
+		}
+		break;
+	case it8712:
+		if (sio_data->revision >= 0x08) {
+			data->features &= ~FEAT_OLD_AUTOPWM;
+			data->features |= FEAT_16BIT_FANS;
+		}
+		break;
+	default:
+		break;
+	}
 
 	/* Now, we do the remaining detection. */
 	if ((it87_read_value(data, IT87_REG_CONFIG) & 0x80)
