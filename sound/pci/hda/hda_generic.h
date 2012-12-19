@@ -150,6 +150,7 @@ struct hda_gen_spec {
 	unsigned int no_primary_hp:1; /* Don't prefer HP pins to speaker pins */
 	unsigned int multi_cap_vol:1; /* allow multiple capture xxx volumes */
 	unsigned int inv_dmic_split:1; /* inverted dmic w/a for conexant */
+	unsigned int own_eapd_ctl:1; /* set EAPD by own function */
 
 	unsigned int parse_flags; /* passed to snd_hda_parse_pin_defcfg() */
 

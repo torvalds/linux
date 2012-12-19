@@ -3333,6 +3333,7 @@ EXPORT_SYMBOL_HDA(snd_hda_gen_build_pcms);
 static void set_output_and_unmute(struct hda_codec *codec, hda_nid_t pin,
 				  int pin_type, hda_nid_t dac)
 {
+	struct hda_gen_spec *spec = codec->spec;
 	struct nid_path *path;
 
 	snd_hda_set_pin_ctl_cache(codec, pin, pin_type);
@@ -3342,6 +3343,11 @@ static void set_output_and_unmute(struct hda_codec *codec, hda_nid_t pin,
 	if (path->active)
 		return;
 	snd_hda_activate_path(codec, path, true, true);
+
+	if (!spec->own_eapd_ctl &&
+	    (snd_hda_query_pin_caps(codec, pin) & AC_PINCAP_EAPD))
+		snd_hda_codec_update_cache(codec, pin, 0,
+					   AC_VERB_SET_EAPD_BTLENABLE, 0x02);
 }
 
 /* initialize primary output paths */
