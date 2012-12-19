@@ -528,8 +528,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 
 	/* if there are nt orphan nodes free them */
 	err = -EINVAL;
-	if (!is_set_ckpt_flags(F2FS_CKPT(sbi), CP_UMOUNT_FLAG) &&
-				recover_orphan_inodes(sbi))
+	if (recover_orphan_inodes(sbi))
 		goto free_node_inode;
 
 	/* read root inode and dentry */
@@ -548,8 +547,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	/* recover fsynced data */
-	if (!is_set_ckpt_flags(F2FS_CKPT(sbi), CP_UMOUNT_FLAG) &&
-				!test_opt(sbi, DISABLE_ROLL_FORWARD))
+	if (!test_opt(sbi, DISABLE_ROLL_FORWARD))
 		recover_fsync_data(sbi);
 
 	/* After POR, we can run background GC thread */
