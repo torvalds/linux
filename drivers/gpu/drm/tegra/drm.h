@@ -84,6 +84,7 @@ struct tegra_dc {
 
 	struct clk *clk;
 
+	struct mutex regs_mutex;
 	void __iomem *regs;
 	int irq;
 
