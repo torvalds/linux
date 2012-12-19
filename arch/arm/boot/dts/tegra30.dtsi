@@ -191,7 +191,7 @@
 	};
 
 	gpio: gpio {
-		compatible = "nvidia,tegra30-gpio", "nvidia,tegra20-gpio";
+		compatible = "nvidia,tegra30-gpio";
 		reg = <0x6000d000 0x1000>;
 		interrupts = <0 32 0x04
 			      0 33 0x04
