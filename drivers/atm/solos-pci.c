@@ -452,7 +452,6 @@ static ssize_t console_show(struct device *dev, struct device_attribute *attr,
 
 	len = skb->len;
 	memcpy(buf, skb->data, len);
-	dev_dbg(&card->dev->dev, "len: %d\n", len);
 
 	kfree_skb(skb);
 	return len;
