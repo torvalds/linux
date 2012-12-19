@@ -1823,49 +1823,40 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 {
 	unsigned int mask = 0;
 	const unsigned minor = iminor(file->f_dentry->d_inode);
-	struct comedi_subdevice *read_subdev;
-	struct comedi_subdevice *write_subdev;
 	struct comedi_file_info *info = comedi_file_info_from_minor(minor);
-	struct comedi_device *dev;
+	struct comedi_device *dev = comedi_dev_from_minor(minor);
+	struct comedi_subdevice *s;
 
-	if (info == NULL)
-		return -ENODEV;
-	dev = info->device;
-	if (dev == NULL)
+	if (!dev)
 		return -ENODEV;
 
 	mutex_lock(&dev->mutex);
+
 	if (!dev->attached) {
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
-		mutex_unlock(&dev->mutex);
-		return 0;
+		goto done;
 	}
 
-	mask = 0;
-	read_subdev = comedi_read_subdevice(info);
-	if (read_subdev) {
-		poll_wait(file, &read_subdev->async->wait_head, wait);
-		if (!read_subdev->busy
-		    || comedi_buf_read_n_available(read_subdev->async) > 0
-		    || !(comedi_get_subdevice_runflags(read_subdev) &
-			 SRF_RUNNING)) {
+	s = comedi_read_subdevice(info);
+	if (s) {
+		poll_wait(file, &s->async->wait_head, wait);
+		if (!s->busy || !(comedi_get_subdevice_runflags(s) & SRF_RUNNING) ||
+		    comedi_buf_read_n_available(s->async) > 0)
 			mask |= POLLIN | POLLRDNORM;
-		}
-	}
-	write_subdev = comedi_write_subdevice(info);
-	if (write_subdev) {
-		poll_wait(file, &write_subdev->async->wait_head, wait);
-		comedi_buf_write_alloc(write_subdev->async,
-				       write_subdev->async->prealloc_bufsz);
-		if (!write_subdev->busy
-		    || !(comedi_get_subdevice_runflags(write_subdev) &
-			 SRF_RUNNING)
-		    || comedi_buf_write_n_allocated(write_subdev->async) >=
-		    bytes_per_sample(write_subdev->async->subdevice)) {
-			mask |= POLLOUT | POLLWRNORM;
-		}
 	}
 
+	s = comedi_write_subdevice(info);
+	if (s) {
+		unsigned int bps = bytes_per_sample(s->async->subdevice);
+
+		poll_wait(file, &s->async->wait_head, wait);
+		comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
+		if (!s->busy || !(comedi_get_subdevice_runflags(s) & SRF_RUNNING) ||
+		    comedi_buf_write_n_allocated(s->async) >= bps)
+			mask |= POLLOUT | POLLWRNORM;
+	}
+
+done:
 	mutex_unlock(&dev->mutex);
 	return mask;
 }
