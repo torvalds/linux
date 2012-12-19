@@ -729,5 +729,5 @@ void acpi_ns_dump_tables(acpi_handle search_base, u32 max_depth)
 			     ACPI_OWNER_ID_MAX, search_handle);
 	return_VOID;
 }
-#endif				/* _ACPI_ASL_COMPILER */
-#endif				/* defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER) */
+#endif
+#endif

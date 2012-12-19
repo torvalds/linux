@@ -595,7 +595,7 @@ typedef u32 acpi_object_type;
 
 /*
  * These are special object types that never appear in
- * a Namespace node, only in a union acpi_operand_object
+ * a Namespace node, only in an object of union acpi_operand_object
  */
 #define ACPI_TYPE_LOCAL_EXTRA           0x1C
 #define ACPI_TYPE_LOCAL_DATA            0x1D
@@ -662,7 +662,7 @@ typedef u32 acpi_event_status;
 #define ACPI_GPE_MAX                    0xFF
 #define ACPI_NUM_GPE                    256
 
-/* Actions for acpi_set_gpe_wake_mask, acpi_hw_low_set_gpe */
+/* Actions for acpi_set_gpe, acpi_gpe_wakeup, acpi_hw_low_set_gpe */
 
 #define ACPI_GPE_ENABLE                 0
 #define ACPI_GPE_DISABLE                1

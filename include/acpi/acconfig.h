@@ -138,7 +138,7 @@
 
 /* Maximum sleep allowed via Sleep() operator */
 
-#define ACPI_MAX_SLEEP                  2000	/* Two seconds */
+#define ACPI_MAX_SLEEP                  2000	/* 2000 millisec == two seconds */
 
 /* Address Range lists are per-space_id (Memory and I/O only) */
 

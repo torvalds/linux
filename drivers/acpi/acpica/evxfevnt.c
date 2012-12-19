@@ -210,8 +210,8 @@ ACPI_EXPORT_SYMBOL(acpi_enable_event)
  *
  * FUNCTION:    acpi_disable_event
  *
- * PARAMETERS:  Event           - The fixed eventto be enabled
- *              Flags           - Reserved
+ * PARAMETERS:  event           - The fixed event to be disabled
+ *              flags           - Reserved
  *
  * RETURN:      Status
  *

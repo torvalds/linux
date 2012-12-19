@@ -120,7 +120,11 @@ acpi_ex_add_table(u32 table_index,
 	acpi_ns_exec_module_code_list();
 	acpi_ex_enter_interpreter();
 
-	/* Update GPEs for any new _Lxx/_Exx methods. Ignore errors */
+	/*
+	 * Update GPEs for any new _Lxx/_Exx methods. Ignore errors. The host is
+	 * responsible for discovering any new wake GPEs by running _PRW methods
+	 * that may have been loaded by this table.
+	 */
 
 	status = acpi_tb_get_owner_id(table_index, &owner_id);
 	if (ACPI_SUCCESS(status)) {
@@ -158,7 +162,7 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 
 	ACPI_FUNCTION_TRACE(ex_load_table_op);
 
-	/* Validate lengths for the signature_string, OEMIDString, OEMtable_iD */
+	/* Validate lengths for the Signature, oem_id, and oem_table_id strings */
 
 	if ((operand[0]->string.length > ACPI_NAME_SIZE) ||
 	    (operand[1]->string.length > ACPI_OEM_ID_SIZE) ||

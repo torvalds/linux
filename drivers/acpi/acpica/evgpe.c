@@ -561,8 +561,8 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 			status = AE_NO_MEMORY;
 		} else {
 			/*
-			 * Invoke the GPE Method (_Lxx, _Exx) i.e., evaluate the _Lxx/_Exx
-			 * control method that corresponds to this GPE
+			 * Invoke the GPE Method (_Lxx, _Exx) i.e., evaluate the
+			 * _Lxx/_Exx control method that corresponds to this GPE
 			 */
 			info->prefix_node =
 			    local_gpe_event_info->dispatch.method_node;

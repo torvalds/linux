@@ -80,10 +80,10 @@ acpi_status acpi_reset(void)
 
 	if (reset_reg->space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
 		/*
-		 * For I/O space, write directly to the OSL. This
-		 * bypasses the port validation mechanism, which may
-		 * block a valid write to the reset register. Spec
-		 * section 4.7.3.6 requires register width to be 8.
+		 * For I/O space, write directly to the OSL. This bypasses the port
+		 * validation mechanism, which may block a valid write to the reset
+		 * register.
+		 * Spec section 4.7.3.6 requires register width to be 8.
 		 */
 		status =
 		    acpi_os_write_port((acpi_io_address) reset_reg->address,
@@ -333,7 +333,7 @@ ACPI_EXPORT_SYMBOL(acpi_read_bit_register)
  * FUNCTION:    acpi_write_bit_register
  *
  * PARAMETERS:  register_id     - ID of ACPI Bit Register to access
- *              Value           - Value to write to the register, in bit
+ *              value           - Value to write to the register, in bit
  *                                position zero. The bit is automatically
  *                                shifted to the correct position.
  *

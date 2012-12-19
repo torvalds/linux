@@ -189,11 +189,10 @@ struct acpi_namespace_node {
 #define ANOBJ_EVALUATED                 0x20	/* Set on first evaluation of node */
 #define ANOBJ_ALLOCATED_BUFFER          0x40	/* Method AML buffer is dynamic (install_method) */
 
-#define ANOBJ_IS_EXTERNAL               0x08	/* i_aSL only: This object created via External() */
-#define ANOBJ_METHOD_NO_RETVAL          0x10	/* i_aSL only: Method has no return value */
-#define ANOBJ_METHOD_SOME_NO_RETVAL     0x20	/* i_aSL only: Method has at least one return value */
-#define ANOBJ_IS_BIT_OFFSET             0x40	/* i_aSL only: Reference is a bit offset */
-#define ANOBJ_IS_REFERENCED             0x80	/* i_aSL only: Object was referenced */
+#define ANOBJ_IS_EXTERNAL               0x08	/* iASL only: This object created via External() */
+#define ANOBJ_METHOD_NO_RETVAL          0x10	/* iASL only: Method has no return value */
+#define ANOBJ_METHOD_SOME_NO_RETVAL     0x20	/* iASL only: Method has at least one return value */
+#define ANOBJ_IS_REFERENCED             0x80	/* iASL only: Object was referenced */
 
 /* Internal ACPI table management - master table list */
 
@@ -416,6 +415,10 @@ struct acpi_gpe_notify_object {
 	struct acpi_gpe_notify_object *next;
 };
 
+/*
+ * GPE dispatch info. At any time, the GPE can have at most one type
+ * of dispatch - Method, Handler, or Implicit Notify.
+ */
 union acpi_gpe_dispatch_info {
 	struct acpi_namespace_node *method_node;	/* Method node for this GPE level */
 	struct acpi_gpe_handler_info *handler;  /* Installed GPE handler */
@@ -679,6 +682,7 @@ struct acpi_opcode_info {
 	u8 type;		/* Opcode type */
 };
 
+/* Value associated with the parse object */
 union acpi_parse_value {
 	u64 integer;		/* Integer constant (Up to 64 bits) */
 	u32 size;		/* bytelist or field size */

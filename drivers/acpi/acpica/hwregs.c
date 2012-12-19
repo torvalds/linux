@@ -485,7 +485,7 @@ acpi_status acpi_hw_register_write(u32 register_id, u32 value)
 						&acpi_gbl_xpm1b_status);
 		break;
 
-	case ACPI_REGISTER_PM1_ENABLE:	/* PM1 A/B: 16-bit access */
+	case ACPI_REGISTER_PM1_ENABLE:	/* PM1 A/B: 16-bit access each */
 
 		status = acpi_hw_write_multiple(value,
 						&acpi_gbl_xpm1a_enable,

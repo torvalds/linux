@@ -142,9 +142,9 @@ acpi_ex_system_memory_space_handler(u32 function,
 		}
 
 		/*
-		 * Attempt to map from the requested address to the end of the region.
-		 * However, we will never map more than one page, nor will we cross
-		 * a page boundary.
+		 * October 2009: Attempt to map from the requested address to the
+		 * end of the region. However, we will never map more than one
+		 * page, nor will we cross a page boundary.
 		 */
 		map_length = (acpi_size)
 		    ((mem_info->address + mem_info->length) - address);
@@ -154,7 +154,11 @@ acpi_ex_system_memory_space_handler(u32 function,
 		 * a page boundary, just map up to the page boundary, do not cross.
 		 * On some systems, crossing a page boundary while mapping regions
 		 * can cause warnings if the pages have different attributes
-		 * due to resource management
+		 * due to resource management.
+		 *
+		 * This has the added benefit of constraining a single mapping to
+		 * one page, which is similar to the original code that used a 4k
+		 * maximum window.
 		 */
 		page_boundary_map_length =
 		    ACPI_ROUND_UP(address, ACPI_DEFAULT_PAGE_SIZE) - address;

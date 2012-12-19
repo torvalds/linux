@@ -350,7 +350,7 @@ ACPI_EXPORT_SYMBOL(acpi_enter_sleep_state_prep)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Enter a system sleep state (see ACPI 2.0 spec p 231)
+ * DESCRIPTION: Enter a system sleep state
  *              THIS FUNCTION MUST BE CALLED WITH INTERRUPTS DISABLED
  *
  ******************************************************************************/
@@ -382,8 +382,9 @@ ACPI_EXPORT_SYMBOL(acpi_enter_sleep_state)
  * RETURN:      Status
  *
  * DESCRIPTION: Perform the first state of OS-independent ACPI cleanup after a
- *              sleep.
- *              Called with interrupts DISABLED.
+ *              sleep. Called with interrupts DISABLED.
+ *              We break wake/resume into 2 stages so that OSPM can handle
+ *              various OS-specific tasks between the two steps.
  *
  ******************************************************************************/
 acpi_status acpi_leave_sleep_state_prep(u8 sleep_state)
