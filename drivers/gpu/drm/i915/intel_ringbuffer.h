@@ -205,7 +205,7 @@ static inline void intel_ring_emit(struct intel_ring_buffer *ring,
 }
 void intel_ring_advance(struct intel_ring_buffer *ring);
 int __must_check intel_ring_idle(struct intel_ring_buffer *ring);
-int __must_check intel_ring_handle_seqno_wrap(struct intel_ring_buffer *ring);
+void intel_ring_init_seqno(struct intel_ring_buffer *ring, u32 seqno);
 int intel_ring_flush_all_caches(struct intel_ring_buffer *ring);
 int intel_ring_invalidate_all_caches(struct intel_ring_buffer *ring);
 

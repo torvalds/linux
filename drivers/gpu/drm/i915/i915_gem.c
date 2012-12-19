@@ -1954,9 +1954,7 @@ i915_gem_handle_seqno_wrap(struct drm_device *dev)
 
 	/* Finally reset hw state */
 	for_each_ring(ring, dev_priv, i) {
-		ret = intel_ring_handle_seqno_wrap(ring);
-		if (ret)
-			return ret;
+		intel_ring_init_seqno(ring, 0);
 
 		for (j = 0; j < ARRAY_SIZE(ring->sync_seqno); j++)
 			ring->sync_seqno[j] = 0;
@@ -3935,6 +3933,8 @@ i915_gem_init_hw(struct drm_device *dev)
 
 	i915_gem_init_swizzling(dev);
 
+	dev_priv->next_seqno = dev_priv->last_seqno = (u32)~0 - 0x1000;
+
 	ret = intel_init_render_ring_buffer(dev);
 	if (ret)
 		return ret;
@@ -3950,8 +3950,6 @@ i915_gem_init_hw(struct drm_device *dev)
 		if (ret)
 			goto cleanup_bsd_ring;
 	}
-
-	dev_priv->next_seqno = (u32)-1 - 0x1000;
 
 	/*
 	 * XXX: There was some w/a described somewhere suggesting loading
