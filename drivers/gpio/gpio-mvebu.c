@@ -41,7 +41,6 @@
 #include <linux/io.h>
 #include <linux/of_irq.h>
 #include <linux/of_device.h>
-#include <linux/platform_device.h>
 #include <linux/pinctrl/consumer.h>
 
 /*
@@ -469,19 +468,6 @@ static void mvebu_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	}
 }
 
-static struct platform_device_id mvebu_gpio_ids[] = {
-	{
-		.name = "orion-gpio",
-	}, {
-		.name = "mv78200-gpio",
-	}, {
-		.name = "armadaxp-gpio",
-	}, {
-		/* sentinel */
-	},
-};
-MODULE_DEVICE_TABLE(platform, mvebu_gpio_ids);
-
 static struct of_device_id mvebu_gpio_of_match[] = {
 	{
 		.compatible = "marvell,orion-gpio",
@@ -555,9 +541,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	mvchip->chip.base = id * MVEBU_MAX_GPIO_PER_BANK;
 	mvchip->chip.ngpio = ngpios;
 	mvchip->chip.can_sleep = 0;
-#ifdef CONFIG_OF
 	mvchip->chip.of_node = np;
-#endif
 
 	spin_lock_init(&mvchip->lock);
 	mvchip->membase = devm_request_and_ioremap(&pdev->dev, res);
@@ -698,7 +682,6 @@ static struct platform_driver mvebu_gpio_driver = {
 		.of_match_table = mvebu_gpio_of_match,
 	},
 	.probe		= mvebu_gpio_probe,
-	.id_table	= mvebu_gpio_ids,
 };
 
 static int __init mvebu_gpio_init(void)
