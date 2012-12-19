@@ -1980,38 +1980,25 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 	DECLARE_WAITQUEUE(wait, current);
 	const unsigned minor = iminor(file->f_dentry->d_inode);
 	struct comedi_file_info *info = comedi_file_info_from_minor(minor);
-	struct comedi_device *dev;
+	struct comedi_device *dev = comedi_dev_from_minor(minor);
 
-	if (info == NULL)
-		return -ENODEV;
-	dev = info->device;
-	if (dev == NULL)
+	if (!dev)
 		return -ENODEV;
 
 	if (!dev->attached) {
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
-		retval = -ENODEV;
-		goto done;
+		return -ENODEV;
 	}
 
 	s = comedi_read_subdevice(info);
-	if (s == NULL) {
-		retval = -EIO;
-		goto done;
-	}
+	if (!s)
+		return -EIO;
+
 	async = s->async;
-	if (!nbytes) {
-		retval = 0;
-		goto done;
-	}
-	if (!s->busy) {
-		retval = 0;
-		goto done;
-	}
-	if (s->busy != file) {
-		retval = -EACCES;
-		goto done;
-	}
+	if (!s->busy || !nbytes)
+		return 0;
+	if (s->busy != file)
+		return -EACCES;
 
 	add_wait_queue(&async->wait_head, &wait);
 	while (nbytes > 0 && !retval) {
@@ -2080,7 +2067,6 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&async->wait_head, &wait);
 
-done:
 	return count ? count : retval;
 }
 
