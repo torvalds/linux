@@ -128,9 +128,11 @@ struct solos_card {
 	struct sk_buff_head cli_queue[4];
 	struct sk_buff *tx_skb[4];
 	struct sk_buff *rx_skb[4];
+	unsigned char *dma_bounce;
 	wait_queue_head_t param_wq;
 	wait_queue_head_t fw_wq;
 	int using_dma;
+	int dma_alignment;
 	int fpga_version;
 	int buffer_size;
 	int atmel_flash;
@@ -1083,7 +1085,12 @@ static uint32_t fpga_tx(struct solos_card *card)
 				tx_started |= 1 << port;
 				oldskb = skb; /* We're done with this skb already */
 			} else if (skb && card->using_dma) {
-				SKB_CB(skb)->dma_addr = pci_map_single(card->dev, skb->data,
+				unsigned char *data = skb->data;
+				if ((unsigned long)data & card->dma_alignment) {
+					data = card->dma_bounce + (BUF_SIZE * port);
+					memcpy(data, skb->data, skb->len);
+				}
+				SKB_CB(skb)->dma_addr = pci_map_single(card->dev, data,
 								       skb->len, PCI_DMA_TODEVICE);
 				card->tx_skb[port] = skb;
 				iowrite32(SKB_CB(skb)->dma_addr,
@@ -1261,17 +1268,26 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	else
 		card->atmel_flash = 0;
 
+	data32 = ioread32(card->config_regs + PORTS);
+	card->nr_ports = (data32 & 0x000000FF);
+
 	if (card->fpga_version >= DMA_SUPPORTED) {
 		pci_set_master(dev);
 		card->using_dma = 1;
+		if (1) { /* All known FPGA versions so far */
+			card->dma_alignment = 3;
+			card->dma_bounce = kmalloc(card->nr_ports * BUF_SIZE, GFP_KERNEL);
+			if (!card->dma_bounce) {
+				dev_warn(&card->dev->dev, "Failed to allocate DMA bounce buffers\n");
+				/* Fallback to MMIO doesn't work */
+				goto out_unmap_both;
+			}
+		}
 	} else {
 		card->using_dma = 0;
 		/* Set RX empty flag for all ports */
 		iowrite32(0xF0, card->config_regs + FLAGS_ADDR);
 	}
-
-	data32 = ioread32(card->config_regs + PORTS);
-	card->nr_ports = (data32 & 0x000000FF);
 
 	pci_set_drvdata(dev, card);
 
@@ -1319,6 +1335,7 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	tasklet_kill(&card->tlet);
 	
  out_unmap_both:
+	kfree(card->dma_bounce);
 	pci_set_drvdata(dev, NULL);
 	pci_iounmap(dev, card->buffers);
  out_unmap_config:
@@ -1428,6 +1445,8 @@ static void fpga_remove(struct pci_dev *dev)
 
 	free_irq(dev->irq, card);
 	tasklet_kill(&card->tlet);
+
+	kfree(card->dma_bounce);
 
 	/* Release device from reset */
 	iowrite32(0, card->config_regs + FPGA_MODE);
