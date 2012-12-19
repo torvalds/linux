@@ -1086,7 +1086,7 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 			    ("ni_mio_common: a_status=0xffff.  Card removed?\n");
 			/* we probably aren't even running a command now,
 			 * so it's a good idea to be careful. */
-			if (comedi_get_subdevice_runflags(s) & SRF_RUNNING) {
+			if (comedi_is_subdevice_running(s)) {
 				s->async->events |=
 				    COMEDI_CB_ERROR | COMEDI_CB_EOA;
 				ni_event(dev, s);

@@ -409,7 +409,7 @@ static int do_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	int ret = 0;
 
-	if ((comedi_get_subdevice_runflags(s) & SRF_RUNNING) && s->cancel)
+	if (comedi_is_subdevice_running(s) && s->cancel)
 		ret = s->cancel(dev, s);
 
 	do_become_nonbusy(dev, s);
@@ -660,7 +660,7 @@ static int do_subdinfo_ioctl(struct comedi_device *dev,
 		us->type = s->type;
 		us->n_chan = s->n_chan;
 		us->subd_flags = s->subdev_flags;
-		if (comedi_get_subdevice_runflags(s) & SRF_RUNNING)
+		if (comedi_is_subdevice_running(s))
 			us->subd_flags |= SDF_RUNNING;
 #define TIMER_nanosec 5		/* backwards compatibility */
 		us->timer_type = TIMER_nanosec;
@@ -1852,7 +1852,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 	s = comedi_read_subdevice(info);
 	if (s) {
 		poll_wait(file, &s->async->wait_head, wait);
-		if (!s->busy || !(comedi_get_subdevice_runflags(s) & SRF_RUNNING) ||
+		if (!s->busy || !comedi_is_subdevice_running(s) ||
 		    comedi_buf_read_n_available(s->async) > 0)
 			mask |= POLLIN | POLLRDNORM;
 	}
@@ -1863,7 +1863,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 
 		poll_wait(file, &s->async->wait_head, wait);
 		comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
-		if (!s->busy || !(comedi_get_subdevice_runflags(s) & SRF_RUNNING) ||
+		if (!s->busy || !comedi_is_subdevice_running(s) ||
 		    comedi_buf_write_n_allocated(s->async) >= bps)
 			mask |= POLLOUT | POLLWRNORM;
 	}
@@ -1907,7 +1907,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 	while (nbytes > 0 && !retval) {
 		set_current_state(TASK_INTERRUPTIBLE);
 
-		if (!(comedi_get_subdevice_runflags(s) & SRF_RUNNING)) {
+		if (!comedi_is_subdevice_running(s)) {
 			if (count == 0) {
 				if (comedi_get_subdevice_runflags(s) &
 					SRF_ERROR) {
@@ -2014,7 +2014,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 			n = m;
 
 		if (n == 0) {
-			if (!(comedi_get_subdevice_runflags(s) & SRF_RUNNING)) {
+			if (!comedi_is_subdevice_running(s)) {
 				do_become_nonbusy(dev, s);
 				if (comedi_get_subdevice_runflags(s) &
 				    SRF_ERROR) {
@@ -2227,7 +2227,7 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* DPRINTK("comedi_event 0x%x\n",mask); */
 
-	if ((comedi_get_subdevice_runflags(s) & SRF_RUNNING) == 0)
+	if (!comedi_is_subdevice_running(s))
 		return;
 
 	if (s->
