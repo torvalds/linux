@@ -90,6 +90,16 @@ static DEFINE_SPINLOCK(comedi_file_info_table_lock);
 static struct comedi_device_file_info
 *comedi_file_info_table[COMEDI_NUM_MINORS];
 
+struct comedi_device *comedi_dev_from_minor(unsigned minor)
+{
+	struct comedi_device_file_info *info;
+
+	info = comedi_get_device_file_info(minor);
+
+	return info ? info->device : NULL;
+}
+EXPORT_SYMBOL_GPL(comedi_dev_from_minor);
+
 static struct comedi_subdevice *
 comedi_get_read_subdevice(const struct comedi_device_file_info *info)
 {
