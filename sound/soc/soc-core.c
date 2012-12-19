@@ -2917,7 +2917,7 @@ int snd_soc_info_volsw_range(struct snd_kcontrol *kcontrol,
 	platform_max = mc->platform_max;
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	uinfo->count = 1;
+	uinfo->count = snd_soc_volsw_is_stereo(mc) ? 2 : 1;
 	uinfo->value.integer.min = 0;
 	uinfo->value.integer.max = platform_max - min;
 
@@ -2941,12 +2941,14 @@ int snd_soc_put_volsw_range(struct snd_kcontrol *kcontrol,
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	unsigned int reg = mc->reg;
+	unsigned int rreg = mc->rreg;
 	unsigned int shift = mc->shift;
 	int min = mc->min;
 	int max = mc->max;
 	unsigned int mask = (1 << fls(max)) - 1;
 	unsigned int invert = mc->invert;
 	unsigned int val, val_mask;
+	int ret;
 
 	val = ((ucontrol->value.integer.value[0] + min) & mask);
 	if (invert)
@@ -2954,7 +2956,21 @@ int snd_soc_put_volsw_range(struct snd_kcontrol *kcontrol,
 	val_mask = mask << shift;
 	val = val << shift;
 
-	return snd_soc_update_bits_locked(codec, reg, val_mask, val);
+	ret = snd_soc_update_bits_locked(codec, reg, val_mask, val);
+	if (ret != 0)
+		return ret;
+
+	if (snd_soc_volsw_is_stereo(mc)) {
+		val = ((ucontrol->value.integer.value[1] + min) & mask);
+		if (invert)
+			val = max - val;
+		val_mask = mask << shift;
+		val = val << shift;
+
+		ret = snd_soc_update_bits_locked(codec, rreg, val_mask, val);
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_put_volsw_range);
 
@@ -2974,11 +2990,13 @@ int snd_soc_get_volsw_range(struct snd_kcontrol *kcontrol,
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	unsigned int reg = mc->reg;
+	unsigned int rreg = mc->rreg;
 	unsigned int shift = mc->shift;
 	int min = mc->min;
 	int max = mc->max;
 	unsigned int mask = (1 << fls(max)) - 1;
 	unsigned int invert = mc->invert;
+	int ret;
 
 	ucontrol->value.integer.value[0] =
 		(snd_soc_read(codec, reg) >> shift) & mask;
@@ -2987,6 +3005,16 @@ int snd_soc_get_volsw_range(struct snd_kcontrol *kcontrol,
 			max - ucontrol->value.integer.value[0];
 	ucontrol->value.integer.value[0] =
 		ucontrol->value.integer.value[0] - min;
+
+	if (snd_soc_volsw_is_stereo(mc)) {
+		ucontrol->value.integer.value[1] =
+			(snd_soc_read(codec, rreg) >> shift) & mask;
+		if (invert)
+			ucontrol->value.integer.value[1] =
+				max - ucontrol->value.integer.value[1];
+		ucontrol->value.integer.value[1] =
+			ucontrol->value.integer.value[1] - min;
+	}
 
 	return 0;
 }
