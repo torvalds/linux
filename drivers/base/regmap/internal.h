@@ -177,5 +177,6 @@ int regcache_lookup_reg(struct regmap *map, unsigned int reg);
 
 extern struct regcache_ops regcache_rbtree_ops;
 extern struct regcache_ops regcache_lzo_ops;
+extern struct regcache_ops regcache_flat_ops;
 
 #endif

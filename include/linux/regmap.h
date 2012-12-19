@@ -28,7 +28,8 @@ struct regmap_range_cfg;
 enum regcache_type {
 	REGCACHE_NONE,
 	REGCACHE_RBTREE,
-	REGCACHE_COMPRESSED
+	REGCACHE_COMPRESSED,
+	REGCACHE_FLAT,
 };
 
 /**
