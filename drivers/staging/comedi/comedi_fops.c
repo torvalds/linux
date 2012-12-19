@@ -49,10 +49,6 @@
 
 #include "comedi_internal.h"
 
-MODULE_AUTHOR("http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi core module");
-MODULE_LICENSE("GPL");
-
 #ifdef CONFIG_COMEDI_DEBUG
 int comedi_debug;
 EXPORT_SYMBOL(comedi_debug);
@@ -2515,3 +2511,7 @@ void comedi_free_subdevice_minor(struct comedi_subdevice *s)
 	}
 	kfree(info);
 }
+
+MODULE_AUTHOR("http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi core module");
+MODULE_LICENSE("GPL");
