@@ -663,17 +663,17 @@ void acpi_ns_terminate(void)
 
 u32 acpi_ns_opens_scope(acpi_object_type type)
 {
-	ACPI_FUNCTION_TRACE_STR(ns_opens_scope, acpi_ut_get_type_name(type));
+	ACPI_FUNCTION_ENTRY();
 
-	if (!acpi_ut_valid_object_type(type)) {
+	if (type > ACPI_TYPE_LOCAL_MAX) {
 
 		/* type code out of range  */
 
 		ACPI_WARNING((AE_INFO, "Invalid Object Type 0x%X", type));
-		return_UINT32(ACPI_NS_NORMAL);
+		return (ACPI_NS_NORMAL);
 	}
 
-	return_UINT32(((u32)acpi_gbl_ns_properties[type]) & ACPI_NS_NEWSCOPE);
+	return (((u32)acpi_gbl_ns_properties[type]) & ACPI_NS_NEWSCOPE);
 }
 
 /*******************************************************************************

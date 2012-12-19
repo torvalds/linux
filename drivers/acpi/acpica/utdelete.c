@@ -340,7 +340,7 @@ void acpi_ut_delete_internal_object_list(union acpi_operand_object **obj_list)
 {
 	union acpi_operand_object **internal_obj;
 
-	ACPI_FUNCTION_TRACE(ut_delete_internal_object_list);
+	ACPI_FUNCTION_NAME(ut_delete_internal_object_list);
 
 	/* Walk the null-terminated internal list */
 
@@ -351,7 +351,7 @@ void acpi_ut_delete_internal_object_list(union acpi_operand_object **obj_list)
 	/* Free the combined parameter pointer list and object array */
 
 	ACPI_FREE(obj_list);
-	return_VOID;
+	return;
 }
 
 /*******************************************************************************
@@ -484,7 +484,7 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 	union acpi_generic_state *state;
 	u32 i;
 
-	ACPI_FUNCTION_TRACE_PTR(ut_update_object_reference, object);
+	ACPI_FUNCTION_NAME(ut_update_object_reference);
 
 	while (object) {
 
@@ -493,7 +493,7 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 		if (ACPI_GET_DESCRIPTOR_TYPE(object) == ACPI_DESC_TYPE_NAMED) {
 			ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
 					  "Object %p is NS handle\n", object));
-			return_ACPI_STATUS(AE_OK);
+			return (AE_OK);
 		}
 
 		/*
@@ -643,7 +643,7 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 		}
 	}
 
-	return_ACPI_STATUS(AE_OK);
+	return (AE_OK);
 
       error_exit:
 
@@ -657,7 +657,7 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 		acpi_ut_delete_generic_state(state);
 	}
 
-	return_ACPI_STATUS(status);
+	return (status);
 }
 
 /*******************************************************************************
@@ -676,12 +676,12 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 void acpi_ut_add_reference(union acpi_operand_object *object)
 {
 
-	ACPI_FUNCTION_TRACE_PTR(ut_add_reference, object);
+	ACPI_FUNCTION_NAME(ut_add_reference);
 
 	/* Ensure that we have a valid object */
 
 	if (!acpi_ut_valid_internal_object(object)) {
-		return_VOID;
+		return;
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
@@ -691,7 +691,7 @@ void acpi_ut_add_reference(union acpi_operand_object *object)
 	/* Increment the reference count */
 
 	(void)acpi_ut_update_object_reference(object, REF_INCREMENT);
-	return_VOID;
+	return;
 }
 
 /*******************************************************************************
@@ -709,7 +709,7 @@ void acpi_ut_add_reference(union acpi_operand_object *object)
 void acpi_ut_remove_reference(union acpi_operand_object *object)
 {
 
-	ACPI_FUNCTION_TRACE_PTR(ut_remove_reference, object);
+	ACPI_FUNCTION_NAME(ut_remove_reference);
 
 	/*
 	 * Allow a NULL pointer to be passed in, just ignore it. This saves
@@ -718,13 +718,13 @@ void acpi_ut_remove_reference(union acpi_operand_object *object)
 	 */
 	if (!object ||
 	    (ACPI_GET_DESCRIPTOR_TYPE(object) == ACPI_DESC_TYPE_NAMED)) {
-		return_VOID;
+		return;
 	}
 
 	/* Ensure that we have a valid object */
 
 	if (!acpi_ut_valid_internal_object(object)) {
-		return_VOID;
+		return;
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
@@ -737,5 +737,5 @@ void acpi_ut_remove_reference(union acpi_operand_object *object)
 	 * of all subobjects!)
 	 */
 	(void)acpi_ut_update_object_reference(object, REF_DECREMENT);
-	return_VOID;
+	return;
 }
