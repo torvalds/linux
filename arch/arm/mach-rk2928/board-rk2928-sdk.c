@@ -188,7 +188,7 @@ static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 {
 	int ret = 0;
 
-        rk30_mux_api_set(LCD_MUX_NAME, LCD_GPIO_MODE);
+       // rk30_mux_api_set(LCD_MUX_NAME, LCD_GPIO_MODE);
 
 	ret = gpio_request(LCD_EN, NULL);
 	if (ret != 0)
@@ -531,6 +531,65 @@ static void rkusb_wifi_power(int on) {
 /**************************************************************************************************
  * SDMMC devices,  include the module of SD,MMC,and SDIO.noted by xbw at 2012-03-05
 **************************************************************************************************/
+
+#ifdef CONFIG_RFKILL_RK
+// bluetooth rfkill device, its driver in net/rfkill/rfkill-rk.c
+static struct rfkill_rk_platform_data rfkill_rk_platdata = {
+    .type           = RFKILL_TYPE_BLUETOOTH,
+    .poweron_gpio   = { // BT_REG_ON
+        .io             = RK2928_PIN1_PA3,
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = NULL,
+            },
+        },
+
+    .reset_gpio     = { // BT_RST
+        .io             = RK2928_PIN3_PD5, // set io to INVALID_GPIO for disable it
+        .enable         = GPIO_LOW,
+        .iomux          = {
+            .name           = NULL,
+            },
+        },
+
+    .wake_gpio      = { // BT_WAKE, use to control bt's sleep and wakeup
+        .io             = RK2928_PIN0_PC6, // set io to INVALID_GPIO for disable it
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name           = NULL,
+            },
+        },
+
+    .wake_host_irq  = { // BT_HOST_WAKE, for bt wakeup host when it is in deep sleep
+        .gpio           = {
+            .io         = RK2928_PIN0_PC5, // set io to INVALID_GPIO for disable it
+            .enable     = GPIO_LOW,      // set GPIO_LOW for falling, set 0 for rising
+            .iomux      = {
+                .name       = NULL,
+            },
+        },
+    },
+
+    .rts_gpio       = { // UART_RTS, enable or disable BT's data coming
+        .io         = RK2928_PIN0_PC3, // set io to INVALID_GPIO for disable it
+        .enable      = GPIO_LOW,
+        .iomux      = {
+           .name        = GPIO0C3_UART0_CTSN_NAME,
+           .fgpio       = GPIO0C_GPIO0C3,
+           .fmux        = GPIO0C_UART0_RTSN,//GPIO0C_UART0_CTSN,
+            },
+        },
+};
+
+static struct platform_device device_rfkill_rk = {
+    .name   = "rfkill_rk",
+    .id     = -1,
+    .dev    = {
+        .platform_data = &rfkill_rk_platdata,
+        },
+};
+#endif
+
 #ifdef CONFIG_SDMMC_RK29
 #include "board-rk2928-sdk-sdmmc.c"
 #endif
@@ -832,6 +891,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_MT5931_MT6622
 	&device_mt6622,
+#endif
+#ifdef CONFIG_RFKILL_RK
+	&device_rfkill_rk,
 #endif
 };
 //i2c

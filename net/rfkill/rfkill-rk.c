@@ -70,7 +70,7 @@ enum {
 #elif defined (CONFIG_ARCH_RK30)
     #define rk_mux_api_set(name,mode)      rk30_mux_api_set(name,mode)
 #else
-    #define rk_mux_api_set(name,mode)
+    #define rk_mux_api_set(name,mode)      rk30_mux_api_set(name,mode)
 #endif
 
 // RK29+BCM4329, 其wifi与bt的power控制脚是接在一起的
@@ -460,7 +460,11 @@ static int rfkill_rk_probe(struct platform_device *pdev)
     ret = rfkill_rk_setup_wake_irq(rfkill);
     if (ret) goto fail_wake;
 
+#ifdef CONFIG_ARCH_RK2928
+    ret = rfkill_rk_setup_gpio(&pdata->rts_gpio, IOMUX_FMUX, rfkill->pdata->name, "rts"); 
+#else
     ret = rfkill_rk_setup_gpio(&(pdata->rts_gpio), IOMUX_FNORMAL, rfkill->pdata->name, "rts");
+#endif
     if (ret) goto fail_wake_host_irq;
 
     // 创建并注册RFKILL设备
