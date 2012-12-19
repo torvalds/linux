@@ -482,3 +482,10 @@ void br_mdb_init(void)
 	rtnl_register(PF_BRIDGE, RTM_NEWMDB, br_mdb_add, NULL, NULL);
 	rtnl_register(PF_BRIDGE, RTM_DELMDB, br_mdb_del, NULL, NULL);
 }
+
+void br_mdb_uninit(void)
+{
+	rtnl_unregister(PF_BRIDGE, RTM_GETMDB);
+	rtnl_unregister(PF_BRIDGE, RTM_NEWMDB);
+	rtnl_unregister(PF_BRIDGE, RTM_DELMDB);
+}
