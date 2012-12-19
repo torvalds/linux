@@ -1608,14 +1608,11 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 				  unsigned long arg)
 {
 	const unsigned minor = iminor(file->f_dentry->d_inode);
-	struct comedi_device_file_info *dev_file_info =
-	    comedi_get_device_file_info(minor);
-	struct comedi_device *dev;
+	struct comedi_device *dev = comedi_dev_from_minor(minor);
 	int rc;
 
-	if (dev_file_info == NULL || dev_file_info->device == NULL)
+	if (!dev)
 		return -ENODEV;
-	dev = dev_file_info->device;
 
 	mutex_lock(&dev->mutex);
 
@@ -2088,12 +2085,9 @@ done:
 static int comedi_open(struct inode *inode, struct file *file)
 {
 	const unsigned minor = iminor(inode);
-	struct comedi_device_file_info *dev_file_info =
-	    comedi_get_device_file_info(minor);
-	struct comedi_device *dev =
-	    dev_file_info ? dev_file_info->device : NULL;
+	struct comedi_device *dev = comedi_dev_from_minor(minor);
 
-	if (dev == NULL) {
+	if (!dev) {
 		DPRINTK("invalid minor number\n");
 		return -ENODEV;
 	}
@@ -2168,14 +2162,9 @@ ok:
 static int comedi_fasync(int fd, struct file *file, int on)
 {
 	const unsigned minor = iminor(file->f_dentry->d_inode);
-	struct comedi_device_file_info *dev_file_info;
-	struct comedi_device *dev;
-	dev_file_info = comedi_get_device_file_info(minor);
+	struct comedi_device *dev = comedi_dev_from_minor(minor);
 
-	if (dev_file_info == NULL)
-		return -ENODEV;
-	dev = dev_file_info->device;
-	if (dev == NULL)
+	if (!dev)
 		return -ENODEV;
 
 	return fasync_helper(fd, file, on, &dev->async_queue);
@@ -2184,16 +2173,11 @@ static int comedi_fasync(int fd, struct file *file, int on)
 static int comedi_close(struct inode *inode, struct file *file)
 {
 	const unsigned minor = iminor(inode);
+	struct comedi_device *dev = comedi_dev_from_minor(minor);
 	struct comedi_subdevice *s = NULL;
 	int i;
-	struct comedi_device_file_info *dev_file_info;
-	struct comedi_device *dev;
-	dev_file_info = comedi_get_device_file_info(minor);
 
-	if (dev_file_info == NULL)
-		return -ENODEV;
-	dev = dev_file_info->device;
-	if (dev == NULL)
+	if (!dev)
 		return -ENODEV;
 
 	mutex_lock(&dev->mutex);

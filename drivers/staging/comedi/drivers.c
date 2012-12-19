@@ -213,13 +213,10 @@ int comedi_driver_unregister(struct comedi_driver *driver)
 
 	/* check for devices using this driver */
 	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
-		struct comedi_device_file_info *dev_file_info =
-		    comedi_get_device_file_info(i);
-		struct comedi_device *dev;
+		struct comedi_device *dev = comedi_dev_from_minor(i);
 
-		if (dev_file_info == NULL)
+		if (!dev)
 			continue;
-		dev = dev_file_info->device;
 
 		mutex_lock(&dev->mutex);
 		if (dev->attached && dev->driver == driver) {
@@ -834,7 +831,6 @@ int comedi_auto_config(struct device *hardware_device,
 		       struct comedi_driver *driver, unsigned long context)
 {
 	int minor;
-	struct comedi_device_file_info *dev_file_info;
 	struct comedi_device *comedi_dev;
 	int ret;
 
@@ -852,8 +848,7 @@ int comedi_auto_config(struct device *hardware_device,
 	if (minor < 0)
 		return minor;
 
-	dev_file_info = comedi_get_device_file_info(minor);
-	comedi_dev = dev_file_info->device;
+	comedi_dev = comedi_dev_from_minor(minor);
 
 	mutex_lock(&comedi_dev->mutex);
 	if (comedi_dev->attached)
