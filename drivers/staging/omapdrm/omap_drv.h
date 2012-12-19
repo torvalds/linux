@@ -135,6 +135,10 @@ void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m);
 void omap_gem_describe_objects(struct list_head *list, struct seq_file *m);
 #endif
 
+#ifdef CONFIG_PM
+int omap_gem_resume(struct device *dev);
+#endif
+
 int omap_irq_enable_vblank(struct drm_device *dev, int crtc);
 void omap_irq_disable_vblank(struct drm_device *dev, int crtc);
 irqreturn_t omap_irq_handler(DRM_IRQ_ARGS);
