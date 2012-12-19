@@ -363,6 +363,18 @@ static void comedi_set_subdevice_runflags(struct comedi_subdevice *s,
 	spin_unlock_irqrestore(&s->spin_lock, flags);
 }
 
+unsigned comedi_get_subdevice_runflags(struct comedi_subdevice *s)
+{
+	unsigned long flags;
+	unsigned runflags;
+
+	spin_lock_irqsave(&s->spin_lock, flags);
+	runflags = s->runflags;
+	spin_unlock_irqrestore(&s->spin_lock, flags);
+	return runflags;
+}
+EXPORT_SYMBOL(comedi_get_subdevice_runflags);
+
 /*
    This function restores a subdevice to an idle state.
  */
@@ -2241,18 +2253,6 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 	s->async->events = 0;
 }
 EXPORT_SYMBOL(comedi_event);
-
-unsigned comedi_get_subdevice_runflags(struct comedi_subdevice *s)
-{
-	unsigned long flags;
-	unsigned runflags;
-
-	spin_lock_irqsave(&s->spin_lock, flags);
-	runflags = s->runflags;
-	spin_unlock_irqrestore(&s->spin_lock, flags);
-	return runflags;
-}
-EXPORT_SYMBOL(comedi_get_subdevice_runflags);
 
 static void comedi_device_init(struct comedi_device *dev)
 {
