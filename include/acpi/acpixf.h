@@ -62,10 +62,14 @@ extern u32 acpi_current_gpe_count;
 extern struct acpi_table_fadt acpi_gbl_FADT;
 extern u8 acpi_gbl_system_awake_and_running;
 extern u8 acpi_gbl_reduced_hardware;	/* ACPI 5.0 */
+
 /* Runtime configuration of debug print levels */
+
 extern u32 acpi_dbg_level;
 extern u32 acpi_dbg_layer;
+
 /* ACPICA runtime options */
+
 extern u8 acpi_gbl_enable_interpreter_slack;
 extern u8 acpi_gbl_all_methods_serialized;
 extern u8 acpi_gbl_create_osi_method;

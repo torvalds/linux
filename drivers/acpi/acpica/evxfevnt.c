@@ -61,7 +61,6 @@ ACPI_MODULE_NAME("evxfevnt")
  * DESCRIPTION: Transfers the system into ACPI mode.
  *
  ******************************************************************************/
-
 acpi_status acpi_enable(void)
 {
 	acpi_status status;

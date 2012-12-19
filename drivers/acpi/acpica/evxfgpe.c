@@ -172,6 +172,7 @@ acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number)
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 	return_ACPI_STATUS(status);
 }
+
 ACPI_EXPORT_SYMBOL(acpi_disable_gpe)
 
 

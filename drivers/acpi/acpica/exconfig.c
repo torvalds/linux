@@ -125,7 +125,6 @@ acpi_ex_add_table(u32 table_index,
 	 * responsible for discovering any new wake GPEs by running _PRW methods
 	 * that may have been loaded by this table.
 	 */
-
 	status = acpi_tb_get_owner_id(table_index, &owner_id);
 	if (ACPI_SUCCESS(status)) {
 		acpi_ev_update_gpes(owner_id);

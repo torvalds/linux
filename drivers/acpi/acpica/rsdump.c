@@ -654,7 +654,8 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 			/*
 			 * Optional resource_source for Address resources
 			 */
-			acpi_rs_dump_resource_source(ACPI_CAST_PTR(struct
+			acpi_rs_dump_resource_source(ACPI_CAST_PTR
+						     (struct
 								   acpi_resource_source,
 								   target));
 			break;

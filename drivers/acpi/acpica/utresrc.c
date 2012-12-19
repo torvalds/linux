@@ -412,7 +412,7 @@ static const u8 acpi_gbl_resource_types[] = {
  ******************************************************************************/
 
 acpi_status
-acpi_ut_walk_aml_resources(u8 * aml,
+acpi_ut_walk_aml_resources(u8 *aml,
 			   acpi_size aml_length,
 			   acpi_walk_aml_callback user_function, void **context)
 {
@@ -525,7 +525,7 @@ acpi_ut_walk_aml_resources(u8 * aml,
  *
  ******************************************************************************/
 
-acpi_status acpi_ut_validate_resource(void *aml, u8 * return_index)
+acpi_status acpi_ut_validate_resource(void *aml, u8 *return_index)
 {
 	union aml_resource *aml_resource;
 	u8 resource_type;
@@ -800,8 +800,7 @@ u32 acpi_ut_get_descriptor_length(void *aml)
  ******************************************************************************/
 
 acpi_status
-acpi_ut_get_resource_end_tag(union acpi_operand_object * obj_desc,
-			     u8 ** end_tag)
+acpi_ut_get_resource_end_tag(union acpi_operand_object *obj_desc, u8 **end_tag)
 {
 	acpi_status status;
 

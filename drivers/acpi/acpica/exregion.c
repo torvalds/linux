@@ -162,7 +162,6 @@ acpi_ex_system_memory_space_handler(u32 function,
 		 */
 		page_boundary_map_length =
 		    ACPI_ROUND_UP(address, ACPI_DEFAULT_PAGE_SIZE) - address;
-
 		if (page_boundary_map_length == 0) {
 			page_boundary_map_length = ACPI_DEFAULT_PAGE_SIZE;
 		}
@@ -240,19 +239,19 @@ acpi_ex_system_memory_space_handler(u32 function,
 
 		switch (bit_width) {
 		case 8:
-			ACPI_SET8(logical_addr_ptr) = (u8) * value;
+			ACPI_SET8(logical_addr_ptr) = (u8)*value;
 			break;
 
 		case 16:
-			ACPI_SET16(logical_addr_ptr) = (u16) * value;
+			ACPI_SET16(logical_addr_ptr) = (u16)*value;
 			break;
 
 		case 32:
-			ACPI_SET32(logical_addr_ptr) = (u32) * value;
+			ACPI_SET32(logical_addr_ptr) = (u32)*value;
 			break;
 
 		case 64:
-			ACPI_SET64(logical_addr_ptr) = (u64) * value;
+			ACPI_SET64(logical_addr_ptr) = (u64)*value;
 			break;
 
 		default:

@@ -111,7 +111,7 @@ acpi_ns_print_node_pathname(struct acpi_namespace_node *node,
 u8 acpi_ns_valid_root_prefix(char prefix)
 {
 
-	return ((u8) (prefix == '\\'));
+	return ((u8)(prefix == '\\'));
 }
 
 /*******************************************************************************
@@ -129,7 +129,7 @@ u8 acpi_ns_valid_root_prefix(char prefix)
 static u8 acpi_ns_valid_path_separator(char sep)
 {
 
-	return ((u8) (sep == '.'));
+	return ((u8)(sep == '.'));
 }
 
 /*******************************************************************************
@@ -673,7 +673,7 @@ u32 acpi_ns_opens_scope(acpi_object_type type)
 		return_UINT32(ACPI_NS_NORMAL);
 	}
 
-	return_UINT32(((u32) acpi_gbl_ns_properties[type]) & ACPI_NS_NEWSCOPE);
+	return_UINT32(((u32)acpi_gbl_ns_properties[type]) & ACPI_NS_NEWSCOPE);
 }
 
 /*******************************************************************************

@@ -159,7 +159,7 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 		case ACPI_RSC_COUNT:
 
 			item_count = ACPI_GET8(source);
-			ACPI_SET8(destination) = (u8) item_count;
+			ACPI_SET8(destination) = (u8)item_count;
 
 			resource->length = resource->length +
 			    (info->value * (item_count - 1));
@@ -385,7 +385,7 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 			}
 
 			target = ACPI_ADD_PTR(char, resource, info->value);
-			ACPI_SET8(target) = (u8) item_count;
+			ACPI_SET8(target) = (u8)item_count;
 			break;
 
 		case ACPI_RSC_BITMASK16:
@@ -401,7 +401,7 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 			}
 
 			target = ACPI_ADD_PTR(char, resource, info->value);
-			ACPI_SET8(target) = (u8) item_count;
+			ACPI_SET8(target) = (u8)item_count;
 			break;
 
 		case ACPI_RSC_EXIT_NE:
@@ -544,7 +544,7 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 		case ACPI_RSC_COUNT:
 
 			item_count = ACPI_GET8(source);
-			ACPI_SET8(destination) = (u8) item_count;
+			ACPI_SET8(destination) = (u8)item_count;
 
 			aml_length =
 			    (u16) (aml_length +
@@ -686,7 +686,8 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 			 * Optional resource_source (Index and String)
 			 */
 			aml_length =
-			    acpi_rs_set_resource_source(aml, (acpi_rs_length)
+			    acpi_rs_set_resource_source(aml,
+							(acpi_rs_length)
 							aml_length, source);
 			acpi_rs_set_resource_length(aml_length, aml);
 			break;

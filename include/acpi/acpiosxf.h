@@ -102,10 +102,8 @@ acpi_os_physical_table_override(struct acpi_table_header *existing_table,
 /*
  * Spinlock primitives
  */
-
 #ifndef acpi_os_create_lock
-acpi_status
-acpi_os_create_lock(acpi_spinlock *out_handle);
+acpi_status acpi_os_create_lock(acpi_spinlock * out_handle);
 #endif
 
 void acpi_os_delete_lock(acpi_spinlock handle);

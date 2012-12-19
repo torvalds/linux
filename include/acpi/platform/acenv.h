@@ -49,6 +49,7 @@
  * to the local environment. This includes compiler-specific, OS-specific,
  * and machine-specific configuration.
  */
+
 /* Types for ACPI_MUTEX_TYPE */
 
 #define ACPI_BINARY_SEMAPHORE       0
@@ -66,6 +67,7 @@
  *****************************************************************************/
 
 /* iASL configuration */
+
 #ifdef ACPI_ASL_COMPILER
 #define ACPI_APPLICATION
 #define ACPI_DISASSEMBLER
@@ -77,6 +79,7 @@
 #endif
 
 /* acpi_exec configuration. Multithreaded with full AML debugger */
+
 #ifdef ACPI_EXEC_APP
 #define ACPI_APPLICATION
 #define ACPI_FULL_DEBUG
@@ -117,12 +120,14 @@
 #endif
 
 /* Common for all ACPICA applications */
+
 #ifdef ACPI_APPLICATION
 #define ACPI_USE_SYSTEM_CLIBRARY
 #define ACPI_USE_LOCAL_CACHE
 #endif
 
 /* Common debug support */
+
 #ifdef ACPI_FULL_DEBUG
 #define ACPI_DEBUGGER
 #define ACPI_DEBUG_OUTPUT
@@ -138,6 +143,7 @@
  * by the host files.
  *
  *****************************************************************************/
+
 #if defined(_LINUX) || defined(__linux__)
 #include <acpi/platform/aclinux.h>
 
@@ -294,7 +300,9 @@
 /* Use the standard C library headers. We want to keep these to a minimum. */
 
 #ifdef ACPI_USE_STANDARD_HEADERS
+
 /* Use the standard headers from the standard locations */
+
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
@@ -303,6 +311,7 @@
 #endif				/* ACPI_USE_STANDARD_HEADERS */
 
 /* We will be linking to the standard Clib functions */
+
 #define ACPI_STRSTR(s1,s2)      strstr((s1), (s2))
 #define ACPI_STRCHR(s1,c)       strchr((s1), (c))
 #define ACPI_STRLEN(s)          (acpi_size) strlen((s))
@@ -340,7 +349,6 @@
  * implementation provided by a native C library, but they are functionally
  * equivalent.
  */
-
 #ifndef va_arg
 
 #ifndef _VALIST
@@ -349,10 +357,12 @@ typedef char *va_list;
 #endif				/* _VALIST */
 
 /* Storage alignment properties */
+
 #define  _AUPBND                (sizeof (acpi_native_int) - 1)
 #define  _ADNBND                (sizeof (acpi_native_int) - 1)
 
 /* Variable argument list macro definitions */
+
 #define _bnd(X, bnd)            (((sizeof (X)) + (bnd)) & (~(bnd)))
 #define va_arg(ap, T)           (*(T *)(((ap) += (_bnd (T, _AUPBND))) - (_bnd (T,_ADNBND))))
 #define va_end(ap)              (ap = (va_list) NULL)
@@ -361,6 +371,7 @@ typedef char *va_list;
 #endif				/* va_arg */
 
 /* Use the local (ACPICA) definitions of the clib functions */
+
 #define ACPI_STRSTR(s1,s2)      acpi_ut_strstr ((s1), (s2))
 #define ACPI_STRCHR(s1,c)       acpi_ut_strchr ((s1), (c))
 #define ACPI_STRLEN(s)          (acpi_size) acpi_ut_strlen ((s))

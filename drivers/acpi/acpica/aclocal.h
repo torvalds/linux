@@ -678,6 +678,7 @@ struct acpi_opcode_info {
 };
 
 /* Value associated with the parse object */
+
 union acpi_parse_value {
 	u64 integer;		/* Integer constant (Up to 64 bits) */
 	u32 size;		/* bytelist or field size */

@@ -378,6 +378,7 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 	}
 
 	/* Must have a valid thread ID */
+
 	if (!walk_state->thread) {
 		ACPI_ERROR((AE_INFO,
 			    "Cannot release Mutex [%4.4s], null thread info",

@@ -206,7 +206,7 @@ u8 acpi_ps_is_leading_char(u32 c)
  */
 u8 acpi_ps_is_prefix_char(u32 c)
 {
-	return ((u8) (c == '\\' || c == '^'));
+	return ((u8)(c == '\\' || c == '^'));
 }
 
 /*

@@ -212,15 +212,13 @@ struct acpi_rsconvert_info acpi_rs_convert_ext_irq[9] = {
 
 	{ACPI_RSC_COUNT, ACPI_RS_OFFSET(data.extended_irq.interrupt_count),
 	 AML_OFFSET(extended_irq.interrupt_count),
-	 sizeof(u32)}
-	,
+	 sizeof(u32)},
 
 	/* Copy every IRQ in the table, each is 32 bits */
 
 	{ACPI_RSC_MOVE32, ACPI_RS_OFFSET(data.extended_irq.interrupts[0]),
 	 AML_OFFSET(extended_irq.interrupts[0]),
-	 0}
-	,
+	 0},
 
 	/* Optional resource_source (Index and String) */
 

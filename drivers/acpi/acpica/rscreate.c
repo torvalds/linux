@@ -480,8 +480,7 @@ acpi_rs_create_aml_resources(struct acpi_resource *linked_list_buffer,
 	status = acpi_rs_get_aml_length(linked_list_buffer, &aml_size_needed);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "AmlSizeNeeded=%X, %s\n",
-			  (u32) aml_size_needed,
-			  acpi_format_exception(status)));
+			  (u32)aml_size_needed, acpi_format_exception(status)));
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
