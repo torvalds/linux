@@ -293,6 +293,20 @@
 #define ACPI_16BIT_MASK     0x0000FFFF
 #define ACPI_24BIT_MASK     0x00FFFFFF
 
+/* Macros to extract flag bits from position zero */
+
+#define ACPI_GET_1BIT_FLAG(value)                   ((value) & ACPI_1BIT_MASK)
+#define ACPI_GET_2BIT_FLAG(value)                   ((value) & ACPI_2BIT_MASK)
+#define ACPI_GET_3BIT_FLAG(value)                   ((value) & ACPI_3BIT_MASK)
+#define ACPI_GET_4BIT_FLAG(value)                   ((value) & ACPI_4BIT_MASK)
+
+/* Macros to extract flag bits from position one and above */
+
+#define ACPI_EXTRACT_1BIT_FLAG(field, position)     (ACPI_GET_1BIT_FLAG ((field) >> position))
+#define ACPI_EXTRACT_2BIT_FLAG(field, position)     (ACPI_GET_2BIT_FLAG ((field) >> position))
+#define ACPI_EXTRACT_3BIT_FLAG(field, position)     (ACPI_GET_3BIT_FLAG ((field) >> position))
+#define ACPI_EXTRACT_4BIT_FLAG(field, position)     (ACPI_GET_4BIT_FLAG ((field) >> position))
+
 /*
  * An object of type struct acpi_namespace_node can appear in some contexts
  * where a pointer to an object of type union acpi_operand_object can also
