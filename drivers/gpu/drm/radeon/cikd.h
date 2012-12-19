@@ -263,10 +263,17 @@
 #define		MEC_ME2_HALT					(1 << 28)
 #define		MEC_ME1_HALT					(1 << 30)
 
+#define CP_MEC_CNTL					0x8234
+#define		MEC_ME2_HALT					(1 << 28)
+#define		MEC_ME1_HALT					(1 << 30)
+
 #define CP_ME_CNTL					0x86D8
 #define		CP_CE_HALT					(1 << 24)
 #define		CP_PFP_HALT					(1 << 26)
 #define		CP_ME_HALT					(1 << 28)
+
+#define	CP_RB0_RPTR					0x8700
+#define	CP_RB_WPTR_DELAY				0x8704
 
 #define CP_MEQ_THRESHOLDS				0x8764
 #define		MEQ1_START(x)				((x) << 0)
@@ -445,11 +452,61 @@
 #define	TC_CFG_L1_VOLATILE				0xAC88
 #define	TC_CFG_L2_VOLATILE				0xAC8C
 
+#define	CP_RB0_BASE					0xC100
+#define	CP_RB0_CNTL					0xC104
+#define		RB_BUFSZ(x)					((x) << 0)
+#define		RB_BLKSZ(x)					((x) << 8)
+#define		BUF_SWAP_32BIT					(2 << 16)
+#define		RB_NO_UPDATE					(1 << 27)
+#define		RB_RPTR_WR_ENA					(1 << 31)
+
+#define	CP_RB0_RPTR_ADDR				0xC10C
+#define		RB_RPTR_SWAP_32BIT				(2 << 0)
+#define	CP_RB0_RPTR_ADDR_HI				0xC110
+#define	CP_RB0_WPTR					0xC114
+
+#define	CP_DEVICE_ID					0xC12C
+#define	CP_ENDIAN_SWAP					0xC140
+#define	CP_RB_VMID					0xC144
+
+#define	CP_PFP_UCODE_ADDR				0xC150
+#define	CP_PFP_UCODE_DATA				0xC154
+#define	CP_ME_RAM_RADDR					0xC158
+#define	CP_ME_RAM_WADDR					0xC15C
+#define	CP_ME_RAM_DATA					0xC160
+
+#define	CP_CE_UCODE_ADDR				0xC168
+#define	CP_CE_UCODE_DATA				0xC16C
+#define	CP_MEC_ME1_UCODE_ADDR				0xC170
+#define	CP_MEC_ME1_UCODE_DATA				0xC174
+#define	CP_MEC_ME2_UCODE_ADDR				0xC178
+#define	CP_MEC_ME2_UCODE_DATA				0xC17C
+
+#define	CP_MAX_CONTEXT					0xC2B8
+
+#define	CP_RB0_BASE_HI					0xC2C4
+
 #define PA_SC_RASTER_CONFIG                             0x28350
 #       define RASTER_CONFIG_RB_MAP_0                   0
 #       define RASTER_CONFIG_RB_MAP_1                   1
 #       define RASTER_CONFIG_RB_MAP_2                   2
 #       define RASTER_CONFIG_RB_MAP_3                   3
+
+#define	SCRATCH_REG0					0x30100
+#define	SCRATCH_REG1					0x30104
+#define	SCRATCH_REG2					0x30108
+#define	SCRATCH_REG3					0x3010C
+#define	SCRATCH_REG4					0x30110
+#define	SCRATCH_REG5					0x30114
+#define	SCRATCH_REG6					0x30118
+#define	SCRATCH_REG7					0x3011C
+
+#define	SCRATCH_UMSK					0x30140
+#define	SCRATCH_ADDR					0x30144
+
+#define	CP_SEM_WAIT_TIMER				0x301BC
+
+#define	CP_SEM_INCOMPLETE_TIMER_CNTL			0x301C8
 
 #define GRBM_GFX_INDEX          			0x30800
 #define		INSTANCE_INDEX(x)			((x) << 0)
@@ -481,5 +538,170 @@
 #define	CGTS_USER_TCC_DISABLE				0x3c010
 #define		TCC_DISABLE_MASK				0xFFFF0000
 #define		TCC_DISABLE_SHIFT				16
+
+/*
+ * PM4
+ */
+#define	PACKET_TYPE0	0
+#define	PACKET_TYPE1	1
+#define	PACKET_TYPE2	2
+#define	PACKET_TYPE3	3
+
+#define CP_PACKET_GET_TYPE(h) (((h) >> 30) & 3)
+#define CP_PACKET_GET_COUNT(h) (((h) >> 16) & 0x3FFF)
+#define CP_PACKET0_GET_REG(h) (((h) & 0xFFFF) << 2)
+#define CP_PACKET3_GET_OPCODE(h) (((h) >> 8) & 0xFF)
+#define PACKET0(reg, n)	((PACKET_TYPE0 << 30) |				\
+			 (((reg) >> 2) & 0xFFFF) |			\
+			 ((n) & 0x3FFF) << 16)
+#define CP_PACKET2			0x80000000
+#define		PACKET2_PAD_SHIFT		0
+#define		PACKET2_PAD_MASK		(0x3fffffff << 0)
+
+#define PACKET2(v)	(CP_PACKET2 | REG_SET(PACKET2_PAD, (v)))
+
+#define PACKET3(op, n)	((PACKET_TYPE3 << 30) |				\
+			 (((op) & 0xFF) << 8) |				\
+			 ((n) & 0x3FFF) << 16)
+
+#define PACKET3_COMPUTE(op, n) (PACKET3(op, n) | 1 << 1)
+
+/* Packet 3 types */
+#define	PACKET3_NOP					0x10
+#define	PACKET3_SET_BASE				0x11
+#define		PACKET3_BASE_INDEX(x)                  ((x) << 0)
+#define			CE_PARTITION_BASE		3
+#define	PACKET3_CLEAR_STATE				0x12
+#define	PACKET3_INDEX_BUFFER_SIZE			0x13
+#define	PACKET3_DISPATCH_DIRECT				0x15
+#define	PACKET3_DISPATCH_INDIRECT			0x16
+#define	PACKET3_ATOMIC_GDS				0x1D
+#define	PACKET3_ATOMIC_MEM				0x1E
+#define	PACKET3_OCCLUSION_QUERY				0x1F
+#define	PACKET3_SET_PREDICATION				0x20
+#define	PACKET3_REG_RMW					0x21
+#define	PACKET3_COND_EXEC				0x22
+#define	PACKET3_PRED_EXEC				0x23
+#define	PACKET3_DRAW_INDIRECT				0x24
+#define	PACKET3_DRAW_INDEX_INDIRECT			0x25
+#define	PACKET3_INDEX_BASE				0x26
+#define	PACKET3_DRAW_INDEX_2				0x27
+#define	PACKET3_CONTEXT_CONTROL				0x28
+#define	PACKET3_INDEX_TYPE				0x2A
+#define	PACKET3_DRAW_INDIRECT_MULTI			0x2C
+#define	PACKET3_DRAW_INDEX_AUTO				0x2D
+#define	PACKET3_NUM_INSTANCES				0x2F
+#define	PACKET3_DRAW_INDEX_MULTI_AUTO			0x30
+#define	PACKET3_INDIRECT_BUFFER_CONST			0x33
+#define	PACKET3_STRMOUT_BUFFER_UPDATE			0x34
+#define	PACKET3_DRAW_INDEX_OFFSET_2			0x35
+#define	PACKET3_DRAW_PREAMBLE				0x36
+#define	PACKET3_WRITE_DATA				0x37
+#define	PACKET3_DRAW_INDEX_INDIRECT_MULTI		0x38
+#define	PACKET3_MEM_SEMAPHORE				0x39
+#define	PACKET3_COPY_DW					0x3B
+#define	PACKET3_WAIT_REG_MEM				0x3C
+#define	PACKET3_INDIRECT_BUFFER				0x3F
+#define	PACKET3_COPY_DATA				0x40
+#define	PACKET3_PFP_SYNC_ME				0x42
+#define	PACKET3_SURFACE_SYNC				0x43
+#              define PACKET3_DEST_BASE_0_ENA      (1 << 0)
+#              define PACKET3_DEST_BASE_1_ENA      (1 << 1)
+#              define PACKET3_CB0_DEST_BASE_ENA    (1 << 6)
+#              define PACKET3_CB1_DEST_BASE_ENA    (1 << 7)
+#              define PACKET3_CB2_DEST_BASE_ENA    (1 << 8)
+#              define PACKET3_CB3_DEST_BASE_ENA    (1 << 9)
+#              define PACKET3_CB4_DEST_BASE_ENA    (1 << 10)
+#              define PACKET3_CB5_DEST_BASE_ENA    (1 << 11)
+#              define PACKET3_CB6_DEST_BASE_ENA    (1 << 12)
+#              define PACKET3_CB7_DEST_BASE_ENA    (1 << 13)
+#              define PACKET3_DB_DEST_BASE_ENA     (1 << 14)
+#              define PACKET3_TCL1_VOL_ACTION_ENA  (1 << 15)
+#              define PACKET3_TC_VOL_ACTION_ENA    (1 << 16) /* L2 */
+#              define PACKET3_TC_WB_ACTION_ENA     (1 << 18) /* L2 */
+#              define PACKET3_DEST_BASE_2_ENA      (1 << 19)
+#              define PACKET3_DEST_BASE_3_ENA      (1 << 21)
+#              define PACKET3_TCL1_ACTION_ENA      (1 << 22)
+#              define PACKET3_TC_ACTION_ENA        (1 << 23) /* L2 */
+#              define PACKET3_CB_ACTION_ENA        (1 << 25)
+#              define PACKET3_DB_ACTION_ENA        (1 << 26)
+#              define PACKET3_SH_KCACHE_ACTION_ENA (1 << 27)
+#              define PACKET3_SH_KCACHE_VOL_ACTION_ENA (1 << 28)
+#              define PACKET3_SH_ICACHE_ACTION_ENA (1 << 29)
+#define	PACKET3_COND_WRITE				0x45
+#define	PACKET3_EVENT_WRITE				0x46
+#define		EVENT_TYPE(x)                           ((x) << 0)
+#define		EVENT_INDEX(x)                          ((x) << 8)
+                /* 0 - any non-TS event
+		 * 1 - ZPASS_DONE, PIXEL_PIPE_STAT_*
+		 * 2 - SAMPLE_PIPELINESTAT
+		 * 3 - SAMPLE_STREAMOUTSTAT*
+		 * 4 - *S_PARTIAL_FLUSH
+		 * 5 - EOP events
+		 * 6 - EOS events
+		 */
+#define	PACKET3_EVENT_WRITE_EOP				0x47
+#define		EOP_TCL1_VOL_ACTION_EN                  (1 << 12)
+#define		EOP_TC_VOL_ACTION_EN                    (1 << 13) /* L2 */
+#define		EOP_TC_WB_ACTION_EN                     (1 << 15) /* L2 */
+#define		EOP_TCL1_ACTION_EN                      (1 << 16)
+#define		EOP_TC_ACTION_EN                        (1 << 17) /* L2 */
+#define		CACHE_POLICY(x)                         ((x) << 25)
+                /* 0 - LRU
+		 * 1 - Stream
+		 * 2 - Bypass
+		 */
+#define		TCL2_VOLATILE                           (1 << 27)
+#define		DATA_SEL(x)                             ((x) << 29)
+                /* 0 - discard
+		 * 1 - send low 32bit data
+		 * 2 - send 64bit data
+		 * 3 - send 64bit GPU counter value
+		 * 4 - send 64bit sys counter value
+		 */
+#define		INT_SEL(x)                              ((x) << 24)
+                /* 0 - none
+		 * 1 - interrupt only (DATA_SEL = 0)
+		 * 2 - interrupt when data write is confirmed
+		 */
+#define		DST_SEL(x)                              ((x) << 16)
+                /* 0 - MC
+		 * 1 - TC/L2
+		 */
+#define	PACKET3_EVENT_WRITE_EOS				0x48
+#define	PACKET3_RELEASE_MEM				0x49
+#define	PACKET3_PREAMBLE_CNTL				0x4A
+#              define PACKET3_PREAMBLE_BEGIN_CLEAR_STATE     (2 << 28)
+#              define PACKET3_PREAMBLE_END_CLEAR_STATE       (3 << 28)
+#define	PACKET3_DMA_DATA				0x50
+#define	PACKET3_AQUIRE_MEM				0x58
+#define	PACKET3_REWIND					0x59
+#define	PACKET3_LOAD_UCONFIG_REG			0x5E
+#define	PACKET3_LOAD_SH_REG				0x5F
+#define	PACKET3_LOAD_CONFIG_REG				0x60
+#define	PACKET3_LOAD_CONTEXT_REG			0x61
+#define	PACKET3_SET_CONFIG_REG				0x68
+#define		PACKET3_SET_CONFIG_REG_START			0x00008000
+#define		PACKET3_SET_CONFIG_REG_END			0x0000b000
+#define	PACKET3_SET_CONTEXT_REG				0x69
+#define		PACKET3_SET_CONTEXT_REG_START			0x00028000
+#define		PACKET3_SET_CONTEXT_REG_END			0x00029000
+#define	PACKET3_SET_CONTEXT_REG_INDIRECT		0x73
+#define	PACKET3_SET_SH_REG				0x76
+#define		PACKET3_SET_SH_REG_START			0x0000b000
+#define		PACKET3_SET_SH_REG_END				0x0000c000
+#define	PACKET3_SET_SH_REG_OFFSET			0x77
+#define	PACKET3_SET_QUEUE_REG				0x78
+#define	PACKET3_SET_UCONFIG_REG				0x79
+#define	PACKET3_SCRATCH_RAM_WRITE			0x7D
+#define	PACKET3_SCRATCH_RAM_READ			0x7E
+#define	PACKET3_LOAD_CONST_RAM				0x80
+#define	PACKET3_WRITE_CONST_RAM				0x81
+#define	PACKET3_DUMP_CONST_RAM				0x83
+#define	PACKET3_INCREMENT_CE_COUNTER			0x84
+#define	PACKET3_INCREMENT_DE_COUNTER			0x85
+#define	PACKET3_WAIT_ON_CE_COUNTER			0x86
+#define	PACKET3_WAIT_ON_DE_COUNTER_DIFF			0x88
+
 
 #endif

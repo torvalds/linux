@@ -121,7 +121,9 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 		p->ring = RADEON_RING_TYPE_GFX_INDEX;
 		break;
 	case RADEON_CS_RING_COMPUTE:
-		if (p->rdev->family >= CHIP_TAHITI) {
+		if (p->rdev->family >= CHIP_BONAIRE)
+			p->ring = RADEON_RING_TYPE_GFX_INDEX;
+		else if (p->rdev->family >= CHIP_TAHITI) {
 			if (p->priority > 0)
 				p->ring = CAYMAN_RING_TYPE_CP1_INDEX;
 			else

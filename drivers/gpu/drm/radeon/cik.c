@@ -30,6 +30,7 @@
 #include "radeon_asic.h"
 #include "cikd.h"
 #include "atom.h"
+#include "cik_blit_shaders.h"
 
 /* GFX */
 #define CIK_PFP_UCODE_SIZE 2144
@@ -1489,6 +1490,400 @@ static void cik_gpu_init(struct radeon_device *rdev)
 	WREG32(PA_SC_ENHANCE, ENABLE_PA_SC_OUT_OF_ORDER);
 
 	udelay(50);
+}
+
+/*
+ * CP.
+ * On CIK, gfx and compute now have independant command processors.
+ *
+ * GFX
+ * Gfx consists of a single ring and can process both gfx jobs and
+ * compute jobs.  The gfx CP consists of three microengines (ME):
+ * PFP - Pre-Fetch Parser
+ * ME - Micro Engine
+ * CE - Constant Engine
+ * The PFP and ME make up what is considered the Drawing Engine (DE).
+ * The CE is an asynchronous engine used for updating buffer desciptors
+ * used by the DE so that they can be loaded into cache in parallel
+ * while the DE is processing state update packets.
+ *
+ * Compute
+ * The compute CP consists of two microengines (ME):
+ * MEC1 - Compute MicroEngine 1
+ * MEC2 - Compute MicroEngine 2
+ * Each MEC supports 4 compute pipes and each pipe supports 8 queues.
+ * The queues are exposed to userspace and are programmed directly
+ * by the compute runtime.
+ */
+/**
+ * cik_cp_gfx_enable - enable/disable the gfx CP MEs
+ *
+ * @rdev: radeon_device pointer
+ * @enable: enable or disable the MEs
+ *
+ * Halts or unhalts the gfx MEs.
+ */
+static void cik_cp_gfx_enable(struct radeon_device *rdev, bool enable)
+{
+	if (enable)
+		WREG32(CP_ME_CNTL, 0);
+	else {
+		WREG32(CP_ME_CNTL, (CP_ME_HALT | CP_PFP_HALT | CP_CE_HALT));
+		rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = false;
+	}
+	udelay(50);
+}
+
+/**
+ * cik_cp_gfx_load_microcode - load the gfx CP ME ucode
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Loads the gfx PFP, ME, and CE ucode.
+ * Returns 0 for success, -EINVAL if the ucode is not available.
+ */
+static int cik_cp_gfx_load_microcode(struct radeon_device *rdev)
+{
+	const __be32 *fw_data;
+	int i;
+
+	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->ce_fw)
+		return -EINVAL;
+
+	cik_cp_gfx_enable(rdev, false);
+
+	/* PFP */
+	fw_data = (const __be32 *)rdev->pfp_fw->data;
+	WREG32(CP_PFP_UCODE_ADDR, 0);
+	for (i = 0; i < CIK_PFP_UCODE_SIZE; i++)
+		WREG32(CP_PFP_UCODE_DATA, be32_to_cpup(fw_data++));
+	WREG32(CP_PFP_UCODE_ADDR, 0);
+
+	/* CE */
+	fw_data = (const __be32 *)rdev->ce_fw->data;
+	WREG32(CP_CE_UCODE_ADDR, 0);
+	for (i = 0; i < CIK_CE_UCODE_SIZE; i++)
+		WREG32(CP_CE_UCODE_DATA, be32_to_cpup(fw_data++));
+	WREG32(CP_CE_UCODE_ADDR, 0);
+
+	/* ME */
+	fw_data = (const __be32 *)rdev->me_fw->data;
+	WREG32(CP_ME_RAM_WADDR, 0);
+	for (i = 0; i < CIK_ME_UCODE_SIZE; i++)
+		WREG32(CP_ME_RAM_DATA, be32_to_cpup(fw_data++));
+	WREG32(CP_ME_RAM_WADDR, 0);
+
+	WREG32(CP_PFP_UCODE_ADDR, 0);
+	WREG32(CP_CE_UCODE_ADDR, 0);
+	WREG32(CP_ME_RAM_WADDR, 0);
+	WREG32(CP_ME_RAM_RADDR, 0);
+	return 0;
+}
+
+/**
+ * cik_cp_gfx_start - start the gfx ring
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Enables the ring and loads the clear state context and other
+ * packets required to init the ring.
+ * Returns 0 for success, error for failure.
+ */
+static int cik_cp_gfx_start(struct radeon_device *rdev)
+{
+	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
+	int r, i;
+
+	/* init the CP */
+	WREG32(CP_MAX_CONTEXT, rdev->config.cik.max_hw_contexts - 1);
+	WREG32(CP_ENDIAN_SWAP, 0);
+	WREG32(CP_DEVICE_ID, 1);
+
+	cik_cp_gfx_enable(rdev, true);
+
+	r = radeon_ring_lock(rdev, ring, cik_default_size + 17);
+	if (r) {
+		DRM_ERROR("radeon: cp failed to lock ring (%d).\n", r);
+		return r;
+	}
+
+	/* init the CE partitions.  CE only used for gfx on CIK */
+	radeon_ring_write(ring, PACKET3(PACKET3_SET_BASE, 2));
+	radeon_ring_write(ring, PACKET3_BASE_INDEX(CE_PARTITION_BASE));
+	radeon_ring_write(ring, 0xc000);
+	radeon_ring_write(ring, 0xc000);
+
+	/* setup clear context state */
+	radeon_ring_write(ring, PACKET3(PACKET3_PREAMBLE_CNTL, 0));
+	radeon_ring_write(ring, PACKET3_PREAMBLE_BEGIN_CLEAR_STATE);
+
+	radeon_ring_write(ring, PACKET3(PACKET3_CONTEXT_CONTROL, 1));
+	radeon_ring_write(ring, 0x80000000);
+	radeon_ring_write(ring, 0x80000000);
+
+	for (i = 0; i < cik_default_size; i++)
+		radeon_ring_write(ring, cik_default_state[i]);
+
+	radeon_ring_write(ring, PACKET3(PACKET3_PREAMBLE_CNTL, 0));
+	radeon_ring_write(ring, PACKET3_PREAMBLE_END_CLEAR_STATE);
+
+	/* set clear context state */
+	radeon_ring_write(ring, PACKET3(PACKET3_CLEAR_STATE, 0));
+	radeon_ring_write(ring, 0);
+
+	radeon_ring_write(ring, PACKET3(PACKET3_SET_CONTEXT_REG, 2));
+	radeon_ring_write(ring, 0x00000316);
+	radeon_ring_write(ring, 0x0000000e); /* VGT_VERTEX_REUSE_BLOCK_CNTL */
+	radeon_ring_write(ring, 0x00000010); /* VGT_OUT_DEALLOC_CNTL */
+
+	radeon_ring_unlock_commit(rdev, ring);
+
+	return 0;
+}
+
+/**
+ * cik_cp_gfx_fini - stop the gfx ring
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Stop the gfx ring and tear down the driver ring
+ * info.
+ */
+static void cik_cp_gfx_fini(struct radeon_device *rdev)
+{
+	cik_cp_gfx_enable(rdev, false);
+	radeon_ring_fini(rdev, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
+}
+
+/**
+ * cik_cp_gfx_resume - setup the gfx ring buffer registers
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Program the location and size of the gfx ring buffer
+ * and test it to make sure it's working.
+ * Returns 0 for success, error for failure.
+ */
+static int cik_cp_gfx_resume(struct radeon_device *rdev)
+{
+	struct radeon_ring *ring;
+	u32 tmp;
+	u32 rb_bufsz;
+	u64 rb_addr;
+	int r;
+
+	WREG32(CP_SEM_WAIT_TIMER, 0x0);
+	WREG32(CP_SEM_INCOMPLETE_TIMER_CNTL, 0x0);
+
+	/* Set the write pointer delay */
+	WREG32(CP_RB_WPTR_DELAY, 0);
+
+	/* set the RB to use vmid 0 */
+	WREG32(CP_RB_VMID, 0);
+
+	WREG32(SCRATCH_ADDR, ((rdev->wb.gpu_addr + RADEON_WB_SCRATCH_OFFSET) >> 8) & 0xFFFFFFFF);
+
+	/* ring 0 - compute and gfx */
+	/* Set ring buffer size */
+	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
+	rb_bufsz = drm_order(ring->ring_size / 8);
+	tmp = (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
+#ifdef __BIG_ENDIAN
+	tmp |= BUF_SWAP_32BIT;
+#endif
+	WREG32(CP_RB0_CNTL, tmp);
+
+	/* Initialize the ring buffer's read and write pointers */
+	WREG32(CP_RB0_CNTL, tmp | RB_RPTR_WR_ENA);
+	ring->wptr = 0;
+	WREG32(CP_RB0_WPTR, ring->wptr);
+
+	/* set the wb address wether it's enabled or not */
+	WREG32(CP_RB0_RPTR_ADDR, (rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFFFFFFFC);
+	WREG32(CP_RB0_RPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFF);
+
+	/* scratch register shadowing is no longer supported */
+	WREG32(SCRATCH_UMSK, 0);
+
+	if (!rdev->wb.enabled)
+		tmp |= RB_NO_UPDATE;
+
+	mdelay(1);
+	WREG32(CP_RB0_CNTL, tmp);
+
+	rb_addr = ring->gpu_addr >> 8;
+	WREG32(CP_RB0_BASE, rb_addr);
+	WREG32(CP_RB0_BASE_HI, upper_32_bits(rb_addr));
+
+	ring->rptr = RREG32(CP_RB0_RPTR);
+
+	/* start the ring */
+	cik_cp_gfx_start(rdev);
+	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = true;
+	r = radeon_ring_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
+	if (r) {
+		rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = false;
+		return r;
+	}
+	return 0;
+}
+
+/**
+ * cik_cp_compute_enable - enable/disable the compute CP MEs
+ *
+ * @rdev: radeon_device pointer
+ * @enable: enable or disable the MEs
+ *
+ * Halts or unhalts the compute MEs.
+ */
+static void cik_cp_compute_enable(struct radeon_device *rdev, bool enable)
+{
+	if (enable)
+		WREG32(CP_MEC_CNTL, 0);
+	else
+		WREG32(CP_MEC_CNTL, (MEC_ME1_HALT | MEC_ME2_HALT));
+	udelay(50);
+}
+
+/**
+ * cik_cp_compute_load_microcode - load the compute CP ME ucode
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Loads the compute MEC1&2 ucode.
+ * Returns 0 for success, -EINVAL if the ucode is not available.
+ */
+static int cik_cp_compute_load_microcode(struct radeon_device *rdev)
+{
+	const __be32 *fw_data;
+	int i;
+
+	if (!rdev->mec_fw)
+		return -EINVAL;
+
+	cik_cp_compute_enable(rdev, false);
+
+	/* MEC1 */
+	fw_data = (const __be32 *)rdev->mec_fw->data;
+	WREG32(CP_MEC_ME1_UCODE_ADDR, 0);
+	for (i = 0; i < CIK_MEC_UCODE_SIZE; i++)
+		WREG32(CP_MEC_ME1_UCODE_DATA, be32_to_cpup(fw_data++));
+	WREG32(CP_MEC_ME1_UCODE_ADDR, 0);
+
+	if (rdev->family == CHIP_KAVERI) {
+		/* MEC2 */
+		fw_data = (const __be32 *)rdev->mec_fw->data;
+		WREG32(CP_MEC_ME2_UCODE_ADDR, 0);
+		for (i = 0; i < CIK_MEC_UCODE_SIZE; i++)
+			WREG32(CP_MEC_ME2_UCODE_DATA, be32_to_cpup(fw_data++));
+		WREG32(CP_MEC_ME2_UCODE_ADDR, 0);
+	}
+
+	return 0;
+}
+
+/**
+ * cik_cp_compute_start - start the compute queues
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Enable the compute queues.
+ * Returns 0 for success, error for failure.
+ */
+static int cik_cp_compute_start(struct radeon_device *rdev)
+{
+	//todo
+	return 0;
+}
+
+/**
+ * cik_cp_compute_fini - stop the compute queues
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Stop the compute queues and tear down the driver queue
+ * info.
+ */
+static void cik_cp_compute_fini(struct radeon_device *rdev)
+{
+	cik_cp_compute_enable(rdev, false);
+	//todo
+}
+
+/**
+ * cik_cp_compute_resume - setup the compute queue registers
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Program the compute queues and test them to make sure they
+ * are working.
+ * Returns 0 for success, error for failure.
+ */
+static int cik_cp_compute_resume(struct radeon_device *rdev)
+{
+	int r;
+
+	//todo
+	r = cik_cp_compute_start(rdev);
+	if (r)
+		return r;
+	return 0;
+}
+
+/* XXX temporary wrappers to handle both compute and gfx */
+/* XXX */
+static void cik_cp_enable(struct radeon_device *rdev, bool enable)
+{
+	cik_cp_gfx_enable(rdev, enable);
+	cik_cp_compute_enable(rdev, enable);
+}
+
+/* XXX */
+static int cik_cp_load_microcode(struct radeon_device *rdev)
+{
+	int r;
+
+	r = cik_cp_gfx_load_microcode(rdev);
+	if (r)
+		return r;
+	r = cik_cp_compute_load_microcode(rdev);
+	if (r)
+		return r;
+
+	return 0;
+}
+
+/* XXX */
+static void cik_cp_fini(struct radeon_device *rdev)
+{
+	cik_cp_gfx_fini(rdev);
+	cik_cp_compute_fini(rdev);
+}
+
+/* XXX */
+static int cik_cp_resume(struct radeon_device *rdev)
+{
+	int r;
+
+	/* Reset all cp blocks */
+	WREG32(GRBM_SOFT_RESET, SOFT_RESET_CP);
+	RREG32(GRBM_SOFT_RESET);
+	mdelay(15);
+	WREG32(GRBM_SOFT_RESET, 0);
+	RREG32(GRBM_SOFT_RESET);
+
+	r = cik_cp_load_microcode(rdev);
+	if (r)
+		return r;
+
+	r = cik_cp_gfx_resume(rdev);
+	if (r)
+		return r;
+	r = cik_cp_compute_resume(rdev);
+	if (r)
+		return r;
+
+	return 0;
 }
 
 /**
