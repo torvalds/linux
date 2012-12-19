@@ -213,6 +213,11 @@ static void dmm_txn_append(struct dmm_txn *txn, struct pat_area *area,
 		txn->last_pat->next_pa = (uint32_t)pat_pa;
 
 	pat->area = *area;
+
+	/* adjust Y coordinates based off of container parameters */
+	pat->area.y0 += engine->tcm->y_offset;
+	pat->area.y1 += engine->tcm->y_offset;
+
 	pat->ctrl = (struct pat_ctrl){
 			.start = 1,
 			.lut_id = engine->tcm->lut_id,
@@ -622,6 +627,11 @@ static int omap_dmm_probe(struct platform_device *dev)
 	omap_dmm->lut_width = ((pat_geom >> 16) & 0xF) << 5;
 	omap_dmm->lut_height = ((pat_geom >> 24) & 0xF) << 5;
 
+	/* increment LUT by one if on OMAP5 */
+	/* LUT has twice the height, and is split into a separate container */
+	if (omap_dmm->lut_height != omap_dmm->container_height)
+		omap_dmm->num_lut++;
+
 	/* initialize DMM registers */
 	writel(0x88888888, omap_dmm->base + DMM_PAT_VIEW__0);
 	writel(0x88888888, omap_dmm->base + DMM_PAT_VIEW__1);
@@ -701,6 +711,9 @@ static int omap_dmm_probe(struct platform_device *dev)
 	}
 
 	/* init containers */
+	/* Each LUT is associated with a TCM (container manager).  We use the
+	   lut_id to denote the lut_id used to identify the correct LUT for
+	   programming during reill operations */
 	for (i = 0; i < omap_dmm->num_lut; i++) {
 		omap_dmm->tcm[i] = sita_init(omap_dmm->container_width,
 						omap_dmm->container_height,
@@ -717,13 +730,23 @@ static int omap_dmm_probe(struct platform_device *dev)
 
 	/* assign access mode containers to applicable tcm container */
 	/* OMAP 4 has 1 container for all 4 views */
+	/* OMAP 5 has 2 containers, 1 for 2D and 1 for 1D */
 	containers[TILFMT_8BIT] = omap_dmm->tcm[0];
 	containers[TILFMT_16BIT] = omap_dmm->tcm[0];
 	containers[TILFMT_32BIT] = omap_dmm->tcm[0];
-	containers[TILFMT_PAGE] = omap_dmm->tcm[0];
+
+	if (omap_dmm->container_height != omap_dmm->lut_height) {
+		/* second LUT is used for PAGE mode.  Programming must use
+		   y offset that is added to all y coordinates.  LUT id is still
+		   0, because it is the same LUT, just the upper 128 lines */
+		containers[TILFMT_PAGE] = omap_dmm->tcm[1];
+		omap_dmm->tcm[1]->y_offset = OMAP5_LUT_OFFSET;
+		omap_dmm->tcm[1]->lut_id = 0;
+	} else {
+		containers[TILFMT_PAGE] = omap_dmm->tcm[0];
+	}
 
 	area = (struct tcm_area) {
-		.is2d = true,
 		.tcm = NULL,
 		.p1.x = omap_dmm->container_width - 1,
 		.p1.y = omap_dmm->container_height - 1,
@@ -835,64 +858,81 @@ int tiler_map_show(struct seq_file *s, void *arg)
 	int h_adj;
 	int w_adj;
 	unsigned long flags;
+	int lut_idx;
+
 
 	if (!omap_dmm) {
 		/* early return if dmm/tiler device is not initialized */
 		return 0;
 	}
 
-	h_adj = omap_dmm->lut_height / ydiv;
-	w_adj = omap_dmm->lut_width / xdiv;
+	h_adj = omap_dmm->container_height / ydiv;
+	w_adj = omap_dmm->container_width / xdiv;
 
-	map = kzalloc(h_adj * sizeof(*map), GFP_KERNEL);
-	global_map = kzalloc((w_adj + 1) * h_adj, GFP_KERNEL);
+	map = kmalloc(h_adj * sizeof(*map), GFP_KERNEL);
+	global_map = kmalloc((w_adj + 1) * h_adj, GFP_KERNEL);
 
 	if (!map || !global_map)
 		goto error;
 
-	memset(global_map, ' ', (w_adj + 1) * h_adj);
-	for (i = 0; i < omap_dmm->lut_height; i++) {
-		map[i] = global_map + i * (w_adj + 1);
-		map[i][w_adj] = 0;
-	}
-	spin_lock_irqsave(&list_lock, flags);
+	for (lut_idx = 0; lut_idx < omap_dmm->num_lut; lut_idx++) {
+		memset(map, 0, sizeof(h_adj * sizeof(*map)));
+		memset(global_map, ' ', (w_adj + 1) * h_adj);
 
-	list_for_each_entry(block, &omap_dmm->alloc_head, alloc_node) {
-		if (block->fmt != TILFMT_PAGE) {
-			fill_map(map, xdiv, ydiv, &block->area, *m2dp, true);
-			if (!*++a2dp)
-				a2dp = a2d;
-			if (!*++m2dp)
-				m2dp = m2d;
-			map_2d_info(map, xdiv, ydiv, nice, &block->area);
-		} else {
-			bool start = read_map_pt(map, xdiv, ydiv,
-							&block->area.p0)
-									== ' ';
-			bool end = read_map_pt(map, xdiv, ydiv, &block->area.p1)
-									== ' ';
-			tcm_for_each_slice(a, block->area, p)
-				fill_map(map, xdiv, ydiv, &a, '=', true);
-			fill_map_pt(map, xdiv, ydiv, &block->area.p0,
-							start ? '<' : 'X');
-			fill_map_pt(map, xdiv, ydiv, &block->area.p1,
-							end ? '>' : 'X');
-			map_1d_info(map, xdiv, ydiv, nice, &block->area);
+		for (i = 0; i < omap_dmm->container_height; i++) {
+			map[i] = global_map + i * (w_adj + 1);
+			map[i][w_adj] = 0;
 		}
-	}
 
-	spin_unlock_irqrestore(&list_lock, flags);
+		spin_lock_irqsave(&list_lock, flags);
 
-	if (s) {
-		seq_printf(s, "BEGIN DMM TILER MAP\n");
-		for (i = 0; i < 128; i++)
-			seq_printf(s, "%03d:%s\n", i, map[i]);
-		seq_printf(s, "END TILER MAP\n");
-	} else {
-		dev_dbg(omap_dmm->dev, "BEGIN DMM TILER MAP\n");
-		for (i = 0; i < 128; i++)
-			dev_dbg(omap_dmm->dev, "%03d:%s\n", i, map[i]);
-		dev_dbg(omap_dmm->dev, "END TILER MAP\n");
+		list_for_each_entry(block, &omap_dmm->alloc_head, alloc_node) {
+			if (block->area.tcm == omap_dmm->tcm[lut_idx]) {
+				if (block->fmt != TILFMT_PAGE) {
+					fill_map(map, xdiv, ydiv, &block->area,
+						*m2dp, true);
+					if (!*++a2dp)
+						a2dp = a2d;
+					if (!*++m2dp)
+						m2dp = m2d;
+					map_2d_info(map, xdiv, ydiv, nice,
+							&block->area);
+				} else {
+					bool start = read_map_pt(map, xdiv,
+						ydiv, &block->area.p0) == ' ';
+					bool end = read_map_pt(map, xdiv, ydiv,
+							&block->area.p1) == ' ';
+
+					tcm_for_each_slice(a, block->area, p)
+						fill_map(map, xdiv, ydiv, &a,
+							'=', true);
+					fill_map_pt(map, xdiv, ydiv,
+							&block->area.p0,
+							start ? '<' : 'X');
+					fill_map_pt(map, xdiv, ydiv,
+							&block->area.p1,
+							end ? '>' : 'X');
+					map_1d_info(map, xdiv, ydiv, nice,
+							&block->area);
+				}
+			}
+		}
+
+		spin_unlock_irqrestore(&list_lock, flags);
+
+		if (s) {
+			seq_printf(s, "CONTAINER %d DUMP BEGIN\n", lut_idx);
+			for (i = 0; i < 128; i++)
+				seq_printf(s, "%03d:%s\n", i, map[i]);
+			seq_printf(s, "CONTAINER %d DUMP END\n", lut_idx);
+		} else {
+			dev_dbg(omap_dmm->dev, "CONTAINER %d DUMP BEGIN\n",
+				lut_idx);
+			for (i = 0; i < 128; i++)
+				dev_dbg(omap_dmm->dev, "%03d:%s\n", i, map[i]);
+			dev_dbg(omap_dmm->dev, "CONTAINER %d DUMP END\n",
+				lut_idx);
+		}
 	}
 
 error:
@@ -913,7 +953,6 @@ static int omap_dmm_resume(struct device *dev)
 		return -ENODEV;
 
 	area = (struct tcm_area) {
-		.is2d = true,
 		.tcm = NULL,
 		.p1.x = omap_dmm->container_width - 1,
 		.p1.y = omap_dmm->container_height - 1,
