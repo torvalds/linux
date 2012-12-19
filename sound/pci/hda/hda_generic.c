@@ -2906,9 +2906,11 @@ int snd_hda_gen_build_controls(struct hda_codec *codec)
 	struct hda_gen_spec *spec = codec->spec;
 	int err;
 
-	err = snd_hda_add_new_ctls(codec, spec->kctls.list);
-	if (err < 0)
-		return err;
+	if (spec->kctls.used) {
+		err = snd_hda_add_new_ctls(codec, spec->kctls.list);
+		if (err < 0)
+			return err;
+	}
 
 	if (spec->multiout.dig_out_nid) {
 		err = snd_hda_create_dig_out_ctls(codec,
