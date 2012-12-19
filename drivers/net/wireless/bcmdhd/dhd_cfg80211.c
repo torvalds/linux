@@ -82,9 +82,11 @@ s32 dhd_cfg80211_set_p2p_info(struct wl_priv *wl, int val)
 	dhd->op_mode |= val;
 	WL_ERR(("Set : op_mode=0x%04x\n", dhd->op_mode));
 #ifdef ARP_OFFLOAD_SUPPORT
-	/* IF P2P is enabled, disable arpoe */
-	dhd_arp_offload_set(dhd, 0);
-	dhd_arp_offload_enable(dhd, false);
+	if (dhd->arp_version == 1) {
+		/* IF P2P is enabled, disable arpoe */
+		dhd_arp_offload_set(dhd, 0);
+		dhd_arp_offload_enable(dhd, false);
+	}
 #endif /* ARP_OFFLOAD_SUPPORT */
 
 	return 0;
@@ -97,9 +99,11 @@ s32 dhd_cfg80211_clean_p2p_info(struct wl_priv *wl)
 	WL_ERR(("Clean : op_mode=0x%04x\n", dhd->op_mode));
 
 #ifdef ARP_OFFLOAD_SUPPORT
-	/* IF P2P is disabled, enable arpoe back for STA mode. */
-	dhd_arp_offload_set(dhd, dhd_arp_mode);
-	dhd_arp_offload_enable(dhd, true);
+	if (dhd->arp_version == 1) {
+		/* IF P2P is disabled, enable arpoe back for STA mode. */
+		dhd_arp_offload_set(dhd, dhd_arp_mode);
+		dhd_arp_offload_enable(dhd, true);
+	}
 #endif /* ARP_OFFLOAD_SUPPORT */
 
 	return 0;
@@ -505,7 +509,7 @@ void wl_cfg80211_btcoex_deinit(struct wl_priv *wl)
 	if (!wl->btcoex_info)
 		return;
 
-	if (!wl->btcoex_info->timer_on) {
+	if (wl->btcoex_info->timer_on) {
 		wl->btcoex_info->timer_on = 0;
 		del_timer_sync(&wl->btcoex_info->timer);
 	}
@@ -547,10 +551,14 @@ int wl_cfg80211_set_btcoex_dhcp(struct net_device *dev, char *command)
 	if (strnicmp((char *)&powermode_val, "1", strlen("1")) == 0) {
 		WL_TRACE_HW4(("%s: DHCP session starts\n", __FUNCTION__));
 
+#if defined(DHCP_SCAN_SUPPRESS)
+		/* Suppress scan during the DHCP */
+		wl_cfg80211_scan_suppress(dev, 1);
+#endif
+
 #ifdef PKT_FILTER_SUPPORT
 		dhd->dhcp_in_progress = 1;
 
-		/* Disable packet filtering */
 		if (dhd->early_suspended) {
 			WL_TRACE_HW4(("DHCP in progressing , disable packet filter!!!\n"));
 			dhd_enable_packet_filter(0, dhd);
@@ -605,12 +613,17 @@ int wl_cfg80211_set_btcoex_dhcp(struct net_device *dev, char *command)
 		dhd->dhcp_in_progress = 0;
 		WL_TRACE_HW4(("%s: DHCP is complete \n", __FUNCTION__));
 
+#if defined(DHCP_SCAN_SUPPRESS)
+		/* Since DHCP is complete, enable the scan back */
+		wl_cfg80211_scan_suppress(dev, 0);
+#endif
+
 		/* Enable packet filtering */
 		if (dhd->early_suspended) {
 			WL_TRACE_HW4(("DHCP is complete , enable packet filter!!!\n"));
 			dhd_enable_packet_filter(1, dhd);
 		}
-#endif
+#endif /* PKT_FILTER_SUPPORT */
 
 		/* Restoring PM mode */
 

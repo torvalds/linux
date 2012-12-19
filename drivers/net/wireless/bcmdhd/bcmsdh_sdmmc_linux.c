@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc_linux.c 355594 2012-09-07 10:22:02Z $
+ * $Id: bcmsdh_sdmmc_linux.c 363783 2012-10-19 06:27:14Z $
  */
 
 #include <typedefs.h>
@@ -153,10 +153,12 @@ static void bcmsdh_sdmmc_remove(struct sdio_func *func)
 		sd_info(("sdio_device: 0x%04x\n", func->device));
 		sd_info(("Function#: 0x%04x\n", func->num));
 
-		if (func->num == 2) {
+		if (gInstance->func[2]) {
 			sd_trace(("F2 found, calling bcmsdh_remove...\n"));
 			bcmsdh_remove(&func->dev);
-		} else if (func->num == 1) {
+			gInstance->func[2] = NULL;
+		}
+		if (func->num == 1) {
 			sdio_claim_host(func);
 			sdio_disable_func(func);
 			sdio_release_host(func);

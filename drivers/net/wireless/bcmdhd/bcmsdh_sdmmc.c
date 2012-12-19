@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc.c 347640 2012-07-27 11:53:21Z $
+ * $Id: bcmsdh_sdmmc.c 362913 2012-10-15 11:26:11Z $
  */
 #include <typedefs.h>
 
@@ -895,7 +895,7 @@ sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func, uint add
 	/* Claim host controller */
 	sdio_claim_host(gInstance->func[func]);
 
-	if(rw) { /* CMD52 Write */
+	if(rw) { /* CMD53 Write */
 		if (nbytes == 4) {
 			sdio_writel(gInstance->func[func], *word, addr, &err_ret);
 		} else if (nbytes == 2) {
@@ -955,6 +955,7 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 	void *pnext, *pprev;
 	uint ttl_len, dma_len, lft_len, xfred_len, pkt_len;
 	uint blk_num;
+	int blk_size;
 	struct mmc_request mmc_req;
 	struct mmc_command mmc_cmd;
 	struct mmc_data mmc_dat;
@@ -970,12 +971,13 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 	for (pnext = pkt; pnext; pnext = PKTNEXT(sd->osh, pnext))
 		ttl_len += PKTLEN(sd->osh, pnext);
 
-	if (!sd->use_rxchain || ttl_len <= sd->client_block_size[func]) {
+	blk_size = sd->client_block_size[func];
+	if (!sd->use_rxchain || ttl_len <= blk_size) {
 		blk_num = 0;
 		dma_len = 0;
 	} else {
-		blk_num = ttl_len / sd->client_block_size[func];
-		dma_len = blk_num * sd->client_block_size[func];
+		blk_num = ttl_len / blk_size;
+		dma_len = blk_num * blk_size;
 	}
 	lft_len = ttl_len - dma_len;
 
@@ -1016,7 +1018,7 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 
 		mmc_dat.sg = sd->sg_list;
 		mmc_dat.sg_len = SGCount;
-		mmc_dat.blksz = sd->client_block_size[func];
+		mmc_dat.blksz = blk_size;
 		mmc_dat.blocks = blk_num;
 		mmc_dat.flags = write ? MMC_DATA_WRITE : MMC_DATA_READ;
 
@@ -1072,8 +1074,8 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 			 */
 			if (write == 0 || pkt_len < 32)
 				pkt_len = (pkt_len + 3) & 0xFFFFFFFC;
-			else if (pkt_len % DHD_SDALIGN)
-				pkt_len += DHD_SDALIGN - (pkt_len % DHD_SDALIGN);
+			else if (pkt_len % blk_size)
+				pkt_len += blk_size - (pkt_len % blk_size);
 
 #ifdef CONFIG_MMC_MSM7X00A
 			if ((pkt_len % 64) == 32) {

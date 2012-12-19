@@ -18,7 +18,7 @@
 *      Notwithstanding the above, under no circumstances may you combine this
 * software in any way with any other Broadcom software provided under a license
 * other than the GPL, without Broadcom's express prior written consent.
-* $Id: dhd_wlfc.h 341930 2012-06-29 04:51:25Z $
+* $Id: dhd_wlfc.h 361006 2012-10-05 07:45:51Z $
 *
 */
 #ifndef __wlfc_host_driver_definitions_h__
@@ -85,6 +85,7 @@ typedef struct wlfc_hanger {
 	uint32 failed_to_pop;
 	uint32 failed_slotfind;
 	wlfc_hanger_item_t items[1];
+	uint32 slot_pos;
 } wlfc_hanger_t;
 
 #define WLFC_HANGER_SIZE(n)	((sizeof(wlfc_hanger_t) - \

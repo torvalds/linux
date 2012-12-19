@@ -335,7 +335,7 @@ int wldev_set_band(
 }
 
 int wldev_set_country(
-	struct net_device *dev, char *country_code)
+	struct net_device *dev, char *country_code, bool notify)
 {
 	int error = -1;
 	wl_country_t cspec = {{0}, 0, {0}};
@@ -370,7 +370,7 @@ int wldev_set_country(
 				__FUNCTION__, country_code, cspec.ccode, cspec.rev));
 			return error;
 		}
-		dhd_bus_country_set(dev, &cspec);
+		dhd_bus_country_set(dev, &cspec, notify);
 		WLDEV_ERROR(("%s: set country for %s as %s rev %d\n",
 			__FUNCTION__, country_code, cspec.ccode, cspec.rev));
 	}

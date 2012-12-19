@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_android.c 358186 2012-09-21 14:36:14Z $
+ * $Id: wl_android.c 372668 2012-12-04 14:07:12Z $
  */
 
 #include <linux/module.h>
@@ -590,7 +590,7 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 #ifdef WL_CFG80211
 	else if (strnicmp(command, CMD_COUNTRY, strlen(CMD_COUNTRY)) == 0) {
 		char *country_code = command + strlen(CMD_COUNTRY) + 1;
-		bytes_written = wldev_set_country(net, country_code);
+		bytes_written = wldev_set_country(net, country_code, true);
 	}
 #endif /* WL_CFG80211 */
 #if defined(PNO_SUPPORT) && !defined(WL_SCHED_SCAN)
