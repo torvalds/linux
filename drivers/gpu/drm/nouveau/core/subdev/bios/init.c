@@ -411,9 +411,25 @@ init_ram_restrict_group_count(struct nvbios_init *init)
 }
 
 static u8
+init_ram_restrict_strap(struct nvbios_init *init)
+{
+	/* This appears to be the behaviour of the VBIOS parser, and *is*
+	 * important to cache the NV_PEXTDEV_BOOT0 on later chipsets to
+	 * avoid fucking up the memory controller (somehow) by reading it
+	 * on every INIT_RAM_RESTRICT_ZM_GROUP opcode.
+	 *
+	 * Preserving the non-caching behaviour on earlier chipsets just
+	 * in case *not* re-reading the strap causes similar breakage.
+	 */
+	if (!init->ramcfg || init->bios->version.major < 0x70)
+		init->ramcfg = init_rd32(init, 0x101000);
+	return (init->ramcfg & 0x00000003c) >> 2;
+}
+
+static u8
 init_ram_restrict(struct nvbios_init *init)
 {
-	u32 strap = (init_rd32(init, 0x101000) & 0x0000003c) >> 2;
+	u8  strap = init_ram_restrict_strap(init);
 	u16 table = init_ram_restrict_table(init);
 	if (table)
 		return nv_ro08(init->bios, table + strap);
