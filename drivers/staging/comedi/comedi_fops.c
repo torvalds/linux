@@ -451,7 +451,7 @@ static int do_devconfig_ioctl(struct comedi_device *dev,
 		return 0;
 	}
 
-	if (copy_from_user(&it, arg, sizeof(struct comedi_devconfig)))
+	if (copy_from_user(&it, arg, sizeof(it)))
 		return -EFAULT;
 
 	it.board_name[COMEDI_NAMELEN - 1] = 0;
@@ -519,7 +519,7 @@ static int do_bufconfig_ioctl(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int retval = 0;
 
-	if (copy_from_user(&bc, arg, sizeof(struct comedi_bufconfig)))
+	if (copy_from_user(&bc, arg, sizeof(bc)))
 		return -EFAULT;
 
 	if (bc.subdevice >= dev->n_subdevices || bc.subdevice < 0)
@@ -552,7 +552,7 @@ static int do_bufconfig_ioctl(struct comedi_device *dev,
 	bc.maximum_size = async->max_bufsize;
 
 copyback:
-	if (copy_to_user(arg, &bc, sizeof(struct comedi_bufconfig)))
+	if (copy_to_user(arg, &bc, sizeof(bc)))
 		return -EFAULT;
 
 	return 0;
@@ -601,7 +601,7 @@ static int do_devinfo_ioctl(struct comedi_device *dev,
 	else
 		devinfo.write_subdevice = -1;
 
-	if (copy_to_user(arg, &devinfo, sizeof(struct comedi_devinfo)))
+	if (copy_to_user(arg, &devinfo, sizeof(devinfo)))
 		return -EFAULT;
 
 	return 0;
@@ -628,9 +628,7 @@ static int do_subdinfo_ioctl(struct comedi_device *dev,
 	struct comedi_subdinfo *tmp, *us;
 	struct comedi_subdevice *s;
 
-	tmp =
-	    kcalloc(dev->n_subdevices, sizeof(struct comedi_subdinfo),
-		    GFP_KERNEL);
+	tmp = kcalloc(dev->n_subdevices, sizeof(*tmp), GFP_KERNEL);
 	if (!tmp)
 		return -ENOMEM;
 
@@ -681,8 +679,7 @@ static int do_subdinfo_ioctl(struct comedi_device *dev,
 		us->settling_time_0 = s->settling_time_0;
 	}
 
-	ret = copy_to_user(arg, tmp,
-			   dev->n_subdevices * sizeof(struct comedi_subdinfo));
+	ret = copy_to_user(arg, tmp, dev->n_subdevices * sizeof(*tmp));
 
 	kfree(tmp);
 
@@ -709,7 +706,7 @@ static int do_chaninfo_ioctl(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	struct comedi_chaninfo it;
 
-	if (copy_from_user(&it, arg, sizeof(struct comedi_chaninfo)))
+	if (copy_from_user(&it, arg, sizeof(it)))
 		return -EFAULT;
 
 	if (it.subdev >= dev->n_subdevices)
@@ -776,7 +773,7 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
 
-	if (copy_from_user(&bi, arg, sizeof(struct comedi_bufinfo)))
+	if (copy_from_user(&bi, arg, sizeof(bi)))
 		return -EFAULT;
 
 	if (bi.subdevice >= dev->n_subdevices || bi.subdevice < 0)
@@ -831,7 +828,7 @@ copyback_position:
 	bi.buf_read_ptr = async->buf_read_ptr;
 
 copyback:
-	if (copy_to_user(arg, &bi, sizeof(struct comedi_bufinfo)))
+	if (copy_to_user(arg, &bi, sizeof(bi)))
 		return -EFAULT;
 
 	return 0;
@@ -865,7 +862,7 @@ static int do_insnlist_ioctl(struct comedi_device *dev,
 	int i = 0;
 	int ret = 0;
 
-	if (copy_from_user(&insnlist, arg, sizeof(struct comedi_insnlist)))
+	if (copy_from_user(&insnlist, arg, sizeof(insnlist)))
 		return -EFAULT;
 
 	data = kmalloc(sizeof(unsigned int) * MAX_SAMPLES, GFP_KERNEL);
@@ -875,8 +872,7 @@ static int do_insnlist_ioctl(struct comedi_device *dev,
 		goto error;
 	}
 
-	insns =
-	    kcalloc(insnlist.n_insns, sizeof(struct comedi_insn), GFP_KERNEL);
+	insns = kcalloc(insnlist.n_insns, sizeof(*insns), GFP_KERNEL);
 	if (!insns) {
 		DPRINTK("kmalloc failed\n");
 		ret = -ENOMEM;
@@ -884,7 +880,7 @@ static int do_insnlist_ioctl(struct comedi_device *dev,
 	}
 
 	if (copy_from_user(insns, insnlist.insns,
-			   sizeof(struct comedi_insn) * insnlist.n_insns)) {
+			   sizeof(*insns) * insnlist.n_insns)) {
 		DPRINTK("copy_from_user failed\n");
 		ret = -EFAULT;
 		goto error;
@@ -1185,7 +1181,7 @@ static int do_insn_ioctl(struct comedi_device *dev,
 		goto error;
 	}
 
-	if (copy_from_user(&insn, arg, sizeof(struct comedi_insn))) {
+	if (copy_from_user(&insn, arg, sizeof(insn))) {
 		ret = -EFAULT;
 		goto error;
 	}
@@ -1229,7 +1225,7 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	int ret = 0;
 	unsigned int __user *user_chanlist;
 
-	if (copy_from_user(&cmd, arg, sizeof(struct comedi_cmd))) {
+	if (copy_from_user(&cmd, arg, sizeof(cmd))) {
 		DPRINTK("bad cmd address\n");
 		return -EFAULT;
 	}
@@ -1319,7 +1315,7 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 		/* restore chanlist pointer before copying back */
 		cmd.chanlist = (unsigned int __force *)user_chanlist;
 		cmd.data = NULL;
-		if (copy_to_user(arg, &cmd, sizeof(struct comedi_cmd))) {
+		if (copy_to_user(arg, &cmd, sizeof(cmd))) {
 			DPRINTK("fault writing cmd\n");
 			ret = -EFAULT;
 			goto cleanup;
@@ -1378,7 +1374,7 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 	unsigned int *chanlist = NULL;
 	unsigned int __user *user_chanlist;
 
-	if (copy_from_user(&cmd, arg, sizeof(struct comedi_cmd))) {
+	if (copy_from_user(&cmd, arg, sizeof(cmd))) {
 		DPRINTK("bad cmd address\n");
 		return -EFAULT;
 	}
@@ -1442,7 +1438,7 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 	/* restore chanlist pointer before copying back */
 	cmd.chanlist = (unsigned int __force *)user_chanlist;
 
-	if (copy_to_user(arg, &cmd, sizeof(struct comedi_cmd))) {
+	if (copy_to_user(arg, &cmd, sizeof(cmd))) {
 		DPRINTK("bad cmd address\n");
 		ret = -EFAULT;
 		goto cleanup;
@@ -2260,7 +2256,7 @@ EXPORT_SYMBOL(comedi_get_subdevice_runflags);
 
 static void comedi_device_init(struct comedi_device *dev)
 {
-	memset(dev, 0, sizeof(struct comedi_device));
+	memset(dev, 0, sizeof(*dev));
 	spin_lock_init(&dev->spinlock);
 	mutex_init(&dev->mutex);
 	dev->minor = -1;
@@ -2282,7 +2278,7 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 	struct device *csdev;
 	unsigned i;
 
-	info = kzalloc(sizeof(struct comedi_file_info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (info == NULL)
 		return -ENOMEM;
 	info->device = kzalloc(sizeof(struct comedi_device), GFP_KERNEL);
@@ -2365,7 +2361,7 @@ int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 	struct device *csdev;
 	unsigned i;
 
-	info = kmalloc(sizeof(struct comedi_file_info), GFP_KERNEL);
+	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (info == NULL)
 		return -ENOMEM;
 	info->device = dev;
