@@ -363,7 +363,7 @@ static void comedi_set_subdevice_runflags(struct comedi_subdevice *s,
 	spin_unlock_irqrestore(&s->spin_lock, flags);
 }
 
-unsigned comedi_get_subdevice_runflags(struct comedi_subdevice *s)
+static unsigned comedi_get_subdevice_runflags(struct comedi_subdevice *s)
 {
 	unsigned long flags;
 	unsigned runflags;
@@ -373,7 +373,6 @@ unsigned comedi_get_subdevice_runflags(struct comedi_subdevice *s)
 	spin_unlock_irqrestore(&s->spin_lock, flags);
 	return runflags;
 }
-EXPORT_SYMBOL(comedi_get_subdevice_runflags);
 
 bool comedi_is_subdevice_running(struct comedi_subdevice *s)
 {
