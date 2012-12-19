@@ -557,22 +557,20 @@ void gfs2_free_clones(struct gfs2_rgrpd *rgd)
  */
 int gfs2_rs_alloc(struct gfs2_inode *ip)
 {
-	struct gfs2_blkreserv *res;
-
-	if (ip->i_res)
-		return 0;
-
-	res = kmem_cache_zalloc(gfs2_rsrv_cachep, GFP_NOFS);
-	if (!res)
-		return -ENOMEM;
-
-	RB_CLEAR_NODE(&res->rs_node);
+	int error = 0;
 
 	down_write(&ip->i_rw_mutex);
 	if (ip->i_res)
-		kmem_cache_free(gfs2_rsrv_cachep, res);
-	else
-		ip->i_res = res;
+		goto out;
+
+	ip->i_res = kmem_cache_zalloc(gfs2_rsrv_cachep, GFP_NOFS);
+	if (!ip->i_res) {
+		error = -ENOMEM;
+		goto out;
+	}
+
+	RB_CLEAR_NODE(&ip->i_res->rs_node);
+out:
 	up_write(&ip->i_rw_mutex);
 	return 0;
 }
