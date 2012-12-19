@@ -1204,6 +1204,22 @@ s32 ixgbe_read_i2c_eeprom_generic(struct ixgbe_hw *hw, u8 byte_offset,
 }
 
 /**
+ *  ixgbe_read_i2c_sff8472_generic - Reads 8 bit word over I2C interface
+ *  @hw: pointer to hardware structure
+ *  @byte_offset: byte offset at address 0xA2
+ *  @eeprom_data: value read
+ *
+ *  Performs byte read operation to SFP module's SFF-8472 data over I2C
+ **/
+s32 ixgbe_read_i2c_sff8472_generic(struct ixgbe_hw *hw, u8 byte_offset,
+				   u8 *sff8472_data)
+{
+	return hw->phy.ops.read_i2c_byte(hw, byte_offset,
+					 IXGBE_I2C_EEPROM_DEV_ADDR2,
+					 sff8472_data);
+}
+
+/**
  *  ixgbe_write_i2c_eeprom_generic - Writes 8 bit EEPROM word over I2C interface
  *  @hw: pointer to hardware structure
  *  @byte_offset: EEPROM byte offset to write
