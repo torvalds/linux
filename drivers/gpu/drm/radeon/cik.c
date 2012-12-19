@@ -5554,3 +5554,24 @@ void dce8_bandwidth_update(struct radeon_device *rdev)
 		dce8_program_watermarks(rdev, rdev->mode_info.crtcs[i], lb_size, num_heads);
 	}
 }
+
+/**
+ * cik_get_gpu_clock_counter - return GPU clock counter snapshot
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Fetches a GPU clock counter snapshot (SI).
+ * Returns the 64 bit clock counter snapshot.
+ */
+uint64_t cik_get_gpu_clock_counter(struct radeon_device *rdev)
+{
+	uint64_t clock;
+
+	mutex_lock(&rdev->gpu_clock_mutex);
+	WREG32(RLC_CAPTURE_GPU_CLOCK_COUNT, 1);
+	clock = (uint64_t)RREG32(RLC_GPU_CLOCK_COUNT_LSB) |
+	        ((uint64_t)RREG32(RLC_GPU_CLOCK_COUNT_MSB) << 32ULL);
+	mutex_unlock(&rdev->gpu_clock_mutex);
+	return clock;
+}
+

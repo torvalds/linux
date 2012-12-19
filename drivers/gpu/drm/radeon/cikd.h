@@ -730,7 +730,9 @@
 
 #define RLC_GPM_UCODE_ADDR                                0xC388
 #define RLC_GPM_UCODE_DATA                                0xC38C
-
+#define RLC_GPU_CLOCK_COUNT_LSB                           0xC390
+#define RLC_GPU_CLOCK_COUNT_MSB                           0xC394
+#define RLC_CAPTURE_GPU_CLOCK_COUNT                       0xC398
 #define RLC_UCODE_CNTL                                    0xC39C
 
 #define RLC_CGCG_CGLS_CTRL                                0xC424
