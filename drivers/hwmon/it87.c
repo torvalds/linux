@@ -576,8 +576,8 @@ static SENSOR_DEVICE_ATTR_2(temp3_min, S_IRUGO | S_IWUSR, show_temp, set_temp,
 static SENSOR_DEVICE_ATTR_2(temp3_max, S_IRUGO | S_IWUSR, show_temp, set_temp,
 			    2, 2);
 
-static ssize_t show_sensor(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t show_temp_type(struct device *dev, struct device_attribute *attr,
+			      char *buf)
 {
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	int nr = sensor_attr->index;
@@ -590,8 +590,9 @@ static ssize_t show_sensor(struct device *dev, struct device_attribute *attr,
 		return sprintf(buf, "4\n");  /* thermistor */
 	return sprintf(buf, "0\n");      /* disabled */
 }
-static ssize_t set_sensor(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+
+static ssize_t set_temp_type(struct device *dev, struct device_attribute *attr,
+			     const char *buf, size_t count)
 {
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	int nr = sensor_attr->index;
@@ -626,13 +627,13 @@ static ssize_t set_sensor(struct device *dev, struct device_attribute *attr,
 	mutex_unlock(&data->update_lock);
 	return count;
 }
-#define show_sensor_offset(offset)					\
-static SENSOR_DEVICE_ATTR(temp##offset##_type, S_IRUGO | S_IWUSR,	\
-		show_sensor, set_sensor, offset - 1);
 
-show_sensor_offset(1);
-show_sensor_offset(2);
-show_sensor_offset(3);
+static SENSOR_DEVICE_ATTR(temp1_type, S_IRUGO | S_IWUSR, show_temp_type,
+			  set_temp_type, 0);
+static SENSOR_DEVICE_ATTR(temp2_type, S_IRUGO | S_IWUSR, show_temp_type,
+			  set_temp_type, 1);
+static SENSOR_DEVICE_ATTR(temp3_type, S_IRUGO | S_IWUSR, show_temp_type,
+			  set_temp_type, 2);
 
 /* 3 Fans */
 
