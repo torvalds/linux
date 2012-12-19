@@ -479,7 +479,7 @@ static void tegra_hdmi_setup_avi_infoframe(struct tegra_hdmi *hdmi,
 		return;
 	}
 
-	h_front_porch = mode->htotal - mode->hsync_end;
+	h_front_porch = mode->hsync_start - mode->hdisplay;
 	memset(&frame, 0, sizeof(frame));
 	frame.r = HDMI_AVI_R_SAME;
 
@@ -634,8 +634,8 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 
 	pclk = mode->clock * 1000;
 	h_sync_width = mode->hsync_end - mode->hsync_start;
-	h_front_porch = mode->htotal - mode->hsync_end;
-	h_back_porch = mode->hsync_start - mode->hdisplay;
+	h_back_porch = mode->htotal - mode->hsync_end;
+	h_front_porch = mode->hsync_start - mode->hdisplay;
 
 	err = regulator_enable(hdmi->vdd);
 	if (err < 0) {

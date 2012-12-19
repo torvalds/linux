@@ -102,12 +102,12 @@ static int tegra_dc_set_timings(struct tegra_dc *dc,
 		((mode->hsync_end - mode->hsync_start) <<  0);
 	tegra_dc_writel(dc, value, DC_DISP_SYNC_WIDTH);
 
-	value = ((mode->vsync_start - mode->vdisplay) << 16) |
-		((mode->hsync_start - mode->hdisplay) <<  0);
-	tegra_dc_writel(dc, value, DC_DISP_BACK_PORCH);
-
 	value = ((mode->vtotal - mode->vsync_end) << 16) |
 		((mode->htotal - mode->hsync_end) <<  0);
+	tegra_dc_writel(dc, value, DC_DISP_BACK_PORCH);
+
+	value = ((mode->vsync_start - mode->vdisplay) << 16) |
+		((mode->hsync_start - mode->hdisplay) <<  0);
 	tegra_dc_writel(dc, value, DC_DISP_FRONT_PORCH);
 
 	value = (mode->vdisplay << 16) | mode->hdisplay;
