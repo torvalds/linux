@@ -1305,6 +1305,42 @@ static struct platform_device device_rfkill_rk = {
 };
 #endif
 
+#if defined(CONFIG_MT5931_MT6622)
+static struct mt6622_platform_data mt6622_platdata = {
+    .power_gpio         = { // BT_REG_ON
+        .io             = RK30_PIN3_PC7, // set io to INVALID_GPIO for disable it
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = NULL,
+        },
+    },
+
+    .reset_gpio         = { // BT_RST
+        .io             = RK30_PIN3_PD1,
+        .enable         = GPIO_LOW,
+        .iomux          = {
+            .name       = NULL,
+        },
+    },
+
+    .irq_gpio           = {
+        .io             = RK30_PIN6_PA7,
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = NULL,
+        },
+    }
+};
+
+static struct platform_device device_mt6622 = {
+    .name   = "mt6622",
+    .id     = -1,
+    .dev    = {
+        .platform_data = &mt6622_platdata,
+    },
+};
+#endif
+
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_FB_ROCKCHIP
 	&device_fb,
@@ -1360,6 +1396,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_RFKILL_RK
 	&device_rfkill_rk,
+#endif
+#ifdef CONFIG_MT5931_MT6622
+	&device_mt6622,
 #endif
 };
 

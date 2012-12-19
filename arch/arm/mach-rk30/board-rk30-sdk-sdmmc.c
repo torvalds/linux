@@ -142,6 +142,14 @@
     #define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE    GPIO_HIGH 
     #define RK30SDK_WIFI_GPIO_RESET_PIN_NAME        GPIO3D1_SDMMC1BACKENDPWR_NAME
     #define RK30SDK_WIFI_GPIO_RESET_IOMUX_FGPIO     GPIO3D_GPIO3D1
+    
+    #elif defined(CONFIG_MT5931) || defined(CONFIG_MT5931_MT6622)
+    //power
+    #define RK30SDK_WIFI_GPIO_POWER_N               RK30_PIN3_PC6 //RK30_PIN3_PD0       // huweiguo          
+    #define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_HIGH                   
+    //reset
+    #define RK30SDK_WIFI_GPIO_RESET_N               RK30_PIN3_PD1       // huweiguo 
+    #define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE    GPIO_HIGH    
 
     #elif defined(CONFIG_MT6620)
         #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
@@ -1065,7 +1073,7 @@ static void rk29_sdmmc_gpio_open(int device_id, int on)
                 gpio_request(rksdmmc1_gpio_init.data0_gpio.io, "mmc1-data0");
                 gpio_direction_output(rksdmmc1_gpio_init.data0_gpio.io,GPIO_LOW);//set mmc1-data0 to low.
                 
-            #if defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
+            #if defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC) || defined(CONFIG_MT5931) || defined(CONFIG_MT5931_MT6622)
                 rk29_mux_api_set(rksdmmc1_gpio_init.data1_gpio.iomux.name, rksdmmc1_gpio_init.data1_gpio.iomux.fgpio);
                 gpio_request(rksdmmc1_gpio_init.data1_gpio.io, "mmc1-data1");
                 gpio_direction_output(rksdmmc1_gpio_init.data1_gpio.io,GPIO_LOW);//set mmc1-data1 to low.
@@ -1541,6 +1549,7 @@ static int __init rk29sdk_wifi_bt_gpio_control_init(void)
 
     #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
     
+    #if !defined(CONFIG_MT5931) && !defined(CONFIG_MT5931_MT6622)  
     rk29_mux_api_set(rksdmmc1_gpio_init.data1_gpio.iomux.name, rksdmmc1_gpio_init.data1_gpio.iomux.fgpio);
     gpio_request(rksdmmc1_gpio_init.data1_gpio.io, "mmc1-data1");
     gpio_direction_output(rksdmmc1_gpio_init.data1_gpio.io,GPIO_LOW);//set mmc1-data1 to low.
@@ -1552,6 +1561,7 @@ static int __init rk29sdk_wifi_bt_gpio_control_init(void)
     rk29_mux_api_set(rksdmmc1_gpio_init.data3_gpio.iomux.name,  rksdmmc1_gpio_init.data3_gpio.iomux.fgpio);
     gpio_request(rksdmmc1_gpio_init.data3_gpio.io, "mmc1-data3");
     gpio_direction_output(rksdmmc1_gpio_init.data3_gpio.io,GPIO_LOW);//set mmc1-data3 to low.
+    #endif
     
     rk29_sdmmc_gpio_open(1, 0); //added by xbw at 2011-10-13
     #endif    
