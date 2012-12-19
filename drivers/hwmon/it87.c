@@ -231,7 +231,8 @@ static const u8 IT87_REG_TEMP_OFFSET[]	= { 0x56, 0x57, 0x59 };
 struct it87_devices {
 	const char *name;
 	u16 features;
-	u16 peci_mask;
+	u8 peci_mask;
+	u8 old_peci_mask;
 };
 
 #define FEAT_12MV_ADC		(1 << 0)
@@ -240,6 +241,7 @@ struct it87_devices {
 #define FEAT_16BIT_FANS		(1 << 3)
 #define FEAT_TEMP_OFFSET	(1 << 4)
 #define FEAT_TEMP_PECI		(1 << 5)
+#define FEAT_TEMP_OLD_PECI	(1 << 6)
 
 static const struct it87_devices it87_devices[] = {
 	[it87] = {
@@ -256,17 +258,22 @@ static const struct it87_devices it87_devices[] = {
 	},
 	[it8718] = {
 		.name = "it8718",
-		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET,
+		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET
+		  | FEAT_TEMP_OLD_PECI,
+		.old_peci_mask = 0x4,
 	},
 	[it8720] = {
 		.name = "it8720",
-		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET,
+		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET
+		  | FEAT_TEMP_OLD_PECI,
+		.old_peci_mask = 0x4,
 	},
 	[it8721] = {
 		.name = "it8721",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
-		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI,
+		  | FEAT_TEMP_OFFSET | FEAT_TEMP_OLD_PECI | FEAT_TEMP_PECI,
 		.peci_mask = 0x05,
+		.old_peci_mask = 0x02,	/* Actually reports PCH */
 	},
 	[it8728] = {
 		.name = "it8728",
@@ -276,11 +283,15 @@ static const struct it87_devices it87_devices[] = {
 	},
 	[it8782] = {
 		.name = "it8782",
-		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET,
+		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET
+		  | FEAT_TEMP_OLD_PECI,
+		.old_peci_mask = 0x4,
 	},
 	[it8783] = {
 		.name = "it8783",
-		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET,
+		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET
+		  | FEAT_TEMP_OLD_PECI,
+		.old_peci_mask = 0x4,
 	},
 };
 
@@ -291,6 +302,9 @@ static const struct it87_devices it87_devices[] = {
 #define has_temp_offset(data)	((data)->features & FEAT_TEMP_OFFSET)
 #define has_temp_peci(data, nr)	(((data)->features & FEAT_TEMP_PECI) && \
 				 ((data)->peci_mask & (1 << nr)))
+#define has_temp_old_peci(data, nr) \
+				(((data)->features & FEAT_TEMP_OLD_PECI) && \
+				 ((data)->old_peci_mask & (1 << nr)))
 
 struct it87_sio_data {
 	enum chips type;
@@ -315,7 +329,8 @@ struct it87_data {
 	struct device *hwmon_dev;
 	enum chips type;
 	u16 features;
-	u16 peci_mask;
+	u8 peci_mask;
+	u8 old_peci_mask;
 
 	unsigned short addr;
 	const char *name;
@@ -329,7 +344,8 @@ struct it87_data {
 	u16 fan[5][2];		/* Register values, [nr][0]=fan, [1]=min */
 	u8 has_temp;		/* Bitfield, temp sensors enabled */
 	s8 temp[3][4];		/* [nr][0]=temp, [1]=min, [2]=max, [3]=offset */
-	u8 sensor;		/* Register value */
+	u8 sensor;		/* Register value (IT87_REG_TEMP_ENABLE) */
+	u8 extra;		/* Register value (IT87_REG_TEMP_EXTRA) */
 	u8 fan_div[3];		/* Register encoding, shifted right */
 	u8 vid;			/* Register encoding, combined */
 	u8 vrm;
@@ -623,8 +639,10 @@ static ssize_t show_temp_type(struct device *dev, struct device_attribute *attr,
 	int nr = sensor_attr->index;
 	struct it87_data *data = it87_update_device(dev);
 	u8 reg = data->sensor;	    /* In case value is updated while used */
+	u8 extra = data->extra;
 
-	if (has_temp_peci(data, nr) && (reg >> 6 == nr + 1))
+	if ((has_temp_peci(data, nr) && (reg >> 6 == nr + 1))
+	    || (has_temp_old_peci(data, nr) && (extra & 0x80)))
 		return sprintf(buf, "6\n");  /* Intel PECI */
 	if (reg & (1 << nr))
 		return sprintf(buf, "3\n");  /* thermal diode */
@@ -641,7 +659,7 @@ static ssize_t set_temp_type(struct device *dev, struct device_attribute *attr,
 
 	struct it87_data *data = dev_get_drvdata(dev);
 	long val;
-	u8 reg;
+	u8 reg, extra;
 
 	if (kstrtol(buf, 10, &val) < 0)
 		return -EINVAL;
@@ -651,6 +669,9 @@ static ssize_t set_temp_type(struct device *dev, struct device_attribute *attr,
 	reg &= ~(8 << nr);
 	if (has_temp_peci(data, nr) && (reg >> 6 == nr + 1 || val == 6))
 		reg &= 0x3f;
+	extra = it87_read_value(data, IT87_REG_TEMP_EXTRA);
+	if (has_temp_old_peci(data, nr) && ((extra & 0x80) || val == 6))
+		extra &= 0x7f;
 	if (val == 2) {	/* backwards compatibility */
 		dev_warn(dev,
 			 "Sensor type 2 is deprecated, please use 4 instead\n");
@@ -663,12 +684,17 @@ static ssize_t set_temp_type(struct device *dev, struct device_attribute *attr,
 		reg |= 8 << nr;
 	else if (has_temp_peci(data, nr) && val == 6)
 		reg |= (nr + 1) << 6;
+	else if (has_temp_old_peci(data, nr) && val == 6)
+		extra |= 0x80;
 	else if (val != 0)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
 	data->sensor = reg;
+	data->extra = extra;
 	it87_write_value(data, IT87_REG_TEMP_ENABLE, data->sensor);
+	if (has_temp_old_peci(data, nr))
+		it87_write_value(data, IT87_REG_TEMP_EXTRA, data->extra);
 	data->valid = 0;	/* Force cache refresh */
 	mutex_unlock(&data->update_lock);
 	return count;
@@ -1980,6 +2006,7 @@ static int it87_probe(struct platform_device *pdev)
 	data->type = sio_data->type;
 	data->features = it87_devices[sio_data->type].features;
 	data->peci_mask = it87_devices[sio_data->type].peci_mask;
+	data->old_peci_mask = it87_devices[sio_data->type].old_peci_mask;
 	data->name = it87_devices[sio_data->type].name;
 	/*
 	 * IT8705F Datasheet 0.4.1, 3h == Version G.
@@ -2461,6 +2488,7 @@ static struct it87_data *it87_update_device(struct device *dev)
 			it87_update_pwm_ctrl(data, i);
 
 		data->sensor = it87_read_value(data, IT87_REG_TEMP_ENABLE);
+		data->extra = it87_read_value(data, IT87_REG_TEMP_EXTRA);
 		/*
 		 * The IT8705F does not have VID capability.
 		 * The IT8718F and later don't use IT87_REG_VID for the
