@@ -573,6 +573,7 @@ static void gsm_send(struct gsm_mux *gsm, int addr, int cr, int control)
 	int len;
 	u8 cbuf[10];
 	u8 ibuf[3];
+	unsigned long flags;
 
 	switch (gsm->encoding) {
 	case 0:
@@ -602,7 +603,9 @@ static void gsm_send(struct gsm_mux *gsm, int addr, int cr, int control)
 		WARN_ON(1);
 		return;
 	}
+	spin_lock_irqsave(&gsm->tx_lock, flags);
 	gsm->output(gsm, cbuf, len);
+	spin_unlock_irqrestore(&gsm->tx_lock, flags);
 	gsm_print_packet("-->", addr, cr, control, NULL, 0);
 }
 
