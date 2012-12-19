@@ -16,6 +16,7 @@
 #include <linux/backing-dev.h>
 #include <linux/blkdev.h>
 #include <linux/bio.h>
+#include <linux/prefetch.h>
 
 #include "f2fs.h"
 #include "node.h"
