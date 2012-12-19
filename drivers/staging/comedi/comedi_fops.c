@@ -382,6 +382,13 @@ bool comedi_is_subdevice_running(struct comedi_subdevice *s)
 }
 EXPORT_SYMBOL_GPL(comedi_is_subdevice_running);
 
+static bool comedi_is_subdevice_in_error(struct comedi_subdevice *s)
+{
+	unsigned runflags = comedi_get_subdevice_runflags(s);
+
+	return (runflags & SRF_ERROR) ? true : false;
+}
+
 /*
    This function restores a subdevice to an idle state.
  */
@@ -1908,12 +1915,10 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 
 		if (!comedi_is_subdevice_running(s)) {
 			if (count == 0) {
-				if (comedi_get_subdevice_runflags(s) &
-					SRF_ERROR) {
+				if (comedi_is_subdevice_in_error(s))
 					retval = -EPIPE;
-				} else {
+				else
 					retval = 0;
-				}
 				do_become_nonbusy(dev, s);
 			}
 			break;
@@ -2015,12 +2020,10 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		if (n == 0) {
 			if (!comedi_is_subdevice_running(s)) {
 				do_become_nonbusy(dev, s);
-				if (comedi_get_subdevice_runflags(s) &
-				    SRF_ERROR) {
+				if (comedi_is_subdevice_in_error(s))
 					retval = -EPIPE;
-				} else {
+				else
 					retval = 0;
-				}
 				break;
 			}
 			if (file->f_flags & O_NONBLOCK) {
