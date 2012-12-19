@@ -1033,6 +1033,7 @@ enum radeon_int_thermal_type {
 	THERMAL_TYPE_SUMO,
 	THERMAL_TYPE_NI,
 	THERMAL_TYPE_SI,
+	THERMAL_TYPE_CI,
 };
 
 struct radeon_voltage {
