@@ -609,8 +609,7 @@ static struct sort_dimension *avail_sorts[] = {
 	&pingpong_sort_dimension,
 };
 
-#define NUM_AVAIL_SORTS	\
-	(int)(sizeof(avail_sorts) / sizeof(struct sort_dimension *))
+#define NUM_AVAIL_SORTS	((int)ARRAY_SIZE(avail_sorts))
 
 static int sort_dimension__add(const char *tok, struct list_head *list)
 {
