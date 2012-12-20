@@ -135,20 +135,6 @@ static int acpi_container_remove(struct acpi_device *device, int type)
 	return status;
 }
 
-static int container_device_add(struct acpi_device **device, acpi_handle handle)
-{
-	acpi_handle phandle;
-	struct acpi_device *pdev;
-
-	if (acpi_get_parent(handle, &phandle))
-		return -ENODEV;
-
-	if (acpi_bus_get_device(phandle, &pdev))
-		return -ENODEV;
-
-	return acpi_bus_add(device, pdev, handle, ACPI_BUS_TYPE_DEVICE);
-}
-
 static void container_notify_cb(acpi_handle handle, u32 type, void *context)
 {
 	struct acpi_device *device = NULL;
@@ -180,7 +166,7 @@ static void container_notify_cb(acpi_handle handle, u32 type, void *context)
 		if (!ACPI_FAILURE(status) || device)
 			break;
 
-		result = container_device_add(&device, handle);
+		result = acpi_bus_add(handle, &device);
 		if (result) {
 			acpi_handle_warn(handle, "Failed to add container\n");
 			break;

@@ -448,8 +448,7 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 			if (ACPI_SUCCESS(ret) &&
 			    (adr>>16) == (slot->device_num + 1)) {
 
-				ret = acpi_bus_add(&device, pdevice, chandle,
-						   ACPI_BUS_TYPE_DEVICE);
+				ret = acpi_bus_add(chandle, &device);
 				if (ACPI_FAILURE(ret)) {
 					printk(KERN_ERR "%s: acpi_bus_add "
 					       "failed (0x%x) for slot %d "

@@ -1650,25 +1650,33 @@ static int acpi_bus_scan(acpi_handle handle, bool start,
 	return ret;
 }
 
-/*
- * acpi_bus_add
+/**
+ * acpi_bus_add - Add ACPI device node objects in a given namespace scope.
+ * @handle: Root of the namespace scope to scan.
+ * @ret: Location to store a return struct acpi_device pointer.
  *
- * scan a given ACPI tree and (probably recently hot-plugged)
- * create and add found devices.
+ * Scan a given ACPI tree (probably recently hot-plugged) and create and add
+ * found devices.
  *
- * If no devices were found -ENODEV is returned which does not
- * mean that this is a real error, there just have been no suitable
- * ACPI objects in the table trunk from which the kernel could create
- * a device and add an appropriate driver.
+ * If no devices were found, -ENODEV is returned, but it does not mean that
+ * there has been a real error.  There just have been no suitable ACPI objects
+ * in the table trunk from which the kernel could create a device and add an
+ * appropriate driver.
+ *
+ * If 0 is returned, the memory location pointed to by @ret will be populated
+ * with a pointer to a struct acpi_device created while scanning the namespace.
+ * If @handle corresponds to a device node, that will be a pointer to the struct
+ * acpi_device object corresponding to @handle.  Otherwise, it will be a pointer
+ * to a struct acpi_device corresponding to one of its descendants.
+ *
+ * If an error code is returned, NULL will be stored in the memory location
+ * pointed to by @ret.
  */
-
-int
-acpi_bus_add(struct acpi_device **child,
-	     struct acpi_device *parent, acpi_handle handle, int type)
+int acpi_bus_add(acpi_handle handle, struct acpi_device **ret)
 {
 	int err;
 
-	err = acpi_bus_scan(handle, false, child);
+	err = acpi_bus_scan(handle, false, ret);
 	if (err)
 		return err;
 
