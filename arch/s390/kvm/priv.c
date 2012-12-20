@@ -297,7 +297,7 @@ out_fail:
 	return 0;
 }
 
-static intercept_handler_t priv_handlers[256] = {
+static const intercept_handler_t priv_handlers[256] = {
 	[0x02] = handle_stidp,
 	[0x10] = handle_set_prefix,
 	[0x11] = handle_store_prefix,
@@ -405,7 +405,7 @@ static int handle_sckpf(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static intercept_handler_t x01_handlers[256] = {
+static const intercept_handler_t x01_handlers[256] = {
 	[0x07] = handle_sckpf,
 };
 
