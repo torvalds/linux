@@ -322,10 +322,10 @@ static int export_encode_fh(struct inode *inode, struct fid *fid,
 
 	if (parent && (len < 4)) {
 		*max_len = 4;
-		return 255;
+		return FILEID_INVALID;
 	} else if (len < 2) {
 		*max_len = 2;
-		return 255;
+		return FILEID_INVALID;
 	}
 
 	len = 2;

@@ -20,7 +20,6 @@
 #include <linux/module.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
-#include <linux/nsproxy.h>
 
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/xdr.h>
@@ -1041,7 +1040,7 @@ static void svc_unregister(const struct svc_serv *serv, struct net *net)
 }
 
 /*
- * Printk the given error with the address of the client that caused it.
+ * dprintk the given error with the address of the client that caused it.
  */
 static __printf(2, 3)
 void svc_printk(struct svc_rqst *rqstp, const char *fmt, ...)
@@ -1055,8 +1054,7 @@ void svc_printk(struct svc_rqst *rqstp, const char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	net_warn_ratelimited("svc: %s: %pV",
-			     svc_print_addr(rqstp, buf, sizeof(buf)), &vaf);
+	dprintk("svc: %s: %pV", svc_print_addr(rqstp, buf, sizeof(buf)), &vaf);
 
 	va_end(args);
 }
@@ -1305,7 +1303,7 @@ svc_process(struct svc_rqst *rqstp)
 	 * Setup response xdr_buf.
 	 * Initially it has just one page
 	 */
-	rqstp->rq_resused = 1;
+	rqstp->rq_next_page = &rqstp->rq_respages[1];
 	resv->iov_base = page_address(rqstp->rq_respages[0]);
 	resv->iov_len = 0;
 	rqstp->rq_res.pages = rqstp->rq_respages + 1;
