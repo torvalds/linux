@@ -624,6 +624,8 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 			    struct kvm_segment *var, int seg);
 static void vmx_get_segment(struct kvm_vcpu *vcpu,
 			    struct kvm_segment *var, int seg);
+static bool guest_state_valid(struct kvm_vcpu *vcpu);
+static u32 vmx_segment_access_rights(struct kvm_segment *var);
 
 static DEFINE_PER_CPU(struct vmcs *, vmxarea);
 static DEFINE_PER_CPU(struct vmcs *, current_vmcs);
@@ -2758,24 +2760,40 @@ static __exit void hardware_unsetup(void)
 	free_kvm_area();
 }
 
-static void fix_pmode_dataseg(struct kvm_vcpu *vcpu, int seg, struct kvm_segment *save)
+static void fix_pmode_dataseg(struct kvm_vcpu *vcpu, int seg,
+		struct kvm_segment *save)
 {
-	const struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
-	struct kvm_segment tmp = *save;
-
-	if (!(vmcs_readl(sf->base) == tmp.base && tmp.s)) {
-		tmp.base = vmcs_readl(sf->base);
-		tmp.selector = vmcs_read16(sf->selector);
-		tmp.dpl = tmp.selector & SELECTOR_RPL_MASK;
-		tmp.s = 1;
+	if (!emulate_invalid_guest_state) {
+		/*
+		 * CS and SS RPL should be equal during guest entry according
+		 * to VMX spec, but in reality it is not always so. Since vcpu
+		 * is in the middle of the transition from real mode to
+		 * protected mode it is safe to assume that RPL 0 is a good
+		 * default value.
+		 */
+		if (seg == VCPU_SREG_CS || seg == VCPU_SREG_SS)
+			save->selector &= ~SELECTOR_RPL_MASK;
+		save->dpl = save->selector & SELECTOR_RPL_MASK;
+		save->s = 1;
 	}
-	vmx_set_segment(vcpu, &tmp, seg);
+	vmx_set_segment(vcpu, save, seg);
 }
 
 static void enter_pmode(struct kvm_vcpu *vcpu)
 {
 	unsigned long flags;
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	/*
+	 * Update real mode segment cache. It may be not up-to-date if sement
+	 * register was written while vcpu was in a guest mode.
+	 */
+	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_ES], VCPU_SREG_ES);
+	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_DS], VCPU_SREG_DS);
+	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_FS], VCPU_SREG_FS);
+	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_GS], VCPU_SREG_GS);
+	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_SS], VCPU_SREG_SS);
+	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_CS], VCPU_SREG_CS);
 
 	vmx->emulation_required = 1;
 	vmx->rmode.vm86_active = 0;
@@ -2794,22 +2812,12 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 
 	update_exception_bitmap(vcpu);
 
-	if (emulate_invalid_guest_state)
-		return;
-
+	fix_pmode_dataseg(vcpu, VCPU_SREG_CS, &vmx->rmode.segs[VCPU_SREG_CS]);
+	fix_pmode_dataseg(vcpu, VCPU_SREG_SS, &vmx->rmode.segs[VCPU_SREG_SS]);
 	fix_pmode_dataseg(vcpu, VCPU_SREG_ES, &vmx->rmode.segs[VCPU_SREG_ES]);
 	fix_pmode_dataseg(vcpu, VCPU_SREG_DS, &vmx->rmode.segs[VCPU_SREG_DS]);
 	fix_pmode_dataseg(vcpu, VCPU_SREG_FS, &vmx->rmode.segs[VCPU_SREG_FS]);
 	fix_pmode_dataseg(vcpu, VCPU_SREG_GS, &vmx->rmode.segs[VCPU_SREG_GS]);
-
-	vmx_segment_cache_clear(vmx);
-
-	vmcs_write16(GUEST_SS_SELECTOR, 0);
-	vmcs_write32(GUEST_SS_AR_BYTES, 0x93);
-
-	vmcs_write16(GUEST_CS_SELECTOR,
-		     vmcs_read16(GUEST_CS_SELECTOR) & ~SELECTOR_RPL_MASK);
-	vmcs_write32(GUEST_CS_AR_BYTES, 0x9b);
 }
 
 static gva_t rmode_tss_base(struct kvm *kvm)
@@ -2831,22 +2839,40 @@ static gva_t rmode_tss_base(struct kvm *kvm)
 static void fix_rmode_seg(int seg, struct kvm_segment *save)
 {
 	const struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
+	struct kvm_segment var = *save;
 
-	vmcs_write16(sf->selector, save->base >> 4);
-	vmcs_write32(sf->base, save->base & 0xffff0);
-	vmcs_write32(sf->limit, 0xffff);
-	vmcs_write32(sf->ar_bytes, 0xf3);
-	if (save->base & 0xf)
-		printk_once(KERN_WARNING "kvm: segment base is not paragraph"
-			    " aligned when entering protected mode (seg=%d)",
-			    seg);
+	var.dpl = 0x3;
+	if (seg == VCPU_SREG_CS)
+		var.type = 0x3;
+
+	if (!emulate_invalid_guest_state) {
+		var.selector = var.base >> 4;
+		var.base = var.base & 0xffff0;
+		var.limit = 0xffff;
+		var.g = 0;
+		var.db = 0;
+		var.present = 1;
+		var.s = 1;
+		var.l = 0;
+		var.unusable = 0;
+		var.type = 0x3;
+		var.avl = 0;
+		if (save->base & 0xf)
+			printk_once(KERN_WARNING "kvm: segment base is not "
+					"paragraph aligned when entering "
+					"protected mode (seg=%d)", seg);
+	}
+
+	vmcs_write16(sf->selector, var.selector);
+	vmcs_write32(sf->base, var.base);
+	vmcs_write32(sf->limit, var.limit);
+	vmcs_write32(sf->ar_bytes, vmx_segment_access_rights(&var));
 }
 
 static void enter_rmode(struct kvm_vcpu *vcpu)
 {
 	unsigned long flags;
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	struct kvm_segment var;
 
 	if (enable_unrestricted_guest)
 		return;
@@ -2861,7 +2887,6 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 
 	vmx->emulation_required = 1;
 	vmx->rmode.vm86_active = 1;
-
 
 	/*
 	 * Very old userspace does not call KVM_SET_TSS_ADDR before entering
@@ -2890,28 +2915,13 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 	vmcs_writel(GUEST_CR4, vmcs_readl(GUEST_CR4) | X86_CR4_VME);
 	update_exception_bitmap(vcpu);
 
-	if (emulate_invalid_guest_state)
-		goto continue_rmode;
+	fix_rmode_seg(VCPU_SREG_SS, &vmx->rmode.segs[VCPU_SREG_SS]);
+	fix_rmode_seg(VCPU_SREG_CS, &vmx->rmode.segs[VCPU_SREG_CS]);
+	fix_rmode_seg(VCPU_SREG_ES, &vmx->rmode.segs[VCPU_SREG_ES]);
+	fix_rmode_seg(VCPU_SREG_DS, &vmx->rmode.segs[VCPU_SREG_DS]);
+	fix_rmode_seg(VCPU_SREG_GS, &vmx->rmode.segs[VCPU_SREG_GS]);
+	fix_rmode_seg(VCPU_SREG_FS, &vmx->rmode.segs[VCPU_SREG_FS]);
 
-	vmx_get_segment(vcpu, &var, VCPU_SREG_SS);
-	vmx_set_segment(vcpu, &var, VCPU_SREG_SS);
-
-	vmx_get_segment(vcpu, &var, VCPU_SREG_CS);
-	vmx_set_segment(vcpu, &var, VCPU_SREG_CS);
-
-	vmx_get_segment(vcpu, &var, VCPU_SREG_ES);
-	vmx_set_segment(vcpu, &var, VCPU_SREG_ES);
-
-	vmx_get_segment(vcpu, &var, VCPU_SREG_DS);
-	vmx_set_segment(vcpu, &var, VCPU_SREG_DS);
-
-	vmx_get_segment(vcpu, &var, VCPU_SREG_GS);
-	vmx_set_segment(vcpu, &var, VCPU_SREG_GS);
-
-	vmx_get_segment(vcpu, &var, VCPU_SREG_FS);
-	vmx_set_segment(vcpu, &var, VCPU_SREG_FS);
-
-continue_rmode:
 	kvm_mmu_reset_context(vcpu);
 }
 
@@ -3278,7 +3288,7 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 			vmcs_write16(sf->selector, var->selector);
 		else if (var->s)
 			fix_rmode_seg(seg, &vmx->rmode.segs[seg]);
-		return;
+		goto out;
 	}
 
 	vmcs_writel(sf->base, var->base);
@@ -3300,6 +3310,10 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 		var->type |= 0x1; /* Accessed */
 
 	vmcs_write32(sf->ar_bytes, vmx_segment_access_rights(var));
+
+out:
+	if (!vmx->emulation_required)
+		vmx->emulation_required = !guest_state_valid(vcpu);
 }
 
 static void vmx_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l)
