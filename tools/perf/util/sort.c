@@ -143,10 +143,8 @@ static int64_t _sort__sym_cmp(struct symbol *sym_l, struct symbol *sym_r,
 	if (sym_l == sym_r)
 		return 0;
 
-	if (sym_l)
-		ip_l = sym_l->start;
-	if (sym_r)
-		ip_r = sym_r->start;
+	ip_l = sym_l->start;
+	ip_r = sym_r->start;
 
 	return (int64_t)(ip_r - ip_l);
 }
