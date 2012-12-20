@@ -523,6 +523,18 @@ void snd_hda_activate_path(struct hda_codec *codec, struct nid_path *path,
 }
 EXPORT_SYMBOL_HDA(snd_hda_activate_path);
 
+/* turn on/off EAPD on the given pin */
+static void set_pin_eapd(struct hda_codec *codec, hda_nid_t pin, bool enable)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	if (spec->own_eapd_ctl ||
+	    !(snd_hda_query_pin_caps(codec, pin) & AC_PINCAP_EAPD))
+		return;
+	snd_hda_codec_update_cache(codec, pin, 0,
+				   AC_VERB_SET_EAPD_BTLENABLE,
+				   enable ? 0x02 : 0x00);
+}
+
 
 /*
  * Helper functions for creating mixer ctl elements
@@ -1485,7 +1497,9 @@ static int set_multi_io(struct hda_codec *codec, int idx, bool output)
 	if (output) {
 		snd_hda_set_pin_ctl_cache(codec, nid, PIN_OUT);
 		snd_hda_activate_path(codec, path, true, true);
+		set_pin_eapd(codec, nid, true);
 	} else {
+		set_pin_eapd(codec, nid, false);
 		snd_hda_activate_path(codec, path, false, true);
 		snd_hda_set_pin_ctl_cache(codec, nid,
 					  spec->multi_io[idx].ctl_in);
@@ -2418,6 +2432,7 @@ static void do_automute(struct hda_codec *codec, int num_pins, hda_nid_t *pins,
 			val = 0;
 		val |= pin_bits;
 		snd_hda_set_pin_ctl(codec, nid, val);
+		set_pin_eapd(codec, nid, !mute);
 	}
 }
 
@@ -3351,7 +3366,6 @@ EXPORT_SYMBOL_HDA(snd_hda_gen_build_pcms);
 static void set_output_and_unmute(struct hda_codec *codec, hda_nid_t pin,
 				  int pin_type, hda_nid_t dac)
 {
-	struct hda_gen_spec *spec = codec->spec;
 	struct nid_path *path;
 
 	snd_hda_set_pin_ctl_cache(codec, pin, pin_type);
@@ -3361,11 +3375,7 @@ static void set_output_and_unmute(struct hda_codec *codec, hda_nid_t pin,
 	if (path->active)
 		return;
 	snd_hda_activate_path(codec, path, true, true);
-
-	if (!spec->own_eapd_ctl &&
-	    (snd_hda_query_pin_caps(codec, pin) & AC_PINCAP_EAPD))
-		snd_hda_codec_update_cache(codec, pin, 0,
-					   AC_VERB_SET_EAPD_BTLENABLE, 0x02);
+	set_pin_eapd(codec, pin, true);
 }
 
 /* initialize primary output paths */
