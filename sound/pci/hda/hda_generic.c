@@ -3258,7 +3258,6 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 	struct hda_pcm *info = spec->pcm_rec;
 	const struct hda_pcm_stream *p;
 	bool have_multi_adcs;
-	int i;
 
 	codec->num_pcms = 1;
 	codec->pcm_info = info;
@@ -3294,15 +3293,6 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 		}
 		info->stream[SNDRV_PCM_STREAM_CAPTURE] = *p;
 		info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adc_nids[0];
-	}
-
-	if (spec->channel_mode) {
-		info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max = 0;
-		for (i = 0; i < spec->num_channel_mode; i++) {
-			if (spec->channel_mode[i].channels > info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max) {
-				info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max = spec->channel_mode[i].channels;
-			}
-		}
 	}
 
  skip_analog:

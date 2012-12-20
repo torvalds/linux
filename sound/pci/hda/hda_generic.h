@@ -101,8 +101,6 @@ struct hda_gen_spec {
 	unsigned int cur_mux[3];
 
 	/* channel model */
-	const struct hda_channel_mode *channel_mode;
-	int num_channel_mode;
 	int const_channel_count;	/* min. channel count (for speakers) */
 	int ext_channel_count;		/* current channel count for multi-io */
 
