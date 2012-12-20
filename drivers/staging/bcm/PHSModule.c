@@ -1,6 +1,6 @@
 #include "headers.h"
 
-static UINT CreateSFToClassifierRuleMapping(B_UINT16 uiVcid,B_UINT16  uiClsId,S_SERVICEFLOW_TABLE *psServiceFlowTable,S_PHS_RULE *psPhsRule,B_UINT8 u8AssociatedPHSI);
+static UINT CreateSFToClassifierRuleMapping(B_UINT16 uiVcid,B_UINT16  uiClsId, struct bcm_phs_table *psServiceFlowTable,S_PHS_RULE *psPhsRule,B_UINT8 u8AssociatedPHSI);
 
 static UINT CreateClassiferToPHSRuleMapping(B_UINT16 uiVcid,B_UINT16  uiClsId,S_SERVICEFLOW_ENTRY *pstServiceFlowEntry,S_PHS_RULE *psPhsRule,B_UINT8 u8AssociatedPHSI);
 
@@ -16,7 +16,7 @@ static UINT GetClassifierEntry(S_CLASSIFIER_TABLE *pstClassifierTable,B_UINT32 u
 
 static UINT GetPhsRuleEntry(S_CLASSIFIER_TABLE *pstClassifierTable,B_UINT32 uiPHSI,E_CLASSIFIER_ENTRY_CONTEXT eClsContext,S_PHS_RULE **ppstPhsRule);
 
-static void free_phs_serviceflow_rules(S_SERVICEFLOW_TABLE *psServiceFlowRulesTable);
+static void free_phs_serviceflow_rules(struct bcm_phs_table *psServiceFlowRulesTable);
 
 static int phs_compress(S_PHS_RULE   *phs_members,unsigned char *in_buf,
 						unsigned char *out_buf,unsigned int *header_size,UINT *new_header_size );
@@ -294,14 +294,14 @@ void DumpFullPacket(UCHAR *pBuf,UINT nPktLen)
 int phs_init(struct bcm_phs_extension *pPhsdeviceExtension, struct bcm_mini_adapter *Adapter)
 {
 	int i;
-	S_SERVICEFLOW_TABLE *pstServiceFlowTable;
+	struct bcm_phs_table *pstServiceFlowTable;
     BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL, "\nPHS:phs_init function ");
 
 	if(pPhsdeviceExtension->pstServiceFlowPhsRulesTable)
 		return -EINVAL;
 
 	pPhsdeviceExtension->pstServiceFlowPhsRulesTable =
-		kzalloc(sizeof(S_SERVICEFLOW_TABLE), GFP_KERNEL);
+		kzalloc(sizeof(struct bcm_phs_table), GFP_KERNEL);
 
     if(!pPhsdeviceExtension->pstServiceFlowPhsRulesTable)
 	{
@@ -844,7 +844,7 @@ ULONG PhsDeCompress(IN void* pvContext,
 // Does not return any value.
 //-----------------------------------------------------------------------------
 
-static void free_phs_serviceflow_rules(S_SERVICEFLOW_TABLE *psServiceFlowRulesTable)
+static void free_phs_serviceflow_rules(struct bcm_phs_table *psServiceFlowRulesTable)
 {
 	int i,j;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -927,7 +927,7 @@ static BOOLEAN ValidatePHSRuleComplete(IN S_PHS_RULE *psPhsRule)
 	}
 }
 
-UINT GetServiceFlowEntry(IN S_SERVICEFLOW_TABLE *psServiceFlowTable,
+UINT GetServiceFlowEntry(IN struct bcm_phs_table *psServiceFlowTable,
     IN B_UINT16 uiVcid,S_SERVICEFLOW_ENTRY **ppstServiceFlowEntry)
 {
 	int  i;
@@ -1013,7 +1013,7 @@ static UINT GetPhsRuleEntry(IN S_CLASSIFIER_TABLE *pstClassifierTable,
 }
 
 UINT CreateSFToClassifierRuleMapping(IN B_UINT16 uiVcid,IN B_UINT16  uiClsId,
-                      IN S_SERVICEFLOW_TABLE *psServiceFlowTable,S_PHS_RULE *psPhsRule,
+                      IN struct bcm_phs_table *psServiceFlowTable,S_PHS_RULE *psPhsRule,
                       B_UINT8 u8AssociatedPHSI)
 {
 

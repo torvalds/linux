@@ -79,14 +79,14 @@ typedef struct _S_SERVICEFLOW_ENTRY {
 	S_CLASSIFIER_TABLE  *pstClassifierTable;
 } S_SERVICEFLOW_ENTRY;
 
-typedef struct _S_SERVICEFLOW_TABLE {
+struct bcm_phs_table {
 	u16 uiTotalServiceFlows;
 	S_SERVICEFLOW_ENTRY stSFList[MAX_SERVICEFLOWS];
-} S_SERVICEFLOW_TABLE;
+};
 
 struct bcm_phs_extension {
 	/* PHS Specific data */
-	S_SERVICEFLOW_TABLE *pstServiceFlowPhsRulesTable;
+	struct bcm_phs_table *pstServiceFlowPhsRulesTable;
 	void *CompressedTxBuffer;
 	void *UnCompressedRxBuffer;
 };
