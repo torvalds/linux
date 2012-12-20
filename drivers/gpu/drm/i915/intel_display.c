@@ -2220,6 +2220,8 @@ intel_finish_fb(struct drm_framebuffer *old_fb)
 	bool was_interruptible = dev_priv->mm.interruptible;
 	int ret;
 
+	WARN_ON(waitqueue_active(&dev_priv->pending_flip_queue));
+
 	wait_event(dev_priv->pending_flip_queue,
 		   atomic_read(&dev_priv->mm.wedged) ||
 		   atomic_read(&obj->pending_flip) == 0);
@@ -2886,6 +2888,8 @@ static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 
 	if (crtc->fb == NULL)
 		return;
+
+	WARN_ON(waitqueue_active(&dev_priv->pending_flip_queue));
 
 	wait_event(dev_priv->pending_flip_queue,
 		   !intel_crtc_has_pending_flip(crtc));
@@ -6824,7 +6828,7 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 
 	obj = work->old_fb_obj;
 
-	wake_up(&dev_priv->pending_flip_queue);
+	wake_up_all(&dev_priv->pending_flip_queue);
 
 	queue_work(dev_priv->wq, &work->work);
 
