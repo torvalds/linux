@@ -484,12 +484,14 @@ static void truncate_node(struct dnode_of_data *dn)
 	struct node_info ni;
 
 	get_node_info(sbi, dn->nid, &ni);
+	if (dn->inode->i_blocks == 0) {
+		BUG_ON(ni.blk_addr != NULL_ADDR);
+		goto invalidate;
+	}
 	BUG_ON(ni.blk_addr == NULL_ADDR);
 
-	if (ni.blk_addr != NULL_ADDR)
-		invalidate_blocks(sbi, ni.blk_addr);
-
 	/* Deallocate node address */
+	invalidate_blocks(sbi, ni.blk_addr);
 	dec_valid_node_count(sbi, dn->inode, 1);
 	set_node_addr(sbi, &ni, NULL_ADDR);
 
@@ -499,7 +501,7 @@ static void truncate_node(struct dnode_of_data *dn)
 	} else {
 		sync_inode_page(dn);
 	}
-
+invalidate:
 	clear_node_page_dirty(dn->node_page);
 	F2FS_SET_SB_DIRT(sbi);
 
@@ -768,20 +770,12 @@ int remove_inode_page(struct inode *inode)
 		dn.inode_page_locked = 1;
 		truncate_node(&dn);
 	}
-	if (inode->i_blocks == 1) {
-		/* inernally call f2fs_put_page() */
-		set_new_dnode(&dn, inode, page, page, ino);
-		truncate_node(&dn);
-	} else if (inode->i_blocks == 0) {
-		struct node_info ni;
-		get_node_info(sbi, inode->i_ino, &ni);
 
-		/* called after f2fs_new_inode() is failed */
-		BUG_ON(ni.blk_addr != NULL_ADDR);
-		f2fs_put_page(page, 1);
-	} else {
-		BUG();
-	}
+	/* 0 is possible, after f2fs_new_inode() is failed */
+	BUG_ON(inode->i_blocks != 0 && inode->i_blocks != 1);
+	set_new_dnode(&dn, inode, page, page, ino);
+	truncate_node(&dn);
+
 	mutex_unlock_op(sbi, NODE_TRUNC);
 	return 0;
 }
@@ -845,6 +839,7 @@ struct page *new_node_page(struct dnode_of_data *dn, unsigned int ofs)
 	return page;
 
 fail:
+	clear_node_page_dirty(page);
 	f2fs_put_page(page, 1);
 	return ERR_PTR(err);
 }
