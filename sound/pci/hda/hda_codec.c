@@ -1969,6 +1969,9 @@ void snd_hda_codec_resume_amp(struct hda_codec *codec)
 		unsigned int idx, dir, ch;
 
 		buffer = snd_array_elem(&codec->amp_cache.buf, i);
+		if (!buffer->head.dirty)
+			continue;
+		buffer->head.dirty = 0;
 		key = buffer->head.key;
 		if (!key)
 			continue;
@@ -1978,9 +1981,6 @@ void snd_hda_codec_resume_amp(struct hda_codec *codec)
 		for (ch = 0; ch < 2; ch++) {
 			if (!(buffer->head.val & INFO_AMP_VOL(ch)))
 				continue;
-			if (!buffer->head.dirty)
-				continue;
-			buffer->head.dirty = 0;
 			mutex_unlock(&codec->hash_mutex);
 			put_vol_mute(codec, buffer, nid, ch, dir, idx,
 				     buffer->vol[ch]);
