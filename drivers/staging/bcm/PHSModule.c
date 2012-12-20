@@ -4,7 +4,7 @@ static UINT CreateSFToClassifierRuleMapping(B_UINT16 uiVcid,B_UINT16  uiClsId, s
 
 static UINT CreateClassiferToPHSRuleMapping(B_UINT16 uiVcid,B_UINT16  uiClsId, struct bcm_phs_entry *pstServiceFlowEntry,S_PHS_RULE *psPhsRule,B_UINT8 u8AssociatedPHSI);
 
-static UINT CreateClassifierPHSRule(B_UINT16  uiClsId, struct bcm_phs_classifier_table *psaClassifiertable ,S_PHS_RULE *psPhsRule,E_CLASSIFIER_ENTRY_CONTEXT eClsContext,B_UINT8 u8AssociatedPHSI);
+static UINT CreateClassifierPHSRule(B_UINT16  uiClsId, struct bcm_phs_classifier_table *psaClassifiertable ,S_PHS_RULE *psPhsRule, enum bcm_phs_classifier_context eClsContext,B_UINT8 u8AssociatedPHSI);
 
 static UINT UpdateClassifierPHSRule(B_UINT16  uiClsId, struct bcm_phs_classifier_entry *pstClassifierEntry, struct bcm_phs_classifier_table *psaClassifiertable ,S_PHS_RULE *psPhsRule,B_UINT8 u8AssociatedPHSI);
 
@@ -12,9 +12,9 @@ static BOOLEAN ValidatePHSRuleComplete(S_PHS_RULE *psPhsRule);
 
 static BOOLEAN DerefPhsRule(B_UINT16  uiClsId, struct bcm_phs_classifier_table *psaClassifiertable,S_PHS_RULE *pstPhsRule);
 
-static UINT GetClassifierEntry(struct bcm_phs_classifier_table *pstClassifierTable,B_UINT32 uiClsid,E_CLASSIFIER_ENTRY_CONTEXT eClsContext, struct bcm_phs_classifier_entry **ppstClassifierEntry);
+static UINT GetClassifierEntry(struct bcm_phs_classifier_table *pstClassifierTable,B_UINT32 uiClsid, enum bcm_phs_classifier_context eClsContext, struct bcm_phs_classifier_entry **ppstClassifierEntry);
 
-static UINT GetPhsRuleEntry(struct bcm_phs_classifier_table *pstClassifierTable,B_UINT32 uiPHSI,E_CLASSIFIER_ENTRY_CONTEXT eClsContext,S_PHS_RULE **ppstPhsRule);
+static UINT GetPhsRuleEntry(struct bcm_phs_classifier_table *pstClassifierTable,B_UINT32 uiPHSI, enum bcm_phs_classifier_context eClsContext,S_PHS_RULE **ppstPhsRule);
 
 static void free_phs_serviceflow_rules(struct bcm_phs_table *psServiceFlowRulesTable);
 
@@ -949,7 +949,7 @@ UINT GetServiceFlowEntry(IN struct bcm_phs_table *psServiceFlowTable,
 
 
 UINT GetClassifierEntry(IN struct bcm_phs_classifier_table *pstClassifierTable,
-        IN B_UINT32 uiClsid,E_CLASSIFIER_ENTRY_CONTEXT eClsContext,
+        IN B_UINT32 uiClsid, enum bcm_phs_classifier_context eClsContext,
         OUT struct bcm_phs_classifier_entry **ppstClassifierEntry)
 {
 	int  i;
@@ -982,7 +982,7 @@ UINT GetClassifierEntry(IN struct bcm_phs_classifier_table *pstClassifierTable,
 }
 
 static UINT GetPhsRuleEntry(IN struct bcm_phs_classifier_table *pstClassifierTable,
-			    IN B_UINT32 uiPHSI,E_CLASSIFIER_ENTRY_CONTEXT eClsContext,
+			    IN B_UINT32 uiPHSI, enum bcm_phs_classifier_context eClsContext,
 			    OUT S_PHS_RULE **ppstPhsRule)
 {
 	int  i;
@@ -1142,7 +1142,7 @@ UINT CreateClassiferToPHSRuleMapping(IN B_UINT16 uiVcid,
 
 static UINT CreateClassifierPHSRule(IN B_UINT16  uiClsId,
     struct bcm_phs_classifier_table *psaClassifiertable ,S_PHS_RULE *psPhsRule,
-    E_CLASSIFIER_ENTRY_CONTEXT eClsContext,B_UINT8 u8AssociatedPHSI)
+    enum bcm_phs_classifier_context eClsContext,B_UINT8 u8AssociatedPHSI)
 {
 	UINT iClassifierIndex = 0;
 	BOOLEAN bFreeEntryFound = FALSE;

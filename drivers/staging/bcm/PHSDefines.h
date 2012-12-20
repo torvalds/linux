@@ -53,10 +53,10 @@ typedef struct _S_PHS_RULE {
 	unsigned long PHSErrorNumPackets;
 } S_PHS_RULE;
 
-typedef enum _E_CLASSIFIER_ENTRY_CONTEXT {
+enum bcm_phs_classifier_context {
 	eActiveClassifierRuleContext,
 	eOldClassifierRuleContext
-} E_CLASSIFIER_ENTRY_CONTEXT;
+};
 
 struct bcm_phs_classifier_entry {
 	u8  bUsed;
