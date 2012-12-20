@@ -971,8 +971,7 @@ int abx500_pin_config_get(struct pinctrl_dev *pctldev,
 		       unsigned pin,
 		       unsigned long *config)
 {
-	/* Not implemented */
-	return -EINVAL;
+	return -ENOSYS;
 }
 
 int abx500_pin_config_set(struct pinctrl_dev *pctldev,
