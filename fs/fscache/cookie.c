@@ -370,6 +370,66 @@ cant_attach_object:
 }
 
 /*
+ * Invalidate an object.  Callable with spinlocks held.
+ */
+void __fscache_invalidate(struct fscache_cookie *cookie)
+{
+	struct fscache_object *object;
+
+	_enter("{%s}", cookie->def->name);
+
+	fscache_stat(&fscache_n_invalidates);
+
+	/* Only permit invalidation of data files.  Invalidating an index will
+	 * require the caller to release all its attachments to the tree rooted
+	 * there, and if it's doing that, it may as well just retire the
+	 * cookie.
+	 */
+	ASSERTCMP(cookie->def->type, ==, FSCACHE_COOKIE_TYPE_DATAFILE);
+
+	/* We will be updating the cookie too. */
+	BUG_ON(!cookie->def->get_aux);
+
+	/* If there's an object, we tell the object state machine to handle the
+	 * invalidation on our behalf, otherwise there's nothing to do.
+	 */
+	if (!hlist_empty(&cookie->backing_objects)) {
+		spin_lock(&cookie->lock);
+
+		if (!hlist_empty(&cookie->backing_objects) &&
+		    !test_and_set_bit(FSCACHE_COOKIE_INVALIDATING,
+				      &cookie->flags)) {
+			object = hlist_entry(cookie->backing_objects.first,
+					     struct fscache_object,
+					     cookie_link);
+			if (object->state < FSCACHE_OBJECT_DYING)
+				fscache_raise_event(
+					object, FSCACHE_OBJECT_EV_INVALIDATE);
+		}
+
+		spin_unlock(&cookie->lock);
+	}
+
+	_leave("");
+}
+EXPORT_SYMBOL(__fscache_invalidate);
+
+/*
+ * Wait for object invalidation to complete.
+ */
+void __fscache_wait_on_invalidate(struct fscache_cookie *cookie)
+{
+	_enter("%p", cookie);
+
+	wait_on_bit(&cookie->flags, FSCACHE_COOKIE_INVALIDATING,
+		    fscache_wait_bit_interruptible,
+		    TASK_UNINTERRUPTIBLE);
+
+	_leave("");
+}
+EXPORT_SYMBOL(__fscache_wait_on_invalidate);
+
+/*
  * update the index entries backing a cookie
  */
 void __fscache_update_cookie(struct fscache_cookie *cookie)

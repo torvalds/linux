@@ -308,6 +308,18 @@ performed on the denizens of the cache.  These are held in a structure of type:
      obtained by calling object->cookie->def->get_aux()/get_attr().
 
 
+ (*) Invalidate data object [mandatory]:
+
+	int (*invalidate_object)(struct fscache_operation *op)
+
+     This is called to invalidate a data object (as pointed to by op->object).
+     All the data stored for this object should be discarded and an
+     attr_changed operation should be performed.  The caller will follow up
+     with an object update operation.
+
+     fscache_op_complete() must be called on op before returning.
+
+
  (*) Discard object [mandatory]:
 
 	void (*drop_object)(struct fscache_object *object)

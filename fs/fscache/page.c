@@ -361,6 +361,11 @@ int __fscache_read_or_alloc_page(struct fscache_cookie *cookie,
 	if (hlist_empty(&cookie->backing_objects))
 		goto nobufs;
 
+	if (test_bit(FSCACHE_COOKIE_INVALIDATING, &cookie->flags)) {
+		_leave(" = -ENOBUFS [invalidating]");
+		return -ENOBUFS;
+	}
+
 	ASSERTCMP(cookie->def->type, !=, FSCACHE_COOKIE_TYPE_INDEX);
 	ASSERTCMP(page, !=, NULL);
 
@@ -483,6 +488,11 @@ int __fscache_read_or_alloc_pages(struct fscache_cookie *cookie,
 	if (hlist_empty(&cookie->backing_objects))
 		goto nobufs;
 
+	if (test_bit(FSCACHE_COOKIE_INVALIDATING, &cookie->flags)) {
+		_leave(" = -ENOBUFS [invalidating]");
+		return -ENOBUFS;
+	}
+
 	ASSERTCMP(cookie->def->type, !=, FSCACHE_COOKIE_TYPE_INDEX);
 	ASSERTCMP(*nr_pages, >, 0);
 	ASSERT(!list_empty(pages));
@@ -590,6 +600,11 @@ int __fscache_alloc_page(struct fscache_cookie *cookie,
 
 	ASSERTCMP(cookie->def->type, !=, FSCACHE_COOKIE_TYPE_INDEX);
 	ASSERTCMP(page, !=, NULL);
+
+	if (test_bit(FSCACHE_COOKIE_INVALIDATING, &cookie->flags)) {
+		_leave(" = -ENOBUFS [invalidating]");
+		return -ENOBUFS;
+	}
 
 	if (fscache_wait_for_deferred_lookup(cookie) < 0)
 		return -ERESTARTSYS;
@@ -731,6 +746,37 @@ superseded:
 }
 
 /*
+ * Clear the pages pending writing for invalidation
+ */
+void fscache_invalidate_writes(struct fscache_cookie *cookie)
+{
+	struct page *page;
+	void *results[16];
+	int n, i;
+
+	_enter("");
+
+	while (spin_lock(&cookie->stores_lock),
+	       n = radix_tree_gang_lookup_tag(&cookie->stores, results, 0,
+					      ARRAY_SIZE(results),
+					      FSCACHE_COOKIE_PENDING_TAG),
+	       n > 0) {
+		for (i = n - 1; i >= 0; i--) {
+			page = results[i];
+			radix_tree_delete(&cookie->stores, page->index);
+		}
+
+		spin_unlock(&cookie->stores_lock);
+
+		for (i = n - 1; i >= 0; i--)
+			page_cache_release(results[i]);
+	}
+
+	spin_unlock(&cookie->stores_lock);
+	_leave("");
+}
+
+/*
  * request a page be stored in the cache
  * - returns:
  *   -ENOMEM	- out of memory, nothing done
@@ -775,6 +821,11 @@ int __fscache_write_page(struct fscache_cookie *cookie,
 	ASSERT(PageFsCache(page));
 
 	fscache_stat(&fscache_n_stores);
+
+	if (test_bit(FSCACHE_COOKIE_INVALIDATING, &cookie->flags)) {
+		_leave(" = -ENOBUFS [invalidating]");
+		return -ENOBUFS;
+	}
 
 	op = kzalloc(sizeof(*op), GFP_NOIO | __GFP_NOMEMALLOC | __GFP_NORETRY);
 	if (!op)

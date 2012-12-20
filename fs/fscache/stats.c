@@ -80,6 +80,9 @@ atomic_t fscache_n_acquires_ok;
 atomic_t fscache_n_acquires_nobufs;
 atomic_t fscache_n_acquires_oom;
 
+atomic_t fscache_n_invalidates;
+atomic_t fscache_n_invalidates_run;
+
 atomic_t fscache_n_updates;
 atomic_t fscache_n_updates_null;
 atomic_t fscache_n_updates_run;
@@ -112,6 +115,7 @@ atomic_t fscache_n_cop_alloc_object;
 atomic_t fscache_n_cop_lookup_object;
 atomic_t fscache_n_cop_lookup_complete;
 atomic_t fscache_n_cop_grab_object;
+atomic_t fscache_n_cop_invalidate_object;
 atomic_t fscache_n_cop_update_object;
 atomic_t fscache_n_cop_drop_object;
 atomic_t fscache_n_cop_put_object;
@@ -167,6 +171,10 @@ static int fscache_stats_show(struct seq_file *m, void *v)
 		   atomic_read(&fscache_n_object_lookups_positive),
 		   atomic_read(&fscache_n_object_created),
 		   atomic_read(&fscache_n_object_lookups_timed_out));
+
+	seq_printf(m, "Invals : n=%u run=%u\n",
+		   atomic_read(&fscache_n_invalidates),
+		   atomic_read(&fscache_n_invalidates_run));
 
 	seq_printf(m, "Updates: n=%u nul=%u run=%u\n",
 		   atomic_read(&fscache_n_updates),
@@ -246,7 +254,8 @@ static int fscache_stats_show(struct seq_file *m, void *v)
 		   atomic_read(&fscache_n_cop_lookup_object),
 		   atomic_read(&fscache_n_cop_lookup_complete),
 		   atomic_read(&fscache_n_cop_grab_object));
-	seq_printf(m, "CacheOp: upo=%d dro=%d pto=%d atc=%d syn=%d\n",
+	seq_printf(m, "CacheOp: inv=%d upo=%d dro=%d pto=%d atc=%d syn=%d\n",
+		   atomic_read(&fscache_n_cop_invalidate_object),
 		   atomic_read(&fscache_n_cop_update_object),
 		   atomic_read(&fscache_n_cop_drop_object),
 		   atomic_read(&fscache_n_cop_put_object),

@@ -324,6 +324,38 @@ int fscache_cancel_op(struct fscache_operation *op)
 }
 
 /*
+ * Cancel all pending operations on an object
+ */
+void fscache_cancel_all_ops(struct fscache_object *object)
+{
+	struct fscache_operation *op;
+
+	_enter("OBJ%x", object->debug_id);
+
+	spin_lock(&object->lock);
+
+	while (!list_empty(&object->pending_ops)) {
+		op = list_entry(object->pending_ops.next,
+				struct fscache_operation, pend_link);
+		fscache_stat(&fscache_n_op_cancelled);
+		list_del_init(&op->pend_link);
+
+		ASSERTCMP(op->state, ==, FSCACHE_OP_ST_PENDING);
+		op->state = FSCACHE_OP_ST_CANCELLED;
+
+		if (test_bit(FSCACHE_OP_EXCLUSIVE, &op->flags))
+			object->n_exclusive--;
+		if (test_and_clear_bit(FSCACHE_OP_WAITING, &op->flags))
+			wake_up_bit(&op->flags, FSCACHE_OP_WAITING);
+		fscache_put_operation(op);
+		cond_resched_lock(&object->lock);
+	}
+
+	spin_unlock(&object->lock);
+	_leave("");
+}
+
+/*
  * Record the completion of an in-progress operation.
  */
 void fscache_op_complete(struct fscache_operation *op)

@@ -254,6 +254,9 @@ struct fscache_cache_ops {
 	/* store the updated auxiliary data on an object */
 	void (*update_object)(struct fscache_object *object);
 
+	/* Invalidate an object */
+	void (*invalidate_object)(struct fscache_operation *op);
+
 	/* discard the resources pinned by an object and effect retirement if
 	 * necessary */
 	void (*drop_object)(struct fscache_object *object);
@@ -329,6 +332,7 @@ struct fscache_cookie {
 #define FSCACHE_COOKIE_FILLING		4	/* T if filling object incrementally */
 #define FSCACHE_COOKIE_UNAVAILABLE	5	/* T if cookie is unavailable (error, etc) */
 #define FSCACHE_COOKIE_WAITING_ON_READS	6	/* T if cookie is waiting on reads */
+#define FSCACHE_COOKIE_INVALIDATING	7	/* T if cookie is being invalidated */
 };
 
 extern struct fscache_cookie fscache_fsdef_index;
@@ -345,6 +349,7 @@ struct fscache_object {
 		/* active states */
 		FSCACHE_OBJECT_AVAILABLE,	/* cleaning up object after creation */
 		FSCACHE_OBJECT_ACTIVE,		/* object is usable */
+		FSCACHE_OBJECT_INVALIDATING,	/* object is invalidating */
 		FSCACHE_OBJECT_UPDATING,	/* object is updating */
 
 		/* terminal states */
@@ -378,7 +383,8 @@ struct fscache_object {
 #define FSCACHE_OBJECT_EV_RELEASE	4	/* T if netfs requested object release */
 #define FSCACHE_OBJECT_EV_RETIRE	5	/* T if netfs requested object retirement */
 #define FSCACHE_OBJECT_EV_WITHDRAW	6	/* T if cache requested object withdrawal */
-#define FSCACHE_OBJECT_EVENTS_MASK	0x7f	/* mask of all events*/
+#define FSCACHE_OBJECT_EV_INVALIDATE	7	/* T if cache requested object invalidation */
+#define FSCACHE_OBJECT_EVENTS_MASK	0xff	/* mask of all events*/
 
 	unsigned long		flags;
 #define FSCACHE_OBJECT_LOCK		0	/* T if object is busy being processed */

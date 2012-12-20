@@ -122,9 +122,15 @@ extern int fscache_submit_exclusive_op(struct fscache_object *,
 extern int fscache_submit_op(struct fscache_object *,
 			     struct fscache_operation *);
 extern int fscache_cancel_op(struct fscache_operation *);
+extern void fscache_cancel_all_ops(struct fscache_object *);
 extern void fscache_abort_object(struct fscache_object *);
 extern void fscache_start_operations(struct fscache_object *);
 extern void fscache_operation_gc(struct work_struct *);
+
+/*
+ * page.c
+ */
+extern void fscache_invalidate_writes(struct fscache_cookie *);
 
 /*
  * proc.c
@@ -205,6 +211,9 @@ extern atomic_t fscache_n_acquires_ok;
 extern atomic_t fscache_n_acquires_nobufs;
 extern atomic_t fscache_n_acquires_oom;
 
+extern atomic_t fscache_n_invalidates;
+extern atomic_t fscache_n_invalidates_run;
+
 extern atomic_t fscache_n_updates;
 extern atomic_t fscache_n_updates_null;
 extern atomic_t fscache_n_updates_run;
@@ -237,6 +246,7 @@ extern atomic_t fscache_n_cop_alloc_object;
 extern atomic_t fscache_n_cop_lookup_object;
 extern atomic_t fscache_n_cop_lookup_complete;
 extern atomic_t fscache_n_cop_grab_object;
+extern atomic_t fscache_n_cop_invalidate_object;
 extern atomic_t fscache_n_cop_update_object;
 extern atomic_t fscache_n_cop_drop_object;
 extern atomic_t fscache_n_cop_put_object;

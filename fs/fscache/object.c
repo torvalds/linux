@@ -14,6 +14,7 @@
 
 #define FSCACHE_DEBUG_LEVEL COOKIE
 #include <linux/module.h>
+#include <linux/slab.h>
 #include "internal.h"
 
 const char *fscache_object_states[FSCACHE_OBJECT__NSTATES] = {
@@ -22,6 +23,7 @@ const char *fscache_object_states[FSCACHE_OBJECT__NSTATES] = {
 	[FSCACHE_OBJECT_CREATING]	= "OBJECT_CREATING",
 	[FSCACHE_OBJECT_AVAILABLE]	= "OBJECT_AVAILABLE",
 	[FSCACHE_OBJECT_ACTIVE]		= "OBJECT_ACTIVE",
+	[FSCACHE_OBJECT_INVALIDATING]	= "OBJECT_INVALIDATING",
 	[FSCACHE_OBJECT_UPDATING]	= "OBJECT_UPDATING",
 	[FSCACHE_OBJECT_DYING]		= "OBJECT_DYING",
 	[FSCACHE_OBJECT_LC_DYING]	= "OBJECT_LC_DYING",
@@ -39,6 +41,7 @@ const char fscache_object_states_short[FSCACHE_OBJECT__NSTATES][5] = {
 	[FSCACHE_OBJECT_CREATING]	= "CRTN",
 	[FSCACHE_OBJECT_AVAILABLE]	= "AVBL",
 	[FSCACHE_OBJECT_ACTIVE]		= "ACTV",
+	[FSCACHE_OBJECT_INVALIDATING]	= "INVL",
 	[FSCACHE_OBJECT_UPDATING]	= "UPDT",
 	[FSCACHE_OBJECT_DYING]		= "DYNG",
 	[FSCACHE_OBJECT_LC_DYING]	= "LCDY",
@@ -54,6 +57,7 @@ static void fscache_put_object(struct fscache_object *);
 static void fscache_initialise_object(struct fscache_object *);
 static void fscache_lookup_object(struct fscache_object *);
 static void fscache_object_available(struct fscache_object *);
+static void fscache_invalidate_object(struct fscache_object *);
 static void fscache_release_object(struct fscache_object *);
 static void fscache_withdraw_object(struct fscache_object *);
 static void fscache_enqueue_dependents(struct fscache_object *);
@@ -76,6 +80,15 @@ static inline void fscache_done_parent_op(struct fscache_object *object)
 	if (parent->n_ops == 0)
 		fscache_raise_event(parent, FSCACHE_OBJECT_EV_CLEARED);
 	spin_unlock(&parent->lock);
+}
+
+/*
+ * Notify netfs of invalidation completion.
+ */
+static inline void fscache_invalidation_complete(struct fscache_cookie *cookie)
+{
+	if (test_and_clear_bit(FSCACHE_COOKIE_INVALIDATING, &cookie->flags))
+		wake_up_bit(&cookie->flags, FSCACHE_COOKIE_INVALIDATING);
 }
 
 /*
@@ -123,6 +136,16 @@ static void fscache_object_state_machine(struct fscache_object *object)
 
 		/* normal running state */
 	case FSCACHE_OBJECT_ACTIVE:
+		goto active_transit;
+
+		/* Invalidate an object on disk */
+	case FSCACHE_OBJECT_INVALIDATING:
+		clear_bit(FSCACHE_OBJECT_EV_INVALIDATE, &object->events);
+		fscache_stat(&fscache_n_invalidates_run);
+		fscache_stat(&fscache_n_cop_invalidate_object);
+		fscache_invalidate_object(object);
+		fscache_stat_d(&fscache_n_cop_invalidate_object);
+		fscache_raise_event(object, FSCACHE_OBJECT_EV_UPDATE);
 		goto active_transit;
 
 		/* update the object metadata on disk */
@@ -274,6 +297,9 @@ active_transit:
 	case FSCACHE_OBJECT_EV_RELEASE:
 	case FSCACHE_OBJECT_EV_ERROR:
 		new_state = FSCACHE_OBJECT_DYING;
+		goto change_state;
+	case FSCACHE_OBJECT_EV_INVALIDATE:
+		new_state = FSCACHE_OBJECT_INVALIDATING;
 		goto change_state;
 	case FSCACHE_OBJECT_EV_UPDATE:
 		new_state = FSCACHE_OBJECT_UPDATING;
@@ -679,6 +705,7 @@ static void fscache_withdraw_object(struct fscache_object *object)
 		if (object->cookie == cookie) {
 			hlist_del_init(&object->cookie_link);
 			object->cookie = NULL;
+			fscache_invalidation_complete(cookie);
 			detached = true;
 		}
 		spin_unlock(&cookie->lock);
@@ -888,3 +915,48 @@ enum fscache_checkaux fscache_check_aux(struct fscache_object *object,
 	return result;
 }
 EXPORT_SYMBOL(fscache_check_aux);
+
+/*
+ * Asynchronously invalidate an object.
+ */
+static void fscache_invalidate_object(struct fscache_object *object)
+{
+	struct fscache_operation *op;
+	struct fscache_cookie *cookie = object->cookie;
+
+	_enter("{OBJ%x}", object->debug_id);
+
+	/* Reject any new read/write ops and abort any that are pending. */
+	fscache_invalidate_writes(cookie);
+	clear_bit(FSCACHE_OBJECT_PENDING_WRITE, &object->flags);
+	fscache_cancel_all_ops(object);
+
+	/* Now we have to wait for in-progress reads and writes */
+	op = kzalloc(sizeof(*op), GFP_KERNEL);
+	if (!op) {
+		fscache_raise_event(object, FSCACHE_OBJECT_EV_ERROR);
+		_leave(" [ENOMEM]");
+		return;
+	}
+
+	fscache_operation_init(op, object->cache->ops->invalidate_object, NULL);
+	op->flags = FSCACHE_OP_ASYNC | (1 << FSCACHE_OP_EXCLUSIVE);
+
+	spin_lock(&cookie->lock);
+	if (fscache_submit_exclusive_op(object, op) < 0)
+		BUG();
+	spin_unlock(&cookie->lock);
+	fscache_put_operation(op);
+
+	/* Once we've completed the invalidation, we know there will be no data
+	 * stored in the cache and thus we can reinstate the data-check-skip
+	 * optimisation.
+	 */
+	set_bit(FSCACHE_COOKIE_NO_DATA_YET, &cookie->flags);
+
+	/* We can allow read and write requests to come in once again.  They'll
+	 * queue up behind our exclusive invalidation operation.
+	 */
+	fscache_invalidation_complete(cookie);
+	_leave("");
+}

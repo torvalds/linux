@@ -185,6 +185,8 @@ extern struct fscache_cookie *__fscache_acquire_cookie(
 extern void __fscache_relinquish_cookie(struct fscache_cookie *, int);
 extern void __fscache_update_cookie(struct fscache_cookie *);
 extern int __fscache_attr_changed(struct fscache_cookie *);
+extern void __fscache_invalidate(struct fscache_cookie *);
+extern void __fscache_wait_on_invalidate(struct fscache_cookie *);
 extern int __fscache_read_or_alloc_page(struct fscache_cookie *,
 					struct page *,
 					fscache_rw_complete_t,
@@ -387,6 +389,42 @@ int fscache_attr_changed(struct fscache_cookie *cookie)
 		return __fscache_attr_changed(cookie);
 	else
 		return -ENOBUFS;
+}
+
+/**
+ * fscache_invalidate - Notify cache that an object needs invalidation
+ * @cookie: The cookie representing the cache object
+ *
+ * Notify the cache that an object is needs to be invalidated and that it
+ * should abort any retrievals or stores it is doing on the cache.  The object
+ * is then marked non-caching until such time as the invalidation is complete.
+ *
+ * This can be called with spinlocks held.
+ *
+ * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * description.
+ */
+static inline
+void fscache_invalidate(struct fscache_cookie *cookie)
+{
+	if (fscache_cookie_valid(cookie))
+		__fscache_invalidate(cookie);
+}
+
+/**
+ * fscache_wait_on_invalidate - Wait for invalidation to complete
+ * @cookie: The cookie representing the cache object
+ *
+ * Wait for the invalidation of an object to complete.
+ *
+ * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * description.
+ */
+static inline
+void fscache_wait_on_invalidate(struct fscache_cookie *cookie)
+{
+	if (fscache_cookie_valid(cookie))
+		__fscache_wait_on_invalidate(cookie);
 }
 
 /**
