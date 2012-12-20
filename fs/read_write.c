@@ -935,6 +935,8 @@ ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos, size_t count,
 	if (retval > 0) {
 		add_rchar(current, retval);
 		add_wchar(current, retval);
+		fsnotify_access(in.file);
+		fsnotify_modify(out.file);
 	}
 
 	inc_syscr(current);
