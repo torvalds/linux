@@ -1572,11 +1572,12 @@ static void update_shared_mic_hp(struct hda_codec *codec, bool set_as_mic)
 		const hda_nid_t vref_pin = spec->shared_mic_vref_pin;
 		unsigned int vref_val = snd_hda_get_default_vref(codec, vref_pin);
 		if (vref_val != AC_PINCTL_VREF_HIZ)
-			snd_hda_set_pin_ctl(codec, vref_pin, PIN_IN | (set_as_mic ? vref_val : 0));
+			snd_hda_set_pin_ctl_cache(codec, vref_pin,
+					PIN_IN | (set_as_mic ? vref_val : 0));
 	}
 
 	val = set_as_mic ? val | PIN_IN : PIN_HP;
-	snd_hda_set_pin_ctl(codec, pin, val);
+	snd_hda_set_pin_ctl_cache(codec, pin, val);
 
 	spec->automute_speaker = !set_as_mic;
 	call_update_outputs(codec);
@@ -2431,7 +2432,7 @@ static void do_automute(struct hda_codec *codec, int num_pins, hda_nid_t *pins,
 		} else
 			val = 0;
 		val |= pin_bits;
-		snd_hda_set_pin_ctl(codec, nid, val);
+		snd_hda_set_pin_ctl_cache(codec, nid, val);
 		set_pin_eapd(codec, nid, !mute);
 	}
 }
@@ -3467,7 +3468,7 @@ static void set_input_pin(struct hda_codec *codec, hda_nid_t nid,
 	unsigned int val = PIN_IN;
 	if (auto_pin_type == AUTO_PIN_MIC)
 		val |= snd_hda_get_default_vref(codec, nid);
-	snd_hda_set_pin_ctl(codec, nid, val);
+	snd_hda_set_pin_ctl_cache(codec, nid, val);
 }
 
 /* set up input pins and loopback paths */
@@ -3541,7 +3542,7 @@ static void init_digital(struct hda_codec *codec)
 	}
 	pin = spec->autocfg.dig_in_pin;
 	if (pin)
-		snd_hda_set_pin_ctl(codec, pin, PIN_IN);
+		snd_hda_set_pin_ctl_cache(codec, pin, PIN_IN);
 }
 
 /* clear unsol-event tags on unused pins; Conexant codecs seem to leave
