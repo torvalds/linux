@@ -1330,7 +1330,7 @@ static int carl9170_op_sta_add(struct ieee80211_hw *hw,
 			return 0;
 		}
 
-		for (i = 0; i < CARL9170_NUM_TID; i++)
+		for (i = 0; i < ARRAY_SIZE(sta_info->agg); i++)
 			RCU_INIT_POINTER(sta_info->agg[i], NULL);
 
 		sta_info->ampdu_max_len = 1 << (3 + sta->ht_cap.ampdu_factor);
@@ -1354,7 +1354,7 @@ static int carl9170_op_sta_remove(struct ieee80211_hw *hw,
 		sta_info->ht_sta = false;
 
 		rcu_read_lock();
-		for (i = 0; i < CARL9170_NUM_TID; i++) {
+		for (i = 0; i < ARRAY_SIZE(sta_info->agg); i++) {
 			struct carl9170_sta_tid *tid_info;
 
 			tid_info = rcu_dereference(sta_info->agg[i]);
