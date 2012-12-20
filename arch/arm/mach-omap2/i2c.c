@@ -22,6 +22,7 @@
 #include "soc.h"
 #include "omap_hwmod.h"
 #include "omap_device.h"
+#include "omap-pm.h"
 
 #include "prm.h"
 #include "common.h"

@@ -58,7 +58,8 @@
 #define OMAP_PIN_OFF_INPUT_PULLDOWN	(OMAP_OFF_EN | OMAP_OFF_PULL_EN)
 #define OMAP_PIN_OFF_WAKEUPENABLE	OMAP_WAKEUP_EN
 
-#define OMAP_MODE_GPIO(x)	(((x) & OMAP_MUX_MODE7) == OMAP_MUX_MODE4)
+#define OMAP_MODE_GPIO(partition, x)	(((x) & OMAP_MUX_MODE7) == \
+					  partition->gpio)
 #define OMAP_MODE_UART(x)	(((x) & OMAP_MUX_MODE7) == OMAP_MUX_MODE0)
 
 /* Flags for omapX_mux_init */
@@ -79,13 +80,20 @@
 /*
  * omap_mux_init flags definition:
  *
+ * OMAP_GPIO_MUX_MODE, bits 0-2: gpio muxing mode, same like pad control
+ *      register which includes values from 0-7.
  * OMAP_MUX_REG_8BIT: Ensure that access to padconf is done in 8 bits.
  * The default value is 16 bits.
- * OMAP_MUX_GPIO_IN_MODE3: The GPIO is selected in mode3.
- * The default is mode4.
  */
-#define OMAP_MUX_REG_8BIT		(1 << 0)
-#define OMAP_MUX_GPIO_IN_MODE3		(1 << 1)
+#define OMAP_MUX_GPIO_IN_MODE0		OMAP_MUX_MODE0
+#define OMAP_MUX_GPIO_IN_MODE1		OMAP_MUX_MODE1
+#define OMAP_MUX_GPIO_IN_MODE2		OMAP_MUX_MODE2
+#define OMAP_MUX_GPIO_IN_MODE3		OMAP_MUX_MODE3
+#define OMAP_MUX_GPIO_IN_MODE4		OMAP_MUX_MODE4
+#define OMAP_MUX_GPIO_IN_MODE5		OMAP_MUX_MODE5
+#define OMAP_MUX_GPIO_IN_MODE6		OMAP_MUX_MODE6
+#define OMAP_MUX_GPIO_IN_MODE7		OMAP_MUX_MODE7
+#define OMAP_MUX_REG_8BIT		(1 << 3)
 
 /**
  * struct omap_board_data - board specific device data
@@ -105,6 +113,7 @@ struct omap_board_data {
  * struct mux_partition - contain partition related information
  * @name: name of the current partition
  * @flags: flags specific to this partition
+ * @gpio: gpio mux mode
  * @phys: physical address
  * @size: partition size
  * @base: virtual address after ioremap
@@ -114,6 +123,7 @@ struct omap_board_data {
 struct omap_mux_partition {
 	const char		*name;
 	u32			flags;
+	u32			gpio;
 	u32			phys;
 	u32			size;
 	void __iomem		*base;

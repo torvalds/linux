@@ -4155,9 +4155,9 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 		ret = of_property_read_string_index(np, propname,
 			2 * i, &routes[i].sink);
 		if (ret) {
-			dev_err(card->dev, "ASoC: Property '%s' index %d"
-				" could not be read: %d\n", propname, 2 * i,
-				ret);
+			dev_err(card->dev,
+				"ASoC: Property '%s' index %d could not be read: %d\n",
+				propname, 2 * i, ret);
 			kfree(routes);
 			return -EINVAL;
 		}
@@ -4165,8 +4165,8 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 			(2 * i) + 1, &routes[i].source);
 		if (ret) {
 			dev_err(card->dev,
-				"ASoC: Property '%s' index %d could not be"
-				" read: %d\n", propname, (2 * i) + 1, ret);
+				"ASoC: Property '%s' index %d could not be read: %d\n",
+				propname, (2 * i) + 1, ret);
 			kfree(routes);
 			return -EINVAL;
 		}

@@ -1794,7 +1794,8 @@ int nfs_migrate_page(struct address_space *mapping, struct page *newpage,
 	if (PagePrivate(page))
 		return -EBUSY;
 
-	nfs_fscache_release_page(page, GFP_KERNEL);
+	if (!nfs_fscache_release_page(page, GFP_KERNEL))
+		return -EBUSY;
 
 	return migrate_page(mapping, newpage, page, mode);
 }

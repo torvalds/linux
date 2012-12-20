@@ -2876,7 +2876,7 @@ static int azx_free(struct azx *chip)
 	azx_notifier_unregister(chip);
 
 	chip->init_failed = 1; /* to be sure */
-	complete(&chip->probe_wait);
+	complete_all(&chip->probe_wait);
 
 	if (use_vga_switcheroo(chip)) {
 		if (chip->disabled && chip->bus)
@@ -3504,7 +3504,7 @@ static int azx_probe(struct pci_dev *pci,
 		pm_runtime_put_noidle(&pci->dev);
 
 	dev++;
-	complete(&chip->probe_wait);
+	complete_all(&chip->probe_wait);
 	return 0;
 
 out_free:
