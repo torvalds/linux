@@ -4230,28 +4230,9 @@ static int vmx_set_tss_addr(struct kvm *kvm, unsigned int addr)
 	return 0;
 }
 
-static int handle_rmode_exception(struct kvm_vcpu *vcpu,
-				  int vec, u32 err_code)
+static bool rmode_exception(struct kvm_vcpu *vcpu, int vec)
 {
-	/*
-	 * Instruction with address size override prefix opcode 0x67
-	 * Cause the #SS fault with 0 error code in VM86 mode.
-	 */
-	if (((vec == GP_VECTOR) || (vec == SS_VECTOR)) && err_code == 0)
-		if (emulate_instruction(vcpu, 0) == EMULATE_DONE)
-			return 1;
-	/*
-	 * Forward all other exceptions that are valid in real mode.
-	 * FIXME: Breaks guest debugging in real mode, needs to be fixed with
-	 *        the required debugging infrastructure rework.
-	 */
 	switch (vec) {
-	case DB_VECTOR:
-		if (vcpu->guest_debug &
-		    (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))
-			return 0;
-		kvm_queue_exception(vcpu, vec);
-		return 1;
 	case BP_VECTOR:
 		/*
 		 * Update instruction length as we may reinject the exception
@@ -4260,7 +4241,12 @@ static int handle_rmode_exception(struct kvm_vcpu *vcpu,
 		to_vmx(vcpu)->vcpu.arch.event_exit_inst_len =
 			vmcs_read32(VM_EXIT_INSTRUCTION_LEN);
 		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP)
-			return 0;
+			return false;
+		/* fall through */
+	case DB_VECTOR:
+		if (vcpu->guest_debug &
+			(KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))
+			return false;
 		/* fall through */
 	case DE_VECTOR:
 	case OF_VECTOR:
@@ -4270,10 +4256,37 @@ static int handle_rmode_exception(struct kvm_vcpu *vcpu,
 	case SS_VECTOR:
 	case GP_VECTOR:
 	case MF_VECTOR:
-		kvm_queue_exception(vcpu, vec);
-		return 1;
+		return true;
+	break;
 	}
-	return 0;
+	return false;
+}
+
+static int handle_rmode_exception(struct kvm_vcpu *vcpu,
+				  int vec, u32 err_code)
+{
+	/*
+	 * Instruction with address size override prefix opcode 0x67
+	 * Cause the #SS fault with 0 error code in VM86 mode.
+	 */
+	if (((vec == GP_VECTOR) || (vec == SS_VECTOR)) && err_code == 0) {
+		if (emulate_instruction(vcpu, 0) == EMULATE_DONE) {
+			if (vcpu->arch.halt_request) {
+				vcpu->arch.halt_request = 0;
+				return kvm_emulate_halt(vcpu);
+			}
+			return 1;
+		}
+		return 0;
+	}
+
+	/*
+	 * Forward all other exceptions that are valid in real mode.
+	 * FIXME: Breaks guest debugging in real mode, needs to be fixed with
+	 *        the required debugging infrastructure rework.
+	 */
+	kvm_queue_exception(vcpu, vec);
+	return 1;
 }
 
 /*
@@ -4361,17 +4374,11 @@ static int handle_exception(struct kvm_vcpu *vcpu)
 		return kvm_mmu_page_fault(vcpu, cr2, error_code, NULL, 0);
 	}
 
-	if (vmx->rmode.vm86_active &&
-	    handle_rmode_exception(vcpu, intr_info & INTR_INFO_VECTOR_MASK,
-								error_code)) {
-		if (vcpu->arch.halt_request) {
-			vcpu->arch.halt_request = 0;
-			return kvm_emulate_halt(vcpu);
-		}
-		return 1;
-	}
-
 	ex_no = intr_info & INTR_INFO_VECTOR_MASK;
+
+	if (vmx->rmode.vm86_active && rmode_exception(vcpu, ex_no))
+		return handle_rmode_exception(vcpu, ex_no, error_code);
+
 	switch (ex_no) {
 	case DB_VECTOR:
 		dr6 = vmcs_readl(EXIT_QUALIFICATION);
