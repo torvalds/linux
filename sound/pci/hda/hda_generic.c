@@ -1164,7 +1164,7 @@ static void debug_show_configs(struct hda_gen_spec *spec, struct auto_pin_cfg *c
 {
 	debug_badness("multi_outs = %x/%x/%x/%x : %x/%x/%x/%x\n",
 		      cfg->line_out_pins[0], cfg->line_out_pins[1],
-		      cfg->line_out_pins[2], cfg->line_out_pins[2],
+		      cfg->line_out_pins[2], cfg->line_out_pins[3],
 		      spec->multiout.dac_nids[0],
 		      spec->multiout.dac_nids[1],
 		      spec->multiout.dac_nids[2],
@@ -1176,7 +1176,7 @@ static void debug_show_configs(struct hda_gen_spec *spec, struct auto_pin_cfg *c
 			      spec->multi_io[0].dac, spec->multi_io[1].dac);
 	debug_badness("hp_outs = %x/%x/%x/%x : %x/%x/%x/%x\n",
 		      cfg->hp_pins[0], cfg->hp_pins[1],
-		      cfg->hp_pins[2], cfg->hp_pins[2],
+		      cfg->hp_pins[2], cfg->hp_pins[3],
 		      spec->multiout.hp_out_nid[0],
 		      spec->multiout.hp_out_nid[1],
 		      spec->multiout.hp_out_nid[2],
