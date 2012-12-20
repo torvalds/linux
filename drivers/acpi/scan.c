@@ -1620,37 +1620,27 @@ static acpi_status acpi_bus_device_attach(acpi_handle handle, u32 lvl_not_used,
 	return status;
 }
 
-static int acpi_bus_scan(acpi_handle handle, struct acpi_device **child)
+static int acpi_bus_scan(acpi_handle handle)
 {
 	void *device = NULL;
-	acpi_status status;
-	int ret = -ENODEV;
 
-	status = acpi_bus_check_add(handle, 0, NULL, &device);
-	if (ACPI_SUCCESS(status))
+	if (ACPI_SUCCESS(acpi_bus_check_add(handle, 0, NULL, &device)))
 		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
 				    acpi_bus_check_add, NULL, NULL, &device);
 
 	if (!device)
-		goto out;
+		return -ENODEV;
 
-	ret = 0;
-	status = acpi_bus_device_attach(handle, 0, NULL, NULL);
-	if (ACPI_SUCCESS(status))
+	if (ACPI_SUCCESS(acpi_bus_device_attach(handle, 0, NULL, NULL)))
 		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
 				    acpi_bus_device_attach, NULL, NULL, NULL);
 
- out:
-	if (child)
-		*child = device;
-
-	return ret;
+	return 0;
 }
 
 /**
  * acpi_bus_add - Add ACPI device node objects in a given namespace scope.
  * @handle: Root of the namespace scope to scan.
- * @ret: Location to store a return struct acpi_device pointer.
  *
  * Scan a given ACPI tree (probably recently hot-plugged) and create and add
  * found devices.
@@ -1659,21 +1649,12 @@ static int acpi_bus_scan(acpi_handle handle, struct acpi_device **child)
  * there has been a real error.  There just have been no suitable ACPI objects
  * in the table trunk from which the kernel could create a device and add an
  * appropriate driver.
- *
- * If 0 is returned, the memory location pointed to by @ret will be populated
- * with a pointer to a struct acpi_device created while scanning the namespace.
- * If @handle corresponds to a device node, that will be a pointer to the struct
- * acpi_device object corresponding to @handle.  Otherwise, it will be a pointer
- * to a struct acpi_device corresponding to one of its descendants.
- *
- * If an error code is returned, NULL will be stored in the memory location
- * pointed to by @ret.
  */
-int acpi_bus_add(acpi_handle handle, struct acpi_device **ret)
+int acpi_bus_add(acpi_handle handle)
 {
 	int err;
 
-	err = acpi_bus_scan(handle, ret);
+	err = acpi_bus_scan(handle);
 	if (err)
 		return err;
 
@@ -1777,8 +1758,11 @@ int __init acpi_scan_init(void)
 	/*
 	 * Enumerate devices in the ACPI namespace.
 	 */
-	result = acpi_bus_scan(ACPI_ROOT_OBJECT, &acpi_root);
+	result = acpi_bus_scan(ACPI_ROOT_OBJECT);
+	if (result)
+		return result;
 
+	result = acpi_bus_get_device(ACPI_ROOT_OBJECT, &acpi_root);
 	if (!result)
 		result = acpi_bus_scan_fixed();
 

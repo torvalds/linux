@@ -746,14 +746,13 @@ static int acpiphp_bus_add(struct acpiphp_func *func)
 		dbg("acpi_bus_trim return %x\n", ret_val);
 	}
 
-	ret_val = acpi_bus_add(func->handle, &device);
-	if (ret_val) {
-		dbg("error adding bus, %x\n",
-			-ret_val);
-		goto acpiphp_bus_add_out;
-	}
+	ret_val = acpi_bus_add(func->handle);
+	if (!ret_val)
+		ret_val = acpi_bus_get_device(func->handle, &device);
 
-acpiphp_bus_add_out:
+	if (ret_val)
+		dbg("error adding bus, %x\n", -ret_val);
+
 	return ret_val;
 }
 
@@ -1130,8 +1129,12 @@ static void handle_bridge_insertion(acpi_handle handle, u32 type)
 		return;
 	}
 
-	if (acpi_bus_add(handle, &device)) {
+	if (acpi_bus_add(handle)) {
 		err("cannot add bridge to acpi list\n");
+		return;
+	}
+	if (acpi_bus_get_device(handle, &device)) {
+		err("ACPI device object missing\n");
 		return;
 	}
 	if (!acpiphp_configure_bridge(handle))

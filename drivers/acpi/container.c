@@ -166,9 +166,14 @@ static void container_notify_cb(acpi_handle handle, u32 type, void *context)
 		if (!ACPI_FAILURE(status) || device)
 			break;
 
-		result = acpi_bus_add(handle, &device);
+		result = acpi_bus_add(handle);
 		if (result) {
 			acpi_handle_warn(handle, "Failed to add container\n");
+			break;
+		}
+		result = acpi_bus_get_device(handle, &device);
+		if (result) {
+			acpi_handle_warn(handle, "Missing device object\n");
 			break;
 		}
 

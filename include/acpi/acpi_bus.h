@@ -351,7 +351,7 @@ static inline int acpi_bus_generate_proc_event(struct acpi_device *device, u8 ty
 #endif
 int acpi_bus_register_driver(struct acpi_driver *driver);
 void acpi_bus_unregister_driver(struct acpi_driver *driver);
-int acpi_bus_add(acpi_handle handle, struct acpi_device **ret);
+int acpi_bus_add(acpi_handle handle);
 void acpi_bus_hot_remove_device(void *context);
 int acpi_bus_trim(struct acpi_device *start, int rmdevice);
 acpi_status acpi_bus_get_ejd(acpi_handle handle, acpi_handle * ejd);
