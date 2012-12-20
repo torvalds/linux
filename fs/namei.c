@@ -3172,12 +3172,13 @@ SYSCALL_DEFINE4(mknodat, int, dfd, const char __user *, filename, umode_t, mode,
 	struct dentry *dentry;
 	struct path path;
 	int error;
+	unsigned int lookup_flags = 0;
 
 	error = may_mknod(mode);
 	if (error)
 		return error;
-
-	dentry = user_path_create(dfd, filename, &path, 0);
+retry:
+	dentry = user_path_create(dfd, filename, &path, lookup_flags);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
@@ -3200,6 +3201,10 @@ SYSCALL_DEFINE4(mknodat, int, dfd, const char __user *, filename, umode_t, mode,
 	}
 out:
 	done_path_create(&path, dentry);
+	if (retry_estale(error, lookup_flags)) {
+		lookup_flags |= LOOKUP_REVAL;
+		goto retry;
+	}
 	return error;
 }
 
