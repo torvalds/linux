@@ -1848,6 +1848,7 @@ static int codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch,
 			    bool init_only)
 {
 	struct hda_amp_info *info;
+	unsigned int cache_only;
 
 	if (snd_BUG_ON(mask & ~0xff))
 		mask &= 0xff;
@@ -1865,10 +1866,9 @@ static int codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch,
 		return 0;
 	}
 	info->vol[ch] = val;
-	if (codec->cached_write)
-		info->head.dirty = 1;
+	cache_only = info->head.dirty = codec->cached_write;
 	mutex_unlock(&codec->hash_mutex);
-	if (!codec->cached_write)
+	if (!cache_only)
 		put_vol_mute(codec, info, nid, ch, direction, idx, val);
 	return 1;
 }
@@ -3450,8 +3450,10 @@ int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
 	int err;
 	struct hda_cache_head *c;
 	u32 key;
+	unsigned int cache_only;
 
-	if (!codec->cached_write) {
+	cache_only = codec->cached_write;
+	if (!cache_only) {
 		err = snd_hda_codec_write(codec, nid, direct, verb, parm);
 		if (err < 0)
 			return err;
@@ -3465,8 +3467,7 @@ int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
 	c = get_alloc_hash(&codec->cmd_cache, key);
 	if (c) {
 		c->val = parm;
-		if (codec->cached_write)
-			c->dirty = 1;
+		c->dirty = cache_only;
 	}
 	mutex_unlock(&codec->bus->cmd_mutex);
 	return 0;
