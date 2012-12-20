@@ -1877,10 +1877,6 @@ static int mux_enum_put(struct snd_kcontrol *kcontrol,
 			  ucontrol->value.enumerated.item[0]);
 }
 
-/*
- * capture volume and capture switch ctls
- */
-
 static const struct snd_kcontrol_new cap_src_temp = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Input Source",
@@ -1889,9 +1885,14 @@ static const struct snd_kcontrol_new cap_src_temp = {
 	.put = mux_enum_put,
 };
 
+/*
+ * capture volume and capture switch ctls
+ */
+
 typedef int (*put_call_t)(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol);
 
+/* call the given amp update function for all amps in the imux list at once */
 static int cap_put_caller(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol,
 			  put_call_t func, int type)
@@ -1905,6 +1906,10 @@ static int cap_put_caller(struct snd_kcontrol *kcontrol,
 	imux = &spec->input_mux;
 	adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	mutex_lock(&codec->control_mutex);
+	/* we use the cache-only update at first since multiple input paths
+	 * may shared the same amp; by updating only caches, the redundant
+	 * writes to hardware can be reduced.
+	 */
 	codec->cached_write = 1;
 	for (i = 0; i < imux->num_items; i++) {
 		path = snd_hda_get_nid_path(codec, spec->imux_pins[i],
@@ -1919,7 +1924,7 @@ static int cap_put_caller(struct snd_kcontrol *kcontrol,
  error:
 	codec->cached_write = 0;
 	mutex_unlock(&codec->control_mutex);
-	snd_hda_codec_flush_amp_cache(codec);
+	snd_hda_codec_flush_amp_cache(codec); /* flush the updates */
 	if (err >= 0 && spec->cap_sync_hook)
 		spec->cap_sync_hook(codec);
 	return err;
