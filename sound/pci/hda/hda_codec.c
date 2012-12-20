@@ -1955,6 +1955,7 @@ void snd_hda_codec_resume_amp(struct hda_codec *codec)
 	int i;
 
 	mutex_lock(&codec->hash_mutex);
+	codec->cached_write = 0;
 	for (i = 0; i < codec->amp_cache.buf.used; i++) {
 		struct hda_amp_info *buffer;
 		u32 key;
@@ -3520,6 +3521,7 @@ void snd_hda_codec_resume_cache(struct hda_codec *codec)
 	int i;
 
 	mutex_lock(&codec->hash_mutex);
+	codec->cached_write = 0;
 	for (i = 0; i < codec->cmd_cache.buf.used; i++) {
 		struct hda_cache_head *buffer;
 		u32 key;
