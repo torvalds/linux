@@ -3,7 +3,7 @@
 /include/ "tegra20.dtsi"
 
 / {
-	model = "NVIDIA Tegra2 Whistler evaluation board";
+	model = "NVIDIA Tegra20 Whistler evaluation board";
 	compatible = "nvidia,whistler", "nvidia,tegra20";
 
 	memory {
