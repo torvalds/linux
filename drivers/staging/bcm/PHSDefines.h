@@ -1,10 +1,10 @@
 #ifndef BCM_PHS_DEFINES_H
 #define BCM_PHS_DEFINES_H
 
-#define PHS_INVALID_TABLE_INDEX		0xffffffff
-/************************* MACROS **********************************************/
+#define PHS_INVALID_TABLE_INDEX	0xffffffff
 #define PHS_MEM_TAG "_SHP"
-//PHS Defines
+
+/* PHS Defines */
 #define STATUS_PHS_COMPRESSED		0xa1
 #define STATUS_PHS_NOCOMPRESSION	0xa2
 #define APPLY_PHS			1
@@ -24,7 +24,7 @@
 #define MAX_PHSRULE_PER_SF		20
 #define MAX_SERVICEFLOWS		17
 
-//PHS Error Defines
+/* PHS Error Defines */
 #define PHS_SUCCESS				0
 #define ERR_PHS_INVALID_DEVICE_EXETENSION	0x800
 #define ERR_PHS_INVALID_PHS_RULE		0x801
@@ -39,21 +39,14 @@
 
 typedef struct _S_PHS_RULE
 {
-	/// brief 8bit PHSI Of The Service Flow
 	B_UINT8	u8PHSI;
-	/// brief PHSF Of The Service Flow
 	B_UINT8	u8PHSFLength;
 	B_UINT8	u8PHSF[MAX_PHS_LENGTHS];
-	/// brief PHSM Of The Service Flow
 	B_UINT8	u8PHSMLength;
 	B_UINT8	u8PHSM[MAX_PHS_LENGTHS];
-	/// brief 8bit PHSS Of The Service Flow
 	B_UINT8	u8PHSS;
-	/// brief 8bit PHSV Of The Service Flow
 	B_UINT8	u8PHSV;
-	//Reference Count for this PHS Rule
 	B_UINT8	u8RefCnt;
-	//Flag to Store Unclassified PHS rules only in DL
 	B_UINT8	bUnclassifiedPHSRule;
 	B_UINT8	u8Reserved[3];
 	LONG	PHSModifiedBytes;
@@ -100,7 +93,7 @@ typedef struct _S_SERVICEFLOW_TABLE
 
 typedef struct _PHS_DEVICE_EXTENSION
 {
-	/* PHS Specific data*/
+	/* PHS Specific data */
 	S_SERVICEFLOW_TABLE *pstServiceFlowPhsRulesTable;
 	void *CompressedTxBuffer;
 	void *UnCompressedRxBuffer;
