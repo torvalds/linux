@@ -699,7 +699,7 @@ static int acpi_pci_root_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
-static int __init acpi_pci_root_init(void)
+int __init acpi_pci_root_init(void)
 {
 	acpi_hest_init();
 
@@ -712,5 +712,3 @@ static int __init acpi_pci_root_init(void)
 
 	return 0;
 }
-
-subsys_initcall(acpi_pci_root_init);
