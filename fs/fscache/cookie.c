@@ -452,6 +452,14 @@ void __fscache_relinquish_cookie(struct fscache_cookie *cookie, int retire)
 
 		_debug("RELEASE OBJ%x", object->debug_id);
 
+		if (atomic_read(&object->n_reads)) {
+			spin_unlock(&cookie->lock);
+			printk(KERN_ERR "FS-Cache:"
+			       " Cookie '%s' still has %d outstanding reads\n",
+			       cookie->def->name, atomic_read(&object->n_reads));
+			BUG();
+		}
+
 		/* detach each cache object from the object cookie */
 		spin_lock(&object->lock);
 		hlist_del_init(&object->cookie_link);
