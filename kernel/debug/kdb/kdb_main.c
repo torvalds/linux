@@ -124,7 +124,7 @@ static kdbmsg_t kdbmsgs[] = {
 };
 #undef KDBMSG
 
-static const int __nkdb_err = sizeof(kdbmsgs) / sizeof(kdbmsg_t);
+static const int __nkdb_err = ARRAY_SIZE(kdbmsgs);
 
 
 /*
@@ -175,7 +175,7 @@ static char *__env[] = {
  (char *)0,
 };
 
-static const int __nenv = (sizeof(__env) / sizeof(char *));
+static const int __nenv = ARRAY_SIZE(__env);
 
 struct task_struct *kdb_curr_task(int cpu)
 {
