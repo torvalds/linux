@@ -16,8 +16,8 @@
 #include <linux/slab.h>
 
 #include <linux/platform_data/iommu-omap.h>
-#include <plat/omap_hwmod.h>
-#include <plat/omap_device.h>
+#include "omap_hwmod.h"
+#include "omap_device.h"
 
 static int __init omap_iommu_dev_init(struct omap_hwmod *oh, void *unused)
 {
