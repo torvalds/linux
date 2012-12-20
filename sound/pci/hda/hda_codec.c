@@ -424,6 +424,7 @@ int snd_hda_get_raw_connections(struct hda_codec *codec, hda_nid_t nid,
 	unsigned int shift, num_elems, mask;
 	unsigned int wcaps;
 	hda_nid_t prev_nid;
+	int null_count = 0;
 
 	if (snd_BUG_ON(!conn_list || max_conns <= 0))
 		return -EINVAL;
@@ -474,7 +475,7 @@ int snd_hda_get_raw_connections(struct hda_codec *codec, hda_nid_t nid,
 		}
 		range_val = !!(parm & (1 << (shift-1))); /* ranges */
 		val = parm & mask;
-		if (val == 0) {
+		if (val == 0 && null_count++) {  /* no second chance */
 			snd_printk(KERN_WARNING "hda_codec: "
 				   "invalid CONNECT_LIST verb %x[%i]:%x\n",
 				    nid, i, parm);
