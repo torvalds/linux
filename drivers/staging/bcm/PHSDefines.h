@@ -37,8 +37,7 @@
 #define ERR_CLSID_MATCH_FAIL			0x808
 #define ERR_PHSRULE_MATCH_FAIL			0x809
 
-typedef struct _S_PHS_RULE
-{
+typedef struct _S_PHS_RULE {
 	B_UINT8	u8PHSI;
 	B_UINT8	u8PHSFLength;
 	B_UINT8	u8PHSF[MAX_PHS_LENGTHS];
@@ -54,14 +53,12 @@ typedef struct _S_PHS_RULE
 	ULONG	PHSErrorNumPackets;
 } S_PHS_RULE;
 
-typedef enum _E_CLASSIFIER_ENTRY_CONTEXT
-{
+typedef enum _E_CLASSIFIER_ENTRY_CONTEXT {
 	eActiveClassifierRuleContext,
 	eOldClassifierRuleContext
 } E_CLASSIFIER_ENTRY_CONTEXT;
 
-typedef struct _S_CLASSIFIER_ENTRY
-{
+typedef struct _S_CLASSIFIER_ENTRY {
 	B_UINT8  bUsed;
 	B_UINT16 uiClassifierRuleId;
 	B_UINT8  u8PHSI;
@@ -69,30 +66,25 @@ typedef struct _S_CLASSIFIER_ENTRY
 	B_UINT8  bUnclassifiedPHSRule;
 } S_CLASSIFIER_ENTRY;
 
-typedef struct _S_CLASSIFIER_TABLE
-{
+typedef struct _S_CLASSIFIER_TABLE {
 	B_UINT16 uiTotalClassifiers;
 	S_CLASSIFIER_ENTRY stActivePhsRulesList[MAX_PHSRULE_PER_SF];
 	S_CLASSIFIER_ENTRY stOldPhsRulesList[MAX_PHSRULE_PER_SF];
 	B_UINT16 uiOldestPhsRuleIndex;
 } S_CLASSIFIER_TABLE;
 
-
-typedef struct _S_SERVICEFLOW_ENTRY
-{
+typedef struct _S_SERVICEFLOW_ENTRY {
 	B_UINT8  bUsed;
 	B_UINT16 uiVcid;
 	S_CLASSIFIER_TABLE  *pstClassifierTable;
 } S_SERVICEFLOW_ENTRY;
 
-typedef struct _S_SERVICEFLOW_TABLE
-{
+typedef struct _S_SERVICEFLOW_TABLE {
 	B_UINT16 uiTotalServiceFlows;
 	S_SERVICEFLOW_ENTRY stSFList[MAX_SERVICEFLOWS];
 } S_SERVICEFLOW_TABLE;
 
-typedef struct _PHS_DEVICE_EXTENSION
-{
+typedef struct _PHS_DEVICE_EXTENSION {
 	/* PHS Specific data */
 	S_SERVICEFLOW_TABLE *pstServiceFlowPhsRulesTable;
 	void *CompressedTxBuffer;
