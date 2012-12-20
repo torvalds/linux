@@ -311,7 +311,6 @@ void __init apbt_time_init(void)
 #ifdef CONFIG_SMP
 	int i;
 	struct sfi_timer_table_entry *p_mtmr;
-	unsigned int percpu_timer;
 	struct apbt_dev *adev;
 #endif
 
@@ -346,13 +345,10 @@ void __init apbt_time_init(void)
 		return;
 	}
 	pr_debug("%s: %d CPUs online\n", __func__, num_online_cpus());
-	if (num_possible_cpus() <= sfi_mtimer_num) {
-		percpu_timer = 1;
+	if (num_possible_cpus() <= sfi_mtimer_num)
 		apbt_num_timers_used = num_possible_cpus();
-	} else {
-		percpu_timer = 0;
+	else
 		apbt_num_timers_used = 1;
-	}
 	pr_debug("%s: %d APB timers used\n", __func__, apbt_num_timers_used);
 
 	/* here we set up per CPU timer data structure */
