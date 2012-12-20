@@ -765,7 +765,7 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 					 gpe_event_info);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
-					"Unable to queue handler for GPE%2X - event disabled",
+					"Unable to queue handler for GPE%02X - event disabled",
 					gpe_number));
 		}
 		break;

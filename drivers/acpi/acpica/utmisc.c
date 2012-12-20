@@ -748,12 +748,12 @@ void acpi_ut_repair_name(char *name)
 
 		if (!acpi_gbl_enable_interpreter_slack) {
 			ACPI_WARNING((AE_INFO,
-				      "Found bad character(s) in name, repaired: [%4.4s]\n",
-				      name));
+				      "Invalid character(s) in name (0x%.8X), repaired: [%4.4s]",
+					  original_name, name));
 		} else {
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-					  "Found bad character(s) in name, repaired: [%4.4s]\n",
-					  name));
+					  "Invalid character(s) in name (0x%.8X), repaired: [%4.4s]",
+					  original_name, name));
 		}
 	}
 }
