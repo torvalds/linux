@@ -3389,43 +3389,42 @@ static void init_multi_out(struct hda_codec *codec)
 	}
 }
 
-/* initialize hp and speaker paths */
-static void init_extra_out(struct hda_codec *codec)
+
+static void __init_extra_out(struct hda_codec *codec, int num_outs,
+			     hda_nid_t *pins, hda_nid_t *dacs, int type)
 {
 	struct hda_gen_spec *spec = codec->spec;
 	int i;
 	hda_nid_t pin, dac;
 
-	for (i = 0; i < spec->autocfg.hp_outs; i++) {
-		if (spec->autocfg.line_out_type == AUTO_PIN_HP_OUT)
-			break;
-		pin = spec->autocfg.hp_pins[i];
+	for (i = 0; i < num_outs; i++) {
+		pin = pins[i];
 		if (!pin)
 			break;
-		dac = spec->multiout.hp_out_nid[i];
+		dac = dacs[i];
 		if (!dac) {
-			if (i > 0 && spec->multiout.hp_out_nid[0])
-				dac = spec->multiout.hp_out_nid[0];
+			if (i > 0 && dacs[0])
+				dac = dacs[0];
 			else
 				dac = spec->multiout.dac_nids[0];
 		}
-		set_output_and_unmute(codec, pin, PIN_HP, dac);
+		set_output_and_unmute(codec, pin, type, dac);
 	}
-	for (i = 0; i < spec->autocfg.speaker_outs; i++) {
-		if (spec->autocfg.line_out_type == AUTO_PIN_SPEAKER_OUT)
-			break;
-		pin = spec->autocfg.speaker_pins[i];
-		if (!pin)
-			break;
-		dac = spec->multiout.extra_out_nid[i];
-		if (!dac) {
-			if (i > 0 && spec->multiout.extra_out_nid[0])
-				dac = spec->multiout.extra_out_nid[0];
-			else
-				dac = spec->multiout.dac_nids[0];
-		}
-		set_output_and_unmute(codec, pin, PIN_OUT, dac);
-	}
+}
+
+/* initialize hp and speaker paths */
+static void init_extra_out(struct hda_codec *codec)
+{
+	struct hda_gen_spec *spec = codec->spec;
+
+	if (spec->autocfg.line_out_type != AUTO_PIN_HP_OUT)
+		__init_extra_out(codec, spec->autocfg.hp_outs,
+				 spec->autocfg.hp_pins,
+				 spec->multiout.hp_out_nid, PIN_HP);
+	if (spec->autocfg.line_out_type != AUTO_PIN_SPEAKER_OUT)
+		__init_extra_out(codec, spec->autocfg.speaker_outs,
+				 spec->autocfg.speaker_pins,
+				 spec->multiout.extra_out_nid, PIN_OUT);
 }
 
 /* initialize multi-io paths */
