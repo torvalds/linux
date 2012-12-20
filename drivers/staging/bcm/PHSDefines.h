@@ -49,8 +49,8 @@ typedef struct _S_PHS_RULE {
 	u8 bUnclassifiedPHSRule;
 	u8 u8Reserved[3];
 	LONG	PHSModifiedBytes;
-	ULONG	PHSModifiedNumPackets;
-	ULONG	PHSErrorNumPackets;
+	unsigned long PHSModifiedNumPackets;
+	unsigned long PHSErrorNumPackets;
 } S_PHS_RULE;
 
 typedef enum _E_CLASSIFIER_ENTRY_CONTEXT {
