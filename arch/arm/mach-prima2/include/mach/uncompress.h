@@ -25,6 +25,9 @@ static __inline__ void putc(char c)
 	 * during kernel decompression, all mappings are flat:
 	 *  virt_addr == phys_addr
 	 */
+	if (!SIRFSOC_UART1_PA_BASE)
+		return;
+
 	while (__raw_readl((void __iomem *)SIRFSOC_UART1_PA_BASE + SIRFSOC_UART_TXFIFO_STATUS)
 		& SIRFSOC_UART1_TXFIFO_FULL)
 		barrier();
