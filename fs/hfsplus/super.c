@@ -232,6 +232,7 @@ out:
 
 static void delayed_sync_fs(struct work_struct *work)
 {
+	int err;
 	struct hfsplus_sb_info *sbi;
 
 	sbi = container_of(work, struct hfsplus_sb_info, sync_work.work);
@@ -240,7 +241,9 @@ static void delayed_sync_fs(struct work_struct *work)
 	sbi->work_queued = 0;
 	spin_unlock(&sbi->work_lock);
 
-	hfsplus_sync_fs(sbi->alloc_file->i_sb, 1);
+	err = hfsplus_sync_fs(sbi->alloc_file->i_sb, 1);
+	if (err)
+		printk(KERN_ERR "hfs: delayed sync fs err %d\n", err);
 }
 
 void hfsplus_mark_mdb_dirty(struct super_block *sb)
