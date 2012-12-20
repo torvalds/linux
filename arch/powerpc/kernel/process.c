@@ -407,9 +407,32 @@ static inline int set_dabr(struct arch_hw_breakpoint *brk)
 	return __set_dabr(dabr, dabrx);
 }
 
+static inline int set_dawr(struct arch_hw_breakpoint *brk)
+{
+	unsigned long dawr, dawrx;
+
+	dawr = brk->address;
+
+	dawrx  = (brk->type & (HW_BRK_TYPE_READ | HW_BRK_TYPE_WRITE)) \
+		                   << (63 - 58); //* read/write bits */
+	dawrx |= ((brk->type & (HW_BRK_TYPE_TRANSLATE)) >> 2) \
+		                   << (63 - 59); //* translate */
+	dawrx |= (brk->type & (HW_BRK_TYPE_PRIV_ALL)) \
+		                   >> 3; //* PRIM bits */
+
+	if (ppc_md.set_dawr)
+		return ppc_md.set_dawr(dawr, dawrx);
+	mtspr(SPRN_DAWR, dawr);
+	mtspr(SPRN_DAWRX, dawrx);
+	return 0;
+}
+
 int set_break(struct arch_hw_breakpoint *brk)
 {
 	__get_cpu_var(current_brk) = *brk;
+
+	if (cpu_has_feature(CPU_FTR_DAWR))
+		return set_dawr(brk);
 
 	return set_dabr(brk);
 }
