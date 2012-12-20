@@ -709,6 +709,43 @@ int kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code)
 	return 0;
 }
 
+struct kvm_s390_interrupt_info *kvm_s390_get_io_int(struct kvm *kvm,
+						    u64 cr6, u64 schid)
+{
+	struct kvm_s390_float_interrupt *fi;
+	struct kvm_s390_interrupt_info *inti, *iter;
+
+	if ((!schid && !cr6) || (schid && cr6))
+		return NULL;
+	mutex_lock(&kvm->lock);
+	fi = &kvm->arch.float_int;
+	spin_lock(&fi->lock);
+	inti = NULL;
+	list_for_each_entry(iter, &fi->list, list) {
+		if (!is_ioint(iter->type))
+			continue;
+		if (cr6 && ((cr6 & iter->io.io_int_word) == 0))
+			continue;
+		if (schid) {
+			if (((schid & 0x00000000ffff0000) >> 16) !=
+			    iter->io.subchannel_id)
+				continue;
+			if ((schid & 0x000000000000ffff) !=
+			    iter->io.subchannel_nr)
+				continue;
+		}
+		inti = iter;
+		break;
+	}
+	if (inti)
+		list_del_init(&inti->list);
+	if (list_empty(&fi->list))
+		atomic_set(&fi->active, 0);
+	spin_unlock(&fi->lock);
+	mutex_unlock(&kvm->lock);
+	return inti;
+}
+
 int kvm_s390_inject_vm(struct kvm *kvm,
 		       struct kvm_s390_interrupt *s390int)
 {

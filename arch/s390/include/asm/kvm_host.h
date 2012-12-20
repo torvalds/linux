@@ -262,6 +262,7 @@ struct kvm_arch{
 	debug_info_t *dbf;
 	struct kvm_s390_float_interrupt float_int;
 	struct gmap *gmap;
+	int css_support;
 };
 
 extern int sie64a(struct kvm_s390_sie_block *, u64 *);

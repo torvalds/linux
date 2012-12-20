@@ -141,6 +141,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_SYNC_REGS:
 	case KVM_CAP_ONE_REG:
 	case KVM_CAP_ENABLE_CAP:
+	case KVM_CAP_S390_CSS_SUPPORT:
 		r = 1;
 		break;
 	case KVM_CAP_NR_VCPUS:
@@ -235,6 +236,9 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 		if (!kvm->arch.gmap)
 			goto out_nogmap;
 	}
+
+	kvm->arch.css_support = 0;
+
 	return 0;
 out_nogmap:
 	debug_unregister(kvm->arch.dbf);
@@ -658,6 +662,7 @@ rerun_vcpu:
 	case KVM_EXIT_INTR:
 	case KVM_EXIT_S390_RESET:
 	case KVM_EXIT_S390_UCONTROL:
+	case KVM_EXIT_S390_TSCH:
 		break;
 	default:
 		BUG();
@@ -818,6 +823,13 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 		return -EINVAL;
 
 	switch (cap->cap) {
+	case KVM_CAP_S390_CSS_SUPPORT:
+		if (!vcpu->kvm->arch.css_support) {
+			vcpu->kvm->arch.css_support = 1;
+			trace_kvm_s390_enable_css(vcpu->kvm);
+		}
+		r = 0;
+		break;
 	default:
 		r = -EINVAL;
 		break;

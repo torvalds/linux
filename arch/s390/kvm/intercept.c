@@ -264,6 +264,7 @@ static const intercept_handler_t intercept_funcs[] = {
 	[0x0C >> 2] = handle_instruction_and_prog,
 	[0x10 >> 2] = handle_noop,
 	[0x14 >> 2] = handle_noop,
+	[0x18 >> 2] = handle_noop,
 	[0x1C >> 2] = kvm_s390_handle_wait,
 	[0x20 >> 2] = handle_validity,
 	[0x28 >> 2] = handle_stop,

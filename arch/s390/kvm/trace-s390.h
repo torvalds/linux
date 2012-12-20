@@ -204,6 +204,26 @@ TRACE_EVENT(kvm_s390_stop_request,
 	);
 
 
+/*
+ * Trace point for enabling channel I/O instruction support.
+ */
+TRACE_EVENT(kvm_s390_enable_css,
+	    TP_PROTO(void *kvm),
+	    TP_ARGS(kvm),
+
+	    TP_STRUCT__entry(
+		    __field(void *, kvm)
+		    ),
+
+	    TP_fast_assign(
+		    __entry->kvm = kvm;
+		    ),
+
+	    TP_printk("enabling channel I/O support (kvm @ %p)\n",
+		      __entry->kvm)
+	);
+
+
 #endif /* _TRACE_KVMS390_H */
 
 /* This part must be outside protection */

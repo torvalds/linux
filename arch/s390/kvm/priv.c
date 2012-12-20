@@ -127,13 +127,96 @@ static int handle_skey(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static int handle_tpi(struct kvm_vcpu *vcpu)
+{
+	u64 addr;
+	struct kvm_s390_interrupt_info *inti;
+	int cc;
+
+	addr = kvm_s390_get_base_disp_s(vcpu);
+
+	inti = kvm_s390_get_io_int(vcpu->kvm, vcpu->run->s.regs.crs[6], 0);
+	if (inti) {
+		if (addr) {
+			/*
+			 * Store the two-word I/O interruption code into the
+			 * provided area.
+			 */
+			put_guest_u16(vcpu, addr, inti->io.subchannel_id);
+			put_guest_u16(vcpu, addr + 2, inti->io.subchannel_nr);
+			put_guest_u32(vcpu, addr + 4, inti->io.io_int_parm);
+		} else {
+			/*
+			 * Store the three-word I/O interruption code into
+			 * the appropriate lowcore area.
+			 */
+			put_guest_u16(vcpu, 184, inti->io.subchannel_id);
+			put_guest_u16(vcpu, 186, inti->io.subchannel_nr);
+			put_guest_u32(vcpu, 188, inti->io.io_int_parm);
+			put_guest_u32(vcpu, 192, inti->io.io_int_word);
+		}
+		cc = 1;
+	} else
+		cc = 0;
+	kfree(inti);
+	/* Set condition code and we're done. */
+	vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);
+	vcpu->arch.sie_block->gpsw.mask |= (cc & 3ul) << 44;
+	return 0;
+}
+
+static int handle_tsch(struct kvm_vcpu *vcpu)
+{
+	struct kvm_s390_interrupt_info *inti;
+
+	inti = kvm_s390_get_io_int(vcpu->kvm, 0,
+				   vcpu->run->s.regs.gprs[1]);
+
+	/*
+	 * Prepare exit to userspace.
+	 * We indicate whether we dequeued a pending I/O interrupt
+	 * so that userspace can re-inject it if the instruction gets
+	 * a program check. While this may re-order the pending I/O
+	 * interrupts, this is no problem since the priority is kept
+	 * intact.
+	 */
+	vcpu->run->exit_reason = KVM_EXIT_S390_TSCH;
+	vcpu->run->s390_tsch.dequeued = !!inti;
+	if (inti) {
+		vcpu->run->s390_tsch.subchannel_id = inti->io.subchannel_id;
+		vcpu->run->s390_tsch.subchannel_nr = inti->io.subchannel_nr;
+		vcpu->run->s390_tsch.io_int_parm = inti->io.io_int_parm;
+		vcpu->run->s390_tsch.io_int_word = inti->io.io_int_word;
+	}
+	vcpu->run->s390_tsch.ipb = vcpu->arch.sie_block->ipb;
+	kfree(inti);
+	return -EREMOTE;
+}
+
 static int handle_io_inst(struct kvm_vcpu *vcpu)
 {
 	VCPU_EVENT(vcpu, 4, "%s", "I/O instruction");
-	/* condition code 3 */
-	vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);
-	vcpu->arch.sie_block->gpsw.mask |= (3 & 3ul) << 44;
-	return 0;
+
+	if (vcpu->kvm->arch.css_support) {
+		/*
+		 * Most I/O instructions will be handled by userspace.
+		 * Exceptions are tpi and the interrupt portion of tsch.
+		 */
+		if (vcpu->arch.sie_block->ipa == 0xb236)
+			return handle_tpi(vcpu);
+		if (vcpu->arch.sie_block->ipa == 0xb235)
+			return handle_tsch(vcpu);
+		/* Handle in userspace. */
+		return -EOPNOTSUPP;
+	} else {
+		/*
+		 * Set condition code 3 to stop the guest from issueing channel
+		 * I/O instructions.
+		 */
+		vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);
+		vcpu->arch.sie_block->gpsw.mask |= (3 & 3ul) << 44;
+		return 0;
+	}
 }
 
 static int handle_stfl(struct kvm_vcpu *vcpu)
