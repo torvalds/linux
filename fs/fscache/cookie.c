@@ -442,22 +442,32 @@ void __fscache_relinquish_cookie(struct fscache_cookie *cookie, int retire)
 
 	event = retire ? FSCACHE_OBJECT_EV_RETIRE : FSCACHE_OBJECT_EV_RELEASE;
 
+try_again:
 	spin_lock(&cookie->lock);
 
 	/* break links with all the active objects */
 	while (!hlist_empty(&cookie->backing_objects)) {
+		int n_reads;
 		object = hlist_entry(cookie->backing_objects.first,
 				     struct fscache_object,
 				     cookie_link);
 
 		_debug("RELEASE OBJ%x", object->debug_id);
 
-		if (atomic_read(&object->n_reads)) {
+		set_bit(FSCACHE_COOKIE_WAITING_ON_READS, &cookie->flags);
+		n_reads = atomic_read(&object->n_reads);
+		if (n_reads) {
+			int n_ops = object->n_ops;
+			int n_in_progress = object->n_in_progress;
 			spin_unlock(&cookie->lock);
 			printk(KERN_ERR "FS-Cache:"
-			       " Cookie '%s' still has %d outstanding reads\n",
-			       cookie->def->name, atomic_read(&object->n_reads));
-			BUG();
+			       " Cookie '%s' still has %d outstanding reads (%d,%d)\n",
+			       cookie->def->name,
+			       n_reads, n_ops, n_in_progress);
+			wait_on_bit(&cookie->flags, FSCACHE_COOKIE_WAITING_ON_READS,
+				    fscache_wait_bit, TASK_UNINTERRUPTIBLE);
+			printk("Wait finished\n");
+			goto try_again;
 		}
 
 		/* detach each cache object from the object cookie */

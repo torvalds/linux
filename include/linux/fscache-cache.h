@@ -301,6 +301,7 @@ struct fscache_cookie {
 #define FSCACHE_COOKIE_PENDING_FILL	3	/* T if pending initial fill on object */
 #define FSCACHE_COOKIE_FILLING		4	/* T if filling object incrementally */
 #define FSCACHE_COOKIE_UNAVAILABLE	5	/* T if cookie is unavailable (error, etc) */
+#define FSCACHE_COOKIE_WAITING_ON_READS	6	/* T if cookie is waiting on reads */
 };
 
 extern struct fscache_cookie fscache_fsdef_index;
