@@ -3532,6 +3532,23 @@ static void init_digital(struct hda_codec *codec)
 		snd_hda_set_pin_ctl(codec, pin, PIN_IN);
 }
 
+/* clear unsol-event tags on unused pins; Conexant codecs seem to leave
+ * invalid unsol tags by some reason
+ */
+static void clear_unsol_on_unused_pins(struct hda_codec *codec)
+{
+	int i;
+
+	for (i = 0; i < codec->init_pins.used; i++) {
+		struct hda_pincfg *pin = snd_array_elem(&codec->init_pins, i);
+		hda_nid_t nid = pin->nid;
+		if (is_jack_detectable(codec, nid) &&
+		    !snd_hda_jack_tbl_get(codec, nid))
+			snd_hda_codec_update_cache(codec, nid, 0,
+					AC_VERB_SET_UNSOLICITED_ENABLE, 0);
+	}
+}
+
 int snd_hda_gen_init(struct hda_codec *codec)
 {
 	struct hda_gen_spec *spec = codec->spec;
@@ -3549,6 +3566,8 @@ int snd_hda_gen_init(struct hda_codec *codec)
 	init_analog_input(codec);
 	init_input_src(codec);
 	init_digital(codec);
+
+	clear_unsol_on_unused_pins(codec);
 
 	/* call init functions of standard auto-mute helpers */
 	snd_hda_gen_hp_automute(codec, NULL);
