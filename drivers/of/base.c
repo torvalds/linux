@@ -629,7 +629,7 @@ struct device_node *of_find_matching_node_and_match(struct device_node *from,
 	read_unlock(&devtree_lock);
 	return np;
 }
-EXPORT_SYMBOL(of_find_matching_node);
+EXPORT_SYMBOL(of_find_matching_node_and_match);
 
 /**
  * of_modalias_node - Lookup appropriate modalias for a device node

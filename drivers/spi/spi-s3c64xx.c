@@ -215,6 +215,10 @@ static void flush_fifo(struct s3c64xx_spi_driver_data *sdd)
 	writel(0, regs + S3C64XX_SPI_PACKET_CNT);
 
 	val = readl(regs + S3C64XX_SPI_CH_CFG);
+	val &= ~(S3C64XX_SPI_CH_RXCH_ON | S3C64XX_SPI_CH_TXCH_ON);
+	writel(val, regs + S3C64XX_SPI_CH_CFG);
+
+	val = readl(regs + S3C64XX_SPI_CH_CFG);
 	val |= S3C64XX_SPI_CH_SW_RST;
 	val &= ~S3C64XX_SPI_CH_HS_EN;
 	writel(val, regs + S3C64XX_SPI_CH_CFG);
@@ -248,10 +252,6 @@ static void flush_fifo(struct s3c64xx_spi_driver_data *sdd)
 	val = readl(regs + S3C64XX_SPI_MODE_CFG);
 	val &= ~(S3C64XX_SPI_MODE_TXDMA_ON | S3C64XX_SPI_MODE_RXDMA_ON);
 	writel(val, regs + S3C64XX_SPI_MODE_CFG);
-
-	val = readl(regs + S3C64XX_SPI_CH_CFG);
-	val &= ~(S3C64XX_SPI_CH_RXCH_ON | S3C64XX_SPI_CH_TXCH_ON);
-	writel(val, regs + S3C64XX_SPI_CH_CFG);
 }
 
 static void s3c64xx_spi_dmacb(void *data)
@@ -771,8 +771,6 @@ static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
 			if (list_is_last(&xfer->transfer_list,
 						&msg->transfers))
 				cs_toggle = 1;
-			else
-				disable_cs(sdd, spi);
 		}
 
 		msg->actual_length += xfer->len;

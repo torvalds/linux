@@ -824,6 +824,7 @@ static void of_register_spi_devices(struct spi_master *master)
 	struct spi_device *spi;
 	struct device_node *nc;
 	const __be32 *prop;
+	char modalias[SPI_NAME_SIZE + 4];
 	int rc;
 	int len;
 
@@ -887,7 +888,9 @@ static void of_register_spi_devices(struct spi_master *master)
 		spi->dev.of_node = nc;
 
 		/* Register the new device */
-		request_module(spi->modalias);
+		snprintf(modalias, sizeof(modalias), "%s%s", SPI_MODULE_PREFIX,
+			 spi->modalias);
+		request_module(modalias);
 		rc = spi_add_device(spi);
 		if (rc) {
 			dev_err(&master->dev, "spi_device register error %s\n",
