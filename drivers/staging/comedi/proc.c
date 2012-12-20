@@ -33,7 +33,6 @@
 #include <linux/proc_fs.h>
 #include <linux/string.h>
 
-#ifdef CONFIG_PROC_FS
 static int comedi_read(char *buf, char **start, off_t offset, int len,
 		       int *eof, void *data)
 {
@@ -92,4 +91,3 @@ void comedi_proc_cleanup(void)
 {
 	remove_proc_entry("comedi", NULL);
 }
-#endif
