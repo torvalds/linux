@@ -51,6 +51,7 @@
  *
  * Note: The order of these include files is important.
  */
+#include <acpi/acconfig.h>	/* Global configuration constants */
 #include "acmacros.h"		/* C macros */
 #include "aclocal.h"		/* Internal data types */
 #include "acobject.h"		/* ACPI internal object */

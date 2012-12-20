@@ -602,18 +602,20 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 
 			/* Walk the CID list */
 
-			found = 0;
+			found = FALSE;
 			for (i = 0; i < cid->count; i++) {
 				if (ACPI_STRCMP(cid->ids[i].string, info->hid)
 				    == 0) {
 					/* Found a matching CID */
-					found = 1;
+					found = TRUE;
 					break;
 				}
 			}
+
 			ACPI_FREE(cid);
-			if (!found)
+			if (!found) {
 				return (AE_OK);
+			}
 		}
 	}
 

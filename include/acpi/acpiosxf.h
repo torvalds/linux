@@ -148,6 +148,8 @@ void acpi_os_release_mutex(acpi_mutex handle);
  */
 void *acpi_os_allocate(acpi_size size);
 
+void acpi_os_free(void *memory);
+
 void __iomem *acpi_os_map_memory(acpi_physical_address where,
 				acpi_size length);
 
@@ -180,12 +182,13 @@ acpi_status acpi_os_release_object(acpi_cache_t * cache, void *object);
  * Interrupt handlers
  */
 acpi_status
-acpi_os_install_interrupt_handler(u32 gsi,
+acpi_os_install_interrupt_handler(u32 interrupt_number,
 				  acpi_osd_handler service_routine,
 				  void *context);
 
 acpi_status
-acpi_os_remove_interrupt_handler(u32 gsi, acpi_osd_handler service_routine);
+acpi_os_remove_interrupt_handler(u32 interrupt_number,
+				 acpi_osd_handler service_routine);
 
 void acpi_os_gpe_count(u32 gpe_number);
 void acpi_os_fixed_event_count(u32 fixed_event_number);

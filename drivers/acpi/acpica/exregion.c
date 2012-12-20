@@ -163,7 +163,7 @@ acpi_ex_system_memory_space_handler(u32 function,
 		page_boundary_map_length =
 		    ACPI_ROUND_UP(address, ACPI_DEFAULT_PAGE_SIZE) - address;
 
-		if (!page_boundary_map_length) {
+		if (page_boundary_map_length == 0) {
 			page_boundary_map_length = ACPI_DEFAULT_PAGE_SIZE;
 		}
 

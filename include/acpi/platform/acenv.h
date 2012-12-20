@@ -277,8 +277,6 @@
  *
  *****************************************************************************/
 
-#define ACPI_IS_ASCII(c)  ((c) < 0x80)
-
 /*
  * ACPI_USE_SYSTEM_CLIBRARY - Define this if linking to an actual C library.
  *      Otherwise, local versions of string/memory functions will be used.

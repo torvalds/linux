@@ -410,11 +410,6 @@ struct acpi_gpe_notify_info {
 	struct acpi_gpe_notify_info *next;
 };
 
-struct acpi_gpe_notify_object {
-	struct acpi_namespace_node *node;
-	struct acpi_gpe_notify_object *next;
-};
-
 /*
  * GPE dispatch info. At any time, the GPE can have at most one type
  * of dispatch - Method, Handler, or Implicit Notify.

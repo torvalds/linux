@@ -58,6 +58,10 @@ extern u8 acpi_gbl_permanent_mmap;
 /*
  * Globals that are publically available
  */
+extern u32 acpi_current_gpe_count;
+extern struct acpi_table_fadt acpi_gbl_FADT;
+extern u8 acpi_gbl_system_awake_and_running;
+extern u8 acpi_gbl_reduced_hardware;	/* ACPI 5.0 */
 /* Runtime configuration of debug print levels */
 extern u32 acpi_dbg_level;
 extern u32 acpi_dbg_layer;
@@ -100,11 +104,6 @@ extern u8 acpi_gbl_disable_auto_repair;
 
 #endif				/* !ACPI_REDUCED_HARDWARE */
 
-extern u32 acpi_current_gpe_count;
-extern struct acpi_table_fadt acpi_gbl_FADT;
-extern u8 acpi_gbl_system_awake_and_running;
-extern u8 acpi_gbl_reduced_hardware;	/* ACPI 5.0 */
-
 extern u32 acpi_rsdt_forced;
 /*
  * Initialization
@@ -121,15 +120,14 @@ acpi_status acpi_initialize_objects(u32 flags);
 
 acpi_status acpi_terminate(void);
 
-#ifdef ACPI_FUTURE_USAGE
-acpi_status acpi_subsystem_status(void);
-#endif
-
 /*
  * Miscellaneous global interfaces
  */
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_enable(void))
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_disable(void))
+#ifdef ACPI_FUTURE_USAGE
+acpi_status acpi_subsystem_status(void);
+#endif
 
 #ifdef ACPI_FUTURE_USAGE
 acpi_status acpi_get_system_info(struct acpi_buffer *ret_buffer);
@@ -466,6 +464,10 @@ acpi_buffer_to_resource(u8 *aml_buffer,
  */
 acpi_status acpi_reset(void);
 
+acpi_status acpi_read(u64 *value, struct acpi_generic_address *reg);
+
+acpi_status acpi_write(u64 value, struct acpi_generic_address *reg);
+
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				acpi_read_bit_register(u32 register_id,
 						       u32 *return_value))
@@ -473,20 +475,6 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				acpi_write_bit_register(u32 register_id,
 							u32 value))
-
-ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
-				acpi_set_firmware_waking_vector(u32
-								physical_address))
-
-#if ACPI_MACHINE_WIDTH == 64
-ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
-				acpi_set_firmware_waking_vector64(u64
-								  physical_address))
-#endif
-
-acpi_status acpi_read(u64 *value, struct acpi_generic_address *reg);
-
-acpi_status acpi_write(u64 value, struct acpi_generic_address *reg);
 
 /*
  * Sleep/Wake interfaces
@@ -504,6 +492,15 @@ acpi_status acpi_leave_sleep_state_prep(u8 sleep_state);
 
 acpi_status acpi_leave_sleep_state(u8 sleep_state);
 
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_set_firmware_waking_vector(u32
+								physical_address))
+
+#if ACPI_MACHINE_WIDTH == 64
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_set_firmware_waking_vector64(u64
+								  physical_address))
+#endif
 /*
  * ACPI Timer interfaces
  */

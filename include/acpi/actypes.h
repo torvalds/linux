@@ -474,6 +474,7 @@ typedef u64 acpi_integer;
  */
 #define ACPI_FULL_INITIALIZATION        0x00
 #define ACPI_NO_ADDRESS_SPACE_INIT      0x01
+#define ACPI_NO_HARDWARE_INIT           0x02
 #define ACPI_NO_EVENT_INIT              0x04
 #define ACPI_NO_HANDLER_INIT            0x08
 #define ACPI_NO_ACPI_ENABLE             0x10
@@ -969,6 +970,10 @@ acpi_status(*acpi_exception_handler) (acpi_status aml_status,
 
 typedef
 acpi_status(*acpi_tbl_handler) (u32 event, void *table, void *context);
+
+#define ACPI_TABLE_LOAD             0x0
+#define ACPI_TABLE_UNLOAD           0x1
+#define ACPI_NUM_TABLE_EVENTS       2
 
 /* Address Spaces (For Operation Regions) */
 

@@ -192,14 +192,6 @@ ACPI_EXTERN u8 acpi_gbl_integer_bit_width;
 ACPI_EXTERN u8 acpi_gbl_integer_byte_width;
 ACPI_EXTERN u8 acpi_gbl_integer_nybble_width;
 
-/* Mutex for _OSI support */
-
-ACPI_EXTERN acpi_mutex acpi_gbl_osi_mutex;
-
-/* Reader/Writer lock is used for namespace walk and dynamic table unload */
-
-ACPI_EXTERN struct acpi_rw_lock acpi_gbl_namespace_rw_lock;
-
 /*****************************************************************************
  *
  * Mutual exclusion within ACPICA subsystem
@@ -232,6 +224,14 @@ ACPI_EXTERN u8 acpi_gbl_global_lock_pending;
  */
 ACPI_EXTERN acpi_spinlock acpi_gbl_gpe_lock;	/* For GPE data structs and registers */
 ACPI_EXTERN acpi_spinlock acpi_gbl_hardware_lock;	/* For ACPI H/W except GPE registers */
+
+/* Mutex for _OSI support */
+
+ACPI_EXTERN acpi_mutex acpi_gbl_osi_mutex;
+
+/* Reader/Writer lock is used for namespace walk and dynamic table unload */
+
+ACPI_EXTERN struct acpi_rw_lock acpi_gbl_namespace_rw_lock;
 
 /*****************************************************************************
  *
@@ -304,6 +304,7 @@ extern const char *acpi_gbl_region_types[ACPI_NUM_PREDEFINED_REGIONS];
 ACPI_EXTERN struct acpi_memory_list *acpi_gbl_global_list;
 ACPI_EXTERN struct acpi_memory_list *acpi_gbl_ns_node_list;
 ACPI_EXTERN u8 acpi_gbl_display_final_mem_stats;
+ACPI_EXTERN u8 acpi_gbl_disable_mem_tracking;
 #endif
 
 /*****************************************************************************
@@ -365,19 +366,18 @@ ACPI_EXTERN u8 acpi_gbl_sleep_type_b;
  *
  ****************************************************************************/
 
-extern struct acpi_fixed_event_info
-    acpi_gbl_fixed_event_info[ACPI_NUM_FIXED_EVENTS];
-ACPI_EXTERN struct acpi_fixed_event_handler
-    acpi_gbl_fixed_event_handlers[ACPI_NUM_FIXED_EVENTS];
-ACPI_EXTERN struct acpi_gpe_xrupt_info *acpi_gbl_gpe_xrupt_list_head;
-ACPI_EXTERN struct acpi_gpe_block_info
-*acpi_gbl_gpe_fadt_blocks[ACPI_MAX_GPE_BLOCKS];
-
 #if (!ACPI_REDUCED_HARDWARE)
 
 ACPI_EXTERN u8 acpi_gbl_all_gpes_initialized;
+ACPI_EXTERN struct acpi_gpe_xrupt_info *acpi_gbl_gpe_xrupt_list_head;
+ACPI_EXTERN struct acpi_gpe_block_info
+    *acpi_gbl_gpe_fadt_blocks[ACPI_MAX_GPE_BLOCKS];
 ACPI_EXTERN acpi_gbl_event_handler acpi_gbl_global_event_handler;
 ACPI_EXTERN void *acpi_gbl_global_event_handler_context;
+ACPI_EXTERN struct acpi_fixed_event_handler
+    acpi_gbl_fixed_event_handlers[ACPI_NUM_FIXED_EVENTS];
+extern struct acpi_fixed_event_info
+    acpi_gbl_fixed_event_info[ACPI_NUM_FIXED_EVENTS];
 
 #endif				/* !ACPI_REDUCED_HARDWARE */
 
@@ -428,6 +428,7 @@ extern u8 acpi_gbl_db_terminate_threads;
 ACPI_EXTERN u8 acpi_gbl_db_opt_tables;
 ACPI_EXTERN u8 acpi_gbl_db_opt_stats;
 ACPI_EXTERN u8 acpi_gbl_db_opt_ini_methods;
+ACPI_EXTERN u8 acpi_gbl_db_opt_no_region_support;
 
 ACPI_EXTERN char *acpi_gbl_db_args[ACPI_DEBUGGER_MAX_ARGS];
 ACPI_EXTERN acpi_object_type acpi_gbl_db_arg_types[ACPI_DEBUGGER_MAX_ARGS];

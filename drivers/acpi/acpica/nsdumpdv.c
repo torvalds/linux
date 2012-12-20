@@ -42,7 +42,6 @@
  */
 
 #include <acpi/acpi.h>
-#include "accommon.h"
 
 /* TBD: This entire module is apparently obsolete and should be removed */
 
