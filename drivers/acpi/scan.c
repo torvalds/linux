@@ -1582,6 +1582,10 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl,
 	acpi_status status;
 	int result;
 
+	acpi_bus_get_device(handle, &device);
+	if (device)
+		goto out;
+
 	result = acpi_bus_type_and_status(handle, &type, &sta);
 	if (result)
 		return AE_OK;
@@ -1598,18 +1602,14 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl,
 		return AE_CTRL_DEPTH;
 	}
 
-	acpi_bus_get_device(handle, &device);
-	if (!device) {
-		acpi_add_single_object(&device, handle, type, sta,
-				       ACPI_BUS_ADD_BASIC);
-		if (!device)
-			return AE_CTRL_DEPTH;
+	acpi_add_single_object(&device, handle, type, sta, ACPI_BUS_ADD_BASIC);
+	if (!device)
+		return AE_CTRL_DEPTH;
 
-		device->add_type = context ?
-					ACPI_BUS_ADD_START : ACPI_BUS_ADD_MATCH;
-		acpi_hot_add_bind(device);
-	}
+	device->add_type = context ? ACPI_BUS_ADD_START : ACPI_BUS_ADD_MATCH;
+	acpi_hot_add_bind(device);
 
+ out:
 	if (!*return_value)
 		*return_value = device;
 
