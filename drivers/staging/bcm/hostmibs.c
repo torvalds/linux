@@ -12,7 +12,7 @@
 INT ProcessGetHostMibs(struct bcm_mini_adapter *Adapter, struct bcm_host_stats_mibs *pstHostMibs)
 {
 	struct bcm_phs_entry *pstServiceFlowEntry = NULL;
-	S_PHS_RULE *pstPhsRule = NULL;
+	struct bcm_phs_rule *pstPhsRule = NULL;
 	struct bcm_phs_classifier_table *pstClassifierTable = NULL;
 	struct bcm_phs_classifier_entry *pstClassifierRule = NULL;
 	struct bcm_phs_extension *pDeviceExtension = (struct bcm_phs_extension *) &Adapter->stBCMPhsContext;
@@ -70,7 +70,7 @@ INT ProcessGetHostMibs(struct bcm_mini_adapter *Adapter, struct bcm_host_stats_m
 
 				memcpy(&pstHostMibs->
 				       astPhsRulesTable[nPhsTableIndex].u8PHSI,
-				       &pstPhsRule->u8PHSI, sizeof(S_PHS_RULE));
+				       &pstPhsRule->u8PHSI, sizeof(struct bcm_phs_rule));
 				nPhsTableIndex++;
 
 			}

@@ -95,7 +95,7 @@ struct bcm_classifier_rule {
 	UCHAR		ucDirection;
 	BOOLEAN		bIpv6Protocol;
 	UINT32		u32PHSRuleID;
-	S_PHS_RULE	sPhsRule;
+	struct bcm_phs_rule sPhsRule;
 	UCHAR		u8AssociatedPHSI;
 
 	/* Classification fields for ETH CS */

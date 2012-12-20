@@ -37,7 +37,7 @@
 #define ERR_CLSID_MATCH_FAIL			0x808
 #define ERR_PHSRULE_MATCH_FAIL			0x809
 
-typedef struct _S_PHS_RULE {
+struct bcm_phs_rule {
 	u8 u8PHSI;
 	u8 u8PHSFLength;
 	u8 u8PHSF[MAX_PHS_LENGTHS];
@@ -51,7 +51,7 @@ typedef struct _S_PHS_RULE {
 	long PHSModifiedBytes;
 	unsigned long PHSModifiedNumPackets;
 	unsigned long PHSErrorNumPackets;
-} S_PHS_RULE;
+};
 
 enum bcm_phs_classifier_context {
 	eActiveClassifierRuleContext,
@@ -62,7 +62,7 @@ struct bcm_phs_classifier_entry {
 	u8  bUsed;
 	u16 uiClassifierRuleId;
 	u8  u8PHSI;
-	S_PHS_RULE *pstPhsRule;
+	struct bcm_phs_rule *pstPhsRule;
 	u8  bUnclassifiedPHSRule;
 };
 
