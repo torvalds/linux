@@ -3189,7 +3189,7 @@ static void wm8962_init_beep(struct snd_soc_codec *codec)
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	wm8962->beep = input_allocate_device();
+	wm8962->beep = devm_input_allocate_device(codec->dev);
 	if (!wm8962->beep) {
 		dev_err(codec->dev, "Failed to allocate beep device\n");
 		return;
@@ -3210,7 +3210,6 @@ static void wm8962_init_beep(struct snd_soc_codec *codec)
 
 	ret = input_register_device(wm8962->beep);
 	if (ret != 0) {
-		input_free_device(wm8962->beep);
 		wm8962->beep = NULL;
 		dev_err(codec->dev, "Failed to register beep device\n");
 	}
@@ -3227,7 +3226,6 @@ static void wm8962_free_beep(struct snd_soc_codec *codec)
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 
 	device_remove_file(codec->dev, &dev_attr_beep);
-	input_unregister_device(wm8962->beep);
 	cancel_work_sync(&wm8962->beep_work);
 	wm8962->beep = NULL;
 
