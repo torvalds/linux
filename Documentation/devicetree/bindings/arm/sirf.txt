@@ -1,3 +1,9 @@
-prima2 "cb" evaluation board
+CSR SiRFprimaII and SiRFmarco device tree bindings.
+========================================
+
 Required root node properties:
-    - compatible = "sirf,prima2-cb", "sirf,prima2";
+    - compatible:
+    - "sirf,prima2-cb" : prima2 "cb" evaluation board
+    - "sirf,marco-cb" : marco "cb" evaluation board
+    - "sirf,prima2" : prima2 device based board
+    - "sirf,marco" : marco device based board
