@@ -169,7 +169,7 @@ static int resize_async_buffer(struct comedi_device *dev,
 	}
 
 	DPRINTK("comedi%i subd %d buffer resized to %i bytes\n",
-		dev->minor, (int)(s - dev->subdevices), async->prealloc_bufsz);
+		dev->minor, s->index, async->prealloc_bufsz);
 	return 0;
 }
 
@@ -624,13 +624,13 @@ static int do_devinfo_ioctl(struct comedi_device *dev,
 
 	s = comedi_read_subdevice(info);
 	if (s)
-		devinfo.read_subdevice = s - dev->subdevices;
+		devinfo.read_subdevice = s->index;
 	else
 		devinfo.read_subdevice = -1;
 
 	s = comedi_write_subdevice(info);
 	if (s)
-		devinfo.write_subdevice = s - dev->subdevices;
+		devinfo.write_subdevice = s->index;
 	else
 		devinfo.write_subdevice = -1;
 
@@ -2398,7 +2398,7 @@ int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 	s->minor = i;
 	csdev = device_create(comedi_class, dev->class_dev,
 			      MKDEV(COMEDI_MAJOR, i), NULL, "comedi%i_subd%i",
-			      dev->minor, (int)(s - dev->subdevices));
+			      dev->minor, s->index);
 	if (!IS_ERR(csdev))
 		s->class_dev = csdev;
 	dev_set_drvdata(csdev, info);

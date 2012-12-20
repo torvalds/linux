@@ -55,7 +55,6 @@ Configuration Options:
 
 #include <linux/pci.h>		/* for PCI devices */
 
-#define SDEV_NO ((int)(s - dev->subdevices))
 #define CHANS 8
 #define IOSIZE 16
 #define LSB(x) ((unsigned char)((x) & 0xff))

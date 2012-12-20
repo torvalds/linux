@@ -77,6 +77,7 @@
 
 struct comedi_subdevice {
 	struct comedi_device *device;
+	int index;
 	int type;
 	int n_chan;
 	int subdev_flags;

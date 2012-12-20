@@ -986,7 +986,7 @@ static void ni_event(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (s->
 	    async->events & (COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW |
 			     COMEDI_CB_EOA)) {
-		switch (s - dev->subdevices) {
+		switch (s->index) {
 		case NI_AI_SUBDEV:
 			ni_ai_reset(dev, s);
 			break;

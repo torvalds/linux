@@ -92,7 +92,6 @@ Configuration Options:
 #define INTR_PORTS_PER_SUBDEV (INTR_CHANS_PER_ASIC/CHANS_PER_PORT)
 #define MAX_DIO_CHANS   (PORTS_PER_ASIC*2*CHANS_PER_PORT)
 #define MAX_ASICS       (MAX_DIO_CHANS/CHANS_PER_ASIC)
-#define SDEV_NO ((int)(s - dev->subdevices))
 #define CALC_N_SUBDEVS(nchans) ((nchans)/MAX_CHANS_PER_SUBDEV + (!!((nchans)%MAX_CHANS_PER_SUBDEV)) /*+ (nchans > INTR_CHANS_PER_ASIC ? 2 : 1)*/)
 /* IO Memory sizes */
 #define ASIC_IOSIZE (0x10)

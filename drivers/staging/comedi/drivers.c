@@ -70,6 +70,7 @@ int comedi_alloc_subdevices(struct comedi_device *dev, int num_subdevices)
 	for (i = 0; i < num_subdevices; ++i) {
 		s = &dev->subdevices[i];
 		s->device = dev;
+		s->index = i;
 		s->async_dma_dir = DMA_NONE;
 		spin_lock_init(&s->spin_lock);
 		s->minor = -1;
