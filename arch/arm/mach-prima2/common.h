@@ -14,6 +14,11 @@
 #include <asm/exception.h>
 
 extern void sirfsoc_prima2_timer_init(void);
+extern void sirfsoc_marco_timer_init(void);
+
+extern struct smp_operations   sirfsoc_smp_ops;
+extern void sirfsoc_secondary_startup(void);
+extern void sirfsoc_cpu_die(unsigned int cpu);
 
 extern void __init sirfsoc_of_irq_init(void);
 extern void __init sirfsoc_of_clk_init(void);
@@ -24,6 +29,12 @@ extern asmlinkage void __exception_irq_entry sirfsoc_handle_irq(struct pt_regs *
 static inline void sirfsoc_map_lluart(void)  {}
 #else
 extern void __init sirfsoc_map_lluart(void);
+#endif
+
+#ifndef CONFIG_SMP
+static inline void sirfsoc_map_scu(void) {}
+#else
+extern void sirfsoc_map_scu(void);
 #endif
 
 #ifdef CONFIG_SUSPEND
