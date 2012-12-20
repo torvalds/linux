@@ -759,7 +759,6 @@ static int acpiphp_bus_add(struct acpiphp_func *func)
 			-ret_val);
 		goto acpiphp_bus_add_out;
 	}
-	ret_val = acpi_bus_start(device);
 
 acpiphp_bus_add_out:
 	return ret_val;
@@ -1148,8 +1147,7 @@ static void handle_bridge_insertion(acpi_handle handle, u32 type)
 		err("cannot add bridge to acpi list\n");
 		return;
 	}
-	if (!acpiphp_configure_bridge(handle) &&
-		!acpi_bus_start(device))
+	if (!acpiphp_configure_bridge(handle))
 		add_bridge(handle);
 	else
 		err("cannot configure and start bridge\n");

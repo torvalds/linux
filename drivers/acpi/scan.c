@@ -571,7 +571,6 @@ static void acpi_device_remove_notify_handler(struct acpi_device *device)
 }
 
 static int acpi_bus_driver_init(struct acpi_device *, struct acpi_driver *);
-static int acpi_start_single_object(struct acpi_device *);
 static int acpi_device_probe(struct device * dev)
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
@@ -580,9 +579,6 @@ static int acpi_device_probe(struct device * dev)
 
 	ret = acpi_bus_driver_init(acpi_dev, acpi_drv);
 	if (!ret) {
-		if (acpi_dev->add_type == ACPI_BUS_ADD_START)
-			acpi_start_single_object(acpi_dev);
-
 		if (acpi_drv->ops.notify) {
 			ret = acpi_device_install_notify_handler(acpi_dev);
 			if (ret) {
@@ -759,24 +755,6 @@ acpi_bus_driver_init(struct acpi_device *device, struct acpi_driver *driver)
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "Driver successfully bound to device\n"));
 	return 0;
-}
-
-static int acpi_start_single_object(struct acpi_device *device)
-{
-	int result = 0;
-	struct acpi_driver *driver;
-
-
-	if (!(driver = device->driver))
-		return 0;
-
-	if (driver->ops.start) {
-		result = driver->ops.start(device);
-		if (result && driver->ops.remove)
-			driver->ops.remove(device, ACPI_BUS_REMOVAL_NORMAL);
-	}
-
-	return result;
 }
 
 /**
@@ -1673,59 +1651,31 @@ static int acpi_bus_scan(acpi_handle handle, bool start,
 }
 
 /*
- * acpi_bus_add and acpi_bus_start
+ * acpi_bus_add
  *
  * scan a given ACPI tree and (probably recently hot-plugged)
- * create and add or starts found devices.
+ * create and add found devices.
  *
  * If no devices were found -ENODEV is returned which does not
  * mean that this is a real error, there just have been no suitable
  * ACPI objects in the table trunk from which the kernel could create
- * a device and add/start an appropriate driver.
+ * a device and add an appropriate driver.
  */
 
 int
 acpi_bus_add(struct acpi_device **child,
 	     struct acpi_device *parent, acpi_handle handle, int type)
 {
-	return acpi_bus_scan(handle, false, child);
-}
-EXPORT_SYMBOL(acpi_bus_add);
+	int err;
 
-static acpi_status acpi_bus_start_device(acpi_handle handle, u32 lvl,
-					 void *not_used, void **ret_not_used)
-{
-	struct acpi_device *device;
-	unsigned long long sta_not_used;
-	int type_not_used;
-
-	/*
-	 * Ignore errors ignored by acpi_bus_check_add() to avoid terminating
-	 * namespace walks prematurely.
-	 */
-	if (acpi_bus_type_and_status(handle, &type_not_used, &sta_not_used))
-		return AE_OK;
-
-	if (acpi_bus_get_device(handle, &device))
-		return AE_CTRL_DEPTH;
-
-	return acpi_start_single_object(device);
-}
-
-int acpi_bus_start(struct acpi_device *device)
-{
-	if (!device)
-		return -EINVAL;
-
-	if (ACPI_SUCCESS(acpi_start_single_object(device)))
-		acpi_walk_namespace(ACPI_TYPE_ANY, device->handle,
-				    ACPI_UINT32_MAX, acpi_bus_start_device,
-				    NULL, NULL, NULL);
+	err = acpi_bus_scan(handle, false, child);
+	if (err)
+		return err;
 
 	acpi_update_all_gpes();
 	return 0;
 }
-EXPORT_SYMBOL(acpi_bus_start);
+EXPORT_SYMBOL(acpi_bus_add);
 
 int acpi_bus_trim(struct acpi_device *start, int rmdevice)
 {

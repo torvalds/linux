@@ -139,24 +139,14 @@ static int container_device_add(struct acpi_device **device, acpi_handle handle)
 {
 	acpi_handle phandle;
 	struct acpi_device *pdev;
-	int result;
 
-
-	if (acpi_get_parent(handle, &phandle)) {
+	if (acpi_get_parent(handle, &phandle))
 		return -ENODEV;
-	}
 
-	if (acpi_bus_get_device(phandle, &pdev)) {
+	if (acpi_bus_get_device(phandle, &pdev))
 		return -ENODEV;
-	}
 
-	if (acpi_bus_add(device, pdev, handle, ACPI_BUS_TYPE_DEVICE)) {
-		return -ENODEV;
-	}
-
-	result = acpi_bus_start(*device);
-
-	return result;
+	return acpi_bus_add(device, pdev, handle, ACPI_BUS_TYPE_DEVICE);
 }
 
 static void container_notify_cb(acpi_handle handle, u32 type, void *context)

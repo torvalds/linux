@@ -457,8 +457,6 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 					       ret, (int)(adr>>16),
 					       (int)(adr&0xffff));
 					/* try to continue on */
-				} else {
-					acpi_bus_start(device);
 				}
 			}
 		}
