@@ -21,9 +21,24 @@
 #include "gaccess.h"
 #include "trace-s390.h"
 
+#define IOINT_SCHID_MASK 0x0000ffff
+#define IOINT_SSID_MASK 0x00030000
+#define IOINT_CSSID_MASK 0x03fc0000
+#define IOINT_AI_MASK 0x04000000
+
+static int is_ioint(u64 type)
+{
+	return ((type & 0xfffe0000u) != 0xfffe0000u);
+}
+
 static int psw_extint_disabled(struct kvm_vcpu *vcpu)
 {
 	return !(vcpu->arch.sie_block->gpsw.mask & PSW_MASK_EXT);
+}
+
+static int psw_ioint_disabled(struct kvm_vcpu *vcpu)
+{
+	return !(vcpu->arch.sie_block->gpsw.mask & PSW_MASK_IO);
 }
 
 static int psw_interrupts_disabled(struct kvm_vcpu *vcpu)
@@ -67,7 +82,15 @@ static int __interrupt_is_deliverable(struct kvm_vcpu *vcpu,
 	case KVM_S390_SIGP_SET_PREFIX:
 	case KVM_S390_RESTART:
 		return 1;
+	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
+		if (psw_ioint_disabled(vcpu))
+			return 0;
+		if (vcpu->arch.sie_block->gcr[6] & inti->io.io_int_word)
+			return 1;
+		return 0;
 	default:
+		printk(KERN_WARNING "illegal interrupt type %llx\n",
+		       inti->type);
 		BUG();
 	}
 	return 0;
@@ -115,6 +138,12 @@ static void __set_intercept_indicator(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_S390_SIGP_STOP:
 		__set_cpuflag(vcpu, CPUSTAT_STOP_INT);
+		break;
+	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
+		if (psw_ioint_disabled(vcpu))
+			__set_cpuflag(vcpu, CPUSTAT_IO_INT);
+		else
+			vcpu->arch.sie_block->lctl |= LCTL_CR6;
 		break;
 	default:
 		BUG();
@@ -297,6 +326,47 @@ static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 			exception = 1;
 		break;
 
+	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
+	{
+		__u32 param0 = ((__u32)inti->io.subchannel_id << 16) |
+			inti->io.subchannel_nr;
+		__u64 param1 = ((__u64)inti->io.io_int_parm << 32) |
+			inti->io.io_int_word;
+		VCPU_EVENT(vcpu, 4, "interrupt: I/O %llx", inti->type);
+		vcpu->stat.deliver_io_int++;
+		trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, inti->type,
+						 param0, param1);
+		rc = put_guest_u16(vcpu, __LC_SUBCHANNEL_ID,
+				   inti->io.subchannel_id);
+		if (rc == -EFAULT)
+			exception = 1;
+
+		rc = put_guest_u16(vcpu, __LC_SUBCHANNEL_NR,
+				   inti->io.subchannel_nr);
+		if (rc == -EFAULT)
+			exception = 1;
+
+		rc = put_guest_u32(vcpu, __LC_IO_INT_PARM,
+				   inti->io.io_int_parm);
+		if (rc == -EFAULT)
+			exception = 1;
+
+		rc = put_guest_u32(vcpu, __LC_IO_INT_WORD,
+				   inti->io.io_int_word);
+		if (rc == -EFAULT)
+			exception = 1;
+
+		rc = copy_to_guest(vcpu, __LC_IO_OLD_PSW,
+				   &vcpu->arch.sie_block->gpsw, sizeof(psw_t));
+		if (rc == -EFAULT)
+			exception = 1;
+
+		rc = copy_from_guest(vcpu, &vcpu->arch.sie_block->gpsw,
+				     __LC_IO_NEW_PSW, sizeof(psw_t));
+		if (rc == -EFAULT)
+			exception = 1;
+		break;
+	}
 	default:
 		BUG();
 	}
@@ -545,7 +615,7 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 {
 	struct kvm_s390_local_interrupt *li;
 	struct kvm_s390_float_interrupt *fi;
-	struct kvm_s390_interrupt_info *inti;
+	struct kvm_s390_interrupt_info *inti, *iter;
 	int sigcpu;
 
 	inti = kzalloc(sizeof(*inti), GFP_KERNEL);
@@ -569,6 +639,22 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 	case KVM_S390_SIGP_STOP:
 	case KVM_S390_INT_EXTERNAL_CALL:
 	case KVM_S390_INT_EMERGENCY:
+		kfree(inti);
+		return -EINVAL;
+	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
+		if (s390int->type & IOINT_AI_MASK)
+			VM_EVENT(kvm, 5, "%s", "inject: I/O (AI)");
+		else
+			VM_EVENT(kvm, 5, "inject: I/O css %x ss %x schid %04x",
+				 s390int->type & IOINT_CSSID_MASK,
+				 s390int->type & IOINT_SSID_MASK,
+				 s390int->type & IOINT_SCHID_MASK);
+		inti->type = s390int->type;
+		inti->io.subchannel_id = s390int->parm >> 16;
+		inti->io.subchannel_nr = s390int->parm & 0x0000ffffu;
+		inti->io.io_int_parm = s390int->parm64 >> 32;
+		inti->io.io_int_word = s390int->parm64 & 0x00000000ffffffffull;
+		break;
 	default:
 		kfree(inti);
 		return -EINVAL;
@@ -579,7 +665,19 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 	mutex_lock(&kvm->lock);
 	fi = &kvm->arch.float_int;
 	spin_lock(&fi->lock);
-	list_add_tail(&inti->list, &fi->list);
+	if (!is_ioint(inti->type))
+		list_add_tail(&inti->list, &fi->list);
+	else {
+		/* Keep I/O interrupts sorted in isc order. */
+		list_for_each_entry(iter, &fi->list, list) {
+			if (!is_ioint(iter->type))
+				continue;
+			if (iter->io.io_int_word <= inti->io.io_int_word)
+				continue;
+			break;
+		}
+		list_add_tail(&inti->list, &iter->list);
+	}
 	atomic_set(&fi->active, 1);
 	sigcpu = find_first_bit(fi->idle_mask, KVM_MAX_VCPUS);
 	if (sigcpu == KVM_MAX_VCPUS) {
@@ -653,6 +751,7 @@ int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_S390_INT_VIRTIO:
 	case KVM_S390_INT_SERVICE:
+	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
 	default:
 		kfree(inti);
 		return -EINVAL;

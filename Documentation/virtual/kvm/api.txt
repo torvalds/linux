@@ -2069,6 +2069,10 @@ KVM_S390_INT_VIRTIO (vm) - virtio external interrupt; external interrupt
 KVM_S390_INT_SERVICE (vm) - sclp external interrupt; sclp parameter in parm
 KVM_S390_INT_EMERGENCY (vcpu) - sigp emergency; source cpu in parm
 KVM_S390_INT_EXTERNAL_CALL (vcpu) - sigp external call; source cpu in parm
+KVM_S390_INT_IO(ai,cssid,ssid,schid) (vm) - compound value to indicate an
+    I/O interrupt (ai - adapter interrupt; cssid,ssid,schid - subchannel);
+    I/O interruption parameters in parm (subchannel) and parm64 (intparm,
+    interruption subclass)
 
 Note that the vcpu ioctl is asynchronous to vcpu execution.
 

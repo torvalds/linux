@@ -74,6 +74,7 @@ struct kvm_s390_sie_block {
 	__u64	epoch;			/* 0x0038 */
 	__u8	reserved40[4];		/* 0x0040 */
 #define LCTL_CR0	0x8000
+#define LCTL_CR6	0x0200
 	__u16   lctl;			/* 0x0044 */
 	__s16	icpua;			/* 0x0046 */
 	__u32	ictl;			/* 0x0048 */
@@ -125,6 +126,7 @@ struct kvm_vcpu_stat {
 	u32 deliver_prefix_signal;
 	u32 deliver_restart_signal;
 	u32 deliver_program_int;
+	u32 deliver_io_int;
 	u32 exit_wait_state;
 	u32 instruction_stidp;
 	u32 instruction_spx;
