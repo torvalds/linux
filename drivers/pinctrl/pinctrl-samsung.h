@@ -104,7 +104,7 @@ struct samsung_pinctrl_drv_data;
 
 /**
  * struct samsung_pin_bank: represent a controller pin-bank.
- * @reg_offset: starting offset of the pin-bank registers.
+ * @pctl_offset: starting offset of the pin-bank registers.
  * @pin_base: starting pin number of the bank.
  * @nr_pins: number of pins included in this bank.
  * @func_width: width of the function selector bit field.

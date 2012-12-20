@@ -679,7 +679,8 @@ void __init exynos5_init_irq(void)
 	 * Theses parameters should be NULL and 0 because EXYNOS4
 	 * uses GIC instead of VIC.
 	 */
-	s5p_init_irq(NULL, 0);
+	if (!of_machine_is_compatible("samsung,exynos5440"))
+		s5p_init_irq(NULL, 0);
 
 	gic_arch_extn.irq_set_wake = s3c_irq_wake;
 }
