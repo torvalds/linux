@@ -970,6 +970,10 @@ int snd_hda_codec_update_cache(struct hda_codec *codec, hda_nid_t nid,
 			      int direct, unsigned int verb, unsigned int parm);
 void snd_hda_codec_resume_cache(struct hda_codec *codec);
 
+/* it's alias but a bit clearer meaning */
+#define snd_hda_codec_flush_cmd_cache(codec) \
+	snd_hda_codec_resume_cache(codec)
+
 /* the struct for codec->pin_configs */
 struct hda_pincfg {
 	hda_nid_t nid;

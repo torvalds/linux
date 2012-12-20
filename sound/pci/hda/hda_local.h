@@ -139,6 +139,10 @@ int snd_hda_codec_amp_init_stereo(struct hda_codec *codec, hda_nid_t nid,
 				  int dir, int idx, int mask, int val);
 void snd_hda_codec_resume_amp(struct hda_codec *codec);
 
+/* it's alias but a bit clearer meaning */
+#define snd_hda_codec_flush_amp_cache(codec) \
+	snd_hda_codec_resume_amp(codec)
+
 void snd_hda_set_vmaster_tlv(struct hda_codec *codec, hda_nid_t nid, int dir,
 			     unsigned int *tlv);
 struct snd_kcontrol *snd_hda_find_mixer_ctl(struct hda_codec *codec,
