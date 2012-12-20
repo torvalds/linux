@@ -113,7 +113,7 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 					SNDRV_PCM_STREAM_PLAYBACK,
 					SND_SOC_DAPM_STREAM_STOP);
 		} else
-			codec_dai->pop_wait = 1;
+			rtd->pop_wait = 1;
 			schedule_delayed_work(&rtd->delayed_work,
 				msecs_to_jiffies(rtd->pmdown_time));
 	} else {
