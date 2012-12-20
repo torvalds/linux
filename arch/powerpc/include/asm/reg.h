@@ -200,6 +200,11 @@
 #define   CTRL_CT1	0x40000000	/* thread 1 */
 #define   CTRL_TE	0x00c00000	/* thread enable */
 #define   CTRL_RUNLATCH	0x1
+#define SPRN_DAWR	0xB4
+#define SPRN_DAWRX	0xBC
+#define   DAWRX_USER	(1UL << 0)
+#define   DAWRX_KERNEL	(1UL << 1)
+#define   DAWRX_HYP	(1UL << 2)
 #define SPRN_DABR	0x3F5	/* Data Address Breakpoint Register */
 #define   DABR_TRANSLATION	(1UL << 2)
 #define   DABR_DATA_WRITE	(1UL << 1)
