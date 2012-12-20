@@ -60,27 +60,27 @@ typedef enum _E_CLASSIFIER_ENTRY_CONTEXT {
 
 typedef struct _S_CLASSIFIER_ENTRY {
 	u8  bUsed;
-	B_UINT16 uiClassifierRuleId;
+	u16 uiClassifierRuleId;
 	u8  u8PHSI;
 	S_PHS_RULE *pstPhsRule;
 	u8  bUnclassifiedPHSRule;
 } S_CLASSIFIER_ENTRY;
 
 typedef struct _S_CLASSIFIER_TABLE {
-	B_UINT16 uiTotalClassifiers;
+	u16 uiTotalClassifiers;
 	S_CLASSIFIER_ENTRY stActivePhsRulesList[MAX_PHSRULE_PER_SF];
 	S_CLASSIFIER_ENTRY stOldPhsRulesList[MAX_PHSRULE_PER_SF];
-	B_UINT16 uiOldestPhsRuleIndex;
+	u16 uiOldestPhsRuleIndex;
 } S_CLASSIFIER_TABLE;
 
 typedef struct _S_SERVICEFLOW_ENTRY {
 	u8  bUsed;
-	B_UINT16 uiVcid;
+	u16 uiVcid;
 	S_CLASSIFIER_TABLE  *pstClassifierTable;
 } S_SERVICEFLOW_ENTRY;
 
 typedef struct _S_SERVICEFLOW_TABLE {
-	B_UINT16 uiTotalServiceFlows;
+	u16 uiTotalServiceFlows;
 	S_SERVICEFLOW_ENTRY stSFList[MAX_SERVICEFLOWS];
 } S_SERVICEFLOW_TABLE;
 
