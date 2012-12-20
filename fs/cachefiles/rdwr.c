@@ -77,25 +77,25 @@ static int cachefiles_read_reissue(struct cachefiles_object *object,
 	struct page *backpage = monitor->back_page, *backpage2;
 	int ret;
 
-	kenter("{ino=%lx},{%lx,%lx}",
+	_enter("{ino=%lx},{%lx,%lx}",
 	       object->backer->d_inode->i_ino,
 	       backpage->index, backpage->flags);
 
 	/* skip if the page was truncated away completely */
 	if (backpage->mapping != bmapping) {
-		kleave(" = -ENODATA [mapping]");
+		_leave(" = -ENODATA [mapping]");
 		return -ENODATA;
 	}
 
 	backpage2 = find_get_page(bmapping, backpage->index);
 	if (!backpage2) {
-		kleave(" = -ENODATA [gone]");
+		_leave(" = -ENODATA [gone]");
 		return -ENODATA;
 	}
 
 	if (backpage != backpage2) {
 		put_page(backpage2);
-		kleave(" = -ENODATA [different]");
+		_leave(" = -ENODATA [different]");
 		return -ENODATA;
 	}
 
@@ -114,7 +114,7 @@ static int cachefiles_read_reissue(struct cachefiles_object *object,
 		if (PageUptodate(backpage))
 			goto unlock_discard;
 
-		kdebug("reissue read");
+		_debug("reissue read");
 		ret = bmapping->a_ops->readpage(NULL, backpage);
 		if (ret < 0)
 			goto unlock_discard;
@@ -129,7 +129,7 @@ static int cachefiles_read_reissue(struct cachefiles_object *object,
 	}
 
 	/* it'll reappear on the todo list */
-	kleave(" = -EINPROGRESS");
+	_leave(" = -EINPROGRESS");
 	return -EINPROGRESS;
 
 unlock_discard:
@@ -137,7 +137,7 @@ unlock_discard:
 	spin_lock_irq(&object->work_lock);
 	list_del(&monitor->op_link);
 	spin_unlock_irq(&object->work_lock);
-	kleave(" = %d", ret);
+	_leave(" = %d", ret);
 	return ret;
 }
 
