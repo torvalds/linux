@@ -759,7 +759,7 @@ int __fscache_write_page(struct fscache_cookie *cookie,
 
 	fscache_stat(&fscache_n_stores);
 
-	op = kzalloc(sizeof(*op), GFP_NOIO);
+	op = kzalloc(sizeof(*op), GFP_NOIO | __GFP_NOMEMALLOC | __GFP_NORETRY);
 	if (!op)
 		goto nomem;
 

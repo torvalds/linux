@@ -41,12 +41,12 @@ static struct fscache_object *cachefiles_alloc_object(
 
 	_enter("{%s},%p,", cache->cache.identifier, cookie);
 
-	lookup_data = kmalloc(sizeof(*lookup_data), GFP_KERNEL);
+	lookup_data = kmalloc(sizeof(*lookup_data), cachefiles_gfp);
 	if (!lookup_data)
 		goto nomem_lookup_data;
 
 	/* create a new object record and a temporary leaf image */
-	object = kmem_cache_alloc(cachefiles_object_jar, GFP_KERNEL);
+	object = kmem_cache_alloc(cachefiles_object_jar, cachefiles_gfp);
 	if (!object)
 		goto nomem_object;
 
@@ -63,7 +63,7 @@ static struct fscache_object *cachefiles_alloc_object(
 	 * - stick the length on the front and leave space on the back for the
 	 *   encoder
 	 */
-	buffer = kmalloc((2 + 512) + 3, GFP_KERNEL);
+	buffer = kmalloc((2 + 512) + 3, cachefiles_gfp);
 	if (!buffer)
 		goto nomem_buffer;
 
@@ -219,7 +219,7 @@ static void cachefiles_update_object(struct fscache_object *_object)
 		return;
 	}
 
-	auxdata = kmalloc(2 + 512 + 3, GFP_KERNEL);
+	auxdata = kmalloc(2 + 512 + 3, cachefiles_gfp);
 	if (!auxdata) {
 		_leave(" [nomem]");
 		return;
