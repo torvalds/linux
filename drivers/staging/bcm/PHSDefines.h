@@ -58,18 +58,18 @@ typedef enum _E_CLASSIFIER_ENTRY_CONTEXT {
 	eOldClassifierRuleContext
 } E_CLASSIFIER_ENTRY_CONTEXT;
 
-typedef struct _S_CLASSIFIER_ENTRY {
+struct bcm_phs_classifier_entry {
 	u8  bUsed;
 	u16 uiClassifierRuleId;
 	u8  u8PHSI;
 	S_PHS_RULE *pstPhsRule;
 	u8  bUnclassifiedPHSRule;
-} S_CLASSIFIER_ENTRY;
+};
 
 struct bcm_phs_classifier_table {
 	u16 uiTotalClassifiers;
-	S_CLASSIFIER_ENTRY stActivePhsRulesList[MAX_PHSRULE_PER_SF];
-	S_CLASSIFIER_ENTRY stOldPhsRulesList[MAX_PHSRULE_PER_SF];
+	struct bcm_phs_classifier_entry stActivePhsRulesList[MAX_PHSRULE_PER_SF];
+	struct bcm_phs_classifier_entry stOldPhsRulesList[MAX_PHSRULE_PER_SF];
 	u16 uiOldestPhsRuleIndex;
 };
 
