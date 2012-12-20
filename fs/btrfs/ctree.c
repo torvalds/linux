@@ -1138,13 +1138,13 @@ __tree_mod_log_rewind(struct extent_buffer *eb, u64 time_seq,
 		switch (tm->op) {
 		case MOD_LOG_KEY_REMOVE_WHILE_FREEING:
 			BUG_ON(tm->slot < n);
-		case MOD_LOG_KEY_REMOVE:
-			n++;
 		case MOD_LOG_KEY_REMOVE_WHILE_MOVING:
+		case MOD_LOG_KEY_REMOVE:
 			btrfs_set_node_key(eb, &tm->key, tm->slot);
 			btrfs_set_node_blockptr(eb, tm->slot, tm->blockptr);
 			btrfs_set_node_ptr_generation(eb, tm->slot,
 						      tm->generation);
+			n++;
 			break;
 		case MOD_LOG_KEY_REPLACE:
 			BUG_ON(tm->slot >= n);
@@ -4611,12 +4611,6 @@ static void del_ptr(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	u32 nritems;
 	int ret;
 
-	if (level) {
-		ret = tree_mod_log_insert_key(root->fs_info, parent, slot,
-					      MOD_LOG_KEY_REMOVE);
-		BUG_ON(ret < 0);
-	}
-
 	nritems = btrfs_header_nritems(parent);
 	if (slot != nritems - 1) {
 		if (level)
@@ -4627,6 +4621,10 @@ static void del_ptr(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 			      btrfs_node_key_ptr_offset(slot + 1),
 			      sizeof(struct btrfs_key_ptr) *
 			      (nritems - slot - 1));
+	} else if (level) {
+		ret = tree_mod_log_insert_key(root->fs_info, parent, slot,
+					      MOD_LOG_KEY_REMOVE);
+		BUG_ON(ret < 0);
 	}
 
 	nritems--;
