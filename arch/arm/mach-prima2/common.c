@@ -41,6 +41,9 @@ DT_MACHINE_START(PRIMA2_DT, "Generic PRIMA2 (Flattened Device Tree)")
 	.map_io         = sirfsoc_map_lluart,
 	.init_irq	= sirfsoc_of_irq_init,
 	.init_time	= sirfsoc_prima2_timer_init,
+#ifdef CONFIG_MULTI_IRQ_HANDLER
+	.handle_irq     = sirfsoc_handle_irq,
+#endif
 	.dma_zone_size	= SZ_256M,
 	.init_machine	= sirfsoc_mach_init,
 	.init_late	= sirfsoc_init_late,
