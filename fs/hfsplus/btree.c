@@ -159,7 +159,7 @@ void hfs_btree_close(struct hfs_btree *tree)
 	kfree(tree);
 }
 
-void hfs_btree_write(struct hfs_btree *tree)
+int hfs_btree_write(struct hfs_btree *tree)
 {
 	struct hfs_btree_header_rec *head;
 	struct hfs_bnode *node;
@@ -168,7 +168,7 @@ void hfs_btree_write(struct hfs_btree *tree)
 	node = hfs_bnode_find(tree, 0);
 	if (IS_ERR(node))
 		/* panic? */
-		return;
+		return -EIO;
 	/* Load the header */
 	page = node->page[0];
 	head = (struct hfs_btree_header_rec *)(kmap(page) +
@@ -186,6 +186,7 @@ void hfs_btree_write(struct hfs_btree *tree)
 	kunmap(page);
 	set_page_dirty(page);
 	hfs_bnode_put(node);
+	return 0;
 }
 
 static struct hfs_bnode *hfs_bmap_new_bmap(struct hfs_bnode *prev, u32 idx)

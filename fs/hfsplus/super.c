@@ -127,8 +127,14 @@ static int hfsplus_system_write_inode(struct inode *inode)
 		hfsplus_mark_mdb_dirty(inode->i_sb);
 	}
 	hfsplus_inode_write_fork(inode, fork);
-	if (tree)
-		hfs_btree_write(tree);
+	if (tree) {
+		int err = hfs_btree_write(tree);
+		if (err) {
+			printk(KERN_ERR "hfs: b-tree write err: %d, ino %lu\n",
+					err, inode->i_ino);
+			return err;
+		}
+	}
 	return 0;
 }
 
