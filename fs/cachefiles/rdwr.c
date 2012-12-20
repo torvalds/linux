@@ -176,9 +176,8 @@ static void cachefiles_read_copier(struct fscache_operation *_op)
 	recheck:
 		if (PageUptodate(monitor->back_page)) {
 			copy_highpage(monitor->netfs_page, monitor->back_page);
-
-			pagevec_add(&pagevec, monitor->netfs_page);
-			fscache_mark_pages_cached(monitor->op, &pagevec);
+			fscache_mark_page_cached(monitor->op,
+						 monitor->netfs_page);
 			error = 0;
 		} else if (!PageError(monitor->back_page)) {
 			/* the page has probably been truncated */
@@ -335,8 +334,7 @@ backing_page_already_present:
 backing_page_already_uptodate:
 	_debug("- uptodate");
 
-	pagevec_add(pagevec, netpage);
-	fscache_mark_pages_cached(op, pagevec);
+	fscache_mark_page_cached(op, netpage);
 
 	copy_highpage(netpage, backpage);
 	fscache_end_io(op, netpage, 0);
@@ -448,8 +446,7 @@ int cachefiles_read_or_alloc_page(struct fscache_retrieval *op,
 						       &pagevec);
 	} else if (cachefiles_has_space(cache, 0, 1) == 0) {
 		/* there's space in the cache we can use */
-		pagevec_add(&pagevec, page);
-		fscache_mark_pages_cached(op, &pagevec);
+		fscache_mark_page_cached(op, page);
 		ret = -ENODATA;
 	} else {
 		ret = -ENOBUFS;
@@ -465,8 +462,7 @@ int cachefiles_read_or_alloc_page(struct fscache_retrieval *op,
  */
 static int cachefiles_read_backing_file(struct cachefiles_object *object,
 					struct fscache_retrieval *op,
-					struct list_head *list,
-					struct pagevec *mark_pvec)
+					struct list_head *list)
 {
 	struct cachefiles_one_read *monitor = NULL;
 	struct address_space *bmapping = object->backer->d_inode->i_mapping;
@@ -626,13 +622,13 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 		page_cache_release(backpage);
 		backpage = NULL;
 
-		if (!pagevec_add(mark_pvec, netpage))
-			fscache_mark_pages_cached(op, mark_pvec);
+		fscache_mark_page_cached(op, netpage);
 
 		page_cache_get(netpage);
 		if (!pagevec_add(&lru_pvec, netpage))
 			__pagevec_lru_add_file(&lru_pvec);
 
+		/* the netpage is unlocked and marked up to date here */
 		fscache_end_io(op, netpage, 0);
 		page_cache_release(netpage);
 		netpage = NULL;
@@ -775,14 +771,10 @@ int cachefiles_read_or_alloc_pages(struct fscache_retrieval *op,
 	/* submit the apparently valid pages to the backing fs to be read from
 	 * disk */
 	if (nrbackpages > 0) {
-		ret2 = cachefiles_read_backing_file(object, op, &backpages,
-						    &pagevec);
+		ret2 = cachefiles_read_backing_file(object, op, &backpages);
 		if (ret2 == -ENOMEM || ret2 == -EINTR)
 			ret = ret2;
 	}
-
-	if (pagevec_count(&pagevec) > 0)
-		fscache_mark_pages_cached(op, &pagevec);
 
 	_leave(" = %d [nr=%u%s]",
 	       ret, *nr_pages, list_empty(pages) ? " empty" : "");
@@ -806,7 +798,6 @@ int cachefiles_allocate_page(struct fscache_retrieval *op,
 {
 	struct cachefiles_object *object;
 	struct cachefiles_cache *cache;
-	struct pagevec pagevec;
 	int ret;
 
 	object = container_of(op->op.object,
@@ -817,13 +808,10 @@ int cachefiles_allocate_page(struct fscache_retrieval *op,
 	_enter("%p,{%lx},", object, page->index);
 
 	ret = cachefiles_has_space(cache, 0, 1);
-	if (ret == 0) {
-		pagevec_init(&pagevec, 0);
-		pagevec_add(&pagevec, page);
-		fscache_mark_pages_cached(op, &pagevec);
-	} else {
+	if (ret == 0)
+		fscache_mark_page_cached(op, page);
+	else
 		ret = -ENOBUFS;
-	}
 
 	_leave(" = %d", ret);
 	return ret;

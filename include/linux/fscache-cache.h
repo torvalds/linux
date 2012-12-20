@@ -504,6 +504,9 @@ extern void fscache_withdraw_cache(struct fscache_cache *cache);
 
 extern void fscache_io_error(struct fscache_cache *cache);
 
+extern void fscache_mark_page_cached(struct fscache_retrieval *op,
+				     struct page *page);
+
 extern void fscache_mark_pages_cached(struct fscache_retrieval *op,
 				      struct pagevec *pagevec);
 

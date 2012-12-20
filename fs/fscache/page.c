@@ -915,6 +915,40 @@ done:
 EXPORT_SYMBOL(__fscache_uncache_page);
 
 /**
+ * fscache_mark_page_cached - Mark a page as being cached
+ * @op: The retrieval op pages are being marked for
+ * @page: The page to be marked
+ *
+ * Mark a netfs page as being cached.  After this is called, the netfs
+ * must call fscache_uncache_page() to remove the mark.
+ */
+void fscache_mark_page_cached(struct fscache_retrieval *op, struct page *page)
+{
+	struct fscache_cookie *cookie = op->op.object->cookie;
+
+#ifdef CONFIG_FSCACHE_STATS
+	atomic_inc(&fscache_n_marks);
+#endif
+
+	_debug("- mark %p{%lx}", page, page->index);
+	if (TestSetPageFsCache(page)) {
+		static bool once_only;
+		if (!once_only) {
+			once_only = true;
+			printk(KERN_WARNING "FS-Cache:"
+			       " Cookie type %s marked page %lx"
+			       " multiple times\n",
+			       cookie->def->name, page->index);
+		}
+	}
+
+	if (cookie->def->mark_page_cached)
+		cookie->def->mark_page_cached(cookie->netfs_data,
+					      op->mapping, page);
+}
+EXPORT_SYMBOL(fscache_mark_page_cached);
+
+/**
  * fscache_mark_pages_cached - Mark pages as being cached
  * @op: The retrieval op pages are being marked for
  * @pagevec: The pages to be marked
@@ -925,32 +959,11 @@ EXPORT_SYMBOL(__fscache_uncache_page);
 void fscache_mark_pages_cached(struct fscache_retrieval *op,
 			       struct pagevec *pagevec)
 {
-	struct fscache_cookie *cookie = op->op.object->cookie;
 	unsigned long loop;
 
-#ifdef CONFIG_FSCACHE_STATS
-	atomic_add(pagevec->nr, &fscache_n_marks);
-#endif
+	for (loop = 0; loop < pagevec->nr; loop++)
+		fscache_mark_page_cached(op, pagevec->pages[loop]);
 
-	for (loop = 0; loop < pagevec->nr; loop++) {
-		struct page *page = pagevec->pages[loop];
-
-		_debug("- mark %p{%lx}", page, page->index);
-		if (TestSetPageFsCache(page)) {
-			static bool once_only;
-			if (!once_only) {
-				once_only = true;
-				printk(KERN_WARNING "FS-Cache:"
-				       " Cookie type %s marked page %lx"
-				       " multiple times\n",
-				       cookie->def->name, page->index);
-			}
-		}
-	}
-
-	if (cookie->def->mark_pages_cached)
-		cookie->def->mark_pages_cached(cookie->netfs_data,
-					       op->mapping, pagevec);
 	pagevec_reinit(pagevec);
 }
 EXPORT_SYMBOL(fscache_mark_pages_cached);

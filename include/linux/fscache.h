@@ -135,14 +135,14 @@ struct fscache_cookie_def {
 	 */
 	void (*put_context)(void *cookie_netfs_data, void *context);
 
-	/* indicate pages that now have cache metadata retained
-	 * - this function should mark the specified pages as now being cached
-	 * - the pages will have been marked with PG_fscache before this is
+	/* indicate page that now have cache metadata retained
+	 * - this function should mark the specified page as now being cached
+	 * - the page will have been marked with PG_fscache before this is
 	 *   called, so this is optional
 	 */
-	void (*mark_pages_cached)(void *cookie_netfs_data,
-				  struct address_space *mapping,
-				  struct pagevec *cached_pvec);
+	void (*mark_page_cached)(void *cookie_netfs_data,
+				 struct address_space *mapping,
+				 struct page *page);
 
 	/* indicate the cookie is no longer cached
 	 * - this function is called when the backing store currently caching
