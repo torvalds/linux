@@ -3626,12 +3626,13 @@ SYSCALL_DEFINE5(linkat, int, olddfd, const char __user *, oldname,
 
 	if (flags & AT_SYMLINK_FOLLOW)
 		how |= LOOKUP_FOLLOW;
-
+retry:
 	error = user_path_at(olddfd, oldname, how, &old_path);
 	if (error)
 		return error;
 
-	new_dentry = user_path_create(newdfd, newname, &new_path, 0);
+	new_dentry = user_path_create(newdfd, newname, &new_path,
+					(how & LOOKUP_REVAL));
 	error = PTR_ERR(new_dentry);
 	if (IS_ERR(new_dentry))
 		goto out;
@@ -3648,6 +3649,10 @@ SYSCALL_DEFINE5(linkat, int, olddfd, const char __user *, oldname,
 	error = vfs_link(old_path.dentry, new_path.dentry->d_inode, new_dentry);
 out_dput:
 	done_path_create(&new_path, new_dentry);
+	if (retry_estale(error, how)) {
+		how |= LOOKUP_REVAL;
+		goto retry;
+	}
 out:
 	path_put(&old_path);
 
