@@ -180,6 +180,13 @@ int snd_hda_gen_init(struct hda_codec *codec);
 
 struct nid_path *snd_hda_get_nid_path(struct hda_codec *codec,
 				      hda_nid_t from_nid, hda_nid_t to_nid);
+
+enum {
+	HDA_PARSE_NO_AAMIX,
+	HDA_PARSE_ONLY_AAMIX,
+	HDA_PARSE_ALL,
+};
+
 bool snd_hda_parse_nid_path(struct hda_codec *codec, hda_nid_t from_nid,
 			    hda_nid_t to_nid, int with_aa_mix,
 			    struct nid_path *path);
