@@ -455,6 +455,7 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_PMC3_GEKKO:
 	case SPRN_PMC4_GEKKO:
 	case SPRN_WPAR_GEKKO:
+	case SPRN_MSSSR0:
 		break;
 unprivileged:
 	default:
@@ -551,6 +552,7 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val)
 	case SPRN_PMC3_GEKKO:
 	case SPRN_PMC4_GEKKO:
 	case SPRN_WPAR_GEKKO:
+	case SPRN_MSSSR0:
 		*spr_val = 0;
 		break;
 	default:
