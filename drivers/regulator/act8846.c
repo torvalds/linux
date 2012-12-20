@@ -175,7 +175,7 @@ static int act8846_ldo_enable(struct regulator_dev *dev)
 	struct act8846 *act8846 = rdev_get_drvdata(dev);
 	int ldo= rdev_get_id(dev) - ACT8846_LDO1;
 	u16 mask=0x80;	
-	int ret;
+	
 	return act8846_set_bits(act8846, act8846_LDO_CONTR_REG(ldo), mask, 0x80);
 	
 }
@@ -184,7 +184,7 @@ static int act8846_ldo_disable(struct regulator_dev *dev)
 	struct act8846 *act8846 = rdev_get_drvdata(dev);
 	int ldo= rdev_get_id(dev) - ACT8846_LDO1;
 	u16 mask=0x80;
-	int ret;
+	
 	return act8846_set_bits(act8846, act8846_LDO_CONTR_REG(ldo), mask, 0);
 
 }
@@ -200,7 +200,7 @@ static int act8846_ldo_get_voltage(struct regulator_dev *dev)
 	return val;
 }
 static int act8846_ldo_set_voltage(struct regulator_dev *dev,
-				  int min_uV, int max_uV)
+				  int min_uV, int max_uV,unsigned *selector)
 {
 	struct act8846 *act8846 = rdev_get_drvdata(dev);
 	int ldo= rdev_get_id(dev) - ACT8846_LDO1;
@@ -222,11 +222,10 @@ static int act8846_ldo_set_voltage(struct regulator_dev *dev,
 
 	ret = act8846_set_bits(act8846, act8846_LDO_SET_VOL_REG(ldo),
 	       	LDO_VOL_MASK, val);
-	if (ret)
-		return ret;
+	return ret;
 
 }
-static int act8846_ldo_get_mode(struct regulator_dev *dev, unsigned index)
+static unsigned int act8846_ldo_get_mode(struct regulator_dev *dev)
 {
 	struct act8846 *act8846 = rdev_get_drvdata(dev);
 	int ldo = rdev_get_id(dev) - ACT8846_LDO1;
@@ -321,7 +320,7 @@ static int act8846_dcdc_get_voltage(struct regulator_dev *dev)
 	return val;
 }
 static int act8846_dcdc_set_voltage(struct regulator_dev *dev,
-				  int min_uV, int max_uV)
+				  int min_uV, int max_uV,unsigned *selector)
 {
 	struct act8846 *act8846 = rdev_get_drvdata(dev);
 	int buck = rdev_get_id(dev) - ACT8846_DCDC1;
@@ -347,11 +346,11 @@ static int act8846_dcdc_set_voltage(struct regulator_dev *dev,
 	return ret;
 }
 static int act8846_dcdc_set_sleep_voltage(struct regulator_dev *dev,
-				  int min_uV, int max_uV)
+					    int uV)
 {
 	struct act8846 *act8846 = rdev_get_drvdata(dev);
 	int buck = rdev_get_id(dev) - ACT8846_DCDC1;
-	int min_vol = min_uV / 1000, max_vol = max_uV / 1000;
+	int min_vol = uV / 1000,max_vol = uV / 1000;
 	const int *vol_map = buck_voltage_map;
 	u16 val;
 	int ret = 0;
@@ -368,11 +367,11 @@ static int act8846_dcdc_set_sleep_voltage(struct regulator_dev *dev,
 
 	if (vol_map[val] > max_vol)
 		printk("WARNING:this voltage is not support!voltage set is %d mv\n",vol_map[val]);
-	   ret = act8846_set_bits(act8846, act8846_BUCK_SET_VOL_REG(buck) + 0x01,
+	   ret = act8846_set_bits(act8846, (act8846_BUCK_SET_VOL_REG(buck) + 0x01),
                                 BUCK_VOL_MASK, val);
 	return ret;
 }
-static int act8846_dcdc_get_mode(struct regulator_dev *dev, unsigned index)
+static unsigned int act8846_dcdc_get_mode(struct regulator_dev *dev)
 {
 	struct act8846 *act8846 = rdev_get_drvdata(dev);
 	int buck = rdev_get_id(dev) - ACT8846_DCDC1;

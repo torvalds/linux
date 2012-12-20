@@ -1568,14 +1568,14 @@ static struct pmu_info  act8846_dcdc_info[] = {
 	},
 	{
 		.name          = "vdd_core",    //logic
-		.min_uv          = 1100000,
-		.max_uv         = 1100000,
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
 		.suspend_vol  =  900000,
 	},
 	{
 		.name          = "vdd_cpu",   //arm
-		.min_uv          = 1100000,
-		.max_uv         = 1100000,
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
 		.suspend_vol  =  900000,
 	},
 	{
@@ -1589,18 +1589,18 @@ static struct pmu_info  act8846_dcdc_info[] = {
 static  struct pmu_info  act8846_ldo_info[] = {
 	{
 		.name          = "act_ldo1",   //vdd11
-		.min_uv          = 1100000,
-		.max_uv         = 1100000,
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
 	},
 	{
-		.name          = "act_ldo2",    //vcc25
-		.min_uv          = 2500000,
-		.max_uv         = 2500000,
+		.name          = "act_ldo2",    //vdd12
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
 	},
 	{
 		.name          = "act_ldo3",   //vcc18_cif
-		.min_uv          = 1900000,
-		.max_uv         = 1900000,
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
 	},
 	{
 		.name          = "act_ldo4",   //vcca33

@@ -24,7 +24,7 @@
 #define ACT8846_LDO1 4                //(4+ACT8846_START)
 
 
-#define act8846_NUM_REGULATORS 7
+#define act8846_NUM_REGULATORS 13
 struct act8846;
 
 struct act8846_regulator_subdev {
