@@ -793,8 +793,11 @@ unsigned int sysctl_numa_balancing_scan_delay = 1000;
 
 static void task_numa_placement(struct task_struct *p)
 {
-	int seq = ACCESS_ONCE(p->mm->numa_scan_seq);
+	int seq;
 
+	if (!p->mm)	/* for example, ksmd faulting in a user's mm */
+		return;
+	seq = ACCESS_ONCE(p->mm->numa_scan_seq);
 	if (p->numa_scan_seq == seq)
 		return;
 	p->numa_scan_seq = seq;
