@@ -350,10 +350,14 @@ static u32 gfs2_free_extlen(const struct gfs2_rbm *rrbm, u32 len)
 		BUG_ON(len < chunk_size);
 		len -= chunk_size;
 		block = gfs2_rbm_to_block(&rbm);
-		gfs2_rbm_from_block(&rbm, block + chunk_size);
-		n_unaligned = 3;
-		if (ptr)
+		if (gfs2_rbm_from_block(&rbm, block + chunk_size)) {
+			n_unaligned = 0;
 			break;
+		}
+		if (ptr) {
+			n_unaligned = 3;
+			break;
+		}
 		n_unaligned = len & 3;
 	}
 
