@@ -917,10 +917,8 @@ static int deinterlace_open(struct file *file)
 	ctx->xt = kzalloc(sizeof(struct dma_async_tx_descriptor) +
 				sizeof(struct data_chunk), GFP_KERNEL);
 	if (!ctx->xt) {
-		int ret = PTR_ERR(ctx->xt);
-
 		kfree(ctx);
-		return ret;
+		return -ENOMEM;
 	}
 
 	ctx->colorspace = V4L2_COLORSPACE_REC709;
