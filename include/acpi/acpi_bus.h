@@ -98,6 +98,7 @@ typedef void (*acpi_op_notify) (struct acpi_device * device, u32 event);
 struct acpi_bus_ops {
 	u32 acpi_op_add:1;
 	u32 acpi_op_start:1;
+	u32 acpi_op_match:1;
 };
 
 struct acpi_device_ops {
