@@ -24,6 +24,8 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/sort.h>
+#include <linux/ctype.h>
+#include <linux/string.h>
 #include <sound/core.h>
 #include <sound/jack.h>
 #include "hda_codec.h"
@@ -3230,6 +3232,25 @@ static const struct hda_pcm_stream dyn_adc_pcm_analog_capture = {
 	},
 };
 
+static void fill_pcm_stream_name(char *str, size_t len, const char *sfx,
+				 const char *chip_name)
+{
+	char *p;
+
+	if (*str)
+		return;
+	strlcpy(str, chip_name, len);
+
+	/* drop non-alnum chars after a space */
+	for (p = strchr(str, ' '); p; p = strchr(p + 1, ' ')) {
+		if (!isalnum(p[1])) {
+			*p = 0;
+			break;
+		}
+	}
+	strlcat(str, sfx, len);
+}
+
 /* build PCM streams based on the parsed results */
 int snd_hda_gen_build_pcms(struct hda_codec *codec)
 {
@@ -3245,8 +3266,9 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 	if (spec->no_analog)
 		goto skip_analog;
 
-	snprintf(spec->stream_name_analog, sizeof(spec->stream_name_analog),
-		 "%s Analog", codec->chip_name);
+	fill_pcm_stream_name(spec->stream_name_analog,
+			     sizeof(spec->stream_name_analog),
+			     " Analog", codec->chip_name);
 	info->name = spec->stream_name_analog;
 
 	if (spec->multiout.num_dacs > 0) {
@@ -3286,9 +3308,9 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
  skip_analog:
 	/* SPDIF for stream index #1 */
 	if (spec->multiout.dig_out_nid || spec->dig_in_nid) {
-		snprintf(spec->stream_name_digital,
-			 sizeof(spec->stream_name_digital),
-			 "%s Digital", codec->chip_name);
+		fill_pcm_stream_name(spec->stream_name_digital,
+				     sizeof(spec->stream_name_digital),
+				     " Digital", codec->chip_name);
 		codec->num_pcms = 2;
 		codec->slave_dig_outs = spec->multiout.slave_dig_outs;
 		info = spec->pcm_rec + 1;
