@@ -1517,9 +1517,11 @@ static int i915_gem_object_create_mmap_offset(struct drm_i915_gem_object *obj)
 	if (obj->base.map_list.map)
 		return 0;
 
+	dev_priv->mm.shrinker_no_lock_stealing = true;
+
 	ret = drm_gem_create_mmap_offset(&obj->base);
 	if (ret != -ENOSPC)
-		return ret;
+		goto out;
 
 	/* Badly fragmented mmap space? The only way we can recover
 	 * space is by destroying unwanted objects. We can't randomly release
@@ -1531,10 +1533,14 @@ static int i915_gem_object_create_mmap_offset(struct drm_i915_gem_object *obj)
 	i915_gem_purge(dev_priv, obj->base.size >> PAGE_SHIFT);
 	ret = drm_gem_create_mmap_offset(&obj->base);
 	if (ret != -ENOSPC)
-		return ret;
+		goto out;
 
 	i915_gem_shrink_all(dev_priv);
-	return drm_gem_create_mmap_offset(&obj->base);
+	ret = drm_gem_create_mmap_offset(&obj->base);
+out:
+	dev_priv->mm.shrinker_no_lock_stealing = false;
+
+	return ret;
 }
 
 static void i915_gem_object_free_mmap_offset(struct drm_i915_gem_object *obj)
