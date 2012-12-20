@@ -45,6 +45,7 @@
 #include <linux/rfkill-rk.h>
 #include <linux/sensor-dev.h>
 #include <linux/mfd/tps65910.h>
+#include <linux/regulator/act8846.h>
 #include <linux/regulator/rk29-pwm-regulator.h>
 
 #if defined(CONFIG_MFD_RK610)
@@ -1556,6 +1557,82 @@ static  struct pmu_info  tps65910_ldo_info[] = {
 #include "board-pmu-tps65910.c"
 #endif
 
+#ifdef CONFIG_REGULATOR_ACT8846
+#define PMU_POWER_SLEEP RK30_PIN0_PA1
+
+static struct pmu_info  act8846_dcdc_info[] = {
+	{
+		.name          = "act_dcdc1",   //ddr
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
+	},
+	{
+		.name          = "vdd_core",    //logic
+		.min_uv          = 1100000,
+		.max_uv         = 1100000,
+		.suspend_vol  =  900000,
+	},
+	{
+		.name          = "vdd_cpu",   //arm
+		.min_uv          = 1100000,
+		.max_uv         = 1100000,
+		.suspend_vol  =  900000,
+	},
+	{
+		.name          = "act_dcdc4",   //vccio
+		.min_uv          = 3000000,
+		.max_uv         = 3000000,
+		.suspend_vol  =  2800000,
+	},
+	
+};
+static  struct pmu_info  act8846_ldo_info[] = {
+	{
+		.name          = "act_ldo1",   //vdd11
+		.min_uv          = 1100000,
+		.max_uv         = 1100000,
+	},
+	{
+		.name          = "act_ldo2",    //vcc25
+		.min_uv          = 2500000,
+		.max_uv         = 2500000,
+	},
+	{
+		.name          = "act_ldo3",   //vcc18_cif
+		.min_uv          = 1900000,
+		.max_uv         = 1900000,
+	},
+	{
+		.name          = "act_ldo4",   //vcca33
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "act_ldo5",   //vcctp
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "act_ldo6",   //vcc33
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "act_ldo7",   //vccio_wl
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+	},
+	{
+		.name          = "act_ldo8",   //vcc28_cif
+		.min_uv          = 2800000,
+		.max_uv         = 2800000,
+	},
+ };
+
+#include "board-pmu-act8846.c"
+#endif
+
+
 static struct i2c_board_info __initdata i2c1_info[] = {
 #if defined (CONFIG_MFD_WM831X_I2C)
 	{
@@ -1575,6 +1652,16 @@ static struct i2c_board_info __initdata i2c1_info[] = {
     	.platform_data = &tps65910_data,
 	},
 #endif
+
+#if defined (CONFIG_REGULATOR_ACT8846)
+	{
+		.type    		= "act8846",
+		.addr           = 0x5a, 
+		.flags			= 0,
+	//	.irq            = ACT8846_HOST_IRQ,
+		.platform_data=&act8846_data,
+	},
+#endif
 };
 #endif
 
@@ -1588,6 +1675,11 @@ void __sramfunc board_pmu_suspend(void)
        if(pmic_is_tps65910())
        board_pmu_tps65910_suspend(); 
     #endif   
+	#if defined (CONFIG_REGULATOR_ACT8846)
+       if(pmic_is_act8846())
+       board_pmu_act8846_suspend(); 
+       #endif   
+
 }
 
 void __sramfunc board_pmu_resume(void)
@@ -1600,6 +1692,10 @@ void __sramfunc board_pmu_resume(void)
        if(pmic_is_tps65910())
        board_pmu_tps65910_resume(); 
 	#endif
+	#if defined (CONFIG_REGULATOR_ACT8846)
+       if(pmic_is_act8846())
+       board_pmu_act8846_resume(); 
+       #endif   
 }
 
  int __sramdata gpio3d6_iomux,gpio3d6_do,gpio3d6_dir,gpio3d6_en;
