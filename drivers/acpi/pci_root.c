@@ -47,7 +47,6 @@ ACPI_MODULE_NAME("pci_root");
 #define ACPI_PCI_ROOT_DEVICE_NAME	"PCI Root Bridge"
 static int acpi_pci_root_add(struct acpi_device *device);
 static int acpi_pci_root_remove(struct acpi_device *device, int type);
-static int acpi_pci_root_start(struct acpi_device *device);
 
 #define ACPI_PCIE_REQ_SUPPORT (OSC_EXT_PCI_CONFIG_SUPPORT \
 				| OSC_ACTIVE_STATE_PWR_SUPPORT \
@@ -67,7 +66,6 @@ static struct acpi_driver acpi_pci_root_driver = {
 	.ops = {
 		.add = acpi_pci_root_add,
 		.remove = acpi_pci_root_remove,
-		.start = acpi_pci_root_start,
 		},
 };
 
@@ -453,6 +451,7 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	struct acpi_pci_root *root;
 	acpi_handle handle;
 	struct acpi_device *child;
+	struct acpi_pci_driver *driver;
 	u32 flags, base_flags;
 	bool is_osc_granted = false;
 
@@ -632,24 +631,6 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	if (device->wakeup.flags.run_wake)
 		device_set_run_wake(root->bus->bridge, true);
 
-	return 0;
-
-out_del_root:
-	mutex_lock(&acpi_pci_root_lock);
-	list_del(&root->node);
-	mutex_unlock(&acpi_pci_root_lock);
-
-	acpi_pci_irq_del_prt(root->segment, root->secondary.start);
-end:
-	kfree(root);
-	return result;
-}
-
-static int acpi_pci_root_start(struct acpi_device *device)
-{
-	struct acpi_pci_root *root = acpi_driver_data(device);
-	struct acpi_pci_driver *driver;
-
 	if (system_state != SYSTEM_BOOTING)
 		pci_assign_unassigned_bus_resources(root->bus);
 
@@ -664,8 +645,17 @@ static int acpi_pci_root_start(struct acpi_device *device)
 		pci_enable_bridges(root->bus);
 
 	pci_bus_add_devices(root->bus);
-
 	return 0;
+
+out_del_root:
+	mutex_lock(&acpi_pci_root_lock);
+	list_del(&root->node);
+	mutex_unlock(&acpi_pci_root_lock);
+
+	acpi_pci_irq_del_prt(root->segment, root->secondary.start);
+end:
+	kfree(root);
+	return result;
 }
 
 static int acpi_pci_root_remove(struct acpi_device *device, int type)
