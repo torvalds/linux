@@ -35,6 +35,8 @@
 #include "hda_jack.h"
 #include "hda_generic.h"
 
+#define ENABLE_CXT_STATIC_QUIRKS
+
 #define CXT_PIN_DIR_IN              0x00
 #define CXT_PIN_DIR_OUT             0x01
 #define CXT_PIN_DIR_INOUT           0x02
@@ -57,6 +59,13 @@
 struct conexant_spec {
 	struct hda_gen_spec gen;
 
+	unsigned int beep_amp;
+
+	/* extra EAPD pins */
+	unsigned int num_eapds;
+	hda_nid_t eapds[4];
+
+#ifdef ENABLE_CXT_STATIC_QUIRKS
 	const struct snd_kcontrol_new *mixers[5];
 	int num_mixers;
 	hda_nid_t vmaster_nid;
@@ -125,14 +134,48 @@ struct conexant_spec {
 	unsigned int dc_enable;
 	unsigned int dc_input_bias; /* offset into cxt5066_olpc_dc_bias */
 	unsigned int mic_boost; /* offset into cxt5066_analog_mic_boost */
-
-	unsigned int beep_amp;
-
-	/* extra EAPD pins */
-	unsigned int num_eapds;
-	hda_nid_t eapds[4];
+#endif /* ENABLE_CXT_STATIC_QUIRKS */
 };
 
+
+#ifdef CONFIG_SND_HDA_INPUT_BEEP
+#define set_beep_amp(spec, nid, idx, dir) \
+	((spec)->beep_amp = HDA_COMPOSE_AMP_VAL(nid, 1, idx, dir))
+/* additional beep mixers; the actual parameters are overwritten at build */
+static const struct snd_kcontrol_new cxt_beep_mixer[] = {
+	HDA_CODEC_VOLUME_MONO("Beep Playback Volume", 0, 1, 0, HDA_OUTPUT),
+	HDA_CODEC_MUTE_BEEP_MONO("Beep Playback Switch", 0, 1, 0, HDA_OUTPUT),
+	{ } /* end */
+};
+
+/* create beep controls if needed */
+static int add_beep_ctls(struct hda_codec *codec)
+{
+	struct conexant_spec *spec = codec->spec;
+	int err;
+
+	if (spec->beep_amp) {
+		const struct snd_kcontrol_new *knew;
+		for (knew = cxt_beep_mixer; knew->name; knew++) {
+			struct snd_kcontrol *kctl;
+			kctl = snd_ctl_new1(knew, codec);
+			if (!kctl)
+				return -ENOMEM;
+			kctl->private_value = spec->beep_amp;
+			err = snd_hda_ctl_add(codec, 0, kctl);
+			if (err < 0)
+				return err;
+		}
+	}
+	return 0;
+}
+#else
+#define set_beep_amp(spec, nid, idx, dir) /* NOP */
+#define add_beep_ctls(codec)	0
+#endif
+
+
+#ifdef ENABLE_CXT_STATIC_QUIRKS
 static int conexant_playback_pcm_open(struct hda_pcm_stream *hinfo,
 				      struct hda_codec *codec,
 				      struct snd_pcm_substream *substream)
@@ -423,38 +466,6 @@ static const struct snd_kcontrol_new cxt_capture_mixers[] = {
 	{}
 };
 
-#ifdef CONFIG_SND_HDA_INPUT_BEEP
-/* additional beep mixers; the actual parameters are overwritten at build */
-static const struct snd_kcontrol_new cxt_beep_mixer[] = {
-	HDA_CODEC_VOLUME_MONO("Beep Playback Volume", 0, 1, 0, HDA_OUTPUT),
-	HDA_CODEC_MUTE_BEEP_MONO("Beep Playback Switch", 0, 1, 0, HDA_OUTPUT),
-	{ } /* end */
-};
-/* create beep controls if needed */
-static int add_beep_ctls(struct hda_codec *codec)
-{
-	struct conexant_spec *spec = codec->spec;
-	int err;
-
-	if (spec->beep_amp) {
-		const struct snd_kcontrol_new *knew;
-		for (knew = cxt_beep_mixer; knew->name; knew++) {
-			struct snd_kcontrol *kctl;
-			kctl = snd_ctl_new1(knew, codec);
-			if (!kctl)
-				return -ENOMEM;
-			kctl->private_value = spec->beep_amp;
-			err = snd_hda_ctl_add(codec, 0, kctl);
-			if (err < 0)
-				return err;
-		}
-	}
-	return 0;
-}
-#else
-#define add_beep_ctls(codec)	0
-#endif
-
 static const char * const slave_pfxs[] = {
 	"Headphone", "Speaker", "Bass Speaker", "Front", "Surround", "CLFE",
 	NULL
@@ -530,13 +541,6 @@ static const struct hda_codec_ops conexant_patch_ops = {
 	.free = conexant_free,
 	.set_power_state = conexant_set_power,
 };
-
-#ifdef CONFIG_SND_HDA_INPUT_BEEP
-#define set_beep_amp(spec, nid, idx, dir) \
-	((spec)->beep_amp = HDA_COMPOSE_AMP_VAL(nid, 1, idx, dir))
-#else
-#define set_beep_amp(spec, nid, idx, dir) /* NOP */
-#endif
 
 static int patch_conexant_auto(struct hda_codec *codec);
 /*
@@ -3100,6 +3104,9 @@ static int patch_cxt5066(struct hda_codec *codec)
 	return 0;
 }
 
+#endif /* ENABLE_CXT_STATIC_QUIRKS */
+
+
 /*
  * Automatic parser for CX20641 & co
  */
@@ -3395,6 +3402,13 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	snd_hda_gen_free(codec);
 	return err;
 }
+
+#ifndef ENABLE_CXT_STATIC_QUIRKS
+#define patch_cxt5045	patch_conexant_auto
+#define patch_cxt5047	patch_conexant_auto
+#define patch_cxt5051	patch_conexant_auto
+#define patch_cxt5066	patch_conexant_auto
+#endif
 
 /*
  */
