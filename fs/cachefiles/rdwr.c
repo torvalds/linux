@@ -174,7 +174,10 @@ static void cachefiles_read_copier(struct fscache_operation *_op)
 		_debug("- copy {%lu}", monitor->back_page->index);
 
 	recheck:
-		if (PageUptodate(monitor->back_page)) {
+		if (test_bit(FSCACHE_COOKIE_INVALIDATING,
+			     &object->fscache.cookie->flags)) {
+			error = -ESTALE;
+		} else if (PageUptodate(monitor->back_page)) {
 			copy_highpage(monitor->netfs_page, monitor->back_page);
 			fscache_mark_page_cached(monitor->op,
 						 monitor->netfs_page);
