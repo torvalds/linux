@@ -122,7 +122,7 @@ static inline void clear_slob_page_free(struct page *sp)
 }
 
 #define SLOB_UNIT sizeof(slob_t)
-#define SLOB_UNITS(size) (((size) + SLOB_UNIT - 1)/SLOB_UNIT)
+#define SLOB_UNITS(size) DIV_ROUND_UP(size, SLOB_UNIT)
 
 /*
  * struct slob_rcu is inserted at the tail of allocated slob blocks, which
