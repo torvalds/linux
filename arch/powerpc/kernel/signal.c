@@ -130,8 +130,9 @@ static int do_signal(struct pt_regs *regs)
 	 * user space. The DABR will have been cleared if it
 	 * triggered inside the kernel.
 	 */
-	if (current->thread.dabr)
-		set_dabr(current->thread.dabr, current->thread.dabrx);
+	if (current->thread.hw_brk.address &&
+		current->thread.hw_brk.type)
+		set_break(&current->thread.hw_brk);
 #endif
 	/* Re-enable the breakpoints for the signal stack */
 	thread_change_pc(current, regs);

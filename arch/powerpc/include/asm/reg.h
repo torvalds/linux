@@ -206,9 +206,6 @@
 #define   DAWRX_KERNEL	(1UL << 1)
 #define   DAWRX_HYP	(1UL << 2)
 #define SPRN_DABR	0x3F5	/* Data Address Breakpoint Register */
-#define   DABR_TRANSLATION	(1UL << 2)
-#define   DABR_DATA_WRITE	(1UL << 1)
-#define   DABR_DATA_READ	(1UL << 0)
 #define SPRN_DABR2	0x13D	/* e300 */
 #define SPRN_DABRX	0x3F7	/* Data Address Breakpoint Register Extension */
 #define   DABRX_USER	(1UL << 0)

@@ -1251,7 +1251,7 @@ handle_dabr_fault:
 	ld      r4,_DAR(r1)
 	ld      r5,_DSISR(r1)
 	addi    r3,r1,STACK_FRAME_OVERHEAD
-	bl      .do_dabr
+	bl      .do_break
 12:	b       .ret_from_except_lite
 
 

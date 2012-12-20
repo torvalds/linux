@@ -33,6 +33,7 @@
 #include <linux/cache.h>
 #include <asm/ptrace.h>
 #include <asm/types.h>
+#include <asm/hw_breakpoint.h>
 
 /* We do _not_ want to define new machine types at all, those must die
  * in favor of using the device-tree
@@ -225,8 +226,7 @@ struct thread_struct {
 	struct perf_event *last_hit_ubp;
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 #endif
-	unsigned long	dabr;		/* Data address breakpoint register */
-	unsigned long	dabrx;		/*      ... extension  */
+	struct arch_hw_breakpoint hw_brk; /* info on the hardware breakpoint */
 	unsigned long	trap_nr;	/* last trap # on this thread */
 #ifdef CONFIG_ALTIVEC
 	/* Complete AltiVec register set */
