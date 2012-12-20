@@ -3372,6 +3372,7 @@ static void set_output_and_unmute(struct hda_codec *codec, hda_nid_t pin,
 static void init_multi_out(struct hda_codec *codec)
 {
 	struct hda_gen_spec *spec = codec->spec;
+	hda_nid_t nid, dac;
 	int pin_type;
 	int i;
 
@@ -3380,12 +3381,14 @@ static void init_multi_out(struct hda_codec *codec)
 	else
 		pin_type = PIN_OUT;
 
-	for (i = 0; i <= HDA_SIDE; i++) {
-		hda_nid_t nid = spec->autocfg.line_out_pins[i];
-		if (nid)
-			set_output_and_unmute(codec, nid, pin_type,
-					      spec->multiout.dac_nids[i]);
-
+	for (i = 0; i < spec->autocfg.line_outs; i++) {
+		nid = spec->autocfg.line_out_pins[i];
+		if (nid) {
+			dac = spec->multiout.dac_nids[i];
+			if (!dac)
+				dac = spec->multiout.dac_nids[0];
+			set_output_and_unmute(codec, nid, pin_type, dac);
+		}
 	}
 }
 
