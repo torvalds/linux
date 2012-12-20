@@ -63,6 +63,13 @@ acpi_get_physical_device_location(acpi_handle handle, struct acpi_pld_info **pld
 #define ACPI_BUS_FILE_ROOT	"acpi"
 extern struct proc_dir_entry *acpi_root_dir;
 
+enum acpi_bus_add_type {
+	ACPI_BUS_ADD_BASIC = 0,
+	ACPI_BUS_ADD_MATCH,
+	ACPI_BUS_ADD_START,
+	ACPI_BUS_ADD_TYPE_COUNT
+};
+
 enum acpi_bus_removal_type {
 	ACPI_BUS_REMOVAL_NORMAL = 0,
 	ACPI_BUS_REMOVAL_EJECT,
@@ -94,12 +101,6 @@ typedef int (*acpi_op_start) (struct acpi_device * device);
 typedef int (*acpi_op_bind) (struct acpi_device * device);
 typedef int (*acpi_op_unbind) (struct acpi_device * device);
 typedef void (*acpi_op_notify) (struct acpi_device * device, u32 event);
-
-struct acpi_bus_ops {
-	u32 acpi_op_add:1;
-	u32 acpi_op_start:1;
-	u32 acpi_op_match:1;
-};
 
 struct acpi_device_ops {
 	acpi_op_add add;
@@ -284,7 +285,7 @@ struct acpi_device {
 	struct acpi_driver *driver;
 	void *driver_data;
 	struct device dev;
-	struct acpi_bus_ops bus_ops;	/* workaround for different code path for hotplug */
+	enum acpi_bus_add_type add_type;	/* how to handle adding */
 	enum acpi_bus_removal_type removal_type;	/* indicate for different removal type */
 	u8 physical_node_count;
 	struct list_head physical_node_list;

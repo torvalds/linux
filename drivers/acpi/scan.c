@@ -494,7 +494,7 @@ static int acpi_bus_match(struct device *dev, struct device_driver *drv)
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 	struct acpi_driver *acpi_drv = to_acpi_driver(drv);
 
-	return acpi_dev->bus_ops.acpi_op_match
+	return acpi_dev->add_type >= ACPI_BUS_ADD_MATCH
 		&& !acpi_match_device_ids(acpi_dev, acpi_drv->ids);
 }
 
@@ -580,7 +580,7 @@ static int acpi_device_probe(struct device * dev)
 
 	ret = acpi_bus_driver_init(acpi_dev, acpi_drv);
 	if (!ret) {
-		if (acpi_dev->bus_ops.acpi_op_start)
+		if (acpi_dev->add_type == ACPI_BUS_ADD_START)
 			acpi_start_single_object(acpi_dev);
 
 		if (acpi_drv->ops.notify) {
@@ -1433,7 +1433,7 @@ static void acpi_hot_add_bind(struct acpi_device *device)
 static int acpi_add_single_object(struct acpi_device **child,
 				  acpi_handle handle, int type,
 				  unsigned long long sta,
-				  struct acpi_bus_ops *ops)
+				  enum acpi_bus_add_type add_type)
 {
 	int result;
 	struct acpi_device *device;
@@ -1449,7 +1449,7 @@ static int acpi_add_single_object(struct acpi_device **child,
 	device->device_type = type;
 	device->handle = handle;
 	device->parent = acpi_bus_get_parent(handle);
-	device->bus_ops = *ops; /* workround for not call .start */
+	device->add_type = add_type;
 	STRUCT_TO_INT(device->status) = sta;
 
 	acpi_device_get_busid(device);
@@ -1502,7 +1502,7 @@ static int acpi_add_single_object(struct acpi_device **child,
 
 	result = acpi_device_register(device);
 
-	if (device->bus_ops.acpi_op_match)
+	if (device->add_type >= ACPI_BUS_ADD_MATCH)
 		acpi_hot_add_bind(device);
 
 end:
@@ -1526,16 +1526,12 @@ end:
 
 static void acpi_bus_add_power_resource(acpi_handle handle)
 {
-	struct acpi_bus_ops ops = {
-		.acpi_op_start = 1,
-		.acpi_op_match = 1,
-	};
 	struct acpi_device *device = NULL;
 
 	acpi_bus_get_device(handle, &device);
 	if (!device)
 		acpi_add_single_object(&device, handle, ACPI_BUS_TYPE_POWER,
-					ACPI_STA_DEFAULT, &ops);
+					ACPI_STA_DEFAULT, ACPI_BUS_ADD_START);
 }
 
 static int acpi_bus_type_and_status(acpi_handle handle, int *type,
@@ -1604,16 +1600,13 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl,
 
 	acpi_bus_get_device(handle, &device);
 	if (!device) {
-		struct acpi_bus_ops ops = {
-			.acpi_op_start = !!context,
-			.acpi_op_match = 0,
-		};
-
-		acpi_add_single_object(&device, handle, type, sta, &ops);
+		acpi_add_single_object(&device, handle, type, sta,
+				       ACPI_BUS_ADD_BASIC);
 		if (!device)
 			return AE_CTRL_DEPTH;
 
-		device->bus_ops.acpi_op_match = 1;
+		device->add_type = context ?
+					ACPI_BUS_ADD_START : ACPI_BUS_ADD_MATCH;
 		acpi_hot_add_bind(device);
 	}
 
@@ -1793,10 +1786,6 @@ static int acpi_bus_scan_fixed(void)
 {
 	int result = 0;
 	struct acpi_device *device = NULL;
-	struct acpi_bus_ops ops = {
-		.acpi_op_start = 1,
-		.acpi_op_match = 1,
-	};
 
 	/*
 	 * Enumerate all fixed-feature devices.
@@ -1805,7 +1794,7 @@ static int acpi_bus_scan_fixed(void)
 		result = acpi_add_single_object(&device, NULL,
 						ACPI_BUS_TYPE_POWER_BUTTON,
 						ACPI_STA_DEFAULT,
-						&ops);
+						ACPI_BUS_ADD_START);
 		device_init_wakeup(&device->dev, true);
 	}
 
@@ -1813,7 +1802,7 @@ static int acpi_bus_scan_fixed(void)
 		result = acpi_add_single_object(&device, NULL,
 						ACPI_BUS_TYPE_SLEEP_BUTTON,
 						ACPI_STA_DEFAULT,
-						&ops);
+						ACPI_BUS_ADD_START);
 	}
 
 	return result;
