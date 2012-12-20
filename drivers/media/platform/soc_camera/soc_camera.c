@@ -517,7 +517,14 @@ static int soc_camera_open(struct file *file)
 		/* No device driver attached */
 		return -ENODEV;
 
+	/*
+	 * Don't mess with the host during probe: wait until the loop in
+	 * scan_add_host() completes
+	 */
+	if (mutex_lock_interruptible(&list_lock))
+		return -ERESTARTSYS;
 	ici = to_soc_camera_host(icd->parent);
+	mutex_unlock(&list_lock);
 
 	if (mutex_lock_interruptible(&icd->video_lock))
 		return -ERESTARTSYS;
@@ -548,7 +555,6 @@ static int soc_camera_open(struct file *file)
 		if (icl->reset)
 			icl->reset(icd->pdev);
 
-		/* Don't mess with the host during probe */
 		mutex_lock(&ici->host_lock);
 		ret = ici->ops->add(icd);
 		mutex_unlock(&ici->host_lock);
@@ -602,7 +608,9 @@ esfmt:
 eresume:
 	__soc_camera_power_off(icd);
 epower:
+	mutex_lock(&ici->host_lock);
 	ici->ops->remove(icd);
+	mutex_unlock(&ici->host_lock);
 eiciadd:
 	icd->use_count--;
 	module_put(ici->ops->owner);
@@ -625,7 +633,9 @@ static int soc_camera_close(struct file *file)
 
 		if (ici->ops->init_videobuf2)
 			vb2_queue_release(&icd->vb2_vidq);
+		mutex_lock(&ici->host_lock);
 		ici->ops->remove(icd);
+		mutex_unlock(&ici->host_lock);
 
 		__soc_camera_power_off(icd);
 	}
@@ -1052,7 +1062,7 @@ static void scan_add_host(struct soc_camera_host *ici)
 {
 	struct soc_camera_device *icd;
 
-	mutex_lock(&ici->host_lock);
+	mutex_lock(&list_lock);
 
 	list_for_each_entry(icd, &devices, list) {
 		if (icd->iface == ici->nr) {
@@ -1061,7 +1071,7 @@ static void scan_add_host(struct soc_camera_host *ici)
 		}
 	}
 
-	mutex_unlock(&ici->host_lock);
+	mutex_unlock(&list_lock);
 }
 
 #ifdef CONFIG_I2C_BOARDINFO
@@ -1148,7 +1158,9 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 	if (icl->reset)
 		icl->reset(icd->pdev);
 
+	mutex_lock(&ici->host_lock);
 	ret = ici->ops->add(icd);
+	mutex_unlock(&ici->host_lock);
 	if (ret < 0)
 		goto eadd;
 
@@ -1220,7 +1232,9 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 		icd->field		= mf.field;
 	}
 
+	mutex_lock(&ici->host_lock);
 	ici->ops->remove(icd);
+	mutex_unlock(&ici->host_lock);
 
 	mutex_unlock(&icd->video_lock);
 
@@ -1242,7 +1256,9 @@ eadddev:
 	video_device_release(icd->vdev);
 	icd->vdev = NULL;
 evdc:
+	mutex_lock(&ici->host_lock);
 	ici->ops->remove(icd);
+	mutex_unlock(&ici->host_lock);
 eadd:
 ereg:
 	v4l2_ctrl_handler_free(&icd->ctrl_handler);
