@@ -581,6 +581,11 @@ int kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 
 	kvmppc_core_check_exceptions(vcpu);
 
+	if (vcpu->requests) {
+		/* Exception delivery raised request; start over */
+		return 1;
+	}
+
 	if (vcpu->arch.shared->msr & MSR_WE) {
 		local_irq_enable();
 		kvm_vcpu_block(vcpu);
