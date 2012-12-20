@@ -3339,8 +3339,9 @@ static long do_rmdir(int dfd, const char __user *pathname)
 	struct filename *name;
 	struct dentry *dentry;
 	struct nameidata nd;
-
-	name = user_path_parent(dfd, pathname, &nd, 0);
+	unsigned int lookup_flags = 0;
+retry:
+	name = user_path_parent(dfd, pathname, &nd, lookup_flags);
 	if (IS_ERR(name))
 		return PTR_ERR(name);
 
@@ -3382,6 +3383,10 @@ exit2:
 exit1:
 	path_put(&nd.path);
 	putname(name);
+	if (retry_estale(error, lookup_flags)) {
+		lookup_flags |= LOOKUP_REVAL;
+		goto retry;
+	}
 	return error;
 }
 
