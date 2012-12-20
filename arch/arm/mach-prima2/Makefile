@@ -1,4 +1,3 @@
-obj-y := timer.o
 obj-y += rstc.o
 obj-y += common.o
 obj-y += rtciobrg.o
@@ -6,3 +5,4 @@ obj-$(CONFIG_DEBUG_LL) += lluart.o
 obj-$(CONFIG_CACHE_L2X0) += l2x0.o
 obj-$(CONFIG_SUSPEND) += pm.o sleep.o
 obj-$(CONFIG_SIRF_IRQ) += irq.o
+obj-$(CONFIG_ARCH_PRIMA2) += timer-prima2.o
