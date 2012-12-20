@@ -494,7 +494,7 @@ static int acpi_bus_match(struct device *dev, struct device_driver *drv)
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 	struct acpi_driver *acpi_drv = to_acpi_driver(drv);
 
-	return acpi_dev->add_type >= ACPI_BUS_ADD_MATCH
+	return acpi_dev->flags.match_driver
 		&& !acpi_match_device_ids(acpi_dev, acpi_drv->ids);
 }
 
@@ -1410,8 +1410,7 @@ static void acpi_hot_add_bind(struct acpi_device *device)
 
 static int acpi_add_single_object(struct acpi_device **child,
 				  acpi_handle handle, int type,
-				  unsigned long long sta,
-				  enum acpi_bus_add_type add_type)
+				  unsigned long long sta, bool match_driver)
 {
 	int result;
 	struct acpi_device *device;
@@ -1427,7 +1426,6 @@ static int acpi_add_single_object(struct acpi_device **child,
 	device->device_type = type;
 	device->handle = handle;
 	device->parent = acpi_bus_get_parent(handle);
-	device->add_type = add_type;
 	STRUCT_TO_INT(device->status) = sta;
 
 	acpi_device_get_busid(device);
@@ -1478,9 +1476,10 @@ static int acpi_add_single_object(struct acpi_device **child,
 	if ((result = acpi_device_set_context(device)))
 		goto end;
 
+	device->flags.match_driver = match_driver;
 	result = acpi_device_register(device);
 
-	if (device->add_type >= ACPI_BUS_ADD_MATCH)
+	if (device->flags.match_driver)
 		acpi_hot_add_bind(device);
 
 end:
@@ -1509,7 +1508,7 @@ static void acpi_bus_add_power_resource(acpi_handle handle)
 	acpi_bus_get_device(handle, &device);
 	if (!device)
 		acpi_add_single_object(&device, handle, ACPI_BUS_TYPE_POWER,
-					ACPI_STA_DEFAULT, ACPI_BUS_ADD_START);
+					ACPI_STA_DEFAULT, true);
 }
 
 static int acpi_bus_type_and_status(acpi_handle handle, int *type,
@@ -1580,11 +1579,11 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
 		return AE_CTRL_DEPTH;
 	}
 
-	acpi_add_single_object(&device, handle, type, sta, ACPI_BUS_ADD_BASIC);
+	acpi_add_single_object(&device, handle, type, sta, false);
 	if (!device)
 		return AE_CTRL_DEPTH;
 
-	device->add_type = ACPI_BUS_ADD_START;
+	device->flags.match_driver = true;
 	acpi_hot_add_bind(device);
 
  out:
@@ -1749,16 +1748,14 @@ static int acpi_bus_scan_fixed(void)
 	if ((acpi_gbl_FADT.flags & ACPI_FADT_POWER_BUTTON) == 0) {
 		result = acpi_add_single_object(&device, NULL,
 						ACPI_BUS_TYPE_POWER_BUTTON,
-						ACPI_STA_DEFAULT,
-						ACPI_BUS_ADD_START);
+						ACPI_STA_DEFAULT, true);
 		device_init_wakeup(&device->dev, true);
 	}
 
 	if ((acpi_gbl_FADT.flags & ACPI_FADT_SLEEP_BUTTON) == 0) {
 		result = acpi_add_single_object(&device, NULL,
 						ACPI_BUS_TYPE_SLEEP_BUTTON,
-						ACPI_STA_DEFAULT,
-						ACPI_BUS_ADD_START);
+						ACPI_STA_DEFAULT, true);
 	}
 
 	return result;
