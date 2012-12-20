@@ -1807,7 +1807,7 @@ update_amp_hash(struct hda_codec *codec, hda_nid_t nid, int ch,
 /*
  * write the current volume in info to the h/w
  */
-static void put_vol_mute(struct hda_codec *codec, struct hda_amp_info *info,
+static void put_vol_mute(struct hda_codec *codec, unsigned int amp_caps,
 			 hda_nid_t nid, int ch, int direction, int index,
 			 int val)
 {
@@ -1816,8 +1816,8 @@ static void put_vol_mute(struct hda_codec *codec, struct hda_amp_info *info,
 	parm = ch ? AC_AMP_SET_RIGHT : AC_AMP_SET_LEFT;
 	parm |= direction == HDA_OUTPUT ? AC_AMP_SET_OUTPUT : AC_AMP_SET_INPUT;
 	parm |= index << AC_AMP_SET_INDEX_SHIFT;
-	if ((val & HDA_AMP_MUTE) && !(info->amp_caps & AC_AMPCAP_MUTE) &&
-	    (info->amp_caps & AC_AMPCAP_MIN_MUTE))
+	if ((val & HDA_AMP_MUTE) && !(amp_caps & AC_AMPCAP_MUTE) &&
+	    (amp_caps & AC_AMPCAP_MIN_MUTE))
 		; /* set the zero value as a fake mute */
 	else
 		parm |= val;
@@ -1854,6 +1854,7 @@ static int codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch,
 			    bool init_only)
 {
 	struct hda_amp_info *info;
+	unsigned int caps;
 	unsigned int cache_only;
 
 	if (snd_BUG_ON(mask & ~0xff))
@@ -1873,9 +1874,10 @@ static int codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch,
 	}
 	info->vol[ch] = val;
 	cache_only = info->head.dirty = codec->cached_write;
+	caps = info->amp_caps;
 	mutex_unlock(&codec->hash_mutex);
 	if (!cache_only)
-		put_vol_mute(codec, info, nid, ch, direction, idx, val);
+		put_vol_mute(codec, caps, nid, ch, direction, idx, val);
 	return 1;
 }
 
@@ -1967,23 +1969,25 @@ void snd_hda_codec_resume_amp(struct hda_codec *codec)
 		u32 key;
 		hda_nid_t nid;
 		unsigned int idx, dir, ch;
+		struct hda_amp_info info;
 
 		buffer = snd_array_elem(&codec->amp_cache.buf, i);
 		if (!buffer->head.dirty)
 			continue;
 		buffer->head.dirty = 0;
-		key = buffer->head.key;
+		info = *buffer;
+		key = info.head.key;
 		if (!key)
 			continue;
 		nid = key & 0xff;
 		idx = (key >> 16) & 0xff;
 		dir = (key >> 24) & 0xff;
 		for (ch = 0; ch < 2; ch++) {
-			if (!(buffer->head.val & INFO_AMP_VOL(ch)))
+			if (!(info.head.val & INFO_AMP_VOL(ch)))
 				continue;
 			mutex_unlock(&codec->hash_mutex);
-			put_vol_mute(codec, buffer, nid, ch, dir, idx,
-				     buffer->vol[ch]);
+			put_vol_mute(codec, info.amp_caps, nid, ch, dir, idx,
+				     info.vol[ch]);
 			mutex_lock(&codec->hash_mutex);
 		}
 	}
