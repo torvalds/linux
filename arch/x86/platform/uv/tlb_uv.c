@@ -1463,7 +1463,7 @@ static ssize_t ptc_proc_write(struct file *file, const char __user *user,
 	}
 
 	if (input_arg == 0) {
-		elements = sizeof(stat_description)/sizeof(*stat_description);
+		elements = ARRAY_SIZE(stat_description);
 		printk(KERN_DEBUG "# cpu:      cpu number\n");
 		printk(KERN_DEBUG "Sender statistics:\n");
 		for (i = 0; i < elements; i++)
@@ -1504,7 +1504,7 @@ static int parse_tunables_write(struct bau_control *bcp, char *instr,
 	char *q;
 	int cnt = 0;
 	int val;
-	int e = sizeof(tunables) / sizeof(*tunables);
+	int e = ARRAY_SIZE(tunables);
 
 	p = instr + strspn(instr, WHITESPACE);
 	q = p;
