@@ -75,8 +75,10 @@ struct kvm_s390_sie_block {
 	__u8	reserved40[4];		/* 0x0040 */
 #define LCTL_CR0	0x8000
 #define LCTL_CR6	0x0200
+#define LCTL_CR14	0x0002
 	__u16   lctl;			/* 0x0044 */
 	__s16	icpua;			/* 0x0046 */
+#define ICTL_LPSW 0x00400000
 	__u32	ictl;			/* 0x0048 */
 	__u32	eca;			/* 0x004c */
 	__u8	icptcode;		/* 0x0050 */
@@ -187,6 +189,11 @@ struct kvm_s390_emerg_info {
 	__u16 code;
 };
 
+struct kvm_s390_mchk_info {
+	__u64 cr14;
+	__u64 mcic;
+};
+
 struct kvm_s390_interrupt_info {
 	struct list_head list;
 	u64	type;
@@ -197,6 +204,7 @@ struct kvm_s390_interrupt_info {
 		struct kvm_s390_emerg_info emerg;
 		struct kvm_s390_extcall_info extcall;
 		struct kvm_s390_prefix_info prefix;
+		struct kvm_s390_mchk_info mchk;
 	};
 };
 

@@ -141,13 +141,13 @@ TRACE_EVENT(kvm_s390_inject_vcpu,
  * Trace point for the actual delivery of interrupts.
  */
 TRACE_EVENT(kvm_s390_deliver_interrupt,
-	    TP_PROTO(unsigned int id, __u64 type, __u32 data0, __u64 data1),
+	    TP_PROTO(unsigned int id, __u64 type, __u64 data0, __u64 data1),
 	    TP_ARGS(id, type, data0, data1),
 
 	    TP_STRUCT__entry(
 		    __field(int, id)
 		    __field(__u32, inttype)
-		    __field(__u32, data0)
+		    __field(__u64, data0)
 		    __field(__u64, data1)
 		    ),
 
@@ -159,7 +159,7 @@ TRACE_EVENT(kvm_s390_deliver_interrupt,
 		    ),
 
 	    TP_printk("deliver interrupt (vcpu %d): type:%x (%s) "	\
-		      "data:%08x %016llx",
+		      "data:%08llx %016llx",
 		      __entry->id, __entry->inttype,
 		      __print_symbolic(__entry->inttype, kvm_s390_int_type),
 		      __entry->data0, __entry->data1)

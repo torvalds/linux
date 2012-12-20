@@ -2073,6 +2073,10 @@ KVM_S390_INT_IO(ai,cssid,ssid,schid) (vm) - compound value to indicate an
     I/O interrupt (ai - adapter interrupt; cssid,ssid,schid - subchannel);
     I/O interruption parameters in parm (subchannel) and parm64 (intparm,
     interruption subclass)
+KVM_S390_MCHK (vm, vcpu) - machine check interrupt; cr 14 bits in parm,
+                           machine check interrupt code in parm64 (note that
+                           machine checks needing further payload are not
+                           supported by this ioctl)
 
 Note that the vcpu ioctl is asynchronous to vcpu execution.
 

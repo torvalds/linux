@@ -18,6 +18,8 @@
 #include <asm/debug.h>
 #include <asm/ebcdic.h>
 #include <asm/sysinfo.h>
+#include <asm/ptrace.h>
+#include <asm/compat.h>
 #include "gaccess.h"
 #include "kvm-s390.h"
 #include "trace.h"
@@ -166,6 +168,99 @@ static int handle_stfl(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static void handle_new_psw(struct kvm_vcpu *vcpu)
+{
+	/* Check whether the new psw is enabled for machine checks. */
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_MCHECK)
+		kvm_s390_deliver_pending_machine_checks(vcpu);
+}
+
+#define PSW_MASK_ADDR_MODE (PSW_MASK_EA | PSW_MASK_BA)
+#define PSW_MASK_UNASSIGNED 0xb80800fe7fffffffUL
+#define PSW_ADDR_24 0x00000000000fffffUL
+#define PSW_ADDR_31 0x000000007fffffffUL
+
+int kvm_s390_handle_lpsw(struct kvm_vcpu *vcpu)
+{
+	u64 addr;
+	psw_compat_t new_psw;
+
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+		return kvm_s390_inject_program_int(vcpu,
+						   PGM_PRIVILEGED_OPERATION);
+
+	addr = kvm_s390_get_base_disp_s(vcpu);
+
+	if (addr & 7) {
+		kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+		goto out;
+	}
+
+	if (copy_from_guest(vcpu, &new_psw, addr, sizeof(new_psw))) {
+		kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+		goto out;
+	}
+
+	if (!(new_psw.mask & PSW32_MASK_BASE)) {
+		kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+		goto out;
+	}
+
+	vcpu->arch.sie_block->gpsw.mask =
+		(new_psw.mask & ~PSW32_MASK_BASE) << 32;
+	vcpu->arch.sie_block->gpsw.addr = new_psw.addr;
+
+	if ((vcpu->arch.sie_block->gpsw.mask & PSW_MASK_UNASSIGNED) ||
+	    (!(vcpu->arch.sie_block->gpsw.mask & PSW_MASK_ADDR_MODE) &&
+	     (vcpu->arch.sie_block->gpsw.addr & ~PSW_ADDR_24)) ||
+	    ((vcpu->arch.sie_block->gpsw.mask & PSW_MASK_ADDR_MODE) ==
+	     PSW_MASK_EA)) {
+		kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+		goto out;
+	}
+
+	handle_new_psw(vcpu);
+out:
+	return 0;
+}
+
+static int handle_lpswe(struct kvm_vcpu *vcpu)
+{
+	u64 addr;
+	psw_t new_psw;
+
+	addr = kvm_s390_get_base_disp_s(vcpu);
+
+	if (addr & 7) {
+		kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+		goto out;
+	}
+
+	if (copy_from_guest(vcpu, &new_psw, addr, sizeof(new_psw))) {
+		kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+		goto out;
+	}
+
+	vcpu->arch.sie_block->gpsw.mask = new_psw.mask;
+	vcpu->arch.sie_block->gpsw.addr = new_psw.addr;
+
+	if ((vcpu->arch.sie_block->gpsw.mask & PSW_MASK_UNASSIGNED) ||
+	    (((vcpu->arch.sie_block->gpsw.mask & PSW_MASK_ADDR_MODE) ==
+	      PSW_MASK_BA) &&
+	     (vcpu->arch.sie_block->gpsw.addr & ~PSW_ADDR_31)) ||
+	    (!(vcpu->arch.sie_block->gpsw.mask & PSW_MASK_ADDR_MODE) &&
+	     (vcpu->arch.sie_block->gpsw.addr & ~PSW_ADDR_24)) ||
+	    ((vcpu->arch.sie_block->gpsw.mask & PSW_MASK_ADDR_MODE) ==
+	     PSW_MASK_EA)) {
+		kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+		goto out;
+	}
+
+	handle_new_psw(vcpu);
+out:
+	return 0;
+}
+
 static int handle_stidp(struct kvm_vcpu *vcpu)
 {
 	u64 operand2;
@@ -292,6 +387,7 @@ static const intercept_handler_t priv_handlers[256] = {
 	[0x5f] = handle_chsc,
 	[0x7d] = handle_stsi,
 	[0xb1] = handle_stfl,
+	[0xb2] = handle_lpswe,
 };
 
 int kvm_s390_handle_b2(struct kvm_vcpu *vcpu)
@@ -308,6 +404,45 @@ int kvm_s390_handle_b2(struct kvm_vcpu *vcpu)
 	handler = priv_handlers[vcpu->arch.sie_block->ipa & 0x00ff];
 	if (handler) {
 		if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+			return kvm_s390_inject_program_int(vcpu,
+						   PGM_PRIVILEGED_OPERATION);
+		else
+			return handler(vcpu);
+	}
+	return -EOPNOTSUPP;
+}
+
+static int handle_epsw(struct kvm_vcpu *vcpu)
+{
+	int reg1, reg2;
+
+	reg1 = (vcpu->arch.sie_block->ipb & 0x00f00000) >> 24;
+	reg2 = (vcpu->arch.sie_block->ipb & 0x000f0000) >> 16;
+
+	/* This basically extracts the mask half of the psw. */
+	vcpu->run->s.regs.gprs[reg1] &= 0xffffffff00000000;
+	vcpu->run->s.regs.gprs[reg1] |= vcpu->arch.sie_block->gpsw.mask >> 32;
+	if (reg2) {
+		vcpu->run->s.regs.gprs[reg2] &= 0xffffffff00000000;
+		vcpu->run->s.regs.gprs[reg2] |=
+			vcpu->arch.sie_block->gpsw.mask & 0x00000000ffffffff;
+	}
+	return 0;
+}
+
+static const intercept_handler_t b9_handlers[256] = {
+	[0x8d] = handle_epsw,
+};
+
+int kvm_s390_handle_b9(struct kvm_vcpu *vcpu)
+{
+	intercept_handler_t handler;
+
+	/* This is handled just as for the B2 instructions. */
+	handler = b9_handlers[vcpu->arch.sie_block->ipa & 0x00ff];
+	if (handler) {
+		if ((handler != handle_epsw) &&
+		    (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE))
 			return kvm_s390_inject_program_int(vcpu,
 						   PGM_PRIVILEGED_OPERATION);
 		else
