@@ -203,7 +203,7 @@ nve0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nvc0_graph_priv *priv;
 	int ret, i;
 
-	ret = nouveau_graph_create(parent, engine, oclass, false, &priv);
+	ret = nouveau_graph_create(parent, engine, oclass, true, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
