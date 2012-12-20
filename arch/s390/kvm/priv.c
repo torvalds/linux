@@ -24,17 +24,13 @@
 
 static int handle_set_prefix(struct kvm_vcpu *vcpu)
 {
-	int base2 = vcpu->arch.sie_block->ipb >> 28;
-	int disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16);
 	u64 operand2;
 	u32 address = 0;
 	u8 tmp;
 
 	vcpu->stat.instruction_spx++;
 
-	operand2 = disp2;
-	if (base2)
-		operand2 += vcpu->run->s.regs.gprs[base2];
+	operand2 = kvm_s390_get_base_disp_s(vcpu);
 
 	/* must be word boundary */
 	if (operand2 & 3) {
@@ -67,15 +63,12 @@ out:
 
 static int handle_store_prefix(struct kvm_vcpu *vcpu)
 {
-	int base2 = vcpu->arch.sie_block->ipb >> 28;
-	int disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16);
 	u64 operand2;
 	u32 address;
 
 	vcpu->stat.instruction_stpx++;
-	operand2 = disp2;
-	if (base2)
-		operand2 += vcpu->run->s.regs.gprs[base2];
+
+	operand2 = kvm_s390_get_base_disp_s(vcpu);
 
 	/* must be word boundary */
 	if (operand2 & 3) {
@@ -100,15 +93,12 @@ out:
 
 static int handle_store_cpu_address(struct kvm_vcpu *vcpu)
 {
-	int base2 = vcpu->arch.sie_block->ipb >> 28;
-	int disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16);
 	u64 useraddr;
 	int rc;
 
 	vcpu->stat.instruction_stap++;
-	useraddr = disp2;
-	if (base2)
-		useraddr += vcpu->run->s.regs.gprs[base2];
+
+	useraddr = kvm_s390_get_base_disp_s(vcpu);
 
 	if (useraddr & 1) {
 		kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
@@ -178,15 +168,12 @@ static int handle_stfl(struct kvm_vcpu *vcpu)
 
 static int handle_stidp(struct kvm_vcpu *vcpu)
 {
-	int base2 = vcpu->arch.sie_block->ipb >> 28;
-	int disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16);
 	u64 operand2;
 	int rc;
 
 	vcpu->stat.instruction_stidp++;
-	operand2 = disp2;
-	if (base2)
-		operand2 += vcpu->run->s.regs.gprs[base2];
+
+	operand2 = kvm_s390_get_base_disp_s(vcpu);
 
 	if (operand2 & 7) {
 		kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
@@ -240,17 +227,13 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 	int fc = (vcpu->run->s.regs.gprs[0] & 0xf0000000) >> 28;
 	int sel1 = vcpu->run->s.regs.gprs[0] & 0xff;
 	int sel2 = vcpu->run->s.regs.gprs[1] & 0xffff;
-	int base2 = vcpu->arch.sie_block->ipb >> 28;
-	int disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16);
 	u64 operand2;
 	unsigned long mem;
 
 	vcpu->stat.instruction_stsi++;
 	VCPU_EVENT(vcpu, 4, "stsi: fc: %x sel1: %x sel2: %x", fc, sel1, sel2);
 
-	operand2 = disp2;
-	if (base2)
-		operand2 += vcpu->run->s.regs.gprs[base2];
+	operand2 = kvm_s390_get_base_disp_s(vcpu);
 
 	if (operand2 & 0xfff && fc > 0)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
@@ -335,16 +318,13 @@ int kvm_s390_handle_b2(struct kvm_vcpu *vcpu)
 
 static int handle_tprot(struct kvm_vcpu *vcpu)
 {
-	int base1 = (vcpu->arch.sie_block->ipb & 0xf0000000) >> 28;
-	int disp1 = (vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16;
-	int base2 = (vcpu->arch.sie_block->ipb & 0xf000) >> 12;
-	int disp2 = vcpu->arch.sie_block->ipb & 0x0fff;
-	u64 address1 = disp1 + base1 ? vcpu->run->s.regs.gprs[base1] : 0;
-	u64 address2 = disp2 + base2 ? vcpu->run->s.regs.gprs[base2] : 0;
+	u64 address1, address2;
 	struct vm_area_struct *vma;
 	unsigned long user_address;
 
 	vcpu->stat.instruction_tprot++;
+
+	kvm_s390_get_base_disp_sse(vcpu, &address1, &address2);
 
 	/* we only handle the Linux memory detection case:
 	 * access key == 0

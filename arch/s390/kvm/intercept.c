@@ -26,9 +26,6 @@ static int handle_lctlg(struct kvm_vcpu *vcpu)
 {
 	int reg1 = (vcpu->arch.sie_block->ipa & 0x00f0) >> 4;
 	int reg3 = vcpu->arch.sie_block->ipa & 0x000f;
-	int base2 = vcpu->arch.sie_block->ipb >> 28;
-	int disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16) +
-			((vcpu->arch.sie_block->ipb & 0xff00) << 4);
 	u64 useraddr;
 	int reg, rc;
 
@@ -36,17 +33,15 @@ static int handle_lctlg(struct kvm_vcpu *vcpu)
 	if ((vcpu->arch.sie_block->ipb & 0xff) != 0x2f)
 		return -EOPNOTSUPP;
 
-	useraddr = disp2;
-	if (base2)
-		useraddr += vcpu->run->s.regs.gprs[base2];
+	useraddr = kvm_s390_get_base_disp_rsy(vcpu);
 
 	if (useraddr & 7)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	reg = reg1;
 
-	VCPU_EVENT(vcpu, 5, "lctlg r1:%x, r3:%x,b2:%x,d2:%x", reg1, reg3, base2,
-		   disp2);
+	VCPU_EVENT(vcpu, 5, "lctlg r1:%x, r3:%x, addr:%llx", reg1, reg3,
+		   useraddr);
 	trace_kvm_s390_handle_lctl(vcpu, 1, reg1, reg3, useraddr);
 
 	do {
@@ -68,23 +63,19 @@ static int handle_lctl(struct kvm_vcpu *vcpu)
 {
 	int reg1 = (vcpu->arch.sie_block->ipa & 0x00f0) >> 4;
 	int reg3 = vcpu->arch.sie_block->ipa & 0x000f;
-	int base2 = vcpu->arch.sie_block->ipb >> 28;
-	int disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16);
 	u64 useraddr;
 	u32 val = 0;
 	int reg, rc;
 
 	vcpu->stat.instruction_lctl++;
 
-	useraddr = disp2;
-	if (base2)
-		useraddr += vcpu->run->s.regs.gprs[base2];
+	useraddr = kvm_s390_get_base_disp_rs(vcpu);
 
 	if (useraddr & 3)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
-	VCPU_EVENT(vcpu, 5, "lctl r1:%x, r3:%x,b2:%x,d2:%x", reg1, reg3, base2,
-		   disp2);
+	VCPU_EVENT(vcpu, 5, "lctl r1:%x, r3:%x, addr:%llx", reg1, reg3,
+		   useraddr);
 	trace_kvm_s390_handle_lctl(vcpu, 0, reg1, reg3, useraddr);
 
 	reg = reg1;

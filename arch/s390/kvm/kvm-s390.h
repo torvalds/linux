@@ -65,6 +65,43 @@ static inline void kvm_s390_set_prefix(struct kvm_vcpu *vcpu, u32 prefix)
 	vcpu->arch.sie_block->ihcpu  = 0xffff;
 }
 
+static inline u64 kvm_s390_get_base_disp_s(struct kvm_vcpu *vcpu)
+{
+	int base2 = vcpu->arch.sie_block->ipb >> 28;
+	int disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16);
+
+	return (base2 ? vcpu->run->s.regs.gprs[base2] : 0) + disp2;
+}
+
+static inline void kvm_s390_get_base_disp_sse(struct kvm_vcpu *vcpu,
+					      u64 *address1, u64 *address2)
+{
+	int base1 = (vcpu->arch.sie_block->ipb & 0xf0000000) >> 28;
+	int disp1 = (vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16;
+	int base2 = (vcpu->arch.sie_block->ipb & 0xf000) >> 12;
+	int disp2 = vcpu->arch.sie_block->ipb & 0x0fff;
+
+	*address1 = (base1 ? vcpu->run->s.regs.gprs[base1] : 0) + disp1;
+	*address2 = (base2 ? vcpu->run->s.regs.gprs[base2] : 0) + disp2;
+}
+
+static inline u64 kvm_s390_get_base_disp_rsy(struct kvm_vcpu *vcpu)
+{
+	int base2 = vcpu->arch.sie_block->ipb >> 28;
+	int disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16) +
+			((vcpu->arch.sie_block->ipb & 0xff00) << 4);
+
+	return (base2 ? vcpu->run->s.regs.gprs[base2] : 0) + disp2;
+}
+
+static inline u64 kvm_s390_get_base_disp_rs(struct kvm_vcpu *vcpu)
+{
+	int base2 = vcpu->arch.sie_block->ipb >> 28;
+	int disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16);
+
+	return (base2 ? vcpu->run->s.regs.gprs[base2] : 0) + disp2;
+}
+
 int kvm_s390_handle_wait(struct kvm_vcpu *vcpu);
 enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer);
 void kvm_s390_tasklet(unsigned long parm);

@@ -324,8 +324,6 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 {
 	int r1 = (vcpu->arch.sie_block->ipa & 0x00f0) >> 4;
 	int r3 = vcpu->arch.sie_block->ipa & 0x000f;
-	int base2 = vcpu->arch.sie_block->ipb >> 28;
-	int disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16);
 	u32 parameter;
 	u16 cpu_addr = vcpu->run->s.regs.gprs[r3];
 	u8 order_code;
@@ -336,9 +334,7 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 		return kvm_s390_inject_program_int(vcpu,
 						   PGM_PRIVILEGED_OPERATION);
 
-	order_code = disp2;
-	if (base2)
-		order_code += vcpu->run->s.regs.gprs[base2];
+	order_code = kvm_s390_get_base_disp_rs(vcpu);
 
 	if (r1 % 2)
 		parameter = vcpu->run->s.regs.gprs[r1];
