@@ -1373,6 +1373,8 @@ static void sony_nc_function_setup(struct acpi_device *device,
 			break;
 		case 0x0137:
 		case 0x0143:
+		case 0x014b:
+		case 0x014c:
 			result = sony_nc_kbd_backlight_setup(pf_device, handle);
 			if (result)
 				pr_err("couldn't set up keyboard backlight function (%d)\n",
@@ -1435,6 +1437,8 @@ static void sony_nc_function_cleanup(struct platform_device *pd)
 			break;
 		case 0x0137:
 		case 0x0143:
+		case 0x014b:
+		case 0x014c:
 			sony_nc_kbd_backlight_cleanup(pd);
 			break;
 		default:
@@ -1479,6 +1483,8 @@ static void sony_nc_function_resume(void)
 			break;
 		case 0x0137:
 		case 0x0143:
+		case 0x014b:
+		case 0x014c:
 			sony_nc_kbd_backlight_resume();
 			break;
 		default:
@@ -2636,6 +2642,8 @@ static void sony_nc_backlight_ng_read_limits(int handle,
 		lvl_table_len = 9;
 		break;
 	case 0x143:
+	case 0x14b:
+	case 0x14c:
 		lvl_table_len = 16;
 		break;
 	}
@@ -2685,6 +2693,18 @@ static void sony_nc_backlight_setup(void)
 		ops = &sony_backlight_ng_ops;
 		sony_bl_props.cmd_base = 0x3000;
 		sony_nc_backlight_ng_read_limits(0x143, &sony_bl_props);
+		max_brightness = sony_bl_props.maxlvl - sony_bl_props.offset;
+
+	} else if (sony_find_snc_handle(0x14b) >= 0) {
+		ops = &sony_backlight_ng_ops;
+		sony_bl_props.cmd_base = 0x3000;
+		sony_nc_backlight_ng_read_limits(0x14b, &sony_bl_props);
+		max_brightness = sony_bl_props.maxlvl - sony_bl_props.offset;
+
+	} else if (sony_find_snc_handle(0x14c) >= 0) {
+		ops = &sony_backlight_ng_ops;
+		sony_bl_props.cmd_base = 0x3000;
+		sony_nc_backlight_ng_read_limits(0x14c, &sony_bl_props);
 		max_brightness = sony_bl_props.maxlvl - sony_bl_props.offset;
 
 	} else if (ACPI_SUCCESS(acpi_get_handle(sony_nc_acpi_handle, "GBRT",
