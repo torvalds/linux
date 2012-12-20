@@ -38,16 +38,16 @@
 #define ERR_PHSRULE_MATCH_FAIL			0x809
 
 typedef struct _S_PHS_RULE {
-	B_UINT8	u8PHSI;
-	B_UINT8	u8PHSFLength;
-	B_UINT8	u8PHSF[MAX_PHS_LENGTHS];
-	B_UINT8	u8PHSMLength;
-	B_UINT8	u8PHSM[MAX_PHS_LENGTHS];
-	B_UINT8	u8PHSS;
-	B_UINT8	u8PHSV;
-	B_UINT8	u8RefCnt;
-	B_UINT8	bUnclassifiedPHSRule;
-	B_UINT8	u8Reserved[3];
+	u8 u8PHSI;
+	u8 u8PHSFLength;
+	u8 u8PHSF[MAX_PHS_LENGTHS];
+	u8 u8PHSMLength;
+	u8 u8PHSM[MAX_PHS_LENGTHS];
+	u8 u8PHSS;
+	u8 u8PHSV;
+	u8 u8RefCnt;
+	u8 bUnclassifiedPHSRule;
+	u8 u8Reserved[3];
 	LONG	PHSModifiedBytes;
 	ULONG	PHSModifiedNumPackets;
 	ULONG	PHSErrorNumPackets;
@@ -59,11 +59,11 @@ typedef enum _E_CLASSIFIER_ENTRY_CONTEXT {
 } E_CLASSIFIER_ENTRY_CONTEXT;
 
 typedef struct _S_CLASSIFIER_ENTRY {
-	B_UINT8  bUsed;
+	u8  bUsed;
 	B_UINT16 uiClassifierRuleId;
-	B_UINT8  u8PHSI;
+	u8  u8PHSI;
 	S_PHS_RULE *pstPhsRule;
-	B_UINT8  bUnclassifiedPHSRule;
+	u8  bUnclassifiedPHSRule;
 } S_CLASSIFIER_ENTRY;
 
 typedef struct _S_CLASSIFIER_TABLE {
@@ -74,7 +74,7 @@ typedef struct _S_CLASSIFIER_TABLE {
 } S_CLASSIFIER_TABLE;
 
 typedef struct _S_SERVICEFLOW_ENTRY {
-	B_UINT8  bUsed;
+	u8  bUsed;
 	B_UINT16 uiVcid;
 	S_CLASSIFIER_TABLE  *pstClassifierTable;
 } S_SERVICEFLOW_ENTRY;
