@@ -41,7 +41,7 @@ ULONG PhsDeleteSFRules(void* pvContext,B_UINT16 uiVcid) ;
 
 BOOLEAN ValidatePHSRule(S_PHS_RULE *psPhsRule);
 
-UINT GetServiceFlowEntry(struct bcm_phs_table *psServiceFlowTable,B_UINT16 uiVcid,S_SERVICEFLOW_ENTRY **ppstServiceFlowEntry);
+UINT GetServiceFlowEntry(struct bcm_phs_table *psServiceFlowTable,B_UINT16 uiVcid, struct bcm_phs_entry **ppstServiceFlowEntry);
 
 
 void DumpPhsRules(struct bcm_phs_extension *pDeviceExtension);

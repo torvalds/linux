@@ -73,15 +73,15 @@ typedef struct _S_CLASSIFIER_TABLE {
 	u16 uiOldestPhsRuleIndex;
 } S_CLASSIFIER_TABLE;
 
-typedef struct _S_SERVICEFLOW_ENTRY {
+struct bcm_phs_entry {
 	u8  bUsed;
 	u16 uiVcid;
 	S_CLASSIFIER_TABLE  *pstClassifierTable;
-} S_SERVICEFLOW_ENTRY;
+};
 
 struct bcm_phs_table {
 	u16 uiTotalServiceFlows;
-	S_SERVICEFLOW_ENTRY stSFList[MAX_SERVICEFLOWS];
+	struct bcm_phs_entry stSFList[MAX_SERVICEFLOWS];
 };
 
 struct bcm_phs_extension {

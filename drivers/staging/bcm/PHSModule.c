@@ -2,7 +2,7 @@
 
 static UINT CreateSFToClassifierRuleMapping(B_UINT16 uiVcid,B_UINT16  uiClsId, struct bcm_phs_table *psServiceFlowTable,S_PHS_RULE *psPhsRule,B_UINT8 u8AssociatedPHSI);
 
-static UINT CreateClassiferToPHSRuleMapping(B_UINT16 uiVcid,B_UINT16  uiClsId,S_SERVICEFLOW_ENTRY *pstServiceFlowEntry,S_PHS_RULE *psPhsRule,B_UINT8 u8AssociatedPHSI);
+static UINT CreateClassiferToPHSRuleMapping(B_UINT16 uiVcid,B_UINT16  uiClsId, struct bcm_phs_entry *pstServiceFlowEntry,S_PHS_RULE *psPhsRule,B_UINT8 u8AssociatedPHSI);
 
 static UINT CreateClassifierPHSRule(B_UINT16  uiClsId,S_CLASSIFIER_TABLE *psaClassifiertable ,S_PHS_RULE *psPhsRule,E_CLASSIFIER_ENTRY_CONTEXT eClsContext,B_UINT8 u8AssociatedPHSI);
 
@@ -312,7 +312,7 @@ int phs_init(struct bcm_phs_extension *pPhsdeviceExtension, struct bcm_mini_adap
 	pstServiceFlowTable = pPhsdeviceExtension->pstServiceFlowPhsRulesTable;
 	for(i=0;i<MAX_SERVICEFLOWS;i++)
 	{
-		S_SERVICEFLOW_ENTRY sServiceFlow = pstServiceFlowTable->stSFList[i];
+		struct bcm_phs_entry sServiceFlow = pstServiceFlowTable->stSFList[i];
 		sServiceFlow.pstClassifierTable = kzalloc(sizeof(S_CLASSIFIER_TABLE), GFP_KERNEL);
 		if(!sServiceFlow.pstClassifierTable)
 		{
@@ -397,7 +397,7 @@ ULONG PhsUpdateClassifierRule(IN void* pvContext,
 {
 	ULONG lStatus =0;
 	UINT nSFIndex =0 ;
-	S_SERVICEFLOW_ENTRY *pstServiceFlowEntry = NULL;
+	struct bcm_phs_entry *pstServiceFlowEntry = NULL;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
 
@@ -460,7 +460,7 @@ ULONG PhsDeletePHSRule(IN void* pvContext,IN B_UINT16 uiVcid,IN B_UINT8 u8PHSI)
 {
 	ULONG lStatus =0;
 	UINT nSFIndex =0, nClsidIndex =0 ;
-	S_SERVICEFLOW_ENTRY *pstServiceFlowEntry = NULL;
+	struct bcm_phs_entry *pstServiceFlowEntry = NULL;
 	S_CLASSIFIER_TABLE *pstClassifierRulesTable = NULL;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
@@ -526,7 +526,7 @@ ULONG PhsDeleteClassifierRule(IN void* pvContext,IN B_UINT16 uiVcid ,IN B_UINT16
 {
 	ULONG lStatus =0;
 	UINT nSFIndex =0, nClsidIndex =0 ;
-	S_SERVICEFLOW_ENTRY *pstServiceFlowEntry = NULL;
+	struct bcm_phs_entry *pstServiceFlowEntry = NULL;
 	S_CLASSIFIER_ENTRY *pstClassifierEntry = NULL;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	struct bcm_phs_extension *pDeviceExtension= (struct bcm_phs_extension *)pvContext;
@@ -590,7 +590,7 @@ ULONG PhsDeleteSFRules(IN void* pvContext,IN B_UINT16 uiVcid)
 
 	ULONG lStatus =0;
 	UINT nSFIndex =0, nClsidIndex =0  ;
-	S_SERVICEFLOW_ENTRY *pstServiceFlowEntry = NULL;
+	struct bcm_phs_entry *pstServiceFlowEntry = NULL;
 	S_CLASSIFIER_TABLE *pstClassifierRulesTable = NULL;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	struct bcm_phs_extension *pDeviceExtension= (struct bcm_phs_extension *)pvContext;
@@ -680,7 +680,7 @@ ULONG PhsCompress(IN void* pvContext,
 				  OUT UINT *pNewHeaderSize )
 {
 	UINT nSFIndex =0, nClsidIndex =0  ;
-	S_SERVICEFLOW_ENTRY *pstServiceFlowEntry = NULL;
+	struct bcm_phs_entry *pstServiceFlowEntry = NULL;
 	S_CLASSIFIER_ENTRY *pstClassifierEntry = NULL;
 	S_PHS_RULE *pstPhsRule = NULL;
 	ULONG lStatus =0;
@@ -775,7 +775,7 @@ ULONG PhsDeCompress(IN void* pvContext,
 				  OUT UINT *pOutHeaderSize )
 {
 	UINT nSFIndex =0, nPhsRuleIndex =0 ;
-	S_SERVICEFLOW_ENTRY *pstServiceFlowEntry = NULL;
+	struct bcm_phs_entry *pstServiceFlowEntry = NULL;
 	S_PHS_RULE *pstPhsRule = NULL;
 	UINT phsi;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -854,7 +854,7 @@ static void free_phs_serviceflow_rules(struct bcm_phs_table *psServiceFlowRulesT
 	{
 		for(i=0;i<MAX_SERVICEFLOWS;i++)
 		{
-			S_SERVICEFLOW_ENTRY stServiceFlowEntry =
+			struct bcm_phs_entry stServiceFlowEntry =
                 psServiceFlowRulesTable->stSFList[i];
 			S_CLASSIFIER_TABLE *pstClassifierRulesTable =
                 stServiceFlowEntry.pstClassifierTable;
@@ -928,7 +928,7 @@ static BOOLEAN ValidatePHSRuleComplete(IN S_PHS_RULE *psPhsRule)
 }
 
 UINT GetServiceFlowEntry(IN struct bcm_phs_table *psServiceFlowTable,
-    IN B_UINT16 uiVcid,S_SERVICEFLOW_ENTRY **ppstServiceFlowEntry)
+    IN B_UINT16 uiVcid, struct bcm_phs_entry **ppstServiceFlowEntry)
 {
 	int  i;
 	for(i=0;i<MAX_SERVICEFLOWS;i++)
@@ -1050,7 +1050,7 @@ UINT CreateSFToClassifierRuleMapping(IN B_UINT16 uiVcid,IN B_UINT16  uiClsId,
 }
 
 UINT CreateClassiferToPHSRuleMapping(IN B_UINT16 uiVcid,
-            IN B_UINT16  uiClsId,IN S_SERVICEFLOW_ENTRY *pstServiceFlowEntry,
+            IN B_UINT16  uiClsId,IN struct bcm_phs_entry *pstServiceFlowEntry,
               S_PHS_RULE *psPhsRule,B_UINT8 u8AssociatedPHSI)
 {
 	S_CLASSIFIER_ENTRY *pstClassifierEntry = NULL;
@@ -1338,7 +1338,7 @@ void DumpPhsRules(struct bcm_phs_extension *pDeviceExtension)
     BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "\n Dumping PHS Rules : \n");
 	for(i=0;i<MAX_SERVICEFLOWS;i++)
 	{
-		S_SERVICEFLOW_ENTRY stServFlowEntry =
+		struct bcm_phs_entry stServFlowEntry =
 				pDeviceExtension->pstServiceFlowPhsRulesTable->stSFList[i];
 		if(stServFlowEntry.bUsed)
 		{

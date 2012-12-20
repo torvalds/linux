@@ -11,7 +11,7 @@
 
 INT ProcessGetHostMibs(struct bcm_mini_adapter *Adapter, struct bcm_host_stats_mibs *pstHostMibs)
 {
-	S_SERVICEFLOW_ENTRY *pstServiceFlowEntry = NULL;
+	struct bcm_phs_entry *pstServiceFlowEntry = NULL;
 	S_PHS_RULE *pstPhsRule = NULL;
 	S_CLASSIFIER_TABLE *pstClassifierTable = NULL;
 	S_CLASSIFIER_ENTRY *pstClassifierRule = NULL;
