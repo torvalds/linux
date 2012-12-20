@@ -1623,10 +1623,9 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl,
 	return AE_OK;
 }
 
-static acpi_status acpi_bus_probe_start(acpi_handle handle, u32 lvl,
-					void *context, void **not_used)
+static acpi_status acpi_bus_device_attach(acpi_handle handle, u32 lvl_not_used,
+					  void *not_used, void **ret_not_used)
 {
-	struct acpi_bus_ops *ops = context;
 	acpi_status status = AE_OK;
 	struct acpi_device *device;
 	unsigned long long sta_not_used;
@@ -1642,16 +1641,11 @@ static acpi_status acpi_bus_probe_start(acpi_handle handle, u32 lvl,
 	if (acpi_bus_get_device(handle, &device))
 		return AE_CTRL_DEPTH;
 
-	if (ops->acpi_op_add) {
-		if (!acpi_match_device_ids(device, acpi_platform_device_ids)) {
-			/* This is a known good platform device. */
-			acpi_create_platform_device(device);
-		} else if (device_attach(&device->dev)) {
-			status = AE_CTRL_DEPTH;
-		}
-	} else if (ops->acpi_op_start) {
-		if (ACPI_FAILURE(acpi_start_single_object(device)))
-			status = AE_CTRL_DEPTH;
+	if (!acpi_match_device_ids(device, acpi_platform_device_ids)) {
+		/* This is a known good platform device. */
+		acpi_create_platform_device(device);
+	} else if (device_attach(&device->dev)) {
+		status = AE_CTRL_DEPTH;
 	}
 	return status;
 }
@@ -1672,10 +1666,10 @@ static int acpi_bus_scan(acpi_handle handle, struct acpi_bus_ops *ops,
 		goto out;
 
 	ret = 0;
-	status = acpi_bus_probe_start(handle, 0, ops, NULL);
+	status = acpi_bus_device_attach(handle, 0, NULL, NULL);
 	if (ACPI_SUCCESS(status))
 		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
-				    acpi_bus_probe_start, NULL, ops, NULL);
+				    acpi_bus_device_attach, NULL, NULL, NULL);
 
  out:
 	if (child)
@@ -1700,31 +1694,44 @@ int
 acpi_bus_add(struct acpi_device **child,
 	     struct acpi_device *parent, acpi_handle handle, int type)
 {
-	struct acpi_bus_ops ops;
-
-	memset(&ops, 0, sizeof(ops));
-	ops.acpi_op_add = 1;
+	struct acpi_bus_ops ops = { .acpi_op_add = 1, };
 
 	return acpi_bus_scan(handle, &ops, child);
 }
 EXPORT_SYMBOL(acpi_bus_add);
 
+static acpi_status acpi_bus_start_device(acpi_handle handle, u32 lvl,
+					 void *not_used, void **ret_not_used)
+{
+	struct acpi_device *device;
+	unsigned long long sta_not_used;
+	int type_not_used;
+
+	/*
+	 * Ignore errors ignored by acpi_bus_check_add() to avoid terminating
+	 * namespace walks prematurely.
+	 */
+	if (acpi_bus_type_and_status(handle, &type_not_used, &sta_not_used))
+		return AE_OK;
+
+	if (acpi_bus_get_device(handle, &device))
+		return AE_CTRL_DEPTH;
+
+	return acpi_start_single_object(device);
+}
+
 int acpi_bus_start(struct acpi_device *device)
 {
-	struct acpi_bus_ops ops;
-	int result;
-
 	if (!device)
 		return -EINVAL;
 
-	memset(&ops, 0, sizeof(ops));
-	ops.acpi_op_start = 1;
-
-	result = acpi_bus_scan(device->handle, &ops, NULL);
+	if (ACPI_SUCCESS(acpi_start_single_object(device)))
+		acpi_walk_namespace(ACPI_TYPE_ANY, device->handle,
+				    ACPI_UINT32_MAX, acpi_bus_start_device,
+				    NULL, NULL, NULL);
 
 	acpi_update_all_gpes();
-
-	return result;
+	return 0;
 }
 EXPORT_SYMBOL(acpi_bus_start);
 
