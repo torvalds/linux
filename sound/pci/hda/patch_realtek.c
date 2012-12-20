@@ -2678,8 +2678,10 @@ static void alc269_fixup_mic1_mute(struct hda_codec *codec,
 				   const struct alc_fixup *fix, int action)
 {
 	struct alc_spec *spec = codec->spec;
-	if (action == ALC_FIXUP_ACT_PROBE)
+	if (action == ALC_FIXUP_ACT_PROBE) {
 		spec->gen.vmaster_mute.hook = alc269_fixup_mic1_mute_hook;
+		spec->gen.vmaster_mute_enum = 1;
+	}
 }
 
 /* update mute-LED according to the speaker mute state via mic2 VREF pin */
@@ -2694,8 +2696,10 @@ static void alc269_fixup_mic2_mute(struct hda_codec *codec,
 				   const struct alc_fixup *fix, int action)
 {
 	struct alc_spec *spec = codec->spec;
-	if (action == ALC_FIXUP_ACT_PROBE)
+	if (action == ALC_FIXUP_ACT_PROBE) {
 		spec->gen.vmaster_mute.hook = alc269_fixup_mic2_mute_hook;
+		spec->gen.vmaster_mute_enum = 1;
+	}
 }
 
 static void alc271_hp_gate_mic_jack(struct hda_codec *codec,

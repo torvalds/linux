@@ -2966,7 +2966,8 @@ int snd_hda_gen_build_controls(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 		if (spec->vmaster_mute.hook)
-			snd_hda_add_vmaster_hook(codec, &spec->vmaster_mute, true);
+			snd_hda_add_vmaster_hook(codec, &spec->vmaster_mute,
+						 spec->vmaster_mute_enum);
 	}
 
 	free_kctls(spec); /* no longer needed */

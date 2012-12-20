@@ -151,6 +151,7 @@ struct hda_gen_spec {
 	unsigned int multi_cap_vol:1; /* allow multiple capture xxx volumes */
 	unsigned int inv_dmic_split:1; /* inverted dmic w/a for conexant */
 	unsigned int own_eapd_ctl:1; /* set EAPD by own function */
+	unsigned int vmaster_mute_enum:1; /* add vmaster mute mode enum */
 
 	/* for virtual master */
 	hda_nid_t vmaster_nid;
