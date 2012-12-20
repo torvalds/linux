@@ -1516,11 +1516,14 @@ u8 *drm_find_cea_extension(struct edid *edid)
 }
 EXPORT_SYMBOL(drm_find_cea_extension);
 
-/*
- * Looks for a CEA mode matching given drm_display_mode.
- * Returns its CEA Video ID code, or 0 if not found.
+/**
+ * drm_match_cea_mode - look for a CEA mode matching given mode
+ * @to_match: display mode
+ *
+ * Returns the CEA Video ID (VIC) of the mode or 0 if it isn't a CEA-861
+ * mode.
  */
-u8 drm_match_cea_mode(struct drm_display_mode *to_match)
+u8 drm_match_cea_mode(const struct drm_display_mode *to_match)
 {
 	struct drm_display_mode *cea_mode;
 	u8 mode;
@@ -2114,22 +2117,3 @@ int drm_add_modes_noedid(struct drm_connector *connector,
 	return num_modes;
 }
 EXPORT_SYMBOL(drm_add_modes_noedid);
-
-/**
- * drm_mode_cea_vic - return the CEA-861 VIC of a given mode
- * @mode: mode
- *
- * RETURNS:
- * The VIC number, 0 in case it's not a CEA-861 mode.
- */
-uint8_t drm_mode_cea_vic(const struct drm_display_mode *mode)
-{
-	uint8_t i;
-
-	for (i = 0; i < drm_num_cea_modes; i++)
-		if (drm_mode_equal(mode, &edid_cea_modes[i]))
-			return i + 1;
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_mode_cea_vic);

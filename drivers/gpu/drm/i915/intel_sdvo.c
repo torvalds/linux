@@ -1077,7 +1077,7 @@ static bool intel_sdvo_mode_fixup(struct drm_encoder *encoder,
 	if (intel_sdvo->color_range_auto) {
 		/* See CEA-861-E - 5.1 Default Encoding Parameters */
 		if (intel_sdvo->has_hdmi_monitor &&
-		    drm_mode_cea_vic(adjusted_mode) > 1)
+		    drm_match_cea_mode(adjusted_mode) > 1)
 			intel_sdvo->color_range = SDVO_COLOR_RANGE_16_235;
 		else
 			intel_sdvo->color_range = 0;
