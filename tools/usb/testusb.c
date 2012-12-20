@@ -507,10 +507,8 @@ usage:
 			return handle_testdev (entry) != entry;
 		}
 		status = pthread_create (&entry->thread, 0, handle_testdev, entry);
-		if (status) {
+		if (status)
 			perror ("pthread_create");
-			continue;
-		}
 	}
 	if (device) {
 		struct testdev		dev;
