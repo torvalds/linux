@@ -591,7 +591,7 @@ int snd_hda_get_conn_index(struct hda_codec *codec, hda_nid_t mux,
 			return i;
 	if (!recursive)
 		return -1;
-	if (recursive > 5) {
+	if (recursive > 10) {
 		snd_printd("hda_codec: too deep connection for 0x%x\n", nid);
 		return -1;
 	}

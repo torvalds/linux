@@ -37,7 +37,7 @@ struct hda_multi_io {
  * vol_ctl and mute_ctl contains the NIDs for the assigned mixers
  */
 
-#define MAX_NID_PATH_DEPTH	5
+#define MAX_NID_PATH_DEPTH	10
 
 enum {
 	NID_PATH_VOL_CTL,
