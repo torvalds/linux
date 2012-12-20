@@ -1551,8 +1551,8 @@ static int acpi_bus_type_and_status(acpi_handle handle, int *type,
 	return 0;
 }
 
-static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl,
-				      void *context, void **return_value)
+static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
+				      void *not_used, void **return_value)
 {
 	struct acpi_device *device = NULL;
 	int type;
@@ -1584,7 +1584,7 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl,
 	if (!device)
 		return AE_CTRL_DEPTH;
 
-	device->add_type = context ? ACPI_BUS_ADD_START : ACPI_BUS_ADD_MATCH;
+	device->add_type = ACPI_BUS_ADD_START;
 	acpi_hot_add_bind(device);
 
  out:
@@ -1621,18 +1621,16 @@ static acpi_status acpi_bus_device_attach(acpi_handle handle, u32 lvl_not_used,
 	return status;
 }
 
-static int acpi_bus_scan(acpi_handle handle, bool start,
-			 struct acpi_device **child)
+static int acpi_bus_scan(acpi_handle handle, struct acpi_device **child)
 {
 	void *device = NULL;
 	acpi_status status;
 	int ret = -ENODEV;
 
-	status = acpi_bus_check_add(handle, 0, (void *)start, &device);
+	status = acpi_bus_check_add(handle, 0, NULL, &device);
 	if (ACPI_SUCCESS(status))
 		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
-				    acpi_bus_check_add, NULL, (void *)start,
-				    &device);
+				    acpi_bus_check_add, NULL, NULL, &device);
 
 	if (!device)
 		goto out;
@@ -1676,7 +1674,7 @@ int acpi_bus_add(acpi_handle handle, struct acpi_device **ret)
 {
 	int err;
 
-	err = acpi_bus_scan(handle, false, ret);
+	err = acpi_bus_scan(handle, ret);
 	if (err)
 		return err;
 
@@ -1782,7 +1780,7 @@ int __init acpi_scan_init(void)
 	/*
 	 * Enumerate devices in the ACPI namespace.
 	 */
-	result = acpi_bus_scan(ACPI_ROOT_OBJECT, true, &acpi_root);
+	result = acpi_bus_scan(ACPI_ROOT_OBJECT, &acpi_root);
 
 	if (!result)
 		result = acpi_bus_scan_fixed();
