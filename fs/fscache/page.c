@@ -162,6 +162,7 @@ static void fscache_attr_changed_op(struct fscache_operation *op)
 			fscache_abort_object(object);
 	}
 
+	fscache_op_complete(op);
 	_leave("");
 }
 
@@ -222,6 +223,8 @@ static void fscache_release_retrieval_op(struct fscache_operation *_op)
 		container_of(_op, struct fscache_retrieval, op);
 
 	_enter("{OP%x}", op->op.debug_id);
+
+	ASSERTCMP(op->n_pages, ==, 0);
 
 	fscache_hist(fscache_retrieval_histogram, op->start_time);
 	if (op->context)
@@ -320,6 +323,11 @@ static int fscache_wait_for_retrieval_activation(struct fscache_object *object,
 	_debug("<<< GO");
 
 check_if_dead:
+	if (op->op.state == FSCACHE_OP_ST_CANCELLED) {
+		fscache_stat(stat_object_dead);
+		_leave(" = -ENOBUFS [cancelled]");
+		return -ENOBUFS;
+	}
 	if (unlikely(fscache_object_is_dead(object))) {
 		fscache_stat(stat_object_dead);
 		return -ENOBUFS;
@@ -364,6 +372,7 @@ int __fscache_read_or_alloc_page(struct fscache_cookie *cookie,
 		_leave(" = -ENOMEM");
 		return -ENOMEM;
 	}
+	op->n_pages = 1;
 
 	spin_lock(&cookie->lock);
 
@@ -375,10 +384,10 @@ int __fscache_read_or_alloc_page(struct fscache_cookie *cookie,
 	ASSERTCMP(object->state, >, FSCACHE_OBJECT_LOOKING_UP);
 
 	atomic_inc(&object->n_reads);
-	set_bit(FSCACHE_OP_DEC_READ_CNT, &op->op.flags);
+	__set_bit(FSCACHE_OP_DEC_READ_CNT, &op->op.flags);
 
 	if (fscache_submit_op(object, &op->op) < 0)
-		goto nobufs_unlock;
+		goto nobufs_unlock_dec;
 	spin_unlock(&cookie->lock);
 
 	fscache_stat(&fscache_n_retrieval_ops);
@@ -425,6 +434,8 @@ error:
 	_leave(" = %d", ret);
 	return ret;
 
+nobufs_unlock_dec:
+	atomic_dec(&object->n_reads);
 nobufs_unlock:
 	spin_unlock(&cookie->lock);
 	kfree(op);
@@ -482,6 +493,7 @@ int __fscache_read_or_alloc_pages(struct fscache_cookie *cookie,
 	op = fscache_alloc_retrieval(mapping, end_io_func, context);
 	if (!op)
 		return -ENOMEM;
+	op->n_pages = *nr_pages;
 
 	spin_lock(&cookie->lock);
 
@@ -491,10 +503,10 @@ int __fscache_read_or_alloc_pages(struct fscache_cookie *cookie,
 			     struct fscache_object, cookie_link);
 
 	atomic_inc(&object->n_reads);
-	set_bit(FSCACHE_OP_DEC_READ_CNT, &op->op.flags);
+	__set_bit(FSCACHE_OP_DEC_READ_CNT, &op->op.flags);
 
 	if (fscache_submit_op(object, &op->op) < 0)
-		goto nobufs_unlock;
+		goto nobufs_unlock_dec;
 	spin_unlock(&cookie->lock);
 
 	fscache_stat(&fscache_n_retrieval_ops);
@@ -541,6 +553,8 @@ error:
 	_leave(" = %d", ret);
 	return ret;
 
+nobufs_unlock_dec:
+	atomic_dec(&object->n_reads);
 nobufs_unlock:
 	spin_unlock(&cookie->lock);
 	kfree(op);
@@ -583,6 +597,7 @@ int __fscache_alloc_page(struct fscache_cookie *cookie,
 	op = fscache_alloc_retrieval(page->mapping, NULL, NULL);
 	if (!op)
 		return -ENOMEM;
+	op->n_pages = 1;
 
 	spin_lock(&cookie->lock);
 
@@ -696,6 +711,7 @@ static void fscache_write_op(struct fscache_operation *_op)
 	fscache_end_page_write(object, page);
 	if (ret < 0) {
 		fscache_abort_object(object);
+		fscache_op_complete(&op->op);
 	} else {
 		fscache_enqueue_operation(&op->op);
 	}
@@ -710,6 +726,7 @@ superseded:
 	spin_unlock(&cookie->stores_lock);
 	clear_bit(FSCACHE_OBJECT_PENDING_WRITE, &object->flags);
 	spin_unlock(&object->lock);
+	fscache_op_complete(&op->op);
 	_leave("");
 }
 

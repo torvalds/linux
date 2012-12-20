@@ -587,8 +587,6 @@ static void fscache_object_available(struct fscache_object *object)
 	if (object->n_in_progress == 0) {
 		if (object->n_ops > 0) {
 			ASSERTCMP(object->n_ops, >=, object->n_obj_ops);
-			ASSERTIF(object->n_ops > object->n_obj_ops,
-				 !list_empty(&object->pending_ops));
 			fscache_start_operations(object);
 		} else {
 			ASSERT(list_empty(&object->pending_ops));

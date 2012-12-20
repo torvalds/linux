@@ -75,6 +75,16 @@ extern wait_queue_head_t fscache_cache_cleared_wq;
 typedef void (*fscache_operation_release_t)(struct fscache_operation *op);
 typedef void (*fscache_operation_processor_t)(struct fscache_operation *op);
 
+enum fscache_operation_state {
+	FSCACHE_OP_ST_BLANK,		/* Op is not yet submitted */
+	FSCACHE_OP_ST_INITIALISED,	/* Op is initialised */
+	FSCACHE_OP_ST_PENDING,		/* Op is blocked from running */
+	FSCACHE_OP_ST_IN_PROGRESS,	/* Op is in progress */
+	FSCACHE_OP_ST_COMPLETE,		/* Op is complete */
+	FSCACHE_OP_ST_CANCELLED,	/* Op has been cancelled */
+	FSCACHE_OP_ST_DEAD		/* Op is now dead */
+};
+
 struct fscache_operation {
 	struct work_struct	work;		/* record for async ops */
 	struct list_head	pend_link;	/* link in object->pending_ops */
@@ -86,10 +96,10 @@ struct fscache_operation {
 #define FSCACHE_OP_MYTHREAD	0x0002	/* - processing is done be issuing thread, not pool */
 #define FSCACHE_OP_WAITING	4	/* cleared when op is woken */
 #define FSCACHE_OP_EXCLUSIVE	5	/* exclusive op, other ops must wait */
-#define FSCACHE_OP_DEAD		6	/* op is now dead */
-#define FSCACHE_OP_DEC_READ_CNT	7	/* decrement object->n_reads on destruction */
-#define FSCACHE_OP_KEEP_FLAGS	0xc0	/* flags to keep when repurposing an op */
+#define FSCACHE_OP_DEC_READ_CNT	6	/* decrement object->n_reads on destruction */
+#define FSCACHE_OP_KEEP_FLAGS	0x0070	/* flags to keep when repurposing an op */
 
+	enum fscache_operation_state state;
 	atomic_t		usage;
 	unsigned		debug_id;	/* debugging ID */
 
@@ -106,6 +116,7 @@ extern atomic_t fscache_op_debug_id;
 extern void fscache_op_work_func(struct work_struct *work);
 
 extern void fscache_enqueue_operation(struct fscache_operation *);
+extern void fscache_op_complete(struct fscache_operation *);
 extern void fscache_put_operation(struct fscache_operation *);
 
 /**
@@ -122,6 +133,7 @@ static inline void fscache_operation_init(struct fscache_operation *op,
 {
 	INIT_WORK(&op->work, fscache_op_work_func);
 	atomic_set(&op->usage, 1);
+	op->state = FSCACHE_OP_ST_INITIALISED;
 	op->debug_id = atomic_inc_return(&fscache_op_debug_id);
 	op->processor = processor;
 	op->release = release;
@@ -138,6 +150,7 @@ struct fscache_retrieval {
 	void			*context;	/* netfs read context (pinned) */
 	struct list_head	to_do;		/* list of things to be done by the backend */
 	unsigned long		start_time;	/* time at which retrieval started */
+	unsigned		n_pages;	/* number of pages to be retrieved */
 };
 
 typedef int (*fscache_page_retrieval_func_t)(struct fscache_retrieval *op,
@@ -174,8 +187,22 @@ static inline void fscache_enqueue_retrieval(struct fscache_retrieval *op)
 }
 
 /**
+ * fscache_retrieval_complete - Record (partial) completion of a retrieval
+ * @op: The retrieval operation affected
+ * @n_pages: The number of pages to account for
+ */
+static inline void fscache_retrieval_complete(struct fscache_retrieval *op,
+					      int n_pages)
+{
+	op->n_pages -= n_pages;
+	if (op->n_pages <= 0)
+		fscache_op_complete(&op->op);
+}
+
+/**
  * fscache_put_retrieval - Drop a reference to a retrieval operation
  * @op: The retrieval operation affected
+ * @n_pages: The number of pages to account for
  *
  * Drop a reference to a retrieval operation.
  */
@@ -333,10 +360,10 @@ struct fscache_object {
 
 	int			debug_id;	/* debugging ID */
 	int			n_children;	/* number of child objects */
-	int			n_ops;		/* number of ops outstanding on object */
+	int			n_ops;		/* number of extant ops on object */
 	int			n_obj_ops;	/* number of object ops outstanding on object */
 	int			n_in_progress;	/* number of ops in progress */
-	int			n_exclusive;	/* number of exclusive ops queued */
+	int			n_exclusive;	/* number of exclusive ops queued or in progress */
 	atomic_t		n_reads;	/* number of read ops in progress */
 	spinlock_t		lock;		/* state and operations lock */
 
