@@ -3540,6 +3540,8 @@ int snd_hda_gen_init(struct hda_codec *codec)
 
 	snd_hda_apply_verbs(codec);
 
+	codec->cached_write = 1;
+
 	init_multi_out(codec);
 	init_extra_out(codec);
 	init_multi_io(codec);
@@ -3551,6 +3553,9 @@ int snd_hda_gen_init(struct hda_codec *codec)
 	snd_hda_gen_hp_automute(codec, NULL);
 	snd_hda_gen_line_automute(codec, NULL);
 	snd_hda_gen_mic_autoswitch(codec, NULL);
+
+	snd_hda_codec_flush_amp_cache(codec);
+	snd_hda_codec_flush_cmd_cache(codec);
 
 	if (spec->vmaster_mute.sw_kctl && spec->vmaster_mute.hook)
 		snd_hda_sync_vmaster_hook(&spec->vmaster_mute);
