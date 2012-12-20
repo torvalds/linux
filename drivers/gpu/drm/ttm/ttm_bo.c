@@ -579,7 +579,7 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 		 * at this point the buffer should be dead, so
 		 * no new sync objects can be attached.
 		 */
-		sync_obj = driver->sync_obj_ref(&bo->sync_obj);
+		sync_obj = driver->sync_obj_ref(bo->sync_obj);
 		spin_unlock(&bdev->fence_lock);
 
 		atomic_set(&bo->reserved, 0);
