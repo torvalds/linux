@@ -13,7 +13,7 @@ INT ProcessGetHostMibs(struct bcm_mini_adapter *Adapter, struct bcm_host_stats_m
 {
 	struct bcm_phs_entry *pstServiceFlowEntry = NULL;
 	S_PHS_RULE *pstPhsRule = NULL;
-	S_CLASSIFIER_TABLE *pstClassifierTable = NULL;
+	struct bcm_phs_classifier_table *pstClassifierTable = NULL;
 	S_CLASSIFIER_ENTRY *pstClassifierRule = NULL;
 	struct bcm_phs_extension *pDeviceExtension = (struct bcm_phs_extension *) &Adapter->stBCMPhsContext;
 

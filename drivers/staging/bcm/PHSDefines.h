@@ -66,17 +66,17 @@ typedef struct _S_CLASSIFIER_ENTRY {
 	u8  bUnclassifiedPHSRule;
 } S_CLASSIFIER_ENTRY;
 
-typedef struct _S_CLASSIFIER_TABLE {
+struct bcm_phs_classifier_table {
 	u16 uiTotalClassifiers;
 	S_CLASSIFIER_ENTRY stActivePhsRulesList[MAX_PHSRULE_PER_SF];
 	S_CLASSIFIER_ENTRY stOldPhsRulesList[MAX_PHSRULE_PER_SF];
 	u16 uiOldestPhsRuleIndex;
-} S_CLASSIFIER_TABLE;
+};
 
 struct bcm_phs_entry {
 	u8  bUsed;
 	u16 uiVcid;
-	S_CLASSIFIER_TABLE  *pstClassifierTable;
+	struct bcm_phs_classifier_table *pstClassifierTable;
 };
 
 struct bcm_phs_table {
