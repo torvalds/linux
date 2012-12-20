@@ -46,3 +46,65 @@ int cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
 
 	return err;
 }
+
+void cfg80211_ch_switch_notify(struct net_device *dev,
+			       struct cfg80211_chan_def *chandef)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
+	trace_cfg80211_ch_switch_notify(dev, chandef);
+
+	wdev_lock(wdev);
+
+	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_AP &&
+		    wdev->iftype != NL80211_IFTYPE_P2P_GO))
+		goto out;
+
+	wdev->channel = chandef->chan;
+	nl80211_ch_switch_notify(rdev, dev, chandef, GFP_KERNEL);
+out:
+	wdev_unlock(wdev);
+	return;
+}
+EXPORT_SYMBOL(cfg80211_ch_switch_notify);
+
+bool cfg80211_rx_spurious_frame(struct net_device *dev,
+				const u8 *addr, gfp_t gfp)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	bool ret;
+
+	trace_cfg80211_rx_spurious_frame(dev, addr);
+
+	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_AP &&
+		    wdev->iftype != NL80211_IFTYPE_P2P_GO)) {
+		trace_cfg80211_return_bool(false);
+		return false;
+	}
+	ret = nl80211_unexpected_frame(dev, addr, gfp);
+	trace_cfg80211_return_bool(ret);
+	return ret;
+}
+EXPORT_SYMBOL(cfg80211_rx_spurious_frame);
+
+bool cfg80211_rx_unexpected_4addr_frame(struct net_device *dev,
+					const u8 *addr, gfp_t gfp)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	bool ret;
+
+	trace_cfg80211_rx_unexpected_4addr_frame(dev, addr);
+
+	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_AP &&
+		    wdev->iftype != NL80211_IFTYPE_P2P_GO &&
+		    wdev->iftype != NL80211_IFTYPE_AP_VLAN)) {
+		trace_cfg80211_return_bool(false);
+		return false;
+	}
+	ret = nl80211_unexpected_4addr_frame(dev, addr, gfp);
+	trace_cfg80211_return_bool(ret);
+	return ret;
+}
+EXPORT_SYMBOL(cfg80211_rx_unexpected_4addr_frame);
