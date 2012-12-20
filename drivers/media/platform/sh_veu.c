@@ -266,15 +266,17 @@ static void sh_veu_process(struct sh_veu_dev *veu,
 	sh_veu_reg_write(veu, VEU_DAYR, addr + veu->vfmt_out.offset_y);
 	sh_veu_reg_write(veu, VEU_DACR, veu->vfmt_out.offset_c ?
 			 addr + veu->vfmt_out.offset_c : 0);
-	dev_dbg(veu->dev, "%s(): dst base %x, y: %x, c: %x\n", __func__,
-		addr, veu->vfmt_out.offset_y, veu->vfmt_out.offset_c);
+	dev_dbg(veu->dev, "%s(): dst base %lx, y: %x, c: %x\n", __func__,
+		(unsigned long)addr,
+		veu->vfmt_out.offset_y, veu->vfmt_out.offset_c);
 
 	addr = vb2_dma_contig_plane_dma_addr(src_buf, 0);
 	sh_veu_reg_write(veu, VEU_SAYR, addr + veu->vfmt_in.offset_y);
 	sh_veu_reg_write(veu, VEU_SACR, veu->vfmt_in.offset_c ?
 			 addr + veu->vfmt_in.offset_c : 0);
-	dev_dbg(veu->dev, "%s(): src base %x, y: %x, c: %x\n", __func__,
-		addr, veu->vfmt_in.offset_y, veu->vfmt_in.offset_c);
+	dev_dbg(veu->dev, "%s(): src base %lx, y: %x, c: %x\n", __func__,
+		(unsigned long)addr,
+		veu->vfmt_in.offset_y, veu->vfmt_in.offset_c);
 
 	sh_veu_reg_write(veu, VEU_STR, 1);
 
