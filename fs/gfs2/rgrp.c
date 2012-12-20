@@ -1426,6 +1426,9 @@ static void rg_mblk_search(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip,
 		rs->rs_free = extlen;
 		rs->rs_inum = ip->i_no_addr;
 		rs_insert(ip);
+	} else {
+		if (goal == rgd->rd_last_alloc + rgd->rd_data0)
+			rgd->rd_last_alloc = 0;
 	}
 }
 
