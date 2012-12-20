@@ -48,7 +48,7 @@ typedef struct _S_PHS_RULE {
 	u8 u8RefCnt;
 	u8 bUnclassifiedPHSRule;
 	u8 u8Reserved[3];
-	LONG	PHSModifiedBytes;
+	long PHSModifiedBytes;
 	unsigned long PHSModifiedNumPackets;
 	unsigned long PHSErrorNumPackets;
 } S_PHS_RULE;
