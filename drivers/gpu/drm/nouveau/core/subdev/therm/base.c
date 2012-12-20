@@ -71,6 +71,13 @@ nouveau_therm_update_linear(struct nouveau_therm *therm)
 	u8  temp = therm->temp_get(therm);
 	u16 duty;
 
+	/* handle the non-linear part first */
+	if (temp < linear_min_temp)
+		return priv->fan->bios.min_duty;
+	else if (temp > linear_max_temp)
+		return priv->fan->bios.max_duty;
+
+	/* we are in the linear zone */
 	duty  = (temp - linear_min_temp);
 	duty *= (priv->fan->bios.max_duty - priv->fan->bios.min_duty);
 	duty /= (linear_max_temp - linear_min_temp);
