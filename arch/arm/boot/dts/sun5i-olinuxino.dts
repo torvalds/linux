@@ -12,11 +12,11 @@
  */
 
 /dts-v1/;
-/include/ "sun5i.dtsi"
+/include/ "sun5i-a13.dtsi"
 
 / {
 	model = "Olimex A13-Olinuxino";
-	compatible = "olimex,a13-olinuxino", "allwinner,sun5i";
+	compatible = "olimex,a13-olinuxino", "allwinner,sun5i-a13";
 
 	chosen {
 		bootargs = "earlyprintk console=ttyS0,115200";
