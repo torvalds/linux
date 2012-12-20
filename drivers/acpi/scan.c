@@ -1527,7 +1527,6 @@ end:
 static void acpi_bus_add_power_resource(acpi_handle handle)
 {
 	struct acpi_bus_ops ops = {
-		.acpi_op_add = 1,
 		.acpi_op_start = 1,
 		.acpi_op_match = 1,
 	};
@@ -1581,7 +1580,6 @@ static int acpi_bus_type_and_status(acpi_handle handle, int *type,
 static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl,
 				      void *context, void **return_value)
 {
-	struct acpi_bus_ops *ops = context;
 	struct acpi_device *device = NULL;
 	int type;
 	unsigned long long sta;
@@ -1605,11 +1603,13 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl,
 	}
 
 	acpi_bus_get_device(handle, &device);
-	if (ops->acpi_op_add && !device) {
-		struct acpi_bus_ops add_ops = *ops;
+	if (!device) {
+		struct acpi_bus_ops ops = {
+			.acpi_op_start = !!context,
+			.acpi_op_match = 0,
+		};
 
-		add_ops.acpi_op_match = 0;
-		acpi_add_single_object(&device, handle, type, sta, &add_ops);
+		acpi_add_single_object(&device, handle, type, sta, &ops);
 		if (!device)
 			return AE_CTRL_DEPTH;
 
@@ -1650,17 +1650,18 @@ static acpi_status acpi_bus_device_attach(acpi_handle handle, u32 lvl_not_used,
 	return status;
 }
 
-static int acpi_bus_scan(acpi_handle handle, struct acpi_bus_ops *ops,
+static int acpi_bus_scan(acpi_handle handle, bool start,
 			 struct acpi_device **child)
 {
 	void *device = NULL;
 	acpi_status status;
 	int ret = -ENODEV;
 
-	status = acpi_bus_check_add(handle, 0, ops, &device);
+	status = acpi_bus_check_add(handle, 0, (void *)start, &device);
 	if (ACPI_SUCCESS(status))
 		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
-				    acpi_bus_check_add, NULL, ops, &device);
+				    acpi_bus_check_add, NULL, (void *)start,
+				    &device);
 
 	if (!device)
 		goto out;
@@ -1694,9 +1695,7 @@ int
 acpi_bus_add(struct acpi_device **child,
 	     struct acpi_device *parent, acpi_handle handle, int type)
 {
-	struct acpi_bus_ops ops = { .acpi_op_add = 1, };
-
-	return acpi_bus_scan(handle, &ops, child);
+	return acpi_bus_scan(handle, false, child);
 }
 EXPORT_SYMBOL(acpi_bus_add);
 
@@ -1794,12 +1793,10 @@ static int acpi_bus_scan_fixed(void)
 {
 	int result = 0;
 	struct acpi_device *device = NULL;
-	struct acpi_bus_ops ops;
-
-	memset(&ops, 0, sizeof(ops));
-	ops.acpi_op_add = 1;
-	ops.acpi_op_start = 1;
-	ops.acpi_op_match = 1;
+	struct acpi_bus_ops ops = {
+		.acpi_op_start = 1,
+		.acpi_op_match = 1,
+	};
 
 	/*
 	 * Enumerate all fixed-feature devices.
@@ -1825,11 +1822,6 @@ static int acpi_bus_scan_fixed(void)
 int __init acpi_scan_init(void)
 {
 	int result;
-	struct acpi_bus_ops ops;
-
-	memset(&ops, 0, sizeof(ops));
-	ops.acpi_op_add = 1;
-	ops.acpi_op_start = 1;
 
 	result = bus_register(&acpi_bus_type);
 	if (result) {
@@ -1843,7 +1835,7 @@ int __init acpi_scan_init(void)
 	/*
 	 * Enumerate devices in the ACPI namespace.
 	 */
-	result = acpi_bus_scan(ACPI_ROOT_OBJECT, &ops, &acpi_root);
+	result = acpi_bus_scan(ACPI_ROOT_OBJECT, true, &acpi_root);
 
 	if (!result)
 		result = acpi_bus_scan_fixed();
