@@ -3621,12 +3621,9 @@ static void seg_setup(int seg)
 	vmcs_write16(sf->selector, 0);
 	vmcs_writel(sf->base, 0);
 	vmcs_write32(sf->limit, 0xffff);
-	if (enable_unrestricted_guest) {
-		ar = 0x93;
-		if (seg == VCPU_SREG_CS)
-			ar |= 0x08; /* code segment */
-	} else
-		ar = 0xf3;
+	ar = 0x93;
+	if (seg == VCPU_SREG_CS)
+		ar |= 0x08; /* code segment */
 
 	vmcs_write32(sf->ar_bytes, ar);
 }
@@ -3967,14 +3964,9 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 	vmx_segment_cache_clear(vmx);
 
 	seg_setup(VCPU_SREG_CS);
-	/*
-	 * GUEST_CS_BASE should really be 0xffff0000, but VT vm86 mode
-	 * insists on having GUEST_CS_BASE == GUEST_CS_SELECTOR << 4.  Sigh.
-	 */
-	if (kvm_vcpu_is_bsp(&vmx->vcpu)) {
+	if (kvm_vcpu_is_bsp(&vmx->vcpu))
 		vmcs_write16(GUEST_CS_SELECTOR, 0xf000);
-		vmcs_writel(GUEST_CS_BASE, 0x000f0000);
-	} else {
+	else {
 		vmcs_write16(GUEST_CS_SELECTOR, vmx->vcpu.arch.sipi_vector << 8);
 		vmcs_writel(GUEST_CS_BASE, vmx->vcpu.arch.sipi_vector << 12);
 	}
