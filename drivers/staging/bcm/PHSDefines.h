@@ -84,11 +84,11 @@ typedef struct _S_SERVICEFLOW_TABLE {
 	S_SERVICEFLOW_ENTRY stSFList[MAX_SERVICEFLOWS];
 } S_SERVICEFLOW_TABLE;
 
-typedef struct _PHS_DEVICE_EXTENSION {
+struct bcm_phs_extension {
 	/* PHS Specific data */
 	S_SERVICEFLOW_TABLE *pstServiceFlowPhsRulesTable;
 	void *CompressedTxBuffer;
 	void *UnCompressedRxBuffer;
-} PHS_DEVICE_EXTENSION, *PPHS_DEVICE_EXTENSION;
+};
 
 #endif

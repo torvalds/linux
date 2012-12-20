@@ -333,7 +333,7 @@ struct bcm_mini_adapter {
 	/* BOOLEAN			bTriedToWakeUpFromShutdown; */
 	BOOLEAN			bLinkDownRequested;
 	int			downloadDDR;
-	PHS_DEVICE_EXTENSION	stBCMPhsContext;
+	struct bcm_phs_extension stBCMPhsContext;
 	struct bcm_hdr_suppression_contextinfo stPhsTxContextInfo;
 	uint8_t			ucaPHSPktRestoreBuf[2048];
 	uint8_t			bPHSEnabled;

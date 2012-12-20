@@ -22,12 +22,12 @@ void DumpDataPacketHeader(PUCHAR pPkt);
 
 void DumpFullPacket(UCHAR *pBuf,UINT nPktLen);
 
-void DumpPhsRules(PPHS_DEVICE_EXTENSION pDeviceExtension);
+void DumpPhsRules(struct bcm_phs_extension *pDeviceExtension);
 
 
-int phs_init(PPHS_DEVICE_EXTENSION pPhsdeviceExtension,struct bcm_mini_adapter *Adapter);
+int phs_init(struct bcm_phs_extension *pPhsdeviceExtension,struct bcm_mini_adapter *Adapter);
 
-int PhsCleanup(PPHS_DEVICE_EXTENSION pPHSDeviceExt);
+int PhsCleanup(struct bcm_phs_extension *pPHSDeviceExt);
 
 //Utility Functions
 ULONG PhsUpdateClassifierRule(void* pvContext,B_UINT16 uiVcid,B_UINT16 uiClsId,S_PHS_RULE *psPhsRule,B_UINT8  u8AssociatedPHSI );
@@ -44,7 +44,7 @@ BOOLEAN ValidatePHSRule(S_PHS_RULE *psPhsRule);
 UINT GetServiceFlowEntry(S_SERVICEFLOW_TABLE *psServiceFlowTable,B_UINT16 uiVcid,S_SERVICEFLOW_ENTRY **ppstServiceFlowEntry);
 
 
-void DumpPhsRules(PPHS_DEVICE_EXTENSION pDeviceExtension);
+void DumpPhsRules(struct bcm_phs_extension *pDeviceExtension);
 
 
 #endif

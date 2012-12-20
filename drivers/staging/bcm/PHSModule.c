@@ -291,7 +291,7 @@ void DumpFullPacket(UCHAR *pBuf,UINT nPktLen)
 // TRUE(1)	-If allocation of memory was success full.
 // FALSE	-If allocation of memory fails.
 //-----------------------------------------------------------------------------
-int phs_init(PPHS_DEVICE_EXTENSION pPhsdeviceExtension, struct bcm_mini_adapter *Adapter)
+int phs_init(struct bcm_phs_extension *pPhsdeviceExtension, struct bcm_mini_adapter *Adapter)
 {
 	int i;
 	S_SERVICEFLOW_TABLE *pstServiceFlowTable;
@@ -351,7 +351,7 @@ int phs_init(PPHS_DEVICE_EXTENSION pPhsdeviceExtension, struct bcm_mini_adapter 
 }
 
 
-int PhsCleanup(IN PPHS_DEVICE_EXTENSION pPHSDeviceExt)
+int PhsCleanup(IN struct bcm_phs_extension *pPHSDeviceExt)
 {
 	if(pPHSDeviceExt->pstServiceFlowPhsRulesTable)
 	{
@@ -402,7 +402,7 @@ ULONG PhsUpdateClassifierRule(IN void* pvContext,
 
 
 
-	PPHS_DEVICE_EXTENSION pDeviceExtension= (PPHS_DEVICE_EXTENSION)pvContext;
+	struct bcm_phs_extension *pDeviceExtension= (struct bcm_phs_extension *)pvContext;
 
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL,"PHS With Corr2 Changes \n");
 
@@ -465,7 +465,7 @@ ULONG PhsDeletePHSRule(IN void* pvContext,IN B_UINT16 uiVcid,IN B_UINT8 u8PHSI)
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
 
-	PPHS_DEVICE_EXTENSION pDeviceExtension= (PPHS_DEVICE_EXTENSION)pvContext;
+	struct bcm_phs_extension *pDeviceExtension= (struct bcm_phs_extension *)pvContext;
 
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL, "======>\n");
 
@@ -529,7 +529,7 @@ ULONG PhsDeleteClassifierRule(IN void* pvContext,IN B_UINT16 uiVcid ,IN B_UINT16
 	S_SERVICEFLOW_ENTRY *pstServiceFlowEntry = NULL;
 	S_CLASSIFIER_ENTRY *pstClassifierEntry = NULL;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
-	PPHS_DEVICE_EXTENSION pDeviceExtension= (PPHS_DEVICE_EXTENSION)pvContext;
+	struct bcm_phs_extension *pDeviceExtension= (struct bcm_phs_extension *)pvContext;
 
 	if(pDeviceExtension)
 	{
@@ -593,7 +593,7 @@ ULONG PhsDeleteSFRules(IN void* pvContext,IN B_UINT16 uiVcid)
 	S_SERVICEFLOW_ENTRY *pstServiceFlowEntry = NULL;
 	S_CLASSIFIER_TABLE *pstClassifierRulesTable = NULL;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
-	PPHS_DEVICE_EXTENSION pDeviceExtension= (PPHS_DEVICE_EXTENSION)pvContext;
+	struct bcm_phs_extension *pDeviceExtension= (struct bcm_phs_extension *)pvContext;
     BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL,"====> \n");
 
 	if(pDeviceExtension)
@@ -688,7 +688,7 @@ ULONG PhsCompress(IN void* pvContext,
 
 
 
-	PPHS_DEVICE_EXTENSION pDeviceExtension= (PPHS_DEVICE_EXTENSION)pvContext;
+	struct bcm_phs_extension *pDeviceExtension= (struct bcm_phs_extension *)pvContext;
 
 
 	if(pDeviceExtension == NULL)
@@ -779,8 +779,8 @@ ULONG PhsDeCompress(IN void* pvContext,
 	S_PHS_RULE *pstPhsRule = NULL;
 	UINT phsi;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
-	PPHS_DEVICE_EXTENSION pDeviceExtension=
-        (PPHS_DEVICE_EXTENSION)pvContext;
+	struct bcm_phs_extension *pDeviceExtension=
+        (struct bcm_phs_extension *)pvContext;
 
 	*pInHeaderSize = 0;
 
@@ -1331,7 +1331,7 @@ static BOOLEAN DerefPhsRule(IN B_UINT16  uiClsId,S_CLASSIFIER_TABLE *psaClassifi
 	}
 }
 
-void DumpPhsRules(PPHS_DEVICE_EXTENSION pDeviceExtension)
+void DumpPhsRules(struct bcm_phs_extension *pDeviceExtension)
 {
 	int i,j,k,l;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
