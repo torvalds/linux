@@ -312,4 +312,14 @@ static inline long disable_reloc_on_exceptions(void) {
 	return plpar_set_mode(0, 3, 0, 0);
 }
 
+static inline long plapr_set_ciabr(unsigned long ciabr)
+{
+	return plpar_set_mode(0, 1, ciabr, 0);
+}
+
+static inline long plapr_set_watchpoint0(unsigned long dawr0, unsigned long dawrx0)
+{
+	return plpar_set_mode(0, 2, dawr0, dawrx0);
+}
+
 #endif /* _PSERIES_PLPAR_WRAPPERS_H */
