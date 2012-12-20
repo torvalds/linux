@@ -127,20 +127,9 @@ static int handle_skey(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static int handle_stsch(struct kvm_vcpu *vcpu)
+static int handle_io_inst(struct kvm_vcpu *vcpu)
 {
-	vcpu->stat.instruction_stsch++;
-	VCPU_EVENT(vcpu, 4, "%s", "store subchannel - CC3");
-	/* condition code 3 */
-	vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);
-	vcpu->arch.sie_block->gpsw.mask |= (3 & 3ul) << 44;
-	return 0;
-}
-
-static int handle_chsc(struct kvm_vcpu *vcpu)
-{
-	vcpu->stat.instruction_chsc++;
-	VCPU_EVENT(vcpu, 4, "%s", "channel subsystem call - CC3");
+	VCPU_EVENT(vcpu, 4, "%s", "I/O instruction");
 	/* condition code 3 */
 	vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);
 	vcpu->arch.sie_block->gpsw.mask |= (3 & 3ul) << 44;
@@ -375,7 +364,7 @@ out_fail:
 	return 0;
 }
 
-static const intercept_handler_t priv_handlers[256] = {
+static const intercept_handler_t b2_handlers[256] = {
 	[0x02] = handle_stidp,
 	[0x10] = handle_set_prefix,
 	[0x11] = handle_store_prefix,
@@ -383,8 +372,22 @@ static const intercept_handler_t priv_handlers[256] = {
 	[0x29] = handle_skey,
 	[0x2a] = handle_skey,
 	[0x2b] = handle_skey,
-	[0x34] = handle_stsch,
-	[0x5f] = handle_chsc,
+	[0x30] = handle_io_inst,
+	[0x31] = handle_io_inst,
+	[0x32] = handle_io_inst,
+	[0x33] = handle_io_inst,
+	[0x34] = handle_io_inst,
+	[0x35] = handle_io_inst,
+	[0x36] = handle_io_inst,
+	[0x37] = handle_io_inst,
+	[0x38] = handle_io_inst,
+	[0x39] = handle_io_inst,
+	[0x3a] = handle_io_inst,
+	[0x3b] = handle_io_inst,
+	[0x3c] = handle_io_inst,
+	[0x5f] = handle_io_inst,
+	[0x74] = handle_io_inst,
+	[0x76] = handle_io_inst,
 	[0x7d] = handle_stsi,
 	[0xb1] = handle_stfl,
 	[0xb2] = handle_lpswe,
@@ -401,7 +404,7 @@ int kvm_s390_handle_b2(struct kvm_vcpu *vcpu)
 	 * state bit and (a) handle the instruction or (b) send a code 2
 	 * program check.
 	 * Anything else goes to userspace.*/
-	handler = priv_handlers[vcpu->arch.sie_block->ipa & 0x00ff];
+	handler = b2_handlers[vcpu->arch.sie_block->ipa & 0x00ff];
 	if (handler) {
 		if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 			return kvm_s390_inject_program_int(vcpu,
@@ -432,6 +435,7 @@ static int handle_epsw(struct kvm_vcpu *vcpu)
 
 static const intercept_handler_t b9_handlers[256] = {
 	[0x8d] = handle_epsw,
+	[0x9c] = handle_io_inst,
 };
 
 int kvm_s390_handle_b9(struct kvm_vcpu *vcpu)
@@ -448,6 +452,24 @@ int kvm_s390_handle_b9(struct kvm_vcpu *vcpu)
 		else
 			return handler(vcpu);
 	}
+	return -EOPNOTSUPP;
+}
+
+static const intercept_handler_t eb_handlers[256] = {
+	[0x8a] = handle_io_inst,
+};
+
+int kvm_s390_handle_priv_eb(struct kvm_vcpu *vcpu)
+{
+	intercept_handler_t handler;
+
+	/* All eb instructions that end up here are privileged. */
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+		return kvm_s390_inject_program_int(vcpu,
+						   PGM_PRIVILEGED_OPERATION);
+	handler = eb_handlers[vcpu->arch.sie_block->ipb & 0xff];
+	if (handler)
+		return handler(vcpu);
 	return -EOPNOTSUPP;
 }
 

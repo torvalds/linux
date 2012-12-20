@@ -30,8 +30,6 @@ static int handle_lctlg(struct kvm_vcpu *vcpu)
 	int reg, rc;
 
 	vcpu->stat.instruction_lctlg++;
-	if ((vcpu->arch.sie_block->ipb & 0xff) != 0x2f)
-		return -EOPNOTSUPP;
 
 	useraddr = kvm_s390_get_base_disp_rsy(vcpu);
 
@@ -95,6 +93,21 @@ static int handle_lctl(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static const intercept_handler_t eb_handlers[256] = {
+	[0x2f] = handle_lctlg,
+	[0x8a] = kvm_s390_handle_priv_eb,
+};
+
+static int handle_eb(struct kvm_vcpu *vcpu)
+{
+	intercept_handler_t handler;
+
+	handler = eb_handlers[vcpu->arch.sie_block->ipb & 0xff];
+	if (handler)
+		return handler(vcpu);
+	return -EOPNOTSUPP;
+}
+
 static const intercept_handler_t instruction_handlers[256] = {
 	[0x01] = kvm_s390_handle_01,
 	[0x82] = kvm_s390_handle_lpsw,
@@ -104,7 +117,7 @@ static const intercept_handler_t instruction_handlers[256] = {
 	[0xb7] = handle_lctl,
 	[0xb9] = kvm_s390_handle_b9,
 	[0xe5] = kvm_s390_handle_e5,
-	[0xeb] = handle_lctlg,
+	[0xeb] = handle_eb,
 };
 
 static int handle_noop(struct kvm_vcpu *vcpu)
