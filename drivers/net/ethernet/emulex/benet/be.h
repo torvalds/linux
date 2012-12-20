@@ -616,7 +616,7 @@ static inline bool be_error(struct be_adapter *adapter)
 	return adapter->eeh_error || adapter->hw_error || adapter->fw_timeout;
 }
 
-static inline bool be_crit_error(struct be_adapter *adapter)
+static inline bool be_hw_error(struct be_adapter *adapter)
 {
 	return adapter->eeh_error || adapter->hw_error;
 }

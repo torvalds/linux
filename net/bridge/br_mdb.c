@@ -83,9 +83,12 @@ static int br_mdb_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 				if (port) {
 					struct br_mdb_entry e;
 					e.ifindex = port->dev->ifindex;
-					e.addr.u.ip4 = p->addr.u.ip4;
+					e.state = p->state;
+					if (p->addr.proto == htons(ETH_P_IP))
+						e.addr.u.ip4 = p->addr.u.ip4;
 #if IS_ENABLED(CONFIG_IPV6)
-					e.addr.u.ip6 = p->addr.u.ip6;
+					if (p->addr.proto == htons(ETH_P_IPV6))
+						e.addr.u.ip6 = p->addr.u.ip6;
 #endif
 					e.addr.proto = p->addr.proto;
 					if (nla_put(skb, MDBA_MDB_ENTRY_INFO, sizeof(e), &e)) {
@@ -253,6 +256,8 @@ static bool is_valid_mdb_entry(struct br_mdb_entry *entry)
 #endif
 	} else
 		return false;
+	if (entry->state != MDB_PERMANENT && entry->state != MDB_TEMPORARY)
+		return false;
 
 	return true;
 }
@@ -310,7 +315,7 @@ static int br_mdb_parse(struct sk_buff *skb, struct nlmsghdr *nlh,
 }
 
 static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
-			    struct br_ip *group)
+			    struct br_ip *group, unsigned char state)
 {
 	struct net_bridge_mdb_entry *mp;
 	struct net_bridge_port_group *p;
@@ -336,7 +341,7 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 			break;
 	}
 
-	p = br_multicast_new_port_group(port, group, *pp);
+	p = br_multicast_new_port_group(port, group, *pp, state);
 	if (unlikely(!p))
 		return -ENOMEM;
 	rcu_assign_pointer(*pp, p);
@@ -373,7 +378,7 @@ static int __br_mdb_add(struct net *net, struct net_bridge *br,
 #endif
 
 	spin_lock_bh(&br->multicast_lock);
-	ret = br_mdb_add_group(br, p, &ip);
+	ret = br_mdb_add_group(br, p, &ip, entry->state);
 	spin_unlock_bh(&br->multicast_lock);
 	return ret;
 }
@@ -478,4 +483,11 @@ void br_mdb_init(void)
 	rtnl_register(PF_BRIDGE, RTM_GETMDB, NULL, br_mdb_dump, NULL);
 	rtnl_register(PF_BRIDGE, RTM_NEWMDB, br_mdb_add, NULL, NULL);
 	rtnl_register(PF_BRIDGE, RTM_DELMDB, br_mdb_del, NULL, NULL);
+}
+
+void br_mdb_uninit(void)
+{
+	rtnl_unregister(PF_BRIDGE, RTM_GETMDB);
+	rtnl_unregister(PF_BRIDGE, RTM_NEWMDB);
+	rtnl_unregister(PF_BRIDGE, RTM_DELMDB);
 }

@@ -279,7 +279,7 @@ static void br_multicast_port_group_expired(unsigned long data)
 
 	spin_lock(&br->multicast_lock);
 	if (!netif_running(br->dev) || timer_pending(&pg->timer) ||
-	    hlist_unhashed(&pg->mglist))
+	    hlist_unhashed(&pg->mglist) || pg->state & MDB_PERMANENT)
 		goto out;
 
 	br_multicast_del_pg(br, pg);
@@ -622,7 +622,8 @@ out:
 struct net_bridge_port_group *br_multicast_new_port_group(
 			struct net_bridge_port *port,
 			struct br_ip *group,
-			struct net_bridge_port_group __rcu *next)
+			struct net_bridge_port_group __rcu *next,
+			unsigned char state)
 {
 	struct net_bridge_port_group *p;
 
@@ -632,6 +633,7 @@ struct net_bridge_port_group *br_multicast_new_port_group(
 
 	p->addr = *group;
 	p->port = port;
+	p->state = state;
 	rcu_assign_pointer(p->next, next);
 	hlist_add_head(&p->mglist, &port->mglist);
 	setup_timer(&p->timer, br_multicast_port_group_expired,
@@ -674,7 +676,7 @@ static int br_multicast_add_group(struct net_bridge *br,
 			break;
 	}
 
-	p = br_multicast_new_port_group(port, group, *pp);
+	p = br_multicast_new_port_group(port, group, *pp, MDB_TEMPORARY);
 	if (unlikely(!p))
 		goto err;
 	rcu_assign_pointer(*pp, p);
@@ -1165,7 +1167,6 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 		if (max_delay)
 			group = &mld->mld_mca;
 	} else if (skb->len >= sizeof(*mld2q)) {
-		u16 mrc;
 		if (!pskb_may_pull(skb, sizeof(*mld2q))) {
 			err = -EINVAL;
 			goto out;
@@ -1173,8 +1174,7 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 		mld2q = (struct mld2_query *)icmp6_hdr(skb);
 		if (!mld2q->mld2q_nsrcs)
 			group = &mld2q->mld2q_mca;
-		mrc = ntohs(mld2q->mld2q_mrc);
-		max_delay = mrc ? MLDV2_MRC(mrc) : 1;
+		max_delay = mld2q->mld2q_mrc ? MLDV2_MRC(ntohs(mld2q->mld2q_mrc)) : 1;
 	}
 
 	if (!group)
@@ -1633,6 +1633,7 @@ void br_multicast_stop(struct net_bridge *br)
 	del_timer_sync(&br->multicast_querier_timer);
 	del_timer_sync(&br->multicast_query_timer);
 
+	br_mdb_uninit();
 	spin_lock_bh(&br->multicast_lock);
 	mdb = mlock_dereference(br->mdb, br);
 	if (!mdb)

@@ -1689,15 +1689,41 @@ static void be_rx_cq_clean(struct be_rx_obj *rxo)
 	struct be_queue_info *rxq = &rxo->q;
 	struct be_queue_info *rx_cq = &rxo->cq;
 	struct be_rx_compl_info *rxcp;
+	struct be_adapter *adapter = rxo->adapter;
+	int flush_wait = 0;
 	u16 tail;
 
-	/* First cleanup pending rx completions */
-	while ((rxcp = be_rx_compl_get(rxo)) != NULL) {
-		be_rx_compl_discard(rxo, rxcp);
-		be_cq_notify(rxo->adapter, rx_cq->id, false, 1);
+	/* Consume pending rx completions.
+	 * Wait for the flush completion (identified by zero num_rcvd)
+	 * to arrive. Notify CQ even when there are no more CQ entries
+	 * for HW to flush partially coalesced CQ entries.
+	 * In Lancer, there is no need to wait for flush compl.
+	 */
+	for (;;) {
+		rxcp = be_rx_compl_get(rxo);
+		if (rxcp == NULL) {
+			if (lancer_chip(adapter))
+				break;
+
+			if (flush_wait++ > 10 || be_hw_error(adapter)) {
+				dev_warn(&adapter->pdev->dev,
+					 "did not receive flush compl\n");
+				break;
+			}
+			be_cq_notify(adapter, rx_cq->id, true, 0);
+			mdelay(1);
+		} else {
+			be_rx_compl_discard(rxo, rxcp);
+			be_cq_notify(adapter, rx_cq->id, true, 1);
+			if (rxcp->num_rcvd == 0)
+				break;
+		}
 	}
 
-	/* Then free posted rx buffer that were not used */
+	/* After cleanup, leave the CQ in unarmed state */
+	be_cq_notify(adapter, rx_cq->id, false, 0);
+
+	/* Then free posted rx buffers that were not used */
 	tail = (rxq->head + rxq->len - atomic_read(&rxq->used)) % rxq->len;
 	for (; atomic_read(&rxq->used) > 0; index_inc(&tail, rxq->len)) {
 		page_info = get_rx_page_info(rxo, tail);
@@ -2157,7 +2183,7 @@ void be_detect_error(struct be_adapter *adapter)
 	u32 sliport_status = 0, sliport_err1 = 0, sliport_err2 = 0;
 	u32 i;
 
-	if (be_crit_error(adapter))
+	if (be_hw_error(adapter))
 		return;
 
 	if (lancer_chip(adapter)) {
@@ -2398,13 +2424,22 @@ static int be_close(struct net_device *netdev)
 
 	be_roce_dev_close(adapter);
 
-	be_async_mcc_disable(adapter);
-
 	if (!lancer_chip(adapter))
 		be_intr_set(adapter, false);
 
-	for_all_evt_queues(adapter, eqo, i) {
+	for_all_evt_queues(adapter, eqo, i)
 		napi_disable(&eqo->napi);
+
+	be_async_mcc_disable(adapter);
+
+	/* Wait for all pending tx completions to arrive so that
+	 * all tx skbs are freed.
+	 */
+	be_tx_compl_clean(adapter);
+
+	be_rx_qs_destroy(adapter);
+
+	for_all_evt_queues(adapter, eqo, i) {
 		if (msix_enabled(adapter))
 			synchronize_irq(be_msix_vec_get(adapter, eqo));
 		else
@@ -2414,12 +2449,6 @@ static int be_close(struct net_device *netdev)
 
 	be_irq_unregister(adapter);
 
-	/* Wait for all pending tx completions to arrive so that
-	 * all tx skbs are freed.
-	 */
-	be_tx_compl_clean(adapter);
-
-	be_rx_qs_destroy(adapter);
 	return 0;
 }
 

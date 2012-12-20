@@ -445,13 +445,10 @@ static int
 qlcnic_set_function_modes(struct qlcnic_adapter *adapter)
 {
 	u8 id;
-	u32 ref_count;
 	int i, ret = 1;
 	u32 data = QLCNIC_MGMT_FUNC;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 
-	/* If other drivers are not in use set their privilege level */
-	ref_count = QLCRD32(adapter, QLCNIC_CRB_DRV_ACTIVE);
 	ret = qlcnic_api_lock(adapter);
 	if (ret)
 		goto err_lock;
@@ -531,11 +528,9 @@ static int qlcnic_setup_pci_map(struct pci_dev *pdev,
 {
 	u32 offset;
 	void __iomem *mem_ptr0 = NULL;
-	resource_size_t mem_base;
 	unsigned long mem_len, pci_len0 = 0, bar0_len;
 
 	/* remap phys address */
-	mem_base = pci_resource_start(pdev, 0);	/* 0 is for BAR 0 */
 	mem_len = pci_resource_len(pdev, 0);
 
 	qlcnic_get_bar_length(pdev->device, &bar0_len);

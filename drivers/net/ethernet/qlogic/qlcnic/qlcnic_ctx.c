@@ -134,7 +134,7 @@ int qlcnic_fw_cmd_get_minidump_temp(struct qlcnic_adapter *adapter)
 	__le32 *tmp_buf;
 	struct qlcnic_cmd_args cmd;
 	struct qlcnic_hardware_context *ahw;
-	struct qlcnic_dump_template_hdr *tmpl_hdr, *tmp_tmpl;
+	struct qlcnic_dump_template_hdr *tmpl_hdr;
 	dma_addr_t tmp_addr_t = 0;
 
 	ahw = adapter->ahw;
@@ -150,6 +150,8 @@ int qlcnic_fw_cmd_get_minidump_temp(struct qlcnic_adapter *adapter)
 	}
 	temp_size = cmd.rsp.arg2;
 	version = cmd.rsp.arg3;
+	dev_info(&adapter->pdev->dev,
+		 "minidump template version = 0x%x", version);
 	if (!temp_size)
 		return -EIO;
 
@@ -174,7 +176,6 @@ int qlcnic_fw_cmd_get_minidump_temp(struct qlcnic_adapter *adapter)
 		err = -EIO;
 		goto error;
 	}
-	tmp_tmpl = tmp_addr;
 	ahw->fw_dump.tmpl_hdr = vzalloc(temp_size);
 	if (!ahw->fw_dump.tmpl_hdr) {
 		err = -EIO;

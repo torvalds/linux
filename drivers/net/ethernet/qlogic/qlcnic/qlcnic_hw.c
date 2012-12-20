@@ -365,7 +365,7 @@ static int
 qlcnic_send_cmd_descs(struct qlcnic_adapter *adapter,
 		struct cmd_desc_type0 *cmd_desc_arr, int nr_desc)
 {
-	u32 i, producer, consumer;
+	u32 i, producer;
 	struct qlcnic_cmd_buffer *pbuf;
 	struct cmd_desc_type0 *cmd_desc;
 	struct qlcnic_host_tx_ring *tx_ring;
@@ -379,7 +379,6 @@ qlcnic_send_cmd_descs(struct qlcnic_adapter *adapter,
 	__netif_tx_lock_bh(tx_ring->txq);
 
 	producer = tx_ring->producer;
-	consumer = tx_ring->sw_consumer;
 
 	if (nr_desc >= qlcnic_tx_avail(tx_ring)) {
 		netif_tx_stop_queue(tx_ring->txq);
@@ -402,7 +401,7 @@ qlcnic_send_cmd_descs(struct qlcnic_adapter *adapter,
 		pbuf->frag_count = 0;
 
 		memcpy(&tx_ring->desc_head[producer],
-			&cmd_desc_arr[i], sizeof(struct cmd_desc_type0));
+		       cmd_desc, sizeof(struct cmd_desc_type0));
 
 		producer = get_next_index(producer, tx_ring->num_desc);
 		i++;
