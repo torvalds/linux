@@ -3471,6 +3471,7 @@ static struct omap_clk omap3xxx_clks[] = {
 	CLK("usbhs_tll",	"usb_tll_hs_usb_ch1_clk",	&dummy_ck),
 	CLK(NULL,	"init_60m_fclk",	&dummy_ck),
 	CLK(NULL,	"gpt1_fck",	&gpt1_fck),
+	CLK(NULL,	"aes2_ick",	&aes2_ick),
 	CLK(NULL,	"wkup_32k_fck",	&wkup_32k_fck),
 	CLK(NULL,	"gpio1_dbck",	&gpio1_dbck),
 	CLK(NULL,	"sha12_ick",	&sha12_ick),

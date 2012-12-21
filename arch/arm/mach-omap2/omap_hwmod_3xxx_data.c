@@ -3610,6 +3610,67 @@ static struct omap_hwmod_ocp_if omap3xxx_l4_core__sham = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+/* l4_core -> AES */
+static struct omap_hwmod_sysc_fields omap3xxx_aes_sysc_fields = {
+	.sidle_shift	= 6,
+	.srst_shift	= 1,
+	.autoidle_shift	= 0,
+};
+
+static struct omap_hwmod_class_sysconfig omap3_aes_sysc = {
+	.rev_offs	= 0x44,
+	.sysc_offs	= 0x48,
+	.syss_offs	= 0x4c,
+	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET |
+			   SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.sysc_fields	= &omap3xxx_aes_sysc_fields,
+};
+
+static struct omap_hwmod_class omap3xxx_aes_class = {
+	.name	= "aes",
+	.sysc	= &omap3_aes_sysc,
+};
+
+static struct omap_hwmod_dma_info omap3_aes_sdma_reqs[] = {
+	{ .name = "tx", .dma_req = OMAP34XX_DMA_AES2_TX, },
+	{ .name = "rx", .dma_req = OMAP34XX_DMA_AES2_RX, },
+	{ .dma_req = -1 }
+};
+
+static struct omap_hwmod omap3xxx_aes_hwmod = {
+	.name		= "aes",
+	.sdma_reqs	= omap3_aes_sdma_reqs,
+	.main_clk	= "aes2_ick",
+	.prcm		= {
+		.omap2 = {
+			.module_offs = CORE_MOD,
+			.prcm_reg_id = 1,
+			.module_bit = OMAP3430_EN_AES2_SHIFT,
+			.idlest_reg_id = 1,
+			.idlest_idle_bit = OMAP3430_ST_AES2_SHIFT,
+		},
+	},
+	.class		= &omap3xxx_aes_class,
+};
+
+static struct omap_hwmod_addr_space omap3xxx_aes_addrs[] = {
+	{
+		.pa_start	= 0x480c5000,
+		.pa_end		= 0x480c5000 + 0x50 - 1,
+		.flags		= ADDR_TYPE_RT
+	},
+	{ }
+};
+
+static struct omap_hwmod_ocp_if omap3xxx_l4_core__aes = {
+	.master		= &omap3xxx_l4_core_hwmod,
+	.slave		= &omap3xxx_aes_hwmod,
+	.clk		= "aes2_ick",
+	.addr		= omap3xxx_aes_addrs,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
 static struct omap_hwmod_ocp_if *omap3xxx_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_l3_main__l4_core,
 	&omap3xxx_l3_main__l4_per,
@@ -3664,25 +3725,29 @@ static struct omap_hwmod_ocp_if *omap3xxx_hwmod_ocp_ifs[] __initdata = {
 static struct omap_hwmod_ocp_if *omap34xx_gp_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_l4_sec__timer12,
 	&omap3xxx_l4_core__sham,
+	&omap3xxx_l4_core__aes,
 	NULL
 };
 
 static struct omap_hwmod_ocp_if *omap36xx_gp_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_l4_sec__timer12,
 	&omap3xxx_l4_core__sham,
+	&omap3xxx_l4_core__aes,
 	NULL
 };
 
 static struct omap_hwmod_ocp_if *am35xx_gp_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_l4_sec__timer12,
 	/*
-	 * Apparently the SHA/MD5 accelerator IP block is only present
-	 * on some AM35xx chips, and no one knows which ones.  See
+	 * Apparently the SHA/MD5 and AES accelerator IP blocks are
+	 * only present on some AM35xx chips, and no one knows which
+	 * ones.  See
 	 * http://www.spinics.net/lists/arm-kernel/msg215466.html So
-	 * if you need this IP block on an AM35xx, try uncommenting
-	 * the next line.
+	 * if you need these IP blocks on an AM35xx, try uncommenting
+	 * the following lines.
 	 */
 	/* &omap3xxx_l4_core__sham, */
+	/* &omap3xxx_l4_core__aes, */
 	NULL
 };
 
