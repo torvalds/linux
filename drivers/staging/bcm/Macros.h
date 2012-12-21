@@ -163,9 +163,9 @@
 #define GPIO_PIN_STATE_REGISTER  0x0F000038
 
 struct bcm_link_state {
-	UCHAR ucLinkStatus;
-	UCHAR bIdleMode;
-	UCHAR bShutdownMode;
+	unsigned char ucLinkStatus;
+	unsigned char bIdleMode;
+	unsigned char bShutdownMode;
 };
 
 enum enLinkStatus {
