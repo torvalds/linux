@@ -179,6 +179,8 @@ struct pwm_device *of_pwm_get(struct device_node *np, const char *con_id);
 void pwm_put(struct pwm_device *pwm);
 
 struct pwm_device *devm_pwm_get(struct device *dev, const char *con_id);
+struct pwm_device *devm_of_pwm_get(struct device *dev, struct device_node *np,
+				   const char *con_id);
 void devm_pwm_put(struct device *dev, struct pwm_device *pwm);
 #else
 static inline int pwm_set_chip_data(struct pwm_device *pwm, void *data)
@@ -226,6 +228,13 @@ static inline void pwm_put(struct pwm_device *pwm)
 
 static inline struct pwm_device *devm_pwm_get(struct device *dev,
 					      const char *consumer)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline struct pwm_device *devm_of_pwm_get(struct device *dev,
+						 struct device_node *np,
+						 const char *con_id)
 {
 	return ERR_PTR(-ENODEV);
 }

@@ -708,6 +708,36 @@ struct pwm_device *devm_pwm_get(struct device *dev, const char *con_id)
 }
 EXPORT_SYMBOL_GPL(devm_pwm_get);
 
+/**
+ * devm_of_pwm_get() - resource managed of_pwm_get()
+ * @dev: device for PWM consumer
+ * @np: device node to get the PWM from
+ * @con_id: consumer name
+ *
+ * This function performs like of_pwm_get() but the acquired PWM device will
+ * automatically be released on driver detach.
+ */
+struct pwm_device *devm_of_pwm_get(struct device *dev, struct device_node *np,
+				   const char *con_id)
+{
+	struct pwm_device **ptr, *pwm;
+
+	ptr = devres_alloc(devm_pwm_release, sizeof(**ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	pwm = of_pwm_get(np, con_id);
+	if (!IS_ERR(pwm)) {
+		*ptr = pwm;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return pwm;
+}
+EXPORT_SYMBOL_GPL(devm_of_pwm_get);
+
 static int devm_pwm_match(struct device *dev, void *res, void *data)
 {
 	struct pwm_device **p = res;
