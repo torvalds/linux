@@ -1107,6 +1107,10 @@ static int soc_probe_codec(struct snd_soc_card *card,
 				"ASoC: failed to probe CODEC %d\n", ret);
 			goto err_probe;
 		}
+		WARN(codec->dapm.idle_bias_off &&
+			codec->dapm.bias_level != SND_SOC_BIAS_OFF,
+			"codec %s can not start from non-off bias"
+			" with idle_bias_off==1\n", codec->name);
 	}
 
 	/* If the driver didn't set I/O up try regmap */
