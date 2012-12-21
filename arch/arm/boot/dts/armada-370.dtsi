@@ -47,6 +47,18 @@
 		pinctrl {
 			compatible = "marvell,mv88f6710-pinctrl";
 			reg = <0xd0018000 0x38>;
+
+			sdio_pins1: sdio-pins1 {
+			      marvell,pins = "mpp9",  "mpp11", "mpp12",
+					     "mpp13", "mpp14", "mpp15";
+			      marvell,function = "sd0";
+			};
+
+			sdio_pins2: sdio-pins2 {
+			      marvell,pins = "mpp47", "mpp48", "mpp49",
+					     "mpp50", "mpp51", "mpp52";
+			      marvell,function = "sd0";
+			};
 	        };
 
 		gpio0: gpio@d0018100 {
