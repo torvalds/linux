@@ -331,11 +331,11 @@ typedef enum eNVM_TYPE {
 	NVM_UNKNOWN
 } NVM_TYPE;
 
-typedef enum ePMU_MODES {
+enum bcm_pmu_modes {
 	HYBRID_MODE_7C  = 0,
 	INTERNAL_MODE_6 = 1,
 	HYBRID_MODE_6   = 2
-} PMU_MODE;
+};
 
 #define MAX_RDM_WRM_RETIRES 1
 
