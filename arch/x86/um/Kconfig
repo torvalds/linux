@@ -13,8 +13,7 @@ endmenu
 config UML_X86
 	def_bool y
 	select GENERIC_FIND_FIRST_BIT
-	select GENERIC_KERNEL_THREAD
-	select GENERIC_KERNEL_EXECVE
+	select GENERIC_SIGALTSTACK
 
 config 64BIT
 	bool "64-bit kernel" if SUBARCH = "x86"

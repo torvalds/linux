@@ -344,6 +344,10 @@ static inline void user_single_step_siginfo(struct task_struct *tsk,
 #define signal_pt_regs() task_pt_regs(current)
 #endif
 
+#ifndef current_user_stack_pointer
+#define current_user_stack_pointer() user_stack_pointer(current_pt_regs())
+#endif
+
 extern int task_current_syscall(struct task_struct *target, long *callno,
 				unsigned long args[6], unsigned int maxargs,
 				unsigned long *sp, unsigned long *pc);

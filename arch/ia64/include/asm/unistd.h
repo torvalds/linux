@@ -29,7 +29,6 @@
 
 #define __ARCH_WANT_SYS_RT_SIGACTION
 #define __ARCH_WANT_SYS_RT_SIGSUSPEND
-#define __ARCH_WANT_SYS_EXECVE
 
 #if !defined(__ASSEMBLY__) && !defined(ASSEMBLER)
 

@@ -291,12 +291,6 @@ config ARCH_WANT_OLD_COMPAT_IPC
 	select ARCH_WANT_COMPAT_IPC_PARSE_VERSION
 	bool
 
-config GENERIC_KERNEL_THREAD
-	bool
-
-config GENERIC_KERNEL_EXECVE
-	bool
-
 config HAVE_ARCH_SECCOMP_FILTER
 	bool
 	help
@@ -361,6 +355,9 @@ config MODULES_USE_ELF_REL
 	help
 	  Modules only use ELF REL relocations.  Modules with ELF RELA
 	  relocations will give an error.
+
+config GENERIC_SIGALTSTACK
+	bool
 
 #
 # ABI hall of shame

@@ -119,8 +119,4 @@ extern void install_exec_creds(struct linux_binprm *bprm);
 extern void set_binfmt(struct linux_binfmt *new);
 extern void free_bprm(struct linux_binprm *);
 
-#ifdef __ARCH_WANT_KERNEL_EXECVE
-extern void ret_from_kernel_execve(struct pt_regs *normal) __noreturn;
-#endif
-
 #endif /* _LINUX_BINFMTS_H */

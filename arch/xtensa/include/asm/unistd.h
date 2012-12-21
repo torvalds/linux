@@ -1,7 +1,6 @@
 #ifndef _XTENSA_UNISTD_H
 #define _XTENSA_UNISTD_H
 
-#define __ARCH_WANT_SYS_EXECVE
 #define __ARCH_WANT_SYS_CLONE
 #include <uapi/asm/unistd.h>
 

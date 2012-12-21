@@ -739,7 +739,6 @@ ENTRY(ptregs_##name) ; \
 ENDPROC(ptregs_##name)
 
 PTREGSCALL1(iopl)
-PTREGSCALL2(sigaltstack)
 PTREGSCALL0(sigreturn)
 PTREGSCALL0(rt_sigreturn)
 PTREGSCALL2(vm86)

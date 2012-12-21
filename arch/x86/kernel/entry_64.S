@@ -864,7 +864,6 @@ END(stub_\func)
 	FORK_LIKE  clone
 	FORK_LIKE  fork
 	FORK_LIKE  vfork
-	PTREGSCALL stub_sigaltstack, sys_sigaltstack, %rdx
 	PTREGSCALL stub_iopl, sys_iopl, %rsi
 
 ENTRY(ptregscall_common)
@@ -913,8 +912,6 @@ ENTRY(stub_rt_sigreturn)
 END(stub_rt_sigreturn)
 
 #ifdef CONFIG_X86_X32_ABI
-	PTREGSCALL stub_x32_sigaltstack, sys32_sigaltstack, %rdx
-
 ENTRY(stub_x32_rt_sigreturn)
 	CFI_STARTPROC
 	addq $8, %rsp
