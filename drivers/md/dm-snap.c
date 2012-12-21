@@ -1682,7 +1682,7 @@ static int snapshot_merge_map(struct dm_target *ti, struct bio *bio,
 	chunk_t chunk;
 
 	if (bio->bi_rw & REQ_FLUSH) {
-		if (!map_context->target_request_nr)
+		if (!dm_bio_get_target_request_nr(bio))
 			bio->bi_bdev = s->origin->bdev;
 		else
 			bio->bi_bdev = s->cow->bdev;

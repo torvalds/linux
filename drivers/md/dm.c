@@ -1099,6 +1099,7 @@ static struct dm_target_io *alloc_tio(struct clone_info *ci,
 	tio->io = ci->io;
 	tio->ti = ti;
 	memset(&tio->info, 0, sizeof(tio->info));
+	tio->target_request_nr = 0;
 
 	return tio;
 }
@@ -1109,7 +1110,7 @@ static void __issue_target_request(struct clone_info *ci, struct dm_target *ti,
 	struct dm_target_io *tio = alloc_tio(ci, ti, ci->bio->bi_max_vecs);
 	struct bio *clone = &tio->clone;
 
-	tio->info.target_request_nr = request_nr;
+	tio->target_request_nr = request_nr;
 
 	/*
 	 * Discard requests require the bio's inline iovecs be initialized.
