@@ -775,6 +775,10 @@ struct ca0132_spec {
 	long effects_switch[EFFECTS_COUNT];
 	long voicefx_val;
 	long cur_mic_boost;
+
+#ifdef ENABLE_TUNING_CONTROLS
+	long cur_ctl_vals[TUNING_CTLS_COUNT];
+#endif
 };
 
 /*
@@ -2871,6 +2875,284 @@ static int ca0132_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 	return 0;
 }
 
+/* The followings are for tuning of products */
+#ifdef ENABLE_TUNING_CONTROLS
+
+static unsigned int voice_focus_vals_lookup[] = {
+0x41A00000, 0x41A80000, 0x41B00000, 0x41B80000, 0x41C00000, 0x41C80000,
+0x41D00000, 0x41D80000, 0x41E00000, 0x41E80000, 0x41F00000, 0x41F80000,
+0x42000000, 0x42040000, 0x42080000, 0x420C0000, 0x42100000, 0x42140000,
+0x42180000, 0x421C0000, 0x42200000, 0x42240000, 0x42280000, 0x422C0000,
+0x42300000, 0x42340000, 0x42380000, 0x423C0000, 0x42400000, 0x42440000,
+0x42480000, 0x424C0000, 0x42500000, 0x42540000, 0x42580000, 0x425C0000,
+0x42600000, 0x42640000, 0x42680000, 0x426C0000, 0x42700000, 0x42740000,
+0x42780000, 0x427C0000, 0x42800000, 0x42820000, 0x42840000, 0x42860000,
+0x42880000, 0x428A0000, 0x428C0000, 0x428E0000, 0x42900000, 0x42920000,
+0x42940000, 0x42960000, 0x42980000, 0x429A0000, 0x429C0000, 0x429E0000,
+0x42A00000, 0x42A20000, 0x42A40000, 0x42A60000, 0x42A80000, 0x42AA0000,
+0x42AC0000, 0x42AE0000, 0x42B00000, 0x42B20000, 0x42B40000, 0x42B60000,
+0x42B80000, 0x42BA0000, 0x42BC0000, 0x42BE0000, 0x42C00000, 0x42C20000,
+0x42C40000, 0x42C60000, 0x42C80000, 0x42CA0000, 0x42CC0000, 0x42CE0000,
+0x42D00000, 0x42D20000, 0x42D40000, 0x42D60000, 0x42D80000, 0x42DA0000,
+0x42DC0000, 0x42DE0000, 0x42E00000, 0x42E20000, 0x42E40000, 0x42E60000,
+0x42E80000, 0x42EA0000, 0x42EC0000, 0x42EE0000, 0x42F00000, 0x42F20000,
+0x42F40000, 0x42F60000, 0x42F80000, 0x42FA0000, 0x42FC0000, 0x42FE0000,
+0x43000000, 0x43010000, 0x43020000, 0x43030000, 0x43040000, 0x43050000,
+0x43060000, 0x43070000, 0x43080000, 0x43090000, 0x430A0000, 0x430B0000,
+0x430C0000, 0x430D0000, 0x430E0000, 0x430F0000, 0x43100000, 0x43110000,
+0x43120000, 0x43130000, 0x43140000, 0x43150000, 0x43160000, 0x43170000,
+0x43180000, 0x43190000, 0x431A0000, 0x431B0000, 0x431C0000, 0x431D0000,
+0x431E0000, 0x431F0000, 0x43200000, 0x43210000, 0x43220000, 0x43230000,
+0x43240000, 0x43250000, 0x43260000, 0x43270000, 0x43280000, 0x43290000,
+0x432A0000, 0x432B0000, 0x432C0000, 0x432D0000, 0x432E0000, 0x432F0000,
+0x43300000, 0x43310000, 0x43320000, 0x43330000, 0x43340000
+};
+
+static unsigned int mic_svm_vals_lookup[] = {
+0x00000000, 0x3C23D70A, 0x3CA3D70A, 0x3CF5C28F, 0x3D23D70A, 0x3D4CCCCD,
+0x3D75C28F, 0x3D8F5C29, 0x3DA3D70A, 0x3DB851EC, 0x3DCCCCCD, 0x3DE147AE,
+0x3DF5C28F, 0x3E051EB8, 0x3E0F5C29, 0x3E19999A, 0x3E23D70A, 0x3E2E147B,
+0x3E3851EC, 0x3E428F5C, 0x3E4CCCCD, 0x3E570A3D, 0x3E6147AE, 0x3E6B851F,
+0x3E75C28F, 0x3E800000, 0x3E851EB8, 0x3E8A3D71, 0x3E8F5C29, 0x3E947AE1,
+0x3E99999A, 0x3E9EB852, 0x3EA3D70A, 0x3EA8F5C3, 0x3EAE147B, 0x3EB33333,
+0x3EB851EC, 0x3EBD70A4, 0x3EC28F5C, 0x3EC7AE14, 0x3ECCCCCD, 0x3ED1EB85,
+0x3ED70A3D, 0x3EDC28F6, 0x3EE147AE, 0x3EE66666, 0x3EEB851F, 0x3EF0A3D7,
+0x3EF5C28F, 0x3EFAE148, 0x3F000000, 0x3F028F5C, 0x3F051EB8, 0x3F07AE14,
+0x3F0A3D71, 0x3F0CCCCD, 0x3F0F5C29, 0x3F11EB85, 0x3F147AE1, 0x3F170A3D,
+0x3F19999A, 0x3F1C28F6, 0x3F1EB852, 0x3F2147AE, 0x3F23D70A, 0x3F266666,
+0x3F28F5C3, 0x3F2B851F, 0x3F2E147B, 0x3F30A3D7, 0x3F333333, 0x3F35C28F,
+0x3F3851EC, 0x3F3AE148, 0x3F3D70A4, 0x3F400000, 0x3F428F5C, 0x3F451EB8,
+0x3F47AE14, 0x3F4A3D71, 0x3F4CCCCD, 0x3F4F5C29, 0x3F51EB85, 0x3F547AE1,
+0x3F570A3D, 0x3F59999A, 0x3F5C28F6, 0x3F5EB852, 0x3F6147AE, 0x3F63D70A,
+0x3F666666, 0x3F68F5C3, 0x3F6B851F, 0x3F6E147B, 0x3F70A3D7, 0x3F733333,
+0x3F75C28F, 0x3F7851EC, 0x3F7AE148, 0x3F7D70A4, 0x3F800000
+};
+
+static unsigned int equalizer_vals_lookup[] = {
+0xC1C00000, 0xC1B80000, 0xC1B00000, 0xC1A80000, 0xC1A00000, 0xC1980000,
+0xC1900000, 0xC1880000, 0xC1800000, 0xC1700000, 0xC1600000, 0xC1500000,
+0xC1400000, 0xC1300000, 0xC1200000, 0xC1100000, 0xC1000000, 0xC0E00000,
+0xC0C00000, 0xC0A00000, 0xC0800000, 0xC0400000, 0xC0000000, 0xBF800000,
+0x00000000, 0x3F800000, 0x40000000, 0x40400000, 0x40800000, 0x40A00000,
+0x40C00000, 0x40E00000, 0x41000000, 0x41100000, 0x41200000, 0x41300000,
+0x41400000, 0x41500000, 0x41600000, 0x41700000, 0x41800000, 0x41880000,
+0x41900000, 0x41980000, 0x41A00000, 0x41A80000, 0x41B00000, 0x41B80000,
+0x41C00000
+};
+
+static int tuning_ctl_set(struct hda_codec *codec, hda_nid_t nid,
+			  unsigned int *lookup, int idx)
+{
+	int i = 0;
+
+	for (i = 0; i < TUNING_CTLS_COUNT; i++)
+		if (nid == ca0132_tuning_ctls[i].nid)
+			break;
+
+	snd_hda_power_up(codec);
+	dspio_set_param(codec, ca0132_tuning_ctls[i].mid,
+			ca0132_tuning_ctls[i].req,
+			&(lookup[idx]), sizeof(unsigned int));
+	snd_hda_power_down(codec);
+
+	return 1;
+}
+
+static int tuning_ctl_get(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ca0132_spec *spec = codec->spec;
+	hda_nid_t nid = get_amp_nid(kcontrol);
+	long *valp = ucontrol->value.integer.value;
+	int idx = nid - TUNING_CTL_START_NID;
+
+	*valp = spec->cur_ctl_vals[idx];
+	return 0;
+}
+
+static int voice_focus_ctl_info(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_info *uinfo)
+{
+	int chs = get_amp_channels(kcontrol);
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = chs == 3 ? 2 : 1;
+	uinfo->value.integer.min = 20;
+	uinfo->value.integer.max = 180;
+	uinfo->value.integer.step = 1;
+
+	return 0;
+}
+
+static int voice_focus_ctl_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ca0132_spec *spec = codec->spec;
+	hda_nid_t nid = get_amp_nid(kcontrol);
+	long *valp = ucontrol->value.integer.value;
+	int idx;
+
+	idx = nid - TUNING_CTL_START_NID;
+	/* any change? */
+	if (spec->cur_ctl_vals[idx] == *valp)
+		return 0;
+
+	spec->cur_ctl_vals[idx] = *valp;
+
+	idx = *valp - 20;
+	tuning_ctl_set(codec, nid, voice_focus_vals_lookup, idx);
+
+	return 1;
+}
+
+static int mic_svm_ctl_info(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_info *uinfo)
+{
+	int chs = get_amp_channels(kcontrol);
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = chs == 3 ? 2 : 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 100;
+	uinfo->value.integer.step = 1;
+
+	return 0;
+}
+
+static int mic_svm_ctl_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ca0132_spec *spec = codec->spec;
+	hda_nid_t nid = get_amp_nid(kcontrol);
+	long *valp = ucontrol->value.integer.value;
+	int idx;
+
+	idx = nid - TUNING_CTL_START_NID;
+	/* any change? */
+	if (spec->cur_ctl_vals[idx] == *valp)
+		return 0;
+
+	spec->cur_ctl_vals[idx] = *valp;
+
+	idx = *valp;
+	tuning_ctl_set(codec, nid, mic_svm_vals_lookup, idx);
+
+	return 0;
+}
+
+static int equalizer_ctl_info(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_info *uinfo)
+{
+	int chs = get_amp_channels(kcontrol);
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = chs == 3 ? 2 : 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 48;
+	uinfo->value.integer.step = 1;
+
+	return 0;
+}
+
+static int equalizer_ctl_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ca0132_spec *spec = codec->spec;
+	hda_nid_t nid = get_amp_nid(kcontrol);
+	long *valp = ucontrol->value.integer.value;
+	int idx;
+
+	idx = nid - TUNING_CTL_START_NID;
+	/* any change? */
+	if (spec->cur_ctl_vals[idx] == *valp)
+		return 0;
+
+	spec->cur_ctl_vals[idx] = *valp;
+
+	idx = *valp;
+	tuning_ctl_set(codec, nid, equalizer_vals_lookup, idx);
+
+	return 1;
+}
+
+static const DECLARE_TLV_DB_SCALE(voice_focus_db_scale, 2000, 100, 0);
+static const DECLARE_TLV_DB_SCALE(eq_db_scale, -2400, 100, 0);
+
+static int add_tuning_control(struct hda_codec *codec,
+				hda_nid_t pnid, hda_nid_t nid,
+				const char *name, int dir)
+{
+	char namestr[44];
+	int type = dir ? HDA_INPUT : HDA_OUTPUT;
+	struct snd_kcontrol_new knew =
+		HDA_CODEC_VOLUME_MONO(namestr, nid, 1, 0, type);
+
+	knew.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			SNDRV_CTL_ELEM_ACCESS_TLV_READ;
+	knew.tlv.c = 0;
+	knew.tlv.p = 0;
+	switch (pnid) {
+	case VOICE_FOCUS:
+		knew.info = voice_focus_ctl_info;
+		knew.get = tuning_ctl_get;
+		knew.put = voice_focus_ctl_put;
+		knew.tlv.p = voice_focus_db_scale;
+		break;
+	case MIC_SVM:
+		knew.info = mic_svm_ctl_info;
+		knew.get = tuning_ctl_get;
+		knew.put = mic_svm_ctl_put;
+		break;
+	case EQUALIZER:
+		knew.info = equalizer_ctl_info;
+		knew.get = tuning_ctl_get;
+		knew.put = equalizer_ctl_put;
+		knew.tlv.p = eq_db_scale;
+		break;
+	default:
+		return 0;
+	}
+	knew.private_value =
+		HDA_COMPOSE_AMP_VAL(nid, 1, 0, type);
+	sprintf(namestr, "%s %s Volume", name, dirstr[dir]);
+	return snd_hda_ctl_add(codec, nid, snd_ctl_new1(&knew, codec));
+}
+
+static int add_tuning_ctls(struct hda_codec *codec)
+{
+	int i;
+	int err;
+
+	for (i = 0; i < TUNING_CTLS_COUNT; i++) {
+		err = add_tuning_control(codec,
+					ca0132_tuning_ctls[i].parent_nid,
+					ca0132_tuning_ctls[i].nid,
+					ca0132_tuning_ctls[i].name,
+					ca0132_tuning_ctls[i].direct);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
+static void ca0132_init_tuning_defaults(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+	int i;
+
+	/* Wedge Angle defaults to 30.  10 below is 30 - 20.  20 is min. */
+	spec->cur_ctl_vals[WEDGE_ANGLE - TUNING_CTL_START_NID] = 10;
+	/* SVM level defaults to 0.74. */
+	spec->cur_ctl_vals[SVM_LEVEL - TUNING_CTL_START_NID] = 74;
+
+	/* EQ defaults to 0dB. */
+	for (i = 2; i < TUNING_CTLS_COUNT; i++)
+		spec->cur_ctl_vals[i] = 24;
+}
+#endif /*ENABLE_TUNING_CONTROLS*/
+
 /*
  * Select the active output.
  * If autodetect is enabled, output will be selected based on jack detection.
@@ -3805,6 +4087,10 @@ static int ca0132_build_controls(struct hda_codec *codec)
 
 	add_voicefx(codec);
 
+#ifdef ENABLE_TUNING_CONTROLS
+	add_tuning_ctls(codec);
+#endif
+
 	err = snd_hda_jack_add_kctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
@@ -4184,6 +4470,9 @@ static void ca0132_init_chip(struct hda_codec *codec)
 	spec->effects_switch[PLAY_ENHANCEMENT - EFFECT_START_NID] = 1;
 	spec->effects_switch[CRYSTAL_VOICE - EFFECT_START_NID] = 0;
 
+#ifdef ENABLE_TUNING_CONTROLS
+	ca0132_init_tuning_defaults(codec);
+#endif
 }
 
 static void ca0132_exit_chip(struct hda_codec *codec)
