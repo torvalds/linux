@@ -1445,6 +1445,8 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	else
 		queue_flag_clear_unlocked(QUEUE_FLAG_NONROT, q);
 
+	q->limits.max_write_same_sectors = 0;
+
 	dm_table_set_integrity(t);
 
 	/*
