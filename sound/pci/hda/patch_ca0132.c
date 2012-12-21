@@ -673,43 +673,6 @@ enum ca0132_sample_rate {
 	SR_RATE_UNKNOWN = 0x1F
 };
 
-static void init_output(struct hda_codec *codec, hda_nid_t pin, hda_nid_t dac)
-{
-	if (pin) {
-		snd_hda_codec_write(codec, pin, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP);
-		if (get_wcaps(codec, pin) & AC_WCAP_OUT_AMP)
-			snd_hda_codec_write(codec, pin, 0,
-					    AC_VERB_SET_AMP_GAIN_MUTE,
-					    AMP_OUT_UNMUTE);
-	}
-	if (dac && (get_wcaps(codec, dac) & AC_WCAP_OUT_AMP))
-		snd_hda_codec_write(codec, dac, 0,
-				    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO);
-}
-
-static void init_input(struct hda_codec *codec, hda_nid_t pin, hda_nid_t adc)
-{
-	if (pin) {
-		snd_hda_codec_write(codec, pin, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80);
-		if (get_wcaps(codec, pin) & AC_WCAP_IN_AMP)
-			snd_hda_codec_write(codec, pin, 0,
-					    AC_VERB_SET_AMP_GAIN_MUTE,
-					    AMP_IN_UNMUTE(0));
-	}
-	if (adc && (get_wcaps(codec, adc) & AC_WCAP_IN_AMP)) {
-		snd_hda_codec_write(codec, adc, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-				    AMP_IN_UNMUTE(0));
-
-		/* init to 0 dB and unmute. */
-		snd_hda_codec_amp_stereo(codec, adc, HDA_INPUT, 0,
-					 HDA_AMP_VOLMASK, 0x5a);
-		snd_hda_codec_amp_stereo(codec, adc, HDA_INPUT, 0,
-					 HDA_AMP_MUTE, 0);
-	}
-}
-
 enum dsp_download_state {
 	DSP_DOWNLOAD_FAILED = -1,
 	DSP_DOWNLOAD_INIT   = 0,
@@ -4115,6 +4078,43 @@ static int ca0132_build_pcms(struct hda_codec *codec)
 	return 0;
 }
 
+static void init_output(struct hda_codec *codec, hda_nid_t pin, hda_nid_t dac)
+{
+	if (pin) {
+		snd_hda_codec_write(codec, pin, 0,
+				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP);
+		if (get_wcaps(codec, pin) & AC_WCAP_OUT_AMP)
+			snd_hda_codec_write(codec, pin, 0,
+					    AC_VERB_SET_AMP_GAIN_MUTE,
+					    AMP_OUT_UNMUTE);
+	}
+	if (dac && (get_wcaps(codec, dac) & AC_WCAP_OUT_AMP))
+		snd_hda_codec_write(codec, dac, 0,
+				    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO);
+}
+
+static void init_input(struct hda_codec *codec, hda_nid_t pin, hda_nid_t adc)
+{
+	if (pin) {
+		snd_hda_codec_write(codec, pin, 0,
+				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80);
+		if (get_wcaps(codec, pin) & AC_WCAP_IN_AMP)
+			snd_hda_codec_write(codec, pin, 0,
+					    AC_VERB_SET_AMP_GAIN_MUTE,
+					    AMP_IN_UNMUTE(0));
+	}
+	if (adc && (get_wcaps(codec, adc) & AC_WCAP_IN_AMP)) {
+		snd_hda_codec_write(codec, adc, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+				    AMP_IN_UNMUTE(0));
+
+		/* init to 0 dB and unmute. */
+		snd_hda_codec_amp_stereo(codec, adc, HDA_INPUT, 0,
+					 HDA_AMP_VOLMASK, 0x5a);
+		snd_hda_codec_amp_stereo(codec, adc, HDA_INPUT, 0,
+					 HDA_AMP_MUTE, 0);
+	}
+}
+
 static void ca0132_init_unsol(struct hda_codec *codec)
 {
 	snd_hda_jack_detect_enable(codec, UNSOL_TAG_HP, UNSOL_TAG_HP);
@@ -4380,45 +4380,6 @@ static void ca0132_download_dsp(struct hda_codec *codec)
 		ca0132_set_dsp_msr(codec, true);
 }
 
-static void ca0132_config(struct hda_codec *codec)
-{
-	struct ca0132_spec *spec = codec->spec;
-	struct auto_pin_cfg *cfg = &spec->autocfg;
-
-	spec->dacs[0] = 0x2;
-	spec->dacs[1] = 0x3;
-	spec->dacs[2] = 0x4;
-
-	spec->multiout.dac_nids = spec->dacs;
-	spec->multiout.num_dacs = 3;
-	spec->multiout.max_channels = 2;
-
-	spec->num_outputs = 2;
-	spec->out_pins[0] = 0x0b; /* speaker out */
-	spec->out_pins[1] = 0x10; /* headphone out */
-	spec->shared_out_nid = 0x2;
-
-	spec->num_inputs = 3;
-	spec->adcs[0] = 0x7; /* digital mic / analog mic1 */
-	spec->adcs[1] = 0x8; /* analog mic2 */
-	spec->adcs[2] = 0xa; /* what u hear */
-	spec->shared_mic_nid = 0x7;
-
-	spec->input_pins[0] = 0x12;
-	spec->input_pins[1] = 0x11;
-	spec->input_pins[2] = 0x13;
-
-	/* SPDIF I/O */
-	spec->dig_out = 0x05;
-	spec->multiout.dig_out_nid = spec->dig_out;
-	cfg->dig_out_pins[0] = 0x0c;
-	cfg->dig_outs = 1;
-	cfg->dig_out_type[0] = HDA_PCM_TYPE_SPDIF;
-	spec->dig_in = 0x09;
-	cfg->dig_in_pin = 0x0e;
-	cfg->dig_in_type = HDA_PCM_TYPE_SPDIF;
-}
-
 static void ca0132_process_dsp_response(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
@@ -4639,6 +4600,45 @@ static struct hda_codec_ops ca0132_patch_ops = {
 	.free = ca0132_free,
 	.unsol_event = ca0132_unsol_event,
 };
+
+static void ca0132_config(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+
+	spec->dacs[0] = 0x2;
+	spec->dacs[1] = 0x3;
+	spec->dacs[2] = 0x4;
+
+	spec->multiout.dac_nids = spec->dacs;
+	spec->multiout.num_dacs = 3;
+	spec->multiout.max_channels = 2;
+
+	spec->num_outputs = 2;
+	spec->out_pins[0] = 0x0b; /* speaker out */
+	spec->out_pins[1] = 0x10; /* headphone out */
+	spec->shared_out_nid = 0x2;
+
+	spec->num_inputs = 3;
+	spec->adcs[0] = 0x7; /* digital mic / analog mic1 */
+	spec->adcs[1] = 0x8; /* analog mic2 */
+	spec->adcs[2] = 0xa; /* what u hear */
+	spec->shared_mic_nid = 0x7;
+
+	spec->input_pins[0] = 0x12;
+	spec->input_pins[1] = 0x11;
+	spec->input_pins[2] = 0x13;
+
+	/* SPDIF I/O */
+	spec->dig_out = 0x05;
+	spec->multiout.dig_out_nid = spec->dig_out;
+	cfg->dig_out_pins[0] = 0x0c;
+	cfg->dig_outs = 1;
+	cfg->dig_out_type[0] = HDA_PCM_TYPE_SPDIF;
+	spec->dig_in = 0x09;
+	cfg->dig_in_pin = 0x0e;
+	cfg->dig_in_type = HDA_PCM_TYPE_SPDIF;
+}
 
 static int patch_ca0132(struct hda_codec *codec)
 {
