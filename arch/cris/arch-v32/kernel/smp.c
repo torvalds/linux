@@ -84,7 +84,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		cpumask_set_cpu(i, &phys_cpu_present_map);
 }
 
-void __devinit smp_prepare_boot_cpu(void)
+void smp_prepare_boot_cpu(void)
 {
 	/* PGD pointer has moved after per_cpu initialization so
 	 * update the MMU.
