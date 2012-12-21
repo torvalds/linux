@@ -12,6 +12,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/gpio.h>
@@ -122,6 +123,7 @@ struct mt9p031 {
 	struct mutex power_lock; /* lock to protect power_count */
 	int power_count;
 
+	struct clk *clk;
 	struct regulator *vaa;
 	struct regulator *vdd;
 	struct regulator *vdd_io;
@@ -200,7 +202,7 @@ static int mt9p031_reset(struct mt9p031 *mt9p031)
 					  0);
 }
 
-static int mt9p031_pll_setup(struct mt9p031 *mt9p031)
+static int mt9p031_clk_setup(struct mt9p031 *mt9p031)
 {
 	static const struct aptina_pll_limits limits = {
 		.ext_clock_min = 6000000,
@@ -220,6 +222,12 @@ static int mt9p031_pll_setup(struct mt9p031 *mt9p031)
 
 	struct i2c_client *client = v4l2_get_subdevdata(&mt9p031->subdev);
 	struct mt9p031_platform_data *pdata = mt9p031->pdata;
+
+	mt9p031->clk = devm_clk_get(&client->dev, NULL);
+	if (IS_ERR(mt9p031->clk))
+		return PTR_ERR(mt9p031->clk);
+
+	clk_set_rate(mt9p031->clk, pdata->ext_freq);
 
 	mt9p031->pll.ext_clock = pdata->ext_freq;
 	mt9p031->pll.pix_clock = pdata->target_freq;
@@ -275,9 +283,8 @@ static int mt9p031_power_on(struct mt9p031 *mt9p031)
 	regulator_enable(mt9p031->vaa);
 
 	/* Emable clock */
-	if (mt9p031->pdata->set_xclk)
-		mt9p031->pdata->set_xclk(&mt9p031->subdev,
-					 mt9p031->pdata->ext_freq);
+	if (mt9p031->clk)
+		clk_prepare_enable(mt9p031->clk);
 
 	/* Now RESET_BAR must be high */
 	if (mt9p031->reset != -1) {
@@ -299,8 +306,8 @@ static void mt9p031_power_off(struct mt9p031 *mt9p031)
 	regulator_disable(mt9p031->vdd_io);
 	regulator_disable(mt9p031->vdd);
 
-	if (mt9p031->pdata->set_xclk)
-		mt9p031->pdata->set_xclk(&mt9p031->subdev, 0);
+	if (mt9p031->clk)
+		clk_disable_unprepare(mt9p031->clk);
 }
 
 static int __mt9p031_set_power(struct mt9p031 *mt9p031, bool on)
@@ -1033,7 +1040,7 @@ static int mt9p031_probe(struct i2c_client *client,
 		mt9p031->reset = pdata->reset;
 	}
 
-	ret = mt9p031_pll_setup(mt9p031);
+	ret = mt9p031_clk_setup(mt9p031);
 
 done:
 	if (ret < 0) {
