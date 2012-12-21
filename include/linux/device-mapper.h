@@ -210,6 +210,12 @@ struct dm_target {
 	 */
 	unsigned num_write_same_requests;
 
+	/*
+	 * The minimum number of extra bytes allocated in each bio for the
+	 * target to use.  dm_per_bio_data returns the data location.
+	 */
+	unsigned per_bio_data_size;
+
 	/* target specific data */
 	void *private;
 
@@ -245,6 +251,30 @@ struct dm_target_callbacks {
 	struct list_head list;
 	int (*congested_fn) (struct dm_target_callbacks *, int);
 };
+
+/*
+ * For bio-based dm.
+ * One of these is allocated for each bio.
+ * This structure shouldn't be touched directly by target drivers.
+ * It is here so that we can inline dm_per_bio_data and
+ * dm_bio_from_per_bio_data
+ */
+struct dm_target_io {
+	struct dm_io *io;
+	struct dm_target *ti;
+	union map_info info;
+	struct bio clone;
+};
+
+static inline void *dm_per_bio_data(struct bio *bio, size_t data_size)
+{
+	return (char *)bio - offsetof(struct dm_target_io, clone) - data_size;
+}
+
+static inline struct bio *dm_bio_from_per_bio_data(void *data, size_t data_size)
+{
+	return (struct bio *)((char *)data + data_size + offsetof(struct dm_target_io, clone));
+}
 
 int dm_register_target(struct target_type *t);
 void dm_unregister_target(struct target_type *t);
