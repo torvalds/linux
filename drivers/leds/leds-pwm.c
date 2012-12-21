@@ -30,6 +30,11 @@ struct led_pwm_data {
 	unsigned int		period;
 };
 
+struct led_pwm_priv {
+	int num_leds;
+	struct led_pwm_data leds[0];
+};
+
 static void led_pwm_set(struct led_classdev *led_cdev,
 	enum led_brightness brightness)
 {
@@ -47,25 +52,29 @@ static void led_pwm_set(struct led_classdev *led_cdev,
 	}
 }
 
+static inline size_t sizeof_pwm_leds_priv(int num_leds)
+{
+	return sizeof(struct led_pwm_priv) +
+		      (sizeof(struct led_pwm_data) * num_leds);
+}
+
 static int led_pwm_probe(struct platform_device *pdev)
 {
 	struct led_pwm_platform_data *pdata = pdev->dev.platform_data;
-	struct led_pwm *cur_led;
-	struct led_pwm_data *leds_data, *led_dat;
+	struct led_pwm_priv *priv;
 	int i, ret = 0;
 
 	if (!pdata)
 		return -EBUSY;
 
-	leds_data = devm_kzalloc(&pdev->dev,
-			sizeof(struct led_pwm_data) * pdata->num_leds,
-				GFP_KERNEL);
-	if (!leds_data)
+	priv = devm_kzalloc(&pdev->dev, sizeof_pwm_leds_priv(pdata->num_leds),
+			    GFP_KERNEL);
+	if (!priv)
 		return -ENOMEM;
 
 	for (i = 0; i < pdata->num_leds; i++) {
-		cur_led = &pdata->leds[i];
-		led_dat = &leds_data[i];
+		struct led_pwm *cur_led = &pdata->leds[i];
+		struct led_pwm_data *led_dat = &priv->leds[i];
 
 		led_dat->pwm = devm_pwm_get(&pdev->dev, cur_led->name);
 		if (IS_ERR(led_dat->pwm)) {
@@ -88,15 +97,16 @@ static int led_pwm_probe(struct platform_device *pdev)
 		if (ret < 0)
 			goto err;
 	}
+	priv->num_leds = pdata->num_leds;
 
-	platform_set_drvdata(pdev, leds_data);
+	platform_set_drvdata(pdev, priv);
 
 	return 0;
 
 err:
 	if (i > 0) {
 		for (i = i - 1; i >= 0; i--)
-			led_classdev_unregister(&leds_data[i].cdev);
+			led_classdev_unregister(&priv->leds[i].cdev);
 	}
 
 	return ret;
@@ -104,14 +114,11 @@ err:
 
 static int led_pwm_remove(struct platform_device *pdev)
 {
+	struct led_pwm_priv *priv = platform_get_drvdata(pdev);
 	int i;
-	struct led_pwm_platform_data *pdata = pdev->dev.platform_data;
-	struct led_pwm_data *leds_data;
 
-	leds_data = platform_get_drvdata(pdev);
-
-	for (i = 0; i < pdata->num_leds; i++)
-		led_classdev_unregister(&leds_data[i].cdev);
+	for (i = 0; i < priv->num_leds; i++)
+		led_classdev_unregister(&priv->leds[i].cdev);
 
 	return 0;
 }
