@@ -867,6 +867,7 @@ struct hda_codec {
 	unsigned int no_trigger_sense:1; /* don't trigger at pin-sensing */
 	unsigned int no_jack_detect:1;	/* Machine has no jack-detection */
 	unsigned int inv_eapd:1; /* broken h/w: inverted EAPD control */
+	unsigned int inv_jack_detect:1;	/* broken h/w: inverted detection bit */
 	unsigned int pcm_format_first:1; /* PCM format must be set first */
 	unsigned int epss:1;		/* supporting EPSS? */
 	unsigned int cached_write:1;	/* write only to caches */
