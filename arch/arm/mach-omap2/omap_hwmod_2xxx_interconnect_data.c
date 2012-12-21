@@ -147,6 +147,15 @@ static struct omap_hwmod_addr_space omap2xxx_sham_addrs[] = {
 	{ }
 };
 
+static struct omap_hwmod_addr_space omap2xxx_aes_addrs[] = {
+	{
+		.pa_start	= 0x480a6000,
+		.pa_end		= 0x480a6000 + 0x50 - 1,
+		.flags		= ADDR_TYPE_RT
+	},
+	{ }
+};
+
 /*
  * Common interconnect data
  */
@@ -405,5 +414,14 @@ struct omap_hwmod_ocp_if omap2xxx_l4_core__sham = {
 	.slave		= &omap2xxx_sham_hwmod,
 	.clk		= "sha_ick",
 	.addr		= omap2xxx_sham_addrs,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* l4 core -> aes interface */
+struct omap_hwmod_ocp_if omap2xxx_l4_core__aes = {
+	.master		= &omap2xxx_l4_core_hwmod,
+	.slave		= &omap2xxx_aes_hwmod,
+	.clk		= "aes_ick",
+	.addr		= omap2xxx_aes_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };

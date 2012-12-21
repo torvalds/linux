@@ -519,28 +519,6 @@ static void __init omap_init_sham(void)
 
 #if defined(CONFIG_CRYPTO_DEV_OMAP_AES) || defined(CONFIG_CRYPTO_DEV_OMAP_AES_MODULE)
 
-#ifdef CONFIG_ARCH_OMAP2
-static struct resource omap2_aes_resources[] = {
-	{
-		.start	= OMAP24XX_SEC_AES_BASE,
-		.end	= OMAP24XX_SEC_AES_BASE + 0x4C,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= OMAP24XX_DMA_AES_TX,
-		.flags	= IORESOURCE_DMA,
-	},
-	{
-		.start	= OMAP24XX_DMA_AES_RX,
-		.flags	= IORESOURCE_DMA,
-	}
-};
-static int omap2_aes_resources_sz = ARRAY_SIZE(omap2_aes_resources);
-#else
-#define omap2_aes_resources		NULL
-#define omap2_aes_resources_sz		0
-#endif
-
 #ifdef CONFIG_ARCH_OMAP3
 static struct resource omap3_aes_resources[] = {
 	{
@@ -571,16 +549,23 @@ static struct platform_device aes_device = {
 static void omap_init_aes(void)
 {
 	if (cpu_is_omap24xx()) {
-		aes_device.resource = omap2_aes_resources;
-		aes_device.num_resources = omap2_aes_resources_sz;
+		struct omap_hwmod *oh;
+		struct platform_device *pdev;
+
+		oh = omap_hwmod_lookup("aes");
+		if (!oh)
+			return;
+
+		pdev = omap_device_build("omap-aes", -1, oh, NULL, 0);
+		WARN(IS_ERR(pdev), "Can't build omap_device for omap-aes\n");
 	} else if (cpu_is_omap34xx()) {
 		aes_device.resource = omap3_aes_resources;
 		aes_device.num_resources = omap3_aes_resources_sz;
+		platform_device_register(&aes_device);
 	} else {
 		pr_err("%s: platform not supported\n", __func__);
 		return;
 	}
-	platform_device_register(&aes_device);
 }
 
 #else

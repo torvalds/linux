@@ -907,3 +907,41 @@ struct omap_hwmod omap2xxx_sham_hwmod = {
 	},
 	.class		= &omap2xxx_sham_class,
 };
+
+/* AES */
+
+static struct omap_hwmod_class_sysconfig omap2_aes_sysc = {
+	.rev_offs	= 0x44,
+	.sysc_offs	= 0x48,
+	.syss_offs	= 0x4c,
+	.sysc_flags	= (SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE |
+			   SYSS_HAS_RESET_STATUS),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class omap2xxx_aes_class = {
+	.name	= "aes",
+	.sysc	= &omap2_aes_sysc,
+};
+
+static struct omap_hwmod_dma_info omap2_aes_sdma_chs[] = {
+	{ .name = "tx", .dma_req = 9 },
+	{ .name = "rx", .dma_req = 10 },
+	{ .dma_req = -1 }
+};
+
+struct omap_hwmod omap2xxx_aes_hwmod = {
+	.name		= "aes",
+	.sdma_reqs	= omap2_aes_sdma_chs,
+	.main_clk	= "l4_ck",
+	.prcm		= {
+		.omap2 = {
+			.module_offs = CORE_MOD,
+			.prcm_reg_id = 4,
+			.module_bit = OMAP24XX_EN_AES_SHIFT,
+			.idlest_reg_id = 4,
+			.idlest_idle_bit = OMAP24XX_ST_AES_SHIFT,
+		},
+	},
+	.class		= &omap2xxx_aes_class,
+};

@@ -79,6 +79,7 @@ extern struct omap_hwmod omap2xxx_counter_32k_hwmod;
 extern struct omap_hwmod omap2xxx_gpmc_hwmod;
 extern struct omap_hwmod omap2xxx_rng_hwmod;
 extern struct omap_hwmod omap2xxx_sham_hwmod;
+extern struct omap_hwmod omap2xxx_aes_hwmod;
 
 /* Common interface data across OMAP2xxx */
 extern struct omap_hwmod_ocp_if omap2xxx_l3_main__l4_core;
@@ -107,6 +108,7 @@ extern struct omap_hwmod_ocp_if omap2xxx_l4_core__dss_rfbi;
 extern struct omap_hwmod_ocp_if omap2xxx_l4_core__dss_venc;
 extern struct omap_hwmod_ocp_if omap2xxx_l4_core__rng;
 extern struct omap_hwmod_ocp_if omap2xxx_l4_core__sham;
+extern struct omap_hwmod_ocp_if omap2xxx_l4_core__aes;
 
 /* Common IP block data */
 extern struct omap_hwmod_dma_info omap2_uart1_sdma_reqs[];
