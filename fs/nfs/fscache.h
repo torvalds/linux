@@ -222,6 +222,7 @@ static inline void nfs_readpage_to_fscache(struct inode *inode,
 
 
 static inline void nfs_fscache_invalidate(struct inode *inode) {}
+static inline void nfs_fscache_wait_on_invalidate(struct inode *inode) {}
 
 static inline const char *nfs_server_fscache_state(struct nfs_server *server)
 {
