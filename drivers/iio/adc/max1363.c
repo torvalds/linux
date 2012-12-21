@@ -1402,7 +1402,7 @@ static int max1363_initial_setup(struct max1363_state *st)
 	return max1363_set_scan_mode(st);
 }
 
-static int __devinit max1363_alloc_scan_masks(struct iio_dev *indio_dev)
+static int max1363_alloc_scan_masks(struct iio_dev *indio_dev)
 {
 	struct max1363_state *st = iio_priv(indio_dev);
 	unsigned long *masks;
@@ -1525,8 +1525,8 @@ static void max1363_buffer_cleanup(struct iio_dev *indio_dev)
 	iio_kfifo_free(indio_dev->buffer);
 }
 
-static int __devinit max1363_probe(struct i2c_client *client,
-				   const struct i2c_device_id *id)
+static int max1363_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
 	int ret;
 	struct max1363_state *st;
@@ -1624,7 +1624,7 @@ error_out:
 	return ret;
 }
 
-static int __devexit max1363_remove(struct i2c_client *client)
+static int max1363_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct max1363_state *st = iio_priv(indio_dev);
@@ -1690,7 +1690,7 @@ static struct i2c_driver max1363_driver = {
 		.name = "max1363",
 	},
 	.probe = max1363_probe,
-	.remove = __devexit_p(max1363_remove),
+	.remove = max1363_remove,
 	.id_table = max1363_id,
 };
 module_i2c_driver(max1363_driver);

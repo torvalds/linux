@@ -207,7 +207,7 @@ static const struct iio_info ad7476_info = {
 	.read_raw = &ad7476_read_raw,
 };
 
-static int __devinit ad7476_probe(struct spi_device *spi)
+static int ad7476_probe(struct spi_device *spi)
 {
 	struct ad7476_state *st;
 	struct iio_dev *indio_dev;
@@ -277,7 +277,7 @@ error_ret:
 	return ret;
 }
 
-static int __devexit ad7476_remove(struct spi_device *spi)
+static int ad7476_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad7476_state *st = iio_priv(indio_dev);
@@ -322,7 +322,7 @@ static struct spi_driver ad7476_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad7476_probe,
-	.remove		= __devexit_p(ad7476_remove),
+	.remove		= ad7476_remove,
 	.id_table	= ad7476_id,
 };
 module_spi_driver(ad7476_driver);
