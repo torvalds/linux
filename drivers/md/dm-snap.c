@@ -1567,8 +1567,7 @@ static void remap_exception(struct dm_snapshot *s, struct dm_exception *e,
 					  s->store->chunk_mask);
 }
 
-static int snapshot_map(struct dm_target *ti, struct bio *bio,
-			union map_info *map_context)
+static int snapshot_map(struct dm_target *ti, struct bio *bio)
 {
 	struct dm_exception *e;
 	struct dm_snapshot *s = ti->private;
@@ -1683,8 +1682,7 @@ out:
  * If merging is currently taking place on the chunk in question, the
  * I/O is deferred by adding it to s->bios_queued_during_merge.
  */
-static int snapshot_merge_map(struct dm_target *ti, struct bio *bio,
-			      union map_info *map_context)
+static int snapshot_merge_map(struct dm_target *ti, struct bio *bio)
 {
 	struct dm_exception *e;
 	struct dm_snapshot *s = ti->private;
@@ -1744,8 +1742,7 @@ out_unlock:
 	return r;
 }
 
-static int snapshot_end_io(struct dm_target *ti, struct bio *bio,
-			   int error, union map_info *map_context)
+static int snapshot_end_io(struct dm_target *ti, struct bio *bio, int error)
 {
 	struct dm_snapshot *s = ti->private;
 
@@ -2119,8 +2116,7 @@ static void origin_dtr(struct dm_target *ti)
 	dm_put_device(ti, dev);
 }
 
-static int origin_map(struct dm_target *ti, struct bio *bio,
-		      union map_info *map_context)
+static int origin_map(struct dm_target *ti, struct bio *bio)
 {
 	struct dm_dev *dev = ti->private;
 	bio->bi_bdev = dev->bdev;

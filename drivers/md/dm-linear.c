@@ -88,8 +88,7 @@ static void linear_map_bio(struct dm_target *ti, struct bio *bio)
 		bio->bi_sector = linear_map_sector(ti, bio->bi_sector);
 }
 
-static int linear_map(struct dm_target *ti, struct bio *bio,
-		      union map_info *map_context)
+static int linear_map(struct dm_target *ti, struct bio *bio)
 {
 	linear_map_bio(ti, bio);
 

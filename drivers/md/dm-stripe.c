@@ -271,8 +271,7 @@ static int stripe_map_discard(struct stripe_c *sc, struct bio *bio,
 	}
 }
 
-static int stripe_map(struct dm_target *ti, struct bio *bio,
-		      union map_info *map_context)
+static int stripe_map(struct dm_target *ti, struct bio *bio)
 {
 	struct stripe_c *sc = ti->private;
 	uint32_t stripe;
@@ -342,8 +341,7 @@ static int stripe_status(struct dm_target *ti, status_type_t type,
 	return 0;
 }
 
-static int stripe_end_io(struct dm_target *ti, struct bio *bio,
-			 int error, union map_info *map_context)
+static int stripe_end_io(struct dm_target *ti, struct bio *bio, int error)
 {
 	unsigned i;
 	char major_minor[16];

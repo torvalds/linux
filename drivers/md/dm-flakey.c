@@ -270,8 +270,7 @@ static void corrupt_bio_data(struct bio *bio, struct flakey_c *fc)
 	}
 }
 
-static int flakey_map(struct dm_target *ti, struct bio *bio,
-		      union map_info *map_context)
+static int flakey_map(struct dm_target *ti, struct bio *bio)
 {
 	struct flakey_c *fc = ti->private;
 	unsigned elapsed;
@@ -321,8 +320,7 @@ map_bio:
 	return DM_MAPIO_REMAPPED;
 }
 
-static int flakey_end_io(struct dm_target *ti, struct bio *bio,
-			 int error, union map_info *map_context)
+static int flakey_end_io(struct dm_target *ti, struct bio *bio, int error)
 {
 	struct flakey_c *fc = ti->private;
 	struct per_bio_data *pb = dm_per_bio_data(bio, sizeof(struct per_bio_data));

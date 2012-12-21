@@ -1142,8 +1142,7 @@ static void mirror_dtr(struct dm_target *ti)
 /*
  * Mirror mapping function
  */
-static int mirror_map(struct dm_target *ti, struct bio *bio,
-		      union map_info *map_context)
+static int mirror_map(struct dm_target *ti, struct bio *bio)
 {
 	int r, rw = bio_rw(bio);
 	struct mirror *m;
@@ -1192,8 +1191,7 @@ static int mirror_map(struct dm_target *ti, struct bio *bio,
 	return DM_MAPIO_REMAPPED;
 }
 
-static int mirror_end_io(struct dm_target *ti, struct bio *bio,
-			 int error, union map_info *map_context)
+static int mirror_end_io(struct dm_target *ti, struct bio *bio, int error)
 {
 	int rw = bio_rw(bio);
 	struct mirror_set *ms = (struct mirror_set *) ti->private;
