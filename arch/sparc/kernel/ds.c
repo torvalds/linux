@@ -29,7 +29,7 @@
 #define DRV_MODULE_VERSION	"1.0"
 #define DRV_MODULE_RELDATE	"Jul 11, 2007"
 
-static char version[] __devinitdata =
+static char version[] =
 	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
 MODULE_DESCRIPTION("Sun LDOM domain services driver");
@@ -1146,8 +1146,7 @@ static void ds_event(void *arg, int event)
 	spin_unlock_irqrestore(&ds_lock, flags);
 }
 
-static int __devinit ds_probe(struct vio_dev *vdev,
-			      const struct vio_device_id *id)
+static int ds_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 {
 	static int ds_version_printed;
 	struct ldc_channel_config ds_cfg = {
