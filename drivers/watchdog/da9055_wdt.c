@@ -102,10 +102,6 @@ static int da9055_wdt_ping(struct watchdog_device *wdt_dev)
 
 static void da9055_wdt_release_resources(struct kref *r)
 {
-	struct da9055_wdt_data *driver_data =
-		container_of(r, struct da9055_wdt_data, kref);
-
-	kfree(driver_data);
 }
 
 static void da9055_wdt_ref(struct watchdog_device *wdt_dev)
