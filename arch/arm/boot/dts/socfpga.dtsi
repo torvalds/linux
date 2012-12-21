@@ -65,6 +65,19 @@
 		interrupt-parent = <&intc>;
 		ranges;
 
+		agpio0: gpio@0xc0000000 {
+			compatible = "altr,pio-1.0";
+			/* Register base 0xff200000 is for a light-weight bridge */
+			reg = <0xff200000 0x10>;
+			/* There are 64 interrupts from the FPGA start at 72, so 45 has to be wrong */
+			interrupts = <0 45 4>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
+
 		amba {
 			compatible = "arm,amba-bus";
 			#address-cells = <1>;
@@ -99,8 +112,7 @@
 			compatible = "snps,dw-gpio";
 			reg = <0xff708000 0x1000>;
 			interrupts = <0 164 4>;
-			porta_width = <29>;
-			bank_width = <29>;
+			width = <29>;
 			virtual_irq_start = <257>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
@@ -112,8 +124,7 @@
 			compatible = "snps,dw-gpio";
 			reg = <0xff709000 0x1000>;
 			interrupts = <0 165 4>;
-			porta_width = <29>;
-			bank_width = <29>;
+			width = <29>;
 			virtual_irq_start = <286>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
@@ -125,8 +136,7 @@
 			compatible = "snps,dw-gpio";
 			reg = <0xff70a000 0x1000>;
 			interrupts = <0 166 4>;
-			porta_width = <27>;
-			bank_width = <27>;
+			width = <27>;
 			virtual_irq_start = <315>;
 			interrupt-controller;
 			#interrupt-cells = <2>;

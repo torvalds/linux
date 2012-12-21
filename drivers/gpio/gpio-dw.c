@@ -26,6 +26,9 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/gpio-dw.h>
+#include <linux/of_gpio.h>
+#include <linux/slab.h>
+#include <linux/of_platform.h>
 
 #define GPIO_INT_EN_REG_OFFSET 		(0x30)
 #define GPIO_INT_MASK_REG_OFFSET 	(0x34)
@@ -34,381 +37,145 @@
 #define GPIO_INT_STATUS_REG_OFFSET 	(0x40)
 #define GPIO_PORT_A_EOI_REG_OFFSET 	(0x4c)
 
-#define GPIO_DDR_OFFSET_PORT(p) 	(0x4  + ((p) * 0xc))
-#define DW_GPIO_EXT(p) 			(0x50 + ((p) * 0x4))
-#define DW_GPIO_DR(p) 			(0x0  + ((p) * 0xc))
+#define GPIO_DDR_OFFSET_PORT	 	(0x4)
+#define DW_GPIO_EXT 			(0x50)
+#define DW_GPIO_DR 			(0x0)
+#define DRV_NAME "dw gpio"
 
-#define CHIP_BASE (-1)
-
-struct gpio_bank {
-	u32 irq;
-	u32 virtual_irq_start;
-	spinlock_t lock;
-	u32 width;
-	u32 porta_width;
-	u32 portb_width;
-	u32 portc_width;
-	u32 portd_width;
-	void __iomem *regs;
-	struct gpio_chip chip;
-	struct device *dev;
+struct dw_gpio_instance {
+	struct of_mm_gpio_chip mmchip;
+	u32 gpio_state;		/* GPIO state shadow register */
+	u32 gpio_dir;		/* GPIO direction shadow register */
+	int irq;		/* GPIO controller IRQ number */
+	int irq_base;		/* base number for the "virtual" GPIO IRQs */
+	u32 irq_mask;		/* IRQ mask */
+	spinlock_t gpio_lock;	/* Lock used for synchronization */
 };
 
-static void dw_gpio_irq_disable(struct irq_data *d)
+static int dw_gpio_get(struct gpio_chip *gc, unsigned offset)
 {
-	struct gpio_bank *bank = irq_data_get_irq_chip_data(d);
-	u32 gpio_irq_number = d->irq - bank->virtual_irq_start;
-	unsigned long flags;
-	u32 port_inten;
+	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
 
-	spin_lock_irqsave(&bank->lock, flags);
-	port_inten = readl(bank->regs + GPIO_INT_EN_REG_OFFSET);
-	port_inten &= ~(1 << gpio_irq_number);
-	writel(port_inten, bank->regs + GPIO_INT_EN_REG_OFFSET);
-	spin_unlock_irqrestore(&bank->lock, flags);
+	return (__raw_readl(mm_gc->regs + DW_GPIO_EXT) >> offset) & 1;
 }
 
-static void dw_gpio_irq_enable(struct irq_data *d) {
-	struct gpio_bank *bank = irq_data_get_irq_chip_data(d);
-	u32 gpio_irq_number = d->irq - bank->virtual_irq_start;
-	unsigned long flags;
-	u32 port_inten;
-
-	spin_lock_irqsave(&bank->lock, flags);
-	port_inten = readl(bank->regs + GPIO_INT_EN_REG_OFFSET);
-	port_inten |= (1 << gpio_irq_number);
-	writel(port_inten, bank->regs + GPIO_INT_EN_REG_OFFSET);
-	spin_unlock_irqrestore(&bank->lock, flags);
-}
-
-static void dw_gpio_irq_unmask(struct irq_data *d) {
-	struct gpio_bank *bank = irq_data_get_irq_chip_data(d);
-	u32 gpio_irq_number = d->irq - bank->virtual_irq_start;
-	unsigned long flags;
-	u32 intmask;
-
-	spin_lock_irqsave(&bank->lock, flags);
-	intmask = readl(bank->regs + GPIO_INT_MASK_REG_OFFSET);
-	intmask &= ~(1 << gpio_irq_number);
-	writel(intmask, bank->regs + GPIO_INT_MASK_REG_OFFSET);
-	spin_unlock_irqrestore(&bank->lock, flags);
-}
-
-static void dw_gpio_irq_mask(struct irq_data *d) {
-	struct gpio_bank *bank = irq_data_get_irq_chip_data(d);
-	u32 gpio_irq_number = d->irq - bank->virtual_irq_start;
-	unsigned long flags;
-	u32 intmask;
-
-	spin_lock_irqsave(&bank->lock, flags);
-	intmask = readl(bank->regs + GPIO_INT_MASK_REG_OFFSET);
-	intmask |= (1 << gpio_irq_number);
-	writel(intmask, bank->regs + GPIO_INT_MASK_REG_OFFSET);
-	spin_unlock_irqrestore(&bank->lock, flags);
-}
-
-static void dw_gpio_irq_ack(struct irq_data *d) {
-	struct gpio_bank *bank = irq_data_get_irq_chip_data(d);
-	u32 gpio_irq_number = d->irq - bank->virtual_irq_start;
-	unsigned long flags;
-	u32 val;
-
-	spin_lock_irqsave(&bank->lock, flags);
-	val = readl(bank->regs + GPIO_PORT_A_EOI_REG_OFFSET);
-	val |= (1 << gpio_irq_number);
-	writel(val, bank->regs + GPIO_PORT_A_EOI_REG_OFFSET);
-	spin_unlock_irqrestore(&bank->lock, flags);
-}
-
-static int dw_gpio_irq_set_type(struct irq_data *d,
-				unsigned int type)
+static void dw_gpio_set(struct gpio_chip *gc, unsigned offset, int value)
 {
-	struct gpio_bank *bank = irq_data_get_irq_chip_data(d);
-	u32 gpio_irq_number = d->irq - bank->virtual_irq_start;
-	u32 level, polarity;
-	u32 intmask;
-	unsigned long flags;
-
-	spin_lock_irqsave(&bank->lock, flags);
-
-	intmask = readl(bank->regs + GPIO_INT_MASK_REG_OFFSET);
-	writel(~(1 << gpio_irq_number) & (intmask),
-		bank->regs + GPIO_INT_MASK_REG_OFFSET);
-
-	level = readl(bank->regs + GPIO_INT_TYPE_LEVEL_REG_OFFSET);
-	polarity = readl(bank->regs + GPIO_INT_POLARITY_REG_OFFSET);
-
-	switch (type & IRQ_TYPE_SENSE_MASK) {
-	case IRQ_TYPE_EDGE_RISING:
-		level 		|= (1 << gpio_irq_number);
-		polarity 	|= (1 << gpio_irq_number);
-		break;
-
-	case IRQ_TYPE_EDGE_FALLING:
-		level 		|= (1 << gpio_irq_number);
-		polarity 	&= ~(1 << gpio_irq_number);
-		break;
-
-	case IRQ_TYPE_LEVEL_HIGH:
-		level 		&= ~(1 << gpio_irq_number);
-		polarity 	|= (1 << gpio_irq_number);
-		break;
-
-	case IRQ_TYPE_LEVEL_LOW:
-		level	 	&= ~(1 << gpio_irq_number);
-		polarity 	&= ~(1 << gpio_irq_number);
-		break;
-
-	default:
-		writel(intmask, bank->regs + GPIO_INT_MASK_REG_OFFSET);
-		return -EINVAL;
-	}
-
-	writel(level, bank->regs + GPIO_INT_TYPE_LEVEL_REG_OFFSET);
-	writel(polarity, bank->regs + GPIO_INT_POLARITY_REG_OFFSET);
-	writel(intmask, bank->regs + GPIO_INT_MASK_REG_OFFSET);
-	spin_unlock_irqrestore(&bank->lock, flags);
-
-	return 0;
-}
-
-static struct irq_chip gpio_irq_chip = {
-	.name		= "GPIO",
-	.irq_enable	= dw_gpio_irq_enable,
-	.irq_disable	= dw_gpio_irq_disable,
-	.irq_ack	= dw_gpio_irq_ack,
-	.irq_mask	= dw_gpio_irq_mask,
-	.irq_unmask	= dw_gpio_irq_unmask,
-	.irq_set_type	= dw_gpio_irq_set_type,
-};
-
-enum DW_GPIO_PORT {
-	PORTA = 0,
-	PORTB = 1,
-	PORTC = 2,
-	PORTD = 3,
-	PORT_INVALID,
-};
-
-static int get_port(struct gpio_bank *bank, unsigned offset) {
-	int port_offset = offset;
-	port_offset -= bank->porta_width;
-	if (port_offset < 0)
-		return PORTA;
-
-	port_offset -= bank->portb_width;
-	if (port_offset < 0)
-		return PORTB;
-
-	port_offset -= bank->portc_width;
-	if (port_offset < 0)
-		return PORTC;
-
-	port_offset -= bank->portd_width;
-	if (port_offset < 0)
-		return PORTD;
-
-	dev_warn(bank->dev, "Invalid offset specified\n");
-	return PORT_INVALID;
-}
-
-static int dw_gpio_get(struct gpio_chip *chip, unsigned offset)
-{
-	struct gpio_bank *bank = container_of(chip, struct gpio_bank, chip);
-	enum DW_GPIO_PORT port = get_port(bank, offset);
-
-	if(port == PORT_INVALID)
-		return 0;
-
-	return (readl(bank->regs + DW_GPIO_EXT(port)) >> offset) & 1;
-}
-
-static void dw_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
-{
-	struct gpio_bank *bank = container_of(chip, struct gpio_bank, chip);
-	enum DW_GPIO_PORT port = get_port(bank, offset);
+	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
+	struct dw_gpio_instance *chip = container_of(mm_gc, struct dw_gpio_instance, mmchip);
 	unsigned long flags;
 	u32 data_reg;
 
-	if(port == PORT_INVALID)
-		return;
-
-	spin_lock_irqsave(&bank->lock, flags);
-	data_reg = readl(bank->regs + DW_GPIO_DR(port));
-	data_reg = (data_reg & ~(1<<offset)) | (!!value << offset);
-	writel(data_reg, bank->regs + DW_GPIO_DR(port));
-	spin_unlock_irqrestore(&bank->lock, flags);
+	spin_lock_irqsave(&chip->gpio_lock, flags);
+	data_reg = __raw_readl(mm_gc->regs + DW_GPIO_DR);
+	data_reg = (data_reg & ~(1<<offset)) | (value << offset);
+	__raw_writel(data_reg, mm_gc->regs + DW_GPIO_DR);
+	spin_unlock_irqrestore(&chip->gpio_lock, flags);
 }
 
-static int dw_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
+static int dw_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
 {
-	struct gpio_bank *bank = container_of(chip, struct gpio_bank, chip);
+	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
+	struct dw_gpio_instance *chip = container_of(mm_gc, struct dw_gpio_instance, mmchip);
 	unsigned long flags;
 	u32 gpio_ddr;
-	enum DW_GPIO_PORT port = get_port(bank, offset);
 
-	if(port == PORT_INVALID)
-		return -EINVAL;
-
-	spin_lock_irqsave(&bank->lock, flags);
+	spin_lock_irqsave(&chip->gpio_lock, flags);
 	/* Set pin as input, assumes software controlled IP */
-	gpio_ddr = readl(bank->regs + GPIO_DDR_OFFSET_PORT(port));
+	gpio_ddr = __raw_readl(mm_gc->regs + GPIO_DDR_OFFSET_PORT);
 	gpio_ddr &= ~(1 << offset);
-	writel(gpio_ddr, bank->regs + GPIO_DDR_OFFSET_PORT(port));
-	spin_unlock_irqrestore(&bank->lock, flags);
+	__raw_writel(gpio_ddr, mm_gc->regs + GPIO_DDR_OFFSET_PORT);
+	spin_unlock_irqrestore(&chip->gpio_lock, flags);
 
 	return 0;
 }
 
-static int dw_gpio_direction_output(struct gpio_chip *chip,
+static int dw_gpio_direction_output(struct gpio_chip *gc,
 		unsigned offset, int value)
 {
-	struct gpio_bank *bank = container_of(chip, struct gpio_bank, chip);
+	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
+	struct dw_gpio_instance *chip = container_of(mm_gc, struct dw_gpio_instance, mmchip);
 	unsigned long flags;
 	u32 gpio_ddr;
-	enum DW_GPIO_PORT port = get_port(bank, offset);
 
-	if(port == PORT_INVALID)
-		return -EINVAL;
-
-	dw_gpio_set(chip, offset, value);
-
-	spin_lock_irqsave(&bank->lock, flags);
+	dw_gpio_set(gc, offset, value);
+	
+	spin_lock_irqsave(&chip->gpio_lock, flags);
 	/* Set pin as output, assumes software controlled IP */
-	gpio_ddr = readl(bank->regs + GPIO_DDR_OFFSET_PORT(port));
+	gpio_ddr = __raw_readl(mm_gc->regs + GPIO_DDR_OFFSET_PORT);
 	gpio_ddr |= (1 << offset);
-	writel(gpio_ddr, bank->regs + GPIO_DDR_OFFSET_PORT(port));
-	spin_unlock_irqrestore(&bank->lock, flags);
-
+	__raw_writel(gpio_ddr, mm_gc->regs + GPIO_DDR_OFFSET_PORT);
+	spin_unlock_irqrestore(&chip->gpio_lock, flags);
 	return 0;
 }
 
-static int dw_gpio_to_irq(struct gpio_chip *chip, unsigned offset) {
-	struct gpio_bank *bank = container_of(chip, struct gpio_bank, chip);
-
-	return bank->virtual_irq_start + offset;
-}
-
-static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
-{
-	struct irq_chip *chip = irq_desc_get_chip(desc);
-	struct gpio_bank *bank = irq_get_handler_data(irq);
-	unsigned long status;
-
-	int i;
-	chip->irq_mask(&desc->irq_data);
-
-	status = readl(bank->regs +
-		GPIO_INT_STATUS_REG_OFFSET);
-
-	for_each_set_bit(i, &status, bank->porta_width) {
-		generic_handle_irq(bank->virtual_irq_start + i);
-	}
-	writel(status, bank->regs + GPIO_PORT_A_EOI_REG_OFFSET);
-	chip->irq_eoi(irq_desc_get_irq_data(desc));
-	chip->irq_unmask(&desc->irq_data);
-}
-
-static struct lock_class_key gpio_lock_class;
-
-static void __devinit dw_gpio_chip_init(struct gpio_bank *bank, u32 gpio_base) {
-	int i;
-
-	bank->chip.direction_input	= dw_gpio_direction_input;
-	bank->chip.direction_output	= dw_gpio_direction_output;
-	bank->chip.get			= dw_gpio_get;
-	bank->chip.set			= dw_gpio_set;
-	bank->chip.to_irq		= dw_gpio_to_irq;
-	bank->chip.owner		= THIS_MODULE;
-	bank->chip.base			= gpio_base;
-	bank->chip.ngpio		= bank->width;
-
-	gpiochip_add(&bank->chip);
-
-	for (i = bank->virtual_irq_start;
-		i < bank->virtual_irq_start + bank->porta_width; i++) {
-		irq_set_lockdep_class(i, &gpio_lock_class);
-		irq_set_chip_data(i, bank);
-		irq_set_chip(i, &gpio_irq_chip);
-		irq_set_handler(i, handle_simple_irq);
-		set_irq_flags(i, IRQF_VALID);
-	}
-	irq_set_chained_handler(bank->irq, gpio_irq_handler);
-	irq_set_handler_data(bank->irq, bank);
-}
-
+/* 
+ * dw_gpio_probe - Probe method for the GPIO device.
+ * @np: pointer to device tree node
+ *
+ * This function probes the GPIO device in the device tree. It initializes the
+ * driver data structure. It returns 0, if the driver is bound to the GPIO
+ * device, or a negative value if there is an error.
+ */
 static int __devinit dw_gpio_probe(struct platform_device *pdev)
 {
-	struct resource *res;
-	struct resource *mem;
-	struct device_node *node = pdev->dev.of_node;
-	int id;
-	struct gpio_bank *bank = devm_kzalloc(&pdev->dev, sizeof(*bank),
-					GFP_KERNEL);
-	bank->dev = &pdev->dev;
+	struct device_node *np = pdev->dev.of_node;
+	struct dw_gpio_instance *chip;
+	int status = 0;
+	u32 reg;
 
-	id = pdev->id;
-
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (unlikely(!res)) {
-		dev_err(&pdev->dev, "GPIO Bank %i has an Invalid IRQ Resource\n"
-			, id);
-		return -ENODEV;
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	if (!chip)
+	{
+		printk(KERN_ERR "%s 2 ERROR allocating memory", __func__);
+		return -ENOMEM;
 	}
 
-	bank->irq = res->start; /* IRQ base number */
+	/* Update GPIO state shadow register with default value */
+	if (of_property_read_u32(np, "resetvalue", &reg) == 0)
+		chip->gpio_state = reg;
 
-	if (of_property_read_u32(node,
-			"virtual_irq_start", &bank->virtual_irq_start)) {
-		dev_err(&pdev->dev, "No virtual irq specified\n");
-		return -EINVAL;
+	/* Update GPIO direction shadow register with default value */
+	chip->gpio_dir = 0; /* By default, all pins are inputs */
+
+	/* Check device node for device width */
+	if (of_property_read_u32(np, "width", &reg) == 0)
+		chip->mmchip.gc.ngpio = reg;
+	else
+		chip->mmchip.gc.ngpio = 32; /* By default assume full GPIO controller */
+
+	spin_lock_init(&chip->gpio_lock);
+
+	chip->mmchip.gc.direction_input = dw_gpio_direction_input;
+	chip->mmchip.gc.direction_output = dw_gpio_direction_output;
+	chip->mmchip.gc.get = dw_gpio_get;
+	chip->mmchip.gc.set = dw_gpio_set;
+
+	/* Call the OF gpio helper to setup and register the GPIO device */
+	status = of_mm_gpiochip_add(np, &chip->mmchip);
+	if (status) {
+		kfree(chip);
+		pr_err("%s: error in probe function with status %d\n",
+		       np->full_name, status);
+		return status;
 	}
 
-	if (of_property_read_u32(node,
-			"bank_width", &bank->width)) {
-		dev_err(&pdev->dev, "Bank width not specified\n");
-		return -EINVAL;
-	}
-
-	bank->porta_width = 0;
-	bank->portb_width = 0;
-	bank->portc_width = 0;
-	bank->portd_width = 0;
-
-	of_property_read_u32(node,
-			"porta_width", &bank->porta_width);
-
-	of_property_read_u32(node,
-			"portb_width", &bank->portb_width);
-
-	of_property_read_u32(node,
-			"portc_width", &bank->portc_width);
-
-	of_property_read_u32(node,
-			"portd_width", &bank->portd_width);
-
-
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (unlikely(!mem)) {
-		dev_err(&pdev->dev,
-			"GPIO Bank %i has an Invalid Memory Resource\n", id);
-		return -ENODEV;
-	}
-
-	bank->regs = devm_ioremap(&pdev->dev, mem->start, resource_size(mem));
-	if (unlikely(!bank->regs)) {
-		dev_err(&pdev->dev,
-			"Failed IO remap for GPIO resource\n");
-		return -ENODEV;
-	}
-
-	bank->chip.of_node = of_node_get(node);
-	irq_domain_add_legacy(node, bank->porta_width,
-		bank->virtual_irq_start, 0, &irq_domain_simple_ops, NULL);
-
-	dw_gpio_chip_init(bank, CHIP_BASE);
-
+	platform_set_drvdata(pdev, chip);
 	return 0;
+}
+
+static int dw_gpio_remove(struct platform_device *pdev)
+{
+	/* todo check this and see that we don't have a memory leak */
+	int status;
+	
+	struct dw_gpio_instance *chip = platform_get_drvdata(pdev);
+	status = gpiochip_remove(&chip->mmchip.gc);
+	if (status < 0)
+		return status;
+	
+	kfree(chip);
+	return -EIO;
 }
 
 #ifdef CONFIG_OF
@@ -421,17 +188,30 @@ MODULE_DEVICE_TABLE(of, dwgpio_match);
 #define dwgpio_match NULL
 #endif
 
-static struct platform_driver dw_gpio_driver = {
-	.probe          = dw_gpio_probe,
-	.driver         = {
-		.owner  = THIS_MODULE,
-		.name   = "dwgpio",
-		.of_match_table = dwgpio_match,
+static struct platform_driver dwgpio_driver = {
+	.driver = {
+		.name	= "dw_gpio",
+		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(dwgpio_match),
 	},
+	.probe		= dw_gpio_probe,
+	.remove		= dw_gpio_remove,
 };
 
 static int __init dwgpio_init(void)
 {
-	return platform_driver_register(&dw_gpio_driver);
+	return platform_driver_register(&dwgpio_driver);
 }
-core_initcall(dwgpio_init);
+subsys_initcall(dwgpio_init);
+
+static void __exit dwgpio_exit(void)
+{
+	platform_driver_unregister(&dwgpio_driver);
+}
+module_exit(dwgpio_exit);
+
+
+MODULE_DESCRIPTION("Altera GPIO driver");
+MODULE_AUTHOR("Thomas Chou <thomas@wytron.com.tw>");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:" DRV_NAME);
