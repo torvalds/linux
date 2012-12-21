@@ -59,5 +59,20 @@
 			phy = <&phy1>;
 			phy-mode = "rgmii-id";
 		};
+
+		mvsdio@d00d4000 {
+			pinctrl-0 = <&sdio_pins1>;
+			pinctrl-names = "default";
+			/*
+			 * This device is disabled by default, because
+			 * using the SD card connector requires
+			 * changing the default CON40 connector
+			 * "DB-88F6710_MPP_2xRGMII_DEVICE_Jumper" to a
+			 * different connector
+			 * "DB-88F6710_MPP_RGMII_SD_Jumper".
+			 */
+			status = "disabled";
+			/* No CD or WP GPIOs */
+		};
 	};
 };
