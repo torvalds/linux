@@ -145,8 +145,7 @@ static int mcu_gpiochip_remove(struct mcu *mcu)
 	return gpiochip_remove(&mcu->gc);
 }
 
-static int __devinit mcu_probe(struct i2c_client *client,
-			       const struct i2c_device_id *id)
+static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct mcu *mcu;
 	int ret;
@@ -188,7 +187,7 @@ err:
 	return ret;
 }
 
-static int __devexit mcu_remove(struct i2c_client *client)
+static int mcu_remove(struct i2c_client *client)
 {
 	struct mcu *mcu = i2c_get_clientdata(client);
 	int ret;
@@ -216,7 +215,7 @@ static const struct i2c_device_id mcu_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mcu_ids);
 
-static struct of_device_id mcu_of_match_table[] __devinitdata = {
+static struct of_device_id mcu_of_match_table[] = {
 	{ .compatible = "fsl,mcu-mpc8349emitx", },
 	{ },
 };
@@ -228,7 +227,7 @@ static struct i2c_driver mcu_driver = {
 		.of_match_table = mcu_of_match_table,
 	},
 	.probe = mcu_probe,
-	.remove	= __devexit_p(mcu_remove),
+	.remove	= mcu_remove,
 	.id_table = mcu_ids,
 };
 

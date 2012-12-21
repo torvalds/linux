@@ -46,7 +46,7 @@ static __initdata struct of_device_id ppc47x_of_bus[] = {
 
 /* The EEPROM is missing and the default values are bogus.  This forces USB in
  * to EHCI mode */
-static void __devinit quirk_ppc_currituck_usb_fixup(struct pci_dev *dev)
+static void quirk_ppc_currituck_usb_fixup(struct pci_dev *dev)
 {
 	if (of_machine_is_compatible("ibm,currituck")) {
 		pci_write_config_dword(dev, 0xe0, 0x0114231f);
