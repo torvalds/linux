@@ -82,7 +82,7 @@
 #define RK30_FB0_MEM_SIZE 8*SZ_1M
 #endif
 
-#include "board-rk3066b-sdk-camera.c"
+#include "board-rk3168-tb-camera.c"
 #include "board-rk3066b-sdk-key.c"
 
 #if defined(CONFIG_TOUCHSCREEN_GT8XX)
