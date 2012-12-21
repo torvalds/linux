@@ -36,6 +36,9 @@
 	(_save)=cru_readl(cons);\
 	cru_writel((((~(val)|(_save))&(w_msk))|((w_msk)<<16)),cons)
 
+static bool __sramdata pm_log;
+extern void pm_emit_log_char(char c);
+
 void __sramfunc sram_printch(char byte)
 {
 #ifdef DEBUG_UART_BASE
@@ -67,10 +70,13 @@ void __sramfunc sram_printch(char byte)
 	cru_writel(0xffff0000 | clk_gate2, CRU_CLKGATES_CON(2));
 	cru_writel(0xffff0000 | clk_gate4, CRU_CLKGATES_CON(4));
 	cru_writel(0xffff0000 | clk_gate8, CRU_CLKGATES_CON(8));
+#endif
+
+	if (pm_log)
+		pm_emit_log_char(byte);
 
 	if (byte == '\n')
 		sram_printch('\r');
-#endif
 }
 
 #ifdef CONFIG_DDR_TEST
@@ -549,16 +555,18 @@ static int rk30_pm_enter(suspend_state_t state)
 	cru_writel(0x07000000, CRU_MISC_CON);
 #endif
 
-	sram_printch('0');
-
-	pmu_pwrdn_st = pmu_readl(PMU_PWRDN_ST);
-	rk30_pm_set_power_domain(pmu_pwrdn_st, false);
-
 #ifdef CONFIG_DDR_TEST
 	// memory tester
 	if (ddr_debug != 0)
 		ddr_testmode();
 #endif
+
+	printk(KERN_DEBUG "pm: ");
+	pm_log = true;
+	sram_printch('0');
+
+	pmu_pwrdn_st = pmu_readl(PMU_PWRDN_ST);
+	rk30_pm_set_power_domain(pmu_pwrdn_st, false);
 
 	sram_printch('1');
 	local_fiq_disable();
@@ -663,7 +671,9 @@ static int rk30_pm_enter(suspend_state_t state)
 	interface_ctr_reg_pread();
 
 	sram_printch('4');
+	pm_log = false;
 	rk30_suspend();
+	pm_log = true;
 	sram_printch('4');
 
 	board_gpio_resume();
@@ -700,7 +710,10 @@ static int rk30_pm_enter(suspend_state_t state)
 
 	rk30_pm_set_power_domain(pmu_pwrdn_st, true);
 
-	sram_printascii("0\n");
+	sram_printch('0');
+	pm_log = false;
+	printk(KERN_CONT "\n");
+	sram_printch('\n');
 
 	rk30_pm_dump_irq();
 
