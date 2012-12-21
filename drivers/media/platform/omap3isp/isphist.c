@@ -481,7 +481,6 @@ int omap3isp_hist_init(struct isp_device *isp)
 	if (hist_cfg == NULL)
 		return -ENOMEM;
 
-	memset(hist, 0, sizeof(*hist));
 	hist->isp = isp;
 
 	if (HIST_CONFIG_DMA)

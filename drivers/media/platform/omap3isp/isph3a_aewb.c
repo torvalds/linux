@@ -306,7 +306,6 @@ int omap3isp_h3a_aewb_init(struct isp_device *isp)
 	if (!aewb_cfg)
 		return -ENOMEM;
 
-	memset(aewb, 0, sizeof(*aewb));
 	aewb->ops = &h3a_aewb_ops;
 	aewb->priv = aewb_cfg;
 	aewb->dma_ch = -1;

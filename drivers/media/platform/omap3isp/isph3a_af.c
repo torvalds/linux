@@ -369,7 +369,6 @@ int omap3isp_h3a_af_init(struct isp_device *isp)
 	if (af_cfg == NULL)
 		return -ENOMEM;
 
-	memset(af, 0, sizeof(*af));
 	af->ops = &h3a_af_ops;
 	af->priv = af_cfg;
 	af->dma_ch = -1;
