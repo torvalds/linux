@@ -1269,12 +1269,31 @@ static int __devexit omap_sham_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int omap_sham_suspend(struct device *dev)
+{
+	pm_runtime_put_sync(dev);
+	return 0;
+}
+
+static int omap_sham_resume(struct device *dev)
+{
+	pm_runtime_get_sync(dev);
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops omap_sham_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(omap_sham_suspend, omap_sham_resume)
+};
+
 static struct platform_driver omap_sham_driver = {
 	.probe	= omap_sham_probe,
 	.remove	= omap_sham_remove,
 	.driver	= {
 		.name	= "omap-sham",
 		.owner	= THIS_MODULE,
+		.pm	= &omap_sham_pm_ops,
 	},
 };
 
