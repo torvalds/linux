@@ -72,6 +72,7 @@ void __sramfunc sram_printch(char byte)
 	cru_writel(0xffff0000 | clk_gate8, CRU_CLKGATES_CON(8));
 #endif
 
+	sram_log_char(byte);
 	if (pm_log)
 		pm_emit_log_char(byte);
 
@@ -563,6 +564,7 @@ static int rk30_pm_enter(suspend_state_t state)
 
 	printk(KERN_DEBUG "pm: ");
 	pm_log = true;
+	sram_log_reset();
 	sram_printch('0');
 
 	pmu_pwrdn_st = pmu_readl(PMU_PWRDN_ST);

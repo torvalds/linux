@@ -44,6 +44,8 @@ static inline unsigned long ddr_save_sp(unsigned long new_sp)
 extern void __sramfunc sram_printch(char byte);
 extern void __sramfunc sram_printascii(const char *s);
 extern void __sramfunc sram_printhex(unsigned int hex);
+extern void __sramfunc sram_log_char(char c);
+extern void __sramfunc sram_log_reset(void);
 
 #endif /* CONFIG_PLAT_RK */
 #endif

@@ -59,15 +59,6 @@ static struct map_desc rk30_io_desc[] __initdata = {
 	RK30_DEVICE(DDR_PCTL),
 	RK30_DEVICE(DDR_PUBL),
 	RK30_DEVICE(I2C1),
-
-#ifdef CONFIG_RK_SRAM_DMA
-	{
-		.virtual = (unsigned long) RK30_IMEM_NONCACHED,
-		.pfn = __phys_to_pfn(RK30_IMEM_PHYS),
-		.length = RK30_IMEM_SIZE,
-		.type = MT_MEMORY_NONCACHED,
-	},
-#endif
 };
 
 void __init rk30_map_common_io(void)

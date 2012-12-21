@@ -21,14 +21,79 @@
 extern char __sram_code_start, __ssram_code_text, __esram_code_text;
 extern char __sram_data_start, __ssram_data, __esram_data;
 
-static struct map_desc sram_code_iomap[] __initdata = {
+#if defined(CONFIG_ARCH_RK30)
+#define SRAM_NONCACHED	RK30_IMEM_NONCACHED
+#define SRAM_CACHED	RK30_IMEM_BASE
+#define SRAM_PHYS	RK30_IMEM_PHYS
+#define SRAM_SIZE	RK30_IMEM_SIZE
+#elif defined(CONFIG_ARCH_RK2928)
+#define SRAM_NONCACHED	RK2928_IMEM_NONCACHED
+#define SRAM_CACHED	RK2928_IMEM_BASE
+#define SRAM_PHYS	RK2928_IMEM_PHYS
+#define SRAM_SIZE	RK2928_IMEM_SIZE
+#endif
+
+static struct map_desc sram_io_desc[] __initdata = {
 	{
-		.virtual	= (unsigned long)SRAM_CODE_OFFSET & PAGE_MASK,
+		.virtual	= (unsigned long) SRAM_CACHED,
 		.pfn		= __phys_to_pfn(0x0),
-		.length		=  1024*1024,
-		.type		=  MT_MEMORY
-	}
+		.length		= SZ_1M,
+		.type		= MT_MEMORY,
+	},
+	{
+		.virtual	= (unsigned long) SRAM_NONCACHED,
+		.pfn		= __phys_to_pfn(SRAM_PHYS),
+		.length		= SRAM_SIZE,
+		.type		= MT_MEMORY_NONCACHED,
+	},
 };
+
+#define SRAM_LOG_BUF_LEN 64
+static char __sramdata *sram_log_buf;
+static unsigned char __sramdata sram_log_end;
+#define SRAM_LOG_BUF_MASK (SRAM_LOG_BUF_LEN-1)
+#define SRAM_LOG_BUF(idx) (sram_log_buf[(idx) & SRAM_LOG_BUF_MASK])
+
+void __sramfunc sram_log_char(char c)
+{
+	if (!sram_log_buf)
+		return;
+	SRAM_LOG_BUF(sram_log_end) = c;
+	sram_log_end++;
+}
+
+void __sramfunc sram_log_reset(void)
+{
+	int i;
+	if (!sram_log_buf)
+		return;
+	for (i = 0; i < SRAM_LOG_BUF_LEN; i++)
+		sram_log_buf[i] = 0;
+	sram_log_end = 0;
+}
+
+#include <linux/ctype.h>
+void __init sram_log_dump(void)
+{
+	int i;
+
+	if ((u32)SRAM_DATA_END & SRAM_LOG_BUF_LEN)
+		sram_log_buf = NULL;
+	else
+		sram_log_buf = SRAM_NONCACHED + (SRAM_DATA_END - SRAM_CACHED) + 1;
+	if (!sram_log_buf)
+		return;
+
+	printk("sram_log: ");
+	for (i = 0; i < SRAM_LOG_BUF_LEN; i++) {
+		char c = sram_log_buf[i];
+		if (isascii(c) && isprint(c))
+			printk(KERN_CONT "%c", c);
+		else
+			printk(KERN_CONT " ");
+	}
+	printk(KERN_CONT "\n");
+}
 
 int __init rk29_sram_init(void)
 {
@@ -36,7 +101,7 @@ int __init rk29_sram_init(void)
 	char *end;
 	char *ram;
 
-	iotable_init(sram_code_iomap, 1);
+	iotable_init(sram_io_desc, ARRAY_SIZE(sram_io_desc));
 
 	/*
 	 * Normally devicemaps_init() would flush caches and tlb after
@@ -64,13 +129,16 @@ int __init rk29_sram_init(void)
 	ram   = &__sram_data_start;
 	memcpy(start, ram, (end-start));
 
-	printk("CPU SRAM: copied sram data from %p to %p - %p\n", ram,start, end);
+	printk("CPU SRAM: copied sram data from %p to %p - %p\n", ram, start, end);
+
+	sram_log_dump();
 
 	return 0;
 }
 
 __weak void __sramfunc sram_printch(char byte)
 {
+	sram_log_char(byte);
 #ifdef DEBUG_UART_BASE
 	writel_relaxed(byte, DEBUG_UART_BASE);
 	dsb();
