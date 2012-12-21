@@ -672,7 +672,8 @@ static void sort_memslots(struct kvm_memslots *slots)
 		slots->id_to_index[slots->memslots[i].id] = i;
 }
 
-void update_memslots(struct kvm_memslots *slots, struct kvm_memory_slot *new)
+void update_memslots(struct kvm_memslots *slots, struct kvm_memory_slot *new,
+		     u64 last_generation)
 {
 	if (new) {
 		int id = new->id;
@@ -684,7 +685,7 @@ void update_memslots(struct kvm_memslots *slots, struct kvm_memory_slot *new)
 			sort_memslots(slots);
 	}
 
-	slots->generation++;
+	slots->generation = last_generation + 1;
 }
 
 static int check_memory_region_flags(struct kvm_userspace_memory_region *mem)
@@ -819,7 +820,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		slot = id_to_memslot(slots, mem->slot);
 		slot->flags |= KVM_MEMSLOT_INVALID;
 
-		update_memslots(slots, NULL);
+		update_memslots(slots, NULL, kvm->memslots->generation);
 
 		old_memslots = kvm->memslots;
 		rcu_assign_pointer(kvm->memslots, slots);
@@ -867,7 +868,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		memset(&new.arch, 0, sizeof(new.arch));
 	}
 
-	update_memslots(slots, &new);
+	update_memslots(slots, &new, kvm->memslots->generation);
 	old_memslots = kvm->memslots;
 	rcu_assign_pointer(kvm->memslots, slots);
 	synchronize_srcu_expedited(&kvm->srcu);
