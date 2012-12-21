@@ -162,13 +162,11 @@
 #define GPIO_MODE_REGISTER       0x0F000034
 #define GPIO_PIN_STATE_REGISTER  0x0F000038
 
-
-typedef struct _LINK_STATE {
+struct bcm_link_state {
 	UCHAR ucLinkStatus;
 	UCHAR bIdleMode;
 	UCHAR bShutdownMode;
-} LINK_STATE, *PLINK_STATE;
-
+};
 
 enum enLinkStatus {
 	WAIT_FOR_SYNC = 1,

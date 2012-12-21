@@ -1013,7 +1013,7 @@ cntrlEnd:
 	}
 
 	case IOCTL_BCM_GET_CURRENT_STATUS: {
-		LINK_STATE link_state;
+		struct bcm_link_state link_state;
 
 		/* Copy Ioctl Buffer structure */
 		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer))) {
