@@ -1195,6 +1195,7 @@ static struct syscore_ops sec_pm_syscore_ops = {
 	.suspend = sec_suspend,
 	.resume = sec_resume,
 };
+
 #endif
 #else
 # define bfin_gpio_set_wake NULL
@@ -1596,7 +1597,10 @@ int __init init_arch_irq(void)
 	bfin_write_SEC_SCI(1, SEC_CCTL, SEC_CCTL_EN | SEC_CCTL_NMI_EN);
 
 	init_software_driven_irq();
+
+#ifdef CONFIG_PM
 	register_syscore_ops(&sec_pm_syscore_ops);
+#endif
 
 	return 0;
 }
