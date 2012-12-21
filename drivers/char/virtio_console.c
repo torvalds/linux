@@ -2186,11 +2186,7 @@ static struct virtio_driver virtio_console = {
 #endif
 };
 
-/*
- * virtio_rproc_serial refers to __devinit function which causes
- * section mismatch warnings. So use __refdata to silence warnings.
- */
-static struct virtio_driver __refdata virtio_rproc_serial = {
+static struct virtio_driver virtio_rproc_serial = {
 	.feature_table = rproc_serial_features,
 	.feature_table_size = ARRAY_SIZE(rproc_serial_features),
 	.driver.name =	"virtio_rproc_serial",
