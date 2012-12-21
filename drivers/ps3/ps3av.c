@@ -932,7 +932,7 @@ int ps3av_audio_mute(int mute)
 }
 EXPORT_SYMBOL_GPL(ps3av_audio_mute);
 
-static int __devinit ps3av_probe(struct ps3_system_bus_device *dev)
+static int ps3av_probe(struct ps3_system_bus_device *dev)
 {
 	int res;
 	int id;
