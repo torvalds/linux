@@ -1218,7 +1218,7 @@ static int lm49453_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	}
 
 	snd_soc_update_bits(codec, LM49453_P0_AUDIO_PORT1_BASIC_REG,
-			    LM49453_AUDIO_PORT1_BASIC_FMT_MASK|BIT(1)|BIT(5),
+			    LM49453_AUDIO_PORT1_BASIC_FMT_MASK|BIT(0)|BIT(5),
 			    (aif_val | mode | clk_phase));
 
 	snd_soc_write(codec, LM49453_P0_AUDIO_PORT1_RX_MSB_REG, clk_shift);
