@@ -546,7 +546,7 @@ static int init_chipset_siimage(struct pci_dev *dev)
  *	extended PRD tables. For better SI3112 support use the libata driver
  */
 
-static void __devinit init_mmio_iops_siimage(ide_hwif_t *hwif)
+static void init_mmio_iops_siimage(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	struct ide_host *host	= pci_get_drvdata(dev);
@@ -646,7 +646,7 @@ static void sil_quirkproc(ide_drive_t *drive)
  *	can get the iops right before using them.
  */
 
-static void __devinit init_iops_siimage(ide_hwif_t *hwif)
+static void init_iops_siimage(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct ide_host *host = pci_get_drvdata(dev);
@@ -719,7 +719,7 @@ static const struct ide_dma_ops sil_dma_ops = {
 		.udma_mask	= ATA_UDMA6,		\
 	}
 
-static const struct ide_port_info siimage_chipsets[] __devinitconst = {
+static const struct ide_port_info siimage_chipsets[] = {
 	/* 0: SiI680 */  DECLARE_SII_DEV(&sil_pata_port_ops),
 	/* 1: SiI3112 */ DECLARE_SII_DEV(&sil_sata_port_ops)
 };
@@ -733,8 +733,7 @@ static const struct ide_port_info siimage_chipsets[] __devinitconst = {
  *	We then use the IDE PCI generic helper to do most of the work.
  */
 
-static int __devinit siimage_init_one(struct pci_dev *dev,
-				      const struct pci_device_id *id)
+static int siimage_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	void __iomem *ioaddr = NULL;
 	resource_size_t bar5 = pci_resource_start(dev, 5);
@@ -790,7 +789,7 @@ static int __devinit siimage_init_one(struct pci_dev *dev,
 	return rc;
 }
 
-static void __devexit siimage_remove(struct pci_dev *dev)
+static void siimage_remove(struct pci_dev *dev)
 {
 	struct ide_host *host = pci_get_drvdata(dev);
 	void __iomem *ioaddr = host->host_priv;
@@ -822,7 +821,7 @@ static struct pci_driver siimage_pci_driver = {
 	.name		= "SiI_IDE",
 	.id_table	= siimage_pci_tbl,
 	.probe		= siimage_init_one,
-	.remove		= __devexit_p(siimage_remove),
+	.remove		= siimage_remove,
 	.suspend	= ide_pci_suspend,
 	.resume		= ide_pci_resume,
 };
