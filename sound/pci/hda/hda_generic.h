@@ -65,6 +65,9 @@ struct automic_entry {
 	unsigned int attr;	/* pin attribute (INPUT_PIN_ATTR_*) */
 };
 
+/* active stream id */
+enum { STREAM_MULTI_OUT, STREAM_INDEP_HP };
+
 struct hda_gen_spec {
 	char stream_name_analog[32];	/* analog PCM stream */
 	const struct hda_pcm_stream *stream_analog_playback;
@@ -75,6 +78,10 @@ struct hda_gen_spec {
 	char stream_name_digital[32];	/* digital PCM stream */
 	const struct hda_pcm_stream *stream_digital_playback;
 	const struct hda_pcm_stream *stream_digital_capture;
+
+	/* PCM */
+	unsigned int active_streams;
+	struct mutex pcm_mutex;
 
 	/* playback */
 	struct hda_multi_out multiout;	/* playback set-up
@@ -150,6 +157,8 @@ struct hda_gen_spec {
 	unsigned int inv_dmic_split:1; /* inverted dmic w/a for conexant */
 	unsigned int own_eapd_ctl:1; /* set EAPD by own function */
 	unsigned int vmaster_mute_enum:1; /* add vmaster mute mode enum */
+	unsigned int indep_hp:1; /* independent HP supported */
+	unsigned int indep_hp_enabled:1; /* independent HP enabled */
 
 	/* for virtual master */
 	hda_nid_t vmaster_nid;

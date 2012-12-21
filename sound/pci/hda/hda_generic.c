@@ -41,6 +41,7 @@ int snd_hda_gen_spec_init(struct hda_gen_spec *spec)
 	snd_array_init(&spec->kctls, sizeof(struct snd_kcontrol_new), 32);
 	snd_array_init(&spec->bind_ctls, sizeof(struct hda_bind_ctls *), 8);
 	snd_array_init(&spec->paths, sizeof(struct nid_path), 8);
+	mutex_init(&spec->pcm_mutex);
 	return 0;
 }
 EXPORT_SYMBOL_HDA(snd_hda_gen_spec_init);
@@ -1485,6 +1486,79 @@ static int create_speaker_out_ctls(struct hda_codec *codec)
 }
 
 /*
+ * independent HP controls
+ */
+
+static int indep_hp_info(struct snd_kcontrol *kcontrol,
+			 struct snd_ctl_elem_info *uinfo)
+{
+	return snd_hda_enum_bool_helper_info(kcontrol, uinfo);
+}
+
+static int indep_hp_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct hda_gen_spec *spec = codec->spec;
+	ucontrol->value.enumerated.item[0] = spec->indep_hp_enabled;
+	return 0;
+}
+
+static int indep_hp_put(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct hda_gen_spec *spec = codec->spec;
+	unsigned int select = ucontrol->value.enumerated.item[0];
+	int ret = 0;
+
+	mutex_lock(&spec->pcm_mutex);
+	if (spec->active_streams) {
+		ret = -EBUSY;
+		goto unlock;
+	}
+
+	if (spec->indep_hp_enabled != select) {
+		spec->indep_hp_enabled = select;
+		if (spec->indep_hp_enabled)
+			spec->multiout.hp_out_nid[0] = 0;
+		else
+			spec->multiout.hp_out_nid[0] = spec->alt_dac_nid;
+		ret = 1;
+	}
+ unlock:
+	mutex_unlock(&spec->pcm_mutex);
+	return ret;
+}
+
+static const struct snd_kcontrol_new indep_hp_ctl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Independent HP",
+	.info = indep_hp_info,
+	.get = indep_hp_get,
+	.put = indep_hp_put,
+};
+
+
+static int create_indep_hp_ctls(struct hda_codec *codec)
+{
+	struct hda_gen_spec *spec = codec->spec;
+
+	if (!spec->indep_hp)
+		return 0;
+	if (!spec->multiout.hp_out_nid[0]) {
+		spec->indep_hp = 0;
+		return 0;
+	}
+
+	spec->indep_hp_enabled = false;
+	spec->alt_dac_nid = spec->multiout.hp_out_nid[0];
+	if (!snd_hda_gen_add_kctl(spec, NULL, &indep_hp_ctl))
+		return -ENOMEM;
+	return 0;
+}
+
+/*
  * channel mode enum control
  */
 
@@ -2905,6 +2979,9 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 	err = create_speaker_out_ctls(codec);
 	if (err < 0)
 		return err;
+	err = create_indep_hp_ctls(codec);
+	if (err < 0)
+		return err;
 	err = create_shared_input(codec);
 	if (err < 0)
 		return err;
@@ -3057,8 +3134,16 @@ static int playback_pcm_open(struct hda_pcm_stream *hinfo,
 			     struct snd_pcm_substream *substream)
 {
 	struct hda_gen_spec *spec = codec->spec;
-	return snd_hda_multi_out_analog_open(codec, &spec->multiout, substream,
+	int err;
+
+	mutex_lock(&spec->pcm_mutex);
+	err = snd_hda_multi_out_analog_open(codec,
+					    &spec->multiout, substream,
 					     hinfo);
+	if (!err)
+		spec->active_streams |= 1 << STREAM_MULTI_OUT;
+	mutex_unlock(&spec->pcm_mutex);
+	return err;
 }
 
 static int playback_pcm_prepare(struct hda_pcm_stream *hinfo,
@@ -3078,6 +3163,44 @@ static int playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
 {
 	struct hda_gen_spec *spec = codec->spec;
 	return snd_hda_multi_out_analog_cleanup(codec, &spec->multiout);
+}
+
+static int playback_pcm_close(struct hda_pcm_stream *hinfo,
+			      struct hda_codec *codec,
+			      struct snd_pcm_substream *substream)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	mutex_lock(&spec->pcm_mutex);
+	spec->active_streams &= ~(1 << STREAM_MULTI_OUT);
+	mutex_unlock(&spec->pcm_mutex);
+	return 0;
+}
+
+static int alt_playback_pcm_open(struct hda_pcm_stream *hinfo,
+				 struct hda_codec *codec,
+				 struct snd_pcm_substream *substream)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	int err = 0;
+
+	mutex_lock(&spec->pcm_mutex);
+	if (!spec->indep_hp_enabled)
+		err = -EBUSY;
+	else
+		spec->active_streams |= 1 << STREAM_INDEP_HP;
+	mutex_unlock(&spec->pcm_mutex);
+	return err;
+}
+
+static int alt_playback_pcm_close(struct hda_pcm_stream *hinfo,
+				  struct hda_codec *codec,
+				  struct snd_pcm_substream *substream)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	mutex_lock(&spec->pcm_mutex);
+	spec->active_streams &= ~(1 << STREAM_INDEP_HP);
+	mutex_unlock(&spec->pcm_mutex);
+	return 0;
 }
 
 /*
@@ -3154,6 +3277,7 @@ static const struct hda_pcm_stream pcm_analog_playback = {
 	/* NID is set in build_pcms */
 	.ops = {
 		.open = playback_pcm_open,
+		.close = playback_pcm_close,
 		.prepare = playback_pcm_prepare,
 		.cleanup = playback_pcm_cleanup
 	},
@@ -3171,6 +3295,10 @@ static const struct hda_pcm_stream pcm_analog_alt_playback = {
 	.channels_min = 2,
 	.channels_max = 2,
 	/* NID is set in build_pcms */
+	.ops = {
+		.open = alt_playback_pcm_open,
+		.close = alt_playback_pcm_close
+	},
 };
 
 static const struct hda_pcm_stream pcm_analog_alt_capture = {
