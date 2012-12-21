@@ -247,7 +247,7 @@ int __init pci_mrst_init(void)
 /* Langwell devices are not true pci devices, they are not subject to 10 ms
  * d3 to d0 delay required by pci spec.
  */
-static void __devinit pci_d3delay_fixup(struct pci_dev *dev)
+static void pci_d3delay_fixup(struct pci_dev *dev)
 {
 	/* PCI fixups are effectively decided compile time. If we have a dual
 	   SoC/non-SoC kernel we don't want to mangle d3 on non SoC devices */
@@ -262,7 +262,7 @@ static void __devinit pci_d3delay_fixup(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, PCI_ANY_ID, pci_d3delay_fixup);
 
-static void __devinit mrst_power_off_unused_dev(struct pci_dev *dev)
+static void mrst_power_off_unused_dev(struct pci_dev *dev)
 {
 	pci_set_power_state(dev, PCI_D3hot);
 }
@@ -275,7 +275,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0815, mrst_power_off_unused_dev);
 /*
  * Langwell devices reside at fixed offsets, don't try to move them.
  */
-static void __devinit pci_fixed_bar_fixup(struct pci_dev *dev)
+static void pci_fixed_bar_fixup(struct pci_dev *dev)
 {
 	unsigned long offset;
 	u32 size;
