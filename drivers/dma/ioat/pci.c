@@ -109,9 +109,8 @@ static struct pci_device_id ioat_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, ioat_pci_tbl);
 
-static int __devinit ioat_pci_probe(struct pci_dev *pdev,
-				    const struct pci_device_id *id);
-static void __devexit ioat_remove(struct pci_dev *pdev);
+static int ioat_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id);
+static void ioat_remove(struct pci_dev *pdev);
 
 static int ioat_dca_enabled = 1;
 module_param(ioat_dca_enabled, int, 0644);
@@ -141,7 +140,7 @@ alloc_ioatdma(struct pci_dev *pdev, void __iomem *iobase)
 	return d;
 }
 
-static int __devinit ioat_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int ioat_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	void __iomem * const *iomap;
 	struct device *dev = &pdev->dev;
@@ -195,7 +194,7 @@ static int __devinit ioat_pci_probe(struct pci_dev *pdev, const struct pci_devic
 	return 0;
 }
 
-static void __devexit ioat_remove(struct pci_dev *pdev)
+static void ioat_remove(struct pci_dev *pdev)
 {
 	struct ioatdma_device *device = pci_get_drvdata(pdev);
 
