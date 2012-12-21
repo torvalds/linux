@@ -54,7 +54,7 @@ static dma_addr_t xway_gphy_load(struct platform_device *pdev)
 	return dev_addr;
 }
 
-static int __devinit xway_phy_fw_probe(struct platform_device *pdev)
+static int xway_phy_fw_probe(struct platform_device *pdev)
 {
 	dma_addr_t fw_addr;
 	struct property *pp;

@@ -236,7 +236,7 @@ void __init plat_mem_setup(void)
 #include <video/vga.h>
 #include <video/cirrus.h>
 
-static void __devinit quirk_cirrus_ram_size(struct pci_dev *dev)
+static void quirk_cirrus_ram_size(struct pci_dev *dev)
 {
 	u16 cmd;
 
