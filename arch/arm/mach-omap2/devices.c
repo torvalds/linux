@@ -656,10 +656,10 @@ static int __init omap2_init_devices(void)
 		omap_init_mcpdm();
 		omap_init_mcspi();
 		omap_init_sham();
+		omap_init_aes();
 	}
 	omap_init_sti();
 	omap_init_rng();
-	omap_init_aes();
 	omap_init_vout();
 	omap_init_ocp2scp();
 
