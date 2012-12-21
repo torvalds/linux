@@ -364,10 +364,7 @@ static struct attribute_group mc_attr_group = {
 
 static void microcode_fini_cpu(int cpu)
 {
-	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
-
 	microcode_ops->microcode_fini_cpu(cpu);
-	uci->valid = 0;
 }
 
 static enum ucode_state microcode_resume_cpu(int cpu)
@@ -383,6 +380,10 @@ static enum ucode_state microcode_resume_cpu(int cpu)
 static enum ucode_state microcode_init_cpu(int cpu, bool refresh_fw)
 {
 	enum ucode_state ustate;
+	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+
+	if (uci && uci->valid)
+		return UCODE_OK;
 
 	if (collect_cpu_info(cpu))
 		return UCODE_ERROR;
