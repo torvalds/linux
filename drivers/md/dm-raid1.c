@@ -140,7 +140,9 @@ static void dispatch_bios(void *context, struct bio_list *bio_list)
 
 struct dm_raid1_bio_record {
 	struct mirror *m;
+	/* if details->bi_bdev == NULL, details were not saved */
 	struct dm_bio_details details;
+	region_t write_region;
 };
 
 /*
@@ -1146,12 +1148,15 @@ static int mirror_map(struct dm_target *ti, struct bio *bio,
 	int r, rw = bio_rw(bio);
 	struct mirror *m;
 	struct mirror_set *ms = ti->private;
-	struct dm_raid1_bio_record *bio_record;
 	struct dm_dirty_log *log = dm_rh_dirty_log(ms->rh);
+	struct dm_raid1_bio_record *bio_record =
+	  dm_per_bio_data(bio, sizeof(struct dm_raid1_bio_record));
+
+	bio_record->details.bi_bdev = NULL;
 
 	if (rw == WRITE) {
 		/* Save region for mirror_end_io() handler */
-		map_context->ll = dm_rh_bio_to_region(ms->rh, bio);
+		bio_record->write_region = dm_rh_bio_to_region(ms->rh, bio);
 		queue_bio(ms, bio, rw);
 		return DM_MAPIO_SUBMITTED;
 	}
@@ -1179,9 +1184,7 @@ static int mirror_map(struct dm_target *ti, struct bio *bio,
 	if (unlikely(!m))
 		return -EIO;
 
-	bio_record = dm_per_bio_data(bio, sizeof(struct dm_raid1_bio_record));
 	dm_bio_record(&bio_record->details, bio);
-	map_context->ptr = bio_record;
 	bio_record->m = m;
 
 	map_bio(m, bio);
@@ -1196,14 +1199,15 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio,
 	struct mirror_set *ms = (struct mirror_set *) ti->private;
 	struct mirror *m = NULL;
 	struct dm_bio_details *bd = NULL;
-	struct dm_raid1_bio_record *bio_record = map_context->ptr;
+	struct dm_raid1_bio_record *bio_record =
+	  dm_per_bio_data(bio, sizeof(struct dm_raid1_bio_record));
 
 	/*
 	 * We need to dec pending if this was a write.
 	 */
 	if (rw == WRITE) {
 		if (!(bio->bi_rw & (REQ_FLUSH | REQ_DISCARD)))
-			dm_rh_dec(ms->rh, map_context->ll);
+			dm_rh_dec(ms->rh, bio_record->write_region);
 		return error;
 	}
 
@@ -1214,7 +1218,7 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio,
 		goto out;
 
 	if (unlikely(error)) {
-		if (!bio_record) {
+		if (!bio_record->details.bi_bdev) {
 			/*
 			 * There wasn't enough memory to record necessary
 			 * information for a retry or there was no other
@@ -1239,7 +1243,7 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio,
 			bd = &bio_record->details;
 
 			dm_bio_restore(bd, bio);
-			map_context->ptr = NULL;
+			bio_record->details.bi_bdev = NULL;
 			queue_bio(ms, bio, rw);
 			return DM_ENDIO_INCOMPLETE;
 		}
@@ -1247,7 +1251,7 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio,
 	}
 
 out:
-	map_context->ptr = NULL;
+	bio_record->details.bi_bdev = NULL;
 
 	return error;
 }
