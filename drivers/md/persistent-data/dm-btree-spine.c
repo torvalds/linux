@@ -45,8 +45,8 @@ static int node_check(struct dm_block_validator *v,
 	uint32_t flags;
 
 	if (dm_block_location(b) != le64_to_cpu(h->blocknr)) {
-		DMERR("node_check failed blocknr %llu wanted %llu",
-		      le64_to_cpu(h->blocknr), dm_block_location(b));
+		DMERR_LIMIT("node_check failed: blocknr %llu != wanted %llu",
+			    le64_to_cpu(h->blocknr), dm_block_location(b));
 		return -ENOTBLK;
 	}
 
@@ -54,8 +54,8 @@ static int node_check(struct dm_block_validator *v,
 					       block_size - sizeof(__le32),
 					       BTREE_CSUM_XOR));
 	if (csum_disk != h->csum) {
-		DMERR("node_check failed csum %u wanted %u",
-		      le32_to_cpu(csum_disk), le32_to_cpu(h->csum));
+		DMERR_LIMIT("node_check failed: csum %u != wanted %u",
+			    le32_to_cpu(csum_disk), le32_to_cpu(h->csum));
 		return -EILSEQ;
 	}
 
@@ -63,12 +63,12 @@ static int node_check(struct dm_block_validator *v,
 
 	if (sizeof(struct node_header) +
 	    (sizeof(__le64) + value_size) * le32_to_cpu(h->max_entries) > block_size) {
-		DMERR("node_check failed: max_entries too large");
+		DMERR_LIMIT("node_check failed: max_entries too large");
 		return -EILSEQ;
 	}
 
 	if (le32_to_cpu(h->nr_entries) > le32_to_cpu(h->max_entries)) {
-		DMERR("node_check failed, too many entries");
+		DMERR_LIMIT("node_check failed: too many entries");
 		return -EILSEQ;
 	}
 
@@ -77,7 +77,7 @@ static int node_check(struct dm_block_validator *v,
 	 */
 	flags = le32_to_cpu(h->flags);
 	if (!(flags & INTERNAL_NODE) && !(flags & LEAF_NODE)) {
-		DMERR("node_check failed, node is neither INTERNAL or LEAF");
+		DMERR_LIMIT("node_check failed: node is neither INTERNAL or LEAF");
 		return -EILSEQ;
 	}
 
