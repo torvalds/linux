@@ -2305,7 +2305,7 @@ static irqreturn_t hdmi_internal_irq_thread(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static int __devinit hdmi_resources_init(struct hdmi_context *hdata)
+static int hdmi_resources_init(struct hdmi_context *hdata)
 {
 	struct device *dev = hdata->dev;
 	struct hdmi_resources *res = &hdata->res;
@@ -2451,7 +2451,7 @@ static struct of_device_id hdmi_match_types[] = {
 };
 #endif
 
-static int __devinit hdmi_probe(struct platform_device *pdev)
+static int hdmi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct exynos_drm_hdmi_context *drm_hdmi_ctx;
@@ -2607,7 +2607,7 @@ err_ddc:
 	return ret;
 }
 
-static int __devexit hdmi_remove(struct platform_device *pdev)
+static int hdmi_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct exynos_drm_hdmi_context *ctx = platform_get_drvdata(pdev);
@@ -2708,7 +2708,7 @@ static const struct dev_pm_ops hdmi_pm_ops = {
 
 struct platform_driver hdmi_driver = {
 	.probe		= hdmi_probe,
-	.remove		= __devexit_p(hdmi_remove),
+	.remove		= hdmi_remove,
 	.id_table = hdmi_driver_types,
 	.driver		= {
 		.name	= "exynos-hdmi",

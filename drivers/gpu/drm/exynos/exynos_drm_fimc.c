@@ -1714,7 +1714,7 @@ static void fimc_ippdrv_stop(struct device *dev, enum drm_exynos_ipp_cmd cmd)
 	fimc_write(cfg, EXYNOS_CIGCTRL);
 }
 
-static int __devinit fimc_probe(struct platform_device *pdev)
+static int fimc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct fimc_context *ctx;
@@ -1891,7 +1891,7 @@ err_ctx:
 	return ret;
 }
 
-static int __devexit fimc_remove(struct platform_device *pdev)
+static int fimc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct fimc_context *ctx = get_fimc_context(dev);
@@ -1990,7 +1990,7 @@ static const struct dev_pm_ops fimc_pm_ops = {
 
 struct platform_driver fimc_driver = {
 	.probe		= fimc_probe,
-	.remove		= __devexit_p(fimc_remove),
+	.remove		= fimc_remove,
 	.id_table	= fimc_driver_ids,
 	.driver		= {
 		.name	= "exynos-drm-fimc",
