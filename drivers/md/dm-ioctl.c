@@ -1556,7 +1556,10 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl **param)
 
 	secure_data = tmp.flags & DM_SECURE_DATA_FLAG;
 
-	dmi = vmalloc(tmp.data_size);
+	/*
+	 * Try to avoid low memory issues when a device is suspended.
+	 */
+	dmi = __vmalloc(tmp.data_size, GFP_NOIO | __GFP_REPEAT | __GFP_HIGH, PAGE_KERNEL);
 	if (!dmi) {
 		if (secure_data && clear_user(user, tmp.data_size))
 			return -EFAULT;
@@ -1657,17 +1660,9 @@ static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
 	}
 
 	/*
-	 * Trying to avoid low memory issues when a device is
-	 * suspended.
-	 */
-	current->flags |= PF_MEMALLOC;
-
-	/*
 	 * Copy the parameters into kernel space.
 	 */
 	r = copy_params(user, &param);
-
-	current->flags &= ~PF_MEMALLOC;
 
 	if (r)
 		return r;
