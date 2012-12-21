@@ -1724,9 +1724,10 @@ static int pn533_activate_target_nfcdep(struct pn533 *dev)
 
 	rsp = (struct pn533_cmd_activate_response *)resp->data;
 	rc = rsp->status & PN533_CMD_RET_MASK;
-	if (rc != PN533_CMD_RET_SUCCESS)
+	if (rc != PN533_CMD_RET_SUCCESS) {
 		dev_kfree_skb(resp);
 		return -EIO;
+	}
 
 	/* ATR_RES general bytes are located at offset 16 */
 	gt_len = resp->len - 16;
