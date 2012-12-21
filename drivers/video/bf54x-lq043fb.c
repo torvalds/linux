@@ -497,7 +497,7 @@ static irqreturn_t bfin_bf54x_irq_error(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit bfin_bf54x_probe(struct platform_device *pdev)
+static int bfin_bf54x_probe(struct platform_device *pdev)
 {
 #ifndef NO_BL_SUPPORT
 	struct backlight_properties props;
@@ -686,7 +686,7 @@ out1:
 	return ret;
 }
 
-static int __devexit bfin_bf54x_remove(struct platform_device *pdev)
+static int bfin_bf54x_remove(struct platform_device *pdev)
 {
 
 	struct fb_info *fbinfo = platform_get_drvdata(pdev);
@@ -754,7 +754,7 @@ static int bfin_bf54x_resume(struct platform_device *pdev)
 
 static struct platform_driver bfin_bf54x_driver = {
 	.probe = bfin_bf54x_probe,
-	.remove = __devexit_p(bfin_bf54x_remove),
+	.remove = bfin_bf54x_remove,
 	.suspend = bfin_bf54x_suspend,
 	.resume = bfin_bf54x_resume,
 	.driver = {
