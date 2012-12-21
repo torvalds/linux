@@ -20,10 +20,20 @@ static inline void __native_flush_tlb(void)
 	native_write_cr3(native_read_cr3());
 }
 
+static inline void __native_flush_tlb_global_irq_disabled(void)
+{
+	unsigned long cr4;
+
+	cr4 = native_read_cr4();
+	/* clear PGE */
+	native_write_cr4(cr4 & ~X86_CR4_PGE);
+	/* write old PGE again and flush TLBs */
+	native_write_cr4(cr4);
+}
+
 static inline void __native_flush_tlb_global(void)
 {
 	unsigned long flags;
-	unsigned long cr4;
 
 	/*
 	 * Read-modify-write to CR4 - protect it from preemption and
@@ -32,11 +42,7 @@ static inline void __native_flush_tlb_global(void)
 	 */
 	raw_local_irq_save(flags);
 
-	cr4 = native_read_cr4();
-	/* clear PGE */
-	native_write_cr4(cr4 & ~X86_CR4_PGE);
-	/* write old PGE again and flush TLBs */
-	native_write_cr4(cr4);
+	__native_flush_tlb_global_irq_disabled();
 
 	raw_local_irq_restore(flags);
 }
