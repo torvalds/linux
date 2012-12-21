@@ -1195,11 +1195,9 @@ static int mirror_map(struct dm_target *ti, struct bio *bio,
 		return -EIO;
 
 	read_record = mempool_alloc(ms->read_record_pool, GFP_NOIO);
-	if (likely(read_record)) {
-		dm_bio_record(&read_record->details, bio);
-		map_context->ptr = read_record;
-		read_record->m = m;
-	}
+	dm_bio_record(&read_record->details, bio);
+	map_context->ptr = read_record;
+	read_record->m = m;
 
 	map_bio(m, bio);
 
