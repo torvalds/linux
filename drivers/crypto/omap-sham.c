@@ -1286,8 +1286,6 @@ static struct platform_driver omap_sham_driver = {
 
 static int __init omap_sham_mod_init(void)
 {
-	pr_info("loading %s driver\n", "omap-sham");
-
 	return platform_driver_register(&omap_sham_driver);
 }
 
