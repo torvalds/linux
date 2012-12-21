@@ -182,13 +182,12 @@ enum enLinkStatus {
 	COMPLETE_WAKE_UP_NOTIFICATION_FRM_FW = 9
 };
 
-typedef enum _E_PHS_DSC_ACTION {
+enum bcm_phs_dsc_action {
 	eAddPHSRule = 0,
 	eSetPHSRule,
 	eDeletePHSRule,
 	eDeleteAllPHSRules
-} E_PHS_DSC_ACTION;
-
+};
 
 #define CM_CONTROL_NEWDSX_MULTICLASSIFIER_REQ  0x89 /* Host to Mac */
 #define CM_CONTROL_NEWDSX_MULTICLASSIFIER_RESP 0xA9 /* Mac to Host */
