@@ -1292,7 +1292,8 @@ static int __devinit omap_sham_probe(struct platform_device *pdev)
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	dd->dma_lch = dma_request_channel(mask, omap_dma_filter_fn, &dd->dma);
+	dd->dma_lch = dma_request_slave_channel_compat(mask, omap_dma_filter_fn,
+						       &dd->dma, dev, "rx");
 	if (!dd->dma_lch) {
 		dev_err(dev, "unable to obtain RX DMA engine channel %u\n",
 			dd->dma);
