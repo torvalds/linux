@@ -175,6 +175,7 @@ struct pwm_device *of_pwm_xlate_with_flags(struct pwm_chip *pc,
 		const struct of_phandle_args *args);
 
 struct pwm_device *pwm_get(struct device *dev, const char *con_id);
+struct pwm_device *of_pwm_get(struct device_node *np, const char *con_id);
 void pwm_put(struct pwm_device *pwm);
 
 struct pwm_device *devm_pwm_get(struct device *dev, const char *con_id);
@@ -209,6 +210,12 @@ static inline struct pwm_device *pwm_request_from_chip(struct pwm_chip *chip,
 
 static inline struct pwm_device *pwm_get(struct device *dev,
 					 const char *consumer)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline struct pwm_device *of_pwm_get(struct device_node *np,
+					    const char *con_id)
 {
 	return ERR_PTR(-ENODEV);
 }
