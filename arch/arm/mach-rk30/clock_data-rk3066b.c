@@ -3143,9 +3143,8 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long
 	clk_set_rate_nolock(&clk_gpu, 200 * MHZ);
 	clk_set_rate_nolock(&aclk_gpu, 200 * MHZ);
 	
-	clk_set_parent_nolock(&clk_uart_pll, &general_pll_clk);
-	clk_set_rate_nolock(&clk_uart0_div, 297 * MHZ);
-	clk_set_parent_nolock(&clk_uart0, &clk_uart0_div);
+	clk_set_rate_nolock(&clk_uart0, 49500000);
+
 }
 
 static struct clk def_ops_clk = {
