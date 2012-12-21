@@ -766,7 +766,7 @@ static struct of_device_id wmt_mci_dt_ids[] = {
 	{ /* Sentinel */ },
 };
 
-static int __devinit wmt_mci_probe(struct platform_device *pdev)
+static int wmt_mci_probe(struct platform_device *pdev)
 {
 	struct mmc_host *mmc;
 	struct wmt_mci_priv *priv;
@@ -892,7 +892,7 @@ fail1:
 	return ret;
 }
 
-static int __devexit wmt_mci_remove(struct platform_device *pdev)
+static int wmt_mci_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc;
 	struct wmt_mci_priv *priv;
