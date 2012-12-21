@@ -494,7 +494,7 @@ static void setcolors(struct gspca_dev *gspca_dev, s32 val)
 
 static void setgamma(struct gspca_dev *gspca_dev, s32 val)
 {
-	PDEBUG(D_CONF, "Gamma: %d", sd->gamma);
+	PDEBUG(D_CONF, "Gamma: %d", val);
 	reg_w_ixbuf(gspca_dev, 0x90,
 		gamma_table[val], sizeof gamma_table[0]);
 }
