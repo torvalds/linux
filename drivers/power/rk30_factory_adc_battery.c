@@ -157,6 +157,7 @@ struct rk30_adc_battery_data {
 	//struct timer_list       timer;
 	struct workqueue_struct *wq;
 	struct delayed_work 	    delay_work;
+	struct delayed_work	   check_work;
 	struct work_struct 	    dcwakeup_work;
 	struct work_struct                   lowerpower_work;
 	bool                    resume;
@@ -210,6 +211,7 @@ struct rk30_adc_battery_data {
 	
 	int                     full_times;
 	int			    charge_full_flag;
+	int                     stop_check;
 
 
 };
@@ -1565,15 +1567,15 @@ struct rk30_adc_battery_data  *bat = container_of((work), \
 
 #ifdef CONFIG_PM
 	if (bat ->resume) {
-		if( (bat->resume_time - bat->suspend_time) >= 1800 )
+	//	if( (bat->resume_time - bat->suspend_time) >= 1800 )
 			rk30_adc_battery_resume_check(bat);
-		else
-			bat->bat_capacity = bat->suspend_capacity;
+		//else
+			//bat->bat_capacity = bat->suspend_capacity;
 		bat ->resume = false;
 		bat ->bat_change =1;
 	}
 #endif
-
+	bat->stop_check = 1;
 	if (bat ->poweron_check){   
 		bat ->poweron_check = 0;
 		rk30_adc_battery_poweron_capacity_check(bat);
@@ -1837,6 +1839,21 @@ static irqreturn_t rk30_adc_battery_low_wakeup(int irq,void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void rk_adc_battery_check_work(struct work_struct *work)
+{
+	struct rk30_adc_battery_data  *bat = container_of((work), \
+			struct rk30_adc_battery_data, check_work);
+	
+		if(1 == get_ac_status(bat)){
+			bat->bat_status = POWER_SUPPLY_STATUS_CHARGING;
+			bat -> ac_charging = 1;
+		}
+		
+		power_supply_changed(&bat ->ac);
+	if(bat->stop_check != 1)
+		queue_delayed_work(bat ->wq, &bat ->check_work, msecs_to_jiffies(TIMER_MS_COUNTS));
+
+}
 static int rk30_adc_battery_probe(struct platform_device *pdev)
 {
 	int    ret;
@@ -1874,6 +1891,7 @@ static int rk30_adc_battery_probe(struct platform_device *pdev)
 	data->start_voltage_status = 0;
 	data->charge_full_flag =0;
 	data->pSamples = data->adc_samples;
+	data->stop_check = 0;
 
 	data->bat_status = POWER_SUPPLY_STATUS_NOT_CHARGING;
  	wake_lock_init(&batt_wake_lock, WAKE_LOCK_SUSPEND, "batt_lock");	
@@ -1973,6 +1991,8 @@ static int rk30_adc_battery_probe(struct platform_device *pdev)
 		queue_delayed_work(data->wq, &data->delay_work, msecs_to_jiffies(TIMER_MS_COUNTS));
 		data ->poweron_check = 0;
 	}
+	INIT_DELAYED_WORK(&data->check_work, rk_adc_battery_check_work);
+	queue_delayed_work(data ->wq, &data ->check_work, msecs_to_jiffies(TIMER_MS_COUNTS));
 	if( pdata->batt_low_pin != INVALID_GPIO){
 		
 		if (gpio_get_value(pdata->batt_low_pin) ==0){
@@ -2033,6 +2053,7 @@ static int rk30_adc_battery_remove(struct platform_device *pdev)
     if (pdata->dc_det_pin != INVALID_GPIO)
         cancel_delayed_work_sync(&data->dcwakeup_work);
 #endif
+        cancel_delayed_work_sync(&data->check_work);
 
     if( pdata->batt_low_pin != INVALID_GPIO)
         cancel_delayed_work_sync(&data->lowerpower_work);
@@ -2069,8 +2090,8 @@ static void __exit rk30_adc_battery_exit(void)
 {
 	platform_driver_unregister(&rk30_adc_battery_driver);
 }
-module_init(rk30_adc_battery_init);//module_init(rk30_adc_battery_init);//
-//subsys_initcall(rk30_adc_battery_init);
+//module_init(rk30_adc_battery_init);//module_init(rk30_adc_battery_init);//
+subsys_initcall(rk30_adc_battery_init);
 //fs_initcall(rk30_adc_battery_init);
 module_exit(rk30_adc_battery_exit);
 
