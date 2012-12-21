@@ -79,7 +79,6 @@ struct dm_snapshot {
 
 	/* Chunks with outstanding reads */
 	spinlock_t tracked_chunk_lock;
-	mempool_t *tracked_chunk_pool;
 	struct hlist_head tracked_chunk_hash[DM_TRACKED_CHUNK_HASH_SIZE];
 
 	/* The on disk metadata handler */
@@ -191,13 +190,11 @@ struct dm_snap_tracked_chunk {
 	chunk_t chunk;
 };
 
-static struct kmem_cache *tracked_chunk_cache;
-
 static struct dm_snap_tracked_chunk *track_chunk(struct dm_snapshot *s,
+						 struct bio *bio,
 						 chunk_t chunk)
 {
-	struct dm_snap_tracked_chunk *c = mempool_alloc(s->tracked_chunk_pool,
-							GFP_NOIO);
+	struct dm_snap_tracked_chunk *c = dm_per_bio_data(bio, sizeof(struct dm_snap_tracked_chunk));
 
 	c->chunk = chunk;
 
@@ -217,8 +214,6 @@ static void stop_tracking_chunk(struct dm_snapshot *s,
 	spin_lock_irqsave(&s->tracked_chunk_lock, flags);
 	hlist_del(&c->node);
 	spin_unlock_irqrestore(&s->tracked_chunk_lock, flags);
-
-	mempool_free(c, s->tracked_chunk_pool);
 }
 
 static int __chunk_is_tracked(struct dm_snapshot *s, chunk_t chunk)
@@ -1119,14 +1114,6 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad_pending_pool;
 	}
 
-	s->tracked_chunk_pool = mempool_create_slab_pool(MIN_IOS,
-							 tracked_chunk_cache);
-	if (!s->tracked_chunk_pool) {
-		ti->error = "Could not allocate tracked_chunk mempool for "
-			    "tracking reads";
-		goto bad_tracked_chunk_pool;
-	}
-
 	for (i = 0; i < DM_TRACKED_CHUNK_HASH_SIZE; i++)
 		INIT_HLIST_HEAD(&s->tracked_chunk_hash[i]);
 
@@ -1134,6 +1121,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	ti->private = s;
 	ti->num_flush_requests = num_flush_requests;
+	ti->per_bio_data_size = sizeof(struct dm_snap_tracked_chunk);
 
 	/* Add snapshot to the list of snapshots for this origin */
 	/* Exceptions aren't triggered till snapshot_resume() is called */
@@ -1182,9 +1170,6 @@ bad_read_metadata:
 	unregister_snapshot(s);
 
 bad_load_and_register:
-	mempool_destroy(s->tracked_chunk_pool);
-
-bad_tracked_chunk_pool:
 	mempool_destroy(s->pending_pool);
 
 bad_pending_pool:
@@ -1288,8 +1273,6 @@ static void snapshot_dtr(struct dm_target *ti)
 	for (i = 0; i < DM_TRACKED_CHUNK_HASH_SIZE; i++)
 		BUG_ON(!hlist_empty(&s->tracked_chunk_hash[i]));
 #endif
-
-	mempool_destroy(s->tracked_chunk_pool);
 
 	__free_exceptions(s);
 
@@ -1669,7 +1652,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 		}
 	} else {
 		bio->bi_bdev = s->origin->bdev;
-		map_context->ptr = track_chunk(s, chunk);
+		map_context->ptr = track_chunk(s, bio, chunk);
 	}
 
 out_unlock:
@@ -1732,7 +1715,7 @@ static int snapshot_merge_map(struct dm_target *ti, struct bio *bio,
 		remap_exception(s, e, bio, chunk);
 
 		if (bio_rw(bio) == WRITE)
-			map_context->ptr = track_chunk(s, chunk);
+			map_context->ptr = track_chunk(s, bio, chunk);
 		goto out_unlock;
 	}
 
@@ -2192,7 +2175,7 @@ static int origin_iterate_devices(struct dm_target *ti,
 
 static struct target_type origin_target = {
 	.name    = "snapshot-origin",
-	.version = {1, 7, 1},
+	.version = {1, 8, 0},
 	.module  = THIS_MODULE,
 	.ctr     = origin_ctr,
 	.dtr     = origin_dtr,
@@ -2205,7 +2188,7 @@ static struct target_type origin_target = {
 
 static struct target_type snapshot_target = {
 	.name    = "snapshot",
-	.version = {1, 10, 0},
+	.version = {1, 11, 0},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,
@@ -2219,7 +2202,7 @@ static struct target_type snapshot_target = {
 
 static struct target_type merge_target = {
 	.name    = dm_snapshot_merge_target_name,
-	.version = {1, 1, 0},
+	.version = {1, 2, 0},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,
@@ -2280,17 +2263,8 @@ static int __init dm_snapshot_init(void)
 		goto bad_pending_cache;
 	}
 
-	tracked_chunk_cache = KMEM_CACHE(dm_snap_tracked_chunk, 0);
-	if (!tracked_chunk_cache) {
-		DMERR("Couldn't create cache to track chunks in use.");
-		r = -ENOMEM;
-		goto bad_tracked_chunk_cache;
-	}
-
 	return 0;
 
-bad_tracked_chunk_cache:
-	kmem_cache_destroy(pending_cache);
 bad_pending_cache:
 	kmem_cache_destroy(exception_cache);
 bad_exception_cache:
@@ -2316,7 +2290,6 @@ static void __exit dm_snapshot_exit(void)
 	exit_origin_hash();
 	kmem_cache_destroy(pending_cache);
 	kmem_cache_destroy(exception_cache);
-	kmem_cache_destroy(tracked_chunk_cache);
 
 	dm_exception_store_exit();
 }
