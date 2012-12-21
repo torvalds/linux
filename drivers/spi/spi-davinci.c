@@ -702,6 +702,19 @@ err_alloc_dummy_buf:
 }
 
 /**
+ * dummy_thread_fn - dummy thread function
+ * @irq: IRQ number for this SPI Master
+ * @context_data: structure for SPI Master controller davinci_spi
+ *
+ * This is to satisfy the request_threaded_irq() API so that the irq
+ * handler is called in interrupt context.
+ */
+static irqreturn_t dummy_thread_fn(s32 irq, void *data)
+{
+	return IRQ_HANDLED;
+}
+
+/**
  * davinci_spi_irq - Interrupt handler for SPI Master Controller
  * @irq: IRQ number for this SPI Master
  * @context_data: structure for SPI Master controller davinci_spi
@@ -899,8 +912,8 @@ static int davinci_spi_probe(struct platform_device *pdev)
 		goto unmap_io;
 	}
 
-	ret = request_irq(dspi->irq, davinci_spi_irq, 0, dev_name(&pdev->dev),
-									dspi);
+	ret = request_threaded_irq(dspi->irq, davinci_spi_irq, dummy_thread_fn,
+				 0, dev_name(&pdev->dev), dspi);
 	if (ret)
 		goto unmap_io;
 
