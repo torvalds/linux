@@ -90,5 +90,12 @@
 			phy = <&phy3>;
 			phy-mode = "sgmii";
 		};
+
+		mvsdio@d00d4000 {
+			pinctrl-0 = <&sdio_pins>;
+			pinctrl-names = "default";
+			status = "okay";
+			/* No CD or WP GPIOs */
+		};
 	};
 };
