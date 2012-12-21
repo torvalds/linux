@@ -1070,7 +1070,7 @@ static int ov772x_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1085,22 +1085,15 @@ static int ov772x_probe(struct i2c_client *client,
 	v4l2_ctrl_new_std(&priv->hdl, &ov772x_ctrl_ops,
 			V4L2_CID_BAND_STOP_FILTER, 0, 256, 1, 0);
 	priv->subdev.ctrl_handler = &priv->hdl;
-	if (priv->hdl.error) {
-		ret = priv->hdl.error;
-		goto done;
-	}
+	if (priv->hdl.error)
+		return priv->hdl.error;
 
 	ret = ov772x_video_probe(priv);
-	if (ret < 0)
-		goto done;
-
-	priv->cfmt = &ov772x_cfmts[0];
-	priv->win = &ov772x_win_sizes[0];
-
-done:
-	if (ret) {
+	if (ret < 0) {
 		v4l2_ctrl_handler_free(&priv->hdl);
-		kfree(priv);
+	} else {
+		priv->cfmt = &ov772x_cfmts[0];
+		priv->win = &ov772x_win_sizes[0];
 	}
 	return ret;
 }
@@ -1111,7 +1104,6 @@ static int ov772x_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(&priv->subdev);
 	v4l2_ctrl_handler_free(&priv->hdl);
-	kfree(priv);
 	return 0;
 }
 

@@ -912,7 +912,6 @@ static int tw9910_probe(struct i2c_client *client,
 	struct i2c_adapter		*adapter =
 		to_i2c_adapter(client->dev.parent);
 	struct soc_camera_subdev_desc	*ssdd = soc_camera_i2c_to_desc(client);
-	int				ret;
 
 	if (!ssdd || !ssdd->drv_priv) {
 		dev_err(&client->dev, "TW9910: missing platform data!\n");
@@ -928,7 +927,7 @@ static int tw9910_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -936,18 +935,11 @@ static int tw9910_probe(struct i2c_client *client,
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &tw9910_subdev_ops);
 
-	ret = tw9910_video_probe(client);
-	if (ret)
-		kfree(priv);
-
-	return ret;
+	return tw9910_video_probe(client);
 }
 
 static int tw9910_remove(struct i2c_client *client)
 {
-	struct tw9910_priv *priv = to_tw9910(client);
-
-	kfree(priv);
 	return 0;
 }
 

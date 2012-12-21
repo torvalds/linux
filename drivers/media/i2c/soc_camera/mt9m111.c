@@ -971,7 +971,7 @@ static int mt9m111_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	mt9m111 = kzalloc(sizeof(struct mt9m111), GFP_KERNEL);
+	mt9m111 = devm_kzalloc(&client->dev, sizeof(struct mt9m111), GFP_KERNEL);
 	if (!mt9m111)
 		return -ENOMEM;
 
@@ -989,12 +989,8 @@ static int mt9m111_probe(struct i2c_client *client,
 			&mt9m111_ctrl_ops, V4L2_CID_EXPOSURE_AUTO, 1, 0,
 			V4L2_EXPOSURE_AUTO);
 	mt9m111->subdev.ctrl_handler = &mt9m111->hdl;
-	if (mt9m111->hdl.error) {
-		int err = mt9m111->hdl.error;
-
-		kfree(mt9m111);
-		return err;
-	}
+	if (mt9m111->hdl.error)
+		return mt9m111->hdl.error;
 
 	/* Second stage probe - when a capture adapter is there */
 	mt9m111->rect.left	= MT9M111_MIN_DARK_COLS;
@@ -1006,10 +1002,8 @@ static int mt9m111_probe(struct i2c_client *client,
 	mutex_init(&mt9m111->power_lock);
 
 	ret = mt9m111_video_probe(client);
-	if (ret) {
+	if (ret)
 		v4l2_ctrl_handler_free(&mt9m111->hdl);
-		kfree(mt9m111);
-	}
 
 	return ret;
 }
@@ -1020,7 +1014,6 @@ static int mt9m111_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(&mt9m111->subdev);
 	v4l2_ctrl_handler_free(&mt9m111->hdl);
-	kfree(mt9m111);
 
 	return 0;
 }

@@ -959,7 +959,7 @@ static int ov9740_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	priv = kzalloc(sizeof(struct ov9740_priv), GFP_KERNEL);
+	priv = devm_kzalloc(&client->dev, sizeof(struct ov9740_priv), GFP_KERNEL);
 	if (!priv) {
 		dev_err(&client->dev, "Failed to allocate private data!\n");
 		return -ENOMEM;
@@ -972,18 +972,12 @@ static int ov9740_probe(struct i2c_client *client,
 	v4l2_ctrl_new_std(&priv->hdl, &ov9740_ctrl_ops,
 			V4L2_CID_HFLIP, 0, 1, 1, 0);
 	priv->subdev.ctrl_handler = &priv->hdl;
-	if (priv->hdl.error) {
-		int err = priv->hdl.error;
-
-		kfree(priv);
-		return err;
-	}
+	if (priv->hdl.error)
+		return priv->hdl.error;
 
 	ret = ov9740_video_probe(client);
-	if (ret < 0) {
+	if (ret < 0)
 		v4l2_ctrl_handler_free(&priv->hdl);
-		kfree(priv);
-	}
 
 	return ret;
 }
@@ -994,7 +988,6 @@ static int ov9740_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(&priv->subdev);
 	v4l2_ctrl_handler_free(&priv->hdl);
-	kfree(priv);
 	return 0;
 }
 

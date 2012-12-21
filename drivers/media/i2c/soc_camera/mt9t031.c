@@ -773,7 +773,7 @@ static int mt9t031_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	mt9t031 = kzalloc(sizeof(struct mt9t031), GFP_KERNEL);
+	mt9t031 = devm_kzalloc(&client->dev, sizeof(struct mt9t031), GFP_KERNEL);
 	if (!mt9t031)
 		return -ENOMEM;
 
@@ -797,12 +797,9 @@ static int mt9t031_probe(struct i2c_client *client,
 			V4L2_CID_EXPOSURE, 1, 255, 1, 255);
 
 	mt9t031->subdev.ctrl_handler = &mt9t031->hdl;
-	if (mt9t031->hdl.error) {
-		int err = mt9t031->hdl.error;
+	if (mt9t031->hdl.error)
+		return mt9t031->hdl.error;
 
-		kfree(mt9t031);
-		return err;
-	}
 	v4l2_ctrl_auto_cluster(2, &mt9t031->autoexposure,
 				V4L2_EXPOSURE_MANUAL, true);
 
@@ -816,10 +813,8 @@ static int mt9t031_probe(struct i2c_client *client,
 	mt9t031->yskip = 1;
 
 	ret = mt9t031_video_probe(client);
-	if (ret) {
+	if (ret)
 		v4l2_ctrl_handler_free(&mt9t031->hdl);
-		kfree(mt9t031);
-	}
 
 	return ret;
 }
@@ -830,7 +825,6 @@ static int mt9t031_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(&mt9t031->subdev);
 	v4l2_ctrl_handler_free(&mt9t031->hdl);
-	kfree(mt9t031);
 
 	return 0;
 }

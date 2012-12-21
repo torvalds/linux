@@ -1096,7 +1096,7 @@ static int ov2640_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	priv = kzalloc(sizeof(struct ov2640_priv), GFP_KERNEL);
+	priv = devm_kzalloc(&client->dev, sizeof(struct ov2640_priv), GFP_KERNEL);
 	if (!priv) {
 		dev_err(&adapter->dev,
 			"Failed to allocate memory for private data!\n");
@@ -1110,20 +1110,14 @@ static int ov2640_probe(struct i2c_client *client,
 	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
 			V4L2_CID_HFLIP, 0, 1, 1, 0);
 	priv->subdev.ctrl_handler = &priv->hdl;
-	if (priv->hdl.error) {
-		int err = priv->hdl.error;
-
-		kfree(priv);
-		return err;
-	}
+	if (priv->hdl.error)
+		return priv->hdl.error;
 
 	ret = ov2640_video_probe(client);
-	if (ret) {
+	if (ret)
 		v4l2_ctrl_handler_free(&priv->hdl);
-		kfree(priv);
-	} else {
+	else
 		dev_info(&adapter->dev, "OV2640 Probed\n");
-	}
 
 	return ret;
 }
@@ -1134,7 +1128,6 @@ static int ov2640_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(&priv->subdev);
 	v4l2_ctrl_handler_free(&priv->hdl);
-	kfree(priv);
 	return 0;
 }
 

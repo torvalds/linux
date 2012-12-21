@@ -971,7 +971,7 @@ static int ov6650_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		dev_err(&client->dev,
 			"Failed to allocate memory for private data!\n");
@@ -1009,12 +1009,9 @@ static int ov6650_probe(struct i2c_client *client,
 			V4L2_CID_GAMMA, 0, 0xff, 1, 0x12);
 
 	priv->subdev.ctrl_handler = &priv->hdl;
-	if (priv->hdl.error) {
-		int err = priv->hdl.error;
+	if (priv->hdl.error)
+		return priv->hdl.error;
 
-		kfree(priv);
-		return err;
-	}
 	v4l2_ctrl_auto_cluster(2, &priv->autogain, 0, true);
 	v4l2_ctrl_auto_cluster(3, &priv->autowb, 0, true);
 	v4l2_ctrl_auto_cluster(2, &priv->autoexposure,
@@ -1029,10 +1026,8 @@ static int ov6650_probe(struct i2c_client *client,
 	priv->colorspace  = V4L2_COLORSPACE_JPEG;
 
 	ret = ov6650_video_probe(client);
-	if (ret) {
+	if (ret)
 		v4l2_ctrl_handler_free(&priv->hdl);
-		kfree(priv);
-	}
 
 	return ret;
 }
@@ -1043,7 +1038,6 @@ static int ov6650_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(&priv->subdev);
 	v4l2_ctrl_handler_free(&priv->hdl);
-	kfree(priv);
 	return 0;
 }
 

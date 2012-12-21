@@ -1352,7 +1352,7 @@ static int rj54n1_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	rj54n1 = kzalloc(sizeof(struct rj54n1), GFP_KERNEL);
+	rj54n1 = devm_kzalloc(&client->dev, sizeof(struct rj54n1), GFP_KERNEL);
 	if (!rj54n1)
 		return -ENOMEM;
 
@@ -1367,12 +1367,8 @@ static int rj54n1_probe(struct i2c_client *client,
 	v4l2_ctrl_new_std(&rj54n1->hdl, &rj54n1_ctrl_ops,
 			V4L2_CID_AUTO_WHITE_BALANCE, 0, 1, 1, 1);
 	rj54n1->subdev.ctrl_handler = &rj54n1->hdl;
-	if (rj54n1->hdl.error) {
-		int err = rj54n1->hdl.error;
-
-		kfree(rj54n1);
-		return err;
-	}
+	if (rj54n1->hdl.error)
+		return rj54n1->hdl.error;
 
 	rj54n1->clk_div		= clk_div;
 	rj54n1->rect.left	= RJ54N1_COLUMN_SKIP;
@@ -1387,10 +1383,8 @@ static int rj54n1_probe(struct i2c_client *client,
 		(clk_div.ratio_tg + 1) / (clk_div.ratio_t + 1);
 
 	ret = rj54n1_video_probe(client, rj54n1_priv);
-	if (ret < 0) {
+	if (ret < 0)
 		v4l2_ctrl_handler_free(&rj54n1->hdl);
-		kfree(rj54n1);
-	}
 
 	return ret;
 }
@@ -1404,7 +1398,6 @@ static int rj54n1_remove(struct i2c_client *client)
 	if (ssdd->free_bus)
 		ssdd->free_bus(ssdd);
 	v4l2_ctrl_handler_free(&rj54n1->hdl);
-	kfree(rj54n1);
 
 	return 0;
 }

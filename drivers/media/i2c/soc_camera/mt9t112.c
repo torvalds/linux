@@ -1092,7 +1092,7 @@ static int mt9t112_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1101,10 +1101,8 @@ static int mt9t112_probe(struct i2c_client *client,
 	v4l2_i2c_subdev_init(&priv->subdev, client, &mt9t112_subdev_ops);
 
 	ret = mt9t112_camera_probe(client);
-	if (ret) {
-		kfree(priv);
+	if (ret)
 		return ret;
-	}
 
 	/* Cannot fail: using the default supported pixel code */
 	mt9t112_set_params(priv, &rect, V4L2_MBUS_FMT_UYVY8_2X8);
@@ -1114,9 +1112,6 @@ static int mt9t112_probe(struct i2c_client *client,
 
 static int mt9t112_remove(struct i2c_client *client)
 {
-	struct mt9t112_priv *priv = to_mt9t112(client);
-
-	kfree(priv);
 	return 0;
 }
 

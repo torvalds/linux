@@ -1021,14 +1021,13 @@ static int ov5642_probe(struct i2c_client *client,
 {
 	struct ov5642 *priv;
 	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
-	int ret;
 
 	if (!ssdd) {
 		dev_err(&client->dev, "OV5642: missing platform data!\n");
 		return -EINVAL;
 	}
 
-	priv = kzalloc(sizeof(struct ov5642), GFP_KERNEL);
+	priv = devm_kzalloc(&client->dev, sizeof(struct ov5642), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1043,25 +1042,15 @@ static int ov5642_probe(struct i2c_client *client,
 	priv->total_width = OV5642_DEFAULT_WIDTH + BLANKING_EXTRA_WIDTH;
 	priv->total_height = BLANKING_MIN_HEIGHT;
 
-	ret = ov5642_video_probe(client);
-	if (ret < 0)
-		goto error;
-
-	return 0;
-
-error:
-	kfree(priv);
-	return ret;
+	return ov5642_video_probe(client);
 }
 
 static int ov5642_remove(struct i2c_client *client)
 {
-	struct ov5642 *priv = to_ov5642(client);
 	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 
 	if (ssdd->free_bus)
 		ssdd->free_bus(ssdd);
-	kfree(priv);
 
 	return 0;
 }

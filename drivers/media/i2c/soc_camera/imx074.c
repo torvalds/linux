@@ -431,7 +431,6 @@ static int imx074_probe(struct i2c_client *client,
 	struct imx074 *priv;
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
-	int ret;
 
 	if (!ssdd) {
 		dev_err(&client->dev, "IMX074: missing platform data!\n");
@@ -444,7 +443,7 @@ static int imx074_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	priv = kzalloc(sizeof(struct imx074), GFP_KERNEL);
+	priv = devm_kzalloc(&client->dev, sizeof(struct imx074), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -452,23 +451,15 @@ static int imx074_probe(struct i2c_client *client,
 
 	priv->fmt	= &imx074_colour_fmts[0];
 
-	ret = imx074_video_probe(client);
-	if (ret < 0) {
-		kfree(priv);
-		return ret;
-	}
-
-	return ret;
+	return imx074_video_probe(client);
 }
 
 static int imx074_remove(struct i2c_client *client)
 {
-	struct imx074 *priv = to_imx074(client);
 	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 
 	if (ssdd->free_bus)
 		ssdd->free_bus(ssdd);
-	kfree(priv);
 
 	return 0;
 }
