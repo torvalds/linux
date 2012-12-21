@@ -205,6 +205,11 @@ struct dm_target {
 	 */
 	unsigned num_discard_requests;
 
+	/*
+	 * The number of WRITE SAME requests that will be submitted to the target.
+	 */
+	unsigned num_write_same_requests;
+
 	/* target specific data */
 	void *private;
 
