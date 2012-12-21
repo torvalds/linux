@@ -733,7 +733,7 @@ void __init setup_arch(char **cmdline_p)
 	setup_processor();
 	mdesc = setup_machine_fdt(__atags_pointer);
 	if (!mdesc)
-		mdesc = setup_machine_tags(__atags_pointer, machine_arch_type);
+		mdesc = setup_machine_tags(__atags_pointer, __machine_arch_type);
 	machine_desc = mdesc;
 	machine_name = mdesc->name;
 
