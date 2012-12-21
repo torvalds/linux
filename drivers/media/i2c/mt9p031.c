@@ -927,7 +927,7 @@ static int mt9p031_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	mt9p031 = kzalloc(sizeof(*mt9p031), GFP_KERNEL);
+	mt9p031 = devm_kzalloc(&client->dev, sizeof(*mt9p031), GFP_KERNEL);
 	if (mt9p031 == NULL)
 		return -ENOMEM;
 
@@ -1001,8 +1001,8 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->format.colorspace = V4L2_COLORSPACE_SRGB;
 
 	if (pdata->reset != -1) {
-		ret = gpio_request_one(pdata->reset, GPIOF_OUT_INIT_LOW,
-				       "mt9p031_rst");
+		ret = devm_gpio_request_one(&client->dev, pdata->reset,
+					    GPIOF_OUT_INIT_LOW, "mt9p031_rst");
 		if (ret < 0)
 			goto done;
 
@@ -1013,12 +1013,8 @@ static int mt9p031_probe(struct i2c_client *client,
 
 done:
 	if (ret < 0) {
-		if (mt9p031->reset != -1)
-			gpio_free(mt9p031->reset);
-
 		v4l2_ctrl_handler_free(&mt9p031->ctrls);
 		media_entity_cleanup(&mt9p031->subdev.entity);
-		kfree(mt9p031);
 	}
 
 	return ret;
@@ -1032,9 +1028,6 @@ static int mt9p031_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&mt9p031->ctrls);
 	v4l2_device_unregister_subdev(subdev);
 	media_entity_cleanup(&subdev->entity);
-	if (mt9p031->reset != -1)
-		gpio_free(mt9p031->reset);
-	kfree(mt9p031);
 
 	return 0;
 }
