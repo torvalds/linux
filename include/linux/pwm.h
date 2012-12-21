@@ -174,10 +174,10 @@ struct pwm_device *pwm_request_from_chip(struct pwm_chip *chip,
 struct pwm_device *of_pwm_xlate_with_flags(struct pwm_chip *pc,
 		const struct of_phandle_args *args);
 
-struct pwm_device *pwm_get(struct device *dev, const char *consumer);
+struct pwm_device *pwm_get(struct device *dev, const char *con_id);
 void pwm_put(struct pwm_device *pwm);
 
-struct pwm_device *devm_pwm_get(struct device *dev, const char *consumer);
+struct pwm_device *devm_pwm_get(struct device *dev, const char *con_id);
 void devm_pwm_put(struct device *dev, struct pwm_device *pwm);
 #else
 static inline int pwm_set_chip_data(struct pwm_device *pwm, void *data)
