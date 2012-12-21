@@ -83,6 +83,8 @@
 #define SHA_REG_MODE_ALGO_MASK		(3 << 1)
 #define		SHA_REG_MODE_ALGO_MD5_128	(0 << 1)
 #define		SHA_REG_MODE_ALGO_SHA1_160	(1 << 1)
+#define		SHA_REG_MODE_ALGO_SHA2_224	(2 << 1)
+#define		SHA_REG_MODE_ALGO_SHA2_256	(3 << 1)
 
 #define SHA_REG_LENGTH			0x48
 
@@ -120,6 +122,10 @@
 #define		FLAGS_MODE_MD5		(SHA_REG_MODE_ALGO_MD5_128	\
 						<< (FLAGS_MODE_SHIFT - 1))
 #define		FLAGS_MODE_SHA1		(SHA_REG_MODE_ALGO_SHA1_160	\
+						<< (FLAGS_MODE_SHIFT - 1))
+#define		FLAGS_MODE_SHA224	(SHA_REG_MODE_ALGO_SHA2_224	\
+						<< (FLAGS_MODE_SHIFT - 1))
+#define		FLAGS_MODE_SHA256	(SHA_REG_MODE_ALGO_SHA2_256	\
 						<< (FLAGS_MODE_SHIFT - 1))
 #define FLAGS_HMAC		20
 #define FLAGS_ERROR		21
@@ -173,7 +179,15 @@ struct omap_sham_ctx {
 
 #define OMAP_SHAM_QUEUE_LENGTH	1
 
+struct omap_sham_algs_info {
+	struct ahash_alg	*algs_list;
+	unsigned int		size;
+	unsigned int		registered;
+};
+
 struct omap_sham_pdata {
+	struct omap_sham_algs_info	*algs_info;
+	unsigned int	algs_info_size;
 	unsigned long	flags;
 	int		digest_size;
 
@@ -321,6 +335,12 @@ static void omap_sham_copy_ready_hash(struct ahash_request *req)
 		if (test_bit(FLAGS_BE32_SHA1, &ctx->dd->flags))
 			big_endian = 1;
 		d = SHA1_DIGEST_SIZE / sizeof(u32);
+		break;
+	case FLAGS_MODE_SHA224:
+		d = SHA224_DIGEST_SIZE / sizeof(u32);
+		break;
+	case FLAGS_MODE_SHA256:
+		d = SHA256_DIGEST_SIZE / sizeof(u32);
 		break;
 	default:
 		d = 0;
@@ -780,6 +800,12 @@ static int omap_sham_init(struct ahash_request *req)
 	case SHA1_DIGEST_SIZE:
 		ctx->flags |= FLAGS_MODE_SHA1;
 		break;
+	case SHA224_DIGEST_SIZE:
+		ctx->flags |= FLAGS_MODE_SHA224;
+		break;
+	case SHA256_DIGEST_SIZE:
+		ctx->flags |= FLAGS_MODE_SHA256;
+		break;
 	}
 
 	ctx->bufcnt = 0;
@@ -1173,6 +1199,16 @@ static int omap_sham_cra_sha1_init(struct crypto_tfm *tfm)
 	return omap_sham_cra_init_alg(tfm, "sha1");
 }
 
+static int omap_sham_cra_sha224_init(struct crypto_tfm *tfm)
+{
+	return omap_sham_cra_init_alg(tfm, "sha224");
+}
+
+static int omap_sham_cra_sha256_init(struct crypto_tfm *tfm)
+{
+	return omap_sham_cra_init_alg(tfm, "sha256");
+}
+
 static int omap_sham_cra_md5_init(struct crypto_tfm *tfm)
 {
 	return omap_sham_cra_init_alg(tfm, "md5");
@@ -1191,7 +1227,7 @@ static void omap_sham_cra_exit(struct crypto_tfm *tfm)
 	}
 }
 
-static struct ahash_alg algs[] = {
+static struct ahash_alg algs_sha1_md5[] = {
 {
 	.init		= omap_sham_init,
 	.update		= omap_sham_update,
@@ -1290,6 +1326,102 @@ static struct ahash_alg algs[] = {
 }
 };
 
+/* OMAP4 has some algs in addition to what OMAP2 has */
+static struct ahash_alg algs_sha224_sha256[] = {
+{
+	.init		= omap_sham_init,
+	.update		= omap_sham_update,
+	.final		= omap_sham_final,
+	.finup		= omap_sham_finup,
+	.digest		= omap_sham_digest,
+	.halg.digestsize	= SHA224_DIGEST_SIZE,
+	.halg.base	= {
+		.cra_name		= "sha224",
+		.cra_driver_name	= "omap-sha224",
+		.cra_priority		= 100,
+		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
+						CRYPTO_ALG_ASYNC |
+						CRYPTO_ALG_NEED_FALLBACK,
+		.cra_blocksize		= SHA224_BLOCK_SIZE,
+		.cra_ctxsize		= sizeof(struct omap_sham_ctx),
+		.cra_alignmask		= 0,
+		.cra_module		= THIS_MODULE,
+		.cra_init		= omap_sham_cra_init,
+		.cra_exit		= omap_sham_cra_exit,
+	}
+},
+{
+	.init		= omap_sham_init,
+	.update		= omap_sham_update,
+	.final		= omap_sham_final,
+	.finup		= omap_sham_finup,
+	.digest		= omap_sham_digest,
+	.halg.digestsize	= SHA256_DIGEST_SIZE,
+	.halg.base	= {
+		.cra_name		= "sha256",
+		.cra_driver_name	= "omap-sha256",
+		.cra_priority		= 100,
+		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
+						CRYPTO_ALG_ASYNC |
+						CRYPTO_ALG_NEED_FALLBACK,
+		.cra_blocksize		= SHA256_BLOCK_SIZE,
+		.cra_ctxsize		= sizeof(struct omap_sham_ctx),
+		.cra_alignmask		= 0,
+		.cra_module		= THIS_MODULE,
+		.cra_init		= omap_sham_cra_init,
+		.cra_exit		= omap_sham_cra_exit,
+	}
+},
+{
+	.init		= omap_sham_init,
+	.update		= omap_sham_update,
+	.final		= omap_sham_final,
+	.finup		= omap_sham_finup,
+	.digest		= omap_sham_digest,
+	.setkey		= omap_sham_setkey,
+	.halg.digestsize	= SHA224_DIGEST_SIZE,
+	.halg.base	= {
+		.cra_name		= "hmac(sha224)",
+		.cra_driver_name	= "omap-hmac-sha224",
+		.cra_priority		= 100,
+		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
+						CRYPTO_ALG_ASYNC |
+						CRYPTO_ALG_NEED_FALLBACK,
+		.cra_blocksize		= SHA224_BLOCK_SIZE,
+		.cra_ctxsize		= sizeof(struct omap_sham_ctx) +
+					sizeof(struct omap_sham_hmac_ctx),
+		.cra_alignmask		= OMAP_ALIGN_MASK,
+		.cra_module		= THIS_MODULE,
+		.cra_init		= omap_sham_cra_sha224_init,
+		.cra_exit		= omap_sham_cra_exit,
+	}
+},
+{
+	.init		= omap_sham_init,
+	.update		= omap_sham_update,
+	.final		= omap_sham_final,
+	.finup		= omap_sham_finup,
+	.digest		= omap_sham_digest,
+	.setkey		= omap_sham_setkey,
+	.halg.digestsize	= SHA256_DIGEST_SIZE,
+	.halg.base	= {
+		.cra_name		= "hmac(sha256)",
+		.cra_driver_name	= "omap-hmac-sha256",
+		.cra_priority		= 100,
+		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
+						CRYPTO_ALG_ASYNC |
+						CRYPTO_ALG_NEED_FALLBACK,
+		.cra_blocksize		= SHA256_BLOCK_SIZE,
+		.cra_ctxsize		= sizeof(struct omap_sham_ctx) +
+					sizeof(struct omap_sham_hmac_ctx),
+		.cra_alignmask		= OMAP_ALIGN_MASK,
+		.cra_module		= THIS_MODULE,
+		.cra_init		= omap_sham_cra_sha256_init,
+		.cra_exit		= omap_sham_cra_exit,
+	}
+},
+};
+
 static void omap_sham_done_task(unsigned long data)
 {
 	struct omap_sham_dev *dd = (struct omap_sham_dev *)data;
@@ -1364,7 +1496,16 @@ static irqreturn_t omap_sham_irq_omap4(int irq, void *dev_id)
 	return omap_sham_irq_common(dd);
 }
 
+static struct omap_sham_algs_info omap_sham_algs_info_omap2[] = {
+	{
+		.algs_list	= algs_sha1_md5,
+		.size		= ARRAY_SIZE(algs_sha1_md5),
+	},
+};
+
 static const struct omap_sham_pdata omap_sham_pdata_omap2 = {
+	.algs_info	= omap_sham_algs_info_omap2,
+	.algs_info_size	= ARRAY_SIZE(omap_sham_algs_info_omap2),
 	.flags		= BIT(FLAGS_BE32_SHA1),
 	.digest_size	= SHA1_DIGEST_SIZE,
 	.copy_hash	= omap_sham_copy_hash_omap2,
@@ -1385,7 +1526,20 @@ static const struct omap_sham_pdata omap_sham_pdata_omap2 = {
 };
 
 #ifdef CONFIG_OF
+static struct omap_sham_algs_info omap_sham_algs_info_omap4[] = {
+	{
+		.algs_list	= algs_sha1_md5,
+		.size		= ARRAY_SIZE(algs_sha1_md5),
+	},
+	{
+		.algs_list	= algs_sha224_sha256,
+		.size		= ARRAY_SIZE(algs_sha224_sha256),
+	},
+};
+
 static const struct omap_sham_pdata omap_sham_pdata_omap4 = {
+	.algs_info	= omap_sham_algs_info_omap4,
+	.algs_info_size	= ARRAY_SIZE(omap_sham_algs_info_omap4),
 	.flags		= BIT(FLAGS_AUTO_XOR),
 	.digest_size	= SHA256_DIGEST_SIZE,
 	.copy_hash	= omap_sham_copy_hash_omap4,
@@ -1570,17 +1724,24 @@ static int __devinit omap_sham_probe(struct platform_device *pdev)
 	list_add_tail(&dd->list, &sham.dev_list);
 	spin_unlock(&sham.lock);
 
-	for (i = 0; i < ARRAY_SIZE(algs); i++) {
-		err = crypto_register_ahash(&algs[i]);
-		if (err)
-			goto err_algs;
+	for (i = 0; i < dd->pdata->algs_info_size; i++) {
+		for (j = 0; j < dd->pdata->algs_info[i].size; j++) {
+			err = crypto_register_ahash(
+					&dd->pdata->algs_info[i].algs_list[j]);
+			if (err)
+				goto err_algs;
+
+			dd->pdata->algs_info[i].registered++;
+		}
 	}
 
 	return 0;
 
 err_algs:
-	for (j = 0; j < i; j++)
-		crypto_unregister_ahash(&algs[j]);
+	for (i = dd->pdata->algs_info_size - 1; i >= 0; i--)
+		for (j = dd->pdata->algs_info[i].registered - 1; j >= 0; j--)
+			crypto_unregister_ahash(
+					&dd->pdata->algs_info[i].algs_list[j]);
 	pm_runtime_disable(dev);
 	dma_release_channel(dd->dma_lch);
 dma_err:
@@ -1597,7 +1758,7 @@ data_err:
 static int __devexit omap_sham_remove(struct platform_device *pdev)
 {
 	static struct omap_sham_dev *dd;
-	int i;
+	int i, j;
 
 	dd = platform_get_drvdata(pdev);
 	if (!dd)
@@ -1605,8 +1766,10 @@ static int __devexit omap_sham_remove(struct platform_device *pdev)
 	spin_lock(&sham.lock);
 	list_del(&dd->list);
 	spin_unlock(&sham.lock);
-	for (i = 0; i < ARRAY_SIZE(algs); i++)
-		crypto_unregister_ahash(&algs[i]);
+	for (i = dd->pdata->algs_info_size - 1; i >= 0; i--)
+		for (j = dd->pdata->algs_info[i].registered - 1; j >= 0; j--)
+			crypto_unregister_ahash(
+					&dd->pdata->algs_info[i].algs_list[j]);
 	tasklet_kill(&dd->done_task);
 	pm_runtime_disable(&pdev->dev);
 	dma_release_channel(dd->dma_lch);
