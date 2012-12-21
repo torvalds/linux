@@ -302,7 +302,7 @@ static int parse_options(struct f2fs_sb_info *sbi, char *options)
 		case Opt_active_logs:
 			if (args->from && match_int(args, &arg))
 				return -EINVAL;
-			if (arg != 2 && arg != 4 && arg != 6)
+			if (arg != 2 && arg != 4 && arg != NR_CURSEG_TYPE)
 				return -EINVAL;
 			sbi->active_logs = arg;
 			break;

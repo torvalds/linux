@@ -791,11 +791,10 @@ static int __get_segment_type(struct page *page, enum page_type p_type)
 		return __get_segment_type_2(page, p_type);
 	case 4:
 		return __get_segment_type_4(page, p_type);
-	case 6:
-		return __get_segment_type_6(page, p_type);
-	default:
-		BUG();
 	}
+	/* NR_CURSEG_TYPE(6) logs by default */
+	BUG_ON(sbi->active_logs != NR_CURSEG_TYPE);
+	return __get_segment_type_6(page, p_type);
 }
 
 static void do_write_page(struct f2fs_sb_info *sbi, struct page *page,
