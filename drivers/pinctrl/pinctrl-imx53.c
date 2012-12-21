@@ -1618,7 +1618,7 @@ static struct of_device_id imx53_pinctrl_of_match[] = {
 	{ /* sentinel */ }
 };
 
-static int __devinit imx53_pinctrl_probe(struct platform_device *pdev)
+static int imx53_pinctrl_probe(struct platform_device *pdev)
 {
 	return imx_pinctrl_probe(pdev, &imx53_pinctrl_info);
 }

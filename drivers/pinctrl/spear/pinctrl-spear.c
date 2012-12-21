@@ -82,9 +82,8 @@ static int set_mode(struct spear_pmx *pmx, int mode)
 	return 0;
 }
 
-void __devinit
-pmx_init_gpio_pingroup_addr(struct spear_gpio_pingroup *gpio_pingroup,
-		unsigned count, u16 reg)
+void pmx_init_gpio_pingroup_addr(struct spear_gpio_pingroup *gpio_pingroup,
+				 unsigned count, u16 reg)
 {
 	int i, j;
 
@@ -93,7 +92,7 @@ pmx_init_gpio_pingroup_addr(struct spear_gpio_pingroup *gpio_pingroup,
 			gpio_pingroup[i].muxregs[j].reg = reg;
 }
 
-void __devinit pmx_init_addr(struct spear_pinctrl_machdata *machdata, u16 reg)
+void pmx_init_addr(struct spear_pinctrl_machdata *machdata, u16 reg)
 {
 	struct spear_pingroup *pgroup;
 	struct spear_modemux *modemux;
@@ -358,8 +357,8 @@ static struct pinctrl_desc spear_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
-int __devinit spear_pinctrl_probe(struct platform_device *pdev,
-		struct spear_pinctrl_machdata *machdata)
+int spear_pinctrl_probe(struct platform_device *pdev,
+			struct spear_pinctrl_machdata *machdata)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct resource *res;

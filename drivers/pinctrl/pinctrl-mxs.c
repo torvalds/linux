@@ -335,9 +335,9 @@ static struct pinctrl_desc mxs_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
-static int __devinit mxs_pinctrl_parse_group(struct platform_device *pdev,
-					     struct device_node *np, int idx,
-					     const char **out_name)
+static int mxs_pinctrl_parse_group(struct platform_device *pdev,
+				   struct device_node *np, int idx,
+				   const char **out_name)
 {
 	struct mxs_pinctrl_data *d = platform_get_drvdata(pdev);
 	struct mxs_group *g = &d->soc->groups[idx];
@@ -384,8 +384,8 @@ static int __devinit mxs_pinctrl_parse_group(struct platform_device *pdev,
 	return 0;
 }
 
-static int __devinit mxs_pinctrl_probe_dt(struct platform_device *pdev,
-					  struct mxs_pinctrl_data *d)
+static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
+				struct mxs_pinctrl_data *d)
 {
 	struct mxs_pinctrl_soc_data *soc = d->soc;
 	struct device_node *np = pdev->dev.of_node;
@@ -476,8 +476,8 @@ static int __devinit mxs_pinctrl_probe_dt(struct platform_device *pdev,
 	return 0;
 }
 
-int __devinit mxs_pinctrl_probe(struct platform_device *pdev,
-				struct mxs_pinctrl_soc_data *soc)
+int mxs_pinctrl_probe(struct platform_device *pdev,
+		      struct mxs_pinctrl_soc_data *soc)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct mxs_pinctrl_data *d;
