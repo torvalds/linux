@@ -1023,6 +1023,13 @@ out_restore_irqs:
 EXPORT_SYMBOL(printk);
 EXPORT_SYMBOL(vprintk);
 
+#ifdef CONFIG_PLAT_RK
+void pm_emit_log_char(char c)
+{
+	emit_log_char(c);
+}
+#endif
+
 #ifdef CONFIG_RK29_LAST_LOG
 void switch_log_buf(char *new_log_buf, int size)
 {
