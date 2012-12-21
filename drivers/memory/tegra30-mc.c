@@ -295,7 +295,7 @@ static UNIVERSAL_DEV_PM_OPS(tegra30_mc_pm,
 			    tegra30_mc_suspend,
 			    tegra30_mc_resume, NULL);
 
-static const struct of_device_id tegra30_mc_of_match[] __devinitconst = {
+static const struct of_device_id tegra30_mc_of_match[] = {
 	{ .compatible = "nvidia,tegra30-mc", },
 	{},
 };
@@ -316,7 +316,7 @@ static irqreturn_t tegra30_mc_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit tegra30_mc_probe(struct platform_device *pdev)
+static int tegra30_mc_probe(struct platform_device *pdev)
 {
 	struct resource *irq;
 	struct tegra30_mc *mc;
