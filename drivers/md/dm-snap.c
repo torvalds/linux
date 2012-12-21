@@ -198,14 +198,13 @@ static struct dm_snap_tracked_chunk *track_chunk(struct dm_snapshot *s,
 {
 	struct dm_snap_tracked_chunk *c = mempool_alloc(s->tracked_chunk_pool,
 							GFP_NOIO);
-	unsigned long flags;
 
 	c->chunk = chunk;
 
-	spin_lock_irqsave(&s->tracked_chunk_lock, flags);
+	spin_lock_irq(&s->tracked_chunk_lock);
 	hlist_add_head(&c->node,
 		       &s->tracked_chunk_hash[DM_TRACKED_CHUNK_HASH(chunk)]);
-	spin_unlock_irqrestore(&s->tracked_chunk_lock, flags);
+	spin_unlock_irq(&s->tracked_chunk_lock);
 
 	return c;
 }
