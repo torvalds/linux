@@ -207,7 +207,8 @@ static int __init mxs_clockevent_init(struct clk *timer_clk)
 		mxs_clockevent_device.set_next_event = timrotv1_set_next_event;
 	mxs_clockevent_device.cpumask = cpumask_of(0);
 	clockevents_config_and_register(&mxs_clockevent_device,
-					clk_get_rate(timer_clk), 0xf,
+					clk_get_rate(timer_clk),
+					timrot_is_v1() ? 0xf : 0x2,
 					timrot_is_v1() ? 0xfffe : 0xfffffffe);
 
 	return 0;
