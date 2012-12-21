@@ -230,6 +230,11 @@ static void pop_frame(struct del_stack *s)
 	dm_tm_unlock(s->tm, f->b);
 }
 
+static bool is_internal_level(struct dm_btree_info *info, struct frame *f)
+{
+	return f->level < (info->levels - 1);
+}
+
 int dm_btree_del(struct dm_btree_info *info, dm_block_t root)
 {
 	int r;
@@ -241,7 +246,7 @@ int dm_btree_del(struct dm_btree_info *info, dm_block_t root)
 	s->tm = info->tm;
 	s->top = -1;
 
-	r = push_frame(s, root, 1);
+	r = push_frame(s, root, 0);
 	if (r)
 		goto out;
 
@@ -267,7 +272,7 @@ int dm_btree_del(struct dm_btree_info *info, dm_block_t root)
 			if (r)
 				goto out;
 
-		} else if (f->level != (info->levels - 1)) {
+		} else if (is_internal_level(info, f)) {
 			b = value64(f->n, f->current_child);
 			f->current_child++;
 			r = push_frame(s, b, f->level + 1);
