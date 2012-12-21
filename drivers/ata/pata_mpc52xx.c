@@ -621,9 +621,10 @@ static struct ata_port_operations mpc52xx_ata_port_ops = {
 	.qc_prep		= ata_noop_qc_prep,
 };
 
-static int __devinit
-mpc52xx_ata_init_one(struct device *dev, struct mpc52xx_ata_priv *priv,
-		     unsigned long raw_ata_regs, int mwdma_mask, int udma_mask)
+static int mpc52xx_ata_init_one(struct device *dev,
+				struct mpc52xx_ata_priv *priv,
+				unsigned long raw_ata_regs,
+				int mwdma_mask, int udma_mask)
 {
 	struct ata_host *host;
 	struct ata_port *ap;
@@ -667,8 +668,7 @@ mpc52xx_ata_init_one(struct device *dev, struct mpc52xx_ata_priv *priv,
 /* OF Platform driver                                                       */
 /* ======================================================================== */
 
-static int __devinit
-mpc52xx_ata_probe(struct platform_device *op)
+static int mpc52xx_ata_probe(struct platform_device *op)
 {
 	unsigned int ipb_freq;
 	struct resource res_mem;
