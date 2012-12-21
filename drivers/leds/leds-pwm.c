@@ -67,12 +67,11 @@ static int led_pwm_probe(struct platform_device *pdev)
 		cur_led = &pdata->leds[i];
 		led_dat = &leds_data[i];
 
-		led_dat->pwm = pwm_request(cur_led->pwm_id,
-				cur_led->name);
+		led_dat->pwm = devm_pwm_get(&pdev->dev, cur_led->name);
 		if (IS_ERR(led_dat->pwm)) {
 			ret = PTR_ERR(led_dat->pwm);
-			dev_err(&pdev->dev, "unable to request PWM %d\n",
-					cur_led->pwm_id);
+			dev_err(&pdev->dev, "unable to request PWM for %s\n",
+				cur_led->name);
 			goto err;
 		}
 
@@ -86,10 +85,8 @@ static int led_pwm_probe(struct platform_device *pdev)
 		led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
 
 		ret = led_classdev_register(&pdev->dev, &led_dat->cdev);
-		if (ret < 0) {
-			pwm_free(led_dat->pwm);
+		if (ret < 0)
 			goto err;
-		}
 	}
 
 	platform_set_drvdata(pdev, leds_data);
@@ -98,10 +95,8 @@ static int led_pwm_probe(struct platform_device *pdev)
 
 err:
 	if (i > 0) {
-		for (i = i - 1; i >= 0; i--) {
+		for (i = i - 1; i >= 0; i--)
 			led_classdev_unregister(&leds_data[i].cdev);
-			pwm_free(leds_data[i].pwm);
-		}
 	}
 
 	return ret;
@@ -115,10 +110,8 @@ static int led_pwm_remove(struct platform_device *pdev)
 
 	leds_data = platform_get_drvdata(pdev);
 
-	for (i = 0; i < pdata->num_leds; i++) {
+	for (i = 0; i < pdata->num_leds; i++)
 		led_classdev_unregister(&leds_data[i].cdev);
-		pwm_free(leds_data[i].pwm);
-	}
 
 	return 0;
 }
