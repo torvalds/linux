@@ -420,7 +420,7 @@ static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 static int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 {
 	struct extent_io_tree *tree;
-	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
+	u64 start = page_offset(page);
 	u64 found_start;
 	struct extent_buffer *eb;
 

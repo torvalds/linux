@@ -2062,7 +2062,7 @@ static int btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
 static int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 			       struct extent_state *state, int mirror)
 {
-	size_t offset = start - ((u64)page->index << PAGE_CACHE_SHIFT);
+	size_t offset = start - page_offset(page);
 	struct inode *inode = page->mapping->host;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	char *kaddr;
@@ -6752,8 +6752,7 @@ static void btrfs_invalidatepage(struct page *page, unsigned long offset)
 		return;
 	}
 	lock_extent_bits(tree, page_start, page_end, 0, &cached_state);
-	ordered = btrfs_lookup_ordered_extent(inode,
-					   page_offset(page));
+	ordered = btrfs_lookup_ordered_extent(inode, page_offset(page));
 	if (ordered) {
 		/*
 		 * IO on this page will never be started, so we need

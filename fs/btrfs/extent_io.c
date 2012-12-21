@@ -1834,7 +1834,7 @@ int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
  */
 static void check_page_uptodate(struct extent_io_tree *tree, struct page *page)
 {
-	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
+	u64 start = page_offset(page);
 	u64 end = start + PAGE_CACHE_SIZE - 1;
 	if (test_range_bit(tree, start, end, EXTENT_UPTODATE, 1, NULL))
 		SetPageUptodate(page);
@@ -1846,7 +1846,7 @@ static void check_page_uptodate(struct extent_io_tree *tree, struct page *page)
  */
 static void check_page_locked(struct extent_io_tree *tree, struct page *page)
 {
-	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
+	u64 start = page_offset(page);
 	u64 end = start + PAGE_CACHE_SIZE - 1;
 	if (!test_range_bit(tree, start, end, EXTENT_LOCKED, 0, NULL))
 		unlock_page(page);
@@ -1960,7 +1960,7 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 start,
 		return -EIO;
 	}
 	bio->bi_bdev = dev->bdev;
-	bio_add_page(bio, page, length, start-page_offset(page));
+	bio_add_page(bio, page, length, start - page_offset(page));
 	btrfsic_submit_bio(WRITE_SYNC, bio);
 	wait_for_completion(&compl);
 
@@ -2293,8 +2293,7 @@ static void end_bio_extent_writepage(struct bio *bio, int err)
 		struct page *page = bvec->bv_page;
 		tree = &BTRFS_I(page->mapping->host)->io_tree;
 
-		start = ((u64)page->index << PAGE_CACHE_SHIFT) +
-			 bvec->bv_offset;
+		start = page_offset(page) + bvec->bv_offset;
 		end = start + bvec->bv_len - 1;
 
 		if (bvec->bv_offset == 0 && bvec->bv_len == PAGE_CACHE_SIZE)
@@ -2353,8 +2352,7 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 			 (long int)bio->bi_bdev);
 		tree = &BTRFS_I(page->mapping->host)->io_tree;
 
-		start = ((u64)page->index << PAGE_CACHE_SHIFT) +
-			bvec->bv_offset;
+		start = page_offset(page) + bvec->bv_offset;
 		end = start + bvec->bv_len - 1;
 
 		if (bvec->bv_offset == 0 && bvec->bv_len == PAGE_CACHE_SIZE)
@@ -2471,7 +2469,7 @@ static int __must_check submit_one_bio(int rw, struct bio *bio,
 	struct extent_io_tree *tree = bio->bi_private;
 	u64 start;
 
-	start = ((u64)page->index << PAGE_CACHE_SHIFT) + bvec->bv_offset;
+	start = page_offset(page) + bvec->bv_offset;
 
 	bio->bi_private = NULL;
 
@@ -2595,7 +2593,7 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 				   unsigned long *bio_flags)
 {
 	struct inode *inode = page->mapping->host;
-	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
+	u64 start = page_offset(page);
 	u64 page_end = start + PAGE_CACHE_SIZE - 1;
 	u64 end;
 	u64 cur = start;
@@ -2806,7 +2804,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	struct inode *inode = page->mapping->host;
 	struct extent_page_data *epd = data;
 	struct extent_io_tree *tree = epd->tree;
-	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
+	u64 start = page_offset(page);
 	u64 delalloc_start;
 	u64 page_end = start + PAGE_CACHE_SIZE - 1;
 	u64 end;
@@ -3674,7 +3672,7 @@ int extent_invalidatepage(struct extent_io_tree *tree,
 			  struct page *page, unsigned long offset)
 {
 	struct extent_state *cached_state = NULL;
-	u64 start = ((u64)page->index << PAGE_CACHE_SHIFT);
+	u64 start = page_offset(page);
 	u64 end = start + PAGE_CACHE_SIZE - 1;
 	size_t blocksize = page->mapping->host->i_sb->s_blocksize;
 
@@ -3700,7 +3698,7 @@ int try_release_extent_state(struct extent_map_tree *map,
 			     struct extent_io_tree *tree, struct page *page,
 			     gfp_t mask)
 {
-	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
+	u64 start = page_offset(page);
 	u64 end = start + PAGE_CACHE_SIZE - 1;
 	int ret = 1;
 
@@ -3739,7 +3737,7 @@ int try_release_extent_mapping(struct extent_map_tree *map,
 			       gfp_t mask)
 {
 	struct extent_map *em;
-	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
+	u64 start = page_offset(page);
 	u64 end = start + PAGE_CACHE_SIZE - 1;
 
 	if ((mask & __GFP_WAIT) &&
