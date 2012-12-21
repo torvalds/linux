@@ -1172,7 +1172,7 @@ static struct pnp_driver ene_driver = {
 	.flags = PNP_DRIVER_RES_DO_NOT_CHANGE,
 
 	.probe = ene_probe,
-	.remove = __devexit_p(ene_remove),
+	.remove = ene_remove,
 #ifdef CONFIG_PM
 	.suspend = ene_suspend,
 	.resume = ene_resume,

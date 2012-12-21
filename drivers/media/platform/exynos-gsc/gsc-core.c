@@ -1151,7 +1151,7 @@ err_clk:
 	return ret;
 }
 
-static int __devexit gsc_remove(struct platform_device *pdev)
+static int gsc_remove(struct platform_device *pdev)
 {
 	struct gsc_dev *gsc = platform_get_drvdata(pdev);
 
@@ -1237,7 +1237,7 @@ static const struct dev_pm_ops gsc_pm_ops = {
 
 static struct platform_driver gsc_driver = {
 	.probe		= gsc_probe,
-	.remove	= __devexit_p(gsc_remove),
+	.remove		= gsc_remove,
 	.id_table	= gsc_driver_ids,
 	.driver = {
 		.name	= GSC_MODULE_NAME,

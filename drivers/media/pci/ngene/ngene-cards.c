@@ -743,7 +743,7 @@ static struct ngene_info ngene_info_terratec = {
 
 /****************************************************************************/
 
-static const struct pci_device_id ngene_id_tbl[] __devinitdata = {
+static const struct pci_device_id ngene_id_tbl[] = {
 	NGENE_ID(0x18c3, 0xabc3, ngene_info_cineS2),
 	NGENE_ID(0x18c3, 0xabc4, ngene_info_cineS2),
 	NGENE_ID(0x18c3, 0xdb01, ngene_info_satixS2),
@@ -800,7 +800,7 @@ static struct pci_driver ngene_pci_driver = {
 	.name        = "ngene",
 	.id_table    = ngene_id_tbl,
 	.probe       = ngene_probe,
-	.remove      = __devexit_p(ngene_remove),
+	.remove      = ngene_remove,
 	.err_handler = &ngene_errors,
 	.shutdown    = ngene_shutdown,
 };

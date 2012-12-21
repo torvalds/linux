@@ -1000,7 +1000,7 @@ err_md:
 	return ret;
 }
 
-static int __devexit fimc_md_remove(struct platform_device *pdev)
+static int fimc_md_remove(struct platform_device *pdev)
 {
 	struct fimc_md *fmd = platform_get_drvdata(pdev);
 
@@ -1015,7 +1015,7 @@ static int __devexit fimc_md_remove(struct platform_device *pdev)
 
 static struct platform_driver fimc_md_driver = {
 	.probe		= fimc_md_probe,
-	.remove		= __devexit_p(fimc_md_remove),
+	.remove		= fimc_md_remove,
 	.driver = {
 		.name	= "s5p-fimc-md",
 		.owner	= THIS_MODULE,
