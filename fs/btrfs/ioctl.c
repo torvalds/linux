@@ -1339,6 +1339,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 	if (atomic_xchg(&root->fs_info->mutually_exclusive_operation_running,
 			1)) {
 		pr_info("btrfs: dev add/delete/balance/replace/resize operation in progress\n");
+		mnt_drop_write_file(file);
 		return -EINPROGRESS;
 	}
 
