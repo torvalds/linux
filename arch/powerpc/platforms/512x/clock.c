@@ -695,7 +695,7 @@ static void psc_clks_init(void)
 			 * AC97 is special rate clock does
 			 * not go through normal path
 			 */
-			if (strcmp("ac97", np->name) == 0)
+			if (of_device_is_compatible(np, "fsl,mpc5121-psc-ac97"))
 				clk->rate = ac97_clk.rate;
 			else
 				psc_calc_rate(clk, pscnum, np);
