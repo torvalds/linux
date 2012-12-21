@@ -34,17 +34,14 @@ static __init int module_verify_init(void)
 {
 	pr_notice("Initialise module verification\n");
 
-	modsign_keyring = key_alloc(&key_type_keyring, ".module_sign",
-				    KUIDT_INIT(0), KGIDT_INIT(0),
-				    current_cred(),
-				    (KEY_POS_ALL & ~KEY_POS_SETATTR) |
-				    KEY_USR_VIEW | KEY_USR_READ,
-				    KEY_ALLOC_NOT_IN_QUOTA);
+	modsign_keyring = keyring_alloc(".module_sign",
+					KUIDT_INIT(0), KGIDT_INIT(0),
+					current_cred(),
+					((KEY_POS_ALL & ~KEY_POS_SETATTR) |
+					 KEY_USR_VIEW | KEY_USR_READ),
+					KEY_ALLOC_NOT_IN_QUOTA, NULL);
 	if (IS_ERR(modsign_keyring))
 		panic("Can't allocate module signing keyring\n");
-
-	if (key_instantiate_and_link(modsign_keyring, NULL, 0, NULL, NULL) < 0)
-		panic("Can't instantiate module signing keyring\n");
 
 	return 0;
 }
