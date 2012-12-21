@@ -49,6 +49,7 @@ struct soc_camera_device {
 	/* soc_camera.c private count. Only accessed with .host_lock held */
 	int use_count;
 	struct file *streamer;		/* stream owner */
+	struct v4l2_clk *clk;
 	union {
 		struct videobuf_queue vb_vidq;
 		struct vb2_queue vb2_vidq;
@@ -325,14 +326,16 @@ static inline void soc_camera_limit_side(int *start, int *length,
 unsigned long soc_camera_apply_board_flags(struct soc_camera_subdev_desc *ssdd,
 					   const struct v4l2_mbus_config *cfg);
 
-int soc_camera_power_on(struct device *dev, struct soc_camera_subdev_desc *ssdd);
-int soc_camera_power_off(struct device *dev, struct soc_camera_subdev_desc *ssdd);
+int soc_camera_power_on(struct device *dev, struct soc_camera_subdev_desc *ssdd,
+			struct v4l2_clk *clk);
+int soc_camera_power_off(struct device *dev, struct soc_camera_subdev_desc *ssdd,
+			 struct v4l2_clk *clk);
 
 static inline int soc_camera_set_power(struct device *dev,
-				struct soc_camera_subdev_desc *ssdd, bool on)
+		struct soc_camera_subdev_desc *ssdd, struct v4l2_clk *clk, bool on)
 {
-	return on ? soc_camera_power_on(dev, ssdd)
-		  : soc_camera_power_off(dev, ssdd);
+	return on ? soc_camera_power_on(dev, ssdd, clk)
+		  : soc_camera_power_off(dev, ssdd, clk);
 }
 
 /* This is only temporary here - until v4l2-subdev begins to link to video_device */

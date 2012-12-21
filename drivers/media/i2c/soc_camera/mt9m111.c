@@ -17,6 +17,7 @@
 #include <linux/module.h>
 
 #include <media/soc_camera.h>
+#include <media/v4l2-clk.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 
@@ -206,6 +207,7 @@ struct mt9m111 {
 	struct v4l2_ctrl *gain;
 	struct mt9m111_context *ctx;
 	struct v4l2_rect rect;	/* cropping rectangle */
+	struct v4l2_clk *clk;
 	int width;		/* output */
 	int height;		/* sizes */
 	struct mutex power_lock; /* lock to protect power_count */
@@ -775,14 +777,14 @@ static int mt9m111_power_on(struct mt9m111 *mt9m111)
 	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 	int ret;
 
-	ret = soc_camera_power_on(&client->dev, ssdd);
+	ret = soc_camera_power_on(&client->dev, ssdd, mt9m111->clk);
 	if (ret < 0)
 		return ret;
 
 	ret = mt9m111_resume(mt9m111);
 	if (ret < 0) {
 		dev_err(&client->dev, "Failed to resume the sensor: %d\n", ret);
-		soc_camera_power_off(&client->dev, ssdd);
+		soc_camera_power_off(&client->dev, ssdd, mt9m111->clk);
 	}
 
 	return ret;
@@ -794,7 +796,7 @@ static void mt9m111_power_off(struct mt9m111 *mt9m111)
 	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 
 	mt9m111_suspend(mt9m111);
-	soc_camera_power_off(&client->dev, ssdd);
+	soc_camera_power_off(&client->dev, ssdd, mt9m111->clk);
 }
 
 static int mt9m111_s_power(struct v4l2_subdev *sd, int on)
@@ -973,9 +975,18 @@ static int mt9m111_probe(struct i2c_client *client,
 	mt9m111->lastpage	= -1;
 	mutex_init(&mt9m111->power_lock);
 
+	mt9m111->clk = v4l2_clk_get(&client->dev, "mclk");
+	if (IS_ERR(mt9m111->clk)) {
+		ret = PTR_ERR(mt9m111->clk);
+		goto eclkget;
+	}
+
 	ret = mt9m111_video_probe(client);
-	if (ret)
+	if (ret) {
+		v4l2_clk_put(mt9m111->clk);
+eclkget:
 		v4l2_ctrl_handler_free(&mt9m111->hdl);
+	}
 
 	return ret;
 }
@@ -984,6 +995,7 @@ static int mt9m111_remove(struct i2c_client *client)
 {
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
 
+	v4l2_clk_put(mt9m111->clk);
 	v4l2_device_unregister_subdev(&mt9m111->subdev);
 	v4l2_ctrl_handler_free(&mt9m111->hdl);
 

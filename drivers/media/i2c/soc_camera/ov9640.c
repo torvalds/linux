@@ -28,6 +28,7 @@
 #include <linux/videodev2.h>
 
 #include <media/soc_camera.h>
+#include <media/v4l2-clk.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 
@@ -324,8 +325,9 @@ static int ov9640_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
+	struct ov9640_priv *priv = to_ov9640_sensor(sd);
 
-	return soc_camera_set_power(&client->dev, ssdd, on);
+	return soc_camera_set_power(&client->dev, ssdd, priv->clk, on);
 }
 
 /* select nearest higher resolution for capture */
@@ -700,10 +702,18 @@ static int ov9640_probe(struct i2c_client *client,
 	if (priv->hdl.error)
 		return priv->hdl.error;
 
-	ret = ov9640_video_probe(client);
+	priv->clk = v4l2_clk_get(&client->dev, "mclk");
+	if (IS_ERR(priv->clk)) {
+		ret = PTR_ERR(priv->clk);
+		goto eclkget;
+	}
 
-	if (ret)
+	ret = ov9640_video_probe(client);
+	if (ret) {
+		v4l2_clk_put(priv->clk);
+eclkget:
 		v4l2_ctrl_handler_free(&priv->hdl);
+	}
 
 	return ret;
 }
@@ -713,6 +723,7 @@ static int ov9640_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov9640_priv *priv = to_ov9640_sensor(sd);
 
+	v4l2_clk_put(priv->clk);
 	v4l2_device_unregister_subdev(&priv->subdev);
 	v4l2_ctrl_handler_free(&priv->hdl);
 	return 0;

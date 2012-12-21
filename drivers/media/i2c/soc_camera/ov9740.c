@@ -17,6 +17,7 @@
 #include <linux/v4l2-mediabus.h>
 
 #include <media/soc_camera.h>
+#include <media/v4l2-clk.h>
 #include <media/v4l2-ctrls.h>
 
 #define to_ov9740(sd)		container_of(sd, struct ov9740_priv, subdev)
@@ -195,6 +196,7 @@ struct ov9740_reg {
 struct ov9740_priv {
 	struct v4l2_subdev		subdev;
 	struct v4l2_ctrl_handler	hdl;
+	struct v4l2_clk			*clk;
 
 	u16				model;
 	u8				revision;
@@ -778,7 +780,7 @@ static int ov9740_s_power(struct v4l2_subdev *sd, int on)
 	int ret;
 
 	if (on) {
-		ret = soc_camera_power_on(&client->dev, ssdd);
+		ret = soc_camera_power_on(&client->dev, ssdd, priv->clk);
 		if (ret < 0)
 			return ret;
 
@@ -792,7 +794,7 @@ static int ov9740_s_power(struct v4l2_subdev *sd, int on)
 			priv->current_enable = true;
 		}
 
-		soc_camera_power_off(&client->dev, ssdd);
+		soc_camera_power_off(&client->dev, ssdd, priv->clk);
 	}
 
 	return 0;
@@ -958,9 +960,18 @@ static int ov9740_probe(struct i2c_client *client,
 	if (priv->hdl.error)
 		return priv->hdl.error;
 
+	priv->clk = v4l2_clk_get(&client->dev, "mclk");
+	if (IS_ERR(priv->clk)) {
+		ret = PTR_ERR(priv->clk);
+		goto eclkget;
+	}
+
 	ret = ov9740_video_probe(client);
-	if (ret < 0)
+	if (ret < 0) {
+		v4l2_clk_put(priv->clk);
+eclkget:
 		v4l2_ctrl_handler_free(&priv->hdl);
+	}
 
 	return ret;
 }
@@ -969,6 +980,7 @@ static int ov9740_remove(struct i2c_client *client)
 {
 	struct ov9740_priv *priv = i2c_get_clientdata(client);
 
+	v4l2_clk_put(priv->clk);
 	v4l2_device_unregister_subdev(&priv->subdev);
 	v4l2_ctrl_handler_free(&priv->hdl);
 	return 0;

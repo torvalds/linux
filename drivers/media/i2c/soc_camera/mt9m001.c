@@ -16,6 +16,7 @@
 
 #include <media/soc_camera.h>
 #include <media/soc_mediabus.h>
+#include <media/v4l2-clk.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-ctrls.h>
 
@@ -93,6 +94,7 @@ struct mt9m001 {
 		struct v4l2_ctrl *exposure;
 	};
 	struct v4l2_rect rect;	/* Sensor window */
+	struct v4l2_clk *clk;
 	const struct mt9m001_datafmt *fmt;
 	const struct mt9m001_datafmt *fmts;
 	int num_fmts;
@@ -355,8 +357,9 @@ static int mt9m001_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
+	struct mt9m001 *mt9m001 = to_mt9m001(client);
 
-	return soc_camera_set_power(&client->dev, ssdd, on);
+	return soc_camera_set_power(&client->dev, ssdd, mt9m001->clk, on);
 }
 
 static int mt9m001_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
@@ -681,9 +684,18 @@ static int mt9m001_probe(struct i2c_client *client,
 	mt9m001->rect.width	= MT9M001_MAX_WIDTH;
 	mt9m001->rect.height	= MT9M001_MAX_HEIGHT;
 
+	mt9m001->clk = v4l2_clk_get(&client->dev, "mclk");
+	if (IS_ERR(mt9m001->clk)) {
+		ret = PTR_ERR(mt9m001->clk);
+		goto eclkget;
+	}
+
 	ret = mt9m001_video_probe(ssdd, client);
-	if (ret)
+	if (ret) {
+		v4l2_clk_put(mt9m001->clk);
+eclkget:
 		v4l2_ctrl_handler_free(&mt9m001->hdl);
+	}
 
 	return ret;
 }
@@ -693,6 +705,7 @@ static int mt9m001_remove(struct i2c_client *client)
 	struct mt9m001 *mt9m001 = to_mt9m001(client);
 	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 
+	v4l2_clk_put(mt9m001->clk);
 	v4l2_device_unregister_subdev(&mt9m001->subdev);
 	v4l2_ctrl_handler_free(&mt9m001->hdl);
 	mt9m001_video_remove(ssdd);

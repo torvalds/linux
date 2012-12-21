@@ -27,6 +27,7 @@
 
 #include <media/mt9t112.h>
 #include <media/soc_camera.h>
+#include <media/v4l2-clk.h>
 #include <media/v4l2-common.h>
 
 /* you can check PLL/clock info */
@@ -89,6 +90,7 @@ struct mt9t112_priv {
 	struct mt9t112_camera_info	*info;
 	struct i2c_client		*client;
 	struct v4l2_rect		 frame;
+	struct v4l2_clk			*clk;
 	const struct mt9t112_format	*format;
 	int				 num_formats;
 	u32				 flags;
@@ -768,8 +770,9 @@ static int mt9t112_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
+	struct mt9t112_priv *priv = to_mt9t112(client);
 
-	return soc_camera_set_power(&client->dev, ssdd, on);
+	return soc_camera_set_power(&client->dev, ssdd, priv->clk, on);
 }
 
 static struct v4l2_subdev_core_ops mt9t112_subdev_core_ops = {
@@ -1092,14 +1095,27 @@ static int mt9t112_probe(struct i2c_client *client,
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &mt9t112_subdev_ops);
 
+	priv->clk = v4l2_clk_get(&client->dev, "mclk");
+	if (IS_ERR(priv->clk))
+		return PTR_ERR(priv->clk);
+
 	ret = mt9t112_camera_probe(client);
-	if (ret)
-		return ret;
 
 	/* Cannot fail: using the default supported pixel code */
-	mt9t112_set_params(priv, &rect, V4L2_MBUS_FMT_UYVY8_2X8);
+	if (!ret)
+		mt9t112_set_params(priv, &rect, V4L2_MBUS_FMT_UYVY8_2X8);
+	else
+		v4l2_clk_put(priv->clk);
 
 	return ret;
+}
+
+static int mt9t112_remove(struct i2c_client *client)
+{
+	struct mt9t112_priv *priv = to_mt9t112(client);
+
+	v4l2_clk_put(priv->clk);
+	return 0;
 }
 
 static const struct i2c_device_id mt9t112_id[] = {
@@ -1113,6 +1129,7 @@ static struct i2c_driver mt9t112_i2c_driver = {
 		.name = "mt9t112",
 	},
 	.probe    = mt9t112_probe,
+	.remove   = mt9t112_remove,
 	.id_table = mt9t112_id,
 };
 

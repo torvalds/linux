@@ -54,7 +54,7 @@ static int soc_camera_platform_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct soc_camera_platform_info *p = v4l2_get_subdevdata(sd);
 
-	return soc_camera_set_power(p->icd->control, &p->icd->sdesc->subdev_desc, on);
+	return soc_camera_set_power(p->icd->control, &p->icd->sdesc->subdev_desc, NULL, on);
 }
 
 static struct v4l2_subdev_core_ops platform_subdev_core_ops = {
