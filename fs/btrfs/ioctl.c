@@ -1329,9 +1329,6 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 	int ret = 0;
 	int mod = 0;
 
-	if (root->fs_info->sb->s_flags & MS_RDONLY)
-		return -EROFS;
-
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
@@ -1363,6 +1360,10 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 		*devstr = '\0';
 		devstr = vol_args->name;
 		devid = simple_strtoull(devstr, &end, 10);
+		if (!devid) {
+			ret = -EINVAL;
+			goto out_free;
+		}
 		printk(KERN_INFO "btrfs: resizing devid %llu\n",
 		       (unsigned long long)devid);
 	}
@@ -1371,7 +1372,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 	if (!device) {
 		printk(KERN_INFO "btrfs: resizer unable to find device %llu\n",
 		       (unsigned long long)devid);
-		ret = -EINVAL;
+		ret = -ENODEV;
 		goto out_free;
 	}
 
@@ -1379,7 +1380,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 		printk(KERN_INFO "btrfs: resizer unable to apply on "
 		       "readonly device %llu\n",
 		       (unsigned long long)devid);
-		ret = -EINVAL;
+		ret = -EPERM;
 		goto out_free;
 	}
 
@@ -1401,7 +1402,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 	}
 
 	if (device->is_tgtdev_for_dev_replace) {
-		ret = -EINVAL;
+		ret = -EPERM;
 		goto out_free;
 	}
 
