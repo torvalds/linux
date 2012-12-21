@@ -507,9 +507,11 @@ static int rockchip_i2s_dai_probe(struct snd_soc_dai *dai)
 			rk30_mux_api_set(GPIO0B2_I2S8CHLRCKRX_NAME, GPIO0B_I2S_8CH_LRCK_RX);
 			rk30_mux_api_set(GPIO0B3_I2S8CHLRCKTX_NAME, GPIO0B_I2S_8CH_LRCK_TX);	
 			rk30_mux_api_set(GPIO0B4_I2S8CHSDO0_NAME, GPIO0B_I2S_8CH_SDO0);
-			//rk30_mux_api_set(GPIO0B5_I2S8CHSDO1_NAME, GPIO0B_I2S_8CH_SDO1);
-			//rk30_mux_api_set(GPIO0B6_I2S8CHSDO2_NAME, GPIO0B_I2S_8CH_SDO2);
-			//rk30_mux_api_set(GPIO0B7_I2S8CHSDO3_NAME, GPIO0B_I2S_8CH_SDO3);        
+			#ifdef SND_I2SO_USE_EIGHT_CHANNELS			
+			rk30_mux_api_set(GPIO0B5_I2S8CHSDO1_NAME, GPIO0B_I2S_8CH_SDO1);
+			rk30_mux_api_set(GPIO0B6_I2S8CHSDO2_NAME, GPIO0B_I2S_8CH_SDO2);
+			rk30_mux_api_set(GPIO0B7_I2S8CHSDO3_NAME, GPIO0B_I2S_8CH_SDO3);  
+			#endif			
 			break;
         case 1:
 			rk30_mux_api_set(GPIO0C0_I2S12CHCLK_NAME, GPIO0C_I2S1_2CH_CLK);

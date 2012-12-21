@@ -15,6 +15,18 @@ config SND_RK29_SOC_I2S_8CH
 	depends on SND_RK29_SOC_I2S && !ARCH_RK3066B
 	help
                 This supports the use of the 8 Channel I2S interface on rk29 processors.
+				
+if SND_RK29_SOC_I2S_8CH
+choice
+  bool "Set I2S0 using the number of channels"
+  default SND_I2SO_USE_DOUBLE_CHANNELS
+	config SND_I2SO_USE_EIGHT_CHANNELS
+		tristate  "I2S0 use 8 channels"
+
+	config SND_I2SO_USE_DOUBLE_CHANNELS
+		tristate  "I2S0 use 2 channels"
+endchoice
+endif
 
 config SND_RK29_SOC_I2S_2CH
         bool "Soc RK29 I2S 2 Channel support(I2S1)"
