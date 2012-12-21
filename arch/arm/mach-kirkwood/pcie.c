@@ -214,7 +214,7 @@ static int __init kirkwood_pcie_setup(int nr, struct pci_sys_data *sys)
  * PCI_CLASS_BRIDGE_HOST or Linux will errantly try to process the BAR's on
  * the device. Decoding setup is handled by the orion code.
  */
-static void __devinit rc_pci_fixup(struct pci_dev *dev)
+static void rc_pci_fixup(struct pci_dev *dev)
 {
 	if (dev->bus->parent == NULL && dev->devfn == 0) {
 		int i;

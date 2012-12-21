@@ -173,7 +173,7 @@ static struct pci_ops pcie_ops = {
 	.write = pcie_wr_conf,
 };
 
-static void __devinit rc_pci_fixup(struct pci_dev *dev)
+static void rc_pci_fixup(struct pci_dev *dev)
 {
 	/*
 	 * Prevent enumeration of root complex.
