@@ -24,7 +24,7 @@
 #define BCMA_PCI_SLOT_MAX	16
 #define	PCI_CONFIG_SPACE_SIZE	256
 
-bool __devinit bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc)
+bool bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc)
 {
 	struct bcma_bus *bus = pc->core->bus;
 	u16 chipid_top;
@@ -264,10 +264,9 @@ static int bcma_core_pci_hostmode_write_config(struct pci_bus *bus,
 }
 
 /* return cap_offset if requested capability exists in the PCI config space */
-static u8 __devinit bcma_find_pci_capability(struct bcma_drv_pci *pc,
-					     unsigned int dev,
-					     unsigned int func, u8 req_cap_id,
-					     unsigned char *buf, u32 *buflen)
+static u8 bcma_find_pci_capability(struct bcma_drv_pci *pc, unsigned int dev,
+				   unsigned int func, u8 req_cap_id,
+				   unsigned char *buf, u32 *buflen)
 {
 	u8 cap_id;
 	u8 cap_ptr = 0;
@@ -334,7 +333,7 @@ static u8 __devinit bcma_find_pci_capability(struct bcma_drv_pci *pc,
  * Retry Status (CRS) Completion Status to software then
  * enable the feature.
  */
-static void __devinit bcma_core_pci_enable_crs(struct bcma_drv_pci *pc)
+static void bcma_core_pci_enable_crs(struct bcma_drv_pci *pc)
 {
 	struct bcma_bus *bus = pc->core->bus;
 	u8 cap_ptr, root_ctrl, root_cap, dev;
@@ -381,7 +380,7 @@ static void __devinit bcma_core_pci_enable_crs(struct bcma_drv_pci *pc)
 	}
 }
 
-void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
+void bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 {
 	struct bcma_bus *bus = pc->core->bus;
 	struct bcma_drv_pci_host *pc_host;
