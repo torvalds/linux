@@ -19,48 +19,16 @@
 #include "segment.h"
 #include "node.h"
 
-static int need_to_flush(struct f2fs_sb_info *sbi)
-{
-	unsigned int pages_per_sec = (1 << sbi->log_blocks_per_seg) *
-			sbi->segs_per_sec;
-	int node_secs = ((get_pages(sbi, F2FS_DIRTY_NODES) + pages_per_sec - 1)
-		>> sbi->log_blocks_per_seg) / sbi->segs_per_sec;
-	int dent_secs = ((get_pages(sbi, F2FS_DIRTY_DENTS) + pages_per_sec - 1)
-		>> sbi->log_blocks_per_seg) / sbi->segs_per_sec;
-
-	if (sbi->por_doing)
-		return 0;
-
-	if (free_sections(sbi) <= (node_secs + 2 * dent_secs +
-						reserved_sections(sbi)))
-		return 1;
-	return 0;
-}
-
 /*
  * This function balances dirty node and dentry pages.
  * In addition, it controls garbage collection.
  */
 void f2fs_balance_fs(struct f2fs_sb_info *sbi)
 {
-	struct writeback_control wbc = {
-		.sync_mode = WB_SYNC_ALL,
-		.nr_to_write = LONG_MAX,
-		.for_reclaim = 0,
-	};
-
-	if (sbi->por_doing)
-		return;
-
 	/*
-	 * We should do checkpoint when there are so many dirty node pages
-	 * with enough free segments. After then, we should do GC.
+	 * We should do GC or end up with checkpoint, if there are so many dirty
+	 * dir/node pages without enough free segments.
 	 */
-	if (need_to_flush(sbi)) {
-		sync_dirty_dir_inodes(sbi);
-		sync_node_pages(sbi, 0, &wbc);
-	}
-
 	if (has_not_enough_free_secs(sbi)) {
 		mutex_lock(&sbi->gc_mutex);
 		f2fs_gc(sbi, 1);
