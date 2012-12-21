@@ -37,6 +37,8 @@
 #include <asm/mce.h>
 #include <asm/msr.h>
 #include <asm/pat.h>
+#include <asm/microcode.h>
+#include <asm/microcode_intel.h>
 
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/uv/uv.h>
@@ -213,7 +215,7 @@ static inline int flag_is_changeable_p(u32 flag)
 }
 
 /* Probe for the CPUID instruction */
-static int __cpuinit have_cpuid_p(void)
+int __cpuinit have_cpuid_p(void)
 {
 	return flag_is_changeable_p(X86_EFLAGS_ID);
 }
@@ -246,11 +248,6 @@ static int __init x86_serial_nr_setup(char *s)
 __setup("serialnumber", x86_serial_nr_setup);
 #else
 static inline int flag_is_changeable_p(u32 flag)
-{
-	return 1;
-}
-/* Probe for the CPUID instruction */
-static inline int have_cpuid_p(void)
 {
 	return 1;
 }
