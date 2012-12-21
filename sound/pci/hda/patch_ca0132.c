@@ -2223,7 +2223,7 @@ static int dspxfr_one_seg(struct hda_codec *codec,
 			unsigned int port_map_mask,
 			bool ovly)
 {
-	int status;
+	int status = 0;
 	bool comm_dma_setup_done = false;
 	const unsigned int *data;
 	unsigned int chip_addx;
@@ -2416,8 +2416,10 @@ static int dspxfr_image(struct hda_codec *codec,
 		return -EINVAL;
 
 	dma_engine = kzalloc(sizeof(*dma_engine), GFP_KERNEL);
-	if (!dma_engine)
-		return -ENOMEM;
+	if (!dma_engine) {
+		status = -ENOMEM;
+		goto exit;
+	}
 
 	dma_engine->dmab = kzalloc(sizeof(*dma_engine->dmab), GFP_KERNEL);
 	if (!dma_engine->dmab) {
@@ -4340,8 +4342,8 @@ static void ca0132_set_dsp_msr(struct hda_codec *codec, bool is96k)
 	chipio_set_control_flag(codec, CONTROL_FLAG_ADC_B_96KHZ, is96k);
 	chipio_set_control_flag(codec, CONTROL_FLAG_ADC_C_96KHZ, is96k);
 
-	chipio_set_conn_rate(codec, MEM_CONNID_MICIN1, SR_16_000);
-	chipio_set_conn_rate(codec, MEM_CONNID_MICOUT1, SR_16_000);
+	chipio_set_conn_rate(codec, MEM_CONNID_MICIN1, SR_96_000);
+	chipio_set_conn_rate(codec, MEM_CONNID_MICOUT1, SR_96_000);
 	chipio_set_conn_rate(codec, MEM_CONNID_WUH, SR_48_000);
 }
 
@@ -4685,7 +4687,7 @@ static struct hda_codec_preset snd_hda_preset_ca0132[] = {
 MODULE_ALIAS("snd-hda-codec-id:11020011");
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Creative CA0132, CA0132 HD-audio codec");
+MODULE_DESCRIPTION("Creative Sound Core3D codec");
 
 static struct hda_codec_preset_list ca0132_list = {
 	.preset = snd_hda_preset_ca0132,
