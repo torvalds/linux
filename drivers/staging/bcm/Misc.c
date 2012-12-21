@@ -1134,7 +1134,7 @@ void beceem_parse_target_struct(struct bcm_mini_adapter *Adapter)
 
 	uiEEPROMFlag = ntohl(Adapter->pstargetparams->m_u32EEPROMFlag);
 	pr_info(DRV_NAME ": uiEEPROMFlag  : 0x%X\n", uiEEPROMFlag);
-	Adapter->eNVMType = (NVM_TYPE)((uiEEPROMFlag>>4)&0x3);
+	Adapter->eNVMType = (enum bcm_nvm_type)((uiEEPROMFlag>>4)&0x3);
 	Adapter->bStatusWrite = (uiEEPROMFlag>>6)&0x1;
 	Adapter->uiSectorSizeInCFG = 1024*(0xFFFF & ntohl(Adapter->pstargetparams->HostDrvrConfig4));
 	Adapter->bSectorSizeOverride = (bool) ((ntohl(Adapter->pstargetparams->HostDrvrConfig4))>>16)&0x1;

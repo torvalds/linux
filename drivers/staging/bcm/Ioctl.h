@@ -108,7 +108,7 @@ enum bcm_interface_type {
 };
 
 struct bcm_driver_info {
-	NVM_TYPE	u32NVMType;
+	enum bcm_nvm_type	u32NVMType;
 	unsigned int		MaxRDMBufferSize;
 	enum bcm_interface_type	u32InterfaceType;
 	unsigned int		u32DSDStartOffset;

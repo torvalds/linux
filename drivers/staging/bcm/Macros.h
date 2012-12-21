@@ -324,12 +324,12 @@ typedef enum _E_PHS_DSC_ACTION {
 #define HPM_CONFIG_MSW    0x0F000D58
 
 #define T3B 0xbece0310
-typedef enum eNVM_TYPE {
+enum bcm_nvm_type {
 	NVM_AUTODETECT = 0,
 	NVM_EEPROM,
 	NVM_FLASH,
 	NVM_UNKNOWN
-} NVM_TYPE;
+};
 
 enum bcm_pmu_modes {
 	HYBRID_MODE_7C  = 0,

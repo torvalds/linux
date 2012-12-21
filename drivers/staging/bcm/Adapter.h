@@ -345,7 +345,7 @@ struct bcm_mini_adapter {
 	struct bcm_fragmented_packet_info astFragmentedPktClassifierTable[MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES];
 	atomic_t		uiMBupdate;
 	UINT32			PmuMode;
-	NVM_TYPE		eNVMType;
+	enum bcm_nvm_type	eNVMType;
 	UINT			uiSectorSize;
 	UINT			uiSectorSizeInCFG;
 	BOOLEAN			bSectorSizeOverride;

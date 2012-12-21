@@ -12,7 +12,7 @@ static unsigned int BcmGetFlashSectorSize(struct bcm_mini_adapter *Adapter, unsi
 static VOID BcmValidateNvmType(struct bcm_mini_adapter *Adapter);
 static int BcmGetNvmSize(struct bcm_mini_adapter *Adapter);
 static unsigned int BcmGetFlashSize(struct bcm_mini_adapter *Adapter);
-static NVM_TYPE BcmGetNvmType(struct bcm_mini_adapter *Adapter);
+static enum bcm_nvm_type BcmGetNvmType(struct bcm_mini_adapter *Adapter);
 
 static int BcmGetSectionValEndOffset(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_val eFlash2xSectionVal);
 
@@ -2629,7 +2629,7 @@ static int BcmGetFlashCSInfo(struct bcm_mini_adapter *Adapter)
  *
  */
 
-static NVM_TYPE BcmGetNvmType(struct bcm_mini_adapter *Adapter)
+static enum bcm_nvm_type BcmGetNvmType(struct bcm_mini_adapter *Adapter)
 {
 	unsigned int uiData = 0;
 
