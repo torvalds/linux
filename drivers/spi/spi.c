@@ -1135,6 +1135,9 @@ int spi_register_master(struct spi_master *master)
 	if (master->num_chipselect == 0)
 		return -EINVAL;
 
+	if ((master->bus_num < 0) && master->dev.of_node)
+		master->bus_num = of_alias_get_id(master->dev.of_node, "spi");
+
 	/* convention:  dynamically assigned bus IDs count down from the max */
 	if (master->bus_num < 0) {
 		/* FIXME switch to an IDR based scheme, something like
