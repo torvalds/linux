@@ -710,49 +710,6 @@ static void init_input(struct hda_codec *codec, hda_nid_t pin, hda_nid_t adc)
 	}
 }
 
-static int _add_switch(struct hda_codec *codec, hda_nid_t nid, const char *pfx,
-		       int chan, int dir)
-{
-	char namestr[44];
-	int type = dir ? HDA_INPUT : HDA_OUTPUT;
-	struct snd_kcontrol_new knew =
-		HDA_CODEC_MUTE_MONO(namestr, nid, chan, 0, type);
-	if ((query_amp_caps(codec, nid, type) & AC_AMPCAP_MUTE) == 0) {
-		snd_printdd("Skipping '%s %s Switch' (no mute on node 0x%x)\n", pfx, dirstr[dir], nid);
-		return 0;
-	}
-	sprintf(namestr, "%s %s Switch", pfx, dirstr[dir]);
-	return snd_hda_ctl_add(codec, nid, snd_ctl_new1(&knew, codec));
-}
-
-static int _add_volume(struct hda_codec *codec, hda_nid_t nid, const char *pfx,
-		       int chan, int dir)
-{
-	char namestr[44];
-	int type = dir ? HDA_INPUT : HDA_OUTPUT;
-	struct snd_kcontrol_new knew =
-		HDA_CODEC_VOLUME_MONO(namestr, nid, chan, 0, type);
-	if ((query_amp_caps(codec, nid, type) & AC_AMPCAP_NUM_STEPS) == 0) {
-		snd_printdd("Skipping '%s %s Volume' (no amp on node 0x%x)\n", pfx, dirstr[dir], nid);
-		return 0;
-	}
-	sprintf(namestr, "%s %s Volume", pfx, dirstr[dir]);
-	return snd_hda_ctl_add(codec, nid, snd_ctl_new1(&knew, codec));
-}
-
-#define add_out_switch(codec, nid, pfx) _add_switch(codec, nid, pfx, 3, 0)
-#define add_out_volume(codec, nid, pfx) _add_volume(codec, nid, pfx, 3, 0)
-#define add_in_switch(codec, nid, pfx) _add_switch(codec, nid, pfx, 3, 1)
-#define add_in_volume(codec, nid, pfx) _add_volume(codec, nid, pfx, 3, 1)
-#define add_mono_switch(codec, nid, pfx, chan) \
-	_add_switch(codec, nid, pfx, chan, 0)
-#define add_mono_volume(codec, nid, pfx, chan) \
-	_add_volume(codec, nid, pfx, chan, 0)
-#define add_in_mono_switch(codec, nid, pfx, chan) \
-	_add_switch(codec, nid, pfx, chan, 1)
-#define add_in_mono_volume(codec, nid, pfx, chan) \
-	_add_volume(codec, nid, pfx, chan, 1)
-
 enum dsp_download_state {
 	DSP_DOWNLOAD_FAILED = -1,
 	DSP_DOWNLOAD_INIT   = 0,
@@ -771,6 +728,8 @@ enum dsp_download_state {
  */
 
 struct ca0132_spec {
+	struct snd_kcontrol_new *mixers[5];
+	unsigned int num_mixers;
 	const struct hda_verb *base_init_verbs;
 	const struct hda_verb *base_exit_verbs;
 	const struct hda_verb *init_verbs[5];
@@ -781,17 +740,14 @@ struct ca0132_spec {
 	struct hda_multi_out multiout;
 	hda_nid_t out_pins[AUTO_CFG_MAX_OUTS];
 	hda_nid_t dacs[AUTO_CFG_MAX_OUTS];
-	hda_nid_t hp_dac;
 	unsigned int num_outputs;
 	hda_nid_t input_pins[AUTO_PIN_LAST];
 	hda_nid_t adcs[AUTO_PIN_LAST];
 	hda_nid_t dig_out;
 	hda_nid_t dig_in;
 	unsigned int num_inputs;
-	long curr_hp_switch;
-	long curr_hp_volume[2];
-	long curr_speaker_switch;
-	const char *input_labels[AUTO_PIN_LAST];
+	hda_nid_t shared_mic_nid;
+	hda_nid_t shared_out_nid;
 	struct hda_pcm pcm_rec[5]; /* PCM information */
 
 	/* chip access */
@@ -2950,6 +2906,59 @@ static int ca0132_select_mic(struct hda_codec *codec)
 }
 
 /*
+ * Check if VNODE settings take effect immediately.
+ */
+static bool ca0132_is_vnode_effective(struct hda_codec *codec,
+				     hda_nid_t vnid,
+				     hda_nid_t *shared_nid)
+{
+	struct ca0132_spec *spec = codec->spec;
+	hda_nid_t nid;
+	bool effective = false;
+
+	switch (vnid) {
+	case VNID_SPK:
+		nid = spec->shared_out_nid;
+		effective = true;
+		break;
+	case VNID_MIC:
+		nid = spec->shared_mic_nid;
+		effective = true;
+		break;
+	default:
+		break;
+	}
+
+	if (effective && shared_nid)
+		*shared_nid = nid;
+
+	return effective;
+}
+
+/*
+* The following functions are control change helpers.
+* They return 0 if no changed.  Return 1 if changed.
+*/
+static int ca0132_voicefx_set(struct hda_codec *codec, int enable)
+{
+	struct ca0132_spec *spec = codec->spec;
+	unsigned int tmp;
+
+	/* based on CrystalVoice state to enable VoiceFX. */
+	if (enable) {
+		tmp = spec->effects_switch[CRYSTAL_VOICE - EFFECT_START_NID] ?
+			FLOAT_ONE : FLOAT_ZERO;
+	} else {
+		tmp = FLOAT_ZERO;
+	}
+
+	dspio_set_uint_param(codec, ca0132_voicefx.mid,
+			     ca0132_voicefx.reqs[0], tmp);
+
+	return 1;
+}
+
+/*
  * Set the effects parameters
  */
 static int ca0132_effects_set(struct hda_codec *codec, hda_nid_t nid, long val)
@@ -2994,6 +3003,27 @@ static int ca0132_effects_set(struct hda_codec *codec, hda_nid_t nid, long val)
 	return 1;
 }
 
+/*
+ * Turn on/off Playback Enhancements
+ */
+static int ca0132_pe_switch_set(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+	hda_nid_t nid;
+	int i, ret = 0;
+
+	snd_printdd(KERN_INFO "ca0132_pe_switch_set: val=%ld\n",
+		    spec->effects_switch[PLAY_ENHANCEMENT - EFFECT_START_NID]);
+
+	i = OUT_EFFECT_START_NID - EFFECT_START_NID;
+	nid = OUT_EFFECT_START_NID;
+	/* PE affects all out effects */
+	for (; nid < OUT_EFFECT_END_NID; nid++, i++)
+		ret |= ca0132_effects_set(codec, nid, spec->effects_switch[i]);
+
+	return ret;
+}
+
 /* Check if Mic1 is streaming, if so, stop streaming */
 static int stop_mic1(struct hda_codec *codec)
 {
@@ -3019,8 +3049,34 @@ static void resume_mic1(struct hda_codec *codec, unsigned int oldval)
 }
 
 /*
- * Set Mic Boost
+ * Turn on/off CrystalVoice
  */
+static int ca0132_cvoice_switch_set(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+	hda_nid_t nid;
+	int i, ret = 0;
+	unsigned int oldval;
+
+	snd_printdd(KERN_INFO "ca0132_cvoice_switch_set: val=%ld\n",
+		    spec->effects_switch[CRYSTAL_VOICE - EFFECT_START_NID]);
+
+	i = IN_EFFECT_START_NID - EFFECT_START_NID;
+	nid = IN_EFFECT_START_NID;
+	/* CrystalVoice affects all in effects */
+	for (; nid < IN_EFFECT_END_NID; nid++, i++)
+		ret |= ca0132_effects_set(codec, nid, spec->effects_switch[i]);
+
+	/* including VoiceFX */
+	ret |= ca0132_voicefx_set(codec, (spec->voicefx_val ? 1 : 0));
+
+	/* set correct vipsource */
+	oldval = stop_mic1(codec);
+	ret |= ca0132_set_vipsource(codec, 1);
+	resume_mic1(codec, oldval);
+	return ret;
+}
+
 static int ca0132_mic_boost_set(struct hda_codec *codec, long val)
 {
 	struct ca0132_spec *spec = codec->spec;
@@ -3035,6 +3091,418 @@ static int ca0132_mic_boost_set(struct hda_codec *codec, long val)
 
 	return ret;
 }
+
+static int ca0132_vnode_switch_set(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	hda_nid_t nid = get_amp_nid(kcontrol);
+	hda_nid_t shared_nid = 0;
+	bool effective;
+	int ret = 0;
+	struct ca0132_spec *spec = codec->spec;
+	int auto_jack;
+
+	if (nid == VNID_HP_SEL) {
+		auto_jack =
+			spec->vnode_lswitch[VNID_HP_ASEL - VNODE_START_NID];
+		if (!auto_jack)
+			ca0132_select_out(codec);
+		return 1;
+	}
+
+	if (nid == VNID_AMIC1_SEL) {
+		auto_jack =
+			spec->vnode_lswitch[VNID_AMIC1_ASEL - VNODE_START_NID];
+		if (!auto_jack)
+			ca0132_select_mic(codec);
+		return 1;
+	}
+
+	if (nid == VNID_HP_ASEL) {
+		ca0132_select_out(codec);
+		return 1;
+	}
+
+	if (nid == VNID_AMIC1_ASEL) {
+		ca0132_select_mic(codec);
+		return 1;
+	}
+
+	/* if effective conditions, then update hw immediately. */
+	effective = ca0132_is_vnode_effective(codec, nid, &shared_nid);
+	if (effective) {
+		int dir = get_amp_direction(kcontrol);
+		int ch = get_amp_channels(kcontrol);
+		unsigned long pval;
+
+		mutex_lock(&codec->control_mutex);
+		pval = kcontrol->private_value;
+		kcontrol->private_value = HDA_COMPOSE_AMP_VAL(shared_nid, ch,
+								0, dir);
+		ret = snd_hda_mixer_amp_switch_put(kcontrol, ucontrol);
+		kcontrol->private_value = pval;
+		mutex_unlock(&codec->control_mutex);
+	}
+
+	return ret;
+}
+/* End of control change helpers. */
+
+static int ca0132_voicefx_info(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_info *uinfo)
+{
+	unsigned int items = sizeof(ca0132_voicefx_presets)
+				/ sizeof(struct ct_voicefx_preset);
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = items;
+	if (uinfo->value.enumerated.item >= items)
+		uinfo->value.enumerated.item = items - 1;
+	strcpy(uinfo->value.enumerated.name,
+	       ca0132_voicefx_presets[uinfo->value.enumerated.item].name);
+	return 0;
+}
+
+static int ca0132_voicefx_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ca0132_spec *spec = codec->spec;
+
+	ucontrol->value.enumerated.item[0] = spec->voicefx_val;
+	return 0;
+}
+
+static int ca0132_voicefx_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ca0132_spec *spec = codec->spec;
+	int i, err = 0;
+	int sel = ucontrol->value.enumerated.item[0];
+	unsigned int items = sizeof(ca0132_voicefx_presets)
+				/ sizeof(struct ct_voicefx_preset);
+
+	if (sel >= items)
+		return 0;
+
+	snd_printdd(KERN_INFO "ca0132_voicefx_put: sel=%d, preset=%s\n",
+		    sel, ca0132_voicefx_presets[sel].name);
+
+	/*
+	 * Idx 0 is default.
+	 * Default needs to qualify with CrystalVoice state.
+	 */
+	for (i = 0; i < VOICEFX_MAX_PARAM_COUNT; i++) {
+		err = dspio_set_uint_param(codec, ca0132_voicefx.mid,
+				ca0132_voicefx.reqs[i],
+				ca0132_voicefx_presets[sel].vals[i]);
+		if (err < 0)
+			break;
+	}
+
+	if (err >= 0) {
+		spec->voicefx_val = sel;
+		/* enable voice fx */
+		ca0132_voicefx_set(codec, (sel ? 1 : 0));
+	}
+
+	return 1;
+}
+
+static int ca0132_switch_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ca0132_spec *spec = codec->spec;
+	hda_nid_t nid = get_amp_nid(kcontrol);
+	int ch = get_amp_channels(kcontrol);
+	long *valp = ucontrol->value.integer.value;
+
+	/* vnode */
+	if ((nid >= VNODE_START_NID) && (nid < VNODE_END_NID)) {
+		if (ch & 1) {
+			*valp = spec->vnode_lswitch[nid - VNODE_START_NID];
+			valp++;
+		}
+		if (ch & 2) {
+			*valp = spec->vnode_rswitch[nid - VNODE_START_NID];
+			valp++;
+		}
+		return 0;
+	}
+
+	/* effects, include PE and CrystalVoice */
+	if ((nid >= EFFECT_START_NID) && (nid < EFFECT_END_NID)) {
+		*valp = spec->effects_switch[nid - EFFECT_START_NID];
+		return 0;
+	}
+
+	/* mic boost */
+	if (nid == spec->input_pins[0]) {
+		*valp = spec->cur_mic_boost;
+		return 0;
+	}
+
+	return 0;
+}
+
+static int ca0132_switch_put(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ca0132_spec *spec = codec->spec;
+	hda_nid_t nid = get_amp_nid(kcontrol);
+	int ch = get_amp_channels(kcontrol);
+	long *valp = ucontrol->value.integer.value;
+	int changed = 1;
+
+	snd_printdd(KERN_INFO "ca0132_switch_put: nid=0x%x, val=%ld\n",
+		    nid, *valp);
+
+	snd_hda_power_up(codec);
+	/* vnode */
+	if ((nid >= VNODE_START_NID) && (nid < VNODE_END_NID)) {
+		if (ch & 1) {
+			spec->vnode_lswitch[nid - VNODE_START_NID] = *valp;
+			valp++;
+		}
+		if (ch & 2) {
+			spec->vnode_rswitch[nid - VNODE_START_NID] = *valp;
+			valp++;
+		}
+		changed = ca0132_vnode_switch_set(kcontrol, ucontrol);
+		goto exit;
+	}
+
+	/* PE */
+	if (nid == PLAY_ENHANCEMENT) {
+		spec->effects_switch[nid - EFFECT_START_NID] = *valp;
+		changed = ca0132_pe_switch_set(codec);
+		goto exit;
+	}
+
+	/* CrystalVoice */
+	if (nid == CRYSTAL_VOICE) {
+		spec->effects_switch[nid - EFFECT_START_NID] = *valp;
+		changed = ca0132_cvoice_switch_set(codec);
+		goto exit;
+	}
+
+	/* out and in effects */
+	if (((nid >= OUT_EFFECT_START_NID) && (nid < OUT_EFFECT_END_NID)) ||
+	    ((nid >= IN_EFFECT_START_NID) && (nid < IN_EFFECT_END_NID))) {
+		spec->effects_switch[nid - EFFECT_START_NID] = *valp;
+		changed = ca0132_effects_set(codec, nid, *valp);
+		goto exit;
+	}
+
+	/* mic boost */
+	if (nid == spec->input_pins[0]) {
+		spec->cur_mic_boost = *valp;
+
+		/* Mic boost does not apply to Digital Mic */
+		if (spec->cur_mic_type != DIGITAL_MIC)
+			changed = ca0132_mic_boost_set(codec, *valp);
+		goto exit;
+	}
+
+exit:
+	snd_hda_power_down(codec);
+	return changed;
+}
+
+/*
+ * Volume related
+ */
+static int ca0132_volume_info(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_info *uinfo)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ca0132_spec *spec = codec->spec;
+	hda_nid_t nid = get_amp_nid(kcontrol);
+	int ch = get_amp_channels(kcontrol);
+	int dir = get_amp_direction(kcontrol);
+	unsigned long pval;
+	int err;
+
+	switch (nid) {
+	case VNID_SPK:
+		/* follow shared_out info */
+		nid = spec->shared_out_nid;
+		mutex_lock(&codec->control_mutex);
+		pval = kcontrol->private_value;
+		kcontrol->private_value = HDA_COMPOSE_AMP_VAL(nid, ch, 0, dir);
+		err = snd_hda_mixer_amp_volume_info(kcontrol, uinfo);
+		kcontrol->private_value = pval;
+		mutex_unlock(&codec->control_mutex);
+		break;
+	case VNID_MIC:
+		/* follow shared_mic info */
+		nid = spec->shared_mic_nid;
+		mutex_lock(&codec->control_mutex);
+		pval = kcontrol->private_value;
+		kcontrol->private_value = HDA_COMPOSE_AMP_VAL(nid, ch, 0, dir);
+		err = snd_hda_mixer_amp_volume_info(kcontrol, uinfo);
+		kcontrol->private_value = pval;
+		mutex_unlock(&codec->control_mutex);
+		break;
+	default:
+		err = snd_hda_mixer_amp_volume_info(kcontrol, uinfo);
+	}
+	return err;
+}
+
+static int ca0132_volume_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ca0132_spec *spec = codec->spec;
+	hda_nid_t nid = get_amp_nid(kcontrol);
+	int ch = get_amp_channels(kcontrol);
+	long *valp = ucontrol->value.integer.value;
+
+	/* store the left and right volume */
+	if (ch & 1) {
+		*valp = spec->vnode_lvol[nid - VNODE_START_NID];
+		valp++;
+	}
+	if (ch & 2) {
+		*valp = spec->vnode_rvol[nid - VNODE_START_NID];
+		valp++;
+	}
+	return 0;
+}
+
+static int ca0132_volume_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ca0132_spec *spec = codec->spec;
+	hda_nid_t nid = get_amp_nid(kcontrol);
+	int ch = get_amp_channels(kcontrol);
+	long *valp = ucontrol->value.integer.value;
+	hda_nid_t shared_nid = 0;
+	bool effective;
+	int changed = 1;
+
+	/* store the left and right volume */
+	if (ch & 1) {
+		spec->vnode_lvol[nid - VNODE_START_NID] = *valp;
+		valp++;
+	}
+	if (ch & 2) {
+		spec->vnode_rvol[nid - VNODE_START_NID] = *valp;
+		valp++;
+	}
+
+	/* if effective conditions, then update hw immediately. */
+	effective = ca0132_is_vnode_effective(codec, nid, &shared_nid);
+	if (effective) {
+		int dir = get_amp_direction(kcontrol);
+		unsigned long pval;
+
+		snd_hda_power_up(codec);
+		mutex_lock(&codec->control_mutex);
+		pval = kcontrol->private_value;
+		kcontrol->private_value = HDA_COMPOSE_AMP_VAL(shared_nid, ch,
+								0, dir);
+		changed = snd_hda_mixer_amp_volume_put(kcontrol, ucontrol);
+		kcontrol->private_value = pval;
+		mutex_unlock(&codec->control_mutex);
+		snd_hda_power_down(codec);
+	}
+
+	return changed;
+}
+
+static int ca0132_volume_tlv(struct snd_kcontrol *kcontrol, int op_flag,
+			     unsigned int size, unsigned int __user *tlv)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ca0132_spec *spec = codec->spec;
+	hda_nid_t nid = get_amp_nid(kcontrol);
+	int ch = get_amp_channels(kcontrol);
+	int dir = get_amp_direction(kcontrol);
+	unsigned long pval;
+	int err;
+
+	switch (nid) {
+	case VNID_SPK:
+		/* follow shared_out tlv */
+		nid = spec->shared_out_nid;
+		mutex_lock(&codec->control_mutex);
+		pval = kcontrol->private_value;
+		kcontrol->private_value = HDA_COMPOSE_AMP_VAL(nid, ch, 0, dir);
+		err = snd_hda_mixer_amp_tlv(kcontrol, op_flag, size, tlv);
+		kcontrol->private_value = pval;
+		mutex_unlock(&codec->control_mutex);
+		break;
+	case VNID_MIC:
+		/* follow shared_mic tlv */
+		nid = spec->shared_mic_nid;
+		mutex_lock(&codec->control_mutex);
+		pval = kcontrol->private_value;
+		kcontrol->private_value = HDA_COMPOSE_AMP_VAL(nid, ch, 0, dir);
+		err = snd_hda_mixer_amp_tlv(kcontrol, op_flag, size, tlv);
+		kcontrol->private_value = pval;
+		mutex_unlock(&codec->control_mutex);
+		break;
+	default:
+		err = snd_hda_mixer_amp_tlv(kcontrol, op_flag, size, tlv);
+	}
+	return err;
+}
+
+static int add_fx_switch(struct hda_codec *codec, hda_nid_t nid,
+			 const char *pfx, int dir)
+{
+	char namestr[44];
+	int type = dir ? HDA_INPUT : HDA_OUTPUT;
+	struct snd_kcontrol_new knew =
+		CA0132_CODEC_MUTE_MONO(namestr, nid, 1, type);
+	sprintf(namestr, "%s %s Switch", pfx, dirstr[dir]);
+	return snd_hda_ctl_add(codec, nid, snd_ctl_new1(&knew, codec));
+}
+
+static int add_voicefx(struct hda_codec *codec)
+{
+	struct snd_kcontrol_new knew =
+		HDA_CODEC_MUTE_MONO(ca0132_voicefx.name,
+				    VOICEFX, 1, 0, HDA_INPUT);
+	knew.info = ca0132_voicefx_info;
+	knew.get = ca0132_voicefx_get;
+	knew.put = ca0132_voicefx_put;
+	return snd_hda_ctl_add(codec, VOICEFX, snd_ctl_new1(&knew, codec));
+}
+
+/*
+ * When changing Node IDs for Mixer Controls below, make sure to update
+ * Node IDs in ca0132_config() as well.
+ */
+static struct snd_kcontrol_new ca0132_mixer[] = {
+	CA0132_CODEC_VOL("Master Playback Volume", VNID_SPK, HDA_OUTPUT),
+	CA0132_CODEC_MUTE("Master Playback Switch", VNID_SPK, HDA_OUTPUT),
+	CA0132_CODEC_VOL("Capture Volume", VNID_MIC, HDA_INPUT),
+	CA0132_CODEC_MUTE("Capture Switch", VNID_MIC, HDA_INPUT),
+	HDA_CODEC_VOLUME("Analog-Mic2 Capture Volume", 0x08, 0, HDA_INPUT),
+	HDA_CODEC_MUTE("Analog-Mic2 Capture Switch", 0x08, 0, HDA_INPUT),
+	HDA_CODEC_VOLUME("What U Hear Capture Volume", 0x0a, 0, HDA_INPUT),
+	HDA_CODEC_MUTE("What U Hear Capture Switch", 0x0a, 0, HDA_INPUT),
+	CA0132_CODEC_MUTE_MONO("Mic1-Boost (30dB) Capture Switch",
+			       0x12, 1, HDA_INPUT),
+	CA0132_CODEC_MUTE_MONO("HP/Speaker Playback Switch",
+			       VNID_HP_SEL, 1, HDA_OUTPUT),
+	CA0132_CODEC_MUTE_MONO("AMic1/DMic Capture Switch",
+			       VNID_AMIC1_SEL, 1, HDA_INPUT),
+	CA0132_CODEC_MUTE_MONO("HP/Speaker Auto Detect Playback Switch",
+			       VNID_HP_ASEL, 1, HDA_OUTPUT),
+	CA0132_CODEC_MUTE_MONO("AMic1/DMic Auto Detect Capture Switch",
+			       VNID_AMIC1_ASEL, 1, HDA_INPUT),
+	{ } /* end */
+};
 
 /*
  */
@@ -3112,233 +3580,44 @@ static int ca0132_build_pcms(struct hda_codec *codec)
 	return 0;
 }
 
-#define REG_CODEC_MUTE		0x18b014
-#define REG_CODEC_HP_VOL_L	0x18b070
-#define REG_CODEC_HP_VOL_R	0x18b074
-
-static int ca0132_hp_switch_get(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct ca0132_spec *spec = codec->spec;
-	long *valp = ucontrol->value.integer.value;
-
-	*valp = spec->curr_hp_switch;
-	return 0;
-}
-
-static int ca0132_hp_switch_put(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct ca0132_spec *spec = codec->spec;
-	long *valp = ucontrol->value.integer.value;
-	unsigned int data;
-	int err;
-
-	/* any change? */
-	if (spec->curr_hp_switch == *valp)
-		return 0;
-
-	snd_hda_power_up(codec);
-
-	err = chipio_read(codec, REG_CODEC_MUTE, &data);
-	if (err < 0)
-		goto exit;
-
-	/* *valp 0 is mute, 1 is unmute */
-	data = (data & 0x7f) | (*valp ? 0 : 0x80);
-	err = chipio_write(codec, REG_CODEC_MUTE, data);
-	if (err < 0)
-		goto exit;
-
-	spec->curr_hp_switch = *valp;
-
- exit:
-	snd_hda_power_down(codec);
-	return err < 0 ? err : 1;
-}
-
-static int ca0132_speaker_switch_get(struct snd_kcontrol *kcontrol,
-				     struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct ca0132_spec *spec = codec->spec;
-	long *valp = ucontrol->value.integer.value;
-
-	*valp = spec->curr_speaker_switch;
-	return 0;
-}
-
-static int ca0132_speaker_switch_put(struct snd_kcontrol *kcontrol,
-				     struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct ca0132_spec *spec = codec->spec;
-	long *valp = ucontrol->value.integer.value;
-	unsigned int data;
-	int err;
-
-	/* any change? */
-	if (spec->curr_speaker_switch == *valp)
-		return 0;
-
-	snd_hda_power_up(codec);
-
-	err = chipio_read(codec, REG_CODEC_MUTE, &data);
-	if (err < 0)
-		goto exit;
-
-	/* *valp 0 is mute, 1 is unmute */
-	data = (data & 0xef) | (*valp ? 0 : 0x10);
-	err = chipio_write(codec, REG_CODEC_MUTE, data);
-	if (err < 0)
-		goto exit;
-
-	spec->curr_speaker_switch = *valp;
-
- exit:
-	snd_hda_power_down(codec);
-	return err < 0 ? err : 1;
-}
-
-static int ca0132_hp_volume_get(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct ca0132_spec *spec = codec->spec;
-	long *valp = ucontrol->value.integer.value;
-
-	*valp++ = spec->curr_hp_volume[0];
-	*valp = spec->curr_hp_volume[1];
-	return 0;
-}
-
-static int ca0132_hp_volume_put(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct ca0132_spec *spec = codec->spec;
-	long *valp = ucontrol->value.integer.value;
-	long left_vol, right_vol;
-	unsigned int data;
-	int val;
-	int err;
-
-	left_vol = *valp++;
-	right_vol = *valp;
-
-	/* any change? */
-	if ((spec->curr_hp_volume[0] == left_vol) &&
-	    (spec->curr_hp_volume[1] == right_vol))
-		return 0;
-
-	snd_hda_power_up(codec);
-
-	err = chipio_read(codec, REG_CODEC_HP_VOL_L, &data);
-	if (err < 0)
-		goto exit;
-
-	val = 31 - left_vol;
-	data = (data & 0xe0) | val;
-	err = chipio_write(codec, REG_CODEC_HP_VOL_L, data);
-	if (err < 0)
-		goto exit;
-
-	val = 31 - right_vol;
-	data = (data & 0xe0) | val;
-	err = chipio_write(codec, REG_CODEC_HP_VOL_R, data);
-	if (err < 0)
-		goto exit;
-
-	spec->curr_hp_volume[0] = left_vol;
-	spec->curr_hp_volume[1] = right_vol;
-
- exit:
-	snd_hda_power_down(codec);
-	return err < 0 ? err : 1;
-}
-
-static int add_hp_switch(struct hda_codec *codec, hda_nid_t nid)
-{
-	struct snd_kcontrol_new knew =
-		HDA_CODEC_MUTE_MONO("Headphone Playback Switch",
-				    nid, 1, 0, HDA_OUTPUT);
-	knew.get = ca0132_hp_switch_get;
-	knew.put = ca0132_hp_switch_put;
-	return snd_hda_ctl_add(codec, nid, snd_ctl_new1(&knew, codec));
-}
-
-static int add_hp_volume(struct hda_codec *codec, hda_nid_t nid)
-{
-	struct snd_kcontrol_new knew =
-		HDA_CODEC_VOLUME_MONO("Headphone Playback Volume",
-				      nid, 3, 0, HDA_OUTPUT);
-	knew.get = ca0132_hp_volume_get;
-	knew.put = ca0132_hp_volume_put;
-	return snd_hda_ctl_add(codec, nid, snd_ctl_new1(&knew, codec));
-}
-
-static int add_speaker_switch(struct hda_codec *codec, hda_nid_t nid)
-{
-	struct snd_kcontrol_new knew =
-		HDA_CODEC_MUTE_MONO("Speaker Playback Switch",
-				    nid, 1, 0, HDA_OUTPUT);
-	knew.get = ca0132_speaker_switch_get;
-	knew.put = ca0132_speaker_switch_put;
-	return snd_hda_ctl_add(codec, nid, snd_ctl_new1(&knew, codec));
-}
-
-static void ca0132_fix_hp_caps(struct hda_codec *codec)
-{
-	struct ca0132_spec *spec = codec->spec;
-	struct auto_pin_cfg *cfg = &spec->autocfg;
-	unsigned int caps;
-
-	/* set mute-capable, 1db step, 32 steps, ofs 6 */
-	caps = 0x80031f06;
-	snd_hda_override_amp_caps(codec, cfg->hp_pins[0], HDA_OUTPUT, caps);
-}
-
 static int ca0132_build_controls(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
-	struct auto_pin_cfg *cfg = &spec->autocfg;
-	int i, err;
+	int i, num_fx;
+	int err = 0;
 
-	if (spec->multiout.num_dacs) {
-		err = add_speaker_switch(codec, spec->out_pins[0]);
+	/* Add Mixer controls */
+	for (i = 0; i < spec->num_mixers; i++) {
+		err = snd_hda_add_new_ctls(codec, spec->mixers[i]);
 		if (err < 0)
 			return err;
 	}
 
-	if (cfg->hp_outs) {
-		ca0132_fix_hp_caps(codec);
-		err = add_hp_switch(codec, cfg->hp_pins[0]);
-		if (err < 0)
-			return err;
-		err = add_hp_volume(codec, cfg->hp_pins[0]);
+	/* Add in and out effects controls.
+	 * VoiceFX, PE and CrystalVoice are added separately.
+	 */
+	num_fx = OUT_EFFECTS_COUNT + IN_EFFECTS_COUNT;
+	for (i = 0; i < num_fx; i++) {
+		err = add_fx_switch(codec, ca0132_effects[i].nid,
+				    ca0132_effects[i].name,
+				    ca0132_effects[i].direct);
 		if (err < 0)
 			return err;
 	}
 
-	for (i = 0; i < spec->num_inputs; i++) {
-		const char *label = spec->input_labels[i];
+	err = add_fx_switch(codec, PLAY_ENHANCEMENT, "PlayEnhancement", 0);
+	if (err < 0)
+		return err;
 
-		err = add_in_switch(codec, spec->adcs[i], label);
-		if (err < 0)
-			return err;
-		err = add_in_volume(codec, spec->adcs[i], label);
-		if (err < 0)
-			return err;
-		if (cfg->inputs[i].type == AUTO_PIN_MIC) {
-			/* add Mic-Boost */
-			err = add_in_mono_volume(codec, spec->input_pins[i],
-						 "Mic Boost", 1);
-			if (err < 0)
-				return err;
-		}
-	}
+	err = add_fx_switch(codec, CRYSTAL_VOICE, "CrystalVoice", 1);
+	if (err < 0)
+		return err;
+
+	add_voicefx(codec);
+
+	err = snd_hda_jack_add_kctls(codec, &spec->autocfg);
+	if (err < 0)
+		return err;
 
 	if (spec->dig_out) {
 		err = snd_hda_create_spdif_out_ctls(codec, spec->dig_out,
@@ -3569,59 +3848,33 @@ static void ca0132_init_params(struct hda_codec *codec)
 	chipio_set_control_param(codec, CONTROL_PARAM_PORTD_160OHM_GAIN, 6);
 }
 
-static void ca0132_set_ct_ext(struct hda_codec *codec, int enable)
-{
-	/* Set Creative extension */
-	snd_printdd("SET CREATIVE EXTENSION\n");
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_CT_EXTENSIONS_ENABLE,
-			    enable);
-	msleep(20);
-}
-
-
 static void ca0132_config(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 
-	codec->no_sticky_stream = 1;
+	spec->dacs[0] = 0x2;
+	spec->dacs[1] = 0x3;
+	spec->dacs[2] = 0x4;
 
-	/* line-outs */
-	cfg->line_outs = 1;
-	cfg->line_out_pins[0] = 0x0b; /* front */
-	cfg->line_out_type = AUTO_PIN_LINE_OUT;
-
-	spec->dacs[0] = 0x02;
-	spec->out_pins[0] = 0x0b;
 	spec->multiout.dac_nids = spec->dacs;
-	spec->multiout.num_dacs = 1;
+	spec->multiout.num_dacs = 3;
 	spec->multiout.max_channels = 2;
 
-	/* headphone */
-	cfg->hp_outs = 1;
-	cfg->hp_pins[0] = 0x0f;
+	spec->num_outputs = 2;
+	spec->out_pins[0] = 0x0b; /* speaker out */
+	spec->out_pins[1] = 0x10; /* headphone out */
+	spec->shared_out_nid = 0x2;
 
-	spec->hp_dac = 0;
-	spec->multiout.hp_nid = 0;
+	spec->num_inputs = 3;
+	spec->adcs[0] = 0x7; /* digital mic / analog mic1 */
+	spec->adcs[1] = 0x8; /* analog mic2 */
+	spec->adcs[2] = 0xa; /* what u hear */
+	spec->shared_mic_nid = 0x7;
 
-	/* inputs */
-	cfg->num_inputs = 2;  /* Mic-in and line-in */
-	cfg->inputs[0].pin = 0x12;
-	cfg->inputs[0].type = AUTO_PIN_MIC;
-	cfg->inputs[1].pin = 0x11;
-	cfg->inputs[1].type = AUTO_PIN_LINE_IN;
-
-	/* Mic-in */
 	spec->input_pins[0] = 0x12;
-	spec->input_labels[0] = "Mic";
-	spec->adcs[0] = 0x07;
-
-	/* Line-In */
 	spec->input_pins[1] = 0x11;
-	spec->input_labels[1] = "Line";
-	spec->adcs[1] = 0x08;
-	spec->num_inputs = 2;
+	spec->input_pins[2] = 0x13;
 
 	/* SPDIF I/O */
 	spec->dig_out = 0x05;
@@ -3865,6 +4118,9 @@ static int patch_ca0132(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 	codec->spec = spec;
+
+	spec->num_mixers = 1;
+	spec->mixers[0] = ca0132_mixer;
 
 	spec->base_init_verbs = ca0132_base_init_verbs;
 	spec->base_exit_verbs = ca0132_base_exit_verbs;
