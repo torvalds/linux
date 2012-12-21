@@ -934,13 +934,13 @@ static int ov5642_g_mbus_config(struct v4l2_subdev *sd,
 static int ov5642_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 	int ret;
 
 	if (!on)
-		return soc_camera_power_off(&client->dev, icl);
+		return soc_camera_power_off(&client->dev, ssdd);
 
-	ret = soc_camera_power_on(&client->dev, icl);
+	ret = soc_camera_power_on(&client->dev, ssdd);
 	if (ret < 0)
 		return ret;
 
@@ -1020,10 +1020,10 @@ static int ov5642_probe(struct i2c_client *client,
 			const struct i2c_device_id *did)
 {
 	struct ov5642 *priv;
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 	int ret;
 
-	if (!icl) {
+	if (!ssdd) {
 		dev_err(&client->dev, "OV5642: missing platform data!\n");
 		return -EINVAL;
 	}
@@ -1057,10 +1057,10 @@ error:
 static int ov5642_remove(struct i2c_client *client)
 {
 	struct ov5642 *priv = to_ov5642(client);
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 
-	if (icl->free_bus)
-		icl->free_bus(icl);
+	if (ssdd->free_bus)
+		ssdd->free_bus(ssdd);
 	kfree(priv);
 
 	return 0;

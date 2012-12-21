@@ -50,22 +50,22 @@ static LIST_HEAD(hosts);
 static LIST_HEAD(devices);
 static DEFINE_MUTEX(list_lock);		/* Protects the list of hosts */
 
-int soc_camera_power_on(struct device *dev, struct soc_camera_link *icl)
+int soc_camera_power_on(struct device *dev, struct soc_camera_subdev_desc *ssdd)
 {
-	int ret = regulator_bulk_enable(icl->num_regulators,
-					icl->regulators);
+	int ret = regulator_bulk_enable(ssdd->num_regulators,
+					ssdd->regulators);
 	if (ret < 0) {
 		dev_err(dev, "Cannot enable regulators\n");
 		return ret;
 	}
 
-	if (icl->power) {
-		ret = icl->power(dev, 1);
+	if (ssdd->power) {
+		ret = ssdd->power(dev, 1);
 		if (ret < 0) {
 			dev_err(dev,
 				"Platform failed to power-on the camera.\n");
-			regulator_bulk_disable(icl->num_regulators,
-					       icl->regulators);
+			regulator_bulk_disable(ssdd->num_regulators,
+					       ssdd->regulators);
 		}
 	}
 
@@ -73,13 +73,13 @@ int soc_camera_power_on(struct device *dev, struct soc_camera_link *icl)
 }
 EXPORT_SYMBOL(soc_camera_power_on);
 
-int soc_camera_power_off(struct device *dev, struct soc_camera_link *icl)
+int soc_camera_power_off(struct device *dev, struct soc_camera_subdev_desc *ssdd)
 {
 	int ret = 0;
 	int err;
 
-	if (icl->power) {
-		err = icl->power(dev, 0);
+	if (ssdd->power) {
+		err = ssdd->power(dev, 0);
 		if (err < 0) {
 			dev_err(dev,
 				"Platform failed to power-off the camera.\n");
@@ -87,8 +87,8 @@ int soc_camera_power_off(struct device *dev, struct soc_camera_link *icl)
 		}
 	}
 
-	err = regulator_bulk_disable(icl->num_regulators,
-				     icl->regulators);
+	err = regulator_bulk_disable(ssdd->num_regulators,
+				     ssdd->regulators);
 	if (err < 0) {
 		dev_err(dev, "Cannot disable regulators\n");
 		ret = ret ? : err;
@@ -136,29 +136,29 @@ EXPORT_SYMBOL(soc_camera_xlate_by_fourcc);
 
 /**
  * soc_camera_apply_board_flags() - apply platform SOCAM_SENSOR_INVERT_* flags
- * @icl:	camera platform parameters
+ * @ssdd:	camera platform parameters
  * @cfg:	media bus configuration
  * @return:	resulting flags
  */
-unsigned long soc_camera_apply_board_flags(struct soc_camera_link *icl,
+unsigned long soc_camera_apply_board_flags(struct soc_camera_subdev_desc *ssdd,
 					   const struct v4l2_mbus_config *cfg)
 {
 	unsigned long f, flags = cfg->flags;
 
 	/* If only one of the two polarities is supported, switch to the opposite */
-	if (icl->flags & SOCAM_SENSOR_INVERT_HSYNC) {
+	if (ssdd->flags & SOCAM_SENSOR_INVERT_HSYNC) {
 		f = flags & (V4L2_MBUS_HSYNC_ACTIVE_HIGH | V4L2_MBUS_HSYNC_ACTIVE_LOW);
 		if (f == V4L2_MBUS_HSYNC_ACTIVE_HIGH || f == V4L2_MBUS_HSYNC_ACTIVE_LOW)
 			flags ^= V4L2_MBUS_HSYNC_ACTIVE_HIGH | V4L2_MBUS_HSYNC_ACTIVE_LOW;
 	}
 
-	if (icl->flags & SOCAM_SENSOR_INVERT_VSYNC) {
+	if (ssdd->flags & SOCAM_SENSOR_INVERT_VSYNC) {
 		f = flags & (V4L2_MBUS_VSYNC_ACTIVE_HIGH | V4L2_MBUS_VSYNC_ACTIVE_LOW);
 		if (f == V4L2_MBUS_VSYNC_ACTIVE_HIGH || f == V4L2_MBUS_VSYNC_ACTIVE_LOW)
 			flags ^= V4L2_MBUS_VSYNC_ACTIVE_HIGH | V4L2_MBUS_VSYNC_ACTIVE_LOW;
 	}
 
-	if (icl->flags & SOCAM_SENSOR_INVERT_PCLK) {
+	if (ssdd->flags & SOCAM_SENSOR_INVERT_PCLK) {
 		f = flags & (V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_PCLK_SAMPLE_FALLING);
 		if (f == V4L2_MBUS_PCLK_SAMPLE_RISING || f == V4L2_MBUS_PCLK_SAMPLE_FALLING)
 			flags ^= V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_PCLK_SAMPLE_FALLING;
@@ -509,7 +509,7 @@ static int soc_camera_open(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct soc_camera_device *icd = dev_get_drvdata(vdev->parent);
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct soc_camera_desc *sdesc = to_soc_camera_desc(icd);
 	struct soc_camera_host *ici;
 	int ret;
 
@@ -552,8 +552,8 @@ static int soc_camera_open(struct file *file)
 		};
 
 		/* The camera could have been already on, try to reset */
-		if (icl->reset)
-			icl->reset(icd->pdev);
+		if (sdesc->subdev_desc.reset)
+			sdesc->subdev_desc.reset(icd->pdev);
 
 		ret = ici->ops->add(icd);
 		if (ret < 0) {
@@ -1072,23 +1072,24 @@ static void scan_add_host(struct soc_camera_host *ici)
 
 #ifdef CONFIG_I2C_BOARDINFO
 static int soc_camera_init_i2c(struct soc_camera_device *icd,
-			       struct soc_camera_link *icl)
+			       struct soc_camera_desc *sdesc)
 {
 	struct i2c_client *client;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	struct i2c_adapter *adap = i2c_get_adapter(icl->i2c_adapter_id);
+	struct soc_camera_host_desc *shd = &sdesc->host_desc;
+	struct i2c_adapter *adap = i2c_get_adapter(shd->i2c_adapter_id);
 	struct v4l2_subdev *subdev;
 
 	if (!adap) {
 		dev_err(icd->pdev, "Cannot get I2C adapter #%d. No driver?\n",
-			icl->i2c_adapter_id);
+			shd->i2c_adapter_id);
 		goto ei2cga;
 	}
 
-	icl->board_info->platform_data = icl;
+	shd->board_info->platform_data = &sdesc->subdev_desc;
 
 	subdev = v4l2_i2c_new_subdev_board(&ici->v4l2_dev, adap,
-				icl->board_info, NULL);
+				shd->board_info, NULL);
 	if (!subdev)
 		goto ei2cnd;
 
@@ -1116,7 +1117,7 @@ static void soc_camera_free_i2c(struct soc_camera_device *icd)
 	i2c_put_adapter(adap);
 }
 #else
-#define soc_camera_init_i2c(icd, icl)	(-ENODEV)
+#define soc_camera_init_i2c(icd, sdesc)	(-ENODEV)
 #define soc_camera_free_i2c(icd)	do {} while (0)
 #endif
 
@@ -1126,7 +1127,9 @@ static int video_dev_create(struct soc_camera_device *icd);
 static int soc_camera_probe(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct soc_camera_desc *sdesc = to_soc_camera_desc(icd);
+	struct soc_camera_host_desc *shd = &sdesc->host_desc;
+	struct soc_camera_subdev_desc *ssdd = &sdesc->subdev_desc;
 	struct device *control = NULL;
 	struct v4l2_subdev *sd;
 	struct v4l2_mbus_framefmt mf;
@@ -1146,8 +1149,8 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 		return ret;
 
 	/* The camera could have been already on, try to reset */
-	if (icl->reset)
-		icl->reset(icd->pdev);
+	if (ssdd->reset)
+		ssdd->reset(icd->pdev);
 
 	mutex_lock(&ici->host_lock);
 	ret = ici->ops->add(icd);
@@ -1161,18 +1164,18 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 		goto evdc;
 
 	/* Non-i2c cameras, e.g., soc_camera_platform, have no board_info */
-	if (icl->board_info) {
-		ret = soc_camera_init_i2c(icd, icl);
+	if (shd->board_info) {
+		ret = soc_camera_init_i2c(icd, sdesc);
 		if (ret < 0)
 			goto eadddev;
-	} else if (!icl->add_device || !icl->del_device) {
+	} else if (!shd->add_device || !shd->del_device) {
 		ret = -EINVAL;
 		goto eadddev;
 	} else {
-		if (icl->module_name)
-			ret = request_module(icl->module_name);
+		if (shd->module_name)
+			ret = request_module(shd->module_name);
 
-		ret = icl->add_device(icd);
+		ret = shd->add_device(icd);
 		if (ret < 0)
 			goto eadddev;
 
@@ -1183,7 +1186,7 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 		control = to_soc_camera_control(icd);
 		if (!control || !control->driver || !dev_get_drvdata(control) ||
 		    !try_module_get(control->driver->owner)) {
-			icl->del_device(icd);
+			shd->del_device(icd);
 			ret = -ENODEV;
 			goto enodrv;
 		}
@@ -1234,10 +1237,10 @@ evidstart:
 	soc_camera_free_user_formats(icd);
 eiufmt:
 ectrl:
-	if (icl->board_info) {
+	if (shd->board_info) {
 		soc_camera_free_i2c(icd);
 	} else {
-		icl->del_device(icd);
+		shd->del_device(icd);
 		module_put(control->driver->owner);
 	}
 enodrv:
@@ -1259,7 +1262,7 @@ eadd:
  */
 static int soc_camera_remove(struct soc_camera_device *icd)
 {
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct soc_camera_desc *sdesc = to_soc_camera_desc(icd);
 	struct video_device *vdev = icd->vdev;
 
 	BUG_ON(!icd->parent);
@@ -1270,12 +1273,12 @@ static int soc_camera_remove(struct soc_camera_device *icd)
 		icd->vdev = NULL;
 	}
 
-	if (icl->board_info) {
+	if (sdesc->host_desc.board_info) {
 		soc_camera_free_i2c(icd);
 	} else {
 		struct device_driver *drv = to_soc_camera_control(icd)->driver;
 		if (drv) {
-			icl->del_device(icd);
+			sdesc->host_desc.del_device(icd);
 			module_put(drv->owner);
 		}
 	}
@@ -1534,24 +1537,25 @@ static int soc_camera_video_start(struct soc_camera_device *icd)
 
 static int __devinit soc_camera_pdrv_probe(struct platform_device *pdev)
 {
-	struct soc_camera_link *icl = pdev->dev.platform_data;
+	struct soc_camera_desc *sdesc = pdev->dev.platform_data;
+	struct soc_camera_subdev_desc *ssdd = &sdesc->subdev_desc;
 	struct soc_camera_device *icd;
 	int ret;
 
-	if (!icl)
+	if (!sdesc)
 		return -EINVAL;
 
 	icd = devm_kzalloc(&pdev->dev, sizeof(*icd), GFP_KERNEL);
 	if (!icd)
 		return -ENOMEM;
 
-	ret = devm_regulator_bulk_get(&pdev->dev, icl->num_regulators,
-				      icl->regulators);
+	ret = devm_regulator_bulk_get(&pdev->dev, ssdd->num_regulators,
+				      ssdd->regulators);
 	if (ret < 0)
 		return ret;
 
-	icd->iface = icl->bus_id;
-	icd->link = icl;
+	icd->iface = sdesc->host_desc.bus_id;
+	icd->sdesc = sdesc;
 	icd->pdev = &pdev->dev;
 	platform_set_drvdata(pdev, icd);
 

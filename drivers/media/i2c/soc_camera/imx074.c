@@ -271,9 +271,9 @@ static int imx074_g_chip_ident(struct v4l2_subdev *sd,
 static int imx074_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 
-	return soc_camera_set_power(&client->dev, icl, on);
+	return soc_camera_set_power(&client->dev, ssdd, on);
 }
 
 static int imx074_g_mbus_config(struct v4l2_subdev *sd,
@@ -430,10 +430,10 @@ static int imx074_probe(struct i2c_client *client,
 {
 	struct imx074 *priv;
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 	int ret;
 
-	if (!icl) {
+	if (!ssdd) {
 		dev_err(&client->dev, "IMX074: missing platform data!\n");
 		return -EINVAL;
 	}
@@ -464,10 +464,10 @@ static int imx074_probe(struct i2c_client *client,
 static int imx074_remove(struct i2c_client *client)
 {
 	struct imx074 *priv = to_imx074(client);
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 
-	if (icl->free_bus)
-		icl->free_bus(icl);
+	if (ssdd->free_bus)
+		ssdd->free_bus(ssdd);
 	kfree(priv);
 
 	return 0;
