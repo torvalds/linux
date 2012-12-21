@@ -1205,12 +1205,14 @@ struct dvb_frontend *tda10071_attach(const struct tda10071_config *config,
 	/* make sure demod i2c address is specified */
 	if (!config->demod_i2c_addr) {
 		dev_dbg(&i2c->dev, "%s: invalid demod i2c address!\n", __func__);
+		ret = -EINVAL;
 		goto error;
 	}
 
 	/* make sure tuner i2c address is specified */
 	if (!config->tuner_i2c_addr) {
 		dev_dbg(&i2c->dev, "%s: invalid tuner i2c address!\n", __func__);
+		ret = -EINVAL;
 		goto error;
 	}
 
