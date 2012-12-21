@@ -55,6 +55,7 @@ static int linear_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	ti->num_flush_requests = 1;
 	ti->num_discard_requests = 1;
+	ti->num_write_same_requests = 1;
 	ti->private = lc;
 	return 0;
 
@@ -155,7 +156,7 @@ static int linear_iterate_devices(struct dm_target *ti,
 
 static struct target_type linear_target = {
 	.name   = "linear",
-	.version = {1, 1, 0},
+	.version = {1, 2, 0},
 	.module = THIS_MODULE,
 	.ctr    = linear_ctr,
 	.dtr    = linear_dtr,
