@@ -294,11 +294,10 @@ setup_gate (void)
 	ia64_patch_gate();
 }
 
-void __devinit
-ia64_mmu_init (void *my_cpu_data)
+void ia64_mmu_init(void *my_cpu_data)
 {
 	unsigned long pta, impl_va_bits;
-	extern void __devinit tlb_init (void);
+	extern void tlb_init(void);
 
 #ifdef CONFIG_DISABLE_VHPT
 #	define VHPT_ENABLE_BIT	0
