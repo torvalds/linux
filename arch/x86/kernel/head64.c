@@ -26,6 +26,7 @@
 #include <asm/e820.h>
 #include <asm/bios_ebda.h>
 #include <asm/bootparam_utils.h>
+#include <asm/microcode.h>
 
 /*
  * Manage page tables very early on.
@@ -169,6 +170,11 @@ void __init x86_64_start_kernel(char * real_mode_data)
 	load_idt((const struct desc_ptr *)&idt_descr);
 
 	copy_bootdata(__va(real_mode_data));
+
+	/*
+	 * Load microcode early on BSP.
+	 */
+	load_ucode_bsp();
 
 	if (console_loglevel == 10)
 		early_printk("Kernel alive\n");
