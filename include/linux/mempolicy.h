@@ -123,7 +123,7 @@ struct sp_node {
 
 struct shared_policy {
 	struct rb_root root;
-	struct mutex mutex;
+	spinlock_t lock;
 };
 
 void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol);
