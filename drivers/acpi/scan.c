@@ -1385,27 +1385,9 @@ static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
 	if (!rmdevice)
 		return 0;
 
-	/*
-	 * unbind _ADR-Based Devices when hot removal
-	 */
-	if (dev->flags.bus_address) {
-		if ((dev->parent) && (dev->parent->ops.unbind))
-			dev->parent->ops.unbind(dev);
-	}
 	acpi_device_unregister(dev, ACPI_BUS_REMOVAL_EJECT);
 
 	return 0;
-}
-
-/*
- * acpi_hot_add_bind - Bind _ADR-based devices on hot-add.
- * @device: ACPI device node to bind.
- */
-static void acpi_hot_add_bind(struct acpi_device *device)
-{
-	if (device->flags.bus_address
-	    && device->parent && device->parent->ops.bind)
-		device->parent->ops.bind(device);
 }
 
 static int acpi_add_single_object(struct acpi_device **child,
@@ -1478,9 +1460,6 @@ static int acpi_add_single_object(struct acpi_device **child,
 
 	device->flags.match_driver = match_driver;
 	result = acpi_device_register(device);
-
-	if (device->flags.match_driver)
-		acpi_hot_add_bind(device);
 
 end:
 	if (!result) {
@@ -1584,7 +1563,6 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
 		return AE_CTRL_DEPTH;
 
 	device->flags.match_driver = true;
-	acpi_hot_add_bind(device);
 
  out:
 	if (!*return_value)
