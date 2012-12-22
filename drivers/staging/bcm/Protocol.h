@@ -23,11 +23,11 @@ struct TransportHeaderT {
 } __packed;
 typedef struct TransportHeaderT xporthdr;
 
-typedef enum _E_NWPKT_IPFRAME_TYPE {
+enum bcm_ip_frame_type {
 	eNonIPPacket,
 	eIPv4Packet,
 	eIPv6Packet
-} E_NWPKT_IPFRAME_TYPE;
+};
 
 enum bcm_eth_frame_type {
 	eEthUnsupportedFrame,
@@ -38,7 +38,7 @@ enum bcm_eth_frame_type {
 };
 
 struct bcm_eth_packet_info {
-	E_NWPKT_IPFRAME_TYPE eNwpktIPFrameType;
+	enum bcm_ip_frame_type  eNwpktIPFrameType;
 	enum bcm_eth_frame_type eNwpktEthFrameType;
 	unsigned short	usEtherType;
 	unsigned char	ucDSAP;
