@@ -467,7 +467,7 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter,struct sk_buff* skb)
 		case eEth802LLCFrame:
 		{
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "ClassifyPacket : 802LLCFrame\n");
-            pIpHeader = pvEThPayload + sizeof(ETH_CS_802_LLC_FRAME);
+			pIpHeader = pvEThPayload + sizeof(struct bcm_eth_llc_frame);
 			break;
 		}
 
@@ -830,8 +830,8 @@ static void EThCSGetPktInfo(struct bcm_mini_adapter *Adapter,PVOID pvEthPayload,
 		//802.2 LLC
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "802.2 LLC Frame \n");
 		pstEthCsPktInfo->eNwpktEthFrameType = eEth802LLCFrame;
-		pstEthCsPktInfo->ucDSAP = ((ETH_CS_802_LLC_FRAME*)pvEthPayload)->DSAP;
-		if(pstEthCsPktInfo->ucDSAP == 0xAA && ((ETH_CS_802_LLC_FRAME*)pvEthPayload)->SSAP == 0xAA)
+		pstEthCsPktInfo->ucDSAP = ((struct bcm_eth_llc_frame *)pvEthPayload)->DSAP;
+		if(pstEthCsPktInfo->ucDSAP == 0xAA && ((struct bcm_eth_llc_frame *)pvEthPayload)->SSAP == 0xAA)
 		{
 			//SNAP Frame
 			pstEthCsPktInfo->eNwpktEthFrameType = eEth802LLCSNAPFrame;

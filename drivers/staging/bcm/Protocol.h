@@ -52,12 +52,12 @@ typedef struct _ETH_CS_802_Q_FRAME {
 	unsigned short EthType;
 } __packed ETH_CS_802_Q_FRAME;
 
-typedef struct _ETH_CS_802_LLC_FRAME {
+struct bcm_eth_llc_frame {
 	struct bcm_eth_header EThHdr;
 	unsigned char DSAP;
 	unsigned char SSAP;
 	unsigned char Control;
-} __packed ETH_CS_802_LLC_FRAME;
+} __packed;
 
 struct bcm_eth_llc_snap_frame {
 	struct bcm_eth_header EThHdr;
