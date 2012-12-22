@@ -1621,8 +1621,7 @@ static void at91_vbus_timer(unsigned long data)
 	 * bus such as i2c or spi which may sleep, so schedule some work
 	 * to read the vbus gpio
 	 */
-	if (!work_pending(&udc->vbus_timer_work))
-		schedule_work(&udc->vbus_timer_work);
+	schedule_work(&udc->vbus_timer_work);
 }
 
 static int at91_start(struct usb_gadget *gadget,
