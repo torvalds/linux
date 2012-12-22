@@ -383,6 +383,8 @@ struct acpi_bus_type {
 	int (*find_device) (struct device *, acpi_handle *);
 	/* For bridges, such as PCI root bridge, IDE controller */
 	int (*find_bridge) (struct device *, acpi_handle *);
+	void (*setup)(struct device *);
+	void (*cleanup)(struct device *);
 };
 int register_acpi_bus_type(struct acpi_bus_type *);
 int unregister_acpi_bus_type(struct acpi_bus_type *);
