@@ -616,18 +616,8 @@ static struct regulator_ops twl6030ldo_ops = {
 
 /*----------------------------------------------------------------------*/
 
-/*
- * Fixed voltage LDOs don't have a VSEL field to update.
- */
-static int twlfixed_list_voltage(struct regulator_dev *rdev, unsigned index)
-{
-	struct twlreg_info	*info = rdev_get_drvdata(rdev);
-
-	return info->min_mV * 1000;
-}
-
 static struct regulator_ops twl4030fixed_ops = {
-	.list_voltage	= twlfixed_list_voltage,
+	.list_voltage	= regulator_list_voltage_linear,
 
 	.enable		= twl4030reg_enable,
 	.disable	= twl4030reg_disable,
@@ -639,7 +629,7 @@ static struct regulator_ops twl4030fixed_ops = {
 };
 
 static struct regulator_ops twl6030fixed_ops = {
-	.list_voltage	= twlfixed_list_voltage,
+	.list_voltage	= regulator_list_voltage_linear,
 
 	.enable		= twl6030reg_enable,
 	.disable	= twl6030reg_disable,
@@ -945,6 +935,7 @@ static const struct twlreg_info TWLFIXED_INFO_##label = { \
 		.ops = &operations, \
 		.type = REGULATOR_VOLTAGE, \
 		.owner = THIS_MODULE, \
+		.min_uV = mVolts * 1000, \
 		.enable_time = turnon_delay, \
 		}, \
 	}
