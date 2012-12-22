@@ -1212,7 +1212,7 @@ static int fimc_dst_set_buf_seq(struct fimc_context *ctx, u32 buf_id,
 	}
 
 	/* sequence id */
-	cfg &= (~mask);
+	cfg &= ~mask;
 	cfg |= (enable << buf_id);
 	fimc_write(cfg, EXYNOS_CIFCNTSEQ);
 
