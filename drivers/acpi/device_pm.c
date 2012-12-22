@@ -353,7 +353,7 @@ int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
  * acpi_dev_pm_get_node - Get ACPI device node for the given physical device.
  * @dev: Device to get the ACPI node for.
  */
-static struct acpi_device *acpi_dev_pm_get_node(struct device *dev)
+struct acpi_device *acpi_dev_pm_get_node(struct device *dev)
 {
 	acpi_handle handle = DEVICE_ACPI_HANDLE(dev);
 	struct acpi_device *adev;

@@ -283,7 +283,6 @@ static struct pci_platform_pm_ops acpi_pci_platform_pm = {
 	.is_manageable = acpi_pci_power_manageable,
 	.set_state = acpi_pci_set_power_state,
 	.choose_state = acpi_pci_choose_state,
-	.can_wakeup = acpi_pci_can_wakeup,
 	.sleep_wake = acpi_pci_sleep_wake,
 	.run_wake = acpi_pci_run_wake,
 };
@@ -321,10 +320,39 @@ static int acpi_pci_find_root_bridge(struct device *dev, acpi_handle *handle)
 	return 0;
 }
 
+static void acpi_pci_wakeup_setup(struct device *dev)
+{
+	struct acpi_device *adev = acpi_dev_pm_get_node(dev);
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+
+	if (!adev || !adev->wakeup.flags.valid)
+		return;
+
+	device_set_wakeup_capable(dev, true);
+	acpi_pci_sleep_wake(pci_dev, false);
+
+	pci_acpi_add_pm_notifier(adev, pci_dev);
+	if (adev->wakeup.flags.run_wake)
+		device_set_run_wake(dev, true);
+}
+
+static void acpi_pci_wakeup_cleanup(struct device *dev)
+{
+	struct acpi_device *adev = acpi_dev_pm_get_node(dev);
+
+	if (adev && adev->wakeup.flags.valid) {
+		device_set_wakeup_capable(dev, false);
+		device_set_run_wake(dev, false);
+		pci_acpi_remove_pm_notifier(adev);
+	}
+}
+
 static struct acpi_bus_type acpi_pci_bus = {
 	.bus = &pci_bus_type,
 	.find_device = acpi_pci_find_device,
 	.find_bridge = acpi_pci_find_root_bridge,
+	.setup = acpi_pci_wakeup_setup,
+	.cleanup = acpi_pci_wakeup_cleanup,
 };
 
 static int __init acpi_pci_init(void)

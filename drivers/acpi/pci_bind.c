@@ -43,8 +43,6 @@ static int acpi_pci_unbind(struct acpi_device *device)
 	if (!dev)
 		goto out;
 
-	device_set_run_wake(&dev->dev, false);
-	pci_acpi_remove_pm_notifier(device);
 	acpi_power_resource_unregister_device(&dev->dev, device->handle);
 
 	if (!dev->subordinate)
@@ -71,10 +69,7 @@ static int acpi_pci_bind(struct acpi_device *device)
 	if (!dev)
 		return 0;
 
-	pci_acpi_add_pm_notifier(device, dev);
 	acpi_power_resource_register_device(&dev->dev, device->handle);
-	if (device->wakeup.flags.run_wake)
-		device_set_run_wake(&dev->dev, true);
 
 	/*
 	 * Install the 'bind' function to facilitate callbacks for
