@@ -144,14 +144,15 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 				goto out;
 			}
 
-			INIT_LIST_HEAD(&entry->list);
-			list_add_tail(&entry->list, head);
-
 			entry->inode = f2fs_iget(sbi->sb, ino_of_node(page));
 			if (IS_ERR(entry->inode)) {
 				err = PTR_ERR(entry->inode);
+				kmem_cache_free(fsync_entry_slab, entry);
 				goto out;
 			}
+
+			INIT_LIST_HEAD(&entry->list);
+			list_add_tail(&entry->list, head);
 			entry->blkaddr = blkaddr;
 		}
 		if (IS_INODE(page)) {
