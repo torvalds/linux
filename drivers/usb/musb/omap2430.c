@@ -255,11 +255,11 @@ static inline void omap2430_low_level_init(struct musb *musb)
 void omap_musb_mailbox(enum omap_musb_vbus_id_status status)
 {
 	struct omap2430_glue	*glue = _glue;
-	struct musb		*musb = glue_to_musb(glue);
 
-	glue->status = status;
-	if (!musb) {
-		dev_err(glue->dev, "musb core is not yet ready\n");
+	if (glue && glue_to_musb(glue)) {
+		glue->status = status;
+	} else {
+		pr_err("%s: musb core is not yet ready\n", __func__);
 		return;
 	}
 
