@@ -711,7 +711,7 @@ static int gsc_src_set_addr(struct device *dev,
 {
 	struct gsc_context *ctx = get_gsc_context(dev);
 	struct exynos_drm_ippdrv *ippdrv = &ctx->ippdrv;
-	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->cmd;
+	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->c_node;
 	struct drm_exynos_ipp_property *property;
 
 	if (!c_node) {
@@ -1171,7 +1171,7 @@ static int gsc_dst_set_addr(struct device *dev,
 {
 	struct gsc_context *ctx = get_gsc_context(dev);
 	struct exynos_drm_ippdrv *ippdrv = &ctx->ippdrv;
-	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->cmd;
+	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->c_node;
 	struct drm_exynos_ipp_property *property;
 
 	if (!c_node) {
@@ -1312,7 +1312,7 @@ static irqreturn_t gsc_irq_handler(int irq, void *dev_id)
 {
 	struct gsc_context *ctx = dev_id;
 	struct exynos_drm_ippdrv *ippdrv = &ctx->ippdrv;
-	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->cmd;
+	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->c_node;
 	struct drm_exynos_ipp_event_work *event_work =
 		c_node->event_work;
 	u32 status;
@@ -1549,7 +1549,7 @@ static int gsc_ippdrv_start(struct device *dev, enum drm_exynos_ipp_cmd cmd)
 {
 	struct gsc_context *ctx = get_gsc_context(dev);
 	struct exynos_drm_ippdrv *ippdrv = &ctx->ippdrv;
-	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->cmd;
+	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->c_node;
 	struct drm_exynos_ipp_property *property;
 	struct drm_exynos_ipp_config *config;
 	struct drm_exynos_pos	img_pos[EXYNOS_DRM_OPS_MAX];

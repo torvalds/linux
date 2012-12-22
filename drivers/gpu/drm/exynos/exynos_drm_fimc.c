@@ -695,7 +695,7 @@ static int fimc_src_set_addr(struct device *dev,
 {
 	struct fimc_context *ctx = get_fimc_context(dev);
 	struct exynos_drm_ippdrv *ippdrv = &ctx->ippdrv;
-	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->cmd;
+	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->c_node;
 	struct drm_exynos_ipp_property *property;
 	struct drm_exynos_ipp_config *config;
 
@@ -1231,7 +1231,7 @@ static int fimc_dst_set_addr(struct device *dev,
 {
 	struct fimc_context *ctx = get_fimc_context(dev);
 	struct exynos_drm_ippdrv *ippdrv = &ctx->ippdrv;
-	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->cmd;
+	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->c_node;
 	struct drm_exynos_ipp_property *property;
 	struct drm_exynos_ipp_config *config;
 
@@ -1317,7 +1317,7 @@ static irqreturn_t fimc_irq_handler(int irq, void *dev_id)
 {
 	struct fimc_context *ctx = dev_id;
 	struct exynos_drm_ippdrv *ippdrv = &ctx->ippdrv;
-	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->cmd;
+	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->c_node;
 	struct drm_exynos_ipp_event_work *event_work =
 		c_node->event_work;
 	int buf_id;
@@ -1557,7 +1557,7 @@ static int fimc_ippdrv_start(struct device *dev, enum drm_exynos_ipp_cmd cmd)
 {
 	struct fimc_context *ctx = get_fimc_context(dev);
 	struct exynos_drm_ippdrv *ippdrv = &ctx->ippdrv;
-	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->cmd;
+	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->c_node;
 	struct drm_exynos_ipp_property *property;
 	struct drm_exynos_ipp_config *config;
 	struct drm_exynos_pos	img_pos[EXYNOS_DRM_OPS_MAX];

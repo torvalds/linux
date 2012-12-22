@@ -139,7 +139,7 @@ static irqreturn_t rotator_irq_handler(int irq, void *arg)
 {
 	struct rot_context *rot = arg;
 	struct exynos_drm_ippdrv *ippdrv = &rot->ippdrv;
-	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->cmd;
+	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->c_node;
 	struct drm_exynos_ipp_event_work *event_work = c_node->event_work;
 	enum rot_irq_status irq_status;
 	u32 val;

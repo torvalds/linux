@@ -1292,7 +1292,7 @@ static int ipp_start_property(struct exynos_drm_ippdrv *ippdrv,
 	DRM_DEBUG_KMS("%s:prop_id[%d]\n", __func__, property->prop_id);
 
 	/* store command info in ippdrv */
-	ippdrv->cmd = c_node;
+	ippdrv->c_node = c_node;
 
 	if (!ipp_check_mem_list(c_node)) {
 		DRM_DEBUG_KMS("%s:empty memory.\n", __func__);
@@ -1303,7 +1303,7 @@ static int ipp_start_property(struct exynos_drm_ippdrv *ippdrv,
 	ret = ipp_set_property(ippdrv, property);
 	if (ret) {
 		DRM_ERROR("failed to set property.\n");
-		ippdrv->cmd = NULL;
+		ippdrv->c_node = NULL;
 		return ret;
 	}
 
@@ -1704,7 +1704,7 @@ void ipp_sched_event(struct work_struct *work)
 		return;
 	}
 
-	c_node = ippdrv->cmd;
+	c_node = ippdrv->c_node;
 	if (!c_node) {
 		DRM_ERROR("failed to get command node.\n");
 		return;

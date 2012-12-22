@@ -146,7 +146,7 @@ struct exynos_drm_ipp_ops {
  * @dedicated: dedicated ipp device.
  * @ops: source, destination operations.
  * @event_workq: event work queue.
- * @cmd: current command information.
+ * @c_node: current command information.
  * @cmd_list: list head for command information.
  * @prop_list: property informations of current ipp driver.
  * @check_property: check property about format, size, buffer.
@@ -164,7 +164,7 @@ struct exynos_drm_ippdrv {
 	bool	dedicated;
 	struct exynos_drm_ipp_ops	*ops[EXYNOS_DRM_OPS_MAX];
 	struct workqueue_struct	*event_workq;
-	struct drm_exynos_ipp_cmd_node *cmd;
+	struct drm_exynos_ipp_cmd_node *c_node;
 	struct list_head	cmd_list;
 	struct drm_exynos_ipp_prop_list *prop_list;
 
