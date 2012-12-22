@@ -759,8 +759,6 @@ static void bnx2fc_process_unsol_compl(struct bnx2fc_rport *tgt, u16 wqe)
 		case FCOE_ERROR_CODE_DATA_SOFN_SEQ_ACTIVE_RESET:
 			BNX2FC_TGT_DBG(tgt, "REC TOV popped for xid - 0x%x\n",
 				   xid);
-			memset(&io_req->err_entry, 0,
-			       sizeof(struct fcoe_err_report_entry));
 			memcpy(&io_req->err_entry, err_entry,
 			       sizeof(struct fcoe_err_report_entry));
 			if (!test_bit(BNX2FC_FLAG_SRR_SENT,
@@ -847,8 +845,6 @@ ret_err_rqe:
 			goto ret_warn_rqe;
 		}
 
-		memset(&io_req->err_entry, 0,
-		       sizeof(struct fcoe_err_report_entry));
 		memcpy(&io_req->err_entry, err_entry,
 		       sizeof(struct fcoe_err_report_entry));
 
