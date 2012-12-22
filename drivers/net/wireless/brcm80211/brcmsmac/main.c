@@ -7633,7 +7633,7 @@ brcms_b_recv(struct brcms_hardware *wlc_hw, uint fifo, bool bound)
 
 	uint n = 0;
 	uint bound_limit = bound ? RXBND : -1;
-	bool morepending;
+	bool morepending = false;
 
 	skb_queue_head_init(&recv_frames);
 
