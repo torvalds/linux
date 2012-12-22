@@ -780,6 +780,18 @@ static const struct usb_device_id it913x_id_table[] = {
 	{ DVB_USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9135_9006,
 		&it913x_properties, "ITE 9135(9006) Generic",
 			RC_MAP_IT913X_V1) },
+	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A835B_1835,
+		&it913x_properties, "Avermedia A835B(1835)",
+			RC_MAP_IT913X_V2) },
+	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A835B_2835,
+		&it913x_properties, "Avermedia A835B(2835)",
+			RC_MAP_IT913X_V2) },
+	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A835B_3835,
+		&it913x_properties, "Avermedia A835B(3835)",
+			RC_MAP_IT913X_V2) },
+	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A835B_4835,
+		&it913x_properties, "Avermedia A835B(4835)",
+			RC_MAP_IT913X_V2) },
 	{}		/* Terminating entry */
 };
 
