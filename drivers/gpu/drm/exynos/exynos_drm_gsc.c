@@ -720,10 +720,6 @@ static int gsc_src_set_addr(struct device *dev,
 	}
 
 	property = &c_node->property;
-	if (!property) {
-		DRM_ERROR("failed to get property.\n");
-		return -EFAULT;
-	}
 
 	DRM_DEBUG_KMS("%s:prop_id[%d]buf_id[%d]buf_type[%d]\n", __func__,
 		property->prop_id, buf_id, buf_type);
@@ -1180,10 +1176,6 @@ static int gsc_dst_set_addr(struct device *dev,
 	}
 
 	property = &c_node->property;
-	if (!property) {
-		DRM_ERROR("failed to get property.\n");
-		return -EFAULT;
-	}
 
 	DRM_DEBUG_KMS("%s:prop_id[%d]buf_id[%d]buf_type[%d]\n", __func__,
 		property->prop_id, buf_id, buf_type);
@@ -1565,10 +1557,6 @@ static int gsc_ippdrv_start(struct device *dev, enum drm_exynos_ipp_cmd cmd)
 	}
 
 	property = &c_node->property;
-	if (!property) {
-		DRM_ERROR("failed to get property.\n");
-		return -EINVAL;
-	}
 
 	gsc_handle_irq(ctx, true, false, true);
 

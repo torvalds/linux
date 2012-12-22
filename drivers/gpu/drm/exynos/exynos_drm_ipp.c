@@ -1487,11 +1487,6 @@ void ipp_sched_cmd(struct work_struct *work)
 	mutex_lock(&c_node->cmd_lock);
 
 	property = &c_node->property;
-	if (!property) {
-		DRM_ERROR("failed to get property:prop_id[%d]\n",
-			c_node->property.prop_id);
-		goto err_unlock;
-	}
 
 	switch (cmd_work->ctrl) {
 	case IPP_CTRL_PLAY:
