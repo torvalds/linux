@@ -2167,6 +2167,18 @@ enum ieee80211_rate_control_changed {
  *	MAC address of the device going away.
  *	Hence, this callback must be implemented. It can sleep.
  *
+ * @add_interface_debugfs: Drivers can use this callback to add debugfs files
+ *	when a vif is added to mac80211. This callback and
+ *	@remove_interface_debugfs should be within a CONFIG_MAC80211_DEBUGFS
+ *	conditional. @remove_interface_debugfs must be provided for cleanup.
+ *	This callback can sleep.
+ *
+ * @remove_interface_debugfs: Remove the debugfs files which were added using
+ *	@add_interface_debugfs. This callback must remove all debugfs entries
+ *	that were added because mac80211 only removes interface debugfs when the
+ *	interface is destroyed, not when it is removed from the driver.
+ *	This callback can sleep.
+ *
  * @config: Handler for configuration requests. IEEE 802.11 code calls this
  *	function to change hardware configuration, e.g., channel.
  *	This function should never fail but returns a negative error code
@@ -2580,6 +2592,12 @@ struct ieee80211_ops {
 				   struct ieee80211_vif *vif,
 				   struct ieee80211_sta *sta,
 				   struct dentry *dir);
+	void (*add_interface_debugfs)(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      struct dentry *dir);
+	void (*remove_interface_debugfs)(struct ieee80211_hw *hw,
+					 struct ieee80211_vif *vif,
+					 struct dentry *dir);
 #endif
 	void (*sta_notify)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			enum sta_notify_cmd, struct ieee80211_sta *sta);

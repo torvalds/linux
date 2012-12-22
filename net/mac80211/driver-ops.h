@@ -528,6 +528,43 @@ static inline void drv_sta_remove_debugfs(struct ieee80211_local *local,
 		local->ops->sta_remove_debugfs(&local->hw, &sdata->vif,
 					       sta, dir);
 }
+
+static inline
+void drv_add_interface_debugfs(struct ieee80211_local *local,
+			       struct ieee80211_sub_if_data *sdata)
+{
+	might_sleep();
+
+	check_sdata_in_driver(sdata);
+
+	if (!local->ops->add_interface_debugfs)
+		return;
+
+	local->ops->add_interface_debugfs(&local->hw, &sdata->vif,
+					  sdata->debugfs.dir);
+}
+
+static inline
+void drv_remove_interface_debugfs(struct ieee80211_local *local,
+				  struct ieee80211_sub_if_data *sdata)
+{
+	might_sleep();
+
+	check_sdata_in_driver(sdata);
+
+	if (!local->ops->remove_interface_debugfs)
+		return;
+
+	local->ops->remove_interface_debugfs(&local->hw, &sdata->vif,
+					     sdata->debugfs.dir);
+}
+#else
+static inline
+void drv_add_interface_debugfs(struct ieee80211_local *local,
+			       struct ieee80211_sub_if_data *sdata) {}
+static inline
+void drv_remove_interface_debugfs(struct ieee80211_local *local,
+				  struct ieee80211_sub_if_data *sdata) {}
 #endif
 
 static inline __must_check

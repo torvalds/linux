@@ -621,6 +621,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 				goto err_del_interface;
 		}
 
+		drv_add_interface_debugfs(local, sdata);
+
 		if (sdata->vif.type == NL80211_IFTYPE_AP) {
 			local->fif_pspoll++;
 			local->fif_probe_req++;
@@ -881,6 +883,8 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		 * except maybe group keys in AP more or WDS?
 		 */
 		ieee80211_free_keys(sdata);
+
+		drv_remove_interface_debugfs(local, sdata);
 
 		if (going_down)
 			drv_remove_interface(local, sdata);
