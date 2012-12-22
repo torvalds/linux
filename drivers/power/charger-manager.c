@@ -669,15 +669,21 @@ static void _setup_polling(struct work_struct *work)
 	WARN(cm_wq == NULL, "charger-manager: workqueue not initialized"
 			    ". try it later. %s\n", __func__);
 
+	/*
+	 * Use mod_delayed_work() iff the next polling interval should
+	 * occur before the currently scheduled one.  If @cm_monitor_work
+	 * isn't active, the end result is the same, so no need to worry
+	 * about stale @next_polling.
+	 */
 	_next_polling = jiffies + polling_jiffy;
 
-	if (!delayed_work_pending(&cm_monitor_work) ||
-	    (delayed_work_pending(&cm_monitor_work) &&
-	     time_after(next_polling, _next_polling))) {
-		next_polling = jiffies + polling_jiffy;
+	if (time_before(_next_polling, next_polling)) {
 		mod_delayed_work(cm_wq, &cm_monitor_work, polling_jiffy);
+		next_polling = _next_polling;
+	} else {
+		if (queue_delayed_work(cm_wq, &cm_monitor_work, polling_jiffy))
+			next_polling = _next_polling;
 	}
-
 out:
 	mutex_unlock(&cm_list_mtx);
 }
@@ -751,8 +757,7 @@ static void misc_event_handler(struct charger_manager *cm,
 	if (cm_suspended)
 		device_set_wakeup_capable(cm->dev, true);
 
-	if (!delayed_work_pending(&cm_monitor_work) &&
-	    is_polling_required(cm) && cm->desc->polling_interval_ms)
+	if (is_polling_required(cm) && cm->desc->polling_interval_ms)
 		schedule_work(&setup_polling);
 	uevent_notify(cm, default_event_names[type]);
 }
@@ -1170,8 +1175,7 @@ static int charger_extcon_notifier(struct notifier_block *self,
 	 * when charger cable is attached.
 	 */
 	if (cable->attached && is_polling_required(cable->cm)) {
-		if (work_pending(&setup_polling))
-			cancel_work_sync(&setup_polling);
+		cancel_work_sync(&setup_polling);
 		schedule_work(&setup_polling);
 	}
 
@@ -1718,10 +1722,8 @@ static int charger_manager_remove(struct platform_device *pdev)
 	list_del(&cm->entry);
 	mutex_unlock(&cm_list_mtx);
 
-	if (work_pending(&setup_polling))
-		cancel_work_sync(&setup_polling);
-	if (delayed_work_pending(&cm_monitor_work))
-		cancel_delayed_work_sync(&cm_monitor_work);
+	cancel_work_sync(&setup_polling);
+	cancel_delayed_work_sync(&cm_monitor_work);
 
 	for (i = 0 ; i < desc->num_charger_regulators ; i++) {
 		struct charger_regulator *charger
@@ -1790,8 +1792,7 @@ static int cm_suspend_prepare(struct device *dev)
 		cm_suspended = true;
 	}
 
-	if (delayed_work_pending(&cm->fullbatt_vchk_work))
-		cancel_delayed_work(&cm->fullbatt_vchk_work);
+	cancel_delayed_work(&cm->fullbatt_vchk_work);
 	cm->status_save_ext_pwr_inserted = is_ext_pwr_online(cm);
 	cm->status_save_batt = is_batt_present(cm);
 
