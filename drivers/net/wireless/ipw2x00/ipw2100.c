@@ -2181,26 +2181,15 @@ static void isr_indicate_rf_kill(struct ipw2100_priv *priv, u32 status)
 	mod_delayed_work(system_wq, &priv->rf_kill, round_jiffies_relative(HZ));
 }
 
-static void send_scan_event(void *data)
+static void ipw2100_scan_event(struct work_struct *work)
 {
-	struct ipw2100_priv *priv = data;
+	struct ipw2100_priv *priv = container_of(work, struct ipw2100_priv,
+						 scan_event.work);
 	union iwreq_data wrqu;
 
 	wrqu.data.length = 0;
 	wrqu.data.flags = 0;
 	wireless_send_event(priv->net_dev, SIOCGIWSCAN, &wrqu, NULL);
-}
-
-static void ipw2100_scan_event_later(struct work_struct *work)
-{
-	send_scan_event(container_of(work, struct ipw2100_priv,
-					scan_event_later.work));
-}
-
-static void ipw2100_scan_event_now(struct work_struct *work)
-{
-	send_scan_event(container_of(work, struct ipw2100_priv,
-					scan_event_now));
 }
 
 static void isr_scan_complete(struct ipw2100_priv *priv, u32 status)
@@ -2212,13 +2201,11 @@ static void isr_scan_complete(struct ipw2100_priv *priv, u32 status)
 
 	/* Only userspace-requested scan completion events go out immediately */
 	if (!priv->user_requested_scan) {
-		if (!delayed_work_pending(&priv->scan_event_later))
-			schedule_delayed_work(&priv->scan_event_later,
-					      round_jiffies_relative(msecs_to_jiffies(4000)));
+		schedule_delayed_work(&priv->scan_event,
+				      round_jiffies_relative(msecs_to_jiffies(4000)));
 	} else {
 		priv->user_requested_scan = 0;
-		cancel_delayed_work(&priv->scan_event_later);
-		schedule_work(&priv->scan_event_now);
+		mod_delayed_work(system_wq, &priv->scan_event, 0);
 	}
 }
 
@@ -4459,8 +4446,7 @@ static void ipw2100_kill_works(struct ipw2100_priv *priv)
 	cancel_delayed_work_sync(&priv->wx_event_work);
 	cancel_delayed_work_sync(&priv->hang_check);
 	cancel_delayed_work_sync(&priv->rf_kill);
-	cancel_work_sync(&priv->scan_event_now);
-	cancel_delayed_work_sync(&priv->scan_event_later);
+	cancel_delayed_work_sync(&priv->scan_event);
 }
 
 static int ipw2100_tx_allocate(struct ipw2100_priv *priv)
@@ -6195,8 +6181,7 @@ static struct net_device *ipw2100_alloc_device(struct pci_dev *pci_dev,
 	INIT_DELAYED_WORK(&priv->wx_event_work, ipw2100_wx_event_work);
 	INIT_DELAYED_WORK(&priv->hang_check, ipw2100_hang_check);
 	INIT_DELAYED_WORK(&priv->rf_kill, ipw2100_rf_kill);
-	INIT_WORK(&priv->scan_event_now, ipw2100_scan_event_now);
-	INIT_DELAYED_WORK(&priv->scan_event_later, ipw2100_scan_event_later);
+	INIT_DELAYED_WORK(&priv->scan_event, ipw2100_scan_event);
 
 	tasklet_init(&priv->irq_tasklet, (void (*)(unsigned long))
 		     ipw2100_irq_tasklet, (unsigned long)priv);
