@@ -77,7 +77,7 @@ typedef struct _ETH_CS_ETH2_FRAME {
 #define ETHERNET_FRAMETYPE_802QVLAN	ntohs(0x8100)
 
 /* Per SF CS Specification Encodings */
-typedef enum _E_SERVICEFLOW_CS_SPEC_ {
+enum bcm_spec_encoding {
 	eCSSpecUnspecified = 0,
 	eCSPacketIPV4,
 	eCSPacketIPV6,
@@ -88,7 +88,7 @@ typedef enum _E_SERVICEFLOW_CS_SPEC_ {
 	eCSPacketIPV4Over802_1QVLAN,
 	eCSPacketIPV6Over802_1QVLAN,
 	eCSPacketUnsupported
-} E_SERVICEFLOW_CS_SPEC;
+};
 
 #define	IP6_HEADER_LEN		40
 #define IP_VERSION(byte)	(((byte&0xF0)>>4))
