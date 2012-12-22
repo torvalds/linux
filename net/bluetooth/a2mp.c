@@ -695,7 +695,13 @@ static void a2mp_chan_state_change_cb(struct l2cap_chan *chan, int state,
 static struct sk_buff *a2mp_chan_alloc_skb_cb(struct l2cap_chan *chan,
 					      unsigned long len, int nb)
 {
-	return bt_skb_alloc(len, GFP_KERNEL);
+	struct sk_buff *skb;
+
+	skb = bt_skb_alloc(len, GFP_KERNEL);
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	return skb;
 }
 
 static struct l2cap_ops a2mp_chan_ops = {
