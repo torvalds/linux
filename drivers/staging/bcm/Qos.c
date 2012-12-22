@@ -208,12 +208,12 @@ static USHORT	IpVersion4(struct bcm_mini_adapter *Adapter,
 			   struct iphdr *iphd,
 			   struct bcm_classifier_rule *pstClassifierRule)
 {
-	xporthdr     		*xprt_hdr=NULL;
+	struct bcm_transport_header *xprt_hdr = NULL;
 	BOOLEAN	bClassificationSucceed=FALSE;
 
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "========>");
 
-	xprt_hdr=(xporthdr *)((PUCHAR)iphd + sizeof(struct iphdr));
+	xprt_hdr=(struct bcm_transport_header *)((PUCHAR)iphd + sizeof(struct iphdr));
 
 	do {
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Trying to see Direction = %d %d",

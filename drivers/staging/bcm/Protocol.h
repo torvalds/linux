@@ -15,13 +15,12 @@ struct ArpHeader {
 	unsigned char ar_tip[4];	/* target IP address        */
 };
 
-struct TransportHeaderT {
+struct bcm_transport_header {
 	union {
 		struct udphdr uhdr;
 		struct tcphdr thdr;
 	};
 } __packed;
-typedef struct TransportHeaderT xporthdr;
 
 enum bcm_ip_frame_type {
 	eNonIPPacket,
