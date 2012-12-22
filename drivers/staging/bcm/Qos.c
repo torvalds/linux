@@ -474,7 +474,7 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter,struct sk_buff* skb)
 		case eEth802LLCSNAPFrame:
 		{
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "ClassifyPacket : 802LLC SNAP Frame\n");
-			pIpHeader = pvEThPayload + sizeof(ETH_CS_802_LLC_SNAP_FRAME);
+			pIpHeader = pvEThPayload + sizeof(struct bcm_eth_llc_snap_frame);
 			break;
 		}
 		case eEth802QVLANFrame:
@@ -835,7 +835,7 @@ static void EThCSGetPktInfo(struct bcm_mini_adapter *Adapter,PVOID pvEthPayload,
 		{
 			//SNAP Frame
 			pstEthCsPktInfo->eNwpktEthFrameType = eEth802LLCSNAPFrame;
-			u16Etype = ((ETH_CS_802_LLC_SNAP_FRAME*)pvEthPayload)->usEtherType;
+			u16Etype = ((struct bcm_eth_llc_snap_frame *)pvEthPayload)->usEtherType;
 		}
 	}
 	if(u16Etype == ETHERNET_FRAMETYPE_IPV4)

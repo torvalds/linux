@@ -59,14 +59,14 @@ typedef struct _ETH_CS_802_LLC_FRAME {
 	unsigned char Control;
 } __packed ETH_CS_802_LLC_FRAME;
 
-typedef struct _ETH_CS_802_LLC_SNAP_FRAME {
+struct bcm_eth_llc_snap_frame {
 	struct bcm_eth_header EThHdr;
 	unsigned char DSAP;
 	unsigned char SSAP;
 	unsigned char Control;
 	unsigned char OUI[3];
 	unsigned short usEtherType;
-} __packed ETH_CS_802_LLC_SNAP_FRAME;
+} __packed;
 
 struct bcm_ethernet2_frame {
 	struct bcm_eth_header EThHdr;
