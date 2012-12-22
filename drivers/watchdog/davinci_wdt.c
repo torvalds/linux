@@ -208,7 +208,7 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 	if (WARN_ON(IS_ERR(wdt_clk)))
 		return PTR_ERR(wdt_clk);
 
-	clk_enable(wdt_clk);
+	clk_prepare_enable(wdt_clk);
 
 	if (heartbeat < 1 || heartbeat > MAX_HEARTBEAT)
 		heartbeat = DEFAULT_HEARTBEAT;
@@ -256,16 +256,23 @@ static int davinci_wdt_remove(struct platform_device *pdev)
 		wdt_mem = NULL;
 	}
 
-	clk_disable(wdt_clk);
+	clk_disable_unprepare(wdt_clk);
 	clk_put(wdt_clk);
 
 	return 0;
 }
 
+static const struct of_device_id davinci_wdt_of_match[] = {
+	{ .compatible = "ti,davinci-wdt", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, davinci_wdt_of_match);
+
 static struct platform_driver platform_wdt_driver = {
 	.driver = {
 		.name = "watchdog",
 		.owner	= THIS_MODULE,
+		.of_match_table = davinci_wdt_of_match,
 	},
 	.probe = davinci_wdt_probe,
 	.remove = davinci_wdt_remove,
