@@ -41,7 +41,7 @@ typedef struct _S_ETHCS_PKT_INFO {
 	E_NWPKT_IPFRAME_TYPE eNwpktIPFrameType;
 	E_NWPKT_ETHFRAME_TYPE eNwpktEthFrameType;
 	unsigned short	usEtherType;
-	UCHAR	ucDSAP;
+	unsigned char	ucDSAP;
 } S_ETHCS_PKT_INFO, *PS_ETHCS_PKT_INFO;
 
 typedef struct _ETH_CS_802_Q_FRAME {
@@ -115,8 +115,8 @@ typedef struct _TCP_HEADER {
 	unsigned short usDestPort;
 	unsigned long  ulSeqNumber;
 	unsigned long  ulAckNumber;
-	UCHAR  HeaderLength;
-	UCHAR  ucFlags;
+	unsigned char  HeaderLength;
+	unsigned char  ucFlags;
 	unsigned short usWindowsSize;
 	unsigned short usChkSum;
 	unsigned short usUrgetPtr;
