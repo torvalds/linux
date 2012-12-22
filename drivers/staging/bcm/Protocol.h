@@ -94,10 +94,10 @@ typedef enum _E_SERVICEFLOW_CS_SPEC_ {
 #define IP_VERSION(byte)	(((byte&0xF0)>>4))
 
 #define MAC_ADDRESS_SIZE	6
-#define	ETH_AND_IP_HEADER_LEN	14 + 20
+#define	ETH_AND_IP_HEADER_LEN	(14 + 20)
 #define L4_SRC_PORT_LEN		2
 #define L4_DEST_PORT_LEN	2
-#define	CTRL_PKT_LEN		8 + ETH_AND_IP_HEADER_LEN
+#define	CTRL_PKT_LEN		(8 + ETH_AND_IP_HEADER_LEN)
 
 #define	ETH_ARP_FRAME		0x806
 #define	ETH_IPV4_FRAME		0x800
