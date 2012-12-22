@@ -15,25 +15,21 @@ struct ArpHeader {
 	unsigned char ar_tip[4];	/* target IP address        */
 };
 
-struct TransportHeaderT
-{
-	union
-	{
+struct TransportHeaderT {
+	union {
 		struct udphdr uhdr;
 		struct tcphdr thdr;
 	};
 } __attribute__((packed));
 typedef struct TransportHeaderT xporthdr;
 
-typedef enum _E_NWPKT_IPFRAME_TYPE
-{
+typedef enum _E_NWPKT_IPFRAME_TYPE {
 	eNonIPPacket,
 	eIPv4Packet,
 	eIPv6Packet
 } E_NWPKT_IPFRAME_TYPE;
 
-typedef enum _E_NWPKT_ETHFRAME_TYPE
-{
+typedef enum _E_NWPKT_ETHFRAME_TYPE {
 	eEthUnsupportedFrame,
 	eEth802LLCFrame,
 	eEth802LLCSNAPFrame,
@@ -41,16 +37,14 @@ typedef enum _E_NWPKT_ETHFRAME_TYPE
 	eEthOtherFrame
 } E_NWPKT_ETHFRAME_TYPE;
 
-typedef struct _S_ETHCS_PKT_INFO
-{
+typedef struct _S_ETHCS_PKT_INFO {
 	E_NWPKT_IPFRAME_TYPE eNwpktIPFrameType;
 	E_NWPKT_ETHFRAME_TYPE eNwpktEthFrameType;
 	USHORT	usEtherType;
 	UCHAR	ucDSAP;
 } S_ETHCS_PKT_INFO, *PS_ETHCS_PKT_INFO;
 
-typedef struct _ETH_CS_802_Q_FRAME
-{
+typedef struct _ETH_CS_802_Q_FRAME {
 	struct bcm_eth_header EThHdr;
 	USHORT UserPriority:3;
 	USHORT CFI:1;
@@ -58,16 +52,14 @@ typedef struct _ETH_CS_802_Q_FRAME
 	USHORT EthType;
 } __attribute__((packed)) ETH_CS_802_Q_FRAME;
 
-typedef struct _ETH_CS_802_LLC_FRAME
-{
+typedef struct _ETH_CS_802_LLC_FRAME {
 	struct bcm_eth_header EThHdr;
 	unsigned char DSAP;
 	unsigned char SSAP;
 	unsigned char Control;
 } __attribute__((packed)) ETH_CS_802_LLC_FRAME;
 
-typedef struct _ETH_CS_802_LLC_SNAP_FRAME
-{
+typedef struct _ETH_CS_802_LLC_SNAP_FRAME {
 	struct bcm_eth_header EThHdr;
 	unsigned char DSAP;
 	unsigned char SSAP;
@@ -76,8 +68,7 @@ typedef struct _ETH_CS_802_LLC_SNAP_FRAME
 	unsigned short usEtherType;
 } __attribute__((packed)) ETH_CS_802_LLC_SNAP_FRAME;
 
-typedef struct _ETH_CS_ETH2_FRAME
-{
+typedef struct _ETH_CS_ETH2_FRAME {
 	struct bcm_eth_header EThHdr;
 } __attribute__((packed)) ETH_CS_ETH2_FRAME;
 
@@ -86,8 +77,7 @@ typedef struct _ETH_CS_ETH2_FRAME
 #define ETHERNET_FRAMETYPE_802QVLAN	ntohs(0x8100)
 
 /* Per SF CS Specification Encodings */
-typedef enum _E_SERVICEFLOW_CS_SPEC_
-{
+typedef enum _E_SERVICEFLOW_CS_SPEC_ {
 	eCSSpecUnspecified = 0,
 	eCSPacketIPV4,
 	eCSPacketIPV6,
@@ -120,8 +110,7 @@ typedef enum _E_SERVICEFLOW_CS_SPEC_
 #define	ARP_PKT_SIZE		60
 
 /* This is the format for the TCP packet header */
-typedef struct _TCP_HEADER
-{
+typedef struct _TCP_HEADER {
 	USHORT usSrcPort;
 	USHORT usDestPort;
 	ULONG  ulSeqNumber;
