@@ -37,7 +37,6 @@ void dump_smb(void *, int);
 #define CIFS_TIMER	0x04
 
 extern int cifsFYI;
-extern int cifsERROR;
 
 /*
  *	debug ON
@@ -64,10 +63,7 @@ do {									\
 
 /* error event message: e.g., i/o error */
 #define cifserror(fmt, ...)						\
-do {									\
-	if (cifsERROR)							\
-		printk(KERN_ERR "CIFS VFS: " fmt "\n", ##__VA_ARGS__);	\
-} while (0)
+	printk(KERN_ERR "CIFS VFS: " fmt "\n", ##__VA_ARGS__);		\
 
 #define cERROR(set, fmt, ...)						\
 do {									\
