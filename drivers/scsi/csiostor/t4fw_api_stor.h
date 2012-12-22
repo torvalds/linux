@@ -40,45 +40,6 @@
  *   R E T U R N   V A L U E S
  ********************************/
 
-enum fw_retval {
-	FW_SUCCESS		= 0,	/* completed sucessfully */
-	FW_EPERM		= 1,	/* operation not permitted */
-	FW_ENOENT		= 2,	/* no such file or directory */
-	FW_EIO			= 5,	/* input/output error; hw bad */
-	FW_ENOEXEC		= 8,	/* exec format error; inv microcode */
-	FW_EAGAIN		= 11,	/* try again */
-	FW_ENOMEM		= 12,	/* out of memory */
-	FW_EFAULT		= 14,	/* bad address; fw bad */
-	FW_EBUSY		= 16,	/* resource busy */
-	FW_EEXIST		= 17,	/* file exists */
-	FW_EINVAL		= 22,	/* invalid argument */
-	FW_ENOSPC		= 28,	/* no space left on device */
-	FW_ENOSYS		= 38,	/* functionality not implemented */
-	FW_EPROTO		= 71,	/* protocol error */
-	FW_EADDRINUSE		= 98,	/* address already in use */
-	FW_EADDRNOTAVAIL	= 99,	/* cannot assigned requested address */
-	FW_ENETDOWN		= 100,	/* network is down */
-	FW_ENETUNREACH		= 101,	/* network is unreachable */
-	FW_ENOBUFS		= 105,	/* no buffer space available */
-	FW_ETIMEDOUT		= 110,	/* timeout */
-	FW_EINPROGRESS		= 115,	/* fw internal */
-	FW_SCSI_ABORT_REQUESTED	= 128,	/* */
-	FW_SCSI_ABORT_TIMEDOUT	= 129,	/* */
-	FW_SCSI_ABORTED		= 130,	/* */
-	FW_SCSI_CLOSE_REQUESTED	= 131,	/* */
-	FW_ERR_LINK_DOWN	= 132,	/* */
-	FW_RDEV_NOT_READY	= 133,	/* */
-	FW_ERR_RDEV_LOST	= 134,	/* */
-	FW_ERR_RDEV_LOGO	= 135,	/* */
-	FW_FCOE_NO_XCHG		= 136,	/* */
-	FW_SCSI_RSP_ERR		= 137,	/* */
-	FW_ERR_RDEV_IMPL_LOGO	= 138,	/* */
-	FW_SCSI_UNDER_FLOW_ERR  = 139,	/* */
-	FW_SCSI_OVER_FLOW_ERR   = 140,	/* */
-	FW_SCSI_DDP_ERR		= 141,	/* DDP error*/
-	FW_SCSI_TASK_ERR	= 142,	/* No SCSI tasks available */
-};
-
 enum fw_fcoe_link_sub_op {
 	FCOE_LINK_DOWN	= 0x0,
 	FCOE_LINK_UP	= 0x1,
