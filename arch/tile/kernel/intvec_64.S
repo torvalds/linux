@@ -1006,7 +1006,10 @@ handle_syscall:
 	 addi   r30, r31, THREAD_INFO_STATUS_OFFSET - THREAD_INFO_FLAGS_OFFSET
 	 beqzt	r30, .Lrestore_syscall_regs
 	}
-	jal	do_syscall_trace
+	{
+	 PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
+	 jal    do_syscall_trace_enter
+	}
 	FEEDBACK_REENTER(handle_syscall)
 
 	/*
@@ -1077,7 +1080,10 @@ handle_syscall:
 	 andi    r0, r30, _TIF_SINGLESTEP
 	 beqzt   r0, 1f
 	}
-	jal	do_syscall_trace
+	{
+	 PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
+	 jal    do_syscall_trace_exit
+	}
 	FEEDBACK_REENTER(handle_syscall)
 	andi    r0, r30, _TIF_SINGLESTEP
 

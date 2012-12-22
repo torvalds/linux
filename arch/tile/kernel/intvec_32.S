@@ -1201,7 +1201,10 @@ handle_syscall:
 	lw	r30, r31
 	andi    r30, r30, _TIF_SYSCALL_TRACE
 	bzt	r30, .Lrestore_syscall_regs
-	jal	do_syscall_trace
+	{
+	 PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
+	 jal    do_syscall_trace_enter
+	}
 	FEEDBACK_REENTER(handle_syscall)
 
 	/*
@@ -1252,7 +1255,10 @@ handle_syscall:
 	lw	r30, r31
 	andi    r30, r30, _TIF_SYSCALL_TRACE
 	bzt     r30, 1f
-	jal	do_syscall_trace
+	{
+	 PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
+	 jal    do_syscall_trace_exit
+	}
 	FEEDBACK_REENTER(handle_syscall)
 1:	{
 	 movei  r30, 0               /* not an NMI */
