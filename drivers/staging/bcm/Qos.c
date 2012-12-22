@@ -454,7 +454,7 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter,struct sk_buff* skb)
 	BOOLEAN	bFragmentedPkt=FALSE,bClassificationSucceed=FALSE;
 	USHORT	usCurrFragment =0;
 
-	PTCP_HEADER pTcpHeader;
+	struct bcm_tcp_header *pTcpHeader;
 	UCHAR IpHeaderLength;
 	UCHAR TcpHeaderLength;
 
@@ -614,7 +614,7 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter,struct sk_buff* skb)
 		if((TCP == pIpHeader->protocol ) && !bFragmentedPkt && (ETH_AND_IP_HEADER_LEN + TCP_HEADER_LEN <= skb->len) )
 		{
 			 IpHeaderLength   = pIpHeader->ihl;
-			 pTcpHeader = (PTCP_HEADER)(((PUCHAR)pIpHeader)+(IpHeaderLength*4));
+			 pTcpHeader = (struct bcm_tcp_header *)(((PUCHAR)pIpHeader)+(IpHeaderLength*4));
 			 TcpHeaderLength  = GET_TCP_HEADER_LEN(pTcpHeader->HeaderLength);
 
 			if((pTcpHeader->ucFlags & TCP_ACK) &&

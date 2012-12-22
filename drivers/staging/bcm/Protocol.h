@@ -110,7 +110,7 @@ typedef enum _E_SERVICEFLOW_CS_SPEC_ {
 #define	ARP_PKT_SIZE		60
 
 /* This is the format for the TCP packet header */
-typedef struct _TCP_HEADER {
+struct bcm_tcp_header {
 	unsigned short usSrcPort;
 	unsigned short usDestPort;
 	unsigned long  ulSeqNumber;
@@ -120,9 +120,9 @@ typedef struct _TCP_HEADER {
 	unsigned short usWindowsSize;
 	unsigned short usChkSum;
 	unsigned short usUrgetPtr;
-} TCP_HEADER, *PTCP_HEADER;
+};
 
-#define TCP_HEADER_LEN		sizeof(TCP_HEADER)
+#define TCP_HEADER_LEN		sizeof(struct bcm_tcp_header)
 #define TCP_ACK			0x10  /* Bit 4 in tcpflags field. */
 #define GET_TCP_HEADER_LEN(byte) ((byte&0xF0)>>4)
 
