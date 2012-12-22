@@ -113,8 +113,8 @@ typedef enum _E_SERVICEFLOW_CS_SPEC_ {
 typedef struct _TCP_HEADER {
 	unsigned short usSrcPort;
 	unsigned short usDestPort;
-	ULONG  ulSeqNumber;
-	ULONG  ulAckNumber;
+	unsigned long  ulSeqNumber;
+	unsigned long  ulAckNumber;
 	UCHAR  HeaderLength;
 	UCHAR  ucFlags;
 	unsigned short usWindowsSize;
