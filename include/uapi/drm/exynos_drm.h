@@ -171,6 +171,8 @@ enum drm_exynos_flip {
 	EXYNOS_DRM_FLIP_NONE = (0 << 0),
 	EXYNOS_DRM_FLIP_VERTICAL = (1 << 0),
 	EXYNOS_DRM_FLIP_HORIZONTAL = (1 << 1),
+	EXYNOS_DRM_FLIP_BOTH = EXYNOS_DRM_FLIP_VERTICAL |
+			EXYNOS_DRM_FLIP_HORIZONTAL,
 };
 
 enum drm_exynos_degree {

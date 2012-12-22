@@ -1387,6 +1387,7 @@ static inline bool fimc_check_drm_flip(enum drm_exynos_flip flip)
 	case EXYNOS_DRM_FLIP_NONE:
 	case EXYNOS_DRM_FLIP_VERTICAL:
 	case EXYNOS_DRM_FLIP_HORIZONTAL:
+	case EXYNOS_DRM_FLIP_BOTH:
 		return true;
 	default:
 		DRM_DEBUG_KMS("%s:invalid flip\n", __func__);
