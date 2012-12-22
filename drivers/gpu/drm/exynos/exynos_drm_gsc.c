@@ -1592,7 +1592,7 @@ static int gsc_ippdrv_start(struct device *dev, enum drm_exynos_ipp_cmd cmd)
 		exynos_drm_ippnb_send_event(IPP_SET_WRITEBACK, (void *)&set_wb);
 
 		/* src local path */
-		cfg = readl(GSC_IN_CON);
+		cfg = gsc_read(GSC_IN_CON);
 		cfg &= ~(GSC_IN_PATH_MASK | GSC_IN_LOCAL_SEL_MASK);
 		cfg |= (GSC_IN_PATH_LOCAL | GSC_IN_LOCAL_FIMD_WB);
 		gsc_write(cfg, GSC_IN_CON);
