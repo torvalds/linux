@@ -1575,7 +1575,6 @@ static int build_dirty_segmap(struct f2fs_sb_info *sbi)
 
 	for (i = 0; i < NR_DIRTY_TYPE; i++) {
 		dirty_i->dirty_segmap[i] = kzalloc(bitmap_size, GFP_KERNEL);
-		dirty_i->nr_dirty[i] = 0;
 		if (!dirty_i->dirty_segmap[i])
 			return -ENOMEM;
 	}
