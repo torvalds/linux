@@ -600,7 +600,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
 	rc = rc_allocate_device();
 	if (!ir || !rc)
-		goto err_out_free;
+		goto error;
 
 	/* record handles to ourself */
 	ir->dev = dev;
@@ -629,14 +629,14 @@ static int em28xx_ir_init(struct em28xx *dev)
 		break;
 	default:
 		err = -ENODEV;
-		goto err_out_free;
+		goto error;
 	}
 
 	/* By default, keep protocol field untouched */
 	rc_type = RC_BIT_UNKNOWN;
 	err = em28xx_ir_change_protocol(rc, &rc_type);
 	if (err)
-		goto err_out_free;
+		goto error;
 
 	/* This is how often we ask the chip for IR information */
 	ir->polling = 100; /* ms */
@@ -661,7 +661,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 	/* all done */
 	err = rc_register_device(rc);
 	if (err)
-		goto err_out_stop;
+		goto error;
 
 	em28xx_register_i2c_ir(dev);
 
@@ -674,9 +674,8 @@ static int em28xx_ir_init(struct em28xx *dev)
 
 	return 0;
 
-err_out_stop:
+error:
 	dev->ir = NULL;
-err_out_free:
 	rc_free_device(rc);
 	kfree(ir);
 	return err;
