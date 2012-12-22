@@ -4,8 +4,8 @@ This file contains the routines related to Quality of Service.
 */
 #include "headers.h"
 
-static void EThCSGetPktInfo(struct bcm_mini_adapter *Adapter,PVOID pvEthPayload,PS_ETHCS_PKT_INFO pstEthCsPktInfo);
-static BOOLEAN EThCSClassifyPkt(struct bcm_mini_adapter *Adapter,struct sk_buff* skb,PS_ETHCS_PKT_INFO pstEthCsPktInfo,struct bcm_classifier_rule *pstClassifierRule, B_UINT8 EthCSCupport);
+static void EThCSGetPktInfo(struct bcm_mini_adapter *Adapter,PVOID pvEthPayload, struct bcm_eth_packet_info *pstEthCsPktInfo);
+static BOOLEAN EThCSClassifyPkt(struct bcm_mini_adapter *Adapter,struct sk_buff* skb, struct bcm_eth_packet_info *pstEthCsPktInfo,struct bcm_classifier_rule *pstClassifierRule, B_UINT8 EthCSCupport);
 
 static USHORT	IpVersion4(struct bcm_mini_adapter *Adapter, struct iphdr *iphd,
 			   struct bcm_classifier_rule *pstClassifierRule );
@@ -446,7 +446,7 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter,struct sk_buff* skb)
 {
 	INT			uiLoopIndex=0;
 	struct bcm_classifier_rule *pstClassifierRule = NULL;
-	S_ETHCS_PKT_INFO stEthCsPktInfo;
+	struct bcm_eth_packet_info stEthCsPktInfo;
 	PVOID pvEThPayload = NULL;
 	struct iphdr 		*pIpHeader = NULL;
 	INT	  uiSfIndex=0;
@@ -683,7 +683,7 @@ static BOOLEAN EthCSMatchDestMACAddress(struct bcm_classifier_rule *pstClassifie
 	return TRUE;
 }
 
-static BOOLEAN EthCSMatchEThTypeSAP(struct bcm_classifier_rule *pstClassifierRule,struct sk_buff* skb,PS_ETHCS_PKT_INFO pstEthCsPktInfo)
+static BOOLEAN EthCSMatchEThTypeSAP(struct bcm_classifier_rule *pstClassifierRule,struct sk_buff* skb, struct bcm_eth_packet_info *pstEthCsPktInfo)
 {
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	if((pstClassifierRule->ucEtherTypeLen==0)||
@@ -718,7 +718,7 @@ static BOOLEAN EthCSMatchEThTypeSAP(struct bcm_classifier_rule *pstClassifierRul
 
 }
 
-static BOOLEAN EthCSMatchVLANRules(struct bcm_classifier_rule *pstClassifierRule,struct sk_buff* skb,PS_ETHCS_PKT_INFO pstEthCsPktInfo)
+static BOOLEAN EthCSMatchVLANRules(struct bcm_classifier_rule *pstClassifierRule,struct sk_buff* skb, struct bcm_eth_packet_info *pstEthCsPktInfo)
 {
 	BOOLEAN bClassificationSucceed = FALSE;
 	USHORT usVLANID;
@@ -769,7 +769,7 @@ static BOOLEAN EthCSMatchVLANRules(struct bcm_classifier_rule *pstClassifierRule
 
 
 static BOOLEAN EThCSClassifyPkt(struct bcm_mini_adapter *Adapter,struct sk_buff* skb,
-				PS_ETHCS_PKT_INFO pstEthCsPktInfo,
+				struct bcm_eth_packet_info *pstEthCsPktInfo,
 				struct bcm_classifier_rule *pstClassifierRule,
 				B_UINT8 EthCSCupport)
 {
@@ -802,7 +802,7 @@ static BOOLEAN EThCSClassifyPkt(struct bcm_mini_adapter *Adapter,struct sk_buff*
 }
 
 static void EThCSGetPktInfo(struct bcm_mini_adapter *Adapter,PVOID pvEthPayload,
-			    PS_ETHCS_PKT_INFO pstEthCsPktInfo)
+			    struct bcm_eth_packet_info *pstEthCsPktInfo)
 {
 	USHORT u16Etype = ntohs(((struct bcm_eth_header *)pvEthPayload)->u16Etype);
 

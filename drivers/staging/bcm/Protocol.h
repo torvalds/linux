@@ -37,12 +37,12 @@ typedef enum _E_NWPKT_ETHFRAME_TYPE {
 	eEthOtherFrame
 } E_NWPKT_ETHFRAME_TYPE;
 
-typedef struct _S_ETHCS_PKT_INFO {
+struct bcm_eth_packet_info {
 	E_NWPKT_IPFRAME_TYPE eNwpktIPFrameType;
 	E_NWPKT_ETHFRAME_TYPE eNwpktEthFrameType;
 	unsigned short	usEtherType;
 	unsigned char	ucDSAP;
-} S_ETHCS_PKT_INFO, *PS_ETHCS_PKT_INFO;
+};
 
 struct bcm_eth_q_frame {
 	struct bcm_eth_header EThHdr;
