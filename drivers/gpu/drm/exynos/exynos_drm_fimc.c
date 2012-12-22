@@ -169,9 +169,22 @@ static void fimc_sw_reset(struct fimc_context *ctx)
 
 	DRM_DEBUG_KMS("%s\n", __func__);
 
+	/* stop dma operation */
+	cfg = fimc_read(EXYNOS_CISTATUS);
+	if (EXYNOS_CISTATUS_GET_ENVID_STATUS(cfg)) {
+		cfg = fimc_read(EXYNOS_MSCTRL);
+		cfg &= ~EXYNOS_MSCTRL_ENVID;
+		fimc_write(cfg, EXYNOS_MSCTRL);
+	}
+
 	cfg = fimc_read(EXYNOS_CISRCFMT);
 	cfg |= EXYNOS_CISRCFMT_ITU601_8BIT;
 	fimc_write(cfg, EXYNOS_CISRCFMT);
+
+	/* disable image capture */
+	cfg = fimc_read(EXYNOS_CIIMGCPT);
+	cfg &= ~(EXYNOS_CIIMGCPT_IMGCPTEN_SC | EXYNOS_CIIMGCPT_IMGCPTEN);
+	fimc_write(cfg, EXYNOS_CIIMGCPT);
 
 	/* s/w reset */
 	cfg = fimc_read(EXYNOS_CIGCTRL);
