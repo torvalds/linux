@@ -20,7 +20,7 @@ struct TransportHeaderT {
 		struct udphdr uhdr;
 		struct tcphdr thdr;
 	};
-} __attribute__((packed));
+} __packed;
 typedef struct TransportHeaderT xporthdr;
 
 typedef enum _E_NWPKT_IPFRAME_TYPE {
@@ -50,14 +50,14 @@ typedef struct _ETH_CS_802_Q_FRAME {
 	USHORT CFI:1;
 	USHORT VLANID:12;
 	USHORT EthType;
-} __attribute__((packed)) ETH_CS_802_Q_FRAME;
+} __packed ETH_CS_802_Q_FRAME;
 
 typedef struct _ETH_CS_802_LLC_FRAME {
 	struct bcm_eth_header EThHdr;
 	unsigned char DSAP;
 	unsigned char SSAP;
 	unsigned char Control;
-} __attribute__((packed)) ETH_CS_802_LLC_FRAME;
+} __packed ETH_CS_802_LLC_FRAME;
 
 typedef struct _ETH_CS_802_LLC_SNAP_FRAME {
 	struct bcm_eth_header EThHdr;
@@ -66,11 +66,11 @@ typedef struct _ETH_CS_802_LLC_SNAP_FRAME {
 	unsigned char Control;
 	unsigned char OUI[3];
 	unsigned short usEtherType;
-} __attribute__((packed)) ETH_CS_802_LLC_SNAP_FRAME;
+} __packed ETH_CS_802_LLC_SNAP_FRAME;
 
 typedef struct _ETH_CS_ETH2_FRAME {
 	struct bcm_eth_header EThHdr;
-} __attribute__((packed)) ETH_CS_ETH2_FRAME;
+} __packed ETH_CS_ETH2_FRAME;
 
 #define ETHERNET_FRAMETYPE_IPV4		ntohs(0x0800)
 #define ETHERNET_FRAMETYPE_IPV6		ntohs(0x86dd)
