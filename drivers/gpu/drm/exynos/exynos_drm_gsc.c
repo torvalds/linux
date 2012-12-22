@@ -25,7 +25,7 @@
 #include "exynos_drm_gsc.h"
 
 /*
- * GSC is stand for General SCaler and
+ * GSC stands for General SCaler and
  * supports image scaler/rotator and input/output DMA operations.
  * input DMA reads image data from the memory.
  * output DMA writes image data to memory.

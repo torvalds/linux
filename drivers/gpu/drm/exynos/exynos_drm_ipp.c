@@ -27,7 +27,7 @@
 #include "exynos_drm_iommu.h"
 
 /*
- * IPP is stand for Image Post Processing and
+ * IPP stands for Image Post Processing and
  * supports image scaler/rotator and input/output DMA operations.
  * using FIMC, GSC, Rotator, so on.
  * IPP is integration device driver of same attribute h/w
