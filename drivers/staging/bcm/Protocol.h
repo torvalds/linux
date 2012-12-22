@@ -68,9 +68,9 @@ typedef struct _ETH_CS_802_LLC_SNAP_FRAME {
 	unsigned short usEtherType;
 } __packed ETH_CS_802_LLC_SNAP_FRAME;
 
-typedef struct _ETH_CS_ETH2_FRAME {
+struct bcm_ethernet2_frame {
 	struct bcm_eth_header EThHdr;
-} __packed ETH_CS_ETH2_FRAME;
+} __packed;
 
 #define ETHERNET_FRAMETYPE_IPV4		ntohs(0x0800)
 #define ETHERNET_FRAMETYPE_IPV6		ntohs(0x86dd)

@@ -486,13 +486,13 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter,struct sk_buff* skb)
 		case eEthOtherFrame:
 		{
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "ClassifyPacket : ETH Other Frame\n");
-			pIpHeader = pvEThPayload + sizeof(ETH_CS_ETH2_FRAME);
+			pIpHeader = pvEThPayload + sizeof(struct bcm_ethernet2_frame);
 			break;
 		}
 		default:
 		{
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "ClassifyPacket : Unrecognized ETH Frame\n");
-			pIpHeader = pvEThPayload + sizeof(ETH_CS_ETH2_FRAME);
+			pIpHeader = pvEThPayload + sizeof(struct bcm_ethernet2_frame);
 			break;
 		}
 	}
