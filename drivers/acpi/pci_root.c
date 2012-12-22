@@ -186,21 +186,6 @@ static acpi_status try_get_root_bridge_busnr(acpi_handle handle,
 	return AE_OK;
 }
 
-static void acpi_pci_bridge_scan(struct acpi_device *device)
-{
-	int status;
-	struct acpi_device *child = NULL;
-
-	if (device->flags.bus_address)
-		if (device->parent && device->parent->ops.bind) {
-			status = device->parent->ops.bind(device);
-			if (!status) {
-				list_for_each_entry(child, &device->children, node)
-					acpi_pci_bridge_scan(child);
-			}
-		}
-}
-
 static u8 pci_osc_uuid_str[] = "33DB4D5B-1FF7-401C-9657-7441C03DD766";
 
 static acpi_status acpi_pci_run_osc(acpi_handle handle,
@@ -450,7 +435,6 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	int result;
 	struct acpi_pci_root *root;
 	acpi_handle handle;
-	struct acpi_device *child;
 	struct acpi_pci_driver *driver;
 	u32 flags, base_flags;
 	bool is_osc_granted = false;
@@ -601,21 +585,6 @@ static int acpi_pci_root_add(struct acpi_device *device)
 		result = -ENODEV;
 		goto out_del_root;
 	}
-
-	/*
-	 * Attach ACPI-PCI Context
-	 * -----------------------
-	 * Thus binding the ACPI and PCI devices.
-	 */
-	result = acpi_pci_bind_root(device);
-	if (result)
-		goto out_del_root;
-
-	/*
-	 * Scan and bind all _ADR-Based Devices
-	 */
-	list_for_each_entry(child, &device->children, node)
-		acpi_pci_bridge_scan(child);
 
 	/* ASPM setting */
 	if (is_osc_granted) {
