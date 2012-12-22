@@ -156,6 +156,18 @@
 #define BNX2FC_RELOGIN_WAIT_TIME	200
 #define BNX2FC_RELOGIN_WAIT_CNT		10
 
+#define BNX2FC_STATS(hba, stat, cnt)					\
+	do {								\
+		u32 val;						\
+									\
+		val = fw_stats->stat.cnt;				\
+		if (hba->prev_stats.stat.cnt <= val)			\
+			val -= hba->prev_stats.stat.cnt;		\
+		else							\
+			val += (0xfffffff - hba->prev_stats.stat.cnt);	\
+		hba->bfw_stats.cnt += val;				\
+	} while (0)
+
 /* bnx2fc driver uses only one instance of fcoe_percpu_s */
 extern struct fcoe_percpu_s bnx2fc_global;
 
@@ -165,6 +177,14 @@ struct bnx2fc_percpu_s {
 	struct task_struct *iothread;
 	struct list_head work_list;
 	spinlock_t fp_work_lock;
+};
+
+struct bnx2fc_fw_stats {
+	u64	fc_crc_cnt;
+	u64	fcoe_tx_pkt_cnt;
+	u64	fcoe_rx_pkt_cnt;
+	u64	fcoe_tx_byte_cnt;
+	u64	fcoe_rx_byte_cnt;
 };
 
 struct bnx2fc_hba {
@@ -207,6 +227,8 @@ struct bnx2fc_hba {
 	struct bnx2fc_rport **tgt_ofld_list;
 
 	/* statistics */
+	struct bnx2fc_fw_stats bfw_stats;
+	struct fcoe_statistics_params prev_stats;
 	struct fcoe_statistics_params *stats_buffer;
 	dma_addr_t stats_buf_dma;
 	struct completion stat_req_done;
