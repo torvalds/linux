@@ -163,17 +163,14 @@ struct fimc_context {
 	bool	suspended;
 };
 
-static void fimc_sw_reset(struct fimc_context *ctx, bool pattern)
+static void fimc_sw_reset(struct fimc_context *ctx)
 {
 	u32 cfg;
 
-	DRM_DEBUG_KMS("%s:pattern[%d]\n", __func__, pattern);
+	DRM_DEBUG_KMS("%s\n", __func__);
 
 	cfg = fimc_read(EXYNOS_CISRCFMT);
 	cfg |= EXYNOS_CISRCFMT_ITU601_8BIT;
-	if (pattern)
-		cfg |= EXYNOS_CIGCTRL_TESTPATTERN_COLOR_BAR;
-
 	fimc_write(cfg, EXYNOS_CISRCFMT);
 
 	/* s/w reset */
@@ -1536,7 +1533,7 @@ static int fimc_ippdrv_reset(struct device *dev)
 	DRM_DEBUG_KMS("%s\n", __func__);
 
 	/* reset h/w block */
-	fimc_sw_reset(ctx, false);
+	fimc_sw_reset(ctx);
 
 	/* reset scaler capability */
 	memset(&ctx->sc, 0x0, sizeof(ctx->sc));
