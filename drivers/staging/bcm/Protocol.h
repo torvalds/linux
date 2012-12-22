@@ -40,16 +40,16 @@ typedef enum _E_NWPKT_ETHFRAME_TYPE {
 typedef struct _S_ETHCS_PKT_INFO {
 	E_NWPKT_IPFRAME_TYPE eNwpktIPFrameType;
 	E_NWPKT_ETHFRAME_TYPE eNwpktEthFrameType;
-	USHORT	usEtherType;
+	unsigned short	usEtherType;
 	UCHAR	ucDSAP;
 } S_ETHCS_PKT_INFO, *PS_ETHCS_PKT_INFO;
 
 typedef struct _ETH_CS_802_Q_FRAME {
 	struct bcm_eth_header EThHdr;
-	USHORT UserPriority:3;
-	USHORT CFI:1;
-	USHORT VLANID:12;
-	USHORT EthType;
+	unsigned short UserPriority:3;
+	unsigned short CFI:1;
+	unsigned short VLANID:12;
+	unsigned short EthType;
 } __packed ETH_CS_802_Q_FRAME;
 
 typedef struct _ETH_CS_802_LLC_FRAME {
@@ -111,15 +111,15 @@ typedef enum _E_SERVICEFLOW_CS_SPEC_ {
 
 /* This is the format for the TCP packet header */
 typedef struct _TCP_HEADER {
-	USHORT usSrcPort;
-	USHORT usDestPort;
+	unsigned short usSrcPort;
+	unsigned short usDestPort;
 	ULONG  ulSeqNumber;
 	ULONG  ulAckNumber;
 	UCHAR  HeaderLength;
 	UCHAR  ucFlags;
-	USHORT usWindowsSize;
-	USHORT usChkSum;
-	USHORT usUrgetPtr;
+	unsigned short usWindowsSize;
+	unsigned short usChkSum;
+	unsigned short usUrgetPtr;
 } TCP_HEADER, *PTCP_HEADER;
 
 #define TCP_HEADER_LEN		sizeof(TCP_HEADER)
