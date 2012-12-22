@@ -228,6 +228,9 @@ static void check_index_in_prev_nodes(struct f2fs_sb_info *sbi,
 
 	/* Deallocate previous index in the node page */
 	inode = f2fs_iget_nowait(sbi->sb, ino);
+	if (IS_ERR(inode))
+		return;
+
 	truncate_hole(inode, bidx, bidx + 1);
 	iput(inode);
 }
