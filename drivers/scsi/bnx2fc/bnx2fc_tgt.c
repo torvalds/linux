@@ -33,6 +33,7 @@ static void bnx2fc_upld_timer(unsigned long data)
 	BNX2FC_TGT_DBG(tgt, "upld_timer - Upload compl not received!!\n");
 	/* fake upload completion */
 	clear_bit(BNX2FC_FLAG_OFFLOADED, &tgt->flags);
+	clear_bit(BNX2FC_FLAG_ENABLED, &tgt->flags);
 	set_bit(BNX2FC_FLAG_UPLD_REQ_COMPL, &tgt->flags);
 	wake_up_interruptible(&tgt->upld_wait);
 }
@@ -55,6 +56,7 @@ static void bnx2fc_ofld_timer(unsigned long data)
 	 * resources are freed up in bnx2fc_offload_session
 	 */
 	clear_bit(BNX2FC_FLAG_OFFLOADED, &tgt->flags);
+	clear_bit(BNX2FC_FLAG_ENABLED, &tgt->flags);
 	set_bit(BNX2FC_FLAG_OFLD_REQ_CMPL, &tgt->flags);
 	wake_up_interruptible(&tgt->ofld_wait);
 }
@@ -135,14 +137,23 @@ retry_ofld:
 	}
 	if (bnx2fc_map_doorbell(tgt)) {
 		printk(KERN_ERR PFX "map doorbell failed - no mem\n");
-		/* upload will take care of cleaning up sess resc */
-		lport->tt.rport_logoff(rdata);
+		goto ofld_err;
 	}
+	clear_bit(BNX2FC_FLAG_OFLD_REQ_CMPL, &tgt->flags);
+	rval = bnx2fc_send_session_enable_req(port, tgt);
+	if (rval) {
+		pr_err(PFX "enable session failed\n");
+		goto ofld_err;
+	}
+	bnx2fc_ofld_wait(tgt);
+	if (!(test_bit(BNX2FC_FLAG_ENABLED, &tgt->flags)))
+		goto ofld_err;
 	return;
 
 ofld_err:
 	/* couldn't offload the session. log off from this rport */
 	BNX2FC_TGT_DBG(tgt, "bnx2fc_offload_session - offload error\n");
+	clear_bit(BNX2FC_FLAG_OFFLOADED, &tgt->flags);
 	/* Free session resources */
 	bnx2fc_free_session_resc(hba, tgt);
 tgt_init_err:
@@ -476,7 +487,7 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 		tgt = (struct bnx2fc_rport *)&rp[1];
 
 		/* This can happen when ADISC finds the same target */
-		if (test_bit(BNX2FC_FLAG_OFFLOADED, &tgt->flags)) {
+		if (test_bit(BNX2FC_FLAG_ENABLED, &tgt->flags)) {
 			BNX2FC_TGT_DBG(tgt, "already offloaded\n");
 			mutex_unlock(&hba->hba_mutex);
 			return;
@@ -491,11 +502,8 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 		BNX2FC_TGT_DBG(tgt, "OFFLOAD num_ofld_sess = %d\n",
 			hba->num_ofld_sess);
 
-		if (test_bit(BNX2FC_FLAG_OFFLOADED, &tgt->flags)) {
-			/*
-			 * Session is offloaded and enabled. Map
-			 * doorbell register for this target
-			 */
+		if (test_bit(BNX2FC_FLAG_ENABLED, &tgt->flags)) {
+			/* Session is offloaded and enabled.  */
 			BNX2FC_TGT_DBG(tgt, "sess offloaded\n");
 			/* This counter is protected with hba mutex */
 			hba->num_ofld_sess++;
@@ -532,7 +540,7 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 		 */
 		tgt = (struct bnx2fc_rport *)&rp[1];
 
-		if (!(test_bit(BNX2FC_FLAG_OFFLOADED, &tgt->flags))) {
+		if (!(test_bit(BNX2FC_FLAG_ENABLED, &tgt->flags))) {
 			mutex_unlock(&hba->hba_mutex);
 			break;
 		}

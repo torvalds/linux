@@ -280,6 +280,7 @@ struct bnx2fc_rport {
 #define BNX2FC_FLAG_UPLD_REQ_COMPL	0x7
 #define BNX2FC_FLAG_EXPL_LOGO		0x8
 #define BNX2FC_FLAG_DISABLE_FAILED	0x9
+#define BNX2FC_FLAG_ENABLED		0xa
 
 	u8 src_addr[ETH_ALEN];
 	u32 max_sqes;
@@ -467,6 +468,8 @@ int bnx2fc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc_cmd);
 int bnx2fc_send_fw_fcoe_init_msg(struct bnx2fc_hba *hba);
 int bnx2fc_send_fw_fcoe_destroy_msg(struct bnx2fc_hba *hba);
 int bnx2fc_send_session_ofld_req(struct fcoe_port *port,
+					struct bnx2fc_rport *tgt);
+int bnx2fc_send_session_enable_req(struct fcoe_port *port,
 					struct bnx2fc_rport *tgt);
 int bnx2fc_send_session_disable_req(struct fcoe_port *port,
 				    struct bnx2fc_rport *tgt);
