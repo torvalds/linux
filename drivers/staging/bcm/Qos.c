@@ -480,7 +480,7 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter,struct sk_buff* skb)
 		case eEth802QVLANFrame:
 		{
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "ClassifyPacket : 802.1Q VLANFrame\n");
-			pIpHeader = pvEThPayload + sizeof(ETH_CS_802_Q_FRAME);
+			pIpHeader = pvEThPayload + sizeof(struct bcm_eth_q_frame);
 			break;
 		}
 		case eEthOtherFrame:
@@ -815,7 +815,7 @@ static void EThCSGetPktInfo(struct bcm_mini_adapter *Adapter,PVOID pvEthPayload,
 		{
 			//802.1Q VLAN Header
 			pstEthCsPktInfo->eNwpktEthFrameType = eEth802QVLANFrame;
-			u16Etype = ((ETH_CS_802_Q_FRAME*)pvEthPayload)->EthType;
+			u16Etype = ((struct bcm_eth_q_frame *)pvEthPayload)->EthType;
 			//((ETH_CS_802_Q_FRAME*)pvEthPayload)->UserPriority
 		}
 		else

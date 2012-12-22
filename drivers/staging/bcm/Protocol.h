@@ -44,13 +44,13 @@ typedef struct _S_ETHCS_PKT_INFO {
 	unsigned char	ucDSAP;
 } S_ETHCS_PKT_INFO, *PS_ETHCS_PKT_INFO;
 
-typedef struct _ETH_CS_802_Q_FRAME {
+struct bcm_eth_q_frame {
 	struct bcm_eth_header EThHdr;
 	unsigned short UserPriority:3;
 	unsigned short CFI:1;
 	unsigned short VLANID:12;
 	unsigned short EthType;
-} __packed ETH_CS_802_Q_FRAME;
+} __packed;
 
 struct bcm_eth_llc_frame {
 	struct bcm_eth_header EThHdr;
