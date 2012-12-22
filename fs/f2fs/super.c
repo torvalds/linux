@@ -119,7 +119,6 @@ static void f2fs_put_super(struct super_block *sb)
 int f2fs_sync_fs(struct super_block *sb, int sync)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
-	int ret = 0;
 
 	if (!sbi->s_dirty && !get_pages(sbi, F2FS_DIRTY_NODES))
 		return 0;
@@ -127,7 +126,7 @@ int f2fs_sync_fs(struct super_block *sb, int sync)
 	if (sync)
 		write_checkpoint(sbi, false, false);
 
-	return ret;
+	return 0;
 }
 
 static int f2fs_statfs(struct dentry *dentry, struct kstatfs *buf)
