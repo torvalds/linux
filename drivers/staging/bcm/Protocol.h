@@ -29,17 +29,17 @@ typedef enum _E_NWPKT_IPFRAME_TYPE {
 	eIPv6Packet
 } E_NWPKT_IPFRAME_TYPE;
 
-typedef enum _E_NWPKT_ETHFRAME_TYPE {
+enum bcm_eth_frame_type {
 	eEthUnsupportedFrame,
 	eEth802LLCFrame,
 	eEth802LLCSNAPFrame,
 	eEth802QVLANFrame,
 	eEthOtherFrame
-} E_NWPKT_ETHFRAME_TYPE;
+};
 
 struct bcm_eth_packet_info {
 	E_NWPKT_IPFRAME_TYPE eNwpktIPFrameType;
-	E_NWPKT_ETHFRAME_TYPE eNwpktEthFrameType;
+	enum bcm_eth_frame_type eNwpktEthFrameType;
 	unsigned short	usEtherType;
 	unsigned char	ucDSAP;
 };
