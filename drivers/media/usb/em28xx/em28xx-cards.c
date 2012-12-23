@@ -62,7 +62,7 @@ module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card,     "card type");
 
 static unsigned int prefer_bulk;
-module_param(prefer_bulk, int, 0644);
+module_param(prefer_bulk, int, 0444);
 MODULE_PARM_DESC(prefer_bulk, "prefer USB bulk transfers");
 
 
