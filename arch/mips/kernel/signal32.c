@@ -686,32 +686,6 @@ SYSCALL_DEFINE3(32_rt_sigqueueinfo, int, pid, int, sig,
 	return ret;
 }
 
-SYSCALL_DEFINE5(32_waitid, int, which, compat_pid_t, pid,
-	     compat_siginfo_t __user *, uinfo, int, options,
-	     struct compat_rusage __user *, uru)
-{
-	siginfo_t info;
-	struct rusage ru;
-	long ret;
-	mm_segment_t old_fs = get_fs();
-
-	info.si_signo = 0;
-	set_fs(KERNEL_DS);
-	ret = sys_waitid(which, pid, (siginfo_t __user *) &info, options,
-			 uru ? (struct rusage __user *) &ru : NULL);
-	set_fs(old_fs);
-
-	if (ret < 0 || info.si_signo == 0)
-		return ret;
-
-	if (uru && (ret = put_compat_rusage(&ru, uru)))
-		return ret;
-
-	BUG_ON(info.si_code & __SI_MASK);
-	info.si_code |= __SI_CHLD;
-	return copy_siginfo_to_user32(uinfo, &info);
-}
-
 static int signal32_init(void)
 {
 	if (cpu_has_fpu) {

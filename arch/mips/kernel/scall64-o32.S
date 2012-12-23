@@ -470,7 +470,7 @@ sys_call_table:
 	PTR	compat_sys_mq_notify		/* 4275 */
 	PTR	compat_sys_mq_getsetattr
 	PTR	sys_ni_syscall			/* sys_vserver */
-	PTR	sys_32_waitid
+	PTR	compat_sys_waitid
 	PTR	sys_ni_syscall			/* available, was setaltroot */
 	PTR	sys_add_key			/* 4280 */
 	PTR	sys_request_key
