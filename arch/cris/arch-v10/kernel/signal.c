@@ -84,12 +84,6 @@ int sys_sigaction(int sig, const struct old_sigaction __user *act,
 	return ret;
 }
 
-int sys_sigaltstack(const stack_t *uss, stack_t __user *uoss)
-{
-	return do_sigaltstack(uss, uoss, rdusp());
-}
-
-
 /*
  * Do a signal return; undo the signal stack.
  */
@@ -214,7 +208,7 @@ asmlinkage int sys_rt_sigreturn(long r10, long r11, long r12, long r13,
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext))
 		goto badframe;
 
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL, rdusp()) == -EFAULT)
+	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
 
 	return regs->r10;

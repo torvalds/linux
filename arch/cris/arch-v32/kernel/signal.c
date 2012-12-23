@@ -99,12 +99,6 @@ sys_sigaction(int signal, const struct old_sigaction *act,
 	return retval;
 }
 
-int
-sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss)
-{
-	return do_sigaltstack(uss, uoss, rdusp());
-}
-
 static int
 restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 {
@@ -209,7 +203,7 @@ sys_rt_sigreturn(long r10, long r11, long r12, long r13, long mof, long srp,
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext))
 		goto badframe;
 
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL, rdusp()) == -EFAULT)
+	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
 
 	keep_debug_flags(oldccs, oldspc, regs);

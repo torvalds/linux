@@ -50,6 +50,7 @@ config CRIS
 	select GENERIC_CMOS_UPDATE
 	select MODULES_USE_ELF_RELA
 	select CLONE_BACKWARDS2
+	select GENERIC_SIGALTSTACK
 
 config HZ
 	int
