@@ -42,8 +42,6 @@ USB_GADGET_COMPOSITE_OPTIONS();
  * the runtime footprint, and giving us at least some parts of what
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
-#define USB_FACM_INCLUDED
-#include "f_acm.c"
 #include "f_ecm.c"
 #include "u_ether.c"
 
@@ -107,6 +105,8 @@ static struct usb_gadget_strings *dev_strings[] = {
 static u8 hostaddr[ETH_ALEN];
 
 /*-------------------------------------------------------------------------*/
+static struct usb_function *f_acm;
+static struct usb_function_instance *fi_serial;
 
 static unsigned char tty_line;
 /*
@@ -114,6 +114,7 @@ static unsigned char tty_line;
  */
 static int __init cdc_do_config(struct usb_configuration *c)
 {
+	struct f_serial_opts *opts;
 	int	status;
 
 	if (gadget_is_otg(c->cdev->gadget)) {
@@ -125,11 +126,26 @@ static int __init cdc_do_config(struct usb_configuration *c)
 	if (status < 0)
 		return status;
 
-	status = acm_bind_config(c, tty_line);
-	if (status < 0)
-		return status;
+	fi_serial = usb_get_function_instance("acm");
+	if (IS_ERR(fi_serial))
+		return PTR_ERR(fi_serial);
 
+	opts = container_of(fi_serial, struct f_serial_opts, func_inst);
+	opts->port_num = tty_line;
+
+	f_acm = usb_get_function(fi_serial);
+	if (IS_ERR(f_acm))
+		goto err_func_acm;
+
+	status = usb_add_function(c, f_acm);
+	if (status)
+		goto err_conf;
 	return 0;
+err_conf:
+	usb_put_function(f_acm);
+err_func_acm:
+	usb_put_function_instance(fi_serial);
+	return status;
 }
 
 static struct usb_configuration cdc_config_driver = {
@@ -192,6 +208,8 @@ fail0:
 
 static int __exit cdc_unbind(struct usb_composite_dev *cdev)
 {
+	usb_put_function(f_acm);
+	usb_put_function_instance(fi_serial);
 	gserial_free_line(tty_line);
 	gether_cleanup();
 	return 0;

@@ -816,6 +816,7 @@ config USB_CDC_COMPOSITE
 	depends on NET
 	select USB_LIBCOMPOSITE
 	select USB_U_SERIAL
+	select USB_F_ACM
 	help
 	  This driver provides two functions in one configuration:
 	  a CDC Ethernet (ECM) link, and a CDC ACM (serial port) link.
