@@ -500,6 +500,9 @@ config USB_LIBCOMPOSITE
 	tristate
 	depends on USB_GADGET
 
+config USB_F_SS_LB
+	tristate
+
 choice
 	tristate "USB Gadget Drivers"
 	default USB_ETH
@@ -524,6 +527,7 @@ choice
 config USB_ZERO
 	tristate "Gadget Zero (DEVELOPMENT)"
 	select USB_LIBCOMPOSITE
+	select USB_F_SS_LB
 	help
 	  Gadget Zero is a two-configuration device.  It either sinks and
 	  sources bulk data; or it loops back a configurable number of

@@ -74,3 +74,7 @@ obj-$(CONFIG_USB_G_WEBCAM)	+= g_webcam.o
 obj-$(CONFIG_USB_G_NCM)		+= g_ncm.o
 obj-$(CONFIG_USB_G_ACM_MS)	+= g_acm_ms.o
 obj-$(CONFIG_USB_GADGET_TARGET)	+= tcm_usb_gadget.o
+
+# USB Functions
+f_ss_lb-y			:= f_loopback.o f_sourcesink.o
+obj-$(CONFIG_USB_F_SS_LB)	+= f_ss_lb.o
