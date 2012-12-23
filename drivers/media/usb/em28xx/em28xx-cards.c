@@ -2957,6 +2957,8 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 			   int minor)
 {
 	int retval;
+	static const char *default_chip_name = "em28xx";
+	const char *chip_name = default_chip_name;
 
 	dev->udev = udev;
 	mutex_init(&dev->ctrl_urb_lock);
@@ -2984,50 +2986,61 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 
 		switch (dev->chip_id) {
 		case CHIP_ID_EM2800:
-			em28xx_info("chip ID is em2800\n");
+			chip_name = "em2800";
 			break;
 		case CHIP_ID_EM2710:
-			em28xx_info("chip ID is em2710\n");
+			chip_name = "em2710";
 			break;
 		case CHIP_ID_EM2750:
-			em28xx_info("chip ID is em2750\n");
+			chip_name = "em2750";
 			break;
 		case CHIP_ID_EM2820:
-			em28xx_info("chip ID is em2820 (or em2710)\n");
+			chip_name = "em2710/2820";
 			break;
 		case CHIP_ID_EM2840:
-			em28xx_info("chip ID is em2840\n");
+			chip_name = "em2840";
 			break;
 		case CHIP_ID_EM2860:
-			em28xx_info("chip ID is em2860\n");
+			chip_name = "em2860";
 			break;
 		case CHIP_ID_EM2870:
-			em28xx_info("chip ID is em2870\n");
+			chip_name = "em2870";
 			dev->wait_after_write = 0;
 			break;
 		case CHIP_ID_EM2874:
-			em28xx_info("chip ID is em2874\n");
+			chip_name = "em2874";
 			dev->reg_gpio_num = EM2874_R80_GPIO;
 			dev->wait_after_write = 0;
 			break;
 		case CHIP_ID_EM28174:
-			em28xx_info("chip ID is em28174\n");
+			chip_name = "em28174";
 			dev->reg_gpio_num = EM2874_R80_GPIO;
 			dev->wait_after_write = 0;
 			break;
 		case CHIP_ID_EM2883:
-			em28xx_info("chip ID is em2882/em2883\n");
+			chip_name = "em2882/3";
 			dev->wait_after_write = 0;
 			break;
 		case CHIP_ID_EM2884:
-			em28xx_info("chip ID is em2884\n");
+			chip_name = "em2884";
 			dev->reg_gpio_num = EM2874_R80_GPIO;
 			dev->wait_after_write = 0;
 			break;
 		default:
-			em28xx_info("em28xx chip ID = %d\n", dev->chip_id);
+			printk(KERN_INFO DRIVER_NAME
+			       ": unknown em28xx chip ID (%d)\n", dev->chip_id);
 		}
 	}
+
+	if (chip_name != default_chip_name)
+		printk(KERN_INFO DRIVER_NAME
+		       ": chip ID is %s\n", chip_name);
+
+	/*
+	 * For em2820/em2710, the name may change latter, after checking
+	 * if the device has a sensor (so, it is em2710) or not.
+	 */
+	snprintf(dev->name, sizeof(dev->name), "%s #%d", chip_name, dev->devno);
 
 	if (dev->is_audio_only) {
 		retval = em28xx_audio_setup(dev);
@@ -3044,6 +3057,14 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 		dev->reg_gpo = retval;
 
 	em28xx_pre_card_setup(dev);
+
+	if (dev->chip_id == CHIP_ID_EM2820) {
+		if (dev->board.is_webcam)
+			chip_name = "em2710";
+		else
+			chip_name = "em2820";
+		snprintf(dev->name, sizeof(dev->name), "%s #%d", chip_name, dev->devno);
+	}
 
 	if (!dev->board.is_em2800) {
 		/* Resets I2C speed */
@@ -3331,7 +3352,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	    (!dev->dvb_ep_isoc || (prefer_bulk && dev->dvb_ep_bulk)))
 		dev->dvb_xfer_bulk = 1;
 
-	snprintf(dev->name, sizeof(dev->name), "em28xx #%d", nr);
 	dev->devno = nr;
 	dev->model = id->driver_info;
 	dev->alt   = -1;
