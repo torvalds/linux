@@ -491,8 +491,3 @@ ENTRY(sys_rt_sigreturn)
 	mv	r4, r0
 	la	r8, score_rt_sigreturn
 	br	r8
-
-ENTRY(sys_sigaltstack)
-	mv	r4, r0
-	la	r8, score_sigaltstack
-	br	r8
