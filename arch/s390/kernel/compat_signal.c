@@ -234,45 +234,6 @@ sys32_rt_sigaction(int sig, const struct sigaction32 __user *act,
 	return ret;
 }
 
-asmlinkage long
-sys32_sigaltstack(const stack_t32 __user *uss, stack_t32 __user *uoss)
-{
-	struct pt_regs *regs = task_pt_regs(current);
-	stack_t kss, koss;
-	unsigned long ss_sp;
-	int ret, err = 0;
-	mm_segment_t old_fs = get_fs();
-
-	if (uss) {
-		if (!access_ok(VERIFY_READ, uss, sizeof(*uss)))
-			return -EFAULT;
-		err |= __get_user(ss_sp, &uss->ss_sp);
-		err |= __get_user(kss.ss_size, &uss->ss_size);
-		err |= __get_user(kss.ss_flags, &uss->ss_flags);
-		if (err)
-			return -EFAULT;
-		kss.ss_sp = (void __user *) ss_sp;
-	}
-
-	set_fs (KERNEL_DS);
-	ret = do_sigaltstack((stack_t __force __user *) (uss ? &kss : NULL),
-			     (stack_t __force __user *) (uoss ? &koss : NULL),
-			     regs->gprs[15]);
-	set_fs (old_fs);
-
-	if (!ret && uoss) {
-		if (!access_ok(VERIFY_WRITE, uoss, sizeof(*uoss)))
-			return -EFAULT;
-		ss_sp = (unsigned long) koss.ss_sp;
-		err |= __put_user(ss_sp, &uoss->ss_sp);
-		err |= __put_user(koss.ss_size, &uoss->ss_size);
-		err |= __put_user(koss.ss_flags, &uoss->ss_flags);
-		if (err)
-			return -EFAULT;
-	}
-	return ret;
-}
-
 static int save_sigregs32(struct pt_regs *regs, _sigregs32 __user *sregs)
 {
 	_s390_regs_common32 regs32;
@@ -380,10 +341,6 @@ asmlinkage long sys32_rt_sigreturn(void)
 	struct pt_regs *regs = task_pt_regs(current);
 	rt_sigframe32 __user *frame = (rt_sigframe32 __user *)regs->gprs[15];
 	sigset_t set;
-	stack_t st;
-	__u32 ss_sp;
-	int err;
-	mm_segment_t old_fs = get_fs();
 
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
@@ -394,15 +351,8 @@ asmlinkage long sys32_rt_sigreturn(void)
 		goto badframe;
 	if (restore_sigregs_gprs_high(regs, frame->gprs_high))
 		goto badframe;
-	err = __get_user(ss_sp, &frame->uc.uc_stack.ss_sp);
-	st.ss_sp = compat_ptr(ss_sp);
-	err |= __get_user(st.ss_size, &frame->uc.uc_stack.ss_size);
-	err |= __get_user(st.ss_flags, &frame->uc.uc_stack.ss_flags);
-	if (err)
+	if (compat_restore_altstack(&frame->uc.uc_stack))
 		goto badframe; 
-	set_fs (KERNEL_DS);
-	do_sigaltstack((stack_t __force __user *)&st, NULL, regs->gprs[15]);
-	set_fs (old_fs);
 	return regs->gprs[2];
 badframe:
 	force_sig(SIGSEGV, current);
@@ -530,10 +480,7 @@ static int setup_rt_frame32(int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* Create the ucontext.  */
 	err |= __put_user(UC_EXTENDED, &frame->uc.uc_flags);
 	err |= __put_user(0, &frame->uc.uc_link);
-	err |= __put_user(current->sas_ss_sp, &frame->uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(regs->gprs[15]),
-	                  &frame->uc.uc_stack.ss_flags);
-	err |= __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
+	err |= __compat_save_altstack(&frame->uc.uc_stack, regs->gprs[15]);
 	err |= save_sigregs32(regs, &frame->uc.uc_mcontext);
 	err |= save_sigregs_gprs_high(regs, frame->gprs_high);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));

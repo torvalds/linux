@@ -75,17 +75,11 @@ struct sigaction32 {
 	compat_sigset_t	sa_mask;        /* mask last for extensibility */
 };
 
-typedef struct {
-	__u32			ss_sp;		/* pointer */
-	int			ss_flags;
-	compat_size_t		ss_size;
-} stack_t32;
-
 /* asm/ucontext.h */
 struct ucontext32 {
 	__u32			uc_flags;
 	__u32			uc_link;	/* pointer */	
-	stack_t32		uc_stack;
+	compat_stack_t		uc_stack;
 	_sigregs32		uc_mcontext;
 	compat_sigset_t		uc_sigmask;	/* mask last for extensibility */
 };
@@ -153,5 +147,4 @@ long sys32_sigaction(int sig, const struct old_sigaction32 __user *act,
 		     struct old_sigaction32 __user *oact);
 long sys32_rt_sigaction(int sig, const struct sigaction32 __user *act,
 			struct sigaction32 __user *oact, size_t sigsetsize);
-long sys32_sigaltstack(const stack_t32 __user *uss, stack_t32 __user *uoss);
 #endif /* _ASM_S390X_S390_H */

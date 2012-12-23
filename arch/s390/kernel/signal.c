@@ -89,13 +89,6 @@ SYSCALL_DEFINE3(sigaction, int, sig, const struct old_sigaction __user *, act,
 	return ret;
 }
 
-SYSCALL_DEFINE2(sigaltstack, const stack_t __user *, uss,
-		stack_t __user *, uoss)
-{
-	struct pt_regs *regs = task_pt_regs(current);
-	return do_sigaltstack(uss, uoss, regs->gprs[15]);
-}
-
 /* Returns non-zero on fault. */
 static int save_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 {
@@ -190,8 +183,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	set_current_blocked(&set);
 	if (restore_sigregs(regs, &frame->uc.uc_mcontext))
 		goto badframe;
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL,
-			   regs->gprs[15]) == -EFAULT)
+	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
 	return regs->gprs[2];
 badframe:
@@ -325,10 +317,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->uc.uc_flags);
 	err |= __put_user(NULL, &frame->uc.uc_link);
-	err |= __put_user((void __user *)current->sas_ss_sp, &frame->uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(regs->gprs[15]),
-			  &frame->uc.uc_stack.ss_flags);
-	err |= __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
+	err |= __save_altstack(&frame->uc.uc_stack, regs->gprs[15]);
 	err |= save_sigregs(regs, &frame->uc.uc_mcontext);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 	if (err)

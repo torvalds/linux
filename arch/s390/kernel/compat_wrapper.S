@@ -760,11 +760,6 @@ ENTRY(sys32_capset_wrapper)
 	llgtr	%r3,%r3			# const cap_user_data_t
 	jg	sys_capset		# branch to system call
 
-ENTRY(sys32_sigaltstack_wrapper)
-	llgtr	%r2,%r2			# const stack_emu31_t *
-	llgtr	%r3,%r3			# stack_emu31_t *
-	jg	sys32_sigaltstack
-
 ENTRY(sys32_sendfile_wrapper)
 	lgfr	%r2,%r2			# int
 	lgfr	%r3,%r3			# int
