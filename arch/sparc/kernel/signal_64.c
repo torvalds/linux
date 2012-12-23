@@ -295,7 +295,8 @@ void do_rt_sigreturn(struct pt_regs *regs)
 		err |= restore_fpu_state(regs, fpu_save);
 
 	err |= __copy_from_user(&set, &sf->mask, sizeof(sigset_t));
-	if (err || do_sigaltstack(&sf->stack, NULL, (unsigned long)sf) == -EFAULT)
+	err |= restore_altstack(&sf->stack);
+	if (err)
 		goto segv;
 
 	err |= __get_user(rwin_save, &sf->rwin_save);
@@ -403,9 +404,7 @@ setup_rt_frame(struct k_sigaction *ka, struct pt_regs *regs,
 	}
 	
 	/* Setup sigaltstack */
-	err |= __put_user(current->sas_ss_sp, &sf->stack.ss_sp);
-	err |= __put_user(sas_ss_flags(regs->u_regs[UREG_FP]), &sf->stack.ss_flags);
-	err |= __put_user(current->sas_ss_size, &sf->stack.ss_size);
+	err |= __save_altstack(&sf->stack, regs->u_regs[UREG_FP]);
 
 	err |= copy_to_user(&sf->mask, oldset, sizeof(sigset_t));
 

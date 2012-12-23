@@ -141,9 +141,7 @@ asmlinkage void do_rt_sigreturn(struct pt_regs *regs)
 	unsigned int psr, pc, npc;
 	__siginfo_fpu_t __user *fpu_save;
 	__siginfo_rwin_t __user *rwin_save;
-	mm_segment_t old_fs;
 	sigset_t set;
-	stack_t st;
 	int err;
 
 	synchronize_user_stack();
@@ -171,8 +169,7 @@ asmlinkage void do_rt_sigreturn(struct pt_regs *regs)
 	if (!err && fpu_save)
 		err |= restore_fpu_state(regs, fpu_save);
 	err |= __copy_from_user(&set, &sf->mask, sizeof(sigset_t));
-	
-	err |= __copy_from_user(&st, &sf->stack, sizeof(stack_t));
+	err |= restore_altstack(&sf->stack);
 	
 	if (err)
 		goto segv;
@@ -180,14 +177,6 @@ asmlinkage void do_rt_sigreturn(struct pt_regs *regs)
 	regs->pc = pc;
 	regs->npc = npc;
 	
-	/* It is more difficult to avoid calling this function than to
-	 * call it and ignore errors.
-	 */
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	do_sigaltstack((const stack_t __user *) &st, NULL, (unsigned long)sf);
-	set_fs(old_fs);
-
 	err |= __get_user(rwin_save, &sf->rwin_save);
 	if (!err && rwin_save) {
 		if (restore_rwin_state(rwin_save))
@@ -391,9 +380,7 @@ static int setup_rt_frame(struct k_sigaction *ka, struct pt_regs *regs,
 	err |= __copy_to_user(&sf->mask, &oldset->sig[0], sizeof(sigset_t));
 	
 	/* Setup sigaltstack */
-	err |= __put_user(current->sas_ss_sp, &sf->stack.ss_sp);
-	err |= __put_user(sas_ss_flags(regs->u_regs[UREG_FP]), &sf->stack.ss_flags);
-	err |= __put_user(current->sas_ss_size, &sf->stack.ss_size);
+	err |= __save_altstack(&sf->stack, regs->u_regs[UREG_FP]);
 	
 	if (!wsaved) {
 		err |= __copy_to_user(sf, (char *) regs->u_regs[UREG_FP],
