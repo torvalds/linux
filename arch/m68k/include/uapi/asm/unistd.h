@@ -353,5 +353,6 @@
 #define __NR_process_vm_readv	345
 #define __NR_process_vm_writev	346
 #define __NR_kcmp		347
+#define __NR_finit_module	348
 
 #endif /* _UAPI_ASM_M68K_UNISTD_H_ */
