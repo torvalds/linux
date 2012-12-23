@@ -265,7 +265,7 @@ asmlinkage long xtensa_rt_sigreturn(long a0, long a1, long a2, long a3,
 
 	ret = regs->areg[2];
 
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL, regs->areg[1]) == -EFAULT)
+	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
 
 	return ret;
@@ -368,11 +368,7 @@ static int setup_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	err |= __put_user(0, &frame->uc.uc_flags);
 	err |= __put_user(0, &frame->uc.uc_link);
-	err |= __put_user((void *)current->sas_ss_sp,
-			  &frame->uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(regs->areg[1]),
-			  &frame->uc.uc_stack.ss_flags);
-	err |= __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
+	err |= __save_altstack(&frame->uc.uc_stack, regs->areg[1]);
 	err |= setup_sigcontext(frame, regs);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 
@@ -423,16 +419,6 @@ give_sigsegv:
 	force_sigsegv(sig, current);
 	return -EFAULT;
 }
-
-asmlinkage long xtensa_sigaltstack(const stack_t __user *uss,
-				   stack_t __user *uoss,
-				   long a2, long a3, long a4, long a5,
-				   struct pt_regs *regs)
-{
-	return do_sigaltstack(uss, uoss, regs->areg[1]);
-}
-
-
 
 /*
  * Note that 'init' is a special process: it doesn't get signals it doesn't

@@ -483,7 +483,7 @@ __SYSCALL(222, sys_ni_syscall, 0)
 #define __NR_restart_syscall 			223
 __SYSCALL(223, sys_restart_syscall, 0)
 #define __NR_sigaltstack 			224
-__SYSCALL(224, xtensa_sigaltstack, 2)
+__SYSCALL(224, sys_sigaltstack, 2)
 #define __NR_rt_sigreturn 			225
 __SYSCALL(225, xtensa_rt_sigreturn, 1)
 #define __NR_rt_sigaction 			226
