@@ -598,18 +598,6 @@ ENTRY(enable_exception)
 	NOP	5
 ENDPROC(enable_exception)
 
-ENTRY(sys_sigaltstack)
-#ifdef CONFIG_C6X_BIG_KERNEL
-	MVKL	.S1	do_sigaltstack,A0	; branch to do_sigaltstack
-	MVKH	.S1	do_sigaltstack,A0
-	B	.S2X	A0
-#else
-	B	.S2	do_sigaltstack
-#endif
-	LDW	.D2T1	*+SP(REGS_SP+8),A6
-	NOP	4
-ENDPROC(sys_sigaltstack)
-
 	;;
 	;; Special system calls
 	;; return address is in B3
