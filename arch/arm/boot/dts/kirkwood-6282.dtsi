@@ -21,6 +21,12 @@
 				marvell,pins = "mpp8", "mpp9";
 				marvell,function = "twsi0";
 			};
+
+			pmx_twsi1: pmx-twsi1 {
+				marvell,pins = "mpp36", "mpp37";
+				marvell,function = "twsi1";
+			};
+
 			pmx_uart0: pmx-uart0 {
 				marvell,pins = "mpp10", "mpp11";
 				marvell,function = "uart0";
