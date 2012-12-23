@@ -139,10 +139,13 @@ const struct usb_descriptor_header *otg_desc[] = {
 /* default serial number takes at least two packets */
 static char serial[] = "0123456789.0123456789.0123456789";
 
+#define USB_GZERO_SS_DESC	(USB_GADGET_FIRST_AVAIL_IDX + 0)
+
 static struct usb_string strings_dev[] = {
 	[USB_GADGET_MANUFACTURER_IDX].s = "",
 	[USB_GADGET_PRODUCT_IDX].s = longname,
 	[USB_GADGET_SERIAL_IDX].s = serial,
+	[USB_GZERO_SS_DESC].s	= "source and sink data",
 	{  }			/* end of list */
 };
 
@@ -251,6 +254,15 @@ static void zero_resume(struct usb_composite_dev *cdev)
 
 /*-------------------------------------------------------------------------*/
 
+static struct usb_configuration sourcesink_driver = {
+	.label                  = "source/sink",
+	.strings                = sourcesink_strings,
+	.setup                  = ss_config_setup,
+	.bConfigurationValue    = 3,
+	.bmAttributes           = USB_CONFIG_ATT_SELFPOWER,
+	/* .iConfiguration      = DYNAMIC */
+};
+
 static int __init zero_bind(struct usb_composite_dev *cdev)
 {
 	int			status;
@@ -268,14 +280,29 @@ static int __init zero_bind(struct usb_composite_dev *cdev)
 
 	setup_timer(&autoresume_timer, zero_autoresume, (unsigned long) cdev);
 
+	sourcesink_driver.iConfiguration = strings_dev[USB_GZERO_SS_DESC].id;
+	/* support autoresume for remote wakeup testing */
+	sourcesink_driver.bmAttributes &= ~USB_CONFIG_ATT_WAKEUP;
+	sourcesink_driver.descriptors = NULL;
+	if (autoresume)
+		sourcesink_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
+
+	/* support OTG systems */
+	if (gadget_is_otg(cdev->gadget)) {
+		sourcesink_driver.descriptors = otg_desc;
+		sourcesink_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
+	}
+
 	/* Register primary, then secondary configuration.  Note that
 	 * SH3 only allows one config...
 	 */
 	if (loopdefault) {
 		loopback_add(cdev, autoresume != 0);
-		sourcesink_add(cdev, autoresume != 0);
+		usb_add_config(cdev, &sourcesink_driver,
+				sourcesink_bind_config);
 	} else {
-		sourcesink_add(cdev, autoresume != 0);
+		usb_add_config(cdev, &sourcesink_driver,
+				sourcesink_bind_config);
 		loopback_add(cdev, autoresume != 0);
 	}
 

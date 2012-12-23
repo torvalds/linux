@@ -328,6 +328,14 @@ sourcesink_bind(struct usb_configuration *c, struct usb_function *f)
 	source_sink_intf_alt0.bInterfaceNumber = id;
 	source_sink_intf_alt1.bInterfaceNumber = id;
 
+	/* allocate string ID(s) */
+	id = usb_string_id(cdev);
+	if (id < 0)
+		return id;
+	strings_sourcesink[0].id = id;
+	source_sink_intf_alt0.iInterface = id;
+	source_sink_intf_alt1.iInterface = id;
+
 	/* allocate bulk endpoints */
 	ss->in_ep = usb_ep_autoconfig(cdev->gadget, &fs_source_desc);
 	if (!ss->in_ep) {
@@ -868,44 +876,4 @@ static int ss_config_setup(struct usb_configuration *c,
 	default:
 		return -EOPNOTSUPP;
 	}
-}
-
-static struct usb_configuration sourcesink_driver = {
-	.label			= "source/sink",
-	.strings		= sourcesink_strings,
-	.setup			= ss_config_setup,
-	.bConfigurationValue	= 3,
-	.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
-	/* .iConfiguration	= DYNAMIC */
-};
-
-/**
- * sourcesink_add - add a source/sink testing configuration to a device
- * @cdev: the device to support the configuration
- */
-int __init sourcesink_add(struct usb_composite_dev *cdev, bool autoresume)
-{
-	int id;
-
-	/* allocate string ID(s) */
-	id = usb_string_id(cdev);
-	if (id < 0)
-		return id;
-	strings_sourcesink[0].id = id;
-
-	source_sink_intf_alt0.iInterface = id;
-	source_sink_intf_alt1.iInterface = id;
-	sourcesink_driver.iConfiguration = id;
-
-	/* support autoresume for remote wakeup testing */
-	if (autoresume)
-		sourcesink_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
-
-	/* support OTG systems */
-	if (gadget_is_otg(cdev->gadget)) {
-		sourcesink_driver.descriptors = otg_desc;
-		sourcesink_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
-	}
-
-	return usb_add_config(cdev, &sourcesink_driver, sourcesink_bind_config);
 }
