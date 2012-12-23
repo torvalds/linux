@@ -61,17 +61,10 @@ struct sigaction32 {
 	compat_sigset_t		sa_mask;
 };
 
-/* IRIX compatible stack_t  */
-typedef struct sigaltstack32 {
-	s32 ss_sp;
-	compat_size_t ss_size;
-	int ss_flags;
-} stack32_t;
-
 struct ucontext32 {
 	u32                 uc_flags;
 	s32                 uc_link;
-	stack32_t           uc_stack;
+	compat_stack_t      uc_stack;
 	struct sigcontext32 uc_mcontext;
 	compat_sigset_t     uc_sigmask;   /* mask last for extensibility */
 };
@@ -350,45 +343,6 @@ SYSCALL_DEFINE3(32_sigaction, long, sig, const struct sigaction32 __user *, act,
 	return ret;
 }
 
-asmlinkage int sys32_sigaltstack(nabi_no_regargs struct pt_regs regs)
-{
-	const stack32_t __user *uss = (const stack32_t __user *) regs.regs[4];
-	stack32_t __user *uoss = (stack32_t __user *) regs.regs[5];
-	unsigned long usp = regs.regs[29];
-	stack_t kss, koss;
-	int ret, err = 0;
-	mm_segment_t old_fs = get_fs();
-	s32 sp;
-
-	if (uss) {
-		if (!access_ok(VERIFY_READ, uss, sizeof(*uss)))
-			return -EFAULT;
-		err |= __get_user(sp, &uss->ss_sp);
-		kss.ss_sp = (void __user *) (long) sp;
-		err |= __get_user(kss.ss_size, &uss->ss_size);
-		err |= __get_user(kss.ss_flags, &uss->ss_flags);
-		if (err)
-			return -EFAULT;
-	}
-
-	set_fs(KERNEL_DS);
-	ret = do_sigaltstack(uss ? (stack_t __user *)&kss : NULL,
-			     uoss ? (stack_t __user *)&koss : NULL, usp);
-	set_fs(old_fs);
-
-	if (!ret && uoss) {
-		if (!access_ok(VERIFY_WRITE, uoss, sizeof(*uoss)))
-			return -EFAULT;
-		sp = (int) (unsigned long) koss.ss_sp;
-		err |= __put_user(sp, &uoss->ss_sp);
-		err |= __put_user(koss.ss_size, &uoss->ss_size);
-		err |= __put_user(koss.ss_flags, &uoss->ss_flags);
-		if (err)
-			return -EFAULT;
-	}
-	return ret;
-}
-
 int copy_siginfo_to_user32(compat_siginfo_t __user *to, siginfo_t *from)
 {
 	int err;
@@ -490,10 +444,7 @@ badframe:
 asmlinkage void sys32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 {
 	struct rt_sigframe32 __user *frame;
-	mm_segment_t old_fs;
 	sigset_t set;
-	stack_t st;
-	s32 sp;
 	int sig;
 
 	frame = (struct rt_sigframe32 __user *) regs.regs[29];
@@ -510,21 +461,8 @@ asmlinkage void sys32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 	else if (sig)
 		force_sig(sig, current);
 
-	/* The ucontext contains a stack32_t, so we must convert!  */
-	if (__get_user(sp, &frame->rs_uc.uc_stack.ss_sp))
+	if (compat_restore_altstack(&frame->rs_uc.uc_stack))
 		goto badframe;
-	st.ss_sp = (void __user *)(long) sp;
-	if (__get_user(st.ss_size, &frame->rs_uc.uc_stack.ss_size))
-		goto badframe;
-	if (__get_user(st.ss_flags, &frame->rs_uc.uc_stack.ss_flags))
-		goto badframe;
-
-	/* It is more difficult to avoid calling this function than to
-	   call it and ignore errors.  */
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	do_sigaltstack((stack_t __user *)&st, NULL, regs.regs[29]);
-	set_fs(old_fs);
 
 	/*
 	 * Don't let your children do this ...
@@ -590,7 +528,6 @@ static int setup_rt_frame_32(void *sig_return, struct k_sigaction *ka,
 {
 	struct rt_sigframe32 __user *frame;
 	int err = 0;
-	s32 sp;
 
 	frame = get_sigframe(ka, regs, sizeof(*frame));
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
@@ -602,13 +539,7 @@ static int setup_rt_frame_32(void *sig_return, struct k_sigaction *ka,
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->rs_uc.uc_flags);
 	err |= __put_user(0, &frame->rs_uc.uc_link);
-	sp = (int) (long) current->sas_ss_sp;
-	err |= __put_user(sp,
-	                  &frame->rs_uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(regs->regs[29]),
-	                  &frame->rs_uc.uc_stack.ss_flags);
-	err |= __put_user(current->sas_ss_size,
-	                  &frame->rs_uc.uc_stack.ss_size);
+	err |= __compat_save_altstack(&frame->rs_uc.uc_stack, regs->regs[29]);
 	err |= setup_sigcontext32(regs, &frame->rs_uc.uc_mcontext);
 	err |= __copy_conv_sigset_to_user(&frame->rs_uc.uc_sigmask, set);
 

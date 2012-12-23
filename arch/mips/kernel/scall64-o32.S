@@ -398,7 +398,7 @@ sys_call_table:
 	PTR	sys_getcwd
 	PTR	sys_capget
 	PTR	sys_capset			/* 4205 */
-	PTR	sys32_sigaltstack
+	PTR	compat_sys_sigaltstack
 	PTR	sys_32_sendfile
 	PTR	sys_ni_syscall
 	PTR	sys_ni_syscall

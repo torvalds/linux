@@ -288,6 +288,14 @@ struct compat_shmid64_ds {
 	compat_ulong_t	__unused2;
 };
 
+/* MIPS has unusual order of fields in stack_t */
+typedef struct compat_sigaltstack {
+	compat_uptr_t			ss_sp;
+	compat_size_t			ss_size;
+	int				ss_flags;
+} compat_stack_t;
+#define compat_sigaltstack compat_sigaltstack
+
 static inline int is_compat_task(void)
 {
 	return test_thread_flag(TIF_32BIT_ADDR);
