@@ -39,7 +39,6 @@
 #include "f_acm.c"
 #include "f_obex.c"
 #include "f_serial.c"
-#include "u_serial.c"
 
 /*-------------------------------------------------------------------------*/
 USB_GADGET_COMPOSITE_OPTIONS();

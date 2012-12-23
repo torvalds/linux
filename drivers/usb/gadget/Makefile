@@ -78,3 +78,4 @@ obj-$(CONFIG_USB_GADGET_TARGET)	+= tcm_usb_gadget.o
 # USB Functions
 f_ss_lb-y			:= f_loopback.o f_sourcesink.o
 obj-$(CONFIG_USB_F_SS_LB)	+= f_ss_lb.o
+obj-$(CONFIG_USB_U_SERIAL)	+= u_serial.o

@@ -13,9 +13,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 
-#ifdef CONFIG_USB_G_DBGP_SERIAL
-#include "u_serial.c"
-#endif
+#include "u_serial.h"
 
 #define DRIVER_VENDOR_ID	0x0525 /* NetChip */
 #define DRIVER_PRODUCT_ID	0xc0de /* undefined */

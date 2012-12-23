@@ -42,7 +42,6 @@ MODULE_LICENSE("GPL");
  */
 #include "f_mass_storage.c"
 
-#include "u_serial.c"
 #include "f_acm.c"
 
 #include "f_ecm.c"

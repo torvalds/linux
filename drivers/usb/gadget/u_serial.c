@@ -26,6 +26,7 @@
 #include <linux/tty_flip.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/module.h>
 
 #include "u_serial.h"
 
@@ -309,6 +310,7 @@ gs_alloc_req(struct usb_ep *ep, unsigned len, gfp_t kmalloc_flags)
 
 	return req;
 }
+EXPORT_SYMBOL_GPL(gs_alloc_req);
 
 /*
  * gs_free_req
@@ -320,6 +322,7 @@ void gs_free_req(struct usb_ep *ep, struct usb_request *req)
 	kfree(req->buf);
 	usb_ep_free_request(ep, req);
 }
+EXPORT_SYMBOL_GPL(gs_free_req);
 
 /*
  * gs_send_packet
@@ -1081,6 +1084,9 @@ int gserial_setup(struct usb_gadget *g, unsigned count)
 	if (count == 0 || count > N_PORTS)
 		return -EINVAL;
 
+	if (gs_tty_driver)
+		return -EBUSY;
+
 	gs_tty_driver = alloc_tty_driver(count);
 	if (!gs_tty_driver)
 		return -ENOMEM;
@@ -1153,6 +1159,7 @@ fail:
 	gs_tty_driver = NULL;
 	return status;
 }
+EXPORT_SYMBOL_GPL(gserial_setup);
 
 static int gs_closed(struct gs_port *port)
 {
@@ -1213,6 +1220,7 @@ void gserial_cleanup(void)
 
 	pr_debug("%s: cleaned up ttyGS* support\n", __func__);
 }
+EXPORT_SYMBOL_GPL(gserial_cleanup);
 
 /**
  * gserial_connect - notify TTY I/O glue that USB link is active
@@ -1292,7 +1300,7 @@ fail_out:
 	gser->in->driver_data = NULL;
 	return status;
 }
-
+EXPORT_SYMBOL_GPL(gserial_connect);
 /**
  * gserial_disconnect - notify TTY I/O glue that USB link is inactive
  * @gser: the function, on which gserial_connect() was called
@@ -1347,3 +1355,6 @@ void gserial_disconnect(struct gserial *gser)
 
 	spin_unlock_irqrestore(&port->port_lock, flags);
 }
+EXPORT_SYMBOL_GPL(gserial_disconnect);
+
+MODULE_LICENSE("GPL");
