@@ -943,6 +943,12 @@ static int get_string(struct usb_composite_dev *cdev,
 					collect_langs(sp, s->wData);
 			}
 		}
+		list_for_each_entry(uc, &cdev->gstrings, list) {
+			struct usb_gadget_strings **sp;
+
+			sp = get_containers_gs(uc);
+			collect_langs(sp, s->wData);
+		}
 
 		for (len = 0; len <= 126 && s->wData[len]; len++)
 			continue;
@@ -1506,7 +1512,6 @@ static DEVICE_ATTR(suspended, 0444, composite_show_suspended, NULL);
 static void __composite_unbind(struct usb_gadget *gadget, bool unbind_driver)
 {
 	struct usb_composite_dev	*cdev = get_gadget_data(gadget);
-	struct usb_gadget_string_container *uc, *tmp;
 
 	/* composite_disconnect() must already have been called
 	 * by the underlying peripheral controller driver!
@@ -1520,10 +1525,6 @@ static void __composite_unbind(struct usb_gadget *gadget, bool unbind_driver)
 		c = list_first_entry(&cdev->configs,
 				struct usb_configuration, list);
 		remove_config(cdev, c);
-	}
-	list_for_each_entry_safe(uc, tmp, &cdev->gstrings, list) {
-		list_del(&uc->list);
-		kfree(uc);
 	}
 	if (cdev->driver->unbind && unbind_driver)
 		cdev->driver->unbind(cdev);
@@ -1626,6 +1627,12 @@ fail:
 
 void composite_dev_cleanup(struct usb_composite_dev *cdev)
 {
+	struct usb_gadget_string_container *uc, *tmp;
+
+	list_for_each_entry_safe(uc, tmp, &cdev->gstrings, list) {
+		list_del(&uc->list);
+		kfree(uc);
+	}
 	if (cdev->req) {
 		kfree(cdev->req->buf);
 		usb_ep_free_request(cdev->gadget->ep0, cdev->req);

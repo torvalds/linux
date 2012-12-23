@@ -285,7 +285,6 @@ static struct usb_string acm_string_defs[] = {
 	[ACM_CTRL_IDX].s = "CDC Abstract Control Model (ACM)",
 	[ACM_DATA_IDX].s = "CDC ACM Data",
 	[ACM_IAD_IDX ].s = "CDC Serial",
-	{  /* ZEROES END LIST */ },
 };
 
 static struct usb_gadget_strings acm_string_table = {
@@ -607,6 +606,7 @@ acm_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct usb_composite_dev *cdev = c->cdev;
 	struct f_acm		*acm = func_to_acm(f);
+	struct usb_string	*us;
 	int			status;
 	struct usb_ep		*ep;
 
@@ -615,16 +615,13 @@ acm_bind(struct usb_configuration *c, struct usb_function *f)
 	 */
 
 	/* maybe allocate device-global string IDs, and patch descriptors */
-	if (acm_string_defs[0].id == 0) {
-		status = usb_string_ids_tab(c->cdev, acm_string_defs);
-		if (status < 0)
-			return status;
-		acm_control_interface_desc.iInterface =
-			acm_string_defs[ACM_CTRL_IDX].id;
-		acm_data_interface_desc.iInterface =
-			acm_string_defs[ACM_DATA_IDX].id;
-		acm_iad_descriptor.iFunction = acm_string_defs[ACM_IAD_IDX].id;
-	}
+	us = usb_gstrings_attach(cdev, acm_strings,
+			ARRAY_SIZE(acm_string_defs));
+	if (IS_ERR(us))
+		return PTR_ERR(us);
+	acm_control_interface_desc.iInterface = us[ACM_CTRL_IDX].id;
+	acm_data_interface_desc.iInterface = us[ACM_DATA_IDX].id;
+	acm_iad_descriptor.iFunction = us[ACM_IAD_IDX].id;
 
 	/* allocate instance-specific interface IDs, and patch descriptors */
 	status = usb_interface_id(c, f);
@@ -733,7 +730,6 @@ static struct f_acm *acm_alloc_basic_func(void)
 	acm->port.send_break = acm_send_break;
 
 	acm->port.func.name = "acm";
-	acm->port.func.strings = acm_strings;
 	/* descriptors are per-instance copies */
 	acm->port.func.bind = acm_bind;
 	acm->port.func.set_alt = acm_set_alt;
@@ -749,7 +745,6 @@ acm_old_unbind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct f_acm		*acm = func_to_acm(f);
 
-	acm_string_defs[0].id = 0;
 	usb_free_all_descriptors(f);
 	if (acm->notify_req)
 		gs_free_req(acm->notify, acm->notify_req);
