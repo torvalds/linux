@@ -5,6 +5,12 @@
 			compatible = "marvell,88f6282-pinctrl";
 			reg = <0x10000 0x20>;
 
+			pmx_nand: pmx-nand {
+				marvell,pins = "mpp0", "mpp1", "mpp2", "mpp3",
+							"mpp4", "mpp5", "mpp18", "mpp19";
+				marvell,function = "nand";
+			};
+
 			pmx_sata0: pmx-sata0 {
 				marvell,pins = "mpp5", "mpp21", "mpp23";
 				marvell,function = "sata0";
