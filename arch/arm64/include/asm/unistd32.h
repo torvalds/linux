@@ -207,7 +207,7 @@ __SYSCALL(182, sys_chown16)
 __SYSCALL(183, sys_getcwd)
 __SYSCALL(184, sys_capget)
 __SYSCALL(185, sys_capset)
-__SYSCALL(186, compat_sys_sigaltstack_wrapper)
+__SYSCALL(186, compat_sys_sigaltstack)
 __SYSCALL(187, compat_sys_sendfile)
 __SYSCALL(188, sys_ni_syscall)			/* 188 reserved */
 __SYSCALL(189, sys_ni_syscall)			/* 189 reserved */

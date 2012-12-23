@@ -42,12 +42,6 @@ struct compat_old_sigaction {
 	compat_uptr_t			sa_restorer;
 };
 
-typedef struct compat_sigaltstack {
-	compat_uptr_t			ss_sp;
-	int				ss_flags;
-	compat_size_t			ss_size;
-} compat_stack_t;
-
 struct compat_sigcontext {
 	/* We always set these two fields to 0 */
 	compat_ulong_t			trap_no;
@@ -423,43 +417,6 @@ asmlinkage int compat_sys_rt_sigaction(int sig,
 	return ret;
 }
 
-int compat_do_sigaltstack(compat_uptr_t compat_uss, compat_uptr_t compat_uoss,
-			  compat_ulong_t sp)
-{
-	compat_stack_t __user *newstack = compat_ptr(compat_uss);
-	compat_stack_t __user *oldstack = compat_ptr(compat_uoss);
-	compat_uptr_t ss_sp;
-	int ret;
-	mm_segment_t old_fs;
-	stack_t uss, uoss;
-
-	/* Marshall the compat new stack into a stack_t */
-	if (newstack) {
-		if (get_user(ss_sp, &newstack->ss_sp) ||
-		    __get_user(uss.ss_flags, &newstack->ss_flags) ||
-		    __get_user(uss.ss_size, &newstack->ss_size))
-			return -EFAULT;
-		uss.ss_sp = compat_ptr(ss_sp);
-	}
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	/* The __user pointer casts are valid because of the set_fs() */
-	ret = do_sigaltstack(
-		newstack ? (stack_t __user *) &uss : NULL,
-		oldstack ? (stack_t __user *) &uoss : NULL,
-		(unsigned long)sp);
-	set_fs(old_fs);
-
-	/* Convert the old stack_t into a compat stack. */
-	if (!ret && oldstack &&
-		(put_user(ptr_to_compat(uoss.ss_sp), &oldstack->ss_sp) ||
-		 __put_user(uoss.ss_flags, &oldstack->ss_flags) ||
-		 __put_user(uoss.ss_size, &oldstack->ss_size)))
-		return -EFAULT;
-	return ret;
-}
-
 static int compat_restore_sigframe(struct pt_regs *regs,
 				   struct compat_sigframe __user *sf)
 {
@@ -562,9 +519,7 @@ asmlinkage int compat_sys_rt_sigreturn(struct pt_regs *regs)
 	if (compat_restore_sigframe(regs, &frame->sig))
 		goto badframe;
 
-	if (compat_do_sigaltstack(ptr_to_compat(&frame->sig.uc.uc_stack),
-				 ptr_to_compat((void __user *)NULL),
-				 regs->compat_sp) == -EFAULT)
+	if (compat_restore_altstack(&frame->sig.uc.uc_stack))
 		goto badframe;
 
 	return regs->regs[0];
@@ -705,11 +660,7 @@ int compat_setup_rt_frame(int usig, struct k_sigaction *ka, siginfo_t *info,
 	__put_user_error(0, &frame->sig.uc.uc_flags, err);
 	__put_user_error(NULL, &frame->sig.uc.uc_link, err);
 
-	memset(&stack, 0, sizeof(stack));
-	stack.ss_sp = (compat_uptr_t)current->sas_ss_sp;
-	stack.ss_flags = sas_ss_flags(regs->compat_sp);
-	stack.ss_size = current->sas_ss_size;
-	err |= __copy_to_user(&frame->sig.uc.uc_stack, &stack, sizeof(stack));
+	err |= __compat_save_altstack(&frame->sig.uc.uc_stack, regs->compat_sp);
 
 	err |= compat_setup_sigframe(&frame->sig, regs, set);
 

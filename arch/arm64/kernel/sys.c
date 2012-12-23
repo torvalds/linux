@@ -40,7 +40,6 @@ asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
  * Wrappers to pass the pt_regs argument.
  */
 #define sys_rt_sigreturn	sys_rt_sigreturn_wrapper
-#define sys_sigaltstack		sys_sigaltstack_wrapper
 
 #include <asm/syscalls.h>
 
