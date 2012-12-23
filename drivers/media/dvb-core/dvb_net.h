@@ -40,6 +40,7 @@ struct dvb_net {
 	int state[DVB_NET_DEVICES_MAX];
 	unsigned int exit:1;
 	struct dmx_demux *demux;
+	struct mutex ioctl_mutex;
 };
 
 void dvb_net_release(struct dvb_net *);

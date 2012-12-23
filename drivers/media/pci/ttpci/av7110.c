@@ -2723,6 +2723,8 @@ static int __devinit av7110_attach(struct saa7146_dev* dev,
 	if (ret < 0)
 		goto err_av7110_exit_v4l_12;
 
+	mutex_init(&av7110->ioctl_mutex);
+
 #if defined(CONFIG_INPUT_EVDEV) || defined(CONFIG_INPUT_EVDEV_MODULE)
 	av7110_ir_init(av7110);
 #endif
