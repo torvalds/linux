@@ -449,11 +449,14 @@ no_iso:
 	return 0;
 }
 
+static struct usb_function *global_ss_func;
+
 static void
 sourcesink_unbind(struct usb_configuration *c, struct usb_function *f)
 {
 	usb_free_all_descriptors(f);
 	kfree(func_to_ss(f));
+	global_ss_func = NULL;
 }
 
 /* optionally require specific source/sink data patterns  */
@@ -756,32 +759,10 @@ static void sourcesink_disable(struct usb_function *f)
 }
 
 /*-------------------------------------------------------------------------*/
-
-static int __init sourcesink_bind_config(struct usb_configuration *c)
-{
-	struct f_sourcesink	*ss;
-	int			status;
-
-	ss = kzalloc(sizeof *ss, GFP_KERNEL);
-	if (!ss)
-		return -ENOMEM;
-
-	ss->function.name = "source/sink";
-	ss->function.bind = sourcesink_bind;
-	ss->function.unbind = sourcesink_unbind;
-	ss->function.set_alt = sourcesink_set_alt;
-	ss->function.get_alt = sourcesink_get_alt;
-	ss->function.disable = sourcesink_disable;
-
-	status = usb_add_function(c, &ss->function);
-	if (status)
-		kfree(ss);
-	return status;
-}
-
-static int sourcesink_setup(struct usb_configuration *c,
+static int sourcesink_setup(struct usb_function *f,
 		const struct usb_ctrlrequest *ctrl)
 {
+	struct usb_configuration        *c = f->config;
 	struct usb_request	*req = c->cdev->req;
 	int			value = -EOPNOTSUPP;
 	u16			w_index = le16_to_cpu(ctrl->wIndex);
@@ -850,10 +831,49 @@ unknown:
 	return value;
 }
 
+static int __init sourcesink_bind_config(struct usb_configuration *c)
+{
+	struct f_sourcesink	*ss;
+	int			status;
+
+	ss = kzalloc(sizeof(*ss), GFP_KERNEL);
+	if (!ss)
+		return -ENOMEM;
+
+	global_ss_func = &ss->function;
+
+	ss->function.name = "source/sink";
+	ss->function.bind = sourcesink_bind;
+	ss->function.unbind = sourcesink_unbind;
+	ss->function.set_alt = sourcesink_set_alt;
+	ss->function.get_alt = sourcesink_get_alt;
+	ss->function.disable = sourcesink_disable;
+	ss->function.setup = sourcesink_setup;
+
+	status = usb_add_function(c, &ss->function);
+	if (status)
+		kfree(ss);
+	return status;
+}
+
+static int ss_config_setup(struct usb_configuration *c,
+		const struct usb_ctrlrequest *ctrl)
+{
+	if (!global_ss_func)
+		return -EOPNOTSUPP;
+	switch (ctrl->bRequest) {
+	case 0x5b:
+	case 0x5c:
+		return global_ss_func->setup(global_ss_func, ctrl);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static struct usb_configuration sourcesink_driver = {
 	.label			= "source/sink",
 	.strings		= sourcesink_strings,
-	.setup			= sourcesink_setup,
+	.setup			= ss_config_setup,
 	.bConfigurationValue	= 3,
 	.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
 	/* .iConfiguration	= DYNAMIC */
