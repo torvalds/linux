@@ -1394,11 +1394,8 @@ static void __composite_unbind(struct usb_gadget *gadget, bool unbind_driver)
 	if (cdev->driver->unbind && unbind_driver)
 		cdev->driver->unbind(cdev);
 
-	if (cdev->req) {
-		kfree(cdev->req->buf);
-		usb_ep_free_request(gadget->ep0, cdev->req);
-	}
-	device_remove_file(&gadget->dev, &dev_attr_suspended);
+	composite_dev_cleanup(cdev);
+
 	kfree(cdev->def_manufacturer);
 	kfree(cdev);
 	set_gadget_data(gadget, NULL);
@@ -1447,9 +1444,59 @@ static void update_unchanged_dev_desc(struct usb_device_descriptor *new,
 		new->iProduct = iProduct;
 }
 
-static struct usb_composite_driver *to_cdriver(struct usb_gadget_driver *gdrv)
+int composite_dev_prepare(struct usb_composite_driver *composite,
+		struct usb_composite_dev *cdev)
 {
-	return container_of(gdrv, struct usb_composite_driver, gadget_driver);
+	struct usb_gadget *gadget = cdev->gadget;
+	int ret = -ENOMEM;
+
+	/* preallocate control response and buffer */
+	cdev->req = usb_ep_alloc_request(gadget->ep0, GFP_KERNEL);
+	if (!cdev->req)
+		return -ENOMEM;
+
+	cdev->req->buf = kmalloc(USB_COMP_EP0_BUFSIZ, GFP_KERNEL);
+	if (!cdev->req->buf)
+		goto fail;
+
+	ret = device_create_file(&gadget->dev, &dev_attr_suspended);
+	if (ret)
+		goto fail_dev;
+
+	cdev->req->complete = composite_setup_complete;
+	gadget->ep0->driver_data = cdev;
+
+	cdev->driver = composite;
+
+	/*
+	 * As per USB compliance update, a device that is actively drawing
+	 * more than 100mA from USB must report itself as bus-powered in
+	 * the GetStatus(DEVICE) call.
+	 */
+	if (CONFIG_USB_GADGET_VBUS_DRAW <= USB_SELF_POWER_VBUS_MAX_DRAW)
+		usb_gadget_set_selfpowered(gadget);
+
+	/* interface and string IDs start at zero via kzalloc.
+	 * we force endpoints to start unassigned; few controller
+	 * drivers will zero ep->driver_data.
+	 */
+	usb_ep_autoconfig_reset(gadget);
+	return 0;
+fail_dev:
+	kfree(cdev->req->buf);
+fail:
+	usb_ep_free_request(gadget->ep0, cdev->req);
+	cdev->req = NULL;
+	return ret;
+}
+
+void composite_dev_cleanup(struct usb_composite_dev *cdev)
+{
+	if (cdev->req) {
+		kfree(cdev->req->buf);
+		usb_ep_free_request(cdev->gadget->ep0, cdev->req);
+	}
+	device_remove_file(&cdev->gadget->dev, &dev_attr_suspended);
 }
 
 static int composite_bind(struct usb_gadget *gadget,
@@ -1468,31 +1515,9 @@ static int composite_bind(struct usb_gadget *gadget,
 	set_gadget_data(gadget, cdev);
 	INIT_LIST_HEAD(&cdev->configs);
 
-	/* preallocate control response and buffer */
-	cdev->req = usb_ep_alloc_request(gadget->ep0, GFP_KERNEL);
-	if (!cdev->req)
+	status = composite_dev_prepare(composite, cdev);
+	if (status)
 		goto fail;
-	cdev->req->buf = kmalloc(USB_COMP_EP0_BUFSIZ, GFP_KERNEL);
-	if (!cdev->req->buf)
-		goto fail;
-	cdev->req->complete = composite_setup_complete;
-	gadget->ep0->driver_data = cdev;
-
-	cdev->driver = composite;
-
-	/*
-	 * As per USB compliance update, a device that is actively drawing
-	 * more than 100mA from USB must report itself as bus-powered in
-	 * the GetStatus(DEVICE) call.
-	 */
-	if (CONFIG_USB_GADGET_VBUS_DRAW <= USB_SELF_POWER_VBUS_MAX_DRAW)
-		usb_gadget_set_selfpowered(gadget);
-
-	/* interface and string IDs start at zero via kzalloc.
-	 * we force endpoints to start unassigned; few controller
-	 * drivers will zero ep->driver_data.
-	 */
-	usb_ep_autoconfig_reset(cdev->gadget);
 
 	/* composite gadget needs to assign strings for whole device (like
 	 * serial number), register function drivers, potentially update
@@ -1507,11 +1532,6 @@ static int composite_bind(struct usb_gadget *gadget,
 	/* has userspace failed to provide a serial number? */
 	if (composite->needs_serial && !cdev->desc.iSerialNumber)
 		WARNING(cdev, "userspace failed to provide iSerialNumber\n");
-
-	/* finish up */
-	status = device_create_file(&gadget->dev, &dev_attr_suspended);
-	if (status)
-		goto fail;
 
 	INFO(cdev, "%s ready\n", composite->name);
 	return 0;
