@@ -311,26 +311,10 @@ EXPORT_SYMBOL_GPL(usb_del_gadget_udc);
 
 /* ------------------------------------------------------------------------- */
 
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver)
+static int udc_bind_to_driver(struct usb_udc *udc, struct usb_gadget_driver *driver)
 {
-	struct usb_udc		*udc = NULL;
-	int			ret;
+	int ret;
 
-	if (!driver || !driver->bind || !driver->setup)
-		return -EINVAL;
-
-	mutex_lock(&udc_lock);
-	list_for_each_entry(udc, &udc_list, list) {
-		/* For now we take the first one */
-		if (!udc->driver)
-			goto found;
-	}
-
-	pr_debug("couldn't find an available UDC\n");
-	mutex_unlock(&udc_lock);
-	return -ENODEV;
-
-found:
 	dev_dbg(&udc->dev, "registering UDC driver [%s]\n",
 			driver->function);
 
@@ -352,18 +336,64 @@ found:
 		ret = usb_gadget_start(udc->gadget, driver, driver->bind);
 		if (ret)
 			goto err1;
-
 	}
 
 	kobject_uevent(&udc->dev.kobj, KOBJ_CHANGE);
-	mutex_unlock(&udc_lock);
 	return 0;
-
 err1:
 	dev_err(&udc->dev, "failed to start %s: %d\n",
 			udc->driver->function, ret);
 	udc->driver = NULL;
 	udc->dev.driver = NULL;
+	return ret;
+}
+
+int udc_attach_driver(const char *name, struct usb_gadget_driver *driver)
+{
+	struct usb_udc *udc = NULL;
+	int ret = -ENODEV;
+
+	mutex_lock(&udc_lock);
+	list_for_each_entry(udc, &udc_list, list) {
+		ret = strcmp(name, dev_name(&udc->dev));
+		if (!ret)
+			break;
+	}
+	if (ret) {
+		ret = -ENODEV;
+		goto out;
+	}
+	if (udc->driver) {
+		ret = -EBUSY;
+		goto out;
+	}
+	ret = udc_bind_to_driver(udc, driver);
+out:
+	mutex_unlock(&udc_lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(udc_attach_driver);
+
+int usb_gadget_probe_driver(struct usb_gadget_driver *driver)
+{
+	struct usb_udc		*udc = NULL;
+	int			ret;
+
+	if (!driver || !driver->bind || !driver->setup)
+		return -EINVAL;
+
+	mutex_lock(&udc_lock);
+	list_for_each_entry(udc, &udc_list, list) {
+		/* For now we take the first one */
+		if (!udc->driver)
+			goto found;
+	}
+
+	pr_debug("couldn't find an available UDC\n");
+	mutex_unlock(&udc_lock);
+	return -ENODEV;
+found:
+	ret = udc_bind_to_driver(udc, driver);
 	mutex_unlock(&udc_lock);
 	return ret;
 }
