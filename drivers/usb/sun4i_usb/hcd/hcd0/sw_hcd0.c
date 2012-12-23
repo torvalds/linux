@@ -1510,6 +1510,7 @@ fail:
 */
 int sw_usb_host0_enable(void)
 {
+#ifdef CONFIG_USB_SW_SUN4I_USB0_OTG
 	struct platform_device 	*pdev 	= NULL;
 	struct device   		*dev  	= NULL;
 	struct sw_hcd 			*sw_hcd	= NULL;
@@ -1560,8 +1561,8 @@ int sw_usb_host0_enable(void)
 	spin_unlock_irqrestore(&sw_hcd->lock, flags);
 
 	DMSG_INFO_HCD0("sw_usb_host0_enable end\n");
-
-    return 0;
+#endif
+	return 0;
 }
 EXPORT_SYMBOL(sw_usb_host0_enable);
 
@@ -1585,6 +1586,7 @@ EXPORT_SYMBOL(sw_usb_host0_enable);
 */
 int sw_usb_host0_disable(void)
 {
+#ifdef CONFIG_USB_SW_SUN4I_USB0_OTG
 	struct platform_device 	*pdev 	= NULL;
 	struct sw_hcd 			*sw_hcd	= NULL;
 	unsigned long   		flags 	= 0;
@@ -1639,6 +1641,7 @@ int sw_usb_host0_disable(void)
 	spin_unlock_irqrestore(&sw_hcd->lock, flags);
 
 	DMSG_INFO_HCD0("sw_usb_host0_disable end\n");
+#endif
 
 	return 0;
 }
@@ -1663,6 +1666,7 @@ EXPORT_SYMBOL(sw_usb_host0_disable);
 *
 *******************************************************************************
 */
+#ifdef CONFIG_USB_SW_SUN4I_USB0_OTG
 static int sw_hcd_probe_otg(struct platform_device *pdev)
 {
 	struct device   *dev    = &pdev->dev;
@@ -1703,6 +1707,7 @@ static int sw_hcd_probe_otg(struct platform_device *pdev)
 end:
     return status;
 }
+#endif
 
 /*
 *******************************************************************************
@@ -1722,6 +1727,7 @@ end:
 *
 *******************************************************************************
 */
+#ifdef CONFIG_USB_SW_SUN4I_USB0_OTG
 static int sw_hcd_remove_otg(struct platform_device *pdev)
 {
 	struct sw_hcd *sw_hcd = dev_to_sw_hcd(&pdev->dev);
@@ -1742,6 +1748,7 @@ static int sw_hcd_remove_otg(struct platform_device *pdev)
 
 	return 0;
 }
+#endif
 
 /*
 *******************************************************************************

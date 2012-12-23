@@ -622,7 +622,7 @@ config USB_SW_SUN4I_HCD
 
 config USB_SW_SUN4I_HCD0
 	tristate "SoftWinner SUN4I USB Host Controller0"
-	depends on USB_SW_SUN4I_HCD && (USB_SW_SUN4I_USB0_HOST_ONLY || USB_SW_SUN4I_USB0_OTG)
+	depends on USB_SW_SUN4I_HCD
 	help
 	    SoftWinner SUN4I USB2.0 Host Controller0.
 
