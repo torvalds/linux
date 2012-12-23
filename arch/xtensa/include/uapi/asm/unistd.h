@@ -728,8 +728,10 @@ __SYSCALL(330, sys_prlimit64, 4)
 #define __NR_kcmp				331
 __SYSCALL(331, sys_kcmp, 5)
 
+#define __NR_finit_module			332
+__SYSCALL(332, sys_finit_module, 3)
 
-#define __NR_syscall_count			332
+#define __NR_syscall_count			333
 
 /*
  * sysxtensa syscall handler
