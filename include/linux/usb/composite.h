@@ -398,6 +398,10 @@ extern int usb_string_ids_tab(struct usb_composite_dev *c,
 			      struct usb_string *str);
 extern int usb_string_ids_n(struct usb_composite_dev *c, unsigned n);
 
+extern void composite_disconnect(struct usb_gadget *gadget);
+extern int composite_setup(struct usb_gadget *gadget,
+		const struct usb_ctrlrequest *ctrl);
+
 /*
  * Some systems will need runtime overrides for the  product identifiers
  * published in the device descriptor, either numbers or strings or both.

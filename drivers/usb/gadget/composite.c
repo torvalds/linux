@@ -1077,7 +1077,7 @@ static void composite_setup_complete(struct usb_ep *ep, struct usb_request *req)
  * housekeeping for the gadget function we're implementing.  Most of
  * the work is in config and function specific setup.
  */
-static int
+int
 composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 {
 	struct usb_composite_dev	*cdev = get_gadget_data(gadget);
@@ -1344,7 +1344,7 @@ done:
 	return value;
 }
 
-static void composite_disconnect(struct usb_gadget *gadget)
+void composite_disconnect(struct usb_gadget *gadget)
 {
 	struct usb_composite_dev	*cdev = get_gadget_data(gadget);
 	unsigned long			flags;
