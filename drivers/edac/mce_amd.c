@@ -39,33 +39,28 @@ EXPORT_SYMBOL_GPL(amd_unregister_ecc_decoder);
  */
 
 /* transaction type */
-const char * const tt_msgs[] = { "INSN", "DATA", "GEN", "RESV" };
-EXPORT_SYMBOL_GPL(tt_msgs);
+static const char * const tt_msgs[] = { "INSN", "DATA", "GEN", "RESV" };
 
 /* cache level */
-const char * const ll_msgs[] = { "RESV", "L1", "L2", "L3/GEN" };
-EXPORT_SYMBOL_GPL(ll_msgs);
+static const char * const ll_msgs[] = { "RESV", "L1", "L2", "L3/GEN" };
 
 /* memory transaction type */
-const char * const rrrr_msgs[] = {
+static const char * const rrrr_msgs[] = {
        "GEN", "RD", "WR", "DRD", "DWR", "IRD", "PRF", "EV", "SNP"
 };
-EXPORT_SYMBOL_GPL(rrrr_msgs);
 
 /* participating processor */
 const char * const pp_msgs[] = { "SRC", "RES", "OBS", "GEN" };
 EXPORT_SYMBOL_GPL(pp_msgs);
 
 /* request timeout */
-const char * const to_msgs[] = { "no timeout", "timed out" };
-EXPORT_SYMBOL_GPL(to_msgs);
+static const char * const to_msgs[] = { "no timeout", "timed out" };
 
 /* memory or i/o */
-const char * const ii_msgs[] = { "MEM", "RESV", "IO", "GEN" };
-EXPORT_SYMBOL_GPL(ii_msgs);
+static const char * const ii_msgs[] = { "MEM", "RESV", "IO", "GEN" };
 
 /* internal error type */
-const char * const uu_msgs[] = { "RESV", "RESV", "HWA", "RESV" };
+static const char * const uu_msgs[] = { "RESV", "RESV", "HWA", "RESV" };
 
 static const char * const f15h_mc1_mce_desc[] = {
 	"UC during a demand linefill from L2",

@@ -35,6 +35,8 @@
 #define MCI_STATUS_DEFERRED		BIT_64(44)
 #define MCI_STATUS_POISON		BIT_64(43)
 
+extern const char * const pp_msgs[];
+
 enum tt_ids {
 	TT_INSTR = 0,
 	TT_DATA,
@@ -67,13 +69,6 @@ enum rrrr_ids {
 	R4_EVICT,
 	R4_SNOOP,
 };
-
-extern const char * const tt_msgs[];
-extern const char * const ll_msgs[];
-extern const char * const rrrr_msgs[];
-extern const char * const pp_msgs[];
-extern const char * const to_msgs[];
-extern const char * const ii_msgs[];
 
 /*
  * per-family decoder ops
