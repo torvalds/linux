@@ -500,6 +500,9 @@ config USB_LIBCOMPOSITE
 	tristate
 	depends on USB_GADGET
 
+config USB_F_ACM
+	tristate
+
 config USB_F_SS_LB
 	tristate
 
@@ -758,6 +761,7 @@ config USB_GADGET_TARGET
 config USB_G_SERIAL
 	tristate "Serial Gadget (with CDC ACM and CDC OBEX support)"
 	select USB_U_SERIAL
+	select USB_F_ACM
 	select USB_LIBCOMPOSITE
 	help
 	  The Serial Gadget talks to the Linux-USB generic serial driver.

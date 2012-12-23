@@ -17,6 +17,11 @@
 
 #define MAX_U_SERIAL_PORTS	4
 
+struct f_serial_opts {
+	struct usb_function_instance func_inst;
+	u8 port_num;
+};
+
 /*
  * One non-multiplexed "serial" I/O port ... there can be several of these
  * on any given USB peripheral device, if it provides enough endpoints.

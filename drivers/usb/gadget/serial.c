@@ -36,7 +36,6 @@
  * the runtime footprint, and giving us at least some parts of what
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
-#include "f_acm.c"
 #include "f_obex.c"
 #include "f_serial.c"
 
@@ -129,16 +128,6 @@ MODULE_PARM_DESC(n_ports, "number of ports to create, default=1");
 /*-------------------------------------------------------------------------*/
 static unsigned char tty_lines[MAX_U_SERIAL_PORTS];
 
-static int __init serial_bind_acm_config(struct usb_configuration *c)
-{
-	unsigned i;
-	int status = 0;
-
-	for (i = 0; i < n_ports && status == 0; i++)
-		status = acm_bind_config(c, tty_lines[i]);
-	return status;
-}
-
 static int __init serial_bind_obex_config(struct usb_configuration *c)
 {
 	unsigned i;
@@ -166,13 +155,58 @@ static struct usb_configuration serial_config_driver = {
 	.bmAttributes	= USB_CONFIG_ATT_SELFPOWER,
 };
 
-static int gs_unbind(struct usb_composite_dev *cdev)
+static struct usb_function_instance *fi_serial[MAX_U_SERIAL_PORTS];
+static struct usb_function *f_serial[MAX_U_SERIAL_PORTS];
+
+static int serial_register_ports(struct usb_composite_dev *cdev,
+		struct usb_configuration *c, const char *f_name)
 {
 	int i;
+	int ret;
 
-	for (i = 0; i < n_ports; i++)
-		gserial_free_line(tty_lines[i]);
+	ret = usb_add_config_only(cdev, c);
+	if (ret)
+		goto out;
+
+	for (i = 0; i < n_ports; i++) {
+		struct f_serial_opts *opts;
+
+		fi_serial[i] = usb_get_function_instance(f_name);
+		if (IS_ERR(fi_serial[i])) {
+			ret = PTR_ERR(fi_serial[i]);
+			goto fail;
+		}
+		opts = container_of(fi_serial[i], struct f_serial_opts, func_inst);
+		opts->port_num = tty_lines[i];
+
+		f_serial[i] = usb_get_function(fi_serial[i]);
+		if (IS_ERR(f_serial[i])) {
+			ret = PTR_ERR(f_serial[i]);
+			goto err_get_func;
+		}
+
+		ret = usb_add_function(c, f_serial[i]);
+		if (ret)
+			goto err_add_func;
+	}
+
 	return 0;
+
+err_add_func:
+	usb_put_function(f_serial[i]);
+err_get_func:
+	usb_put_function_instance(fi_serial[i]);
+
+fail:
+	i--;
+	while (i >= 0) {
+		usb_remove_function(c, f_serial[i]);
+		usb_put_function(f_serial[i]);
+		usb_put_function_instance(fi_serial[i]);
+		i--;
+	}
+out:
+	return ret;
 }
 
 static int __init gs_bind(struct usb_composite_dev *cdev)
@@ -204,10 +238,11 @@ static int __init gs_bind(struct usb_composite_dev *cdev)
 	}
 
 	/* register our configuration */
-	if (use_acm)
-		status = usb_add_config(cdev, &serial_config_driver,
-				serial_bind_acm_config);
-	else if (use_obex)
+	if (use_acm) {
+		status  = serial_register_ports(cdev, &serial_config_driver,
+				"acm");
+		usb_ep_autoconfig_reset(cdev->gadget);
+	} else if (use_obex)
 		status = usb_add_config(cdev, &serial_config_driver,
 				serial_bind_obex_config);
 	else
@@ -226,6 +261,18 @@ fail:
 	while (cur_line >= 0)
 		gserial_free_line(tty_lines[cur_line--]);
 	return status;
+}
+
+static int gs_unbind(struct usb_composite_dev *cdev)
+{
+	int i;
+
+	for (i = 0; i < n_ports; i++) {
+		usb_put_function(f_serial[i]);
+		usb_put_function_instance(fi_serial[i]);
+		gserial_free_line(tty_lines[i]);
+	}
+	return 0;
 }
 
 static __refdata struct usb_composite_driver gserial_driver = {

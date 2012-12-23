@@ -41,7 +41,7 @@ MODULE_LICENSE("GPL");
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
 #include "f_mass_storage.c"
-
+#define USB_FACM_INCLUDED
 #include "f_acm.c"
 
 #include "f_ecm.c"
