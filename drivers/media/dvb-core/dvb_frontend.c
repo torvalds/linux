@@ -603,6 +603,7 @@ static int dvb_frontend_thread(void *data)
 	enum dvbfe_algo algo;
 
 	bool re_tune = false;
+	bool semheld = false;
 
 	dev_dbg(fe->dvb->device, "%s:\n", __func__);
 
@@ -626,6 +627,8 @@ restart:
 
 		if (kthread_should_stop() || dvb_frontend_is_exiting(fe)) {
 			/* got signal or quitting */
+			if (!down_interruptible(&fepriv->sem))
+				semheld = true;
 			fepriv->exit = DVB_FE_NORMAL_EXIT;
 			break;
 		}
@@ -741,6 +744,8 @@ restart:
 		fepriv->exit = DVB_FE_NO_EXIT;
 	mb();
 
+	if (semheld)
+		up(&fepriv->sem);
 	dvb_frontend_wakeup(fe);
 	return 0;
 }
@@ -1823,16 +1828,20 @@ static int dvb_frontend_ioctl(struct file *file,
 	int err = -ENOTTY;
 
 	dev_dbg(fe->dvb->device, "%s: (%d)\n", __func__, _IOC_NR(cmd));
-	if (fepriv->exit != DVB_FE_NO_EXIT)
+	if (down_interruptible(&fepriv->sem))
+		return -ERESTARTSYS;
+
+	if (fepriv->exit != DVB_FE_NO_EXIT) {
+		up(&fepriv->sem);
 		return -ENODEV;
+	}
 
 	if ((file->f_flags & O_ACCMODE) == O_RDONLY &&
 	    (_IOC_DIR(cmd) != _IOC_READ || cmd == FE_GET_EVENT ||
-	     cmd == FE_DISEQC_RECV_SLAVE_REPLY))
+	     cmd == FE_DISEQC_RECV_SLAVE_REPLY)) {
+		up(&fepriv->sem);
 		return -EPERM;
-
-	if (down_interruptible (&fepriv->sem))
-		return -ERESTARTSYS;
+	}
 
 	if ((cmd == FE_SET_PROPERTY) || (cmd == FE_GET_PROPERTY))
 		err = dvb_frontend_ioctl_properties(file, cmd, parg);
