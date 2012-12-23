@@ -1349,8 +1349,7 @@ static ssize_t composite_show_suspended(struct device *dev,
 
 static DEVICE_ATTR(suspended, 0444, composite_show_suspended, NULL);
 
-static void
-composite_unbind(struct usb_gadget *gadget)
+static void __composite_unbind(struct usb_gadget *gadget, bool unbind_driver)
 {
 	struct usb_composite_dev	*cdev = get_gadget_data(gadget);
 
@@ -1367,7 +1366,7 @@ composite_unbind(struct usb_gadget *gadget)
 				struct usb_configuration, list);
 		remove_config(cdev, c);
 	}
-	if (cdev->driver->unbind)
+	if (cdev->driver->unbind && unbind_driver)
 		cdev->driver->unbind(cdev);
 
 	if (cdev->req) {
@@ -1378,6 +1377,11 @@ composite_unbind(struct usb_gadget *gadget)
 	kfree(cdev->def_manufacturer);
 	kfree(cdev);
 	set_gadget_data(gadget, NULL);
+}
+
+static void composite_unbind(struct usb_gadget *gadget)
+{
+	__composite_unbind(gadget, true);
 }
 
 static void update_unchanged_dev_desc(struct usb_device_descriptor *new,
@@ -1488,7 +1492,7 @@ static int composite_bind(struct usb_gadget *gadget,
 	return 0;
 
 fail:
-	composite_unbind(gadget);
+	__composite_unbind(gadget, false);
 	return status;
 }
 
