@@ -248,7 +248,6 @@ static void cpts_clk_init(struct cpts *cpts)
 		return;
 	}
 	clk_enable(cpts->refclk);
-	cpts->freq = cpts->refclk->recalc(cpts->refclk);
 }
 
 static void cpts_clk_release(struct cpts *cpts)
