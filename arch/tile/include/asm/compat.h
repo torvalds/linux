@@ -281,8 +281,6 @@ long compat_sys_rt_sigaction(int sig, struct compat_sigaction __user *act,
 long compat_sys_rt_sigqueueinfo(int pid, int sig,
 				struct compat_siginfo __user *uinfo);
 long compat_sys_rt_sigreturn(void);
-long compat_sys_sigaltstack(const struct compat_sigaltstack __user *uss_ptr,
-			    struct compat_sigaltstack __user *uoss_ptr);
 long compat_sys_truncate64(char __user *filename, u32 dummy, u32 low, u32 high);
 long compat_sys_ftruncate64(unsigned int fd, u32 dummy, u32 low, u32 high);
 long compat_sys_pread64(unsigned int fd, char __user *ubuf, size_t count,
