@@ -61,9 +61,9 @@ static unsigned int card[]     = {[0 ... (EM28XX_MAXBOARDS - 1)] = UNSET };
 module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card,     "card type");
 
-static unsigned int prefer_bulk;
+static int prefer_bulk = -1;
 module_param(prefer_bulk, int, 0444);
-MODULE_PARM_DESC(prefer_bulk, "prefer USB bulk transfers");
+MODULE_PARM_DESC(prefer_bulk, "prefer USB bulk transfers (-1 = auto, 0 = isoc, 1 = bulk)");
 
 
 /* Bitmask marking allocated devices from 0 to EM28XX_MAXBOARDS - 1 */
@@ -3170,7 +3170,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	struct em28xx *dev = NULL;
 	int retval;
 	bool has_audio = false, has_video = false, has_dvb = false;
-	int i, nr;
+	int i, nr, try_bulk;
 	const int ifnum = interface->altsetting[0].desc.bInterfaceNumber;
 	char *speed;
 
@@ -3344,14 +3344,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		goto err_free;
 	}
 
-	/* Select USB transfer types to use */
-	if (has_video &&
-	    (!dev->analog_ep_isoc || (prefer_bulk && dev->analog_ep_bulk)))
-		dev->analog_xfer_bulk = 1;
-	if (has_dvb &&
-	    (!dev->dvb_ep_isoc || (prefer_bulk && dev->dvb_ep_bulk)))
-		dev->dvb_xfer_bulk = 1;
-
 	dev->devno = nr;
 	dev->model = id->driver_info;
 	dev->alt   = -1;
@@ -3402,7 +3394,29 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		goto unlock_and_free;
 	}
 
+	if (prefer_bulk < 0) {
+		if (dev->board.is_webcam)
+			try_bulk = 1;
+		else
+			try_bulk = 0;
+	} else {
+		try_bulk = prefer_bulk > 0;
+	}
+
+	/* Select USB transfer types to use */
+	if (has_video) {
+	    if (!dev->analog_ep_isoc || (try_bulk && dev->analog_ep_bulk))
+		dev->analog_xfer_bulk = 1;
+		em28xx_info("analog set to %s mode.\n",
+			    dev->analog_xfer_bulk ? "bulk" : "isoc");
+	}
 	if (has_dvb) {
+	    if (!dev->dvb_ep_isoc || (try_bulk && dev->dvb_ep_bulk))
+		dev->dvb_xfer_bulk = 1;
+
+		em28xx_info("dvb set to %s mode.\n",
+			    dev->dvb_xfer_bulk ? "bulk" : "isoc");
+
 		/* pre-allocate DVB usb transfer buffers */
 		if (dev->dvb_xfer_bulk) {
 			retval = em28xx_alloc_urbs(dev, EM28XX_DIGITAL_MODE,
