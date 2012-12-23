@@ -22,6 +22,7 @@
 #include "tda1002x.h"
 #include "mt312.h"
 #include "zl10039.h"
+#include "ts2020.h"
 #include "ds3000.h"
 #include "stv0900.h"
 #include "stv6110.h"
@@ -941,6 +942,10 @@ static struct ds3000_config dw2104_ds3000_config = {
 	.demod_address = 0x68,
 };
 
+static struct ts2020_config dw2104_ts2020_config  = {
+	.tuner_address = 0x60,
+};
+
 static struct stv0900_config dw2104a_stv0900_config = {
 	.demod_address = 0x6a,
 	.demod_mode = 0,
@@ -990,6 +995,10 @@ static struct stv0900_config prof_7500_stv0900_config = {
 static struct ds3000_config su3000_ds3000_config = {
 	.demod_address = 0x68,
 	.ci_mode = 1,
+};
+
+static struct ts2020_config su3000_ts2020_config  = {
+	.tuner_address = 0x60,
 };
 
 static int dw2104_frontend_attach(struct dvb_usb_adapter *d)
@@ -1042,6 +1051,8 @@ static int dw2104_frontend_attach(struct dvb_usb_adapter *d)
 	d->fe_adap[0].fe = dvb_attach(ds3000_attach, &dw2104_ds3000_config,
 			&d->dev->i2c_adap);
 	if (d->fe_adap[0].fe != NULL) {
+		dvb_attach(ts2020_attach, d->fe_adap[0].fe,
+			&dw2104_ts2020_config, &d->dev->i2c_adap);
 		d->fe_adap[0].fe->ops.set_voltage = dw210x_set_voltage;
 		info("Attached DS3000!\n");
 		return 0;
@@ -1154,6 +1165,9 @@ static int ds3000_frontend_attach(struct dvb_usb_adapter *d)
 	if (d->fe_adap[0].fe == NULL)
 		return -EIO;
 
+	dvb_attach(ts2020_attach, d->fe_adap[0].fe, &dw2104_ts2020_config,
+		&d->dev->i2c_adap);
+
 	st->old_set_voltage = d->fe_adap[0].fe->ops.set_voltage;
 	d->fe_adap[0].fe->ops.set_voltage = s660_set_voltage;
 
@@ -1213,6 +1227,9 @@ static int su3000_frontend_attach(struct dvb_usb_adapter *d)
 					&d->dev->i2c_adap);
 	if (d->fe_adap[0].fe == NULL)
 		return -EIO;
+
+	dvb_attach(ts2020_attach, d->fe_adap[0].fe, &su3000_ts2020_config,
+		&d->dev->i2c_adap);
 
 	info("Attached DS3000!\n");
 
