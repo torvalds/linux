@@ -375,6 +375,7 @@ struct usb_composite_dev {
 	unsigned int			suspended:1;
 	struct usb_device_descriptor	desc;
 	struct list_head		configs;
+	struct list_head		gstrings;
 	struct usb_composite_driver	*driver;
 	u8				next_string_id;
 	char				*def_manufacturer;
@@ -396,6 +397,9 @@ struct usb_composite_dev {
 extern int usb_string_id(struct usb_composite_dev *c);
 extern int usb_string_ids_tab(struct usb_composite_dev *c,
 			      struct usb_string *str);
+extern struct usb_string *usb_gstrings_attach(struct usb_composite_dev *cdev,
+		struct usb_gadget_strings **sp, unsigned n_strings);
+
 extern int usb_string_ids_n(struct usb_composite_dev *c, unsigned n);
 
 extern void composite_disconnect(struct usb_gadget *gadget);

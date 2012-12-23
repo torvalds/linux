@@ -28,6 +28,12 @@
  * with the relevant device-wide data.
  */
 
+static struct usb_gadget_strings **get_containers_gs(
+		struct usb_gadget_string_container *uc)
+{
+	return (struct usb_gadget_strings **)uc->stash;
+}
+
 /**
  * next_ep_desc() - advance to the next EP descriptor
  * @t: currect pointer within descriptor array
@@ -904,6 +910,7 @@ static int get_string(struct usb_composite_dev *cdev,
 		void *buf, u16 language, int id)
 {
 	struct usb_composite_driver	*composite = cdev->driver;
+	struct usb_gadget_string_container *uc;
 	struct usb_configuration	*c;
 	struct usb_function		*f;
 	int				len;
@@ -944,6 +951,15 @@ static int get_string(struct usb_composite_dev *cdev,
 
 		s->bLength = 2 * (len + 1);
 		return s->bLength;
+	}
+
+	list_for_each_entry(uc, &cdev->gstrings, list) {
+		struct usb_gadget_strings **sp;
+
+		sp = get_containers_gs(uc);
+		len = lookup_string(sp, buf, language, id);
+		if (len > 0)
+			return len;
 	}
 
 	/* String IDs are device-scoped, so we look up each string
@@ -1030,6 +1046,119 @@ int usb_string_ids_tab(struct usb_composite_dev *cdev, struct usb_string *str)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(usb_string_ids_tab);
+
+static struct usb_gadget_string_container *copy_gadget_strings(
+		struct usb_gadget_strings **sp, unsigned n_gstrings,
+		unsigned n_strings)
+{
+	struct usb_gadget_string_container *uc;
+	struct usb_gadget_strings **gs_array;
+	struct usb_gadget_strings *gs;
+	struct usb_string *s;
+	unsigned mem;
+	unsigned n_gs;
+	unsigned n_s;
+	void *stash;
+
+	mem = sizeof(*uc);
+	mem += sizeof(void *) * (n_gstrings + 1);
+	mem += sizeof(struct usb_gadget_strings) * n_gstrings;
+	mem += sizeof(struct usb_string) * (n_strings + 1) * (n_gstrings);
+	uc = kmalloc(mem, GFP_KERNEL);
+	if (!uc)
+		return ERR_PTR(-ENOMEM);
+	gs_array = get_containers_gs(uc);
+	stash = uc->stash;
+	stash += sizeof(void *) * (n_gstrings + 1);
+	for (n_gs = 0; n_gs < n_gstrings; n_gs++) {
+		struct usb_string *org_s;
+
+		gs_array[n_gs] = stash;
+		gs = gs_array[n_gs];
+		stash += sizeof(struct usb_gadget_strings);
+		gs->language = sp[n_gs]->language;
+		gs->strings = stash;
+		org_s = sp[n_gs]->strings;
+
+		for (n_s = 0; n_s < n_strings; n_s++) {
+			s = stash;
+			stash += sizeof(struct usb_string);
+			if (org_s->s)
+				s->s = org_s->s;
+			else
+				s->s = "";
+			org_s++;
+		}
+		s = stash;
+		s->s = NULL;
+		stash += sizeof(struct usb_string);
+
+	}
+	gs_array[n_gs] = NULL;
+	return uc;
+}
+
+/**
+ * usb_gstrings_attach() - attach gadget strings to a cdev and assign ids
+ * @cdev: the device whose string descriptor IDs are being allocated
+ * and attached.
+ * @sp: an array of usb_gadget_strings to attach.
+ * @n_strings: number of entries in each usb_strings array (sp[]->strings)
+ *
+ * This function will create a deep copy of usb_gadget_strings and usb_string
+ * and attach it to the cdev. The actual string (usb_string.s) will not be
+ * copied but only a referenced will be made. The struct usb_gadget_strings
+ * array may contain multiple languges and should be NULL terminated.
+ * The ->language pointer of each struct usb_gadget_strings has to contain the
+ * same amount of entries.
+ * For instance: sp[0] is en-US, sp[1] is es-ES. It is expected that the first
+ * usb_string entry of es-ES containts the translation of the first usb_string
+ * entry of en-US. Therefore both entries become the same id assign.
+ */
+struct usb_string *usb_gstrings_attach(struct usb_composite_dev *cdev,
+		struct usb_gadget_strings **sp, unsigned n_strings)
+{
+	struct usb_gadget_string_container *uc;
+	struct usb_gadget_strings **n_gs;
+	unsigned n_gstrings = 0;
+	unsigned i;
+	int ret;
+
+	for (i = 0; sp[i]; i++)
+		n_gstrings++;
+
+	if (!n_gstrings)
+		return ERR_PTR(-EINVAL);
+
+	uc = copy_gadget_strings(sp, n_gstrings, n_strings);
+	if (IS_ERR(uc))
+		return ERR_PTR(PTR_ERR(uc));
+
+	n_gs = get_containers_gs(uc);
+	ret = usb_string_ids_tab(cdev, n_gs[0]->strings);
+	if (ret)
+		goto err;
+
+	for (i = 1; i < n_gstrings; i++) {
+		struct usb_string *m_s;
+		struct usb_string *s;
+		unsigned n;
+
+		m_s = n_gs[0]->strings;
+		s = n_gs[i]->strings;
+		for (n = 0; n < n_strings; n++) {
+			s->id = m_s->id;
+			s++;
+			m_s++;
+		}
+	}
+	list_add_tail(&uc->list, &cdev->gstrings);
+	return n_gs[0]->strings;
+err:
+	kfree(uc);
+	return ERR_PTR(ret);
+}
+EXPORT_SYMBOL_GPL(usb_gstrings_attach);
 
 /**
  * usb_string_ids_n() - allocate unused string IDs in batch
@@ -1377,6 +1506,7 @@ static DEVICE_ATTR(suspended, 0444, composite_show_suspended, NULL);
 static void __composite_unbind(struct usb_gadget *gadget, bool unbind_driver)
 {
 	struct usb_composite_dev	*cdev = get_gadget_data(gadget);
+	struct usb_gadget_string_container *uc, *tmp;
 
 	/* composite_disconnect() must already have been called
 	 * by the underlying peripheral controller driver!
@@ -1390,6 +1520,10 @@ static void __composite_unbind(struct usb_gadget *gadget, bool unbind_driver)
 		c = list_first_entry(&cdev->configs,
 				struct usb_configuration, list);
 		remove_config(cdev, c);
+	}
+	list_for_each_entry_safe(uc, tmp, &cdev->gstrings, list) {
+		list_del(&uc->list);
+		kfree(uc);
 	}
 	if (cdev->driver->unbind && unbind_driver)
 		cdev->driver->unbind(cdev);
@@ -1514,6 +1648,7 @@ static int composite_bind(struct usb_gadget *gadget,
 	cdev->gadget = gadget;
 	set_gadget_data(gadget, cdev);
 	INIT_LIST_HEAD(&cdev->configs);
+	INIT_LIST_HEAD(&cdev->gstrings);
 
 	status = composite_dev_prepare(composite, cdev);
 	if (status)
