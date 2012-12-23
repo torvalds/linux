@@ -215,6 +215,18 @@ done:
 }
 EXPORT_SYMBOL_GPL(usb_add_function);
 
+void usb_remove_function(struct usb_configuration *c, struct usb_function *f)
+{
+	if (f->disable)
+		f->disable(f);
+
+	bitmap_zero(f->endpoints, 32);
+	list_del(&f->list);
+	if (f->unbind)
+		f->unbind(c, f);
+}
+EXPORT_SYMBOL_GPL(usb_remove_function);
+
 /**
  * usb_function_deactivate - prevent function and gadget enumeration
  * @function: the function that isn't yet ready to respond

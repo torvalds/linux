@@ -461,6 +461,7 @@ struct usb_configuration *usb_get_config(struct usb_composite_dev *cdev,
 		int val);
 int usb_add_config_only(struct usb_composite_dev *cdev,
 		struct usb_configuration *config);
+void usb_remove_function(struct usb_configuration *c, struct usb_function *f);
 
 #define DECLARE_USB_FUNCTION(_name, _inst_alloc, _func_alloc)		\
 	static struct usb_function_driver _name ## usb_func = {		\
