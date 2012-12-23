@@ -844,6 +844,7 @@ config USB_G_ACM_MS
 	depends on BLOCK
 	select USB_LIBCOMPOSITE
 	select USB_U_SERIAL
+	select USB_F_ACM
 	help
 	  This driver provides two functions in one configuration:
 	  a mass storage, and a CDC ACM (serial port) link.
