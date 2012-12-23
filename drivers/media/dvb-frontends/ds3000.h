@@ -1,8 +1,8 @@
 /*
-    Montage Technology DS3000/TS2020 - DVBS/S2 Satellite demod/tuner driver
-    Copyright (C) 2009 Konstantin Dimitrov <kosio.dimitrov@gmail.com>
+    Montage Technology DS3000 - DVBS/S2 Demodulator driver
+    Copyright (C) 2009-2012 Konstantin Dimitrov <kosio.dimitrov@gmail.com>
 
-    Copyright (C) 2009 TurboSight.com
+    Copyright (C) 2009-2012 TurboSight.com
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
+ */
 
 #ifndef DS3000_H
 #define DS3000_H
