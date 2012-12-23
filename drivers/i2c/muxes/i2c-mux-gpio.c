@@ -53,14 +53,14 @@ static int i2c_mux_gpio_deselect(struct i2c_adapter *adap, void *data, u32 chan)
 	return 0;
 }
 
-static int __devinit match_gpio_chip_by_label(struct gpio_chip *chip,
+static int match_gpio_chip_by_label(struct gpio_chip *chip,
 					      void *data)
 {
 	return !strcmp(chip->label, data);
 }
 
 #ifdef CONFIG_OF
-static int __devinit i2c_mux_gpio_probe_dt(struct gpiomux *mux,
+static int i2c_mux_gpio_probe_dt(struct gpiomux *mux,
 					struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -125,14 +125,14 @@ static int __devinit i2c_mux_gpio_probe_dt(struct gpiomux *mux,
 	return 0;
 }
 #else
-static int __devinit i2c_mux_gpio_probe_dt(struct gpiomux *mux,
+static int i2c_mux_gpio_probe_dt(struct gpiomux *mux,
 					struct platform_device *pdev)
 {
 	return 0;
 }
 #endif
 
-static int __devinit i2c_mux_gpio_probe(struct platform_device *pdev)
+static int i2c_mux_gpio_probe(struct platform_device *pdev)
 {
 	struct gpiomux *mux;
 	struct i2c_adapter *parent;
@@ -239,7 +239,7 @@ alloc_failed:
 	return ret;
 }
 
-static int __devexit i2c_mux_gpio_remove(struct platform_device *pdev)
+static int i2c_mux_gpio_remove(struct platform_device *pdev)
 {
 	struct gpiomux *mux = platform_get_drvdata(pdev);
 	int i;
@@ -256,7 +256,7 @@ static int __devexit i2c_mux_gpio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id i2c_mux_gpio_of_match[] __devinitconst = {
+static const struct of_device_id i2c_mux_gpio_of_match[] = {
 	{ .compatible = "i2c-mux-gpio", },
 	{},
 };
@@ -264,7 +264,7 @@ MODULE_DEVICE_TABLE(of, i2c_mux_gpio_of_match);
 
 static struct platform_driver i2c_mux_gpio_driver = {
 	.probe	= i2c_mux_gpio_probe,
-	.remove	= __devexit_p(i2c_mux_gpio_remove),
+	.remove	= i2c_mux_gpio_remove,
 	.driver	= {
 		.owner	= THIS_MODULE,
 		.name	= "i2c-mux-gpio",
