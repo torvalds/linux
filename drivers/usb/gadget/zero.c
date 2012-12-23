@@ -140,12 +140,14 @@ const struct usb_descriptor_header *otg_desc[] = {
 static char serial[] = "0123456789.0123456789.0123456789";
 
 #define USB_GZERO_SS_DESC	(USB_GADGET_FIRST_AVAIL_IDX + 0)
+#define USB_GZERO_LB_DESC	(USB_GADGET_FIRST_AVAIL_IDX + 1)
 
 static struct usb_string strings_dev[] = {
 	[USB_GADGET_MANUFACTURER_IDX].s = "",
 	[USB_GADGET_PRODUCT_IDX].s = longname,
 	[USB_GADGET_SERIAL_IDX].s = serial,
 	[USB_GZERO_SS_DESC].s	= "source and sink data",
+	[USB_GZERO_LB_DESC].s	= "loop input to output",
 	{  }			/* end of list */
 };
 
@@ -254,6 +256,14 @@ static void zero_resume(struct usb_composite_dev *cdev)
 
 /*-------------------------------------------------------------------------*/
 
+static struct usb_configuration loopback_driver = {
+	.label          = "loopback",
+	.strings        = loopback_strings,
+	.bConfigurationValue = 2,
+	.bmAttributes   = USB_CONFIG_ATT_SELFPOWER,
+	/* .iConfiguration = DYNAMIC */
+};
+
 static struct usb_configuration sourcesink_driver = {
 	.label                  = "source/sink",
 	.strings                = sourcesink_strings,
@@ -281,29 +291,37 @@ static int __init zero_bind(struct usb_composite_dev *cdev)
 	setup_timer(&autoresume_timer, zero_autoresume, (unsigned long) cdev);
 
 	sourcesink_driver.iConfiguration = strings_dev[USB_GZERO_SS_DESC].id;
+	loopback_driver.iConfiguration = strings_dev[USB_GZERO_LB_DESC].id;
+
 	/* support autoresume for remote wakeup testing */
 	sourcesink_driver.bmAttributes &= ~USB_CONFIG_ATT_WAKEUP;
+	loopback_driver.bmAttributes &= ~USB_CONFIG_ATT_WAKEUP;
 	sourcesink_driver.descriptors = NULL;
-	if (autoresume)
+	loopback_driver.descriptors = NULL;
+	if (autoresume) {
 		sourcesink_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
+		loopback_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
+	}
 
 	/* support OTG systems */
 	if (gadget_is_otg(cdev->gadget)) {
 		sourcesink_driver.descriptors = otg_desc;
 		sourcesink_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
+		loopback_driver.descriptors = otg_desc;
+		loopback_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
 	/* Register primary, then secondary configuration.  Note that
 	 * SH3 only allows one config...
 	 */
 	if (loopdefault) {
-		loopback_add(cdev, autoresume != 0);
+		usb_add_config(cdev, &loopback_driver, loopback_bind_config);
 		usb_add_config(cdev, &sourcesink_driver,
 				sourcesink_bind_config);
 	} else {
 		usb_add_config(cdev, &sourcesink_driver,
 				sourcesink_bind_config);
-		loopback_add(cdev, autoresume != 0);
+		usb_add_config(cdev, &loopback_driver, loopback_bind_config);
 	}
 
 	usb_composite_overwrite_options(cdev, &coverwrite);

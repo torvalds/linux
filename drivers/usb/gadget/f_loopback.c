@@ -185,6 +185,12 @@ loopback_bind(struct usb_configuration *c, struct usb_function *f)
 		return id;
 	loopback_intf.bInterfaceNumber = id;
 
+	id = usb_string_id(cdev);
+	if (id < 0)
+		return id;
+	strings_loopback[0].id = id;
+	loopback_intf.iInterface = id;
+
 	/* allocate endpoints */
 
 	loop->in_ep = usb_ep_autoconfig(cdev->gadget, &fs_loop_source_desc);
@@ -387,42 +393,4 @@ static int __init loopback_bind_config(struct usb_configuration *c)
 	if (status)
 		kfree(loop);
 	return status;
-}
-
-static struct usb_configuration loopback_driver = {
-	.label		= "loopback",
-	.strings	= loopback_strings,
-	.bConfigurationValue = 2,
-	.bmAttributes	= USB_CONFIG_ATT_SELFPOWER,
-	/* .iConfiguration = DYNAMIC */
-};
-
-/**
- * loopback_add - add a loopback testing configuration to a device
- * @cdev: the device to support the loopback configuration
- */
-int __init loopback_add(struct usb_composite_dev *cdev, bool autoresume)
-{
-	int id;
-
-	/* allocate string ID(s) */
-	id = usb_string_id(cdev);
-	if (id < 0)
-		return id;
-	strings_loopback[0].id = id;
-
-	loopback_intf.iInterface = id;
-	loopback_driver.iConfiguration = id;
-
-	/* support autoresume for remote wakeup testing */
-	if (autoresume)
-		loopback_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
-
-	/* support OTG systems */
-	if (gadget_is_otg(cdev->gadget)) {
-		loopback_driver.descriptors = otg_desc;
-		loopback_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
-	}
-
-	return usb_add_config(cdev, &loopback_driver, loopback_bind_config);
 }
