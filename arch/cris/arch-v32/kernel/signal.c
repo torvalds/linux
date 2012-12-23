@@ -365,6 +365,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	err |= __clear_user(&frame->uc, offsetof(struct ucontext, uc_mcontext));
 	err |= setup_sigcontext(&frame->uc.uc_mcontext, regs, set->sig[0]);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
+	err |= __save_altstack(&frame->uc.uc_stack, rdusp());
 
 	if (err)
 		goto give_sigsegv;
