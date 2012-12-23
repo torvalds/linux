@@ -143,7 +143,7 @@ static void set_apll(unsigned int new_index,
 
 }
 
-bool exynos5250_pms_change(unsigned int old_index, unsigned int new_index)
+static bool exynos5250_pms_change(unsigned int old_index, unsigned int new_index)
 {
 	unsigned int old_pm = apll_freq_5250[old_index].mps >> 8;
 	unsigned int new_pm = apll_freq_5250[new_index].mps >> 8;

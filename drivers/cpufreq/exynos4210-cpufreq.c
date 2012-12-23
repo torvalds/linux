@@ -114,7 +114,7 @@ static void exynos4210_set_apll(unsigned int index)
 	} while (tmp != (0x1 << EXYNOS4_CLKSRC_CPU_MUXCORE_SHIFT));
 }
 
-bool exynos4210_pms_change(unsigned int old_index, unsigned int new_index)
+static bool exynos4210_pms_change(unsigned int old_index, unsigned int new_index)
 {
 	unsigned int old_pm = apll_freq_4210[old_index].mps >> 8;
 	unsigned int new_pm = apll_freq_4210[new_index].mps >> 8;
