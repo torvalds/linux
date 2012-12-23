@@ -99,6 +99,7 @@ MODULE_LICENSE("GPL");
 static struct usb_function *f_acm_cfg1;
 static struct usb_function *f_acm_cfg2;
 static u8 hostaddr[ETH_ALEN];
+static struct eth_dev *the_dev;
 
 enum {
 	TTY_PORT_OBEX0,
@@ -152,7 +153,7 @@ static int __init nokia_bind_config(struct usb_configuration *c)
 	if (status)
 		goto err_conf;
 
-	status = ecm_bind_config(c, hostaddr);
+	status = ecm_bind_config(c, hostaddr, the_dev);
 	if (status) {
 		pr_debug("could not bind ecm config %d\n", status);
 		goto err_ecm;
@@ -187,9 +188,11 @@ static int __init nokia_bind(struct usb_composite_dev *cdev)
 			goto err_ether;
 	}
 
-	status = gether_setup(cdev->gadget, hostaddr);
-	if (status < 0)
+	the_dev = gether_setup(cdev->gadget, hostaddr);
+	if (IS_ERR(the_dev)) {
+		status = PTR_ERR(the_dev);
 		goto err_ether;
+	}
 
 	status = usb_string_ids_tab(cdev, strings_dev);
 	if (status < 0)
@@ -230,7 +233,7 @@ err_put_cfg1:
 err_acm_inst:
 	usb_put_function_instance(fi_acm);
 err_usb:
-	gether_cleanup();
+	gether_cleanup(the_dev);
 err_ether:
 	cur_line--;
 	while (cur_line >= 0)
@@ -253,7 +256,7 @@ static int __exit nokia_unbind(struct usb_composite_dev *cdev)
 	for (i = 0; i < TTY_PORTS_MAX; i++)
 		gserial_free_line(tty_lines[i]);
 
-	gether_cleanup();
+	gether_cleanup(the_dev);
 
 	return 0;
 }

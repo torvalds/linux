@@ -137,6 +137,7 @@ static u8 hostaddr[ETH_ALEN];
 
 static unsigned char tty_line;
 static struct usb_function_instance *fi_acm;
+static struct eth_dev *the_dev;
 
 /********** RNDIS **********/
 
@@ -152,7 +153,7 @@ static __init int rndis_do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	ret = rndis_bind_config(c, hostaddr);
+	ret = rndis_bind_config(c, hostaddr, the_dev);
 	if (ret < 0)
 		return ret;
 
@@ -214,7 +215,7 @@ static __init int cdc_do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	ret = ecm_bind_config(c, hostaddr);
+	ret = ecm_bind_config(c, hostaddr, the_dev);
 	if (ret < 0)
 		return ret;
 
@@ -279,9 +280,9 @@ static int __ref multi_bind(struct usb_composite_dev *cdev)
 	}
 
 	/* set up network link layer */
-	status = gether_setup(cdev->gadget, hostaddr);
-	if (status < 0)
-		return status;
+	the_dev = gether_setup(cdev->gadget, hostaddr);
+	if (IS_ERR(the_dev))
+		return PTR_ERR(the_dev);
 
 	/* set up serial link layer */
 	status = gserial_alloc_line(&tty_line);
@@ -337,7 +338,7 @@ fail1:
 fail0dot5:
 	gserial_free_line(tty_line);
 fail0:
-	gether_cleanup();
+	gether_cleanup(the_dev);
 	return status;
 }
 
@@ -351,7 +352,7 @@ static int __exit multi_unbind(struct usb_composite_dev *cdev)
 #endif
 	usb_put_function_instance(fi_acm);
 	gserial_free_line(tty_line);
-	gether_cleanup();
+	gether_cleanup(the_dev);
 	return 0;
 }
 
