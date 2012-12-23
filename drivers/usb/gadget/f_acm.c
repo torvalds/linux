@@ -768,17 +768,24 @@ static void acm_free_instance(struct usb_function_instance *fi)
 	struct f_serial_opts *opts;
 
 	opts = container_of(fi, struct f_serial_opts, func_inst);
+	gserial_free_line(opts->port_num);
 	kfree(opts);
 }
 
 static struct usb_function_instance *acm_alloc_instance(void)
 {
 	struct f_serial_opts *opts;
+	int ret;
 
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 	opts->func_inst.free_func_inst = acm_free_instance;
+	ret = gserial_alloc_line(&opts->port_num);
+	if (ret) {
+		kfree(opts);
+		return ERR_PTR(ret);
+	}
 	return &opts->func_inst;
 }
 DECLARE_USB_FUNCTION_INIT(acm, acm_alloc_instance, acm_alloc_func);

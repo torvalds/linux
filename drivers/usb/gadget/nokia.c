@@ -104,7 +104,6 @@ static struct eth_dev *the_dev;
 enum {
 	TTY_PORT_OBEX0,
 	TTY_PORT_OBEX1,
-	TTY_PORT_ACM,
 	TTY_PORTS_MAX,
 };
 
@@ -174,7 +173,6 @@ err_conf:
 static int __init nokia_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget	*gadget = cdev->gadget;
-	struct f_serial_opts	*opts;
 	int			status;
 	int			cur_line;
 
@@ -209,8 +207,6 @@ static int __init nokia_bind(struct usb_composite_dev *cdev)
 	fi_acm = usb_get_function_instance("acm");
 	if (IS_ERR(fi_acm))
 		goto err_usb;
-	opts = container_of(fi_acm, struct f_serial_opts, func_inst);
-	opts->port_num = tty_lines[TTY_PORT_ACM];
 
 	/* finally register the configuration */
 	status = usb_add_config(cdev, &nokia_config_500ma_driver,

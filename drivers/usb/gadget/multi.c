@@ -135,7 +135,6 @@ static struct fsg_common fsg_common;
 
 static u8 hostaddr[ETH_ALEN];
 
-static unsigned char tty_line;
 static struct usb_function_instance *fi_acm;
 static struct eth_dev *the_dev;
 
@@ -270,7 +269,6 @@ static int cdc_config_register(struct usb_composite_dev *cdev)
 static int __ref multi_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget *gadget = cdev->gadget;
-	struct f_serial_opts *opts;
 	int status;
 
 	if (!can_support_ecm(cdev->gadget)) {
@@ -285,18 +283,11 @@ static int __ref multi_bind(struct usb_composite_dev *cdev)
 		return PTR_ERR(the_dev);
 
 	/* set up serial link layer */
-	status = gserial_alloc_line(&tty_line);
-	if (status < 0)
-		goto fail0;
-
 	fi_acm = usb_get_function_instance("acm");
 	if (IS_ERR(fi_acm)) {
 		status = PTR_ERR(fi_acm);
-		goto fail0dot5;
+		goto fail0;
 	}
-
-	opts = container_of(fi_acm, struct f_serial_opts, func_inst);
-	opts->port_num = tty_line;
 
 	/* set up mass storage function */
 	{
@@ -335,8 +326,6 @@ fail2:
 	fsg_common_put(&fsg_common);
 fail1:
 	usb_put_function_instance(fi_acm);
-fail0dot5:
-	gserial_free_line(tty_line);
 fail0:
 	gether_cleanup(the_dev);
 	return status;
@@ -351,7 +340,6 @@ static int __exit multi_unbind(struct usb_composite_dev *cdev)
 	usb_put_function(f_acm_rndis);
 #endif
 	usb_put_function_instance(fi_acm);
-	gserial_free_line(tty_line);
 	gether_cleanup(the_dev);
 	return 0;
 }

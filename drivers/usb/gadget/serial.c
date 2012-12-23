@@ -169,15 +169,12 @@ static int serial_register_ports(struct usb_composite_dev *cdev,
 		goto out;
 
 	for (i = 0; i < n_ports; i++) {
-		struct f_serial_opts *opts;
 
 		fi_serial[i] = usb_get_function_instance(f_name);
 		if (IS_ERR(fi_serial[i])) {
 			ret = PTR_ERR(fi_serial[i]);
 			goto fail;
 		}
-		opts = container_of(fi_serial[i], struct f_serial_opts, func_inst);
-		opts->port_num = tty_lines[i];
 
 		f_serial[i] = usb_get_function(fi_serial[i]);
 		if (IS_ERR(f_serial[i])) {
@@ -212,12 +209,14 @@ out:
 static int __init gs_bind(struct usb_composite_dev *cdev)
 {
 	int			status;
-	int			cur_line;
+	int			cur_line = 0;
 
-	for (cur_line = 0; cur_line < n_ports; cur_line++) {
-		status = gserial_alloc_line(&tty_lines[cur_line]);
-		if (status)
-			goto fail;
+	if (!use_acm) {
+		for (cur_line = 0; cur_line < n_ports; cur_line++) {
+			status = gserial_alloc_line(&tty_lines[cur_line]);
+			if (status)
+				goto fail;
+		}
 	}
 
 	/* Allocate string descriptor numbers ... note that string
@@ -258,7 +257,7 @@ static int __init gs_bind(struct usb_composite_dev *cdev)
 
 fail:
 	cur_line--;
-	while (cur_line >= 0)
+	while (cur_line >= 0 && !use_acm)
 		gserial_free_line(tty_lines[cur_line--]);
 	return status;
 }
@@ -270,7 +269,8 @@ static int gs_unbind(struct usb_composite_dev *cdev)
 	for (i = 0; i < n_ports; i++) {
 		usb_put_function(f_serial[i]);
 		usb_put_function_instance(fi_serial[i]);
-		gserial_free_line(tty_lines[i]);
+		if (!use_acm)
+			gserial_free_line(tty_lines[i]);
 	}
 	return 0;
 }
