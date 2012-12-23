@@ -45,11 +45,13 @@ config USB_SW_SUN4I_USB0_DEVICE_ONLY
 
 config USB_SW_SUN4I_USB0_HOST_ONLY
     boolean "host only support"
+    select USB_SW_SUN4I_HCD0
     help
         usb0 can only use for host.
 
 config USB_SW_SUN4I_USB0_OTG
     boolean "otg support"
+    select USB_SW_SUN4I_HCD0
     help
         usb0 can only use for device and host.
 
