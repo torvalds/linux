@@ -67,6 +67,8 @@
 #define mcontext	mcontext32
 #define ucontext	ucontext32
 
+#define __save_altstack __compat_save_altstack
+
 /*
  * Userspace code may pass a ucontext which doesn't include VSX added
  * at the end.  We need to check for this case.
@@ -763,55 +765,6 @@ long compat_sys_rt_sigqueueinfo(u32 pid, u32 sig, compat_siginfo_t __user *uinfo
 	set_fs (old_fs);
 	return ret;
 }
-/*
- *  Start Alternate signal stack support
- *
- *  System Calls
- *       sigaltatck               compat_sys_sigaltstack
- */
-
-int compat_sys_sigaltstack(u32 __new, u32 __old, int r5,
-		      int r6, int r7, int r8, struct pt_regs *regs)
-{
-	stack_32_t __user * newstack = compat_ptr(__new);
-	stack_32_t __user * oldstack = compat_ptr(__old);
-	stack_t uss, uoss;
-	int ret;
-	mm_segment_t old_fs;
-	unsigned long sp;
-	compat_uptr_t ss_sp;
-
-	/*
-	 * set sp to the user stack on entry to the system call
-	 * the system call router sets R9 to the saved registers
-	 */
-	sp = regs->gpr[1];
-
-	/* Put new stack info in local 64 bit stack struct */
-	if (newstack) {
-		if (get_user(ss_sp, &newstack->ss_sp) ||
-		    __get_user(uss.ss_flags, &newstack->ss_flags) ||
-		    __get_user(uss.ss_size, &newstack->ss_size))
-			return -EFAULT;
-		uss.ss_sp = compat_ptr(ss_sp);
-	}
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	/* The __user pointer casts are valid because of the set_fs() */
-	ret = do_sigaltstack(
-		newstack ? (stack_t __user *) &uss : NULL,
-		oldstack ? (stack_t __user *) &uoss : NULL,
-		sp);
-	set_fs(old_fs);
-	/* Copy the stack information to the user output buffer */
-	if (!ret && oldstack  &&
-		(put_user(ptr_to_compat(uoss.ss_sp), &oldstack->ss_sp) ||
-		 __put_user(uoss.ss_flags, &oldstack->ss_flags) ||
-		 __put_user(uoss.ss_size, &oldstack->ss_size)))
-		return -EFAULT;
-	return ret;
-}
 #endif /* CONFIG_PPC64 */
 
 /*
@@ -838,10 +791,7 @@ int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
 	if (copy_siginfo_to_user(&rt_sf->info, info)
 	    || __put_user(0, &rt_sf->uc.uc_flags)
 	    || __put_user(0, &rt_sf->uc.uc_link)
-	    || __put_user(current->sas_ss_sp, &rt_sf->uc.uc_stack.ss_sp)
-	    || __put_user(sas_ss_flags(regs->gpr[1]),
-			  &rt_sf->uc.uc_stack.ss_flags)
-	    || __put_user(current->sas_ss_size, &rt_sf->uc.uc_stack.ss_size)
+	    || __save_altstack(&rt_sf->uc.uc_stack, regs->gpr[1])
 	    || __put_user(to_user_ptr(&rt_sf->uc.uc_mcontext),
 		    &rt_sf->uc.uc_regs)
 	    || put_sigset_t(&rt_sf->uc.uc_sigmask, oldset))
@@ -1038,14 +988,11 @@ long sys_rt_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
 	 * change it.  -- paulus
 	 */
 #ifdef CONFIG_PPC64
-	/*
-	 * We use the compat_sys_ version that does the 32/64 bits conversion
-	 * and takes userland pointer directly. What about error checking ?
-	 * nobody does any...
-	 */
-	compat_sys_sigaltstack((u32)(u64)&rt_sf->uc.uc_stack, 0, 0, 0, 0, 0, regs);
+	if (compat_restore_altstack(&rt_sf->uc.uc_stack))
+		goto bad;
 #else
-	do_sigaltstack(&rt_sf->uc.uc_stack, NULL, regs->gpr[1]);
+	if (restore_altstack(&rt_sf->uc.uc_stack))
+		goto bad;
 #endif
 	set_thread_flag(TIF_RESTOREALL);
 	return 0;
@@ -1161,7 +1108,7 @@ int sys_debug_setcontext(struct ucontext __user *ctx,
 	 * always done it up until now so it is probably better not to
 	 * change it.  -- paulus
 	 */
-	do_sigaltstack(&ctx->uc_stack, NULL, regs->gpr[1]);
+	restore_altstack(&ctx->uc_stack);
 
 	set_thread_flag(TIF_RESTOREALL);
  out:
