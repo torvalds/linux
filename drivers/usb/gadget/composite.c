@@ -683,6 +683,31 @@ done:
 	return result;
 }
 
+int usb_add_config_only(struct usb_composite_dev *cdev,
+		struct usb_configuration *config)
+{
+	struct usb_configuration *c;
+
+	if (!config->bConfigurationValue)
+		return -EINVAL;
+
+	/* Prevent duplicate configuration identifiers */
+	list_for_each_entry(c, &cdev->configs, list) {
+		if (c->bConfigurationValue == config->bConfigurationValue)
+			return -EBUSY;
+	}
+
+	config->cdev = cdev;
+	list_add_tail(&config->list, &cdev->configs);
+
+	INIT_LIST_HEAD(&config->functions);
+	config->next_interface_id = 0;
+	memset(config->interface, 0, sizeof(config->interface));
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usb_add_config_only);
+
 /**
  * usb_add_config() - add a configuration to a device.
  * @cdev: wraps the USB gadget
@@ -703,29 +728,17 @@ int usb_add_config(struct usb_composite_dev *cdev,
 		int (*bind)(struct usb_configuration *))
 {
 	int				status = -EINVAL;
-	struct usb_configuration	*c;
+
+	if (!bind)
+		goto done;
 
 	DBG(cdev, "adding config #%u '%s'/%p\n",
 			config->bConfigurationValue,
 			config->label, config);
 
-	if (!config->bConfigurationValue || !bind)
+	status = usb_add_config_only(cdev, config);
+	if (status)
 		goto done;
-
-	/* Prevent duplicate configuration identifiers */
-	list_for_each_entry(c, &cdev->configs, list) {
-		if (c->bConfigurationValue == config->bConfigurationValue) {
-			status = -EBUSY;
-			goto done;
-		}
-	}
-
-	config->cdev = cdev;
-	list_add_tail(&config->list, &cdev->configs);
-
-	INIT_LIST_HEAD(&config->functions);
-	config->next_interface_id = 0;
-	memset(config->interface, 0, sizeof(config->interface));
 
 	status = bind(config);
 	if (status < 0) {
