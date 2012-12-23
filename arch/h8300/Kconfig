@@ -9,6 +9,7 @@ config H8300
 	select GENERIC_IRQ_SHOW
 	select GENERIC_CPU_DEVICES
 	select MODULES_USE_ELF_RELA
+	select GENERIC_SIGALTSTACK
 
 config SYMBOL_PREFIX
 	string
