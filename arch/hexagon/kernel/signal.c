@@ -125,6 +125,7 @@ static int setup_rt_frame(int signr, struct k_sigaction *ka, siginfo_t *info,
 	err |= __put_user(0x5400c004, &frame->tramp[1]);
 	err |= setup_sigcontext(regs, &frame->uc.uc_mcontext);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
+	err |= __save_altstack(&frame->uc.uc_stack, user_stack_pointer(regs));
 	if (err)
 		goto sigsegv;
 
