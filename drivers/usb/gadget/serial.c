@@ -127,6 +127,7 @@ module_param(n_ports, uint, 0);
 MODULE_PARM_DESC(n_ports, "number of ports to create, default=1");
 
 /*-------------------------------------------------------------------------*/
+static unsigned char tty_lines[MAX_U_SERIAL_PORTS];
 
 static int __init serial_bind_acm_config(struct usb_configuration *c)
 {
@@ -134,7 +135,7 @@ static int __init serial_bind_acm_config(struct usb_configuration *c)
 	int status = 0;
 
 	for (i = 0; i < n_ports && status == 0; i++)
-		status = acm_bind_config(c, i);
+		status = acm_bind_config(c, tty_lines[i]);
 	return status;
 }
 
@@ -144,7 +145,7 @@ static int __init serial_bind_obex_config(struct usb_configuration *c)
 	int status = 0;
 
 	for (i = 0; i < n_ports && status == 0; i++)
-		status = obex_bind_config(c, i);
+		status = obex_bind_config(c, tty_lines[i]);
 	return status;
 }
 
@@ -154,7 +155,7 @@ static int __init serial_bind_gser_config(struct usb_configuration *c)
 	int status = 0;
 
 	for (i = 0; i < n_ports && status == 0; i++)
-		status = gser_bind_config(c, i);
+		status = gser_bind_config(c, tty_lines[i]);
 	return status;
 }
 
@@ -165,13 +166,25 @@ static struct usb_configuration serial_config_driver = {
 	.bmAttributes	= USB_CONFIG_ATT_SELFPOWER,
 };
 
+static int gs_unbind(struct usb_composite_dev *cdev)
+{
+	int i;
+
+	for (i = 0; i < n_ports; i++)
+		gserial_free_line(tty_lines[i]);
+	return 0;
+}
+
 static int __init gs_bind(struct usb_composite_dev *cdev)
 {
 	int			status;
+	int			cur_line;
 
-	status = gserial_setup(cdev->gadget, n_ports);
-	if (status < 0)
-		return status;
+	for (cur_line = 0; cur_line < n_ports; cur_line++) {
+		status = gserial_alloc_line(&tty_lines[cur_line]);
+		if (status)
+			goto fail;
+	}
 
 	/* Allocate string descriptor numbers ... note that string
 	 * contents can be overridden by the composite_dev glue.
@@ -209,7 +222,9 @@ static int __init gs_bind(struct usb_composite_dev *cdev)
 	return 0;
 
 fail:
-	gserial_cleanup();
+	cur_line--;
+	while (cur_line >= 0)
+		gserial_free_line(tty_lines[cur_line--]);
 	return status;
 }
 
@@ -219,6 +234,7 @@ static __refdata struct usb_composite_driver gserial_driver = {
 	.strings	= dev_strings,
 	.max_speed	= USB_SPEED_SUPER,
 	.bind		= gs_bind,
+	.unbind		= gs_unbind,
 };
 
 static int __init init(void)
@@ -254,6 +270,5 @@ module_init(init);
 static void __exit cleanup(void)
 {
 	usb_composite_unregister(&gserial_driver);
-	gserial_cleanup();
 }
 module_exit(cleanup);

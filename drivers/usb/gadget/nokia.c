@@ -100,6 +100,15 @@ MODULE_LICENSE("GPL");
 
 static u8 hostaddr[ETH_ALEN];
 
+enum {
+	TTY_PORT_OBEX0,
+	TTY_PORT_OBEX1,
+	TTY_PORT_ACM,
+	TTY_PORTS_MAX,
+};
+
+static unsigned char tty_lines[TTY_PORTS_MAX];
+
 static int __init nokia_bind_config(struct usb_configuration *c)
 {
 	int status = 0;
@@ -108,15 +117,15 @@ static int __init nokia_bind_config(struct usb_configuration *c)
 	if (status)
 		printk(KERN_DEBUG "could not bind phonet config\n");
 
-	status = obex_bind_config(c, 0);
+	status = obex_bind_config(c, tty_lines[TTY_PORT_OBEX0]);
 	if (status)
 		printk(KERN_DEBUG "could not bind obex config %d\n", 0);
 
-	status = obex_bind_config(c, 1);
+	status = obex_bind_config(c, tty_lines[TTY_PORT_OBEX1]);
 	if (status)
 		printk(KERN_DEBUG "could not bind obex config %d\n", 0);
 
-	status = acm_bind_config(c, 2);
+	status = acm_bind_config(c, tty_lines[TTY_PORT_ACM]);
 	if (status)
 		printk(KERN_DEBUG "could not bind acm config\n");
 
@@ -147,14 +156,17 @@ static int __init nokia_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget	*gadget = cdev->gadget;
 	int			status;
+	int			cur_line;
 
 	status = gphonet_setup(cdev->gadget);
 	if (status < 0)
 		goto err_phonet;
 
-	status = gserial_setup(cdev->gadget, 3);
-	if (status < 0)
-		goto err_serial;
+	for (cur_line = 0; cur_line < TTY_PORTS_MAX; cur_line++) {
+		status = gserial_alloc_line(&tty_lines[cur_line]);
+		if (status)
+			goto err_ether;
+	}
 
 	status = gether_setup(cdev->gadget, hostaddr);
 	if (status < 0)
@@ -191,8 +203,10 @@ static int __init nokia_bind(struct usb_composite_dev *cdev)
 err_usb:
 	gether_cleanup();
 err_ether:
-	gserial_cleanup();
-err_serial:
+	cur_line--;
+	while (cur_line >= 0)
+		gserial_free_line(tty_lines[cur_line--]);
+
 	gphonet_cleanup();
 err_phonet:
 	return status;
@@ -200,8 +214,13 @@ err_phonet:
 
 static int __exit nokia_unbind(struct usb_composite_dev *cdev)
 {
+	int i;
+
 	gphonet_cleanup();
-	gserial_cleanup();
+
+	for (i = 0; i < TTY_PORTS_MAX; i++)
+		gserial_free_line(tty_lines[i]);
+
 	gether_cleanup();
 
 	return 0;

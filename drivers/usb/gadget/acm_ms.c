@@ -111,6 +111,7 @@ FSG_MODULE_PARAMETERS(/* no prefix */, fsg_mod_data);
 static struct fsg_common fsg_common;
 
 /*-------------------------------------------------------------------------*/
+static unsigned char tty_line;
 
 /*
  * We _always_ have both ACM and mass storage functions.
@@ -125,7 +126,7 @@ static int __init acm_ms_do_config(struct usb_configuration *c)
 	}
 
 
-	status = acm_bind_config(c, 0);
+	status = acm_bind_config(c, tty_line);
 	if (status < 0)
 		return status;
 
@@ -152,7 +153,7 @@ static int __init acm_ms_bind(struct usb_composite_dev *cdev)
 	void			*retp;
 
 	/* set up serial link layer */
-	status = gserial_setup(cdev->gadget, 1);
+	status = gserial_alloc_line(&tty_line);
 	if (status < 0)
 		return status;
 
@@ -188,14 +189,13 @@ static int __init acm_ms_bind(struct usb_composite_dev *cdev)
 fail1:
 	fsg_common_put(&fsg_common);
 fail0:
-	gserial_cleanup();
+	gserial_free_line(tty_line);
 	return status;
 }
 
 static int __exit acm_ms_unbind(struct usb_composite_dev *cdev)
 {
-	gserial_cleanup();
-
+	gserial_free_line(tty_line);
 	return 0;
 }
 

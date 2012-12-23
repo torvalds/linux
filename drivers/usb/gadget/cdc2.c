@@ -108,6 +108,7 @@ static u8 hostaddr[ETH_ALEN];
 
 /*-------------------------------------------------------------------------*/
 
+static unsigned char tty_line;
 /*
  * We _always_ have both CDC ECM and CDC ACM functions.
  */
@@ -124,7 +125,7 @@ static int __init cdc_do_config(struct usb_configuration *c)
 	if (status < 0)
 		return status;
 
-	status = acm_bind_config(c, 0);
+	status = acm_bind_config(c, tty_line);
 	if (status < 0)
 		return status;
 
@@ -157,7 +158,7 @@ static int __init cdc_bind(struct usb_composite_dev *cdev)
 		return status;
 
 	/* set up serial link layer */
-	status = gserial_setup(cdev->gadget, 1);
+	status = gserial_alloc_line(&tty_line);
 	if (status < 0)
 		goto fail0;
 
@@ -183,7 +184,7 @@ static int __init cdc_bind(struct usb_composite_dev *cdev)
 	return 0;
 
 fail1:
-	gserial_cleanup();
+	gserial_free_line(tty_line);
 fail0:
 	gether_cleanup();
 	return status;
@@ -191,7 +192,7 @@ fail0:
 
 static int __exit cdc_unbind(struct usb_composite_dev *cdev)
 {
-	gserial_cleanup();
+	gserial_free_line(tty_line);
 	gether_cleanup();
 	return 0;
 }

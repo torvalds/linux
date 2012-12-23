@@ -136,6 +136,7 @@ static struct fsg_common fsg_common;
 
 static u8 hostaddr[ETH_ALEN];
 
+static unsigned char tty_line;
 
 /********** RNDIS **********/
 
@@ -154,7 +155,7 @@ static __init int rndis_do_config(struct usb_configuration *c)
 	if (ret < 0)
 		return ret;
 
-	ret = acm_bind_config(c, 0);
+	ret = acm_bind_config(c, tty_line);
 	if (ret < 0)
 		return ret;
 
@@ -205,7 +206,7 @@ static __init int cdc_do_config(struct usb_configuration *c)
 	if (ret < 0)
 		return ret;
 
-	ret = acm_bind_config(c, 0);
+	ret = acm_bind_config(c, tty_line);
 	if (ret < 0)
 		return ret;
 
@@ -242,7 +243,6 @@ static int cdc_config_register(struct usb_composite_dev *cdev)
 
 /****************************** Gadget Bind ******************************/
 
-
 static int __ref multi_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget *gadget = cdev->gadget;
@@ -260,7 +260,7 @@ static int __ref multi_bind(struct usb_composite_dev *cdev)
 		return status;
 
 	/* set up serial link layer */
-	status = gserial_setup(cdev->gadget, 1);
+	status = gserial_alloc_line(&tty_line);
 	if (status < 0)
 		goto fail0;
 
@@ -300,7 +300,7 @@ static int __ref multi_bind(struct usb_composite_dev *cdev)
 fail2:
 	fsg_common_put(&fsg_common);
 fail1:
-	gserial_cleanup();
+	gserial_free_line(tty_line);
 fail0:
 	gether_cleanup();
 	return status;
@@ -308,7 +308,7 @@ fail0:
 
 static int __exit multi_unbind(struct usb_composite_dev *cdev)
 {
-	gserial_cleanup();
+	gserial_free_line(tty_line);
 	gether_cleanup();
 	return 0;
 }
