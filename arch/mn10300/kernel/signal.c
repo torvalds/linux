@@ -77,14 +77,6 @@ asmlinkage long sys_sigaction(int sig,
 }
 
 /*
- * set alternate signal stack syscall
- */
-asmlinkage long sys_sigaltstack(const stack_t __user *uss, stack_t *uoss)
-{
-	return do_sigaltstack(uss, uoss, current_frame()->sp);
-}
-
-/*
  * do a signal return; undo the signal stack.
  */
 static int restore_sigcontext(struct pt_regs *regs,
@@ -193,8 +185,7 @@ asmlinkage long sys_rt_sigreturn(void)
 	if (restore_sigcontext(current_frame(), &frame->uc.uc_mcontext, &d0))
 		goto badframe;
 
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL, current_frame()->sp) ==
-	    -EFAULT)
+	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
 
 	return d0;
@@ -359,9 +350,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* create the ucontext.  */
 	if (__put_user(0, &frame->uc.uc_flags) ||
 	    __put_user(0, &frame->uc.uc_link) ||
-	    __put_user((void *)current->sas_ss_sp, &frame->uc.uc_stack.ss_sp) ||
-	    __put_user(sas_ss_flags(regs->sp), &frame->uc.uc_stack.ss_flags) ||
-	    __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size) ||
+	    __save_altstack(&frame->uc.uc_stack, regs->sp) ||
 	    setup_sigcontext(&frame->uc.uc_mcontext,
 			     &frame->fpuctx, regs, set->sig[0]) ||
 	    __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set)))
