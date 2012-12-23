@@ -170,15 +170,6 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 	return ret;
 }
 
-asmlinkage int
-sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
-	        unsigned long r4, unsigned long r5, unsigned long r6,
-	        unsigned long r7,
-	        struct pt_regs * regs)
-{
-	return do_sigaltstack(uss, uoss, REF_REG_SP);
-}
-
 /*
  * Do a signal return; undo the signal stack.
  */
@@ -364,9 +355,7 @@ asmlinkage int sys_rt_sigreturn(unsigned long r2, unsigned long r3,
 		goto badframe;
 	regs->pc -= 4;
 
-	/* It is more difficult to avoid calling this function than to
-	   call it and ignore errors.  */
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL, REF_REG_SP) == -EFAULT)
+	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
 
 	return (int) ret;
@@ -560,11 +549,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->uc.uc_flags);
 	err |= __put_user(0, &frame->uc.uc_link);
-	err |= __put_user((void *)current->sas_ss_sp,
-			  &frame->uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(regs->regs[REG_SP]),
-			  &frame->uc.uc_stack.ss_flags);
-	err |= __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
+	err |= __save_altstack(&frame->uc.uc_stack, regs->regs[REG_SP]);
 	err |= setup_sigcontext(&frame->uc.uc_mcontext,
 			        regs, set->sig[0]);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
