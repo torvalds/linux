@@ -22,9 +22,6 @@
 
 #define CPUFREQ_LEVEL_END	L5
 
-static int max_support_idx = L0;
-static int min_support_idx = (CPUFREQ_LEVEL_END - 1);
-
 static struct clk *cpu_clk;
 static struct clk *moutcore;
 static struct clk *mout_mpll;
@@ -276,10 +273,7 @@ int exynos4210_cpufreq_init(struct exynos_dvfs_info *info)
 	}
 
 	info->mpll_freq_khz = rate;
-	info->pm_lock_idx = L2;
 	info->pll_safe_idx = L2;
-	info->max_support_idx = max_support_idx;
-	info->min_support_idx = min_support_idx;
 	info->cpu_clk = cpu_clk;
 	info->volt_table = exynos4210_volt_table;
 	info->freq_table = exynos4210_freq_table;
@@ -289,14 +283,11 @@ int exynos4210_cpufreq_init(struct exynos_dvfs_info *info)
 	return 0;
 
 err_mout_apll:
-	if (!IS_ERR(mout_mpll))
-		clk_put(mout_mpll);
+	clk_put(mout_mpll);
 err_mout_mpll:
-	if (!IS_ERR(moutcore))
-		clk_put(moutcore);
+	clk_put(moutcore);
 err_moutcore:
-	if (!IS_ERR(cpu_clk))
-		clk_put(cpu_clk);
+	clk_put(cpu_clk);
 
 	pr_debug("%s: failed initialization\n", __func__);
 	return -EINVAL;

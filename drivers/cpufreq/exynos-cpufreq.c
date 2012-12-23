@@ -299,8 +299,7 @@ static int __init exynos_cpufreq_init(void)
 err_cpufreq:
 	unregister_pm_notifier(&exynos_cpufreq_nb);
 
-	if (!IS_ERR(arm_regulator))
-		regulator_put(arm_regulator);
+	regulator_put(arm_regulator);
 err_vdd_arm:
 	kfree(exynos_info);
 	pr_debug("%s: failed initialization\n", __func__);

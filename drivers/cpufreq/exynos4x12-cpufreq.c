@@ -22,9 +22,6 @@
 
 #define CPUFREQ_LEVEL_END	(L13 + 1)
 
-static int max_support_idx;
-static int min_support_idx = (CPUFREQ_LEVEL_END - 1);
-
 static struct clk *cpu_clk;
 static struct clk *moutcore;
 static struct clk *mout_mpll;
@@ -420,8 +417,6 @@ static void __init set_volt_table(void)
 {
 	unsigned int i;
 
-	max_support_idx = L1;
-
 	/* Not supported */
 	exynos4x12_freq_table[L0].frequency = CPUFREQ_ENTRY_INVALID;
 
@@ -511,10 +506,7 @@ int exynos4x12_cpufreq_init(struct exynos_dvfs_info *info)
 	}
 
 	info->mpll_freq_khz = rate;
-	info->pm_lock_idx = L5;
 	info->pll_safe_idx = L7;
-	info->max_support_idx = max_support_idx;
-	info->min_support_idx = min_support_idx;
 	info->cpu_clk = cpu_clk;
 	info->volt_table = exynos4x12_volt_table;
 	info->freq_table = exynos4x12_freq_table;

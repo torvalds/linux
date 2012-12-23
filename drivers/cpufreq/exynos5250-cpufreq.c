@@ -23,8 +23,6 @@
 
 #define CPUFREQ_LEVEL_END	(L15 + 1)
 
-static int max_support_idx;
-static int min_support_idx = (CPUFREQ_LEVEL_END - 1);
 static struct clk *cpu_clk;
 static struct clk *moutcore;
 static struct clk *mout_mpll;
@@ -249,8 +247,6 @@ static void __init set_volt_table(void)
 {
 	unsigned int i;
 
-	max_support_idx = L0;
-
 	for (i = 0 ; i < CPUFREQ_LEVEL_END ; i++)
 		exynos5250_volt_table[i] = asv_voltage_5250[i];
 }
@@ -313,12 +309,8 @@ int exynos5250_cpufreq_init(struct exynos_dvfs_info *info)
 	}
 
 	info->mpll_freq_khz = rate;
-	/* 1000Mhz */
-	info->pm_lock_idx = L7;
 	/* 800Mhz */
 	info->pll_safe_idx = L9;
-	info->max_support_idx = max_support_idx;
-	info->min_support_idx = min_support_idx;
 	info->cpu_clk = cpu_clk;
 	info->volt_table = exynos5250_volt_table;
 	info->freq_table = exynos5250_freq_table;

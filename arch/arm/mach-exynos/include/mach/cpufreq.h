@@ -21,9 +21,6 @@ enum cpufreq_level_index {
 struct exynos_dvfs_info {
 	unsigned long	mpll_freq_khz;
 	unsigned int	pll_safe_idx;
-	unsigned int	pm_lock_idx;
-	unsigned int	max_support_idx;
-	unsigned int	min_support_idx;
 	struct clk	*cpu_clk;
 	unsigned int	*volt_table;
 	struct cpufreq_frequency_table	*freq_table;
