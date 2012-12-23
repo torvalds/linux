@@ -3310,19 +3310,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		ifnum,
 		interface->altsetting->desc.bInterfaceNumber);
 
-	if (has_audio)
-		printk(KERN_INFO DRIVER_NAME
-		       ": Audio Vendor Class interface %i found\n",
-		       ifnum);
-	if (has_video)
-		printk(KERN_INFO DRIVER_NAME
-		       ": Video interface %i found\n",
-		       ifnum);
-	if (has_dvb)
-		printk(KERN_INFO DRIVER_NAME
-		       ": DVB interface %i found\n",
-		       ifnum);
-
 	/*
 	 * Make sure we have 480 Mbps of bandwidth, otherwise things like
 	 * video stream wouldn't likely work, since 12 Mbps is generally
@@ -3360,6 +3347,24 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 			break;
 		}
 	}
+
+	if (has_audio)
+		printk(KERN_INFO DRIVER_NAME
+		       ": Audio interface %i found %s\n",
+		       ifnum,
+		       dev->has_audio_class ? "(USB Audio Class)" : "(Vendor Class)");
+	if (has_video)
+		printk(KERN_INFO DRIVER_NAME
+		       ": Video interface %i found:%s%s\n",
+		       ifnum,
+		       dev->analog_ep_bulk ? " bulk" : "",
+		       dev->analog_ep_isoc ? " isoc" : "");
+	if (has_dvb)
+		printk(KERN_INFO DRIVER_NAME
+		       ": DVB interface %i found:%s%s\n",
+		       ifnum,
+		       dev->dvb_ep_bulk ? " bulk" : "",
+		       dev->dvb_ep_isoc ? " isoc" : "");
 
 	dev->num_alt = interface->num_altsetting;
 
