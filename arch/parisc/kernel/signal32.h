@@ -23,12 +23,6 @@
 
 typedef compat_uptr_t compat_sighandler_t;
 
-typedef struct compat_sigaltstack {
-        compat_uptr_t ss_sp;
-        compat_int_t ss_flags;
-        compat_size_t ss_size;
-} compat_stack_t;
-
 /* Most things should be clean enough to redefine this at will, if care
    is taken to make libc match.  */
 
@@ -102,8 +96,6 @@ struct compat_rt_sigframe {
 
 void sigset_32to64(sigset_t *s64, compat_sigset_t *s32);
 void sigset_64to32(compat_sigset_t *s32, sigset_t *s64);
-int do_sigaltstack32 (const compat_stack_t __user *uss32, 
-		compat_stack_t __user *uoss32, unsigned long sp);
 long restore_sigcontext32(struct compat_sigcontext __user *sc, 
 		struct compat_regfile __user *rf,
 		struct pt_regs *regs);

@@ -1748,44 +1748,6 @@ ENTRY(sys_rt_sigreturn_wrapper)
 	LDREG	PT_GR28(%r1),%r28  /* reload original r28 for syscall_exit */
 ENDPROC(sys_rt_sigreturn_wrapper)
 
-ENTRY(sys_sigaltstack_wrapper)
-	/* Get the user stack pointer */
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
-	ldo	TASK_REGS(%r1),%r24	/* get pt regs */
-	LDREG	TASK_PT_GR30(%r24),%r24
-	STREG	%r2, -RP_OFFSET(%r30)
-#ifdef CONFIG_64BIT
-	ldo	FRAME_SIZE(%r30), %r30
-	BL	do_sigaltstack,%r2
-	ldo	-16(%r30),%r29		/* Reference param save area */
-#else
-	BL	do_sigaltstack,%r2
-	ldo	FRAME_SIZE(%r30), %r30
-#endif
-
-	ldo	-FRAME_SIZE(%r30), %r30
-	LDREG	-RP_OFFSET(%r30), %r2
-	bv	%r0(%r2)
-	nop
-ENDPROC(sys_sigaltstack_wrapper)
-
-#ifdef CONFIG_64BIT
-ENTRY(sys32_sigaltstack_wrapper)
-	/* Get the user stack pointer */
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r24
-	LDREG	TASK_PT_GR30(%r24),%r24
-	STREG	%r2, -RP_OFFSET(%r30)
-	ldo	FRAME_SIZE(%r30), %r30
-	BL	do_sigaltstack32,%r2
-	ldo	-16(%r30),%r29		/* Reference param save area */
-
-	ldo	-FRAME_SIZE(%r30), %r30
-	LDREG	-RP_OFFSET(%r30), %r2
-	bv	%r0(%r2)
-	nop
-ENDPROC(sys32_sigaltstack_wrapper)
-#endif
-
 ENTRY(syscall_exit)
 	/* NOTE: HP-UX syscalls also come through here
 	 * after hpux_syscall_exit fixes up return

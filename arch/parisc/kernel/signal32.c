@@ -148,41 +148,6 @@ sys32_rt_sigaction(int sig, const struct sigaction32 __user *act, struct sigacti
 	return ret;
 }
 
-int 
-do_sigaltstack32 (const compat_stack_t __user *uss32, compat_stack_t __user *uoss32, unsigned long sp)
-{
-	compat_stack_t ss32, oss32;
-	stack_t ss, oss;
-	stack_t *ssp = NULL, *ossp = NULL;
-	int ret;
-
-	if (uss32) {
-		if (copy_from_user(&ss32, uss32, sizeof ss32))
-			return -EFAULT;
-
-		ss.ss_sp = (void __user *)(unsigned long)ss32.ss_sp;
-		ss.ss_flags = ss32.ss_flags;
-		ss.ss_size = ss32.ss_size;
-
-		ssp = &ss;
-	}
-
-	if (uoss32)
-		ossp = &oss;
-
-	KERNEL_SYSCALL(ret, do_sigaltstack, (const stack_t __user *)ssp, (stack_t __user *)ossp, sp);
-
-	if (!ret && uoss32) {
-		oss32.ss_sp = (unsigned int)(unsigned long)oss.ss_sp;
-		oss32.ss_flags = oss.ss_flags;
-		oss32.ss_size = oss.ss_size;
-		if (copy_to_user(uoss32, &oss32, sizeof *uoss32))
-			return -EFAULT;
-	}
-
-	return ret;
-}
-
 long
 restore_sigcontext32(struct compat_sigcontext __user *sc, struct compat_regfile __user * rf,
 		struct pt_regs *regs)

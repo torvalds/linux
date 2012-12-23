@@ -255,7 +255,7 @@
 	ENTRY_SAME(mremap)
 	ENTRY_SAME(setresuid)
 	ENTRY_SAME(getresuid)		/* 165 */
-	ENTRY_DIFF(sigaltstack_wrapper)
+	ENTRY_COMP(sigaltstack)
 	ENTRY_SAME(ni_syscall)		/* query_module */
 	ENTRY_SAME(poll)
 	/* structs contain pointers and an in_addr... */
