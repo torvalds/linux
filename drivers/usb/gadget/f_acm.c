@@ -711,13 +711,6 @@ acm_unbind(struct usb_configuration *c, struct usb_function *f)
 	kfree(acm);
 }
 
-/* Some controllers can't support CDC ACM ... */
-static inline bool can_support_cdc(struct usb_configuration *c)
-{
-	/* everything else is *probably* fine ... */
-	return true;
-}
-
 /**
  * acm_bind_config - add a CDC ACM function to a configuration
  * @c: the configuration to support the CDC ACM instance
@@ -734,9 +727,6 @@ int acm_bind_config(struct usb_configuration *c, u8 port_num)
 {
 	struct f_acm	*acm;
 	int		status;
-
-	if (!can_support_cdc(c))
-		return -EINVAL;
 
 	/* REVISIT might want instance-specific strings to help
 	 * distinguish instances ...
