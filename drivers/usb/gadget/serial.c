@@ -129,19 +129,33 @@ MODULE_PARM_DESC(n_ports, "number of ports to create, default=1");
 
 /*-------------------------------------------------------------------------*/
 
-static int __init serial_bind_config(struct usb_configuration *c)
+static int __init serial_bind_acm_config(struct usb_configuration *c)
 {
 	unsigned i;
 	int status = 0;
 
-	for (i = 0; i < n_ports && status == 0; i++) {
-		if (use_acm)
-			status = acm_bind_config(c, i);
-		else if (use_obex)
-			status = obex_bind_config(c, i);
-		else
-			status = gser_bind_config(c, i);
-	}
+	for (i = 0; i < n_ports && status == 0; i++)
+		status = acm_bind_config(c, i);
+	return status;
+}
+
+static int __init serial_bind_obex_config(struct usb_configuration *c)
+{
+	unsigned i;
+	int status = 0;
+
+	for (i = 0; i < n_ports && status == 0; i++)
+		status = obex_bind_config(c, i);
+	return status;
+}
+
+static int __init serial_bind_gser_config(struct usb_configuration *c)
+{
+	unsigned i;
+	int status = 0;
+
+	for (i = 0; i < n_ports && status == 0; i++)
+		status = gser_bind_config(c, i);
 	return status;
 }
 
@@ -178,8 +192,15 @@ static int __init gs_bind(struct usb_composite_dev *cdev)
 	}
 
 	/* register our configuration */
-	status = usb_add_config(cdev, &serial_config_driver,
-			serial_bind_config);
+	if (use_acm)
+		status = usb_add_config(cdev, &serial_config_driver,
+				serial_bind_acm_config);
+	else if (use_obex)
+		status = usb_add_config(cdev, &serial_config_driver,
+				serial_bind_obex_config);
+	else
+		status = usb_add_config(cdev, &serial_config_driver,
+				serial_bind_gser_config);
 	if (status < 0)
 		goto fail;
 
