@@ -459,7 +459,7 @@ static int rk2928_pm_enter(suspend_state_t state)
 	cru_writel(CRU_W_MSK_SETBIT(0x01, PLL_PWR_DN_SHIFT), PLL_CONS(GPLL_ID, 1));//power down gpll
 
 	sram_printch('3');
-	rk30_pwm_suspend_voltage_set();
+//	rk30_pwm_suspend_voltage_set();
 
 	board_gpio_suspend();
 
@@ -470,7 +470,7 @@ static int rk2928_pm_enter(suspend_state_t state)
 	sram_printch('4');
 
 	board_gpio_resume();
-	rk30_pwm_resume_voltage_set();
+//	rk30_pwm_resume_voltage_set();
 	sram_printch('3');
 
 	//gpll
