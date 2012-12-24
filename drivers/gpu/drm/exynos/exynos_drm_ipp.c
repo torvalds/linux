@@ -1890,7 +1890,7 @@ static int __devinit ipp_probe(struct platform_device *pdev)
 	struct exynos_drm_subdrv *subdrv;
 	int ret;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -1911,8 +1911,7 @@ static int __devinit ipp_probe(struct platform_device *pdev)
 	ctx->event_workq = create_singlethread_workqueue("ipp_event");
 	if (!ctx->event_workq) {
 		dev_err(dev, "failed to create event workqueue\n");
-		ret = -EINVAL;
-		goto err_clear;
+		return -EINVAL;
 	}
 
 	/*
@@ -1953,8 +1952,6 @@ err_cmd_workq:
 	destroy_workqueue(ctx->cmd_workq);
 err_event_workq:
 	destroy_workqueue(ctx->event_workq);
-err_clear:
-	kfree(ctx);
 	return ret;
 }
 
@@ -1979,8 +1976,6 @@ static int __devexit ipp_remove(struct platform_device *pdev)
 	/* destroy command, event work queue */
 	destroy_workqueue(ctx->cmd_workq);
 	destroy_workqueue(ctx->event_workq);
-
-	kfree(ctx);
 
 	return 0;
 }
