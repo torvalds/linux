@@ -232,7 +232,7 @@ static const struct adxl34x_platform_data adxl34x_default_init = {
 
 	.ev_code_tap = {BTN_TOUCH, BTN_TOUCH, BTN_TOUCH}, /* EV_KEY {x,y,z} */
 	.power_mode = ADXL_AUTO_SLEEP | ADXL_LINK,
-	.fifo_mode = FIFO_STREAM,
+	.fifo_mode = ADXL_FIFO_STREAM,
 	.watermark = 0,
 };
 
