@@ -19,7 +19,7 @@
 	.globl sys_call_table32
 sys_call_table32:
 /*0*/	.word sys_restart_syscall, sparc_exit, sys_fork, sys_read, sys_write
-/*5*/	.word sys32_open, sys_close, sys32_wait4, sys_creat, sys_link
+/*5*/	.word compat_sys_open, sys_close, compat_sys_wait4, sys_creat, sys_link
 /*10*/  .word sys_unlink, sunos_execv, sys_chdir, sys_chown16, sys_mknod
 /*15*/	.word sys_chmod, sys_lchown16, sys_brk, sys_nis_syscall, sys_lseek
 /*20*/	.word sys_getpid, sys_capget, sys_capset, sys_setuid16, sys_getuid16
@@ -34,12 +34,12 @@ sys_call_table32:
 	.word sys_msync, sys_vfork, sys32_pread64, sys32_pwrite64, sys_geteuid
 /*70*/	.word sys_getegid, sys_mmap, sys_setreuid, sys_munmap, sys_mprotect
 	.word sys_madvise, sys_vhangup, sys32_truncate64, sys_mincore, sys_getgroups16
-/*80*/	.word sys_setgroups16, sys_getpgrp, sys_setgroups, sys32_setitimer, sys32_ftruncate64
-	.word sys_swapon, sys32_getitimer, sys_setuid, sys_sethostname, sys_setgid
+/*80*/	.word sys_setgroups16, sys_getpgrp, sys_setgroups, compat_sys_setitimer, sys32_ftruncate64
+	.word sys_swapon, compat_sys_getitimer, sys_setuid, sys_sethostname, sys_setgid
 /*90*/	.word sys_dup2, sys_setfsuid, compat_sys_fcntl, sys32_select, sys_setfsgid
 	.word sys_fsync, sys_setpriority, sys_nis_syscall, sys_nis_syscall, sys_nis_syscall
-/*100*/ .word sys_getpriority, sys32_rt_sigreturn, sys32_rt_sigaction, sys32_rt_sigprocmask, compat_sys_rt_sigpending
-	.word compat_sys_rt_sigtimedwait, sys32_rt_sigqueueinfo, compat_sys_rt_sigsuspend, sys_setresuid, sys_getresuid
+/*100*/ .word sys_getpriority, sys32_rt_sigreturn, compat_sys_rt_sigaction, compat_sys_rt_sigprocmask, compat_sys_rt_sigpending
+	.word compat_sys_rt_sigtimedwait, compat_sys_rt_sigqueueinfo, compat_sys_rt_sigsuspend, sys_setresuid, sys_getresuid
 /*110*/	.word sys_setresgid, sys_getresgid, sys_setregid, sys_nis_syscall, sys_nis_syscall
 	.word sys_getgroups, compat_sys_gettimeofday, sys32_getrusage, sys_nis_syscall, sys_getcwd
 /*120*/	.word compat_sys_readv, compat_sys_writev, compat_sys_settimeofday, sys_fchown16, sys_fchmod
@@ -57,17 +57,17 @@ sys_call_table32:
 /*180*/	.word sys_flistxattr, sys_removexattr, sys_lremovexattr, compat_sys_sigpending, sys_ni_syscall
 	.word sys_setpgid, sys_fremovexattr, sys_tkill, sparc_exit_group, sys_newuname
 /*190*/	.word sys_init_module, sys_sparc64_personality, sys_remap_file_pages, sys_epoll_create, sys_epoll_ctl
-	.word sys_epoll_wait, sys_ioprio_set, sys_getppid, sys32_sigaction, sys_sgetmask
+	.word sys_epoll_wait, sys_ioprio_set, sys_getppid, compat_sys_sparc_sigaction, sys_sgetmask
 /*200*/	.word sys_ssetmask, sys_sigsuspend, compat_sys_newlstat, sys_uselib, compat_sys_old_readdir
 	.word sys32_readahead, sys32_socketcall, sys_syslog, sys32_lookup_dcookie, sys32_fadvise64
 /*210*/	.word sys32_fadvise64_64, sys_tgkill, sys_waitpid, sys_swapoff, compat_sys_sysinfo
 	.word compat_sys_ipc, sys32_sigreturn, sys_clone, sys_ioprio_get, compat_sys_adjtimex
-/*220*/	.word sys32_sigprocmask, sys_ni_syscall, sys_delete_module, sys_ni_syscall, sys_getpgid
+/*220*/	.word compat_sys_sigprocmask, sys_ni_syscall, sys_delete_module, sys_ni_syscall, sys_getpgid
 	.word sys_bdflush, sys_sysfs, sys_nis_syscall, sys_setfsuid16, sys_setfsgid16
 /*230*/	.word sys32_select, compat_sys_time, sys_splice, compat_sys_stime, compat_sys_statfs64
 	.word compat_sys_fstatfs64, sys_llseek, sys_mlock, sys_munlock, sys_mlockall
 /*240*/	.word sys_munlockall, sys_sched_setparam, sys_sched_getparam, sys_sched_setscheduler, sys_sched_getscheduler
-	.word sys_sched_yield, sys_sched_get_priority_max, sys_sched_get_priority_min, sys32_sched_rr_get_interval, compat_sys_nanosleep
+	.word sys_sched_yield, sys_sched_get_priority_max, sys_sched_get_priority_min, compat_sys_sched_rr_get_interval, compat_sys_nanosleep
 /*250*/	.word sys_mremap, compat_sys_sysctl, sys_getsid, sys_fdatasync, sys_nis_syscall
 	.word sys32_sync_file_range, compat_sys_clock_settime, compat_sys_clock_gettime, compat_sys_clock_getres, sys32_clock_nanosleep
 /*260*/	.word compat_sys_sched_getaffinity, compat_sys_sched_setaffinity, sys32_timer_settime, compat_sys_timer_gettime, sys_timer_getoverrun

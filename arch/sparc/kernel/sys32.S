@@ -36,14 +36,6 @@ STUB:	sra	REG1, 0, REG1; \
 	jmpl	%g1 + %lo(SYSCALL), %g0; \
 	sra	REG3, 0, REG3
 
-SIGN1(sys32_wait4, compat_sys_wait4, %o2)
-SIGN1(sys32_setitimer, compat_sys_setitimer, %o0)
-SIGN1(sys32_getitimer, compat_sys_getitimer, %o0)
-SIGN1(sys32_sigaction, compat_sys_sparc_sigaction, %o0)
-SIGN1(sys32_rt_sigaction, compat_sys_rt_sigaction, %o0)
-SIGN1(sys32_sigprocmask, compat_sys_sigprocmask, %o0)
-SIGN1(sys32_rt_sigprocmask, compat_sys_rt_sigprocmask, %o0)
-SIGN2(sys32_rt_sigqueueinfo, compat_sys_rt_sigqueueinfo, %o0, %o1)
 SIGN1(sys32_getrusage, compat_sys_getrusage, %o0)
 SIGN1(sys32_readahead, compat_sys_readahead, %o0)
 SIGN2(sys32_fadvise64, compat_sys_fadvise64, %o0, %o4)
@@ -55,8 +47,6 @@ SIGN1(sys32_mq_open, compat_sys_mq_open, %o1)
 SIGN1(sys32_select, compat_sys_select, %o0)
 SIGN3(sys32_futex, compat_sys_futex, %o1, %o2, %o5)
 SIGN2(sys32_sendfile, compat_sys_sendfile, %o0, %o1)
-SIGN1(sys32_sched_rr_get_interval, compat_sys_sched_rr_get_interval, %o0)
-SIGN2(sys32_open, compat_sys_open, %o1, %o2)
 SIGN1(sys32_recvfrom, compat_sys_recvfrom, %o0)
 SIGN1(sys32_recvmsg, compat_sys_recvmsg, %o0)
 SIGN1(sys32_sendmsg, compat_sys_sendmsg, %o0)
