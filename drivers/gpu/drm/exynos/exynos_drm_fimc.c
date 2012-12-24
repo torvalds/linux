@@ -1741,64 +1741,58 @@ static int __devinit fimc_probe(struct platform_device *pdev)
 	ctx->sclk_fimc_clk = clk_get(dev, "sclk_fimc");
 	if (IS_ERR(ctx->sclk_fimc_clk)) {
 		dev_err(dev, "failed to get src fimc clock.\n");
-		ret = PTR_ERR(ctx->sclk_fimc_clk);
-		goto err_ctx;
+		return PTR_ERR(ctx->sclk_fimc_clk);
 	}
 	clk_enable(ctx->sclk_fimc_clk);
 
 	ctx->fimc_clk = clk_get(dev, "fimc");
 	if (IS_ERR(ctx->fimc_clk)) {
 		dev_err(dev, "failed to get fimc clock.\n");
-		ret = PTR_ERR(ctx->fimc_clk);
 		clk_disable(ctx->sclk_fimc_clk);
 		clk_put(ctx->sclk_fimc_clk);
-		goto err_ctx;
+		return PTR_ERR(ctx->fimc_clk);
 	}
 
 	ctx->wb_clk = clk_get(dev, "pxl_async0");
 	if (IS_ERR(ctx->wb_clk)) {
 		dev_err(dev, "failed to get writeback a clock.\n");
-		ret = PTR_ERR(ctx->wb_clk);
 		clk_disable(ctx->sclk_fimc_clk);
 		clk_put(ctx->sclk_fimc_clk);
 		clk_put(ctx->fimc_clk);
-		goto err_ctx;
+		return PTR_ERR(ctx->wb_clk);
 	}
 
 	ctx->wb_b_clk = clk_get(dev, "pxl_async1");
 	if (IS_ERR(ctx->wb_b_clk)) {
 		dev_err(dev, "failed to get writeback b clock.\n");
-		ret = PTR_ERR(ctx->wb_b_clk);
 		clk_disable(ctx->sclk_fimc_clk);
 		clk_put(ctx->sclk_fimc_clk);
 		clk_put(ctx->fimc_clk);
 		clk_put(ctx->wb_clk);
-		goto err_ctx;
+		return PTR_ERR(ctx->wb_b_clk);
 	}
 
 	parent_clk = clk_get(dev, ddata->parent_clk);
 
 	if (IS_ERR(parent_clk)) {
 		dev_err(dev, "failed to get parent clock.\n");
-		ret = PTR_ERR(parent_clk);
 		clk_disable(ctx->sclk_fimc_clk);
 		clk_put(ctx->sclk_fimc_clk);
 		clk_put(ctx->fimc_clk);
 		clk_put(ctx->wb_clk);
 		clk_put(ctx->wb_b_clk);
-		goto err_ctx;
+		return PTR_ERR(parent_clk);
 	}
 
 	if (clk_set_parent(ctx->sclk_fimc_clk, parent_clk)) {
 		dev_err(dev, "failed to set parent.\n");
-		ret = -EINVAL;
 		clk_put(parent_clk);
 		clk_disable(ctx->sclk_fimc_clk);
 		clk_put(ctx->sclk_fimc_clk);
 		clk_put(ctx->fimc_clk);
 		clk_put(ctx->wb_clk);
 		clk_put(ctx->wb_b_clk);
-		goto err_ctx;
+		return -EINVAL;
 	}
 
 	clk_put(parent_clk);
@@ -1824,7 +1818,7 @@ static int __devinit fimc_probe(struct platform_device *pdev)
 	if (!res) {
 		dev_err(dev, "failed to request irq resource.\n");
 		ret = -ENOENT;
-		goto err_get_regs;
+		goto err_clk;
 	}
 
 	ctx->irq = res->start;
@@ -1832,7 +1826,7 @@ static int __devinit fimc_probe(struct platform_device *pdev)
 		IRQF_ONESHOT, "drm_fimc", ctx);
 	if (ret < 0) {
 		dev_err(dev, "failed to request irq.\n");
-		goto err_get_regs;
+		goto err_clk;
 	}
 
 	/* context initailization */
@@ -1878,15 +1872,12 @@ err_ippdrv_register:
 	pm_runtime_disable(dev);
 err_get_irq:
 	free_irq(ctx->irq, ctx);
-err_get_regs:
-	devm_iounmap(dev, ctx->regs);
 err_clk:
 	clk_put(ctx->sclk_fimc_clk);
 	clk_put(ctx->fimc_clk);
 	clk_put(ctx->wb_clk);
 	clk_put(ctx->wb_b_clk);
-err_ctx:
-	devm_kfree(dev, ctx);
+
 	return ret;
 }
 
@@ -1904,14 +1895,11 @@ static int __devexit fimc_remove(struct platform_device *pdev)
 	pm_runtime_disable(dev);
 
 	free_irq(ctx->irq, ctx);
-	devm_iounmap(dev, ctx->regs);
 
 	clk_put(ctx->sclk_fimc_clk);
 	clk_put(ctx->fimc_clk);
 	clk_put(ctx->wb_clk);
 	clk_put(ctx->wb_b_clk);
-
-	devm_kfree(dev, ctx);
 
 	return 0;
 }
