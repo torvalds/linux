@@ -675,7 +675,7 @@ static int __devinit rotator_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rot->clock = clk_get(dev, "rotator");
+	rot->clock = devm_clk_get(dev, "rotator");
 	if (IS_ERR_OR_NULL(rot->clock)) {
 		dev_err(dev, "failed to get clock\n");
 		ret = PTR_ERR(rot->clock);
@@ -713,7 +713,6 @@ static int __devinit rotator_probe(struct platform_device *pdev)
 err_ippdrv_register:
 	devm_kfree(dev, ippdrv->prop_list);
 	pm_runtime_disable(dev);
-	clk_put(rot->clock);
 err_clk_get:
 	free_irq(rot->irq, rot);
 	return ret;
@@ -729,7 +728,6 @@ static int __devexit rotator_remove(struct platform_device *pdev)
 	exynos_drm_ippdrv_unregister(ippdrv);
 
 	pm_runtime_disable(dev);
-	clk_put(rot->clock);
 
 	free_irq(rot->irq, rot);
 
