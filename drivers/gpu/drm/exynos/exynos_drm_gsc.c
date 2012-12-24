@@ -1684,7 +1684,7 @@ static int __devinit gsc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* clock control */
-	ctx->gsc_clk = clk_get(dev, "gscl");
+	ctx->gsc_clk = devm_clk_get(dev, "gscl");
 	if (IS_ERR(ctx->gsc_clk)) {
 		dev_err(dev, "failed to get gsc clock.\n");
 		return PTR_ERR(ctx->gsc_clk);
@@ -1695,16 +1695,14 @@ static int __devinit gsc_probe(struct platform_device *pdev)
 	ctx->regs = devm_request_and_ioremap(dev, ctx->regs_res);
 	if (!ctx->regs) {
 		dev_err(dev, "failed to map registers.\n");
-		ret = -ENXIO;
-		goto err_clk;
+		return -ENXIO;
 	}
 
 	/* resource irq */
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
 		dev_err(dev, "failed to request irq resource.\n");
-		ret = -ENOENT;
-		goto err_clk;
+		return -ENOENT;
 	}
 
 	ctx->irq = res->start;
@@ -1712,7 +1710,7 @@ static int __devinit gsc_probe(struct platform_device *pdev)
 		IRQF_ONESHOT, "drm_gsc", ctx);
 	if (ret < 0) {
 		dev_err(dev, "failed to request irq.\n");
-		goto err_clk;
+		return ret;
 	}
 
 	/* context initailization */
@@ -1756,8 +1754,6 @@ err_ippdrv_register:
 	pm_runtime_disable(dev);
 err_get_irq:
 	free_irq(ctx->irq, ctx);
-err_clk:
-	clk_put(ctx->gsc_clk);
 	return ret;
 }
 
@@ -1775,7 +1771,6 @@ static int __devexit gsc_remove(struct platform_device *pdev)
 	pm_runtime_disable(dev);
 
 	free_irq(ctx->irq, ctx);
-	clk_put(ctx->gsc_clk);
 
 	return 0;
 }
