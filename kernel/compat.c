@@ -290,8 +290,8 @@ static inline long put_compat_itimerval(struct compat_itimerval __user *o,
 		 __put_user(i->it_value.tv_usec, &o->it_value.tv_usec)));
 }
 
-asmlinkage long compat_sys_getitimer(int which,
-		struct compat_itimerval __user *it)
+COMPAT_SYSCALL_DEFINE2(getitimer, int, which,
+		struct compat_itimerval __user *, it)
 {
 	struct itimerval kit;
 	int error;
@@ -302,9 +302,9 @@ asmlinkage long compat_sys_getitimer(int which,
 	return error;
 }
 
-asmlinkage long compat_sys_setitimer(int which,
-		struct compat_itimerval __user *in,
-		struct compat_itimerval __user *out)
+COMPAT_SYSCALL_DEFINE3(setitimer, int, which,
+		struct compat_itimerval __user *, in,
+		struct compat_itimerval __user *, out)
 {
 	struct itimerval kin, kout;
 	int error;
