@@ -1001,7 +1001,7 @@ compat_sys_rt_sigtimedwait (compat_sigset_t __user *uthese,
 	sigset_from_compat(&s, &s32);
 
 	if (uts) {
-		if (get_compat_timespec(&t, uts))
+		if (compat_get_timespec(&t, uts))
 			return -EFAULT;
 	}
 
