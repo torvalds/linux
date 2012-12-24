@@ -394,6 +394,8 @@ struct iwl_trans;
  *	the op_mode. May be called several times before start_fw, can't be
  *	called after that.
  * @set_pmi: set the power pmi state
+ * @grab_nic_access: wake the NIC to be able to access non-HBUS regs
+ * @release_nic_access: let the NIC go to sleep
  */
 struct iwl_trans_ops {
 
@@ -431,6 +433,8 @@ struct iwl_trans_ops {
 	void (*configure)(struct iwl_trans *trans,
 			  const struct iwl_trans_config *trans_cfg);
 	void (*set_pmi)(struct iwl_trans *trans, bool state);
+	bool (*grab_nic_access)(struct iwl_trans *trans, bool silent);
+	void (*release_nic_access)(struct iwl_trans *trans);
 };
 
 /**
@@ -687,6 +691,17 @@ static inline void iwl_trans_write_prph(struct iwl_trans *trans, u32 ofs,
 static inline void iwl_trans_set_pmi(struct iwl_trans *trans, bool state)
 {
 	trans->ops->set_pmi(trans, state);
+}
+
+static inline bool iwl_trans_grab_nic_access(struct iwl_trans *trans,
+					     bool silent)
+{
+	return trans->ops->grab_nic_access(trans, silent);
+}
+
+static inline void iwl_trans_release_nic_access(struct iwl_trans *trans)
+{
+	trans->ops->release_nic_access(trans);
 }
 
 /*****************************************************

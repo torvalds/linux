@@ -354,7 +354,7 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 
 	/* Make sure device is powered up for SRAM reads */
 	spin_lock_irqsave(&priv->trans->reg_lock, reg_flags);
-	if (unlikely(!iwl_grab_nic_access(priv->trans))) {
+	if (unlikely(!iwl_trans_grab_nic_access(priv->trans, false))) {
 		spin_unlock_irqrestore(&priv->trans->reg_lock, reg_flags);
 		return;
 	}
@@ -388,7 +388,7 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 		}
 	}
 	/* Allow device to power down */
-	iwl_release_nic_access(priv->trans);
+	iwl_trans_release_nic_access(priv->trans);
 	spin_unlock_irqrestore(&priv->trans->reg_lock, reg_flags);
 }
 
@@ -1717,7 +1717,7 @@ static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 
 	/* Make sure device is powered up for SRAM reads */
 	spin_lock_irqsave(&trans->reg_lock, reg_flags);
-	if (unlikely(!iwl_grab_nic_access(trans)))
+	if (unlikely(!iwl_trans_grab_nic_access(trans, false)))
 		goto out_unlock;
 
 	/* Set starting address; reads will auto-increment */
@@ -1756,7 +1756,7 @@ static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	}
 
 	/* Allow device to power down */
-	iwl_release_nic_access(trans);
+	iwl_trans_release_nic_access(trans);
 out_unlock:
 	spin_unlock_irqrestore(&trans->reg_lock, reg_flags);
 	return pos;

@@ -759,6 +759,68 @@ static int iwl_trans_pcie_resume(struct iwl_trans *trans)
 }
 #endif /* CONFIG_PM_SLEEP */
 
+static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans, bool silent)
+{
+	int ret;
+
+	lockdep_assert_held(&trans->reg_lock);
+
+	/* this bit wakes up the NIC */
+	__iwl_set_bit(trans, CSR_GP_CNTRL,
+		      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+
+	/*
+	 * These bits say the device is running, and should keep running for
+	 * at least a short while (at least as long as MAC_ACCESS_REQ stays 1),
+	 * but they do not indicate that embedded SRAM is restored yet;
+	 * 3945 and 4965 have volatile SRAM, and must save/restore contents
+	 * to/from host DRAM when sleeping/waking for power-saving.
+	 * Each direction takes approximately 1/4 millisecond; with this
+	 * overhead, it's a good idea to grab and hold MAC_ACCESS_REQUEST if a
+	 * series of register accesses are expected (e.g. reading Event Log),
+	 * to keep device from sleeping.
+	 *
+	 * CSR_UCODE_DRV_GP1 register bit MAC_SLEEP == 0 indicates that
+	 * SRAM is okay/restored.  We don't check that here because this call
+	 * is just for hardware register access; but GP1 MAC_SLEEP check is a
+	 * good idea before accessing 3945/4965 SRAM (e.g. reading Event Log).
+	 *
+	 * 5000 series and later (including 1000 series) have non-volatile SRAM,
+	 * and do not save/restore SRAM when power cycling.
+	 */
+	ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
+			   CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN,
+			   (CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY |
+			    CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP), 15000);
+	if (unlikely(ret < 0)) {
+		iwl_write32(trans, CSR_RESET, CSR_RESET_REG_FLAG_FORCE_NMI);
+		if (!silent) {
+			u32 val = iwl_read32(trans, CSR_GP_CNTRL);
+			WARN_ONCE(1,
+				  "Timeout waiting for hardware access (CSR_GP_CNTRL 0x%08x)\n",
+				  val);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans)
+{
+	lockdep_assert_held(&trans->reg_lock);
+	__iwl_clear_bit(trans, CSR_GP_CNTRL,
+			CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	/*
+	 * Above we read the CSR_GP_CNTRL register, which will flush
+	 * any previous writes, but we need the write that clears the
+	 * MAC_ACCESS_REQ bit to be performed before any other writes
+	 * scheduled on different CPUs (after we drop reg_lock).
+	 */
+	mmiowb();
+}
+
+
 #define IWL_FLUSH_WAIT_MS	2000
 
 static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans)
@@ -1238,6 +1300,8 @@ static const struct iwl_trans_ops trans_ops_pcie = {
 	.write_prph = iwl_trans_pcie_write_prph,
 	.configure = iwl_trans_pcie_configure,
 	.set_pmi = iwl_trans_pcie_set_pmi,
+	.grab_nic_access = iwl_trans_pcie_grab_nic_access,
+	.release_nic_access = iwl_trans_pcie_release_nic_access
 };
 
 struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
