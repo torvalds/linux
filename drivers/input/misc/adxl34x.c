@@ -827,7 +827,6 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 	if (err)
 		goto err_remove_attr;
 
-	AC_WRITE(ac, THRESH_TAP, pdata->tap_threshold);
 	AC_WRITE(ac, OFSX, pdata->x_axis_offset);
 	ac->hwcal.x = pdata->x_axis_offset;
 	AC_WRITE(ac, OFSY, pdata->y_axis_offset);
