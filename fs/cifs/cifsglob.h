@@ -386,6 +386,7 @@ struct smb_version_values {
 	unsigned int	cap_unix;
 	unsigned int	cap_nt_find;
 	unsigned int	cap_large_files;
+	unsigned int	oplock_read;
 };
 
 #define HEADER_SIZE(server) (server->vals->header_size)

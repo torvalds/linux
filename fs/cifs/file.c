@@ -238,6 +238,23 @@ out:
 	return rc;
 }
 
+static bool
+cifs_has_mand_locks(struct cifsInodeInfo *cinode)
+{
+	struct cifs_fid_locks *cur;
+	bool has_locks = false;
+
+	down_read(&cinode->lock_sem);
+	list_for_each_entry(cur, &cinode->llist, llist) {
+		if (!list_empty(&cur->locks)) {
+			has_locks = true;
+			break;
+		}
+	}
+	up_read(&cinode->lock_sem);
+	return has_locks;
+}
+
 struct cifsFileInfo *
 cifs_new_fileinfo(struct cifs_fid *fid, struct file *file,
 		  struct tcon_link *tlink, __u32 oplock)
@@ -248,6 +265,7 @@ cifs_new_fileinfo(struct cifs_fid *fid, struct file *file,
 	struct cifsFileInfo *cfile;
 	struct cifs_fid_locks *fdlocks;
 	struct cifs_tcon *tcon = tlink_tcon(tlink);
+	struct TCP_Server_Info *server = tcon->ses->server;
 
 	cfile = kzalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
 	if (cfile == NULL)
@@ -276,12 +294,22 @@ cifs_new_fileinfo(struct cifs_fid *fid, struct file *file,
 	INIT_WORK(&cfile->oplock_break, cifs_oplock_break);
 	mutex_init(&cfile->fh_mutex);
 
+	/*
+	 * If the server returned a read oplock and we have mandatory brlocks,
+	 * set oplock level to None.
+	 */
+	if (oplock == server->vals->oplock_read &&
+						cifs_has_mand_locks(cinode)) {
+		cFYI(1, "Reset oplock val from read to None due to mand locks");
+		oplock = 0;
+	}
+
 	spin_lock(&cifs_file_list_lock);
-	if (fid->pending_open->oplock != CIFS_OPLOCK_NO_CHANGE)
+	if (fid->pending_open->oplock != CIFS_OPLOCK_NO_CHANGE && oplock)
 		oplock = fid->pending_open->oplock;
 	list_del(&fid->pending_open->olist);
 
-	tlink_tcon(tlink)->ses->server->ops->set_fid(cfile, fid, oplock);
+	server->ops->set_fid(cfile, fid, oplock);
 
 	list_add(&cfile->tlist, &tcon->openFileList);
 	/* if readable file instance put first in list*/
@@ -1422,6 +1450,7 @@ cifs_setlk(struct file *file, struct file_lock *flock, __u32 type,
 	struct cifsFileInfo *cfile = (struct cifsFileInfo *)file->private_data;
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 	struct TCP_Server_Info *server = tcon->ses->server;
+	struct inode *inode = cfile->dentry->d_inode;
 
 	if (posix_lck) {
 		int posix_lock_type;
@@ -1458,6 +1487,21 @@ cifs_setlk(struct file *file, struct file_lock *flock, __u32 type,
 		}
 		if (!rc)
 			goto out;
+
+		/*
+		 * Windows 7 server can delay breaking lease from read to None
+		 * if we set a byte-range lock on a file - break it explicitly
+		 * before sending the lock to the server to be sure the next
+		 * read won't conflict with non-overlapted locks due to
+		 * pagereading.
+		 */
+		if (!CIFS_I(inode)->clientCanCacheAll &&
+					CIFS_I(inode)->clientCanCacheRead) {
+			cifs_invalidate_mapping(inode);
+			cFYI(1, "Set no oplock for inode=%p due to mand locks",
+			     inode);
+			CIFS_I(inode)->clientCanCacheRead = false;
+		}
 
 		rc = server->ops->mand_lock(xid, cfile, flock->fl_start, length,
 					    type, 1, 0, wait_flag);
@@ -3536,6 +3580,13 @@ void cifs_oplock_break(struct work_struct *work)
 	struct cifsInodeInfo *cinode = CIFS_I(inode);
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 	int rc = 0;
+
+	if (!cinode->clientCanCacheAll && cinode->clientCanCacheRead &&
+						cifs_has_mand_locks(cinode)) {
+		cFYI(1, "Reset oplock to None for inode=%p due to mand locks",
+		     inode);
+		cinode->clientCanCacheRead = false;
+	}
 
 	if (inode && S_ISREG(inode->i_mode)) {
 		if (cinode->clientCanCacheRead)
