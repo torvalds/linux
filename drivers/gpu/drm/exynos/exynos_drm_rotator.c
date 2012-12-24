@@ -656,11 +656,6 @@ static int __devinit rotator_probe(struct platform_device *pdev)
 				platform_get_device_id(pdev)->driver_data;
 
 	rot->regs_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!rot->regs_res) {
-		dev_err(dev, "failed to find registers\n");
-		return -ENOENT;
-	}
-
 	rot->regs = devm_request_and_ioremap(dev, rot->regs_res);
 	if (!rot->regs) {
 		dev_err(dev, "failed to map register\n");
