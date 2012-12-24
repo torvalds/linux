@@ -399,7 +399,8 @@ struct iwl_trans_ops {
 
 	int (*start_hw)(struct iwl_trans *iwl_trans);
 	void (*stop_hw)(struct iwl_trans *iwl_trans, bool op_mode_leaving);
-	int (*start_fw)(struct iwl_trans *trans, const struct fw_img *fw);
+	int (*start_fw)(struct iwl_trans *trans, const struct fw_img *fw,
+			bool run_in_rfkill);
 	void (*fw_alive)(struct iwl_trans *trans, u32 scd_addr);
 	void (*stop_device)(struct iwl_trans *trans);
 
@@ -531,13 +532,14 @@ static inline void iwl_trans_fw_alive(struct iwl_trans *trans, u32 scd_addr)
 }
 
 static inline int iwl_trans_start_fw(struct iwl_trans *trans,
-				     const struct fw_img *fw)
+				     const struct fw_img *fw,
+				     bool run_in_rfkill)
 {
 	might_sleep();
 
 	WARN_ON_ONCE(!trans->rx_mpdu_cmd);
 
-	return trans->ops->start_fw(trans, fw);
+	return trans->ops->start_fw(trans, fw, run_in_rfkill);
 }
 
 static inline void iwl_trans_stop_device(struct iwl_trans *trans)
