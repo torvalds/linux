@@ -842,7 +842,7 @@ static void pxa_camera_init_videobuf(struct videobuf_queue *q,
 	 */
 	videobuf_queue_sg_init(q, &pxa_videobuf_ops, NULL, &pcdev->lock,
 				V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_NONE,
-				sizeof(struct pxa_buffer), icd, &icd->video_lock);
+				sizeof(struct pxa_buffer), icd, &icd->host_lock);
 }
 
 static u32 mclk_get_divisor(struct platform_device *pdev,
@@ -958,7 +958,7 @@ static irqreturn_t pxa_camera_irq(int irq, void *data)
 /*
  * The following two functions absolutely depend on the fact, that
  * there can be only one camera on PXA quick capture interface
- * Called with .video_lock held
+ * Called with .host_lock held
  */
 static int pxa_camera_add_device(struct soc_camera_device *icd)
 {
@@ -978,7 +978,7 @@ static int pxa_camera_add_device(struct soc_camera_device *icd)
 	return 0;
 }
 
-/* Called with .video_lock held */
+/* Called with .host_lock held */
 static void pxa_camera_remove_device(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);

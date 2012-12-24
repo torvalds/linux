@@ -745,7 +745,7 @@ static int isi_camera_get_formats(struct soc_camera_device *icd,
 	return formats;
 }
 
-/* Called with .video_lock held */
+/* Called with .host_lock held */
 static int isi_camera_add_device(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
@@ -770,7 +770,7 @@ static int isi_camera_add_device(struct soc_camera_device *icd)
 		 icd->devnum);
 	return 0;
 }
-/* Called with .video_lock held */
+/* Called with .host_lock held */
 static void isi_camera_remove_device(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);

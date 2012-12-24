@@ -28,7 +28,6 @@
 #include <linux/time.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
-#include <linux/mutex.h>
 #include <linux/clk.h>
 
 #include <media/v4l2-common.h>

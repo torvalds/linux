@@ -46,9 +46,8 @@ struct soc_camera_device {
 	int num_user_formats;
 	enum v4l2_field field;		/* Preserve field over close() */
 	void *host_priv;		/* Per-device host private data */
-	/* soc_camera.c private count. Only accessed with .video_lock held */
+	/* soc_camera.c private count. Only accessed with .host_lock held */
 	int use_count;
-	struct mutex video_lock;	/* Protects device data */
 	struct file *streamer;		/* stream owner */
 	union {
 		struct videobuf_queue vb_vidq;

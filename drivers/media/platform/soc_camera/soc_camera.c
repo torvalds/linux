@@ -383,7 +383,7 @@ static int soc_camera_prepare_buf(struct file *file, void *priv,
 		return vb2_prepare_buf(&icd->vb2_vidq, b);
 }
 
-/* Always entered with .video_lock held */
+/* Always entered with .host_lock held */
 static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
@@ -450,7 +450,7 @@ egfmt:
 	return ret;
 }
 
-/* Always entered with .video_lock held */
+/* Always entered with .host_lock held */
 static void soc_camera_free_user_formats(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
@@ -526,7 +526,7 @@ static int soc_camera_open(struct file *file)
 	ici = to_soc_camera_host(icd->parent);
 	mutex_unlock(&list_lock);
 
-	if (mutex_lock_interruptible(&icd->video_lock))
+	if (mutex_lock_interruptible(&ici->host_lock))
 		return -ERESTARTSYS;
 	if (!try_module_get(ici->ops->owner)) {
 		dev_err(icd->pdev, "Couldn't lock capture bus driver.\n");
@@ -555,9 +555,7 @@ static int soc_camera_open(struct file *file)
 		if (icl->reset)
 			icl->reset(icd->pdev);
 
-		mutex_lock(&ici->host_lock);
 		ret = ici->ops->add(icd);
-		mutex_unlock(&ici->host_lock);
 		if (ret < 0) {
 			dev_err(icd->pdev, "Couldn't activate the camera: %d\n", ret);
 			goto eiciadd;
@@ -576,7 +574,7 @@ static int soc_camera_open(struct file *file)
 		 * Try to configure with default parameters. Notice: this is the
 		 * very first open, so, we cannot race against other calls,
 		 * apart from someone else calling open() simultaneously, but
-		 * .video_lock is protecting us against it.
+		 * .host_lock is protecting us against it.
 		 */
 		ret = soc_camera_set_fmt(icd, &f);
 		if (ret < 0)
@@ -591,7 +589,7 @@ static int soc_camera_open(struct file *file)
 		}
 		v4l2_ctrl_handler_setup(&icd->ctrl_handler);
 	}
-	mutex_unlock(&icd->video_lock);
+	mutex_unlock(&ici->host_lock);
 
 	file->private_data = icd;
 	dev_dbg(icd->pdev, "camera device open\n");
@@ -599,7 +597,7 @@ static int soc_camera_open(struct file *file)
 	return 0;
 
 	/*
-	 * First four errors are entered with the .video_lock held
+	 * First four errors are entered with the .host_lock held
 	 * and use_count == 1
 	 */
 einitvb:
@@ -608,14 +606,12 @@ esfmt:
 eresume:
 	__soc_camera_power_off(icd);
 epower:
-	mutex_lock(&ici->host_lock);
 	ici->ops->remove(icd);
-	mutex_unlock(&ici->host_lock);
 eiciadd:
 	icd->use_count--;
 	module_put(ici->ops->owner);
 emodule:
-	mutex_unlock(&icd->video_lock);
+	mutex_unlock(&ici->host_lock);
 
 	return ret;
 }
@@ -625,7 +621,7 @@ static int soc_camera_close(struct file *file)
 	struct soc_camera_device *icd = file->private_data;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 
-	mutex_lock(&icd->video_lock);
+	mutex_lock(&ici->host_lock);
 	icd->use_count--;
 	if (!icd->use_count) {
 		pm_runtime_suspend(&icd->vdev->dev);
@@ -633,16 +629,14 @@ static int soc_camera_close(struct file *file)
 
 		if (ici->ops->init_videobuf2)
 			vb2_queue_release(&icd->vb2_vidq);
-		mutex_lock(&ici->host_lock);
 		ici->ops->remove(icd);
-		mutex_unlock(&ici->host_lock);
 
 		__soc_camera_power_off(icd);
 	}
 
 	if (icd->streamer == file)
 		icd->streamer = NULL;
-	mutex_unlock(&icd->video_lock);
+	mutex_unlock(&ici->host_lock);
 
 	module_put(ici->ops->owner);
 
@@ -679,13 +673,13 @@ static int soc_camera_mmap(struct file *file, struct vm_area_struct *vma)
 	if (icd->streamer != file)
 		return -EBUSY;
 
-	if (mutex_lock_interruptible(&icd->video_lock))
+	if (mutex_lock_interruptible(&ici->host_lock))
 		return -ERESTARTSYS;
 	if (ici->ops->init_videobuf)
 		err = videobuf_mmap_mapper(&icd->vb_vidq, vma);
 	else
 		err = vb2_mmap(&icd->vb2_vidq, vma);
-	mutex_unlock(&icd->video_lock);
+	mutex_unlock(&ici->host_lock);
 
 	dev_dbg(icd->pdev, "vma start=0x%08lx, size=%ld, ret=%d\n",
 		(unsigned long)vma->vm_start,
@@ -704,26 +698,28 @@ static unsigned int soc_camera_poll(struct file *file, poll_table *pt)
 	if (icd->streamer != file)
 		return POLLERR;
 
-	mutex_lock(&icd->video_lock);
+	mutex_lock(&ici->host_lock);
 	if (ici->ops->init_videobuf && list_empty(&icd->vb_vidq.stream))
 		dev_err(icd->pdev, "Trying to poll with no queued buffers!\n");
 	else
 		res = ici->ops->poll(file, pt);
-	mutex_unlock(&icd->video_lock);
+	mutex_unlock(&ici->host_lock);
 	return res;
 }
 
 void soc_camera_lock(struct vb2_queue *vq)
 {
 	struct soc_camera_device *icd = vb2_get_drv_priv(vq);
-	mutex_lock(&icd->video_lock);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+	mutex_lock(&ici->host_lock);
 }
 EXPORT_SYMBOL(soc_camera_lock);
 
 void soc_camera_unlock(struct vb2_queue *vq)
 {
 	struct soc_camera_device *icd = vb2_get_drv_priv(vq);
-	mutex_unlock(&icd->video_lock);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+	mutex_unlock(&ici->host_lock);
 }
 EXPORT_SYMBOL(soc_camera_unlock);
 
@@ -1213,7 +1209,7 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 	 * itself is protected against concurrent open() calls, but we also have
 	 * to protect our data.
 	 */
-	mutex_lock(&icd->video_lock);
+	mutex_lock(&ici->host_lock);
 
 	ret = soc_camera_video_start(icd);
 	if (ret < 0)
@@ -1227,16 +1223,14 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 		icd->field		= mf.field;
 	}
 
-	mutex_lock(&ici->host_lock);
 	ici->ops->remove(icd);
-	mutex_unlock(&ici->host_lock);
 
-	mutex_unlock(&icd->video_lock);
+	mutex_unlock(&ici->host_lock);
 
 	return 0;
 
 evidstart:
-	mutex_unlock(&icd->video_lock);
+	mutex_unlock(&ici->host_lock);
 	soc_camera_free_user_formats(icd);
 eiufmt:
 ectrl:
@@ -1451,7 +1445,6 @@ static int soc_camera_device_register(struct soc_camera_device *icd)
 	icd->devnum		= num;
 	icd->use_count		= 0;
 	icd->host_priv		= NULL;
-	mutex_init(&icd->video_lock);
 
 	list_add_tail(&icd->list, &devices);
 
@@ -1509,7 +1502,7 @@ static int video_dev_create(struct soc_camera_device *icd)
 	vdev->release		= video_device_release;
 	vdev->tvnorms		= V4L2_STD_UNKNOWN;
 	vdev->ctrl_handler	= &icd->ctrl_handler;
-	vdev->lock		= &icd->video_lock;
+	vdev->lock		= &ici->host_lock;
 
 	icd->vdev = vdev;
 
@@ -1517,7 +1510,7 @@ static int video_dev_create(struct soc_camera_device *icd)
 }
 
 /*
- * Called from soc_camera_probe() above (with .video_lock held???)
+ * Called from soc_camera_probe() above with .host_lock held
  */
 static int soc_camera_video_start(struct soc_camera_device *icd)
 {
