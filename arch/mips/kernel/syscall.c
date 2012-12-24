@@ -46,20 +46,14 @@
  * argument.  Historically that used to be expensive in Linux.  These days
  * the performance advantage is negligible.
  */
-asmlinkage int sysm_pipe(nabi_no_regargs volatile struct pt_regs regs)
+asmlinkage int sysm_pipe(void)
 {
 	int fd[2];
-	int error, res;
-
-	error = do_pipe_flags(fd, 0);
-	if (error) {
-		res = error;
-		goto out;
-	}
-	regs.regs[3] = fd[1];
-	res = fd[0];
-out:
-	return res;
+	int error = do_pipe_flags(fd, 0);
+	if (error)
+		return error;
+	current_pt_regs()->regs[3] = fd[1];
+	return fd[0];
 }
 
 SYSCALL_DEFINE6(mips_mmap, unsigned long, addr, unsigned long, len,
