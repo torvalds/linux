@@ -408,7 +408,7 @@ struct act8846_regulator_subdev act8846_regulator_subdev_id[] = {
 		.id=11,
 		.initdata=&act8846_ldo8,		
 	 },
-#if 0
+#if 1
 	{
 		.id=12,
 		.initdata=&act8846_ldo9,		
