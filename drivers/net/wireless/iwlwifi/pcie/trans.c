@@ -820,6 +820,45 @@ static void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans)
 	mmiowb();
 }
 
+static int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
+				   void *buf, int dwords)
+{
+	unsigned long flags;
+	int offs, ret = 0;
+	u32 *vals = buf;
+
+	spin_lock_irqsave(&trans->reg_lock, flags);
+	if (likely(iwl_trans_grab_nic_access(trans, false))) {
+		iwl_write32(trans, HBUS_TARG_MEM_RADDR, addr);
+		for (offs = 0; offs < dwords; offs++)
+			vals[offs] = iwl_read32(trans, HBUS_TARG_MEM_RDAT);
+		iwl_trans_release_nic_access(trans);
+	} else {
+		ret = -EBUSY;
+	}
+	spin_unlock_irqrestore(&trans->reg_lock, flags);
+	return ret;
+}
+
+static int iwl_trans_pcie_write_mem(struct iwl_trans *trans, u32 addr,
+				    void *buf, int dwords)
+{
+	unsigned long flags;
+	int offs, ret = 0;
+	u32 *vals = buf;
+
+	spin_lock_irqsave(&trans->reg_lock, flags);
+	if (likely(iwl_trans_grab_nic_access(trans, false))) {
+		iwl_write32(trans, HBUS_TARG_MEM_WADDR, addr);
+		for (offs = 0; offs < dwords; offs++)
+			iwl_write32(trans, HBUS_TARG_MEM_WDAT, vals[offs]);
+		iwl_trans_release_nic_access(trans);
+	} else {
+		ret = -EBUSY;
+	}
+	spin_unlock_irqrestore(&trans->reg_lock, flags);
+	return ret;
+}
 
 #define IWL_FLUSH_WAIT_MS	2000
 
@@ -1298,6 +1337,8 @@ static const struct iwl_trans_ops trans_ops_pcie = {
 	.read32 = iwl_trans_pcie_read32,
 	.read_prph = iwl_trans_pcie_read_prph,
 	.write_prph = iwl_trans_pcie_write_prph,
+	.read_mem = iwl_trans_pcie_read_mem,
+	.write_mem = iwl_trans_pcie_write_mem,
 	.configure = iwl_trans_pcie_configure,
 	.set_pmi = iwl_trans_pcie_set_pmi,
 	.grab_nic_access = iwl_trans_pcie_grab_nic_access,

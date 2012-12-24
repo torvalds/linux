@@ -408,7 +408,8 @@ static void iwl_continuous_event_trace(struct iwl_priv *priv)
 
 	base = priv->device_pointers.log_event_table;
 	if (iwlagn_hw_valid_rtc_data_addr(base)) {
-		iwl_read_targ_mem_bytes(priv->trans, base, &read, sizeof(read));
+		iwl_trans_read_mem_bytes(priv->trans, base,
+					 &read, sizeof(read));
 		capacity = read.capacity;
 		mode = read.mode;
 		num_wraps = read.wrap_counter;
@@ -1627,7 +1628,7 @@ static void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	}
 
 	/*TODO: Update dbgfs with ISR error stats obtained below */
-	iwl_read_targ_mem_bytes(trans, base, &table, sizeof(table));
+	iwl_trans_read_mem_bytes(trans, base, &table, sizeof(table));
 
 	if (ERROR_START_OFFSET <= table.valid * ERROR_ELEM_SIZE) {
 		IWL_ERR(trans, "Start IWL Error Log Dump:\n");
@@ -1835,10 +1836,10 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 	}
 
 	/* event log header */
-	capacity = iwl_read_targ_mem(trans, base);
-	mode = iwl_read_targ_mem(trans, base + (1 * sizeof(u32)));
-	num_wraps = iwl_read_targ_mem(trans, base + (2 * sizeof(u32)));
-	next_entry = iwl_read_targ_mem(trans, base + (3 * sizeof(u32)));
+	capacity = iwl_trans_read_mem32(trans, base);
+	mode = iwl_trans_read_mem32(trans, base + (1 * sizeof(u32)));
+	num_wraps = iwl_trans_read_mem32(trans, base + (2 * sizeof(u32)));
+	next_entry = iwl_trans_read_mem32(trans, base + (3 * sizeof(u32)));
 
 	if (capacity > logsize) {
 		IWL_ERR(priv, "Log capacity %d is bogus, limit to %d "

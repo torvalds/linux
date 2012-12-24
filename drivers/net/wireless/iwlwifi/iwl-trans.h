@@ -390,6 +390,8 @@ struct iwl_trans;
  * @read32: read a u32 register at offset ofs from the BAR
  * @read_prph: read a DWORD from a periphery register
  * @write_prph: write a DWORD to a periphery register
+ * @read_mem: read device's SRAM in DWORD
+ * @write_mem: write device's SRAM in DWORD
  * @configure: configure parameters required by the transport layer from
  *	the op_mode. May be called several times before start_fw, can't be
  *	called after that.
@@ -430,6 +432,10 @@ struct iwl_trans_ops {
 	u32 (*read32)(struct iwl_trans *trans, u32 ofs);
 	u32 (*read_prph)(struct iwl_trans *trans, u32 ofs);
 	void (*write_prph)(struct iwl_trans *trans, u32 ofs, u32 val);
+	int (*read_mem)(struct iwl_trans *trans, u32 addr,
+			void *buf, int dwords);
+	int (*write_mem)(struct iwl_trans *trans, u32 addr,
+			 void *buf, int dwords);
 	void (*configure)(struct iwl_trans *trans,
 			  const struct iwl_trans_config *trans_cfg);
 	void (*set_pmi)(struct iwl_trans *trans, bool state);
@@ -645,7 +651,7 @@ static inline int iwl_trans_wait_tx_queue_empty(struct iwl_trans *trans)
 }
 
 static inline int iwl_trans_dbgfs_register(struct iwl_trans *trans,
-					    struct dentry *dir)
+					   struct dentry *dir)
 {
 	return trans->ops->dbgfs_register(trans, dir);
 }
@@ -686,6 +692,41 @@ static inline void iwl_trans_write_prph(struct iwl_trans *trans, u32 ofs,
 					u32 val)
 {
 	return trans->ops->write_prph(trans, ofs, val);
+}
+
+static inline int iwl_trans_read_mem(struct iwl_trans *trans, u32 addr,
+				     void *buf, int dwords)
+{
+	return trans->ops->read_mem(trans, addr, buf, dwords);
+}
+
+#define iwl_trans_read_mem_bytes(trans, addr, buf, bufsize)		      \
+	do {								      \
+		if (__builtin_constant_p(bufsize))			      \
+			BUILD_BUG_ON((bufsize) % sizeof(u32));		      \
+		iwl_trans_read_mem(trans, addr, buf, (bufsize) / sizeof(u32));\
+	} while (0)
+
+static inline u32 iwl_trans_read_mem32(struct iwl_trans *trans, u32 addr)
+{
+	u32 value;
+
+	if (WARN_ON(iwl_trans_read_mem(trans, addr, &value, 1)))
+		return 0xa5a5a5a5;
+
+	return value;
+}
+
+static inline int iwl_trans_write_mem(struct iwl_trans *trans, u32 addr,
+				      void *buf, int dwords)
+{
+	return trans->ops->write_mem(trans, addr, buf, dwords);
+}
+
+static inline u32 iwl_trans_write_mem32(struct iwl_trans *trans, u32 addr,
+					u32 val)
+{
+	return iwl_trans_write_mem(trans, addr, &val, 1);
 }
 
 static inline void iwl_trans_set_pmi(struct iwl_trans *trans, bool state)

@@ -74,19 +74,4 @@ void iwl_set_bits_mask_prph(struct iwl_trans *trans, u32 ofs,
 			    u32 bits, u32 mask);
 void iwl_clear_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask);
 
-void _iwl_read_targ_mem_dwords(struct iwl_trans *trans, u32 addr,
-			       void *buf, int dwords);
-
-#define iwl_read_targ_mem_bytes(trans, addr, buf, bufsize)	\
-	do {							\
-		BUILD_BUG_ON((bufsize) % sizeof(u32));		\
-		_iwl_read_targ_mem_dwords(trans, addr, buf,	\
-					  (bufsize) / sizeof(u32));\
-	} while (0)
-
-int _iwl_write_targ_mem_dwords(struct iwl_trans *trans, u32 addr,
-			       const void *buf, int dwords);
-
-u32 iwl_read_targ_mem(struct iwl_trans *trans, u32 addr);
-int iwl_write_targ_mem(struct iwl_trans *trans, u32 addr, u32 val);
 #endif
