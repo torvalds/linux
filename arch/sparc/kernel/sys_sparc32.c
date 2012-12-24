@@ -206,11 +206,6 @@ asmlinkage long compat_sys_fstatat64(unsigned int dfd,
 	return cp_compat_stat64(&stat, statbuf);
 }
 
-asmlinkage long compat_sys_sysfs(int option, u32 arg1, u32 arg2)
-{
-	return sys_sysfs(option, arg1, arg2);
-}
-
 COMPAT_SYSCALL_DEFINE3(sparc_sigaction, int, sig,
 			struct compat_old_sigaction __user *,act,
 			struct compat_old_sigaction __user *,oact)
@@ -262,35 +257,6 @@ COMPAT_SYSCALL_DEFINE5(rt_sigaction, int, sig,
 
         return ret;
 }
-
-#ifdef CONFIG_MODULES
-
-asmlinkage long sys32_init_module(void __user *umod, u32 len,
-				  const char __user *uargs)
-{
-	return sys_init_module(umod, len, uargs);
-}
-
-asmlinkage long sys32_delete_module(const char __user *name_user,
-				    unsigned int flags)
-{
-	return sys_delete_module(name_user, flags);
-}
-
-#else /* CONFIG_MODULES */
-
-asmlinkage long sys32_init_module(const char __user *name_user,
-				  struct module __user *mod_user)
-{
-	return -ENOSYS;
-}
-
-asmlinkage long sys32_delete_module(const char __user *name_user)
-{
-	return -ENOSYS;
-}
-
-#endif  /* CONFIG_MODULES */
 
 asmlinkage compat_ssize_t sys32_pread64(unsigned int fd,
 					char __user *ubuf,
