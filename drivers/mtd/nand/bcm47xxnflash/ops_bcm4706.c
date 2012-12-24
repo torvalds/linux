@@ -17,8 +17,8 @@
 #include "bcm47xxnflash.h"
 
 /* Broadcom uses 1'000'000 but it seems to be too many. Tests on WNDR4500 has
- * shown 164 retries as maxiumum. */
-#define NFLASH_READY_RETRIES		1000
+ * shown ~1000 retries as maxiumum. */
+#define NFLASH_READY_RETRIES		10000
 
 #define NFLASH_SECTOR_SIZE		512
 
