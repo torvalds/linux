@@ -1844,11 +1844,12 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 
 	/* cache solo and embedded create sessions under the state lock */
 	nfsd4_cache_create_session(cr_ses, cs_slot, status);
-out:
 	nfs4_unlock_state();
+out:
 	dprintk("%s returns %d\n", __func__, ntohl(status));
 	return status;
 out_free_conn:
+	nfs4_unlock_state();
 	free_conn(conn);
 out_free_session:
 	__free_session(new);
