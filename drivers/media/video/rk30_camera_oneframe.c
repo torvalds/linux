@@ -2219,6 +2219,12 @@ static int rk_camera_try_fmt(struct soc_camera_device *icd,
 	if (ret < 0)
 		goto RK_CAMERA_TRY_FMT_END;
     RKCAMERA_DG("%s mf.width:%d  mf.height:%d\n",__FUNCTION__,mf.width,mf.height);
+	//query resolution.
+	if((usr_w == 10000) && (usr_h == 10000)) {
+		pix->width = mf.width;
+        pix->height = mf.height;
+		goto RK_CAMERA_TRY_FMT_END;
+	}
 	#ifdef CONFIG_VIDEO_RK29_WORK_IPP       
 	if ((mf.width != usr_w) || (mf.height != usr_h)) {
         bytes_per_line_host = soc_mbus_bytes_per_line(mf.width,icd->current_fmt->host_fmt); 
