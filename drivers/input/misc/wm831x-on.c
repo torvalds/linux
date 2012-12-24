@@ -86,7 +86,7 @@ static int wm831x_on_probe(struct platform_device *pdev)
 	wm831x_on->wm831x = wm831x;
 	INIT_DELAYED_WORK(&wm831x_on->work, wm831x_poll_on);
 
-	wm831x_on->dev = input_allocate_device();
+	wm831x_on->dev = devm_input_allocate_device(&pdev->dev);
 	if (!wm831x_on->dev) {
 		dev_err(&pdev->dev, "Can't allocate input dev\n");
 		ret = -ENOMEM;
@@ -119,7 +119,6 @@ static int wm831x_on_probe(struct platform_device *pdev)
 err_irq:
 	free_irq(irq, wm831x_on);
 err_input_dev:
-	input_free_device(wm831x_on->dev);
 err:
 	return ret;
 }
@@ -131,7 +130,6 @@ static int wm831x_on_remove(struct platform_device *pdev)
 
 	free_irq(irq, wm831x_on);
 	cancel_delayed_work_sync(&wm831x_on->work);
-	input_unregister_device(wm831x_on->dev);
 
 	return 0;
 }
