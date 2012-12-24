@@ -658,29 +658,26 @@ static int __devinit rotator_probe(struct platform_device *pdev)
 	rot->regs_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!rot->regs_res) {
 		dev_err(dev, "failed to find registers\n");
-		ret = -ENOENT;
-		goto err_get_resource;
+		return -ENOENT;
 	}
 
 	rot->regs = devm_request_and_ioremap(dev, rot->regs_res);
 	if (!rot->regs) {
 		dev_err(dev, "failed to map register\n");
-		ret = -ENXIO;
-		goto err_get_resource;
+		return -ENXIO;
 	}
 
 	rot->irq = platform_get_irq(pdev, 0);
 	if (rot->irq < 0) {
 		dev_err(dev, "failed to get irq\n");
-		ret = rot->irq;
-		goto err_get_irq;
+		return rot->irq;
 	}
 
 	ret = request_threaded_irq(rot->irq, NULL, rotator_irq_handler,
 			IRQF_ONESHOT, "drm_rotator", rot);
 	if (ret < 0) {
 		dev_err(dev, "failed to request irq\n");
-		goto err_get_irq;
+		return ret;
 	}
 
 	rot->clock = clk_get(dev, "rotator");
@@ -724,10 +721,6 @@ err_ippdrv_register:
 	clk_put(rot->clock);
 err_clk_get:
 	free_irq(rot->irq, rot);
-err_get_irq:
-	devm_iounmap(dev, rot->regs);
-err_get_resource:
-	devm_kfree(dev, rot);
 	return ret;
 }
 
@@ -744,9 +737,6 @@ static int __devexit rotator_remove(struct platform_device *pdev)
 	clk_put(rot->clock);
 
 	free_irq(rot->irq, rot);
-	devm_iounmap(dev, rot->regs);
-
-	devm_kfree(dev, rot);
 
 	return 0;
 }
