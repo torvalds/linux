@@ -905,7 +905,7 @@ static struct nfsd4_session *alloc_session(struct nfsd4_channel_attrs *fchan,
 
 	new = __alloc_session(slotsize, numslots);
 	if (!new) {
-		nfsd4_put_drc_mem(slotsize, fchan->maxreqs);
+		nfsd4_put_drc_mem(slotsize, numslots);
 		return NULL;
 	}
 	init_forechannel_attrs(&new->se_fchannel, fchan, numslots, slotsize, nn);
