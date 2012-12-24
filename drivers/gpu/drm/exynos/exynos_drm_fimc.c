@@ -1800,12 +1800,6 @@ static int __devinit fimc_probe(struct platform_device *pdev)
 
 	/* resource memory */
 	ctx->regs_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!ctx->regs_res) {
-		dev_err(dev, "failed to find registers.\n");
-		ret = -ENOENT;
-		goto err_clk;
-	}
-
 	ctx->regs = devm_request_and_ioremap(dev, ctx->regs_res);
 	if (!ctx->regs) {
 		dev_err(dev, "failed to map registers.\n");
