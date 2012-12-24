@@ -1096,11 +1096,11 @@ static struct rfkill_rk_platform_data rfkill_rk_platdata = {
     },
 
     .reset_gpio         = { // BT_RST
-        .io             = RK30_PIN3_PD1, // set io to INVALID_GPIO for disable it
+        .io             = RK30_PIN3_PC7, // set io to INVALID_GPIO for disable it
         .enable         = GPIO_LOW,
         .iomux          = {
-            .name       = GPIO3D1_SDMMC1BACKENDPWR_MIIMDCLK_NAME,
-            .fgpio      = GPIO3D_GPIO3D1,
+            .name       = GPIO3C7_SDMMC1WRITEPRT_RMIICRS_NAME,
+            .fgpio      = GPIO3C_GPIO3C7,
        },
    }, 
 
