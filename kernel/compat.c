@@ -587,7 +587,11 @@ COMPAT_SYSCALL_DEFINE5(waitid,
 		return ret;
 
 	if (uru) {
-		ret = put_compat_rusage(&ru, uru);
+		/* sys_waitid() overwrites everything in ru */
+		if (COMPAT_USE_64BIT_TIME)
+			ret = copy_to_user(uru, &ru, sizeof(ru));
+		else
+			ret = put_compat_rusage(&ru, uru);
 		if (ret)
 			return ret;
 	}
