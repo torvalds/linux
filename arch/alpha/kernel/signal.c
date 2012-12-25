@@ -113,16 +113,6 @@ SYSCALL_DEFINE5(rt_sigaction, int, sig, const struct sigaction __user *, act,
 }
 
 /*
- * Atomically swap in the new signal mask, and wait for a signal.
- */
-SYSCALL_DEFINE1(sigsuspend, old_sigset_t, mask)
-{
-	sigset_t blocked;
-	siginitset(&blocked, mask);
-	return sigsuspend(&blocked);
-}
-
-/*
  * Do a signal return; undo the signal stack.
  */
 

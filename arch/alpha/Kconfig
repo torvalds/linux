@@ -24,6 +24,7 @@ config ALPHA
 	select MODULES_USE_ELF_RELA
 	select GENERIC_SIGALTSTACK
 	select ODD_RT_SIGACTION
+	select OLD_SIGSUSPEND
 	help
 	  The Alpha is a 64-bit general-purpose processor designed and
 	  marketed by the Digital Equipment Corporation of blessed memory,
