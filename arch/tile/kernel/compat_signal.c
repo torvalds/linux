@@ -34,13 +34,6 @@
 #include <asm/syscalls.h>
 #include <arch/interrupts.h>
 
-struct compat_sigaction {
-	compat_uptr_t sa_handler;
-	compat_ulong_t sa_flags;
-	compat_uptr_t sa_restorer;
-	sigset_t sa_mask __packed;
-};
-
 struct compat_ucontext {
 	compat_ulong_t	  uc_flags;
 	compat_uptr_t     uc_link;
@@ -54,48 +47,6 @@ struct compat_rt_sigframe {
 	struct compat_siginfo info;
 	struct compat_ucontext uc;
 };
-
-long compat_sys_rt_sigaction(int sig, struct compat_sigaction __user *act,
-			     struct compat_sigaction __user *oact,
-			     size_t sigsetsize)
-{
-	struct k_sigaction new_sa, old_sa;
-	int ret = -EINVAL;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(sigset_t))
-		goto out;
-
-	if (act) {
-		compat_uptr_t handler, restorer;
-
-		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
-		    __get_user(handler, &act->sa_handler) ||
-		    __get_user(new_sa.sa.sa_flags, &act->sa_flags) ||
-		    __get_user(restorer, &act->sa_restorer) ||
-		    __copy_from_user(&new_sa.sa.sa_mask, &act->sa_mask,
-				     sizeof(sigset_t)))
-			return -EFAULT;
-		new_sa.sa.sa_handler = compat_ptr(handler);
-		new_sa.sa.sa_restorer = compat_ptr(restorer);
-	}
-
-	ret = do_sigaction(sig, act ? &new_sa : NULL, oact ? &old_sa : NULL);
-
-	if (!ret && oact) {
-		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
-		    __put_user(ptr_to_compat(old_sa.sa.sa_handler),
-			       &oact->sa_handler) ||
-		    __put_user(ptr_to_compat(old_sa.sa.sa_restorer),
-			       &oact->sa_restorer) ||
-		    __put_user(old_sa.sa.sa_flags, &oact->sa_flags) ||
-		    __copy_to_user(&oact->sa_mask, &old_sa.sa.sa_mask,
-				   sizeof(sigset_t)))
-			return -EFAULT;
-	}
-out:
-	return ret;
-}
 
 int copy_siginfo_to_user32(struct compat_siginfo __user *to, siginfo_t *from)
 {
