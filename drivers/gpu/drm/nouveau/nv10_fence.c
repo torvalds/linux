@@ -27,18 +27,7 @@
 
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
-#include "nouveau_fence.h"
-
-struct nv10_fence_chan {
-	struct nouveau_fence_chan base;
-};
-
-struct nv10_fence_priv {
-	struct nouveau_fence_priv base;
-	struct nouveau_bo *bo;
-	spinlock_t lock;
-	u32 sequence;
-};
+#include "nv10_fence.h"
 
 int
 nv10_fence_emit(struct nouveau_fence *fence)

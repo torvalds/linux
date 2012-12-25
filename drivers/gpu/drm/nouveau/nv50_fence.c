@@ -27,27 +27,16 @@
 
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
-#include "nouveau_fence.h"
+#include "nv10_fence.h"
 
 #include "nv50_display.h"
-
-struct nv50_fence_chan {
-	struct nouveau_fence_chan base;
-};
-
-struct nv50_fence_priv {
-	struct nouveau_fence_priv base;
-	struct nouveau_bo *bo;
-	spinlock_t lock;
-	u32 sequence;
-};
 
 static int
 nv50_fence_context_new(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->drm->dev;
-	struct nv50_fence_priv *priv = chan->drm->fence;
-	struct nv50_fence_chan *fctx;
+	struct nv10_fence_priv *priv = chan->drm->fence;
+	struct nv10_fence_chan *fctx;
 	struct ttm_mem_reg *mem = &priv->bo->bo.mem;
 	struct nouveau_object *object;
 	int ret, i;
@@ -91,7 +80,7 @@ nv50_fence_context_new(struct nouveau_channel *chan)
 int
 nv50_fence_create(struct nouveau_drm *drm)
 {
-	struct nv50_fence_priv *priv;
+	struct nv10_fence_priv *priv;
 	int ret = 0;
 
 	priv = drm->fence = kzalloc(sizeof(*priv), GFP_KERNEL);
