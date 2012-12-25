@@ -1203,9 +1203,9 @@ compat_sys_sysinfo(struct compat_sysinfo __user *info)
 	return 0;
 }
 
-#ifdef __ARCH_WANT_COMPAT_SYS_SCHED_RR_GET_INTERVAL
-asmlinkage long compat_sys_sched_rr_get_interval(compat_pid_t pid,
-						 struct compat_timespec __user *interval)
+COMPAT_SYSCALL_DEFINE2(sched_rr_get_interval,
+		       compat_pid_t, pid,
+		       struct compat_timespec __user *, interval)
 {
 	struct timespec t;
 	int ret;
@@ -1218,7 +1218,6 @@ asmlinkage long compat_sys_sched_rr_get_interval(compat_pid_t pid,
 		return -EFAULT;
 	return ret;
 }
-#endif /* __ARCH_WANT_COMPAT_SYS_SCHED_RR_GET_INTERVAL */
 
 /*
  * Allocate user-space memory for the duration of a single system call,
