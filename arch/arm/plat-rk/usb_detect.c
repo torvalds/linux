@@ -22,6 +22,7 @@ static void usb_detect_do_wakeup(struct work_struct *work)
 	if (ret < 0) {
 		pr_err("%s: irq_set_irq_type(%d, %d) failed\n", __func__, irq, type);
 	}
+	enable_irq(irq);
 }
 
 static DECLARE_DELAYED_WORK(wakeup_work, usb_detect_do_wakeup);
@@ -30,6 +31,7 @@ static struct wake_lock usb_wakelock;
 
 static irqreturn_t usb_detect_irq_handler(int irq, void *dev_id)
 {
+	disable_irq_nosync(irq); // for irq debounce
 	wake_lock_timeout(&usb_wakelock, WAKE_LOCK_TIMEOUT);
 	schedule_delayed_work(&wakeup_work, HZ / 10);
 	return IRQ_HANDLED;
