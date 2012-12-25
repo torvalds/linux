@@ -340,7 +340,7 @@ struct batadv_socket_packet {
 };
 
 #ifdef CONFIG_BATMAN_ADV_BLA
-struct batadv_backbone_gw {
+struct batadv_bla_backbone_gw {
 	uint8_t orig[ETH_ALEN];
 	short vid;		/* used VLAN ID */
 	struct hlist_node hash_entry;
@@ -356,7 +356,7 @@ struct batadv_backbone_gw {
 struct batadv_claim {
 	uint8_t addr[ETH_ALEN];
 	short vid;
-	struct batadv_backbone_gw *backbone_gw;
+	struct batadv_bla_backbone_gw *backbone_gw;
 	unsigned long lasttime;	/* last time we heard of claim (locals only) */
 	struct rcu_head rcu;
 	atomic_t refcount;
