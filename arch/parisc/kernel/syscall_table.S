@@ -266,7 +266,7 @@
 	/* signals need a careful review */
 	ENTRY_SAME(rt_sigreturn_wrapper)
 	ENTRY_DIFF(rt_sigaction)
-	ENTRY_DIFF(rt_sigprocmask)	/* 175 */
+	ENTRY_COMP(rt_sigprocmask)	/* 175 */
 	ENTRY_DIFF(rt_sigpending)
 	ENTRY_COMP(rt_sigtimedwait)
 	/* even though the struct siginfo_t is different, it appears like

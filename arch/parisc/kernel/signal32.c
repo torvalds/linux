@@ -72,41 +72,6 @@ put_sigset32(compat_sigset_t __user *up, sigset_t *set, size_t sz)
 	return copy_to_user(up, &s, sizeof s);
 }
 
-static int
-get_sigset32(compat_sigset_t __user *up, sigset_t *set, size_t sz)
-{
-	compat_sigset_t s;
-	int r;
-
-	if (sz != sizeof *set)
-		return -EINVAL;
-
-	if ((r = copy_from_user(&s, up, sz)) == 0) {
-		sigset_32to64(set, &s);
-	}
-
-	return r;
-}
-
-int sys32_rt_sigprocmask(int how, compat_sigset_t __user *set, compat_sigset_t __user *oset,
-				    unsigned int sigsetsize)
-{
-	sigset_t old_set, new_set;
-	int ret;
-
-	if (set && get_sigset32(set, &new_set, sigsetsize))
-		return -EFAULT;
-	
-	KERNEL_SYSCALL(ret, sys_rt_sigprocmask, how, set ? (sigset_t __user *)&new_set : NULL,
-				 oset ? (sigset_t __user *)&old_set : NULL, sigsetsize);
-
-	if (!ret && oset && put_sigset32(oset, &old_set, sigsetsize))
-		return -EFAULT;
-
-	return ret;
-}
-
-
 int sys32_rt_sigpending(compat_sigset_t __user *uset, unsigned int sigsetsize)
 {
 	int ret;
