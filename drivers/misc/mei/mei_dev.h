@@ -72,6 +72,12 @@ extern const u8 mei_wd_state_independence_msg[3][4];
  */
 #define  MEI_MAX_OPEN_HANDLE_COUNT (MEI_CLIENTS_MAX - 3)
 
+/*
+ * Internal Clients Number
+ */
+#define MEI_WD_HOST_CLIENT_ID          1
+#define MEI_IAMTHIF_HOST_CLIENT_ID     2
+
 
 /* File state */
 enum file_state {

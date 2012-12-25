@@ -31,11 +31,6 @@
 #define MEI_IAMTHIF_STALL_TIMER    12  /* HPS */
 #define MEI_IAMTHIF_READ_TIMER     10  /* HPS */
 
-/*
- * Internal Clients Number
- */
-#define MEI_WD_HOST_CLIENT_ID          1
-#define MEI_IAMTHIF_HOST_CLIENT_ID     2
 
 /*
  * MEI device IDs
