@@ -202,9 +202,7 @@
  *
  * it needs amixer settings for playing
  *
- * amixer set "Headphone" on
- * amixer set "HPOUTL Mixer DACH" on
- * amixer set "HPOUTR Mixer DACH" on
+ * amixer set "Headphone Enable" on
  */
 
 /* Fixed 3.3V and 1.8V regulators to be used by multiple devices */
