@@ -936,17 +936,17 @@ void tty_ldisc_release(struct tty_struct *tty, struct tty_struct *o_tty)
 	 * race with the set_ldisc code path.
 	 */
 
-	tty_lock_pair(tty, o_tty);
 	tty_ldisc_halt(tty);
-	tty_ldisc_flush_works(tty);
-	if (o_tty) {
+	if (o_tty)
 		tty_ldisc_halt(o_tty);
-		tty_ldisc_flush_works(o_tty);
-	}
 
+	tty_ldisc_flush_works(tty);
+	if (o_tty)
+		tty_ldisc_flush_works(o_tty);
+
+	tty_lock_pair(tty, o_tty);
 	/* This will need doing differently if we need to lock */
 	tty_ldisc_kill(tty);
-
 	if (o_tty)
 		tty_ldisc_kill(o_tty);
 
