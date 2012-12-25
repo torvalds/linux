@@ -13,8 +13,8 @@
 /include/ "imx27.dtsi"
 
 / {
-	model = "mx27_3ds";
-	compatible = "freescale,imx27-3ds", "fsl,imx27";
+	model = "Freescale i.MX27 Product Development Kit";
+	compatible = "fsl,imx27-pdk", "fsl,imx27";
 
 	memory {
 		reg = <0x0 0x0>;
