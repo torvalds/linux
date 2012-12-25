@@ -620,24 +620,6 @@ long compat_sys_rt_sigaction(int sig, const struct sigaction32 __user *act,
 	return ret;
 }
 
-long compat_sys_rt_sigpending(compat_sigset_t __user *set, compat_size_t sigsetsize)
-{
-	sigset_t s;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-
-	set_fs(KERNEL_DS);
-	/* The __user pointer cast is valid because of the set_fs() */
-	ret = sys_rt_sigpending((sigset_t __user *) &s, sigsetsize);
-	set_fs(old_fs);
-	if (!ret) {
-		if (put_sigset_t(set, &s))
-			return -EFAULT;
-	}
-	return ret;
-}
-
-
 int copy_siginfo_to_user32(struct compat_siginfo __user *d, siginfo_t *s)
 {
 	int err;
