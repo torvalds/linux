@@ -716,7 +716,7 @@ ENTRY(sys32_rt_sigqueueinfo_wrapper)
 	lgfr	%r2,%r2			# int
 	lgfr	%r3,%r3			# int
 	llgtr	%r4,%r4			# siginfo_emu31_t *
-	jg	sys32_rt_sigqueueinfo	# branch to system call
+	jg	compat_sys_rt_sigqueueinfo	# branch to system call
 
 ENTRY(compat_sys_rt_sigsuspend_wrapper)
 	llgtr	%r2,%r2			# compat_sigset_t *
