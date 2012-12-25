@@ -398,15 +398,6 @@ int mei_ioctl_connect_client(struct file *file,
 
 int mei_start_read(struct mei_device *dev, struct mei_cl *cl);
 
-
-void mei_client_disconnect_response(struct mei_device *dev,
-			struct hbm_client_connect_response *rs);
-
-void mei_client_connect_response(struct mei_device *dev,
-		struct hbm_client_connect_response *rs);
-
-void mei_client_flow_control_response(struct mei_device *dev,
-		struct hbm_flow_control *flow_control);
 /*
  * AMTHIF - AMT Host Interface Functions
  */

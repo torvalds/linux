@@ -59,6 +59,33 @@ bool mei_hbm_cl_addr_equal(struct mei_cl *cl, void *buf)
 
 
 /**
+ * is_treat_specially_client - checks if the message belongs
+ * to the file private data.
+ *
+ * @cl: private data of the file object
+ * @rs: connect response bus message
+ *
+ */
+static bool is_treat_specially_client(struct mei_cl *cl,
+		struct hbm_client_connect_response *rs)
+{
+	if (mei_hbm_cl_addr_equal(cl, rs)) {
+		if (!rs->status) {
+			cl->state = MEI_FILE_CONNECTED;
+			cl->status = 0;
+
+		} else {
+			cl->state = MEI_FILE_DISCONNECTED;
+			cl->status = -ENODEV;
+		}
+		cl->timer_count = 0;
+
+		return true;
+	}
+	return false;
+}
+
+/**
  * mei_hbm_start_req - sends start request message.
  *
  * @dev: the device structure
@@ -218,6 +245,66 @@ int mei_hbm_cl_flow_control_req(struct mei_device *dev, struct mei_cl *cl)
 }
 
 /**
+ * add_single_flow_creds - adds single buffer credentials.
+ *
+ * @file: private data ot the file object.
+ * @flow: flow control.
+ */
+static void mei_hbm_add_single_flow_creds(struct mei_device *dev,
+				  struct hbm_flow_control *flow)
+{
+	struct mei_me_client *client;
+	int i;
+
+	for (i = 0; i < dev->me_clients_num; i++) {
+		client = &dev->me_clients[i];
+		if (client && flow->me_addr == client->client_id) {
+			if (client->props.single_recv_buf) {
+				client->mei_flow_ctrl_creds++;
+				dev_dbg(&dev->pdev->dev, "recv flow ctrl msg ME %d (single).\n",
+				    flow->me_addr);
+				dev_dbg(&dev->pdev->dev, "flow control credentials =%d.\n",
+				    client->mei_flow_ctrl_creds);
+			} else {
+				BUG();	/* error in flow control */
+			}
+		}
+	}
+}
+
+/**
+ * mei_hbm_cl_flow_control_res - flow control response from me
+ *
+ * @dev: the device structure
+ * @flow_control: flow control response bus message
+ */
+static void mei_hbm_cl_flow_control_res(struct mei_device *dev,
+		struct hbm_flow_control *flow_control)
+{
+	struct mei_cl *cl = NULL;
+	struct mei_cl *next = NULL;
+
+	if (!flow_control->host_addr) {
+		/* single receive buffer */
+		mei_hbm_add_single_flow_creds(dev, flow_control);
+		return;
+	}
+
+	/* normal connection */
+	list_for_each_entry_safe(cl, next, &dev->file_list, link) {
+		if (mei_hbm_cl_addr_equal(cl, flow_control)) {
+			cl->mei_flow_ctrl_creds++;
+			dev_dbg(&dev->pdev->dev, "flow ctrl msg for host %d ME %d.\n",
+				flow_control->host_addr, flow_control->me_addr);
+			dev_dbg(&dev->pdev->dev, "flow control credentials = %d.\n",
+				    cl->mei_flow_ctrl_creds);
+				break;
+		}
+	}
+}
+
+
+/**
  * mei_hbm_cl_disconnect_req - sends disconnect message to fw.
  *
  * @dev: the device structure
@@ -234,6 +321,48 @@ int mei_hbm_cl_disconnect_req(struct mei_device *dev, struct mei_cl *cl)
 	mei_hbm_cl_hdr(cl, CLIENT_DISCONNECT_REQ_CMD, dev->wr_msg.data, len);
 
 	return mei_write_message(dev, mei_hdr, dev->wr_msg.data);
+}
+
+/**
+ * mei_hbm_cl_disconnect_res - disconnect response from ME
+ *
+ * @dev: the device structure
+ * @rs: disconnect response bus message
+ */
+static void mei_hbm_cl_disconnect_res(struct mei_device *dev,
+		struct hbm_client_connect_response *rs)
+{
+	struct mei_cl *cl;
+	struct mei_cl_cb *pos = NULL, *next = NULL;
+
+	dev_dbg(&dev->pdev->dev,
+			"disconnect_response:\n"
+			"ME Client = %d\n"
+			"Host Client = %d\n"
+			"Status = %d\n",
+			rs->me_addr,
+			rs->host_addr,
+			rs->status);
+
+	list_for_each_entry_safe(pos, next, &dev->ctrl_rd_list.list, list) {
+		cl = pos->cl;
+
+		if (!cl) {
+			list_del(&pos->list);
+			return;
+		}
+
+		dev_dbg(&dev->pdev->dev, "list_for_each_entry_safe in ctrl_rd_list.\n");
+		if (mei_hbm_cl_addr_equal(cl, rs)) {
+			list_del(&pos->list);
+			if (!rs->status)
+				cl->state = MEI_FILE_DISCONNECTED;
+
+			cl->status = 0;
+			cl->timer_count = 0;
+			break;
+		}
+	}
 }
 
 /**
@@ -254,6 +383,60 @@ int mei_hbm_cl_connect_req(struct mei_device *dev, struct mei_cl *cl)
 
 	return mei_write_message(dev, mei_hdr,  dev->wr_msg.data);
 }
+
+/**
+ * mei_hbm_cl_connect_res - connect resposne from the ME
+ *
+ * @dev: the device structure
+ * @rs: connect response bus message
+ */
+static void mei_hbm_cl_connect_res(struct mei_device *dev,
+		struct hbm_client_connect_response *rs)
+{
+
+	struct mei_cl *cl;
+	struct mei_cl_cb *pos = NULL, *next = NULL;
+
+	dev_dbg(&dev->pdev->dev,
+			"connect_response:\n"
+			"ME Client = %d\n"
+			"Host Client = %d\n"
+			"Status = %d\n",
+			rs->me_addr,
+			rs->host_addr,
+			rs->status);
+
+	/* if WD or iamthif client treat specially */
+
+	if (is_treat_specially_client(&dev->wd_cl, rs)) {
+		dev_dbg(&dev->pdev->dev, "successfully connected to WD client.\n");
+		mei_watchdog_register(dev);
+
+		return;
+	}
+
+	if (is_treat_specially_client(&dev->iamthif_cl, rs)) {
+		dev->iamthif_state = MEI_IAMTHIF_IDLE;
+		return;
+	}
+	list_for_each_entry_safe(pos, next, &dev->ctrl_rd_list.list, list) {
+
+		cl = pos->cl;
+		if (!cl) {
+			list_del(&pos->list);
+			return;
+		}
+		if (pos->fop_type == MEI_FOP_IOCTL) {
+			if (is_treat_specially_client(cl, rs)) {
+				list_del(&pos->list);
+				cl->status = 0;
+				cl->timer_count = 0;
+				break;
+			}
+		}
+	}
+}
+
 
 /**
  * mei_client_disconnect_request - disconnect request initiated by me
@@ -347,21 +530,21 @@ void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 
 	case CLIENT_CONNECT_RES_CMD:
 		connect_res = (struct hbm_client_connect_response *) mei_msg;
-		mei_client_connect_response(dev, connect_res);
+		mei_hbm_cl_connect_res(dev, connect_res);
 		dev_dbg(&dev->pdev->dev, "client connect response message received.\n");
 		wake_up(&dev->wait_recvd_msg);
 		break;
 
 	case CLIENT_DISCONNECT_RES_CMD:
 		disconnect_res = (struct hbm_client_connect_response *) mei_msg;
-		mei_client_disconnect_response(dev, disconnect_res);
+		mei_hbm_cl_disconnect_res(dev, disconnect_res);
 		dev_dbg(&dev->pdev->dev, "client disconnect response message received.\n");
 		wake_up(&dev->wait_recvd_msg);
 		break;
 
 	case MEI_FLOW_CONTROL_CMD:
 		flow_control = (struct hbm_flow_control *) mei_msg;
-		mei_client_flow_control_response(dev, flow_control);
+		mei_hbm_cl_flow_control_res(dev, flow_control);
 		dev_dbg(&dev->pdev->dev, "client flow control response message received.\n");
 		break;
 
