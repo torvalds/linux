@@ -26,11 +26,6 @@ EXCLUDES=()
 
 if [ "$arch" == "rk30" ]; then
 
-FILES=(
-arch/arm/mach-rk30/clock_data.c
-arch/arm/mach-rk30/ddr.c
-)
-
 EXCLUDES=(
 arch/arm/mach-rk30/*rk3066b*
 arch/arm/mach-rk30/include/mach/*rk3066b*
@@ -51,11 +46,6 @@ arch/arm/configs/rk30_phonepad_c8003*
 defconfig=rk3066_sdk_defconfig
 
 elif [ "$arch" == "rk2928" ]; then
-
-FILES=(
-arch/arm/mach-rk2928/clock_data.c
-arch/arm/mach-rk2928/ddr.c
-)
 
 EXCLUDES=(
 arch/arm/mach-rk30/*.c
@@ -83,11 +73,6 @@ arch/arm/configs/rk2928_phonepad_defconfig
 defconfig=rk2928_sdk_defconfig
 
 elif [ "$arch" == "rk3066b" ]; then
-
-FILES=(
-arch/arm/mach-rk30/clock_data-rk3066b.c
-arch/arm/mach-rk30/ddr.c
-)
 
 EXCLUDES=(
 arch/arm/mach-rk30/clock_data.c
