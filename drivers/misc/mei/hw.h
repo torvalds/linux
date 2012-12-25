@@ -121,6 +121,22 @@ struct mei_bus_message {
 	u8 data[0];
 } __packed;
 
+/**
+ * struct hbm_cl_cmd - client specific host bus command
+ *	CONNECT, DISCONNECT, and FlOW CONTROL
+ *
+ * @hbm_cmd - bus message command header
+ * @me_addr - address of the client in ME
+ * @host_addr - address of the client in the driver
+ * @data
+ */
+struct mei_hbm_cl_cmd {
+	u8 hbm_cmd;
+	u8 me_addr;
+	u8 host_addr;
+	u8 data;
+};
+
 struct hbm_version {
 	u8 minor_version;
 	u8 major_version;
