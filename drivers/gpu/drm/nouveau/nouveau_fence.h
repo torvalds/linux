@@ -60,6 +60,7 @@ u32  nv10_fence_read(struct nouveau_channel *);
 void nv10_fence_context_del(struct nouveau_channel *);
 void nv10_fence_destroy(struct nouveau_drm *);
 int  nv10_fence_create(struct nouveau_drm *);
+void nv17_fence_resume(struct nouveau_drm *drm);
 
 int nv50_fence_create(struct nouveau_drm *);
 int nv84_fence_create(struct nouveau_drm *);
