@@ -457,8 +457,7 @@ int mei_amthif_irq_write_complete(struct mei_device *dev, s32 *slots,
 		return 0;
 	}
 
-	dev_dbg(&dev->pdev->dev, "msg: len = %d complete = %d\n",
-			mei_hdr->length, mei_hdr->msg_complete);
+	dev_dbg(&dev->pdev->dev, MEI_HDR_FMT,  MEI_HDR_PRM(mei_hdr));
 
 	*slots -=  msg_slots;
 	if (mei_write_message(dev, mei_hdr,

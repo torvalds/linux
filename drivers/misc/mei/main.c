@@ -552,8 +552,9 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 	mei_hdr.host_addr = cl->host_client_id;
 	mei_hdr.me_addr = cl->me_client_id;
 	mei_hdr.reserved = 0;
-	dev_dbg(&dev->pdev->dev, "call mei_write_message header=%08x.\n",
-	    *((u32 *) &mei_hdr));
+
+	dev_dbg(&dev->pdev->dev, "write " MEI_HDR_FMT "\n",
+		MEI_HDR_PRM(&mei_hdr));
 	if (mei_write_message(dev, &mei_hdr, write_cb->request_buffer.data)) {
 		rets = -ENODEV;
 		goto err;

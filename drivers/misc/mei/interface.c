@@ -127,9 +127,7 @@ int mei_write_message(struct mei_device *dev, struct mei_msg_hdr *header,
 	int i;
 	int empty_slots;
 
-	dev_dbg(&dev->pdev->dev,
-			"mei_write_message header=%08x.\n",
-			*((u32 *) header));
+	dev_dbg(&dev->pdev->dev, MEI_HDR_FMT, MEI_HDR_PRM(header));
 
 	empty_slots = mei_hbuf_empty_slots(dev);
 	dev_dbg(&dev->pdev->dev, "empty slots = %hu.\n", empty_slots);

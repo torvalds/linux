@@ -150,8 +150,8 @@ quit:
 	dev_dbg(&dev->pdev->dev, "message read\n");
 	if (!buffer) {
 		mei_read_slots(dev, dev->rd_msg_buf, mei_hdr->length);
-		dev_dbg(&dev->pdev->dev, "discarding message, header =%08x.\n",
-				*(u32 *) dev->rd_msg_buf);
+		dev_dbg(&dev->pdev->dev, "discarding message " MEI_HDR_FMT "\n",
+				MEI_HDR_PRM(mei_hdr));
 	}
 
 	return 0;
@@ -742,8 +742,7 @@ static int mei_irq_thread_write_complete(struct mei_device *dev, s32 *slots,
 
 	dev_dbg(&dev->pdev->dev, "buf: size = %d idx = %lu\n",
 			cb->request_buffer.size, cb->buf_idx);
-	dev_dbg(&dev->pdev->dev, "msg: len = %d complete = %d\n",
-			mei_hdr->length, mei_hdr->msg_complete);
+	dev_dbg(&dev->pdev->dev, MEI_HDR_FMT, MEI_HDR_PRM(mei_hdr));
 
 	*slots -=  msg_slots;
 	if (mei_write_message(dev, mei_hdr,
@@ -790,7 +789,7 @@ static int mei_irq_thread_read_handler(struct mei_cl_cb *cmpl_list,
 		dev_dbg(&dev->pdev->dev, "slots =%08x.\n", *slots);
 	}
 	mei_hdr = (struct mei_msg_hdr *) &dev->rd_msg_hdr;
-	dev_dbg(&dev->pdev->dev, "mei_hdr->length =%d\n", mei_hdr->length);
+	dev_dbg(&dev->pdev->dev, MEI_HDR_FMT, MEI_HDR_PRM(mei_hdr));
 
 	if (mei_hdr->reserved || !dev->rd_msg_hdr) {
 		dev_dbg(&dev->pdev->dev, "corrupted message header.\n");
@@ -835,13 +834,12 @@ static int mei_irq_thread_read_handler(struct mei_cl_cb *cmpl_list,
 		   (MEI_FILE_CONNECTED == dev->iamthif_cl.state) &&
 		   (dev->iamthif_state == MEI_IAMTHIF_READING)) {
 		dev_dbg(&dev->pdev->dev, "call mei_irq_thread_read_iamthif_message.\n");
-		dev_dbg(&dev->pdev->dev, "mei_hdr->length =%d\n",
-				mei_hdr->length);
+
+		dev_dbg(&dev->pdev->dev, MEI_HDR_FMT, MEI_HDR_PRM(mei_hdr));
 
 		ret = mei_amthif_irq_read_message(cmpl_list, dev, mei_hdr);
 		if (ret)
 			goto end;
-
 	} else {
 		dev_dbg(&dev->pdev->dev, "call mei_irq_thread_read_client_message.\n");
 		ret = mei_irq_thread_read_client_message(cmpl_list,

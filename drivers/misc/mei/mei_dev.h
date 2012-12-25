@@ -506,4 +506,9 @@ static inline struct mei_msg_hdr *mei_hbm_hdr(u32 *buf, size_t length)
 	return hdr;
 }
 
+#define MEI_HDR_FMT "hdr:host=%02d me=%02d len=%d comp=%1d"
+#define MEI_HDR_PRM(hdr)                  \
+	(hdr)->host_addr, (hdr)->me_addr, \
+	(hdr)->length, (hdr)->msg_complete
+
 #endif
