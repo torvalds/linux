@@ -688,30 +688,6 @@ int copy_siginfo_from_user32(siginfo_t *to, struct compat_siginfo __user *from)
 
 	return 0;
 }
-
-/*
- * Note: it is necessary to treat pid and sig as unsigned ints, with the
- * corresponding cast to a signed int to insure that the proper conversion
- * (sign extension) between the register representation of a signed int
- * (msr in 32-bit mode) and the register representation of a signed int
- * (msr in 64-bit mode) is performed.
- */
-long compat_sys_rt_sigqueueinfo(u32 pid, u32 sig, compat_siginfo_t __user *uinfo)
-{
-	siginfo_t info;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-
-	ret = copy_siginfo_from_user32(&info, uinfo);
-	if (unlikely(ret))
-		return ret;
-
-	set_fs (KERNEL_DS);
-	/* The __user pointer cast is valid becasuse of the set_fs() */
-	ret = sys_rt_sigqueueinfo((int)pid, (int)sig, (siginfo_t __user *) &info);
-	set_fs (old_fs);
-	return ret;
-}
 #endif /* CONFIG_PPC64 */
 
 /*
