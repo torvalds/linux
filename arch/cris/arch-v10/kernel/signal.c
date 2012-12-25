@@ -41,18 +41,6 @@
 
 void do_signal(int canrestart, struct pt_regs *regs);
 
-/*
- * Atomically swap in the new signal mask, and wait for a signal.  Define
- * dummy arguments to be able to reach the regs argument.  (Note that this
- * arrangement relies on old_sigset_t occupying one register.)
- */
-int sys_sigsuspend(old_sigset_t mask)
-{
-	sigset_t blocked;
-	siginitset(&blocked, mask);
-	return sigsuspend(&blocked);
-}
-
 int sys_sigaction(int sig, const struct old_sigaction __user *act,
 	struct old_sigaction *oact)
 {

@@ -51,17 +51,6 @@ struct rt_signal_frame {
 void do_signal(int restart, struct pt_regs *regs);
 void keep_debug_flags(unsigned long oldccs, unsigned long oldspc,
 		      struct pt_regs *regs);
-/*
- * Swap in the new signal mask, and wait for a signal. Define some
- * dummy arguments to be able to reach the regs argument.
- */
-int
-sys_sigsuspend(old_sigset_t mask)
-{
-	sigset_t blocked;
-	siginitset(&blocked, mask);
-	return sigsuspend(&blocked);
-}
 
 int
 sys_sigaction(int signal, const struct old_sigaction *act,

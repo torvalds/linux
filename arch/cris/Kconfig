@@ -51,6 +51,7 @@ config CRIS
 	select MODULES_USE_ELF_RELA
 	select CLONE_BACKWARDS2
 	select GENERIC_SIGALTSTACK
+	select OLD_SIGSUSPEND
 
 config HZ
 	int
