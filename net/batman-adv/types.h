@@ -426,15 +426,6 @@ struct batadv_forw_packet {
 	struct batadv_hard_iface *if_incoming;
 };
 
-/* While scanning for vis-entries of a particular vis-originator
- * this list collects its interfaces to create a subgraph/cluster
- * out of them later
- */
-struct batadv_if_list_entry {
-	uint8_t addr[ETH_ALEN];
-	bool primary;
-	struct hlist_node list;
-};
 struct batadv_frag_packet_list_entry {
 	struct list_head list;
 	uint16_t seqno;
@@ -465,6 +456,16 @@ struct batadv_vis_info_entry {
 struct batadv_recvlist_node {
 	struct list_head list;
 	uint8_t mac[ETH_ALEN];
+};
+
+/* While scanning for vis-entries of a particular vis-originator
+ * this list collects its interfaces to create a subgraph/cluster
+ * out of them later
+ */
+struct batadv_vis_if_list_entry {
+	uint8_t addr[ETH_ALEN];
+	bool primary;
+	struct hlist_node list;
 };
 
 struct batadv_algo_ops {
