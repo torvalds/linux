@@ -22,6 +22,8 @@ config TILE
 	select GENERIC_CLOCKEVENTS
 	select MODULES_USE_ELF_RELA
 	select GENERIC_SIGALTSTACK
+	select GENERIC_COMPAT_RT_SIGPROCMASK
+	select GENERIC_COMPAT_RT_SIGPENDING
 
 # FIXME: investigate whether we need/want these options.
 #	select HAVE_IOREMAP_PROT
