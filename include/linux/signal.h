@@ -243,7 +243,6 @@ extern int group_send_sig_info(int sig, struct siginfo *info, struct task_struct
 extern int __group_send_sig_info(int, struct siginfo *, struct task_struct *);
 extern long do_rt_tgsigqueueinfo(pid_t tgid, pid_t pid, int sig,
 				 siginfo_t *info);
-extern long do_sigpending(void __user *, unsigned long);
 extern int do_sigtimedwait(const sigset_t *, siginfo_t *,
 				const struct timespec *);
 extern int sigprocmask(int, sigset_t *, sigset_t *);

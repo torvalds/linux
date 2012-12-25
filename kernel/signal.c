@@ -2654,28 +2654,19 @@ COMPAT_SYSCALL_DEFINE4(rt_sigprocmask, int, how, compat_sigset_t __user *, nset,
 #endif
 #endif
 
-long do_sigpending(void __user *set, unsigned long sigsetsize)
+static int do_sigpending(void *set, unsigned long sigsetsize)
 {
-	long error = -EINVAL;
-	sigset_t pending;
-
 	if (sigsetsize > sizeof(sigset_t))
-		goto out;
+		return -EINVAL;
 
 	spin_lock_irq(&current->sighand->siglock);
-	sigorsets(&pending, &current->pending.signal,
+	sigorsets(set, &current->pending.signal,
 		  &current->signal->shared_pending.signal);
 	spin_unlock_irq(&current->sighand->siglock);
 
 	/* Outside the lock because only this thread touches it.  */
-	sigandsets(&pending, &current->blocked, &pending);
-
-	error = -EFAULT;
-	if (!copy_to_user(set, &pending, sigsetsize))
-		error = 0;
-
-out:
-	return error;
+	sigandsets(set, &current->blocked, set);
+	return 0;
 }
 
 /**
@@ -2684,10 +2675,37 @@ out:
  *  @set: stores pending signals
  *  @sigsetsize: size of sigset_t type or larger
  */
-SYSCALL_DEFINE2(rt_sigpending, sigset_t __user *, set, size_t, sigsetsize)
+SYSCALL_DEFINE2(rt_sigpending, sigset_t __user *, uset, size_t, sigsetsize)
 {
-	return do_sigpending(set, sigsetsize);
+	sigset_t set;
+	int err = do_sigpending(&set, sigsetsize);
+	if (!err && copy_to_user(uset, &set, sigsetsize))
+		err = -EFAULT;
+	return err;
 }
+
+#ifdef CONFIG_COMPAT
+#ifdef CONFIG_GENERIC_COMPAT_RT_SIGPENDING
+COMPAT_SYSCALL_DEFINE2(rt_sigpending, compat_sigset_t __user *, uset,
+		compat_size_t, sigsetsize)
+{
+#ifdef __BIG_ENDIAN
+	sigset_t set;
+	int err = do_sigpending(&set, sigsetsize);
+	if (!err) {
+		compat_sigset_t set32;
+		sigset_to_compat(&set32, &set);
+		/* we can get here only if sigsetsize <= sizeof(set) */
+		if (copy_to_user(uset, &set32, sigsetsize))
+			err = -EFAULT;
+	}
+	return err;
+#else
+	return sys_rt_sigpending((sigset_t __user *)uset, sigsetsize);
+#endif
+}
+#endif
+#endif
 
 #ifndef HAVE_ARCH_COPY_SIGINFO_TO_USER
 
@@ -3216,7 +3234,7 @@ int __compat_save_altstack(compat_stack_t __user *uss, unsigned long sp)
  */
 SYSCALL_DEFINE1(sigpending, old_sigset_t __user *, set)
 {
-	return do_sigpending(set, sizeof(*set));
+	return sys_rt_sigpending((sigset_t __user *)set, sizeof(old_sigset_t)); 
 }
 
 #endif

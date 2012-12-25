@@ -598,6 +598,10 @@ asmlinkage long compat_sys_rt_sigprocmask(int how, compat_sigset_t __user *set,
 					  compat_sigset_t __user *oset,
 					  compat_size_t sigsetsize);
 #endif
+#ifdef CONFIG_GENERIC_COMPAT_RT_SIGPENDING
+asmlinkage long compat_sys_rt_sigpending(compat_sigset_t __user *uset,
+					 compat_size_t sigsetsize);
+#endif
 asmlinkage long compat_sys_sysinfo(struct compat_sysinfo __user *info);
 asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 				 unsigned long arg);
