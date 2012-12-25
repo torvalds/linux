@@ -4,6 +4,7 @@
 #
 obj-$(CONFIG_INTEL_MEI) += mei.o
 mei-objs := init.o
+mei-objs += hbm.o
 mei-objs += interrupt.o
 mei-objs += interface.o
 mei-objs += iorw.o

@@ -402,6 +402,14 @@ int mei_ioctl_connect_client(struct file *file,
 int mei_start_read(struct mei_device *dev, struct mei_cl *cl);
 
 
+void mei_client_disconnect_response(struct mei_device *dev,
+			struct hbm_client_connect_response *rs);
+
+void mei_client_connect_response(struct mei_device *dev,
+		struct hbm_client_connect_response *rs);
+
+void mei_client_flow_control_response(struct mei_device *dev,
+		struct hbm_flow_control *flow_control);
 /*
  * AMTHIF - AMT Host Interface Functions
  */
@@ -451,6 +459,8 @@ void mei_clear_interrupts(struct mei_device *dev);
 void mei_enable_interrupts(struct mei_device *dev);
 void mei_disable_interrupts(struct mei_device *dev);
 
+
+void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr);
 
 static inline struct mei_msg_hdr *mei_hbm_hdr(u32 *buf, size_t length)
 {

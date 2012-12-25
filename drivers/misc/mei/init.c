@@ -320,70 +320,6 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 }
 
 
-
-/**
- * host_start_message - mei host sends start message.
- *
- * @dev: the device structure
- *
- * returns none.
- */
-void mei_host_start_message(struct mei_device *dev)
-{
-	struct mei_msg_hdr *mei_hdr;
-	struct hbm_host_version_request *start_req;
-	const size_t len = sizeof(struct hbm_host_version_request);
-
-	mei_hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
-
-	/* host start message */
-	start_req = (struct hbm_host_version_request *)&dev->wr_msg_buf[1];
-	memset(start_req, 0, len);
-	start_req->hbm_cmd = HOST_START_REQ_CMD;
-	start_req->host_version.major_version = HBM_MAJOR_VERSION;
-	start_req->host_version.minor_version = HBM_MINOR_VERSION;
-
-	dev->recvd_msg = false;
-	if (mei_write_message(dev, mei_hdr, (unsigned char *)start_req)) {
-		dev_dbg(&dev->pdev->dev, "write send version message to FW fail.\n");
-		dev->dev_state = MEI_DEV_RESETING;
-		mei_reset(dev, 1);
-	}
-	dev->init_clients_state = MEI_START_MESSAGE;
-	dev->init_clients_timer = MEI_CLIENTS_INIT_TIMEOUT;
-	return ;
-}
-
-/**
- * host_enum_clients_message - host sends enumeration client request message.
- *
- * @dev: the device structure
- *
- * returns none.
- */
-void mei_host_enum_clients_message(struct mei_device *dev)
-{
-	struct mei_msg_hdr *mei_hdr;
-	struct hbm_host_enum_request *enum_req;
-	const size_t len = sizeof(struct hbm_host_enum_request);
-	/* enumerate clients */
-	mei_hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
-
-	enum_req = (struct hbm_host_enum_request *) &dev->wr_msg_buf[1];
-	memset(enum_req, 0, sizeof(struct hbm_host_enum_request));
-	enum_req->hbm_cmd = HOST_ENUM_REQ_CMD;
-
-	if (mei_write_message(dev, mei_hdr, (unsigned char *)enum_req)) {
-		dev->dev_state = MEI_DEV_RESETING;
-		dev_dbg(&dev->pdev->dev, "write send enumeration request message to FW fail.\n");
-		mei_reset(dev, 1);
-	}
-	dev->init_clients_state = MEI_ENUM_CLIENTS_MESSAGE;
-	dev->init_clients_timer = MEI_CLIENTS_INIT_TIMEOUT;
-	return;
-}
-
-
 /**
  * allocate_me_clients_storage - allocates storage for me clients
  *
@@ -457,53 +393,6 @@ void mei_host_client_init(struct work_struct *work)
 	mutex_unlock(&dev->device_lock);
 }
 
-int mei_host_client_enumerate(struct mei_device *dev)
-{
-
-	struct mei_msg_hdr *mei_hdr;
-	struct hbm_props_request *prop_req;
-	const size_t len = sizeof(struct hbm_props_request);
-	unsigned long next_client_index;
-	u8 client_num;
-
-
-	client_num = dev->me_client_presentation_num;
-
-	next_client_index = find_next_bit(dev->me_clients_map, MEI_CLIENTS_MAX,
-					  dev->me_client_index);
-
-	/* We got all client properties */
-	if (next_client_index == MEI_CLIENTS_MAX) {
-		schedule_work(&dev->init_work);
-
-		return 0;
-	}
-
-	dev->me_clients[client_num].client_id = next_client_index;
-	dev->me_clients[client_num].mei_flow_ctrl_creds = 0;
-
-	mei_hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
-	prop_req = (struct hbm_props_request *)&dev->wr_msg_buf[1];
-
-	memset(prop_req, 0, sizeof(struct hbm_props_request));
-
-
-	prop_req->hbm_cmd = HOST_CLIENT_PROPERTIES_REQ_CMD;
-	prop_req->address = next_client_index;
-
-	if (mei_write_message(dev, mei_hdr, (unsigned char *) prop_req)) {
-		dev->dev_state = MEI_DEV_RESETING;
-		dev_err(&dev->pdev->dev, "Properties request command failed\n");
-		mei_reset(dev, 1);
-
-		return -EIO;
-	}
-
-	dev->init_clients_timer = MEI_CLIENTS_INIT_TIMEOUT;
-	dev->me_client_index = next_client_index;
-
-	return 0;
-}
 
 /**
  * mei_init_file_private - initializes private file structure.

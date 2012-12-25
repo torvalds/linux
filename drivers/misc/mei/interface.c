@@ -367,34 +367,6 @@ int mei_flow_ctrl_reduce(struct mei_device *dev, struct mei_cl *cl)
 	return -ENOENT;
 }
 
-/**
- * mei_send_flow_control - sends flow control to fw.
- *
- * @dev: the device structure
- * @cl: private data of the file object
- *
- * This function returns -EIO on write failure
- */
-int mei_send_flow_control(struct mei_device *dev, struct mei_cl *cl)
-{
-	struct mei_msg_hdr *mei_hdr;
-	struct hbm_flow_control *flow_ctrl;
-	const size_t len = sizeof(struct hbm_flow_control);
-
-	mei_hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
-
-	flow_ctrl = (struct hbm_flow_control *)&dev->wr_msg_buf[1];
-	memset(flow_ctrl, 0, len);
-	flow_ctrl->hbm_cmd = MEI_FLOW_CONTROL_CMD;
-	flow_ctrl->host_addr = cl->host_client_id;
-	flow_ctrl->me_addr = cl->me_client_id;
-	/* FIXME: reserved !? */
-	memset(flow_ctrl->reserved, 0, sizeof(flow_ctrl->reserved));
-	dev_dbg(&dev->pdev->dev, "sending flow control host client = %d, ME client = %d\n",
-		cl->host_client_id, cl->me_client_id);
-
-	return mei_write_message(dev, mei_hdr, (unsigned char *) flow_ctrl);
-}
 
 /**
  * mei_other_client_is_connecting - checks if other
@@ -421,53 +393,3 @@ int mei_other_client_is_connecting(struct mei_device *dev,
 	return 0;
 }
 
-/**
- * mei_disconnect - sends disconnect message to fw.
- *
- * @dev: the device structure
- * @cl: private data of the file object
- *
- * This function returns -EIO on write failure
- */
-int mei_disconnect(struct mei_device *dev, struct mei_cl *cl)
-{
-	struct mei_msg_hdr *hdr;
-	struct hbm_client_connect_request *req;
-	const size_t len = sizeof(struct hbm_client_connect_request);
-
-	hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
-
-	req = (struct hbm_client_connect_request *)&dev->wr_msg_buf[1];
-	memset(req, 0, len);
-	req->hbm_cmd = CLIENT_DISCONNECT_REQ_CMD;
-	req->host_addr = cl->host_client_id;
-	req->me_addr = cl->me_client_id;
-	req->reserved = 0;
-
-	return mei_write_message(dev, hdr, (unsigned char *)req);
-}
-
-/**
- * mei_connect - sends connect message to fw.
- *
- * @dev: the device structure
- * @cl: private data of the file object
- *
- * This function returns -EIO on write failure
- */
-int mei_connect(struct mei_device *dev, struct mei_cl *cl)
-{
-	struct mei_msg_hdr *hdr;
-	struct hbm_client_connect_request *req;
-	const size_t len = sizeof(struct hbm_client_connect_request);
-
-	hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
-
-	req = (struct hbm_client_connect_request *) &dev->wr_msg_buf[1];
-	req->hbm_cmd = CLIENT_CONNECT_REQ_CMD;
-	req->host_addr = cl->host_client_id;
-	req->me_addr = cl->me_client_id;
-	req->reserved = 0;
-
-	return mei_write_message(dev, hdr, (unsigned char *) req);
-}
