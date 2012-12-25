@@ -182,7 +182,7 @@
 173	i386	rt_sigreturn		sys_rt_sigreturn		stub32_rt_sigreturn
 174	i386	rt_sigaction		sys_rt_sigaction		sys32_rt_sigaction
 175	i386	rt_sigprocmask		sys_rt_sigprocmask
-176	i386	rt_sigpending		sys_rt_sigpending		sys32_rt_sigpending
+176	i386	rt_sigpending		sys_rt_sigpending		compat_sys_rt_sigpending
 177	i386	rt_sigtimedwait		sys_rt_sigtimedwait		compat_sys_rt_sigtimedwait
 178	i386	rt_sigqueueinfo		sys_rt_sigqueueinfo		sys32_rt_sigqueueinfo
 179	i386	rt_sigsuspend		sys_rt_sigsuspend
