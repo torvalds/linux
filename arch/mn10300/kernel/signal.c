@@ -32,16 +32,6 @@
 #define DEBUG_SIG 0
 
 /*
- * atomically swap in the new signal mask, and wait for a signal.
- */
-asmlinkage long sys_sigsuspend(int history0, int history1, old_sigset_t mask)
-{
-	sigset_t blocked;
-	siginitset(&blocked, mask);
-	return sigsuspend(&blocked);
-}
-
-/*
  * set signal action syscall
  */
 asmlinkage long sys_sigaction(int sig,
