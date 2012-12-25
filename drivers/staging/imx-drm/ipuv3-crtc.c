@@ -452,7 +452,7 @@ static int ipu_get_resources(struct ipu_crtc *ipu_crtc,
 	int ret;
 
 	ipu_crtc->ipu_ch = ipu_idmac_get(ipu, pdata->dma[0]);
-	if (IS_ERR_OR_NULL(ipu_crtc->ipu_ch)) {
+	if (IS_ERR(ipu_crtc->ipu_ch)) {
 		ret = PTR_ERR(ipu_crtc->ipu_ch);
 		goto err_out;
 	}
@@ -472,7 +472,7 @@ static int ipu_get_resources(struct ipu_crtc *ipu_crtc,
 	if (pdata->dp >= 0) {
 		ipu_crtc->dp = ipu_dp_get(ipu, pdata->dp);
 		if (IS_ERR(ipu_crtc->dp)) {
-			ret = PTR_ERR(ipu_crtc->ipu_ch);
+			ret = PTR_ERR(ipu_crtc->dp);
 			goto err_out;
 		}
 	}
@@ -548,6 +548,8 @@ static int ipu_drm_probe(struct platform_device *pdev)
 	ipu_crtc->dev = &pdev->dev;
 
 	ret = ipu_crtc_init(ipu_crtc, pdata);
+	if (ret)
+		return ret;
 
 	platform_set_drvdata(pdev, ipu_crtc);
 
