@@ -620,41 +620,6 @@ long compat_sys_rt_sigaction(int sig, const struct sigaction32 __user *act,
 	return ret;
 }
 
-/*
- * Note: it is necessary to treat how as an unsigned int, with the
- * corresponding cast to a signed int to insure that the proper
- * conversion (sign extension) between the register representation
- * of a signed int (msr in 32-bit mode) and the register representation
- * of a signed int (msr in 64-bit mode) is performed.
- */
-long compat_sys_rt_sigprocmask(u32 how, compat_sigset_t __user *set,
-		compat_sigset_t __user *oset, size_t sigsetsize)
-{
-	sigset_t s;
-	sigset_t __user *up;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-
-	if (set) {
-		if (get_sigset_t(&s, set))
-			return -EFAULT;
-	}
-
-	set_fs(KERNEL_DS);
-	/* This is valid because of the set_fs() */
-	up = (sigset_t __user *) &s;
-	ret = sys_rt_sigprocmask((int)how, set ? up : NULL, oset ? up : NULL,
-				 sigsetsize);
-	set_fs(old_fs);
-	if (ret)
-		return ret;
-	if (oset) {
-		if (put_sigset_t(oset, &s))
-			return -EFAULT;
-	}
-	return 0;
-}
-
 long compat_sys_rt_sigpending(compat_sigset_t __user *set, compat_size_t sigsetsize)
 {
 	sigset_t s;
