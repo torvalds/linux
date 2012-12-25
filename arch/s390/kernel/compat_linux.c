@@ -368,26 +368,6 @@ asmlinkage long sys32_sched_rr_get_interval(compat_pid_t pid,
 	return ret;
 }
 
-asmlinkage long sys32_rt_sigpending(compat_sigset_t __user *set,
-				size_t sigsetsize)
-{
-	sigset_t s;
-	compat_sigset_t s32;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-		
-	set_fs (KERNEL_DS);
-	ret = sys_rt_sigpending((sigset_t __force __user *) &s, sigsetsize);
-	set_fs (old_fs);
-	if (!ret) {
-		s32.sig[1] = (s.sig[0] >> 32);
-		s32.sig[0] = s.sig[0];
-		if (copy_to_user (set, &s32, sizeof(compat_sigset_t)))
-			return -EFAULT;
-	}
-	return ret;
-}
-
 asmlinkage long
 sys32_rt_sigqueueinfo(int pid, int sig, compat_siginfo_t __user *uinfo)
 {

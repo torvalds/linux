@@ -703,7 +703,7 @@ ENTRY(sys32_rt_sigprocmask_wrapper)
 ENTRY(sys32_rt_sigpending_wrapper)
 	llgtr	%r2,%r2			# sigset_emu31 *
 	llgfr	%r3,%r3			# size_t
-	jg	sys32_rt_sigpending	# branch to system call
+	jg	compat_sys_rt_sigpending	# branch to system call
 
 ENTRY(compat_sys_rt_sigtimedwait_wrapper)
 	llgtr	%r2,%r2			# const sigset_emu31_t *
