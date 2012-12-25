@@ -31,8 +31,6 @@
 /* hash class keys */
 static struct lock_class_key batadv_vis_hash_lock_class_key;
 
-static void batadv_start_vis_timer(struct batadv_priv *bat_priv);
-
 /* free the info */
 static void batadv_free_info(struct kref *ref)
 {
@@ -830,7 +828,9 @@ static void batadv_send_vis_packets(struct work_struct *work)
 		kref_put(&info->refcount, batadv_free_info);
 	}
 	spin_unlock_bh(&bat_priv->vis.hash_lock);
-	batadv_start_vis_timer(bat_priv);
+
+	queue_delayed_work(batadv_event_workqueue, &bat_priv->vis.work,
+			   msecs_to_jiffies(BATADV_VIS_INTERVAL));
 }
 
 /* init the vis server. this may only be called when if_list is already
@@ -900,7 +900,11 @@ int batadv_vis_init(struct batadv_priv *bat_priv)
 	}
 
 	spin_unlock_bh(&bat_priv->vis.hash_lock);
-	batadv_start_vis_timer(bat_priv);
+
+	INIT_DELAYED_WORK(&bat_priv->vis.work, batadv_send_vis_packets);
+	queue_delayed_work(batadv_event_workqueue, &bat_priv->vis.work,
+			   msecs_to_jiffies(BATADV_VIS_INTERVAL));
+
 	return 0;
 
 free_info:
@@ -936,12 +940,4 @@ void batadv_vis_quit(struct batadv_priv *bat_priv)
 	bat_priv->vis.hash = NULL;
 	bat_priv->vis.my_info = NULL;
 	spin_unlock_bh(&bat_priv->vis.hash_lock);
-}
-
-/* schedule packets for (re)transmission */
-static void batadv_start_vis_timer(struct batadv_priv *bat_priv)
-{
-	INIT_DELAYED_WORK(&bat_priv->vis.work, batadv_send_vis_packets);
-	queue_delayed_work(batadv_event_workqueue, &bat_priv->vis.work,
-			   msecs_to_jiffies(BATADV_VIS_INTERVAL));
 }

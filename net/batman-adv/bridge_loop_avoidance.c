@@ -1100,16 +1100,6 @@ void batadv_bla_update_orig_address(struct batadv_priv *bat_priv,
 	}
 }
 
-
-
-/* (re)start the timer */
-static void batadv_bla_start_timer(struct batadv_priv *bat_priv)
-{
-	INIT_DELAYED_WORK(&bat_priv->bla.work, batadv_bla_periodic_work);
-	queue_delayed_work(batadv_event_workqueue, &bat_priv->bla.work,
-			   msecs_to_jiffies(BATADV_BLA_PERIOD_LENGTH));
-}
-
 /* periodic work to do:
  *  * purge structures when they are too old
  *  * send announcements
@@ -1180,7 +1170,8 @@ out:
 	if (primary_if)
 		batadv_hardif_free_ref(primary_if);
 
-	batadv_bla_start_timer(bat_priv);
+	queue_delayed_work(batadv_event_workqueue, &bat_priv->bla.work,
+			   msecs_to_jiffies(BATADV_BLA_PERIOD_LENGTH));
 }
 
 /* The hash for claim and backbone hash receive the same key because they
@@ -1238,7 +1229,10 @@ int batadv_bla_init(struct batadv_priv *bat_priv)
 
 	batadv_dbg(BATADV_DBG_BLA, bat_priv, "bla hashes initialized\n");
 
-	batadv_bla_start_timer(bat_priv);
+	INIT_DELAYED_WORK(&bat_priv->bla.work, batadv_bla_periodic_work);
+
+	queue_delayed_work(batadv_event_workqueue, &bat_priv->bla.work,
+			   msecs_to_jiffies(BATADV_BLA_PERIOD_LENGTH));
 	return 0;
 }
 
