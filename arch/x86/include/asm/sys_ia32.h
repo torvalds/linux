@@ -45,7 +45,6 @@ asmlinkage long sys32_sysfs(int, u32, u32);
 
 asmlinkage long sys32_sched_rr_get_interval(compat_pid_t,
 					    struct compat_timespec __user *);
-asmlinkage long sys32_rt_sigqueueinfo(int, int, compat_siginfo_t __user *);
 
 asmlinkage long sys32_pread(unsigned int, char __user *, u32, u32, u32);
 asmlinkage long sys32_pwrite(unsigned int, const char __user *, u32, u32, u32);
