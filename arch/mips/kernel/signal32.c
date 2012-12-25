@@ -614,28 +614,6 @@ out:
 	return ret;
 }
 
-SYSCALL_DEFINE4(32_rt_sigprocmask, int, how, compat_sigset_t __user *, set,
-	compat_sigset_t __user *, oset, unsigned int, sigsetsize)
-{
-	sigset_t old_set, new_set;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-
-	if (set && get_sigset(&new_set, set))
-		return -EFAULT;
-
-	set_fs(KERNEL_DS);
-	ret = sys_rt_sigprocmask(how, set ? (sigset_t __user *)&new_set : NULL,
-				 oset ? (sigset_t __user *)&old_set : NULL,
-				 sigsetsize);
-	set_fs(old_fs);
-
-	if (!ret && oset && put_sigset(&old_set, oset))
-		return -EFAULT;
-
-	return ret;
-}
-
 SYSCALL_DEFINE2(32_rt_sigpending, compat_sigset_t __user *, uset,
 	unsigned int, sigsetsize)
 {
