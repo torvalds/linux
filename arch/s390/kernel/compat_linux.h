@@ -115,8 +115,6 @@ long sys32_truncate64(const char __user * path, unsigned long high,
 long sys32_ftruncate64(unsigned int fd, unsigned long high, unsigned long low);
 long sys32_sched_rr_get_interval(compat_pid_t pid,
 				 struct compat_timespec __user *interval);
-long sys32_rt_sigprocmask(int how, compat_sigset_t __user *set,
-			  compat_sigset_t __user *oset, size_t sigsetsize);
 long sys32_rt_sigpending(compat_sigset_t __user *set, size_t sigsetsize);
 long sys32_rt_sigqueueinfo(int pid, int sig, compat_siginfo_t __user *uinfo);
 long sys32_init_module(void __user *umod, unsigned long len,
