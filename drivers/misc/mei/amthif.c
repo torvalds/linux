@@ -432,34 +432,33 @@ unsigned int mei_amthif_poll(struct mei_device *dev,
 int mei_amthif_irq_write_complete(struct mei_device *dev, s32 *slots,
 			struct mei_cl_cb *cb, struct mei_cl_cb *cmpl_list)
 {
-	struct mei_msg_hdr *mei_hdr;
+	struct mei_msg_hdr mei_hdr;
 	struct mei_cl *cl = cb->cl;
 	size_t len = dev->iamthif_msg_buf_size - dev->iamthif_msg_buf_index;
 	size_t msg_slots = mei_data2slots(len);
 
-	mei_hdr = (struct mei_msg_hdr *)&dev->wr_msg_buf[0];
-	mei_hdr->host_addr = cl->host_client_id;
-	mei_hdr->me_addr = cl->me_client_id;
-	mei_hdr->reserved = 0;
+	mei_hdr.host_addr = cl->host_client_id;
+	mei_hdr.me_addr = cl->me_client_id;
+	mei_hdr.reserved = 0;
 
 	if (*slots >= msg_slots) {
-		mei_hdr->length = len;
-		mei_hdr->msg_complete = 1;
+		mei_hdr.length = len;
+		mei_hdr.msg_complete = 1;
 	/* Split the message only if we can write the whole host buffer */
 	} else if (*slots == dev->hbuf_depth) {
 		msg_slots = *slots;
 		len = (*slots * sizeof(u32)) - sizeof(struct mei_msg_hdr);
-		mei_hdr->length = len;
-		mei_hdr->msg_complete = 0;
+		mei_hdr.length = len;
+		mei_hdr.msg_complete = 0;
 	} else {
 		/* wait for next time the host buffer is empty */
 		return 0;
 	}
 
-	dev_dbg(&dev->pdev->dev, MEI_HDR_FMT,  MEI_HDR_PRM(mei_hdr));
+	dev_dbg(&dev->pdev->dev, MEI_HDR_FMT,  MEI_HDR_PRM(&mei_hdr));
 
 	*slots -=  msg_slots;
-	if (mei_write_message(dev, mei_hdr,
+	if (mei_write_message(dev, &mei_hdr,
 		dev->iamthif_msg_buf + dev->iamthif_msg_buf_index)) {
 			dev->iamthif_state = MEI_IAMTHIF_IDLE;
 			cl->status = -ENODEV;
@@ -470,10 +469,10 @@ int mei_amthif_irq_write_complete(struct mei_device *dev, s32 *slots,
 	if (mei_flow_ctrl_reduce(dev, cl))
 		return -ENODEV;
 
-	dev->iamthif_msg_buf_index += mei_hdr->length;
+	dev->iamthif_msg_buf_index += mei_hdr.length;
 	cl->status = 0;
 
-	if (mei_hdr->msg_complete) {
+	if (mei_hdr.msg_complete) {
 		dev->iamthif_state = MEI_IAMTHIF_FLOW_CONTROL;
 		dev->iamthif_flow_control_pending = true;
 

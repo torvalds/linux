@@ -265,7 +265,13 @@ struct mei_device {
 
 	unsigned char rd_msg_buf[MEI_RD_MSG_BUF_SIZE];	/* control messages */
 	u32 rd_msg_hdr;
-	u32 wr_msg_buf[128];	/* used for control messages */
+
+	/* used for control messages */
+	struct {
+		struct mei_msg_hdr hdr;
+		unsigned char data[128];
+	} wr_msg;
+
 	struct {
 		struct mei_msg_hdr hdr;
 		unsigned char data[4];	/* All HBM messages are 4 bytes */
@@ -459,15 +465,13 @@ void mei_disable_interrupts(struct mei_device *dev);
 
 void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr);
 
-static inline struct mei_msg_hdr *mei_hbm_hdr(u32 *buf, size_t length)
+static inline void mei_hbm_hdr(struct mei_msg_hdr *hdr, size_t length)
 {
-	struct mei_msg_hdr *hdr = (struct mei_msg_hdr *)buf;
 	hdr->host_addr = 0;
 	hdr->me_addr = 0;
 	hdr->length = length;
 	hdr->msg_complete = 1;
 	hdr->reserved = 0;
-	return hdr;
 }
 
 #define MEI_HDR_FMT "hdr:host=%02d me=%02d len=%d comp=%1d"

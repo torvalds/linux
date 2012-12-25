@@ -101,22 +101,21 @@ int mei_wd_host_init(struct mei_device *dev)
  */
 int mei_wd_send(struct mei_device *dev)
 {
-	struct mei_msg_hdr *hdr;
+	struct mei_msg_hdr hdr;
 
-	hdr = (struct mei_msg_hdr *) &dev->wr_msg_buf[0];
-	hdr->host_addr = dev->wd_cl.host_client_id;
-	hdr->me_addr = dev->wd_cl.me_client_id;
-	hdr->msg_complete = 1;
-	hdr->reserved = 0;
+	hdr.host_addr = dev->wd_cl.host_client_id;
+	hdr.me_addr = dev->wd_cl.me_client_id;
+	hdr.msg_complete = 1;
+	hdr.reserved = 0;
 
 	if (!memcmp(dev->wd_data, mei_start_wd_params, MEI_WD_HDR_SIZE))
-		hdr->length = MEI_WD_START_MSG_SIZE;
+		hdr.length = MEI_WD_START_MSG_SIZE;
 	else if (!memcmp(dev->wd_data, mei_stop_wd_params, MEI_WD_HDR_SIZE))
-		hdr->length = MEI_WD_STOP_MSG_SIZE;
+		hdr.length = MEI_WD_STOP_MSG_SIZE;
 	else
 		return -EINVAL;
 
-	return mei_write_message(dev, hdr, dev->wd_data);
+	return mei_write_message(dev, &hdr, dev->wd_data);
 }
 
 /**

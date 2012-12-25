@@ -67,21 +67,21 @@ bool mei_hbm_cl_addr_equal(struct mei_cl *cl, void *buf)
  */
 void mei_host_start_message(struct mei_device *dev)
 {
-	struct mei_msg_hdr *mei_hdr;
+	struct mei_msg_hdr *mei_hdr = &dev->wr_msg.hdr;
 	struct hbm_host_version_request *start_req;
 	const size_t len = sizeof(struct hbm_host_version_request);
 
-	mei_hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
+	mei_hbm_hdr(mei_hdr, len);
 
 	/* host start message */
-	start_req = (struct hbm_host_version_request *)&dev->wr_msg_buf[1];
+	start_req = (struct hbm_host_version_request *)dev->wr_msg.data;
 	memset(start_req, 0, len);
 	start_req->hbm_cmd = HOST_START_REQ_CMD;
 	start_req->host_version.major_version = HBM_MAJOR_VERSION;
 	start_req->host_version.minor_version = HBM_MINOR_VERSION;
 
 	dev->recvd_msg = false;
-	if (mei_write_message(dev, mei_hdr, (unsigned char *)start_req)) {
+	if (mei_write_message(dev, mei_hdr, dev->wr_msg.data)) {
 		dev_dbg(&dev->pdev->dev, "write send version message to FW fail.\n");
 		dev->dev_state = MEI_DEV_RESETING;
 		mei_reset(dev, 1);
@@ -100,17 +100,17 @@ void mei_host_start_message(struct mei_device *dev)
  */
 void mei_host_enum_clients_message(struct mei_device *dev)
 {
-	struct mei_msg_hdr *mei_hdr;
+	struct mei_msg_hdr *mei_hdr = &dev->wr_msg.hdr;
 	struct hbm_host_enum_request *enum_req;
 	const size_t len = sizeof(struct hbm_host_enum_request);
 	/* enumerate clients */
-	mei_hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
+	mei_hbm_hdr(mei_hdr, len);
 
-	enum_req = (struct hbm_host_enum_request *) &dev->wr_msg_buf[1];
-	memset(enum_req, 0, sizeof(struct hbm_host_enum_request));
+	enum_req = (struct hbm_host_enum_request *)dev->wr_msg.data;
+	memset(enum_req, 0, len);
 	enum_req->hbm_cmd = HOST_ENUM_REQ_CMD;
 
-	if (mei_write_message(dev, mei_hdr, (unsigned char *)enum_req)) {
+	if (mei_write_message(dev, mei_hdr, dev->wr_msg.data)) {
 		dev->dev_state = MEI_DEV_RESETING;
 		dev_dbg(&dev->pdev->dev, "write send enumeration request message to FW fail.\n");
 		mei_reset(dev, 1);
@@ -124,7 +124,7 @@ void mei_host_enum_clients_message(struct mei_device *dev)
 int mei_host_client_enumerate(struct mei_device *dev)
 {
 
-	struct mei_msg_hdr *mei_hdr;
+	struct mei_msg_hdr *mei_hdr = &dev->wr_msg.hdr;
 	struct hbm_props_request *prop_req;
 	const size_t len = sizeof(struct hbm_props_request);
 	unsigned long next_client_index;
@@ -146,8 +146,8 @@ int mei_host_client_enumerate(struct mei_device *dev)
 	dev->me_clients[client_num].client_id = next_client_index;
 	dev->me_clients[client_num].mei_flow_ctrl_creds = 0;
 
-	mei_hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
-	prop_req = (struct hbm_props_request *)&dev->wr_msg_buf[1];
+	mei_hbm_hdr(mei_hdr, len);
+	prop_req = (struct hbm_props_request *)dev->wr_msg.data;
 
 	memset(prop_req, 0, sizeof(struct hbm_props_request));
 
@@ -155,7 +155,7 @@ int mei_host_client_enumerate(struct mei_device *dev)
 	prop_req->hbm_cmd = HOST_CLIENT_PROPERTIES_REQ_CMD;
 	prop_req->address = next_client_index;
 
-	if (mei_write_message(dev, mei_hdr, (unsigned char *) prop_req)) {
+	if (mei_write_message(dev, mei_hdr, dev->wr_msg.data)) {
 		dev->dev_state = MEI_DEV_RESETING;
 		dev_err(&dev->pdev->dev, "Properties request command failed\n");
 		mei_reset(dev, 1);
@@ -170,6 +170,27 @@ int mei_host_client_enumerate(struct mei_device *dev)
 }
 
 /**
+ * mei_hbm_stop_req_prepare - perpare stop request message
+ *
+ * @dev - mei device
+ * @mei_hdr - mei message header
+ * @data - hbm message body buffer
+ */
+static void mei_hbm_stop_req_prepare(struct mei_device *dev,
+		struct mei_msg_hdr *mei_hdr, unsigned char *data)
+{
+	struct hbm_host_stop_request *req =
+			(struct hbm_host_stop_request *)data;
+	const size_t len = sizeof(struct hbm_host_stop_request);
+
+	mei_hbm_hdr(mei_hdr, len);
+
+	memset(req, 0, len);
+	req->hbm_cmd = HOST_STOP_REQ_CMD;
+	req->reason = DRIVER_STOP_REQUEST;
+}
+
+/**
  * mei_send_flow_control - sends flow control to fw.
  *
  * @dev: the device structure
@@ -179,17 +200,16 @@ int mei_host_client_enumerate(struct mei_device *dev)
  */
 int mei_send_flow_control(struct mei_device *dev, struct mei_cl *cl)
 {
-	struct mei_msg_hdr *mei_hdr;
-	unsigned char *buf = (unsigned char *)&dev->wr_msg_buf[1];
+	struct mei_msg_hdr *mei_hdr = &dev->wr_msg.hdr;
 	const size_t len = sizeof(struct hbm_flow_control);
 
-	mei_hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
-	mei_hbm_cl_hdr(cl, MEI_FLOW_CONTROL_CMD, buf, len);
+	mei_hbm_hdr(mei_hdr, len);
+	mei_hbm_cl_hdr(cl, MEI_FLOW_CONTROL_CMD, dev->wr_msg.data, len);
 
 	dev_dbg(&dev->pdev->dev, "sending flow control host client = %d, ME client = %d\n",
 		cl->host_client_id, cl->me_client_id);
 
-	return mei_write_message(dev, mei_hdr, buf);
+	return mei_write_message(dev, mei_hdr, dev->wr_msg.data);
 }
 
 /**
@@ -202,14 +222,13 @@ int mei_send_flow_control(struct mei_device *dev, struct mei_cl *cl)
  */
 int mei_disconnect(struct mei_device *dev, struct mei_cl *cl)
 {
-	struct mei_msg_hdr *hdr;
-	unsigned char *buf = (unsigned char *)&dev->wr_msg_buf[1];
+	struct mei_msg_hdr *mei_hdr = &dev->wr_msg.hdr;
 	const size_t len = sizeof(struct hbm_client_connect_request);
 
-	hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
-	mei_hbm_cl_hdr(cl, CLIENT_DISCONNECT_REQ_CMD, buf, len);
+	mei_hbm_hdr(mei_hdr, len);
+	mei_hbm_cl_hdr(cl, CLIENT_DISCONNECT_REQ_CMD, dev->wr_msg.data, len);
 
-	return mei_write_message(dev, hdr, buf);
+	return mei_write_message(dev, mei_hdr, dev->wr_msg.data);
 }
 
 /**
@@ -222,14 +241,13 @@ int mei_disconnect(struct mei_device *dev, struct mei_cl *cl)
  */
 int mei_connect(struct mei_device *dev, struct mei_cl *cl)
 {
-	struct mei_msg_hdr *hdr;
-	unsigned char *buf = (unsigned char *)&dev->wr_msg_buf[1];
+	struct mei_msg_hdr *mei_hdr = &dev->wr_msg.hdr;
 	const size_t len = sizeof(struct hbm_client_connect_request);
 
-	hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
-	mei_hbm_cl_hdr(cl, CLIENT_CONNECT_REQ_CMD, buf, len);
+	mei_hbm_hdr(mei_hdr, len);
+	mei_hbm_cl_hdr(cl, CLIENT_CONNECT_REQ_CMD, dev->wr_msg.data, len);
 
-	return mei_write_message(dev, hdr, buf);
+	return mei_write_message(dev, mei_hdr,  dev->wr_msg.data);
 }
 
 /**
@@ -257,9 +275,9 @@ static void mei_client_disconnect_request(struct mei_device *dev,
 				dev->iamthif_timer = 0;
 
 			/* prepare disconnect response */
-			(void)mei_hbm_hdr((u32 *)&dev->wr_ext_msg.hdr, len);
+			mei_hbm_hdr(&dev->wr_ext_msg.hdr, len);
 			mei_hbm_cl_hdr(cl, CLIENT_DISCONNECT_RES_CMD,
-					 &dev->wr_ext_msg.data, len);
+					 dev->wr_ext_msg.data, len);
 			break;
 		}
 	}
@@ -284,7 +302,6 @@ void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 	struct hbm_flow_control *flow_control;
 	struct hbm_props_response *props_res;
 	struct hbm_host_enum_response *enum_res;
-	struct hbm_host_stop_request *stop_req;
 
 	/* read the message to our buffer */
 	BUG_ON(hdr->length >= sizeof(dev->rd_msg_buf));
@@ -294,34 +311,27 @@ void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 	switch (mei_msg->hbm_cmd) {
 	case HOST_START_RES_CMD:
 		version_res = (struct hbm_host_version_response *)mei_msg;
-		if (version_res->host_version_supported) {
-			dev->version.major_version = HBM_MAJOR_VERSION;
-			dev->version.minor_version = HBM_MINOR_VERSION;
-			if (dev->dev_state == MEI_DEV_INIT_CLIENTS &&
-			    dev->init_clients_state == MEI_START_MESSAGE) {
-				dev->init_clients_timer = 0;
-				mei_host_enum_clients_message(dev);
-			} else {
-				dev->recvd_msg = false;
-				dev_dbg(&dev->pdev->dev, "IMEI reset due to received host start response bus message.\n");
-				mei_reset(dev, 1);
-				return;
-			}
-		} else {
-			u32 *buf = dev->wr_msg_buf;
-			const size_t len = sizeof(struct hbm_host_stop_request);
-
+		if (!version_res->host_version_supported) {
 			dev->version = version_res->me_max_version;
-
-			/* send stop message */
-			hdr = mei_hbm_hdr(&buf[0], len);
-			stop_req = (struct hbm_host_stop_request *)&buf[1];
-			memset(stop_req, 0, len);
-			stop_req->hbm_cmd = HOST_STOP_REQ_CMD;
-			stop_req->reason = DRIVER_STOP_REQUEST;
-
-			mei_write_message(dev, hdr, (unsigned char *)stop_req);
 			dev_dbg(&dev->pdev->dev, "version mismatch.\n");
+
+			mei_hbm_stop_req_prepare(dev, &dev->wr_msg.hdr,
+						dev->wr_msg.data);
+			mei_write_message(dev, &dev->wr_msg.hdr,
+					dev->wr_msg.data);
+			return;
+		}
+
+		dev->version.major_version = HBM_MAJOR_VERSION;
+		dev->version.minor_version = HBM_MINOR_VERSION;
+		if (dev->dev_state == MEI_DEV_INIT_CLIENTS &&
+		    dev->init_clients_state == MEI_START_MESSAGE) {
+			dev->init_clients_timer = 0;
+			mei_host_enum_clients_message(dev);
+		} else {
+			dev->recvd_msg = false;
+			dev_dbg(&dev->pdev->dev, "reset due to received hbm: host start\n");
+			mei_reset(dev, 1);
 			return;
 		}
 
@@ -417,18 +427,10 @@ void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		break;
 
 	case ME_STOP_REQ_CMD:
-	{
-		/* prepare stop request: sent in next interrupt event */
 
-		const size_t len = sizeof(struct hbm_host_stop_request);
-
-		hdr = mei_hbm_hdr((u32 *)&dev->wr_ext_msg.hdr, len);
-		stop_req = (struct hbm_host_stop_request *)&dev->wr_ext_msg.data;
-		memset(stop_req, 0, len);
-		stop_req->hbm_cmd = HOST_STOP_REQ_CMD;
-		stop_req->reason = DRIVER_STOP_REQUEST;
+		mei_hbm_stop_req_prepare(dev, &dev->wr_ext_msg.hdr,
+					dev->wr_ext_msg.data);
 		break;
-	}
 	default:
 		BUG();
 		break;

@@ -469,25 +469,24 @@ static int _mei_irq_thread_ioctl(struct mei_device *dev, s32 *slots,
 static int mei_irq_thread_write_complete(struct mei_device *dev, s32 *slots,
 			struct mei_cl_cb *cb, struct mei_cl_cb *cmpl_list)
 {
-	struct mei_msg_hdr *mei_hdr;
+	struct mei_msg_hdr mei_hdr;
 	struct mei_cl *cl = cb->cl;
 	size_t len = cb->request_buffer.size - cb->buf_idx;
 	size_t msg_slots = mei_data2slots(len);
 
-	mei_hdr = (struct mei_msg_hdr *)&dev->wr_msg_buf[0];
-	mei_hdr->host_addr = cl->host_client_id;
-	mei_hdr->me_addr = cl->me_client_id;
-	mei_hdr->reserved = 0;
+	mei_hdr.host_addr = cl->host_client_id;
+	mei_hdr.me_addr = cl->me_client_id;
+	mei_hdr.reserved = 0;
 
 	if (*slots >= msg_slots) {
-		mei_hdr->length = len;
-		mei_hdr->msg_complete = 1;
+		mei_hdr.length = len;
+		mei_hdr.msg_complete = 1;
 	/* Split the message only if we can write the whole host buffer */
 	} else if (*slots == dev->hbuf_depth) {
 		msg_slots = *slots;
 		len = (*slots * sizeof(u32)) - sizeof(struct mei_msg_hdr);
-		mei_hdr->length = len;
-		mei_hdr->msg_complete = 0;
+		mei_hdr.length = len;
+		mei_hdr.msg_complete = 0;
 	} else {
 		/* wait for next time the host buffer is empty */
 		return 0;
@@ -495,10 +494,10 @@ static int mei_irq_thread_write_complete(struct mei_device *dev, s32 *slots,
 
 	dev_dbg(&dev->pdev->dev, "buf: size = %d idx = %lu\n",
 			cb->request_buffer.size, cb->buf_idx);
-	dev_dbg(&dev->pdev->dev, MEI_HDR_FMT, MEI_HDR_PRM(mei_hdr));
+	dev_dbg(&dev->pdev->dev, MEI_HDR_FMT, MEI_HDR_PRM(&mei_hdr));
 
 	*slots -=  msg_slots;
-	if (mei_write_message(dev, mei_hdr,
+	if (mei_write_message(dev, &mei_hdr,
 			cb->request_buffer.data + cb->buf_idx)) {
 		cl->status = -ENODEV;
 		list_move_tail(&cb->list, &cmpl_list->list);
@@ -509,8 +508,8 @@ static int mei_irq_thread_write_complete(struct mei_device *dev, s32 *slots,
 		return -ENODEV;
 
 	cl->status = 0;
-	cb->buf_idx += mei_hdr->length;
-	if (mei_hdr->msg_complete)
+	cb->buf_idx += mei_hdr.length;
+	if (mei_hdr.msg_complete)
 		list_move_tail(&cb->list, &dev->write_waiting_list.list);
 
 	return 0;
