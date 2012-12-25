@@ -224,17 +224,6 @@ static inline void push_cache(unsigned long vaddr)
 
 #endif /* CONFIG_MMU */
 
-/*
- * Atomically swap in the new signal mask, and wait for a signal.
- */
-asmlinkage int
-sys_sigsuspend(int unused0, int unused1, old_sigset_t mask)
-{
-	sigset_t blocked;
-	siginitset(&blocked, mask);
-	return sigsuspend(&blocked);
-}
-
 asmlinkage int
 sys_sigaction(int sig, const struct old_sigaction __user *act,
 	      struct old_sigaction __user *oact)
