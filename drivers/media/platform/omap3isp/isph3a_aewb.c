@@ -300,9 +300,8 @@ int omap3isp_h3a_aewb_init(struct isp_device *isp)
 	struct ispstat *aewb = &isp->isp_aewb;
 	struct omap3isp_h3a_aewb_config *aewb_cfg;
 	struct omap3isp_h3a_aewb_config *aewb_recover_cfg;
-	int ret;
 
-	aewb_cfg = kzalloc(sizeof(*aewb_cfg), GFP_KERNEL);
+	aewb_cfg = devm_kzalloc(isp->dev, sizeof(*aewb_cfg), GFP_KERNEL);
 	if (!aewb_cfg)
 		return -ENOMEM;
 
@@ -313,12 +312,12 @@ int omap3isp_h3a_aewb_init(struct isp_device *isp)
 	aewb->isp = isp;
 
 	/* Set recover state configuration */
-	aewb_recover_cfg = kzalloc(sizeof(*aewb_recover_cfg), GFP_KERNEL);
+	aewb_recover_cfg = devm_kzalloc(isp->dev, sizeof(*aewb_recover_cfg),
+					GFP_KERNEL);
 	if (!aewb_recover_cfg) {
 		dev_err(aewb->isp->dev, "AEWB: cannot allocate memory for "
 					"recover configuration.\n");
-		ret = -ENOMEM;
-		goto err_recover_alloc;
+		return -ENOMEM;
 	}
 
 	aewb_recover_cfg->saturation_limit = OMAP3ISP_AEWB_MAX_SATURATION_LIM;
@@ -335,25 +334,13 @@ int omap3isp_h3a_aewb_init(struct isp_device *isp)
 	if (h3a_aewb_validate_params(aewb, aewb_recover_cfg)) {
 		dev_err(aewb->isp->dev, "AEWB: recover configuration is "
 					"invalid.\n");
-		ret = -EINVAL;
-		goto err_conf;
+		return -EINVAL;
 	}
 
 	aewb_recover_cfg->buf_size = h3a_aewb_get_buf_size(aewb_recover_cfg);
 	aewb->recover_priv = aewb_recover_cfg;
 
-	ret = omap3isp_stat_init(aewb, "AEWB", &h3a_aewb_subdev_ops);
-	if (ret)
-		goto err_conf;
-
-	return 0;
-
-err_conf:
-	kfree(aewb_recover_cfg);
-err_recover_alloc:
-	kfree(aewb_cfg);
-
-	return ret;
+	return omap3isp_stat_init(aewb, "AEWB", &h3a_aewb_subdev_ops);
 }
 
 /*
@@ -361,7 +348,5 @@ err_recover_alloc:
  */
 void omap3isp_h3a_aewb_cleanup(struct isp_device *isp)
 {
-	kfree(isp->isp_aewb.priv);
-	kfree(isp->isp_aewb.recover_priv);
 	omap3isp_stat_cleanup(&isp->isp_aewb);
 }

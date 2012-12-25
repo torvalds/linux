@@ -477,7 +477,7 @@ int omap3isp_hist_init(struct isp_device *isp)
 	struct omap3isp_hist_config *hist_cfg;
 	int ret = -1;
 
-	hist_cfg = kzalloc(sizeof(*hist_cfg), GFP_KERNEL);
+	hist_cfg = devm_kzalloc(isp->dev, sizeof(*hist_cfg), GFP_KERNEL);
 	if (hist_cfg == NULL)
 		return -ENOMEM;
 
@@ -503,7 +503,6 @@ int omap3isp_hist_init(struct isp_device *isp)
 
 	ret = omap3isp_stat_init(hist, "histogram", &hist_subdev_ops);
 	if (ret) {
-		kfree(hist_cfg);
 		if (HIST_USING_DMA(hist))
 			omap_free_dma(hist->dma_ch);
 	}
@@ -518,6 +517,5 @@ void omap3isp_hist_cleanup(struct isp_device *isp)
 {
 	if (HIST_USING_DMA(&isp->isp_hist))
 		omap_free_dma(isp->isp_hist.dma_ch);
-	kfree(isp->isp_hist.priv);
 	omap3isp_stat_cleanup(&isp->isp_hist);
 }
