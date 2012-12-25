@@ -311,7 +311,6 @@ static int pca9532_destroy_devices(struct pca9532_data *data, int n_devs)
 			break;
 		case PCA9532_TYPE_N2100_BEEP:
 			if (data->idev != NULL) {
-				input_unregister_device(data->idev);
 				cancel_work_sync(&data->work);
 				data->idev = NULL;
 			}
@@ -382,7 +381,7 @@ static int pca9532_configure(struct i2c_client *client,
 			BUG_ON(data->idev);
 			led->state = PCA9532_PWM1;
 			pca9532_setled(led);
-			data->idev = input_allocate_device();
+			data->idev = devm_input_allocate_device(&client->dev);
 			if (data->idev == NULL) {
 				err = -ENOMEM;
 				goto exit;
@@ -401,7 +400,6 @@ static int pca9532_configure(struct i2c_client *client,
 			INIT_WORK(&data->work, pca9532_input_work);
 			err = input_register_device(data->idev);
 			if (err) {
-				input_free_device(data->idev);
 				cancel_work_sync(&data->work);
 				data->idev = NULL;
 				goto exit;
