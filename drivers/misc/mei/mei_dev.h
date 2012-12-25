@@ -201,6 +201,7 @@ struct mei_cl {
 
 /**
  * struct mei_device -  MEI private device struct
+ * @mem_addr - mem mapped base register address
  * @hbuf_depth - depth of host(write) buffer
  * @wr_ext_msg - buffer for hbm control responses (set in read cycle)
  */
@@ -221,11 +222,7 @@ struct mei_device {
 	 */
 	struct list_head file_list;
 	long open_handle_count;
-	/*
-	 * memory of device
-	 */
-	unsigned int mem_base;
-	unsigned int mem_length;
+
 	void __iomem *mem_addr;
 	/*
 	 * lock for the device
