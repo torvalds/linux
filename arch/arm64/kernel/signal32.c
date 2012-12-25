@@ -333,18 +333,6 @@ static int compat_restore_vfp_context(struct compat_vfp_sigframe __user *frame)
 	return err ? -EFAULT : 0;
 }
 
-/*
- * atomically swap in the new signal mask, and wait for a signal.
- */
-asmlinkage int compat_sys_sigsuspend(int restart, compat_ulong_t oldmask,
-				     compat_old_sigset_t mask)
-{
-	sigset_t blocked;
-
-	siginitset(&current->blocked, mask);
-	return sigsuspend(&blocked);
-}
-
 asmlinkage int compat_sys_sigaction(int sig,
 				    const struct compat_old_sigaction __user *act,
 				    struct compat_old_sigaction __user *oact)

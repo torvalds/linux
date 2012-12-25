@@ -93,7 +93,7 @@ __SYSCALL(68,  sys_ni_syscall)			/* 68 was sys_sgetmask */
 __SYSCALL(69,  sys_ni_syscall)			/* 69 was sys_ssetmask */
 __SYSCALL(70,  sys_setreuid16)
 __SYSCALL(71,  sys_setregid16)
-__SYSCALL(72,  compat_sys_sigsuspend)
+__SYSCALL(72,  sys_sigsuspend)
 __SYSCALL(73,  compat_sys_sigpending)
 __SYSCALL(74,  sys_sethostname)
 __SYSCALL(75,  compat_sys_setrlimit)
