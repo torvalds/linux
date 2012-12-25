@@ -1827,14 +1827,7 @@ static void __init rk30_i2c_register_board_info(void)
 
 // ========== Begin of rk3168 top board keypad defination ============
 
-#include <mach/gpio.h>
 #include <plat/key.h>
-
-#define EV_ENCALL                               KEY_F4
-#define EV_MENU                                 KEY_F1
-
-#define PRESS_LEV_LOW                   1
-#define PRESS_LEV_HIGH                  0
 
 static struct rk29_keys_button key_button[] = {
         {
