@@ -61,7 +61,7 @@ struct pwm_platform_data {
 	int	coefficient;
 	int	min_uV;
 	int	max_uV;
-	int	*pwm_voltage_map;
+	const int	*pwm_voltage_map;
 	struct regulator_init_data *init_data;
 };
 
