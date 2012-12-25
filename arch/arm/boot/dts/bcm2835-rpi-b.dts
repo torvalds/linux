@@ -24,3 +24,8 @@
 		brcm,function = <7>; /* alt3 */
 	};
 };
+
+&sdhci {
+	status = "okay";
+	bus-width = <4>;
+};
