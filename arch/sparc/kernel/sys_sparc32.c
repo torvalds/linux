@@ -248,11 +248,11 @@ asmlinkage long compat_sys_sigaction(int sig, struct old_sigaction32 __user *act
 	return ret;
 }
 
-asmlinkage long compat_sys_rt_sigaction(int sig,
-					struct sigaction32 __user *act,
-					struct sigaction32 __user *oact,
-					void __user *restorer,
-					compat_size_t sigsetsize)
+COMPAT_SYSCALL_DEFINE5(rt_sigaction, int, sig,
+			struct compat_sigaction __user *,act,
+			struct compat_sigaction __user *,oact,
+			void __user *,restorer,
+			compat_size_t,sigsetsize)
 {
         struct k_sigaction new_ka, old_ka;
         int ret;
@@ -269,12 +269,7 @@ asmlinkage long compat_sys_rt_sigaction(int sig,
 		ret = get_user(u_handler, &act->sa_handler);
 		new_ka.sa.sa_handler =  compat_ptr(u_handler);
 		ret |= __copy_from_user(&set32, &act->sa_mask, sizeof(compat_sigset_t));
-		switch (_NSIG_WORDS) {
-		case 4: new_ka.sa.sa_mask.sig[3] = set32.sig[6] | (((long)set32.sig[7]) << 32);
-		case 3: new_ka.sa.sa_mask.sig[2] = set32.sig[4] | (((long)set32.sig[5]) << 32);
-		case 2: new_ka.sa.sa_mask.sig[1] = set32.sig[2] | (((long)set32.sig[3]) << 32);
-		case 1: new_ka.sa.sa_mask.sig[0] = set32.sig[0] | (((long)set32.sig[1]) << 32);
-		}
+		sigset_from_compat(&new_ka.sa.sa_mask, &set32);
 		ret |= __get_user(new_ka.sa.sa_flags, &act->sa_flags);
 		ret |= __get_user(u_restorer, &act->sa_restorer);
 		new_ka.sa.sa_restorer = compat_ptr(u_restorer);
@@ -285,12 +280,7 @@ asmlinkage long compat_sys_rt_sigaction(int sig,
 	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
 
 	if (!ret && oact) {
-		switch (_NSIG_WORDS) {
-		case 4: set32.sig[7] = (old_ka.sa.sa_mask.sig[3] >> 32); set32.sig[6] = old_ka.sa.sa_mask.sig[3];
-		case 3: set32.sig[5] = (old_ka.sa.sa_mask.sig[2] >> 32); set32.sig[4] = old_ka.sa.sa_mask.sig[2];
-		case 2: set32.sig[3] = (old_ka.sa.sa_mask.sig[1] >> 32); set32.sig[2] = old_ka.sa.sa_mask.sig[1];
-		case 1: set32.sig[1] = (old_ka.sa.sa_mask.sig[0] >> 32); set32.sig[0] = old_ka.sa.sa_mask.sig[0];
-		}
+		sigset_to_compat(&set32, &old_ka.sa.sa_mask);
 		ret = put_user(ptr_to_compat(old_ka.sa.sa_handler), &oact->sa_handler);
 		ret |= __copy_to_user(&oact->sa_mask, &set32, sizeof(compat_sigset_t));
 		ret |= __put_user(old_ka.sa.sa_flags, &oact->sa_flags);
