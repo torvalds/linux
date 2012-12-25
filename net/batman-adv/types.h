@@ -453,7 +453,7 @@ struct batadv_vis_info_entry {
 	uint8_t  quality;	/* quality = 0 client */
 } __packed;
 
-struct batadv_recvlist_node {
+struct batadv_vis_recvlist_node {
 	struct list_head list;
 	uint8_t mac[ETH_ALEN];
 };
