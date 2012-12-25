@@ -359,6 +359,9 @@ config MODULES_USE_ELF_REL
 config GENERIC_SIGALTSTACK
 	bool
 
+config GENERIC_COMPAT_RT_SIGPROCMASK
+	bool
+
 #
 # ABI hall of shame
 #

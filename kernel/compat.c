@@ -971,7 +971,7 @@ long compat_put_bitmap(compat_ulong_t __user *umask, unsigned long *mask,
 }
 
 void
-sigset_from_compat (sigset_t *set, compat_sigset_t *compat)
+sigset_from_compat(sigset_t *set, const compat_sigset_t *compat)
 {
 	switch (_NSIG_WORDS) {
 	case 4: set->sig[3] = compat->sig[6] | (((long)compat->sig[7]) << 32 );
@@ -981,6 +981,17 @@ sigset_from_compat (sigset_t *set, compat_sigset_t *compat)
 	}
 }
 EXPORT_SYMBOL_GPL(sigset_from_compat);
+
+void
+sigset_to_compat(compat_sigset_t *compat, const sigset_t *set)
+{
+	switch (_NSIG_WORDS) {
+	case 4: compat->sig[7] = (set->sig[3] >> 32); compat->sig[6] = set->sig[3];
+	case 3: compat->sig[5] = (set->sig[2] >> 32); compat->sig[4] = set->sig[2];
+	case 2: compat->sig[3] = (set->sig[1] >> 32); compat->sig[2] = set->sig[1];
+	case 1: compat->sig[1] = (set->sig[0] >> 32); compat->sig[0] = set->sig[0];
+	}
+}
 
 asmlinkage long
 compat_sys_rt_sigtimedwait (compat_sigset_t __user *uthese,

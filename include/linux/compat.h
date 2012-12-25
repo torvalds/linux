@@ -401,7 +401,8 @@ asmlinkage long compat_sys_settimeofday(struct compat_timeval __user *tv,
 asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp);
 
 extern int compat_printk(const char *fmt, ...);
-extern void sigset_from_compat(sigset_t *set, compat_sigset_t *compat);
+extern void sigset_from_compat(sigset_t *set, const compat_sigset_t *compat);
+extern void sigset_to_compat(compat_sigset_t *compat, const sigset_t *set);
 
 asmlinkage long compat_sys_migrate_pages(compat_pid_t pid,
 		compat_ulong_t maxnode, const compat_ulong_t __user *old_nodes,
@@ -592,6 +593,11 @@ asmlinkage long compat_sys_rt_sigtimedwait(compat_sigset_t __user *uthese,
 		struct compat_timespec __user *uts, compat_size_t sigsetsize);
 asmlinkage long compat_sys_rt_sigsuspend(compat_sigset_t __user *unewset,
 					 compat_size_t sigsetsize);
+#ifdef CONFIG_GENERIC_COMPAT_RT_SIGPROCMASK
+asmlinkage long compat_sys_rt_sigprocmask(int how, compat_sigset_t __user *set,
+					  compat_sigset_t __user *oset,
+					  compat_size_t sigsetsize);
+#endif
 asmlinkage long compat_sys_sysinfo(struct compat_sysinfo __user *info);
 asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 				 unsigned long arg);
