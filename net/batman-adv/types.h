@@ -66,19 +66,18 @@ struct batadv_hard_iface {
 };
 
 /**
- *	struct batadv_orig_node - structure for orig_list maintaining nodes of mesh
- *	@primary_addr: hosts primary interface address
- *	@last_seen: when last packet from this node was received
- *	@bcast_seqno_reset: time when the broadcast seqno window was reset
- *	@batman_seqno_reset: time when the batman seqno window was reset
- *	@gw_flags: flags related to gateway class
- *	@flags: for now only VIS_SERVER flag
- *	@last_real_seqno: last and best known sequence number
- *	@last_ttl: ttl of last received packet
- *	@last_bcast_seqno: last broadcast sequence number received by this host
- *
- *	@candidates: how many candidates are available
- *	@selected: next bonding candidate
+ * struct batadv_orig_node - structure for orig_list maintaining nodes of mesh
+ * @primary_addr: hosts primary interface address
+ * @last_seen: when last packet from this node was received
+ * @bcast_seqno_reset: time when the broadcast seqno window was reset
+ * @batman_seqno_reset: time when the batman seqno window was reset
+ * @gw_flags: flags related to gateway class
+ * @flags: for now only VIS_SERVER flag
+ * @last_real_seqno: last and best known sequence number
+ * @last_ttl: ttl of last received packet
+ * @last_bcast_seqno: last broadcast sequence number received by this host
+ * @candidates: how many candidates are available
+ * @selected: next bonding candidate
  */
 struct batadv_orig_node {
 	uint8_t orig[ETH_ALEN];
