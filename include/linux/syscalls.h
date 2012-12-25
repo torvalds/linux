@@ -377,6 +377,14 @@ asmlinkage long sys_init_module(void __user *umod, unsigned long len,
 asmlinkage long sys_delete_module(const char __user *name_user,
 				unsigned int flags);
 
+#ifdef CONFIG_OLD_SIGSUSPEND
+asmlinkage long sys_sigsuspend(old_sigset_t mask);
+#endif
+
+#ifdef CONFIG_OLD_SIGSUSPEND3
+asmlinkage long sys_sigsuspend(int unused1, int unused2, old_sigset_t mask);
+#endif
+
 #ifndef CONFIG_ODD_RT_SIGACTION
 asmlinkage long sys_rt_sigaction(int,
 				 const struct sigaction __user *,

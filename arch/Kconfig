@@ -387,4 +387,14 @@ config ODD_RT_SIGACTION
 	help
 	  Architecture has unusual rt_sigaction(2) arguments
 
+config OLD_SIGSUSPEND
+	bool
+	help
+	  Architecture has old sigsuspend(2) syscall, of one-argument variety
+
+config OLD_SIGSUSPEND3
+	bool
+	help
+	  Even weirder antique ABI - three-argument sigsuspend(2)
+
 source "kernel/gcov/Kconfig"
