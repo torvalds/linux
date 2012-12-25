@@ -358,7 +358,9 @@ static int lp8755_regulator_init(struct lp8755_chip *pchip)
 		    regulator_register(&lp8755_regulators[buck_num], &rconfig);
 		if (IS_ERR(pchip->rdev[buck_num])) {
 			ret = PTR_ERR(pchip->rdev[buck_num]);
-			dev_err(pchip->dev, "regulator init failed: buck 0\n");
+			pchip->rdev[buck_num] = NULL;
+			dev_err(pchip->dev, "regulator init failed: buck %d\n",
+				buck_num);
 			goto err_buck;
 		}
 	}
@@ -367,8 +369,7 @@ static int lp8755_regulator_init(struct lp8755_chip *pchip)
 
 err_buck:
 	for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
-		if (pchip->rdev[icnt] != NULL)
-			regulator_unregister(pchip->rdev[icnt]);
+		regulator_unregister(pchip->rdev[icnt]);
 	return ret;
 }
 
@@ -557,7 +558,7 @@ static struct i2c_driver lp8755_i2c_driver = {
 		   .name = LP8755_NAME,
 		   },
 	.probe = lp8755_probe,
-	.remove = __devexit_p(lp8755_remove),
+	.remove = lp8755_remove,
 	.id_table = lp8755_id,
 };
 
