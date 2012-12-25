@@ -117,7 +117,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_mprotect			/* 6010 */
 	PTR	sys_munmap
 	PTR	sys_brk
-	PTR	sys_32_rt_sigaction
+	PTR	compat_sys_rt_sigaction
 	PTR	compat_sys_rt_sigprocmask
 	PTR	compat_sys_ioctl		/* 6015 */
 	PTR	sys_pread64

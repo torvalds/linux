@@ -55,12 +55,6 @@ extern asmlinkage int fpu_emulator_restore_context32(struct sigcontext32 __user 
 typedef unsigned int __sighandler32_t;
 typedef void (*vfptr_t)(void);
 
-struct sigaction32 {
-	unsigned int		sa_flags;
-	__sighandler32_t	sa_handler;
-	compat_sigset_t		sa_mask;
-};
-
 struct ucontext32 {
 	u32                 uc_flags;
 	s32                 uc_link;
@@ -278,8 +272,8 @@ asmlinkage int sys32_sigsuspend(compat_sigset_t __user *uset)
 	return compat_sys_rt_sigsuspend(uset, sizeof(compat_sigset_t));
 }
 
-SYSCALL_DEFINE3(32_sigaction, long, sig, const struct sigaction32 __user *, act,
-	struct sigaction32 __user *, oact)
+SYSCALL_DEFINE3(32_sigaction, long, sig, const struct compat_sigaction __user *, act,
+	struct compat_sigaction __user *, oact)
 {
 	struct k_sigaction new_ka, old_ka;
 	int ret;
@@ -563,50 +557,6 @@ struct mips_abi mips_abi_32 = {
 		offsetof(struct mips_vdso, o32_rt_signal_trampoline),
 	.restart	= __NR_O32_restart_syscall
 };
-
-SYSCALL_DEFINE4(32_rt_sigaction, int, sig,
-	const struct sigaction32 __user *, act,
-	struct sigaction32 __user *, oact, unsigned int, sigsetsize)
-{
-	struct k_sigaction new_sa, old_sa;
-	int ret = -EINVAL;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(sigset_t))
-		goto out;
-
-	if (act) {
-		s32 handler;
-		int err = 0;
-
-		if (!access_ok(VERIFY_READ, act, sizeof(*act)))
-			return -EFAULT;
-		err |= __get_user(handler, &act->sa_handler);
-		new_sa.sa.sa_handler = (void __user *)(s64)handler;
-		err |= __get_user(new_sa.sa.sa_flags, &act->sa_flags);
-		err |= get_sigset(&new_sa.sa.sa_mask, &act->sa_mask);
-		if (err)
-			return -EFAULT;
-	}
-
-	ret = do_sigaction(sig, act ? &new_sa : NULL, oact ? &old_sa : NULL);
-
-	if (!ret && oact) {
-		int err = 0;
-
-		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)))
-			return -EFAULT;
-
-		err |= __put_user((u32)(u64)old_sa.sa.sa_handler,
-		                   &oact->sa_handler);
-		err |= __put_user(old_sa.sa.sa_flags, &oact->sa_flags);
-		err |= put_sigset(&old_sa.sa.sa_mask, &oact->sa_mask);
-		if (err)
-			return -EFAULT;
-	}
-out:
-	return ret;
-}
 
 static int signal32_init(void)
 {

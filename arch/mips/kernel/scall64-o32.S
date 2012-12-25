@@ -386,7 +386,7 @@ sys_call_table:
 	PTR	sys_getresgid
 	PTR	sys_prctl
 	PTR	sys32_rt_sigreturn
-	PTR	sys_32_rt_sigaction
+	PTR	compat_sys_rt_sigaction
 	PTR	compat_sys_rt_sigprocmask 	/* 4195 */
 	PTR	compat_sys_rt_sigpending
 	PTR	compat_sys_rt_sigtimedwait
