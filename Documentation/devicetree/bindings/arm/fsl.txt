@@ -5,6 +5,10 @@ i.MX23 Evaluation Kit
 Required root node properties:
     - compatible = "fsl,imx23-evk", "fsl,imx23";
 
+i.MX27 Product Development Kit
+Required root node properties:
+    - compatible = "fsl,imx27-pdk", "fsl,imx27";
+
 i.MX28 Evaluation Kit
 Required root node properties:
     - compatible = "fsl,imx28-evk", "fsl,imx28";
