@@ -28,13 +28,6 @@
 #include <asm/uaccess.h>
 #include <asm/unistd32.h>
 
-struct compat_sigaction {
-	compat_uptr_t			sa_handler;
-	compat_ulong_t			sa_flags;
-	compat_uptr_t			sa_restorer;
-	compat_sigset_t			sa_mask;
-};
-
 struct compat_old_sigaction {
 	compat_uptr_t			sa_handler;
 	compat_old_sigset_t		sa_mask;
@@ -368,40 +361,6 @@ asmlinkage int compat_sys_sigaction(int sig,
 			return -EFAULT;
 	}
 
-	return ret;
-}
-
-asmlinkage int compat_sys_rt_sigaction(int sig,
-				       const struct compat_sigaction __user *act,
-				       struct compat_sigaction __user *oact,
-				       compat_size_t sigsetsize)
-{
-	struct k_sigaction new_ka, old_ka;
-	int ret;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(compat_sigset_t))
-		return -EINVAL;
-
-	if (act) {
-		compat_uptr_t handler, restorer;
-
-		ret = get_user(handler, &act->sa_handler);
-		new_ka.sa.sa_handler = compat_ptr(handler);
-		ret |= get_user(restorer, &act->sa_restorer);
-		new_ka.sa.sa_restorer = compat_ptr(restorer);
-		ret |= get_sigset_t(&new_ka.sa.sa_mask, &act->sa_mask);
-		ret |= __get_user(new_ka.sa.sa_flags, &act->sa_flags);
-		if (ret)
-			return -EFAULT;
-	}
-
-	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
-	if (!ret && oact) {
-		ret = put_user(ptr_to_compat(old_ka.sa.sa_handler), &oact->sa_handler);
-		ret |= put_sigset_t(&oact->sa_mask, &old_ka.sa.sa_mask);
-		ret |= __put_user(old_ka.sa.sa_flags, &oact->sa_flags);
-	}
 	return ret;
 }
 
