@@ -48,16 +48,6 @@ typedef struct
 	struct ucontext uc;
 } rt_sigframe;
 
-/*
- * Atomically swap in the new signal mask, and wait for a signal.
- */
-SYSCALL_DEFINE3(sigsuspend, int, history0, int, history1, old_sigset_t, mask)
-{
-	sigset_t blocked;
-	siginitset(&blocked, mask);
-	return sigsuspend(&blocked);
-}
-
 SYSCALL_DEFINE3(sigaction, int, sig, const struct old_sigaction __user *, act,
 		struct old_sigaction __user *, oact)
 {
