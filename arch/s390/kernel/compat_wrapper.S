@@ -631,7 +631,7 @@ ENTRY(sys32_sched_get_priority_min_wrapper)
 ENTRY(sys32_sched_rr_get_interval_wrapper)
 	lgfr	%r2,%r2			# pid_t
 	llgtr	%r3,%r3			# struct compat_timespec *
-	jg	sys32_sched_rr_get_interval	# branch to system call
+	jg	compat_sys_sched_rr_get_interval	# branch to system call
 
 ENTRY(compat_sys_nanosleep_wrapper)
 	llgtr	%r2,%r2			# struct compat_timespec *

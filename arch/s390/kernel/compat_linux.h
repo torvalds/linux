@@ -113,8 +113,6 @@ long sys32_ipc(u32 call, int first, int second, int third, u32 ptr);
 long sys32_truncate64(const char __user * path, unsigned long high,
 		      unsigned long low);
 long sys32_ftruncate64(unsigned int fd, unsigned long high, unsigned long low);
-long sys32_sched_rr_get_interval(compat_pid_t pid,
-				 struct compat_timespec __user *interval);
 long sys32_init_module(void __user *umod, unsigned long len,
 		       const char __user *uargs);
 long sys32_delete_module(const char __user *name_user, unsigned int flags);

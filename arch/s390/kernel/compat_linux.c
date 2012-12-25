@@ -352,22 +352,6 @@ asmlinkage long sys32_ftruncate64(unsigned int fd, unsigned long high, unsigned 
 		return sys_ftruncate(fd, (high << 32) | low);
 }
 
-asmlinkage long sys32_sched_rr_get_interval(compat_pid_t pid,
-				struct compat_timespec __user *interval)
-{
-	struct timespec t;
-	int ret;
-	mm_segment_t old_fs = get_fs ();
-	
-	set_fs (KERNEL_DS);
-	ret = sys_sched_rr_get_interval(pid,
-					(struct timespec __force __user *) &t);
-	set_fs (old_fs);
-	if (put_compat_timespec(&t, interval))
-		return -EFAULT;
-	return ret;
-}
-
 asmlinkage long sys32_pread64(unsigned int fd, char __user *ubuf,
 				size_t count, u32 poshi, u32 poslo)
 {
