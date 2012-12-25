@@ -37,8 +37,9 @@
 #include <linux/interrupt.h>
 #include <linux/miscdevice.h>
 
-#include "mei_dev.h"
 #include <linux/mei.h>
+
+#include "mei_dev.h"
 #include "interface.h"
 
 /* AMT device is a singleton on the platform */

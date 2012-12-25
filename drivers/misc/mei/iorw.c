@@ -33,9 +33,9 @@
 #include <linux/uaccess.h>
 
 
-#include "mei_dev.h"
-#include "hw.h"
 #include <linux/mei.h>
+
+#include "mei_dev.h"
 #include "interface.h"
 
 /**

@@ -21,9 +21,9 @@
 #include <linux/fs.h>
 #include <linux/jiffies.h>
 
-#include "mei_dev.h"
 #include <linux/mei.h>
-#include "hw.h"
+
+#include "mei_dev.h"
 #include "interface.h"
 
 

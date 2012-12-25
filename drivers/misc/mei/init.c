@@ -19,10 +19,10 @@
 #include <linux/wait.h>
 #include <linux/delay.h>
 
-#include "mei_dev.h"
-#include "hw.h"
-#include "interface.h"
 #include <linux/mei.h>
+
+#include "mei_dev.h"
+#include "interface.h"
 
 const char *mei_dev_state_str(int state)
 {

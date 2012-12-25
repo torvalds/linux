@@ -21,10 +21,10 @@
 #include <linux/sched.h>
 #include <linux/watchdog.h>
 
-#include "mei_dev.h"
-#include "hw.h"
-#include "interface.h"
 #include <linux/mei.h>
+
+#include "mei_dev.h"
+#include "interface.h"
 
 static const u8 mei_start_wd_params[] = { 0x02, 0x12, 0x13, 0x10 };
 static const u8 mei_stop_wd_params[] = { 0x02, 0x02, 0x14, 0x10 };
