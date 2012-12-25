@@ -353,7 +353,7 @@ struct batadv_bla_backbone_gw {
 	uint16_t crc;		/* crc checksum over all claims */
 };
 
-struct batadv_claim {
+struct batadv_bla_claim {
 	uint8_t addr[ETH_ALEN];
 	short vid;
 	struct batadv_bla_backbone_gw *backbone_gw;
