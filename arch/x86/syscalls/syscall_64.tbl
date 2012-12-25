@@ -325,7 +325,7 @@
 # x32-specific system call numbers start at 512 to avoid cache impact
 # for native 64-bit operation.
 #
-512	x32	rt_sigaction		sys32_rt_sigaction
+512	x32	rt_sigaction		compat_sys_rt_sigaction
 513	x32	rt_sigreturn		stub_x32_rt_sigreturn
 514	x32	ioctl			compat_sys_ioctl
 515	x32	readv			compat_sys_readv

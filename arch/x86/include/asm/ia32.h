@@ -13,14 +13,6 @@
 #include <asm/sigcontext32.h>
 
 /* signal.h */
-struct sigaction32 {
-	unsigned int  sa_handler;	/* Really a pointer, but need to deal
-					   with 32 bits */
-	unsigned int sa_flags;
-	unsigned int sa_restorer;	/* Another 32 bit pointer */
-	compat_sigset_t sa_mask;	/* A 32 bit mask */
-};
-
 struct old_sigaction32 {
 	unsigned int  sa_handler;	/* Really a pointer, but need to deal
 					   with 32 bits */
