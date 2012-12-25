@@ -2880,8 +2880,6 @@ static void ext4_invalidatepage_free_endio(struct page *page, unsigned long offs
 
 static void ext4_invalidatepage(struct page *page, unsigned long offset)
 {
-	journal_t *journal = EXT4_JOURNAL(page->mapping->host);
-
 	trace_ext4_invalidatepage(page, offset);
 
 	/*
@@ -2889,16 +2887,27 @@ static void ext4_invalidatepage(struct page *page, unsigned long offset)
 	 */
 	if (ext4_should_dioread_nolock(page->mapping->host))
 		ext4_invalidatepage_free_endio(page, offset);
+
+	/* No journalling happens on data buffers when this function is used */
+	WARN_ON(page_has_buffers(page) && buffer_jbd(page_buffers(page)));
+
+	block_invalidatepage(page, offset);
+}
+
+static void ext4_journalled_invalidatepage(struct page *page,
+					   unsigned long offset)
+{
+	journal_t *journal = EXT4_JOURNAL(page->mapping->host);
+
+	trace_ext4_journalled_invalidatepage(page, offset);
+
 	/*
 	 * If it's a full truncate we just forget about the pending dirtying
 	 */
 	if (offset == 0)
 		ClearPageChecked(page);
 
-	if (journal)
-		jbd2_journal_invalidatepage(journal, page, offset);
-	else
-		block_invalidatepage(page, offset);
+	jbd2_journal_invalidatepage(journal, page, offset);
 }
 
 static int ext4_releasepage(struct page *page, gfp_t wait)
@@ -3264,7 +3273,7 @@ static const struct address_space_operations ext4_journalled_aops = {
 	.write_end		= ext4_journalled_write_end,
 	.set_page_dirty		= ext4_journalled_set_page_dirty,
 	.bmap			= ext4_bmap,
-	.invalidatepage		= ext4_invalidatepage,
+	.invalidatepage		= ext4_journalled_invalidatepage,
 	.releasepage		= ext4_releasepage,
 	.direct_IO		= ext4_direct_IO,
 	.is_partially_uptodate  = block_is_partially_uptodate,
