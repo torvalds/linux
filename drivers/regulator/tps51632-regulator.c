@@ -205,18 +205,49 @@ skip_pwm_config:
 	return ret;
 }
 
-static bool rd_wr_reg(struct device *dev, unsigned int reg)
+static bool is_volatile_reg(struct device *dev, unsigned int reg)
 {
-	if ((reg >= 0x8) && (reg <= 0x10))
+	switch (reg) {
+	case TPS51632_OFFSET_REG:
+	case TPS51632_FAULT_REG:
+	case TPS51632_IMON_REG:
+		return true;
+	default:
 		return false;
-	return true;
+	}
+}
+
+static bool is_read_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case 0x08 ... 0x0F:
+		return false;
+	default:
+		return true;
+	}
+}
+
+static bool is_write_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case TPS51632_VOLTAGE_SELECT_REG:
+	case TPS51632_VOLTAGE_BASE_REG:
+	case TPS51632_VMAX_REG:
+	case TPS51632_DVFS_CONTROL_REG:
+	case TPS51632_POWER_STATE_REG:
+	case TPS51632_SLEW_REGS:
+		return true;
+	default:
+		return false;
+	}
 }
 
 static const struct regmap_config tps51632_regmap_config = {
 	.reg_bits		= 8,
 	.val_bits		= 8,
-	.writeable_reg		= rd_wr_reg,
-	.readable_reg		= rd_wr_reg,
+	.writeable_reg		= is_write_reg,
+	.readable_reg		= is_read_reg,
+	.volatile_reg		= is_volatile_reg,
 	.max_register		= TPS51632_MAX_REG - 1,
 	.cache_type		= REGCACHE_RBTREE,
 };
