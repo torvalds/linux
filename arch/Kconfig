@@ -368,6 +368,9 @@ config GENERIC_COMPAT_RT_SIGPENDING
 config GENERIC_COMPAT_RT_SIGQUEUEINFO
 	bool
 
+config GENERIC_COMPAT_RT_SIGACTION
+	bool
+
 #
 # ABI hall of shame
 #

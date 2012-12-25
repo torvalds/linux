@@ -142,6 +142,22 @@ typedef struct {
 	compat_sigset_word	sig[_COMPAT_NSIG_WORDS];
 } compat_sigset_t;
 
+#ifdef CONFIG_GENERIC_COMPAT_RT_SIGACTION
+struct compat_sigaction {
+#ifndef __ARCH_HAS_ODD_SIGACTION
+	compat_uptr_t			sa_handler;
+	compat_ulong_t			sa_flags;
+#else
+	compat_ulong_t			sa_flags;
+	compat_uptr_t			sa_handler;
+#endif
+#ifdef __ARCH_HAS_SA_RESTORER
+	compat_uptr_t			sa_restorer;
+#endif
+	compat_sigset_t			sa_mask __packed;
+};
+#endif
+
 /*
  * These functions operate strictly on struct compat_time*
  */
@@ -601,6 +617,14 @@ asmlinkage long compat_sys_rt_sigprocmask(int how, compat_sigset_t __user *set,
 #ifdef CONFIG_GENERIC_COMPAT_RT_SIGPENDING
 asmlinkage long compat_sys_rt_sigpending(compat_sigset_t __user *uset,
 					 compat_size_t sigsetsize);
+#endif
+#ifndef CONFIG_ODD_RT_SIGACTION
+#ifdef CONFIG_GENERIC_COMPAT_RT_SIGACTION
+asmlinkage long compat_sys_rt_sigaction(int,
+				 const struct compat_sigaction __user *,
+				 struct compat_sigaction __user *,
+				 compat_size_t);
+#endif
 #endif
 #ifdef CONFIG_GENERIC_COMPAT_RT_SIGQUEUEINFO
 asmlinkage long compat_sys_rt_sigqueueinfo(compat_pid_t pid, int sig,
