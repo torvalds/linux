@@ -404,22 +404,3 @@ copy_siginfo_to_user32 (compat_siginfo_t __user *to, siginfo_t *from)
 	}
 	return err;
 }
-
-asmlinkage long compat_sys_rt_sigqueueinfo(int pid, int sig,
-	struct compat_siginfo __user *uinfo)
-{
-	siginfo_t info;
-
-	if (copy_siginfo_from_user32(&info, uinfo))
-		return -EFAULT;
-
-	/* Not even root can pretend to send signals from the kernel.
-	   Nor can they impersonate a kill(), which adds source info.  */
-	if (info.si_code >= 0)
-		return -EPERM;
-	info.si_signo = sig;
-
-	/* POSIX.1b doesn't mention process groups.  */
-	return kill_proc_info(sig, &info, pid);
-}
-
