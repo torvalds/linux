@@ -693,24 +693,6 @@ int compat_setup_frame(int usig, struct k_sigaction *ka, sigset_t *set,
 	return err;
 }
 
-asmlinkage int compat_sys_rt_sigpending(compat_sigset_t __user *set,
-					compat_size_t sigsetsize)
-{
-	sigset_t s;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-
-	set_fs(KERNEL_DS);
-	/* The __user pointer cast is valid because of the set_fs() */
-	ret = sys_rt_sigpending((sigset_t __user *) &s, sigsetsize);
-	set_fs(old_fs);
-	if (!ret) {
-		if (put_sigset_t(set, &s))
-			return -EFAULT;
-	}
-	return ret;
-}
-
 asmlinkage int compat_sys_rt_sigqueueinfo(int pid, int sig,
 					  compat_siginfo_t __user *uinfo)
 {
