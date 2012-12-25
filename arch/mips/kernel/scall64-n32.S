@@ -229,7 +229,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_getsid
 	PTR	sys_capget
 	PTR	sys_capset
-	PTR	sys_32_rt_sigpending		/* 6125 */
+	PTR	compat_sys_rt_sigpending	/* 6125 */
 	PTR	compat_sys_rt_sigtimedwait
 	PTR	sys_32_rt_sigqueueinfo
 	PTR	compat_sys_rt_sigsuspend

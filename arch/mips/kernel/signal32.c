@@ -614,23 +614,6 @@ out:
 	return ret;
 }
 
-SYSCALL_DEFINE2(32_rt_sigpending, compat_sigset_t __user *, uset,
-	unsigned int, sigsetsize)
-{
-	int ret;
-	sigset_t set;
-	mm_segment_t old_fs = get_fs();
-
-	set_fs(KERNEL_DS);
-	ret = sys_rt_sigpending((sigset_t __user *)&set, sigsetsize);
-	set_fs(old_fs);
-
-	if (!ret && put_sigset(&set, uset))
-		return -EFAULT;
-
-	return ret;
-}
-
 SYSCALL_DEFINE3(32_rt_sigqueueinfo, int, pid, int, sig,
 	compat_siginfo_t __user *, uinfo)
 {
