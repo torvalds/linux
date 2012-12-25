@@ -278,8 +278,6 @@ struct compat_sigaltstack;
 long compat_sys_rt_sigaction(int sig, struct compat_sigaction __user *act,
 			     struct compat_sigaction __user *oact,
 			     size_t sigsetsize);
-long compat_sys_rt_sigqueueinfo(int pid, int sig,
-				struct compat_siginfo __user *uinfo);
 long compat_sys_rt_sigreturn(void);
 long compat_sys_truncate64(char __user *filename, u32 dummy, u32 low, u32 high);
 long compat_sys_ftruncate64(unsigned int fd, u32 dummy, u32 low, u32 high);

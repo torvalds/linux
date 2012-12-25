@@ -97,21 +97,6 @@ out:
 	return ret;
 }
 
-long compat_sys_rt_sigqueueinfo(int pid, int sig,
-				struct compat_siginfo __user *uinfo)
-{
-	siginfo_t info;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-
-	if (copy_siginfo_from_user32(&info, uinfo))
-		return -EFAULT;
-	set_fs(KERNEL_DS);
-	ret = sys_rt_sigqueueinfo(pid, sig, (siginfo_t __force __user *)&info);
-	set_fs(old_fs);
-	return ret;
-}
-
 int copy_siginfo_to_user32(struct compat_siginfo __user *to, siginfo_t *from)
 {
 	int err;
