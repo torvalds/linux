@@ -157,7 +157,7 @@ static int _mei_irq_thread_close(struct mei_device *dev, s32 *slots,
 
 	*slots -= mei_data2slots(sizeof(struct hbm_client_connect_request));
 
-	if (mei_disconnect(dev, cl)) {
+	if (mei_hbm_cl_disconnect_req(dev, cl)) {
 		cl->status = 0;
 		cb_pos->buf_idx = 0;
 		list_move_tail(&cb_pos->list, &cmpl_list->list);
@@ -407,7 +407,7 @@ static int _mei_irq_thread_read(struct mei_device *dev,	s32 *slots,
 
 	*slots -= mei_data2slots(sizeof(struct hbm_flow_control));
 
-	if (mei_send_flow_control(dev, cl)) {
+	if (mei_hbm_cl_flow_control_req(dev, cl)) {
 		cl->status = -ENODEV;
 		cb_pos->buf_idx = 0;
 		list_move_tail(&cb_pos->list, &cmpl_list->list);
@@ -443,8 +443,8 @@ static int _mei_irq_thread_ioctl(struct mei_device *dev, s32 *slots,
 	}
 
 	cl->state = MEI_FILE_CONNECTING;
-	 *slots -= mei_data2slots(sizeof(struct hbm_client_connect_request));
-	if (mei_connect(dev, cl)) {
+	*slots -= mei_data2slots(sizeof(struct hbm_client_connect_request));
+	if (mei_hbm_cl_connect_req(dev, cl)) {
 		cl->status = -ENODEV;
 		cb_pos->buf_idx = 0;
 		list_del(&cb_pos->list);
@@ -927,7 +927,7 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
 			/* link is established
 			 * start sending messages.
 			 */
-			mei_host_start_message(dev);
+			mei_hbm_start_req(dev);
 			mutex_unlock(&dev->device_lock);
 			return IRQ_HANDLED;
 		} else {

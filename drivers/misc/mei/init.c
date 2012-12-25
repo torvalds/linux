@@ -529,9 +529,9 @@ int mei_disconnect_host_client(struct mei_device *dev, struct mei_cl *cl)
 	cb->fop_type = MEI_FOP_CLOSE;
 	if (dev->mei_host_buffer_is_empty) {
 		dev->mei_host_buffer_is_empty = false;
-		if (mei_disconnect(dev, cl)) {
+		if (mei_hbm_cl_disconnect_req(dev, cl)) {
 			rets = -ENODEV;
-			dev_dbg(&dev->pdev->dev, "failed to call mei_disconnect.\n");
+			dev_err(&dev->pdev->dev, "failed to disconnect.\n");
 			goto free;
 		}
 		mdelay(10); /* Wait for hardware disconnection ready */

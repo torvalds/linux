@@ -59,13 +59,11 @@ bool mei_hbm_cl_addr_equal(struct mei_cl *cl, void *buf)
 
 
 /**
- * host_start_message - mei host sends start message.
+ * mei_hbm_start_req - sends start request message.
  *
  * @dev: the device structure
- *
- * returns none.
  */
-void mei_host_start_message(struct mei_device *dev)
+void mei_hbm_start_req(struct mei_device *dev)
 {
 	struct mei_msg_hdr *mei_hdr = &dev->wr_msg.hdr;
 	struct hbm_host_version_request *start_req;
@@ -92,13 +90,13 @@ void mei_host_start_message(struct mei_device *dev)
 }
 
 /**
- * host_enum_clients_message - host sends enumeration client request message.
+ * mei_hbm_enum_clients_req - sends enumeration client request message.
  *
  * @dev: the device structure
  *
  * returns none.
  */
-void mei_host_enum_clients_message(struct mei_device *dev)
+static void mei_hbm_enum_clients_req(struct mei_device *dev)
 {
 	struct mei_msg_hdr *mei_hdr = &dev->wr_msg.hdr;
 	struct hbm_host_enum_request *enum_req;
@@ -120,8 +118,15 @@ void mei_host_enum_clients_message(struct mei_device *dev)
 	return;
 }
 
+/**
+ * mei_hbm_prop_requsest - request property for a single client
+ *
+ * @dev: the device structure
+ *
+ * returns none.
+ */
 
-int mei_host_client_enumerate(struct mei_device *dev)
+static int mei_hbm_prop_req(struct mei_device *dev)
 {
 
 	struct mei_msg_hdr *mei_hdr = &dev->wr_msg.hdr;
@@ -191,14 +196,14 @@ static void mei_hbm_stop_req_prepare(struct mei_device *dev,
 }
 
 /**
- * mei_send_flow_control - sends flow control to fw.
+ * mei_hbm_cl_flow_control_req - sends flow control requst.
  *
  * @dev: the device structure
- * @cl: private data of the file object
+ * @cl: client info
  *
  * This function returns -EIO on write failure
  */
-int mei_send_flow_control(struct mei_device *dev, struct mei_cl *cl)
+int mei_hbm_cl_flow_control_req(struct mei_device *dev, struct mei_cl *cl)
 {
 	struct mei_msg_hdr *mei_hdr = &dev->wr_msg.hdr;
 	const size_t len = sizeof(struct hbm_flow_control);
@@ -213,14 +218,14 @@ int mei_send_flow_control(struct mei_device *dev, struct mei_cl *cl)
 }
 
 /**
- * mei_disconnect - sends disconnect message to fw.
+ * mei_hbm_cl_disconnect_req - sends disconnect message to fw.
  *
  * @dev: the device structure
- * @cl: private data of the file object
+ * @cl: a client to disconnect from
  *
  * This function returns -EIO on write failure
  */
-int mei_disconnect(struct mei_device *dev, struct mei_cl *cl)
+int mei_hbm_cl_disconnect_req(struct mei_device *dev, struct mei_cl *cl)
 {
 	struct mei_msg_hdr *mei_hdr = &dev->wr_msg.hdr;
 	const size_t len = sizeof(struct hbm_client_connect_request);
@@ -232,14 +237,14 @@ int mei_disconnect(struct mei_device *dev, struct mei_cl *cl)
 }
 
 /**
- * mei_connect - sends connect message to fw.
+ * mei_hbm_cl_connect_req - send connection request to specific me client
  *
  * @dev: the device structure
- * @cl: private data of the file object
+ * @cl: a client to connect to
  *
- * This function returns -EIO on write failure
+ * returns -EIO on write failure
  */
-int mei_connect(struct mei_device *dev, struct mei_cl *cl)
+int mei_hbm_cl_connect_req(struct mei_device *dev, struct mei_cl *cl)
 {
 	struct mei_msg_hdr *mei_hdr = &dev->wr_msg.hdr;
 	const size_t len = sizeof(struct hbm_client_connect_request);
@@ -251,12 +256,13 @@ int mei_connect(struct mei_device *dev, struct mei_cl *cl)
 }
 
 /**
- * mei_client_disconnect_request - disconnects from request irq routine
+ * mei_client_disconnect_request - disconnect request initiated by me
+ *  host sends disoconnect response
  *
  * @dev: the device structure.
- * @disconnect_req: disconnect request bus message.
+ * @disconnect_req: disconnect request bus message from the me
  */
-static void mei_client_disconnect_request(struct mei_device *dev,
+static void mei_hbm_fw_disconnect_req(struct mei_device *dev,
 		struct hbm_client_connect_request *disconnect_req)
 {
 	struct mei_cl *cl, *next;
@@ -327,7 +333,7 @@ void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		if (dev->dev_state == MEI_DEV_INIT_CLIENTS &&
 		    dev->init_clients_state == MEI_START_MESSAGE) {
 			dev->init_clients_timer = 0;
-			mei_host_enum_clients_message(dev);
+			mei_hbm_enum_clients_req(dev);
 		} else {
 			dev->recvd_msg = false;
 			dev_dbg(&dev->pdev->dev, "reset due to received hbm: host start\n");
@@ -390,7 +396,8 @@ void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		dev->me_client_index++;
 		dev->me_client_presentation_num++;
 
-		mei_host_client_enumerate(dev);
+		/* request property for the next client */
+		mei_hbm_prop_req(dev);
 
 		break;
 
@@ -406,7 +413,8 @@ void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 				dev->init_clients_state =
 					MEI_CLIENT_PROPERTIES_MESSAGE;
 
-				mei_host_client_enumerate(dev);
+				/* first property reqeust */
+				mei_hbm_prop_req(dev);
 		} else {
 			dev_dbg(&dev->pdev->dev, "reset due to received host enumeration clients response bus message.\n");
 			mei_reset(dev, 1);
@@ -423,7 +431,7 @@ void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 	case CLIENT_DISCONNECT_REQ_CMD:
 		/* search for client */
 		disconnect_req = (struct hbm_client_connect_request *)mei_msg;
-		mei_client_disconnect_request(dev, disconnect_req);
+		mei_hbm_fw_disconnect_req(dev, disconnect_req);
 		break;
 
 	case ME_STOP_REQ_CMD:

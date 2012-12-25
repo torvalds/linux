@@ -79,7 +79,7 @@ int mei_wd_host_init(struct mei_device *dev)
 		return -ENOENT;
 	}
 
-	if (mei_connect(dev, &dev->wd_cl)) {
+	if (mei_hbm_cl_connect_req(dev, &dev->wd_cl)) {
 		dev_err(&dev->pdev->dev, "wd: failed to connect to the client\n");
 		dev->wd_cl.state = MEI_FILE_DISCONNECTED;
 		dev->wd_cl.host_client_id = 0;

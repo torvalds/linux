@@ -98,7 +98,7 @@ void mei_amthif_host_init(struct mei_device *dev)
 
 	dev->iamthif_msg_buf = msg_buf;
 
-	if (mei_connect(dev, &dev->iamthif_cl)) {
+	if (mei_hbm_cl_connect_req(dev, &dev->iamthif_cl)) {
 		dev_dbg(&dev->pdev->dev, "Failed to connect to AMTHI client\n");
 		dev->iamthif_cl.state = MEI_FILE_DISCONNECTED;
 		dev->iamthif_cl.host_client_id = 0;
@@ -558,7 +558,7 @@ int mei_amthif_irq_read(struct mei_device *dev, s32 *slots)
 		return -EMSGSIZE;
 	}
 	*slots -= mei_data2slots(sizeof(struct hbm_flow_control));
-	if (mei_send_flow_control(dev, &dev->iamthif_cl)) {
+	if (mei_hbm_cl_flow_control_req(dev, &dev->iamthif_cl)) {
 		dev_dbg(&dev->pdev->dev, "iamthif flow control failed\n");
 		return -EIO;
 	}
@@ -630,7 +630,8 @@ static bool mei_clear_list(struct mei_device *dev,
 			if (dev->iamthif_current_cb == cb_pos) {
 				dev->iamthif_current_cb = NULL;
 				/* send flow control to iamthif client */
-				mei_send_flow_control(dev, &dev->iamthif_cl);
+				mei_hbm_cl_flow_control_req(dev,
+							&dev->iamthif_cl);
 			}
 			/* free all allocated buffers */
 			mei_io_cb_free(cb_pos);
