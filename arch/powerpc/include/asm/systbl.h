@@ -75,6 +75,7 @@ SYSCALL_SPU(sgetmask)
 COMPAT_SYS_SPU(ssetmask)
 SYSCALL_SPU(setreuid)
 SYSCALL_SPU(setregid)
+#define compat_sys_sigsuspend sys_sigsuspend
 SYS32ONLY(sigsuspend)
 COMPAT_SYS(sigpending)
 COMPAT_SYS_SPU(sethostname)
