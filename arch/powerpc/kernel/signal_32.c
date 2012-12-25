@@ -579,36 +579,6 @@ static long restore_user_regs(struct pt_regs *regs,
 }
 
 #ifdef CONFIG_PPC64
-long compat_sys_rt_sigaction(int sig, const struct sigaction32 __user *act,
-		struct sigaction32 __user *oact, size_t sigsetsize)
-{
-	struct k_sigaction new_ka, old_ka;
-	int ret;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(compat_sigset_t))
-		return -EINVAL;
-
-	if (act) {
-		compat_uptr_t handler;
-
-		ret = get_user(handler, &act->sa_handler);
-		new_ka.sa.sa_handler = compat_ptr(handler);
-		ret |= get_sigset_t(&new_ka.sa.sa_mask, &act->sa_mask);
-		ret |= __get_user(new_ka.sa.sa_flags, &act->sa_flags);
-		if (ret)
-			return -EFAULT;
-	}
-
-	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
-	if (!ret && oact) {
-		ret = put_user(to_user_ptr(old_ka.sa.sa_handler), &oact->sa_handler);
-		ret |= put_sigset_t(&oact->sa_mask, &old_ka.sa.sa_mask);
-		ret |= __put_user(old_ka.sa.sa_flags, &oact->sa_flags);
-	}
-	return ret;
-}
-
 int copy_siginfo_to_user32(struct compat_siginfo __user *d, siginfo_t *s)
 {
 	int err;

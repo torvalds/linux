@@ -25,15 +25,6 @@ struct __old_sigaction32 {
 	compat_uptr_t		sa_restorer;     /* not used by Linux/SPARC yet */
 };
 
-
-
-struct sigaction32 {
-       compat_uptr_t  sa_handler;	/* Really a pointer, but need to deal with 32 bits */
-       unsigned int sa_flags;
-       compat_uptr_t sa_restorer;	/* Another 32 bit pointer */
-       compat_sigset_t sa_mask;		/* A 32 bit mask */
-};
-
 struct pt_regs32 {
 	unsigned int gpr[32];
 	unsigned int nip;
