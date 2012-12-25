@@ -36,7 +36,6 @@ extern asmlinkage long sys_rt_sigaction(int sig,
 
 extern asmlinkage void sparc64_set_context(struct pt_regs *regs);
 extern asmlinkage void sparc64_get_context(struct pt_regs *regs);
-extern asmlinkage long sys_sigsuspend(old_sigset_t set);
 extern void do_rt_sigreturn(struct pt_regs *regs);
 
 #endif /* _SYSTBLS_H */

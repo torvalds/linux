@@ -236,13 +236,6 @@ struct rt_signal_frame {
 	__siginfo_rwin_t	*rwin_save;
 };
 
-asmlinkage long sys_sigsuspend(old_sigset_t set)
-{
-	sigset_t blocked;
-	siginitset(&blocked, set);
-	return sigsuspend(&blocked);
-}
-
 void do_rt_sigreturn(struct pt_regs *regs)
 {
 	struct rt_signal_frame __user *sf;

@@ -59,13 +59,6 @@ struct rt_signal_frame {
 #define SF_ALIGNEDSZ  (((sizeof(struct signal_frame) + 7) & (~7)))
 #define RT_ALIGNEDSZ  (((sizeof(struct rt_signal_frame) + 7) & (~7)))
 
-asmlinkage int sys_sigsuspend(old_sigset_t set)
-{
-	sigset_t blocked;
-	siginitset(&blocked, set);
-	return sigsuspend(&blocked);
-}
-
 asmlinkage void do_sigreturn(struct pt_regs *regs)
 {
 	struct signal_frame __user *sf;
