@@ -9,7 +9,6 @@
 
 struct pt_regs;
 
-asmlinkage int sys_sigsuspend(old_sigset_t mask);
 asmlinkage int sys_sigaction(int sig, const struct old_sigaction __user *act,
 			     struct old_sigaction __user *oact);
 asmlinkage int sys_sigreturn(unsigned long r4, unsigned long r5,
