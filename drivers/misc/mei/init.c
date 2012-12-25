@@ -345,7 +345,7 @@ void mei_host_start_message(struct mei_device *dev)
 	start_req->host_version.minor_version = HBM_MINOR_VERSION;
 
 	dev->recvd_msg = false;
-	if (mei_write_message(dev, mei_hdr, (unsigned char *)start_req, len)) {
+	if (mei_write_message(dev, mei_hdr, (unsigned char *)start_req)) {
 		dev_dbg(&dev->pdev->dev, "write send version message to FW fail.\n");
 		dev->dev_state = MEI_DEV_RESETING;
 		mei_reset(dev, 1);
@@ -374,7 +374,7 @@ void mei_host_enum_clients_message(struct mei_device *dev)
 	memset(enum_req, 0, sizeof(struct hbm_host_enum_request));
 	enum_req->hbm_cmd = HOST_ENUM_REQ_CMD;
 
-	if (mei_write_message(dev, mei_hdr, (unsigned char *)enum_req, len)) {
+	if (mei_write_message(dev, mei_hdr, (unsigned char *)enum_req)) {
 		dev->dev_state = MEI_DEV_RESETING;
 		dev_dbg(&dev->pdev->dev, "write send enumeration request message to FW fail.\n");
 		mei_reset(dev, 1);
@@ -492,8 +492,7 @@ int mei_host_client_enumerate(struct mei_device *dev)
 	prop_req->hbm_cmd = HOST_CLIENT_PROPERTIES_REQ_CMD;
 	prop_req->address = next_client_index;
 
-	if (mei_write_message(dev, mei_hdr, (unsigned char *) prop_req,
-			      mei_hdr->length)) {
+	if (mei_write_message(dev, mei_hdr, (unsigned char *) prop_req)) {
 		dev->dev_state = MEI_DEV_RESETING;
 		dev_err(&dev->pdev->dev, "Properties request command failed\n");
 		mei_reset(dev, 1);

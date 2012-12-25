@@ -29,9 +29,8 @@ void mei_read_slots(struct mei_device *dev,
 		     unsigned long buffer_length);
 
 int mei_write_message(struct mei_device *dev,
-			     struct mei_msg_hdr *header,
-			     unsigned char *write_buffer,
-			     unsigned long write_length);
+			struct mei_msg_hdr *header,
+			unsigned char *buf);
 
 bool mei_hbuf_is_empty(struct mei_device *dev);
 

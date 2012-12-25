@@ -300,8 +300,7 @@ static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 		mei_hdr.reserved = 0;
 		dev->iamthif_msg_buf_index += mei_hdr.length;
 		if (mei_write_message(dev, &mei_hdr,
-					(unsigned char *)(dev->iamthif_msg_buf),
-					mei_hdr.length))
+					(unsigned char *)dev->iamthif_msg_buf))
 			return -ENODEV;
 
 		if (mei_hdr.msg_complete) {
@@ -463,8 +462,7 @@ int mei_amthif_irq_write_complete(struct mei_device *dev, s32 *slots,
 
 	*slots -=  msg_slots;
 	if (mei_write_message(dev, mei_hdr,
-		dev->iamthif_msg_buf + dev->iamthif_msg_buf_index,
-		mei_hdr->length)) {
+		dev->iamthif_msg_buf + dev->iamthif_msg_buf_index)) {
 			dev->iamthif_state = MEI_IAMTHIF_IDLE;
 			cl->status = -ENODEV;
 			list_del(&cb->list);

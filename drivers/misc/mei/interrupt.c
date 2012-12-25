@@ -465,7 +465,7 @@ static void mei_client_disconnect_request(struct mei_device *dev,
  * @mei_hdr: header of bus message
  */
 static void mei_irq_thread_read_bus_message(struct mei_device *dev,
-		struct mei_msg_hdr *mei_hdr)
+		struct mei_msg_hdr *hdr)
 {
 	struct mei_bus_message *mei_msg;
 	struct mei_me_client *me_client;
@@ -479,8 +479,8 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 	struct hbm_host_stop_request *stop_req;
 
 	/* read the message to our buffer */
-	BUG_ON(mei_hdr->length >= sizeof(dev->rd_msg_buf));
-	mei_read_slots(dev, dev->rd_msg_buf, mei_hdr->length);
+	BUG_ON(hdr->length >= sizeof(dev->rd_msg_buf));
+	mei_read_slots(dev, dev->rd_msg_buf, hdr->length);
 	mei_msg = (struct mei_bus_message *)dev->rd_msg_buf;
 
 	switch (mei_msg->hbm_cmd) {
@@ -506,14 +506,13 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 			dev->version = version_res->me_max_version;
 
 			/* send stop message */
-			mei_hdr = mei_hbm_hdr(&buf[0], len);
+			hdr = mei_hbm_hdr(&buf[0], len);
 			stop_req = (struct hbm_host_stop_request *)&buf[1];
 			memset(stop_req, 0, len);
 			stop_req->hbm_cmd = HOST_STOP_REQ_CMD;
 			stop_req->reason = DRIVER_STOP_REQUEST;
 
-			mei_write_message(dev, mei_hdr,
-					(unsigned char *)stop_req, len);
+			mei_write_message(dev, hdr, (unsigned char *)stop_req);
 			dev_dbg(&dev->pdev->dev, "version mismatch.\n");
 			return;
 		}
@@ -615,7 +614,7 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 
 		const size_t len = sizeof(struct hbm_host_stop_request);
 
-		mei_hdr = mei_hbm_hdr((u32 *)&dev->wr_ext_msg.hdr, len);
+		hdr = mei_hbm_hdr((u32 *)&dev->wr_ext_msg.hdr, len);
 		stop_req = (struct hbm_host_stop_request *)&dev->wr_ext_msg.data;
 		memset(stop_req, 0, len);
 		stop_req->hbm_cmd = HOST_STOP_REQ_CMD;
@@ -748,7 +747,7 @@ static int mei_irq_thread_write_complete(struct mei_device *dev, s32 *slots,
 
 	*slots -=  msg_slots;
 	if (mei_write_message(dev, mei_hdr,
-		cb->request_buffer.data + cb->buf_idx, len)) {
+			cb->request_buffer.data + cb->buf_idx)) {
 		cl->status = -ENODEV;
 		list_move_tail(&cb->list, &cmpl_list->list);
 		return -ENODEV;
@@ -930,7 +929,7 @@ static int mei_irq_thread_write_handler(struct mei_device *dev,
 
 	if (dev->wr_ext_msg.hdr.length) {
 		mei_write_message(dev, &dev->wr_ext_msg.hdr,
-			dev->wr_ext_msg.data, dev->wr_ext_msg.hdr.length);
+				dev->wr_ext_msg.data);
 		slots -= mei_data2slots(dev->wr_ext_msg.hdr.length);
 		dev->wr_ext_msg.hdr.length = 0;
 	}

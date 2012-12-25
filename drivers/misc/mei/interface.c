@@ -113,20 +113,19 @@ int mei_hbuf_empty_slots(struct mei_device *dev)
  * mei_write_message - writes a message to mei device.
  *
  * @dev: the device structure
- * @header: header of message
- * @write_buffer: message buffer will be written
- * @write_length: message size will be written
+ * @hader: mei HECI header of message
+ * @buf: message payload will be written
  *
  * This function returns -EIO if write has failed
  */
 int mei_write_message(struct mei_device *dev, struct mei_msg_hdr *header,
-		      unsigned char *buf, unsigned long length)
+		      unsigned char *buf)
 {
 	unsigned long rem, dw_cnt;
+	unsigned long length = header->length;
 	u32 *reg_buf = (u32 *)buf;
 	int i;
 	int empty_slots;
-
 
 	dev_dbg(&dev->pdev->dev,
 			"mei_write_message header=%08x.\n",
@@ -307,8 +306,7 @@ int mei_send_flow_control(struct mei_device *dev, struct mei_cl *cl)
 	dev_dbg(&dev->pdev->dev, "sending flow control host client = %d, ME client = %d\n",
 		cl->host_client_id, cl->me_client_id);
 
-	return mei_write_message(dev, mei_hdr,
-			(unsigned char *) flow_ctrl, len);
+	return mei_write_message(dev, mei_hdr, (unsigned char *) flow_ctrl);
 }
 
 /**
@@ -346,11 +344,11 @@ int mei_other_client_is_connecting(struct mei_device *dev,
  */
 int mei_disconnect(struct mei_device *dev, struct mei_cl *cl)
 {
-	struct mei_msg_hdr *mei_hdr;
+	struct mei_msg_hdr *hdr;
 	struct hbm_client_connect_request *req;
 	const size_t len = sizeof(struct hbm_client_connect_request);
 
-	mei_hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
+	hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
 
 	req = (struct hbm_client_connect_request *)&dev->wr_msg_buf[1];
 	memset(req, 0, len);
@@ -359,7 +357,7 @@ int mei_disconnect(struct mei_device *dev, struct mei_cl *cl)
 	req->me_addr = cl->me_client_id;
 	req->reserved = 0;
 
-	return mei_write_message(dev, mei_hdr, (unsigned char *)req, len);
+	return mei_write_message(dev, hdr, (unsigned char *)req);
 }
 
 /**
@@ -372,11 +370,11 @@ int mei_disconnect(struct mei_device *dev, struct mei_cl *cl)
  */
 int mei_connect(struct mei_device *dev, struct mei_cl *cl)
 {
-	struct mei_msg_hdr *mei_hdr;
+	struct mei_msg_hdr *hdr;
 	struct hbm_client_connect_request *req;
 	const size_t len = sizeof(struct hbm_client_connect_request);
 
-	mei_hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
+	hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
 
 	req = (struct hbm_client_connect_request *) &dev->wr_msg_buf[1];
 	req->hbm_cmd = CLIENT_CONNECT_REQ_CMD;
@@ -384,5 +382,5 @@ int mei_connect(struct mei_device *dev, struct mei_cl *cl)
 	req->me_addr = cl->me_client_id;
 	req->reserved = 0;
 
-	return mei_write_message(dev, mei_hdr, (unsigned char *) req, len);
+	return mei_write_message(dev, hdr, (unsigned char *) req);
 }
