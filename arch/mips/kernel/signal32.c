@@ -614,22 +614,6 @@ out:
 	return ret;
 }
 
-SYSCALL_DEFINE3(32_rt_sigqueueinfo, int, pid, int, sig,
-	compat_siginfo_t __user *, uinfo)
-{
-	siginfo_t info;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-
-	if (copy_from_user(&info, uinfo, 3*sizeof(int)) ||
-	    copy_from_user(info._sifields._pad, uinfo->_sifields._pad, SI_PAD_SIZE))
-		return -EFAULT;
-	set_fs(KERNEL_DS);
-	ret = sys_rt_sigqueueinfo(pid, sig, (siginfo_t __user *)&info);
-	set_fs(old_fs);
-	return ret;
-}
-
 static int signal32_init(void)
 {
 	if (cpu_has_fpu) {
