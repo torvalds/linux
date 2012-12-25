@@ -21,7 +21,9 @@
 #include <linux/watchdog.h>
 #include <linux/poll.h>
 #include <linux/mei.h>
+
 #include "hw.h"
+#include "hw-me.h"
 
 /*
  * watch dog definition
