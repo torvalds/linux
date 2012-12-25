@@ -233,6 +233,16 @@ struct batadv_priv_bla {
 };
 #endif
 
+#ifdef CONFIG_BATMAN_ADV_DEBUG
+struct batadv_priv_debug_log {
+	char log_buff[BATADV_LOG_BUF_LEN];
+	unsigned long log_start;
+	unsigned long log_end;
+	spinlock_t lock; /* protects log_buff, log_start and log_end */
+	wait_queue_head_t queue_wait;
+};
+#endif
+
 struct batadv_priv_gw {
 	struct hlist_head list;
 	spinlock_t list_lock; /* protects gw_list and curr_gw */
@@ -290,9 +300,6 @@ struct batadv_priv {
 	atomic_t bcast_queue_left;
 	atomic_t batman_queue_left;
 	char num_ifaces;
-#ifdef CONFIG_BATMAN_ADV_DEBUG
-	struct batadv_debug_log *debug_log;
-#endif
 	struct kobject *mesh_obj;
 	struct dentry *debug_dir;
 	struct hlist_head forw_bat_list;
@@ -305,6 +312,9 @@ struct batadv_priv {
 	struct batadv_algo_ops *bat_algo_ops;
 #ifdef CONFIG_BATMAN_ADV_BLA
 	struct batadv_priv_bla bla;
+#endif
+#ifdef CONFIG_BATMAN_ADV_DEBUG
+	struct batadv_priv_debug_log *debug_log;
 #endif
 	struct batadv_priv_gw gw;
 	struct batadv_priv_tt tt;
@@ -425,15 +435,6 @@ struct batadv_if_list_entry {
 	bool primary;
 	struct hlist_node list;
 };
-
-struct batadv_debug_log {
-	char log_buff[BATADV_LOG_BUF_LEN];
-	unsigned long log_start;
-	unsigned long log_end;
-	spinlock_t lock; /* protects log_buff, log_start and log_end */
-	wait_queue_head_t queue_wait;
-};
-
 struct batadv_frag_packet_list_entry {
 	struct list_head list;
 	uint16_t seqno;

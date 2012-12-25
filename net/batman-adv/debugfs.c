@@ -40,13 +40,14 @@ static struct dentry *batadv_debugfs;
 
 static const int batadv_log_buff_len = BATADV_LOG_BUF_LEN;
 
-static char *batadv_log_char_addr(struct batadv_debug_log *debug_log,
+static char *batadv_log_char_addr(struct batadv_priv_debug_log *debug_log,
 				  size_t idx)
 {
 	return &debug_log->log_buff[idx & BATADV_LOG_BUFF_MASK];
 }
 
-static void batadv_emit_log_char(struct batadv_debug_log *debug_log, char c)
+static void batadv_emit_log_char(struct batadv_priv_debug_log *debug_log,
+				 char c)
 {
 	char *char_addr;
 
@@ -59,7 +60,7 @@ static void batadv_emit_log_char(struct batadv_debug_log *debug_log, char c)
 }
 
 __printf(2, 3)
-static int batadv_fdebug_log(struct batadv_debug_log *debug_log,
+static int batadv_fdebug_log(struct batadv_priv_debug_log *debug_log,
 			     const char *fmt, ...)
 {
 	va_list args;
@@ -114,7 +115,7 @@ static int batadv_log_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int batadv_log_empty(struct batadv_debug_log *debug_log)
+static int batadv_log_empty(struct batadv_priv_debug_log *debug_log)
 {
 	return !(debug_log->log_start - debug_log->log_end);
 }
@@ -123,7 +124,7 @@ static ssize_t batadv_log_read(struct file *file, char __user *buf,
 			       size_t count, loff_t *ppos)
 {
 	struct batadv_priv *bat_priv = file->private_data;
-	struct batadv_debug_log *debug_log = bat_priv->debug_log;
+	struct batadv_priv_debug_log *debug_log = bat_priv->debug_log;
 	int error, i = 0;
 	char *char_addr;
 	char c;
@@ -177,7 +178,7 @@ static ssize_t batadv_log_read(struct file *file, char __user *buf,
 static unsigned int batadv_log_poll(struct file *file, poll_table *wait)
 {
 	struct batadv_priv *bat_priv = file->private_data;
-	struct batadv_debug_log *debug_log = bat_priv->debug_log;
+	struct batadv_priv_debug_log *debug_log = bat_priv->debug_log;
 
 	poll_wait(file, &debug_log->queue_wait, wait);
 
