@@ -357,7 +357,7 @@ sys_call_table:
 	PTR	sys_sched_yield
 	PTR	sys_sched_get_priority_max
 	PTR	sys_sched_get_priority_min
-	PTR	sys_32_sched_rr_get_interval 	/* 4165 */
+	PTR	compat_sys_sched_rr_get_interval 	/* 4165 */
 	PTR	compat_sys_nanosleep
 	PTR	sys_mremap
 	PTR	sys_accept

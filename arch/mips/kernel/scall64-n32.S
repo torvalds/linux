@@ -249,7 +249,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_sched_getscheduler
 	PTR	sys_sched_get_priority_max
 	PTR	sys_sched_get_priority_min
-	PTR	sys_32_sched_rr_get_interval	/* 6145 */
+	PTR	compat_sys_sched_rr_get_interval	/* 6145 */
 	PTR	sys_mlock
 	PTR	sys_munlock
 	PTR	sys_mlockall
