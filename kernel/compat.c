@@ -1067,23 +1067,6 @@ asmlinkage long compat_sys_stime(compat_time_t __user *tptr)
 
 #endif /* __ARCH_WANT_COMPAT_SYS_TIME */
 
-#ifdef __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND
-asmlinkage long compat_sys_rt_sigsuspend(compat_sigset_t __user *unewset, compat_size_t sigsetsize)
-{
-	sigset_t newset;
-	compat_sigset_t newset32;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(sigset_t))
-		return -EINVAL;
-
-	if (copy_from_user(&newset32, unewset, sizeof(compat_sigset_t)))
-		return -EFAULT;
-	sigset_from_compat(&newset, &newset32);
-	return sigsuspend(&newset);
-}
-#endif /* __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND */
-
 asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp)
 {
 	struct timex txc;
