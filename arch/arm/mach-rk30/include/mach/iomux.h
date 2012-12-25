@@ -2,7 +2,7 @@
 #define __MACH_IOMUX_H__
 
 #include <linux/init.h>
-
+#include <mach/iomux-rk30.h>
 #if defined(CONFIG_ARCH_RK3066B)
 #include <mach/iomux-rk3066b.h>
 #elif defined(CONFIG_ARCH_RK30)

@@ -17,7 +17,7 @@
 #define __RK2928_IOMUX_H__
 
 #include <linux/init.h>
-
+#include <mach/iomux-rk2928.h>
 //gpio0a
 #define	GPIO0A_GPIO0A0                  0
 #define	GPIO0A_I2C0_SCL                 1
