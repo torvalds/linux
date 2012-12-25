@@ -25,6 +25,7 @@ config PARISC
 	select CLONE_BACKWARDS
 	select GENERIC_SIGALTSTACK
 	select GENERIC_COMPAT_RT_SIGPROCMASK
+	select GENERIC_COMPAT_RT_SIGPENDING
 
 	help
 	  The PA-RISC microprocessor is designed by Hewlett-Packard and used

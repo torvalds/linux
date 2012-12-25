@@ -60,31 +60,6 @@ sigset_64to32(compat_sigset_t *s32, sigset_t *s64)
 	s32->sig[1] = (s64->sig[0] >> 32) & 0xffffffffUL;
 }
 
-static int
-put_sigset32(compat_sigset_t __user *up, sigset_t *set, size_t sz)
-{
-	compat_sigset_t s;
-
-	if (sz != sizeof *set)
-		return -EINVAL;
-	sigset_64to32(&s, set);
-
-	return copy_to_user(up, &s, sizeof s);
-}
-
-int sys32_rt_sigpending(compat_sigset_t __user *uset, unsigned int sigsetsize)
-{
-	int ret;
-	sigset_t set;
-
-	KERNEL_SYSCALL(ret, sys_rt_sigpending, (sigset_t __user *)&set, sigsetsize);
-
-	if (!ret && put_sigset32(uset, &set, sigsetsize))
-		return -EFAULT;
-
-	return ret;
-}
-
 long
 sys32_rt_sigaction(int sig, const struct sigaction32 __user *act, struct sigaction32 __user *oact,
                  size_t sigsetsize)
