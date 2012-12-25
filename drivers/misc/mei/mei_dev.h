@@ -158,6 +158,19 @@ struct mei_message_data {
 	unsigned char *data;
 };
 
+/**
+ * struct mei_me_client - representation of me (fw) client
+ *
+ * @props  - client properties
+ * @client_id - me client id
+ * @mei_flow_ctrl_creds - flow control credits
+ */
+struct mei_me_client {
+	struct mei_client_properties props;
+	u8 client_id;
+	u8 mei_flow_ctrl_creds;
+};
+
 
 struct mei_cl;
 

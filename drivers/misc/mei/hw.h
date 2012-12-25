@@ -230,11 +230,5 @@ struct hbm_flow_control {
 	u8 reserved[MEI_FC_MESSAGE_RESERVED_LENGTH];
 } __packed;
 
-struct mei_me_client {
-	struct mei_client_properties props;
-	u8 client_id;
-	u8 mei_flow_ctrl_creds;
-} __packed;
-
 
 #endif
