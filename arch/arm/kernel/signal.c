@@ -45,16 +45,6 @@ const unsigned long sigreturn_codes[7] = {
 	MOV_R7_NR_RT_SIGRETURN, SWI_SYS_RT_SIGRETURN, SWI_THUMB_RT_SIGRETURN,
 };
 
-/*
- * atomically swap in the new signal mask, and wait for a signal.
- */
-asmlinkage int sys_sigsuspend(int restart, unsigned long oldmask, old_sigset_t mask)
-{
-	sigset_t blocked;
-	siginitset(&blocked, mask);
-	return sigsuspend(&blocked);
-}
-
 asmlinkage int 
 sys_sigaction(int sig, const struct old_sigaction __user *act,
 	      struct old_sigaction __user *oact)
