@@ -153,6 +153,8 @@ const static int ldo_voltage_map[] = {
 
 static int act8846_ldo_list_voltage(struct regulator_dev *dev, unsigned index)
 {
+	if (index >= ARRAY_SIZE(ldo_voltage_map))
+		return -EINVAL;
 	return 1000 * ldo_voltage_map[index];
 }
 static int act8846_ldo_is_enabled(struct regulator_dev *dev)
@@ -274,6 +276,8 @@ static struct regulator_ops act8846_ldo_ops = {
 
 static int act8846_dcdc_list_voltage(struct regulator_dev *dev, unsigned index)
 {
+	if (index >= ARRAY_SIZE(buck_voltage_map))
+		return -EINVAL;
 	return 1000 * buck_voltage_map[index];
 }
 static int act8846_dcdc_is_enabled(struct regulator_dev *dev)
@@ -662,7 +666,6 @@ static int __devinit act8846_i2c_probe(struct i2c_client *i2c, const struct i2c_
 	struct act8846 *act8846;	
 	struct act8846_platform_data *pdata = i2c->dev.platform_data;
 	int ret;
-        msleep(1000);
 	act8846 = kzalloc(sizeof(struct act8846), GFP_KERNEL);
 	if (act8846 == NULL) {
 		ret = -ENOMEM;		

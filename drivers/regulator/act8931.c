@@ -145,6 +145,8 @@ const static int ldo_voltage_map[] = {
 
 static int act8931_ldo_list_voltage(struct regulator_dev *dev, unsigned index)
 {
+	if (index >= ARRAY_SIZE(ldo_voltage_map))
+		return -EINVAL;
 	return 1000 * ldo_voltage_map[index];
 }
 static int act8931_ldo_is_enabled(struct regulator_dev *dev)
@@ -263,6 +265,8 @@ static struct regulator_ops act8931_ldo_ops = {
 
 static int act8931_dcdc_list_voltage(struct regulator_dev *dev, unsigned index)
 {
+	if (index >= ARRAY_SIZE(buck_voltage_map))
+		return -EINVAL;
 	return 1000 * buck_voltage_map[index];
 }
 static int act8931_dcdc_is_enabled(struct regulator_dev *dev)
