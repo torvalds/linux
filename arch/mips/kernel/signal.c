@@ -247,15 +247,9 @@ void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
  */
 
 #ifdef CONFIG_TRAD_SIGNALS
-asmlinkage int sys_sigsuspend(nabi_no_regargs struct pt_regs regs)
+SYSCALL_DEFINE1(sigsuspend, sigset_t __user *, uset)
 {
-	sigset_t newset;
-	sigset_t __user *uset;
-
-	uset = (sigset_t __user *) regs.regs[4];
-	if (copy_from_user(&newset, uset, sizeof(sigset_t)))
-		return -EFAULT;
-	return sigsuspend(&newset);
+	return sys_rt_sigsuspend(uset, sizeof(sigset_t));
 }
 #endif
 

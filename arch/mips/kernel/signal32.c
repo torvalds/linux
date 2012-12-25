@@ -273,15 +273,9 @@ static inline int get_sigset(sigset_t *kbuf, const compat_sigset_t __user *ubuf)
  * Atomically swap in the new signal mask, and wait for a signal.
  */
 
-asmlinkage int sys32_sigsuspend(nabi_no_regargs struct pt_regs regs)
+asmlinkage int sys32_sigsuspend(compat_sigset_t __user *uset)
 {
-	compat_sigset_t __user *uset;
-	sigset_t newset;
-
-	uset = (compat_sigset_t __user *) regs.regs[4];
-	if (get_sigset(&newset, uset))
-		return -EFAULT;
-	return sigsuspend(&newset);
+	return compat_sys_rt_sigsuspend(uset, sizeof(compat_sigset_t));
 }
 
 SYSCALL_DEFINE3(32_sigaction, long, sig, const struct sigaction32 __user *, act,
