@@ -339,6 +339,31 @@ struct batadv_socket_packet {
 	struct batadv_icmp_packet_rr icmp_packet;
 };
 
+#ifdef CONFIG_BATMAN_ADV_BLA
+struct batadv_backbone_gw {
+	uint8_t orig[ETH_ALEN];
+	short vid;		/* used VLAN ID */
+	struct hlist_node hash_entry;
+	struct batadv_priv *bat_priv;
+	unsigned long lasttime;	/* last time we heard of this backbone gw */
+	atomic_t wait_periods;
+	atomic_t request_sent;
+	atomic_t refcount;
+	struct rcu_head rcu;
+	uint16_t crc;		/* crc checksum over all claims */
+};
+
+struct batadv_claim {
+	uint8_t addr[ETH_ALEN];
+	short vid;
+	struct batadv_backbone_gw *backbone_gw;
+	unsigned long lasttime;	/* last time we heard of claim (locals only) */
+	struct rcu_head rcu;
+	atomic_t refcount;
+	struct hlist_node hash_entry;
+};
+#endif
+
 struct batadv_tt_common_entry {
 	uint8_t addr[ETH_ALEN];
 	struct hlist_node hash_entry;
@@ -367,31 +392,6 @@ struct batadv_tt_orig_list_entry {
 	struct rcu_head rcu;
 	struct hlist_node list;
 };
-
-#ifdef CONFIG_BATMAN_ADV_BLA
-struct batadv_backbone_gw {
-	uint8_t orig[ETH_ALEN];
-	short vid;		/* used VLAN ID */
-	struct hlist_node hash_entry;
-	struct batadv_priv *bat_priv;
-	unsigned long lasttime;	/* last time we heard of this backbone gw */
-	atomic_t wait_periods;
-	atomic_t request_sent;
-	atomic_t refcount;
-	struct rcu_head rcu;
-	uint16_t crc;		/* crc checksum over all claims */
-};
-
-struct batadv_claim {
-	uint8_t addr[ETH_ALEN];
-	short vid;
-	struct batadv_backbone_gw *backbone_gw;
-	unsigned long lasttime;	/* last time we heard of claim (locals only) */
-	struct rcu_head rcu;
-	atomic_t refcount;
-	struct hlist_node hash_entry;
-};
-#endif
 
 struct batadv_tt_change_node {
 	struct list_head list;
