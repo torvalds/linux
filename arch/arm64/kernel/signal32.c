@@ -693,39 +693,6 @@ int compat_setup_frame(int usig, struct k_sigaction *ka, sigset_t *set,
 	return err;
 }
 
-/*
- * RT signals don't have generic compat wrappers.
- * See arch/powerpc/kernel/signal_32.c
- */
-asmlinkage int compat_sys_rt_sigprocmask(int how, compat_sigset_t __user *set,
-					 compat_sigset_t __user *oset,
-					 compat_size_t sigsetsize)
-{
-	sigset_t s;
-	sigset_t __user *up;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-
-	if (set) {
-		if (get_sigset_t(&s, set))
-			return -EFAULT;
-	}
-
-	set_fs(KERNEL_DS);
-	/* This is valid because of the set_fs() */
-	up = (sigset_t __user *) &s;
-	ret = sys_rt_sigprocmask(how, set ? up : NULL, oset ? up : NULL,
-				 sigsetsize);
-	set_fs(old_fs);
-	if (ret)
-		return ret;
-	if (oset) {
-		if (put_sigset_t(oset, &s))
-			return -EFAULT;
-	}
-	return 0;
-}
-
 asmlinkage int compat_sys_rt_sigpending(compat_sigset_t __user *set,
 					compat_size_t sigsetsize)
 {
