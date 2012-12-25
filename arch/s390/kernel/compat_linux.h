@@ -68,12 +68,6 @@ struct sigcontext32
 };
 
 /* asm/signal.h */
-struct sigaction32 {
-	__u32		sa_handler;		/* pointer */
-	__u32		sa_flags;
-        __u32		sa_restorer;		/* pointer */
-	compat_sigset_t	sa_mask;        /* mask last for extensibility */
-};
 
 /* asm/ucontext.h */
 struct ucontext32 {
@@ -139,6 +133,4 @@ long sys32_fadvise64(int fd, loff_t offset, size_t len, int advise);
 long sys32_fadvise64_64(struct fadvise64_64_args __user *args);
 long sys32_sigaction(int sig, const struct old_sigaction32 __user *act,
 		     struct old_sigaction32 __user *oact);
-long sys32_rt_sigaction(int sig, const struct sigaction32 __user *act,
-			struct sigaction32 __user *oact, size_t sigsetsize);
 #endif /* _ASM_S390X_S390_H */

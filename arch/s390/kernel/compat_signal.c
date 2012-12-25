@@ -194,46 +194,6 @@ sys32_sigaction(int sig, const struct old_sigaction32 __user *act,
 	return ret;
 }
 
-asmlinkage long
-sys32_rt_sigaction(int sig, const struct sigaction32 __user *act,
-	   struct sigaction32 __user *oact,  size_t sigsetsize)
-{
-	struct k_sigaction new_ka, old_ka;
-	unsigned long sa_handler;
-	int ret;
-	compat_sigset_t set32;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(compat_sigset_t))
-		return -EINVAL;
-
-	if (act) {
-		ret = get_user(sa_handler, &act->sa_handler);
-		ret |= __copy_from_user(&set32, &act->sa_mask,
-					sizeof(compat_sigset_t));
-		new_ka.sa.sa_mask.sig[0] =
-			set32.sig[0] | (((long)set32.sig[1]) << 32);
-		ret |= __get_user(new_ka.sa.sa_flags, &act->sa_flags);
-		
-		if (ret)
-			return -EFAULT;
-		new_ka.sa.sa_handler = (__sighandler_t) sa_handler;
-	}
-
-	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
-
-	if (!ret && oact) {
-		set32.sig[1] = (old_ka.sa.sa_mask.sig[0] >> 32);
-		set32.sig[0] = old_ka.sa.sa_mask.sig[0];
-		ret = put_user((unsigned long)old_ka.sa.sa_handler, &oact->sa_handler);
-		ret |= __copy_to_user(&oact->sa_mask, &set32,
-				      sizeof(compat_sigset_t));
-		ret |= __put_user(old_ka.sa.sa_flags, &oact->sa_flags);
-	}
-
-	return ret;
-}
-
 static int save_sigregs32(struct pt_regs *regs, _sigregs32 __user *sregs)
 {
 	_s390_regs_common32 regs32;

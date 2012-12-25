@@ -691,7 +691,7 @@ ENTRY(sys32_rt_sigaction_wrapper)
 	llgtr	%r3,%r3			# const struct sigaction_emu31 *
 	llgtr	%r4,%r4			# const struct sigaction_emu31 *
 	llgfr	%r5,%r5			# size_t
-	jg	sys32_rt_sigaction	# branch to system call
+	jg	compat_sys_rt_sigaction	# branch to system call
 
 ENTRY(sys32_rt_sigprocmask_wrapper)
 	lgfr	%r2,%r2			# int
