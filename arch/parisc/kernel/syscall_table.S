@@ -265,7 +265,7 @@
 	ENTRY_SAME(prctl)
 	/* signals need a careful review */
 	ENTRY_SAME(rt_sigreturn_wrapper)
-	ENTRY_DIFF(rt_sigaction)
+	ENTRY_COMP(rt_sigaction)
 	ENTRY_COMP(rt_sigprocmask)	/* 175 */
 	ENTRY_COMP(rt_sigpending)
 	ENTRY_COMP(rt_sigtimedwait)

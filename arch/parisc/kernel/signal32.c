@@ -61,34 +61,6 @@ sigset_64to32(compat_sigset_t *s32, sigset_t *s64)
 }
 
 long
-sys32_rt_sigaction(int sig, const struct sigaction32 __user *act, struct sigaction32 __user *oact,
-                 size_t sigsetsize)
-{
-	struct k_sigaction32 new_sa32, old_sa32;
-	struct k_sigaction new_sa, old_sa;
-	int ret = -EINVAL;
-
-	if (act) {
-		if (copy_from_user(&new_sa32.sa, act, sizeof new_sa32.sa))
-			return -EFAULT;
-		new_sa.sa.sa_handler = (__sighandler_t)(unsigned long)new_sa32.sa.sa_handler;
-		new_sa.sa.sa_flags = new_sa32.sa.sa_flags;
-		sigset_32to64(&new_sa.sa.sa_mask, &new_sa32.sa.sa_mask);
-	}
-
-	ret = do_sigaction(sig, act ? &new_sa : NULL, oact ? &old_sa : NULL);
-
-	if (!ret && oact) {
-		sigset_64to32(&old_sa32.sa.sa_mask, &old_sa.sa.sa_mask);
-		old_sa32.sa.sa_flags = old_sa.sa.sa_flags;
-		old_sa32.sa.sa_handler = (__sighandler_t32)(unsigned long)old_sa.sa.sa_handler;
-		if (copy_to_user(oact, &old_sa32.sa, sizeof old_sa32.sa))
-			return -EFAULT;
-	}
-	return ret;
-}
-
-long
 restore_sigcontext32(struct compat_sigcontext __user *sc, struct compat_regfile __user * rf,
 		struct pt_regs *regs)
 {
