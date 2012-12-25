@@ -46,17 +46,6 @@
 #include <asm/traps.h>
 #include <asm/ucontext.h>
 
-/*
- * Atomically swap in the new signal mask, and wait for a signal.
- */
-asmlinkage int
-sys_sigsuspend(int unused1, int unused2, old_sigset_t mask)
-{
-	sigset_t blocked;
-	siginitset(&blocked, mask);
-	return sigsuspend(&blocked);
-}
-
 asmlinkage int 
 sys_sigaction(int sig, const struct old_sigaction *act,
 	      struct old_sigaction *oact)
