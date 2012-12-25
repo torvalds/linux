@@ -20,7 +20,61 @@
 #include "mei_dev.h"
 #include "interface.h"
 
+/**
+ * mei_reg_read - Reads 32bit data from the mei device
+ *
+ * @dev: the device structure
+ * @offset: offset from which to read the data
+ *
+ * returns register value (u32)
+ */
+static inline u32 mei_reg_read(const struct mei_device *dev,
+			       unsigned long offset)
+{
+	return ioread32(dev->mem_addr + offset);
+}
 
+
+/**
+ * mei_reg_write - Writes 32bit data to the mei device
+ *
+ * @dev: the device structure
+ * @offset: offset from which to write the data
+ * @value: register value to write (u32)
+ */
+static inline void mei_reg_write(const struct mei_device *dev,
+				 unsigned long offset, u32 value)
+{
+	iowrite32(value, dev->mem_addr + offset);
+}
+
+/**
+ * mei_hcsr_read - Reads 32bit data from the host CSR
+ *
+ * @dev: the device structure
+ *
+ * returns the byte read.
+ */
+u32 mei_hcsr_read(const struct mei_device *dev)
+{
+	return mei_reg_read(dev, H_CSR);
+}
+
+u32 mei_mecbrw_read(const struct mei_device *dev)
+{
+	return mei_reg_read(dev, ME_CB_RW);
+}
+/**
+ * mei_mecsr_read - Reads 32bit data from the ME CSR
+ *
+ * @dev: the device structure
+ *
+ * returns ME_CSR_HA register value (u32)
+ */
+u32 mei_mecsr_read(const struct mei_device *dev)
+{
+	return mei_reg_read(dev, ME_CSR_HA);
+}
 
 /**
  * mei_set_csr_register - writes H_CSR register to the mei device,
@@ -37,7 +91,18 @@ void mei_hcsr_set(struct mei_device *dev)
 }
 
 /**
- * mei_csr_enable_interrupts - enables mei device interrupts
+ * mei_enable_interrupts - clear and stop interrupts
+ *
+ * @dev: the device structure
+ */
+void mei_clear_interrupts(struct mei_device *dev)
+{
+	if ((dev->host_hw_state & H_IS) == H_IS)
+		mei_reg_write(dev, H_CSR, dev->host_hw_state);
+}
+
+/**
+ * mei_enable_interrupts - enables mei device interrupts
  *
  * @dev: the device structure
  */
@@ -48,7 +113,7 @@ void mei_enable_interrupts(struct mei_device *dev)
 }
 
 /**
- * mei_csr_disable_interrupts - disables mei device interrupts
+ * mei_disable_interrupts - disables mei device interrupts
  *
  * @dev: the device structure
  */
@@ -56,6 +121,29 @@ void mei_disable_interrupts(struct mei_device *dev)
 {
 	dev->host_hw_state &= ~H_IE;
 	mei_hcsr_set(dev);
+}
+
+
+/**
+ * mei_interrupt_quick_handler - The ISR of the MEI device
+ *
+ * @irq: The irq number
+ * @dev_id: pointer to the device structure
+ *
+ * returns irqreturn_t
+ */
+irqreturn_t mei_interrupt_quick_handler(int irq, void *dev_id)
+{
+	struct mei_device *dev = (struct mei_device *) dev_id;
+	u32 csr_reg = mei_hcsr_read(dev);
+
+	if ((csr_reg & H_IS) != H_IS)
+		return IRQ_NONE;
+
+	/* clear H_IS bit in H_CSR */
+	mei_reg_write(dev, H_CSR, csr_reg);
+
+	return IRQ_WAKE_THREAD;
 }
 
 /**

@@ -142,8 +142,7 @@ int mei_hw_init(struct mei_device *dev)
 	    dev->host_hw_state, dev->me_hw_state);
 
 	/* acknowledge interrupt and stop interupts */
-	if ((dev->host_hw_state & H_IS) == H_IS)
-		mei_reg_write(dev, H_CSR, dev->host_hw_state);
+	mei_clear_interrupts(dev);
 
 	/* Doesn't change in runtime */
 	dev->hbuf_depth = (dev->host_hw_state & H_CBD) >> 24;

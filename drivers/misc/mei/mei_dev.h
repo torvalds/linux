@@ -440,78 +440,17 @@ int mei_amthif_irq_read(struct mei_device *dev, s32 *slots);
  * Register Access Function
  */
 
-/**
- * mei_reg_read - Reads 32bit data from the mei device
- *
- * @dev: the device structure
- * @offset: offset from which to read the data
- *
- * returns register value (u32)
- */
-static inline u32 mei_reg_read(const struct mei_device *dev,
-			       unsigned long offset)
-{
-	return ioread32(dev->mem_addr + offset);
-}
+u32 mei_hcsr_read(const struct mei_device *dev);
+u32 mei_mecsr_read(const struct mei_device *dev);
+u32 mei_mecbrw_read(const struct mei_device *dev);
 
-/**
- * mei_reg_write - Writes 32bit data to the mei device
- *
- * @dev: the device structure
- * @offset: offset from which to write the data
- * @value: register value to write (u32)
- */
-static inline void mei_reg_write(const struct mei_device *dev,
-				 unsigned long offset, u32 value)
-{
-	iowrite32(value, dev->mem_addr + offset);
-}
-
-/**
- * mei_hcsr_read - Reads 32bit data from the host CSR
- *
- * @dev: the device structure
- *
- * returns the byte read.
- */
-static inline u32 mei_hcsr_read(const struct mei_device *dev)
-{
-	return mei_reg_read(dev, H_CSR);
-}
-
-/**
- * mei_mecsr_read - Reads 32bit data from the ME CSR
- *
- * @dev: the device structure
- *
- * returns ME_CSR_HA register value (u32)
- */
-static inline u32 mei_mecsr_read(const struct mei_device *dev)
-{
-	return mei_reg_read(dev, ME_CSR_HA);
-}
-
-/**
- * get_me_cb_rw - Reads 32bit data from the mei ME_CB_RW register
- *
- * @dev: the device structure
- *
- * returns ME_CB_RW register value (u32)
- */
-static inline u32 mei_mecbrw_read(const struct mei_device *dev)
-{
-	return mei_reg_read(dev, ME_CB_RW);
-}
-
-
-/*
- * mei interface function prototypes
- */
 void mei_hcsr_set(struct mei_device *dev);
 void mei_csr_clear_his(struct mei_device *dev);
 
+void mei_clear_interrupts(struct mei_device *dev);
 void mei_enable_interrupts(struct mei_device *dev);
 void mei_disable_interrupts(struct mei_device *dev);
+
 
 static inline struct mei_msg_hdr *mei_hbm_hdr(u32 *buf, size_t length)
 {

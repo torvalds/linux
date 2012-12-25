@@ -28,28 +28,6 @@
 
 
 /**
- * mei_interrupt_quick_handler - The ISR of the MEI device
- *
- * @irq: The irq number
- * @dev_id: pointer to the device structure
- *
- * returns irqreturn_t
- */
-irqreturn_t mei_interrupt_quick_handler(int irq, void *dev_id)
-{
-	struct mei_device *dev = (struct mei_device *) dev_id;
-	u32 csr_reg = mei_hcsr_read(dev);
-
-	if ((csr_reg & H_IS) != H_IS)
-		return IRQ_NONE;
-
-	/* clear H_IS bit in H_CSR */
-	mei_reg_write(dev, H_CSR, csr_reg);
-
-	return IRQ_WAKE_THREAD;
-}
-
-/**
  * _mei_cmpl - processes completed operation.
  *
  * @cl: private data of the file object.
@@ -1150,7 +1128,7 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
 	/* Ack the interrupt here
 	 * In case of MSI we don't go through the quick handler */
 	if (pci_dev_msi_enabled(dev->pdev))
-		mei_reg_write(dev, H_CSR, dev->host_hw_state);
+		mei_clear_interrupts(dev);
 
 	dev->me_hw_state = mei_mecsr_read(dev);
 
