@@ -23,38 +23,12 @@
 
 static char nvram_buf[NVRAM_SPACE];
 
-/* Probe for NVRAM header */
-static void early_nvram_init(void)
+static void nvram_find_and_copy(u32 base, u32 lim)
 {
-#ifdef CONFIG_BCM47XX_SSB
-	struct ssb_mipscore *mcore_ssb;
-#endif
-#ifdef CONFIG_BCM47XX_BCMA
-	struct bcma_drv_cc *bcma_cc;
-#endif
 	struct nvram_header *header;
 	int i;
-	u32 base = 0;
-	u32 lim = 0;
 	u32 off;
 	u32 *src, *dst;
-
-	switch (bcm47xx_bus_type) {
-#ifdef CONFIG_BCM47XX_SSB
-	case BCM47XX_BUS_TYPE_SSB:
-		mcore_ssb = &bcm47xx_bus.ssb.mipscore;
-		base = mcore_ssb->pflash.window;
-		lim = mcore_ssb->pflash.window_size;
-		break;
-#endif
-#ifdef CONFIG_BCM47XX_BCMA
-	case BCM47XX_BUS_TYPE_BCMA:
-		bcma_cc = &bcm47xx_bus.bcma.bus.drv_cc;
-		base = bcma_cc->pflash.window;
-		lim = bcma_cc->pflash.window_size;
-		break;
-#endif
-	}
 
 	off = FLASH_MIN;
 	while (off <= lim) {
@@ -84,6 +58,65 @@ found:
 		*dst++ = *src++;
 	for (; i < header->len && i < NVRAM_SPACE; i += 4)
 		*dst++ = le32_to_cpu(*src++);
+}
+
+#ifdef CONFIG_BCM47XX_SSB
+static void nvram_init_ssb(void)
+{
+	struct ssb_mipscore *mcore = &bcm47xx_bus.ssb.mipscore;
+	u32 base;
+	u32 lim;
+
+	if (mcore->pflash.present) {
+		base = mcore->pflash.window;
+		lim = mcore->pflash.window_size;
+	} else {
+		pr_err("Couldn't find supported flash memory\n");
+		return;
+	}
+
+	nvram_find_and_copy(base, lim);
+}
+#endif
+
+#ifdef CONFIG_BCM47XX_BCMA
+static void nvram_init_bcma(void)
+{
+	struct bcma_drv_cc *cc = &bcm47xx_bus.bcma.bus.drv_cc;
+	u32 base;
+	u32 lim;
+
+	if (cc->pflash.present) {
+		base = cc->pflash.window;
+		lim = cc->pflash.window_size;
+#ifdef CONFIG_BCMA_SFLASH
+	} else if (cc->sflash.present) {
+		base = cc->sflash.window;
+		lim = cc->sflash.size;
+#endif
+	} else {
+		pr_err("Couldn't find supported flash memory\n");
+		return;
+	}
+
+	nvram_find_and_copy(base, lim);
+}
+#endif
+
+static void early_nvram_init(void)
+{
+	switch (bcm47xx_bus_type) {
+#ifdef CONFIG_BCM47XX_SSB
+	case BCM47XX_BUS_TYPE_SSB:
+		nvram_init_ssb();
+		break;
+#endif
+#ifdef CONFIG_BCM47XX_BCMA
+	case BCM47XX_BUS_TYPE_BCMA:
+		nvram_init_bcma();
+		break;
+#endif
+	}
 }
 
 int nvram_getenv(char *name, char *val, size_t val_len)
