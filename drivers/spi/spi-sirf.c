@@ -569,7 +569,7 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto free_pin;
 	}
-	clk_enable(sspi->clk);
+	clk_prepare_enable(sspi->clk);
 	sspi->ctrl_freq = clk_get_rate(sspi->clk);
 
 	init_completion(&sspi->done);
@@ -593,7 +593,7 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 	return 0;
 
 free_clk:
-	clk_disable(sspi->clk);
+	clk_disable_unprepare(sspi->clk);
 	clk_put(sspi->clk);
 free_pin:
 	pinctrl_put(sspi->p);
@@ -617,7 +617,7 @@ static int  spi_sirfsoc_remove(struct platform_device *pdev)
 		if (sspi->chipselect[i] > 0)
 			gpio_free(sspi->chipselect[i]);
 	}
-	clk_disable(sspi->clk);
+	clk_disable_unprepare(sspi->clk);
 	clk_put(sspi->clk);
 	pinctrl_put(sspi->p);
 	spi_master_put(master);
