@@ -301,7 +301,7 @@ static int lp8755_init_data(struct lp8755_chip *pchip)
 	ret = lp8755_read(pchip, 0x3D, &regval);
 	if (ret < 0)
 		goto out_i2c_error;
-	pchip->mphase = regval & 0x07;
+	pchip->mphase = regval & 0x0F;
 
 	/* set default data based on multi-phase config */
 	for (icnt = 0; icnt < mphase_buck[pchip->mphase].nreg; icnt++) {
