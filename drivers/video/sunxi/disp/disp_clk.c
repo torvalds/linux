@@ -73,6 +73,7 @@ __u32 g_clk_status;
 __disp_clk_tab clk_tab = {
 	/* { LCDx_CH1_CLK2, CLK2/CLK1, HDMI_CLK, PLL_CLK, PLLX2 req}, MODE, INDEX (FOLLOW enum order) */
 	{ /* TV mode and HDMI mode */
+	  /* HDG: Note only HDMI_CLK is used now, and only in TV mode. */
 		{ 27000000, 2,  27000000, 270000000, 0}, /* DISP_TV_MOD_480I, 0x0 */
 		{ 27000000, 2,  27000000, 270000000, 0}, /* DISP_TV_MOD_576I, 0x1 */
 		{ 54000000, 2,  27000000, 270000000, 0}, /* DISP_TV_MOD_480P, 0x2 */
@@ -883,6 +884,60 @@ static __s32 disp_pll_set(__u32 sel, __s32 videopll_sel, __u32 pll_freq,
 	return DIS_SUCCESS;
 }
 
+static __s32 disp_get_pll_freq_between(__u32 pclk, __u32 min, __u32 max,
+				       __u32 *pll_freq, __u32 *pll_2x)
+{
+	__u32 mult, mult_min, mult_max, freq;
+
+	mult_min = min / pclk;
+	mult_max = (max * 2) / pclk;
+	for (mult = mult_min; mult <= mult_max; mult++) {
+		freq = pclk * mult;
+		if (freq >= min && freq <= max && (freq % 3000000) == 0) {
+			*pll_freq = freq;
+			*pll_2x = 0;
+			return 0;
+		}
+		if (freq >= (min * 2) && freq <= (max * 2) &&
+		    (freq % 6000000) == 0) {
+			*pll_freq = freq / 2;
+			*pll_2x = 1;
+			return 0;
+		}
+	}
+	return -1;
+}
+
+__s32 disp_get_pll_freq(__u32 pclk, __u32 *pll_freq,  __u32 *pll_2x)
+{
+	/* First try the 2 special video pll clks */
+	if ((270000000 % pclk) == 0) {
+		*pll_freq = 270000000;
+		*pll_2x = 0;
+		return 0;
+	}
+	if ((297000000 % pclk) == 0) {
+		*pll_freq = 297000000;
+		*pll_2x = 0;
+		return 0;
+	}
+
+	/* Not working, try to find a frequency between 250 and 300 Mhz */
+	if (disp_get_pll_freq_between(pclk, 250000000, 300000000,
+				      pll_freq, pll_2x) == 0)
+		return 0;
+
+	/* Not working, try to find a frequency between 27 and 381 Mhz */
+	if (disp_get_pll_freq_between(pclk, 27000000, 381000000,
+				      pll_freq, pll_2x) == 0)
+		return 0;
+
+	pr_warn("disp_clk: Could not find a matching pll-freq for %d pclk\n",
+		pclk);
+	return -1;
+}
+EXPORT_SYMBOL(disp_get_pll_freq);
+
 /*
  * Config PLL and mclk depend on all kinds of display devices
  */
@@ -895,11 +950,33 @@ __s32 disp_clk_cfg(__u32 sel, __u32 type, __u8 mode)
 	__u32 pll_2x = 0;
 
 	if (type == DISP_OUTPUT_TYPE_TV || type == DISP_OUTPUT_TYPE_HDMI) {
-		pll_freq = clk_tab.tv_clk_tab[mode].pll_clk;
-		tve_freq = clk_tab.tv_clk_tab[mode].tve_clk;
-		pre_scale = clk_tab.tv_clk_tab[mode].pre_scale;
-		hdmi_freq = clk_tab.tv_clk_tab[mode].hdmi_clk;
-		pll_2x = clk_tab.tv_clk_tab[mode].pll_2x;
+		if (type == DISP_OUTPUT_TYPE_HDMI) {
+			struct __disp_video_timing video_timing;
+			if (gdisp.init_para.hdmi_get_video_timing(mode,
+							&video_timing) != 0)
+				return -1;
+			hdmi_freq = video_timing.PCLK;
+		} else {
+			hdmi_freq = clk_tab.tv_clk_tab[mode].hdmi_clk;
+		}
+
+		/* Special handling for standard tv modes */
+		if (hdmi_freq == 27000000) {
+			if (Disp_get_screen_scan_mode(mode))
+				tve_freq  = 27000000;
+			else
+				tve_freq  = 54000000;
+			lcd_clk_div = 2;
+		} else {
+			tve_freq = hdmi_freq;
+			lcd_clk_div = 1;
+		}
+
+		if (disp_get_pll_freq(hdmi_freq, &pll_freq, &pll_2x) != 0)
+			return -1;
+
+		pr_info("disp clks: lcd %d lcd_div %d hdmi %d pll %d 2x %d\n",
+			tve_freq, lcd_clk_div, hdmi_freq, pll_freq, pll_2x);
 	} else if (type == DISP_OUTPUT_TYPE_VGA) {
 		pll_freq = clk_tab.vga_clk_tab[mode].pll_clk;
 		tve_freq = clk_tab.vga_clk_tab[mode].tve_clk;
