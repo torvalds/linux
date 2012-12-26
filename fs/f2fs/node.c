@@ -1088,7 +1088,6 @@ static int f2fs_write_node_page(struct page *page,
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(page->mapping->host->i_sb);
 	nid_t nid;
-	unsigned int nofs;
 	block_t new_addr;
 	struct node_info ni;
 
@@ -1105,7 +1104,6 @@ static int f2fs_write_node_page(struct page *page,
 
 	/* get old block addr of this node page */
 	nid = nid_of_node(page);
-	nofs = ofs_of_node(page);
 	BUG_ON(page->index != nid);
 
 	get_node_info(sbi, nid, &ni);
@@ -1566,7 +1564,7 @@ void flush_nat_entries(struct f2fs_sb_info *sbi)
 		nid_t nid;
 		struct f2fs_nat_entry raw_ne;
 		int offset = -1;
-		block_t old_blkaddr, new_blkaddr;
+		block_t new_blkaddr;
 
 		ne = list_entry(cur, struct nat_entry, list);
 		nid = nat_get_nid(ne);
@@ -1580,7 +1578,6 @@ void flush_nat_entries(struct f2fs_sb_info *sbi)
 		offset = lookup_journal_in_cursum(sum, NAT_JOURNAL, nid, 1);
 		if (offset >= 0) {
 			raw_ne = nat_in_journal(sum, offset);
-			old_blkaddr = le32_to_cpu(raw_ne.block_addr);
 			goto flush_now;
 		}
 to_nat_page:
@@ -1602,7 +1599,6 @@ to_nat_page:
 
 		BUG_ON(!nat_blk);
 		raw_ne = nat_blk->entries[nid - start_nid];
-		old_blkaddr = le32_to_cpu(raw_ne.block_addr);
 flush_now:
 		new_blkaddr = nat_get_blkaddr(ne);
 

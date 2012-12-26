@@ -390,9 +390,7 @@ next_step:
 		}
 
 		err = check_valid_map(sbi, segno, off);
-		if (err == GC_ERROR)
-			return err;
-		else if (err == GC_NEXT)
+		if (err == GC_NEXT)
 			continue;
 
 		if (initial) {
@@ -550,9 +548,7 @@ next_step:
 		}
 
 		err = check_valid_map(sbi, segno, off);
-		if (err == GC_ERROR)
-			goto stop;
-		else if (err == GC_NEXT)
+		if (err == GC_NEXT)
 			continue;
 
 		if (phase == 0) {
@@ -562,9 +558,7 @@ next_step:
 
 		/* Get an inode by ino with checking validity */
 		err = check_dnode(sbi, entry, &dni, start_addr + off, &nofs);
-		if (err == GC_ERROR)
-			goto stop;
-		else if (err == GC_NEXT)
+		if (err == GC_NEXT)
 			continue;
 
 		if (phase == 1) {

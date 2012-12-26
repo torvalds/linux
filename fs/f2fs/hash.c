@@ -71,7 +71,7 @@ static void str2hashbuf(const char *msg, int len, unsigned int *buf, int num)
 
 f2fs_hash_t f2fs_dentry_hash(const char *name, int len)
 {
-	__u32 hash, minor_hash;
+	__u32 hash;
 	f2fs_hash_t f2fs_hash;
 	const char *p;
 	__u32 in[8], buf[4];
@@ -94,8 +94,6 @@ f2fs_hash_t f2fs_dentry_hash(const char *name, int len)
 		p += 16;
 	}
 	hash = buf[0];
-	minor_hash = buf[1];
-
 	f2fs_hash = cpu_to_le32(hash & ~F2FS_HASH_COL_BIT);
 	return f2fs_hash;
 }
