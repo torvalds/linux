@@ -75,74 +75,53 @@ __s32 Hdmi_close(void)
 	return 0;
 }
 
+/* Translate a fex tv-mode into a VIC as used in the hdmi code */
+static __u32 Hdmi_tv_mode_to_hdmi_mode(__disp_tv_mode_t mode)
+{
+	switch (mode) {
+	case DISP_TV_MOD_480I:
+		return HDMI1440_480I;
+	case DISP_TV_MOD_576I:
+		return HDMI1440_576I;
+	case DISP_TV_MOD_480P:
+		return HDMI480P;
+	case DISP_TV_MOD_576P:
+		return HDMI576P;
+	case DISP_TV_MOD_720P_50HZ:
+		return HDMI720P_50;
+	case DISP_TV_MOD_720P_60HZ:
+		return HDMI720P_60;
+	case DISP_TV_MOD_1080I_50HZ:
+		return HDMI1080I_50;
+	case DISP_TV_MOD_1080I_60HZ:
+		return HDMI1080I_60;
+	case DISP_TV_MOD_1080P_24HZ:
+		return HDMI1080P_24;
+	case DISP_TV_MOD_1080P_50HZ:
+		return HDMI1080P_50;
+	case DISP_TV_MOD_1080P_60HZ:
+		return HDMI1080P_60;
+	case DISP_TV_MOD_1080P_24HZ_3D_FP:
+		return HDMI1080P_24_3D_FP;
+	case DISP_TV_MOD_720P_50HZ_3D_FP:
+		return HDMI720P_50_3D_FP;
+	case DISP_TV_MOD_720P_60HZ_3D_FP:
+		return HDMI720P_60_3D_FP;
+	default:
+		__wrn("unsupported video mode %d\n", mode);
+		return 0;
+	}
+}
+
 __s32 Hdmi_set_display_mode(__disp_tv_mode_t mode)
 {
 	__u32 hdmi_mode;
 
 	__inf("[Hdmi_set_display_mode],mode:%d\n", mode);
 
-	switch (mode) {
-	case DISP_TV_MOD_480I:
-		hdmi_mode = HDMI1440_480I;
-		break;
-
-	case DISP_TV_MOD_576I:
-		hdmi_mode = HDMI1440_576I;
-		break;
-
-	case DISP_TV_MOD_480P:
-		hdmi_mode = HDMI480P;
-		break;
-
-	case DISP_TV_MOD_576P:
-		hdmi_mode = HDMI576P;
-		break;
-
-	case DISP_TV_MOD_720P_50HZ:
-		hdmi_mode = HDMI720P_50;
-		break;
-
-	case DISP_TV_MOD_720P_60HZ:
-		hdmi_mode = HDMI720P_60;
-		break;
-
-	case DISP_TV_MOD_1080I_50HZ:
-		hdmi_mode = HDMI1080I_50;
-		break;
-
-	case DISP_TV_MOD_1080I_60HZ:
-		hdmi_mode = HDMI1080I_60;
-		break;
-
-	case DISP_TV_MOD_1080P_24HZ:
-		hdmi_mode = HDMI1080P_24;
-		break;
-
-	case DISP_TV_MOD_1080P_50HZ:
-		hdmi_mode = HDMI1080P_50;
-		break;
-
-	case DISP_TV_MOD_1080P_60HZ:
-		hdmi_mode = HDMI1080P_60;
-		break;
-
-	case DISP_TV_MOD_1080P_24HZ_3D_FP:
-		hdmi_mode = HDMI1080P_24_3D_FP;
-		break;
-
-	case DISP_TV_MOD_720P_50HZ_3D_FP:
-		hdmi_mode = HDMI720P_50_3D_FP;
-		break;
-
-	case DISP_TV_MOD_720P_60HZ_3D_FP:
-		hdmi_mode = HDMI720P_60_3D_FP;
-		break;
-
-	default:
-		__wrn("unsupported video mode %d when set display mode\n",
-		      mode);
+	hdmi_mode = Hdmi_tv_mode_to_hdmi_mode(mode);
+	if (!hdmi_mode)
 		return -1;
-	}
 
 	ghdmi.mode = mode;
 	if (hdmi_mode != video_mode) {
@@ -197,71 +176,9 @@ __s32 Hdmi_Set_Audio_Para(hdmi_audio_t *audio_para)
 
 __s32 Hdmi_mode_support(__disp_tv_mode_t mode)
 {
-	__u32 hdmi_mode;
+	__u32 hdmi_mode = Hdmi_tv_mode_to_hdmi_mode(mode);
 
-	switch (mode) {
-	case DISP_TV_MOD_480I:
-		hdmi_mode = HDMI1440_480I;
-		break;
-
-	case DISP_TV_MOD_576I:
-		hdmi_mode = HDMI1440_576I;
-		break;
-
-	case DISP_TV_MOD_480P:
-		hdmi_mode = HDMI480P;
-		break;
-
-	case DISP_TV_MOD_576P:
-		hdmi_mode = HDMI576P;
-		break;
-
-	case DISP_TV_MOD_720P_50HZ:
-		hdmi_mode = HDMI720P_50;
-		break;
-
-	case DISP_TV_MOD_720P_60HZ:
-		hdmi_mode = HDMI720P_60;
-		break;
-
-	case DISP_TV_MOD_1080I_50HZ:
-		hdmi_mode = HDMI1080I_50;
-		break;
-
-	case DISP_TV_MOD_1080I_60HZ:
-		hdmi_mode = HDMI1080I_60;
-		break;
-
-	case DISP_TV_MOD_1080P_24HZ:
-		hdmi_mode = HDMI1080P_24;
-		break;
-
-	case DISP_TV_MOD_1080P_50HZ:
-		hdmi_mode = HDMI1080P_50;
-		break;
-
-	case DISP_TV_MOD_1080P_60HZ:
-		hdmi_mode = HDMI1080P_60;
-		break;
-
-	case DISP_TV_MOD_1080P_24HZ_3D_FP:
-		hdmi_mode = HDMI1080P_24_3D_FP;
-		break;
-
-	case DISP_TV_MOD_720P_50HZ_3D_FP:
-		hdmi_mode = HDMI720P_50_3D_FP;
-		break;
-
-	case DISP_TV_MOD_720P_60HZ_3D_FP:
-		hdmi_mode = HDMI720P_60_3D_FP;
-		break;
-
-	default:
-		hdmi_mode = HDMI720P_50;
-		break;
-	}
-
-	if (Hpd_Check() == 0)
+	if (hdmi_mode == 0 || Hpd_Check() == 0)
 		return 0;
 
 	while (hdmi_state < HDMI_State_Wait_Video_config)
