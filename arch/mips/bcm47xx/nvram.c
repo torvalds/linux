@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2005 Broadcom Corporation
  * Copyright (C) 2006 Felix Fietkau <nbd@openwrt.org>
- * Copyright (C) 2010-2011 Hauke Mehrtens <hauke@hauke-m.de>
+ * Copyright (C) 2010-2012 Hauke Mehrtens <hauke@hauke-m.de>
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -23,42 +23,74 @@
 
 static char nvram_buf[NVRAM_SPACE];
 
+static u32 find_nvram_size(u32 end)
+{
+	struct nvram_header *header;
+	u32 nvram_sizes[] = {0x8000, 0xF000, 0x10000};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(nvram_sizes); i++) {
+		header = (struct nvram_header *)KSEG1ADDR(end - nvram_sizes[i]);
+		if (header->magic == NVRAM_HEADER)
+			return nvram_sizes[i];
+	}
+
+	return 0;
+}
+
+/* Probe for NVRAM header */
 static int nvram_find_and_copy(u32 base, u32 lim)
 {
 	struct nvram_header *header;
 	int i;
 	u32 off;
 	u32 *src, *dst;
+	u32 size;
 
 	/* TODO: when nvram is on nand flash check for bad blocks first. */
 	off = FLASH_MIN;
 	while (off <= lim) {
 		/* Windowed flash access */
-		header = (struct nvram_header *)
-			KSEG1ADDR(base + off - NVRAM_SPACE);
-		if (header->magic == NVRAM_HEADER)
+		size = find_nvram_size(base + off);
+		if (size) {
+			header = (struct nvram_header *)KSEG1ADDR(base + off -
+								  size);
 			goto found;
+		}
 		off <<= 1;
 	}
 
 	/* Try embedded NVRAM at 4 KB and 1 KB as last resorts */
 	header = (struct nvram_header *) KSEG1ADDR(base + 4096);
-	if (header->magic == NVRAM_HEADER)
+	if (header->magic == NVRAM_HEADER) {
+		size = NVRAM_SPACE;
 		goto found;
+	}
 
 	header = (struct nvram_header *) KSEG1ADDR(base + 1024);
-	if (header->magic == NVRAM_HEADER)
+	if (header->magic == NVRAM_HEADER) {
+		size = NVRAM_SPACE;
 		goto found;
+	}
 
+	pr_err("no nvram found\n");
 	return -ENXIO;
 
 found:
+
+	if (header->len > size)
+		pr_err("The nvram size accoridng to the header seems to be bigger than the partition on flash\n");
+	if (header->len > NVRAM_SPACE)
+		pr_err("nvram on flash (%i bytes) is bigger than the reserved space in memory, will just copy the first %i bytes\n",
+		       header->len, NVRAM_SPACE);
+
 	src = (u32 *) header;
 	dst = (u32 *) nvram_buf;
 	for (i = 0; i < sizeof(struct nvram_header); i += 4)
 		*dst++ = *src++;
-	for (; i < header->len && i < NVRAM_SPACE; i += 4)
+	for (; i < header->len && i < NVRAM_SPACE && i < size; i += 4)
 		*dst++ = le32_to_cpu(*src++);
+	memset(dst, 0x0, NVRAM_SPACE - i);
 
 	return 0;
 }
