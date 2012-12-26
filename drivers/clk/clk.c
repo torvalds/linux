@@ -96,6 +96,76 @@ static const struct file_operations clk_summary_fops = {
 	.release	= single_release,
 };
 
+static void clk_dump_one(struct seq_file *s, struct clk *c, int level)
+{
+	if (!c)
+		return;
+
+	seq_printf(s, "\"%s\": { ", c->name);
+	seq_printf(s, "\"enable_count\": %d,", c->enable_count);
+	seq_printf(s, "\"prepare_count\": %d,", c->prepare_count);
+	seq_printf(s, "\"rate\": %lu", c->rate);
+}
+
+static void clk_dump_subtree(struct seq_file *s, struct clk *c, int level)
+{
+	struct clk *child;
+	struct hlist_node *tmp;
+
+	if (!c)
+		return;
+
+	clk_dump_one(s, c, level);
+
+	hlist_for_each_entry(child, tmp, &c->children, child_node) {
+		seq_printf(s, ",");
+		clk_dump_subtree(s, child, level + 1);
+	}
+
+	seq_printf(s, "}");
+}
+
+static int clk_dump(struct seq_file *s, void *data)
+{
+	struct clk *c;
+	struct hlist_node *tmp;
+	bool first_node = true;
+
+	seq_printf(s, "{");
+
+	mutex_lock(&prepare_lock);
+
+	hlist_for_each_entry(c, tmp, &clk_root_list, child_node) {
+		if (!first_node)
+			seq_printf(s, ",");
+		first_node = false;
+		clk_dump_subtree(s, c, 0);
+	}
+
+	hlist_for_each_entry(c, tmp, &clk_orphan_list, child_node) {
+		seq_printf(s, ",");
+		clk_dump_subtree(s, c, 0);
+	}
+
+	mutex_unlock(&prepare_lock);
+
+	seq_printf(s, "}");
+	return 0;
+}
+
+
+static int clk_dump_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, clk_dump, inode->i_private);
+}
+
+static const struct file_operations clk_dump_fops = {
+	.open		= clk_dump_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 /* caller must hold prepare_lock */
 static int clk_debug_create_one(struct clk *clk, struct dentry *pdentry)
 {
@@ -238,6 +308,11 @@ static int __init clk_debug_init(void)
 
 	d = debugfs_create_file("clk_summary", S_IRUGO, rootdir, NULL,
 				&clk_summary_fops);
+	if (!d)
+		return -ENOMEM;
+
+	d = debugfs_create_file("clk_dump", S_IRUGO, rootdir, NULL,
+				&clk_dump_fops);
 	if (!d)
 		return -ENOMEM;
 
