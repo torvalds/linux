@@ -11,6 +11,7 @@
 #include <linux/nsproxy.h>
 #include <linux/futex.h>
 #include <linux/ptrace.h>
+#include <linux/syscalls.h>
 
 #include <asm/uaccess.h>
 
@@ -116,9 +117,9 @@ void compat_exit_robust_list(struct task_struct *curr)
 	}
 }
 
-asmlinkage long
-compat_sys_set_robust_list(struct compat_robust_list_head __user *head,
-			   compat_size_t len)
+COMPAT_SYSCALL_DEFINE2(set_robust_list,
+		struct compat_robust_list_head __user *, head,
+		compat_size_t, len)
 {
 	if (!futex_cmpxchg_enabled)
 		return -ENOSYS;
@@ -131,9 +132,9 @@ compat_sys_set_robust_list(struct compat_robust_list_head __user *head,
 	return 0;
 }
 
-asmlinkage long
-compat_sys_get_robust_list(int pid, compat_uptr_t __user *head_ptr,
-			   compat_size_t __user *len_ptr)
+COMPAT_SYSCALL_DEFINE3(get_robust_list, int, pid,
+			compat_uptr_t __user *, head_ptr,
+			compat_size_t __user *, len_ptr)
 {
 	struct compat_robust_list_head __user *head;
 	unsigned long ret;
@@ -172,9 +173,9 @@ err_unlock:
 	return ret;
 }
 
-asmlinkage long compat_sys_futex(u32 __user *uaddr, int op, u32 val,
-		struct compat_timespec __user *utime, u32 __user *uaddr2,
-		u32 val3)
+COMPAT_SYSCALL_DEFINE6(futex, u32 __user *, uaddr, int, op, u32, val,
+		struct compat_timespec __user *, utime, u32 __user *, uaddr2,
+		u32, val3)
 {
 	struct timespec ts;
 	ktime_t t, *tp = NULL;
