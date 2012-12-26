@@ -73,7 +73,7 @@
 64	i386	getppid			sys_getppid
 65	i386	getpgrp			sys_getpgrp
 66	i386	setsid			sys_setsid
-67	i386	sigaction		sys_sigaction			sys32_sigaction
+67	i386	sigaction		sys_sigaction			compat_sys_sigaction
 68	i386	sgetmask		sys_sgetmask
 69	i386	ssetmask		sys_ssetmask
 70	i386	setreuid		sys_setreuid16

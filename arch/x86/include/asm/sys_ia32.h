@@ -32,9 +32,6 @@ struct mmap_arg_struct32;
 asmlinkage long sys32_mmap(struct mmap_arg_struct32 __user *);
 asmlinkage long sys32_mprotect(unsigned long, size_t, unsigned long);
 
-struct old_sigaction32;
-asmlinkage long sys32_sigaction(int, struct old_sigaction32 __user *,
-				struct old_sigaction32 __user *);
 asmlinkage long sys32_alarm(unsigned int);
 
 asmlinkage long sys32_waitpid(compat_pid_t, unsigned int __user *, int);
