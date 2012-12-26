@@ -211,7 +211,11 @@ Hdmi_run_thread(void *parg)
 		if (kthread_should_stop())
 			break;
 
-		hdmi_delay_ms(2000);
+		if (hdmi_state == HDMI_State_Wait_Hpd ||
+		    hdmi_state == HDMI_State_Playback)
+			hdmi_delay_ms(2000);
+		else
+			hdmi_delay_ms(1);
 	}
 
 	return 0;

@@ -24,7 +24,6 @@
 
 extern void __iomem *HDMI_BASE;
 
-#define HDMI_State_Idle			0x00
 #define HDMI_State_Wait_Hpd		0x02
 #define HDMI_State_Rx_Sense		0x03
 #define HDMI_State_EDID_Parse		0x04

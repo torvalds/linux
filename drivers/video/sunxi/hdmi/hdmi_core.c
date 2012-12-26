@@ -25,7 +25,7 @@ module_param(audio, charp, 0444);
 MODULE_PARM_DESC(audio,
 		 "0: Disable audio over HDMI, 1: Enable audio over HDMI");
 
-__s32 hdmi_state = HDMI_State_Idle;
+__s32 hdmi_state = HDMI_State_Wait_Hpd;
 __bool video_enable;
 __bool audio_enable = 1;
 __s32 video_mode = HDMI720P_50;
@@ -69,7 +69,7 @@ __s32 hdmi_core_initial(void)
 	if (audio && strcmp(audio, "0") == 0)
 		audio_enable = 0;
 
-	hdmi_state = HDMI_State_Idle;
+	hdmi_state = HDMI_State_Wait_Hpd;
 	video_mode = HDMI720P_50;
 	memset(&audio_info, 0, sizeof(HDMI_AUDIO_INFO));
 	memset(Device_Support_VIC, 0, sizeof(Device_Support_VIC));
@@ -98,28 +98,14 @@ main_Hpd_Check(void)
 
 __s32 hdmi_main_task_loop(void)
 {
-	static __u32 times;
-
 	HPD = main_Hpd_Check();
-	if (!HPD) {
-		if ((times++) >= 10) {
-			times = 0;
-			__inf("unplug state\n");
-		}
-
-		if (hdmi_state > HDMI_State_Wait_Hpd)
-			__inf("plugout\n");
-
-		if (hdmi_state > HDMI_State_Idle)
-			hdmi_state = HDMI_State_Wait_Hpd;
+	if (!HPD && hdmi_state > HDMI_State_Wait_Hpd) {
+		__inf("plugout\n");
+		hdmi_state = HDMI_State_Wait_Hpd;
 	}
 
 	/* ? where did all the breaks run off to? --libv */
 	switch (hdmi_state) {
-	case HDMI_State_Idle:
-		hdmi_state = HDMI_State_Wait_Hpd;
-		return 0;
-
 	case HDMI_State_Wait_Hpd:
 		if (HPD) {
 			hdmi_state = HDMI_State_EDID_Parse;
@@ -164,7 +150,7 @@ __s32 hdmi_main_task_loop(void)
 
 	default:
 		__wrn(" unknown hdmi state, set to idle\n");
-		hdmi_state = HDMI_State_Idle;
+		hdmi_state = HDMI_State_Wait_Hpd;
 		return 0;
 	}
 }
