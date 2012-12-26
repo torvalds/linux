@@ -182,6 +182,8 @@ static __s32 get_video_info(__s32 vic)
 
 static __s32 get_audio_info(__s32 sample_rate)
 {
+	__s32 vic_tab;
+
 	/*
 	 * ACR_N 32000 44100 48000 88200 96000 176400 192000
 	 *       4096  6272  6144  12544 12288  25088  24576
@@ -229,29 +231,12 @@ static __s32 get_audio_info(__s32 sample_rate)
 		return -1;
 	}
 
-	if ((video_mode == HDMI1440_480I) || (video_mode == HDMI1440_576I) ||
-	    (video_mode == HDMI480P) || (video_mode == HDMI576P)) {
-		audio_info.CTS = ((27000000 / 100) * (audio_info.ACR_N / 128)) /
-			(sample_rate / 100);
-	} else if ((video_mode == HDMI720P_50) || (video_mode == HDMI720P_60) ||
-		   (video_mode == HDMI1080I_50) ||
-		   (video_mode == HDMI1080I_60) ||
-		   (video_mode == HDMI1080P_24)) {
-		audio_info.CTS = ((74250000 / 100) * (audio_info.ACR_N / 128)) /
-			(sample_rate / 100);
-	} else if ((video_mode == HDMI1080P_50) ||
-		   (video_mode == HDMI1080P_60) ||
-		   (video_mode == HDMI1080P_24_3D_FP) ||
-		   (video_mode == HDMI720P_50_3D_FP) ||
-		   (video_mode == HDMI720P_60_3D_FP)) {
-		audio_info.CTS = ((148500000 / 100) *
-				  (audio_info.ACR_N / 128)) /
-			(sample_rate / 100);
-	} else {
-		__wrn("unkonwn video format when configure audio\n");
+	vic_tab = get_video_info(video_mode);
+	if (vic_tab == -1)
 		return -1;
-	}
 
+	audio_info.CTS = ((video_timing[vic_tab].PCLK / 100) *
+			  (audio_info.ACR_N / 128)) / (sample_rate / 100);
 	__inf("audio CTS calc:%d\n", audio_info.CTS);
 
 	return 0;
