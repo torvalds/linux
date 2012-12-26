@@ -6482,7 +6482,7 @@ reada:
 }
 
 /*
- * hepler to process tree block while walking down the tree.
+ * helper to process tree block while walking down the tree.
  *
  * when wc->stage == UPDATE_BACKREF, this function updates
  * back refs for pointers in the block.
@@ -6557,7 +6557,7 @@ static noinline int walk_down_proc(struct btrfs_trans_handle *trans,
 }
 
 /*
- * hepler to process tree block pointer.
+ * helper to process tree block pointer.
  *
  * when wc->stage == DROP_REFERENCE, this function checks
  * reference count of the block pointed to. if the block
@@ -6695,7 +6695,7 @@ skip:
 }
 
 /*
- * hepler to process tree block while walking up the tree.
+ * helper to process tree block while walking up the tree.
  *
  * when wc->stage == DROP_REFERENCE, this function drops
  * reference count on the block.
