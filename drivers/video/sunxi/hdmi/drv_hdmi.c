@@ -190,7 +190,7 @@ __s32 Hdmi_mode_support(__disp_tv_mode_t mode)
 }
 
 __s32 hdmi_get_video_timing(__disp_tv_mode_t mode,
-	struct __disp_video_timing *video_timing)
+	struct __disp_video_timing *video_timing_dest)
 {
 	__u32 hdmi_mode;
 	__s32 vic_tab;
@@ -203,7 +203,7 @@ __s32 hdmi_get_video_timing(__disp_tv_mode_t mode,
 	if (vic_tab == -1)
 		return -1;
 
-	memcpy(video_timing, &video_timing[vic_tab],
+	memcpy(video_timing_dest, &video_timing[vic_tab],
 	       sizeof(struct __disp_video_timing));
 	return 0;
 }
