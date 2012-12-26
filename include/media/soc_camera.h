@@ -19,11 +19,13 @@
 #include <linux/videodev2.h>
 #include <media/videobuf-core.h>
 #include <media/videobuf2-core.h>
+#include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 
 struct file;
 struct soc_camera_desc;
+struct soc_camera_async_client;
 
 struct soc_camera_device {
 	struct list_head list;		/* list of all registered devices */
@@ -50,6 +52,9 @@ struct soc_camera_device {
 	int use_count;
 	struct file *streamer;		/* stream owner */
 	struct v4l2_clk *clk;
+	/* Asynchronous subdevice management */
+	struct soc_camera_async_client *sasc;
+	/* video buffer queue */
 	union {
 		struct videobuf_queue vb_vidq;
 		struct vb2_queue vb2_vidq;
@@ -59,16 +64,30 @@ struct soc_camera_device {
 /* Host supports programmable stride */
 #define SOCAM_HOST_CAP_STRIDE		(1 << 0)
 
+enum soc_camera_subdev_role {
+	SOCAM_SUBDEV_DATA_SOURCE = 1,
+	SOCAM_SUBDEV_DATA_SINK,
+	SOCAM_SUBDEV_DATA_PROCESSOR,
+};
+
+struct soc_camera_async_subdev {
+	struct v4l2_async_subdev asd;
+	enum soc_camera_subdev_role role;
+};
+
 struct soc_camera_host {
 	struct v4l2_device v4l2_dev;
 	struct list_head list;
-	struct mutex host_lock;		/* Protect pipeline modifications */
+	struct mutex host_lock;		/* Main synchronisation lock */
+	struct mutex clk_lock;		/* Protect pipeline modifications */
 	unsigned char nr;		/* Host number */
 	u32 capabilities;
 	struct soc_camera_device *icd;	/* Currently attached client */
 	void *priv;
 	const char *drv_name;
 	struct soc_camera_host_ops *ops;
+	struct v4l2_async_subdev **asd;	/* Flat array, arranged in groups */
+	int *asd_sizes;			/* 0-terminated array of asd group sizes */
 };
 
 struct soc_camera_host_ops {
@@ -161,6 +180,7 @@ struct soc_camera_host_desc {
 };
 
 /*
+ * Platform data for "soc-camera-pdrv"
  * This MUST be kept binary-identical to struct soc_camera_link below, until
  * it is completely replaced by this one, after which we can split it into its
  * two components.
@@ -326,6 +346,7 @@ static inline void soc_camera_limit_side(int *start, int *length,
 unsigned long soc_camera_apply_board_flags(struct soc_camera_subdev_desc *ssdd,
 					   const struct v4l2_mbus_config *cfg);
 
+int soc_camera_power_init(struct device *dev, struct soc_camera_subdev_desc *ssdd);
 int soc_camera_power_on(struct device *dev, struct soc_camera_subdev_desc *ssdd,
 			struct v4l2_clk *clk);
 int soc_camera_power_off(struct device *dev, struct soc_camera_subdev_desc *ssdd,
