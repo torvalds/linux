@@ -658,6 +658,7 @@ static const struct dev_pm_ops spi_sirfsoc_pm_ops = {
 
 static const struct of_device_id spi_sirfsoc_of_match[] = {
 	{ .compatible = "sirf,prima2-spi", },
+	{ .compatible = "sirf,marco-spi", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, sirfsoc_spi_of_match);
