@@ -228,7 +228,10 @@ typedef enum {
 	DISP_TV_MOD_PAL_M_SVIDEO = 0x12,
 	DISP_TV_MOD_PAL_NC = 0x14,
 	DISP_TV_MOD_PAL_NC_SVIDEO = 0x15,
-	DISP_TV_MODE_NUM = 0x1a,
+
+	DISP_TV_MOD_H1360_V768_60HZ = 0x1a,
+
+	DISP_TV_MODE_NUM = 0x1b,
 } __disp_tv_mode_t;
 
 typedef enum {
