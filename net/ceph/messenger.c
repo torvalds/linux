@@ -561,7 +561,7 @@ void ceph_con_open(struct ceph_connection *con,
 	mutex_lock(&con->mutex);
 	dout("con_open %p %s\n", con, ceph_pr_addr(&addr->in_addr));
 
-	BUG_ON(con->state != CON_STATE_CLOSED);
+	WARN_ON(con->state != CON_STATE_CLOSED);
 	con->state = CON_STATE_PREOPEN;
 
 	con->peer_name.type = (__u8) entity_type;
@@ -1509,7 +1509,7 @@ static int process_banner(struct ceph_connection *con)
 static void fail_protocol(struct ceph_connection *con)
 {
 	reset_connection(con);
-	BUG_ON(con->state != CON_STATE_NEGOTIATING);
+	WARN_ON(con->state != CON_STATE_NEGOTIATING);
 	con->state = CON_STATE_CLOSED;
 }
 
@@ -1635,7 +1635,7 @@ static int process_connect(struct ceph_connection *con)
 			return -1;
 		}
 
-		BUG_ON(con->state != CON_STATE_NEGOTIATING);
+		WARN_ON(con->state != CON_STATE_NEGOTIATING);
 		con->state = CON_STATE_OPEN;
 
 		con->peer_global_seq = le32_to_cpu(con->in_reply.global_seq);
@@ -2132,7 +2132,6 @@ more:
 		if (ret < 0)
 			goto out;
 
-		BUG_ON(con->state != CON_STATE_CONNECTING);
 		con->state = CON_STATE_NEGOTIATING;
 
 		/*
@@ -2160,7 +2159,7 @@ more:
 		goto more;
 	}
 
-	BUG_ON(con->state != CON_STATE_OPEN);
+	WARN_ON(con->state != CON_STATE_OPEN);
 
 	if (con->in_base_pos < 0) {
 		/*
@@ -2382,7 +2381,7 @@ static void ceph_fault(struct ceph_connection *con)
 	dout("fault %p state %lu to peer %s\n",
 	     con, con->state, ceph_pr_addr(&con->peer_addr.in_addr));
 
-	BUG_ON(con->state != CON_STATE_CONNECTING &&
+	WARN_ON(con->state != CON_STATE_CONNECTING &&
 	       con->state != CON_STATE_NEGOTIATING &&
 	       con->state != CON_STATE_OPEN);
 
