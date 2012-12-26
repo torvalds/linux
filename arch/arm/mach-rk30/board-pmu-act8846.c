@@ -48,6 +48,7 @@ static int act8846_set_init(struct act8846 *act8846)
                         continue;
 	        dcdc =regulator_get(NULL, act8846_dcdc_info[i].name);
 	        regulator_set_voltage(dcdc, act8846_dcdc_info[i].min_uv, act8846_dcdc_info[i].max_uv);
+		 regulator_set_suspend_voltage(dcdc, act8846_dcdc_info[i].suspend_vol);
 	        regulator_enable(dcdc);
 	        printk("%s  %s =%dmV end\n", __func__,act8846_dcdc_info[i].name, regulator_get_voltage(dcdc));
 	        regulator_put(dcdc);

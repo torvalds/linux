@@ -1564,6 +1564,7 @@ static struct pmu_info  act8846_dcdc_info[] = {
 		.name          = "act_dcdc1",   //ddr
 		.min_uv          = 1200000,
 		.max_uv         = 1200000,
+		.suspend_vol  =  1200000,
 	},
 	{
 		.name          = "vdd_core",    //logic
