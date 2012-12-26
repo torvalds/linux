@@ -1288,6 +1288,7 @@ __s32 Disp_lcdc_exit(__u32 sel)
 
 __u32 tv_mode_to_width(__disp_tv_mode_t mode)
 {
+	struct __disp_video_timing video_timing;
 	__u32 width = 0;
 
 	switch (mode) {
@@ -1322,6 +1323,11 @@ __u32 tv_mode_to_width(__disp_tv_mode_t mode)
 	case DISP_TV_MOD_1080P_24HZ_3D_FP:
 		width = 1920;
 		break;
+	case DISP_TV_MODE_EDID:
+		if (gdisp.init_para.hdmi_get_video_timing(mode,
+							  &video_timing) == 0)
+			width = video_timing.INPUTX;
+		break;
 	default:
 		width = 0;
 		break;
@@ -1332,6 +1338,7 @@ __u32 tv_mode_to_width(__disp_tv_mode_t mode)
 
 __u32 tv_mode_to_height(__disp_tv_mode_t mode)
 {
+	struct __disp_video_timing video_timing;
 	__u32 height = 0;
 
 	switch (mode) {
@@ -1371,6 +1378,11 @@ __u32 tv_mode_to_height(__disp_tv_mode_t mode)
 	case DISP_TV_MOD_720P_50HZ_3D_FP:
 	case DISP_TV_MOD_720P_60HZ_3D_FP:
 		height = 720 * 2;
+		break;
+	case DISP_TV_MODE_EDID:
+		if (gdisp.init_para.hdmi_get_video_timing(mode,
+							  &video_timing) == 0)
+			height = video_timing.INPUTY;
 		break;
 	default:
 		height = 0;
@@ -1479,6 +1491,7 @@ __u32 vga_mode_to_height(__disp_vga_mode_t mode)
  */
 __u32 Disp_get_screen_scan_mode(__disp_tv_mode_t tv_mode)
 {
+	struct __disp_video_timing video_timing;
 	__u32 ret = 0;
 
 	switch (tv_mode) {
@@ -1495,6 +1508,11 @@ __u32 Disp_get_screen_scan_mode(__disp_tv_mode_t tv_mode)
 	case DISP_TV_MOD_1080I_50HZ:
 	case DISP_TV_MOD_1080I_60HZ:
 		ret = 1;
+	case DISP_TV_MODE_EDID:
+		if (gdisp.init_para.hdmi_get_video_timing(tv_mode,
+							  &video_timing) == 0)
+			ret = video_timing.I;
+		break;
 	default:
 		break;
 	}

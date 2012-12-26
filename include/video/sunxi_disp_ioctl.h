@@ -232,6 +232,9 @@ typedef enum {
 	DISP_TV_MOD_H1360_V768_60HZ = 0x1a,
 
 	DISP_TV_MODE_NUM = 0x1b,
+
+	/* Reserved, do not use in fex files */
+	DISP_TV_MODE_EDID = 0xff
 } __disp_tv_mode_t;
 
 typedef enum {
