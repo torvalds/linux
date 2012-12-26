@@ -241,6 +241,7 @@ static int mxs_spi_txrx_dma(struct mxs_spi *spi, int cs,
 	INIT_COMPLETION(spi->c);
 
 	ctrl0 = readl(ssp->base + HW_SSP_CTRL0);
+	ctrl0 &= ~BM_SSP_CTRL0_XFER_COUNT;
 	ctrl0 |= BM_SSP_CTRL0_DATA_XFER | mxs_spi_cs_to_reg(cs);
 
 	if (*first)
@@ -256,8 +257,10 @@ static int mxs_spi_txrx_dma(struct mxs_spi *spi, int cs,
 		if ((sg_count + 1 == sgs) && *last)
 			ctrl0 |= BM_SSP_CTRL0_IGNORE_CRC;
 
-		if (ssp->devid == IMX23_SSP)
+		if (ssp->devid == IMX23_SSP) {
+			ctrl0 &= ~BM_SSP_CTRL0_XFER_COUNT;
 			ctrl0 |= min;
+		}
 
 		dma_xfer[sg_count].pio[0] = ctrl0;
 		dma_xfer[sg_count].pio[3] = min;
