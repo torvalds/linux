@@ -430,28 +430,22 @@ next_step:
  */
 block_t start_bidx_of_node(unsigned int node_ofs)
 {
-	block_t start_bidx;
-	unsigned int bidx, indirect_blks;
-	int dec;
+	unsigned int indirect_blks = 2 * NIDS_PER_BLOCK + 4;
+	unsigned int bidx;
 
-	indirect_blks = 2 * NIDS_PER_BLOCK + 4;
+	if (node_ofs == 0)
+		return 0;
 
-	start_bidx = 1;
-	if (node_ofs == 0) {
-		start_bidx = 0;
-	} else if (node_ofs <= 2) {
+	if (node_ofs <= 2) {
 		bidx = node_ofs - 1;
 	} else if (node_ofs <= indirect_blks) {
-		dec = (node_ofs - 4) / (NIDS_PER_BLOCK + 1);
+		int dec = (node_ofs - 4) / (NIDS_PER_BLOCK + 1);
 		bidx = node_ofs - 2 - dec;
 	} else {
-		dec = (node_ofs - indirect_blks - 3) / (NIDS_PER_BLOCK + 1);
+		int dec = (node_ofs - indirect_blks - 3) / (NIDS_PER_BLOCK + 1);
 		bidx = node_ofs - 5 - dec;
 	}
-
-	if (start_bidx)
-		start_bidx = bidx * ADDRS_PER_BLOCK + ADDRS_PER_INODE;
-	return start_bidx;
+	return bidx * ADDRS_PER_BLOCK + ADDRS_PER_INODE;
 }
 
 static int check_dnode(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
