@@ -61,9 +61,10 @@ static unsigned int card[]     = {[0 ... (EM28XX_MAXBOARDS - 1)] = UNSET };
 module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card,     "card type");
 
-static int prefer_bulk = -1;
-module_param(prefer_bulk, int, 0444);
-MODULE_PARM_DESC(prefer_bulk, "prefer USB bulk transfers (-1 = auto, 0 = isoc, 1 = bulk)");
+static int usb_xfer_mode = -1;
+module_param(usb_xfer_mode, int, 0444);
+MODULE_PARM_DESC(usb_xfer_mode,
+		 "USB transfer mode for frame data (-1 = auto, 0 = prefer isoc, 1 = prefer bulk)");
 
 
 /* Bitmask marking allocated devices from 0 to EM28XX_MAXBOARDS - 1 */
@@ -3394,13 +3395,13 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		goto unlock_and_free;
 	}
 
-	if (prefer_bulk < 0) {
+	if (usb_xfer_mode < 0) {
 		if (dev->board.is_webcam)
 			try_bulk = 1;
 		else
 			try_bulk = 0;
 	} else {
-		try_bulk = prefer_bulk > 0;
+		try_bulk = usb_xfer_mode > 0;
 	}
 
 	/* Select USB transfer types to use */
