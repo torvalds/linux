@@ -385,6 +385,11 @@ asmlinkage long sys_sigsuspend(old_sigset_t mask);
 asmlinkage long sys_sigsuspend(int unused1, int unused2, old_sigset_t mask);
 #endif
 
+#ifdef CONFIG_OLD_SIGACTION
+asmlinkage long sys_sigaction(int, const struct old_sigaction __user *,
+				struct old_sigaction __user *);
+#endif
+
 #ifndef CONFIG_ODD_RT_SIGACTION
 asmlinkage long sys_rt_sigaction(int,
 				 const struct sigaction __user *,

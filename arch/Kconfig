@@ -400,4 +400,15 @@ config OLD_SIGSUSPEND3
 	help
 	  Even weirder antique ABI - three-argument sigsuspend(2)
 
+config OLD_SIGACTION
+	bool
+	help
+	  Architecture has old sigaction(2) syscall.  Nope, not the same
+	  as OLD_SIGSUSPEND | OLD_SIGSUSPEND3 - alpha has sigsuspend(2),
+	  but fairly different variant of sigaction(2), thanks to OSF/1
+	  compatibility...
+
+config COMPAT_OLD_SIGACTION
+	bool
+
 source "kernel/gcov/Kconfig"
