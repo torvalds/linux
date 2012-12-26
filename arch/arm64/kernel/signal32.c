@@ -28,13 +28,6 @@
 #include <asm/uaccess.h>
 #include <asm/unistd32.h>
 
-struct compat_old_sigaction {
-	compat_uptr_t			sa_handler;
-	compat_old_sigset_t		sa_mask;
-	compat_ulong_t			sa_flags;
-	compat_uptr_t			sa_restorer;
-};
-
 struct compat_sigcontext {
 	/* We always set these two fields to 0 */
 	compat_ulong_t			trap_no;
@@ -324,44 +317,6 @@ static int compat_restore_vfp_context(struct compat_vfp_sigframe __user *frame)
 	}
 
 	return err ? -EFAULT : 0;
-}
-
-asmlinkage int compat_sys_sigaction(int sig,
-				    const struct compat_old_sigaction __user *act,
-				    struct compat_old_sigaction __user *oact)
-{
-	struct k_sigaction new_ka, old_ka;
-	int ret;
-	compat_old_sigset_t mask;
-	compat_uptr_t handler, restorer;
-
-	if (act) {
-		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
-		    __get_user(handler, &act->sa_handler) ||
-		    __get_user(restorer, &act->sa_restorer) ||
-		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
-		    __get_user(mask, &act->sa_mask))
-			return -EFAULT;
-
-		new_ka.sa.sa_handler = compat_ptr(handler);
-		new_ka.sa.sa_restorer = compat_ptr(restorer);
-		siginitset(&new_ka.sa.sa_mask, mask);
-	}
-
-	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
-
-	if (!ret && oact) {
-		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
-		    __put_user(ptr_to_compat(old_ka.sa.sa_handler),
-			       &oact->sa_handler) ||
-		    __put_user(ptr_to_compat(old_ka.sa.sa_restorer),
-			       &oact->sa_restorer) ||
-		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
-		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
-			return -EFAULT;
-	}
-
-	return ret;
 }
 
 static int compat_restore_sigframe(struct pt_regs *regs,
