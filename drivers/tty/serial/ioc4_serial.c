@@ -2883,6 +2883,7 @@ ioc4_serial_attach_one(struct ioc4_driver_data *idd)
 	/* error exits that give back resources */
 out5:
 	ioc4_serial_remove_one(idd);
+	return ret;
 out4:
 	kfree(soft);
 out3:
