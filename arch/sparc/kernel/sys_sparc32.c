@@ -211,41 +211,12 @@ asmlinkage long compat_sys_sysfs(int option, u32 arg1, u32 arg2)
 	return sys_sysfs(option, arg1, arg2);
 }
 
-asmlinkage long compat_sys_sigaction(int sig, struct old_sigaction32 __user *act,
-				     struct old_sigaction32 __user *oact)
+COMPAT_SYSCALL_DEFINE3(sparc_sigaction, int, sig,
+			struct compat_old_sigaction __user *,act,
+			struct compat_old_sigaction __user *,oact)
 {
-        struct k_sigaction new_ka, old_ka;
-        int ret;
-
 	WARN_ON_ONCE(sig >= 0);
-	sig = -sig;
-
-        if (act) {
-		compat_old_sigset_t mask;
-		u32 u_handler, u_restorer;
-		
-		ret = get_user(u_handler, &act->sa_handler);
-		new_ka.sa.sa_handler =  compat_ptr(u_handler);
-		ret |= __get_user(u_restorer, &act->sa_restorer);
-		new_ka.sa.sa_restorer = compat_ptr(u_restorer);
-		ret |= __get_user(new_ka.sa.sa_flags, &act->sa_flags);
-		ret |= __get_user(mask, &act->sa_mask);
-		if (ret)
-			return ret;
-		new_ka.ka_restorer = NULL;
-		siginitset(&new_ka.sa.sa_mask, mask);
-        }
-
-        ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
-
-	if (!ret && oact) {
-		ret = put_user(ptr_to_compat(old_ka.sa.sa_handler), &oact->sa_handler);
-		ret |= __put_user(ptr_to_compat(old_ka.sa.sa_restorer), &oact->sa_restorer);
-		ret |= __put_user(old_ka.sa.sa_flags, &oact->sa_flags);
-		ret |= __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask);
-        }
-
-	return ret;
+	return compat_sys_sigaction(-sig, act, oact);
 }
 
 COMPAT_SYSCALL_DEFINE5(rt_sigaction, int, sig,

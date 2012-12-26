@@ -53,6 +53,7 @@ config SPARC32
 	select GENERIC_ATOMIC64
 	select CLZ_TAB
 	select HAVE_UID16
+	select OLD_SIGACTION
 
 config SPARC64
 	def_bool 64BIT
@@ -549,6 +550,7 @@ config COMPAT
 	select COMPAT_BINFMT_ELF
 	select HAVE_UID16
 	select ARCH_WANT_OLD_COMPAT_IPC
+	select COMPAT_OLD_SIGACTION
 
 config SYSVIPC_COMPAT
 	bool
