@@ -112,7 +112,7 @@ static int nvram_init_bcma(void)
 }
 #endif
 
-static int early_nvram_init(void)
+static int nvram_init(void)
 {
 	switch (bcm47xx_bus_type) {
 #ifdef CONFIG_BCM47XX_SSB
@@ -136,7 +136,7 @@ int nvram_getenv(char *name, char *val, size_t val_len)
 		return -EINVAL;
 
 	if (!nvram_buf[0]) {
-		err = early_nvram_init();
+		err = nvram_init();
 		if (err)
 			return err;
 	}
