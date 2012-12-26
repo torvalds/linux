@@ -1471,8 +1471,8 @@ static struct mfd_cell backlight_devs[] = {
  * Instantiate the generic non-control parts of the device.
  */
 
-__weak void  wm831x_pmu_early_suspend(struct regulator_dev *rdev) {}
-__weak void  wm831x_pmu_early_resume(struct regulator_dev *rdev) {}
+__weak void  wm831x_pmu_early_suspend(struct early_suspend *h) {}
+__weak void  wm831x_pmu_early_resume(struct early_suspend *h) {}
 
 int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 {

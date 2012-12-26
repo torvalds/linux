@@ -794,7 +794,7 @@ out:
 }
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-void wm831x_pmu_early_suspend(struct regulator_dev *rdev)
+void wm831x_pmu_early_suspend(struct early_suspend *h)
 {
 	struct regulator *dcdc;
 	struct regulator *ldo;
@@ -833,7 +833,7 @@ void wm831x_pmu_early_suspend(struct regulator_dev *rdev)
 	udelay(100);	
 		
 }
-void wm831x_pmu_early_resume(struct regulator_dev *rdev)
+void wm831x_pmu_early_resume(struct early_suspend *h)
 {
 	struct regulator *dcdc;
 	struct regulator *ldo;

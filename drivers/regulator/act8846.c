@@ -554,7 +554,7 @@ static int act8846_i2c_read(struct i2c_client *i2c, char reg, int count,	u16 *de
     msgs[0].len = 1;
     msgs[0].scl_rate = 200*1000;
     
-    msgs[1].buf = dest;
+    msgs[1].buf = (u8 *)dest;
     msgs[1].addr = i2c->addr;
     msgs[1].flags = i2c->flags | I2C_M_RD;
     msgs[1].len = 1;
