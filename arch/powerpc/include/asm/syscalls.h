@@ -5,9 +5,7 @@
 #include <linux/compiler.h>
 #include <linux/linkage.h>
 #include <linux/types.h>
-#include <asm/signal.h>
 
-struct pt_regs;
 struct rtas_args;
 
 asmlinkage unsigned long sys_mmap(unsigned long addr, size_t len,
@@ -16,11 +14,8 @@ asmlinkage unsigned long sys_mmap(unsigned long addr, size_t len,
 asmlinkage unsigned long sys_mmap2(unsigned long addr, size_t len,
 		unsigned long prot, unsigned long flags,
 		unsigned long fd, unsigned long pgoff);
-asmlinkage long sys_pipe(int __user *fildes);
-asmlinkage long sys_pipe2(int __user *fildes, int flags);
 asmlinkage long ppc64_personality(unsigned long personality);
 asmlinkage int ppc_rtas(struct rtas_args __user *uargs);
-asmlinkage time_t sys64_time(time_t __user * tloc);
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_POWERPC_SYSCALLS_H */
