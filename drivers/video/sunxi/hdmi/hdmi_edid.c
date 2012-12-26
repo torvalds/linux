@@ -203,17 +203,17 @@ static __s32
 Parse_DTD_Block(__u8 *pbuf)
 {
 	__u32 pclk, sizex, Hblanking, sizey, Vblanking, Hsync_offset,
-	    Hsync_plus, Vsync_offset, Vsync_plus, H_image_size, V_image_size,
-	    H_Border, V_Border, pixels_total, frame_rate;
+		Hsync_pulsew, Vsync_offset, Vsync_pulsew, H_image_size,
+		V_image_size, H_Border, V_Border, pixels_total, frame_rate;
 	pclk = ((__u32) pbuf[1] << 8) + pbuf[0];
 	sizex = (((__u32) pbuf[4] << 4) & 0x0f00) + pbuf[2];
 	Hblanking = (((__u32) pbuf[4] << 8) & 0x0f00) + pbuf[3];
 	sizey = (((__u32) pbuf[7] << 4) & 0x0f00) + pbuf[5];
 	Vblanking = (((__u32) pbuf[7] << 8) & 0x0f00) + pbuf[6];
 	Hsync_offset = (((__u32) pbuf[11] << 2) & 0x0300) + pbuf[8];
-	Hsync_plus = (((__u32) pbuf[11] << 4) & 0x0300) + pbuf[9];
+	Hsync_pulsew = (((__u32) pbuf[11] << 4) & 0x0300) + pbuf[9];
 	Vsync_offset = (((__u32) pbuf[11] << 2) & 0x0030) + (pbuf[10] >> 4);
-	Vsync_plus = (((__u32) pbuf[11] << 4) & 0x0030) + (pbuf[8] & 0x0f);
+	Vsync_pulsew = (((__u32) pbuf[11] << 4) & 0x0030) + (pbuf[8] & 0x0f);
 	H_image_size = (((__u32) pbuf[14] << 4) & 0x0f00) + pbuf[12];
 	V_image_size = (((__u32) pbuf[14] << 8) & 0x0f00) + pbuf[13];
 	H_Border = pbuf[15];
