@@ -55,6 +55,7 @@ __s32 Hdmi_init(void);
 __s32 Hdmi_exit(void);
 
 __s32 Hdmi_open(void);
+__s32 hdmi_wait_edid(void);
 __s32 Hdmi_close(void);
 __s32 Hdmi_set_display_mode(__disp_tv_mode_t mode);
 __s32 Hdmi_mode_support(__disp_tv_mode_t mode);
