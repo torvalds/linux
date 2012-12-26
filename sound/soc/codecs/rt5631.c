@@ -277,7 +277,7 @@ static int rt5631_reg_init(struct snd_soc_codec *codec)
 	return 0;
 }
 //bard 7-16 s
-void rt5631_adc_on(void)
+void rt5631_adc_on(struct work_struct *work)
 {
 	int val;
 
