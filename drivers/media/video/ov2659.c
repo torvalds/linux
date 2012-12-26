@@ -1362,8 +1362,8 @@ struct sensor_parameter
 	unsigned short int preview_line_width;
 	unsigned short int preview_gain;
 
-	unsigned short int PreviewPclk;
-	unsigned short int CapturePclk;
+	unsigned int PreviewPclk;
+	unsigned int CapturePclk;
 	char awb[6];
 };
 
