@@ -35,6 +35,67 @@ static struct dentry *rootdir;
 static struct dentry *orphandir;
 static int inited = 0;
 
+static void clk_summary_show_one(struct seq_file *s, struct clk *c, int level)
+{
+	if (!c)
+		return;
+
+	seq_printf(s, "%*s%-*s %-11d %-12d %-10lu",
+		   level * 3 + 1, "",
+		   30 - level * 3, c->name,
+		   c->enable_count, c->prepare_count, c->rate);
+	seq_printf(s, "\n");
+}
+
+static void clk_summary_show_subtree(struct seq_file *s, struct clk *c,
+				     int level)
+{
+	struct clk *child;
+	struct hlist_node *tmp;
+
+	if (!c)
+		return;
+
+	clk_summary_show_one(s, c, level);
+
+	hlist_for_each_entry(child, tmp, &c->children, child_node)
+		clk_summary_show_subtree(s, child, level + 1);
+}
+
+static int clk_summary_show(struct seq_file *s, void *data)
+{
+	struct clk *c;
+	struct hlist_node *tmp;
+
+	seq_printf(s, "   clock                        enable_cnt  prepare_cnt  rate\n");
+	seq_printf(s, "---------------------------------------------------------------------\n");
+
+	mutex_lock(&prepare_lock);
+
+	hlist_for_each_entry(c, tmp, &clk_root_list, child_node)
+		clk_summary_show_subtree(s, c, 0);
+
+	hlist_for_each_entry(c, tmp, &clk_orphan_list, child_node)
+		clk_summary_show_subtree(s, c, 0);
+
+	mutex_unlock(&prepare_lock);
+
+	return 0;
+}
+
+
+static int clk_summary_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, clk_summary_show, inode->i_private);
+}
+
+static const struct file_operations clk_summary_fops = {
+	.open		= clk_summary_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 /* caller must hold prepare_lock */
 static int clk_debug_create_one(struct clk *clk, struct dentry *pdentry)
 {
@@ -168,10 +229,16 @@ static int __init clk_debug_init(void)
 {
 	struct clk *clk;
 	struct hlist_node *tmp;
+	struct dentry *d;
 
 	rootdir = debugfs_create_dir("clk", NULL);
 
 	if (!rootdir)
+		return -ENOMEM;
+
+	d = debugfs_create_file("clk_summary", S_IRUGO, rootdir, NULL,
+				&clk_summary_fops);
+	if (!d)
 		return -ENOMEM;
 
 	orphandir = debugfs_create_dir("orphans", rootdir);
