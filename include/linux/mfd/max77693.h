@@ -38,6 +38,8 @@ struct max77693_reg_data {
 struct max77693_muic_platform_data {
 	struct max77693_reg_data *init_data;
 	int num_init_data;
+
+	int detcable_delay_ms;
 };
 
 struct max77693_platform_data {

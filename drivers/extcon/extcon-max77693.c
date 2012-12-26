@@ -30,6 +30,7 @@
 #include <linux/irqdomain.h>
 
 #define	DEV_NAME			"max77693-muic"
+#define	DELAY_MS_DEFAULT		20000		/* unit: millisecond */
 
 enum max77693_muic_adc_debounce_time {
 	ADC_DEBOUNCE_TIME_5MS = 0,
@@ -51,6 +52,14 @@ struct max77693_muic_info {
 	int irq;
 	struct work_struct irq_work;
 	struct mutex mutex;
+
+	/*
+	 * Use delayed workqueue to detect cable state and then
+	 * notify cable state to notifiee/platform through uevent.
+	 * After completing the booting of platform, the extcon provider
+	 * driver should notify cable state to upper layer.
+	 */
+	struct delayed_work wq_detcable;
 
 	/* Button of dock device */
 	struct input_dev *dock;
@@ -912,13 +921,23 @@ static int max77693_muic_detect_accessory(struct max77693_muic_info *info)
 	return ret;
 }
 
+static void max77693_muic_detect_cable_wq(struct work_struct *work)
+{
+	struct max77693_muic_info *info = container_of(to_delayed_work(work),
+				struct max77693_muic_info, wq_detcable);
+
+	max77693_muic_detect_accessory(info);
+}
+
 static int max77693_muic_probe(struct platform_device *pdev)
 {
 	struct max77693_dev *max77693 = dev_get_drvdata(pdev->dev.parent);
 	struct max77693_platform_data *pdata = dev_get_platdata(max77693->dev);
 	struct max77693_muic_platform_data *muic_pdata = pdata->muic_data;
 	struct max77693_muic_info *info;
-	int ret, i;
+	int delay_jiffies;
+	int ret;
+	int i;
 	u8 id;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(struct max77693_muic_info),
@@ -1051,8 +1070,20 @@ static int max77693_muic_probe(struct platform_device *pdev)
 	/* Set ADC debounce time */
 	max77693_muic_set_debounce_time(info, ADC_DEBOUNCE_TIME_25MS);
 
-	/* Detect accessory on boot */
-	max77693_muic_detect_accessory(info);
+	/*
+	 * Detect accessory after completing the initialization of platform
+	 *
+	 * - Use delayed workqueue to detect cable state and then
+	 * notify cable state to notifiee/platform through uevent.
+	 * After completing the booting of platform, the extcon provider
+	 * driver should notify cable state to upper layer.
+	 */
+	INIT_DELAYED_WORK(&info->wq_detcable, max77693_muic_detect_cable_wq);
+	if (muic_pdata->detcable_delay_ms)
+		delay_jiffies = msecs_to_jiffies(muic_pdata->detcable_delay_ms);
+	else
+		delay_jiffies = msecs_to_jiffies(DELAY_MS_DEFAULT);
+	schedule_delayed_work(&info->wq_detcable, delay_jiffies);
 
 	return ret;
 
