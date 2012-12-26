@@ -337,16 +337,6 @@ long compat_sys_fadvise64_64(int fd,
 				advice);
 }
 
-/* This is just a version for 32-bit applications which does
- * not force O_LARGEFILE on.
- */
-
-asmlinkage long sparc32_open(const char __user *filename,
-			     int flags, int mode)
-{
-	return do_sys_open(AT_FDCWD, filename, flags, mode);
-}
-
 long sys32_lookup_dcookie(unsigned long cookie_high,
 			  unsigned long cookie_low,
 			  char __user *buf, size_t len)
