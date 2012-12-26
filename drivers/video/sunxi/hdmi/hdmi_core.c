@@ -37,7 +37,7 @@ static __s32 HPD;
 __u32 hdmi_pll;	/* 0:video pll 0; 1:video pll 1 */
 __u32 hdmi_clk = 297000000;
 
-static struct __disp_video_timing video_timing[] = {
+struct __disp_video_timing video_timing[] = {
 	/* VIC                 PCLK   AVI_PR INPUTX INPUTY HT   HBP  HFP HPSW  VT  VBP VFP VPSW I HSYNC VSYNC */
 	{ HDMI1440_480I,       13500000,  1,   720,  480,  858, 119,  19, 62,  525, 18,  4,  3, 1,  0,  0 },
 	{ HDMI1440_576I,       13500000,  1,   720,  576,  864, 132,  12, 63,  625, 22,  2,  3, 1,  0,  0 },
@@ -54,7 +54,10 @@ static struct __disp_video_timing video_timing[] = {
 	{ HDMI720P_50_3D_FP,  148500000,  0,  1280, 1440, 1980, 260, 440, 40,  750, 25,  5,  5, 0,  1,  1 },
 	{ HDMI720P_60_3D_FP,  148500000,  0,  1280, 1440, 1650, 260, 110, 40,  750, 25,  5,  5, 0,  1,  1 },
 	{ HDMI1360_768_60,     85500000,  0,  1360,  768, 1792, 368, 64, 112,  795, 24,  3,  6, 0,  1,  1 },
+	{ HDMI_EDID, } /* Entry reserved for EDID detected preferred timing */
 };
+
+const int video_timing_edid = ARRAY_SIZE(video_timing) - 1;
 
 void hdmi_delay_ms(__u32 t)
 {

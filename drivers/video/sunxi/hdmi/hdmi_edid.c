@@ -18,6 +18,7 @@
  */
 
 #include "hdmi_core.h"
+#include "../disp/dev_disp.h"
 
 void DDC_Init(void)
 {
@@ -206,7 +207,7 @@ EDID_Version_Check(__u8 *pbuf)
 static __s32
 Parse_DTD_Block(__u8 *pbuf)
 {
-	__u32 pclk, sizex, Hblanking, sizey, Vblanking, Hsync_offset,
+	__u32 dummy, pclk, sizex, Hblanking, sizey, Vblanking, Hsync_offset,
 		Hsync_pulsew, Vsync_offset, Vsync_pulsew, H_image_size,
 		V_image_size, H_Border, V_Border, pixels_total, frame_rate,
 		Hsync, Vsync;
@@ -280,6 +281,31 @@ Parse_DTD_Block(__u8 *pbuf)
 		sizey, sizey + Vsync_offset,
 		sizey + Vsync_offset + Vsync_pulsew, sizey + Vblanking,
 		frame_rate, Hsync ? "P" : "N", Vsync ? "P" : "N");
+
+	/* Pick the first mode with a width which is a multiple of 8 and
+	   a supported pixel-clock */
+	if (Device_Support_VIC[HDMI_EDID] == 0 && !(sizex & 7) &&
+	    disp_get_pll_freq(pclk, &dummy, &dummy) == 0) {
+		pr_info("Using above mode as preferred EDID mode\n");
+		video_timing[video_timing_edid].PCLK = pclk * 10000;
+		video_timing[video_timing_edid].AVI_PR = 0;
+		video_timing[video_timing_edid].INPUTX = sizex;
+		video_timing[video_timing_edid].INPUTY = sizey;
+		video_timing[video_timing_edid].HT = sizex + Hblanking;
+		video_timing[video_timing_edid].HBP = Hblanking - Hsync_offset;
+		video_timing[video_timing_edid].HFP = Hsync_offset;
+		video_timing[video_timing_edid].HPSW = Hsync_pulsew;
+		video_timing[video_timing_edid].VT = sizey + Vblanking;
+		video_timing[video_timing_edid].VBP = Vblanking - Vsync_offset;
+		video_timing[video_timing_edid].VFP = Vsync_offset;
+		video_timing[video_timing_edid].VPSW = Vsync_pulsew;
+		video_timing[video_timing_edid].I = (pbuf[17] & 0x80) >> 7;
+		if (video_timing[video_timing_edid].I)
+			video_timing[video_timing_edid].VT *= 2;
+		video_timing[video_timing_edid].HSYNC = Hsync;
+		video_timing[video_timing_edid].VSYNC = Vsync;
+		Device_Support_VIC[HDMI_EDID] = 1;
+	}
 
 	return 0;
 }

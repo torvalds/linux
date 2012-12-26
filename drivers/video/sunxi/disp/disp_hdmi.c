@@ -238,6 +238,7 @@ __s32 BSP_disp_hdmi_set_src(__u32 sel, __disp_lcdc_src_t src)
 
 __s32 BSP_disp_set_hdmi_func(__disp_hdmi_func *func)
 {
+	gdisp.init_para.hdmi_wait_edid = func->hdmi_wait_edid;
 	gdisp.init_para.Hdmi_open = func->Hdmi_open;
 	gdisp.init_para.Hdmi_close = func->Hdmi_close;
 	gdisp.init_para.hdmi_set_mode = func->hdmi_set_mode;

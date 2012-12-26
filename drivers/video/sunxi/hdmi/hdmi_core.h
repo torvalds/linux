@@ -50,6 +50,7 @@ extern void __iomem *HDMI_BASE;
 
 /* Non CEA-861-D modes */
 #define HDMI1360_768_60		256
+#define HDMI_EDID		257
 
 #define HDMI_WUINT32(offset, value)	writel(value, HDMI_BASE + offset)
 #define HDMI_RUINT32(offset)		readl(HDMI_BASE + offset)
@@ -105,5 +106,8 @@ extern __bool video_enable;
 extern __s32 hdmi_state;
 extern __s32 video_mode;
 extern HDMI_AUDIO_INFO audio_info;
+
+extern struct __disp_video_timing video_timing[];
+extern const int video_timing_edid;
 
 #endif

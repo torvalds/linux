@@ -49,6 +49,26 @@ static __s32 Hdmi_enable(__bool enable)
 	return 0;
 }
 
+__s32 hdmi_wait_edid(void)
+{
+	unsigned long start = jiffies;
+
+	while (time_before(jiffies, start + 10 * HZ)) { /* Wait max 10 sec */
+		if (hdmi_state > HDMI_State_EDID_Parse) {
+			pr_info("waited %ld ms for EDID info\n",
+				(jiffies - start) * 1000 / HZ);
+			if (!Device_Support_VIC[HDMI_EDID]) {
+				pr_warn("No valid EDID mode found\n");
+				return -1;
+			}
+			return 0;
+		}
+		hdmi_delay_ms(1);
+	}
+	pr_warn("Timeout waiting for EDID info\n");
+	return -1;
+}
+
 __s32 Hdmi_open(void)
 {
 	__inf("[Hdmi_open]\n");
@@ -279,6 +299,7 @@ __s32 Hdmi_init(void)
 	audio_func.hdmi_set_audio_para = Hdmi_Set_Audio_Para;
 	audio_set_hdmi_func(&audio_func);
 
+	disp_func.hdmi_wait_edid = hdmi_wait_edid;
 	disp_func.Hdmi_open = Hdmi_open;
 	disp_func.Hdmi_close = Hdmi_close;
 	disp_func.hdmi_set_mode = Hdmi_set_display_mode;

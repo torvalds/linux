@@ -444,6 +444,7 @@ struct __disp_video_timing {
 };
 
 typedef struct {
+	__s32(*hdmi_wait_edid) (void);
 	__s32(*Hdmi_open) (void);
 	__s32(*Hdmi_close) (void);
 	__s32(*hdmi_set_mode) (__disp_tv_mode_t mode);
