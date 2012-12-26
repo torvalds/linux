@@ -1560,10 +1560,13 @@ __s32 Fb_Init(__u32 from)
 	__disp_fb_create_para_t fb_para = {
 		.primary_screen_id = 0,
 	};
+	static DEFINE_MUTEX(fb_init_mutex);
+	static bool first_time = true;
 
-	__inf("Fb_Init:%d\n", from);
+	mutex_lock(&fb_init_mutex);
+	if (first_time) { /* First call ? */
+		DRV_DISP_Init();
 
-	if (from == 0) { /* call from lcd driver */
 #ifdef CONFIG_FB_SUNXI_RESERVED_MEM
 		__inf("fbmem: fb_start=%lu, fb_size=%lu\n", fb_start, fb_size);
 		disp_create_heap((unsigned long)(__va(fb_start)), fb_size);
@@ -1616,7 +1619,9 @@ __s32 Fb_Init(__u32 from)
 				return -ENOMEM;
 		}
 		parser_disp_init_para(&(g_fbi.disp_init));
+		first_time = false;
 	}
+	mutex_unlock(&fb_init_mutex);
 
 	if (g_fbi.disp_init.b_init) {
 		__u32 sel = 0;
@@ -1632,6 +1637,8 @@ __s32 Fb_Init(__u32 from)
 			}
 		}
 	}
+
+	__inf("Fb_Init: %d %d\n", from, need_open_hdmi);
 
 	if (need_open_hdmi == 1 && from == 0)
 		/* it is called from lcd driver, but hdmi need to be opened */
