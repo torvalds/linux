@@ -91,13 +91,13 @@ static const struct v4l2_fract
    ------------------------------------------------------------------*/
 
 struct vivi_fmt {
-	char  *name;
+	const char *name;
 	u32   fourcc;          /* v4l2 format id */
 	u8    depth;
 	bool  is_yuv;
 };
 
-static struct vivi_fmt formats[] = {
+static const struct vivi_fmt formats[] = {
 	{
 		.name     = "4:2:2, packed, YUYV",
 		.fourcc   = V4L2_PIX_FMT_YUYV,
@@ -164,9 +164,9 @@ static struct vivi_fmt formats[] = {
 	},
 };
 
-static struct vivi_fmt *__get_format(u32 pixelformat)
+static const struct vivi_fmt *__get_format(u32 pixelformat)
 {
-	struct vivi_fmt *fmt;
+	const struct vivi_fmt *fmt;
 	unsigned int k;
 
 	for (k = 0; k < ARRAY_SIZE(formats); k++) {
@@ -181,7 +181,7 @@ static struct vivi_fmt *__get_format(u32 pixelformat)
 	return &formats[k];
 }
 
-static struct vivi_fmt *get_format(struct v4l2_format *f)
+static const struct vivi_fmt *get_format(struct v4l2_format *f)
 {
 	return __get_format(f->fmt.pix.pixelformat);
 }
@@ -191,7 +191,7 @@ struct vivi_buffer {
 	/* common v4l buffer stuff -- must be first */
 	struct vb2_buffer	vb;
 	struct list_head	list;
-	struct vivi_fmt        *fmt;
+	const struct vivi_fmt  *fmt;
 };
 
 struct vivi_dmaqueue {
@@ -250,7 +250,7 @@ struct vivi_dev {
 	int			   input;
 
 	/* video capture */
-	struct vivi_fmt            *fmt;
+	const struct vivi_fmt      *fmt;
 	struct v4l2_fract          timeperframe;
 	unsigned int               width, height;
 	struct vb2_queue	   vb_vidq;
@@ -297,7 +297,7 @@ struct bar_std {
 
 /* Maximum number of bars are 10 - otherwise, the input print code
    should be modified */
-static struct bar_std bars[] = {
+static const struct bar_std bars[] = {
 	{	/* Standard ITU-R color bar sequence */
 		{ COLOR_WHITE, COLOR_AMBER, COLOR_CYAN, COLOR_GREEN,
 		  COLOR_MAGENTA, COLOR_RED, COLOR_BLUE, COLOR_BLACK, COLOR_BLACK }
@@ -926,7 +926,7 @@ static void vivi_unlock(struct vb2_queue *vq)
 }
 
 
-static struct vb2_ops vivi_video_qops = {
+static const struct vb2_ops vivi_video_qops = {
 	.queue_setup		= queue_setup,
 	.buf_prepare		= buffer_prepare,
 	.buf_queue		= buffer_queue,
@@ -957,7 +957,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
-	struct vivi_fmt *fmt;
+	const struct vivi_fmt *fmt;
 
 	if (f->index >= ARRAY_SIZE(formats))
 		return -EINVAL;
@@ -993,7 +993,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 			struct v4l2_format *f)
 {
 	struct vivi_dev *dev = video_drvdata(file);
-	struct vivi_fmt *fmt;
+	const struct vivi_fmt *fmt;
 
 	fmt = get_format(f);
 	if (!fmt) {
@@ -1102,7 +1102,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 static int vidioc_enum_frameintervals(struct file *file, void *priv,
 					     struct v4l2_frmivalenum *fival)
 {
-	struct vivi_fmt *fmt;
+	const struct vivi_fmt *fmt;
 
 	if (fival->index)
 		return -EINVAL;
@@ -1330,7 +1330,7 @@ static const struct v4l2_ioctl_ops vivi_ioctl_ops = {
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
-static struct video_device vivi_template = {
+static const struct video_device vivi_template = {
 	.name		= "vivi",
 	.fops           = &vivi_fops,
 	.ioctl_ops 	= &vivi_ioctl_ops,
