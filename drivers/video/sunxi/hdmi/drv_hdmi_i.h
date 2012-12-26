@@ -58,6 +58,8 @@ __s32 Hdmi_open(void);
 __s32 Hdmi_close(void);
 __s32 Hdmi_set_display_mode(__disp_tv_mode_t mode);
 __s32 Hdmi_mode_support(__disp_tv_mode_t mode);
+__s32 hdmi_get_video_timing(__disp_tv_mode_t mode,
+			    struct __disp_video_timing *video_timing);
 __s32 Hdmi_get_HPD_status(void);
 __s32 Hdmi_Audio_Enable(__u8 mode, __u8 channel);
 __s32 Hdmi_Set_Audio_Para(hdmi_audio_t *audio_para);

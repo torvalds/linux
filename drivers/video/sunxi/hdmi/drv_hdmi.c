@@ -189,6 +189,25 @@ __s32 Hdmi_mode_support(__disp_tv_mode_t mode)
 	return Device_Support_VIC[hdmi_mode];
 }
 
+__s32 hdmi_get_video_timing(__disp_tv_mode_t mode,
+	struct __disp_video_timing *video_timing)
+{
+	__u32 hdmi_mode;
+	__s32 vic_tab;
+
+	hdmi_mode = Hdmi_tv_mode_to_hdmi_mode(mode);
+	if (!hdmi_mode)
+		return -1;
+
+	vic_tab = get_video_info(hdmi_mode);
+	if (vic_tab == -1)
+		return -1;
+
+	memcpy(video_timing, &video_timing[vic_tab],
+	       sizeof(struct __disp_video_timing));
+	return 0;
+}
+
 __s32 Hdmi_get_HPD_status(void)
 {
 	return Hpd_Check();
@@ -264,6 +283,7 @@ __s32 Hdmi_init(void)
 	disp_func.Hdmi_close = Hdmi_close;
 	disp_func.hdmi_set_mode = Hdmi_set_display_mode;
 	disp_func.hdmi_mode_support = Hdmi_mode_support;
+	disp_func.hdmi_get_video_timing = hdmi_get_video_timing;
 	disp_func.hdmi_get_HPD_status = Hdmi_get_HPD_status;
 	disp_func.hdmi_set_pll = Hdmi_set_pll;
 	disp_set_hdmi_func(&disp_func);

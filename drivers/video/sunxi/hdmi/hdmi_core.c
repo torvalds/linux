@@ -165,7 +165,7 @@ __s32 Hpd_Check(void)
 		return 0;
 }
 
-static __s32 get_video_info(__s32 vic)
+__s32 get_video_info(__s32 vic)
 {
 	__s32 i, count;
 	count = sizeof(video_timing);
