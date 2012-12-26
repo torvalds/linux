@@ -146,6 +146,7 @@ config S390
 	select GENERIC_COMPAT_RT_SIGPROCMASK
 	select GENERIC_COMPAT_RT_SIGPENDING
 	select OLD_SIGSUSPEND3
+	select OLD_SIGACTION
 
 config SCHED_OMIT_FRAME_POINTER
 	def_bool y
@@ -255,6 +256,7 @@ config COMPAT
 	depends on 64BIT
 	select COMPAT_BINFMT_ELF if BINFMT_ELF
 	select ARCH_WANT_OLD_COMPAT_IPC
+	select COMPAT_OLD_SIGACTION
 	help
 	  Select this option if you want to enable your system kernel to
 	  handle system-calls from ELF binaries for 31 bit ESA.  This option

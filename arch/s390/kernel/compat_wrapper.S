@@ -230,7 +230,7 @@ ENTRY(sys32_sigaction_wrapper)
 	lgfr	%r2,%r2			# int
 	llgtr	%r3,%r3			# const struct old_sigaction *
 	llgtr	%r4,%r4			# struct old_sigaction32 *
-	jg	sys32_sigaction		# branch to system call
+	jg	compat_sys_sigaction		# branch to system call
 
 ENTRY(sys32_setreuid16_wrapper)
 	llgfr	%r2,%r2			# __kernel_old_uid_emu31_t

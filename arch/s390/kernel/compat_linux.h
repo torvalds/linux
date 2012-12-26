@@ -17,13 +17,6 @@ struct ipc_kludge_32 {
         __s32   msgtyp;
 };
 
-struct old_sigaction32 {
-       __u32			sa_handler;	/* Really a pointer, but need to deal with 32 bits */
-       compat_old_sigset_t	sa_mask;	/* A 32 bit mask */
-       __u32			sa_flags;
-       __u32			sa_restorer;	/* Another 32 bit pointer */
-};
-
 /* asm/sigcontext.h */
 typedef union
 {
@@ -81,8 +74,6 @@ struct ucontext32 {
 struct stat64_emu31;
 struct mmap_arg_struct_emu31;
 struct fadvise64_64_args;
-struct old_sigaction32;
-struct old_sigaction32;
 
 long sys32_chown16(const char __user * filename, u16 user, u16 group);
 long sys32_lchown16(const char __user * filename, u16 user, u16 group);
@@ -131,6 +122,4 @@ long sys32_read(unsigned int fd, char __user * buf, size_t count);
 long sys32_write(unsigned int fd, const char __user * buf, size_t count);
 long sys32_fadvise64(int fd, loff_t offset, size_t len, int advise);
 long sys32_fadvise64_64(struct fadvise64_64_args __user *args);
-long sys32_sigaction(int sig, const struct old_sigaction32 __user *act,
-		     struct old_sigaction32 __user *oact);
 #endif /* _ASM_S390X_S390_H */
