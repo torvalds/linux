@@ -124,7 +124,7 @@ int nvram_getenv(char *name, char *val, size_t val_len)
 	char *var, *value, *end, *eq;
 
 	if (!name)
-		return NVRAM_ERR_INV_PARAM;
+		return -EINVAL;
 
 	if (!nvram_buf[0])
 		early_nvram_init();
@@ -143,6 +143,6 @@ int nvram_getenv(char *name, char *val, size_t val_len)
 			return snprintf(val, val_len, "%s", value);
 		}
 	}
-	return NVRAM_ERR_ENVNOTFOUND;
+	return -ENOENT;
 }
 EXPORT_SYMBOL(nvram_getenv);

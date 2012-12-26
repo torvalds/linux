@@ -51,7 +51,7 @@ static int get_nvram_var(const char *prefix, const char *postfix,
 	create_key(prefix, postfix, name, key, sizeof(key));
 
 	err = nvram_getenv(key, buf, len);
-	if (fallback && err == NVRAM_ERR_ENVNOTFOUND && prefix) {
+	if (fallback && err == -ENOENT && prefix) {
 		create_key(NULL, postfix, name, key, sizeof(key));
 		err = nvram_getenv(key, buf, len);
 	}
