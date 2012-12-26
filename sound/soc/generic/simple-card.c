@@ -50,9 +50,10 @@ static int asoc_simple_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 static int asoc_simple_card_probe(struct platform_device *pdev)
 {
 	struct asoc_simple_card_info *cinfo = pdev->dev.platform_data;
+	struct device *dev = &pdev->dev;
 
 	if (!cinfo) {
-		dev_err(&pdev->dev, "no info for asoc-simple-card\n");
+		dev_err(dev, "no info for asoc-simple-card\n");
 		return -EINVAL;
 	}
 
@@ -62,7 +63,7 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	    !cinfo->codec	||
 	    !cinfo->platform	||
 	    !cinfo->codec_dai) {
-		dev_err(&pdev->dev, "insufficient asoc_simple_card_info settings\n");
+		dev_err(dev, "insufficient asoc_simple_card_info settings\n");
 		return -EINVAL;
 	}
 
