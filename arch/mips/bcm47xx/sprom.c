@@ -71,7 +71,7 @@ static void nvram_read_ ## type (const char *prefix,			\
 			    fallback);					\
 	if (err < 0)							\
 		return;							\
-	err = kstrto ## type (buf, 0, &var);				\
+	err = kstrto ## type(strim(buf), 0, &var);			\
 	if (err) {							\
 		pr_warn("can not parse nvram name %s%s%s with value %s got %i\n",	\
 			prefix, name, postfix, buf, err);		\
@@ -99,7 +99,7 @@ static void nvram_read_u32_2(const char *prefix, const char *name,
 	err = get_nvram_var(prefix, NULL, name, buf, sizeof(buf), fallback);
 	if (err < 0)
 		return;
-	err = kstrtou32(buf, 0, &val);
+	err = kstrtou32(strim(buf), 0, &val);
 	if (err) {
 		pr_warn("can not parse nvram name %s%s with value %s got %i\n",
 			prefix, name, buf, err);
@@ -120,7 +120,7 @@ static void nvram_read_leddc(const char *prefix, const char *name,
 	err = get_nvram_var(prefix, NULL, name, buf, sizeof(buf), fallback);
 	if (err < 0)
 		return;
-	err = kstrtou32(buf, 0, &val);
+	err = kstrtou32(strim(buf), 0, &val);
 	if (err) {
 		pr_warn("can not parse nvram name %s%s with value %s got %i\n",
 			prefix, name, buf, err);
