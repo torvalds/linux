@@ -30,6 +30,7 @@ static int nvram_find_and_copy(u32 base, u32 lim)
 	u32 off;
 	u32 *src, *dst;
 
+	/* TODO: when nvram is on nand flash check for bad blocks first. */
 	off = FLASH_MIN;
 	while (off <= lim) {
 		/* Windowed flash access */
@@ -88,6 +89,12 @@ static int nvram_init_bcma(void)
 	u32 base;
 	u32 lim;
 
+#ifdef CONFIG_BCMA_NFLASH
+	if (cc->nflash.boot) {
+		base = BCMA_SOC_FLASH1;
+		lim = BCMA_SOC_FLASH1_SZ;
+	} else
+#endif
 	if (cc->pflash.present) {
 		base = cc->pflash.window;
 		lim = cc->pflash.window_size;
