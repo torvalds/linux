@@ -267,7 +267,7 @@ __s32 Hdmi_mode_support(__disp_tv_mode_t mode)
 	while (hdmi_state < HDMI_State_Wait_Video_config)
 		hdmi_delay_ms(1);
 
-	return Device_Support_VIC[mode];
+	return Device_Support_VIC[hdmi_mode];
 }
 
 __s32 Hdmi_get_HPD_status(void)
