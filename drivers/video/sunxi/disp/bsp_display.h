@@ -105,7 +105,6 @@ extern __s32 BSP_disp_get_palette_table(__u32 sel, __u32 *pbuffer,
 extern __s32 BSP_disp_get_screen_height(__u32 sel);
 extern __s32 BSP_disp_get_screen_width(__u32 sel);
 extern __s32 BSP_disp_get_output_type(__u32 sel);
-extern __s32 BSP_disp_get_frame_rate(__u32 sel);
 extern __s32 BSP_disp_gamma_correction_enable(__u32 sel);
 extern __s32 BSP_disp_gamma_correction_disable(__u32 sel);
 extern __s32 BSP_disp_set_bright(__u32 sel, __u32 bright);
