@@ -57,7 +57,6 @@
 
 #ifdef CONFIG_PPC64
 #define sys_rt_sigreturn	compat_sys_rt_sigreturn
-#define sys_sigaction	compat_sys_sigaction
 #define sys_swapcontext	compat_sys_swapcontext
 #define sys_sigreturn	compat_sys_sigreturn
 
@@ -130,23 +129,6 @@ static inline int get_sigset_t(sigset_t *set,
 	return 0;
 }
 
-static inline int get_old_sigaction(struct k_sigaction *new_ka,
-		struct old_sigaction __user *act)
-{
-	compat_old_sigset_t mask;
-	compat_uptr_t handler, restorer;
-
-	if (get_user(handler, &act->sa_handler) ||
-	    __get_user(restorer, &act->sa_restorer) ||
-	    __get_user(new_ka->sa.sa_flags, &act->sa_flags) ||
-	    __get_user(mask, &act->sa_mask))
-		return -EFAULT;
-	new_ka->sa.sa_handler = compat_ptr(handler);
-	new_ka->sa.sa_restorer = compat_ptr(restorer);
-	siginitset(&new_ka->sa.sa_mask, mask);
-	return 0;
-}
-
 #define to_user_ptr(p)		ptr_to_compat(p)
 #define from_user_ptr(p)	compat_ptr(p)
 
@@ -196,21 +178,6 @@ static inline int get_sigset_t(sigset_t *set, const sigset_t __user *uset)
 	return copy_from_user(set, uset, sizeof(*uset));
 }
 
-static inline int get_old_sigaction(struct k_sigaction *new_ka,
-		struct old_sigaction __user *act)
-{
-	old_sigset_t mask;
-
-	if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
-			__get_user(new_ka->sa.sa_handler, &act->sa_handler) ||
-			__get_user(new_ka->sa.sa_restorer, &act->sa_restorer) ||
-			__get_user(new_ka->sa.sa_flags, &act->sa_flags) ||
-			__get_user(mask, &act->sa_mask))
-		return -EFAULT;
-	siginitset(&new_ka->sa.sa_mask, mask);
-	return 0;
-}
-
 #define to_user_ptr(p)		((unsigned long)(p))
 #define from_user_ptr(p)	((void __user *)(p))
 
@@ -234,39 +201,7 @@ static inline int restore_general_regs(struct pt_regs *regs,
 		return -EFAULT;
 	return 0;
 }
-
-#endif /* CONFIG_PPC64 */
-
-long sys_sigaction(int sig, struct old_sigaction __user *act,
-		struct old_sigaction __user *oact)
-{
-	struct k_sigaction new_ka, old_ka;
-	int ret;
-
-#ifdef CONFIG_PPC64
-	if (sig < 0)
-		sig = -sig;
 #endif
-
-	if (act) {
-		if (get_old_sigaction(&new_ka, act))
-			return -EFAULT;
-	}
-
-	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
-	if (!ret && oact) {
-		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
-		    __put_user(to_user_ptr(old_ka.sa.sa_handler),
-			    &oact->sa_handler) ||
-		    __put_user(to_user_ptr(old_ka.sa.sa_restorer),
-			    &oact->sa_restorer) ||
-		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
-		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
-			return -EFAULT;
-	}
-
-	return ret;
-}
 
 /*
  * When we have signals to deliver, we set up on the

@@ -16,15 +16,6 @@
 
 /* These are here to support 32-bit syscalls on a 64-bit kernel. */
 
-#define __old_sigaction32	old_sigaction32
-
-struct __old_sigaction32 {
-	compat_uptr_t		sa_handler;
-	compat_old_sigset_t  	sa_mask;
-	unsigned int    	sa_flags;
-	compat_uptr_t		sa_restorer;     /* not used by Linux/SPARC yet */
-};
-
 struct pt_regs32 {
 	unsigned int gpr[32];
 	unsigned int nip;
