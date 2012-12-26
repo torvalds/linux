@@ -28,6 +28,7 @@
 #include "drv_disp_i.h"
 #include "dev_disp.h"
 #include "dev_fb.h"
+#include "disp_display.h"
 #include "disp_lcd.h"
 
 fb_info_t g_fbi;
@@ -39,8 +40,9 @@ MODULE_PARM_DESC(screen0_output_type, "0:none; 1:lcd; 2:tv; 3:hdmi; 4:vga");
 static char *screen0_output_mode;
 module_param(screen0_output_mode, charp, 0444);
 MODULE_PARM_DESC(screen0_output_mode,
-	"tv/hdmi: <width>x<height><i|p><24|50|60> ie: 1920x1080p60 "
-	"vga: <width>x<height>");
+	"tv/hdmi: <width>x<height><i|p><24|50|60> vga: <width>x<height> "
+	"hdmi modes can be prefixed with \"EDID:\". Then EDID will be used, "
+	"with the specified mode as a fallback, ie \"EDID:1280x720p60\".");
 
 static int screen1_output_type = -1;
 module_param(screen1_output_type, int, 0444);
@@ -48,9 +50,7 @@ MODULE_PARM_DESC(screen1_output_type, "0:none; 1:lcd; 2:tv; 3:hdmi; 4:vga");
 
 static char *screen1_output_mode;
 module_param(screen1_output_mode, charp, 0444);
-MODULE_PARM_DESC(screen0_output_mode,
-	"tv/hdmi: <width>x<height><i|p><24|50|60> ie: 1920x1080p60 "
-	"vga: <width>x<height>");
+MODULE_PARM_DESC(screen1_output_mode, "See screen0_output_mode");
 
 static u32 tv_mode_to_frame_rate(u32 mode)
 {
@@ -74,10 +74,15 @@ static u32 tv_mode_to_frame_rate(u32 mode)
 	}
 }
 
-static int parse_output_mode(char *mode, int type, int fallback)
+static int parse_output_mode(char *mode, int type, int fallback, __bool *edid)
 {
 	u32 i, max, width, height, interlace, frame_rate;
 	char *ep;
+
+	if (type == DISP_OUTPUT_TYPE_HDMI && strncmp(mode, "EDID:", 5) == 0) {
+		*edid = true;
+		mode += 5;
+	}
 
 	width = simple_strtol(mode, &ep, 10);
 	if (*ep != 'x') {
@@ -183,7 +188,8 @@ parser_disp_init_para(__disp_init_t *init_para)
 		if (screen0_output_mode) {
 			init_para->tv_mode[0] = (__disp_tv_mode_t)
 				parse_output_mode(screen0_output_mode,
-					init_para->output_type[0], value);
+					init_para->output_type[0], value,
+					&gdisp.screen[0].use_edid);
 		} else {
 			init_para->tv_mode[0] = (__disp_tv_mode_t) value;
 		}
@@ -191,7 +197,8 @@ parser_disp_init_para(__disp_init_t *init_para)
 		if (screen0_output_mode) {
 			init_para->vga_mode[0] = (__disp_vga_mode_t)
 				parse_output_mode(screen0_output_mode,
-					init_para->output_type[0], value);
+					init_para->output_type[0], value,
+					&gdisp.screen[0].use_edid);
 		} else {
 			init_para->vga_mode[0] = (__disp_vga_mode_t) value;
 		}
@@ -233,7 +240,8 @@ parser_disp_init_para(__disp_init_t *init_para)
 		if (screen1_output_mode) {
 			init_para->tv_mode[1] = (__disp_tv_mode_t)
 				parse_output_mode(screen1_output_mode,
-					init_para->output_type[1], value);
+					init_para->output_type[1], value,
+					&gdisp.screen[1].use_edid);
 		} else {
 			init_para->tv_mode[1] = (__disp_tv_mode_t) value;
 		}
@@ -241,7 +249,8 @@ parser_disp_init_para(__disp_init_t *init_para)
 		if (screen1_output_mode) {
 			init_para->vga_mode[1] = (__disp_vga_mode_t)
 				parse_output_mode(screen1_output_mode,
-					init_para->output_type[1], value);
+					init_para->output_type[1], value,
+					&gdisp.screen[1].use_edid);
 		} else {
 			init_para->vga_mode[1] = (__disp_vga_mode_t) value;
 		}

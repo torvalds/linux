@@ -106,6 +106,7 @@ typedef struct {
 	__u32 out_scaler_index;
 	__u32 hdmi_index;	/* 0: internal hdmi; 1:external hdmi(if exit) */
 
+	__bool use_edid;
 	__bool b_out_interlace;
 	__disp_output_type_t output_type;	/* sw status */
 	__disp_vga_mode_t vga_mode;
