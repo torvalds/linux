@@ -67,23 +67,6 @@ extern void __iomem *HDMI_BASE;
 #define Explicit_Offset_Address_E_DDC_Read	6
 #define Implicit_Offset_Address_E_DDC_Read	7
 
-typedef struct video_timing {
-	__s32 VIC;
-	__s32 PCLK;
-	__s32 AVI_PR;
-
-	__s32 INPUTX;
-	__s32 INPUTY;
-	__s32 HT;
-	__s32 HBP;
-	__s32 HFP;
-	__s32 HPSW;
-	__s32 VT;
-	__s32 VBP;
-	__s32 VFP;
-	__s32 VPSW;
-} HDMI_VIDE_INFO;
-
 typedef struct audio_timing {
 
 	__s32 audio_en;
