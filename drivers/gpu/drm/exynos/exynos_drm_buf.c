@@ -15,6 +15,7 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_gem.h"
 #include "exynos_drm_buf.h"
+#include "exynos_drm_iommu.h"
 
 static int lowlevel_buffer_allocate(struct drm_device *dev,
 		unsigned int flags, struct exynos_drm_gem_buf *buf)
@@ -52,14 +53,45 @@ static int lowlevel_buffer_allocate(struct drm_device *dev,
 	dma_set_attr(attr, &buf->dma_attrs);
 	dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &buf->dma_attrs);
 
-	buf->pages = dma_alloc_attrs(dev->dev, buf->size,
-			&buf->dma_addr, GFP_KERNEL, &buf->dma_attrs);
-	if (!buf->pages) {
-		DRM_ERROR("failed to allocate buffer.\n");
-		return -ENOMEM;
+	nr_pages = buf->size >> PAGE_SHIFT;
+
+	if (!is_drm_iommu_supported(dev)) {
+		dma_addr_t start_addr;
+		unsigned int i = 0;
+
+		buf->pages = kzalloc(sizeof(struct page) * nr_pages,
+					GFP_KERNEL);
+		if (!buf->pages) {
+			DRM_ERROR("failed to allocate pages.\n");
+			return -ENOMEM;
+		}
+
+		buf->kvaddr = dma_alloc_attrs(dev->dev, buf->size,
+					&buf->dma_addr, GFP_KERNEL,
+					&buf->dma_attrs);
+		if (!buf->kvaddr) {
+			DRM_ERROR("failed to allocate buffer.\n");
+			kfree(buf->pages);
+			return -ENOMEM;
+		}
+
+		start_addr = buf->dma_addr;
+		while (i < nr_pages) {
+			buf->pages[i] = phys_to_page(start_addr);
+			start_addr += PAGE_SIZE;
+			i++;
+		}
+	} else {
+
+		buf->pages = dma_alloc_attrs(dev->dev, buf->size,
+					&buf->dma_addr, GFP_KERNEL,
+					&buf->dma_attrs);
+		if (!buf->pages) {
+			DRM_ERROR("failed to allocate buffer.\n");
+			return -ENOMEM;
+		}
 	}
 
-	nr_pages = buf->size >> PAGE_SHIFT;
 	buf->sgt = drm_prime_pages_to_sg(buf->pages, nr_pages);
 	if (!buf->sgt) {
 		DRM_ERROR("failed to get sg table.\n");
@@ -77,6 +109,9 @@ err_free_attrs:
 	dma_free_attrs(dev->dev, buf->size, buf->pages,
 			(dma_addr_t)buf->dma_addr, &buf->dma_attrs);
 	buf->dma_addr = (dma_addr_t)NULL;
+
+	if (!is_drm_iommu_supported(dev))
+		kfree(buf->pages);
 
 	return ret;
 }
@@ -100,8 +135,14 @@ static void lowlevel_buffer_deallocate(struct drm_device *dev,
 	kfree(buf->sgt);
 	buf->sgt = NULL;
 
-	dma_free_attrs(dev->dev, buf->size, buf->pages,
+	if (!is_drm_iommu_supported(dev)) {
+		dma_free_attrs(dev->dev, buf->size, buf->kvaddr,
 				(dma_addr_t)buf->dma_addr, &buf->dma_attrs);
+		kfree(buf->pages);
+	} else
+		dma_free_attrs(dev->dev, buf->size, buf->pages,
+				(dma_addr_t)buf->dma_addr, &buf->dma_attrs);
+
 	buf->dma_addr = (dma_addr_t)NULL;
 }
 
