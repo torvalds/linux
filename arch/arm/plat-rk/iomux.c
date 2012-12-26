@@ -85,7 +85,8 @@ void iomux_set(unsigned int mode)
 		INFO("<%s> mode(0x%x) is invalid\n", __func__, mode);
 		return;
 	}
-        mask = (m.mux.mode < 2)?1:3;
+        //mask = (m.mux.mode < 2)?1:3;
+        mask = 3;
         v = (m.mux.mode << (m.mux.off * 2)) + (mask << (m.mux.off * 2 + 16));
         addr = (unsigned int)GRF_IOMUX_BASE + 16 * m.mux.bank + 4 * (m.mux.goff - 0x0A);
 

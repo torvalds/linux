@@ -190,8 +190,10 @@
 #define GPIO2C_GPIO2C1                  0
 #define GPIO2C_LCDC1DATA17              1
 #define GPIO2C_SMCADDR1                 2
+#define GPIO2C_TRACECLK                 3
 #define GPIO2C_GPIO2C2                  0
 #define GPIO2C_LCDC1DATA18              1
+#define GPIO2C_TRACECTL                 3
 #define GPIO2C_SMCADDR2                 2
 #define GPIO2C_GPIO2C3                  0
 #define GPIO2C_LCDC1DATA19              1
