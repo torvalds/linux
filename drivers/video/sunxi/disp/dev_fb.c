@@ -28,8 +28,99 @@
 #include "drv_disp_i.h"
 #include "dev_disp.h"
 #include "dev_fb.h"
+#include "disp_lcd.h"
 
 fb_info_t g_fbi;
+
+static int screen0_output_type = -1;
+module_param(screen0_output_type, int, 0444);
+MODULE_PARM_DESC(screen0_output_type, "0:none; 1:lcd; 2:tv; 3:hdmi; 4:vga");
+
+static char *screen0_output_mode;
+module_param(screen0_output_mode, charp, 0444);
+MODULE_PARM_DESC(screen0_output_mode,
+	"tv/hdmi: <width>x<height><i|p><24|50|60> ie: 1920x1080p60 "
+	"vga: <width>x<height>");
+
+static int screen1_output_type = -1;
+module_param(screen1_output_type, int, 0444);
+MODULE_PARM_DESC(screen1_output_type, "0:none; 1:lcd; 2:tv; 3:hdmi; 4:vga");
+
+static char *screen1_output_mode;
+module_param(screen1_output_mode, charp, 0444);
+MODULE_PARM_DESC(screen0_output_mode,
+	"tv/hdmi: <width>x<height><i|p><24|50|60> ie: 1920x1080p60 "
+	"vga: <width>x<height>");
+
+static u32 tv_mode_to_frame_rate(u32 mode)
+{
+	switch (mode) {
+	case DISP_TV_MOD_1080P_24HZ:
+	case DISP_TV_MOD_1080P_24HZ_3D_FP:
+		return 24;
+	case DISP_TV_MOD_576I:
+	case DISP_TV_MOD_576P:
+	case DISP_TV_MOD_PAL:
+	case DISP_TV_MOD_PAL_SVIDEO:
+	case DISP_TV_MOD_PAL_NC:
+	case DISP_TV_MOD_PAL_NC_SVIDEO:
+	case DISP_TV_MOD_720P_50HZ:
+	case DISP_TV_MOD_720P_50HZ_3D_FP:
+	case DISP_TV_MOD_1080I_50HZ:
+	case DISP_TV_MOD_1080P_50HZ:
+		return 50;
+	default:
+		return 60;
+	}
+}
+
+static int parse_output_mode(char *mode, int type, int fallback)
+{
+	u32 i, max, width, height, interlace, frame_rate;
+	char *ep;
+
+	width = simple_strtol(mode, &ep, 10);
+	if (*ep != 'x') {
+		__wrn("Invalid mode string: %s, ignoring\n", mode);
+		return fallback;
+	}
+	height = simple_strtol(ep + 1, &ep, 10);
+
+	if (type == DISP_OUTPUT_TYPE_TV || type == DISP_OUTPUT_TYPE_HDMI) {
+		if (*ep == 'i') {
+			interlace = 1;
+		} else if (*ep == 'p') {
+			interlace = 0;
+		} else {
+			__wrn("Invalid tv-mode string: %s, ignoring\n", mode);
+			return fallback;
+		}
+		frame_rate = simple_strtol(ep + 1, &ep, 10);
+
+		max = (type == DISP_OUTPUT_TYPE_TV) ?
+			DISP_TV_MOD_1080P_24HZ_3D_FP : DISP_TV_MODE_NUM;
+		for (i = 0; i < max; i++) {
+			if (tv_mode_to_width(i) == width &&
+			    tv_mode_to_height(i) == height &&
+			    Disp_get_screen_scan_mode(i) == interlace &&
+			    tv_mode_to_frame_rate(i) == frame_rate) {
+				return i;
+			}
+		}
+	} else {
+		for (i = 0; i < DISP_VGA_MODE_NUM; i++) {
+			if (i == DISP_VGA_H1440_V900_RB)
+				i = DISP_VGA_H1920_V1080; /* Skip RB modes */
+
+			if (vga_mode_to_width(i) == width &&
+			    vga_mode_to_height(i) == height) {
+				return i;
+			}
+		}
+	}
+	__wrn("Unsupported mode: %s, ignoring\n", mode);
+	return fallback;
+}
 
 /*
  *          0:ARGB  1:BRGA  2:ABGR  3:RGBA
@@ -58,7 +149,9 @@ parser_disp_init_para(__disp_init_t *init_para)
 	init_para->disp_mode = value;
 
 	/* screen0 */
-	if (script_parser_fetch("disp_init", "screen0_output_type",
+	if (screen0_output_type != -1)
+		value = screen0_output_type;
+	else if (script_parser_fetch("disp_init", "screen0_output_type",
 				&value, 1) < 0) {
 		__wrn("fetch script data disp_init.screen0_output_type fail\n");
 		return -1;
@@ -87,13 +180,27 @@ parser_disp_init_para(__disp_init_t *init_para)
 	}
 	if (init_para->output_type[0] == DISP_OUTPUT_TYPE_TV ||
 	    init_para->output_type[0] == DISP_OUTPUT_TYPE_HDMI) {
-		init_para->tv_mode[0] = (__disp_tv_mode_t) value;
+		if (screen0_output_mode) {
+			init_para->tv_mode[0] = (__disp_tv_mode_t)
+				parse_output_mode(screen0_output_mode,
+					init_para->output_type[0], value);
+		} else {
+			init_para->tv_mode[0] = (__disp_tv_mode_t) value;
+		}
 	} else if (init_para->output_type[0] == DISP_OUTPUT_TYPE_VGA) {
-		init_para->vga_mode[0] = (__disp_vga_mode_t) value;
+		if (screen0_output_mode) {
+			init_para->vga_mode[0] = (__disp_vga_mode_t)
+				parse_output_mode(screen0_output_mode,
+					init_para->output_type[0], value);
+		} else {
+			init_para->vga_mode[0] = (__disp_vga_mode_t) value;
+		}
 	}
 
 	/* screen1 */
-	if (script_parser_fetch("disp_init", "screen1_output_type",
+	if (screen1_output_type != -1)
+		value = screen1_output_type;
+	else if (script_parser_fetch("disp_init", "screen1_output_type",
 				&value, 1) < 0) {
 		__wrn("fetch script data disp_init.screen1_output_type fail\n");
 		return -1;
@@ -123,9 +230,21 @@ parser_disp_init_para(__disp_init_t *init_para)
 
 	if (init_para->output_type[1] == DISP_OUTPUT_TYPE_TV ||
 	    init_para->output_type[1] == DISP_OUTPUT_TYPE_HDMI) {
-		init_para->tv_mode[1] = (__disp_tv_mode_t) value;
+		if (screen1_output_mode) {
+			init_para->tv_mode[1] = (__disp_tv_mode_t)
+				parse_output_mode(screen1_output_mode,
+					init_para->output_type[1], value);
+		} else {
+			init_para->tv_mode[1] = (__disp_tv_mode_t) value;
+		}
 	} else if (init_para->output_type[1] == DISP_OUTPUT_TYPE_VGA) {
-		init_para->vga_mode[1] = (__disp_vga_mode_t) value;
+		if (screen1_output_mode) {
+			init_para->vga_mode[1] = (__disp_vga_mode_t)
+				parse_output_mode(screen1_output_mode,
+					init_para->output_type[1], value);
+		} else {
+			init_para->vga_mode[1] = (__disp_vga_mode_t) value;
+		}
 	}
 
 	/* fb0 */
