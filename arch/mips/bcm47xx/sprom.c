@@ -27,7 +27,7 @@
  */
 
 #include <bcm47xx.h>
-#include <nvram.h>
+#include <bcm47xx_nvram.h>
 
 static void create_key(const char *prefix, const char *postfix,
 		       const char *name, char *buf, int len)
@@ -50,10 +50,10 @@ static int get_nvram_var(const char *prefix, const char *postfix,
 
 	create_key(prefix, postfix, name, key, sizeof(key));
 
-	err = nvram_getenv(key, buf, len);
+	err = bcm47xx_nvram_getenv(key, buf, len);
 	if (fallback && err == -ENOENT && prefix) {
 		create_key(NULL, postfix, name, key, sizeof(key));
-		err = nvram_getenv(key, buf, len);
+		err = bcm47xx_nvram_getenv(key, buf, len);
 	}
 	return err;
 }
@@ -144,7 +144,7 @@ static void nvram_read_macaddr(const char *prefix, const char *name,
 	if (err < 0)
 		return;
 
-	nvram_parse_macaddr(buf, *val);
+	bcm47xx_nvram_parse_macaddr(buf, *val);
 }
 
 static void nvram_read_alpha2(const char *prefix, const char *name,

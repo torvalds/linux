@@ -18,7 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <asm/addrspace.h>
-#include <asm/mach-bcm47xx/nvram.h>
+#include <bcm47xx_nvram.h>
 #include <asm/mach-bcm47xx/bcm47xx.h>
 
 static char nvram_buf[NVRAM_SPACE];
@@ -159,7 +159,7 @@ static int nvram_init(void)
 	return -ENXIO;
 }
 
-int nvram_getenv(char *name, char *val, size_t val_len)
+int bcm47xx_nvram_getenv(char *name, char *val, size_t val_len)
 {
 	char *var, *value, *end, *eq;
 	int err;
@@ -189,4 +189,4 @@ int nvram_getenv(char *name, char *val, size_t val_len)
 	}
 	return -ENOENT;
 }
-EXPORT_SYMBOL(nvram_getenv);
+EXPORT_SYMBOL(bcm47xx_nvram_getenv);

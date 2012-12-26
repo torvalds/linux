@@ -98,14 +98,14 @@ static inline bool ssb_gige_must_flush_posted_writes(struct pci_dev *pdev)
 }
 
 #ifdef CONFIG_BCM47XX
-#include <asm/mach-bcm47xx/nvram.h>
+#include <bcm47xx_nvram.h>
 /* Get the device MAC address */
 static inline void ssb_gige_get_macaddr(struct pci_dev *pdev, u8 *macaddr)
 {
 	char buf[20];
-	if (nvram_getenv("et0macaddr", buf, sizeof(buf)) < 0)
+	if (bcm47xx_nvram_getenv("et0macaddr", buf, sizeof(buf)) < 0)
 		return;
-	nvram_parse_macaddr(buf, macaddr);
+	bcm47xx_nvram_parse_macaddr(buf, macaddr);
 }
 #else
 static inline void ssb_gige_get_macaddr(struct pci_dev *pdev, u8 *macaddr)
