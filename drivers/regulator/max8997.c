@@ -523,7 +523,7 @@ static int max8997_set_voltage_ldobuck(struct regulator_dev *rdev,
 	return ret;
 }
 
-static int max8997_set_voltage_ldobuck_time_sel(struct regulator_dev *rdev,
+static int max8997_set_voltage_buck_time_sel(struct regulator_dev *rdev,
 						unsigned int old_selector,
 						unsigned int new_selector)
 {
@@ -801,7 +801,6 @@ static struct regulator_ops max8997_ldo_ops = {
 	.disable		= max8997_reg_disable,
 	.get_voltage_sel	= max8997_get_voltage_sel,
 	.set_voltage		= max8997_set_voltage_ldobuck,
-	.set_voltage_time_sel	= max8997_set_voltage_ldobuck_time_sel,
 	.set_suspend_disable	= max8997_reg_disable_suspend,
 };
 
@@ -812,7 +811,7 @@ static struct regulator_ops max8997_buck_ops = {
 	.disable		= max8997_reg_disable,
 	.get_voltage_sel	= max8997_get_voltage_sel,
 	.set_voltage		= max8997_set_voltage_buck,
-	.set_voltage_time_sel	= max8997_set_voltage_ldobuck_time_sel,
+	.set_voltage_time_sel	= max8997_set_voltage_buck_time_sel,
 	.set_suspend_disable	= max8997_reg_disable_suspend,
 };
 
