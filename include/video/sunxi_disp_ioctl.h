@@ -437,6 +437,10 @@ struct __disp_video_timing {
 	__s32 VBP;
 	__s32 VFP;
 	__s32 VPSW;
+
+	__s32 I;	/* 0: Progressive 1: Interlaced */
+	__s32 HSYNC;	/* 0: Negative 1: Positive */
+	__s32 VSYNC;	/* 0: Negative 1: Positive */
 };
 
 typedef struct {

@@ -38,22 +38,22 @@ __u32 hdmi_pll;	/* 0:video pll 0; 1:video pll 1 */
 __u32 hdmi_clk = 297000000;
 
 static struct __disp_video_timing video_timing[] = {
-	/* VIC                 PCLK   AVI_PR INPUTX INPUTY HT  HBP  HFP HPSW  VT  VBP VFP VPSW */
-	{HDMI1440_480I,       13500000,  1,   720,  240,  858, 119,  19, 62,  525, 18,  4,  3},
-	{HDMI1440_576I,       13500000,  1,   720,  288,  864, 132,  12, 63,  625, 22,  2,  3},
-	{HDMI480P,            27000000,  0,   720,  480,  858, 122,  16, 62, 1050, 36,  9,  6},
-	{HDMI576P,            27000000,  0,   720,  576,  864, 132,  12, 64, 1250, 44,  5,  5},
-	{HDMI720P_50,         74250000,  0,  1280,  720, 1980, 260, 440, 40, 1500, 25,  5,  5},
-	{HDMI720P_60,         74250000,  0,  1280,  720, 1650, 260, 110, 40, 1500, 25,  5,  5},
-	{HDMI1080I_50,        74250000,  0,  1920,  540, 2640, 192, 528, 44, 1125, 20,  2,  5},
-	{HDMI1080I_60,        74250000,  0,  1920,  540, 2200, 192,  88, 44, 1125, 20,  2,  5},
-	{HDMI1080P_50,       148500000,  0,  1920, 1080, 2640, 192, 528, 44, 2250, 41,  4,  5},
-	{HDMI1080P_60,       148500000,  0,  1920, 1080, 2200, 192,  88, 44, 2250, 41,  4,  5},
-	{HDMI1080P_24,        74250000,  0,  1920, 1080, 2750, 192, 638, 44, 2250, 41,  4,  5},
-	{HDMI1080P_24_3D_FP, 148500000,  0,  1920, 2160, 2750, 192, 638, 44, 4500, 41,  4,  5},
-	{HDMI720P_50_3D_FP,  148500000,  0,  1280, 1440, 1980, 260, 440, 40, 3000, 25,  5,  5},
-	{HDMI720P_60_3D_FP,  148500000,  0,  1280, 1440, 1650, 260, 110, 40, 3000, 25,  5,  5},
-	{HDMI1360_768_60,     85500000,  0,  1360,  768, 1792, 368, 64, 112, 1590, 24,  3,  6},
+	/* VIC                 PCLK   AVI_PR INPUTX INPUTY HT   HBP  HFP HPSW  VT  VBP VFP VPSW I HSYNC VSYNC */
+	{ HDMI1440_480I,       13500000,  1,   720,  240,  858, 119,  19, 62,  525, 18,  4,  3, 1,  0,  0 },
+	{ HDMI1440_576I,       13500000,  1,   720,  288,  864, 132,  12, 63,  625, 22,  2,  3, 1,  0,  0 },
+	{ HDMI480P,            27000000,  0,   720,  480,  858, 122,  16, 62, 1050, 36,  9,  6, 0,  0,  0 },
+	{ HDMI576P,            27000000,  0,   720,  576,  864, 132,  12, 64, 1250, 44,  5,  5, 0,  0,  0 },
+	{ HDMI720P_50,         74250000,  0,  1280,  720, 1980, 260, 440, 40, 1500, 25,  5,  5, 0,  1,  1 },
+	{ HDMI720P_60,         74250000,  0,  1280,  720, 1650, 260, 110, 40, 1500, 25,  5,  5, 0,  1,  1 },
+	{ HDMI1080I_50,        74250000,  0,  1920,  540, 2640, 192, 528, 44, 1125, 20,  2,  5, 1,  1,  1 },
+	{ HDMI1080I_60,        74250000,  0,  1920,  540, 2200, 192,  88, 44, 1125, 20,  2,  5, 1,  1,  1 },
+	{ HDMI1080P_50,       148500000,  0,  1920, 1080, 2640, 192, 528, 44, 2250, 41,  4,  5, 0,  1,  1 },
+	{ HDMI1080P_60,       148500000,  0,  1920, 1080, 2200, 192,  88, 44, 2250, 41,  4,  5, 0,  1,  1 },
+	{ HDMI1080P_24,        74250000,  0,  1920, 1080, 2750, 192, 638, 44, 2250, 41,  4,  5, 0,  1,  1 },
+	{ HDMI1080P_24_3D_FP, 148500000,  0,  1920, 2160, 2750, 192, 638, 44, 4500, 41,  4,  5, 0,  1,  1 },
+	{ HDMI720P_50_3D_FP,  148500000,  0,  1280, 1440, 1980, 260, 440, 40, 3000, 25,  5,  5, 0,  1,  1 },
+	{ HDMI720P_60_3D_FP,  148500000,  0,  1280, 1440, 1650, 260, 110, 40, 3000, 25,  5,  5, 0,  1,  1 },
+	{ HDMI1360_768_60,     85500000,  0,  1360,  768, 1792, 368, 64, 112, 1590, 24,  3,  6, 0,  1,  1 },
 };
 
 void hdmi_delay_ms(__u32 t)
@@ -242,7 +242,7 @@ static __s32 get_audio_info(__s32 sample_rate)
 __s32 video_config(__s32 vic)
 {
 
-	__s32 vic_tab, clk_div, reg_val;
+	__s32 vic_tab, clk_div, reg_val, dw = 0;
 
 	__inf("video_config, vic:%d\n", vic);
 
@@ -251,39 +251,31 @@ __s32 video_config(__s32 vic)
 		return 0;
 	else
 		video_mode = vic;
+
+	if ((vic == HDMI1440_480I) || (vic == HDMI1440_576I))
+		dw = 1; /* Double Width */
+
 	HDMI_WUINT32(0x004, 0x00000000);
 	HDMI_WUINT32(0x040, 0x00000000); /* disable audio output */
 	HDMI_WUINT32(0x010, 0x00000000); /* disable video output */
 	/* interrupt mask and clear all interrupt */
 	HDMI_WUINT32(0x008, 0xffffffff);
 
-	if ((vic == HDMI1440_480I) || (vic == HDMI1440_576I))
-		HDMI_WUINT32(0x010, 0x00000011); /* interlace and repeation */
-	else if ((vic == HDMI1080I_50) || (vic == HDMI1080I_60))
-		HDMI_WUINT32(0x010, 0x00000010); /* interlace */
-	else
-		HDMI_WUINT32(0x010, 0x00000000); /* progressive */
+	reg_val = 0x00000000;
+	if (dw)
+		reg_val |= 0x00000001; /* repetition */
+	if (video_timing[vic_tab].I)
+		reg_val |= 0x00000010; /* interlace */
+	HDMI_WUINT32(0x010, reg_val);
 
-	/* need to use repetition? */
-	if ((vic == HDMI1440_480I) || (vic == HDMI1440_576I)) {
-		/* active H */
-		HDMI_WUINT16(0x014, (video_timing[vic_tab].INPUTX << 1) - 1);
-		/* active HBP */
-		HDMI_WUINT16(0x018, (video_timing[vic_tab].HBP << 1) - 1);
-		/* active HFP */
-		HDMI_WUINT16(0x01c, (video_timing[vic_tab].HFP << 1) - 1);
-		/* active HSPW */
-		HDMI_WUINT16(0x020, (video_timing[vic_tab].HPSW << 1) - 1);
-	} else {
-		/* active H */
-		HDMI_WUINT16(0x014, (video_timing[vic_tab].INPUTX << 0) - 1);
-		/* active HBP */
-		HDMI_WUINT16(0x018, (video_timing[vic_tab].HBP << 0) - 1);
-		/* active HFP */
-		HDMI_WUINT16(0x01c, (video_timing[vic_tab].HFP << 0) - 1);
-		/* active HSPW */
-		HDMI_WUINT16(0x020, (video_timing[vic_tab].HPSW << 0) - 1);
-	}
+	/* active H */
+	HDMI_WUINT16(0x014, (video_timing[vic_tab].INPUTX << dw) - 1);
+	/* active HBP */
+	HDMI_WUINT16(0x018, (video_timing[vic_tab].HBP << dw) - 1);
+	/* active HFP */
+	HDMI_WUINT16(0x01c, (video_timing[vic_tab].HFP << dw) - 1);
+	/* active HSPW */
+	HDMI_WUINT16(0x020, (video_timing[vic_tab].HPSW << dw) - 1);
 
 	/* set active V */
 	if ((vic == HDMI1080P_24_3D_FP) || (vic == HDMI720P_50_3D_FP) ||
@@ -299,10 +291,12 @@ __s32 video_config(__s32 vic)
 	HDMI_WUINT16(0x01e, video_timing[vic_tab].VFP - 1); /* active VFP */
 	HDMI_WUINT16(0x022, video_timing[vic_tab].VPSW - 1); /* active VSPW */
 
-	if (video_timing[vic_tab].PCLK < 74250000) /* SD format */
-		HDMI_WUINT16(0x024, 0x00); /* Vsync/Hsync pol */
-	else /* HD format */
-		HDMI_WUINT16(0x024, 0x03); /* Vsync/Hsync pol */
+	reg_val = 0;
+	if (video_timing[vic_tab].HSYNC)
+		reg_val |= 0x01; /* Positive Hsync */
+	if (video_timing[vic_tab].VSYNC)
+		reg_val |= 0x02; /* Positive Vsync */
+	HDMI_WUINT16(0x024, reg_val);
 
 	HDMI_WUINT16(0x026, 0x03e0); /* TX clock sequence */
 
