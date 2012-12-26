@@ -23,7 +23,7 @@
 
 static char nvram_buf[NVRAM_SPACE];
 
-static void nvram_find_and_copy(u32 base, u32 lim)
+static int nvram_find_and_copy(u32 base, u32 lim)
 {
 	struct nvram_header *header;
 	int i;
@@ -49,7 +49,7 @@ static void nvram_find_and_copy(u32 base, u32 lim)
 	if (header->magic == NVRAM_HEADER)
 		goto found;
 
-	return;
+	return -ENXIO;
 
 found:
 	src = (u32 *) header;
@@ -58,10 +58,12 @@ found:
 		*dst++ = *src++;
 	for (; i < header->len && i < NVRAM_SPACE; i += 4)
 		*dst++ = le32_to_cpu(*src++);
+
+	return 0;
 }
 
 #ifdef CONFIG_BCM47XX_SSB
-static void nvram_init_ssb(void)
+static int nvram_init_ssb(void)
 {
 	struct ssb_mipscore *mcore = &bcm47xx_bus.ssb.mipscore;
 	u32 base;
@@ -72,15 +74,15 @@ static void nvram_init_ssb(void)
 		lim = mcore->pflash.window_size;
 	} else {
 		pr_err("Couldn't find supported flash memory\n");
-		return;
+		return -ENXIO;
 	}
 
-	nvram_find_and_copy(base, lim);
+	return nvram_find_and_copy(base, lim);
 }
 #endif
 
 #ifdef CONFIG_BCM47XX_BCMA
-static void nvram_init_bcma(void)
+static int nvram_init_bcma(void)
 {
 	struct bcma_drv_cc *cc = &bcm47xx_bus.bcma.bus.drv_cc;
 	u32 base;
@@ -96,38 +98,41 @@ static void nvram_init_bcma(void)
 #endif
 	} else {
 		pr_err("Couldn't find supported flash memory\n");
-		return;
+		return -ENXIO;
 	}
 
-	nvram_find_and_copy(base, lim);
+	return nvram_find_and_copy(base, lim);
 }
 #endif
 
-static void early_nvram_init(void)
+static int early_nvram_init(void)
 {
 	switch (bcm47xx_bus_type) {
 #ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
-		nvram_init_ssb();
-		break;
+		return nvram_init_ssb();
 #endif
 #ifdef CONFIG_BCM47XX_BCMA
 	case BCM47XX_BUS_TYPE_BCMA:
-		nvram_init_bcma();
-		break;
+		return nvram_init_bcma();
 #endif
 	}
+	return -ENXIO;
 }
 
 int nvram_getenv(char *name, char *val, size_t val_len)
 {
 	char *var, *value, *end, *eq;
+	int err;
 
 	if (!name)
 		return -EINVAL;
 
-	if (!nvram_buf[0])
-		early_nvram_init();
+	if (!nvram_buf[0]) {
+		err = early_nvram_init();
+		if (err)
+			return err;
+	}
 
 	/* Look for name=value and return value */
 	var = &nvram_buf[sizeof(struct nvram_header)];
