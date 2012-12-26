@@ -46,6 +46,7 @@ static HDMI_VIDE_INFO video_timing[] = {
 	{HDMI1080P_24_3D_FP, 148500000,  0,  1920, 2160, 2750, 192, 638, 44, 4500, 41,  4,  5},
 	{HDMI720P_50_3D_FP,  148500000,  0,  1280, 1440, 1980, 260, 440, 40, 3000, 25,  5,  5},
 	{HDMI720P_60_3D_FP,  148500000,  0,  1280, 1440, 1650, 260, 110, 40, 3000, 25,  5,  5},
+	{HDMI1360_768_60,     85500000,  0,  1360,  768, 1792, 368, 64, 112, 1590, 24,  3,  6},
 };
 
 void hdmi_delay_ms(__u32 t)
@@ -329,7 +330,8 @@ __s32 video_config(__s32 vic)
 #endif
 
 	HDMI_WUINT8(0x086, 0x00);
-	HDMI_WUINT8(0x087, video_timing[vic_tab].VIC);
+	HDMI_WUINT8(0x087, (video_timing[vic_tab].VIC >= 256) ?
+			   0 : video_timing[vic_tab].VIC);
 	HDMI_WUINT8(0x088, video_timing[vic_tab].AVI_PR);
 	HDMI_WUINT8(0x089, 0x00);
 	HDMI_WUINT8(0x08a, 0x00);

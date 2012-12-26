@@ -788,6 +788,22 @@ __u32 TCON1_set_hdmi_mode(__u32 sel, __u8 mode)
 		LCDC_WUINT32(sel, LCDC_3DF_D1, 0);
 		LCDC_SET_BIT(sel, LCDC_3DF_CTL, 1 << 31);
 		break;
+	case DISP_TV_MOD_H1360_V768_60HZ:
+		cfg.b_interlace = 0;
+		cfg.src_x = 1360;
+		cfg.src_y = 768;
+		cfg.scl_x = 1360;
+		cfg.scl_y = 768;
+		cfg.out_x = 1360;
+		cfg.out_y = 768;
+		cfg.ht = 1792;
+		cfg.hbp = 368;
+		cfg.vt = 1590;
+		cfg.vbp = 24;
+		cfg.vspw = 6;
+		cfg.hspw = 112;
+		cfg.io_pol = 0x07000000;
+		break;
 	default:
 		return 0;
 	}
