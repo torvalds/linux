@@ -390,7 +390,6 @@ int unregister_acpi_bus_type(struct acpi_bus_type *);
 struct acpi_pci_root {
 	struct list_head node;
 	struct acpi_device * device;
-	struct acpi_pci_id id;
 	struct pci_bus *bus;
 	u16 segment;
 	struct resource secondary;	/* downstream bus range */
