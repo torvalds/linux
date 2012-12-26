@@ -17,6 +17,7 @@
  * MA 02111-1307 USA
  */
 
+#include <linux/module.h>
 #include "hdmi_core.h"
 
 static char *audio;
