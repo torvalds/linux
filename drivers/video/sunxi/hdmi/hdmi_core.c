@@ -19,8 +19,14 @@
 
 #include "hdmi_core.h"
 
+static char *audio;
+module_param(audio, charp, 0444);
+MODULE_PARM_DESC(audio,
+		 "0: Disable audio over HDMI, 1: Enable audio over HDMI");
+
 __s32 hdmi_state = HDMI_State_Idle;
 __bool video_enable;
+__bool audio_enable = 1;
 __s32 video_mode = HDMI720P_50;
 HDMI_AUDIO_INFO audio_info;
 __u8 EDID_Buf[1024];
@@ -59,6 +65,9 @@ void hdmi_delay_ms(__u32 t)
 
 __s32 hdmi_core_initial(void)
 {
+	if (audio && strcmp(audio, "0") == 0)
+		audio_enable = 0;
+
 	hdmi_state = HDMI_State_Idle;
 	video_mode = HDMI720P_50;
 	memset(&audio_info, 0, sizeof(HDMI_AUDIO_INFO));
@@ -395,10 +404,16 @@ __s32 video_config(__s32 vic)
 
 	HDMI_WUINT32(0x300, 0x08000000); /* set input sync enable */
 
-	HDMI_WUINT8(0x013, 0xc0); /* hdmi mode */
+	if (audio_enable)
+		HDMI_WUINT8(0x013, 0xc0); /* hdmi mode + hdmi audio */
+	else
+		HDMI_WUINT8(0x013, 0x80); /* hdmi/dvi mode */
 	HDMI_WUINT32(0x004, 0x80000000); /* start hdmi controller */
 
-	HDMI_WUINT8(0x013, 0xc0); /* hdmi mode */
+	if (audio_enable)
+		HDMI_WUINT8(0x013, 0xc0); /* hdmi mode + hdmi audio */
+	else
+		HDMI_WUINT8(0x013, 0x80); /* hdmi/dvi mode */
 	HDMI_WUINT32(0x004, 0x80000000); /* start hdmi controller */
 
 	/* hdmi pll setting */
