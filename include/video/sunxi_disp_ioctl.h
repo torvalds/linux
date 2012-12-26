@@ -422,6 +422,23 @@ typedef struct {
 	__disp_fb_t output_fb;
 } __disp_capture_screen_para_t;
 
+struct __disp_video_timing {
+	__s32 VIC;
+	__s32 PCLK;
+	__s32 AVI_PR;
+
+	__s32 INPUTX;
+	__s32 INPUTY;
+	__s32 HT;
+	__s32 HBP;
+	__s32 HFP;
+	__s32 HPSW;
+	__s32 VT;
+	__s32 VBP;
+	__s32 VFP;
+	__s32 VPSW;
+};
+
 typedef struct {
 	__s32(*Hdmi_open) (void);
 	__s32(*Hdmi_close) (void);
