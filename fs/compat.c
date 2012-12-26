@@ -1278,8 +1278,7 @@ compat_sys_vmsplice(int fd, const struct compat_iovec __user *iov32,
  * Exactly like fs/open.c:sys_open(), except that it doesn't set the
  * O_LARGEFILE flag.
  */
-asmlinkage long
-compat_sys_open(const char __user *filename, int flags, umode_t mode)
+COMPAT_SYSCALL_DEFINE3(open, const char __user *, filename, int, flags, umode_t, mode)
 {
 	return do_sys_open(AT_FDCWD, filename, flags, mode);
 }
@@ -1288,8 +1287,7 @@ compat_sys_open(const char __user *filename, int flags, umode_t mode)
  * Exactly like fs/open.c:sys_openat(), except that it doesn't set the
  * O_LARGEFILE flag.
  */
-asmlinkage long
-compat_sys_openat(unsigned int dfd, const char __user *filename, int flags, umode_t mode)
+COMPAT_SYSCALL_DEFINE4(openat, int, dfd, const char __user *, filename, int, flags, umode_t, mode)
 {
 	return do_sys_open(dfd, filename, flags, mode);
 }
@@ -1785,9 +1783,8 @@ asmlinkage long compat_sys_timerfd_gettime(int ufd,
  * Exactly like fs/open.c:sys_open_by_handle_at(), except that it
  * doesn't set the O_LARGEFILE flag.
  */
-asmlinkage long
-compat_sys_open_by_handle_at(int mountdirfd,
-			     struct file_handle __user *handle, int flags)
+COMPAT_SYSCALL_DEFINE3(open_by_handle_at, int, mountdirfd,
+			     struct file_handle __user *, handle, int, flags)
 {
 	return do_handle_open(mountdirfd, handle, flags);
 }
