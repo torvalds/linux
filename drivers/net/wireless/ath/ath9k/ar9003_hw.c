@@ -637,8 +637,8 @@ static void ar9003_rx_gain_table_mode0(struct ath_hw *ah)
 				2);
 	else if (AR_SREV_9485_11(ah))
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
-				ar9485Common_wo_xlna_rx_gain_1_1,
-				ARRAY_SIZE(ar9485Common_wo_xlna_rx_gain_1_1),
+			       ar9485_common_rx_gain_1_1,
+			       ARRAY_SIZE(ar9485_common_rx_gain_1_1),
 				2);
 	else if (AR_SREV_9580(ah))
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
