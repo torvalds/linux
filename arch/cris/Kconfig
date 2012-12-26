@@ -52,6 +52,7 @@ config CRIS
 	select CLONE_BACKWARDS2
 	select GENERIC_SIGALTSTACK
 	select OLD_SIGSUSPEND
+	select OLD_SIGACTION
 
 config HZ
 	int
