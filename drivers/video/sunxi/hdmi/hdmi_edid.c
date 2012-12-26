@@ -213,7 +213,7 @@ Parse_DTD_Block(__u8 *pbuf)
 	Hsync_offset = (((__u32) pbuf[11] << 2) & 0x0300) + pbuf[8];
 	Hsync_pulsew = (((__u32) pbuf[11] << 4) & 0x0300) + pbuf[9];
 	Vsync_offset = (((__u32) pbuf[11] << 2) & 0x0030) + (pbuf[10] >> 4);
-	Vsync_pulsew = (((__u32) pbuf[11] << 4) & 0x0030) + (pbuf[8] & 0x0f);
+	Vsync_pulsew = (((__u32) pbuf[11] << 4) & 0x0030) + (pbuf[10] & 0x0f);
 	H_image_size = (((__u32) pbuf[14] << 4) & 0x0f00) + pbuf[12];
 	V_image_size = (((__u32) pbuf[14] << 8) & 0x0f00) + pbuf[13];
 	H_Border = pbuf[15];
