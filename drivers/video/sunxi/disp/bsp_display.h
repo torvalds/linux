@@ -80,6 +80,8 @@ typedef struct {
 	 __s32(*Hdmi_open) (void);
 	 __s32(*Hdmi_close) (void);
 	 __s32(*hdmi_mode_support) (__disp_tv_mode_t mode);
+	 __s32(*hdmi_get_video_timing) (__disp_tv_mode_t mode,
+				struct __disp_video_timing *video_timing);
 	 __s32(*hdmi_get_HPD_status) (void);
 	 __s32(*hdmi_set_pll) (__u32 pll, __u32 clk);
 	 __s32(*disp_int_process) (__u32 sel);
