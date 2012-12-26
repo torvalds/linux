@@ -22,6 +22,7 @@
 
 #include "ebios_de.h"
 #include "ebios_lcdc_tve.h"
+#include "drv_disp_i.h" /* For DISP_XXXXXX status codes */
 
 #define DE_INF __inf
 #define DE_WRN __wrn
@@ -45,21 +46,6 @@ enum {
 };
 
 #define DIS_NULL 0
-
-enum {
-	DIS_SUCCESS = 0,
-	DIS_FAIL = -1,
-	DIS_PARA_FAILED = -2,
-	DIS_PRIO_ERROR = -3,
-	DIS_OBJ_NOT_INITED = -4,
-	DIS_NOT_SUPPORT = -5,
-	DIS_NO_RES = -6,
-	DIS_OBJ_COLLISION = -7,
-	DIS_DEV_NOT_INITED = -8,
-	DIS_DEV_SRAM_COLLISION = -9,
-	DIS_TASK_ERROR = -10,
-	DIS_PRIO_COLLSION = -11
-};
 
 #define BIT0    0x00000001
 #define BIT1	0x00000002
