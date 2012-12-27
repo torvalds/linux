@@ -1379,7 +1379,7 @@ struct rksdmmc_gpio_wifi_moudle  rk_platform_wifi_gpio = {
     },
     #endif
     
-#if COMBO_MODULE_MT6620_CDT
+#if defined(COMBO_MODULE_MT6620_CDT) && COMBO_MODULE_MT6620_CDT
     #ifdef RK30SDK_WIFI_GPIO_ANTSEL2
     .ANTSEL2 = {
             .io             = RK30SDK_WIFI_GPIO_ANTSEL2,
@@ -1724,7 +1724,7 @@ static int rk29sdk_wifi_combo_module_gpio_init(void)
     gpio_request(rk_platform_wifi_gpio.power_n.io, "combo-PMUEN");	
 	gpio_direction_output(rk_platform_wifi_gpio.power_n.io, !(rk_platform_wifi_gpio.power_n.enable));
 
-	#if COMBO_MODULE_MT6620_CDT
+	#if defined(COMBO_MODULE_MT6620_CDT) && COMBO_MODULE_MT6620_CDT
 	//ANTSEL2
 	#ifdef RK30SDK_WIFI_GPIO_ANTSEL2
 	    #ifdef RK30SDK_WIFI_GPIO_ANTSEL2_PIN_NAME
