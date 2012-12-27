@@ -536,7 +536,7 @@ EXPORT_SYMBOL_GPL(tty_wakeup);
  *	__tty_hangup		-	actual handler for hangup events
  *	@work: tty device
  *
- *	This can be called by the "eventd" kernel thread.  That is process
+ *	This can be called by a "kworker" kernel thread.  That is process
  *	synchronous but doesn't hold any locks, so we need to make sure we
  *	have the appropriate locks for what we're doing.
  *

@@ -1309,9 +1309,10 @@ static void uart_set_termios(struct tty_struct *tty,
 }
 
 /*
- * In 2.4.5, calls to this will be serialized via the BKL in
- *  linux/drivers/char/tty_io.c:tty_release()
- *  linux/drivers/char/tty_io.c:do_tty_handup()
+ * Calls to uart_close() are serialised via the tty_lock in
+ *   drivers/tty/tty_io.c:tty_release()
+ *   drivers/tty/tty_io.c:do_tty_hangup()
+ * This runs from a workqueue and can sleep for a _short_ time only.
  */
 static void uart_close(struct tty_struct *tty, struct file *filp)
 {
@@ -1438,10 +1439,9 @@ static void uart_wait_until_sent(struct tty_struct *tty, int timeout)
 }
 
 /*
- * This is called with the BKL held in
- *  linux/drivers/char/tty_io.c:do_tty_hangup()
- * We're called from the eventd thread, so we can sleep for
- * a _short_ time only.
+ * Calls to uart_hangup() are serialised by the tty_lock in
+ *   drivers/tty/tty_io.c:do_tty_hangup()
+ * This runs from a workqueue and can sleep for a _short_ time only.
  */
 static void uart_hangup(struct tty_struct *tty)
 {
@@ -1522,8 +1522,8 @@ static void uart_dtr_rts(struct tty_port *port, int onoff)
 }
 
 /*
- * calls to uart_open are serialised by the BKL in
- *   fs/char_dev.c:chrdev_open()
+ * Calls to uart_open are serialised by the tty_lock in
+ *   drivers/tty/tty_io.c:tty_open()
  * Note that if this fails, then uart_close() _will_ be called.
  *
  * In time, we want to scrap the "opening nonpresent ports"
