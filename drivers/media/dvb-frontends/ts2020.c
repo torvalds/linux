@@ -123,7 +123,7 @@ static int ts2020_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
-	u8 mlpf, mlpf_new, mlpf_max, mlpf_min, nlpf, div4;
+	u8 mlpf, mlpf_new, mlpf_max, mlpf_min, nlpf;
 	u16 value, ndiv;
 	u32 srate = 0, f3db;
 
@@ -135,12 +135,10 @@ static int ts2020_set_params(struct dvb_frontend *fe)
 	ts2020_writereg(fe, 0x60, 0x79);
 	ts2020_writereg(fe, 0x08, 0x01);
 	ts2020_writereg(fe, 0x00, 0x01);
-	div4 = 0;
 
 	/* calculate and set freq divider */
 	if (c->frequency < 1146000) {
 		ts2020_writereg(fe, 0x10, 0x11);
-		div4 = 1;
 		ndiv = ((c->frequency * (6 + 8) * 4) +
 				(TS2020_XTAL_FREQ / 2)) /
 				TS2020_XTAL_FREQ - 1024;
@@ -259,7 +257,7 @@ static int ts2020_release(struct dvb_frontend *fe)
 	return 0;
 }
 
-int ts2020_get_signal_strength(struct dvb_frontend *fe,
+static int ts2020_get_signal_strength(struct dvb_frontend *fe,
 	u16 *signal_strength)
 {
 	u16 sig_reading, sig_strength;
