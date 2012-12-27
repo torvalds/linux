@@ -534,12 +534,6 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 
 	iwl_enable_rfkill_int(trans);
 
-	/* wait to make sure we flush pending tasklet*/
-	synchronize_irq(trans_pcie->pci_dev->irq);
-	tasklet_kill(&trans_pcie->irq_tasklet);
-
-	cancel_work_sync(&trans_pcie->rx_replenish);
-
 	/* stop and reset the on-board processor */
 	iwl_write32(trans, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
 
@@ -681,6 +675,9 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 void iwl_trans_pcie_free(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	synchronize_irq(trans_pcie->pci_dev->irq);
+	tasklet_kill(&trans_pcie->irq_tasklet);
 
 	iwl_pcie_tx_free(trans);
 	iwl_pcie_rx_free(trans);

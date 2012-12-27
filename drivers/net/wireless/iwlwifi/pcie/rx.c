@@ -545,6 +545,8 @@ void iwl_pcie_rx_free(struct iwl_trans *trans)
 		return;
 	}
 
+	cancel_work_sync(&trans_pcie->rx_replenish);
+
 	spin_lock_irqsave(&rxq->lock, flags);
 	iwl_pcie_rxq_free_rbs(trans);
 	spin_unlock_irqrestore(&rxq->lock, flags);
