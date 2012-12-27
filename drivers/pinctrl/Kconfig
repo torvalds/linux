@@ -181,7 +181,6 @@ config PINCTRL_COH901
 
 config PINCTRL_SAMSUNG
 	bool
-	depends on OF && GPIOLIB
 	select PINMUX
 	select PINCONF
 
