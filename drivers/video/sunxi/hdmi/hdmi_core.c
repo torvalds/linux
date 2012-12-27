@@ -23,10 +23,14 @@
 static char *audio;
 module_param(audio, charp, 0444);
 MODULE_PARM_DESC(audio,
-		 "0: Disable audio over HDMI, 1: Enable audio over HDMI");
+	"Enable/disable audio over hdmi: "
+	"\"EDID:0\": get value from EDID, fallback disabled; "
+	"\"EDID:1\": get value from EDID, fallback enabled; "
+	"\"0\": disabled; \"1\": enabled.");
 
 __s32 hdmi_state = HDMI_State_Wait_Hpd;
 __bool video_enable;
+__bool audio_edid;
 __bool audio_enable = 1;
 __s32 video_mode = HDMI720P_50;
 HDMI_AUDIO_INFO audio_info;
@@ -70,8 +74,14 @@ void hdmi_delay_ms(__u32 t)
 
 __s32 hdmi_core_initial(void)
 {
-	if (audio && strcmp(audio, "0") == 0)
-		audio_enable = 0;
+	if (audio) {
+		if (strncmp(audio, "EDID:", 5) == 0) {
+			audio_edid = 1;
+			audio += 5;
+		}
+		if (strcmp(audio, "0") == 0)
+			audio_enable = 0;
+	}
 
 	hdmi_state = HDMI_State_Wait_Hpd;
 	video_mode = HDMI720P_50;
@@ -133,6 +143,12 @@ __s32 hdmi_main_task_loop(void)
 		ParseEDID();
 		HDMI_RUINT32(0x5f0);
 
+		if (audio_edid && Device_Support_VIC[HDMI_EDID]) {
+			if (audio_info.supported_rates)
+				audio_enable = 1;
+			else
+				audio_enable = 0;
+		}
 		hdmi_state = HDMI_State_Wait_Video_config;
 
 	case HDMI_State_Wait_Video_config:
