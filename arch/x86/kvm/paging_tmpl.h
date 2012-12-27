@@ -249,16 +249,12 @@ retry_walk:
 
 	if (!write_fault)
 		protect_clean_gpte(&pte_access, pte);
-
-	/*
-	 * On a write fault, fold the dirty bit into accessed_dirty by shifting it one
-	 * place right.
-	 *
-	 * On a read fault, do nothing.
-	 */
-	shift = write_fault >> ilog2(PFERR_WRITE_MASK);
-	shift *= PT_DIRTY_SHIFT - PT_ACCESSED_SHIFT;
-	accessed_dirty &= pte >> shift;
+	else
+		/*
+		 * On a write fault, fold the dirty bit into accessed_dirty by
+		 * shifting it one place right.
+		 */
+		accessed_dirty &= pte >> (PT_DIRTY_SHIFT - PT_ACCESSED_SHIFT);
 
 	if (unlikely(!accessed_dirty)) {
 		ret = FNAME(update_accessed_dirty_bits)(vcpu, mmu, walker, write_fault);
