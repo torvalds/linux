@@ -1855,7 +1855,7 @@ int hci_recv_frame(struct sk_buff *skb)
 		return -ENXIO;
 	}
 
-	/* Incomming skb */
+	/* Incoming skb */
 	bt_cb(skb)->incoming = 1;
 
 	/* Time stamp */

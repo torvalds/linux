@@ -8498,7 +8498,7 @@ static void bnx2x_set_234_gates(struct bnx2x *bp, bool close)
 		       (!close) ? (val | HC_CONFIG_0_REG_BLOCK_DISABLE_0) :
 		       (val & ~(u32)HC_CONFIG_0_REG_BLOCK_DISABLE_0));
 	} else {
-		/* Prevent incomming interrupts in IGU */
+		/* Prevent incoming interrupts in IGU */
 		val = REG_RD(bp, IGU_REG_BLOCK_CONFIGURATION);
 
 		REG_WR(bp, IGU_REG_BLOCK_CONFIGURATION,

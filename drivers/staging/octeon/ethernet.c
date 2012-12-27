@@ -72,7 +72,7 @@ int pow_receive_group = 15;
 module_param(pow_receive_group, int, 0444);
 MODULE_PARM_DESC(pow_receive_group, "\n"
 	"\tPOW group to receive packets from. All ethernet hardware\n"
-	"\twill be configured to send incomming packets to this POW\n"
+	"\twill be configured to send incoming packets to this POW\n"
 	"\tgroup. Also any other software can submit packets to this\n"
 	"\tgroup for the kernel to process.");
 

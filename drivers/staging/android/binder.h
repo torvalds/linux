@@ -224,7 +224,7 @@ enum BinderDriverReturnProtocol {
 	BR_SPAWN_LOOPER = _IO('r', 13),
 	/*
 	 * No parameters.  The driver has determined that a process has no
-	 * threads waiting to service incomming transactions.  When a process
+	 * threads waiting to service incoming transactions.  When a process
 	 * receives this command, it must spawn a new service thread and
 	 * register it via bcENTER_LOOPER.
 	 */
