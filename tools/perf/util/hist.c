@@ -82,6 +82,9 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 		hists__new_col_len(hists, HISTC_DSO, len);
 	}
 
+	if (h->parent)
+		hists__new_col_len(hists, HISTC_PARENT, h->parent->namelen);
+
 	if (h->branch_info) {
 		int symlen;
 		/*
