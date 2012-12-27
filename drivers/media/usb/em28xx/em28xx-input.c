@@ -384,7 +384,6 @@ static int em2860_ir_change_protocol(struct rc_dev *rc_dev, u64 *rc_type)
 		*rc_type = ir->rc_type;
 		return -EINVAL;
 	}
-	ir->get_key = default_polling_getkey;
 	em28xx_write_reg_bits(dev, EM28XX_R0F_XCLK, dev->board.xclk,
 			      EM28XX_XCLK_IR_RC5_MODE);
 
@@ -420,10 +419,7 @@ static int em2874_ir_change_protocol(struct rc_dev *rc_dev, u64 *rc_type)
 		*rc_type = ir->rc_type;
 		return -EINVAL;
 	}
-
-	ir->get_key = em2874_polling_getkey;
 	em28xx_write_regs(dev, EM2874_R50_IR_CONFIG, &ir_config, 1);
-
 	em28xx_write_reg_bits(dev, EM28XX_R0F_XCLK, dev->board.xclk,
 			      EM28XX_XCLK_IR_RC5_MODE);
 
@@ -633,10 +629,12 @@ static int em28xx_ir_init(struct em28xx *dev)
 	case CHIP_ID_EM2860:
 	case CHIP_ID_EM2883:
 		rc->allowed_protos = RC_BIT_RC5 | RC_BIT_NEC;
+		ir->get_key = default_polling_getkey;
 		break;
 	case CHIP_ID_EM2884:
 	case CHIP_ID_EM2874:
 	case CHIP_ID_EM28174:
+		ir->get_key = em2874_polling_getkey;
 		rc->allowed_protos = RC_BIT_RC5 | RC_BIT_NEC | RC_BIT_RC6_0;
 		break;
 	default:
