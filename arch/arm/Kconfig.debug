@@ -412,6 +412,13 @@ choice
 		  of the tiles using the RS1 memory map, including all new A-class
 		  core tiles, FPGA-based SMMs and software models.
 
+	config DEBUG_VT8500_UART0
+		bool "Use UART0 on VIA/Wondermedia SoCs"
+		depends on ARCH_VT8500
+		help
+		  This option selects UART0 on VIA/Wondermedia System-on-a-chip
+		  devices, including VT8500, WM8505, WM8650 and WM8850.
+
 	config DEBUG_LL_UART_NONE
 		bool "No low-level debugging UART"
 		depends on !ARCH_MULTIPLATFORM
@@ -506,6 +513,7 @@ config DEBUG_LL_INCLUDE
 	default "debug/sunxi.S" if DEBUG_SUNXI_UART0 || DEBUG_SUNXI_UART1
 	default "debug/vexpress.S" if DEBUG_VEXPRESS_UART0_DETECT || \
 		DEBUG_VEXPRESS_UART0_CA9 || DEBUG_VEXPRESS_UART0_RS1
+	default "debug/vt8500.S" if DEBUG_VT8500_UART0
 	default "debug/tegra.S" if DEBUG_TEGRA_UART
 	default "debug/zynq.S" if DEBUG_ZYNQ_UART0 || DEBUG_ZYNQ_UART1
 	default "mach/debug-macro.S"
