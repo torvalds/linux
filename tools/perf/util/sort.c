@@ -60,7 +60,7 @@ sort__thread_cmp(struct hist_entry *left, struct hist_entry *right)
 static int hist_entry__thread_snprintf(struct hist_entry *self, char *bf,
 				       size_t size, unsigned int width)
 {
-	return repsep_snprintf(bf, size, "%*s:%5d", width,
+	return repsep_snprintf(bf, size, "%*s:%5d", width - 6,
 			      self->thread->comm ?: "", self->thread->pid);
 }
 
