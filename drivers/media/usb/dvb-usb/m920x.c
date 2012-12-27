@@ -191,10 +191,14 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	if (!rc_state)
 		return -ENOMEM;
 
-	if ((ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_STATE, rc_state, 1)) != 0)
+	ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_STATE,
+			 rc_state, 1);
+	if (ret != 0)
 		goto out;
 
-	if ((ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_KEY, rc_state + 1, 1)) != 0)
+	ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_KEY,
+			 rc_state + 1, 1);
+	if (ret != 0)
 		goto out;
 
 	m920x_parse_rc_state(d, rc_state[0], state);
