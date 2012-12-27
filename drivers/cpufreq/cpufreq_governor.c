@@ -290,6 +290,9 @@ second_time:
 		mutex_unlock(&dbs_data->mutex);
 
 		if (dbs_sw_coordinated_cpus(cpu_cdbs)) {
+			/* Initiate timer time stamp */
+			cpu_cdbs->time_stamp = ktime_get();
+
 			for_each_cpu(j, policy->cpus) {
 				struct cpu_dbs_common_info *j_cdbs;
 
