@@ -1046,7 +1046,7 @@ static int fimd_resume(struct device *dev)
 	 * of pm runtime would still be 1 so in this case, fimd driver
 	 * should be on directly not drawing on pm runtime interface.
 	 */
-	if (pm_runtime_suspended(dev)) {
+	if (!pm_runtime_suspended(dev)) {
 		int ret;
 
 		ret = fimd_activate(ctx, true);
