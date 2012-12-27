@@ -50,7 +50,8 @@ extern void __iomem *HDMI_BASE;
 
 /* Non CEA-861-D modes */
 #define HDMI1360_768_60		256
-#define HDMI_EDID		257
+#define HDMI1280_1024_60	257
+#define HDMI_EDID		511
 
 #define HDMI_WUINT32(offset, value)	writel(value, HDMI_BASE + offset)
 #define HDMI_RUINT32(offset)		readl(HDMI_BASE + offset)
