@@ -326,7 +326,7 @@ static void update_sampling_rate(unsigned int new_rate)
 			cpufreq_cpu_put(policy);
 			continue;
 		}
-		dbs_info = &per_cpu(od_cpu_dbs_info, policy->cpu);
+		dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
 		cpufreq_cpu_put(policy);
 
 		mutex_lock(&dbs_info->cdbs.timer_mutex);
@@ -345,8 +345,7 @@ static void update_sampling_rate(unsigned int new_rate)
 			cancel_delayed_work_sync(&dbs_info->cdbs.work);
 			mutex_lock(&dbs_info->cdbs.timer_mutex);
 
-			schedule_delayed_work_on(dbs_info->cdbs.cpu,
-					&dbs_info->cdbs.work,
+			schedule_delayed_work_on(cpu, &dbs_info->cdbs.work,
 					usecs_to_jiffies(new_rate));
 
 		}
