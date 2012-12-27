@@ -23,6 +23,7 @@
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
@@ -33,12 +34,12 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 
-#include <asm/mach-ath79/ath79.h>
-#include <asm/mach-ath79/ar71xx_regs.h>
-
 #define DRIVER_NAME	"ath79-wdt"
 
 #define WDT_TIMEOUT	15	/* seconds */
+
+#define WDOG_REG_CTRL		0x00
+#define WDOG_REG_TIMER		0x04
 
 #define WDOG_CTRL_LAST_RESET	BIT(31)
 #define WDOG_CTRL_ACTION_MASK	3
@@ -66,27 +67,38 @@ static struct clk *wdt_clk;
 static unsigned long wdt_freq;
 static int boot_status;
 static int max_timeout;
+static void __iomem *wdt_base;
+
+static inline void ath79_wdt_wr(unsigned reg, u32 val)
+{
+	iowrite32(val, wdt_base + reg);
+}
+
+static inline u32 ath79_wdt_rr(unsigned reg)
+{
+	return ioread32(wdt_base + reg);
+}
 
 static inline void ath79_wdt_keepalive(void)
 {
-	ath79_reset_wr(AR71XX_RESET_REG_WDOG, wdt_freq * timeout);
+	ath79_wdt_wr(WDOG_REG_TIMER, wdt_freq * timeout);
 	/* flush write */
-	ath79_reset_rr(AR71XX_RESET_REG_WDOG);
+	ath79_wdt_rr(WDOG_REG_TIMER);
 }
 
 static inline void ath79_wdt_enable(void)
 {
 	ath79_wdt_keepalive();
-	ath79_reset_wr(AR71XX_RESET_REG_WDOG_CTRL, WDOG_CTRL_ACTION_FCR);
+	ath79_wdt_wr(WDOG_REG_CTRL, WDOG_CTRL_ACTION_FCR);
 	/* flush write */
-	ath79_reset_rr(AR71XX_RESET_REG_WDOG_CTRL);
+	ath79_wdt_rr(WDOG_REG_CTRL);
 }
 
 static inline void ath79_wdt_disable(void)
 {
-	ath79_reset_wr(AR71XX_RESET_REG_WDOG_CTRL, WDOG_CTRL_ACTION_NONE);
+	ath79_wdt_wr(WDOG_REG_CTRL, WDOG_CTRL_ACTION_NONE);
 	/* flush write */
-	ath79_reset_rr(AR71XX_RESET_REG_WDOG_CTRL);
+	ath79_wdt_rr(WDOG_REG_CTRL);
 }
 
 static int ath79_wdt_set_timeout(int val)
@@ -226,8 +238,24 @@ static struct miscdevice ath79_wdt_miscdev = {
 
 static int ath79_wdt_probe(struct platform_device *pdev)
 {
+	struct resource *res;
 	u32 ctrl;
 	int err;
+
+	if (wdt_base)
+		return -EBUSY;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "no memory resource found\n");
+		return -EINVAL;
+	}
+
+	wdt_base = devm_request_and_ioremap(&pdev->dev, res);
+	if (!wdt_base) {
+		dev_err(&pdev->dev, "unable to remap memory region\n");
+		return -ENOMEM;
+	}
 
 	wdt_clk = devm_clk_get(&pdev->dev, "wdt");
 	if (IS_ERR(wdt_clk))
@@ -251,7 +279,7 @@ static int ath79_wdt_probe(struct platform_device *pdev)
 			max_timeout, timeout);
 	}
 
-	ctrl = ath79_reset_rr(AR71XX_RESET_REG_WDOG_CTRL);
+	ctrl = ath79_wdt_rr(WDOG_REG_CTRL);
 	boot_status = (ctrl & WDOG_CTRL_LAST_RESET) ? WDIOF_CARDRESET : 0;
 
 	err = misc_register(&ath79_wdt_miscdev);
