@@ -226,7 +226,7 @@ einval:	li	v0, -ENOSYS
 	.macro	syscalltable
 	sys	sys_syscall		8	/* 4000 */
 	sys	sys_exit		1
-	sys	sys_fork		0
+	sys	__sys_fork		0
 	sys	sys_read		3
 	sys	sys_write		3
 	sys	sys_open		3	/* 4005 */
@@ -344,7 +344,7 @@ einval:	li	v0, -ENOSYS
 	sys	sys_ipc			6
 	sys	sys_fsync		1
 	sys	sys_sigreturn		0
-	sys	sys_clone		0	/* 4120 */
+	sys	__sys_clone		6	/* 4120 */
 	sys	sys_setdomainname	2
 	sys	sys_newuname		1
 	sys	sys_ni_syscall		0	/* sys_modify_ldt */

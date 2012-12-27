@@ -194,7 +194,7 @@ einval:	li	v0, -ENOSYS
 sys_call_table:
 	PTR	sys32_syscall			/* 4000 */
 	PTR	sys_exit
-	PTR	sys_fork
+	PTR	__sys_fork
 	PTR	sys_read
 	PTR	sys_write
 	PTR	compat_sys_open			/* 4005 */
@@ -312,7 +312,7 @@ sys_call_table:
 	PTR	sys_32_ipc
 	PTR	sys_fsync
 	PTR	sys32_sigreturn
-	PTR	sys32_clone			/* 4120 */
+	PTR	__sys_clone			/* 4120 */
 	PTR	sys_setdomainname
 	PTR	sys_newuname
 	PTR	sys_ni_syscall			/* sys_modify_ldt */

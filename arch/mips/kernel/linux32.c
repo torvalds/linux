@@ -279,25 +279,6 @@ asmlinkage long sys32_fallocate(int fd, int mode, unsigned offset_a2,
 	                     merge_64(len_a4, len_a5));
 }
 
-save_static_function(sys32_clone);
-static int noinline __used
-_sys32_clone(nabi_no_regargs struct pt_regs regs)
-{
-	unsigned long clone_flags;
-	unsigned long newsp;
-	int __user *parent_tidptr, *child_tidptr;
-
-	clone_flags = regs.regs[4];
-	newsp = regs.regs[5];
-	parent_tidptr = (int __user *) regs.regs[6];
-
-	/* Use __dummy4 instead of getting it off the stack, so that
-	   syscall() works.  */
-	child_tidptr = (int __user *) __dummy4;
-	return do_fork(clone_flags, newsp, 0,
-	               parent_tidptr, child_tidptr);
-}
-
 asmlinkage long sys32_lookup_dcookie(u32 a0, u32 a1, char __user *buf,
 	size_t len)
 {
