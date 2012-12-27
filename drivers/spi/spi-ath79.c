@@ -200,6 +200,8 @@ static u32 ath79_spi_txrx_mode0(struct spi_device *spi, unsigned nsecs,
 		ath79_spi_delay(sp, nsecs);
 		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, out | AR71XX_SPI_IOC_CLK);
 		ath79_spi_delay(sp, nsecs);
+		if (bits == 1)
+			ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, out);
 
 		word <<= 1;
 	}
