@@ -55,8 +55,6 @@ struct gfs2_glock_iter {
 
 typedef void (*glock_examiner) (struct gfs2_glock * gl);
 
-static int __dump_glock(struct seq_file *seq, const struct gfs2_glock *gl);
-#define GLOCK_BUG_ON(gl,x) do { if (unlikely(x)) { __dump_glock(NULL, gl); BUG(); } } while(0)
 static void do_xmote(struct gfs2_glock *gl, struct gfs2_holder *gh, unsigned int target);
 
 static struct dentry *gfs2_root;
@@ -107,10 +105,12 @@ static void gfs2_glock_dealloc(struct rcu_head *rcu)
 {
 	struct gfs2_glock *gl = container_of(rcu, struct gfs2_glock, gl_rcu);
 
-	if (gl->gl_ops->go_flags & GLOF_ASPACE)
+	if (gl->gl_ops->go_flags & GLOF_ASPACE) {
 		kmem_cache_free(gfs2_glock_aspace_cachep, gl);
-	else
+	} else {
+		kfree(gl->gl_lksb.sb_lvbptr);
 		kmem_cache_free(gfs2_glock_cachep, gl);
+	}
 }
 
 void gfs2_glock_free(struct gfs2_glock *gl)
@@ -537,8 +537,8 @@ __acquires(&gl->gl_spin)
 	    (lck_flags & (LM_FLAG_TRY|LM_FLAG_TRY_1CB)))
 		clear_bit(GLF_BLOCKING, &gl->gl_flags);
 	spin_unlock(&gl->gl_spin);
-	if (glops->go_xmote_th)
-		glops->go_xmote_th(gl);
+	if (glops->go_sync)
+		glops->go_sync(gl);
 	if (test_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags))
 		glops->go_inval(gl, target == LM_ST_DEFERRED ? 0 : DIO_METADATA);
 	clear_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags);
@@ -547,7 +547,10 @@ __acquires(&gl->gl_spin)
 	if (sdp->sd_lockstruct.ls_ops->lm_lock)	{
 		/* lock_dlm */
 		ret = sdp->sd_lockstruct.ls_ops->lm_lock(gl, target, lck_flags);
-		GLOCK_BUG_ON(gl, ret);
+		if (ret) {
+			printk(KERN_ERR "GFS2: lm_lock ret %d\n", ret);
+			GLOCK_BUG_ON(gl, 1);
+		}
 	} else { /* lock_nolock */
 		finish_xmote(gl, target);
 		if (queue_delayed_work(glock_workqueue, &gl->gl_work, 0) == 0)
@@ -736,6 +739,16 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	if (!gl)
 		return -ENOMEM;
 
+	memset(&gl->gl_lksb, 0, sizeof(struct dlm_lksb));
+
+	if (glops->go_flags & GLOF_LVB) {
+		gl->gl_lksb.sb_lvbptr = kzalloc(GFS2_MIN_LVB_SIZE, GFP_KERNEL);
+		if (!gl->gl_lksb.sb_lvbptr) {
+			kmem_cache_free(cachep, gl);
+			return -ENOMEM;
+		}
+	}
+
 	atomic_inc(&sdp->sd_glock_disposal);
 	gl->gl_sbd = sdp;
 	gl->gl_flags = 0;
@@ -753,9 +766,6 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	preempt_enable();
 	gl->gl_stats.stats[GFS2_LKS_DCOUNT] = 0;
 	gl->gl_stats.stats[GFS2_LKS_QCOUNT] = 0;
-	memset(&gl->gl_lksb, 0, sizeof(struct dlm_lksb));
-	memset(gl->gl_lvb, 0, 32 * sizeof(char));
-	gl->gl_lksb.sb_lvbptr = gl->gl_lvb;
 	gl->gl_tchange = jiffies;
 	gl->gl_object = NULL;
 	gl->gl_hold_time = GL_GLOCK_DFT_HOLD;
@@ -768,7 +778,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 		mapping->host = s->s_bdev->bd_inode;
 		mapping->flags = 0;
 		mapping_set_gfp_mask(mapping, GFP_NOFS);
-		mapping->assoc_mapping = NULL;
+		mapping->private_data = NULL;
 		mapping->backing_dev_info = s->s_bdi;
 		mapping->writeback_index = 0;
 	}
@@ -777,6 +787,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	tmp = search_bucket(hash, sdp, &name);
 	if (tmp) {
 		spin_unlock_bucket(hash);
+		kfree(gl->gl_lksb.sb_lvbptr);
 		kmem_cache_free(cachep, gl);
 		atomic_dec(&sdp->sd_glock_disposal);
 		gl = tmp;
@@ -1013,7 +1024,7 @@ trap_recursive:
 	printk(KERN_ERR "pid: %d\n", pid_nr(gh->gh_owner_pid));
 	printk(KERN_ERR "lock type: %d req lock state : %d\n",
 	       gh->gh_gl->gl_name.ln_type, gh->gh_state);
-	__dump_glock(NULL, gl);
+	gfs2_dump_glock(NULL, gl);
 	BUG();
 }
 
@@ -1508,7 +1519,7 @@ static int dump_glock(struct seq_file *seq, struct gfs2_glock *gl)
 {
 	int ret;
 	spin_lock(&gl->gl_spin);
-	ret = __dump_glock(seq, gl);
+	ret = gfs2_dump_glock(seq, gl);
 	spin_unlock(&gl->gl_spin);
 	return ret;
 }
@@ -1528,6 +1539,7 @@ static void dump_glock_func(struct gfs2_glock *gl)
 
 void gfs2_gl_hash_clear(struct gfs2_sbd *sdp)
 {
+	set_bit(SDF_SKIP_DLM_UNLOCK, &sdp->sd_flags);
 	glock_hash_walk(clear_glock, sdp);
 	flush_workqueue(glock_workqueue);
 	wait_event(sdp->sd_glock_wait, atomic_read(&sdp->sd_glock_disposal) == 0);
@@ -1655,7 +1667,7 @@ static const char *gflags2str(char *buf, const struct gfs2_glock *gl)
 }
 
 /**
- * __dump_glock - print information about a glock
+ * gfs2_dump_glock - print information about a glock
  * @seq: The seq_file struct
  * @gl: the glock
  *
@@ -1672,7 +1684,7 @@ static const char *gflags2str(char *buf, const struct gfs2_glock *gl)
  * Returns: 0 on success, -ENOBUFS when we run out of space
  */
 
-static int __dump_glock(struct seq_file *seq, const struct gfs2_glock *gl)
+int gfs2_dump_glock(struct seq_file *seq, const struct gfs2_glock *gl)
 {
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	unsigned long long dtime;

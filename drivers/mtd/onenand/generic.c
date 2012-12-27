@@ -35,7 +35,7 @@ struct onenand_info {
 	struct onenand_chip	onenand;
 };
 
-static int __devinit generic_onenand_probe(struct platform_device *pdev)
+static int generic_onenand_probe(struct platform_device *pdev)
 {
 	struct onenand_info *info;
 	struct onenand_platform_data *pdata = pdev->dev.platform_data;
@@ -88,7 +88,7 @@ out_free_info:
 	return err;
 }
 
-static int __devexit generic_onenand_remove(struct platform_device *pdev)
+static int generic_onenand_remove(struct platform_device *pdev)
 {
 	struct onenand_info *info = platform_get_drvdata(pdev);
 	struct resource *res = pdev->resource;
@@ -112,7 +112,7 @@ static struct platform_driver generic_onenand_driver = {
 		.owner		= THIS_MODULE,
 	},
 	.probe		= generic_onenand_probe,
-	.remove		= __devexit_p(generic_onenand_remove),
+	.remove		= generic_onenand_remove,
 };
 
 module_platform_driver(generic_onenand_driver);

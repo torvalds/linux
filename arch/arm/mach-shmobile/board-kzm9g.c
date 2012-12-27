@@ -384,6 +384,8 @@ static struct regulator_consumer_supply fixed2v8_power_consumers[] =
 
 /* SDHI */
 static struct sh_mobile_sdhi_info sdhi0_info = {
+	.dma_slave_tx	= SHDMA_SLAVE_SDHI0_TX,
+	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED,
 	.tmio_ocr_mask	= MMC_VDD_27_28 | MMC_VDD_28_29,
@@ -424,6 +426,8 @@ static struct platform_device sdhi0_device = {
 
 /* Micro SD */
 static struct sh_mobile_sdhi_info sdhi2_info = {
+	.dma_slave_tx	= SHDMA_SLAVE_SDHI2_TX,
+	.dma_slave_rx	= SHDMA_SLAVE_SDHI2_RX,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT |
 			  TMIO_MMC_USE_GPIO_CD |
 			  TMIO_MMC_WRPROTECT_DISABLE,
@@ -548,7 +552,6 @@ static struct platform_device fsi_ak4648_device = {
 /* I2C */
 static struct pcf857x_platform_data pcf8575_pdata = {
 	.gpio_base	= GPIO_PCF8575_BASE,
-	.irq		= intcs_evt2irq(0x3260), /* IRQ19 */
 };
 
 static struct i2c_board_info i2c0_devices[] = {
@@ -557,7 +560,15 @@ static struct i2c_board_info i2c0_devices[] = {
 	},
 	{
 		I2C_BOARD_INFO("r2025sd", 0x32),
-	}
+	},
+	{
+		I2C_BOARD_INFO("ak8975", 0x0c),
+		.irq = intcs_evt2irq(0x3380), /* IRQ28 */
+	},
+	{
+		I2C_BOARD_INFO("adxl34x", 0x1d),
+		.irq = intcs_evt2irq(0x3340), /* IRQ26 */
+	},
 };
 
 static struct i2c_board_info i2c1_devices[] = {
@@ -570,6 +581,7 @@ static struct i2c_board_info i2c1_devices[] = {
 static struct i2c_board_info i2c3_devices[] = {
 	{
 		I2C_BOARD_INFO("pcf8575", 0x20),
+		.irq		= intcs_evt2irq(0x3260), /* IRQ19 */
 		.platform_data = &pcf8575_pdata,
 	},
 };

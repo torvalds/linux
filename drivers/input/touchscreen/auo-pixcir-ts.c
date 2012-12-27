@@ -286,7 +286,7 @@ static int auo_pixcir_power_mode(struct auo_pixcir_ts *ts, int mode)
 	return 0;
 }
 
-static __devinit int auo_pixcir_int_config(struct auo_pixcir_ts *ts,
+static int auo_pixcir_int_config(struct auo_pixcir_ts *ts,
 					   int int_setting)
 {
 	struct i2c_client *client = ts->client;
@@ -482,7 +482,7 @@ unlock:
 static SIMPLE_DEV_PM_OPS(auo_pixcir_pm_ops, auo_pixcir_suspend,
 			 auo_pixcir_resume);
 
-static int __devinit auo_pixcir_probe(struct i2c_client *client,
+static int auo_pixcir_probe(struct i2c_client *client,
 				      const struct i2c_device_id *id)
 {
 	const struct auo_pixcir_ts_platdata *pdata = client->dev.platform_data;
@@ -599,7 +599,7 @@ err_gpio_int:
 	return ret;
 }
 
-static int __devexit auo_pixcir_remove(struct i2c_client *client)
+static int auo_pixcir_remove(struct i2c_client *client)
 {
 	struct auo_pixcir_ts *ts = i2c_get_clientdata(client);
 	const struct auo_pixcir_ts_platdata *pdata = client->dev.platform_data;
@@ -631,7 +631,7 @@ static struct i2c_driver auo_pixcir_driver = {
 		.pm	= &auo_pixcir_pm_ops,
 	},
 	.probe		= auo_pixcir_probe,
-	.remove		= __devexit_p(auo_pixcir_remove),
+	.remove		= auo_pixcir_remove,
 	.id_table	= auo_pixcir_idtable,
 };
 

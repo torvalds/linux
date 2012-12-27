@@ -35,7 +35,6 @@
 extern pgd_t swapper_pg_dir[] __attribute__ ((aligned (4096)));
 extern void paging_init(void);
 extern void vmem_map_init(void);
-extern void fault_init(void);
 
 /*
  * The S390 doesn't have any external MMU info: the kernel page
@@ -55,16 +54,7 @@ extern unsigned long zero_page_mask;
 #define ZERO_PAGE(vaddr) \
 	(virt_to_page((void *)(empty_zero_page + \
 	 (((unsigned long)(vaddr)) &zero_page_mask))))
-
-#define is_zero_pfn is_zero_pfn
-static inline int is_zero_pfn(unsigned long pfn)
-{
-	extern unsigned long zero_pfn;
-	unsigned long offset_from_zero_pfn = pfn - zero_pfn;
-	return offset_from_zero_pfn <= (zero_page_mask >> PAGE_SHIFT);
-}
-
-#define my_zero_pfn(addr)	page_to_pfn(ZERO_PAGE(addr))
+#define __HAVE_COLOR_ZERO_PAGE
 
 #endif /* !__ASSEMBLY__ */
 
@@ -345,6 +335,8 @@ extern unsigned long MODULES_END;
 #define _REGION3_ENTRY		(_REGION_ENTRY_TYPE_R3 | _REGION_ENTRY_LENGTH)
 #define _REGION3_ENTRY_EMPTY	(_REGION_ENTRY_TYPE_R3 | _REGION_ENTRY_INV)
 
+#define _REGION3_ENTRY_LARGE	0x400	/* RTTE-format control, large page  */
+
 /* Bits in the segment table entry */
 #define _SEGMENT_ENTRY_ORIGIN	~0x7ffUL/* segment table origin		    */
 #define _SEGMENT_ENTRY_RO	0x200	/* page protection bit		    */
@@ -444,6 +436,7 @@ static inline int pgd_bad(pgd_t pgd)     { return 0; }
 
 static inline int pud_present(pud_t pud) { return 1; }
 static inline int pud_none(pud_t pud)	 { return 0; }
+static inline int pud_large(pud_t pud)	 { return 0; }
 static inline int pud_bad(pud_t pud)	 { return 0; }
 
 #else /* CONFIG_64BIT */
@@ -487,6 +480,13 @@ static inline int pud_none(pud_t pud)
 	if ((pud_val(pud) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R3)
 		return 0;
 	return (pud_val(pud) & _REGION_ENTRY_INV) != 0UL;
+}
+
+static inline int pud_large(pud_t pud)
+{
+	if ((pud_val(pud) & _REGION_ENTRY_TYPE_MASK) != _REGION_ENTRY_TYPE_R3)
+		return 0;
+	return !!(pud_val(pud) & _REGION3_ENTRY_LARGE);
 }
 
 static inline int pud_bad(pud_t pud)

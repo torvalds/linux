@@ -73,8 +73,8 @@ clocks and IDs.
 	can1		59
 	usb0		60
 	usb1		61
-	usb0_pwr	62
-	usb1_pwr	63
+	usb0_phy	62
+	usb1_phy	63
 	enet_out	64
 
 Examples:

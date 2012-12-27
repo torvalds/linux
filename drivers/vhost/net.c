@@ -30,9 +30,10 @@
 
 #include "vhost.h"
 
-static int experimental_zcopytx;
+static int experimental_zcopytx = 1;
 module_param(experimental_zcopytx, int, 0444);
-MODULE_PARM_DESC(experimental_zcopytx, "Enable Experimental Zero Copy TX");
+MODULE_PARM_DESC(experimental_zcopytx, "Enable Zero Copy TX;"
+		                       " 1 -Enable; 0 - Disable");
 
 /* Max number of bytes transferred before requeueing the job.
  * Using this limit prevents one virtqueue from starving others. */
@@ -41,6 +42,21 @@ MODULE_PARM_DESC(experimental_zcopytx, "Enable Experimental Zero Copy TX");
 /* MAX number of TX used buffers for outstanding zerocopy */
 #define VHOST_MAX_PEND 128
 #define VHOST_GOODCOPY_LEN 256
+
+/*
+ * For transmit, used buffer len is unused; we override it to track buffer
+ * status internally; used for zerocopy tx only.
+ */
+/* Lower device DMA failed */
+#define VHOST_DMA_FAILED_LEN	3
+/* Lower device DMA done */
+#define VHOST_DMA_DONE_LEN	2
+/* Lower device DMA in progress */
+#define VHOST_DMA_IN_PROGRESS	1
+/* Buffer unused */
+#define VHOST_DMA_CLEAR_LEN	0
+
+#define VHOST_DMA_IS_DONE(len) ((len) >= VHOST_DMA_DONE_LEN)
 
 enum {
 	VHOST_NET_VQ_RX = 0,
@@ -62,7 +78,38 @@ struct vhost_net {
 	 * We only do this when socket buffer fills up.
 	 * Protected by tx vq lock. */
 	enum vhost_net_poll_state tx_poll_state;
+	/* Number of TX recently submitted.
+	 * Protected by tx vq lock. */
+	unsigned tx_packets;
+	/* Number of times zerocopy TX recently failed.
+	 * Protected by tx vq lock. */
+	unsigned tx_zcopy_err;
+	/* Flush in progress. Protected by tx vq lock. */
+	bool tx_flush;
 };
+
+static void vhost_net_tx_packet(struct vhost_net *net)
+{
+	++net->tx_packets;
+	if (net->tx_packets < 1024)
+		return;
+	net->tx_packets = 0;
+	net->tx_zcopy_err = 0;
+}
+
+static void vhost_net_tx_err(struct vhost_net *net)
+{
+	++net->tx_zcopy_err;
+}
+
+static bool vhost_net_tx_select_zcopy(struct vhost_net *net)
+{
+	/* TX flush waits for outstanding DMAs to be done.
+	 * Don't start new DMAs.
+	 */
+	return !net->tx_flush &&
+		net->tx_packets / 64 >= net->tx_zcopy_err;
+}
 
 static bool vhost_sock_zcopy(struct socket *sock)
 {
@@ -126,6 +173,55 @@ static void tx_poll_start(struct vhost_net *net, struct socket *sock)
 	net->tx_poll_state = VHOST_NET_POLL_STARTED;
 }
 
+/* In case of DMA done not in order in lower device driver for some reason.
+ * upend_idx is used to track end of used idx, done_idx is used to track head
+ * of used idx. Once lower device DMA done contiguously, we will signal KVM
+ * guest used idx.
+ */
+static int vhost_zerocopy_signal_used(struct vhost_net *net,
+				      struct vhost_virtqueue *vq)
+{
+	int i;
+	int j = 0;
+
+	for (i = vq->done_idx; i != vq->upend_idx; i = (i + 1) % UIO_MAXIOV) {
+		if (vq->heads[i].len == VHOST_DMA_FAILED_LEN)
+			vhost_net_tx_err(net);
+		if (VHOST_DMA_IS_DONE(vq->heads[i].len)) {
+			vq->heads[i].len = VHOST_DMA_CLEAR_LEN;
+			vhost_add_used_and_signal(vq->dev, vq,
+						  vq->heads[i].id, 0);
+			++j;
+		} else
+			break;
+	}
+	if (j)
+		vq->done_idx = i;
+	return j;
+}
+
+static void vhost_zerocopy_callback(struct ubuf_info *ubuf, bool success)
+{
+	struct vhost_ubuf_ref *ubufs = ubuf->ctx;
+	struct vhost_virtqueue *vq = ubufs->vq;
+	int cnt = atomic_read(&ubufs->kref.refcount);
+
+	/*
+	 * Trigger polling thread if guest stopped submitting new buffers:
+	 * in this case, the refcount after decrement will eventually reach 1
+	 * so here it is 2.
+	 * We also trigger polling periodically after each 16 packets
+	 * (the value 16 here is more or less arbitrary, it's tuned to trigger
+	 * less than 10% of times).
+	 */
+	if (cnt <= 2 || !(cnt % 16))
+		vhost_poll_queue(&vq->poll);
+	/* set len to mark this desc buffers done DMA */
+	vq->heads[ubuf->desc].len = success ?
+		VHOST_DMA_DONE_LEN : VHOST_DMA_FAILED_LEN;
+	vhost_ubuf_put(ubufs);
+}
+
 /* Expects to be always run from workqueue - which acts as
  * read-size critical section for our kind of RCU. */
 static void handle_tx(struct vhost_net *net)
@@ -146,7 +242,7 @@ static void handle_tx(struct vhost_net *net)
 	size_t hdr_size;
 	struct socket *sock;
 	struct vhost_ubuf_ref *uninitialized_var(ubufs);
-	bool zcopy;
+	bool zcopy, zcopy_used;
 
 	/* TODO: check that we are running from vhost_worker? */
 	sock = rcu_dereference_check(vq->private_data, 1);
@@ -172,7 +268,7 @@ static void handle_tx(struct vhost_net *net)
 	for (;;) {
 		/* Release DMAs done buffers first */
 		if (zcopy)
-			vhost_zerocopy_signal_used(vq);
+			vhost_zerocopy_signal_used(net, vq);
 
 		head = vhost_get_vq_desc(&net->dev, vq, vq->iov,
 					 ARRAY_SIZE(vq->iov),
@@ -224,10 +320,14 @@ static void handle_tx(struct vhost_net *net)
 			       iov_length(vq->hdr, s), hdr_size);
 			break;
 		}
+		zcopy_used = zcopy && (len >= VHOST_GOODCOPY_LEN ||
+				       vq->upend_idx != vq->done_idx);
+
 		/* use msg_control to pass vhost zerocopy ubuf info to skb */
-		if (zcopy) {
+		if (zcopy_used) {
 			vq->heads[vq->upend_idx].id = head;
-			if (len < VHOST_GOODCOPY_LEN) {
+			if (!vhost_net_tx_select_zcopy(net) ||
+			    len < VHOST_GOODCOPY_LEN) {
 				/* copy don't need to wait for DMA done */
 				vq->heads[vq->upend_idx].len =
 							VHOST_DMA_DONE_LEN;
@@ -237,7 +337,8 @@ static void handle_tx(struct vhost_net *net)
 			} else {
 				struct ubuf_info *ubuf = &vq->ubuf_info[head];
 
-				vq->heads[vq->upend_idx].len = len;
+				vq->heads[vq->upend_idx].len =
+					VHOST_DMA_IN_PROGRESS;
 				ubuf->callback = vhost_zerocopy_callback;
 				ubuf->ctx = vq->ubufs;
 				ubuf->desc = vq->upend_idx;
@@ -251,7 +352,7 @@ static void handle_tx(struct vhost_net *net)
 		/* TODO: Check specific error and bomb out unless ENOBUFS? */
 		err = sock->ops->sendmsg(NULL, sock, &msg, len);
 		if (unlikely(err < 0)) {
-			if (zcopy) {
+			if (zcopy_used) {
 				if (ubufs)
 					vhost_ubuf_put(ubufs);
 				vq->upend_idx = ((unsigned)vq->upend_idx - 1) %
@@ -265,11 +366,12 @@ static void handle_tx(struct vhost_net *net)
 		if (err != len)
 			pr_debug("Truncated TX packet: "
 				 " len %d != %zd\n", err, len);
-		if (!zcopy)
+		if (!zcopy_used)
 			vhost_add_used_and_signal(&net->dev, vq, head, 0);
 		else
-			vhost_zerocopy_signal_used(vq);
+			vhost_zerocopy_signal_used(net, vq);
 		total_len += len;
+		vhost_net_tx_packet(net);
 		if (unlikely(total_len >= VHOST_NET_WEIGHT)) {
 			vhost_poll_queue(&vq->poll);
 			break;
@@ -587,6 +689,17 @@ static void vhost_net_flush(struct vhost_net *n)
 {
 	vhost_net_flush_vq(n, VHOST_NET_VQ_TX);
 	vhost_net_flush_vq(n, VHOST_NET_VQ_RX);
+	if (n->dev.vqs[VHOST_NET_VQ_TX].ubufs) {
+		mutex_lock(&n->dev.vqs[VHOST_NET_VQ_TX].mutex);
+		n->tx_flush = true;
+		mutex_unlock(&n->dev.vqs[VHOST_NET_VQ_TX].mutex);
+		/* Wait for all lower device DMAs done. */
+		vhost_ubuf_put_and_wait(n->dev.vqs[VHOST_NET_VQ_TX].ubufs);
+		mutex_lock(&n->dev.vqs[VHOST_NET_VQ_TX].mutex);
+		n->tx_flush = false;
+		kref_init(&n->dev.vqs[VHOST_NET_VQ_TX].ubufs->kref);
+		mutex_unlock(&n->dev.vqs[VHOST_NET_VQ_TX].mutex);
+	}
 }
 
 static int vhost_net_release(struct inode *inode, struct file *f)
@@ -597,6 +710,7 @@ static int vhost_net_release(struct inode *inode, struct file *f)
 
 	vhost_net_stop(n, &tx_sock, &rx_sock);
 	vhost_net_flush(n);
+	vhost_dev_stop(&n->dev);
 	vhost_dev_cleanup(&n->dev, false);
 	if (tx_sock)
 		fput(tx_sock->file);
@@ -722,6 +836,10 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 		r = vhost_init_used(vq);
 		if (r)
 			goto err_vq;
+
+		n->tx_packets = 0;
+		n->tx_zcopy_err = 0;
+		n->tx_flush = false;
 	}
 
 	mutex_unlock(&vq->mutex);
@@ -729,7 +847,7 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 	if (oldubufs) {
 		vhost_ubuf_put_and_wait(oldubufs);
 		mutex_lock(&vq->mutex);
-		vhost_zerocopy_signal_used(vq);
+		vhost_zerocopy_signal_used(n, vq);
 		mutex_unlock(&vq->mutex);
 	}
 
@@ -838,8 +956,11 @@ static long vhost_net_ioctl(struct file *f, unsigned int ioctl,
 		return vhost_net_reset_owner(n);
 	default:
 		mutex_lock(&n->dev.mutex);
-		r = vhost_dev_ioctl(&n->dev, ioctl, arg);
-		vhost_net_flush(n);
+		r = vhost_dev_ioctl(&n->dev, ioctl, argp);
+		if (r == -ENOIOCTLCMD)
+			r = vhost_vring_ioctl(&n->dev, ioctl, argp);
+		else
+			vhost_net_flush(n);
 		mutex_unlock(&n->dev.mutex);
 		return r;
 	}

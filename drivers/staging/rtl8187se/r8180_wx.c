@@ -59,8 +59,6 @@ int r8180_wx_set_key(struct net_device *dev, struct iw_request_info *info,
 	if (priv->ieee80211->bHwRadioOff)
 		return 0;
 
-	if (erq->flags & IW_ENCODE_DISABLED)
-
 	if (erq->length > 0) {
 		u32* tkey = (u32*) key;
 		priv->key0[0] = tkey[0];

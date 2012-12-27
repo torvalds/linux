@@ -260,11 +260,11 @@ static void bitbang_work(struct work_struct *work)
 	struct spi_bitbang	*bitbang =
 		container_of(work, struct spi_bitbang, work);
 	unsigned long		flags;
+	struct spi_message	*m, *_m;
 
 	spin_lock_irqsave(&bitbang->lock, flags);
 	bitbang->busy = 1;
-	while (!list_empty(&bitbang->queue)) {
-		struct spi_message	*m;
+	list_for_each_entry_safe(m, _m, &bitbang->queue, queue) {
 		struct spi_device	*spi;
 		unsigned		nsecs;
 		struct spi_transfer	*t = NULL;
@@ -273,9 +273,7 @@ static void bitbang_work(struct work_struct *work)
 		int			status;
 		int			do_setup = -1;
 
-		m = container_of(bitbang->queue.next, struct spi_message,
-				queue);
-		list_del_init(&m->queue);
+		list_del(&m->queue);
 		spin_unlock_irqrestore(&bitbang->lock, flags);
 
 		/* FIXME this is made-up ... the correct value is known to
@@ -346,17 +344,14 @@ static void bitbang_work(struct work_struct *work)
 			if (t->delay_usecs)
 				udelay(t->delay_usecs);
 
-			if (!cs_change)
-				continue;
-			if (t->transfer_list.next == &m->transfers)
-				break;
-
-			/* sometimes a short mid-message deselect of the chip
-			 * may be needed to terminate a mode or command
-			 */
-			ndelay(nsecs);
-			bitbang->chipselect(spi, BITBANG_CS_INACTIVE);
-			ndelay(nsecs);
+			if (cs_change && !list_is_last(&t->transfer_list, &m->transfers)) {
+				/* sometimes a short mid-message deselect of the chip
+				 * may be needed to terminate a mode or command
+				 */
+				ndelay(nsecs);
+				bitbang->chipselect(spi, BITBANG_CS_INACTIVE);
+				ndelay(nsecs);
+			}
 		}
 
 		m->status = status;

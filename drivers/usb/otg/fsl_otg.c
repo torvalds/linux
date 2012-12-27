@@ -1110,7 +1110,7 @@ static const struct file_operations otg_fops = {
 	.release = fsl_otg_release,
 };
 
-static int __devinit fsl_otg_probe(struct platform_device *pdev)
+static int fsl_otg_probe(struct platform_device *pdev)
 {
 	int ret;
 
@@ -1144,7 +1144,7 @@ static int __devinit fsl_otg_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit fsl_otg_remove(struct platform_device *pdev)
+static int fsl_otg_remove(struct platform_device *pdev)
 {
 	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
 
@@ -1169,7 +1169,7 @@ static int __devexit fsl_otg_remove(struct platform_device *pdev)
 
 struct platform_driver fsl_otg_driver = {
 	.probe = fsl_otg_probe,
-	.remove = __devexit_p(fsl_otg_remove),
+	.remove = fsl_otg_remove,
 	.driver = {
 		.name = driver_name,
 		.owner = THIS_MODULE,

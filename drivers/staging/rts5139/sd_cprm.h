@@ -31,24 +31,24 @@
 #include "sd.h"
 
 #ifdef SUPPORT_CPRM
-int ext_sd_execute_no_data(struct rts51x_chip *chip, unsigned int lun,
+int ext_rts51x_sd_execute_no_data(struct rts51x_chip *chip, unsigned int lun,
 			   u8 cmd_idx, u8 standby, u8 acmd, u8 rsp_code,
 			   u32 arg);
-int ext_sd_execute_read_data(struct rts51x_chip *chip, unsigned int lun,
+int ext_rts51x_sd_execute_read_data(struct rts51x_chip *chip, unsigned int lun,
 			     u8 cmd_idx, u8 cmd12, u8 standby, u8 acmd,
 			     u8 rsp_code, u32 arg, u32 data_len, void *data_buf,
 			     unsigned int buf_len, int use_sg);
-int ext_sd_execute_write_data(struct rts51x_chip *chip, unsigned int lun,
+int ext_rts51x_sd_execute_write_data(struct rts51x_chip *chip, unsigned int lun,
 			      u8 cmd_idx, u8 cmd12, u8 standby, u8 acmd,
 			      u8 rsp_code, u32 arg, u32 data_len,
 			      void *data_buf, unsigned int buf_len, int use_sg);
 
-int sd_pass_thru_mode(struct scsi_cmnd *srb, struct rts51x_chip *chip);
-int sd_execute_no_data(struct scsi_cmnd *srb, struct rts51x_chip *chip);
-int sd_execute_read_data(struct scsi_cmnd *srb, struct rts51x_chip *chip);
-int sd_execute_write_data(struct scsi_cmnd *srb, struct rts51x_chip *chip);
-int sd_get_cmd_rsp(struct scsi_cmnd *srb, struct rts51x_chip *chip);
-int sd_hw_rst(struct scsi_cmnd *srb, struct rts51x_chip *chip);
+int rts51x_sd_pass_thru_mode(struct scsi_cmnd *srb, struct rts51x_chip *chip);
+int rts51x_sd_execute_no_data(struct scsi_cmnd *srb, struct rts51x_chip *chip);
+int rts51x_sd_execute_read_data(struct scsi_cmnd *srb, struct rts51x_chip *chip);
+int rts51x_sd_execute_write_data(struct scsi_cmnd *srb, struct rts51x_chip *chip);
+int rts51x_sd_get_cmd_rsp(struct scsi_cmnd *srb, struct rts51x_chip *chip);
+int rts51x_sd_hw_rst(struct scsi_cmnd *srb, struct rts51x_chip *chip);
 #endif
 
 #endif /* __RTS51X_SD_CPRM_H */

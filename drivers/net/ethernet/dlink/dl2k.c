@@ -23,7 +23,7 @@
 #define dr16(reg)	ioread16(ioaddr + (reg))
 #define dr8(reg)	ioread8(ioaddr + (reg))
 
-static char version[] __devinitdata =
+static char version[] =
       KERN_INFO DRV_NAME " " DRV_VERSION " " DRV_RELDATE "\n";
 #define MAX_UNITS 8
 static int mtu[MAX_UNITS];
@@ -110,7 +110,7 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_change_mtu		= change_mtu,
 };
 
-static int __devinit
+static int
 rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *dev;
@@ -1727,7 +1727,7 @@ rio_close (struct net_device *dev)
 	return 0;
 }
 
-static void __devexit
+static void
 rio_remove1 (struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata (pdev);
@@ -1755,24 +1755,10 @@ static struct pci_driver rio_driver = {
 	.name		= "dl2k",
 	.id_table	= rio_pci_tbl,
 	.probe		= rio_probe1,
-	.remove		= __devexit_p(rio_remove1),
+	.remove		= rio_remove1,
 };
 
-static int __init
-rio_init (void)
-{
-	return pci_register_driver(&rio_driver);
-}
-
-static void __exit
-rio_exit (void)
-{
-	pci_unregister_driver (&rio_driver);
-}
-
-module_init (rio_init);
-module_exit (rio_exit);
-
+module_pci_driver(rio_driver);
 /*
 
 Compile command:

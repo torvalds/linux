@@ -772,7 +772,7 @@ int radeon_fence_driver_start_ring(struct radeon_device *rdev, int ring)
 	int r;
 
 	radeon_scratch_free(rdev, rdev->fence_drv[ring].scratch_reg);
-	if (rdev->wb.use_event) {
+	if (rdev->wb.use_event || !radeon_ring_supports_scratch_reg(rdev, &rdev->ring[ring])) {
 		rdev->fence_drv[ring].scratch_reg = 0;
 		index = R600_WB_EVENT_OFFSET + ring * 4;
 	} else {

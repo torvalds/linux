@@ -98,6 +98,23 @@ __rpc_add_timer(struct rpc_wait_queue *queue, struct rpc_task *task)
 	list_add(&task->u.tk_wait.timer_list, &queue->timer_list.list);
 }
 
+static void rpc_set_waitqueue_priority(struct rpc_wait_queue *queue, int priority)
+{
+	queue->priority = priority;
+}
+
+static void rpc_set_waitqueue_owner(struct rpc_wait_queue *queue, pid_t pid)
+{
+	queue->owner = pid;
+	queue->nr = RPC_BATCH_COUNT;
+}
+
+static void rpc_reset_waitqueue_priority(struct rpc_wait_queue *queue)
+{
+	rpc_set_waitqueue_priority(queue, queue->maxpriority);
+	rpc_set_waitqueue_owner(queue, 0);
+}
+
 /*
  * Add new request to a priority queue.
  */
@@ -109,9 +126,11 @@ static void __rpc_add_wait_queue_priority(struct rpc_wait_queue *queue,
 	struct rpc_task *t;
 
 	INIT_LIST_HEAD(&task->u.tk_wait.links);
-	q = &queue->tasks[queue_priority];
 	if (unlikely(queue_priority > queue->maxpriority))
-		q = &queue->tasks[queue->maxpriority];
+		queue_priority = queue->maxpriority;
+	if (queue_priority > queue->priority)
+		rpc_set_waitqueue_priority(queue, queue_priority);
+	q = &queue->tasks[queue_priority];
 	list_for_each_entry(t, q, u.tk_wait.list) {
 		if (t->tk_owner == task->tk_owner) {
 			list_add_tail(&task->u.tk_wait.list, &t->u.tk_wait.links);
@@ -133,7 +152,9 @@ static void __rpc_add_wait_queue(struct rpc_wait_queue *queue,
 		struct rpc_task *task,
 		unsigned char queue_priority)
 {
-	BUG_ON (RPC_IS_QUEUED(task));
+	WARN_ON_ONCE(RPC_IS_QUEUED(task));
+	if (RPC_IS_QUEUED(task))
+		return;
 
 	if (RPC_IS_PRIORITY(queue))
 		__rpc_add_wait_queue_priority(queue, task, queue_priority);
@@ -176,24 +197,6 @@ static void __rpc_remove_wait_queue(struct rpc_wait_queue *queue, struct rpc_tas
 	queue->qlen--;
 	dprintk("RPC: %5u removed from queue %p \"%s\"\n",
 			task->tk_pid, queue, rpc_qname(queue));
-}
-
-static inline void rpc_set_waitqueue_priority(struct rpc_wait_queue *queue, int priority)
-{
-	queue->priority = priority;
-	queue->count = 1 << (priority * 2);
-}
-
-static inline void rpc_set_waitqueue_owner(struct rpc_wait_queue *queue, pid_t pid)
-{
-	queue->owner = pid;
-	queue->nr = RPC_BATCH_COUNT;
-}
-
-static inline void rpc_reset_waitqueue_priority(struct rpc_wait_queue *queue)
-{
-	rpc_set_waitqueue_priority(queue, queue->maxpriority);
-	rpc_set_waitqueue_owner(queue, 0);
 }
 
 static void __rpc_init_priority_wait_queue(struct rpc_wait_queue *queue, const char *qname, unsigned char nr_queues)
@@ -334,7 +337,7 @@ static void __rpc_sleep_on_priority(struct rpc_wait_queue *q,
 
 	__rpc_add_wait_queue(q, task, queue_priority);
 
-	BUG_ON(task->tk_callback != NULL);
+	WARN_ON_ONCE(task->tk_callback != NULL);
 	task->tk_callback = action;
 	__rpc_add_timer(q, task);
 }
@@ -343,7 +346,12 @@ void rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
 				rpc_action action)
 {
 	/* We shouldn't ever put an inactive task to sleep */
-	BUG_ON(!RPC_IS_ACTIVATED(task));
+	WARN_ON_ONCE(!RPC_IS_ACTIVATED(task));
+	if (!RPC_IS_ACTIVATED(task)) {
+		task->tk_status = -EIO;
+		rpc_put_task_async(task);
+		return;
+	}
 
 	/*
 	 * Protect the queue operations.
@@ -358,7 +366,12 @@ void rpc_sleep_on_priority(struct rpc_wait_queue *q, struct rpc_task *task,
 		rpc_action action, int priority)
 {
 	/* We shouldn't ever put an inactive task to sleep */
-	BUG_ON(!RPC_IS_ACTIVATED(task));
+	WARN_ON_ONCE(!RPC_IS_ACTIVATED(task));
+	if (!RPC_IS_ACTIVATED(task)) {
+		task->tk_status = -EIO;
+		rpc_put_task_async(task);
+		return;
+	}
 
 	/*
 	 * Protect the queue operations.
@@ -367,6 +380,7 @@ void rpc_sleep_on_priority(struct rpc_wait_queue *q, struct rpc_task *task,
 	__rpc_sleep_on_priority(q, task, action, priority - RPC_PRIORITY_LOW);
 	spin_unlock_bh(&q->lock);
 }
+EXPORT_SYMBOL_GPL(rpc_sleep_on_priority);
 
 /**
  * __rpc_do_wake_up_task - wake up a single rpc_task
@@ -451,8 +465,7 @@ static struct rpc_task *__rpc_find_next_queued_priority(struct rpc_wait_queue *q
 		/*
 		 * Check if we need to switch queues.
 		 */
-		if (--queue->count)
-			goto new_owner;
+		goto new_owner;
 	}
 
 	/*
@@ -697,7 +710,9 @@ static void __rpc_execute(struct rpc_task *task)
 	dprintk("RPC: %5u __rpc_execute flags=0x%x\n",
 			task->tk_pid, task->tk_flags);
 
-	BUG_ON(RPC_IS_QUEUED(task));
+	WARN_ON_ONCE(RPC_IS_QUEUED(task));
+	if (RPC_IS_QUEUED(task))
+		return;
 
 	for (;;) {
 		void (*do_action)(struct rpc_task *);
@@ -981,7 +996,7 @@ static void rpc_release_task(struct rpc_task *task)
 {
 	dprintk("RPC: %5u release task\n", task->tk_pid);
 
-	BUG_ON (RPC_IS_QUEUED(task));
+	WARN_ON_ONCE(RPC_IS_QUEUED(task));
 
 	rpc_release_resources_task(task);
 

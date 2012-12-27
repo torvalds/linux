@@ -140,7 +140,7 @@ enum imx28_clk {
 	emi_xtal, lcdif_div, etm_div, ptp, saif0_div, saif1_div,
 	clk32k_div, rtc, lradc, spdif_div, clk32k, pwm, uart, ssp0,
 	ssp1, ssp2, ssp3, gpmi, spdif, emi, saif0, saif1, lcdif, etm,
-	fec, can0, can1, usb0, usb1, usb0_pwr, usb1_pwr, enet_out,
+	fec, can0, can1, usb0, usb1, usb0_phy, usb1_phy, enet_out,
 	clk_max
 };
 
@@ -218,10 +218,10 @@ int __init mx28_clocks_init(void)
 	clks[fec] = mxs_clk_gate("fec", "hbus", ENET, 30);
 	clks[can0] = mxs_clk_gate("can0", "ref_xtal", FLEXCAN, 30);
 	clks[can1] = mxs_clk_gate("can1", "ref_xtal", FLEXCAN, 28);
-	clks[usb0] = mxs_clk_gate("usb0", "usb0_pwr", DIGCTRL, 2);
-	clks[usb1] = mxs_clk_gate("usb1", "usb1_pwr", DIGCTRL, 16);
-	clks[usb0_pwr] = clk_register_gate(NULL, "usb0_pwr", "pll0", 0, PLL0CTRL0, 18, 0, &mxs_lock);
-	clks[usb1_pwr] = clk_register_gate(NULL, "usb1_pwr", "pll1", 0, PLL1CTRL0, 18, 0, &mxs_lock);
+	clks[usb0] = mxs_clk_gate("usb0", "usb0_phy", DIGCTRL, 2);
+	clks[usb1] = mxs_clk_gate("usb1", "usb1_phy", DIGCTRL, 16);
+	clks[usb0_phy] = clk_register_gate(NULL, "usb0_phy", "pll0", 0, PLL0CTRL0, 18, 0, &mxs_lock);
+	clks[usb1_phy] = clk_register_gate(NULL, "usb1_phy", "pll1", 0, PLL1CTRL0, 18, 0, &mxs_lock);
 	clks[enet_out] = clk_register_gate(NULL, "enet_out", "pll2", 0, ENET, 18, 0, &mxs_lock);
 
 	for (i = 0; i < ARRAY_SIZE(clks); i++)

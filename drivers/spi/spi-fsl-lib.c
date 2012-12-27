@@ -169,7 +169,7 @@ err:
 	return ret;
 }
 
-int __devexit mpc8xxx_spi_remove(struct device *dev)
+int mpc8xxx_spi_remove(struct device *dev)
 {
 	struct mpc8xxx_spi *mpc8xxx_spi;
 	struct spi_master *master;
@@ -189,7 +189,7 @@ int __devexit mpc8xxx_spi_remove(struct device *dev)
 	return 0;
 }
 
-int __devinit of_mpc8xxx_spi_probe(struct platform_device *ofdev)
+int of_mpc8xxx_spi_probe(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
 	struct device_node *np = ofdev->dev.of_node;

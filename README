@@ -180,6 +180,10 @@ CONFIGURING the kernel:
                         with questions already answered.
                         Additionally updates the dependencies.
 
+     "make olddefconfig"
+                        Like above, but sets new symbols to their default
+                        values without prompting.
+
      "make defconfig"   Create a ./.config file by using the default
                         symbol values from either arch/$ARCH/defconfig
                         or arch/$ARCH/configs/${PLATFORM}_defconfig,

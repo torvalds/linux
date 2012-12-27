@@ -23,6 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 
 #include <asm/cputype.h>
@@ -45,7 +46,7 @@ const char *perf_pmu_name(void)
 	if (!cpu_pmu)
 		return NULL;
 
-	return cpu_pmu->pmu.name;
+	return cpu_pmu->name;
 }
 EXPORT_SYMBOL_GPL(perf_pmu_name);
 
@@ -70,7 +71,7 @@ static struct pmu_hw_events *cpu_pmu_get_cpu_events(void)
 	return &__get_cpu_var(cpu_hw_events);
 }
 
-static void cpu_pmu_free_irq(void)
+static void cpu_pmu_free_irq(struct arm_pmu *cpu_pmu)
 {
 	int i, irq, irqs;
 	struct platform_device *pmu_device = cpu_pmu->plat_device;
@@ -86,7 +87,7 @@ static void cpu_pmu_free_irq(void)
 	}
 }
 
-static int cpu_pmu_request_irq(irq_handler_t handler)
+static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 {
 	int i, err, irq, irqs;
 	struct platform_device *pmu_device = cpu_pmu->plat_device;
@@ -147,7 +148,7 @@ static void __devinit cpu_pmu_init(struct arm_pmu *cpu_pmu)
 
 	/* Ensure the PMU has sane values out of reset. */
 	if (cpu_pmu && cpu_pmu->reset)
-		on_each_cpu(cpu_pmu->reset, NULL, 1);
+		on_each_cpu(cpu_pmu->reset, cpu_pmu, 1);
 }
 
 /*
@@ -163,7 +164,9 @@ static int __cpuinit cpu_pmu_notify(struct notifier_block *b,
 		return NOTIFY_DONE;
 
 	if (cpu_pmu && cpu_pmu->reset)
-		cpu_pmu->reset(NULL);
+		cpu_pmu->reset(cpu_pmu);
+	else
+		return NOTIFY_DONE;
 
 	return NOTIFY_OK;
 }
@@ -195,13 +198,13 @@ static struct platform_device_id __devinitdata cpu_pmu_plat_device_ids[] = {
 /*
  * CPU PMU identification and probing.
  */
-static struct arm_pmu *__devinit probe_current_pmu(void)
+static int __devinit probe_current_pmu(struct arm_pmu *pmu)
 {
-	struct arm_pmu *pmu = NULL;
 	int cpu = get_cpu();
 	unsigned long cpuid = read_cpuid_id();
 	unsigned long implementor = (cpuid & 0xFF000000) >> 24;
 	unsigned long part_number = (cpuid & 0xFFF0);
+	int ret = -ENODEV;
 
 	pr_info("probing PMU on CPU %d\n", cpu);
 
@@ -211,25 +214,25 @@ static struct arm_pmu *__devinit probe_current_pmu(void)
 		case 0xB360:	/* ARM1136 */
 		case 0xB560:	/* ARM1156 */
 		case 0xB760:	/* ARM1176 */
-			pmu = armv6pmu_init();
+			ret = armv6pmu_init(pmu);
 			break;
 		case 0xB020:	/* ARM11mpcore */
-			pmu = armv6mpcore_pmu_init();
+			ret = armv6mpcore_pmu_init(pmu);
 			break;
 		case 0xC080:	/* Cortex-A8 */
-			pmu = armv7_a8_pmu_init();
+			ret = armv7_a8_pmu_init(pmu);
 			break;
 		case 0xC090:	/* Cortex-A9 */
-			pmu = armv7_a9_pmu_init();
+			ret = armv7_a9_pmu_init(pmu);
 			break;
 		case 0xC050:	/* Cortex-A5 */
-			pmu = armv7_a5_pmu_init();
+			ret = armv7_a5_pmu_init(pmu);
 			break;
 		case 0xC0F0:	/* Cortex-A15 */
-			pmu = armv7_a15_pmu_init();
+			ret = armv7_a15_pmu_init(pmu);
 			break;
 		case 0xC070:	/* Cortex-A7 */
-			pmu = armv7_a7_pmu_init();
+			ret = armv7_a7_pmu_init(pmu);
 			break;
 		}
 	/* Intel CPUs [xscale]. */
@@ -237,43 +240,54 @@ static struct arm_pmu *__devinit probe_current_pmu(void)
 		part_number = (cpuid >> 13) & 0x7;
 		switch (part_number) {
 		case 1:
-			pmu = xscale1pmu_init();
+			ret = xscale1pmu_init(pmu);
 			break;
 		case 2:
-			pmu = xscale2pmu_init();
+			ret = xscale2pmu_init(pmu);
 			break;
 		}
 	}
 
 	put_cpu();
-	return pmu;
+	return ret;
 }
 
 static int __devinit cpu_pmu_device_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id;
-	struct arm_pmu *(*init_fn)(void);
+	int (*init_fn)(struct arm_pmu *);
 	struct device_node *node = pdev->dev.of_node;
+	struct arm_pmu *pmu;
+	int ret = -ENODEV;
 
 	if (cpu_pmu) {
 		pr_info("attempt to register multiple PMU devices!");
 		return -ENOSPC;
 	}
 
-	if (node && (of_id = of_match_node(cpu_pmu_of_device_ids, pdev->dev.of_node))) {
-		init_fn = of_id->data;
-		cpu_pmu = init_fn();
-	} else {
-		cpu_pmu = probe_current_pmu();
+	pmu = kzalloc(sizeof(struct arm_pmu), GFP_KERNEL);
+	if (!pmu) {
+		pr_info("failed to allocate PMU device!");
+		return -ENOMEM;
 	}
 
-	if (!cpu_pmu)
-		return -ENODEV;
+	if (node && (of_id = of_match_node(cpu_pmu_of_device_ids, pdev->dev.of_node))) {
+		init_fn = of_id->data;
+		ret = init_fn(pmu);
+	} else {
+		ret = probe_current_pmu(pmu);
+	}
 
+	if (ret) {
+		pr_info("failed to register PMU devices!");
+		kfree(pmu);
+		return ret;
+	}
+
+	cpu_pmu = pmu;
 	cpu_pmu->plat_device = pdev;
 	cpu_pmu_init(cpu_pmu);
-	register_cpu_notifier(&cpu_pmu_hotplug_notifier);
-	armpmu_register(cpu_pmu, cpu_pmu->name, PERF_TYPE_RAW);
+	armpmu_register(cpu_pmu, PERF_TYPE_RAW);
 
 	return 0;
 }
@@ -290,6 +304,16 @@ static struct platform_driver cpu_pmu_driver = {
 
 static int __init register_pmu_driver(void)
 {
-	return platform_driver_register(&cpu_pmu_driver);
+	int err;
+
+	err = register_cpu_notifier(&cpu_pmu_hotplug_notifier);
+	if (err)
+		return err;
+
+	err = platform_driver_register(&cpu_pmu_driver);
+	if (err)
+		unregister_cpu_notifier(&cpu_pmu_hotplug_notifier);
+
+	return err;
 }
 device_initcall(register_pmu_driver);

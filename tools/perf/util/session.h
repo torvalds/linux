@@ -4,6 +4,7 @@
 #include "hist.h"
 #include "event.h"
 #include "header.h"
+#include "machine.h"
 #include "symbol.h"
 #include "thread.h"
 #include <linux/rbtree.h>
@@ -67,10 +68,6 @@ int perf_session__resolve_callchain(struct perf_session *self, struct perf_evsel
 				    struct thread *thread,
 				    struct ip_callchain *chain,
 				    struct symbol **parent);
-
-struct branch_info *machine__resolve_bstack(struct machine *self,
-					    struct thread *thread,
-					    struct branch_stack *bs);
 
 bool perf_session__has_traces(struct perf_session *self, const char *msg);
 

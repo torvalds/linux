@@ -174,19 +174,7 @@ static struct i2c_driver wf_lm75_driver = {
 	.id_table	= wf_lm75_id,
 };
 
-static int __init wf_lm75_sensor_init(void)
-{
-	return i2c_add_driver(&wf_lm75_driver);
-}
-
-static void __exit wf_lm75_sensor_exit(void)
-{
-	i2c_del_driver(&wf_lm75_driver);
-}
-
-
-module_init(wf_lm75_sensor_init);
-module_exit(wf_lm75_sensor_exit);
+module_i2c_driver(wf_lm75_driver);
 
 MODULE_AUTHOR("Benjamin Herrenschmidt <benh@kernel.crashing.org>");
 MODULE_DESCRIPTION("LM75 sensor objects for PowerMacs thermal control");

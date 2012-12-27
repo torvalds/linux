@@ -88,11 +88,15 @@ static inline int gpio_twl4030_write(u8 address, u8 data)
 /*----------------------------------------------------------------------*/
 
 /*
- * LED register offsets (use TWL4030_MODULE_{LED,PWMA,PWMB}))
+ * LED register offsets from TWL_MODULE_LED base
  * PWMs A and B are dedicated to LEDs A and B, respectively.
  */
 
-#define TWL4030_LED_LEDEN	0x0
+#define TWL4030_LED_LEDEN_REG	0x00
+#define TWL4030_PWMAON_REG	0x01
+#define TWL4030_PWMAOFF_REG	0x02
+#define TWL4030_PWMBON_REG	0x03
+#define TWL4030_PWMBOFF_REG	0x04
 
 /* LEDEN bits */
 #define LEDEN_LEDAON		BIT(0)
@@ -103,9 +107,6 @@ static inline int gpio_twl4030_write(u8 address, u8 data)
 #define LEDEN_LEDBPWM		BIT(5)
 #define LEDEN_PWM_LENGTHA	BIT(6)
 #define LEDEN_PWM_LENGTHB	BIT(7)
-
-#define TWL4030_PWMx_PWMxON	0x0
-#define TWL4030_PWMx_PWMxOFF	0x1
 
 #define PWMxON_LENGTH		BIT(7)
 
@@ -145,7 +146,7 @@ static void twl4030_led_set_value(int led, int value)
 	else
 		cached_leden |= mask;
 	status = twl_i2c_write_u8(TWL4030_MODULE_LED, cached_leden,
-			TWL4030_LED_LEDEN);
+				  TWL4030_LED_LEDEN_REG);
 	mutex_unlock(&gpio_lock);
 }
 
@@ -216,33 +217,33 @@ static int twl_request(struct gpio_chip *chip, unsigned offset)
 	if (offset >= TWL4030_GPIO_MAX) {
 		u8	ledclr_mask = LEDEN_LEDAON | LEDEN_LEDAEXT
 				| LEDEN_LEDAPWM | LEDEN_PWM_LENGTHA;
-		u8	module = TWL4030_MODULE_PWMA;
+		u8	reg = TWL4030_PWMAON_REG;
 
 		offset -= TWL4030_GPIO_MAX;
 		if (offset) {
 			ledclr_mask <<= 1;
-			module = TWL4030_MODULE_PWMB;
+			reg = TWL4030_PWMBON_REG;
 		}
 
 		/* initialize PWM to always-drive */
-		status = twl_i2c_write_u8(module, 0x7f,
-				TWL4030_PWMx_PWMxOFF);
+		/* Configure PWM OFF register first */
+		status = twl_i2c_write_u8(TWL4030_MODULE_LED, 0x7f, reg + 1);
 		if (status < 0)
 			goto done;
-		status = twl_i2c_write_u8(module, 0x7f,
-				TWL4030_PWMx_PWMxON);
+
+		/* Followed by PWM ON register */
+		status = twl_i2c_write_u8(TWL4030_MODULE_LED, 0x7f, reg);
 		if (status < 0)
 			goto done;
 
 		/* init LED to not-driven (high) */
-		module = TWL4030_MODULE_LED;
-		status = twl_i2c_read_u8(module, &cached_leden,
-				TWL4030_LED_LEDEN);
+		status = twl_i2c_read_u8(TWL4030_MODULE_LED, &cached_leden,
+					 TWL4030_LED_LEDEN_REG);
 		if (status < 0)
 			goto done;
 		cached_leden &= ~ledclr_mask;
-		status = twl_i2c_write_u8(module, cached_leden,
-				TWL4030_LED_LEDEN);
+		status = twl_i2c_write_u8(TWL4030_MODULE_LED, cached_leden,
+					  TWL4030_LED_LEDEN_REG);
 		if (status < 0)
 			goto done;
 
@@ -352,15 +353,15 @@ static struct gpio_chip twl_gpiochip = {
 
 /*----------------------------------------------------------------------*/
 
-static int __devinit gpio_twl4030_pulls(u32 ups, u32 downs)
+static int gpio_twl4030_pulls(u32 ups, u32 downs)
 {
-	u8		message[6];
+	u8		message[5];
 	unsigned	i, gpio_bit;
 
 	/* For most pins, a pulldown was enabled by default.
 	 * We should have data that's specific to this board.
 	 */
-	for (gpio_bit = 1, i = 1; i < 6; i++) {
+	for (gpio_bit = 1, i = 0; i < 5; i++) {
 		u8		bit_mask;
 		unsigned	j;
 
@@ -377,18 +378,18 @@ static int __devinit gpio_twl4030_pulls(u32 ups, u32 downs)
 				REG_GPIOPUPDCTR1, 5);
 }
 
-static int __devinit gpio_twl4030_debounce(u32 debounce, u8 mmc_cd)
+static int gpio_twl4030_debounce(u32 debounce, u8 mmc_cd)
 {
-	u8		message[4];
+	u8		message[3];
 
 	/* 30 msec of debouncing is always used for MMC card detect,
 	 * and is optional for everything else.
 	 */
-	message[1] = (debounce & 0xff) | (mmc_cd & 0x03);
+	message[0] = (debounce & 0xff) | (mmc_cd & 0x03);
 	debounce >>= 8;
-	message[2] = (debounce & 0xff);
+	message[1] = (debounce & 0xff);
 	debounce >>= 8;
-	message[3] = (debounce & 0x03);
+	message[2] = (debounce & 0x03);
 
 	return twl_i2c_write(TWL4030_MODULE_GPIO, message,
 				REG_GPIO_DEBEN1, 3);
@@ -419,7 +420,7 @@ static struct twl4030_gpio_platform_data *of_gpio_twl4030(struct device *dev)
 	return omap_twl_info;
 }
 
-static int __devinit gpio_twl4030_probe(struct platform_device *pdev)
+static int gpio_twl4030_probe(struct platform_device *pdev)
 {
 	struct twl4030_gpio_platform_data *pdata = pdev->dev.platform_data;
 	struct device_node *node = pdev->dev.of_node;
@@ -505,7 +506,7 @@ out:
 	return ret;
 }
 
-/* Cannot use __devexit as gpio_twl4030_probe() calls us */
+/* Cannot use as gpio_twl4030_probe() calls us */
 static int gpio_twl4030_remove(struct platform_device *pdev)
 {
 	struct twl4030_gpio_platform_data *pdata = pdev->dev.platform_data;

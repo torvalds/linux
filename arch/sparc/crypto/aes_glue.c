@@ -222,6 +222,7 @@ static int ecb_encrypt(struct blkcipher_desc *desc,
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
+	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	ctx->ops->load_encrypt_keys(&ctx->key[0]);
 	while ((nbytes = walk.nbytes)) {
@@ -251,6 +252,7 @@ static int ecb_decrypt(struct blkcipher_desc *desc,
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
+	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	ctx->ops->load_decrypt_keys(&ctx->key[0]);
 	key_end = &ctx->key[ctx->expanded_key_length / sizeof(u64)];
@@ -280,6 +282,7 @@ static int cbc_encrypt(struct blkcipher_desc *desc,
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
+	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	ctx->ops->load_encrypt_keys(&ctx->key[0]);
 	while ((nbytes = walk.nbytes)) {
@@ -309,6 +312,7 @@ static int cbc_decrypt(struct blkcipher_desc *desc,
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
+	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	ctx->ops->load_decrypt_keys(&ctx->key[0]);
 	key_end = &ctx->key[ctx->expanded_key_length / sizeof(u64)];
@@ -329,6 +333,22 @@ static int cbc_decrypt(struct blkcipher_desc *desc,
 	return err;
 }
 
+static void ctr_crypt_final(struct crypto_sparc64_aes_ctx *ctx,
+			    struct blkcipher_walk *walk)
+{
+	u8 *ctrblk = walk->iv;
+	u64 keystream[AES_BLOCK_SIZE / sizeof(u64)];
+	u8 *src = walk->src.virt.addr;
+	u8 *dst = walk->dst.virt.addr;
+	unsigned int nbytes = walk->nbytes;
+
+	ctx->ops->ecb_encrypt(&ctx->key[0], (const u64 *)ctrblk,
+			      keystream, AES_BLOCK_SIZE);
+	crypto_xor((u8 *) keystream, src, nbytes);
+	memcpy(dst, keystream, nbytes);
+	crypto_inc(ctrblk, AES_BLOCK_SIZE);
+}
+
 static int ctr_crypt(struct blkcipher_desc *desc,
 		     struct scatterlist *dst, struct scatterlist *src,
 		     unsigned int nbytes)
@@ -338,10 +358,11 @@ static int ctr_crypt(struct blkcipher_desc *desc,
 	int err;
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	err = blkcipher_walk_virt(desc, &walk);
+	err = blkcipher_walk_virt_block(desc, &walk, AES_BLOCK_SIZE);
+	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	ctx->ops->load_encrypt_keys(&ctx->key[0]);
-	while ((nbytes = walk.nbytes)) {
+	while ((nbytes = walk.nbytes) >= AES_BLOCK_SIZE) {
 		unsigned int block_len = nbytes & AES_BLOCK_MASK;
 
 		if (likely(block_len)) {
@@ -352,6 +373,10 @@ static int ctr_crypt(struct blkcipher_desc *desc,
 		}
 		nbytes &= AES_BLOCK_SIZE - 1;
 		err = blkcipher_walk_done(desc, &walk, nbytes);
+	}
+	if (walk.nbytes) {
+		ctr_crypt_final(ctx, &walk);
+		err = blkcipher_walk_done(desc, &walk, 0);
 	}
 	fprs_write(0);
 	return err;
@@ -418,7 +443,7 @@ static struct crypto_alg algs[] = { {
 	.cra_driver_name	= "ctr-aes-sparc64",
 	.cra_priority		= SPARC_CR_OPCODE_PRIORITY,
 	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
-	.cra_blocksize		= AES_BLOCK_SIZE,
+	.cra_blocksize		= 1,
 	.cra_ctxsize		= sizeof(struct crypto_sparc64_aes_ctx),
 	.cra_alignmask		= 7,
 	.cra_type		= &crypto_blkcipher_type,

@@ -387,7 +387,7 @@ static long dgrp_dpa_ioctl(struct file *file, unsigned int cmd,
 
 		port = getchan.ch_port;
 
-		if (port < 0 || port > nd->nd_chan_count)
+		if (port > nd->nd_chan_count)
 			return -EINVAL;
 
 		ch = nd->nd_chan + port;

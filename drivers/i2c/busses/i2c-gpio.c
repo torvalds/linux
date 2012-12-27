@@ -184,7 +184,11 @@ static int __devinit i2c_gpio_probe(struct platform_device *pdev)
 	bit_data->data = pdata;
 
 	adap->owner = THIS_MODULE;
-	snprintf(adap->name, sizeof(adap->name), "i2c-gpio%d", pdev->id);
+	if (pdev->dev.of_node)
+		strlcpy(adap->name, dev_name(&pdev->dev), sizeof(adap->name));
+	else
+		snprintf(adap->name, sizeof(adap->name), "i2c-gpio%d", pdev->id);
+
 	adap->algo_data = bit_data;
 	adap->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adap->dev.parent = &pdev->dev;

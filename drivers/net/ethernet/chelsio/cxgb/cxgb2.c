@@ -974,8 +974,7 @@ static const struct net_device_ops cxgb_netdev_ops = {
 #endif
 };
 
-static int __devinit init_one(struct pci_dev *pdev,
-			      const struct pci_device_id *ent)
+static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int version_printed;
 
@@ -1332,7 +1331,7 @@ static inline void t1_sw_reset(struct pci_dev *pdev)
 	pci_write_config_dword(pdev, A_PCICFG_PM_CSR, 0);
 }
 
-static void __devexit remove_one(struct pci_dev *pdev)
+static void remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct adapter *adapter = dev->ml_priv;
@@ -1361,7 +1360,7 @@ static struct pci_driver driver = {
 	.name     = DRV_NAME,
 	.id_table = t1_pci_tbl,
 	.probe    = init_one,
-	.remove   = __devexit_p(remove_one),
+	.remove   = remove_one,
 };
 
 static int __init t1_init_module(void)

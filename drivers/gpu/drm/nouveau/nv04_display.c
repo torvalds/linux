@@ -60,8 +60,6 @@ nv04_display_create(struct drm_device *dev)
 	struct nv04_display *disp;
 	int i, ret;
 
-	NV_DEBUG(drm, "\n");
-
 	disp = kzalloc(sizeof(*disp), GFP_KERNEL);
 	if (!disp)
 		return -ENOMEM;
@@ -132,12 +130,9 @@ nv04_display_create(struct drm_device *dev)
 void
 nv04_display_destroy(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nv04_display *disp = nv04_display(dev);
 	struct drm_encoder *encoder;
 	struct drm_crtc *crtc;
-
-	NV_DEBUG(drm, "\n");
 
 	/* Turn every CRTC off. */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {

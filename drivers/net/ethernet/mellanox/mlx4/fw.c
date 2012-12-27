@@ -110,6 +110,8 @@ static void dump_dev_cap_flags(struct mlx4_dev *dev, u64 flags)
 		[42] = "Multicast VEP steering support",
 		[48] = "Counters support",
 		[59] = "Port management change event support",
+		[61] = "64 byte EQE support",
+		[62] = "64 byte CQE support",
 	};
 	int i;
 
@@ -235,7 +237,7 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 		field = dev->caps.num_ports;
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_NUM_PORTS_OFFSET);
 
-		size = 0; /* no PF behaviour is set for now */
+		size = dev->caps.function_caps; /* set PF behaviours */
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_PF_BHVR_OFFSET);
 
 		field = 0; /* protected FMR support not available as yet */
@@ -1237,6 +1239,24 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_COUNTERS)
 		*(inbox + INIT_HCA_FLAGS_OFFSET / 4) |= cpu_to_be32(1 << 4);
 
+	/* CX3 is capable of extending CQEs/EQEs from 32 to 64 bytes */
+	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_64B_EQE) {
+		*(inbox + INIT_HCA_EQE_CQE_OFFSETS / 4) |= cpu_to_be32(1 << 29);
+		dev->caps.eqe_size   = 64;
+		dev->caps.eqe_factor = 1;
+	} else {
+		dev->caps.eqe_size   = 32;
+		dev->caps.eqe_factor = 0;
+	}
+
+	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_64B_CQE) {
+		*(inbox + INIT_HCA_EQE_CQE_OFFSETS / 4) |= cpu_to_be32(1 << 30);
+		dev->caps.cqe_size   = 64;
+		dev->caps.userspace_caps |= MLX4_USER_DEV_CAP_64B_CQE;
+	} else {
+		dev->caps.cqe_size   = 32;
+	}
+
 	/* QPC/EEC/CQC/EQC/RDMARC attributes */
 
 	MLX4_PUT(inbox, param->qpc_base,      INIT_HCA_QPC_BASE_OFFSET);
@@ -1318,7 +1338,9 @@ int mlx4_QUERY_HCA(struct mlx4_dev *dev,
 {
 	struct mlx4_cmd_mailbox *mailbox;
 	__be32 *outbox;
+	u32 dword_field;
 	int err;
+	u8 byte_field;
 
 #define QUERY_HCA_GLOBAL_CAPS_OFFSET	0x04
 
@@ -1351,10 +1373,18 @@ int mlx4_QUERY_HCA(struct mlx4_dev *dev,
 	MLX4_GET(param->rdmarc_base,   outbox, INIT_HCA_RDMARC_BASE_OFFSET);
 	MLX4_GET(param->log_rd_per_qp, outbox, INIT_HCA_LOG_RD_OFFSET);
 
+	MLX4_GET(dword_field, outbox, INIT_HCA_FLAGS_OFFSET);
+	if (dword_field & (1 << INIT_HCA_DEVICE_MANAGED_FLOW_STEERING_EN)) {
+		param->steering_mode = MLX4_STEERING_MODE_DEVICE_MANAGED;
+	} else {
+		MLX4_GET(byte_field, outbox, INIT_HCA_UC_STEERING_OFFSET);
+		if (byte_field & 0x8)
+			param->steering_mode = MLX4_STEERING_MODE_B0;
+		else
+			param->steering_mode = MLX4_STEERING_MODE_A0;
+	}
 	/* steering attributes */
-	if (dev->caps.steering_mode ==
-	    MLX4_STEERING_MODE_DEVICE_MANAGED) {
-
+	if (param->steering_mode == MLX4_STEERING_MODE_DEVICE_MANAGED) {
 		MLX4_GET(param->mc_base, outbox, INIT_HCA_FS_BASE_OFFSET);
 		MLX4_GET(param->log_mc_entry_sz, outbox,
 			 INIT_HCA_FS_LOG_ENTRY_SZ_OFFSET);
@@ -1369,6 +1399,13 @@ int mlx4_QUERY_HCA(struct mlx4_dev *dev,
 		MLX4_GET(param->log_mc_table_sz, outbox,
 			 INIT_HCA_LOG_MC_TABLE_SZ_OFFSET);
 	}
+
+	/* CX3 is capable of extending CQEs/EQEs from 32 to 64 bytes */
+	MLX4_GET(byte_field, outbox, INIT_HCA_EQE_CQE_OFFSETS);
+	if (byte_field & 0x20) /* 64-bytes eqe enabled */
+		param->dev_cap_enabled |= MLX4_DEV_CAP_64B_EQE_ENABLED;
+	if (byte_field & 0x40) /* 64-bytes cqe enabled */
+		param->dev_cap_enabled |= MLX4_DEV_CAP_64B_CQE_ENABLED;
 
 	/* TPT attributes */
 

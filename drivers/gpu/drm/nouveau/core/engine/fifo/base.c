@@ -24,6 +24,7 @@
 
 #include <core/object.h>
 #include <core/handle.h>
+#include <core/class.h>
 
 #include <engine/dmaobj.h>
 #include <engine/fifo.h>
@@ -33,7 +34,7 @@ nouveau_fifo_channel_create_(struct nouveau_object *parent,
 			     struct nouveau_object *engine,
 			     struct nouveau_oclass *oclass,
 			     int bar, u32 addr, u32 size, u32 pushbuf,
-			     u32 engmask, int len, void **ptr)
+			     u64 engmask, int len, void **ptr)
 {
 	struct nouveau_device *device = nv_device(engine);
 	struct nouveau_fifo *priv = (void *)engine;
@@ -56,18 +57,16 @@ nouveau_fifo_channel_create_(struct nouveau_object *parent,
 
 	dmaeng = (void *)chan->pushdma->base.engine;
 	switch (chan->pushdma->base.oclass->handle) {
-	case 0x0002:
-	case 0x003d:
+	case NV_DMA_FROM_MEMORY_CLASS:
+	case NV_DMA_IN_MEMORY_CLASS:
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	if (dmaeng->bind) {
-		ret = dmaeng->bind(dmaeng, parent, chan->pushdma, &chan->pushgpu);
-		if (ret)
-			return ret;
-	}
+	ret = dmaeng->bind(dmaeng, parent, chan->pushdma, &chan->pushgpu);
+	if (ret)
+		return ret;
 
 	/* find a free fifo channel */
 	spin_lock_irqsave(&priv->lock, flags);
@@ -119,14 +118,14 @@ _nouveau_fifo_channel_dtor(struct nouveau_object *object)
 }
 
 u32
-_nouveau_fifo_channel_rd32(struct nouveau_object *object, u32 addr)
+_nouveau_fifo_channel_rd32(struct nouveau_object *object, u64 addr)
 {
 	struct nouveau_fifo_chan *chan = (void *)object;
 	return ioread32_native(chan->user + addr);
 }
 
 void
-_nouveau_fifo_channel_wr32(struct nouveau_object *object, u32 addr, u32 data)
+_nouveau_fifo_channel_wr32(struct nouveau_object *object, u64 addr, u32 data)
 {
 	struct nouveau_fifo_chan *chan = (void *)object;
 	iowrite32_native(data, chan->user + addr);

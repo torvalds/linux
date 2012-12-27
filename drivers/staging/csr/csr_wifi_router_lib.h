@@ -22,11 +22,6 @@
 #include "csr_wifi_router_prim.h"
 #include "csr_wifi_router_task.h"
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /*----------------------------------------------------------------------------*
  *  CsrWifiRouterFreeUpstreamMessageContents
  *
@@ -418,10 +413,5 @@ extern const char *CsrWifiRouterDownstreamPrimNames[CSR_WIFI_ROUTER_PRIM_DOWNSTR
 
 #define CsrWifiRouterMaPacketUnsubscribeCfmSend(dst__, interfaceTag__, status__) \
     CsrWifiRouterMaPacketUnsubscribeCfmSendTo(dst__, CSR_WIFI_ROUTER_IFACEQUEUE, interfaceTag__, status__)
-
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CSR_WIFI_ROUTER_LIB_H__ */

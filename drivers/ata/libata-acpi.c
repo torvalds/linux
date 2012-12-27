@@ -76,6 +76,9 @@ acpi_handle ata_dev_acpi_handle(struct ata_device *dev)
 	acpi_integer adr;
 	struct ata_port *ap = dev->link->ap;
 
+	if (dev->flags & ATA_DFLAG_ACPI_DISABLED)
+		return NULL;
+
 	if (ap->flags & ATA_FLAG_ACPI_SATA) {
 		if (!sata_pmp_attached(ap))
 			adr = SATA_ADR(ap->port_no, NO_PORT_MULT);
@@ -945,6 +948,7 @@ int ata_acpi_on_devcfg(struct ata_device *dev)
 		return rc;
 	}
 
+	dev->flags |= ATA_DFLAG_ACPI_DISABLED;
 	ata_dev_warn(dev, "ACPI: failed the second time, disabled\n");
 
 	/* We can safely continue if no _GTF command has been executed

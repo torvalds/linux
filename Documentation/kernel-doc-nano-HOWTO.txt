@@ -64,6 +64,8 @@ Example kernel-doc function comment:
  * comment lines.
  *
  * The longer description can have multiple paragraphs.
+ *
+ * Return: Describe the return value of foobar.
  */
 
 The short description following the subject can span multiple lines
@@ -78,6 +80,8 @@ If a function parameter is "..." (varargs), it should be listed in
 kernel-doc notation as:
  * @...: description
 
+The return value, if any, should be described in a dedicated section
+named "Return".
 
 Example kernel-doc data structure comment.
 
@@ -222,6 +226,9 @@ only a "*").
 "section header:" names must be unique per function (or struct,
 union, typedef, enum).
 
+Use the section header "Return" for sections describing the return value
+of a function.
+
 Avoid putting a spurious blank line after the function name, or else the
 description will be repeated!
 
@@ -237,21 +244,21 @@ patterns, which are highlighted appropriately.
 NOTE 1:  The multi-line descriptive text you provide does *not* recognize
 line breaks, so if you try to format some text nicely, as in:
 
-  Return codes
+  Return:
     0 - cool
     1 - invalid arg
     2 - out of memory
 
 this will all run together and produce:
 
-  Return codes 0 - cool 1 - invalid arg 2 - out of memory
+  Return: 0 - cool 1 - invalid arg 2 - out of memory
 
 NOTE 2:  If the descriptive text you provide has lines that begin with
 some phrase followed by a colon, each of those phrases will be taken as
 a new section heading, which means you should similarly try to avoid text
 like:
 
-  Return codes:
+  Return:
     0: cool
     1: invalid arg
     2: out of memory

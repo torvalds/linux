@@ -18,9 +18,10 @@
 #include <asm/system_misc.h>
 #include <asm/mach/arch.h>
 #include <mach/at91x40.h>
-#include <mach/at91_aic.h>
 #include <mach/at91_st.h>
 #include <mach/timex.h>
+
+#include "at91_aic.h"
 #include "generic.h"
 
 /*

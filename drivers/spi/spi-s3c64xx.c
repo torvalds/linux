@@ -215,6 +215,10 @@ static void flush_fifo(struct s3c64xx_spi_driver_data *sdd)
 	writel(0, regs + S3C64XX_SPI_PACKET_CNT);
 
 	val = readl(regs + S3C64XX_SPI_CH_CFG);
+	val &= ~(S3C64XX_SPI_CH_RXCH_ON | S3C64XX_SPI_CH_TXCH_ON);
+	writel(val, regs + S3C64XX_SPI_CH_CFG);
+
+	val = readl(regs + S3C64XX_SPI_CH_CFG);
 	val |= S3C64XX_SPI_CH_SW_RST;
 	val &= ~S3C64XX_SPI_CH_HS_EN;
 	writel(val, regs + S3C64XX_SPI_CH_CFG);
@@ -248,10 +252,6 @@ static void flush_fifo(struct s3c64xx_spi_driver_data *sdd)
 	val = readl(regs + S3C64XX_SPI_MODE_CFG);
 	val &= ~(S3C64XX_SPI_MODE_TXDMA_ON | S3C64XX_SPI_MODE_RXDMA_ON);
 	writel(val, regs + S3C64XX_SPI_MODE_CFG);
-
-	val = readl(regs + S3C64XX_SPI_CH_CFG);
-	val &= ~(S3C64XX_SPI_CH_RXCH_ON | S3C64XX_SPI_CH_TXCH_ON);
-	writel(val, regs + S3C64XX_SPI_CH_CFG);
 }
 
 static void s3c64xx_spi_dmacb(void *data)
@@ -516,7 +516,7 @@ static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 
 	/* Disable Clock */
 	if (sdd->port_conf->clk_from_cmu) {
-		clk_disable(sdd->src_clk);
+		clk_disable_unprepare(sdd->src_clk);
 	} else {
 		val = readl(regs + S3C64XX_SPI_CLK_CFG);
 		val &= ~S3C64XX_SPI_ENCLK_ENABLE;
@@ -564,7 +564,7 @@ static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 		/* There is half-multiplier before the SPI */
 		clk_set_rate(sdd->src_clk, sdd->cur_speed * 2);
 		/* Enable Clock */
-		clk_enable(sdd->src_clk);
+		clk_prepare_enable(sdd->src_clk);
 	} else {
 		/* Configure Clock */
 		val = readl(regs + S3C64XX_SPI_CLK_CFG);
@@ -771,8 +771,6 @@ static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
 			if (list_is_last(&xfer->transfer_list,
 						&msg->transfers))
 				cs_toggle = 1;
-			else
-				disable_cs(sdd, spi);
 		}
 
 		msg->actual_length += xfer->len;
@@ -1056,7 +1054,7 @@ static void s3c64xx_spi_hwinit(struct s3c64xx_spi_driver_data *sdd, int channel)
 	flush_fifo(sdd);
 }
 
-static int __devinit s3c64xx_spi_get_dmares(
+static int s3c64xx_spi_get_dmares(
 			struct s3c64xx_spi_driver_data *sdd, bool tx)
 {
 	struct platform_device *pdev = sdd->pdev;
@@ -1112,7 +1110,7 @@ static int s3c64xx_spi_parse_dt_gpio(struct s3c64xx_spi_driver_data *sdd)
 			dev_err(dev, "invalid gpio[%d]: %d\n", idx, gpio);
 			goto free_gpio;
 		}
-
+		sdd->gpios[idx] = gpio;
 		ret = gpio_request(gpio, "spi-bus");
 		if (ret) {
 			dev_err(dev, "gpio [%d] request failed: %d\n",
@@ -1135,7 +1133,7 @@ static void s3c64xx_spi_dt_gpio_free(struct s3c64xx_spi_driver_data *sdd)
 		gpio_free(sdd->gpios[idx]);
 }
 
-static struct __devinit s3c64xx_spi_info * s3c64xx_spi_parse_dt(
+static struct s3c64xx_spi_info * s3c64xx_spi_parse_dt(
 						struct device *dev)
 {
 	struct s3c64xx_spi_info *sci;
@@ -1302,7 +1300,7 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 		goto err3;
 	}
 
-	if (clk_enable(sdd->clk)) {
+	if (clk_prepare_enable(sdd->clk)) {
 		dev_err(&pdev->dev, "Couldn't enable clock 'spi'\n");
 		ret = -EBUSY;
 		goto err4;
@@ -1317,7 +1315,7 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 		goto err5;
 	}
 
-	if (clk_enable(sdd->src_clk)) {
+	if (clk_prepare_enable(sdd->src_clk)) {
 		dev_err(&pdev->dev, "Couldn't enable clock '%s'\n", clk_name);
 		ret = -EBUSY;
 		goto err6;
@@ -1361,11 +1359,11 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 err8:
 	free_irq(irq, sdd);
 err7:
-	clk_disable(sdd->src_clk);
+	clk_disable_unprepare(sdd->src_clk);
 err6:
 	clk_put(sdd->src_clk);
 err5:
-	clk_disable(sdd->clk);
+	clk_disable_unprepare(sdd->clk);
 err4:
 	clk_put(sdd->clk);
 err3:
@@ -1393,10 +1391,10 @@ static int s3c64xx_spi_remove(struct platform_device *pdev)
 
 	free_irq(platform_get_irq(pdev, 0), sdd);
 
-	clk_disable(sdd->src_clk);
+	clk_disable_unprepare(sdd->src_clk);
 	clk_put(sdd->src_clk);
 
-	clk_disable(sdd->clk);
+	clk_disable_unprepare(sdd->clk);
 	clk_put(sdd->clk);
 
 	if (!sdd->cntrlr_info->cfg_gpio && pdev->dev.of_node)
@@ -1417,8 +1415,8 @@ static int s3c64xx_spi_suspend(struct device *dev)
 	spi_master_suspend(master);
 
 	/* Disable the clock */
-	clk_disable(sdd->src_clk);
-	clk_disable(sdd->clk);
+	clk_disable_unprepare(sdd->src_clk);
+	clk_disable_unprepare(sdd->clk);
 
 	if (!sdd->cntrlr_info->cfg_gpio && dev->of_node)
 		s3c64xx_spi_dt_gpio_free(sdd);
@@ -1440,8 +1438,8 @@ static int s3c64xx_spi_resume(struct device *dev)
 		sci->cfg_gpio();
 
 	/* Enable the clock */
-	clk_enable(sdd->src_clk);
-	clk_enable(sdd->clk);
+	clk_prepare_enable(sdd->src_clk);
+	clk_prepare_enable(sdd->clk);
 
 	s3c64xx_spi_hwinit(sdd, sdd->port_id);
 
@@ -1457,8 +1455,8 @@ static int s3c64xx_spi_runtime_suspend(struct device *dev)
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
 
-	clk_disable(sdd->clk);
-	clk_disable(sdd->src_clk);
+	clk_disable_unprepare(sdd->clk);
+	clk_disable_unprepare(sdd->src_clk);
 
 	return 0;
 }
@@ -1468,8 +1466,8 @@ static int s3c64xx_spi_runtime_resume(struct device *dev)
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
 
-	clk_enable(sdd->src_clk);
-	clk_enable(sdd->clk);
+	clk_prepare_enable(sdd->src_clk);
+	clk_prepare_enable(sdd->clk);
 
 	return 0;
 }

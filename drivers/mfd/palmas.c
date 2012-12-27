@@ -247,7 +247,7 @@ static struct regmap_irq_chip palmas_irq_chip = {
 			PALMAS_INT1_MASK),
 };
 
-static void __devinit palmas_dt_to_pdata(struct device_node *node,
+static void palmas_dt_to_pdata(struct device_node *node,
 		struct palmas_platform_data *pdata)
 {
 	int ret;
@@ -275,7 +275,7 @@ static void __devinit palmas_dt_to_pdata(struct device_node *node,
 					PALMAS_POWER_CTRL_ENABLE2_MASK;
 }
 
-static int __devinit palmas_i2c_probe(struct i2c_client *i2c,
+static int palmas_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct palmas *palmas;
@@ -492,7 +492,7 @@ static const struct i2c_device_id palmas_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, palmas_i2c_id);
 
-static struct of_device_id __devinitdata of_palmas_match_tbl[] = {
+static struct of_device_id of_palmas_match_tbl[] = {
 	{ .compatible = "ti,palmas", },
 	{ /* end */ }
 };

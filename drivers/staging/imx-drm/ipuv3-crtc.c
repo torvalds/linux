@@ -116,7 +116,7 @@ static void ipu_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 
-	dev_info(ipu_crtc->dev, "%s mode: %d\n", __func__, mode);
+	dev_dbg(ipu_crtc->dev, "%s mode: %d\n", __func__, mode);
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -530,7 +530,7 @@ err_put_resources:
 	return ret;
 }
 
-static int __devinit ipu_drm_probe(struct platform_device *pdev)
+static int ipu_drm_probe(struct platform_device *pdev)
 {
 	struct ipu_client_platformdata *pdata = pdev->dev.platform_data;
 	struct ipu_crtc *ipu_crtc;
@@ -554,7 +554,7 @@ static int __devinit ipu_drm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit ipu_drm_remove(struct platform_device *pdev)
+static int ipu_drm_remove(struct platform_device *pdev)
 {
 	struct ipu_crtc *ipu_crtc = platform_get_drvdata(pdev);
 
@@ -570,7 +570,7 @@ static struct platform_driver ipu_drm_driver = {
 		.name = "imx-ipuv3-crtc",
 	},
 	.probe = ipu_drm_probe,
-	.remove = __devexit_p(ipu_drm_remove),
+	.remove = ipu_drm_remove,
 };
 module_platform_driver(ipu_drm_driver);
 

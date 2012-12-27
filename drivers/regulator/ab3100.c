@@ -494,7 +494,7 @@ ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
  * for all the different regulators.
  */
 
-static int __devinit ab3100_regulators_probe(struct platform_device *pdev)
+static int ab3100_regulators_probe(struct platform_device *pdev)
 {
 	struct ab3100_platform_data *plfdata = pdev->dev.platform_data;
 	struct regulator_config config = { };
@@ -571,7 +571,7 @@ static int __devinit ab3100_regulators_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit ab3100_regulators_remove(struct platform_device *pdev)
+static int ab3100_regulators_remove(struct platform_device *pdev)
 {
 	int i;
 
@@ -589,7 +589,7 @@ static struct platform_driver ab3100_regulators_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ab3100_regulators_probe,
-	.remove = __devexit_p(ab3100_regulators_remove),
+	.remove = ab3100_regulators_remove,
 };
 
 static __init int ab3100_regulators_init(void)

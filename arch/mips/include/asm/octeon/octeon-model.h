@@ -218,6 +218,12 @@
 #define OCTEON_CN5XXX           (OCTEON_CN58XX_PASS1_0 | OM_MATCH_5XXX_FAMILY_MODELS)
 #define OCTEON_CN6XXX           (OCTEON_CN63XX_PASS1_0 | OM_MATCH_6XXX_FAMILY_MODELS)
 
+/* These are used to cover entire families of OCTEON processors */
+#define OCTEON_FAM_1		(OCTEON_CN3XXX)
+#define OCTEON_FAM_PLUS		(OCTEON_CN5XXX)
+#define OCTEON_FAM_1_PLUS	(OCTEON_FAM_PLUS | OM_MATCH_PREVIOUS_MODELS)
+#define OCTEON_FAM_2		(OCTEON_CN6XXX)
+
 /* The revision byte (low byte) has two different encodings.
  * CN3XXX:
  *

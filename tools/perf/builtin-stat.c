@@ -57,6 +57,7 @@
 #include "util/thread.h"
 #include "util/thread_map.h"
 
+#include <stdlib.h>
 #include <sys/prctl.h>
 #include <locale.h>
 
@@ -83,6 +84,9 @@ static const char		*csv_sep			= NULL;
 static bool			csv_output			= false;
 static bool			group				= false;
 static FILE			*output				= NULL;
+static const char		*pre_cmd			= NULL;
+static const char		*post_cmd			= NULL;
+static bool			sync_run			= false;
 
 static volatile int done = 0;
 
@@ -125,8 +129,7 @@ static struct stats runtime_itlb_cache_stats[MAX_NR_CPUS];
 static struct stats runtime_dtlb_cache_stats[MAX_NR_CPUS];
 static struct stats walltime_nsecs_stats;
 
-static int create_perf_stat_counter(struct perf_evsel *evsel,
-				    struct perf_evsel *first)
+static int create_perf_stat_counter(struct perf_evsel *evsel)
 {
 	struct perf_event_attr *attr = &evsel->attr;
 	bool exclude_guest_missing = false;
@@ -149,7 +152,8 @@ retry:
 		return 0;
 	}
 
-	if (!perf_target__has_task(&target) && (!group || evsel == first)) {
+	if (!perf_target__has_task(&target) &&
+	    !perf_evsel__is_group_member(evsel)) {
 		attr->disabled = 1;
 		attr->enable_on_exec = 1;
 	}
@@ -265,10 +269,10 @@ static int read_counter(struct perf_evsel *counter)
 	return 0;
 }
 
-static int run_perf_stat(int argc __maybe_unused, const char **argv)
+static int __run_perf_stat(int argc __maybe_unused, const char **argv)
 {
 	unsigned long long t0, t1;
-	struct perf_evsel *counter, *first;
+	struct perf_evsel *counter;
 	int status = 0;
 	int child_ready_pipe[2], go_pipe[2];
 	const bool forks = (argc > 0);
@@ -328,10 +332,8 @@ static int run_perf_stat(int argc __maybe_unused, const char **argv)
 	if (group)
 		perf_evlist__set_leader(evsel_list);
 
-	first = perf_evlist__first(evsel_list);
-
 	list_for_each_entry(counter, &evsel_list->entries, node) {
-		if (create_perf_stat_counter(counter, first) < 0) {
+		if (create_perf_stat_counter(counter) < 0) {
 			/*
 			 * PPC returns ENXIO for HW counters until 2.6.37
 			 * (behavior changed with commit b0a873e).
@@ -403,6 +405,32 @@ static int run_perf_stat(int argc __maybe_unused, const char **argv)
 	}
 
 	return WEXITSTATUS(status);
+}
+
+static int run_perf_stat(int argc __maybe_unused, const char **argv)
+{
+	int ret;
+
+	if (pre_cmd) {
+		ret = system(pre_cmd);
+		if (ret)
+			return ret;
+	}
+
+	if (sync_run)
+		sync();
+
+	ret = __run_perf_stat(argc, argv);
+	if (ret)
+		return ret;
+
+	if (post_cmd) {
+		ret = system(post_cmd);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
 }
 
 static void print_noise_pct(double total, double avg)
@@ -1069,8 +1097,7 @@ static int add_default_attributes(void)
 
 int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 {
-	bool append_file = false,
-	     sync_run = false;
+	bool append_file = false;
 	int output_fd = 0;
 	const char *output_name	= NULL;
 	const struct option options[] = {
@@ -1114,6 +1141,10 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN(0, "append", &append_file, "append to the output file"),
 	OPT_INTEGER(0, "log-fd", &output_fd,
 		    "log output to fd, instead of stderr"),
+	OPT_STRING(0, "pre", &pre_cmd, "command",
+			"command to run prior to the measured command"),
+	OPT_STRING(0, "post", &post_cmd, "command",
+			"command to run after to the measured command"),
 	OPT_END()
 	};
 	const char * const stat_usage[] = {
@@ -1237,9 +1268,6 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 		if (run_count != 1 && verbose)
 			fprintf(output, "[ perf stat: executing run #%d ... ]\n",
 				run_idx + 1);
-
-		if (sync_run)
-			sync();
 
 		status = run_perf_stat(argc, argv);
 	}

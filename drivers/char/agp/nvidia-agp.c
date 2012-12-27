@@ -388,7 +388,7 @@ static int __devinit agp_nvidia_probe(struct pci_dev *pdev,
 	return agp_add_bridge(bridge);
 }
 
-static void __devexit agp_nvidia_remove(struct pci_dev *pdev)
+static void agp_nvidia_remove(struct pci_dev *pdev)
 {
 	struct agp_bridge_data *bridge = pci_get_drvdata(pdev);
 

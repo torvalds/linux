@@ -382,7 +382,7 @@ static inline int iounmap_fixed(void __iomem *addr) { return -EINVAL; }
 #define xlate_dev_kmem_ptr(p)	p
 
 #define ARCH_HAS_VALID_PHYS_ADDR_RANGE
-int valid_phys_addr_range(unsigned long addr, size_t size);
+int valid_phys_addr_range(phys_addr_t addr, size_t size);
 int valid_mmap_phys_addr_range(unsigned long pfn, size_t size);
 
 #endif /* __KERNEL__ */

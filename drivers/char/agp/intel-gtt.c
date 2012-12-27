@@ -367,62 +367,6 @@ static unsigned int intel_gtt_stolen_size(void)
 			stolen_size = 0;
 			break;
 		}
-	} else if (INTEL_GTT_GEN == 6) {
-		/*
-		 * SandyBridge has new memory control reg at 0x50.w
-		 */
-		u16 snb_gmch_ctl;
-		pci_read_config_word(intel_private.pcidev, SNB_GMCH_CTRL, &snb_gmch_ctl);
-		switch (snb_gmch_ctl & SNB_GMCH_GMS_STOLEN_MASK) {
-		case SNB_GMCH_GMS_STOLEN_32M:
-			stolen_size = MB(32);
-			break;
-		case SNB_GMCH_GMS_STOLEN_64M:
-			stolen_size = MB(64);
-			break;
-		case SNB_GMCH_GMS_STOLEN_96M:
-			stolen_size = MB(96);
-			break;
-		case SNB_GMCH_GMS_STOLEN_128M:
-			stolen_size = MB(128);
-			break;
-		case SNB_GMCH_GMS_STOLEN_160M:
-			stolen_size = MB(160);
-			break;
-		case SNB_GMCH_GMS_STOLEN_192M:
-			stolen_size = MB(192);
-			break;
-		case SNB_GMCH_GMS_STOLEN_224M:
-			stolen_size = MB(224);
-			break;
-		case SNB_GMCH_GMS_STOLEN_256M:
-			stolen_size = MB(256);
-			break;
-		case SNB_GMCH_GMS_STOLEN_288M:
-			stolen_size = MB(288);
-			break;
-		case SNB_GMCH_GMS_STOLEN_320M:
-			stolen_size = MB(320);
-			break;
-		case SNB_GMCH_GMS_STOLEN_352M:
-			stolen_size = MB(352);
-			break;
-		case SNB_GMCH_GMS_STOLEN_384M:
-			stolen_size = MB(384);
-			break;
-		case SNB_GMCH_GMS_STOLEN_416M:
-			stolen_size = MB(416);
-			break;
-		case SNB_GMCH_GMS_STOLEN_448M:
-			stolen_size = MB(448);
-			break;
-		case SNB_GMCH_GMS_STOLEN_480M:
-			stolen_size = MB(480);
-			break;
-		case SNB_GMCH_GMS_STOLEN_512M:
-			stolen_size = MB(512);
-			break;
-		}
 	} else {
 		switch (gmch_ctrl & I855_GMCH_GMS_MASK) {
 		case I855_GMCH_GMS_STOLEN_1M:
@@ -556,29 +500,9 @@ static unsigned int i965_gtt_total_entries(void)
 
 static unsigned int intel_gtt_total_entries(void)
 {
-	int size;
-
 	if (IS_G33 || INTEL_GTT_GEN == 4 || INTEL_GTT_GEN == 5)
 		return i965_gtt_total_entries();
-	else if (INTEL_GTT_GEN == 6) {
-		u16 snb_gmch_ctl;
-
-		pci_read_config_word(intel_private.pcidev, SNB_GMCH_CTRL, &snb_gmch_ctl);
-		switch (snb_gmch_ctl & SNB_GTT_SIZE_MASK) {
-		default:
-		case SNB_GTT_SIZE_0M:
-			printk(KERN_ERR "Bad GTT size mask: 0x%04x.\n", snb_gmch_ctl);
-			size = MB(0);
-			break;
-		case SNB_GTT_SIZE_1M:
-			size = MB(1);
-			break;
-		case SNB_GTT_SIZE_2M:
-			size = MB(2);
-			break;
-		}
-		return size/4;
-	} else {
+	else {
 		/* On previous hardware, the GTT size was just what was
 		 * required to map the aperture.
 		 */
@@ -777,9 +701,6 @@ static void i830_write_entry(dma_addr_t addr, unsigned int entry,
 bool intel_enable_gtt(void)
 {
 	u8 __iomem *reg;
-
-	if (INTEL_GTT_GEN >= 6)
-	    return true;
 
 	if (INTEL_GTT_GEN == 2) {
 		u16 gmch_ctrl;
@@ -1149,85 +1070,6 @@ static void i965_write_entry(dma_addr_t addr,
 	writel(addr | pte_flags, intel_private.gtt + entry);
 }
 
-static bool gen6_check_flags(unsigned int flags)
-{
-	return true;
-}
-
-static void haswell_write_entry(dma_addr_t addr, unsigned int entry,
-				unsigned int flags)
-{
-	unsigned int type_mask = flags & ~AGP_USER_CACHED_MEMORY_GFDT;
-	unsigned int gfdt = flags & AGP_USER_CACHED_MEMORY_GFDT;
-	u32 pte_flags;
-
-	if (type_mask == AGP_USER_MEMORY)
-		pte_flags = HSW_PTE_UNCACHED | I810_PTE_VALID;
-	else if (type_mask == AGP_USER_CACHED_MEMORY_LLC_MLC) {
-		pte_flags = GEN6_PTE_LLC_MLC | I810_PTE_VALID;
-		if (gfdt)
-			pte_flags |= GEN6_PTE_GFDT;
-	} else { /* set 'normal'/'cached' to LLC by default */
-		pte_flags = GEN6_PTE_LLC | I810_PTE_VALID;
-		if (gfdt)
-			pte_flags |= GEN6_PTE_GFDT;
-	}
-
-	/* gen6 has bit11-4 for physical addr bit39-32 */
-	addr |= (addr >> 28) & 0xff0;
-	writel(addr | pte_flags, intel_private.gtt + entry);
-}
-
-static void gen6_write_entry(dma_addr_t addr, unsigned int entry,
-			     unsigned int flags)
-{
-	unsigned int type_mask = flags & ~AGP_USER_CACHED_MEMORY_GFDT;
-	unsigned int gfdt = flags & AGP_USER_CACHED_MEMORY_GFDT;
-	u32 pte_flags;
-
-	if (type_mask == AGP_USER_MEMORY)
-		pte_flags = GEN6_PTE_UNCACHED | I810_PTE_VALID;
-	else if (type_mask == AGP_USER_CACHED_MEMORY_LLC_MLC) {
-		pte_flags = GEN6_PTE_LLC_MLC | I810_PTE_VALID;
-		if (gfdt)
-			pte_flags |= GEN6_PTE_GFDT;
-	} else { /* set 'normal'/'cached' to LLC by default */
-		pte_flags = GEN6_PTE_LLC | I810_PTE_VALID;
-		if (gfdt)
-			pte_flags |= GEN6_PTE_GFDT;
-	}
-
-	/* gen6 has bit11-4 for physical addr bit39-32 */
-	addr |= (addr >> 28) & 0xff0;
-	writel(addr | pte_flags, intel_private.gtt + entry);
-}
-
-static void valleyview_write_entry(dma_addr_t addr, unsigned int entry,
-				   unsigned int flags)
-{
-	unsigned int type_mask = flags & ~AGP_USER_CACHED_MEMORY_GFDT;
-	unsigned int gfdt = flags & AGP_USER_CACHED_MEMORY_GFDT;
-	u32 pte_flags;
-
-	if (type_mask == AGP_USER_MEMORY)
-		pte_flags = GEN6_PTE_UNCACHED | I810_PTE_VALID;
-	else {
-		pte_flags = GEN6_PTE_LLC | I810_PTE_VALID;
-		if (gfdt)
-			pte_flags |= GEN6_PTE_GFDT;
-	}
-
-	/* gen6 has bit11-4 for physical addr bit39-32 */
-	addr |= (addr >> 28) & 0xff0;
-	writel(addr | pte_flags, intel_private.gtt + entry);
-
-	writel(1, intel_private.registers + GFX_FLSH_CNTL_VLV);
-}
-
-static void gen6_cleanup(void)
-{
-}
-
 /* Certain Gen5 chipsets require require idling the GPU before
  * unmapping anything from the GTT when VT-d is enabled.
  */
@@ -1249,41 +1091,29 @@ static inline int needs_idle_maps(void)
 
 static int i9xx_setup(void)
 {
-	u32 reg_addr;
+	u32 reg_addr, gtt_addr;
 	int size = KB(512);
 
 	pci_read_config_dword(intel_private.pcidev, I915_MMADDR, &reg_addr);
 
 	reg_addr &= 0xfff80000;
 
-	if (INTEL_GTT_GEN >= 7)
-		size = MB(2);
-
 	intel_private.registers = ioremap(reg_addr, size);
 	if (!intel_private.registers)
 		return -ENOMEM;
 
-	if (INTEL_GTT_GEN == 3) {
-		u32 gtt_addr;
-
+	switch (INTEL_GTT_GEN) {
+	case 3:
 		pci_read_config_dword(intel_private.pcidev,
 				      I915_PTEADDR, &gtt_addr);
 		intel_private.gtt_bus_addr = gtt_addr;
-	} else {
-		u32 gtt_offset;
-
-		switch (INTEL_GTT_GEN) {
-		case 5:
-		case 6:
-		case 7:
-			gtt_offset = MB(2);
-			break;
-		case 4:
-		default:
-			gtt_offset =  KB(512);
-			break;
-		}
-		intel_private.gtt_bus_addr = reg_addr + gtt_offset;
+		break;
+	case 5:
+		intel_private.gtt_bus_addr = reg_addr + MB(2);
+		break;
+	default:
+		intel_private.gtt_bus_addr = reg_addr + KB(512);
+		break;
 	}
 
 	if (needs_idle_maps())
@@ -1395,32 +1225,6 @@ static const struct intel_gtt_driver ironlake_gtt_driver = {
 	.check_flags = i830_check_flags,
 	.chipset_flush = i9xx_chipset_flush,
 };
-static const struct intel_gtt_driver sandybridge_gtt_driver = {
-	.gen = 6,
-	.setup = i9xx_setup,
-	.cleanup = gen6_cleanup,
-	.write_entry = gen6_write_entry,
-	.dma_mask_size = 40,
-	.check_flags = gen6_check_flags,
-	.chipset_flush = i9xx_chipset_flush,
-};
-static const struct intel_gtt_driver haswell_gtt_driver = {
-	.gen = 6,
-	.setup = i9xx_setup,
-	.cleanup = gen6_cleanup,
-	.write_entry = haswell_write_entry,
-	.dma_mask_size = 40,
-	.check_flags = gen6_check_flags,
-	.chipset_flush = i9xx_chipset_flush,
-};
-static const struct intel_gtt_driver valleyview_gtt_driver = {
-	.gen = 7,
-	.setup = i9xx_setup,
-	.cleanup = gen6_cleanup,
-	.write_entry = valleyview_write_entry,
-	.dma_mask_size = 40,
-	.check_flags = gen6_check_flags,
-};
 
 /* Table to describe Intel GMCH and AGP/PCIE GART drivers.  At least one of
  * driver and gmch_driver must be non-null, and find_gmch will determine
@@ -1501,106 +1305,6 @@ static const struct intel_gtt_driver_description {
 	    "HD Graphics", &ironlake_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_IRONLAKE_M_IG,
 	    "HD Graphics", &ironlake_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_GT1_IG,
-	    "Sandybridge", &sandybridge_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_GT2_IG,
-	    "Sandybridge", &sandybridge_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_GT2_PLUS_IG,
-	    "Sandybridge", &sandybridge_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_GT1_IG,
-	    "Sandybridge", &sandybridge_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_GT2_IG,
-	    "Sandybridge", &sandybridge_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_GT2_PLUS_IG,
-	    "Sandybridge", &sandybridge_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_S_IG,
-	    "Sandybridge", &sandybridge_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_IVYBRIDGE_GT1_IG,
-	    "Ivybridge", &sandybridge_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_IVYBRIDGE_GT2_IG,
-	    "Ivybridge", &sandybridge_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_IVYBRIDGE_M_GT1_IG,
-	    "Ivybridge", &sandybridge_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_IVYBRIDGE_M_GT2_IG,
-	    "Ivybridge", &sandybridge_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_IVYBRIDGE_S_GT1_IG,
-	    "Ivybridge", &sandybridge_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_IVYBRIDGE_S_GT2_IG,
-	    "Ivybridge", &sandybridge_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_VALLEYVIEW_IG,
-	    "ValleyView", &valleyview_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_D_GT1_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_D_GT2_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_D_GT2_PLUS_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_M_GT1_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_M_GT2_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_M_GT2_PLUS_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_S_GT1_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_S_GT2_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_S_GT2_PLUS_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_D_GT1_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_D_GT2_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_D_GT2_PLUS_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_M_GT1_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_M_GT2_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_M_GT2_PLUS_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_S_GT1_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_S_GT2_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_S_GT2_PLUS_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_D_GT1_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_D_GT2_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_D_GT2_PLUS_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_M_GT1_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_M_GT2_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_M_GT2_PLUS_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_S_GT1_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_S_GT2_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_S_GT2_PLUS_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_D_GT1_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_D_GT2_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_D_GT2_PLUS_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_M_GT1_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_M_GT2_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_M_GT2_PLUS_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_S_GT1_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_S_GT2_IG,
-	    "Haswell", &haswell_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_S_GT2_PLUS_IG,
-	    "Haswell", &haswell_gtt_driver },
 	{ 0, NULL, NULL }
 };
 
@@ -1686,7 +1390,7 @@ int intel_gmch_probe(struct pci_dev *bridge_pdev, struct pci_dev *gpu_pdev,
 }
 EXPORT_SYMBOL(intel_gmch_probe);
 
-const struct intel_gtt *intel_gtt_get(void)
+struct intel_gtt *intel_gtt_get(void)
 {
 	return &intel_private.base;
 }

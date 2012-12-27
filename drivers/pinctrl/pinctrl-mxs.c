@@ -319,7 +319,7 @@ static void mxs_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 		seq_printf(s, "0x%lx", config);
 }
 
-struct pinconf_ops mxs_pinconf_ops = {
+static struct pinconf_ops mxs_pinconf_ops = {
 	.pin_config_get = mxs_pinconf_get,
 	.pin_config_set = mxs_pinconf_set,
 	.pin_config_group_get = mxs_pinconf_group_get,
@@ -522,7 +522,7 @@ err:
 }
 EXPORT_SYMBOL_GPL(mxs_pinctrl_probe);
 
-int __devexit mxs_pinctrl_remove(struct platform_device *pdev)
+int mxs_pinctrl_remove(struct platform_device *pdev)
 {
 	struct mxs_pinctrl_data *d = platform_get_drvdata(pdev);
 

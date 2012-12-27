@@ -69,6 +69,7 @@
 #define ARM_INST_CMP_I		0x03500000
 
 #define ARM_INST_EOR_R		0x00200000
+#define ARM_INST_EOR_I		0x02200000
 
 #define ARM_INST_LDRB_I		0x05d00000
 #define ARM_INST_LDRB_R		0x07d00000
@@ -135,6 +136,7 @@
 #define ARM_CMP_I(rn, imm)	_AL3_I(ARM_INST_CMP, 0, rn, imm)
 
 #define ARM_EOR_R(rd, rn, rm)	_AL3_R(ARM_INST_EOR, rd, rn, rm)
+#define ARM_EOR_I(rd, rn, imm)	_AL3_I(ARM_INST_EOR, rd, rn, imm)
 
 #define ARM_LDR_I(rt, rn, off)	(ARM_INST_LDR_I | (rt) << 12 | (rn) << 16 \
 				 | (off))

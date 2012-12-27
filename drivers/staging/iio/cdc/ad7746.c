@@ -677,7 +677,7 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 		break;
 	default:
 		ret = -EINVAL;
-	};
+	}
 out:
 	mutex_unlock(&indio_dev->mlock);
 	return ret;
@@ -694,7 +694,7 @@ static const struct iio_info ad7746_info = {
  * device probe and remove
  */
 
-static int __devinit ad7746_probe(struct i2c_client *client,
+static int ad7746_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	struct ad7746_platform_data *pdata = client->dev.platform_data;
@@ -768,7 +768,7 @@ error_ret:
 	return ret;
 }
 
-static int __devexit ad7746_remove(struct i2c_client *client)
+static int ad7746_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
@@ -792,7 +792,7 @@ static struct i2c_driver ad7746_driver = {
 		.name = KBUILD_MODNAME,
 	},
 	.probe = ad7746_probe,
-	.remove = __devexit_p(ad7746_remove),
+	.remove = ad7746_remove,
 	.id_table = ad7746_id,
 };
 module_i2c_driver(ad7746_driver);

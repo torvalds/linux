@@ -81,6 +81,7 @@
 #include <linux/slab.h>
 #include <linux/wait.h>
 #include <linux/err.h>
+#include <linux/of_i2c.h>
 
 #if (defined CONFIG_I2C_MUX_GPIO || defined CONFIG_I2C_MUX_GPIO_MODULE) && \
 		defined CONFIG_DMI
@@ -1108,6 +1109,7 @@ static int __devinit i801_probe(struct pci_dev *dev,
 		/* fall through */
 	default:
 		priv->features |= FEATURE_I2C_BLOCK_READ;
+		priv->features |= FEATURE_IRQ;
 		/* fall through */
 	case PCI_DEVICE_ID_INTEL_82801DB_3:
 		priv->features |= FEATURE_SMBUS_PEC;
@@ -1119,16 +1121,6 @@ static int __devinit i801_probe(struct pci_dev *dev,
 	case PCI_DEVICE_ID_INTEL_82801AA_3:
 		break;
 	}
-
-	/* IRQ processing tested on CougarPoint PCH, ICH5, ICH7-M and ICH10 */
-	if (dev->device == PCI_DEVICE_ID_INTEL_COUGARPOINT_SMBUS ||
-	    dev->device == PCI_DEVICE_ID_INTEL_82801EB_3 ||
-	    dev->device == PCI_DEVICE_ID_INTEL_ICH7_17 ||
-	    dev->device == PCI_DEVICE_ID_INTEL_ICH8_5 ||
-	    dev->device == PCI_DEVICE_ID_INTEL_ICH9_6 ||
-	    dev->device == PCI_DEVICE_ID_INTEL_ICH10_4 ||
-	    dev->device == PCI_DEVICE_ID_INTEL_ICH10_5)
-		priv->features |= FEATURE_IRQ;
 
 	/* Disable features on user request */
 	for (i = 0; i < ARRAY_SIZE(i801_feature_names); i++) {
@@ -1215,6 +1207,7 @@ static int __devinit i801_probe(struct pci_dev *dev,
 		goto exit_free_irq;
 	}
 
+	of_i2c_register_devices(&priv->adapter);
 	i801_probe_optional_slaves(priv);
 	/* We ignore errors - multiplexing is optional */
 	i801_add_mux(priv);

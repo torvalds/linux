@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
+#include <linux/firmware.h>
 #include <linux/gcd.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
@@ -32,6 +33,40 @@
 #include <sound/wm2200.h>
 
 #include "wm2200.h"
+#include "wmfw.h"
+#include "wm_adsp.h"
+
+#define WM2200_DSP_CONTROL_1                   0x00
+#define WM2200_DSP_CONTROL_2                   0x02
+#define WM2200_DSP_CONTROL_3                   0x03
+#define WM2200_DSP_CONTROL_4                   0x04
+#define WM2200_DSP_CONTROL_5                   0x06
+#define WM2200_DSP_CONTROL_6                   0x07
+#define WM2200_DSP_CONTROL_7                   0x08
+#define WM2200_DSP_CONTROL_8                   0x09
+#define WM2200_DSP_CONTROL_9                   0x0A
+#define WM2200_DSP_CONTROL_10                  0x0B
+#define WM2200_DSP_CONTROL_11                  0x0C
+#define WM2200_DSP_CONTROL_12                  0x0D
+#define WM2200_DSP_CONTROL_13                  0x0F
+#define WM2200_DSP_CONTROL_14                  0x10
+#define WM2200_DSP_CONTROL_15                  0x11
+#define WM2200_DSP_CONTROL_16                  0x12
+#define WM2200_DSP_CONTROL_17                  0x13
+#define WM2200_DSP_CONTROL_18                  0x14
+#define WM2200_DSP_CONTROL_19                  0x16
+#define WM2200_DSP_CONTROL_20                  0x17
+#define WM2200_DSP_CONTROL_21                  0x18
+#define WM2200_DSP_CONTROL_22                  0x1A
+#define WM2200_DSP_CONTROL_23                  0x1B
+#define WM2200_DSP_CONTROL_24                  0x1C
+#define WM2200_DSP_CONTROL_25                  0x1E
+#define WM2200_DSP_CONTROL_26                  0x20
+#define WM2200_DSP_CONTROL_27                  0x21
+#define WM2200_DSP_CONTROL_28                  0x22
+#define WM2200_DSP_CONTROL_29                  0x23
+#define WM2200_DSP_CONTROL_30                  0x24
+#define WM2200_DSP_CONTROL_31                  0x26
 
 /* The code assumes DCVDD is generated internally */
 #define WM2200_NUM_CORE_SUPPLIES 2
@@ -49,6 +84,7 @@ struct wm2200_fll {
 
 /* codec private data */
 struct wm2200_priv {
+	struct wm_adsp dsp[2];
 	struct regmap *regmap;
 	struct device *dev;
 	struct snd_soc_codec *codec;
@@ -62,6 +98,72 @@ struct wm2200_priv {
 
 	int rev;
 	int sysclk;
+};
+
+#define WM2200_DSP_RANGE_BASE (WM2200_MAX_REGISTER + 1)
+#define WM2200_DSP_SPACING 12288
+
+#define WM2200_DSP1_DM_BASE (WM2200_DSP_RANGE_BASE + (0 * WM2200_DSP_SPACING))
+#define WM2200_DSP1_PM_BASE (WM2200_DSP_RANGE_BASE + (1 * WM2200_DSP_SPACING))
+#define WM2200_DSP1_ZM_BASE (WM2200_DSP_RANGE_BASE + (2 * WM2200_DSP_SPACING))
+#define WM2200_DSP2_DM_BASE (WM2200_DSP_RANGE_BASE + (3 * WM2200_DSP_SPACING))
+#define WM2200_DSP2_PM_BASE (WM2200_DSP_RANGE_BASE + (4 * WM2200_DSP_SPACING))
+#define WM2200_DSP2_ZM_BASE (WM2200_DSP_RANGE_BASE + (5 * WM2200_DSP_SPACING))
+
+static const struct regmap_range_cfg wm2200_ranges[] = {
+	{ .name = "DSP1DM", .range_min = WM2200_DSP1_DM_BASE,
+	  .range_max = WM2200_DSP1_DM_BASE + 12287,
+	  .selector_reg = WM2200_DSP1_CONTROL_3,
+	  .selector_mask = WM2200_DSP1_PAGE_BASE_DM_0_MASK,
+	  .selector_shift = WM2200_DSP1_PAGE_BASE_DM_0_SHIFT,
+	  .window_start = WM2200_DSP1_DM_0, .window_len = 2048, },
+
+	{ .name = "DSP1PM", .range_min = WM2200_DSP1_PM_BASE,
+	  .range_max = WM2200_DSP1_PM_BASE + 12287,
+	  .selector_reg = WM2200_DSP1_CONTROL_2,
+	  .selector_mask = WM2200_DSP1_PAGE_BASE_PM_0_MASK,
+	  .selector_shift = WM2200_DSP1_PAGE_BASE_PM_0_SHIFT,
+	  .window_start = WM2200_DSP1_PM_0, .window_len = 768, },
+
+	{ .name = "DSP1ZM", .range_min = WM2200_DSP1_ZM_BASE,
+	  .range_max = WM2200_DSP1_ZM_BASE + 2047,
+	  .selector_reg = WM2200_DSP1_CONTROL_4,
+	  .selector_mask = WM2200_DSP1_PAGE_BASE_ZM_0_MASK,
+	  .selector_shift = WM2200_DSP1_PAGE_BASE_ZM_0_SHIFT,
+	  .window_start = WM2200_DSP1_ZM_0, .window_len = 1024, },
+
+	{ .name = "DSP2DM", .range_min = WM2200_DSP2_DM_BASE,
+	  .range_max = WM2200_DSP2_DM_BASE + 4095,
+	  .selector_reg = WM2200_DSP2_CONTROL_3,
+	  .selector_mask = WM2200_DSP2_PAGE_BASE_DM_0_MASK,
+	  .selector_shift = WM2200_DSP2_PAGE_BASE_DM_0_SHIFT,
+	  .window_start = WM2200_DSP2_DM_0, .window_len = 2048, },
+
+	{ .name = "DSP2PM", .range_min = WM2200_DSP2_PM_BASE,
+	  .range_max = WM2200_DSP2_PM_BASE + 11287,
+	  .selector_reg = WM2200_DSP2_CONTROL_2,
+	  .selector_mask = WM2200_DSP2_PAGE_BASE_PM_0_MASK,
+	  .selector_shift = WM2200_DSP2_PAGE_BASE_PM_0_SHIFT,
+	  .window_start = WM2200_DSP2_PM_0, .window_len = 768, },
+
+	{ .name = "DSP2ZM", .range_min = WM2200_DSP2_ZM_BASE,
+	  .range_max = WM2200_DSP2_ZM_BASE + 2047,
+	  .selector_reg = WM2200_DSP2_CONTROL_4,
+	  .selector_mask = WM2200_DSP2_PAGE_BASE_ZM_0_MASK,
+	  .selector_shift = WM2200_DSP2_PAGE_BASE_ZM_0_SHIFT,
+	  .window_start = WM2200_DSP2_ZM_0, .window_len = 1024, },
+};
+
+static const struct wm_adsp_region wm2200_dsp1_regions[] = {
+	{ .type = WMFW_ADSP1_PM, .base = WM2200_DSP1_PM_BASE },
+	{ .type = WMFW_ADSP1_DM, .base = WM2200_DSP1_DM_BASE },
+	{ .type = WMFW_ADSP1_ZM, .base = WM2200_DSP1_ZM_BASE },
+};
+
+static const struct wm_adsp_region wm2200_dsp2_regions[] = {
+	{ .type = WMFW_ADSP1_PM, .base = WM2200_DSP2_PM_BASE },
+	{ .type = WMFW_ADSP1_DM, .base = WM2200_DSP2_DM_BASE },
+	{ .type = WMFW_ADSP1_ZM, .base = WM2200_DSP2_ZM_BASE },
 };
 
 static struct reg_default wm2200_reg_defaults[] = {
@@ -407,6 +509,16 @@ static struct reg_default wm2200_reg_defaults[] = {
 
 static bool wm2200_volatile_register(struct device *dev, unsigned int reg)
 {
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(wm2200_ranges); i++)
+		if ((reg >= wm2200_ranges[i].window_start &&
+		     reg <= wm2200_ranges[i].window_start +
+		     wm2200_ranges[i].window_len) ||
+		    (reg >= wm2200_ranges[i].range_min &&
+		     reg <= wm2200_ranges[i].range_max))
+			return true;
+
 	switch (reg) {
 	case WM2200_SOFTWARE_RESET:
 	case WM2200_DEVICE_REVISION:
@@ -423,6 +535,16 @@ static bool wm2200_volatile_register(struct device *dev, unsigned int reg)
 
 static bool wm2200_readable_register(struct device *dev, unsigned int reg)
 {
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(wm2200_ranges); i++)
+		if ((reg >= wm2200_ranges[i].window_start &&
+		     reg <= wm2200_ranges[i].window_start +
+		     wm2200_ranges[i].window_len) ||
+		    (reg >= wm2200_ranges[i].range_min &&
+		     reg <= wm2200_ranges[i].range_max))
+			return true;
+
 	switch (reg) {
 	case WM2200_SOFTWARE_RESET:
 	case WM2200_DEVICE_REVISION:
@@ -880,7 +1002,7 @@ static DECLARE_TLV_DB_SCALE(out_tlv, -6400, 100, 0);
 static const char *wm2200_mixer_texts[] = {
 	"None",
 	"Tone Generator",
-	"AEC loopback",
+	"AEC Loopback",
 	"IN1L",
 	"IN1R",
 	"IN2L",
@@ -976,6 +1098,20 @@ static int wm2200_mixer_values[] = {
 	static WM2200_MUX_CTL_DECL(name##_in3); \
 	static WM2200_MUX_CTL_DECL(name##_in4)
 
+#define WM2200_DSP_ENUMS(name, base_reg) \
+	static WM2200_MUX_ENUM_DECL(name##_aux1_enum, base_reg);     \
+	static WM2200_MUX_ENUM_DECL(name##_aux2_enum, base_reg + 1); \
+	static WM2200_MUX_ENUM_DECL(name##_aux3_enum, base_reg + 2); \
+	static WM2200_MUX_ENUM_DECL(name##_aux4_enum, base_reg + 3); \
+	static WM2200_MUX_ENUM_DECL(name##_aux5_enum, base_reg + 4); \
+	static WM2200_MUX_ENUM_DECL(name##_aux6_enum, base_reg + 5); \
+	static WM2200_MUX_CTL_DECL(name##_aux1); \
+	static WM2200_MUX_CTL_DECL(name##_aux2); \
+	static WM2200_MUX_CTL_DECL(name##_aux3); \
+	static WM2200_MUX_CTL_DECL(name##_aux4); \
+	static WM2200_MUX_CTL_DECL(name##_aux5); \
+	static WM2200_MUX_CTL_DECL(name##_aux6);
+
 static const struct snd_kcontrol_new wm2200_snd_controls[] = {
 SOC_SINGLE("IN1 High Performance Switch", WM2200_IN1L_CONTROL,
 	   WM2200_IN1_OSR_SHIFT, 1, 0),
@@ -1051,6 +1187,9 @@ WM2200_MIXER_ENUMS(DSP1R, WM2200_DSP1RMIX_INPUT_1_SOURCE);
 WM2200_MIXER_ENUMS(DSP2L, WM2200_DSP2LMIX_INPUT_1_SOURCE);
 WM2200_MIXER_ENUMS(DSP2R, WM2200_DSP2RMIX_INPUT_1_SOURCE);
 
+WM2200_DSP_ENUMS(DSP1, WM2200_DSP1AUX1MIX_INPUT_1_SOURCE);
+WM2200_DSP_ENUMS(DSP2, WM2200_DSP2AUX1MIX_INPUT_1_SOURCE);
+
 WM2200_MIXER_ENUMS(LHPF1, WM2200_LHPF1MIX_INPUT_1_SOURCE);
 WM2200_MIXER_ENUMS(LHPF2, WM2200_LHPF2MIX_INPUT_1_SOURCE);
 
@@ -1064,8 +1203,19 @@ WM2200_MIXER_ENUMS(LHPF2, WM2200_LHPF2MIX_INPUT_1_SOURCE);
 	WM2200_MUX(name_str " Input 4", &name##_in4_mux), \
 	SND_SOC_DAPM_MIXER(name_str " Mixer", SND_SOC_NOPM, 0, 0, NULL, 0)
 
+#define WM2200_DSP_WIDGETS(name, name_str) \
+	WM2200_MIXER_WIDGETS(name##L, name_str "L"), \
+	WM2200_MIXER_WIDGETS(name##R, name_str "R"), \
+	WM2200_MUX(name_str " Aux 1", &name##_aux1_mux), \
+	WM2200_MUX(name_str " Aux 2", &name##_aux2_mux), \
+	WM2200_MUX(name_str " Aux 3", &name##_aux3_mux), \
+	WM2200_MUX(name_str " Aux 4", &name##_aux4_mux), \
+	WM2200_MUX(name_str " Aux 5", &name##_aux5_mux), \
+	WM2200_MUX(name_str " Aux 6", &name##_aux6_mux)
+
 #define WM2200_MIXER_INPUT_ROUTES(name)	\
 	{ name, "Tone Generator", "Tone Generator" }, \
+	{ name, "AEC Loopback", "AEC Loopback" }, \
         { name, "IN1L", "IN1L PGA" }, \
         { name, "IN1R", "IN1R PGA" }, \
         { name, "IN2L", "IN2L PGA" }, \
@@ -1105,6 +1255,33 @@ WM2200_MIXER_ENUMS(LHPF2, WM2200_LHPF2MIX_INPUT_1_SOURCE);
 	WM2200_MIXER_INPUT_ROUTES(name " Input 2"), \
 	WM2200_MIXER_INPUT_ROUTES(name " Input 3"), \
 	WM2200_MIXER_INPUT_ROUTES(name " Input 4")
+
+#define WM2200_DSP_AUX_ROUTES(name) \
+	{ name, NULL, name " Aux 1" }, \
+	{ name, NULL, name " Aux 2" }, \
+	{ name, NULL, name " Aux 3" }, \
+	{ name, NULL, name " Aux 4" }, \
+	{ name, NULL, name " Aux 5" }, \
+	{ name, NULL, name " Aux 6" }, \
+	WM2200_MIXER_INPUT_ROUTES(name " Aux 1"), \
+	WM2200_MIXER_INPUT_ROUTES(name " Aux 2"), \
+	WM2200_MIXER_INPUT_ROUTES(name " Aux 3"), \
+	WM2200_MIXER_INPUT_ROUTES(name " Aux 4"), \
+	WM2200_MIXER_INPUT_ROUTES(name " Aux 5"), \
+	WM2200_MIXER_INPUT_ROUTES(name " Aux 6")
+
+static const char *wm2200_aec_loopback_texts[] = {
+	"OUT1L", "OUT1R", "OUT2L", "OUT2R",
+};
+
+static const struct soc_enum wm2200_aec_loopback =
+	SOC_ENUM_SINGLE(WM2200_DAC_AEC_CONTROL_1,
+			WM2200_AEC_LOOPBACK_SRC_SHIFT,
+			ARRAY_SIZE(wm2200_aec_loopback_texts),
+			wm2200_aec_loopback_texts);
+
+static const struct snd_kcontrol_new wm2200_aec_loopback_mux =
+	SOC_DAPM_ENUM("AEC Loopback", wm2200_aec_loopback);
 
 static const struct snd_soc_dapm_widget wm2200_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", WM2200_CLOCKING_3, WM2200_SYSCLK_ENA_SHIFT, 0,
@@ -1165,8 +1342,8 @@ SND_SOC_DAPM_PGA("LHPF1", WM2200_HPLPF1_1, WM2200_LHPF1_ENA_SHIFT, 0,
 SND_SOC_DAPM_PGA("LHPF2", WM2200_HPLPF2_1, WM2200_LHPF2_ENA_SHIFT, 0,
 		 NULL, 0),
 
-SND_SOC_DAPM_PGA_E("DSP1", SND_SOC_NOPM, 0, 0, NULL, 0, NULL, 0),
-SND_SOC_DAPM_PGA_E("DSP2", SND_SOC_NOPM, 1, 0, NULL, 0, NULL, 0),
+WM_ADSP1("DSP1", 0),
+WM_ADSP1("DSP2", 1),
 
 SND_SOC_DAPM_AIF_OUT("AIF1TX1", "Capture", 0,
 		    WM2200_AUDIO_IF_1_22, WM2200_AIF1TX1_ENA_SHIFT, 0),
@@ -1180,6 +1357,9 @@ SND_SOC_DAPM_AIF_OUT("AIF1TX5", "Capture", 4,
 		    WM2200_AUDIO_IF_1_22, WM2200_AIF1TX5_ENA_SHIFT, 0),
 SND_SOC_DAPM_AIF_OUT("AIF1TX6", "Capture", 5,
 		    WM2200_AUDIO_IF_1_22, WM2200_AIF1TX6_ENA_SHIFT, 0),
+
+SND_SOC_DAPM_MUX("AEC Loopback", WM2200_DAC_AEC_CONTROL_1,
+		 WM2200_AEC_LOOPBACK_ENA_SHIFT, 0, &wm2200_aec_loopback_mux),
 
 SND_SOC_DAPM_PGA_S("OUT1L", 0, WM2200_OUTPUT_ENABLES,
 		   WM2200_OUT1L_ENA_SHIFT, 0, NULL, 0),
@@ -1231,10 +1411,8 @@ WM2200_MIXER_WIDGETS(EQR, "EQR"),
 WM2200_MIXER_WIDGETS(LHPF1, "LHPF1"),
 WM2200_MIXER_WIDGETS(LHPF2, "LHPF2"),
 
-WM2200_MIXER_WIDGETS(DSP1L, "DSP1L"),
-WM2200_MIXER_WIDGETS(DSP1R, "DSP1R"),
-WM2200_MIXER_WIDGETS(DSP2L, "DSP2L"),
-WM2200_MIXER_WIDGETS(DSP2R, "DSP2R"),
+WM2200_DSP_WIDGETS(DSP1, "DSP1"),
+WM2200_DSP_WIDGETS(DSP2, "DSP2"),
 
 WM2200_MIXER_WIDGETS(AIF1TX1, "AIF1TX1"),
 WM2200_MIXER_WIDGETS(AIF1TX2, "AIF1TX2"),
@@ -1326,10 +1504,18 @@ static const struct snd_soc_dapm_route wm2200_dapm_routes[] = {
 	{ "SPK", NULL, "OUT2L" },
 	{ "SPK", NULL, "OUT2R" },
 
+	{ "AEC Loopback", "OUT1L", "OUT1L" },
+	{ "AEC Loopback", "OUT1R", "OUT1R" },
+	{ "AEC Loopback", "OUT2L", "OUT2L" },
+	{ "AEC Loopback", "OUT2R", "OUT2R" },
+
 	WM2200_MIXER_ROUTES("DSP1", "DSP1L"),
 	WM2200_MIXER_ROUTES("DSP1", "DSP1R"),
 	WM2200_MIXER_ROUTES("DSP2", "DSP2L"),
 	WM2200_MIXER_ROUTES("DSP2", "DSP2R"),
+
+	WM2200_DSP_AUX_ROUTES("DSP1"),
+	WM2200_DSP_AUX_ROUTES("DSP2"),
 
 	WM2200_MIXER_ROUTES("OUT1L", "OUT1L"),
 	WM2200_MIXER_ROUTES("OUT1R", "OUT1R"),
@@ -1968,12 +2154,15 @@ static const struct regmap_config wm2200_regmap = {
 	.reg_bits = 16,
 	.val_bits = 16,
 
-	.max_register = WM2200_MAX_REGISTER,
+	.max_register = WM2200_MAX_REGISTER + (ARRAY_SIZE(wm2200_ranges) *
+					       WM2200_DSP_SPACING),
 	.reg_defaults = wm2200_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm2200_reg_defaults),
 	.volatile_reg = wm2200_volatile_register,
 	.readable_reg = wm2200_readable_register,
 	.cache_type = REGCACHE_RBTREE,
+	.ranges = wm2200_ranges,
+	.num_ranges = ARRAY_SIZE(wm2200_ranges),
 };
 
 static const unsigned int wm2200_dig_vu[] = {
@@ -1995,8 +2184,8 @@ static const unsigned int wm2200_mic_ctrl_reg[] = {
 	WM2200_IN3L_CONTROL,
 };
 
-static __devinit int wm2200_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm2200_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct wm2200_pdata *pdata = dev_get_platdata(&i2c->dev);
 	struct wm2200_priv *wm2200;
@@ -2011,13 +2200,29 @@ static __devinit int wm2200_i2c_probe(struct i2c_client *i2c,
 	wm2200->dev = &i2c->dev;
 	init_completion(&wm2200->fll_lock);
 
-	wm2200->regmap = regmap_init_i2c(i2c, &wm2200_regmap);
+	wm2200->regmap = devm_regmap_init_i2c(i2c, &wm2200_regmap);
 	if (IS_ERR(wm2200->regmap)) {
 		ret = PTR_ERR(wm2200->regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
 			ret);
-		goto err;
+		return ret;
 	}
+
+	for (i = 0; i < 2; i++) {
+		wm2200->dsp[i].type = WMFW_ADSP1;
+		wm2200->dsp[i].part = "wm2200";
+		wm2200->dsp[i].num = i + 1;
+		wm2200->dsp[i].dev = &i2c->dev;
+		wm2200->dsp[i].regmap = wm2200->regmap;
+	}
+
+	wm2200->dsp[0].base = WM2200_DSP1_CONTROL_1;
+	wm2200->dsp[0].mem = wm2200_dsp1_regions;
+	wm2200->dsp[0].num_mems = ARRAY_SIZE(wm2200_dsp1_regions);
+
+	wm2200->dsp[1].base = WM2200_DSP2_CONTROL_1;
+	wm2200->dsp[1].mem = wm2200_dsp2_regions;
+	wm2200->dsp[1].num_mems = ARRAY_SIZE(wm2200_dsp2_regions);
 
 	if (pdata)
 		wm2200->pdata = *pdata;
@@ -2027,12 +2232,13 @@ static __devinit int wm2200_i2c_probe(struct i2c_client *i2c,
 	for (i = 0; i < ARRAY_SIZE(wm2200->core_supplies); i++)
 		wm2200->core_supplies[i].supply = wm2200_core_supply_names[i];
 
-	ret = regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm2200->core_supplies),
-				 wm2200->core_supplies);
+	ret = devm_regulator_bulk_get(&i2c->dev,
+				      ARRAY_SIZE(wm2200->core_supplies),
+				      wm2200->core_supplies);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to request core supplies: %d\n",
 			ret);
-		goto err_regmap;
+		return ret;
 	}
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(wm2200->core_supplies),
@@ -2040,12 +2246,13 @@ static __devinit int wm2200_i2c_probe(struct i2c_client *i2c,
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to enable core supplies: %d\n",
 			ret);
-		goto err_core;
+		return ret;
 	}
 
 	if (wm2200->pdata.ldo_ena) {
-		ret = gpio_request_one(wm2200->pdata.ldo_ena,
-				       GPIOF_OUT_INIT_HIGH, "WM2200 LDOENA");
+		ret = devm_gpio_request_one(&i2c->dev, wm2200->pdata.ldo_ena,
+					    GPIOF_OUT_INIT_HIGH,
+					    "WM2200 LDOENA");
 		if (ret < 0) {
 			dev_err(&i2c->dev, "Failed to request LDOENA %d: %d\n",
 				wm2200->pdata.ldo_ena, ret);
@@ -2055,8 +2262,9 @@ static __devinit int wm2200_i2c_probe(struct i2c_client *i2c,
 	}
 
 	if (wm2200->pdata.reset) {
-		ret = gpio_request_one(wm2200->pdata.reset,
-				       GPIOF_OUT_INIT_HIGH, "WM2200 /RESET");
+		ret = devm_gpio_request_one(&i2c->dev, wm2200->pdata.reset,
+					    GPIOF_OUT_INIT_HIGH,
+					    "WM2200 /RESET");
 		if (ret < 0) {
 			dev_err(&i2c->dev, "Failed to request /RESET %d: %d\n",
 				wm2200->pdata.reset, ret);
@@ -2166,45 +2374,28 @@ static __devinit int wm2200_i2c_probe(struct i2c_client *i2c,
 err_pm_runtime:
 	pm_runtime_disable(&i2c->dev);
 err_reset:
-	if (wm2200->pdata.reset) {
+	if (wm2200->pdata.reset)
 		gpio_set_value_cansleep(wm2200->pdata.reset, 0);
-		gpio_free(wm2200->pdata.reset);
-	}
 err_ldo:
-	if (wm2200->pdata.ldo_ena) {
+	if (wm2200->pdata.ldo_ena)
 		gpio_set_value_cansleep(wm2200->pdata.ldo_ena, 0);
-		gpio_free(wm2200->pdata.ldo_ena);
-	}
 err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm2200->core_supplies),
 			       wm2200->core_supplies);
-err_core:
-	regulator_bulk_free(ARRAY_SIZE(wm2200->core_supplies),
-			    wm2200->core_supplies);
-err_regmap:
-	regmap_exit(wm2200->regmap);
-err:
 	return ret;
 }
 
-static __devexit int wm2200_i2c_remove(struct i2c_client *i2c)
+static int wm2200_i2c_remove(struct i2c_client *i2c)
 {
 	struct wm2200_priv *wm2200 = i2c_get_clientdata(i2c);
 
 	snd_soc_unregister_codec(&i2c->dev);
 	if (i2c->irq)
 		free_irq(i2c->irq, wm2200);
-	if (wm2200->pdata.reset) {
+	if (wm2200->pdata.reset)
 		gpio_set_value_cansleep(wm2200->pdata.reset, 0);
-		gpio_free(wm2200->pdata.reset);
-	}
-	if (wm2200->pdata.ldo_ena) {
+	if (wm2200->pdata.ldo_ena)
 		gpio_set_value_cansleep(wm2200->pdata.ldo_ena, 0);
-		gpio_free(wm2200->pdata.ldo_ena);
-	}
-	regulator_bulk_free(ARRAY_SIZE(wm2200->core_supplies),
-			    wm2200->core_supplies);
-	regmap_exit(wm2200->regmap);
 
 	return 0;
 }
@@ -2267,7 +2458,7 @@ static struct i2c_driver wm2200_i2c_driver = {
 		.pm = &wm2200_pm,
 	},
 	.probe =    wm2200_i2c_probe,
-	.remove =   __devexit_p(wm2200_i2c_remove),
+	.remove =   wm2200_i2c_remove,
 	.id_table = wm2200_i2c_id,
 };
 

@@ -229,7 +229,7 @@ err_free_mem:
 	return ret;
 }
 
-static int __devexit mc13783_ts_remove(struct platform_device *pdev)
+static int mc13783_ts_remove(struct platform_device *pdev)
 {
 	struct mc13783_ts_priv *priv = platform_get_drvdata(pdev);
 
@@ -243,7 +243,7 @@ static int __devexit mc13783_ts_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver mc13783_ts_driver = {
-	.remove		= __devexit_p(mc13783_ts_remove),
+	.remove		= mc13783_ts_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= MC13783_TS_NAME,

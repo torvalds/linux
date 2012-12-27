@@ -252,6 +252,7 @@ void hpfs_set_ea(struct inode *, struct fnode *, const char *,
 /* file.c */
 
 int hpfs_file_fsync(struct file *, loff_t, loff_t, int);
+void hpfs_truncate(struct inode *);
 extern const struct file_operations hpfs_file_ops;
 extern const struct inode_operations hpfs_file_iops;
 extern const struct address_space_operations hpfs_aops;

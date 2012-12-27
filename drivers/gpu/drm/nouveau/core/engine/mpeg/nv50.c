@@ -157,7 +157,6 @@ nv50_mpeg_intr(struct nouveau_subdev *subdev)
 
 	nv_wr32(priv, 0x00b100, stat);
 	nv_wr32(priv, 0x00b230, 0x00000001);
-	nv50_fb_trap(nouveau_fb(priv), 1);
 }
 
 static void

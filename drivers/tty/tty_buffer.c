@@ -27,19 +27,21 @@
  *	Locking: none
  */
 
-void tty_buffer_free_all(struct tty_struct *tty)
+void tty_buffer_free_all(struct tty_port *port)
 {
+	struct tty_bufhead *buf = &port->buf;
 	struct tty_buffer *thead;
-	while ((thead = tty->buf.head) != NULL) {
-		tty->buf.head = thead->next;
+
+	while ((thead = buf->head) != NULL) {
+		buf->head = thead->next;
 		kfree(thead);
 	}
-	while ((thead = tty->buf.free) != NULL) {
-		tty->buf.free = thead->next;
+	while ((thead = buf->free) != NULL) {
+		buf->free = thead->next;
 		kfree(thead);
 	}
-	tty->buf.tail = NULL;
-	tty->buf.memory_used = 0;
+	buf->tail = NULL;
+	buf->memory_used = 0;
 }
 
 /**
@@ -54,11 +56,11 @@ void tty_buffer_free_all(struct tty_struct *tty)
  *	Locking: Caller must hold tty->buf.lock
  */
 
-static struct tty_buffer *tty_buffer_alloc(struct tty_struct *tty, size_t size)
+static struct tty_buffer *tty_buffer_alloc(struct tty_port *port, size_t size)
 {
 	struct tty_buffer *p;
 
-	if (tty->buf.memory_used + size > 65536)
+	if (port->buf.memory_used + size > 65536)
 		return NULL;
 	p = kmalloc(sizeof(struct tty_buffer) + 2 * size, GFP_ATOMIC);
 	if (p == NULL)
@@ -70,7 +72,7 @@ static struct tty_buffer *tty_buffer_alloc(struct tty_struct *tty, size_t size)
 	p->read = 0;
 	p->char_buf_ptr = (char *)(p->data);
 	p->flag_buf_ptr = (unsigned char *)p->char_buf_ptr + size;
-	tty->buf.memory_used += size;
+	port->buf.memory_used += size;
 	return p;
 }
 
@@ -85,17 +87,19 @@ static struct tty_buffer *tty_buffer_alloc(struct tty_struct *tty, size_t size)
  *	Locking: Caller must hold tty->buf.lock
  */
 
-static void tty_buffer_free(struct tty_struct *tty, struct tty_buffer *b)
+static void tty_buffer_free(struct tty_port *port, struct tty_buffer *b)
 {
+	struct tty_bufhead *buf = &port->buf;
+
 	/* Dumb strategy for now - should keep some stats */
-	tty->buf.memory_used -= b->size;
-	WARN_ON(tty->buf.memory_used < 0);
+	buf->memory_used -= b->size;
+	WARN_ON(buf->memory_used < 0);
 
 	if (b->size >= 512)
 		kfree(b);
 	else {
-		b->next = tty->buf.free;
-		tty->buf.free = b;
+		b->next = buf->free;
+		buf->free = b;
 	}
 }
 
@@ -110,15 +114,16 @@ static void tty_buffer_free(struct tty_struct *tty, struct tty_buffer *b)
  *	Locking: Caller must hold tty->buf.lock
  */
 
-static void __tty_buffer_flush(struct tty_struct *tty)
+static void __tty_buffer_flush(struct tty_port *port)
 {
+	struct tty_bufhead *buf = &port->buf;
 	struct tty_buffer *thead;
 
-	while ((thead = tty->buf.head) != NULL) {
-		tty->buf.head = thead->next;
-		tty_buffer_free(tty, thead);
+	while ((thead = buf->head) != NULL) {
+		buf->head = thead->next;
+		tty_buffer_free(port, thead);
 	}
-	tty->buf.tail = NULL;
+	buf->tail = NULL;
 }
 
 /**
@@ -134,21 +139,24 @@ static void __tty_buffer_flush(struct tty_struct *tty)
 
 void tty_buffer_flush(struct tty_struct *tty)
 {
+	struct tty_port *port = tty->port;
+	struct tty_bufhead *buf = &port->buf;
 	unsigned long flags;
-	spin_lock_irqsave(&tty->buf.lock, flags);
+
+	spin_lock_irqsave(&buf->lock, flags);
 
 	/* If the data is being pushed to the tty layer then we can't
 	   process it here. Instead set a flag and the flush_to_ldisc
 	   path will process the flush request before it exits */
-	if (test_bit(TTY_FLUSHING, &tty->flags)) {
-		set_bit(TTY_FLUSHPENDING, &tty->flags);
-		spin_unlock_irqrestore(&tty->buf.lock, flags);
+	if (test_bit(TTYP_FLUSHING, &port->iflags)) {
+		set_bit(TTYP_FLUSHPENDING, &port->iflags);
+		spin_unlock_irqrestore(&buf->lock, flags);
 		wait_event(tty->read_wait,
-				test_bit(TTY_FLUSHPENDING, &tty->flags) == 0);
+				test_bit(TTYP_FLUSHPENDING, &port->iflags) == 0);
 		return;
 	} else
-		__tty_buffer_flush(tty);
-	spin_unlock_irqrestore(&tty->buf.lock, flags);
+		__tty_buffer_flush(port);
+	spin_unlock_irqrestore(&buf->lock, flags);
 }
 
 /**
@@ -163,9 +171,9 @@ void tty_buffer_flush(struct tty_struct *tty)
  *	Locking: Caller must hold tty->buf.lock
  */
 
-static struct tty_buffer *tty_buffer_find(struct tty_struct *tty, size_t size)
+static struct tty_buffer *tty_buffer_find(struct tty_port *port, size_t size)
 {
-	struct tty_buffer **tbh = &tty->buf.free;
+	struct tty_buffer **tbh = &port->buf.free;
 	while ((*tbh) != NULL) {
 		struct tty_buffer *t = *tbh;
 		if (t->size >= size) {
@@ -174,14 +182,14 @@ static struct tty_buffer *tty_buffer_find(struct tty_struct *tty, size_t size)
 			t->used = 0;
 			t->commit = 0;
 			t->read = 0;
-			tty->buf.memory_used += t->size;
+			port->buf.memory_used += t->size;
 			return t;
 		}
 		tbh = &((*tbh)->next);
 	}
 	/* Round the buffer size out */
 	size = (size + 0xFF) & ~0xFF;
-	return tty_buffer_alloc(tty, size);
+	return tty_buffer_alloc(port, size);
 	/* Should possibly check if this fails for the largest buffer we
 	   have queued and recycle that ? */
 }
@@ -192,29 +200,31 @@ static struct tty_buffer *tty_buffer_find(struct tty_struct *tty, size_t size)
  *
  *	Make at least size bytes of linear space available for the tty
  *	buffer. If we fail return the size we managed to find.
- *      Locking: Caller must hold tty->buf.lock
+ *      Locking: Caller must hold port->buf.lock
  */
-static int __tty_buffer_request_room(struct tty_struct *tty, size_t size)
+static int __tty_buffer_request_room(struct tty_port *port, size_t size)
 {
+	struct tty_bufhead *buf = &port->buf;
 	struct tty_buffer *b, *n;
 	int left;
 	/* OPTIMISATION: We could keep a per tty "zero" sized buffer to
 	   remove this conditional if its worth it. This would be invisible
 	   to the callers */
-	if ((b = tty->buf.tail) != NULL)
+	b = buf->tail;
+	if (b != NULL)
 		left = b->size - b->used;
 	else
 		left = 0;
 
 	if (left < size) {
 		/* This is the slow path - looking for new buffers to use */
-		if ((n = tty_buffer_find(tty, size)) != NULL) {
+		if ((n = tty_buffer_find(port, size)) != NULL) {
 			if (b != NULL) {
 				b->next = n;
 				b->commit = b->used;
 			} else
-				tty->buf.head = n;
-			tty->buf.tail = n;
+				buf->head = n;
+			buf->tail = n;
 		} else
 			size = left;
 	}
@@ -231,16 +241,17 @@ static int __tty_buffer_request_room(struct tty_struct *tty, size_t size)
  *	Make at least size bytes of linear space available for the tty
  *	buffer. If we fail return the size we managed to find.
  *
- *	Locking: Takes tty->buf.lock
+ *	Locking: Takes port->buf.lock
  */
 int tty_buffer_request_room(struct tty_struct *tty, size_t size)
 {
+	struct tty_port *port = tty->port;
 	unsigned long flags;
 	int length;
 
-	spin_lock_irqsave(&tty->buf.lock, flags);
-	length = __tty_buffer_request_room(tty, size);
-	spin_unlock_irqrestore(&tty->buf.lock, flags);
+	spin_lock_irqsave(&port->buf.lock, flags);
+	length = __tty_buffer_request_room(port, size);
+	spin_unlock_irqrestore(&port->buf.lock, flags);
 	return length;
 }
 EXPORT_SYMBOL_GPL(tty_buffer_request_room);
@@ -255,12 +266,13 @@ EXPORT_SYMBOL_GPL(tty_buffer_request_room);
  *	Queue a series of bytes to the tty buffering. All the characters
  *	passed are marked with the supplied flag. Returns the number added.
  *
- *	Locking: Called functions may take tty->buf.lock
+ *	Locking: Called functions may take port->buf.lock
  */
 
 int tty_insert_flip_string_fixed_flag(struct tty_struct *tty,
 		const unsigned char *chars, char flag, size_t size)
 {
+	struct tty_bufhead *buf = &tty->port->buf;
 	int copied = 0;
 	do {
 		int goal = min_t(size_t, size - copied, TTY_BUFFER_PAGE);
@@ -268,18 +280,18 @@ int tty_insert_flip_string_fixed_flag(struct tty_struct *tty,
 		unsigned long flags;
 		struct tty_buffer *tb;
 
-		spin_lock_irqsave(&tty->buf.lock, flags);
-		space = __tty_buffer_request_room(tty, goal);
-		tb = tty->buf.tail;
+		spin_lock_irqsave(&buf->lock, flags);
+		space = __tty_buffer_request_room(tty->port, goal);
+		tb = buf->tail;
 		/* If there is no space then tb may be NULL */
 		if (unlikely(space == 0)) {
-			spin_unlock_irqrestore(&tty->buf.lock, flags);
+			spin_unlock_irqrestore(&buf->lock, flags);
 			break;
 		}
 		memcpy(tb->char_buf_ptr + tb->used, chars, space);
 		memset(tb->flag_buf_ptr + tb->used, flag, space);
 		tb->used += space;
-		spin_unlock_irqrestore(&tty->buf.lock, flags);
+		spin_unlock_irqrestore(&buf->lock, flags);
 		copied += space;
 		chars += space;
 		/* There is a small chance that we need to split the data over
@@ -300,12 +312,13 @@ EXPORT_SYMBOL(tty_insert_flip_string_fixed_flag);
  *	the flags array indicates the status of the character. Returns the
  *	number added.
  *
- *	Locking: Called functions may take tty->buf.lock
+ *	Locking: Called functions may take port->buf.lock
  */
 
 int tty_insert_flip_string_flags(struct tty_struct *tty,
 		const unsigned char *chars, const char *flags, size_t size)
 {
+	struct tty_bufhead *buf = &tty->port->buf;
 	int copied = 0;
 	do {
 		int goal = min_t(size_t, size - copied, TTY_BUFFER_PAGE);
@@ -313,18 +326,18 @@ int tty_insert_flip_string_flags(struct tty_struct *tty,
 		unsigned long __flags;
 		struct tty_buffer *tb;
 
-		spin_lock_irqsave(&tty->buf.lock, __flags);
-		space = __tty_buffer_request_room(tty, goal);
-		tb = tty->buf.tail;
+		spin_lock_irqsave(&buf->lock, __flags);
+		space = __tty_buffer_request_room(tty->port, goal);
+		tb = buf->tail;
 		/* If there is no space then tb may be NULL */
 		if (unlikely(space == 0)) {
-			spin_unlock_irqrestore(&tty->buf.lock, __flags);
+			spin_unlock_irqrestore(&buf->lock, __flags);
 			break;
 		}
 		memcpy(tb->char_buf_ptr + tb->used, chars, space);
 		memcpy(tb->flag_buf_ptr + tb->used, flags, space);
 		tb->used += space;
-		spin_unlock_irqrestore(&tty->buf.lock, __flags);
+		spin_unlock_irqrestore(&buf->lock, __flags);
 		copied += space;
 		chars += space;
 		flags += space;
@@ -342,18 +355,23 @@ EXPORT_SYMBOL(tty_insert_flip_string_flags);
  *	Takes any pending buffers and transfers their ownership to the
  *	ldisc side of the queue. It then schedules those characters for
  *	processing by the line discipline.
+ *	Note that this function can only be used when the low_latency flag
+ *	is unset. Otherwise the workqueue won't be flushed.
  *
- *	Locking: Takes tty->buf.lock
+ *	Locking: Takes port->buf.lock
  */
 
 void tty_schedule_flip(struct tty_struct *tty)
 {
+	struct tty_bufhead *buf = &tty->port->buf;
 	unsigned long flags;
-	spin_lock_irqsave(&tty->buf.lock, flags);
-	if (tty->buf.tail != NULL)
-		tty->buf.tail->commit = tty->buf.tail->used;
-	spin_unlock_irqrestore(&tty->buf.lock, flags);
-	schedule_work(&tty->buf.work);
+	WARN_ON(tty->low_latency);
+
+	spin_lock_irqsave(&buf->lock, flags);
+	if (buf->tail != NULL)
+		buf->tail->commit = buf->tail->used;
+	spin_unlock_irqrestore(&buf->lock, flags);
+	schedule_work(&buf->work);
 }
 EXPORT_SYMBOL(tty_schedule_flip);
 
@@ -369,26 +387,27 @@ EXPORT_SYMBOL(tty_schedule_flip);
  *	that need their own block copy routines into the buffer. There is no
  *	guarantee the buffer is a DMA target!
  *
- *	Locking: May call functions taking tty->buf.lock
+ *	Locking: May call functions taking port->buf.lock
  */
 
 int tty_prepare_flip_string(struct tty_struct *tty, unsigned char **chars,
-								size_t size)
+		size_t size)
 {
+	struct tty_bufhead *buf = &tty->port->buf;
 	int space;
 	unsigned long flags;
 	struct tty_buffer *tb;
 
-	spin_lock_irqsave(&tty->buf.lock, flags);
-	space = __tty_buffer_request_room(tty, size);
+	spin_lock_irqsave(&buf->lock, flags);
+	space = __tty_buffer_request_room(tty->port, size);
 
-	tb = tty->buf.tail;
+	tb = buf->tail;
 	if (likely(space)) {
 		*chars = tb->char_buf_ptr + tb->used;
 		memset(tb->flag_buf_ptr + tb->used, TTY_NORMAL, space);
 		tb->used += space;
 	}
-	spin_unlock_irqrestore(&tty->buf.lock, flags);
+	spin_unlock_irqrestore(&buf->lock, flags);
 	return space;
 }
 EXPORT_SYMBOL_GPL(tty_prepare_flip_string);
@@ -406,26 +425,27 @@ EXPORT_SYMBOL_GPL(tty_prepare_flip_string);
  *	that need their own block copy routines into the buffer. There is no
  *	guarantee the buffer is a DMA target!
  *
- *	Locking: May call functions taking tty->buf.lock
+ *	Locking: May call functions taking port->buf.lock
  */
 
 int tty_prepare_flip_string_flags(struct tty_struct *tty,
 			unsigned char **chars, char **flags, size_t size)
 {
+	struct tty_bufhead *buf = &tty->port->buf;
 	int space;
 	unsigned long __flags;
 	struct tty_buffer *tb;
 
-	spin_lock_irqsave(&tty->buf.lock, __flags);
-	space = __tty_buffer_request_room(tty, size);
+	spin_lock_irqsave(&buf->lock, __flags);
+	space = __tty_buffer_request_room(tty->port, size);
 
-	tb = tty->buf.tail;
+	tb = buf->tail;
 	if (likely(space)) {
 		*chars = tb->char_buf_ptr + tb->used;
 		*flags = tb->flag_buf_ptr + tb->used;
 		tb->used += space;
 	}
-	spin_unlock_irqrestore(&tty->buf.lock, __flags);
+	spin_unlock_irqrestore(&buf->lock, __flags);
 	return space;
 }
 EXPORT_SYMBOL_GPL(tty_prepare_flip_string_flags);
@@ -446,20 +466,25 @@ EXPORT_SYMBOL_GPL(tty_prepare_flip_string_flags);
 
 static void flush_to_ldisc(struct work_struct *work)
 {
-	struct tty_struct *tty =
-		container_of(work, struct tty_struct, buf.work);
+	struct tty_port *port = container_of(work, struct tty_port, buf.work);
+	struct tty_bufhead *buf = &port->buf;
+	struct tty_struct *tty;
 	unsigned long 	flags;
 	struct tty_ldisc *disc;
+
+	tty = port->itty;
+	if (WARN_RATELIMIT(tty == NULL, "tty is NULL\n"))
+		return;
 
 	disc = tty_ldisc_ref(tty);
 	if (disc == NULL)	/*  !TTY_LDISC */
 		return;
 
-	spin_lock_irqsave(&tty->buf.lock, flags);
+	spin_lock_irqsave(&buf->lock, flags);
 
-	if (!test_and_set_bit(TTY_FLUSHING, &tty->flags)) {
+	if (!test_and_set_bit(TTYP_FLUSHING, &port->iflags)) {
 		struct tty_buffer *head;
-		while ((head = tty->buf.head) != NULL) {
+		while ((head = buf->head) != NULL) {
 			int count;
 			char *char_buf;
 			unsigned char *flag_buf;
@@ -468,14 +493,14 @@ static void flush_to_ldisc(struct work_struct *work)
 			if (!count) {
 				if (head->next == NULL)
 					break;
-				tty->buf.head = head->next;
-				tty_buffer_free(tty, head);
+				buf->head = head->next;
+				tty_buffer_free(port, head);
 				continue;
 			}
 			/* Ldisc or user is trying to flush the buffers
 			   we are feeding to the ldisc, stop feeding the
 			   line discipline as we want to empty the queue */
-			if (test_bit(TTY_FLUSHPENDING, &tty->flags))
+			if (test_bit(TTYP_FLUSHPENDING, &port->iflags))
 				break;
 			if (!tty->receive_room)
 				break;
@@ -484,22 +509,22 @@ static void flush_to_ldisc(struct work_struct *work)
 			char_buf = head->char_buf_ptr + head->read;
 			flag_buf = head->flag_buf_ptr + head->read;
 			head->read += count;
-			spin_unlock_irqrestore(&tty->buf.lock, flags);
+			spin_unlock_irqrestore(&buf->lock, flags);
 			disc->ops->receive_buf(tty, char_buf,
 							flag_buf, count);
-			spin_lock_irqsave(&tty->buf.lock, flags);
+			spin_lock_irqsave(&buf->lock, flags);
 		}
-		clear_bit(TTY_FLUSHING, &tty->flags);
+		clear_bit(TTYP_FLUSHING, &port->iflags);
 	}
 
 	/* We may have a deferred request to flush the input buffer,
 	   if so pull the chain under the lock and empty the queue */
-	if (test_bit(TTY_FLUSHPENDING, &tty->flags)) {
-		__tty_buffer_flush(tty);
-		clear_bit(TTY_FLUSHPENDING, &tty->flags);
+	if (test_bit(TTYP_FLUSHPENDING, &port->iflags)) {
+		__tty_buffer_flush(port);
+		clear_bit(TTYP_FLUSHPENDING, &port->iflags);
 		wake_up(&tty->read_wait);
 	}
-	spin_unlock_irqrestore(&tty->buf.lock, flags);
+	spin_unlock_irqrestore(&buf->lock, flags);
 
 	tty_ldisc_deref(disc);
 }
@@ -514,7 +539,8 @@ static void flush_to_ldisc(struct work_struct *work)
  */
 void tty_flush_to_ldisc(struct tty_struct *tty)
 {
-	flush_work(&tty->buf.work);
+	if (!tty->low_latency)
+		flush_work(&tty->port->buf.work);
 }
 
 /**
@@ -532,16 +558,18 @@ void tty_flush_to_ldisc(struct tty_struct *tty)
 
 void tty_flip_buffer_push(struct tty_struct *tty)
 {
+	struct tty_bufhead *buf = &tty->port->buf;
 	unsigned long flags;
-	spin_lock_irqsave(&tty->buf.lock, flags);
-	if (tty->buf.tail != NULL)
-		tty->buf.tail->commit = tty->buf.tail->used;
-	spin_unlock_irqrestore(&tty->buf.lock, flags);
+
+	spin_lock_irqsave(&buf->lock, flags);
+	if (buf->tail != NULL)
+		buf->tail->commit = buf->tail->used;
+	spin_unlock_irqrestore(&buf->lock, flags);
 
 	if (tty->low_latency)
-		flush_to_ldisc(&tty->buf.work);
+		flush_to_ldisc(&buf->work);
 	else
-		schedule_work(&tty->buf.work);
+		schedule_work(&buf->work);
 }
 EXPORT_SYMBOL(tty_flip_buffer_push);
 
@@ -555,13 +583,15 @@ EXPORT_SYMBOL(tty_flip_buffer_push);
  *	Locking: none
  */
 
-void tty_buffer_init(struct tty_struct *tty)
+void tty_buffer_init(struct tty_port *port)
 {
-	spin_lock_init(&tty->buf.lock);
-	tty->buf.head = NULL;
-	tty->buf.tail = NULL;
-	tty->buf.free = NULL;
-	tty->buf.memory_used = 0;
-	INIT_WORK(&tty->buf.work, flush_to_ldisc);
+	struct tty_bufhead *buf = &port->buf;
+
+	spin_lock_init(&buf->lock);
+	buf->head = NULL;
+	buf->tail = NULL;
+	buf->free = NULL;
+	buf->memory_used = 0;
+	INIT_WORK(&buf->work, flush_to_ldisc);
 }
 

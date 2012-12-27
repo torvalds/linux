@@ -230,6 +230,14 @@ static int bq27x00_battery_read_charge(struct bq27x00_device_info *di, u8 reg)
  */
 static inline int bq27x00_battery_read_nac(struct bq27x00_device_info *di)
 {
+	int flags;
+	bool is_bq27500 = di->chip == BQ27500;
+	bool is_higher = bq27xxx_is_chip_version_higher(di);
+
+	flags = bq27x00_read(di, BQ27x00_REG_FLAGS, !is_bq27500);
+	if (flags >= 0 && !is_higher && (flags & BQ27000_FLAG_CI))
+		return -ENODATA;
+
 	return bq27x00_battery_read_charge(di, BQ27x00_REG_NAC);
 }
 
@@ -926,7 +934,7 @@ static int bq27000_read_platform(struct bq27x00_device_info *di, u8 reg,
 	return pdata->read(dev, reg);
 }
 
-static int __devinit bq27000_battery_probe(struct platform_device *pdev)
+static int bq27000_battery_probe(struct platform_device *pdev)
 {
 	struct bq27x00_device_info *di;
 	struct bq27000_platform_data *pdata = pdev->dev.platform_data;
@@ -969,7 +977,7 @@ err_free:
 	return ret;
 }
 
-static int __devexit bq27000_battery_remove(struct platform_device *pdev)
+static int bq27000_battery_remove(struct platform_device *pdev)
 {
 	struct bq27x00_device_info *di = platform_get_drvdata(pdev);
 
@@ -983,7 +991,7 @@ static int __devexit bq27000_battery_remove(struct platform_device *pdev)
 
 static struct platform_driver bq27000_battery_driver = {
 	.probe	= bq27000_battery_probe,
-	.remove = __devexit_p(bq27000_battery_remove),
+	.remove = bq27000_battery_remove,
 	.driver = {
 		.name = "bq27000-battery",
 		.owner = THIS_MODULE,

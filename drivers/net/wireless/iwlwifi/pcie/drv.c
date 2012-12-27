@@ -69,7 +69,6 @@
 
 #include "iwl-trans.h"
 #include "iwl-drv.h"
-#include "iwl-trans.h"
 
 #include "cfg.h"
 #include "internal.h"
@@ -268,6 +267,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	const struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
 	struct iwl_trans *iwl_trans;
 	struct iwl_trans_pcie *trans_pcie;
+	int ret;
 
 	iwl_trans = iwl_trans_pcie_alloc(pdev, ent, cfg);
 	if (iwl_trans == NULL)
@@ -277,11 +277,15 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(iwl_trans);
 	trans_pcie->drv = iwl_drv_start(iwl_trans, cfg);
-	if (!trans_pcie->drv)
+
+	if (IS_ERR_OR_NULL(trans_pcie->drv)) {
+		ret = PTR_ERR(trans_pcie->drv);
 		goto out_free_trans;
+	}
 
 	/* register transport layer debugfs here */
-	if (iwl_trans_dbgfs_register(iwl_trans, iwl_trans->dbgfs_dir))
+	ret = iwl_trans_dbgfs_register(iwl_trans, iwl_trans->dbgfs_dir);
+	if (ret)
 		goto out_free_drv;
 
 	return 0;
@@ -291,10 +295,10 @@ out_free_drv:
 out_free_trans:
 	iwl_trans_pcie_free(iwl_trans);
 	pci_set_drvdata(pdev, NULL);
-	return -EFAULT;
+	return ret;
 }
 
-static void __devexit iwl_pci_remove(struct pci_dev *pdev)
+static void iwl_pci_remove(struct pci_dev *pdev)
 {
 	struct iwl_trans *trans = pci_get_drvdata(pdev);
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -353,7 +357,7 @@ static struct pci_driver iwl_pci_driver = {
 	.name = DRV_NAME,
 	.id_table = iwl_hw_card_ids,
 	.probe = iwl_pci_probe,
-	.remove = __devexit_p(iwl_pci_remove),
+	.remove = iwl_pci_remove,
 	.driver.pm = IWL_PM_OPS,
 };
 

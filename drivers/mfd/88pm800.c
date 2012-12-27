@@ -248,7 +248,7 @@ static const struct regmap_irq pm800_irqs[] = {
 	},
 };
 
-static int __devinit device_gpadc_init(struct pm80x_chip *chip,
+static int device_gpadc_init(struct pm80x_chip *chip,
 				       struct pm80x_platform_data *pdata)
 {
 	struct pm80x_subchip *subchip = chip->subchip;
@@ -315,7 +315,7 @@ out:
 	return ret;
 }
 
-static int __devinit device_irq_init_800(struct pm80x_chip *chip)
+static int device_irq_init_800(struct pm80x_chip *chip)
 {
 	struct regmap *map = chip->regmap;
 	unsigned long flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT;
@@ -415,7 +415,7 @@ static void pm800_pages_exit(struct pm80x_chip *chip)
 	}
 }
 
-static int __devinit device_800_init(struct pm80x_chip *chip,
+static int device_800_init(struct pm80x_chip *chip,
 				     struct pm80x_platform_data *pdata)
 {
 	int ret, pmic_id;
@@ -499,7 +499,7 @@ out:
 	return ret;
 }
 
-static int __devinit pm800_probe(struct i2c_client *client,
+static int pm800_probe(struct i2c_client *client,
 				 const struct i2c_device_id *id)
 {
 	int ret = 0;
@@ -554,7 +554,7 @@ out_init:
 	return ret;
 }
 
-static int __devexit pm800_remove(struct i2c_client *client)
+static int pm800_remove(struct i2c_client *client)
 {
 	struct pm80x_chip *chip = i2c_get_clientdata(client);
 
@@ -576,7 +576,7 @@ static struct i2c_driver pm800_driver = {
 		.pm = &pm80x_pm_ops,
 		},
 	.probe = pm800_probe,
-	.remove = __devexit_p(pm800_remove),
+	.remove = pm800_remove,
 	.id_table = pm80x_id_table,
 };
 

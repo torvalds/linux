@@ -98,7 +98,7 @@ int dlm_release_lockspace(dlm_lockspace_t *lockspace, int force);
 /*
  * dlm_lock
  *
- * Make an asyncronous request to acquire or convert a lock on a named
+ * Make an asynchronous request to acquire or convert a lock on a named
  * resource.
  *
  * lockspace: context for the request

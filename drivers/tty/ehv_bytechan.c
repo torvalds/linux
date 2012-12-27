@@ -699,7 +699,7 @@ static const struct tty_port_operations ehv_bc_tty_port_ops = {
 	.shutdown = ehv_bc_tty_port_shutdown,
 };
 
-static int __devinit ehv_bc_tty_probe(struct platform_device *pdev)
+static int ehv_bc_tty_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct ehv_bc_data *bc;
@@ -757,6 +757,7 @@ static int __devinit ehv_bc_tty_probe(struct platform_device *pdev)
 	return 0;
 
 error:
+	tty_port_destroy(&bc->port);
 	irq_dispose_mapping(bc->tx_irq);
 	irq_dispose_mapping(bc->rx_irq);
 
@@ -770,6 +771,7 @@ static int ehv_bc_tty_remove(struct platform_device *pdev)
 
 	tty_unregister_device(ehv_bc_driver, bc - bcs);
 
+	tty_port_destroy(&bc->port);
 	irq_dispose_mapping(bc->tx_irq);
 	irq_dispose_mapping(bc->rx_irq);
 

@@ -1,0 +1,26 @@
+Atmel SPI device
+
+Required properties:
+- compatible : should be "atmel,at91rm9200-spi".
+- reg: Address and length of the register set for the device
+- interrupts: Should contain spi interrupt
+- cs-gpios: chipselects
+
+Example:
+
+spi1: spi@fffcc000 {
+	compatible = "atmel,at91rm9200-spi";
+	reg = <0xfffcc000 0x4000>;
+	interrupts = <13 4 5>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	cs-gpios = <&pioB 3 0>;
+	status = "okay";
+
+	mmc-slot@0 {
+		compatible = "mmc-spi-slot";
+		reg = <0>;
+		gpios = <&pioC 4 0>;	/* CD */
+		spi-max-frequency = <25000000>;
+	};
+};

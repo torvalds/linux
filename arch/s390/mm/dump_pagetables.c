@@ -150,6 +150,7 @@ static void walk_pmd_level(struct seq_file *m, struct pg_state *st,
 static void walk_pud_level(struct seq_file *m, struct pg_state *st,
 			   pgd_t *pgd, unsigned long addr)
 {
+	unsigned int prot;
 	pud_t *pud;
 	int i;
 
@@ -157,7 +158,11 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st,
 		st->current_address = addr;
 		pud = pud_offset(pgd, addr);
 		if (!pud_none(*pud))
-			walk_pmd_level(m, st, pud, addr);
+			if (pud_large(*pud)) {
+				prot = pud_val(*pud) & _PAGE_RO;
+				note_page(m, st, prot, 2);
+			} else
+				walk_pmd_level(m, st, pud, addr);
 		else
 			note_page(m, st, _PAGE_INVALID, 2);
 		addr += PUD_SIZE;

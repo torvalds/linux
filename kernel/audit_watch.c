@@ -350,7 +350,7 @@ static void audit_remove_parent_watches(struct audit_parent *parent)
 	}
 	mutex_unlock(&audit_filter_mutex);
 
-	fsnotify_destroy_mark(&parent->mark);
+	fsnotify_destroy_mark(&parent->mark, audit_watch_group);
 }
 
 /* Get path information necessary for adding watches. */
@@ -457,7 +457,7 @@ void audit_remove_watch_rule(struct audit_krule *krule)
 
 		if (list_empty(&parent->watches)) {
 			audit_get_parent(parent);
-			fsnotify_destroy_mark(&parent->mark);
+			fsnotify_destroy_mark(&parent->mark, audit_watch_group);
 			audit_put_parent(parent);
 		}
 	}
