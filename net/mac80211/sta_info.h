@@ -297,6 +297,8 @@ struct sta_ampdu_mlme {
  * @sta_state: duplicates information about station state (for debug)
  * @beacon_loss_count: number of times beacon loss has triggered
  * @rcu_head: RCU head used for freeing this station struct
+ * @cur_max_bandwidth: maximum bandwidth to use for TX to the station,
+ *	taken from HT/VHT capabilities or VHT operating mode notification
  */
 struct sta_info {
 	/* General information, mostly static */
@@ -397,6 +399,8 @@ struct sta_info {
 		bool add_has_run;
 	} debugfs;
 #endif
+
+	enum ieee80211_sta_rx_bandwidth cur_max_bandwidth;
 
 	unsigned int lost_packets;
 	unsigned int beacon_loss_count;

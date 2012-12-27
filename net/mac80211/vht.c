@@ -10,6 +10,7 @@
 #include <linux/export.h>
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
+#include "rate.h"
 
 
 void ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
@@ -39,6 +40,15 @@ void ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 	memcpy(&vht_cap->vht_mcs, &vht_cap_ie->supp_mcs,
 	       sizeof(struct ieee80211_vht_mcs_info));
 
+	switch (vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK) {
+	case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ:
+	case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ:
+		sta->cur_max_bandwidth = IEEE80211_STA_RX_BW_160;
+		break;
+	default:
+		sta->cur_max_bandwidth = IEEE80211_STA_RX_BW_80;
+	}
+
 	sta->sta.bandwidth = ieee80211_sta_cur_vht_bw(sta);
 }
 
@@ -46,12 +56,13 @@ enum ieee80211_sta_rx_bandwidth ieee80211_sta_cur_vht_bw(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	u32 cap = sta->sta.vht_cap.cap;
+	enum ieee80211_sta_rx_bandwidth bw;
 
-	if (!sta->sta.vht_cap.vht_supported)
-		return sta->sta.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 ?
+	if (!sta->sta.vht_cap.vht_supported) {
+		bw = sta->sta.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 ?
 				IEEE80211_STA_RX_BW_40 : IEEE80211_STA_RX_BW_20;
-
-	/* TODO: handle VHT opmode notification data */
+		goto check_max;
+	}
 
 	switch (sdata->vif.bss_conf.chandef.width) {
 	default:
@@ -60,19 +71,31 @@ enum ieee80211_sta_rx_bandwidth ieee80211_sta_cur_vht_bw(struct sta_info *sta)
 	case NL80211_CHAN_WIDTH_20_NOHT:
 	case NL80211_CHAN_WIDTH_20:
 	case NL80211_CHAN_WIDTH_40:
-		return sta->sta.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 ?
+		bw = sta->sta.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 ?
 				IEEE80211_STA_RX_BW_40 : IEEE80211_STA_RX_BW_20;
+		break;
 	case NL80211_CHAN_WIDTH_160:
-		if (cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ)
-			return IEEE80211_STA_RX_BW_160;
+		if ((cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK) ==
+				IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ) {
+			bw = IEEE80211_STA_RX_BW_160;
+			break;
+		}
 		/* fall through */
 	case NL80211_CHAN_WIDTH_80P80:
-		if (cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ)
-			return IEEE80211_STA_RX_BW_160;
+		if ((cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK) ==
+				IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ) {
+			bw = IEEE80211_STA_RX_BW_160;
+			break;
+		}
 		/* fall through */
 	case NL80211_CHAN_WIDTH_80:
-		return IEEE80211_STA_RX_BW_80;
+		bw = IEEE80211_STA_RX_BW_80;
 	}
+
+ check_max:
+	if (bw > sta->cur_max_bandwidth)
+		bw = sta->cur_max_bandwidth;
+	return bw;
 }
 
 void ieee80211_sta_set_rx_nss(struct sta_info *sta)
@@ -114,4 +137,54 @@ void ieee80211_sta_set_rx_nss(struct sta_info *sta)
 
 	ht_rx_nss = max(ht_rx_nss, vht_rx_nss);
 	sta->sta.rx_nss = max_t(u8, 1, ht_rx_nss);
+}
+
+void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
+				 struct sta_info *sta, u8 opmode,
+				 enum ieee80211_band band)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_supported_band *sband;
+	enum ieee80211_sta_rx_bandwidth new_bw;
+	u32 changed = 0;
+	u8 nss;
+
+	sband = local->hw.wiphy->bands[band];
+
+	/* ignore - no support for BF yet */
+	if (opmode & IEEE80211_OPMODE_NOTIF_RX_NSS_TYPE_BF)
+		return;
+
+	nss = opmode & IEEE80211_OPMODE_NOTIF_RX_NSS_MASK;
+	nss >>= IEEE80211_OPMODE_NOTIF_RX_NSS_SHIFT;
+	nss += 1;
+
+	if (sta->sta.rx_nss != nss) {
+		sta->sta.rx_nss = nss;
+		changed |= IEEE80211_RC_NSS_CHANGED;
+	}
+
+	switch (opmode & IEEE80211_OPMODE_NOTIF_CHANWIDTH_MASK) {
+	case IEEE80211_OPMODE_NOTIF_CHANWIDTH_20MHZ:
+		sta->cur_max_bandwidth = IEEE80211_STA_RX_BW_20;
+		break;
+	case IEEE80211_OPMODE_NOTIF_CHANWIDTH_40MHZ:
+		sta->cur_max_bandwidth = IEEE80211_STA_RX_BW_40;
+		break;
+	case IEEE80211_OPMODE_NOTIF_CHANWIDTH_80MHZ:
+		sta->cur_max_bandwidth = IEEE80211_STA_RX_BW_80;
+		break;
+	case IEEE80211_OPMODE_NOTIF_CHANWIDTH_160MHZ:
+		sta->cur_max_bandwidth = IEEE80211_STA_RX_BW_160;
+		break;
+	}
+
+	new_bw = ieee80211_sta_cur_vht_bw(sta);
+	if (new_bw != sta->sta.bandwidth) {
+		sta->sta.bandwidth = new_bw;
+		changed |= IEEE80211_RC_NSS_CHANGED;
+	}
+
+	if (changed)
+		rate_control_rate_update(local, sband, sta, changed);
 }
