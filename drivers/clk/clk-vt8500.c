@@ -123,6 +123,10 @@ static long vt8500_dclk_round_rate(struct clk_hw *hw, unsigned long rate,
 	struct clk_device *cdev = to_clk_device(hw);
 	u32 divisor = *prate / rate;
 
+	/* If prate / rate would be decimal, incr the divisor */
+	if (rate * divisor < *prate)
+		divisor++;
+
 	/*
 	 * If this is a request for SDMMC we have to adjust the divisor
 	 * when >31 to use the fixed predivisor
@@ -140,6 +144,10 @@ static int vt8500_dclk_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct clk_device *cdev = to_clk_device(hw);
 	u32 divisor = parent_rate / rate;
 	unsigned long flags = 0;
+
+	/* If prate / rate would be decimal, incr the divisor */
+	if (rate * divisor < *prate)
+		divisor++;
 
 	if (divisor == cdev->div_mask + 1)
 		divisor = 0;
