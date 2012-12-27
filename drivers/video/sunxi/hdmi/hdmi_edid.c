@@ -211,7 +211,7 @@ Parse_DTD_Block(__u8 *pbuf)
 		Hsync_pulsew, Vsync_offset, Vsync_pulsew, H_image_size,
 		V_image_size, H_Border, V_Border, pixels_total, frame_rate,
 		Hsync, Vsync;
-	pclk = ((__u32) pbuf[1] << 8) + pbuf[0];
+	pclk = (((__u32) pbuf[1] << 8) + pbuf[0]) * 10000;
 	sizex = (((__u32) pbuf[4] << 4) & 0x0f00) + pbuf[2];
 	Hblanking = (((__u32) pbuf[4] << 8) & 0x0f00) + pbuf[3];
 	sizey = (((__u32) pbuf[7] << 4) & 0x0f00) + pbuf[5];
@@ -235,7 +235,7 @@ Parse_DTD_Block(__u8 *pbuf)
 	if (pixels_total == 0)
 		return 0;
 	else
-		frame_rate = (pclk * 10000) / pixels_total;
+		frame_rate = pclk / pixels_total;
 
 	if ((frame_rate == 59) || (frame_rate == 60)) {
 		if ((sizex == 720) && (sizey == 240))
@@ -274,8 +274,7 @@ Parse_DTD_Block(__u8 *pbuf)
 			Device_Support_VIC[HDMI1080P_24] = 1;
 	}
 
-	pr_info("PCLK=%d X %d %d %d %d Y %d %d %d %d fr %d %s%s\n",
-		pclk * 10000,
+	pr_info("PCLK=%d X %d %d %d %d Y %d %d %d %d fr %d %s%s\n", pclk,
 		sizex, sizex + Hsync_offset,
 		sizex + Hsync_offset + Hsync_pulsew, sizex + Hblanking,
 		sizey, sizey + Vsync_offset,
@@ -287,7 +286,7 @@ Parse_DTD_Block(__u8 *pbuf)
 	if (Device_Support_VIC[HDMI_EDID] == 0 && !(sizex & 7) &&
 	    disp_get_pll_freq(pclk, &dummy, &dummy) == 0) {
 		pr_info("Using above mode as preferred EDID mode\n");
-		video_timing[video_timing_edid].PCLK = pclk * 10000;
+		video_timing[video_timing_edid].PCLK = pclk;
 		video_timing[video_timing_edid].AVI_PR = 0;
 		video_timing[video_timing_edid].INPUTX = sizex;
 		video_timing[video_timing_edid].INPUTY = sizey;
