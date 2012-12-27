@@ -381,8 +381,8 @@
 
 /* LED */
 #define CSR_LED_BSM_CTRL_MSK (0xFFFFFFDF)
-#define CSR_LED_REG_TRUN_ON (0x78)
-#define CSR_LED_REG_TRUN_OFF (0x38)
+#define CSR_LED_REG_TURN_ON (0x60)
+#define CSR_LED_REG_TURN_OFF (0x20)
 
 /* ANA_PLL */
 #define CSR50_ANA_PLL_CFG_VAL        (0x00880300)
