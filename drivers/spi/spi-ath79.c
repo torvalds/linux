@@ -100,6 +100,7 @@ static int ath79_spi_setup_cs(struct spi_device *spi)
 {
 	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
 	struct ath79_spi_controller_data *cdata;
+	int status;
 
 	cdata = spi->controller_data;
 	if (spi->chip_select && !cdata)
@@ -115,22 +116,21 @@ static int ath79_spi_setup_cs(struct spi_device *spi)
 	/* TODO: setup speed? */
 	ath79_spi_wr(sp, AR71XX_SPI_REG_CTRL, 0x43);
 
+	status = 0;
 	if (spi->chip_select) {
-		int status = 0;
+		unsigned long flags;
 
-		status = gpio_request(cdata->gpio, dev_name(&spi->dev));
-		if (status)
-			return status;
+		flags = GPIOF_DIR_OUT;
+		if (spi->mode & SPI_CS_HIGH)
+			flags |= GPIOF_INIT_HIGH;
+		else
+			flags |= GPIOF_INIT_LOW;
 
-		status = gpio_direction_output(cdata->gpio,
-					       spi->mode & SPI_CS_HIGH);
-		if (status) {
-			gpio_free(cdata->gpio);
-			return status;
-		}
+		status = gpio_request_one(cdata->gpio, flags,
+					  dev_name(&spi->dev));
 	}
 
-	return 0;
+	return status;
 }
 
 static void ath79_spi_cleanup_cs(struct spi_device *spi)
