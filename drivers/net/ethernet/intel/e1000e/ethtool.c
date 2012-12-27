@@ -108,6 +108,7 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	E1000_STAT("dropped_smbus", stats.mgpdc),
 	E1000_STAT("rx_dma_failed", rx_dma_failed),
 	E1000_STAT("tx_dma_failed", tx_dma_failed),
+	E1000_STAT("rx_hwtstamp_cleared", rx_hwtstamp_cleared),
 };
 
 #define E1000_GLOBAL_STATS_LEN	ARRAY_SIZE(e1000_gstrings_stats)
@@ -2182,6 +2183,28 @@ static int e1000e_set_eee(struct net_device *netdev, struct ethtool_eee *edata)
 	return 0;
 }
 
+static int e1000e_get_ts_info(struct net_device *netdev,
+			      struct ethtool_ts_info *info)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+
+	ethtool_op_get_ts_info(netdev, info);
+
+	if (!(adapter->flags & FLAG_HAS_HW_TIMESTAMP))
+		return 0;
+
+	info->so_timestamping |= (SOF_TIMESTAMPING_TX_HARDWARE |
+				  SOF_TIMESTAMPING_RX_HARDWARE |
+				  SOF_TIMESTAMPING_RAW_HARDWARE);
+
+	info->tx_types = (1 << HWTSTAMP_TX_OFF) | (1 << HWTSTAMP_TX_ON);
+
+	info->rx_filters = ((1 << HWTSTAMP_FILTER_NONE) |
+			    (1 << HWTSTAMP_FILTER_ALL));
+
+	return 0;
+}
+
 static const struct ethtool_ops e1000_ethtool_ops = {
 	.get_settings		= e1000_get_settings,
 	.set_settings		= e1000_set_settings,
@@ -2209,7 +2232,7 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 	.get_coalesce		= e1000_get_coalesce,
 	.set_coalesce		= e1000_set_coalesce,
 	.get_rxnfc		= e1000_get_rxnfc,
-	.get_ts_info		= ethtool_op_get_ts_info,
+	.get_ts_info		= e1000e_get_ts_info,
 	.get_eee		= e1000e_get_eee,
 	.set_eee		= e1000e_set_eee,
 };

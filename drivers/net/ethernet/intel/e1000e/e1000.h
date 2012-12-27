@@ -41,6 +41,8 @@
 #include <linux/pci-aspm.h>
 #include <linux/crc32.h>
 #include <linux/if_vlan.h>
+#include <linux/clocksource.h>
+#include <linux/net_tstamp.h>
 
 #include "hw.h"
 
@@ -353,6 +355,7 @@ struct e1000_adapter {
 	u64 gorc_old;
 	u32 alloc_rx_buff_failed;
 	u32 rx_dma_failed;
+	u32 rx_hwtstamp_cleared;
 
 	unsigned int rx_ps_pages;
 	u16 rx_ps_bsize0;
@@ -402,6 +405,14 @@ struct e1000_adapter {
 
 	u16 tx_ring_count;
 	u16 rx_ring_count;
+
+	struct hwtstamp_config hwtstamp_config;
+	struct delayed_work systim_overflow_work;
+	struct sk_buff *tx_hwtstamp_skb;
+	struct work_struct tx_hwtstamp_work;
+	spinlock_t systim_lock;	/* protects SYSTIML/H regsters */
+	struct cyclecounter cc;
+	struct timecounter tc;
 };
 
 struct e1000_info {
@@ -415,6 +426,38 @@ struct e1000_info {
 	const struct e1000_phy_operations *phy_ops;
 	const struct e1000_nvm_operations *nvm_ops;
 };
+
+/* The system time is maintained by a 64-bit counter comprised of the 32-bit
+ * SYSTIMH and SYSTIML registers.  How the counter increments (and therefore
+ * its resolution) is based on the contents of the TIMINCA register - it
+ * increments every incperiod (bits 31:24) clock ticks by incvalue (bits 23:0).
+ * For the best accuracy, the incperiod should be as small as possible.  The
+ * incvalue is scaled by a factor as large as possible (while still fitting
+ * in bits 23:0) so that relatively small clock corrections can be made.
+ *
+ * As a result, a shift of INCVALUE_SHIFT_n is used to fit a value of
+ * INCVALUE_n into the TIMINCA register allowing 32+8+(24-INCVALUE_SHIFT_n)
+ * bits to count nanoseconds leaving the rest for fractional nonseconds.
+ */
+#define INCVALUE_96MHz		125
+#define INCVALUE_SHIFT_96MHz	17
+#define INCPERIOD_SHIFT_96MHz	2
+#define INCPERIOD_96MHz		(12 >> INCPERIOD_SHIFT_96MHz)
+
+#define INCVALUE_25MHz		40
+#define INCVALUE_SHIFT_25MHz	18
+#define INCPERIOD_25MHz		1
+
+/* Another drawback of scaling the incvalue by a large factor is the
+ * 64-bit SYSTIM register overflows more quickly.  This is dealt with
+ * by simply reading the clock before it overflows.
+ *
+ * Clock	ns bits	Overflows after
+ * ~~~~~~	~~~~~~~	~~~~~~~~~~~~~~~
+ * 96MHz	47-bit	2^(47-INCPERIOD_SHIFT_96MHz) / 10^9 / 3600 = 9.77 hrs
+ * 25MHz	46-bit	2^46 / 10^9 / 3600 = 19.55 hours
+ */
+#define E1000_SYSTIM_OVERFLOW_PERIOD	(HZ * 60 * 60 * 4)
 
 /* hardware capability, feature, and workaround flags */
 #define FLAG_HAS_AMT                      (1 << 0)
@@ -431,7 +474,7 @@ struct e1000_info {
 #define FLAG_HAS_SMART_POWER_DOWN         (1 << 11)
 #define FLAG_IS_QUAD_PORT_A               (1 << 12)
 #define FLAG_IS_QUAD_PORT                 (1 << 13)
-/* reserved bit14 */
+#define FLAG_HAS_HW_TIMESTAMP             (1 << 14)
 #define FLAG_APME_IN_WUC                  (1 << 15)
 #define FLAG_APME_IN_CTRL3                (1 << 16)
 #define FLAG_APME_CHECK_PORT_B            (1 << 17)
@@ -463,6 +506,7 @@ struct e1000_info {
 #define FLAG2_NO_DISABLE_RX               (1 << 10)
 #define FLAG2_PCIM2PCI_ARBITER_WA         (1 << 11)
 #define FLAG2_DFLT_CRC_STRIPPING          (1 << 12)
+#define FLAG2_CHECK_RX_HWTSTAMP           (1 << 13)
 
 #define E1000_RX_DESC_PS(R, i)	    \
 	(&(((union e1000_rx_desc_packet_split *)((R).desc))[i]))

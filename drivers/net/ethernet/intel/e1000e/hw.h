@@ -60,6 +60,7 @@ enum e1e_registers {
 	E1000_EIAC_82574 = 0x000DC, /* Ext. Interrupt Auto Clear - RW */
 	E1000_IAM      = 0x000E0, /* Interrupt Acknowledge Auto Mask */
 	E1000_IVAR     = 0x000E4, /* Interrupt Vector Allocation - RW */
+	E1000_FEXTNVM7  = 0x000E4, /* Future Extended NVM 7 - RW */
 	E1000_EITR_82574_BASE = 0x000E8, /* Interrupt Throttling - RW */
 #define E1000_EITR_82574(_n) (E1000_EITR_82574_BASE + (_n << 2))
 	E1000_LPIC     = 0x000FC, /* Low Power Idle Control - RW */
@@ -241,6 +242,15 @@ enum e1e_registers {
 #define E1000_PCH_RAICC(_n)	(E1000_PCH_RAICC_BASE + ((_n) * 4))
 #define E1000_CRC_OFFSET	E1000_PCH_RAICC_BASE
 	E1000_HICR      = 0x08F00, /* Host Interface Control */
+	E1000_SYSTIML   = 0x0B600, /* System time register Low - RO */
+	E1000_SYSTIMH   = 0x0B604, /* System time register High - RO */
+	E1000_TIMINCA   = 0x0B608, /* Increment attributes register - RW */
+	E1000_TSYNCTXCTL = 0x0B614, /* Tx Time Sync Control register - RW */
+	E1000_TXSTMPL   = 0x0B618, /* Tx timestamp value Low - RO */
+	E1000_TXSTMPH   = 0x0B61C, /* Tx timestamp value High - RO */
+	E1000_TSYNCRXCTL = 0x0B620, /* Rx Time Sync Control register - RW */
+	E1000_RXSTMPL   = 0x0B624, /* Rx timestamp Low - RO */
+	E1000_RXSTMPH   = 0x0B628, /* Rx timestamp High - RO */
 };
 
 #define E1000_MAX_PHY_ADDR		4

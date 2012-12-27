@@ -107,6 +107,7 @@
 #define E1000_RXD_ERR_RXE       0x80    /* Rx Data Error */
 #define E1000_RXD_SPC_VLAN_MASK 0x0FFF  /* VLAN ID is in lower 12 bits */
 
+#define E1000_RXDEXT_STATERR_TST   0x00000100	/* Time Stamp taken */
 #define E1000_RXDEXT_STATERR_CE    0x01000000
 #define E1000_RXDEXT_STATERR_SE    0x02000000
 #define E1000_RXDEXT_STATERR_SEQ   0x04000000
@@ -318,6 +319,7 @@
 #define E1000_TXD_CMD_IP     0x02000000 /* IP packet */
 #define E1000_TXD_CMD_TSE    0x04000000 /* TCP Seg enable */
 #define E1000_TXD_STAT_TC    0x00000004 /* Tx Underrun */
+#define E1000_TXD_EXTCMD_TSTAMP	0x00000010 /* IEEE1588 Timestamp packet */
 
 /* Transmit Control */
 #define E1000_TCTL_EN     0x00000002    /* enable Tx */
@@ -535,6 +537,18 @@
 #define E1000_RXCW_IV         0x08000000        /* Receive config invalid */
 #define E1000_RXCW_C          0x20000000        /* Receive config */
 #define E1000_RXCW_SYNCH      0x40000000        /* Receive config synch */
+
+#define E1000_TSYNCTXCTL_VALID		0x00000001 /* Tx timestamp valid */
+#define E1000_TSYNCRXCTL_TYPE_ALL	0x08
+#define E1000_TSYNCTXCTL_ENABLED	0x00000010 /* enable Tx timestamping */
+
+#define E1000_TSYNCRXCTL_VALID		0x00000001 /* Rx timestamp valid */
+#define E1000_TSYNCRXCTL_TYPE_MASK	0x0000000E /* Rx type mask */
+#define E1000_TSYNCRXCTL_ENABLED	0x00000010 /* enable Rx timestamping */
+#define E1000_TSYNCRXCTL_SYSCFI		0x00000020 /* Sys clock frequency */
+
+#define E1000_TIMINCA_INCPERIOD_SHIFT	24
+#define E1000_TIMINCA_INCVALUE_MASK	0x00FFFFFF
 
 /* PCI Express Control */
 #define E1000_GCR_RXD_NO_SNOOP          0x00000001
