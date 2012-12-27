@@ -3530,11 +3530,10 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 		     "deallocation are deferred on close.\n",
 		     video_device_node_name(dev->vdev));
 
-		dev->state |= DEV_MISCONFIGURED;
 		em28xx_uninit_usb_xfer(dev, dev->mode);
-		dev->state |= DEV_DISCONNECTED;
+		dev->disconnected = 1;
 	} else {
-		dev->state |= DEV_DISCONNECTED;
+		dev->disconnected = 1;
 		em28xx_release_resources(dev);
 	}
 

@@ -439,13 +439,6 @@ struct em28xx_eeprom {
 	u8 string_idx_table;
 };
 
-/* device states */
-enum em28xx_dev_state {
-	DEV_INITIALIZED = 0x01,
-	DEV_DISCONNECTED = 0x02,
-	DEV_MISCONFIGURED = 0x04,
-};
-
 #define EM28XX_AUDIO_BUFS 5
 #define EM28XX_NUM_AUDIO_PACKETS 64
 #define EM28XX_AUDIO_MAX_PACKET_SIZE 196 /* static value */
@@ -491,6 +484,8 @@ struct em28xx {
 	int model;		/* index in the device_data struct */
 	int devno;		/* marks the number of this device */
 	enum em28xx_chip_id chip_id;
+
+	unsigned char disconnected:1;	/* device has been diconnected */
 
 	int audio_ifnum;
 
@@ -562,9 +557,6 @@ struct em28xx {
 				   for boards with generic ID */
 
 	struct em28xx_audio adev;
-
-	/* states */
-	enum em28xx_dev_state state;
 
 	/* capture state tracking */
 	int capture_type;

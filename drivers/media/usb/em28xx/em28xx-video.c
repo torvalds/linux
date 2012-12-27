@@ -418,7 +418,7 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 	if (!dev)
 		return 0;
 
-	if ((dev->state & DEV_DISCONNECTED) || (dev->state & DEV_MISCONFIGURED))
+	if (dev->disconnected)
 		return 0;
 
 	if (urb->status < 0)
@@ -801,15 +801,9 @@ const struct v4l2_ctrl_ops em28xx_ctrl_ops = {
 
 static int check_dev(struct em28xx *dev)
 {
-	if (dev->state & DEV_DISCONNECTED) {
+	if (dev->disconnected) {
 		em28xx_errdev("v4l2 ioctl: device not present\n");
 		return -ENODEV;
-	}
-
-	if (dev->state & DEV_MISCONFIGURED) {
-		em28xx_errdev("v4l2 ioctl: device is misconfigured; "
-			      "close and open it again\n");
-		return -EIO;
 	}
 	return 0;
 }
@@ -1708,7 +1702,7 @@ static int em28xx_v4l2_close(struct file *filp)
 	if (dev->users == 1) {
 		/* the device is already disconnect,
 		   free the remaining resources */
-		if (dev->state & DEV_DISCONNECTED) {
+		if (dev->disconnected) {
 			em28xx_release_resources(dev);
 			kfree(dev->alt_max_pkt_size_isoc);
 			mutex_unlock(&dev->lock);

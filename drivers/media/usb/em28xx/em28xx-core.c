@@ -77,7 +77,7 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 	int ret;
 	int pipe = usb_rcvctrlpipe(dev->udev, 0);
 
-	if (dev->state & DEV_DISCONNECTED)
+	if (dev->disconnected)
 		return -ENODEV;
 
 	if (len > URB_MAX_CTRL_SIZE)
@@ -153,7 +153,7 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 	int ret;
 	int pipe = usb_sndctrlpipe(dev->udev, 0);
 
-	if (dev->state & DEV_DISCONNECTED)
+	if (dev->disconnected)
 		return -ENODEV;
 
 	if ((len < 1) || (len > URB_MAX_CTRL_SIZE))
