@@ -235,7 +235,7 @@ static inline int mips_atomic_set(struct pt_regs *regs,
 	: "r" (regs));
 
 	/* unreached.  Honestly.  */
-	while (1);
+	unreachable();
 }
 
 save_static_function(sys_sysmips);
