@@ -579,6 +579,11 @@ static int prepare_uprobe(struct uprobe *uprobe, struct file *file,
 	return ret;
 }
 
+static inline bool consumer_filter(struct uprobe_consumer *uc)
+{
+	return true; /* TODO: !uc->filter || uc->filter(...) */
+}
+
 static bool filter_chain(struct uprobe *uprobe)
 {
 	struct uprobe_consumer *uc;
@@ -586,8 +591,7 @@ static bool filter_chain(struct uprobe *uprobe)
 
 	down_read(&uprobe->consumer_rwsem);
 	for (uc = uprobe->consumers; uc; uc = uc->next) {
-		/* TODO: ret = uc->filter(...) */
-		ret = true;
+		ret = consumer_filter(uc);
 		if (ret)
 			break;
 	}
@@ -602,15 +606,6 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 {
 	bool first_uprobe;
 	int ret;
-
-	/*
-	 * If probe is being deleted, unregister thread could be done with
-	 * the vma-rmap-walk through. Adding a probe now can be fatal since
-	 * nobody will be able to cleanup. But in this case filter_chain()
-	 * must return false, all consumers have gone away.
-	 */
-	if (!filter_chain(uprobe))
-		return 0;
 
 	ret = prepare_uprobe(uprobe, vma->vm_file, mm, vaddr);
 	if (ret)
@@ -636,12 +631,6 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 static int
 remove_breakpoint(struct uprobe *uprobe, struct mm_struct *mm, unsigned long vaddr)
 {
-	if (!test_bit(MMF_HAS_UPROBES, &mm->flags))
-		return 0;
-
-	if (filter_chain(uprobe))
-		return 0;
-
 	set_bit(MMF_RECALC_UPROBES, &mm->flags);
 	return set_orig_insn(&uprobe->arch, mm, vaddr);
 }
@@ -781,10 +770,14 @@ static int register_for_each_vma(struct uprobe *uprobe, bool is_register)
 		    vaddr_to_offset(vma, info->vaddr) != uprobe->offset)
 			goto unlock;
 
-		if (is_register)
-			err = install_breakpoint(uprobe, mm, vma, info->vaddr);
-		else
-			err |= remove_breakpoint(uprobe, mm, info->vaddr);
+		if (is_register) {
+			/* consult only the "caller", new consumer. */
+			if (consumer_filter(uprobe->consumers))
+				err = install_breakpoint(uprobe, mm, vma, info->vaddr);
+		} else if (test_bit(MMF_HAS_UPROBES, &mm->flags)) {
+			if (!filter_chain(uprobe))
+				err |= remove_breakpoint(uprobe, mm, info->vaddr);
+		}
 
  unlock:
 		up_write(&mm->mmap_sem);
@@ -968,9 +961,14 @@ int uprobe_mmap(struct vm_area_struct *vma)
 
 	mutex_lock(uprobes_mmap_hash(inode));
 	build_probe_list(inode, vma, vma->vm_start, vma->vm_end, &tmp_list);
-
+	/*
+	 * We can race with uprobe_unregister(), this uprobe can be already
+	 * removed. But in this case filter_chain() must return false, all
+	 * consumers have gone away.
+	 */
 	list_for_each_entry_safe(uprobe, u, &tmp_list, pending_list) {
-		if (!fatal_signal_pending(current)) {
+		if (!fatal_signal_pending(current) &&
+		    filter_chain(uprobe)) {
 			unsigned long vaddr = offset_to_vaddr(vma, uprobe->offset);
 			install_breakpoint(uprobe, vma->vm_mm, vma, vaddr);
 		}
