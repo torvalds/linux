@@ -161,7 +161,7 @@ static unsigned long centro685_pin_config[] __initdata = {
 /******************************************************************************
  * GPIO keyboard
  ******************************************************************************/
-#if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULE)
+#if IS_ENABLED(CONFIG_KEYBOARD_PXA27x)
 static unsigned int treo680_matrix_keys[] = {
 	KEY(0, 0, KEY_F8),		/* Red/Off/Power */
 	KEY(0, 1, KEY_LEFT),
@@ -309,7 +309,7 @@ static inline void palmtreo_kpc_init(void) {}
 /******************************************************************************
  * USB host
  ******************************************************************************/
-#if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
+#if IS_ENABLED(CONFIG_USB_OHCI_HCD)
 static struct pxaohci_platform_data treo680_ohci_info = {
 	.port_mode    = PMM_PERPORT_MODE,
 	.flags        = ENABLE_PORT1 | ENABLE_PORT3,
