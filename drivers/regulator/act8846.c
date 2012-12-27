@@ -21,6 +21,10 @@
 #include <linux/delay.h>
 #include <mach/iomux.h>
 #include <linux/slab.h>
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+#endif
+
 
 #if 0
 #define DBG(x...)	printk(KERN_INFO x)
@@ -40,7 +44,10 @@ struct act8846 {
 	struct i2c_client *i2c;
 	int num_regulators;
 	struct regulator_dev **rdev;
+	struct early_suspend act8846_suspend;
 };
+
+struct act8846 *g_act8846;
 
 static u8 act8846_reg_read(struct act8846 *act8846, u8 reg);
 static int act8846_set_bits(struct act8846 *act8846, u8 reg, u16 mask, u16 val);
@@ -661,6 +668,31 @@ error:
 	return err;
 }
 
+
+int act8846_device_shutdown(void)
+{
+	int ret;
+	int err = -1;
+	struct act8846 *act8846 = g_act8846;
+	
+	printk("%s\n",__func__);
+
+	ret = act8846_reg_read(act8846,0xc3);
+	ret = act8846_set_bits(act8846, 0xc3,(0x1<<3),(0x1<<3));
+	ret = act8846_set_bits(act8846, 0xc3,(0x1<<4),(0x1<<4));
+	if (ret < 0) {
+		printk("act8846 set 0xc3 error!\n");
+		return err;
+	}
+	return 0;	
+}
+EXPORT_SYMBOL_GPL(act8846_device_shutdown);
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+__weak void act8846_early_suspend(struct early_suspend *h) {}
+__weak void act8846_late_resume(struct early_suspend *h) {}
+#endif
+
 static int __devinit act8846_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
 	struct act8846 *act8846;	
@@ -688,9 +720,17 @@ static int __devinit act8846_i2c_probe(struct i2c_client *i2c, const struct i2c_
 			goto err;
 	} else
 		dev_warn(act8846->dev, "No platform init data supplied\n");
-	
+
+	g_act8846 = act8846;
 	pdata->set_init(act8846);
 
+	#ifdef CONFIG_HAS_EARLYSUSPEND
+	act8846->act8846_suspend.suspend = act8846_early_suspend,
+	act8846->act8846_suspend.resume = act8846_late_resume,
+	act8846->act8846_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 1,
+	register_early_suspend(&act8846->act8846_suspend);
+	#endif
+	
 	return 0;
 
 err:

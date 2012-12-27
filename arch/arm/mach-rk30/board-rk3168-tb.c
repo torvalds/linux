@@ -1894,11 +1894,28 @@ struct rk29_keys_platform_data rk29_keys_pdata = {
 static void rk30_pm_power_off(void)
 {
 	printk(KERN_ERR "rk30_pm_power_off start...\n");
+	#if defined(CONFIG_MFD_WM831X)
+	if(pmic_is_wm8326()){
+		wm831x_set_bits(Wm831x,WM831X_GPIO_LEVEL,0x0001,0x0000);  //set sys_pwr 0
+		wm831x_device_shutdown(Wm831x);//wm8326 shutdown
+	 }
+	#endif
+
+	#if defined(CONFIG_REGULATOR_ACT8846)
+        if(pmic_is_act8846())
+        {
+               act8846_device_shutdown();
+        }
+	#endif
+	
+	#if defined(CONFIG_MFD_TPS65910)	
+	if(pmic_is_tps65910())
+	{
+		tps65910_device_shutdown();//tps65910 shutdown
+	}
+	#endif
+
 	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
-#if defined(CONFIG_MFD_WM831X)
-	wm831x_set_bits(Wm831x,WM831X_GPIO_LEVEL,0x0001,0x0000);  //set sys_pwr 0
-	wm831x_device_shutdown(Wm831x);//wm8326 shutdown
-#endif
 	while (1);
 }
 

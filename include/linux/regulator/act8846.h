@@ -27,6 +27,8 @@
 #define act8846_NUM_REGULATORS 13
 struct act8846;
 
+int act8846_device_shutdown(void);
+
 struct act8846_regulator_subdev {
 	int id;
 	struct regulator_init_data *initdata;
