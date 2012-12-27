@@ -352,3 +352,4 @@ SYSCALL(sys_process_vm_readv,sys_process_vm_readv,compat_sys_process_vm_readv_wr
 SYSCALL(sys_process_vm_writev,sys_process_vm_writev,compat_sys_process_vm_writev_wrapper)
 SYSCALL(sys_ni_syscall,sys_s390_runtime_instr,sys_s390_runtime_instr_wrapper)
 SYSCALL(sys_kcmp,sys_kcmp,sys_kcmp_wrapper)
+SYSCALL(sys_finit_module,sys_finit_module,sys_finit_module_wrapper)
