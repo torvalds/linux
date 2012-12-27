@@ -46,10 +46,10 @@ enum{
 #define FROM_LCDC1 		1
 
 
-#define LVDS_8BIT_1     0x00
-#define LVDS_8BIT_2     0x01
-#define LVDS_8BIT_3     0x10
-#define LVDS_6BIT       0x11
+#define LVDS_8BIT_1     0
+#define LVDS_8BIT_2     1
+#define LVDS_8BIT_3     2
+#define LVDS_6BIT       3
 /*      				LVDS config         
  *                  LVDS 外部连线接法                       
  *          LVDS_8BIT_1    LVDS_8BIT_2     LVDS_8BIT_3     LVDS_6BIT
