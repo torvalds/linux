@@ -27,6 +27,7 @@
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/io.h>
+#include <linux/irqchip/arm-gic.h>
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/emev2.h>
@@ -35,7 +36,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <asm/hardware/gic.h>
 
 static struct map_desc emev2_io_desc[] __initdata = {
 #ifdef CONFIG_SMP

@@ -23,11 +23,11 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/irqchip/arm-gic.h>
 #include <mach/common.h>
 #include <mach/emev2.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
-#include <asm/hardware/gic.h>
 #include <asm/cacheflush.h>
 
 #define EMEV2_SCU_BASE 0x1e000000

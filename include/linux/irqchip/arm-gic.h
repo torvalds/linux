@@ -1,5 +1,5 @@
 /*
- *  arch/arm/include/asm/hardware/gic.h
+ *  include/linux/irqchip/arm-gic.h
  *
  *  Copyright (C) 2002 ARM Limited, All Rights Reserved.
  *
@@ -7,8 +7,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#ifndef __ASM_ARM_HARDWARE_GIC_H
-#define __ASM_ARM_HARDWARE_GIC_H
+#ifndef __LINUX_IRQCHIP_ARM_GIC_H
+#define __LINUX_IRQCHIP_ARM_GIC_H
 
 #define GIC_CPU_CTRL			0x00
 #define GIC_CPU_PRIMASK			0x04

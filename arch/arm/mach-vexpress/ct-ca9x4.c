@@ -10,10 +10,10 @@
 #include <linux/amba/clcd.h>
 #include <linux/clkdev.h>
 #include <linux/vexpress.h>
+#include <linux/irqchip/arm-gic.h>
 
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/cache-l2x0.h>
-#include <asm/hardware/gic.h>
 #include <asm/smp_scu.h>
 #include <asm/smp_twd.h>
 

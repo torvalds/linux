@@ -14,10 +14,10 @@
 #include <linux/device.h>
 #include <linux/jiffies.h>
 #include <linux/smp.h>
+#include <linux/irqchip/arm-gic.h>
 
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
-#include <asm/hardware/gic.h>
 
 /*
  * Write pen_release in a way that is guaranteed to be visible to all
