@@ -26,6 +26,24 @@
 			linux,default-trigger = "default-on";
 		};
 	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usb_power: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "USB Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio0 1 0>;
+		};
+	};
 };
 
 &uart0 { status = "okay"; };
@@ -50,8 +68,13 @@
 };
 
 &pinctrl {
-	pinctrl-0 = <&pmx_gpio_12>;
+	pinctrl-0 = <&pmx_gpio_1 &pmx_gpio_12>;
 	pinctrl-names = "default";
+
+	pmx_gpio_1: pmx-gpio-1 {
+		marvell,pins = "mpp1";
+		marvell,function = "gpio";
+	};
 
 	pmx_gpio_12: pmx-gpio-12 {
 		marvell,pins = "mpp12";
