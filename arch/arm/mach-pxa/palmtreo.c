@@ -334,7 +334,6 @@ static inline void palmtreo_uhc_init(void) {}
 /******************************************************************************
  * Vibra and LEDs
  ******************************************************************************/
-#ifdef CONFIG_MACH_TREO680
 static struct gpio_led treo680_gpio_leds[] = {
 	{
 		.name			= "treo680:vibra:vibra",
@@ -385,21 +384,17 @@ static struct gpio_led_platform_data centro_gpio_led_info = {
 static struct platform_device palmtreo_leds = {
 	.name   = "leds-gpio",
 	.id     = -1,
-	.dev    = {
-		.platform_data  = &treo680_gpio_led_info,
-	}
 };
 
 static void __init palmtreo_leds_init(void)
 {
 	if (machine_is_centro())
 		palmtreo_leds.dev.platform_data = &centro_gpio_led_info;
+	else if (machine_is_treo680())
+		palmtreo_leds.dev.platform_data = &treo680_gpio_led_info;
 
 	platform_device_register(&palmtreo_leds);
 }
-#else
-static inline void palmtreo_leds_init(void) {}
-#endif
 
 /******************************************************************************
  * Machine init
