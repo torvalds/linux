@@ -229,13 +229,13 @@ static int ath79_wdt_probe(struct platform_device *pdev)
 	u32 ctrl;
 	int err;
 
-	wdt_clk = clk_get(&pdev->dev, "wdt");
+	wdt_clk = devm_clk_get(&pdev->dev, "wdt");
 	if (IS_ERR(wdt_clk))
 		return PTR_ERR(wdt_clk);
 
 	err = clk_enable(wdt_clk);
 	if (err)
-		goto err_clk_put;
+		return err;
 
 	wdt_freq = clk_get_rate(wdt_clk);
 	if (!wdt_freq) {
@@ -265,8 +265,6 @@ static int ath79_wdt_probe(struct platform_device *pdev)
 
 err_clk_disable:
 	clk_disable(wdt_clk);
-err_clk_put:
-	clk_put(wdt_clk);
 	return err;
 }
 
@@ -274,7 +272,6 @@ static int ath79_wdt_remove(struct platform_device *pdev)
 {
 	misc_deregister(&ath79_wdt_miscdev);
 	clk_disable(wdt_clk);
-	clk_put(wdt_clk);
 	return 0;
 }
 
