@@ -161,13 +161,23 @@ void dbs_check_cpu(struct dbs_data *dbs_data, int cpu)
 }
 EXPORT_SYMBOL_GPL(dbs_check_cpu);
 
+bool dbs_sw_coordinated_cpus(struct cpu_dbs_common_info *cdbs)
+{
+	struct cpufreq_policy *policy = cdbs->cur_policy;
+
+	return cpumask_weight(policy->cpus) > 1;
+}
+EXPORT_SYMBOL_GPL(dbs_sw_coordinated_cpus);
+
 static inline void dbs_timer_init(struct dbs_data *dbs_data,
-		struct cpu_dbs_common_info *cdbs, unsigned int sampling_rate)
+				  struct cpu_dbs_common_info *cdbs,
+				  unsigned int sampling_rate,
+				  int cpu)
 {
 	int delay = delay_for_sampling_rate(sampling_rate);
+	struct cpu_dbs_common_info *cdbs_local = dbs_data->get_cpu_cdbs(cpu);
 
-	INIT_DEFERRABLE_WORK(&cdbs->work, dbs_data->gov_dbs_timer);
-	schedule_delayed_work_on(cdbs->cpu, &cdbs->work, delay);
+	schedule_delayed_work_on(cpu, &cdbs_local->work, delay);
 }
 
 static inline void dbs_timer_exit(struct cpu_dbs_common_info *cdbs)
@@ -217,6 +227,10 @@ int cpufreq_governor_dbs(struct dbs_data *dbs_data,
 			if (ignore_nice)
 				j_cdbs->prev_cpu_nice =
 					kcpustat_cpu(j).cpustat[CPUTIME_NICE];
+
+			mutex_init(&j_cdbs->timer_mutex);
+			INIT_DEFERRABLE_WORK(&j_cdbs->work,
+					     dbs_data->gov_dbs_timer);
 		}
 
 		/*
@@ -275,15 +289,33 @@ second_time:
 		}
 		mutex_unlock(&dbs_data->mutex);
 
-		mutex_init(&cpu_cdbs->timer_mutex);
-		dbs_timer_init(dbs_data, cpu_cdbs, *sampling_rate);
+		if (dbs_sw_coordinated_cpus(cpu_cdbs)) {
+			for_each_cpu(j, policy->cpus) {
+				struct cpu_dbs_common_info *j_cdbs;
+
+				j_cdbs = dbs_data->get_cpu_cdbs(j);
+				dbs_timer_init(dbs_data, j_cdbs,
+					       *sampling_rate, j);
+			}
+		} else {
+			dbs_timer_init(dbs_data, cpu_cdbs, *sampling_rate, cpu);
+		}
 		break;
 
 	case CPUFREQ_GOV_STOP:
 		if (dbs_data->governor == GOV_CONSERVATIVE)
 			cs_dbs_info->enable = 0;
 
-		dbs_timer_exit(cpu_cdbs);
+		if (dbs_sw_coordinated_cpus(cpu_cdbs)) {
+			for_each_cpu(j, policy->cpus) {
+				struct cpu_dbs_common_info *j_cdbs;
+
+				j_cdbs = dbs_data->get_cpu_cdbs(j);
+				dbs_timer_exit(j_cdbs);
+			}
+		} else {
+			dbs_timer_exit(cpu_cdbs);
+		}
 
 		mutex_lock(&dbs_data->mutex);
 		mutex_destroy(&cpu_cdbs->timer_mutex);

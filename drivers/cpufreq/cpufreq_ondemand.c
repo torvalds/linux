@@ -243,7 +243,8 @@ static void od_dbs_timer(struct work_struct *work)
 		}
 	}
 
-	schedule_delayed_work_on(cpu, &dbs_info->cdbs.work, delay);
+	schedule_delayed_work_on(smp_processor_id(), &dbs_info->cdbs.work,
+			delay);
 	mutex_unlock(&dbs_info->cdbs.timer_mutex);
 }
 
