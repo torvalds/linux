@@ -24,17 +24,24 @@
 #include <linux/spi/spi_bitbang.h>
 #include <linux/bitops.h>
 #include <linux/gpio.h>
+#include <linux/clk.h>
+#include <linux/err.h>
 
 #include <asm/mach-ath79/ar71xx_regs.h>
 #include <asm/mach-ath79/ath79_spi_platform.h>
 
 #define DRV_NAME	"ath79-spi"
 
+#define ATH79_SPI_RRW_DELAY_FACTOR	12000
+#define MHZ				(1000 * 1000)
+
 struct ath79_spi {
 	struct spi_bitbang	bitbang;
 	u32			ioc_base;
 	u32			reg_ctrl;
 	void __iomem		*base;
+	struct clk		*clk;
+	unsigned		rrw_delay;
 };
 
 static inline u32 ath79_spi_rr(struct ath79_spi *sp, unsigned reg)
@@ -50,6 +57,12 @@ static inline void ath79_spi_wr(struct ath79_spi *sp, unsigned reg, u32 val)
 static inline struct ath79_spi *ath79_spidev_to_sp(struct spi_device *spi)
 {
 	return spi_master_get_devdata(spi->master);
+}
+
+static inline void ath79_spi_delay(struct ath79_spi *sp, unsigned nsecs)
+{
+	if (nsecs > sp->rrw_delay)
+		ndelay(nsecs - sp->rrw_delay);
 }
 
 static void ath79_spi_chipselect(struct spi_device *spi, int is_active)
@@ -184,7 +197,9 @@ static u32 ath79_spi_txrx_mode0(struct spi_device *spi, unsigned nsecs,
 
 		/* setup MSB (to slave) on trailing edge */
 		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, out);
+		ath79_spi_delay(sp, nsecs);
 		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, out | AR71XX_SPI_IOC_CLK);
+		ath79_spi_delay(sp, nsecs);
 
 		word <<= 1;
 	}
@@ -198,6 +213,7 @@ static int ath79_spi_probe(struct platform_device *pdev)
 	struct ath79_spi *sp;
 	struct ath79_spi_platform_data *pdata;
 	struct resource	*r;
+	unsigned long rate;
 	int ret;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*sp));
@@ -236,12 +252,36 @@ static int ath79_spi_probe(struct platform_device *pdev)
 		goto err_put_master;
 	}
 
+	sp->clk = clk_get(&pdev->dev, "ahb");
+	if (IS_ERR(sp->clk)) {
+		ret = PTR_ERR(sp->clk);
+		goto err_unmap;
+	}
+
+	ret = clk_enable(sp->clk);
+	if (ret)
+		goto err_clk_put;
+
+	rate = DIV_ROUND_UP(clk_get_rate(sp->clk), MHZ);
+	if (!rate) {
+		ret = -EINVAL;
+		goto err_clk_disable;
+	}
+
+	sp->rrw_delay = ATH79_SPI_RRW_DELAY_FACTOR / rate;
+	dev_dbg(&pdev->dev, "register read/write delay is %u nsecs\n",
+		sp->rrw_delay);
+
 	ret = spi_bitbang_start(&sp->bitbang);
 	if (ret)
-		goto err_unmap;
+		goto err_clk_disable;
 
 	return 0;
 
+err_clk_disable:
+	clk_disable(sp->clk);
+err_clk_put:
+	clk_put(sp->clk);
 err_unmap:
 	iounmap(sp->base);
 err_put_master:
@@ -256,6 +296,8 @@ static int ath79_spi_remove(struct platform_device *pdev)
 	struct ath79_spi *sp = platform_get_drvdata(pdev);
 
 	spi_bitbang_stop(&sp->bitbang);
+	clk_disable(sp->clk);
+	clk_put(sp->clk);
 	iounmap(sp->base);
 	platform_set_drvdata(pdev, NULL);
 	spi_master_put(sp->bitbang.master);
