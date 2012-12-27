@@ -4898,8 +4898,7 @@ int btrfs_pin_extent(struct btrfs_root *root,
 /*
  * this function must be called within transaction
  */
-int btrfs_pin_extent_for_log_replay(struct btrfs_trans_handle *trans,
-				    struct btrfs_root *root,
+int btrfs_pin_extent_for_log_replay(struct btrfs_root *root,
 				    u64 bytenr, u64 num_bytes)
 {
 	struct btrfs_block_group_cache *cache;

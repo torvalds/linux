@@ -278,8 +278,7 @@ static int process_one_buffer(struct btrfs_root *log,
 			      struct walk_control *wc, u64 gen)
 {
 	if (wc->pin)
-		btrfs_pin_extent_for_log_replay(wc->trans,
-						log->fs_info->extent_root,
+		btrfs_pin_extent_for_log_replay(log->fs_info->extent_root,
 						eb->start, eb->len);
 
 	if (btrfs_buffer_uptodate(eb, gen, 0)) {
