@@ -17,6 +17,7 @@
  * MA 02111-1307 USA
  */
 
+#include <sound/pcm.h>
 #include "hdmi_core.h"
 #include "../disp/dev_disp.h"
 
@@ -328,18 +329,40 @@ static __s32
 Parse_AudioData_Block(__u8 *pbuf, __u8 size)
 {
 	__u8 sum = 0;
+	unsigned long rates = 0;
 
 	while (sum < size) {
 		if ((pbuf[sum] & 0xf8) == 0x08) {
-			pr_info("Parse_AudioData_Block: max channel=%d\n",
-			      (pbuf[sum] & 0x7) + 1);
+			int c = (pbuf[sum] & 0x7) + 1;
+			pr_info("Parse_AudioData_Block: max channel=%d\n", c);
 			pr_info("Parse_AudioData_Block: SampleRate code=%x\n",
 			      pbuf[sum + 1]);
 			pr_info("Parse_AudioData_Block: WordLen code=%x\n",
 			      pbuf[sum + 2]);
+			/*
+			 * If >= 2 channels and 16 bit is supported, then
+			 * add the supported rates to our bitmap.
+			 */
+			if ((c >= 2) && (pbuf[sum + 2] & 0x01)) {
+				if (pbuf[sum + 1] & 0x01)
+					rates |= SNDRV_PCM_RATE_32000;
+				if (pbuf[sum + 1] & 0x02)
+					rates |= SNDRV_PCM_RATE_44100;
+				if (pbuf[sum + 1] & 0x04)
+					rates |= SNDRV_PCM_RATE_48000;
+				if (pbuf[sum + 1] & 0x08)
+					rates |= SNDRV_PCM_RATE_88200;
+				if (pbuf[sum + 1] & 0x10)
+					rates |= SNDRV_PCM_RATE_96000;
+				if (pbuf[sum + 1] & 0x20)
+					rates |= SNDRV_PCM_RATE_176400;
+				if (pbuf[sum + 1] & 0x40)
+					rates |= SNDRV_PCM_RATE_192000;
+			}
 		}
 		sum += 3;
 	}
+	audio_info.supported_rates |= rates;
 	return 0;
 }
 
@@ -430,9 +453,13 @@ __s32 ParseEDID(void)
 			if (EDID_CheckSum(i, EDID_Buf) != 0)
 				return 0;
 
-			if ((EDID_Buf[0x80 * i + 0] == 2)
-			    /* && (EDID_Buf[0x80 * i + 1] == 1) */) {
-
+			if (EDID_Buf[0x80 * i + 0] == 2) {
+				if (EDID_Buf[0x80 * i + 3] & 0x40) {
+					audio_info.supported_rates |=
+						SNDRV_PCM_RATE_32000 |
+						SNDRV_PCM_RATE_44100 |
+						SNDRV_PCM_RATE_48000;
+				}
 				offset = EDID_Buf[0x80 * i + 2];
 				/* deal with reserved data block */
 				if (offset > 4)	{

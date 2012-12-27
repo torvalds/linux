@@ -71,6 +71,8 @@ extern void __iomem *HDMI_BASE;
 
 typedef struct audio_timing {
 
+	unsigned long supported_rates;
+
 	__s32 audio_en;
 	__s32 sample_rate;
 	__s32 channel_num;
