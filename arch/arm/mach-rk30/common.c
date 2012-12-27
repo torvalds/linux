@@ -1,3 +1,5 @@
+#include <linux/clk.h>
+#include <linux/cpufreq.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -16,6 +18,7 @@
 #include <mach/pmu.h>
 #include <mach/loader.h>
 #include <mach/ddr.h>
+#include <mach/dvfs.h>
 
 static void __init rk30_cpu_axi_init(void)
 {
@@ -59,17 +62,43 @@ static void __init rk30_io_drive_strength_init(void)
 #define L2_LY_WR_MSK (0x7)
 #define L2_LY_SET(ly,off) (((ly)-1)<<(off))
 
+#define L2_LATENCY(setup_cycles, read_cycles, write_cycles) \
+	L2_LY_SET(setup_cycles, L2_LY_SP_OFF) | \
+	L2_LY_SET(read_cycles, L2_LY_RD_OFF) | \
+	L2_LY_SET(write_cycles, L2_LY_WR_OFF)
+
 static void __init rk30_l2_cache_init(void)
 {
 #ifdef CONFIG_CACHE_L2X0
-	u32 aux_ctrl, aux_ctrl_mask;
+	u32 aux_ctrl, aux_ctrl_mask, data_latency_ctrl;
+	unsigned int max_cpu_freq = 1608000; // kHz
+	struct cpufreq_frequency_table *table = NULL;
+	struct clk *clk_cpu;
+	int i;
 
-	writel_relaxed(L2_LY_SET(1,L2_LY_SP_OFF)
-				|L2_LY_SET(1,L2_LY_RD_OFF)
-				|L2_LY_SET(1,L2_LY_WR_OFF), RK30_L2C_BASE + L2X0_TAG_LATENCY_CTRL);
-	writel_relaxed(L2_LY_SET(4,L2_LY_SP_OFF)
-				|L2_LY_SET(6,L2_LY_RD_OFF)
-				|L2_LY_SET(1,L2_LY_WR_OFF), RK30_L2C_BASE + L2X0_DATA_LATENCY_CTRL);
+	clk_cpu = clk_get(NULL, "cpu");
+	if (!IS_ERR(clk_cpu)) {
+		table = dvfs_get_freq_volt_table(clk_cpu);
+		if (!table)
+			pr_err("failed to get cpu freq volt table\n");
+	} else
+		pr_err("failed to get clk cpu\n");
+	for (i = 0; table && table[i].frequency != CPUFREQ_TABLE_END; i++) {
+		if (max_cpu_freq < table[i].frequency)
+			max_cpu_freq = table[i].frequency;
+	}
+
+	if (max_cpu_freq <= 1608000)
+		data_latency_ctrl = L2_LATENCY(4, 6, 1);
+	else if (max_cpu_freq <= 1800000)
+		data_latency_ctrl = L2_LATENCY(5, 7, 1);
+	else if (max_cpu_freq <= 1992000)
+		data_latency_ctrl = L2_LATENCY(5, 8, 1);
+	else
+		data_latency_ctrl = L2_LATENCY(6, 8, 1);
+
+	writel_relaxed(L2_LATENCY(1, 1, 1), RK30_L2C_BASE + L2X0_TAG_LATENCY_CTRL);
+	writel_relaxed(data_latency_ctrl, RK30_L2C_BASE + L2X0_DATA_LATENCY_CTRL);
 
 	/* L2X0 Prefetch Control */
 	writel_relaxed(0x70000003, RK30_L2C_BASE + L2X0_PREFETCH_CTRL);
