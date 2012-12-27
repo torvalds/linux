@@ -3188,13 +3188,9 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 			nla_len(info->attrs[NL80211_ATTR_STA_SUPPORTED_RATES]);
 	}
 
-	if (info->attrs[NL80211_ATTR_STA_LISTEN_INTERVAL])
-		params.listen_interval =
-		    nla_get_u16(info->attrs[NL80211_ATTR_STA_LISTEN_INTERVAL]);
-
-	if (info->attrs[NL80211_ATTR_HT_CAPABILITY])
-		params.ht_capa =
-			nla_data(info->attrs[NL80211_ATTR_HT_CAPABILITY]);
+	if (info->attrs[NL80211_ATTR_STA_LISTEN_INTERVAL] ||
+	    info->attrs[NL80211_ATTR_HT_CAPABILITY])
+		return -EINVAL;
 
 	if (!rdev->ops->change_station)
 		return -EOPNOTSUPP;
@@ -3246,6 +3242,10 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 				 BIT(NL80211_STA_FLAG_ASSOCIATED)))
 			return -EINVAL;
 
+		/* reject other things that can't change */
+		if (params.supported_rates)
+			return -EINVAL;
+
 		/* must be last in here for error handling */
 		params.vlan = get_vlan(info, rdev);
 		if (IS_ERR(params.vlan))
@@ -3265,10 +3265,6 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 		/* disallow things sta doesn't support */
 		if (params.plink_action)
 			return -EINVAL;
-		if (params.ht_capa)
-			return -EINVAL;
-		if (params.listen_interval >= 0)
-			return -EINVAL;
 		/* reject any changes other than AUTHORIZED */
 		if (params.sta_flags_mask & ~BIT(NL80211_STA_FLAG_AUTHORIZED))
 			return -EINVAL;
@@ -3277,9 +3273,7 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 		/* disallow things mesh doesn't support */
 		if (params.vlan)
 			return -EINVAL;
-		if (params.ht_capa)
-			return -EINVAL;
-		if (params.listen_interval >= 0)
+		if (params.supported_rates)
 			return -EINVAL;
 		/*
 		 * No special handling for TDLS here -- the userspace

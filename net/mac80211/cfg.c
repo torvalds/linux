@@ -1208,10 +1208,11 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		sta->sta.aid = params->aid;
 
 	/*
-	 * FIXME: updating the following information is racy when this
-	 *	  function is called from ieee80211_change_station().
-	 *	  However, all this information should be static so
-	 *	  maybe we should just reject attemps to change it.
+	 * Some of the following updates would be racy if called on an
+	 * existing station, via ieee80211_change_station(). However,
+	 * all such changes are rejected by cfg80211 except for updates
+	 * changing the supported rates on an existing but not yet used
+	 * TDLS peer.
 	 */
 
 	if (params->listen_interval >= 0)
