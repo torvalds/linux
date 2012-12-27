@@ -289,8 +289,6 @@ _sys32_clone(nabi_no_regargs struct pt_regs regs)
 
 	clone_flags = regs.regs[4];
 	newsp = regs.regs[5];
-	if (!newsp)
-		newsp = regs.regs[29];
 	parent_tidptr = (int __user *) regs.regs[6];
 
 	/* Use __dummy4 instead of getting it off the stack, so that

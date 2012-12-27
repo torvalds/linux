@@ -86,7 +86,7 @@ save_static_function(sys_fork);
 static int __used noinline
 _sys_fork(nabi_no_regargs struct pt_regs regs)
 {
-	return do_fork(SIGCHLD, regs.regs[29], 0, NULL, NULL);
+	return do_fork(SIGCHLD, 0, 0, NULL, NULL);
 }
 
 save_static_function(sys_clone);
@@ -99,8 +99,6 @@ _sys_clone(nabi_no_regargs struct pt_regs regs)
 
 	clone_flags = regs.regs[4];
 	newsp = regs.regs[5];
-	if (!newsp)
-		newsp = regs.regs[29];
 	parent_tidptr = (int __user *) regs.regs[6];
 #ifdef CONFIG_32BIT
 	/* We need to fetch the fifth argument off the stack.  */
