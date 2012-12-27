@@ -42,7 +42,7 @@ static void TEA_transform(unsigned int buf[4], unsigned int const in[])
 	buf[1] += b1;
 }
 
-static void str2hashbuf(const char *msg, int len, unsigned int *buf, int num)
+static void str2hashbuf(const char *msg, size_t len, unsigned int *buf, int num)
 {
 	unsigned pad, val;
 	int i;
@@ -69,7 +69,7 @@ static void str2hashbuf(const char *msg, int len, unsigned int *buf, int num)
 		*buf++ = pad;
 }
 
-f2fs_hash_t f2fs_dentry_hash(const char *name, int len)
+f2fs_hash_t f2fs_dentry_hash(const char *name, size_t len)
 {
 	__u32 hash;
 	f2fs_hash_t f2fs_hash;
@@ -87,11 +87,13 @@ f2fs_hash_t f2fs_dentry_hash(const char *name, int len)
 	buf[3] = 0x10325476;
 
 	p = name;
-	while (len > 0) {
+	while (1) {
 		str2hashbuf(p, len, in, 4);
 		TEA_transform(buf, in);
-		len -= 16;
 		p += 16;
+		if (len <= 16)
+			break;
+		len -= 16;
 	}
 	hash = buf[0];
 	f2fs_hash = cpu_to_le32(hash & ~F2FS_HASH_COL_BIT);

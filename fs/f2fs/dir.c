@@ -75,7 +75,7 @@ static unsigned long dir_block_index(unsigned int level, unsigned int idx)
 	return bidx;
 }
 
-static bool early_match_name(const char *name, int namelen,
+static bool early_match_name(const char *name, size_t namelen,
 			f2fs_hash_t namehash, struct f2fs_dir_entry *de)
 {
 	if (le16_to_cpu(de->name_len) != namelen)
@@ -88,7 +88,7 @@ static bool early_match_name(const char *name, int namelen,
 }
 
 static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
-			const char *name, int namelen, int *max_slots,
+			const char *name, size_t namelen, int *max_slots,
 			f2fs_hash_t namehash, struct page **res_page)
 {
 	struct f2fs_dir_entry *de;
@@ -127,7 +127,7 @@ found:
 }
 
 static struct f2fs_dir_entry *find_in_level(struct inode *dir,
-		unsigned int level, const char *name, int namelen,
+		unsigned int level, const char *name, size_t namelen,
 			f2fs_hash_t namehash, struct page **res_page)
 {
 	int s = GET_DENTRY_SLOTS(namelen);
@@ -182,7 +182,7 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 			struct qstr *child, struct page **res_page)
 {
 	const char *name = child->name;
-	int namelen = child->len;
+	size_t namelen = child->len;
 	unsigned long npages = dir_blocks(dir);
 	struct f2fs_dir_entry *de = NULL;
 	f2fs_hash_t name_hash;
@@ -383,7 +383,7 @@ int f2fs_add_link(struct dentry *dentry, struct inode *inode)
 	struct inode *dir = dentry->d_parent->d_inode;
 	struct f2fs_sb_info *sbi = F2FS_SB(dir->i_sb);
 	const char *name = dentry->d_name.name;
-	int namelen = dentry->d_name.len;
+	size_t namelen = dentry->d_name.len;
 	struct page *dentry_page = NULL;
 	struct f2fs_dentry_block *dentry_blk = NULL;
 	int slots = GET_DENTRY_SLOTS(namelen);

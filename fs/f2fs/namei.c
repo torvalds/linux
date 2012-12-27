@@ -77,8 +77,8 @@ fail:
 
 static int is_multimedia_file(const unsigned char *s, const char *sub)
 {
-	int slen = strlen(s);
-	int sublen = strlen(sub);
+	size_t slen = strlen(s);
+	size_t sublen = strlen(sub);
 	int ret;
 
 	if (sublen > slen)
@@ -250,7 +250,7 @@ static int f2fs_symlink(struct inode *dir, struct dentry *dentry,
 	struct super_block *sb = dir->i_sb;
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
 	struct inode *inode;
-	unsigned symlen = strlen(symname) + 1;
+	size_t symlen = strlen(symname) + 1;
 	int err;
 
 	f2fs_balance_fs(sbi);
