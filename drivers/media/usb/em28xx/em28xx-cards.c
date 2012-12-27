@@ -3507,6 +3507,8 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 	if (!dev)
 		return;
 
+	dev->disconnected = 1;
+
 	if (dev->is_audio_only) {
 		mutex_lock(&dev->lock);
 		em28xx_close_extension(dev);
@@ -3518,31 +3520,25 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 
 	flush_request_modules(dev);
 
-	/* wait until all current v4l2 io is finished then deallocate
-	   resources */
 	mutex_lock(&dev->lock);
 
 	v4l2_device_disconnect(&dev->v4l2_dev);
 
 	if (dev->users) {
-		em28xx_warn
-		    ("device %s is open! Deregistration and memory "
-		     "deallocation are deferred on close.\n",
-		     video_device_node_name(dev->vdev));
+		em28xx_warn("device %s is open! Deregistration and memory deallocation are deferred on close.\n",
+			    video_device_node_name(dev->vdev));
 
-		em28xx_uninit_usb_xfer(dev, dev->mode);
-		dev->disconnected = 1;
-	} else {
-		dev->disconnected = 1;
-		em28xx_release_resources(dev);
+		em28xx_uninit_usb_xfer(dev, EM28XX_ANALOG_MODE);
+		em28xx_uninit_usb_xfer(dev, EM28XX_DIGITAL_MODE);
 	}
 
-	/* free DVB isoc buffers */
-	em28xx_uninit_usb_xfer(dev, EM28XX_DIGITAL_MODE);
+	em28xx_close_extension(dev);
+	/* NOTE: must be called BEFORE the resources are released */
+
+	if (!dev->users)
+		em28xx_release_resources(dev);
 
 	mutex_unlock(&dev->lock);
-
-	em28xx_close_extension(dev);
 
 	if (!dev->users) {
 		kfree(dev->alt_max_pkt_size_isoc);
