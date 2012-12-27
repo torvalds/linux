@@ -331,7 +331,7 @@ sort__cpu_cmp(struct hist_entry *left, struct hist_entry *right)
 static int hist_entry__cpu_snprintf(struct hist_entry *self, char *bf,
 				       size_t size, unsigned int width)
 {
-	return repsep_snprintf(bf, size, "%-*d", width, self->cpu);
+	return repsep_snprintf(bf, size, "%*d", width, self->cpu);
 }
 
 struct sort_entry sort_cpu = {
