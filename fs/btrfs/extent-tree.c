@@ -527,12 +527,6 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 	cache->cached = BTRFS_CACHE_FAST;
 	spin_unlock(&cache->lock);
 
-	/*
-	 * We can't do the read from on-disk cache during a commit since we need
-	 * to have the normal tree locking.  Also if we are currently trying to
-	 * allocate blocks for the tree root we can't do the fast caching since
-	 * we likely hold important locks.
-	 */
 	if (fs_info->mount_opt & BTRFS_MOUNT_SPACE_CACHE) {
 		ret = load_free_space_cache(fs_info, cache);
 
