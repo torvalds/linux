@@ -1731,7 +1731,7 @@ static int rk29sdk_wifi_combo_module_gpio_init(void)
         rk30_mux_api_set(rk_platform_wifi_gpio.ANTSEL2.iomux.name, rk_platform_wifi_gpio.ANTSEL2.iomux.fgpio);
         #endif
     gpio_request(rk_platform_wifi_gpio.ANTSEL2.io, "combo-ANTSEL2");
-    gpio_direction_output(rk_platform_wifi_gpio.reset_n.io, rk_platform_wifi_gpio.ANTSEL2.enable);
+    gpio_direction_output(rk_platform_wifi_gpio.ANTSEL2.io, rk_platform_wifi_gpio.ANTSEL2.enable);
     #endif
 
     //ANTSEL3
