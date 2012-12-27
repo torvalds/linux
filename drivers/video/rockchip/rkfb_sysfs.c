@@ -275,13 +275,14 @@ static ssize_t set_fb_win_map(struct device *dev,struct device_attribute *attr,
 static ssize_t show_dsp_lut(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	
+
+	return 0;	
 }
 static ssize_t set_dsp_lut(struct device *dev,struct device_attribute *attr,
 	const char *buf, size_t count)
 {
 	int dsp_lut[256];
-	char *start = buf;
+	const char *start = buf;
 	int i=256,j,temp;
 	int space_max = 10;
 
