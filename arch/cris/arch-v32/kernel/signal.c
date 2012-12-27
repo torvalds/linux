@@ -82,11 +82,9 @@ badframe:
 	return 1;
 }
 
-/* Define some dummy arguments to be able to reach the regs argument. */
-asmlinkage int
-sys_sigreturn(long r10, long r11, long r12, long r13, long mof, long srp,
-	      struct pt_regs *regs)
+asmlinkage int sys_sigreturn(void)
 {
+	struct pt_regs *regs = current_pt_regs();
 	sigset_t set;
 	struct signal_frame __user *frame;
 	unsigned long oldspc = regs->spc;
@@ -125,11 +123,9 @@ badframe:
 	return 0;
 }
 
-/* Define some dummy variables to be able to reach the regs argument. */
-asmlinkage int
-sys_rt_sigreturn(long r10, long r11, long r12, long r13, long mof, long srp,
-		 struct pt_regs *regs)
+asmlinkage int sys_rt_sigreturn(void)
 {
+	struct pt_regs *regs = current_pt_regs();
 	sigset_t set;
 	struct rt_signal_frame __user *frame;
 	unsigned long oldspc = regs->spc;

@@ -101,11 +101,9 @@ badframe:
 	return 1;
 }
 
-/* Define dummy arguments to be able to reach the regs argument.  */
-
-asmlinkage int sys_sigreturn(long r10, long r11, long r12, long r13, long mof,
-                             long srp, struct pt_regs *regs)
+asmlinkage int sys_sigreturn(void)
 {
+	struct pt_regs *regs = current_pt_regs();
 	struct sigframe __user *frame = (struct sigframe *)rdusp();
 	sigset_t set;
 
@@ -139,11 +137,9 @@ badframe:
 	return 0;
 }
 
-/* Define dummy arguments to be able to reach the regs argument.  */
-
-asmlinkage int sys_rt_sigreturn(long r10, long r11, long r12, long r13,
-                                long mof, long srp, struct pt_regs *regs)
+asmlinkage int sys_rt_sigreturn(void)
 {
+	struct pt_regs *regs = current_pt_regs();
 	struct rt_sigframe __user *frame = (struct rt_sigframe *)rdusp();
 	sigset_t set;
 
