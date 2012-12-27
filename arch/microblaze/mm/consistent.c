@@ -37,7 +37,7 @@
 #include <asm/pgalloc.h>
 #include <linux/io.h>
 #include <linux/hardirq.h>
-#include <asm/mmu_context.h>
+#include <linux/mmu_context.h>
 #include <asm/mmu.h>
 #include <linux/uaccess.h>
 #include <asm/pgtable.h>
@@ -102,8 +102,7 @@ void *consistent_alloc(gfp_t gfp, size_t size, dma_addr_t *dma_handle)
 # endif
 	if ((unsigned int)ret > cpuinfo.dcache_base &&
 				(unsigned int)ret < cpuinfo.dcache_high)
-		printk(KERN_WARNING
-			"ERROR: Your cache coherent area is CACHED!!!\n");
+		pr_warn("ERROR: Your cache coherent area is CACHED!!!\n");
 
 	/* dma_handle is same as physical (shadowed) address */
 	*dma_handle = (dma_addr_t)ret;

@@ -31,7 +31,6 @@
 #include <linux/uaccess.h>
 #include <linux/unistd.h>
 #include <linux/slab.h>
-
 #include <asm/syscalls.h>
 
 asmlinkage long sys_mmap(unsigned long addr, unsigned long len,

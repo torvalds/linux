@@ -40,7 +40,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/cacheflush.h>
 #include <asm/syscall.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 /* Returns the address where the register at REG_OFFS in P is stashed away. */
 static microblaze_reg_t *reg_save_addr(unsigned reg_offs,

@@ -103,12 +103,12 @@ void *memcpy(void *v_dst, const void *v_src, __kernel_size_t c)
 			}
 #else
 			/* Load the holding buffer */
-			buf_hold = (*i_src++ & 0xFFFFFF00) >>8;
+			buf_hold = (*i_src++ & 0xFFFFFF00) >> 8;
 
 			for (; c >= 4; c -= 4) {
 				value = *i_src++;
 				*i_dst++ = buf_hold | ((value & 0xFF) << 24);
-				buf_hold = (value & 0xFFFFFF00) >>8;
+				buf_hold = (value & 0xFFFFFF00) >> 8;
 			}
 #endif
 			/* Realign the source */
@@ -129,12 +129,12 @@ void *memcpy(void *v_dst, const void *v_src, __kernel_size_t c)
 			}
 #else
 			/* Load the holding buffer */
-			buf_hold = (*i_src++ & 0xFFFF0000 )>>16;
+			buf_hold = (*i_src++ & 0xFFFF0000) >> 16;
 
 			for (; c >= 4; c -= 4) {
 				value = *i_src++;
-				*i_dst++ = buf_hold | ((value & 0xFFFF)<<16);
-				buf_hold = (value & 0xFFFF0000) >>16;
+				*i_dst++ = buf_hold | ((value & 0xFFFF) << 16);
+				buf_hold = (value & 0xFFFF0000) >> 16;
 			}
 #endif
 			/* Realign the source */
