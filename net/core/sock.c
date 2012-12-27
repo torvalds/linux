@@ -583,7 +583,7 @@ static int sock_getbindtodevice(struct sock *sk, char __user *optval,
 		goto out;
 
 retry:
-	seq = read_seqbegin(&devnet_rename_seq);
+	seq = read_seqcount_begin(&devnet_rename_seq);
 	rcu_read_lock();
 	dev = dev_get_by_index_rcu(net, sk->sk_bound_dev_if);
 	ret = -ENODEV;
@@ -594,7 +594,7 @@ retry:
 
 	strcpy(devname, dev->name);
 	rcu_read_unlock();
-	if (read_seqretry(&devnet_rename_seq, seq))
+	if (read_seqcount_retry(&devnet_rename_seq, seq))
 		goto retry;
 
 	len = strlen(devname) + 1;

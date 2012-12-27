@@ -538,7 +538,7 @@ static ssize_t geos_gpio_store(struct device *dev, struct device_attribute *attr
 	} else {
 		count = -EINVAL;
 	}
-	spin_lock_irq(&card->param_queue_lock);
+	spin_unlock_irq(&card->param_queue_lock);
 	return count;
 }
 

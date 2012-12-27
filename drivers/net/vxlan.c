@@ -505,7 +505,8 @@ static int vxlan_join_group(struct net_device *dev)
 	struct vxlan_net *vn = net_generic(dev_net(dev), vxlan_net_id);
 	struct sock *sk = vn->sock->sk;
 	struct ip_mreqn mreq = {
-		.imr_multiaddr.s_addr = vxlan->gaddr,
+		.imr_multiaddr.s_addr	= vxlan->gaddr,
+		.imr_ifindex		= vxlan->link,
 	};
 	int err;
 
@@ -532,7 +533,8 @@ static int vxlan_leave_group(struct net_device *dev)
 	int err = 0;
 	struct sock *sk = vn->sock->sk;
 	struct ip_mreqn mreq = {
-		.imr_multiaddr.s_addr = vxlan->gaddr,
+		.imr_multiaddr.s_addr	= vxlan->gaddr,
+		.imr_ifindex		= vxlan->link,
 	};
 
 	/* Only leave group when last vxlan is done. */
