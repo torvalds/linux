@@ -78,7 +78,7 @@ static long vflash_ioctl(struct file *file,
             }
 #else
             char *tempBuf = (char *)kmalloc(512, GFP_KERNEL);
-	    char bd_addr[6] = {0};
+	    char bd_addr[7] = {0};
             int i;
 
             GetSNSectorInfo(tempBuf);
