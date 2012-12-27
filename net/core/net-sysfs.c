@@ -126,6 +126,19 @@ static ssize_t show_broadcast(struct device *dev,
 	return -EINVAL;
 }
 
+static int change_carrier(struct net_device *net, unsigned long new_carrier)
+{
+	if (!netif_running(net))
+		return -EINVAL;
+	return dev_change_carrier(net, (bool) new_carrier);
+}
+
+static ssize_t store_carrier(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t len)
+{
+	return netdev_store(dev, attr, buf, len, change_carrier);
+}
+
 static ssize_t show_carrier(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
@@ -331,7 +344,7 @@ static struct device_attribute net_class_attributes[] = {
 	__ATTR(link_mode, S_IRUGO, show_link_mode, NULL),
 	__ATTR(address, S_IRUGO, show_address, NULL),
 	__ATTR(broadcast, S_IRUGO, show_broadcast, NULL),
-	__ATTR(carrier, S_IRUGO, show_carrier, NULL),
+	__ATTR(carrier, S_IRUGO | S_IWUSR, show_carrier, store_carrier),
 	__ATTR(speed, S_IRUGO, show_speed, NULL),
 	__ATTR(duplex, S_IRUGO, show_duplex, NULL),
 	__ATTR(dormant, S_IRUGO, show_dormant, NULL),
