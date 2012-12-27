@@ -361,9 +361,9 @@ static void wm8650_find_pll_bits(unsigned long rate, unsigned long parent_rate,
 	/* if we got here, it wasn't an exact match */
 	pr_warn("%s: requested rate %lu, found rate %lu\n", __func__, rate,
 							rate - best_err);
-	*multiplier = mul;
-	*divisor1 = div1;
-	*divisor2 = div2;
+	*multiplier = best_mul;
+	*divisor1 = best_div1;
+	*divisor2 = best_div2;
 }
 
 static int vtwm_pll_set_rate(struct clk_hw *hw, unsigned long rate,
