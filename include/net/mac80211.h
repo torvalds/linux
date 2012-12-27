@@ -1237,6 +1237,10 @@ enum ieee80211_sta_rx_bandwidth {
  *	if wme is supported.
  * @max_sp: max Service Period. Only valid if wme is supported.
  * @bandwidth: current bandwidth the station can receive with
+ * @rx_nss: in HT/VHT, the maximum number of spatial streams the
+ *	station can receive at the moment, changed by operating mode
+ *	notifications and capabilities. The value is only valid after
+ *	the station moves to associated state.
  */
 struct ieee80211_sta {
 	u32 supp_rates[IEEE80211_NUM_BANDS];
@@ -1247,6 +1251,7 @@ struct ieee80211_sta {
 	bool wme;
 	u8 uapsd_queues;
 	u8 max_sp;
+	u8 rx_nss;
 	enum ieee80211_sta_rx_bandwidth bandwidth;
 
 	/* must be last */

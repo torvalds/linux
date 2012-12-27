@@ -74,3 +74,44 @@ enum ieee80211_sta_rx_bandwidth ieee80211_sta_cur_vht_bw(struct sta_info *sta)
 		return IEEE80211_STA_RX_BW_80;
 	}
 }
+
+void ieee80211_sta_set_rx_nss(struct sta_info *sta)
+{
+	u8 ht_rx_nss = 0, vht_rx_nss = 0;
+
+	/* if we received a notification already don't overwrite it */
+	if (sta->sta.rx_nss)
+		return;
+
+	if (sta->sta.ht_cap.ht_supported) {
+		if (sta->sta.ht_cap.mcs.rx_mask[0])
+			ht_rx_nss++;
+		if (sta->sta.ht_cap.mcs.rx_mask[1])
+			ht_rx_nss++;
+		if (sta->sta.ht_cap.mcs.rx_mask[2])
+			ht_rx_nss++;
+		if (sta->sta.ht_cap.mcs.rx_mask[3])
+			ht_rx_nss++;
+		/* FIXME: consider rx_highest? */
+	}
+
+	if (sta->sta.vht_cap.vht_supported) {
+		int i;
+		u16 rx_mcs_map;
+
+		rx_mcs_map = le16_to_cpu(sta->sta.vht_cap.vht_mcs.rx_mcs_map);
+
+		for (i = 7; i >= 0; i--) {
+			u8 mcs = (rx_mcs_map >> (2 * i)) & 3;
+
+			if (mcs != IEEE80211_VHT_MCS_NOT_SUPPORTED) {
+				vht_rx_nss = i + 1;
+				break;
+			}
+		}
+		/* FIXME: consider rx_highest? */
+	}
+
+	ht_rx_nss = max(ht_rx_nss, vht_rx_nss);
+	sta->sta.rx_nss = max_t(u8, 1, ht_rx_nss);
+}
