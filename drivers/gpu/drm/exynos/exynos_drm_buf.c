@@ -38,7 +38,7 @@ static int lowlevel_buffer_allocate(struct drm_device *dev,
 	 * region will be allocated else physically contiguous
 	 * as possible.
 	 */
-	if (flags & EXYNOS_BO_CONTIG)
+	if (!(flags & EXYNOS_BO_NONCONTIG))
 		dma_set_attr(DMA_ATTR_FORCE_CONTIGUOUS, &buf->dma_attrs);
 
 	/*
