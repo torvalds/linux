@@ -128,12 +128,6 @@ static int ath79_spi_setup_cs(struct spi_device *spi)
 			gpio_free(cdata->gpio);
 			return status;
 		}
-	} else {
-		if (spi->mode & SPI_CS_HIGH)
-			sp->ioc_base |= AR71XX_SPI_IOC_CS0;
-		else
-			sp->ioc_base &= ~AR71XX_SPI_IOC_CS0;
-		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
 	}
 
 	return 0;
