@@ -96,16 +96,8 @@ static void ath79_spi_chipselect(struct spi_device *spi, int is_active)
 
 }
 
-static int ath79_spi_setup_cs(struct spi_device *spi)
+static void ath79_spi_enable(struct ath79_spi *sp)
 {
-	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
-	struct ath79_spi_controller_data *cdata;
-	int status;
-
-	cdata = spi->controller_data;
-	if (spi->chip_select && !cdata)
-		return -EINVAL;
-
 	/* enable GPIO mode */
 	ath79_spi_wr(sp, AR71XX_SPI_REG_FS, AR71XX_SPI_FS_GPIO);
 
@@ -115,6 +107,24 @@ static int ath79_spi_setup_cs(struct spi_device *spi)
 
 	/* TODO: setup speed? */
 	ath79_spi_wr(sp, AR71XX_SPI_REG_CTRL, 0x43);
+}
+
+static void ath79_spi_disable(struct ath79_spi *sp)
+{
+	/* restore CTRL register */
+	ath79_spi_wr(sp, AR71XX_SPI_REG_CTRL, sp->reg_ctrl);
+	/* disable GPIO mode */
+	ath79_spi_wr(sp, AR71XX_SPI_REG_FS, 0);
+}
+
+static int ath79_spi_setup_cs(struct spi_device *spi)
+{
+	struct ath79_spi_controller_data *cdata;
+	int status;
+
+	cdata = spi->controller_data;
+	if (spi->chip_select && !cdata)
+		return -EINVAL;
 
 	status = 0;
 	if (spi->chip_select) {
@@ -135,17 +145,10 @@ static int ath79_spi_setup_cs(struct spi_device *spi)
 
 static void ath79_spi_cleanup_cs(struct spi_device *spi)
 {
-	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
-
 	if (spi->chip_select) {
 		struct ath79_spi_controller_data *cdata = spi->controller_data;
 		gpio_free(cdata->gpio);
 	}
-
-	/* restore CTRL register */
-	ath79_spi_wr(sp, AR71XX_SPI_REG_CTRL, sp->reg_ctrl);
-	/* disable GPIO mode */
-	ath79_spi_wr(sp, AR71XX_SPI_REG_FS, 0);
 }
 
 static int ath79_spi_setup(struct spi_device *spi)
@@ -268,12 +271,15 @@ static int ath79_spi_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "register read/write delay is %u nsecs\n",
 		sp->rrw_delay);
 
+	ath79_spi_enable(sp);
 	ret = spi_bitbang_start(&sp->bitbang);
 	if (ret)
-		goto err_clk_disable;
+		goto err_disable;
 
 	return 0;
 
+err_disable:
+	ath79_spi_disable(sp);
 err_clk_disable:
 	clk_disable(sp->clk);
 err_clk_put:
@@ -292,6 +298,7 @@ static int ath79_spi_remove(struct platform_device *pdev)
 	struct ath79_spi *sp = platform_get_drvdata(pdev);
 
 	spi_bitbang_stop(&sp->bitbang);
+	ath79_spi_disable(sp);
 	clk_disable(sp->clk);
 	clk_put(sp->clk);
 	iounmap(sp->base);
