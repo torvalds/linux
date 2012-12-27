@@ -300,8 +300,10 @@ Parse_DTD_Block(__u8 *pbuf)
 		video_timing[video_timing_edid].VFP = Vsync_offset;
 		video_timing[video_timing_edid].VPSW = Vsync_pulsew;
 		video_timing[video_timing_edid].I = (pbuf[17] & 0x80) >> 7;
-		if (video_timing[video_timing_edid].I)
+		if (video_timing[video_timing_edid].I) {
+			video_timing[video_timing_edid].INPUTY *= 2;
 			video_timing[video_timing_edid].VT *= 2;
+		}
 		video_timing[video_timing_edid].HSYNC = Hsync;
 		video_timing[video_timing_edid].VSYNC = Vsync;
 		Device_Support_VIC[HDMI_EDID] = 1;
