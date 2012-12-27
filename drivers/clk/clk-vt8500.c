@@ -121,7 +121,12 @@ static long vt8500_dclk_round_rate(struct clk_hw *hw, unsigned long rate,
 				unsigned long *prate)
 {
 	struct clk_device *cdev = to_clk_device(hw);
-	u32 divisor = *prate / rate;
+	u32 divisor;
+
+	if (rate == 0)
+		return 0;
+
+	divisor = *prate / rate;
 
 	/* If prate / rate would be decimal, incr the divisor */
 	if (rate * divisor < *prate)
@@ -142,8 +147,13 @@ static int vt8500_dclk_set_rate(struct clk_hw *hw, unsigned long rate,
 				unsigned long parent_rate)
 {
 	struct clk_device *cdev = to_clk_device(hw);
-	u32 divisor = parent_rate / rate;
+	u32 divisor;
 	unsigned long flags = 0;
+
+	if (rate == 0)
+		return 0;
+
+	divisor =  parent_rate / rate;
 
 	/* If prate / rate would be decimal, incr the divisor */
 	if (rate * divisor < *prate)
