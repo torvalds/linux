@@ -1718,7 +1718,7 @@ static struct se_node_acl *sbp_alloc_fabric_acl(struct se_portal_group *se_tpg)
 
 	nacl = kzalloc(sizeof(struct sbp_nacl), GFP_KERNEL);
 	if (!nacl) {
-		pr_err("Unable to alocate struct sbp_nacl\n");
+		pr_err("Unable to allocate struct sbp_nacl\n");
 		return NULL;
 	}
 

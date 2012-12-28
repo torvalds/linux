@@ -982,7 +982,7 @@ static int qlcnic_check_npar_opertional(struct qlcnic_adapter *adapter)
 	}
 	if (!npar_opt_timeo) {
 		dev_err(&adapter->pdev->dev,
-			"Waiting for NPAR state to opertional timeout\n");
+			"Waiting for NPAR state to operational timeout\n");
 		return -EIO;
 	}
 	return 0;

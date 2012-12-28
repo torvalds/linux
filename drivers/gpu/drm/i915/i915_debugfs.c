@@ -1449,7 +1449,7 @@ static const char *swizzle_string(unsigned swizzle)
 	case I915_BIT_6_SWIZZLE_9_10_17:
 		return "bit9/bit10/bit17";
 	case I915_BIT_6_SWIZZLE_UNKNOWN:
-		return "unkown";
+		return "unknown";
 	}
 
 	return "bug";

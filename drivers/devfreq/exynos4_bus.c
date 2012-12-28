@@ -636,7 +636,7 @@ static int exynos4_bus_target(struct device *dev, unsigned long *_freq,
 	if (old_freq == freq)
 		return 0;
 
-	dev_dbg(dev, "targetting %lukHz %luuV\n", freq, opp_get_voltage(opp));
+	dev_dbg(dev, "targeting %lukHz %luuV\n", freq, opp_get_voltage(opp));
 
 	mutex_lock(&data->lock);
 
