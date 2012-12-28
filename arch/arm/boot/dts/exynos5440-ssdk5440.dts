@@ -35,8 +35,4 @@
 	i2c@100000 {
 		status = "disabled";
 	};
-
-	rtc {
-		status = "disabled";
-	};
 };
