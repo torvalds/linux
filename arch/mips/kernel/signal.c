@@ -259,18 +259,14 @@ asmlinkage int sys_sigsuspend(nabi_no_regargs struct pt_regs regs)
 }
 #endif
 
-asmlinkage int sys_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
+SYSCALL_DEFINE2(rt_sigsuspend, sigset_t __user *,unewset, size_t, sigsetsize)
 {
 	sigset_t newset;
-	sigset_t __user *unewset;
-	size_t sigsetsize;
 
 	/* XXX Don't preclude handling different sized sigset_t's.  */
-	sigsetsize = regs.regs[5];
 	if (sigsetsize != sizeof(sigset_t))
 		return -EINVAL;
 
-	unewset = (sigset_t __user *) regs.regs[4];
 	if (copy_from_user(&newset, unewset, sizeof(newset)))
 		return -EFAULT;
 	return sigsuspend(&newset);
