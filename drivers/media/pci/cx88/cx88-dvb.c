@@ -703,6 +703,7 @@ static struct ds3000_config tevii_ds3000_config = {
 
 static struct ts2020_config tevii_ts2020_config  = {
 	.tuner_address = 0x60,
+	.clk_out_div = 1,
 };
 
 static const struct stv0900_config prof_7301_stv0900_config = {

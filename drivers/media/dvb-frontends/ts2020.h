@@ -26,6 +26,7 @@
 
 struct ts2020_config {
 	u8 tuner_address;
+	u8 clk_out_div;
 };
 
 #if defined(CONFIG_DVB_TS2020) || \

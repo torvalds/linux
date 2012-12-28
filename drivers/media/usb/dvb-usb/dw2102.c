@@ -29,6 +29,7 @@
 #include "stb6100.h"
 #include "stb6100_proc.h"
 #include "m88rs2000.h"
+#include "ts2020.h"
 
 #ifndef USB_PID_DW2102
 #define USB_PID_DW2102 0x2102
@@ -953,10 +954,12 @@ static struct ds3000_config dw2104_ds3000_config = {
 
 static struct ts2020_config dw2104_ts2020_config  = {
 	.tuner_address = 0x60,
+	.clk_out_div = 1,
 };
 
 static struct ds3000_config s660_ds3000_config = {
 	.demod_address = 0x68,
+	.ci_mode = 1,
 	.set_lock_led = dw210x_led_ctrl,
 };
 
@@ -1009,10 +1012,7 @@ static struct stv0900_config prof_7500_stv0900_config = {
 static struct ds3000_config su3000_ds3000_config = {
 	.demod_address = 0x68,
 	.ci_mode = 1,
-};
-
-static struct ts2020_config su3000_ts2020_config  = {
-	.tuner_address = 0x60,
+	.set_lock_led = dw210x_led_ctrl,
 };
 
 static u8 m88rs2000_inittab[] = {
@@ -1022,14 +1022,6 @@ static u8 m88rs2000_inittab[] = {
 	DEMOD_WRITE, 0x00, 0x00,
 	DEMOD_WRITE, 0x9a, 0xb0,
 	DEMOD_WRITE, 0x81, 0xc1,
-	TUNER_WRITE, 0x42, 0x73,
-	TUNER_WRITE, 0x05, 0x07,
-	TUNER_WRITE, 0x20, 0x27,
-	TUNER_WRITE, 0x07, 0x02,
-	TUNER_WRITE, 0x11, 0xff,
-	TUNER_WRITE, 0x60, 0xf9,
-	TUNER_WRITE, 0x08, 0x01,
-	TUNER_WRITE, 0x00, 0x41,
 	DEMOD_WRITE, 0x81, 0x81,
 	DEMOD_WRITE, 0x86, 0xc6,
 	DEMOD_WRITE, 0x9a, 0x30,
@@ -1043,7 +1035,6 @@ static u8 m88rs2000_inittab[] = {
 
 static struct m88rs2000_config s421_m88rs2000_config = {
 	.demod_addr = 0x68,
-	.tuner_addr = 0x60,
 	.inittab = m88rs2000_inittab,
 };
 
@@ -1251,6 +1242,14 @@ static int su3000_frontend_attach(struct dvb_usb_adapter *d)
 		err("command 0x0e transfer failed.");
 
 	obuf[0] = 0xe;
+	obuf[1] = 0x02;
+	obuf[2] = 1;
+
+	if (dvb_usb_generic_rw(d->dev, obuf, 3, ibuf, 1, 0) < 0)
+		err("command 0x0e transfer failed.");
+	msleep(300);
+
+	obuf[0] = 0xe;
 	obuf[1] = 0x83;
 	obuf[2] = 0;
 
@@ -1274,12 +1273,15 @@ static int su3000_frontend_attach(struct dvb_usb_adapter *d)
 	if (d->fe_adap[0].fe == NULL)
 		return -EIO;
 
-	dvb_attach(ts2020_attach, d->fe_adap[0].fe, &su3000_ts2020_config,
-		&d->dev->i2c_adap);
+	if (dvb_attach(ts2020_attach, d->fe_adap[0].fe,
+				&dw2104_ts2020_config,
+				&d->dev->i2c_adap)) {
+		info("Attached DS3000/TS2020!\n");
+		return 0;
+	}
 
-	info("Attached DS3000!\n");
-
-	return 0;
+	info("Failed to attach DS3000/TS2020!\n");
+	return -EIO;
 }
 
 static int m88rs2000_frontend_attach(struct dvb_usb_adapter *d)
@@ -1292,12 +1294,19 @@ static int m88rs2000_frontend_attach(struct dvb_usb_adapter *d)
 
 	d->fe_adap[0].fe = dvb_attach(m88rs2000_attach, &s421_m88rs2000_config,
 					&d->dev->i2c_adap);
+
 	if (d->fe_adap[0].fe == NULL)
 		return -EIO;
 
-	info("Attached m88rs2000!\n");
+	if (dvb_attach(ts2020_attach, d->fe_adap[0].fe,
+				&dw2104_ts2020_config,
+				&d->dev->i2c_adap)) {
+		info("Attached RS2000/TS2020!\n");
+		return 0;
+	}
 
-	return 0;
+	info("Failed to attach RS2000/TS2020!\n");
+	return -EIO;
 }
 
 static int dw2102_tuner_attach(struct dvb_usb_adapter *adap)

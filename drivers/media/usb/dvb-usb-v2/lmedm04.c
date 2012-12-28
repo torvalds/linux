@@ -81,6 +81,7 @@
 #include "dvb-pll.h"
 #include "z0194a.h"
 #include "m88rs2000.h"
+#include "ts2020.h"
 
 
 #define LME2510_C_S7395	"dvb-usb-lme2510c-s7395.fw";
@@ -944,8 +945,12 @@ static int dm04_rs2000_set_ts_param(struct dvb_frontend *fe,
 
 static struct m88rs2000_config m88rs2000_config = {
 	.demod_addr = 0xd0,
-	.tuner_addr = 0xc0,
 	.set_ts_params = dm04_rs2000_set_ts_param,
+};
+
+static struct ts2020_config ts2020_config = {
+	.tuner_address = 0x60,
+	.clk_out_div = 7,
 };
 
 static int dm04_lme2510_set_voltage(struct dvb_frontend *fe,
@@ -1097,6 +1102,8 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 
 		if (adap->fe[0]) {
 			info("FE Found M88RS2000");
+			dvb_attach(ts2020_attach, adap->fe[0], &ts2020_config,
+					&d->i2c_adap);
 			st->i2c_tuner_gate_w = 5;
 			st->i2c_tuner_gate_r = 5;
 			st->i2c_tuner_addr = 0xc0;

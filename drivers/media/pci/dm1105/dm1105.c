@@ -852,6 +852,7 @@ static struct ds3000_config dvbworld_ds3000_config = {
 
 static struct ts2020_config dvbworld_ts2020_config  = {
 	.tuner_address = 0x60,
+	.clk_out_div = 1,
 };
 
 static int __devinit frontend_init(struct dm1105_dev *dev)

@@ -474,6 +474,7 @@ static struct ds3000_config tevii_ds3000_config = {
 
 static struct ts2020_config tevii_ts2020_config  = {
 	.tuner_address = 0x60,
+	.clk_out_div = 1,
 };
 
 static struct cx24116_config dvbworld_cx24116_config = {
@@ -500,20 +501,20 @@ static struct xc5000_config mygica_x8506_xc5000_config = {
 };
 
 static struct stv090x_config prof_8000_stv090x_config = {
-        .device                 = STV0903,
-        .demod_mode             = STV090x_SINGLE,
-        .clk_mode               = STV090x_CLK_EXT,
-        .xtal                   = 27000000,
-        .address                = 0x6A,
-        .ts1_mode               = STV090x_TSMODE_PARALLEL_PUNCTURED,
-        .repeater_level         = STV090x_RPTLEVEL_64,
-        .adc1_range             = STV090x_ADC_2Vpp,
-        .diseqc_envelope_mode   = false,
+	.device                 = STV0903,
+	.demod_mode             = STV090x_SINGLE,
+	.clk_mode               = STV090x_CLK_EXT,
+	.xtal                   = 27000000,
+	.address                = 0x6A,
+	.ts1_mode               = STV090x_TSMODE_PARALLEL_PUNCTURED,
+	.repeater_level         = STV090x_RPTLEVEL_64,
+	.adc1_range             = STV090x_ADC_2Vpp,
+	.diseqc_envelope_mode   = false,
 
-        .tuner_get_frequency    = stb6100_get_frequency,
-        .tuner_set_frequency    = stb6100_set_frequency,
-        .tuner_set_bandwidth    = stb6100_set_bandwidth,
-        .tuner_get_bandwidth    = stb6100_get_bandwidth,
+	.tuner_get_frequency    = stb6100_get_frequency,
+	.tuner_set_frequency    = stb6100_set_frequency,
+	.tuner_set_bandwidth    = stb6100_set_bandwidth,
+	.tuner_get_bandwidth    = stb6100_get_bandwidth,
 };
 
 static struct stb6100_config prof_8000_stb6100_config = {
