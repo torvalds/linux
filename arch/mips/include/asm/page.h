@@ -45,8 +45,6 @@
 #define HUGETLB_PAGE_ORDER	({BUILD_BUG(); 0; })
 #endif /* CONFIG_MIPS_HUGE_TLB_SUPPORT */
 
-#ifndef __ASSEMBLY__
-
 #include <linux/pfn.h>
 #include <asm/io.h>
 
@@ -138,8 +136,6 @@ typedef struct { unsigned long pgprot; } pgprot_t;
  * working on.
  */
 #define ptep_buddy(x)	((pte_t *)((unsigned long)(x) ^ sizeof(pte_t)))
-
-#endif /* !__ASSEMBLY__ */
 
 /*
  * __pa()/__va() should be used only during mem init.
