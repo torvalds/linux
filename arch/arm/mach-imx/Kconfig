@@ -756,7 +756,6 @@ comment "i.MX51 machines:"
 
 config MACH_IMX51_DT
 	bool "Support i.MX51 platforms from device tree"
-	select MACH_MX51_BABBAGE
 	select SOC_IMX51
 	help
 	  Include support for Freescale i.MX51 based platforms
