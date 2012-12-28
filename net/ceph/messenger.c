@@ -506,6 +506,7 @@ static void reset_connection(struct ceph_connection *con)
 {
 	/* reset connection, out_queue, msg_ and connect_seq */
 	/* discard existing out_queue and msg_seq */
+	dout("reset_connection %p\n", con);
 	ceph_msg_remove_list(&con->out_queue);
 	ceph_msg_remove_list(&con->out_sent);
 
@@ -1506,13 +1507,6 @@ static int process_banner(struct ceph_connection *con)
 	return 0;
 }
 
-static void fail_protocol(struct ceph_connection *con)
-{
-	reset_connection(con);
-	WARN_ON(con->state != CON_STATE_NEGOTIATING);
-	con->state = CON_STATE_CLOSED;
-}
-
 static int process_connect(struct ceph_connection *con)
 {
 	u64 sup_feat = con->msgr->supported_features;
@@ -1530,7 +1524,7 @@ static int process_connect(struct ceph_connection *con)
 		       ceph_pr_addr(&con->peer_addr.in_addr),
 		       sup_feat, server_feat, server_feat & ~sup_feat);
 		con->error_msg = "missing required protocol features";
-		fail_protocol(con);
+		reset_connection(con);
 		return -1;
 
 	case CEPH_MSGR_TAG_BADPROTOVER:
@@ -1541,7 +1535,7 @@ static int process_connect(struct ceph_connection *con)
 		       le32_to_cpu(con->out_connect.protocol_version),
 		       le32_to_cpu(con->in_reply.protocol_version));
 		con->error_msg = "protocol version mismatch";
-		fail_protocol(con);
+		reset_connection(con);
 		return -1;
 
 	case CEPH_MSGR_TAG_BADAUTHORIZER:
@@ -1631,7 +1625,7 @@ static int process_connect(struct ceph_connection *con)
 			       ceph_pr_addr(&con->peer_addr.in_addr),
 			       req_feat, server_feat, req_feat & ~server_feat);
 			con->error_msg = "missing required protocol features";
-			fail_protocol(con);
+			reset_connection(con);
 			return -1;
 		}
 
