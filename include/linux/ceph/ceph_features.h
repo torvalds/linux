@@ -14,13 +14,16 @@
 #define CEPH_FEATURE_DIRLAYOUTHASH  (1<<7)
 /* bits 8-17 defined by user-space; not supported yet here */
 #define CEPH_FEATURE_CRUSH_TUNABLES (1<<18)
+/* bits 19-25 defined by user-space; not supported yet here */
+#define CEPH_FEATURE_REPLY_CREATE_INODE (1<<27)
 
 /*
  * Features supported.
  */
 #define CEPH_FEATURES_SUPPORTED_DEFAULT  \
 	(CEPH_FEATURE_NOSRCADDR |	 \
-	 CEPH_FEATURE_CRUSH_TUNABLES)
+	 CEPH_FEATURE_CRUSH_TUNABLES |   \
+	 CEPH_FEATURE_REPLY_CREATE_INODE)
 
 #define CEPH_FEATURES_REQUIRED_DEFAULT   \
 	(CEPH_FEATURE_NOSRCADDR)
