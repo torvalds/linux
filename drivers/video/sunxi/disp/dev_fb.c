@@ -1558,6 +1558,30 @@ __s32 Display_set_fb_timing(__u32 sel)
 	return 0;
 }
 
+void hdmi_edid_received(unsigned char *edid, int block)
+{
+	__u32 sel = 0;
+
+	for (sel = 0; sel < 2; sel++) {
+		struct fb_info *fbi = g_fbi.fbinfo[sel];
+		if (g_fbi.disp_init.output_type[sel] ==
+				DISP_OUTPUT_TYPE_HDMI) {
+			if (block == 0) {
+				fb_edid_to_monspecs(
+						edid, &fbi->monspecs);
+			} else {
+				fb_edid_add_monspecs(
+						edid, &fbi->monspecs);
+			}
+			fb_videomode_to_modelist(
+					fbi->monspecs.modedb,
+					fbi->monspecs.modedb_len,
+					&fbi->modelist);
+		}
+	}
+}
+EXPORT_SYMBOL(hdmi_edid_received);
+
 /* ??? --libv */
 extern unsigned long fb_start;
 extern unsigned long fb_size;
