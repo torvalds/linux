@@ -315,6 +315,7 @@ config MACH_TS219_DT
 	select ARCH_KIRKWOOD_DT
 	select ARM_APPENDED_DTB
 	select ARM_ATAG_DTB_COMPAT
+	select POWER_RESET_QNAP
 	help
 	  Say 'Y' here if you want your kernel to support the QNAP
 	  TS-110, TS-119, TS-119P+, TS-210, TS-219, TS-219P and
