@@ -868,13 +868,8 @@ static __s32 disp_pll_set(__u32 sel, __s32 videopll_sel, __u32 pll_freq,
 			OSAL_CCMU_SetMclkDiv(h_hdmimclk, hdmiclk_div);
 
 			if (gdisp.init_para.hdmi_set_pll != NULL) {
-				if ((videopll == AW_SYS_CLK_PLL3X2) ||
-				    (videopll == AW_SYS_CLK_PLL3))
-					gdisp.init_para.hdmi_set_pll(0,
-								     pll_freq);
-				else
-					gdisp.init_para.hdmi_set_pll(1,
-								     pll_freq);
+				gdisp.init_para.hdmi_set_pll(videopll,
+							     pll_freq_used);
 			} else
 				DE_WRN("gdisp.init_para.hdmi_set_pll is "
 				       "NULL\n");
@@ -891,6 +886,8 @@ static __s32 disp_get_pll_freq_between(__u32 pclk, __u32 min, __u32 max,
 
 	mult_min = min / pclk;
 	mult_max = (max * 2) / pclk;
+	if (mult_max > 15)
+		mult_max = 15;
 	for (mult = mult_min; mult <= mult_max; mult++) {
 		freq = pclk * mult;
 		if (freq >= min && freq <= max && (freq % 3000000) == 0) {

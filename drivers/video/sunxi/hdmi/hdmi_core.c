@@ -18,6 +18,7 @@
  */
 
 #include <linux/module.h>
+#include <mach/aw_ccu.h>
 #include "hdmi_core.h"
 
 static char *audio;
@@ -38,7 +39,7 @@ __u8 EDID_Buf[1024];
 __u8 Device_Support_VIC[512];
 static __s32 HPD;
 
-__u32 hdmi_pll;	/* 0:video pll 0; 1:video pll 1 */
+__u32 hdmi_pll = AW_SYS_CLK_PLL3;
 __u32 hdmi_clk = 297000000;
 
 struct __disp_video_timing video_timing[] = {
@@ -435,9 +436,55 @@ __s32 video_config(__s32 vic)
 
 	/* tx driver setting */
 	HDMI_WUINT32(0x200, 0xfe800000); /* txen enable */
-	HDMI_WUINT32(0x204, 0x00D8C860); /* ckss = 1 */
 
-	HDMI_WUINT32(0x20c, hdmi_pll << 21);
+	/*
+	 * Below are some notes on the use of register 0x204 and register 0x20c
+	 * this is the result of reverse-engineering / trial and error and
+	 * thus not necessarily 100% accurate.
+	 *
+	 * Some notes on register 0x204:
+	 * bit 0:     Setting this bit turns the entire fbcon background blue
+	 * bit 1:     Setting this bit turns the entire fbcon background green
+	 * bit 2:     Setting this bit turns the entire fbcon background red
+	 * bit 3-5:   Do not seem to do anything
+	 * bit 6:     Selects a pre-scaler for the clock which divides by 2
+	 * bit 7-13:  Do not seem to do anything
+	 * bit 14-15: Clearing one of these bits causes loss of sync
+	 * bit 16-22: Do not seem to do anything
+	 * bit 23:    Clearing this bit causes inverse video
+	 * bit 24-31: Do not seem to do anything
+	 *
+	 * Some notes on register 0x020c:
+	 * bit 0-15:  Do not seem to do anything
+	 * bit 16:    Setting this bit causes the A10 to lockup, do not set!
+	 * bit 17-20: Do not seem to do anything
+	 * bit 21:    0: PLL3X2 is clocksource 1: PLL7X2 is clocksource
+	 * bit 22-23: Setting these bits causes loss of sync, possibly these
+	 *            work together with b21 to select a different clocksource
+	 * bit 24-31: Do not seem to do anything
+	 *
+	 * About clocksource selection for the hdmi transmitter:
+	 *
+	 * It seems that AW_MOD_CLK_HDMI is unused, atleast giving it a
+	 * different clock-divider does not cause any problems. Instead the
+	 * hdmi transmitter has its own bits to select the sys-clk to use,
+	 * with bit 21 of 0x20c selecting between PLL3X2 and PLL7X2, and
+	 * bit 6 of 0x204 enabling a pre-scaler dividing by 2, in essence
+	 * turning PLL3X2 and PLL7X2 into PLL3 and PLL7. *Or so I believe*,
+	 * It could also be that bit 6 of 0x204 simple causes direct selection
+	 * of PLL3 and PLL7 through bit 21 of 0x20c, but that seems illogical
+	 * since it lives in another register.
+	 */
+
+	if (hdmi_pll == AW_SYS_CLK_PLL3 || hdmi_pll == AW_SYS_CLK_PLL7)
+		HDMI_WUINT32(0x204, 0x00D8C860);
+	else
+		HDMI_WUINT32(0x204, 0x00D8C820);
+
+	if (hdmi_pll == AW_SYS_CLK_PLL7 || hdmi_pll == AW_SYS_CLK_PLL7X2)
+		HDMI_WUINT32(0x20c, 1 << 21);
+	else
+		HDMI_WUINT32(0x20c, 0 << 21);
 
 	return 0;
 }
