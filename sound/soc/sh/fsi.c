@@ -1918,16 +1918,15 @@ static int fsi_probe(struct platform_device *pdev)
 {
 	struct fsi_master *master;
 	const struct platform_device_id	*id_entry;
-	struct sh_fsi_platform_info *info = pdev->dev.platform_data;
-	struct sh_fsi_port_info nul_info, *pinfo;
+	struct sh_fsi_platform_info info;
 	struct fsi_priv *fsi;
 	struct resource *res;
 	unsigned int irq;
 	int ret;
 
-	nul_info.flags	= 0;
-	nul_info.tx_id	= 0;
-	nul_info.rx_id	= 0;
+	memset(&info, 0, sizeof(info));
+	if (pdev->dev.platform_data)
+		memcpy(&info, pdev->dev.platform_data, sizeof(info));
 
 	id_entry = pdev->id_entry;
 	if (!id_entry) {
@@ -1961,12 +1960,11 @@ static int fsi_probe(struct platform_device *pdev)
 	spin_lock_init(&master->lock);
 
 	/* FSI A setting */
-	pinfo		= (info) ? &info->port_a : &nul_info;
 	fsi		= &master->fsia;
 	fsi->base	= master->base;
 	fsi->master	= master;
-	fsi_port_info_init(fsi, pinfo);
-	fsi_handler_init(fsi, pinfo);
+	fsi_port_info_init(fsi, &info.port_a);
+	fsi_handler_init(fsi, &info.port_a);
 	ret = fsi_stream_probe(fsi, &pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "FSIA stream probe failed\n");
@@ -1974,12 +1972,11 @@ static int fsi_probe(struct platform_device *pdev)
 	}
 
 	/* FSI B setting */
-	pinfo		= (info) ? &info->port_b : &nul_info;
 	fsi		= &master->fsib;
 	fsi->base	= master->base + 0x40;
 	fsi->master	= master;
-	fsi_port_info_init(fsi, pinfo);
-	fsi_handler_init(fsi, pinfo);
+	fsi_port_info_init(fsi, &info.port_b);
+	fsi_handler_init(fsi, &info.port_b);
 	ret = fsi_stream_probe(fsi, &pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "FSIB stream probe failed\n");
