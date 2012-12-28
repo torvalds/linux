@@ -219,7 +219,9 @@ void rk_serial_debug_init(void __iomem *base, int irq, int signal_irq, int wakeu
 	t->pdata.uart_init = debug_port_init;
 	t->pdata.uart_getc = debug_getc;
 	t->pdata.uart_putc = debug_putc;
+#ifndef CONFIG_RK_CONSOLE_THREAD
 	t->pdata.uart_flush = debug_flush;
+#endif
 	t->pdata.fiq_enable = fiq_enable;
 	t->pdata.force_irq = force_irq;
 	t->debug_port_base = base;
