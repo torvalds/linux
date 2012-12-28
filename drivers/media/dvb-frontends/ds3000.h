@@ -30,6 +30,8 @@ struct ds3000_config {
 	u8 ci_mode;
 	/* Set device param to start dma */
 	int (*set_ts_params)(struct dvb_frontend *fe, int is_punctured);
+	/* Hook for Lock LED */
+	void (*set_lock_led)(struct dvb_frontend *fe, int offon);
 };
 
 #if defined(CONFIG_DVB_DS3000) || \

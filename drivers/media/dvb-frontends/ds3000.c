@@ -460,6 +460,9 @@ static int ds3000_read_status(struct dvb_frontend *fe, fe_status_t* status)
 		return 1;
 	}
 
+	if (state->config->set_lock_led)
+		state->config->set_lock_led(fe, *status == 0 ? 0 : 1);
+
 	dprintk("%s: status = 0x%02x\n", __func__, lock);
 
 	return 0;
@@ -809,6 +812,10 @@ static int ds3000_diseqc_send_burst(struct dvb_frontend *fe,
 static void ds3000_release(struct dvb_frontend *fe)
 {
 	struct ds3000_state *state = fe->demodulator_priv;
+
+	if (state->config->set_lock_led)
+		state->config->set_lock_led(fe, 0);
+
 	dprintk("%s\n", __func__);
 	kfree(state);
 }
@@ -1037,6 +1044,11 @@ static int ds3000_tune(struct dvb_frontend *fe,
 
 static enum dvbfe_algo ds3000_get_algo(struct dvb_frontend *fe)
 {
+	struct ds3000_state *state = fe->demodulator_priv;
+
+	if (state->config->set_lock_led)
+		state->config->set_lock_led(fe, 0);
+
 	dprintk("%s()\n", __func__);
 	return DVBFE_ALGO_HW;
 }

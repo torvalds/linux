@@ -955,6 +955,11 @@ static struct ts2020_config dw2104_ts2020_config  = {
 	.tuner_address = 0x60,
 };
 
+static struct ds3000_config s660_ds3000_config = {
+	.demod_address = 0x68,
+	.set_lock_led = dw210x_led_ctrl,
+};
+
 static struct stv0900_config dw2104a_stv0900_config = {
 	.demod_address = 0x6a,
 	.demod_mode = 0,
@@ -1200,7 +1205,7 @@ static int ds3000_frontend_attach(struct dvb_usb_adapter *d)
 	struct s6x0_state *st = (struct s6x0_state *)d->dev->priv;
 	u8 obuf[] = {7, 1};
 
-	d->fe_adap[0].fe = dvb_attach(ds3000_attach, &dw2104_ds3000_config,
+	d->fe_adap[0].fe = dvb_attach(ds3000_attach, &s660_ds3000_config,
 			&d->dev->i2c_adap);
 
 	if (d->fe_adap[0].fe == NULL)
