@@ -1738,64 +1738,49 @@ static int __devinit fimc_probe(struct platform_device *pdev)
 		platform_get_device_id(pdev)->driver_data;
 
 	/* clock control */
-	ctx->sclk_fimc_clk = clk_get(dev, "sclk_fimc");
+	ctx->sclk_fimc_clk = devm_clk_get(dev, "sclk_fimc");
 	if (IS_ERR(ctx->sclk_fimc_clk)) {
 		dev_err(dev, "failed to get src fimc clock.\n");
 		return PTR_ERR(ctx->sclk_fimc_clk);
 	}
 	clk_enable(ctx->sclk_fimc_clk);
 
-	ctx->fimc_clk = clk_get(dev, "fimc");
+	ctx->fimc_clk = devm_clk_get(dev, "fimc");
 	if (IS_ERR(ctx->fimc_clk)) {
 		dev_err(dev, "failed to get fimc clock.\n");
 		clk_disable(ctx->sclk_fimc_clk);
-		clk_put(ctx->sclk_fimc_clk);
 		return PTR_ERR(ctx->fimc_clk);
 	}
 
-	ctx->wb_clk = clk_get(dev, "pxl_async0");
+	ctx->wb_clk = devm_clk_get(dev, "pxl_async0");
 	if (IS_ERR(ctx->wb_clk)) {
 		dev_err(dev, "failed to get writeback a clock.\n");
 		clk_disable(ctx->sclk_fimc_clk);
-		clk_put(ctx->sclk_fimc_clk);
-		clk_put(ctx->fimc_clk);
 		return PTR_ERR(ctx->wb_clk);
 	}
 
-	ctx->wb_b_clk = clk_get(dev, "pxl_async1");
+	ctx->wb_b_clk = devm_clk_get(dev, "pxl_async1");
 	if (IS_ERR(ctx->wb_b_clk)) {
 		dev_err(dev, "failed to get writeback b clock.\n");
 		clk_disable(ctx->sclk_fimc_clk);
-		clk_put(ctx->sclk_fimc_clk);
-		clk_put(ctx->fimc_clk);
-		clk_put(ctx->wb_clk);
 		return PTR_ERR(ctx->wb_b_clk);
 	}
 
-	parent_clk = clk_get(dev, ddata->parent_clk);
+	parent_clk = devm_clk_get(dev, ddata->parent_clk);
 
 	if (IS_ERR(parent_clk)) {
 		dev_err(dev, "failed to get parent clock.\n");
 		clk_disable(ctx->sclk_fimc_clk);
-		clk_put(ctx->sclk_fimc_clk);
-		clk_put(ctx->fimc_clk);
-		clk_put(ctx->wb_clk);
-		clk_put(ctx->wb_b_clk);
 		return PTR_ERR(parent_clk);
 	}
 
 	if (clk_set_parent(ctx->sclk_fimc_clk, parent_clk)) {
 		dev_err(dev, "failed to set parent.\n");
-		clk_put(parent_clk);
 		clk_disable(ctx->sclk_fimc_clk);
-		clk_put(ctx->sclk_fimc_clk);
-		clk_put(ctx->fimc_clk);
-		clk_put(ctx->wb_clk);
-		clk_put(ctx->wb_b_clk);
 		return -EINVAL;
 	}
 
-	clk_put(parent_clk);
+	devm_clk_put(dev, parent_clk);
 	clk_set_rate(ctx->sclk_fimc_clk, pdata->clk_rate);
 
 	/* resource memory */
@@ -1803,16 +1788,14 @@ static int __devinit fimc_probe(struct platform_device *pdev)
 	ctx->regs = devm_request_and_ioremap(dev, ctx->regs_res);
 	if (!ctx->regs) {
 		dev_err(dev, "failed to map registers.\n");
-		ret = -ENXIO;
-		goto err_clk;
+		return -ENXIO;
 	}
 
 	/* resource irq */
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
 		dev_err(dev, "failed to request irq resource.\n");
-		ret = -ENOENT;
-		goto err_clk;
+		return -ENOENT;
 	}
 
 	ctx->irq = res->start;
@@ -1820,7 +1803,7 @@ static int __devinit fimc_probe(struct platform_device *pdev)
 		IRQF_ONESHOT, "drm_fimc", ctx);
 	if (ret < 0) {
 		dev_err(dev, "failed to request irq.\n");
-		goto err_clk;
+		return ret;
 	}
 
 	/* context initailization */
@@ -1866,11 +1849,6 @@ err_ippdrv_register:
 	pm_runtime_disable(dev);
 err_get_irq:
 	free_irq(ctx->irq, ctx);
-err_clk:
-	clk_put(ctx->sclk_fimc_clk);
-	clk_put(ctx->fimc_clk);
-	clk_put(ctx->wb_clk);
-	clk_put(ctx->wb_b_clk);
 
 	return ret;
 }
@@ -1889,11 +1867,6 @@ static int __devexit fimc_remove(struct platform_device *pdev)
 	pm_runtime_disable(dev);
 
 	free_irq(ctx->irq, ctx);
-
-	clk_put(ctx->sclk_fimc_clk);
-	clk_put(ctx->fimc_clk);
-	clk_put(ctx->wb_clk);
-	clk_put(ctx->wb_b_clk);
 
 	return 0;
 }
