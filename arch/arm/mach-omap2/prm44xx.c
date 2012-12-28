@@ -333,7 +333,7 @@ static u32 omap44xx_prm_read_reset_sources(void)
 	u32 r = 0;
 	u32 v;
 
-	v = omap4_prm_read_inst_reg(OMAP4430_PRM_OCP_SOCKET_INST,
+	v = omap4_prm_read_inst_reg(OMAP4430_PRM_DEVICE_INST,
 				    OMAP4_RM_RSTST);
 
 	p = omap44xx_prm_reset_src_map;
