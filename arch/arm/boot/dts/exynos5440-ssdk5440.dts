@@ -36,10 +36,6 @@
 		status = "disabled";
 	};
 
-	watchdog {
-		status = "disabled";
-	};
-
 	rtc {
 		status = "disabled";
 	};
