@@ -63,6 +63,7 @@ extern __s32 DRV_DISP_Exit(void);
 
 extern __disp_drv_t g_disp_drv;
 
+extern void hdmi_edid_received(unsigned char *edid, int block);
 extern __s32 DRV_lcd_open(__u32 sel);
 extern __s32 DRV_lcd_close(__u32 sel);
 
