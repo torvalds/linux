@@ -11,13 +11,10 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
-#include <linux/gpio.h>
 #include <mach/kirkwood.h>
 #include <linux/of.h>
 #include "common.h"
 #include "mpp.h"
-
-#define NSA310_GPIO_POWER_OFF		48
 
 static unsigned int nsa310_mpp_config[] __initdata = {
 	MPP12_GPIO, /* led esata green */
@@ -43,39 +40,9 @@ static struct i2c_board_info __initdata nsa310_i2c_info[] = {
 	{ I2C_BOARD_INFO("adt7476", 0x2e) },
 };
 
-static void nsa310_power_off(void)
-{
-	gpio_set_value(NSA310_GPIO_POWER_OFF, 1);
-}
-
-static int __init nsa310_gpio_request(unsigned int gpio, unsigned long flags,
-				       const char *label)
-{
-	int err;
-
-	err = gpio_request_one(gpio, flags, label);
-	if (err)
-		pr_err("NSA-310: can't setup GPIO%u (%s), err=%d\n",
-			gpio, label, err);
-
-	return err;
-}
-
-static void __init nsa310_gpio_init(void)
-{
-	int err;
-
-	err = nsa310_gpio_request(NSA310_GPIO_POWER_OFF, GPIOF_OUT_INIT_LOW,
-				  "Power Off");
-	if (!err)
-		pm_power_off = nsa310_power_off;
-}
-
 void __init nsa310_init(void)
 {
 	kirkwood_mpp_conf(nsa310_mpp_config);
-
-	nsa310_gpio_init();
 
 	i2c_register_board_info(0, ARRAY_AND_SIZE(nsa310_i2c_info));
 }

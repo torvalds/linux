@@ -142,6 +142,11 @@
 		};
 	};
 
+	gpio_poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio1 16 0>;
+	};
+
 	regulators {
 		compatible = "simple-bus";
 		#address-cells = <1>;
