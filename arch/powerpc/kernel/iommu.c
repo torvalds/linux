@@ -717,6 +717,13 @@ void iommu_free_table(struct iommu_table *tbl, const char *node_name)
 		return;
 	}
 
+	/*
+	 * In case we have reserved the first bit, we should not emit
+	 * the warning below.
+	 */
+	if (tbl->it_offset == 0)
+		clear_bit(0, tbl->it_map);
+
 	/* verify that table contains no entries */
 	if (!bitmap_empty(tbl->it_map, tbl->it_size))
 		pr_warn("%s: Unexpected TCEs for %s\n", __func__, node_name);
