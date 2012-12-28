@@ -154,6 +154,6 @@
 	rtc {
 		compatible = "samsung,s3c6410-rtc";
 		reg = <0x130000 0x1000>;
-		interrupts = <0 16 0>, <0 17 0>;
+		interrupts = <0 17 0>, <0 16 0>;
 	};
 };
