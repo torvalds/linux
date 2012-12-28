@@ -550,7 +550,7 @@ static int mxs_auart_dma_init(struct mxs_auart_port *s)
 		return 0;
 
 	/* We do not get the right DMA channels. */
-	if (s->dma_channel_rx == -1 || s->dma_channel_rx == -1)
+	if (s->dma_channel_rx == -1 || s->dma_channel_tx == -1)
 		return -EINVAL;
 
 	/* init for RX */
