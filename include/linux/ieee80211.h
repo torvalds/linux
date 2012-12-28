@@ -701,6 +701,11 @@ enum ieee80211_rann_flags {
 	RANN_FLAG_IS_GATE = 1 << 0,
 };
 
+enum ieee80211_ht_chanwidth_values {
+	IEEE80211_HT_CHANWIDTH_20MHZ = 0,
+	IEEE80211_HT_CHANWIDTH_ANY = 1,
+};
+
 #define WLAN_SA_QUERY_TR_ID_LEN 2
 
 struct ieee80211_mgmt {
@@ -821,6 +826,10 @@ struct ieee80211_mgmt {
 					u8 action;
 					u8 smps_control;
 				} __packed ht_smps;
+				struct {
+					u8 action_code;
+					u8 chanwidth;
+				} __packed ht_notify_cw;
 				struct {
 					u8 action_code;
 					u8 dialog_token;
