@@ -623,10 +623,10 @@ static void debug_help(struct fiq_debugger_state *state)
 				" reboot        Reboot\n"
 				" irqs          Interupt status\n"
 				" kmsg          Kernel log\n"
-#ifdef CONFIG_RK29_LAST_LOG
-				" last_kmsg     Last kernel log\n"
-#endif
 				" version       Kernel version\n");
+#ifdef CONFIG_RK29_LAST_LOG
+	debug_printf(state,	" last_kmsg     Last kernel log\n");
+#endif
 	debug_printf(state,	" sleep         Allow sleep while in FIQ\n"
 				" nosleep       Disable sleep while in FIQ\n"
 				" console       Switch terminal to console\n"
