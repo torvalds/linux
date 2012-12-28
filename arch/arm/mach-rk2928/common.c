@@ -128,7 +128,14 @@ void __init rk2928_map_io(void)
 {
 	rk2928_map_common_io();
 #ifdef DEBUG_UART_BASE
-        #ifdef CONFIG_RK_USB_UART
+#ifdef CONFIG_RK_USB_UART
+	writel_relaxed(0x04000000, RK2928_GRF_BASE + GRF_UOC1_CON4);
+	if(!(readl_relaxed(RK2928_GRF_BASE + 0x014c) & (1<<10)))//detect id
+	{
+	    writel_relaxed(0x34000000, RK2928_GRF_BASE + GRF_UOC1_CON4);
+	}
+	else
+	{
         if(!(readl_relaxed(RK2928_GRF_BASE + 0x014c) & (1<<7)))//detect vbus
         {
             writel_relaxed(0x10001000, RK2928_GRF_BASE + GRF_UOC0_CON0);
@@ -139,9 +146,10 @@ void __init rk2928_map_io(void)
 	    {
             writel_relaxed(0x34000000, RK2928_GRF_BASE + GRF_UOC1_CON4);
 	    }
-        #else
+    }
+#else
         writel_relaxed(0x34000000, RK2928_GRF_BASE + GRF_UOC1_CON4);
-        #endif
+#endif
         writel_relaxed(0x07, DEBUG_UART_BASE + 0x88);
         writel_relaxed(0x07, DEBUG_UART_BASE + 0x88);
         writel_relaxed(0x00, DEBUG_UART_BASE + 0x04);
