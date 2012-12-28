@@ -120,6 +120,21 @@ void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 		   IEEE80211_HT_CAP_SGI_20 |
 		   IEEE80211_HT_CAP_SGI_40 |
 		   IEEE80211_HT_CAP_DSSSCCK40));
+
+	/* Unset 40 MHz if we're not using a 40 MHz channel */
+	switch (sdata->vif.bss_conf.chandef.width) {
+	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20:
+		ht_cap->cap &= ~IEEE80211_HT_CAP_SGI_40;
+		ht_cap->cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+		break;
+	case NL80211_CHAN_WIDTH_40:
+	case NL80211_CHAN_WIDTH_80:
+	case NL80211_CHAN_WIDTH_80P80:
+	case NL80211_CHAN_WIDTH_160:
+		break;
+	}
+
 	/*
 	 * The STBC bits are asymmetric -- if we don't have
 	 * TX then mask out the peer's RX and vice versa.
