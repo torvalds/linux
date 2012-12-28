@@ -17,7 +17,6 @@
 #include "common.h"
 #include "mpp.h"
 
-#define NSA310_GPIO_USB_POWER_OFF	21
 #define NSA310_GPIO_POWER_OFF		48
 
 static unsigned int nsa310_mpp_config[] __initdata = {
@@ -70,9 +69,6 @@ static void __init nsa310_gpio_init(void)
 				  "Power Off");
 	if (!err)
 		pm_power_off = nsa310_power_off;
-
-	nsa310_gpio_request(NSA310_GPIO_USB_POWER_OFF, GPIOF_OUT_INIT_LOW,
-			    "USB Power Off");
 }
 
 void __init nsa310_init(void)
