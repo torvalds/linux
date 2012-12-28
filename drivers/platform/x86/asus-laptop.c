@@ -1743,7 +1743,7 @@ static int asus_laptop_get_info(struct asus_laptop *asus)
 		return -ENOMEM;
 	}
 
-	if (*string)
+	if (string)
 		pr_notice("  %s model detected\n", string);
 
 	if (!acpi_check_handle(asus->handle, METHOD_WL_STATUS, NULL))
