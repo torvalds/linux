@@ -29,6 +29,11 @@
 
 		i2c@11000 {
 			status = "okay";
+
+			adt7476: adt7476a@2e {
+				compatible = "adt7476";
+				reg = <0x2e>;
+			};
 		};
 
 		nand@3000000 {

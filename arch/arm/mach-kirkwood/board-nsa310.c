@@ -36,15 +36,9 @@ static unsigned int nsa310_mpp_config[] __initdata = {
 	0
 };
 
-static struct i2c_board_info __initdata nsa310_i2c_info[] = {
-	{ I2C_BOARD_INFO("adt7476", 0x2e) },
-};
-
 void __init nsa310_init(void)
 {
 	kirkwood_mpp_conf(nsa310_mpp_config);
-
-	i2c_register_board_info(0, ARRAY_AND_SIZE(nsa310_i2c_info));
 }
 
 static int __init nsa310_pci_init(void)
