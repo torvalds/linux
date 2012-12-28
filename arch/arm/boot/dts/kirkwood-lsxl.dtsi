@@ -172,6 +172,10 @@
 		alarm-gpios = <&gpio1 8 0>;
 	};
 
+	restart_poweroff {
+		compatible = "restart-poweroff";
+	};
+
 	regulators {
 		compatible = "simple-bus";
 		#address-cells = <1>;
