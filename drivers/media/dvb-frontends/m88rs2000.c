@@ -492,12 +492,29 @@ static int m88rs2000_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	return 0;
 }
 
-/* Extact code for these unknown but lmedm04 driver uses interupt callbacks */
-
 static int m88rs2000_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
-	deb_info("m88rs2000_read_ber %d\n", *ber);
-	*ber = 0;
+	struct m88rs2000_state *state = fe->demodulator_priv;
+	u8 tmp0, tmp1;
+
+	m88rs2000_demod_write(state, 0x9a, 0x30);
+	tmp0 = m88rs2000_demod_read(state, 0xd8);
+	if ((tmp0 & 0x10) != 0) {
+		m88rs2000_demod_write(state, 0x9a, 0xb0);
+		*ber = 0xffffffff;
+		return 0;
+	}
+
+	*ber = (m88rs2000_demod_read(state, 0xd7) << 8) |
+		m88rs2000_demod_read(state, 0xd6);
+
+	tmp1 = m88rs2000_demod_read(state, 0xd9);
+	m88rs2000_demod_write(state, 0xd9, (tmp1 & ~7) | 4);
+	/* needs twice */
+	m88rs2000_demod_write(state, 0xd8, (tmp0 & ~8) | 0x30);
+	m88rs2000_demod_write(state, 0xd8, (tmp0 & ~8) | 0x30);
+	m88rs2000_demod_write(state, 0x9a, 0xb0);
+
 	return 0;
 }
 
@@ -510,15 +527,26 @@ static int m88rs2000_read_signal_strength(struct dvb_frontend *fe,
 
 static int m88rs2000_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
-	deb_info("m88rs2000_read_snr %d\n", *snr);
-	*snr = 0;
+	struct m88rs2000_state *state = fe->demodulator_priv;
+
+	*snr = 512 * m88rs2000_demod_read(state, 0x65);
+
 	return 0;
 }
 
 static int m88rs2000_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
-	deb_info("m88rs2000_read_ber %d\n", *ucblocks);
-	*ucblocks = 0;
+	struct m88rs2000_state *state = fe->demodulator_priv;
+	u8 tmp;
+
+	*ucblocks = (m88rs2000_demod_read(state, 0xd5) << 8) |
+			m88rs2000_demod_read(state, 0xd4);
+	tmp = m88rs2000_demod_read(state, 0xd8);
+	m88rs2000_demod_write(state, 0xd8, tmp & ~0x20);
+	/* needs two times */
+	m88rs2000_demod_write(state, 0xd8, tmp | 0x20);
+	m88rs2000_demod_write(state, 0xd8, tmp | 0x20);
+
 	return 0;
 }
 
