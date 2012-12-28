@@ -2019,7 +2019,10 @@ __init int intel_pmu_init(void)
 		break;
 
 	case 28: /* Atom */
-	case 54: /* Cedariew */
+	case 38: /* Lincroft */
+	case 39: /* Penwell */
+	case 53: /* Cloverview */
+	case 54: /* Cedarview */
 		memcpy(hw_cache_event_ids, atom_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
 
