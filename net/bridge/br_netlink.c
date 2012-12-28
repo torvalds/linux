@@ -181,8 +181,11 @@ static int br_set_port_state(struct net_bridge_port *p, u8 state)
 	if (p->br->stp_enabled == BR_KERNEL_STP)
 		return -EBUSY;
 
+	/* if device is not up, change is not allowed
+	 * if link is not present, only allowable state is disabled
+	 */
 	if (!netif_running(p->dev) ||
-	    (!netif_carrier_ok(p->dev) && state != BR_STATE_DISABLED))
+	    (!netif_oper_up(p->dev) && state != BR_STATE_DISABLED))
 		return -ENETDOWN;
 
 	p->state = state;
