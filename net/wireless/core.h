@@ -89,7 +89,7 @@ struct cfg80211_registered_device {
 
 	/* must be last because of the way we do wiphy_priv(),
 	 * and it should at least be aligned to NETDEV_ALIGN */
-	struct wiphy wiphy __attribute__((__aligned__(NETDEV_ALIGN)));
+	struct wiphy wiphy __aligned(NETDEV_ALIGN);
 };
 
 static inline

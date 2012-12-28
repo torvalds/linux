@@ -1256,7 +1256,7 @@ struct cfg80211_bss {
 
 	u8 bssid[ETH_ALEN];
 
-	u8 priv[0] __attribute__((__aligned__(sizeof(void *))));
+	u8 priv[0] __aligned(sizeof(void *));
 };
 
 /**
@@ -2392,7 +2392,7 @@ struct wiphy {
 	const struct iw_handler_def *wext;
 #endif
 
-	char priv[0] __attribute__((__aligned__(NETDEV_ALIGN)));
+	char priv[0] __aligned(NETDEV_ALIGN);
 };
 
 static inline struct net *wiphy_net(struct wiphy *wiphy)
