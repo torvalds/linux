@@ -27,12 +27,4 @@
 	spi {
 		status = "disabled";
 	};
-
-	i2c@F0000 {
-		status = "disabled";
-	};
-
-	i2c@100000 {
-		status = "disabled";
-	};
 };

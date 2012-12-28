@@ -105,7 +105,7 @@
 	};
 
 	i2c@F0000 {
-		compatible = "samsung,s3c2440-i2c";
+		compatible = "samsung,exynos5440-i2c";
 		reg = <0xF0000 0x1000>;
 		interrupts = <0 5 0>;
 		#address-cells = <1>;
@@ -113,7 +113,7 @@
 	};
 
 	i2c@100000 {
-		compatible = "samsung,s3c2440-i2c";
+		compatible = "samsung,exynos5440-i2c";
 		reg = <0x100000 0x1000>;
 		interrupts = <0 6 0>;
 		#address-cells = <1>;
