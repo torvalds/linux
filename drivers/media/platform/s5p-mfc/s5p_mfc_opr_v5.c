@@ -523,7 +523,6 @@ int s5p_mfc_set_dec_frame_buffer_v5(struct s5p_mfc_ctx *ctx)
 		mfc_err("Unknown codec for decoding (%x)\n",
 			ctx->codec_mode);
 		return -EINVAL;
-		break;
 	}
 	frame_size = ctx->luma_size;
 	frame_size_ch = ctx->chroma_size;
