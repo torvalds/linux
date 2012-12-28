@@ -35,8 +35,17 @@ struct inode;
 # include <asm/uprobes.h>
 #endif
 
+enum uprobe_filter_ctx {
+	UPROBE_FILTER_REGISTER,
+	UPROBE_FILTER_UNREGISTER,
+	UPROBE_FILTER_MMAP,
+};
+
 struct uprobe_consumer {
 	int (*handler)(struct uprobe_consumer *self, struct pt_regs *regs);
+	bool (*filter)(struct uprobe_consumer *self,
+				enum uprobe_filter_ctx ctx,
+				struct mm_struct *mm);
 
 	struct uprobe_consumer *next;
 };

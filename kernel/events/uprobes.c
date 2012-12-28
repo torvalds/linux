@@ -579,19 +579,21 @@ static int prepare_uprobe(struct uprobe *uprobe, struct file *file,
 	return ret;
 }
 
-static inline bool consumer_filter(struct uprobe_consumer *uc)
+static inline bool consumer_filter(struct uprobe_consumer *uc,
+				   enum uprobe_filter_ctx ctx, struct mm_struct *mm)
 {
-	return true; /* TODO: !uc->filter || uc->filter(...) */
+	return !uc->filter || uc->filter(uc, ctx, mm);
 }
 
-static bool filter_chain(struct uprobe *uprobe)
+static bool filter_chain(struct uprobe *uprobe,
+			 enum uprobe_filter_ctx ctx, struct mm_struct *mm)
 {
 	struct uprobe_consumer *uc;
 	bool ret = false;
 
 	down_read(&uprobe->consumer_rwsem);
 	for (uc = uprobe->consumers; uc; uc = uc->next) {
-		ret = consumer_filter(uc);
+		ret = consumer_filter(uc, ctx, mm);
 		if (ret)
 			break;
 	}
@@ -772,10 +774,12 @@ static int register_for_each_vma(struct uprobe *uprobe, bool is_register)
 
 		if (is_register) {
 			/* consult only the "caller", new consumer. */
-			if (consumer_filter(uprobe->consumers))
+			if (consumer_filter(uprobe->consumers,
+					UPROBE_FILTER_REGISTER, mm))
 				err = install_breakpoint(uprobe, mm, vma, info->vaddr);
 		} else if (test_bit(MMF_HAS_UPROBES, &mm->flags)) {
-			if (!filter_chain(uprobe))
+			if (!filter_chain(uprobe,
+					UPROBE_FILTER_UNREGISTER, mm))
 				err |= remove_breakpoint(uprobe, mm, info->vaddr);
 		}
 
@@ -968,7 +972,7 @@ int uprobe_mmap(struct vm_area_struct *vma)
 	 */
 	list_for_each_entry_safe(uprobe, u, &tmp_list, pending_list) {
 		if (!fatal_signal_pending(current) &&
-		    filter_chain(uprobe)) {
+		    filter_chain(uprobe, UPROBE_FILTER_MMAP, vma->vm_mm)) {
 			unsigned long vaddr = offset_to_vaddr(vma, uprobe->offset);
 			install_breakpoint(uprobe, vma->vm_mm, vma, vaddr);
 		}
