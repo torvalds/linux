@@ -117,6 +117,8 @@ config LCD_I30_800X480
 config LCD_TL5001_MIPI
 	bool "TL5001 720X1280"
 
+config LCD_LP097QX1
+          bool "Display Port screen LP097QX1"
 endchoice
 
 
