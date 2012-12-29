@@ -79,17 +79,6 @@ static int palm27x_ac97_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int err;
 
-	/* add palm27x specific widgets */
-	err = snd_soc_dapm_new_controls(dapm, palm27x_dapm_widgets,
-				ARRAY_SIZE(palm27x_dapm_widgets));
-	if (err)
-		return err;
-
-	/* set up palm27x specific audio path audio_map */
-	err = snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-	if (err)
-		return err;
-
 	/* connected pins */
 	if (machine_is_palmld())
 		snd_soc_dapm_enable_pin(dapm, "MIC1");
@@ -149,6 +138,10 @@ static struct snd_soc_card palm27x_asoc = {
 	.owner = THIS_MODULE,
 	.dai_link = palm27x_dai,
 	.num_links = ARRAY_SIZE(palm27x_dai),
+	.dapm_widgets = palm27x_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(palm27x_dapm_widgets),
+	.dapm_routes = audio_map,
+	.num_dapm_routes = ARRAY_SIZE(audio_map)
 };
 
 static struct platform_device *palm27x_snd_device;
