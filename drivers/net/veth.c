@@ -238,6 +238,10 @@ static const struct net_device_ops veth_netdev_ops = {
 	.ndo_set_mac_address = eth_mac_addr,
 };
 
+#define VETH_FEATURES (NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_ALL_TSO |    \
+		       NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HIGHDMA | \
+		       NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX)
+
 static void veth_setup(struct net_device *dev)
 {
 	ether_setup(dev);
@@ -248,9 +252,10 @@ static void veth_setup(struct net_device *dev)
 	dev->netdev_ops = &veth_netdev_ops;
 	dev->ethtool_ops = &veth_ethtool_ops;
 	dev->features |= NETIF_F_LLTX;
+	dev->features |= VETH_FEATURES;
 	dev->destructor = veth_dev_free;
 
-	dev->hw_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_RXCSUM;
+	dev->hw_features = VETH_FEATURES;
 }
 
 /*
