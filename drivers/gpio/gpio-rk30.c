@@ -303,13 +303,10 @@ static int rk30_gpiolib_direction_input(struct gpio_chip *chip,unsigned offset)
 	spin_unlock_irqrestore(&bank->lock, flags);
 	return 0;
 }
+
 static int rk30_gpiolib_request(struct gpio_chip *chip, unsigned offset)
 {
-	struct rk30_gpio_bank *bank = to_rk30_gpio_bank(chip);
-        int gpio = offset + PIN_BASE + bank->id * 32;
-        
-	iomux_set_gpio_mode(gpio);
-
+	iomux_set_gpio_mode(chip->base + offset);
         return 0;
 }
 
