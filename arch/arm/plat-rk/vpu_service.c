@@ -66,6 +66,7 @@ typedef enum VPU_FREQ {
 	VPU_FREQ_300M,
 	VPU_FREQ_400M,
 	VPU_FREQ_DEFAULT,
+	VPU_FREQ_BUT,
 } VPU_FREQ;
 
 typedef struct {
@@ -78,6 +79,14 @@ typedef struct {
 	unsigned long		dec_reg_num;
 	unsigned long		dec_io_size;
 } VPU_HW_INFO_E;
+
+#define VPU_SERVICE_SHOW_TIME			0
+
+#if VPU_SERVICE_SHOW_TIME
+static struct timeval enc_start, enc_end;
+static struct timeval dec_start, dec_end;
+static struct timeval pp_start,  pp_end;
+#endif
 
 #define MHZ					(1000*1000)
 
@@ -203,6 +212,7 @@ typedef struct vpu_service_info {
 	VPU_HW_INFO_E		*hw_info;
 	unsigned long		reg_size;
 	bool			auto_freq;
+	atomic_t		freq_status;
 } vpu_service_info;
 
 typedef struct vpu_request
@@ -226,10 +236,25 @@ static vpu_device 	enc_dev;
 static void vpu_get_clk(void)
 {
 	pd_video	= clk_get(NULL, "pd_video");
+	if (IS_ERR(pd_video)) {
+		pr_err("failed on clk_get pd_video\n");
+	}
 	aclk_vepu 	= clk_get(NULL, "aclk_vepu");
+	if (IS_ERR(aclk_vepu)) {
+		pr_err("failed on clk_get aclk_vepu\n");
+	}
 	hclk_vepu 	= clk_get(NULL, "hclk_vepu");
+	if (IS_ERR(hclk_vepu)) {
+		pr_err("failed on clk_get hclk_vepu\n");
+	}
 	aclk_ddr_vepu 	= clk_get(NULL, "aclk_ddr_vepu");
+	if (IS_ERR(aclk_ddr_vepu)) {
+		pr_err("failed on clk_get aclk_ddr_vepu\n");
+	}
 	hclk_cpu_vcodec	= clk_get(NULL, "hclk_cpu_vcodec");
+	if (IS_ERR(hclk_cpu_vcodec)) {
+		pr_err("failed on clk_get hclk_cpu_vcodec\n");
+	}
 }
 
 static void vpu_put_clk(void)
@@ -435,7 +460,7 @@ static vpu_reg *reg_init(vpu_session *session, void __user *src, unsigned long s
 	if (service.auto_freq) {
 		if (reg->type == VPU_DEC || reg->type == VPU_DEC_PP) {
 			if (reg_check_rmvb_wmv(reg)) {
-				reg->freq = VPU_FREQ_266M;
+				reg->freq = VPU_FREQ_200M;
 			} else {
 				if (reg_check_interlace(reg)) {
 					reg->freq = VPU_FREQ_400M;
@@ -520,21 +545,31 @@ static void reg_from_run_to_done(vpu_reg *reg)
 
 static void vpu_service_set_freq(vpu_reg *reg)
 {
+	VPU_FREQ curr = atomic_read(&service.freq_status);
+	if (curr == reg->freq) {
+		return ;
+	}
+	atomic_set(&service.freq_status, reg->freq);
 	switch (reg->freq) {
 	case VPU_FREQ_200M : {
 		clk_set_rate(aclk_vepu, 200*MHZ);
+		//printk("default: 200M\n");
 	} break;
 	case VPU_FREQ_266M : {
 		clk_set_rate(aclk_vepu, 266*MHZ);
+		//printk("default: 266M\n");
 	} break;
 	case VPU_FREQ_300M : {
 		clk_set_rate(aclk_vepu, 300*MHZ);
+		//printk("default: 300M\n");
 	} break;
 	case VPU_FREQ_400M : {
 		clk_set_rate(aclk_vepu, 400*MHZ);
+		//printk("default: 400M\n");
 	} break;
 	default : {
 		clk_set_rate(aclk_vepu, 300*MHZ);
+		//printk("default: 300M\n");
 	} break;
 	}
 }
@@ -572,6 +607,11 @@ static void reg_copy_to_hw(vpu_reg *reg)
 
 		dst[VPU_REG_ENC_GATE] = src[VPU_REG_ENC_GATE] | VPU_REG_ENC_GATE_BIT;
 		dst[VPU_REG_EN_ENC]   = src[VPU_REG_EN_ENC];
+
+#if VPU_SERVICE_SHOW_TIME
+		do_gettimeofday(&enc_start);
+#endif
+
 	} break;
 	case VPU_DEC : {
 		u32 *dst = (u32 *)dec_dev.hwregs;
@@ -584,6 +624,11 @@ static void reg_copy_to_hw(vpu_reg *reg)
 
 		dst[VPU_REG_DEC_GATE] = src[VPU_REG_DEC_GATE] | VPU_REG_DEC_GATE_BIT;
 		dst[VPU_REG_EN_DEC]   = src[VPU_REG_EN_DEC];
+
+#if VPU_SERVICE_SHOW_TIME
+		do_gettimeofday(&dec_start);
+#endif
+
 	} break;
 	case VPU_PP : {
 		u32 *dst = (u32 *)dec_dev.hwregs + PP_INTERRUPT_REGISTER;
@@ -597,6 +642,11 @@ static void reg_copy_to_hw(vpu_reg *reg)
 		dsb();
 
 		dst[VPU_REG_EN_PP] = src[VPU_REG_EN_PP];
+
+#if VPU_SERVICE_SHOW_TIME
+		do_gettimeofday(&pp_start);
+#endif
+
 	} break;
 	case VPU_DEC_PP : {
 		u32 *dst = (u32 *)dec_dev.hwregs;
@@ -612,6 +662,11 @@ static void reg_copy_to_hw(vpu_reg *reg)
 		dst[VPU_REG_DEC_PP_GATE] = src[VPU_REG_DEC_PP_GATE] | VPU_REG_PP_GATE_BIT;
 		dst[VPU_REG_DEC_GATE]	 = src[VPU_REG_DEC_GATE]    | VPU_REG_DEC_GATE_BIT;
 		dst[VPU_REG_EN_DEC]	 = src[VPU_REG_EN_DEC];
+
+#if VPU_SERVICE_SHOW_TIME
+		do_gettimeofday(&dec_start);
+#endif
+
 	} break;
 	default : {
 		pr_err("error: unsupport session type %d", reg->type);
@@ -1147,6 +1202,7 @@ static void get_hw_info(void)
 	service.auto_freq = soc_is_rk2928g() || soc_is_rk2928l() || soc_is_rk2926();
 	if (service.auto_freq) {
 		printk("vpu_service set to auto frequency mode\n");
+		atomic_set(&service.freq_status, VPU_FREQ_BUT);
 	}
 }
 
@@ -1187,6 +1243,12 @@ static irqreturn_t vdpu_isr(int irq, void *dev_id)
 
 	mutex_lock(&service.lock);
 	if (atomic_read(&dev->irq_count_codec)) {
+#if VPU_SERVICE_SHOW_TIME
+		do_gettimeofday(&dec_end);
+		printk("dec task: %ld ms\n",
+			(dec_end.tv_sec  - dec_start.tv_sec)  * 1000 +
+			(dec_end.tv_usec - dec_start.tv_usec) / 1000);
+#endif
 		atomic_sub(1, &dev->irq_count_codec);
 		if (NULL == service.reg_codec) {
 			pr_err("error: dec isr with no task waiting\n");
@@ -1196,6 +1258,14 @@ static irqreturn_t vdpu_isr(int irq, void *dev_id)
 	}
 
 	if (atomic_read(&dev->irq_count_pp)) {
+
+#if VPU_SERVICE_SHOW_TIME
+		do_gettimeofday(&pp_end);
+		printk("pp  task: %ld ms\n",
+			(pp_end.tv_sec  - pp_start.tv_sec)  * 1000 +
+			(pp_end.tv_usec - pp_start.tv_usec) / 1000);
+#endif
+
 		atomic_sub(1, &dev->irq_count_pp);
 		if (NULL == service.reg_pproc) {
 			pr_err("error: pp isr with no task waiting\n");
@@ -1214,6 +1284,13 @@ static irqreturn_t vepu_irq(int irq, void *dev_id)
 	u32 irq_status = readl(dev->hwregs + ENC_INTERRUPT_REGISTER);
 
 	pr_debug("vepu_irq irq status %x\n", irq_status);
+
+#if VPU_SERVICE_SHOW_TIME
+	do_gettimeofday(&enc_end);
+	printk("enc task: %ld ms\n",
+		(enc_end.tv_sec  - enc_start.tv_sec)  * 1000 +
+		(enc_end.tv_usec - enc_start.tv_usec) / 1000);
+#endif
 
 	if (likely(irq_status & ENC_INTERRUPT_BIT)) {
 		/* clear enc IRQ */
