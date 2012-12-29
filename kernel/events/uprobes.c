@@ -440,16 +440,6 @@ static struct uprobe *alloc_uprobe(struct inode *inode, loff_t offset)
 	return uprobe;
 }
 
-static void handler_chain(struct uprobe *uprobe, struct pt_regs *regs)
-{
-	struct uprobe_consumer *uc;
-
-	down_read(&uprobe->register_rwsem);
-	for (uc = uprobe->consumers; uc; uc = uc->next)
-		uc->handler(uc, regs);
-	up_read(&uprobe->register_rwsem);
-}
-
 static void consumer_add(struct uprobe *uprobe, struct uprobe_consumer *uc)
 {
 	down_write(&uprobe->consumer_rwsem);
@@ -880,6 +870,33 @@ void uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consume
 	__uprobe_unregister(uprobe, uc);
 	up_write(&uprobe->register_rwsem);
 	put_uprobe(uprobe);
+}
+
+static int unapply_uprobe(struct uprobe *uprobe, struct mm_struct *mm)
+{
+	struct vm_area_struct *vma;
+	int err = 0;
+
+	down_read(&mm->mmap_sem);
+	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+		unsigned long vaddr;
+		loff_t offset;
+
+		if (!valid_vma(vma, false) ||
+		    vma->vm_file->f_mapping->host != uprobe->inode)
+			continue;
+
+		offset = (loff_t)vma->vm_pgoff << PAGE_SHIFT;
+		if (uprobe->offset <  offset ||
+		    uprobe->offset >= offset + vma->vm_end - vma->vm_start)
+			continue;
+
+		vaddr = offset_to_vaddr(vma, uprobe->offset);
+		err |= remove_breakpoint(uprobe, mm, vaddr);
+	}
+	up_read(&mm->mmap_sem);
+
+	return err;
 }
 
 static struct rb_node *
@@ -1433,6 +1450,27 @@ static struct uprobe *find_active_uprobe(unsigned long bp_vaddr, int *is_swbp)
 	up_read(&mm->mmap_sem);
 
 	return uprobe;
+}
+
+static void handler_chain(struct uprobe *uprobe, struct pt_regs *regs)
+{
+	struct uprobe_consumer *uc;
+	int remove = UPROBE_HANDLER_REMOVE;
+
+	down_read(&uprobe->register_rwsem);
+	for (uc = uprobe->consumers; uc; uc = uc->next) {
+		int rc = uc->handler(uc, regs);
+
+		WARN(rc & ~UPROBE_HANDLER_MASK,
+			"bad rc=0x%x from %pf()\n", rc, uc->handler);
+		remove &= rc;
+	}
+
+	if (remove && uprobe->consumers) {
+		WARN_ON(!uprobe_is_active(uprobe));
+		unapply_uprobe(uprobe, current->mm);
+	}
+	up_read(&uprobe->register_rwsem);
 }
 
 /*

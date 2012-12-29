@@ -35,6 +35,9 @@ struct inode;
 # include <asm/uprobes.h>
 #endif
 
+#define UPROBE_HANDLER_REMOVE		1
+#define UPROBE_HANDLER_MASK		1
+
 enum uprobe_filter_ctx {
 	UPROBE_FILTER_REGISTER,
 	UPROBE_FILTER_UNREGISTER,
