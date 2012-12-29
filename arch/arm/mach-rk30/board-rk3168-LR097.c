@@ -52,6 +52,10 @@
 #include <linux/mfd/rk610_core.h>
 #endif
 
+#if defined(CONFIG_DP_RK_EDP)
+	#include <linux/rk_edp.h>
+#endif 
+
 #if defined(CONFIG_RK_HDMI)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
@@ -77,9 +81,9 @@
 #endif
 
 #ifdef  CONFIG_THREE_FB_BUFFER
-#define RK30_FB0_MEM_SIZE 12*SZ_1M
+#define RK30_FB0_MEM_SIZE 36*SZ_1M
 #else
-#define RK30_FB0_MEM_SIZE 8*SZ_1M
+#define RK30_FB0_MEM_SIZE 24*SZ_1M
 #endif
 
 #include "board-rk3168-tb-camera.c"
@@ -466,7 +470,7 @@ static struct sensor_platform_data cm3217_info = {
 #define LCD_CS_PIN         INVALID_GPIO
 #define LCD_CS_VALUE       GPIO_HIGH
 
-#define LCD_EN_PIN         RK30_PIN0_PB0
+#define LCD_EN_PIN         INVALID_GPIO
 #define LCD_EN_VALUE       GPIO_HIGH
 
 static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
@@ -698,6 +702,70 @@ static struct platform_device rk29_device_vibrator = {
 	},
 
 };
+#endif
+
+#ifdef CONFIG_DP_RK_EDP
+
+	#define DVDD33_EN_PIN 		RK30_PIN0_PB0
+	#define DVDD33_EN_VALUE 	GPIO_LOW
+
+	#define DVDD18_EN_MUX_NAME    GPIO1B6_SPDIFTX_SPI1CSN1_NAME 	
+	#define DVDD18_EN_PIN 		RK30_PIN1_PB6//RK30_PIN4_PC7
+	#define DVDD18_EN_VALUE 	GPIO_HIGH
+
+	#define EDP_RST_PIN 		RK30_PIN0_PB4
+	static rk_edp_power_ctl(void)
+	{
+		int ret;
+		ret = gpio_request(DVDD33_EN_PIN, "dvdd33_en_pin");
+		if (ret != 0)
+		{
+			gpio_free(DVDD33_EN_PIN);
+			printk(KERN_ERR "request dvdd33 en pin fail!\n");
+			return -1;
+		}
+		else
+		{
+			gpio_direction_output(DVDD33_EN_PIN, DVDD33_EN_VALUE);
+		}
+		
+		//rk30_mux_api_set(DVDD18_EN_MUX_NAME, GPIO4C_GPIO4C7);
+		ret = gpio_request(DVDD18_EN_PIN, "dvdd18_en_pin");
+		if (ret != 0)
+		{
+			gpio_free(DVDD18_EN_PIN);
+			printk(KERN_ERR "request dvdd18 en pin fail!\n");
+			return -1;
+		}
+		else
+		{
+			gpio_direction_output(DVDD18_EN_PIN, DVDD18_EN_VALUE);
+		}
+		
+		ret = gpio_request(EDP_RST_PIN, "edp_rst_pin");
+		if (ret != 0)
+		{
+			gpio_free(EDP_RST_PIN);
+			printk(KERN_ERR "request rst pin fail!\n");
+			return -1;
+		}
+		else
+		{
+			gpio_direction_output(EDP_RST_PIN, GPIO_LOW);
+			msleep(50);
+			gpio_direction_output(EDP_RST_PIN, GPIO_HIGH);
+		}
+		return 0;
+		
+	}
+	static struct rk_edp_platform_data rk_edp_platform_data = {
+		.power_ctl = rk_edp_power_ctl,
+		.dvdd33_en_pin =  DVDD33_EN_PIN,
+		.dvdd33_en_val = DVDD33_EN_VALUE,
+		.dvdd18_en_pin = DVDD18_EN_PIN,
+		.dvdd18_en_val = DVDD18_EN_VALUE,
+		.edp_rst_pin   = EDP_RST_PIN,
+	};
 #endif
 
 #ifdef CONFIG_LEDS_GPIO_PLATFORM
@@ -1767,6 +1835,16 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 		.platform_data = &cm3217_info,
 	},
 #endif
+
+#if defined (CONFIG_DP_RK_EDP)
+	{
+		.type          = "rk_edp",
+		.addr          = 0x39,
+		.flags         = 0,
+		.platform_data = &rk_edp_platform_data,
+	},
+#endif
+
 };
 #endif
 
