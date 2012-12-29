@@ -323,16 +323,15 @@ static int s5m8767_get_voltage_sel(struct regulator_dev *rdev)
 	return val;
 }
 
-static int s5m8767_convert_voltage_to_sel(
-		const struct sec_voltage_desc *desc,
-		int min_vol, int max_vol)
+static int s5m8767_convert_voltage_to_sel(const struct sec_voltage_desc *desc,
+					  int min_vol)
 {
 	int selector = 0;
 
 	if (desc == NULL)
 		return -EINVAL;
 
-	if (max_vol < desc->min || min_vol > desc->max)
+	if (min_vol > desc->max)
 		return -EINVAL;
 
 	if (min_vol < desc->min)
@@ -340,7 +339,7 @@ static int s5m8767_convert_voltage_to_sel(
 
 	selector = DIV_ROUND_UP(min_vol - desc->min, desc->step);
 
-	if (desc->min + desc->step * selector > max_vol)
+	if (desc->min + desc->step * selector > desc->max)
 		return -EINVAL;
 
 	return selector;
@@ -577,23 +576,17 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 	s5m8767->opmode = pdata->opmode;
 
 	buck_init = s5m8767_convert_voltage_to_sel(&buck_voltage_val2,
-						pdata->buck2_init,
-						pdata->buck2_init +
-						buck_voltage_val2.step);
+						   pdata->buck2_init);
 
 	sec_reg_write(s5m8767->iodev, S5M8767_REG_BUCK2DVS2, buck_init);
 
 	buck_init = s5m8767_convert_voltage_to_sel(&buck_voltage_val2,
-						pdata->buck3_init,
-						pdata->buck3_init +
-						buck_voltage_val2.step);
+						   pdata->buck3_init);
 
 	sec_reg_write(s5m8767->iodev, S5M8767_REG_BUCK3DVS2, buck_init);
 
 	buck_init = s5m8767_convert_voltage_to_sel(&buck_voltage_val2,
-						pdata->buck4_init,
-						pdata->buck4_init +
-						buck_voltage_val2.step);
+						   pdata->buck4_init);
 
 	sec_reg_write(s5m8767->iodev, S5M8767_REG_BUCK4DVS2, buck_init);
 
@@ -602,27 +595,21 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 			s5m8767->buck2_vol[i] =
 				s5m8767_convert_voltage_to_sel(
 						&buck_voltage_val2,
-						pdata->buck2_voltage[i],
-						pdata->buck2_voltage[i] +
-						buck_voltage_val2.step);
+						pdata->buck2_voltage[i]);
 		}
 
 		if (s5m8767->buck3_gpiodvs) {
 			s5m8767->buck3_vol[i] =
 				s5m8767_convert_voltage_to_sel(
 						&buck_voltage_val2,
-						pdata->buck3_voltage[i],
-						pdata->buck3_voltage[i] +
-						buck_voltage_val2.step);
+						pdata->buck3_voltage[i]);
 		}
 
 		if (s5m8767->buck4_gpiodvs) {
 			s5m8767->buck4_vol[i] =
 				s5m8767_convert_voltage_to_sel(
 						&buck_voltage_val2,
-						pdata->buck4_voltage[i],
-						pdata->buck4_voltage[i] +
-						buck_voltage_val2.step);
+						pdata->buck4_voltage[i]);
 		}
 	}
 
