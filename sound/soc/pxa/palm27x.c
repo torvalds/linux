@@ -144,8 +144,6 @@ static struct snd_soc_card palm27x_asoc = {
 	.num_dapm_routes = ARRAY_SIZE(audio_map)
 };
 
-static struct platform_device *palm27x_snd_device;
-
 static int palm27x_asoc_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -162,27 +160,18 @@ static int palm27x_asoc_probe(struct platform_device *pdev)
 	hs_jack_gpios[0].gpio = ((struct palm27x_asoc_info *)
 			(pdev->dev.platform_data))->jack_gpio;
 
-	palm27x_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!palm27x_snd_device)
-		return -ENOMEM;
+	palm27x_asoc.dev = &pdev->dev;
 
-	platform_set_drvdata(palm27x_snd_device, &palm27x_asoc);
-	ret = platform_device_add(palm27x_snd_device);
-
-	if (ret != 0)
-		goto put_device;
-
-	return 0;
-
-put_device:
-	platform_device_put(palm27x_snd_device);
-
+	ret = snd_soc_register_card(&palm27x_asoc);
+	if (ret)
+		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
+			ret);
 	return ret;
 }
 
 static int palm27x_asoc_remove(struct platform_device *pdev)
 {
-	platform_device_unregister(palm27x_snd_device);
+	snd_soc_unregister_card(&palm27x_asoc);
 	return 0;
 }
 
