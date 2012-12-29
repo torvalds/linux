@@ -225,7 +225,7 @@ nv20_graph_intr(struct nouveau_subdev *subdev)
 	nv_wr32(priv, NV04_PGRAPH_FIFO, 0x00000001);
 
 	if (show) {
-		nv_error(priv, "");
+		nv_error(priv, "%s", "");
 		nouveau_bitfield_print(nv10_graph_intr_name, show);
 		pr_cont(" nsource:");
 		nouveau_bitfield_print(nv04_graph_nsource, nsource);

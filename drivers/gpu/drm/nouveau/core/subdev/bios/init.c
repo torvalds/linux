@@ -1866,7 +1866,7 @@ init_zm_reg_group(struct nvbios_init *init)
 	u32 addr = nv_ro32(bios, init->offset + 1);
 	u8 count = nv_ro08(bios, init->offset + 5);
 
-	trace("ZM_REG_GROUP\tR[0x%06x] =\n");
+	trace("ZM_REG_GROUP\tR[0x%06x] =\n", addr);
 	init->offset += 6;
 
 	while (count--) {

@@ -104,8 +104,8 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 	struct nouveau_device *device;
 	struct nouveau_devobj *devobj;
 	struct nv_device_class *args = data;
-	u64 disable, boot0, strap;
-	u64 mmio_base, mmio_size;
+	u32 boot0, strap;
+	u64 disable, mmio_base, mmio_size;
 	void __iomem *map;
 	int ret, i, c;
 

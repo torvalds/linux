@@ -15,7 +15,8 @@ struct nouveau_object;
 #define NV_PRINTK_TRACE    KERN_DEBUG
 #define NV_PRINTK_SPAM     KERN_DEBUG
 
-void nv_printk_(struct nouveau_object *, const char *, int, const char *, ...);
+void __printf(4, 5)
+nv_printk_(struct nouveau_object *, const char *, int, const char *, ...);
 
 #define nv_printk(o,l,f,a...) do {                                             \
 	if (NV_DBG_##l <= CONFIG_NOUVEAU_DEBUG)                                \

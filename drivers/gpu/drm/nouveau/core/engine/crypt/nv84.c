@@ -127,7 +127,7 @@ nv84_crypt_intr(struct nouveau_subdev *subdev)
 	chid   = pfifo->chid(pfifo, engctx);
 
 	if (stat) {
-		nv_error(priv, "");
+		nv_error(priv, "%s", "");
 		nouveau_bitfield_print(nv84_crypt_intr_mask, stat);
 		pr_cont(" ch %d [0x%010llx %s] mthd 0x%04x data 0x%08x\n",
 		       chid, (u64)inst << 12, nouveau_client_name(engctx),

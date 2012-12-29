@@ -787,7 +787,7 @@ nv50_graph_intr(struct nouveau_subdev *subdev)
 	nv_wr32(priv, 0x400500, 0x00010001);
 
 	if (show) {
-		nv_error(priv, "");
+		nv_error(priv, "%s", "");
 		nouveau_bitfield_print(nv50_graph_intr_name, show);
 		pr_cont("\n");
 		nv_error(priv,
