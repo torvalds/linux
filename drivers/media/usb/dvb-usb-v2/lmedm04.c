@@ -627,8 +627,8 @@ static int lme2510_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		gate = 5;
 
 	for (i = 0; i < num; i++) {
-		read_o = 1 & (msg[i].flags & I2C_M_RD);
-		read = i+1 < num && (msg[i+1].flags & I2C_M_RD);
+		read_o = msg[i].flags & I2C_M_RD;
+		read = i + 1 < num && msg[i + 1].flags & I2C_M_RD;
 		read |= read_o;
 		gate = (msg[i].addr == st->i2c_tuner_addr)
 			? (read)	? st->i2c_tuner_gate_r
@@ -641,7 +641,8 @@ static int lme2510_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		else
 			obuf[1] = msg[i].len + read + 1;
 
-		obuf[2] = msg[i].addr;
+		obuf[2] = msg[i].addr << 1;
+
 		if (read) {
 			if (read_o)
 				len = 3;
@@ -895,27 +896,27 @@ static int lme2510_kill_urb(struct usb_data_stream *stream)
 }
 
 static struct tda10086_config tda10086_config = {
-	.demod_address = 0x1c,
+	.demod_address = 0x0e,
 	.invert = 0,
 	.diseqc_tone = 1,
 	.xtal_freq = TDA10086_XTAL_16M,
 };
 
 static struct stv0288_config lme_config = {
-	.demod_address = 0xd0,
+	.demod_address = 0x68,
 	.min_delay_ms = 15,
 	.inittab = s7395_inittab,
 };
 
 static struct ix2505v_config lme_tuner = {
-	.tuner_address = 0xc0,
+	.tuner_address = 0x60,
 	.min_delay_ms = 100,
 	.tuner_gain = 0x0,
 	.tuner_chargepump = 0x3,
 };
 
 static struct stv0299_config sharp_z0194_config = {
-	.demod_address = 0xd0,
+	.demod_address = 0x68,
 	.inittab = sharp_z0194a_inittab,
 	.mclk = 88000000UL,
 	.invert = 0,
@@ -944,7 +945,7 @@ static int dm04_rs2000_set_ts_param(struct dvb_frontend *fe,
 }
 
 static struct m88rs2000_config m88rs2000_config = {
-	.demod_addr = 0xd0,
+	.demod_addr = 0x68,
 	.set_ts_params = dm04_rs2000_set_ts_param,
 };
 
@@ -1054,7 +1055,7 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 			info("TUN Found Frontend TDA10086");
 			st->i2c_tuner_gate_w = 4;
 			st->i2c_tuner_gate_r = 4;
-			st->i2c_tuner_addr = 0xc0;
+			st->i2c_tuner_addr = 0x60;
 			st->tuner_config = TUNER_LG;
 			if (st->dvb_usb_lme2510_firmware != TUNER_LG) {
 				st->dvb_usb_lme2510_firmware = TUNER_LG;
@@ -1070,7 +1071,7 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 			info("FE Found Stv0299");
 			st->i2c_tuner_gate_w = 4;
 			st->i2c_tuner_gate_r = 5;
-			st->i2c_tuner_addr = 0xc0;
+			st->i2c_tuner_addr = 0x60;
 			st->tuner_config = TUNER_S0194;
 			if (st->dvb_usb_lme2510_firmware != TUNER_S0194) {
 				st->dvb_usb_lme2510_firmware = TUNER_S0194;
@@ -1087,7 +1088,7 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 			info("FE Found Stv0288");
 			st->i2c_tuner_gate_w = 4;
 			st->i2c_tuner_gate_r = 5;
-			st->i2c_tuner_addr = 0xc0;
+			st->i2c_tuner_addr = 0x60;
 			st->tuner_config = TUNER_S7395;
 			if (st->dvb_usb_lme2510_firmware != TUNER_S7395) {
 				st->dvb_usb_lme2510_firmware = TUNER_S7395;
@@ -1106,7 +1107,7 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 					&d->i2c_adap);
 			st->i2c_tuner_gate_w = 5;
 			st->i2c_tuner_gate_r = 5;
-			st->i2c_tuner_addr = 0xc0;
+			st->i2c_tuner_addr = 0x60;
 			st->tuner_config = TUNER_RS2000;
 			st->fe_set_voltage =
 				adap->fe[0]->ops.set_voltage;
@@ -1151,7 +1152,7 @@ static int dm04_lme2510_tuner(struct dvb_usb_adapter *adap)
 
 	switch (st->tuner_config) {
 	case TUNER_LG:
-		if (dvb_attach(tda826x_attach, adap->fe[0], 0xc0,
+		if (dvb_attach(tda826x_attach, adap->fe[0], 0x60,
 			&d->i2c_adap, 1))
 			ret = st->tuner_config;
 		break;
@@ -1161,7 +1162,7 @@ static int dm04_lme2510_tuner(struct dvb_usb_adapter *adap)
 			ret = st->tuner_config;
 		break;
 	case TUNER_S0194:
-		if (dvb_attach(dvb_pll_attach , adap->fe[0], 0xc0,
+		if (dvb_attach(dvb_pll_attach , adap->fe[0], 0x60,
 			&d->i2c_adap, DVB_PLL_OPERA1))
 			ret = st->tuner_config;
 		break;
