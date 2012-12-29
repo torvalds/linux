@@ -1284,6 +1284,7 @@ struct net_device {
 		struct pcpu_lstats __percpu	*lstats; /* loopback stats */
 		struct pcpu_tstats __percpu	*tstats; /* tunnel stats */
 		struct pcpu_dstats __percpu	*dstats; /* dummy stats */
+		struct pcpu_vstats __percpu	*vstats; /* veth stats */
 	};
 	/* GARP */
 	struct garp_port __rcu	*garp_port;
