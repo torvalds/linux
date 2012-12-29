@@ -28,6 +28,7 @@
 #include <net/genetlink.h>
 #include <net/netlink.h>
 #include <net/sch_generic.h>
+#include <generated/utsrelease.h>
 #include <linux/if_team.h>
 
 #define DRV_NAME "team"
@@ -1741,6 +1742,21 @@ static const struct net_device_ops team_netdev_ops = {
 	.ndo_change_carrier     = team_change_carrier,
 };
 
+/***********************
+ * ethtool interface
+ ***********************/
+
+static void team_ethtool_get_drvinfo(struct net_device *dev,
+				     struct ethtool_drvinfo *drvinfo)
+{
+	strncpy(drvinfo->driver, DRV_NAME, 32);
+	strncpy(drvinfo->version, UTS_RELEASE, 32);
+}
+
+static const struct ethtool_ops team_ethtool_ops = {
+	.get_drvinfo		= team_ethtool_get_drvinfo,
+	.get_link		= ethtool_op_get_link,
+};
 
 /***********************
  * rt netlink interface
@@ -1790,6 +1806,7 @@ static void team_setup(struct net_device *dev)
 	ether_setup(dev);
 
 	dev->netdev_ops = &team_netdev_ops;
+	dev->ethtool_ops = &team_ethtool_ops;
 	dev->destructor	= team_destructor;
 	dev->tx_queue_len = 0;
 	dev->flags |= IFF_MULTICAST;
