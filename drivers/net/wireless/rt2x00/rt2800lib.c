@@ -4671,12 +4671,14 @@ static void rt2800_efuse_read(struct rt2x00_dev *rt2x00dev, unsigned int i)
 	mutex_unlock(&rt2x00dev->csr_mutex);
 }
 
-void rt2800_read_eeprom_efuse(struct rt2x00_dev *rt2x00dev)
+int rt2800_read_eeprom_efuse(struct rt2x00_dev *rt2x00dev)
 {
 	unsigned int i;
 
 	for (i = 0; i < EEPROM_SIZE / sizeof(u16); i += 8)
 		rt2800_efuse_read(rt2x00dev, i);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(rt2800_read_eeprom_efuse);
 
@@ -4686,11 +4688,14 @@ static int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	u16 word;
 	u8 *mac;
 	u8 default_lna_gain;
+	int retval;
 
 	/*
 	 * Read the EEPROM.
 	 */
-	rt2800_read_eeprom(rt2x00dev);
+	retval = rt2800_read_eeprom(rt2x00dev);
+	if (retval)
+		return retval;
 
 	/*
 	 * Start validation of the data that has been read.

@@ -735,13 +735,17 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 /*
  * Device probe functions.
  */
-static void rt2800usb_read_eeprom(struct rt2x00_dev *rt2x00dev)
+static int rt2800usb_read_eeprom(struct rt2x00_dev *rt2x00dev)
 {
+	int retval;
+
 	if (rt2800_efuse_detect(rt2x00dev))
-		rt2800_read_eeprom_efuse(rt2x00dev);
+		retval = rt2800_read_eeprom_efuse(rt2x00dev);
 	else
-		rt2x00usb_eeprom_read(rt2x00dev, rt2x00dev->eeprom,
-				      EEPROM_SIZE);
+		retval = rt2x00usb_eeprom_read(rt2x00dev, rt2x00dev->eeprom,
+					       EEPROM_SIZE);
+
+	return retval;
 }
 
 static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
