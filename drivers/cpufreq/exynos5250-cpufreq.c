@@ -19,7 +19,8 @@
 
 #include <mach/map.h>
 #include <mach/regs-clock.h>
-#include <mach/cpufreq.h>
+
+#include "exynos-cpufreq.h"
 
 #define CPUFREQ_LEVEL_END	(L15 + 1)
 
