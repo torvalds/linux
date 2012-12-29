@@ -1,6 +1,10 @@
+choice
+    depends on DISPLAY_SUPPORT
+    prompt  "Display interface transmitter Select"
+
 config RK610_LVDS
 	bool "RK610(Jetta) lvds transmitter support"
-	depends on MFD_RK610
+	depends on MFD_RK610 
 	default y if MFD_RK610
 	help
 		Support Jetta(RK610) to output LCD1 and LVDS.
@@ -8,4 +12,9 @@ config RK610_LVDS
 config TC358768_RGB2MIPI
 	bool "toshiba RGB to MIPI DSI"
 	help
-		"a chip that change RGB interface parallel signal into DSI serial signal"
+	"a chip that change RGB interface parallel signal into DSI serial signal"
+
+config DP_RK_EDP
+        bool "RGB to Display Port transmitter RK_EDP support"
+        default n
+endchoice
