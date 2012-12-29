@@ -56,7 +56,7 @@ static struct backlight_device *rk29_bl;
 static int suspend_flag = 0;
 
 
-int convertint(char s[])  
+int convertint(const char s[])  
 {  
     int i;  
     int n = 0;  
@@ -67,8 +67,8 @@ int convertint(char s[])
     return n;  
 } 
 
-static ssize_t backlight_write(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t backlight_write(struct device *dev, 
+		struct device_attribute *attr,const char *buf, size_t count)
 {
    
 	struct rk29_bl_info *rk29_bl_info = bl_get_data(rk29_bl);
@@ -84,9 +84,8 @@ static ssize_t backlight_write(struct device *dev,
 static ssize_t backlight_read(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct rk29_bl_info *rk29_bl_info = bl_get_data(rk29_bl);
-
 	DBG("rk29_bl_info->min_brightness=%d\n",rk29_bl_info->min_brightness);
+	return 0;
 }
 static DEVICE_ATTR(rk29backlight, 0660, backlight_read, backlight_write);
 
@@ -193,7 +192,6 @@ static DECLARE_DELAYED_WORK(rk29_backlight_work, rk29_backlight_work_func);
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void rk29_bl_suspend(struct early_suspend *h)
 {
-	struct rk29_bl_info *rk29_bl_info = bl_get_data(rk29_bl);
 	int brightness = rk29_bl->props.brightness;
 
 	cancel_delayed_work_sync(&rk29_backlight_work);
@@ -223,9 +221,9 @@ static struct early_suspend bl_early_suspend = {
 	.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 1,
 };
 
-bool rk29_get_backlight_status()
+bool rk29_get_backlight_status(void)
 {
-	return (rk29_bl->props.state & BL_CORE_DRIVER3)?true:false;
+	return ((rk29_bl->props.state & BL_CORE_DRIVER3)==BL_CORE_DRIVER3)?true:false;
 }
 EXPORT_SYMBOL(rk29_get_backlight_status);
 
