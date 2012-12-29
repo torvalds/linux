@@ -563,8 +563,6 @@ extern void e1000e_write_itr(struct e1000_adapter *adapter, u32 itr);
 
 extern unsigned int copybreak;
 
-extern char *e1000e_get_hw_dev_name(struct e1000_hw *hw);
-
 extern const struct e1000_info e1000_82571_info;
 extern const struct e1000_info e1000_82572_info;
 extern const struct e1000_info e1000_82573_info;
