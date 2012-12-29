@@ -2225,7 +2225,7 @@ static int rk_camera_try_fmt(struct soc_camera_device *icd,
 	if((usr_w == 10000) && (usr_h == 10000)) {
 		pix->width = mf.width;
         pix->height = mf.height;
-        RKCAMERA_DG("Sensor resolution : %dx%d\n", );
+        RKCAMERA_DG("%s: Sensor resolution : %dx%d\n",__FUNCTION__,mf.width,mf.height);
 		goto RK_CAMERA_TRY_FMT_END;
 	} else {
         RKCAMERA_DG("%s: user demand: %dx%d  sensor output: %dx%d \n",__FUNCTION__,usr_w,usr_h,mf.width,mf.height);
