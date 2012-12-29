@@ -5,7 +5,6 @@ choice
 config RK610_LVDS
 	bool "RK610(Jetta) lvds transmitter support"
 	depends on MFD_RK610 
-	default y if MFD_RK610
 	help
 		Support Jetta(RK610) to output LCD1 and LVDS.
 		
@@ -16,5 +15,5 @@ config TC358768_RGB2MIPI
 
 config DP_RK_EDP
         bool "RGB to Display Port transmitter RK_EDP support"
-        default n
+
 endchoice
