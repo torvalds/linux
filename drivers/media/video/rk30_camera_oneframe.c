@@ -277,8 +277,11 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 *         1. invalidate the limit which scale is invalidat when scale ratio > 2;
 *v0.x.1b: 1. fix oops bug  when using arm to do scale_crop if preview buffer is not allocated correctly 
           2. rk_camera_set_fmt will called twice, optimize the procedure. at the first time call ,just to do the sensor init.
+
+*v0.x.1c:
+*         1. fix query resolution error;
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 0x1b)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 0x1c)
 
 /* limit to rk29 hardware capabilities */
 #define RK_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -2177,8 +2180,7 @@ static int rk_camera_try_fmt(struct soc_camera_device *icd,
     
 	usr_w = pix->width;
 	usr_h = pix->height;
-	RKCAMERA_DG("%s enter width:%d  height:%d\n",__FUNCTION__,usr_w,usr_h);
-
+    
     xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
     if (!xlate) {
         dev_err(icd->dev.parent, "Format (%c%c%c%c) not found\n", pixfmt & 0xFF, (pixfmt >> 8) & 0xFF,
@@ -2218,13 +2220,17 @@ static int rk_camera_try_fmt(struct soc_camera_device *icd,
 	ret = v4l2_subdev_call(sd, video, try_mbus_fmt, &mf);
 	if (ret < 0)
 		goto RK_CAMERA_TRY_FMT_END;
-    RKCAMERA_DG("%s mf.width:%d  mf.height:%d\n",__FUNCTION__,mf.width,mf.height);
+    
 	//query resolution.
 	if((usr_w == 10000) && (usr_h == 10000)) {
 		pix->width = mf.width;
         pix->height = mf.height;
+        RKCAMERA_DG("Sensor resolution : %dx%d\n", );
 		goto RK_CAMERA_TRY_FMT_END;
+	} else {
+        RKCAMERA_DG("%s: user demand: %dx%d  sensor output: %dx%d \n",__FUNCTION__,usr_w,usr_h,mf.width,mf.height);
 	}
+    
 	#ifdef CONFIG_VIDEO_RK29_WORK_IPP       
 	if ((mf.width != usr_w) || (mf.height != usr_h)) {
         bytes_per_line_host = soc_mbus_bytes_per_line(mf.width,icd->current_fmt->host_fmt); 
