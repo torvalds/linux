@@ -246,6 +246,7 @@ static int rga_MapUserMemory(struct page **pages,
     uint32_t status;
     uint32_t Address;
     uint32_t temp;
+    
     status = 0;
     Address = 0;
     
@@ -292,7 +293,7 @@ static int rga_MapUserMemory(struct page **pages,
             {                
                 vma = find_vma(current->mm, (Memory + i) << PAGE_SHIFT);
 
-                if (vma && (vma->vm_flags & VM_PFNMAP) )
+                if (vma)//&& (vma->vm_flags & VM_PFNMAP) )
                 {
                     do
                     {
@@ -347,7 +348,7 @@ static int rga_MapUserMemory(struct page **pages,
                 }     
             }
             
-            return 0;
+            return status;
         }
         #endif
 
