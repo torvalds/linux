@@ -915,7 +915,7 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
 
 static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 {
-    struct rga_req *req;
+    struct rga_req req;
 	int ret = 0;
     rga_session *session;
 
@@ -929,28 +929,22 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
         mutex_unlock(&rga_service.mutex);
 		return -EINVAL;
 	}
-    
-    req = kzalloc(sizeof(struct rga_req), GFP_KERNEL);
-    if(req == NULL)
-    {
-        printk("%s [%d] get rga_req mem failed\n",__FUNCTION__,__LINE__);
-        mutex_unlock(&rga_service.mutex);
-        return -EINVAL;
-    }
+
+    memset(&req, 0x0, sizeof(req));    
 	
 	switch (cmd)
 	{
 		case RGA_BLIT_SYNC:
-    		if (unlikely(copy_from_user(req, (struct rga_req*)arg, sizeof(struct rga_req))))
+    		if (unlikely(copy_from_user(&req, (struct rga_req*)arg, sizeof(struct rga_req))))
             {
         		ERR("copy_from_user failed\n");
         		ret = -EFAULT;
                 break;
         	}
-            ret = rga_blit_sync(session, req);
+            ret = rga_blit_sync(session, &req);
             break;
 		case RGA_BLIT_ASYNC:
-    		if (unlikely(copy_from_user(req, (struct rga_req*)arg, sizeof(struct rga_req))))
+    		if (unlikely(copy_from_user(&req, (struct rga_req*)arg, sizeof(struct rga_req))))
             {
         		ERR("copy_from_user failed\n");
         		ret = -EFAULT;
@@ -959,11 +953,11 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 
             if((atomic_read(&rga_service.total_running) > 16))
             {
-			    ret = rga_blit_sync(session, req);
+			    ret = rga_blit_sync(session, &req);
             }
             else
             {
-                ret = rga_blit_async(session, req);
+                ret = rga_blit_async(session, &req);
             }
 			break;
 		case RGA_FLUSH:
@@ -981,8 +975,6 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 			ret = -EINVAL;
 			break;
 	}
-
-    kfree(req);
 
 	mutex_unlock(&rga_service.mutex);
     
