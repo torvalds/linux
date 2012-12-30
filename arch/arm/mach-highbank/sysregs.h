@@ -44,6 +44,15 @@ static inline void highbank_set_core_pwr(void)
 		writel_relaxed(1, sregs_base + SREG_CPU_PWR_CTRL(cpu));
 }
 
+static inline void highbank_clear_core_pwr(void)
+{
+	int cpu = cpu_logical_map(smp_processor_id());
+	if (scu_base_addr)
+		scu_power_mode(scu_base_addr, SCU_PM_NORMAL);
+	else
+		writel_relaxed(0, sregs_base + SREG_CPU_PWR_CTRL(cpu));
+}
+
 static inline void highbank_set_pwr_suspend(void)
 {
 	writel(HB_PWR_SUSPEND, sregs_base + HB_SREG_A9_PWR_REQ);
@@ -66,6 +75,12 @@ static inline void highbank_set_pwr_hard_reset(void)
 {
 	writel(HB_PWR_HARD_RESET, sregs_base + HB_SREG_A9_PWR_REQ);
 	highbank_set_core_pwr();
+}
+
+static inline void highbank_clear_pwr_request(void)
+{
+	writel(~0UL, sregs_base + HB_SREG_A9_PWR_REQ);
+	highbank_clear_core_pwr();
 }
 
 #endif
