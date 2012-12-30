@@ -214,7 +214,6 @@ retry:
 		goto retry;
 	}
 	new->ino = ino;
-	INIT_LIST_HEAD(&new->list);
 
 	/* add new_oentry into list which is sorted by inode number */
 	if (orphan) {

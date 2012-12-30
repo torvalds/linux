@@ -151,7 +151,6 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 				goto out;
 			}
 
-			INIT_LIST_HEAD(&entry->list);
 			list_add_tail(&entry->list, head);
 			entry->blkaddr = blkaddr;
 		}
