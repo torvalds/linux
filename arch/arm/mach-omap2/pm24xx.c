@@ -139,14 +139,6 @@ no_sleep:
 	return 0;
 }
 
-static int omap2_i2c_active(void)
-{
-	u32 l;
-
-	l = omap2_cm_read_mod_reg(CORE_MOD, CM_FCLKEN1);
-	return l & (OMAP2420_EN_I2C2_MASK | OMAP2420_EN_I2C1_MASK);
-}
-
 static int sti_console_enabled;
 
 static int omap2_allow_mpu_retention(void)
@@ -172,11 +164,6 @@ static int omap2_allow_mpu_retention(void)
 static void omap2_enter_mpu_retention(void)
 {
 	const int zero = 0;
-
-	/* Putting MPU into the WFI state while a transfer is active
-	 * seems to cause the I2C block to timeout. Why? Good question. */
-	if (omap2_i2c_active())
-		return;
 
 	/* The peripherals seem not to be able to wake up the MPU when
 	 * it is in retention mode. */
