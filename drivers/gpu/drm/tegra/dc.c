@@ -171,8 +171,6 @@ static int tegra_crtc_mode_set(struct drm_crtc *crtc,
 		return err;
 	}
 
-	mutex_lock(&dc->regs_mutex);
-
 	/* program display mode */
 	tegra_dc_set_timings(dc, mode);
 
@@ -270,8 +268,6 @@ static int tegra_crtc_mode_set(struct drm_crtc *crtc,
 	tegra_dc_writel(dc, 0xff00, DC_WIN_BLEND_NOKEY);
 	tegra_dc_writel(dc, 0xff00, DC_WIN_BLEND_1WIN);
 
-	mutex_unlock(&dc->regs_mutex);
-
 	return 0;
 }
 
@@ -289,8 +285,6 @@ static void tegra_crtc_prepare(struct drm_crtc *crtc)
 		syncpt = SYNCPT_VBLANK1;
 	else
 		syncpt = SYNCPT_VBLANK0;
-
-	mutex_lock(&dc->regs_mutex);
 
 	/* initialize display controller */
 	tegra_dc_writel(dc, 0x00000100, DC_CMD_GENERAL_INCR_SYNCPT_CNTRL);
@@ -325,8 +319,6 @@ static void tegra_crtc_prepare(struct drm_crtc *crtc)
 
 	value = VBLANK_INT | WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT;
 	tegra_dc_writel(dc, value, DC_CMD_INT_ENABLE);
-
-	mutex_unlock(&dc->regs_mutex);
 }
 
 static void tegra_crtc_commit(struct drm_crtc *crtc)
@@ -336,8 +328,6 @@ static void tegra_crtc_commit(struct drm_crtc *crtc)
 	unsigned long value;
 
 	update_mask = GENERAL_ACT_REQ | WIN_A_ACT_REQ;
-
-	mutex_lock(&dc->regs_mutex);
 
 	tegra_dc_writel(dc, update_mask << 8, DC_CMD_STATE_CONTROL);
 
@@ -350,8 +340,6 @@ static void tegra_crtc_commit(struct drm_crtc *crtc)
 	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
 
 	tegra_dc_writel(dc, update_mask, DC_CMD_STATE_CONTROL);
-
-	mutex_unlock(&dc->regs_mutex);
 }
 
 static void tegra_crtc_load_lut(struct drm_crtc *crtc)
@@ -758,7 +746,6 @@ static int tegra_dc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&dc->list);
-	mutex_init(&dc->regs_mutex);
 	dc->dev = &pdev->dev;
 
 	dc->clk = devm_clk_get(&pdev->dev, NULL);
