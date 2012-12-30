@@ -1,0 +1,13 @@
+#
+# Adc hardware configuration
+#
+
+config CT360_TS
+	tristate "ct360"
+
+config CT361_TS
+	tristate "ct361"
+
+config CT363_TS
+	tristate "ct363"
+

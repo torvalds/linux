@@ -41,3 +41,4 @@ obj-$(CONFIG_MACH_RK3066B_M701) += board-rk3066b-m701.o
 obj-$(CONFIG_MACH_RK3108_TB) += board-rk3108-tb.o
 obj-$(CONFIG_MACH_RK3168_TB) += board-rk3168-tb.o
 obj-$(CONFIG_MACH_RK3168_LR097) += board-rk3168-LR097.o
+obj-$(CONFIG_MACH_RK3168_DS1006H) += board-rk3168-ds1006h.o

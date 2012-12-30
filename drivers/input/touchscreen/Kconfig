@@ -11,6 +11,9 @@ menuconfig INPUT_TOUCHSCREEN
 
 if INPUT_TOUCHSCREEN
 
+config CT36X_TS
+	tristate "CT36X touchscreens support"
+
 config TOUCHSCREEN_XPT2046_SPI
 	tristate "XPT2046 based touchscreens:SPI Interface"
 	depends on SPIM_RK29

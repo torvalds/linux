@@ -117,8 +117,13 @@ choice
 
 config MACH_RK3168_TB
 	bool "RK3168 Top Board"
+
 config MACH_RK3168_LR097
 	bool "RK3168 LR097 JC21CA board"
+
+config MACH_RK3168_DS1006H
+	bool "RK3168 DS1006h Board"
+
 endchoice
 endif
 
