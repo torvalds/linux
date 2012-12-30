@@ -2018,7 +2018,7 @@ static int rcu_nocb_needs_gp(struct rcu_state *rsp)
 {
 	struct rcu_node *rnp = rcu_get_root(rsp);
 
-	return rnp->n_nocb_gp_requests[(ACCESS_ONCE(rnp->completed) + 1) & 0x1];
+	return rnp->need_future_gp[(ACCESS_ONCE(rnp->completed) + 1) & 0x1];
 }
 
 /*
@@ -2032,8 +2032,8 @@ static int rcu_nocb_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
 	int needmore;
 
 	wake_up_all(&rnp->nocb_gp_wq[c & 0x1]);
-	rnp->n_nocb_gp_requests[c & 0x1] = 0;
-	needmore = rnp->n_nocb_gp_requests[(c + 1) & 0x1];
+	rnp->need_future_gp[c & 0x1] = 0;
+	needmore = rnp->need_future_gp[(c + 1) & 0x1];
 	trace_rcu_future_grace_period(rsp->name, rnp->gpnum, rnp->completed,
 				      c, rnp->level, rnp->grplo, rnp->grphi,
 				      needmore ? "CleanupMore" : "Cleanup");
@@ -2041,7 +2041,7 @@ static int rcu_nocb_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
 }
 
 /*
- * Set the root rcu_node structure's ->n_nocb_gp_requests field
+ * Set the root rcu_node structure's ->need_future_gp field
  * based on the sum of those of all rcu_node structures.  This does
  * double-count the root rcu_node structure's requests, but this
  * is necessary to handle the possibility of a rcu_nocb_kthread()
@@ -2050,7 +2050,7 @@ static int rcu_nocb_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
  */
 static void rcu_nocb_gp_set(struct rcu_node *rnp, int nrq)
 {
-	rnp->n_nocb_gp_requests[(rnp->completed + 1) & 0x1] += nrq;
+	rnp->need_future_gp[(rnp->completed + 1) & 0x1] += nrq;
 }
 
 static void rcu_init_one_nocb(struct rcu_node *rnp)
@@ -2181,7 +2181,7 @@ static void rcu_nocb_wait_gp(struct rcu_data *rdp)
 	c = rnp->completed + 2;
 
 	/* Count our request for a grace period. */
-	rnp->n_nocb_gp_requests[c & 0x1]++;
+	rnp->need_future_gp[c & 0x1]++;
 	trace_rcu_future_grace_period(rdp->rsp->name, rnp->gpnum,
 				      rnp->completed, c, rnp->level,
 				      rnp->grplo, rnp->grphi, "Startleaf");
@@ -2225,10 +2225,10 @@ static void rcu_nocb_wait_gp(struct rcu_data *rdp)
 			 * Adjust counters accordingly and start the
 			 * needed grace period.
 			 */
-			rnp->n_nocb_gp_requests[c & 0x1]--;
+			rnp->need_future_gp[c & 0x1]--;
 			c = rnp_root->completed + 1;
-			rnp->n_nocb_gp_requests[c & 0x1]++;
-			rnp_root->n_nocb_gp_requests[c & 0x1]++;
+			rnp->need_future_gp[c & 0x1]++;
+			rnp_root->need_future_gp[c & 0x1]++;
 			trace_rcu_future_grace_period(rdp->rsp->name,
 						      rnp->gpnum,
 						      rnp->completed,
