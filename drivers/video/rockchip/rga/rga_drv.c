@@ -115,6 +115,30 @@ static void rga_try_set_reg(void);
 #define INFO(format, args...)
 #endif
 
+#if RGA_TEST
+static void print_info(struct rga_req *req)
+{
+    printk("src : yrgb_addr = %.8x, src.uv_addr = %.8x, src.v_addr = %.8x, format = %d\n",
+            req->src.yrgb_addr, req->src.uv_addr, req->src.v_addr, req->src.format);
+    printk("src : act_w = %d, act_h = %d, vir_w = %d, vir_h = %d\n",
+        req->src.act_w, req->src.act_h, req->src.vir_w, req->src.vir_h);
+    printk("src : x_offset = %.8x y_offset = %.8x\n", req->src.x_offset, req->src.y_offset);
+
+    printk("dst : yrgb_addr = %.8x, dst.uv_addr = %.8x, dst.v_addr = %.8x\n",
+            req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr);
+    printk("dst : x_offset = %.8x y_offset = %.8x\n", req->dst.x_offset, req->dst.y_offset);
+    printk("dst : act_w = %d, act_h = %d, vir_w = %d, vir_h = %d\n",
+        req->dst.act_w, req->dst.act_h, req->dst.vir_w, req->dst.vir_h);
+
+    printk("clip.xmin = %d, clip.xmax = %d. clip.ymin = %d, clip.ymax = %d\n",
+        req->clip.xmin, req->clip.xmax, req->clip.ymin, req->clip.ymax);
+
+    printk("alpha_rop_flag = %.8x\n", req->alpha_rop_flag);
+    printk("alpha_rop_mode = %.8x\n", req->alpha_rop_mode);
+    printk("PD_mode = %.8x\n", req->PD_mode);
+}
+#endif
+
 
 static inline void rga_write(u32 b, u32 r)
 {
@@ -418,9 +442,7 @@ static struct rga_reg * rga_reg_init(rga_session *session, struct rga_req *req)
     reg->session = session;
 	INIT_LIST_HEAD(&reg->session_link);
 	INIT_LIST_HEAD(&reg->status_link);
-
-    //memcpy(&reg->req, req, sizeof(struct rga_req));
-
+   
     reg->MMU_base = NULL;
 
     if (req->mmu_info.mmu_en)
@@ -631,29 +653,7 @@ static void rga_try_set_reg(void)
 }
 
 
-#if RGA_TEST
-static void print_info(struct rga_req *req)
-{
-    printk("src.yrgb_addr = %.8x, src.uv_addr = %.8x, src.v_addr = %.8x\n",
-            req->src.yrgb_addr, req->src.uv_addr, req->src.v_addr);
-    printk("src : act_w = %d, act_h = %d, vir_w = %d, vir_h = %d\n",
-        req->src.act_w, req->src.act_h, req->src.vir_w, req->src.vir_h);
-    printk("src : x_offset = %.8x y_offset = %.8x\n", req->src.x_offset, req->src.y_offset);
 
-    printk("dst.yrgb_addr = %.8x, dst.uv_addr = %.8x, dst.v_addr = %.8x\n",
-            req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr);
-    printk("dst : x_offset = %.8x y_offset = %.8x\n", req->dst.x_offset, req->dst.y_offset);
-    printk("dst : act_w = %d, act_h = %d, vir_w = %d, vir_h = %d\n",
-        req->dst.act_w, req->dst.act_h, req->dst.vir_w, req->dst.vir_h);
-
-    printk("clip.xmin = %d, clip.xmax = %d. clip.ymin = %d, clip.ymax = %d\n",
-        req->clip.xmin, req->clip.xmax, req->clip.ymin, req->clip.ymax);
-
-    printk("alpha_rop_flag = %.8x\n", req->alpha_rop_flag);
-    printk("alpha_rop_mode = %.8x\n", req->alpha_rop_mode);
-    printk("PD_mode = %.8x\n", req->PD_mode);
-}
-#endif
 
 /* Caller must hold rga_service.lock */
 static void rga_del_running_list(void)
@@ -663,7 +663,7 @@ static void rga_del_running_list(void)
     while(!list_empty(&rga_service.running))
     {
         reg = list_entry(rga_service.running.next, struct rga_reg, status_link);
-
+        
         if(reg->MMU_base != NULL)
         {
             kfree(reg->MMU_base);
@@ -917,23 +917,27 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 {
     struct rga_req *req;
 	int ret = 0;
-    rga_session *session = (rga_session *)file->private_data;
+    rga_session *session;
+
+    mutex_lock(&rga_service.mutex);
+    
+    session = (rga_session *)file->private_data;
 
 	if (NULL == session)
     {
         printk("%s [%d] rga thread session is null\n",__FUNCTION__,__LINE__);
+        mutex_unlock(&rga_service.mutex);
 		return -EINVAL;
 	}
-
+    
     req = kzalloc(sizeof(struct rga_req), GFP_KERNEL);
     if(req == NULL)
     {
         printk("%s [%d] get rga_req mem failed\n",__FUNCTION__,__LINE__);
+        mutex_unlock(&rga_service.mutex);
         return -EINVAL;
     }
-
-	mutex_lock(&rga_service.mutex);
-
+	
 	switch (cmd)
 	{
 		case RGA_BLIT_SYNC:
@@ -978,10 +982,10 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 			break;
 	}
 
+    kfree(req);
+
 	mutex_unlock(&rga_service.mutex);
-
-        kfree(req);
-
+    
 	return ret;
 }
 
@@ -1355,295 +1359,7 @@ void rga_test_0(void)
     req.mmu_info.mmu_en = 1;
 
     rga_blit_sync(&session, &req);
-
-    dmac_inv_range(&dst_buf[0], &dst_buf[320*240]);
-    outer_inv_range(virt_to_phys(&dst_buf[0]),virt_to_phys(&dst_buf[320*240]));
-
-    for(j=0; j<17; j++)
-    {
-        for(i=0; i<8; i++)
-        {
-            printk("%.8x, ", dst_buf[j*16 + i]);            
-        }
-        printk("\n");
-
-        for(i=8; i<16; i++)
-        {
-            printk("%.8x, ", dst_buf[j*16 + i]);            
-        }
-        printk("\n");
-    }
-
-    p = (uint8_t *)src_buf;
-    p = p + 16 * 4;
-
-    for(i=0; i<16; i++)
-        src_buf[i] = 0;
-
-    for(j=0; j<16; j++)
-    {
-        for(i=0; i<16; i++)
-        {
-            t = j*16 + i;
-            src_buf[(j+1)*16 + i] = (t<<24)|(t<<16)|(t<<8)|t;
-        }
-    }
-
-    dmac_flush_range(&src_buf[0], &src_buf[320*240]);
-    outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[320*240]));
-
-    dmac_inv_range(&src_buf[0], &src_buf[320*240]);
-    outer_inv_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[320*240]));
-
-    printk("SRC DATA \n");
-    for(j=0; j<17; j++)
-    {
-        for(i=0; i<8; i++)
-        {
-            printk("%.8x, ", src_buf[j*16 + i]);            
-        }
-        printk("\n");
-
-        for(i=8; i<16; i++)
-        {
-            printk("%.8x, ", src_buf[j*16 + i]);            
-        }
-        printk("\n");
-    }    
-
-    req.src.act_w = 320;
-    req.src.act_h = 240;
-
-    req.src.vir_w = 320;
-    req.src.vir_h = 240;
-    req.src.yrgb_addr = (uint32_t)src;
-    req.src.uv_addr = (uint32_t)virt_to_phys(src);
-    req.src.v_addr = (uint32_t)virt_to_phys(src);
-    req.src.format = 0;
-
-    req.dst.act_w = 320;
-    req.dst.act_h = 240;
-
-    req.dst.vir_w = 1024;
-    req.dst.vir_h = 768;
-    req.dst.x_offset = 0;
-    req.dst.y_offset = 0;
-    req.dst.yrgb_addr = (uint32_t)(dst);
-
-    //req.dst.format = RK_FORMAT_RGB_565;
-
-    req.clip.xmin = 0;
-    req.clip.xmax = 1023;
-    req.clip.ymin = 0;
-    req.clip.ymax = 767;
-
-    //req.render_mode = color_fill_mode;
-    //req.fg_color = 0x80ffffff;
-
-    //req.rotate_mode = 1;
-    //req.scale_mode = 2;
-
-    req.alpha_rop_flag = 0x19;
-    req.alpha_rop_mode = 0x1;
-    req.PD_mode = 3;
-
-    req.sina = 0;
-    req.cosa = 65536;
-
-    req.mmu_info.mmu_flag = 0x21;
-    req.mmu_info.mmu_en = 1;
     
-    rga_blit_sync(&session, &req);
-
-    dmac_inv_range(&dst_buf[0], &dst_buf[320*240]);
-    outer_inv_range(virt_to_phys(&dst_buf[0]),virt_to_phys(&dst_buf[320*240]));
-
-    for(j=0; j<17; j++)
-    {
-        for(i=0; i<8; i++)
-        {
-            printk("%.8x, ", dst_buf[j*16 + i]);            
-        }
-        printk("\n");
-        for(i=8; i<16; i++)
-        {
-            printk("%.8x, ", dst_buf[j*16 + i]);            
-        }
-        printk("\n");
-    }
-
-    memset(src_buf, 0x80, 320*240*4);
-
-    dmac_flush_range(&src_buf[0], &src_buf[320*240]);
-    outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[320*240]));
-
-   
-    #if 0
-    memset(src_buf, 0x80, 800*480*4);
-    memset(dst_buf, 0xcc, 800*480*4);
-
-    dmac_flush_range(&dst_buf[0], &dst_buf[800*480]);
-    outer_flush_range(virt_to_phys(&dst_buf[0]),virt_to_phys(&dst_buf[800*480]));
-    #endif
-
-    req.src.act_w = 320;
-    req.src.act_h = 240;
-
-    req.src.vir_w = 320;
-    req.src.vir_h = 240;
-    req.src.yrgb_addr = (uint32_t)(src);
-    req.src.uv_addr = (uint32_t)virt_to_phys(src);
-    req.src.v_addr = (uint32_t)virt_to_phys(src);
-    req.src.format = 0;
-
-    req.dst.act_w = 320;
-    req.dst.act_h = 240;
-
-    req.dst.vir_w = 1024;
-    req.dst.vir_h = 768;
-    req.dst.x_offset = 0;
-    req.dst.y_offset = 0;
-    req.dst.yrgb_addr = (uint32_t)(dst);
-
-    //req.dst.format = RK_FORMAT_RGB_565;
-
-    req.clip.xmin = 0;
-    req.clip.xmax = 1023;
-    req.clip.ymin = 0;
-    req.clip.ymax = 767;
-
-    //req.render_mode = color_fill_mode;
-    //req.fg_color = 0x80ffffff;
-
-    //req.rotate_mode = 1;
-    //req.scale_mode = 2;
-
-    req.alpha_rop_flag = 0;
-    req.alpha_rop_mode = 0x0;
-
-    req.sina = 0;
-    req.cosa = 65536;
-
-    req.mmu_info.mmu_flag = 0x21;
-    req.mmu_info.mmu_en = 1;
-
-    rga_blit_sync(&session, &req);
-
-    dmac_inv_range(&dst_buf[0], &dst_buf[320*240]);
-    outer_inv_range(virt_to_phys(&dst_buf[0]),virt_to_phys(&dst_buf[320*240]));
-
-    for(j=0; j<17; j++)
-    {
-        for(i=0; i<8; i++)
-        {
-            printk("%.8x, ", dst_buf[j*16 + i]);            
-        }
-        printk("\n");
-
-        for(i=8; i<16; i++)
-        {
-            printk("%.8x, ", dst_buf[j*16 + i]);            
-        }
-        printk("\n");
-    }
-
-    p = (uint8_t *)src_buf;
-    p = p + 16 * 4;
-
-    for(i=0; i<16; i++)
-        src_buf[i] = 0;
-
-    for(j=0; j<16; j++)
-    {
-        for(i=0; i<16; i++)
-        {
-            t = j*16 + i;
-            src_buf[(j+1)*16 + i] = (t<<24)|(t<<16)|(t<<8)|t;
-        }
-    }
-
-    dmac_inv_range(&src_buf[0], &src_buf[320*240]);
-    outer_inv_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[320*240]));
-    printk("SRC DATA \n");
-    for(j=0; j<17; j++)
-    {
-        for(i=0; i<8; i++)
-        {
-            printk("%.8x, ", src_buf[j*16 + i]);            
-        }
-        printk("\n");
-
-        for(i=8; i<16; i++)
-        {
-            printk("%.8x, ", src_buf[j*16 + i]);            
-        }
-        printk("\n");
-    }
-
-    dmac_flush_range(&src_buf[0], &src_buf[320*240]);
-    outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[320*240]));
-
-    req.src.act_w = 320;
-    req.src.act_h = 240;
-
-    req.src.vir_w = 320;
-    req.src.vir_h = 240;
-    req.src.yrgb_addr = (uint32_t)(src);
-    req.src.uv_addr = (uint32_t)virt_to_phys(src);
-    req.src.v_addr = (uint32_t)virt_to_phys(src);
-    req.src.format = 0;
-
-    req.dst.act_w = 320;
-    req.dst.act_h = 240;
-
-    req.dst.vir_w = 1024;
-    req.dst.vir_h = 768;
-    req.dst.x_offset = 0;
-    req.dst.y_offset = 0;
-    req.dst.yrgb_addr = (uint32_t)(dst);
-
-    //req.dst.format = RK_FORMAT_RGB_565;
-
-    req.clip.xmin = 0;
-    req.clip.xmax = 1023;
-    req.clip.ymin = 0;
-    req.clip.ymax = 767;
-
-    //req.render_mode = color_fill_mode;
-    //req.fg_color = 0x80ffffff;
-
-    //req.rotate_mode = 1;
-    //req.scale_mode = 2;
-
-    req.alpha_rop_flag = 0x19;
-    req.alpha_rop_mode = 0x1;
-    req.PD_mode = 3;
-
-    req.sina = 0;
-    req.cosa = 65536;
-
-    req.mmu_info.mmu_flag = 0x21;
-    req.mmu_info.mmu_en = 1;
-    
-    rga_blit_sync(&session, &req);
-
-    dmac_inv_range(&dst_buf[0], &dst_buf[320*240]);
-    outer_inv_range(virt_to_phys(&dst_buf[0]),virt_to_phys(&dst_buf[320*240]));
-
-    for(j=0; j<17; j++)
-    {
-        for(i=0; i<8; i++)
-        {
-            printk("%.8x, ", dst_buf[j*16 + i]);            
-        }
-        printk("\n");
-        for(i=8; i<16; i++)
-        {
-            printk("%.8x, ", dst_buf[j*16 + i]);            
-        }
-        printk("\n");
-    }
-
     #if 1
     fb->var.bits_per_pixel = 32;
     

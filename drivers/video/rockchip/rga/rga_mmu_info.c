@@ -248,7 +248,7 @@ static int rga_MapUserMemory(struct page **pages,
     uint32_t temp;
     status = 0;
     Address = 0;
-
+    
     do
     {    
         down_read(&current->mm->mmap_sem);
@@ -262,7 +262,8 @@ static int rga_MapUserMemory(struct page **pages,
                 NULL
                 );
         up_read(&current->mm->mmap_sem);
-                        
+
+        #if 0                
         if(result <= 0 || result < pageCount) 
         {
             status = 0;
@@ -282,6 +283,73 @@ static int rga_MapUserMemory(struct page **pages,
 
             return status;
         }
+        #else
+        if(result <= 0 || result < pageCount) 
+        {
+            struct vm_area_struct *vma;
+
+            for(i=0; i<pageCount; i++)
+            {                
+                vma = find_vma(current->mm, (Memory + i) << PAGE_SHIFT);
+
+                if (vma && (vma->vm_flags & VM_PFNMAP) )
+                {
+                    do
+                    {
+                        pte_t       * pte;
+                        spinlock_t  * ptl;
+                        unsigned long pfn;                                                                        
+                        pgd_t * pgd;
+                        pud_t * pud;
+                        
+                        pgd = pgd_offset(current->mm, (Memory + i) << PAGE_SHIFT);
+
+                        if(pgd_val(*pgd) == 0)
+                        {
+                            printk("rga pgd value is zero \n");
+                            break;
+                        }
+                        
+                        pud = pud_offset(pgd, (Memory + i) << PAGE_SHIFT);
+                        if (pud)
+                        {
+                            pmd_t * pmd = pmd_offset(pud, (Memory + i) << PAGE_SHIFT);
+                            if (pmd)
+                            {
+                                pte = pte_offset_map_lock(current->mm, pmd, (Memory + i) << PAGE_SHIFT, &ptl);
+                                if (!pte)
+                                {
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            break;
+                        }
+
+                        pfn = pte_pfn(*pte);
+                        Address = ((pfn << PAGE_SHIFT) | (((unsigned long)((Memory + i) << PAGE_SHIFT)) & ~PAGE_MASK));                        
+                        pte_unmap_unlock(pte, ptl);                                                                        
+                    }
+                    while (0);
+
+                    pageTable[i] = Address;
+                }
+                else
+                {
+                    status = RGA_OUT_OF_RESOURCES;
+                    break;
+                }     
+            }
+            
+            return 0;
+        }
+        #endif
 
         for (i = 0; i < pageCount; i++)
         {
@@ -370,14 +438,14 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
         /* Cal out the needed mem size */
         AllSize = SrcMemSize + DstMemSize;
                            
-        pages = kmalloc((AllSize + 1)* sizeof(struct page *), GFP_KERNEL);
+        pages = kzalloc((AllSize + 1)* sizeof(struct page *), GFP_KERNEL);
         if(pages == NULL) {
             pr_err("RGA MMU malloc pages mem failed\n");
             status = RGA_MALLOC_ERROR;
             break;                
         }
         
-        MMU_Base = kmalloc((AllSize + 1) * sizeof(uint32_t), GFP_KERNEL);
+        MMU_Base = kzalloc((AllSize + 1) * sizeof(uint32_t), GFP_KERNEL);
         if(MMU_Base == NULL) {
             pr_err("RGA MMU malloc MMU_Base point failed\n");
             status = RGA_MALLOC_ERROR;
@@ -385,7 +453,7 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
         }
 
         if(req->src.yrgb_addr < KERNEL_SPACE_VALID)
-        {            
+        {               
             ret = rga_MapUserMemory(&pages[0], &MMU_Base[0], SrcStart, SrcMemSize);
             if (ret < 0) {
                 pr_err("rga map src memory failed\n");
@@ -421,7 +489,7 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
             #if 0
             ktime_t start, end;
             start = ktime_get();
-            #endif
+            #endif            
             ret = rga_MapUserMemory(&pages[SrcMemSize], &MMU_Base[SrcMemSize], DstStart, DstMemSize);
             if (ret < 0) {
                 pr_err("rga map dst memory failed\n");
