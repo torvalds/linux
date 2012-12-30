@@ -613,11 +613,11 @@ config USB_SW_SUN4I_UDC0
 	   
 config USB_SW_SUN5I_UDC0
 	boolean "SoftWinner SUN5I USB Peripheral Controller"
-	depends on USB_SW_SUN5I_USB_MANAGER && (USB_SW_SUN5I_USB0_DEVICE_ONLY || USB_SW_SUN5I_USB0_OTG)
+	depends on USB_SW_SUN5I_USB_MANAGER
 	select USB_GADGET_DUALSPEED
 	select USB_GADGET_SELECTED
 	help
-	   USB device only
+	   USB device only or USB OTG
 
 #
 # LAST -- dummy/emulated controller
