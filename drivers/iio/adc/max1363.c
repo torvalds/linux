@@ -56,7 +56,7 @@
 #define MAX1363_SETUP_POWER_UP_INT_REF		0x10
 #define MAX1363_SETUP_POWER_DOWN_INT_REF	0x00
 
-/* think about includeing max11600 etc - more settings */
+/* think about including max11600 etc - more settings */
 #define MAX1363_SETUP_EXT_CLOCK			0x08
 #define MAX1363_SETUP_INT_CLOCK			0x00
 #define MAX1363_SETUP_UNIPOLAR			0x00
@@ -87,7 +87,7 @@
 /* max123{6-9} only */
 #define MAX1236_SCAN_MID_TO_CHANNEL		0x40
 
-/* max1363 only - merely part of channel selects or don't care for others*/
+/* max1363 only - merely part of channel selects or don't care for others */
 #define MAX1363_CONFIG_EN_MON_MODE_READ 0x18
 
 #define MAX1363_CHANNEL_SEL(a) ((a) << 1)
@@ -134,7 +134,7 @@ enum max1363_modes {
  * @mode_list:		array of available scan modes
  * @default_mode:	the scan mode in which the chip starts up
  * @int_vref_mv:	the internal reference voltage
- * @num_channels:	number of channels
+ * @num_modes:		number of modes
  * @bits:		accuracy of the adc in bits
  */
 struct max1363_chip_info {
@@ -153,7 +153,7 @@ struct max1363_chip_info {
  * @client:		i2c_client
  * @setupbyte:		cache of current device setup byte
  * @configbyte:		cache of current device config byte
- * @chip_info:		chip model specific constants, available modes etc
+ * @chip_info:		chip model specific constants, available modes, etc.
  * @current_mode:	the scan mode of this chip
  * @requestedmask:	a valid requested set of channels
  * @reg:		supply regulator
@@ -294,7 +294,7 @@ static const struct max1363_mode max1363_mode_table[] = {
 
 static const struct max1363_mode
 *max1363_match_mode(const unsigned long *mask,
-const struct max1363_chip_info *ci)
+	const struct max1363_chip_info *ci)
 {
 	int i;
 	if (mask)
@@ -1395,7 +1395,7 @@ static int max1363_initial_setup(struct max1363_state *st)
 		| MAX1363_SETUP_UNIPOLAR
 		| MAX1363_SETUP_NORESET;
 
-	/* Set scan mode writes the config anyway so wait until then*/
+	/* Set scan mode writes the config anyway so wait until then */
 	st->setupbyte = MAX1363_SETUP_BYTE(st->setupbyte);
 	st->current_mode = &max1363_mode_table[st->chip_info->default_mode];
 	st->configbyte = MAX1363_CONFIG_BYTE(st->configbyte);
@@ -1423,7 +1423,6 @@ static int __devinit max1363_alloc_scan_masks(struct iio_dev *indio_dev)
 
 	return 0;
 }
-
 
 static irqreturn_t max1363_trigger_handler(int irq, void *p)
 {
@@ -1523,7 +1522,7 @@ static int __devinit max1363_probe(struct i2c_client *client,
 	if (ret)
 		goto error_disable_reg;
 
-	/* Estabilish that the iio_dev is a child of the i2c device */
+	/* Establish that the iio_dev is a child of the i2c device */
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = id->name;
 	indio_dev->channels = st->chip_info->channels;
