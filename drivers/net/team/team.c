@@ -1400,13 +1400,11 @@ static void team_destructor(struct net_device *dev)
 
 static int team_open(struct net_device *dev)
 {
-	netif_carrier_on(dev);
 	return 0;
 }
 
 static int team_close(struct net_device *dev)
 {
-	netif_carrier_off(dev);
 	return 0;
 }
 
@@ -2560,21 +2558,43 @@ send_event:
 
 }
 
+static void __team_carrier_check(struct team *team)
+{
+	struct team_port *port;
+	bool team_linkup;
+
+	team_linkup = false;
+	list_for_each_entry(port, &team->port_list, list) {
+		if (port->linkup) {
+			team_linkup = true;
+			break;
+		}
+	}
+
+	if (team_linkup)
+		netif_carrier_on(team->dev);
+	else
+		netif_carrier_off(team->dev);
+}
+
 static void __team_port_change_check(struct team_port *port, bool linkup)
 {
 	if (port->state.linkup != linkup)
 		__team_port_change_send(port, linkup);
+	__team_carrier_check(port->team);
 }
 
 static void __team_port_change_port_added(struct team_port *port, bool linkup)
 {
 	__team_port_change_send(port, linkup);
+	__team_carrier_check(port->team);
 }
 
 static void __team_port_change_port_removed(struct team_port *port)
 {
 	port->removed = true;
 	__team_port_change_send(port, false);
+	__team_carrier_check(port->team);
 }
 
 static void team_port_change_check(struct team_port *port, bool linkup)
