@@ -158,12 +158,29 @@ static inline struct drm_mm_node *drm_mm_get_block_atomic_range(
 	return drm_mm_get_block_range_generic(parent, size, alignment, 0,
 						start, end, 1);
 }
-extern int drm_mm_insert_node(struct drm_mm *mm, struct drm_mm_node *node,
-			      unsigned long size, unsigned alignment);
+
+extern int drm_mm_insert_node(struct drm_mm *mm,
+			      struct drm_mm_node *node,
+			      unsigned long size,
+			      unsigned alignment);
 extern int drm_mm_insert_node_in_range(struct drm_mm *mm,
 				       struct drm_mm_node *node,
-				       unsigned long size, unsigned alignment,
-				       unsigned long start, unsigned long end);
+				       unsigned long size,
+				       unsigned alignment,
+				       unsigned long start,
+				       unsigned long end);
+extern int drm_mm_insert_node_generic(struct drm_mm *mm,
+				      struct drm_mm_node *node,
+				      unsigned long size,
+				      unsigned alignment,
+				      unsigned long color);
+extern int drm_mm_insert_node_in_range_generic(struct drm_mm *mm,
+				       struct drm_mm_node *node,
+				       unsigned long size,
+				       unsigned alignment,
+				       unsigned long color,
+				       unsigned long start,
+				       unsigned long end);
 extern void drm_mm_put_block(struct drm_mm_node *cur);
 extern void drm_mm_remove_node(struct drm_mm_node *node);
 extern void drm_mm_replace_node(struct drm_mm_node *old, struct drm_mm_node *new);
