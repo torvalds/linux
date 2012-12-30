@@ -1487,16 +1487,14 @@ static int __noreturn rcu_gp_kthread(void *arg)
 /*
  * Start a new RCU grace period if warranted, re-initializing the hierarchy
  * in preparation for detecting the next grace period.  The caller must hold
- * the root node's ->lock, which is released before return.  Hard irqs must
- * be disabled.
+ * the root node's ->lock and hard irqs must be disabled.
  *
  * Note that it is legal for a dying CPU (which is marked as offline) to
  * invoke this function.  This can happen when the dying CPU reports its
  * quiescent state.
  */
 static void
-rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
-	__releases(rcu_get_root(rsp)->lock)
+rcu_start_gp(struct rcu_state *rsp)
 {
 	struct rcu_data *rdp = this_cpu_ptr(rsp->rda);
 	struct rcu_node *rnp = rcu_get_root(rsp);
@@ -1510,15 +1508,13 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 	 */
 	rcu_advance_cbs(rsp, rnp, rdp);
 
-	if (!rsp->gp_kthread ||
-	    !cpu_needs_another_gp(rsp, rdp)) {
+	if (!rsp->gp_kthread || !cpu_needs_another_gp(rsp, rdp)) {
 		/*
 		 * Either we have not yet spawned the grace-period
 		 * task, this CPU does not need another grace period,
 		 * or a grace period is already in progress.
 		 * Either way, don't start a new grace period.
 		 */
-		raw_spin_unlock_irqrestore(&rnp->lock, flags);
 		return;
 	}
 	rsp->gp_flags = RCU_GP_FLAG_INIT;
@@ -1528,15 +1524,14 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 
 	/* Wake up rcu_gp_kthread() to start the grace period. */
 	wake_up(&rsp->gp_wq);
-	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 }
 
 /*
  * Report a full set of quiescent states to the specified rcu_state
  * data structure.  This involves cleaning up after the prior grace
  * period and letting rcu_start_gp() start up the next grace period
- * if one is needed.  Note that the caller must hold rnp->lock, as
- * required by rcu_start_gp(), which will release it.
+ * if one is needed.  Note that the caller must hold rnp->lock, which
+ * is released before return.
  */
 static void rcu_report_qs_rsp(struct rcu_state *rsp, unsigned long flags)
 	__releases(rcu_get_root(rsp)->lock)
@@ -2134,7 +2129,8 @@ __rcu_process_callbacks(struct rcu_state *rsp)
 	local_irq_save(flags);
 	if (cpu_needs_another_gp(rsp, rdp)) {
 		raw_spin_lock(&rcu_get_root(rsp)->lock); /* irqs disabled. */
-		rcu_start_gp(rsp, flags);  /* releases above lock */
+		rcu_start_gp(rsp);
+		raw_spin_unlock_irqrestore(&rcu_get_root(rsp)->lock, flags);
 	} else {
 		local_irq_restore(flags);
 	}
@@ -2214,11 +2210,11 @@ static void __call_rcu_core(struct rcu_state *rsp, struct rcu_data *rdp,
 
 		/* Start a new grace period if one not already started. */
 		if (!rcu_gp_in_progress(rsp)) {
-			unsigned long nestflag;
 			struct rcu_node *rnp_root = rcu_get_root(rsp);
 
-			raw_spin_lock_irqsave(&rnp_root->lock, nestflag);
-			rcu_start_gp(rsp, nestflag);  /* rlses rnp_root->lock */
+			raw_spin_lock(&rnp_root->lock);
+			rcu_start_gp(rsp);
+			raw_spin_unlock(&rnp_root->lock);
 		} else {
 			/* Give the grace period a kick. */
 			rdp->blimit = LONG_MAX;

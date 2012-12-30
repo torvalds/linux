@@ -2174,7 +2174,6 @@ static void rcu_nocb_wait_gp(struct rcu_data *rdp)
 	unsigned long c;
 	bool d;
 	unsigned long flags;
-	unsigned long flags1;
 	struct rcu_node *rnp = rdp->mynode;
 	struct rcu_node *rnp_root = rcu_get_root(rdp->rsp);
 
@@ -2236,8 +2235,8 @@ static void rcu_nocb_wait_gp(struct rcu_data *rdp)
 						      c, rnp->level,
 						      rnp->grplo, rnp->grphi,
 						      "Startedroot");
-			local_save_flags(flags1);
-			rcu_start_gp(rdp->rsp, flags1); /* Rlses ->lock. */
+			rcu_start_gp(rdp->rsp);
+			raw_spin_unlock(&rnp->lock);
 		}
 
 		/* Clean up locking and irq state. */
