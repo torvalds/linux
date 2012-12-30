@@ -877,6 +877,8 @@ bool f2fs_empty_dir(struct inode *);
  * super.c
  */
 int f2fs_sync_fs(struct super_block *, int);
+extern __printf(3, 4)
+void f2fs_msg(struct super_block *, const char *, const char *, ...);
 
 /*
  * hash.c
