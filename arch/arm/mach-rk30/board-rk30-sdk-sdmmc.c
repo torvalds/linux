@@ -351,7 +351,7 @@
     #endif 
 #elif defined(CONFIG_ARCH_RK3066B)//refer to file /arch/arm/mach-rk30/include/mach/iomux-rk3066b.h
     #define WIFI_HOST_WAKE RK30_PIN3_PD2
-     
+         
     #if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) 
         #define RK30SDK_WIFI_GPIO_POWER_N               RK30_PIN3_PD0            
         #define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_LOW//GPIO_HIGH        
@@ -368,6 +368,17 @@
         #define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE    GPIO_HIGH 
         #define RK30SDK_WIFI_GPIO_RESET_PIN_NAME        GPIO2A7_LCDC1DATA7_SMCDATA7_TRACEDATA7_NAME
         #define RK30SDK_WIFI_GPIO_RESET_IOMUX_FGPIO     GPIO2A_GPIO2A7
+    
+    #elif defined(CONFIG_MT5931_MT6622) || defined(CONFIG_MT5931)
+	#define RK30SDK_WIFI_GPIO_POWER_N               RK30_PIN3_PD0 
+	#define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_HIGH
+        #define RK30SDK_WIFI_GPIO_POWER_PIN_NAME        GPIO3D0_SDMMC1PWREN_MIIMD_NAME
+        #define RK30SDK_WIFI_GPIO_POWER_IOMUX_FGPIO     GPIO3D_GPIO3D0
+ 
+        //#define RK30SDK_WIFI_GPIO_RESET_N 	        RK30_PIN3_PD1
+        //#define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE    GPIO_HIGH
+        //#define RK30SDK_WIFI_GPIO_RESET_PIN_NAME        GPIO3D1_SDMMC1BACKENDPWR_MIIMDCLK_NAME
+        //#define RK30SDK_WIFI_GPIO_RESET_IOMUX_FGPIO     GPIO3D_GPIO3D1
     #endif   
 #elif defined(CONFIG_ARCH_RK2928) //refer to file ./arch/arm/mach-rk2928/include/mach/iomux.h
     #define WIFI_HOST_WAKE RK2928_PIN3_PC0 

@@ -242,23 +242,31 @@ static int mt6622_probe(struct platform_device *pdev)
     	return -1;
     }
     
-		if (gpio_request(pdata->power_gpio.io, "BT_PWR_EN")){
-			printk("mt6622 power_gpio is busy!\n");
-			return -1;
+		if(pdata->power_gpio.io != INVALID_GPIO) {
+			if (gpio_request(pdata->power_gpio.io, "BT_PWR_EN")){
+				printk("mt6622 power_gpio is busy!\n");
+				return -1;
+			}
 		}
 		
-		if (gpio_request(pdata->reset_gpio.io, "BT_RESET")){
-			printk("mt6622 reset_gpio is busy!\n");
-			gpio_free(pdata->power_gpio.io);
-			return -1;
+		if(pdata->reset_gpio.io != INVALID_GPIO) {
+			if (gpio_request(pdata->reset_gpio.io, "BT_RESET")){
+				printk("mt6622 reset_gpio is busy!\n");
+				gpio_free(pdata->power_gpio.io);
+				return -1;
+			}
 		}
 		
-		if (gpio_request(pdata->irq_gpio.io, "BT_EINT")){
-			printk("mt6622 irq_gpio is busy!\n");
-			gpio_free(pdata->power_gpio.io);
-			gpio_free(pdata->reset_gpio.io);
-			return -1;
+		if(pdata->irq_gpio.io != INVALID_GPIO) {
+			if (gpio_request(pdata->irq_gpio.io, "BT_EINT")){
+				printk("mt6622 irq_gpio is busy!\n");
+				gpio_free(pdata->power_gpio.io);
+				gpio_free(pdata->reset_gpio.io);
+				return -1;
+			}
 		}
+		
+		mt_bt_power_init();
 		
 		return 0;
 }
@@ -270,9 +278,12 @@ static int mt6622_remove(struct platform_device *pdev)
 	printk("mt6622_remove.\n");
 	
 	if(pdata) {
-	  gpio_free(pdata->power_gpio.io);
-	  gpio_free(pdata->reset_gpio.io);
-	  gpio_free(pdata->irq_gpio.io);
+	  if(pdata->power_gpio.io != INVALID_GPIO)
+	  	gpio_free(pdata->power_gpio.io);
+	  if(pdata->reset_gpio.io != INVALID_GPIO)
+	  	gpio_free(pdata->reset_gpio.io);
+	  if(pdata->irq_gpio.io != INVALID_GPIO)
+	  	gpio_free(pdata->irq_gpio.io);
   }
 	
 	return 0;

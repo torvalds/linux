@@ -1296,6 +1296,42 @@ struct platform_device rk_device_gps = {
 	};
 #endif
 
+#if defined(CONFIG_MT5931_MT6622)
+static struct mt6622_platform_data mt6622_platdata = {
+    .power_gpio         = { // BT_REG_ON
+        .io             = RK30_PIN3_PC7, // set io to INVALID_GPIO for disable it
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = NULL,
+        },
+    },
+
+    .reset_gpio         = { // BT_RST
+        .io             = RK30_PIN3_PD1,
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = NULL,
+        },
+    },
+
+    .irq_gpio           = {
+        .io             = RK30_PIN0_PA5,
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = NULL,
+        },
+    }
+};
+
+static struct platform_device device_mt6622 = {
+    .name   = "mt6622",
+    .id     = -1,
+    .dev    = {
+        .platform_data = &mt6622_platdata,
+    },
+};	
+
+#endif
 
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_FB_ROCKCHIP
@@ -1347,6 +1383,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_GPS_RK
 	&rk_device_gps,
+#endif
+#ifdef CONFIG_MT5931_MT6622
+        &device_mt6622,
 #endif
 
 };
@@ -2052,14 +2091,14 @@ static void __init rk30_reserve(void)
  * comments	: min arm/logic voltage
  */
 static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
-	{.frequency = 312 * 1000, 	.cpu_volt = 850 * 1000,		.logic_volt = 1000 * 1000},
+/*	{.frequency = 312 * 1000, 	.cpu_volt = 850 * 1000,		.logic_volt = 1000 * 1000},
 	{.frequency = 504 * 1000,	.cpu_volt = 900 * 1000,		.logic_volt = 1000 * 1000},
-	{.frequency = 816 * 1000,	.cpu_volt = 950 * 1000,		.logic_volt = 1000 * 1000},
-	{.frequency = 1008 * 1000,	.cpu_volt = 1025 * 1000,	.logic_volt = 1000 * 1000},
+*/	{.frequency = 816 * 1000,	.cpu_volt = 950 * 1000,		.logic_volt = 1000 * 1000},
+/*	{.frequency = 1008 * 1000,	.cpu_volt = 1025 * 1000,	.logic_volt = 1000 * 1000},
 	{.frequency = 1200 * 1000,	.cpu_volt = 1100 * 1000,	.logic_volt = 1050 * 1000},
 	{.frequency = 1416 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1150 * 1000},
 	{.frequency = 1608 * 1000,	.cpu_volt = 1300 * 1000,	.logic_volt = 1250 * 1000},
-	{.frequency = CPUFREQ_TABLE_END},
+*/	{.frequency = CPUFREQ_TABLE_END},
 };
 
 static struct cpufreq_frequency_table dvfs_gpu_table[] = {

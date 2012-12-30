@@ -50,6 +50,7 @@ struct gpio_set {
 
 extern void mt_bt_gpio_init(void);
 extern void mt_bt_gpio_release(void);
+extern int  mt_bt_power_init(void);
 extern int  mt_bt_power_on(void);
 extern void mt_bt_power_off(void);
 

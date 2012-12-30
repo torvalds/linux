@@ -58,8 +58,14 @@ static int irq_num = -1;
 static int mt_bt_request_irq(void)
 {
     int iRet;
+    int trigger = IRQF_TRIGGER_HIGH;
+    struct mt6622_platform_data *pdata = (struct mt6622_platform_data *)mt_bt_get_platform_data();
+		
+    if(pdata->irq_gpio.enable == GPIO_LOW)
+    	trigger = IRQF_TRIGGER_RISING;
+    
     iRet = request_irq(irq_num, mt_bt_eirq_handler, 
-        /*IRQF_TRIGGER_RISING*/IRQF_TRIGGER_HIGH, "BT_INT_B", NULL);
+        trigger, "BT_INT_B", NULL);
     if (iRet){
         printk(KERN_ALERT MODULE_TAG "request_irq IRQ%d fails, errno %d\n", irq_num, iRet);
     }
@@ -100,6 +106,38 @@ EXPORT_SYMBOL(mt_bt_disable_irq);
  *                      P O W E R   C O N T R O L                           *
 *****************************************************************************/
 
+int mt_bt_power_init(void)
+{
+    struct mt6622_platform_data *pdata;
+    
+    printk(KERN_INFO MODULE_TAG "mt_bt_power_init\n");
+    
+    pdata = (struct mt6622_platform_data *)mt_bt_get_platform_data();
+    
+    if(pdata) {
+	    
+	    // PWR_EN and RESET
+	    /* PWR_EN set to gpio output low */
+	    if(pdata->power_gpio.io != INVALID_GPIO)
+	    	gpio_direction_output(pdata->power_gpio.io, 0);
+	    /* RESET set to gpio output low */
+	    if(pdata->reset_gpio.io != INVALID_GPIO)
+	    	gpio_direction_output(pdata->reset_gpio.io, 0);
+	    msleep(200);
+	    
+	    /* RESET pull up */
+	    if(pdata->reset_gpio.io != INVALID_GPIO)
+	    	gpio_direction_output(pdata->reset_gpio.io, 1);
+	    msleep(1000);
+	    
+	    //pdata->power_gpio.io = INVALID_GPIO;
+	    pdata->reset_gpio.io = INVALID_GPIO;
+	}
+    
+    return 0;
+}
+EXPORT_SYMBOL(mt_bt_power_init);
+
 int mt_bt_power_on(void)
 {
     int error;
@@ -117,12 +155,14 @@ int mt_bt_power_on(void)
 	    // EINT
 	    //--s3c_gpio_cfgpin(GPIO_BT_EINT_PIN, S3C_GPIO_SFN(0));
 	    //--s3c_gpio_setpull(GPIO_BT_EINT_PIN, S3C_GPIO_PULL_DOWN);
-	    gpio_direction_input(pdata->irq_gpio.io);
+	    if(pdata->irq_gpio.io != INVALID_GPIO)
+	    	gpio_direction_input(pdata->irq_gpio.io);
 	    //gpio_pull_updown(pdata->irq_gpio->io, GPIOPullDown);
 	    /* set to EINT mode */
 	    //--s3c_gpio_cfgpin(GPIO_BT_EINT_PIN, S3C_GPIO_SFN(0xF));
 	    /* get irq number */
-	    irq_num = gpio_to_irq(pdata->irq_gpio.io);
+	    if(pdata->irq_gpio.io != INVALID_GPIO)
+	    	irq_num = gpio_to_irq(pdata->irq_gpio.io);
 	    //mt_set_gpio_mode(GPIO_BT_EINT_PIN, GPIO_BT_EINT_PIN_M_GPIO);
 	    //mt_set_gpio_pull_enable(GPIO_BT_EINT_PIN, 1);
 	    //mt_set_gpio_pull_select(GPIO_BT_EINT_PIN, GPIO_PULL_DOWN);
@@ -134,24 +174,31 @@ int mt_bt_power_on(void)
 	    
 	    // PWR_EN and RESET
 	    /* PWR_EN set to gpio output low */
-	    gpio_direction_output(pdata->power_gpio.io, 0);
+	    if(pdata->power_gpio.io != INVALID_GPIO)
+	    	gpio_direction_output(pdata->power_gpio.io, 0);
 	    /* RESET set to gpio output low */
-	    gpio_direction_output(pdata->reset_gpio.io, 0);
+	    if(pdata->reset_gpio.io != INVALID_GPIO)
+	    	gpio_direction_output(pdata->reset_gpio.io, 0);
 	    msleep(200);
 	    
 	    /* PWR_EN pull up */
-	    gpio_direction_output(pdata->power_gpio.io, 1);
+	    if(pdata->power_gpio.io != INVALID_GPIO)
+	    	gpio_direction_output(pdata->power_gpio.io, 1);
 	    msleep(200);
 	    /* RESET pull up */
-	    gpio_direction_output(pdata->reset_gpio.io, 1);
+	    if(pdata->reset_gpio.io != INVALID_GPIO)
+	    	gpio_direction_output(pdata->reset_gpio.io, 1);
 	    msleep(1000);
 	    
 	    error = mt_bt_request_irq();
 	    if (error){
-	        gpio_direction_output(pdata->power_gpio.io, 0);
-	        gpio_direction_output(pdata->reset_gpio.io, 0);
+	        if(pdata->power_gpio.io != INVALID_GPIO)
+	        	gpio_direction_output(pdata->power_gpio.io, 0);
+	        if(pdata->reset_gpio.io != INVALID_GPIO)	
+	        	gpio_direction_output(pdata->reset_gpio.io, 0);
 	        //--s3c_gpio_cfgpin(GPIO_BT_EINT_PIN, S3C_GPIO_SFN(1));
-	        gpio_direction_output(pdata->irq_gpio.io, 0);
+	        if(pdata->irq_gpio.io != INVALID_GPIO)
+	        	gpio_direction_output(pdata->irq_gpio.io, 0);
 	        return error;
 	    }
     }
@@ -173,12 +220,15 @@ void mt_bt_power_off(void)
     
     if(pdata) {
 	    // PWR_EN and RESET
-	    gpio_direction_output(pdata->power_gpio.io, 0);
-	    gpio_direction_output(pdata->reset_gpio.io, 0);
+	    if(pdata->power_gpio.io != INVALID_GPIO)
+	    	gpio_direction_output(pdata->power_gpio.io, 0);
+	    if(pdata->reset_gpio.io != INVALID_GPIO)	
+	    	gpio_direction_output(pdata->reset_gpio.io, 0);
 	    
 	    // EINT
 	    //--s3c_gpio_cfgpin(GPIO_BT_EINT_PIN, S3C_GPIO_SFN(1));
-	    gpio_direction_output(pdata->irq_gpio.io, 0);
+	    if(pdata->irq_gpio.io != INVALID_GPIO)
+	    	gpio_direction_output(pdata->irq_gpio.io, 0);
 	    
 	    mt_bt_free_irq();
     }
