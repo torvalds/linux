@@ -670,7 +670,7 @@ config USB_SW_SUN5I_HCD
 
 config USB_SW_SUN5I_HCD0
 	tristate "SoftWinner SUN5I USB Host Controller0"
-	depends on USB_SW_SUN5I_HCD && (USB_SW_SUN5I_USB0_HOST_ONLY || USB_SW_SUN5I_USB0_OTG)
+	depends on USB_SW_SUN5I_HCD
 	help
 	    SoftWinner SUN5I USB2.0 Host Controller0.
 
@@ -692,5 +692,3 @@ config USB_SW_SUN5I_OHCI0
 	depends on USB_SW_SUN5I_HCI
 	help
 	    SoftWinner SUN5I USB OHCI0.
-
-
