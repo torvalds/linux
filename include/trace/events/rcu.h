@@ -72,10 +72,10 @@ TRACE_EVENT(rcu_grace_period,
 );
 
 /*
- * Tracepoint for no-callbacks grace-period events.  The caller should
- * pull the data from the rcu_node structure, other than rcuname, which
- * comes from the rcu_state structure, and event, which is one of the
- * following:
+ * Tracepoint for future grace-period events, including those for no-callbacks
+ * CPUs.  The caller should pull the data from the rcu_node structure,
+ * other than rcuname, which comes from the rcu_state structure, and event,
+ * which is one of the following:
  *
  * "Startleaf": Request a nocb grace period based on leaf-node data.
  * "Startedleaf": Leaf-node start proved sufficient.
@@ -87,7 +87,7 @@ TRACE_EVENT(rcu_grace_period,
  * "Cleanup": Clean up rcu_node structure after previous GP.
  * "CleanupMore": Clean up, and another no-CB GP is needed.
  */
-TRACE_EVENT(rcu_nocb_grace_period,
+TRACE_EVENT(rcu_future_grace_period,
 
 	TP_PROTO(char *rcuname, unsigned long gpnum, unsigned long completed,
 		 unsigned long c, u8 level, int grplo, int grphi,
@@ -653,9 +653,9 @@ TRACE_EVENT(rcu_barrier,
 #define trace_rcu_grace_period(rcuname, gpnum, gpevent) do { } while (0)
 #define trace_rcu_grace_period_init(rcuname, gpnum, level, grplo, grphi, \
 				    qsmask) do { } while (0)
-#define trace_rcu_nocb_grace_period(rcuname, gpnum, completed, c, \
-				    level, grplo, grphi, event) \
-				    do { } while (0)
+#define trace_rcu_future_grace_period(rcuname, gpnum, completed, c, \
+				      level, grplo, grphi, event) \
+				      do { } while (0)
 #define trace_rcu_preempt_task(rcuname, pid, gpnum) do { } while (0)
 #define trace_rcu_unlock_preempted_task(rcuname, gpnum, pid) do { } while (0)
 #define trace_rcu_quiescent_state_report(rcuname, gpnum, mask, qsmask, level, \
