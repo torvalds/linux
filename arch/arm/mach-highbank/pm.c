@@ -32,7 +32,7 @@ static int highbank_suspend_finish(unsigned long val)
 
 static int highbank_pm_enter(suspend_state_t state)
 {
-	hignbank_set_pwr_suspend();
+	highbank_set_pwr_suspend();
 	highbank_set_cpu_jump(0, cpu_resume);
 	cpu_suspend(0, highbank_suspend_finish);
 

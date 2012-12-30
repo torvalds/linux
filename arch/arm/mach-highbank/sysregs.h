@@ -44,25 +44,25 @@ static inline void highbank_set_core_pwr(void)
 		writel_relaxed(1, sregs_base + SREG_CPU_PWR_CTRL(cpu));
 }
 
-static inline void hignbank_set_pwr_suspend(void)
+static inline void highbank_set_pwr_suspend(void)
 {
 	writel(HB_PWR_SUSPEND, sregs_base + HB_SREG_A9_PWR_REQ);
 	highbank_set_core_pwr();
 }
 
-static inline void hignbank_set_pwr_shutdown(void)
+static inline void highbank_set_pwr_shutdown(void)
 {
 	writel(HB_PWR_SHUTDOWN, sregs_base + HB_SREG_A9_PWR_REQ);
 	highbank_set_core_pwr();
 }
 
-static inline void hignbank_set_pwr_soft_reset(void)
+static inline void highbank_set_pwr_soft_reset(void)
 {
 	writel(HB_PWR_SOFT_RESET, sregs_base + HB_SREG_A9_PWR_REQ);
 	highbank_set_core_pwr();
 }
 
-static inline void hignbank_set_pwr_hard_reset(void)
+static inline void highbank_set_pwr_hard_reset(void)
 {
 	writel(HB_PWR_HARD_RESET, sregs_base + HB_SREG_A9_PWR_REQ);
 	highbank_set_core_pwr();
