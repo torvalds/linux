@@ -54,7 +54,6 @@
 #include "powerdomain.h"
 #include "clockdomain.h"
 
-static void (*omap2_sram_idle)(void);
 static void (*omap2_sram_suspend)(u32 dllctrl, void __iomem *sdrc_dlla_ctrl,
 				  void __iomem *sdrc_power);
 
@@ -172,6 +171,8 @@ static int omap2_allow_mpu_retention(void)
 
 static void omap2_enter_mpu_retention(void)
 {
+	const int zero = 0;
+
 	/* Putting MPU into the WFI state while a transfer is active
 	 * seems to cause the I2C block to timeout. Why? Good question. */
 	if (omap2_i2c_active())
@@ -196,7 +197,8 @@ static void omap2_enter_mpu_retention(void)
 						 OMAP2_PM_PWSTCTRL);
 	}
 
-	omap2_sram_idle();
+	/* WFI */
+	asm("mcr p15, 0, %0, c7, c0, 4" : : "r" (zero) : "memory", "cc");
 }
 
 static int omap2_can_sleep(void)
@@ -356,11 +358,9 @@ int __init omap2_pm_init(void)
 	/*
 	 * We copy the assembler sleep/wakeup routines to SRAM.
 	 * These routines need to be in SRAM as that's the only
-	 * memory the MPU can see when it wakes up.
+	 * memory the MPU can see when it wakes up after the entire
+	 * chip enters idle.
 	 */
-	omap2_sram_idle = omap_sram_push(omap24xx_idle_loop_suspend,
-					 omap24xx_idle_loop_suspend_sz);
-
 	omap2_sram_suspend = omap_sram_push(omap24xx_cpu_suspend,
 					    omap24xx_cpu_suspend_sz);
 
