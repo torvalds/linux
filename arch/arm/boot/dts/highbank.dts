@@ -32,6 +32,7 @@
 
 		cpu@0 {
 			compatible = "arm,cortex-a9";
+			device_type = "cpu";
 			reg = <0>;
 			next-level-cache = <&L2>;
 			clocks = <&a9pll>;
@@ -40,6 +41,7 @@
 
 		cpu@1 {
 			compatible = "arm,cortex-a9";
+			device_type = "cpu";
 			reg = <1>;
 			next-level-cache = <&L2>;
 			clocks = <&a9pll>;
@@ -48,6 +50,7 @@
 
 		cpu@2 {
 			compatible = "arm,cortex-a9";
+			device_type = "cpu";
 			reg = <2>;
 			next-level-cache = <&L2>;
 			clocks = <&a9pll>;
@@ -56,6 +59,7 @@
 
 		cpu@3 {
 			compatible = "arm,cortex-a9";
+			device_type = "cpu";
 			reg = <3>;
 			next-level-cache = <&L2>;
 			clocks = <&a9pll>;
