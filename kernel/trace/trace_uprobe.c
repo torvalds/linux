@@ -492,7 +492,7 @@ static void uprobe_trace_func(struct trace_uprobe *tu, struct pt_regs *regs)
 		return;
 
 	entry = ring_buffer_event_data(event);
-	entry->ip = uprobe_get_swbp_addr(task_pt_regs(current));
+	entry->ip = instruction_pointer(task_pt_regs(current));
 	data = (u8 *)&entry[1];
 	for (i = 0; i < tu->nr_args; i++)
 		call_fetch(&tu->args[i].fetch, regs, data + tu->args[i].offset);
@@ -667,7 +667,7 @@ static void uprobe_perf_func(struct trace_uprobe *tu, struct pt_regs *regs)
 	if (!entry)
 		goto out;
 
-	entry->ip = uprobe_get_swbp_addr(task_pt_regs(current));
+	entry->ip = instruction_pointer(task_pt_regs(current));
 	data = (u8 *)&entry[1];
 	for (i = 0; i < tu->nr_args; i++)
 		call_fetch(&tu->args[i].fetch, regs, data + tu->args[i].offset);

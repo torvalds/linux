@@ -1504,6 +1504,10 @@ static void handle_swbp(struct pt_regs *regs)
 		}
 		return;
 	}
+
+	/* change it in advance for ->handler() and restart */
+	instruction_pointer_set(regs, bp_vaddr);
+
 	/*
 	 * TODO: move copy_insn/etc into _register and remove this hack.
 	 * After we hit the bp, _unregister + _register can install the
@@ -1511,14 +1515,14 @@ static void handle_swbp(struct pt_regs *regs)
 	 */
 	smp_rmb(); /* pairs with wmb() in install_breakpoint() */
 	if (unlikely(!test_bit(UPROBE_COPY_INSN, &uprobe->flags)))
-		goto restart;
+		goto out;
 
 	utask = current->utask;
 	if (!utask) {
 		utask = add_utask();
 		/* Cannot allocate; re-execute the instruction. */
 		if (!utask)
-			goto restart;
+			goto out;
 	}
 
 	handler_chain(uprobe, regs);
@@ -1531,12 +1535,7 @@ static void handle_swbp(struct pt_regs *regs)
 		return;
 	}
 
-restart:
-	/*
-	 * cannot singlestep; cannot skip instruction;
-	 * re-execute the instruction.
-	 */
-	instruction_pointer_set(regs, bp_vaddr);
+	/* can_skip_sstep() succeeded, or restart if can't singlestep */
 out:
 	put_uprobe(uprobe);
 }
