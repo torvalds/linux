@@ -646,7 +646,8 @@ static struct rk29_bl_info rk29_bl_info = {
 	.io_deinit = rk29_backlight_io_deinit,
 	.pwm_suspend = rk29_backlight_pwm_suspend,
 	.pwm_resume = rk29_backlight_pwm_resume,
-        .min_brightness = 60
+	.min_brightness = 60,
+	.pre_div = 20000,
 };
 
 static struct platform_device rk29_device_backlight = {
