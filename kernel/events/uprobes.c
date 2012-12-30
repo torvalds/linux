@@ -1041,22 +1041,14 @@ void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned lon
 /* Slot allocation for XOL */
 static int xol_add_vma(struct xol_area *area)
 {
-	struct mm_struct *mm;
-	int ret;
-
-	area->page = alloc_page(GFP_HIGHUSER);
-	if (!area->page)
-		return -ENOMEM;
-
-	ret = -EALREADY;
-	mm = current->mm;
+	struct mm_struct *mm = current->mm;
+	int ret = -EALREADY;
 
 	down_write(&mm->mmap_sem);
 	if (mm->uprobes_state.xol_area)
 		goto fail;
 
 	ret = -ENOMEM;
-
 	/* Try to map as high as possible, this is only a hint. */
 	area->vaddr = get_unmapped_area(NULL, TASK_SIZE - PAGE_SIZE, PAGE_SIZE, 0, 0);
 	if (area->vaddr & ~PAGE_MASK) {
@@ -1072,11 +1064,8 @@ static int xol_add_vma(struct xol_area *area)
 	smp_wmb();	/* pairs with get_xol_area() */
 	mm->uprobes_state.xol_area = area;
 	ret = 0;
-
-fail:
+ fail:
 	up_write(&mm->mmap_sem);
-	if (ret)
-		__free_page(area->page);
 
 	return ret;
 }
@@ -1104,21 +1093,26 @@ static struct xol_area *xol_alloc_area(void)
 
 	area = kzalloc(sizeof(*area), GFP_KERNEL);
 	if (unlikely(!area))
-		return NULL;
+		goto out;
 
 	area->bitmap = kzalloc(BITS_TO_LONGS(UINSNS_PER_PAGE) * sizeof(long), GFP_KERNEL);
-
 	if (!area->bitmap)
-		goto fail;
+		goto free_area;
+
+	area->page = alloc_page(GFP_HIGHUSER);
+	if (!area->page)
+		goto free_bitmap;
 
 	init_waitqueue_head(&area->wq);
 	if (!xol_add_vma(area))
 		return area;
 
-fail:
+	__free_page(area->page);
+ free_bitmap:
 	kfree(area->bitmap);
+ free_area:
 	kfree(area);
-
+ out:
 	return get_xol_area(current->mm);
 }
 
