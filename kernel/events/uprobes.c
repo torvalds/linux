@@ -1223,8 +1223,7 @@ static void xol_free_insn_slot(struct task_struct *tsk)
 		return;
 
 	slot_addr = tsk->utask->xol_vaddr;
-
-	if (unlikely(!slot_addr || IS_ERR_VALUE(slot_addr)))
+	if (unlikely(!slot_addr))
 		return;
 
 	area = tsk->mm->uprobes_state.xol_area;
