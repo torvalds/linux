@@ -142,7 +142,8 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 				    (u32)(walk_state->aml_offset +
 					  sizeof(struct acpi_table_header))));
 
-			ACPI_DUMP_BUFFER(walk_state->parser_state.aml - 16, 48);
+			ACPI_DUMP_BUFFER((walk_state->parser_state.aml - 16),
+					 48);
 
 #ifdef ACPI_ASL_COMPILER
 			/*
@@ -159,9 +160,9 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 
 			acpi_ut_dump_buffer(((u8 *)walk_state->parser_state.
 					     aml - 16), 48, DB_BYTE_DISPLAY,
-					    walk_state->aml_offset +
-					    sizeof(struct acpi_table_header) -
-					    16);
+					    (walk_state->aml_offset +
+					     sizeof(struct acpi_table_header) -
+					     16));
 			acpi_os_printf(" */\n");
 #endif
 		}

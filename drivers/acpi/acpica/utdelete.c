@@ -340,7 +340,7 @@ void acpi_ut_delete_internal_object_list(union acpi_operand_object **obj_list)
 {
 	union acpi_operand_object **internal_obj;
 
-	ACPI_FUNCTION_NAME(ut_delete_internal_object_list);
+	ACPI_FUNCTION_ENTRY();
 
 	/* Walk the null-terminated internal list */
 
