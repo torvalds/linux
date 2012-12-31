@@ -989,6 +989,41 @@ struct platform_device rk_device_gps = {
 	};
 #endif
 
+#if defined(CONFIG_MT5931_MT6622)
+static struct mt6622_platform_data mt6622_platdata = {
+		    .power_gpio         = { // BT_REG_ON
+		    	.io             = RK30_PIN3_PD5, // set io to INVALID_GPIO for disable it
+			    .enable         = GPIO_HIGH,
+			    .iomux          = {
+				    .name       = NULL,
+				},
+		    },
+
+		    .reset_gpio         = { // BT_RST
+		        .io             = RK30_PIN0_PD7,
+		        .enable         = GPIO_HIGH,
+		        .iomux          = {
+		            .name       = NULL,
+		        },
+		    },
+
+		    .irq_gpio           = {
+			    .io             = RK30_PIN3_PD2,
+			    .enable         = GPIO_HIGH,
+			    .iomux          = {
+				    .name       = NULL,
+				},
+		    }
+};
+
+static struct platform_device device_mt6622 = {
+		    .name   = "mt6622",
+			.id     = -1,
+			.dev    = {
+			       .platform_data = &mt6622_platdata,
+			},
+};	
+#endif
 
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_FB_ROCKCHIP
@@ -1024,6 +1059,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_GPS_RK
 	&rk_device_gps,
+#endif
+#ifdef CONFIG_MT5931_MT6622
+	&device_mt6622,
 #endif
 };
 
@@ -1611,6 +1649,10 @@ static void __init machine_rk30_board_init(void)
 #if defined(CONFIG_MT6620)
 	    clk_set_rate(clk_get_sys("rk_serial.1", "uart"), 48*1000000);
 #endif
+
+#if defined(CONFIG_MT5931_MT6622)
+		clk_set_rate(clk_get_sys("rk_serial.0", "uart"), 24*1000000);
+#endif		
 }
 
 static void __init rk30_reserve(void)
