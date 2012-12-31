@@ -51,8 +51,6 @@
 ACPI_MODULE_NAME("nsutils")
 
 /* Local prototypes */
-static u8 acpi_ns_valid_path_separator(char sep);
-
 #ifdef ACPI_OBSOLETE_FUNCTIONS
 acpi_name acpi_ns_find_parent_name(struct acpi_namespace_node *node_to_search);
 #endif
@@ -94,42 +92,6 @@ acpi_ns_print_node_pathname(struct acpi_namespace_node *node,
 		acpi_os_printf("[%s] (Node %p)", (char *)buffer.pointer, node);
 		ACPI_FREE(buffer.pointer);
 	}
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ns_valid_root_prefix
- *
- * PARAMETERS:  prefix          - Character to be checked
- *
- * RETURN:      TRUE if a valid prefix
- *
- * DESCRIPTION: Check if a character is a valid ACPI Root prefix
- *
- ******************************************************************************/
-
-u8 acpi_ns_valid_root_prefix(char prefix)
-{
-
-	return ((u8)(prefix == '\\'));
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ns_valid_path_separator
- *
- * PARAMETERS:  sep         - Character to be checked
- *
- * RETURN:      TRUE if a valid path separator
- *
- * DESCRIPTION: Check if a character is a valid ACPI path separator
- *
- ******************************************************************************/
-
-static u8 acpi_ns_valid_path_separator(char sep)
-{
-
-	return ((u8)(sep == '.'));
 }
 
 /*******************************************************************************
@@ -217,19 +179,19 @@ void acpi_ns_get_internal_name_length(struct acpi_namestring_info *info)
 	 *
 	 * strlen() + 1 covers the first name_seg, which has no path separator
 	 */
-	if (acpi_ns_valid_root_prefix(*next_external_char)) {
+	if (ACPI_IS_ROOT_PREFIX(*next_external_char)) {
 		info->fully_qualified = TRUE;
 		next_external_char++;
 
 		/* Skip redundant root_prefix, like \\_SB.PCI0.SBRG.EC0 */
 
-		while (acpi_ns_valid_root_prefix(*next_external_char)) {
+		while (ACPI_IS_ROOT_PREFIX(*next_external_char)) {
 			next_external_char++;
 		}
 	} else {
 		/* Handle Carat prefixes */
 
-		while (*next_external_char == '^') {
+		while (ACPI_IS_PARENT_PREFIX(*next_external_char)) {
 			info->num_carats++;
 			next_external_char++;
 		}
@@ -243,7 +205,7 @@ void acpi_ns_get_internal_name_length(struct acpi_namestring_info *info)
 	if (*next_external_char) {
 		info->num_segments = 1;
 		for (i = 0; next_external_char[i]; i++) {
-			if (acpi_ns_valid_path_separator(next_external_char[i])) {
+			if (ACPI_IS_PATH_SEPARATOR(next_external_char[i])) {
 				info->num_segments++;
 			}
 		}
@@ -281,7 +243,7 @@ acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info)
 	/* Setup the correct prefixes, counts, and pointers */
 
 	if (info->fully_qualified) {
-		internal_name[0] = '\\';
+		internal_name[0] = AML_ROOT_PREFIX;
 
 		if (num_segments <= 1) {
 			result = &internal_name[1];
@@ -301,7 +263,7 @@ acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info)
 		i = 0;
 		if (info->num_carats) {
 			for (i = 0; i < info->num_carats; i++) {
-				internal_name[i] = '^';
+				internal_name[i] = AML_PARENT_PREFIX;
 			}
 		}
 
@@ -321,7 +283,7 @@ acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info)
 
 	for (; num_segments; num_segments--) {
 		for (i = 0; i < ACPI_NAME_SIZE; i++) {
-			if (acpi_ns_valid_path_separator(*external_name) ||
+			if (ACPI_IS_PATH_SEPARATOR(*external_name) ||
 			    (*external_name == 0)) {
 
 				/* Pad the segment with underscore(s) if segment is short */
@@ -338,7 +300,7 @@ acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info)
 
 		/* Now we must have a path separator, or the pathname is bad */
 
-		if (!acpi_ns_valid_path_separator(*external_name) &&
+		if (!ACPI_IS_PATH_SEPARATOR(*external_name) &&
 		    (*external_name != 0)) {
 			return_ACPI_STATUS(AE_BAD_PATHNAME);
 		}
@@ -456,13 +418,13 @@ acpi_ns_externalize_name(u32 internal_name_length,
 	/* Check for a prefix (one '\' | one or more '^') */
 
 	switch (internal_name[0]) {
-	case '\\':
+	case AML_ROOT_PREFIX:
 		prefix_length = 1;
 		break;
 
-	case '^':
+	case AML_PARENT_PREFIX:
 		for (i = 0; i < internal_name_length; i++) {
-			if (internal_name[i] == '^') {
+			if (ACPI_IS_PARENT_PREFIX(internal_name[i])) {
 				prefix_length = i + 1;
 			} else {
 				break;

@@ -333,8 +333,6 @@ acpi_ns_install_node(struct acpi_walk_state *walk_state,
 /*
  * nsutils - Utility functions
  */
-u8 acpi_ns_valid_root_prefix(char prefix);
-
 acpi_object_type acpi_ns_get_type(struct acpi_namespace_node *node);
 
 u32 acpi_ns_local(acpi_object_type type);

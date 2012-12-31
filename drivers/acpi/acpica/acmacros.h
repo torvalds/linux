@@ -311,6 +311,12 @@
 #define ACPI_EXTRACT_3BIT_FLAG(field, position)     (ACPI_GET_3BIT_FLAG ((field) >> position))
 #define ACPI_EXTRACT_4BIT_FLAG(field, position)     (ACPI_GET_4BIT_FLAG ((field) >> position))
 
+/* ACPI Pathname helpers */
+
+#define ACPI_IS_ROOT_PREFIX(c)      ((c) == (u8) 0x5C)	/* Backslash */
+#define ACPI_IS_PARENT_PREFIX(c)    ((c) == (u8) 0x5E)	/* Carat */
+#define ACPI_IS_PATH_SEPARATOR(c)   ((c) == (u8) 0x2E)	/* Period (dot) */
+
 /*
  * An object of type struct acpi_namespace_node can appear in some contexts
  * where a pointer to an object of type union acpi_operand_object can also

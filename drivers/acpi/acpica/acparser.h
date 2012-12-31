@@ -211,8 +211,6 @@ void acpi_ps_free_op(union acpi_parse_object *op);
 
 u8 acpi_ps_is_leading_char(u32 c);
 
-u8 acpi_ps_is_prefix_char(u32 c);
-
 #ifdef	ACPI_FUTURE_USAGE
 u32 acpi_ps_get_name(union acpi_parse_object *op);
 #endif				/* ACPI_FUTURE_USAGE */

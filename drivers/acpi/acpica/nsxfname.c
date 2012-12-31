@@ -107,7 +107,7 @@ acpi_get_handle(acpi_handle parent,
 	 *
 	 * Error for <null Parent + relative path>
 	 */
-	if (acpi_ns_valid_root_prefix(pathname[0])) {
+	if (ACPI_IS_ROOT_PREFIX(pathname[0])) {
 
 		/* Pathname is fully qualified (starts with '\') */
 

@@ -236,7 +236,7 @@ acpi_evaluate_object(acpi_handle handle,
 	 * 2) No handle, not fully qualified pathname (error)
 	 * 3) Valid handle
 	 */
-	if ((pathname) && (acpi_ns_valid_root_prefix(pathname[0]))) {
+	if ((pathname) && (ACPI_IS_ROOT_PREFIX(pathname[0]))) {
 
 		/* The path is fully qualified, just evaluate by name */
 

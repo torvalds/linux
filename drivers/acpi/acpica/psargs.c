@@ -162,7 +162,7 @@ char *acpi_ps_get_next_namestring(struct acpi_parse_state *parser_state)
 
 	/* Point past any namestring prefix characters (backslash or carat) */
 
-	while (acpi_ps_is_prefix_char(*end)) {
+	while (ACPI_IS_ROOT_PREFIX(*end) || ACPI_IS_PARENT_PREFIX(*end)) {
 		end++;
 	}
 
@@ -798,7 +798,8 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 		subop = acpi_ps_peek_opcode(parser_state);
 		if (subop == 0 ||
 		    acpi_ps_is_leading_char(subop) ||
-		    acpi_ps_is_prefix_char(subop)) {
+		    ACPI_IS_ROOT_PREFIX(subop) ||
+		    ACPI_IS_PARENT_PREFIX(subop)) {
 
 			/* null_name or name_string */
 
