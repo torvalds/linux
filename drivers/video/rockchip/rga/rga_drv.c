@@ -77,6 +77,8 @@ ktime_t rga_end;
 
 int rga_num = 0;
 
+rga_session *session_global;
+
 struct rga_drvdata {
   	struct miscdevice miscdev;
   	struct device dev;
@@ -981,6 +983,49 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	return ret;
 }
 
+
+long rga_ioctl_kernel(struct rga_req *req)
+{
+	int ret = 0;
+    rga_session *session;
+
+    mutex_lock(&rga_service.mutex);
+    
+    session = (rga_session *)session_global;
+
+	if (NULL == session)
+    {
+        printk("%s [%d] rga thread session is null\n",__FUNCTION__,__LINE__);
+        mutex_unlock(&rga_service.mutex);
+		return -EINVAL;
+	}
+	
+	switch (RGA_BLIT_SYNC)
+	{
+		case RGA_BLIT_SYNC:
+            ret = rga_blit_sync(session, req);
+            break;
+		case RGA_BLIT_ASYNC:
+			break;
+		case RGA_FLUSH:
+			break;
+        case RGA_GET_RESULT:
+            break;
+        case RGA_GET_VERSION:
+            //ret = 0;
+            break;
+		default:
+			ERR("unknown ioctl cmd!\n");
+			ret = -EINVAL;
+			break;
+	}
+
+	mutex_unlock(&rga_service.mutex);
+    
+	return ret;
+}
+
+
 static int rga_open(struct inode *inode, struct file *file)
 {
     rga_session *session = kzalloc(sizeof(rga_session), GFP_KERNEL);
@@ -1003,6 +1048,8 @@ static int rga_open(struct inode *inode, struct file *file)
     atomic_set(&session->num_done, 0);
 
 	file->private_data = (void *)session;
+
+    session_global = session;
 
     //DBG("*** rga dev opened by pid %d *** \n", session->pid);
 	return nonseekable_open(inode, file);
@@ -1263,8 +1310,8 @@ EXPORT_SYMBOL(rk_direct_fb_show);
 
 #endif
 
-unsigned int src_buf[320*240];
-unsigned int dst_buf[1024*768];
+unsigned int src_buf[1280*720];
+unsigned int dst_buf[720*480];
 
 void rga_test_0(void)
 {
@@ -1294,10 +1341,10 @@ void rga_test_0(void)
     src = src_buf;
     dst = dst_buf;
 
-    memset(src_buf, 0x80, 320*240*4);
+    memset(src_buf, 0x80, 1280*480*4);
 
-    dmac_flush_range(&src_buf[0], &src_buf[320*240]);
-    outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[320*240]));
+    dmac_flush_range(&src_buf[0], &src_buf[1280*480]);
+    outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[1280*480]));
 
    
     #if 0
@@ -1308,37 +1355,37 @@ void rga_test_0(void)
     outer_flush_range(virt_to_phys(&dst_buf[0]),virt_to_phys(&dst_buf[800*480]));
     #endif
 
-    req.src.act_w = 320;
-    req.src.act_h = 240;
+    req.src.act_w = 1280;
+    req.src.act_h = 720;
 
-    req.src.vir_w = 320;
-    req.src.vir_h = 240;
+    req.src.vir_w = 1280;
+    req.src.vir_h = 720;
     req.src.yrgb_addr = (uint32_t)src;
     req.src.uv_addr = (uint32_t)virt_to_phys(src);
     req.src.v_addr = (uint32_t)virt_to_phys(src);
     req.src.format = 0;
 
-    req.dst.act_w = 320;
-    req.dst.act_h = 240;
+    req.dst.act_w = 720;
+    req.dst.act_h = 480;
 
-    req.dst.vir_w = 1024;
-    req.dst.vir_h = 768;
+    req.dst.vir_w = 1280;
+    req.dst.vir_h = 720;
     req.dst.x_offset = 0;
     req.dst.y_offset = 0;
-    req.dst.yrgb_addr = (uint32_t)dst;
+    req.dst.yrgb_addr = (uint32_t)virt_to_phys(dst);
 
     //req.dst.format = RK_FORMAT_RGB_565;
 
     req.clip.xmin = 0;
-    req.clip.xmax = 1023;
+    req.clip.xmax = 1279;
     req.clip.ymin = 0;
-    req.clip.ymax = 767;
+    req.clip.ymax = 719;
 
     //req.render_mode = color_fill_mode;
     //req.fg_color = 0x80ffffff;
 
-    //req.rotate_mode = 1;
-    //req.scale_mode = 2;
+    req.rotate_mode = 1;
+    req.scale_mode = 2;
 
     //req.alpha_rop_flag = 1;
     //req.alpha_rop_mode = 0x19;
@@ -1355,8 +1402,8 @@ void rga_test_0(void)
     #if 1
     fb->var.bits_per_pixel = 32;
     
-    fb->var.xres = 1024;
-    fb->var.yres = 768;
+    fb->var.xres = 1280;
+    fb->var.yres = 800;
 
     fb->var.red.length = 8;
     fb->var.red.offset = 0;

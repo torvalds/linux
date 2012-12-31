@@ -469,7 +469,7 @@ typedef struct rga_service_info {
 
 #define RGA_BLIT_COMPLETE_EVENT 1
 
-
+long rga_ioctl_kernel(struct rga_req *req);
 
 
 #endif /*_RK29_IPP_DRIVER_H_*/

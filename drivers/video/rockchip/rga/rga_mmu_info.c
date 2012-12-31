@@ -32,6 +32,7 @@ extern rga_service_info rga_service;
 #define V7_VATOPA_GET_NS(X)		((X>>9) & 1)
 #define V7_VATOPA_GET_SS(X)		((X>>1) & 1)
 
+#if 0
 static unsigned int armv7_va_to_pa(unsigned int v_addr)
 {
 	unsigned int p_addr;
@@ -48,6 +49,7 @@ static unsigned int armv7_va_to_pa(unsigned int v_addr)
 	else
 		return (V7_VATOPA_GET_SS(p_addr) ? 0xFFFFFFFF : V7_VATOPA_GET_PADDR(p_addr));
 }
+#endif
 
 static int rga_mem_size_cal(uint32_t Mem, uint32_t MemSize, uint32_t *StartAddr) 
 {
@@ -245,7 +247,7 @@ static int rga_MapUserMemory(struct page **pages,
     uint32_t i;
     uint32_t status;
     uint32_t Address;
-    uint32_t temp;
+    //uint32_t temp;
     
     status = 0;
     Address = 0;
@@ -352,20 +354,6 @@ static int rga_MapUserMemory(struct page **pages,
         }
         #endif
 
-        for (i = 0; i < pageCount; i++)
-        {
-            /* Flush the data cache. */
-#ifdef ANDROID
-            dma_sync_single_for_device(
-                        NULL,
-                        page_to_phys(pages[i]),
-                        PAGE_SIZE,
-                        DMA_TO_DEVICE);
-#else
-            flush_dcache_page(pages[i]);
-#endif
-        }
-
         /* Fill the page table. */
         for(i=0; i<pageCount; i++) 
         {
@@ -376,30 +364,7 @@ static int rga_MapUserMemory(struct page **pages,
         return 0;
     }
     while(0);
-
-    if (rgaIS_ERROR(status))
-    {
-        /* Release page array. */
-        if (result > 0 && pages != NULL)
-        {
-            for (i = 0; i < result; i++)
-            {
-                if (pages[i] == NULL)
-                {
-                    break;
-                }
-#ifdef ANDROID
-                dma_sync_single_for_device(
-                            NULL,
-                            page_to_phys(pages[i]),
-                            PAGE_SIZE,
-                            DMA_FROM_DEVICE);
-#endif
-                page_cache_release(pages[i]);
-            }
-        }
-    }
-
+    
     return status;
 }
 
