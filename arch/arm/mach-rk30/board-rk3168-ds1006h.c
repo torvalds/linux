@@ -763,14 +763,23 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
  * the end of setting for SDMMC devices
 **************************************************************************************************/
 
-#ifdef CONFIG_BATTERY_RK30_ADC
+#ifdef CONFIG_BATTERY_RK30_ADC_FAC
 static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
         .dc_det_pin      = RK30_PIN0_PB2,
-        .batt_low_pin    = RK30_PIN0_PB1, 
+        .batt_low_pin    = INVALID_GPIO, 
         .charge_set_pin  = INVALID_GPIO,
         .charge_ok_pin   = RK30_PIN0_PA6,
+	 .usb_det_pin = INVALID_GPIO,
         .dc_det_level    = GPIO_LOW,
         .charge_ok_level = GPIO_HIGH,
+
+	.reference_voltage = 1800, // the rK2928 is 3300;RK3066 and rk29 are 2500;rk3066B is 1800;
+       .pull_up_res = 200,     //divider resistance ,  pull-up resistor
+       .pull_down_res = 120, //divider resistance , pull-down resistor
+
+	.is_reboot_charging = 1,
+        .save_capacity   = 1 ,
+        .low_voltage_protection = 3600,    
 };
 
 static struct platform_device rk30_device_adc_battery = {
@@ -1010,7 +1019,7 @@ static struct platform_device *devices[] __initdata = {
 	    &mt3326_device_gps,
 #endif
 
-#ifdef CONFIG_BATTERY_RK30_ADC
+#ifdef CONFIG_BATTERY_RK30_ADC_FAC
  	&rk30_device_adc_battery,
 #endif
 #ifdef CONFIG_RFKILL_RK
