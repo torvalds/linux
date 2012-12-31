@@ -726,7 +726,7 @@ static int atkbd_probe(struct atkbd *atkbd)
 
 	if (atkbd->id == 0xaca1 && atkbd->translated) {
 		dev_err(&ps2dev->serio->dev,
-			"NCD terminal keyboards are only supported on non-translating controlelrs. "
+			"NCD terminal keyboards are only supported on non-translating controllers. "
 			"Use i8042.direct=1 to disable translation.\n");
 		return -1;
 	}
