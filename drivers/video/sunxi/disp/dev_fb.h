@@ -44,6 +44,7 @@ typedef struct {
 	__disp_init_t disp_init;
 
 	__bool fb_enable[SUNXI_MAX_FB];
+	__bool fb_registered[SUNXI_MAX_FB];
 	__fb_mode_t fb_mode[SUNXI_MAX_FB];
 	/*
 	 * [fb_id][0]: screen0 layer handle;
