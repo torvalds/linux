@@ -1290,23 +1290,18 @@ void uprobe_copy_process(struct task_struct *t)
 }
 
 /*
- * Allocate a uprobe_task object for the task.
- * Called when the thread hits a breakpoint for the first time.
+ * Allocate a uprobe_task object for the task if if necessary.
+ * Called when the thread hits a breakpoint.
  *
  * Returns:
  * - pointer to new uprobe_task on success
  * - NULL otherwise
  */
-static struct uprobe_task *add_utask(void)
+static struct uprobe_task *get_utask(void)
 {
-	struct uprobe_task *utask;
-
-	utask = kzalloc(sizeof *utask, GFP_KERNEL);
-	if (unlikely(!utask))
-		return NULL;
-
-	current->utask = utask;
-	return utask;
+	if (!current->utask)
+		current->utask = kzalloc(sizeof(struct uprobe_task), GFP_KERNEL);
+	return current->utask;
 }
 
 /* Prepare to single-step probed instruction out of line. */
@@ -1505,13 +1500,9 @@ static void handle_swbp(struct pt_regs *regs)
 	if (unlikely(!test_bit(UPROBE_COPY_INSN, &uprobe->flags)))
 		goto out;
 
-	utask = current->utask;
-	if (!utask) {
-		utask = add_utask();
-		/* Cannot allocate; re-execute the instruction. */
-		if (!utask)
-			goto out;
-	}
+	utask = get_utask();
+	if (!utask)
+		goto out;	/* re-execute the instruction. */
 
 	handler_chain(uprobe, regs);
 	if (can_skip_sstep(uprobe, regs))
