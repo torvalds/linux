@@ -102,7 +102,7 @@ acpi_status acpi_ns_initialize_objects(void)
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
-			      "Initialized %u/%u Regions %u/%u Fields %u/%u "
+			      "    Initialized %u/%u Regions %u/%u Fields %u/%u "
 			      "Buffers %u/%u Packages (%u nodes)\n",
 			      info.op_region_init, info.op_region_count,
 			      info.field_init, info.field_count,
@@ -149,7 +149,7 @@ acpi_status acpi_ns_initialize_devices(void)
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
 			      "Initializing Device/Processor/Thermal objects "
-			      "and executing _INI methods:\n"));
+			      "and executing _INI/_STA methods:\n"));
 
 	/* Tree analysis: find all subtrees that contain _INI methods */
 
@@ -207,7 +207,7 @@ acpi_status acpi_ns_initialize_devices(void)
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
-			      "Executed %u _INI methods requiring %u _STA executions "
+			      "    Executed %u _INI methods requiring %u _STA executions "
 			      "(examined %u objects)\n",
 			      info.num_INI, info.num_STA, info.device_count));
 
