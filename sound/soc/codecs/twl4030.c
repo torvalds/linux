@@ -41,6 +41,11 @@
 /* Register descriptions are here */
 #include <linux/mfd/twl4030-audio.h>
 
+/* TWL4030 PMBR1 Register */
+#define TWL4030_PMBR1_REG		0x0D
+/* TWL4030 PMBR1 Register GPIO6 mux bits */
+#define TWL4030_GPIO6_PWM0_MUTE(value)	((value & 0x03) << 2)
+
 /* Shadow register used by the audio driver */
 #define TWL4030_REG_SW_SHADOW		0x4A
 #define TWL4030_CACHEREGNUM	(TWL4030_REG_SW_SHADOW + 1)
@@ -348,19 +353,32 @@ static void twl4030_init_chip(struct snd_soc_codec *codec)
 
 	pdata = twl4030_get_pdata(codec);
 
-	if (pdata && pdata->hs_extmute &&
-	    gpio_is_valid(pdata->hs_extmute_gpio)) {
-		int ret;
+	if (pdata && pdata->hs_extmute) {
+		if (gpio_is_valid(pdata->hs_extmute_gpio)) {
+			int ret;
 
-		if (!pdata->hs_extmute_gpio)
-			dev_warn(codec->dev,
-				 "Extmute GPIO is 0 is this correct?\n");
+			if (!pdata->hs_extmute_gpio)
+				dev_warn(codec->dev,
+					"Extmute GPIO is 0 is this correct?\n");
 
-		ret = gpio_request_one(pdata->hs_extmute_gpio,
-				       GPIOF_OUT_INIT_LOW, "hs_extmute");
-		if (ret) {
-			dev_err(codec->dev, "Failed to get hs_extmute GPIO\n");
-			pdata->hs_extmute_gpio = -1;
+			ret = gpio_request_one(pdata->hs_extmute_gpio,
+					       GPIOF_OUT_INIT_LOW,
+					       "hs_extmute");
+			if (ret) {
+				dev_err(codec->dev,
+					"Failed to get hs_extmute GPIO\n");
+				pdata->hs_extmute_gpio = -1;
+			}
+		} else {
+			u8 pin_mux;
+
+			/* Set TWL4030 GPIO6 as EXTMUTE signal */
+			twl_i2c_read_u8(TWL4030_MODULE_INTBR, &pin_mux,
+					TWL4030_PMBR1_REG);
+			pin_mux &= ~TWL4030_GPIO6_PWM0_MUTE(0x03);
+			pin_mux |= TWL4030_GPIO6_PWM0_MUTE(0x02);
+			twl_i2c_write_u8(TWL4030_MODULE_INTBR, pin_mux,
+					 TWL4030_PMBR1_REG);
 		}
 	}
 
