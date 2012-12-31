@@ -19,19 +19,13 @@
 	memory {
 		reg = <0x0 0x0>;
 	};
+};
 
-	soc {
-		aipi@10000000 { /* aipi1 */
-			uart1: serial@1000a000 {
-				fsl,uart-has-rtscts;
-				status = "okay";
-			};
-		};
+&uart1 {
+	fsl,uart-has-rtscts;
+	status = "okay";
+};
 
-		aipi@10020000 { /* aipi2 */
-			ethernet@1002b000 {
-				status = "okay";
-			};
-		};
-	};
+&fec {
+	status = "okay";
 };
