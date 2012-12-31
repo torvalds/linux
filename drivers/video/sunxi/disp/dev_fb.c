@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fb.h>
+#include <linux/console.h>
 
 #ifdef CONFIG_FB_SUNXI_UMP
 #include <ump/ump_kernel_interface.h>
@@ -1560,24 +1561,65 @@ __s32 Display_set_fb_timing(__u32 sel)
 
 void hdmi_edid_received(unsigned char *edid, int block)
 {
+	struct fb_event event;
 	__u32 sel = 0;
 
 	for (sel = 0; sel < 2; sel++) {
 		struct fb_info *fbi = g_fbi.fbinfo[sel];
-		if (g_fbi.disp_init.output_type[sel] ==
-				DISP_OUTPUT_TYPE_HDMI) {
-			if (block == 0) {
-				fb_edid_to_monspecs(
-						edid, &fbi->monspecs);
-			} else {
-				fb_edid_add_monspecs(
-						edid, &fbi->monspecs);
+		int err = 0;
+
+		if (g_fbi.disp_init.output_type[sel] != DISP_OUTPUT_TYPE_HDMI)
+			continue;
+
+		if (!lock_fb_info(fbi))
+			continue;
+
+		console_lock();
+
+		if (block == 0) {
+			if (fbi->monspecs.modedb != NULL) {
+				fb_destroy_modedb(fbi->monspecs.modedb);
+				fbi->monspecs.modedb = NULL;
 			}
-			fb_videomode_to_modelist(
-					fbi->monspecs.modedb,
-					fbi->monspecs.modedb_len,
-					&fbi->modelist);
+
+			fb_edid_to_monspecs(edid, &fbi->monspecs);
+		} else {
+			fb_edid_add_monspecs(edid, &fbi->monspecs);
 		}
+
+		if (fbi->monspecs.modedb_len == 0) {
+			/*
+			 * Should not happen? Avoid panics and skip in this
+			 * case.
+			 */
+			console_unlock();
+			unlock_fb_info(fbi);
+
+			WARN_ON(fbi->monspecs.modedb_len == 0);
+			continue;
+		}
+
+		if (fbi->modelist.prev && fbi->modelist.next &&
+		    !list_empty(&fbi->modelist)) {
+			/* Non-empty modelist, destroy before overwriting. */
+			fb_destroy_modelist(&fbi->modelist);
+		}
+
+		fb_videomode_to_modelist(fbi->monspecs.modedb,
+					 fbi->monspecs.modedb_len,
+					 &fbi->modelist);
+
+		/*
+		 * Tell framebuffer users that modelist was replaced. This is
+		 * to avoid use of old removed modes and to avoid panics.
+		 */
+		event.info = fbi;
+		err = fb_notifier_call_chain(FB_EVENT_NEW_MODELIST, &event);
+
+		console_unlock();
+		unlock_fb_info(fbi);
+
+		WARN_ON(err);
 	}
 }
 EXPORT_SYMBOL(hdmi_edid_received);
