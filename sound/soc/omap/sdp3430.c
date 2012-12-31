@@ -24,7 +24,6 @@
 
 #include <linux/clk.h>
 #include <linux/platform_device.h>
-#include <linux/i2c/twl.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
@@ -32,19 +31,11 @@
 
 #include <asm/mach-types.h>
 #include <linux/platform_data/gpio-omap.h>
-#include <linux/platform_data/asoc-ti-mcbsp.h>
 
-/* Register descriptions for twl4030 codec part */
-#include <linux/mfd/twl4030-audio.h>
 #include <linux/module.h>
 
 #include "omap-mcbsp.h"
 #include "omap-pcm.h"
-
-/* TWL4030 PMBR1 Register */
-#define TWL4030_INTBR_PMBR1		0x0D
-/* TWL4030 PMBR1 Register GPIO6 mux bit */
-#define TWL4030_GPIO6_PWM0_MUTE(value)	(value << 2)
 
 static struct snd_soc_card snd_soc_sdp3430;
 
@@ -212,7 +203,6 @@ static struct platform_device *sdp3430_snd_device;
 static int __init sdp3430_soc_init(void)
 {
 	int ret;
-	u8 pin_mux;
 
 	if (!machine_is_omap_3430sdp())
 		return -ENODEV;
@@ -225,14 +215,6 @@ static int __init sdp3430_soc_init(void)
 	}
 
 	platform_set_drvdata(sdp3430_snd_device, &snd_soc_sdp3430);
-
-	/* Set TWL4030 GPIO6 as EXTMUTE signal */
-	twl_i2c_read_u8(TWL4030_MODULE_INTBR, &pin_mux,
-						TWL4030_INTBR_PMBR1);
-	pin_mux &= ~TWL4030_GPIO6_PWM0_MUTE(0x03);
-	pin_mux |= TWL4030_GPIO6_PWM0_MUTE(0x02);
-	twl_i2c_write_u8(TWL4030_MODULE_INTBR, pin_mux,
-						TWL4030_INTBR_PMBR1);
 
 	ret = platform_device_add(sdp3430_snd_device);
 	if (ret)
