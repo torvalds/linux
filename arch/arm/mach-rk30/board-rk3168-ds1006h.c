@@ -76,7 +76,29 @@
 #endif
 
 #include "board-rk3168-ds1006h-camera.c"
-#include "board-rk3168-ds1006h-key.c"
+#include <plat/key.h>
+
+static struct rk29_keys_button key_button[] = {
+	{
+		.desc	= "play",
+		.code	= KEY_POWER,
+		.gpio	= RK30_PIN0_PA4, 
+		.active_low = PRESS_LEV_LOW,
+		.wakeup	= 1,
+	},
+	{
+		.desc	= "esc",
+		.code	= KEY_BACK,
+		.adc_value	= 1,
+		.gpio = INVALID_GPIO,
+		.active_low = PRESS_LEV_LOW,
+	},
+};
+struct rk29_keys_platform_data rk29_keys_pdata = {
+	.buttons	= key_button,
+	.nbuttons	= ARRAY_SIZE(key_button),
+	.chn	= 1,  //chn: 0-7, if do not use ADC,set 'chn' -1
+};
 
 #if defined(CONFIG_CT36X_TS)
 
@@ -123,7 +145,8 @@ static int rk29_backlight_io_init(void)
 {
 	int ret = 0;
 
-	iomux_set(PWM_MODE);
+	int pwm_gpio;
+	//iomux_set(PWM_MODE);
 #ifdef  LCD_DISP_ON_PIN
 	ret = gpio_request(BL_EN_PIN, NULL);
 	if (ret != 0) {
@@ -133,6 +156,9 @@ static int rk29_backlight_io_init(void)
 	gpio_direction_output(BL_EN_PIN, 0);
 	gpio_set_value(BL_EN_PIN, BL_EN_VALUE);
 #endif
+	pwm_gpio = mode_to_gpio(PWM_MODE);
+	gpio_request(pwm_gpio, NULL);
+	gpio_direction_output(pwm_gpio, GPIO_HIGH);
 	return ret;
 }
 
