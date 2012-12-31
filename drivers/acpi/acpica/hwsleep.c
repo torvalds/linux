@@ -177,7 +177,7 @@ acpi_status acpi_hw_legacy_sleep(u8 sleep_state)
 		 * to still read the right value. Ideally, this block would go
 		 * away entirely.
 		 */
-		acpi_os_stall(10000000);
+		acpi_os_stall(10 * ACPI_USEC_PER_SEC);
 
 		status = acpi_hw_register_write(ACPI_REGISTER_PM1_CONTROL,
 						sleep_enable_reg_info->

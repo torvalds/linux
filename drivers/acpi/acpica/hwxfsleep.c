@@ -207,7 +207,7 @@ acpi_status asmlinkage acpi_enter_sleep_state_s4bios(void)
 				    (u32)acpi_gbl_FADT.s4_bios_request, 8);
 
 	do {
-		acpi_os_stall(1000);
+		acpi_os_stall(ACPI_USEC_PER_MSEC);
 		status =
 		    acpi_read_bit_register(ACPI_BITREG_WAKE_STATUS, &in_value);
 		if (ACPI_FAILURE(status)) {
