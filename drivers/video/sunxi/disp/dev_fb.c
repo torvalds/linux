@@ -33,6 +33,7 @@
 #include "disp_lcd.h"
 
 fb_info_t g_fbi;
+static DEFINE_MUTEX(g_fbi_mutex);
 
 static int screen0_output_type = -1;
 module_param(screen0_output_type, int, 0444);
@@ -1564,6 +1565,7 @@ void hdmi_edid_received(unsigned char *edid, int block)
 	struct fb_event event;
 	__u32 sel = 0;
 
+	mutex_lock(&g_fbi_mutex);
 	for (sel = 0; sel < 2; sel++) {
 		struct fb_info *fbi = g_fbi.fbinfo[sel];
 		int err = 0;
@@ -1571,10 +1573,12 @@ void hdmi_edid_received(unsigned char *edid, int block)
 		if (g_fbi.disp_init.output_type[sel] != DISP_OUTPUT_TYPE_HDMI)
 			continue;
 
-		if (!lock_fb_info(fbi))
-			continue;
+		if (g_fbi.fb_registered[sel]) {
+			if (!lock_fb_info(fbi))
+				continue;
 
-		console_lock();
+			console_lock();
+		}
 
 		if (block == 0) {
 			if (fbi->monspecs.modedb != NULL) {
@@ -1592,8 +1596,10 @@ void hdmi_edid_received(unsigned char *edid, int block)
 			 * Should not happen? Avoid panics and skip in this
 			 * case.
 			 */
-			console_unlock();
-			unlock_fb_info(fbi);
+			if (g_fbi.fb_registered[sel]) {
+				console_unlock();
+				unlock_fb_info(fbi);
+			}
 
 			WARN_ON(fbi->monspecs.modedb_len == 0);
 			continue;
@@ -1616,11 +1622,14 @@ void hdmi_edid_received(unsigned char *edid, int block)
 		event.info = fbi;
 		err = fb_notifier_call_chain(FB_EVENT_NEW_MODELIST, &event);
 
-		console_unlock();
-		unlock_fb_info(fbi);
+		if (g_fbi.fb_registered[sel]) {
+			console_unlock();
+			unlock_fb_info(fbi);
+		}
 
 		WARN_ON(err);
 	}
+	mutex_unlock(&g_fbi_mutex);
 }
 EXPORT_SYMBOL(hdmi_edid_received);
 
@@ -1825,9 +1834,13 @@ __s32 Fb_Init(__u32 from)
 #endif
 		}
 
-		for (i = 0; i < SUNXI_MAX_FB; i++)
+		mutex_lock(&g_fbi_mutex);
+		for (i = 0; i < SUNXI_MAX_FB; i++) {
 			/* Register framebuffers after they are initialized */
 			register_framebuffer(g_fbi.fbinfo[i]);
+			g_fbi.fb_registered[i] = true;
+		}
+		mutex_unlock(&g_fbi_mutex);
 
 		if (g_fbi.disp_init.scaler_mode[0])
 			BSP_disp_print_reg(0, DISP_REG_SCALER0);
