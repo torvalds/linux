@@ -190,8 +190,10 @@ struct acpi_rsconvert_info acpi_rs_convert_ext_irq[9] = {
 	 sizeof(struct aml_resource_extended_irq),
 	 0},
 
-	/* Flag bits */
-
+	/*
+	 * Flags: Producer/Consumer[0], Triggering[1], Polarity[2],
+	 *        sharing_and_wake[3:4]
+	 */
 	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.extended_irq.producer_consumer),
 	 AML_OFFSET(extended_irq.flags),
 	 0},
@@ -204,7 +206,7 @@ struct acpi_rsconvert_info acpi_rs_convert_ext_irq[9] = {
 	 AML_OFFSET(extended_irq.flags),
 	 2},
 
-	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.extended_irq.sharable),
+	{ACPI_RSC_2BITFLAG, ACPI_RS_OFFSET(data.extended_irq.sharable),
 	 AML_OFFSET(extended_irq.flags),
 	 3},
 
@@ -283,7 +285,6 @@ struct acpi_rsconvert_info acpi_rs_convert_fixed_dma[4] = {
 	 * request_lines
 	 * Channels
 	 */
-
 	{ACPI_RSC_MOVE16, ACPI_RS_OFFSET(data.fixed_dma.request_lines),
 	 AML_OFFSET(fixed_dma.request_lines),
 	 2},
@@ -291,5 +292,4 @@ struct acpi_rsconvert_info acpi_rs_convert_fixed_dma[4] = {
 	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.fixed_dma.width),
 	 AML_OFFSET(fixed_dma.width),
 	 1},
-
 };
