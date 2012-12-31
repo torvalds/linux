@@ -677,7 +677,9 @@ acpi_rs_get_method_data(acpi_handle handle,
 	/* Execute the method, no parameters */
 
 	status =
-	    acpi_ut_evaluate_object(handle, path, ACPI_BTYPE_BUFFER, &obj_desc);
+	    acpi_ut_evaluate_object(ACPI_CAST_PTR
+				    (struct acpi_namespace_node, handle), path,
+				    ACPI_BTYPE_BUFFER, &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
