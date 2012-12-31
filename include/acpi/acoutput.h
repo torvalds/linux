@@ -266,6 +266,11 @@
 #define ACPI_DEBUG_PARAMETERS \
 	__LINE__, ACPI_GET_FUNCTION_NAME, _acpi_module_name, _COMPONENT
 
+/* Check if debug output is currently dynamically enabled */
+
+#define ACPI_IS_DEBUG_ENABLED(level, component) \
+	((level & acpi_dbg_level) && (component & acpi_dbg_layer))
+
 /*
  * Master debug print macros
  * Print message if and only if:
@@ -284,9 +289,6 @@
 #define ACPI_DEBUG_PRINT_RAW(plist)     ACPI_ACTUAL_DEBUG_RAW plist
 
 /* Helper macros for DEBUG_PRINT */
-
-#define ACPI_IS_DEBUG_ENABLED(level, component) \
-	((level & acpi_dbg_level) && (component & acpi_dbg_layer))
 
 #define ACPI_DEBUG(function, level, line, filename, modulename, component, ...) \
 	if (ACPI_IS_DEBUG_ENABLED (level, component)) \
@@ -416,6 +418,7 @@
 #define ACPI_DUMP_BUFFER(a, b)
 #define ACPI_DEBUG_PRINT(pl)
 #define ACPI_DEBUG_PRINT_RAW(pl)
+#define ACPI_IS_DEBUG_ENABLED(level, component) 0
 
 /* Return macros must have a return statement at the minimum */
 
