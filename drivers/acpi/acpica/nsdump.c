@@ -77,8 +77,9 @@ void acpi_ns_print_pathname(u32 num_segments, char *pathname)
 
 	ACPI_FUNCTION_NAME(ns_print_pathname);
 
-	if (!(acpi_dbg_level & ACPI_LV_NAMES)
-	    || !(acpi_dbg_layer & ACPI_NAMESPACE)) {
+	/* Check if debug output enabled */
+
+	if (!ACPI_IS_DEBUG_ENABLED(ACPI_LV_NAMES, ACPI_NAMESPACE)) {
 		return;
 	}
 
@@ -127,7 +128,7 @@ acpi_ns_dump_pathname(acpi_handle handle, char *msg, u32 level, u32 component)
 
 	/* Do this only if the requested debug level and component are enabled */
 
-	if (!(acpi_dbg_level & level) || !(acpi_dbg_layer & component)) {
+	if (!ACPI_IS_DEBUG_ENABLED(level, component)) {
 		return_VOID;
 	}
 

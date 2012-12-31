@@ -766,8 +766,9 @@ void acpi_rs_dump_resource_list(struct acpi_resource *resource_list)
 
 	ACPI_FUNCTION_ENTRY();
 
-	if (!(acpi_dbg_level & ACPI_LV_RESOURCES)
-	    || !(_COMPONENT & acpi_dbg_layer)) {
+	/* Check if debug output enabled */
+
+	if (!ACPI_IS_DEBUG_ENABLED(ACPI_LV_RESOURCES, _COMPONENT)) {
 		return;
 	}
 
@@ -828,8 +829,9 @@ void acpi_rs_dump_irq_list(u8 * route_table)
 
 	ACPI_FUNCTION_ENTRY();
 
-	if (!(acpi_dbg_level & ACPI_LV_RESOURCES)
-	    || !(_COMPONENT & acpi_dbg_layer)) {
+	/* Check if debug output enabled */
+
+	if (!ACPI_IS_DEBUG_ENABLED(ACPI_LV_RESOURCES, _COMPONENT)) {
 		return;
 	}
 
