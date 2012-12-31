@@ -405,10 +405,6 @@ typedef u8 acpi_owner_id;
 #define ACPI_MAX16_DECIMAL_DIGITS        5
 #define ACPI_MAX8_DECIMAL_DIGITS         3
 
-/* PM Timer ticks per second (HZ) */
-
-#define PM_TIMER_FREQUENCY  3579545
-
 /*
  * Constants with special meanings
  */
