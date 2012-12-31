@@ -734,15 +734,15 @@ static inline void iwl_trans_set_pmi(struct iwl_trans *trans, bool state)
 	trans->ops->set_pmi(trans, state);
 }
 
-static inline bool iwl_trans_grab_nic_access(struct iwl_trans *trans,
-					     bool silent)
-{
-	return trans->ops->grab_nic_access(trans, silent);
-}
+#define iwl_trans_grab_nic_access(trans, silent)	\
+	__cond_lock(nic_access,				\
+		    likely((trans)->ops->grab_nic_access(trans, silent)))
 
-static inline void iwl_trans_release_nic_access(struct iwl_trans *trans)
+static inline void __releases(nic_access)
+iwl_trans_release_nic_access(struct iwl_trans *trans)
 {
 	trans->ops->release_nic_access(trans);
+	__release(nic_access);
 }
 
 /*****************************************************

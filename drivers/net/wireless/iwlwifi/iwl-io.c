@@ -101,13 +101,14 @@ EXPORT_SYMBOL_GPL(iwl_poll_bit);
 
 u32 iwl_read_direct32(struct iwl_trans *trans, u32 reg)
 {
-	u32 value;
+	u32 value = 0x5a5a5a5a;
 	unsigned long flags;
 
 	spin_lock_irqsave(&trans->reg_lock, flags);
-	iwl_trans_grab_nic_access(trans, false);
-	value = iwl_read32(trans, reg);
-	iwl_trans_release_nic_access(trans);
+	if (iwl_trans_grab_nic_access(trans, false)) {
+		value = iwl_read32(trans, reg);
+		iwl_trans_release_nic_access(trans);
+	}
 	spin_unlock_irqrestore(&trans->reg_lock, flags);
 
 	return value;
@@ -119,7 +120,7 @@ void iwl_write_direct32(struct iwl_trans *trans, u32 reg, u32 value)
 	unsigned long flags;
 
 	spin_lock_irqsave(&trans->reg_lock, flags);
-	if (likely(iwl_trans_grab_nic_access(trans, false))) {
+	if (iwl_trans_grab_nic_access(trans, false)) {
 		iwl_write32(trans, reg, value);
 		iwl_trans_release_nic_access(trans);
 	}
@@ -159,12 +160,13 @@ static inline void __iwl_write_prph(struct iwl_trans *trans, u32 ofs, u32 val)
 u32 iwl_read_prph(struct iwl_trans *trans, u32 ofs)
 {
 	unsigned long flags;
-	u32 val;
+	u32 val = 0x5a5a5a5a;
 
 	spin_lock_irqsave(&trans->reg_lock, flags);
-	iwl_trans_grab_nic_access(trans, false);
-	val = __iwl_read_prph(trans, ofs);
-	iwl_trans_release_nic_access(trans);
+	if (iwl_trans_grab_nic_access(trans, false)) {
+		val = __iwl_read_prph(trans, ofs);
+		iwl_trans_release_nic_access(trans);
+	}
 	spin_unlock_irqrestore(&trans->reg_lock, flags);
 	return val;
 }
@@ -175,7 +177,7 @@ void iwl_write_prph(struct iwl_trans *trans, u32 ofs, u32 val)
 	unsigned long flags;
 
 	spin_lock_irqsave(&trans->reg_lock, flags);
-	if (likely(iwl_trans_grab_nic_access(trans, false))) {
+	if (iwl_trans_grab_nic_access(trans, false)) {
 		__iwl_write_prph(trans, ofs, val);
 		iwl_trans_release_nic_access(trans);
 	}
@@ -188,7 +190,7 @@ void iwl_set_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask)
 	unsigned long flags;
 
 	spin_lock_irqsave(&trans->reg_lock, flags);
-	if (likely(iwl_trans_grab_nic_access(trans, false))) {
+	if (iwl_trans_grab_nic_access(trans, false)) {
 		__iwl_write_prph(trans, ofs,
 				 __iwl_read_prph(trans, ofs) | mask);
 		iwl_trans_release_nic_access(trans);
@@ -203,7 +205,7 @@ void iwl_set_bits_mask_prph(struct iwl_trans *trans, u32 ofs,
 	unsigned long flags;
 
 	spin_lock_irqsave(&trans->reg_lock, flags);
-	if (likely(iwl_trans_grab_nic_access(trans, false))) {
+	if (iwl_trans_grab_nic_access(trans, false)) {
 		__iwl_write_prph(trans, ofs,
 				 (__iwl_read_prph(trans, ofs) & mask) | bits);
 		iwl_trans_release_nic_access(trans);
@@ -218,7 +220,7 @@ void iwl_clear_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask)
 	u32 val;
 
 	spin_lock_irqsave(&trans->reg_lock, flags);
-	if (likely(iwl_trans_grab_nic_access(trans, false))) {
+	if (iwl_trans_grab_nic_access(trans, false)) {
 		val = __iwl_read_prph(trans, ofs);
 		__iwl_write_prph(trans, ofs, (val & ~mask));
 		iwl_trans_release_nic_access(trans);

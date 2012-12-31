@@ -186,7 +186,7 @@ static void iwl_tt_check_exit_ct_kill(unsigned long data)
 		}
 		iwl_read32(priv->trans, CSR_UCODE_DRV_GP1);
 		spin_lock_irqsave(&priv->trans->reg_lock, flags);
-		if (likely(iwl_trans_grab_nic_access(priv->trans, false)))
+		if (iwl_trans_grab_nic_access(priv->trans, false))
 			iwl_trans_release_nic_access(priv->trans);
 		spin_unlock_irqrestore(&priv->trans->reg_lock, flags);
 

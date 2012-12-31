@@ -795,7 +795,7 @@ static int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
 	u32 *vals = buf;
 
 	spin_lock_irqsave(&trans->reg_lock, flags);
-	if (likely(iwl_trans_grab_nic_access(trans, false))) {
+	if (iwl_trans_grab_nic_access(trans, false)) {
 		iwl_write32(trans, HBUS_TARG_MEM_RADDR, addr);
 		for (offs = 0; offs < dwords; offs++)
 			vals[offs] = iwl_read32(trans, HBUS_TARG_MEM_RDAT);
@@ -815,7 +815,7 @@ static int iwl_trans_pcie_write_mem(struct iwl_trans *trans, u32 addr,
 	u32 *vals = buf;
 
 	spin_lock_irqsave(&trans->reg_lock, flags);
-	if (likely(iwl_trans_grab_nic_access(trans, false))) {
+	if (iwl_trans_grab_nic_access(trans, false)) {
 		iwl_write32(trans, HBUS_TARG_MEM_WADDR, addr);
 		for (offs = 0; offs < dwords; offs++)
 			iwl_write32(trans, HBUS_TARG_MEM_WDAT, vals[offs]);
