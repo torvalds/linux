@@ -199,9 +199,6 @@ static long privcmd_ioctl_mmap(void __user *udata)
 	LIST_HEAD(pagelist);
 	struct mmap_mfn_state state;
 
-	if (!xen_initial_domain())
-		return -EPERM;
-
 	/* We only support privcmd_ioctl_mmap_batch for auto translated. */
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return -ENOSYS;
@@ -359,9 +356,6 @@ static long privcmd_ioctl_mmap_batch(void __user *udata, int version)
 	LIST_HEAD(pagelist);
 	int *err_array = NULL;
 	struct mmap_batch_state state;
-
-	if (!xen_initial_domain())
-		return -EPERM;
 
 	switch (version) {
 	case 1:
