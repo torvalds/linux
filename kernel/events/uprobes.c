@@ -1070,26 +1070,20 @@ static int xol_add_vma(struct xol_area *area)
 	return ret;
 }
 
-static struct xol_area *get_xol_area(struct mm_struct *mm)
-{
-	struct xol_area *area;
-
-	area = mm->uprobes_state.xol_area;
-	smp_read_barrier_depends();	/* pairs with wmb in xol_add_vma() */
-
-	return area;
-}
-
 /*
- * xol_alloc_area - Allocate process's xol_area.
- * This area will be used for storing instructions for execution out of
- * line.
+ * get_xol_area - Allocate process's xol_area if necessary.
+ * This area will be used for storing instructions for execution out of line.
  *
  * Returns the allocated area or NULL.
  */
-static struct xol_area *xol_alloc_area(void)
+static struct xol_area *get_xol_area(void)
 {
+	struct mm_struct *mm = current->mm;
 	struct xol_area *area;
+
+	area = mm->uprobes_state.xol_area;
+	if (area)
+		goto ret;
 
 	area = kzalloc(sizeof(*area), GFP_KERNEL);
 	if (unlikely(!area))
@@ -1113,7 +1107,10 @@ static struct xol_area *xol_alloc_area(void)
  free_area:
 	kfree(area);
  out:
-	return get_xol_area(current->mm);
+	area = mm->uprobes_state.xol_area;
+ ret:
+	smp_read_barrier_depends();     /* pairs with wmb in xol_add_vma() */
+	return area;
 }
 
 /*
@@ -1189,14 +1186,11 @@ static unsigned long xol_get_insn_slot(struct uprobe *uprobe, unsigned long slot
 	unsigned long offset;
 	void *vaddr;
 
-	area = get_xol_area(current->mm);
-	if (!area) {
-		area = xol_alloc_area();
-		if (!area)
-			return 0;
-	}
-	current->utask->xol_vaddr = xol_take_insn_slot(area);
+	area = get_xol_area();
+	if (!area)
+		return 0;
 
+	current->utask->xol_vaddr = xol_take_insn_slot(area);
 	/*
 	 * Initialize the slot if xol_vaddr points to valid
 	 * instruction slot.
