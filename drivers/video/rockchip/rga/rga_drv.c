@@ -70,14 +70,14 @@
 #define DRIVER_DESC		"RGA Device Driver"
 #define DRIVER_NAME		"rga"
 
-#define RGA_VERSION   "1.001"
+#define RGA_VERSION   "1.002"
 
 ktime_t rga_start;
 ktime_t rga_end;
 
 int rga_num = 0;
 
-rga_session *session_global;
+rga_session *rga_session_global;
 
 struct rga_drvdata {
   	struct miscdevice miscdev;
@@ -991,7 +991,7 @@ long rga_ioctl_kernel(struct rga_req *req)
 
     mutex_lock(&rga_service.mutex);
     
-    session = (rga_session *)session_global;
+    session = (rga_session *)rga_session_global;
 
 	if (NULL == session)
     {
@@ -1049,7 +1049,7 @@ static int rga_open(struct inode *inode, struct file *file)
 
 	file->private_data = (void *)session;
 
-    session_global = session;
+    rga_session_global = session;
 
     //DBG("*** rga dev opened by pid %d *** \n", session->pid);
 	return nonseekable_open(inode, file);
