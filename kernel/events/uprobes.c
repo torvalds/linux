@@ -1176,30 +1176,26 @@ static unsigned long xol_take_insn_slot(struct xol_area *area)
 }
 
 /*
- * xol_get_insn_slot - If was not allocated a slot, then
- * allocate a slot.
+ * xol_get_insn_slot - allocate a slot for xol.
  * Returns the allocated slot address or 0.
  */
-static unsigned long xol_get_insn_slot(struct uprobe *uprobe, unsigned long slot_addr)
+static unsigned long xol_get_insn_slot(struct uprobe *uprobe)
 {
 	struct xol_area *area;
 	unsigned long offset;
+	unsigned long xol_vaddr;
 	void *vaddr;
 
 	area = get_xol_area();
 	if (!area)
 		return 0;
 
-	current->utask->xol_vaddr = xol_take_insn_slot(area);
-	/*
-	 * Initialize the slot if xol_vaddr points to valid
-	 * instruction slot.
-	 */
-	if (unlikely(!current->utask->xol_vaddr))
+	xol_vaddr = xol_take_insn_slot(area);
+	if (unlikely(!xol_vaddr))
 		return 0;
 
-	current->utask->vaddr = slot_addr;
-	offset = current->utask->xol_vaddr & ~PAGE_MASK;
+	/* Initialize the slot */
+	offset = xol_vaddr & ~PAGE_MASK;
 	vaddr = kmap_atomic(area->page);
 	memcpy(vaddr + offset, uprobe->arch.insn, MAX_UINSN_BYTES);
 	kunmap_atomic(vaddr);
@@ -1209,7 +1205,7 @@ static unsigned long xol_get_insn_slot(struct uprobe *uprobe, unsigned long slot
 	 */
 	flush_dcache_page(area->page);
 
-	return current->utask->xol_vaddr;
+	return xol_vaddr;
 }
 
 /*
@@ -1306,12 +1302,21 @@ static struct uprobe_task *get_utask(void)
 
 /* Prepare to single-step probed instruction out of line. */
 static int
-pre_ssout(struct uprobe *uprobe, struct pt_regs *regs, unsigned long vaddr)
+pre_ssout(struct uprobe *uprobe, struct pt_regs *regs, unsigned long bp_vaddr)
 {
-	if (xol_get_insn_slot(uprobe, vaddr) && !arch_uprobe_pre_xol(&uprobe->arch, regs))
-		return 0;
+	struct uprobe_task *utask;
+	unsigned long xol_vaddr;
 
-	return -EFAULT;
+	utask = current->utask;
+
+	xol_vaddr = xol_get_insn_slot(uprobe);
+	if (!xol_vaddr)
+		return -ENOMEM;
+
+	utask->xol_vaddr = xol_vaddr;
+	utask->vaddr = bp_vaddr;
+
+	return arch_uprobe_pre_xol(&uprobe->arch, regs);
 }
 
 /*
