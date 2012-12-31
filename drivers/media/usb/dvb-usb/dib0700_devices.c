@@ -2541,7 +2541,7 @@ static struct dibx000_agc_config dib7090_agc_config[2] = {
 		.wbd_alpha      = 5,
 
 		.agc1_max       = 65535,
-		.agc1_min       = 0,
+		.agc1_min       = 32768,
 
 		.agc2_max       = 65535,
 		.agc2_min       = 0,
@@ -2618,7 +2618,7 @@ static struct dib7000p_config nim7090_dib7000p_config = {
 	.output_mpeg2_in_188_bytes  = 1,
 	.hostbus_diversity			= 1,
 	.tuner_is_baseband			= 1,
-	.update_lna					= NULL,
+	.update_lna					= tfe7790p_update_lna, /* GPIO used is the same as TFE7790 */
 
 	.agc_config_count			= 2,
 	.agc						= dib7090_agc_config,
@@ -2642,12 +2642,26 @@ static struct dib7000p_config nim7090_dib7000p_config = {
 	.enMpegOutput				= 1,
 };
 
+static int tfe7090p_pvr_update_lna(struct dvb_frontend *fe, u16 agc_global)
+{
+	deb_info("TFE7090P-PVR update LNA: agc global=%i", agc_global);
+	if (agc_global < 25000) {
+		dib7000p_set_gpio(fe, 5, 0, 0);
+		dib7000p_set_agc1_min(fe, 0);
+	} else {
+		dib7000p_set_gpio(fe, 5, 0, 1);
+		dib7000p_set_agc1_min(fe, 32768);
+	}
+
+	return 0;
+}
+
 static struct dib7000p_config tfe7090pvr_dib7000p_config[2] = {
 	{
 		.output_mpeg2_in_188_bytes  = 1,
 		.hostbus_diversity			= 1,
 		.tuner_is_baseband			= 1,
-		.update_lna					= NULL,
+		.update_lna					= tfe7090p_pvr_update_lna,
 
 		.agc_config_count			= 2,
 		.agc						= dib7090_agc_config,
@@ -2674,7 +2688,7 @@ static struct dib7000p_config tfe7090pvr_dib7000p_config[2] = {
 		.output_mpeg2_in_188_bytes  = 1,
 		.hostbus_diversity			= 1,
 		.tuner_is_baseband			= 1,
-		.update_lna					= NULL,
+		.update_lna					= tfe7090p_pvr_update_lna,
 
 		.agc_config_count			= 2,
 		.agc						= dib7090_agc_config,
