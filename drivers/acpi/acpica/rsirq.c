@@ -80,7 +80,7 @@ struct acpi_rsconvert_info acpi_rs_get_irq[8] = {
 
 	{ACPI_RSC_EXIT_NE, ACPI_RSC_COMPARE_AML_LENGTH, 0, 3},
 
-	/* Get flags: Triggering[0], Polarity[3], Sharing[4] */
+	/* Get flags: Triggering[0], Polarity[3], sharing_and_wake[4:5] */
 
 	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.triggering),
 	 AML_OFFSET(irq.flags),
@@ -90,7 +90,7 @@ struct acpi_rsconvert_info acpi_rs_get_irq[8] = {
 	 AML_OFFSET(irq.flags),
 	 3},
 
-	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.sharable),
+	{ACPI_RSC_2BITFLAG, ACPI_RS_OFFSET(data.irq.sharable),
 	 AML_OFFSET(irq.flags),
 	 4}
 };
@@ -114,7 +114,7 @@ struct acpi_rsconvert_info acpi_rs_set_irq[13] = {
 	 AML_OFFSET(irq.irq_mask),
 	 ACPI_RS_OFFSET(data.irq.interrupt_count)},
 
-	/* Set the flags byte */
+	/* Set flags: Triggering[0], Polarity[3], sharing_and_wake[4:5] */
 
 	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.triggering),
 	 AML_OFFSET(irq.flags),
@@ -124,7 +124,7 @@ struct acpi_rsconvert_info acpi_rs_set_irq[13] = {
 	 AML_OFFSET(irq.flags),
 	 3},
 
-	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.sharable),
+	{ACPI_RSC_2BITFLAG, ACPI_RS_OFFSET(data.irq.sharable),
 	 AML_OFFSET(irq.flags),
 	 4},
 
