@@ -110,19 +110,6 @@ static int zoom2_twl4030_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static int zoom2_twl4030_voice_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_codec *codec = rtd->codec;
-	unsigned short reg;
-
-	/* Enable voice interface */
-	reg = codec->driver->read(codec, TWL4030_REG_VOICE_IF);
-	reg |= TWL4030_VIF_DIN_EN | TWL4030_VIF_DOUT_EN | TWL4030_VIF_EN;
-	codec->driver->write(codec, TWL4030_REG_VOICE_IF, reg);
-
-	return 0;
-}
-
 /* Digital audio interface glue - connects codec <--> CPU */
 static struct snd_soc_dai_link zoom2_dai[] = {
 	{
@@ -146,7 +133,6 @@ static struct snd_soc_dai_link zoom2_dai[] = {
 		.codec_name = "twl4030-codec",
 		.dai_fmt = SND_SOC_DAIFMT_DSP_A | SND_SOC_DAIFMT_IB_NF |
 			   SND_SOC_DAIFMT_CBM_CFM,
-		.init = zoom2_twl4030_voice_init,
 		.ops = &zoom2_ops,
 	},
 };
