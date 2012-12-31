@@ -1306,6 +1306,9 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DAC Left2", NULL, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_DAC("DAC Voice", NULL, SND_SOC_NOPM, 0, 0),
 
+	SND_SOC_DAPM_AIF_IN("VAIFIN", "Voice Playback", 0,
+			    TWL4030_REG_VOICE_IF, 6, 0),
+
 	/* Analog bypasses */
 	SND_SOC_DAPM_SWITCH("Right1 Analog Loopback", SND_SOC_NOPM, 0, 0,
 			&twl4030_dapm_abypassr1_control),
@@ -1438,6 +1441,9 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	SND_SOC_DAPM_ADC("ADC Virtual Left2", NULL, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_ADC("ADC Virtual Right2", NULL, SND_SOC_NOPM, 0, 0),
 
+	SND_SOC_DAPM_AIF_OUT("VAIFOUT", "Voice Capture", 0,
+			     TWL4030_REG_VOICE_IF, 5, 0),
+
 	/* Analog/Digital mic path selection.
 	   TX1 Left/Right: either analog Left/Right or Digimic0
 	   TX2 Left/Right: either analog Left/Right or Digimic1 */
@@ -1477,6 +1483,7 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	SND_SOC_DAPM_MICBIAS("Mic Bias 2", TWL4030_REG_MICBIAS_CTL, 1, 0),
 	SND_SOC_DAPM_MICBIAS("Headset Mic Bias", TWL4030_REG_MICBIAS_CTL, 2, 0),
 
+	SND_SOC_DAPM_SUPPLY("VIF Enable", TWL4030_REG_VOICE_IF, 0, 0, NULL, 0),
 };
 
 static const struct snd_soc_dapm_route intercon[] = {
@@ -1485,17 +1492,16 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"DAC Left1", NULL, "HiFi Playback"},
 	{"DAC Right2", NULL, "HiFi Playback"},
 	{"DAC Left2", NULL, "HiFi Playback"},
-	{"DAC Voice", NULL, "Voice Playback"},
+	{"DAC Voice", NULL, "VAIFIN"},
 
 	/* ADC -> Stream mapping */
 	{"HiFi Capture", NULL, "ADC Virtual Left1"},
 	{"HiFi Capture", NULL, "ADC Virtual Right1"},
 	{"HiFi Capture", NULL, "ADC Virtual Left2"},
 	{"HiFi Capture", NULL, "ADC Virtual Right2"},
-	{"Voice Capture", NULL, "ADC Virtual Left1"},
-	{"Voice Capture", NULL, "ADC Virtual Right1"},
-	{"Voice Capture", NULL, "ADC Virtual Left2"},
-	{"Voice Capture", NULL, "ADC Virtual Right2"},
+	{"VAIFOUT", NULL, "ADC Virtual Left2"},
+	{"VAIFOUT", NULL, "ADC Virtual Right2"},
+	{"VAIFOUT", NULL, "VIF Enable"},
 
 	{"Digital L1 Playback Mixer", NULL, "DAC Left1"},
 	{"Digital R1 Playback Mixer", NULL, "DAC Right1"},
@@ -1510,6 +1516,7 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"DAC Right1", NULL, "AIF Enable"},
 	{"DAC Left2", NULL, "AIF Enable"},
 	{"DAC Right1", NULL, "AIF Enable"},
+	{"DAC Voice", NULL, "VIF Enable"},
 
 	{"Digital R2 Playback Mixer", NULL, "AIF Enable"},
 	{"Digital L2 Playback Mixer", NULL, "AIF Enable"},
