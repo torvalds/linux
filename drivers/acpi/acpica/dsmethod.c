@@ -151,6 +151,7 @@ acpi_ds_create_method_mutex(union acpi_operand_object *method_desc)
 
 	status = acpi_os_create_mutex(&mutex_desc->mutex.os_mutex);
 	if (ACPI_FAILURE(status)) {
+		acpi_ut_delete_object_desc(mutex_desc);
 		return_ACPI_STATUS(status);
 	}
 
