@@ -671,11 +671,20 @@ acpi_ns_get_node(struct acpi_namespace_node *prefix_node,
 
 	ACPI_FUNCTION_TRACE_PTR(ns_get_node, ACPI_CAST_PTR(char, pathname));
 
+	/* Simplest case is a null pathname */
+
 	if (!pathname) {
 		*return_node = prefix_node;
 		if (!prefix_node) {
 			*return_node = acpi_gbl_root_node;
 		}
+		return_ACPI_STATUS(AE_OK);
+	}
+
+	/* Quick check for a reference to the root */
+
+	if (ACPI_IS_ROOT_PREFIX(pathname[0]) && (!pathname[1])) {
+		*return_node = acpi_gbl_root_node;
 		return_ACPI_STATUS(AE_OK);
 	}
 
