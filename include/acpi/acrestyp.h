@@ -102,8 +102,11 @@ typedef u32 acpi_rsdesc_size;	/* Max Resource Descriptor size is (Length+3) = (6
 
 #define ACPI_EXCLUSIVE                  (u8) 0x00
 #define ACPI_SHARED                     (u8) 0x01
-#define ACPI_EXCLUSIVE_AND_WAKE         (u8) 0x02
-#define ACPI_SHARED_AND_WAKE            (u8) 0x03
+
+/* Wake */
+
+#define ACPI_NOT_WAKE_CAPABLE           (u8) 0x00
+#define ACPI_WAKE_CAPABLE               (u8) 0x01
 
 /*
  * DMA Attributes
@@ -171,6 +174,7 @@ struct acpi_resource_irq {
 	u8 triggering;
 	u8 polarity;
 	u8 sharable;
+	u8 wake_capable;
 	u8 interrupt_count;
 	u8 interrupts[1];
 };
@@ -346,6 +350,7 @@ struct acpi_resource_extended_irq {
 	u8 triggering;
 	u8 polarity;
 	u8 sharable;
+	u8 wake_capable;
 	u8 interrupt_count;
 	struct acpi_resource_source resource_source;
 	u32 interrupts[1];
@@ -365,6 +370,7 @@ struct acpi_resource_gpio {
 	u8 producer_consumer;	/* For values, see Producer/Consumer above */
 	u8 pin_config;
 	u8 sharable;		/* For values, see Interrupt Attributes above */
+	u8 wake_capable;	/* For values, see Interrupt Attributes above */
 	u8 io_restriction;
 	u8 triggering;		/* For values, see Interrupt Attributes above */
 	u8 polarity;		/* For values, see Interrupt Attributes above */
