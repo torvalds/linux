@@ -1308,7 +1308,9 @@ pre_ssout(struct uprobe *uprobe, struct pt_regs *regs, unsigned long bp_vaddr)
 	unsigned long xol_vaddr;
 	int err;
 
-	utask = current->utask;
+	utask = get_utask();
+	if (!utask)
+		return -ENOMEM;
 
 	xol_vaddr = xol_get_insn_slot(uprobe);
 	if (!xol_vaddr)
@@ -1323,6 +1325,8 @@ pre_ssout(struct uprobe *uprobe, struct pt_regs *regs, unsigned long bp_vaddr)
 		return err;
 	}
 
+	utask->active_uprobe = uprobe;
+	utask->state = UTASK_SSTEP;
 	return 0;
 }
 
@@ -1474,7 +1478,6 @@ static void handler_chain(struct uprobe *uprobe, struct pt_regs *regs)
  */
 static void handle_swbp(struct pt_regs *regs)
 {
-	struct uprobe_task *utask;
 	struct uprobe *uprobe;
 	unsigned long bp_vaddr;
 	int uninitialized_var(is_swbp);
@@ -1512,19 +1515,12 @@ static void handle_swbp(struct pt_regs *regs)
 	if (unlikely(!test_bit(UPROBE_COPY_INSN, &uprobe->flags)))
 		goto out;
 
-	utask = get_utask();
-	if (!utask)
-		goto out;	/* re-execute the instruction. */
-
 	handler_chain(uprobe, regs);
 	if (can_skip_sstep(uprobe, regs))
 		goto out;
 
-	if (!pre_ssout(uprobe, regs, bp_vaddr)) {
-		utask->active_uprobe = uprobe;
-		utask->state = UTASK_SSTEP;
+	if (!pre_ssout(uprobe, regs, bp_vaddr))
 		return;
-	}
 
 	/* can_skip_sstep() succeeded, or restart if can't singlestep */
 out:
