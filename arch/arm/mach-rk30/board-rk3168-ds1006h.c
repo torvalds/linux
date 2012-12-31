@@ -409,18 +409,12 @@ struct rk29fb_info lcdc0_screen_info = {
 
 #if defined(CONFIG_LCDC1_RK3066B)
 struct rk29fb_info lcdc1_screen_info = {
-	#if defined(CONFIG_RK_HDMI)
-	.prop		= EXTEND,	//extend display device
-	.lcd_info  = NULL,
-	.set_screen_info = hdmi_init_lcdc,
-	#endif
-	#if defined(CONFIG_MFD_RK610)
 	.prop	   = PRMRY,		//primary display device
 	.io_init   = rk_fb_io_init,
 	.io_disable = rk_fb_io_disable,
 	.io_enable = rk_fb_io_enable,
 	.set_screen_info = set_lcd_info,
-	#endif
+	
 };
 #endif
 
