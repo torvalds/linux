@@ -48,6 +48,7 @@
 #include "actables.h"
 #include "acdispat.h"
 #include "acevents.h"
+#include "amlcode.h"
 
 #define _COMPONENT          ACPI_EXECUTER
 ACPI_MODULE_NAME("exconfig")
@@ -166,7 +167,7 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 	if ((operand[0]->string.length > ACPI_NAME_SIZE) ||
 	    (operand[1]->string.length > ACPI_OEM_ID_SIZE) ||
 	    (operand[2]->string.length > ACPI_OEM_TABLE_ID_SIZE)) {
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_AML_STRING_LIMIT);
 	}
 
 	/* Find the ACPI table in the RSDT/XSDT */
@@ -213,8 +214,8 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 	/* parameter_path (optional parameter) */
 
 	if (operand[4]->string.length > 0) {
-		if ((operand[4]->string.pointer[0] != '\\') &&
-		    (operand[4]->string.pointer[0] != '^')) {
+		if ((operand[4]->string.pointer[0] != AML_ROOT_PREFIX) &&
+		    (operand[4]->string.pointer[0] != AML_PARENT_PREFIX)) {
 			/*
 			 * Path is not absolute, so it will be relative to the node
 			 * referenced by the root_path_string (or the NS root if omitted)
