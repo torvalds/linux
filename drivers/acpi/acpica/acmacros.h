@@ -392,29 +392,51 @@
  * Debug macros that are conditionally compiled
  */
 #ifdef ACPI_DEBUG_OUTPUT
+
 /*
  * Function entry tracing
+ *
+ * The name of the function is emitted as a local variable that is
+ * intended to be used by both the entry trace and the exit trace.
  */
-#define ACPI_FUNCTION_TRACE(a)          ACPI_FUNCTION_NAME(a) \
-			  acpi_ut_trace(ACPI_DEBUG_PARAMETERS)
-#define ACPI_FUNCTION_TRACE_PTR(a, b)   ACPI_FUNCTION_NAME(a) \
-					   acpi_ut_trace_ptr(ACPI_DEBUG_PARAMETERS, (void *)b)
-#define ACPI_FUNCTION_TRACE_U32(a, b)   ACPI_FUNCTION_NAME(a) \
-							 acpi_ut_trace_u32(ACPI_DEBUG_PARAMETERS, (u32)b)
-#define ACPI_FUNCTION_TRACE_STR(a, b)   ACPI_FUNCTION_NAME(a) \
-									  acpi_ut_trace_str(ACPI_DEBUG_PARAMETERS, (char *)b)
 
-#define ACPI_FUNCTION_ENTRY()           acpi_ut_track_stack_ptr()
+/* Helper macro */
+
+#define ACPI_TRACE_ENTRY(name, function, cast, param) \
+	ACPI_FUNCTION_NAME (name) \
+	function (ACPI_DEBUG_PARAMETERS, cast (param))
+
+/* The actual entry trace macros */
+
+#define ACPI_FUNCTION_TRACE(name) \
+	ACPI_FUNCTION_NAME(name) \
+	acpi_ut_trace (ACPI_DEBUG_PARAMETERS)
+
+#define ACPI_FUNCTION_TRACE_PTR(name, pointer) \
+	ACPI_TRACE_ENTRY (name, acpi_ut_trace_ptr, (void *), pointer)
+
+#define ACPI_FUNCTION_TRACE_U32(name, value) \
+	ACPI_TRACE_ENTRY (name, acpi_ut_trace_u32, (u32), value)
+
+#define ACPI_FUNCTION_TRACE_STR(name, string) \
+	ACPI_TRACE_ENTRY (name, acpi_ut_trace_str, (char *), string)
+
+#define ACPI_FUNCTION_ENTRY() \
+	acpi_ut_track_stack_ptr()
 
 /*
- * Function exit tracing.
- * WARNING: These macros include a return statement. This is usually considered
- * bad form, but having a separate exit macro is very ugly and difficult to maintain.
- * One of the FUNCTION_TRACE macros above must be used in conjunction with these macros
- * so that "_AcpiFunctionName" is defined.
+ * Function exit tracing
  *
- * Note: the DO_WHILE0 macro is used to prevent some compilers from complaining
- * about these constructs.
+ * These macros include a return statement. This is usually considered
+ * bad form, but having a separate exit macro before the actual return
+ * is very ugly and difficult to maintain.
+ *
+ * One of the FUNCTION_TRACE macros above must be used in conjunction
+ * with these macros so that "_AcpiFunctionName" is defined.
+ *
+ * Note: the DO_WHILE0 macro is used to prevent some compilers from
+ * complaining about these constructs. On other compilers the do...while
+ * adds some extra code, so this feature is optional.
  */
 #ifdef ACPI_USE_DO_WHILE_0
 #define ACPI_DO_WHILE0(a)               do a while(0)
@@ -422,55 +444,35 @@
 #define ACPI_DO_WHILE0(a)               a
 #endif
 
-#define return_VOID                     ACPI_DO_WHILE0 ({ \
-											acpi_ut_exit (ACPI_DEBUG_PARAMETERS); \
-											return;})
-/*
- * There are two versions of most of the return macros. The default version is
- * safer, since it avoids side-effects by guaranteeing that the argument will
- * not be evaluated twice.
- *
- * A less-safe version of the macros is provided for optional use if the
- * compiler uses excessive CPU stack (for example, this may happen in the
- * debug case if code optimzation is disabled.)
- */
-#ifndef ACPI_SIMPLE_RETURN_MACROS
+/* Exit trace helper macro */
 
-#define return_ACPI_STATUS(s)           ACPI_DO_WHILE0 ({ \
-											register acpi_status _s = (s); \
-											acpi_ut_status_exit (ACPI_DEBUG_PARAMETERS, _s); \
-											return (_s); })
-#define return_PTR(s)                   ACPI_DO_WHILE0 ({ \
-											register void *_s = (void *) (s); \
-											acpi_ut_ptr_exit (ACPI_DEBUG_PARAMETERS, (u8 *) _s); \
-											return (_s); })
-#define return_VALUE(s)                 ACPI_DO_WHILE0 ({ \
-											register u64 _s = (s); \
-											acpi_ut_value_exit (ACPI_DEBUG_PARAMETERS, _s); \
-											return (_s); })
-#define return_UINT8(s)                 ACPI_DO_WHILE0 ({ \
-											register u8 _s = (u8) (s); \
-											acpi_ut_value_exit (ACPI_DEBUG_PARAMETERS, (u64) _s); \
-											return (_s); })
-#define return_UINT32(s)                ACPI_DO_WHILE0 ({ \
-											register u32 _s = (u32) (s); \
-											acpi_ut_value_exit (ACPI_DEBUG_PARAMETERS, (u64) _s); \
-											return (_s); })
-#else				/* Use original less-safe macros */
+#define ACPI_TRACE_EXIT(function, cast, param) \
+	ACPI_DO_WHILE0 ({ \
+		function (ACPI_DEBUG_PARAMETERS, cast (param)); \
+		return ((param)); \
+	})
 
-#define return_ACPI_STATUS(s)           ACPI_DO_WHILE0 ({ \
-											acpi_ut_status_exit (ACPI_DEBUG_PARAMETERS, (s)); \
-											return((s)); })
-#define return_PTR(s)                   ACPI_DO_WHILE0 ({ \
-											acpi_ut_ptr_exit (ACPI_DEBUG_PARAMETERS, (u8 *) (s)); \
-											return((s)); })
-#define return_VALUE(s)                 ACPI_DO_WHILE0 ({ \
-											acpi_ut_value_exit (ACPI_DEBUG_PARAMETERS, (u64) (s)); \
-											return((s)); })
-#define return_UINT8(s)                 return_VALUE(s)
-#define return_UINT32(s)                return_VALUE(s)
+/* The actual exit macros */
 
-#endif				/* ACPI_SIMPLE_RETURN_MACROS */
+#define return_VOID \
+	ACPI_DO_WHILE0 ({ \
+		acpi_ut_exit (ACPI_DEBUG_PARAMETERS); \
+		return; \
+	})
+
+#define return_ACPI_STATUS(status) \
+	ACPI_TRACE_EXIT (acpi_ut_status_exit, (acpi_status), status)
+
+#define return_PTR(pointer) \
+	ACPI_TRACE_EXIT (acpi_ut_ptr_exit, (u8 *), pointer)
+
+#define return_VALUE(value) \
+	ACPI_TRACE_EXIT (acpi_ut_value_exit, (u64), value)
+
+/* These exit macros are superfluous and should be removed entirely */
+
+#define return_UINT8        return_VALUE
+#define return_UINT32       return_VALUE
 
 /* Conditional execution */
 
