@@ -151,18 +151,18 @@ u32 acpi_hw_get_mode(void)
 	 * system does not support mode transition.
 	 */
 	if (!acpi_gbl_FADT.smi_command) {
-		return_UINT32(ACPI_SYS_MODE_ACPI);
+		return_VALUE(ACPI_SYS_MODE_ACPI);
 	}
 
 	status = acpi_read_bit_register(ACPI_BITREG_SCI_ENABLE, &value);
 	if (ACPI_FAILURE(status)) {
-		return_UINT32(ACPI_SYS_MODE_LEGACY);
+		return_VALUE(ACPI_SYS_MODE_LEGACY);
 	}
 
 	if (value) {
-		return_UINT32(ACPI_SYS_MODE_ACPI);
+		return_VALUE(ACPI_SYS_MODE_ACPI);
 	} else {
-		return_UINT32(ACPI_SYS_MODE_LEGACY);
+		return_VALUE(ACPI_SYS_MODE_LEGACY);
 	}
 }
 
