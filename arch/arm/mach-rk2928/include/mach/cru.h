@@ -113,6 +113,11 @@ enum rk_plls_id {
 #define A9_CORE_DIV_MASK		(0x1f)
 #define A9_CORE_DIV_SHIFT		(0)
 
+#define RATIO_11		(1)
+#define RATIO_21		(2)
+#define RATIO_41		(4)
+#define RATIO_81		(8)
+
 #define ACLK_CPU_DIV(val)		CLK_SET_DIV_CON_SUB1(val, ACLK_CPU_DIV_SHIFT, ACLK_CPU_DIV_MASK)
 #define CLK_CORE_DIV(val)		CLK_SET_DIV_CON_SUB1(val, A9_CORE_DIV_SHIFT, A9_CORE_DIV_MASK)	
 /*******************CLKSEL1 BITS***************************/
@@ -142,15 +147,8 @@ enum rk_plls_id {
 #define SEL_2PLL_GPLL		(0)
 #define SEL_2PLL_CPLL		(1)
 
-#define RATIO_11		(1)
-#define RATIO_21		(2)
-#define RATIO_41		(4)
-#define RATIO_81		(8)
-
 #define PERI_CLK_SEL_PLL(plls)	CRU_W_MSK_SETBIT(plls, PERI_PLL_SEL_SHIFT)
-#define PERI_SET_A2P_RATIO(ratio)	CRU_W_MSK_SETBITS(ratio, PERI_PCLK_DIV_SHIFT, PERI_PCLK_DIV_MASK)
-#define PERI_SET_A2H_RATIO(ratio)	CRU_W_MSK_SETBITS(ratio, PERI_HCLK_DIV_SHIFT, PERI_PCLK_DIV_MASK)
-#define PERI_SET_ACLK_DIV(val)		CRU_W_MSK_SETBITS(val, PERI_ACLK_DIV_SHIFT, PERI_ACLK_DIV_MASK)
+#define PERI_SET_ACLK_DIV(val)		CLK_SET_DIV_CON_SUB1(val, PERI_ACLK_DIV_SHIFT, PERI_ACLK_DIV_MASK)
 /*******************gate BITS***************************/
 #define CLK_GATE_CLKID_CONS(i)	CRU_CLKGATES_CON((i) / 16)
 

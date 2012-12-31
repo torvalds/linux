@@ -453,9 +453,9 @@ static int rk2928_pm_enter(suspend_state_t state)
 	
 	cru_writel(PLL_MODE_SLOW(GPLL_ID), CRU_MODE_CON);
 	cru_writel(PERI_SET_ACLK_DIV(1)
-		   | PERI_SET_A2H_RATIO(RATIO_11)
-		   | PERI_SET_A2P_RATIO(RATIO_11)
-		   , CRU_CLKSELS_CON(10));
+			| CRU_W_MSK_SETBITS(0, PERI_PCLK_DIV_SHIFT, PERI_PCLK_DIV_MASK)
+			| CRU_W_MSK_SETBITS(0, PERI_HCLK_DIV_SHIFT, PERI_HCLK_DIV_MASK)
+			, CRU_CLKSELS_CON(10));
 	cru_writel(CRU_W_MSK_SETBIT(0x01, PLL_PWR_DN_SHIFT), PLL_CONS(GPLL_ID, 1));//power down gpll
 
 	sram_printch('3');
