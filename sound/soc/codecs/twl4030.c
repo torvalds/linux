@@ -1479,9 +1479,13 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("micbias2 select", TWL4030_REG_MICBIAS_CTL, 6, 0,
 			    NULL, 0),
 
-	SND_SOC_DAPM_MICBIAS("Mic Bias 1", TWL4030_REG_MICBIAS_CTL, 0, 0),
-	SND_SOC_DAPM_MICBIAS("Mic Bias 2", TWL4030_REG_MICBIAS_CTL, 1, 0),
-	SND_SOC_DAPM_MICBIAS("Headset Mic Bias", TWL4030_REG_MICBIAS_CTL, 2, 0),
+	/* Microphone bias */
+	SND_SOC_DAPM_SUPPLY("Mic Bias 1",
+			    TWL4030_REG_MICBIAS_CTL, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("Mic Bias 2",
+			    TWL4030_REG_MICBIAS_CTL, 1, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("Headset Mic Bias",
+			    TWL4030_REG_MICBIAS_CTL, 2, 0, NULL, 0),
 
 	SND_SOC_DAPM_SUPPLY("VIF Enable", TWL4030_REG_VOICE_IF, 0, 0, NULL, 0),
 };

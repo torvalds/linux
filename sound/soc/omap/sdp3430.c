@@ -104,19 +104,19 @@ static const struct snd_soc_dapm_widget sdp3430_twl4030_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route audio_map[] = {
-	/* External Mics: MAINMIC, SUBMIC with bias*/
-	{"MAINMIC", NULL, "Mic Bias 1"},
-	{"SUBMIC", NULL, "Mic Bias 2"},
-	{"Mic Bias 1", NULL, "Ext Mic"},
-	{"Mic Bias 2", NULL, "Ext Mic"},
+	/* External Mics: MAINMIC, SUBMIC with bias */
+	{"MAINMIC", NULL, "Ext Mic"},
+	{"SUBMIC", NULL, "Ext Mic"},
+	{"Ext Mic", NULL, "Mic Bias 1"},
+	{"Ext Mic", NULL, "Mic Bias 2"},
 
 	/* External Speakers: HFL, HFR */
 	{"Ext Spk", NULL, "HFL"},
 	{"Ext Spk", NULL, "HFR"},
 
 	/* Headset Mic: HSMIC with bias */
-	{"HSMIC", NULL, "Headset Mic Bias"},
-	{"Headset Mic Bias", NULL, "Headset Mic"},
+	{"HSMIC", NULL, "Headset Mic"},
+	{"Headset Mic", NULL, "Headset Mic Bias"},
 
 	/* Headset Stereophone (Headphone): HSOL, HSOR */
 	{"Headset Stereophone", NULL, "HSOL"},
