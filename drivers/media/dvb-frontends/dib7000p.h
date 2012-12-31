@@ -63,6 +63,7 @@ extern struct i2c_adapter *dib7090_get_i2c_tuner(struct dvb_frontend *fe);
 extern int dib7090_slave_reset(struct dvb_frontend *fe);
 extern int dib7000p_get_agc_values(struct dvb_frontend *fe,
 		u16 *agc_global, u16 *agc1, u16 *agc2, u16 *wbd);
+extern int dib7000p_set_agc1_min(struct dvb_frontend *fe, u16 v);
 #else
 static inline struct dvb_frontend *dib7000p_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib7000p_config *cfg)
 {
@@ -150,6 +151,12 @@ static inline int dib7090_slave_reset(struct dvb_frontend *fe)
 
 static inline int dib7000p_get_agc_values(struct dvb_frontend *fe,
 		u16 *agc_global, u16 *agc1, u16 *agc2, u16 *wbd)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return -ENODEV;
+}
+
+static inline int dib7000p_set_agc1_min(struct dvb_frontend *fe, u16 v)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return -ENODEV;
