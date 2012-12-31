@@ -1235,6 +1235,7 @@ static struct sw_hcd *allocate_instance(struct device *dev,
 	INIT_LIST_HEAD(&sw_hcd->in_bulk);
 	INIT_LIST_HEAD(&sw_hcd->out_bulk);
 
+	hcd->has_tt		  = 1;
     hcd->uses_new_polling   = 1;
 	sw_hcd->vbuserr_retry     = VBUSERR_RETRY_COUNT;
     sw_hcd->mregs             = mbase;
