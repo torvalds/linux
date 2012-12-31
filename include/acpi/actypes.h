@@ -881,6 +881,10 @@ struct acpi_buffer {
 	void *pointer;		/* pointer to buffer */
 };
 
+/* Free a buffer created in an struct acpi_buffer via ACPI_ALLOCATE_LOCAL_BUFFER */
+
+#define ACPI_FREE_BUFFER(b)         ACPI_FREE(b.pointer)
+
 /*
  * name_type for acpi_get_name
  */
