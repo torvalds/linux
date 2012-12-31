@@ -198,8 +198,13 @@ static __s32
 EDID_Version_Check(__u8 *pbuf)
 {
 	pr_info("EDID version: %d.%d\n", pbuf[0x12], pbuf[0x13]);
-	if ((pbuf[0x12] != 0x01) || (pbuf[0x13] != 0x03)) {
+	if (pbuf[0x12] != 0x01) {
 		pr_info("Unsupport EDID format,EDID parsing exit\n");
+		return -1;
+	}
+	if (pbuf[0x13] < 3 && !(pbuf[0x18] & 0x02)) {
+		pr_info("EDID revision < 3 and preferred timing feature bit "
+			"not set, ignoring EDID info\n");
 		return -1;
 	}
 	return 0;
