@@ -300,7 +300,97 @@
 #define ACPI_ACTUAL_DEBUG_RAW(level, line, filename, modulename, component, ...) \
 	ACPI_DEBUG (acpi_debug_print_raw, level, line, filename, modulename, component, __VA_ARGS__)
 
+/*
+ * Function entry tracing
+ *
+ * The name of the function is emitted as a local variable that is
+ * intended to be used by both the entry trace and the exit trace.
+ */
+
+/* Helper macro */
+
+#define ACPI_TRACE_ENTRY(name, function, cast, param) \
+	ACPI_FUNCTION_NAME (name) \
+	function (ACPI_DEBUG_PARAMETERS, cast (param))
+
+/* The actual entry trace macros */
+
+#define ACPI_FUNCTION_TRACE(name) \
+	ACPI_FUNCTION_NAME(name) \
+	acpi_ut_trace (ACPI_DEBUG_PARAMETERS)
+
+#define ACPI_FUNCTION_TRACE_PTR(name, pointer) \
+	ACPI_TRACE_ENTRY (name, acpi_ut_trace_ptr, (void *), pointer)
+
+#define ACPI_FUNCTION_TRACE_U32(name, value) \
+	ACPI_TRACE_ENTRY (name, acpi_ut_trace_u32, (u32), value)
+
+#define ACPI_FUNCTION_TRACE_STR(name, string) \
+	ACPI_TRACE_ENTRY (name, acpi_ut_trace_str, (char *), string)
+
+#define ACPI_FUNCTION_ENTRY() \
+	acpi_ut_track_stack_ptr()
+
+/*
+ * Function exit tracing
+ *
+ * These macros include a return statement. This is usually considered
+ * bad form, but having a separate exit macro before the actual return
+ * is very ugly and difficult to maintain.
+ *
+ * One of the FUNCTION_TRACE macros above must be used in conjunction
+ * with these macros so that "_AcpiFunctionName" is defined.
+ *
+ * Note: the DO_WHILE0 macro is used to prevent some compilers from
+ * complaining about these constructs. On other compilers the do...while
+ * adds some extra code, so this feature is optional.
+ */
+#ifdef ACPI_USE_DO_WHILE_0
+#define ACPI_DO_WHILE0(a)               do a while(0)
 #else
+#define ACPI_DO_WHILE0(a)               a
+#endif
+
+/* Exit trace helper macro */
+
+#define ACPI_TRACE_EXIT(function, cast, param) \
+	ACPI_DO_WHILE0 ({ \
+		function (ACPI_DEBUG_PARAMETERS, cast (param)); \
+		return ((param)); \
+	})
+
+/* The actual exit macros */
+
+#define return_VOID \
+	ACPI_DO_WHILE0 ({ \
+		acpi_ut_exit (ACPI_DEBUG_PARAMETERS); \
+		return; \
+	})
+
+#define return_ACPI_STATUS(status) \
+	ACPI_TRACE_EXIT (acpi_ut_status_exit, (acpi_status), status)
+
+#define return_PTR(pointer) \
+	ACPI_TRACE_EXIT (acpi_ut_ptr_exit, (u8 *), pointer)
+
+#define return_VALUE(value) \
+	ACPI_TRACE_EXIT (acpi_ut_value_exit, (u64), value)
+
+/* Conditional execution */
+
+#define ACPI_DEBUG_EXEC(a)              a
+#define ACPI_DEBUG_ONLY_MEMBERS(a)      a;
+#define _VERBOSE_STRUCTURES
+
+/* Various object display routines for debug */
+
+#define ACPI_DUMP_STACK_ENTRY(a)        acpi_ex_dump_operand((a), 0)
+#define ACPI_DUMP_OPERANDS(a, b ,c)     acpi_ex_dump_operands(a, b, c)
+#define ACPI_DUMP_ENTRY(a, b)           acpi_ns_dump_entry (a, b)
+#define ACPI_DUMP_PATHNAME(a, b, c, d)  acpi_ns_dump_pathname(a, b, c, d)
+#define ACPI_DUMP_BUFFER(a, b)          acpi_ut_debug_dump_buffer((u8 *) a, b, DB_BYTE_DISPLAY, _COMPONENT)
+
+#else				/* ACPI_DEBUG_OUTPUT */
 /*
  * This is the non-debug case -- make everything go away,
  * leaving no executable debug code!
@@ -308,6 +398,31 @@
 #define ACPI_FUNCTION_NAME(a)
 #define ACPI_DEBUG_PRINT(pl)
 #define ACPI_DEBUG_PRINT_RAW(pl)
+#define ACPI_DEBUG_EXEC(a)
+#define ACPI_DEBUG_ONLY_MEMBERS(a)
+#define ACPI_FUNCTION_TRACE(a)
+#define ACPI_FUNCTION_TRACE_PTR(a, b)
+#define ACPI_FUNCTION_TRACE_U32(a, b)
+#define ACPI_FUNCTION_TRACE_STR(a, b)
+#define ACPI_FUNCTION_EXIT
+#define ACPI_FUNCTION_STATUS_EXIT(s)
+#define ACPI_FUNCTION_VALUE_EXIT(s)
+#define ACPI_FUNCTION_ENTRY()
+#define ACPI_DUMP_STACK_ENTRY(a)
+#define ACPI_DUMP_OPERANDS(a, b, c)
+#define ACPI_DUMP_ENTRY(a, b)
+#define ACPI_DUMP_TABLES(a, b)
+#define ACPI_DUMP_PATHNAME(a, b, c, d)
+#define ACPI_DUMP_BUFFER(a, b)
+#define ACPI_DEBUG_PRINT(pl)
+#define ACPI_DEBUG_PRINT_RAW(pl)
+
+/* Return macros must have a return statement at the minimum */
+
+#define return_VOID                     return
+#define return_ACPI_STATUS(s)           return(s)
+#define return_VALUE(s)                 return(s)
+#define return_PTR(s)                   return(s)
 
 #endif				/* ACPI_DEBUG_OUTPUT */
 
