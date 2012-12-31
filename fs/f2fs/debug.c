@@ -190,8 +190,8 @@ static int stat_show(struct seq_file *s, void *v)
 		update_general_status(si->sbi);
 
 		seq_printf(s, "\n=====[ partition info. #%d ]=====\n", i++);
-		seq_printf(s, "[SB: 1] [CP: 2] [NAT: %d] [SIT: %d] ",
-			   si->nat_area_segs, si->sit_area_segs);
+		seq_printf(s, "[SB: 1] [CP: 2] [SIT: %d] [NAT: %d] ",
+			   si->sit_area_segs, si->nat_area_segs);
 		seq_printf(s, "[SSA: %d] [MAIN: %d",
 			   si->ssa_area_segs, si->main_area_segs);
 		seq_printf(s, "(OverProv:%d Resv:%d)]\n\n",
