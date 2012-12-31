@@ -50,8 +50,6 @@
 #include <mach/regs-clock.h>
 
 #include <mach/regs-gpio.h>
-#include <mach/gpio-fns.h>
-#include <mach/gpio-nrs.h>
 
 #include <mach/h1940.h>
 #include <mach/h1940-latch.h>
