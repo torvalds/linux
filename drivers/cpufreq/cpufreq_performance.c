@@ -15,23 +15,54 @@
 #include <linux/cpufreq.h>
 #include <linux/init.h>
 
+#include <linux/cpu.h>
+#include <linux/cpumask.h>
 
-static int cpufreq_governor_performance(struct cpufreq_policy *policy,
-					unsigned int event)
+static void cpu_up_work()
 {
-	switch (event) {
-	case CPUFREQ_GOV_START:
-	case CPUFREQ_GOV_LIMITS:
-		pr_debug("setting to %u kHz because of event %u\n",
-						policy->max, event);
-		__cpufreq_driver_target(policy, policy->max,
-						CPUFREQ_RELATION_H);
-		break;
-	default:
-		break;
+	int cpu;
+
+	for_each_cpu_not(cpu, cpu_online_mask) {
+		if (cpu == 0)
+			continue;
+		cpu_up(cpu);
 	}
-	return 0;
 }
+
+static void cpu_down_work()
+{
+	int cpu;
+
+	for_each_online_cpu(cpu) {
+		if (cpu == 0)
+			continue;
+		cpu_down(cpu);
+	}
+}
+
+static DECLARE_WORK(performance_up_work, cpu_up_work);
+static DECLARE_WORK(performance_down_work, cpu_down_work);
+
+ static int cpufreq_governor_performance(struct cpufreq_policy *policy,
+ 					unsigned int event)
+ {
+ 	switch (event) {
+ 	case CPUFREQ_GOV_START:
+		schedule_work_on(0, &performance_up_work);
+ 	case CPUFREQ_GOV_LIMITS:
+ 		pr_debug("setting to %u kHz because of event %u\n",
+ 						policy->max, event);
+ 		__cpufreq_driver_target(policy, policy->max,
+ 						CPUFREQ_RELATION_H);
+ 		break;
+	case CPUFREQ_GOV_STOP:
+		schedule_work_on(0, &performance_down_work);
+		break;
+ 	default:
+ 		break;
+ 	}
+
+};
 
 #ifdef CONFIG_CPU_FREQ_GOV_PERFORMANCE_MODULE
 static

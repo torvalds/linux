@@ -379,11 +379,13 @@ static __devinit int spdif_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
+#if !defined(CONFIG_MACH_ODROID_4X12)
 	if (spdif_pdata && spdif_pdata->cfg_gpio
 			&& spdif_pdata->cfg_gpio(pdev)) {
 		dev_err(&pdev->dev, "Unable to configure GPIO pins\n");
 		return -EINVAL;
 	}
+#endif
 
 	spdif = &spdif_info;
 	spdif->dev = &pdev->dev;
@@ -393,7 +395,7 @@ static __devinit int spdif_probe(struct platform_device *pdev)
 	spdif->pclk = clk_get(&pdev->dev, "spdif");
 	if (IS_ERR(spdif->pclk)) {
 		dev_err(&pdev->dev, "failed to get peri-clock\n");
-		ret = -ENOENT;
+		ret = PTR_ERR(spdif->pclk);
 		goto err0;
 	}
 	clk_enable(spdif->pclk);
@@ -401,7 +403,7 @@ static __devinit int spdif_probe(struct platform_device *pdev)
 	spdif->sclk = clk_get(&pdev->dev, "sclk_spdif");
 	if (IS_ERR(spdif->sclk)) {
 		dev_err(&pdev->dev, "failed to get internal source clock\n");
-		ret = -ENOENT;
+		ret = PTR_ERR(spdif->sclk);
 		goto err1;
 	}
 	clk_enable(spdif->sclk);

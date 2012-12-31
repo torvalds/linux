@@ -1,0 +1,104 @@
+Kernel driver mpu
+=====================
+
+Supported chips:
+  * InvenSense IMU3050
+    Prefix: 'mpu3050'
+    Datasheet:
+        PS-MPU-3000A-00.2.4b.pdf
+
+Author: InvenSense <http://invensense.com>
+
+Description
+-----------
+The mpu is a motion processor unit that controls the mpu3050 gyroscope, a slave
+accelerometer, a compass and a pressure sensor.  This document describes how to
+install the driver into a Linux kernel.
+
+Sysfs entries
+-------------
+/dev/mpu
+/dev/mpuirq
+/dev/accelirq
+/dev/compassirq
+/dev/pressureirq
+
+General Remarks MPU3050
+-----------------------
+* Valid addresses for the MPU3050 is 0x68.
+* Accelerometer must be on the secondary I2C bus for MPU3050, the
+  magnetometer must be on the primary bus and pressure sensor must
+  be on the primary bus.
+
+Programming the chip using /dev/mpu
+----------------------------------
+Programming of MPU3050 is done by first opening the /dev/mpu file and
+then performing a series of IOCTLS on the handle returned.  The IOCTL codes can
+be found in mpu.h.  Typically this is done by the mllite library in user
+space.
+
+Board and Platform Data
+-----------------------
+
+In order for the driver to work, board and platform data specific to the device
+needs to be added to the board file.  A mpu_platform_data structure must
+be created and populated and set in the i2c_board_info_structure.  For details
+of each structure member see mpu.h.  All values below are simply an example and
+should be modified for your platform.
+
+#include <linux/mpu.h>
+
+static struct mpu_platform_data mpu3050_data = {
+	.int_config  = 0x10,
+	.orientation = {  -1,  0,  0,
+			   0,  1,  0,
+			   0,  0, -1 },
+};
+
+/* accel */
+static struct ext_slave_platform_data inv_mpu_kxtf9_data = {
+	.bus         = EXT_SLAVE_BUS_SECONDARY,
+	.orientation = {  -1,  0,  0,
+			  0,  1,  0,
+			  0,  0, -1 },
+};
+/* compass */
+static struct ext_slave_platform_data inv_mpu_ak8975_data = {
+	.bus         = EXT_SLAVE_BUS_PRIMARY,
+	.orientation = { 1, 0, 0,
+			 0, 1, 0,
+			 0, 0, 1 },
+};
+
+static struct i2c_board_info __initdata panda_inv_mpu_i2c4_boardinfo[] = {
+	{
+		I2C_BOARD_INFO("mpu3050", 0x68),
+		.irq = (IH_GPIO_BASE + MPUIRQ_GPIO),
+		.platform_data = &mpu3050_data,
+	},
+	{
+		I2C_BOARD_INFO("kxtf9", 0x0F),
+		.irq = (IH_GPIO_BASE + ACCEL_IRQ_GPIO),
+		.platform_data = &inv_mpu_kxtf9_data
+	},
+	{
+		I2C_BOARD_INFO("ak8975", 0x0E),
+		.irq = (IH_GPIO_BASE + COMPASS_IRQ_GPIO),
+		.platform_data = &inv_mpu_ak8975_data,
+	},
+};
+
+Typically the IRQ is a GPIO input pin and needs to be configured properly.  If
+in the above example GPIO 168 corresponds to IRQ 299, the following should be
+done as well:
+
+#define MPU_GPIO_IRQ 168
+
+    gpio_request(MPU_GPIO_IRQ,"MPUIRQ");
+    gpio_direction_input(MPU_GPIO_IRQ)
+
+Dynamic Debug
+=============
+
+The mpu3050 makes use of dynamic debug.  For details on how to use this
+refer to Documentation/dynamic-debug-howto.txt

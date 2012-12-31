@@ -1,0 +1,217 @@
+#
+# S3C Video configuration
+#
+
+config FB_S5P
+	tristate "S5P Framebuffer support"
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	depends on FB && (ARCH_S5PV210 || ARCH_EXYNOS4) && !FB_S3C
+	default n
+	help
+	  This enables support for Samsung Display Controller (FIMD)
+
+config FB_S5P_SPLASH_SCREEN
+	bool "SPLASH_SCREEN on LCD"
+	depends on FB_S5P
+	default y
+
+config FB_S5P_LCD_INIT
+	bool "LCD init in kernel"
+	depends on FB_S5P
+	default y
+
+config FB_S5P_DEBUG
+	bool "S5P Framebuffer debug messages"
+	depends on FB_S5P
+
+config FB_S5P_TRACE_UNDERRUN
+	bool "S5P Framebuffer FIFO underrun trace"
+	depends on FB_S5P
+
+config FB_S5P_DEFAULT_WINDOW
+	int "Default Window (0-4)"
+	depends on FB_S5P
+	default "0"
+	help
+	  This indicates the default window number, and which is used as console framebuffer
+
+config FB_S5P_NR_BUFFERS
+	int "Number of frame buffers (1-3)"
+	depends on FB_S5P
+	default "2"
+	help
+	  This indicates the number of buffers for pan display,
+	  1 means no pan display and
+	  2 means the double size of video buffer will be allocated for default window
+
+config FB_S5P_VIRTUAL
+	bool "Virtual Screen"
+	depends on FB_S5P
+	default n
+	help
+	  This uses 1920 x 1080 virtual screen.
+
+config FB_S5P_X_VRES
+	int "xres_virtual"
+	depends on FB_S5P && FB_S5P_VIRTUAL
+	default "1920"
+	help
+	  This indicates var.xres_virtual which has to be bigger than var.xres.
+
+config FB_S5P_Y_VRES
+	int "yres_virtual"
+	depends on FB_S5P && FB_S5P_VIRTUAL
+	default "1080"
+	help
+	  This indicates var.yres_virtual which has to be bigger than var.yres.
+
+config VIDEO_SAMSUNG_MEMSIZE_FIMD
+	int "Memory size in kbytes for FIMD"
+	depends on FB_S5P
+	default "24576"
+
+config VIDEO_SAMSUNG_MEMSIZE_FIMD_VIDEO
+	int "Memory size in kbytes for FIMD Video Layer"
+	depends on FB_S5P && EXYNOS4_CONTENT_PATH_PROTECTION
+	default "16384"
+
+config FB_S5P_MIPI_DSIM
+	bool "Samsung MIPI DSIM"
+	depends on FB_S5P
+	default n
+	---help---
+	  This enables support for Samsung MIPI DSIM feature
+
+choice
+depends on FB_S5P
+prompt "Select LCD Type"
+default FB_S5P_AMS369FG06
+config FB_S5P_LTE480WV
+	bool "LTE480WV"
+	depends on MACH_SMDKV310 || MACH_SMDKC210 || MACH_SMDKV210 || MACH_SMDKC110
+	help
+	  This enables support for Samsung LTE480WV 4.8" WVGA LCD panel
+
+config FB_S5P_HT101HD1
+	bool "HT101HD1"
+	depends on MACH_SMDKV310 || MACH_SMDKC210 || MACH_SMDKV210 || MACH_SMDKC110
+	help
+	  This enables support for HT101HD1 10.1" WXVGA(1366*768) LCD panel
+
+config FB_S5P_WA101S
+	bool "WA101S"
+	depends on MACH_SMDKV310 || MACH_SMDKC210 || MACH_SMDK4X12
+	select TOUCHSCREEN_S5PV310_MT
+	help
+	  This enables support for 10.1" 1366*768 LCD panel
+
+config FB_S5P_AMS369FG06
+	bool "AMS369FG06"
+	depends on MACH_SMDKV310 || MACH_SMDKC210
+	select SPI_BITBANG
+	select SPI_GPIO
+	help
+	  This enables support for Samsung AMS369FG06 3.7" WVGA AMOLED panel
+
+config FB_S5P_LMS501KF03
+	bool "LMS501KF03"
+	depends on MACH_SMDK4X12
+	select SPI_BITBANG
+	select SPI_GPIO
+	help
+	  This enables support for Samsung LMS501KF03 5.01" WVGA TFT LCD panel
+
+config FB_S5P_DUMMY_MIPI_LCD
+	bool "DUMMY MIPI LCD"
+	depends on FB_S5P_MIPI_DSIM
+	---help---
+	  This enables support for Samsung DUMMY MIPI LCD
+
+config FB_S5P_LG4591
+	bool "LG4591 MIPI LCD"
+	depends on FB_S5P_MIPI_DSIM
+	---help---
+	  This enables support for LG4591 MIPI LCD
+
+config FB_S5P_S6E8AA1
+	bool "SMD S6E8AA1 MIPI LCD"
+	depends on FB_S5P_MIPI_DSIM
+	---help---
+	  This enables support for SMD S6E8AA1 MIPI LCD
+
+config FB_S5P_LTN101AL03
+	bool "LTN101AL03"
+	depends on MACH_ODROID_4X12
+	help
+	  This enables support for 10.1" 1280*800 LCD panel
+
+config FB_S5P_LP101WH1
+	bool "LP101WH1"
+	depends on MACH_ODROID_4X12
+	help
+	  This enables support for 10.1" 1366*768 LCD panel
+
+config FB_S5P_U133WA01
+	bool "U133WA01"
+	depends on MACH_ODROID_4X12
+	help
+	  This enables support for 13.3" 1366*768 LCD panel
+
+config FB_S5P_FAKE_FB
+    bool "fake fb"
+	depends on MACH_ODROID_4X12
+	help
+	  This enables support for odroid-u virtual panel
+    
+endchoice
+
+config FB_S5P_V2
+	tristate "S5P Framebuffer version 2 support"
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select FRAMEBUFFER_CONSOLE_DETECT_PRIMARY
+	depends on FB && (FB_S3C != y) && (FB_S3C != m) && (ARCH_S3C64XX || ARCH_S5P64XX || ARCH_S5PC1XX || ARCH_S5P6450)
+	default n
+	---help---
+	  This enables support for Samsung Display Controller (FIMD)
+
+config FB_S5P_V2_DEBUG
+        bool "S5P Framebuffer version 2 debug messages"
+        depends on FB_S5P_V2
+
+config FB_S5P_V2_TRACE_UNDERRUN
+        bool "S5P Framebuffer version 2 FIFO underrun trace"
+        depends on FB_S5P_V2
+
+config FB_S5P_V2_DEFAULT_WINDOW
+	int "Default Window (0-4)"
+	depends on FB_S5P_V2
+	default "1"
+	---help---
+	  This indicates the default window number, and which is used as console framebuffer
+
+config FB_S5P_V2_YPANSTEP
+	int "Vertical Panning Step (0-2)"
+	depends on FB_S5P_V2
+	default "1"
+	---help---
+	  This indicates the number of vertical steps for pan display, 0 means no pan display and
+	  1 means the double size of video buffer will be allocated for default window
+
+choice
+depends on FB_S5P_V2
+prompt "Select LCD Type"
+default FB_S5P_V2_LTE480WV
+config FB_S5P_V2_LTE480WV
+	bool "LTE480WV"
+	---help---
+	  This enables support for Samsung LTE480WV 4.8\" WVGA LCD panel
+
+config FB_S5P_V2_TL2796
+	bool "TL2796"
+	---help---
+	  This enables support for Samsung  TL2796 WVGA LCD panel
+endchoice

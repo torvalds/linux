@@ -16,4 +16,10 @@ config R8712_AP
 	---help---
 	This option allows the Realtek RTL8712 USB device to be an Access Point.
 
+config EMBEDDED_FIRMWARE
+    bool "RTL8191SU EMBEDDED FIRMWARE"
+	depends on R8712U
+    default N
+	---help---
+	RTL8191SU Embedded F/W enable.
 

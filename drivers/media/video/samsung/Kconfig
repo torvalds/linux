@@ -1,0 +1,98 @@
+config VIDEO_SAMSUNG
+	bool "Samsung Multimedia Devices"
+	depends on VIDEO_CAPTURE_DRIVERS && VIDEO_V4L2
+	select VIDEO_FIXED_MINOR_RANGES
+	default n
+	help
+	  This is a representative video4linux configuration for Samsung multimedia devices.
+
+config VIDEO_SAMSUNG_V4L2
+	bool "V4L2 API for digital camera to be contributed by samsung"
+	depends on VIDEO_DEV && VIDEO_SAMSUNG
+	default n
+	help
+	  This feature is for new V4L2 APIs all about digital camera
+
+if CPU_EXYNOS4210 || CPU_EXYNOS4212 || CPU_EXYNOS4412
+	source "drivers/media/video/samsung/fimc/Kconfig"
+	source "drivers/media/video/samsung/tvout/Kconfig"
+	source "drivers/media/video/samsung/mfc5x/Kconfig"
+	source "drivers/media/video/samsung/ump/Kconfig"
+	source "drivers/media/video/samsung/mali/Kconfig"
+endif
+
+config VIDEO_FIMG2D
+	bool
+	select S5P_SYSTEM_MMU
+	depends on VIDEO_SAMSUNG
+	default n
+
+config VIDEO_FIMG2D_DEBUG
+	bool
+	depends on VIDEO_FIMG2D
+	default n
+
+source "drivers/media/video/samsung/fimg2d3x/Kconfig"
+source "drivers/media/video/samsung/fimg2d4x/Kconfig"
+
+if CPU_EXYNOS4210
+	source "drivers/media/video/samsung/jpeg/Kconfig"
+endif
+
+if CPU_EXYNOS4212 || CPU_EXYNOS4412 || CPU_EXYNOS5250
+	source "drivers/media/video/samsung/jpeg_v2x/Kconfig"
+endif
+
+if VIDEO_SAMSUNG
+comment "Reserved memory configurations"
+config VIDEO_SAMSUNG_MEMSIZE_FIMC0
+	int "Memory size in kbytes for FIMC0"
+	depends on VIDEO_FIMC || VIDEO_SAMSUNG_S5P_FIMC
+	default "5120"
+
+config VIDEO_SAMSUNG_MEMSIZE_FIMC1
+	int "Memory size in kbytes for FIMC1"
+	depends on VIDEO_FIMC || VIDEO_SAMSUNG_S5P_FIMC
+	default "5120"
+
+config VIDEO_SAMSUNG_MEMSIZE_FIMC2
+	int "Memory size in kbytes for FIMC2"
+	depends on VIDEO_FIMC || VIDEO_SAMSUNG_S5P_FIMC
+	default "5120"
+
+config VIDEO_SAMSUNG_MEMSIZE_FIMC3
+	int "Memory size in kbytes for FIMC3"
+	depends on VIDEO_FIMC || VIDEO_SAMSUNG_S5P_FIMC
+	default "5120"
+
+config VIDEO_SAMSUNG_MEMSIZE_MFC
+	int "Memory size in kbytes for MFC"
+	depends on VIDEO_MFC5X && (VIDEO_MFC_MEM_PORT_COUNT = 1) && (!EXYNOS4_CONTENT_PATH_PROTECTION)
+	default "156928"
+
+config VIDEO_SAMSUNG_MEMSIZE_MFC0
+	int "Memory size in kbytes for MFC port0"
+	depends on VIDEO_MFC5X && (VIDEO_MFC_MEM_PORT_COUNT = 2) && (!EXYNOS4_CONTENT_PATH_PROTECTION)
+	default "56192"
+
+config VIDEO_SAMSUNG_MEMSIZE_MFC1
+	int "Memory size in kbytes for MFC port1"
+	depends on VIDEO_MFC5X && (VIDEO_MFC_MEM_PORT_COUNT = 2) && (!EXYNOS4_CONTENT_PATH_PROTECTION)
+	default "100864"
+
+config VIDEO_SAMSUNG_MEMSIZE_MFC_SECURE
+	int "Memory size in kbytes for MFC Secure"
+	depends on VIDEO_MFC5X && EXYNOS4_CONTENT_PATH_PROTECTION
+	default "41984"
+
+config VIDEO_SAMSUNG_MEMSIZE_MFC_NORMAL
+	int "Memory size in kbytes for MFC Normal"
+	depends on VIDEO_MFC5X && EXYNOS4_CONTENT_PATH_PROTECTION
+	default "41984"
+
+config VIDEO_SAMSUNG_MEMSIZE_JPEG
+	int "Memory size in kbytes for JPEG"
+	depends on VIDEO_JPEG || (VIDEO_JPEG_V2X && (CPU_EXYNOS4212 || CPU_EXYNOS4412))
+	default "40960"
+endif
+

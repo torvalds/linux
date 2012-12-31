@@ -165,6 +165,7 @@ struct pl330_req {
 	struct pl330_reqcfg *cfg;
 	/* Pointer to first xfer in the request. */
 	struct pl330_xfer *x;
+	unsigned int infiniteloop;
 };
 
 /*

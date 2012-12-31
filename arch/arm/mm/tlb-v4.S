@@ -57,9 +57,5 @@ ENTRY(v4_flush_user_tlb_range)
 
 	__INITDATA
 
-	.type	v4_tlb_fns, #object
-ENTRY(v4_tlb_fns)
-	.long	v4_flush_user_tlb_range
-	.long	v4_flush_kern_tlb_range
-	.long	v4_tlb_flags
-	.size	v4_tlb_fns, . - v4_tlb_fns
+	/* define struct cpu_tlb_fns (see <asm/tlbflush.h> and proc-macros.S) */
+	define_tlb_functions v4, v4_tlb_flags

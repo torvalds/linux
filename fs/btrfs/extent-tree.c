@@ -3329,7 +3329,8 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 		smp_mb();
 		nr_pages = min_t(unsigned long, nr_pages,
 		       root->fs_info->delalloc_bytes >> PAGE_CACHE_SHIFT);
-		writeback_inodes_sb_nr_if_idle(root->fs_info->sb, nr_pages);
+		writeback_inodes_sb_nr_if_idle(root->fs_info->sb, nr_pages,
+						WB_REASON_FS_FREE_SPACE);
 
 		spin_lock(&space_info->lock);
 		if (reserved > space_info->bytes_reserved)

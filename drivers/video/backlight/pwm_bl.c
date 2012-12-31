@@ -34,7 +34,11 @@ struct pwm_bl_data {
 static int pwm_backlight_update_status(struct backlight_device *bl)
 {
 	struct pwm_bl_data *pb = dev_get_drvdata(&bl->dev);
+#if defined(CONFIG_FB_S5P_LP101WH1) || defined(CONFIG_FB_S5P_U133WA01)
+	int brightness = bl->props.max_brightness - bl->props.brightness;
+#else
 	int brightness = bl->props.brightness;
+#endif	
 	int max = bl->props.max_brightness;
 
 	if (bl->props.power != FB_BLANK_UNBLANK)
@@ -50,8 +54,23 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 		pwm_config(pb->pwm, 0, pb->period);
 		pwm_disable(pb->pwm);
 	} else {
-		brightness = pb->lth_brightness +
-			(brightness * (pb->period - pb->lth_brightness) / max);
+#if defined(CONFIG_FB_S5P_LTN101AL03)
+		int temp = 0;
+		temp = 34 + (brightness * 75 / 100);
+		brightness = temp * pb->period / max;
+#else
+    #if defined(CONFIG_FB_S5P_U133WA01)
+		int temp = 0;
+		temp = (brightness * 35 / 100);
+		brightness = temp * pb->period / max;
+    #endif		
+    
+    #if defined(CONFIG_FB_S5P_LP101WH1)
+		int temp = 0;
+		temp = (brightness * 50 / 100);
+		brightness = temp * pb->period / max;
+    #endif
+#endif		
 		pwm_config(pb->pwm, brightness, pb->period);
 		pwm_enable(pb->pwm);
 	}

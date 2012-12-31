@@ -348,6 +348,19 @@ static int wm8994_resume(struct device *dev)
 
 	return 0;
 }
+
+static int wm8994_i2c_suspend(struct i2c_client *i2c, pm_message_t state)
+{
+    return wm8994_suspend(&i2c->dev);
+}
+
+static int wm8994_i2c_resume(struct i2c_client *i2c)
+{
+    return wm8994_resume(&i2c->dev);
+}
+#else
+#define wm8994_i2c_suspend NULL
+#define wm8994_i2c_resume NULL
 #endif
 
 #ifdef CONFIG_REGULATOR
@@ -653,10 +666,11 @@ static struct i2c_driver wm8994_i2c_driver = {
 	.driver = {
 		.name = "wm8994",
 		.owner = THIS_MODULE,
-		.pm = &wm8994_pm_ops,
 	},
 	.probe = wm8994_i2c_probe,
 	.remove = wm8994_i2c_remove,
+	.suspend = wm8994_i2c_suspend,
+	.resume = wm8994_i2c_resume,
 	.id_table = wm8994_i2c_id,
 };
 

@@ -149,6 +149,23 @@ config S3C_ADC
 	  Core support for the ADC block found in the Samsung SoC systems
 	  for drivers such as the touchscreen and hwmon to use to share
 	  this resource.
+choice
+	prompt "Select ADC Number"
+	depends on S3C_ADC
+	default S3C_DEV_ADC
+
+config S3C_DEV_ADC
+	bool "ADC 0 selection"
+	depends on S3C_ADC
+	help
+	  Say Y here if you want to use S3C SMDK ADC 0.
+
+config S3C_DEV_ADC1
+	bool "ADC 1 selection"
+	depends on S3C_ADC
+	help
+	  Say Y here if you want to use S3C SMDK ADC 1.
+endchoice
 
 # device definitions to compile in
 
@@ -171,6 +188,11 @@ config S3C_DEV_HSMMC3
 	bool
 	help
 	  Compile in platform device definitions for HSMMC channel 3
+
+config S5P_DEV_MSHC
+	bool
+	help
+	  Compile in platform device definitions for MSHC
 
 config S3C_DEV_HWMON
 	bool
@@ -227,6 +249,12 @@ config S3C_DEV_USB_HSOTG
 	help
 	  Compile in platform device definition for USB high-speed OtG
 
+config EXYNOS_DEV_SS_UDC
+	bool
+	help
+	  Compile in platform device definition for EXYNOS SuperSpeed USB 3.0
+	  Device controller
+
 config S3C_DEV_WDT
 	bool
 	default y if ARCH_S3C2410
@@ -260,6 +288,7 @@ config SAMSUNG_DEV_IDE
 
 config S3C64XX_DEV_SPI
 	bool
+	default y if SPI_S3C64XX
 	help
 	  Compile in platform device definitions for S3C64XX's type
 	  SPI controllers.
@@ -267,7 +296,12 @@ config S3C64XX_DEV_SPI
 config SAMSUNG_DEV_TS
 	bool
 	help
-	    Common in platform device definitions for touchscreen device
+	  Common in platform device definitions for touchscreen device
+
+config SAMSUNG_DEV_TS1
+	bool
+	help
+	  Common in platform device definitions for touchscreen-1 device
 
 config SAMSUNG_DEV_KEYPAD
 	bool
@@ -279,6 +313,12 @@ config SAMSUNG_DEV_PWM
 	default y if ARCH_S3C2410
 	help
 	  Compile in platform device definition for PWM Timer
+
+config SAMSUNG_DEV_BACKLIGHT
+	bool
+	depends on SAMSUNG_DEV_PWM
+	help
+	  Compile in platform device definition LCD backlight with PWM Timer
 
 config S3C24XX_PWM
 	bool "PWM device support"
@@ -299,6 +339,12 @@ config S3C_PL330_DMA
 	select PL330
 	help
 	  S3C DMA API Driver for PL330 DMAC.
+
+config DMA_M2M_TEST
+	tristate "S3C DMA API Test client"
+	help
+	  Samsung DMA API test client. Say N unless you're debugging a
+	  DMA Device driver.
 
 comment "Power management"
 

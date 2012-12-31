@@ -429,3 +429,99 @@ int s5p_gpio_set_drvstr(unsigned int pin, s5p_gpio_drvstr_t drvstr)
 }
 EXPORT_SYMBOL(s5p_gpio_set_drvstr);
 #endif	/* CONFIG_S5P_GPIO_DRVSTR */
+
+s5p_gpio_pd_cfg_t s5p_gpio_get_pd_cfg(unsigned int pin)
+{
+	struct s3c_gpio_chip *chip = s3c_gpiolib_getchip(pin);
+	unsigned int off;
+	void __iomem *reg;
+	int shift;
+	u32 pd_cfg;
+
+	if (!chip)
+		return -EINVAL;
+
+	off = pin - chip->chip.base;
+	shift = off * 2;
+	reg = chip->base + 0x10;
+
+	pd_cfg = __raw_readl(reg);
+	pd_cfg = pd_cfg >> shift;
+	pd_cfg &= 0x3;
+
+	return (__force s5p_gpio_pd_cfg_t)pd_cfg;
+}
+EXPORT_SYMBOL(s5p_gpio_get_pd_cfg);
+
+int s5p_gpio_set_pd_cfg(unsigned int pin, s5p_gpio_pd_cfg_t pd_cfg)
+{
+	struct s3c_gpio_chip *chip = s3c_gpiolib_getchip(pin);
+	unsigned int off;
+	void __iomem *reg;
+	int shift;
+	u32 tmp;
+
+	if (!chip)
+		return -EINVAL;
+
+	off = pin - chip->chip.base;
+	shift = off * 2;
+	reg = chip->base + 0x10;
+
+	tmp = __raw_readl(reg);
+	tmp &= ~(0x3 << shift);
+	tmp |= pd_cfg << shift;
+
+	__raw_writel(tmp, reg);
+
+	return 0;
+}
+EXPORT_SYMBOL(s5p_gpio_set_pd_cfg);
+
+s5p_gpio_pd_pull_t s5p_gpio_get_pd_pull(unsigned int pin)
+{
+	struct s3c_gpio_chip *chip = s3c_gpiolib_getchip(pin);
+	unsigned int off;
+	void __iomem *reg;
+	int shift;
+	u32 pd_pull;
+
+	if (!chip)
+		return -EINVAL;
+
+	off = pin - chip->chip.base;
+	shift = off * 2;
+	reg = chip->base + 0x14;
+
+	pd_pull = __raw_readl(reg);
+	pd_pull = pd_pull >> shift;
+	pd_pull &= 0x3;
+
+	return (__force s5p_gpio_pd_pull_t)pd_pull;
+}
+EXPORT_SYMBOL(s5p_gpio_get_pd_pull);
+
+int s5p_gpio_set_pd_pull(unsigned int pin, s5p_gpio_pd_pull_t pd_pull)
+{
+	struct s3c_gpio_chip *chip = s3c_gpiolib_getchip(pin);
+	unsigned int off;
+	void __iomem *reg;
+	int shift;
+	u32 tmp;
+
+	if (!chip)
+		return -EINVAL;
+
+	off = pin - chip->chip.base;
+	shift = off * 2;
+	reg = chip->base + 0x14;
+
+	tmp = __raw_readl(reg);
+	tmp &= ~(0x3 << shift);
+	tmp |= pd_pull << shift;
+
+	__raw_writel(tmp, reg);
+
+	return 0;
+}
+EXPORT_SYMBOL(s5p_gpio_set_pd_pull);

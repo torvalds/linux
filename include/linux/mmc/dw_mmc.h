@@ -14,6 +14,8 @@
 #ifndef _LINUX_MMC_DW_MMC_H_
 #define _LINUX_MMC_DW_MMC_H_
 
+#include <linux/scatterlist.h>
+
 #define MAX_MCI_SLOTS	2
 
 enum dw_mci_state {
@@ -34,6 +36,11 @@ enum {
 };
 
 struct mmc_data;
+
+struct dw_mci_next {
+	unsigned int	sg_len;
+	s32		cookie;
+};
 
 /**
  * struct dw_mci - MMC controller state shared between all slots
@@ -74,6 +81,7 @@ struct mmc_data;
  * @pdev: Platform device associated with the MMC controller.
  * @pdata: Platform data associated with the MMC controller.
  * @slot: Slots sharing this MMC controller.
+ * @fifo_depth: depth of FIFO.
  * @data_shift: log2 of FIFO item size.
  * @push_data: Pointer to FIFO push function.
  * @pull_data: Pointer to FIFO pull function.
@@ -108,19 +116,24 @@ struct dw_mci {
 	void __iomem		*regs;
 
 	struct scatterlist	*sg;
-	unsigned int		pio_offset;
+	struct sg_mapping_iter	sg_miter;
 
 	struct dw_mci_slot	*cur_slot;
 	struct mmc_request	*mrq;
 	struct mmc_command	*cmd;
 	struct mmc_data		*data;
+	struct clk          *hclk;
+	struct clk          *cclk;
+	bool			prv_err;
 
 	/* DMA interface members*/
 	int			use_dma;
+	int			using_dma;
 
 	dma_addr_t		sg_dma;
 	void			*sg_cpu;
 	struct dw_mci_dma_ops	*dma_ops;
+	unsigned int		buf_size;
 #ifdef CONFIG_MMC_DW_IDMAC
 	unsigned int		ring_size;
 #else
@@ -141,11 +154,14 @@ struct dw_mci {
 	u32			current_speed;
 	u32			num_slots;
 	u32			fifoth_val;
+	u16			verid;
+	u16			data_offset;
 	struct platform_device	*pdev;
 	struct dw_mci_board	*pdata;
 	struct dw_mci_slot	*slot[MAX_MCI_SLOTS];
 
 	/* FIFO push and pull */
+	int			fifo_depth;
 	int			data_shift;
 	void (*push_data)(struct dw_mci *host, void *buf, int cnt);
 	void (*pull_data)(struct dw_mci *host, void *buf, int cnt);
@@ -154,6 +170,7 @@ struct dw_mci {
 	u32			quirks;
 
 	struct regulator	*vmmc;	/* Power regulator */
+	struct dw_mci_next	next_data;
 };
 
 /* DMA ops for Internal/External DMAC interface */
@@ -177,6 +194,13 @@ struct dw_mci_dma_ops {
 /* Unreliable card detection */
 #define DW_MCI_QUIRK_BROKEN_CARD_DETECTION	BIT(3)
 
+enum dw_mci_cd_types {
+	DW_MCI_CD_INTERNAL,  /* use mmc internal CD line */
+	DW_MCI_CD_EXTERNAL,  /* use external callback */
+	DW_MCI_CD_GPIO,      /* use external gpio pin for CD line */
+	DW_MCI_CD_NONE,      /* no CD line, use polling to detect card */
+	DW_MCI_CD_PERMANENT, /* no CD line, card permanently wired to host */
+};
 
 struct dma_pdata;
 
@@ -196,15 +220,49 @@ struct dw_mci_board {
 	unsigned int bus_hz; /* Bus speed */
 
 	unsigned int caps;	/* Capabilities */
+	unsigned int caps2;	/* More capabilities */
+	/*
+	 * Override fifo depth. If 0, autodetect it from the FIFOTH register,
+	 * but note that this may not be reliable after a bootloader has used
+	 * it.
+	 */
+	unsigned int fifo_depth;
+
+	unsigned int buf_size;	/* Buffer size */
 
 	/* delay in mS before detecting cards after interrupt */
 	u32 detect_delay_ms;
+
+	char *hclk_name;
+	char *cclk_name;
 
 	int (*init)(u32 slot_id, irq_handler_t , void *);
 	int (*get_ro)(u32 slot_id);
 	int (*get_cd)(u32 slot_id);
 	int (*get_ocr)(u32 slot_id);
 	int (*get_bus_wd)(u32 slot_id);
+	void (*cfg_gpio)(int width);
+	void (*set_io_timing)(void *data, unsigned char timing);
+
+	/* Phase Shift Value */
+	unsigned int sdr_timing;
+	unsigned int ddr_timing;
+
+	/* cd_type: Type of Card Detection method (see cd_types enum above) */
+
+	enum dw_mci_cd_types cd_type;
+
+	/* ext_cd_cleanup: Cleanup external card detect subsystem.
+	 * ext_cd_init: Initialize external card detect subsystem.
+	 *  		notify_func argument is a callback to the dwmci driver
+	 *  		that triggers the card detection event. Callback arguments:
+	 * 		dev is pointer to platform device of the host controller,
+	 *		state is new state of the card (0 - removed, 1 - inserted).
+	 */
+
+	int (*ext_cd_init)(void (*notify_func)(struct platform_device *, int state));
+	int (*ext_cd_cleanup)(void (*notify_func)(struct platform_device *,int state));
+
 	/*
 	 * Enable power to selected slot and set voltage to desired level.
 	 * Voltage levels are specified using MMC_VDD_xxx defines defined

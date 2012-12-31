@@ -21,10 +21,15 @@
 #include <mach/map.h>
 #include <plat/irq-vic-timer.h>
 #include <plat/regs-timer.h>
+#include <asm/mach/irq.h>
 
 static void s3c_irq_demux_vic_timer(unsigned int irq, struct irq_desc *desc)
 {
+	struct irq_chip *chip = irq_get_chip(irq);
+
+	chained_irq_enter(chip, desc);
 	generic_handle_irq((int)desc->irq_data.handler_data);
+	chained_irq_exit(chip, desc);
 }
 
 /* We assume the IRQ_TIMER0..IRQ_TIMER4 range is continuous. */

@@ -134,6 +134,57 @@ static void __setup_offsets(struct vb2_queue *q)
 }
 
 /**
+ * __setup_cookie() - setup unique cookies for every plane in
+ * every buffer on the queue
+ */
+static void __setup_cookie(struct vb2_queue *q)
+{
+	unsigned int buffer, plane;
+	struct vb2_buffer *vb;
+	struct v4l2_plane *p;
+
+	for (buffer = 0; buffer < q->num_buffers; ++buffer) {
+		vb = q->bufs[buffer];
+		if (!vb)
+			continue;
+
+		for (plane = 0; plane < vb->num_planes; ++plane) {
+			p = &vb->v4l2_planes[plane];
+			p->cookie = call_memop(q, plane, cookie,
+					vb->planes[plane].mem_priv);
+			dprintk(3, "buffer %d, plane %d cookie 0x%08x\n",
+					buffer, plane, (int)p->cookie);
+		}
+	}
+}
+
+
+/**
+ * __setup_share() - setup share object for every plane in
+ * every buffer on the queue
+ */
+static void __setup_share(struct vb2_queue *q)
+{
+	unsigned int buffer, plane;
+	struct vb2_buffer *vb;
+	struct v4l2_plane *p;
+
+	for (buffer = 0; buffer < q->num_buffers; ++buffer) {
+		vb = q->bufs[buffer];
+		if (!vb)
+			continue;
+
+		for (plane = 0; plane < vb->num_planes; ++plane) {
+			p = &vb->v4l2_planes[plane];
+			p->share = call_memop(q, plane, share,
+					      vb->planes[plane].mem_priv);
+			dprintk(3, "buffer %d, plane %d cookie 0x%08x\n",
+					buffer, plane, (int)p->cookie);
+		}
+	}
+}
+
+/**
  * __vb2_queue_alloc() - allocate videobuf buffer structures and (for MMAP type)
  * video buffer memory for all buffers/planes on the queue and initializes the
  * queue
@@ -197,6 +248,11 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum v4l2_memory memory,
 	q->num_buffers = buffer;
 
 	__setup_offsets(q);
+
+	if (memory == V4L2_MEMORY_MMAP) {
+		__setup_cookie(q);
+		__setup_share(q);
+	}
 
 	dprintk(1, "Allocated %d buffers, %d plane(s) each\n",
 			q->num_buffers, num_planes);
@@ -811,9 +867,17 @@ static int __qbuf_mmap(struct vb2_buffer *vb, struct v4l2_buffer *b)
 static void __enqueue_in_driver(struct vb2_buffer *vb)
 {
 	struct vb2_queue *q = vb->vb2_queue;
+	void *privs[VIDEO_MAX_PLANES];
+	int plane;
 
 	vb->state = VB2_BUF_STATE_ACTIVE;
 	atomic_inc(&q->queued_count);
+
+	for (plane = 0; plane < vb->num_planes; plane++)
+		privs[plane] = vb->planes[plane].mem_priv;
+
+	call_memop(q, plane, sync_to_dev, q->alloc_ctx, privs, vb->num_planes,
+			vb->v4l2_buf.type);
 	q->ops->buf_queue(vb);
 }
 
@@ -1046,6 +1110,7 @@ EXPORT_SYMBOL_GPL(vb2_wait_for_all_buffers);
 int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking)
 {
 	struct vb2_buffer *vb = NULL;
+	int plane;
 	int ret;
 
 	if (q->fileio) {
@@ -1072,6 +1137,15 @@ int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking)
 
 	switch (vb->state) {
 	case VB2_BUF_STATE_DONE:
+		{
+			void *privs[VIDEO_MAX_PLANES];
+
+			for (plane = 0; plane < vb->num_planes; plane++)
+				privs[plane] = vb->planes[plane].mem_priv;
+
+			call_memop(q, plane, sync_from_dev, q->alloc_ctx, privs,
+					vb->num_planes, vb->v4l2_buf.type);
+		}
 		dprintk(3, "dqbuf: Returning done buffer\n");
 		break;
 	case VB2_BUF_STATE_ERROR:

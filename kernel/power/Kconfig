@@ -18,6 +18,73 @@ config SUSPEND_FREEZER
 
 	  Turning OFF this setting is NOT recommended! If in doubt, say Y.
 
+config HAS_WAKELOCK
+	bool
+
+config HAS_EARLYSUSPEND
+	bool
+
+config WAKELOCK
+	bool "Wake lock"
+	depends on PM && RTC_CLASS
+	default n
+	select HAS_WAKELOCK
+	---help---
+	  Enable wakelocks. When user space request a sleep state the
+	  sleep request will be delayed until no wake locks are held.
+
+config WAKELOCK_STAT
+	bool "Wake lock stats"
+	depends on WAKELOCK
+	default y
+	---help---
+	  Report wake lock stats in /proc/wakelocks
+
+config USER_WAKELOCK
+	bool "Userspace wake locks"
+	depends on WAKELOCK
+	default y
+	---help---
+	  User-space wake lock api. Write "lockname" or "lockname timeout"
+	  to /sys/power/wake_lock lock and if needed create a wake lock.
+	  Write "lockname" to /sys/power/wake_unlock to unlock a user wake
+	  lock.
+
+config EARLYSUSPEND
+	bool "Early suspend"
+	depends on WAKELOCK
+	default y
+	select HAS_EARLYSUSPEND
+	---help---
+	  Call early suspend handlers when the user requested sleep state
+	  changes.
+
+choice
+	prompt "User-space screen access"
+	default FB_EARLYSUSPEND if !FRAMEBUFFER_CONSOLE
+	default CONSOLE_EARLYSUSPEND
+	depends on HAS_EARLYSUSPEND
+
+	config NO_USER_SPACE_SCREEN_ACCESS_CONTROL
+		bool "None"
+
+	config CONSOLE_EARLYSUSPEND
+		bool "Console switch on early-suspend"
+		depends on HAS_EARLYSUSPEND && VT
+		---help---
+		  Register early suspend handler to perform a console switch to
+		  when user-space should stop drawing to the screen and a switch
+		  back when it should resume.
+
+	config FB_EARLYSUSPEND
+		bool "Sysfs interface"
+		depends on HAS_EARLYSUSPEND
+		---help---
+		  Register early suspend handler that notifies and waits for
+		  user-space through sysfs when user-space should stop drawing
+		  to the screen and notifies user-space when it should resume.
+endchoice
+
 config HIBERNATE_CALLBACKS
 	bool
 
@@ -227,3 +294,10 @@ config PM_OPP
 config PM_RUNTIME_CLK
 	def_bool y
 	depends on PM_RUNTIME && HAVE_CLK
+
+config SUSPEND_TIME
+	bool "Log time spent in suspend"
+	---help---
+	  Prints the time spent in suspend in the kernel log, and
+	  keeps statistics on the time spent in suspend in
+	  /sys/kernel/debug/suspend_time

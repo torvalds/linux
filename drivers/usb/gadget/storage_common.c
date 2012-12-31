@@ -260,6 +260,7 @@ static struct fsg_lun *fsg_lun_from_dev(struct device *dev)
 
 /* Big enough to hold our biggest descriptor */
 #define EP0_BUFSIZE	256
+#define EP0_BUFSIZE_SS	512
 #define DELAYED_STATUS	(EP0_BUFSIZE + 999)	/* An impossibly large value */
 
 /* Number of buffers we will use.  2 is enough for double-buffering */
@@ -429,6 +430,118 @@ static struct usb_descriptor_header *fsg_fs_function[] = {
 	NULL,
 };
 
+static struct usb_endpoint_descriptor
+fsg_ss_bulk_in_desc = {
+        .bLength =              USB_DT_ENDPOINT_SIZE,
+        .bDescriptorType =      USB_DT_ENDPOINT,
+
+        /* bEndpointAddress copied from fs_bulk_in_desc during fsg_bind() */
+        .bmAttributes =         USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize =       cpu_to_le16(1024),
+};
+
+static struct usb_ss_ep_comp_descriptor fsg_ss_bulk_in_comp_desc = {
+        .bLength =              sizeof(fsg_ss_bulk_in_comp_desc),
+        .bDescriptorType =      USB_DT_SS_ENDPOINT_COMP,
+
+        /*.bMaxBurst =          DYNAMIC, */
+};
+
+static struct usb_endpoint_descriptor
+fsg_ss_bulk_out_desc = {
+        .bLength =              USB_DT_ENDPOINT_SIZE,
+        .bDescriptorType =      USB_DT_ENDPOINT,
+
+        /* bEndpointAddress copied from fs_bulk_out_desc during fsg_bind() */
+        .bmAttributes =         USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize =       cpu_to_le16(1024),
+};
+
+static struct usb_ss_ep_comp_descriptor fsg_ss_bulk_out_comp_desc = {
+        .bLength =              sizeof(fsg_ss_bulk_in_comp_desc),
+        .bDescriptorType =      USB_DT_SS_ENDPOINT_COMP,
+
+        /*.bMaxBurst =          DYNAMIC, */
+};
+
+#ifndef FSG_NO_INTR_EP
+
+static struct usb_endpoint_descriptor
+fsg_ss_intr_in_desc = {
+        .bLength =              USB_DT_ENDPOINT_SIZE,
+        .bDescriptorType =      USB_DT_ENDPOINT,
+
+        /* bEndpointAddress copied from fs_intr_in_desc during fsg_bind() */
+        .bmAttributes =         USB_ENDPOINT_XFER_INT,
+        .wMaxPacketSize =       cpu_to_le16(2),
+        .bInterval =            9,      /* 2**(9-1) = 256 uframes -> 32 ms */
+};
+
+static struct usb_ss_ep_comp_descriptor fsg_ss_intr_in_comp_desc = {
+        .bLength =              sizeof(fsg_ss_bulk_in_comp_desc),
+        .bDescriptorType =      USB_DT_SS_ENDPOINT_COMP,
+
+        .wBytesPerInterval =    cpu_to_le16(1024),
+};
+
+#ifndef FSG_NO_OTG
+#  define FSG_SS_FUNCTION_PRE_EP_ENTRIES        4
+#else
+#  define FSG_SS_FUNCTION_PRE_EP_ENTRIES        3
+#endif
+
+#endif
+
+static __maybe_unused struct usb_ext_cap_descriptor fsg_ext_cap_desc = {
+        .bLength =              USB_DT_USB_EXT_CAP_SIZE,
+        .bDescriptorType =      USB_DT_DEVICE_CAPABILITY,
+        .bDevCapabilityType =   USB_CAP_TYPE_EXT,
+
+        .bmAttributes =         cpu_to_le32(USB_LPM_SUPPORT),
+};
+
+static __maybe_unused struct usb_ss_cap_descriptor fsg_ss_cap_desc = {
+        .bLength =              USB_DT_USB_SS_CAP_SIZE,
+        .bDescriptorType =      USB_DT_DEVICE_CAPABILITY,
+        .bDevCapabilityType =   USB_SS_CAP_TYPE,
+
+        /* .bmAttributes = LTM is not supported yet */
+
+        .wSpeedSupported =      cpu_to_le16(USB_LOW_SPEED_OPERATION
+                | USB_FULL_SPEED_OPERATION
+                | USB_HIGH_SPEED_OPERATION
+                | USB_5GBPS_OPERATION),
+        .bFunctionalitySupport = USB_LOW_SPEED_OPERATION,
+        .bU1devExitLat =        USB_DEFAULT_U1_DEV_EXIT_LAT,
+        .bU2DevExitLat =        USB_DEFAULT_U2_DEV_EXIT_LAT,
+};
+
+static __maybe_unused struct usb_bos_descriptor fsg_bos_desc = {
+        .bLength =              USB_DT_BOS_SIZE,
+        .bDescriptorType =      USB_DT_BOS,
+
+        .wTotalLength =         USB_DT_BOS_SIZE
+                                + USB_DT_USB_EXT_CAP_SIZE
+                                + USB_DT_USB_SS_CAP_SIZE,
+
+        .bNumDeviceCaps =       2,
+};
+
+static struct usb_descriptor_header *fsg_ss_function[] = {
+#ifndef FSG_NO_OTG
+        (struct usb_descriptor_header *) &fsg_otg_desc,
+#endif
+        (struct usb_descriptor_header *) &fsg_intf_desc,
+        (struct usb_descriptor_header *) &fsg_ss_bulk_in_desc,
+        (struct usb_descriptor_header *) &fsg_ss_bulk_in_comp_desc,
+        (struct usb_descriptor_header *) &fsg_ss_bulk_out_desc,
+        (struct usb_descriptor_header *) &fsg_ss_bulk_out_comp_desc,
+#ifndef FSG_NO_INTR_EP
+        (struct usb_descriptor_header *) &fsg_ss_intr_in_desc,
+        (struct usb_descriptor_header *) &fsg_ss_intr_in_comp_desc,
+#endif
+        NULL,
+};
 
 /*
  * USB 2.0 devices need to expose both high speed and full speed
@@ -763,10 +876,16 @@ static ssize_t fsg_store_file(struct device *dev, struct device_attribute *attr,
 	struct rw_semaphore	*filesem = dev_get_drvdata(dev);
 	int		rc = 0;
 
+
+#ifndef CONFIG_USB_ANDROID_MASS_STORAGE
+	/* disabled in android because we need to allow closing the backing file
+	 * if the media was removed
+	 */
 	if (curlun->prevent_medium_removal && fsg_lun_is_open(curlun)) {
 		LDBG(curlun, "eject attempt prevented\n");
 		return -EBUSY;				/* "Door is locked" */
 	}
+#endif
 
 	/* Remove a trailing newline */
 	if (count > 0 && buf[count-1] == '\n')

@@ -109,6 +109,30 @@ config LCD_S6E63M0
 	  If you have an S6E63M0 LCD Panel, say Y to enable its
 	  LCD control driver.
 
+config LCD_MIPI_S6E63M0
+	tristate "S6E63M0 AMOLED MIPI LCD Driver"
+	depends on BACKLIGHT_CLASS_DEVICE
+	default n
+	help
+	  If you have an S6E63M0 MIPI LCD Panel, say Y to enable its
+	  LCD control driver.
+
+config LCD_MIPI_S6E8AB0
+	tristate "1280 X 800 S6E8AB0 AMOLED MIPI LCD Driver"
+	depends on BACKLIGHT_CLASS_DEVICE
+	default n
+	help
+	  If you have an S6E8AB0 MIPI LCD Panel, say Y to enable its
+	  LCD control driver.
+
+config LCD_MIPI_TC358764
+	tristate "1280 X 800 TC358764 AMOLED MIPI LCD Driver"
+	depends on BACKLIGHT_CLASS_DEVICE
+	default n
+	help
+	  If you have an TC358764 MIPI LCD Panel, say Y to enable its
+	  LCD control driver.
+
 config LCD_LD9040
 	tristate "LD9040 AMOLED LCD Driver"
 	depends on SPI && BACKLIGHT_CLASS_DEVICE
@@ -116,6 +140,36 @@ config LCD_LD9040
 	help
 	  If you have an LD9040 Panel, say Y to enable its
 	  control driver.
+
+config LCD_AMS369FG06
+	tristate "AMS369FG06 AMOLED LCD Driver"
+	depends on SPI_GPIO && BACKLIGHT_CLASS_DEVICE && FB_S3C
+	default y
+	help
+	  If you have an AMS369FG06 AMOLED Panel, say Y to enable its
+	  LCD control driver.
+
+config LCD_LMS501KF03
+	tristate "LMS501KF03 TFT LCD Driver"
+	depends on SPI_GPIO && BACKLIGHT_CLASS_DEVICE && FB_S3C
+	default y
+	help
+	  If you have an LMS501KF03 AMOLED Panel, say Y to enable its
+	  LCD control driver.
+
+config LCD_WA101S
+	tristate "LCD_WA101S LCD Driver"
+	default n
+	help
+	  If you have a WA101S Panel(WXGA), say Y to enable its
+	  LCD control driver.
+
+config LCD_LTE480WV
+	tristate "LCD_LTE480WV LCD Driver"
+	default n
+	help
+	  If you have an LTE480 Panel(WVGA), say Y to enable its
+	  LCD control drvier.
 
 endif # LCD_CLASS_DEVICE
 

@@ -14,10 +14,16 @@ struct s3c2410_ts_mach_info {
        int             delay;
        int             presc;
        int             oversampling_shift;
+
+	int		cal_x_max;
+	int		cal_y_max;
+	int		cal_param[7];
+
 	void    (*cfg_gpio)(struct platform_device *dev);
 };
 
 extern void s3c24xx_ts_set_platdata(struct s3c2410_ts_mach_info *);
+extern void s3c24xx_ts1_set_platdata(struct s3c2410_ts_mach_info *);
 
 /* defined by architecture to configure gpio */
 extern void s3c24xx_ts_cfg_gpio(struct platform_device *dev);

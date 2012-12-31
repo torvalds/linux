@@ -1,0 +1,19 @@
+menuconfig VITHAR
+	tristate "Enable Vithar DDK"
+	default n
+	help
+	  Choose this option to enable 3D rendering with vithar DDK.
+
+config VITHAR_RT_PM
+	bool "Enable Runtime power management"
+	depends on VITHAR
+	default n
+	help
+	  Choose this option to enable runtime power management on vithar DDK.
+
+config VITHAR_DVFS
+	bool "Enable DVFS"
+	depends on VITHAR
+	default n
+	help
+	  Choose this option to enable DVFS on vithar DDK.

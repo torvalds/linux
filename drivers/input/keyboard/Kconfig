@@ -563,4 +563,10 @@ config KEYBOARD_W90P910
 	  To compile this driver as a module, choose M here: the
 	  module will be called w90p910_keypad.
 
+config KEYBOARD_ODROID
+	bool "ODROID-Q, ODROID-A4 Exynos DEV Keypad support"
+	help
+	  Say Y here to enable the gpio keypad on evaluation board
+	  based on ODROID-EXYNOS.
+
 endif

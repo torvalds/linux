@@ -40,6 +40,11 @@ struct clk clk_xusbxti = {
 	.id		= -1,
 };
 
+struct clk clk_xxti = {
+	.name		= "xxti",
+	.id		= -1,
+};
+
 struct clk s5p_clk_27m = {
 	.name		= "clk_27m",
 	.id		= -1,
@@ -73,6 +78,7 @@ struct clk clk_fout_mpll = {
 struct clk clk_fout_epll = {
 	.name		= "fout_epll",
 	.id		= -1,
+	.parent		= &clk_ext_xtal_mux,
 	.ctrlbit	= (1 << 31),
 };
 
@@ -168,6 +174,41 @@ unsigned long s5p_epll_get_rate(struct clk *clk)
 	return clk->rate;
 }
 
+int s5p_spdif_set_rate(struct clk *clk, unsigned long rate)
+{
+	struct clk *pclk;
+	int ret;
+
+	pclk = clk_get_parent(clk);
+	if (IS_ERR(pclk))
+		return -EINVAL;
+
+	ret = pclk->ops->set_rate(pclk, rate);
+	clk_put(pclk);
+
+	return ret;
+}
+
+unsigned long s5p_spdif_get_rate(struct clk *clk)
+{
+	struct clk *pclk;
+	int rate;
+
+	pclk = clk_get_parent(clk);
+	if (IS_ERR(pclk))
+		return -EINVAL;
+
+	rate = pclk->ops->get_rate(pclk);
+	clk_put(pclk);
+
+	return rate;
+}
+
+struct clk_ops s5p_sclk_spdif_ops = {
+	.set_rate	= s5p_spdif_set_rate,
+	.get_rate	= s5p_spdif_get_rate,
+};
+
 static struct clk *s5p_clks[] __initdata = {
 	&clk_ext_xtal_mux,
 	&clk_48m,
@@ -179,6 +220,7 @@ static struct clk *s5p_clks[] __initdata = {
 	&clk_fout_vpll,
 	&clk_vpll,
 	&clk_xusbxti,
+	&clk_xxti,
 };
 
 void __init s5p_register_clocks(unsigned long xtal_freq)

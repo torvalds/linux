@@ -38,6 +38,7 @@
 #define VIDCON0_VIDOUT_TV			(0x1 << 26)
 #define VIDCON0_VIDOUT_I80_LDI0			(0x2 << 26)
 #define VIDCON0_VIDOUT_I80_LDI1			(0x3 << 26)
+#define VIDCON0_VIDOUT_WB			(0x4 << 26)
 
 #define VIDCON0_L1_DATA_MASK			(0x7 << 23)
 #define VIDCON0_L1_DATA_SHIFT			(23)
@@ -81,7 +82,12 @@
 #define VIDCON0_ENVID				(1 << 1)
 #define VIDCON0_ENVID_F				(1 << 0)
 
+#ifdef CONFIG_FB_EXYNOS_FIMD_V8
+#define VIDCON1					(0x20004)
+#else
 #define VIDCON1					(0x04)
+#endif
+
 #define VIDCON1_LINECNT_MASK			(0x7ff << 16)
 #define VIDCON1_LINECNT_SHIFT			(16)
 #define VIDCON1_LINECNT_GET(_v)			(((_v) >> 16) & 0x7ff)
@@ -91,6 +97,9 @@
 #define VIDCON1_VSTATUS_BACKPORCH		(0x1 << 13)
 #define VIDCON1_VSTATUS_ACTIVE			(0x2 << 13)
 #define VIDCON1_VSTATUS_FRONTPORCH		(0x0 << 13)
+#define VIDCON1_VCLK_MASK			(0x3 << 9)
+#define VIDCON1_VCLK_HOLD			(0x0 << 9)
+#define VIDCON1_VCLK_RUN			(0x1 << 9)
 
 #define VIDCON1_INV_VCLK			(1 << 7)
 #define VIDCON1_INV_HSYNC			(1 << 6)
@@ -99,18 +108,22 @@
 
 /* VIDCON2 */
 
-#define VIDCON2					(0x08)
-#define VIDCON2_EN601				(1 << 23)
-#define VIDCON2_TVFMTSEL_SW			(1 << 14)
+#define VIDCON2				(0x08)
+#define VIDCON2_EN601			(1 << 23)
+#define VIDCON2_WB_DISABLE		(0 << 15)
+#define VIDCON2_WB_ENABLE		(1 << 15)
+#define VIDCON2_WB_MASK			(1 << 15)
+#define VIDCON2_TVFORMATSEL_HW		(0 << 14)
+#define VIDCON2_TVFORMATSEL_SW		(1 << 14)
+#define VIDCON2_TVFORMATSEL_HW_SW_MASK	(1 << 14)
+#define VIDCON2_TVFORMATSEL_MASK	(0x3 << 12)
+#define VIDCON2_TVFORMATSEL_SHIFT	(12)
+#define VIDCON2_TVFORMATSEL_RGB		(0x0 << 12)
+#define VIDCON2_TVFORMATSEL_YUV422	(0x1 << 12)
+#define VIDCON2_TVFORMATSEL_YUV444	(0x2 << 12)
 
-#define VIDCON2_TVFMTSEL1_MASK			(0x3 << 12)
-#define VIDCON2_TVFMTSEL1_SHIFT			(12)
-#define VIDCON2_TVFMTSEL1_RGB			(0x0 << 12)
-#define VIDCON2_TVFMTSEL1_YUV422		(0x1 << 12)
-#define VIDCON2_TVFMTSEL1_YUV444		(0x2 << 12)
-
-#define VIDCON2_ORGYCbCr			(1 << 8)
-#define VIDCON2_YUVORDCrCb			(1 << 7)
+#define VIDCON2_ORGYCbCr		(1 << 8)
+#define VIDCON2_YUVORDCrCb		(1 << 7)
 
 /* PRTCON (S3C6410, S5PC100)
  * Might not be present in the S3C6410 documentation,
@@ -163,24 +176,29 @@
 #define VIDTCON1_HSPW_LIMIT			(0xff)
 #define VIDTCON1_HSPW(_x)			((_x) << 0)
 
-#define VIDTCON2				(0x18)
+/* VIDTCON2 */
+
+#define VIDTCON2_LINEVAL_E(_x)			((((_x) & 0x800) >> 11) << 23)
 #define VIDTCON2_LINEVAL_MASK			(0x7ff << 11)
 #define VIDTCON2_LINEVAL_SHIFT			(11)
 #define VIDTCON2_LINEVAL_LIMIT			(0x7ff)
-#define VIDTCON2_LINEVAL(_x)			((_x) << 11)
+#define VIDTCON2_LINEVAL(_x)			(((_x) & 0x7ff) << 11)
 
+#define VIDTCON2_HOZVAL_E(_x)			((((_x) & 0x800) >> 11) << 22)
 #define VIDTCON2_HOZVAL_MASK			(0x7ff << 0)
 #define VIDTCON2_HOZVAL_SHIFT			(0)
 #define VIDTCON2_HOZVAL_LIMIT			(0x7ff)
-#define VIDTCON2_HOZVAL(_x)			((_x) << 0)
+#define VIDTCON2_HOZVAL(_x)			(((_x) & 0x7ff) << 0)
 
 /* WINCONx */
-
 
 #define WINCONx_BITSWP				(1 << 18)
 #define WINCONx_BYTSWP				(1 << 17)
 #define WINCONx_HAWSWP				(1 << 16)
 #define WINCONx_WSWP				(1 << 15)
+#define WINCONx_ENLOCAL_MASK			(0xf << 15)
+#define WINCONx_INRGB_RGB			(0 << 13)
+#define WINCONx_INRGB_YCBCR			(1 << 13)
 #define WINCONx_BURSTLEN_MASK			(0x3 << 9)
 #define WINCONx_BURSTLEN_SHIFT			(9)
 #define WINCONx_BURSTLEN_16WORD			(0x0 << 9)
@@ -200,6 +218,7 @@
 #define WINCON0_BPPMODE_24BPP_888		(0xb << 2)
 
 #define WINCON1_BLD_PIX				(1 << 6)
+#define WINCON1_BLD_PLANE			(0 << 6)
 
 #define WINCON1_ALPHA_SEL			(1 << 1)
 #define WINCON1_BPPMODE_MASK			(0xf << 2)
@@ -228,25 +247,29 @@
 /* Local input channels (windows 0-2) */
 #define SHADOWCON_CHx_LOCAL_ENABLE(_win)	(1 << (5 + (_win)))
 
+#define VIDOSDxA_TOPLEFT_X_E(_x)		((((_x) & 0x800) >> 11) << 23)
 #define VIDOSDxA_TOPLEFT_X_MASK			(0x7ff << 11)
 #define VIDOSDxA_TOPLEFT_X_SHIFT		(11)
 #define VIDOSDxA_TOPLEFT_X_LIMIT		(0x7ff)
-#define VIDOSDxA_TOPLEFT_X(_x)			((_x) << 11)
+#define VIDOSDxA_TOPLEFT_X(_x)			(((_x) & 0x7ff) << 11)
 
+#define VIDOSDxA_TOPLEFT_Y_E(_x)		((((_x) & 0x800) >> 11) << 22)
 #define VIDOSDxA_TOPLEFT_Y_MASK			(0x7ff << 0)
 #define VIDOSDxA_TOPLEFT_Y_SHIFT		(0)
 #define VIDOSDxA_TOPLEFT_Y_LIMIT		(0x7ff)
-#define VIDOSDxA_TOPLEFT_Y(_x)			((_x) << 0)
+#define VIDOSDxA_TOPLEFT_Y(_x)			(((_x) & 0x7ff) << 0)
 
+#define VIDOSDxB_BOTRIGHT_X_E(_x)		((((_x) & 0x800) >> 11) << 23)
 #define VIDOSDxB_BOTRIGHT_X_MASK		(0x7ff << 11)
 #define VIDOSDxB_BOTRIGHT_X_SHIFT		(11)
 #define VIDOSDxB_BOTRIGHT_X_LIMIT		(0x7ff)
-#define VIDOSDxB_BOTRIGHT_X(_x)			((_x) << 11)
+#define VIDOSDxB_BOTRIGHT_X(_x)			(((_x) & 0x7ff) << 11)
 
+#define VIDOSDxB_BOTRIGHT_Y_E(_x)		((((_x) & 0x800) >> 11) << 22)
 #define VIDOSDxB_BOTRIGHT_Y_MASK		(0x7ff << 0)
 #define VIDOSDxB_BOTRIGHT_Y_SHIFT		(0)
 #define VIDOSDxB_BOTRIGHT_Y_LIMIT		(0x7ff)
-#define VIDOSDxB_BOTRIGHT_Y(_x)			((_x) << 0)
+#define VIDOSDxB_BOTRIGHT_Y(_x)			(((_x) & 0x7ff) << 0)
 
 /* For VIDOSD[1..4]C */
 #define VIDISD14C_ALPHA0_R(_x)			((_x) << 20)
@@ -278,15 +301,17 @@
 #define VIDW_BUF_END1(_buff)			(0xD4 + ((_buff) * 8))
 #define VIDW_BUF_SIZE(_buff)			(0x100 + ((_buff) * 4))
 
+#define VIDW_BUF_SIZE_OFFSET_E(_x)		((((_x) & 0x2000) >> 13) << 27)
 #define VIDW_BUF_SIZE_OFFSET_MASK		(0x1fff << 13)
 #define VIDW_BUF_SIZE_OFFSET_SHIFT		(13)
 #define VIDW_BUF_SIZE_OFFSET_LIMIT		(0x1fff)
-#define VIDW_BUF_SIZE_OFFSET(_x)		((_x) << 13)
+#define VIDW_BUF_SIZE_OFFSET(_x)		(((_x) & 0x1fff) << 13)
 
+#define VIDW_BUF_SIZE_PAGEWIDTH_E(_x)		((((_x) & 0x2000) >> 13) << 26)
 #define VIDW_BUF_SIZE_PAGEWIDTH_MASK		(0x1fff << 0)
 #define VIDW_BUF_SIZE_PAGEWIDTH_SHIFT		(0)
 #define VIDW_BUF_SIZE_PAGEWIDTH_LIMIT		(0x1fff)
-#define VIDW_BUF_SIZE_PAGEWIDTH(_x)		((_x) << 0)
+#define VIDW_BUF_SIZE_PAGEWIDTH(_x)		(((_x) & 0x1fff) << 0)
 
 /* Interrupt controls and status */
 
@@ -384,3 +409,16 @@
 #define WPALCON_W0PAL_16BPP_A555		(0x5 << 0)
 #define WPALCON_W0PAL_16BPP_565			(0x6 << 0)
 
+/* Blending equation control */
+#define BLENDCON				(0x260)
+#define BLENDCON_NEW_MASK			(1 << 0)
+#define BLENDCON_NEW_8BIT_ALPHA_VALUE		(1 << 0)
+#define BLENDCON_NEW_4BIT_ALPHA_VALUE		(0 << 0)
+
+/* DP clock control */
+#define DPCLKCON				(0x27c)
+#define DPCLKCON_ENABLE				(1 << 1)
+
+/* Window alpha control */
+#define VIDW0ALPHA0				(0x200)
+#define VIDW0ALPHA1				(0x204)

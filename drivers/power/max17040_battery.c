@@ -34,8 +34,12 @@
 #define MAX17040_CMD_MSB	0xFE
 #define MAX17040_CMD_LSB	0xFF
 
-#define MAX17040_DELAY		1000
-#define MAX17040_BATTERY_FULL	95
+#define MAX17040_DELAY			msecs_to_jiffies(3000)
+#define MAX17040_BATTERY_FULL	99
+#define	POWER_OFF_VOLTAGE		3400000
+#define	POWER_MAX_VOLTAGE		4200000
+
+//#define	MAX17040_DEBUG
 
 struct max17040_chip {
 	struct i2c_client		*client;
@@ -79,114 +83,171 @@ static int max17040_get_property(struct power_supply *psy,
 	return 0;
 }
 
-static int max17040_write_reg(struct i2c_client *client, int reg, u8 value)
+static int max17040_write_reg(struct i2c_client *client, u8 reg, u16 value)
 {
+	struct i2c_msg msg;
+	unsigned char buf[3];
 	int ret;
 
-	ret = i2c_smbus_write_byte_data(client, reg, value);
+	buf[0] 	= reg;
+	buf[1] 	= (value >> 8) & 0xFF;
+	buf[2] 	= (value     ) & 0xFF;
 
-	if (ret < 0)
-		dev_err(&client->dev, "%s: err %d\n", __func__, ret);
+	msg.addr	= client->addr;
+	msg.flags 	= 0;
+	msg.len 	= 3;
+	msg.buf 	= (unsigned char *)&buf[0];
+	
+	if((ret = i2c_transfer(client->adapter, &msg, 1)) < 0)	{
+		dev_err(&client->dev, "I2C write error: (%d) reg : 0x%02X value: 0x%04X\n", ret, reg, value);
+		return ret;
+	}
 
-	return ret;
+	return	ret;
 }
 
-static int max17040_read_reg(struct i2c_client *client, int reg)
+static int max17040_read_reg(struct i2c_client *client, u8 reg)
 {
-	int ret;
+	struct i2c_msg	msg[2];
+	int 			ret;
+	unsigned char	temp[2];
 
-	ret = i2c_smbus_read_byte_data(client, reg);
+	msg[0].addr 	= client->addr;
+	msg[0].flags 	= 0;
+	msg[0].len 		= 1;
+	msg[0].buf 		= (unsigned char *)&reg;
 
-	if (ret < 0)
-		dev_err(&client->dev, "%s: err %d\n", __func__, ret);
+	msg[1].addr 	= client->addr;
+	msg[1].flags    = I2C_M_RD;
+	msg[1].len 		= 2;
+	msg[1].buf 		= (unsigned char *)&temp[0];
+
+	if ((ret = i2c_transfer(client->adapter, msg, 2)) != 2) {
+		dev_err(&client->dev, "I2C read error: (%d) reg: 0x%02X\n", ret, reg);
+		return -EIO;
+	}
+
+    ret = ((temp[0] << 8) & 0xFF00) | (temp[1] & 0xFF);
 
 	return ret;
 }
 
 static void max17040_reset(struct i2c_client *client)
 {
-	max17040_write_reg(client, MAX17040_CMD_MSB, 0x54);
-	max17040_write_reg(client, MAX17040_CMD_LSB, 0x00);
+	max17040_write_reg(client, MAX17040_CMD_MSB,    0x5400);
 }
 
 static void max17040_get_vcell(struct i2c_client *client)
 {
 	struct max17040_chip *chip = i2c_get_clientdata(client);
-	u8 msb;
-	u8 lsb;
 
-	msb = max17040_read_reg(client, MAX17040_VCELL_MSB);
-	lsb = max17040_read_reg(client, MAX17040_VCELL_LSB);
+	chip->vcell = (max17040_read_reg(client, MAX17040_VCELL_MSB) >> 4) & 0xFFF;
+	chip->vcell = (chip->vcell * 1250);
 
-	chip->vcell = (msb << 4) + (lsb >> 4);
+	#if defined(MAX17040_DEBUG)
+		printk("chip->vcell = %d\n", chip->vcell);
+	#endif
 }
 
 static void max17040_get_soc(struct i2c_client *client)
 {
 	struct max17040_chip *chip = i2c_get_clientdata(client);
-	u8 msb;
-	u8 lsb;
 
-	msb = max17040_read_reg(client, MAX17040_SOC_MSB);
-	lsb = max17040_read_reg(client, MAX17040_SOC_LSB);
+	chip->soc = (max17040_read_reg(client, MAX17040_SOC_MSB) >> 8) & 0xFF;
 
-	chip->soc = msb;
+	chip->soc = (chip->soc - 2) * 100 / (100 - 2);
+	
+	if(chip->soc > 100) chip->soc = 100;
+	if(chip->soc < 0  ) chip->soc = 0;
+
+	if(chip->soc)	{
+		if(chip->vcell < POWER_OFF_VOLTAGE)		chip->soc = 0;
+		if(chip->soc > MAX17040_BATTERY_FULL)	{
+			if(chip->vcell < POWER_MAX_VOLTAGE)	chip->soc = MAX17040_BATTERY_FULL;
+			else								chip->soc = MAX17040_BATTERY_FULL + 1;
+		}
+	}
+	else	{
+		if(chip->vcell >= POWER_OFF_VOLTAGE)	chip->soc = 1;
+	}
+
+	#if defined(MAX17040_DEBUG)
+		printk("chip->soc = %d\n", chip->soc);
+	#endif
 }
 
 static void max17040_get_version(struct i2c_client *client)
 {
-	u8 msb;
-	u8 lsb;
+    int ver;
+	
+	ver = max17040_read_reg(client, MAX17040_VER_MSB);
 
-	msb = max17040_read_reg(client, MAX17040_VER_MSB);
-	lsb = max17040_read_reg(client, MAX17040_VER_LSB);
+	dev_info(&client->dev, "MAX17040 Fuel-Gauge Ver %04X\n", ver);
 
-	dev_info(&client->dev, "MAX17040 Fuel-Gauge Ver %d%d\n", msb, lsb);
+    // Hardkerenl Odroid-A4 RCOMP
+    #if defined(CONFIG_BOARD_ODROID_A4)
+        max17040_write_reg(client, MAX17040_RCOMP_MSB, 0xD000);
+    	dev_info(&client->dev, "MAX17040 RCOMP Value %04X\n", max17040_read_reg(client, MAX17040_RCOMP_MSB));
+    #endif
 }
 
 static void max17040_get_online(struct i2c_client *client)
 {
 	struct max17040_chip *chip = i2c_get_clientdata(client);
 
-	if (chip->pdata->battery_online)
-		chip->online = chip->pdata->battery_online();
-	else
-		chip->online = 1;
+	chip->online = 1;
+
+	if(chip->pdata)	{
+		if (chip->pdata->battery_online)
+			chip->online = chip->pdata->battery_online();
+	}
 }
 
 static void max17040_get_status(struct i2c_client *client)
 {
 	struct max17040_chip *chip = i2c_get_clientdata(client);
 
-	if (!chip->pdata->charger_online || !chip->pdata->charger_enable) {
-		chip->status = POWER_SUPPLY_STATUS_UNKNOWN;
-		return;
-	}
-
-	if (chip->pdata->charger_online()) {
-		if (chip->pdata->charger_enable())
-			chip->status = POWER_SUPPLY_STATUS_CHARGING;
-		else
-			chip->status = POWER_SUPPLY_STATUS_NOT_CHARGING;
-	} else {
-		chip->status = POWER_SUPPLY_STATUS_DISCHARGING;
-	}
-
 	if (chip->soc > MAX17040_BATTERY_FULL)
 		chip->status = POWER_SUPPLY_STATUS_FULL;
+
+	if (chip->pdata)	{
+		if (!chip->pdata->charger_online || !chip->pdata->charger_enable) {
+			chip->status = POWER_SUPPLY_STATUS_UNKNOWN;
+			return;
+		}
+	
+		if (chip->pdata->charger_online()) {
+			if (chip->pdata->charger_enable())	
+				chip->status = POWER_SUPPLY_STATUS_CHARGING;
+			else
+				chip->status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		} else {
+			if(chip->status != POWER_SUPPLY_STATUS_DISCHARGING)
+    			chip->status = POWER_SUPPLY_STATUS_DISCHARGING;
+		}
+	}
+	else	{
+		chip->status = POWER_SUPPLY_STATUS_DISCHARGING;
+	}
 }
 
 static void max17040_work(struct work_struct *work)
 {
-	struct max17040_chip *chip;
+	struct max17040_chip *chip = container_of(work, struct max17040_chip, work.work);
 
-	chip = container_of(work, struct max17040_chip, work.work);
+	int old_vcell = chip->vcell, old_soc = chip->soc;
 
 	max17040_get_vcell(chip->client);
 	max17040_get_soc(chip->client);
 	max17040_get_online(chip->client);
 	max17040_get_status(chip->client);
 
+	if((old_vcell != chip->vcell) || (old_soc != chip->soc))	{
+		power_supply_changed(&chip->battery);
+		#if defined(MAX17040_DEBUG)
+			printk("%s : power_supply_changed!\n", __func__);
+		#endif		
+	}
 	schedule_delayed_work(&chip->work, MAX17040_DELAY);
 }
 
@@ -216,10 +277,10 @@ static int __devinit max17040_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, chip);
 
-	chip->battery.name		= "battery";
-	chip->battery.type		= POWER_SUPPLY_TYPE_BATTERY;
-	chip->battery.get_property	= max17040_get_property;
-	chip->battery.properties	= max17040_battery_props;
+	chip->battery.name				= "max17040-battery";
+	chip->battery.type				= POWER_SUPPLY_TYPE_BATTERY;
+	chip->battery.get_property		= max17040_get_property;
+	chip->battery.properties		= max17040_battery_props;
 	chip->battery.num_properties	= ARRAY_SIZE(max17040_battery_props);
 
 	ret = power_supply_register(&client->dev, &chip->battery);
@@ -228,8 +289,12 @@ static int __devinit max17040_probe(struct i2c_client *client,
 		kfree(chip);
 		return ret;
 	}
+	else	{
+		dev_info(&client->dev, "power supply max17040-battery registerd.\n");
+	}
 
-	max17040_reset(client);
+//	max17040_reset(client);
+    
 	max17040_get_version(client);
 
 	INIT_DELAYED_WORK_DEFERRABLE(&chip->work, max17040_work);
@@ -303,6 +368,6 @@ static void __exit max17040_exit(void)
 }
 module_exit(max17040_exit);
 
-MODULE_AUTHOR("Minkyu Kang <mk7.kang@samsung.com>");
+MODULE_AUTHOR("Hardkernel Co,.Ltd");
 MODULE_DESCRIPTION("MAX17040 Fuel Gauge");
 MODULE_LICENSE("GPL");

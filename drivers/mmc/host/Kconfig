@@ -24,6 +24,36 @@ config MMC_PXA
 
 	  If unsure, say N.
 
+config MMC_MSHCI
+        tristate "Mobile Storage Host Controller Interface support"
+	depends on HAS_DMA
+	help
+	  This selects the Mobile Storage Host Controller Interface.
+	  It is made by synopsys. It supports SD/MMC card.
+
+	  If you have a controller with this interface, say Y or M here. You
+          also need to enable an appropriate bus interface.
+
+          If unsure, say N.
+
+config MMC_MSHCI_S3C_DMA_MAP
+	tristate "Use own S3C_DMA_MAP function for mshci"
+	depends on MMC_MSHCI
+	help
+	  This selects using the s3c_dma_map_sg, s3c_unmap_sg functions.
+	  Those functions are optimized for flushing cache.
+
+	  If unsure, say N.
+
+config MMC_MSHCI_ASYNC_OPS
+	tristate "Use Asyn ops like pre_req, post_req"
+	depends on MMC_MSHCI
+	help
+	  This selects using the pre_req and post_req functions.
+	  These functions might make the performance of MMC better.
+
+	  If unsure, say N.
+
 config MMC_SDHCI
 	tristate "Secure Digital Host Controller Interface support"
 	depends on HAS_DMA

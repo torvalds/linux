@@ -50,6 +50,13 @@ config VIDEOBUF2_CORE
 config VIDEOBUF2_MEMOPS
 	tristate
 
+config VIDEOBUF2_FB
+	depends on VIDEOBUF2_CORE
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	tristate
+
 config VIDEOBUF2_DMA_CONTIG
 	select VIDEOBUF2_CORE
 	select VIDEOBUF2_MEMOPS
@@ -66,6 +73,27 @@ config VIDEOBUF2_DMA_SG
 	select VIDEOBUF2_CORE
 	select VIDEOBUF2_MEMOPS
 	tristate
+
+choice
+prompt "Select Videobuf2 allocator"
+default VIDEOBUF2_CMA_PHYS
+config VIDEOBUF2_CMA_PHYS
+	bool "CMA_PHYS"
+	depends on CMA
+	select VIDEOBUF2_CORE
+	select VIDEOBUF2_MEMOPS
+	help
+	  Use videobuf2 CMA-phys allocator
+
+config VIDEOBUF2_ION
+	bool "Android ION"
+	depends on ION_EXYNOS
+	select VIDEOBUF2_CORE
+	select VIDEOBUF2_MEMOPS
+	help
+	  Use videobuf2 Android ION allocator
+endchoice
+
 #
 # Multimedia Video device configuration
 #
@@ -376,6 +404,218 @@ config VIDEO_VPX3220
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vpx3220.
+
+config VIDEO_S5K3H2
+        tristate "S5K3H2 supporting camera driver"
+	depends on VIDEO_V4L2 && (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS) && VIDEO_EXYNOS_FIMC_IS
+        ---help---
+          This driver supports S5K3H2 sensor.
+choice
+depends on VIDEO_S5K3H2
+prompt "MIPI Camera port for S5K3H2"
+default S5K3H2_CSI_C
+config S5K3H2_CSI_C
+	bool "CSI Camera A port"
+	depends on (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS)
+	help
+	  This enables support for CSI A port
+config S5K3H2_CSI_D
+	bool "CSI Camera B port"
+	depends on (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS)
+	help
+	  This enables support for CSI B port
+endchoice
+
+config VIDEO_AR0832_IS
+        tristate "AR0832_IS supporting camera driver"
+	depends on VIDEO_V4L2 && (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS) && VIDEO_EXYNOS_FIMC_IS
+        ---help---
+          This driver supports AR0832_IS sensor.
+choice
+depends on VIDEO_AR0832_IS
+prompt "MIPI Camera port for AR0832_IS"
+default AR0832_IS_CSI_C
+config AR0832_IS_CSI_C
+	bool "CSI Camera A port"
+	depends on (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS)
+	help
+	  This enables support for CSI A port
+config AR0832_IS_CSI_D
+	bool "CSI Camera B port"
+	depends on (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS)
+	help
+	  This enables support for CSI B port
+endchoice
+
+config VIDEO_S5K3H7
+        tristate "S5K3H7 supporting camera driver"
+	depends on VIDEO_V4L2 && (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS) && VIDEO_EXYNOS_FIMC_IS
+        ---help---
+          This driver supports S5K3H7 sensor.
+choice
+depends on VIDEO_S5K3H7
+prompt "MIPI Camera port for S5K3H7"
+default S5K3H7_CSI_C
+config S5K3H7_CSI_C
+	bool "CSI Camera A port"
+	depends on (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS)
+	help
+	  This enables support for CSI A port
+config S5K3H7_CSI_D
+	bool "CSI Camera B port"
+	depends on (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS)
+	help
+	  This enables support for CSI B port
+endchoice
+
+config VIDEO_S5K4E5
+        tristate "S5K4E5 supporting camera driver"
+	depends on VIDEO_V4L2 && (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS) && VIDEO_EXYNOS_FIMC_IS
+        ---help---
+          This driver supports S5K3H7 sensor.
+choice
+depends on VIDEO_S5K4E5
+prompt "MIPI Camera port for S5K4E5"
+default S5K4E5_CSI_C
+config S5K4E5_CSI_C
+	bool "CSI Camera A port"
+	depends on (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS)
+	help
+	  This enables support for CSI A port
+config S5K4E5_CSI_D
+	bool "CSI Camera B port"
+	depends on (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS)
+	help
+	  This enables support for CSI B port
+endchoice
+
+config VIDEO_S5K6A3
+	tristate "S5K6A3 supporting camera driver"
+	depends on VIDEO_V4L2 && (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS) && VIDEO_EXYNOS_FIMC_IS
+	---help---
+	  This driver supports S5K6A3 sensor.
+choice
+depends on VIDEO_S5K6A3
+prompt "MIPI Camera port for S5K6A3"
+default S5K6A3_CSI_D
+config S5K6A3_CSI_C
+	bool "CSI Camera A port"
+	depends on (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS)
+	help
+	  This enables support for CSI A port
+config S5K6A3_CSI_D
+	bool "CSI Camera B port"
+	depends on (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS)
+	help
+	  This enalbes support for CSI B port
+endchoice
+
+# hardkernel added
+config VIDEO_S5K5AAFA
+	tristate "S5K5AAFA  supporting camera driver"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  This driver supports s5k5aafa SoC camera module with
+
+config VIDEO_S5K5CAGX
+	tristate "S5K5CAGX  supporting camera driver"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  This driver supports s5k5cagx SoC camera module with
+
+config VIDEO_S5K4ECGX
+	tristate "S5K4ECGX supporting camera driver"
+	depends on VIDEO_V4L2 && (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS) 
+	select VIDEO_S5K4ECGX_ODROIDQ
+	---help---
+	  This driver supports S5K4ECGX sensor.
+choice
+depends on VIDEO_S5K4ECGX
+prompt "MIPI Camera port for S5K4ECGX"
+default S5K4ECGX_CSI_D
+config S5K4ECGX_CSI_C
+	bool "CSI Camera A port"
+	depends on (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS)
+	help
+	  This enables support for CSI A port
+config SS5K4ECGX_CSI_D
+	bool "CSI Camera B port"
+	depends on (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS)
+	help
+	  This enalbes support for CSI B port
+endchoice
+
+config VIDEO_S5K4ECGX_ODROIDQ
+	tristate "S5K4ECGX supporting camera driver for odroid-q"
+	depends on VIDEO_S5K4ECGX
+	help
+	  This driver supports S5K4ECGX SoC camera module
+
+config VIDEO_MT9M113
+        tristate "mt9m113 support"
+        depends on I2C
+        help
+          This driver supports MT9M113cameras from Micron/Aptina
+
+#
+
+config VIDEO_M5MO
+        tristate "M5MO supporting camera driver"
+	depends on I2C && VIDEO_V4L2 && VIDEO_FIMC_MIPI
+        ---help---
+          This driver supports M5MO SoC camera module
+
+config VIDEO_AR0832
+        tristate "AR0832 supporting camera driver"
+        depends on I2C && VIDEO_V4L2 && VIDEO_FIMC_MIPI
+        ---help---
+          This driver supports AR0832 SoC camera module
+
+
+config VIDEO_S5K4BA
+	tristate "S5K4BA supporting camera driver"
+	depends on I2C && VIDEO_V4L2 && (VIDEO_FIMC || VIDEO_SAMSUNG_S5P_FIMC) && !(VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS)
+	---help---
+	  This driver supports s5k4ba SoC camera module
+
+config VIDEO_S5K4EA
+	tristate "S5K4EA MIPI CSI-2 supporting camera driver"
+	depends on I2C && VIDEO_V4L2 && (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS)
+	---help---
+	  This driver supports s5k4ea SoC camera module with
+	  MIPI CSI-2 as well
+
+#source "drivers/media/video/m5mols/Kconfig"
+
+choice
+depends on VIDEO_S5K4BA || VIDEO_S5K4EA || VIDEO_M5MO || VIDEO_M5MOLS || VIDEO_AR0832
+prompt "Select ITU / MIPI Camera port"
+default ITU_A
+config ITU_A
+	bool "ITU Camera A port"
+	depends on !(VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS ||\
+			VIDEO_EXYNOS_MIPI_CSIS)
+	help
+	  This enables support for ITU A port
+config ITU_B
+	bool "ITU Camera B port"
+	depends on !(VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS ||\
+			VIDEO_EXYNOS_MIPI_CSIS)
+	help
+	  This enables support for ITU B port
+config CSI_Cs5k4ecgx_regs-odroidq.h
+	bool "CSI Camera A port"
+	depends on (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS ||\
+			VIDEO_EXYNOS_MIPI_CSIS)
+	help
+	  This enables support for CSI A port
+config CSI_D
+	bool "CSI Camera B port"
+	depends on (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS ||\
+			VIDEO_EXYNOS_MIPI_CSIS)
+	help
+	  This enables support for CSI B port
+endchoice
 
 comment "Video and audio decoders"
 
@@ -961,6 +1201,59 @@ config VIDEO_S5P_MIPI_CSIS
 	  To compile this driver as a module, choose M here: the
 	  module will be called s5p-csis.
 
+config SAMSUNG_MFC_DRIVERS
+	bool "Samsung EXYNOS MFC driver"
+	---help---
+	  This is a v4l2 driver for Samsung EXYNOS4/EXYNOS5 MFC.
+
+if SAMSUNG_MFC_DRIVERS
+
+choice
+	prompt "Select MFC driver type"
+	default USE_LEGACY_MFC
+config USE_LEGACY_MFC
+	bool "Legacy style MFC"
+	depends on VIDEO_SAMSUNG && ARCH_EXYNOS4
+	select VIDEO_MFC5X
+	---help---
+	  Use MFC legacy style driver.
+
+config USE_V4L2_MFC
+	bool "V4L2 style MFC"
+	depends on VIDEO_V4L2 && PLAT_S5P
+	select VIDEO_SAMSUNG_S5P_MFC
+	select VIDEO_FIXED_MINOR_RANGES
+	---help---
+	  Use MFC V4L2 style driver.
+
+endchoice
+
+config VIDEO_SAMSUNG_S5P_MFC
+	bool
+	depends on USE_V4L2_MFC
+	select VIDEOBUF2_CORE
+	---help---
+	  MFC driver for V4L2.
+
+choice
+	prompt "MFC V4L2 Driver"
+	default S5P_MFC_V5
+	depends on USE_V4L2_MFC
+	---help---
+	  Select version of MFC driver
+
+config S5P_MFC_V5
+	bool "MFC 5.x"
+	---help---
+	  Use MFC 5.x V4L2 Driver
+
+config S5P_MFC_V6
+	bool "MFC 6.x"
+	---help---
+	  Use MFC 6.x V4L2 Driver
+endchoice
+endif
+
 #
 # USB Multimedia device configuration
 #
@@ -1031,6 +1324,10 @@ config USB_S2255
 	  This driver can be compiled as a module, called s2255drv.
 
 endif # V4L_USB_DRIVERS
+
+source "drivers/media/video/samsung/Kconfig"
+source "drivers/media/video/exynos/Kconfig"
+
 endif # VIDEO_CAPTURE_DRIVERS
 
 menuconfig V4L_MEM2MEM_DRIVERS
@@ -1054,6 +1351,5 @@ config VIDEO_MEM2MEM_TESTDEV
 	---help---
 	  This is a virtual test device for the memory-to-memory driver
 	  framework.
-
 
 endif # V4L_MEM2MEM_DRIVERS

@@ -1,0 +1,28 @@
+config BCM4330
+	tristate "Broadcom 4329/4330(Hardkernel) wireless cards support"
+	default n
+	depends on MMC
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	---help---
+	  This module adds support for wireless adapters based on
+	  Broadcom 4329/4330 chipset.
+
+	  This driver uses the kernel's wireless extensions subsystem.
+
+	  If you choose to build a module, it'll be called dhd. Say M if
+	  unsure.
+	  
+config BCM4330_FW_PATH
+	depends on BCM4330
+	string "Firmware path"
+	default "/system/etc/firmware/fw_bcmdhd.bin"
+	---help---
+	  Path to the firmware file.
+
+config BCM4330_NVRAM_PATH
+	depends on BCM4330
+	string "NVRAM path"
+	default "/system/etc/firmware/bcmdhd.cal"
+	---help---
+	  Path to the calibration file.

@@ -198,7 +198,15 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
 	unsigned long addr)
 {
 	pgtable_page_dtor(pte);
-	tlb_add_flush(tlb, addr);
+
+	/*
+	 * With the classic ARM MMU, a pte page has two corresponding pmd
+	 * entries, each covering 1MB.
+	 */
+	addr &= PMD_MASK;
+	tlb_add_flush(tlb, addr + SZ_1M - PAGE_SIZE);
+	tlb_add_flush(tlb, addr + SZ_1M);
+
 	tlb_remove_page(tlb, pte);
 }
 

@@ -383,10 +383,10 @@ static int s3c24xx_i2s_probe(struct snd_soc_dai *dai)
 		return -ENXIO;
 
 	s3c24xx_i2s.iis_clk = clk_get(dai->dev, "iis");
-	if (s3c24xx_i2s.iis_clk == NULL) {
+	if (IS_ERR(s3c24xx_i2s.iis_clk)) {
 		pr_err("failed to get iis_clock\n");
 		iounmap(s3c24xx_i2s.regs);
-		return -ENODEV;
+		return PTR_ERR(s3c24xx_i2s.iis_clk);
 	}
 	clk_enable(s3c24xx_i2s.iis_clk);
 

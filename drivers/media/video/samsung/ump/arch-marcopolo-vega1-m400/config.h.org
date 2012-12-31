@@ -1,0 +1,87 @@
+/*
+ * Copyright (C) 2010 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+#ifndef __ARCH_CONFIG_H__
+#define __ARCH_CONFIG_H__
+
+/* Configuration for the EB platform with ZBT memory enabled */
+#define MALI_BASE_ADDR 0xf0000000
+#define GP_ADDR MALI_BASE_ADDR
+#define L2_ADDR MALI_BASE_ADDR+0x1000
+#define PMU_ADDR MALI_BASE_ADDR+0x2000
+#define GP_MMU_ADDR MALI_BASE_ADDR+0x3000
+#define PP_MMU_ADDR MALI_BASE_ADDR+0x4000
+#define PP_ADDR MALI_BASE_ADDR+0x8000
+
+// See 3-11 page in trm. It describes control register address map. cglee
+
+static _mali_osk_resource_t arch_configuration [] =
+{
+	{
+		.type = MALI400GP,
+		.description = "Mali-400 GP",
+		.base = GP_ADDR,
+		.irq = 18+32,
+		.mmu_id = 1
+	},
+	{
+		.type = MALI400PP,
+		.base = PP_ADDR,
+		.irq = 16+32,
+		.description = "Mali-400 PP 0",
+		.mmu_id = 2
+	},
+#if USING_MMU
+	{
+		.type = MMU,
+		.base = GP_MMU_ADDR,
+		.irq = 19+32,
+		.description = "Mali-400 MMU for GP",
+		.mmu_id = 1
+	},
+	{
+		.type = MMU,
+		.base = PP_MMU_ADDR,
+		.irq = 17+32,
+		.description = "Mali-400 MMU for PP 0",
+		.mmu_id = 2
+	},
+	{
+		.type = OS_MEMORY,
+		.description = "System Memory",
+		.size = 0x06000000,
+		.flags = _MALI_CPU_WRITEABLE | _MALI_CPU_READABLE | _MALI_PP_READABLE | _MALI_PP_WRITEABLE | _MALI_GP_READABLE | _MALI_GP_WRITEABLE
+	},
+	{
+		.type = MEM_VALIDATION,
+		.description = "memory validation",
+		.base = 0x204e0000,
+		.size = 0x7B20000,
+		.flags = _MALI_CPU_WRITEABLE | _MALI_CPU_READABLE | _MALI_PP_READABLE | _MALI_PP_WRITEABLE | _MALI_GP_READABLE | _MALI_GP_WRITEABLE |
+			_MALI_MMU_READABLE | _MALI_MMU_WRITEABLE
+	},
+#else
+	{
+		.type = MEMORY,
+		.description = "Dedicated Memory",
+		.base = 0x2E000000,
+		.size = 0x02000000,
+		.flags = _MALI_CPU_WRITEABLE | _MALI_CPU_READABLE | _MALI_PP_READABLE | _MALI_PP_WRITEABLE | _MALI_GP_READABLE | _MALI_GP_WRITEABLE |
+			_MALI_MMU_READABLE | _MALI_MMU_WRITEABLE
+	},
+#endif
+	{
+		.type = MALI400L2,
+		.base = L2_ADDR,
+		.description = "Mali-400 L2 cache"
+	},
+};
+
+#endif /* __ARCH_CONFIG_H__ */

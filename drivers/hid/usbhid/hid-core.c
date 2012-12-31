@@ -230,6 +230,19 @@ static int usbhid_restart_ctrl_queue(struct usbhid_device *usbhid)
 	return kicked;
 }
 
+//
+// Hardkernel / ODROID
+//
+#if defined(CONFIG_TOUCHSCREEN_NEXIO_USB)
+	#define	NEXIO_USB_TOUCH_VENDOR	0x1870
+	#define	NEXIO_USB_TOUCH_PRODUCT	0x0100
+
+	unsigned char	nexio_touch_driver_open = false;
+	extern	void	nexio_touch_report_data(void *data, unsigned short dsize);
+
+	EXPORT_SYMBOL(nexio_touch_driver_open);
+#endif
+
 /*
  * Input interrupt completion handler.
  */
@@ -244,6 +257,14 @@ static void hid_irq_in(struct urb *urb)
 	case 0:			/* success */
 		usbhid_mark_busy(usbhid);
 		usbhid->retry_delay = 0;
+#if defined(CONFIG_TOUCHSCREEN_NEXIO_USB)
+		if((hid->vendor == NEXIO_USB_TOUCH_VENDOR) && (hid->product == NEXIO_USB_TOUCH_PRODUCT))	{
+			if(nexio_touch_driver_open)	{
+				nexio_touch_report_data(urb->transfer_buffer, urb->actual_length);
+			}
+		}
+		else	{
+#endif
 		hid_input_report(urb->context, HID_INPUT_REPORT,
 				 urb->transfer_buffer,
 				 urb->actual_length, 1);
@@ -256,6 +277,9 @@ static void hid_irq_in(struct urb *urb)
 			set_bit(HID_KEYS_PRESSED, &usbhid->iofl);
 		else
 			clear_bit(HID_KEYS_PRESSED, &usbhid->iofl);
+#if defined(CONFIG_TOUCHSCREEN_NEXIO_USB)
+                }
+#endif
 		break;
 	case -EPIPE:		/* stall */
 		usbhid_mark_busy(usbhid);

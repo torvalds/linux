@@ -1,0 +1,42 @@
+#
+# Exynos multimedia device drivers
+#
+config VIDEO_EXYNOS
+	bool "Exynos Multimedia Devices"
+	depends on ARCH_EXYNOS4 || ARCH_EXYNOS5
+	default n
+	select VIDEO_FIXED_MINOR_RANGES
+	help
+	  This is a representative exynos multimedia device.
+
+if VIDEO_EXYNOS
+	source "drivers/media/video/exynos/mdev/Kconfig"
+	source "drivers/media/video/exynos/fimc-lite/Kconfig"
+	source "drivers/media/video/exynos/mipi-csis/Kconfig"
+	source "drivers/media/video/exynos/tv/Kconfig"
+	source "drivers/media/video/exynos/rotator/Kconfig"
+if ARCH_EXYNOS4
+	source "drivers/media/video/exynos/fimc-is/Kconfig"
+endif
+if ARCH_EXYNOS5
+	source "drivers/media/video/exynos/gsc/Kconfig"
+	source "drivers/media/video/exynos/fimc-is-mc/Kconfig"
+endif
+config VIDEO_EXYNOS_MEMSIZE_FIMC_IS
+	int "Memory size in Kbytes for FIMC-IS"
+	depends on VIDEO_EXYNOS && (VIDEO_EXYNOS_FIMC_IS || VIDEO_EXYNOS5_FIMC_IS)
+	default "10240"
+	help
+	  This is to assign memory used in FIMC-IS.
+config VIDEO_EXYNOS_MEMSIZE_FIMC_IS_ISP
+	int "Memory size in kbytes for FIMC-IS ISP(bayer)"
+	depends on VIDEO_EXYNOS_FIMC_IS_BAYER
+	default "61000"
+	help
+	  This is to assign memory used in FIMC-IS ISP.
+endif
+
+config MEDIA_EXYNOS
+	bool
+	help
+	  Compile mdev to use exynos5 media device driver.

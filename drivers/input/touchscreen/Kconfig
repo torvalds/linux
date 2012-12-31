@@ -11,6 +11,26 @@ menuconfig INPUT_TOUCHSCREEN
 
 if INPUT_TOUCHSCREEN
 
+config TOUCHSCREEN_NEXIO_USB
+	bool "Nexio 42.0\" USB Touch Panel"
+	depends on MACH_ODROID_4210 || MACH_ODROID_4X12
+	default n
+	---help---
+	  This enables support for 42.0\" Touch panel (Multi-Touch)
+
+config TOUCHSCREEN_DUMMY
+	bool "ODROID Dummy touchscreen driver"
+	depends on MACH_ODROID_4210 || MACH_ODROID_4X12
+	default n
+	---help---
+	  This enables support for ODROID default Touch panel
+
+config TOUCHSCREEN_SOLOMON_MT
+	bool "Solomon 10.1\" WXGA multi touch panel(I2C Driver)"
+	default n
+	---help---
+	  This enables support for ODROID-Q 10.1\" WXGA Touch panel (Multi-Touch)
+
 config TOUCHSCREEN_88PM860X
 	tristate "Marvell 88PM860x touchscreen"
 	depends on MFD_88PM860X
@@ -192,8 +212,7 @@ config TOUCHSCREEN_FUJITSU
 
 config TOUCHSCREEN_S3C2410
 	tristate "Samsung S3C2410/generic touchscreen input driver"
-	depends on ARCH_S3C2410 || SAMSUNG_DEV_TS
-	select S3C_ADC
+	depends on ARCH_S3C2410 || SAMSUNG_DEV_TS && S3C_ADC
 	help
 	  Say Y here if you have the s3c2410 touchscreen.
 
@@ -201,6 +220,24 @@ config TOUCHSCREEN_S3C2410
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called s3c2410_ts.
+
+config TOUCHSCREEN_EXYNOS4
+	tristate "Samsung EXYNOS4 10.1\" touchscreen input driver"
+	depends on ARCH_EXYNOS4
+	help
+	  Say Y here if you have the EXYNOS4 touchscreen.
+
+config TOUCHSCREEN_PIXCIR
+	tristate "PIXCIR 5\" touchscreen input driver"
+	depends on ARCH_EXYNOS4
+	help
+	  Say Y here if you have the Pixcir 5" touchscreen.
+
+config TOUCHSCREEN_EGALAX
+	tristate "EGALAX 10.1\" touchscreen input driver"
+	depends on ARCH_EXYNOS5
+	help
+	  Say Y here if you have the Egalax 10.1\" touchscreen.
 
 config TOUCHSCREEN_GUNZE
 	tristate "Gunze AHL-51S touchscreen"
@@ -382,6 +419,12 @@ config TOUCHSCREEN_TNETV107X
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tnetv107x-ts.
+
+config TOUCHSCREEN_SYNAPTICS_I2C_RMI
+	tristate "Synaptics i2c touchscreen"
+	depends on I2C
+	help
+	  This enables support for Synaptics RMI over I2C based touchscreens.
 
 config TOUCHSCREEN_TOUCHRIGHT
 	tristate "Touchright serial touchscreen"

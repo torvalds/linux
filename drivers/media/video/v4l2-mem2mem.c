@@ -38,7 +38,8 @@ module_param(debug, bool, 0644);
 #define TRANS_QUEUED		(1 << 0)
 /* Instance is currently running in hardware */
 #define TRANS_RUNNING		(1 << 1)
-
+/* Instance is stopped */
+#define TRANS_STOPPED		(1 << 2)
 
 /* Offset base for buffers on the destination queue - used to distinguish
  * between source and destination buffers when mmapping - they receive the same
@@ -180,6 +181,34 @@ static void v4l2_m2m_try_run(struct v4l2_m2m_dev *m2m_dev)
 
 	m2m_dev->m2m_ops->device_run(m2m_dev->curr_ctx->priv);
 }
+
+/**
+ * v4l2_m2m_get_next_job() - find the remainging job and run it if it's
+ * different from previous job.
+ */
+void v4l2_m2m_get_next_job(struct v4l2_m2m_dev *m2m_dev, struct v4l2_m2m_ctx *m2m_ctx)
+{
+	unsigned long flags;
+	struct v4l2_m2m_ctx *cm2m_ctx, *tm2m_ctx, *next_job = NULL;
+
+	spin_lock_irqsave(&m2m_dev->job_spinlock, flags);
+	list_for_each_entry_safe(cm2m_ctx, tm2m_ctx, &m2m_dev->job_queue, queue) {
+		if (cm2m_ctx->job_flags & TRANS_STOPPED)
+			list_del_init(&cm2m_ctx->queue);
+	}
+	m2m_ctx->job_flags &= ~TRANS_STOPPED;
+	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
+
+	if (!list_empty(&m2m_dev->job_queue)) {
+		next_job = list_first_entry(&m2m_dev->job_queue, struct v4l2_m2m_ctx,
+					    queue);
+		if ((next_job != m2m_dev->curr_ctx) && (m2m_dev->curr_ctx != NULL)) {
+			m2m_dev->curr_ctx = NULL;
+			v4l2_m2m_try_run(m2m_dev);
+		}
+	}
+}
+EXPORT_SYMBOL(v4l2_m2m_get_next_job);
 
 /**
  * v4l2_m2m_try_schedule() - check whether an instance is ready to be added to
@@ -389,6 +418,7 @@ int v4l2_m2m_streamoff(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 {
 	struct vb2_queue *vq;
 
+	m2m_ctx->job_flags |= TRANS_STOPPED;
 	vq = v4l2_m2m_get_vq(m2m_ctx, type);
 	return vb2_streamoff(vq, type);
 }

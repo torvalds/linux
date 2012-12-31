@@ -272,6 +272,11 @@ v6_dma_clean_range:
  *	- end     - virtual end address of region
  */
 ENTRY(v6_dma_flush_range)
+#ifdef CONFIG_CACHE_FLUSH_RANGE_LIMIT
+	sub	r2, r1, r0
+	cmp	r2, #CONFIG_CACHE_FLUSH_RANGE_LIMIT
+	bhi	v6_dma_flush_dcache_all
+#endif
 #ifdef CONFIG_DMA_CACHE_RWFO
 	ldrb	r2, [r0]		@ read for ownership
 	strb	r2, [r0]		@ write for ownership
@@ -293,6 +298,18 @@ ENTRY(v6_dma_flush_range)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer
 	mov	pc, lr
+
+#ifdef CONFIG_CACHE_FLUSH_RANGE_LIMIT
+v6_dma_flush_dcache_all:
+	mov	r0, #0
+#ifdef HARVARD_CACHE
+	mcr	p15, 0, r0, c7, c14, 0		@ D cache clean+invalidate
+#else
+	mcr	p15, 0, r0, c7, c15, 0		@ Cache clean+invalidate
+#endif
+	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer
+	mov	pc, lr
+#endif
 
 /*
  *	dma_map_area(start, size, dir)
@@ -330,16 +347,5 @@ ENDPROC(v6_dma_unmap_area)
 
 	__INITDATA
 
-	.type	v6_cache_fns, #object
-ENTRY(v6_cache_fns)
-	.long	v6_flush_icache_all
-	.long	v6_flush_kern_cache_all
-	.long	v6_flush_user_cache_all
-	.long	v6_flush_user_cache_range
-	.long	v6_coherent_kern_range
-	.long	v6_coherent_user_range
-	.long	v6_flush_kern_dcache_area
-	.long	v6_dma_map_area
-	.long	v6_dma_unmap_area
-	.long	v6_dma_flush_range
-	.size	v6_cache_fns, . - v6_cache_fns
+	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
+	define_cache_functions v6

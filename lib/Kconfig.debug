@@ -411,6 +411,26 @@ config SLUB_STATS
 	  out which slabs are relevant to a particular load.
 	  Try running: slabinfo -DA
 
+config SLQB_DEBUG
+	default y
+	bool "Enable SLQB debugging support"
+	depends on SLQB
+
+config SLQB_DEBUG_ON
+	default n
+	bool "SLQB debugging on by default"
+	depends on SLQB_DEBUG
+
+config SLQB_SYSFS
+	bool "Create SYSFS entries for slab caches"
+	default n
+	depends on SLQB
+
+config SLQB_STATS
+	bool "Enable SLQB performance statistics"
+	default n
+	depends on SLQB_SYSFS
+
 config DEBUG_KMEMLEAK
 	bool "Kernel memory leak detector"
 	depends on DEBUG_KERNEL && EXPERIMENTAL && !MEMORY_HOTPLUG && \
@@ -667,8 +687,9 @@ config DEBUG_LOCKING_API_SELFTESTS
 	  mutexes and rwsems.
 
 config STACKTRACE
-	bool
+	bool "Stacktrace"
 	depends on STACKTRACE_SUPPORT
+	default y
 
 config DEBUG_STACK_USAGE
 	bool "Stack utilization instrumentation"
@@ -1040,7 +1061,7 @@ config FAULT_INJECTION
 config FAILSLAB
 	bool "Fault-injection capability for kmalloc"
 	depends on FAULT_INJECTION
-	depends on SLAB || SLUB
+	depends on SLAB || SLUB || SLQB
 	help
 	  Provide fault-injection capability for kmalloc.
 

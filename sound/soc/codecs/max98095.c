@@ -16,6 +16,7 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
+#include <linux/switch.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -26,34 +27,6 @@
 #include <asm/div64.h>
 #include <sound/max98095.h>
 #include "max98095.h"
-
-enum max98095_type {
-	MAX98095,
-};
-
-struct max98095_cdata {
-	unsigned int rate;
-	unsigned int fmt;
-	int eq_sel;
-	int bq_sel;
-};
-
-struct max98095_priv {
-	enum max98095_type devtype;
-	void *control_data;
-	struct max98095_pdata *pdata;
-	unsigned int sysclk;
-	struct max98095_cdata dai[3];
-	const char **eq_texts;
-	const char **bq_texts;
-	struct soc_enum eq_enum;
-	struct soc_enum bq_enum;
-	int eq_textcnt;
-	int bq_textcnt;
-	u8 lin_state;
-	unsigned int mic1pre;
-	unsigned int mic2pre;
-};
 
 static const u8 max98095_reg_def[M98095_REG_CNT] = {
 	0x00, /* 00 */
@@ -313,6 +286,7 @@ static const u8 max98095_reg_def[M98095_REG_CNT] = {
 	0x00, /* FE */
 	0x00, /* FF */
 };
+
 
 static struct {
 	int readable;
@@ -609,690 +583,255 @@ static int max98095_volatile(struct snd_soc_codec *codec, unsigned int reg)
 
 	return 0;
 }
+//------------------------------------------------
+// Implementation of I2C functions
+//------------------------------------------------
+inline unsigned int max98095_i2c_read(struct snd_soc_codec *codec, unsigned int reg)
+{
+	int ret;
+
+	ret = i2c_smbus_read_byte_data(codec->control_data, (u8)(reg & 0xFF));
+
+	if (ret < 0)
+		printk("DEBUG -> %s error!!! [%d]\n",__FUNCTION__,__LINE__);
+	return ret;
+}
 
 /*
- * Filter coefficients are in a separate register segment
- * and they share the address space of the normal registers.
- * The coefficient registers do not need or share the cache.
+ * write max98095 register cache
  */
-static int max98095_hw_write(struct snd_soc_codec *codec, unsigned int reg,
-			     unsigned int value)
+static inline void max98095_write_reg_cache(struct snd_soc_codec *codec,
+	unsigned int reg, unsigned int value)
 {
-	u8 data[2];
+	u16 *cache = codec->reg_cache;
 
-	data[0] = reg;
-	data[1] = value;
-	if (codec->hw_write(codec->control_data, data, 2) == 2)
-		return 0;
-	else
+	/* Reset register and reserved registers are uncached */
+	if (reg == 0 || reg > ARRAY_SIZE(max98095_reg_def) - 1)
+		return;
+
+	cache[reg] = value;
+}
+
+/*
+ * write to the max98095 register space
+ */
+static int max98095_i2c_write(struct snd_soc_codec *codec, unsigned int reg,
+	unsigned int value)
+{
+	max98095_write_reg_cache (codec, reg, value);
+
+	if(i2c_smbus_write_byte_data(codec->control_data, (u8)(reg & 0xFF), (u8)(value & 0xFF))<0) {
+		printk("%s error!!! [%d]\n",__FUNCTION__,__LINE__);
 		return -EIO;
-}
-
-/*
- * Load equalizer DSP coefficient configurations registers
- */
-static void m98095_eq_band(struct snd_soc_codec *codec, unsigned int dai,
-		    unsigned int band, u16 *coefs)
-{
-	unsigned int eq_reg;
-	unsigned int i;
-
-	BUG_ON(band > 4);
-	BUG_ON(dai > 1);
-
-	/* Load the base register address */
-	eq_reg = dai ? M98095_142_DAI2_EQ_BASE : M98095_110_DAI1_EQ_BASE;
-
-	/* Add the band address offset, note adjustment for word address */
-	eq_reg += band * (M98095_COEFS_PER_BAND << 1);
-
-	/* Step through the registers and coefs */
-	for (i = 0; i < M98095_COEFS_PER_BAND; i++) {
-		max98095_hw_write(codec, eq_reg++, M98095_BYTE1(coefs[i]));
-		max98095_hw_write(codec, eq_reg++, M98095_BYTE0(coefs[i]));
 	}
+	
+	return 0;
 }
 
-/*
- * Load biquad filter coefficient configurations registers
- */
-static void m98095_biquad_band(struct snd_soc_codec *codec, unsigned int dai,
-		    unsigned int band, u16 *coefs)
+//-----------------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------------
+
+static const char *playback_path[] = {"OFF", "RCV", "SPK", "HP", "SPK_HP", "TV_OUT", };
+static const char *record_path[] = {"Main Mic", "Headset Mic", };
+
+static const struct soc_enum path_control_enum[] = {
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(playback_path),playback_path),
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(record_path),record_path),
+};
+
+#if defined(CONFIG_MAX98095_HEADSET)
+enum {
+	JACK_NO_DEVICE			= 0x0,
+	HEADSET_4_POLE_DEVICE	= 0x01 << 0,
+	HEADSET_3_POLE_DEVICE	= 0x01 << 1,
+
+	TVOUT_DEVICE			= 0x01 << 2,
+	UNKNOWN_DEVICE			= 0x01 << 3,
+};
+
+enum {
+	JACK_DETACHED		= 0x0,
+	JACK_ATTACHED		= 0x1,
+};
+
+struct switch_dev switch_jack_detection = {
+	.name = "h2w",
+};
+static unsigned int current_jack_type_status = UNKNOWN_DEVICE;
+#endif
+//-----------------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------------
+static int max98095_set_playback_path(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	unsigned int bq_reg;
-	unsigned int i;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 
-	BUG_ON(band > 1);
-	BUG_ON(dai > 1);
+	int path_num = ucontrol->value.integer.value[0];
 
-	/* Load the base register address */
-	bq_reg = dai ? M98095_17E_DAI2_BQ_BASE : M98095_174_DAI1_BQ_BASE;
-
-	/* Add the band address offset, note adjustment for word address */
-	bq_reg += band * (M98095_COEFS_PER_BAND << 1);
-
-	/* Step through the registers and coefs */
-	for (i = 0; i < M98095_COEFS_PER_BAND; i++) {
-		max98095_hw_write(codec, bq_reg++, M98095_BYTE1(coefs[i]));
-		max98095_hw_write(codec, bq_reg++, M98095_BYTE0(coefs[i]));
+	max98095->cur_path = path_num;
+	
+	switch(path_num) {
+		case 0 : // headset
+		case 1 : // earpiece
+//			max98095_set_playback_headset(codec);
+//			max98095_set_playback_speaker_headset(codec);
+			break;
+		case 2 : // speaker
+//			max98095_set_playback_speaker(codec);
+//			max98095_set_playback_speaker_headset(codec);
+			break;
+		case 3 :
+//			max98095_set_playback_speaker_headset(codec);
+			break;
+		case 4 :
+			break;
+		default :
+			break;
 	}
+//	max98095_set_record_main_mic(codec);
+	return 0;
 }
 
-static const char * const max98095_fltr_mode[] = { "Voice", "Music" };
-static const struct soc_enum max98095_dai1_filter_mode_enum[] = {
-	SOC_ENUM_SINGLE(M98095_02E_DAI1_FILTERS, 7, 2, max98095_fltr_mode),
-};
-static const struct soc_enum max98095_dai2_filter_mode_enum[] = {
-	SOC_ENUM_SINGLE(M98095_038_DAI2_FILTERS, 7, 2, max98095_fltr_mode),
-};
-
-static const char * const max98095_extmic_text[] = { "None", "MIC1", "MIC2" };
-
-static const struct soc_enum max98095_extmic_enum =
-	SOC_ENUM_SINGLE(M98095_087_CFG_MIC, 0, 3, max98095_extmic_text);
-
-static const struct snd_kcontrol_new max98095_extmic_mux =
-	SOC_DAPM_ENUM("External MIC Mux", max98095_extmic_enum);
-
-static const char * const max98095_linein_text[] = { "INA", "INB" };
-
-static const struct soc_enum max98095_linein_enum =
-	SOC_ENUM_SINGLE(M98095_086_CFG_LINE, 6, 2, max98095_linein_text);
-
-static const struct snd_kcontrol_new max98095_linein_mux =
-	SOC_DAPM_ENUM("Linein Input Mux", max98095_linein_enum);
-
-static const char * const max98095_line_mode_text[] = {
-	"Stereo", "Differential"};
-
-static const struct soc_enum max98095_linein_mode_enum =
-	SOC_ENUM_SINGLE(M98095_086_CFG_LINE, 7, 2, max98095_line_mode_text);
-
-static const struct soc_enum max98095_lineout_mode_enum =
-	SOC_ENUM_SINGLE(M98095_086_CFG_LINE, 4, 2, max98095_line_mode_text);
-
-static const char * const max98095_dai_fltr[] = {
-	"Off", "Elliptical-HPF-16k", "Butterworth-HPF-16k",
-	"Elliptical-HPF-8k", "Butterworth-HPF-8k", "Butterworth-HPF-Fs/240"};
-static const struct soc_enum max98095_dai1_dac_filter_enum[] = {
-	SOC_ENUM_SINGLE(M98095_02E_DAI1_FILTERS, 0, 6, max98095_dai_fltr),
-};
-static const struct soc_enum max98095_dai2_dac_filter_enum[] = {
-	SOC_ENUM_SINGLE(M98095_038_DAI2_FILTERS, 0, 6, max98095_dai_fltr),
-};
-static const struct soc_enum max98095_dai3_dac_filter_enum[] = {
-	SOC_ENUM_SINGLE(M98095_042_DAI3_FILTERS, 0, 6, max98095_dai_fltr),
-};
-
-static int max98095_mic1pre_set(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
+//-----------------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------------
+static int max98095_get_playback_path(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
-	unsigned int sel = ucontrol->value.integer.value[0];
+	
+	printk(" %s [%d] current playback path %d\n",__FUNCTION__,__LINE__, max98095->cur_path);
 
-	max98095->mic1pre = sel;
-	snd_soc_update_bits(codec, M98095_05F_LVL_MIC1, M98095_MICPRE_MASK,
-		(1+sel)<<M98095_MICPRE_SHIFT);
+	ucontrol->value.integer.value[0] = max98095->cur_path;
 
 	return 0;
 }
 
-static int max98095_mic1pre_get(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
+//--------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------
+static int max98095_set_record_path(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 
-	ucontrol->value.integer.value[0] = max98095->mic1pre;
+	int path_num = ucontrol->value.integer.value[0];
+	
+	max98095->rec_path = path_num;
+	printk(" %s [%d] param %d\n",__FUNCTION__,__LINE__, path_num);
+
+	switch(path_num) {
+		case 0 :
+			max98095_set_record_main_mic(codec);
+			break;
+		case 1 :
+			max98095_set_record_main_mic(codec);
+			break;
+		case 2 :
+			max98095_set_record_main_mic(codec);
+			break;
+		default :
+			break;
+	}
+
 	return 0;
 }
 
-static int max98095_mic2pre_set(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
+//-----------------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------------
+static int max98095_get_record_path(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
-	unsigned int sel = ucontrol->value.integer.value[0];
 
-	max98095->mic2pre = sel;
-	snd_soc_update_bits(codec, M98095_060_LVL_MIC2, M98095_MICPRE_MASK,
-		(1+sel)<<M98095_MICPRE_SHIFT);
+	printk(" %s [%d] current record path %d\n",__FUNCTION__,__LINE__, max98095->rec_path);
+
+	ucontrol->value.integer.value[0] = max98095->rec_path;
 
 	return 0;
 }
 
-static int max98095_mic2pre_get(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
-
-	ucontrol->value.integer.value[0] = max98095->mic2pre;
-	return 0;
-}
-
-static const unsigned int max98095_micboost_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
-	0, 1, TLV_DB_SCALE_ITEM(0, 2000, 0),
-	2, 2, TLV_DB_SCALE_ITEM(3000, 0, 0),
-};
-
-static const DECLARE_TLV_DB_SCALE(max98095_mic_tlv, 0, 100, 0);
-static const DECLARE_TLV_DB_SCALE(max98095_adc_tlv, -1200, 100, 0);
-static const DECLARE_TLV_DB_SCALE(max98095_adcboost_tlv, 0, 600, 0);
-
-static const unsigned int max98095_hp_tlv[] = {
-	TLV_DB_RANGE_HEAD(5),
-	0, 6, TLV_DB_SCALE_ITEM(-6700, 400, 0),
-	7, 14, TLV_DB_SCALE_ITEM(-4000, 300, 0),
-	15, 21, TLV_DB_SCALE_ITEM(-1700, 200, 0),
-	22, 27, TLV_DB_SCALE_ITEM(-400, 100, 0),
-	28, 31, TLV_DB_SCALE_ITEM(150, 50, 0),
-};
-
-static const unsigned int max98095_spk_tlv[] = {
-	TLV_DB_RANGE_HEAD(4),
-	0, 10, TLV_DB_SCALE_ITEM(-5900, 400, 0),
-	11, 18, TLV_DB_SCALE_ITEM(-1700, 200, 0),
-	19, 27, TLV_DB_SCALE_ITEM(-200, 100, 0),
-	28, 39, TLV_DB_SCALE_ITEM(650, 50, 0),
-};
-
-static const unsigned int max98095_rcv_lout_tlv[] = {
-	TLV_DB_RANGE_HEAD(5),
-	0, 6, TLV_DB_SCALE_ITEM(-6200, 400, 0),
-	7, 14, TLV_DB_SCALE_ITEM(-3500, 300, 0),
-	15, 21, TLV_DB_SCALE_ITEM(-1200, 200, 0),
-	22, 27, TLV_DB_SCALE_ITEM(100, 100, 0),
-	28, 31, TLV_DB_SCALE_ITEM(650, 50, 0),
-};
-
-static const unsigned int max98095_lin_tlv[] = {
-	TLV_DB_RANGE_HEAD(3),
-	0, 2, TLV_DB_SCALE_ITEM(-600, 300, 0),
-	3, 3, TLV_DB_SCALE_ITEM(300, 1100, 0),
-	4, 5, TLV_DB_SCALE_ITEM(1400, 600, 0),
-};
-
+//-----------------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------------
 static const struct snd_kcontrol_new max98095_snd_controls[] = {
-
-	SOC_DOUBLE_R_TLV("Headphone Volume", M98095_064_LVL_HP_L,
-		M98095_065_LVL_HP_R, 0, 31, 0, max98095_hp_tlv),
-
-	SOC_DOUBLE_R_TLV("Speaker Volume", M98095_067_LVL_SPK_L,
-		M98095_068_LVL_SPK_R, 0, 39, 0, max98095_spk_tlv),
-
-	SOC_SINGLE_TLV("Receiver Volume", M98095_066_LVL_RCV,
-		0, 31, 0, max98095_rcv_lout_tlv),
-
-	SOC_DOUBLE_R_TLV("Lineout Volume", M98095_062_LVL_LINEOUT1,
-		M98095_063_LVL_LINEOUT2, 0, 31, 0, max98095_rcv_lout_tlv),
-
-	SOC_DOUBLE_R("Headphone Switch", M98095_064_LVL_HP_L,
-		M98095_065_LVL_HP_R, 7, 1, 1),
-
-	SOC_DOUBLE_R("Speaker Switch", M98095_067_LVL_SPK_L,
-		M98095_068_LVL_SPK_R, 7, 1, 1),
-
-	SOC_SINGLE("Receiver Switch", M98095_066_LVL_RCV, 7, 1, 1),
-
-	SOC_DOUBLE_R("Lineout Switch", M98095_062_LVL_LINEOUT1,
-		M98095_063_LVL_LINEOUT2, 7, 1, 1),
-
-	SOC_SINGLE_TLV("MIC1 Volume", M98095_05F_LVL_MIC1, 0, 20, 1,
-		max98095_mic_tlv),
-
-	SOC_SINGLE_TLV("MIC2 Volume", M98095_060_LVL_MIC2, 0, 20, 1,
-		max98095_mic_tlv),
-
-	SOC_SINGLE_EXT_TLV("MIC1 Boost Volume",
-			M98095_05F_LVL_MIC1, 5, 2, 0,
-			max98095_mic1pre_get, max98095_mic1pre_set,
-			max98095_micboost_tlv),
-	SOC_SINGLE_EXT_TLV("MIC2 Boost Volume",
-			M98095_060_LVL_MIC2, 5, 2, 0,
-			max98095_mic2pre_get, max98095_mic2pre_set,
-			max98095_micboost_tlv),
-
-	SOC_SINGLE_TLV("Linein Volume", M98095_061_LVL_LINEIN, 0, 5, 1,
-		max98095_lin_tlv),
-
-	SOC_SINGLE_TLV("ADCL Volume", M98095_05D_LVL_ADC_L, 0, 15, 1,
-		max98095_adc_tlv),
-	SOC_SINGLE_TLV("ADCR Volume", M98095_05E_LVL_ADC_R, 0, 15, 1,
-		max98095_adc_tlv),
-
-	SOC_SINGLE_TLV("ADCL Boost Volume", M98095_05D_LVL_ADC_L, 4, 3, 0,
-		max98095_adcboost_tlv),
-	SOC_SINGLE_TLV("ADCR Boost Volume", M98095_05E_LVL_ADC_R, 4, 3, 0,
-		max98095_adcboost_tlv),
-
-	SOC_SINGLE("EQ1 Switch", M98095_088_CFG_LEVEL, 0, 1, 0),
-	SOC_SINGLE("EQ2 Switch", M98095_088_CFG_LEVEL, 1, 1, 0),
-
-	SOC_SINGLE("Biquad1 Switch", M98095_088_CFG_LEVEL, 2, 1, 0),
-	SOC_SINGLE("Biquad2 Switch", M98095_088_CFG_LEVEL, 3, 1, 0),
-
-	SOC_ENUM("DAI1 Filter Mode", max98095_dai1_filter_mode_enum),
-	SOC_ENUM("DAI2 Filter Mode", max98095_dai2_filter_mode_enum),
-	SOC_ENUM("DAI1 DAC Filter", max98095_dai1_dac_filter_enum),
-	SOC_ENUM("DAI2 DAC Filter", max98095_dai2_dac_filter_enum),
-	SOC_ENUM("DAI3 DAC Filter", max98095_dai3_dac_filter_enum),
-
-	SOC_ENUM("Linein Mode", max98095_linein_mode_enum),
-	SOC_ENUM("Lineout Mode", max98095_lineout_mode_enum),
-};
-
-/* Left speaker mixer switch */
-static const struct snd_kcontrol_new max98095_left_speaker_mixer_controls[] = {
-	SOC_DAPM_SINGLE("Left DAC1 Switch", M98095_050_MIX_SPK_LEFT, 0, 1, 0),
-	SOC_DAPM_SINGLE("Right DAC1 Switch", M98095_050_MIX_SPK_LEFT, 6, 1, 0),
-	SOC_DAPM_SINGLE("Mono DAC2 Switch", M98095_050_MIX_SPK_LEFT, 3, 1, 0),
-	SOC_DAPM_SINGLE("Mono DAC3 Switch", M98095_050_MIX_SPK_LEFT, 3, 1, 0),
-	SOC_DAPM_SINGLE("MIC1 Switch", M98095_050_MIX_SPK_LEFT, 4, 1, 0),
-	SOC_DAPM_SINGLE("MIC2 Switch", M98095_050_MIX_SPK_LEFT, 5, 1, 0),
-	SOC_DAPM_SINGLE("IN1 Switch", M98095_050_MIX_SPK_LEFT, 1, 1, 0),
-	SOC_DAPM_SINGLE("IN2 Switch", M98095_050_MIX_SPK_LEFT, 2, 1, 0),
-};
-
-/* Right speaker mixer switch */
-static const struct snd_kcontrol_new max98095_right_speaker_mixer_controls[] = {
-	SOC_DAPM_SINGLE("Left DAC1 Switch", M98095_051_MIX_SPK_RIGHT, 6, 1, 0),
-	SOC_DAPM_SINGLE("Right DAC1 Switch", M98095_051_MIX_SPK_RIGHT, 0, 1, 0),
-	SOC_DAPM_SINGLE("Mono DAC2 Switch", M98095_051_MIX_SPK_RIGHT, 3, 1, 0),
-	SOC_DAPM_SINGLE("Mono DAC3 Switch", M98095_051_MIX_SPK_RIGHT, 3, 1, 0),
-	SOC_DAPM_SINGLE("MIC1 Switch", M98095_051_MIX_SPK_RIGHT, 5, 1, 0),
-	SOC_DAPM_SINGLE("MIC2 Switch", M98095_051_MIX_SPK_RIGHT, 4, 1, 0),
-	SOC_DAPM_SINGLE("IN1 Switch", M98095_051_MIX_SPK_RIGHT, 1, 1, 0),
-	SOC_DAPM_SINGLE("IN2 Switch", M98095_051_MIX_SPK_RIGHT, 2, 1, 0),
-};
-
-/* Left headphone mixer switch */
-static const struct snd_kcontrol_new max98095_left_hp_mixer_controls[] = {
-	SOC_DAPM_SINGLE("Left DAC1 Switch", M98095_04C_MIX_HP_LEFT, 0, 1, 0),
-	SOC_DAPM_SINGLE("Right DAC1 Switch", M98095_04C_MIX_HP_LEFT, 5, 1, 0),
-	SOC_DAPM_SINGLE("MIC1 Switch", M98095_04C_MIX_HP_LEFT, 3, 1, 0),
-	SOC_DAPM_SINGLE("MIC2 Switch", M98095_04C_MIX_HP_LEFT, 4, 1, 0),
-	SOC_DAPM_SINGLE("IN1 Switch", M98095_04C_MIX_HP_LEFT, 1, 1, 0),
-	SOC_DAPM_SINGLE("IN2 Switch", M98095_04C_MIX_HP_LEFT, 2, 1, 0),
-};
-
-/* Right headphone mixer switch */
-static const struct snd_kcontrol_new max98095_right_hp_mixer_controls[] = {
-	SOC_DAPM_SINGLE("Left DAC1 Switch", M98095_04D_MIX_HP_RIGHT, 5, 1, 0),
-	SOC_DAPM_SINGLE("Right DAC1 Switch", M98095_04D_MIX_HP_RIGHT, 0, 1, 0),
-	SOC_DAPM_SINGLE("MIC1 Switch", M98095_04D_MIX_HP_RIGHT, 3, 1, 0),
-	SOC_DAPM_SINGLE("MIC2 Switch", M98095_04D_MIX_HP_RIGHT, 4, 1, 0),
-	SOC_DAPM_SINGLE("IN1 Switch", M98095_04D_MIX_HP_RIGHT, 1, 1, 0),
-	SOC_DAPM_SINGLE("IN2 Switch", M98095_04D_MIX_HP_RIGHT, 2, 1, 0),
-};
-
-/* Receiver earpiece mixer switch */
-static const struct snd_kcontrol_new max98095_mono_rcv_mixer_controls[] = {
-	SOC_DAPM_SINGLE("Left DAC1 Switch", M98095_04F_MIX_RCV, 0, 1, 0),
-	SOC_DAPM_SINGLE("Right DAC1 Switch", M98095_04F_MIX_RCV, 5, 1, 0),
-	SOC_DAPM_SINGLE("MIC1 Switch", M98095_04F_MIX_RCV, 3, 1, 0),
-	SOC_DAPM_SINGLE("MIC2 Switch", M98095_04F_MIX_RCV, 4, 1, 0),
-	SOC_DAPM_SINGLE("IN1 Switch", M98095_04F_MIX_RCV, 1, 1, 0),
-	SOC_DAPM_SINGLE("IN2 Switch", M98095_04F_MIX_RCV, 2, 1, 0),
-};
-
-/* Left lineout mixer switch */
-static const struct snd_kcontrol_new max98095_left_lineout_mixer_controls[] = {
-	SOC_DAPM_SINGLE("Left DAC1 Switch", M98095_053_MIX_LINEOUT1, 5, 1, 0),
-	SOC_DAPM_SINGLE("Right DAC1 Switch", M98095_053_MIX_LINEOUT1, 0, 1, 0),
-	SOC_DAPM_SINGLE("MIC1 Switch", M98095_053_MIX_LINEOUT1, 3, 1, 0),
-	SOC_DAPM_SINGLE("MIC2 Switch", M98095_053_MIX_LINEOUT1, 4, 1, 0),
-	SOC_DAPM_SINGLE("IN1 Switch", M98095_053_MIX_LINEOUT1, 1, 1, 0),
-	SOC_DAPM_SINGLE("IN2 Switch", M98095_053_MIX_LINEOUT1, 2, 1, 0),
-};
-
-/* Right lineout mixer switch */
-static const struct snd_kcontrol_new max98095_right_lineout_mixer_controls[] = {
-	SOC_DAPM_SINGLE("Left DAC1 Switch", M98095_054_MIX_LINEOUT2, 0, 1, 0),
-	SOC_DAPM_SINGLE("Right DAC1 Switch", M98095_054_MIX_LINEOUT2, 5, 1, 0),
-	SOC_DAPM_SINGLE("MIC1 Switch", M98095_054_MIX_LINEOUT2, 3, 1, 0),
-	SOC_DAPM_SINGLE("MIC2 Switch", M98095_054_MIX_LINEOUT2, 4, 1, 0),
-	SOC_DAPM_SINGLE("IN1 Switch", M98095_054_MIX_LINEOUT2, 1, 1, 0),
-	SOC_DAPM_SINGLE("IN2 Switch", M98095_054_MIX_LINEOUT2, 2, 1, 0),
-};
-
-/* Left ADC mixer switch */
-static const struct snd_kcontrol_new max98095_left_ADC_mixer_controls[] = {
-	SOC_DAPM_SINGLE("MIC1 Switch", M98095_04A_MIX_ADC_LEFT, 7, 1, 0),
-	SOC_DAPM_SINGLE("MIC2 Switch", M98095_04A_MIX_ADC_LEFT, 6, 1, 0),
-	SOC_DAPM_SINGLE("IN1 Switch", M98095_04A_MIX_ADC_LEFT, 3, 1, 0),
-	SOC_DAPM_SINGLE("IN2 Switch", M98095_04A_MIX_ADC_LEFT, 2, 1, 0),
-};
-
-/* Right ADC mixer switch */
-static const struct snd_kcontrol_new max98095_right_ADC_mixer_controls[] = {
-	SOC_DAPM_SINGLE("MIC1 Switch", M98095_04B_MIX_ADC_RIGHT, 7, 1, 0),
-	SOC_DAPM_SINGLE("MIC2 Switch", M98095_04B_MIX_ADC_RIGHT, 6, 1, 0),
-	SOC_DAPM_SINGLE("IN1 Switch", M98095_04B_MIX_ADC_RIGHT, 3, 1, 0),
-	SOC_DAPM_SINGLE("IN2 Switch", M98095_04B_MIX_ADC_RIGHT, 2, 1, 0),
-};
-
-static int max98095_mic_event(struct snd_soc_dapm_widget *w,
-			     struct snd_kcontrol *kcontrol, int event)
-{
-	struct snd_soc_codec *codec = w->codec;
-	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
-
-	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
-		if (w->reg == M98095_05F_LVL_MIC1) {
-			snd_soc_update_bits(codec, w->reg, M98095_MICPRE_MASK,
-				(1+max98095->mic1pre)<<M98095_MICPRE_SHIFT);
-		} else {
-			snd_soc_update_bits(codec, w->reg, M98095_MICPRE_MASK,
-				(1+max98095->mic2pre)<<M98095_MICPRE_SHIFT);
-		}
-		break;
-	case SND_SOC_DAPM_POST_PMD:
-		snd_soc_update_bits(codec, w->reg, M98095_MICPRE_MASK, 0);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-/*
- * The line inputs are stereo inputs with the left and right
- * channels sharing a common PGA power control signal.
- */
-static int max98095_line_pga(struct snd_soc_dapm_widget *w,
-			     int event, u8 channel)
-{
-	struct snd_soc_codec *codec = w->codec;
-	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
-	u8 *state;
-
-	BUG_ON(!((channel == 1) || (channel == 2)));
-
-	state = &max98095->lin_state;
-
-	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
-		*state |= channel;
-		snd_soc_update_bits(codec, w->reg,
-			(1 << w->shift), (1 << w->shift));
-		break;
-	case SND_SOC_DAPM_POST_PMD:
-		*state &= ~channel;
-		if (*state == 0) {
-			snd_soc_update_bits(codec, w->reg,
-				(1 << w->shift), 0);
-		}
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int max98095_pga_in1_event(struct snd_soc_dapm_widget *w,
-				   struct snd_kcontrol *k, int event)
-{
-	return max98095_line_pga(w, event, 1);
-}
-
-static int max98095_pga_in2_event(struct snd_soc_dapm_widget *w,
-				   struct snd_kcontrol *k, int event)
-{
-	return max98095_line_pga(w, event, 2);
-}
-
-/*
- * The stereo line out mixer outputs to two stereo line outs.
- * The 2nd pair has a separate set of enables.
- */
-static int max98095_lineout_event(struct snd_soc_dapm_widget *w,
-			     struct snd_kcontrol *kcontrol, int event)
-{
-	struct snd_soc_codec *codec = w->codec;
-
-	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
-		snd_soc_update_bits(codec, w->reg,
-			(1 << (w->shift+2)), (1 << (w->shift+2)));
-		break;
-	case SND_SOC_DAPM_POST_PMD:
-		snd_soc_update_bits(codec, w->reg,
-			(1 << (w->shift+2)), 0);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static const struct snd_soc_dapm_widget max98095_dapm_widgets[] = {
-
-	SND_SOC_DAPM_ADC("ADCL", "HiFi Capture", M98095_090_PWR_EN_IN, 0, 0),
-	SND_SOC_DAPM_ADC("ADCR", "HiFi Capture", M98095_090_PWR_EN_IN, 1, 0),
-
-	SND_SOC_DAPM_DAC("DACL1", "HiFi Playback",
-		M98095_091_PWR_EN_OUT, 0, 0),
-	SND_SOC_DAPM_DAC("DACR1", "HiFi Playback",
-		M98095_091_PWR_EN_OUT, 1, 0),
-	SND_SOC_DAPM_DAC("DACM2", "Aux Playback",
-		M98095_091_PWR_EN_OUT, 2, 0),
-	SND_SOC_DAPM_DAC("DACM3", "Voice Playback",
-		M98095_091_PWR_EN_OUT, 2, 0),
-
-	SND_SOC_DAPM_PGA("HP Left Out", M98095_091_PWR_EN_OUT,
-		6, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("HP Right Out", M98095_091_PWR_EN_OUT,
-		7, 0, NULL, 0),
-
-	SND_SOC_DAPM_PGA("SPK Left Out", M98095_091_PWR_EN_OUT,
-		4, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("SPK Right Out", M98095_091_PWR_EN_OUT,
-		5, 0, NULL, 0),
-
-	SND_SOC_DAPM_PGA("RCV Mono Out", M98095_091_PWR_EN_OUT,
-		3, 0, NULL, 0),
-
-	SND_SOC_DAPM_PGA_E("LINE Left Out", M98095_092_PWR_EN_OUT,
-		0, 0, NULL, 0, max98095_lineout_event, SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_PGA_E("LINE Right Out", M98095_092_PWR_EN_OUT,
-		1, 0, NULL, 0, max98095_lineout_event, SND_SOC_DAPM_PRE_PMD),
-
-	SND_SOC_DAPM_MUX("External MIC", SND_SOC_NOPM, 0, 0,
-		&max98095_extmic_mux),
-
-	SND_SOC_DAPM_MUX("Linein Mux", SND_SOC_NOPM, 0, 0,
-		&max98095_linein_mux),
-
-	SND_SOC_DAPM_MIXER("Left Headphone Mixer", SND_SOC_NOPM, 0, 0,
-		&max98095_left_hp_mixer_controls[0],
-		ARRAY_SIZE(max98095_left_hp_mixer_controls)),
-
-	SND_SOC_DAPM_MIXER("Right Headphone Mixer", SND_SOC_NOPM, 0, 0,
-		&max98095_right_hp_mixer_controls[0],
-		ARRAY_SIZE(max98095_right_hp_mixer_controls)),
-
-	SND_SOC_DAPM_MIXER("Left Speaker Mixer", SND_SOC_NOPM, 0, 0,
-		&max98095_left_speaker_mixer_controls[0],
-		ARRAY_SIZE(max98095_left_speaker_mixer_controls)),
-
-	SND_SOC_DAPM_MIXER("Right Speaker Mixer", SND_SOC_NOPM, 0, 0,
-		&max98095_right_speaker_mixer_controls[0],
-		ARRAY_SIZE(max98095_right_speaker_mixer_controls)),
-
-	SND_SOC_DAPM_MIXER("Receiver Mixer", SND_SOC_NOPM, 0, 0,
-	  &max98095_mono_rcv_mixer_controls[0],
-		ARRAY_SIZE(max98095_mono_rcv_mixer_controls)),
-
-	SND_SOC_DAPM_MIXER("Left Lineout Mixer", SND_SOC_NOPM, 0, 0,
-		&max98095_left_lineout_mixer_controls[0],
-		ARRAY_SIZE(max98095_left_lineout_mixer_controls)),
-
-	SND_SOC_DAPM_MIXER("Right Lineout Mixer", SND_SOC_NOPM, 0, 0,
-		&max98095_right_lineout_mixer_controls[0],
-		ARRAY_SIZE(max98095_right_lineout_mixer_controls)),
-
-	SND_SOC_DAPM_MIXER("Left ADC Mixer", SND_SOC_NOPM, 0, 0,
-		&max98095_left_ADC_mixer_controls[0],
-		ARRAY_SIZE(max98095_left_ADC_mixer_controls)),
-
-	SND_SOC_DAPM_MIXER("Right ADC Mixer", SND_SOC_NOPM, 0, 0,
-		&max98095_right_ADC_mixer_controls[0],
-		ARRAY_SIZE(max98095_right_ADC_mixer_controls)),
-
-	SND_SOC_DAPM_PGA_E("MIC1 Input", M98095_05F_LVL_MIC1,
-		5, 0, NULL, 0, max98095_mic_event,
-		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-
-	SND_SOC_DAPM_PGA_E("MIC2 Input", M98095_060_LVL_MIC2,
-		5, 0, NULL, 0, max98095_mic_event,
-		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-
-	SND_SOC_DAPM_PGA_E("IN1 Input", M98095_090_PWR_EN_IN,
-		7, 0, NULL, 0, max98095_pga_in1_event,
-		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-
-	SND_SOC_DAPM_PGA_E("IN2 Input", M98095_090_PWR_EN_IN,
-		7, 0, NULL, 0, max98095_pga_in2_event,
-		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-
-	SND_SOC_DAPM_MICBIAS("MICBIAS1", M98095_090_PWR_EN_IN, 2, 0),
-	SND_SOC_DAPM_MICBIAS("MICBIAS2", M98095_090_PWR_EN_IN, 3, 0),
-
-	SND_SOC_DAPM_OUTPUT("HPL"),
-	SND_SOC_DAPM_OUTPUT("HPR"),
-	SND_SOC_DAPM_OUTPUT("SPKL"),
-	SND_SOC_DAPM_OUTPUT("SPKR"),
-	SND_SOC_DAPM_OUTPUT("RCV"),
-	SND_SOC_DAPM_OUTPUT("OUT1"),
-	SND_SOC_DAPM_OUTPUT("OUT2"),
-	SND_SOC_DAPM_OUTPUT("OUT3"),
-	SND_SOC_DAPM_OUTPUT("OUT4"),
-
-	SND_SOC_DAPM_INPUT("MIC1"),
-	SND_SOC_DAPM_INPUT("MIC2"),
-	SND_SOC_DAPM_INPUT("INA1"),
-	SND_SOC_DAPM_INPUT("INA2"),
-	SND_SOC_DAPM_INPUT("INB1"),
-	SND_SOC_DAPM_INPUT("INB2"),
-};
-
-static const struct snd_soc_dapm_route max98095_audio_map[] = {
-	/* Left headphone output mixer */
-	{"Left Headphone Mixer", "Left DAC1 Switch", "DACL1"},
-	{"Left Headphone Mixer", "Right DAC1 Switch", "DACR1"},
-	{"Left Headphone Mixer", "MIC1 Switch", "MIC1 Input"},
-	{"Left Headphone Mixer", "MIC2 Switch", "MIC2 Input"},
-	{"Left Headphone Mixer", "IN1 Switch", "IN1 Input"},
-	{"Left Headphone Mixer", "IN2 Switch", "IN2 Input"},
-
-	/* Right headphone output mixer */
-	{"Right Headphone Mixer", "Left DAC1 Switch", "DACL1"},
-	{"Right Headphone Mixer", "Right DAC1 Switch", "DACR1"},
-	{"Right Headphone Mixer", "MIC1 Switch", "MIC1 Input"},
-	{"Right Headphone Mixer", "MIC2 Switch", "MIC2 Input"},
-	{"Right Headphone Mixer", "IN1 Switch", "IN1 Input"},
-	{"Right Headphone Mixer", "IN2 Switch", "IN2 Input"},
-
-	/* Left speaker output mixer */
-	{"Left Speaker Mixer", "Left DAC1 Switch", "DACL1"},
-	{"Left Speaker Mixer", "Right DAC1 Switch", "DACR1"},
-	{"Left Speaker Mixer", "Mono DAC2 Switch", "DACM2"},
-	{"Left Speaker Mixer", "Mono DAC3 Switch", "DACM3"},
-	{"Left Speaker Mixer", "MIC1 Switch", "MIC1 Input"},
-	{"Left Speaker Mixer", "MIC2 Switch", "MIC2 Input"},
-	{"Left Speaker Mixer", "IN1 Switch", "IN1 Input"},
-	{"Left Speaker Mixer", "IN2 Switch", "IN2 Input"},
-
-	/* Right speaker output mixer */
-	{"Right Speaker Mixer", "Left DAC1 Switch", "DACL1"},
-	{"Right Speaker Mixer", "Right DAC1 Switch", "DACR1"},
-	{"Right Speaker Mixer", "Mono DAC2 Switch", "DACM2"},
-	{"Right Speaker Mixer", "Mono DAC3 Switch", "DACM3"},
-	{"Right Speaker Mixer", "MIC1 Switch", "MIC1 Input"},
-	{"Right Speaker Mixer", "MIC2 Switch", "MIC2 Input"},
-	{"Right Speaker Mixer", "IN1 Switch", "IN1 Input"},
-	{"Right Speaker Mixer", "IN2 Switch", "IN2 Input"},
-
-	/* Earpiece/Receiver output mixer */
-	{"Receiver Mixer", "Left DAC1 Switch", "DACL1"},
-	{"Receiver Mixer", "Right DAC1 Switch", "DACR1"},
-	{"Receiver Mixer", "MIC1 Switch", "MIC1 Input"},
-	{"Receiver Mixer", "MIC2 Switch", "MIC2 Input"},
-	{"Receiver Mixer", "IN1 Switch", "IN1 Input"},
-	{"Receiver Mixer", "IN2 Switch", "IN2 Input"},
-
-	/* Left Lineout output mixer */
-	{"Left Lineout Mixer", "Left DAC1 Switch", "DACL1"},
-	{"Left Lineout Mixer", "Right DAC1 Switch", "DACR1"},
-	{"Left Lineout Mixer", "MIC1 Switch", "MIC1 Input"},
-	{"Left Lineout Mixer", "MIC2 Switch", "MIC2 Input"},
-	{"Left Lineout Mixer", "IN1 Switch", "IN1 Input"},
-	{"Left Lineout Mixer", "IN2 Switch", "IN2 Input"},
-
-	/* Right lineout output mixer */
-	{"Right Lineout Mixer", "Left DAC1 Switch", "DACL1"},
-	{"Right Lineout Mixer", "Right DAC1 Switch", "DACR1"},
-	{"Right Lineout Mixer", "MIC1 Switch", "MIC1 Input"},
-	{"Right Lineout Mixer", "MIC2 Switch", "MIC2 Input"},
-	{"Right Lineout Mixer", "IN1 Switch", "IN1 Input"},
-	{"Right Lineout Mixer", "IN2 Switch", "IN2 Input"},
-
-	{"HP Left Out", NULL, "Left Headphone Mixer"},
-	{"HP Right Out", NULL, "Right Headphone Mixer"},
-	{"SPK Left Out", NULL, "Left Speaker Mixer"},
-	{"SPK Right Out", NULL, "Right Speaker Mixer"},
-	{"RCV Mono Out", NULL, "Receiver Mixer"},
-	{"LINE Left Out", NULL, "Left Lineout Mixer"},
-	{"LINE Right Out", NULL, "Right Lineout Mixer"},
-
-	{"HPL", NULL, "HP Left Out"},
-	{"HPR", NULL, "HP Right Out"},
-	{"SPKL", NULL, "SPK Left Out"},
-	{"SPKR", NULL, "SPK Right Out"},
-	{"RCV", NULL, "RCV Mono Out"},
-	{"OUT1", NULL, "LINE Left Out"},
-	{"OUT2", NULL, "LINE Right Out"},
-	{"OUT3", NULL, "LINE Left Out"},
-	{"OUT4", NULL, "LINE Right Out"},
-
-	/* Left ADC input mixer */
-	{"Left ADC Mixer", "MIC1 Switch", "MIC1 Input"},
-	{"Left ADC Mixer", "MIC2 Switch", "MIC2 Input"},
-	{"Left ADC Mixer", "IN1 Switch", "IN1 Input"},
-	{"Left ADC Mixer", "IN2 Switch", "IN2 Input"},
-
-	/* Right ADC input mixer */
-	{"Right ADC Mixer", "MIC1 Switch", "MIC1 Input"},
-	{"Right ADC Mixer", "MIC2 Switch", "MIC2 Input"},
-	{"Right ADC Mixer", "IN1 Switch", "IN1 Input"},
-	{"Right ADC Mixer", "IN2 Switch", "IN2 Input"},
-
-	/* Inputs */
-	{"ADCL", NULL, "Left ADC Mixer"},
-	{"ADCR", NULL, "Right ADC Mixer"},
-
-	{"IN1 Input", NULL, "INA1"},
-	{"IN2 Input", NULL, "INA2"},
-
-	{"MIC1 Input", NULL, "MIC1"},
-	{"MIC2 Input", NULL, "MIC2"},
+	/* Path Control */
+	SOC_ENUM_EXT("Playback Path", path_control_enum[0],
+                max98095_get_playback_path, max98095_set_playback_path),
+
+	SOC_ENUM_EXT("MIC Path", path_control_enum[1],
+                max98095_get_record_path, max98095_set_record_path),
 };
 
 static int max98095_add_widgets(struct snd_soc_codec *codec)
 {
 	snd_soc_add_controls(codec, max98095_snd_controls,
 			     ARRAY_SIZE(max98095_snd_controls));
-
 	return 0;
 }
 
+#if defined(CONFIG_MAX98095_HEADSET) 
+//-----------------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------------
+#define MAX98095_DELAY	msecs_to_jiffies(1000)
+static void max98095_work(struct work_struct *work)
+{
+	struct max98095_priv *max98095 = container_of(work, struct max98095_priv, work.work);
+	struct snd_soc_codec *codec;
+	int jack_auto_sts=0, jack_man_sts=0;
+	int read_value=0;
+
+	codec = max98095->codec;
+
+	jack_auto_sts = snd_soc_read(codec, M98095_007_JACK_AUTO_STS);
+	jack_man_sts = snd_soc_read(codec, M98095_008_JACK_MANUAL_STS);
+
+	if(jack_man_sts&0x18){
+		read_value = HEADSET_3_POLE_DEVICE;
+	}
+	else if(jack_auto_sts&0x08){
+		read_value = HEADSET_4_POLE_DEVICE;
+	}
+	else {
+		read_value = JACK_NO_DEVICE;
+	}
+	
+	if(read_value != current_jack_type_status)
+	{
+		current_jack_type_status=read_value;
+		switch_set_state(&switch_jack_detection, current_jack_type_status);
+		msleep(500);
+		switch(current_jack_type_status)
+		{
+			case HEADSET_3_POLE_DEVICE :
+			case HEADSET_4_POLE_DEVICE :
+				max98095_disable_playback_path(codec, SPK);
+				max98095_set_playback_headset(codec);
+				max98095->cur_path = HP;
+				snd_soc_write(codec, M98095_089_JACK_DET_AUTO, 0x84);
+				break;
+			case JACK_NO_DEVICE :
+				max98095_disable_playback_path(codec, HP);
+				max98095_set_playback_speaker(codec);
+				max98095->cur_path = SPK;
+				break;
+			default :
+				max98095_disable_playback_path(codec, SPK);
+				max98095_disable_playback_path(codec, HP);
+				max98095->cur_path = HP;
+				break;
+		}
+		schedule_delayed_work(&max98095->work, msecs_to_jiffies(2000));
+	}
+	else schedule_delayed_work(&max98095->work, msecs_to_jiffies(1000));
+}
+
+void	odroid_audio_tvout(bool tvout)
+{
+	return;
+}
+EXPORT_SYMBOL_GPL(odroid_audio_tvout);
+#endif
+
+//-----------------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------------
 /* codec mclk clock divider coefficients */
 static const struct {
 	u32 rate;
@@ -1335,7 +874,7 @@ static int max98095_dai1_hw_params(struct snd_pcm_substream *substream,
 	unsigned int rate;
 	u8 regval;
 
-	cdata = &max98095->dai[0];
+	cdata = &max98095->dai;
 
 	rate = params_rate(params);
 
@@ -1385,128 +924,6 @@ static int max98095_dai1_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int max98095_dai2_hw_params(struct snd_pcm_substream *substream,
-				   struct snd_pcm_hw_params *params,
-				   struct snd_soc_dai *dai)
-{
-	struct snd_soc_codec *codec = dai->codec;
-	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
-	struct max98095_cdata *cdata;
-	unsigned long long ni;
-	unsigned int rate;
-	u8 regval;
-
-	cdata = &max98095->dai[1];
-
-	rate = params_rate(params);
-
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
-		snd_soc_update_bits(codec, M98095_034_DAI2_FORMAT,
-			M98095_DAI_WS, 0);
-		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
-		snd_soc_update_bits(codec, M98095_034_DAI2_FORMAT,
-			M98095_DAI_WS, M98095_DAI_WS);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	if (rate_value(rate, &regval))
-		return -EINVAL;
-
-	snd_soc_update_bits(codec, M98095_031_DAI2_CLKMODE,
-		M98095_CLKMODE_MASK, regval);
-	cdata->rate = rate;
-
-	/* Configure NI when operating as master */
-	if (snd_soc_read(codec, M98095_034_DAI2_FORMAT) & M98095_DAI_MAS) {
-		if (max98095->sysclk == 0) {
-			dev_err(codec->dev, "Invalid system clock frequency\n");
-			return -EINVAL;
-		}
-		ni = 65536ULL * (rate < 50000 ? 96ULL : 48ULL)
-				* (unsigned long long int)rate;
-		do_div(ni, (unsigned long long int)max98095->sysclk);
-		snd_soc_write(codec, M98095_032_DAI2_CLKCFG_HI,
-			(ni >> 8) & 0x7F);
-		snd_soc_write(codec, M98095_033_DAI2_CLKCFG_LO,
-			ni & 0xFF);
-	}
-
-	/* Update sample rate mode */
-	if (rate < 50000)
-		snd_soc_update_bits(codec, M98095_038_DAI2_FILTERS,
-			M98095_DAI_DHF, 0);
-	else
-		snd_soc_update_bits(codec, M98095_038_DAI2_FILTERS,
-			M98095_DAI_DHF, M98095_DAI_DHF);
-
-	return 0;
-}
-
-static int max98095_dai3_hw_params(struct snd_pcm_substream *substream,
-				   struct snd_pcm_hw_params *params,
-				   struct snd_soc_dai *dai)
-{
-	struct snd_soc_codec *codec = dai->codec;
-	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
-	struct max98095_cdata *cdata;
-	unsigned long long ni;
-	unsigned int rate;
-	u8 regval;
-
-	cdata = &max98095->dai[2];
-
-	rate = params_rate(params);
-
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
-		snd_soc_update_bits(codec, M98095_03E_DAI3_FORMAT,
-			M98095_DAI_WS, 0);
-		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
-		snd_soc_update_bits(codec, M98095_03E_DAI3_FORMAT,
-			M98095_DAI_WS, M98095_DAI_WS);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	if (rate_value(rate, &regval))
-		return -EINVAL;
-
-	snd_soc_update_bits(codec, M98095_03B_DAI3_CLKMODE,
-		M98095_CLKMODE_MASK, regval);
-	cdata->rate = rate;
-
-	/* Configure NI when operating as master */
-	if (snd_soc_read(codec, M98095_03E_DAI3_FORMAT) & M98095_DAI_MAS) {
-		if (max98095->sysclk == 0) {
-			dev_err(codec->dev, "Invalid system clock frequency\n");
-			return -EINVAL;
-		}
-		ni = 65536ULL * (rate < 50000 ? 96ULL : 48ULL)
-				* (unsigned long long int)rate;
-		do_div(ni, (unsigned long long int)max98095->sysclk);
-		snd_soc_write(codec, M98095_03C_DAI3_CLKCFG_HI,
-			(ni >> 8) & 0x7F);
-		snd_soc_write(codec, M98095_03D_DAI3_CLKCFG_LO,
-			ni & 0xFF);
-	}
-
-	/* Update sample rate mode */
-	if (rate < 50000)
-		snd_soc_update_bits(codec, M98095_042_DAI3_FILTERS,
-			M98095_DAI_DHF, 0);
-	else
-		snd_soc_update_bits(codec, M98095_042_DAI3_FILTERS,
-			M98095_DAI_DHF, M98095_DAI_DHF);
-
-	return 0;
-}
-
 static int max98095_dai_set_sysclk(struct snd_soc_dai *dai,
 				   int clk_id, unsigned int freq, int dir)
 {
@@ -1549,7 +966,7 @@ static int max98095_dai1_set_fmt(struct snd_soc_dai *codec_dai,
 	struct max98095_cdata *cdata;
 	u8 regval = 0;
 
-	cdata = &max98095->dai[0];
+	cdata = &max98095->dai;
 
 	if (fmt != cdata->fmt) {
 		cdata->fmt = fmt;
@@ -1609,148 +1026,9 @@ static int max98095_dai1_set_fmt(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-static int max98095_dai2_set_fmt(struct snd_soc_dai *codec_dai,
-				 unsigned int fmt)
-{
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
-	struct max98095_cdata *cdata;
-	u8 regval = 0;
-
-	cdata = &max98095->dai[1];
-
-	if (fmt != cdata->fmt) {
-		cdata->fmt = fmt;
-
-		switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-		case SND_SOC_DAIFMT_CBS_CFS:
-			/* Slave mode PLL */
-			snd_soc_write(codec, M98095_032_DAI2_CLKCFG_HI,
-				0x80);
-			snd_soc_write(codec, M98095_033_DAI2_CLKCFG_LO,
-				0x00);
-			break;
-		case SND_SOC_DAIFMT_CBM_CFM:
-			/* Set to master mode */
-			regval |= M98095_DAI_MAS;
-			break;
-		case SND_SOC_DAIFMT_CBS_CFM:
-		case SND_SOC_DAIFMT_CBM_CFS:
-		default:
-			dev_err(codec->dev, "Clock mode unsupported");
-			return -EINVAL;
-		}
-
-		switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
-		case SND_SOC_DAIFMT_I2S:
-			regval |= M98095_DAI_DLY;
-			break;
-		case SND_SOC_DAIFMT_LEFT_J:
-			break;
-		default:
-			return -EINVAL;
-		}
-
-		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
-		case SND_SOC_DAIFMT_NB_NF:
-			break;
-		case SND_SOC_DAIFMT_NB_IF:
-			regval |= M98095_DAI_WCI;
-			break;
-		case SND_SOC_DAIFMT_IB_NF:
-			regval |= M98095_DAI_BCI;
-			break;
-		case SND_SOC_DAIFMT_IB_IF:
-			regval |= M98095_DAI_BCI|M98095_DAI_WCI;
-			break;
-		default:
-			return -EINVAL;
-		}
-
-		snd_soc_update_bits(codec, M98095_034_DAI2_FORMAT,
-			M98095_DAI_MAS | M98095_DAI_DLY | M98095_DAI_BCI |
-			M98095_DAI_WCI, regval);
-
-		snd_soc_write(codec, M98095_035_DAI2_CLOCK,
-			M98095_DAI_BSEL64);
-	}
-
-	return 0;
-}
-
-static int max98095_dai3_set_fmt(struct snd_soc_dai *codec_dai,
-				 unsigned int fmt)
-{
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
-	struct max98095_cdata *cdata;
-	u8 regval = 0;
-
-	cdata = &max98095->dai[2];
-
-	if (fmt != cdata->fmt) {
-		cdata->fmt = fmt;
-
-		switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-		case SND_SOC_DAIFMT_CBS_CFS:
-			/* Slave mode PLL */
-			snd_soc_write(codec, M98095_03C_DAI3_CLKCFG_HI,
-				0x80);
-			snd_soc_write(codec, M98095_03D_DAI3_CLKCFG_LO,
-				0x00);
-			break;
-		case SND_SOC_DAIFMT_CBM_CFM:
-			/* Set to master mode */
-			regval |= M98095_DAI_MAS;
-			break;
-		case SND_SOC_DAIFMT_CBS_CFM:
-		case SND_SOC_DAIFMT_CBM_CFS:
-		default:
-			dev_err(codec->dev, "Clock mode unsupported");
-			return -EINVAL;
-		}
-
-		switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
-		case SND_SOC_DAIFMT_I2S:
-			regval |= M98095_DAI_DLY;
-			break;
-		case SND_SOC_DAIFMT_LEFT_J:
-			break;
-		default:
-			return -EINVAL;
-		}
-
-		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
-		case SND_SOC_DAIFMT_NB_NF:
-			break;
-		case SND_SOC_DAIFMT_NB_IF:
-			regval |= M98095_DAI_WCI;
-			break;
-		case SND_SOC_DAIFMT_IB_NF:
-			regval |= M98095_DAI_BCI;
-			break;
-		case SND_SOC_DAIFMT_IB_IF:
-			regval |= M98095_DAI_BCI|M98095_DAI_WCI;
-			break;
-		default:
-			return -EINVAL;
-		}
-
-		snd_soc_update_bits(codec, M98095_03E_DAI3_FORMAT,
-			M98095_DAI_MAS | M98095_DAI_DLY | M98095_DAI_BCI |
-			M98095_DAI_WCI, regval);
-
-		snd_soc_write(codec, M98095_03F_DAI3_CLOCK,
-			M98095_DAI_BSEL64);
-	}
-
-	return 0;
-}
-
 static int max98095_set_bias_level(struct snd_soc_codec *codec,
 				   enum snd_soc_bias_level level)
 {
-	int ret;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -1760,22 +1038,13 @@ static int max98095_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
-			ret = snd_soc_cache_sync(codec);
-
-			if (ret != 0) {
-				dev_err(codec->dev, "Failed to sync cache: %d\n", ret);
-				return ret;
-			}
-		}
-
 		snd_soc_update_bits(codec, M98095_090_PWR_EN_IN,
-				M98095_MBEN, M98095_MBEN);
+				M98095_MB1EN, M98095_MB1EN);
 		break;
 
 	case SND_SOC_BIAS_OFF:
 		snd_soc_update_bits(codec, M98095_090_PWR_EN_IN,
-				M98095_MBEN, 0);
+				M98095_MB1EN, 0);
 		codec->cache_sync = 1;
 		break;
 	}
@@ -1792,392 +1061,38 @@ static struct snd_soc_dai_ops max98095_dai1_ops = {
 	.hw_params = max98095_dai1_hw_params,
 };
 
-static struct snd_soc_dai_ops max98095_dai2_ops = {
-	.set_sysclk = max98095_dai_set_sysclk,
-	.set_fmt = max98095_dai2_set_fmt,
-	.hw_params = max98095_dai2_hw_params,
+struct snd_soc_dai_driver max98095_dai[] = {
+	{
+		.name = "max98095-aif1",
+		.playback = {
+			.stream_name = "HiFi Playback",
+			.channels_min = 1,
+			.channels_max = 2,
+			.rates = MAX98095_RATES,
+			.formats = MAX98095_FORMATS,
+		},
+		.capture = {
+			.stream_name = "HiFi Capture",
+			.channels_min = 1,
+			.channels_max = 2,
+			.rates = MAX98095_RATES,
+			.formats = MAX98095_FORMATS,
+		},
+		.ops = &max98095_dai1_ops,
+	},
 };
-
-static struct snd_soc_dai_ops max98095_dai3_ops = {
-	.set_sysclk = max98095_dai_set_sysclk,
-	.set_fmt = max98095_dai3_set_fmt,
-	.hw_params = max98095_dai3_hw_params,
-};
-
-static struct snd_soc_dai_driver max98095_dai[] = {
-{
-	.name = "HiFi",
-	.playback = {
-		.stream_name = "HiFi Playback",
-		.channels_min = 1,
-		.channels_max = 2,
-		.rates = MAX98095_RATES,
-		.formats = MAX98095_FORMATS,
-	},
-	.capture = {
-		.stream_name = "HiFi Capture",
-		.channels_min = 1,
-		.channels_max = 2,
-		.rates = MAX98095_RATES,
-		.formats = MAX98095_FORMATS,
-	},
-	 .ops = &max98095_dai1_ops,
-},
-{
-	.name = "Aux",
-	.playback = {
-		.stream_name = "Aux Playback",
-		.channels_min = 1,
-		.channels_max = 1,
-		.rates = MAX98095_RATES,
-		.formats = MAX98095_FORMATS,
-	},
-	.ops = &max98095_dai2_ops,
-},
-{
-	.name = "Voice",
-	.playback = {
-		.stream_name = "Voice Playback",
-		.channels_min = 1,
-		.channels_max = 1,
-		.rates = MAX98095_RATES,
-		.formats = MAX98095_FORMATS,
-	},
-	.ops = &max98095_dai3_ops,
-}
-
-};
-
-static int max98095_get_eq_channel(const char *name)
-{
-	if (strcmp(name, "EQ1 Mode") == 0)
-		return 0;
-	if (strcmp(name, "EQ2 Mode") == 0)
-		return 1;
-	return -EINVAL;
-}
-
-static int max98095_put_eq_enum(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
-	struct max98095_pdata *pdata = max98095->pdata;
-	int channel = max98095_get_eq_channel(kcontrol->id.name);
-	struct max98095_cdata *cdata;
-	int sel = ucontrol->value.integer.value[0];
-	struct max98095_eq_cfg *coef_set;
-	int fs, best, best_val, i;
-	int regmask, regsave;
-
-	BUG_ON(channel > 1);
-
-	if (!pdata || !max98095->eq_textcnt)
-		return 0;
-
-	if (sel >= pdata->eq_cfgcnt)
-		return -EINVAL;
-
-	cdata = &max98095->dai[channel];
-	cdata->eq_sel = sel;
-	fs = cdata->rate;
-
-	/* Find the selected configuration with nearest sample rate */
-	best = 0;
-	best_val = INT_MAX;
-	for (i = 0; i < pdata->eq_cfgcnt; i++) {
-		if (strcmp(pdata->eq_cfg[i].name, max98095->eq_texts[sel]) == 0 &&
-			abs(pdata->eq_cfg[i].rate - fs) < best_val) {
-			best = i;
-			best_val = abs(pdata->eq_cfg[i].rate - fs);
-		}
-	}
-
-	dev_dbg(codec->dev, "Selected %s/%dHz for %dHz sample rate\n",
-		pdata->eq_cfg[best].name,
-		pdata->eq_cfg[best].rate, fs);
-
-	coef_set = &pdata->eq_cfg[best];
-
-	regmask = (channel == 0) ? M98095_EQ1EN : M98095_EQ2EN;
-
-	/* Disable filter while configuring, and save current on/off state */
-	regsave = snd_soc_read(codec, M98095_088_CFG_LEVEL);
-	snd_soc_update_bits(codec, M98095_088_CFG_LEVEL, regmask, 0);
-
-	mutex_lock(&codec->mutex);
-	snd_soc_update_bits(codec, M98095_00F_HOST_CFG, M98095_SEG, M98095_SEG);
-	m98095_eq_band(codec, channel, 0, coef_set->band1);
-	m98095_eq_band(codec, channel, 1, coef_set->band2);
-	m98095_eq_band(codec, channel, 2, coef_set->band3);
-	m98095_eq_band(codec, channel, 3, coef_set->band4);
-	m98095_eq_band(codec, channel, 4, coef_set->band5);
-	snd_soc_update_bits(codec, M98095_00F_HOST_CFG, M98095_SEG, 0);
-	mutex_unlock(&codec->mutex);
-
-	/* Restore the original on/off state */
-	snd_soc_update_bits(codec, M98095_088_CFG_LEVEL, regmask, regsave);
-	return 0;
-}
-
-static int max98095_get_eq_enum(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
-	int channel = max98095_get_eq_channel(kcontrol->id.name);
-	struct max98095_cdata *cdata;
-
-	cdata = &max98095->dai[channel];
-	ucontrol->value.enumerated.item[0] = cdata->eq_sel;
-
-	return 0;
-}
-
-static void max98095_handle_eq_pdata(struct snd_soc_codec *codec)
-{
-	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
-	struct max98095_pdata *pdata = max98095->pdata;
-	struct max98095_eq_cfg *cfg;
-	unsigned int cfgcnt;
-	int i, j;
-	const char **t;
-	int ret;
-
-	struct snd_kcontrol_new controls[] = {
-		SOC_ENUM_EXT("EQ1 Mode",
-			max98095->eq_enum,
-			max98095_get_eq_enum,
-			max98095_put_eq_enum),
-		SOC_ENUM_EXT("EQ2 Mode",
-			max98095->eq_enum,
-			max98095_get_eq_enum,
-			max98095_put_eq_enum),
-	};
-
-	cfg = pdata->eq_cfg;
-	cfgcnt = pdata->eq_cfgcnt;
-
-	/* Setup an array of texts for the equalizer enum.
-	 * This is based on Mark Brown's equalizer driver code.
-	 */
-	max98095->eq_textcnt = 0;
-	max98095->eq_texts = NULL;
-	for (i = 0; i < cfgcnt; i++) {
-		for (j = 0; j < max98095->eq_textcnt; j++) {
-			if (strcmp(cfg[i].name, max98095->eq_texts[j]) == 0)
-				break;
-		}
-
-		if (j != max98095->eq_textcnt)
-			continue;
-
-		/* Expand the array */
-		t = krealloc(max98095->eq_texts,
-			     sizeof(char *) * (max98095->eq_textcnt + 1),
-			     GFP_KERNEL);
-		if (t == NULL)
-			continue;
-
-		/* Store the new entry */
-		t[max98095->eq_textcnt] = cfg[i].name;
-		max98095->eq_textcnt++;
-		max98095->eq_texts = t;
-	}
-
-	/* Now point the soc_enum to .texts array items */
-	max98095->eq_enum.texts = max98095->eq_texts;
-	max98095->eq_enum.max = max98095->eq_textcnt;
-
-	ret = snd_soc_add_controls(codec, controls, ARRAY_SIZE(controls));
-	if (ret != 0)
-		dev_err(codec->dev, "Failed to add EQ control: %d\n", ret);
-}
-
-static int max98095_get_bq_channel(const char *name)
-{
-	if (strcmp(name, "Biquad1 Mode") == 0)
-		return 0;
-	if (strcmp(name, "Biquad2 Mode") == 0)
-		return 1;
-	return -EINVAL;
-}
-
-static int max98095_put_bq_enum(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
-	struct max98095_pdata *pdata = max98095->pdata;
-	int channel = max98095_get_bq_channel(kcontrol->id.name);
-	struct max98095_cdata *cdata;
-	int sel = ucontrol->value.integer.value[0];
-	struct max98095_biquad_cfg *coef_set;
-	int fs, best, best_val, i;
-	int regmask, regsave;
-
-	BUG_ON(channel > 1);
-
-	if (!pdata || !max98095->bq_textcnt)
-		return 0;
-
-	if (sel >= pdata->bq_cfgcnt)
-		return -EINVAL;
-
-	cdata = &max98095->dai[channel];
-	cdata->bq_sel = sel;
-	fs = cdata->rate;
-
-	/* Find the selected configuration with nearest sample rate */
-	best = 0;
-	best_val = INT_MAX;
-	for (i = 0; i < pdata->bq_cfgcnt; i++) {
-		if (strcmp(pdata->bq_cfg[i].name, max98095->bq_texts[sel]) == 0 &&
-			abs(pdata->bq_cfg[i].rate - fs) < best_val) {
-			best = i;
-			best_val = abs(pdata->bq_cfg[i].rate - fs);
-		}
-	}
-
-	dev_dbg(codec->dev, "Selected %s/%dHz for %dHz sample rate\n",
-		pdata->bq_cfg[best].name,
-		pdata->bq_cfg[best].rate, fs);
-
-	coef_set = &pdata->bq_cfg[best];
-
-	regmask = (channel == 0) ? M98095_BQ1EN : M98095_BQ2EN;
-
-	/* Disable filter while configuring, and save current on/off state */
-	regsave = snd_soc_read(codec, M98095_088_CFG_LEVEL);
-	snd_soc_update_bits(codec, M98095_088_CFG_LEVEL, regmask, 0);
-
-	mutex_lock(&codec->mutex);
-	snd_soc_update_bits(codec, M98095_00F_HOST_CFG, M98095_SEG, M98095_SEG);
-	m98095_biquad_band(codec, channel, 0, coef_set->band1);
-	m98095_biquad_band(codec, channel, 1, coef_set->band2);
-	snd_soc_update_bits(codec, M98095_00F_HOST_CFG, M98095_SEG, 0);
-	mutex_unlock(&codec->mutex);
-
-	/* Restore the original on/off state */
-	snd_soc_update_bits(codec, M98095_088_CFG_LEVEL, regmask, regsave);
-	return 0;
-}
-
-static int max98095_get_bq_enum(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
-	int channel = max98095_get_bq_channel(kcontrol->id.name);
-	struct max98095_cdata *cdata;
-
-	cdata = &max98095->dai[channel];
-	ucontrol->value.enumerated.item[0] = cdata->bq_sel;
-
-	return 0;
-}
-
-static void max98095_handle_bq_pdata(struct snd_soc_codec *codec)
-{
-	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
-	struct max98095_pdata *pdata = max98095->pdata;
-	struct max98095_biquad_cfg *cfg;
-	unsigned int cfgcnt;
-	int i, j;
-	const char **t;
-	int ret;
-
-	struct snd_kcontrol_new controls[] = {
-		SOC_ENUM_EXT("Biquad1 Mode",
-			max98095->bq_enum,
-			max98095_get_bq_enum,
-			max98095_put_bq_enum),
-		SOC_ENUM_EXT("Biquad2 Mode",
-			max98095->bq_enum,
-			max98095_get_bq_enum,
-			max98095_put_bq_enum),
-	};
-
-	cfg = pdata->bq_cfg;
-	cfgcnt = pdata->bq_cfgcnt;
-
-	/* Setup an array of texts for the biquad enum.
-	 * This is based on Mark Brown's equalizer driver code.
-	 */
-	max98095->bq_textcnt = 0;
-	max98095->bq_texts = NULL;
-	for (i = 0; i < cfgcnt; i++) {
-		for (j = 0; j < max98095->bq_textcnt; j++) {
-			if (strcmp(cfg[i].name, max98095->bq_texts[j]) == 0)
-				break;
-		}
-
-		if (j != max98095->bq_textcnt)
-			continue;
-
-		/* Expand the array */
-		t = krealloc(max98095->bq_texts,
-			     sizeof(char *) * (max98095->bq_textcnt + 1),
-			     GFP_KERNEL);
-		if (t == NULL)
-			continue;
-
-		/* Store the new entry */
-		t[max98095->bq_textcnt] = cfg[i].name;
-		max98095->bq_textcnt++;
-		max98095->bq_texts = t;
-	}
-
-	/* Now point the soc_enum to .texts array items */
-	max98095->bq_enum.texts = max98095->bq_texts;
-	max98095->bq_enum.max = max98095->bq_textcnt;
-
-	ret = snd_soc_add_controls(codec, controls, ARRAY_SIZE(controls));
-	if (ret != 0)
-		dev_err(codec->dev, "Failed to add Biquad control: %d\n", ret);
-}
-
-static void max98095_handle_pdata(struct snd_soc_codec *codec)
-{
-	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
-	struct max98095_pdata *pdata = max98095->pdata;
-	u8 regval = 0;
-
-	if (!pdata) {
-		dev_dbg(codec->dev, "No platform data\n");
-		return;
-	}
-
-	/* Configure mic for analog/digital mic mode */
-	if (pdata->digmic_left_mode)
-		regval |= M98095_DIGMIC_L;
-
-	if (pdata->digmic_right_mode)
-		regval |= M98095_DIGMIC_R;
-
-	snd_soc_write(codec, M98095_087_CFG_MIC, regval);
-
-	/* Configure equalizers */
-	if (pdata->eq_cfgcnt)
-		max98095_handle_eq_pdata(codec);
-
-	/* Configure bi-quad filters */
-	if (pdata->bq_cfgcnt)
-		max98095_handle_bq_pdata(codec);
-}
+EXPORT_SYMBOL_GPL(max98095_dai);
 
 #ifdef CONFIG_PM
 static int max98095_suspend(struct snd_soc_codec *codec, pm_message_t state)
 {
 	max98095_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
 	return 0;
 }
 
 static int max98095_resume(struct snd_soc_codec *codec)
 {
 	max98095_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	return 0;
 }
 #else
@@ -2227,6 +1142,11 @@ static int max98095_probe(struct snd_soc_codec *codec)
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
 		return ret;
 	}
+	codec->control_data = max98095->control_data;
+	codec->cache_sync = 1;
+	codec->write = max98095_i2c_write;
+	codec->read = max98095_i2c_read;
+	max98095->codec = codec;
 
 	/* reset the codec, the DSP core, and disable all interrupts */
 	max98095_reset(codec);
@@ -2237,19 +1157,7 @@ static int max98095_probe(struct snd_soc_codec *codec)
 	max98095->eq_textcnt = 0;
 	max98095->bq_textcnt = 0;
 
-	cdata = &max98095->dai[0];
-	cdata->rate = (unsigned)-1;
-	cdata->fmt  = (unsigned)-1;
-	cdata->eq_sel = 0;
-	cdata->bq_sel = 0;
-
-	cdata = &max98095->dai[1];
-	cdata->rate = (unsigned)-1;
-	cdata->fmt  = (unsigned)-1;
-	cdata->eq_sel = 0;
-	cdata->bq_sel = 0;
-
-	cdata = &max98095->dai[2];
+	cdata = &max98095->dai;
 	cdata->rate = (unsigned)-1;
 	cdata->fmt  = (unsigned)-1;
 	cdata->eq_sel = 0;
@@ -2265,39 +1173,37 @@ static int max98095_probe(struct snd_soc_codec *codec)
 			ret);
 		goto err_access;
 	}
-	dev_info(codec->dev, "revision %c\n", ret + 'A');
+	dev_info(codec->dev, "revision 0x%02x\n", ret);
 
 	snd_soc_write(codec, M98095_097_PWR_SYS, M98095_PWRSV);
 
 	/* initialize registers cache to hardware default */
 	max98095_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	snd_soc_write(codec, M98095_048_MIX_DAC_LR,
-		M98095_DAI1L_TO_DACL|M98095_DAI1R_TO_DACR);
-
-	snd_soc_write(codec, M98095_049_MIX_DAC_M,
-		M98095_DAI2M_TO_DACM|M98095_DAI3M_TO_DACM);
-
+	snd_soc_write(codec, M98095_093_BIAS_CTRL, 0xF0);
 	snd_soc_write(codec, M98095_092_PWR_EN_OUT, M98095_SPK_SPREADSPECTRUM);
-	snd_soc_write(codec, M98095_045_CFG_DSP, M98095_DSPNORMAL);
-	snd_soc_write(codec, M98095_04E_CFG_HP, M98095_HPNORMAL);
+	snd_soc_write(codec, M98095_096_PWR_DAC_CK, 0x09);
+	snd_soc_write(codec, M98095_02C_DAI1_IOCFG,	0x43);
 
-	snd_soc_write(codec, M98095_02C_DAI1_IOCFG,
-		M98095_S1NORMAL|M98095_SDATA);
+	snd_soc_write(codec, M98095_089_JACK_DET_AUTO, 0x80);
+	snd_soc_write(codec, M98095_013_JACK_INT_EN, 0xC8);
+	snd_soc_write(codec, M98095_014_JACK_INT_EN, 0x99);
 
-	snd_soc_write(codec, M98095_036_DAI2_IOCFG,
-		M98095_S2NORMAL|M98095_SDATA);
-
-	snd_soc_write(codec, M98095_040_DAI3_IOCFG,
-		M98095_S3NORMAL|M98095_SDATA);
-
-	max98095_handle_pdata(codec);
+	max98095_set_record_main_mic(codec);
+//	max98095_set_playback_speaker_headset(codec);
 
 	/* take the codec out of the shut down */
 	snd_soc_update_bits(codec, M98095_097_PWR_SYS, M98095_SHDNRUN,
 		M98095_SHDNRUN);
 
 	max98095_add_widgets(codec);
+
+#if defined(CONFIG_MAX98095_HEADSET)
+	switch_dev_register(&switch_jack_detection);
+
+	INIT_DELAYED_WORK_DEFERRABLE(&max98095->work, max98095_work);
+	schedule_delayed_work(&max98095->work, msecs_to_jiffies(6000));
+#endif
 
 err_access:
 	return ret;
@@ -2306,25 +1212,20 @@ err_access:
 static int max98095_remove(struct snd_soc_codec *codec)
 {
 	max98095_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_max98095 = {
+struct snd_soc_codec_driver soc_codec_dev_max98095 = {
 	.probe   = max98095_probe,
 	.remove  = max98095_remove,
 	.suspend = max98095_suspend,
 	.resume  = max98095_resume,
-	.set_bias_level = max98095_set_bias_level,
+
 	.reg_cache_size = ARRAY_SIZE(max98095_reg_def),
 	.reg_word_size = sizeof(u8),
 	.reg_cache_default = max98095_reg_def,
 	.readable_register = max98095_readable,
 	.volatile_register = max98095_volatile,
-	.dapm_widgets	  = max98095_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(max98095_dapm_widgets),
-	.dapm_routes     = max98095_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(max98095_audio_map),
 };
 
 static int max98095_i2c_probe(struct i2c_client *i2c,
@@ -2333,32 +1234,38 @@ static int max98095_i2c_probe(struct i2c_client *i2c,
 	struct max98095_priv *max98095;
 	int ret;
 
-	max98095 = kzalloc(sizeof(struct max98095_priv), GFP_KERNEL);
+	max98095 = devm_kzalloc(&i2c->dev, sizeof(struct max98095_priv), GFP_KERNEL);
 	if (max98095 == NULL)
 		return -ENOMEM;
-
-	max98095->devtype = id->driver_data;
-	i2c_set_clientdata(i2c, max98095);
+	
+//	codec = &max98095->codec;
 	max98095->control_data = i2c;
-	max98095->pdata = i2c->dev.platform_data;
+	i2c_set_clientdata(i2c, max98095);
+//	codec->control_data = i2c;
+//	max98095->pdata = i2c->dev.platform_data;
 
+//	codec->dev = &i2c->dev;
 	ret = snd_soc_register_codec(&i2c->dev,
-			&soc_codec_dev_max98095, &max98095_dai[0], 3);
-	if (ret < 0)
+			&soc_codec_dev_max98095, &max98095_dai[0], 1);
+	if (ret < 0){
 		kfree(max98095);
+	}
 	return ret;
 }
 
 static int __devexit max98095_i2c_remove(struct i2c_client *client)
 {
-	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
+	struct snd_soc_codec *codec = i2c_get_clientdata(client);
 
+#if defined(CONFIG_MAX98095_HEADSET)
+	switch_dev_unregister(&switch_jack_detection);
+#endif
+	kfree(codec->reg_cache);
 	return 0;
 }
 
 static const struct i2c_device_id max98095_i2c_id[] = {
-	{ "max98095", MAX98095 },
+	{ "max98095", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max98095_i2c_id);

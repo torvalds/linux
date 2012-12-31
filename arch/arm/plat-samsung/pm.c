@@ -53,7 +53,9 @@ void s3c_pm_dbg(const char *fmt, ...)
 	vsprintf(buff, fmt, va);
 	va_end(va);
 
+#ifdef CONFIG_DEBUG_LL
 	printascii(buff);
+#endif
 }
 
 static inline void s3c_pm_debug_init(void)
@@ -232,6 +234,7 @@ static void __maybe_unused s3c_pm_show_resume_irqs(int start,
 
 void (*pm_cpu_prep)(void);
 void (*pm_cpu_sleep)(void);
+void (*pm_cpu_restore)(void);
 
 #define any_allowed(mask, allow) (((mask) & (allow)) != (allow))
 
@@ -268,6 +271,7 @@ static int s3c_pm_enter(suspend_state_t state)
 	/* save all necessary core registers not covered by the drivers */
 
 	s3c_pm_save_gpios();
+	s3c_pm_saved_gpios();
 	s3c_pm_save_uarts();
 	s3c_pm_save_core();
 
@@ -304,13 +308,17 @@ static int s3c_pm_enter(suspend_state_t state)
 
 	cpu_init();
 
-	/* restore the system state */
-
 	s3c_pm_restore_core();
 	s3c_pm_restore_uarts();
 	s3c_pm_restore_gpios();
+	s3c_pm_restored_gpios();
 
 	s3c_pm_debug_init();
+
+        /* restore the system state */
+
+	if (pm_cpu_restore)
+		pm_cpu_restore();
 
 	/* check what irq (if any) restored the system */
 

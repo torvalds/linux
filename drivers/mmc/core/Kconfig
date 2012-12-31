@@ -27,3 +27,33 @@ config MMC_CLKGATE
 	  support handling this in order for it to be of any use.
 
 	  If unsure, say N.
+
+config MMC_EMBEDDED_SDIO
+	boolean "MMC embedded SDIO device support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  If you say Y here, support will be added for embedded SDIO
+	  devices which do not contain the necessary enumeration
+	  support in hardware to be properly detected.
+
+config MMC_PARANOID_SD_INIT
+	bool "Enable paranoid SD card initialization (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  If you say Y here, the MMC layer will be extra paranoid
+	  about re-trying SD init requests. This can be a useful
+	  work-around for buggy controllers and hardware. Enable
+	  if you are experiencing issues with SD detection.
+
+config MMC_NOT_USE_SANITIZE
+	bool "Disable SANITIZE emmc4.5 feature (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  If you say Y here, sanitize feature will be disable.
+
+config MMC_POLLING_WAIT_CMD23
+	bool "Wait for cmd23's done interrupt by polling check (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  If you say Y here, cmd23 dose not use interrupt.
+

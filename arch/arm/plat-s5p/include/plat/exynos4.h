@@ -12,11 +12,13 @@
 
 /* Common init code for EXYNOS4 related SoCs */
 
-extern void exynos4_common_init_uarts(struct s3c2410_uartcfg *cfg, int no);
+struct s3c2410_uartcfg;
+
+extern void exynos_common_init_uarts(struct s3c2410_uartcfg *cfg, int no);
 extern void exynos4_register_clocks(void);
 extern void exynos4_setup_clocks(void);
 
-#ifdef CONFIG_CPU_EXYNOS4210
+#if defined(CONFIG_CPU_EXYNOS4210) || defined(CONFIG_CPU_EXYNOS4212)
 
 extern  int exynos4_init(void);
 extern void exynos4_init_irq(void);
@@ -24,11 +26,23 @@ extern void exynos4_map_io(void);
 extern void exynos4_init_clocks(int xtal);
 extern struct sys_timer exynos4_timer;
 
-#define exynos4_init_uarts exynos4_common_init_uarts
+#define exynos4_init_uarts exynos_common_init_uarts
 
 #else
 #define exynos4_init_clocks NULL
 #define exynos4_init_uarts NULL
 #define exynos4_map_io NULL
 #define exynos4_init NULL
+#endif
+
+#if defined(CONFIG_CPU_EXYNOS4210)
+extern void exynos4210_register_clocks(void);
+#else
+#define exynos4210_register_clocks() do { } while(0)
+#endif
+
+#if defined(CONFIG_CPU_EXYNOS4212)
+extern void exynos4212_register_clocks(void);
+#else
+#define exynos4212_register_clocks() do { } while(0)
 #endif

@@ -1,0 +1,5 @@
+config SND_SAMSUNG_ALP
+	bool "ALP Audio support"
+	select SND_SOC_SAMSUNG_I2S_IDMA
+	help
+	  Say Y if you want to support ALP audio.

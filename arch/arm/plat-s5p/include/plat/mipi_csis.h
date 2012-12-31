@@ -39,5 +39,7 @@ struct s5p_platform_mipi_csis {
  *	false to disable D-PHY
  */
 int s5p_csis_phy_enable(struct platform_device *pdev, bool on);
+extern struct s5p_platform_mipi_csis s5p_mipi_csis0_default_data;
+extern struct s5p_platform_mipi_csis s5p_mipi_csis1_default_data;
 
 #endif /* PLAT_S5P_MIPI_CSIS_H_ */

@@ -148,3 +148,22 @@ config USB_OTG_BLACKLIST_HUB
 	  and software costs by not supporting external hubs.  So
 	  are "Embedded Hosts" that don't offer OTG support.
 
+config HOST_COMPLIANT_TEST
+	bool "Embedded High-speed Host Electrical Test Support"
+	depends on USB && USB_ARCH_HAS_HCD && PLAT_SAMSUNG
+	default n
+	help
+	 This option is only used if you are developing firmware for
+	 an embedded device with a Hi-speed USB Host or OTG port.
+
+	 If you say Y here, software support for the Embedded
+	 High-speed Host Electrical Tests will be added to the USB
+	 Host stack. This is one of the tests performed during
+	 High-speed USB Host certification testing.
+
+	 Please note that the USB Host Controller Driver must also
+	 support this option. For an example of how to add support
+	 for this to a USB Host Controller Driver see the EHCI driver.
+
+	 If you are at all unsure then say N here.
+

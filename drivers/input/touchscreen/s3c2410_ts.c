@@ -68,10 +68,16 @@
  * @io: Pointer to the IO base.
  * @xp: The accumulated X position data.
  * @yp: The accumulated Y position data.
+ * @xp_pre: The previous X position data.
+ * @yp_pre: The previous Y position data.
  * @irq_tc: The interrupt number for pen up/down interrupt
  * @count: The number of samples collected.
  * @shift: The log2 of the maximum count to read in one go.
  * @features: The features supported by the TSADC MOdule.
+ * @cal_enable: The flag of enabling calibration.
+ * @cal_x_max: The maximum value of calibrated X.
+ * @cal_y_max: The maximum value of calibrated Y.
+ * @cal_param: The parameters for calibration.
  */
 struct s3c2410ts {
 	struct s3c_adc_client *client;
@@ -81,13 +87,84 @@ struct s3c2410ts {
 	void __iomem *io;
 	unsigned long xp;
 	unsigned long yp;
+	unsigned long xp_pre;
+	unsigned long yp_pre;
+
 	int irq_tc;
 	int count;
 	int shift;
 	int features;
+	bool request_done;
+
+	int cal_enable;
+	int cal_x_max;
+	int cal_y_max;
+	int cal_param[7];
 };
 
 static struct s3c2410ts ts;
+
+struct cal_data {
+	int cal_x_max;
+	int cal_y_max;
+	int cal_param[7];
+};
+
+static ssize_t set_ts_cal(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	int i;
+	struct cal_data *b = (struct cal_data *) buf;
+
+	if (count < sizeof(struct cal_data))
+		return 0;
+
+	dev_dbg(ts.dev, "%s : cal_x_max : %d cal_y_max : %d "
+			"cal_param : %d %d %d %d %d %d %d\n", __func__,
+			b->cal_x_max, b->cal_y_max, b->cal_param[0],
+			b->cal_param[1], b->cal_param[2], b->cal_param[3],
+			b->cal_param[4], b->cal_param[5], b->cal_param[6]);
+
+	ts.cal_x_max = b->cal_x_max;
+	ts.cal_y_max = b->cal_y_max;
+
+	for (i = 0; i < 7; i++)
+		ts.cal_param[i] = b->cal_param[i];
+
+	input_set_abs_params(ts.input, ABS_X, 0, ts.cal_x_max, 0, 0);
+	input_set_abs_params(ts.input, ABS_Y, 0, ts.cal_y_max, 0, 0);
+
+	ts.cal_enable = 1;
+
+	return sizeof(struct cal_data);
+}
+
+static ssize_t reset_ts_cal(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	input_set_abs_params(ts.input, ABS_X, 0, 0x3ff, 0, 0);
+	input_set_abs_params(ts.input, ABS_Y, 0, 0x3ff, 0, 0);
+
+	ts.cal_enable = 0;
+
+	return count;
+}
+
+static DEVICE_ATTR(set_tscal, S_IRWXUGO, NULL, set_ts_cal);
+static DEVICE_ATTR(reset_tscal, S_IRWXUGO, NULL, reset_ts_cal);
+
+static struct attribute *s5pv310_ts_sysfs_entries[] = {
+	&dev_attr_set_tscal.attr,
+	&dev_attr_reset_tscal.attr,
+	NULL
+};
+
+static struct attribute_group s5pv310_ts_attr_group = {
+	.name	= NULL,
+	.attrs	= s5pv310_ts_sysfs_entries,
+};
 
 /**
  * get_down - return the down state of the pen
@@ -101,6 +178,18 @@ static inline bool get_down(unsigned long data0, unsigned long data1)
 	/* returns true if both data values show stylus down */
 	return (!(data0 & S3C2410_ADCDAT0_UPDOWN) &&
 		!(data1 & S3C2410_ADCDAT0_UPDOWN));
+}
+
+static void ts_calibrate(void)
+{
+	int x, y;
+	x = (int)ts.xp;
+	y = (int)ts.yp;
+
+	ts.xp = (long)((ts.cal_param[2] + (ts.cal_param[0] * x) +
+			(ts.cal_param[1] * y)) / ts.cal_param[6]);
+	ts.yp = (long)((ts.cal_param[5] + (ts.cal_param[3] * x) +
+			(ts.cal_param[4] * y)) / ts.cal_param[6]);
 }
 
 static void touch_timer_fire(unsigned long data)
@@ -119,6 +208,9 @@ static void touch_timer_fire(unsigned long data)
 			ts.xp >>= ts.shift;
 			ts.yp >>= ts.shift;
 
+			if (ts.cal_enable)
+				ts_calibrate();
+
 			dev_dbg(ts.dev, "%s: X=%lu, Y=%lu, count=%d\n",
 				__func__, ts.xp, ts.yp, ts.count);
 
@@ -127,6 +219,9 @@ static void touch_timer_fire(unsigned long data)
 
 			input_report_key(ts.input, BTN_TOUCH, 1);
 			input_sync(ts.input);
+
+			ts.xp_pre = ts.xp;
+			ts.yp_pre = ts.yp;
 
 			ts.xp = 0;
 			ts.yp = 0;
@@ -139,10 +234,15 @@ static void touch_timer_fire(unsigned long data)
 		ts.yp = 0;
 		ts.count = 0;
 
+		input_report_abs(ts.input, ABS_X, ts.xp_pre);
+		input_report_abs(ts.input, ABS_Y, ts.yp_pre);
+
 		input_report_key(ts.input, BTN_TOUCH, 0);
 		input_sync(ts.input);
 
 		writel(WAIT4INT | INT_DOWN, ts.io + S3C2410_ADCTSC);
+
+		ts.request_done = true;
 	}
 }
 
@@ -170,10 +270,12 @@ static irqreturn_t stylus_irq(int irq, void *dev_id)
 	 * the timer is running, but maybe we ought to verify that the
 	 * timer isn't running anyways. */
 
-	if (down)
+	if (down && ts.request_done) {
+		ts.request_done = false;
 		s3c_adc_start(ts.client, 0, 1 << ts.shift);
-	else
+	} else {
 		dev_dbg(ts.dev, "%s: count=%d\n", __func__, ts.count);
+	}
 
 	if (ts.features & FEAT_PEN_IRQ) {
 		/* Clear pen down/up interrupt */
@@ -244,7 +346,13 @@ static int __devinit s3c2410ts_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct input_dev *input_dev;
 	struct resource *res;
-	int ret = -EINVAL;
+	int i, ret = -EINVAL;
+
+	ret = sysfs_create_group(&pdev->dev.kobj, &s5pv310_ts_attr_group);
+	if (ret < 0) {
+		dev_err(dev, "can not create sysfs\n");
+		return ret;
+	}
 
 	/* Initialise input stuff */
 	memset(&ts, 0, sizeof(struct s3c2410ts));
@@ -259,7 +367,7 @@ static int __devinit s3c2410ts_probe(struct platform_device *pdev)
 
 	dev_dbg(dev, "initialising touchscreen\n");
 
-	ts.clock = clk_get(dev, "adc");
+	ts.clock = clk_get(NULL, "adc");
 	if (IS_ERR(ts.clock)) {
 		dev_err(dev, "cannot get adc clock source\n");
 		return -ENOENT;
@@ -316,10 +424,21 @@ static int __devinit s3c2410ts_probe(struct platform_device *pdev)
 	ts.input = input_dev;
 	ts.input->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 	ts.input->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
-	input_set_abs_params(ts.input, ABS_X, 0, 0x3FF, 0, 0);
-	input_set_abs_params(ts.input, ABS_Y, 0, 0x3FF, 0, 0);
 
-	ts.input->name = "S3C24XX TouchScreen";
+	if (info->cal_x_max == 0 || info->cal_y_max == 0) {
+		ts.cal_enable = 0;
+		input_set_abs_params(ts.input, ABS_X, 0, 0x3FF, 32, 0);
+		input_set_abs_params(ts.input, ABS_Y, 0, 0x3FF, 32, 0);
+	} else {
+		for (i = 0; i < 7; i++)
+			ts.cal_param[i] = info->cal_param[i];
+
+		ts.cal_enable = 1;
+		input_set_abs_params(ts.input, ABS_X, 0, info->cal_x_max, 32, 0);
+		input_set_abs_params(ts.input, ABS_Y, 0, info->cal_y_max, 32, 0);
+	}
+
+	ts.input->name = "S3C24XX_TouchScreen";
 	ts.input->id.bustype = BUS_HOST;
 	ts.input->id.vendor = 0xDEAD;
 	ts.input->id.product = 0xBEEF;
@@ -327,6 +446,7 @@ static int __devinit s3c2410ts_probe(struct platform_device *pdev)
 
 	ts.shift = info->oversampling_shift;
 	ts.features = platform_get_device_id(pdev)->driver_data;
+	ts.request_done = true;
 
 	ret = request_irq(ts.irq_tc, stylus_irq, IRQF_DISABLED,
 			  "s3c2410_ts_pen", ts.input);

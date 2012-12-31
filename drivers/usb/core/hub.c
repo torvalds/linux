@@ -1303,7 +1303,7 @@ static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	 * external hubs for now.  Enable autosuspend for USB 3.0 roothubs,
 	 * since that isn't a "real" hub.
 	 */
-	if (!hub_is_superspeed(hdev) || !hdev->parent)
+	if (!hdev->parent)
 		usb_enable_autosuspend(hdev);
 
 	if (hdev->level == MAX_TOPO_LEVEL) {

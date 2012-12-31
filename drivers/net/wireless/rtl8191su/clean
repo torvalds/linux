@@ -1,0 +1,7 @@
+#!/bin/bash
+rmmod r8192s_usb
+rmmod ieee80211_rsl
+rmmod ieee80211_crypt_ccmp
+rmmod ieee80211_crypt_tkip
+rmmod ieee80211_crypt_wep
+rmmod ieee80211_crypt

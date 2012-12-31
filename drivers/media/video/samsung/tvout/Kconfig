@@ -1,0 +1,135 @@
+#
+# Configuration for TV driver
+#
+
+config VIDEO_TVOUT
+	bool "Samsung TVOUT Driver"
+	depends on VIDEO_SAMSUNG
+	default y
+	---help---
+	  This is a TVOUT driver for Samsung S5P platform
+
+choice
+depends on VIDEO_TVOUT
+prompt "Select default audio channel"
+default VIDEO_TVOUT_2CH_AUDIO
+config VIDEO_TVOUT_2CH_AUDIO
+	bool "2ch audio mode"
+	depends on VIDEO_TVOUT
+	---help---
+	  TV out supports 2 channel audio
+
+config VIDEO_TVOUT_5_1CH_AUDIO
+	bool "5.1ch audio mode"
+	depends on VIDEO_TVOUT
+	---help---
+	  TV out supports 5.1 channel audio
+endchoice
+
+config HDMI_CEC
+	bool "HDMI CEC driver support."
+	depends on VIDEO_TVOUT && ARCH_EXYNOS4
+	default y
+	---help---
+	  This is a HDMI CEC driver for Samsung S5P platform.
+	  Check dev node (major 10, minor 242)
+
+config HDMI_HPD
+	bool "HDMI HPD driver support."
+	depends on VIDEO_TVOUT && ARCH_EXYNOS4
+	default y
+	---help---
+	  This is a HDMI HPD driver for Samsung S5P platform.
+	  Check dev node (major 10, minor 243)
+
+config HDMI_14A_3D
+	bool "HDMI 14A driver support."
+	depends on VIDEO_TVOUT && ARCH_EXYNOS4 && CPU_EXYNOS4212
+	default y
+	---help---
+	  This is a HDMI 1.4A 3D driver for Samsung S5P platform.
+
+config HDMI_PHY_32N
+	bool "HDMI PHY 32N driver support."
+	depends on VIDEO_TVOUT && HDMI_14A_3D && ARCH_EXYNOS4
+	default y
+	---help---
+	  This is a HDMI PHY version for Samsung S5P platform.
+
+config ANALOG_TVENC
+	bool "Analog driver support."
+	depends on VIDEO_TVOUT && ARCH_EXYNOS4 && CPU_EXYNOS4210
+	default y
+	---help---
+	  This is a analog TVENC driver for Samsung S5P platform.
+
+config VPLL_USE_FOR_TVENC
+	bool "VPLL use for TVENC."
+	depends on VIDEO_TVOUT && ANALOG_TVENC && ARCH_EXYNOS4
+	default n
+	---help---
+	  This is a VPLL use of TVENC for Samsung S5P platform.
+
+config TV_FB
+	bool "TVOUT frame buffer driver support."
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+
+	depends on VIDEO_TVOUT && FB && ARCH_EXYNOS4
+	default y
+	---help---
+
+config USER_ALLOC_TVOUT
+	bool "Support pre allocated frame buffer memory."
+	depends on VIDEO_TVOUT && TV_FB
+	default y
+	---help---
+	  TV Driver doesn't allocate memory for frame buffer.
+	  So, before enabling TV out, the frame buffer should be allocated.
+
+config TV_FB_NUM
+	int "Index of TVOUT frame buffer"
+	depends on VIDEO_TVOUT && TV_FB && !USER_ALLOC_TVOUT
+	default 5
+	---help---
+
+config TV_DEBUG
+	bool "TVOUT driver debug message"
+	depends on VIDEO_TVOUT
+	default n
+
+config VP_DEBUG
+	bool "Video Processor debug message"
+	depends on TV_DEBUG
+	default n
+
+config MIXER_DEBUG
+	bool "Mixer debug message"
+	depends on TV_DEBUG
+	default n
+
+config HDMI_DEBUG
+	bool "HDMI debug message"
+	depends on TV_DEBUG
+	default n
+
+config SDO_DEBUG
+	bool "SDO(Composite) debug message"
+	depends on TV_DEBUG
+	default n
+
+config HDCP_DEBUG
+	bool "HDCP debug message"
+	depends on TV_DEBUG
+	default n
+
+config CEC_DEBUG
+	bool "CEC debug message"
+	depends on TV_DEBUG
+	default n
+
+config HPD_DEBUG
+	bool "HPD debug message"
+	depends on TV_DEBUG
+	default n

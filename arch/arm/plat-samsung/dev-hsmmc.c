@@ -55,6 +55,8 @@ struct platform_device s3c_device_hsmmc0 = {
 		.platform_data		= &s3c_hsmmc0_def_platdata,
 	},
 };
+// Hardkernel / ODROID
+EXPORT_SYMBOL(s3c_device_hsmmc0);
 
 void s3c_sdhci0_set_platdata(struct s3c_sdhci_platdata *pd)
 {
@@ -65,7 +67,10 @@ void s3c_sdhci0_set_platdata(struct s3c_sdhci_platdata *pd)
 	set->ext_cd_cleanup = pd->ext_cd_cleanup;
 	set->ext_cd_gpio = pd->ext_cd_gpio;
 	set->ext_cd_gpio_invert = pd->ext_cd_gpio_invert;
+	set->pm_flags = pd->pm_flags;
 
+	if (pd->vmmc_name)
+		set->vmmc_name = pd->vmmc_name;
 	if (pd->max_width)
 		set->max_width = pd->max_width;
 	if (pd->cfg_gpio)

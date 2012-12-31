@@ -133,8 +133,14 @@ struct ehci_regs {
 #define PORT_WKCONN_E	(1<<20)		/* wake on connect (enable) */
 /* 19:16 for port testing */
 #define PORT_TEST(x)	(((x)&0xf)<<16)	/* Port Test Control */
+#ifdef CONFIG_HOST_COMPLIANT_TEST
+#define PORT_TEST_J		PORT_TEST(0x1)
+#define PORT_TEST_K		PORT_TEST(0x2)
+#define PORT_TEST_SE0_NAK       PORT_TEST(0x3)
+#endif
 #define PORT_TEST_PKT	PORT_TEST(0x4)	/* Port Test Control - packet test */
 #define PORT_TEST_FORCE	PORT_TEST(0x5)	/* Port Test Control - force enable */
+
 #define PORT_LED_OFF	(0<<14)
 #define PORT_LED_AMBER	(1<<14)
 #define PORT_LED_GREEN	(2<<14)

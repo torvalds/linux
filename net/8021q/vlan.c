@@ -438,7 +438,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 		}
 
 		break;
-
+	case NETDEV_GOING_DOWN: // NETDEV_DOWN
 	case NETDEV_DOWN:
 		/* Put all VLANs for this dev in the down state too.  */
 		for (i = 0; i < VLAN_N_VID; i++) {

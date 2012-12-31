@@ -84,11 +84,33 @@ enum dma_ch {
 	DMACH_SLIMBUS4_TX,
 	DMACH_SLIMBUS5_RX,
 	DMACH_SLIMBUS5_TX,
+	DMACH_MIPI_HSI0,
+	DMACH_MIPI_HSI1,
+	DMACH_MIPI_HSI2,
+	DMACH_MIPI_HSI3,
+	DMACH_MIPI_HSI4,
+	DMACH_MIPI_HSI5,
+	DMACH_MIPI_HSI6,
+	DMACH_MIPI_HSI7,
+	DMACH_DISP1,
+	DMACH_MTOM_0,
+	DMACH_MTOM_1,
+	DMACH_MTOM_2,
+	DMACH_MTOM_3,
+	DMACH_MTOM_4,
+	DMACH_MTOM_5,
+	DMACH_MTOM_6,
+	DMACH_MTOM_7,
 	/* END Marker, also used to denote a reserved channel */
 	DMACH_MAX,
 };
 
 static inline bool s3c_dma_has_circular(void)
+{
+	return true;
+}
+
+static inline bool s3c_dma_has_infiniteloop(void)
 {
 	return true;
 }

@@ -1,6 +1,6 @@
 config SND_SOC_SAMSUNG
 	tristate "ASoC support for Samsung"
-	depends on ARCH_S3C2410 || ARCH_S3C64XX || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_S5P64X0 || ARCH_EXYNOS4
+	depends on ARCH_S3C2410 || ARCH_S3C64XX || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_S5P64X0 || ARCH_EXYNOS4 || ARCH_EXYNOS5
 	select S3C64XX_DMA if ARCH_S3C64XX
 	select S3C2410_DMA if ARCH_S3C2410
 	help
@@ -63,11 +63,77 @@ config SND_SOC_SAMSUNG_SMDK_WM8580
 
 config SND_SOC_SAMSUNG_SMDK_WM8994
 	tristate "SoC I2S Audio support for WM8994 on SMDK"
-	depends on SND_SOC_SAMSUNG && (MACH_SMDKV310 || MACH_SMDKC210)
+	depends on SND_SOC_SAMSUNG && (MACH_SMDKV310 || MACH_SMDKC210 || MACH_SMDK4X12 || MACH_SMDK5250)
 	select SND_SOC_WM8994
 	select SND_SAMSUNG_I2S
 	help
 		Say Y if you want to add support for SoC audio on the SMDKs.
+
+config SND_SOC_ODROID_MAX98095
+	tristate "SoC I2S Audio support for MAX98095 on ODROID"
+	depends on SND_SOC_SAMSUNG && (MACH_ODROID_4X12)
+	select SND_SOC_MAX98095
+	select SND_SAMSUNG_I2S
+	help
+		Say Y if you want to add support for SoC audio on the ODROID.
+
+config SND_SOC_ODROID_MAX98090
+	tristate "SoC I2S Audio support for MAX98090 on ODROID"
+	depends on SND_SOC_SAMSUNG && (MACH_ODROID_4X12)
+	select SND_SOC_MAX98090
+	select SND_SAMSUNG_I2S
+	help
+		Say Y if you want to add support for SoC audio on the ODROID.
+
+
+choice
+	prompt "Samsung I2S Audio type"
+	depends on SND_SAMSUNG_I2S && (ARCH_EXYNOS4 || ARCH_S5PV210 || ARCH_EXYNOS5)
+	default SND_SAMSUNG_NORMAL
+
+config SND_SAMSUNG_NORMAL
+	bool "Normal Audio support"
+	help
+	  Say Y if you want to support normal audio.
+
+config SND_SAMSUNG_LP
+	bool "LP Audio support"
+	help
+	  Say Y if you want to support LP audio.
+
+# For support SRP audio
+source "sound/soc/samsung/srp_alp/Kconfig"
+source "sound/soc/samsung/srp_ulp/Kconfig"
+
+endchoice
+
+config AUDIO_SAMSUNG_MEMSIZE_SRP
+	int "Memory size in kbytes for Low power Audio"
+	depends on SND_SAMSUNG_RP || SND_SAMSUNG_ALP
+	default "1024"
+
+config SND_SAMSUNG_RP_DEBUG
+	bool "Enable debug message for ULP & ALP Audio"
+	depends on SND_SAMSUNG_RP || SND_SAMSUNG_ALP
+	default n
+	help
+	  Say Y if you want to add debug message for ULP & ALP Audio.
+
+config SND_SAMSUNG_I2S_MASTER
+	bool "I2S Master Mode"
+	depends on SND_SAMSUNG_I2S
+
+config SND_SOC_SAMSUNG_SMDK_WM8994_PCM
+	tristate "SoC PCM Audio support for WM8994 on SMDK"
+	depends on SND_SOC_SAMSUNG && (MACH_SMDKV310 || MACH_SMDKC210 || MACH_SMDK4X12 || MACH_SMDK5250)
+	select SND_SOC_WM8994
+	select SND_SAMSUNG_PCM
+	select SND_SAMSUNG_PCM_USE_EPLL
+	help
+	  Say Y if you want to add support for SoC audio on the SMDK.
+
+config SND_SAMSUNG_PCM_USE_EPLL
+	bool
 
 config SND_SOC_SAMSUNG_SMDK2443_WM9710
 	tristate "SoC AC97 Audio support for SMDK2443 - WM9710"
@@ -135,7 +201,7 @@ config SND_SOC_SAMSUNG_RX1950_UDA1380
 
 config SND_SOC_SAMSUNG_SMDK_WM9713
 	tristate "SoC AC97 Audio support for SMDK with WM9713"
-	depends on SND_SOC_SAMSUNG && (MACH_SMDK6410 || MACH_SMDKC100 || MACH_SMDKV210 || MACH_SMDKC110 || MACH_SMDKV310 || MACH_SMDKC210)
+	depends on SND_SOC_SAMSUNG && (MACH_SMDK6410 || MACH_SMDKC100 || MACH_SMDKV210 || MACH_SMDKC110 || MACH_SMDKV310 || MACH_SMDKC210 || MACH_SMDK4X12 || MACH_SMDK5250)
 	select SND_SOC_WM9713
 	select SND_SAMSUNG_AC97
 	help
@@ -158,7 +224,7 @@ config SND_SOC_GONI_AQUILA_WM8994
 
 config SND_SOC_SAMSUNG_SMDK_SPDIF
 	tristate "SoC S/PDIF Audio support for SMDK"
-	depends on SND_SOC_SAMSUNG && (MACH_SMDKC100 || MACH_SMDKC110 || MACH_SMDKV210)
+	depends on SND_SOC_SAMSUNG && (MACH_SMDKC100 || MACH_SMDKC110 || MACH_SMDKV210 || MACH_SMDKV310 || MACH_SMDK4X12 || MACH_SMDK5250 || MACH_ODROID_4X12)
 	select SND_SAMSUNG_SPDIF
 	help
 	  Say Y if you want to add support for SoC S/PDIF audio on the SMDK.
@@ -177,3 +243,15 @@ config SND_SOC_SPEYSIDE
 	select SND_SAMSUNG_I2S
 	select SND_SOC_WM8915
 	select SND_SOC_WM9081
+
+config MAX98090_HEADSET
+	bool "MAX98090 HeadSet detect"
+	depends on SND_SOC_ODROID_MAX98090
+	help
+	  Provides support for detecting max98090 jack_sw
+
+config MAX98095_HEADSET
+	bool "MAX98095 audio jack"
+	depends on SND_SOC_ODROID_MAX98095
+	help
+	  Provides support for detecting max98095 jack_sw

@@ -21,6 +21,7 @@
 
 #include <plat/gpio-core.h>
 #include <plat/pm.h>
+#include <plat/cpu.h>
 
 /* PM GPIO helpers */
 
@@ -318,6 +319,24 @@ static void s3c_pm_save_gpio(struct s3c_gpio_chip *ourchip)
 		pm->save(ourchip);
 }
 
+static int s3c_get_gpio_max_nr (void)
+{
+	static int gpio_max_nr = 0;
+
+	if (unlikely(!gpio_max_nr)) {
+		if (soc_is_exynos4210())
+			gpio_max_nr = EXYNOS4210_GPIO_END;
+		else if (soc_is_exynos4212() || soc_is_exynos4412())
+			gpio_max_nr = EXYNOS4212_GPIO_END;
+		else if (soc_is_exynos5250())
+			gpio_max_nr = EXYNOS5250_GPIO_END;
+		else
+			gpio_max_nr = S3C_GPIO_END;
+	}
+
+	return gpio_max_nr;
+}
+
 /**
  * s3c_pm_save_gpios() - Save the state of the GPIO banks.
  *
@@ -328,9 +347,12 @@ void s3c_pm_save_gpios(void)
 {
 	struct s3c_gpio_chip *ourchip;
 	unsigned int gpio_nr;
+	unsigned int gpio_max_nr;
 
-	for (gpio_nr = 0; gpio_nr < S3C_GPIO_END;) {
-		ourchip = s3c_gpiolib_getchip(gpio_nr);
+	gpio_max_nr = s3c_get_gpio_max_nr();
+
+	for (gpio_nr = 0; gpio_nr < gpio_max_nr;) {
+	ourchip = s3c_gpiolib_getchip(gpio_nr);
 		if (!ourchip) {
 			gpio_nr++;
 			continue;
@@ -368,8 +390,11 @@ void s3c_pm_restore_gpios(void)
 {
 	struct s3c_gpio_chip *ourchip;
 	unsigned int gpio_nr;
+	unsigned int gpio_max_nr;
 
-	for (gpio_nr = 0; gpio_nr < S3C_GPIO_END;) {
+	gpio_max_nr = s3c_get_gpio_max_nr();
+
+	for (gpio_nr = 0; gpio_nr < gpio_max_nr;) {
 		ourchip = s3c_gpiolib_getchip(gpio_nr);
 		if (!ourchip) {
 			gpio_nr++;

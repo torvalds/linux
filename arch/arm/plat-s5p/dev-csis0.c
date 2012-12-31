@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <mach/map.h>
+#include <plat/mipi_csis.h>
 
 static struct resource s5p_mipi_csis0_resource[] = {
 	[0] = {
@@ -20,8 +21,8 @@ static struct resource s5p_mipi_csis0_resource[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start = IRQ_MIPI_CSIS0,
-		.end   = IRQ_MIPI_CSIS0,
+		.start = IRQ_MIPICSI0,
+		.end   = IRQ_MIPICSI0,
 		.flags = IORESOURCE_IRQ,
 	}
 };
@@ -31,4 +32,12 @@ struct platform_device s5p_device_mipi_csis0 = {
 	.id		  = 0,
 	.num_resources	  = ARRAY_SIZE(s5p_mipi_csis0_resource),
 	.resource	  = s5p_mipi_csis0_resource,
+};
+
+struct s5p_platform_mipi_csis s5p_mipi_csis0_default_data __initdata = {
+	.clk_rate 	= 166000000,
+	.lanes		= 2,
+	.alignment	= 32,
+	.hs_settle	= 12,
+	.phy_enable	= s5p_csis_phy_enable,
 };

@@ -46,6 +46,7 @@ struct f_eem {
 
 	struct eem_ep_descs		fs;
 	struct eem_ep_descs		hs;
+	struct eem_ep_descs		ss;
 };
 
 static inline struct f_eem *func_to_eem(struct usb_function *f)
@@ -123,6 +124,45 @@ static struct usb_descriptor_header *eem_hs_function[] __initdata = {
 	NULL,
 };
 
+/* super speed support: */
+
+static struct usb_endpoint_descriptor eem_ss_in_desc __initdata = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =	USB_DT_ENDPOINT,
+
+	.bEndpointAddress =	USB_DIR_IN,
+	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
+	.wMaxPacketSize =	cpu_to_le16(1024),
+};
+
+static struct usb_endpoint_descriptor eem_ss_out_desc __initdata = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =	USB_DT_ENDPOINT,
+
+	.bEndpointAddress =	USB_DIR_OUT,
+	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
+	.wMaxPacketSize =	cpu_to_le16(1024),
+};
+
+static struct usb_ss_ep_comp_descriptor eem_ss_bulk_comp_desc __initdata = {
+	.bLength =		sizeof eem_ss_bulk_comp_desc,
+	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
+
+	/* the following 2 values can be tweaked if necessary */
+	/* .bMaxBurst =		0, */
+	/* .bmAttributes =	0, */
+};
+
+static struct usb_descriptor_header *eem_ss_function[] __initdata = {
+	/* CDC EEM control descriptors */
+	(struct usb_descriptor_header *) &eem_intf,
+	(struct usb_descriptor_header *) &eem_ss_in_desc,
+	(struct usb_descriptor_header *) &eem_ss_bulk_comp_desc,
+	(struct usb_descriptor_header *) &eem_ss_out_desc,
+	(struct usb_descriptor_header *) &eem_ss_bulk_comp_desc,
+	NULL,
+};
+
 /* string descriptors: */
 
 static struct usb_string eem_string_defs[] = {
@@ -178,10 +218,16 @@ static int eem_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 
 		if (!eem->port.in) {
 			DBG(cdev, "init eem\n");
-			eem->port.in = ep_choose(cdev->gadget,
+			if (gadget_is_superspeed(cdev->gadget) &&
+			    cdev->gadget->speed == USB_SPEED_SUPER) {
+				eem->port.in = eem->ss.in;
+				eem->port.out = eem->ss.out;
+			} else {
+				eem->port.in = ep_choose(cdev->gadget,
 					eem->hs.in, eem->fs.in);
-			eem->port.out = ep_choose(cdev->gadget,
+				eem->port.out = ep_choose(cdev->gadget,
 					eem->hs.out, eem->fs.out);
+			}
 		}
 
 		/* zlps should not occur because zero-length EEM packets
@@ -279,7 +325,25 @@ eem_bind(struct usb_configuration *c, struct usb_function *f)
 				f->hs_descriptors, &eem_hs_out_desc);
 	}
 
+	if (gadget_is_superspeed(c->cdev->gadget)) {
+		eem_ss_in_desc.bEndpointAddress =
+				eem_fs_in_desc.bEndpointAddress;
+		eem_ss_out_desc.bEndpointAddress =
+				eem_fs_out_desc.bEndpointAddress;
+
+		/* copy descriptors, and track endpoint copies */
+		f->ss_descriptors = usb_copy_descriptors(eem_ss_function);
+		if (!f->ss_descriptors)
+			goto fail;
+
+		eem->ss.in = usb_find_endpoint(eem_ss_function,
+				f->ss_descriptors, &eem_ss_in_desc);
+		eem->ss.out = usb_find_endpoint(eem_ss_function,
+				f->ss_descriptors, &eem_ss_out_desc);
+	}
+
 	DBG(cdev, "CDC Ethernet (EEM): %s speed IN/%s OUT/%s\n",
+			gadget_is_superspeed(c->cdev->gadget) ? "super" :
 			gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full",
 			eem->port.in_ep->name, eem->port.out_ep->name);
 	return 0;
@@ -287,6 +351,8 @@ eem_bind(struct usb_configuration *c, struct usb_function *f)
 fail:
 	if (f->descriptors)
 		usb_free_descriptors(f->descriptors);
+	if (f->hs_descriptors)
+		usb_free_descriptors(f->hs_descriptors);
 
 	/* we might as well release our claims on endpoints */
 	if (eem->port.out)
@@ -306,6 +372,8 @@ eem_unbind(struct usb_configuration *c, struct usb_function *f)
 
 	DBG(c->cdev, "eem unbind\n");
 
+	if (gadget_is_superspeed(c->cdev->gadget))
+		usb_free_descriptors(f->ss_descriptors);
 	if (gadget_is_dualspeed(c->cdev->gadget))
 		usb_free_descriptors(f->hs_descriptors);
 	usb_free_descriptors(f->descriptors);

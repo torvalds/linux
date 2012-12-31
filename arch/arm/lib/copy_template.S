@@ -66,6 +66,7 @@
  *	than one 32bit instruction in Thumb-2)
  */
 
+#define PLDSIZE	(CONFIG_ARM_PLD_SIZE)
 
 		enter	r4, lr
 
@@ -90,19 +91,48 @@
 	CALGN(	add	pc, r4, ip		)
 
 	PLD(	pld	[r1, #0]		)
-2:	PLD(	subs	r2, r2, #96		)
-	PLD(	pld	[r1, #28]		)
-	PLD(	blt	4f			)
-	PLD(	pld	[r1, #60]		)
-	PLD(	pld	[r1, #92]		)
 
-3:	PLD(	pld	[r1, #124]		)
+#if (PLDSIZE == 64)
+2:	PLD(	cmp	r2, #32)
+	PLD(	blt	.32copy)
+
+.64copy:
+	PLD(	subs	r2, r2, #(PLDSIZE*3+32)		)
+	PLD(	pld	[r1, #PLDSIZE-4]		)
+	PLD(	blt	4f			)
+	PLD(	pld	[r1, #PLDSIZE*2-4]		)
+	PLD(	pld	[r1, #PLDSIZE*3-4]		)
+3:	PLD(	pld	[r1, #PLDSIZE*4-4]		)
 4:		ldr8w	r1, r3, r4, r5, r6, r7, r8, ip, lr, abort=20f
-		subs	r2, r2, #32
+		str8w	r0, r3, r4, r5, r6, r7, r8, ip, lr, abort=20f
+		ldr8w	r1, r3, r4, r5, r6, r7, r8, ip, lr, abort=20f
+		str8w	r0, r3, r4, r5, r6, r7, r8, ip, lr, abort=20f
+		subs	r2, r2, #PLDSIZE
+		bge	3b
+	PLD(	cmn	r2, #(PLDSIZE*3)		)
+	PLD(	bge	4b			)
+
+	PLD(	cmn r2, #(PLDSIZE*4-32)	)
+	PLD(	blt	5f)
+
+.32copy:
+		ldr8w	r1, r3, r4, r5, r6, r7, r8, ip, lr, abort=20f
+		str8w	r0, r3, r4, r5, r6, r7, r8, ip, lr, abort=20f
+#else
+2:	PLD(	subs	r2, r2, #(PLDSIZE*3)		)
+	PLD(	pld	[r1, #(PLDSIZE-4)]		)
+	PLD(	blt	4f			)
+	PLD(	pld	[r1, #(PLDSIZE*2-4)]		)
+	PLD(	pld	[r1, #(PLDSIZE*3-4)]		)
+
+3:	PLD(	pld	[r1, #(PLDSIZE*4-4)]		)
+4:		ldr8w	r1, r3, r4, r5, r6, r7, r8, ip, lr, abort=20f
+		subs	r2, r2, #PLDSIZE
 		str8w	r0, r3, r4, r5, r6, r7, r8, ip, lr, abort=20f
 		bge	3b
-	PLD(	cmn	r2, #96			)
+	PLD(	cmn	r2, #(PLDSIZE*3)			)
 	PLD(	bge	4b			)
+#endif
 
 5:		ands	ip, r2, #28
 		rsb	ip, ip, #32

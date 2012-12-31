@@ -15,22 +15,49 @@
 #include <asm/pmu.h>
 #include <mach/irqs.h>
 
-static struct resource s5p_pmu_resource = {
-	.start	= IRQ_PMU,
-	.end	= IRQ_PMU,
-	.flags	= IORESOURCE_IRQ,
+static struct resource s5p_pmu_resource[] = {
+	{
+		.start	= IRQ_PMU,
+		.end	= IRQ_PMU,
+		.flags	= IORESOURCE_IRQ,
+	},
+#if CONFIG_NR_CPUS > 1
+	{
+		.start	= IRQ_PMU_CPU1,
+		.end	= IRQ_PMU_CPU1,
+		.flags	= IORESOURCE_IRQ,
+	},
+#endif
+#if CONFIG_NR_CPUS > 2
+	{
+		.start	= IRQ_PMU_CPU2,
+		.end	= IRQ_PMU_CPU2,
+		.flags	= IORESOURCE_IRQ,
+	}, {
+		.start	= IRQ_PMU_CPU3,
+		.end	= IRQ_PMU_CPU3,
+		.flags	= IORESOURCE_IRQ,
+	},
+#endif
 };
 
 struct platform_device s5p_device_pmu = {
 	.name		= "arm-pmu",
 	.id		= ARM_PMU_DEVICE_CPU,
-	.num_resources	= 1,
-	.resource	= &s5p_pmu_resource,
+	.num_resources	= ARRAY_SIZE(s5p_pmu_resource),
+	.resource	= s5p_pmu_resource,
 };
 
 static int __init s5p_pmu_init(void)
 {
-	platform_device_register(&s5p_device_pmu);
+	int ret;
+
+	ret = platform_device_register(&s5p_device_pmu);
+	if (ret) {
+		pr_warning("s5p_pmu_init: pmu device not registered.\n");
+		return ret;
+	}
+
 	return 0;
 }
 arch_initcall(s5p_pmu_init);

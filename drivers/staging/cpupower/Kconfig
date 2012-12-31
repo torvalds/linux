@@ -1,0 +1,5 @@
+config CPUPOWER
+	tristate "cpupower driver"
+	depends on SCHED_MC && ARM_CPU_TOPOLOGY
+	help
+	  Say Y here if you have dual cortex-A9

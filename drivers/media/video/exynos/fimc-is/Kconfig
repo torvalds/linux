@@ -1,0 +1,12 @@
+config VIDEO_EXYNOS_FIMC_IS
+	bool "Exynos FIMC-IS (Image Subsystem) driver"
+	depends on VIDEO_EXYNOS && ARCH_EXYNOS4
+	default n
+	help
+	  This is a v4l2 subdev driver for samsung FIMC-IS device.
+config VIDEO_EXYNOS_FIMC_IS_BAYER
+	bool "Enable FIMC-IS bayer write"
+	depends on VIDEO_EXYNOS_FIMC_IS
+	default n
+	help
+	  Enable to write bayer output image.

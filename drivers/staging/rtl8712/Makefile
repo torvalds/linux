@@ -1,4 +1,4 @@
-r8712u-y :=				\
+rtl8191su-y :=				\
 		rtl871x_cmd.o		\
 		rtl8712_cmd.o		\
 		rtl871x_security.o	\
@@ -30,5 +30,5 @@ r8712u-y :=				\
 		rtl871x_xmit.o		\
 		rtl8712_xmit.o
 
-obj-$(CONFIG_R8712U)	:= r8712u.o
+obj-$(CONFIG_R8712U)	:= rtl8191su.o
 

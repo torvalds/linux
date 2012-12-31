@@ -1,0 +1,87 @@
+#
+## S3C Multimedia Mali configuration
+##
+#
+# For Mali
+config VIDEO_MALI400MP
+	bool "Enable MALI integration"
+	depends on VIDEO_SAMSUNG
+	default y
+	---help---
+                This enables MALI integration in the multimedia device driver
+
+choice
+depends on VIDEO_MALI400MP
+prompt "MALI MEMORY OPTION"
+default MALI_OSMEM_ONLY
+config MALI_DED_ONLY
+  bool "mali dedicated memory only"
+   ---help---
+       This enables MALI dedicated memory only option
+config MALI_DED_MMU
+  bool "mali dedicated memory with mmu enable"
+   ---help---
+       This enables MALI dedicated memory with mmu enable option
+config MALI_OSMEM_ONLY
+   bool "mali OS memory only"
+   ---help---
+       This enables MALI OS memory only option
+config MALI_DED_OSMEM
+   bool "mali dedicated memory and OS memory"
+   ---help---
+       This enables MALI dedicated memory and OS memory option
+
+endchoice
+config MALI_MEM_SIZE
+int "Dedicated Memory Size"
+   depends on VIDEO_MALI400MP && (MALI_DED_ONLY || MALI_DED_MMU || MALI_DED_OSMEM)
+   default "128"
+   ---help---
+       This value is dedicated memory size of Mali GPU(unit is MByte).
+
+
+# For DEBUG
+config VIDEO_MALI400MP_DEBUG
+	bool "Enables debug messages"
+	depends on VIDEO_MALI400MP
+	default n
+	help
+	  This enables Mali driver debug messages.
+
+config VIDEO_MALI400MP_STREAMLINE_PROFILING
+	bool "Enables mali streamline profiling"
+	depends on VIDEO_MALI400MP
+	default n
+	help
+	  This enables Mali streamline profiling.
+
+config VIDEO_MALI400MP_DVFS
+	bool "Enables DVFS"
+	depends on VIDEO_MALI400MP && PM 
+	default y
+	help
+	  This enables Mali driver DVFS.
+
+config MALI_OVERCLOCK_533
+	bool "Overclock mali GPU to 533Mhz" 
+	default n
+	help
+		Adds an extra step to Mali Gpu to 533Mhz. 1.075V
+
+config MALI_OVERCLOCK_640
+	bool "Overclock mali GPU to 640Mhz" 
+	default n
+	help
+		Adds an extra step to Mali Gpu to 640Mhz. 1.125V
+
+config MALI_OVERCLOCK_733
+	bool "Overclock mali GPU to 733Mhz" 
+	default n
+	help
+		Adds an extra step to Mali Gpu to 733Mhz. 1.175V
+
+config MALI_OVERCLOCK_800
+	bool "Overclock mali GPU to 800Mhz" 
+	default n
+	help
+		Adds an extra step to Mali Gpu to 800Mhz. 1.2V

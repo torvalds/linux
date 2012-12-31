@@ -1859,6 +1859,11 @@ free_interfaces:
 				dev_name(&intf->dev), ret);
 			continue;
 		}
+#ifdef CONFIG_HOST_COMPLIANT_TEST
+		if (usb_get_intfdata(intf) == NULL ) {
+		       dev_info( &intf->dev, "%s : Not match interface - driver detect fail\n",__func__);
+		}
+#endif
 		create_intf_ep_devs(intf);
 	}
 

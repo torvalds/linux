@@ -1501,11 +1501,17 @@ void xhci_free_command(struct xhci_hcd *xhci,
 /* xHCI PCI glue */
 int xhci_register_pci(void);
 void xhci_unregister_pci(void);
+#elif CONFIG_USB_XHCI_EXYNOS
+int xhci_register_exynos(void);
+void xhci_unregister_exynos(void);
+#else
+static inline int xhci_register_pci(void) { return 0; }
+static inline void xhci_unregister_pci(void) {}
 #endif
 
 /* xHCI host controller glue */
-int handshake(struct xhci_hcd *xhci, void __iomem *ptr,
-		u32 mask, u32 done, int usec);
+int handshake(struct xhci_hcd *xhci, void __iomem *ptr, u32 mask, u32 done, int usec);
+typedef void (*xhci_get_quirks_t)(struct device *, struct xhci_hcd *);
 void xhci_quiesce(struct xhci_hcd *xhci);
 int xhci_halt(struct xhci_hcd *xhci);
 int xhci_reset(struct xhci_hcd *xhci);
@@ -1513,6 +1519,7 @@ int xhci_init(struct usb_hcd *hcd);
 int xhci_run(struct usb_hcd *hcd);
 void xhci_stop(struct usb_hcd *hcd);
 void xhci_shutdown(struct usb_hcd *hcd);
+int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks);
 
 #ifdef	CONFIG_PM
 int xhci_suspend(struct xhci_hcd *xhci);

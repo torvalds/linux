@@ -1,0 +1,120 @@
+# drivers/media/video/s5p-tv/Kconfig
+#
+# Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
+#	http://www.samsung.com/
+# Tomasz Stanislawski <t.stanislaws@samsung.com>
+#
+# Licensed under GPL
+
+config VIDEO_EXYNOS_TV
+	bool "Samsung TV driver for S5P platform (experimental)"
+	depends on PLAT_S5P
+	depends on EXPERIMENTAL
+	select MEDIA_EXYNOS
+	select VIDEO_EXYNOS_HDMI
+	select VIDEO_EXYNOS_MIXER
+	default n
+	---help---
+	  Say Y here to enable selecting the TV output devices for
+	  Samsung S5P platform.
+
+if VIDEO_EXYNOS_TV
+
+config VIDEO_EXYNOS_HDMI
+	tristate "Samsung HDMI Driver"
+	depends on VIDEO_V4L2
+	depends on VIDEO_EXYNOS_TV
+	select VIDEO_EXYNOS_HDMIPHY
+	help
+	  Say Y here if you want support for the HDMI output
+	  interface in S5P Samsung SoC. The driver can be compiled
+	  as module. It is an auxiliary driver, that exposes a V4L2
+	  subdev for use by other drivers. This driver requires
+	  hdmiphy driver to work correctly.
+
+config VIDEO_EXYNOS_HDMI_AUDIO_I2S
+	bool "Enable HDMI audio using I2S path"
+	depends on VIDEO_EXYNOS_HDMI
+	depends on SND_SAMSUNG_I2S
+	default y
+	help
+	  Enables HDMI audio through I2S path.
+
+config VIDEO_EXYNOS_HDMI_AUDIO_SPDIF
+	bool "Enable HDMI audio using SPDIF path"
+	depends on VIDEO_EXYNOS_HDMI
+	depends on SND_SAMSUNG_SPDIF
+	default n
+	help
+	  Enables HDMI audio through SPDIF path.
+
+config VIDEO_EXYNOS_HDCP
+	bool "Enable HDCP"
+	depends on VIDEO_EXYNOS_HDMI
+	depends on I2C
+	default n
+	help
+	  Enables HDCP feature. However if you want to use HDCP,
+	  device private key must be e-fused in SoC.
+
+config VIDEO_EXYNOS_HDMI_DEBUG
+	bool "Enable debug for HDMI Driver"
+	depends on VIDEO_EXYNOS_HDMI
+	default n
+	help
+	  Enables debugging for HDMI driver.
+
+config VIDEO_EXYNOS_HDMIPHY
+	tristate "Samsung HDMIPHY Driver"
+	depends on VIDEO_DEV && VIDEO_V4L2 && I2C
+	depends on VIDEO_EXYNOS_TV
+	help
+	  Say Y here if you want support for the physical HDMI
+	  interface in S5P Samsung SoC. The driver can be compiled
+	  as module. It is an I2C driver, that exposes a V4L2
+	  subdev for use by other drivers.
+
+config VIDEO_EXYNOS_SDO
+	tristate "Samsung Analog TV Driver"
+	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on VIDEO_EXYNOS_TV
+	depends on CPU_EXYNOS4210
+	help
+	  Say Y here if you want support for the analog TV output
+	  interface in S5P Samsung SoC. The driver can be compiled
+	  as module. It is an auxiliary driver, that exposes a V4L2
+	  subdev for use by other drivers. This driver requires
+	  hdmiphy driver to work correctly.
+
+config VIDEO_EXYNOS_MIXER
+	tristate "Samsung Mixer and Video Processor Driver"
+	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on VIDEO_EXYNOS_TV
+	select VIDEOBUF2_DMA_CONTIG
+	select VIDEOBUF2_FB
+	help
+	  Say Y here if you want support for the Mixer in Samsung S5P SoCs.
+	  This device produce image data to one of output interfaces.
+
+config VIDEO_EXYNOS_HDMI_CEC
+	tristate "Samsung HDMI CEC Driver"
+	depends on VIDEO_DEV && VIDEO_V4L2 && I2C
+	depends on VIDEO_EXYNOS_TV
+	help
+	  Say Y here if you want support for the HDMI CEC
+	  interface in S5P Samsung SoC. The driver can be compiled
+	  as module.
+
+config VIDEO_SAMSUNG_MEMSIZE_TV
+	int "Memory size in kbytes for TV"
+	depends on VIDEO_EXYNOS_MIXER && VIDEOBUF2_CMA_PHYS
+	default "16200"
+
+config VIDEO_EXYNOS_MIXER_DEBUG
+	bool "Enable debug for Mixer Driver"
+	depends on VIDEO_EXYNOS_MIXER
+	default n
+	help
+	  Enables debugging for Mixer driver.
+
+endif # VIDEO_EXYNOS_TV

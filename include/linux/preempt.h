@@ -10,18 +10,45 @@
 #include <linux/linkage.h>
 #include <linux/list.h>
 
+/* cannot include rcupdate.h here, so open-code this */
+
+#if defined(CONFIG_JRCU)
+# define __add_preempt_count(val) do { \
+	int newval = (preempt_count() += (val)); \
+	if (newval == (val)) \
+		smp_wmb(); \
+} while (0)
+#else
+# define __add_preempt_count(val) do { preempt_count() += (val); } while (0)
+#endif
+
+#if defined(CONFIG_JRCU_LAZY) || !defined(CONFIG_JRCU)
+# define __sub_preempt_count(val) do { preempt_count() -= (val); } while (0)
+#else
+# define __sub_preempt_count(val) do { \
+	int newval = (preempt_count() -= (val)); \
+	if (newval == 0) { \
+		/* race with preemption OK, preempt will do the mb for us */ \
+		smp_wmb(); \
+	} \
+} while (0)
+#endif
+
 #if defined(CONFIG_DEBUG_PREEMPT) || defined(CONFIG_PREEMPT_TRACER)
   extern void add_preempt_count(int val);
   extern void sub_preempt_count(int val);
 #else
-# define add_preempt_count(val)	do { preempt_count() += (val); } while (0)
-# define sub_preempt_count(val)	do { preempt_count() -= (val); } while (0)
+# define add_preempt_count(val) __add_preempt_count(val)
+# define sub_preempt_count(val) __sub_preempt_count(val)
 #endif
 
 #define inc_preempt_count() add_preempt_count(1)
 #define dec_preempt_count() sub_preempt_count(1)
 
 #define preempt_count()	(current_thread_info()->preempt_count)
+#ifdef CONFIG_PREEMPT_COUNT_CPU
+extern int preempt_count_cpu(int cpu);
+#endif
 
 #ifdef CONFIG_PREEMPT
 

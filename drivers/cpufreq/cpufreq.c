@@ -189,7 +189,7 @@ EXPORT_SYMBOL_GPL(cpufreq_cpu_put);
  * systems as each CPU might be scaled differently. So, use the arch
  * per-CPU loops_per_jiffy value wherever possible.
  */
-#ifndef CONFIG_SMP
+#if !defined CONFIG_SMP || defined(CONFIG_ARCH_EXYNOS4) || defined(CONFIG_ARCH_EXYNOS5)
 static unsigned long l_p_j_ref;
 static unsigned int  l_p_j_ref_freq;
 
@@ -941,6 +941,19 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 		pr_debug("initialization failed\n");
 		goto err_unlock_policy;
 	}
+	
+	#if defined(CONFIG_BOARD_ODROID_X2) || defined(CONFIG_BOARD_ODROID_Q2) || defined(CONFIG_BOARD_ODROID_U2)
+		if(policy->max > 1704000) {
+			pr_emerg("HKDK4412: CPUFREQ Policy setted to 1.7Ghz at boot\n");
+			policy->max = 1704000;
+		}
+	#elif defined(CONFIG_BOARD_ODROID_X) || defined(CONFIG_BOARD_ODROID_Q) || defined(CONFIG_BOARD_ODROID_U)
+		if(policy->max > 1500000) {
+			pr_emerg("HKDK4412: CPUFREQ Policy setted to 1.5Ghz at boot\n");
+			policy->max = 1500000;
+		}
+	#endif
+	
 	policy->user_policy.min = policy->min;
 	policy->user_policy.max = policy->max;
 

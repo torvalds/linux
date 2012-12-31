@@ -27,12 +27,27 @@ obj-$(CONFIG_BATTERY_BQ27x00)	+= bq27x00_battery.o
 obj-$(CONFIG_BATTERY_DA9030)	+= da9030_battery.o
 obj-$(CONFIG_BATTERY_MAX17040)	+= max17040_battery.o
 obj-$(CONFIG_BATTERY_MAX17042)	+= max17042_battery.o
+
+ifeq ($(CONFIG_MACH_ODROID_4X12), y)
+obj-$(CONFIG_BATTERY_MAX17047)	+= max17047_battery.o max17047_config.o
+else
+obj-$(CONFIG_BATTERY_MAX17047)	+= max17047_battery.o
+endif
+
+ifeq ($(CONFIG_MACH_ODROID_4X12), y)
+obj-$(CONFIG_CHARGER_MAX8903)	+= max8903c_charger.o
+else
+obj-$(CONFIG_CHARGER_MAX8903)	+= max8903_charger.o
+endif
+
+obj-$(CONFIG_CHARGER_MAX8677)	+= max8677a_charger.o
+
 obj-$(CONFIG_BATTERY_Z2)	+= z2_battery.o
 obj-$(CONFIG_BATTERY_S3C_ADC)	+= s3c_adc_battery.o
 obj-$(CONFIG_CHARGER_PCF50633)	+= pcf50633-charger.o
 obj-$(CONFIG_BATTERY_JZ4740)	+= jz4740-battery.o
 obj-$(CONFIG_BATTERY_INTEL_MID)	+= intel_mid_battery.o
 obj-$(CONFIG_CHARGER_ISP1704)	+= isp1704_charger.o
-obj-$(CONFIG_CHARGER_MAX8903)	+= max8903_charger.o
 obj-$(CONFIG_CHARGER_TWL4030)	+= twl4030_charger.o
 obj-$(CONFIG_CHARGER_GPIO)	+= gpio-charger.o
+obj-$(CONFIG_BATTERY_SAMSUNG)	+= samsung_fake_battery.o

@@ -215,12 +215,12 @@ static int max8997_get_enable_register(struct regulator_dev *rdev,
 	case MAX8997_BUCK1:
 		*reg = MAX8997_REG_BUCK1CTRL;
 		*mask = 0x01;
-		*pattern = 0x01;
+		*pattern = 0x00;
 		break;
 	case MAX8997_BUCK2:
 		*reg = MAX8997_REG_BUCK2CTRL;
 		*mask = 0x01;
-		*pattern = 0x01;
+		*pattern = 0x00;
 		break;
 	case MAX8997_BUCK3:
 		*reg = MAX8997_REG_BUCK3CTRL;

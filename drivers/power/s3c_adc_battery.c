@@ -1,11 +1,13 @@
 /*
- *	iPAQ h1930/h1940/rx1950 battery controller driver
- *	Copyright (c) Vasily Khoruzhick
- *	Based on h1940_battery.c by Arnaud Patard
+ * linux/drivers/power/s3c_adc_battery.c
  *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file COPYING in the main directory of this archive for
- * more details.
+ * Battery measurement code for samsung smdk platform.
+ *
+ * Copyright (C) 2011 Samsung Electronics.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  *
  */
 
@@ -266,7 +268,7 @@ static irqreturn_t s3c_adc_bat_charged(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init s3c_adc_bat_probe(struct platform_device *pdev)
+static int __devinit s3c_adc_bat_probe(struct platform_device *pdev)
 {
 	struct s3c_adc_client	*client;
 	struct s3c_adc_bat_pdata *pdata = pdev->dev.platform_data;

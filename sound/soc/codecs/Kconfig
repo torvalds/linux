@@ -34,6 +34,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_JZ4740_CODEC if SOC_JZ4740
 	select SND_SOC_LM4857 if I2C
 	select SND_SOC_MAX98088 if I2C
+	select SND_SOC_MAX98090 if I2C
 	select SND_SOC_MAX98095 if I2C
 	select SND_SOC_MAX9850 if I2C
 	select SND_SOC_MAX9877 if I2C
@@ -192,6 +193,9 @@ config SND_SOC_DMIC
 	tristate
 
 config SND_SOC_MAX98088
+       tristate
+
+config SND_SOC_MAX98090
        tristate
 
 config SND_SOC_MAX98095

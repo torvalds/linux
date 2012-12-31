@@ -48,6 +48,16 @@
 #define ACM_CTRL_OVERRUN	0x40
 
 /*
+ * Added enorcar Abstract state
+ */
+#define ACM_ABSTRACT_STATE	0x01
+#define ACM_ABS_IDLE		0x01
+#define ACM_ABS_MUX		0x02
+
+#define ACM_COUNTRY_SETTING	0x02
+
+
+/*
  * Internal driver structures.
  */
 
@@ -72,10 +82,16 @@ struct acm_wb {
 };
 
 struct acm_rb {
+	struct list_head	list;
 	int			size;
 	unsigned char		*base;
 	dma_addr_t		dma;
-	int			index;
+};
+
+struct acm_ru {
+	struct list_head	list;
+	struct acm_rb		*buffer;
+	struct urb		*urb;
 	struct acm		*instance;
 };
 
@@ -91,32 +107,42 @@ struct acm {
 	unsigned int country_code_size;			/* size of this buffer */
 	unsigned int country_rel_date;			/* release date of version */
 	struct acm_wb wb[ACM_NW];
-	unsigned long read_urbs_free;
-	struct urb *read_urbs[ACM_NR];
-	struct acm_rb read_buffers[ACM_NR];
+	struct acm_ru ru[ACM_NR];
+	struct acm_rb rb[ACM_NR];
 	int rx_buflimit;
 	int rx_endpoint;
 	spinlock_t read_lock;
+	struct list_head spare_read_urbs;
+	struct list_head spare_read_bufs;
+	struct list_head filled_read_bufs;
 	int write_used;					/* number of non-empty write buffers */
+	int processing;
 	int transmitting;
 	spinlock_t write_lock;
 	struct mutex mutex;
 	struct usb_cdc_line_coding line;		/* bits, stop, parity */
 	struct work_struct work;			/* work queue entry for line discipline waking up */
+	wait_queue_head_t drain_wait;			/* close processing */
+	struct tasklet_struct urb_task;                 /* rx processing */
+	spinlock_t throttle_lock;			/* synchronize throtteling and read callback */
+        unsigned int state;				/* enorcar: state for comm features */
 	unsigned int ctrlin;				/* input control lines (DCD, DSR, RI, break, overruns) */
 	unsigned int ctrlout;				/* output control lines (DTR, RTS) */
 	unsigned int writesize;				/* max packet size for the output bulk endpoint */
 	unsigned int readsize,ctrlsize;			/* buffer sizes for freeing */
 	unsigned int minor;				/* acm minor number */
+	unsigned char throttle;				/* throttled by tty layer */
 	unsigned char clocal;				/* termios CLOCAL */
 	unsigned int ctrl_caps;				/* control capabilities from the class specific header */
 	unsigned int susp_count;			/* number of suspended interfaces */
 	unsigned int combined_interfaces:1;		/* control and data collapsed */
 	unsigned int is_int_ep:1;			/* interrupt endpoints contrary to spec used */
-	unsigned int throttled:1;			/* actually throttled */
-	unsigned int throttle_req:1;			/* throttle requested */
 	u8 bInterval;
 	struct acm_wb *delayed_wb;			/* write queued for a device about to be woken */
+	struct usb_ctrlrequest *irq;			/* enorcar added for get_encapsulated_command */
+	struct urb *response;
+	u8 *inbuf;
+	unsigned int bMaxPacketSize0;
 };
 
 #define CDC_DATA_INTERFACE_TYPE	0x0a
@@ -127,3 +153,4 @@ struct acm {
 #define NO_CAP_LINE			4
 #define NOT_A_MODEM			8
 #define NO_DATA_INTERFACE		16
+#define NOT_REAL_ACM			32

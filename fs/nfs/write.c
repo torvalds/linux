@@ -1571,8 +1571,7 @@ int nfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 		int status;
 		bool sync = true;
 
-		if (wbc->sync_mode == WB_SYNC_NONE || wbc->nonblocking ||
-		    wbc->for_background)
+		if (wbc->sync_mode == WB_SYNC_NONE || wbc->for_background)
 			sync = false;
 
 		status = pnfs_layoutcommit_inode(inode, sync);

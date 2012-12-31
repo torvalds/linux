@@ -22,10 +22,19 @@ static int samsung_pd_probe(struct platform_device *pdev)
 {
 	struct samsung_pd_info *pdata = pdev->dev.platform_data;
 	struct device *dev = &pdev->dev;
+	int ret = 0;
 
 	if (!pdata) {
 		dev_err(dev, "no device data specified\n");
 		return -ENOENT;
+	}
+
+	if (pdata->init) {
+		ret = pdata->init(dev);
+		if (ret) {
+			dev_err(dev, "init fails");
+			return ret;
+		}
 	}
 
 	pm_runtime_set_active(dev);

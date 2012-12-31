@@ -19,7 +19,7 @@ config USB_C67X00_HCD
 
 config USB_XHCI_HCD
 	tristate "xHCI HCD (USB 3.0) support (EXPERIMENTAL)"
-	depends on USB && PCI && EXPERIMENTAL
+	depends on USB && USB_ARCH_HAS_XHCI && EXPERIMENTAL
 	---help---
 	  The eXtensible Host Controller Interface (xHCI) is standard for USB 3.0
 	  "SuperSpeed" host controller hardware.
@@ -36,6 +36,12 @@ config USB_XHCI_HCD_DEBUGGING
 	  This should only be used for debugging xHCI driver bugs.
 
 	  If unsure, say N.
+
+config USB_XHCI_EXYNOS
+	boolean "EXYNOS XHCI support"
+	depends on USB_XHCI_HCD && ARCH_EXYNOS
+	help
+	 Enable support for the EXYNOS SOC's on-chip XHCI controller.
 
 config USB_EHCI_HCD
 	tristate "EHCI HCD (USB 2.0) support"
@@ -189,10 +195,24 @@ config USB_EHCI_SH
 	  If you use the PCI EHCI controller, this option is not necessary.
 
 config USB_EHCI_S5P
-       boolean "S5P EHCI support"
-       depends on USB_EHCI_HCD && PLAT_S5P
-       help
+	boolean "S5P EHCI support"
+	depends on USB_EHCI_HCD && PLAT_S5P
+	help
 	 Enable support for the S5P SOC's on-chip EHCI controller.
+
+config USB_S5P_HSIC0
+	boolean "S5P HSIC0 support"
+	depends on USB_EHCI_HCD && PLAT_S5P && USB_EHCI_S5P
+	default y
+	help
+	 Enable support for the S5P SOC's on-chip HSIC PHY.
+
+config USB_S5P_HSIC1
+	boolean "S5P HSIC1 support"
+	depends on USB_EHCI_HCD && PLAT_S5P && USB_EHCI_S5P
+	default y
+	help
+	 Enable support for the S5P SOC's on-chip HSIC PHY.
 
 config USB_W90X900_EHCI
 	bool "W90X900(W90P910) EHCI support"
@@ -370,6 +390,12 @@ config USB_OHCI_SH
 	---help---
 	  Enables support for the on-chip OHCI controller on the SuperH.
 	  If you use the PCI OHCI controller, this option is not necessary.
+
+config USB_OHCI_S5P
+	boolean "S5P OHCI support"
+	depends on USB_OHCI_HCD && PLAT_S5P
+	help
+	 Enable support for the S5P SOC's on-chip OHCI controller.
 
 config USB_CNS3XXX_OHCI
 	bool "Cavium CNS3XXX OHCI Module"

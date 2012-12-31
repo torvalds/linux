@@ -12,11 +12,18 @@
 #ifndef S5P_FIMC_H_
 #define S5P_FIMC_H_
 
-enum cam_bus_type {
+#define FLITE_MAX_NUM		2
+
+enum fimc_cam_bus_type {
 	FIMC_ITU_601 = 1,
 	FIMC_ITU_656,
 	FIMC_MIPI_CSI2,
 	FIMC_LCD_WB, /* FIFO link from LCD mixer */
+};
+
+enum flite_index {
+	FLITE_IDX_A = 0,
+	FLITE_IDX_B = 1,
 };
 
 #define FIMC_CLK_INV_PCLK	(1 << 0)
@@ -37,25 +44,36 @@ struct i2c_board_info;
  * @i2c_bus_num: i2c control bus id the sensor is attached to
  * @mux_id: FIMC camera interface multiplexer index (separate for MIPI and ITU)
  * @flags: flags defining bus signals polarity inversion (High by default)
+ * @use_cam: a means of used by FIMC
  */
 struct s5p_fimc_isp_info {
 	struct i2c_board_info *board_info;
 	unsigned long clk_frequency;
-	enum cam_bus_type bus_type;
+	enum fimc_cam_bus_type bus_type;
 	u16 csi_data_align;
 	u16 i2c_bus_num;
 	u16 mux_id;
 	u16 flags;
+	bool use_cam;
+	bool use_isp;
+	enum flite_index flite_id;
+	int (*cam_power)(int onoff);
 };
+
+#define FIMC_MAX_CAMIF_CLIENTS	2
+#define FIMC_MAX_CSIS_NUM	2
 
 /**
  * struct s5p_platform_fimc - camera host interface platform data
  *
  * @isp_info: properties of camera sensor required for host interface setup
- * @num_clients: the number of attached image sensors
  */
 struct s5p_platform_fimc {
-	struct s5p_fimc_isp_info *isp_info;
-	int num_clients;
+	struct s5p_fimc_isp_info *isp_info[FIMC_MAX_CAMIF_CLIENTS];
 };
+
+extern struct s5p_platform_fimc s3c_fimc0_default_data;
+extern struct s5p_platform_fimc s3c_fimc1_default_data;
+extern struct s5p_platform_fimc s3c_fimc2_default_data;
+extern struct s5p_platform_fimc s3c_fimc3_default_data;
 #endif /* S5P_FIMC_H_ */

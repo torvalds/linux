@@ -432,7 +432,7 @@ static __devinit int s3c_ac97_probe(struct platform_device *pdev)
 	s3c_ac97.ac97_clk = clk_get(&pdev->dev, "ac97");
 	if (IS_ERR(s3c_ac97.ac97_clk)) {
 		dev_err(&pdev->dev, "ac97 failed to get ac97_clock\n");
-		ret = -ENODEV;
+		ret = PTR_ERR(s3c_ac97.ac97_clk);
 		goto err2;
 	}
 	clk_enable(s3c_ac97.ac97_clk);

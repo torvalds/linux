@@ -23,6 +23,10 @@ source "drivers/gpu/drm/Kconfig"
 
 source "drivers/gpu/stub/Kconfig"
 
+source "drivers/gpu/ion/Kconfig"
+
+source "drivers/gpu/vithar/Kconfig"
+
 config VGASTATE
        tristate
        default n
@@ -258,6 +262,8 @@ config FB_TILEBLITTING
 
 comment "Frame buffer hardware drivers"
 	depends on FB
+
+source "drivers/video/samsung/Kconfig"
 
 config FB_CIRRUS
 	tristate "Cirrus Logic support"
@@ -2027,7 +2033,7 @@ config FB_TMIO_ACCELL
 
 config FB_S3C
 	tristate "Samsung S3C framebuffer support"
-	depends on FB && S3C_DEV_FB
+	depends on FB && (S3C_DEV_FB || S5P_DEV_FIMD0 || S5P_DEV_FIMD1)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -2043,11 +2049,47 @@ config FB_S3C
 
 	  Currently the support is only for the S3C6400 and S3C6410 SoCs.
 
+config FB_MIPI_DSIM
+	bool "Samsung MIPI DSIM"
+	depends on FB_S3C
+	default n
+	---help---
+	  This enables support for Samsung MIPI DSIM feature
+
+config FB_EXYNOS_FIMD_V8
+	bool "regiter extensions for FIMD version 8"
+	depends on FB_S3C && ARCH_EXYNOS5
+	---help---
+
+config FB_EXYNOS_FIMD_MC
+	bool "Support of media controller on FIMD for local path"
+	depends on FB_S3C && ARCH_EXYNOS5 && MEDIA_CONTROLLER
+	default y
+	---help---
+
+config FB_EXYNOS_FIMD_MC_WB
+	bool "Support of media controller on FIMD for writeback to GScaler"
+	depends on FB_S3C && ARCH_EXYNOS5 && MEDIA_CONTROLLER
+	default y
+	---help---
+
 config FB_S3C_DEBUG_REGWRITE
        bool "Debug register writes"
        depends on FB_S3C
        ---help---
          Show all register writes via printk(KERN_DEBUG)
+
+config VIDEO_SAMSUNG_MEMSIZE_FIMD
+	int "Memory size in kbytes for FIMD0"
+	depends on FB_S3C
+	default "25600"
+
+config S5P_DP
+	tristate "Samsung SoC DP support"
+	depends on FB_S3C && ARCH_EXYNOS5
+	default n
+	---help---
+	  This enables support for DP device.
 
 config FB_S3C2410
 	tristate "S3C2410 LCD framebuffer support"

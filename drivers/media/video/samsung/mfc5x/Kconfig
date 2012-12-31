@@ -1,0 +1,31 @@
+#
+# Configuration for Multi Format Codecs (MFC)
+#
+config VIDEO_MFC5X
+	bool "Samsung MFC (Multi Format Codec - FIMV 5.x) Driver"
+	depends on USE_LEGACY_MFC
+	default n
+	---help---
+	  This is a Samsung Multi Format Codecs (MFC) FIMV V5.x
+
+config VIDEO_MFC_MAX_INSTANCE
+	int "Maximum size of MFC instance (1-4)"
+	range 1 4
+	depends on VIDEO_MFC5X
+	default 4
+
+config VIDEO_MFC_MEM_PORT_COUNT
+	int "Default number of MFC memory ports (1-2)"
+	range 1 2
+	depends on VIDEO_MFC5X && (!EXYNOS4_CONTENT_PATH_PROTECTION)
+	default 2
+
+config VIDEO_MFC_VCM_UMP
+	bool "Support UMP over VCM for MFC"
+	depends on VIDEO_MFC5X && VCM_MMU && VIDEO_UMP
+	default y
+
+config VIDEO_MFC5X_DEBUG
+	bool "MFC driver debug message"
+	depends on VIDEO_MFC5X
+	default n

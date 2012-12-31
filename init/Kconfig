@@ -399,6 +399,24 @@ config TREE_PREEMPT_RCU
 	  is also required.  It also scales down nicely to
 	  smaller systems.
 
+config JRCU
+       bool "An RCU suitable for small SMP systems"
+       depends on PREEMPT
+       depends on SMP
+       select PREEMPT_COUNT_CPU
+       help
+         This option selects a minimal-footprint RCU that is most suitable
+         for small SMP systems  -- 'small' in this case meaning all but
+         the largest NUMA systems.  It is not clear how big 'small' can
+         be, but it is known to work well on NUMA platforms having 80 CPUs.
+
+         jRCU may also be a good choice for systems with low latency
+         requirements.  It does RCU garbage collection from a single
+         CPU rather than have each CPU do its own.  This frees up all
+         but one CPU from interference by this periodic requirement.
+
+         Most users should say N here.
+
 config TINY_RCU
 	bool "UP-only small-memory-footprint RCU"
 	depends on !SMP
@@ -423,6 +441,57 @@ config PREEMPT_RCU
 	help
 	  This option enables preemptible-RCU code that is common between
 	  the TREE_PREEMPT_RCU and TINY_PREEMPT_RCU implementations.
+
+config JRCU_DAEMON
+       bool
+       depends on JRCU
+       default y
+       help
+         Required. The context switch when leaving the daemon is needed
+         to get the CPU to reliably participate in end-of-batch processing.
+
+config JRCU_DAEMON_PRIO
+       int "JRCU Daemon priority"
+       depends on JRCU_DAEMON
+       default 0
+       help
+         The JRCU daemon priority. If 0 then the daemon runs SCHED_OTHER.
+         If >0 then the daemon runs SCHED_RR and its priority will be
+         the value selected.  If <0 then SCHED_RR is again selected,
+         but now its priority will be the biased downwards from the
+         maximum possible Posix priority.
+
+         If unsure, select 0.  The other values are useful only for those
+         rare setups where 100% of every CPU's utilization will be spent in
+         user SCHED_RR or SCHED_FIFO applications, for long periods of time.
+
+
+config JRCU_LAZY
+       bool "Should JRCU be lazy recognizing end-of-batch"
+       depends on JRCU
+       default n
+       help
+         If you say Y here, JRCU will on occasion fail to recognize
+         end-of-batch for an rcu period or two.
+
+         If you say N here, JRCU will be more aggressive; in fact it
+         will always recognize end-of-batch at the earliest possible time.
+
+         Being lazy should be fractionally more efficient in that JRCU
+         inserts fewer memory barriers along some high performance kernel
+         code paths.
+
+         If unsure, say N.
+
+config PREEMPT_COUNT_CPU
+       # bool "Let one CPU look at another CPUs preemption count"
+       bool
+       default n
+       help
+         If Y then the preempt_count_cpu() function will be compiled into
+         the kernel.  Its existance impacts kernel performance slightly,
+         so this option should be selected only if other kernel features
+         that use preempt_count_cpu() are also selected.
 
 config RCU_TRACE
 	bool "Enable tracing for RCU"
@@ -915,6 +984,12 @@ config SYSCTL
 config ANON_INODES
 	bool
 
+config PANIC_TIMEOUT
+	int "Default panic timeout"
+	default 0
+	help
+	  Set default panic timeout.
+
 menuconfig EXPERT
 	bool "Configure standard kernel features (expert users)"
 	help
@@ -1081,6 +1156,15 @@ config SHMEM
 	  option replaces shmem and tmpfs with the much simpler ramfs code,
 	  which may be appropriate on small systems without swap.
 
+config ASHMEM
+	bool "Enable the Anonymous Shared Memory Subsystem"
+	default n
+	depends on SHMEM || TINY_SHMEM
+	help
+	  The ashmem subsystem is a new shared memory allocator, similar to
+	  POSIX SHM but with different behavior and sporting a simpler
+	  file-based API.
+
 config AIO
 	bool "Enable AIO support" if EXPERT
 	default y
@@ -1207,7 +1291,7 @@ config COMPAT_BRK
 
 choice
 	prompt "Choose SLAB allocator"
-	default SLUB
+	default SLQB
 	help
 	   This option allows to select a slab allocator.
 
@@ -1227,6 +1311,11 @@ config SLUB
 	   of queues of objects. SLUB can use memory efficiently
 	   and has enhanced diagnostics. SLUB is the default choice for
 	   a slab allocator.
+
+config SLQB
+        bool "SLQB (Queued allocator)"
+        help
+          SLQB is a proposed new slab allocator.
 
 config SLOB
 	depends on EXPERT

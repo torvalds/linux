@@ -33,16 +33,24 @@
 #include <asm/mach/irq.h>
 #include <asm/hardware/gic.h>
 
+struct gic_chip_data {
+	unsigned int irq_offset;
+	void __percpu __iomem **dist_base;
+	void __percpu __iomem **cpu_base;
+#ifdef CONFIG_CPU_PM
+	u32 saved_spi_enable[DIV_ROUND_UP(1020, 32)];
+	u32 saved_spi_conf[DIV_ROUND_UP(1020, 16)];
+	u32 saved_spi_target[DIV_ROUND_UP(1020, 4)];
+	u32 __percpu *saved_ppi_enable;
+	u32 __percpu *saved_ppi_conf;
+#endif
+	unsigned int gic_irqs;
+};
+
 static DEFINE_SPINLOCK(irq_controller_lock);
 
 /* Address of GIC 0 CPU interface */
 void __iomem *gic_cpu_base_addr __read_mostly;
-
-struct gic_chip_data {
-	unsigned int irq_offset;
-	void __iomem *dist_base;
-	void __iomem *cpu_base;
-};
 
 /*
  * Supported arch specific GIC irq extension.
@@ -63,16 +71,26 @@ struct irq_chip gic_arch_extn = {
 
 static struct gic_chip_data gic_data[MAX_GIC_NR] __read_mostly;
 
+static inline void __iomem *gic_data_dist_base(struct gic_chip_data *data)
+{
+	return *__this_cpu_ptr(data->dist_base);
+}
+
 static inline void __iomem *gic_dist_base(struct irq_data *d)
 {
 	struct gic_chip_data *gic_data = irq_data_get_irq_chip_data(d);
-	return gic_data->dist_base;
+	return gic_data_dist_base(gic_data);
+}
+
+static inline void __iomem *gic_data_cpu_base(struct gic_chip_data *data)
+{
+	return *__this_cpu_ptr(data->cpu_base);
 }
 
 static inline void __iomem *gic_cpu_base(struct irq_data *d)
 {
 	struct gic_chip_data *gic_data = irq_data_get_irq_chip_data(d);
-	return gic_data->cpu_base;
+	return gic_data_cpu_base(gic_data);
 }
 
 static inline unsigned int gic_irq(struct irq_data *d)
@@ -223,7 +241,7 @@ static void gic_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
 	chained_irq_enter(chip, desc);
 
 	spin_lock(&irq_controller_lock);
-	status = readl_relaxed(chip_data->cpu_base + GIC_CPU_INTACK);
+	status = readl_relaxed(gic_data_cpu_base(chip_data) + GIC_CPU_INTACK);
 	spin_unlock(&irq_controller_lock);
 
 	gic_irq = (status & 0x3ff);
@@ -266,7 +284,7 @@ static void __init gic_dist_init(struct gic_chip_data *gic,
 	unsigned int irq_start)
 {
 	unsigned int gic_irqs, irq_limit, i;
-	void __iomem *base = gic->dist_base;
+	void __iomem *base = gic_data_dist_base(gic);
 	u32 cpumask = 1 << smp_processor_id();
 
 	cpumask |= cpumask << 8;
@@ -329,8 +347,8 @@ static void __init gic_dist_init(struct gic_chip_data *gic,
 
 static void __cpuinit gic_cpu_init(struct gic_chip_data *gic)
 {
-	void __iomem *dist_base = gic->dist_base;
-	void __iomem *base = gic->cpu_base;
+	void __iomem *dist_base = gic_data_dist_base(gic);
+	void __iomem *base = gic_data_cpu_base(gic);
 	int i;
 
 	/*
@@ -354,12 +372,24 @@ void __init gic_init(unsigned int gic_nr, unsigned int irq_start,
 	void __iomem *dist_base, void __iomem *cpu_base)
 {
 	struct gic_chip_data *gic;
+	int cpu;
 
 	BUG_ON(gic_nr >= MAX_GIC_NR);
 
 	gic = &gic_data[gic_nr];
-	gic->dist_base = dist_base;
-	gic->cpu_base = cpu_base;
+	gic->dist_base = alloc_percpu(void __iomem *);
+	gic->cpu_base = alloc_percpu(void __iomem *);
+	if (WARN_ON(!gic->dist_base || !gic->cpu_base)) {
+		free_percpu(gic->dist_base);
+		free_percpu(gic->cpu_base);
+		return;
+	}
+
+	for_each_possible_cpu(cpu) {
+		*per_cpu_ptr(gic->dist_base, cpu) = dist_base;
+		*per_cpu_ptr(gic->cpu_base, cpu) = cpu_base;
+	}
+
 	gic->irq_offset = (irq_start - 1) & ~31;
 
 	if (gic_nr == 0)
@@ -369,10 +399,16 @@ void __init gic_init(unsigned int gic_nr, unsigned int irq_start,
 	gic_cpu_init(gic);
 }
 
-void __cpuinit gic_secondary_init(unsigned int gic_nr)
+void __cpuinit gic_secondary_init_base(unsigned int gic_nr,
+				       void __iomem *dist_base,
+				       void __iomem *cpu_base)
 {
 	BUG_ON(gic_nr >= MAX_GIC_NR);
 
+	if (dist_base)
+		*__this_cpu_ptr(gic_data[gic_nr].dist_base) = dist_base;
+	if (cpu_base)
+		*__this_cpu_ptr(gic_data[gic_nr].cpu_base) = cpu_base;
 	gic_cpu_init(&gic_data[gic_nr]);
 }
 
@@ -398,6 +434,6 @@ void gic_raise_softirq(const struct cpumask *mask, unsigned int irq)
 	dsb();
 
 	/* this always happens on GIC0 */
-	writel_relaxed(map << 16 | irq, gic_data[0].dist_base + GIC_DIST_SOFTINT);
+	writel_relaxed(map << 16 | irq, gic_data_dist_base(&gic_data[0]) + GIC_DIST_SOFTINT);
 }
 #endif

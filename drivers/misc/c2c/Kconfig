@@ -1,0 +1,24 @@
+#
+# C2C XXX
+#
+
+menuconfig SAMSUNG_C2C
+	tristate "C2C Support"
+	depends on CPU_EXYNOS4212 || CPU_EXYNOS5250
+	default n
+	help
+	  It is for supporting C2C driver.
+
+if SAMSUNG_C2C
+config C2C_DEBUG
+	bool "C2C Debugging - Print C2C debug messages"
+	default y
+	help
+	  Print C2C debug messages.
+
+config C2C_IPC_ENABLE
+	bool "Enable C2C IPC via the Shared Memory"
+	default n
+	help
+	  Enable C2C IPC via the Shared Memory.
+endif # SAMSUNG_C2C

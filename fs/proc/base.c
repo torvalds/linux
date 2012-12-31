@@ -133,6 +133,12 @@ struct pid_entry {
 		NULL, &proc_single_file_operations,	\
 		{ .proc_show = show } )
 
+/* ANDROID is for special files in /proc. */
+#define ANDROID(NAME, MODE, OTYPE)			\
+	NOD(NAME, (S_IFREG|(MODE)),			\
+		&proc_##OTYPE##_inode_operations,	\
+		&proc_##OTYPE##_operations, {})
+
 /*
  * Count the number of hardlinks for the pid_entry table, excluding the .
  * and .. links.
@@ -205,7 +211,8 @@ static struct mm_struct *mm_access(struct task_struct *task, unsigned int mode)
 
 	mm = get_task_mm(task);
 	if (mm && mm != current->mm &&
-			!ptrace_may_access(task, mode)) {
+			!ptrace_may_access(task, PTRACE_MODE_READ) &&
+			!capable(CAP_SYS_RESOURCE)) {
 		mmput(mm);
 		mm = ERR_PTR(-EACCES);
 	}
@@ -789,13 +796,61 @@ static int mem_open(struct inode* inode, struct file* file)
 	return 0;
 }
 
-static ssize_t mem_rw(struct file *file, char __user *buf,
-			size_t count, loff_t *ppos, int write)
+static ssize_t mem_read(struct file * file, char __user * buf,
+			size_t count, loff_t *ppos)
 {
-	struct mm_struct *mm = file->private_data;
-	unsigned long addr = *ppos;
-	ssize_t copied;
+	int ret;
 	char *page;
+	unsigned long src = *ppos;
+	struct mm_struct *mm = file->private_data;
+
+	if (!mm)
+		return 0;
+
+	page = (char *)__get_free_page(GFP_TEMPORARY);
+	if (!page)
+		return -ENOMEM;
+
+	ret = 0;
+ 
+	while (count > 0) {
+		int this_len, retval;
+
+		this_len = (count > PAGE_SIZE) ? PAGE_SIZE : count;
+		retval = access_remote_vm(mm, src, page, this_len, 0);
+		if (!retval) {
+			if (!ret)
+				ret = -EIO;
+			break;
+		}
+
+		if (copy_to_user(buf, page, retval)) {
+			ret = -EFAULT;
+			break;
+		}
+ 
+		ret += retval;
+		src += retval;
+		buf += retval;
+		count -= retval;
+	}
+	*ppos = src;
+
+	free_page((unsigned long) page);
+	return ret;
+}
+
+#define mem_write NULL
+
+#ifndef mem_write
+/* This is a security hazard */
+static ssize_t mem_write(struct file * file, const char __user *buf,
+			 size_t count, loff_t *ppos)
+{
+	int copied;
+	char *page;
+	unsigned long dst = *ppos;
+	struct mm_struct *mm = file->private_data;
 
 	if (!mm)
 		return 0;
@@ -805,53 +860,31 @@ static ssize_t mem_rw(struct file *file, char __user *buf,
 		return -ENOMEM;
 
 	copied = 0;
-	if (!atomic_inc_not_zero(&mm->mm_users))
-		goto free;
-
 	while (count > 0) {
-		int this_len = min_t(int, count, PAGE_SIZE);
+		int this_len, retval;
 
-		if (write && copy_from_user(page, buf, this_len)) {
+		this_len = (count > PAGE_SIZE) ? PAGE_SIZE : count;
+		if (copy_from_user(page, buf, this_len)) {
 			copied = -EFAULT;
 			break;
 		}
-
-		this_len = access_remote_vm(mm, addr, page, this_len, write);
-		if (!this_len) {
+		retval = access_remote_vm(mm, dst, page, this_len, 1);
+		if (!retval) {
 			if (!copied)
 				copied = -EIO;
 			break;
 		}
-
-		if (!write && copy_to_user(buf, page, this_len)) {
-			copied = -EFAULT;
-			break;
-		}
-
-		buf += this_len;
-		addr += this_len;
-		copied += this_len;
-		count -= this_len;
+		copied += retval;
+		buf += retval;
+		dst += retval;
+		count -= retval;			
 	}
-	*ppos = addr;
+	*ppos = dst;
 
-	mmput(mm);
-free:
 	free_page((unsigned long) page);
 	return copied;
 }
-
-static ssize_t mem_read(struct file *file, char __user *buf,
-			size_t count, loff_t *ppos)
-{
-	return mem_rw(file, buf, count, ppos, 0);
-}
-
-static ssize_t mem_write(struct file *file, const char __user *buf,
-			 size_t count, loff_t *ppos)
-{
-	return mem_rw(file, (char __user*)buf, count, ppos, 1);
-}
+#endif
 
 loff_t mem_lseek(struct file *file, loff_t offset, int orig)
 {
@@ -1059,6 +1092,39 @@ err_task_lock:
 out:
 	return err < 0 ? err : count;
 }
+
+static int oom_adjust_permission(struct inode *inode, int mask,
+				 unsigned int flags)
+{
+	uid_t uid;
+	struct task_struct *p;
+
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
+
+	p = get_proc_task(inode);
+	if(p) {
+		uid = task_uid(p);
+		put_task_struct(p);
+	}
+
+	/*
+	 * System Server (uid == 1000) is granted access to oom_adj of all 
+	 * android applications (uid > 10000) as and services (uid >= 1000)
+	 */
+	if (p && (current_fsuid() == 1000) && (uid >= 1000)) {
+		if (inode->i_mode >> 6 & mask) {
+			return 0;
+		}
+	}
+
+	/* Fall back to default. */
+	return generic_permission(inode, mask, flags, NULL);
+}
+
+static const struct inode_operations proc_oom_adjust_inode_operations = {
+	.permission	= oom_adjust_permission,
+};
 
 static const struct file_operations proc_oom_adjust_operations = {
 	.read		= oom_adjust_read,
@@ -2766,7 +2832,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 	REG("cgroup",  S_IRUGO, proc_cgroup_operations),
 #endif
 	INF("oom_score",  S_IRUGO, proc_oom_score),
-	REG("oom_adj",    S_IRUGO|S_IWUSR, proc_oom_adjust_operations),
+	ANDROID("oom_adj",S_IRUGO|S_IWUSR, oom_adjust),
 	REG("oom_score_adj", S_IRUGO|S_IWUSR, proc_oom_score_adj_operations),
 #ifdef CONFIG_AUDITSYSCALL
 	REG("loginuid",   S_IWUSR|S_IRUGO, proc_loginuid_operations),

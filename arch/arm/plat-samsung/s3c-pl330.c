@@ -17,6 +17,9 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#if (defined(CONFIG_EXYNOS_DEV_PD) && defined(CONFIG_PM_RUNTIME))
+#include <linux/pm_runtime.h>
+#endif
 
 #include <asm/hardware/pl330.h>
 
@@ -498,9 +501,11 @@ static void s3c_pl330_rq(struct s3c_pl330_chan *ch,
 
 	spin_lock_irqsave(&res_lock, flags);
 
-	r->x = NULL;
+	if (!r->infiniteloop) {
+		r->x = NULL;
 
-	s3c_pl330_submit(ch, r);
+		s3c_pl330_submit(ch, r);
+	}
 
 	spin_unlock_irqrestore(&res_lock, flags);
 
@@ -513,12 +518,20 @@ static void s3c_pl330_rq(struct s3c_pl330_chan *ch,
 		res = S3C2410_RES_ERR;
 
 	/* If last request had some xfer */
-	if (xl) {
-		xfer = container_of(xl, struct s3c_pl330_xfer, px);
-		_finish_off(xfer, res, 0);
+	if (!r->infiniteloop) {
+		if (xl) {
+			xfer = container_of(xl, struct s3c_pl330_xfer, px);
+			_finish_off(xfer, res, 0);
+		} else {
+			dev_info(ch->dmac->pi->dev, "%s:%d No Xfer?!\n",
+				__func__, __LINE__);
+		}
 	} else {
-		dev_info(ch->dmac->pi->dev, "%s:%d No Xfer?!\n",
-			__func__, __LINE__);
+		/* Do callback */
+
+		xfer = container_of(xl, struct s3c_pl330_xfer, px);
+		if (ch->callback_fn)
+			ch->callback_fn(NULL, xfer->token, xfer->px.bytes, res);
 	}
 }
 
@@ -660,8 +673,8 @@ ctrl_exit:
 }
 EXPORT_SYMBOL(s3c2410_dma_ctrl);
 
-int s3c2410_dma_enqueue(enum dma_ch id, void *token,
-			dma_addr_t addr, int size)
+int s3c2410_dma_enqueue_ring(enum dma_ch id, void *token,
+			dma_addr_t addr, int size, int numofblock)
 {
 	struct s3c_pl330_chan *ch;
 	struct s3c_pl330_xfer *xfer;
@@ -669,7 +682,6 @@ int s3c2410_dma_enqueue(enum dma_ch id, void *token,
 	int idx, ret = 0;
 
 	spin_lock_irqsave(&res_lock, flags);
-
 	ch = id_to_chan(id);
 
 	/* Error if invalid or free channel */
@@ -709,11 +721,13 @@ int s3c2410_dma_enqueue(enum dma_ch id, void *token,
 	/* Try submitting on either request */
 	idx = (ch->lrq == &ch->req[0]) ? 1 : 0;
 
-	if (!ch->req[idx].x)
+	if (!ch->req[idx].x) {
+		ch->req[idx].infiniteloop = numofblock;
 		s3c_pl330_submit(ch, &ch->req[idx]);
-	else
+	} else {
+		ch->req[1 - idx].infiniteloop = numofblock;
 		s3c_pl330_submit(ch, &ch->req[1 - idx]);
-
+	}
 	spin_unlock_irqrestore(&res_lock, flags);
 
 	if (ch->options & S3C2410_DMAF_AUTOSTART)
@@ -726,7 +740,7 @@ enq_exit:
 
 	return ret;
 }
-EXPORT_SYMBOL(s3c2410_dma_enqueue);
+EXPORT_SYMBOL(s3c2410_dma_enqueue_ring);
 
 int s3c2410_dma_request(enum dma_ch id,
 			struct s3c2410_dma_client *client,
@@ -747,9 +761,24 @@ int s3c2410_dma_request(enum dma_ch id,
 
 	dmac = ch->dmac;
 
+#if (defined(CONFIG_EXYNOS_DEV_PD) && defined(CONFIG_PM_RUNTIME))
+	/* enable the power domain */
+	spin_unlock_irqrestore(&res_lock, flags);
+	pm_runtime_get_sync(dmac->pi->dev);
+	spin_lock_irqsave(&res_lock, flags);
+#endif
+	clk_enable(dmac->clk);
+
 	ch->pl330_chan_id = pl330_request_channel(dmac->pi);
 	if (!ch->pl330_chan_id) {
 		chan_release(ch);
+		clk_disable(dmac->clk);
+#if (defined(CONFIG_EXYNOS_DEV_PD) && defined(CONFIG_PM_RUNTIME))
+		/* disable the power domain */
+		spin_unlock_irqrestore(&res_lock, flags);
+		pm_runtime_put(dmac->pi->dev);
+		spin_lock_irqsave(&res_lock, flags);
+#endif
 		ret = -EBUSY;
 		goto req_exit;
 	}
@@ -860,7 +889,14 @@ int s3c2410_dma_free(enum dma_ch id, struct s3c2410_dma_client *client)
 	pl330_release_channel(ch->pl330_chan_id);
 
 	ch->pl330_chan_id = NULL;
+	clk_disable(ch->dmac->clk);
 
+#if (defined(CONFIG_EXYNOS_DEV_PD) && defined(CONFIG_PM_RUNTIME))
+	/* disable the power domain */
+	spin_unlock_irqrestore(&res_lock, flags);
+	pm_runtime_put(ch->dmac->pi->dev);
+	spin_lock_irqsave(&res_lock, flags);
+#endif
 	chan_release(ch);
 
 free_exit:
@@ -986,6 +1022,18 @@ int s3c2410_dma_devconfig(enum dma_ch id, enum s3c2410_dmasrc source,
 		ch->rqcfg.src_inc = 1;
 		ch->rqcfg.dst_inc = 0;
 		break;
+	case S3C_DMA_MEM2MEM:
+		ch->req[0].rqtype = MEMTOMEM;
+		ch->req[1].rqtype = MEMTOMEM;
+		ch->rqcfg.src_inc = 1;
+		ch->rqcfg.dst_inc = 1;
+		break;
+	case S3C_DMA_MEM2MEM_SET:
+		ch->req[0].rqtype = MEMTOMEM;
+		ch->req[1].rqtype = MEMTOMEM;
+		ch->rqcfg.src_inc = 0;
+		ch->rqcfg.dst_inc = 1;
+		break;
 	default:
 		ret = -EINVAL;
 		goto devcfg_exit;
@@ -1057,6 +1105,16 @@ static int pl330_probe(struct platform_device *pdev)
 		goto probe_err1;
 	}
 
+#if (defined(CONFIG_EXYNOS_DEV_PD) && defined(CONFIG_PM_RUNTIME))
+	/* to use the runtime PM helper functions */
+	pm_runtime_enable(&pdev->dev);
+	/* enable the power domain */
+	if (pm_runtime_get_sync(&pdev->dev)) {
+		dev_err(&pdev->dev, "failed to get runtime pm\n");
+		ret = -ENODEV;
+		goto probe_err1;
+	}
+#endif
 	request_mem_region(res->start, resource_size(res), pdev->name);
 
 	pl330_info->base = ioremap(res->start, resource_size(res));
@@ -1131,6 +1189,11 @@ static int pl330_probe(struct platform_device *pdev)
 		pl330_info->pcfg.data_bus_width / 8, pl330_info->pcfg.num_chan,
 		pl330_info->pcfg.num_peri, pl330_info->pcfg.num_events);
 
+	clk_disable(s3c_pl330_dmac->clk);
+#if (defined(CONFIG_EXYNOS_DEV_PD) && defined(CONFIG_PM_RUNTIME))
+	/* disable the power domain */
+	pm_runtime_put(&pdev->dev);
+#endif
 	return 0;
 
 probe_err8:
@@ -1147,6 +1210,11 @@ probe_err3:
 	iounmap(pl330_info->base);
 probe_err2:
 	release_mem_region(res->start, resource_size(res));
+#if (defined(CONFIG_EXYNOS_DEV_PD) && defined(CONFIG_PM_RUNTIME))
+	/* disable the power domain */
+	pm_runtime_put(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+#endif
 probe_err1:
 	kfree(pl330_info);
 
@@ -1205,15 +1273,20 @@ static int pl330_remove(struct platform_device *pdev)
 	}
 
 	/* Disable operation clock */
-	clk_disable(dmac->clk);
 	clk_put(dmac->clk);
 
 	/* Remove the DMAC */
 	list_del(&dmac->node);
 	kfree(dmac);
 
+#if (defined(CONFIG_EXYNOS_DEV_PD) && defined(CONFIG_PM_RUNTIME))
+	/* disable the power domain */
 	spin_unlock_irqrestore(&res_lock, flags);
-
+	pm_runtime_put(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+#else
+	spin_unlock_irqrestore(&res_lock, flags);
+#endif
 	return 0;
 }
 

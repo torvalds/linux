@@ -21,6 +21,9 @@
 #include <linux/tick.h>
 #include <linux/stop_machine.h>
 
+static void notrace sched_clock_clksrc_install(struct clocksource *clock);
+static void notrace sched_clock_clksrc_update(void);
+
 /* Structure holding internal timekeeping values. */
 struct timekeeper {
 	/* Current clocksource used for timekeeping. */
@@ -65,6 +68,9 @@ static void timekeeper_setup_internals(struct clocksource *clock)
 {
 	cycle_t interval;
 	u64 tmp, ntpinterval;
+
+	if (clock->flags & CLOCK_SOURCE_SCHED_CLOCK)
+		sched_clock_clksrc_install(clock);
 
 	timekeeper.clock = clock;
 	clock->cycle_last = clock->read(clock);
@@ -649,7 +655,7 @@ static void update_sleep_time(struct timespec t)
  */
 static void __timekeeping_inject_sleeptime(struct timespec *delta)
 {
-	if (!timespec_valid_strict(delta)) {
+	if (!timespec_valid(delta)) {
 		printk(KERN_WARNING "__timekeeping_inject_sleeptime: Invalid "
 					"sleep delta value!\n");
 		return;
@@ -1136,6 +1142,7 @@ void do_timer(unsigned long ticks)
 {
 	jiffies_64 += ticks;
 	update_wall_time();
+	sched_clock_clksrc_update();
 	calc_global_load(ticks);
 }
 
@@ -1220,3 +1227,121 @@ void xtime_update(unsigned long ticks)
 	do_timer(ticks);
 	write_sequnlock(&xtime_lock);
 }
+
+/**
+ * struct sched_clksrc - clocksource based sched_clock
+ * @clock:		Pointer to the clocksource
+ * @nsecs:		Nanoseconds base value
+ * @seqcnt:		Sequence counter for sched_clock
+ * @last_update:	Counter value at last update
+ * @mult:		Multiplier for nsec conversion
+ * @shift:		Shift value (divisor) for nsec conversion
+ * @mask:		Mask for the delta
+ * @update_cycles:	Cycles after which we update nsecs and last_update
+ * @update_nsesc:	Nanoseconds value corresponding to @update_cycles
+ */
+struct sched_clksrc {
+	struct clocksource	*clock;
+	u64			nsecs;
+	struct seqcount		seqcnt;
+	u64			last_update;
+	u32			mult;
+	u32			shift;
+	u64			mask;
+	u64			update_cycles;
+	u64			update_nsecs;
+};
+
+static struct sched_clksrc sched_clksrc;
+
+/*
+ * Called from clocksource code when a clocksource usable for
+ * sched_clock is installed.
+ */
+static void notrace sched_clock_clksrc_install(struct clocksource *clock)
+{
+	u64 nsecs, cyc = clock->mask & CLOCKSOURCE_MASK(32);
+
+	if (sched_clksrc.clock)
+		return;
+
+	/* Make sure we get the wraparounds */
+	cyc >>= 2;
+
+	/* Use the raw mult/shift values */
+	sched_clksrc.mult = clock->mult;
+	sched_clksrc.shift = clock->shift;
+	sched_clksrc.mask = clock->mask;
+	sched_clksrc.update_cycles = cyc;
+	nsecs = clocksource_cyc2ns(cyc, sched_clksrc.mult, sched_clksrc.shift);
+	sched_clksrc.update_nsecs = nsecs;
+	/* Establish the base line */
+	sched_clksrc.nsecs = (u64)(jiffies - INITIAL_JIFFIES) *
+		(NSEC_PER_SEC / HZ);
+	sched_clksrc.last_update = clock->read(clock) & sched_clksrc.mask;
+	sched_clksrc.clock = clock;
+}
+
+/*
+ * Called from timekeeping code with xtime lock held and interrupts
+ * disabled, so we have only one updater at a time. Note that readers
+ * of sched_clock are _NOT_ affected by xtime_lock. We have our own
+ * sequence counter for sched_clksrc.
+ */
+static void notrace sched_clock_clksrc_update(void)
+{
+	struct clocksource *clock = sched_clksrc.clock;
+	u64 delta;
+
+	if (!clock)
+		return;
+
+	delta = clock->read(clock) - sched_clksrc.last_update;
+	delta &= sched_clksrc.mask;
+	while (delta >= sched_clksrc.update_cycles) {
+		delta -= sched_clksrc.update_cycles;
+		write_seqcount_begin(&sched_clksrc.seqcnt);
+		sched_clksrc.last_update += sched_clksrc.update_cycles;
+		sched_clksrc.nsecs += sched_clksrc.update_nsecs;
+		write_seqcount_end(&sched_clksrc.seqcnt);
+	}
+}
+
+/*
+ * Scheduler clock clocksource based - returns current time in nanosec units.
+ *
+ * Can be called from the default implementation below or from
+ * architecture code if it overrides the default implementation.
+ */
+unsigned long long notrace sched_clock_clksrc(void)
+{
+	struct clocksource *clock = sched_clksrc.clock;
+	unsigned int seq;
+	u64 nsecs, last, delta;
+
+	if (!sched_clksrc.clock)
+		return (unsigned long long)(jiffies - INITIAL_JIFFIES) *
+			(NSEC_PER_SEC / HZ);
+
+	do {
+		seq = read_seqcount_begin(&sched_clksrc.seqcnt);
+		last = sched_clksrc.last_update;
+		nsecs = sched_clksrc.nsecs;
+	} while (read_seqcount_retry(&sched_clksrc.seqcnt, seq));
+
+	delta = (clock->read(clock) - last) & sched_clksrc.mask;
+
+	return nsecs + clocksource_cyc2ns(delta, sched_clksrc.mult,
+					  sched_clksrc.shift);
+}
+
+/*
+ * Scheduler clock - returns current time in nanosec units.
+ * This is default implementation.
+ * Architectures and sub-architectures can override this.
+ */
+unsigned long long __attribute__((weak)) sched_clock(void)
+{
+	return sched_clock_clksrc();
+}
+EXPORT_SYMBOL_GPL(sched_clock);

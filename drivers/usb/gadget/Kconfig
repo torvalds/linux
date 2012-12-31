@@ -314,6 +314,20 @@ config USB_S3C_HSOTG
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
+config USB_GADGET_EXYNOS_SS_UDC
+        boolean "EXYNOS SuperSpeed USB 3.0 Device controller"
+        depends on EXYNOS_DEV_SS_UDC
+        select USB_GADGET_DUALSPEED
+        help
+	  The Samsung Exynos SuperSpeed USB 3.0 device controller
+	  integrated into the Exynos5 series SoC.
+
+config USB_EXYNOS_SS_UDC
+        tristate
+        depends on USB_GADGET_EXYNOS_SS_UDC
+        default USB_GADGET
+        select USB_GADGET_SELECTED
+
 config USB_GADGET_IMX
 	boolean "Freescale IMX USB Peripheral Controller"
 	depends on ARCH_MX1
@@ -372,6 +386,20 @@ config USB_S3C_HSUDC
 	depends on USB_GADGET_S3C_HSUDC
 	default USB_GADGET
 	select USB_GADGET_SELECTED
+
+config USB_GADGET_S3C_OTGD
+	boolean "S3C HS USB OTG Device"
+	depends on (PLAT_S5P)
+	help
+	  Samsung's S3C64XX processors include high speed USB OTG2.0
+	  controller. It has 15 configurable endpoints, as well as
+	  endpoint zero (for control transfers).
+
+	  This driver has been tested on the S3C6410, S5P6440, S5PC100, S5PV210, EXYNOS4210 processor.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "s3c-udc-otg" and force all
+	  gadget drivers to also be dynamically linked.
 
 config USB_GADGET_PXA_U2O
 	boolean "PXA9xx Processor USB2.0 controller"
@@ -634,9 +662,55 @@ config USB_DUMMY_HCD
 endchoice
 
 # Selected by UDC drivers that support high-speed operation.
+comment "NOTE: S3C OTG device role enables the controller driver below"
+	depends on USB_GADGET_S3C_OTGD
+
+config USB_S3C_OTGD
+	tristate "S3C high speed(2.0, dual-speed) USB OTG device"
+	depends on USB_GADGET && USB_GADGET_S3C_OTGD && !(USB_S3C_OTG_HOST)
+	default y
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+	select USB_GADGET_DUALSPEED
+	help
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "s3c-udc-otg-hs" and force all
+	  gadget drivers to also be dynamically linked.
+
+choice
+	prompt "EXYNOS SS UDC speed mode (temporarily)"
+	depends on USB_GADGET_EXYNOS_SS_UDC
+	default USB_GADGET_EXYNOS_SS_UDC_HSMODE
+	help
+	   For the present moment gadget layer doesn't support SuperSpeed.
+	   This option allows to select speed mode for EXYNOS SS UDC driver.
+
+	   NOTE: this is temporarily and will be removed once SuperSpeed support
+	   has been added to gadget layer.
+
+config USB_GADGET_EXYNOS_SS_UDC_HSMODE
+	boolean "HighSpeed"
+	help
+	   Use HighSpeed mode to work with USB2.0 host and gadgets _without_
+	   SuperSpeed support.
+
+config USB_GADGET_EXYNOS_SS_UDC_SSMODE
+	boolean "SuperSpeed"
+	select USB_GADGET_SUPERSPEED
+	help
+	   Use SuperSpeed mode to debug/test gadget's SuperSpeed support.
+
+endchoice
+
 config USB_GADGET_DUALSPEED
 	bool
 	depends on USB_GADGET
+
+# Selected by UDC drivers that support super-speed opperation
+config USB_GADGET_SUPERSPEED
+	bool
+	depends on USB_GADGET
+	depends on USB_GADGET_DUALSPEED
 
 #
 # USB Gadget Drivers
@@ -935,6 +1009,68 @@ config USB_G_PRINTER
 
 	  For more information, see Documentation/usb/gadget_printer.txt
 	  which includes sample code for accessing the device file.
+
+config USB_G_ANDROID
+	boolean "Android Gadget"
+	depends on SWITCH
+	help
+	  The Android gadget driver supports multiple USB functions.
+	  The functions can be configured via a board file and may be
+	  enabled and disabled dynamically.
+
+config USB_ANDROID
+	boolean "Android Gadget for HC&GB"
+	depends on SWITCH
+	help
+	  The Android gadget driver supports multiple USB functions.
+	  The functions can be configured via a board file and may be
+	  enabled and disabled dynamically.
+
+config USB_ANDROID_ACM
+	boolean "Android gadget ACM serial function"
+	depends on USB_ANDROID
+	help
+	  Provides ACM serial function for android gadget driver.
+
+config USB_ANDROID_ADB
+	boolean "Android gadget adb function"
+	depends on USB_ANDROID
+	help
+	  Provides adb function for android gadget driver.
+
+config USB_ANDROID_MASS_STORAGE
+	boolean "Android gadget mass storage function"
+	depends on USB_ANDROID && SWITCH
+	help
+	  Provides USB mass storage function for android gadget driver.
+
+config USB_ANDROID_MTP
+	boolean "Android MTP function"
+	depends on USB_ANDROID
+	help
+	  Provides Media Transfer Protocol (MTP) support for android gadget driver.
+
+config USB_ANDROID_RNDIS
+	boolean "Android gadget RNDIS ethernet function"
+	depends on USB_ANDROID
+	help
+	  Provides RNDIS ethernet function for android gadget driver.
+
+config USB_ANDROID_RNDIS_WCEIS
+	boolean "Use Windows Internet Sharing Class/SubClass/Protocol"
+	depends on USB_ANDROID_RNDIS
+	help
+	 Causes the driver to look like a Windows-compatible Internet
+	 Sharing device, so Windows auto-detects it.
+
+	 If you enable this option, the device is no longer CDC ethernet
+	 compatible.
+
+config USB_ANDROID_ACCESSORY
+	boolean "Android USB accessory function"
+	depends on USB_ANDROID
+	help
+	  Provides Android USB Accessory support for android gadget driver.
 
 config USB_CDC_COMPOSITE
 	tristate "CDC Composite Device (Ethernet and ACM)"

@@ -15,6 +15,7 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <mach/map.h>
+#include <media/s5p_fimc.h>
 
 static struct resource s5p_fimc0_resource[] = {
 	[0] = {
@@ -41,3 +42,5 @@ struct platform_device s5p_device_fimc0 = {
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
+
+struct s5p_platform_fimc s3c_fimc0_default_data __initdata;

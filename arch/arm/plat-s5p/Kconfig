@@ -7,10 +7,10 @@
 
 config PLAT_S5P
 	bool
-	depends on (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_EXYNOS4)
+	depends on (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_EXYNOS)
 	default y
-	select ARM_VIC if !ARCH_EXYNOS4
-	select ARM_GIC if ARCH_EXYNOS4
+	select ARM_VIC if !ARCH_EXYNOS
+	select ARM_GIC if ARCH_EXYNOS
 	select NO_IOPORT
 	select ARCH_REQUIRE_GPIOLIB
 	select S3C_GPIO_TRACK
@@ -39,58 +39,209 @@ config S5P_GPIO_INT
 
 config S5P_HRT
 	bool
+	select SAMSUNG_DEV_PWM
 	help
 	  Use the High Resolution timer support
 
-comment "System MMU"
-
 config S5P_SYSTEM_MMU
-	bool "S5P SYSTEM MMU"
-	depends on ARCH_EXYNOS4
+	bool "System MMU for Exynos families"
+	depends on ARCH_EXYNOS
+	select IOMMU_API
 	help
 	  Say Y here if you want to enable System MMU
 
+config S5P_SYSTEM_MMU_REFCOUNT
+	bool "Counting System MMU activations"
+	depends on S5P_SYSTEM_MMU
+	help
+	  Say Y here if you want to enable counting System MMU enabling and
+	  disabling.
+
+config S5P_SYSTEM_MMU_DEBUG
+	bool "Enables verbose debugging message about System MMU"
+	depends on S5P_SYSTEM_MMU
+	help
+	  Say Y here if you need detailed message while System MMU driver works
+
+config S5P_SYSTEM_MMU_WA5250ERR
+	bool "Ensure 64KB-aligned mapping for DMA I/O buffers"
+	depends on S5P_SYSTEM_MMU && CPU_EXYNOS5250
+	default y
+	help
+	  Select this to avoid unexpected fault occurred by System MMU v3.0.
+	  This is just a makeshift option for those problems.
+
+	  If unsure, n here.
+
+config IOMMU_API
+	bool
+
+config S3C_DEV_FIMC
+	bool
+	depends on VIDEO_FIMC
+	default y
+	help
+	  Compile in platform device definitions for FIMC
+
 config S5P_DEV_FIMC0
 	bool
+	depends on VIDEO_SAMSUNG_S5P_FIMC
+	default y
 	help
 	  Compile in platform device definitions for FIMC controller 0
 
 config S5P_DEV_FIMC1
 	bool
+	depends on VIDEO_SAMSUNG_S5P_FIMC
+	default y
 	help
 	  Compile in platform device definitions for FIMC controller 1
 
 config S5P_DEV_FIMC2
 	bool
+	depends on VIDEO_SAMSUNG_S5P_FIMC
+	default y
 	help
 	  Compile in platform device definitions for FIMC controller 2
 
 config S5P_DEV_FIMC3
 	bool
+	depends on VIDEO_SAMSUNG_S5P_FIMC
+	default y
 	help
 	  Compile in platform device definitions for FIMC controller 3
+
+config S5P_DEV_I2C_HDMIPHY
+	bool
+	help
+	  Compile in platform device definitions for I2C HDMIPHY controller
+
+config S5P_DEV_TV
+	bool
+	depends on VIDEO_EXYNOS_TV
+	default y
+	help
+	  Compile in platform device definition for TV interface
+
+config S5P_DEV_MFC
+	bool
+	help
+	  Compile in platform device definitions for MFC
+
+config S5P_DEV_FIMD0
+	bool
+	help
+	  Compile in platform device definitions for FIMD controller 0
+
+config S5P_DEV_FIMD1
+	bool
+	help
+	  Compile in platform device definitions for FIMD controller 1
+
+config S5P_DEV_DP
+	bool
+	help
+	  Compile in platform device definitions for DP controller
+
+config S5P_DEV_TVOUT
+	bool
+	depends on VIDEO_TVOUT
+	default y
+	help
+	  Compile in platform device definitions for TVOUT
+
+config S5P_DEV_FIMG2D
+	bool
+	help
+	  Compile in platform device definitions for FIMG2D controller
+
+config S5P_DEV_ROTATOR
+	bool
+	help
+	  Compile in platform device definitions for ROTATOR
 
 config S5P_DEV_ONENAND
 	bool
 	help
 	  Compile in platform device definition for OneNAND controller
 
+config S5P_DEV_CSIS
+	bool
+	depends on VIDEO_FIMC_MIPI
+	default y
+	help
+	  Compile in platform device definitions for MIPI-CSIS
+
 config S5P_DEV_CSIS0
 	bool
+	depends on (VIDEO_S5P_MIPI_CSIS || VIDEO_EXYNOS_MIPI_CSIS)
+	default y
 	help
 	  Compile in platform device definitions for MIPI-CSIS channel 0
 
 config S5P_DEV_CSIS1
 	bool
+	depends on (VIDEO_S5P_MIPI_CSIS || VIDEO_EXYNOS_MIPI_CSIS)
+	default y
 	help
 	  Compile in platform device definitions for MIPI-CSIS channel 1
+
+config S5P_DEV_JPEG
+	bool
+	depends on VIDEO_JPEG || VIDEO_JPEG_V2X
+	default y
+	help
+	  Compile in platform device definitions for JPEG
 
 config S5P_DEV_USB_EHCI
 	bool
 	help
 	  Compile in platform device definition for USB EHCI
 
-config S5P_SETUP_MIPIPHY
+config S5P_DEV_FIMD_S5P
 	bool
 	help
+	  Compile in platform device definitions for FIMD controller
+
+config S5P_DEV_USBGADGET
+	bool
+	help
+	  compile in platform device definitions for USB-GADGET
+
+config S5P_DEV_USB_SWITCH
+	bool
+	help
+	  compile in platform device definitions for USB-SWITCH
+
+config S5P_SETUP_MIPIPHY
+	bool
+	depends on (VIDEO_S5P_MIPI_CSIS || VIDEO_EXYNOS_MIPI_CSIS)
+	default y
+	help
 	  Compile in common setup code for MIPI-CSIS and MIPI-DSIM devices
+
+config S5P_MEM_CMA
+	bool "Fixed memory through CMA"
+	select CMA
+	help
+	  Use CMA(Contiguous memory allocator) to reserve machine specific memory.
+
+config S5P_DEV_ACE
+	bool
+	help
+	  Compile in common setup code for Crypto Engine devices.
+
+config S5P_DEV_MIPI_DSI
+	bool
+	depends on FB_S5P_MIPI_DSIM
+	default y
+	help
+	  Compile in platform device definitions for MIPI_DSI
+
+config S5P_DEV_MIPI_DSIM
+	bool
+	depends on FB_MIPI_DSIM
+	default y
+	help
+	  Compile in platform device definitions for MIPI_DSIM
+	  to support mainlile style fimd

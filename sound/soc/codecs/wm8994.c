@@ -38,6 +38,10 @@
 #include "wm8994.h"
 #include "wm_hubs.h"
 
+#ifdef CONFIG_SND_SAMSUNG_RP
+#include "../samsung/srp-types.h"
+#endif
+
 #define WM8994_NUM_DRC 3
 #define WM8994_NUM_EQ  3
 
@@ -1931,6 +1935,7 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 
 			pm_runtime_put(codec->dev);
 		}
+		codec->cache_sync = 1;
 		break;
 	}
 	codec->dapm.bias_level = level;
@@ -2289,9 +2294,17 @@ static int wm8994_aif_mute(struct snd_soc_dai *codec_dai, int mute)
 		return -EINVAL;
 	}
 
-	if (mute)
+	if (mute) {
+#ifdef CONFIG_SND_SAMSUNG_RP
+		if (!srp_get_status(IS_RUNNING))
+			reg = WM8994_AIF1DAC1_MUTE;
+		else
+			reg = 0;
+#else
 		reg = WM8994_AIF1DAC1_MUTE;
-	else
+
+#endif
+	} else
 		reg = 0;
 
 	snd_soc_update_bits(codec, mute_reg, WM8994_AIF1DAC1_MUTE, reg);
@@ -2364,7 +2377,7 @@ static struct snd_soc_dai_driver wm8994_dai[] = {
 		.playback = {
 			.stream_name = "AIF1 Playback",
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 6,
 			.rates = WM8994_RATES,
 			.formats = WM8994_FORMATS,
 		},

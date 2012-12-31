@@ -9,6 +9,8 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/notifier.h>
+#include <linux/cpu.h>
 #include <linux/sysdev.h>
 #include <linux/syscore_ops.h>
 
@@ -101,6 +103,25 @@ static struct syscore_ops leds_syscore_ops = {
 	.resume		= leds_resume,
 };
 
+static int leds_idle_notifier(struct notifier_block *nb, unsigned long val,
+                                void *data)
+{
+	switch (val) {
+	case IDLE_START:
+		leds_event(led_idle_start);
+		break;
+	case IDLE_END:
+		leds_event(led_idle_end);
+		break;
+	}
+
+	return 0;
+}
+
+static struct notifier_block leds_idle_nb = {
+	.notifier_call = leds_idle_notifier,
+};
+
 static int __init leds_init(void)
 {
 	int ret;
@@ -109,8 +130,12 @@ static int __init leds_init(void)
 		ret = sysdev_register(&leds_device);
 	if (ret == 0)
 		ret = sysdev_create_file(&leds_device, &attr_event);
-	if (ret == 0)
+
+	if (ret == 0) {
 		register_syscore_ops(&leds_syscore_ops);
+		idle_notifier_register(&leds_idle_nb);
+	}
+
 	return ret;
 }
 

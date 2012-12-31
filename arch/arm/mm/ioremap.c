@@ -22,6 +22,7 @@
  */
 #include <linux/module.h>
 #include <linux/errno.h>
+#include <linux/memblock.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/io.h>
@@ -204,7 +205,7 @@ void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
 	/*
 	 * Don't allow RAM to be mapped - this causes problems with ARMv6+
 	 */
-	if (WARN_ON(pfn_valid(pfn)))
+	if (WARN_ON(memblock_is_memory(pfn << PAGE_SHIFT)))
 		return NULL;
 
 	type = get_mem_type(mtype);

@@ -64,8 +64,13 @@ const struct linux_logo * __init_refok fb_find_logo(int depth)
 	
 	if (depth >= 8) {
 #ifdef CONFIG_LOGO_LINUX_CLUT224
+    #if defined(CONFIG_FB_S5P_S6E8AA1)
+		/* Samsung Linux logo */
+		logo = &logo_samsung_clut224;
+    #else
 		/* Generic Linux logo */
 		logo = &logo_linux_clut224;
+    #endif
 #endif
 #ifdef CONFIG_LOGO_BLACKFIN_CLUT224
 		/* Blackfin Linux logo */

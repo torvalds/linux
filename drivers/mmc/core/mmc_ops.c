@@ -17,6 +17,8 @@
 #include <linux/mmc/card.h>
 #include <linux/mmc/mmc.h>
 
+#include <plat/cpu.h>
+
 #include "core.h"
 #include "mmc_ops.h"
 
@@ -334,6 +336,7 @@ int mmc_send_ext_csd(struct mmc_card *card, u8 *ext_csd)
 	return mmc_send_cxd_data(card, card->host, MMC_SEND_EXT_CSD,
 			ext_csd, 512);
 }
+EXPORT_SYMBOL_GPL(mmc_send_ext_csd);
 
 int mmc_spi_read_ocr(struct mmc_host *host, int highcap, u32 *ocrp)
 {
@@ -400,6 +403,10 @@ int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 
 	/* Must check status to be sure of no errors */
 	do {
+#if defined(CONFIG_MACH_SMDKC210) || defined(CONFIG_MACH_SMDKV310)
+		/* HACK: in case of smdkc210, smdkv310 has problem at inand */
+		mmc_delay(3);
+#endif
 		err = mmc_send_status(card, &status);
 		if (err)
 			return err;
@@ -546,4 +553,39 @@ int mmc_bus_test(struct mmc_card *card, u8 bus_width)
 	mmc_send_bus_test(card, card->host, MMC_BUS_TEST_W, width);
 	err = mmc_send_bus_test(card, card->host, MMC_BUS_TEST_R, width);
 	return err;
+}
+
+int mmc_send_hpi_cmd(struct mmc_card *card, u32 *status)
+{
+	struct mmc_command cmd = {0};
+	unsigned int opcode;
+	int err;
+
+	if (!card->ext_csd.hpi) {
+		pr_warning("%s: Card didn't support HPI command\n",
+				mmc_hostname(card->host));
+		return -EINVAL;
+	}
+
+	opcode = card->ext_csd.hpi_cmd;
+	if (opcode == MMC_STOP_TRANSMISSION)
+		cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
+	else if (opcode == MMC_SEND_STATUS)
+		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
+
+	cmd.opcode = opcode;
+	cmd.arg = card->rca << 16 | 1;
+	cmd.cmd_timeout_ms = card->ext_csd.out_of_int_time;
+
+	err = mmc_wait_for_cmd(card->host, &cmd, 0);
+	if (err) {
+		pr_warn("%s: error %d interrupting operation. "
+			"HPI command response %#x\n", mmc_hostname(card->host),
+			err, cmd.resp[0]);
+		return err;
+	}
+	if (status)
+		*status = cmd.resp[0];
+
+	return 0;
 }

@@ -1,0 +1,5 @@
+config SND_SAMSUNG_RP
+	depends on ARCH_EXYNOS4
+	bool "ULP Audio support"
+	help
+	  Say Y if you want to support ULP audio.

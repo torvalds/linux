@@ -1,0 +1,54 @@
+config VIDEO_FIMC
+	bool "Samsung Camera Interface (FIMC) driver"
+	depends on VIDEO_SAMSUNG && ARCH_EXYNOS4
+	select VIDEO_IPC if ARCH_S5PV210
+	default n
+	help
+	  This is a video4linux driver for Samsung FIMC device.
+
+choice
+depends on VIDEO_FIMC
+prompt "Select CSC Range config"
+default VIDEO_FIMC_RANGE_NARROW
+config VIDEO_FIMC_RANGE_NARROW
+	bool "Narrow"
+	depends on VIDEO_FIMC && (ARCH_S5PV210 || ARCH_EXYNOS4)
+	---help---
+	  RGB <-> YUV Color Conversion Narrow Range Equation
+
+config VIDEO_FIMC_RANGE_WIDE
+	bool "Wide"
+	depends on VIDEO_FIMC && (ARCH_S5PV210 || ARCH_EXYNOS4)
+	---help---
+	  RGB <-> YUV Color Conversion Wide Range Equation
+endchoice
+
+config VIDEO_IPC
+	bool
+
+config VIDEO_FIMC_DEBUG
+	bool "FIMC driver debug messages"
+	depends on VIDEO_FIMC
+
+config VIDEO_FIMC_MIPI
+	bool "MIPI-CSI2 Slave Interface support"
+	depends on VIDEO_FIMC && (ARCH_S5PV210 || ARCH_EXYNOS4)
+	default y
+
+choice
+depends on VIDEO_FIMC
+prompt "Select Output Mode"
+default VIDEO_FIMC_DMA_AUTO
+config VIDEO_FIMC_DMA_AUTO
+        bool "DMA AUTO MODE"
+        depends on VIDEO_FIMC
+        help
+          This enables support for FIMC1 DMA AUTO mode
+
+config VIDEO_FIMC_FIFO
+        bool "FIFO MODE"
+        depends on VIDEO_FIMC
+        help
+          This enables support for FIMC1 FIFO mode
+
+endchoice

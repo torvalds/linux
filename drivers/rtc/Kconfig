@@ -12,7 +12,7 @@ menuconfig RTC_CLASS
 	select RTC_LIB
 	help
 	  Generic RTC class support. If you say yes here, you will
- 	  be allowed to plug one or more RTCs to your system. You will
+	  be allowed to plug one or more RTCs to your system. You will
 	  probably want to enable one or more of the interfaces below.
 
 if RTC_CLASS
@@ -105,6 +105,24 @@ config RTC_INTF_DEV_UIE_EMUL
 	  The emulation code will read the time from the hardware
 	  clock several times per second, please enable this option
 	  only if you know that you really need it.
+
+config RTC_INTF_ALARM
+	bool "Android alarm driver"
+	depends on RTC_CLASS
+	default y
+	help
+	  Provides non-wakeup and rtc backed wakeup alarms based on rtc or
+	  elapsed realtime, and a non-wakeup alarm on the monotonic clock.
+	  Also provides an interface to set the wall time which must be used
+	  for elapsed realtime to work.
+
+config RTC_INTF_ALARM_DEV
+	bool "Android alarm device"
+	depends on RTC_INTF_ALARM
+	default y
+	help
+	  Exports the alarm interface to user-space.
+
 
 config RTC_DRV_TEST
 	tristate "Test driver/device"
@@ -211,6 +229,16 @@ config RTC_DRV_MAX8998
 	  RTC of Maxim MAX8998 PMIC.
 
 	  This driver can also be built as a module. If so, the module
+
+config RTC_DRV_MAX77686
+	tristate "Maxim MAX77686"
+	depends on MFD_MAX77686
+	help
+	  If you say yes here you will get support for the
+	  RTC of Maxim MAX77686 PMIC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-max77686.
 	  will be called rtc-max8998.
 
 config RTC_DRV_RS5C372
@@ -378,6 +406,16 @@ config RTC_DRV_RV3029C2
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-rv3029c2.
+
+config RTC_DRV_S5M
+	tristate "Samsung S5M series"
+	depends on MFD_S5M_CORE
+	help
+	  If you say yes here you will get support for the
+	  RTC of Samsung S5M series.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-s5m.
 
 endif # I2C
 
@@ -789,7 +827,7 @@ config RTC_DRV_SH
 	  Say Y here to enable support for the on-chip RTC found in
 	  most SuperH processors.
 
- 	  To compile this driver as a module, choose M here: the
+	  To compile this driver as a module, choose M here: the
 	  module will be called rtc-sh.
 
 config RTC_DRV_VR41XX

@@ -1,0 +1,29 @@
+config RTL8191SU
+	tristate "Realtek 8191SU USB WiFi"
+	depends on USB
+	default n
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	---help---
+	  Help message of RTL8191SU
+	  Support Chip Set : rtl8712/8188/8191/8192su
+
+choice
+	prompt "RTL8191 WirelessAPI Select"
+	depends on RTL8191SU
+	default RTL8191SU_CFG80211
+
+config RTL8191SU_CFG80211
+	bool "Wireless API CFG80211"
+
+config RTL8191SU_WEXT
+	bool "Wireless API WEXT"
+
+endchoice
+
+config RTL8191SU_DEBUG
+	bool "Realtek 8191SU Driver Debug"
+	depends on RTL8191SU
+	default n
+	---help---
+	  Debug Message Enable Flag.
