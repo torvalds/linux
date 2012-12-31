@@ -91,6 +91,8 @@ config SND_OMAP_SOC_OMAP_TWL4030
 	  - Gumstix Overo or CompuLab CM-T35/CM-T3730
 	  - IGEP v2
 	  - OMAP3EVM
+	  - SDP3430
+	  - Zoom2
 
 config SND_OMAP_SOC_OMAP_ABE_TWL6040
 	tristate "SoC Audio support for OMAP boards using ABE and twl6040 codec"
