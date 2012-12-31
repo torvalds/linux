@@ -1306,6 +1306,7 @@ pre_ssout(struct uprobe *uprobe, struct pt_regs *regs, unsigned long bp_vaddr)
 {
 	struct uprobe_task *utask;
 	unsigned long xol_vaddr;
+	int err;
 
 	utask = current->utask;
 
@@ -1316,7 +1317,13 @@ pre_ssout(struct uprobe *uprobe, struct pt_regs *regs, unsigned long bp_vaddr)
 	utask->xol_vaddr = xol_vaddr;
 	utask->vaddr = bp_vaddr;
 
-	return arch_uprobe_pre_xol(&uprobe->arch, regs);
+	err = arch_uprobe_pre_xol(&uprobe->arch, regs);
+	if (unlikely(err)) {
+		xol_free_insn_slot(current);
+		return err;
+	}
+
+	return 0;
 }
 
 /*
