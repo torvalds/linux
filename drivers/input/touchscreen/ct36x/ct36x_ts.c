@@ -2,13 +2,13 @@
 
 #include "core.c"
 #include "ct360.c"
-#include "ct365.c"
+#include "ct363.c"
 
 int inline ct36x_set_ops(struct ct36x_data *ts, int model)
 {
 	switch(model){
 		case 360: ts->ops = &ct360_ops; break;
-		case 365: ts->ops = &ct365_ops; break;
+		case 363: ts->ops = &ct363_ops; break;
 		default: return -EINVAL;
 	};
 
@@ -40,8 +40,13 @@ module_param(irq, int, 0644);
 static int rst = -1;
 module_param(rst, int, 0644);
 
+static int orientation[4] = {1, 0, 1, 0};
+module_param_array(orientation, int, NULL, 0644);
+
 static int ct36x_check_param(void)
 {
+	int i;
+
 	if(en != 1)
 		return -EINVAL;
 	if(model < 0)
@@ -52,6 +57,10 @@ static int ct36x_check_param(void)
 		return -EINVAL;
 	if(x_max <= 0 || y_max <= 0)
 		return -EINVAL;
+	for(i = 0; i < 4; i++){
+		if(orientation[i] != 0 && orientation[i] != 1 && orientation[i] != -1)
+			return -EINVAL;
+	}
 
 	return 0;
 }
@@ -66,12 +75,15 @@ static struct i2c_board_info __initdata ct36x_info = {
 
 static int ct36x_add_client(void)
 {
+	int i;
 	struct port_config ct36x_rst, ct36x_irq;
 
 	ct36x_pdata.model = model;
 	ct36x_pdata.x_max = x_max;
 	ct36x_pdata.y_max = y_max;
 
+	for(i = 0; i < 4; i++)
+		ct36x_pdata.orientation = orientation[i];
 	ct36x_rst = get_port_config(rst);
 	ct36x_pdata.rst_io.gpio = ct36x_rst.gpio;
 	ct36x_pdata.rst_io.active_low = ct36x_rst.io.active_low;
@@ -86,15 +98,15 @@ static int ct36x_add_client(void)
 }
 #endif
 
-static irqreturn_t ct36x_irq(int irq, void *data)
+static irqreturn_t ct36x_irq_handler(int irq, void *data)
 {
 	struct ct36x_data *ts = data;
 
-	disable_irq_nosync(ts->irq);
+	//disable_irq(ts->irq);
 	if(ts->ops->report)
 		ts->ops->report(ts);
 
-	enable_irq(ts->irq);
+	//enable_irq(ts->irq);
 
 	return IRQ_HANDLED;
 }
@@ -204,7 +216,7 @@ static int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id 
 	register_early_suspend(&ts->early_suspend);
 #endif
 	ts->irq = gpio_to_irq(ts->irq_io.gpio);
-	ret = request_threaded_irq(ts->irq, NULL, ct36x_irq, IRQF_ONESHOT, CT36X_NAME, ts);
+	ret = request_threaded_irq(ts->irq, NULL, ct36x_irq_handler, IRQF_ONESHOT, CT36X_NAME, ts);	
 	if(ret < 0){
 		dev_err(ts->dev, "Failed to request threaded irq\n");
 		goto err_request_threaded_irq;

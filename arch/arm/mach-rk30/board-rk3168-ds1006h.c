@@ -102,7 +102,7 @@ struct rk29_keys_platform_data rk29_keys_pdata = {
 
 #if defined(CONFIG_CT36X_TS)
 
-#define TOUCH_MODEL		365
+#define TOUCH_MODEL		363
 #define TOUCH_MAX_X		1280
 #define TOUCH_MAX_y		800
 #define TOUCH_RESET_PIN		RK30_PIN0_PB6

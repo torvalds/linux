@@ -315,8 +315,8 @@ int ct36x_chip_go_bootloader(struct ct36x_data *ts)
 
 	// Write source data
 	ret = ct36x_chip_wr_firmware(ts);
-		dev_err(ts->dev, "CT36X chip: Failed to write firmware\n");
 	if(ret < 0){
+		dev_err(ts->dev, "CT36X chip: Failed to write firmware\n");
 		return ret;
 	}
 	return 0;

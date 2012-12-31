@@ -22,14 +22,14 @@
 
 #include <mach/board.h>
 #include <mach/gpio.h>
-#if 1
+#if 0
 #define ct36x_dbg(ts, format, arg...)            \
 	        dev_printk(KERN_INFO , ts->dev , format , ## arg)
 #else
 #define ct36x_dbg(ts, format, arg...)
 #endif
 
-#define CT36X_I2C_RATE	(100 * 1000)
+#define CT36X_I2C_RATE	(200 * 1000)
 struct ct36x_data;
 
 struct ct36x_ops{
@@ -96,6 +96,7 @@ static inline int ct36x_update_write(struct ct36x_data *ts, unsigned short addr,
 	return ret;
 }
 int ct36x_chip_set_idle(struct ct36x_data *ts);
+int ct36x_chip_go_sleep(struct ct36x_data *ts);
 int ct36x_chip_get_binchksum(void);
 int ct36x_chip_get_fwchksum(struct ct36x_data *ts);
 int ct36x_chip_go_bootloader(struct ct36x_data *ts);
