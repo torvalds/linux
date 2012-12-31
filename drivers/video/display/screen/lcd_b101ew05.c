@@ -15,7 +15,7 @@
 /* Base */
 #ifdef CONFIG_RK610_LVDS
 #define OUT_TYPE	    	SCREEN_LVDS
-#define OUT_FORMAT      	LVDS_8BIT_2
+#define OUT_FORMAT      	LVDS_8BIT_1
 #else
 #define OUT_TYPE	    SCREEN_RGB
 #endif
@@ -24,18 +24,18 @@
 
 
 #define OUT_CLK	          71000000
-#define LCDC_ACLK         300000000           //29 lcdc axi DMA ÆµÂÊ
+#define LCDC_ACLK         500000000           //29 lcdc axi DMA ÆµÂÊ
 
 /* Timing */
-#define H_PW			10
-#define H_BP			100
+#define H_PW			1
+#define H_BP			1
 #define H_VD			1280
-#define H_FP			18
+#define H_FP			158
 
-#define V_PW			2
-#define V_BP			8
+#define V_PW			1
+#define V_BP			1
 #define V_VD			800
-#define V_FP			6
+#define V_FP			21
 
 #define LCD_WIDTH          	216
 #define LCD_HEIGHT         	135
