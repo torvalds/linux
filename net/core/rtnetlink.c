@@ -1310,7 +1310,6 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 		      struct nlattr **tb, char *ifname, int modified)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
-	int send_addr_notify = 0;
 	int err;
 
 	if (tb[IFLA_NET_NS_PID] || tb[IFLA_NET_NS_FD]) {
@@ -1363,16 +1362,6 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 		struct sockaddr *sa;
 		int len;
 
-		if (!ops->ndo_set_mac_address) {
-			err = -EOPNOTSUPP;
-			goto errout;
-		}
-
-		if (!netif_device_present(dev)) {
-			err = -ENODEV;
-			goto errout;
-		}
-
 		len = sizeof(sa_family_t) + dev->addr_len;
 		sa = kmalloc(len, GFP_KERNEL);
 		if (!sa) {
@@ -1382,13 +1371,11 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 		sa->sa_family = dev->type;
 		memcpy(sa->sa_data, nla_data(tb[IFLA_ADDRESS]),
 		       dev->addr_len);
-		err = ops->ndo_set_mac_address(dev, sa);
+		err = dev_set_mac_address(dev, sa);
 		kfree(sa);
 		if (err)
 			goto errout;
-		send_addr_notify = 1;
 		modified = 1;
-		add_device_randomness(dev->dev_addr, dev->addr_len);
 	}
 
 	if (tb[IFLA_MTU]) {
@@ -1425,7 +1412,7 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 
 	if (tb[IFLA_BROADCAST]) {
 		nla_memcpy(dev->broadcast, tb[IFLA_BROADCAST], dev->addr_len);
-		send_addr_notify = 1;
+		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
 	}
 
 	if (ifm->ifi_flags || ifm->ifi_change) {
@@ -1545,9 +1532,6 @@ errout:
 	if (err < 0 && modified)
 		net_warn_ratelimited("A link change request failed with some changes committed already. Interface %s may have been left with an inconsistent configuration, please check.\n",
 				     dev->name);
-
-	if (send_addr_notify)
-		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
 
 	return err;
 }
