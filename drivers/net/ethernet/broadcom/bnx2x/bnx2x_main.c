@@ -1171,7 +1171,7 @@ static int bnx2x_send_final_clnup(struct bnx2x *bp, u8 clnup_func,
 	return ret;
 }
 
-static u8 bnx2x_is_pcie_pending(struct pci_dev *dev)
+u8 bnx2x_is_pcie_pending(struct pci_dev *dev)
 {
 	u16 status;
 
@@ -6269,49 +6269,6 @@ static void bnx2x_setup_fan_failure_detection(struct bnx2x *bp)
 	REG_WR(bp, MISC_REG_SPIO_EVENT_EN, val);
 }
 
-static void bnx2x_pretend_func(struct bnx2x *bp, u8 pretend_func_num)
-{
-	u32 offset = 0;
-
-	if (CHIP_IS_E1(bp))
-		return;
-	if (CHIP_IS_E1H(bp) && (pretend_func_num >= E1H_FUNC_MAX))
-		return;
-
-	switch (BP_ABS_FUNC(bp)) {
-	case 0:
-		offset = PXP2_REG_PGL_PRETEND_FUNC_F0;
-		break;
-	case 1:
-		offset = PXP2_REG_PGL_PRETEND_FUNC_F1;
-		break;
-	case 2:
-		offset = PXP2_REG_PGL_PRETEND_FUNC_F2;
-		break;
-	case 3:
-		offset = PXP2_REG_PGL_PRETEND_FUNC_F3;
-		break;
-	case 4:
-		offset = PXP2_REG_PGL_PRETEND_FUNC_F4;
-		break;
-	case 5:
-		offset = PXP2_REG_PGL_PRETEND_FUNC_F5;
-		break;
-	case 6:
-		offset = PXP2_REG_PGL_PRETEND_FUNC_F6;
-		break;
-	case 7:
-		offset = PXP2_REG_PGL_PRETEND_FUNC_F7;
-		break;
-	default:
-		return;
-	}
-
-	REG_WR(bp, offset, pretend_func_num);
-	REG_RD(bp, offset);
-	DP(NETIF_MSG_HW, "Pretending to func %d\n", pretend_func_num);
-}
-
 void bnx2x_pf_disable(struct bnx2x *bp)
 {
 	u32 val = REG_RD(bp, IGU_REG_PF_CONFIGURATION);
@@ -6567,6 +6524,8 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 	}
 
 	bnx2x_init_block(bp, BLOCK_DMAE, PHASE_COMMON);
+
+	bnx2x_iov_init_dmae(bp);
 
 	/* clean the DMAE memory */
 	bp->dmae_ready = 1;
@@ -7053,15 +7012,14 @@ static void bnx2x_ilt_wr(struct bnx2x *bp, u32 index, dma_addr_t addr)
 	REG_WR_DMAE(bp, reg, wb_write, 2);
 }
 
-static void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func,
-				   u8 idu_sb_id, bool is_Pf)
+void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id, bool is_pf)
 {
 	u32 data, ctl, cnt = 100;
 	u32 igu_addr_data = IGU_REG_COMMAND_REG_32LSB_DATA;
 	u32 igu_addr_ctl = IGU_REG_COMMAND_REG_CTRL;
 	u32 igu_addr_ack = IGU_REG_CSTORM_TYPE_0_SB_CLEANUP + (idu_sb_id/32)*4;
 	u32 sb_bit =  1 << (idu_sb_id%32);
-	u32 func_encode = func | (is_Pf ? 1 : 0) << IGU_FID_ENCODE_IS_PF_SHIFT;
+	u32 func_encode = func | (is_pf ? 1 : 0) << IGU_FID_ENCODE_IS_PF_SHIFT;
 	u32 addr_encode = IGU_CMD_E2_PROD_UPD_BASE + idu_sb_id;
 
 	/* Not supported in BC mode */
@@ -7357,6 +7315,9 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 
 	bnx2x_init_block(bp, BLOCK_TM, init_phase);
 	bnx2x_init_block(bp, BLOCK_DORQ, init_phase);
+
+	bnx2x_iov_init_dq(bp);
+
 	bnx2x_init_block(bp, BLOCK_BRB1, init_phase);
 	bnx2x_init_block(bp, BLOCK_PRS, init_phase);
 	bnx2x_init_block(bp, BLOCK_TSDM, init_phase);
@@ -9459,7 +9420,7 @@ period_task_exit:
  * Init service functions
  */
 
-static u32 bnx2x_get_pretend_reg(struct bnx2x *bp)
+u32 bnx2x_get_pretend_reg(struct bnx2x *bp)
 {
 	u32 base = PXP2_REG_PGL_PRETEND_FUNC_F0;
 	u32 stride = PXP2_REG_PGL_PRETEND_FUNC_F1 - base;

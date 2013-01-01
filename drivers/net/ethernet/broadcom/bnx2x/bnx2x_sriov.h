@@ -179,6 +179,25 @@ struct bnx2x_virtf {
 #define for_each_vf(bp, var) \
 		for ((var) = 0; (var) < BNX2X_NR_VIRTFN(bp); (var)++)
 
+#define HW_VF_HANDLE(bp, abs_vfid) \
+	(u16)(BP_ABS_FUNC((bp)) | (1<<3) |  ((u16)(abs_vfid) << 4))
+
+#define FW_PF_MAX_HANDLE	8
+
+#define FW_VF_HANDLE(abs_vfid)	\
+	(abs_vfid + FW_PF_MAX_HANDLE)
+
+/* VF mail box (aka vf-pf channel) */
+
+/* a container for the bi-directional vf<-->pf messages.
+ *  The actual response will be placed according to the offset parameter
+ *  provided in the request
+ */
+
+#define MBX_MSG_ALIGN	8
+#define MBX_MSG_ALIGNED_SIZE	(roundup(sizeof(struct bnx2x_vf_mbx_msg), \
+				MBX_MSG_ALIGN))
+
 struct bnx2x_vf_mbx_msg {
 	union vfpf_tlvs req;
 	union pfvf_tlvs resp;
@@ -198,6 +217,29 @@ struct bnx2x_vf_mbx {
 #define VF_MSG_INPROCESS	0x1	/* failsafe - the FW should prevent
 					 * more then one pending msg
 					 */
+};
+
+struct bnx2x_vf_sp {
+	union {
+		struct eth_classify_rules_ramrod_data	e2;
+	} mac_rdata;
+
+	union {
+		struct eth_classify_rules_ramrod_data	e2;
+	} vlan_rdata;
+
+	union {
+		struct eth_filter_rules_ramrod_data	e2;
+	} rx_mode_rdata;
+
+	union {
+		struct eth_multicast_rules_ramrod_data  e2;
+	} mcast_rdata;
+
+	union {
+		struct client_init_ramrod_data  init_data;
+		struct client_update_ramrod_data update_data;
+	} q_data;
 };
 
 struct hw_dma {
@@ -239,11 +281,25 @@ struct bnx2x_vfdb {
 	u32 flrd_vfs[FLRD_VFS_DWORDS];
 };
 
+static inline u8 vf_igu_sb(struct bnx2x_virtf *vf, u16 sb_idx)
+{
+	return vf->igu_base_id + sb_idx;
+}
+
 /* global iov routines */
 int bnx2x_iov_init_ilt(struct bnx2x *bp, u16 line);
 int bnx2x_iov_init_one(struct bnx2x *bp, int int_mode_param, int num_vfs_param);
 void bnx2x_iov_remove_one(struct bnx2x *bp);
+void bnx2x_iov_free_mem(struct bnx2x *bp);
+int bnx2x_iov_alloc_mem(struct bnx2x *bp);
+int bnx2x_iov_nic_init(struct bnx2x *bp);
+void bnx2x_iov_init_dq(struct bnx2x *bp);
+void bnx2x_iov_init_dmae(struct bnx2x *bp);
+void bnx2x_vf_enable_mbx(struct bnx2x *bp, u8 abs_vfid);
 int bnx2x_vf_idx_by_abs_fid(struct bnx2x *bp, u16 abs_vfid);
+/* VF FLR helpers */
+int bnx2x_vf_flr_clnup_epilog(struct bnx2x *bp, u8 abs_vfid);
+void bnx2x_vf_enable_access(struct bnx2x *bp, u8 abs_vfid);
 void bnx2x_add_tlv(struct bnx2x *bp, void *tlvs_list, u16 offset, u16 type,
 		   u16 length);
 void bnx2x_vfpf_prep(struct bnx2x *bp, struct vfpf_first_tlv *first_tlv,

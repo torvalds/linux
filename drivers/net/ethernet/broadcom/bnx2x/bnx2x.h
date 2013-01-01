@@ -1633,6 +1633,10 @@ struct bnx2x {
 	int					dcb_version;
 
 	/* CAM credit pools */
+
+	/* used only in sriov */
+	struct bnx2x_credit_pool_obj		vlans_pool;
+
 	struct bnx2x_credit_pool_obj		macs_pool;
 
 	/* RX_MODE object */
@@ -1847,12 +1851,14 @@ int bnx2x_del_all_macs(struct bnx2x *bp,
 
 /* Init Function API  */
 void bnx2x_func_init(struct bnx2x *bp, struct bnx2x_func_init_params *p);
+u32 bnx2x_get_pretend_reg(struct bnx2x *bp);
 int bnx2x_get_gpio(struct bnx2x *bp, int gpio_num, u8 port);
 int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode, u8 port);
 int bnx2x_set_mult_gpio(struct bnx2x *bp, u8 pins, u32 mode);
 int bnx2x_set_gpio_int(struct bnx2x *bp, int gpio_num, u32 mode, u8 port);
 void bnx2x_read_mf_cfg(struct bnx2x *bp);
 
+int bnx2x_pretend_func(struct bnx2x *bp, u16 pretend_func_val);
 
 /* dmae */
 void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32);
@@ -1864,6 +1870,7 @@ u32 bnx2x_dmae_opcode_clr_src_reset(u32 opcode);
 u32 bnx2x_dmae_opcode(struct bnx2x *bp, u8 src_type, u8 dst_type,
 		      bool with_comp, u8 comp_type);
 
+u8 bnx2x_is_pcie_pending(struct pci_dev *dev);
 
 void bnx2x_calc_fc_adv(struct bnx2x *bp);
 int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
@@ -1887,6 +1894,9 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 
 	return val;
 }
+
+void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
+			    bool is_pf);
 
 #define BNX2X_ILT_ZALLOC(x, y, size) \
 	do { \

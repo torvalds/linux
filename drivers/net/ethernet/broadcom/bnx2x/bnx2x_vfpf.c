@@ -78,3 +78,41 @@ void bnx2x_dp_tlv_list(struct bnx2x *bp, void *tlvs_list)
 	DP(BNX2X_MSG_IOV, "TLV number %d: type %d, length %d\n", i,
 	   tlv->type, tlv->length);
 }
+
+/* General service functions */
+static void storm_memset_vf_mbx_ack(struct bnx2x *bp, u16 abs_fid)
+{
+	u32 addr = BAR_CSTRORM_INTMEM +
+		   CSTORM_VF_PF_CHANNEL_STATE_OFFSET(abs_fid);
+
+	REG_WR8(bp, addr, VF_PF_CHANNEL_STATE_READY);
+}
+
+static void storm_memset_vf_mbx_valid(struct bnx2x *bp, u16 abs_fid)
+{
+	u32 addr = BAR_CSTRORM_INTMEM +
+		   CSTORM_VF_PF_CHANNEL_VALID_OFFSET(abs_fid);
+
+	REG_WR8(bp, addr, 1);
+}
+
+static inline void bnx2x_set_vf_mbxs_valid(struct bnx2x *bp)
+{
+	int i;
+
+	for_each_vf(bp, i)
+		storm_memset_vf_mbx_valid(bp, bnx2x_vf(bp, i, abs_vfid));
+}
+
+/* enable vf_pf mailbox (aka vf-pf-chanell) */
+void bnx2x_vf_enable_mbx(struct bnx2x *bp, u8 abs_vfid)
+{
+	bnx2x_vf_flr_clnup_epilog(bp, abs_vfid);
+
+	/* enable the mailbox in the FW */
+	storm_memset_vf_mbx_ack(bp, abs_vfid);
+	storm_memset_vf_mbx_valid(bp, abs_vfid);
+
+	/* enable the VF access to the mailbox */
+	bnx2x_vf_enable_access(bp, abs_vfid);
+}

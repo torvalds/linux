@@ -27,8 +27,7 @@
 #include "bnx2x_cmn.h"
 #include "bnx2x_init.h"
 #include "bnx2x_sp.h"
-
-
+#include "bnx2x_sriov.h"
 
 /**
  * bnx2x_move_fp - move content of the fastpath structure.
@@ -2524,7 +2523,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	/* Init per-function objects */
 	if (IS_PF(bp)) {
 		bnx2x_init_bp_objs(bp);
-
+		bnx2x_iov_nic_init(bp);
 
 		/* Set AFEX default VLAN tag to an invalid value */
 		bp->afex_def_vlan_tag = -1;

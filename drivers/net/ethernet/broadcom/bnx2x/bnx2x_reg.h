@@ -825,6 +825,7 @@
 /* [RW 28] The value sent to CM header in the case of CFC load error. */
 #define DORQ_REG_ERR_CMHEAD					 0x170058
 #define DORQ_REG_IF_EN						 0x170004
+#define DORQ_REG_MAX_RVFID_SIZE				 0x1701ec
 #define DORQ_REG_MODE_ACT					 0x170008
 /* [RW 5] The normal mode CID extraction offset. */
 #define DORQ_REG_NORM_CID_OFST					 0x17002c
@@ -847,6 +848,22 @@
    writes the same initial credit to the rspa_crd_cnt and rspb_crd_cnt. The
    read reads this written value. */
 #define DORQ_REG_RSP_INIT_CRD					 0x170048
+#define DORQ_REG_RSPB_CRD_CNT					 0x1700b0
+#define DORQ_REG_VF_NORM_CID_BASE				 0x1701a0
+#define DORQ_REG_VF_NORM_CID_OFST				 0x1701f4
+#define DORQ_REG_VF_NORM_CID_WND_SIZE				 0x1701a4
+#define DORQ_REG_VF_NORM_MAX_CID_COUNT				 0x1701e4
+#define DORQ_REG_VF_NORM_VF_BASE				 0x1701a8
+/* [RW 10] VF type validation mask value */
+#define DORQ_REG_VF_TYPE_MASK_0					 0x170218
+/* [RW 17] VF type validation Min MCID value */
+#define DORQ_REG_VF_TYPE_MAX_MCID_0				 0x1702d8
+/* [RW 17] VF type validation Max MCID value */
+#define DORQ_REG_VF_TYPE_MIN_MCID_0				 0x170298
+/* [RW 10] VF type validation comp value */
+#define DORQ_REG_VF_TYPE_VALUE_0				 0x170258
+#define DORQ_REG_VF_USAGE_CT_LIMIT				 0x170340
+
 /* [RW 4] Initial activity counter value on the load request; when the
    shortcut is done. */
 #define DORQ_REG_SHRT_ACT_CNT					 0x170070
@@ -2571,6 +2588,7 @@
    current task in process). */
 #define PBF_REG_DISABLE_NEW_TASK_PROC_P4			 0x14006c
 #define PBF_REG_DISABLE_PF					 0x1402e8
+#define PBF_REG_DISABLE_VF					 0x1402ec
 /* [RW 18] For port 0: For each client that is subject to WFQ (the
  * corresponding bit is 1); indicates to which of the credit registers this
  * client is mapped. For clients which are not credit blocked; their mapping
