@@ -464,7 +464,7 @@ static inline unsigned comedi_buf_read_n_allocated(struct comedi_async *async)
 static inline void *comedi_aux_data(int options[], int n)
 {
 	unsigned long address;
-	unsigned long addressLow;
+	unsigned long address_low;
 	int bit_shift;
 	if (sizeof(int) >= sizeof(void *))
 		address = options[COMEDI_DEVCONF_AUX_DATA_LO];
@@ -472,9 +472,9 @@ static inline void *comedi_aux_data(int options[], int n)
 		address = options[COMEDI_DEVCONF_AUX_DATA_HI];
 		bit_shift = sizeof(int) * 8;
 		address <<= bit_shift;
-		addressLow = options[COMEDI_DEVCONF_AUX_DATA_LO];
-		addressLow &= (1UL << bit_shift) - 1;
-		address |= addressLow;
+		address_low = options[COMEDI_DEVCONF_AUX_DATA_LO];
+		address_low &= (1UL << bit_shift) - 1;
+		address |= address_low;
 	}
 	if (n >= 1)
 		address += options[COMEDI_DEVCONF_AUX_DATA0_LENGTH];
