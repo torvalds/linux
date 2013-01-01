@@ -705,20 +705,19 @@ static int qlcnic_irq_test(struct net_device *netdev)
 		goto clear_it;
 
 	adapter->ahw->diag_cnt = 0;
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.req.cmd = QLCNIC_CDRP_CMD_INTRPT_TEST;
-	cmd.req.arg1 = adapter->ahw->pci_func;
-	qlcnic_issue_cmd(adapter, &cmd);
-	ret = cmd.rsp.cmd;
+	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_INTRPT_TEST);
+
+	cmd.req.arg[1] = adapter->ahw->pci_func;
+	ret = qlcnic_issue_cmd(adapter, &cmd);
 
 	if (ret)
 		goto done;
 
-	msleep(10);
-
+	usleep_range(1000, 12000);
 	ret = !adapter->ahw->diag_cnt;
 
 done:
+	qlcnic_free_mbx_args(&cmd);
 	qlcnic_diag_free_res(netdev, max_sds_rings);
 
 clear_it:
@@ -845,7 +844,7 @@ static int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
 
 	ret = qlcnic_do_lb_test(adapter, mode);
 
-	qlcnic_clear_lb_mode(adapter);
+	qlcnic_clear_lb_mode(adapter, mode);
 
  free_res:
 	qlcnic_diag_free_res(netdev, max_sds_rings);
@@ -1307,7 +1306,7 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 			return 0;
 		}
 		netdev_info(netdev, "Forcing a FW dump\n");
-		qlcnic_dev_request_reset(adapter);
+		qlcnic_dev_request_reset(adapter, 0);
 		break;
 	case QLCNIC_DISABLE_FW_DUMP:
 		if (fw_dump->enable && fw_dump->tmpl_hdr) {
@@ -1327,7 +1326,7 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 		return 0;
 	case QLCNIC_FORCE_FW_RESET:
 		netdev_info(netdev, "Forcing a FW reset\n");
-		qlcnic_dev_request_reset(adapter);
+		qlcnic_dev_request_reset(adapter, 0);
 		adapter->flags &= ~QLCNIC_FW_RESET_OWNER;
 		return 0;
 	case QLCNIC_SET_QUIESCENT:

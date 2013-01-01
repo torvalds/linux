@@ -95,14 +95,14 @@
 #define STATUS_CKSUM_LOOP	0
 #define STATUS_CKSUM_OK		2
 
-static void qlcnic_change_filter(struct qlcnic_adapter *adapter,
-				 u64 uaddr, __le16 vlan_id,
-				 struct qlcnic_host_tx_ring *tx_ring)
+void qlcnic_82xx_change_filter(struct qlcnic_adapter *adapter, u64 *uaddr,
+			       __le16 vlan_id)
 {
 	struct cmd_desc_type0 *hwdesc;
 	struct qlcnic_nic_req *req;
 	struct qlcnic_mac_req *mac_req;
 	struct qlcnic_vlan_req *vlan_req;
+	struct qlcnic_host_tx_ring *tx_ring = adapter->tx_ring;
 	u32 producer;
 	u64 word;
 
@@ -132,21 +132,21 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 			       struct cmd_desc_type0 *first_desc,
 			       struct sk_buff *skb)
 {
-	struct ethhdr *phdr = (struct ethhdr *)(skb->data);
 	struct qlcnic_filter *fil, *tmp_fil;
 	struct hlist_node *tmp_hnode, *n;
 	struct hlist_head *head;
+	struct ethhdr *phdr = (struct ethhdr *)(skb->data);
 	u64 src_addr = 0;
 	__le16 vlan_id = 0;
 	u8 hindex;
 
-	if (ether_addr_equal(phdr->h_source, adapter->mac_addr))
+	if (!compare_ether_addr(phdr->h_source, adapter->mac_addr))
 		return;
 
 	if (adapter->fhash.fnum >= adapter->fhash.fmax)
 		return;
 
-	/* Only NPAR capable devices support vlan based learning*/
+	/* Only NPAR capable devices support vlan based learning */
 	if (adapter->flags & QLCNIC_ESWITCH_ENABLED)
 		vlan_id = first_desc->vlan_TCI;
 	memcpy(&src_addr, phdr->h_source, ETH_ALEN);
@@ -155,11 +155,10 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 
 	hlist_for_each_entry_safe(tmp_fil, tmp_hnode, n, head, fnode) {
 		if (!memcmp(tmp_fil->faddr, &src_addr, ETH_ALEN) &&
-			    tmp_fil->vlan_id == vlan_id) {
-
+		    tmp_fil->vlan_id == vlan_id) {
 			if (jiffies > (QLCNIC_READD_AGE * HZ + tmp_fil->ftime))
-				qlcnic_change_filter(adapter, src_addr, vlan_id,
-						     tx_ring);
+				qlcnic_change_filter(adapter, &src_addr,
+						     vlan_id);
 			tmp_fil->ftime = jiffies;
 			return;
 		}
@@ -169,17 +168,13 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	if (!fil)
 		return;
 
-	qlcnic_change_filter(adapter, src_addr, vlan_id, tx_ring);
-
+	qlcnic_change_filter(adapter, &src_addr, vlan_id);
 	fil->ftime = jiffies;
 	fil->vlan_id = vlan_id;
 	memcpy(fil->faddr, &src_addr, ETH_ALEN);
-
 	spin_lock(&adapter->mac_learn_lock);
-
 	hlist_add_head(&(fil->fnode), head);
 	adapter->fhash.fnum++;
-
 	spin_unlock(&adapter->mac_learn_lock);
 }
 
@@ -492,7 +487,8 @@ drop_packet:
 	return NETDEV_TX_OK;
 }
 
-void qlcnic_advert_link_change(struct qlcnic_adapter *adapter, int linkup)
+static void qlcnic_advert_link_change(struct qlcnic_adapter *adapter,
+				      int linkup)
 {
 	struct net_device *netdev = adapter->netdev;
 
@@ -1180,7 +1176,7 @@ static void qlcnic_process_rcv_diag(struct qlcnic_adapter *adapter, int ring,
 	return;
 }
 
-void qlcnic_process_rcv_ring_diag(struct qlcnic_host_sds_ring *sds_ring)
+void qlcnic_82xx_process_rcv_ring_diag(struct qlcnic_host_sds_ring *sds_ring)
 {
 	struct qlcnic_adapter *adapter = sds_ring->adapter;
 	struct status_desc *desc;
@@ -1217,26 +1213,8 @@ void qlcnic_process_rcv_ring_diag(struct qlcnic_host_sds_ring *sds_ring)
 	writel(consumer, sds_ring->crb_sts_consumer);
 }
 
-void qlcnic_fetch_mac(u32 off1, u32 off2, u8 alt_mac, u8 *mac)
-{
-	u32 mac_low, mac_high;
-	int i;
-
-	mac_low = off1;
-	mac_high = off2;
-
-	if (alt_mac) {
-		mac_low |= (mac_low >> 16) | (mac_high << 16);
-		mac_high >>= 16;
-	}
-
-	for (i = 0; i < 2; i++)
-		mac[i] = (u8)(mac_high >> ((1 - i) * 8));
-	for (i = 2; i < 6; i++)
-		mac[i] = (u8)(mac_low >> ((5 - i) * 8));
-}
-
-int qlcnic_napi_add(struct qlcnic_adapter *adapter, struct net_device *netdev)
+int qlcnic_82xx_napi_add(struct qlcnic_adapter *adapter,
+			 struct net_device *netdev)
 {
 	int ring, max_sds_rings;
 	struct qlcnic_host_sds_ring *sds_ring;
@@ -1275,7 +1253,7 @@ void qlcnic_napi_del(struct qlcnic_adapter *adapter)
 	qlcnic_free_sds_rings(adapter->recv_ctx);
 }
 
-void qlcnic_napi_enable(struct qlcnic_adapter *adapter)
+void qlcnic_82xx_napi_enable(struct qlcnic_adapter *adapter)
 {
 	int ring;
 	struct qlcnic_host_sds_ring *sds_ring;
@@ -1291,7 +1269,7 @@ void qlcnic_napi_enable(struct qlcnic_adapter *adapter)
 	}
 }
 
-void qlcnic_napi_disable(struct qlcnic_adapter *adapter)
+void qlcnic_82xx_napi_disable(struct qlcnic_adapter *adapter)
 {
 	int ring;
 	struct qlcnic_host_sds_ring *sds_ring;

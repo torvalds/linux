@@ -11,6 +11,8 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 
+#include "qlcnic_hw.h"
+
 /*
  * The basic unit of access when reading/writing control registers.
  */
@@ -567,6 +569,9 @@ enum {
 #define NIC_CRB_BASE_2		(QLCNIC_CAM_RAM(0x700))
 #define QLCNIC_REG(X)		(NIC_CRB_BASE+(X))
 #define QLCNIC_REG_2(X) 	(NIC_CRB_BASE_2+(X))
+
+#define QLCNIC_CDRP_MAX_ARGS	4
+#define QLCNIC_CDRP_ARG(i)	(QLCNIC_REG(0x18 + ((i) * 4)))
 
 #define QLCNIC_CDRP_CRB_OFFSET		(QLCNIC_REG(0x18))
 #define QLCNIC_ARG1_CRB_OFFSET		(QLCNIC_REG(0x1c))
