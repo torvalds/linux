@@ -25,6 +25,16 @@
 	};
 };
 
+&i2c0 {
+	status = "okay";
+	clock-frequency = <100000>;
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <100000>;
+};
+
 &sdhci {
 	status = "okay";
 	bus-width = <4>;
