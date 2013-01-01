@@ -276,17 +276,6 @@ __s32 Hdmi_init(void)
 	run_sem = kmalloc(sizeof(struct semaphore), GFP_KERNEL | __GFP_ZERO);
 	sema_init((struct semaphore *)run_sem, 0);
 
-	HDMI_task = kthread_create(Hdmi_run_thread, (void *)0, "hdmi proc");
-	if (IS_ERR(HDMI_task)) {
-		__s32 err = 0;
-
-		__wrn("Unable to start kernel thread %s.\n", "hdmi proc");
-		err = PTR_ERR(HDMI_task);
-		HDMI_task = NULL;
-		return err;
-	}
-	wake_up_process(HDMI_task);
-
 	HDMI_BASE = (void __iomem *) ghdmi.base_hdmi;
 	hdmi_core_initial();
 	audio_info.channel_num = 2;
@@ -301,6 +290,22 @@ __s32 Hdmi_init(void)
 		Hdmi_hal_audio_enable(0, 1);
 	}
 #endif
+
+
+	/* Run main task once, should give EDID information directly */
+	hdmi_main_task_loop();
+
+	HDMI_task = kthread_create(Hdmi_run_thread, (void *)0, "hdmi proc");
+	if (IS_ERR(HDMI_task)) {
+		__s32 err = 0;
+
+		__wrn("Unable to start kernel thread %s.\n", "hdmi proc");
+		err = PTR_ERR(HDMI_task);
+		HDMI_task = NULL;
+		return err;
+	}
+	/* Launch main task loop */
+	wake_up_process(HDMI_task);
 
 
 	audio_func.hdmi_audio_enable = Hdmi_Audio_Enable;
