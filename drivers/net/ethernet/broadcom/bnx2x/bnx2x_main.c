@@ -5248,6 +5248,61 @@ void bnx2x_drv_pulse(struct bnx2x *bp)
 		 bp->fw_drv_pulse_wr_seq);
 }
 
+/* crc is the first field in the bulletin board. compute the crc over the
+ * entire bulletin board excluding the crc field itself
+ */
+u32 bnx2x_crc_vf_bulletin(struct bnx2x *bp,
+			  struct pf_vf_bulletin_content *bulletin)
+{
+	return crc32(BULLETIN_CRC_SEED,
+		 ((u8 *)bulletin) + sizeof(bulletin->crc),
+		 BULLETIN_CONTENT_SIZE - sizeof(bulletin->crc));
+}
+
+/* Check for new posts on the bulletin board */
+enum sample_bulletin_result bnx2x_sample_bulletin(struct bnx2x *bp)
+{
+	struct pf_vf_bulletin_content bulletin = bp->pf2vf_bulletin->content;
+	int attempts;
+
+	/* bulletin board hasn't changed since last sample */
+	if (bp->old_bulletin.version == bulletin.version)
+		return PFVF_BULLETIN_UNCHANGED;
+
+	/* validate crc of new bulletin board */
+	if (bp->old_bulletin.version != bp->pf2vf_bulletin->content.version) {
+		/* sampling structure in mid post may result with corrupted data
+		 * validate crc to ensure coherency.
+		 */
+		for (attempts = 0; attempts < BULLETIN_ATTEMPTS; attempts++) {
+			bulletin = bp->pf2vf_bulletin->content;
+			if (bulletin.crc == bnx2x_crc_vf_bulletin(bp,
+								  &bulletin))
+				break;
+
+			BNX2X_ERR("bad crc on bulletin board. contained %x computed %x\n",
+				  bulletin.crc,
+				  bnx2x_crc_vf_bulletin(bp, &bulletin));
+		}
+		if (attempts >= BULLETIN_ATTEMPTS) {
+			BNX2X_ERR("pf to vf bulletin board crc was wrong %d consecutive times. Aborting\n",
+				  attempts);
+			return PFVF_BULLETIN_CRC_ERR;
+		}
+	}
+
+	/* the mac address in bulletin board is valid and is new */
+	if (bulletin.valid_bitmap & 1 << MAC_ADDR_VALID &&
+	    memcmp(bulletin.mac, bp->old_bulletin.mac, ETH_ALEN)) {
+		/* update new mac to net device */
+		memcpy(bp->dev->dev_addr, bulletin.mac, ETH_ALEN);
+	}
+
+	/* copy new bulletin board to bp */
+	bp->old_bulletin = bulletin;
+
+	return PFVF_BULLETIN_UPDATED;
+}
 
 static void bnx2x_timer(unsigned long data)
 {
@@ -5283,6 +5338,10 @@ static void bnx2x_timer(unsigned long data)
 
 	if (bp->state == BNX2X_STATE_OPEN)
 		bnx2x_stats_handle(bp, STATS_EVENT_UPDATE);
+
+	/* sample pf vf bulletin board for new posts from pf */
+	if (IS_VF(bp))
+		bnx2x_sample_bulletin(bp);
 
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
 }
@@ -11660,7 +11719,7 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_poll_controller	= poll_bnx2x,
 #endif
 	.ndo_setup_tc		= bnx2x_setup_tc,
-
+	.ndo_set_vf_mac		= bnx2x_set_vf_mac,
 #ifdef NETDEV_FCOE_WWNN
 	.ndo_fcoe_get_wwn	= bnx2x_fcoe_get_wwn,
 #endif
@@ -12321,6 +12380,11 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 		/* allocate vf2pf mailbox for vf to pf channel */
 		BNX2X_PCI_ALLOC(bp->vf2pf_mbox, &bp->vf2pf_mbox_mapping,
 				sizeof(struct bnx2x_vf_mbx_msg));
+
+		/* allocate pf 2 vf bulletin board */
+		BNX2X_PCI_ALLOC(bp->pf2vf_bulletin, &bp->pf2vf_bulletin_mapping,
+				sizeof(union pf_vf_bulletin));
+
 	} else {
 		doorbell_size = BNX2X_L2_MAX_CID(bp) * (1 << BNX2X_DB_SHIFT);
 		if (doorbell_size > pci_resource_len(pdev, 2)) {
@@ -13379,6 +13443,9 @@ int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count)
 	req->resc_request.num_mac_filters = VF_ACQUIRE_MAC_FILTERS;
 	req->resc_request.num_mc_filters = VF_ACQUIRE_MC_FILTERS;
 
+	/* pf 2 vf bulletin board address */
+	req->bulletin_addr = bp->pf2vf_bulletin_mapping;
+
 	/* add list termination tlv */
 	bnx2x_add_tlv(bp, req, req->first_tlv.tl.length, CHANNEL_TLV_LIST_END,
 		      sizeof(struct channel_list_end_tlv));
@@ -13701,6 +13768,7 @@ int bnx2x_vfpf_teardown_queue(struct bnx2x *bp, int qidx)
 		return rc;
 	}
 
+	/* PF failed the transaction */
 	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
 		BNX2X_ERR("TEARDOWN for queue %d failed: %d\n", qidx,
 			  resp->hdr.status);
@@ -13727,6 +13795,9 @@ int bnx2x_vfpf_set_mac(struct bnx2x *bp)
 	req->filters[0].flags =
 		VFPF_Q_FILTER_DEST_MAC_VALID | VFPF_Q_FILTER_SET_MAC;
 
+	/* sample bulletin board for new mac */
+	bnx2x_sample_bulletin(bp);
+
 	/* copy mac from device to request */
 	memcpy(req->filters[0].mac, bp->dev->dev_addr, ETH_ALEN);
 
@@ -13744,7 +13815,26 @@ int bnx2x_vfpf_set_mac(struct bnx2x *bp)
 		return rc;
 	}
 
-	/* PF failed the transaction */
+	/* failure may mean PF was configured with a new mac for us */
+	while (resp->hdr.status == PFVF_STATUS_FAILURE) {
+		DP(BNX2X_MSG_IOV,
+		   "vfpf SET MAC failed. Check bulletin board for new posts\n");
+
+		/* check if bulletin board was updated */
+		if (bnx2x_sample_bulletin(bp) == PFVF_BULLETIN_UPDATED) {
+			/* copy mac from device to request */
+			memcpy(req->filters[0].mac, bp->dev->dev_addr,
+			       ETH_ALEN);
+
+			/* send message to pf */
+			rc = bnx2x_send_msg2pf(bp, &resp->hdr.status,
+					       bp->vf2pf_mbox_mapping);
+		} else {
+			/* no new info in bulletin */
+			break;
+		}
+	}
+
 	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
 		BNX2X_ERR("vfpf SET MAC failed: %d\n", resp->hdr.status);
 		return -EINVAL;

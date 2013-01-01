@@ -297,6 +297,10 @@ static void bnx2x_vf_mbx_acquire_resp(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		resc->num_mc_filters = 0;
 
 		if (status == PFVF_STATUS_SUCCESS) {
+			/* fill in the allocated resources */
+			struct pf_vf_bulletin_content *bulletin =
+				BP_VF_BULLETIN(bp, vf->index);
+
 			for_each_vfq(vf, i)
 				resc->hw_qid[i] =
 					vfq_qzone_id(vf, vfq_get(vf, i));
@@ -304,6 +308,12 @@ static void bnx2x_vf_mbx_acquire_resp(struct bnx2x *bp, struct bnx2x_virtf *vf,
 			for_each_vf_sb(vf, i) {
 				resc->hw_sbs[i].hw_sb_id = vf_igu_sb(vf, i);
 				resc->hw_sbs[i].sb_qid = vf_hc_qzone(vf, i);
+			}
+
+			/* if a mac has been set for this vf, supply it */
+			if (bulletin->valid_bitmap & 1 << MAC_ADDR_VALID) {
+				memcpy(resc->current_mac_addr, bulletin->mac,
+				       ETH_ALEN);
 			}
 		}
 	}
@@ -355,6 +365,9 @@ static void bnx2x_vf_mbx_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
 
 	/* acquire the resources */
 	rc = bnx2x_vf_acquire(bp, vf, &acquire->resc_request);
+
+	/* store address of vf's bulletin board */
+	vf->bulletin_map = acquire->bulletin_addr;
 
 	/* response */
 	bnx2x_vf_mbx_acquire_resp(bp, vf, mbx, rc);
@@ -766,10 +779,36 @@ static void bnx2x_vf_mbx_set_q_filters(struct bnx2x *bp,
 				       struct bnx2x_vf_mbx *mbx)
 {
 	struct vfpf_set_q_filters_tlv *filters = &mbx->msg->req.set_q_filters;
+	struct pf_vf_bulletin_content *bulletin = BP_VF_BULLETIN(bp, vf->index);
 	struct bnx2x_vfop_cmd cmd = {
 		.done = bnx2x_vf_mbx_resp,
 		.block = false,
 	};
+
+	/* if a mac was already set for this VF via the set vf mac ndo, we only
+	 * accept mac configurations of that mac. Why accept them at all?
+	 * because PF may have been unable to configure the mac at the time
+	 * since queue was not set up.
+	 */
+	if (bulletin->valid_bitmap & 1 << MAC_ADDR_VALID) {
+		/* once a mac was set by ndo can only accept a single mac... */
+		if (filters->n_mac_vlan_filters > 1) {
+			BNX2X_ERR("VF[%d] requested the addition of multiple macs after set_vf_mac ndo was called\n",
+				  vf->abs_vfid);
+			vf->op_rc = -EPERM;
+			goto response;
+		}
+
+		/* ...and only the mac set by the ndo */
+		if (filters->n_mac_vlan_filters == 1 &&
+		    memcmp(filters->filters->mac, bulletin->mac, ETH_ALEN)) {
+			BNX2X_ERR("VF[%d] requested the addition of a mac address not matching the one configured by set_vf_mac ndo\n",
+				  vf->abs_vfid);
+
+			vf->op_rc = -EPERM;
+			goto response;
+		}
+	}
 
 	/* verify vf_qid */
 	if (filters->vf_qid > vf_rxq_count(vf))
@@ -967,4 +1006,30 @@ mbx_error:
 	bnx2x_vf_release(bp, vf, false); /* non blocking */
 mbx_done:
 	return;
+}
+
+/* propagate local bulletin board to vf */
+int bnx2x_post_vf_bulletin(struct bnx2x *bp, int vf)
+{
+	struct pf_vf_bulletin_content *bulletin = BP_VF_BULLETIN(bp, vf);
+	dma_addr_t pf_addr = BP_VF_BULLETIN_DMA(bp)->mapping +
+		vf * BULLETIN_CONTENT_SIZE;
+	dma_addr_t vf_addr = bnx2x_vf(bp, vf, bulletin_map);
+	u32 len = BULLETIN_CONTENT_SIZE;
+	int rc;
+
+	/* can only update vf after init took place */
+	if (bnx2x_vf(bp, vf, state) != VF_ENABLED &&
+	    bnx2x_vf(bp, vf, state) != VF_ACQUIRED)
+		return 0;
+
+	/* increment bulletin board version and compute crc */
+	bulletin->version++;
+	bulletin->crc = bnx2x_crc_vf_bulletin(bp, bulletin);
+
+	/* propagate bulletin board via dmae to vm memory */
+	rc = bnx2x_copy32_vf_dmae(bp, false, pf_addr,
+				  bnx2x_vf(bp, vf, abs_vfid), U64_HI(vf_addr),
+				  U64_LO(vf_addr), len/4);
+	return rc;
 }

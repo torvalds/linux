@@ -2058,6 +2058,10 @@ void bnx2x_iov_free_mem(struct bnx2x *bp)
 	BNX2X_PCI_FREE(BP_VF_MBX_DMA(bp)->addr,
 		       BP_VF_MBX_DMA(bp)->mapping,
 		       BP_VF_MBX_DMA(bp)->size);
+
+	BNX2X_PCI_FREE(BP_VF_BULLETIN_DMA(bp)->addr,
+		       BP_VF_BULLETIN_DMA(bp)->mapping,
+		       BP_VF_BULLETIN_DMA(bp)->size);
 }
 
 int bnx2x_iov_alloc_mem(struct bnx2x *bp)
@@ -2096,6 +2100,12 @@ int bnx2x_iov_alloc_mem(struct bnx2x *bp)
 	BNX2X_PCI_ALLOC(BP_VF_MBX_DMA(bp)->addr, &BP_VF_MBX_DMA(bp)->mapping,
 			tot_size);
 	BP_VF_MBX_DMA(bp)->size = tot_size;
+
+	/* allocate local bulletin boards */
+	tot_size = BNX2X_NR_VIRTFN(bp) * BULLETIN_CONTENT_SIZE;
+	BNX2X_PCI_ALLOC(BP_VF_BULLETIN_DMA(bp)->addr,
+			&BP_VF_BULLETIN_DMA(bp)->mapping, tot_size);
+	BP_VF_BULLETIN_DMA(bp)->size = tot_size;
 
 	return 0;
 
@@ -2809,6 +2819,9 @@ int bnx2x_vf_init(struct bnx2x *bp, struct bnx2x_virtf *vf, dma_addr_t *sb_map)
 				    vfq_qzone_id(vf, vfq_get(vf, i)), true);
 
 	vf->state = VF_ENABLED;
+
+	/* update vf bulletin board */
+	bnx2x_post_vf_bulletin(bp, vf->index);
 
 	return 0;
 }

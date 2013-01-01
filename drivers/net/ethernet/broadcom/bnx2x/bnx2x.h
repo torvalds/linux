@@ -1259,6 +1259,12 @@ struct bnx2x {
 	/* we set aside a copy of the acquire response */
 	struct pfvf_acquire_resp_tlv acquire_resp;
 
+	/* bulletin board for messages from pf to vf */
+	union pf_vf_bulletin   *pf2vf_bulletin;
+	dma_addr_t		pf2vf_bulletin_mapping;
+
+	struct pf_vf_bulletin_content	old_bulletin;
+
 	struct net_device	*dev;
 	struct pci_dev		*pdev;
 

@@ -378,6 +378,12 @@ struct bnx2x_vfdb {
 	struct bnx2x_vf_mbx	mbxs[BNX2X_MAX_NUM_OF_VFS];
 #define BP_VF_MBX(bp, vfid)	(&((bp)->vfdb->mbxs[(vfid)]))
 
+	struct hw_dma		bulletin_dma;
+#define BP_VF_BULLETIN_DMA(bp)	(&((bp)->vfdb->bulletin_dma))
+#define	BP_VF_BULLETIN(bp, vf) \
+	(((struct pf_vf_bulletin_content *)(BP_VF_BULLETIN_DMA(bp)->addr)) \
+	 + (vf))
+
 	struct hw_dma		sp_dma;
 #define bnx2x_vf_sp(bp, vf, field) ((bp)->vfdb->sp_dma.addr +		\
 		(vf)->index * sizeof(struct bnx2x_vf_sp) +		\
@@ -701,5 +707,17 @@ void bnx2x_vfpf_prep(struct bnx2x *bp, struct vfpf_first_tlv *first_tlv,
 void bnx2x_dp_tlv_list(struct bnx2x *bp, void *tlvs_list);
 
 bool bnx2x_tlv_supported(u16 tlvtype);
+
+u32 bnx2x_crc_vf_bulletin(struct bnx2x *bp,
+			  struct pf_vf_bulletin_content *bulletin);
+int bnx2x_post_vf_bulletin(struct bnx2x *bp, int vf);
+
+enum sample_bulletin_result {
+	   PFVF_BULLETIN_UNCHANGED,
+	   PFVF_BULLETIN_UPDATED,
+	   PFVF_BULLETIN_CRC_ERR
+};
+
+enum sample_bulletin_result bnx2x_sample_bulletin(struct bnx2x *bp);
 
 #endif /* bnx2x_sriov.h */

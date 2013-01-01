@@ -37,6 +37,7 @@ struct hw_sb_info {
  * A.K.A VF-PF mailbox
  */
 #define TLV_BUFFER_SIZE			1024
+#define PF_VF_BULLETIN_SIZE		512
 
 #define VFPF_QUEUE_FLG_TPA		0x0001
 #define VFPF_QUEUE_FLG_TPA_IPV6		0x0002
@@ -60,6 +61,9 @@ struct hw_sb_info {
 #define VFPF_RX_MASK_ACCEPT_ALL_UNICAST		0x00000004
 #define VFPF_RX_MASK_ACCEPT_ALL_MULTICAST	0x00000008
 #define VFPF_RX_MASK_ACCEPT_BROADCAST		0x00000010
+#define BULLETIN_CONTENT_SIZE		(sizeof(struct pf_vf_bulletin_content))
+#define BULLETIN_ATTEMPTS	5 /* crc failures before throwing towel */
+#define BULLETIN_CRC_SEED	0
 
 enum {
 	PFVF_STATUS_WAITING = 0,
@@ -299,6 +303,38 @@ union pfvf_tlvs {
 	struct tlv_buffer_size		tlv_buf_size;
 };
 
+/* This is a structure which is allocated in the VF, which the PF may update
+ * when it deems it necessary to do so. The bulletin board is sampled
+ * periodically by the VF. A copy per VF is maintained in the PF (to prevent
+ * loss of data upon multiple updates (or the need for read modify write)).
+ */
+struct pf_vf_bulletin_size {
+	u8 size[PF_VF_BULLETIN_SIZE];
+};
+
+struct pf_vf_bulletin_content {
+	u32 crc;			/* crc of structure to ensure is not in
+					 * mid-update
+					 */
+	u32 version;
+
+	aligned_u64 valid_bitmap;	/* bitmap indicating which fields
+					 * hold valid values
+					 */
+
+#define MAC_ADDR_VALID		0	/* alert the vf that a new mac address
+					 * is available for it
+					 */
+
+	u8 mac[ETH_ALEN];
+	u8 padding[2];
+};
+
+union pf_vf_bulletin {
+	struct pf_vf_bulletin_content content;
+	struct pf_vf_bulletin_size size;
+};
+
 #define MAX_TLVS_IN_LIST 50
 
 enum channel_tlvs {
@@ -313,6 +349,7 @@ enum channel_tlvs {
 	CHANNEL_TLV_PF_RELEASE_VF,
 	CHANNEL_TLV_LIST_END,
 	CHANNEL_TLV_FLR,
+	CHANNEL_TLV_PF_SET_MAC,
 	CHANNEL_TLV_MAX
 };
 
