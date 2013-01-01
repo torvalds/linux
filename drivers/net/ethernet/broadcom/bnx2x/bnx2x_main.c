@@ -2460,17 +2460,49 @@ void bnx2x__link_status_update(struct bnx2x *bp)
 		return;
 
 	/* read updated dcb configuration */
-	bnx2x_dcbx_pmf_update(bp);
+	if (IS_PF(bp)) {
+		bnx2x_dcbx_pmf_update(bp);
+		bnx2x_link_status_update(&bp->link_params, &bp->link_vars);
+		if (bp->link_vars.link_up)
+			bnx2x_stats_handle(bp, STATS_EVENT_LINK_UP);
+		else
+			bnx2x_stats_handle(bp, STATS_EVENT_STOP);
+			/* indicate link status */
+		bnx2x_link_report(bp);
 
-	bnx2x_link_status_update(&bp->link_params, &bp->link_vars);
+	} else { /* VF */
+		bp->port.supported[0] |= (SUPPORTED_10baseT_Half |
+					  SUPPORTED_10baseT_Full |
+					  SUPPORTED_100baseT_Half |
+					  SUPPORTED_100baseT_Full |
+					  SUPPORTED_1000baseT_Full |
+					  SUPPORTED_2500baseX_Full |
+					  SUPPORTED_10000baseT_Full |
+					  SUPPORTED_TP |
+					  SUPPORTED_FIBRE |
+					  SUPPORTED_Autoneg |
+					  SUPPORTED_Pause |
+					  SUPPORTED_Asym_Pause);
+		bp->port.advertising[0] = bp->port.supported[0];
 
-	if (bp->link_vars.link_up)
+		bp->link_params.bp = bp;
+		bp->link_params.port = BP_PORT(bp);
+		bp->link_params.req_duplex[0] = DUPLEX_FULL;
+		bp->link_params.req_flow_ctrl[0] = BNX2X_FLOW_CTRL_NONE;
+		bp->link_params.req_line_speed[0] = SPEED_10000;
+		bp->link_params.speed_cap_mask[0] = 0x7f0000;
+		bp->link_params.switch_cfg = SWITCH_CFG_10G;
+		bp->link_vars.mac_type = MAC_TYPE_BMAC;
+		bp->link_vars.line_speed = SPEED_10000;
+		bp->link_vars.link_status =
+			(LINK_STATUS_LINK_UP |
+			 LINK_STATUS_SPEED_AND_DUPLEX_10GTFD);
+		bp->link_vars.link_up = 1;
+		bp->link_vars.duplex = DUPLEX_FULL;
+		bp->link_vars.flow_ctrl = BNX2X_FLOW_CTRL_NONE;
+		__bnx2x_link_report(bp);
 		bnx2x_stats_handle(bp, STATS_EVENT_LINK_UP);
-	else
-		bnx2x_stats_handle(bp, STATS_EVENT_STOP);
-
-	/* indicate link status */
-	bnx2x_link_report(bp);
+	}
 }
 
 static int bnx2x_afex_func_update(struct bnx2x *bp, u16 vifid,
@@ -5700,6 +5732,13 @@ static void bnx2x_init_eth_fp(struct bnx2x *bp, int fp_idx)
 		cids[cos] = fp->txdata_ptr[cos]->cid;
 	}
 
+	/* nothing more for vf to do here */
+	if (IS_VF(bp))
+		return;
+
+	bnx2x_init_sb(bp, fp->status_blk_mapping, BNX2X_VF_ID_INVALID, false,
+		      fp->fw_sb_id, fp->igu_sb_id);
+	bnx2x_update_fpsb_idx(fp);
 	bnx2x_init_queue_obj(bp, &bnx2x_sp_obj(bp, fp).q_obj, fp->cl_id, cids,
 			     fp->max_cos, BP_FUNC(bp), bnx2x_sp(bp, q_rdata),
 			     bnx2x_sp_mapping(bp, q_rdata), q_type);
@@ -5709,13 +5748,10 @@ static void bnx2x_init_eth_fp(struct bnx2x *bp, int fp_idx)
 	 */
 	bnx2x_init_vlan_mac_fp_objs(fp, BNX2X_OBJ_TYPE_RX_TX);
 
-	DP(NETIF_MSG_IFUP, "queue[%d]:  bnx2x_init_sb(%p,%p)  cl_id %d  fw_sb %d  igu_sb %d\n",
-		   fp_idx, bp, fp->status_blk.e2_sb, fp->cl_id, fp->fw_sb_id,
-		   fp->igu_sb_id);
-	bnx2x_init_sb(bp, fp->status_blk_mapping, BNX2X_VF_ID_INVALID, false,
-		      fp->fw_sb_id, fp->igu_sb_id);
-
-	bnx2x_update_fpsb_idx(fp);
+	DP(NETIF_MSG_IFUP,
+	   "queue[%d]:  bnx2x_init_sb(%p,%p)  cl_id %d  fw_sb %d  igu_sb %d\n",
+	   fp_idx, bp, fp->status_blk.e2_sb, fp->cl_id, fp->fw_sb_id,
+	   fp->igu_sb_id);
 }
 
 static void bnx2x_init_tx_ring_one(struct bnx2x_fp_txdata *txdata)
@@ -5787,17 +5823,22 @@ void bnx2x_nic_init(struct bnx2x *bp, u32 load_code)
 
 	for_each_eth_queue(bp, i)
 		bnx2x_init_eth_fp(bp, i);
+
+	/* ensure status block indices were read */
+	rmb();
+	bnx2x_init_rx_rings(bp);
+	bnx2x_init_tx_rings(bp);
+
+	if (IS_VF(bp))
+		return;
+
 	/* Initialize MOD_ABS interrupts */
 	bnx2x_init_mod_abs_int(bp, &bp->link_vars, bp->common.chip_id,
 			       bp->common.shmem_base, bp->common.shmem2_base,
 			       BP_PORT(bp));
-	/* ensure status block indices were read */
-	rmb();
 
 	bnx2x_init_def_sb(bp);
 	bnx2x_update_dsb_idx(bp);
-	bnx2x_init_rx_rings(bp);
-	bnx2x_init_tx_rings(bp);
 	bnx2x_init_sp_ring(bp);
 	bnx2x_init_eq_ring(bp);
 	bnx2x_init_internal(bp, load_code);
@@ -9656,7 +9697,7 @@ static int bnx2x_prev_unload_uncommon(struct bnx2x *bp)
 	 * the one required, then FLR will be sufficient to clean any residue
 	 * left by previous driver
 	 */
-	rc = bnx2x_test_firmware_version(bp, false);
+	rc = bnx2x_nic_load_analyze_req(bp, FW_MSG_CODE_DRV_LOAD_FUNCTION);
 
 	if (!rc) {
 		/* fw version is good */
@@ -11236,50 +11277,51 @@ static int bnx2x_open(struct net_device *dev)
 
 	bnx2x_set_power_state(bp, PCI_D0);
 
-	other_load_status = bnx2x_get_load_status(bp, other_engine);
-	load_status = bnx2x_get_load_status(bp, BP_PATH(bp));
-
-	/*
-	 * If parity had happen during the unload, then attentions
+	/* If parity had happen during the unload, then attentions
 	 * and/or RECOVERY_IN_PROGRES may still be set. In this case we
 	 * want the first function loaded on the current engine to
 	 * complete the recovery.
+	 * Parity recovery is only relevant for PF driver.
 	 */
-	if (!bnx2x_reset_is_done(bp, BP_PATH(bp)) ||
-	    bnx2x_chk_parity_attn(bp, &global, true))
-		do {
-			/*
-			 * If there are attentions and they are in a global
-			 * blocks, set the GLOBAL_RESET bit regardless whether
-			 * it will be this function that will complete the
-			 * recovery or not.
-			 */
-			if (global)
-				bnx2x_set_reset_global(bp);
+	if (IS_PF(bp)) {
+		other_load_status = bnx2x_get_load_status(bp, other_engine);
+		load_status = bnx2x_get_load_status(bp, BP_PATH(bp));
+		if (!bnx2x_reset_is_done(bp, BP_PATH(bp)) ||
+		    bnx2x_chk_parity_attn(bp, &global, true)) {
+			do {
+				/* If there are attentions and they are in a
+				 * global blocks, set the GLOBAL_RESET bit
+				 * regardless whether it will be this function
+				 * that will complete the recovery or not.
+				 */
+				if (global)
+					bnx2x_set_reset_global(bp);
 
-			/*
-			 * Only the first function on the current engine should
-			 * try to recover in open. In case of attentions in
-			 * global blocks only the first in the chip should try
-			 * to recover.
-			 */
-			if ((!load_status &&
-			     (!global || !other_load_status)) &&
-			    bnx2x_trylock_leader_lock(bp) &&
-			    !bnx2x_leader_reset(bp)) {
-				netdev_info(bp->dev, "Recovered in open\n");
-				break;
-			}
+				/* Only the first function on the current
+				 * engine should try to recover in open. In case
+				 * of attentions in global blocks only the first
+				 * in the chip should try to recover.
+				 */
+				if ((!load_status &&
+				     (!global || !other_load_status)) &&
+				      bnx2x_trylock_leader_lock(bp) &&
+				      !bnx2x_leader_reset(bp)) {
+					netdev_info(bp->dev,
+						    "Recovered in open\n");
+					break;
+				}
 
-			/* recovery has failed... */
-			bnx2x_set_power_state(bp, PCI_D3hot);
-			bp->recovery_state = BNX2X_RECOVERY_FAILED;
+				/* recovery has failed... */
+				bnx2x_set_power_state(bp, PCI_D3hot);
+				bp->recovery_state = BNX2X_RECOVERY_FAILED;
 
-			BNX2X_ERR("Recovery flow hasn't been properly completed yet. Try again later.\n"
-				  "If you still see this message after a few retries then power cycle is required.\n");
+				BNX2X_ERR("Recovery flow hasn't been properly completed yet. Try again later.\n"
+					  "If you still see this message after a few retries then power cycle is required.\n");
 
-			return -EAGAIN;
-		} while (0);
+				return -EAGAIN;
+			} while (0);
+		}
+	}
 
 	bp->recovery_state = BNX2X_RECOVERY_DONE;
 	return bnx2x_nic_load(bp, LOAD_OPEN);
