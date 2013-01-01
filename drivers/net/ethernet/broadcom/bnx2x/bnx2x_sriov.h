@@ -684,9 +684,16 @@ int bnx2x_vfop_release_cmd(struct bnx2x *bp,
 void bnx2x_vf_release(struct bnx2x *bp, struct bnx2x_virtf *vf, bool block);
 int bnx2x_vf_idx_by_abs_fid(struct bnx2x *bp, u16 abs_vfid);
 u8 bnx2x_vf_max_queue_cnt(struct bnx2x *bp, struct bnx2x_virtf *vf);
+
+/* FLR routines */
+
 /* VF FLR helpers */
 int bnx2x_vf_flr_clnup_epilog(struct bnx2x *bp, u8 abs_vfid);
 void bnx2x_vf_enable_access(struct bnx2x *bp, u8 abs_vfid);
+
+/* Handles an FLR (or VF_DISABLE) notification form the MCP */
+void bnx2x_vf_handle_flr_event(struct bnx2x *bp);
+
 void bnx2x_add_tlv(struct bnx2x *bp, void *tlvs_list, u16 offset, u16 type,
 		   u16 length);
 void bnx2x_vfpf_prep(struct bnx2x *bp, struct vfpf_first_tlv *first_tlv,

@@ -138,6 +138,17 @@ enum bnx2x_vfop_mcast_state {
 	   BNX2X_VFOP_MCAST_ADD,
 	   BNX2X_VFOP_MCAST_CHK_DONE
 };
+enum bnx2x_vfop_qflr_state {
+	   BNX2X_VFOP_QFLR_CLR_VLAN,
+	   BNX2X_VFOP_QFLR_CLR_MAC,
+	   BNX2X_VFOP_QFLR_TERMINATE,
+	   BNX2X_VFOP_QFLR_DONE
+};
+
+enum bnx2x_vfop_flr_state {
+	   BNX2X_VFOP_FLR_QUEUES,
+	   BNX2X_VFOP_FLR_HW
+};
 
 enum bnx2x_vfop_close_state {
 	   BNX2X_VFOP_CLOSE_QUEUES,
@@ -973,6 +984,94 @@ int bnx2x_vfop_qsetup_cmd(struct bnx2x *bp,
 	return -ENOMEM;
 }
 
+/* VFOP queue FLR handling (clear vlans, clear macs, queue destructor) */
+static void bnx2x_vfop_qflr(struct bnx2x *bp, struct bnx2x_virtf *vf)
+{
+	struct bnx2x_vfop *vfop = bnx2x_vfop_cur(bp, vf);
+	int qid = vfop->args.qx.qid;
+	enum bnx2x_vfop_qflr_state state = vfop->state;
+	struct bnx2x_queue_state_params *qstate;
+	struct bnx2x_vfop_cmd cmd;
+
+	bnx2x_vfop_reset_wq(vf);
+
+	if (vfop->rc < 0)
+		goto op_err;
+
+	DP(BNX2X_MSG_IOV, "VF[%d] STATE: %d\n", vf->abs_vfid, state);
+
+	cmd.done = bnx2x_vfop_qflr;
+	cmd.block = false;
+
+	switch (state) {
+	case BNX2X_VFOP_QFLR_CLR_VLAN:
+		/* vlan-clear-all: driver-only, don't consume credit */
+		vfop->state = BNX2X_VFOP_QFLR_CLR_MAC;
+		vfop->rc = bnx2x_vfop_vlan_delall_cmd(bp, vf, &cmd, qid, true);
+		if (vfop->rc)
+			goto op_err;
+		return;
+
+	case BNX2X_VFOP_QFLR_CLR_MAC:
+		/* mac-clear-all: driver only consume credit */
+		vfop->state = BNX2X_VFOP_QFLR_TERMINATE;
+		vfop->rc = bnx2x_vfop_mac_delall_cmd(bp, vf, &cmd, qid, true);
+		DP(BNX2X_MSG_IOV,
+		   "VF[%d] vfop->rc after bnx2x_vfop_mac_delall_cmd was %d",
+		   vf->abs_vfid, vfop->rc);
+		if (vfop->rc)
+			goto op_err;
+		return;
+
+	case BNX2X_VFOP_QFLR_TERMINATE:
+		qstate = &vfop->op_p->qctor.qstate;
+		memset(qstate , 0, sizeof(*qstate));
+		qstate->q_obj = &bnx2x_vfq(vf, qid, sp_obj);
+		vfop->state = BNX2X_VFOP_QFLR_DONE;
+
+		DP(BNX2X_MSG_IOV, "VF[%d] qstate during flr was %d\n",
+		   vf->abs_vfid, qstate->q_obj->state);
+
+		if (qstate->q_obj->state != BNX2X_Q_STATE_RESET) {
+			qstate->q_obj->state = BNX2X_Q_STATE_STOPPED;
+			qstate->cmd = BNX2X_Q_CMD_TERMINATE;
+			vfop->rc = bnx2x_queue_state_change(bp, qstate);
+			bnx2x_vfop_finalize(vf, vfop->rc, VFOP_VERIFY_PEND);
+		} else {
+			goto op_done;
+		}
+
+op_err:
+	BNX2X_ERR("QFLR[%d:%d] error: rc %d\n",
+		  vf->abs_vfid, qid, vfop->rc);
+op_done:
+	case BNX2X_VFOP_QFLR_DONE:
+		bnx2x_vfop_end(bp, vf, vfop);
+		return;
+	default:
+		bnx2x_vfop_default(state);
+	}
+op_pending:
+	return;
+}
+
+static int bnx2x_vfop_qflr_cmd(struct bnx2x *bp,
+			       struct bnx2x_virtf *vf,
+			       struct bnx2x_vfop_cmd *cmd,
+			       int qid)
+{
+	struct bnx2x_vfop *vfop = bnx2x_vfop_add(bp, vf);
+
+	if (vfop) {
+		vfop->args.qx.qid = qid;
+		bnx2x_vfop_opset(BNX2X_VFOP_QFLR_CLR_VLAN,
+				 bnx2x_vfop_qflr, cmd->done);
+		return bnx2x_vfop_transition(bp, vf, bnx2x_vfop_qflr,
+					     cmd->block);
+	}
+	return -ENOMEM;
+}
+
 /* VFOP multi-casts */
 static void bnx2x_vfop_mcast(struct bnx2x *bp, struct bnx2x_virtf *vf)
 {
@@ -1428,6 +1527,201 @@ static void bnx2x_vf_free_resc(struct bnx2x *bp, struct bnx2x_virtf *vf)
 	/* reset the state variables */
 	bnx2x_iov_static_resc(bp, &vf->alloc_resc);
 	vf->state = VF_FREE;
+}
+
+static void bnx2x_vf_flr_clnup_hw(struct bnx2x *bp, struct bnx2x_virtf *vf)
+{
+	u32 poll_cnt = bnx2x_flr_clnup_poll_count(bp);
+
+	/* DQ usage counter */
+	bnx2x_pretend_func(bp, HW_VF_HANDLE(bp, vf->abs_vfid));
+	bnx2x_flr_clnup_poll_hw_counter(bp, DORQ_REG_VF_USAGE_CNT,
+					"DQ VF usage counter timed out",
+					poll_cnt);
+	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
+
+	/* FW cleanup command - poll for the results */
+	if (bnx2x_send_final_clnup(bp, (u8)FW_VF_HANDLE(vf->abs_vfid),
+				   poll_cnt))
+		BNX2X_ERR("VF[%d] Final cleanup timed-out\n", vf->abs_vfid);
+
+	/* verify TX hw is flushed */
+	bnx2x_tx_hw_flushed(bp, poll_cnt);
+}
+
+static void bnx2x_vfop_flr(struct bnx2x *bp, struct bnx2x_virtf *vf)
+{
+	struct bnx2x_vfop *vfop = bnx2x_vfop_cur(bp, vf);
+	struct bnx2x_vfop_args_qx *qx = &vfop->args.qx;
+	enum bnx2x_vfop_flr_state state = vfop->state;
+	struct bnx2x_vfop_cmd cmd = {
+		.done = bnx2x_vfop_flr,
+		.block = false,
+	};
+
+	if (vfop->rc < 0)
+		goto op_err;
+
+	DP(BNX2X_MSG_IOV, "vf[%d] STATE: %d\n", vf->abs_vfid, state);
+
+	switch (state) {
+	case BNX2X_VFOP_FLR_QUEUES:
+		/* the cleanup operations are valid if and only if the VF
+		 * was first acquired.
+		 */
+		if (++(qx->qid) < vf_rxq_count(vf)) {
+			vfop->rc = bnx2x_vfop_qflr_cmd(bp, vf, &cmd,
+						       qx->qid);
+			if (vfop->rc)
+				goto op_err;
+			return;
+		}
+		/* remove multicasts */
+		vfop->state = BNX2X_VFOP_FLR_HW;
+		vfop->rc = bnx2x_vfop_mcast_cmd(bp, vf, &cmd, NULL,
+						0, true);
+		if (vfop->rc)
+			goto op_err;
+		return;
+	case BNX2X_VFOP_FLR_HW:
+
+		/* dispatch final cleanup and wait for HW queues to flush */
+		bnx2x_vf_flr_clnup_hw(bp, vf);
+
+		/* release VF resources */
+		bnx2x_vf_free_resc(bp, vf);
+
+		/* re-open the mailbox */
+		bnx2x_vf_enable_mbx(bp, vf->abs_vfid);
+
+		goto op_done;
+	default:
+		bnx2x_vfop_default(state);
+	}
+op_err:
+	BNX2X_ERR("VF[%d] FLR error: rc %d\n", vf->abs_vfid, vfop->rc);
+op_done:
+	vf->flr_clnup_stage = VF_FLR_ACK;
+	bnx2x_vfop_end(bp, vf, vfop);
+	bnx2x_unlock_vf_pf_channel(bp, vf, CHANNEL_TLV_FLR);
+}
+
+static int bnx2x_vfop_flr_cmd(struct bnx2x *bp,
+			      struct bnx2x_virtf *vf,
+			      vfop_handler_t done)
+{
+	struct bnx2x_vfop *vfop = bnx2x_vfop_add(bp, vf);
+	if (vfop) {
+		vfop->args.qx.qid = -1; /* loop */
+		bnx2x_vfop_opset(BNX2X_VFOP_FLR_QUEUES,
+				 bnx2x_vfop_flr, done);
+		return bnx2x_vfop_transition(bp, vf, bnx2x_vfop_flr, false);
+	}
+	return -ENOMEM;
+}
+
+static void bnx2x_vf_flr_clnup(struct bnx2x *bp, struct bnx2x_virtf *prev_vf)
+{
+	int i = prev_vf ? prev_vf->index + 1 : 0;
+	struct bnx2x_virtf *vf;
+
+	/* find next VF to cleanup */
+next_vf_to_clean:
+	for (;
+	     i < BNX2X_NR_VIRTFN(bp) &&
+	     (bnx2x_vf(bp, i, state) != VF_RESET ||
+	      bnx2x_vf(bp, i, flr_clnup_stage) != VF_FLR_CLN);
+	     i++)
+		;
+
+	DP(BNX2X_MSG_IOV, "next vf to cleanup: %d. num of vfs: %d\n", i,
+	   BNX2X_NR_VIRTFN(bp));
+
+	if (i < BNX2X_NR_VIRTFN(bp)) {
+		vf = BP_VF(bp, i);
+
+		/* lock the vf pf channel */
+		bnx2x_lock_vf_pf_channel(bp, vf, CHANNEL_TLV_FLR);
+
+		/* invoke the VF FLR SM */
+		if (bnx2x_vfop_flr_cmd(bp, vf, bnx2x_vf_flr_clnup)) {
+			BNX2X_ERR("VF[%d]: FLR cleanup failed -ENOMEM\n",
+				  vf->abs_vfid);
+
+			/* mark the VF to be ACKED and continue */
+			vf->flr_clnup_stage = VF_FLR_ACK;
+			goto next_vf_to_clean;
+		}
+		return;
+	}
+
+	/* we are done, update vf records */
+	for_each_vf(bp, i) {
+		vf = BP_VF(bp, i);
+
+		if (vf->flr_clnup_stage != VF_FLR_ACK)
+			continue;
+
+		vf->flr_clnup_stage = VF_FLR_EPILOG;
+	}
+
+	/* Acknowledge the handled VFs.
+	 * we are acknowledge all the vfs which an flr was requested for, even
+	 * if amongst them there are such that we never opened, since the mcp
+	 * will interrupt us immediately again if we only ack some of the bits,
+	 * resulting in an endless loop. This can happen for example in KVM
+	 * where an 'all ones' flr request is sometimes given by hyper visor
+	 */
+	DP(BNX2X_MSG_MCP, "DRV_STATUS_VF_DISABLED ACK for vfs 0x%x 0x%x\n",
+	   bp->vfdb->flrd_vfs[0], bp->vfdb->flrd_vfs[1]);
+	for (i = 0; i < FLRD_VFS_DWORDS; i++)
+		SHMEM2_WR(bp, drv_ack_vf_disabled[BP_FW_MB_IDX(bp)][i],
+			  bp->vfdb->flrd_vfs[i]);
+
+	bnx2x_fw_command(bp, DRV_MSG_CODE_VF_DISABLED_DONE, 0);
+
+	/* clear the acked bits - better yet if the MCP implemented
+	 * write to clear semantics
+	 */
+	for (i = 0; i < FLRD_VFS_DWORDS; i++)
+		SHMEM2_WR(bp, drv_ack_vf_disabled[BP_FW_MB_IDX(bp)][i], 0);
+}
+
+void bnx2x_vf_handle_flr_event(struct bnx2x *bp)
+{
+	int i;
+
+	/* Read FLR'd VFs */
+	for (i = 0; i < FLRD_VFS_DWORDS; i++)
+		bp->vfdb->flrd_vfs[i] = SHMEM2_RD(bp, mcp_vf_disabled[i]);
+
+	DP(BNX2X_MSG_MCP,
+	   "DRV_STATUS_VF_DISABLED received for vfs 0x%x 0x%x\n",
+	   bp->vfdb->flrd_vfs[0], bp->vfdb->flrd_vfs[1]);
+
+	for_each_vf(bp, i) {
+		struct bnx2x_virtf *vf = BP_VF(bp, i);
+		u32 reset = 0;
+
+		if (vf->abs_vfid < 32)
+			reset = bp->vfdb->flrd_vfs[0] & (1 << vf->abs_vfid);
+		else
+			reset = bp->vfdb->flrd_vfs[1] &
+				(1 << (vf->abs_vfid - 32));
+
+		if (reset) {
+			/* set as reset and ready for cleanup */
+			vf->state = VF_RESET;
+			vf->flr_clnup_stage = VF_FLR_CLN;
+
+			DP(BNX2X_MSG_IOV,
+			   "Initiating Final cleanup for VF %d\n",
+			   vf->abs_vfid);
+		}
+	}
+
+	/* do the FLR cleanup for all marked VFs*/
+	bnx2x_vf_flr_clnup(bp, NULL);
 }
 
 /* IOV global initialization routines  */

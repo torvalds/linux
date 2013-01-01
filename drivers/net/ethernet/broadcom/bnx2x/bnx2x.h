@@ -1879,7 +1879,13 @@ void bnx2x_prep_dmae_with_comp(struct bnx2x *bp, struct dmae_command *dmae,
 int bnx2x_issue_dmae_with_comp(struct bnx2x *bp, struct dmae_command *dmae);
 void bnx2x_dp_dmae(struct bnx2x *bp, struct dmae_command *dmae, int msglvl);
 
+/* FLR related routines */
+u32 bnx2x_flr_clnup_poll_count(struct bnx2x *bp);
+void bnx2x_tx_hw_flushed(struct bnx2x *bp, u32 poll_count);
+int bnx2x_send_final_clnup(struct bnx2x *bp, u8 clnup_func, u32 poll_cnt);
 u8 bnx2x_is_pcie_pending(struct pci_dev *dev);
+int bnx2x_flr_clnup_poll_hw_counter(struct bnx2x *bp, u32 reg,
+				    char *msg, u32 poll_cnt);
 
 void bnx2x_calc_fc_adv(struct bnx2x *bp);
 int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,

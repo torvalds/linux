@@ -876,6 +876,7 @@
 #define HC_CONFIG_0_REG_MSI_MSIX_INT_EN_0			 (0x1<<2)
 #define HC_CONFIG_0_REG_SINGLE_ISR_EN_0				 (0x1<<1)
 #define HC_CONFIG_1_REG_BLOCK_DISABLE_1				 (0x1<<0)
+#define DORQ_REG_VF_USAGE_CNT					 0x170320
 #define HC_REG_AGG_INT_0					 0x108050
 #define HC_REG_AGG_INT_1					 0x108054
 #define HC_REG_ATTN_BIT 					 0x108120

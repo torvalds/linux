@@ -1097,8 +1097,8 @@ static u32 bnx2x_flr_clnup_reg_poll(struct bnx2x *bp, u32 reg,
 	return val;
 }
 
-static int bnx2x_flr_clnup_poll_hw_counter(struct bnx2x *bp, u32 reg,
-					   char *msg, u32 poll_cnt)
+int bnx2x_flr_clnup_poll_hw_counter(struct bnx2x *bp, u32 reg,
+				    char *msg, u32 poll_cnt)
 {
 	u32 val = bnx2x_flr_clnup_reg_poll(bp, reg, 0, poll_cnt);
 	if (val != 0) {
@@ -1108,7 +1108,8 @@ static int bnx2x_flr_clnup_poll_hw_counter(struct bnx2x *bp, u32 reg,
 	return 0;
 }
 
-static u32 bnx2x_flr_clnup_poll_count(struct bnx2x *bp)
+/* Common routines with VF FLR cleanup */
+u32 bnx2x_flr_clnup_poll_count(struct bnx2x *bp)
 {
 	/* adjust polling timeout */
 	if (CHIP_REV_IS_EMUL(bp))
@@ -1120,7 +1121,7 @@ static u32 bnx2x_flr_clnup_poll_count(struct bnx2x *bp)
 	return FLR_POLL_CNT;
 }
 
-static void bnx2x_tx_hw_flushed(struct bnx2x *bp, u32 poll_count)
+void bnx2x_tx_hw_flushed(struct bnx2x *bp, u32 poll_count)
 {
 	struct pbf_pN_cmd_regs cmd_regs[] = {
 		{0, (CHIP_IS_E3B0(bp)) ?
@@ -1195,8 +1196,7 @@ static void bnx2x_tx_hw_flushed(struct bnx2x *bp, u32 poll_count)
 	(((index) << SDM_OP_GEN_AGG_VECT_IDX_SHIFT) & SDM_OP_GEN_AGG_VECT_IDX)
 
 
-static int bnx2x_send_final_clnup(struct bnx2x *bp, u8 clnup_func,
-					 u32 poll_cnt)
+int bnx2x_send_final_clnup(struct bnx2x *bp, u8 clnup_func, u32 poll_cnt)
 {
 	struct sdm_op_gen op_gen = {0};
 
@@ -1221,7 +1221,8 @@ static int bnx2x_send_final_clnup(struct bnx2x *bp, u8 clnup_func,
 		BNX2X_ERR("FW final cleanup did not succeed\n");
 		DP(BNX2X_MSG_SP, "At timeout completion address contained %x\n",
 		   (REG_RD(bp, comp_addr)));
-		ret = 1;
+		bnx2x_panic();
+		return 1;
 	}
 	/* Zero completion for nxt FLR */
 	REG_WR(bp, comp_addr, 0);
@@ -3904,6 +3905,10 @@ static void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 
 			if (val & DRV_STATUS_DRV_INFO_REQ)
 				bnx2x_handle_drv_info_req(bp);
+
+			if (val & DRV_STATUS_VF_DISABLED)
+				bnx2x_vf_handle_flr_event(bp);
+
 			if ((bp->port.pmf == 0) && (val & DRV_STATUS_PMF))
 				bnx2x_pmf_update(bp);
 
