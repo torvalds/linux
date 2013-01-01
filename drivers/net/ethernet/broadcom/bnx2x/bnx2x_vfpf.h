@@ -111,6 +111,13 @@ struct vfpf_acquire_tlv {
 	aligned_u64 bulletin_addr;
 };
 
+/* simple operation request on queue */
+struct vfpf_q_op_tlv {
+	struct vfpf_first_tlv	first_tlv;
+	u8 vf_qid;
+	u8 padding[3];
+};
+
 /* acquire response tlv - carries the allocated resources */
 struct pfvf_acquire_resp_tlv {
 	struct pfvf_tlv hdr;
@@ -247,6 +254,13 @@ struct vfpf_set_q_filters_tlv {
 	u32 rx_mask;	/* see mask constants at the top of the file */
 };
 
+/* close VF (disable VF) */
+struct vfpf_close_tlv {
+	struct vfpf_first_tlv   first_tlv;
+	u16			vf_id;  /* for debug */
+	u8 padding[2];
+};
+
 /* release the VF's acquired resources */
 struct vfpf_release_tlv {
 	struct vfpf_first_tlv	first_tlv;
@@ -262,6 +276,8 @@ union vfpf_tlvs {
 	struct vfpf_first_tlv		first_tlv;
 	struct vfpf_acquire_tlv		acquire;
 	struct vfpf_init_tlv		init;
+	struct vfpf_close_tlv		close;
+	struct vfpf_q_op_tlv		q_op;
 	struct vfpf_setup_q_tlv		setup_q;
 	struct vfpf_set_q_filters_tlv	set_q_filters;
 	struct vfpf_release_tlv         release;
@@ -284,6 +300,8 @@ enum channel_tlvs {
 	CHANNEL_TLV_INIT,
 	CHANNEL_TLV_SETUP_Q,
 	CHANNEL_TLV_SET_Q_FILTERS,
+	CHANNEL_TLV_TEARDOWN_Q,
+	CHANNEL_TLV_CLOSE,
 	CHANNEL_TLV_RELEASE,
 	CHANNEL_TLV_LIST_END,
 	CHANNEL_TLV_MAX

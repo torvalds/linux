@@ -2790,8 +2790,13 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode, bool keep_link)
 	/* wait till consumers catch up with producers in all queues */
 	bnx2x_drain_tx_queues(bp);
 
-	/* Cleanup the chip if needed */
-	if (unload_mode != UNLOAD_RECOVERY)
+	/* if VF indicate to PF this function is going down (PF will delete sp
+	 * elements and clear initializations
+	 */
+	if (IS_VF(bp))
+		bnx2x_vfpf_close_vf(bp);
+	else if (unload_mode != UNLOAD_RECOVERY)
+		/* if this is a normal/close unload need to clean up chip*/
 		bnx2x_chip_cleanup(bp, unload_mode, keep_link);
 	else {
 		/* Send the UNLOAD_REQUEST to the MCP */

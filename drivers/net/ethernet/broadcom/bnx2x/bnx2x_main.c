@@ -13469,6 +13469,55 @@ int bnx2x_vfpf_init(struct bnx2x *bp)
 	return 0;
 }
 
+/* CLOSE VF - opposite to INIT_VF */
+void bnx2x_vfpf_close_vf(struct bnx2x *bp)
+{
+	struct vfpf_close_tlv *req = &bp->vf2pf_mbox->req.close;
+	struct pfvf_general_resp_tlv *resp = &bp->vf2pf_mbox->resp.general_resp;
+	int i, rc;
+	u32 vf_id;
+
+	/* If we haven't got a valid VF id, there is no sense to
+	 * continue with sending messages
+	 */
+	if (bnx2x_get_vf_id(bp, &vf_id))
+		goto free_irq;
+
+	/* Close the queues */
+	for_each_queue(bp, i)
+		bnx2x_vfpf_teardown_queue(bp, i);
+
+	/* clear mailbox and prep first tlv */
+	bnx2x_vfpf_prep(bp, &req->first_tlv, CHANNEL_TLV_CLOSE, sizeof(*req));
+
+	req->vf_id = vf_id;
+
+	/* add list termination tlv */
+	bnx2x_add_tlv(bp, req, req->first_tlv.tl.length, CHANNEL_TLV_LIST_END,
+		      sizeof(struct channel_list_end_tlv));
+
+	/* output tlvs list */
+	bnx2x_dp_tlv_list(bp, req);
+
+	rc = bnx2x_send_msg2pf(bp, &resp->hdr.status, bp->vf2pf_mbox_mapping);
+
+	if (rc)
+		BNX2X_ERR("Sending CLOSE failed. rc was: %d\n", rc);
+
+	else if (resp->hdr.status != PFVF_STATUS_SUCCESS)
+		BNX2X_ERR("Sending CLOSE failed: pf response was %d\n",
+			  resp->hdr.status);
+
+free_irq:
+	/* Disable HW interrupts, NAPI */
+	bnx2x_netif_stop(bp, 0);
+	/* Delete all NAPI objects */
+	bnx2x_del_all_napi(bp);
+
+	/* Release IRQs */
+	bnx2x_free_irq(bp);
+}
+
 /* ask the pf to open a queue for the vf */
 int bnx2x_vfpf_setup_q(struct bnx2x *bp, int fp_idx)
 {
@@ -13547,6 +13596,42 @@ int bnx2x_vfpf_setup_q(struct bnx2x *bp, int fp_idx)
 		return -EINVAL;
 	}
 	return rc;
+}
+
+int bnx2x_vfpf_teardown_queue(struct bnx2x *bp, int qidx)
+{
+	struct vfpf_q_op_tlv *req = &bp->vf2pf_mbox->req.q_op;
+	struct pfvf_general_resp_tlv *resp = &bp->vf2pf_mbox->resp.general_resp;
+	int rc;
+
+	/* clear mailbox and prep first tlv */
+	bnx2x_vfpf_prep(bp, &req->first_tlv, CHANNEL_TLV_TEARDOWN_Q,
+			sizeof(*req));
+
+	req->vf_qid = qidx;
+
+	/* add list termination tlv */
+	bnx2x_add_tlv(bp, req, req->first_tlv.tl.length, CHANNEL_TLV_LIST_END,
+		      sizeof(struct channel_list_end_tlv));
+
+	/* output tlvs list */
+	bnx2x_dp_tlv_list(bp, req);
+
+	rc = bnx2x_send_msg2pf(bp, &resp->hdr.status, bp->vf2pf_mbox_mapping);
+
+	if (rc) {
+		BNX2X_ERR("Sending TEARDOWN for queue %d failed: %d\n", qidx,
+			  rc);
+		return rc;
+	}
+
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
+		BNX2X_ERR("TEARDOWN for queue %d failed: %d\n", qidx,
+			  resp->hdr.status);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 /* request pf to add a mac for the vf */
