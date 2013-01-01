@@ -5420,7 +5420,7 @@ static void bnx2x_map_sb_state_machines(struct hc_index_data *index_data)
 		SM_TX_ID << HC_INDEX_DATA_SM_ID_SHIFT;
 }
 
-static void bnx2x_init_sb(struct bnx2x *bp, dma_addr_t mapping, int vfid,
+void bnx2x_init_sb(struct bnx2x *bp, dma_addr_t mapping, int vfid,
 			  u8 vf_valid, int fw_sb_id, int igu_sb_id)
 {
 	int igu_seg_id;

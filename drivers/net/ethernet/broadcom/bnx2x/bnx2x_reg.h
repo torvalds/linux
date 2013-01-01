@@ -3726,6 +3726,10 @@
 #define PXP_REG_HST_DISCARD_INTERNAL_WRITES_STATUS		 0x10309c
 /* [WB 160] Used for initialization of the inbound interrupts memory */
 #define PXP_REG_HST_INBOUND_INT 				 0x103800
+/* [RW 7] Indirect access to the permission table. The fields are : {Valid;
+ * VFID[5:0]}
+ */
+#define PXP_REG_HST_ZONE_PERMISSION_TABLE			 0x103400
 /* [RW 32] Interrupt mask register #0 read/write */
 #define PXP_REG_PXP_INT_MASK_0					 0x103074
 #define PXP_REG_PXP_INT_MASK_1					 0x103084

@@ -267,6 +267,8 @@ struct bnx2x_virtf {
 #define for_each_vf_sb(vf, var) \
 		for ((var) = 0; (var) < vf_sb_count(vf); (var)++)
 
+#define is_vf_multi(vf)	(vf_rxq_count(vf) > 1)
+
 #define HW_VF_HANDLE(bp, abs_vfid) \
 	(u16)(BP_ABS_FUNC((bp)) | (1<<3) |  ((u16)(abs_vfid) << 4))
 
@@ -427,8 +429,10 @@ void bnx2x_vf_mbx(struct bnx2x *bp, struct vf_pf_event_data *vfpf_event);
 void bnx2x_vf_enable_mbx(struct bnx2x *bp, u8 abs_vfid);
 /* acquire */
 int bnx2x_vf_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
-		      struct vf_pf_resc_request *resc);
-
+		     struct vf_pf_resc_request *resc);
+/* init */
+int bnx2x_vf_init(struct bnx2x *bp, struct bnx2x_virtf *vf,
+		  dma_addr_t *sb_map);
 static inline struct bnx2x_vfop *bnx2x_vfop_cur(struct bnx2x *bp,
 						struct bnx2x_virtf *vf)
 {

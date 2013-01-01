@@ -19,6 +19,7 @@
 
 #include "bnx2x.h"
 #include "bnx2x_sriov.h"
+#include <linux/crc32.h>
 
 /* place a given tlv on the tlv buffer at a given offset */
 void bnx2x_add_tlv(struct bnx2x *bp, void *tlvs_list, u16 offset, u16 type,
@@ -355,6 +356,20 @@ static void bnx2x_vf_mbx_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	bnx2x_vf_mbx_acquire_resp(bp, vf, mbx, rc);
 }
 
+static void bnx2x_vf_mbx_init_vf(struct bnx2x *bp, struct bnx2x_virtf *vf,
+			      struct bnx2x_vf_mbx *mbx)
+{
+	struct vfpf_init_tlv *init = &mbx->msg->req.init;
+
+	/* record ghost addresses from vf message */
+	vf->spq_map = init->spq_addr;
+	vf->fw_stat_map = init->stats_addr;
+	vf->op_rc = bnx2x_vf_init(bp, vf, (dma_addr_t *)init->sb_addr);
+
+	/* response */
+	bnx2x_vf_mbx_resp(bp, vf);
+}
+
 /* dispatch request */
 static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 				  struct bnx2x_vf_mbx *mbx)
@@ -372,6 +387,9 @@ static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		switch (mbx->first_tlv.tl.type) {
 		case CHANNEL_TLV_ACQUIRE:
 			bnx2x_vf_mbx_acquire(bp, vf, mbx);
+			break;
+		case CHANNEL_TLV_INIT:
+			bnx2x_vf_mbx_init_vf(bp, vf, mbx);
 			break;
 		}
 	} else {

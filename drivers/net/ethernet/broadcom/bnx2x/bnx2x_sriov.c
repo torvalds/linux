@@ -66,6 +66,41 @@ struct bnx2x_virtf *bnx2x_vf_by_abs_fid(struct bnx2x *bp, u16 abs_vfid)
 	return (idx < BNX2X_NR_VIRTFN(bp)) ? BP_VF(bp, idx) : NULL;
 }
 
+static void bnx2x_vf_igu_ack_sb(struct bnx2x *bp, struct bnx2x_virtf *vf,
+				u8 igu_sb_id, u8 segment, u16 index, u8 op,
+				u8 update)
+{
+	/* acking a VF sb through the PF - use the GRC */
+	u32 ctl;
+	u32 igu_addr_data = IGU_REG_COMMAND_REG_32LSB_DATA;
+	u32 igu_addr_ctl = IGU_REG_COMMAND_REG_CTRL;
+	u32 func_encode = vf->abs_vfid;
+	u32 addr_encode = IGU_CMD_E2_PROD_UPD_BASE + igu_sb_id;
+	struct igu_regular cmd_data = {0};
+
+	cmd_data.sb_id_and_flags =
+			((index << IGU_REGULAR_SB_INDEX_SHIFT) |
+			 (segment << IGU_REGULAR_SEGMENT_ACCESS_SHIFT) |
+			 (update << IGU_REGULAR_BUPDATE_SHIFT) |
+			 (op << IGU_REGULAR_ENABLE_INT_SHIFT));
+
+	ctl = addr_encode << IGU_CTRL_REG_ADDRESS_SHIFT		|
+	      func_encode << IGU_CTRL_REG_FID_SHIFT		|
+	      IGU_CTRL_CMD_TYPE_WR << IGU_CTRL_REG_TYPE_SHIFT;
+
+	DP(NETIF_MSG_HW, "write 0x%08x to IGU(via GRC) addr 0x%x\n",
+	   cmd_data.sb_id_and_flags, igu_addr_data);
+	REG_WR(bp, igu_addr_data, cmd_data.sb_id_and_flags);
+	mmiowb();
+	barrier();
+
+	DP(NETIF_MSG_HW, "write 0x%08x to IGU(via GRC) addr 0x%x\n",
+	   ctl, igu_addr_ctl);
+	REG_WR(bp, igu_addr_ctl, ctl);
+	mmiowb();
+	barrier();
+}
+
 static int bnx2x_ari_enabled(struct pci_dev *dev)
 {
 	return dev->bus->self && dev->bus->self->ari_enabled;
@@ -364,6 +399,52 @@ static void bnx2x_vf_pglue_clear_err(struct bnx2x *bp, u8 abs_vfid)
 	REG_WR(bp, was_err_reg, 1 << (abs_vfid & 0x1f));
 }
 
+static void bnx2x_vf_igu_reset(struct bnx2x *bp, struct bnx2x_virtf *vf)
+{
+	int i;
+	u32 val;
+
+	/* Set VF masks and configuration - pretend */
+	bnx2x_pretend_func(bp, HW_VF_HANDLE(bp, vf->abs_vfid));
+
+	REG_WR(bp, IGU_REG_SB_INT_BEFORE_MASK_LSB, 0);
+	REG_WR(bp, IGU_REG_SB_INT_BEFORE_MASK_MSB, 0);
+	REG_WR(bp, IGU_REG_SB_MASK_LSB, 0);
+	REG_WR(bp, IGU_REG_SB_MASK_MSB, 0);
+	REG_WR(bp, IGU_REG_PBA_STATUS_LSB, 0);
+	REG_WR(bp, IGU_REG_PBA_STATUS_MSB, 0);
+
+	val = REG_RD(bp, IGU_REG_VF_CONFIGURATION);
+	val |= (IGU_VF_CONF_FUNC_EN | IGU_VF_CONF_MSI_MSIX_EN);
+	if (vf->cfg_flags & VF_CFG_INT_SIMD)
+		val |= IGU_VF_CONF_SINGLE_ISR_EN;
+	val &= ~IGU_VF_CONF_PARENT_MASK;
+	val |= BP_FUNC(bp) << IGU_VF_CONF_PARENT_SHIFT;	/* parent PF */
+	REG_WR(bp, IGU_REG_VF_CONFIGURATION, val);
+
+	DP(BNX2X_MSG_IOV,
+	   "value in IGU_REG_VF_CONFIGURATION of vf %d after write %x\n",
+	   vf->abs_vfid, REG_RD(bp, IGU_REG_VF_CONFIGURATION));
+
+	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
+
+	/* iterate over all queues, clear sb consumer */
+	for (i = 0; i < vf_sb_count(vf); i++) {
+		u8 igu_sb_id = vf_igu_sb(vf, i);
+
+		/* zero prod memory */
+		REG_WR(bp, IGU_REG_PROD_CONS_MEMORY + igu_sb_id * 4, 0);
+
+		/* clear sb state machine */
+		bnx2x_igu_clear_sb_gen(bp, vf->abs_vfid, igu_sb_id,
+				       false /* VF */);
+
+		/* disable + update */
+		bnx2x_vf_igu_ack_sb(bp, vf, igu_sb_id, USTORM_ID, 0,
+				    IGU_INT_DISABLE, 1);
+	}
+}
+
 void bnx2x_vf_enable_access(struct bnx2x *bp, u8 abs_vfid)
 {
 	/* set the VF-PF association in the FW */
@@ -378,6 +459,17 @@ void bnx2x_vf_enable_access(struct bnx2x *bp, u8 abs_vfid)
 	bnx2x_pretend_func(bp, HW_VF_HANDLE(bp, abs_vfid));
 	DP(BNX2X_MSG_IOV, "enabling internal access for vf %x\n", abs_vfid);
 	bnx2x_vf_enable_internal(bp, true);
+	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
+}
+
+static void bnx2x_vf_enable_traffic(struct bnx2x *bp, struct bnx2x_virtf *vf)
+{
+	/* Reset vf in IGU  interrupts are still disabled */
+	bnx2x_vf_igu_reset(bp, vf);
+
+	/* pretend to enable the vf with the PBF */
+	bnx2x_pretend_func(bp, HW_VF_HANDLE(bp, vf->abs_vfid));
+	REG_WR(bp, PBF_REG_DISABLE_VF, 0);
 	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
 }
 
@@ -997,6 +1089,14 @@ void bnx2x_iov_sp_task(struct bnx2x *bp)
 		}
 	}
 }
+static void bnx2x_vf_qtbl_set_q(struct bnx2x *bp, u8 abs_vfid, u8 qid,
+				u8 enable)
+{
+	u32 reg = PXP_REG_HST_ZONE_PERMISSION_TABLE + qid * 4;
+	u32 val = enable ? (abs_vfid | (1 << 6)) : 0;
+
+	REG_WR(bp, reg, val);
+}
 
 u8 bnx2x_vf_max_queue_cnt(struct bnx2x *bp, struct bnx2x_virtf *vf)
 {
@@ -1105,6 +1205,65 @@ int bnx2x_vf_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		bnx2x_vfq_init(bp, vf, q);
 	}
 	vf->state = VF_ACQUIRED;
+	return 0;
+}
+
+int bnx2x_vf_init(struct bnx2x *bp, struct bnx2x_virtf *vf, dma_addr_t *sb_map)
+{
+	struct bnx2x_func_init_params func_init = {0};
+	u16 flags = 0;
+	int i;
+
+	/* the sb resources are initialized at this point, do the
+	 * FW/HW initializations
+	 */
+	for_each_vf_sb(vf, i)
+		bnx2x_init_sb(bp, (dma_addr_t)sb_map[i], vf->abs_vfid, true,
+			      vf_igu_sb(vf, i), vf_igu_sb(vf, i));
+
+	/* Sanity checks */
+	if (vf->state != VF_ACQUIRED) {
+		DP(BNX2X_MSG_IOV, "VF[%d] is not in VF_ACQUIRED, but %d\n",
+		   vf->abs_vfid, vf->state);
+		return -EINVAL;
+	}
+	/* FLR cleanup epilogue */
+	if (bnx2x_vf_flr_clnup_epilog(bp, vf->abs_vfid))
+		return -EBUSY;
+
+	/* reset IGU VF statistics: MSIX */
+	REG_WR(bp, IGU_REG_STATISTIC_NUM_MESSAGE_SENT + vf->abs_vfid * 4 , 0);
+
+	/* vf init */
+	if (vf->cfg_flags & VF_CFG_STATS)
+		flags |= (FUNC_FLG_STATS | FUNC_FLG_SPQ);
+
+	if (vf->cfg_flags & VF_CFG_TPA)
+		flags |= FUNC_FLG_TPA;
+
+	if (is_vf_multi(vf))
+		flags |= FUNC_FLG_RSS;
+
+	/* function setup */
+	func_init.func_flgs = flags;
+	func_init.pf_id = BP_FUNC(bp);
+	func_init.func_id = FW_VF_HANDLE(vf->abs_vfid);
+	func_init.fw_stat_map = vf->fw_stat_map;
+	func_init.spq_map = vf->spq_map;
+	func_init.spq_prod = 0;
+	bnx2x_func_init(bp, &func_init);
+
+	/* Enable the vf */
+	bnx2x_vf_enable_access(bp, vf->abs_vfid);
+	bnx2x_vf_enable_traffic(bp, vf);
+
+	/* queue protection table */
+	for_each_vfq(vf, i)
+		bnx2x_vf_qtbl_set_q(bp, vf->abs_vfid,
+				    vfq_qzone_id(vf, vfq_get(vf, i)), true);
+
+	vf->state = VF_ENABLED;
+
 	return 0;
 }
 
