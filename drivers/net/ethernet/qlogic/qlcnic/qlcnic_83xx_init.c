@@ -1,11 +1,77 @@
 #include "qlcnic.h"
 #include "qlcnic_hw.h"
 
+/* Reset template definitions */
+#define QLC_83XX_RESTART_TEMPLATE_SIZE		0x2000
+#define QLC_83XX_RESET_TEMPLATE_ADDR		0x4F0000
+#define QLC_83XX_RESET_SEQ_VERSION		0x0101
+
+#define QLC_83XX_OPCODE_NOP			0x0000
+#define QLC_83XX_OPCODE_WRITE_LIST		0x0001
+#define QLC_83XX_OPCODE_READ_WRITE_LIST		0x0002
+#define QLC_83XX_OPCODE_POLL_LIST		0x0004
+#define QLC_83XX_OPCODE_POLL_WRITE_LIST		0x0008
+#define QLC_83XX_OPCODE_READ_MODIFY_WRITE	0x0010
+#define QLC_83XX_OPCODE_SEQ_PAUSE		0x0020
+#define QLC_83XX_OPCODE_SEQ_END			0x0040
+#define QLC_83XX_OPCODE_TMPL_END		0x0080
+#define QLC_83XX_OPCODE_POLL_READ_LIST		0x0100
+
 static int qlcnic_83xx_init_default_driver(struct qlcnic_adapter *adapter);
 static int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter);
 static int qlcnic_83xx_check_heartbeat(struct qlcnic_adapter *p_dev);
 static int qlcnic_83xx_restart_hw(struct qlcnic_adapter *adapter);
 
+/* Template header */
+struct qlc_83xx_reset_hdr {
+	u16	version;
+	u16	signature;
+	u16	size;
+	u16	entries;
+	u16	hdr_size;
+	u16	checksum;
+	u16	init_offset;
+	u16	start_offset;
+} __packed;
+
+/* Command entry header. */
+struct qlc_83xx_entry_hdr {
+	u16 cmd;
+	u16 size;
+	u16 count;
+	u16 delay;
+} __packed;
+
+/* Generic poll command */
+struct qlc_83xx_poll {
+	u32	mask;
+	u32	status;
+} __packed;
+
+/* Read modify write command */
+struct qlc_83xx_rmw {
+	u32	mask;
+	u32	xor_value;
+	u32	or_value;
+	u8	shl;
+	u8	shr;
+	u8	index_a;
+	u8	rsvd;
+} __packed;
+
+/* Generic command with 2 DWORD */
+struct qlc_83xx_entry {
+	u32 arg1;
+	u32 arg2;
+} __packed;
+
+/* Generic command with 4 DWORD */
+struct qlc_83xx_quad_entry {
+	u32 dr_addr;
+	u32 dr_value;
+	u32 ar_addr;
+	u32 ar_value;
+} __packed;
 static const char *const qlc_83xx_idc_states[] = {
 	"Unknown",
 	"Cold",
@@ -961,7 +1027,12 @@ qlcnic_83xx_idc_first_to_load_function_handler(struct qlcnic_adapter *adapter)
 
 static int qlcnic_83xx_idc_init(struct qlcnic_adapter *adapter)
 {
+	int ret = -EIO;
+
 	qlcnic_83xx_setup_idc_parameters(adapter);
+
+	if (qlcnic_83xx_get_reset_instruction_template(adapter))
+		return ret;
 
 	if (!qlcnic_83xx_idc_check_driver_presence_reg(adapter)) {
 		if (qlcnic_83xx_idc_first_to_load_function_handler(adapter))
@@ -1190,6 +1261,7 @@ static void qlcnic_83xx_dump_pause_control_regs(struct qlcnic_adapter *adapter)
 		 val, val1);
 }
 
+
 static void qlcnic_83xx_disable_pause_frames(struct qlcnic_adapter *adapter)
 {
 	u32 reg = 0, i, j;
@@ -1305,6 +1377,409 @@ int qlcnic_83xx_check_hw_status(struct qlcnic_adapter *p_dev)
 	return err;
 }
 
+static int qlcnic_83xx_poll_reg(struct qlcnic_adapter *p_dev, u32 addr,
+				int duration, u32 mask, u32 status)
+{
+	u32 value;
+	int timeout_error;
+	u8 retries;
+
+	value = qlcnic_83xx_rd_reg_indirect(p_dev, addr);
+	retries = duration / 10;
+
+	do {
+		if ((value & mask) != status) {
+			timeout_error = 1;
+			msleep(duration / 10);
+			value = qlcnic_83xx_rd_reg_indirect(p_dev, addr);
+		} else {
+			timeout_error = 0;
+			break;
+		}
+	} while (retries--);
+
+	if (timeout_error) {
+		p_dev->ahw->reset.seq_error++;
+		dev_err(&p_dev->pdev->dev,
+			"%s: Timeout Err, entry_num = %d\n",
+			__func__, p_dev->ahw->reset.seq_index);
+		dev_err(&p_dev->pdev->dev,
+			"0x%08x 0x%08x 0x%08x\n",
+			value, mask, status);
+	}
+
+	return timeout_error;
+}
+
+static int qlcnic_83xx_reset_template_checksum(struct qlcnic_adapter *p_dev)
+{
+	u32 sum = 0;
+	u16 *buff = (u16 *)p_dev->ahw->reset.buff;
+	int count = p_dev->ahw->reset.hdr->size / sizeof(u16);
+
+	while (count-- > 0)
+		sum += *buff++;
+
+	while (sum >> 16)
+		sum = (sum & 0xFFFF) + (sum >> 16);
+
+	if (~sum) {
+		return 0;
+	} else {
+		dev_err(&p_dev->pdev->dev, "%s: failed\n", __func__);
+		return -1;
+	}
+}
+
+int qlcnic_83xx_get_reset_instruction_template(struct qlcnic_adapter *p_dev)
+{
+	u8 *p_buff;
+	u32 addr, count;
+	struct qlcnic_hardware_context *ahw = p_dev->ahw;
+
+	ahw->reset.seq_error = 0;
+	ahw->reset.buff = kzalloc(QLC_83XX_RESTART_TEMPLATE_SIZE, GFP_KERNEL);
+
+	if (p_dev->ahw->reset.buff == NULL) {
+		dev_err(&p_dev->pdev->dev,
+			"%s: resource allocation failed\n", __func__);
+		return -ENOMEM;
+	}
+	p_buff = p_dev->ahw->reset.buff;
+	addr = QLC_83XX_RESET_TEMPLATE_ADDR;
+	count = sizeof(struct qlc_83xx_reset_hdr) / sizeof(u32);
+
+	/* Copy template header from flash */
+	if (qlcnic_83xx_flash_read32(p_dev, addr, p_buff, count)) {
+		dev_err(&p_dev->pdev->dev, "%s: flash read failed\n", __func__);
+		return -EIO;
+	}
+	ahw->reset.hdr = (struct qlc_83xx_reset_hdr *)ahw->reset.buff;
+	addr = QLC_83XX_RESET_TEMPLATE_ADDR + ahw->reset.hdr->hdr_size;
+	p_buff = ahw->reset.buff + ahw->reset.hdr->hdr_size;
+	count = (ahw->reset.hdr->size - ahw->reset.hdr->hdr_size) / sizeof(u32);
+
+	/* Copy rest of the template */
+	if (qlcnic_83xx_flash_read32(p_dev, addr, p_buff, count)) {
+		dev_err(&p_dev->pdev->dev, "%s: flash read failed\n", __func__);
+		return -EIO;
+	}
+
+	if (qlcnic_83xx_reset_template_checksum(p_dev))
+		return -EIO;
+	/* Get Stop, Start and Init command offsets */
+	ahw->reset.init_offset = ahw->reset.buff + ahw->reset.hdr->init_offset;
+	ahw->reset.start_offset = ahw->reset.buff +
+				  ahw->reset.hdr->start_offset;
+	ahw->reset.stop_offset = ahw->reset.buff + ahw->reset.hdr->hdr_size;
+	return 0;
+}
+
+/* Read Write HW register command */
+static void qlcnic_83xx_read_write_crb_reg(struct qlcnic_adapter *p_dev,
+					   u32 raddr, u32 waddr)
+{
+	int value;
+
+	value = qlcnic_83xx_rd_reg_indirect(p_dev, raddr);
+	qlcnic_83xx_wrt_reg_indirect(p_dev, waddr, value);
+}
+
+/* Read Modify Write HW register command */
+static void qlcnic_83xx_rmw_crb_reg(struct qlcnic_adapter *p_dev,
+				    u32 raddr, u32 waddr,
+				    struct qlc_83xx_rmw *p_rmw_hdr)
+{
+	int value;
+
+	if (p_rmw_hdr->index_a)
+		value = p_dev->ahw->reset.array[p_rmw_hdr->index_a];
+	else
+		value = qlcnic_83xx_rd_reg_indirect(p_dev, raddr);
+
+	value &= p_rmw_hdr->mask;
+	value <<= p_rmw_hdr->shl;
+	value >>= p_rmw_hdr->shr;
+	value |= p_rmw_hdr->or_value;
+	value ^= p_rmw_hdr->xor_value;
+	qlcnic_83xx_wrt_reg_indirect(p_dev, waddr, value);
+}
+
+/* Write HW register command */
+static void qlcnic_83xx_write_list(struct qlcnic_adapter *p_dev,
+				   struct qlc_83xx_entry_hdr *p_hdr)
+{
+	int i;
+	struct qlc_83xx_entry *entry;
+
+	entry = (struct qlc_83xx_entry *)((char *)p_hdr +
+					  sizeof(struct qlc_83xx_entry_hdr));
+
+	for (i = 0; i < p_hdr->count; i++, entry++) {
+		qlcnic_83xx_wrt_reg_indirect(p_dev, entry->arg1,
+					     entry->arg2);
+		if (p_hdr->delay)
+			udelay((u32)(p_hdr->delay));
+	}
+}
+
+/* Read and Write instruction */
+static void qlcnic_83xx_read_write_list(struct qlcnic_adapter *p_dev,
+					struct qlc_83xx_entry_hdr *p_hdr)
+{
+	int i;
+	struct qlc_83xx_entry *entry;
+
+	entry = (struct qlc_83xx_entry *)((char *)p_hdr +
+					  sizeof(struct qlc_83xx_entry_hdr));
+
+	for (i = 0; i < p_hdr->count; i++, entry++) {
+		qlcnic_83xx_read_write_crb_reg(p_dev, entry->arg1,
+					       entry->arg2);
+		if (p_hdr->delay)
+			udelay((u32)(p_hdr->delay));
+	}
+}
+
+/* Poll HW register command */
+static void qlcnic_83xx_poll_list(struct qlcnic_adapter *p_dev,
+				  struct qlc_83xx_entry_hdr *p_hdr)
+{
+	long delay;
+	struct qlc_83xx_entry *entry;
+	struct qlc_83xx_poll *poll;
+	int i;
+	unsigned long arg1, arg2;
+
+	poll = (struct qlc_83xx_poll *)((char *)p_hdr +
+					sizeof(struct qlc_83xx_entry_hdr));
+
+	entry = (struct qlc_83xx_entry *)((char *)poll +
+					  sizeof(struct qlc_83xx_poll));
+	delay = (long)p_hdr->delay;
+
+	if (!delay) {
+		for (i = 0; i < p_hdr->count; i++, entry++)
+			qlcnic_83xx_poll_reg(p_dev, entry->arg1,
+					     delay, poll->mask,
+					     poll->status);
+	} else {
+		for (i = 0; i < p_hdr->count; i++, entry++) {
+			arg1 = entry->arg1;
+			arg2 = entry->arg2;
+			if (delay) {
+				if (qlcnic_83xx_poll_reg(p_dev,
+							 arg1, delay,
+							 poll->mask,
+							 poll->status)){
+					qlcnic_83xx_rd_reg_indirect(p_dev,
+								    arg1);
+					qlcnic_83xx_rd_reg_indirect(p_dev,
+								    arg2);
+				}
+			}
+		}
+	}
+}
+
+/* Poll and write HW register command */
+static void qlcnic_83xx_poll_write_list(struct qlcnic_adapter *p_dev,
+					struct qlc_83xx_entry_hdr *p_hdr)
+{
+	int i;
+	long delay;
+	struct qlc_83xx_quad_entry *entry;
+	struct qlc_83xx_poll *poll;
+
+	poll = (struct qlc_83xx_poll *)((char *)p_hdr +
+					sizeof(struct qlc_83xx_entry_hdr));
+	entry = (struct qlc_83xx_quad_entry *)((char *)poll +
+					       sizeof(struct qlc_83xx_poll));
+	delay = (long)p_hdr->delay;
+
+	for (i = 0; i < p_hdr->count; i++, entry++) {
+		qlcnic_83xx_wrt_reg_indirect(p_dev, entry->dr_addr,
+					     entry->dr_value);
+		qlcnic_83xx_wrt_reg_indirect(p_dev, entry->ar_addr,
+					     entry->ar_value);
+		if (delay)
+			qlcnic_83xx_poll_reg(p_dev, entry->ar_addr, delay,
+					     poll->mask, poll->status);
+	}
+}
+
+/* Read Modify Write register command */
+static void qlcnic_83xx_read_modify_write(struct qlcnic_adapter *p_dev,
+					  struct qlc_83xx_entry_hdr *p_hdr)
+{
+	int i;
+	struct qlc_83xx_entry *entry;
+	struct qlc_83xx_rmw *rmw_hdr;
+
+	rmw_hdr = (struct qlc_83xx_rmw *)((char *)p_hdr +
+					  sizeof(struct qlc_83xx_entry_hdr));
+
+	entry = (struct qlc_83xx_entry *)((char *)rmw_hdr +
+					  sizeof(struct qlc_83xx_rmw));
+
+	for (i = 0; i < p_hdr->count; i++, entry++) {
+		qlcnic_83xx_rmw_crb_reg(p_dev, entry->arg1,
+					entry->arg2, rmw_hdr);
+		if (p_hdr->delay)
+			udelay((u32)(p_hdr->delay));
+	}
+}
+
+static void qlcnic_83xx_pause(struct qlc_83xx_entry_hdr *p_hdr)
+{
+	if (p_hdr->delay)
+		mdelay((u32)((long)p_hdr->delay));
+}
+
+/* Read and poll register command */
+static void qlcnic_83xx_poll_read_list(struct qlcnic_adapter *p_dev,
+				       struct qlc_83xx_entry_hdr *p_hdr)
+{
+	long delay;
+	int index, i, j;
+	struct qlc_83xx_quad_entry *entry;
+	struct qlc_83xx_poll *poll;
+	unsigned long addr;
+
+	poll = (struct qlc_83xx_poll *)((char *)p_hdr +
+					sizeof(struct qlc_83xx_entry_hdr));
+
+	entry = (struct qlc_83xx_quad_entry *)((char *)poll +
+					       sizeof(struct qlc_83xx_poll));
+	delay = (long)p_hdr->delay;
+
+	for (i = 0; i < p_hdr->count; i++, entry++) {
+		qlcnic_83xx_wrt_reg_indirect(p_dev, entry->ar_addr,
+					     entry->ar_value);
+		if (delay) {
+			if (!qlcnic_83xx_poll_reg(p_dev, entry->ar_addr, delay,
+						  poll->mask, poll->status)){
+				index = p_dev->ahw->reset.array_index;
+				addr = entry->dr_addr;
+				j = qlcnic_83xx_rd_reg_indirect(p_dev, addr);
+				p_dev->ahw->reset.array[index++] = j;
+
+				if (index == QLC_83XX_MAX_RESET_SEQ_ENTRIES)
+					p_dev->ahw->reset.array_index = 1;
+			}
+		}
+	}
+}
+
+static inline void qlcnic_83xx_seq_end(struct qlcnic_adapter *p_dev)
+{
+	p_dev->ahw->reset.seq_end = 1;
+}
+
+static void qlcnic_83xx_template_end(struct qlcnic_adapter *p_dev)
+{
+	p_dev->ahw->reset.template_end = 1;
+	if (p_dev->ahw->reset.seq_error == 0)
+		dev_err(&p_dev->pdev->dev,
+			"HW restart process completed successfully.\n");
+	else
+		dev_err(&p_dev->pdev->dev,
+			"HW restart completed with timeout errors.\n");
+}
+
+/**
+* qlcnic_83xx_exec_template_cmd
+*
+* @p_dev: adapter structure
+* @p_buff: Poiter to instruction template
+*
+* Template provides instructions to stop, restart and initalize firmware.
+* These instructions are abstracted as a series of read, write and
+* poll operations on hardware registers. Register information and operation
+* specifics are not exposed to the driver. Driver reads the template from
+* flash and executes the instructions located at pre-defined offsets.
+*
+* Returns: None
+* */
+static void qlcnic_83xx_exec_template_cmd(struct qlcnic_adapter *p_dev,
+					  char *p_buff)
+{
+	int index, entries;
+	struct qlc_83xx_entry_hdr *p_hdr;
+	char *entry = p_buff;
+
+	p_dev->ahw->reset.seq_end = 0;
+	p_dev->ahw->reset.template_end = 0;
+	entries = p_dev->ahw->reset.hdr->entries;
+	index = p_dev->ahw->reset.seq_index;
+
+	for (; (!p_dev->ahw->reset.seq_end) && (index < entries); index++) {
+		p_hdr = (struct qlc_83xx_entry_hdr *)entry;
+
+		switch (p_hdr->cmd) {
+		case QLC_83XX_OPCODE_NOP:
+			break;
+		case QLC_83XX_OPCODE_WRITE_LIST:
+			qlcnic_83xx_write_list(p_dev, p_hdr);
+			break;
+		case QLC_83XX_OPCODE_READ_WRITE_LIST:
+			qlcnic_83xx_read_write_list(p_dev, p_hdr);
+			break;
+		case QLC_83XX_OPCODE_POLL_LIST:
+			qlcnic_83xx_poll_list(p_dev, p_hdr);
+			break;
+		case QLC_83XX_OPCODE_POLL_WRITE_LIST:
+			qlcnic_83xx_poll_write_list(p_dev, p_hdr);
+			break;
+		case QLC_83XX_OPCODE_READ_MODIFY_WRITE:
+			qlcnic_83xx_read_modify_write(p_dev, p_hdr);
+			break;
+		case QLC_83XX_OPCODE_SEQ_PAUSE:
+			qlcnic_83xx_pause(p_hdr);
+			break;
+		case QLC_83XX_OPCODE_SEQ_END:
+			qlcnic_83xx_seq_end(p_dev);
+			break;
+		case QLC_83XX_OPCODE_TMPL_END:
+			qlcnic_83xx_template_end(p_dev);
+			break;
+		case QLC_83XX_OPCODE_POLL_READ_LIST:
+			qlcnic_83xx_poll_read_list(p_dev, p_hdr);
+			break;
+		default:
+			dev_err(&p_dev->pdev->dev,
+				"%s: Unknown opcode 0x%04x in template %d\n",
+				__func__, p_hdr->cmd, index);
+			break;
+		}
+		entry += p_hdr->size;
+	}
+	p_dev->ahw->reset.seq_index = index;
+}
+
+static void qlcnic_83xx_stop_hw(struct qlcnic_adapter *p_dev)
+{
+	p_dev->ahw->reset.seq_index = 0;
+
+	qlcnic_83xx_exec_template_cmd(p_dev, p_dev->ahw->reset.stop_offset);
+	if (p_dev->ahw->reset.seq_end != 1)
+		dev_err(&p_dev->pdev->dev, "%s: failed\n", __func__);
+}
+
+static void qlcnic_83xx_start_hw(struct qlcnic_adapter *p_dev)
+{
+	qlcnic_83xx_exec_template_cmd(p_dev, p_dev->ahw->reset.start_offset);
+	if (p_dev->ahw->reset.template_end != 1)
+		dev_err(&p_dev->pdev->dev, "%s: failed\n", __func__);
+}
+
+static void qlcnic_83xx_init_hw(struct qlcnic_adapter *p_dev)
+{
+	qlcnic_83xx_exec_template_cmd(p_dev, p_dev->ahw->reset.init_offset);
+	if (p_dev->ahw->reset.seq_end != 1)
+		dev_err(&p_dev->pdev->dev, "%s: failed\n", __func__);
+}
+
 static int qlcnic_83xx_load_fw_image_from_host(struct qlcnic_adapter *adapter)
 {
 	int err = -EIO;
@@ -1329,6 +1804,9 @@ static int qlcnic_83xx_restart_hw(struct qlcnic_adapter *adapter)
 {
 	int err = -EIO;
 
+	qlcnic_83xx_stop_hw(adapter);
+	qlcnic_83xx_init_hw(adapter);
+
 	if (qlcnic_83xx_copy_bootloader(adapter))
 		return err;
 	/* Boot either flash image or firmware image from host file system */
@@ -1340,6 +1818,7 @@ static int qlcnic_83xx_restart_hw(struct qlcnic_adapter *adapter)
 				    QLC_83XX_BOOT_FROM_FLASH);
 	}
 
+	qlcnic_83xx_start_hw(adapter);
 	if (qlcnic_83xx_check_hw_status(adapter))
 		return -EIO;
 

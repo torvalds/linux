@@ -2343,3 +2343,43 @@ int qlcnic_83xx_ms_mem_write128(struct qlcnic_adapter *adapter, u64 addr,
 
 	return ret;
 }
+
+int qlcnic_83xx_flash_read32(struct qlcnic_adapter *adapter, u32 flash_addr,
+			     u8 *p_data, int count)
+{
+	int i, ret;
+	u32 word, addr = flash_addr;
+	ulong  indirect_addr;
+
+	if (qlcnic_83xx_lock_flash(adapter) != 0)
+		return -EIO;
+
+	if (addr & 0x3) {
+		dev_err(&adapter->pdev->dev, "Illegal addr = 0x%x\n", addr);
+		qlcnic_83xx_unlock_flash(adapter);
+		return -EIO;
+	}
+
+	for (i = 0; i < count; i++) {
+		if (qlcnic_83xx_wrt_reg_indirect(adapter,
+						 QLC_83XX_FLASH_DIRECT_WINDOW,
+						 (addr))) {
+			qlcnic_83xx_unlock_flash(adapter);
+			return -EIO;
+		}
+
+		indirect_addr = QLC_83XX_FLASH_DIRECT_DATA(addr);
+		ret = qlcnic_83xx_rd_reg_indirect(adapter,
+						  indirect_addr);
+		if (ret == -EIO)
+			return -EIO;
+		word = ret;
+		*p_data  = word;
+		p_data = p_data + 4;
+		addr = addr + 4;
+	}
+
+	qlcnic_83xx_unlock_flash(adapter);
+
+	return 0;
+}

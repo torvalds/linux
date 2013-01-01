@@ -442,6 +442,7 @@ struct qlcnic_hardware_context {
 	struct qlcnic_nic_intr_coalesce coal;
 	struct qlcnic_fw_dump fw_dump;
 	struct qlcnic_fdt fdt;
+	struct qlc_83xx_reset reset;
 	struct qlc_83xx_idc idc;
 	struct qlc_83xx_fw_info fw_info;
 	struct qlcnic_intrpt_config *intr_tbl;

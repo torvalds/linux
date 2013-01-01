@@ -1473,6 +1473,7 @@ static void qlcnic_free_adapter_resources(struct qlcnic_adapter *adapter)
 		adapter->ahw->fw_dump.tmpl_hdr = NULL;
 	}
 
+	kfree(adapter->ahw->reset.buff);
 	adapter->ahw->fw_dump.tmpl_hdr = NULL;
 }
 

@@ -77,6 +77,8 @@
 #define QLC_83XX_BOOT_FROM_FLASH	0
 #define QLC_83XX_BOOT_FROM_FILE		0x12345678
 
+#define QLC_83XX_MAX_RESET_SEQ_ENTRIES	16
+
 struct qlcnic_intrpt_config {
 	u8	type;
 	u8	enabled;
@@ -96,6 +98,20 @@ struct qlc_83xx_fw_info {
 	u8	sub_fw_version;
 	u8	fw_build_num;
 	u8	load_from_file;
+};
+
+struct qlc_83xx_reset {
+	struct qlc_83xx_reset_hdr *hdr;
+	int	seq_index;
+	int	seq_error;
+	int	array_index;
+	u32	array[QLC_83XX_MAX_RESET_SEQ_ENTRIES];
+	u8	*buff;
+	u8	*stop_offset;
+	u8	*start_offset;
+	u8	*init_offset;
+	u8	seq_end;
+	u8	template_end;
 };
 
 #define QLC_83XX_IDC_DISABLE_FW_RESET_RECOVERY		0x1
@@ -377,6 +393,7 @@ int qlcnic_83xx_init(struct qlcnic_adapter *);
 int qlcnic_83xx_idc_ready_state_entry(struct qlcnic_adapter *);
 int qlcnic_83xx_check_hw_status(struct qlcnic_adapter *p_dev);
 void qlcnic_83xx_idc_poll_dev_state(struct work_struct *);
+int qlcnic_83xx_get_reset_instruction_template(struct qlcnic_adapter *);
 void qlcnic_83xx_idc_exit(struct qlcnic_adapter *);
 void qlcnic_83xx_idc_request_reset(struct qlcnic_adapter *, u32);
 int qlcnic_83xx_lock_driver(struct qlcnic_adapter *);
