@@ -68,6 +68,11 @@ struct pfvf_tlv {
 	u8 padding[3];
 };
 
+/* response tlv used for most tlvs */
+struct pfvf_general_resp_tlv {
+	struct pfvf_tlv hdr;
+};
+
 /* used to terminate and pad a tlv list */
 struct channel_list_end_tlv {
 	struct channel_tlv tl;
@@ -125,6 +130,13 @@ struct pfvf_acquire_resp_tlv {
 	} resc;
 };
 
+/* release the VF's acquired resources */
+struct vfpf_release_tlv {
+	struct vfpf_first_tlv	first_tlv;
+	u16			vf_id;
+	u8 padding[2];
+};
+
 struct tlv_buffer_size {
 	u8 tlv_buffer[TLV_BUFFER_SIZE];
 };
@@ -132,11 +144,13 @@ struct tlv_buffer_size {
 union vfpf_tlvs {
 	struct vfpf_first_tlv		first_tlv;
 	struct vfpf_acquire_tlv		acquire;
+	struct vfpf_release_tlv         release;
 	struct channel_list_end_tlv     list_end;
 	struct tlv_buffer_size		tlv_buf_size;
 };
 
 union pfvf_tlvs {
+	struct pfvf_general_resp_tlv    general_resp;
 	struct pfvf_acquire_resp_tlv	acquire_resp;
 	struct channel_list_end_tlv	list_end;
 	struct tlv_buffer_size		tlv_buf_size;
@@ -147,6 +161,7 @@ union pfvf_tlvs {
 enum channel_tlvs {
 	CHANNEL_TLV_NONE,
 	CHANNEL_TLV_ACQUIRE,
+	CHANNEL_TLV_RELEASE,
 	CHANNEL_TLV_LIST_END,
 	CHANNEL_TLV_MAX
 };

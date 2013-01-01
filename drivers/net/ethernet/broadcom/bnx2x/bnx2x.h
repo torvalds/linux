@@ -2220,6 +2220,7 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 int bnx2x_get_vf_id(struct bnx2x *bp, u32 *vf_id);
 int bnx2x_send_msg2pf(struct bnx2x *bp, u8 *done, dma_addr_t msg_mapping);
 int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count);
+int bnx2x_vfpf_release(struct bnx2x *bp);
 /* Congestion management fairness mode */
 #define CMNG_FNS_NONE		0
 #define CMNG_FNS_MINMAX		1

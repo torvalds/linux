@@ -12363,6 +12363,9 @@ static void bnx2x_remove_one(struct pci_dev *pdev)
 
 	/* Make sure RESET task is not scheduled before continuing */
 	cancel_delayed_work_sync(&bp->sp_rtnl_task);
+	/* send message via vfpf channel to release the resources of this vf */
+	if (IS_VF(bp))
+		bnx2x_vfpf_release(bp);
 
 	if (bp->regview)
 		iounmap(bp->regview);
@@ -13340,6 +13343,46 @@ int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count)
 		memcpy(bp->dev->dev_addr,
 		       bp->acquire_resp.resc.current_mac_addr,
 		       ETH_ALEN);
+
+	return 0;
+}
+
+int bnx2x_vfpf_release(struct bnx2x *bp)
+{
+	struct vfpf_release_tlv *req = &bp->vf2pf_mbox->req.release;
+	struct pfvf_general_resp_tlv *resp = &bp->vf2pf_mbox->resp.general_resp;
+	u32 rc = 0, vf_id;
+
+	/* clear mailbox and prep first tlv */
+	bnx2x_vfpf_prep(bp, &req->first_tlv, CHANNEL_TLV_RELEASE, sizeof(*req));
+
+	if (bnx2x_get_vf_id(bp, &vf_id))
+		return -EAGAIN;
+
+	req->vf_id = vf_id;
+
+	/* add list termination tlv */
+	bnx2x_add_tlv(bp, req, req->first_tlv.tl.length, CHANNEL_TLV_LIST_END,
+		      sizeof(struct channel_list_end_tlv));
+
+	/* output tlvs list */
+	bnx2x_dp_tlv_list(bp, req);
+
+	/* send release request */
+	rc = bnx2x_send_msg2pf(bp, &resp->hdr.status, bp->vf2pf_mbox_mapping);
+
+	if (rc)
+		/* PF timeout */
+		return rc;
+	if (resp->hdr.status == PFVF_STATUS_SUCCESS) {
+		/* PF released us */
+		DP(BNX2X_MSG_SP, "vf released\n");
+	} else {
+		/* PF reports error */
+		BNX2X_ERR("PF failed our release request - are we out of sync? response status: %d\n",
+			  resp->hdr.status);
+		return -EAGAIN;
+	}
 
 	return 0;
 }
