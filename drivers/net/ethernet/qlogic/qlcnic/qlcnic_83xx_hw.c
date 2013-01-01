@@ -267,6 +267,8 @@ static struct qlcnic_hardware_ops qlcnic_83xx_hw_ops = {
 static struct qlcnic_nic_template qlcnic_83xx_ops = {
 	.config_bridged_mode	= qlcnic_config_bridged_mode,
 	.config_led		= qlcnic_config_led,
+	.request_reset          = qlcnic_83xx_idc_request_reset,
+	.cancel_idc_work        = qlcnic_83xx_idc_exit,
 	.napi_add		= qlcnic_83xx_napi_add,
 	.napi_del		= qlcnic_83xx_napi_del,
 	.config_ipaddr		= qlcnic_83xx_config_ipaddr,
@@ -589,6 +591,7 @@ int qlcnic_83xx_get_port_info(struct qlcnic_adapter *adapter)
 			adapter->ahw->port_type = QLCNIC_XGBE;
 		else
 			adapter->ahw->port_type = QLCNIC_GBE;
+
 		if (QLC_83XX_AUTONEG(adapter->ahw->port_config))
 			adapter->ahw->link_autoneg = AUTONEG_ENABLE;
 	}
@@ -603,6 +606,7 @@ void qlcnic_83xx_enable_mbx_intrpt(struct qlcnic_adapter *adapter)
 		val = BIT_2 | ((adapter->ahw->num_msix - 1) << 8);
 	else
 		val = BIT_2;
+
 	QLCWRX(adapter->ahw, QLCNIC_MBX_INTR_ENBL, val);
 }
 
@@ -612,9 +616,7 @@ void qlcnic_83xx_check_vf(struct qlcnic_adapter *adapter,
 	u32 op_mode, priv_level;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 
-	/* Determine FW API version */
 	ahw->fw_hal_version = 2;
-	/* Find PCI function number */
 	qlcnic_get_func_no(adapter);
 
 	/* Determine function privilege level */
@@ -691,6 +693,13 @@ int qlcnic_83xx_mbx_op(struct qlcnic_adapter *adapter,
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 
 	opcode = LSW(cmd->req.arg[0]);
+	if (!test_bit(QLC_83XX_MBX_READY, &adapter->ahw->idc.status)) {
+		dev_info(&adapter->pdev->dev,
+			 "Mailbox cmd attempted, 0x%x\n", opcode);
+		dev_info(&adapter->pdev->dev, "Mailbox detached\n");
+		return 0;
+	}
+
 	spin_lock(&ahw->mbx_lock);
 	mbx_val = QLCRDX(ahw, QLCNIC_HOST_MBX_CTRL);
 
@@ -853,6 +862,7 @@ static void qlcnic_83xx_handle_idc_comp_aen(struct qlcnic_adapter *adapter,
 {
 	dev_dbg(&adapter->pdev->dev, "Completion AEN:0x%x.\n",
 		QLCNIC_MBX_RSP(data[0]));
+	clear_bit(QLC_83XX_IDC_COMP_AEN, &adapter->ahw->idc.status);
 	return;
 }
 
@@ -1306,7 +1316,7 @@ int qlcnic_83xx_nic_set_promisc(struct qlcnic_adapter *adapter, u32 mode)
 int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
-	int status = 0;
+	int status = 0, loop = 0;
 	u32 config;
 
 	status = qlcnic_83xx_get_port_config(adapter);
@@ -1314,6 +1324,7 @@ int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 		return status;
 
 	config = ahw->port_config;
+	set_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status);
 
 	if (mode == QLCNIC_ILB_MODE)
 		ahw->port_config |= QLC_83XX_CFG_LOOPBACK_HSS;
@@ -1326,8 +1337,20 @@ int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 			"Failed to Set Loopback Mode = 0x%x.\n",
 			ahw->port_config);
 		ahw->port_config = config;
+		clear_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status);
 		return status;
 	}
+
+	/* Wait until firmware send IDC Completion AEN */
+	do {
+		msleep(300);
+		if (loop++ > QLCNIC_ILB_MAX_RCV_LOOP) {
+			dev_err(&adapter->pdev->dev,
+				"FW did not generate IDC completion AEN\n");
+			clear_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status);
+			return -EIO;
+		}
+	} while (test_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status));
 
 	qlcnic_sre_macaddr_change(adapter, adapter->mac_addr, 0,
 				  QLCNIC_MAC_ADD);
@@ -1337,9 +1360,10 @@ int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 int qlcnic_83xx_clear_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
-	int status = 0;
+	int status = 0, loop = 0;
 	u32 config = ahw->port_config;
 
+	set_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status);
 	if (mode == QLCNIC_ILB_MODE)
 		ahw->port_config &= ~QLC_83XX_CFG_LOOPBACK_HSS;
 	if (mode == QLCNIC_ELB_MODE)
@@ -1351,8 +1375,20 @@ int qlcnic_83xx_clear_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 			"Failed to Clear Loopback Mode = 0x%x.\n",
 			ahw->port_config);
 		ahw->port_config = config;
+		clear_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status);
 		return status;
 	}
+
+	/* Wait until firmware send IDC Completion AEN */
+	do {
+		msleep(300);
+		if (loop++ > QLCNIC_ILB_MAX_RCV_LOOP) {
+			dev_err(&adapter->pdev->dev,
+				"Firmware didn't sent IDC completion AEN\n");
+			clear_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status);
+			return -EIO;
+		}
+	} while (test_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status));
 
 	qlcnic_sre_macaddr_change(adapter, adapter->mac_addr, 0,
 				  QLCNIC_MAC_DEL);
@@ -1813,9 +1849,9 @@ void qlcnic_83xx_unlock_flash(struct qlcnic_adapter *adapter)
 	QLC_SHARED_REG_WR32(adapter, QLCNIC_FLASH_LOCK_OWNER, 0xFF);
 }
 
-static int qlcnic_83xx_lockless_flash_read32(struct qlcnic_adapter *adapter,
-					     u32 flash_addr, u8 *p_data,
-					     int count)
+int qlcnic_83xx_lockless_flash_read32(struct qlcnic_adapter *adapter,
+				      u32 flash_addr, u8 *p_data,
+				      int count)
 {
 	int i, ret;
 	u32 word, range, flash_offset, addr = flash_addr;
@@ -2141,4 +2177,169 @@ int qlcnic_83xx_flash_bulk_write(struct qlcnic_adapter *adapter, u32 addr,
 	}
 
 	return 0;
+}
+
+static void qlcnic_83xx_recover_driver_lock(struct qlcnic_adapter *adapter)
+{
+	u32 val, id;
+
+	val = QLCRDX(adapter->ahw, QLC_83XX_RECOVER_DRV_LOCK);
+
+	/* Check if recovery need to be performed by the calling function */
+	if ((val & QLC_83XX_DRV_LOCK_RECOVERY_STATUS_MASK) == 0) {
+		val = val & ~0x3F;
+		val = val | ((adapter->portnum << 2) |
+			     QLC_83XX_NEED_DRV_LOCK_RECOVERY);
+		QLCWRX(adapter->ahw, QLC_83XX_RECOVER_DRV_LOCK, val);
+		dev_info(&adapter->pdev->dev,
+			 "%s: lock recovery initiated\n", __func__);
+		msleep(QLC_83XX_DRV_LOCK_RECOVERY_DELAY);
+		val = QLCRDX(adapter->ahw, QLC_83XX_RECOVER_DRV_LOCK);
+		id = ((val >> 2) & 0xF);
+		if (id == adapter->portnum) {
+			val = val & ~QLC_83XX_DRV_LOCK_RECOVERY_STATUS_MASK;
+			val = val | QLC_83XX_DRV_LOCK_RECOVERY_IN_PROGRESS;
+			QLCWRX(adapter->ahw, QLC_83XX_RECOVER_DRV_LOCK, val);
+			/* Force release the lock */
+			QLCRDX(adapter->ahw, QLC_83XX_DRV_UNLOCK);
+			/* Clear recovery bits */
+			val = val & ~0x3F;
+			QLCWRX(adapter->ahw, QLC_83XX_RECOVER_DRV_LOCK, val);
+			dev_info(&adapter->pdev->dev,
+				 "%s: lock recovery completed\n", __func__);
+		} else {
+			dev_info(&adapter->pdev->dev,
+				 "%s: func %d to resume lock recovery process\n",
+				 __func__, id);
+		}
+	} else {
+		dev_info(&adapter->pdev->dev,
+			 "%s: lock recovery initiated by other functions\n",
+			 __func__);
+	}
+}
+
+int qlcnic_83xx_lock_driver(struct qlcnic_adapter *adapter)
+{
+	u32 lock_alive_counter, val, id, i = 0, status = 0, temp = 0;
+	int max_attempt = 0;
+
+	while (status == 0) {
+		status = QLCRDX(adapter->ahw, QLC_83XX_DRV_LOCK);
+		if (status)
+			break;
+
+		msleep(QLC_83XX_DRV_LOCK_WAIT_DELAY);
+		i++;
+
+		if (i == 1)
+			temp = QLCRDX(adapter->ahw, QLC_83XX_DRV_LOCK_ID);
+
+		if (i == QLC_83XX_DRV_LOCK_WAIT_COUNTER) {
+			val = QLCRDX(adapter->ahw, QLC_83XX_DRV_LOCK_ID);
+			if (val == temp) {
+				id = val & 0xFF;
+				dev_info(&adapter->pdev->dev,
+					 "%s: lock to be recovered from %d\n",
+					 __func__, id);
+				qlcnic_83xx_recover_driver_lock(adapter);
+				i = 0;
+				max_attempt++;
+			} else {
+				dev_err(&adapter->pdev->dev,
+					"%s: failed to get lock\n", __func__);
+				return -EIO;
+			}
+		}
+
+		/* Force exit from while loop after few attempts */
+		if (max_attempt == QLC_83XX_MAX_DRV_LOCK_RECOVERY_ATTEMPT) {
+			dev_err(&adapter->pdev->dev,
+				"%s: failed to get lock\n", __func__);
+			return -EIO;
+		}
+	}
+
+	val = QLCRDX(adapter->ahw, QLC_83XX_DRV_LOCK_ID);
+	lock_alive_counter = val >> 8;
+	lock_alive_counter++;
+	val = lock_alive_counter << 8 | adapter->portnum;
+	QLCWRX(adapter->ahw, QLC_83XX_DRV_LOCK_ID, val);
+
+	return 0;
+}
+
+void qlcnic_83xx_unlock_driver(struct qlcnic_adapter *adapter)
+{
+	u32 val, lock_alive_counter, id;
+
+	val = QLCRDX(adapter->ahw, QLC_83XX_DRV_LOCK_ID);
+	id = val & 0xFF;
+	lock_alive_counter = val >> 8;
+
+	if (id != adapter->portnum)
+		dev_err(&adapter->pdev->dev,
+			"%s:Warning func %d is unlocking lock owned by %d\n",
+			__func__, adapter->portnum, id);
+
+	val = (lock_alive_counter << 8) | 0xFF;
+	QLCWRX(adapter->ahw, QLC_83XX_DRV_LOCK_ID, val);
+	QLCRDX(adapter->ahw, QLC_83XX_DRV_UNLOCK);
+}
+
+int qlcnic_83xx_ms_mem_write128(struct qlcnic_adapter *adapter, u64 addr,
+				u32 *data, u32 count)
+{
+	int i, j, ret = 0;
+	u32 temp;
+
+	/* Check alignment */
+	if (addr & 0xF)
+		return -EIO;
+
+	mutex_lock(&adapter->ahw->mem_lock);
+	qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_ADDR_HI, 0);
+
+	for (i = 0; i < count; i++, addr += 16) {
+		if (!((ADDR_IN_RANGE(addr, QLCNIC_ADDR_QDR_NET,
+				     QLCNIC_ADDR_QDR_NET_MAX)) ||
+		      (ADDR_IN_RANGE(addr, QLCNIC_ADDR_DDR_NET,
+				     QLCNIC_ADDR_DDR_NET_MAX)))) {
+			mutex_unlock(&adapter->ahw->mem_lock);
+			return -EIO;
+		}
+
+		qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_ADDR_LO, addr);
+		qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_WRTDATA_LO,
+					     *data++);
+		qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_WRTDATA_HI,
+					     *data++);
+		qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_WRTDATA_ULO,
+					     *data++);
+		qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_WRTDATA_UHI,
+					     *data++);
+		qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_CTRL,
+					     QLCNIC_TA_WRITE_ENABLE);
+		qlcnic_83xx_wrt_reg_indirect(adapter, QLCNIC_MS_CTRL,
+					     QLCNIC_TA_WRITE_START);
+
+		for (j = 0; j < MAX_CTL_CHECK; j++) {
+			temp = qlcnic_83xx_rd_reg_indirect(adapter,
+							   QLCNIC_MS_CTRL);
+			if ((temp & TA_CTL_BUSY) == 0)
+				break;
+		}
+
+		/* Status check failure */
+		if (j >= MAX_CTL_CHECK) {
+			printk_ratelimited(KERN_WARNING
+					   "MS memory write failed\n");
+			mutex_unlock(&adapter->ahw->mem_lock);
+			return -EIO;
+		}
+	}
+
+	mutex_unlock(&adapter->ahw->mem_lock);
+
+	return ret;
 }

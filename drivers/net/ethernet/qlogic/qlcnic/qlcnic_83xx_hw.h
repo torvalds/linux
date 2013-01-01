@@ -53,6 +53,30 @@
 #define QLCNIC_HOST_RDS_MBX_IDX			88
 #define QLCNIC_MAX_RING_SETS			8
 
+/* Pause control registers */
+#define QLC_83XX_SRE_SHIM_REG		0x0D200284
+#define QLC_83XX_PORT0_THRESHOLD	0x0B2003A4
+#define QLC_83XX_PORT1_THRESHOLD	0x0B2013A4
+#define QLC_83XX_PORT0_TC_MC_REG	0x0B200388
+#define QLC_83XX_PORT1_TC_MC_REG	0x0B201388
+#define QLC_83XX_PORT0_TC_STATS		0x0B20039C
+#define QLC_83XX_PORT1_TC_STATS		0x0B20139C
+#define QLC_83XX_PORT2_IFB_THRESHOLD	0x0B200704
+#define QLC_83XX_PORT3_IFB_THRESHOLD	0x0B201704
+
+/* Peg PC status registers */
+#define QLC_83XX_CRB_PEG_NET_0		0x3400003c
+#define QLC_83XX_CRB_PEG_NET_1		0x3410003c
+#define QLC_83XX_CRB_PEG_NET_2		0x3420003c
+#define QLC_83XX_CRB_PEG_NET_3		0x3430003c
+#define QLC_83XX_CRB_PEG_NET_4		0x34b0003c
+
+/* Firmware image definitions */
+#define QLC_83XX_BOOTLOADER_FLASH_ADDR	0x10000
+#define QLC_83XX_FW_FILE_NAME		"83xx_fw.bin"
+#define QLC_83XX_BOOT_FROM_FLASH	0
+#define QLC_83XX_BOOT_FROM_FILE		0x12345678
+
 struct qlcnic_intrpt_config {
 	u8	type;
 	u8	enabled;
@@ -65,6 +89,49 @@ struct qlcnic_macvlan_mbx {
 	u16	vlan;
 };
 
+struct qlc_83xx_fw_info {
+	const struct firmware	*fw;
+	u16	major_fw_version;
+	u8	minor_fw_version;
+	u8	sub_fw_version;
+	u8	fw_build_num;
+	u8	load_from_file;
+};
+
+#define QLC_83XX_IDC_DISABLE_FW_RESET_RECOVERY		0x1
+#define QLC_83XX_IDC_GRACEFULL_RESET			0x2
+#define QLC_83XX_IDC_TIMESTAMP				0
+#define QLC_83XX_IDC_DURATION				1
+#define QLC_83XX_IDC_INIT_TIMEOUT_SECS			30
+#define QLC_83XX_IDC_RESET_ACK_TIMEOUT_SECS		10
+#define QLC_83XX_IDC_RESET_TIMEOUT_SECS		10
+#define QLC_83XX_IDC_QUIESCE_ACK_TIMEOUT_SECS		20
+#define QLC_83XX_IDC_FW_POLL_DELAY			(1 * HZ)
+#define QLC_83XX_IDC_FW_FAIL_THRESH			2
+#define QLC_83XX_IDC_MAX_FUNC_PER_PARTITION_INFO	8
+#define QLC_83XX_IDC_MAX_CNA_FUNCTIONS			16
+#define QLC_83XX_IDC_MAJOR_VERSION			1
+#define QLC_83XX_IDC_MINOR_VERSION			0
+#define QLC_83XX_IDC_FLASH_PARAM_ADDR			0x3e8020
+
+/* Mailbox process AEN count */
+#define QLC_83XX_MBX_AEN_CNT 5
+
+struct qlcnic_adapter;
+struct qlc_83xx_idc {
+	int (*state_entry) (struct qlcnic_adapter *);
+	u64		sec_counter;
+	u64		delay;
+	unsigned long	status;
+	int		err_code;
+	int		collect_dump;
+	u8		curr_state;
+	u8		prev_state;
+	u8		vnic_state;
+	u8		vnic_wait_limit;
+	u8		quiesce_req;
+	char		**name;
+};
 
 /* Mailbox process AEN count */
 #define QLC_83XX_IDC_COMP_AEN			3
@@ -303,4 +370,17 @@ int qlcnic_83xx_save_flash_status(struct qlcnic_adapter *);
 int qlcnic_83xx_restore_flash_status(struct qlcnic_adapter *, int);
 int qlcnic_83xx_read_flash_mfg_id(struct qlcnic_adapter *);
 int qlcnic_83xx_read_flash_descriptor_table(struct qlcnic_adapter *);
+int qlcnic_83xx_flash_read32(struct qlcnic_adapter *, u32, u8 *, int);
+int qlcnic_83xx_lockless_flash_read32(struct qlcnic_adapter *,
+				      u32, u8 *, int);
+int qlcnic_83xx_init(struct qlcnic_adapter *);
+int qlcnic_83xx_idc_ready_state_entry(struct qlcnic_adapter *);
+int qlcnic_83xx_check_hw_status(struct qlcnic_adapter *p_dev);
+void qlcnic_83xx_idc_poll_dev_state(struct work_struct *);
+void qlcnic_83xx_idc_exit(struct qlcnic_adapter *);
+void qlcnic_83xx_idc_request_reset(struct qlcnic_adapter *, u32);
+int qlcnic_83xx_lock_driver(struct qlcnic_adapter *);
+void qlcnic_83xx_unlock_driver(struct qlcnic_adapter *);
+int qlcnic_83xx_set_default_offload_settings(struct qlcnic_adapter *);
+int qlcnic_83xx_ms_mem_write128(struct qlcnic_adapter *, u64, u32 *, u32);
 #endif

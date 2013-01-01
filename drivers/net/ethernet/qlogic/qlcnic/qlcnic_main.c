@@ -39,23 +39,23 @@ static int qlcnic_mac_learn;
 module_param(qlcnic_mac_learn, int, 0444);
 MODULE_PARM_DESC(qlcnic_mac_learn, "Mac Filter (0=disabled, 1=enabled)");
 
-static int qlcnic_use_msi = 1;
+int qlcnic_use_msi = 1;
 MODULE_PARM_DESC(use_msi, "MSI interrupt (0=disabled, 1=enabled");
 module_param_named(use_msi, qlcnic_use_msi, int, 0444);
 
-static int qlcnic_use_msi_x = 1;
+int qlcnic_use_msi_x = 1;
 MODULE_PARM_DESC(use_msi_x, "MSI-X interrupt (0=disabled, 1=enabled");
 module_param_named(use_msi_x, qlcnic_use_msi_x, int, 0444);
 
-static int qlcnic_auto_fw_reset = 1;
+int qlcnic_auto_fw_reset = 1;
 MODULE_PARM_DESC(auto_fw_reset, "Auto firmware reset (0=disabled, 1=enabled");
 module_param_named(auto_fw_reset, qlcnic_auto_fw_reset, int, 0644);
 
-static int qlcnic_load_fw_file;
+int qlcnic_load_fw_file;
 MODULE_PARM_DESC(load_fw_file, "Load firmware from (0=flash, 1=file");
 module_param_named(load_fw_file, qlcnic_load_fw_file, int, 0444);
 
-static int qlcnic_config_npars;
+int qlcnic_config_npars;
 module_param(qlcnic_config_npars, int, 0444);
 MODULE_PARM_DESC(qlcnic_config_npars, "Configure NPARs (0=disabled, 1=enabled");
 
@@ -1294,9 +1294,7 @@ int __qlcnic_up(struct qlcnic_adapter *adapter, struct net_device *netdev)
 	return 0;
 }
 
-/* Usage: During resume and firmware recovery module.*/
-
-static int qlcnic_up(struct qlcnic_adapter *adapter, struct net_device *netdev)
+int qlcnic_up(struct qlcnic_adapter *adapter, struct net_device *netdev)
 {
 	int err = 0;
 
@@ -1340,8 +1338,7 @@ void __qlcnic_down(struct qlcnic_adapter *adapter, struct net_device *netdev)
 
 /* Usage: During suspend and firmware recovery module */
 
-static void
-qlcnic_down(struct qlcnic_adapter *adapter, struct net_device *netdev)
+void qlcnic_down(struct qlcnic_adapter *adapter, struct net_device *netdev)
 {
 	rtnl_lock();
 	if (netif_running(netdev))
@@ -1812,6 +1809,11 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	} else if (qlcnic_83xx_check(adapter)) {
 		qlcnic_83xx_check_vf(adapter, ent);
 		adapter->portnum = adapter->ahw->pci_func;
+		err = qlcnic_83xx_init(adapter);
+		if (err) {
+			dev_err(&pdev->dev, "%s: failed\n", __func__);
+			goto err_out_free_hw;
+		}
 	} else {
 		dev_err(&pdev->dev,
 			"%s: failed. Please Reboot\n", __func__);
@@ -2135,7 +2137,7 @@ static void qlcnic_free_lb_filters_mem(struct qlcnic_adapter *adapter)
 	adapter->fhash.fmax = 0;
 }
 
-static int qlcnic_check_temp(struct qlcnic_adapter *adapter)
+int qlcnic_check_temp(struct qlcnic_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	u32 temp_state, temp_val, temp = 0;

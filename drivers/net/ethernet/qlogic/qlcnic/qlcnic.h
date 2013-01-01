@@ -299,6 +299,12 @@ struct qlcnic_fdt {
 
 extern char qlcnic_driver_name[];
 
+extern int qlcnic_use_msi;
+extern int qlcnic_use_msi_x;
+extern int qlcnic_auto_fw_reset;
+extern int qlcnic_load_fw_file;
+extern int qlcnic_config_npars;
+
 /* Number of status descriptors to handle per interrupt */
 #define MAX_STATUS_HANDLE	(64)
 
@@ -436,6 +442,8 @@ struct qlcnic_hardware_context {
 	struct qlcnic_nic_intr_coalesce coal;
 	struct qlcnic_fw_dump fw_dump;
 	struct qlcnic_fdt fdt;
+	struct qlc_83xx_idc idc;
+	struct qlc_83xx_fw_info fw_info;
 	struct qlcnic_intrpt_config *intr_tbl;
 	u32 *reg_tbl;
 	u32 *ext_reg_tbl;
@@ -947,6 +955,7 @@ struct qlcnic_ipaddr {
 #define QLCNIC_TEST_IN_PROGRESS		52
 #define QLCNIC_UNDEFINED_ERROR		53
 #define QLCNIC_LB_CABLE_NOT_CONN	54
+#define QLCNIC_ILB_MAX_RCV_LOOP	10
 
 struct qlcnic_filter {
 	struct hlist_node fnode;
@@ -1470,6 +1479,7 @@ int qlcnic_enable_msix(struct qlcnic_adapter *, u32);
 /*  eSwitch management functions */
 int qlcnic_config_switch_port(struct qlcnic_adapter *,
 				struct qlcnic_esw_func_cfg *);
+
 int qlcnic_get_eswitch_port_config(struct qlcnic_adapter *,
 				struct qlcnic_esw_func_cfg *);
 int qlcnic_config_port_mirroring(struct qlcnic_adapter *, u8, u8, u8);
@@ -1501,6 +1511,9 @@ void qlcnic_set_vlan_config(struct qlcnic_adapter *,
 			    struct qlcnic_esw_func_cfg *);
 void qlcnic_set_eswitch_port_features(struct qlcnic_adapter *,
 				      struct qlcnic_esw_func_cfg *);
+
+void qlcnic_down(struct qlcnic_adapter *, struct net_device *);
+int qlcnic_up(struct qlcnic_adapter *, struct net_device *);
 void __qlcnic_down(struct qlcnic_adapter *, struct net_device *);
 void qlcnic_detach(struct qlcnic_adapter *);
 void qlcnic_teardown_intr(struct qlcnic_adapter *);
@@ -1508,6 +1521,7 @@ int qlcnic_attach(struct qlcnic_adapter *);
 int __qlcnic_up(struct qlcnic_adapter *, struct net_device *);
 void qlcnic_restore_indev_addr(struct net_device *, unsigned long);
 
+int qlcnic_check_temp(struct qlcnic_adapter *);
 
 /*
  * QLOGIC Board information
