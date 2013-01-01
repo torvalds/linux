@@ -2383,3 +2383,375 @@ int qlcnic_83xx_flash_read32(struct qlcnic_adapter *adapter, u32 flash_addr,
 
 	return 0;
 }
+
+int qlcnic_83xx_test_link(struct qlcnic_adapter *adapter)
+{
+	int err;
+	u32 config = 0, state;
+	struct qlcnic_cmd_args cmd;
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+
+	state = readl(ahw->pci_base0 + QLC_83XX_LINK_STATE(ahw->pci_func));
+	if (!QLC_83xx_FUNC_VAL(state, ahw->pci_func)) {
+		dev_info(&adapter->pdev->dev, "link state down\n");
+		return config;
+	}
+	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_LINK_STATUS);
+	err = qlcnic_issue_cmd(adapter, &cmd);
+	if (err) {
+		dev_info(&adapter->pdev->dev,
+			 "Get Link Status Command failed: 0x%x\n", err);
+		goto out;
+	} else {
+		config = cmd.rsp.arg[1];
+		switch (QLC_83XX_CURRENT_LINK_SPEED(config)) {
+		case QLC_83XX_10M_LINK:
+			ahw->link_speed = SPEED_10;
+			break;
+		case QLC_83XX_100M_LINK:
+			ahw->link_speed = SPEED_100;
+			break;
+		case QLC_83XX_1G_LINK:
+			ahw->link_speed = SPEED_1000;
+			break;
+		case QLC_83XX_10G_LINK:
+			ahw->link_speed = SPEED_10000;
+			break;
+		default:
+			ahw->link_speed = 0;
+			break;
+		}
+		config = cmd.rsp.arg[3];
+		if (config & 1)
+			err = 1;
+	}
+out:
+	qlcnic_free_mbx_args(&cmd);
+	return config;
+}
+
+int qlcnic_83xx_get_settings(struct qlcnic_adapter *adapter)
+{
+	u32 config = 0;
+	int status = 0;
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+
+	/* Get port configuration info */
+	status = qlcnic_83xx_get_port_info(adapter);
+	/* Get Link Status related info */
+	config = qlcnic_83xx_test_link(adapter);
+	ahw->module_type = QLC_83XX_SFP_MODULE_TYPE(config);
+	/* hard code until there is a way to get it from flash */
+	ahw->board_type = QLCNIC_BRDTYPE_83XX_10G;
+	return status;
+}
+
+int qlcnic_83xx_set_settings(struct qlcnic_adapter *adapter,
+			     struct ethtool_cmd *ecmd)
+{
+	int status = 0;
+	u32 config = adapter->ahw->port_config;
+
+	if (ecmd->autoneg)
+		adapter->ahw->port_config |= BIT_15;
+
+	switch (ethtool_cmd_speed(ecmd)) {
+	case SPEED_10:
+		adapter->ahw->port_config |= BIT_8;
+		break;
+	case SPEED_100:
+		adapter->ahw->port_config |= BIT_9;
+		break;
+	case SPEED_1000:
+		adapter->ahw->port_config |= BIT_10;
+		break;
+	case SPEED_10000:
+		adapter->ahw->port_config |= BIT_11;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	status = qlcnic_83xx_set_port_config(adapter);
+	if (status) {
+		dev_info(&adapter->pdev->dev,
+			 "Faild to Set Link Speed and autoneg.\n");
+		adapter->ahw->port_config = config;
+	}
+	return status;
+}
+
+static inline u64 *qlcnic_83xx_copy_stats(struct qlcnic_cmd_args *cmd,
+					  u64 *data, int index)
+{
+	u32 low, hi;
+	u64 val;
+
+	low = cmd->rsp.arg[index];
+	hi = cmd->rsp.arg[index + 1];
+	val = (((u64) low) | (((u64) hi) << 32));
+	*data++ = val;
+	return data;
+}
+
+static u64 *qlcnic_83xx_fill_stats(struct qlcnic_adapter *adapter,
+				   struct qlcnic_cmd_args *cmd, u64 *data,
+				   int type, int *ret)
+{
+	int err, k, total_regs;
+
+	*ret = 0;
+	err = qlcnic_issue_cmd(adapter, cmd);
+	if (err != QLCNIC_RCODE_SUCCESS) {
+		dev_info(&adapter->pdev->dev,
+			 "Error in get statistics mailbox command\n");
+		*ret = -EIO;
+		return data;
+	}
+	total_regs = cmd->rsp.num;
+	switch (type) {
+	case QLC_83XX_STAT_MAC:
+		/* fill in MAC tx counters */
+		for (k = 2; k < 28; k += 2)
+			data = qlcnic_83xx_copy_stats(cmd, data, k);
+		/* skip 24 bytes of reserved area */
+		/* fill in MAC rx counters */
+		for (k += 6; k < 60; k += 2)
+			data = qlcnic_83xx_copy_stats(cmd, data, k);
+		/* skip 24 bytes of reserved area */
+		/* fill in MAC rx frame stats */
+		for (k += 6; k < 80; k += 2)
+			data = qlcnic_83xx_copy_stats(cmd, data, k);
+		break;
+	case QLC_83XX_STAT_RX:
+		for (k = 2; k < 8; k += 2)
+			data = qlcnic_83xx_copy_stats(cmd, data, k);
+		/* skip 8 bytes of reserved data */
+		for (k += 2; k < 24; k += 2)
+			data = qlcnic_83xx_copy_stats(cmd, data, k);
+		/* skip 8 bytes containing RE1FBQ error data */
+		for (k += 2; k < total_regs; k += 2)
+			data = qlcnic_83xx_copy_stats(cmd, data, k);
+		break;
+	case QLC_83XX_STAT_TX:
+		for (k = 2; k < 10; k += 2)
+			data = qlcnic_83xx_copy_stats(cmd, data, k);
+		/* skip 8 bytes of reserved data */
+		for (k += 2; k < total_regs; k += 2)
+			data = qlcnic_83xx_copy_stats(cmd, data, k);
+		break;
+	default:
+		dev_warn(&adapter->pdev->dev, "Unknown get statistics mode\n");
+		*ret = -EIO;
+	}
+	return data;
+}
+
+void qlcnic_83xx_get_stats(struct qlcnic_adapter *adapter, u64 *data)
+{
+	struct qlcnic_cmd_args cmd;
+	int ret = 0;
+
+	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_STATISTICS);
+	/* Get Tx stats */
+	cmd.req.arg[1] = BIT_1 | (adapter->tx_ring->ctx_id << 16);
+	cmd.rsp.num = QLC_83XX_TX_STAT_REGS;
+	data = qlcnic_83xx_fill_stats(adapter, &cmd, data,
+				      QLC_83XX_STAT_TX, &ret);
+	if (ret) {
+		dev_info(&adapter->pdev->dev, "Error getting MAC stats\n");
+		goto out;
+	}
+	/* Get MAC stats */
+	cmd.req.arg[1] = BIT_2 | (adapter->portnum << 16);
+	cmd.rsp.num = QLC_83XX_MAC_STAT_REGS;
+	memset(cmd.rsp.arg, 0, sizeof(u32) * cmd.rsp.num);
+	data = qlcnic_83xx_fill_stats(adapter, &cmd, data,
+				      QLC_83XX_STAT_MAC, &ret);
+	if (ret) {
+		dev_info(&adapter->pdev->dev,
+			 "Error getting Rx stats\n");
+		goto out;
+	}
+	/* Get Rx stats */
+	cmd.req.arg[1] = adapter->recv_ctx->context_id << 16;
+	cmd.rsp.num = QLC_83XX_RX_STAT_REGS;
+	memset(cmd.rsp.arg, 0, sizeof(u32) * cmd.rsp.num);
+	data = qlcnic_83xx_fill_stats(adapter, &cmd, data,
+				      QLC_83XX_STAT_RX, &ret);
+	if (ret)
+		dev_info(&adapter->pdev->dev,
+			 "Error getting Tx stats\n");
+out:
+	qlcnic_free_mbx_args(&cmd);
+}
+
+int qlcnic_83xx_reg_test(struct qlcnic_adapter *adapter)
+{
+	u32 major, minor, sub;
+
+	major = QLC_SHARED_REG_RD32(adapter, QLCNIC_FW_VERSION_MAJOR);
+	minor = QLC_SHARED_REG_RD32(adapter, QLCNIC_FW_VERSION_MINOR);
+	sub = QLC_SHARED_REG_RD32(adapter, QLCNIC_FW_VERSION_SUB);
+
+	if (adapter->fw_version != QLCNIC_VERSION_CODE(major, minor, sub)) {
+		dev_info(&adapter->pdev->dev, "%s: Reg test failed\n",
+			 __func__);
+		return 1;
+	}
+	return 0;
+}
+
+int qlcnic_83xx_get_regs_len(struct qlcnic_adapter *adapter)
+{
+	return (ARRAY_SIZE(qlcnic_83xx_ext_reg_tbl) *
+		sizeof(adapter->ahw->ext_reg_tbl)) +
+		(ARRAY_SIZE(qlcnic_83xx_reg_tbl) +
+		sizeof(adapter->ahw->reg_tbl));
+}
+
+int qlcnic_83xx_get_registers(struct qlcnic_adapter *adapter, u32 *regs_buff)
+{
+	int i, j = 0;
+
+	for (i = QLCNIC_DEV_INFO_SIZE + 1;
+	     j < ARRAY_SIZE(qlcnic_83xx_reg_tbl); i++, j++)
+		regs_buff[i] = QLC_SHARED_REG_RD32(adapter, j);
+
+	for (j = 0; j < ARRAY_SIZE(qlcnic_83xx_ext_reg_tbl); j++)
+		regs_buff[i++] = QLCRDX(adapter->ahw, j);
+	return i;
+}
+
+int qlcnic_83xx_interrupt_test(struct qlcnic_adapter *adapter,
+			       struct qlcnic_cmd_args *cmd)
+{
+	u8 val;
+	int ret;
+	u32 data;
+	u16 intrpt_id, id;
+
+	if (adapter->flags & QLCNIC_MSIX_ENABLED)
+		intrpt_id = adapter->ahw->intr_tbl[0].id;
+	else
+		intrpt_id = QLCRDX(adapter->ahw, QLCNIC_DEF_INT_ID);
+
+	cmd->req.arg[1] = 1;
+	cmd->req.arg[2] = intrpt_id;
+	cmd->req.arg[3] = BIT_0;
+
+	ret = qlcnic_issue_cmd(adapter, cmd);
+	data = cmd->rsp.arg[2];
+	id = LSW(data);
+	val = LSB(MSW(data));
+	if (id != intrpt_id)
+		dev_info(&adapter->pdev->dev,
+			 "Interrupt generated: 0x%x, requested:0x%x\n",
+			 id, intrpt_id);
+	if (val)
+		dev_info(&adapter->pdev->dev,
+			 "Interrupt test error: 0x%x\n", val);
+
+	return ret;
+}
+
+void qlcnic_83xx_get_pauseparam(struct qlcnic_adapter *adapter,
+				struct ethtool_pauseparam *pause)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	int status = 0;
+	u32 config;
+
+	status = qlcnic_83xx_get_port_config(adapter);
+	if (status) {
+		dev_err(&adapter->pdev->dev,
+			"%s: Get Pause Config failed\n", __func__);
+		return;
+	}
+	config = ahw->port_config;
+	if (config & QLC_83XX_CFG_STD_PAUSE) {
+		if (config & QLC_83XX_CFG_STD_TX_PAUSE)
+			pause->tx_pause = 1;
+		if (config & QLC_83XX_CFG_STD_RX_PAUSE)
+			pause->rx_pause = 1;
+	}
+
+	if (QLC_83XX_AUTONEG(config))
+		pause->autoneg = 1;
+}
+
+int qlcnic_83xx_set_pauseparam(struct qlcnic_adapter *adapter,
+			       struct ethtool_pauseparam *pause)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	int status = 0;
+	u32 config;
+
+	status = qlcnic_83xx_get_port_config(adapter);
+	if (status) {
+		dev_err(&adapter->pdev->dev,
+			"%s: Get Pause Config failed.\n", __func__);
+		return status;
+	}
+	config = ahw->port_config;
+
+	if (ahw->port_type == QLCNIC_GBE) {
+		if (pause->autoneg)
+			ahw->port_config |= QLC_83XX_ENABLE_AUTONEG;
+		if (!pause->autoneg)
+			ahw->port_config &= ~QLC_83XX_ENABLE_AUTONEG;
+	} else if ((ahw->port_type == QLCNIC_XGBE) && (pause->autoneg)) {
+		return -EOPNOTSUPP;
+	}
+
+	if (!(config & QLC_83XX_CFG_STD_PAUSE))
+		ahw->port_config |= QLC_83XX_CFG_STD_PAUSE;
+
+	if (pause->rx_pause && pause->tx_pause) {
+		ahw->port_config |= QLC_83XX_CFG_STD_TX_RX_PAUSE;
+	} else if (pause->rx_pause && !pause->tx_pause) {
+		ahw->port_config &= ~QLC_83XX_CFG_STD_TX_PAUSE;
+		ahw->port_config |= QLC_83XX_CFG_STD_RX_PAUSE;
+	} else if (pause->tx_pause && !pause->rx_pause) {
+		ahw->port_config &= ~QLC_83XX_CFG_STD_RX_PAUSE;
+		ahw->port_config |= QLC_83XX_CFG_STD_TX_PAUSE;
+	} else if (!pause->rx_pause && !pause->tx_pause) {
+		ahw->port_config &= ~QLC_83XX_CFG_STD_TX_RX_PAUSE;
+	}
+	status = qlcnic_83xx_set_port_config(adapter);
+	if (status) {
+		dev_err(&adapter->pdev->dev,
+			"%s: Set Pause Config failed.\n", __func__);
+		ahw->port_config = config;
+	}
+	return status;
+}
+
+static int qlcnic_83xx_read_flash_status_reg(struct qlcnic_adapter *adapter)
+{
+	int ret;
+
+	qlcnic_83xx_wrt_reg_indirect(adapter, QLC_83XX_FLASH_ADDR,
+				     QLC_83XX_FLASH_OEM_READ_SIG);
+	qlcnic_83xx_wrt_reg_indirect(adapter, QLC_83XX_FLASH_CONTROL,
+				     QLC_83XX_FLASH_READ_CTRL);
+	ret = qlcnic_83xx_poll_flash_status_reg(adapter);
+	if (ret)
+		return -EIO;
+
+	ret = qlcnic_83xx_rd_reg_indirect(adapter, QLC_83XX_FLASH_RDDATA);
+	return ret & 0xFF;
+}
+
+int qlcnic_83xx_flash_test(struct qlcnic_adapter *adapter)
+{
+	int status;
+
+	status = qlcnic_83xx_read_flash_status_reg(adapter);
+	if (status == -EIO) {
+		dev_info(&adapter->pdev->dev, "%s: EEPROM test failed.\n",
+			 __func__);
+		return 1;
+	}
+	return 0;
+}

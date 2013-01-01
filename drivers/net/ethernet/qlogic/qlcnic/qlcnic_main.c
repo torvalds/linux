@@ -878,8 +878,8 @@ qlcnic_set_netdev_features(struct qlcnic_adapter *adapter,
 	if (qlcnic_83xx_check(adapter))
 		return;
 
-	features = (NETIF_F_SG | NETIF_F_IP_CSUM |
-			NETIF_F_IPV6_CSUM | NETIF_F_GRO);
+	features = (NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_RXCSUM |
+		    NETIF_F_IPV6_CSUM | NETIF_F_GRO);
 	vlan_features = (NETIF_F_SG | NETIF_F_IP_CSUM |
 			NETIF_F_IPV6_CSUM);
 
@@ -894,12 +894,17 @@ qlcnic_set_netdev_features(struct qlcnic_adapter *adapter,
 	if (esw_cfg->offload_flags & BIT_0) {
 		netdev->features |= features;
 		adapter->rx_csum = 1;
-		if (!(esw_cfg->offload_flags & BIT_1))
+		if (!(esw_cfg->offload_flags & BIT_1)) {
 			netdev->features &= ~NETIF_F_TSO;
-		if (!(esw_cfg->offload_flags & BIT_2))
+			features &= ~NETIF_F_TSO;
+		}
+		if (!(esw_cfg->offload_flags & BIT_2)) {
 			netdev->features &= ~NETIF_F_TSO6;
+			features &= ~NETIF_F_TSO6;
+		}
 	} else {
 		netdev->features &= ~features;
+		features &= ~features;
 		adapter->rx_csum = 0;
 	}
 
@@ -1518,7 +1523,10 @@ int qlcnic_diag_alloc_res(struct net_device *netdev, int test)
 	if (adapter->ahw->diag_test == QLCNIC_INTERRUPT_TEST) {
 		for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 			sds_ring = &adapter->recv_ctx->sds_rings[ring];
-			qlcnic_enable_int(sds_ring);
+			if (qlcnic_82xx_check(adapter))
+				qlcnic_enable_int(sds_ring);
+			else
+				qlcnic_83xx_enable_intr(adapter, sds_ring);
 		}
 	}
 
@@ -1605,7 +1613,7 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev,
 
 	SET_ETHTOOL_OPS(netdev, &qlcnic_ethtool_ops);
 
-	netdev->features |= (NETIF_F_SG | NETIF_F_IP_CSUM |
+	netdev->features |= (NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_RXCSUM |
 			     NETIF_F_IPV6_CSUM | NETIF_F_GRO |
 			     NETIF_F_HW_VLAN_RX);
 	netdev->vlan_features |= (NETIF_F_SG | NETIF_F_IP_CSUM |
@@ -1627,6 +1635,7 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev,
 	if (adapter->ahw->capabilities & QLCNIC_FW_CAPABILITY_HW_LRO)
 		netdev->features |= NETIF_F_LRO;
 
+	netdev->hw_features = netdev->features;
 	netdev->irq = adapter->msix_entries[0].vector;
 
 	err = register_netdev(netdev);

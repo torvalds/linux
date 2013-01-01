@@ -337,8 +337,6 @@ void qlcnic_83xx_napi_disable(struct qlcnic_adapter *);
 int qlcnic_83xx_config_led(struct qlcnic_adapter *, u32, u32);
 void qlcnic_ind_wr(struct qlcnic_adapter *, u32, u32);
 int qlcnic_ind_rd(struct qlcnic_adapter *, u32);
-void qlcnic_83xx_get_stats(struct qlcnic_adapter *,
-			   struct ethtool_stats *, u64 *);
 int qlcnic_83xx_create_rx_ctx(struct qlcnic_adapter *);
 int qlcnic_83xx_create_tx_ctx(struct qlcnic_adapter *,
 			      struct qlcnic_host_tx_ring *, int);
@@ -409,4 +407,18 @@ int qlcnic_83xx_get_vnic_vport_info(struct qlcnic_adapter *,
 int qlcnic_83xx_get_vnic_pf_info(struct qlcnic_adapter *, struct qlcnic_info *);
 
 void qlcnic_83xx_get_minidump_template(struct qlcnic_adapter *);
+void qlcnic_83xx_get_stats(struct qlcnic_adapter *adapter, u64 *data);
+int qlcnic_83xx_get_settings(struct qlcnic_adapter *);
+int qlcnic_83xx_set_settings(struct qlcnic_adapter *, struct ethtool_cmd *);
+void qlcnic_83xx_get_pauseparam(struct qlcnic_adapter *,
+				struct ethtool_pauseparam *);
+int qlcnic_83xx_set_pauseparam(struct qlcnic_adapter *,
+			       struct ethtool_pauseparam *);
+int qlcnic_83xx_test_link(struct qlcnic_adapter *);
+int qlcnic_83xx_reg_test(struct qlcnic_adapter *);
+int qlcnic_83xx_get_regs_len(struct qlcnic_adapter *);
+int qlcnic_83xx_get_registers(struct qlcnic_adapter *, u32 *);
+int qlcnic_83xx_interrupt_test(struct qlcnic_adapter *,
+			       struct qlcnic_cmd_args *);
+int qlcnic_83xx_flash_test(struct qlcnic_adapter *);
 #endif

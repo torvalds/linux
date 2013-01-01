@@ -909,7 +909,7 @@ int qlcnic_set_features(struct net_device *netdev, netdev_features_t features)
 	if (!(changed & NETIF_F_LRO))
 		return 0;
 
-	netdev->features = features ^ NETIF_F_LRO;
+	netdev->features ^= NETIF_F_LRO;
 
 	if (qlcnic_config_hw_lro(adapter, hw_lro))
 		return -EIO;

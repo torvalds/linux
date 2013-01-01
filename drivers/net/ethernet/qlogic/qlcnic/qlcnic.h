@@ -352,6 +352,7 @@ struct qlcnic_rx_buffer {
 
 #define QLCNIC_INTR_DEFAULT			0x04
 #define QLCNIC_CONFIG_INTR_COALESCE		3
+#define QLCNIC_DEV_INFO_SIZE			1
 
 struct qlcnic_nic_intr_coalesce {
 	u8	type;
@@ -942,6 +943,7 @@ struct qlcnic_ipaddr {
 #define __QLCNIC_AER			5
 #define __QLCNIC_DIAG_RES_ALLOC		6
 #define __QLCNIC_LED_ENABLE		7
+#define __QLCNIC_ELB_INPROGRESS	8
 
 #define QLCNIC_INTERRUPT_TEST		1
 #define QLCNIC_LOOPBACK_TEST		2
