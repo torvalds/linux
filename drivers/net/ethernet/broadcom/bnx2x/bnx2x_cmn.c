@@ -2445,6 +2445,13 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		LOAD_ERROR_EXIT(bp, load_error0);
 	}
 
+	/* request pf to initialize status blocks */
+	if (IS_VF(bp)) {
+		rc = bnx2x_vfpf_init(bp);
+		if (rc)
+			LOAD_ERROR_EXIT(bp, load_error0);
+	}
+
 	/* As long as bnx2x_alloc_mem() may possibly update
 	 * bp->num_queues, bnx2x_set_real_num_queues() should always
 	 * come after it. At this stage cnic queues are not counted.
@@ -2564,6 +2571,15 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 			BNX2X_ERR("PF RSS init failed\n");
 			LOAD_ERROR_EXIT(bp, load_error3);
 		}
+
+	} else { /* vf */
+		for_each_eth_queue(bp, i) {
+			rc = bnx2x_vfpf_setup_q(bp, i);
+			if (rc) {
+				BNX2X_ERR("Queue setup failed\n");
+				LOAD_ERROR_EXIT(bp, load_error3);
+			}
+		}
 	}
 
 	/* Now when Clients are configured we are ready to work */
@@ -2572,6 +2588,8 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	/* Configure a ucast MAC */
 	if (IS_PF(bp))
 		rc = bnx2x_set_eth_mac(bp, true);
+	else /* vf */
+		rc = bnx2x_vfpf_set_mac(bp);
 	if (rc) {
 		BNX2X_ERR("Setting Ethernet MAC failed\n");
 		LOAD_ERROR_EXIT(bp, load_error3);

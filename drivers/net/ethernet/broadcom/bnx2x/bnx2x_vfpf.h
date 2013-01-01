@@ -38,6 +38,22 @@ struct hw_sb_info {
  */
 #define TLV_BUFFER_SIZE			1024
 
+#define VFPF_QUEUE_FLG_TPA		0x0001
+#define VFPF_QUEUE_FLG_TPA_IPV6		0x0002
+#define VFPF_QUEUE_FLG_TPA_GRO		0x0004
+#define VFPF_QUEUE_FLG_CACHE_ALIGN	0x0008
+#define VFPF_QUEUE_FLG_STATS		0x0010
+#define VFPF_QUEUE_FLG_OV		0x0020
+#define VFPF_QUEUE_FLG_VLAN		0x0040
+#define VFPF_QUEUE_FLG_COS		0x0080
+#define VFPF_QUEUE_FLG_HC		0x0100
+#define VFPF_QUEUE_FLG_DHC		0x0200
+
+#define VFPF_QUEUE_DROP_IP_CS_ERR	(1 << 0)
+#define VFPF_QUEUE_DROP_TCP_CS_ERR	(1 << 1)
+#define VFPF_QUEUE_DROP_TTL0		(1 << 2)
+#define VFPF_QUEUE_DROP_UDP_CS_ERR	(1 << 3)
+
 enum {
 	PFVF_STATUS_WAITING = 0,
 	PFVF_STATUS_SUCCESS,
@@ -130,6 +146,107 @@ struct pfvf_acquire_resp_tlv {
 	} resc;
 };
 
+/* Init VF */
+struct vfpf_init_tlv {
+	struct vfpf_first_tlv first_tlv;
+	aligned_u64 sb_addr[PFVF_MAX_SBS_PER_VF]; /* vf_sb based */
+	aligned_u64 spq_addr;
+	aligned_u64 stats_addr;
+};
+
+/* Setup Queue */
+struct vfpf_setup_q_tlv {
+	struct vfpf_first_tlv first_tlv;
+
+	struct vf_pf_rxq_params {
+		/* physical addresses */
+		aligned_u64 rcq_addr;
+		aligned_u64 rcq_np_addr;
+		aligned_u64 rxq_addr;
+		aligned_u64 sge_addr;
+
+		/* sb + hc info */
+		u8  vf_sb;		/* index in hw_sbs[] */
+		u8  sb_index;		/* Index in the SB */
+		u16 hc_rate;		/* desired interrupts per sec. */
+					/* valid iff VFPF_QUEUE_FLG_HC */
+		/* rx buffer info */
+		u16 mtu;
+		u16 buf_sz;
+		u16 flags;		/* VFPF_QUEUE_FLG_X flags */
+		u16 stat_id;		/* valid iff VFPF_QUEUE_FLG_STATS */
+
+		/* valid iff VFPF_QUEUE_FLG_TPA */
+		u16 sge_buf_sz;
+		u16 tpa_agg_sz;
+		u8 max_sge_pkt;
+
+		u8 drop_flags;		/* VFPF_QUEUE_DROP_X, for Linux VMs
+					 * all the flags are turned off
+					 */
+
+		u8 cache_line_log;	/* VFPF_QUEUE_FLG_CACHE_ALIGN */
+		u8 padding;
+	} rxq;
+
+	struct vf_pf_txq_params {
+		/* physical addresses */
+		aligned_u64 txq_addr;
+
+		/* sb + hc info */
+		u8  vf_sb;		/* index in hw_sbs[] */
+		u8  sb_index;		/* Index in the SB */
+		u16 hc_rate;		/* desired interrupts per sec. */
+					/* valid iff VFPF_QUEUE_FLG_HC */
+		u32 flags;		/* VFPF_QUEUE_FLG_X flags */
+		u16 stat_id;		/* valid iff VFPF_QUEUE_FLG_STATS */
+		u8  traffic_type;	/* see in setup_context() */
+		u8  padding;
+	} txq;
+
+	u8 vf_qid;			/* index in hw_qid[] */
+	u8 param_valid;
+#define VFPF_RXQ_VALID		0x01
+#define VFPF_TXQ_VALID		0x02
+	u8 padding[2];
+};
+
+/* Set Queue Filters */
+struct vfpf_q_mac_vlan_filter {
+	u32 flags;
+#define VFPF_Q_FILTER_DEST_MAC_VALID	0x01
+#define VFPF_Q_FILTER_VLAN_TAG_VALID	0x02
+#define VFPF_Q_FILTER_SET_MAC		0x100	/* set/clear */
+	u8  mac[ETH_ALEN];
+	u16 vlan_tag;
+};
+
+/* configure queue filters */
+struct vfpf_set_q_filters_tlv {
+	struct vfpf_first_tlv first_tlv;
+
+	u32 flags;
+#define VFPF_SET_Q_FILTERS_MAC_VLAN_CHANGED	0x01
+#define VFPF_SET_Q_FILTERS_MULTICAST_CHANGED	0x02
+#define VFPF_SET_Q_FILTERS_RX_MASK_CHANGED	0x04
+
+	u8 vf_qid;			/* index in hw_qid[] */
+	u8 n_mac_vlan_filters;
+	u8 n_multicast;
+	u8 padding;
+
+#define PFVF_MAX_MAC_FILTERS                   16
+#define PFVF_MAX_VLAN_FILTERS                  16
+#define PFVF_MAX_FILTERS               (PFVF_MAX_MAC_FILTERS +\
+					 PFVF_MAX_VLAN_FILTERS)
+	struct vfpf_q_mac_vlan_filter filters[PFVF_MAX_FILTERS];
+
+#define PFVF_MAX_MULTICAST_PER_VF              32
+	u8  multicast[PFVF_MAX_MULTICAST_PER_VF][ETH_ALEN];
+
+	u32 rx_mask;	/* see mask constants at the top of the file */
+};
+
 /* release the VF's acquired resources */
 struct vfpf_release_tlv {
 	struct vfpf_first_tlv	first_tlv;
@@ -144,6 +261,9 @@ struct tlv_buffer_size {
 union vfpf_tlvs {
 	struct vfpf_first_tlv		first_tlv;
 	struct vfpf_acquire_tlv		acquire;
+	struct vfpf_init_tlv		init;
+	struct vfpf_setup_q_tlv		setup_q;
+	struct vfpf_set_q_filters_tlv	set_q_filters;
 	struct vfpf_release_tlv         release;
 	struct channel_list_end_tlv     list_end;
 	struct tlv_buffer_size		tlv_buf_size;
@@ -161,6 +281,9 @@ union pfvf_tlvs {
 enum channel_tlvs {
 	CHANNEL_TLV_NONE,
 	CHANNEL_TLV_ACQUIRE,
+	CHANNEL_TLV_INIT,
+	CHANNEL_TLV_SETUP_Q,
+	CHANNEL_TLV_SET_Q_FILTERS,
 	CHANNEL_TLV_RELEASE,
 	CHANNEL_TLV_LIST_END,
 	CHANNEL_TLV_MAX

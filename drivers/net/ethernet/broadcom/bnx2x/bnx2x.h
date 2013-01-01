@@ -341,6 +341,9 @@ union db_prod {
 #define SGE_PAGE_SIZE		PAGE_SIZE
 #define SGE_PAGE_SHIFT		PAGE_SHIFT
 #define SGE_PAGE_ALIGN(addr)	PAGE_ALIGN((typeof(PAGE_SIZE))(addr))
+#define SGE_PAGES		(SGE_PAGE_SIZE * PAGES_PER_SGE)
+#define TPA_AGG_SIZE		min_t(u32, (min_t(u32, 8, MAX_SKB_FRAGS) * \
+					    SGE_PAGES), 0xffff)
 
 /* SGE ring related macros */
 #define NUM_RX_SGE_PAGES	2
@@ -2221,6 +2224,9 @@ int bnx2x_get_vf_id(struct bnx2x *bp, u32 *vf_id);
 int bnx2x_send_msg2pf(struct bnx2x *bp, u8 *done, dma_addr_t msg_mapping);
 int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count);
 int bnx2x_vfpf_release(struct bnx2x *bp);
+int bnx2x_vfpf_init(struct bnx2x *bp);
+int bnx2x_vfpf_setup_q(struct bnx2x *bp, int fp_idx);
+int bnx2x_vfpf_set_mac(struct bnx2x *bp);
 int bnx2x_nic_load_analyze_req(struct bnx2x *bp, u32 load_code);
 /* Congestion management fairness mode */
 #define CMNG_FNS_NONE		0

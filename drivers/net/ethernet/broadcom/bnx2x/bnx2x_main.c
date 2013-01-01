@@ -13428,3 +13428,166 @@ int bnx2x_vfpf_release(struct bnx2x *bp)
 
 	return 0;
 }
+
+/* Tell PF about SB addresses */
+int bnx2x_vfpf_init(struct bnx2x *bp)
+{
+	struct vfpf_init_tlv *req = &bp->vf2pf_mbox->req.init;
+	struct pfvf_general_resp_tlv *resp = &bp->vf2pf_mbox->resp.general_resp;
+	int rc, i;
+
+	/* clear mailbox and prep first tlv */
+	bnx2x_vfpf_prep(bp, &req->first_tlv, CHANNEL_TLV_INIT, sizeof(*req));
+
+	/* status blocks */
+	for_each_eth_queue(bp, i)
+		req->sb_addr[i] = (dma_addr_t)bnx2x_fp(bp, i,
+						       status_blk_mapping);
+
+	/* statistics - requests only supports single queue for now */
+	req->stats_addr = bp->fw_stats_data_mapping +
+			  offsetof(struct bnx2x_fw_stats_data, queue_stats);
+
+	/* add list termination tlv */
+	bnx2x_add_tlv(bp, req, req->first_tlv.tl.length, CHANNEL_TLV_LIST_END,
+		      sizeof(struct channel_list_end_tlv));
+
+	/* output tlvs list */
+	bnx2x_dp_tlv_list(bp, req);
+
+	rc = bnx2x_send_msg2pf(bp, &resp->hdr.status, bp->vf2pf_mbox_mapping);
+	if (rc)
+		return rc;
+
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
+		BNX2X_ERR("INIT VF failed: %d. Breaking...\n",
+			  resp->hdr.status);
+		return -EAGAIN;
+	}
+
+	DP(BNX2X_MSG_SP, "INIT VF Succeeded\n");
+	return 0;
+}
+
+/* ask the pf to open a queue for the vf */
+int bnx2x_vfpf_setup_q(struct bnx2x *bp, int fp_idx)
+{
+	struct vfpf_setup_q_tlv *req = &bp->vf2pf_mbox->req.setup_q;
+	struct pfvf_general_resp_tlv *resp = &bp->vf2pf_mbox->resp.general_resp;
+	struct bnx2x_fastpath *fp = &bp->fp[fp_idx];
+	u16 tpa_agg_size = 0, flags = 0;
+	int rc;
+
+	/* clear mailbox and prep first tlv */
+	bnx2x_vfpf_prep(bp, &req->first_tlv, CHANNEL_TLV_SETUP_Q, sizeof(*req));
+
+	/* select tpa mode to request */
+	if (!fp->disable_tpa) {
+		flags |= VFPF_QUEUE_FLG_TPA;
+		flags |= VFPF_QUEUE_FLG_TPA_IPV6;
+		if (fp->mode == TPA_MODE_GRO)
+			flags |= VFPF_QUEUE_FLG_TPA_GRO;
+		tpa_agg_size = TPA_AGG_SIZE;
+	}
+
+	/* calculate queue flags */
+	flags |= VFPF_QUEUE_FLG_STATS;
+	flags |= VFPF_QUEUE_FLG_CACHE_ALIGN;
+	flags |= IS_MF_SD(bp) ? VFPF_QUEUE_FLG_OV : 0;
+	flags |= VFPF_QUEUE_FLG_VLAN;
+	DP(NETIF_MSG_IFUP, "vlan removal enabled\n");
+
+	/* Common */
+	req->vf_qid = fp_idx;
+	req->param_valid = VFPF_RXQ_VALID | VFPF_TXQ_VALID;
+
+	/* Rx */
+	req->rxq.rcq_addr = fp->rx_comp_mapping;
+	req->rxq.rcq_np_addr = fp->rx_comp_mapping + BCM_PAGE_SIZE;
+	req->rxq.rxq_addr = fp->rx_desc_mapping;
+	req->rxq.sge_addr = fp->rx_sge_mapping;
+	req->rxq.vf_sb = fp_idx;
+	req->rxq.sb_index = HC_INDEX_ETH_RX_CQ_CONS;
+	req->rxq.hc_rate = bp->rx_ticks ? 1000000/bp->rx_ticks : 0;
+	req->rxq.mtu = bp->dev->mtu;
+	req->rxq.buf_sz = fp->rx_buf_size;
+	req->rxq.sge_buf_sz = BCM_PAGE_SIZE * PAGES_PER_SGE;
+	req->rxq.tpa_agg_sz = tpa_agg_size;
+	req->rxq.max_sge_pkt = SGE_PAGE_ALIGN(bp->dev->mtu) >> SGE_PAGE_SHIFT;
+	req->rxq.max_sge_pkt = ((req->rxq.max_sge_pkt + PAGES_PER_SGE - 1) &
+			  (~(PAGES_PER_SGE-1))) >> PAGES_PER_SGE_SHIFT;
+	req->rxq.flags = flags;
+	req->rxq.drop_flags = 0;
+	req->rxq.cache_line_log = BNX2X_RX_ALIGN_SHIFT;
+	req->rxq.stat_id = -1; /* No stats at the moment */
+
+	/* Tx */
+	req->txq.txq_addr = fp->txdata_ptr[FIRST_TX_COS_INDEX]->tx_desc_mapping;
+	req->txq.vf_sb = fp_idx;
+	req->txq.sb_index = HC_INDEX_ETH_TX_CQ_CONS_COS0;
+	req->txq.hc_rate = bp->tx_ticks ? 1000000/bp->tx_ticks : 0;
+	req->txq.flags = flags;
+	req->txq.traffic_type = LLFC_TRAFFIC_TYPE_NW;
+
+	/* add list termination tlv */
+	bnx2x_add_tlv(bp, req, req->first_tlv.tl.length, CHANNEL_TLV_LIST_END,
+		      sizeof(struct channel_list_end_tlv));
+
+	/* output tlvs list */
+	bnx2x_dp_tlv_list(bp, req);
+
+	rc = bnx2x_send_msg2pf(bp, &resp->hdr.status, bp->vf2pf_mbox_mapping);
+	if (rc)
+		BNX2X_ERR("Sending SETUP_Q message for queue[%d] failed!\n",
+			  fp_idx);
+
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
+		BNX2X_ERR("Status of SETUP_Q for queue[%d] is %d\n",
+			  fp_idx, resp->hdr.status);
+		return -EINVAL;
+	}
+	return rc;
+}
+
+/* request pf to add a mac for the vf */
+int bnx2x_vfpf_set_mac(struct bnx2x *bp)
+{
+	struct vfpf_set_q_filters_tlv *req = &bp->vf2pf_mbox->req.set_q_filters;
+	struct pfvf_general_resp_tlv *resp = &bp->vf2pf_mbox->resp.general_resp;
+	int rc;
+
+	/* clear mailbox and prep first tlv */
+	bnx2x_vfpf_prep(bp, &req->first_tlv, CHANNEL_TLV_SET_Q_FILTERS,
+			sizeof(*req));
+
+	req->flags = VFPF_SET_Q_FILTERS_MAC_VLAN_CHANGED;
+	req->vf_qid = 0;
+	req->n_mac_vlan_filters = 1;
+	req->filters[0].flags =
+		VFPF_Q_FILTER_DEST_MAC_VALID | VFPF_Q_FILTER_SET_MAC;
+
+	/* copy mac from device to request */
+	memcpy(req->filters[0].mac, bp->dev->dev_addr, ETH_ALEN);
+
+	/* add list termination tlv */
+	bnx2x_add_tlv(bp, req, req->first_tlv.tl.length, CHANNEL_TLV_LIST_END,
+		      sizeof(struct channel_list_end_tlv));
+
+	/* output tlvs list */
+	bnx2x_dp_tlv_list(bp, req);
+
+	/* send message to pf */
+	rc = bnx2x_send_msg2pf(bp, &resp->hdr.status, bp->vf2pf_mbox_mapping);
+	if (rc) {
+		BNX2X_ERR("failed to send message to pf. rc was %d\n", rc);
+		return rc;
+	}
+
+	/* PF failed the transaction */
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
+		BNX2X_ERR("vfpf SET MAC failed: %d\n", resp->hdr.status);
+		return -EINVAL;
+	}
+
+	return 0;
+}
