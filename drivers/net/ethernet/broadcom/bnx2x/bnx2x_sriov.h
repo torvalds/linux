@@ -423,6 +423,8 @@ void bnx2x_iov_set_queue_sp_obj(struct bnx2x *bp, int vf_cid,
 				struct bnx2x_queue_sp_obj **q_obj);
 void bnx2x_iov_sp_event(struct bnx2x *bp, int vf_cid, bool queue_work);
 int bnx2x_iov_eq_sp_event(struct bnx2x *bp, union event_ring_elem *elem);
+void bnx2x_iov_adjust_stats_req(struct bnx2x *bp);
+void bnx2x_iov_storm_stats_update(struct bnx2x *bp);
 void bnx2x_iov_sp_task(struct bnx2x *bp);
 /* global vf mailbox routines */
 void bnx2x_vf_mbx(struct bnx2x *bp, struct vf_pf_event_data *vfpf_event);

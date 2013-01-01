@@ -5251,7 +5251,8 @@ static void bnx2x_timer(unsigned long data)
 	if (!netif_running(bp->dev))
 		return;
 
-	if (!BP_NOMCP(bp)) {
+	if (IS_PF(bp) &&
+	    !BP_NOMCP(bp)) {
 		int mb_idx = BP_FW_MB_IDX(bp);
 		u32 drv_pulse;
 		u32 mcp_pulse;
@@ -7670,66 +7671,6 @@ void bnx2x_free_mem(struct bnx2x *bp)
 		       BCM_PAGE_SIZE * NUM_EQ_PAGES);
 }
 
-static int bnx2x_alloc_fw_stats_mem(struct bnx2x *bp)
-{
-	int num_groups;
-	int is_fcoe_stats = NO_FCOE(bp) ? 0 : 1;
-
-	/* number of queues for statistics is number of eth queues + FCoE */
-	u8 num_queue_stats = BNX2X_NUM_ETH_QUEUES(bp) + is_fcoe_stats;
-
-	/* Total number of FW statistics requests =
-	 * 1 for port stats + 1 for PF stats + potential 1 for FCoE stats +
-	 * num of queues
-	 */
-	bp->fw_stats_num = 2 + is_fcoe_stats + num_queue_stats;
-
-
-	/* Request is built from stats_query_header and an array of
-	 * stats_query_cmd_group each of which contains
-	 * STATS_QUERY_CMD_COUNT rules. The real number or requests is
-	 * configured in the stats_query_header.
-	 */
-	num_groups = ((bp->fw_stats_num) / STATS_QUERY_CMD_COUNT) +
-		     (((bp->fw_stats_num) % STATS_QUERY_CMD_COUNT) ? 1 : 0);
-
-	bp->fw_stats_req_sz = sizeof(struct stats_query_header) +
-			num_groups * sizeof(struct stats_query_cmd_group);
-
-	/* Data for statistics requests + stats_conter
-	 *
-	 * stats_counter holds per-STORM counters that are incremented
-	 * when STORM has finished with the current request.
-	 *
-	 * memory for FCoE offloaded statistics are counted anyway,
-	 * even if they will not be sent.
-	 */
-	bp->fw_stats_data_sz = sizeof(struct per_port_stats) +
-		sizeof(struct per_pf_stats) +
-		sizeof(struct fcoe_statistics_params) +
-		sizeof(struct per_queue_stats) * num_queue_stats +
-		sizeof(struct stats_counter);
-
-	BNX2X_PCI_ALLOC(bp->fw_stats, &bp->fw_stats_mapping,
-			bp->fw_stats_data_sz + bp->fw_stats_req_sz);
-
-	/* Set shortcuts */
-	bp->fw_stats_req = (struct bnx2x_fw_stats_req *)bp->fw_stats;
-	bp->fw_stats_req_mapping = bp->fw_stats_mapping;
-
-	bp->fw_stats_data = (struct bnx2x_fw_stats_data *)
-		((u8 *)bp->fw_stats + bp->fw_stats_req_sz);
-
-	bp->fw_stats_data_mapping = bp->fw_stats_mapping +
-				   bp->fw_stats_req_sz;
-	return 0;
-
-alloc_mem_err:
-	BNX2X_PCI_FREE(bp->fw_stats, bp->fw_stats_mapping,
-		       bp->fw_stats_data_sz + bp->fw_stats_req_sz);
-	BNX2X_ERR("Can't allocate memory\n");
-	return -ENOMEM;
-}
 
 int bnx2x_alloc_mem_cnic(struct bnx2x *bp)
 {
@@ -7776,10 +7717,6 @@ int bnx2x_alloc_mem(struct bnx2x *bp)
 	BNX2X_PCI_ALLOC(bp->slowpath, &bp->slowpath_mapping,
 			sizeof(struct bnx2x_slowpath));
 
-	/* Allocated memory for FW statistics  */
-	if (bnx2x_alloc_fw_stats_mem(bp))
-		goto alloc_mem_err;
-
 	/* Allocate memory for CDU context:
 	 * This memory is allocated separately and not in the generic ILT
 	 * functions because CDU differs in few aspects:
@@ -7808,6 +7745,9 @@ int bnx2x_alloc_mem(struct bnx2x *bp)
 	if (bnx2x_ilt_mem_op(bp, ILT_MEMOP_ALLOC))
 		goto alloc_mem_err;
 
+	if (bnx2x_iov_alloc_mem(bp))
+		goto alloc_mem_err;
+
 	/* Slow path ring */
 	BNX2X_PCI_ALLOC(bp->spq, &bp->spq_mapping, BCM_PAGE_SIZE);
 
@@ -7815,13 +7755,6 @@ int bnx2x_alloc_mem(struct bnx2x *bp)
 	BNX2X_PCI_ALLOC(bp->eq_ring, &bp->eq_mapping,
 			BCM_PAGE_SIZE * NUM_EQ_PAGES);
 
-
-	/* fastpath */
-	/* need to be done at the end, since it's self adjusting to amount
-	 * of memory available for RSS queues
-	 */
-	if (bnx2x_alloc_fp_mem(bp))
-		goto alloc_mem_err;
 	return 0;
 
 alloc_mem_err:

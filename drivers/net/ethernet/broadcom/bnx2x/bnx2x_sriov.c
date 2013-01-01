@@ -1069,6 +1069,80 @@ void bnx2x_iov_sp_event(struct bnx2x *bp, int vf_cid, bool queue_work)
 	}
 }
 
+void bnx2x_iov_adjust_stats_req(struct bnx2x *bp)
+{
+	int i;
+	int first_queue_query_index, num_queues_req;
+	dma_addr_t cur_data_offset;
+	struct stats_query_entry *cur_query_entry;
+	u8 stats_count = 0;
+	bool is_fcoe = false;
+
+	if (!IS_SRIOV(bp))
+		return;
+
+	if (!NO_FCOE(bp))
+		is_fcoe = true;
+
+	/* fcoe adds one global request and one queue request */
+	num_queues_req = BNX2X_NUM_ETH_QUEUES(bp) + is_fcoe;
+	first_queue_query_index = BNX2X_FIRST_QUEUE_QUERY_IDX -
+		(is_fcoe ? 0 : 1);
+
+	DP(BNX2X_MSG_IOV,
+	   "BNX2X_NUM_ETH_QUEUES %d, is_fcoe %d, first_queue_query_index %d => determined the last non virtual statistics query index is %d. Will add queries on top of that\n",
+	   BNX2X_NUM_ETH_QUEUES(bp), is_fcoe, first_queue_query_index,
+	   first_queue_query_index + num_queues_req);
+
+	cur_data_offset = bp->fw_stats_data_mapping +
+		offsetof(struct bnx2x_fw_stats_data, queue_stats) +
+		num_queues_req * sizeof(struct per_queue_stats);
+
+	cur_query_entry = &bp->fw_stats_req->
+		query[first_queue_query_index + num_queues_req];
+
+	for_each_vf(bp, i) {
+		int j;
+		struct bnx2x_virtf *vf = BP_VF(bp, i);
+
+		if (vf->state != VF_ENABLED) {
+			DP(BNX2X_MSG_IOV,
+			   "vf %d not enabled so no stats for it\n",
+			   vf->abs_vfid);
+			continue;
+		}
+
+		DP(BNX2X_MSG_IOV, "add addresses for vf %d\n", vf->abs_vfid);
+		for_each_vfq(vf, j) {
+			struct bnx2x_vf_queue *rxq = vfq_get(vf, j);
+
+			/* collect stats fro active queues only */
+			if (bnx2x_get_q_logical_state(bp, &rxq->sp_obj) ==
+			    BNX2X_Q_LOGICAL_STATE_STOPPED)
+				continue;
+
+			/* create stats query entry for this queue */
+			cur_query_entry->kind = STATS_TYPE_QUEUE;
+			cur_query_entry->index = vfq_cl_id(vf, rxq);
+			cur_query_entry->funcID =
+				cpu_to_le16(FW_VF_HANDLE(vf->abs_vfid));
+			cur_query_entry->address.hi =
+				cpu_to_le32(U64_HI(vf->fw_stat_map));
+			cur_query_entry->address.lo =
+				cpu_to_le32(U64_LO(vf->fw_stat_map));
+			DP(BNX2X_MSG_IOV,
+			   "added address %x %x for vf %d queue %d client %d\n",
+			   cur_query_entry->address.hi,
+			   cur_query_entry->address.lo, cur_query_entry->funcID,
+			   j, cur_query_entry->index);
+			cur_query_entry++;
+			cur_data_offset += sizeof(struct per_queue_stats);
+			stats_count++;
+		}
+	}
+	bp->fw_stats_req->hdr.cmd_num = bp->fw_stats_num + stats_count;
+}
+
 void bnx2x_iov_sp_task(struct bnx2x *bp)
 {
 	int i;
@@ -1089,6 +1163,23 @@ void bnx2x_iov_sp_task(struct bnx2x *bp)
 		}
 	}
 }
+
+static inline
+struct bnx2x_virtf *__vf_from_stat_id(struct bnx2x *bp, u8 stat_id)
+{
+	int i;
+	struct bnx2x_virtf *vf = NULL;
+
+	for_each_vf(bp, i) {
+		vf = BP_VF(bp, i);
+		if (stat_id >= vf->igu_base_id &&
+		    stat_id < vf->igu_base_id + vf_sb_count(vf))
+			break;
+	}
+	return vf;
+}
+
+/* VF API helpers */
 static void bnx2x_vf_qtbl_set_q(struct bnx2x *bp, u8 abs_vfid, u8 qid,
 				u8 enable)
 {

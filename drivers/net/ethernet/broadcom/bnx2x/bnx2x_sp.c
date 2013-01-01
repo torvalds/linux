@@ -5199,6 +5199,27 @@ void bnx2x_init_queue_obj(struct bnx2x *bp,
 	obj->set_pending = bnx2x_queue_set_pending;
 }
 
+/* return a queue object's logical state*/
+int bnx2x_get_q_logical_state(struct bnx2x *bp,
+			       struct bnx2x_queue_sp_obj *obj)
+{
+	switch (obj->state) {
+	case BNX2X_Q_STATE_ACTIVE:
+	case BNX2X_Q_STATE_MULTI_COS:
+		return BNX2X_Q_LOGICAL_STATE_ACTIVE;
+	case BNX2X_Q_STATE_RESET:
+	case BNX2X_Q_STATE_INITIALIZED:
+	case BNX2X_Q_STATE_MCOS_TERMINATED:
+	case BNX2X_Q_STATE_INACTIVE:
+	case BNX2X_Q_STATE_STOPPED:
+	case BNX2X_Q_STATE_TERMINATED:
+	case BNX2X_Q_STATE_FLRED:
+		return BNX2X_Q_LOGICAL_STATE_STOPPED;
+	default:
+		return -EINVAL;
+	}
+}
+
 /********************** Function state object *********************************/
 enum bnx2x_func_state bnx2x_func_get_state(struct bnx2x *bp,
 					   struct bnx2x_func_sp_obj *o)

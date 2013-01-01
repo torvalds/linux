@@ -776,6 +776,12 @@ enum bnx2x_q_state {
 	BNX2X_Q_STATE_MAX,
 };
 
+/* Allowed Queue states */
+enum bnx2x_q_logical_state {
+	BNX2X_Q_LOGICAL_STATE_ACTIVE,
+	BNX2X_Q_LOGICAL_STATE_STOPPED,
+};
+
 /* Allowed commands */
 enum bnx2x_queue_cmd {
 	BNX2X_Q_CMD_INIT,
@@ -1260,6 +1266,9 @@ void bnx2x_init_queue_obj(struct bnx2x *bp,
 
 int bnx2x_queue_state_change(struct bnx2x *bp,
 			     struct bnx2x_queue_state_params *params);
+
+int bnx2x_get_q_logical_state(struct bnx2x *bp,
+			       struct bnx2x_queue_sp_obj *obj);
 
 /********************* VLAN-MAC ****************/
 void bnx2x_init_mac_obj(struct bnx2x *bp,
