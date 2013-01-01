@@ -370,6 +370,149 @@ static void bnx2x_vf_mbx_init_vf(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	bnx2x_vf_mbx_resp(bp, vf);
 }
 
+/* convert MBX queue-flags to standard SP queue-flags */
+static void bnx2x_vf_mbx_set_q_flags(u32 mbx_q_flags,
+				     unsigned long *sp_q_flags)
+{
+	if (mbx_q_flags & VFPF_QUEUE_FLG_TPA)
+		__set_bit(BNX2X_Q_FLG_TPA, sp_q_flags);
+	if (mbx_q_flags & VFPF_QUEUE_FLG_TPA_IPV6)
+		__set_bit(BNX2X_Q_FLG_TPA_IPV6, sp_q_flags);
+	if (mbx_q_flags & VFPF_QUEUE_FLG_TPA_GRO)
+		__set_bit(BNX2X_Q_FLG_TPA_GRO, sp_q_flags);
+	if (mbx_q_flags & VFPF_QUEUE_FLG_STATS)
+		__set_bit(BNX2X_Q_FLG_STATS, sp_q_flags);
+	if (mbx_q_flags & VFPF_QUEUE_FLG_OV)
+		__set_bit(BNX2X_Q_FLG_OV, sp_q_flags);
+	if (mbx_q_flags & VFPF_QUEUE_FLG_VLAN)
+		__set_bit(BNX2X_Q_FLG_VLAN, sp_q_flags);
+	if (mbx_q_flags & VFPF_QUEUE_FLG_COS)
+		__set_bit(BNX2X_Q_FLG_COS, sp_q_flags);
+	if (mbx_q_flags & VFPF_QUEUE_FLG_HC)
+		__set_bit(BNX2X_Q_FLG_HC, sp_q_flags);
+	if (mbx_q_flags & VFPF_QUEUE_FLG_DHC)
+		__set_bit(BNX2X_Q_FLG_DHC, sp_q_flags);
+}
+
+static void bnx2x_vf_mbx_setup_q(struct bnx2x *bp, struct bnx2x_virtf *vf,
+				 struct bnx2x_vf_mbx *mbx)
+{
+	struct vfpf_setup_q_tlv *setup_q = &mbx->msg->req.setup_q;
+	struct bnx2x_vfop_cmd cmd = {
+		.done = bnx2x_vf_mbx_resp,
+		.block = false,
+	};
+
+	/* verify vf_qid */
+	if (setup_q->vf_qid >= vf_rxq_count(vf)) {
+		BNX2X_ERR("vf_qid %d invalid, max queue count is %d\n",
+			  setup_q->vf_qid, vf_rxq_count(vf));
+		vf->op_rc = -EINVAL;
+		goto response;
+	}
+
+	/* tx queues must be setup alongside rx queues thus if the rx queue
+	 * is not marked as valid there's nothing to do.
+	 */
+	if (setup_q->param_valid & (VFPF_RXQ_VALID|VFPF_TXQ_VALID)) {
+		struct bnx2x_vf_queue *q = vfq_get(vf, setup_q->vf_qid);
+		unsigned long q_type = 0;
+
+		struct bnx2x_queue_init_params *init_p;
+		struct bnx2x_queue_setup_params *setup_p;
+
+		/* reinit the VF operation context */
+		memset(&vf->op_params.qctor, 0 , sizeof(vf->op_params.qctor));
+		setup_p = &vf->op_params.qctor.prep_qsetup;
+		init_p =  &vf->op_params.qctor.qstate.params.init;
+
+		/* activate immediately */
+		__set_bit(BNX2X_Q_FLG_ACTIVE, &setup_p->flags);
+
+		if (setup_q->param_valid & VFPF_TXQ_VALID) {
+			struct bnx2x_txq_setup_params *txq_params =
+				&setup_p->txq_params;
+
+			__set_bit(BNX2X_Q_TYPE_HAS_TX, &q_type);
+
+			/* save sb resource index */
+			q->sb_idx = setup_q->txq.vf_sb;
+
+			/* tx init */
+			init_p->tx.hc_rate = setup_q->txq.hc_rate;
+			init_p->tx.sb_cq_index = setup_q->txq.sb_index;
+
+			bnx2x_vf_mbx_set_q_flags(setup_q->txq.flags,
+						 &init_p->tx.flags);
+
+			/* tx setup - flags */
+			bnx2x_vf_mbx_set_q_flags(setup_q->txq.flags,
+						 &setup_p->flags);
+
+			/* tx setup - general, nothing */
+
+			/* tx setup - tx */
+			txq_params->dscr_map = setup_q->txq.txq_addr;
+			txq_params->sb_cq_index = setup_q->txq.sb_index;
+			txq_params->traffic_type = setup_q->txq.traffic_type;
+
+			bnx2x_vfop_qctor_dump_tx(bp, vf, init_p, setup_p,
+						 q->index, q->sb_idx);
+		}
+
+		if (setup_q->param_valid & VFPF_RXQ_VALID) {
+			struct bnx2x_rxq_setup_params *rxq_params =
+							&setup_p->rxq_params;
+
+			__set_bit(BNX2X_Q_TYPE_HAS_RX, &q_type);
+
+			/* Note: there is no support for different SBs
+			 * for TX and RX
+			 */
+			q->sb_idx = setup_q->rxq.vf_sb;
+
+			/* rx init */
+			init_p->rx.hc_rate = setup_q->rxq.hc_rate;
+			init_p->rx.sb_cq_index = setup_q->rxq.sb_index;
+			bnx2x_vf_mbx_set_q_flags(setup_q->rxq.flags,
+						 &init_p->rx.flags);
+
+			/* rx setup - flags */
+			bnx2x_vf_mbx_set_q_flags(setup_q->rxq.flags,
+						 &setup_p->flags);
+
+			/* rx setup - general */
+			setup_p->gen_params.mtu = setup_q->rxq.mtu;
+
+			/* rx setup - rx */
+			rxq_params->drop_flags = setup_q->rxq.drop_flags;
+			rxq_params->dscr_map = setup_q->rxq.rxq_addr;
+			rxq_params->sge_map = setup_q->rxq.sge_addr;
+			rxq_params->rcq_map = setup_q->rxq.rcq_addr;
+			rxq_params->rcq_np_map = setup_q->rxq.rcq_np_addr;
+			rxq_params->buf_sz = setup_q->rxq.buf_sz;
+			rxq_params->tpa_agg_sz = setup_q->rxq.tpa_agg_sz;
+			rxq_params->max_sges_pkt = setup_q->rxq.max_sge_pkt;
+			rxq_params->sge_buf_sz = setup_q->rxq.sge_buf_sz;
+			rxq_params->cache_line_log =
+				setup_q->rxq.cache_line_log;
+			rxq_params->sb_cq_index = setup_q->rxq.sb_index;
+
+			bnx2x_vfop_qctor_dump_rx(bp, vf, init_p, setup_p,
+						 q->index, q->sb_idx);
+		}
+		/* complete the preparations */
+		bnx2x_vfop_qctor_prep(bp, vf, q, &vf->op_params.qctor, q_type);
+
+		vf->op_rc = bnx2x_vfop_qsetup_cmd(bp, vf, &cmd, q->index);
+		if (vf->op_rc)
+			goto response;
+		return;
+	}
+response:
+	bnx2x_vf_mbx_resp(bp, vf);
+}
+
 /* dispatch request */
 static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 				  struct bnx2x_vf_mbx *mbx)
@@ -390,6 +533,9 @@ static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 			break;
 		case CHANNEL_TLV_INIT:
 			bnx2x_vf_mbx_init_vf(bp, vf, mbx);
+			break;
+		case CHANNEL_TLV_SETUP_Q:
+			bnx2x_vf_mbx_setup_q(bp, vf, mbx);
 			break;
 		}
 	} else {

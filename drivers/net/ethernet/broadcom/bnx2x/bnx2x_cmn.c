@@ -2029,7 +2029,7 @@ static void bnx2x_free_fw_stats_mem(struct bnx2x *bp)
 
 static int bnx2x_alloc_fw_stats_mem(struct bnx2x *bp)
 {
-	int num_groups;
+	int num_groups, vf_headroom = 0;
 	int is_fcoe_stats = NO_FCOE(bp) ? 0 : 1;
 
 	/* number of queues for statistics is number of eth queues + FCoE */
@@ -2042,18 +2042,26 @@ static int bnx2x_alloc_fw_stats_mem(struct bnx2x *bp)
 	 */
 	bp->fw_stats_num = 2 + is_fcoe_stats + num_queue_stats;
 
+	/* vf stats appear in the request list, but their data is allocated by
+	 * the VFs themselves. We don't include them in the bp->fw_stats_num as
+	 * it is used to determine where to place the vf stats queries in the
+	 * request struct
+	 */
+	if (IS_SRIOV(bp))
+		vf_headroom = bp->vfdb->sriov.nr_virtfn * BNX2X_CLIENTS_PER_VF;
+
 	/* Request is built from stats_query_header and an array of
 	 * stats_query_cmd_group each of which contains
 	 * STATS_QUERY_CMD_COUNT rules. The real number or requests is
 	 * configured in the stats_query_header.
 	 */
 	num_groups =
-		(((bp->fw_stats_num) / STATS_QUERY_CMD_COUNT) +
-		 (((bp->fw_stats_num) % STATS_QUERY_CMD_COUNT) ?
+		(((bp->fw_stats_num + vf_headroom) / STATS_QUERY_CMD_COUNT) +
+		 (((bp->fw_stats_num + vf_headroom) % STATS_QUERY_CMD_COUNT) ?
 		 1 : 0));
 
-	DP(BNX2X_MSG_SP, "stats fw_stats_num %d, num_groups %d\n",
-	   bp->fw_stats_num, num_groups);
+	DP(BNX2X_MSG_SP, "stats fw_stats_num %d, vf headroom %d, num_groups %d\n",
+	   bp->fw_stats_num, vf_headroom, num_groups);
 	bp->fw_stats_req_sz = sizeof(struct stats_query_header) +
 		num_groups * sizeof(struct stats_query_cmd_group);
 

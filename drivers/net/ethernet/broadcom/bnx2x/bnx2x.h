@@ -969,6 +969,7 @@ extern struct workqueue_struct *bnx2x_wq;
 #define BNX2X_MAX_NUM_OF_VFS	64
 #define BNX2X_VF_CID_WND	0
 #define BNX2X_CIDS_PER_VF	(1 << BNX2X_VF_CID_WND)
+#define BNX2X_CLIENTS_PER_VF	1
 #define BNX2X_FIRST_VF_CID	256
 #define BNX2X_VF_CIDS		(BNX2X_MAX_NUM_OF_VFS * BNX2X_CIDS_PER_VF)
 #define BNX2X_VF_ID_INVALID	0xFF

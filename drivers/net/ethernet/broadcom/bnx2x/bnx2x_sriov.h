@@ -26,6 +26,8 @@
  * The VF array is indexed by the relative vfid.
  */
 #define BNX2X_VF_MAX_QUEUES		16
+#define BNX2X_VF_MAX_TPA_AGG_QUEUES	8
+
 struct bnx2x_sriov {
 	u32 first_vf_in_pf;
 
@@ -90,6 +92,11 @@ struct bnx2x_virtf;
 
 /* VFOP definitions */
 typedef void (*vfop_handler_t)(struct bnx2x *bp, struct bnx2x_virtf *vf);
+
+struct bnx2x_vfop_cmd {
+	vfop_handler_t done;
+	bool block;
+};
 
 /* VFOP queue filters command additional arguments */
 struct bnx2x_vfop_filter {
@@ -405,6 +412,11 @@ static u8 vfq_cl_id(struct bnx2x_virtf *vf, struct bnx2x_vf_queue *q)
 	return vf->igu_base_id + q->index;
 }
 
+static inline u8 vfq_stat_id(struct bnx2x_virtf *vf, struct bnx2x_vf_queue *q)
+{
+	return vfq_cl_id(vf, q);
+}
+
 static inline u8 vfq_qzone_id(struct bnx2x_virtf *vf, struct bnx2x_vf_queue *q)
 {
 	return vfq_cl_id(vf, q);
@@ -435,6 +447,45 @@ int bnx2x_vf_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
 /* init */
 int bnx2x_vf_init(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		  dma_addr_t *sb_map);
+
+/* VFOP generic helpers */
+#define bnx2x_vfop_default(state) do {				\
+		BNX2X_ERR("Bad state %d\n", (state));		\
+		vfop->rc = -EINVAL;				\
+		goto op_err;					\
+	} while (0)
+
+enum {
+	VFOP_DONE,
+	VFOP_CONT,
+	VFOP_VERIFY_PEND,
+};
+
+#define bnx2x_vfop_finalize(vf, rc, next) do {				\
+		if ((rc) < 0)						\
+			goto op_err;					\
+		else if ((rc) > 0)					\
+			goto op_pending;				\
+		else if ((next) == VFOP_DONE)				\
+			goto op_done;					\
+		else if ((next) == VFOP_VERIFY_PEND)			\
+			BNX2X_ERR("expected pending\n");		\
+		else {							\
+			DP(BNX2X_MSG_IOV, "no ramrod. scheduling\n");	\
+			atomic_set(&vf->op_in_progress, 1);		\
+			queue_delayed_work(bnx2x_wq, &bp->sp_task, 0);  \
+			return;						\
+		}							\
+	} while (0)
+
+#define bnx2x_vfop_opset(first_state, trans_hndlr, done_hndlr)		\
+	do {								\
+		vfop->state = first_state;				\
+		vfop->op_p = &vf->op_params;				\
+		vfop->transition = trans_hndlr;				\
+		vfop->done = done_hndlr;				\
+	} while (0)
+
 static inline struct bnx2x_vfop *bnx2x_vfop_cur(struct bnx2x *bp,
 						struct bnx2x_virtf *vf)
 {
@@ -442,6 +493,132 @@ static inline struct bnx2x_vfop *bnx2x_vfop_cur(struct bnx2x *bp,
 	WARN_ON(list_empty(&vf->op_list_head));
 	return list_first_entry(&vf->op_list_head, struct bnx2x_vfop, link);
 }
+
+static inline struct bnx2x_vfop *bnx2x_vfop_add(struct bnx2x *bp,
+						struct bnx2x_virtf *vf)
+{
+	struct bnx2x_vfop *vfop = kzalloc(sizeof(*vfop), GFP_KERNEL);
+
+	WARN(!mutex_is_locked(&vf->op_mutex), "about to access vf op linked list but mutex was not locked!");
+	if (vfop) {
+		INIT_LIST_HEAD(&vfop->link);
+		list_add(&vfop->link, &vf->op_list_head);
+	}
+	return vfop;
+}
+
+static inline void bnx2x_vfop_end(struct bnx2x *bp, struct bnx2x_virtf *vf,
+				  struct bnx2x_vfop *vfop)
+{
+	/* rc < 0 - error, otherwise set to 0 */
+	DP(BNX2X_MSG_IOV, "rc was %d\n", vfop->rc);
+	if (vfop->rc >= 0)
+		vfop->rc = 0;
+	DP(BNX2X_MSG_IOV, "rc is now %d\n", vfop->rc);
+
+	/* unlink the current op context and propagate error code
+	 * must be done before invoking the 'done()' handler
+	 */
+	WARN(!mutex_is_locked(&vf->op_mutex),
+	     "about to access vf op linked list but mutex was not locked!");
+	list_del(&vfop->link);
+
+	if (list_empty(&vf->op_list_head)) {
+		DP(BNX2X_MSG_IOV, "list was empty %d\n", vfop->rc);
+		vf->op_rc = vfop->rc;
+		DP(BNX2X_MSG_IOV, "copying rc vf->op_rc %d,  vfop->rc %d\n",
+		   vf->op_rc, vfop->rc);
+	} else {
+		struct bnx2x_vfop *cur_vfop;
+
+		DP(BNX2X_MSG_IOV, "list not empty %d\n", vfop->rc);
+		cur_vfop = bnx2x_vfop_cur(bp, vf);
+		cur_vfop->rc = vfop->rc;
+		DP(BNX2X_MSG_IOV, "copying rc vf->op_rc %d, vfop->rc %d\n",
+		   vf->op_rc, vfop->rc);
+	}
+
+	/* invoke done handler */
+	if (vfop->done) {
+		DP(BNX2X_MSG_IOV, "calling done handler\n");
+		vfop->done(bp, vf);
+	}
+
+	DP(BNX2X_MSG_IOV, "done handler complete. vf->op_rc %d, vfop->rc %d\n",
+	   vf->op_rc, vfop->rc);
+
+	/* if this is the last nested op reset the wait_blocking flag
+	 * to release any blocking wrappers, only after 'done()' is invoked
+	 */
+	if (list_empty(&vf->op_list_head)) {
+		DP(BNX2X_MSG_IOV, "list was empty after done %d\n", vfop->rc);
+		vf->op_wait_blocking = false;
+	}
+
+	kfree(vfop);
+}
+
+static inline int bnx2x_vfop_wait_blocking(struct bnx2x *bp,
+					   struct bnx2x_virtf *vf)
+{
+	/* can take a while if any port is running */
+	int cnt = 5000;
+
+	might_sleep();
+	while (cnt--) {
+		if (vf->op_wait_blocking == false) {
+#ifdef BNX2X_STOP_ON_ERROR
+			DP(BNX2X_MSG_IOV, "exit  (cnt %d)\n", 5000 - cnt);
+#endif
+			return 0;
+		}
+		usleep_range(1000, 2000);
+
+		if (bp->panic)
+			return -EIO;
+	}
+
+	/* timeout! */
+#ifdef BNX2X_STOP_ON_ERROR
+	bnx2x_panic();
+#endif
+
+	return -EBUSY;
+}
+
+static inline int bnx2x_vfop_transition(struct bnx2x *bp,
+					struct bnx2x_virtf *vf,
+					vfop_handler_t transition,
+					bool block)
+{
+	if (block)
+		vf->op_wait_blocking = true;
+	transition(bp, vf);
+	if (block)
+		return bnx2x_vfop_wait_blocking(bp, vf);
+	return 0;
+}
+
+/* VFOP queue construction helpers */
+void bnx2x_vfop_qctor_dump_tx(struct bnx2x *bp, struct bnx2x_virtf *vf,
+			    struct bnx2x_queue_init_params *init_params,
+			    struct bnx2x_queue_setup_params *setup_params,
+			    u16 q_idx, u16 sb_idx);
+
+void bnx2x_vfop_qctor_dump_rx(struct bnx2x *bp, struct bnx2x_virtf *vf,
+			    struct bnx2x_queue_init_params *init_params,
+			    struct bnx2x_queue_setup_params *setup_params,
+			    u16 q_idx, u16 sb_idx);
+
+void bnx2x_vfop_qctor_prep(struct bnx2x *bp,
+			   struct bnx2x_virtf *vf,
+			   struct bnx2x_vf_queue *q,
+			   struct bnx2x_vfop_qctor_params *p,
+			   unsigned long q_type);
+int bnx2x_vfop_qsetup_cmd(struct bnx2x *bp,
+			  struct bnx2x_virtf *vf,
+			  struct bnx2x_vfop_cmd *cmd,
+			  int qid);
 
 int bnx2x_vf_idx_by_abs_fid(struct bnx2x *bp, u16 abs_vfid);
 u8 bnx2x_vf_max_queue_cnt(struct bnx2x *bp, struct bnx2x_virtf *vf);
