@@ -690,7 +690,7 @@ sub drxk_terratec_h5 {
 }
 
 sub drxk_terratec_htc_stick {
-    my $url = "http://ftp.terratec.de/Receiver/Cinergy_HTC_Stick/Updates/";
+    my $url = "http://ftp.terratec.de/Receiver/Cinergy_HTC_Stick/Updates/History/";
     my $zipfile = "Cinergy_HTC_Stick_Drv_5.09.1202.00_XP_Vista_7.exe";
     my $hash = "6722a2442a05423b781721fbc069ed5e";
     my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 0);
