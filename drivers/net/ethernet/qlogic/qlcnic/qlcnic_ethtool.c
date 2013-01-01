@@ -529,11 +529,11 @@ static int qlcnic_set_channels(struct net_device *dev,
 	    channel->tx_count != channel->max_tx)
 		return -EINVAL;
 
-	err = qlcnic_validate_max_rss(dev, channel->max_rx, channel->rx_count);
+	err = qlcnic_validate_max_rss(channel->max_rx, channel->rx_count);
 	if (err)
 		return err;
 
-	err = qlcnic_set_max_rss(adapter, channel->rx_count);
+	err = qlcnic_set_max_rss(adapter, channel->rx_count, 0);
 	netdev_info(dev, "allocated 0x%x sds rings\n",
 				 adapter->max_sds_rings);
 	return err;
