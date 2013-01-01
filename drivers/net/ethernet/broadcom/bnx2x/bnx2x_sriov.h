@@ -51,6 +51,11 @@ struct bnx2x_vf_bar {
 	u32 size;
 };
 
+struct bnx2x_vf_bar_info {
+	struct bnx2x_vf_bar bars[PCI_SRIOV_NUM_BARS];
+	u8 nr_bars;
+};
+
 /* vf queue (used both for rx or tx) */
 struct bnx2x_vf_queue {
 	struct eth_context		*cxt;
@@ -429,6 +434,7 @@ void bnx2x_iov_remove_one(struct bnx2x *bp);
 void bnx2x_iov_free_mem(struct bnx2x *bp);
 int bnx2x_iov_alloc_mem(struct bnx2x *bp);
 int bnx2x_iov_nic_init(struct bnx2x *bp);
+int bnx2x_iov_chip_cleanup(struct bnx2x *bp);
 void bnx2x_iov_init_dq(struct bnx2x *bp);
 void bnx2x_iov_init_dmae(struct bnx2x *bp);
 void bnx2x_iov_set_queue_sp_obj(struct bnx2x *bp, int vf_cid,
@@ -546,6 +552,11 @@ static inline void bnx2x_vfop_end(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	if (vfop->done) {
 		DP(BNX2X_MSG_IOV, "calling done handler\n");
 		vfop->done(bp, vf);
+	} else {
+		/* there is no done handler for the operation to unlock
+		 * the mutex. Must have gotten here from PF initiated VF RELEASE
+		 */
+		bnx2x_unlock_vf_pf_channel(bp, vf, CHANNEL_TLV_PF_RELEASE_VF);
 	}
 
 	DP(BNX2X_MSG_IOV, "done handler complete. vf->op_rc %d, vfop->rc %d\n",
@@ -661,6 +672,16 @@ int bnx2x_vfop_close_cmd(struct bnx2x *bp,
 			 struct bnx2x_virtf *vf,
 			 struct bnx2x_vfop_cmd *cmd);
 
+int bnx2x_vfop_release_cmd(struct bnx2x *bp,
+			   struct bnx2x_virtf *vf,
+			   struct bnx2x_vfop_cmd *cmd);
+
+/* VF release ~ VF close + VF release-resources
+ *
+ * Release is the ultimate SW shutdown and is called whenever an
+ * irrecoverable error is encountered.
+ */
+void bnx2x_vf_release(struct bnx2x *bp, struct bnx2x_virtf *vf, bool block);
 int bnx2x_vf_idx_by_abs_fid(struct bnx2x *bp, u16 abs_vfid);
 u8 bnx2x_vf_max_queue_cnt(struct bnx2x *bp, struct bnx2x_virtf *vf);
 /* VF FLR helpers */

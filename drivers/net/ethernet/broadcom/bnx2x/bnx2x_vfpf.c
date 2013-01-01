@@ -228,7 +228,7 @@ static void bnx2x_vf_mbx_resp(struct bnx2x *bp, struct bnx2x_virtf *vf)
 		if (rc) {
 			BNX2X_ERR("Failed to copy response body to VF %d\n",
 				  vf->abs_vfid);
-			return;
+			goto mbx_error;
 		}
 		vf_addr -= sizeof(u64);
 		pf_addr -= sizeof(u64);
@@ -255,8 +255,12 @@ static void bnx2x_vf_mbx_resp(struct bnx2x *bp, struct bnx2x_virtf *vf)
 	if (rc) {
 		BNX2X_ERR("Failed to copy response status to VF %d\n",
 			  vf->abs_vfid);
+		goto mbx_error;
 	}
 	return;
+
+mbx_error:
+	bnx2x_vf_release(bp, vf, false); /* non blocking */
 }
 
 static void bnx2x_vf_mbx_acquire_resp(struct bnx2x *bp, struct bnx2x_virtf *vf,
@@ -819,6 +823,21 @@ static void bnx2x_vf_mbx_close_vf(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		bnx2x_vf_mbx_resp(bp, vf);
 }
 
+static void bnx2x_vf_mbx_release_vf(struct bnx2x *bp, struct bnx2x_virtf *vf,
+				    struct bnx2x_vf_mbx *mbx)
+{
+	struct bnx2x_vfop_cmd cmd = {
+		.done = bnx2x_vf_mbx_resp,
+		.block = false,
+	};
+
+	DP(BNX2X_MSG_IOV, "VF[%d] VF_RELEASE\n", vf->abs_vfid);
+
+	vf->op_rc = bnx2x_vfop_release_cmd(bp, vf, &cmd);
+	if (vf->op_rc)
+		bnx2x_vf_mbx_resp(bp, vf);
+}
+
 /* dispatch request */
 static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 				  struct bnx2x_vf_mbx *mbx)
@@ -851,6 +870,9 @@ static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 			break;
 		case CHANNEL_TLV_CLOSE:
 			bnx2x_vf_mbx_close_vf(bp, vf, mbx);
+			break;
+		case CHANNEL_TLV_RELEASE:
+			bnx2x_vf_mbx_release_vf(bp, vf, mbx);
 			break;
 		}
 
@@ -942,6 +964,7 @@ void bnx2x_vf_mbx(struct bnx2x *bp, struct vf_pf_event_data *vfpf_event)
 	goto mbx_done;
 
 mbx_error:
+	bnx2x_vf_release(bp, vf, false); /* non blocking */
 mbx_done:
 	return;
 }

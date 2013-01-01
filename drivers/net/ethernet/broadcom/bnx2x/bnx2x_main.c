@@ -8626,6 +8626,7 @@ void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode, bool keep_link)
 
 	netif_addr_unlock_bh(bp->dev);
 
+	bnx2x_iov_chip_cleanup(bp);
 
 
 	/*

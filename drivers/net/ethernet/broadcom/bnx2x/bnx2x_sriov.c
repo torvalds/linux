@@ -1422,6 +1422,14 @@ bnx2x_iov_static_resc(struct bnx2x *bp, struct vf_pf_resc_request *resc)
 	/* num_sbs already set */
 }
 
+/* FLR routines: */
+static void bnx2x_vf_free_resc(struct bnx2x *bp, struct bnx2x_virtf *vf)
+{
+	/* reset the state variables */
+	bnx2x_iov_static_resc(bp, &vf->alloc_resc);
+	vf->state = VF_FREE;
+}
+
 /* IOV global initialization routines  */
 void bnx2x_iov_init_dq(struct bnx2x *bp)
 {
@@ -1943,6 +1951,21 @@ int bnx2x_iov_nic_init(struct bnx2x *bp)
 		vf->vfqs = &bp->vfdb->vfqs[qcount];
 		qcount += bnx2x_vf(bp, i, alloc_resc.num_sbs);
 	}
+
+	return 0;
+}
+
+/* called by bnx2x_chip_cleanup */
+int bnx2x_iov_chip_cleanup(struct bnx2x *bp)
+{
+	int i;
+
+	if (!IS_SRIOV(bp))
+		return 0;
+
+	/* release all the VFs */
+	for_each_vf(bp, i)
+		bnx2x_vf_release(bp, BP_VF(bp, i), true); /* blocking */
 
 	return 0;
 }
@@ -2564,6 +2587,106 @@ int bnx2x_vfop_close_cmd(struct bnx2x *bp,
 					     cmd->block);
 	}
 	return -ENOMEM;
+}
+
+/* VF release can be called either: 1. the VF was acquired but
+ * not enabled 2. the vf was enabled or in the process of being
+ * enabled
+ */
+static void bnx2x_vfop_release(struct bnx2x *bp, struct bnx2x_virtf *vf)
+{
+	struct bnx2x_vfop *vfop = bnx2x_vfop_cur(bp, vf);
+	struct bnx2x_vfop_cmd cmd = {
+		.done = bnx2x_vfop_release,
+		.block = false,
+	};
+
+	DP(BNX2X_MSG_IOV, "vfop->rc %d\n", vfop->rc);
+
+	if (vfop->rc < 0)
+		goto op_err;
+
+	DP(BNX2X_MSG_IOV, "VF[%d] STATE: %s\n", vf->abs_vfid,
+	   vf->state == VF_FREE ? "Free" :
+	   vf->state == VF_ACQUIRED ? "Acquired" :
+	   vf->state == VF_ENABLED ? "Enabled" :
+	   vf->state == VF_RESET ? "Reset" :
+	   "Unknown");
+
+	switch (vf->state) {
+	case VF_ENABLED:
+		vfop->rc = bnx2x_vfop_close_cmd(bp, vf, &cmd);
+		if (vfop->rc)
+			goto op_err;
+		return;
+
+	case VF_ACQUIRED:
+		DP(BNX2X_MSG_IOV, "about to free resources\n");
+		bnx2x_vf_free_resc(bp, vf);
+		DP(BNX2X_MSG_IOV, "vfop->rc %d\n", vfop->rc);
+		goto op_done;
+
+	case VF_FREE:
+	case VF_RESET:
+		/* do nothing */
+		goto op_done;
+	default:
+		bnx2x_vfop_default(vf->state);
+	}
+op_err:
+	BNX2X_ERR("VF[%d] RELEASE error: rc %d\n", vf->abs_vfid, vfop->rc);
+op_done:
+	bnx2x_vfop_end(bp, vf, vfop);
+}
+
+int bnx2x_vfop_release_cmd(struct bnx2x *bp,
+			   struct bnx2x_virtf *vf,
+			   struct bnx2x_vfop_cmd *cmd)
+{
+	struct bnx2x_vfop *vfop = bnx2x_vfop_add(bp, vf);
+	if (vfop) {
+		bnx2x_vfop_opset(-1, /* use vf->state */
+				 bnx2x_vfop_release, cmd->done);
+		return bnx2x_vfop_transition(bp, vf, bnx2x_vfop_release,
+					     cmd->block);
+	}
+	return -ENOMEM;
+}
+
+/* VF release ~ VF close + VF release-resources
+ * Release is the ultimate SW shutdown and is called whenever an
+ * irrecoverable error is encountered.
+ */
+void bnx2x_vf_release(struct bnx2x *bp, struct bnx2x_virtf *vf, bool block)
+{
+	struct bnx2x_vfop_cmd cmd = {
+		.done = NULL,
+		.block = block,
+	};
+	int rc;
+	bnx2x_lock_vf_pf_channel(bp, vf, CHANNEL_TLV_PF_RELEASE_VF);
+
+	rc = bnx2x_vfop_release_cmd(bp, vf, &cmd);
+	if (rc)
+		WARN(rc,
+		     "VF[%d] Failed to allocate resources for release op- rc=%d\n",
+		     vf->abs_vfid, rc);
+}
+
+static inline void bnx2x_vf_get_sbdf(struct bnx2x *bp,
+			      struct bnx2x_virtf *vf, u32 *sbdf)
+{
+	*sbdf = vf->devfn | (vf->bus << 8);
+}
+
+static inline void bnx2x_vf_get_bars(struct bnx2x *bp, struct bnx2x_virtf *vf,
+		       struct bnx2x_vf_bar_info *bar_info)
+{
+	int n;
+
+	bar_info->nr_bars = bp->vfdb->sriov.nres;
+	for (n = 0; n < bar_info->nr_bars; n++)
+		bar_info->bars[n] = vf->bars[n];
 }
 
 void bnx2x_lock_vf_pf_channel(struct bnx2x *bp, struct bnx2x_virtf *vf,
