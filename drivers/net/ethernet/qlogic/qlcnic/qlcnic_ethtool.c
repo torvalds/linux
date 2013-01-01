@@ -174,11 +174,9 @@ static int qlcnic_dev_statistics_len(struct qlcnic_adapter *adapter)
 #define QLCNIC_MAX_EEPROM_LEN   1024
 
 static const u32 diag_registers[] = {
-	CRB_CMDPEG_STATE,
-	CRB_RCVPEG_STATE,
-	CRB_XG_STATE_P3P,
-	CRB_FW_CAPABILITIES_1,
-	ISR_INT_STATE_REG,
+	QLCNIC_CMDPEG_STATE,
+	QLCNIC_RCVPEG_STATE,
+	QLCNIC_FW_CAPABILITIES,
 	QLCNIC_CRB_DRV_ACTIVE,
 	QLCNIC_CRB_DEV_STATE,
 	QLCNIC_CRB_DRV_STATE,
@@ -190,6 +188,7 @@ static const u32 diag_registers[] = {
 	QLCNIC_PEG_HALT_STATUS2,
 	-1
 };
+
 
 static const u32 ext_diag_registers[] = {
 	CRB_XG_STATE_P3P,
