@@ -102,6 +102,8 @@ static void bnx2x_vf_igu_ack_sb(struct bnx2x *bp, struct bnx2x_virtf *vf,
 }
 /* VFOP - VF slow-path operation support */
 
+#define BNX2X_VFOP_FILTER_ADD_CNT_MAX		0x10000
+
 /* VFOP operations states */
 enum bnx2x_vfop_qctor_state {
 	   BNX2X_VFOP_QCTOR_INIT,
@@ -122,6 +124,17 @@ enum bnx2x_vfop_qsetup_state {
 	   BNX2X_VFOP_QSETUP_CTOR,
 	   BNX2X_VFOP_QSETUP_VLAN0,
 	   BNX2X_VFOP_QSETUP_DONE
+};
+
+enum bnx2x_vfop_mcast_state {
+	   BNX2X_VFOP_MCAST_DEL,
+	   BNX2X_VFOP_MCAST_ADD,
+	   BNX2X_VFOP_MCAST_CHK_DONE
+};
+
+enum bnx2x_vfop_rxmode_state {
+	   BNX2X_VFOP_RXMODE_CONFIG,
+	   BNX2X_VFOP_RXMODE_DONE
 };
 
 #define bnx2x_vfop_reset_wq(vf)	atomic_set(&vf->op_in_progress, 0)
@@ -572,6 +585,57 @@ bnx2x_vfop_vlan_mac_prep_ramrod(struct bnx2x_vlan_mac_ramrod_params *ramrod,
 	ureq->cmd = flags->add ? BNX2X_VLAN_MAC_ADD : BNX2X_VLAN_MAC_DEL;
 }
 
+static inline void
+bnx2x_vfop_mac_prep_ramrod(struct bnx2x_vlan_mac_ramrod_params *ramrod,
+			   struct bnx2x_vfop_vlan_mac_flags *flags)
+{
+	bnx2x_vfop_vlan_mac_prep_ramrod(ramrod, flags);
+	set_bit(BNX2X_ETH_MAC, &ramrod->user_req.vlan_mac_flags);
+}
+
+int bnx2x_vfop_mac_list_cmd(struct bnx2x *bp,
+			    struct bnx2x_virtf *vf,
+			    struct bnx2x_vfop_cmd *cmd,
+			    struct bnx2x_vfop_filters *macs,
+			    int qid, bool drv_only)
+{
+	struct bnx2x_vfop *vfop = bnx2x_vfop_add(bp, vf);
+
+	if (vfop) {
+		struct bnx2x_vfop_args_filters filters = {
+			.multi_filter = macs,
+			.credit = NULL,		/* consume credit */
+		};
+		struct bnx2x_vfop_vlan_mac_flags flags = {
+			.drv_only = drv_only,
+			.dont_consume = (filters.credit != NULL),
+			.single_cmd = false,
+			.add = false, /* don't care since only the items in the
+				       * filters list affect the sp operation,
+				       * not the list itself
+				       */
+		};
+		struct bnx2x_vlan_mac_ramrod_params *ramrod =
+			&vf->op_params.vlan_mac;
+
+		/* set ramrod params */
+		bnx2x_vfop_mac_prep_ramrod(ramrod, &flags);
+
+		/* set object */
+		ramrod->vlan_mac_obj = &bnx2x_vfq(vf, qid, mac_obj);
+
+		/* set extra args */
+		filters.multi_filter->add_cnt = BNX2X_VFOP_FILTER_ADD_CNT_MAX;
+		vfop->args.filters = filters;
+
+		bnx2x_vfop_opset(BNX2X_VFOP_MAC_CONFIG_LIST,
+				 bnx2x_vfop_vlan_mac, cmd->done);
+		return bnx2x_vfop_transition(bp, vf, bnx2x_vfop_vlan_mac,
+					     cmd->block);
+	}
+	return -ENOMEM;
+}
+
 int bnx2x_vfop_vlan_set_cmd(struct bnx2x *bp,
 			    struct bnx2x_virtf *vf,
 			    struct bnx2x_vfop_cmd *cmd,
@@ -604,6 +668,48 @@ int bnx2x_vfop_vlan_set_cmd(struct bnx2x *bp,
 		vfop->args.filters = filters;
 
 		bnx2x_vfop_opset(BNX2X_VFOP_VLAN_MAC_CONFIG_SINGLE,
+				 bnx2x_vfop_vlan_mac, cmd->done);
+		return bnx2x_vfop_transition(bp, vf, bnx2x_vfop_vlan_mac,
+					     cmd->block);
+	}
+	return -ENOMEM;
+}
+
+int bnx2x_vfop_vlan_list_cmd(struct bnx2x *bp,
+			     struct bnx2x_virtf *vf,
+			     struct bnx2x_vfop_cmd *cmd,
+			     struct bnx2x_vfop_filters *vlans,
+			     int qid, bool drv_only)
+{
+	struct bnx2x_vfop *vfop = bnx2x_vfop_add(bp, vf);
+
+	if (vfop) {
+		struct bnx2x_vfop_args_filters filters = {
+			.multi_filter = vlans,
+			.credit = &bnx2x_vfq(vf, qid, vlan_count),
+		};
+		struct bnx2x_vfop_vlan_mac_flags flags = {
+			.drv_only = drv_only,
+			.dont_consume = (filters.credit != NULL),
+			.single_cmd = false,
+			.add = false, /* don't care */
+		};
+		struct bnx2x_vlan_mac_ramrod_params *ramrod =
+			&vf->op_params.vlan_mac;
+
+		/* set ramrod params */
+		bnx2x_vfop_vlan_mac_prep_ramrod(ramrod, &flags);
+
+		/* set object */
+		ramrod->vlan_mac_obj = &bnx2x_vfq(vf, qid, vlan_obj);
+
+		/* set extra args */
+		filters.multi_filter->add_cnt = vf_vlan_rules_cnt(vf) -
+			atomic_read(filters.credit);
+
+		vfop->args.filters = filters;
+
+		bnx2x_vfop_opset(BNX2X_VFOP_VLAN_CONFIG_LIST,
 				 bnx2x_vfop_vlan_mac, cmd->done);
 		return bnx2x_vfop_transition(bp, vf, bnx2x_vfop_vlan_mac,
 					     cmd->block);
@@ -671,6 +777,180 @@ int bnx2x_vfop_qsetup_cmd(struct bnx2x *bp,
 		bnx2x_vfop_opset(BNX2X_VFOP_QSETUP_CTOR,
 				 bnx2x_vfop_qsetup, cmd->done);
 		return bnx2x_vfop_transition(bp, vf, bnx2x_vfop_qsetup,
+					     cmd->block);
+	}
+	return -ENOMEM;
+}
+
+/* VFOP multi-casts */
+static void bnx2x_vfop_mcast(struct bnx2x *bp, struct bnx2x_virtf *vf)
+{
+	struct bnx2x_vfop *vfop = bnx2x_vfop_cur(bp, vf);
+	struct bnx2x_mcast_ramrod_params *mcast = &vfop->op_p->mcast;
+	struct bnx2x_raw_obj *raw = &mcast->mcast_obj->raw;
+	struct bnx2x_vfop_args_mcast *args = &vfop->args.mc_list;
+	enum bnx2x_vfop_mcast_state state = vfop->state;
+	int i;
+
+	bnx2x_vfop_reset_wq(vf);
+
+	if (vfop->rc < 0)
+		goto op_err;
+
+	DP(BNX2X_MSG_IOV, "vf[%d] STATE: %d\n", vf->abs_vfid, state);
+
+	switch (state) {
+	case BNX2X_VFOP_MCAST_DEL:
+		/* clear existing mcasts */
+		vfop->state = BNX2X_VFOP_MCAST_ADD;
+		vfop->rc = bnx2x_config_mcast(bp, mcast, BNX2X_MCAST_CMD_DEL);
+		bnx2x_vfop_finalize(vf, vfop->rc, VFOP_CONT);
+
+	case BNX2X_VFOP_MCAST_ADD:
+		if (raw->check_pending(raw))
+			goto op_pending;
+
+		if (args->mc_num) {
+			/* update mcast list on the ramrod params */
+			INIT_LIST_HEAD(&mcast->mcast_list);
+			for (i = 0; i < args->mc_num; i++)
+				list_add_tail(&(args->mc[i].link),
+					      &mcast->mcast_list);
+			/* add new mcasts */
+			vfop->state = BNX2X_VFOP_MCAST_CHK_DONE;
+			vfop->rc = bnx2x_config_mcast(bp, mcast,
+						      BNX2X_MCAST_CMD_ADD);
+		}
+		bnx2x_vfop_finalize(vf, vfop->rc, VFOP_DONE);
+
+	case BNX2X_VFOP_MCAST_CHK_DONE:
+		vfop->rc = raw->check_pending(raw) ? 1 : 0;
+		bnx2x_vfop_finalize(vf, vfop->rc, VFOP_DONE);
+	default:
+		bnx2x_vfop_default(state);
+	}
+op_err:
+	BNX2X_ERR("MCAST CONFIG error: rc %d\n", vfop->rc);
+op_done:
+	kfree(args->mc);
+	bnx2x_vfop_end(bp, vf, vfop);
+op_pending:
+	return;
+}
+
+int bnx2x_vfop_mcast_cmd(struct bnx2x *bp,
+			 struct bnx2x_virtf *vf,
+			 struct bnx2x_vfop_cmd *cmd,
+			 bnx2x_mac_addr_t *mcasts,
+			 int mcast_num, bool drv_only)
+{
+	struct bnx2x_vfop *vfop = NULL;
+	size_t mc_sz = mcast_num * sizeof(struct bnx2x_mcast_list_elem);
+	struct bnx2x_mcast_list_elem *mc = mc_sz ? kzalloc(mc_sz, GFP_KERNEL) :
+					   NULL;
+
+	if (!mc_sz || mc) {
+		vfop = bnx2x_vfop_add(bp, vf);
+		if (vfop) {
+			int i;
+			struct bnx2x_mcast_ramrod_params *ramrod =
+				&vf->op_params.mcast;
+
+			/* set ramrod params */
+			memset(ramrod, 0, sizeof(*ramrod));
+			ramrod->mcast_obj = &vf->mcast_obj;
+			if (drv_only)
+				set_bit(RAMROD_DRV_CLR_ONLY,
+					&ramrod->ramrod_flags);
+
+			/* copy mcasts pointers */
+			vfop->args.mc_list.mc_num = mcast_num;
+			vfop->args.mc_list.mc = mc;
+			for (i = 0; i < mcast_num; i++)
+				mc[i].mac = mcasts[i];
+
+			bnx2x_vfop_opset(BNX2X_VFOP_MCAST_DEL,
+					 bnx2x_vfop_mcast, cmd->done);
+			return bnx2x_vfop_transition(bp, vf, bnx2x_vfop_mcast,
+						     cmd->block);
+		} else {
+			kfree(mc);
+		}
+	}
+	return -ENOMEM;
+}
+
+/* VFOP rx-mode */
+static void bnx2x_vfop_rxmode(struct bnx2x *bp, struct bnx2x_virtf *vf)
+{
+	struct bnx2x_vfop *vfop = bnx2x_vfop_cur(bp, vf);
+	struct bnx2x_rx_mode_ramrod_params *ramrod = &vfop->op_p->rx_mode;
+	enum bnx2x_vfop_rxmode_state state = vfop->state;
+
+	bnx2x_vfop_reset_wq(vf);
+
+	if (vfop->rc < 0)
+		goto op_err;
+
+	DP(BNX2X_MSG_IOV, "vf[%d] STATE: %d\n", vf->abs_vfid, state);
+
+	switch (state) {
+	case BNX2X_VFOP_RXMODE_CONFIG:
+		/* next state */
+		vfop->state = BNX2X_VFOP_RXMODE_DONE;
+
+		vfop->rc = bnx2x_config_rx_mode(bp, ramrod);
+		bnx2x_vfop_finalize(vf, vfop->rc, VFOP_DONE);
+op_err:
+		BNX2X_ERR("RXMODE error: rc %d\n", vfop->rc);
+op_done:
+	case BNX2X_VFOP_RXMODE_DONE:
+		bnx2x_vfop_end(bp, vf, vfop);
+		return;
+	default:
+		bnx2x_vfop_default(state);
+	}
+op_pending:
+	return;
+}
+
+int bnx2x_vfop_rxmode_cmd(struct bnx2x *bp,
+			  struct bnx2x_virtf *vf,
+			  struct bnx2x_vfop_cmd *cmd,
+			  int qid, unsigned long accept_flags)
+{
+	struct bnx2x_vf_queue *vfq = vfq_get(vf, qid);
+	struct bnx2x_vfop *vfop = bnx2x_vfop_add(bp, vf);
+
+	if (vfop) {
+		struct bnx2x_rx_mode_ramrod_params *ramrod =
+			&vf->op_params.rx_mode;
+
+		memset(ramrod, 0, sizeof(*ramrod));
+
+		/* Prepare ramrod parameters */
+		ramrod->cid = vfq->cid;
+		ramrod->cl_id = vfq_cl_id(vf, vfq);
+		ramrod->rx_mode_obj = &bp->rx_mode_obj;
+		ramrod->func_id = FW_VF_HANDLE(vf->abs_vfid);
+
+		ramrod->rx_accept_flags = accept_flags;
+		ramrod->tx_accept_flags = accept_flags;
+		ramrod->pstate = &vf->filter_state;
+		ramrod->state = BNX2X_FILTER_RX_MODE_PENDING;
+
+		set_bit(BNX2X_FILTER_RX_MODE_PENDING, &vf->filter_state);
+		set_bit(RAMROD_RX, &ramrod->ramrod_flags);
+		set_bit(RAMROD_TX, &ramrod->ramrod_flags);
+
+		ramrod->rdata =
+			bnx2x_vf_sp(bp, vf, rx_mode_rdata.e2);
+		ramrod->rdata_mapping =
+			bnx2x_vf_sp_map(bp, vf, rx_mode_rdata.e2);
+
+		bnx2x_vfop_opset(BNX2X_VFOP_RXMODE_CONFIG,
+				 bnx2x_vfop_rxmode, cmd->done);
+		return bnx2x_vfop_transition(bp, vf, bnx2x_vfop_rxmode,
 					     cmd->block);
 	}
 	return -ENOMEM;

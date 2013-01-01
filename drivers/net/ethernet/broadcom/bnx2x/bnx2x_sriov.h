@@ -441,6 +441,10 @@ void bnx2x_iov_sp_task(struct bnx2x *bp);
 /* global vf mailbox routines */
 void bnx2x_vf_mbx(struct bnx2x *bp, struct vf_pf_event_data *vfpf_event);
 void bnx2x_vf_enable_mbx(struct bnx2x *bp, u8 abs_vfid);
+
+/* CORE VF API */
+typedef u8 bnx2x_mac_addr_t[ETH_ALEN];
+
 /* acquire */
 int bnx2x_vf_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		     struct vf_pf_resc_request *resc);
@@ -615,10 +619,38 @@ void bnx2x_vfop_qctor_prep(struct bnx2x *bp,
 			   struct bnx2x_vf_queue *q,
 			   struct bnx2x_vfop_qctor_params *p,
 			   unsigned long q_type);
+int bnx2x_vfop_mac_list_cmd(struct bnx2x *bp,
+			    struct bnx2x_virtf *vf,
+			    struct bnx2x_vfop_cmd *cmd,
+			    struct bnx2x_vfop_filters *macs,
+			    int qid, bool drv_only);
+
+int bnx2x_vfop_vlan_set_cmd(struct bnx2x *bp,
+			    struct bnx2x_virtf *vf,
+			    struct bnx2x_vfop_cmd *cmd,
+			    int qid, u16 vid, bool add);
+
+int bnx2x_vfop_vlan_list_cmd(struct bnx2x *bp,
+			     struct bnx2x_virtf *vf,
+			     struct bnx2x_vfop_cmd *cmd,
+			     struct bnx2x_vfop_filters *vlans,
+			     int qid, bool drv_only);
+
 int bnx2x_vfop_qsetup_cmd(struct bnx2x *bp,
 			  struct bnx2x_virtf *vf,
 			  struct bnx2x_vfop_cmd *cmd,
 			  int qid);
+
+int bnx2x_vfop_mcast_cmd(struct bnx2x *bp,
+			 struct bnx2x_virtf *vf,
+			 struct bnx2x_vfop_cmd *cmd,
+			 bnx2x_mac_addr_t *mcasts,
+			 int mcast_num, bool drv_only);
+
+int bnx2x_vfop_rxmode_cmd(struct bnx2x *bp,
+			  struct bnx2x_virtf *vf,
+			  struct bnx2x_vfop_cmd *cmd,
+			  int qid, unsigned long accept_flags);
 
 int bnx2x_vf_idx_by_abs_fid(struct bnx2x *bp, u16 abs_vfid);
 u8 bnx2x_vf_max_queue_cnt(struct bnx2x *bp, struct bnx2x_virtf *vf);
