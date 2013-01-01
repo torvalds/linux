@@ -1823,14 +1823,20 @@ __s32 BSP_disp_get_timing(__u32 sel, __disp_tcon_timing_t *tt)
 	if (gdisp.screen[sel].status & LCD_ON) {
 		LCDC_get_timing(sel, 0, tt);
 		tt->pixel_clk = gpanel_info[sel].lcd_dclk_freq * 1000;
-	} else if ((gdisp.screen[sel].status & TV_ON) ||
-		   (gdisp.screen[sel].status & HDMI_ON)) {
+	} else if ((gdisp.screen[sel].status & TV_ON)) {
 		__disp_tv_mode_t mode = gdisp.screen[sel].tv_mode;
-
 		LCDC_get_timing(sel, 1, tt);
 		tt->pixel_clk =
 			(clk_tab.tv_clk_tab[mode].tve_clk /
 			 clk_tab.tv_clk_tab[mode].pre_scale) / 1000;
+	} else if (gdisp.screen[sel].status & HDMI_ON) {
+		struct __disp_video_timing video_timing;
+		__disp_tv_mode_t hdmi_mode = gdisp.screen[sel].hdmi_mode;
+
+		LCDC_get_timing(sel, 1, tt);
+		if (gdisp.init_para.hdmi_get_video_timing(
+				hdmi_mode, &video_timing) == 0)
+			tt->pixel_clk = video_timing.PCLK / 1000;
 	} else if (gdisp.screen[sel].status & VGA_ON) {
 		__disp_vga_mode_t mode = gdisp.screen[sel].vga_mode;
 
