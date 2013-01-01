@@ -3472,8 +3472,18 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		    cpu_to_le16(vlan_tx_tag_get(skb));
 		tx_start_bd->bd_flags.as_bitfield |=
 		    (X_ETH_OUTBAND_VLAN << ETH_TX_BD_FLAGS_VLAN_MODE_SHIFT);
-	} else
-		tx_start_bd->vlan_or_ethertype = cpu_to_le16(pkt_prod);
+	} else {
+		/* when transmitting in a vf, start bd must hold the ethertype
+		 * for fw to enforce it
+		 */
+		if (IS_VF(bp)) {
+			tx_start_bd->vlan_or_ethertype =
+				cpu_to_le16(ntohs(eth->h_proto));
+		} else {
+			/* used by FW for packet accounting */
+			tx_start_bd->vlan_or_ethertype = cpu_to_le16(pkt_prod);
+		}
+	}
 
 	/* turn on parsing and get a BD */
 	bd_prod = TX_BD(NEXT_TX_IDX(bd_prod));
@@ -3489,9 +3499,9 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			hlen = bnx2x_set_pbd_csum_e2(bp, skb,
 						     &pbd_e2_parsing_data,
 						     xmit_type);
-		if (IS_MF_SI(bp)) {
-			/*
-			 * fill in the MAC addresses in the PBD - for local
+
+		if (IS_MF_SI(bp) || IS_VF(bp)) {
+			/* fill in the MAC addresses in the PBD - for local
 			 * switching
 			 */
 			bnx2x_set_fw_mac_addr(&pbd_e2->src_mac_addr_hi,

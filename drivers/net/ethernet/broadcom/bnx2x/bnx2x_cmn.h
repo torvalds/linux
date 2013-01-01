@@ -499,6 +499,39 @@ int bnx2x_setup_tc(struct net_device *dev, u8 num_tc);
 /* select_queue callback */
 u16 bnx2x_select_queue(struct net_device *dev, struct sk_buff *skb);
 
+static inline void bnx2x_update_rx_prod(struct bnx2x *bp,
+					struct bnx2x_fastpath *fp,
+					u16 bd_prod, u16 rx_comp_prod,
+					u16 rx_sge_prod)
+{
+	struct ustorm_eth_rx_producers rx_prods = {0};
+	u32 i;
+
+	/* Update producers */
+	rx_prods.bd_prod = bd_prod;
+	rx_prods.cqe_prod = rx_comp_prod;
+	rx_prods.sge_prod = rx_sge_prod;
+
+	/* Make sure that the BD and SGE data is updated before updating the
+	 * producers since FW might read the BD/SGE right after the producer
+	 * is updated.
+	 * This is only applicable for weak-ordered memory model archs such
+	 * as IA-64. The following barrier is also mandatory since FW will
+	 * assumes BDs must have buffers.
+	 */
+	wmb();
+
+	for (i = 0; i < sizeof(rx_prods)/4; i++)
+		REG_WR(bp, fp->ustorm_rx_prods_offset + i*4,
+		       ((u32 *)&rx_prods)[i]);
+
+	mmiowb(); /* keep prod updates ordered */
+
+	DP(NETIF_MSG_RX_STATUS,
+	   "queue[%d]:  wrote  bd_prod %u  cqe_prod %u  sge_prod %u\n",
+	   fp->index, bd_prod, rx_comp_prod, rx_sge_prod);
+}
+
 /* reload helper */
 int bnx2x_reload_if_running(struct net_device *dev);
 
@@ -506,9 +539,6 @@ int bnx2x_change_mac_addr(struct net_device *dev, void *p);
 
 /* NAPI poll Rx part */
 int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget);
-
-void bnx2x_update_rx_prod(struct bnx2x *bp, struct bnx2x_fastpath *fp,
-			u16 bd_prod, u16 rx_comp_prod, u16 rx_sge_prod);
 
 /* NAPI poll Tx part */
 int bnx2x_tx_int(struct bnx2x *bp, struct bnx2x_fp_txdata *txdata);
@@ -610,38 +640,6 @@ static inline void bnx2x_update_fpsb_idx(struct bnx2x_fastpath *fp)
 {
 	barrier(); /* status block is written to by the chip */
 	fp->fp_hc_idx = fp->sb_running_index[SM_RX_ID];
-}
-
-static inline void bnx2x_update_rx_prod_gen(struct bnx2x *bp,
-			struct bnx2x_fastpath *fp, u16 bd_prod,
-			u16 rx_comp_prod, u16 rx_sge_prod, u32 start)
-{
-	struct ustorm_eth_rx_producers rx_prods = {0};
-	u32 i;
-
-	/* Update producers */
-	rx_prods.bd_prod = bd_prod;
-	rx_prods.cqe_prod = rx_comp_prod;
-	rx_prods.sge_prod = rx_sge_prod;
-
-	/*
-	 * Make sure that the BD and SGE data is updated before updating the
-	 * producers since FW might read the BD/SGE right after the producer
-	 * is updated.
-	 * This is only applicable for weak-ordered memory model archs such
-	 * as IA-64. The following barrier is also mandatory since FW will
-	 * assumes BDs must have buffers.
-	 */
-	wmb();
-
-	for (i = 0; i < sizeof(rx_prods)/4; i++)
-		REG_WR(bp, start + i*4, ((u32 *)&rx_prods)[i]);
-
-	mmiowb(); /* keep prod updates ordered */
-
-	DP(NETIF_MSG_RX_STATUS,
-	   "queue[%d]:  wrote  bd_prod %u  cqe_prod %u  sge_prod %u\n",
-	   fp->index, bd_prod, rx_comp_prod, rx_sge_prod);
 }
 
 static inline void bnx2x_igu_ack_sb_gen(struct bnx2x *bp, u8 igu_sb_id,

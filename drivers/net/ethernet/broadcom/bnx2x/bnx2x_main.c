@@ -1697,15 +1697,6 @@ void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe)
 	return;
 }
 
-void bnx2x_update_rx_prod(struct bnx2x *bp, struct bnx2x_fastpath *fp,
-			u16 bd_prod, u16 rx_comp_prod, u16 rx_sge_prod)
-{
-	u32 start = BAR_USTRORM_INTMEM + fp->ustorm_rx_prods_offset;
-
-	bnx2x_update_rx_prod_gen(bp, fp, bd_prod, rx_comp_prod, rx_sge_prod,
-				 start);
-}
-
 irqreturn_t bnx2x_interrupt(int irq, void *dev_instance)
 {
 	struct bnx2x *bp = netdev_priv(dev_instance);
@@ -4620,8 +4611,8 @@ static void bnx2x_attn_int(struct bnx2x *bp)
 void bnx2x_igu_ack_sb(struct bnx2x *bp, u8 igu_sb_id, u8 segment,
 		      u16 index, u8 op, u8 update)
 {
-	u32 igu_addr = BAR_IGU_INTMEM + (IGU_CMD_INT_ACK_BASE + igu_sb_id)*8;
-
+	u32 igu_addr = bp->igu_base_addr;
+	igu_addr += (IGU_CMD_INT_ACK_BASE + igu_sb_id)*8;
 	bnx2x_igu_ack_sb_gen(bp, igu_sb_id, segment, index, op, update,
 			     igu_addr);
 }
