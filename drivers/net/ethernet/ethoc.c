@@ -1068,7 +1068,7 @@ static int ethoc_probe(struct platform_device *pdev)
 	}
 
 	if (random_mac)
-		netdev->addr_assign_type |= NET_ADDR_RANDOM;
+		netdev->addr_assign_type = NET_ADDR_RANDOM;
 
 	/* register MII bus */
 	priv->mdio = mdiobus_alloc();

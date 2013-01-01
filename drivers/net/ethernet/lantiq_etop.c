@@ -655,7 +655,7 @@ ltq_etop_init(struct net_device *dev)
 
 	/* Set addr_assign_type here, ltq_etop_set_mac_address would reset it. */
 	if (random_mac)
-		dev->addr_assign_type |= NET_ADDR_RANDOM;
+		dev->addr_assign_type = NET_ADDR_RANDOM;
 
 	ltq_etop_set_multicast_list(dev);
 	err = ltq_etop_mdio_init(dev);
