@@ -12234,6 +12234,12 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 		goto init_one_exit;
 	}
 
+	if (IS_VF(bp)) {
+		rc = bnx2x_vfpf_acquire(bp, tx_count, rx_count);
+		if (rc)
+			goto init_one_exit;
+	}
+
 	/* calc qm_cid_count */
 	bp->qm_cid_count = bnx2x_set_qm_cid_count(bp);
 	BNX2X_DEV_INFO("qm_cid_count %d\n", bp->qm_cid_count);
@@ -13157,4 +13163,183 @@ struct cnic_eth_dev *bnx2x_cnic_probe(struct net_device *dev)
 	return cp;
 }
 
+int bnx2x_send_msg2pf(struct bnx2x *bp, u8 *done, dma_addr_t msg_mapping)
+{
+	struct cstorm_vf_zone_data __iomem *zone_data =
+		REG_ADDR(bp, PXP_VF_ADDR_CSDM_GLOBAL_START);
+	int tout = 600, interval = 100; /* wait for 60 seconds */
 
+	if (*done) {
+		BNX2X_ERR("done was non zero before message to pf was sent\n");
+		WARN_ON(true);
+		return -EINVAL;
+	}
+
+	/* Write message address */
+	writel(U64_LO(msg_mapping),
+	       &zone_data->non_trigger.vf_pf_channel.msg_addr_lo);
+	writel(U64_HI(msg_mapping),
+	       &zone_data->non_trigger.vf_pf_channel.msg_addr_hi);
+
+	/* make sure the address is written before FW accesses it */
+	wmb();
+
+	/* Trigger the PF FW */
+	writeb(1, &zone_data->trigger.vf_pf_channel.addr_valid);
+
+	/* Wait for PF to complete */
+	while ((tout >= 0) && (!*done)) {
+		msleep(interval);
+		tout -= 1;
+
+		/* progress indicator - HV can take its own sweet time in
+		 * answering VFs...
+		 */
+		DP_CONT(BNX2X_MSG_IOV, ".");
+	}
+
+	if (!*done) {
+		BNX2X_ERR("PF response has timed out\n");
+		return -EAGAIN;
+	}
+	DP(BNX2X_MSG_SP, "Got a response from PF\n");
+	return 0;
+}
+
+int bnx2x_get_vf_id(struct bnx2x *bp, u32 *vf_id)
+{
+	u32 me_reg;
+	int tout = 10, interval = 100; /* Wait for 1 sec */
+
+	do {
+		/* pxp traps vf read of doorbells and returns me reg value */
+		me_reg = readl(bp->doorbells);
+		if (GOOD_ME_REG(me_reg))
+			break;
+
+		msleep(interval);
+
+		BNX2X_ERR("Invalid ME register value: 0x%08x\n. Is pf driver up?",
+			  me_reg);
+	} while (tout-- > 0);
+
+	if (!GOOD_ME_REG(me_reg)) {
+		BNX2X_ERR("Invalid ME register value: 0x%08x\n", me_reg);
+		return -EINVAL;
+	}
+
+	BNX2X_ERR("valid ME register value: 0x%08x\n", me_reg);
+
+	*vf_id = (me_reg & ME_REG_VF_NUM_MASK) >> ME_REG_VF_NUM_SHIFT;
+
+	return 0;
+}
+
+int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count)
+{
+	int rc = 0, attempts = 0;
+	struct vfpf_acquire_tlv *req = &bp->vf2pf_mbox->req.acquire;
+	struct pfvf_acquire_resp_tlv *resp = &bp->vf2pf_mbox->resp.acquire_resp;
+	u32 vf_id;
+	bool resources_acquired = false;
+
+	/* clear mailbox and prep first tlv */
+	bnx2x_vfpf_prep(bp, &req->first_tlv, CHANNEL_TLV_ACQUIRE, sizeof(*req));
+
+	if (bnx2x_get_vf_id(bp, &vf_id))
+		return -EAGAIN;
+
+	req->vfdev_info.vf_id = vf_id;
+	req->vfdev_info.vf_os = 0;
+
+	req->resc_request.num_rxqs = rx_count;
+	req->resc_request.num_txqs = tx_count;
+	req->resc_request.num_sbs = bp->igu_sb_cnt;
+	req->resc_request.num_mac_filters = VF_ACQUIRE_MAC_FILTERS;
+	req->resc_request.num_mc_filters = VF_ACQUIRE_MC_FILTERS;
+
+	/* add list termination tlv */
+	bnx2x_add_tlv(bp, req, req->first_tlv.tl.length, CHANNEL_TLV_LIST_END,
+		      sizeof(struct channel_list_end_tlv));
+
+	/* output tlvs list */
+	bnx2x_dp_tlv_list(bp, req);
+
+	while (!resources_acquired) {
+		DP(BNX2X_MSG_SP, "attempting to acquire resources\n");
+
+		/* send acquire request */
+		rc = bnx2x_send_msg2pf(bp,
+				       &resp->hdr.status,
+				       bp->vf2pf_mbox_mapping);
+
+		/* PF timeout */
+		if (rc)
+			return rc;
+
+		/* copy acquire response from buffer to bp */
+		memcpy(&bp->acquire_resp, resp, sizeof(bp->acquire_resp));
+
+		attempts++;
+
+		/* test whether the PF accepted our request. If not, humble the
+		 * the request and try again.
+		 */
+		if (bp->acquire_resp.hdr.status == PFVF_STATUS_SUCCESS) {
+			DP(BNX2X_MSG_SP, "resources acquired\n");
+			resources_acquired = true;
+		} else if (bp->acquire_resp.hdr.status ==
+			   PFVF_STATUS_NO_RESOURCE &&
+			   attempts < VF_ACQUIRE_THRESH) {
+			DP(BNX2X_MSG_SP,
+			   "PF unwilling to fulfill resource request. Try PF recommended amount\n");
+
+			/* humble our request */
+			req->resc_request.num_txqs =
+				bp->acquire_resp.resc.num_txqs;
+			req->resc_request.num_rxqs =
+				bp->acquire_resp.resc.num_rxqs;
+			req->resc_request.num_sbs =
+				bp->acquire_resp.resc.num_sbs;
+			req->resc_request.num_mac_filters =
+				bp->acquire_resp.resc.num_mac_filters;
+			req->resc_request.num_vlan_filters =
+				bp->acquire_resp.resc.num_vlan_filters;
+			req->resc_request.num_mc_filters =
+				bp->acquire_resp.resc.num_mc_filters;
+
+			/* Clear response buffer */
+			memset(&bp->vf2pf_mbox->resp, 0,
+			       sizeof(union pfvf_tlvs));
+		} else {
+			/* PF reports error */
+			BNX2X_ERR("Failed to get the requested amount of resources: %d. Breaking...\n",
+				  bp->acquire_resp.hdr.status);
+			return -EAGAIN;
+		}
+	}
+
+	/* get HW info */
+	bp->common.chip_id |= (bp->acquire_resp.pfdev_info.chip_num & 0xffff);
+	bp->link_params.chip_id = bp->common.chip_id;
+	bp->db_size = bp->acquire_resp.pfdev_info.db_size;
+	bp->common.int_block = INT_BLOCK_IGU;
+	bp->common.chip_port_mode = CHIP_2_PORT_MODE;
+	bp->igu_dsb_id = -1;
+	bp->mf_ov = 0;
+	bp->mf_mode = 0;
+	bp->common.flash_size = 0;
+	bp->flags |=
+		NO_WOL_FLAG | NO_ISCSI_OOO_FLAG | NO_ISCSI_FLAG | NO_FCOE_FLAG;
+	bp->igu_sb_cnt = 1;
+	bp->igu_base_sb = bp->acquire_resp.resc.hw_sbs[0].hw_sb_id;
+	strlcpy(bp->fw_ver, bp->acquire_resp.pfdev_info.fw_ver,
+		sizeof(bp->fw_ver));
+
+	if (is_valid_ether_addr(bp->acquire_resp.resc.current_mac_addr))
+		memcpy(bp->dev->dev_addr,
+		       bp->acquire_resp.resc.current_mac_addr,
+		       ETH_ALEN);
+
+	return 0;
+}

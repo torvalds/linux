@@ -48,6 +48,7 @@
 #include "bnx2x_sp.h"
 #include "bnx2x_dcb.h"
 #include "bnx2x_stats.h"
+#include "bnx2x_vfpf.h"
 
 enum bnx2x_int_mode {
 	BNX2X_INT_MODE_MSIX,
@@ -1244,6 +1245,9 @@ struct bnx2x {
 	struct bnx2x_vf_mbx_msg	*vf2pf_mbox;
 	dma_addr_t		vf2pf_mbox_mapping;
 
+	/* we set aside a copy of the acquire response */
+	struct pfvf_acquire_resp_tlv acquire_resp;
+
 	struct net_device	*dev;
 	struct pci_dev		*pdev;
 
@@ -2207,6 +2211,15 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define BNX2X_VPD_LEN			128
 #define VENDOR_ID_LEN			4
 
+#define VF_ACQUIRE_THRESH		3
+#define VF_ACQUIRE_MAC_FILTERS		1
+#define VF_ACQUIRE_MC_FILTERS		10
+
+#define GOOD_ME_REG(me_reg) (((me_reg) & ME_REG_VF_VALID) && \
+			    (!((me_reg) & ME_REG_VF_ERR)))
+int bnx2x_get_vf_id(struct bnx2x *bp, u32 *vf_id);
+int bnx2x_send_msg2pf(struct bnx2x *bp, u8 *done, dma_addr_t msg_mapping);
+int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count);
 /* Congestion management fairness mode */
 #define CMNG_FNS_NONE		0
 #define CMNG_FNS_MINMAX		1

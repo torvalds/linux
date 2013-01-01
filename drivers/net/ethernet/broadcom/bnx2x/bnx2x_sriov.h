@@ -24,4 +24,9 @@ struct bnx2x_vf_mbx_msg {
 	union pfvf_tlvs resp;
 };
 
+void bnx2x_add_tlv(struct bnx2x *bp, void *tlvs_list, u16 offset, u16 type,
+		   u16 length);
+void bnx2x_vfpf_prep(struct bnx2x *bp, struct vfpf_first_tlv *first_tlv,
+		     u16 type, u16 length);
+void bnx2x_dp_tlv_list(struct bnx2x *bp, void *tlvs_list);
 #endif /* bnx2x_sriov.h */
