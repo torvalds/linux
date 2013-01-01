@@ -28,6 +28,14 @@ enum qlcnic_regs {
 	QLCNIC_FLASH_UNLOCK,
 };
 
+/* Read from an address offset from BAR0, existing registers */
+#define QLC_SHARED_REG_RD32(a, addr)			\
+	readl(((a)->ahw->pci_base0) + ((a)->ahw->reg_tbl[addr]))
+
+/* Write to an address offset from BAR0, existing registers */
+#define QLC_SHARED_REG_WR32(a, addr, value)		\
+	writel(value, ((a)->ahw->pci_base0) + ((a)->ahw->reg_tbl[addr]))
+
 #define QLCNIC_CMD_CONFIGURE_IP_ADDR		0x1
 #define QLCNIC_CMD_CONFIG_INTRPT		0x2
 #define QLCNIC_CMD_CREATE_RX_CTX		0x7
