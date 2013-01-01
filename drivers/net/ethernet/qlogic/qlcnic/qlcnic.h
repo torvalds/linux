@@ -375,6 +375,7 @@ struct qlcnic_dump_template_hdr {
 	u32	sys_info[3];
 	u32	saved_state[16];
 	u32	cap_sizes[8];
+	u32	ocm_wnd_reg[16];
 	u32	rsvd[0];
 };
 

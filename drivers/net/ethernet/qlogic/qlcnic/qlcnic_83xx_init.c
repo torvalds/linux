@@ -1850,9 +1850,15 @@ static int qlcnic_83xx_load_fw_image_from_host(struct qlcnic_adapter *adapter)
 
 static int qlcnic_83xx_restart_hw(struct qlcnic_adapter *adapter)
 {
+	u32 val;
 	int err = -EIO;
 
 	qlcnic_83xx_stop_hw(adapter);
+
+	/* Collect FW register dump if required */
+	val = QLCRDX(adapter->ahw, QLC_83XX_IDC_CTRL);
+	if (!(val & QLC_83XX_IDC_GRACEFULL_RESET))
+		qlcnic_dump_fw(adapter);
 	qlcnic_83xx_init_hw(adapter);
 
 	if (qlcnic_83xx_copy_bootloader(adapter))
@@ -1970,6 +1976,7 @@ static int qlcnic_83xx_init_default_driver(struct qlcnic_adapter *adapter)
 {
 	int err = -EIO;
 
+	qlcnic_83xx_get_minidump_template(adapter);
 	if (qlcnic_83xx_get_port_info(adapter))
 		return err;
 

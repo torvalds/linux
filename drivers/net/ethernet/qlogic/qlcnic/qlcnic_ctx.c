@@ -160,40 +160,6 @@ int qlcnic_82xx_issue_cmd(struct qlcnic_adapter *adapter,
 	return cmd->rsp.arg[0];
 }
 
-int qlcnic_fw_cmd_get_minidump_temp(struct qlcnic_adapter *adapter)
-{
-	int err = 0;
-	void *tmp_addr;
-	struct qlcnic_cmd_args cmd;
-	dma_addr_t tmp_addr_t = 0;
-
-	tmp_addr = dma_alloc_coherent(&adapter->pdev->dev, 0x1000,
-				      &tmp_addr_t, GFP_KERNEL);
-	if (!tmp_addr) {
-		dev_err(&adapter->pdev->dev,
-			"Can't get memory for FW dump template\n");
-		return -ENOMEM;
-	}
-
-	if (qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_TEMP_HDR)) {
-		err = -ENOMEM;
-		goto free_mem;
-	}
-
-	cmd.req.arg[1] = LSD(tmp_addr_t);
-	cmd.req.arg[2] = MSD(tmp_addr_t);
-	cmd.req.arg[3] = 0x1000;
-	err = qlcnic_issue_cmd(adapter, &cmd);
-
-
-	qlcnic_free_mbx_args(&cmd);
-
-free_mem:
-	dma_free_coherent(&adapter->pdev->dev, 0x1000, tmp_addr, tmp_addr_t);
-
-	return err;
-}
-
 int
 qlcnic_fw_cmd_set_mtu(struct qlcnic_adapter *adapter, int mtu)
 {
