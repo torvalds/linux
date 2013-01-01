@@ -195,11 +195,17 @@ static struct {
 #ifndef PCI_DEVICE_ID_NX2_57712_MF
 #define PCI_DEVICE_ID_NX2_57712_MF	CHIP_NUM_57712_MF
 #endif
+#ifndef PCI_DEVICE_ID_NX2_57712_VF
+#define PCI_DEVICE_ID_NX2_57712_VF	CHIP_NUM_57712_VF
+#endif
 #ifndef PCI_DEVICE_ID_NX2_57800
 #define PCI_DEVICE_ID_NX2_57800		CHIP_NUM_57800
 #endif
 #ifndef PCI_DEVICE_ID_NX2_57800_MF
 #define PCI_DEVICE_ID_NX2_57800_MF	CHIP_NUM_57800_MF
+#endif
+#ifndef PCI_DEVICE_ID_NX2_57800_VF
+#define PCI_DEVICE_ID_NX2_57800_VF	CHIP_NUM_57800_VF
 #endif
 #ifndef PCI_DEVICE_ID_NX2_57810
 #define PCI_DEVICE_ID_NX2_57810		CHIP_NUM_57810
@@ -209,6 +215,9 @@ static struct {
 #endif
 #ifndef PCI_DEVICE_ID_NX2_57840_O
 #define PCI_DEVICE_ID_NX2_57840_O	CHIP_NUM_57840_OBSOLETE
+#endif
+#ifndef PCI_DEVICE_ID_NX2_57810_VF
+#define PCI_DEVICE_ID_NX2_57810_VF	CHIP_NUM_57810_VF
 #endif
 #ifndef PCI_DEVICE_ID_NX2_57840_4_10
 #define PCI_DEVICE_ID_NX2_57840_4_10	CHIP_NUM_57840_4_10
@@ -222,29 +231,41 @@ static struct {
 #ifndef PCI_DEVICE_ID_NX2_57840_MF
 #define PCI_DEVICE_ID_NX2_57840_MF	CHIP_NUM_57840_MF
 #endif
+#ifndef PCI_DEVICE_ID_NX2_57840_VF
+#define PCI_DEVICE_ID_NX2_57840_VF	CHIP_NUM_57840_VF
+#endif
 #ifndef PCI_DEVICE_ID_NX2_57811
 #define PCI_DEVICE_ID_NX2_57811		CHIP_NUM_57811
 #endif
 #ifndef PCI_DEVICE_ID_NX2_57811_MF
 #define PCI_DEVICE_ID_NX2_57811_MF	CHIP_NUM_57811_MF
 #endif
+#ifndef PCI_DEVICE_ID_NX2_57811_VF
+#define PCI_DEVICE_ID_NX2_57811_VF	CHIP_NUM_57811_VF
+#endif
+
 static DEFINE_PCI_DEVICE_TABLE(bnx2x_pci_tbl) = {
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57710), BCM57710 },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57711), BCM57711 },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57711E), BCM57711E },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57712), BCM57712 },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57712_MF), BCM57712_MF },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57712_VF), BCM57712_VF },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57800), BCM57800 },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57800_MF), BCM57800_MF },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57800_VF), BCM57800_VF },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57810), BCM57810 },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57810_MF), BCM57810_MF },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_O), BCM57840_O },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_4_10), BCM57840_4_10 },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_2_20), BCM57840_2_20 },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57810_VF), BCM57810_VF },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_MFO), BCM57840_MFO },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_MF), BCM57840_MF },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_VF), BCM57840_VF },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57811), BCM57811 },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57811_MF), BCM57811_MF },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57811_VF), BCM57811_VF },
 	{ 0 }
 };
 
@@ -9428,8 +9449,10 @@ static void bnx2x_sp_rtnl_task(struct work_struct *work)
 
 	rtnl_lock();
 
-	if (!netif_running(bp->dev))
-		goto sp_rtnl_exit;
+	if (!netif_running(bp->dev)) {
+		rtnl_unlock();
+		return;
+	}
 
 	/* if stop on error is defined no recovery flows should be executed */
 #ifdef BNX2X_STOP_ON_ERROR
@@ -9448,7 +9471,8 @@ static void bnx2x_sp_rtnl_task(struct work_struct *work)
 
 		bnx2x_parity_recover(bp);
 
-		goto sp_rtnl_exit;
+		rtnl_unlock();
+		return;
 	}
 
 	if (test_and_clear_bit(BNX2X_SP_RTNL_TX_TIMEOUT, &bp->sp_rtnl_state)) {
@@ -9462,7 +9486,8 @@ static void bnx2x_sp_rtnl_task(struct work_struct *work)
 		bnx2x_nic_unload(bp, UNLOAD_NORMAL, true);
 		bnx2x_nic_load(bp, LOAD_NORMAL);
 
-		goto sp_rtnl_exit;
+		rtnl_unlock();
+		return;
 	}
 #ifdef BNX2X_STOP_ON_ERROR
 sp_rtnl_not_reset:
@@ -9480,6 +9505,8 @@ sp_rtnl_not_reset:
 		DP(NETIF_MSG_HW, "fan failure detected. Unloading driver\n");
 		netif_device_detach(bp->dev);
 		bnx2x_close(bp->dev);
+		rtnl_unlock();
+		return;
 	}
 
 	if (test_and_clear_bit(BNX2X_SP_RTNL_VFPF_MCAST, &bp->sp_rtnl_state)) {
@@ -9495,8 +9522,28 @@ sp_rtnl_not_reset:
 		bnx2x_vfpf_storm_rx_mode(bp);
 	}
 
-sp_rtnl_exit:
+	/* work which needs rtnl lock not-taken (as it takes the lock itself and
+	 * can be called from other contexts as well)
+	 */
+
 	rtnl_unlock();
+
+	if (IS_SRIOV(bp) && test_and_clear_bit(BNX2X_SP_RTNL_ENABLE_SRIOV,
+					       &bp->sp_rtnl_state)) {
+		int rc = 0;
+
+		/* disbale sriov in case it is still enabled */
+		pci_disable_sriov(bp->pdev);
+		DP(BNX2X_MSG_IOV, "sriov disabled\n");
+
+		/* enable sriov */
+		DP(BNX2X_MSG_IOV, "vf num (%d)\n", (bp->vfdb->sriov.nr_virtfn));
+		rc = pci_enable_sriov(bp->pdev, (bp->vfdb->sriov.nr_virtfn));
+		if (rc)
+			BNX2X_ERR("pci_enable_sriov failed with %d\n", rc);
+		else
+			DP(BNX2X_MSG_IOV, "sriov enabled\n");
+	}
 }
 
 /* end of nic load/unload */
@@ -11355,6 +11402,26 @@ static int bnx2x_init_bp(struct bnx2x *bp)
  * net_device service functions
  */
 
+static int bnx2x_open_epilog(struct bnx2x *bp)
+{
+	/* Enable sriov via delayed work. This must be done via delayed work
+	 * because it causes the probe of the vf devices to be run, which invoke
+	 * register_netdevice which must have rtnl lock taken. As we are holding
+	 * the lock right now, that could only work if the probe would not take
+	 * the lock. However, as the probe of the vf may be called from other
+	 * contexts as well (such as passthrough to vm failes) it can't assume
+	 * the lock is being held for it. Using delayed work here allows the
+	 * probe code to simply take the lock (i.e. wait for it to be released
+	 * if it is being held).
+	 */
+	smp_mb__before_clear_bit();
+	set_bit(BNX2X_SP_RTNL_ENABLE_SRIOV, &bp->sp_rtnl_state);
+	smp_mb__after_clear_bit();
+	schedule_delayed_work(&bp->sp_rtnl_task, 0);
+
+	return 0;
+}
+
 /* called with rtnl_lock */
 static int bnx2x_open(struct net_device *dev)
 {
@@ -11362,6 +11429,7 @@ static int bnx2x_open(struct net_device *dev)
 	bool global = false;
 	int other_engine = BP_PATH(bp) ? 0 : 1;
 	bool other_load_status, load_status;
+	int rc;
 
 	bp->stats_init = true;
 
@@ -11416,7 +11484,10 @@ static int bnx2x_open(struct net_device *dev)
 	}
 
 	bp->recovery_state = BNX2X_RECOVERY_DONE;
-	return bnx2x_nic_load(bp, LOAD_OPEN);
+	rc = bnx2x_nic_load(bp, LOAD_OPEN);
+	if (rc)
+		return rc;
+	return bnx2x_open_epilog(bp);
 }
 
 /* called with rtnl_lock */

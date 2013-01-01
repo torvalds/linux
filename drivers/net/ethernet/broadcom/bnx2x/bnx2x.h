@@ -26,8 +26,8 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
-#define DRV_MODULE_VERSION      "1.78.00-0"
-#define DRV_MODULE_RELDATE      "2012/09/27"
+#define DRV_MODULE_VERSION      "1.78.01-0"
+#define DRV_MODULE_RELDATE      "2012/10/30"
 #define BNX2X_BC_VER            0x040200
 
 #if defined(CONFIG_DCB)
@@ -802,36 +802,46 @@ struct bnx2x_common {
 #define CHIP_NUM_57711E			0x1650
 #define CHIP_NUM_57712			0x1662
 #define CHIP_NUM_57712_MF		0x1663
+#define CHIP_NUM_57712_VF		0x166f
 #define CHIP_NUM_57713			0x1651
 #define CHIP_NUM_57713E			0x1652
 #define CHIP_NUM_57800			0x168a
 #define CHIP_NUM_57800_MF		0x16a5
+#define CHIP_NUM_57800_VF		0x16a9
 #define CHIP_NUM_57810			0x168e
 #define CHIP_NUM_57810_MF		0x16ae
+#define CHIP_NUM_57810_VF		0x16af
 #define CHIP_NUM_57811			0x163d
 #define CHIP_NUM_57811_MF		0x163e
+#define CHIP_NUM_57811_VF		0x163f
 #define CHIP_NUM_57840_OBSOLETE	0x168d
 #define CHIP_NUM_57840_MF_OBSOLETE	0x16ab
 #define CHIP_NUM_57840_4_10		0x16a1
 #define CHIP_NUM_57840_2_20		0x16a2
 #define CHIP_NUM_57840_MF		0x16a4
+#define CHIP_NUM_57840_VF		0x16ad
 #define CHIP_IS_E1(bp)			(CHIP_NUM(bp) == CHIP_NUM_57710)
 #define CHIP_IS_57711(bp)		(CHIP_NUM(bp) == CHIP_NUM_57711)
 #define CHIP_IS_57711E(bp)		(CHIP_NUM(bp) == CHIP_NUM_57711E)
 #define CHIP_IS_57712(bp)		(CHIP_NUM(bp) == CHIP_NUM_57712)
+#define CHIP_IS_57712_VF(bp)		(CHIP_NUM(bp) == CHIP_NUM_57712_VF)
 #define CHIP_IS_57712_MF(bp)		(CHIP_NUM(bp) == CHIP_NUM_57712_MF)
 #define CHIP_IS_57800(bp)		(CHIP_NUM(bp) == CHIP_NUM_57800)
 #define CHIP_IS_57800_MF(bp)		(CHIP_NUM(bp) == CHIP_NUM_57800_MF)
+#define CHIP_IS_57800_VF(bp)		(CHIP_NUM(bp) == CHIP_NUM_57800_VF)
 #define CHIP_IS_57810(bp)		(CHIP_NUM(bp) == CHIP_NUM_57810)
 #define CHIP_IS_57810_MF(bp)		(CHIP_NUM(bp) == CHIP_NUM_57810_MF)
+#define CHIP_IS_57810_VF(bp)		(CHIP_NUM(bp) == CHIP_NUM_57810_VF)
 #define CHIP_IS_57811(bp)		(CHIP_NUM(bp) == CHIP_NUM_57811)
 #define CHIP_IS_57811_MF(bp)		(CHIP_NUM(bp) == CHIP_NUM_57811_MF)
+#define CHIP_IS_57811_VF(bp)		(CHIP_NUM(bp) == CHIP_NUM_57811_VF)
 #define CHIP_IS_57840(bp)		\
 		((CHIP_NUM(bp) == CHIP_NUM_57840_4_10) || \
 		 (CHIP_NUM(bp) == CHIP_NUM_57840_2_20) || \
 		 (CHIP_NUM(bp) == CHIP_NUM_57840_OBSOLETE))
 #define CHIP_IS_57840_MF(bp)	((CHIP_NUM(bp) == CHIP_NUM_57840_MF) || \
 				 (CHIP_NUM(bp) == CHIP_NUM_57840_MF_OBSOLETE))
+#define CHIP_IS_57840_VF(bp)		(CHIP_NUM(bp) == CHIP_NUM_57840_VF)
 #define CHIP_IS_E1H(bp)			(CHIP_IS_57711(bp) || \
 					 CHIP_IS_57711E(bp))
 #define CHIP_IS_E2(bp)			(CHIP_IS_57712(bp) || \
@@ -840,10 +850,13 @@ struct bnx2x_common {
 					 CHIP_IS_57800_MF(bp) || \
 					 CHIP_IS_57810(bp) || \
 					 CHIP_IS_57810_MF(bp) || \
+					 CHIP_IS_57810_VF(bp) || \
 					 CHIP_IS_57811(bp) || \
 					 CHIP_IS_57811_MF(bp) || \
+					 CHIP_IS_57811_VF(bp) || \
 					 CHIP_IS_57840(bp) || \
-					 CHIP_IS_57840_MF(bp))
+					 CHIP_IS_57840_MF(bp) || \
+					 CHIP_IS_57840_VF(bp))
 #define CHIP_IS_E1x(bp)			(CHIP_IS_E1((bp)) || CHIP_IS_E1H((bp)))
 #define USES_WARPCORE(bp)		(CHIP_IS_E3(bp))
 #define IS_E1H_OFFSET			(!CHIP_IS_E1(bp))
@@ -1195,8 +1208,9 @@ struct bnx2x_fw_stats_data {
 enum {
 	BNX2X_SP_RTNL_SETUP_TC,
 	BNX2X_SP_RTNL_TX_TIMEOUT,
-	BNX2X_SP_RTNL_AFEX_F_UPDATE,
 	BNX2X_SP_RTNL_FAN_FAILURE,
+	BNX2X_SP_RTNL_AFEX_F_UPDATE,
+	BNX2X_SP_RTNL_ENABLE_SRIOV,
 	BNX2X_SP_RTNL_VFPF_MCAST,
 	BNX2X_SP_RTNL_VFPF_STORM_RX_MODE,
 };

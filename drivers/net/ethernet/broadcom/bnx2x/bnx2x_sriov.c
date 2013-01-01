@@ -2034,6 +2034,10 @@ void bnx2x_iov_remove_one(struct bnx2x *bp)
 	if (!IS_SRIOV(bp))
 		return;
 
+	DP(BNX2X_MSG_IOV, "about to call disable sriov\n");
+	pci_disable_sriov(bp->pdev);
+	DP(BNX2X_MSG_IOV, "sriov disabled\n");
+
 	/* free vf database */
 	__bnx2x_iov_free_vfdb(bp);
 }
