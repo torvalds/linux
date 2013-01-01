@@ -657,6 +657,10 @@ int bnx2x_vfop_rxmode_cmd(struct bnx2x *bp,
 			  struct bnx2x_vfop_cmd *cmd,
 			  int qid, unsigned long accept_flags);
 
+int bnx2x_vfop_close_cmd(struct bnx2x *bp,
+			 struct bnx2x_virtf *vf,
+			 struct bnx2x_vfop_cmd *cmd);
+
 int bnx2x_vf_idx_by_abs_fid(struct bnx2x *bp, u16 abs_vfid);
 u8 bnx2x_vf_max_queue_cnt(struct bnx2x *bp, struct bnx2x_virtf *vf);
 /* VF FLR helpers */

@@ -139,6 +139,11 @@ enum bnx2x_vfop_mcast_state {
 	   BNX2X_VFOP_MCAST_CHK_DONE
 };
 
+enum bnx2x_vfop_close_state {
+	   BNX2X_VFOP_CLOSE_QUEUES,
+	   BNX2X_VFOP_CLOSE_HW
+};
+
 enum bnx2x_vfop_rxmode_state {
 	   BNX2X_VFOP_RXMODE_CONFIG,
 	   BNX2X_VFOP_RXMODE_DONE
@@ -2300,6 +2305,28 @@ static void bnx2x_vf_qtbl_set_q(struct bnx2x *bp, u8 abs_vfid, u8 qid,
 	REG_WR(bp, reg, val);
 }
 
+static void bnx2x_vf_clr_qtbl(struct bnx2x *bp, struct bnx2x_virtf *vf)
+{
+	int i;
+
+	for_each_vfq(vf, i)
+		bnx2x_vf_qtbl_set_q(bp, vf->abs_vfid,
+				    vfq_qzone_id(vf, vfq_get(vf, i)), false);
+}
+
+static void bnx2x_vf_igu_disable(struct bnx2x *bp, struct bnx2x_virtf *vf)
+{
+	u32 val;
+
+	/* clear the VF configuration - pretend */
+	bnx2x_pretend_func(bp, HW_VF_HANDLE(bp, vf->abs_vfid));
+	val = REG_RD(bp, IGU_REG_VF_CONFIGURATION);
+	val &= ~(IGU_VF_CONF_MSI_MSIX_EN | IGU_VF_CONF_SINGLE_ISR_EN |
+		 IGU_VF_CONF_FUNC_EN | IGU_VF_CONF_PARENT_MASK);
+	REG_WR(bp, IGU_REG_VF_CONFIGURATION, val);
+	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
+}
+
 u8 bnx2x_vf_max_queue_cnt(struct bnx2x *bp, struct bnx2x_virtf *vf)
 {
 	return min_t(u8, min_t(u8, vf_sb_count(vf), BNX2X_CIDS_PER_VF),
@@ -2467,6 +2494,76 @@ int bnx2x_vf_init(struct bnx2x *bp, struct bnx2x_virtf *vf, dma_addr_t *sb_map)
 	vf->state = VF_ENABLED;
 
 	return 0;
+}
+
+/* VFOP close (teardown the queues, delete mcasts and close HW) */
+static void bnx2x_vfop_close(struct bnx2x *bp, struct bnx2x_virtf *vf)
+{
+	struct bnx2x_vfop *vfop = bnx2x_vfop_cur(bp, vf);
+	struct bnx2x_vfop_args_qx *qx = &vfop->args.qx;
+	enum bnx2x_vfop_close_state state = vfop->state;
+	struct bnx2x_vfop_cmd cmd = {
+		.done = bnx2x_vfop_close,
+		.block = false,
+	};
+
+	if (vfop->rc < 0)
+		goto op_err;
+
+	DP(BNX2X_MSG_IOV, "vf[%d] STATE: %d\n", vf->abs_vfid, state);
+
+	switch (state) {
+	case BNX2X_VFOP_CLOSE_QUEUES:
+
+		if (++(qx->qid) < vf_rxq_count(vf)) {
+			vfop->rc = bnx2x_vfop_qdown_cmd(bp, vf, &cmd, qx->qid);
+			if (vfop->rc)
+				goto op_err;
+			return;
+		}
+
+		/* remove multicasts */
+		vfop->state = BNX2X_VFOP_CLOSE_HW;
+		vfop->rc = bnx2x_vfop_mcast_cmd(bp, vf, &cmd, NULL, 0, false);
+		if (vfop->rc)
+			goto op_err;
+		return;
+
+	case BNX2X_VFOP_CLOSE_HW:
+
+		/* disable the interrupts */
+		DP(BNX2X_MSG_IOV, "disabling igu\n");
+		bnx2x_vf_igu_disable(bp, vf);
+
+		/* disable the VF */
+		DP(BNX2X_MSG_IOV, "clearing qtbl\n");
+		bnx2x_vf_clr_qtbl(bp, vf);
+
+		goto op_done;
+	default:
+		bnx2x_vfop_default(state);
+	}
+op_err:
+	BNX2X_ERR("VF[%d] CLOSE error: rc %d\n", vf->abs_vfid, vfop->rc);
+op_done:
+	vf->state = VF_ACQUIRED;
+	DP(BNX2X_MSG_IOV, "set state to acquired\n");
+	bnx2x_vfop_end(bp, vf, vfop);
+}
+
+int bnx2x_vfop_close_cmd(struct bnx2x *bp,
+			 struct bnx2x_virtf *vf,
+			 struct bnx2x_vfop_cmd *cmd)
+{
+	struct bnx2x_vfop *vfop = bnx2x_vfop_add(bp, vf);
+	if (vfop) {
+		vfop->args.qx.qid = -1; /* loop */
+		bnx2x_vfop_opset(BNX2X_VFOP_CLOSE_QUEUES,
+				 bnx2x_vfop_close, cmd->done);
+		return bnx2x_vfop_transition(bp, vf, bnx2x_vfop_close,
+					     cmd->block);
+	}
+	return -ENOMEM;
 }
 
 void bnx2x_lock_vf_pf_channel(struct bnx2x *bp, struct bnx2x_virtf *vf,
