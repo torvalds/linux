@@ -502,7 +502,8 @@ static int qlcnic_get_act_pci_func(struct qlcnic_adapter *adapter)
 	kfree(pci_info);
 	return ret;
 }
-static int qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
+
+int qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_pci_info *pci_info;
 	int i, ret = 0, j = 0;
@@ -851,7 +852,7 @@ void qlcnic_set_eswitch_port_features(struct qlcnic_adapter *adapter,
 	qlcnic_set_netdev_features(adapter, esw_cfg);
 }
 
-static int qlcnic_set_eswitch_port_config(struct qlcnic_adapter *adapter)
+int qlcnic_set_eswitch_port_config(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_esw_func_cfg esw_cfg;
 
@@ -950,7 +951,7 @@ qlcnic_check_eswitch_mode(struct qlcnic_adapter *adapter)
 	return err;
 }
 
-static int qlcnic_set_default_offload_settings(struct qlcnic_adapter *adapter)
+int qlcnic_set_default_offload_settings(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_esw_func_cfg esw_cfg;
 	struct qlcnic_npar_info *npar;
@@ -1007,7 +1008,7 @@ qlcnic_reset_eswitch_config(struct qlcnic_adapter *adapter,
 	return 0;
 }
 
-static int qlcnic_reset_npar_config(struct qlcnic_adapter *adapter)
+int qlcnic_reset_npar_config(struct qlcnic_adapter *adapter)
 {
 	int i, err;
 	struct qlcnic_npar_info *npar;

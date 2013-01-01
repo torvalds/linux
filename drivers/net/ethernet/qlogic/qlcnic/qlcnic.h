@@ -1523,7 +1523,10 @@ int __qlcnic_up(struct qlcnic_adapter *, struct net_device *);
 void qlcnic_restore_indev_addr(struct net_device *, unsigned long);
 
 int qlcnic_check_temp(struct qlcnic_adapter *);
-
+int qlcnic_init_pci_info(struct qlcnic_adapter *);
+int qlcnic_set_default_offload_settings(struct qlcnic_adapter *);
+int qlcnic_reset_npar_config(struct qlcnic_adapter *);
+int qlcnic_set_eswitch_port_config(struct qlcnic_adapter *);
 /*
  * QLOGIC Board information
  */

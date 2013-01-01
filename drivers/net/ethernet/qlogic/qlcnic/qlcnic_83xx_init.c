@@ -643,6 +643,52 @@ int qlcnic_83xx_idc_ready_state_entry(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
+/**
+ * qlcnic_83xx_idc_vnic_pf_entry
+ *
+ * @adapter: adapter structure
+ *
+ * Ensure vNIC mode privileged function starts only after vNIC mode is
+ * enabled by management function.
+ * If vNIC mode is ready, start initialization.
+ *
+ * Returns: -EIO or 0
+ *
+ **/
+int qlcnic_83xx_idc_vnic_pf_entry(struct qlcnic_adapter *adapter)
+{
+	u32 state;
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+
+	/* Privileged function waits till mgmt function enables VNIC mode */
+	state = QLCRDX(adapter->ahw, QLC_83XX_VNIC_STATE);
+	if (state != QLCNIC_DEV_NPAR_OPER) {
+		if (!ahw->idc.vnic_wait_limit--) {
+			qlcnic_83xx_idc_enter_failed_state(adapter, 1);
+			return -EIO;
+		}
+		dev_info(&adapter->pdev->dev, "vNIC mode disabled\n");
+		return -EIO;
+
+	} else {
+		/* Perform one time initialization from ready state */
+		if (ahw->idc.vnic_state != QLCNIC_DEV_NPAR_OPER) {
+			qlcnic_83xx_idc_update_idc_params(adapter);
+
+			/* If the previous state is UNKNOWN, device will be
+			   already attached properly by Init routine*/
+			if (ahw->idc.prev_state != QLC_83XX_IDC_DEV_UNKNOWN) {
+				if (qlcnic_83xx_idc_reattach_driver(adapter))
+					return -EIO;
+			}
+			adapter->ahw->idc.vnic_state =  QLCNIC_DEV_NPAR_OPER;
+			dev_info(&adapter->pdev->dev, "vNIC mode enabled\n");
+		}
+	}
+
+	return 0;
+}
+
 static int qlcnic_83xx_idc_unknown_state(struct qlcnic_adapter *adapter)
 {
 	adapter->ahw->idc.err_code = -EIO;
@@ -802,6 +848,8 @@ static int qlcnic_83xx_idc_need_reset_state(struct qlcnic_adapter *adapter)
 		qlcnic_83xx_idc_update_audit_reg(adapter, 0, 1);
 		set_bit(__QLCNIC_RESETTING, &adapter->state);
 		clear_bit(QLC_83XX_MBX_READY, &adapter->ahw->idc.status);
+		if (adapter->ahw->nic_mode == QLC_83XX_VIRTUAL_NIC_MODE)
+			qlcnic_83xx_disable_vnic_mode(adapter, 1);
 		qlcnic_83xx_idc_detach_driver(adapter);
 	}
 
@@ -1887,7 +1935,10 @@ static int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter)
 	if (ret == -EIO)
 		return -EIO;
 
-	if (ret == QLC_83XX_DEFAULT_MODE) {
+	if (ret == QLC_83XX_VIRTUAL_NIC_MODE) {
+		if (qlcnic_83xx_config_vnic_opmode(adapter))
+			return -EIO;
+	} else if (ret == QLC_83XX_DEFAULT_MODE) {
 		if (qlcnic_83xx_config_default_opmode(adapter))
 			return -EIO;
 	}

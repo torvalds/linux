@@ -400,4 +400,11 @@ int qlcnic_83xx_lock_driver(struct qlcnic_adapter *);
 void qlcnic_83xx_unlock_driver(struct qlcnic_adapter *);
 int qlcnic_83xx_set_default_offload_settings(struct qlcnic_adapter *);
 int qlcnic_83xx_ms_mem_write128(struct qlcnic_adapter *, u64, u32 *, u32);
+int qlcnic_83xx_idc_vnic_pf_entry(struct qlcnic_adapter *);
+int qlcnic_83xx_enable_vnic_mode(struct qlcnic_adapter *, int);
+int qlcnic_83xx_disable_vnic_mode(struct qlcnic_adapter *, int);
+int qlcnic_83xx_config_vnic_opmode(struct qlcnic_adapter *);
+int qlcnic_83xx_get_vnic_vport_info(struct qlcnic_adapter *,
+				    struct qlcnic_info *, u8);
+int qlcnic_83xx_get_vnic_pf_info(struct qlcnic_adapter *, struct qlcnic_info *);
 #endif
