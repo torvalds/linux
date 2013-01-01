@@ -185,6 +185,176 @@ static int bnx2x_copy32_vf_dmae(struct bnx2x *bp, u8 from_vf,
 	return bnx2x_issue_dmae_with_comp(bp, &dmae);
 }
 
+static void bnx2x_vf_mbx_resp(struct bnx2x *bp, struct bnx2x_virtf *vf)
+{
+	struct bnx2x_vf_mbx *mbx = BP_VF_MBX(bp, vf->index);
+	u64 vf_addr;
+	dma_addr_t pf_addr;
+	u16 length, type;
+	int rc;
+	struct pfvf_general_resp_tlv *resp = &mbx->msg->resp.general_resp;
+
+	/* prepare response */
+	type = mbx->first_tlv.tl.type;
+	length = type == CHANNEL_TLV_ACQUIRE ?
+		sizeof(struct pfvf_acquire_resp_tlv) :
+		sizeof(struct pfvf_general_resp_tlv);
+	bnx2x_add_tlv(bp, resp, 0, type, length);
+	resp->hdr.status = bnx2x_pfvf_status_codes(vf->op_rc);
+	bnx2x_add_tlv(bp, resp, length, CHANNEL_TLV_LIST_END,
+		      sizeof(struct channel_list_end_tlv));
+	bnx2x_dp_tlv_list(bp, resp);
+	DP(BNX2X_MSG_IOV, "mailbox vf address hi 0x%x, lo 0x%x, offset 0x%x\n",
+	   mbx->vf_addr_hi, mbx->vf_addr_lo, mbx->first_tlv.resp_msg_offset);
+
+	/* send response */
+	vf_addr = HILO_U64(mbx->vf_addr_hi, mbx->vf_addr_lo) +
+		  mbx->first_tlv.resp_msg_offset;
+	pf_addr = mbx->msg_mapping +
+		  offsetof(struct bnx2x_vf_mbx_msg, resp);
+
+	/* copy the response body, if there is one, before the header, as the vf
+	 * is sensitive to the header being written
+	 */
+	if (resp->hdr.tl.length > sizeof(u64)) {
+		length = resp->hdr.tl.length - sizeof(u64);
+		vf_addr += sizeof(u64);
+		pf_addr += sizeof(u64);
+		rc = bnx2x_copy32_vf_dmae(bp, false, pf_addr, vf->abs_vfid,
+					  U64_HI(vf_addr),
+					  U64_LO(vf_addr),
+					  length/4);
+		if (rc) {
+			BNX2X_ERR("Failed to copy response body to VF %d\n",
+				  vf->abs_vfid);
+			return;
+		}
+		vf_addr -= sizeof(u64);
+		pf_addr -= sizeof(u64);
+	}
+
+	/* ack the FW */
+	storm_memset_vf_mbx_ack(bp, vf->abs_vfid);
+	mmiowb();
+
+	/* initiate dmae to send the response */
+	mbx->flags &= ~VF_MSG_INPROCESS;
+
+	/* copy the response header including status-done field,
+	 * must be last dmae, must be after FW is acked
+	 */
+	rc = bnx2x_copy32_vf_dmae(bp, false, pf_addr, vf->abs_vfid,
+				  U64_HI(vf_addr),
+				  U64_LO(vf_addr),
+				  sizeof(u64)/4);
+
+	/* unlock channel mutex */
+	bnx2x_unlock_vf_pf_channel(bp, vf, mbx->first_tlv.tl.type);
+
+	if (rc) {
+		BNX2X_ERR("Failed to copy response status to VF %d\n",
+			  vf->abs_vfid);
+	}
+	return;
+}
+
+static void bnx2x_vf_mbx_acquire_resp(struct bnx2x *bp, struct bnx2x_virtf *vf,
+				      struct bnx2x_vf_mbx *mbx, int vfop_status)
+{
+	int i;
+	struct pfvf_acquire_resp_tlv *resp = &mbx->msg->resp.acquire_resp;
+	struct pf_vf_resc *resc = &resp->resc;
+	u8 status = bnx2x_pfvf_status_codes(vfop_status);
+
+	memset(resp, 0, sizeof(*resp));
+
+	/* fill in pfdev info */
+	resp->pfdev_info.chip_num = bp->common.chip_id;
+	resp->pfdev_info.db_size = (1 << BNX2X_DB_SHIFT);
+	resp->pfdev_info.indices_per_sb = HC_SB_MAX_INDICES_E2;
+	resp->pfdev_info.pf_cap = (PFVF_CAP_RSS |
+				   /* PFVF_CAP_DHC |*/ PFVF_CAP_TPA);
+	bnx2x_fill_fw_str(bp, resp->pfdev_info.fw_ver,
+			  sizeof(resp->pfdev_info.fw_ver));
+
+	if (status == PFVF_STATUS_NO_RESOURCE ||
+	    status == PFVF_STATUS_SUCCESS) {
+		/* set resources numbers, if status equals NO_RESOURCE these
+		 * are max possible numbers
+		 */
+		resc->num_rxqs = vf_rxq_count(vf) ? :
+			bnx2x_vf_max_queue_cnt(bp, vf);
+		resc->num_txqs = vf_txq_count(vf) ? :
+			bnx2x_vf_max_queue_cnt(bp, vf);
+		resc->num_sbs = vf_sb_count(vf);
+		resc->num_mac_filters = vf_mac_rules_cnt(vf);
+		resc->num_vlan_filters = vf_vlan_rules_cnt(vf);
+		resc->num_mc_filters = 0;
+
+		if (status == PFVF_STATUS_SUCCESS) {
+			for_each_vfq(vf, i)
+				resc->hw_qid[i] =
+					vfq_qzone_id(vf, vfq_get(vf, i));
+
+			for_each_vf_sb(vf, i) {
+				resc->hw_sbs[i].hw_sb_id = vf_igu_sb(vf, i);
+				resc->hw_sbs[i].sb_qid = vf_hc_qzone(vf, i);
+			}
+		}
+	}
+
+	DP(BNX2X_MSG_IOV, "VF[%d] ACQUIRE_RESPONSE: pfdev_info- chip_num=0x%x, db_size=%d, idx_per_sb=%d, pf_cap=0x%x\n"
+	   "resources- n_rxq-%d, n_txq-%d, n_sbs-%d, n_macs-%d, n_vlans-%d, n_mcs-%d, fw_ver: '%s'\n",
+	   vf->abs_vfid,
+	   resp->pfdev_info.chip_num,
+	   resp->pfdev_info.db_size,
+	   resp->pfdev_info.indices_per_sb,
+	   resp->pfdev_info.pf_cap,
+	   resc->num_rxqs,
+	   resc->num_txqs,
+	   resc->num_sbs,
+	   resc->num_mac_filters,
+	   resc->num_vlan_filters,
+	   resc->num_mc_filters,
+	   resp->pfdev_info.fw_ver);
+
+	DP_CONT(BNX2X_MSG_IOV, "hw_qids- [ ");
+	for (i = 0; i < vf_rxq_count(vf); i++)
+		DP_CONT(BNX2X_MSG_IOV, "%d ", resc->hw_qid[i]);
+	DP_CONT(BNX2X_MSG_IOV, "], sb_info- [ ");
+	for (i = 0; i < vf_sb_count(vf); i++)
+		DP_CONT(BNX2X_MSG_IOV, "%d:%d ",
+			resc->hw_sbs[i].hw_sb_id,
+			resc->hw_sbs[i].sb_qid);
+	DP_CONT(BNX2X_MSG_IOV, "]\n");
+
+	/* send the response */
+	vf->op_rc = vfop_status;
+	bnx2x_vf_mbx_resp(bp, vf);
+}
+
+static void bnx2x_vf_mbx_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
+				 struct bnx2x_vf_mbx *mbx)
+{
+	int rc;
+	struct vfpf_acquire_tlv *acquire = &mbx->msg->req.acquire;
+
+	/* log vfdef info */
+	DP(BNX2X_MSG_IOV,
+	   "VF[%d] ACQUIRE: vfdev_info- vf_id %d, vf_os %d resources- n_rxq-%d, n_txq-%d, n_sbs-%d, n_macs-%d, n_vlans-%d, n_mcs-%d\n",
+	   vf->abs_vfid, acquire->vfdev_info.vf_id, acquire->vfdev_info.vf_os,
+	   acquire->resc_request.num_rxqs, acquire->resc_request.num_txqs,
+	   acquire->resc_request.num_sbs, acquire->resc_request.num_mac_filters,
+	   acquire->resc_request.num_vlan_filters,
+	   acquire->resc_request.num_mc_filters);
+
+	/* acquire the resources */
+	rc = bnx2x_vf_acquire(bp, vf, &acquire->resc_request);
+
+	/* response */
+	bnx2x_vf_mbx_acquire_resp(bp, vf, mbx, rc);
+}
+
 /* dispatch request */
 static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 				  struct bnx2x_vf_mbx *mbx)
@@ -193,8 +363,16 @@ static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 
 	/* check if tlv type is known */
 	if (bnx2x_tlv_supported(mbx->first_tlv.tl.type)) {
+		/* Lock the per vf op mutex and note the locker's identity.
+		 * The unlock will take place in mbx response.
+		 */
+		bnx2x_lock_vf_pf_channel(bp, vf, mbx->first_tlv.tl.type);
+
 		/* switch on the opcode */
 		switch (mbx->first_tlv.tl.type) {
+		case CHANNEL_TLV_ACQUIRE:
+			bnx2x_vf_mbx_acquire(bp, vf, mbx);
+			break;
 		}
 	} else {
 		/* unknown TLV - this may belong to a VF driver from the future
@@ -208,6 +386,23 @@ static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		for (i = 0; i < 20; i++)
 			DP_CONT(BNX2X_MSG_IOV, "%x ",
 				mbx->msg->req.tlv_buf_size.tlv_buffer[i]);
+
+		/* test whether we can respond to the VF (do we have an address
+		 * for it?)
+		 */
+		if (vf->state == VF_ACQUIRED) {
+			/* mbx_resp uses the op_rc of the VF */
+			vf->op_rc = PFVF_STATUS_NOT_SUPPORTED;
+
+			/* notify the VF that we do not support this request */
+			bnx2x_vf_mbx_resp(bp, vf);
+		} else {
+			/* can't send a response since this VF is unknown to us
+			 * just unlock the channel and be done with.
+			 */
+			bnx2x_unlock_vf_pf_channel(bp, vf,
+						   mbx->first_tlv.tl.type);
+		}
 	}
 }
 

@@ -1401,4 +1401,13 @@ static inline bool bnx2x_is_valid_ether_addr(struct bnx2x *bp, u8 *addr)
 	return false;
 }
 
+/**
+ * bnx2x_fill_fw_str - Fill buffer with FW version string.
+ *
+ * @bp:        driver handle
+ * @buf:       character buffer to fill with the fw name
+ * @buf_len:   length of the above buffer
+ *
+ */
+void bnx2x_fill_fw_str(struct bnx2x *bp, char *buf, size_t buf_len);
 #endif /* BNX2X_CMN_H */

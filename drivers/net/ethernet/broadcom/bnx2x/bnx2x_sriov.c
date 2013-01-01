@@ -593,6 +593,63 @@ alloc_mem_err:
 	return -ENOMEM;
 }
 
+static void bnx2x_vfq_init(struct bnx2x *bp, struct bnx2x_virtf *vf,
+			   struct bnx2x_vf_queue *q)
+{
+	u8 cl_id = vfq_cl_id(vf, q);
+	u8 func_id = FW_VF_HANDLE(vf->abs_vfid);
+	unsigned long q_type = 0;
+
+	set_bit(BNX2X_Q_TYPE_HAS_TX, &q_type);
+	set_bit(BNX2X_Q_TYPE_HAS_RX, &q_type);
+
+	/* Queue State object */
+	bnx2x_init_queue_obj(bp, &q->sp_obj,
+			     cl_id, &q->cid, 1, func_id,
+			     bnx2x_vf_sp(bp, vf, q_data),
+			     bnx2x_vf_sp_map(bp, vf, q_data),
+			     q_type);
+
+	DP(BNX2X_MSG_IOV,
+	   "initialized vf %d's queue object. func id set to %d\n",
+	   vf->abs_vfid, q->sp_obj.func_id);
+
+	/* mac/vlan objects are per queue, but only those
+	 * that belong to the leading queue are initialized
+	 */
+	if (vfq_is_leading(q)) {
+		/* mac */
+		bnx2x_init_mac_obj(bp, &q->mac_obj,
+				   cl_id, q->cid, func_id,
+				   bnx2x_vf_sp(bp, vf, mac_rdata),
+				   bnx2x_vf_sp_map(bp, vf, mac_rdata),
+				   BNX2X_FILTER_MAC_PENDING,
+				   &vf->filter_state,
+				   BNX2X_OBJ_TYPE_RX_TX,
+				   &bp->macs_pool);
+		/* vlan */
+		bnx2x_init_vlan_obj(bp, &q->vlan_obj,
+				    cl_id, q->cid, func_id,
+				    bnx2x_vf_sp(bp, vf, vlan_rdata),
+				    bnx2x_vf_sp_map(bp, vf, vlan_rdata),
+				    BNX2X_FILTER_VLAN_PENDING,
+				    &vf->filter_state,
+				    BNX2X_OBJ_TYPE_RX_TX,
+				    &bp->vlans_pool);
+
+		/* mcast */
+		bnx2x_init_mcast_obj(bp, &vf->mcast_obj, cl_id,
+				     q->cid, func_id, func_id,
+				     bnx2x_vf_sp(bp, vf, mcast_rdata),
+				     bnx2x_vf_sp_map(bp, vf, mcast_rdata),
+				     BNX2X_FILTER_MCAST_PENDING,
+				     &vf->filter_state,
+				     BNX2X_OBJ_TYPE_RX_TX);
+
+		vf->leading_rss = cl_id;
+	}
+}
+
 /* called by bnx2x_nic_load */
 int bnx2x_iov_nic_init(struct bnx2x *bp)
 {
@@ -939,4 +996,146 @@ void bnx2x_iov_sp_task(struct bnx2x *bp)
 			bnx2x_vfop_cur(bp, vf)->transition(bp, vf);
 		}
 	}
+}
+
+u8 bnx2x_vf_max_queue_cnt(struct bnx2x *bp, struct bnx2x_virtf *vf)
+{
+	return min_t(u8, min_t(u8, vf_sb_count(vf), BNX2X_CIDS_PER_VF),
+		     BNX2X_VF_MAX_QUEUES);
+}
+
+static
+int bnx2x_vf_chk_avail_resc(struct bnx2x *bp, struct bnx2x_virtf *vf,
+			    struct vf_pf_resc_request *req_resc)
+{
+	u8 rxq_cnt = vf_rxq_count(vf) ? : bnx2x_vf_max_queue_cnt(bp, vf);
+	u8 txq_cnt = vf_txq_count(vf) ? : bnx2x_vf_max_queue_cnt(bp, vf);
+
+	return ((req_resc->num_rxqs <= rxq_cnt) &&
+		(req_resc->num_txqs <= txq_cnt) &&
+		(req_resc->num_sbs <= vf_sb_count(vf))   &&
+		(req_resc->num_mac_filters <= vf_mac_rules_cnt(vf)) &&
+		(req_resc->num_vlan_filters <= vf_vlan_rules_cnt(vf)));
+}
+
+/* CORE VF API */
+int bnx2x_vf_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
+		     struct vf_pf_resc_request *resc)
+{
+	int base_vf_cid = (BP_VFDB(bp)->sriov.first_vf_in_pf + vf->index) *
+		BNX2X_CIDS_PER_VF;
+
+	union cdu_context *base_cxt = (union cdu_context *)
+		BP_VF_CXT_PAGE(bp, base_vf_cid/ILT_PAGE_CIDS)->addr +
+		(base_vf_cid & (ILT_PAGE_CIDS-1));
+	int i;
+
+	/* if state is 'acquired' the VF was not released or FLR'd, in
+	 * this case the returned resources match the acquired already
+	 * acquired resources. Verify that the requested numbers do
+	 * not exceed the already acquired numbers.
+	 */
+	if (vf->state == VF_ACQUIRED) {
+		DP(BNX2X_MSG_IOV, "VF[%d] Trying to re-acquire resources (VF was not released or FLR'd)\n",
+		   vf->abs_vfid);
+
+		if (!bnx2x_vf_chk_avail_resc(bp, vf, resc)) {
+			BNX2X_ERR("VF[%d] When re-acquiring resources, requested numbers must be <= then previously acquired numbers\n",
+				  vf->abs_vfid);
+			return -EINVAL;
+		}
+		return 0;
+	}
+
+	/* Otherwise vf state must be 'free' or 'reset' */
+	if (vf->state != VF_FREE && vf->state != VF_RESET) {
+		BNX2X_ERR("VF[%d] Can not acquire a VF with state %d\n",
+			  vf->abs_vfid, vf->state);
+		return -EINVAL;
+	}
+
+	/* static allocation:
+	 * the global maximum number are fixed per VF. fail the request if
+	 * requested number exceed these globals
+	 */
+	if (!bnx2x_vf_chk_avail_resc(bp, vf, resc)) {
+		DP(BNX2X_MSG_IOV,
+		   "cannot fulfill vf resource request. Placing maximal available values in response\n");
+		/* set the max resource in the vf */
+		return -ENOMEM;
+	}
+
+	/* Set resources counters - 0 request means max available */
+	vf_sb_count(vf) = resc->num_sbs;
+	vf_rxq_count(vf) = resc->num_rxqs ? : bnx2x_vf_max_queue_cnt(bp, vf);
+	vf_txq_count(vf) = resc->num_txqs ? : bnx2x_vf_max_queue_cnt(bp, vf);
+	if (resc->num_mac_filters)
+		vf_mac_rules_cnt(vf) = resc->num_mac_filters;
+	if (resc->num_vlan_filters)
+		vf_vlan_rules_cnt(vf) = resc->num_vlan_filters;
+
+	DP(BNX2X_MSG_IOV,
+	   "Fulfilling vf request: sb count %d, tx_count %d, rx_count %d, mac_rules_count %d, vlan_rules_count %d\n",
+	   vf_sb_count(vf), vf_rxq_count(vf),
+	   vf_txq_count(vf), vf_mac_rules_cnt(vf),
+	   vf_vlan_rules_cnt(vf));
+
+	/* Initialize the queues */
+	if (!vf->vfqs) {
+		DP(BNX2X_MSG_IOV, "vf->vfqs was not allocated\n");
+		return -EINVAL;
+	}
+
+	for_each_vfq(vf, i) {
+		struct bnx2x_vf_queue *q = vfq_get(vf, i);
+
+		if (!q) {
+			DP(BNX2X_MSG_IOV, "q number %d was not allocated\n", i);
+			return -EINVAL;
+		}
+
+		q->index = i;
+		q->cxt = &((base_cxt + i)->eth);
+		q->cid = BNX2X_FIRST_VF_CID + base_vf_cid + i;
+
+		DP(BNX2X_MSG_IOV, "VFQ[%d:%d]: index %d, cid 0x%x, cxt %p\n",
+		   vf->abs_vfid, i, q->index, q->cid, q->cxt);
+
+		/* init SP objects */
+		bnx2x_vfq_init(bp, vf, q);
+	}
+	vf->state = VF_ACQUIRED;
+	return 0;
+}
+
+void bnx2x_lock_vf_pf_channel(struct bnx2x *bp, struct bnx2x_virtf *vf,
+			      enum channel_tlvs tlv)
+{
+	/* lock the channel */
+	mutex_lock(&vf->op_mutex);
+
+	/* record the locking op */
+	vf->op_current = tlv;
+
+	/* log the lock */
+	DP(BNX2X_MSG_IOV, "VF[%d]: vf pf channel locked by %d\n",
+	   vf->abs_vfid, tlv);
+}
+
+void bnx2x_unlock_vf_pf_channel(struct bnx2x *bp, struct bnx2x_virtf *vf,
+				enum channel_tlvs expected_tlv)
+{
+	WARN(expected_tlv != vf->op_current,
+	     "lock mismatch: expected %d found %d", expected_tlv,
+	     vf->op_current);
+
+	/* lock the channel */
+	mutex_unlock(&vf->op_mutex);
+
+	/* log the unlock */
+	DP(BNX2X_MSG_IOV, "VF[%d]: vf pf channel unlocked by %d\n",
+	   vf->abs_vfid, vf->op_current);
+
+	/* record the locking op */
+	vf->op_current = CHANNEL_TLV_NONE;
 }

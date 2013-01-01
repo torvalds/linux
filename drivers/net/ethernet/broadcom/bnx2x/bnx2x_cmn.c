@@ -85,6 +85,34 @@ static inline void bnx2x_move_fp(struct bnx2x *bp, int from, int to)
 	to_fp->txdata_ptr[0] = &bp->bnx2x_txq[new_txdata_index];
 }
 
+/**
+ * bnx2x_fill_fw_str - Fill buffer with FW version string.
+ *
+ * @bp:        driver handle
+ * @buf:       character buffer to fill with the fw name
+ * @buf_len:   length of the above buffer
+ *
+ */
+void bnx2x_fill_fw_str(struct bnx2x *bp, char *buf, size_t buf_len)
+{
+	if (IS_PF(bp)) {
+		u8 phy_fw_ver[PHY_FW_VER_LEN];
+
+		phy_fw_ver[0] = '\0';
+		bnx2x_get_ext_phy_fw_version(&bp->link_params,
+					     phy_fw_ver, PHY_FW_VER_LEN);
+		strlcpy(buf, bp->fw_ver, buf_len);
+		snprintf(buf + strlen(bp->fw_ver), 32 - strlen(bp->fw_ver),
+			 "bc %d.%d.%d%s%s",
+			 (bp->common.bc_ver & 0xff0000) >> 16,
+			 (bp->common.bc_ver & 0xff00) >> 8,
+			 (bp->common.bc_ver & 0xff),
+			 ((phy_fw_ver[0] != '\0') ? " phy " : ""), phy_fw_ver);
+	} else {
+		strlcpy(buf, bp->acquire_resp.pfdev_info.fw_ver, buf_len);
+	}
+}
+
 int load_count[2][3] = { {0} }; /* per-path: 0-common, 1-port0, 2-port1 */
 
 /* free skb in the packet ring at pos idx

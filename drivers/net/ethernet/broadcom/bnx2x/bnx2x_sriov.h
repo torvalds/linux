@@ -19,9 +19,13 @@
 #ifndef BNX2X_SRIOV_H
 #define BNX2X_SRIOV_H
 
+#include "bnx2x_vfpf.h"
+#include "bnx2x_cmn.h"
+
 /* The bnx2x device structure holds vfdb structure described below.
  * The VF array is indexed by the relative vfid.
  */
+#define BNX2X_VF_MAX_QUEUES		16
 struct bnx2x_sriov {
 	u32 first_vf_in_pf;
 
@@ -257,6 +261,12 @@ struct bnx2x_virtf {
 #define for_each_vf(bp, var) \
 		for ((var) = 0; (var) < BNX2X_NR_VIRTFN(bp); (var)++)
 
+#define for_each_vfq(vf, var) \
+		for ((var) = 0; (var) < vf_rxq_count(vf); (var)++)
+
+#define for_each_vf_sb(vf, var) \
+		for ((var) = 0; (var) < vf_sb_count(vf); (var)++)
+
 #define HW_VF_HANDLE(bp, abs_vfid) \
 	(u16)(BP_ABS_FUNC((bp)) | (1<<3) |  ((u16)(abs_vfid) << 4))
 
@@ -264,6 +274,13 @@ struct bnx2x_virtf {
 
 #define FW_VF_HANDLE(abs_vfid)	\
 	(abs_vfid + FW_PF_MAX_HANDLE)
+
+/* locking and unlocking the channel mutex */
+void bnx2x_lock_vf_pf_channel(struct bnx2x *bp, struct bnx2x_virtf *vf,
+			      enum channel_tlvs tlv);
+
+void bnx2x_unlock_vf_pf_channel(struct bnx2x *bp, struct bnx2x_virtf *vf,
+				enum channel_tlvs expected_tlv);
 
 /* VF mail box (aka vf-pf channel) */
 
@@ -365,9 +382,30 @@ static inline struct bnx2x_vf_queue *vfq_get(struct bnx2x_virtf *vf, u8 index)
 	return &(vf->vfqs[index]);
 }
 
+static inline bool vfq_is_leading(struct bnx2x_vf_queue *vfq)
+{
+	return (vfq->index == 0);
+}
+
+/* FW ids */
 static inline u8 vf_igu_sb(struct bnx2x_virtf *vf, u16 sb_idx)
 {
 	return vf->igu_base_id + sb_idx;
+}
+
+static inline u8 vf_hc_qzone(struct bnx2x_virtf *vf, u16 sb_idx)
+{
+	return vf_igu_sb(vf, sb_idx);
+}
+
+static u8 vfq_cl_id(struct bnx2x_virtf *vf, struct bnx2x_vf_queue *q)
+{
+	return vf->igu_base_id + q->index;
+}
+
+static inline u8 vfq_qzone_id(struct bnx2x_virtf *vf, struct bnx2x_vf_queue *q)
+{
+	return vfq_cl_id(vf, q);
 }
 
 /* global iov routines */
@@ -387,6 +425,10 @@ void bnx2x_iov_sp_task(struct bnx2x *bp);
 /* global vf mailbox routines */
 void bnx2x_vf_mbx(struct bnx2x *bp, struct vf_pf_event_data *vfpf_event);
 void bnx2x_vf_enable_mbx(struct bnx2x *bp, u8 abs_vfid);
+/* acquire */
+int bnx2x_vf_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
+		      struct vf_pf_resc_request *resc);
+
 static inline struct bnx2x_vfop *bnx2x_vfop_cur(struct bnx2x *bp,
 						struct bnx2x_virtf *vf)
 {
@@ -396,6 +438,7 @@ static inline struct bnx2x_vfop *bnx2x_vfop_cur(struct bnx2x *bp,
 }
 
 int bnx2x_vf_idx_by_abs_fid(struct bnx2x *bp, u16 abs_vfid);
+u8 bnx2x_vf_max_queue_cnt(struct bnx2x *bp, struct bnx2x_virtf *vf);
 /* VF FLR helpers */
 int bnx2x_vf_flr_clnup_epilog(struct bnx2x *bp, u8 abs_vfid);
 void bnx2x_vf_enable_access(struct bnx2x *bp, u8 abs_vfid);

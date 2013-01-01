@@ -817,21 +817,12 @@ static void bnx2x_get_drvinfo(struct net_device *dev,
 			      struct ethtool_drvinfo *info)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	u8 phy_fw_ver[PHY_FW_VER_LEN];
 
 	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
 	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 
-	phy_fw_ver[0] = '\0';
-	bnx2x_get_ext_phy_fw_version(&bp->link_params,
-				     phy_fw_ver, PHY_FW_VER_LEN);
-	strlcpy(info->fw_version, bp->fw_ver, sizeof(info->fw_version));
-	snprintf(info->fw_version + strlen(bp->fw_ver), 32 - strlen(bp->fw_ver),
-		 "bc %d.%d.%d%s%s",
-		 (bp->common.bc_ver & 0xff0000) >> 16,
-		 (bp->common.bc_ver & 0xff00) >> 8,
-		 (bp->common.bc_ver & 0xff),
-		 ((phy_fw_ver[0] != '\0') ? " phy " : ""), phy_fw_ver);
+	bnx2x_fill_fw_str(bp, info->fw_version, sizeof(info->fw_version));
+
 	strlcpy(info->bus_info, pci_name(bp->pdev), sizeof(info->bus_info));
 	info->n_stats = BNX2X_NUM_STATS;
 	info->testinfo_len = BNX2X_NUM_TESTS(bp);
