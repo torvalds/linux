@@ -134,6 +134,46 @@ struct qlcnic_macvlan_mbx {
 #define QLC_83XX_DEFAULT_MODE				0x0
 #define QLCNIC_BRDTYPE_83XX_10G			0x0083
 
+#define QLC_83XX_FLASH_SPI_STATUS		0x2808E010
+#define QLC_83XX_FLASH_SPI_CONTROL		0x2808E014
+#define QLC_83XX_FLASH_STATUS			0x42100004
+#define QLC_83XX_FLASH_CONTROL			0x42110004
+#define QLC_83XX_FLASH_ADDR			0x42110008
+#define QLC_83XX_FLASH_WRDATA			0x4211000C
+#define QLC_83XX_FLASH_RDDATA			0x42110018
+#define QLC_83XX_FLASH_DIRECT_WINDOW		0x42110030
+#define QLC_83XX_FLASH_DIRECT_DATA(DATA)	(0x42150000 | (0x0000FFFF&DATA))
+#define QLC_83XX_FLASH_SECTOR_ERASE_CMD	0xdeadbeef
+#define QLC_83XX_FLASH_WRITE_CMD		0xdacdacda
+#define QLC_83XX_FLASH_BULK_WRITE_CMD		0xcadcadca
+#define QLC_83XX_FLASH_READ_RETRY_COUNT	5000
+#define QLC_83XX_FLASH_STATUS_READY		0x6
+#define QLC_83XX_FLASH_BULK_WRITE_MIN		2
+#define QLC_83XX_FLASH_BULK_WRITE_MAX		64
+#define QLC_83XX_FLASH_STATUS_REG_POLL_DELAY	1
+#define QLC_83XX_ERASE_MODE			1
+#define QLC_83XX_WRITE_MODE			2
+#define QLC_83XX_BULK_WRITE_MODE		3
+#define QLC_83XX_FLASH_FDT_WRITE_DEF_SIG	0xFD0100
+#define QLC_83XX_FLASH_FDT_ERASE_DEF_SIG	0xFD0300
+#define QLC_83XX_FLASH_FDT_READ_MFG_ID_VAL	0xFD009F
+#define QLC_83XX_FLASH_OEM_ERASE_SIG		0xFD03D8
+#define QLC_83XX_FLASH_OEM_WRITE_SIG		0xFD0101
+#define QLC_83XX_FLASH_OEM_READ_SIG		0xFD0005
+#define QLC_83XX_FLASH_ADDR_TEMP_VAL		0x00800000
+#define QLC_83XX_FLASH_ADDR_SECOND_TEMP_VAL	0x00800001
+#define QLC_83XX_FLASH_WRDATA_DEF		0x0
+#define QLC_83XX_FLASH_READ_CTRL		0x3F
+#define QLC_83XX_FLASH_SPI_CTRL		0x4
+#define QLC_83XX_FLASH_FIRST_ERASE_MS_VAL	0x2
+#define QLC_83XX_FLASH_SECOND_ERASE_MS_VAL	0x5
+#define QLC_83XX_FLASH_LAST_ERASE_MS_VAL	0x3D
+#define QLC_83XX_FLASH_FIRST_MS_PATTERN	0x43
+#define QLC_83XX_FLASH_SECOND_MS_PATTERN	0x7F
+#define QLC_83XX_FLASH_LAST_MS_PATTERN		0x7D
+#define QLC_83xx_FLASH_MAX_WAIT_USEC		100
+#define QLC_83XX_FLASH_LOCK_TIMEOUT		10000
+
 /* Additional registers in 83xx */
 enum qlc_83xx_ext_regs {
 	QLCNIC_GLOBAL_RESET = 0,
@@ -253,4 +293,14 @@ void qlcnic_83xx_free_mbx_intr(struct qlcnic_adapter *);
 void qlcnic_83xx_register_map(struct qlcnic_hardware_context *);
 void qlcnic_83xx_idc_aen_work(struct work_struct *);
 void qlcnic_83xx_config_ipaddr(struct qlcnic_adapter *, __be32, int);
+
+int qlcnic_83xx_erase_flash_sector(struct qlcnic_adapter *, u32);
+int qlcnic_83xx_flash_bulk_write(struct qlcnic_adapter *, u32, u32 *, int);
+int qlcnic_83xx_flash_write32(struct qlcnic_adapter *, u32, u32 *);
+int qlcnic_83xx_lock_flash(struct qlcnic_adapter *);
+void qlcnic_83xx_unlock_flash(struct qlcnic_adapter *);
+int qlcnic_83xx_save_flash_status(struct qlcnic_adapter *);
+int qlcnic_83xx_restore_flash_status(struct qlcnic_adapter *, int);
+int qlcnic_83xx_read_flash_mfg_id(struct qlcnic_adapter *);
+int qlcnic_83xx_read_flash_descriptor_table(struct qlcnic_adapter *);
 #endif

@@ -204,6 +204,7 @@ struct uni_data_desc{
 
 /* Flash Defines and Structures */
 #define QLCNIC_FLT_LOCATION	0x3F1000
+#define QLCNIC_FDT_LOCATION     0x3F0000
 #define QLCNIC_B0_FW_IMAGE_REGION 0x74
 #define QLCNIC_C0_FW_IMAGE_REGION 0x97
 #define QLCNIC_BOOTLD_REGION    0X72
@@ -224,6 +225,36 @@ struct qlcnic_flt_entry {
 	u32 end_addr;
 };
 
+/* Flash Descriptor Table */
+struct qlcnic_fdt {
+	u32	valid;
+	u16	ver;
+	u16	len;
+	u16	cksum;
+	u16	unused;
+	u8	model[16];
+	u16	mfg_id;
+	u16	id;
+	u8	flag;
+	u8	erase_cmd;
+	u8	alt_erase_cmd;
+	u8	write_enable_cmd;
+	u8	write_enable_bits;
+	u8	write_statusreg_cmd;
+	u8	unprotected_sec_cmd;
+	u8	read_manuf_cmd;
+	u32	block_size;
+	u32	alt_block_size;
+	u32	flash_size;
+	u32	write_enable_data;
+	u8	readid_addr_len;
+	u8	write_disable_bits;
+	u8	read_dev_id_len;
+	u8	chip_erase_cmd;
+	u16	read_timeo;
+	u8	protected_sec_cmd;
+	u8	resvd[65];
+};
 /* Magic number to let user know flash is programmed */
 #define	QLCNIC_BDINFO_MAGIC 0x12345678
 
@@ -404,6 +435,7 @@ struct qlcnic_hardware_context {
 	struct qlcnic_hardware_ops *hw_ops;
 	struct qlcnic_nic_intr_coalesce coal;
 	struct qlcnic_fw_dump fw_dump;
+	struct qlcnic_fdt fdt;
 	struct qlcnic_intrpt_config *intr_tbl;
 	u32 *reg_tbl;
 	u32 *ext_reg_tbl;
@@ -972,6 +1004,7 @@ struct qlcnic_adapter {
 	u64 dev_rst_time;
 	u8 mac_learn;
 	unsigned long vlans[BITS_TO_LONGS(VLAN_N_VID)];
+	u8 flash_mfg_id;
 	struct qlcnic_npar_info *npars;
 	struct qlcnic_eswitch *eswitch;
 	struct qlcnic_nic_template *nic_ops;
