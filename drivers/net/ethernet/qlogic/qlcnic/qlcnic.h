@@ -1377,6 +1377,7 @@ void qlcnic_delete_lb_filters(struct qlcnic_adapter *adapter);
 int qlcnic_dump_fw(struct qlcnic_adapter *);
 
 /* Functions from qlcnic_init.c */
+void qlcnic_schedule_work(struct qlcnic_adapter *, work_func_t, int);
 int qlcnic_load_firmware(struct qlcnic_adapter *adapter);
 int qlcnic_need_fw_reset(struct qlcnic_adapter *adapter);
 void qlcnic_request_firmware(struct qlcnic_adapter *adapter);

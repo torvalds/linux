@@ -209,7 +209,6 @@ int qlcnic_83xx_napi_add(struct qlcnic_adapter *, struct net_device *);
 void qlcnic_83xx_napi_del(struct qlcnic_adapter *);
 void qlcnic_83xx_napi_enable(struct qlcnic_adapter *);
 void qlcnic_83xx_napi_disable(struct qlcnic_adapter *);
-
 void qlcnic_ind_wr(struct qlcnic_adapter *, u32, u32);
 int qlcnic_ind_rd(struct qlcnic_adapter *, u32);
 void qlcnic_83xx_get_stats(struct qlcnic_adapter *,
