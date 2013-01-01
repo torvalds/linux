@@ -13,9 +13,12 @@
 
 #ifndef BNX2X_H
 #define BNX2X_H
+
+#include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/dma-mapping.h>
 #include <linux/types.h>
+#include <linux/pci_regs.h>
 
 /* compilation time flags */
 
@@ -966,6 +969,7 @@ extern struct workqueue_struct *bnx2x_wq;
 #define BNX2X_MAX_NUM_OF_VFS	64
 #define BNX2X_VF_CID_WND	0
 #define BNX2X_CIDS_PER_VF	(1 << BNX2X_VF_CID_WND)
+#define BNX2X_FIRST_VF_CID	256
 #define BNX2X_VF_CIDS		(BNX2X_MAX_NUM_OF_VFS * BNX2X_CIDS_PER_VF)
 #define BNX2X_VF_ID_INVALID	0xFF
 
@@ -1117,6 +1121,7 @@ struct hw_context {
 /* forward */
 struct bnx2x_ilt;
 
+struct bnx2x_vfdb;
 
 enum bnx2x_recovery_state {
 	BNX2X_RECOVERY_DONE,
@@ -1605,6 +1610,9 @@ struct bnx2x {
 #define PHY_FW_VER_LEN			20
 	char			fw_ver[32];
 	const struct firmware	*firmware;
+
+	struct bnx2x_vfdb	*vfdb;
+#define IS_SRIOV(bp)		((bp)->vfdb)
 
 	/* DCB support on/off */
 	u16 dcb_state;

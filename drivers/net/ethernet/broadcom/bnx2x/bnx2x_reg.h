@@ -6305,6 +6305,15 @@
 #define PCI_PM_DATA_B					0x414
 #define PCI_ID_VAL1					0x434
 #define PCI_ID_VAL2					0x438
+#define GRC_CONFIG_REG_PF_INIT_VF		0x624
+#define GRC_CR_PF_INIT_VF_PF_FIRST_VF_NUM_MASK	0xf
+/* First VF_NUM for PF is encoded in this register.
+ * The number of VFs assigned to a PF is assumed to be a multiple of 8.
+ * Software should program these bits based on Total Number of VFs \
+ * programmed for each PF.
+ * Since registers from 0x000-0x7ff are split across functions, each PF will
+ * have the same location for the same 4 bits
+ */
 
 #define PXPCS_TL_CONTROL_5		    0x814
 #define PXPCS_TL_CONTROL_5_UNKNOWNTYPE_ERR_ATTN    (1 << 29) /*WC*/

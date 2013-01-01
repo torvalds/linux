@@ -7270,12 +7270,21 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 	ilt = BP_ILT(bp);
 	cdu_ilt_start = ilt->clients[ILT_CLIENT_CDU].start;
 
+	if (IS_SRIOV(bp))
+		cdu_ilt_start += BNX2X_FIRST_VF_CID/ILT_PAGE_CIDS;
+	cdu_ilt_start = bnx2x_iov_init_ilt(bp, cdu_ilt_start);
+
+	/* since BNX2X_FIRST_VF_CID > 0 the PF L2 cids precedes
+	 * those of the VFs, so start line should be reset
+	 */
+	cdu_ilt_start = ilt->clients[ILT_CLIENT_CDU].start;
 	for (i = 0; i < L2_ILT_LINES(bp); i++) {
 		ilt->lines[cdu_ilt_start + i].page = bp->context[i].vcxt;
 		ilt->lines[cdu_ilt_start + i].page_mapping =
 			bp->context[i].cxt_mapping;
 		ilt->lines[cdu_ilt_start + i].size = bp->context[i].size;
 	}
+
 	bnx2x_ilt_init_op(bp, INITOP_SET);
 
 	if (!CONFIGURE_NIC_MODE(bp)) {
@@ -7881,6 +7890,8 @@ int bnx2x_set_int_mode(struct bnx2x *bp)
 /* must be called prior to any HW initializations */
 static inline u16 bnx2x_cid_ilt_lines(struct bnx2x *bp)
 {
+	if (IS_SRIOV(bp))
+		return (BNX2X_FIRST_VF_CID + BNX2X_VF_CIDS)/ILT_PAGE_CIDS;
 	return L2_ILT_LINES(bp);
 }
 
@@ -12106,8 +12117,12 @@ static int bnx2x_set_qm_cid_count(struct bnx2x *bp)
 {
 	int cid_count = BNX2X_L2_MAX_CID(bp);
 
+	if (IS_SRIOV(bp))
+		cid_count += BNX2X_VF_CIDS;
+
 	if (CNIC_SUPPORT(bp))
 		cid_count += CNIC_CID_MAX;
+
 	return roundup(cid_count, QM_CID_ROUND);
 }
 
@@ -12312,6 +12327,16 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 			goto init_one_exit;
 	}
 
+	/* Enable SRIOV if capability found in configuration space.
+	 * Once the generic SR-IOV framework makes it in from the
+	 * pci tree this will be revised, to allow dynamic control
+	 * over the number of VFs. Right now, change the num of vfs
+	 * param below to enable SR-IOV.
+	 */
+	rc = bnx2x_iov_init_one(bp, int_mode, 0/*num vfs*/);
+	if (rc)
+		goto init_one_exit;
+
 	/* calc qm_cid_count */
 	bp->qm_cid_count = bnx2x_set_qm_cid_count(bp);
 	BNX2X_DEV_INFO("qm_cid_count %d\n", bp->qm_cid_count);
@@ -12435,6 +12460,9 @@ static void bnx2x_remove_one(struct pci_dev *pdev)
 
 	/* Make sure RESET task is not scheduled before continuing */
 	cancel_delayed_work_sync(&bp->sp_rtnl_task);
+
+	bnx2x_iov_remove_one(bp);
+
 	/* send message via vfpf channel to release the resources of this vf */
 	if (IS_VF(bp))
 		bnx2x_vfpf_release(bp);
