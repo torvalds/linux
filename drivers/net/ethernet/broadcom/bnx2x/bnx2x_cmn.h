@@ -863,7 +863,7 @@ static inline void bnx2x_del_all_napi(struct bnx2x *bp)
 		netif_napi_del(&bnx2x_fp(bp, i, napi));
 }
 
-void bnx2x_set_int_mode(struct bnx2x *bp);
+int bnx2x_set_int_mode(struct bnx2x *bp);
 
 static inline void bnx2x_disable_msi(struct bnx2x *bp)
 {

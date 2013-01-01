@@ -1439,12 +1439,15 @@ void bnx2x_free_irq(struct bnx2x *bp)
 
 int bnx2x_enable_msix(struct bnx2x *bp)
 {
-	int msix_vec = 0, i, rc, req_cnt;
+	int msix_vec = 0, i, rc;
 
-	bp->msix_table[msix_vec].entry = msix_vec;
-	BNX2X_DEV_INFO("msix_table[0].entry = %d (slowpath)\n",
-	   bp->msix_table[0].entry);
-	msix_vec++;
+	/* VFs don't have a default status block */
+	if (IS_PF(bp)) {
+		bp->msix_table[msix_vec].entry = msix_vec;
+		BNX2X_DEV_INFO("msix_table[0].entry = %d (slowpath)\n",
+			       bp->msix_table[0].entry);
+		msix_vec++;
+	}
 
 	/* Cnic requires an msix vector for itself */
 	if (CNIC_SUPPORT(bp)) {
@@ -1462,9 +1465,10 @@ int bnx2x_enable_msix(struct bnx2x *bp)
 		msix_vec++;
 	}
 
-	req_cnt = BNX2X_NUM_ETH_QUEUES(bp) + CNIC_SUPPORT(bp) + 1;
+	DP(BNX2X_MSG_SP, "about to request enable msix with %d vectors\n",
+	   msix_vec);
 
-	rc = pci_enable_msix(bp->pdev, &bp->msix_table[0], req_cnt);
+	rc = pci_enable_msix(bp->pdev, &bp->msix_table[0], msix_vec);
 
 	/*
 	 * reconfigure number of tx/rx queues according to available
@@ -1472,7 +1476,7 @@ int bnx2x_enable_msix(struct bnx2x *bp)
 	 */
 	if (rc >= BNX2X_MIN_MSIX_VEC_CNT(bp)) {
 		/* how less vectors we will have? */
-		int diff = req_cnt - rc;
+		int diff = msix_vec - rc;
 
 		BNX2X_DEV_INFO("Trying to use less MSI-X vectors: %d\n", rc);
 
@@ -3905,7 +3909,10 @@ int bnx2x_alloc_mem_bp(struct bnx2x *bp)
 	 * The biggest MSI-X table we might need is as a maximum number of fast
 	 * path IGU SBs plus default SB (for PF).
 	 */
-	msix_table_size = bp->igu_sb_cnt + 1;
+	msix_table_size = bp->igu_sb_cnt;
+	if (IS_PF(bp))
+		msix_table_size++;
+	BNX2X_DEV_INFO("msix_table_size %d\n", msix_table_size);
 
 	/* fp array: RSS plus CNIC related L2 queues */
 	fp_array_size = BNX2X_MAX_RSS_COUNT(bp) + CNIC_SUPPORT(bp);

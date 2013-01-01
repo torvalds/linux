@@ -49,6 +49,12 @@
 #include "bnx2x_dcb.h"
 #include "bnx2x_stats.h"
 
+enum bnx2x_int_mode {
+	BNX2X_INT_MODE_MSIX,
+	BNX2X_INT_MODE_INTX,
+	BNX2X_INT_MODE_MSI
+};
+
 /* error/debug prints */
 
 #define DRV_MODULE_NAME		"bnx2x"
@@ -954,6 +960,9 @@ struct bnx2x_port {
 extern struct workqueue_struct *bnx2x_wq;
 
 #define BNX2X_MAX_NUM_OF_VFS	64
+#define BNX2X_VF_CID_WND	0
+#define BNX2X_CIDS_PER_VF	(1 << BNX2X_VF_CID_WND)
+#define BNX2X_VF_CIDS		(BNX2X_MAX_NUM_OF_VFS * BNX2X_CIDS_PER_VF)
 #define BNX2X_VF_ID_INVALID	0xFF
 
 /*
@@ -1231,6 +1240,10 @@ struct bnx2x {
 	  (vn) * ((CHIP_IS_E1x(bp) || (CHIP_MODE_IS_4_PORT(bp))) ? 2  : 1))
 #define BP_FW_MB_IDX(bp)		BP_FW_MB_IDX_VN(bp, BP_VN(bp))
 
+	/* vf pf channel mailbox contains request and response buffers */
+	struct bnx2x_vf_mbx_msg	*vf2pf_mbox;
+	dma_addr_t		vf2pf_mbox_mapping;
+
 	struct net_device	*dev;
 	struct pci_dev		*pdev;
 
@@ -1318,8 +1331,6 @@ struct bnx2x {
 #define DISABLE_MSI_FLAG		(1 << 7)
 #define TPA_ENABLE_FLAG			(1 << 8)
 #define NO_MCP_FLAG			(1 << 9)
-
-#define BP_NOMCP(bp)			(bp->flags & NO_MCP_FLAG)
 #define GRO_ENABLE_FLAG			(1 << 10)
 #define MF_FUNC_DIS			(1 << 11)
 #define OWN_CNIC_IRQ			(1 << 12)
@@ -1330,6 +1341,11 @@ struct bnx2x {
 #define BC_SUPPORTS_FCOE_FEATURES	(1 << 19)
 #define USING_SINGLE_MSIX_FLAG		(1 << 20)
 #define BC_SUPPORTS_DCBX_MSG_NON_PMF	(1 << 21)
+#define IS_VF_FLAG			(1 << 22)
+
+#define BP_NOMCP(bp)			((bp)->flags & NO_MCP_FLAG)
+#define IS_VF(bp)			((bp)->flags & IS_VF_FLAG)
+#define IS_PF(bp)			(!((bp)->flags & IS_VF_FLAG))
 
 #define NO_ISCSI(bp)		((bp)->flags & NO_ISCSI_FLAG)
 #define NO_ISCSI_OOO(bp)	((bp)->flags & NO_ISCSI_OOO_FLAG)
@@ -1432,6 +1448,7 @@ struct bnx2x {
 	u8			igu_sb_cnt;
 	u8			min_msix_vec_cnt;
 
+	u32			igu_base_addr;
 	dma_addr_t		def_status_blk_mapping;
 
 	struct bnx2x_slowpath	*slowpath;
