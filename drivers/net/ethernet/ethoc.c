@@ -784,7 +784,6 @@ static int ethoc_set_mac_address(struct net_device *dev, void *addr)
 	ethoc_write(priv, MAC_ADDR1, (mac[0] <<  8) | (mac[1] <<  0));
 
 	memcpy(dev->dev_addr, mac, ETH_ALEN);
-	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 
 	return 0;
 }

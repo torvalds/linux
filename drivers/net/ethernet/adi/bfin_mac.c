@@ -647,7 +647,6 @@ static int bfin_mac_set_mac_address(struct net_device *dev, void *p)
 	if (netif_running(dev))
 		return -EBUSY;
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
-	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	setup_mac_addr(dev->dev_addr);
 	return 0;
 }

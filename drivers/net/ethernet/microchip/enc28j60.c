@@ -527,7 +527,6 @@ static int enc28j60_set_mac_address(struct net_device *dev, void *addr)
 	if (!is_valid_ether_addr(address->sa_data))
 		return -EADDRNOTAVAIL;
 
-	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(dev->dev_addr, address->sa_data, dev->addr_len);
 	return enc28j60_set_hw_macaddr(dev);
 }

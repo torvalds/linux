@@ -865,7 +865,6 @@ static int enic_set_mac_addr(struct net_device *netdev, char *addr)
 	}
 
 	memcpy(netdev->dev_addr, addr, netdev->addr_len);
-	netdev->addr_assign_type &= ~NET_ADDR_RANDOM;
 
 	return 0;
 }

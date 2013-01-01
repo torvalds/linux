@@ -1534,12 +1534,10 @@ static int octeon_mgmt_probe(struct platform_device *pdev)
 
 	mac = of_get_mac_address(pdev->dev.of_node);
 
-	if (mac && is_valid_ether_addr(mac)) {
+	if (mac && is_valid_ether_addr(mac))
 		memcpy(netdev->dev_addr, mac, ETH_ALEN);
-		netdev->addr_assign_type &= ~NET_ADDR_RANDOM;
-	} else {
+	else
 		eth_hw_addr_random(netdev);
-	}
 
 	p->phy_np = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
 

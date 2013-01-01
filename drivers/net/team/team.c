@@ -1500,7 +1500,6 @@ static int team_set_mac_address(struct net_device *dev, void *p)
 	if (dev->type == ARPHRD_ETHER && !is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
-	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	rcu_read_lock();
 	list_for_each_entry_rcu(port, &team->port_list, list)
 		if (team->ops.port_change_dev_addr)
@@ -1770,7 +1769,6 @@ static void team_setup_by_port(struct net_device *dev,
 	dev->mtu = port_dev->mtu;
 	memcpy(dev->broadcast, port_dev->broadcast, port_dev->addr_len);
 	memcpy(dev->dev_addr, port_dev->dev_addr, port_dev->addr_len);
-	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 }
 
 static int team_dev_type_check_change(struct net_device *dev,
