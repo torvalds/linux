@@ -641,6 +641,11 @@ int bnx2x_vfop_qsetup_cmd(struct bnx2x *bp,
 			  struct bnx2x_vfop_cmd *cmd,
 			  int qid);
 
+int bnx2x_vfop_qdown_cmd(struct bnx2x *bp,
+			 struct bnx2x_virtf *vf,
+			 struct bnx2x_vfop_cmd *cmd,
+			 int qid);
+
 int bnx2x_vfop_mcast_cmd(struct bnx2x *bp,
 			 struct bnx2x_virtf *vf,
 			 struct bnx2x_vfop_cmd *cmd,

@@ -787,6 +787,23 @@ response:
 	bnx2x_vf_mbx_resp(bp, vf);
 }
 
+static void bnx2x_vf_mbx_teardown_q(struct bnx2x *bp, struct bnx2x_virtf *vf,
+				    struct bnx2x_vf_mbx *mbx)
+{
+	int qid = mbx->msg->req.q_op.vf_qid;
+	struct bnx2x_vfop_cmd cmd = {
+		.done = bnx2x_vf_mbx_resp,
+		.block = false,
+	};
+
+	DP(BNX2X_MSG_IOV, "VF[%d] Q_TEARDOWN: vf_qid=%d\n",
+	   vf->abs_vfid, qid);
+
+	vf->op_rc = bnx2x_vfop_qdown_cmd(bp, vf, &cmd, qid);
+	if (vf->op_rc)
+		bnx2x_vf_mbx_resp(bp, vf);
+}
+
 /* dispatch request */
 static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 				  struct bnx2x_vf_mbx *mbx)
@@ -814,7 +831,11 @@ static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		case CHANNEL_TLV_SET_Q_FILTERS:
 			bnx2x_vf_mbx_set_q_filters(bp, vf, mbx);
 			break;
+		case CHANNEL_TLV_TEARDOWN_Q:
+			bnx2x_vf_mbx_teardown_q(bp, vf, mbx);
+			break;
 		}
+
 	} else {
 		/* unknown TLV - this may belong to a VF driver from the future
 		 * - a version written after this PF driver was written, which

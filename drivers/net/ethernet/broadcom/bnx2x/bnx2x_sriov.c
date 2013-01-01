@@ -111,6 +111,13 @@ enum bnx2x_vfop_qctor_state {
 	   BNX2X_VFOP_QCTOR_INT_EN
 };
 
+enum bnx2x_vfop_qdtor_state {
+	   BNX2X_VFOP_QDTOR_HALT,
+	   BNX2X_VFOP_QDTOR_TERMINATE,
+	   BNX2X_VFOP_QDTOR_CFCDEL,
+	   BNX2X_VFOP_QDTOR_DONE
+};
+
 enum bnx2x_vfop_vlan_mac_state {
 	   BNX2X_VFOP_VLAN_MAC_CONFIG_SINGLE,
 	   BNX2X_VFOP_VLAN_MAC_CLEAR,
@@ -135,6 +142,14 @@ enum bnx2x_vfop_mcast_state {
 enum bnx2x_vfop_rxmode_state {
 	   BNX2X_VFOP_RXMODE_CONFIG,
 	   BNX2X_VFOP_RXMODE_DONE
+};
+
+enum bnx2x_vfop_qteardown_state {
+	   BNX2X_VFOP_QTEARDOWN_RXMODE,
+	   BNX2X_VFOP_QTEARDOWN_CLR_VLAN,
+	   BNX2X_VFOP_QTEARDOWN_CLR_MAC,
+	   BNX2X_VFOP_QTEARDOWN_QDTOR,
+	   BNX2X_VFOP_QTEARDOWN_DONE
 };
 
 #define bnx2x_vfop_reset_wq(vf)	atomic_set(&vf->op_in_progress, 0)
@@ -339,6 +354,101 @@ static int bnx2x_vfop_qctor_cmd(struct bnx2x *bp,
 		return bnx2x_vfop_transition(bp, vf, bnx2x_vfop_qctor,
 					     cmd->block);
 	}
+	return -ENOMEM;
+}
+
+/* VFOP queue destruction */
+static void bnx2x_vfop_qdtor(struct bnx2x *bp, struct bnx2x_virtf *vf)
+{
+	struct bnx2x_vfop *vfop = bnx2x_vfop_cur(bp, vf);
+	struct bnx2x_vfop_args_qdtor *qdtor = &vfop->args.qdtor;
+	struct bnx2x_queue_state_params *q_params = &vfop->op_p->qctor.qstate;
+	enum bnx2x_vfop_qdtor_state state = vfop->state;
+
+	bnx2x_vfop_reset_wq(vf);
+
+	if (vfop->rc < 0)
+		goto op_err;
+
+	DP(BNX2X_MSG_IOV, "vf[%d] STATE: %d\n", vf->abs_vfid, state);
+
+	switch (state) {
+	case BNX2X_VFOP_QDTOR_HALT:
+
+		/* has this queue already been stopped? */
+		if (bnx2x_get_q_logical_state(bp, q_params->q_obj) ==
+		    BNX2X_Q_LOGICAL_STATE_STOPPED) {
+			DP(BNX2X_MSG_IOV,
+			   "Entered qdtor but queue was already stopped. Aborting gracefully\n");
+			goto op_done;
+		}
+
+		/* next state */
+		vfop->state = BNX2X_VFOP_QDTOR_TERMINATE;
+
+		q_params->cmd = BNX2X_Q_CMD_HALT;
+		vfop->rc = bnx2x_queue_state_change(bp, q_params);
+
+		bnx2x_vfop_finalize(vf, vfop->rc, VFOP_CONT);
+
+	case BNX2X_VFOP_QDTOR_TERMINATE:
+		/* next state */
+		vfop->state = BNX2X_VFOP_QDTOR_CFCDEL;
+
+		q_params->cmd = BNX2X_Q_CMD_TERMINATE;
+		vfop->rc = bnx2x_queue_state_change(bp, q_params);
+
+		bnx2x_vfop_finalize(vf, vfop->rc, VFOP_CONT);
+
+	case BNX2X_VFOP_QDTOR_CFCDEL:
+		/* next state */
+		vfop->state = BNX2X_VFOP_QDTOR_DONE;
+
+		q_params->cmd = BNX2X_Q_CMD_CFC_DEL;
+		vfop->rc = bnx2x_queue_state_change(bp, q_params);
+
+		bnx2x_vfop_finalize(vf, vfop->rc, VFOP_DONE);
+op_err:
+	BNX2X_ERR("QDTOR[%d:%d] error: cmd %d, rc %d\n",
+		  vf->abs_vfid, qdtor->qid, q_params->cmd, vfop->rc);
+op_done:
+	case BNX2X_VFOP_QDTOR_DONE:
+		/* invalidate the context */
+		qdtor->cxt->ustorm_ag_context.cdu_usage = 0;
+		qdtor->cxt->xstorm_ag_context.cdu_reserved = 0;
+		bnx2x_vfop_end(bp, vf, vfop);
+		return;
+	default:
+		bnx2x_vfop_default(state);
+	}
+op_pending:
+	return;
+}
+
+static int bnx2x_vfop_qdtor_cmd(struct bnx2x *bp,
+				struct bnx2x_virtf *vf,
+				struct bnx2x_vfop_cmd *cmd,
+				int qid)
+{
+	struct bnx2x_vfop *vfop = bnx2x_vfop_add(bp, vf);
+
+	if (vfop) {
+		struct bnx2x_queue_state_params *qstate =
+			&vf->op_params.qctor.qstate;
+
+		memset(qstate, 0, sizeof(*qstate));
+		qstate->q_obj = &bnx2x_vfq(vf, qid, sp_obj);
+
+		vfop->args.qdtor.qid = qid;
+		vfop->args.qdtor.cxt = bnx2x_vfq(vf, qid, cxt);
+
+		bnx2x_vfop_opset(BNX2X_VFOP_QDTOR_HALT,
+				 bnx2x_vfop_qdtor, cmd->done);
+		return bnx2x_vfop_transition(bp, vf, bnx2x_vfop_qdtor,
+					     cmd->block);
+	}
+	DP(BNX2X_MSG_IOV, "VF[%d] failed to add a vfop. rc %d\n",
+	   vf->abs_vfid, vfop->rc);
 	return -ENOMEM;
 }
 
@@ -593,6 +703,44 @@ bnx2x_vfop_mac_prep_ramrod(struct bnx2x_vlan_mac_ramrod_params *ramrod,
 	set_bit(BNX2X_ETH_MAC, &ramrod->user_req.vlan_mac_flags);
 }
 
+static int bnx2x_vfop_mac_delall_cmd(struct bnx2x *bp,
+				     struct bnx2x_virtf *vf,
+				     struct bnx2x_vfop_cmd *cmd,
+				     int qid, bool drv_only)
+{
+	struct bnx2x_vfop *vfop = bnx2x_vfop_add(bp, vf);
+
+	if (vfop) {
+		struct bnx2x_vfop_args_filters filters = {
+			.multi_filter = NULL,	/* single */
+			.credit = NULL,		/* consume credit */
+		};
+		struct bnx2x_vfop_vlan_mac_flags flags = {
+			.drv_only = drv_only,
+			.dont_consume = (filters.credit != NULL),
+			.single_cmd = true,
+			.add = false /* don't care */,
+		};
+		struct bnx2x_vlan_mac_ramrod_params *ramrod =
+			&vf->op_params.vlan_mac;
+
+		/* set ramrod params */
+		bnx2x_vfop_mac_prep_ramrod(ramrod, &flags);
+
+		/* set object */
+		ramrod->vlan_mac_obj = &bnx2x_vfq(vf, qid, mac_obj);
+
+		/* set extra args */
+		vfop->args.filters = filters;
+
+		bnx2x_vfop_opset(BNX2X_VFOP_VLAN_MAC_CLEAR,
+				 bnx2x_vfop_vlan_mac, cmd->done);
+		return bnx2x_vfop_transition(bp, vf, bnx2x_vfop_vlan_mac,
+					     cmd->block);
+	}
+	return -ENOMEM;
+}
+
 int bnx2x_vfop_mac_list_cmd(struct bnx2x *bp,
 			    struct bnx2x_virtf *vf,
 			    struct bnx2x_vfop_cmd *cmd,
@@ -668,6 +816,44 @@ int bnx2x_vfop_vlan_set_cmd(struct bnx2x *bp,
 		vfop->args.filters = filters;
 
 		bnx2x_vfop_opset(BNX2X_VFOP_VLAN_MAC_CONFIG_SINGLE,
+				 bnx2x_vfop_vlan_mac, cmd->done);
+		return bnx2x_vfop_transition(bp, vf, bnx2x_vfop_vlan_mac,
+					     cmd->block);
+	}
+	return -ENOMEM;
+}
+
+static int bnx2x_vfop_vlan_delall_cmd(struct bnx2x *bp,
+			       struct bnx2x_virtf *vf,
+			       struct bnx2x_vfop_cmd *cmd,
+			       int qid, bool drv_only)
+{
+	struct bnx2x_vfop *vfop = bnx2x_vfop_add(bp, vf);
+
+	if (vfop) {
+		struct bnx2x_vfop_args_filters filters = {
+			.multi_filter = NULL, /* single command */
+			.credit = &bnx2x_vfq(vf, qid, vlan_count),
+		};
+		struct bnx2x_vfop_vlan_mac_flags flags = {
+			.drv_only = drv_only,
+			.dont_consume = (filters.credit != NULL),
+			.single_cmd = true,
+			.add = false, /* don't care */
+		};
+		struct bnx2x_vlan_mac_ramrod_params *ramrod =
+			&vf->op_params.vlan_mac;
+
+		/* set ramrod params */
+		bnx2x_vfop_vlan_mac_prep_ramrod(ramrod, &flags);
+
+		/* set object */
+		ramrod->vlan_mac_obj = &bnx2x_vfq(vf, qid, vlan_obj);
+
+		/* set extra args */
+		vfop->args.filters = filters;
+
+		bnx2x_vfop_opset(BNX2X_VFOP_VLAN_MAC_CLEAR,
 				 bnx2x_vfop_vlan_mac, cmd->done);
 		return bnx2x_vfop_transition(bp, vf, bnx2x_vfop_vlan_mac,
 					     cmd->block);
@@ -953,6 +1139,89 @@ int bnx2x_vfop_rxmode_cmd(struct bnx2x *bp,
 		return bnx2x_vfop_transition(bp, vf, bnx2x_vfop_rxmode,
 					     cmd->block);
 	}
+	return -ENOMEM;
+}
+
+/* VFOP queue tear-down ('drop all' rx-mode, clear vlans, clear macs,
+ * queue destructor)
+ */
+static void bnx2x_vfop_qdown(struct bnx2x *bp, struct bnx2x_virtf *vf)
+{
+	struct bnx2x_vfop *vfop = bnx2x_vfop_cur(bp, vf);
+	int qid = vfop->args.qx.qid;
+	enum bnx2x_vfop_qteardown_state state = vfop->state;
+	struct bnx2x_vfop_cmd cmd;
+
+	if (vfop->rc < 0)
+		goto op_err;
+
+	DP(BNX2X_MSG_IOV, "vf[%d] STATE: %d\n", vf->abs_vfid, state);
+
+	cmd.done = bnx2x_vfop_qdown;
+	cmd.block = false;
+
+	switch (state) {
+	case BNX2X_VFOP_QTEARDOWN_RXMODE:
+		/* Drop all */
+		vfop->state = BNX2X_VFOP_QTEARDOWN_CLR_VLAN;
+		vfop->rc = bnx2x_vfop_rxmode_cmd(bp, vf, &cmd, qid, 0);
+		if (vfop->rc)
+			goto op_err;
+		return;
+
+	case BNX2X_VFOP_QTEARDOWN_CLR_VLAN:
+		/* vlan-clear-all: don't consume credit */
+		vfop->state = BNX2X_VFOP_QTEARDOWN_CLR_MAC;
+		vfop->rc = bnx2x_vfop_vlan_delall_cmd(bp, vf, &cmd, qid, false);
+		if (vfop->rc)
+			goto op_err;
+		return;
+
+	case BNX2X_VFOP_QTEARDOWN_CLR_MAC:
+		/* mac-clear-all: consume credit */
+		vfop->state = BNX2X_VFOP_QTEARDOWN_QDTOR;
+		vfop->rc = bnx2x_vfop_mac_delall_cmd(bp, vf, &cmd, qid, false);
+		if (vfop->rc)
+			goto op_err;
+		return;
+
+	case BNX2X_VFOP_QTEARDOWN_QDTOR:
+		/* run the queue destruction flow */
+		DP(BNX2X_MSG_IOV, "case: BNX2X_VFOP_QTEARDOWN_QDTOR\n");
+		vfop->state = BNX2X_VFOP_QTEARDOWN_DONE;
+		DP(BNX2X_MSG_IOV, "new state: BNX2X_VFOP_QTEARDOWN_DONE\n");
+		vfop->rc = bnx2x_vfop_qdtor_cmd(bp, vf, &cmd, qid);
+		DP(BNX2X_MSG_IOV, "returned from cmd\n");
+		if (vfop->rc)
+			goto op_err;
+		return;
+op_err:
+	BNX2X_ERR("QTEARDOWN[%d:%d] error: rc %d\n",
+		  vf->abs_vfid, qid, vfop->rc);
+
+	case BNX2X_VFOP_QTEARDOWN_DONE:
+		bnx2x_vfop_end(bp, vf, vfop);
+		return;
+	default:
+		bnx2x_vfop_default(state);
+	}
+}
+
+int bnx2x_vfop_qdown_cmd(struct bnx2x *bp,
+			 struct bnx2x_virtf *vf,
+			 struct bnx2x_vfop_cmd *cmd,
+			 int qid)
+{
+	struct bnx2x_vfop *vfop = bnx2x_vfop_add(bp, vf);
+
+	if (vfop) {
+		vfop->args.qx.qid = qid;
+		bnx2x_vfop_opset(BNX2X_VFOP_QTEARDOWN_RXMODE,
+				 bnx2x_vfop_qdown, cmd->done);
+		return bnx2x_vfop_transition(bp, vf, bnx2x_vfop_qdown,
+					     cmd->block);
+	}
+
 	return -ENOMEM;
 }
 
