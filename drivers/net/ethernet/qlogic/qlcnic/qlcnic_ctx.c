@@ -498,36 +498,42 @@ qlcnic_fw_cmd_set_port(struct qlcnic_adapter *adapter, u32 config)
 int qlcnic_alloc_hw_resources(struct qlcnic_adapter *adapter)
 {
 	void *addr;
-	int err;
-	int ring;
+	int err, ring;
 	struct qlcnic_recv_context *recv_ctx;
 	struct qlcnic_host_rds_ring *rds_ring;
 	struct qlcnic_host_sds_ring *sds_ring;
 	struct qlcnic_host_tx_ring *tx_ring;
+	__le32 *ptr;
 
 	struct pci_dev *pdev = adapter->pdev;
 
 	recv_ctx = adapter->recv_ctx;
-	tx_ring = adapter->tx_ring;
 
-	tx_ring->hw_consumer = (__le32 *) dma_alloc_coherent(&pdev->dev,
-		sizeof(u32), &tx_ring->hw_cons_phys_addr, GFP_KERNEL);
-	if (tx_ring->hw_consumer == NULL) {
-		dev_err(&pdev->dev, "failed to allocate tx consumer\n");
-		return -ENOMEM;
+	for (ring = 0; ring < adapter->max_drv_tx_rings; ring++) {
+		tx_ring = &adapter->tx_ring[ring];
+		ptr = (__le32 *)dma_alloc_coherent(&pdev->dev, sizeof(u32),
+						   &tx_ring->hw_cons_phys_addr,
+						   GFP_KERNEL);
+
+		if (ptr == NULL) {
+			dev_err(&pdev->dev, "failed to allocate tx consumer\n");
+			return -ENOMEM;
+		}
+		tx_ring->hw_consumer = ptr;
+		/* cmd desc ring */
+		addr = dma_alloc_coherent(&pdev->dev, TX_DESC_RINGSIZE(tx_ring),
+					  &tx_ring->phys_addr,
+					  GFP_KERNEL);
+
+		if (addr == NULL) {
+			dev_err(&pdev->dev,
+				"failed to allocate tx desc ring\n");
+			err = -ENOMEM;
+			goto err_out_free;
+		}
+
+		tx_ring->desc_head = addr;
 	}
-
-	/* cmd desc ring */
-	addr = dma_alloc_coherent(&pdev->dev, TX_DESC_RINGSIZE(tx_ring),
-			&tx_ring->phys_addr, GFP_KERNEL);
-
-	if (addr == NULL) {
-		dev_err(&pdev->dev, "failed to allocate tx desc ring\n");
-		err = -ENOMEM;
-		goto err_out_free;
-	}
-
-	tx_ring->desc_head = addr;
 
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &recv_ctx->rds_rings[ring];
@@ -624,20 +630,23 @@ void qlcnic_free_hw_resources(struct qlcnic_adapter *adapter)
 
 	recv_ctx = adapter->recv_ctx;
 
-	tx_ring = adapter->tx_ring;
-	if (tx_ring->hw_consumer != NULL) {
-		dma_free_coherent(&adapter->pdev->dev,
-				sizeof(u32),
-				tx_ring->hw_consumer,
-				tx_ring->hw_cons_phys_addr);
-		tx_ring->hw_consumer = NULL;
-	}
+	for (ring = 0; ring < adapter->max_drv_tx_rings; ring++) {
+		tx_ring = &adapter->tx_ring[ring];
+		if (tx_ring->hw_consumer != NULL) {
+			dma_free_coherent(&adapter->pdev->dev, sizeof(u32),
+					  tx_ring->hw_consumer,
+					  tx_ring->hw_cons_phys_addr);
 
-	if (tx_ring->desc_head != NULL) {
-		dma_free_coherent(&adapter->pdev->dev,
-				TX_DESC_RINGSIZE(tx_ring),
-				tx_ring->desc_head, tx_ring->phys_addr);
-		tx_ring->desc_head = NULL;
+			tx_ring->hw_consumer = NULL;
+		}
+
+		if (tx_ring->desc_head != NULL) {
+			dma_free_coherent(&adapter->pdev->dev,
+					  TX_DESC_RINGSIZE(tx_ring),
+					  tx_ring->desc_head,
+					  tx_ring->phys_addr);
+			tx_ring->desc_head = NULL;
+		}
 	}
 
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {

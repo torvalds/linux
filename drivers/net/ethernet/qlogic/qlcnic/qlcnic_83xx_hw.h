@@ -193,8 +193,7 @@ void qlcnic_83xx_write_crb(struct qlcnic_adapter *, char *, loff_t, size_t);
 void qlcnic_83xx_read_crb(struct qlcnic_adapter *, char *, loff_t, size_t);
 int qlcnic_83xx_rd_reg_indirect(struct qlcnic_adapter *, ulong);
 int qlcnic_83xx_wrt_reg_indirect(struct qlcnic_adapter *, ulong, u32);
-void qlcnic_83xx_process_rcv_diag(struct qlcnic_adapter *,
-				  struct qlcnic_host_sds_ring *, int, u64 []);
+void qlcnic_83xx_process_rcv_diag(struct qlcnic_adapter *, int, u64 []);
 int qlcnic_83xx_nic_set_promisc(struct qlcnic_adapter *, u32);
 int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *, u8);
 int qlcnic_83xx_clear_lb_mode(struct qlcnic_adapter *, u8);
@@ -205,6 +204,11 @@ void qlcnic_83xx_change_l2_filter(struct qlcnic_adapter *, u64 *, __le16);
 int qlcnic_83xx_get_pci_info(struct qlcnic_adapter *, struct qlcnic_pci_info *);
 int qlcnic_83xx_set_nic_info(struct qlcnic_adapter *, struct qlcnic_info *);
 void qlcnic_83xx_register_nic_idc_func(struct qlcnic_adapter *, int);
+
+int qlcnic_83xx_napi_add(struct qlcnic_adapter *, struct net_device *);
+void qlcnic_83xx_napi_del(struct qlcnic_adapter *);
+void qlcnic_83xx_napi_enable(struct qlcnic_adapter *);
+void qlcnic_83xx_napi_disable(struct qlcnic_adapter *);
 
 void qlcnic_ind_wr(struct qlcnic_adapter *, u32, u32);
 int qlcnic_ind_rd(struct qlcnic_adapter *, u32);

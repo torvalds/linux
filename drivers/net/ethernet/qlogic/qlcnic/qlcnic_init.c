@@ -163,13 +163,12 @@ void qlcnic_free_sw_resources(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_recv_context *recv_ctx;
 	struct qlcnic_host_rds_ring *rds_ring;
-	struct qlcnic_host_tx_ring *tx_ring;
 	int ring;
 
 	recv_ctx = adapter->recv_ctx;
 
 	if (recv_ctx->rds_rings == NULL)
-		goto skip_rds;
+		return;
 
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &recv_ctx->rds_rings[ring];
@@ -177,16 +176,6 @@ void qlcnic_free_sw_resources(struct qlcnic_adapter *adapter)
 		rds_ring->rx_buf_arr = NULL;
 	}
 	kfree(recv_ctx->rds_rings);
-
-skip_rds:
-	if (adapter->tx_ring == NULL)
-		return;
-
-	tx_ring = adapter->tx_ring;
-	vfree(tx_ring->cmd_buf_arr);
-	tx_ring->cmd_buf_arr = NULL;
-	kfree(adapter->tx_ring);
-	adapter->tx_ring = NULL;
 }
 
 int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
@@ -194,30 +183,10 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 	struct qlcnic_recv_context *recv_ctx;
 	struct qlcnic_host_rds_ring *rds_ring;
 	struct qlcnic_host_sds_ring *sds_ring;
-	struct qlcnic_host_tx_ring *tx_ring;
 	struct qlcnic_rx_buffer *rx_buf;
 	int ring, i, size;
 
-	struct qlcnic_cmd_buffer *cmd_buf_arr;
 	struct net_device *netdev = adapter->netdev;
-
-	size = sizeof(struct qlcnic_host_tx_ring);
-	tx_ring = kzalloc(size, GFP_KERNEL);
-	if (tx_ring == NULL) {
-		dev_err(&netdev->dev, "failed to allocate tx ring struct\n");
-		return -ENOMEM;
-	}
-	adapter->tx_ring = tx_ring;
-
-	tx_ring->num_desc = adapter->num_txd;
-	tx_ring->txq = netdev_get_tx_queue(netdev, 0);
-
-	cmd_buf_arr = vzalloc(TX_BUFF_RINGSIZE(tx_ring));
-	if (cmd_buf_arr == NULL) {
-		dev_err(&netdev->dev, "failed to allocate cmd buffer ring\n");
-		goto err_out;
-	}
-	tx_ring->cmd_buf_arr = cmd_buf_arr;
 
 	recv_ctx = adapter->recv_ctx;
 
@@ -253,10 +222,11 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 		}
 		rds_ring->rx_buf_arr = vzalloc(RCV_BUFF_RINGSIZE(rds_ring));
 		if (rds_ring->rx_buf_arr == NULL) {
-			dev_err(&netdev->dev, "Failed to allocate "
-				"rx buffer ring %d\n", ring);
+			dev_err(&netdev->dev,
+				"Failed to allocate rx buffer ring %d\n", ring);
 			goto err_out;
 		}
+
 		INIT_LIST_HEAD(&rds_ring->free_list);
 		/*
 		 * Now go through all of them, set reference handles

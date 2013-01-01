@@ -431,6 +431,7 @@ struct qlcnic_adapter_stats {
 	u64  rx_dma_map_error;
 	u64  tx_dma_map_error;
 	u64  spurious_intr;
+	u64  mac_filter_limit_overrun;
 };
 
 /*
@@ -469,6 +470,7 @@ struct qlcnic_host_sds_ring {
 } ____cacheline_internodealigned_in_smp;
 
 struct qlcnic_host_tx_ring {
+	int irq;
 	void __iomem *crb_intr_mask;
 	char name[IFNAMSIZ+4];
 	u16 ctx_id;
@@ -477,6 +479,8 @@ struct qlcnic_host_tx_ring {
 	u32 num_desc;
 	void __iomem *crb_cmd_producer;
 	struct cmd_desc_type0 *desc_head;
+	struct qlcnic_adapter *adapter;
+	struct napi_struct napi;
 	struct qlcnic_cmd_buffer *cmd_buf_arr;
 	__le32 *hw_consumer;
 
@@ -1402,7 +1406,7 @@ void qlcnic_release_tx_buffers(struct qlcnic_adapter *adapter);
 int qlcnic_check_fw_status(struct qlcnic_adapter *adapter);
 void qlcnic_watchdog_task(struct work_struct *work);
 void qlcnic_post_rx_buffers(struct qlcnic_adapter *adapter,
-		struct qlcnic_host_rds_ring *rds_ring);
+		struct qlcnic_host_rds_ring *rds_ring, u8 ring_id);
 int qlcnic_process_rcv_ring(struct qlcnic_host_sds_ring *sds_ring, int max);
 void qlcnic_set_multi(struct net_device *netdev);
 void qlcnic_free_mac_list(struct qlcnic_adapter *adapter);
@@ -1443,7 +1447,6 @@ int qlcnic_clear_esw_stats(struct qlcnic_adapter *adapter, u8, u8, u8);
 int qlcnic_get_mac_stats(struct qlcnic_adapter *, struct qlcnic_mac_statistics *);
 
 void qlcnic_free_mbx_args(struct qlcnic_cmd_args *cmd);
-void qlcnic_napi_del(struct qlcnic_adapter *);
 
 int qlcnic_alloc_sds_rings(struct qlcnic_recv_context *, int);
 void qlcnic_free_sds_rings(struct qlcnic_recv_context *);
@@ -1495,6 +1498,7 @@ struct qlcnic_nic_template {
 	void (*request_reset) (struct qlcnic_adapter *, u32);
 	void (*cancel_idc_work) (struct qlcnic_adapter *);
 	int (*napi_add)(struct qlcnic_adapter *, struct net_device *);
+	void (*napi_del)(struct qlcnic_adapter *);
 	void (*config_ipaddr)(struct qlcnic_adapter *, __be32, int);
 	irqreturn_t (*clear_legacy_intr)(struct qlcnic_adapter *);
 };
@@ -1668,6 +1672,11 @@ static inline int qlcnic_napi_add(struct qlcnic_adapter *adapter,
 				  struct net_device *netdev)
 {
 	return adapter->nic_ops->napi_add(adapter, netdev);
+}
+
+static inline void qlcnic_napi_del(struct qlcnic_adapter *adapter)
+{
+	adapter->nic_ops->napi_del(adapter);
 }
 
 static inline void qlcnic_napi_enable(struct qlcnic_adapter *adapter)

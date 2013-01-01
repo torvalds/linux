@@ -303,6 +303,7 @@ static struct qlcnic_nic_template qlcnic_ops = {
 	.request_reset		= qlcnic_82xx_dev_request_reset,
 	.cancel_idc_work	= qlcnic_82xx_cancel_idc_work,
 	.napi_add		= qlcnic_82xx_napi_add,
+	.napi_del		= qlcnic_82xx_napi_del,
 	.config_ipaddr		= qlcnic_82xx_config_ipaddr,
 	.clear_legacy_intr	= qlcnic_82xx_clear_legacy_intr,
 };
@@ -1201,7 +1202,7 @@ __qlcnic_up(struct qlcnic_adapter *adapter, struct net_device *netdev)
 
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &adapter->recv_ctx->rds_rings[ring];
-		qlcnic_post_rx_buffers(adapter, rds_ring);
+		qlcnic_post_rx_buffers(adapter, rds_ring, ring);
 	}
 
 	qlcnic_set_multi(netdev);
@@ -1380,21 +1381,11 @@ out:
 static int qlcnic_alloc_adapter_resources(struct qlcnic_adapter *adapter)
 {
 	int err = 0;
-	adapter->ahw = kzalloc(sizeof(struct qlcnic_hardware_context),
-				GFP_KERNEL);
-	if (!adapter->ahw) {
-		dev_err(&adapter->pdev->dev,
-			"Failed to allocate recv ctx resources for adapter\n");
-		err = -ENOMEM;
-		goto err_out;
-	}
 	adapter->recv_ctx = kzalloc(sizeof(struct qlcnic_recv_context),
 				GFP_KERNEL);
 	if (!adapter->recv_ctx) {
 		dev_err(&adapter->pdev->dev,
 			"Failed to allocate recv ctx resources for adapter\n");
-		kfree(adapter->ahw);
-		adapter->ahw = NULL;
 		err = -ENOMEM;
 		goto err_out;
 	}
@@ -1402,6 +1393,8 @@ static int qlcnic_alloc_adapter_resources(struct qlcnic_adapter *adapter)
 	adapter->ahw->coal.flag = QLCNIC_INTR_DEFAULT;
 	adapter->ahw->coal.rx_time_us = QLCNIC_DEFAULT_INTR_COALESCE_RX_TIME_US;
 	adapter->ahw->coal.rx_packets = QLCNIC_DEFAULT_INTR_COALESCE_RX_PACKETS;
+	/* clear stats */
+	memset(&adapter->stats, 0, sizeof(adapter->stats));
 err_out:
 	return err;
 }
@@ -1415,8 +1408,8 @@ static void qlcnic_free_adapter_resources(struct qlcnic_adapter *adapter)
 		vfree(adapter->ahw->fw_dump.tmpl_hdr);
 		adapter->ahw->fw_dump.tmpl_hdr = NULL;
 	}
-	kfree(adapter->ahw);
-	adapter->ahw = NULL;
+
+	adapter->ahw->fw_dump.tmpl_hdr = NULL;
 }
 
 int qlcnic_diag_alloc_res(struct net_device *netdev, int test)
@@ -1436,6 +1429,7 @@ int qlcnic_diag_alloc_res(struct net_device *netdev, int test)
 
 	adapter->max_sds_rings = 1;
 	adapter->ahw->diag_test = test;
+	adapter->ahw->linkup = 0;
 
 	ret = qlcnic_attach(adapter);
 	if (ret) {
@@ -1452,7 +1446,7 @@ int qlcnic_diag_alloc_res(struct net_device *netdev, int test)
 
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &adapter->recv_ctx->rds_rings[ring];
-		qlcnic_post_rx_buffers(adapter, rds_ring);
+		qlcnic_post_rx_buffers(adapter, rds_ring, ring);
 	}
 
 	if (adapter->ahw->diag_test == QLCNIC_INTERRUPT_TEST) {
@@ -1599,6 +1593,66 @@ qlcnic_alloc_msix_entries(struct qlcnic_adapter *adapter, u16 count)
 
 	dev_err(&adapter->pdev->dev, "failed allocating msix_entries\n");
 	return -ENOMEM;
+}
+
+void qlcnic_free_tx_rings(struct qlcnic_adapter *adapter)
+{
+	int ring;
+	struct qlcnic_host_tx_ring *tx_ring;
+
+	for (ring = 0; ring < adapter->max_drv_tx_rings; ring++) {
+		tx_ring = &adapter->tx_ring[ring];
+		if (tx_ring && tx_ring->cmd_buf_arr != NULL) {
+			vfree(tx_ring->cmd_buf_arr);
+			tx_ring->cmd_buf_arr = NULL;
+		}
+	}
+	if (adapter->tx_ring != NULL)
+		kfree(adapter->tx_ring);
+}
+
+int qlcnic_alloc_tx_rings(struct qlcnic_adapter *adapter,
+			  struct net_device *netdev)
+{
+	int ring, size, vector, index;
+	struct qlcnic_host_tx_ring *tx_ring;
+	struct qlcnic_cmd_buffer *cmd_buf_arr;
+
+	size = adapter->max_drv_tx_rings * sizeof(struct qlcnic_host_tx_ring);
+	tx_ring = kzalloc(size, GFP_KERNEL);
+	if (tx_ring == NULL) {
+		dev_err(&netdev->dev, "failed to allocate tx rings\n");
+		return -ENOMEM;
+	}
+	adapter->tx_ring = tx_ring;
+
+	for (ring = 0; ring < adapter->max_drv_tx_rings; ring++) {
+		tx_ring = &adapter->tx_ring[ring];
+		tx_ring->num_desc = adapter->num_txd;
+		tx_ring->txq = netdev_get_tx_queue(netdev, ring);
+		cmd_buf_arr = vzalloc(TX_BUFF_RINGSIZE(tx_ring));
+		if (cmd_buf_arr == NULL) {
+			dev_err(&netdev->dev,
+				"failed to allocate cmd buffer ring\n");
+			qlcnic_free_tx_rings(adapter);
+			return -ENOMEM;
+		}
+		memset(cmd_buf_arr, 0, TX_BUFF_RINGSIZE(tx_ring));
+		tx_ring->cmd_buf_arr = cmd_buf_arr;
+	}
+
+	if (qlcnic_83xx_check(adapter)) {
+		for (ring = 0; ring < adapter->max_drv_tx_rings; ring++) {
+			tx_ring = &adapter->tx_ring[ring];
+			tx_ring->adapter = adapter;
+			if (adapter->flags & QLCNIC_MSIX_ENABLED) {
+				index = adapter->max_sds_rings + ring;
+				vector = adapter->msix_entries[index].vector;
+				tx_ring->irq = vector;
+			}
+		}
+	}
+	return 0;
 }
 
 static int __devinit
