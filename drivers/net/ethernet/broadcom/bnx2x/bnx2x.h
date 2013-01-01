@@ -1191,6 +1191,8 @@ enum {
 	BNX2X_SP_RTNL_TX_TIMEOUT,
 	BNX2X_SP_RTNL_AFEX_F_UPDATE,
 	BNX2X_SP_RTNL_FAN_FAILURE,
+	BNX2X_SP_RTNL_VFPF_MCAST,
+	BNX2X_SP_RTNL_VFPF_STORM_RX_MODE,
 };
 
 
@@ -2229,6 +2231,9 @@ void bnx2x_vfpf_close_vf(struct bnx2x *bp);
 int bnx2x_vfpf_setup_q(struct bnx2x *bp, int fp_idx);
 int bnx2x_vfpf_teardown_queue(struct bnx2x *bp, int qidx);
 int bnx2x_vfpf_set_mac(struct bnx2x *bp);
+int bnx2x_vfpf_set_mcast(struct net_device *dev);
+int bnx2x_vfpf_storm_rx_mode(struct bnx2x *bp);
+
 int bnx2x_nic_load_analyze_req(struct bnx2x *bp, u32 load_code);
 /* Congestion management fairness mode */
 #define CMNG_FNS_NONE		0

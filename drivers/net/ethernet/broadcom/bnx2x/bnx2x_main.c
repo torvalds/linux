@@ -9403,6 +9403,19 @@ sp_rtnl_not_reset:
 		bnx2x_close(bp->dev);
 	}
 
+	if (test_and_clear_bit(BNX2X_SP_RTNL_VFPF_MCAST, &bp->sp_rtnl_state)) {
+		DP(BNX2X_MSG_SP,
+		   "sending set mcast vf pf channel message from rtnl sp-task\n");
+		bnx2x_vfpf_set_mcast(bp->dev);
+	}
+
+	if (test_and_clear_bit(BNX2X_SP_RTNL_VFPF_STORM_RX_MODE,
+			       &bp->sp_rtnl_state)) {
+		DP(BNX2X_MSG_SP,
+		   "sending set storm rx mode vf pf channel message from rtnl sp-task\n");
+		bnx2x_vfpf_storm_rx_mode(bp);
+	}
+
 sp_rtnl_exit:
 	rtnl_unlock();
 }
@@ -11479,12 +11492,25 @@ void bnx2x_set_rx_mode(struct net_device *dev)
 		  CHIP_IS_E1(bp)))
 		rx_mode = BNX2X_RX_MODE_ALLMULTI;
 	else {
-		/* some multicasts */
-		if (bnx2x_set_mc_list(bp) < 0)
-			rx_mode = BNX2X_RX_MODE_ALLMULTI;
+		if (IS_PF(bp)) {
+			/* some multicasts */
+			if (bnx2x_set_mc_list(bp) < 0)
+				rx_mode = BNX2X_RX_MODE_ALLMULTI;
 
-		if (bnx2x_set_uc_list(bp) < 0)
-			rx_mode = BNX2X_RX_MODE_PROMISC;
+			if (bnx2x_set_uc_list(bp) < 0)
+				rx_mode = BNX2X_RX_MODE_PROMISC;
+		} else {
+			/* configuring mcast to a vf involves sleeping (when we
+			 * wait for the pf's response). Since this function is
+			 * called from non sleepable context we must schedule
+			 * a work item for this purpose
+			 */
+			smp_mb__before_clear_bit();
+			set_bit(BNX2X_SP_RTNL_VFPF_MCAST,
+				&bp->sp_rtnl_state);
+			smp_mb__after_clear_bit();
+			schedule_delayed_work(&bp->sp_rtnl_task, 0);
+		}
 	}
 
 	bp->rx_mode = rx_mode;
@@ -11498,7 +11524,20 @@ void bnx2x_set_rx_mode(struct net_device *dev)
 		return;
 	}
 
-	bnx2x_set_storm_rx_mode(bp);
+	if (IS_PF(bp)) {
+		bnx2x_set_storm_rx_mode(bp);
+	} else {
+		/* configuring rx mode to storms in a vf involves sleeping (when
+		 * we wait for the pf's response). Since this function is
+		 * called from non sleepable context we must schedule
+		 * a work item for this purpose
+		 */
+		smp_mb__before_clear_bit();
+		set_bit(BNX2X_SP_RTNL_VFPF_STORM_RX_MODE,
+			&bp->sp_rtnl_state);
+		smp_mb__after_clear_bit();
+		schedule_delayed_work(&bp->sp_rtnl_task, 0);
+	}
 }
 
 /* called with rtnl_lock */
@@ -13675,4 +13714,126 @@ int bnx2x_vfpf_set_mac(struct bnx2x *bp)
 	}
 
 	return 0;
+}
+
+int bnx2x_vfpf_set_mcast(struct net_device *dev)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	struct vfpf_set_q_filters_tlv *req = &bp->vf2pf_mbox->req.set_q_filters;
+	struct pfvf_general_resp_tlv *resp = &bp->vf2pf_mbox->resp.general_resp;
+	int rc, i = 0;
+	struct netdev_hw_addr *ha;
+
+	if (bp->state != BNX2X_STATE_OPEN) {
+		DP(NETIF_MSG_IFUP, "state is %x, returning\n", bp->state);
+		return -EINVAL;
+	}
+
+	/* clear mailbox and prep first tlv */
+	bnx2x_vfpf_prep(bp, &req->first_tlv, CHANNEL_TLV_SET_Q_FILTERS,
+			sizeof(*req));
+
+	/* Get Rx mode requested */
+	DP(NETIF_MSG_IFUP, "dev->flags = %x\n", dev->flags);
+
+	netdev_for_each_mc_addr(ha, dev) {
+		DP(NETIF_MSG_IFUP, "Adding mcast MAC: %pM\n",
+		   bnx2x_mc_addr(ha));
+		memcpy(req->multicast[i], bnx2x_mc_addr(ha), ETH_ALEN);
+		i++;
+	}
+
+	/* We support four PFVF_MAX_MULTICAST_PER_VF mcast
+	 * addresses tops
+	 */
+	if (i >= PFVF_MAX_MULTICAST_PER_VF) {
+		DP(NETIF_MSG_IFUP,
+		   "VF supports not more than %d multicast MAC addresses\n",
+		   PFVF_MAX_MULTICAST_PER_VF);
+		return -EINVAL;
+	}
+
+	req->n_multicast = i;
+	req->flags |= VFPF_SET_Q_FILTERS_MULTICAST_CHANGED;
+	req->vf_qid = 0;
+
+	/* add list termination tlv */
+	bnx2x_add_tlv(bp, req, req->first_tlv.tl.length, CHANNEL_TLV_LIST_END,
+		      sizeof(struct channel_list_end_tlv));
+
+	/* output tlvs list */
+	bnx2x_dp_tlv_list(bp, req);
+
+	rc = bnx2x_send_msg2pf(bp, &resp->hdr.status, bp->vf2pf_mbox_mapping);
+	if (rc) {
+		BNX2X_ERR("Sending a message failed: %d\n", rc);
+		return rc;
+	}
+
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
+		BNX2X_ERR("Set Rx mode/multicast failed: %d\n",
+			  resp->hdr.status);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int bnx2x_vfpf_storm_rx_mode(struct bnx2x *bp)
+{
+	int mode = bp->rx_mode;
+	struct vfpf_set_q_filters_tlv *req = &bp->vf2pf_mbox->req.set_q_filters;
+	struct pfvf_general_resp_tlv *resp = &bp->vf2pf_mbox->resp.general_resp;
+	int rc;
+
+	/* clear mailbox and prep first tlv */
+	bnx2x_vfpf_prep(bp, &req->first_tlv, CHANNEL_TLV_SET_Q_FILTERS,
+			sizeof(*req));
+
+	DP(NETIF_MSG_IFUP, "Rx mode is %d\n", mode);
+
+	switch (mode) {
+	case BNX2X_RX_MODE_NONE: /* no Rx */
+		req->rx_mask = VFPF_RX_MASK_ACCEPT_NONE;
+		break;
+	case BNX2X_RX_MODE_NORMAL:
+		req->rx_mask = VFPF_RX_MASK_ACCEPT_MATCHED_MULTICAST;
+		req->rx_mask |= VFPF_RX_MASK_ACCEPT_MATCHED_UNICAST;
+		req->rx_mask |= VFPF_RX_MASK_ACCEPT_BROADCAST;
+		break;
+	case BNX2X_RX_MODE_ALLMULTI:
+		req->rx_mask = VFPF_RX_MASK_ACCEPT_ALL_MULTICAST;
+		req->rx_mask |= VFPF_RX_MASK_ACCEPT_MATCHED_UNICAST;
+		req->rx_mask |= VFPF_RX_MASK_ACCEPT_BROADCAST;
+		break;
+	case BNX2X_RX_MODE_PROMISC:
+		req->rx_mask = VFPF_RX_MASK_ACCEPT_ALL_UNICAST;
+		req->rx_mask |= VFPF_RX_MASK_ACCEPT_ALL_MULTICAST;
+		req->rx_mask |= VFPF_RX_MASK_ACCEPT_BROADCAST;
+		break;
+	default:
+		BNX2X_ERR("BAD rx mode (%d)\n", mode);
+		return -EINVAL;
+	}
+
+	req->flags |= VFPF_SET_Q_FILTERS_RX_MASK_CHANGED;
+	req->vf_qid = 0;
+
+	/* add list termination tlv */
+	bnx2x_add_tlv(bp, req, req->first_tlv.tl.length, CHANNEL_TLV_LIST_END,
+		      sizeof(struct channel_list_end_tlv));
+
+	/* output tlvs list */
+	bnx2x_dp_tlv_list(bp, req);
+
+	rc = bnx2x_send_msg2pf(bp, &resp->hdr.status, bp->vf2pf_mbox_mapping);
+	if (rc)
+		BNX2X_ERR("Sending a message failed: %d\n", rc);
+
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
+		BNX2X_ERR("Set Rx mode failed: %d\n", resp->hdr.status);
+		return -EINVAL;
+	}
+
+	return rc;
 }
