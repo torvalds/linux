@@ -14,6 +14,14 @@ obj-				:=
 
 # Core support for EXYNOS system
 
+FLAGS_cpu-exynos4.o += $(call as-instr,.arch_extension sec)
+CFLAGS_pm-exynos4.o += $(call as-instr,.arch_extension sec)
+CFLAGS_tmu-exynos.o += $(call as-instr,.arch_extension sec)
+CFLAGS_platsmp.o += $(call as-instr,.arch_extension sec)
+plus_sec := $(call as-instr,.arch_extension sec,+sec)
+AFLAGS_sleep-exynos4.o	:=-Wa,-march=armv7-a$(plus_sec)
+AFLAGS_idle-exynos4.o	:=-Wa,-march=armv7-a$(plus_sec)
+
 obj-y				+= init.o irq-combiner.o dma.o irq-eint.o ppmu.o
 obj-$(CONFIG_ARM_TRUSTZONE)	+= irq-sgi.o
 obj-$(CONFIG_ARCH_EXYNOS4)	+= cpu-exynos4.o clock-exynos4.o pmu-exynos4.o ppc.o

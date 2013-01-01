@@ -51,6 +51,7 @@ static inline u32 exynos_smc(u32 cmd, u32 arg1, u32 arg2, u32 arg3)
 	register u32 reg3 __asm__("r3") = arg3;
 
 	__asm__ volatile (
+		".arch_extension sec\n"
 		"smc	0\n"
 		: "+r"(reg0), "+r"(reg1), "+r"(reg2), "+r"(reg3)
 	);
@@ -66,6 +67,7 @@ static inline u32 exynos_smc_readsfr(u32 addr, u32 *val)
 	register u32 reg3 __asm__("r3") = 0;
 
 	__asm__ volatile (
+		".arch_extension sec\n"
 		"smc	0\n"
 		: "+r"(reg0), "+r"(reg1), "+r"(reg2), "+r"(reg3)
 	);
