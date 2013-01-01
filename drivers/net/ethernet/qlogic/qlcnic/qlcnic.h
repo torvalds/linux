@@ -33,6 +33,8 @@
 #include <linux/if_vlan.h>
 
 #include "qlcnic_hdr.h"
+#include "qlcnic_hw.h"
+#include "qlcnic_83xx_hw.h"
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 0
@@ -96,7 +98,6 @@
 #define TX_STOP_THRESH		((MAX_SKB_FRAGS >> 2) + MAX_TSO_HEADER_DESC \
 							+ MGMT_CMD_DESC_RESV)
 #define QLCNIC_MAX_TX_TIMEOUTS	2
-
 /*
  * Following are the states of the Phantom. Phantom will set them and
  * Host will read to check if the fields are correct.
@@ -399,10 +400,16 @@ struct qlcnic_hardware_context {
 	u32 temp;
 	u32 int_vec_bit;
 	u32 fw_hal_version;
+	u32 port_config;
 	struct qlcnic_hardware_ops *hw_ops;
 	struct qlcnic_nic_intr_coalesce coal;
 	struct qlcnic_fw_dump fw_dump;
+	struct qlcnic_intrpt_config *intr_tbl;
 	u32 *reg_tbl;
+	u32 *ext_reg_tbl;
+	u32 mbox_aen[QLC_83XX_MBX_AEN_CNT];
+	u32 mbox_reg[4];
+	spinlock_t mbx_lock;
 };
 
 struct qlcnic_adapter_stats {
@@ -423,6 +430,7 @@ struct qlcnic_adapter_stats {
 	u64  null_rxbuf;
 	u64  rx_dma_map_error;
 	u64  tx_dma_map_error;
+	u64  spurious_intr;
 };
 
 /*
@@ -461,6 +469,8 @@ struct qlcnic_host_sds_ring {
 } ____cacheline_internodealigned_in_smp;
 
 struct qlcnic_host_tx_ring {
+	void __iomem *crb_intr_mask;
+	char name[IFNAMSIZ+4];
 	u16 ctx_id;
 	u32 producer;
 	u32 sw_consumer;
@@ -761,7 +771,7 @@ struct qlcnic_mac_list_s {
  */
 
 #define QLCNIC_C2H_OPCODE_CONFIG_LOOPBACK		0x8f
-#define QLCNIC_C2H_OPCODE_GET_LINKEVENT_RESPONSE	141
+#define QLCNIC_C2H_OPCODE_GET_LINKEVENT_RESPONSE	0x8D
 
 #define VPORT_MISS_MODE_DROP		0 /* drop all unmatched */
 #define VPORT_MISS_MODE_ACCEPT_ALL	1 /* accept all packets */
@@ -854,7 +864,7 @@ struct qlcnic_ipaddr {
 
 #define QLCNIC_MSI_ENABLED		0x02
 #define QLCNIC_MSIX_ENABLED		0x04
-#define QLCNIC_LRO_ENABLED		0x08
+#define QLCNIC_LRO_ENABLED		0x01
 #define QLCNIC_LRO_DISABLED		0x00
 #define QLCNIC_BRIDGE_ENABLED       	0X10
 #define QLCNIC_DIAG_ENABLED		0x20
@@ -894,6 +904,7 @@ struct qlcnic_ipaddr {
 #define QLCNIC_FILTER_AGE	80
 #define QLCNIC_READD_AGE	20
 #define QLCNIC_LB_MAX_FILTERS	64
+#define QLCNIC_LB_BUCKET_SIZE	32
 
 /* QLCNIC Driver Error Code */
 #define QLCNIC_FW_NOT_RESPOND		51
@@ -911,7 +922,8 @@ struct qlcnic_filter {
 struct qlcnic_filter_hash {
 	struct hlist_head *fhead;
 	u8 fnum;
-	u8 fmax;
+	u16 fmax;
+	u16 fbucket_size;
 };
 
 struct qlcnic_adapter {
@@ -933,6 +945,7 @@ struct qlcnic_adapter {
 
 	u8 max_rds_rings;
 	u8 max_sds_rings;
+	u8 rx_csum;
 	u8 portnum;
 
 	u8 fw_wait_cnt;
@@ -968,7 +981,9 @@ struct qlcnic_adapter {
 	void __iomem	*isr_int_vec;
 
 	struct msix_entry *msix_entries;
+	struct workqueue_struct *qlcnic_wq;
 	struct delayed_work fw_work;
+	struct delayed_work idc_aen_work;
 
 	struct qlcnic_filter_hash fhash;
 
@@ -994,7 +1009,24 @@ struct qlcnic_info_le {
 	__le16	max_rx_ques;
 	__le16	min_tx_bw;
 	__le16	max_tx_bw;
-	u8	reserved2[104];
+	__le32  op_type;
+	__le16  max_bw_reg_offset;
+	__le16  max_linkspeed_reg_offset;
+	__le32  capability1;
+	__le32  capability2;
+	__le32  capability3;
+	__le16  max_tx_mac_filters;
+	__le16  max_rx_mcast_mac_filters;
+	__le16  max_rx_ucast_mac_filters;
+	__le16  max_rx_ip_addr;
+	__le16  max_rx_lro_flow;
+	__le16  max_rx_status_rings;
+	__le16  max_rx_buf_rings;
+	__le16  max_tx_vlan_keys;
+	u8      total_pf;
+	u8      total_rss_engines;
+	__le16  max_vports;
+	u8      reserved2[64];
 } __packed;
 
 struct qlcnic_info {
@@ -1010,6 +1042,23 @@ struct qlcnic_info {
 	u16	max_rx_ques;
 	u16	min_tx_bw;
 	u16	max_tx_bw;
+	u32	op_type;
+	u16	max_bw_reg_offset;
+	u16	max_linkspeed_reg_offset;
+	u32	capability1;
+	u32	capability2;
+	u32	capability3;
+	u16	max_tx_mac_filters;
+	u16	max_rx_mcast_mac_filters;
+	u16	max_rx_ucast_mac_filters;
+	u16	max_rx_ip_addr;
+	u16	max_rx_lro_flow;
+	u16	max_rx_status_rings;
+	u16	max_rx_buf_rings;
+	u16	max_tx_vlan_keys;
+	u8      total_pf;
+	u8      total_rss_engines;
+	u16	max_vports;
 };
 
 struct qlcnic_pci_info_le {
@@ -1023,7 +1072,9 @@ struct qlcnic_pci_info_le {
 	__le16	reserved1[2];
 
 	u8	mac[ETH_ALEN];
-	u8	reserved2[106];
+	__le16  func_count;
+	u8      reserved2[104];
+
 } __packed;
 
 struct qlcnic_pci_info {
@@ -1034,6 +1085,7 @@ struct qlcnic_pci_info {
 	u16	tx_min_bw;
 	u16	tx_max_bw;
 	u8	mac[ETH_ALEN];
+	u16  func_count;
 };
 
 struct qlcnic_npar_info {
@@ -1375,6 +1427,7 @@ netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
 int qlcnic_set_max_rss(struct qlcnic_adapter *adapter, u8 data);
 int qlcnic_validate_max_rss(struct net_device *netdev, u8, u8);
 void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter);
+int qlcnic_enable_msix(struct qlcnic_adapter *, u32);
 
 /*  eSwitch management functions */
 int qlcnic_config_switch_port(struct qlcnic_adapter *,
@@ -1394,6 +1447,7 @@ void qlcnic_napi_del(struct qlcnic_adapter *);
 
 int qlcnic_alloc_sds_rings(struct qlcnic_recv_context *, int);
 void qlcnic_free_sds_rings(struct qlcnic_recv_context *);
+void qlcnic_advert_link_change(struct qlcnic_adapter *, int);
 void qlcnic_free_tx_rings(struct qlcnic_adapter *);
 int qlcnic_alloc_tx_rings(struct qlcnic_adapter *, struct net_device *);
 
@@ -1502,7 +1556,7 @@ static inline void qlcnic_write_crb(struct qlcnic_adapter *adapter, char *buf,
 	adapter->ahw->hw_ops->write_crb(adapter, buf, offset, size);
 }
 
-static inline u32 qlcnic_hw_read_wx_2M(struct qlcnic_adapter *adapter,
+static inline int qlcnic_hw_read_wx_2M(struct qlcnic_adapter *adapter,
 				       ulong off)
 {
 	return adapter->ahw->hw_ops->read_reg(adapter, off);
@@ -1723,11 +1777,19 @@ extern const struct ethtool_ops qlcnic_ethtool_failed_ops;
 			__func__, ##_args);		\
 	} while (0)
 
+#define PCI_DEVICE_ID_QLOGIC_QLE834X    0x8030
 #define PCI_DEVICE_ID_QLOGIC_QLE824X	0x8020
 static inline bool qlcnic_82xx_check(struct qlcnic_adapter *adapter)
 {
 	unsigned short device = adapter->pdev->device;
 	return (device == PCI_DEVICE_ID_QLOGIC_QLE824X) ? true : false;
 }
+
+static inline bool qlcnic_83xx_check(struct qlcnic_adapter *adapter)
+{
+	unsigned short device = adapter->pdev->device;
+	return (device == PCI_DEVICE_ID_QLOGIC_QLE834X) ? true : false;
+}
+
 
 #endif				/* __QLCNIC_H_ */

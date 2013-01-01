@@ -347,7 +347,7 @@ static struct qlcnic_hardware_ops qlcnic_hw_ops = {
 	.get_board_info			= qlcnic_82xx_get_board_info,
 };
 
-static int qlcnic_enable_msix(struct qlcnic_adapter *adapter, u32 num_msix)
+int qlcnic_enable_msix(struct qlcnic_adapter *adapter, u32 num_msix)
 {
 	struct pci_dev *pdev = adapter->pdev;
 	int err = -1;

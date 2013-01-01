@@ -344,21 +344,26 @@ qlcnic_pcie_sem_unlock(struct qlcnic_adapter *adapter, int sem)
 	QLCRD32(adapter, QLCNIC_PCIE_REG(PCIE_SEM_UNLOCK(sem)));
 }
 
-static int qlcnic_ind_rd(struct qlcnic_adapter *adapter, u32 addr)
+int qlcnic_ind_rd(struct qlcnic_adapter *adapter, u32 addr)
 {
 	u32 data;
 
 	if (qlcnic_82xx_check(adapter))
 		qlcnic_read_window_reg(addr, adapter->ahw->pci_base0, &data);
-	else
-		return -EIO;
+	else {
+		data = qlcnic_83xx_rd_reg_indirect(adapter, addr);
+		if (data == -EIO)
+			return -EIO;
+	}
 	return data;
 }
 
-static void qlcnic_ind_wr(struct qlcnic_adapter *adapter, u32 addr, u32 data)
+void qlcnic_ind_wr(struct qlcnic_adapter *adapter, u32 addr, u32 data)
 {
 	if (qlcnic_82xx_check(adapter))
 		qlcnic_write_window_reg(addr, adapter->ahw->pci_base0, data);
+	else
+		qlcnic_83xx_wrt_reg_indirect(adapter, addr, data);
 }
 
 static int
@@ -553,19 +558,20 @@ void qlcnic_prune_lb_filters(struct qlcnic_adapter *adapter)
 	struct qlcnic_filter *tmp_fil;
 	struct hlist_node *tmp_hnode, *n;
 	struct hlist_head *head;
-	int i;
+	int i, time;
+	u8 cmd;
 
-	for (i = 0; i < adapter->fhash.fmax; i++) {
+	for (i = 0; i < adapter->fhash.fbucket_size; i++) {
 		head = &(adapter->fhash.fhead[i]);
-
-		hlist_for_each_entry_safe(tmp_fil, tmp_hnode, n, head, fnode)
-		{
-			if (jiffies >
-				(QLCNIC_FILTER_AGE * HZ + tmp_fil->ftime)) {
+		hlist_for_each_entry_safe(tmp_fil, tmp_hnode, n, head, fnode) {
+			cmd =  tmp_fil->vlan_id ? QLCNIC_MAC_VLAN_DEL :
+						  QLCNIC_MAC_DEL;
+			time = tmp_fil->ftime;
+			if (jiffies > (QLCNIC_FILTER_AGE * HZ + time)) {
 				qlcnic_sre_macaddr_change(adapter,
-					tmp_fil->faddr, tmp_fil->vlan_id,
-					tmp_fil->vlan_id ? QLCNIC_MAC_VLAN_DEL :
-					QLCNIC_MAC_DEL);
+							  tmp_fil->faddr,
+							  tmp_fil->vlan_id,
+							  cmd);
 				spin_lock_bh(&adapter->mac_learn_lock);
 				adapter->fhash.fnum--;
 				hlist_del(&tmp_fil->fnode);
@@ -582,14 +588,17 @@ void qlcnic_delete_lb_filters(struct qlcnic_adapter *adapter)
 	struct hlist_node *tmp_hnode, *n;
 	struct hlist_head *head;
 	int i;
+	u8 cmd;
 
-	for (i = 0; i < adapter->fhash.fmax; i++) {
+	for (i = 0; i < adapter->fhash.fbucket_size; i++) {
 		head = &(adapter->fhash.fhead[i]);
-
 		hlist_for_each_entry_safe(tmp_fil, tmp_hnode, n, head, fnode) {
-			qlcnic_sre_macaddr_change(adapter, tmp_fil->faddr,
-				tmp_fil->vlan_id, tmp_fil->vlan_id ?
-				QLCNIC_MAC_VLAN_DEL :  QLCNIC_MAC_DEL);
+			cmd =  tmp_fil->vlan_id ? QLCNIC_MAC_VLAN_DEL :
+						  QLCNIC_MAC_DEL;
+			qlcnic_sre_macaddr_change(adapter,
+						  tmp_fil->faddr,
+						  tmp_fil->vlan_id,
+						  cmd);
 			spin_lock_bh(&adapter->mac_learn_lock);
 			adapter->fhash.fnum--;
 			hlist_del(&tmp_fil->fnode);

@@ -36,6 +36,14 @@ enum qlcnic_regs {
 #define QLC_SHARED_REG_WR32(a, addr, value)		\
 	writel(value, ((a)->ahw->pci_base0) + ((a)->ahw->reg_tbl[addr]))
 
+/* Read from a direct address offset from BAR0, additional registers */
+#define QLCRDX(ahw, addr)	\
+	readl(((ahw)->pci_base0) + ((ahw)->ext_reg_tbl[addr]))
+
+/* Write to a direct address offset from BAR0, additional registers */
+#define QLCWRX(ahw, addr, value)	\
+	writel(value, (((ahw)->pci_base0) + ((ahw)->ext_reg_tbl[addr])))
+
 #define QLCNIC_CMD_CONFIGURE_IP_ADDR		0x1
 #define QLCNIC_CMD_CONFIG_INTRPT		0x2
 #define QLCNIC_CMD_CREATE_RX_CTX		0x7
@@ -85,6 +93,7 @@ enum qlcnic_regs {
 #define QLCNIC_CMD_GET_LINK_STATUS		0x68
 #define QLCNIC_CMD_SET_LED_CONFIG		0x69
 #define QLCNIC_CMD_GET_LED_CONFIG		0x6A
+#define QLCNIC_CMD_ADD_RCV_RINGS		0x0B
 
 #define QLCNIC_INTRPT_INTX			1
 #define QLCNIC_INTRPT_MSIX			3
@@ -109,6 +118,13 @@ struct qlcnic_mailbox_metadata {
 	u32 in_args;
 	u32 out_args;
 };
+
+/* Mailbox ownership */
+#define QLCNIC_GET_OWNER(val)	((val) & (BIT_0 | BIT_1))
+
+#define QLCNIC_SET_OWNER        1
+#define QLCNIC_CLR_OWNER        0
+#define QLCNIC_MBX_TIMEOUT      10000
 
 #define QLCNIC_MBX_RSP_OK	1
 #define QLCNIC_MBX_PORT_RSP_OK	0x1a
@@ -166,4 +182,5 @@ int qlcnic_82xx_api_lock(struct qlcnic_adapter *);
 void qlcnic_82xx_api_unlock(struct qlcnic_adapter *);
 void qlcnic_82xx_napi_enable(struct qlcnic_adapter *);
 void qlcnic_82xx_napi_disable(struct qlcnic_adapter *);
+void qlcnic_82xx_napi_del(struct qlcnic_adapter *);
 #endif				/* __QLCNIC_HW_H_ */
