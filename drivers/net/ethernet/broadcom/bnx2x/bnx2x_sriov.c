@@ -518,6 +518,16 @@ static void bnx2x_vf_set_bars(struct bnx2x *bp, struct bnx2x_virtf *vf)
 	}
 }
 
+void bnx2x_iov_remove_one(struct bnx2x *bp)
+{
+	/* if SRIOV is not enabled there's nothing to do */
+	if (!IS_SRIOV(bp))
+		return;
+
+	/* free vf database */
+	__bnx2x_iov_free_vfdb(bp);
+}
+
 void bnx2x_iov_free_mem(struct bnx2x *bp)
 {
 	int i;
@@ -692,12 +702,241 @@ int bnx2x_iov_init_ilt(struct bnx2x *bp, u16 line)
 	return line + i;
 }
 
-void bnx2x_iov_remove_one(struct bnx2x *bp)
+static u8 bnx2x_iov_is_vf_cid(struct bnx2x *bp, u16 cid)
 {
-	/* if SRIOV is not enabled there's nothing to do */
+	return ((cid >= BNX2X_FIRST_VF_CID) &&
+		((cid - BNX2X_FIRST_VF_CID) < BNX2X_VF_CIDS));
+}
+
+static
+void bnx2x_vf_handle_classification_eqe(struct bnx2x *bp,
+					struct bnx2x_vf_queue *vfq,
+					union event_ring_elem *elem)
+{
+	unsigned long ramrod_flags = 0;
+	int rc = 0;
+
+	/* Always push next commands out, don't wait here */
+	set_bit(RAMROD_CONT, &ramrod_flags);
+
+	switch (elem->message.data.eth_event.echo >> BNX2X_SWCID_SHIFT) {
+	case BNX2X_FILTER_MAC_PENDING:
+		rc = vfq->mac_obj.complete(bp, &vfq->mac_obj, elem,
+					   &ramrod_flags);
+		break;
+	case BNX2X_FILTER_VLAN_PENDING:
+		rc = vfq->vlan_obj.complete(bp, &vfq->vlan_obj, elem,
+					    &ramrod_flags);
+		break;
+	default:
+		BNX2X_ERR("Unsupported classification command: %d\n",
+			  elem->message.data.eth_event.echo);
+		return;
+	}
+	if (rc < 0)
+		BNX2X_ERR("Failed to schedule new commands: %d\n", rc);
+	else if (rc > 0)
+		DP(BNX2X_MSG_IOV, "Scheduled next pending commands...\n");
+}
+
+static
+void bnx2x_vf_handle_mcast_eqe(struct bnx2x *bp,
+			       struct bnx2x_virtf *vf)
+{
+	struct bnx2x_mcast_ramrod_params rparam = {NULL};
+	int rc;
+
+	rparam.mcast_obj = &vf->mcast_obj;
+	vf->mcast_obj.raw.clear_pending(&vf->mcast_obj.raw);
+
+	/* If there are pending mcast commands - send them */
+	if (vf->mcast_obj.check_pending(&vf->mcast_obj)) {
+		rc = bnx2x_config_mcast(bp, &rparam, BNX2X_MCAST_CMD_CONT);
+		if (rc < 0)
+			BNX2X_ERR("Failed to send pending mcast commands: %d\n",
+				  rc);
+	}
+}
+
+static
+void bnx2x_vf_handle_filters_eqe(struct bnx2x *bp,
+				 struct bnx2x_virtf *vf)
+{
+	smp_mb__before_clear_bit();
+	clear_bit(BNX2X_FILTER_RX_MODE_PENDING, &vf->filter_state);
+	smp_mb__after_clear_bit();
+}
+
+int bnx2x_iov_eq_sp_event(struct bnx2x *bp, union event_ring_elem *elem)
+{
+	struct bnx2x_virtf *vf;
+	int qidx = 0, abs_vfid;
+	u8 opcode;
+	u16 cid = 0xffff;
+
+	if (!IS_SRIOV(bp))
+		return 1;
+
+	/* first get the cid - the only events we handle here are cfc-delete
+	 * and set-mac completion
+	 */
+	opcode = elem->message.opcode;
+
+	switch (opcode) {
+	case EVENT_RING_OPCODE_CFC_DEL:
+		cid = SW_CID((__force __le32)
+			     elem->message.data.cfc_del_event.cid);
+		DP(BNX2X_MSG_IOV, "checking cfc-del comp cid=%d\n", cid);
+		break;
+	case EVENT_RING_OPCODE_CLASSIFICATION_RULES:
+	case EVENT_RING_OPCODE_MULTICAST_RULES:
+	case EVENT_RING_OPCODE_FILTERS_RULES:
+		cid = (elem->message.data.eth_event.echo &
+		       BNX2X_SWCID_MASK);
+		DP(BNX2X_MSG_IOV, "checking filtering comp cid=%d\n", cid);
+		break;
+	case EVENT_RING_OPCODE_VF_FLR:
+		abs_vfid = elem->message.data.vf_flr_event.vf_id;
+		DP(BNX2X_MSG_IOV, "Got VF FLR notification abs_vfid=%d\n",
+		   abs_vfid);
+		goto get_vf;
+	case EVENT_RING_OPCODE_MALICIOUS_VF:
+		abs_vfid = elem->message.data.malicious_vf_event.vf_id;
+		DP(BNX2X_MSG_IOV, "Got VF MALICIOUS notification abs_vfid=%d\n",
+		   abs_vfid);
+		goto get_vf;
+	default:
+		return 1;
+	}
+
+	/* check if the cid is the VF range */
+	if (!bnx2x_iov_is_vf_cid(bp, cid)) {
+		DP(BNX2X_MSG_IOV, "cid is outside vf range: %d\n", cid);
+		return 1;
+	}
+
+	/* extract vf and rxq index from vf_cid - relies on the following:
+	 * 1. vfid on cid reflects the true abs_vfid
+	 * 2. the max number of VFs (per path) is 64
+	 */
+	qidx = cid & ((1 << BNX2X_VF_CID_WND)-1);
+	abs_vfid = (cid >> BNX2X_VF_CID_WND) & (BNX2X_MAX_NUM_OF_VFS-1);
+get_vf:
+	vf = bnx2x_vf_by_abs_fid(bp, abs_vfid);
+
+	if (!vf) {
+		BNX2X_ERR("EQ completion for unknown VF, cid %d, abs_vfid %d\n",
+			  cid, abs_vfid);
+		return 0;
+	}
+
+	switch (opcode) {
+	case EVENT_RING_OPCODE_CFC_DEL:
+		DP(BNX2X_MSG_IOV, "got VF [%d:%d] cfc delete ramrod\n",
+		   vf->abs_vfid, qidx);
+		vfq_get(vf, qidx)->sp_obj.complete_cmd(bp,
+						       &vfq_get(vf,
+								qidx)->sp_obj,
+						       BNX2X_Q_CMD_CFC_DEL);
+		break;
+	case EVENT_RING_OPCODE_CLASSIFICATION_RULES:
+		DP(BNX2X_MSG_IOV, "got VF [%d:%d] set mac/vlan ramrod\n",
+		   vf->abs_vfid, qidx);
+		bnx2x_vf_handle_classification_eqe(bp, vfq_get(vf, qidx), elem);
+		break;
+	case EVENT_RING_OPCODE_MULTICAST_RULES:
+		DP(BNX2X_MSG_IOV, "got VF [%d:%d] set mcast ramrod\n",
+		   vf->abs_vfid, qidx);
+		bnx2x_vf_handle_mcast_eqe(bp, vf);
+		break;
+	case EVENT_RING_OPCODE_FILTERS_RULES:
+		DP(BNX2X_MSG_IOV, "got VF [%d:%d] set rx-mode ramrod\n",
+		   vf->abs_vfid, qidx);
+		bnx2x_vf_handle_filters_eqe(bp, vf);
+		break;
+	case EVENT_RING_OPCODE_VF_FLR:
+		DP(BNX2X_MSG_IOV, "got VF [%d] FLR notification\n",
+		   vf->abs_vfid);
+		/* Do nothing for now */
+		break;
+	case EVENT_RING_OPCODE_MALICIOUS_VF:
+		DP(BNX2X_MSG_IOV, "got VF [%d] MALICIOUS notification\n",
+		   vf->abs_vfid);
+		/* Do nothing for now */
+		break;
+	}
+	/* SRIOV: reschedule any 'in_progress' operations */
+	bnx2x_iov_sp_event(bp, cid, false);
+
+	return 0;
+}
+
+static struct bnx2x_virtf *bnx2x_vf_by_cid(struct bnx2x *bp, int vf_cid)
+{
+	/* extract the vf from vf_cid - relies on the following:
+	 * 1. vfid on cid reflects the true abs_vfid
+	 * 2. the max number of VFs (per path) is 64
+	 */
+	int abs_vfid = (vf_cid >> BNX2X_VF_CID_WND) & (BNX2X_MAX_NUM_OF_VFS-1);
+	return bnx2x_vf_by_abs_fid(bp, abs_vfid);
+}
+
+void bnx2x_iov_set_queue_sp_obj(struct bnx2x *bp, int vf_cid,
+				struct bnx2x_queue_sp_obj **q_obj)
+{
+	struct bnx2x_virtf *vf;
+
 	if (!IS_SRIOV(bp))
 		return;
 
-	/* free vf database */
-	__bnx2x_iov_free_vfdb(bp);
+	vf = bnx2x_vf_by_cid(bp, vf_cid);
+
+	if (vf) {
+		/* extract queue index from vf_cid - relies on the following:
+		 * 1. vfid on cid reflects the true abs_vfid
+		 * 2. the max number of VFs (per path) is 64
+		 */
+		int q_index = vf_cid & ((1 << BNX2X_VF_CID_WND)-1);
+		*q_obj = &bnx2x_vfq(vf, q_index, sp_obj);
+	} else {
+		BNX2X_ERR("No vf matching cid %d\n", vf_cid);
+	}
+}
+
+void bnx2x_iov_sp_event(struct bnx2x *bp, int vf_cid, bool queue_work)
+{
+	struct bnx2x_virtf *vf;
+
+	/* check if the cid is the VF range */
+	if (!IS_SRIOV(bp) || !bnx2x_iov_is_vf_cid(bp, vf_cid))
+		return;
+
+	vf = bnx2x_vf_by_cid(bp, vf_cid);
+	if (vf) {
+		/* set in_progress flag */
+		atomic_set(&vf->op_in_progress, 1);
+		if (queue_work)
+			queue_delayed_work(bnx2x_wq, &bp->sp_task, 0);
+	}
+}
+
+void bnx2x_iov_sp_task(struct bnx2x *bp)
+{
+	int i;
+
+	if (!IS_SRIOV(bp))
+		return;
+	/* Iterate over all VFs and invoke state transition for VFs with
+	 * 'in-progress' slow-path operations
+	 */
+	DP(BNX2X_MSG_IOV, "searching for pending vf operations\n");
+	for_each_vf(bp, i) {
+		struct bnx2x_virtf *vf = BP_VF(bp, i);
+
+		if (!list_empty(&vf->op_list_head) &&
+		    atomic_read(&vf->op_in_progress)) {
+			DP(BNX2X_MSG_IOV, "running pending op for vf %d\n", i);
+			bnx2x_vfop_cur(bp, vf)->transition(bp, vf);
+		}
+	}
 }

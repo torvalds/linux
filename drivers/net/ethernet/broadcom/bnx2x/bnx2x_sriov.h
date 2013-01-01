@@ -83,6 +83,84 @@ union bnx2x_vfop_params {
 
 /* forward */
 struct bnx2x_virtf;
+
+/* VFOP definitions */
+typedef void (*vfop_handler_t)(struct bnx2x *bp, struct bnx2x_virtf *vf);
+
+/* VFOP queue filters command additional arguments */
+struct bnx2x_vfop_filter {
+	struct list_head link;
+	int type;
+#define BNX2X_VFOP_FILTER_MAC	1
+#define BNX2X_VFOP_FILTER_VLAN	2
+
+	bool add;
+	u8 *mac;
+	u16 vid;
+};
+
+struct bnx2x_vfop_filters {
+	int add_cnt;
+	struct list_head head;
+	struct bnx2x_vfop_filter filters[];
+};
+
+/* transient list allocated, built and saved until its
+ * passed to the SP-VERBs layer.
+ */
+struct bnx2x_vfop_args_mcast {
+	int mc_num;
+	struct bnx2x_mcast_list_elem *mc;
+};
+
+struct bnx2x_vfop_args_qctor {
+	int	qid;
+	u16	sb_idx;
+};
+
+struct bnx2x_vfop_args_qdtor {
+	int	qid;
+	struct eth_context *cxt;
+};
+
+struct bnx2x_vfop_args_defvlan {
+	int	qid;
+	bool	enable;
+	u16	vid;
+	u8	prio;
+};
+
+struct bnx2x_vfop_args_qx {
+	int	qid;
+	bool	en_add;
+};
+
+struct bnx2x_vfop_args_filters {
+	struct bnx2x_vfop_filters *multi_filter;
+	atomic_t *credit;	/* non NULL means 'don't consume credit' */
+};
+
+union bnx2x_vfop_args {
+	struct bnx2x_vfop_args_mcast	mc_list;
+	struct bnx2x_vfop_args_qctor	qctor;
+	struct bnx2x_vfop_args_qdtor	qdtor;
+	struct bnx2x_vfop_args_defvlan	defvlan;
+	struct bnx2x_vfop_args_qx	qx;
+	struct bnx2x_vfop_args_filters	filters;
+};
+
+struct bnx2x_vfop {
+	struct list_head link;
+	int			rc;		/* return code */
+	int			state;		/* next state */
+	union bnx2x_vfop_args	args;		/* extra arguments */
+	union bnx2x_vfop_params *op_p;		/* ramrod params */
+
+	/* state machine callbacks */
+	vfop_handler_t transition;
+	vfop_handler_t done;
+};
+
 /* vf context */
 struct bnx2x_virtf {
 	u16 cfg_flags;
@@ -281,6 +359,12 @@ struct bnx2x_vfdb {
 	u32 flrd_vfs[FLRD_VFS_DWORDS];
 };
 
+/* queue access */
+static inline struct bnx2x_vf_queue *vfq_get(struct bnx2x_virtf *vf, u8 index)
+{
+	return &(vf->vfqs[index]);
+}
+
 static inline u8 vf_igu_sb(struct bnx2x_virtf *vf, u16 sb_idx)
 {
 	return vf->igu_base_id + sb_idx;
@@ -295,7 +379,22 @@ int bnx2x_iov_alloc_mem(struct bnx2x *bp);
 int bnx2x_iov_nic_init(struct bnx2x *bp);
 void bnx2x_iov_init_dq(struct bnx2x *bp);
 void bnx2x_iov_init_dmae(struct bnx2x *bp);
+void bnx2x_iov_set_queue_sp_obj(struct bnx2x *bp, int vf_cid,
+				struct bnx2x_queue_sp_obj **q_obj);
+void bnx2x_iov_sp_event(struct bnx2x *bp, int vf_cid, bool queue_work);
+int bnx2x_iov_eq_sp_event(struct bnx2x *bp, union event_ring_elem *elem);
+void bnx2x_iov_sp_task(struct bnx2x *bp);
+/* global vf mailbox routines */
+void bnx2x_vf_mbx(struct bnx2x *bp, struct vf_pf_event_data *vfpf_event);
 void bnx2x_vf_enable_mbx(struct bnx2x *bp, u8 abs_vfid);
+static inline struct bnx2x_vfop *bnx2x_vfop_cur(struct bnx2x *bp,
+						struct bnx2x_virtf *vf)
+{
+	WARN(!mutex_is_locked(&vf->op_mutex), "about to access vf op linked list but mutex was not locked!");
+	WARN_ON(list_empty(&vf->op_list_head));
+	return list_first_entry(&vf->op_list_head, struct bnx2x_vfop, link);
+}
+
 int bnx2x_vf_idx_by_abs_fid(struct bnx2x *bp, u16 abs_vfid);
 /* VF FLR helpers */
 int bnx2x_vf_flr_clnup_epilog(struct bnx2x *bp, u8 abs_vfid);
@@ -305,4 +404,7 @@ void bnx2x_add_tlv(struct bnx2x *bp, void *tlvs_list, u16 offset, u16 type,
 void bnx2x_vfpf_prep(struct bnx2x *bp, struct vfpf_first_tlv *first_tlv,
 		     u16 type, u16 length);
 void bnx2x_dp_tlv_list(struct bnx2x *bp, void *tlvs_list);
+
+bool bnx2x_tlv_supported(u16 tlvtype);
+
 #endif /* bnx2x_sriov.h */

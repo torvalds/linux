@@ -347,6 +347,65 @@ static u32 bnx2x_reg_rd_ind(struct bnx2x *bp, u32 addr)
 #define DMAE_DP_DST_PCI		"pci dst_addr [%x:%08x]"
 #define DMAE_DP_DST_NONE	"dst_addr [none]"
 
+void bnx2x_dp_dmae(struct bnx2x *bp, struct dmae_command *dmae, int msglvl)
+{
+	u32 src_type = dmae->opcode & DMAE_COMMAND_SRC;
+
+	switch (dmae->opcode & DMAE_COMMAND_DST) {
+	case DMAE_CMD_DST_PCI:
+		if (src_type == DMAE_CMD_SRC_PCI)
+			DP(msglvl, "DMAE: opcode 0x%08x\n"
+			   "src [%x:%08x], len [%d*4], dst [%x:%08x]\n"
+			   "comp_addr [%x:%08x], comp_val 0x%08x\n",
+			   dmae->opcode, dmae->src_addr_hi, dmae->src_addr_lo,
+			   dmae->len, dmae->dst_addr_hi, dmae->dst_addr_lo,
+			   dmae->comp_addr_hi, dmae->comp_addr_lo,
+			   dmae->comp_val);
+		else
+			DP(msglvl, "DMAE: opcode 0x%08x\n"
+			   "src [%08x], len [%d*4], dst [%x:%08x]\n"
+			   "comp_addr [%x:%08x], comp_val 0x%08x\n",
+			   dmae->opcode, dmae->src_addr_lo >> 2,
+			   dmae->len, dmae->dst_addr_hi, dmae->dst_addr_lo,
+			   dmae->comp_addr_hi, dmae->comp_addr_lo,
+			   dmae->comp_val);
+		break;
+	case DMAE_CMD_DST_GRC:
+		if (src_type == DMAE_CMD_SRC_PCI)
+			DP(msglvl, "DMAE: opcode 0x%08x\n"
+			   "src [%x:%08x], len [%d*4], dst_addr [%08x]\n"
+			   "comp_addr [%x:%08x], comp_val 0x%08x\n",
+			   dmae->opcode, dmae->src_addr_hi, dmae->src_addr_lo,
+			   dmae->len, dmae->dst_addr_lo >> 2,
+			   dmae->comp_addr_hi, dmae->comp_addr_lo,
+			   dmae->comp_val);
+		else
+			DP(msglvl, "DMAE: opcode 0x%08x\n"
+			   "src [%08x], len [%d*4], dst [%08x]\n"
+			   "comp_addr [%x:%08x], comp_val 0x%08x\n",
+			   dmae->opcode, dmae->src_addr_lo >> 2,
+			   dmae->len, dmae->dst_addr_lo >> 2,
+			   dmae->comp_addr_hi, dmae->comp_addr_lo,
+			   dmae->comp_val);
+		break;
+	default:
+		if (src_type == DMAE_CMD_SRC_PCI)
+			DP(msglvl, "DMAE: opcode 0x%08x\n"
+			   "src_addr [%x:%08x]  len [%d * 4]  dst_addr [none]\n"
+			   "comp_addr [%x:%08x]  comp_val 0x%08x\n",
+			   dmae->opcode, dmae->src_addr_hi, dmae->src_addr_lo,
+			   dmae->len, dmae->comp_addr_hi, dmae->comp_addr_lo,
+			   dmae->comp_val);
+		else
+			DP(msglvl, "DMAE: opcode 0x%08x\n"
+			   "src_addr [%08x]  len [%d * 4]  dst_addr [none]\n"
+			   "comp_addr [%x:%08x]  comp_val 0x%08x\n",
+			   dmae->opcode, dmae->src_addr_lo >> 2,
+			   dmae->len, dmae->comp_addr_hi, dmae->comp_addr_lo,
+			   dmae->comp_val);
+		break;
+	}
+}
 
 /* copy command into DMAE command memory and set DMAE command go */
 void bnx2x_post_dmae(struct bnx2x *bp, struct dmae_command *dmae, int idx)
@@ -397,7 +456,7 @@ u32 bnx2x_dmae_opcode(struct bnx2x *bp, u8 src_type, u8 dst_type,
 	return opcode;
 }
 
-static void bnx2x_prep_dmae_with_comp(struct bnx2x *bp,
+void bnx2x_prep_dmae_with_comp(struct bnx2x *bp,
 				      struct dmae_command *dmae,
 				      u8 src_type, u8 dst_type)
 {
@@ -413,9 +472,8 @@ static void bnx2x_prep_dmae_with_comp(struct bnx2x *bp,
 	dmae->comp_val = DMAE_COMP_VAL;
 }
 
-/* issue a dmae command over the init-channel and wailt for completion */
-static int bnx2x_issue_dmae_with_comp(struct bnx2x *bp,
-				      struct dmae_command *dmae)
+/* issue a dmae command over the init-channel and wait for completion */
+int bnx2x_issue_dmae_with_comp(struct bnx2x *bp, struct dmae_command *dmae)
 {
 	u32 *wb_comp = bnx2x_sp(bp, wb_comp);
 	int cnt = CHIP_REV_IS_SLOW(bp) ? (400000) : 4000;
@@ -1600,6 +1658,24 @@ static bool bnx2x_trylock_leader_lock(struct bnx2x *bp)
 
 static void bnx2x_cnic_cfc_comp(struct bnx2x *bp, int cid, u8 err);
 
+/* schedule the sp task and mark that interrupt occurred (runs from ISR) */
+static int bnx2x_schedule_sp_task(struct bnx2x *bp)
+{
+	/* Set the interrupt occurred bit for the sp-task to recognize it
+	 * must ack the interrupt and transition according to the IGU
+	 * state machine.
+	 */
+	atomic_set(&bp->interrupt_occurred, 1);
+
+	/* The sp_task must execute only after this bit
+	 * is set, otherwise we will get out of sync and miss all
+	 * further interrupts. Hence, the barrier.
+	 */
+	smp_wmb();
+
+	/* schedule sp_task to workqueue */
+	return queue_delayed_work(bnx2x_wq, &bp->sp_task, 0);
+}
 
 void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe)
 {
@@ -1613,6 +1689,13 @@ void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe)
 	   "fp %d  cid %d  got ramrod #%d  state is %x  type is %d\n",
 	   fp->index, cid, command, bp->state,
 	   rr_cqe->ramrod_cqe.ramrod_type);
+
+	/* If cid is within VF range, replace the slowpath object with the
+	 * one corresponding to this VF
+	 */
+	if (cid >= BNX2X_FIRST_VF_CID  &&
+	    cid < BNX2X_FIRST_VF_CID + BNX2X_VF_CIDS)
+		bnx2x_iov_set_queue_sp_obj(bp, cid, &q_obj);
 
 	switch (command) {
 	case (RAMROD_CMD_ID_ETH_CLIENT_UPDATE):
@@ -1665,6 +1748,8 @@ void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe)
 #else
 		return;
 #endif
+	/* SRIOV: reschedule any 'in_progress' operations */
+	bnx2x_iov_sp_event(bp, cid, true);
 
 	smp_mb__before_atomic_inc();
 	atomic_inc(&bp->cq_spq_left);
@@ -1690,8 +1775,8 @@ void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe)
 		clear_bit(BNX2X_AFEX_FCOE_Q_UPDATE_PENDING, &bp->sp_state);
 		smp_mb__after_clear_bit();
 
-		/* schedule workqueue to send ack to MCP */
-		queue_delayed_work(bnx2x_wq, &bp->sp_task, 0);
+		/* schedule the sp task as mcp ack is required */
+		bnx2x_schedule_sp_task(bp);
 	}
 
 	return;
@@ -1751,7 +1836,11 @@ irqreturn_t bnx2x_interrupt(int irq, void *dev_instance)
 	}
 
 	if (unlikely(status & 0x1)) {
-		queue_delayed_work(bnx2x_wq, &bp->sp_task, 0);
+
+		/* schedule sp task to perform default status block work, ack
+		 * attentions and enable interrupts.
+		 */
+		bnx2x_schedule_sp_task(bp);
 
 		status &= ~0x1;
 		if (!status)
@@ -4833,7 +4922,7 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 	u8 echo;
 	u32 cid;
 	u8 opcode;
-	int spqe_cnt = 0;
+	int rc, spqe_cnt = 0;
 	struct bnx2x_queue_sp_obj *q_obj;
 	struct bnx2x_func_sp_obj *f_obj = &bp->func_obj;
 	struct bnx2x_raw_obj *rss_raw = &bp->rss_conf_obj.raw;
@@ -4864,12 +4953,23 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 
 		elem = &bp->eq_ring[EQ_DESC(sw_cons)];
 
+		rc = bnx2x_iov_eq_sp_event(bp, elem);
+		if (!rc) {
+			DP(BNX2X_MSG_IOV, "bnx2x_iov_eq_sp_event returned %d\n",
+			   rc);
+			goto next_spqe;
+		}
 		cid = SW_CID(elem->message.data.cfc_del_event.cid);
 		opcode = elem->message.opcode;
 
 
 		/* handle eq element */
 		switch (opcode) {
+		case EVENT_RING_OPCODE_VF_PF_CHANNEL:
+			DP(BNX2X_MSG_IOV, "vf pf channel element on eq\n");
+			bnx2x_vf_mbx(bp, &elem->message.data.vf_pf_event);
+			continue;
+
 		case EVENT_RING_OPCODE_STAT_QUERY:
 			DP(BNX2X_MSG_SP | BNX2X_MSG_STATS,
 			   "got statistics comp event %d\n",
@@ -5035,50 +5135,65 @@ next_spqe:
 static void bnx2x_sp_task(struct work_struct *work)
 {
 	struct bnx2x *bp = container_of(work, struct bnx2x, sp_task.work);
-	u16 status;
 
-	status = bnx2x_update_dsb_idx(bp);
-/*	if (status == 0)				     */
-/*		BNX2X_ERR("spurious slowpath interrupt!\n"); */
+	DP(BNX2X_MSG_SP, "sp task invoked\n");
 
-	DP(BNX2X_MSG_SP, "got a slowpath interrupt (status 0x%x)\n", status);
+	/* make sure the atomic interupt_occurred has been written */
+	smp_rmb();
+	if (atomic_read(&bp->interrupt_occurred)) {
 
-	/* HW attentions */
-	if (status & BNX2X_DEF_SB_ATT_IDX) {
-		bnx2x_attn_int(bp);
-		status &= ~BNX2X_DEF_SB_ATT_IDX;
-	}
+		/* what work needs to be performed? */
+		u16 status = bnx2x_update_dsb_idx(bp);
 
-	/* SP events: STAT_QUERY and others */
-	if (status & BNX2X_DEF_SB_IDX) {
-		struct bnx2x_fastpath *fp = bnx2x_fcoe_fp(bp);
+		DP(BNX2X_MSG_SP, "status %x\n", status);
+		DP(BNX2X_MSG_SP, "setting interrupt_occurred to 0\n");
+		atomic_set(&bp->interrupt_occurred, 0);
 
-		if (FCOE_INIT(bp) &&
-		    (bnx2x_has_rx_work(fp) || bnx2x_has_tx_work(fp))) {
-			/*
-			 * Prevent local bottom-halves from running as
-			 * we are going to change the local NAPI list.
-			 */
-			local_bh_disable();
-			napi_schedule(&bnx2x_fcoe(bp, napi));
-			local_bh_enable();
+		/* HW attentions */
+		if (status & BNX2X_DEF_SB_ATT_IDX) {
+			bnx2x_attn_int(bp);
+			status &= ~BNX2X_DEF_SB_ATT_IDX;
 		}
 
-		/* Handle EQ completions */
-		bnx2x_eq_int(bp);
+		/* SP events: STAT_QUERY and others */
+		if (status & BNX2X_DEF_SB_IDX) {
+			struct bnx2x_fastpath *fp = bnx2x_fcoe_fp(bp);
 
-		bnx2x_ack_sb(bp, bp->igu_dsb_id, USTORM_ID,
-			le16_to_cpu(bp->def_idx), IGU_INT_NOP, 1);
+		if (FCOE_INIT(bp) &&
+			    (bnx2x_has_rx_work(fp) || bnx2x_has_tx_work(fp))) {
+				/* Prevent local bottom-halves from running as
+				 * we are going to change the local NAPI list.
+				 */
+				local_bh_disable();
+				napi_schedule(&bnx2x_fcoe(bp, napi));
+				local_bh_enable();
+			}
 
-		status &= ~BNX2X_DEF_SB_IDX;
+			/* Handle EQ completions */
+			bnx2x_eq_int(bp);
+			bnx2x_ack_sb(bp, bp->igu_dsb_id, USTORM_ID,
+				     le16_to_cpu(bp->def_idx), IGU_INT_NOP, 1);
+
+			status &= ~BNX2X_DEF_SB_IDX;
+		}
+
+		/* if status is non zero then perhaps something went wrong */
+		if (unlikely(status))
+			DP(BNX2X_MSG_SP,
+			   "got an unknown interrupt! (status 0x%x)\n", status);
+
+		/* ack status block only if something was actually handled */
+		bnx2x_ack_sb(bp, bp->igu_dsb_id, ATTENTION_ID,
+			     le16_to_cpu(bp->def_att_idx), IGU_INT_ENABLE, 1);
+
 	}
 
-	if (unlikely(status))
-		DP(BNX2X_MSG_SP, "got an unknown interrupt! (status 0x%x)\n",
-		   status);
-
-	bnx2x_ack_sb(bp, bp->igu_dsb_id, ATTENTION_ID,
-	     le16_to_cpu(bp->def_att_idx), IGU_INT_ENABLE, 1);
+	/* must be called after the EQ processing (since eq leads to sriov
+	 * ramrod completion flows).
+	 * This flow may have been scheduled by the arrival of a ramrod
+	 * completion, or by the sriov code rescheduling itself.
+	 */
+	bnx2x_iov_sp_task(bp);
 
 	/* afex - poll to check if VIFSET_ACK should be sent to MFW */
 	if (test_and_clear_bit(BNX2X_AFEX_PENDING_VIFSET_MCP_ACK,
@@ -5111,7 +5226,10 @@ irqreturn_t bnx2x_msix_sp_int(int irq, void *dev_instance)
 		rcu_read_unlock();
 	}
 
-	queue_delayed_work(bnx2x_wq, &bp->sp_task, 0);
+	/* schedule sp task to perform default status block work, ack
+	 * attentions and enable interrupts.
+	 */
+	bnx2x_schedule_sp_task(bp);
 
 	return IRQ_HANDLED;
 }
