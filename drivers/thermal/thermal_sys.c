@@ -32,7 +32,6 @@
 #include <linux/kdev_t.h>
 #include <linux/idr.h>
 #include <linux/thermal.h>
-#include <linux/spinlock.h>
 #include <linux/reboot.h>
 #include <net/netlink.h>
 #include <net/genetlink.h>
