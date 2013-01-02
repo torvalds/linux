@@ -378,7 +378,20 @@ static void gntdev_vma_close(struct vm_area_struct *vma)
 	struct grant_map *map = vma->vm_private_data;
 
 	pr_debug("gntdev_vma_close %p\n", vma);
-	map->vma = NULL;
+	if (use_ptemod) {
+		struct file *file = vma->vm_file;
+		struct gntdev_priv *priv = file->private_data;
+		/* It is possible that an mmu notifier could be running
+		 * concurrently, so take priv->lock to ensure that the vma won't
+		 * vanishing during the unmap_grant_pages call, since we will
+		 * spin here until that completes. Such a concurrent call will
+		 * not do any unmapping, since that has been done prior to
+		 * closing the vma, but it may still iterate the unmap_ops list.
+		 */
+		spin_lock(&priv->lock);
+		map->vma = NULL;
+		spin_unlock(&priv->lock);
+	}
 	vma->vm_private_data = NULL;
 	gntdev_put_map(map);
 }
@@ -579,25 +592,31 @@ static long gntdev_ioctl_get_offset_for_vaddr(struct gntdev_priv *priv,
 	struct ioctl_gntdev_get_offset_for_vaddr op;
 	struct vm_area_struct *vma;
 	struct grant_map *map;
+	int rv = -EINVAL;
 
 	if (copy_from_user(&op, u, sizeof(op)) != 0)
 		return -EFAULT;
 	pr_debug("priv %p, offset for vaddr %lx\n", priv, (unsigned long)op.vaddr);
 
+	down_read(&current->mm->mmap_sem);
 	vma = find_vma(current->mm, op.vaddr);
 	if (!vma || vma->vm_ops != &gntdev_vmops)
-		return -EINVAL;
+		goto out_unlock;
 
 	map = vma->vm_private_data;
 	if (!map)
-		return -EINVAL;
+		goto out_unlock;
 
 	op.offset = map->index << PAGE_SHIFT;
 	op.count = map->count;
+	rv = 0;
 
-	if (copy_to_user(u, &op, sizeof(op)) != 0)
+ out_unlock:
+	up_read(&current->mm->mmap_sem);
+
+	if (rv == 0 && copy_to_user(u, &op, sizeof(op)) != 0)
 		return -EFAULT;
-	return 0;
+	return rv;
 }
 
 static long gntdev_ioctl_notify(struct gntdev_priv *priv, void __user *u)
