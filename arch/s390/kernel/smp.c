@@ -709,6 +709,7 @@ static void __cpuinit smp_start_secondary(void *cpuvoid)
 	pfault_init();
 	notify_cpu_starting(smp_processor_id());
 	set_cpu_online(smp_processor_id(), true);
+	inc_irq_stat(CPU_RST);
 	local_irq_enable();
 	/* cpu_idle will call schedule for us */
 	cpu_idle();
