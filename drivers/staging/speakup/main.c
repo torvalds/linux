@@ -251,14 +251,14 @@ DEFINE_MUTEX(spk_mutex);
 static int keyboard_notifier_call(struct notifier_block *,
 				  unsigned long code, void *param);
 
-struct notifier_block keyboard_notifier_block = {
+static struct notifier_block keyboard_notifier_block = {
 	.notifier_call = keyboard_notifier_call,
 };
 
 static int vt_notifier_call(struct notifier_block *,
 			    unsigned long code, void *param);
 
-struct notifier_block vt_notifier_block = {
+static struct notifier_block vt_notifier_block = {
 	.notifier_call = vt_notifier_call,
 };
 
