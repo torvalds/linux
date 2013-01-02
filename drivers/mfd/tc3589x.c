@@ -219,25 +219,18 @@ static void tc3589x_irq_unmap(struct irq_domain *d, unsigned int virq)
 }
 
 static struct irq_domain_ops tc3589x_irq_ops = {
-        .map    = tc3589x_irq_map,
+	.map    = tc3589x_irq_map,
 	.unmap  = tc3589x_irq_unmap,
-        .xlate  = irq_domain_xlate_twocell,
+	.xlate  = irq_domain_xlate_twocell,
 };
 
 static int tc3589x_irq_init(struct tc3589x *tc3589x, struct device_node *np)
 {
 	int base = tc3589x->irq_base;
 
-	if (base) {
-		tc3589x->domain = irq_domain_add_legacy(
-			NULL, TC3589x_NR_INTERNAL_IRQS, base,
-			0, &tc3589x_irq_ops, tc3589x);
-	}
-	else {
-		tc3589x->domain = irq_domain_add_linear(
-			np, TC3589x_NR_INTERNAL_IRQS,
-			&tc3589x_irq_ops, tc3589x);
-	}
+	tc3589x->domain = irq_domain_add_simple(
+		np, TC3589x_NR_INTERNAL_IRQS, base,
+		&tc3589x_irq_ops, tc3589x);
 
 	if (!tc3589x->domain) {
 		dev_err(tc3589x->dev, "Failed to create irqdomain\n");
