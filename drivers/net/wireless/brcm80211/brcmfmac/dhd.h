@@ -496,9 +496,6 @@ struct brcmf_pub {
 	/* Last error return */
 	int bcmerror;
 
-	/* Last error from dongle */
-	int dongle_error;
-
 	/* Suspend disable flag  flag */
 	int suspend_disable_flag;	/* "1" to disable all extra powersaving
 					 during suspend */

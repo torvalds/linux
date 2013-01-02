@@ -147,18 +147,6 @@ brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 
 	brcmf_dbg(CDC, "Enter, cmd %d len %d\n", cmd, len);
 
-	/* Respond "bcmerror" and "bcmerrorstr" with local cache */
-	if (cmd == BRCMF_C_GET_VAR && buf) {
-		if (!strcmp((char *)buf, "bcmerrorstr")) {
-			strncpy((char *)buf, "bcm_error",
-				BCME_STRLEN);
-			goto done;
-		} else if (!strcmp((char *)buf, "bcmerror")) {
-			*(int *)buf = drvr->dongle_error;
-			goto done;
-		}
-	}
-
 	memset(msg, 0, sizeof(struct brcmf_proto_cdc_dcmd));
 
 	msg->cmd = cpu_to_le32(cmd);
@@ -207,11 +195,8 @@ retry:
 	}
 
 	/* Check the ERROR flag */
-	if (flags & CDC_DCMD_ERROR) {
+	if (flags & CDC_DCMD_ERROR)
 		ret = le32_to_cpu(msg->status);
-		/* Cache error from dongle */
-		drvr->dongle_error = ret;
-	}
 
 done:
 	return ret;
@@ -258,11 +243,8 @@ int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 	}
 
 	/* Check the ERROR flag */
-	if (flags & CDC_DCMD_ERROR) {
+	if (flags & CDC_DCMD_ERROR)
 		ret = le32_to_cpu(msg->status);
-		/* Cache error from dongle */
-		drvr->dongle_error = ret;
-	}
 
 done:
 	return ret;
