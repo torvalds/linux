@@ -33,9 +33,6 @@ obj-$(CONFIG_USB_R8A66597_HCD)	+= r8a66597-hcd.o
 obj-$(CONFIG_USB_ISP1760_HCD)	+= isp1760.o
 obj-$(CONFIG_USB_HWA_HCD)	+= hwa-hc.o
 obj-$(CONFIG_USB_IMX21_HCD)	+= imx21-hcd.o
-
-obj-$(CONFIG_USB_SW_SUN4I_HCI)	+= sw_hci_sun4i.o
-obj-$(CONFIG_USB_SW_SUN5I_HCI)	+= sw_hci_sun5i.o
-
 obj-$(CONFIG_USB_FSL_MPH_DR_OF)	+= fsl-mph-dr-of.o
 obj-$(CONFIG_USB_OCTEON2_COMMON) += octeon2-common.o
+obj-$(CONFIG_USB_SUNXI_COMMON)	+= sw_hci_sunxi.o
