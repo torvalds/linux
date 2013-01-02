@@ -354,8 +354,9 @@ static void handle_critical_trips(struct thermal_zone_device *tz,
 		tz->ops->notify(tz, trip, trip_type);
 
 	if (trip_type == THERMAL_TRIP_CRITICAL) {
-		pr_emerg("Critical temperature reached(%d C),shutting down\n",
-			 tz->temperature / 1000);
+		dev_emerg(&tz->device,
+			  "critical temperature reached(%d C),shutting down\n",
+			  tz->temperature / 1000);
 		orderly_poweroff(true);
 	}
 }
@@ -386,7 +387,8 @@ static void update_temperature(struct thermal_zone_device *tz)
 
 	ret = tz->ops->get_temp(tz, &temp);
 	if (ret) {
-		pr_warn("failed to read out thermal zone %d\n", tz->id);
+		dev_warn(&tz->device, "failed to read out thermal zone %d\n",
+			 tz->id);
 		goto exit;
 	}
 
@@ -1770,7 +1772,7 @@ int thermal_generate_netlink_event(struct thermal_zone_device *tz,
 
 	result = genlmsg_multicast(skb, 0, thermal_event_mcgrp.id, GFP_ATOMIC);
 	if (result)
-		pr_info("failed to send netlink event:%d\n", result);
+		dev_err(&tz->device, "Failed to send netlink event:%d", result);
 
 	return result;
 }
