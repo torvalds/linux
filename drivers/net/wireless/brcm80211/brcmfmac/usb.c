@@ -467,7 +467,11 @@ static void brcmf_usb_rx_complete(struct urb *urb)
 			devinfo->bus_pub.bus->dstats.rx_errors++;
 		} else
 			brcmf_rx_packet(devinfo->dev, ifidx, skb);
-		brcmf_usb_rx_refill(devinfo, req);
+		/* zero lenght packets indicate usb "failure". Do not refill */
+		if (urb->actual_length)
+			brcmf_usb_rx_refill(devinfo, req);
+		else
+			brcmf_usb_enq(devinfo, &devinfo->rx_freeq, req, NULL);
 	} else {
 		brcmu_pkt_buf_free_skb(skb);
 		brcmf_usb_enq(devinfo, &devinfo->rx_freeq, req, NULL);
