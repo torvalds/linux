@@ -139,7 +139,7 @@ static void eadm_subchannel_irq(struct subchannel *sch)
 	EADM_LOG(6, "irq");
 	EADM_LOG_HEX(6, irb, sizeof(*irb));
 
-	kstat_cpu(smp_processor_id()).irqs[IOINT_ADM]++;
+	inc_irq_stat(IRQIO_ADM);
 
 	if ((scsw->stctl & (SCSW_STCTL_ALERT_STATUS | SCSW_STCTL_STATUS_PEND))
 	    && scsw->eswf == 1 && irb->esw.eadm.erw.r)

@@ -182,7 +182,7 @@ static void tiqdio_thinint_handler(void *alsi, void *data)
 	struct qdio_q *q;
 
 	last_ai_time = S390_lowcore.int_clock;
-	kstat_cpu(smp_processor_id()).irqs[IOINT_QAI]++;
+	inc_irq_stat(IRQIO_QAI);
 
 	/* protect tiq_list entries, only changed in activate or shutdown */
 	rcu_read_lock();

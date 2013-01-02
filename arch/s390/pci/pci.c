@@ -440,7 +440,7 @@ static void zpci_irq_handler(void *dont, void *need)
 	int rescan = 0, max = aisb_max;
 	struct zdev_irq_map *imap;
 
-	kstat_cpu(smp_processor_id()).irqs[IOINT_PCI]++;
+	inc_irq_stat(IRQIO_PCI);
 	sbit = start;
 
 scan:
@@ -452,7 +452,7 @@ scan:
 		/* find vector bit */
 		imap = bucket->imap[sbit];
 		for_each_set_bit_left(mbit, &imap->aibv, imap->msi_vecs) {
-			kstat_cpu(smp_processor_id()).irqs[IOINT_MSI]++;
+			inc_irq_stat(IRQIO_MSI);
 			clear_bit(63 - mbit, &imap->aibv);
 
 			spin_lock(&imap->lock);

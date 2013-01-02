@@ -433,9 +433,9 @@ static void do_ext_call_interrupt(struct ext_code ext_code,
 
 	cpu = smp_processor_id();
 	if (ext_code.code == 0x1202)
-		kstat_cpu(cpu).irqs[EXTINT_EXC]++;
+		inc_irq_stat(IRQEXT_EXC);
 	else
-		kstat_cpu(cpu).irqs[EXTINT_EMS]++;
+		inc_irq_stat(IRQEXT_EMS);
 	/*
 	 * handle bit signal external calls
 	 */

@@ -619,7 +619,7 @@ void __irq_entry do_IRQ(struct pt_regs *regs)
 		sch = (struct subchannel *)(unsigned long)tpi_info->intparm;
 		if (!sch) {
 			/* Clear pending interrupt condition. */
-			kstat_cpu(smp_processor_id()).irqs[IOINT_CIO]++;
+			inc_irq_stat(IRQIO_CIO);
 			tsch(tpi_info->schid, irb);
 			continue;
 		}
@@ -633,9 +633,9 @@ void __irq_entry do_IRQ(struct pt_regs *regs)
 			if (sch->driver && sch->driver->irq)
 				sch->driver->irq(sch);
 			else
-				kstat_cpu(smp_processor_id()).irqs[IOINT_CIO]++;
+				inc_irq_stat(IRQIO_CIO);
 		} else
-			kstat_cpu(smp_processor_id()).irqs[IOINT_CIO]++;
+			inc_irq_stat(IRQIO_CIO);
 		spin_unlock(sch->lock);
 		/*
 		 * Are more interrupts pending?
@@ -678,7 +678,7 @@ static void cio_tsch(struct subchannel *sch)
 	if (sch->driver && sch->driver->irq)
 		sch->driver->irq(sch);
 	else
-		kstat_cpu(smp_processor_id()).irqs[IOINT_CIO]++;
+		inc_irq_stat(IRQIO_CIO);
 	if (!irq_context) {
 		irq_exit();
 		_local_bh_enable();

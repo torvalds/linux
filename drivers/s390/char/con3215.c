@@ -805,7 +805,7 @@ static struct ccw_driver raw3215_ccw_driver = {
 	.freeze		= &raw3215_pm_stop,
 	.thaw		= &raw3215_pm_start,
 	.restore	= &raw3215_pm_start,
-	.int_class	= IOINT_C15,
+	.int_class	= IRQIO_C15,
 };
 
 #ifdef CONFIG_TN3215_CONSOLE

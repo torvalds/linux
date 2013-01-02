@@ -248,7 +248,7 @@ static void dasd_ext_handler(struct ext_code ext_code,
 	default:
 		return;
 	}
-	kstat_cpu(smp_processor_id()).irqs[EXTINT_DSD]++;
+	inc_irq_stat(IRQEXT_DSD);
 	if (!ip) {		/* no intparm: unsolicited interrupt */
 		DBF_EVENT(DBF_NOTICE, "%s", "caught unsolicited "
 			      "interrupt");
