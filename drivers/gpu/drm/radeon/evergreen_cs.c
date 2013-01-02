@@ -2101,6 +2101,9 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 
 			ib[idx+1] = (ib[idx+1] & 0x3) | (offset & 0xfffffffc);
 			ib[idx+2] = upper_32_bits(offset) & 0xff;
+		} else if (idx_value & 0x100) {
+			DRM_ERROR("cannot use PFP on REG wait\n");
+			return -EINVAL;
 		}
 		break;
 	case PACKET3_CP_DMA:

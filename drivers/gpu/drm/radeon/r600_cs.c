@@ -949,6 +949,11 @@ int r600_cs_common_vline_parse(struct radeon_cs_parser *p,
 		DRM_ERROR("vline WAIT_REG_MEM waiting on MEM instead of REG\n");
 		return -EINVAL;
 	}
+	/* bit 8 is me (0) or pfp (1) */
+	if (wait_reg_mem_info & 0x100) {
+		DRM_ERROR("vline WAIT_REG_MEM waiting on PFP instead of ME\n");
+		return -EINVAL;
+	}
 	/* waiting for value to be equal */
 	if ((wait_reg_mem_info & 0x7) != 0x3) {
 		DRM_ERROR("vline WAIT_REG_MEM function not equal\n");
@@ -1847,6 +1852,9 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 
 			ib[idx+1] = (ib[idx+1] & 0x3) | (offset & 0xfffffff0);
 			ib[idx+2] = upper_32_bits(offset) & 0xff;
+		} else if (idx_value & 0x100) {
+			DRM_ERROR("cannot use PFP on REG wait\n");
+			return -EINVAL;
 		}
 		break;
 	case PACKET3_CP_DMA:
