@@ -240,6 +240,7 @@ struct in6_flowlabel_req {
  *
  * IP6T_SO_GET_REVISION_MATCH	68
  * IP6T_SO_GET_REVISION_TARGET	69
+ * IP6T_SO_ORIGINAL_DST		80
  */
 
 /* RFC5014: Source address selection */

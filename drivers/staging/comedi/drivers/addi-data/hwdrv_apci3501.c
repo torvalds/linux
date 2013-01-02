@@ -46,229 +46,75 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +----------+-----------+------------------------------------------------+
 */
 
-/*
-+----------------------------------------------------------------------------+
-|                               Included files                               |
-+----------------------------------------------------------------------------+
-*/
-#include "hwdrv_apci3501.h"
+/* Card Specific information */
+#define APCI3501_ADDRESS_RANGE		255
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI3501_ReadDigitalInput                    |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Read  value  of the selected channel or port           |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     unsigned int ui_NoOfChannels    : No Of Channels To read       |
-|                     unsigned int *data              : Data Pointer to read status  |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
+#define APCI3501_DIGITAL_IP		0x50
+#define APCI3501_DIGITAL_OP		0x40
+#define APCI3501_ANALOG_OUTPUT		0x00
 
-int i_APCI3501_ReadDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+/* Analog Output related Defines */
+#define APCI3501_AO_VOLT_MODE		0
+#define APCI3501_AO_PROG		4
+#define APCI3501_AO_TRIG_SCS		8
+#define UNIPOLAR			0
+#define BIPOLAR				1
+#define MODE0				0
+#define MODE1				1
+
+/* Watchdog Related Defines */
+
+#define APCI3501_WATCHDOG		0x20
+#define APCI3501_TCW_SYNC_ENABLEDISABLE	0
+#define APCI3501_TCW_RELOAD_VALUE	4
+#define APCI3501_TCW_TIMEBASE		8
+#define APCI3501_TCW_PROG		12
+#define APCI3501_TCW_TRIG_STATUS	16
+#define APCI3501_TCW_IRQ		20
+#define APCI3501_TCW_WARN_TIMEVAL	24
+#define APCI3501_TCW_WARN_TIMEBASE	28
+#define ADDIDATA_TIMER			0
+#define ADDIDATA_WATCHDOG		2
+
+/* ANALOG OUTPUT RANGE */
+static struct comedi_lrange range_apci3501_ao = {
+	2, {
+		BIP_RANGE(10),
+		UNI_RANGE(10)
+	}
+};
+
+static int apci3501_di_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	unsigned int ui_Temp;
-	unsigned int ui_NoOfChannel;
-	ui_NoOfChannel = CR_CHAN(insn->chanspec);
-	ui_Temp = data[0];
-	*data = inl(devpriv->iobase + APCI3501_DIGITAL_IP);
-	if (ui_Temp == 0) {
-		*data = (*data >> ui_NoOfChannel) & 0x1;
-	}			/* if  (ui_Temp==0) */
-	else {
-		if (ui_Temp == 1) {
+	struct addi_private *devpriv = dev->private;
 
-			*data = *data & 0x3;
-		}		/* if  (ui_Temp==1) */
-		else {
-			printk("\nSpecified channel not supported \n");
-		}		/* elseif  (ui_Temp==1) */
-	}			/* elseif  (ui_Temp==0) */
+	data[1] = inl(devpriv->iobase + APCI3501_DIGITAL_IP) & 0x3;
+
 	return insn->n;
 }
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI3501_ConfigDigitalOutput                     |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Configures The Digital Output Subdevice.               |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     unsigned int *data         : Data Pointer contains             |
-|                                          configuration parameters as below |
-|                                                                            |
-|					  data[1]            : 1 Enable  VCC  Interrupt  |
-|										   0 Disable VCC  Interrupt  |
-|					  data[2]            : 1 Enable  CC  Interrupt   |
-|										   0 Disable CC  Interrupt   |
-|																	 |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-int i_APCI3501_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int apci3501_do_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
 
-	if ((data[0] != 0) && (data[0] != 1)) {
-		comedi_error(dev,
-			"Not a valid Data !!! ,Data should be 1 or 0\n");
-		return -EINVAL;
-	}			/* if  ( (data[0]!=0) && (data[0]!=1) ) */
-	if (data[0]) {
-		devpriv->b_OutputMemoryStatus = ADDIDATA_ENABLE;
-	}			/*  if  (data[0]) */
-	else {
-		devpriv->b_OutputMemoryStatus = ADDIDATA_DISABLE;
-	}			/* else if  (data[0]) */
-	return insn->n;
-}
+	s->state = inl(devpriv->iobase + APCI3501_DIGITAL_OP);
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI3501_WriteDigitalOutput                      |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : writes To the digital Output Subdevice                 |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     struct comedi_subdevice *s     : Subdevice Pointer            |
-|                     struct comedi_insn *insn       : Insn Structure Pointer       |
-|                     unsigned int *data          : Data Pointer contains        |
-|                                          configuration parameters as below |
-|                                                                            |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-int i_APCI3501_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
-{
-	unsigned int ui_Temp, ui_Temp1;
-	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	/*  get the channel */
-	if (devpriv->b_OutputMemoryStatus) {
-		ui_Temp = inl(devpriv->iobase + APCI3501_DIGITAL_OP);
-	}			/* if(devpriv->b_OutputMemoryStatus ) */
-	else {
-		ui_Temp = 0;
-	}			/* if(devpriv->b_OutputMemoryStatus ) */
-	if (data[3] == 0) {
-		if (data[1] == 0) {
-			data[0] = (data[0] << ui_NoOfChannel) | ui_Temp;
-			outl(data[0], devpriv->iobase + APCI3501_DIGITAL_OP);
-		}		/* if(data[1]==0) */
-		else {
-			if (data[1] == 1) {
-				data[0] = (data[0] << (2 * data[2])) | ui_Temp;
-				outl(data[0],
-					devpriv->iobase + APCI3501_DIGITAL_OP);
-			}	/*  if(data[1]==1) */
-			else {
-				printk("\nSpecified channel not supported\n");
-			}	/* else if(data[1]==1) */
-		}		/* elseif(data[1]==0) */
-	}			/* if(data[3]==0) */
-	else {
-		if (data[3] == 1) {
-			if (data[1] == 0) {
-				data[0] = ~data[0] & 0x1;
-				ui_Temp1 = 1;
-				ui_Temp1 = ui_Temp1 << ui_NoOfChannel;
-				ui_Temp = ui_Temp | ui_Temp1;
-				data[0] =
-					(data[0] << ui_NoOfChannel) ^
-					0xffffffff;
-				data[0] = data[0] & ui_Temp;
-				outl(data[0],
-					devpriv->iobase + APCI3501_DIGITAL_OP);
-			}	/* if(data[1]==0) */
-			else {
-				if (data[1] == 1) {
-					data[0] = ~data[0] & 0x3;
-					ui_Temp1 = 3;
-					ui_Temp1 = ui_Temp1 << 2 * data[2];
-					ui_Temp = ui_Temp | ui_Temp1;
-					data[0] =
-						((data[0] << (2 *
-								data[2])) ^
-						0xffffffff) & ui_Temp;
-					outl(data[0],
-						devpriv->iobase +
-						APCI3501_DIGITAL_OP);
-				}	/*  if(data[1]==1) */
-				else {
-					printk("\nSpecified channel not supported\n");
-				}	/* else if(data[1]==1) */
-			}	/* elseif(data[1]==0) */
-		}		/* if(data[3]==1); */
-		else {
-			printk("\nSpecified functionality does not exist\n");
-			return -EINVAL;
-		}		/* if else data[3]==1) */
-	}			/* if else data[3]==0) */
-	return insn->n;
-}
+		outl(s->state, devpriv->iobase + APCI3501_DIGITAL_OP);
+	}
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI3501_ReadDigitalOutput                       |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Read  value  of the selected channel or port           |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     unsigned int ui_NoOfChannels    : No Of Channels To read       |
-|                     unsigned int *data              : Data Pointer to read status  |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-int i_APCI3501_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
-{
-	unsigned int ui_Temp;
-	unsigned int ui_NoOfChannel;
+	data[1] = s->state;
 
-	ui_NoOfChannel = CR_CHAN(insn->chanspec);
-	ui_Temp = data[0];
-	*data = inl(devpriv->iobase + APCI3501_DIGITAL_OP);
-	if (ui_Temp == 0) {
-		*data = (*data >> ui_NoOfChannel) & 0x1;
-	}			/*  if  (ui_Temp==0) */
-	else {
-		if (ui_Temp == 1) {
-			*data = *data & 0x3;
-
-		}		/*  if  (ui_Temp==1) */
-		else {
-			printk("\nSpecified channel not supported \n");
-		}		/*  else if (ui_Temp==1) */
-	}			/*  else if  (ui_Temp==0) */
 	return insn->n;
 }
 
@@ -298,9 +144,13 @@ int i_APCI3501_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdev
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI3501_ConfigAnalogOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI3501_ConfigAnalogOutput(struct comedi_device *dev,
+					 struct comedi_subdevice *s,
+					 struct comedi_insn *insn,
+					 unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
+
 	outl(data[0],
 		devpriv->iobase + APCI3501_ANALOG_OUTPUT +
 		APCI3501_AO_VOLT_MODE);
@@ -336,9 +186,12 @@ int i_APCI3501_ConfigAnalogOutput(struct comedi_device *dev, struct comedi_subde
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI3501_WriteAnalogOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI3501_WriteAnalogOutput(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					struct comedi_insn *insn,
+					unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ul_Command1 = 0, ul_Channel_no, ul_Polarity, ul_DAC_Ready = 0;
 
 	ul_Channel_no = CR_CHAN(insn->chanspec);
@@ -410,10 +263,14 @@ int i_APCI3501_WriteAnalogOutput(struct comedi_device *dev, struct comedi_subdev
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+static int i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device *dev,
+						 struct comedi_subdevice *s,
+						 struct comedi_insn *insn,
+						 unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ul_Command1 = 0;
+
 	devpriv->tsk_Current = current;
 	if (data[0] == ADDIDATA_WATCHDOG) {
 
@@ -511,11 +368,15 @@ int i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+static int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device *dev,
+							 struct comedi_subdevice *s,
+							 struct comedi_insn *insn,
+							 unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ul_Command1 = 0;
 	int i_Temp;
+
 	if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG) {
 
 		if (data[1] == 1) {
@@ -613,9 +474,12 @@ int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3501_ReadTimerCounterWatchdog(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+static int i_APCI3501_ReadTimerCounterWatchdog(struct comedi_device *dev,
+					       struct comedi_subdevice *s,
+					       struct comedi_insn *insn,
+					       unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 
 	if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG) {
 		data[0] =
@@ -654,10 +518,12 @@ int i_APCI3501_ReadTimerCounterWatchdog(struct comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3501_Reset(struct comedi_device *dev)
+static int i_APCI3501_Reset(struct comedi_device *dev)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_Count = 0, i_temp = 0;
 	unsigned int ul_Command1 = 0, ul_Polarity, ul_DAC_Ready = 0;
+
 	outl(0x0, devpriv->iobase + APCI3501_DIGITAL_OP);
 	outl(1, devpriv->iobase + APCI3501_ANALOG_OUTPUT +
 		APCI3501_AO_VOLT_MODE);
@@ -705,12 +571,14 @@ int i_APCI3501_Reset(struct comedi_device *dev)
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-void v_APCI3501_Interrupt(int irq, void *d)
+static void v_APCI3501_Interrupt(int irq, void *d)
 {
 	int i_temp;
 	struct comedi_device *dev = d;
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Timer_AOWatchdog;
 	unsigned long ul_Command1;
+
 	/*  Disable Interrupt */
 	ul_Command1 =
 		inl(devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);

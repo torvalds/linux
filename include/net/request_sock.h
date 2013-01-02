@@ -49,13 +49,16 @@ struct request_sock_ops {
 					   struct request_sock *req);
 };
 
+extern int inet_rtx_syn_ack(struct sock *parent, struct request_sock *req);
+
 /* struct request_sock - mini sock to represent a connection request
  */
 struct request_sock {
 	struct request_sock		*dl_next; /* Must be first member! */
 	u16				mss;
-	u8				retrans;
-	u8				cookie_ts; /* syncookie: encode tcpopts in timestamp */
+	u8				num_retrans; /* number of retransmits */
+	u8				cookie_ts:1; /* syncookie: encode tcpopts in timestamp */
+	u8				num_timeout:7; /* number of timeouts */
 	/* The following two fields can be easily recomputed I think -AK */
 	u32				window_clamp; /* window clamp at creation time */
 	u32				rcv_wnd;	  /* rcv_wnd offered first time */
@@ -231,7 +234,7 @@ static inline int reqsk_queue_removed(struct request_sock_queue *queue,
 {
 	struct listen_sock *lopt = queue->listen_opt;
 
-	if (req->retrans == 0)
+	if (req->num_timeout == 0)
 		--lopt->qlen_young;
 
 	return --lopt->qlen;
@@ -269,7 +272,8 @@ static inline void reqsk_queue_hash_req(struct request_sock_queue *queue,
 	struct listen_sock *lopt = queue->listen_opt;
 
 	req->expires = jiffies + timeout;
-	req->retrans = 0;
+	req->num_retrans = 0;
+	req->num_timeout = 0;
 	req->sk = NULL;
 	req->dl_next = lopt->syn_table[hash];
 

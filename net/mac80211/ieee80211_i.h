@@ -56,6 +56,9 @@ struct ieee80211_local;
 #define TU_TO_JIFFIES(x)	(usecs_to_jiffies((x) * 1024))
 #define TU_TO_EXP_TIME(x)	(jiffies + TU_TO_JIFFIES(x))
 
+/* power level hasn't been configured (or set to automatic) */
+#define IEEE80211_UNSET_POWER_LEVEL	INT_MIN
+
 /*
  * Some APs experience problems when working with U-APSD. Decrease the
  * probability of that happening by using legacy mode for all ACs but VO.
@@ -280,21 +283,25 @@ struct probe_resp {
 	u8 data[0];
 };
 
+struct ps_data {
+	/* yes, this looks ugly, but guarantees that we can later use
+	 * bitmap_empty :)
+	 * NB: don't touch this bitmap, use sta_info_{set,clear}_tim_bit */
+	u8 tim[sizeof(unsigned long) * BITS_TO_LONGS(IEEE80211_MAX_AID + 1)];
+	struct sk_buff_head bc_buf;
+	atomic_t num_sta_ps; /* number of stations in PS mode */
+	int dtim_count;
+	bool dtim_bc_mc;
+};
+
 struct ieee80211_if_ap {
 	struct beacon_data __rcu *beacon;
 	struct probe_resp __rcu *probe_resp;
 
 	struct list_head vlans;
 
-	/* yes, this looks ugly, but guarantees that we can later use
-	 * bitmap_empty :)
-	 * NB: don't touch this bitmap, use sta_info_{set,clear}_tim_bit */
-	u8 tim[sizeof(unsigned long) * BITS_TO_LONGS(IEEE80211_MAX_AID + 1)];
-	struct sk_buff_head ps_bc_buf;
-	atomic_t num_sta_ps; /* number of stations in PS mode */
+	struct ps_data ps;
 	atomic_t num_mcast_sta; /* number of stations receiving multicast */
-	int dtim_count;
-	bool dtim_bc_mc;
 };
 
 struct ieee80211_if_wds {
@@ -316,7 +323,6 @@ struct mesh_stats {
 	__u32 dropped_frames_ttl;	/* Not transmitted since mesh_ttl == 0*/
 	__u32 dropped_frames_no_route;	/* Not transmitted, no route found */
 	__u32 dropped_frames_congestion;/* Not forwarded due to congestion */
-	atomic_t estab_plinks;
 };
 
 #define PREQ_Q_F_START		0x1
@@ -342,7 +348,6 @@ struct ieee80211_roc_work {
 	struct ieee80211_sub_if_data *sdata;
 
 	struct ieee80211_channel *chan;
-	enum nl80211_channel_type chan_type;
 
 	bool started, abort, hw_begun, notified;
 
@@ -350,7 +355,7 @@ struct ieee80211_roc_work {
 
 	u32 duration, req_duration;
 	struct sk_buff *frame;
-	u64 mgmt_tx_cookie;
+	u64 cookie, mgmt_tx_cookie;
 };
 
 /* flags used in struct ieee80211_if_managed.flags */
@@ -358,7 +363,7 @@ enum ieee80211_sta_flags {
 	IEEE80211_STA_BEACON_POLL	= BIT(0),
 	IEEE80211_STA_CONNECTION_POLL	= BIT(1),
 	IEEE80211_STA_CONTROL_PORT	= BIT(2),
-	IEEE80211_STA_DISABLE_11N	= BIT(4),
+	IEEE80211_STA_DISABLE_HT	= BIT(4),
 	IEEE80211_STA_CSA_RECEIVED	= BIT(5),
 	IEEE80211_STA_MFP_ENABLED	= BIT(6),
 	IEEE80211_STA_UAPSD_ENABLED	= BIT(7),
@@ -366,6 +371,8 @@ enum ieee80211_sta_flags {
 	IEEE80211_STA_RESET_SIGNAL_AVE	= BIT(9),
 	IEEE80211_STA_DISABLE_40MHZ	= BIT(10),
 	IEEE80211_STA_DISABLE_VHT	= BIT(11),
+	IEEE80211_STA_DISABLE_80P80MHZ	= BIT(12),
+	IEEE80211_STA_DISABLE_160MHZ	= BIT(13),
 };
 
 struct ieee80211_mgd_auth_data {
@@ -378,8 +385,9 @@ struct ieee80211_mgd_auth_data {
 	u8 key_len, key_idx;
 	bool done;
 
-	size_t ie_len;
-	u8 ie[];
+	u16 sae_trans, sae_status;
+	size_t data_len;
+	u8 data[];
 };
 
 struct ieee80211_mgd_assoc_data {
@@ -433,7 +441,6 @@ struct ieee80211_if_managed {
 	bool powersave; /* powersave requested for this iface */
 	bool broken_ap; /* AP is broken -- turn off powersave */
 	enum ieee80211_smps_mode req_smps, /* requested smps mode */
-				 ap_smps, /* smps mode AP thinks we're in */
 				 driver_smps_mode; /* smps mode request */
 
 	struct work_struct request_smps_work;
@@ -466,6 +473,8 @@ struct ieee80211_if_managed {
 	int wmm_last_param_set;
 
 	u8 use_4addr;
+
+	u8 p2p_noa_index;
 
 	/* Signal strength from the last Beacon frame in the current BSS. */
 	int last_beacon_signal;
@@ -599,6 +608,7 @@ struct ieee80211_if_mesh {
 	int preq_queue_len;
 	struct mesh_stats mshstats;
 	struct mesh_config mshcfg;
+	atomic_t estab_plinks;
 	u32 mesh_seqnum;
 	bool accepting_plinks;
 	int num_gates;
@@ -610,7 +620,7 @@ struct ieee80211_if_mesh {
 		IEEE80211_MESH_SEC_SECURED = 0x2,
 	} security;
 	/* Extensible Synchronization Framework */
-	struct ieee80211_mesh_sync_ops *sync_ops;
+	const struct ieee80211_mesh_sync_ops *sync_ops;
 	s64 sync_offset_clockdrift_max;
 	spinlock_t sync_offset_lock;
 	bool adjusting_tbtt;
@@ -656,6 +666,30 @@ enum ieee80211_sub_if_data_flags {
 enum ieee80211_sdata_state_bits {
 	SDATA_STATE_RUNNING,
 	SDATA_STATE_OFFCHANNEL,
+};
+
+/**
+ * enum ieee80211_chanctx_mode - channel context configuration mode
+ *
+ * @IEEE80211_CHANCTX_SHARED: channel context may be used by
+ *	multiple interfaces
+ * @IEEE80211_CHANCTX_EXCLUSIVE: channel context can be used
+ *	only by a single interface. This can be used for example for
+ *	non-fixed channel IBSS.
+ */
+enum ieee80211_chanctx_mode {
+	IEEE80211_CHANCTX_SHARED,
+	IEEE80211_CHANCTX_EXCLUSIVE
+};
+
+struct ieee80211_chanctx {
+	struct list_head list;
+	struct rcu_head rcu_head;
+
+	enum ieee80211_chanctx_mode mode;
+	int refcount;
+
+	struct ieee80211_chanctx_conf conf;
 };
 
 struct ieee80211_sub_if_data {
@@ -704,10 +738,19 @@ struct ieee80211_sub_if_data {
 
 	struct ieee80211_tx_queue_params tx_conf[IEEE80211_NUM_ACS];
 
+	/* used to reconfigure hardware SM PS */
+	struct work_struct recalc_smps;
+
 	struct work_struct work;
 	struct sk_buff_head skb_queue;
 
 	bool arp_filter_state;
+
+	u8 needed_rx_chains;
+	enum ieee80211_smps_mode smps_mode;
+
+	int user_power_level; /* in dBm */
+	int ap_power_level; /* in dBm */
 
 	/*
 	 * AP this belongs to: self in AP mode and
@@ -747,6 +790,21 @@ static inline
 struct ieee80211_sub_if_data *vif_to_sdata(struct ieee80211_vif *p)
 {
 	return container_of(p, struct ieee80211_sub_if_data, vif);
+}
+
+static inline enum ieee80211_band
+ieee80211_get_sdata_band(struct ieee80211_sub_if_data *sdata)
+{
+	enum ieee80211_band band = IEEE80211_BAND_2GHZ;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	if (!WARN_ON(!chanctx_conf))
+		band = chanctx_conf->def.chan->band;
+	rcu_read_unlock();
+
+	return band;
 }
 
 enum sdata_queue_type {
@@ -821,6 +879,7 @@ enum {
  * @SCAN_SUSPEND: Suspend the scan and go back to operating channel to
  *	send out data
  * @SCAN_RESUME: Resume the scan and scan the next channel
+ * @SCAN_ABORT: Abort the scan and go back to operating channel
  */
 enum mac80211_scan_state {
 	SCAN_DECISION,
@@ -828,6 +887,7 @@ enum mac80211_scan_state {
 	SCAN_SEND_PROBE,
 	SCAN_SUSPEND,
 	SCAN_RESUME,
+	SCAN_ABORT,
 };
 
 struct ieee80211_local {
@@ -858,14 +918,13 @@ struct ieee80211_local {
 
 	bool wiphy_ciphers_allocated;
 
+	bool use_chanctx;
+
 	/* protects the aggregated multicast list and filter calls */
 	spinlock_t filter_lock;
 
 	/* used for uploading changed mc list */
 	struct work_struct reconfig_filter;
-
-	/* used to reconfigure hardware SM PS */
-	struct work_struct recalc_smps;
 
 	/* aggregated multicast list */
 	struct netdev_hw_addr_list mc_list;
@@ -902,6 +961,9 @@ struct ieee80211_local {
 
 	/* wowlan is enabled -- don't reconfig on resume */
 	bool wowlan;
+
+	/* number of RX chains the hardware has */
+	u8 rx_chains;
 
 	int tx_headroom; /* required headroom for hardware/radiotap */
 
@@ -972,6 +1034,7 @@ struct ieee80211_local {
 	enum ieee80211_band hw_scan_band;
 	int scan_channel_idx;
 	int scan_ies_len;
+	int hw_scan_ies_bufsize;
 
 	struct work_struct sched_scan_stopped_work;
 	struct ieee80211_sub_if_data __rcu *sched_scan_sdata;
@@ -980,12 +1043,17 @@ struct ieee80211_local {
 	enum mac80211_scan_state next_scan_state;
 	struct delayed_work scan_work;
 	struct ieee80211_sub_if_data __rcu *scan_sdata;
+	struct ieee80211_channel *csa_channel;
+	/* For backward compatibility only -- do not use */
+	struct ieee80211_channel *_oper_channel;
 	enum nl80211_channel_type _oper_channel_type;
-	struct ieee80211_channel *oper_channel, *csa_channel;
 
 	/* Temporary remain-on-channel for off-channel operations */
 	struct ieee80211_channel *tmp_channel;
-	enum nl80211_channel_type tmp_channel_type;
+
+	/* channel contexts */
+	struct list_head chanctx_list;
+	struct mutex chanctx_mtx;
 
 	/* SNMP counters */
 	/* dot11CountersTable */
@@ -1058,8 +1126,7 @@ struct ieee80211_local {
 	int dynamic_ps_user_timeout;
 	bool disable_dynamic_ps;
 
-	int user_power_level; /* in dBm */
-	int ap_power_level; /* in dBm */
+	int user_power_level; /* in dBm, for all interfaces */
 
 	enum ieee80211_smps_mode smps_mode;
 
@@ -1078,6 +1145,7 @@ struct ieee80211_local {
 	struct list_head roc_list;
 	struct work_struct hw_roc_start, hw_roc_done;
 	unsigned long hw_roc_start_time;
+	u64 roc_cookie_counter;
 
 	struct idr ack_status_frames;
 	spinlock_t ack_status_lock;
@@ -1091,6 +1159,7 @@ struct ieee80211_local {
 
 	/* virtual monitor interface */
 	struct ieee80211_sub_if_data __rcu *monitor_sdata;
+	struct cfg80211_chan_def monitor_chandef;
 };
 
 static inline struct ieee80211_sub_if_data *
@@ -1133,6 +1202,8 @@ struct ieee802_11_elems {
 	u8 *wmm_param;
 	struct ieee80211_ht_cap *ht_cap_elem;
 	struct ieee80211_ht_operation *ht_operation;
+	struct ieee80211_vht_cap *vht_cap_elem;
+	struct ieee80211_vht_operation *vht_operation;
 	struct ieee80211_meshconf_ie *mesh_config;
 	u8 *mesh_id;
 	u8 *peering;
@@ -1188,7 +1259,18 @@ static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)
 	       is_broadcast_ether_addr(raddr);
 }
 
+static inline bool
+ieee80211_have_rx_timestamp(struct ieee80211_rx_status *status)
+{
+	WARN_ON_ONCE(status->flag & RX_FLAG_MACTIME_START &&
+		     status->flag & RX_FLAG_MACTIME_END);
+	return status->flag & (RX_FLAG_MACTIME_START | RX_FLAG_MACTIME_END);
+}
 
+u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
+				     struct ieee80211_rx_status *status,
+				     unsigned int mpdu_len,
+				     unsigned int mpdu_offset);
 int ieee80211_hw_config(struct ieee80211_local *local, u32 changed);
 void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx);
 void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
@@ -1302,6 +1384,9 @@ void ieee80211_adjust_monitor_flags(struct ieee80211_sub_if_data *sdata,
 int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up);
 void ieee80211_sdata_stop(struct ieee80211_sub_if_data *sdata);
 
+bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata);
+void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata);
+
 static inline bool ieee80211_sdata_running(struct ieee80211_sub_if_data *sdata)
 {
 	return test_bit(SDATA_STATE_RUNNING, &sdata->state);
@@ -1361,6 +1446,13 @@ void ieee80211_ba_session_work(struct work_struct *work);
 void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid);
 void ieee80211_release_reorder_timeout(struct sta_info *sta, int tid);
 
+u8 ieee80211_mcs_to_chains(const struct ieee80211_mcs_info *mcs);
+
+/* VHT */
+void ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
+					 struct ieee80211_supported_band *sband,
+					 struct ieee80211_vht_cap *vht_cap_ie,
+					 struct ieee80211_sta_vht_cap *vht_cap);
 /* Spectrum management */
 void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
 				       struct ieee80211_mgmt *mgmt,
@@ -1395,11 +1487,42 @@ void mac80211_ev_michael_mic_failure(struct ieee80211_sub_if_data *sdata, int ke
 				     gfp_t gfp);
 void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 			       bool bss_notify);
-void ieee80211_xmit(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb);
+void ieee80211_xmit(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
+		    enum ieee80211_band band);
 
-void ieee80211_tx_skb_tid(struct ieee80211_sub_if_data *sdata,
-			  struct sk_buff *skb, int tid);
-static void inline ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
+void __ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
+				 struct sk_buff *skb, int tid,
+				 enum ieee80211_band band);
+
+static inline void
+ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
+			  struct sk_buff *skb, int tid,
+			  enum ieee80211_band band)
+{
+	rcu_read_lock();
+	__ieee80211_tx_skb_tid_band(sdata, skb, tid, band);
+	rcu_read_unlock();
+}
+
+static inline void ieee80211_tx_skb_tid(struct ieee80211_sub_if_data *sdata,
+					struct sk_buff *skb, int tid)
+{
+	struct ieee80211_chanctx_conf *chanctx_conf;
+
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	if (WARN_ON(!chanctx_conf)) {
+		rcu_read_unlock();
+		kfree_skb(skb);
+		return;
+	}
+
+	__ieee80211_tx_skb_tid_band(sdata, skb, tid,
+				    chanctx_conf->def.chan->band);
+	rcu_read_unlock();
+}
+
+static inline void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
 				    struct sk_buff *skb)
 {
 	/* Send all internal mgmt frames on VO. Accordingly set TID to 7. */
@@ -1446,14 +1569,14 @@ static inline void ieee80211_add_pending_skbs(struct ieee80211_local *local,
 }
 
 void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
-			 u16 transaction, u16 auth_alg,
+			 u16 transaction, u16 auth_alg, u16 status,
 			 u8 *extra, size_t extra_len, const u8 *bssid,
 			 const u8 *da, const u8 *key, u8 key_len, u8 key_idx);
 void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 				    const u8 *bssid, u16 stype, u16 reason,
 				    bool send_frame, u8 *frame_buf);
 int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
-			     const u8 *ie, size_t ie_len,
+			     size_t buffer_len, const u8 *ie, size_t ie_len,
 			     enum ieee80211_band band, u32 rate_mask,
 			     u8 channel);
 struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
@@ -1466,7 +1589,7 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 			      const u8 *ssid, size_t ssid_len,
 			      const u8 *ie, size_t ie_len,
 			      u32 ratemask, bool directed, bool no_cck,
-			      struct ieee80211_channel *channel);
+			      struct ieee80211_channel *channel, bool scan);
 
 void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
 				  const size_t supp_rates_len,
@@ -1476,7 +1599,7 @@ u32 ieee80211_sta_get_rates(struct ieee80211_local *local,
 			    enum ieee80211_band band, u32 *basic_rates);
 int __ieee80211_request_smps(struct ieee80211_sub_if_data *sdata,
 			     enum ieee80211_smps_mode smps_mode);
-void ieee80211_recalc_smps(struct ieee80211_local *local);
+void ieee80211_recalc_smps(struct ieee80211_sub_if_data *sdata);
 
 size_t ieee80211_ie_split(const u8 *ies, size_t ielen,
 			  const u8 *ids, int n_ids, size_t offset);
@@ -1484,8 +1607,7 @@ size_t ieee80211_ie_split_vendor(const u8 *ies, size_t ielen, size_t offset);
 u8 *ieee80211_ie_build_ht_cap(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 			      u16 cap);
 u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
-			       struct ieee80211_channel *channel,
-			       enum nl80211_channel_type channel_type,
+			       const struct cfg80211_chan_def *chandef,
 			       u16 prot_mode);
 u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 			       u32 cap);
@@ -1497,20 +1619,18 @@ int ieee80211_add_ext_srates_ie(struct ieee80211_sub_if_data *sdata,
 				enum ieee80211_band band);
 
 /* channel management */
-enum ieee80211_chan_mode {
-	CHAN_MODE_UNDEFINED,
-	CHAN_MODE_HOPPING,
-	CHAN_MODE_FIXED,
-};
+void ieee80211_ht_oper_to_chandef(struct ieee80211_channel *control_chan,
+				  struct ieee80211_ht_operation *ht_oper,
+				  struct cfg80211_chan_def *chandef);
 
-enum ieee80211_chan_mode
-ieee80211_get_channel_mode(struct ieee80211_local *local,
-			   struct ieee80211_sub_if_data *ignore);
-bool ieee80211_set_channel_type(struct ieee80211_local *local,
-				struct ieee80211_sub_if_data *sdata,
-				enum nl80211_channel_type chantype);
-enum nl80211_channel_type
-ieee80211_ht_oper_to_channel_type(struct ieee80211_ht_operation *ht_oper);
+int __must_check
+ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
+			  const struct cfg80211_chan_def *chandef,
+			  enum ieee80211_chanctx_mode mode);
+void ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata);
+
+void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
+				   struct ieee80211_chanctx *chanctx);
 
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline

@@ -673,6 +673,7 @@ static void init_r_port(int board, int aiop, int chan, struct pci_dev *pci_dev)
 	if (sInitChan(ctlp, &info->channel, aiop, chan) == 0) {
 		printk(KERN_ERR "RocketPort sInitChan(%d, %d, %d) failed!\n",
 				board, aiop, chan);
+		tty_port_destroy(&info->port);
 		kfree(info);
 		return;
 	}
@@ -1757,7 +1758,7 @@ static void rp_flush_buffer(struct tty_struct *tty)
 
 #ifdef CONFIG_PCI
 
-static struct pci_device_id __devinitdata __used rocket_pci_ids[] = {
+static struct pci_device_id __used rocket_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_ANY_ID) },
 	{ }
 };
@@ -2357,6 +2358,7 @@ static void rp_cleanup_module(void)
 	for (i = 0; i < MAX_RP_PORTS; i++)
 		if (rp_table[i]) {
 			tty_unregister_device(rocket_driver, i);
+			tty_port_destroy(&rp_table[i]->port);
 			kfree(rp_table[i]);
 		}
 

@@ -164,7 +164,6 @@ static int tweak_set_configuration_cmd(struct urb *urb)
 		 config, dev_name(&urb->dev->dev));
 
 	return 0;
-	/* return usb_driver_set_configuration(urb->dev, config); */
 }
 
 static int tweak_reset_device_cmd(struct urb *urb)
@@ -480,7 +479,7 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 		return;
 	}
 
-	/* set priv->urb->transfer_buffer */
+	/* allocate urb transfer buffer, if needed */
 	if (pdu->u.cmd_submit.transfer_buffer_length > 0) {
 		priv->urb->transfer_buffer =
 			kzalloc(pdu->u.cmd_submit.transfer_buffer_length,
@@ -492,7 +491,7 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 		}
 	}
 
-	/* set priv->urb->setup_packet */
+	/* copy urb setup packet */
 	priv->urb->setup_packet = kmemdup(&pdu->u.cmd_submit.setup, 8,
 					  GFP_KERNEL);
 	if (!priv->urb->setup_packet) {

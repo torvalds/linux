@@ -2662,8 +2662,9 @@ xfs_bmap_btree_to_extents(
 	if ((error = xfs_btree_check_lptr(cur, cbno, 1)))
 		return error;
 #endif
-	if ((error = xfs_btree_read_bufl(mp, tp, cbno, 0, &cbp,
-			XFS_BMAP_BTREE_REF)))
+	error = xfs_btree_read_bufl(mp, tp, cbno, 0, &cbp, XFS_BMAP_BTREE_REF,
+				&xfs_bmbt_buf_ops);
+	if (error)
 		return error;
 	cblock = XFS_BUF_TO_BLOCK(cbp);
 	if ((error = xfs_btree_check_block(cur, cblock, 0, cbp)))
@@ -3123,6 +3124,7 @@ xfs_bmap_extents_to_btree(
 	/*
 	 * Fill in the child block.
 	 */
+	abp->b_ops = &xfs_bmbt_buf_ops;
 	ablock = XFS_BUF_TO_BLOCK(abp);
 	ablock->bb_magic = cpu_to_be32(XFS_BMAP_MAGIC);
 	ablock->bb_level = 0;
@@ -3269,6 +3271,7 @@ xfs_bmap_local_to_extents(
 		ASSERT(args.len == 1);
 		*firstblock = args.fsbno;
 		bp = xfs_btree_get_bufl(args.mp, tp, args.fsbno, 0);
+		bp->b_ops = &xfs_bmbt_buf_ops;
 		memcpy(bp->b_addr, ifp->if_u1.if_data, ifp->if_bytes);
 		xfs_trans_log_buf(tp, bp, 0, ifp->if_bytes - 1);
 		xfs_bmap_forkoff_reset(args.mp, ip, whichfork);
@@ -4078,8 +4081,9 @@ xfs_bmap_read_extents(
 	 * pointer (leftmost) at each level.
 	 */
 	while (level-- > 0) {
-		if ((error = xfs_btree_read_bufl(mp, tp, bno, 0, &bp,
-				XFS_BMAP_BTREE_REF)))
+		error = xfs_btree_read_bufl(mp, tp, bno, 0, &bp,
+				XFS_BMAP_BTREE_REF, &xfs_bmbt_buf_ops);
+		if (error)
 			return error;
 		block = XFS_BUF_TO_BLOCK(bp);
 		XFS_WANT_CORRUPTED_GOTO(
@@ -4124,7 +4128,8 @@ xfs_bmap_read_extents(
 		 */
 		nextbno = be64_to_cpu(block->bb_u.l.bb_rightsib);
 		if (nextbno != NULLFSBLOCK)
-			xfs_btree_reada_bufl(mp, nextbno, 1);
+			xfs_btree_reada_bufl(mp, nextbno, 1,
+					     &xfs_bmbt_buf_ops);
 		/*
 		 * Copy records into the extent records.
 		 */
@@ -4156,8 +4161,9 @@ xfs_bmap_read_extents(
 		 */
 		if (bno == NULLFSBLOCK)
 			break;
-		if ((error = xfs_btree_read_bufl(mp, tp, bno, 0, &bp,
-				XFS_BMAP_BTREE_REF)))
+		error = xfs_btree_read_bufl(mp, tp, bno, 0, &bp,
+				XFS_BMAP_BTREE_REF, &xfs_bmbt_buf_ops);
+		if (error)
 			return error;
 		block = XFS_BUF_TO_BLOCK(bp);
 	}
@@ -5599,7 +5605,7 @@ xfs_getbmap(
 	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 	if (whichfork == XFS_DATA_FORK && !(iflags & BMV_IF_DELALLOC)) {
 		if (ip->i_delayed_blks || XFS_ISIZE(ip) > ip->i_d.di_size) {
-			error = xfs_flush_pages(ip, 0, -1, 0, FI_REMAPF);
+			error = -filemap_write_and_wait(VFS_I(ip)->i_mapping);
 			if (error)
 				goto out_unlock_iolock;
 		}
@@ -5868,15 +5874,16 @@ xfs_bmap_check_leaf_extents(
 	 */
 	while (level-- > 0) {
 		/* See if buf is in cur first */
+		bp_release = 0;
 		bp = xfs_bmap_get_bp(cur, XFS_FSB_TO_DADDR(mp, bno));
-		if (bp) {
-			bp_release = 0;
-		} else {
+		if (!bp) {
 			bp_release = 1;
+			error = xfs_btree_read_bufl(mp, NULL, bno, 0, &bp,
+						XFS_BMAP_BTREE_REF,
+						&xfs_bmbt_buf_ops);
+			if (error)
+				goto error_norelse;
 		}
-		if (!bp && (error = xfs_btree_read_bufl(mp, NULL, bno, 0, &bp,
-				XFS_BMAP_BTREE_REF)))
-			goto error_norelse;
 		block = XFS_BUF_TO_BLOCK(bp);
 		XFS_WANT_CORRUPTED_GOTO(
 			xfs_bmap_sanity_check(mp, bp, level),
@@ -5953,15 +5960,16 @@ xfs_bmap_check_leaf_extents(
 		if (bno == NULLFSBLOCK)
 			break;
 
+		bp_release = 0;
 		bp = xfs_bmap_get_bp(cur, XFS_FSB_TO_DADDR(mp, bno));
-		if (bp) {
-			bp_release = 0;
-		} else {
+		if (!bp) {
 			bp_release = 1;
+			error = xfs_btree_read_bufl(mp, NULL, bno, 0, &bp,
+						XFS_BMAP_BTREE_REF,
+						&xfs_bmbt_buf_ops);
+			if (error)
+				goto error_norelse;
 		}
-		if (!bp && (error = xfs_btree_read_bufl(mp, NULL, bno, 0, &bp,
-				XFS_BMAP_BTREE_REF)))
-			goto error_norelse;
 		block = XFS_BUF_TO_BLOCK(bp);
 	}
 	if (bp_release) {
@@ -6052,7 +6060,9 @@ xfs_bmap_count_tree(
 	struct xfs_btree_block	*block, *nextblock;
 	int			numrecs;
 
-	if ((error = xfs_btree_read_bufl(mp, tp, bno, 0, &bp, XFS_BMAP_BTREE_REF)))
+	error = xfs_btree_read_bufl(mp, tp, bno, 0, &bp, XFS_BMAP_BTREE_REF,
+						&xfs_bmbt_buf_ops);
+	if (error)
 		return error;
 	*count += 1;
 	block = XFS_BUF_TO_BLOCK(bp);
@@ -6061,8 +6071,10 @@ xfs_bmap_count_tree(
 		/* Not at node above leaves, count this level of nodes */
 		nextbno = be64_to_cpu(block->bb_u.l.bb_rightsib);
 		while (nextbno != NULLFSBLOCK) {
-			if ((error = xfs_btree_read_bufl(mp, tp, nextbno,
-				0, &nbp, XFS_BMAP_BTREE_REF)))
+			error = xfs_btree_read_bufl(mp, tp, nextbno, 0, &nbp,
+						XFS_BMAP_BTREE_REF,
+						&xfs_bmbt_buf_ops);
+			if (error)
 				return error;
 			*count += 1;
 			nextblock = XFS_BUF_TO_BLOCK(nbp);
@@ -6091,8 +6103,10 @@ xfs_bmap_count_tree(
 			if (nextbno == NULLFSBLOCK)
 				break;
 			bno = nextbno;
-			if ((error = xfs_btree_read_bufl(mp, tp, bno, 0, &bp,
-				XFS_BMAP_BTREE_REF)))
+			error = xfs_btree_read_bufl(mp, tp, bno, 0, &bp,
+						XFS_BMAP_BTREE_REF,
+						&xfs_bmbt_buf_ops);
+			if (error)
 				return error;
 			*count += 1;
 			block = XFS_BUF_TO_BLOCK(bp);

@@ -161,7 +161,7 @@ static int max2165_set_bandwidth(struct max2165_priv *priv, u32 bw)
 	return 0;
 }
 
-int fixpt_div32(u32 dividend, u32 divisor, u32 *quotient, u32 *fraction)
+static int fixpt_div32(u32 dividend, u32 divisor, u32 *quotient, u32 *fraction)
 {
 	u32 remainder;
 	u32 q, f = 0;

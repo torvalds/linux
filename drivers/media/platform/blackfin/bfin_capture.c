@@ -1050,19 +1050,7 @@ static struct platform_driver bcap_driver = {
 	.probe = bcap_probe,
 	.remove = __devexit_p(bcap_remove),
 };
-
-static __init int bcap_init(void)
-{
-	return platform_driver_register(&bcap_driver);
-}
-
-static __exit void bcap_exit(void)
-{
-	platform_driver_unregister(&bcap_driver);
-}
-
-module_init(bcap_init);
-module_exit(bcap_exit);
+module_platform_driver(bcap_driver);
 
 MODULE_DESCRIPTION("Analog Devices blackfin video capture driver");
 MODULE_AUTHOR("Scott Jiang <Scott.Jiang.Linux@gmail.com>");

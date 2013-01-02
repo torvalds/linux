@@ -98,12 +98,12 @@ static inline void decode_ctrl_reg(u32 reg,
 #define ARM_BASE_WCR		112
 
 /* Accessor macros for the debug registers. */
-#define ARM_DBG_READ(M, OP2, VAL) do {\
-	asm volatile("mrc p14, 0, %0, c0," #M ", " #OP2 : "=r" (VAL));\
+#define ARM_DBG_READ(N, M, OP2, VAL) do {\
+	asm volatile("mrc p14, 0, %0, " #N "," #M ", " #OP2 : "=r" (VAL));\
 } while (0)
 
-#define ARM_DBG_WRITE(M, OP2, VAL) do {\
-	asm volatile("mcr p14, 0, %0, c0," #M ", " #OP2 : : "r" (VAL));\
+#define ARM_DBG_WRITE(N, M, OP2, VAL) do {\
+	asm volatile("mcr p14, 0, %0, " #N "," #M ", " #OP2 : : "r" (VAL));\
 } while (0)
 
 struct notifier_block;

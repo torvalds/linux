@@ -107,53 +107,17 @@ static void __init check_hlt(void)
 }
 
 /*
- *	Most 386 processors have a bug where a POPAD can lock the
- *	machine even from user space.
- */
-
-static void __init check_popad(void)
-{
-#ifndef CONFIG_X86_POPAD_OK
-	int res, inp = (int) &res;
-
-	pr_info("Checking for popad bug... ");
-	__asm__ __volatile__(
-	  "movl $12345678,%%eax; movl $0,%%edi; pusha; popa; movl (%%edx,%%edi),%%ecx "
-	  : "=&a" (res)
-	  : "d" (inp)
-	  : "ecx", "edi");
-	/*
-	 * If this fails, it means that any user program may lock the
-	 * CPU hard. Too bad.
-	 */
-	if (res != 12345678)
-		pr_cont("Buggy\n");
-	else
-		pr_cont("OK\n");
-#endif
-}
-
-/*
  * Check whether we are able to run this kernel safely on SMP.
  *
- * - In order to run on a i386, we need to be compiled for i386
- *   (for due to lack of "invlpg" and working WP on a i386)
+ * - i386 is no longer supported.
  * - In order to run on anything without a TSC, we need to be
  *   compiled for a i486.
  */
 
 static void __init check_config(void)
 {
-/*
- * We'd better not be a i386 if we're configured to use some
- * i486+ only features! (WP works in supervisor mode and the
- * new "invlpg" and "bswap" instructions)
- */
-#if defined(CONFIG_X86_WP_WORKS_OK) || defined(CONFIG_X86_INVLPG) || \
-	defined(CONFIG_X86_BSWAP)
-	if (boot_cpu_data.x86 == 3)
+	if (boot_cpu_data.x86 < 4)
 		panic("Kernel requires i486+ for 'invlpg' and other features");
-#endif
 }
 
 
@@ -166,7 +130,6 @@ void __init check_bugs(void)
 #endif
 	check_config();
 	check_hlt();
-	check_popad();
 	init_utsname()->machine[1] =
 		'0' + (boot_cpu_data.x86 > 6 ? 6 : boot_cpu_data.x86);
 	alternative_instructions();

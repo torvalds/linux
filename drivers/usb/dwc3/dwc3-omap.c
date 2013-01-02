@@ -157,7 +157,7 @@ static inline void dwc3_omap_writel(void __iomem *base, u32 offset, u32 value)
 	writel(value, base + offset);
 }
 
-static int __devinit dwc3_omap_register_phys(struct dwc3_omap *omap)
+static int dwc3_omap_register_phys(struct dwc3_omap *omap)
 {
 	struct nop_usb_xceiv_platform_data pdata;
 	struct platform_device	*pdev;
@@ -262,7 +262,7 @@ static irqreturn_t dwc3_omap_interrupt(int irq, void *_omap)
 	return IRQ_HANDLED;
 }
 
-static int __devinit dwc3_omap_probe(struct platform_device *pdev)
+static int dwc3_omap_probe(struct platform_device *pdev)
 {
 	struct dwc3_omap_data	*pdata = pdev->dev.platform_data;
 	struct device_node	*node = pdev->dev.of_node;
@@ -272,7 +272,6 @@ static int __devinit dwc3_omap_probe(struct platform_device *pdev)
 	struct resource		*res;
 	struct device		*dev = &pdev->dev;
 
-	int			devid;
 	int			size;
 	int			ret = -ENOMEM;
 	int			irq;
@@ -315,14 +314,10 @@ static int __devinit dwc3_omap_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	devid = dwc3_get_device_id();
-	if (devid < 0)
-		return -ENODEV;
-
-	dwc3 = platform_device_alloc("dwc3", devid);
+	dwc3 = platform_device_alloc("dwc3", PLATFORM_DEVID_AUTO);
 	if (!dwc3) {
 		dev_err(dev, "couldn't allocate dwc3 device\n");
-		goto err1;
+		return -ENOMEM;
 	}
 
 	context = devm_kzalloc(dev, resource_size(res), GFP_KERNEL);
@@ -423,23 +418,16 @@ static int __devinit dwc3_omap_probe(struct platform_device *pdev)
 
 err2:
 	platform_device_put(dwc3);
-
-err1:
-	dwc3_put_device_id(devid);
-
 	return ret;
 }
 
-static int __devexit dwc3_omap_remove(struct platform_device *pdev)
+static int dwc3_omap_remove(struct platform_device *pdev)
 {
 	struct dwc3_omap	*omap = platform_get_drvdata(pdev);
 
 	platform_device_unregister(omap->dwc3);
 	platform_device_unregister(omap->usb2_phy);
 	platform_device_unregister(omap->usb3_phy);
-
-	dwc3_put_device_id(omap->dwc3->id);
-
 	return 0;
 }
 
@@ -453,7 +441,7 @@ MODULE_DEVICE_TABLE(of, of_dwc3_matach);
 
 static struct platform_driver dwc3_omap_driver = {
 	.probe		= dwc3_omap_probe,
-	.remove		= __devexit_p(dwc3_omap_remove),
+	.remove		= dwc3_omap_remove,
 	.driver		= {
 		.name	= "omap-dwc3",
 		.of_match_table	= of_dwc3_matach,

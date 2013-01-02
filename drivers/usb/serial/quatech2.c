@@ -65,8 +65,6 @@
 #define QT2_WRITE_BUFFER_SIZE   512  /* size of write buffer */
 #define QT2_WRITE_CONTROL_SIZE  5    /* control bytes used for a write */
 
-/* Version Information */
-#define DRIVER_VERSION "v0.1"
 #define DRIVER_DESC "Quatech 2nd gen USB to Serial Driver"
 
 #define	USB_VENDOR_ID_QUATECH	0x061d

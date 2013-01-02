@@ -31,8 +31,6 @@
 #ifndef __TEGRA_PCM_H__
 #define __TEGRA_PCM_H__
 
-#include <mach/dma.h>
-
 struct tegra_pcm_dma_params {
 	unsigned long addr;
 	unsigned long wrap;

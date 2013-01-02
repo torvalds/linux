@@ -32,30 +32,6 @@ __sys_rt_sigreturn:
 	mov	r12, sp
 	rjmp	sys_rt_sigreturn
 
-	.global	__sys_fork
-	.type	__sys_fork,@function
-__sys_fork:
-	mov	r12, sp
-	rjmp	sys_fork
-
-	.global	__sys_clone
-	.type	__sys_clone,@function
-__sys_clone:
-	mov	r8, sp
-	rjmp	sys_clone
-
-	.global	__sys_vfork
-	.type	__sys_vfork,@function
-__sys_vfork:
-	mov	r12, sp
-	rjmp	sys_vfork
-
-	.global	__sys_execve
-	.type	__sys_execve,@function
-__sys_execve:
-	mov	r9, sp
-	rjmp	sys_execve
-
 	.global	__sys_mmap2
 	.type	__sys_mmap2,@function
 __sys_mmap2:

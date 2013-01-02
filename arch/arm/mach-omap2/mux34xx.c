@@ -2053,7 +2053,7 @@ int __init omap3_mux_init(struct omap_board_mux *board_subset, int flags)
 		return -EINVAL;
 	}
 
-	return omap_mux_init("core", 0,
+	return omap_mux_init("core", OMAP_MUX_GPIO_IN_MODE4,
 			     OMAP3_CONTROL_PADCONF_MUX_PBASE,
 			     OMAP3_CONTROL_PADCONF_MUX_SIZE,
 			     omap3_muxmodes, package_subset, board_subset,

@@ -19,8 +19,8 @@
 #include <linux/interrupt.h>
 #include <linux/ioctl.h>
 #include <linux/slab.h>
+#include <linux/platform_data/atmel.h>
 
-#include <mach/board.h>
 #include <mach/at91_rtt.h>
 #include <mach/cpu.h>
 

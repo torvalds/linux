@@ -1,5 +1,4 @@
 obj-$(CONFIG_STMMAC_ETH) += stmmac.o
-stmmac-$(CONFIG_STMMAC_TIMER) += stmmac_timer.o
 stmmac-$(CONFIG_STMMAC_RING) += ring_mode.o
 stmmac-$(CONFIG_STMMAC_CHAINED) += chain_mode.o
 stmmac-$(CONFIG_STMMAC_PLATFORM) += stmmac_platform.o

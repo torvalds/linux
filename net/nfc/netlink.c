@@ -29,6 +29,8 @@
 
 #include "nfc.h"
 
+#include "llcp/llcp.h"
+
 static struct genl_multicast_group nfc_genl_event_mcgrp = {
 	.name = NFC_GENL_MCAST_EVENT_NAME,
 };
@@ -364,7 +366,8 @@ static int nfc_genl_send_device(struct sk_buff *msg, struct nfc_dev *dev,
 	if (nla_put_string(msg, NFC_ATTR_DEVICE_NAME, nfc_device_name(dev)) ||
 	    nla_put_u32(msg, NFC_ATTR_DEVICE_INDEX, dev->idx) ||
 	    nla_put_u32(msg, NFC_ATTR_PROTOCOLS, dev->supported_protocols) ||
-	    nla_put_u8(msg, NFC_ATTR_DEVICE_POWERED, dev->dev_up))
+	    nla_put_u8(msg, NFC_ATTR_DEVICE_POWERED, dev->dev_up) ||
+	    nla_put_u8(msg, NFC_ATTR_RF_MODE, dev->rf_mode))
 		goto nla_put_failure;
 
 	return genlmsg_end(msg, hdr);
@@ -590,7 +593,7 @@ static int nfc_genl_start_poll(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[NFC_ATTR_DEVICE_INDEX] ||
 	    ((!info->attrs[NFC_ATTR_IM_PROTOCOLS] &&
 	      !info->attrs[NFC_ATTR_PROTOCOLS]) &&
-	     !info->attrs[NFC_ATTR_TM_PROTOCOLS]))
+	      !info->attrs[NFC_ATTR_TM_PROTOCOLS]))
 		return -EINVAL;
 
 	idx = nla_get_u32(info->attrs[NFC_ATTR_DEVICE_INDEX]);
@@ -715,6 +718,146 @@ static int nfc_genl_dep_link_down(struct sk_buff *skb, struct genl_info *info)
 	return rc;
 }
 
+static int nfc_genl_send_params(struct sk_buff *msg,
+				struct nfc_llcp_local *local,
+				u32 portid, u32 seq)
+{
+	void *hdr;
+
+	hdr = genlmsg_put(msg, portid, seq, &nfc_genl_family, 0,
+			  NFC_CMD_LLC_GET_PARAMS);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	if (nla_put_u32(msg, NFC_ATTR_DEVICE_INDEX, local->dev->idx) ||
+	    nla_put_u8(msg, NFC_ATTR_LLC_PARAM_LTO, local->lto) ||
+	    nla_put_u8(msg, NFC_ATTR_LLC_PARAM_RW, local->rw) ||
+	    nla_put_u16(msg, NFC_ATTR_LLC_PARAM_MIUX, be16_to_cpu(local->miux)))
+		goto nla_put_failure;
+
+	return genlmsg_end(msg, hdr);
+
+nla_put_failure:
+
+	genlmsg_cancel(msg, hdr);
+	return -EMSGSIZE;
+}
+
+static int nfc_genl_llc_get_params(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nfc_dev *dev;
+	struct nfc_llcp_local *local;
+	int rc = 0;
+	struct sk_buff *msg = NULL;
+	u32 idx;
+
+	if (!info->attrs[NFC_ATTR_DEVICE_INDEX])
+		return -EINVAL;
+
+	idx = nla_get_u32(info->attrs[NFC_ATTR_DEVICE_INDEX]);
+
+	dev = nfc_get_device(idx);
+	if (!dev)
+		return -ENODEV;
+
+	device_lock(&dev->dev);
+
+	local = nfc_llcp_find_local(dev);
+	if (!local) {
+		rc = -ENODEV;
+		goto exit;
+	}
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg) {
+		rc = -ENOMEM;
+		goto exit;
+	}
+
+	rc = nfc_genl_send_params(msg, local, info->snd_portid, info->snd_seq);
+
+exit:
+	device_unlock(&dev->dev);
+
+	nfc_put_device(dev);
+
+	if (rc < 0) {
+		if (msg)
+			nlmsg_free(msg);
+
+		return rc;
+	}
+
+	return genlmsg_reply(msg, info);
+}
+
+static int nfc_genl_llc_set_params(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nfc_dev *dev;
+	struct nfc_llcp_local *local;
+	u8 rw = 0;
+	u16 miux = 0;
+	u32 idx;
+	int rc = 0;
+
+	if (!info->attrs[NFC_ATTR_DEVICE_INDEX] ||
+	    (!info->attrs[NFC_ATTR_LLC_PARAM_LTO] &&
+	     !info->attrs[NFC_ATTR_LLC_PARAM_RW] &&
+	     !info->attrs[NFC_ATTR_LLC_PARAM_MIUX]))
+		return -EINVAL;
+
+	if (info->attrs[NFC_ATTR_LLC_PARAM_RW]) {
+		rw = nla_get_u8(info->attrs[NFC_ATTR_LLC_PARAM_RW]);
+
+		if (rw > LLCP_MAX_RW)
+			return -EINVAL;
+	}
+
+	if (info->attrs[NFC_ATTR_LLC_PARAM_MIUX]) {
+		miux = nla_get_u16(info->attrs[NFC_ATTR_LLC_PARAM_MIUX]);
+
+		if (miux > LLCP_MAX_MIUX)
+			return -EINVAL;
+	}
+
+	idx = nla_get_u32(info->attrs[NFC_ATTR_DEVICE_INDEX]);
+
+	dev = nfc_get_device(idx);
+	if (!dev)
+		return -ENODEV;
+
+	device_lock(&dev->dev);
+
+	local = nfc_llcp_find_local(dev);
+	if (!local) {
+		nfc_put_device(dev);
+		rc = -ENODEV;
+		goto exit;
+	}
+
+	if (info->attrs[NFC_ATTR_LLC_PARAM_LTO]) {
+		if (dev->dep_link_up) {
+			rc = -EINPROGRESS;
+			goto exit;
+		}
+
+		local->lto = nla_get_u8(info->attrs[NFC_ATTR_LLC_PARAM_LTO]);
+	}
+
+	if (info->attrs[NFC_ATTR_LLC_PARAM_RW])
+		local->rw = rw;
+
+	if (info->attrs[NFC_ATTR_LLC_PARAM_MIUX])
+		local->miux = cpu_to_be16(miux);
+
+exit:
+	device_unlock(&dev->dev);
+
+	nfc_put_device(dev);
+
+	return rc;
+}
+
 static struct genl_ops nfc_genl_ops[] = {
 	{
 		.cmd = NFC_CMD_GET_DEVICE,
@@ -757,6 +900,16 @@ static struct genl_ops nfc_genl_ops[] = {
 		.cmd = NFC_CMD_GET_TARGET,
 		.dumpit = nfc_genl_dump_targets,
 		.done = nfc_genl_dump_targets_done,
+		.policy = nfc_genl_policy,
+	},
+	{
+		.cmd = NFC_CMD_LLC_GET_PARAMS,
+		.doit = nfc_genl_llc_get_params,
+		.policy = nfc_genl_policy,
+	},
+	{
+		.cmd = NFC_CMD_LLC_SET_PARAMS,
+		.doit = nfc_genl_llc_set_params,
 		.policy = nfc_genl_policy,
 	},
 };

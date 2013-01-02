@@ -21,9 +21,9 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/atmel_usba_udc.h>
 #include <linux/delay.h>
+#include <linux/platform_data/atmel.h>
 
 #include <asm/gpio.h>
-#include <mach/board.h>
 
 #include "atmel_usba_udc.h"
 

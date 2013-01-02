@@ -144,7 +144,7 @@ config DEBUG_STACKOVERFLOW
 	help
 	  Make extra checks for space available on stack in some
           critical functions. This will cause kernel to run a bit slower,
-	  but will catch most of kernel stack overruns and exit gracefuly.
+	  but will catch most of kernel stack overruns and exit gracefully.
 
 	  Say Y if you are unsure.
 

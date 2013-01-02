@@ -24,16 +24,13 @@
 #define __STMMAC_H__
 
 #define STMMAC_RESOURCE_NAME   "stmmaceth"
-#define DRV_MODULE_VERSION	"March_2012"
+#define DRV_MODULE_VERSION	"Nov_2012"
 
 #include <linux/clk.h>
 #include <linux/stmmac.h>
 #include <linux/phy.h>
 #include <linux/pci.h>
 #include "common.h"
-#ifdef CONFIG_STMMAC_TIMER
-#include "stmmac_timer.h"
-#endif
 
 struct stmmac_priv {
 	/* Frequently used values are kept adjacent for cache effect */
@@ -77,9 +74,6 @@ struct stmmac_priv {
 	spinlock_t tx_lock;
 	int wolopts;
 	int wol_irq;
-#ifdef CONFIG_STMMAC_TIMER
-	struct stmmac_timer *tm;
-#endif
 	struct plat_stmmacenet_data *plat;
 	struct stmmac_counters mmc;
 	struct dma_features dma_cap;
@@ -93,6 +87,12 @@ struct stmmac_priv {
 	int eee_enabled;
 	int eee_active;
 	int tx_lpi_timer;
+	struct timer_list txtimer;
+	u32 tx_count_frames;
+	u32 tx_coal_frames;
+	u32 tx_coal_timer;
+	int use_riwt;
+	u32 rx_riwt;
 };
 
 extern int phyaddr;
@@ -127,14 +127,14 @@ static inline int stmmac_register_platform(void)
 }
 static inline void stmmac_unregister_platform(void)
 {
-	platform_driver_register(&stmmac_pltfr_driver);
+	platform_driver_unregister(&stmmac_pltfr_driver);
 }
 #else
 static inline int stmmac_register_platform(void)
 {
 	pr_debug("stmmac: do not register the platf driver\n");
 
-	return -EINVAL;
+	return 0;
 }
 static inline void stmmac_unregister_platform(void)
 {
@@ -162,7 +162,7 @@ static inline int stmmac_register_pci(void)
 {
 	pr_debug("stmmac: do not register the PCI driver\n");
 
-	return -EINVAL;
+	return 0;
 }
 static inline void stmmac_unregister_pci(void)
 {

@@ -36,10 +36,6 @@
 #include <linux/uaccess.h>
 #include <linux/parport.h>
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "2.1"
 #define DRIVER_AUTHOR "Aspire Communications pvt Ltd."
 #define DRIVER_DESC "Moschip USB Serial Driver"
 

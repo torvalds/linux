@@ -43,10 +43,15 @@ static int
 nouveau_gpio_find(struct nouveau_gpio *gpio, int idx, u8 tag, u8 line,
 		  struct dcb_gpio_func *func)
 {
+	struct nouveau_bios *bios = nouveau_bios(gpio);
+	u8  ver, len;
+	u16 data;
+
 	if (line == 0xff && tag == 0xff)
 		return -EINVAL;
 
-	if (!dcb_gpio_parse(nouveau_bios(gpio), idx, tag, line, func))
+	data = dcb_gpio_match(bios, idx, tag, line, &ver, &len, func);
+	if (data)
 		return 0;
 
 	/* Apple iMac G4 NV18 */
@@ -265,7 +270,7 @@ nouveau_gpio_init(struct nouveau_gpio *gpio)
 	int ret = nouveau_subdev_init(&gpio->base);
 	if (ret == 0 && gpio->reset) {
 		if (dmi_check_system(gpio_reset_ids))
-			gpio->reset(gpio);
+			gpio->reset(gpio, DCB_GPIO_UNUSED);
 	}
 	return ret;
 }

@@ -15,82 +15,12 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/irq.h>
 
-#include <plat/prcm.h>
-
-#include "soc.h"
 #include "common.h"
-#include "vp.h"
-
+#include "powerdomain.h"
 #include "prm2xxx_3xxx.h"
-#include "cm2xxx_3xxx.h"
 #include "prm-regbits-24xx.h"
-#include "prm-regbits-34xx.h"
-
-static const struct omap_prcm_irq omap3_prcm_irqs[] = {
-	OMAP_PRCM_IRQ("wkup",	0,	0),
-	OMAP_PRCM_IRQ("io",	9,	1),
-};
-
-static struct omap_prcm_irq_setup omap3_prcm_irq_setup = {
-	.ack			= OMAP3_PRM_IRQSTATUS_MPU_OFFSET,
-	.mask			= OMAP3_PRM_IRQENABLE_MPU_OFFSET,
-	.nr_regs		= 1,
-	.irqs			= omap3_prcm_irqs,
-	.nr_irqs		= ARRAY_SIZE(omap3_prcm_irqs),
-	.irq			= 11 + OMAP_INTC_START,
-	.read_pending_irqs	= &omap3xxx_prm_read_pending_irqs,
-	.ocp_barrier		= &omap3xxx_prm_ocp_barrier,
-	.save_and_clear_irqen	= &omap3xxx_prm_save_and_clear_irqen,
-	.restore_irqen		= &omap3xxx_prm_restore_irqen,
-};
-
-u32 omap2_prm_read_mod_reg(s16 module, u16 idx)
-{
-	return __raw_readl(prm_base + module + idx);
-}
-
-void omap2_prm_write_mod_reg(u32 val, s16 module, u16 idx)
-{
-	__raw_writel(val, prm_base + module + idx);
-}
-
-/* Read-modify-write a register in a PRM module. Caller must lock */
-u32 omap2_prm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx)
-{
-	u32 v;
-
-	v = omap2_prm_read_mod_reg(module, idx);
-	v &= ~mask;
-	v |= bits;
-	omap2_prm_write_mod_reg(v, module, idx);
-
-	return v;
-}
-
-/* Read a PRM register, AND it, and shift the result down to bit 0 */
-u32 omap2_prm_read_mod_bits_shift(s16 domain, s16 idx, u32 mask)
-{
-	u32 v;
-
-	v = omap2_prm_read_mod_reg(domain, idx);
-	v &= mask;
-	v >>= __ffs(mask);
-
-	return v;
-}
-
-u32 omap2_prm_set_mod_reg_bits(u32 bits, s16 module, s16 idx)
-{
-	return omap2_prm_rmw_mod_reg_bits(bits, bits, module, idx);
-}
-
-u32 omap2_prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
-{
-	return omap2_prm_rmw_mod_reg_bits(bits, 0x0, module, idx);
-}
-
+#include "clockdomain.h"
 
 /**
  * omap2_prm_is_hardreset_asserted - read the HW reset line state of
@@ -104,9 +34,6 @@ u32 omap2_prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
  */
 int omap2_prm_is_hardreset_asserted(s16 prm_mod, u8 shift)
 {
-	if (!(cpu_is_omap24xx() || cpu_is_omap34xx()))
-		return -EINVAL;
-
 	return omap2_prm_read_mod_bits_shift(prm_mod, OMAP2_RM_RSTCTRL,
 				       (1 << shift));
 }
@@ -126,9 +53,6 @@ int omap2_prm_is_hardreset_asserted(s16 prm_mod, u8 shift)
 int omap2_prm_assert_hardreset(s16 prm_mod, u8 shift)
 {
 	u32 mask;
-
-	if (!(cpu_is_omap24xx() || cpu_is_omap34xx()))
-		return -EINVAL;
 
 	mask = 1 << shift;
 	omap2_prm_rmw_mod_reg_bits(mask, mask, prm_mod, OMAP2_RM_RSTCTRL);
@@ -156,9 +80,6 @@ int omap2_prm_deassert_hardreset(s16 prm_mod, u8 rst_shift, u8 st_shift)
 	u32 rst, st;
 	int c;
 
-	if (!(cpu_is_omap24xx() || cpu_is_omap34xx()))
-		return -EINVAL;
-
 	rst = 1 << rst_shift;
 	st = 1 << st_shift;
 
@@ -178,188 +99,155 @@ int omap2_prm_deassert_hardreset(s16 prm_mod, u8 rst_shift, u8 st_shift)
 	return (c == MAX_MODULE_HARDRESET_WAIT) ? -EBUSY : 0;
 }
 
-/* PRM VP */
 
-/*
- * struct omap3_vp - OMAP3 VP register access description.
- * @tranxdone_status: VP_TRANXDONE_ST bitmask in PRM_IRQSTATUS_MPU reg
- */
-struct omap3_vp {
-	u32 tranxdone_status;
-};
+/* Powerdomain low-level functions */
 
-static struct omap3_vp omap3_vp[] = {
-	[OMAP3_VP_VDD_MPU_ID] = {
-		.tranxdone_status = OMAP3430_VP1_TRANXDONE_ST_MASK,
-	},
-	[OMAP3_VP_VDD_CORE_ID] = {
-		.tranxdone_status = OMAP3430_VP2_TRANXDONE_ST_MASK,
-	},
-};
-
-#define MAX_VP_ID ARRAY_SIZE(omap3_vp);
-
-u32 omap3_prm_vp_check_txdone(u8 vp_id)
+/* Common functions across OMAP2 and OMAP3 */
+int omap2_pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)
 {
-	struct omap3_vp *vp = &omap3_vp[vp_id];
-	u32 irqstatus;
-
-	irqstatus = omap2_prm_read_mod_reg(OCP_MOD,
-					   OMAP3_PRM_IRQSTATUS_MPU_OFFSET);
-	return irqstatus & vp->tranxdone_status;
+	omap2_prm_rmw_mod_reg_bits(OMAP_POWERSTATE_MASK,
+				   (pwrst << OMAP_POWERSTATE_SHIFT),
+				   pwrdm->prcm_offs, OMAP2_PM_PWSTCTRL);
+	return 0;
 }
 
-void omap3_prm_vp_clear_txdone(u8 vp_id)
+int omap2_pwrdm_read_next_pwrst(struct powerdomain *pwrdm)
 {
-	struct omap3_vp *vp = &omap3_vp[vp_id];
-
-	omap2_prm_write_mod_reg(vp->tranxdone_status,
-				OCP_MOD, OMAP3_PRM_IRQSTATUS_MPU_OFFSET);
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
+					     OMAP2_PM_PWSTCTRL,
+					     OMAP_POWERSTATE_MASK);
 }
 
-u32 omap3_prm_vcvp_read(u8 offset)
+int omap2_pwrdm_read_pwrst(struct powerdomain *pwrdm)
 {
-	return omap2_prm_read_mod_reg(OMAP3430_GR_MOD, offset);
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
+					     OMAP2_PM_PWSTST,
+					     OMAP_POWERSTATEST_MASK);
 }
 
-void omap3_prm_vcvp_write(u32 val, u8 offset)
+int omap2_pwrdm_set_mem_onst(struct powerdomain *pwrdm, u8 bank,
+								u8 pwrst)
 {
-	omap2_prm_write_mod_reg(val, OMAP3430_GR_MOD, offset);
+	u32 m;
+
+	m = omap2_pwrdm_get_mem_bank_onstate_mask(bank);
+
+	omap2_prm_rmw_mod_reg_bits(m, (pwrst << __ffs(m)), pwrdm->prcm_offs,
+				   OMAP2_PM_PWSTCTRL);
+
+	return 0;
 }
 
-u32 omap3_prm_vcvp_rmw(u32 mask, u32 bits, u8 offset)
+int omap2_pwrdm_set_mem_retst(struct powerdomain *pwrdm, u8 bank,
+								u8 pwrst)
 {
-	return omap2_prm_rmw_mod_reg_bits(mask, bits, OMAP3430_GR_MOD, offset);
+	u32 m;
+
+	m = omap2_pwrdm_get_mem_bank_retst_mask(bank);
+
+	omap2_prm_rmw_mod_reg_bits(m, (pwrst << __ffs(m)), pwrdm->prcm_offs,
+				   OMAP2_PM_PWSTCTRL);
+
+	return 0;
 }
 
-/**
- * omap3xxx_prm_read_pending_irqs - read pending PRM MPU IRQs into @events
- * @events: ptr to a u32, preallocated by caller
- *
- * Read PRM_IRQSTATUS_MPU bits, AND'ed with the currently-enabled PRM
- * MPU IRQs, and store the result into the u32 pointed to by @events.
- * No return value.
- */
-void omap3xxx_prm_read_pending_irqs(unsigned long *events)
+int omap2_pwrdm_read_mem_pwrst(struct powerdomain *pwrdm, u8 bank)
 {
-	u32 mask, st;
+	u32 m;
 
-	/* XXX Can the mask read be avoided (e.g., can it come from RAM?) */
-	mask = omap2_prm_read_mod_reg(OCP_MOD, OMAP3_PRM_IRQENABLE_MPU_OFFSET);
-	st = omap2_prm_read_mod_reg(OCP_MOD, OMAP3_PRM_IRQSTATUS_MPU_OFFSET);
+	m = omap2_pwrdm_get_mem_bank_stst_mask(bank);
 
-	events[0] = mask & st;
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP2_PM_PWSTST,
+					     m);
 }
 
-/**
- * omap3xxx_prm_ocp_barrier - force buffered MPU writes to the PRM to complete
- *
- * Force any buffered writes to the PRM IP block to complete.  Needed
- * by the PRM IRQ handler, which reads and writes directly to the IP
- * block, to avoid race conditions after acknowledging or clearing IRQ
- * bits.  No return value.
- */
-void omap3xxx_prm_ocp_barrier(void)
+int omap2_pwrdm_read_mem_retst(struct powerdomain *pwrdm, u8 bank)
 {
-	omap2_prm_read_mod_reg(OCP_MOD, OMAP3_PRM_REVISION_OFFSET);
+	u32 m;
+
+	m = omap2_pwrdm_get_mem_bank_retst_mask(bank);
+
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
+					     OMAP2_PM_PWSTCTRL, m);
 }
 
-/**
- * omap3xxx_prm_save_and_clear_irqen - save/clear PRM_IRQENABLE_MPU reg
- * @saved_mask: ptr to a u32 array to save IRQENABLE bits
- *
- * Save the PRM_IRQENABLE_MPU register to @saved_mask.  @saved_mask
- * must be allocated by the caller.  Intended to be used in the PRM
- * interrupt handler suspend callback.  The OCP barrier is needed to
- * ensure the write to disable PRM interrupts reaches the PRM before
- * returning; otherwise, spurious interrupts might occur.  No return
- * value.
- */
-void omap3xxx_prm_save_and_clear_irqen(u32 *saved_mask)
+int omap2_pwrdm_set_logic_retst(struct powerdomain *pwrdm, u8 pwrst)
 {
-	saved_mask[0] = omap2_prm_read_mod_reg(OCP_MOD,
-					       OMAP3_PRM_IRQENABLE_MPU_OFFSET);
-	omap2_prm_write_mod_reg(0, OCP_MOD, OMAP3_PRM_IRQENABLE_MPU_OFFSET);
+	u32 v;
 
-	/* OCP barrier */
-	omap2_prm_read_mod_reg(OCP_MOD, OMAP3_PRM_REVISION_OFFSET);
+	v = pwrst << __ffs(OMAP_LOGICRETSTATE_MASK);
+	omap2_prm_rmw_mod_reg_bits(OMAP_LOGICRETSTATE_MASK, v, pwrdm->prcm_offs,
+				   OMAP2_PM_PWSTCTRL);
+
+	return 0;
 }
 
-/**
- * omap3xxx_prm_restore_irqen - set PRM_IRQENABLE_MPU register from args
- * @saved_mask: ptr to a u32 array of IRQENABLE bits saved previously
- *
- * Restore the PRM_IRQENABLE_MPU register from @saved_mask.  Intended
- * to be used in the PRM interrupt handler resume callback to restore
- * values saved by omap3xxx_prm_save_and_clear_irqen().  No OCP
- * barrier should be needed here; any pending PRM interrupts will fire
- * once the writes reach the PRM.  No return value.
- */
-void omap3xxx_prm_restore_irqen(u32 *saved_mask)
+int omap2_pwrdm_wait_transition(struct powerdomain *pwrdm)
 {
-	omap2_prm_write_mod_reg(saved_mask[0], OCP_MOD,
-				OMAP3_PRM_IRQENABLE_MPU_OFFSET);
-}
+	u32 c = 0;
 
-/**
- * omap3xxx_prm_reconfigure_io_chain - clear latches and reconfigure I/O chain
- *
- * Clear any previously-latched I/O wakeup events and ensure that the
- * I/O wakeup gates are aligned with the current mux settings.  Works
- * by asserting WUCLKIN, waiting for WUCLKOUT to be asserted, and then
- * deasserting WUCLKIN and clearing the ST_IO_CHAIN WKST bit.  No
- * return value.
- */
-void omap3xxx_prm_reconfigure_io_chain(void)
-{
-	int i = 0;
+	/*
+	 * REVISIT: pwrdm_wait_transition() may be better implemented
+	 * via a callback and a periodic timer check -- how long do we expect
+	 * powerdomain transitions to take?
+	 */
 
-	omap2_prm_set_mod_reg_bits(OMAP3430_EN_IO_CHAIN_MASK, WKUP_MOD,
-				   PM_WKEN);
+	/* XXX Is this udelay() value meaningful? */
+	while ((omap2_prm_read_mod_reg(pwrdm->prcm_offs, OMAP2_PM_PWSTST) &
+		OMAP_INTRANSITION_MASK) &&
+		(c++ < PWRDM_TRANSITION_BAILOUT))
+			udelay(1);
 
-	omap_test_timeout(omap2_prm_read_mod_reg(WKUP_MOD, PM_WKST) &
-			  OMAP3430_ST_IO_CHAIN_MASK,
-			  MAX_IOPAD_LATCH_TIME, i);
-	if (i == MAX_IOPAD_LATCH_TIME)
-		pr_warn("PRM: I/O chain clock line assertion timed out\n");
-
-	omap2_prm_clear_mod_reg_bits(OMAP3430_EN_IO_CHAIN_MASK, WKUP_MOD,
-				     PM_WKEN);
-
-	omap2_prm_set_mod_reg_bits(OMAP3430_ST_IO_CHAIN_MASK, WKUP_MOD,
-				   PM_WKST);
-
-	omap2_prm_read_mod_reg(WKUP_MOD, PM_WKST);
-}
-
-/**
- * omap3xxx_prm_enable_io_wakeup - enable wakeup events from I/O wakeup latches
- *
- * Activates the I/O wakeup event latches and allows events logged by
- * those latches to signal a wakeup event to the PRCM.  For I/O
- * wakeups to occur, WAKEUPENABLE bits must be set in the pad mux
- * registers, and omap3xxx_prm_reconfigure_io_chain() must be called.
- * No return value.
- */
-static void __init omap3xxx_prm_enable_io_wakeup(void)
-{
-	if (omap3_has_io_wakeup())
-		omap2_prm_set_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD,
-					   PM_WKEN);
-}
-
-static int __init omap3xxx_prcm_init(void)
-{
-	int ret = 0;
-
-	if (cpu_is_omap34xx()) {
-		omap3xxx_prm_enable_io_wakeup();
-		ret = omap_prcm_register_chain_handler(&omap3_prcm_irq_setup);
-		if (!ret)
-			irq_set_status_flags(omap_prcm_event_to_irq("io"),
-					     IRQ_NOAUTOEN);
+	if (c > PWRDM_TRANSITION_BAILOUT) {
+		pr_err("powerdomain: %s: waited too long to complete transition\n",
+		       pwrdm->name);
+		return -EAGAIN;
 	}
 
-	return ret;
+	pr_debug("powerdomain: completed transition in %d loops\n", c);
+
+	return 0;
 }
-subsys_initcall(omap3xxx_prcm_init);
+
+int omap2_clkdm_add_wkdep(struct clockdomain *clkdm1,
+			  struct clockdomain *clkdm2)
+{
+	omap2_prm_set_mod_reg_bits((1 << clkdm2->dep_bit),
+				   clkdm1->pwrdm.ptr->prcm_offs, PM_WKDEP);
+	return 0;
+}
+
+int omap2_clkdm_del_wkdep(struct clockdomain *clkdm1,
+			  struct clockdomain *clkdm2)
+{
+	omap2_prm_clear_mod_reg_bits((1 << clkdm2->dep_bit),
+				     clkdm1->pwrdm.ptr->prcm_offs, PM_WKDEP);
+	return 0;
+}
+
+int omap2_clkdm_read_wkdep(struct clockdomain *clkdm1,
+			   struct clockdomain *clkdm2)
+{
+	return omap2_prm_read_mod_bits_shift(clkdm1->pwrdm.ptr->prcm_offs,
+					     PM_WKDEP, (1 << clkdm2->dep_bit));
+}
+
+int omap2_clkdm_clear_all_wkdeps(struct clockdomain *clkdm)
+{
+	struct clkdm_dep *cd;
+	u32 mask = 0;
+
+	for (cd = clkdm->wkdep_srcs; cd && cd->clkdm_name; cd++) {
+		if (!cd->clkdm)
+			continue; /* only happens if data is erroneous */
+
+		/* PRM accesses are slow, so minimize them */
+		mask |= 1 << cd->clkdm->dep_bit;
+		atomic_set(&cd->wkdep_usecount, 0);
+	}
+
+	omap2_prm_clear_mod_reg_bits(mask, clkdm->pwrdm.ptr->prcm_offs,
+				     PM_WKDEP);
+	return 0;
+}
+

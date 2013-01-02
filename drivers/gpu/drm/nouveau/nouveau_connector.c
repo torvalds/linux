@@ -110,7 +110,6 @@ nouveau_connector_destroy(struct drm_connector *connector)
 	dev  = nv_connector->base.dev;
 	drm  = nouveau_drm(dev);
 	gpio = nouveau_gpio(drm->device);
-	NV_DEBUG(drm, "\n");
 
 	if (gpio && nv_connector->hpd != DCB_GPIO_UNUSED) {
 		gpio->isr_del(gpio, 0, nv_connector->hpd, 0xff,
@@ -221,7 +220,7 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 	}
 
 	if (nv_connector->type == DCB_CONNECTOR_DVI_I) {
-		drm_connector_property_set_value(connector,
+		drm_object_property_set_value(&connector->base,
 			dev->mode_config.dvi_i_subconnector_property,
 			nv_encoder->dcb->type == DCB_OUTPUT_TMDS ?
 			DRM_MODE_SUBCONNECTOR_DVID :
@@ -929,8 +928,6 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	int type, ret = 0;
 	bool dummy;
 
-	NV_DEBUG(drm, "\n");
-
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		nv_connector = nouveau_connector(connector);
 		if (nv_connector->index == index)
@@ -1043,7 +1040,7 @@ nouveau_connector_create(struct drm_device *dev, int index)
 
 	/* Init DVI-I specific properties */
 	if (nv_connector->type == DCB_CONNECTOR_DVI_I)
-		drm_connector_attach_property(connector, dev->mode_config.dvi_i_subconnector_property, 0);
+		drm_object_attach_property(&connector->base, dev->mode_config.dvi_i_subconnector_property, 0);
 
 	/* Add overscan compensation options to digital outputs */
 	if (disp->underscan_property &&
@@ -1051,31 +1048,31 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	     type == DRM_MODE_CONNECTOR_DVII ||
 	     type == DRM_MODE_CONNECTOR_HDMIA ||
 	     type == DRM_MODE_CONNECTOR_DisplayPort)) {
-		drm_connector_attach_property(connector,
+		drm_object_attach_property(&connector->base,
 					      disp->underscan_property,
 					      UNDERSCAN_OFF);
-		drm_connector_attach_property(connector,
+		drm_object_attach_property(&connector->base,
 					      disp->underscan_hborder_property,
 					      0);
-		drm_connector_attach_property(connector,
+		drm_object_attach_property(&connector->base,
 					      disp->underscan_vborder_property,
 					      0);
 	}
 
 	/* Add hue and saturation options */
 	if (disp->vibrant_hue_property)
-		drm_connector_attach_property(connector,
+		drm_object_attach_property(&connector->base,
 					      disp->vibrant_hue_property,
 					      90);
 	if (disp->color_vibrance_property)
-		drm_connector_attach_property(connector,
+		drm_object_attach_property(&connector->base,
 					      disp->color_vibrance_property,
 					      150);
 
 	switch (nv_connector->type) {
 	case DCB_CONNECTOR_VGA:
 		if (nv_device(drm->device)->card_type >= NV_50) {
-			drm_connector_attach_property(connector,
+			drm_object_attach_property(&connector->base,
 					dev->mode_config.scaling_mode_property,
 					nv_connector->scaling_mode);
 		}
@@ -1088,18 +1085,18 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	default:
 		nv_connector->scaling_mode = DRM_MODE_SCALE_FULLSCREEN;
 
-		drm_connector_attach_property(connector,
+		drm_object_attach_property(&connector->base,
 				dev->mode_config.scaling_mode_property,
 				nv_connector->scaling_mode);
 		if (disp->dithering_mode) {
 			nv_connector->dithering_mode = DITHERING_MODE_AUTO;
-			drm_connector_attach_property(connector,
+			drm_object_attach_property(&connector->base,
 						disp->dithering_mode,
 						nv_connector->dithering_mode);
 		}
 		if (disp->dithering_depth) {
 			nv_connector->dithering_depth = DITHERING_DEPTH_AUTO;
-			drm_connector_attach_property(connector,
+			drm_object_attach_property(&connector->base,
 						disp->dithering_depth,
 						nv_connector->dithering_depth);
 		}

@@ -30,6 +30,8 @@
 #include <asm/setup.h>
 #ifndef __ASSEMBLY__
 
+void storage_key_init_range(unsigned long start, unsigned long end);
+
 static unsigned long pfmf(unsigned long function, unsigned long address)
 {
 	asm volatile(
@@ -158,6 +160,9 @@ static inline int page_reset_referenced(unsigned long addr)
  * race against modification of the referenced bit. This function
  * should therefore only be called if it is not mapped in any
  * address space.
+ *
+ * Note that the bit gets set whenever page content is changed. That means
+ * also when the page is modified by DMA or from inside the kernel.
  */
 #define __HAVE_ARCH_PAGE_TEST_AND_CLEAR_DIRTY
 static inline int page_test_and_clear_dirty(unsigned long pfn, int mapped)

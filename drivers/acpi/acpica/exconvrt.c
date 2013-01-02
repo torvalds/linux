@@ -516,8 +516,8 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 			string_length--;
 		}
 
-		return_desc = acpi_ut_create_string_object((acpi_size)
-							   string_length);
+		return_desc =
+		    acpi_ut_create_string_object((acpi_size) string_length);
 		if (!return_desc) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}

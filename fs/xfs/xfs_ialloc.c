@@ -200,7 +200,8 @@ xfs_ialloc_inode_init(
 		 */
 		d = XFS_AGB_TO_DADDR(mp, agno, agbno + (j * blks_per_cluster));
 		fbuf = xfs_trans_get_buf(tp, mp->m_ddev_targp, d,
-					 mp->m_bsize * blks_per_cluster, 0);
+					 mp->m_bsize * blks_per_cluster,
+					 XBF_UNMAPPED);
 		if (!fbuf)
 			return ENOMEM;
 		/*
@@ -210,6 +211,7 @@ xfs_ialloc_inode_init(
 		 *	to log a whole cluster of inodes instead of all the
 		 *	individual transactions causing a lot of log traffic.
 		 */
+		fbuf->b_ops = &xfs_inode_buf_ops;
 		xfs_buf_zero(fbuf, 0, ninodes << mp->m_sb.sb_inodelog);
 		for (i = 0; i < ninodes; i++) {
 			int	ioffset = i << mp->m_sb.sb_inodelog;
@@ -877,9 +879,9 @@ error0:
  * This function is designed to be called twice if it has to do an allocation
  * to make more free inodes.  On the first call, *IO_agbp should be set to NULL.
  * If an inode is available without having to performn an allocation, an inode
- * number is returned.  In this case, *IO_agbp would be NULL.  If an allocation
- * needes to be done, xfs_dialloc would return the current AGI buffer in
- * *IO_agbp.  The caller should then commit the current transaction, allocate a
+ * number is returned.  In this case, *IO_agbp is set to NULL.  If an allocation
+ * needs to be done, xfs_dialloc returns the current AGI buffer in *IO_agbp.
+ * The caller should then commit the current transaction, allocate a
  * new transaction, and call xfs_dialloc() again, passing in the previous value
  * of *IO_agbp.  IO_agbp should be held across the transactions. Since the AGI
  * buffer is locked across the two calls, the second call is guaranteed to have
@@ -1472,6 +1474,57 @@ xfs_check_agi_unlinked(
 #define xfs_check_agi_unlinked(agi)
 #endif
 
+static void
+xfs_agi_verify(
+	struct xfs_buf	*bp)
+{
+	struct xfs_mount *mp = bp->b_target->bt_mount;
+	struct xfs_agi	*agi = XFS_BUF_TO_AGI(bp);
+	int		agi_ok;
+
+	/*
+	 * Validate the magic number of the agi block.
+	 */
+	agi_ok = agi->agi_magicnum == cpu_to_be32(XFS_AGI_MAGIC) &&
+		XFS_AGI_GOOD_VERSION(be32_to_cpu(agi->agi_versionnum));
+
+	/*
+	 * during growfs operations, the perag is not fully initialised,
+	 * so we can't use it for any useful checking. growfs ensures we can't
+	 * use it by using uncached buffers that don't have the perag attached
+	 * so we can detect and avoid this problem.
+	 */
+	if (bp->b_pag)
+		agi_ok = agi_ok && be32_to_cpu(agi->agi_seqno) ==
+						bp->b_pag->pag_agno;
+
+	if (unlikely(XFS_TEST_ERROR(!agi_ok, mp, XFS_ERRTAG_IALLOC_READ_AGI,
+			XFS_RANDOM_IALLOC_READ_AGI))) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, agi);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+	}
+	xfs_check_agi_unlinked(agi);
+}
+
+static void
+xfs_agi_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_agi_verify(bp);
+}
+
+static void
+xfs_agi_write_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_agi_verify(bp);
+}
+
+const struct xfs_buf_ops xfs_agi_buf_ops = {
+	.verify_read = xfs_agi_read_verify,
+	.verify_write = xfs_agi_write_verify,
+};
+
 /*
  * Read in the allocation group header (inode allocation section)
  */
@@ -1482,38 +1535,18 @@ xfs_read_agi(
 	xfs_agnumber_t		agno,	/* allocation group number */
 	struct xfs_buf		**bpp)	/* allocation group hdr buf */
 {
-	struct xfs_agi		*agi;	/* allocation group header */
-	int			agi_ok;	/* agi is consistent */
 	int			error;
 
 	ASSERT(agno != NULLAGNUMBER);
 
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
 			XFS_AG_DADDR(mp, agno, XFS_AGI_DADDR(mp)),
-			XFS_FSS_TO_BB(mp, 1), 0, bpp);
+			XFS_FSS_TO_BB(mp, 1), 0, bpp, &xfs_agi_buf_ops);
 	if (error)
 		return error;
 
 	ASSERT(!xfs_buf_geterror(*bpp));
-	agi = XFS_BUF_TO_AGI(*bpp);
-
-	/*
-	 * Validate the magic number of the agi block.
-	 */
-	agi_ok = agi->agi_magicnum == cpu_to_be32(XFS_AGI_MAGIC) &&
-		XFS_AGI_GOOD_VERSION(be32_to_cpu(agi->agi_versionnum)) &&
-		be32_to_cpu(agi->agi_seqno) == agno;
-	if (unlikely(XFS_TEST_ERROR(!agi_ok, mp, XFS_ERRTAG_IALLOC_READ_AGI,
-			XFS_RANDOM_IALLOC_READ_AGI))) {
-		XFS_CORRUPTION_ERROR("xfs_read_agi", XFS_ERRLEVEL_LOW,
-				     mp, agi);
-		xfs_trans_brelse(tp, *bpp);
-		return XFS_ERROR(EFSCORRUPTED);
-	}
-
 	xfs_buf_set_ref(*bpp, XFS_AGI_REF);
-
-	xfs_check_agi_unlinked(agi);
 	return 0;
 }
 

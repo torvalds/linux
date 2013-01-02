@@ -609,26 +609,20 @@ int radeon_fence_wait_next_locked(struct radeon_device *rdev, int ring)
  * Returns 0 if the fences have passed, error for all other cases.
  * Caller must hold ring lock.
  */
-void radeon_fence_wait_empty_locked(struct radeon_device *rdev, int ring)
+int radeon_fence_wait_empty_locked(struct radeon_device *rdev, int ring)
 {
 	uint64_t seq = rdev->fence_drv[ring].sync_seq[ring];
+	int r;
 
-	while(1) {
-		int r;
-		r = radeon_fence_wait_seq(rdev, seq, ring, false, false);
+	r = radeon_fence_wait_seq(rdev, seq, ring, false, false);
+	if (r) {
 		if (r == -EDEADLK) {
-			mutex_unlock(&rdev->ring_lock);
-			r = radeon_gpu_reset(rdev);
-			mutex_lock(&rdev->ring_lock);
-			if (!r)
-				continue;
+			return -EDEADLK;
 		}
-		if (r) {
-			dev_err(rdev->dev, "error waiting for ring to become"
-				" idle (%d)\n", r);
-		}
-		return;
+		dev_err(rdev->dev, "error waiting for ring[%d] to become idle (%d)\n",
+			ring, r);
 	}
+	return 0;
 }
 
 /**
@@ -772,7 +766,7 @@ int radeon_fence_driver_start_ring(struct radeon_device *rdev, int ring)
 	int r;
 
 	radeon_scratch_free(rdev, rdev->fence_drv[ring].scratch_reg);
-	if (rdev->wb.use_event) {
+	if (rdev->wb.use_event || !radeon_ring_supports_scratch_reg(rdev, &rdev->ring[ring])) {
 		rdev->fence_drv[ring].scratch_reg = 0;
 		index = R600_WB_EVENT_OFFSET + ring * 4;
 	} else {
@@ -854,18 +848,41 @@ int radeon_fence_driver_init(struct radeon_device *rdev)
  */
 void radeon_fence_driver_fini(struct radeon_device *rdev)
 {
-	int ring;
+	int ring, r;
 
 	mutex_lock(&rdev->ring_lock);
 	for (ring = 0; ring < RADEON_NUM_RINGS; ring++) {
 		if (!rdev->fence_drv[ring].initialized)
 			continue;
-		radeon_fence_wait_empty_locked(rdev, ring);
+		r = radeon_fence_wait_empty_locked(rdev, ring);
+		if (r) {
+			/* no need to trigger GPU reset as we are unloading */
+			radeon_fence_driver_force_completion(rdev);
+		}
 		wake_up_all(&rdev->fence_queue);
 		radeon_scratch_free(rdev, rdev->fence_drv[ring].scratch_reg);
 		rdev->fence_drv[ring].initialized = false;
 	}
 	mutex_unlock(&rdev->ring_lock);
+}
+
+/**
+ * radeon_fence_driver_force_completion - force all fence waiter to complete
+ *
+ * @rdev: radeon device pointer
+ *
+ * In case of GPU reset failure make sure no process keep waiting on fence
+ * that will never complete.
+ */
+void radeon_fence_driver_force_completion(struct radeon_device *rdev)
+{
+	int ring;
+
+	for (ring = 0; ring < RADEON_NUM_RINGS; ring++) {
+		if (!rdev->fence_drv[ring].initialized)
+			continue;
+		radeon_fence_write(rdev, rdev->fence_drv[ring].sync_seq[ring], ring);
+	}
 }
 
 

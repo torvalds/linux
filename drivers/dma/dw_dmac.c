@@ -1462,7 +1462,7 @@ static void dw_dma_off(struct dw_dma *dw)
 		dw->chan[i].initialized = false;
 }
 
-static int __devinit dw_probe(struct platform_device *pdev)
+static int dw_probe(struct platform_device *pdev)
 {
 	struct dw_dma_platform_data *pdata;
 	struct resource		*io;
@@ -1700,7 +1700,7 @@ MODULE_DEVICE_TABLE(of, dw_dma_id_table);
 #endif
 
 static struct platform_driver dw_driver = {
-	.remove		= __devexit_p(dw_remove),
+	.remove		= dw_remove,
 	.shutdown	= dw_shutdown,
 	.driver = {
 		.name	= "dw_dmac",

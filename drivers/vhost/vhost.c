@@ -26,10 +26,6 @@
 #include <linux/kthread.h>
 #include <linux/cgroup.h>
 
-#include <linux/net.h>
-#include <linux/if_packet.h>
-#include <linux/if_arp.h>
-
 #include "vhost.h"
 
 enum {
@@ -414,32 +410,7 @@ long vhost_dev_reset_owner(struct vhost_dev *dev)
 	return 0;
 }
 
-/* In case of DMA done not in order in lower device driver for some reason.
- * upend_idx is used to track end of used idx, done_idx is used to track head
- * of used idx. Once lower device DMA done contiguously, we will signal KVM
- * guest used idx.
- */
-int vhost_zerocopy_signal_used(struct vhost_virtqueue *vq)
-{
-	int i;
-	int j = 0;
-
-	for (i = vq->done_idx; i != vq->upend_idx; i = (i + 1) % UIO_MAXIOV) {
-		if ((vq->heads[i].len == VHOST_DMA_DONE_LEN)) {
-			vq->heads[i].len = VHOST_DMA_CLEAR_LEN;
-			vhost_add_used_and_signal(vq->dev, vq,
-						  vq->heads[i].id, 0);
-			++j;
-		} else
-			break;
-	}
-	if (j)
-		vq->done_idx = i;
-	return j;
-}
-
-/* Caller should have device mutex if and only if locked is set */
-void vhost_dev_cleanup(struct vhost_dev *dev, bool locked)
+void vhost_dev_stop(struct vhost_dev *dev)
 {
 	int i;
 
@@ -448,13 +419,15 @@ void vhost_dev_cleanup(struct vhost_dev *dev, bool locked)
 			vhost_poll_stop(&dev->vqs[i].poll);
 			vhost_poll_flush(&dev->vqs[i].poll);
 		}
-		/* Wait for all lower device DMAs done. */
-		if (dev->vqs[i].ubufs)
-			vhost_ubuf_put_and_wait(dev->vqs[i].ubufs);
+	}
+}
 
-		/* Signal guest as appropriate. */
-		vhost_zerocopy_signal_used(&dev->vqs[i]);
+/* Caller should have device mutex if and only if locked is set */
+void vhost_dev_cleanup(struct vhost_dev *dev, bool locked)
+{
+	int i;
 
+	for (i = 0; i < dev->nvqs; ++i) {
 		if (dev->vqs[i].error_ctx)
 			eventfd_ctx_put(dev->vqs[i].error_ctx);
 		if (dev->vqs[i].error)
@@ -634,7 +607,7 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
 	return 0;
 }
 
-static long vhost_set_vring(struct vhost_dev *d, int ioctl, void __user *argp)
+long vhost_vring_ioctl(struct vhost_dev *d, int ioctl, void __user *argp)
 {
 	struct file *eventfp, *filep = NULL;
 	bool pollstart = false, pollstop = false;
@@ -829,9 +802,8 @@ static long vhost_set_vring(struct vhost_dev *d, int ioctl, void __user *argp)
 }
 
 /* Caller must have device mutex */
-long vhost_dev_ioctl(struct vhost_dev *d, unsigned int ioctl, unsigned long arg)
+long vhost_dev_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *argp)
 {
-	void __user *argp = (void __user *)arg;
 	struct file *eventfp, *filep = NULL;
 	struct eventfd_ctx *ctx = NULL;
 	u64 p;
@@ -902,7 +874,7 @@ long vhost_dev_ioctl(struct vhost_dev *d, unsigned int ioctl, unsigned long arg)
 			fput(filep);
 		break;
 	default:
-		r = vhost_set_vring(d, ioctl, argp);
+		r = -ENOIOCTLCMD;
 		break;
 	}
 done:
@@ -1598,15 +1570,4 @@ void vhost_ubuf_put_and_wait(struct vhost_ubuf_ref *ubufs)
 	kref_put(&ubufs->kref, vhost_zerocopy_done_signal);
 	wait_event(ubufs->wait, !atomic_read(&ubufs->kref.refcount));
 	kfree(ubufs);
-}
-
-void vhost_zerocopy_callback(struct ubuf_info *ubuf)
-{
-	struct vhost_ubuf_ref *ubufs = ubuf->ctx;
-	struct vhost_virtqueue *vq = ubufs->vq;
-
-	vhost_poll_queue(&vq->poll);
-	/* set len = 1 to mark this desc buffers done DMA */
-	vq->heads[ubuf->desc].len = VHOST_DMA_DONE_LEN;
-	kref_put(&ubufs->kref, vhost_zerocopy_done_signal);
 }

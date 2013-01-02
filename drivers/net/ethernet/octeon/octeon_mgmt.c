@@ -1419,7 +1419,7 @@ static const struct net_device_ops octeon_mgmt_ops = {
 #endif
 };
 
-static int __devinit octeon_mgmt_probe(struct platform_device *pdev)
+static int octeon_mgmt_probe(struct platform_device *pdev)
 {
 	struct net_device *netdev;
 	struct octeon_mgmt *p;
@@ -1559,7 +1559,7 @@ err:
 	return result;
 }
 
-static int __devexit octeon_mgmt_remove(struct platform_device *pdev)
+static int octeon_mgmt_remove(struct platform_device *pdev)
 {
 	struct net_device *netdev = dev_get_drvdata(&pdev->dev);
 
@@ -1583,7 +1583,7 @@ static struct platform_driver octeon_mgmt_driver = {
 		.of_match_table = octeon_mgmt_match,
 	},
 	.probe		= octeon_mgmt_probe,
-	.remove		= __devexit_p(octeon_mgmt_remove),
+	.remove		= octeon_mgmt_remove,
 };
 
 extern void octeon_mdiobus_force_mod_depencency(void);

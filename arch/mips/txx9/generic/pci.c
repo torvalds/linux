@@ -341,7 +341,7 @@ static void __devinit quirk_slc90e66_ide(struct pci_dev *dev)
 
 static void __devinit tc35815_fixup(struct pci_dev *dev)
 {
-	/* This device may have PM registers but not they are not suported. */
+	/* This device may have PM registers but not they are not supported. */
 	if (dev->pm_cap) {
 		dev_info(&dev->dev, "PM disabled\n");
 		dev->pm_cap = 0;

@@ -741,7 +741,7 @@ static struct dvb_usb_device_properties ttusb2_properties_ct3650 = {
 		.rc_interval      = 150, /* Less than IR_KEYPRESS_TIMEOUT */
 		.rc_codes         = RC_MAP_TT_1500,
 		.rc_query         = tt3650_rc_query,
-		.allowed_protos   = RC_TYPE_UNKNOWN,
+		.allowed_protos   = RC_BIT_UNKNOWN,
 	},
 
 	.num_adapters = 1,

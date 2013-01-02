@@ -573,6 +573,9 @@ static int dn_nl_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct dn_ifaddr __rcu **ifap;
 	int err = -EINVAL;
 
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
 	if (!net_eq(net, &init_net))
 		goto errout;
 
@@ -613,6 +616,9 @@ static int dn_nl_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct ifaddrmsg *ifm;
 	struct dn_ifaddr *ifa;
 	int err;
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
 
 	if (!net_eq(net, &init_net))
 		return -EINVAL;

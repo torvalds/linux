@@ -25,9 +25,11 @@
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
 #include <linux/gpio.h>
-#include <plat/cpu.h>
-#include <plat/usb.h>
+#include <linux/platform_device.h>
+#include <linux/platform_data/usb-omap.h>
 #include <linux/pm_runtime.h>
+
+#include "omap-usb.h"
 
 #define USBHS_DRIVER_NAME	"usbhs_omap"
 #define OMAP_EHCI_DEVICE	"ehci-omap"
@@ -381,7 +383,7 @@ static void omap_usbhs_init(struct device *dev)
 			reg &= ~OMAP_UHH_HOSTCONFIG_P3_CONNECT_STATUS;
 
 		/* Bypass the TLL module for PHY mode operation */
-		if (cpu_is_omap3430() && (omap_rev() <= OMAP3430_REV_ES2_1)) {
+		if (pdata->single_ulpi_bypass) {
 			dev_dbg(dev, "OMAP3 ES version <= ES2.1\n");
 			if (is_ehci_phy_mode(pdata->port_mode[0]) ||
 				is_ehci_phy_mode(pdata->port_mode[1]) ||
@@ -464,7 +466,7 @@ static void omap_usbhs_deinit(struct device *dev)
  *
  * Allocates basic resources for this USB host controller.
  */
-static int __devinit usbhs_omap_probe(struct platform_device *pdev)
+static int usbhs_omap_probe(struct platform_device *pdev)
 {
 	struct device			*dev =  &pdev->dev;
 	struct usbhs_omap_platform_data	*pdata = dev->platform_data;
@@ -652,7 +654,7 @@ end_probe:
  *
  * Reverses the effect of usbhs_omap_probe().
  */
-static int __devexit usbhs_omap_remove(struct platform_device *pdev)
+static int usbhs_omap_remove(struct platform_device *pdev)
 {
 	struct usbhs_hcd_omap *omap = platform_get_drvdata(pdev);
 

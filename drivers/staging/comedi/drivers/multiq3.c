@@ -86,7 +86,6 @@ Devices: [Quanser Consulting] MultiQ-3 (multiq3)
 struct multiq3_private {
 	unsigned int ao_readback[2];
 };
-#define devpriv ((struct multiq3_private *)dev->private)
 
 static int multiq3_ai_insn_read(struct comedi_device *dev,
 				struct comedi_subdevice *s,
@@ -129,6 +128,7 @@ static int multiq3_ao_insn_read(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
+	struct multiq3_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -142,6 +142,7 @@ static int multiq3_ao_insn_write(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
+	struct multiq3_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -230,6 +231,7 @@ static void encoder_reset(struct comedi_device *dev)
 static int multiq3_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	struct multiq3_private *devpriv;
 	int result = 0;
 	unsigned long iobase;
 	unsigned int irq;
@@ -256,9 +258,10 @@ static int multiq3_attach(struct comedi_device *dev,
 	if (result)
 		return result;
 
-	result = alloc_private(dev, sizeof(struct multiq3_private));
-	if (result < 0)
-		return result;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	s = &dev->subdevices[0];
 	/* ai subdevice */

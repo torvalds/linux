@@ -47,10 +47,7 @@ static void _be_roce_dev_add(struct be_adapter *adapter)
 		dev_info.dpp_unmapped_len = 0;
 	}
 	dev_info.pdev = adapter->pdev;
-	if (adapter->sli_family == SKYHAWK_SLI_FAMILY)
-		dev_info.db = adapter->db;
-	else
-		dev_info.db = adapter->roce_db.base;
+	dev_info.db = adapter->db;
 	dev_info.unmapped_db = adapter->roce_db.io_addr;
 	dev_info.db_page_size = adapter->roce_db.size;
 	dev_info.db_total_size = adapter->roce_db.total_size;

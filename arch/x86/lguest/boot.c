@@ -1412,7 +1412,7 @@ __init void lguest_init(void)
 
 	/* We don't have features.  We have puppies!  Puppies! */
 #ifdef CONFIG_X86_MCE
-	mce_disabled = 1;
+	mca_cfg.disabled = true;
 #endif
 #ifdef CONFIG_ACPI
 	acpi_disabled = 1;

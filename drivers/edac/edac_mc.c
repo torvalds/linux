@@ -974,20 +974,22 @@ static void edac_ce_error(struct mem_ctl_info *mci,
 			  long grain)
 {
 	unsigned long remapped_page;
+	char *msg_aux = "";
+
+	if (*msg)
+		msg_aux = " ";
 
 	if (edac_mc_get_log_ce()) {
 		if (other_detail && *other_detail)
 			edac_mc_printk(mci, KERN_WARNING,
-				       "%d CE %s on %s (%s %s - %s)\n",
-				       error_count,
-				       msg, label, location,
-				       detail, other_detail);
+				       "%d CE %s%son %s (%s %s - %s)\n",
+				       error_count, msg, msg_aux, label,
+				       location, detail, other_detail);
 		else
 			edac_mc_printk(mci, KERN_WARNING,
-				       "%d CE %s on %s (%s %s)\n",
-				       error_count,
-				       msg, label, location,
-				       detail);
+				       "%d CE %s%son %s (%s %s)\n",
+				       error_count, msg, msg_aux, label,
+				       location, detail);
 	}
 	edac_inc_ce_error(mci, enable_per_layer_report, pos, error_count);
 
@@ -1022,27 +1024,31 @@ static void edac_ue_error(struct mem_ctl_info *mci,
 			  const char *other_detail,
 			  const bool enable_per_layer_report)
 {
+	char *msg_aux = "";
+
+	if (*msg)
+		msg_aux = " ";
+
 	if (edac_mc_get_log_ue()) {
 		if (other_detail && *other_detail)
 			edac_mc_printk(mci, KERN_WARNING,
-				       "%d UE %s on %s (%s %s - %s)\n",
-				       error_count,
-			               msg, label, location, detail,
-				       other_detail);
+				       "%d UE %s%son %s (%s %s - %s)\n",
+				       error_count, msg, msg_aux, label,
+				       location, detail, other_detail);
 		else
 			edac_mc_printk(mci, KERN_WARNING,
-				       "%d UE %s on %s (%s %s)\n",
-				       error_count,
-			               msg, label, location, detail);
+				       "%d UE %s%son %s (%s %s)\n",
+				       error_count, msg, msg_aux, label,
+				       location, detail);
 	}
 
 	if (edac_mc_get_panic_on_ue()) {
 		if (other_detail && *other_detail)
-			panic("UE %s on %s (%s%s - %s)\n",
-			      msg, label, location, detail, other_detail);
+			panic("UE %s%son %s (%s%s - %s)\n",
+			      msg, msg_aux, label, location, detail, other_detail);
 		else
-			panic("UE %s on %s (%s%s)\n",
-			      msg, label, location, detail);
+			panic("UE %s%son %s (%s%s)\n",
+			      msg, msg_aux, label, location, detail);
 	}
 
 	edac_inc_ue_error(mci, enable_per_layer_report, pos, error_count);
@@ -1101,10 +1107,6 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 	 */
 	for (i = 0; i < mci->n_layers; i++) {
 		if (pos[i] >= (int)mci->layers[i].size) {
-			if (type == HW_EVENT_ERR_CORRECTED)
-				p = "CE";
-			else
-				p = "UE";
 
 			edac_mc_printk(mci, KERN_ERR,
 				       "INTERNAL ERROR: %s value is out of range (%d >= %d)\n",
@@ -1136,6 +1138,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 	grain = 0;
 	p = label;
 	*p = '\0';
+
 	for (i = 0; i < mci->tot_dimms; i++) {
 		struct dimm_info *dimm = mci->dimms[i];
 
@@ -1203,6 +1206,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 
 	/* Fill the RAM location data */
 	p = location;
+
 	for (i = 0; i < mci->n_layers; i++) {
 		if (pos[i] < 0)
 			continue;
@@ -1215,7 +1219,6 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 		*(p - 1) = '\0';
 
 	/* Report the error via the trace interface */
-
 	grain_bits = fls_long(grain) + 1;
 	trace_mc_event(type, msg, label, error_count,
 		       mci->mc_idx, top_layer, mid_layer, low_layer,

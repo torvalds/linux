@@ -15,6 +15,7 @@
 #include <linux/log2.h>
 #include <linux/module.h>
 
+#include <media/mt9v022.h>
 #include <media/soc_camera.h>
 #include <media/soc_mediabus.h>
 #include <media/v4l2-subdev.h>
@@ -50,6 +51,7 @@ MODULE_PARM_DESC(sensor_type, "Sensor type: \"colour\" or \"monochrome\"");
 #define MT9V022_PIXEL_OPERATION_MODE	0x0f
 #define MT9V022_LED_OUT_CONTROL		0x1b
 #define MT9V022_ADC_MODE_CONTROL	0x1c
+#define MT9V022_REG32			0x20
 #define MT9V022_ANALOG_GAIN		0x35
 #define MT9V022_BLACK_LEVEL_CALIB_CTRL	0x47
 #define MT9V022_PIXCLK_FV_LV		0x74
@@ -71,7 +73,15 @@ MODULE_PARM_DESC(sensor_type, "Sensor type: \"colour\" or \"monochrome\"");
 #define MT9V022_COLUMN_SKIP		1
 #define MT9V022_ROW_SKIP		4
 
-#define is_mt9v024(id) (id == 0x1324)
+#define MT9V022_HORIZONTAL_BLANKING_MIN	43
+#define MT9V022_HORIZONTAL_BLANKING_MAX	1023
+#define MT9V022_HORIZONTAL_BLANKING_DEF	94
+#define MT9V022_VERTICAL_BLANKING_MIN	2
+#define MT9V022_VERTICAL_BLANKING_MAX	3000
+#define MT9V022_VERTICAL_BLANKING_DEF	45
+
+#define is_mt9v022_rev3(id)	(id == 0x1313)
+#define is_mt9v024(id)		(id == 0x1324)
 
 /* MT9V022 has only one fixed colorspace per pixelcode */
 struct mt9v022_datafmt {
@@ -136,6 +146,8 @@ struct mt9v022 {
 		struct v4l2_ctrl *autogain;
 		struct v4l2_ctrl *gain;
 	};
+	struct v4l2_ctrl *hblank;
+	struct v4l2_ctrl *vblank;
 	struct v4l2_rect rect;	/* Sensor window */
 	const struct mt9v022_datafmt *fmt;
 	const struct mt9v022_datafmt *fmts;
@@ -143,6 +155,7 @@ struct mt9v022 {
 	int num_fmts;
 	int model;	/* V4L2_IDENT_MT9V022* codes from v4l2-chip-ident.h */
 	u16 chip_control;
+	u16 chip_version;
 	unsigned short y_skip_top;	/* Lines to skip at the top */
 };
 
@@ -225,12 +238,32 @@ static int mt9v022_s_stream(struct v4l2_subdev *sd, int enable)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
 
-	if (enable)
+	if (enable) {
 		/* Switch to master "normal" mode */
 		mt9v022->chip_control &= ~0x10;
-	else
+		if (is_mt9v022_rev3(mt9v022->chip_version) ||
+		    is_mt9v024(mt9v022->chip_version)) {
+			/*
+			 * Unset snapshot mode specific settings: clear bit 9
+			 * and bit 2 in reg. 0x20 when in normal mode.
+			 */
+			if (reg_clear(client, MT9V022_REG32, 0x204))
+				return -EIO;
+		}
+	} else {
 		/* Switch to snapshot mode */
 		mt9v022->chip_control |= 0x10;
+		if (is_mt9v022_rev3(mt9v022->chip_version) ||
+		    is_mt9v024(mt9v022->chip_version)) {
+			/*
+			 * Required settings for snapshot mode: set bit 9
+			 * (RST enable) and bit 2 (CR enable) in reg. 0x20
+			 * See TechNote TN0960 or TN-09-225.
+			 */
+			if (reg_set(client, MT9V022_REG32, 0x204))
+				return -EIO;
+		}
+	}
 
 	if (reg_write(client, MT9V022_CHIP_CONTROL, mt9v022->chip_control) < 0)
 		return -EIO;
@@ -282,11 +315,10 @@ static int mt9v022_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 		 * Default 94, Phytec driver says:
 		 * "width + horizontal blank >= 660"
 		 */
-		ret = reg_write(client, MT9V022_HORIZONTAL_BLANKING,
-				rect.width > 660 - 43 ? 43 :
-				660 - rect.width);
+		ret = v4l2_ctrl_s_ctrl(mt9v022->hblank,
+				rect.width > 660 - 43 ? 43 : 660 - rect.width);
 	if (!ret)
-		ret = reg_write(client, MT9V022_VERTICAL_BLANKING, 45);
+		ret = v4l2_ctrl_s_ctrl(mt9v022->vblank, 45);
 	if (!ret)
 		ret = reg_write(client, MT9V022_WINDOW_WIDTH, rect.width);
 	if (!ret)
@@ -509,6 +541,18 @@ static int mt9v022_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 		range = exp->maximum - exp->minimum;
 		exp->val = ((data - 1) * range + 239) / 479 + exp->minimum;
 		return 0;
+	case V4L2_CID_HBLANK:
+		data = reg_read(client, MT9V022_HORIZONTAL_BLANKING);
+		if (data < 0)
+			return -EIO;
+		ctrl->val = data;
+		return 0;
+	case V4L2_CID_VBLANK:
+		data = reg_read(client, MT9V022_VERTICAL_BLANKING);
+		if (data < 0)
+			return -EIO;
+		ctrl->val = data;
+		return 0;
 	}
 	return -EINVAL;
 }
@@ -590,6 +634,16 @@ static int mt9v022_s_ctrl(struct v4l2_ctrl *ctrl)
 				return -EIO;
 		}
 		return 0;
+	case V4L2_CID_HBLANK:
+		if (reg_write(client, MT9V022_HORIZONTAL_BLANKING,
+				ctrl->val) < 0)
+			return -EIO;
+		return 0;
+	case V4L2_CID_VBLANK:
+		if (reg_write(client, MT9V022_VERTICAL_BLANKING,
+				ctrl->val) < 0)
+			return -EIO;
+		return 0;
 	}
 	return -EINVAL;
 }
@@ -620,6 +674,8 @@ static int mt9v022_video_probe(struct i2c_client *client)
 			 data);
 		goto ei2c;
 	}
+
+	mt9v022->chip_version = data;
 
 	mt9v022->reg = is_mt9v024(data) ? &mt9v024_register :
 			&mt9v022_register;
@@ -819,6 +875,7 @@ static int mt9v022_probe(struct i2c_client *client,
 	struct mt9v022 *mt9v022;
 	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct mt9v022_platform_data *pdata = icl->priv;
 	int ret;
 
 	if (!icl) {
@@ -857,10 +914,21 @@ static int mt9v022_probe(struct i2c_client *client,
 	mt9v022->exposure = v4l2_ctrl_new_std(&mt9v022->hdl, &mt9v022_ctrl_ops,
 			V4L2_CID_EXPOSURE, 1, 255, 1, 255);
 
+	mt9v022->hblank = v4l2_ctrl_new_std(&mt9v022->hdl, &mt9v022_ctrl_ops,
+			V4L2_CID_HBLANK, MT9V022_HORIZONTAL_BLANKING_MIN,
+			MT9V022_HORIZONTAL_BLANKING_MAX, 1,
+			MT9V022_HORIZONTAL_BLANKING_DEF);
+
+	mt9v022->vblank = v4l2_ctrl_new_std(&mt9v022->hdl, &mt9v022_ctrl_ops,
+			V4L2_CID_VBLANK, MT9V022_VERTICAL_BLANKING_MIN,
+			MT9V022_VERTICAL_BLANKING_MAX, 1,
+			MT9V022_VERTICAL_BLANKING_DEF);
+
 	mt9v022->subdev.ctrl_handler = &mt9v022->hdl;
 	if (mt9v022->hdl.error) {
 		int err = mt9v022->hdl.error;
 
+		dev_err(&client->dev, "control initialisation err %d\n", err);
 		kfree(mt9v022);
 		return err;
 	}
@@ -871,10 +939,10 @@ static int mt9v022_probe(struct i2c_client *client,
 	mt9v022->chip_control = MT9V022_CHIP_CONTROL_DEFAULT;
 
 	/*
-	 * MT9V022 _really_ corrupts the first read out line.
-	 * TODO: verify on i.MX31
+	 * On some platforms the first read out line is corrupted.
+	 * Workaround it by skipping if indicated by platform data.
 	 */
-	mt9v022->y_skip_top	= 1;
+	mt9v022->y_skip_top	= pdata ? pdata->y_skip_top : 0;
 	mt9v022->rect.left	= MT9V022_COLUMN_SKIP;
 	mt9v022->rect.top	= MT9V022_ROW_SKIP;
 	mt9v022->rect.width	= MT9V022_MAX_WIDTH;

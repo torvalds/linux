@@ -3,6 +3,7 @@
 
 #include <linux/types.h>
 #include <linux/crypto.h>
+#include <crypto/cast_common.h>
 
 #define CAST6_BLOCK_SIZE 16
 #define CAST6_MIN_KEY_SIZE 16
@@ -19,10 +20,5 @@ int cast6_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen);
 
 void __cast6_encrypt(struct cast6_ctx *ctx, u8 *dst, const u8 *src);
 void __cast6_decrypt(struct cast6_ctx *ctx, u8 *dst, const u8 *src);
-
-extern const u32 cast6_s1[256];
-extern const u32 cast6_s2[256];
-extern const u32 cast6_s3[256];
-extern const u32 cast6_s4[256];
 
 #endif

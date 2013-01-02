@@ -71,6 +71,8 @@ struct snd_pcm_ops {
 	int (*prepare)(struct snd_pcm_substream *substream);
 	int (*trigger)(struct snd_pcm_substream *substream, int cmd);
 	snd_pcm_uframes_t (*pointer)(struct snd_pcm_substream *substream);
+	int (*wall_clock)(struct snd_pcm_substream *substream,
+			  struct timespec *audio_ts);
 	int (*copy)(struct snd_pcm_substream *substream, int channel,
 		    snd_pcm_uframes_t pos,
 		    void __user *buf, snd_pcm_uframes_t count);
@@ -281,6 +283,7 @@ struct snd_pcm_runtime {
 	unsigned long hw_ptr_jiffies;	/* Time when hw_ptr is updated */
 	unsigned long hw_ptr_buffer_jiffies; /* buffer time in jiffies */
 	snd_pcm_sframes_t delay;	/* extra delay; typically FIFO size */
+	u64 hw_ptr_wrap;                /* offset for hw_ptr due to boundary wrap-around */
 
 	/* -- HW params -- */
 	snd_pcm_access_t access;	/* access mode */

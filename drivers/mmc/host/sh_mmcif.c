@@ -1298,7 +1298,7 @@ static void sh_mmcif_init_ocr(struct sh_mmcif_host *host)
 		dev_warn(mmc_dev(mmc), "Platform OCR mask is ignored\n");
 }
 
-static int __devinit sh_mmcif_probe(struct platform_device *pdev)
+static int sh_mmcif_probe(struct platform_device *pdev)
 {
 	int ret = 0, irq[2];
 	struct mmc_host *mmc;
@@ -1306,7 +1306,6 @@ static int __devinit sh_mmcif_probe(struct platform_device *pdev)
 	struct sh_mmcif_plat_data *pd = pdev->dev.platform_data;
 	struct resource *res;
 	void __iomem *reg;
-	char clk_name[8];
 
 	irq[0] = platform_get_irq(pdev, 0);
 	irq[1] = platform_get_irq(pdev, 1);
@@ -1356,11 +1355,10 @@ static int __devinit sh_mmcif_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	host->power = false;
 
-	snprintf(clk_name, sizeof(clk_name), "mmc%d", pdev->id);
-	host->hclk = clk_get(&pdev->dev, clk_name);
+	host->hclk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->hclk)) {
 		ret = PTR_ERR(host->hclk);
-		dev_err(&pdev->dev, "cannot get clock \"%s\": %d\n", clk_name, ret);
+		dev_err(&pdev->dev, "cannot get clock: %d\n", ret);
 		goto eclkget;
 	}
 	ret = sh_mmcif_clk_update(host);
@@ -1426,7 +1424,7 @@ ealloch:
 	return ret;
 }
 
-static int __devexit sh_mmcif_remove(struct platform_device *pdev)
+static int sh_mmcif_remove(struct platform_device *pdev)
 {
 	struct sh_mmcif_host *host = platform_get_drvdata(pdev);
 	struct sh_mmcif_plat_data *pd = pdev->dev.platform_data;

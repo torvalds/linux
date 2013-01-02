@@ -17,6 +17,8 @@
  * 02110-1301, USA
  */
 
+#include <linux/crc32c.h>
+#include <linux/highmem.h>
 #include "main.h"
 #include "sysfs.h"
 #include "debugfs.h"
@@ -29,6 +31,7 @@
 #include "hard-interface.h"
 #include "gateway_client.h"
 #include "bridge_loop_avoidance.h"
+#include "distributed-arp-table.h"
 #include "vis.h"
 #include "hash.h"
 #include "bat_algo.h"
@@ -128,6 +131,10 @@ int batadv_mesh_init(struct net_device *soft_iface)
 	if (ret < 0)
 		goto err;
 
+	ret = batadv_dat_init(bat_priv);
+	if (ret < 0)
+		goto err;
+
 	atomic_set(&bat_priv->gw.reselect, 0);
 	atomic_set(&bat_priv->mesh_state, BATADV_MESH_ACTIVE);
 
@@ -155,19 +162,11 @@ void batadv_mesh_free(struct net_device *soft_iface)
 
 	batadv_bla_free(bat_priv);
 
+	batadv_dat_free(bat_priv);
+
 	free_percpu(bat_priv->bat_counters);
 
 	atomic_set(&bat_priv->mesh_state, BATADV_MESH_INACTIVE);
-}
-
-void batadv_inc_module_count(void)
-{
-	try_module_get(THIS_MODULE);
-}
-
-void batadv_dec_module_count(void)
-{
-	module_put(THIS_MODULE);
 }
 
 int batadv_is_my_mac(const uint8_t *addr)
@@ -186,6 +185,42 @@ int batadv_is_my_mac(const uint8_t *addr)
 	}
 	rcu_read_unlock();
 	return 0;
+}
+
+/**
+ * batadv_seq_print_text_primary_if_get - called from debugfs table printing
+ *  function that requires the primary interface
+ * @seq: debugfs table seq_file struct
+ *
+ * Returns primary interface if found or NULL otherwise.
+ */
+struct batadv_hard_iface *
+batadv_seq_print_text_primary_if_get(struct seq_file *seq)
+{
+	struct net_device *net_dev = (struct net_device *)seq->private;
+	struct batadv_priv *bat_priv = netdev_priv(net_dev);
+	struct batadv_hard_iface *primary_if;
+
+	primary_if = batadv_primary_if_get_selected(bat_priv);
+
+	if (!primary_if) {
+		seq_printf(seq,
+			   "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
+			   net_dev->name);
+		goto out;
+	}
+
+	if (primary_if->if_status == BATADV_IF_ACTIVE)
+		goto out;
+
+	seq_printf(seq,
+		   "BATMAN mesh %s disabled - primary interface not active\n",
+		   net_dev->name);
+	batadv_hardif_free_ref(primary_if);
+	primary_if = NULL;
+
+out:
+	return primary_if;
 }
 
 static int batadv_recv_unhandled_packet(struct sk_buff *skb,
@@ -274,6 +309,8 @@ static void batadv_recv_handler_init(void)
 
 	/* batman icmp packet */
 	batadv_rx_handler[BATADV_ICMP] = batadv_recv_icmp_packet;
+	/* unicast with 4 addresses packet */
+	batadv_rx_handler[BATADV_UNICAST_4ADDR] = batadv_recv_unicast_packet;
 	/* unicast packet */
 	batadv_rx_handler[BATADV_UNICAST] = batadv_recv_unicast_packet;
 	/* fragmented unicast packet */
@@ -383,6 +420,38 @@ int batadv_algo_seq_print_text(struct seq_file *seq, void *offset)
 	}
 
 	return 0;
+}
+
+/**
+ * batadv_skb_crc32 - calculate CRC32 of the whole packet and skip bytes in
+ *  the header
+ * @skb: skb pointing to fragmented socket buffers
+ * @payload_ptr: Pointer to position inside the head buffer of the skb
+ *  marking the start of the data to be CRC'ed
+ *
+ * payload_ptr must always point to an address in the skb head buffer and not to
+ * a fragment.
+ */
+__be32 batadv_skb_crc32(struct sk_buff *skb, u8 *payload_ptr)
+{
+	u32 crc = 0;
+	unsigned int from;
+	unsigned int to = skb->len;
+	struct skb_seq_state st;
+	const u8 *data;
+	unsigned int len;
+	unsigned int consumed = 0;
+
+	from = (unsigned int)(payload_ptr - skb->data);
+
+	skb_prepare_seq_read(skb, from, to, &st);
+	while ((len = skb_seq_read(consumed, &data, &st)) != 0) {
+		crc = crc32c(crc, data, len);
+		consumed += len;
+	}
+	skb_abort_seq_read(&st);
+
+	return htonl(crc);
 }
 
 static int batadv_param_set_ra(const char *val, const struct kernel_param *kp)

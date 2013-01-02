@@ -145,7 +145,7 @@ static const struct iio_chan_spec adis16060_channels[] = {
 	}
 };
 
-static int __devinit adis16060_r_probe(struct spi_device *spi)
+static int adis16060_r_probe(struct spi_device *spi)
 {
 	int ret;
 	struct adis16060_state *st;
@@ -184,7 +184,7 @@ error_ret:
 }
 
 /* fixme, confirm ordering in this function */
-static int __devexit adis16060_r_remove(struct spi_device *spi)
+static int adis16060_r_remove(struct spi_device *spi)
 {
 	iio_device_unregister(spi_get_drvdata(spi));
 	iio_device_free(spi_get_drvdata(spi));
@@ -192,7 +192,7 @@ static int __devexit adis16060_r_remove(struct spi_device *spi)
 	return 0;
 }
 
-static int __devinit adis16060_w_probe(struct spi_device *spi)
+static int adis16060_w_probe(struct spi_device *spi)
 {
 	int ret;
 	struct iio_dev *indio_dev = adis16060_iio_dev;
@@ -210,7 +210,7 @@ error_ret:
 	return ret;
 }
 
-static int __devexit adis16060_w_remove(struct spi_device *spi)
+static int adis16060_w_remove(struct spi_device *spi)
 {
 	return 0;
 }
@@ -221,7 +221,7 @@ static struct spi_driver adis16060_r_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = adis16060_r_probe,
-	.remove = __devexit_p(adis16060_r_remove),
+	.remove = adis16060_r_remove,
 };
 
 static struct spi_driver adis16060_w_driver = {
@@ -230,7 +230,7 @@ static struct spi_driver adis16060_w_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = adis16060_w_probe,
-	.remove = __devexit_p(adis16060_w_remove),
+	.remove = adis16060_w_remove,
 };
 
 static __init int adis16060_init(void)

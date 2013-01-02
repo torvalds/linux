@@ -31,7 +31,21 @@
 
 #define M_COUNTER_OVERFLOW		(1UL      << 31)
 
+/* Netlogic XLR specific, count events in all threads in a core */
+#define M_PERFCTL_COUNT_ALL_THREADS	(1UL      << 13)
+
 static int (*save_perf_irq)(void);
+
+/*
+ * XLR has only one set of counters per core. Designate the
+ * first hardware thread in the core for setup and init.
+ * Skip CPUs with non-zero hardware thread id (4 hwt per core)
+ */
+#ifdef CONFIG_CPU_XLR
+#define oprofile_skip_cpu(c)	((cpu_logical_map(c) & 0x3) != 0)
+#else
+#define oprofile_skip_cpu(c)	0
+#endif
 
 #ifdef CONFIG_MIPS_MT_SMP
 static int cpu_has_mipsmt_pertccounters;
@@ -152,6 +166,8 @@ static void mipsxx_reg_setup(struct op_counter_config *ctr)
 			reg.control[i] |= M_PERFCTL_USER;
 		if (ctr[i].exl)
 			reg.control[i] |= M_PERFCTL_EXL;
+		if (current_cpu_type() == CPU_XLR)
+			reg.control[i] |= M_PERFCTL_COUNT_ALL_THREADS;
 		reg.counter[i] = 0x80000000 - ctr[i].count;
 	}
 }
@@ -161,6 +177,9 @@ static void mipsxx_reg_setup(struct op_counter_config *ctr)
 static void mipsxx_cpu_setup(void *args)
 {
 	unsigned int counters = op_model_mipsxx_ops.num_counters;
+
+	if (oprofile_skip_cpu(smp_processor_id()))
+		return;
 
 	switch (counters) {
 	case 4:
@@ -183,6 +202,9 @@ static void mipsxx_cpu_start(void *args)
 {
 	unsigned int counters = op_model_mipsxx_ops.num_counters;
 
+	if (oprofile_skip_cpu(smp_processor_id()))
+		return;
+
 	switch (counters) {
 	case 4:
 		w_c0_perfctrl3(WHAT | reg.control[3]);
@@ -199,6 +221,9 @@ static void mipsxx_cpu_start(void *args)
 static void mipsxx_cpu_stop(void *args)
 {
 	unsigned int counters = op_model_mipsxx_ops.num_counters;
+
+	if (oprofile_skip_cpu(smp_processor_id()))
+		return;
 
 	switch (counters) {
 	case 4:
@@ -370,6 +395,10 @@ static int __init mipsxx_init(void)
 
 	case CPU_LOONGSON1:
 		op_model_mipsxx_ops.cpu_type = "mips/loongson1";
+		break;
+
+	case CPU_XLR:
+		op_model_mipsxx_ops.cpu_type = "mips/xlr";
 		break;
 
 	default:

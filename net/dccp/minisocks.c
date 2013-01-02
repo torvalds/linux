@@ -174,8 +174,7 @@ struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 			 * To protect against Request floods, increment retrans
 			 * counter (backoff, monitored by dccp_response_timer).
 			 */
-			req->retrans++;
-			req->rsk_ops->rtx_syn_ack(sk, req, NULL);
+			inet_rtx_syn_ack(sk, req);
 		}
 		/* Network Duplicate, discard packet */
 		return NULL;

@@ -12,7 +12,7 @@ Required properties:
 
 Optional properties:
 - ti,dmic: phandle for the OMAP dmic node if the machine have it connected
-- ti,jack_detection: Need to be set to <1> if the board capable to detect jack
+- ti,jack_detection: Need to be present if the board capable to detect jack
   insertion, removal.
 
 Available audio endpoints for the audio-routing table:
@@ -59,7 +59,7 @@ sound {
 	compatible = "ti,abe-twl6040";
 	ti,model = "SDP4430";
 
-	ti,jack-detection = <1>;
+	ti,jack-detection;
 	ti,mclk-freq = <38400000>;
 
 	ti,mcpdm = <&mcpdm>;

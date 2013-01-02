@@ -83,16 +83,17 @@ to work with it.
 	res_counter->lock internally (it must be called with res_counter->lock
 	held). The force parameter indicates whether we can bypass the limit.
 
- e. void res_counter_uncharge[_locked]
+ e. u64 res_counter_uncharge[_locked]
 			(struct res_counter *rc, unsigned long val)
 
 	When a resource is released (freed) it should be de-accounted
 	from the resource counter it was accounted to.  This is called
-	"uncharging".
+	"uncharging". The return value of this function indicate the amount
+	of charges still present in the counter.
 
 	The _locked routines imply that the res_counter->lock is taken.
 
- f. void res_counter_uncharge_until
+ f. u64 res_counter_uncharge_until
 		(struct res_counter *rc, struct res_counter *top,
 		 unsinged long val)
 

@@ -21,10 +21,6 @@
 #ifndef __XBV_H__
 #define __XBV_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef CSR_WIFI_XBV_TEST
 /* Driver includes */
 #include "csr_wifi_hip_unifi.h"
@@ -119,9 +115,5 @@ s32 xbv1_read_slut(card_t *card, fwreadfn_t readfn, void *dlpriv, xbv1_t *fwinfo
                         symbol_t *slut, u32 slut_len);
 void* xbv_to_patch(card_t *card, fwreadfn_t readfn, const void *fw_buf, const xbv1_t *fwinfo,
                    u32 *size);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* __XBV_H__ */

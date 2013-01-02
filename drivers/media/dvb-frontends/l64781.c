@@ -180,11 +180,11 @@ static int apply_frontend_param(struct dvb_frontend *fe)
 	    p->transmission_mode != TRANSMISSION_MODE_8K)
 		return -EINVAL;
 
-	if (p->guard_interval < GUARD_INTERVAL_1_32 ||
+	if ((int)p->guard_interval < GUARD_INTERVAL_1_32 ||
 	    p->guard_interval > GUARD_INTERVAL_1_4)
 		return -EINVAL;
 
-	if (p->hierarchy < HIERARCHY_NONE ||
+	if ((int)p->hierarchy < HIERARCHY_NONE ||
 	    p->hierarchy > HIERARCHY_4)
 		return -EINVAL;
 

@@ -52,9 +52,6 @@
 #include "nonstdio.h"
 #include "dis-asm.h"
 
-#define scanhex	xmon_scanhex
-#define skipbl	xmon_skipbl
-
 #ifdef CONFIG_SMP
 static cpumask_t cpus_in_xmon = CPU_MASK_NONE;
 static unsigned long xmon_taken = 1;
@@ -169,12 +166,8 @@ extern void xmon_leave(void);
 
 #ifdef CONFIG_PPC64
 #define REG		"%.16lx"
-#define REGS_PER_LINE	4
-#define LAST_VOLATILE	13
 #else
 #define REG		"%.8lx"
-#define REGS_PER_LINE	8
-#define LAST_VOLATILE	12
 #endif
 
 #define GETWORD(v)	(((v)[0] << 24) + ((v)[1] << 16) + ((v)[2] << 8) + (v)[3])
@@ -1288,27 +1281,19 @@ static void get_function_bounds(unsigned long pc, unsigned long *startp,
 	catch_memory_errors = 0;
 }
 
-static int xmon_depth_to_print = 64;
-
 #define LRSAVE_OFFSET		(STACK_FRAME_LR_SAVE * sizeof(unsigned long))
 #define MARKER_OFFSET		(STACK_FRAME_MARKER * sizeof(unsigned long))
-
-#ifdef __powerpc64__
-#define REGS_OFFSET		0x70
-#else
-#define REGS_OFFSET		16
-#endif
 
 static void xmon_show_stack(unsigned long sp, unsigned long lr,
 			    unsigned long pc)
 {
+	int max_to_print = 64;
 	unsigned long ip;
 	unsigned long newsp;
 	unsigned long marker;
-	int count = 0;
 	struct pt_regs regs;
 
-	do {
+	while (max_to_print--) {
 		if (sp < PAGE_OFFSET) {
 			if (sp != 0)
 				printf("SP (%lx) is in userspace\n", sp);
@@ -1362,10 +1347,10 @@ static void xmon_show_stack(unsigned long sp, unsigned long lr,
 		   an exception frame. */
 		if (mread(sp + MARKER_OFFSET, &marker, sizeof(unsigned long))
 		    && marker == STACK_FRAME_REGS_MARKER) {
-			if (mread(sp + REGS_OFFSET, &regs, sizeof(regs))
+			if (mread(sp + STACK_FRAME_OVERHEAD, &regs, sizeof(regs))
 			    != sizeof(regs)) {
 				printf("Couldn't read registers at %lx\n",
-				       sp + REGS_OFFSET);
+				       sp + STACK_FRAME_OVERHEAD);
 				break;
 			}
 			printf("--- Exception: %lx %s at ", regs.trap,
@@ -1379,7 +1364,7 @@ static void xmon_show_stack(unsigned long sp, unsigned long lr,
 			break;
 
 		sp = newsp;
-	} while (count++ < xmon_depth_to_print);
+	}
 }
 
 static void backtrace(struct pt_regs *excp)
@@ -2943,7 +2928,6 @@ static void xmon_init(int enable)
 		__debugger_dabr_match = NULL;
 		__debugger_fault_handler = NULL;
 	}
-	xmon_map_scc();
 }
 
 #ifdef CONFIG_MAGIC_SYSRQ

@@ -28,17 +28,24 @@
 #define RCU_RST_REQ		0x0010
 /* reset status register */
 #define RCU_RST_STAT		0x0014
+/* vr9 gphy registers */
+#define RCU_GFS_ADD0_XRX200	0x0020
+#define RCU_GFS_ADD1_XRX200	0x0068
 
 /* reboot bit */
+#define RCU_RD_GPHY0_XRX200	BIT(31)
 #define RCU_RD_SRST		BIT(30)
+#define RCU_RD_GPHY1_XRX200	BIT(29)
+
 /* reset cause */
 #define RCU_STAT_SHIFT		26
 /* boot selection */
-#define RCU_BOOT_SEL_SHIFT	26
-#define RCU_BOOT_SEL_MASK	0x7
+#define RCU_BOOT_SEL(x)		((x >> 18) & 0x7)
+#define RCU_BOOT_SEL_XRX200(x)	(((x >> 17) & 0xf) | ((x >> 8) & 0x10))
 
 /* remapped base addr of the reset control unit */
 static void __iomem *ltq_rcu_membase;
+static struct device_node *ltq_rcu_np;
 
 /* This function is used by the watchdog driver */
 int ltq_reset_cause(void)
@@ -52,7 +59,41 @@ EXPORT_SYMBOL_GPL(ltq_reset_cause);
 unsigned char ltq_boot_select(void)
 {
 	u32 val = ltq_rcu_r32(RCU_RST_STAT);
-	return (val >> RCU_BOOT_SEL_SHIFT) & RCU_BOOT_SEL_MASK;
+
+	if (of_device_is_compatible(ltq_rcu_np, "lantiq,rcu-xrx200"))
+		return RCU_BOOT_SEL_XRX200(val);
+
+	return RCU_BOOT_SEL(val);
+}
+
+/* reset / boot a gphy */
+static struct ltq_xrx200_gphy_reset {
+	u32 rd;
+	u32 addr;
+} xrx200_gphy[] = {
+	{RCU_RD_GPHY0_XRX200, RCU_GFS_ADD0_XRX200},
+	{RCU_RD_GPHY1_XRX200, RCU_GFS_ADD1_XRX200},
+};
+
+/* reset and boot a gphy. these phys only exist on xrx200 SoC */
+int xrx200_gphy_boot(struct device *dev, unsigned int id, dma_addr_t dev_addr)
+{
+	if (!of_device_is_compatible(ltq_rcu_np, "lantiq,rcu-xrx200")) {
+		dev_err(dev, "this SoC has no GPHY\n");
+		return -EINVAL;
+	}
+	if (id > 1) {
+		dev_err(dev, "%u is an invalid gphy id\n", id);
+		return -EINVAL;
+	}
+	dev_info(dev, "booting GPHY%u firmware at %X\n", id, dev_addr);
+
+	ltq_rcu_w32(ltq_rcu_r32(RCU_RST_REQ) | xrx200_gphy[id].rd,
+			RCU_RST_REQ);
+	ltq_rcu_w32(dev_addr, xrx200_gphy[id].addr);
+	ltq_rcu_w32(ltq_rcu_r32(RCU_RST_REQ) & ~xrx200_gphy[id].rd,
+			RCU_RST_REQ);
+	return 0;
 }
 
 /* reset a io domain for u micro seconds */
@@ -85,14 +126,17 @@ static void ltq_machine_power_off(void)
 static int __init mips_reboot_setup(void)
 {
 	struct resource res;
-	struct device_node *np =
-		of_find_compatible_node(NULL, NULL, "lantiq,rcu-xway");
+
+	ltq_rcu_np = of_find_compatible_node(NULL, NULL, "lantiq,rcu-xway");
+	if (!ltq_rcu_np)
+		ltq_rcu_np = of_find_compatible_node(NULL, NULL,
+							"lantiq,rcu-xrx200");
 
 	/* check if all the reset register range is available */
-	if (!np)
+	if (!ltq_rcu_np)
 		panic("Failed to load reset resources from devicetree");
 
-	if (of_address_to_resource(np, 0, &res))
+	if (of_address_to_resource(ltq_rcu_np, 0, &res))
 		panic("Failed to get rcu memory range");
 
 	if (request_mem_region(res.start, resource_size(&res), res.name) < 0)

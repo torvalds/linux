@@ -41,8 +41,6 @@
 #include <asm/ipl.h>
 #include "entry.h"
 
-void (*pgm_check_table[128])(struct pt_regs *regs);
-
 int show_unhandled_signals = 1;
 
 #define stack_pointer ({ void **sp; asm("la %0,0(15)" : "=&d" (sp)); sp; })
@@ -350,7 +348,7 @@ void __kprobes do_per_trap(struct pt_regs *regs)
 	force_sig_info(SIGTRAP, &info, current);
 }
 
-static void default_trap_handler(struct pt_regs *regs)
+void default_trap_handler(struct pt_regs *regs)
 {
 	if (user_mode(regs)) {
 		report_user_fault(regs, SIGSEGV);
@@ -360,9 +358,9 @@ static void default_trap_handler(struct pt_regs *regs)
 }
 
 #define DO_ERROR_INFO(name, signr, sicode, str) \
-static void name(struct pt_regs *regs) \
-{ \
-	do_trap(regs, signr, sicode, str); \
+void name(struct pt_regs *regs)			\
+{						\
+	do_trap(regs, signr, sicode, str);	\
 }
 
 DO_ERROR_INFO(addressing_exception, SIGILL, ILL_ILLADR,
@@ -417,7 +415,7 @@ static inline void do_fp_trap(struct pt_regs *regs, int fpc)
 	do_trap(regs, SIGFPE, si_code, "floating point exception");
 }
 
-static void __kprobes illegal_op(struct pt_regs *regs)
+void __kprobes illegal_op(struct pt_regs *regs)
 {
 	siginfo_t info;
         __u8 opcode[6];
@@ -536,7 +534,7 @@ DO_ERROR_INFO(specification_exception, SIGILL, ILL_ILLOPN,
 	      "specification exception");
 #endif
 
-static void data_exception(struct pt_regs *regs)
+void data_exception(struct pt_regs *regs)
 {
 	__u16 __user *location;
 	int signal = 0;
@@ -611,7 +609,7 @@ static void data_exception(struct pt_regs *regs)
 		do_trap(regs, signal, ILL_ILLOPN, "data exception");
 }
 
-static void space_switch_exception(struct pt_regs *regs)
+void space_switch_exception(struct pt_regs *regs)
 {
 	/* Set user psw back to home space mode. */
 	if (user_mode(regs))
@@ -629,43 +627,7 @@ void __kprobes kernel_stack_overflow(struct pt_regs * regs)
 	panic("Corrupt kernel stack, can't continue.");
 }
 
-/* init is done in lowcore.S and head.S */
-
 void __init trap_init(void)
 {
-        int i;
-
-        for (i = 0; i < 128; i++)
-          pgm_check_table[i] = &default_trap_handler;
-        pgm_check_table[1] = &illegal_op;
-        pgm_check_table[2] = &privileged_op;
-        pgm_check_table[3] = &execute_exception;
-        pgm_check_table[4] = &do_protection_exception;
-        pgm_check_table[5] = &addressing_exception;
-        pgm_check_table[6] = &specification_exception;
-        pgm_check_table[7] = &data_exception;
-        pgm_check_table[8] = &overflow_exception;
-        pgm_check_table[9] = &divide_exception;
-        pgm_check_table[0x0A] = &overflow_exception;
-        pgm_check_table[0x0B] = &divide_exception;
-        pgm_check_table[0x0C] = &hfp_overflow_exception;
-        pgm_check_table[0x0D] = &hfp_underflow_exception;
-        pgm_check_table[0x0E] = &hfp_significance_exception;
-        pgm_check_table[0x0F] = &hfp_divide_exception;
-        pgm_check_table[0x10] = &do_dat_exception;
-        pgm_check_table[0x11] = &do_dat_exception;
-        pgm_check_table[0x12] = &translation_exception;
-        pgm_check_table[0x13] = &special_op_exception;
-#ifdef CONFIG_64BIT
-	pgm_check_table[0x18] = &transaction_exception;
-	pgm_check_table[0x38] = &do_asce_exception;
-	pgm_check_table[0x39] = &do_dat_exception;
-	pgm_check_table[0x3A] = &do_dat_exception;
-        pgm_check_table[0x3B] = &do_dat_exception;
-#endif /* CONFIG_64BIT */
-        pgm_check_table[0x15] = &operand_exception;
-        pgm_check_table[0x1C] = &space_switch_exception;
-        pgm_check_table[0x1D] = &hfp_sqrt_exception;
-	/* Enable machine checks early. */
 	local_mcck_enable();
 }

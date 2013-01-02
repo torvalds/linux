@@ -39,6 +39,7 @@
 #define BTRFS_INODE_HAS_ORPHAN_ITEM		5
 #define BTRFS_INODE_HAS_ASYNC_EXTENT		6
 #define BTRFS_INODE_NEEDS_FULL_SYNC		7
+#define BTRFS_INODE_COPY_EVERYTHING		8
 
 /* in memory btrfs inode */
 struct btrfs_inode {
@@ -89,6 +90,9 @@ struct btrfs_inode {
 	struct rb_node rb_node;
 
 	unsigned long runtime_flags;
+
+	/* Keep track of who's O_SYNC/fsycing currently */
+	atomic_t sync_writers;
 
 	/* full 64 bit generation number, struct vfs_inode doesn't have a big
 	 * enough field for this.

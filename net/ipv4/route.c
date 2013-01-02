@@ -2232,8 +2232,27 @@ static int rt_fill_info(struct net *net,  __be32 dst, __be32 src,
 	error = rt->dst.error;
 
 	if (rt_is_input_route(rt)) {
-		if (nla_put_u32(skb, RTA_IIF, rt->rt_iif))
-			goto nla_put_failure;
+#ifdef CONFIG_IP_MROUTE
+		if (ipv4_is_multicast(dst) && !ipv4_is_local_multicast(dst) &&
+		    IPV4_DEVCONF_ALL(net, MC_FORWARDING)) {
+			int err = ipmr_get_route(net, skb,
+						 fl4->saddr, fl4->daddr,
+						 r, nowait);
+			if (err <= 0) {
+				if (!nowait) {
+					if (err == 0)
+						return 0;
+					goto nla_put_failure;
+				} else {
+					if (err == -EMSGSIZE)
+						goto nla_put_failure;
+					error = err;
+				}
+			}
+		} else
+#endif
+			if (nla_put_u32(skb, RTA_IIF, rt->rt_iif))
+				goto nla_put_failure;
 	}
 
 	if (rtnl_put_cacheinfo(skb, &rt->dst, 0, expires, error) < 0)
@@ -2496,6 +2515,10 @@ static __net_init int sysctl_route_net_init(struct net *net)
 		tbl = kmemdup(tbl, sizeof(ipv4_route_flush_table), GFP_KERNEL);
 		if (tbl == NULL)
 			goto err_dup;
+
+		/* Don't export sysctls to unprivileged users */
+		if (net->user_ns != &init_user_ns)
+			tbl[0].procname = NULL;
 	}
 	tbl[0].extra1 = net;
 

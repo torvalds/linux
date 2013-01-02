@@ -335,7 +335,7 @@ int hfsplus_block_free(struct super_block *, u32, u32);
 /* btree.c */
 struct hfs_btree *hfs_btree_open(struct super_block *, u32);
 void hfs_btree_close(struct hfs_btree *);
-void hfs_btree_write(struct hfs_btree *);
+int hfs_btree_write(struct hfs_btree *);
 struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *);
 void hfs_bmap_free(struct hfs_bnode *);
 

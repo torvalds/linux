@@ -98,10 +98,10 @@ static struct ehea_fw_handle_array ehea_fw_handles;
 static struct ehea_bcmc_reg_array ehea_bcmc_regs;
 
 
-static int __devinit ehea_probe_adapter(struct platform_device *dev,
-					const struct of_device_id *id);
+static int ehea_probe_adapter(struct platform_device *dev,
+			      const struct of_device_id *id);
 
-static int __devexit ehea_remove(struct platform_device *dev);
+static int ehea_remove(struct platform_device *dev);
 
 static struct of_device_id ehea_device_table[] = {
 	{
@@ -2909,7 +2909,7 @@ static ssize_t ehea_show_port_id(struct device *dev,
 static DEVICE_ATTR(log_port_id, S_IRUSR | S_IRGRP | S_IROTH, ehea_show_port_id,
 		   NULL);
 
-static void __devinit logical_port_release(struct device *dev)
+static void logical_port_release(struct device *dev)
 {
 	struct ehea_port *port = container_of(dev, struct ehea_port, ofdev.dev);
 	of_node_put(port->ofdev.dev.of_node);
@@ -3028,7 +3028,7 @@ static struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 	ehea_set_ethtool_ops(dev);
 
 	dev->hw_features = NETIF_F_SG | NETIF_F_TSO
-		      | NETIF_F_IP_CSUM | NETIF_F_HW_VLAN_TX | NETIF_F_LRO;
+		      | NETIF_F_IP_CSUM | NETIF_F_HW_VLAN_TX;
 	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_TSO
 		      | NETIF_F_HIGHDMA | NETIF_F_IP_CSUM | NETIF_F_HW_VLAN_TX
 		      | NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER
@@ -3257,8 +3257,8 @@ static void ehea_remove_device_sysfs(struct platform_device *dev)
 	device_remove_file(&dev->dev, &dev_attr_remove_port);
 }
 
-static int __devinit ehea_probe_adapter(struct platform_device *dev,
-					const struct of_device_id *id)
+static int ehea_probe_adapter(struct platform_device *dev,
+			      const struct of_device_id *id)
 {
 	struct ehea_adapter *adapter;
 	const u64 *adapter_handle;
@@ -3364,7 +3364,7 @@ out:
 	return ret;
 }
 
-static int __devexit ehea_remove(struct platform_device *dev)
+static int ehea_remove(struct platform_device *dev)
 {
 	struct ehea_adapter *adapter = dev_get_drvdata(&dev->dev);
 	int i;

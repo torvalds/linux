@@ -26,6 +26,7 @@ config MICROBLAZE
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS
 	select MODULES_USE_ELF_RELA
+	select CLONE_BACKWARDS
 
 config SWAP
 	def_bool n

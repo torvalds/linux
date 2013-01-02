@@ -652,7 +652,7 @@ static int tsl2563_write_interrupt_config(struct iio_dev *indio_dev,
 	}
 
 	if (!state && (chip->intr & 0x30)) {
-		chip->intr |= ~0x30;
+		chip->intr &= ~0x30;
 		ret = i2c_smbus_write_byte_data(chip->client,
 						TSL2563_CMD | TSL2563_REG_INT,
 						chip->intr);
@@ -705,7 +705,7 @@ static const struct iio_info tsl2563_info = {
 	.write_event_config = &tsl2563_write_interrupt_config,
 };
 
-static int __devinit tsl2563_probe(struct i2c_client *client,
+static int tsl2563_probe(struct i2c_client *client,
 				const struct i2c_device_id *device_id)
 {
 	struct iio_dev *indio_dev;
@@ -805,7 +805,7 @@ fail1:
 	return err;
 }
 
-static int __devexit tsl2563_remove(struct i2c_client *client)
+static int tsl2563_remove(struct i2c_client *client)
 {
 	struct tsl2563_chip *chip = i2c_get_clientdata(client);
 	struct iio_dev *indio_dev = iio_priv_to_dev(chip);
@@ -814,7 +814,7 @@ static int __devexit tsl2563_remove(struct i2c_client *client)
 	if (!chip->int_enabled)
 		cancel_delayed_work(&chip->poweroff_work);
 	/* Ensure that interrupts are disabled - then flush any bottom halves */
-	chip->intr |= ~0x30;
+	chip->intr &= ~0x30;
 	i2c_smbus_write_byte_data(chip->client, TSL2563_CMD | TSL2563_REG_INT,
 				  chip->intr);
 	flush_scheduled_work();
@@ -889,7 +889,7 @@ static struct i2c_driver tsl2563_i2c_driver = {
 		.pm	= TSL2563_PM_OPS,
 	},
 	.probe		= tsl2563_probe,
-	.remove		= __devexit_p(tsl2563_remove),
+	.remove		= tsl2563_remove,
 	.id_table	= tsl2563_id,
 };
 module_i2c_driver(tsl2563_i2c_driver);

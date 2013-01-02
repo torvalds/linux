@@ -528,7 +528,7 @@ static const struct file_operations cpwd_fops = {
 	.llseek =		no_llseek,
 };
 
-static int __devinit cpwd_probe(struct platform_device *op)
+static int cpwd_probe(struct platform_device *op)
 {
 	struct device_node *options;
 	const char *str_prop;
@@ -640,7 +640,7 @@ out_free:
 	goto out;
 }
 
-static int __devexit cpwd_remove(struct platform_device *op)
+static int cpwd_remove(struct platform_device *op)
 {
 	struct cpwd *p = dev_get_drvdata(&op->dev);
 	int i;
@@ -684,7 +684,7 @@ static struct platform_driver cpwd_driver = {
 		.of_match_table = cpwd_match,
 	},
 	.probe		= cpwd_probe,
-	.remove		= __devexit_p(cpwd_remove),
+	.remove		= cpwd_remove,
 };
 
 module_platform_driver(cpwd_driver);

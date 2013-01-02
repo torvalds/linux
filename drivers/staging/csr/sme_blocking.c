@@ -270,17 +270,15 @@ int sme_mgt_wifi_off(unifi_priv_t *priv)
     }
 
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     /* Stop the SME */
     CsrWifiSmeWifiOffReqSend(0);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_LONG_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     unifi_trace(priv, UDBG4,
                 "sme_mgt_wifi_off: unifi_mgt_wifi_off_req <-- (r=%d, status=%d)\n",
@@ -300,16 +298,14 @@ int sme_mgt_key(unifi_priv_t *priv, CsrWifiSmeKey *sme_key,
     }
 
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmeKeyReqSend(0, CSR_WIFI_INTERFACE_IN_USE, action, *sme_key);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     return convert_sme_error(priv->sme_reply.reply_status);
 }
@@ -332,9 +328,8 @@ int sme_mgt_scan_full(unifi_priv_t *priv,
     unifi_trace(priv, UDBG4, "sme_mgt_scan_full: -->\n");
 
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     /* If a channel list is provided, do an active scan */
     if (is_active) {
@@ -354,16 +349,14 @@ int sme_mgt_scan_full(unifi_priv_t *priv,
                               0, NULL);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_LONG_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     unifi_trace(priv, UDBG4, "sme_mgt_scan_full: <-- (status=%d)\n", priv->sme_reply.reply_status);
-    if (priv->sme_reply.reply_status == CSR_WIFI_RESULT_UNAVAILABLE) {
+    if (priv->sme_reply.reply_status == CSR_WIFI_RESULT_UNAVAILABLE)
         return 0; /* initial scan already underway */
-    } else {
+    else
         return convert_sme_error(priv->sme_reply.reply_status);
-    }
 }
 
 
@@ -385,15 +378,13 @@ int sme_mgt_scan_results_get_async(unifi_priv_t *priv,
     }
 
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmeScanResultsGetReqSend(0);
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_LONG_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     scan_result_list_count = priv->sme_reply.reply_scan_results_count;
     scan_result_list = priv->sme_reply.reply_scan_results;
@@ -454,20 +445,17 @@ int sme_mgt_connect(unifi_priv_t *priv)
                 priv->connection_config.ssid.ssid);
 
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmeConnectReqSend(0, CSR_WIFI_INTERFACE_IN_USE, priv->connection_config);
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
-    if (priv->sme_reply.reply_status) {
+    if (priv->sme_reply.reply_status)
         unifi_trace(priv, UDBG1, "sme_mgt_connect: failed with SME status %d\n",
                     priv->sme_reply.reply_status);
-    }
 
     return convert_sme_error(priv->sme_reply.reply_status);
 }
@@ -483,15 +471,13 @@ int sme_mgt_disconnect(unifi_priv_t *priv)
     }
 
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmeDisconnectReqSend(0, CSR_WIFI_INTERFACE_IN_USE);
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     unifi_trace(priv, UDBG4, "sme_mgt_disconnect: <-- (status=%d)\n", priv->sme_reply.reply_status);
     return convert_sme_error(priv->sme_reply.reply_status);
@@ -510,16 +496,14 @@ int sme_mgt_pmkid(unifi_priv_t *priv,
     }
 
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmePmkidReqSend(0, CSR_WIFI_INTERFACE_IN_USE, action,
                         pmkid_list->pmkidsCount, pmkid_list->pmkids);
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     unifi_trace(priv, UDBG4, "sme_mgt_pmkid: <-- (status=%d)\n", priv->sme_reply.reply_status);
     return convert_sme_error(priv->sme_reply.reply_status);
@@ -537,9 +521,8 @@ int sme_mgt_mib_get(unifi_priv_t *priv,
     }
 
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     priv->mib_cfm_buffer = varbind;
     priv->mib_cfm_buffer_length = MAX_VARBIND_LENGTH;
@@ -571,15 +554,13 @@ int sme_mgt_mib_set(unifi_priv_t *priv,
     }
 
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmeMibSetReqSend(0, length, varbind);
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     unifi_trace(priv, UDBG4, "sme_mgt_mib_set: <-- (status=%d)\n", priv->sme_reply.reply_status);
     return convert_sme_error(priv->sme_reply.reply_status);
@@ -598,16 +579,14 @@ int sme_mgt_power_config_set(unifi_priv_t *priv, CsrWifiSmePowerConfig *powerCon
     }
 
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmePowerConfigSetReqSend(0, *powerConfig);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     unifi_trace(priv, UDBG4,
                 "sme_mgt_set_value_async: unifi_mgt_set_value_req <-- (r=%d status=%d)\n",
@@ -637,29 +616,26 @@ int sme_mgt_sme_config_set(unifi_priv_t *priv, CsrWifiSmeStaConfig *staConfig, C
     }
 
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmeSmeStaConfigSetReqSend(0, CSR_WIFI_INTERFACE_IN_USE, *staConfig);
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
+
     unifi_trace(priv, UDBG4,
                 "sme_mgt_sme_config_set: CsrWifiSmeSmeStaConfigSetReq <-- (r=%d status=%d)\n",
                 r, priv->sme_reply.reply_status);
 
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmeSmeCommonConfigSetReqSend(0, *deviceConfig);
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     unifi_trace(priv, UDBG4,
                 "sme_mgt_sme_config_set: CsrWifiSmeSmeCommonConfigSetReq <-- (r=%d status=%d)\n",
@@ -693,16 +669,14 @@ int sme_mgt_mib_config_set(unifi_priv_t *priv, CsrWifiSmeMibConfig *mibConfig)
     }
 
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmeMibConfigSetReqSend(0, *mibConfig);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     unifi_trace(priv, UDBG4,
                 "sme_mgt_mib_config_set: unifi_mgt_set_mib_config_req <-- (r=%d status=%d)\n",
@@ -732,16 +706,14 @@ int sme_mgt_coex_config_set(unifi_priv_t *priv, CsrWifiSmeCoexConfig *coexConfig
     }
 
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmeCoexConfigSetReqSend(0, *coexConfig);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     unifi_trace(priv, UDBG4,
                 "sme_mgt_coex_config_set: unifi_mgt_set_mib_config_req <-- (r=%d status=%d)\n",
@@ -773,16 +745,14 @@ int sme_mgt_host_config_set(unifi_priv_t *priv, CsrWifiSmeHostConfig *hostConfig
     }
 
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmeHostConfigSetReqSend(0, CSR_WIFI_INTERFACE_IN_USE, *hostConfig);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     unifi_trace(priv, UDBG4,
                 "sme_mgt_host_config_set: unifi_mgt_set_host_config_req <-- (r=%d status=%d)\n",
@@ -815,16 +785,14 @@ int sme_mgt_versions_get(unifi_priv_t *priv, CsrWifiSmeVersions *versions)
 
     unifi_trace(priv, UDBG4, "sme_mgt_versions_get: unifi_mgt_versions_get_req -->\n");
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmeVersionsGetReqSend(0);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     /* store the reply */
     if (versions != NULL) {
@@ -861,16 +829,14 @@ int sme_mgt_power_config_get(unifi_priv_t *priv, CsrWifiSmePowerConfig *powerCon
 
     unifi_trace(priv, UDBG4, "sme_mgt_power_config_get: unifi_mgt_power_config_req -->\n");
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmePowerConfigGetReqSend(0);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     /* store the reply */
     if (powerConfig != NULL) {
@@ -905,23 +871,20 @@ int sme_mgt_host_config_get(unifi_priv_t *priv, CsrWifiSmeHostConfig *hostConfig
 
     unifi_trace(priv, UDBG4, "sme_mgt_host_config_get: unifi_mgt_host_config_get_req -->\n");
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmeHostConfigGetReqSend(0, CSR_WIFI_INTERFACE_IN_USE);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     /* store the reply */
-    if (hostConfig != NULL) {
+    if (hostConfig != NULL)
         memcpy((unsigned char*)hostConfig,
                (unsigned char*)&priv->sme_reply.hostConfig,
                sizeof(CsrWifiSmeHostConfig));
-    }
 
     unifi_trace(priv, UDBG4,
                 "sme_mgt_host_config_get: unifi_mgt_host_config_get_req <-- (r=%d status=%d)\n",
@@ -951,41 +914,35 @@ int sme_mgt_sme_config_get(unifi_priv_t *priv, CsrWifiSmeStaConfig *staConfig, C
 
     /* Common device config */
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmeSmeCommonConfigGetReqSend(0);
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     /* store the reply */
-    if (deviceConfig != NULL) {
+    if (deviceConfig != NULL)
         memcpy((unsigned char*)deviceConfig,
                (unsigned char*)&priv->sme_reply.deviceConfig,
                sizeof(CsrWifiSmeDeviceConfig));
-    }
 
     /* STA config */
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmeSmeStaConfigGetReqSend(0, CSR_WIFI_INTERFACE_IN_USE);
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     /* store the reply */
-    if (staConfig != NULL) {
+    if (staConfig != NULL)
         memcpy((unsigned char*)staConfig,
                (unsigned char*)&priv->sme_reply.staConfig,
                sizeof(CsrWifiSmeStaConfig));
-    }
 
     unifi_trace(priv, UDBG4,
                 "sme_mgt_sme_config_get: unifi_mgt_sme_config_get_req <-- (r=%d status=%d)\n",
@@ -1014,23 +971,20 @@ int sme_mgt_coex_info_get(unifi_priv_t *priv, CsrWifiSmeCoexInfo *coexInfo)
 
     unifi_trace(priv, UDBG4, "sme_mgt_coex_info_get: unifi_mgt_coex_info_get_req -->\n");
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmeCoexInfoGetReqSend(0);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     /* store the reply */
-    if (coexInfo != NULL) {
+    if (coexInfo != NULL)
         memcpy((unsigned char*)coexInfo,
                (unsigned char*)&priv->sme_reply.coexInfo,
                sizeof(CsrWifiSmeCoexInfo));
-    }
 
     unifi_trace(priv, UDBG4,
                 "sme_mgt_coex_info_get: unifi_mgt_coex_info_get_req <-- (r=%d status=%d)\n",
@@ -1060,23 +1014,20 @@ int sme_mgt_coex_config_get(unifi_priv_t *priv, CsrWifiSmeCoexConfig *coexConfig
 
     unifi_trace(priv, UDBG4, "sme_mgt_coex_config_get: unifi_mgt_coex_config_get_req -->\n");
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmeCoexConfigGetReqSend(0);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     /* store the reply */
-    if (coexConfig != NULL) {
+    if (coexConfig != NULL)
         memcpy((unsigned char*)coexConfig,
                (unsigned char*)&priv->sme_reply.coexConfig,
                sizeof(CsrWifiSmeCoexConfig));
-    }
 
     unifi_trace(priv, UDBG4,
                 "sme_mgt_coex_config_get: unifi_mgt_coex_config_get_req <-- (r=%d status=%d)\n",
@@ -1104,23 +1055,20 @@ int sme_mgt_mib_config_get(unifi_priv_t *priv, CsrWifiSmeMibConfig *mibConfig)
 
     unifi_trace(priv, UDBG4, "sme_mgt_mib_config_get: unifi_mgt_mib_config_get_req -->\n");
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmeMibConfigGetReqSend(0);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     /* store the reply */
-    if (mibConfig != NULL) {
+    if (mibConfig != NULL)
         memcpy((unsigned char*)mibConfig,
                (unsigned char*)&priv->sme_reply.mibConfig,
                sizeof(CsrWifiSmeMibConfig));
-    }
 
     unifi_trace(priv, UDBG4,
                 "sme_mgt_mib_config_get: unifi_mgt_mib_config_get_req <-- (r=%d status=%d)\n",
@@ -1148,23 +1096,20 @@ int sme_mgt_connection_info_get(unifi_priv_t *priv, CsrWifiSmeConnectionInfo *co
 
     unifi_trace(priv, UDBG4, "sme_mgt_connection_info_get: unifi_mgt_connection_info_get_req -->\n");
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmeConnectionInfoGetReqSend(0, CSR_WIFI_INTERFACE_IN_USE);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     /* store the reply */
-    if (connectionInfo != NULL) {
+    if (connectionInfo != NULL)
         memcpy((unsigned char*)connectionInfo,
                (unsigned char*)&priv->sme_reply.connectionInfo,
                sizeof(CsrWifiSmeConnectionInfo));
-    }
 
     unifi_trace(priv, UDBG4,
                 "sme_mgt_connection_info_get: unifi_mgt_connection_info_get_req <-- (r=%d status=%d)\n",
@@ -1192,23 +1137,20 @@ int sme_mgt_connection_config_get(unifi_priv_t *priv, CsrWifiSmeConnectionConfig
 
     unifi_trace(priv, UDBG4, "sme_mgt_connection_config_get: unifi_mgt_connection_config_get_req -->\n");
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmeConnectionConfigGetReqSend(0, CSR_WIFI_INTERFACE_IN_USE);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     /* store the reply */
-    if (connectionConfig != NULL) {
+    if (connectionConfig != NULL)
         memcpy((unsigned char*)connectionConfig,
                (unsigned char*)&priv->sme_reply.connectionConfig,
                sizeof(CsrWifiSmeConnectionConfig));
-    }
 
     unifi_trace(priv, UDBG4,
                 "sme_mgt_connection_config_get: unifi_mgt_connection_config_get_req <-- (r=%d status=%d)\n",
@@ -1236,23 +1178,20 @@ int sme_mgt_connection_stats_get(unifi_priv_t *priv, CsrWifiSmeConnectionStats *
 
     unifi_trace(priv, UDBG4, "sme_mgt_connection_stats_get: unifi_mgt_connection_stats_get_req -->\n");
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiSmeConnectionStatsGetReqSend(0, CSR_WIFI_INTERFACE_IN_USE);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     /* store the reply */
-    if (connectionStats != NULL) {
+    if (connectionStats != NULL)
         memcpy((unsigned char*)connectionStats,
                (unsigned char*)&priv->sme_reply.connectionStats,
                sizeof(CsrWifiSmeConnectionStats));
-    }
 
     unifi_trace(priv, UDBG4,
                 "sme_mgt_connection_stats_get: unifi_mgt_connection_stats_get_req <-- (r=%d status=%d)\n",
@@ -1272,58 +1211,56 @@ int sme_mgt_connection_stats_get(unifi_priv_t *priv, CsrWifiSmeConnectionStats *
 
 int sme_mgt_packet_filter_set(unifi_priv_t *priv)
 {
-    CsrWifiIp4Address ipAddress = {{0xFF, 0xFF, 0xFF, 0xFF }};
-    if (priv->smepriv == NULL) {
-        unifi_error(priv, "sme_mgt_packet_filter_set: invalid smepriv\n");
-        return -EIO;
-    }
-    if (priv->packet_filters.arp_filter) {
-        ipAddress.a[0] = (priv->sta_ip_address      ) & 0xFF;
-        ipAddress.a[1] = (priv->sta_ip_address >>  8) & 0xFF;
-        ipAddress.a[2] = (priv->sta_ip_address >> 16) & 0xFF;
-        ipAddress.a[3] = (priv->sta_ip_address >> 24) & 0xFF;
-    }
+	CsrWifiIp4Address ipAddress = {{0xFF, 0xFF, 0xFF, 0xFF }};
+	if (priv->smepriv == NULL) {
+		unifi_error(priv, "sme_mgt_packet_filter_set: invalid smepriv\n");
+		return -EIO;
+	}
+	if (priv->packet_filters.arp_filter) {
+		ipAddress.a[0] = (priv->sta_ip_address      ) & 0xFF;
+		ipAddress.a[1] = (priv->sta_ip_address >>  8) & 0xFF;
+		ipAddress.a[2] = (priv->sta_ip_address >> 16) & 0xFF;
+		ipAddress.a[3] = (priv->sta_ip_address >> 24) & 0xFF;
+	}
 
-    unifi_trace(priv, UDBG5,
-                "sme_mgt_packet_filter_set: IP address %d.%d.%d.%d\n",
-                ipAddress.a[0], ipAddress.a[1],
-                ipAddress.a[2], ipAddress.a[3]);
+	unifi_trace(priv, UDBG5,
+		"sme_mgt_packet_filter_set: IP address %d.%d.%d.%d\n",
+		ipAddress.a[0], ipAddress.a[1],
+		ipAddress.a[2], ipAddress.a[3]);
 
-    /* Doesn't block for a confirm */
-    CsrWifiSmePacketFilterSetReqSend(0, CSR_WIFI_INTERFACE_IN_USE,
-                                     priv->packet_filters.tclas_ies_length,
-                                     priv->filter_tclas_ies,
-                                     priv->packet_filters.filter_mode,
-                                     ipAddress);
-    return 0;
+	/* Doesn't block for a confirm */
+	CsrWifiSmePacketFilterSetReqSend(0, CSR_WIFI_INTERFACE_IN_USE,
+				     priv->packet_filters.tclas_ies_length,
+				     priv->filter_tclas_ies,
+				     priv->packet_filters.filter_mode,
+				     ipAddress);
+	return 0;
 }
 
 int sme_mgt_tspec(unifi_priv_t *priv, CsrWifiSmeListAction action,
         u32 tid, CsrWifiSmeDataBlock *tspec, CsrWifiSmeDataBlock *tclas)
 {
-    int r;
+	int r;
 
-    if (priv->smepriv == NULL) {
-        unifi_error(priv, "sme_mgt_tspec: invalid smepriv\n");
-        return -EIO;
-    }
+	if (priv->smepriv == NULL) {
+		unifi_error(priv, "sme_mgt_tspec: invalid smepriv\n");
+		return -EIO;
+	}
 
-    r = sme_init_request(priv);
-    if (r) {
-        return -EIO;
-    }
+	r = sme_init_request(priv);
+	if (r)
+		return -EIO;
 
-    CsrWifiSmeTspecReqSend(0, CSR_WIFI_INTERFACE_IN_USE,
-                           action, tid, TRUE, 0,
-                           tspec->length, tspec->data,
-                           tclas->length, tclas->data);
-    r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
-        return r;
-    }
+	CsrWifiSmeTspecReqSend(0, CSR_WIFI_INTERFACE_IN_USE,
+			      action, tid, TRUE, 0,
+			      tspec->length, tspec->data,
+			      tclas->length, tclas->data);
+	r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
+	if (r)
+		return r;
 
-    unifi_trace(priv, UDBG4, "sme_mgt_tspec: <-- (status=%d)\n", priv->sme_reply.reply_status);
-    return convert_sme_error(priv->sme_reply.reply_status);
+	unifi_trace(priv, UDBG4, "sme_mgt_tspec: <-- (status=%d)\n", priv->sme_reply.reply_status);
+	return convert_sme_error(priv->sme_reply.reply_status);
 }
 
 
@@ -1339,9 +1276,8 @@ int sme_sys_suspend(unifi_priv_t *priv)
     }
 
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     /* Suspend the SME, which MAY cause it to power down UniFi */
     CsrWifiRouterCtrlSuspendIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,0, 0, priv->wol_suspend);
@@ -1427,17 +1363,15 @@ int sme_sys_resume(unifi_priv_t *priv)
     }
 
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiRouterCtrlResumeIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,0, priv->wol_suspend);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_SYS_LONG_TIMEOUT);
-    if (r) {
+    if (r)
         unifi_notice(priv,
                 "resume: SME did not reply, return success anyway\n");
-    }
 
     return 0;
 }
@@ -1453,16 +1387,14 @@ int sme_ap_stop(unifi_priv_t *priv,u16 interface_tag)
     }
 
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiNmeApStopReqSend(0,interface_tag);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     unifi_trace(priv, UDBG4,
                 "sme_ap_stop <-- (r=%d status=%d)\n",
@@ -1484,9 +1416,8 @@ int sme_ap_start(unifi_priv_t *priv,u16 interface_tag,
     }
 
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiNmeApStartReqSend(0,interface_tag,CSR_WIFI_AP_TYPE_LEGACY,FALSE,
                              ap_config->ssid,1,ap_config->channel,
@@ -1494,9 +1425,8 @@ int sme_ap_start(unifi_priv_t *priv,u16 interface_tag,
                              p2p_go_param,FALSE);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
+    if (r)
         return r;
-    }
 
     unifi_trace(priv, UDBG4,
                 "sme_ap_start <-- (r=%d status=%d)\n",
@@ -1518,14 +1448,15 @@ int sme_ap_config(unifi_priv_t *priv,
     }
 
     r = sme_init_request(priv);
-    if (r) {
+    if (r)
         return -EIO;
-    }
 
     CsrWifiNmeApConfigSetReqSend(0,*group_security_config,
                                  *ap_mac_config);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
+	if (r)
+		return r;
 
     unifi_trace(priv, UDBG4,
                 "sme_ap_config <-- (r=%d status=%d)\n",

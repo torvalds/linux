@@ -15,26 +15,8 @@
  * any later version.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/timex.h>
-#include <linux/timer.h>
-#include <linux/pci.h>
-#include <linux/io.h>
-#include <linux/kmod.h>
-#include <linux/uaccess.h>
-#include "../../comedidev.h"
-#include "addi_amcc_s5933.h"
-
-#define ERROR	-1
-#define SUCCESS	1
 
 #define LOBYTE(W)	(unsigned char)((W) & 0xFF)
 #define HIBYTE(W)	(unsigned char)(((W) >> 8) & 0xFF)
@@ -312,9 +294,6 @@ struct addi_private {
 	int i_IobaseAddon;	/* addon base address */
 	int i_IobaseReserved;
 	void __iomem *dw_AiBase;
-	struct pcilst_struct *amcc;	/*  ptr too AMCC data */
-	unsigned char allocated;		/*  we have blocked card */
-	unsigned char b_ValidDriver;	/*  driver is ok */
 	unsigned char b_AiContinuous;	/*  we do unlimited AI */
 	unsigned char b_AiInitialisation;
 	unsigned int ui_AiActualScan;	/* how many scans we finished */
@@ -410,14 +389,3 @@ struct addi_private {
 					/*  Minimum Delay in Nano secs */
 	} s_EeParameters;
 };
-
-static unsigned short pci_list_builded;	/* set to 1 when list of card is known */
-
-/* Function declarations */
-static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static void i_ADDI_Detach(struct comedi_device *dev);
-static int i_ADDI_Reset(struct comedi_device *dev);
-
-static irqreturn_t v_ADDI_Interrupt(int irq, void *d);
-static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev, struct comedi_subdevice *s,
-				     struct comedi_insn *insn, unsigned int *data);

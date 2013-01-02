@@ -37,7 +37,7 @@ struct pt_regs {
 	unsigned long windowstart;	/*  52 */
 	unsigned long syscall;		/*  56 */
 	unsigned long icountlevel;	/*  60 */
-	int reserved[1];		/*  64 */
+	unsigned long scompare1;	/*  64 */
 
 	/* Additional configurable registers that are used by the compiler. */
 	xtregs_opt_t xtregs_opt;
@@ -55,13 +55,15 @@ struct pt_regs {
 
 # define arch_has_single_step()	(1)
 # define task_pt_regs(tsk) ((struct pt_regs*) \
-  (task_stack_page(tsk) + KERNEL_STACK_SIZE - (XCHAL_NUM_AREGS-16)*4) - 1)
+	(task_stack_page(tsk) + KERNEL_STACK_SIZE - (XCHAL_NUM_AREGS-16)*4) - 1)
 # define user_mode(regs) (((regs)->ps & 0x00000020)!=0)
 # define instruction_pointer(regs) ((regs)->pc)
 
 # ifndef CONFIG_SMP
 #  define profile_pc(regs) instruction_pointer(regs)
 # endif
+
+#define user_stack_pointer(regs) ((regs)->areg[1])
 
 #else	/* __ASSEMBLY__ */
 

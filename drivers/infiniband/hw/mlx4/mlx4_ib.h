@@ -90,6 +90,7 @@ struct mlx4_ib_xrcd {
 struct mlx4_ib_cq_buf {
 	struct mlx4_buf		buf;
 	struct mlx4_mtt		mtt;
+	int			entry_size;
 };
 
 struct mlx4_ib_cq_resize {

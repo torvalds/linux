@@ -209,14 +209,6 @@
 #endif
 
 /*
- * On the RM9000 there is a problem which makes the CreateDirtyExclusive
- * eache operation unusable on SMP systems.
- */
-#ifndef RM9000_CDEX_SMP_WAR
-#error Check setting of RM9000_CDEX_SMP_WAR for your platform
-#endif
-
-/*
  * The RM7000 processors and the E9000 cores have a bug (though PMC-Sierra
  * opposes it being called that) where invalid instructions in the same
  * I-cache line worth of instructions being fetched may case spurious

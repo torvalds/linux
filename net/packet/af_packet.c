@@ -1881,7 +1881,35 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 	skb_reserve(skb, hlen);
 	skb_reset_network_header(skb);
 
-	data = ph.raw + po->tp_hdrlen - sizeof(struct sockaddr_ll);
+	if (po->tp_tx_has_off) {
+		int off_min, off_max, off;
+		off_min = po->tp_hdrlen - sizeof(struct sockaddr_ll);
+		off_max = po->tx_ring.frame_size - tp_len;
+		if (sock->type == SOCK_DGRAM) {
+			switch (po->tp_version) {
+			case TPACKET_V2:
+				off = ph.h2->tp_net;
+				break;
+			default:
+				off = ph.h1->tp_net;
+				break;
+			}
+		} else {
+			switch (po->tp_version) {
+			case TPACKET_V2:
+				off = ph.h2->tp_mac;
+				break;
+			default:
+				off = ph.h1->tp_mac;
+				break;
+			}
+		}
+		if (unlikely((off < off_min) || (off_max < off)))
+			return -EINVAL;
+		data = ph.raw + off;
+	} else {
+		data = ph.raw + po->tp_hdrlen - sizeof(struct sockaddr_ll);
+	}
 	to_write = tp_len;
 
 	if (sock->type == SOCK_DGRAM) {
@@ -1907,7 +1935,6 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 		to_write -= dev->hard_header_len;
 	}
 
-	err = -EFAULT;
 	offset = offset_in_page(data);
 	len_max = PAGE_SIZE - offset;
 	len = ((to_write > len_max) ? len_max : to_write);
@@ -1957,7 +1984,6 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 
 	mutex_lock(&po->pg_vec_lock);
 
-	err = -EBUSY;
 	if (saddr == NULL) {
 		dev = po->prot_hook.dev;
 		proto	= po->num;
@@ -2478,7 +2504,7 @@ static int packet_create(struct net *net, struct socket *sock, int protocol,
 	__be16 proto = (__force __be16)protocol; /* weird, but documented */
 	int err;
 
-	if (!capable(CAP_NET_RAW))
+	if (!ns_capable(net->user_ns, CAP_NET_RAW))
 		return -EPERM;
 	if (sock->type != SOCK_DGRAM && sock->type != SOCK_RAW &&
 	    sock->type != SOCK_PACKET)
@@ -3111,6 +3137,19 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 
 		return fanout_add(sk, val & 0xffff, val >> 16);
 	}
+	case PACKET_TX_HAS_OFF:
+	{
+		unsigned int val;
+
+		if (optlen != sizeof(val))
+			return -EINVAL;
+		if (po->rx_ring.pg_vec || po->tx_ring.pg_vec)
+			return -EBUSY;
+		if (copy_from_user(&val, optval, sizeof(val)))
+			return -EFAULT;
+		po->tp_tx_has_off = !!val;
+		return 0;
+	}
 	default:
 		return -ENOPROTOOPT;
 	}
@@ -3201,6 +3240,9 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 		       ((u32)po->fanout->id |
 			((u32)po->fanout->type << 16)) :
 		       0);
+		break;
+	case PACKET_TX_HAS_OFF:
+		val = po->tp_tx_has_off;
 		break;
 	default:
 		return -ENOPROTOOPT;

@@ -16,8 +16,10 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright (C) IBM Corporation, 2006
+ * Copyright (C) Fujitsu, 2012
  *
  * Author: Paul McKenney <paulmck@us.ibm.com>
+ *	   Lai Jiangshan <laijs@cn.fujitsu.com>
  *
  * For detailed explanation of Read-Copy Update mechanism see -
  * 		Documentation/RCU/ *.txt
@@ -39,6 +41,8 @@ struct srcu_struct_array {
 struct rcu_batch {
 	struct rcu_head *head, **tail;
 };
+
+#define RCU_BATCH_INIT(name) { NULL, &(name.head) }
 
 struct srcu_struct {
 	unsigned completed;
@@ -70,11 +74,41 @@ int __init_srcu_struct(struct srcu_struct *sp, const char *name,
 	__init_srcu_struct((sp), #sp, &__srcu_key); \
 })
 
+#define __SRCU_DEP_MAP_INIT(srcu_name)	.dep_map = { .name = #srcu_name },
 #else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
 int init_srcu_struct(struct srcu_struct *sp);
 
+#define __SRCU_DEP_MAP_INIT(srcu_name)
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+
+void process_srcu(struct work_struct *work);
+
+#define __SRCU_STRUCT_INIT(name)					\
+	{								\
+		.completed = -300,					\
+		.per_cpu_ref = &name##_srcu_array,			\
+		.queue_lock = __SPIN_LOCK_UNLOCKED(name.queue_lock),	\
+		.running = false,					\
+		.batch_queue = RCU_BATCH_INIT(name.batch_queue),	\
+		.batch_check0 = RCU_BATCH_INIT(name.batch_check0),	\
+		.batch_check1 = RCU_BATCH_INIT(name.batch_check1),	\
+		.batch_done = RCU_BATCH_INIT(name.batch_done),		\
+		.work = __DELAYED_WORK_INITIALIZER(name.work, process_srcu, 0),\
+		__SRCU_DEP_MAP_INIT(name)				\
+	}
+
+/*
+ * define and init a srcu struct at build time.
+ * dont't call init_srcu_struct() nor cleanup_srcu_struct() on it.
+ */
+#define DEFINE_SRCU(name)						\
+	static DEFINE_PER_CPU(struct srcu_struct_array, name##_srcu_array);\
+	struct srcu_struct name = __SRCU_STRUCT_INIT(name);
+
+#define DEFINE_STATIC_SRCU(name)					\
+	static DEFINE_PER_CPU(struct srcu_struct_array, name##_srcu_array);\
+	static struct srcu_struct name = __SRCU_STRUCT_INIT(name);
 
 /**
  * call_srcu() - Queue a callback for invocation after an SRCU grace period

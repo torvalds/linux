@@ -2275,8 +2275,7 @@ static void enic_iounmap(struct enic *enic)
 			iounmap(enic->bar[i].vaddr);
 }
 
-static int __devinit enic_probe(struct pci_dev *pdev,
-	const struct pci_device_id *ent)
+static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct device *dev = &pdev->dev;
 	struct net_device *netdev;
@@ -2552,7 +2551,7 @@ err_out_free_netdev:
 	return err;
 }
 
-static void __devexit enic_remove(struct pci_dev *pdev)
+static void enic_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 
@@ -2584,7 +2583,7 @@ static struct pci_driver enic_driver = {
 	.name = DRV_NAME,
 	.id_table = enic_id_table,
 	.probe = enic_probe,
-	.remove = __devexit_p(enic_remove),
+	.remove = enic_remove,
 };
 
 static int __init enic_init_module(void)
