@@ -303,12 +303,10 @@ void brcmf_proto_hdrpush(struct brcmf_pub *drvr, int ifidx,
 	BDC_SET_IF_IDX(h, ifidx);
 }
 
-int brcmf_proto_hdrpull(struct device *dev, int *ifidx,
+int brcmf_proto_hdrpull(struct brcmf_pub *drvr, u8 *ifidx,
 			struct sk_buff *pktbuf)
 {
 	struct brcmf_proto_bdc_header *h;
-	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_pub *drvr = bus_if->drvr;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -346,6 +344,8 @@ int brcmf_proto_hdrpull(struct device *dev, int *ifidx,
 	skb_pull(pktbuf, BDC_HEADER_LEN);
 	skb_pull(pktbuf, h->data_offset << 2);
 
+	if (pktbuf->len == 0)
+		return -ENODATA;
 	return 0;
 }
 

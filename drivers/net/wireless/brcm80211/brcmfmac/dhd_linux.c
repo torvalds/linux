@@ -248,8 +248,7 @@ void brcmf_txflowblock(struct device *dev, bool state)
 		}
 }
 
-void brcmf_rx_frames(struct device *dev, u8 ifidx,
-		     struct sk_buff_head *skb_list)
+void brcmf_rx_frames(struct device *dev, struct sk_buff_head *skb_list)
 {
 	unsigned char *eth;
 	uint len;
@@ -257,11 +256,23 @@ void brcmf_rx_frames(struct device *dev, u8 ifidx,
 	struct brcmf_if *ifp;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
+	u8 ifidx;
+	int ret;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
 	skb_queue_walk_safe(skb_list, skb, pnext) {
 		skb_unlink(skb, skb_list);
+
+		/* process and remove protocol-specific header
+		 */
+		ret = brcmf_proto_hdrpull(drvr, &ifidx, skb);
+		if (ret < 0) {
+			if (ret != -ENODATA)
+				bus_if->dstats.rx_errors++;
+			brcmu_pkt_buf_free_skb(skb);
+			continue;
+		}
 
 		/* Get the protocol, maintain skb around eth_type_trans()
 		 * The main reason for this hack is for the limitation of
@@ -326,13 +337,13 @@ void brcmf_rx_frames(struct device *dev, u8 ifidx,
 
 void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
 {
-	uint ifidx;
+	u8 ifidx;
 	struct ethhdr *eh;
 	u16 type;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
 
-	brcmf_proto_hdrpull(dev, &ifidx, txp);
+	brcmf_proto_hdrpull(drvr, &ifidx, txp);
 
 	eh = (struct ethhdr *)(txp->data);
 	type = ntohs(eh->h_proto);

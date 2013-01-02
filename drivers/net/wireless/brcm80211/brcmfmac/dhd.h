@@ -577,6 +577,10 @@ extern int brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx,
 extern int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 				    void *buf, uint len);
 
+/* Remove any protocol-specific data header. */
+extern int brcmf_proto_hdrpull(struct brcmf_pub *drvr, u8 *ifidx,
+			       struct sk_buff *rxp);
+
 extern int brcmf_net_attach(struct brcmf_if *ifp);
 extern struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, int ifidx,
 				     s32 bssidx, char *name, u8 *mac_addr);

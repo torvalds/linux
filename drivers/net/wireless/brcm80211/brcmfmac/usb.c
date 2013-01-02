@@ -444,14 +444,14 @@ static void brcmf_usb_rx_complete(struct urb *urb)
 	struct brcmf_usbdev_info *devinfo = req->devinfo;
 	struct sk_buff *skb;
 	struct sk_buff_head skbq;
-	int ifidx = 0;
 
 	brcmf_dbg(USB, "Enter, urb->status=%d\n", urb->status);
 	brcmf_usb_del_fromq(devinfo, req);
 	skb = req->skb;
 	req->skb = NULL;
 
-	if (urb->status == 0) {
+	/* zero lenght packets indicate usb "failure". Do not refill */
+	if (urb->status == 0 && urb->actual_length) {
 		devinfo->bus_pub.bus->dstats.rx_packets++;
 	} else {
 		devinfo->bus_pub.bus->dstats.rx_errors++;
@@ -464,17 +464,8 @@ static void brcmf_usb_rx_complete(struct urb *urb)
 		skb_queue_head_init(&skbq);
 		skb_queue_tail(&skbq, skb);
 		skb_put(skb, urb->actual_length);
-		if (brcmf_proto_hdrpull(devinfo->dev, &ifidx, skb) != 0) {
-			brcmf_err("rx protocol error\n");
-			brcmu_pkt_buf_free_skb(skb);
-			devinfo->bus_pub.bus->dstats.rx_errors++;
-		} else
-			brcmf_rx_frames(devinfo->dev, ifidx, &skbq);
-		/* zero lenght packets indicate usb "failure". Do not refill */
-		if (urb->actual_length)
-			brcmf_usb_rx_refill(devinfo, req);
-		else
-			brcmf_usb_enq(devinfo, &devinfo->rx_freeq, req, NULL);
+		brcmf_rx_frames(devinfo->dev, &skbq);
+		brcmf_usb_rx_refill(devinfo, req);
 	} else {
 		brcmu_pkt_buf_free_skb(skb);
 		brcmf_usb_enq(devinfo, &devinfo->rx_freeq, req, NULL);

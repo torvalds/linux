@@ -130,16 +130,11 @@ int brcmf_bus_rxctl(struct brcmf_bus *bus, unsigned char *msg, uint len)
  * interface functions from common layer
  */
 
-/* Remove any protocol-specific data header. */
-extern int brcmf_proto_hdrpull(struct device *dev, int *ifidx,
-			       struct sk_buff *rxp);
-
 extern bool brcmf_c_prec_enq(struct device *dev, struct pktq *q,
 			 struct sk_buff *pkt, int prec);
 
 /* Receive frame for delivery to OS.  Callee disposes of rxp. */
-extern void brcmf_rx_frames(struct device *dev, u8 ifidx,
-			    struct sk_buff_head *rxlist);
+extern void brcmf_rx_frames(struct device *dev, struct sk_buff_head *rxlist);
 
 /* Indication from bus module regarding presence/insertion of dongle. */
 extern int brcmf_attach(uint bus_hdrlen, struct device *dev);
