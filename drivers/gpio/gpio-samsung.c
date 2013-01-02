@@ -32,7 +32,6 @@
 
 #include <mach/hardware.h>
 #include <mach/map.h>
-#include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
 
 #include <plat/cpu.h>
