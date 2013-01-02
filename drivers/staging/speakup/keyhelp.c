@@ -115,10 +115,10 @@ static void say_key(int key)
 	key &= 0xff;
 	for (i = 0; i < 6; i++) {
 		if (state & masks[i])
-			synth_printf(" %s", msg_get(MSG_STATES_START + i));
+			synth_printf(" %s", spk_msg_get(MSG_STATES_START + i));
 	}
 	if ((key > 0) && (key <= num_key_names))
-		synth_printf(" %s\n", msg_get(MSG_KEYNAMES_START + (key - 1)));
+		synth_printf(" %s\n", spk_msg_get(MSG_KEYNAMES_START + (key - 1)));
 }
 
 static int help_init(void)
@@ -126,9 +126,9 @@ static int help_init(void)
 	char start = SPACE;
 	int i;
 	int num_funcs = MSG_FUNCNAMES_END - MSG_FUNCNAMES_START + 1;
-state_tbl = our_keys[0]+SHIFT_TBL_SIZE+2;
+state_tbl = spk_our_keys[0]+SHIFT_TBL_SIZE+2;
 	for (i = 0; i < num_funcs; i++) {
-		char *cur_funcname = msg_get(MSG_FUNCNAMES_START + i);
+		char *cur_funcname = spk_msg_get(MSG_FUNCNAMES_START + i);
 		if (start == *cur_funcname)
 			continue;
 		start = *cur_funcname;
@@ -137,7 +137,7 @@ state_tbl = our_keys[0]+SHIFT_TBL_SIZE+2;
 	return 0;
 }
 
-int handle_help(struct vc_data *vc, u_char type, u_char ch, u_short key)
+int spk_handle_help(struct vc_data *vc, u_char type, u_char ch, u_short key)
 {
 	int i, n;
 	char *name;
@@ -147,15 +147,15 @@ int handle_help(struct vc_data *vc, u_char type, u_char ch, u_short key)
 		help_init();
 	if (type == KT_LATIN) {
 		if (ch == SPACE) {
-			special_handler = NULL;
-			synth_printf("%s\n", msg_get(MSG_LEAVING_HELP));
+			spk_special_handler = NULL;
+			synth_printf("%s\n", spk_msg_get(MSG_LEAVING_HELP));
 			return 1;
 		}
 		ch |= 32; /* lower case */
 		if (ch < 'a' || ch > 'z')
 			return -1;
 		if (letter_offsets[ch-'a'] == -1) {
-			synth_printf(msg_get(MSG_NO_COMMAND), ch);
+			synth_printf(spk_msg_get(MSG_NO_COMMAND), ch);
 			synth_printf("\n");
 			return 1;
 		}
@@ -169,47 +169,47 @@ int handle_help(struct vc_data *vc, u_char type, u_char ch, u_short key)
 			cur_item--;
 		else
 			return -1;
-	} else if (type == KT_SPKUP && ch == SPEAKUP_HELP && !special_handler) {
-		special_handler = handle_help;
-		synth_printf("%s\n", msg_get(MSG_HELP_INFO));
+	} else if (type == KT_SPKUP && ch == SPEAKUP_HELP && !spk_special_handler) {
+		spk_special_handler = spk_handle_help;
+		synth_printf("%s\n", spk_msg_get(MSG_HELP_INFO));
 		build_key_data(); /* rebuild each time in case new mapping */
 		return 1;
 	} else {
 		name = NULL;
 		if ((type != KT_SPKUP) && (key > 0) && (key <= num_key_names)) {
 			synth_printf("%s\n",
-				msg_get(MSG_KEYNAMES_START + key-1));
+				spk_msg_get(MSG_KEYNAMES_START + key-1));
 			return 1;
 		}
 		for (i = 0; funcvals[i] != 0 && !name; i++) {
 			if (ch == funcvals[i])
-				name = msg_get(MSG_FUNCNAMES_START + i);
+				name = spk_msg_get(MSG_FUNCNAMES_START + i);
 		}
 		if (!name)
 			return -1;
-		kp = our_keys[key]+1;
+		kp = spk_our_keys[key]+1;
 		for (i = 0; i < nstates; i++) {
 			if (ch == kp[i])
 				break;
 		}
 		key += (state_tbl[i] << 8);
 		say_key(key);
-		synth_printf(msg_get(MSG_KEYDESC), name);
+		synth_printf(spk_msg_get(MSG_KEYDESC), name);
 		synth_printf("\n");
 		return 1;
 	}
-	name = msg_get(MSG_FUNCNAMES_START + cur_item);
+	name = spk_msg_get(MSG_FUNCNAMES_START + cur_item);
 	func = funcvals[cur_item];
 	synth_printf("%s", name);
 	if (key_offsets[func] == 0) {
-		synth_printf(" %s\n", msg_get(MSG_IS_UNASSIGNED));
+		synth_printf(" %s\n", spk_msg_get(MSG_IS_UNASSIGNED));
 		return 1;
 	}
 	p_keys = key_data + key_offsets[func];
 	for (n = 0; p_keys[n]; n++) {
 		val = p_keys[n];
 		if (n > 0)
-			synth_printf("%s ", msg_get(MSG_DISJUNCTION));
+			synth_printf("%s ", spk_msg_get(MSG_DISJUNCTION));
 		say_key(val);
 	}
 	return 1;
