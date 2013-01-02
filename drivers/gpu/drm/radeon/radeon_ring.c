@@ -794,11 +794,15 @@ static int radeon_debugfs_ring_info(struct seq_file *m, void *data)
 static int radeon_ring_type_gfx_index = RADEON_RING_TYPE_GFX_INDEX;
 static int cayman_ring_type_cp1_index = CAYMAN_RING_TYPE_CP1_INDEX;
 static int cayman_ring_type_cp2_index = CAYMAN_RING_TYPE_CP2_INDEX;
+static int radeon_ring_type_dma1_index = R600_RING_TYPE_DMA_INDEX;
+static int radeon_ring_type_dma2_index = CAYMAN_RING_TYPE_DMA1_INDEX;
 
 static struct drm_info_list radeon_debugfs_ring_info_list[] = {
 	{"radeon_ring_gfx", radeon_debugfs_ring_info, 0, &radeon_ring_type_gfx_index},
 	{"radeon_ring_cp1", radeon_debugfs_ring_info, 0, &cayman_ring_type_cp1_index},
 	{"radeon_ring_cp2", radeon_debugfs_ring_info, 0, &cayman_ring_type_cp2_index},
+	{"radeon_ring_dma1", radeon_debugfs_ring_info, 0, &radeon_ring_type_dma1_index},
+	{"radeon_ring_dma2", radeon_debugfs_ring_info, 0, &radeon_ring_type_dma2_index},
 };
 
 static int radeon_debugfs_sa_info(struct seq_file *m, void *data)
