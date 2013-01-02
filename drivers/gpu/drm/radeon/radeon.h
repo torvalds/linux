@@ -1972,6 +1972,10 @@ static inline int radeon_acpi_init(struct radeon_device *rdev) { return 0; }
 static inline void radeon_acpi_fini(struct radeon_device *rdev) { }
 #endif
 
+int radeon_cs_packet_parse(struct radeon_cs_parser *p,
+			   struct radeon_cs_packet *pkt,
+			   unsigned idx);
+
 #include "radeon_object.h"
 
 #endif

@@ -1257,7 +1257,7 @@ int r300_cs_parse(struct radeon_cs_parser *p)
 	r100_cs_track_clear(p->rdev, track);
 	p->track = track;
 	do {
-		r = r100_cs_packet_parse(p, &pkt, p->idx);
+		r = radeon_cs_packet_parse(p, &pkt, p->idx);
 		if (r) {
 			return r;
 		}

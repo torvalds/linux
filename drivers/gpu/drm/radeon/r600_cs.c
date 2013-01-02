@@ -784,53 +784,6 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 }
 
 /**
- * r600_cs_packet_parse() - parse cp packet and point ib index to next packet
- * @parser:	parser structure holding parsing context.
- * @pkt:	where to store packet informations
- *
- * Assume that chunk_ib_index is properly set. Will return -EINVAL
- * if packet is bigger than remaining ib size. or if packets is unknown.
- **/
-static int r600_cs_packet_parse(struct radeon_cs_parser *p,
-			struct radeon_cs_packet *pkt,
-			unsigned idx)
-{
-	struct radeon_cs_chunk *ib_chunk = &p->chunks[p->chunk_ib_idx];
-	uint32_t header;
-
-	if (idx >= ib_chunk->length_dw) {
-		DRM_ERROR("Can not parse packet at %d after CS end %d !\n",
-			  idx, ib_chunk->length_dw);
-		return -EINVAL;
-	}
-	header = radeon_get_ib_value(p, idx);
-	pkt->idx = idx;
-	pkt->type = CP_PACKET_GET_TYPE(header);
-	pkt->count = CP_PACKET_GET_COUNT(header);
-	pkt->one_reg_wr = 0;
-	switch (pkt->type) {
-	case PACKET_TYPE0:
-		pkt->reg = CP_PACKET0_GET_REG(header);
-		break;
-	case PACKET_TYPE3:
-		pkt->opcode = CP_PACKET3_GET_OPCODE(header);
-		break;
-	case PACKET_TYPE2:
-		pkt->count = -1;
-		break;
-	default:
-		DRM_ERROR("Unknown packet type %d at %d !\n", pkt->type, idx);
-		return -EINVAL;
-	}
-	if ((pkt->count + 1 + pkt->idx) >= ib_chunk->length_dw) {
-		DRM_ERROR("Packet (%d:%d:%d) end after CS buffer (%d) !\n",
-			  pkt->idx, pkt->type, pkt->count, ib_chunk->length_dw);
-		return -EINVAL;
-	}
-	return 0;
-}
-
-/**
  * r600_cs_packet_next_reloc_mm() - parse next packet which should be reloc packet3
  * @parser:		parser structure holding parsing context.
  * @data:		pointer to relocation data
@@ -855,7 +808,7 @@ static int r600_cs_packet_next_reloc_mm(struct radeon_cs_parser *p,
 	}
 	*cs_reloc = NULL;
 	relocs_chunk = &p->chunks[p->chunk_relocs_idx];
-	r = r600_cs_packet_parse(p, &p3reloc, p->idx);
+	r = radeon_cs_packet_parse(p, &p3reloc, p->idx);
 	if (r) {
 		return r;
 	}
@@ -901,7 +854,7 @@ static int r600_cs_packet_next_reloc_nomm(struct radeon_cs_parser *p,
 	}
 	*cs_reloc = NULL;
 	relocs_chunk = &p->chunks[p->chunk_relocs_idx];
-	r = r600_cs_packet_parse(p, &p3reloc, p->idx);
+	r = radeon_cs_packet_parse(p, &p3reloc, p->idx);
 	if (r) {
 		return r;
 	}
@@ -935,7 +888,7 @@ static int r600_cs_packet_next_is_pkt3_nop(struct radeon_cs_parser *p)
 	struct radeon_cs_packet p3reloc;
 	int r;
 
-	r = r600_cs_packet_parse(p, &p3reloc, p->idx);
+	r = radeon_cs_packet_parse(p, &p3reloc, p->idx);
 	if (r) {
 		return 0;
 	}
@@ -973,7 +926,7 @@ static int r600_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	ib = p->ib.ptr;
 
 	/* parse the WAIT_REG_MEM */
-	r = r600_cs_packet_parse(p, &wait_reg_mem, p->idx);
+	r = radeon_cs_packet_parse(p, &wait_reg_mem, p->idx);
 	if (r)
 		return r;
 
@@ -1006,7 +959,7 @@ static int r600_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	}
 
 	/* jump over the NOP */
-	r = r600_cs_packet_parse(p, &p3reloc, p->idx + wait_reg_mem.count + 2);
+	r = radeon_cs_packet_parse(p, &p3reloc, p->idx + wait_reg_mem.count + 2);
 	if (r)
 		return r;
 
@@ -2410,7 +2363,7 @@ int r600_cs_parse(struct radeon_cs_parser *p)
 		p->track = track;
 	}
 	do {
-		r = r600_cs_packet_parse(p, &pkt, p->idx);
+		r = radeon_cs_packet_parse(p, &pkt, p->idx);
 		if (r) {
 			kfree(p->track);
 			p->track = NULL;
