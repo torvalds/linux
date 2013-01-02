@@ -737,3 +737,57 @@ void radeon_cs_dump_packet(struct radeon_cs_parser *p,
 		DRM_INFO("ib[%d]=0x%08X\n", idx, ib[idx]);
 }
 
+/**
+ * radeon_cs_packet_next_reloc() - parse next (should be reloc) packet
+ * @parser:		parser structure holding parsing context.
+ * @data:		pointer to relocation data
+ * @offset_start:	starting offset
+ * @offset_mask:	offset mask (to align start offset on)
+ * @reloc:		reloc informations
+ *
+ * Check if next packet is relocation packet3, do bo validation and compute
+ * GPU offset using the provided start.
+ **/
+int radeon_cs_packet_next_reloc(struct radeon_cs_parser *p,
+				struct radeon_cs_reloc **cs_reloc,
+				int nomm)
+{
+	struct radeon_cs_chunk *relocs_chunk;
+	struct radeon_cs_packet p3reloc;
+	unsigned idx;
+	int r;
+
+	if (p->chunk_relocs_idx == -1) {
+		DRM_ERROR("No relocation chunk !\n");
+		return -EINVAL;
+	}
+	*cs_reloc = NULL;
+	relocs_chunk = &p->chunks[p->chunk_relocs_idx];
+	r = radeon_cs_packet_parse(p, &p3reloc, p->idx);
+	if (r)
+		return r;
+	p->idx += p3reloc.count + 2;
+	if (p3reloc.type != RADEON_PACKET_TYPE3 ||
+	    p3reloc.opcode != RADEON_PACKET3_NOP) {
+		DRM_ERROR("No packet3 for relocation for packet at %d.\n",
+			  p3reloc.idx);
+		radeon_cs_dump_packet(p, &p3reloc);
+		return -EINVAL;
+	}
+	idx = radeon_get_ib_value(p, p3reloc.idx + 1);
+	if (idx >= relocs_chunk->length_dw) {
+		DRM_ERROR("Relocs at %d after relocations chunk end %d !\n",
+			  idx, relocs_chunk->length_dw);
+		radeon_cs_dump_packet(p, &p3reloc);
+		return -EINVAL;
+	}
+	/* FIXME: we assume reloc size is 4 dwords */
+	if (nomm) {
+		*cs_reloc = p->relocs;
+		(*cs_reloc)->lobj.gpu_offset =
+			(u64)relocs_chunk->kdata[idx + 3] << 32;
+		(*cs_reloc)->lobj.gpu_offset |= relocs_chunk->kdata[idx + 0];
+	} else
+		*cs_reloc = p->relocs_ptr[(idx / 4)];
+	return 0;
+}
