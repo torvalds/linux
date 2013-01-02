@@ -18,7 +18,8 @@
 #include <mach/map.h>
 #include <mach/dma.h>
 #include <mach/irqs.h>
-#include <mach/regs-audss.h>
+
+#define S5PV210_AUDSS_INT_MEM	(0xC0000000)
 
 static int s5pv210_cfg_i2s(struct platform_device *pdev)
 {
