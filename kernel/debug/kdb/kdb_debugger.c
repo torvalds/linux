@@ -34,6 +34,22 @@ EXPORT_SYMBOL_GPL(kdb_poll_idx);
 
 static struct kgdb_state *kdb_ks;
 
+int kdb_common_init_state(struct kgdb_state *ks)
+{
+	kdb_initial_cpu = atomic_read(&kgdb_active);
+	kdb_current_task = kgdb_info[ks->cpu].task;
+	kdb_current_regs = kgdb_info[ks->cpu].debuggerinfo;
+	return 0;
+}
+
+int kdb_common_deinit_state(void)
+{
+	kdb_initial_cpu = -1;
+	kdb_current_task = NULL;
+	kdb_current_regs = NULL;
+	return 0;
+}
+
 int kdb_stub(struct kgdb_state *ks)
 {
 	int error = 0;
@@ -94,9 +110,7 @@ int kdb_stub(struct kgdb_state *ks)
 	}
 	/* Set initial kdb state variables */
 	KDB_STATE_CLEAR(KGDB_TRANS);
-	kdb_initial_cpu = atomic_read(&kgdb_active);
-	kdb_current_task = kgdb_info[ks->cpu].task;
-	kdb_current_regs = kgdb_info[ks->cpu].debuggerinfo;
+	kdb_common_init_state(ks);
 	/* Remove any breakpoints as needed by kdb and clear single step */
 	kdb_bp_remove();
 	KDB_STATE_CLEAR(DOING_SS);
@@ -125,9 +139,7 @@ int kdb_stub(struct kgdb_state *ks)
 	 * Upon exit from the kdb main loop setup break points and restart
 	 * the system based on the requested continue state
 	 */
-	kdb_initial_cpu = -1;
-	kdb_current_task = NULL;
-	kdb_current_regs = NULL;
+	kdb_common_deinit_state();
 	KDB_STATE_CLEAR(PAGER);
 	kdbnearsym_cleanup();
 	if (error == KDB_CMD_KGDB) {
