@@ -982,7 +982,7 @@ static void *gsc_get_drv_data(struct platform_device *pdev)
 		match = of_match_node(of_match_ptr(exynos_gsc_match),
 					pdev->dev.of_node);
 		if (match)
-			driver_data =  match->data;
+			driver_data = (struct gsc_driverdata *)match->data;
 	} else {
 		driver_data = (struct gsc_driverdata *)
 			platform_get_device_id(pdev)->driver_data;

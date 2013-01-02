@@ -156,7 +156,7 @@ out:
 	return IRQ_HANDLED;
 }
 
-static void __devinit max11801_ts_phy_init(struct max11801_data *data)
+static void max11801_ts_phy_init(struct max11801_data *data)
 {
 	struct i2c_client *client = data->client;
 
@@ -174,7 +174,7 @@ static void __devinit max11801_ts_phy_init(struct max11801_data *data)
 	max11801_write_reg(client, OP_MODE_CONF_REG, 0x36);
 }
 
-static int __devinit max11801_ts_probe(struct i2c_client *client,
+static int max11801_ts_probe(struct i2c_client *client,
 				       const struct i2c_device_id *id)
 {
 	struct max11801_data *data;
@@ -228,7 +228,7 @@ err_free_mem:
 	return error;
 }
 
-static __devexit int max11801_ts_remove(struct i2c_client *client)
+static int max11801_ts_remove(struct i2c_client *client)
 {
 	struct max11801_data *data = i2c_get_clientdata(client);
 
@@ -252,7 +252,7 @@ static struct i2c_driver max11801_ts_driver = {
 	},
 	.id_table	= max11801_ts_id,
 	.probe		= max11801_ts_probe,
-	.remove		= __devexit_p(max11801_ts_remove),
+	.remove		= max11801_ts_remove,
 };
 
 module_i2c_driver(max11801_ts_driver);

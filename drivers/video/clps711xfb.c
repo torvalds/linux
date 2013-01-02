@@ -22,18 +22,14 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/fb.h>
 #include <linux/init.h>
-#include <linux/proc_fs.h>
 #include <linux/delay.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <linux/uaccess.h>
-
-#include <mach/syspld.h>
 
 struct fb_info	*cfb;
 
@@ -162,44 +158,12 @@ clps7111fb_set_par(struct fb_info *info)
 
 static int clps7111fb_blank(int blank, struct fb_info *info)
 {
-    	if (blank) {
-		if (machine_is_edb7211()) {
-			/* Turn off the LCD backlight. */
-			clps_writeb(clps_readb(PDDR) & ~EDB_PD3_LCDBL, PDDR);
+	/* Enable/Disable LCD controller. */
+	if (blank)
+		clps_writel(clps_readl(SYSCON1) & ~SYSCON1_LCDEN, SYSCON1);
+	else
+		clps_writel(clps_readl(SYSCON1) | SYSCON1_LCDEN, SYSCON1);
 
-			/* Power off the LCD DC-DC converter. */
-			clps_writeb(clps_readb(PDDR) & ~EDB_PD1_LCD_DC_DC_EN, PDDR);
-
-			/* Delay for a little while (half a second). */
-			udelay(100);
-
-			/* Power off the LCD panel. */
-			clps_writeb(clps_readb(PDDR) & ~EDB_PD2_LCDEN, PDDR);
-
-			/* Power off the LCD controller. */
-			clps_writel(clps_readl(SYSCON1) & ~SYSCON1_LCDEN, 
-					SYSCON1);
-		}
-	} else {
-		if (machine_is_edb7211()) {
-			/* Power up the LCD controller. */
-			clps_writel(clps_readl(SYSCON1) | SYSCON1_LCDEN,
-					SYSCON1);
-
-			/* Power up the LCD panel. */
-			clps_writeb(clps_readb(PDDR) | EDB_PD2_LCDEN, PDDR);
-
-			/* Delay for a little while. */
-			udelay(100);
-
-			/* Power up the LCD DC-DC converter. */
-			clps_writeb(clps_readb(PDDR) | EDB_PD1_LCD_DC_DC_EN,
-					PDDR);
-
-			/* Turn on the LCD backlight. */
-			clps_writeb(clps_readb(PDDR) | EDB_PD3_LCDBL, PDDR);
-		}
-	}
 	return 0;
 }
 
@@ -214,63 +178,7 @@ static struct fb_ops clps7111fb_ops = {
 	.fb_imageblit	= cfb_imageblit,
 };
 
-static int backlight_proc_show(struct seq_file *m, void *v)
-{
-	if (machine_is_edb7211()) {
-		seq_printf(m, "%d\n",
-				(clps_readb(PDDR) & EDB_PD3_LCDBL) ? 1 : 0);
-	}
-
-	return 0;
-}
-
-static int backlight_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, backlight_proc_show, NULL);
-}
-
-static ssize_t backlight_proc_write(struct file *file, const char *buffer,
-				    size_t count, loff_t *pos)
-{
-	unsigned char char_value;
-	int value;
-
-	if (count < 1) {
-		return -EINVAL;
-	}
-
-	if (copy_from_user(&char_value, buffer, 1)) 
-		return -EFAULT;
-
-	value = char_value - '0';
-
-	if (machine_is_edb7211()) {
-		unsigned char port_d;
-
-		port_d = clps_readb(PDDR);
-
-		if (value) {
-			port_d |= EDB_PD3_LCDBL;
-		} else {
-			port_d &= ~EDB_PD3_LCDBL;
-		}
-
-		clps_writeb(port_d, PDDR);
-	}
-
-	return count;
-}
-
-static const struct file_operations backlight_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= backlight_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= backlight_proc_write,
-};
-
-static void __init clps711x_guess_lcd_params(struct fb_info *info)
+static void __devinit clps711x_guess_lcd_params(struct fb_info *info)
 {
 	unsigned int lcdcon, syscon, size;
 	unsigned long phys_base = PAGE_OFFSET;
@@ -358,7 +266,7 @@ static void __init clps711x_guess_lcd_params(struct fb_info *info)
 	info->fix.type       = FB_TYPE_PACKED_PIXELS;
 }
 
-int __init clps711xfb_init(void)
+static int __devinit clps711x_fb_probe(struct platform_device *pdev)
 {
 	int err = -ENOMEM;
 
@@ -378,55 +286,29 @@ int __init clps711xfb_init(void)
 
 	fb_alloc_cmap(&cfb->cmap, CMAP_MAX_SIZE, 0);
 
-	if (!proc_create("backlight", 0444, NULL, &backlight_proc_fops)) {
-		printk("Couldn't create the /proc entry for the backlight.\n");
-		return -EINVAL;
-	}
-
-	/*
-	 * Power up the LCD
-	 */
-	if (machine_is_p720t()) {
-		PLD_LCDEN = PLD_LCDEN_EN;
-		PLD_PWR |= (PLD_S4_ON|PLD_S3_ON|PLD_S2_ON|PLD_S1_ON);
-	}
-
-	if (machine_is_edb7211()) {
-		/* Power up the LCD panel. */
-		clps_writeb(clps_readb(PDDR) | EDB_PD2_LCDEN, PDDR);
-
-		/* Delay for a little while. */
-		udelay(100);
-
-		/* Power up the LCD DC-DC converter. */
-		clps_writeb(clps_readb(PDDR) | EDB_PD1_LCD_DC_DC_EN, PDDR);
-
-		/* Turn on the LCD backlight. */
-		clps_writeb(clps_readb(PDDR) | EDB_PD3_LCDBL, PDDR);
-	}
-
 	err = register_framebuffer(cfb);
 
 out:	return err;
 }
 
-static void __exit clps711xfb_exit(void)
+static int __devexit clps711x_fb_remove(struct platform_device *pdev)
 {
 	unregister_framebuffer(cfb);
 	kfree(cfb);
 
-	/*
-	 * Power down the LCD
-	 */
-	if (machine_is_p720t()) {
-		PLD_LCDEN = 0;
-		PLD_PWR &= ~(PLD_S4_ON|PLD_S3_ON|PLD_S2_ON|PLD_S1_ON);
-	}
+	return 0;
 }
 
-module_init(clps711xfb_init);
-module_exit(clps711xfb_exit);
+static struct platform_driver clps711x_fb_driver = {
+	.driver	= {
+		.name	= "video-clps711x",
+		.owner	= THIS_MODULE,
+	},
+	.probe	= clps711x_fb_probe,
+	.remove	= __devexit_p(clps711x_fb_remove),
+};
+module_platform_driver(clps711x_fb_driver);
 
 MODULE_AUTHOR("Russell King <rmk@arm.linux.org.uk>");
-MODULE_DESCRIPTION("CLPS711x framebuffer driver");
+MODULE_DESCRIPTION("CLPS711X framebuffer driver");
 MODULE_LICENSE("GPL");

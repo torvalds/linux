@@ -3307,7 +3307,7 @@ static void config_pcie(struct adapter *adap)
 	    G_NUMFSTTRNSEQRX(t3_read_reg(adap, A_PCIE_MODE));
 	log2_width = fls(adap->params.pci.width) - 1;
 	acklat = ack_lat[log2_width][pldsize];
-	if (val & 1)		/* check LOsEnable */
+	if (val & PCI_EXP_LNKCTL_ASPM_L0S)	/* check LOsEnable */
 		acklat += fst_trn_tx * 4;
 	rpllmt = rpl_tmr[log2_width][pldsize] + fst_trn_rx * 4;
 

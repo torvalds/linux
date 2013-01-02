@@ -516,18 +516,9 @@ nvc0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 {
 	struct nouveau_device *device = nv_device(parent);
 	struct nvc0_graph_priv *priv;
-	bool enable = true;
 	int ret, i;
 
-	switch (device->chipset) {
-	case 0xd9: /* known broken without binary driver firmware */
-		enable = false;
-		break;
-	default:
-		break;
-	}
-
-	ret = nouveau_graph_create(parent, engine, oclass, enable, &priv);
+	ret = nouveau_graph_create(parent, engine, oclass, true, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -814,7 +805,7 @@ nvc0_graph_init_ctxctl(struct nvc0_graph_priv *priv)
 		nv_wr32(priv, 0x41a100, 0x00000002);
 		nv_wr32(priv, 0x409100, 0x00000002);
 		if (!nv_wait(priv, 0x409800, 0x00000001, 0x00000001))
-			nv_info(priv, "0x409800 wait failed\n");
+			nv_warn(priv, "0x409800 wait failed\n");
 
 		nv_wr32(priv, 0x409840, 0xffffffff);
 		nv_wr32(priv, 0x409500, 0x7fffffff);

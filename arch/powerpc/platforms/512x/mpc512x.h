@@ -16,6 +16,13 @@ extern void __init mpc512x_init(void);
 extern int __init mpc5121_clk_init(void);
 void __init mpc512x_declare_of_platform_devices(void);
 extern void mpc512x_restart(char *cmd);
-extern void mpc512x_init_diu(void);
-extern void mpc512x_setup_diu(void);
+
+#if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
+void mpc512x_init_diu(void);
+void mpc512x_setup_diu(void);
+#else
+#define mpc512x_init_diu NULL
+#define mpc512x_setup_diu NULL
+#endif
+
 #endif				/* __MPC512X_H__ */

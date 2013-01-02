@@ -121,9 +121,9 @@ nv31_mpeg_ofuncs = {
 
 static struct nouveau_omthds
 nv31_mpeg_omthds[] = {
-	{ 0x0190, nv31_mpeg_mthd_dma },
-	{ 0x01a0, nv31_mpeg_mthd_dma },
-	{ 0x01b0, nv31_mpeg_mthd_dma },
+	{ 0x0190, 0x0190, nv31_mpeg_mthd_dma },
+	{ 0x01a0, 0x01a0, nv31_mpeg_mthd_dma },
+	{ 0x01b0, 0x01b0, nv31_mpeg_mthd_dma },
 	{}
 };
 

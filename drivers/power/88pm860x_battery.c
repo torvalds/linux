@@ -901,7 +901,7 @@ static enum power_supply_property pm860x_batt_props[] = {
 	POWER_SUPPLY_PROP_TEMP,
 };
 
-static __devinit int pm860x_battery_probe(struct platform_device *pdev)
+static int pm860x_battery_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct pm860x_battery_info *info;
@@ -989,7 +989,7 @@ out:
 	return ret;
 }
 
-static int __devexit pm860x_battery_remove(struct platform_device *pdev)
+static int pm860x_battery_remove(struct platform_device *pdev)
 {
 	struct pm860x_battery_info *info = platform_get_drvdata(pdev);
 
@@ -1033,7 +1033,7 @@ static struct platform_driver pm860x_battery_driver = {
 		   .pm = &pm860x_battery_pm_ops,
 	},
 	.probe = pm860x_battery_probe,
-	.remove = __devexit_p(pm860x_battery_remove),
+	.remove = pm860x_battery_remove,
 };
 module_platform_driver(pm860x_battery_driver);
 

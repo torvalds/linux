@@ -120,7 +120,6 @@ struct trace_sched_handler {
 
 struct perf_sched {
 	struct perf_tool tool;
-	const char	 *input_name;
 	const char	 *sort_order;
 	unsigned long	 nr_tasks;
 	struct task_desc *pid_to_task[MAX_PID];
@@ -1460,7 +1459,7 @@ static int perf_sched__read_events(struct perf_sched *sched, bool destroy,
 	};
 	struct perf_session *session;
 
-	session = perf_session__new(sched->input_name, O_RDONLY, 0, false, &sched->tool);
+	session = perf_session__new(input_name, O_RDONLY, 0, false, &sched->tool);
 	if (session == NULL) {
 		pr_debug("No Memory for session\n");
 		return -1;
@@ -1672,7 +1671,8 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 			.sample		 = perf_sched__process_tracepoint_sample,
 			.comm		 = perf_event__process_comm,
 			.lost		 = perf_event__process_lost,
-			.fork		 = perf_event__process_task,
+			.exit		 = perf_event__process_exit,
+			.fork		 = perf_event__process_fork,
 			.ordered_samples = true,
 		},
 		.cmp_pid	      = LIST_HEAD_INIT(sched.cmp_pid),
@@ -1707,7 +1707,7 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_END()
 	};
 	const struct option sched_options[] = {
-	OPT_STRING('i', "input", &sched.input_name, "file",
+	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),

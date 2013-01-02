@@ -109,6 +109,23 @@ they cannot be swapped out to disk. Buffers remain locked until
 dequeued, until the &VIDIOC-STREAMOFF; or &VIDIOC-REQBUFS; ioctl is
 called, or until the device is closed.</para>
 
+    <para>To enqueue a <link linkend="dmabuf">DMABUF</link> buffer applications
+set the <structfield>memory</structfield> field to
+<constant>V4L2_MEMORY_DMABUF</constant> and the <structfield>m.fd</structfield>
+field to a file descriptor associated with a DMABUF buffer. When the
+multi-planar API is used the <structfield>m.fd</structfield> fields of the
+passed array of &v4l2-plane; have to be used instead. When
+<constant>VIDIOC_QBUF</constant> is called with a pointer to this structure the
+driver sets the <constant>V4L2_BUF_FLAG_QUEUED</constant> flag and clears the
+<constant>V4L2_BUF_FLAG_MAPPED</constant> and
+<constant>V4L2_BUF_FLAG_DONE</constant> flags in the
+<structfield>flags</structfield> field, or it returns an error code.  This
+ioctl locks the buffer. Locking a buffer means passing it to a driver for a
+hardware access (usually DMA).  If an application accesses (reads/writes) a
+locked buffer then the result is undefined.  Buffers remain locked until
+dequeued, until the &VIDIOC-STREAMOFF; or &VIDIOC-REQBUFS; ioctl is called, or
+until the device is closed.</para>
+
     <para>Applications call the <constant>VIDIOC_DQBUF</constant>
 ioctl to dequeue a filled (capturing) or displayed (output) buffer
 from the driver's outgoing queue. They just set the

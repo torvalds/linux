@@ -389,7 +389,7 @@ static u32 sis630_func(struct i2c_adapter *adapter)
 		I2C_FUNC_SMBUS_BLOCK_DATA;
 }
 
-static int __devinit sis630_setup(struct pci_dev *sis630_dev)
+static int sis630_setup(struct pci_dev *sis630_dev)
 {
 	unsigned char b;
 	struct pci_dev *dummy = NULL;
@@ -480,7 +480,7 @@ static DEFINE_PCI_DEVICE_TABLE(sis630_ids) = {
 
 MODULE_DEVICE_TABLE (pci, sis630_ids);
 
-static int __devinit sis630_probe(struct pci_dev *dev, const struct pci_device_id *id)
+static int sis630_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	if (sis630_setup(dev)) {
 		dev_err(&dev->dev, "SIS630 comp. bus not detected, module not inserted.\n");
@@ -496,7 +496,7 @@ static int __devinit sis630_probe(struct pci_dev *dev, const struct pci_device_i
 	return i2c_add_adapter(&sis630_adapter);
 }
 
-static void __devexit sis630_remove(struct pci_dev *dev)
+static void sis630_remove(struct pci_dev *dev)
 {
 	if (acpi_base) {
 		i2c_del_adapter(&sis630_adapter);
@@ -510,7 +510,7 @@ static struct pci_driver sis630_driver = {
 	.name		= "sis630_smbus",
 	.id_table	= sis630_ids,
 	.probe		= sis630_probe,
-	.remove		= __devexit_p(sis630_remove),
+	.remove		= sis630_remove,
 };
 
 module_pci_driver(sis630_driver);

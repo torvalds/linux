@@ -1,13 +1,10 @@
 /*******************************************************************************
  * Filename:  target_core_stat.c
  *
- * Copyright (c) 2011 Rising Tide Systems
- * Copyright (c) 2011 Linux-iSCSI.org
- *
  * Modern ConfigFS group context specific statistics based on original
  * target_core_mib.c code
  *
- * Copyright (c) 2006-2007 SBE, Inc.  All Rights Reserved.
+ * (c) Copyright 2006-2012 RisingTide Systems LLC.
  *
  * Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
@@ -80,13 +77,9 @@ static struct target_stat_scsi_dev_attribute				\
 static ssize_t target_stat_scsi_dev_show_attr_inst(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_hba *hba = se_subdev->se_dev_hba;
-	struct se_device *dev = se_subdev->se_dev_ptr;
-
-	if (!dev)
-		return -ENODEV;
+	struct se_device *dev =
+		container_of(sgrps, struct se_device, dev_stat_grps);
+	struct se_hba *hba = dev->se_hba;
 
 	return snprintf(page, PAGE_SIZE, "%u\n", hba->hba_index);
 }
@@ -95,12 +88,8 @@ DEV_STAT_SCSI_DEV_ATTR_RO(inst);
 static ssize_t target_stat_scsi_dev_show_attr_indx(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
-
-	if (!dev)
-		return -ENODEV;
+	struct se_device *dev =
+		container_of(sgrps, struct se_device, dev_stat_grps);
 
 	return snprintf(page, PAGE_SIZE, "%u\n", dev->dev_index);
 }
@@ -109,13 +98,6 @@ DEV_STAT_SCSI_DEV_ATTR_RO(indx);
 static ssize_t target_stat_scsi_dev_show_attr_role(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
-
-	if (!dev)
-		return -ENODEV;
-
 	return snprintf(page, PAGE_SIZE, "Target\n");
 }
 DEV_STAT_SCSI_DEV_ATTR_RO(role);
@@ -123,12 +105,8 @@ DEV_STAT_SCSI_DEV_ATTR_RO(role);
 static ssize_t target_stat_scsi_dev_show_attr_ports(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
-
-	if (!dev)
-		return -ENODEV;
+	struct se_device *dev =
+		container_of(sgrps, struct se_device, dev_stat_grps);
 
 	return snprintf(page, PAGE_SIZE, "%u\n", dev->dev_port_count);
 }
@@ -176,13 +154,9 @@ static struct target_stat_scsi_tgt_dev_attribute			\
 static ssize_t target_stat_scsi_tgt_dev_show_attr_inst(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_hba *hba = se_subdev->se_dev_hba;
-	struct se_device *dev = se_subdev->se_dev_ptr;
-
-	if (!dev)
-		return -ENODEV;
+	struct se_device *dev =
+		container_of(sgrps, struct se_device, dev_stat_grps);
+	struct se_hba *hba = dev->se_hba;
 
 	return snprintf(page, PAGE_SIZE, "%u\n", hba->hba_index);
 }
@@ -191,12 +165,8 @@ DEV_STAT_SCSI_TGT_DEV_ATTR_RO(inst);
 static ssize_t target_stat_scsi_tgt_dev_show_attr_indx(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
-
-	if (!dev)
-		return -ENODEV;
+	struct se_device *dev =
+		container_of(sgrps, struct se_device, dev_stat_grps);
 
 	return snprintf(page, PAGE_SIZE, "%u\n", dev->dev_index);
 }
@@ -205,13 +175,6 @@ DEV_STAT_SCSI_TGT_DEV_ATTR_RO(indx);
 static ssize_t target_stat_scsi_tgt_dev_show_attr_num_lus(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
-
-	if (!dev)
-		return -ENODEV;
-
 	return snprintf(page, PAGE_SIZE, "%u\n", LU_COUNT);
 }
 DEV_STAT_SCSI_TGT_DEV_ATTR_RO(num_lus);
@@ -219,60 +182,27 @@ DEV_STAT_SCSI_TGT_DEV_ATTR_RO(num_lus);
 static ssize_t target_stat_scsi_tgt_dev_show_attr_status(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
-	char status[16];
+	struct se_device *dev =
+		container_of(sgrps, struct se_device, dev_stat_grps);
 
-	if (!dev)
-		return -ENODEV;
-
-	switch (dev->dev_status) {
-	case TRANSPORT_DEVICE_ACTIVATED:
-		strcpy(status, "activated");
-		break;
-	case TRANSPORT_DEVICE_DEACTIVATED:
-		strcpy(status, "deactivated");
-		break;
-	case TRANSPORT_DEVICE_SHUTDOWN:
-		strcpy(status, "shutdown");
-		break;
-	case TRANSPORT_DEVICE_OFFLINE_ACTIVATED:
-	case TRANSPORT_DEVICE_OFFLINE_DEACTIVATED:
-		strcpy(status, "offline");
-		break;
-	default:
-		sprintf(status, "unknown(%d)", dev->dev_status);
-		break;
-	}
-
-	return snprintf(page, PAGE_SIZE, "%s\n", status);
+	if (dev->export_count)
+		return snprintf(page, PAGE_SIZE, "activated");
+	else
+		return snprintf(page, PAGE_SIZE, "deactivated");
 }
 DEV_STAT_SCSI_TGT_DEV_ATTR_RO(status);
 
 static ssize_t target_stat_scsi_tgt_dev_show_attr_non_access_lus(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
+	struct se_device *dev =
+		container_of(sgrps, struct se_device, dev_stat_grps);
 	int non_accessible_lus;
 
-	if (!dev)
-		return -ENODEV;
-
-	switch (dev->dev_status) {
-	case TRANSPORT_DEVICE_ACTIVATED:
+	if (dev->export_count)
 		non_accessible_lus = 0;
-		break;
-	case TRANSPORT_DEVICE_DEACTIVATED:
-	case TRANSPORT_DEVICE_SHUTDOWN:
-	case TRANSPORT_DEVICE_OFFLINE_ACTIVATED:
-	case TRANSPORT_DEVICE_OFFLINE_DEACTIVATED:
-	default:
+	else
 		non_accessible_lus = 1;
-		break;
-	}
 
 	return snprintf(page, PAGE_SIZE, "%u\n", non_accessible_lus);
 }
@@ -281,12 +211,8 @@ DEV_STAT_SCSI_TGT_DEV_ATTR_RO(non_access_lus);
 static ssize_t target_stat_scsi_tgt_dev_show_attr_resets(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
-
-	if (!dev)
-		return -ENODEV;
+	struct se_device *dev =
+		container_of(sgrps, struct se_device, dev_stat_grps);
 
 	return snprintf(page, PAGE_SIZE, "%u\n", dev->num_resets);
 }
@@ -335,13 +261,9 @@ static struct target_stat_scsi_lu_attribute target_stat_scsi_lu_##_name = \
 static ssize_t target_stat_scsi_lu_show_attr_inst(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_hba *hba = se_subdev->se_dev_hba;
-	struct se_device *dev = se_subdev->se_dev_ptr;
-
-	if (!dev)
-		return -ENODEV;
+	struct se_device *dev =
+		container_of(sgrps, struct se_device, dev_stat_grps);
+	struct se_hba *hba = dev->se_hba;
 
 	return snprintf(page, PAGE_SIZE, "%u\n", hba->hba_index);
 }
@@ -350,12 +272,8 @@ DEV_STAT_SCSI_LU_ATTR_RO(inst);
 static ssize_t target_stat_scsi_lu_show_attr_dev(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
-
-	if (!dev)
-		return -ENODEV;
+	struct se_device *dev =
+		container_of(sgrps, struct se_device, dev_stat_grps);
 
 	return snprintf(page, PAGE_SIZE, "%u\n", dev->dev_index);
 }
@@ -364,13 +282,6 @@ DEV_STAT_SCSI_LU_ATTR_RO(dev);
 static ssize_t target_stat_scsi_lu_show_attr_indx(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
-
-	if (!dev)
-		return -ENODEV;
-
 	return snprintf(page, PAGE_SIZE, "%u\n", SCSI_LU_INDEX);
 }
 DEV_STAT_SCSI_LU_ATTR_RO(indx);
@@ -378,12 +289,6 @@ DEV_STAT_SCSI_LU_ATTR_RO(indx);
 static ssize_t target_stat_scsi_lu_show_attr_lun(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
-
-	if (!dev)
-		return -ENODEV;
 	/* FIXME: scsiLuDefaultLun */
 	return snprintf(page, PAGE_SIZE, "%llu\n", (unsigned long long)0);
 }
@@ -392,35 +297,28 @@ DEV_STAT_SCSI_LU_ATTR_RO(lun);
 static ssize_t target_stat_scsi_lu_show_attr_lu_name(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
+	struct se_device *dev =
+		container_of(sgrps, struct se_device, dev_stat_grps);
 
-	if (!dev)
-		return -ENODEV;
 	/* scsiLuWwnName */
 	return snprintf(page, PAGE_SIZE, "%s\n",
-			(strlen(dev->se_sub_dev->t10_wwn.unit_serial)) ?
-			dev->se_sub_dev->t10_wwn.unit_serial : "None");
+			(strlen(dev->t10_wwn.unit_serial)) ?
+			dev->t10_wwn.unit_serial : "None");
 }
 DEV_STAT_SCSI_LU_ATTR_RO(lu_name);
 
 static ssize_t target_stat_scsi_lu_show_attr_vend(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
+	struct se_device *dev =
+		container_of(sgrps, struct se_device, dev_stat_grps);
 	int i;
-	char str[sizeof(dev->se_sub_dev->t10_wwn.vendor)+1];
-
-	if (!dev)
-		return -ENODEV;
+	char str[sizeof(dev->t10_wwn.vendor)+1];
 
 	/* scsiLuVendorId */
-	for (i = 0; i < sizeof(dev->se_sub_dev->t10_wwn.vendor); i++)
-		str[i] = ISPRINT(dev->se_sub_dev->t10_wwn.vendor[i]) ?
-			dev->se_sub_dev->t10_wwn.vendor[i] : ' ';
+	for (i = 0; i < sizeof(dev->t10_wwn.vendor); i++)
+		str[i] = ISPRINT(dev->t10_wwn.vendor[i]) ?
+			dev->t10_wwn.vendor[i] : ' ';
 	str[i] = '\0';
 	return snprintf(page, PAGE_SIZE, "%s\n", str);
 }
@@ -429,19 +327,15 @@ DEV_STAT_SCSI_LU_ATTR_RO(vend);
 static ssize_t target_stat_scsi_lu_show_attr_prod(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
+	struct se_device *dev =
+		container_of(sgrps, struct se_device, dev_stat_grps);
 	int i;
-	char str[sizeof(dev->se_sub_dev->t10_wwn.model)+1];
-
-	if (!dev)
-		return -ENODEV;
+	char str[sizeof(dev->t10_wwn.model)+1];
 
 	/* scsiLuProductId */
-	for (i = 0; i < sizeof(dev->se_sub_dev->t10_wwn.vendor); i++)
-		str[i] = ISPRINT(dev->se_sub_dev->t10_wwn.model[i]) ?
-			dev->se_sub_dev->t10_wwn.model[i] : ' ';
+	for (i = 0; i < sizeof(dev->t10_wwn.vendor); i++)
+		str[i] = ISPRINT(dev->t10_wwn.model[i]) ?
+			dev->t10_wwn.model[i] : ' ';
 	str[i] = '\0';
 	return snprintf(page, PAGE_SIZE, "%s\n", str);
 }
@@ -450,19 +344,15 @@ DEV_STAT_SCSI_LU_ATTR_RO(prod);
 static ssize_t target_stat_scsi_lu_show_attr_rev(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
+	struct se_device *dev =
+		container_of(sgrps, struct se_device, dev_stat_grps);
 	int i;
-	char str[sizeof(dev->se_sub_dev->t10_wwn.revision)+1];
-
-	if (!dev)
-		return -ENODEV;
+	char str[sizeof(dev->t10_wwn.revision)+1];
 
 	/* scsiLuRevisionId */
-	for (i = 0; i < sizeof(dev->se_sub_dev->t10_wwn.revision); i++)
-		str[i] = ISPRINT(dev->se_sub_dev->t10_wwn.revision[i]) ?
-			dev->se_sub_dev->t10_wwn.revision[i] : ' ';
+	for (i = 0; i < sizeof(dev->t10_wwn.revision); i++)
+		str[i] = ISPRINT(dev->t10_wwn.revision[i]) ?
+			dev->t10_wwn.revision[i] : ' ';
 	str[i] = '\0';
 	return snprintf(page, PAGE_SIZE, "%s\n", str);
 }
@@ -471,12 +361,8 @@ DEV_STAT_SCSI_LU_ATTR_RO(rev);
 static ssize_t target_stat_scsi_lu_show_attr_dev_type(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
-
-	if (!dev)
-		return -ENODEV;
+	struct se_device *dev =
+		container_of(sgrps, struct se_device, dev_stat_grps);
 
 	/* scsiLuPeripheralType */
 	return snprintf(page, PAGE_SIZE, "%u\n",
@@ -487,30 +373,18 @@ DEV_STAT_SCSI_LU_ATTR_RO(dev_type);
 static ssize_t target_stat_scsi_lu_show_attr_status(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
-
-	if (!dev)
-		return -ENODEV;
+	struct se_device *dev =
+		container_of(sgrps, struct se_device, dev_stat_grps);
 
 	/* scsiLuStatus */
 	return snprintf(page, PAGE_SIZE, "%s\n",
-		(dev->dev_status == TRANSPORT_DEVICE_ACTIVATED) ?
-		"available" : "notavailable");
+		(dev->export_count) ? "available" : "notavailable");
 }
 DEV_STAT_SCSI_LU_ATTR_RO(status);
 
 static ssize_t target_stat_scsi_lu_show_attr_state_bit(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
-
-	if (!dev)
-		return -ENODEV;
-
 	/* scsiLuState */
 	return snprintf(page, PAGE_SIZE, "exposed\n");
 }
@@ -519,12 +393,8 @@ DEV_STAT_SCSI_LU_ATTR_RO(state_bit);
 static ssize_t target_stat_scsi_lu_show_attr_num_cmds(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
-
-	if (!dev)
-		return -ENODEV;
+	struct se_device *dev =
+		container_of(sgrps, struct se_device, dev_stat_grps);
 
 	/* scsiLuNumCommands */
 	return snprintf(page, PAGE_SIZE, "%llu\n",
@@ -535,12 +405,8 @@ DEV_STAT_SCSI_LU_ATTR_RO(num_cmds);
 static ssize_t target_stat_scsi_lu_show_attr_read_mbytes(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
-
-	if (!dev)
-		return -ENODEV;
+	struct se_device *dev =
+		container_of(sgrps, struct se_device, dev_stat_grps);
 
 	/* scsiLuReadMegaBytes */
 	return snprintf(page, PAGE_SIZE, "%u\n", (u32)(dev->read_bytes >> 20));
@@ -550,12 +416,8 @@ DEV_STAT_SCSI_LU_ATTR_RO(read_mbytes);
 static ssize_t target_stat_scsi_lu_show_attr_write_mbytes(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
-
-	if (!dev)
-		return -ENODEV;
+	struct se_device *dev =
+		container_of(sgrps, struct se_device, dev_stat_grps);
 
 	/* scsiLuWrittenMegaBytes */
 	return snprintf(page, PAGE_SIZE, "%u\n", (u32)(dev->write_bytes >> 20));
@@ -565,12 +427,8 @@ DEV_STAT_SCSI_LU_ATTR_RO(write_mbytes);
 static ssize_t target_stat_scsi_lu_show_attr_resets(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
-
-	if (!dev)
-		return -ENODEV;
+	struct se_device *dev =
+		container_of(sgrps, struct se_device, dev_stat_grps);
 
 	/* scsiLuInResets */
 	return snprintf(page, PAGE_SIZE, "%u\n", dev->num_resets);
@@ -580,13 +438,6 @@ DEV_STAT_SCSI_LU_ATTR_RO(resets);
 static ssize_t target_stat_scsi_lu_show_attr_full_stat(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
-
-	if (!dev)
-		return -ENODEV;
-
 	/* FIXME: scsiLuOutTaskSetFullStatus */
 	return snprintf(page, PAGE_SIZE, "%u\n", 0);
 }
@@ -595,13 +446,6 @@ DEV_STAT_SCSI_LU_ATTR_RO(full_stat);
 static ssize_t target_stat_scsi_lu_show_attr_hs_num_cmds(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
-
-	if (!dev)
-		return -ENODEV;
-
 	/* FIXME: scsiLuHSInCommands */
 	return snprintf(page, PAGE_SIZE, "%u\n", 0);
 }
@@ -610,12 +454,8 @@ DEV_STAT_SCSI_LU_ATTR_RO(hs_num_cmds);
 static ssize_t target_stat_scsi_lu_show_attr_creation_time(
 	struct se_dev_stat_grps *sgrps, char *page)
 {
-	struct se_subsystem_dev *se_subdev = container_of(sgrps,
-			struct se_subsystem_dev, dev_stat_grps);
-	struct se_device *dev = se_subdev->se_dev_ptr;
-
-	if (!dev)
-		return -ENODEV;
+	struct se_device *dev =
+		container_of(sgrps, struct se_device, dev_stat_grps);
 
 	/* scsiLuCreationTime */
 	return snprintf(page, PAGE_SIZE, "%u\n", (u32)(((u32)dev->creation_time -
@@ -662,20 +502,20 @@ static struct config_item_type target_stat_scsi_lu_cit = {
  * Called from target_core_configfs.c:target_core_make_subdev() to setup
  * the target statistics groups + configfs CITs located in target_core_stat.c
  */
-void target_stat_setup_dev_default_groups(struct se_subsystem_dev *se_subdev)
+void target_stat_setup_dev_default_groups(struct se_device *dev)
 {
-	struct config_group *dev_stat_grp = &se_subdev->dev_stat_grps.stat_group;
+	struct config_group *dev_stat_grp = &dev->dev_stat_grps.stat_group;
 
-	config_group_init_type_name(&se_subdev->dev_stat_grps.scsi_dev_group,
+	config_group_init_type_name(&dev->dev_stat_grps.scsi_dev_group,
 			"scsi_dev", &target_stat_scsi_dev_cit);
-	config_group_init_type_name(&se_subdev->dev_stat_grps.scsi_tgt_dev_group,
+	config_group_init_type_name(&dev->dev_stat_grps.scsi_tgt_dev_group,
 			"scsi_tgt_dev", &target_stat_scsi_tgt_dev_cit);
-	config_group_init_type_name(&se_subdev->dev_stat_grps.scsi_lu_group,
+	config_group_init_type_name(&dev->dev_stat_grps.scsi_lu_group,
 			"scsi_lu", &target_stat_scsi_lu_cit);
 
-	dev_stat_grp->default_groups[0] = &se_subdev->dev_stat_grps.scsi_dev_group;
-	dev_stat_grp->default_groups[1] = &se_subdev->dev_stat_grps.scsi_tgt_dev_group;
-	dev_stat_grp->default_groups[2] = &se_subdev->dev_stat_grps.scsi_lu_group;
+	dev_stat_grp->default_groups[0] = &dev->dev_stat_grps.scsi_dev_group;
+	dev_stat_grp->default_groups[1] = &dev->dev_stat_grps.scsi_tgt_dev_group;
+	dev_stat_grp->default_groups[2] = &dev->dev_stat_grps.scsi_lu_group;
 	dev_stat_grp->default_groups[3] = NULL;
 }
 
@@ -1161,7 +1001,7 @@ static ssize_t target_stat_scsi_transport_show_attr_dev_name(
 		return -ENODEV;
 	}
 	tpg = sep->sep_tpg;
-	wwn = &dev->se_sub_dev->t10_wwn;
+	wwn = &dev->t10_wwn;
 	/* scsiTransportDevName */
 	ret = snprintf(page, PAGE_SIZE, "%s+%s\n",
 			tpg->se_tpg_tfo->tpg_get_wwn(tpg),

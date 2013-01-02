@@ -258,7 +258,5 @@ nlm_pic_init_irt(uint64_t base, int irt, int irq, int hwt)
 	nlm_write_reg(base, PIC_IRT_1(irt),
 		(1 << 30) | (1 << 6) | irq);
 }
-
-extern uint64_t nlm_pic_base;
 #endif
 #endif /* _ASM_NLM_XLR_PIC_H */

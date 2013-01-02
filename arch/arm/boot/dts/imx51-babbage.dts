@@ -22,6 +22,22 @@
 	};
 
 	soc {
+		display@di0 {
+			compatible = "fsl,imx-parallel-display";
+			crtcs = <&ipu 0>;
+			interface-pix-fmt = "rgb24";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_ipu_disp1_1>;
+		};
+
+		display@di1 {
+			compatible = "fsl,imx-parallel-display";
+			crtcs = <&ipu 1>;
+			interface-pix-fmt = "rgb565";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_ipu_disp2_1>;
+		};
+
 		aips@70000000 { /* aips-1 */
 			spba@70000000 {
 				esdhc@70004000 { /* ESDHC1 */

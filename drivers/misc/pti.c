@@ -76,7 +76,7 @@ struct pti_dev {
  */
 static DEFINE_MUTEX(alloclock);
 
-static const struct pci_device_id pci_ids[] __devinitconst = {
+static const struct pci_device_id pci_ids[] = {
 		{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x82B)},
 		{0}
 };
@@ -796,7 +796,7 @@ static const struct tty_port_operations tty_port_ops = {
  *	0 for success
  *	otherwise, error
  */
-static int __devinit pti_pci_probe(struct pci_dev *pdev,
+static int pti_pci_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
 	unsigned int a;
@@ -879,14 +879,17 @@ err:
  *		   PCI bus.
  * @pdev: variable containing pci info of PTI.
  */
-static void __devexit pti_pci_remove(struct pci_dev *pdev)
+static void pti_pci_remove(struct pci_dev *pdev)
 {
 	struct pti_dev *drv_data = pci_get_drvdata(pdev);
+	unsigned int a;
 
 	unregister_console(&pti_console);
 
-	tty_unregister_device(pti_tty_driver, 0);
-	tty_unregister_device(pti_tty_driver, 1);
+	for (a = 0; a < PTITTY_MINOR_NUM; a++) {
+		tty_unregister_device(pti_tty_driver, a);
+		tty_port_destroy(&drv_data->port[a]);
+	}
 
 	iounmap(drv_data->pti_ioaddr);
 	pci_set_drvdata(pdev, NULL);
@@ -901,7 +904,7 @@ static struct pci_driver pti_pci_driver = {
 	.name		= PCINAME,
 	.id_table	= pci_ids,
 	.probe		= pti_pci_probe,
-	.remove		= __devexit_p(pti_pci_remove),
+	.remove		= pti_pci_remove,
 };
 
 /**

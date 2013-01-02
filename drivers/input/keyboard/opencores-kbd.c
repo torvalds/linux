@@ -37,7 +37,7 @@ static irqreturn_t opencores_kbd_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit opencores_kbd_probe(struct platform_device *pdev)
+static int opencores_kbd_probe(struct platform_device *pdev)
 {
 	struct input_dev *input;
 	struct opencores_kbd *opencores_kbd;
@@ -139,7 +139,7 @@ static int __devinit opencores_kbd_probe(struct platform_device *pdev)
 	return error;
 }
 
-static int __devexit opencores_kbd_remove(struct platform_device *pdev)
+static int opencores_kbd_remove(struct platform_device *pdev)
 {
 	struct opencores_kbd *opencores_kbd = platform_get_drvdata(pdev);
 
@@ -158,7 +158,7 @@ static int __devexit opencores_kbd_remove(struct platform_device *pdev)
 
 static struct platform_driver opencores_kbd_device_driver = {
 	.probe    = opencores_kbd_probe,
-	.remove   = __devexit_p(opencores_kbd_remove),
+	.remove   = opencores_kbd_remove,
 	.driver   = {
 		.name = "opencores-kbd",
 	},

@@ -149,13 +149,13 @@ static struct snd_soc_codec_driver soc_codec_dev_pcm3008 = {
 	.resume =	pcm3008_soc_resume,
 };
 
-static int __devinit pcm3008_codec_probe(struct platform_device *pdev)
+static int pcm3008_codec_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_codec(&pdev->dev,
 			&soc_codec_dev_pcm3008, &pcm3008_dai, 1);
 }
 
-static int __devexit pcm3008_codec_remove(struct platform_device *pdev)
+static int pcm3008_codec_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
@@ -165,7 +165,7 @@ MODULE_ALIAS("platform:pcm3008-codec");
 
 static struct platform_driver pcm3008_codec_driver = {
 	.probe		= pcm3008_codec_probe,
-	.remove		= __devexit_p(pcm3008_codec_remove),
+	.remove		= pcm3008_codec_remove,
 	.driver		= {
 		.name	= "pcm3008-codec",
 		.owner	= THIS_MODULE,

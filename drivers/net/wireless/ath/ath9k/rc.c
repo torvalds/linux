@@ -982,16 +982,6 @@ static void ath_rc_update_per(struct ath_softc *sc,
 	}
 }
 
-static void ath_debug_stat_retries(struct ath_rate_priv *rc, int rix,
-				   int xretries, int retries, u8 per)
-{
-	struct ath_rc_stats *stats = &rc->rcstats[rix];
-
-	stats->xretries += xretries;
-	stats->retries += retries;
-	stats->per = per;
-}
-
 static void ath_rc_update_ht(struct ath_softc *sc,
 			     struct ath_rate_priv *ath_rc_priv,
 			     struct ieee80211_tx_info *tx_info,
@@ -1063,14 +1053,6 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 	ath_debug_stat_retries(ath_rc_priv, tx_rate, xretries, retries,
 			       ath_rc_priv->per[tx_rate]);
 
-}
-
-static void ath_debug_stat_rc(struct ath_rate_priv *rc, int final_rate)
-{
-	struct ath_rc_stats *stats;
-
-	stats = &rc->rcstats[final_rate];
-	stats->success++;
 }
 
 static void ath_rc_tx_status(struct ath_softc *sc,
@@ -1350,7 +1332,25 @@ static void ath_rate_update(void *priv, struct ieee80211_supported_band *sband,
 	}
 }
 
-#ifdef CONFIG_ATH9K_DEBUGFS
+#if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_ATH9K_DEBUGFS)
+
+void ath_debug_stat_rc(struct ath_rate_priv *rc, int final_rate)
+{
+	struct ath_rc_stats *stats;
+
+	stats = &rc->rcstats[final_rate];
+	stats->success++;
+}
+
+void ath_debug_stat_retries(struct ath_rate_priv *rc, int rix,
+			    int xretries, int retries, u8 per)
+{
+	struct ath_rc_stats *stats = &rc->rcstats[rix];
+
+	stats->xretries += xretries;
+	stats->retries += retries;
+	stats->per = per;
+}
 
 static ssize_t read_file_rcstat(struct file *file, char __user *user_buf,
 				size_t count, loff_t *ppos)
@@ -1428,10 +1428,17 @@ static void ath_rate_add_sta_debugfs(void *priv, void *priv_sta,
 				     struct dentry *dir)
 {
 	struct ath_rate_priv *rc = priv_sta;
-	debugfs_create_file("rc_stats", S_IRUGO, dir, rc, &fops_rcstat);
+	rc->debugfs_rcstats = debugfs_create_file("rc_stats", S_IRUGO,
+						  dir, rc, &fops_rcstat);
 }
 
-#endif /* CONFIG_ATH9K_DEBUGFS */
+static void ath_rate_remove_sta_debugfs(void *priv, void *priv_sta)
+{
+	struct ath_rate_priv *rc = priv_sta;
+	debugfs_remove(rc->debugfs_rcstats);
+}
+
+#endif /* CONFIG_MAC80211_DEBUGFS && CONFIG_ATH9K_DEBUGFS */
 
 static void *ath_rate_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 {
@@ -1476,8 +1483,10 @@ static struct rate_control_ops ath_rate_ops = {
 	.free = ath_rate_free,
 	.alloc_sta = ath_rate_alloc_sta,
 	.free_sta = ath_rate_free_sta,
-#ifdef CONFIG_ATH9K_DEBUGFS
+
+#if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_ATH9K_DEBUGFS)
 	.add_sta_debugfs = ath_rate_add_sta_debugfs,
+	.remove_sta_debugfs = ath_rate_remove_sta_debugfs,
 #endif
 };
 

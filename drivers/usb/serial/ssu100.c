@@ -46,8 +46,6 @@
 #define FULLPWRBIT          0x00000080
 #define NEXT_BOARD_POWER_BIT        0x00000004
 
-/* Version Information */
-#define DRIVER_VERSION "v0.1"
 #define DRIVER_DESC "Quatech SSU-100 USB to Serial Driver"
 
 #define	USB_VENDOR_ID_QUATECH	0x061d	/* Quatech VID */

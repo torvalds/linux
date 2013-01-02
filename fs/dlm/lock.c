@@ -5393,6 +5393,13 @@ static void purge_dead_list(struct dlm_ls *ls, struct dlm_rsb *r,
 		if ((lkb->lkb_nodeid == nodeid_gone) ||
 		    dlm_is_removed(ls, lkb->lkb_nodeid)) {
 
+			/* tell recover_lvb to invalidate the lvb
+			   because a node holding EX/PW failed */
+			if ((lkb->lkb_exflags & DLM_LKF_VALBLK) &&
+			    (lkb->lkb_grmode >= DLM_LOCK_PW)) {
+				rsb_set_flag(r, RSB_RECOVER_LVB_INVAL);
+			}
+
 			del_lkb(r, lkb);
 
 			/* this put should free the lkb */
@@ -6025,15 +6032,18 @@ static int orphan_proc_lock(struct dlm_ls *ls, struct dlm_lkb *lkb)
 	return error;
 }
 
-/* The force flag allows the unlock to go ahead even if the lkb isn't granted.
-   Regardless of what rsb queue the lock is on, it's removed and freed. */
+/* The FORCEUNLOCK flag allows the unlock to go ahead even if the lkb isn't
+   granted.  Regardless of what rsb queue the lock is on, it's removed and
+   freed.  The IVVALBLK flag causes the lvb on the resource to be invalidated
+   if our lock is PW/EX (it's ignored if our granted mode is smaller.) */
 
 static int unlock_proc_lock(struct dlm_ls *ls, struct dlm_lkb *lkb)
 {
 	struct dlm_args args;
 	int error;
 
-	set_unlock_args(DLM_LKF_FORCEUNLOCK, lkb->lkb_ua, &args);
+	set_unlock_args(DLM_LKF_FORCEUNLOCK | DLM_LKF_IVVALBLK,
+			lkb->lkb_ua, &args);
 
 	error = unlock_lock(ls, lkb, &args);
 	if (error == -DLM_EUNLOCK)

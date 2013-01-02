@@ -403,7 +403,7 @@ static int falcon_sflash_xfer_one(struct spi_master *master,
 	return 0;
 }
 
-static int __devinit falcon_sflash_probe(struct platform_device *pdev)
+static int falcon_sflash_probe(struct platform_device *pdev)
 {
 	struct falcon_sflash *priv;
 	struct spi_master *master;
@@ -438,7 +438,7 @@ static int __devinit falcon_sflash_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit falcon_sflash_remove(struct platform_device *pdev)
+static int falcon_sflash_remove(struct platform_device *pdev)
 {
 	struct falcon_sflash *priv = platform_get_drvdata(pdev);
 
@@ -455,7 +455,7 @@ MODULE_DEVICE_TABLE(of, falcon_sflash_match);
 
 static struct platform_driver falcon_sflash_driver = {
 	.probe	= falcon_sflash_probe,
-	.remove	= __devexit_p(falcon_sflash_remove),
+	.remove	= falcon_sflash_remove,
 	.driver = {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,

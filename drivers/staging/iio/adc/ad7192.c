@@ -606,7 +606,7 @@ static const struct iio_chan_spec ad7192_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(8),
 };
 
-static int __devinit ad7192_probe(struct spi_device *spi)
+static int ad7192_probe(struct spi_device *spi)
 {
 	const struct ad7192_platform_data *pdata = spi->dev.platform_data;
 	struct ad7192_state *st;
@@ -686,7 +686,7 @@ error_put_reg:
 	return ret;
 }
 
-static int __devexit ad7192_remove(struct spi_device *spi)
+static int ad7192_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad7192_state *st = iio_priv(indio_dev);
@@ -716,7 +716,7 @@ static struct spi_driver ad7192_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad7192_probe,
-	.remove		= __devexit_p(ad7192_remove),
+	.remove		= ad7192_remove,
 	.id_table	= ad7192_id,
 };
 module_spi_driver(ad7192_driver);

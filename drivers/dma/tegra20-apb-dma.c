@@ -1197,7 +1197,7 @@ static const struct of_device_id tegra_dma_of_match[] __devinitconst = {
 MODULE_DEVICE_TABLE(of, tegra_dma_of_match);
 #endif
 
-static int __devinit tegra_dma_probe(struct platform_device *pdev)
+static int tegra_dma_probe(struct platform_device *pdev)
 {
 	struct resource	*res;
 	struct tegra_dma *tdma;
@@ -1418,7 +1418,7 @@ static struct platform_driver tegra_dmac_driver = {
 		.of_match_table = of_match_ptr(tegra_dma_of_match),
 	},
 	.probe		= tegra_dma_probe,
-	.remove		= __devexit_p(tegra_dma_remove),
+	.remove		= tegra_dma_remove,
 };
 
 module_platform_driver(tegra_dmac_driver);

@@ -78,6 +78,13 @@ struct ra_msg {
 	__be32			retrans_timer;
 };
 
+struct rd_msg {
+	struct icmp6hdr icmph;
+	struct in6_addr	target;
+	struct in6_addr	dest;
+	__u8		opt[0];
+};
+
 struct nd_opt_hdr {
 	__u8		nd_opt_type;
 	__u8		nd_opt_len;
@@ -189,21 +196,6 @@ extern void			ndisc_send_redirect(struct sk_buff *skb,
 
 extern int			ndisc_mc_map(const struct in6_addr *addr, char *buf,
 					     struct net_device *dev, int dir);
-
-extern struct sk_buff		*ndisc_build_skb(struct net_device *dev,
-						 const struct in6_addr *daddr,
-						 const struct in6_addr *saddr,
-						 struct icmp6hdr *icmp6h,
-						 const struct in6_addr *target,
-						 int llinfo);
-
-extern void			ndisc_send_skb(struct sk_buff *skb,
-					       struct net_device *dev,
-					       struct neighbour *neigh,
-					       const struct in6_addr *daddr,
-					       const struct in6_addr *saddr,
-					       struct icmp6hdr *icmp6h);
-
 
 
 /*

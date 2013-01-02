@@ -218,16 +218,16 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"%20s : %10u\n", "BE queued",
-			priv->debug.tx_stats.queue_stats[WME_AC_BE]);
+			priv->debug.tx_stats.queue_stats[IEEE80211_AC_BE]);
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"%20s : %10u\n", "BK queued",
-			priv->debug.tx_stats.queue_stats[WME_AC_BK]);
+			priv->debug.tx_stats.queue_stats[IEEE80211_AC_BK]);
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"%20s : %10u\n", "VI queued",
-			priv->debug.tx_stats.queue_stats[WME_AC_VI]);
+			priv->debug.tx_stats.queue_stats[IEEE80211_AC_VI]);
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"%20s : %10u\n", "VO queued",
-			priv->debug.tx_stats.queue_stats[WME_AC_VO]);
+			priv->debug.tx_stats.queue_stats[IEEE80211_AC_VO]);
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);

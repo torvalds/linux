@@ -38,6 +38,7 @@ endif
 platform-$(CONFIG_XTENSA_PLATFORM_XT2000)	:= xt2000
 platform-$(CONFIG_XTENSA_PLATFORM_ISS)		:= iss
 platform-$(CONFIG_XTENSA_PLATFORM_S6105)	:= s6105
+platform-$(CONFIG_XTENSA_PLATFORM_XTFPGA)	:= xtfpga
 
 PLATFORM = $(platform-y)
 export PLATFORM
@@ -48,6 +49,17 @@ KBUILD_CFLAGS += -ffreestanding -D__linux__
 KBUILD_CFLAGS += -pipe -mlongcalls
 
 KBUILD_CFLAGS += $(call cc-option,-mforce-no-pic,)
+
+ifneq ($(CONFIG_LD_NO_RELAX),)
+LDFLAGS := --no-relax
+endif
+
+ifeq ($(shell echo -e __XTENSA_EB__ | $(CC) -E - | grep -v "\#"),1)
+CHECKFLAGS += -D__XTENSA_EB__
+endif
+ifeq ($(shell echo -e __XTENSA_EL__ | $(CC) -E - | grep -v "\#"),1)
+CHECKFLAGS += -D__XTENSA_EL__
+endif
 
 vardirs := $(patsubst %,arch/xtensa/variants/%/,$(variant-y))
 plfdirs := $(patsubst %,arch/xtensa/platforms/%/,$(platform-y))
@@ -75,6 +87,10 @@ core-y		+= $(buildvar) $(buildplf)
 
 libs-y		+= arch/xtensa/lib/ $(LIBGCC)
 
+ifneq ($(CONFIG_BUILTIN_DTB),"")
+core-$(CONFIG_OF) += arch/xtensa/boot/
+endif
+
 boot		:= arch/xtensa/boot
 
 all: zImage
@@ -84,7 +100,9 @@ bzImage : zImage
 zImage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $@
 
+%.dtb:
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+
 define archhelp
   @echo '* zImage      - Compressed kernel image (arch/xtensa/boot/images/zImage.*)'
 endef
-

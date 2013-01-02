@@ -45,6 +45,14 @@
 			#interrupt-cells = <1>;
 		};
 
+		clcd@fc200000 {
+			compatible = "arm,pl110", "arm,primecell";
+			reg = <0xfc200000 0x1000>;
+			interrupt-parent = <&vic1>;
+			interrupts = <12>;
+			status = "disabled";
+		};
+
 		dma@fc400000 {
 			compatible = "arm,pl080", "arm,primecell";
 			reg = <0xfc400000 0x1000>;
@@ -59,6 +67,7 @@
 			interrupt-parent = <&vic1>;
 			interrupts = <24 23>;
 			interrupt-names = "macirq", "eth_wake_irq";
+			phy-mode = "gmii";
 			status = "disabled";
 		};
 
@@ -67,10 +76,10 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0xd1800000 0x1000	/* FSMC Register */
-			       0xd2000000 0x4000>;	/* NAND Base */
-			reg-names = "fsmc_regs", "nand_data";
-			st,ale-off = <0x20000>;
-			st,cle-off = <0x10000>;
+			       0xd2000000 0x0010	/* NAND Base DATA */
+			       0xd2020000 0x0010	/* NAND Base ADDR */
+			       0xd2010000 0x0010>;	/* NAND Base CMD */
+			reg-names = "fsmc_regs", "nand_data", "nand_addr", "nand_cmd";
 			status = "disabled";
 		};
 
@@ -175,6 +184,13 @@
 				reg = <0xd0200000 0x1000>;
 				interrupt-parent = <&vic0>;
 				interrupts = <28>;
+				status = "disabled";
+			};
+
+			rtc@fc900000 {
+				compatible = "st,spear600-rtc";
+				reg = <0xfc900000 0x1000>;
+				interrupts = <10>;
 				status = "disabled";
 			};
 

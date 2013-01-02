@@ -801,7 +801,7 @@ static struct uart_driver bcm_uart_driver = {
 /*
  * platform driver probe/remove callback
  */
-static int __devinit bcm_uart_probe(struct platform_device *pdev)
+static int bcm_uart_probe(struct platform_device *pdev)
 {
 	struct resource *res_mem, *res_irq;
 	struct uart_port *port;
@@ -848,7 +848,7 @@ static int __devinit bcm_uart_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit bcm_uart_remove(struct platform_device *pdev)
+static int bcm_uart_remove(struct platform_device *pdev)
 {
 	struct uart_port *port;
 
@@ -865,7 +865,7 @@ static int __devexit bcm_uart_remove(struct platform_device *pdev)
  */
 static struct platform_driver bcm_uart_platform_driver = {
 	.probe	= bcm_uart_probe,
-	.remove	= __devexit_p(bcm_uart_remove),
+	.remove	= bcm_uart_remove,
 	.driver	= {
 		.owner = THIS_MODULE,
 		.name  = "bcm63xx_uart",

@@ -13,10 +13,10 @@ bool CheckDig(struct net_device *dev);
 bool CheckHighPower(struct net_device *dev);
 void rtl8180_hw_dig_wq(struct work_struct *work);
 void rtl8180_tx_pw_wq(struct work_struct *work);
-void rtl8180_rate_adapter(struct work_struct * work);
+void rtl8180_rate_adapter(struct work_struct *work);
 void TxPwrTracking87SE(struct net_device *dev);
 bool CheckTxPwrTracking(struct net_device *dev);
-void rtl8180_rate_adapter(struct work_struct * work);
+void rtl8180_rate_adapter(struct work_struct *work);
 void timer_rate_adaptive(unsigned long data);
 
 

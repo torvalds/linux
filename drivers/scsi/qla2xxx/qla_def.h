@@ -2486,9 +2486,9 @@ struct bidi_statistics {
 #define QLA_MAX_QUEUES 256
 #define ISP_QUE_REG(ha, id) \
 	((ha->mqenable || IS_QLA83XX(ha)) ? \
-	((void *)(ha->mqiobase) +\
+	((device_reg_t __iomem *)(ha->mqiobase) +\
 	(QLA_QUE_PAGE * id)) :\
-	((void *)(ha->iobase)))
+	((device_reg_t __iomem *)(ha->iobase)))
 #define QLA_REQ_QUE_ID(tag) \
 	((tag < QLA_MAX_QUEUES && tag > 0) ? tag : 0)
 #define QLA_DEFAULT_QUE_QOS 5

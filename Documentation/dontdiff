@@ -181,7 +181,6 @@ modversions.h*
 nconf
 ncscope.*
 offset.h
-offsets.h
 oui.c*
 page-types
 parse.c

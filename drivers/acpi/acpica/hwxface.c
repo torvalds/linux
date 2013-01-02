@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: hwxface - Public ACPICA hardware interfaces

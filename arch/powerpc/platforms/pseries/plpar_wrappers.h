@@ -273,4 +273,35 @@ static inline long plpar_put_term_char(unsigned long termno, unsigned long len,
 			lbuf[1]);
 }
 
+/* Set various resource mode parameters */
+static inline long plpar_set_mode(unsigned long mflags, unsigned long resource,
+		unsigned long value1, unsigned long value2)
+{
+	return plpar_hcall_norets(H_SET_MODE, mflags, resource, value1, value2);
+}
+
+/*
+ * Enable relocation on exceptions on this partition
+ *
+ * Note: this call has a partition wide scope and can take a while to complete.
+ * If it returns H_LONG_BUSY_* it should be retried periodically until it
+ * returns H_SUCCESS.
+ */
+static inline long enable_reloc_on_exceptions(void)
+{
+	/* mflags = 3: Exceptions at 0xC000000000004000 */
+	return plpar_set_mode(3, 3, 0, 0);
+}
+
+/*
+ * Disable relocation on exceptions on this partition
+ *
+ * Note: this call has a partition wide scope and can take a while to complete.
+ * If it returns H_LONG_BUSY_* it should be retried periodically until it
+ * returns H_SUCCESS.
+ */
+static inline long disable_reloc_on_exceptions(void) {
+	return plpar_set_mode(0, 3, 0, 0);
+}
+
 #endif /* _PSERIES_PLPAR_WRAPPERS_H */

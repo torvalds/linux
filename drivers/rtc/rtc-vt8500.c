@@ -210,7 +210,8 @@ static int __devinit vt8500_rtc_probe(struct platform_device *pdev)
 	struct vt8500_rtc *vt8500_rtc;
 	int ret;
 
-	vt8500_rtc = kzalloc(sizeof(struct vt8500_rtc), GFP_KERNEL);
+	vt8500_rtc = devm_kzalloc(&pdev->dev,
+			   sizeof(struct vt8500_rtc), GFP_KERNEL);
 	if (!vt8500_rtc)
 		return -ENOMEM;
 
@@ -220,15 +221,13 @@ static int __devinit vt8500_rtc_probe(struct platform_device *pdev)
 	vt8500_rtc->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!vt8500_rtc->res) {
 		dev_err(&pdev->dev, "No I/O memory resource defined\n");
-		ret = -ENXIO;
-		goto err_free;
+		return -ENXIO;
 	}
 
 	vt8500_rtc->irq_alarm = platform_get_irq(pdev, 0);
 	if (vt8500_rtc->irq_alarm < 0) {
 		dev_err(&pdev->dev, "No alarm IRQ resource defined\n");
-		ret = -ENXIO;
-		goto err_free;
+		return -ENXIO;
 	}
 
 	vt8500_rtc->res = request_mem_region(vt8500_rtc->res->start,
@@ -236,8 +235,7 @@ static int __devinit vt8500_rtc_probe(struct platform_device *pdev)
 					     "vt8500-rtc");
 	if (vt8500_rtc->res == NULL) {
 		dev_err(&pdev->dev, "failed to request I/O memory\n");
-		ret = -EBUSY;
-		goto err_free;
+		return -EBUSY;
 	}
 
 	vt8500_rtc->regbase = ioremap(vt8500_rtc->res->start,
@@ -278,8 +276,6 @@ err_unmap:
 err_release:
 	release_mem_region(vt8500_rtc->res->start,
 			   resource_size(vt8500_rtc->res));
-err_free:
-	kfree(vt8500_rtc);
 	return ret;
 }
 
@@ -297,7 +293,6 @@ static int __devexit vt8500_rtc_remove(struct platform_device *pdev)
 	release_mem_region(vt8500_rtc->res->start,
 			   resource_size(vt8500_rtc->res));
 
-	kfree(vt8500_rtc);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;

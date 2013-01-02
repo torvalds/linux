@@ -6,21 +6,6 @@
 #include <linux/syscalls.h>
 #include <sysdep/syscalls.h>
 
-/*
- * The prototype on i386 is:
- *
- *     int clone(int flags, void * child_stack, int * parent_tidptr, struct user_desc * newtls
- *
- * and the "newtls" arg. on i386 is read by copy_thread directly from the
- * register saved on the stack.
- */
-long i386_clone(unsigned long clone_flags, unsigned long newsp,
-		int __user *parent_tid, void *newtls, int __user *child_tid)
-{
-	return sys_clone(clone_flags, newsp, parent_tid, child_tid);
-}
-
-
 long sys_sigaction(int sig, const struct old_sigaction __user *act,
 			 struct old_sigaction __user *oact)
 {

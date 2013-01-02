@@ -48,28 +48,30 @@
   <refsect1>
     <title>Description</title>
 
-    <para>This ioctl is used to initiate <link linkend="mmap">memory
-mapped</link> or <link linkend="userp">user pointer</link>
-I/O. Memory mapped buffers are located in device memory and must be
-allocated with this ioctl before they can be mapped into the
-application's address space. User buffers are allocated by
-applications themselves, and this ioctl is merely used to switch the
-driver into user pointer I/O mode and to setup some internal structures.</para>
+<para>This ioctl is used to initiate <link linkend="mmap">memory mapped</link>,
+<link linkend="userp">user pointer</link> or <link
+linkend="dmabuf">DMABUF</link> based I/O.  Memory mapped buffers are located in
+device memory and must be allocated with this ioctl before they can be mapped
+into the application's address space. User buffers are allocated by
+applications themselves, and this ioctl is merely used to switch the driver
+into user pointer I/O mode and to setup some internal structures.
+Similarly, DMABUF buffers are allocated by applications through a device
+driver, and this ioctl only configures the driver into DMABUF I/O mode without
+performing any direct allocation.</para>
 
-    <para>To allocate device buffers applications initialize all
-fields of the <structname>v4l2_requestbuffers</structname> structure.
-They set the <structfield>type</structfield> field to the respective
-stream or buffer type, the <structfield>count</structfield> field to
-the desired number of buffers, <structfield>memory</structfield>
-must be set to the requested I/O method and the <structfield>reserved</structfield> array
-must be zeroed. When the ioctl
-is called with a pointer to this structure the driver will attempt to allocate
-the requested number of buffers and it stores the actual number
-allocated in the <structfield>count</structfield> field. It can be
-smaller than the number requested, even zero, when the driver runs out
-of free memory. A larger number is also possible when the driver requires
-more buffers to function correctly. For example video output requires at least two buffers,
-one displayed and one filled by the application.</para>
+    <para>To allocate device buffers applications initialize all fields of the
+<structname>v4l2_requestbuffers</structname> structure.  They set the
+<structfield>type</structfield> field to the respective stream or buffer type,
+the <structfield>count</structfield> field to the desired number of buffers,
+<structfield>memory</structfield> must be set to the requested I/O method and
+the <structfield>reserved</structfield> array must be zeroed. When the ioctl is
+called with a pointer to this structure the driver will attempt to allocate the
+requested number of buffers and it stores the actual number allocated in the
+<structfield>count</structfield> field. It can be smaller than the number
+requested, even zero, when the driver runs out of free memory. A larger number
+is also possible when the driver requires more buffers to function correctly.
+For example video output requires at least two buffers, one displayed and one
+filled by the application.</para>
     <para>When the I/O method is not supported the ioctl
 returns an &EINVAL;.</para>
 
@@ -102,7 +104,8 @@ as the &v4l2-format; <structfield>type</structfield> field. See <xref
 	    <entry>__u32</entry>
 	    <entry><structfield>memory</structfield></entry>
 	    <entry>Applications set this field to
-<constant>V4L2_MEMORY_MMAP</constant> or
+<constant>V4L2_MEMORY_MMAP</constant>,
+<constant>V4L2_MEMORY_DMABUF</constant> or
 <constant>V4L2_MEMORY_USERPTR</constant>. See <xref linkend="v4l2-memory"
 />.</entry>
 	  </row>

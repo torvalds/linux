@@ -130,7 +130,7 @@ static int rtl2830_rd_reg(struct rtl2830_priv *priv, u16 reg, u8 *val)
 }
 
 /* write single register with mask */
-int rtl2830_wr_reg_mask(struct rtl2830_priv *priv, u16 reg, u8 val, u8 mask)
+static int rtl2830_wr_reg_mask(struct rtl2830_priv *priv, u16 reg, u8 val, u8 mask)
 {
 	int ret;
 	u8 tmp;
@@ -150,7 +150,7 @@ int rtl2830_wr_reg_mask(struct rtl2830_priv *priv, u16 reg, u8 val, u8 mask)
 }
 
 /* read single register with mask */
-int rtl2830_rd_reg_mask(struct rtl2830_priv *priv, u16 reg, u8 *val, u8 mask)
+static int rtl2830_rd_reg_mask(struct rtl2830_priv *priv, u16 reg, u8 *val, u8 mask)
 {
 	int ret, i;
 	u8 tmp;
@@ -256,7 +256,7 @@ static int rtl2830_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-int rtl2830_get_tune_settings(struct dvb_frontend *fe,
+static int rtl2830_get_tune_settings(struct dvb_frontend *fe,
 	struct dvb_frontend_tune_settings *s)
 {
 	s->min_delay_ms = 500;

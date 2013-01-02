@@ -151,7 +151,7 @@ err_enable:
 	return ret;
 }
 
-static int __devexit picoxcell_trng_remove(struct platform_device *pdev)
+static int picoxcell_trng_remove(struct platform_device *pdev)
 {
 	hwrng_unregister(&picoxcell_trng);
 	clk_disable(rng_clk);

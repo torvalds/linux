@@ -76,3 +76,10 @@ config ARM_EXYNOS5250_CPUFREQ
 	help
 	  This adds the CPUFreq driver for Samsung EXYNOS5250
 	  SoC.
+
+config ARM_SPEAR_CPUFREQ
+	bool "SPEAr CPUFreq support"
+	depends on PLAT_SPEAR
+	default y
+	help
+	  This adds the CPUFreq driver support for SPEAr SOCs.

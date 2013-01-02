@@ -312,7 +312,6 @@ static struct ath_buf *ath_tx_get_buffer(struct ath_softc *sc)
 	}
 
 	bf = list_first_entry(&sc->tx.txbuf, struct ath_buf, list);
-	bf->bf_next = NULL;
 	list_del(&bf->list);
 
 	spin_unlock_bh(&sc->tx.txbuflock);
@@ -1263,7 +1262,7 @@ void ath_tx_aggr_sleep(struct ieee80211_sta *sta, struct ath_softc *sc,
 	int tidno;
 
 	for (tidno = 0, tid = &an->tid[tidno];
-	     tidno < WME_NUM_TID; tidno++, tid++) {
+	     tidno < IEEE80211_NUM_TIDS; tidno++, tid++) {
 
 		if (!tid->sched)
 			continue;
@@ -1297,7 +1296,7 @@ void ath_tx_aggr_wakeup(struct ath_softc *sc, struct ath_node *an)
 	int tidno;
 
 	for (tidno = 0, tid = &an->tid[tidno];
-	     tidno < WME_NUM_TID; tidno++, tid++) {
+	     tidno < IEEE80211_NUM_TIDS; tidno++, tid++) {
 
 		ac = tid->ac;
 		txq = ac->txq;
@@ -1354,10 +1353,10 @@ struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath9k_tx_queue_info qi;
 	static const int subtype_txq_to_hwq[] = {
-		[WME_AC_BE] = ATH_TXQ_AC_BE,
-		[WME_AC_BK] = ATH_TXQ_AC_BK,
-		[WME_AC_VI] = ATH_TXQ_AC_VI,
-		[WME_AC_VO] = ATH_TXQ_AC_VO,
+		[IEEE80211_AC_BE] = ATH_TXQ_AC_BE,
+		[IEEE80211_AC_BK] = ATH_TXQ_AC_BK,
+		[IEEE80211_AC_VI] = ATH_TXQ_AC_VI,
+		[IEEE80211_AC_VO] = ATH_TXQ_AC_VO,
 	};
 	int axq_qnum, i;
 
@@ -2319,6 +2318,8 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 
 		ath_txq_lock(sc, txq);
 
+		TX_STAT_INC(txq->axq_qnum, txprocdesc);
+
 		if (list_empty(&txq->txq_fifo[txq->txq_tailidx])) {
 			ath_txq_unlock(sc, txq);
 			return;
@@ -2446,7 +2447,7 @@ void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an)
 	int tidno, acno;
 
 	for (tidno = 0, tid = &an->tid[tidno];
-	     tidno < WME_NUM_TID;
+	     tidno < IEEE80211_NUM_TIDS;
 	     tidno++, tid++) {
 		tid->an        = an;
 		tid->tidno     = tidno;
@@ -2464,7 +2465,7 @@ void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an)
 	}
 
 	for (acno = 0, ac = &an->ac[acno];
-	     acno < WME_NUM_AC; acno++, ac++) {
+	     acno < IEEE80211_NUM_ACS; acno++, ac++) {
 		ac->sched    = false;
 		ac->txq = sc->tx.txq_map[acno];
 		INIT_LIST_HEAD(&ac->tid_q);
@@ -2479,7 +2480,7 @@ void ath_tx_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 	int tidno;
 
 	for (tidno = 0, tid = &an->tid[tidno];
-	     tidno < WME_NUM_TID; tidno++, tid++) {
+	     tidno < IEEE80211_NUM_TIDS; tidno++, tid++) {
 
 		ac = tid->ac;
 		txq = ac->txq;

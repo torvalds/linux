@@ -366,7 +366,6 @@ extern int radeon_cp_buffers(struct drm_device *dev, void *data, struct drm_file
 extern u32 radeon_read_fb_location(drm_radeon_private_t *dev_priv);
 extern void radeon_write_agp_location(drm_radeon_private_t *dev_priv, u32 agp_loc);
 extern void radeon_write_agp_base(drm_radeon_private_t *dev_priv, u64 agp_base);
-extern u32 RADEON_READ_MM(drm_radeon_private_t *dev_priv, int addr);
 
 extern void radeon_freelist_reset(struct drm_device * dev);
 extern struct drm_buf *radeon_freelist_get(struct drm_device * dev);

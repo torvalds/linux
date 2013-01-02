@@ -105,7 +105,7 @@ aoe_init(void)
 	aoechr_exit();
  chr_fail:
 	aoedev_exit();
-	
+
 	printk(KERN_INFO "aoe: initialisation failure.\n");
 	return ret;
 }

@@ -48,6 +48,7 @@
 /* Socket filtering */
 #define SO_ATTACH_FILTER        0x401a
 #define SO_DETACH_FILTER        0x401b
+#define SO_GET_FILTER		SO_ATTACH_FILTER
 
 #define SO_ACCEPTCONN		0x401c
 

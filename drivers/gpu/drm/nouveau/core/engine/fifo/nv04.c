@@ -126,9 +126,9 @@ nv04_fifo_chan_ctor(struct nouveau_object *parent,
 
 	ret = nouveau_fifo_channel_create(parent, engine, oclass, 0, 0x800000,
 					  0x10000, args->pushbuf,
-					  (1 << NVDEV_ENGINE_DMAOBJ) |
-					  (1 << NVDEV_ENGINE_SW) |
-					  (1 << NVDEV_ENGINE_GR), &chan);
+					  (1ULL << NVDEV_ENGINE_DMAOBJ) |
+					  (1ULL << NVDEV_ENGINE_SW) |
+					  (1ULL << NVDEV_ENGINE_GR), &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -440,7 +440,7 @@ nv04_fifo_intr(struct nouveau_subdev *subdev)
 			}
 
 			if (!nv04_fifo_swmthd(priv, chid, mthd, data)) {
-				nv_info(priv, "CACHE_ERROR - Ch %d/%d "
+				nv_error(priv, "CACHE_ERROR - Ch %d/%d "
 					      "Mthd 0x%04x Data 0x%08x\n",
 					chid, (mthd >> 13) & 7, mthd & 0x1ffc,
 					data);
@@ -476,7 +476,7 @@ nv04_fifo_intr(struct nouveau_subdev *subdev)
 				u32 ib_get = nv_rd32(priv, 0x003334);
 				u32 ib_put = nv_rd32(priv, 0x003330);
 
-				nv_info(priv, "DMA_PUSHER - Ch %d Get 0x%02x%08x "
+				nv_error(priv, "DMA_PUSHER - Ch %d Get 0x%02x%08x "
 				     "Put 0x%02x%08x IbGet 0x%08x IbPut 0x%08x "
 				     "State 0x%08x (err: %s) Push 0x%08x\n",
 					chid, ho_get, dma_get, ho_put,
@@ -494,7 +494,7 @@ nv04_fifo_intr(struct nouveau_subdev *subdev)
 					nv_wr32(priv, 0x003334, ib_put);
 				}
 			} else {
-				nv_info(priv, "DMA_PUSHER - Ch %d Get 0x%08x "
+				nv_error(priv, "DMA_PUSHER - Ch %d Get 0x%08x "
 					     "Put 0x%08x State 0x%08x (err: %s) Push 0x%08x\n",
 					chid, dma_get, dma_put, state,
 					nv_dma_state_err(state), push);
@@ -525,14 +525,13 @@ nv04_fifo_intr(struct nouveau_subdev *subdev)
 
 		if (device->card_type == NV_50) {
 			if (status & 0x00000010) {
-				nv50_fb_trap(nouveau_fb(priv), 1);
 				status &= ~0x00000010;
 				nv_wr32(priv, 0x002100, 0x00000010);
 			}
 		}
 
 		if (status) {
-			nv_info(priv, "unknown intr 0x%08x, ch %d\n",
+			nv_warn(priv, "unknown intr 0x%08x, ch %d\n",
 				status, chid);
 			nv_wr32(priv, NV03_PFIFO_INTR_0, status);
 			status = 0;
@@ -542,7 +541,7 @@ nv04_fifo_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (status) {
-		nv_info(priv, "still angry after %d spins, halt\n", cnt);
+		nv_error(priv, "still angry after %d spins, halt\n", cnt);
 		nv_wr32(priv, 0x002140, 0);
 		nv_wr32(priv, 0x000140, 0);
 	}

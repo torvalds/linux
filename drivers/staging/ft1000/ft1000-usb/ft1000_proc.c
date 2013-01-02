@@ -205,7 +205,7 @@ int ft1000_init_proc(struct net_device *dev)
 {
 	struct ft1000_info *info;
 	struct proc_dir_entry *ft1000_proc_file;
-	int ret = 0;
+	int ret = -EINVAL;
 
 	info = netdev_priv(dev);
 
@@ -213,7 +213,6 @@ int ft1000_init_proc(struct net_device *dev)
 	if (info->ft1000_proc_dir == NULL) {
 		printk(KERN_WARNING "Unable to create %s dir.\n",
 			FT1000_PROC_DIR);
-		ret = -EINVAL;
 		goto fail;
 	}
 
@@ -223,7 +222,6 @@ int ft1000_init_proc(struct net_device *dev)
 
 	if (ft1000_proc_file == NULL) {
 		printk(KERN_WARNING "Unable to create /proc entry.\n");
-		ret = -EINVAL;
 		goto fail_entry;
 	}
 

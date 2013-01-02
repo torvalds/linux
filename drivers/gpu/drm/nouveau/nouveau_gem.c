@@ -433,7 +433,7 @@ validate_list(struct nouveau_channel *chan, struct list_head *list,
 			return ret;
 		}
 
-		ret = nouveau_bo_validate(nvbo, true, false, false);
+		ret = nouveau_bo_validate(nvbo, true, false);
 		if (unlikely(ret)) {
 			if (ret != -ERESTARTSYS)
 				NV_ERROR(drm, "fail ttm_validate\n");

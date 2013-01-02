@@ -581,7 +581,7 @@ static void pvr2_i2c_register_ir(struct pvr2_hdw *hdw)
 	case PVR2_IR_SCHEME_29XXX: /* Original 29xxx device */
 		init_data->ir_codes              = RC_MAP_HAUPPAUGE;
 		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP;
-		init_data->type                  = RC_TYPE_RC5;
+		init_data->type                  = RC_BIT_RC5;
 		init_data->name                  = hdw->hdw_desc->description;
 		init_data->polling_interval      = 100; /* ms From ir-kbd-i2c */
 		/* IR Receiver */
@@ -596,7 +596,7 @@ static void pvr2_i2c_register_ir(struct pvr2_hdw *hdw)
 	case PVR2_IR_SCHEME_24XXX_MCE: /* 24xxx MCE device */
 		init_data->ir_codes              = RC_MAP_HAUPPAUGE;
 		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
-		init_data->type                  = RC_TYPE_RC5;
+		init_data->type                  = RC_BIT_RC5;
 		init_data->name                  = hdw->hdw_desc->description;
 		/* IR Receiver */
 		info.addr          = 0x71;

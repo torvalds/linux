@@ -16,8 +16,6 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-/* Version Information */
-#define DRIVER_VERSION "Version 0.1 09/26/2005"
 #define DRIVER_AUTHOR "Thomas Hergenhahn@web.de http://libnodave.sf.net"
 #define DRIVER_DESC "Driver for Siemens USB/MPI adapter"
 

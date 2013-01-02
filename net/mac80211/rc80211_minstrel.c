@@ -154,6 +154,7 @@ minstrel_tx_status(void *priv, struct ieee80211_supported_band *sband,
                    struct ieee80211_sta *sta, void *priv_sta,
 		   struct sk_buff *skb)
 {
+	struct minstrel_priv *mp = priv;
 	struct minstrel_sta_info *mi = priv_sta;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_rate *ar = info->status.rates;
@@ -181,6 +182,10 @@ minstrel_tx_status(void *priv, struct ieee80211_supported_band *sband,
 
 	if (mi->sample_deferred > 0)
 		mi->sample_deferred--;
+
+	if (time_after(jiffies, mi->stats_update +
+				(mp->update_interval * HZ) / 1000))
+		minstrel_update_stats(mp, mi);
 }
 
 
@@ -234,10 +239,6 @@ minstrel_get_rate(void *priv, struct ieee80211_sta *sta,
 		return;
 
 	mrr = mp->has_mrr && !txrc->rts && !txrc->bss_conf->use_cts_prot;
-
-	if (time_after(jiffies, mi->stats_update + (mp->update_interval *
-			HZ) / 1000))
-		minstrel_update_stats(mp, mi);
 
 	ndx = mi->max_tp_rate;
 

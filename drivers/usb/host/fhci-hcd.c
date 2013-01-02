@@ -561,7 +561,7 @@ static const struct hc_driver fhci_driver = {
 	.hub_control = fhci_hub_control,
 };
 
-static int __devinit of_fhci_probe(struct platform_device *ofdev)
+static int of_fhci_probe(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
 	struct device_node *node = dev->of_node;
@@ -780,7 +780,7 @@ err_regs:
 	return ret;
 }
 
-static int __devexit fhci_remove(struct device *dev)
+static int fhci_remove(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct fhci_hcd *fhci = hcd_to_fhci(hcd);
@@ -803,7 +803,7 @@ static int __devexit fhci_remove(struct device *dev)
 	return 0;
 }
 
-static int __devexit of_fhci_remove(struct platform_device *ofdev)
+static int of_fhci_remove(struct platform_device *ofdev)
 {
 	return fhci_remove(&ofdev->dev);
 }
@@ -821,7 +821,7 @@ static struct platform_driver of_fhci_driver = {
 		.of_match_table = of_fhci_match,
 	},
 	.probe		= of_fhci_probe,
-	.remove		= __devexit_p(of_fhci_remove),
+	.remove		= of_fhci_remove,
 };
 
 module_platform_driver(of_fhci_driver);

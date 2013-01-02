@@ -26,7 +26,6 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <mach/clk.h>
-#include <mach/dma.h>
 #include <sound/soc.h>
 #include "tegra30_ahub.h"
 
@@ -288,7 +287,7 @@ int tegra30_ahub_unset_rx_cif_source(enum tegra30_ahub_rxcif rxcif)
 }
 EXPORT_SYMBOL_GPL(tegra30_ahub_unset_rx_cif_source);
 
-static const char * const configlink_clocks[] __devinitconst = {
+static const char * const configlink_clocks[] = {
 	"i2s0",
 	"i2s1",
 	"i2s2",
@@ -300,7 +299,7 @@ static const char * const configlink_clocks[] __devinitconst = {
 	"spdif_in",
 };
 
-struct of_dev_auxdata ahub_auxdata[] __devinitdata = {
+struct of_dev_auxdata ahub_auxdata[] = {
 	OF_DEV_AUXDATA("nvidia,tegra30-i2s", 0x70080300, "tegra30-i2s.0", NULL),
 	OF_DEV_AUXDATA("nvidia,tegra30-i2s", 0x70080400, "tegra30-i2s.1", NULL),
 	OF_DEV_AUXDATA("nvidia,tegra30-i2s", 0x70080500, "tegra30-i2s.2", NULL),
@@ -434,7 +433,7 @@ static const struct regmap_config tegra30_ahub_ahub_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int __devinit tegra30_ahub_probe(struct platform_device *pdev)
+static int tegra30_ahub_probe(struct platform_device *pdev)
 {
 	struct clk *clk;
 	int i;
@@ -586,7 +585,7 @@ err:
 	return ret;
 }
 
-static int __devexit tegra30_ahub_remove(struct platform_device *pdev)
+static int tegra30_ahub_remove(struct platform_device *pdev)
 {
 	if (!ahub)
 		return -ENODEV;
@@ -603,19 +602,19 @@ static int __devexit tegra30_ahub_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id tegra30_ahub_of_match[] __devinitconst = {
+static const struct of_device_id tegra30_ahub_of_match[] = {
 	{ .compatible = "nvidia,tegra30-ahub", },
 	{},
 };
 
-static const struct dev_pm_ops tegra30_ahub_pm_ops __devinitconst = {
+static const struct dev_pm_ops tegra30_ahub_pm_ops = {
 	SET_RUNTIME_PM_OPS(tegra30_ahub_runtime_suspend,
 			   tegra30_ahub_runtime_resume, NULL)
 };
 
 static struct platform_driver tegra30_ahub_driver = {
 	.probe = tegra30_ahub_probe,
-	.remove = __devexit_p(tegra30_ahub_remove),
+	.remove = tegra30_ahub_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,

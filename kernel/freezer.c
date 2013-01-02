@@ -116,17 +116,10 @@ bool freeze_task(struct task_struct *p)
 		return false;
 	}
 
-	if (!(p->flags & PF_KTHREAD)) {
+	if (!(p->flags & PF_KTHREAD))
 		fake_signal_wake_up(p);
-		/*
-		 * fake_signal_wake_up() goes through p's scheduler
-		 * lock and guarantees that TASK_STOPPED/TRACED ->
-		 * TASK_RUNNING transition can't race with task state
-		 * testing in try_to_freeze_tasks().
-		 */
-	} else {
+	else
 		wake_up_state(p, TASK_INTERRUPTIBLE);
-	}
 
 	spin_unlock_irqrestore(&freezer_lock, flags);
 	return true;

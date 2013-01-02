@@ -214,7 +214,7 @@ static struct i2c_algorithm xlr_i2c_algo = {
 	.functionality	= xlr_func,
 };
 
-static int __devinit xlr_i2c_probe(struct platform_device *pdev)
+static int xlr_i2c_probe(struct platform_device *pdev)
 {
 	struct xlr_i2c_private  *priv;
 	struct resource *res;
@@ -251,7 +251,7 @@ static int __devinit xlr_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit xlr_i2c_remove(struct platform_device *pdev)
+static int xlr_i2c_remove(struct platform_device *pdev)
 {
 	struct xlr_i2c_private *priv;
 
@@ -263,7 +263,7 @@ static int __devexit xlr_i2c_remove(struct platform_device *pdev)
 
 static struct platform_driver xlr_i2c_driver = {
 	.probe  = xlr_i2c_probe,
-	.remove = __devexit_p(xlr_i2c_remove),
+	.remove = xlr_i2c_remove,
 	.driver = {
 		.name   = "xlr-i2cbus",
 		.owner  = THIS_MODULE,

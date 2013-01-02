@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Name: hwtimer.c - ACPI Power Management Timer Interface
@@ -101,8 +100,7 @@ acpi_status acpi_get_timer(u32 * ticks)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	status =
-	    acpi_hw_read(ticks, &acpi_gbl_FADT.xpm_timer_block);
+	status = acpi_hw_read(ticks, &acpi_gbl_FADT.xpm_timer_block);
 
 	return_ACPI_STATUS(status);
 }
@@ -129,7 +127,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_timer)
  *              a versatile and accurate timer.
  *
  *              Note that this function accommodates only a single timer
- *              rollover.  Thus for 24-bit timers, this function should only
+ *              rollover. Thus for 24-bit timers, this function should only
  *              be used for calculating durations less than ~4.6 seconds
  *              (~20 minutes for 32-bit timers) -- calculations below:
  *

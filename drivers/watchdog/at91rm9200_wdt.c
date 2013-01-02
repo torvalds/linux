@@ -199,7 +199,7 @@ static struct miscdevice at91wdt_miscdev = {
 	.fops		= &at91wdt_fops,
 };
 
-static int __devinit at91wdt_probe(struct platform_device *pdev)
+static int at91wdt_probe(struct platform_device *pdev)
 {
 	int res;
 
@@ -216,7 +216,7 @@ static int __devinit at91wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit at91wdt_remove(struct platform_device *pdev)
+static int at91wdt_remove(struct platform_device *pdev)
 {
 	int res;
 
@@ -254,7 +254,7 @@ static int at91wdt_resume(struct platform_device *pdev)
 
 static struct platform_driver at91wdt_driver = {
 	.probe		= at91wdt_probe,
-	.remove		= __devexit_p(at91wdt_remove),
+	.remove		= at91wdt_remove,
 	.shutdown	= at91wdt_shutdown,
 	.suspend	= at91wdt_suspend,
 	.resume		= at91wdt_resume,
