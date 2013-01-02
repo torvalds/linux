@@ -10,7 +10,7 @@
 /* Don't take this from <ctype.h>: 011-015 on the screen aren't spaces */
 #define ishardspace(c)      ((c) == ' ')
 
-unsigned short xs, ys, xe, ye; /* our region points */
+unsigned short spk_xs, spk_ys, spk_xe, spk_ye; /* our region points */
 
 /* Variables for selection control. */
 /* must not be disallocated */
@@ -51,12 +51,12 @@ int speakup_set_selection(struct tty_struct *tty)
 	int i, ps, pe;
 	struct vc_data *vc = vc_cons[fg_console].d;
 
-	xs = limit(xs, vc->vc_cols - 1);
-	ys = limit(ys, vc->vc_rows - 1);
-	xe = limit(xe, vc->vc_cols - 1);
-	ye = limit(ye, vc->vc_rows - 1);
-	ps = ys * vc->vc_size_row + (xs << 1);
-	pe = ye * vc->vc_size_row + (xe << 1);
+	spk_xs = limit(spk_xs, vc->vc_cols - 1);
+	spk_ys = limit(spk_ys, vc->vc_rows - 1);
+	spk_xe = limit(spk_xe, vc->vc_cols - 1);
+	spk_ye = limit(spk_ye, vc->vc_rows - 1);
+	ps = spk_ys * vc->vc_size_row + (spk_xs << 1);
+	pe = spk_ye * vc->vc_size_row + (spk_xe << 1);
 
 	if (ps > pe) {
 		/* make sel_start <= sel_end */
