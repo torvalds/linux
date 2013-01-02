@@ -312,17 +312,10 @@ static int __unmap_grant_pages(struct grant_map *map, int offset, int pages)
 
 	if (map->notify.flags & UNMAP_NOTIFY_CLEAR_BYTE) {
 		int pgno = (map->notify.addr >> PAGE_SHIFT);
-		if (pgno >= offset && pgno < offset + pages && use_ptemod) {
-			void __user *tmp = (void __user *)
-				map->vma->vm_start + map->notify.addr;
-			err = copy_to_user(tmp, &err, 1);
-			if (err)
-				return -EFAULT;
-			map->notify.flags &= ~UNMAP_NOTIFY_CLEAR_BYTE;
-		} else if (pgno >= offset && pgno < offset + pages) {
-			uint8_t *tmp = kmap(map->pages[pgno]);
+		if (pgno >= offset && pgno < offset + pages) {
+			/* No need for kmap, pages are in lowmem */
+			uint8_t *tmp = pfn_to_kaddr(page_to_pfn(map->pages[pgno]));
 			tmp[map->notify.addr & (PAGE_SIZE-1)] = 0;
-			kunmap(map->pages[pgno]);
 			map->notify.flags &= ~UNMAP_NOTIFY_CLEAR_BYTE;
 		}
 	}
