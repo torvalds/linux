@@ -1055,27 +1055,6 @@ static int evergreen_cs_packet_next_reloc(struct radeon_cs_parser *p,
 }
 
 /**
- * evergreen_cs_packet_next_is_pkt3_nop() - test if the next packet is NOP
- * @p:		structure holding the parser context.
- *
- * Check if the next packet is a relocation packet3.
- **/
-static bool evergreen_cs_packet_next_is_pkt3_nop(struct radeon_cs_parser *p)
-{
-	struct radeon_cs_packet p3reloc;
-	int r;
-
-	r = radeon_cs_packet_parse(p, &p3reloc, p->idx);
-	if (r) {
-		return false;
-	}
-	if (p3reloc.type != PACKET_TYPE3 || p3reloc.opcode != PACKET3_NOP) {
-		return false;
-	}
-	return true;
-}
-
-/**
  * evergreen_cs_packet_next_vline() - parse userspace VLINE packet
  * @parser:		parser structure holding parsing context.
  *
@@ -2464,7 +2443,7 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 
 				if ((tex_dim == SQ_TEX_DIM_2D_MSAA || tex_dim == SQ_TEX_DIM_2D_ARRAY_MSAA) &&
 				    !mip_address &&
-				    !evergreen_cs_packet_next_is_pkt3_nop(p)) {
+				    !radeon_cs_packet_next_is_pkt3_nop(p)) {
 					/* MIP_ADDRESS should point to FMASK for an MSAA texture.
 					 * It should be 0 if FMASK is disabled. */
 					moffset = 0;

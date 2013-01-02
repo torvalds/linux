@@ -877,28 +877,6 @@ static int r600_cs_packet_next_reloc_nomm(struct radeon_cs_parser *p,
 }
 
 /**
- * r600_cs_packet_next_is_pkt3_nop() - test if next packet is packet3 nop for reloc
- * @parser:		parser structure holding parsing context.
- *
- * Check next packet is relocation packet3, do bo validation and compute
- * GPU offset using the provided start.
- **/
-static int r600_cs_packet_next_is_pkt3_nop(struct radeon_cs_parser *p)
-{
-	struct radeon_cs_packet p3reloc;
-	int r;
-
-	r = radeon_cs_packet_parse(p, &p3reloc, p->idx);
-	if (r) {
-		return 0;
-	}
-	if (p3reloc.type != PACKET_TYPE3 || p3reloc.opcode != PACKET3_NOP) {
-		return 0;
-	}
-	return 1;
-}
-
-/**
  * r600_cs_packet_next_vline() - parse userspace VLINE packet
  * @parser:		parser structure holding parsing context.
  *
@@ -1108,7 +1086,7 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 		break;
 	case R_028010_DB_DEPTH_INFO:
 		if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS) &&
-		    r600_cs_packet_next_is_pkt3_nop(p)) {
+		    radeon_cs_packet_next_is_pkt3_nop(p)) {
 			r = r600_cs_packet_next_reloc(p, &reloc);
 			if (r) {
 				dev_warn(p->dev, "bad SET_CONTEXT_REG "
@@ -1209,7 +1187,7 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	case R_0280B8_CB_COLOR6_INFO:
 	case R_0280BC_CB_COLOR7_INFO:
 		if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS) &&
-		     r600_cs_packet_next_is_pkt3_nop(p)) {
+		     radeon_cs_packet_next_is_pkt3_nop(p)) {
 			r = r600_cs_packet_next_reloc(p, &reloc);
 			if (r) {
 				dev_err(p->dev, "bad SET_CONTEXT_REG 0x%04X\n", reg);
@@ -1273,7 +1251,7 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	case R_0280F8_CB_COLOR6_FRAG:
 	case R_0280FC_CB_COLOR7_FRAG:
 		tmp = (reg - R_0280E0_CB_COLOR0_FRAG) / 4;
-		if (!r600_cs_packet_next_is_pkt3_nop(p)) {
+		if (!radeon_cs_packet_next_is_pkt3_nop(p)) {
 			if (!track->cb_color_base_last[tmp]) {
 				dev_err(p->dev, "Broken old userspace ? no cb_color0_base supplied before trying to write 0x%08X\n", reg);
 				return -EINVAL;
@@ -1304,7 +1282,7 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	case R_0280D8_CB_COLOR6_TILE:
 	case R_0280DC_CB_COLOR7_TILE:
 		tmp = (reg - R_0280C0_CB_COLOR0_TILE) / 4;
-		if (!r600_cs_packet_next_is_pkt3_nop(p)) {
+		if (!radeon_cs_packet_next_is_pkt3_nop(p)) {
 			if (!track->cb_color_base_last[tmp]) {
 				dev_err(p->dev, "Broken old userspace ? no cb_color0_base supplied before trying to write 0x%08X\n", reg);
 				return -EINVAL;

@@ -695,3 +695,24 @@ int radeon_cs_packet_parse(struct radeon_cs_parser *p,
 	}
 	return 0;
 }
+
+/**
+ * radeon_cs_packet_next_is_pkt3_nop() - test if the next packet is P3 NOP
+ * @p:		structure holding the parser context.
+ *
+ * Check if the next packet is NOP relocation packet3.
+ **/
+bool radeon_cs_packet_next_is_pkt3_nop(struct radeon_cs_parser *p)
+{
+	struct radeon_cs_packet p3reloc;
+	int r;
+
+	r = radeon_cs_packet_parse(p, &p3reloc, p->idx);
+	if (r)
+		return false;
+	if (p3reloc.type != RADEON_PACKET_TYPE3)
+		return false;
+	if (p3reloc.opcode != RADEON_PACKET3_NOP)
+		return false;
+	return true;
+}
