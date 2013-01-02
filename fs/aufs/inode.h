@@ -66,7 +66,7 @@ struct au_iigen {
 struct au_vdir;
 struct au_iinfo {
 	spinlock_t		ii_genspin;
-	struct au_iigen 	ii_generation;
+	struct au_iigen		ii_generation;
 	struct super_block	*ii_hsb1;	/* no get/put */
 
 	struct au_rwsem		ii_rwsem;
