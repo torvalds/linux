@@ -4265,9 +4265,8 @@ void brcmf_cfg80211_detach(struct brcmf_cfg80211_info *cfg)
 }
 
 static s32
-brcmf_dongle_roam(struct net_device *ndev, u32 roamvar, u32 bcn_timeout)
+brcmf_dongle_roam(struct brcmf_if *ifp, u32 roamvar, u32 bcn_timeout)
 {
-	struct brcmf_if *ifp = netdev_priv(ndev);
 	s32 err = 0;
 	__le32 roamtrigger[2];
 	__le32 roam_delta[2];
@@ -4318,10 +4317,9 @@ dongle_rom_out:
 }
 
 static s32
-brcmf_dongle_scantime(struct net_device *ndev, s32 scan_assoc_time,
+brcmf_dongle_scantime(struct brcmf_if *ifp, s32 scan_assoc_time,
 		      s32 scan_unassoc_time, s32 scan_passive_time)
 {
-	struct brcmf_if *ifp = netdev_priv(ndev);
 	s32 err = 0;
 
 	err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_SCAN_CHANNEL_TIME,
@@ -4391,6 +4389,7 @@ static s32 brcmf_config_dongle(struct brcmf_cfg80211_info *cfg)
 {
 	struct net_device *ndev;
 	struct wireless_dev *wdev;
+	struct brcmf_if *ifp;
 	s32 power_mode;
 	s32 err = 0;
 
@@ -4399,35 +4398,34 @@ static s32 brcmf_config_dongle(struct brcmf_cfg80211_info *cfg)
 
 	ndev = cfg_to_ndev(cfg);
 	wdev = ndev->ieee80211_ptr;
+	ifp = netdev_priv(ndev);
 
-	brcmf_dongle_scantime(ndev, WL_SCAN_CHANNEL_TIME,
-			WL_SCAN_UNASSOC_TIME, WL_SCAN_PASSIVE_TIME);
+	/* make sure RF is ready for work */
+	brcmf_fil_cmd_int_set(ifp, BRCMF_C_UP, 0);
+
+	brcmf_dongle_scantime(ifp, WL_SCAN_CHANNEL_TIME,
+			      WL_SCAN_UNASSOC_TIME, WL_SCAN_PASSIVE_TIME);
 
 	power_mode = cfg->pwr_save ? PM_FAST : PM_OFF;
-	err = brcmf_fil_cmd_int_set(netdev_priv(ndev), BRCMF_C_SET_PM,
-				    power_mode);
+	err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_PM, power_mode);
 	if (err)
 		goto default_conf_out;
 	brcmf_dbg(INFO, "power save set to %s\n",
 		  (power_mode ? "enabled" : "disabled"));
 
-	err = brcmf_dongle_roam(ndev, (cfg->roam_on ? 0 : 1),
-				WL_BEACON_TIMEOUT);
+	err = brcmf_dongle_roam(ifp, (cfg->roam_on ? 0 : 1), WL_BEACON_TIMEOUT);
 	if (err)
 		goto default_conf_out;
 	err = brcmf_cfg80211_change_iface(wdev->wiphy, ndev, wdev->iftype,
 					  NULL, NULL);
-	if (err && err != -EINPROGRESS)
+	if (err)
 		goto default_conf_out;
 	err = brcmf_dongle_probecap(cfg);
 	if (err)
 		goto default_conf_out;
 
-	/* -EINPROGRESS: Call commit handler */
-
-default_conf_out:
-
 	cfg->dongle_up = true;
+default_conf_out:
 
 	return err;
 
@@ -4436,8 +4434,6 @@ default_conf_out:
 static s32 __brcmf_cfg80211_up(struct brcmf_if *ifp)
 {
 	set_bit(BRCMF_VIF_STATUS_READY, &ifp->vif->sme_state);
-	if (ifp->idx)
-		return 0;
 
 	return brcmf_config_dongle(ifp->drvr->config);
 }

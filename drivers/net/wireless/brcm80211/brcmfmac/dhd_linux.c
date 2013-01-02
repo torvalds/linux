@@ -585,14 +585,9 @@ static int brcmf_netdev_open(struct net_device *ndev)
 	/* Get current TOE mode from dongle */
 	if (brcmf_fil_iovar_int_get(ifp, "toe_ol", &toe_ol) >= 0
 	    && (toe_ol & TOE_TX_CSUM_OL) != 0)
-		drvr->iflist[ifp->idx]->ndev->features |=
-			NETIF_F_IP_CSUM;
+		ndev->features |= NETIF_F_IP_CSUM;
 	else
-		drvr->iflist[ifp->idx]->ndev->features &=
-			~NETIF_F_IP_CSUM;
-
-	/* make sure RF is ready for work */
-	brcmf_fil_cmd_int_set(ifp, BRCMF_C_UP, 0);
+		ndev->features &= ~NETIF_F_IP_CSUM;
 
 	/* Allow transmit calls */
 	netif_start_queue(ndev);
