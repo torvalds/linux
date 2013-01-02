@@ -246,9 +246,11 @@ int thermal_register_governor(struct thermal_governor *);
 void thermal_unregister_governor(struct thermal_governor *);
 
 #ifdef CONFIG_NET
-extern int thermal_generate_netlink_event(u32 orig, enum events event);
+extern int thermal_generate_netlink_event(struct thermal_zone_device *tz,
+						enum events event);
 #else
-static inline int thermal_generate_netlink_event(u32 orig, enum events event)
+static int thermal_generate_netlink_event(struct thermal_zone_device *tz,
+						enum events event)
 {
 	return 0;
 }

@@ -1711,7 +1711,8 @@ static struct genl_multicast_group thermal_event_mcgrp = {
 	.name = THERMAL_GENL_MCAST_GROUP_NAME,
 };
 
-int thermal_generate_netlink_event(u32 orig, enum events event)
+int thermal_generate_netlink_event(struct thermal_zone_device *tz,
+					enum events event)
 {
 	struct sk_buff *skb;
 	struct nlattr *attr;
@@ -1720,6 +1721,9 @@ int thermal_generate_netlink_event(u32 orig, enum events event)
 	int size;
 	int result;
 	static unsigned int thermal_event_seqnum;
+
+	if (!tz)
+		return -EINVAL;
 
 	/* allocate memory */
 	size = nla_total_size(sizeof(struct thermal_genl_event)) +
@@ -1755,7 +1759,7 @@ int thermal_generate_netlink_event(u32 orig, enum events event)
 
 	memset(thermal_event, 0, sizeof(struct thermal_genl_event));
 
-	thermal_event->orig = orig;
+	thermal_event->orig = tz->id;
 	thermal_event->event = event;
 
 	/* send multicast genetlink message */
