@@ -2636,8 +2636,8 @@ int r600_copy_dma(struct radeon_device *rdev,
 
 	for (i = 0; i < num_loops; i++) {
 		cur_size_in_dw = size_in_dw;
-		if (cur_size_in_dw > 0xFFFF)
-			cur_size_in_dw = 0xFFFF;
+		if (cur_size_in_dw > 0xFFFE)
+			cur_size_in_dw = 0xFFFE;
 		size_in_dw -= cur_size_in_dw;
 		radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_COPY, 0, 0, cur_size_in_dw));
 		radeon_ring_write(ring, dst_offset & 0xfffffffc);
