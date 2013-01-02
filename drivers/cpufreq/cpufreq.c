@@ -944,12 +944,10 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 	
 	#if defined(CONFIG_BOARD_ODROID_X2) || defined(CONFIG_BOARD_ODROID_Q2) || defined(CONFIG_BOARD_ODROID_U2)
 		if(policy->max > 1704000) {
-			pr_emerg("HKDK4412: CPUFREQ Policy setted to 1.7Ghz at boot\n");
 			policy->max = 1704000;
 		}
 	#elif defined(CONFIG_BOARD_ODROID_X) || defined(CONFIG_BOARD_ODROID_Q) || defined(CONFIG_BOARD_ODROID_U)
 		if(policy->max > 1500000) {
-			pr_emerg("HKDK4412: CPUFREQ Policy setted to 1.5Ghz at boot\n");
 			policy->max = 1500000;
 		}
 	#endif
