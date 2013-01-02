@@ -21,9 +21,7 @@
 #ifndef __ASM_ARCH_VR1000MAP_H
 #define __ASM_ARCH_VR1000MAP_H
 
-#include <mach/bast-map.h>
-
-#define VR1000_IOADDR(x) BAST_IOADDR(x)
+#define VR1000_IOADDR(x)	(S3C2410_ADDR((x) + 0x01300000))
 
 /* we put the CPLD registers next, to get them out of the way */
 

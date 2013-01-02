@@ -32,7 +32,6 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/bast-map.h>
 #include <mach/vr1000-map.h>
 #include <mach/vr1000-irq.h>
 #include <mach/vr1000-cpld.h>
@@ -51,8 +50,9 @@
 #include <linux/platform_data/i2c-s3c2410.h>
 #include <linux/platform_data/asoc-s3c24xx_simtec.h>
 
-#include "simtec.h"
+#include "bast.h"
 #include "common.h"
+#include "simtec.h"
 
 /* macros for virtual address mods for the io space entries */
 #define VA_C5(item) ((unsigned long)(item) + BAST_VAM_CS5)
