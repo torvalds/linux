@@ -520,11 +520,6 @@ struct brcmf_pub {
 #endif
 };
 
-struct bcmevent_name {
-	uint event;
-	const char *name;
-};
-
 struct brcmf_if_event {
 	u8 ifidx;
 	u8 action;
@@ -563,8 +558,6 @@ static inline s32 brcmf_ndev_bssidx(struct net_device *ndev)
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	return ifp->bssidx;
 }
-
-extern const struct bcmevent_name bcmevent_names[];
 
 extern int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
 
