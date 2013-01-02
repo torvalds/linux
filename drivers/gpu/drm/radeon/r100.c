@@ -1215,7 +1215,7 @@ int r100_reloc_pitch_offset(struct radeon_cs_parser *p,
 	struct radeon_cs_reloc *reloc;
 	u32 value;
 
-	r = r100_cs_packet_next_reloc(p, &reloc);
+	r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 	if (r) {
 		DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
 			  idx, reg);
@@ -1268,7 +1268,7 @@ int r100_packet3_load_vbpntr(struct radeon_cs_parser *p,
 	}
 	track->num_arrays = c;
 	for (i = 0; i < (c - 1); i+=2, idx+=3) {
-		r = r100_cs_packet_next_reloc(p, &reloc);
+		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
 			DRM_ERROR("No reloc for packet3 %d\n",
 				  pkt->opcode);
@@ -1281,7 +1281,7 @@ int r100_packet3_load_vbpntr(struct radeon_cs_parser *p,
 		track->arrays[i + 0].esize = idx_value >> 8;
 		track->arrays[i + 0].robj = reloc->robj;
 		track->arrays[i + 0].esize &= 0x7F;
-		r = r100_cs_packet_next_reloc(p, &reloc);
+		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
 			DRM_ERROR("No reloc for packet3 %d\n",
 				  pkt->opcode);
@@ -1294,7 +1294,7 @@ int r100_packet3_load_vbpntr(struct radeon_cs_parser *p,
 		track->arrays[i + 1].esize &= 0x7F;
 	}
 	if (c & 1) {
-		r = r100_cs_packet_next_reloc(p, &reloc);
+		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
 			DRM_ERROR("No reloc for packet3 %d\n",
 					  pkt->opcode);
@@ -1445,54 +1445,6 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	return 0;
 }
 
-/**
- * r100_cs_packet_next_reloc() - parse next packet which should be reloc packet3
- * @parser:		parser structure holding parsing context.
- * @data:		pointer to relocation data
- * @offset_start:	starting offset
- * @offset_mask:	offset mask (to align start offset on)
- * @reloc:		reloc informations
- *
- * Check next packet is relocation packet3, do bo validation and compute
- * GPU offset using the provided start.
- **/
-int r100_cs_packet_next_reloc(struct radeon_cs_parser *p,
-			      struct radeon_cs_reloc **cs_reloc)
-{
-	struct radeon_cs_chunk *relocs_chunk;
-	struct radeon_cs_packet p3reloc;
-	unsigned idx;
-	int r;
-
-	if (p->chunk_relocs_idx == -1) {
-		DRM_ERROR("No relocation chunk !\n");
-		return -EINVAL;
-	}
-	*cs_reloc = NULL;
-	relocs_chunk = &p->chunks[p->chunk_relocs_idx];
-	r = radeon_cs_packet_parse(p, &p3reloc, p->idx);
-	if (r) {
-		return r;
-	}
-	p->idx += p3reloc.count + 2;
-	if (p3reloc.type != PACKET_TYPE3 || p3reloc.opcode != PACKET3_NOP) {
-		DRM_ERROR("No packet3 for relocation for packet at %d.\n",
-			  p3reloc.idx);
-		radeon_cs_dump_packet(p, &p3reloc);
-		return -EINVAL;
-	}
-	idx = radeon_get_ib_value(p, p3reloc.idx + 1);
-	if (idx >= relocs_chunk->length_dw) {
-		DRM_ERROR("Relocs at %d after relocations chunk end %d !\n",
-			  idx, relocs_chunk->length_dw);
-		radeon_cs_dump_packet(p, &p3reloc);
-		return -EINVAL;
-	}
-	/* FIXME: we assume reloc size is 4 dwords */
-	*cs_reloc = p->relocs_ptr[(idx / 4)];
-	return 0;
-}
-
 static int r100_get_vtx_size(uint32_t vtx_fmt)
 {
 	int vtx_size;
@@ -1583,7 +1535,7 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 			return r;
 		break;
 	case RADEON_RB3D_DEPTHOFFSET:
-		r = r100_cs_packet_next_reloc(p, &reloc);
+		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
 			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
 				  idx, reg);
@@ -1596,7 +1548,7 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 		ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
 		break;
 	case RADEON_RB3D_COLOROFFSET:
-		r = r100_cs_packet_next_reloc(p, &reloc);
+		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
 			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
 				  idx, reg);
@@ -1612,7 +1564,7 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 	case RADEON_PP_TXOFFSET_1:
 	case RADEON_PP_TXOFFSET_2:
 		i = (reg - RADEON_PP_TXOFFSET_0) / 24;
-		r = r100_cs_packet_next_reloc(p, &reloc);
+		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
 			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
 				  idx, reg);
@@ -1639,7 +1591,7 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 	case RADEON_PP_CUBIC_OFFSET_T0_3:
 	case RADEON_PP_CUBIC_OFFSET_T0_4:
 		i = (reg - RADEON_PP_CUBIC_OFFSET_T0_0) / 4;
-		r = r100_cs_packet_next_reloc(p, &reloc);
+		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
 			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
 				  idx, reg);
@@ -1657,7 +1609,7 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 	case RADEON_PP_CUBIC_OFFSET_T1_3:
 	case RADEON_PP_CUBIC_OFFSET_T1_4:
 		i = (reg - RADEON_PP_CUBIC_OFFSET_T1_0) / 4;
-		r = r100_cs_packet_next_reloc(p, &reloc);
+		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
 			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
 				  idx, reg);
@@ -1675,7 +1627,7 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 	case RADEON_PP_CUBIC_OFFSET_T2_3:
 	case RADEON_PP_CUBIC_OFFSET_T2_4:
 		i = (reg - RADEON_PP_CUBIC_OFFSET_T2_0) / 4;
-		r = r100_cs_packet_next_reloc(p, &reloc);
+		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
 			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
 				  idx, reg);
@@ -1693,7 +1645,7 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 		track->zb_dirty = true;
 		break;
 	case RADEON_RB3D_COLORPITCH:
-		r = r100_cs_packet_next_reloc(p, &reloc);
+		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
 			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
 				  idx, reg);
@@ -1764,7 +1716,7 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 		track->zb_dirty = true;
 		break;
 	case RADEON_RB3D_ZPASS_ADDR:
-		r = r100_cs_packet_next_reloc(p, &reloc);
+		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
 			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
 				  idx, reg);
@@ -1925,7 +1877,7 @@ static int r100_packet3_check(struct radeon_cs_parser *p,
 			return r;
 		break;
 	case PACKET3_INDX_BUFFER:
-		r = r100_cs_packet_next_reloc(p, &reloc);
+		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
 			DRM_ERROR("No reloc for packet3 %d\n", pkt->opcode);
 			radeon_cs_dump_packet(p, pkt);
@@ -1939,7 +1891,7 @@ static int r100_packet3_check(struct radeon_cs_parser *p,
 		break;
 	case 0x23:
 		/* 3D_RNDR_GEN_INDX_PRIM on r100/r200 */
-		r = r100_cs_packet_next_reloc(p, &reloc);
+		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
 			DRM_ERROR("No reloc for packet3 %d\n", pkt->opcode);
 			radeon_cs_dump_packet(p, pkt);
