@@ -88,7 +88,7 @@ core-y		+= $(buildvar) $(buildplf)
 libs-y		+= arch/xtensa/lib/ $(LIBGCC)
 
 ifneq ($(CONFIG_BUILTIN_DTB),"")
-core-$(CONFIG_OF) += arch/xtensa/boot/
+core-$(CONFIG_OF) += arch/xtensa/boot/dts/
 endif
 
 boot		:= arch/xtensa/boot
@@ -101,7 +101,7 @@ zImage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $@
 
 %.dtb:
-	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+	$(Q)$(MAKE) $(build)=$(boot)/dts $(boot)/dts/$@
 
 define archhelp
   @echo '* zImage      - Compressed kernel image (arch/xtensa/boot/images/zImage.*)'
