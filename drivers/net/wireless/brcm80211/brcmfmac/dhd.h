@@ -39,6 +39,7 @@
 #define BRCMF_C_GET_BSSID			23
 #define BRCMF_C_GET_SSID			25
 #define BRCMF_C_SET_SSID			26
+#define BRCMF_C_TERMINATED			28
 #define BRCMF_C_GET_CHANNEL			29
 #define BRCMF_C_SET_CHANNEL			30
 #define BRCMF_C_GET_SRL				31

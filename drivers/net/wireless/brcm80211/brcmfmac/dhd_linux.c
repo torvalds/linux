@@ -845,6 +845,17 @@ static void brcmf_bus_detach(struct brcmf_pub *drvr)
 	}
 }
 
+void brcmf_dev_reset(struct device *dev)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_pub *drvr = bus_if->drvr;
+
+	if (drvr == NULL)
+		return;
+
+	brcmf_fil_cmd_int_set(drvr->iflist[0], BRCMF_C_TERMINATED, 1);
+}
+
 void brcmf_detach(struct device *dev)
 {
 	int i;

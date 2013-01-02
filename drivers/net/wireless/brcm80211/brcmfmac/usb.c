@@ -1524,10 +1524,23 @@ static void brcmf_release_fw(struct list_head *q)
 	}
 }
 
+static int brcmf_usb_reset_device(struct device *dev, void *notused)
+{
+	/* device past is the usb interface so we
+	 * need to use parent here.
+	 */
+	brcmf_dev_reset(dev->parent);
+	return 0;
+}
 
 void brcmf_usb_exit(void)
 {
+	struct device_driver *drv = &brcmf_usbdrvr.drvwrap.driver;
+	int ret;
+
 	brcmf_dbg(USB, "Enter\n");
+	ret = driver_for_each_device(drv, NULL, NULL,
+				     brcmf_usb_reset_device);
 	usb_deregister(&brcmf_usbdrvr);
 	brcmf_release_fw(&fw_image_list);
 }

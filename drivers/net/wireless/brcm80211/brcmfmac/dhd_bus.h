@@ -154,7 +154,8 @@ static inline void brcmf_rx_packet(struct device *dev, int ifidx,
 extern int brcmf_attach(uint bus_hdrlen, struct device *dev);
 /* Indication from bus module regarding removal/absence of dongle */
 extern void brcmf_detach(struct device *dev);
-
+/* Indication from bus module that dongle should be reset */
+extern void brcmf_dev_reset(struct device *dev);
 /* Indication from bus module to change flow-control state */
 extern void brcmf_txflowblock(struct device *dev, bool state);
 
