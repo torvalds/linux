@@ -2129,7 +2129,7 @@ bool si_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 static int si_gpu_soft_reset(struct radeon_device *rdev)
 {
 	struct evergreen_mc_save save;
-	u32 grbm_reset = 0;
+	u32 grbm_reset = 0, tmp;
 
 	if (!(RREG32(GRBM_STATUS) & GUI_ACTIVE))
 		return 0;
@@ -2158,6 +2158,22 @@ static int si_gpu_soft_reset(struct radeon_device *rdev)
 	}
 	/* Disable CP parsing/prefetching */
 	WREG32(CP_ME_CNTL, CP_ME_HALT | CP_PFP_HALT | CP_CE_HALT);
+
+	/* dma0 */
+	tmp = RREG32(DMA_RB_CNTL + DMA0_REGISTER_OFFSET);
+	tmp &= ~DMA_RB_ENABLE;
+	WREG32(DMA_RB_CNTL + DMA0_REGISTER_OFFSET, tmp);
+
+	/* dma1 */
+	tmp = RREG32(DMA_RB_CNTL + DMA1_REGISTER_OFFSET);
+	tmp &= ~DMA_RB_ENABLE;
+	WREG32(DMA_RB_CNTL + DMA1_REGISTER_OFFSET, tmp);
+
+	/* Reset dma */
+	WREG32(SRBM_SOFT_RESET, SOFT_RESET_DMA | SOFT_RESET_DMA1);
+	RREG32(SRBM_SOFT_RESET);
+	udelay(50);
+	WREG32(SRBM_SOFT_RESET, 0);
 
 	/* reset all the gfx blocks */
 	grbm_reset = (SOFT_RESET_CP |

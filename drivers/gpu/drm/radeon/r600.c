@@ -1283,11 +1283,11 @@ static int r600_gpu_soft_reset(struct radeon_device *rdev)
 		return 0;
 
 	dev_info(rdev->dev, "GPU softreset \n");
-	dev_info(rdev->dev, "  R_008010_GRBM_STATUS=0x%08X\n",
+	dev_info(rdev->dev, "  R_008010_GRBM_STATUS      = 0x%08X\n",
 		RREG32(R_008010_GRBM_STATUS));
-	dev_info(rdev->dev, "  R_008014_GRBM_STATUS2=0x%08X\n",
+	dev_info(rdev->dev, "  R_008014_GRBM_STATUS2     = 0x%08X\n",
 		RREG32(R_008014_GRBM_STATUS2));
-	dev_info(rdev->dev, "  R_000E50_SRBM_STATUS=0x%08X\n",
+	dev_info(rdev->dev, "  R_000E50_SRBM_STATUS      = 0x%08X\n",
 		RREG32(R_000E50_SRBM_STATUS));
 	dev_info(rdev->dev, "  R_008674_CP_STALLED_STAT1 = 0x%08X\n",
 		RREG32(CP_STALLED_STAT1));
@@ -1303,8 +1303,24 @@ static int r600_gpu_soft_reset(struct radeon_device *rdev)
 	if (r600_mc_wait_for_idle(rdev)) {
 		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
 	}
+
 	/* Disable CP parsing/prefetching */
 	WREG32(R_0086D8_CP_ME_CNTL, S_0086D8_CP_ME_HALT(1));
+
+	/* Disable DMA */
+	tmp = RREG32(DMA_RB_CNTL);
+	tmp &= ~DMA_RB_ENABLE;
+	WREG32(DMA_RB_CNTL, tmp);
+
+	/* Reset dma */
+	if (rdev->family >= CHIP_RV770)
+		WREG32(SRBM_SOFT_RESET, RV770_SOFT_RESET_DMA);
+	else
+		WREG32(SRBM_SOFT_RESET, SOFT_RESET_DMA);
+	RREG32(SRBM_SOFT_RESET);
+	udelay(50);
+	WREG32(SRBM_SOFT_RESET, 0);
+
 	/* Check if any of the rendering block is busy and reset it */
 	if ((RREG32(R_008010_GRBM_STATUS) & grbm_busy_mask) ||
 	    (RREG32(R_008014_GRBM_STATUS2) & grbm2_busy_mask)) {
@@ -1336,11 +1352,11 @@ static int r600_gpu_soft_reset(struct radeon_device *rdev)
 	WREG32(R_008020_GRBM_SOFT_RESET, 0);
 	/* Wait a little for things to settle down */
 	mdelay(1);
-	dev_info(rdev->dev, "  R_008010_GRBM_STATUS=0x%08X\n",
+	dev_info(rdev->dev, "  R_008010_GRBM_STATUS      = 0x%08X\n",
 		RREG32(R_008010_GRBM_STATUS));
-	dev_info(rdev->dev, "  R_008014_GRBM_STATUS2=0x%08X\n",
+	dev_info(rdev->dev, "  R_008014_GRBM_STATUS2     = 0x%08X\n",
 		RREG32(R_008014_GRBM_STATUS2));
-	dev_info(rdev->dev, "  R_000E50_SRBM_STATUS=0x%08X\n",
+	dev_info(rdev->dev, "  R_000E50_SRBM_STATUS      = 0x%08X\n",
 		RREG32(R_000E50_SRBM_STATUS));
 	dev_info(rdev->dev, "  R_008674_CP_STALLED_STAT1 = 0x%08X\n",
 		RREG32(CP_STALLED_STAT1));

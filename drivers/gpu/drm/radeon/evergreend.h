@@ -742,8 +742,9 @@
 #define		SOFT_RESET_ROM				(1 << 14)
 #define		SOFT_RESET_SEM				(1 << 15)
 #define		SOFT_RESET_VMC				(1 << 17)
+#define		SOFT_RESET_DMA				(1 << 20)
 #define		SOFT_RESET_TST				(1 << 21)
-#define		SOFT_RESET_REGBB		       	(1 << 22)
+#define		SOFT_RESET_REGBB			(1 << 22)
 #define		SOFT_RESET_ORB				(1 << 23)
 
 /* display watermarks */
@@ -2028,6 +2029,13 @@
 #define	CAYMAN_PACKET3_DEALLOC_STATE			0x14
 
 /* DMA regs common on r6xx/r7xx/evergreen/ni */
+#define DMA_RB_CNTL                                       0xd000
+#       define DMA_RB_ENABLE                              (1 << 0)
+#       define DMA_RB_SIZE(x)                             ((x) << 1) /* log2 */
+#       define DMA_RB_SWAP_ENABLE                         (1 << 9) /* 8IN32 */
+#       define DMA_RPTR_WRITEBACK_ENABLE                  (1 << 12)
+#       define DMA_RPTR_WRITEBACK_SWAP_ENABLE             (1 << 13)  /* 8IN32 */
+#       define DMA_RPTR_WRITEBACK_TIMER(x)                ((x) << 16) /* log2 */
 #define DMA_STATUS_REG                                    0xd034
 
 #endif
