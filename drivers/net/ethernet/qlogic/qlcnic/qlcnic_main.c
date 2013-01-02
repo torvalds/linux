@@ -2,12 +2,6 @@
  * QLogic qlcnic NIC Driver
  * Copyright (c)  2009-2010 QLogic Corporation
  *
- * PCI searching functions pci_get_domain_bus_and_slot & pci_channel_offline
- * Copyright (C) 1993 -- 1997 Drew Eckhardt, Frederic Potter,
- *					David Mosberger-Tang
- * Copyright (C) 1997 -- 2000 Martin Mares <mj@ucw.cz>
- * Copyright (C) 2003 -- 2004 Greg Kroah-Hartman <greg@kroah.com>.
- *
  * See LICENSE.qlcnic for copyright and licensing details.
  */
 
@@ -25,6 +19,7 @@
 #include <linux/inetdevice.h>
 #include <linux/aer.h>
 #include <linux/log2.h>
+#include <linux/pci.h>
 
 MODULE_DESCRIPTION("QLogic 1/10 GbE Converged/Intelligent Ethernet Driver");
 MODULE_LICENSE("GPL");
@@ -2905,19 +2900,6 @@ qlcnic_fw_poll_work(struct work_struct *work)
 
 reschedule:
 	qlcnic_schedule_work(adapter, qlcnic_fw_poll_work, FW_POLL_DELAY);
-}
-
-struct pci_dev *pci_get_domain_bus_and_slot(int domain, unsigned int bus,
-					    unsigned int devfn)
-{
-	struct pci_dev *dev = NULL;
-
-	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
-		if (pci_domain_nr(dev->bus) == domain &&
-		    (dev->bus->number == bus && dev->devfn == devfn))
-			return dev;
-	}
-	return NULL;
 }
 
 static int qlcnic_is_first_func(struct pci_dev *pdev)
