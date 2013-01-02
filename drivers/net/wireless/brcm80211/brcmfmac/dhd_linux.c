@@ -165,6 +165,7 @@ static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	int ret;
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_pub *drvr = ifp->drvr;
+	struct ethhdr *eh;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -202,16 +203,19 @@ static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		}
 	}
 
-	/* Update multicast statistic */
-	if (skb->len >= ETH_ALEN) {
-		u8 *pktdata = (u8 *)(skb->data);
-		struct ethhdr *eh = (struct ethhdr *)pktdata;
-
-		if (is_multicast_ether_addr(eh->h_dest))
-			drvr->tx_multicast++;
-		if (ntohs(eh->h_proto) == ETH_P_PAE)
-			atomic_inc(&drvr->pend_8021x_cnt);
+	/* validate length for ether packet */
+	if (skb->len < sizeof(*eh)) {
+		ret = -EINVAL;
+		dev_kfree_skb(skb);
+		goto done;
 	}
+
+	/* handle ethernet header */
+	eh = (struct ethhdr *)(skb->data);
+	if (is_multicast_ether_addr(eh->h_dest))
+		drvr->tx_multicast++;
+	if (ntohs(eh->h_proto) == ETH_P_PAE)
+		atomic_inc(&drvr->pend_8021x_cnt);
 
 	/* If the protocol uses a data header, apply it */
 	brcmf_proto_hdrpush(drvr, ifp->idx, skb);
