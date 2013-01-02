@@ -32,7 +32,6 @@
 
 #include <mach/map.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-modem.h>
 #include <mach/regs-srom.h>
 
 #include <plat/adc.h>
@@ -47,6 +46,7 @@
 #include <video/samsung_fimd.h>
 
 #include "common.h"
+#include "regs-modem.h"
 
 #define UCON S3C2410_UCON_DEFAULT
 #define ULCON (S3C2410_LCON_CS8 | S3C2410_LCON_PNONE | S3C2410_LCON_STOPB)

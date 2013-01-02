@@ -52,7 +52,6 @@
 
 #include <mach/regs-sys.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-modem.h>
 
 #include <plat/regs-serial.h>
 #include <plat/fb.h>
@@ -71,6 +70,7 @@
 #include "common.h"
 #include "crag6410.h"
 #include "regs-gpio-memport.h"
+#include "regs-modem.h"
 
 /* serial port setup */
 
