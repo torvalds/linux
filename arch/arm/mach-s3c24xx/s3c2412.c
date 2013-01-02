@@ -33,7 +33,6 @@
 
 #include <mach/hardware.h>
 #include <mach/regs-clock.h>
-#include <mach/regs-dsc.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-power.h>
 
@@ -47,6 +46,8 @@
 #include <plat/regs-serial.h>
 #include <plat/regs-spi.h>
 #include <plat/s3c2412.h>
+
+#include "regs-dsc.h"
 
 #define S3C2412_SWRST			(S3C24XX_VA_CLKPWR + 0x30)
 #define S3C2412_SWRST_RESET		(0x533C2412)
