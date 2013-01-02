@@ -126,8 +126,7 @@ static void zram_set_disksize(struct zram *zram, size_t totalram_bytes)
 		"\tMemory Size: %zu kB\n"
 		"\tSize you selected: %llu kB\n"
 		"Continuing anyway ...\n",
-		totalram_bytes >> 10, zram->disksize
-		);
+		totalram_bytes >> 10, zram->disksize >> 10);
 	}
 
 	zram->disksize &= PAGE_MASK;
