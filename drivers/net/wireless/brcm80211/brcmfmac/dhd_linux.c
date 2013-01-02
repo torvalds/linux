@@ -890,9 +890,8 @@ void brcmf_detach(struct device *dev)
 
 	brcmf_bus_detach(drvr);
 
-	if (drvr->prot) {
+	if (drvr->prot)
 		brcmf_proto_detach(drvr);
-	}
 
 	brcmf_debugfs_detach(drvr);
 	bus_if->drvr = NULL;
