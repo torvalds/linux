@@ -611,7 +611,7 @@ void __irq_entry do_IRQ(struct pt_regs *regs)
 	tpi_info = (struct tpi_info *)&S390_lowcore.subchannel_id;
 	irb = (struct irb *)&S390_lowcore.irb;
 	do {
-		kstat_cpu(smp_processor_id()).irqs[IO_INTERRUPT]++;
+		kstat_incr_irqs_this_cpu(IO_INTERRUPT, NULL);
 		if (tpi_info->adapter_IO) {
 			do_adapter_IO(tpi_info->isc);
 			continue;

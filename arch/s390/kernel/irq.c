@@ -222,7 +222,7 @@ void __irq_entry do_extint(struct pt_regs *regs, struct ext_code ext_code,
 		/* Serve timer interrupts first. */
 		clock_comparator_work();
 	}
-	kstat_cpu(smp_processor_id()).irqs[EXTERNAL_INTERRUPT]++;
+	kstat_incr_irqs_this_cpu(EXTERNAL_INTERRUPT, NULL);
 	if (ext_code.code != 0x1004)
 		__get_cpu_var(s390_idle).nohz_delay = 1;
 
