@@ -248,8 +248,8 @@ void brcmf_txflowblock(struct device *dev, bool state)
 		}
 }
 
-void brcmf_rx_frame(struct device *dev, u8 ifidx,
-		    struct sk_buff_head *skb_list)
+void brcmf_rx_frames(struct device *dev, u8 ifidx,
+		     struct sk_buff_head *skb_list)
 {
 	unsigned char *eth;
 	uint len;

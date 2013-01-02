@@ -138,17 +138,8 @@ extern bool brcmf_c_prec_enq(struct device *dev, struct pktq *q,
 			 struct sk_buff *pkt, int prec);
 
 /* Receive frame for delivery to OS.  Callee disposes of rxp. */
-extern void brcmf_rx_frame(struct device *dev, u8 ifidx,
-			   struct sk_buff_head *rxlist);
-static inline void brcmf_rx_packet(struct device *dev, int ifidx,
-				   struct sk_buff *pkt)
-{
-	struct sk_buff_head q;
-
-	skb_queue_head_init(&q);
-	skb_queue_tail(&q, pkt);
-	brcmf_rx_frame(dev, ifidx, &q);
-}
+extern void brcmf_rx_frames(struct device *dev, u8 ifidx,
+			    struct sk_buff_head *rxlist);
 
 /* Indication from bus module regarding presence/insertion of dongle. */
 extern int brcmf_attach(uint bus_hdrlen, struct device *dev);
