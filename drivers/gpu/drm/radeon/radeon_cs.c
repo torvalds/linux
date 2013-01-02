@@ -716,3 +716,24 @@ bool radeon_cs_packet_next_is_pkt3_nop(struct radeon_cs_parser *p)
 		return false;
 	return true;
 }
+
+/**
+ * radeon_cs_dump_packet() - dump raw packet context
+ * @p:		structure holding the parser context.
+ * @pkt:	structure holding the packet.
+ *
+ * Used mostly for debugging and error reporting.
+ **/
+void radeon_cs_dump_packet(struct radeon_cs_parser *p,
+			   struct radeon_cs_packet *pkt)
+{
+	volatile uint32_t *ib;
+	unsigned i;
+	unsigned idx;
+
+	ib = p->ib.ptr;
+	idx = pkt->idx;
+	for (i = 0; i <= (pkt->count + 1); i++, idx++)
+		DRM_INFO("ib[%d]=0x%08X\n", idx, ib[idx]);
+}
+
