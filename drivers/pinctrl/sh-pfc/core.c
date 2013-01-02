@@ -235,7 +235,7 @@ static void sh_pfc_write_config_reg(struct sh_pfc *pfc,
 
 static int sh_pfc_setup_data_reg(struct sh_pfc *pfc, unsigned gpio)
 {
-	struct pinmux_pin *gpiop = &pfc->info->pins[gpio];
+	struct sh_pfc_pin *gpiop = &pfc->info->pins[gpio];
 	struct pinmux_data_reg *data_reg;
 	int k, n;
 
@@ -292,7 +292,7 @@ static void sh_pfc_setup_data_regs(struct sh_pfc *pfc)
 int sh_pfc_get_data_reg(struct sh_pfc *pfc, unsigned gpio,
 			struct pinmux_data_reg **drp, int *bitp)
 {
-	struct pinmux_pin *gpiop = &pfc->info->pins[gpio];
+	struct sh_pfc_pin *gpiop = &pfc->info->pins[gpio];
 	int k, n;
 
 	if (!sh_pfc_gpio_is_pin(pfc, gpio))

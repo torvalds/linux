@@ -1452,7 +1452,7 @@ static pinmux_enum_t pinmux_data[] = {
 	PINMUX_DATA(PWM1A_MARK, PJ0MD_100),
 };
 
-static struct pinmux_pin pinmux_pins[] = {
+static struct sh_pfc_pin pinmux_pins[] = {
 	/* Port A */
 	PINMUX_GPIO(GPIO_PA1, PA1_DATA),
 	PINMUX_GPIO(GPIO_PA0, PA0_DATA),

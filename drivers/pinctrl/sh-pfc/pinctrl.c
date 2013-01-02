@@ -307,7 +307,7 @@ static int sh_pfc_map_gpios(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 
 	for (i = 0; i < pmx->nr_pads; i++) {
 		struct pinctrl_pin_desc *pin = pmx->pads + i;
-		struct pinmux_pin *gpio = pfc->info->pins + i;
+		struct sh_pfc_pin *gpio = pfc->info->pins + i;
 
 		pin->number = i;
 		pin->name = gpio->name;

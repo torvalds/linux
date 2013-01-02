@@ -306,7 +306,7 @@ static pinmux_enum_t shx3_pinmux_data[] = {
 	PINMUX_DATA(IRQOUT_MARK,	PH0_FN),
 };
 
-static struct pinmux_pin shx3_pinmux_pins[] = {
+static struct sh_pfc_pin shx3_pinmux_pins[] = {
 	/* PA */
 	PINMUX_GPIO(GPIO_PA7, PA7_DATA),
 	PINMUX_GPIO(GPIO_PA6, PA6_DATA),

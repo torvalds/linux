@@ -15,7 +15,6 @@
 #include <asm-generic/gpio.h>
 
 typedef unsigned short pinmux_enum_t;
-typedef unsigned short pinmux_flag_t;
 
 enum {
 	PINMUX_TYPE_NONE,
@@ -35,9 +34,9 @@ enum {
 #define PINMUX_FLAG_DREG_SHIFT      10
 #define PINMUX_FLAG_DREG            (0x3f << PINMUX_FLAG_DREG_SHIFT)
 
-struct pinmux_pin {
+struct sh_pfc_pin {
 	const pinmux_enum_t enum_id;
-	pinmux_flag_t flags;
+	unsigned short flags;
 	const char *name;
 };
 
@@ -110,7 +109,7 @@ struct sh_pfc_soc_info {
 	struct pinmux_range output;
 	struct pinmux_range function;
 
-	struct pinmux_pin *pins;
+	struct sh_pfc_pin *pins;
 	unsigned int nr_pins;
 	struct pinmux_func *func_gpios;
 	unsigned int nr_func_gpios;
