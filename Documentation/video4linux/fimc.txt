@@ -58,7 +58,7 @@ Not currently supported:
 4.1. Media device interface
 
 The driver supports Media Controller API as defined at
-http://http://linuxtv.org/downloads/v4l-dvb-apis/media_common.html
+http://linuxtv.org/downloads/v4l-dvb-apis/media_common.html
 The media device driver name is "SAMSUNG S5P FIMC".
 
 The purpose of this interface is to allow changing assignment of FIMC instances
