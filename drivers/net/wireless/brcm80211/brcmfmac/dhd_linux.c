@@ -160,7 +160,8 @@ static void brcmf_netdev_set_multicast_list(struct net_device *ndev)
 	schedule_work(&ifp->multicast_work);
 }
 
-static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
+					   struct net_device *ndev)
 {
 	int ret;
 	struct brcmf_if *ifp = netdev_priv(ndev);
@@ -169,20 +170,21 @@ static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	/* Reject if down */
-	if (!drvr->bus_if->drvr_up ||
-	    (drvr->bus_if->state != BRCMF_BUS_DATA)) {
-		brcmf_err("xmit rejected drvup=%d state=%d\n",
-			  drvr->bus_if->drvr_up,
-			  drvr->bus_if->state);
+	/* Can the device send data? */
+	if (drvr->bus_if->state != BRCMF_BUS_DATA) {
+		brcmf_err("xmit rejected state=%d\n", drvr->bus_if->state);
 		netif_stop_queue(ndev);
-		return -ENODEV;
+		dev_kfree_skb(skb);
+		ret = -ENODEV;
+		goto done;
 	}
 
 	if (!drvr->iflist[ifp->idx]) {
 		brcmf_err("bad ifidx %d\n", ifp->idx);
 		netif_stop_queue(ndev);
-		return -ENODEV;
+		dev_kfree_skb(skb);
+		ret = -ENODEV;
+		goto done;
 	}
 
 	/* Make sure there's enough room for any header */
@@ -230,7 +232,7 @@ done:
 		drvr->bus_if->dstats.tx_packets++;
 
 	/* Return ok: we always eat the packet */
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 void brcmf_txflowblock(struct device *dev, bool state)
