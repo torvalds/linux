@@ -108,7 +108,8 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 			return c->base_reg;
 		}
 
-		ret = c->max;
+		*pos = c->min;
+		ret = c->base_reg;
 	}
 
 	return ret;
