@@ -22,6 +22,7 @@ board-specific compatible values:
   ad,tec
   compal,paz00
   compulab,trimslice
+  nvidia,beaver
   nvidia,cardhu
   nvidia,cardhu-a02
   nvidia,cardhu-a04
