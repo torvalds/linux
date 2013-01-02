@@ -34,6 +34,10 @@
 #define BRCMF_SCAN_VAL	0x4000
 #define BRCMF_CONN_VAL	0x8000
 
+/* set default print format */
+#undef pr_fmt
+#define pr_fmt(fmt)		KBUILD_MODNAME ": " fmt
+
 /* Macro for error messages. net_ratelimit() is used when driver
  * debugging is not selected. When debugging the driver error
  * messages are as important as other tracing or even more so.
