@@ -1263,15 +1263,15 @@ int r300_cs_parse(struct radeon_cs_parser *p)
 		}
 		p->idx += pkt.count + 2;
 		switch (pkt.type) {
-		case PACKET_TYPE0:
+		case RADEON_PACKET_TYPE0:
 			r = r100_cs_parse_packet0(p, &pkt,
 						  p->rdev->config.r300.reg_safe_bm,
 						  p->rdev->config.r300.reg_safe_bm_size,
 						  &r300_packet0_check);
 			break;
-		case PACKET_TYPE2:
+		case RADEON_PACKET_TYPE2:
 			break;
-		case PACKET_TYPE3:
+		case RADEON_PACKET_TYPE3:
 			r = r300_packet3_check(p, &pkt);
 			break;
 		default:

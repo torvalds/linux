@@ -1143,19 +1143,10 @@
 /*
  * PM4
  */
-#define	PACKET_TYPE0	0
-#define	PACKET_TYPE1	1
-#define	PACKET_TYPE2	2
-#define	PACKET_TYPE3	3
-
-#define CP_PACKET_GET_TYPE(h) (((h) >> 30) & 3)
-#define CP_PACKET_GET_COUNT(h) (((h) >> 16) & 0x3FFF)
-#define CP_PACKET0_GET_REG(h) (((h) & 0xFFFF) << 2)
-#define CP_PACKET3_GET_OPCODE(h) (((h) >> 8) & 0xFF)
-#define PACKET0(reg, n)	((PACKET_TYPE0 << 30) |				\
+#define PACKET0(reg, n)	((RADEON_PACKET_TYPE0 << 30) |			\
 			 (((reg) >> 2) & 0xFFFF) |			\
 			 ((n) & 0x3FFF) << 16)
-#define PACKET3(op, n)	((PACKET_TYPE3 << 30) |				\
+#define PACKET3(op, n)	((RADEON_PACKET_TYPE3 << 30) |			\
 			 (((op) & 0xFF) << 8) |				\
 			 ((n) & 0x3FFF) << 16)
 

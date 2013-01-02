@@ -1410,7 +1410,7 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 
 	header = radeon_get_ib_value(p, h_idx);
 	crtc_id = radeon_get_ib_value(p, h_idx + 5);
-	reg = CP_PACKET0_GET_REG(header);
+	reg = R100_CP_PACKET0_GET_REG(header);
 	obj = drm_mode_object_find(p->rdev->ddev, crtc_id, DRM_MODE_OBJECT_CRTC);
 	if (!obj) {
 		DRM_ERROR("cannot find crtc %d\n", crtc_id);
@@ -1997,7 +1997,7 @@ int r100_cs_parse(struct radeon_cs_parser *p)
 		}
 		p->idx += pkt.count + 2;
 		switch (pkt.type) {
-		case PACKET_TYPE0:
+		case RADEON_PACKET_TYPE0:
 			if (p->rdev->family >= CHIP_R200)
 				r = r100_cs_parse_packet0(p, &pkt,
 					p->rdev->config.r100.reg_safe_bm,
@@ -2009,9 +2009,9 @@ int r100_cs_parse(struct radeon_cs_parser *p)
 					p->rdev->config.r100.reg_safe_bm_size,
 					&r100_packet0_check);
 			break;
-		case PACKET_TYPE2:
+		case RADEON_PACKET_TYPE2:
 			break;
-		case PACKET_TYPE3:
+		case RADEON_PACKET_TYPE3:
 			r = r100_packet3_check(p, &pkt);
 			break;
 		default:

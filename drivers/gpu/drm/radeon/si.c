@@ -2855,19 +2855,19 @@ int si_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib)
 
 	do {
 		pkt.idx = idx;
-		pkt.type = CP_PACKET_GET_TYPE(ib->ptr[idx]);
-		pkt.count = CP_PACKET_GET_COUNT(ib->ptr[idx]);
+		pkt.type = RADEON_CP_PACKET_GET_TYPE(ib->ptr[idx]);
+		pkt.count = RADEON_CP_PACKET_GET_COUNT(ib->ptr[idx]);
 		pkt.one_reg_wr = 0;
 		switch (pkt.type) {
-		case PACKET_TYPE0:
+		case RADEON_PACKET_TYPE0:
 			dev_err(rdev->dev, "Packet0 not allowed!\n");
 			ret = -EINVAL;
 			break;
-		case PACKET_TYPE2:
+		case RADEON_PACKET_TYPE2:
 			idx += 1;
 			break;
-		case PACKET_TYPE3:
-			pkt.opcode = CP_PACKET3_GET_OPCODE(ib->ptr[idx]);
+		case RADEON_PACKET_TYPE3:
+			pkt.opcode = RADEON_CP_PACKET3_GET_OPCODE(ib->ptr[idx]);
 			if (ib->is_const_ib)
 				ret = si_vm_packet3_ce_check(rdev, ib->ptr, &pkt);
 			else {

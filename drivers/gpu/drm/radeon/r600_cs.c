@@ -839,7 +839,7 @@ int r600_cs_common_vline_parse(struct radeon_cs_parser *p,
 		return r;
 
 	/* check its a WAIT_REG_MEM */
-	if (wait_reg_mem.type != PACKET_TYPE3 ||
+	if (wait_reg_mem.type != RADEON_PACKET_TYPE3 ||
 	    wait_reg_mem.opcode != PACKET3_WAIT_REG_MEM) {
 		DRM_ERROR("vline wait missing WAIT_REG_MEM segment\n");
 		return -EINVAL;
@@ -882,7 +882,7 @@ int r600_cs_common_vline_parse(struct radeon_cs_parser *p,
 
 	header = radeon_get_ib_value(p, h_idx);
 	crtc_id = radeon_get_ib_value(p, h_idx + 2 + 7 + 1);
-	reg = CP_PACKET0_GET_REG(header);
+	reg = R600_CP_PACKET0_GET_REG(header);
 
 	obj = drm_mode_object_find(p->rdev->ddev, crtc_id, DRM_MODE_OBJECT_CRTC);
 	if (!obj) {
@@ -2282,12 +2282,12 @@ int r600_cs_parse(struct radeon_cs_parser *p)
 		}
 		p->idx += pkt.count + 2;
 		switch (pkt.type) {
-		case PACKET_TYPE0:
+		case RADEON_PACKET_TYPE0:
 			r = r600_cs_parse_packet0(p, &pkt);
 			break;
-		case PACKET_TYPE2:
+		case RADEON_PACKET_TYPE2:
 			break;
-		case PACKET_TYPE3:
+		case RADEON_PACKET_TYPE3:
 			r = r600_packet3_check(p, &pkt);
 			break;
 		default:

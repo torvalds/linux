@@ -2639,12 +2639,12 @@ int evergreen_cs_parse(struct radeon_cs_parser *p)
 		}
 		p->idx += pkt.count + 2;
 		switch (pkt.type) {
-		case PACKET_TYPE0:
+		case RADEON_PACKET_TYPE0:
 			r = evergreen_cs_parse_packet0(p, &pkt);
 			break;
-		case PACKET_TYPE2:
+		case RADEON_PACKET_TYPE2:
 			break;
-		case PACKET_TYPE3:
+		case RADEON_PACKET_TYPE3:
 			r = evergreen_packet3_check(p, &pkt);
 			break;
 		default:
@@ -3395,19 +3395,19 @@ int evergreen_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib)
 
 	do {
 		pkt.idx = idx;
-		pkt.type = CP_PACKET_GET_TYPE(ib->ptr[idx]);
-		pkt.count = CP_PACKET_GET_COUNT(ib->ptr[idx]);
+		pkt.type = RADEON_CP_PACKET_GET_TYPE(ib->ptr[idx]);
+		pkt.count = RADEON_CP_PACKET_GET_COUNT(ib->ptr[idx]);
 		pkt.one_reg_wr = 0;
 		switch (pkt.type) {
-		case PACKET_TYPE0:
+		case RADEON_PACKET_TYPE0:
 			dev_err(rdev->dev, "Packet0 not allowed!\n");
 			ret = -EINVAL;
 			break;
-		case PACKET_TYPE2:
+		case RADEON_PACKET_TYPE2:
 			idx += 1;
 			break;
-		case PACKET_TYPE3:
-			pkt.opcode = CP_PACKET3_GET_OPCODE(ib->ptr[idx]);
+		case RADEON_PACKET_TYPE3:
+			pkt.opcode = RADEON_CP_PACKET3_GET_OPCODE(ib->ptr[idx]);
 			ret = evergreen_vm_packet3_check(rdev, ib->ptr, &pkt);
 			idx += pkt.count + 2;
 			break;
