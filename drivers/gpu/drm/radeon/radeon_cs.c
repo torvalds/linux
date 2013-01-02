@@ -642,3 +642,56 @@ u32 radeon_get_ib_value(struct radeon_cs_parser *p, int idx)
 	idx_value = ibc->kpage[new_page][pg_offset/4];
 	return idx_value;
 }
+
+/**
+ * radeon_cs_packet_parse() - parse cp packet and point ib index to next packet
+ * @parser:	parser structure holding parsing context.
+ * @pkt:	where to store packet information
+ *
+ * Assume that chunk_ib_index is properly set. Will return -EINVAL
+ * if packet is bigger than remaining ib size. or if packets is unknown.
+ **/
+int radeon_cs_packet_parse(struct radeon_cs_parser *p,
+			   struct radeon_cs_packet *pkt,
+			   unsigned idx)
+{
+	struct radeon_cs_chunk *ib_chunk = &p->chunks[p->chunk_ib_idx];
+	struct radeon_device *rdev = p->rdev;
+	uint32_t header;
+
+	if (idx >= ib_chunk->length_dw) {
+		DRM_ERROR("Can not parse packet at %d after CS end %d !\n",
+			  idx, ib_chunk->length_dw);
+		return -EINVAL;
+	}
+	header = radeon_get_ib_value(p, idx);
+	pkt->idx = idx;
+	pkt->type = RADEON_CP_PACKET_GET_TYPE(header);
+	pkt->count = RADEON_CP_PACKET_GET_COUNT(header);
+	pkt->one_reg_wr = 0;
+	switch (pkt->type) {
+	case RADEON_PACKET_TYPE0:
+		if (rdev->family < CHIP_R600) {
+			pkt->reg = R100_CP_PACKET0_GET_REG(header);
+			pkt->one_reg_wr =
+				RADEON_CP_PACKET0_GET_ONE_REG_WR(header);
+		} else
+			pkt->reg = R600_CP_PACKET0_GET_REG(header);
+		break;
+	case RADEON_PACKET_TYPE3:
+		pkt->opcode = RADEON_CP_PACKET3_GET_OPCODE(header);
+		break;
+	case RADEON_PACKET_TYPE2:
+		pkt->count = -1;
+		break;
+	default:
+		DRM_ERROR("Unknown packet type %d at %d !\n", pkt->type, idx);
+		return -EINVAL;
+	}
+	if ((pkt->count + 1 + pkt->idx) >= ib_chunk->length_dw) {
+		DRM_ERROR("Packet (%d:%d:%d) end after CS buffer (%d) !\n",
+			  pkt->idx, pkt->type, pkt->count, ib_chunk->length_dw);
+		return -EINVAL;
+	}
+	return 0;
+}
