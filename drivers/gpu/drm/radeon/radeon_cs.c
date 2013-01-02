@@ -203,7 +203,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 		p->chunks[i].length_dw = user_chunk.length_dw;
 		p->chunks[i].kdata = NULL;
 		p->chunks[i].chunk_id = user_chunk.chunk_id;
-
+		p->chunks[i].user_ptr = (void __user *)(unsigned long)user_chunk.chunk_data;
 		if (p->chunks[i].chunk_id == RADEON_CHUNK_ID_RELOCS) {
 			p->chunk_relocs_idx = i;
 		}
@@ -225,9 +225,6 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 			if (p->chunks[i].length_dw == 0)
 				return -EINVAL;
 		}
-
-		p->chunks[i].length_dw = user_chunk.length_dw;
-		p->chunks[i].user_ptr = (void __user *)(unsigned long)user_chunk.chunk_data;
 
 		cdata = (uint32_t *)(unsigned long)user_chunk.chunk_data;
 		if ((p->chunks[i].chunk_id == RADEON_CHUNK_ID_RELOCS) ||
