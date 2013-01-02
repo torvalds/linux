@@ -42,16 +42,6 @@ struct zram *zram_devices;
 /* Module params (documentation at end) */
 static unsigned int num_devices = 1;
 
-static void zram_stat_inc(u32 *v)
-{
-	*v = *v + 1;
-}
-
-static void zram_stat_dec(u32 *v)
-{
-	*v = *v - 1;
-}
-
 static void zram_stat64_add(struct zram *zram, u64 *v, u64 inc)
 {
 	spin_lock(&zram->stat64_lock);
@@ -144,22 +134,22 @@ static void zram_free_page(struct zram *zram, size_t index)
 		 */
 		if (zram_test_flag(zram, index, ZRAM_ZERO)) {
 			zram_clear_flag(zram, index, ZRAM_ZERO);
-			zram_stat_dec(&zram->stats.pages_zero);
+			zram->stats.pages_zero--;
 		}
 		return;
 	}
 
 	if (unlikely(size > max_zpage_size))
-		zram_stat_dec(&zram->stats.bad_compress);
+		zram->stats.bad_compress--;
 
 	zs_free(zram->mem_pool, handle);
 
 	if (size <= PAGE_SIZE / 2)
-		zram_stat_dec(&zram->stats.good_compress);
+		zram->stats.good_compress--;
 
 	zram_stat64_sub(zram, &zram->stats.compr_size,
 			zram->table[index].size);
-	zram_stat_dec(&zram->stats.pages_stored);
+	zram->stats.pages_stored--;
 
 	zram->table[index].handle = 0;
 	zram->table[index].size = 0;
@@ -311,7 +301,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
 		kunmap_atomic(user_mem);
 		if (is_partial_io(bvec))
 			kfree(uncmem);
-		zram_stat_inc(&zram->stats.pages_zero);
+		zram->stats.pages_zero++;
 		zram_set_flag(zram, index, ZRAM_ZERO);
 		ret = 0;
 		goto out;
@@ -330,7 +320,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
 	}
 
 	if (unlikely(clen > max_zpage_size)) {
-		zram_stat_inc(&zram->stats.bad_compress);
+		zram->stats.bad_compress++;
 		src = uncmem;
 		clen = PAGE_SIZE;
 	}
@@ -353,9 +343,9 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
 
 	/* Update stats */
 	zram_stat64_add(zram, &zram->stats.compr_size, clen);
-	zram_stat_inc(&zram->stats.pages_stored);
+	zram->stats.pages_stored++;
 	if (clen <= PAGE_SIZE / 2)
-		zram_stat_inc(&zram->stats.good_compress);
+		zram->stats.good_compress++;
 
 	return 0;
 
