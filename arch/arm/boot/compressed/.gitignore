@@ -1,5 +1,6 @@
 font.c
 lib1funcs.S
+shldi3.S
 piggy.gzip
 piggy.lzo
 piggy.lzma
