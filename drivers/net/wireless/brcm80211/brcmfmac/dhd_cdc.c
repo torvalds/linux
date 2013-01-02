@@ -105,7 +105,7 @@ static int brcmf_proto_cdc_msg(struct brcmf_pub *drvr)
 	int len = le32_to_cpu(prot->msg.len) +
 			sizeof(struct brcmf_proto_cdc_dcmd);
 
-	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(CDC, "Enter\n");
 
 	/* NOTE : cdc->msg.len holds the desired length of the buffer to be
 	 *        returned. Only up to CDC_MAX_MSG_SIZE of this buffer area
@@ -123,7 +123,7 @@ static int brcmf_proto_cdc_cmplt(struct brcmf_pub *drvr, u32 id, u32 len)
 	int ret;
 	struct brcmf_proto *prot = drvr->prot;
 
-	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(CDC, "Enter\n");
 	len += sizeof(struct brcmf_proto_cdc_dcmd);
 	do {
 		ret = brcmf_bus_rxctl(drvr->bus_if, (unsigned char *)&prot->msg,
@@ -145,8 +145,7 @@ brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 	int ret = 0, retries = 0;
 	u32 id, flags;
 
-	brcmf_dbg(TRACE, "Enter\n");
-	brcmf_dbg(CTL, "cmd %d len %d\n", cmd, len);
+	brcmf_dbg(CDC, "Enter, cmd %d len %d\n", cmd, len);
 
 	/* Respond "bcmerror" and "bcmerrorstr" with local cache */
 	if (cmd == BRCMF_C_GET_VAR && buf) {
@@ -226,8 +225,7 @@ int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 	int ret = 0;
 	u32 flags, id;
 
-	brcmf_dbg(TRACE, "Enter\n");
-	brcmf_dbg(CTL, "cmd %d len %d\n", cmd, len);
+	brcmf_dbg(CDC, "Enter, cmd %d len %d\n", cmd, len);
 
 	memset(msg, 0, sizeof(struct brcmf_proto_cdc_dcmd));
 
@@ -285,7 +283,7 @@ void brcmf_proto_hdrpush(struct brcmf_pub *drvr, int ifidx,
 {
 	struct brcmf_proto_bdc_header *h;
 
-	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(CDC, "Enter\n");
 
 	/* Push BDC header used to convey priority for buses that don't */
 
@@ -308,7 +306,7 @@ int brcmf_proto_hdrpull(struct brcmf_pub *drvr, u8 *ifidx,
 {
 	struct brcmf_proto_bdc_header *h;
 
-	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(CDC, "Enter\n");
 
 	/* Pop BDC header used to convey priority for buses that don't */
 
@@ -334,7 +332,7 @@ int brcmf_proto_hdrpull(struct brcmf_pub *drvr, u8 *ifidx,
 	}
 
 	if (h->flags & BDC_FLAG_SUM_GOOD) {
-		brcmf_dbg(INFO, "%s: BDC packet received with good rx-csum, flags 0x%x\n",
+		brcmf_dbg(CDC, "%s: BDC rcv, good checksum, flags 0x%x\n",
 			  brcmf_ifname(drvr, *ifidx), h->flags);
 		pkt_set_sum_good(pktbuf, true);
 	}

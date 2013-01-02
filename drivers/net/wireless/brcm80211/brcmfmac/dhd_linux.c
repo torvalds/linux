@@ -459,7 +459,7 @@ static int brcmf_ethtool(struct brcmf_if *ifp, void __user *uaddr)
 		sprintf(info.version, "%lu", drvr->drv_version);
 		if (copy_to_user(uaddr, &info, sizeof(info)))
 			return -EFAULT;
-		brcmf_dbg(CTL, "given %*s, returning %s\n",
+		brcmf_dbg(TRACE, "given %*s, returning %s\n",
 			  (int)sizeof(drvname), drvname, info.driver);
 		break;
 
