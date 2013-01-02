@@ -481,33 +481,14 @@ struct brcmf_pub {
 	unsigned long drv_version;	/* Version of dongle-resident driver */
 	u8 mac[ETH_ALEN];		/* MAC address obtained from dongle */
 
-	/* Additional stats for the bus level */
-
 	/* Multicast data packets sent to dongle */
 	unsigned long tx_multicast;
-	/* Packets flushed due to unscheduled sendup thread */
-	unsigned long rx_flushed;
-	/* Number of times dpc scheduled by watchdog timer */
-	unsigned long wd_dpc_sched;
-
-	/* Number of flow control pkts recvd */
-	unsigned long fc_packets;
-
-	/* Last error return */
-	int bcmerror;
-
-	/* Suspend disable flag  flag */
-	int suspend_disable_flag;	/* "1" to disable all extra powersaving
-					 during suspend */
-	int in_suspend;		/* flag set to 1 when early suspend called */
-	int dtim_skip;		/* dtim skip , default 0 means wake each dtim */
 
 	struct brcmf_if *iflist[BRCMF_MAX_IFS];
 
 	struct mutex proto_block;
 	unsigned char proto_buf[BRCMF_DCMD_MAXLEN];
 
-	u8 macvalue[ETH_ALEN];
 	atomic_t pend_8021x_cnt;
 	wait_queue_head_t pend_8021x_wait;
 
@@ -550,11 +531,6 @@ struct brcmf_if {
 	u8 mac_addr[ETH_ALEN];
 };
 
-static inline s32 brcmf_ndev_bssidx(struct net_device *ndev)
-{
-	struct brcmf_if *ifp = netdev_priv(ndev);
-	return ifp->bssidx;
-}
 
 extern int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
 

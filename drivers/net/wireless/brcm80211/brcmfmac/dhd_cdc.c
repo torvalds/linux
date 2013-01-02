@@ -92,8 +92,6 @@ struct brcmf_proto_bdc_header {
 
 struct brcmf_proto {
 	u16 reqid;
-	u8 pending;
-	u32 lastcmd;
 	u8 bus_header[BUS_HEADER_LEN];
 	struct brcmf_proto_cdc_dcmd msg;
 	unsigned char buf[BRCMF_DCMD_MAXLEN + ROUND_UP_MARGIN];
