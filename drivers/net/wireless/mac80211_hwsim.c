@@ -337,11 +337,11 @@ struct mac80211_hwsim_data {
 	int scan_chan_idx;
 
 	struct ieee80211_channel *channel;
-	unsigned long beacon_int; /* in jiffies unit */
+	u64 beacon_int	/* beacon interval in us */;
 	unsigned int rx_filter;
 	bool started, idle, scanning;
 	struct mutex mutex;
-	struct timer_list beacon_timer;
+	struct tasklet_hrtimer beacon_timer;
 	enum ps_mode {
 		PS_DISABLED, PS_ENABLED, PS_AUTO_POLL, PS_MANUAL_POLL
 	} ps;
@@ -917,7 +917,7 @@ static void mac80211_hwsim_stop(struct ieee80211_hw *hw)
 {
 	struct mac80211_hwsim_data *data = hw->priv;
 	data->started = false;
-	del_timer(&data->beacon_timer);
+	tasklet_hrtimer_cancel(&data->beacon_timer);
 	wiphy_debug(hw->wiphy, "%s\n", __func__);
 }
 
@@ -1001,21 +1001,28 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 				rcu_dereference(vif->chanctx_conf)->def.chan);
 }
 
-
-static void mac80211_hwsim_beacon(unsigned long arg)
+static enum hrtimer_restart
+mac80211_hwsim_beacon(struct hrtimer *timer)
 {
-	struct ieee80211_hw *hw = (struct ieee80211_hw *) arg;
-	struct mac80211_hwsim_data *data = hw->priv;
+	struct mac80211_hwsim_data *data =
+		container_of(timer, struct mac80211_hwsim_data,
+			     beacon_timer.timer);
+	struct ieee80211_hw *hw = data->hw;
+	u64 bcn_int = data->beacon_int;
+	ktime_t next_bcn;
 
 	if (!data->started)
-		return;
+		goto out;
 
 	ieee80211_iterate_active_interfaces_atomic(
 		hw, IEEE80211_IFACE_ITER_NORMAL,
 		mac80211_hwsim_beacon_tx, hw);
 
-	data->beacon_timer.expires = jiffies + data->beacon_int;
-	add_timer(&data->beacon_timer);
+	next_bcn = ktime_add(hrtimer_get_expires(timer),
+			     ns_to_ktime(bcn_int * 1000));
+	tasklet_hrtimer_start(&data->beacon_timer, next_bcn, HRTIMER_MODE_ABS);
+out:
+	return HRTIMER_NORESTART;
 }
 
 static const char *hwsim_chantypes[] = {
@@ -1053,9 +1060,12 @@ static int mac80211_hwsim_config(struct ieee80211_hw *hw, u32 changed)
 
 	data->power_level = conf->power_level;
 	if (!data->started || !data->beacon_int)
-		del_timer(&data->beacon_timer);
-	else
-		mod_timer(&data->beacon_timer, jiffies + data->beacon_int);
+		tasklet_hrtimer_cancel(&data->beacon_timer);
+	else if (!hrtimer_is_queued(&data->beacon_timer.timer)) {
+		tasklet_hrtimer_start(&data->beacon_timer,
+				      ns_to_ktime(data->beacon_int * 1000),
+				      HRTIMER_MODE_REL);
+	}
 
 	return 0;
 }
@@ -1105,12 +1115,22 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_BEACON_INT) {
 		wiphy_debug(hw->wiphy, "  BCNINT: %d\n", info->beacon_int);
-		data->beacon_int = 1024 * info->beacon_int / 1000 * HZ / 1000;
-		if (WARN_ON(!data->beacon_int))
-			data->beacon_int = 1;
-		if (data->started)
-			mod_timer(&data->beacon_timer,
-				  jiffies + data->beacon_int);
+		data->beacon_int = info->beacon_int * 1024;
+	}
+
+	if (changed & BSS_CHANGED_BEACON_ENABLED) {
+		wiphy_debug(hw->wiphy, "  BCN EN: %d\n", info->enable_beacon);
+		if (data->started &&
+		    !hrtimer_is_queued(&data->beacon_timer.timer) &&
+		    info->enable_beacon) {
+			if (WARN_ON(!data->beacon_int))
+				data->beacon_int = 1000 * 1024;
+			tasklet_hrtimer_start(&data->beacon_timer,
+					      ns_to_ktime(data->beacon_int *
+							  1000),
+					      HRTIMER_MODE_REL);
+		} else if (!info->enable_beacon)
+			tasklet_hrtimer_cancel(&data->beacon_timer);
 	}
 
 	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
@@ -2393,8 +2413,9 @@ static int __init init_mac80211_hwsim(void)
 							data->debugfs, data,
 							&hwsim_fops_group);
 
-		setup_timer(&data->beacon_timer, mac80211_hwsim_beacon,
-			    (unsigned long) hw);
+		tasklet_hrtimer_init(&data->beacon_timer,
+				     mac80211_hwsim_beacon,
+				     CLOCK_REALTIME, HRTIMER_MODE_ABS);
 
 		list_add_tail(&data->list, &hwsim_radios);
 	}
