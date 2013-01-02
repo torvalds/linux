@@ -29,9 +29,6 @@
 #include "radeon_reg.h"
 #include "radeon.h"
 
-void r100_cs_dump_packet(struct radeon_cs_parser *p,
-			 struct radeon_cs_packet *pkt);
-
 static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 {
 	struct drm_device *ddev = p->rdev->ddev;
