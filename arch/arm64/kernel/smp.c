@@ -236,6 +236,7 @@ static void (*smp_cross_call)(const struct cpumask *, unsigned int);
 
 static const struct smp_enable_ops *enable_ops[] __initconst = {
 	&smp_spin_table_ops,
+	&smp_psci_ops,
 	NULL,
 };
 
