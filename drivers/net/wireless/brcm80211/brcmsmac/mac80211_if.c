@@ -362,8 +362,10 @@ brcms_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		return -EOPNOTSUPP;
 	}
 
+	spin_lock_bh(&wl->lock);
 	wl->mute_tx = false;
 	brcms_c_mute(wl->wlc, false);
+	spin_unlock_bh(&wl->lock);
 
 	return 0;
 }
