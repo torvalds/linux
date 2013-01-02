@@ -2106,31 +2106,30 @@ int r100_cs_parse(struct radeon_cs_parser *p)
 		}
 		p->idx += pkt.count + 2;
 		switch (pkt.type) {
-			case PACKET_TYPE0:
-				if (p->rdev->family >= CHIP_R200)
-					r = r100_cs_parse_packet0(p, &pkt,
-								  p->rdev->config.r100.reg_safe_bm,
-								  p->rdev->config.r100.reg_safe_bm_size,
-								  &r200_packet0_check);
-				else
-					r = r100_cs_parse_packet0(p, &pkt,
-								  p->rdev->config.r100.reg_safe_bm,
-								  p->rdev->config.r100.reg_safe_bm_size,
-								  &r100_packet0_check);
-				break;
-			case PACKET_TYPE2:
-				break;
-			case PACKET_TYPE3:
-				r = r100_packet3_check(p, &pkt);
-				break;
-			default:
-				DRM_ERROR("Unknown packet type %d !\n",
-					  pkt.type);
-				return -EINVAL;
+		case PACKET_TYPE0:
+			if (p->rdev->family >= CHIP_R200)
+				r = r100_cs_parse_packet0(p, &pkt,
+					p->rdev->config.r100.reg_safe_bm,
+					p->rdev->config.r100.reg_safe_bm_size,
+					&r200_packet0_check);
+			else
+				r = r100_cs_parse_packet0(p, &pkt,
+					p->rdev->config.r100.reg_safe_bm,
+					p->rdev->config.r100.reg_safe_bm_size,
+					&r100_packet0_check);
+			break;
+		case PACKET_TYPE2:
+			break;
+		case PACKET_TYPE3:
+			r = r100_packet3_check(p, &pkt);
+			break;
+		default:
+			DRM_ERROR("Unknown packet type %d !\n",
+				  pkt.type);
+			return -EINVAL;
 		}
-		if (r) {
+		if (r)
 			return r;
-		}
 	} while (p->idx < p->chunks[p->chunk_ib_idx].length_dw);
 	return 0;
 }
