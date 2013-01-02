@@ -28,11 +28,11 @@
 
 #include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
-#include <mach/regs-syscon-power.h>
 
 #include "regs-gpio-memport.h"
 #include "regs-modem.h"
 #include "regs-sys.h"
+#include "regs-syscon-power.h"
 
 struct s3c64xx_pm_domain {
 	char *const name;
