@@ -2125,7 +2125,7 @@ static const struct iio_info adt7516_info = {
 /*
  * device probe and remove
  */
-int __devinit adt7316_probe(struct device *dev, struct adt7316_bus *bus,
+int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 		const char *name)
 {
 	struct adt7316_chip_info *chip;
@@ -2216,7 +2216,7 @@ error_ret:
 }
 EXPORT_SYMBOL(adt7316_probe);
 
-int __devexit adt7316_remove(struct device *dev)
+int adt7316_remove(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct adt7316_chip_info *chip = iio_priv(indio_dev);

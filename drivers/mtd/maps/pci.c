@@ -253,7 +253,7 @@ static struct pci_device_id mtd_pci_ids[] = {
  * Generic code follows.
  */
 
-static int __devinit
+static int
 mtd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct mtd_pci_info *info = (struct mtd_pci_info *)id->driver_data;
@@ -308,7 +308,7 @@ out:
 	return err;
 }
 
-static void __devexit
+static void
 mtd_pci_remove(struct pci_dev *dev)
 {
 	struct mtd_info *mtd = pci_get_drvdata(dev);
@@ -326,7 +326,7 @@ mtd_pci_remove(struct pci_dev *dev)
 static struct pci_driver mtd_pci_driver = {
 	.name =		"MTD PCI",
 	.probe =	mtd_pci_probe,
-	.remove =	__devexit_p(mtd_pci_remove),
+	.remove =	mtd_pci_remove,
 	.id_table =	mtd_pci_ids,
 };
 

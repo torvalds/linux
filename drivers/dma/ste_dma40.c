@@ -19,8 +19,7 @@
 #include <linux/err.h>
 #include <linux/amba/bus.h>
 #include <linux/regulator/consumer.h>
-
-#include <plat/ste_dma40.h>
+#include <linux/platform_data/dma-ste-dma40.h>
 
 #include "dmaengine.h"
 #include "ste_dma40_ll.h"

@@ -334,7 +334,7 @@ static struct snd_pcm_ops snd_pcsp_playback_ops = {
 	.pointer = snd_pcsp_playback_pointer,
 };
 
-int __devinit snd_pcsp_new_pcm(struct snd_pcsp *chip)
+int snd_pcsp_new_pcm(struct snd_pcsp *chip)
 {
 	int err;
 

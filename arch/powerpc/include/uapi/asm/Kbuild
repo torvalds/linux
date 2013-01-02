@@ -7,6 +7,7 @@ header-y += bootx.h
 header-y += byteorder.h
 header-y += cputable.h
 header-y += elf.h
+header-y += epapr_hcalls.h
 header-y += errno.h
 header-y += fcntl.h
 header-y += ioctl.h

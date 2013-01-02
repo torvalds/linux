@@ -30,7 +30,20 @@ struct nv10_fb_priv {
 	struct nouveau_fb base;
 };
 
-static void
+static int
+nv10_fb_vram_init(struct nouveau_fb *pfb)
+{
+	u32 cfg0 = nv_rd32(pfb, 0x100200);
+	if (cfg0 & 0x00000001)
+		pfb->ram.type = NV_MEM_TYPE_DDR1;
+	else
+		pfb->ram.type = NV_MEM_TYPE_SDRAM;
+
+	pfb->ram.size = nv_rd32(pfb, 0x10020c) & 0xff000000;
+	return 0;
+}
+
+void
 nv10_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
 		  u32 flags, struct nouveau_fb_tile *tile)
 {
@@ -39,7 +52,7 @@ nv10_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
 	tile->pitch = pitch;
 }
 
-static void
+void
 nv10_fb_tile_fini(struct nouveau_fb *pfb, int i, struct nouveau_fb_tile *tile)
 {
 	tile->addr  = 0;
@@ -54,6 +67,7 @@ nv10_fb_tile_prog(struct nouveau_fb *pfb, int i, struct nouveau_fb_tile *tile)
 	nv_wr32(pfb, 0x100244 + (i * 0x10), tile->limit);
 	nv_wr32(pfb, 0x100248 + (i * 0x10), tile->pitch);
 	nv_wr32(pfb, 0x100240 + (i * 0x10), tile->addr);
+	nv_rd32(pfb, 0x100240 + (i * 0x10));
 }
 
 static int
@@ -61,7 +75,6 @@ nv10_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	     struct nouveau_oclass *oclass, void *data, u32 size,
 	     struct nouveau_object **pobject)
 {
-	struct nouveau_device *device = nv_device(parent);
 	struct nv10_fb_priv *priv;
 	int ret;
 
@@ -70,42 +83,13 @@ nv10_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	if (device->chipset == 0x1a ||  device->chipset == 0x1f) {
-		struct pci_dev *bridge;
-		u32 mem, mib;
-
-		bridge = pci_get_bus_and_slot(0, PCI_DEVFN(0, 1));
-		if (!bridge) {
-			nv_fatal(device, "no bridge device\n");
-			return 0;
-		}
-
-		if (device->chipset == 0x1a) {
-			pci_read_config_dword(bridge, 0x7c, &mem);
-			mib = ((mem >> 6) & 31) + 1;
-		} else {
-			pci_read_config_dword(bridge, 0x84, &mem);
-			mib = ((mem >> 4) & 127) + 1;
-		}
-
-		priv->base.ram.type = NV_MEM_TYPE_STOLEN;
-		priv->base.ram.size = mib * 1024 * 1024;
-	} else {
-		u32 cfg0 = nv_rd32(priv, 0x100200);
-		if (cfg0 & 0x00000001)
-			priv->base.ram.type = NV_MEM_TYPE_DDR1;
-		else
-			priv->base.ram.type = NV_MEM_TYPE_SDRAM;
-
-		priv->base.ram.size = nv_rd32(priv, 0x10020c) & 0xff000000;
-	}
-
 	priv->base.memtype_valid = nv04_fb_memtype_valid;
+	priv->base.ram.init = nv10_fb_vram_init;
 	priv->base.tile.regions = 8;
 	priv->base.tile.init = nv10_fb_tile_init;
 	priv->base.tile.fini = nv10_fb_tile_fini;
 	priv->base.tile.prog = nv10_fb_tile_prog;
-	return nouveau_fb_created(&priv->base);
+	return nouveau_fb_preinit(&priv->base);
 }
 
 struct nouveau_oclass

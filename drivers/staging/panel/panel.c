@@ -1758,7 +1758,7 @@ static inline int input_state_high(struct logical_input *input)
 				char *press_str = input->u.kbd.press_str;
 				if (press_str[0])
 					keypad_send_key(press_str,
-							sizeof(press_str));
+							sizeof(input->u.kbd.press_str));
 			}
 
 			if (input->u.kbd.repeat_str[0]) {
@@ -1766,7 +1766,7 @@ static inline int input_state_high(struct logical_input *input)
 				if (input->high_timer >= KEYPAD_REP_START) {
 					input->high_timer -= KEYPAD_REP_DELAY;
 					keypad_send_key(repeat_str,
-							sizeof(repeat_str));
+							sizeof(input->u.kbd.repeat_str));
 				}
 				/* we will need to come back here soon */
 				inputs_stable = 0;
@@ -1805,7 +1805,7 @@ static inline void input_state_falling(struct logical_input *input)
 				if (input->high_timer >= KEYPAD_REP_START)
 					input->high_timer -= KEYPAD_REP_DELAY;
 					keypad_send_key(repeat_str,
-							sizeof(repeat_str));
+							sizeof(input->u.kbd.repeat_str));
 				/* we will need to come back here soon */
 				inputs_stable = 0;
 			}
@@ -1824,7 +1824,7 @@ static inline void input_state_falling(struct logical_input *input)
 			char *release_str = input->u.kbd.release_str;
 			if (release_str[0])
 				keypad_send_key(release_str,
-						sizeof(release_str));
+						sizeof(input->u.kbd.release_str));
 		}
 
 		input->state = INPUT_ST_LOW;

@@ -994,6 +994,23 @@ payload contents" for more information.
     reference pointer if successful.
 
 
+(*) A keyring can be created by:
+
+	struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
+				  const struct cred *cred,
+				  key_perm_t perm,
+				  unsigned long flags,
+				  struct key *dest);
+
+    This creates a keyring with the given attributes and returns it.  If dest
+    is not NULL, the new keyring will be linked into the keyring to which it
+    points.  No permission checks are made upon the destination keyring.
+
+    Error EDQUOT can be returned if the keyring would overload the quota (pass
+    KEY_ALLOC_NOT_IN_QUOTA in flags if the keyring shouldn't be accounted
+    towards the user's quota).  Error ENOMEM can also be returned.
+
+
 (*) To check the validity of a key, this function can be called:
 
 	int validate_key(struct key *key);

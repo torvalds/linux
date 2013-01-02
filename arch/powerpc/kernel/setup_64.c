@@ -601,6 +601,11 @@ void __init setup_arch(char **cmdline_p)
 
 	kvm_linear_init();
 
+	/* Interrupt code needs to be 64K-aligned */
+	if ((unsigned long)_stext & 0xffff)
+		panic("Kernelbase not 64K-aligned (0x%lx)!\n",
+		      (unsigned long)_stext);
+
 	ppc64_boot_msg(0x15, "Setup Done");
 }
 

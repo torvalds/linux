@@ -36,13 +36,13 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
-#include <mach/hardware.h>
-#include <mach/common.h>
-#include <mach/iomux-mx27.h>
-#include <mach/ulpi.h>
-#include <mach/3ds_debugboard.h>
 
+#include "3ds_debugboard.h"
+#include "common.h"
 #include "devices-imx27.h"
+#include "hardware.h"
+#include "iomux-mx27.h"
+#include "ulpi.h"
 
 #define SD1_EN_GPIO		IMX_GPIO_NR(2, 25)
 #define OTG_PHY_RESET_GPIO	IMX_GPIO_NR(2, 23)

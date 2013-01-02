@@ -67,6 +67,14 @@ void generic_mach_cpu_die(void);
 void generic_set_cpu_dead(unsigned int cpu);
 void generic_set_cpu_up(unsigned int cpu);
 int generic_check_cpu_restart(unsigned int cpu);
+
+extern void inhibit_secondary_onlining(void);
+extern void uninhibit_secondary_onlining(void);
+
+#else /* HOTPLUG_CPU */
+static inline void inhibit_secondary_onlining(void) {}
+static inline void uninhibit_secondary_onlining(void) {}
+
 #endif
 
 #ifdef CONFIG_PPC64

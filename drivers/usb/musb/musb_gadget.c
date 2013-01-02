@@ -1090,7 +1090,6 @@ static int musb_gadget_enable(struct usb_ep *ep,
 	 */
 	musb_ep_select(mbase, epnum);
 	if (usb_endpoint_dir_in(desc)) {
-		u16 int_txe = musb_readw(mbase, MUSB_INTRTXE);
 
 		if (hw_ep->is_shared_fifo)
 			musb_ep->is_in = 1;
@@ -1102,8 +1101,8 @@ static int musb_gadget_enable(struct usb_ep *ep,
 			goto fail;
 		}
 
-		int_txe |= (1 << epnum);
-		musb_writew(mbase, MUSB_INTRTXE, int_txe);
+		musb->intrtxe |= (1 << epnum);
+		musb_writew(mbase, MUSB_INTRTXE, musb->intrtxe);
 
 		/* REVISIT if can_bulk_split(), use by updating "tmp";
 		 * likewise high bandwidth periodic tx
@@ -1130,7 +1129,6 @@ static int musb_gadget_enable(struct usb_ep *ep,
 		musb_writew(regs, MUSB_TXCSR, csr);
 
 	} else {
-		u16 int_rxe = musb_readw(mbase, MUSB_INTRRXE);
 
 		if (hw_ep->is_shared_fifo)
 			musb_ep->is_in = 0;
@@ -1142,8 +1140,8 @@ static int musb_gadget_enable(struct usb_ep *ep,
 			goto fail;
 		}
 
-		int_rxe |= (1 << epnum);
-		musb_writew(mbase, MUSB_INTRRXE, int_rxe);
+		musb->intrrxe |= (1 << epnum);
+		musb_writew(mbase, MUSB_INTRRXE, musb->intrrxe);
 
 		/* REVISIT if can_bulk_combine() use by updating "tmp"
 		 * likewise high bandwidth periodic rx
@@ -1231,14 +1229,12 @@ static int musb_gadget_disable(struct usb_ep *ep)
 
 	/* zero the endpoint sizes */
 	if (musb_ep->is_in) {
-		u16 int_txe = musb_readw(musb->mregs, MUSB_INTRTXE);
-		int_txe &= ~(1 << epnum);
-		musb_writew(musb->mregs, MUSB_INTRTXE, int_txe);
+		musb->intrtxe &= ~(1 << epnum);
+		musb_writew(musb->mregs, MUSB_INTRTXE, musb->intrtxe);
 		musb_writew(epio, MUSB_TXMAXP, 0);
 	} else {
-		u16 int_rxe = musb_readw(musb->mregs, MUSB_INTRRXE);
-		int_rxe &= ~(1 << epnum);
-		musb_writew(musb->mregs, MUSB_INTRRXE, int_rxe);
+		musb->intrrxe &= ~(1 << epnum);
+		musb_writew(musb->mregs, MUSB_INTRRXE, musb->intrrxe);
 		musb_writew(epio, MUSB_RXMAXP, 0);
 	}
 
@@ -1554,7 +1550,7 @@ static void musb_gadget_fifo_flush(struct usb_ep *ep)
 	void __iomem	*epio = musb->endpoints[epnum].regs;
 	void __iomem	*mbase;
 	unsigned long	flags;
-	u16		csr, int_txe;
+	u16		csr;
 
 	mbase = musb->mregs;
 
@@ -1562,8 +1558,7 @@ static void musb_gadget_fifo_flush(struct usb_ep *ep)
 	musb_ep_select(mbase, (u8) epnum);
 
 	/* disable interrupts */
-	int_txe = musb_readw(mbase, MUSB_INTRTXE);
-	musb_writew(mbase, MUSB_INTRTXE, int_txe & ~(1 << epnum));
+	musb_writew(mbase, MUSB_INTRTXE, musb->intrtxe & ~(1 << epnum));
 
 	if (musb_ep->is_in) {
 		csr = musb_readw(epio, MUSB_TXCSR);
@@ -1587,7 +1582,7 @@ static void musb_gadget_fifo_flush(struct usb_ep *ep)
 	}
 
 	/* re-enable interrupt */
-	musb_writew(mbase, MUSB_INTRTXE, int_txe);
+	musb_writew(mbase, MUSB_INTRTXE, musb->intrtxe);
 	spin_unlock_irqrestore(&musb->lock, flags);
 }
 
@@ -1792,7 +1787,7 @@ static void musb_gadget_release(struct device *dev)
 }
 
 
-static void __devinit
+static void
 init_peripheral_ep(struct musb *musb, struct musb_ep *ep, u8 epnum, int is_in)
 {
 	struct musb_hw_ep	*hw_ep = musb->endpoints + epnum;
@@ -1829,7 +1824,7 @@ init_peripheral_ep(struct musb *musb, struct musb_ep *ep, u8 epnum, int is_in)
  * Initialize the endpoints exposed to peripheral drivers, with backlinks
  * to the rest of the driver state.
  */
-static inline void __devinit musb_g_init_endpoints(struct musb *musb)
+static inline void musb_g_init_endpoints(struct musb *musb)
 {
 	u8			epnum;
 	struct musb_hw_ep	*hw_ep;
@@ -1862,7 +1857,7 @@ static inline void __devinit musb_g_init_endpoints(struct musb *musb)
 /* called once during driver setup to initialize and link into
  * the driver model; memory is zeroed.
  */
-int __devinit musb_gadget_setup(struct musb *musb)
+int musb_gadget_setup(struct musb *musb)
 {
 	int status;
 
@@ -2176,10 +2171,9 @@ __acquires(musb->lock)
 	u8		devctl = musb_readb(mbase, MUSB_DEVCTL);
 	u8		power;
 
-	dev_dbg(musb->controller, "<== %s addr=%x driver '%s'\n",
+	dev_dbg(musb->controller, "<== %s driver '%s'\n",
 			(devctl & MUSB_DEVCTL_BDEVICE)
 				? "B-Device" : "A-Device",
-			musb_readb(mbase, MUSB_FADDR),
 			musb->gadget_driver
 				? musb->gadget_driver->driver.name
 				: NULL

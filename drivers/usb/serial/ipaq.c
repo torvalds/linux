@@ -25,11 +25,6 @@
 
 #define KP_RETRIES	100
 
-/*
- * Version Information
- */
-
-#define DRIVER_VERSION "v1.0"
 #define DRIVER_AUTHOR "Ganesh Varadarajan <ganesh@veritas.com>"
 #define DRIVER_DESC "USB PocketPC PDA driver"
 

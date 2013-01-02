@@ -349,7 +349,6 @@ static int ehci_fsl_reinit(struct ehci_hcd *ehci)
 {
 	if (ehci_fsl_usb_setup(ehci))
 		return -EINVAL;
-	ehci_port_power(ehci, 0);
 
 	return 0;
 }

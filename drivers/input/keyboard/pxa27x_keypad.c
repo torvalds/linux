@@ -482,7 +482,7 @@ static const struct dev_pm_ops pxa27x_keypad_pm_ops = {
 };
 #endif
 
-static int __devinit pxa27x_keypad_probe(struct platform_device *pdev)
+static int pxa27x_keypad_probe(struct platform_device *pdev)
 {
 	struct pxa27x_keypad_platform_data *pdata = pdev->dev.platform_data;
 	struct pxa27x_keypad *keypad;
@@ -595,7 +595,7 @@ failed_free:
 	return error;
 }
 
-static int __devexit pxa27x_keypad_remove(struct platform_device *pdev)
+static int pxa27x_keypad_remove(struct platform_device *pdev)
 {
 	struct pxa27x_keypad *keypad = platform_get_drvdata(pdev);
 	struct resource *res;
@@ -620,7 +620,7 @@ MODULE_ALIAS("platform:pxa27x-keypad");
 
 static struct platform_driver pxa27x_keypad_driver = {
 	.probe		= pxa27x_keypad_probe,
-	.remove		= __devexit_p(pxa27x_keypad_remove),
+	.remove		= pxa27x_keypad_remove,
 	.driver		= {
 		.name	= "pxa27x-keypad",
 		.owner	= THIS_MODULE,

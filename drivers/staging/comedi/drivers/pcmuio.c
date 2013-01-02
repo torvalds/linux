@@ -194,11 +194,6 @@ struct pcmuio_private {
 	struct pcmuio_subdev_private *sprivs;
 };
 
-/*
- * most drivers define the following macro to make it easy to
- * access the private structure.
- */
-#define devpriv ((struct pcmuio_private *)dev->private)
 #define subpriv ((struct pcmuio_subdev_private *)s->private)
 
 /* DIO devices are slightly special.  Although it is possible to
@@ -348,6 +343,7 @@ static int pcmuio_dio_insn_config(struct comedi_device *dev,
 static void switch_page(struct comedi_device *dev, int asic, int page)
 {
 	const struct pcmuio_board *board = comedi_board(dev);
+	struct pcmuio_private *devpriv = dev->private;
 
 	if (asic < 0 || asic >= board->num_asics)
 		return;		/* paranoia */
@@ -404,6 +400,7 @@ static void init_asics(struct comedi_device *dev)
 static void lock_port(struct comedi_device *dev, int asic, int port)
 {
 	const struct pcmuio_board *board = comedi_board(dev);
+	struct pcmuio_private *devpriv = dev->private;
 
 	if (asic < 0 || asic >= board->num_asics)
 		return;		/* paranoia */
@@ -419,6 +416,7 @@ static void lock_port(struct comedi_device *dev, int asic, int port)
 static void unlock_port(struct comedi_device *dev, int asic, int port)
 {
 	const struct pcmuio_board *board = comedi_board(dev);
+	struct pcmuio_private *devpriv = dev->private;
 
 	if (asic < 0 || asic >= board->num_asics)
 		return;		/* paranoia */
@@ -435,6 +433,7 @@ static void pcmuio_stop_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
 	int nports, firstport, asic, port;
+	struct pcmuio_private *devpriv = dev->private;
 
 	asic = subpriv->intr.asic;
 	if (asic < 0)
@@ -456,6 +455,7 @@ static irqreturn_t interrupt_pcmuio(int irq, void *d)
 {
 	int asic, got1 = 0;
 	struct comedi_device *dev = (struct comedi_device *)d;
+	struct pcmuio_private *devpriv = dev->private;
 	int i;
 
 	for (asic = 0; asic < MAX_ASICS; ++asic) {
@@ -607,6 +607,8 @@ static irqreturn_t interrupt_pcmuio(int irq, void *d)
 static int pcmuio_start_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
+	struct pcmuio_private *devpriv = dev->private;
+
 	if (!subpriv->intr.continuous && subpriv->intr.stop_count == 0) {
 		/* An empty acquisition! */
 		s->async->events |= COMEDI_CB_EOA;
@@ -748,6 +750,7 @@ pcmuio_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcmuio_board *board = comedi_board(dev);
+	struct pcmuio_private *devpriv;
 	struct comedi_subdevice *s;
 	int sdev_no, chans_left, n_subdevs, port, asic, thisasic_chanct = 0;
 	unsigned long iobase;
@@ -772,15 +775,10 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->board_name = board->name;
 
-/*
- * Allocate the private structure area.  alloc_private() is a
- * convenient macro defined in comedidev.h.
- */
-	if (alloc_private(dev, sizeof(struct pcmuio_private)) < 0) {
-		dev_warn(dev->class_dev,
-			 "cannot allocate private data structure\n");
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
 		return -ENOMEM;
-	}
+	dev->private = devpriv;
 
 	for (asic = 0; asic < MAX_ASICS; ++asic) {
 		devpriv->asics[asic].num = asic;
@@ -905,6 +903,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 static void pcmuio_detach(struct comedi_device *dev)
 {
 	const struct pcmuio_board *board = comedi_board(dev);
+	struct pcmuio_private *devpriv = dev->private;
 	int i;
 
 	if (dev->iobase)

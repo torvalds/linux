@@ -100,6 +100,7 @@ typedef struct xfs_buftarg {
 struct xfs_buf;
 typedef void (*xfs_buf_iodone_t)(struct xfs_buf *);
 
+
 #define XB_PAGES	2
 
 struct xfs_buf_map {
@@ -109,6 +110,11 @@ struct xfs_buf_map {
 
 #define DEFINE_SINGLE_BUF_MAP(map, blkno, numblk) \
 	struct xfs_buf_map (map) = { .bm_bn = (blkno), .bm_len = (numblk) };
+
+struct xfs_buf_ops {
+	void (*verify_read)(struct xfs_buf *);
+	void (*verify_write)(struct xfs_buf *);
+};
 
 typedef struct xfs_buf {
 	/*
@@ -153,12 +159,12 @@ typedef struct xfs_buf {
 	unsigned int		b_page_count;	/* size of page array */
 	unsigned int		b_offset;	/* page offset in first page */
 	unsigned short		b_error;	/* error code on I/O */
+	const struct xfs_buf_ops	*b_ops;
 
 #ifdef XFS_BUF_LOCK_TRACKING
 	int			b_last_holder;
 #endif
 } xfs_buf_t;
-
 
 /* Finding and Reading Buffers */
 struct xfs_buf *_xfs_buf_find(struct xfs_buftarg *target,
@@ -196,9 +202,11 @@ struct xfs_buf *xfs_buf_get_map(struct xfs_buftarg *target,
 			       xfs_buf_flags_t flags);
 struct xfs_buf *xfs_buf_read_map(struct xfs_buftarg *target,
 			       struct xfs_buf_map *map, int nmaps,
-			       xfs_buf_flags_t flags);
+			       xfs_buf_flags_t flags,
+			       const struct xfs_buf_ops *ops);
 void xfs_buf_readahead_map(struct xfs_buftarg *target,
-			       struct xfs_buf_map *map, int nmaps);
+			       struct xfs_buf_map *map, int nmaps,
+			       const struct xfs_buf_ops *ops);
 
 static inline struct xfs_buf *
 xfs_buf_get(
@@ -216,20 +224,22 @@ xfs_buf_read(
 	struct xfs_buftarg	*target,
 	xfs_daddr_t		blkno,
 	size_t			numblks,
-	xfs_buf_flags_t		flags)
+	xfs_buf_flags_t		flags,
+	const struct xfs_buf_ops *ops)
 {
 	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
-	return xfs_buf_read_map(target, &map, 1, flags);
+	return xfs_buf_read_map(target, &map, 1, flags, ops);
 }
 
 static inline void
 xfs_buf_readahead(
 	struct xfs_buftarg	*target,
 	xfs_daddr_t		blkno,
-	size_t			numblks)
+	size_t			numblks,
+	const struct xfs_buf_ops *ops)
 {
 	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
-	return xfs_buf_readahead_map(target, &map, 1);
+	return xfs_buf_readahead_map(target, &map, 1, ops);
 }
 
 struct xfs_buf *xfs_buf_get_empty(struct xfs_buftarg *target, size_t numblks);
@@ -239,7 +249,8 @@ int xfs_buf_associate_memory(struct xfs_buf *bp, void *mem, size_t length);
 struct xfs_buf *xfs_buf_get_uncached(struct xfs_buftarg *target, size_t numblks,
 				int flags);
 struct xfs_buf *xfs_buf_read_uncached(struct xfs_buftarg *target,
-				xfs_daddr_t daddr, size_t numblks, int flags);
+				xfs_daddr_t daddr, size_t numblks, int flags,
+				const struct xfs_buf_ops *ops);
 void xfs_buf_hold(struct xfs_buf *bp);
 
 /* Releasing Buffers */

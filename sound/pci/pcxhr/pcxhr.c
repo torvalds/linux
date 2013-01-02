@@ -1203,8 +1203,8 @@ static int pcxhr_chip_dev_free(struct snd_device *device)
 
 /*
  */
-static int __devinit pcxhr_create(struct pcxhr_mgr *mgr,
-				  struct snd_card *card, int idx)
+static int pcxhr_create(struct pcxhr_mgr *mgr,
+			struct snd_card *card, int idx)
 {
 	int err;
 	struct snd_pcxhr *chip;
@@ -1453,7 +1453,7 @@ static void pcxhr_proc_ltc(struct snd_info_entry *entry,
 	}
 }
 
-static void __devinit pcxhr_proc_init(struct snd_pcxhr *chip)
+static void pcxhr_proc_init(struct snd_pcxhr *chip)
 {
 	struct snd_info_entry *entry;
 
@@ -1513,8 +1513,8 @@ static int pcxhr_free(struct pcxhr_mgr *mgr)
 /*
  *    probe function - creates the card manager
  */
-static int __devinit pcxhr_probe(struct pci_dev *pci,
-				 const struct pci_device_id *pci_id)
+static int pcxhr_probe(struct pci_dev *pci,
+		       const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct pcxhr_mgr *mgr;
@@ -1688,7 +1688,7 @@ static int __devinit pcxhr_probe(struct pci_dev *pci,
 	return 0;
 }
 
-static void __devexit pcxhr_remove(struct pci_dev *pci)
+static void pcxhr_remove(struct pci_dev *pci)
 {
 	pcxhr_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -1698,7 +1698,7 @@ static struct pci_driver pcxhr_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = pcxhr_ids,
 	.probe = pcxhr_probe,
-	.remove = __devexit_p(pcxhr_remove),
+	.remove = pcxhr_remove,
 };
 
 module_pci_driver(pcxhr_driver);

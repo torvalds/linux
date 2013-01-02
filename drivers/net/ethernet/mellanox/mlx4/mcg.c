@@ -54,12 +54,7 @@ struct mlx4_mgm {
 
 int mlx4_get_mgm_entry_size(struct mlx4_dev *dev)
 {
-	if (dev->caps.steering_mode ==
-	    MLX4_STEERING_MODE_DEVICE_MANAGED)
-		return 1 << MLX4_FS_MGM_LOG_ENTRY_SIZE;
-	else
-		return min((1 << mlx4_log_num_mgm_entry_size),
-			   MLX4_MAX_MGM_ENTRY_SIZE);
+	return 1 << dev->oper_log_mgm_entry_size;
 }
 
 int mlx4_get_qp_per_mgm(struct mlx4_dev *dev)

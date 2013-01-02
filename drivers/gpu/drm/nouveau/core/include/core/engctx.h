@@ -39,6 +39,9 @@ void nouveau_engctx_destroy(struct nouveau_engctx *);
 int  nouveau_engctx_init(struct nouveau_engctx *);
 int  nouveau_engctx_fini(struct nouveau_engctx *, bool suspend);
 
+int  _nouveau_engctx_ctor(struct nouveau_object *, struct nouveau_object *,
+			  struct nouveau_oclass *, void *, u32,
+			  struct nouveau_object **);
 void _nouveau_engctx_dtor(struct nouveau_object *);
 int  _nouveau_engctx_init(struct nouveau_object *);
 int  _nouveau_engctx_fini(struct nouveau_object *, bool suspend);

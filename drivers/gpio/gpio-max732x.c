@@ -526,7 +526,7 @@ static void max732x_irq_teardown(struct max732x_chip *chip)
 }
 #endif
 
-static int __devinit max732x_setup_gpio(struct max732x_chip *chip,
+static int max732x_setup_gpio(struct max732x_chip *chip,
 					const struct i2c_device_id *id,
 					unsigned gpio_start)
 {
@@ -574,7 +574,7 @@ static int __devinit max732x_setup_gpio(struct max732x_chip *chip,
 	return port;
 }
 
-static int __devinit max732x_probe(struct i2c_client *client,
+static int max732x_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	struct max732x_platform_data *pdata;
@@ -651,7 +651,7 @@ out_failed:
 	return ret;
 }
 
-static int __devexit max732x_remove(struct i2c_client *client)
+static int max732x_remove(struct i2c_client *client)
 {
 	struct max732x_platform_data *pdata = client->dev.platform_data;
 	struct max732x_chip *chip = i2c_get_clientdata(client);
@@ -690,7 +690,7 @@ static struct i2c_driver max732x_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= max732x_probe,
-	.remove		= __devexit_p(max732x_remove),
+	.remove		= max732x_remove,
 	.id_table	= max732x_id,
 };
 

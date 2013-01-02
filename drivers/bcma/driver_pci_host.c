@@ -35,11 +35,6 @@ bool __devinit bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc)
 	    chipid_top != 0x5300)
 		return false;
 
-	if (bus->sprom.boardflags_lo & BCMA_CORE_PCI_BFL_NOPCI) {
-		bcma_info(bus, "This PCI core is disabled and not working\n");
-		return false;
-	}
-
 	bcma_core_enable(pc->core, 0);
 
 	return !mips_busprobe32(tmp, pc->core->io_addr);
@@ -396,6 +391,11 @@ void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 
 	bcma_info(bus, "PCIEcore in host mode found\n");
 
+	if (bus->sprom.boardflags_lo & BCMA_CORE_PCI_BFL_NOPCI) {
+		bcma_info(bus, "This PCIE core is disabled and not working\n");
+		return;
+	}
+
 	pc_host = kzalloc(sizeof(*pc_host), GFP_KERNEL);
 	if (!pc_host)  {
 		bcma_err(bus, "can not allocate memory");
@@ -452,6 +452,8 @@ void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 			pc_host->mem_resource.start = BCMA_SOC_PCI_MEM;
 			pc_host->mem_resource.end = BCMA_SOC_PCI_MEM +
 						    BCMA_SOC_PCI_MEM_SZ - 1;
+			pc_host->io_resource.start = 0x100;
+			pc_host->io_resource.end = 0x47F;
 			pci_membase_1G = BCMA_SOC_PCIE_DMA_H32;
 			pcicore_write32(pc, BCMA_CORE_PCI_SBTOPCI0,
 					tmp | BCMA_SOC_PCI_MEM);
@@ -459,6 +461,8 @@ void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 			pc_host->mem_resource.start = BCMA_SOC_PCI1_MEM;
 			pc_host->mem_resource.end = BCMA_SOC_PCI1_MEM +
 						    BCMA_SOC_PCI_MEM_SZ - 1;
+			pc_host->io_resource.start = 0x480;
+			pc_host->io_resource.end = 0x7FF;
 			pci_membase_1G = BCMA_SOC_PCIE1_DMA_H32;
 			pc_host->host_cfg_addr = BCMA_SOC_PCI1_CFG;
 			pcicore_write32(pc, BCMA_CORE_PCI_SBTOPCI0,
@@ -534,7 +538,7 @@ DECLARE_PCI_FIXUP_EARLY(PCI_ANY_ID, PCI_ANY_ID, bcma_core_pci_fixup_pcibridge);
 static void bcma_core_pci_fixup_addresses(struct pci_dev *dev)
 {
 	struct resource *res;
-	int pos;
+	int pos, err;
 
 	if (dev->bus->ops->read != bcma_core_pci_hostmode_read_config) {
 		/* This is not a device on the PCI-core bridge. */
@@ -547,8 +551,12 @@ static void bcma_core_pci_fixup_addresses(struct pci_dev *dev)
 
 	for (pos = 0; pos < 6; pos++) {
 		res = &dev->resource[pos];
-		if (res->flags & (IORESOURCE_IO | IORESOURCE_MEM))
-			pci_assign_resource(dev, pos);
+		if (res->flags & (IORESOURCE_IO | IORESOURCE_MEM)) {
+			err = pci_assign_resource(dev, pos);
+			if (err)
+				pr_err("PCI: Problem fixing up the addresses on %s\n",
+				       pci_name(dev));
+		}
 	}
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, bcma_core_pci_fixup_addresses);

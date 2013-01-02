@@ -1260,7 +1260,7 @@ static inline void CONVERT32(u32 x, char *str)
 	*str	= '\0';
 }
 
-int stb0899_get_dev_id(struct stb0899_state *state)
+static int stb0899_get_dev_id(struct stb0899_state *state)
 {
 	u8 chip_id, release;
 	u16 id;

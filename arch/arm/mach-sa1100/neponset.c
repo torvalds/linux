@@ -7,6 +7,7 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/platform_data/sa11x0-serial.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/serial_core.h>
@@ -14,7 +15,6 @@
 
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
-#include <asm/mach/serial_sa1100.h>
 #include <asm/hardware/sa1111.h>
 #include <asm/sizes.h>
 

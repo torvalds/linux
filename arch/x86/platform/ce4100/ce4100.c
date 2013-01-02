@@ -105,8 +105,11 @@ static void ce4100_serial_fixup(int port, struct uart_port *up,
 		up->membase =
 			(void __iomem *)__fix_to_virt(FIX_EARLYCON_MEM_BASE);
 		up->membase += up->mapbase & ~PAGE_MASK;
+		up->mapbase += port * 0x100;
+		up->membase += port * 0x100;
 		up->iotype   = UPIO_MEM32;
 		up->regshift = 2;
+		up->irq = 4;
 	}
 #endif
 	up->iobase = 0;

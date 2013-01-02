@@ -765,7 +765,7 @@ static int tsi721_device_control(struct dma_chan *dchan, enum dma_ctrl_cmd cmd,
 	return 0;
 }
 
-int __devinit tsi721_register_dma(struct tsi721_device *priv)
+int tsi721_register_dma(struct tsi721_device *priv)
 {
 	int i;
 	int nr_channels = TSI721_DMA_MAXCH;

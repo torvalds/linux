@@ -58,6 +58,14 @@ config ARCH_DAVINCI_TNETV107X
 
 comment "DaVinci Board Type"
 
+config MACH_DA8XX_DT
+	bool "Support DA8XX platforms using device tree"
+	default y
+	depends on ARCH_DAVINCI_DA8XX
+	help
+	  Say y here to include support for TI DaVinci DA850 based using
+	  Flattened Device Tree. More information at Documentation/devicetree
+
 config MACH_DAVINCI_EVM
 	bool "TI DM644x EVM"
 	default ARCH_DAVINCI_DM644x

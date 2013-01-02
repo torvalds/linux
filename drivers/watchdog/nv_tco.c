@@ -302,7 +302,7 @@ MODULE_DEVICE_TABLE(pci, tco_pci_tbl);
  *	Init & exit routines
  */
 
-static unsigned char __devinit nv_tco_getdevice(void)
+static unsigned char nv_tco_getdevice(void)
 {
 	struct pci_dev *dev = NULL;
 	u32 val;
@@ -376,7 +376,7 @@ out:
 	return 0;
 }
 
-static int __devinit nv_tco_init(struct platform_device *dev)
+static int nv_tco_init(struct platform_device *dev)
 {
 	int ret;
 
@@ -423,7 +423,7 @@ unreg_region:
 	return ret;
 }
 
-static void __devexit nv_tco_cleanup(void)
+static void nv_tco_cleanup(void)
 {
 	u32 val;
 
@@ -445,7 +445,7 @@ static void __devexit nv_tco_cleanup(void)
 	release_region(tcobase, 0x10);
 }
 
-static int __devexit nv_tco_remove(struct platform_device *dev)
+static int nv_tco_remove(struct platform_device *dev)
 {
 	if (tcobase)
 		nv_tco_cleanup();
@@ -468,7 +468,7 @@ static void nv_tco_shutdown(struct platform_device *dev)
 
 static struct platform_driver nv_tco_driver = {
 	.probe		= nv_tco_init,
-	.remove		= __devexit_p(nv_tco_remove),
+	.remove		= nv_tco_remove,
 	.shutdown	= nv_tco_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,

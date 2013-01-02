@@ -632,7 +632,7 @@ static int blinkm_detect(struct i2c_client *client, struct i2c_board_info *info)
 	return 0;
 }
 
-static int __devinit blinkm_probe(struct i2c_client *client,
+static int blinkm_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct blinkm_data *data;
@@ -743,7 +743,7 @@ exit:
 	return err;
 }
 
-static int __devexit blinkm_remove(struct i2c_client *client)
+static int blinkm_remove(struct i2c_client *client)
 {
 	struct blinkm_data *data = i2c_get_clientdata(client);
 	int ret = 0;
@@ -801,7 +801,7 @@ static struct i2c_driver blinkm_driver = {
 		   .name = "blinkm",
 		   },
 	.probe = blinkm_probe,
-	.remove = __devexit_p(blinkm_remove),
+	.remove = blinkm_remove,
 	.id_table = blinkm_id,
 	.detect = blinkm_detect,
 	.address_list = normal_i2c,

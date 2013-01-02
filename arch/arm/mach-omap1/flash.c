@@ -10,7 +10,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 
-#include <plat/tc.h>
+#include <mach/tc.h>
 #include <mach/flash.h>
 
 #include <mach/hardware.h>

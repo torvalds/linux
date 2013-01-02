@@ -1,9 +1,6 @@
 #ifndef _NET_IP6_ROUTE_H
 #define _NET_IP6_ROUTE_H
 
-#define IP6_RT_PRIO_USER	1024
-#define IP6_RT_PRIO_ADDRCONF	256
-
 struct route_info {
 	__u8			type;
 	__u8			length;

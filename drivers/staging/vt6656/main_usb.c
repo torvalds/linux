@@ -61,7 +61,6 @@
 #include "bssdb.h"
 #include "hostap.h"
 #include "wpactl.h"
-#include "ioctl.h"
 #include "iwctl.h"
 #include "dpc.h"
 #include "datarate.h"
@@ -244,7 +243,6 @@ static int Config_FileGetParameter(unsigned char *string,
 				   unsigned char *dest,
 				   unsigned char *source);
 
-static BOOL device_release_WPADEV(PSDevice pDevice);
 
 static void usb_device_reset(PSDevice pDevice);
 
@@ -634,40 +632,6 @@ static BOOL device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
     return TRUE;
 }
 
-static BOOL device_release_WPADEV(PSDevice pDevice)
-{
-  viawget_wpa_header *wpahdr;
-  int ii=0;
- // wait_queue_head_t	Set_wait;
-  //send device close to wpa_supplicant layer
-    if (pDevice->bWPADEVUp==TRUE) {
-                 wpahdr = (viawget_wpa_header *)pDevice->skb->data;
-                 wpahdr->type = VIAWGET_DEVICECLOSE_MSG;
-                 wpahdr->resp_ie_len = 0;
-                 wpahdr->req_ie_len = 0;
-                 skb_put(pDevice->skb, sizeof(viawget_wpa_header));
-                 pDevice->skb->dev = pDevice->wpadev;
-		 skb_reset_mac_header(pDevice->skb);
-                 pDevice->skb->pkt_type = PACKET_HOST;
-                 pDevice->skb->protocol = htons(ETH_P_802_2);
-                 memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
-                 netif_rx(pDevice->skb);
-                 pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-
- //wait release WPADEV
-              //    init_waitqueue_head(&Set_wait);
-              //    wait_event_timeout(Set_wait, ((pDevice->wpadev==NULL)&&(pDevice->skb == NULL)),5*HZ);    //1s wait
-              while(pDevice->bWPADEVUp==TRUE) {
-	        set_current_state(TASK_UNINTERRUPTIBLE);
-                 schedule_timeout (HZ/20);          //wait 50ms
-                 ii++;
-	        if(ii>20)
-		  break;
-              }
-           }
-    return TRUE;
-}
-
 #ifdef CONFIG_PM	/* Minimal support for suspend and resume */
 
 static int vt6656_suspend(struct usb_interface *intf, pm_message_t message)
@@ -711,7 +675,7 @@ static const struct net_device_ops device_netdev_ops = {
     .ndo_set_rx_mode	    = device_set_multi,
 };
 
-static int __devinit
+static int
 vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	u8 fake_mac[ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x01};
@@ -757,17 +721,6 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	}
 
 	usb_device_reset(pDevice);
-
-	{
-		union iwreq_data wrqu;
-		memset(&wrqu, 0, sizeof(wrqu));
-		wrqu.data.flags = RT_INSMOD_EVENT_FLAG;
-		wrqu.data.length = IFNAMSIZ;
-		wireless_send_event(pDevice->dev,
-				    IWEVCUSTOM,
-				    &wrqu,
-				    pDevice->dev->name);
-	}
 
 	return 0;
 
@@ -991,12 +944,6 @@ BOOL device_alloc_frag_buf(PSDevice pDevice, PSDeFragControlBlock pDeF) {
 static int  device_open(struct net_device *dev) {
     PSDevice    pDevice=(PSDevice) netdev_priv(dev);
 
-     extern SWPAResult wpa_Result;
-     memset(wpa_Result.ifname,0,sizeof(wpa_Result.ifname));
-     wpa_Result.proto = 0;
-     wpa_Result.key_mgmt = 0;
-     wpa_Result.eap_type = 0;
-     wpa_Result.authenticated = FALSE;
      pDevice->fWPA_Authened = FALSE;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " device_open...\n");
@@ -1056,13 +1003,11 @@ static int  device_open(struct net_device *dev) {
     pDevice->bEventAvailable = FALSE;
 
    pDevice->bWPADEVUp = FALSE;
-#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
      pDevice->bwextstep0 = FALSE;
      pDevice->bwextstep1 = FALSE;
      pDevice->bwextstep2 = FALSE;
      pDevice->bwextstep3 = FALSE;
      pDevice->bWPASuppWextEnabled = FALSE;
-#endif
     pDevice->byReAssocCount = 0;
 
     RXvWorkItem(pDevice);
@@ -1096,15 +1041,8 @@ static int  device_open(struct net_device *dev) {
     netif_stop_queue(pDevice->dev);
     pDevice->flags |= DEVICE_FLAGS_OPENED;
 
-{
-  union iwreq_data      wrqu;
-  memset(&wrqu, 0, sizeof(wrqu));
-  wrqu.data.flags = RT_UPDEV_EVENT_FLAG;
-  wireless_send_event(pDevice->dev, IWEVCUSTOM, &wrqu, NULL);
-}
-
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_open success.. \n");
-    return 0;
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_open success..\n");
+	return 0;
 
 free_all:
     device_free_frag_bufs(pDevice);
@@ -1133,19 +1071,11 @@ static int  device_close(struct net_device *dev) {
     if (pDevice == NULL)
         return -ENODEV;
 
-{
-  union iwreq_data      wrqu;
-  memset(&wrqu, 0, sizeof(wrqu));
-  wrqu.data.flags = RT_DOWNDEV_EVENT_FLAG;
-  wireless_send_event(pDevice->dev, IWEVCUSTOM, &wrqu, NULL);
-}
-
     if (pDevice->bLinkPass) {
 	bScheduleCommand((void *) pDevice, WLAN_CMD_DISASSOCIATE, NULL);
         mdelay(30);
     }
 
-device_release_WPADEV(pDevice);
 
         memset(pMgmt->abyDesireSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
         pMgmt->bShareKeyAlgorithm = FALSE;
@@ -1204,22 +1134,13 @@ device_release_WPADEV(pDevice);
     return 0;
 }
 
-static void __devexit vt6656_disconnect(struct usb_interface *intf)
+static void vt6656_disconnect(struct usb_interface *intf)
 {
 	PSDevice device = usb_get_intfdata(intf);
 
 	if (!device)
 		return;
 
-	{
-		union iwreq_data req;
-		memset(&req, 0, sizeof(req));
-		req.data.flags = RT_RMMOD_EVENT_FLAG;
-		wireless_send_event(device->dev, IWEVCUSTOM, &req, NULL);
-	}
-
-	device_release_WPADEV(device);
-	release_firmware(device->firmware);
 
 	usb_set_intfdata(intf, NULL);
 	usb_put_dev(interface_to_usbdev(intf));
@@ -1228,9 +1149,9 @@ static void __devexit vt6656_disconnect(struct usb_interface *intf)
 
 	if (device->dev) {
 		unregister_netdev(device->dev);
-		wpa_set_wpadev(device, 0);
 		free_netdev(device->dev);
 	}
+
 }
 
 static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev)
@@ -1549,470 +1470,35 @@ static void device_set_multi(struct net_device *dev) {
 
 }
 
-
-static struct net_device_stats *device_get_stats(struct net_device *dev) {
+static struct net_device_stats *device_get_stats(struct net_device *dev)
+{
     PSDevice pDevice=(PSDevice) netdev_priv(dev);
 
     return &pDevice->stats;
 }
 
-
-static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
-	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
-    PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
-    PSCmdRequest        pReq;
-    //BOOL                bCommit = FALSE;
+static int device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+{
+	PSDevice pDevice = (PSDevice)netdev_priv(dev);
 	struct iwreq *wrq = (struct iwreq *) rq;
-	int                 rc =0;
+	int rc = 0;
 
-    if (pMgmt == NULL) {
-        rc = -EFAULT;
-        return rc;
-    }
+	switch (cmd) {
 
-    switch(cmd) {
+	case IOCTL_CMD_HOSTAPD:
 
-	case SIOCGIWNAME:
-		rc = iwctl_giwname(dev, NULL, (char *)&(wrq->u.name), NULL);
-		break;
-
-	case SIOCSIWNWID:
-	case SIOCGIWNWID:     //0x8b03  support
-		rc = -EOPNOTSUPP;
-		break;
-
-		// Set frequency/channel
-	case SIOCSIWFREQ:
-	    rc = iwctl_siwfreq(dev, NULL, &(wrq->u.freq), NULL);
-		break;
-
-		// Get frequency/channel
-	case SIOCGIWFREQ:
-		rc = iwctl_giwfreq(dev, NULL, &(wrq->u.freq), NULL);
-		break;
-
-		// Set desired network name (ESSID)
-	case SIOCSIWESSID:
-
-		{
-			char essid[IW_ESSID_MAX_SIZE+1];
-			if (wrq->u.essid.length > IW_ESSID_MAX_SIZE) {
-				rc = -E2BIG;
-				break;
-			}
-			if (copy_from_user(essid, wrq->u.essid.pointer,
-					   wrq->u.essid.length)) {
-				rc = -EFAULT;
-				break;
-			}
-			rc = iwctl_siwessid(dev, NULL,
-					    &(wrq->u.essid), essid);
-		}
-		break;
-
-
-		// Get current network name (ESSID)
-	case SIOCGIWESSID:
-
-		{
-			char essid[IW_ESSID_MAX_SIZE+1];
-			if (wrq->u.essid.pointer) {
-				iwctl_giwessid(dev, NULL,
-					    &(wrq->u.essid), essid);
-				if (copy_to_user(wrq->u.essid.pointer,
-						         essid,
-						         wrq->u.essid.length) )
-					rc = -EFAULT;
-			}
-		}
-		break;
-
-	case SIOCSIWAP:
-
-		rc = iwctl_siwap(dev, NULL, &(wrq->u.ap_addr), NULL);
-		break;
-
-
-		// Get current Access Point (BSSID)
-	case SIOCGIWAP:
-		rc = iwctl_giwap(dev, NULL, &(wrq->u.ap_addr), NULL);
-		break;
-
-
-		// Set desired station name
-	case SIOCSIWNICKN:
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWNICKN \n");
-        rc = -EOPNOTSUPP;
-		break;
-
-		// Get current station name
-	case SIOCGIWNICKN:
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWNICKN \n");
-        rc = -EOPNOTSUPP;
-		break;
-
-		// Set the desired bit-rate
-	case SIOCSIWRATE:
-		rc = iwctl_siwrate(dev, NULL, &(wrq->u.bitrate), NULL);
-		break;
-
-	// Get the current bit-rate
-	case SIOCGIWRATE:
-		iwctl_giwrate(dev, NULL, &(wrq->u.bitrate), NULL);
-		break;
-
-	// Set the desired RTS threshold
-	case SIOCSIWRTS:
-
-		rc = iwctl_siwrts(dev, &(wrq->u.rts));
-		break;
-
-	// Get the current RTS threshold
-	case SIOCGIWRTS:
-
-		rc = iwctl_giwrts(dev, NULL, &(wrq->u.rts), NULL);
-		break;
-
-		// Set the desired fragmentation threshold
-	case SIOCSIWFRAG:
-
-		rc = iwctl_siwfrag(dev, NULL, &(wrq->u.frag), NULL);
-	    break;
-
-	// Get the current fragmentation threshold
-	case SIOCGIWFRAG:
-
-		rc = iwctl_giwfrag(dev, NULL, &(wrq->u.frag), NULL);
-		break;
-
-		// Set mode of operation
-	case SIOCSIWMODE:
-    	rc = iwctl_siwmode(dev, NULL, &(wrq->u.mode), NULL);
-		break;
-
-		// Get mode of operation
-	case SIOCGIWMODE:
-		iwctl_giwmode(dev, NULL, &(wrq->u.mode), NULL);
-		break;
-
-		// Set WEP keys and mode
-	case SIOCSIWENCODE:
-		{
-            char abyKey[WLAN_WEP232_KEYLEN];
-
-			if (wrq->u.encoding.pointer) {
-
-
-				if (wrq->u.encoding.length > WLAN_WEP232_KEYLEN) {
-					rc = -E2BIG;
-					break;
-				}
-				memset(abyKey, 0, WLAN_WEP232_KEYLEN);
-				if (copy_from_user(abyKey,
-				                  wrq->u.encoding.pointer,
-				                  wrq->u.encoding.length)) {
-					rc = -EFAULT;
-					break;
-				}
-			} else if (wrq->u.encoding.length != 0) {
-				rc = -EINVAL;
-				break;
-			}
-			rc = iwctl_siwencode(dev, NULL, &(wrq->u.encoding), abyKey);
-		}
-		break;
-
-		// Get the WEP keys and mode
-	case SIOCGIWENCODE:
-
-		if (!capable(CAP_NET_ADMIN)) {
-			rc = -EPERM;
-			break;
-		}
-		{
-		    char abyKey[WLAN_WEP232_KEYLEN];
-
-		    rc = iwctl_giwencode(dev, NULL, &(wrq->u.encoding), abyKey);
-		    if (rc != 0) break;
-			if (wrq->u.encoding.pointer) {
-				if (copy_to_user(wrq->u.encoding.pointer,
-						        abyKey,
-						        wrq->u.encoding.length))
-					rc = -EFAULT;
-			}
-		}
-		break;
-
-		// Get the current Tx-Power
-	case SIOCGIWTXPOW:
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWTXPOW \n");
-        rc = -EOPNOTSUPP;
-		break;
-
-	case SIOCSIWTXPOW:
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWTXPOW \n");
-        rc = -EOPNOTSUPP;
-		break;
-
-	case SIOCSIWRETRY:
-
-		rc = iwctl_siwretry(dev, NULL, &(wrq->u.retry), NULL);
-		break;
-
-	case SIOCGIWRETRY:
-
-		rc = iwctl_giwretry(dev, NULL, &(wrq->u.retry), NULL);
-		break;
-
-		// Get range of parameters
-	case SIOCGIWRANGE:
-
-		{
-			struct iw_range range;
-
-			iwctl_giwrange(dev, NULL, &(wrq->u.data), (char *) &range);
-			if (copy_to_user(wrq->u.data.pointer, &range, sizeof(struct iw_range)))
-				rc = -EFAULT;
-		}
-
-		break;
-
-	case SIOCGIWPOWER:
-
-		rc = iwctl_giwpower(dev, NULL, &(wrq->u.power), NULL);
-		break;
-
-
-	case SIOCSIWPOWER:
-
-		rc = iwctl_siwpower(dev, NULL, &(wrq->u.power), NULL);
-		break;
-
-
-	case SIOCGIWSENS:
-
-	    rc = iwctl_giwsens(dev, NULL, &(wrq->u.sens), NULL);
-		break;
-
-	case SIOCSIWSENS:
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWSENS \n");
-		rc = -EOPNOTSUPP;
-		break;
-
-	case SIOCGIWAPLIST:
-	    {
-            char buffer[IW_MAX_AP * (sizeof(struct sockaddr) + sizeof(struct iw_quality))];
-
-		    if (wrq->u.data.pointer) {
-		        rc = iwctl_giwaplist(dev, NULL, &(wrq->u.data), buffer);
-		        if (rc == 0) {
-                    if (copy_to_user(wrq->u.data.pointer,
-					                buffer,
-					               (wrq->u.data.length * (sizeof(struct sockaddr) +  sizeof(struct iw_quality)))
-				        ))
-				    rc = -EFAULT;
-		        }
-            }
-        }
-		break;
-
-
-#ifdef WIRELESS_SPY
-		// Set the spy list
-	case SIOCSIWSPY:
-
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWSPY \n");
-		rc = -EOPNOTSUPP;
-		break;
-
-		// Get the spy list
-	case SIOCGIWSPY:
-
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWSPY \n");
-		rc = -EOPNOTSUPP;
-		break;
-
-#endif // WIRELESS_SPY
-
-	case SIOCGIWPRIV:
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWPRIV \n");
-		rc = -EOPNOTSUPP;
-/*
-		if(wrq->u.data.pointer) {
-			wrq->u.data.length = sizeof(iwctl_private_args) / sizeof( iwctl_private_args[0]);
-
-			if(copy_to_user(wrq->u.data.pointer,
-					(u_char *) iwctl_private_args,
-					sizeof(iwctl_private_args)))
-				rc = -EFAULT;
-		}
-*/
-		break;
-
-#ifdef  WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-	case SIOCSIWAUTH:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWAUTH\n");
-		rc = iwctl_siwauth(dev, NULL, &(wrq->u.param), NULL);
-		break;
-
-	case SIOCGIWAUTH:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWAUTH \n");
-		rc = iwctl_giwauth(dev, NULL, &(wrq->u.param), NULL);
-		break;
-
-	case SIOCSIWGENIE:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWGENIE \n");
-		rc = iwctl_siwgenie(dev, NULL, &(wrq->u.data), wrq->u.data.pointer);
-		break;
-
-	case SIOCGIWGENIE:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWGENIE \n");
-		rc = iwctl_giwgenie(dev, NULL, &(wrq->u.data), wrq->u.data.pointer);
-		break;
-
-	case SIOCSIWENCODEEXT:
-		{
-			char extra[sizeof(struct iw_encode_ext)+MAX_KEY_LEN+1];
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWENCODEEXT \n");
-			if(wrq->u.encoding.pointer){
-				memset(extra, 0, sizeof(struct iw_encode_ext)+MAX_KEY_LEN+1);
-				if(wrq->u.encoding.length > (sizeof(struct iw_encode_ext)+ MAX_KEY_LEN)){
-					rc = -E2BIG;
-					break;
-				}
-				if(copy_from_user(extra, wrq->u.encoding.pointer,wrq->u.encoding.length)){
-					rc = -EFAULT;
-					break;
-				}
-			}else if(wrq->u.encoding.length != 0){
-				rc = -EINVAL;
-				break;
-			}
-			rc = iwctl_siwencodeext(dev, NULL, &(wrq->u.encoding), extra);
-		}
-		break;
-
-	case SIOCGIWENCODEEXT:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWENCODEEXT \n");
-		rc = iwctl_giwencodeext(dev, NULL, &(wrq->u.encoding), NULL);
-		break;
-
-	case SIOCSIWMLME:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWMLME \n");
-		rc = iwctl_siwmlme(dev, NULL, &(wrq->u.data), wrq->u.data.pointer);
-		break;
-
-#endif // #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-
-    case IOCTL_CMD_TEST:
-
-		if (!(pDevice->flags & DEVICE_FLAGS_OPENED)) {
-		    rc = -EFAULT;
-		    break;
-		} else {
-		    rc = 0;
-		}
-        pReq = (PSCmdRequest)rq;
-
-   //20080130-01,<Remark> by Mike Liu
-      // if(pDevice->bLinkPass==TRUE)
-          pReq->wResult = MAGIC_CODE;         //Linking status:0x3142
-   //20080130-02,<Remark> by Mike Liu
-      //  else
-      //	 pReq->wResult = MAGIC_CODE+1;    //disconnect status:0x3143
-        break;
-
-    case IOCTL_CMD_SET:
-		if (!(pDevice->flags & DEVICE_FLAGS_OPENED) &&
-		       (((PSCmdRequest)rq)->wCmdCode !=WLAN_CMD_SET_WPA))
-		{
-		    rc = -EFAULT;
-		    break;
-		} else {
-		    rc = 0;
-		}
-
-	    if (test_and_set_bit( 0, (void*)&(pMgmt->uCmdBusy))) {
-		    return -EBUSY;
-	    }
-        rc = private_ioctl(pDevice, rq);
-        clear_bit( 0, (void*)&(pMgmt->uCmdBusy));
-        break;
-
-    case IOCTL_CMD_HOSTAPD:
-
-		if (!(pDevice->flags & DEVICE_FLAGS_OPENED)) {
-		    rc = -EFAULT;
-		    break;
-		} else {
-		    rc = 0;
-		}
+		if (!(pDevice->flags & DEVICE_FLAGS_OPENED))
+			rc = -EFAULT;
 
 		rc = vt6656_hostap_ioctl(pDevice, &wrq->u.data);
-        break;
-
-    case IOCTL_CMD_WPA:
-
-		if (!(pDevice->flags & DEVICE_FLAGS_OPENED)) {
-		    rc = -EFAULT;
-		    break;
-		} else {
-		    rc = 0;
-		}
-
-		rc = wpa_ioctl(pDevice, &wrq->u.data);
-        break;
+		break;
 
 	case SIOCETHTOOL:
-        return ethtool_ioctl(dev, (void *) rq->ifr_data);
-	// All other calls are currently unsupported
+		return ethtool_ioctl(dev, (void *) rq->ifr_data);
 
-	default:
-		rc = -EOPNOTSUPP;
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Ioctl command not supported..%x\n", cmd);
+	}
 
-
-    }
-
-    if (pDevice->bCommit) {
-       if (pMgmt->eConfigMode == WMAC_CONFIG_AP) {
-           netif_stop_queue(pDevice->dev);
-           spin_lock_irq(&pDevice->lock);
-	bScheduleCommand((void *) pDevice, WLAN_CMD_RUN_AP, NULL);
-           spin_unlock_irq(&pDevice->lock);
-       }
-       else {
-           DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Commit the settings\n");
-           spin_lock_irq(&pDevice->lock);
-//2007-1121-01<Modify>by EinsnLiu
-	    if (pDevice->bLinkPass &&
-		  memcmp(pMgmt->abyCurrSSID,pMgmt->abyDesireSSID,WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN)) {
-		bScheduleCommand((void *) pDevice, WLAN_CMD_DISASSOCIATE, NULL);
-	     } else {
-           pDevice->bLinkPass = FALSE;
-	   pMgmt->eCurrState = WMAC_STATE_IDLE;
-	   memset(pMgmt->abyCurrBSSID, 0, 6);
-		 }
-           ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_SLOW);
-//End Modify
-           netif_stop_queue(pDevice->dev);
-#ifdef  WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-           pMgmt->eScanType = WMAC_SCAN_ACTIVE;
-	   if (!pDevice->bWPASuppWextEnabled)
-#endif
-		bScheduleCommand((void *) pDevice,
-				 WLAN_CMD_BSSID_SCAN,
-				 pMgmt->abyDesireSSID);
-		bScheduleCommand((void *) pDevice,
-				 WLAN_CMD_SSID,
-				 NULL);
-           spin_unlock_irq(&pDevice->lock);
-      }
-      pDevice->bCommit = FALSE;
-    }
-
-
-    return rc;
+	return rc;
 }
 
 

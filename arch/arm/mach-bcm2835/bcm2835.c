@@ -12,8 +12,10 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/irqchip/bcm2835.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/bcm2835_timer.h>
 #include <linux/clk/bcm2835.h>
@@ -23,6 +25,48 @@
 
 #include <mach/bcm2835_soc.h>
 
+#define PM_RSTC				0x1c
+#define PM_WDOG				0x24
+
+#define PM_PASSWORD			0x5a000000
+#define PM_RSTC_WRCFG_MASK		0x00000030
+#define PM_RSTC_WRCFG_FULL_RESET	0x00000020
+
+static void __iomem *wdt_regs;
+
+/*
+ * The machine restart method can be called from an atomic context so we won't
+ * be able to ioremap the regs then.
+ */
+static void bcm2835_setup_restart(void)
+{
+	struct device_node *np = of_find_compatible_node(NULL, NULL,
+						"brcm,bcm2835-pm-wdt");
+	if (WARN(!np, "unable to setup watchdog restart"))
+		return;
+
+	wdt_regs = of_iomap(np, 0);
+	WARN(!wdt_regs, "failed to remap watchdog regs");
+}
+
+static void bcm2835_restart(char mode, const char *cmd)
+{
+	u32 val;
+
+	if (!wdt_regs)
+		return;
+
+	/* use a timeout of 10 ticks (~150us) */
+	writel_relaxed(10 | PM_PASSWORD, wdt_regs + PM_WDOG);
+	val = readl_relaxed(wdt_regs + PM_RSTC);
+	val &= ~PM_RSTC_WRCFG_MASK;
+	val |= PM_PASSWORD | PM_RSTC_WRCFG_FULL_RESET;
+	writel_relaxed(val, wdt_regs + PM_RSTC);
+
+	/* No sleeping, possibly atomic. */
+	mdelay(1);
+}
+
 static struct map_desc io_map __initdata = {
 	.virtual = BCM2835_PERIPH_VIRT,
 	.pfn = __phys_to_pfn(BCM2835_PERIPH_PHYS),
@@ -30,15 +74,16 @@ static struct map_desc io_map __initdata = {
 	.type = MT_DEVICE
 };
 
-void __init bcm2835_map_io(void)
+static void __init bcm2835_map_io(void)
 {
 	iotable_init(&io_map, 1);
 }
 
-void __init bcm2835_init(void)
+static void __init bcm2835_init(void)
 {
 	int ret;
 
+	bcm2835_setup_restart();
 	bcm2835_init_clocks();
 
 	ret = of_platform_populate(NULL, of_default_bus_match_table, NULL,
@@ -60,5 +105,6 @@ DT_MACHINE_START(BCM2835, "BCM2835")
 	.handle_irq = bcm2835_handle_irq,
 	.init_machine = bcm2835_init,
 	.timer = &bcm2835_timer,
+	.restart = bcm2835_restart,
 	.dt_compat = bcm2835_compat
 MACHINE_END

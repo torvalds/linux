@@ -799,7 +799,7 @@ static const char fw_c_rs2000[] = LME2510_C_RS2000;
 static const char fw_lg[] = LME2510_LG;
 static const char fw_s0194[] = LME2510_S0194;
 
-const char *lme_firmware_switch(struct dvb_usb_device *d, int cold)
+static const char *lme_firmware_switch(struct dvb_usb_device *d, int cold)
 {
 	struct lme2510_state *st = d->priv;
 	struct usb_device *udev = d->udev;
@@ -1253,7 +1253,7 @@ static int lme2510_get_stream_config(struct dvb_frontend *fe, u8 *ts_type,
 static int lme2510_get_rc_config(struct dvb_usb_device *d,
 	struct dvb_usb_rc *rc)
 {
-	rc->allowed_protos = RC_TYPE_NEC;
+	rc->allowed_protos = RC_BIT_NEC;
 	return 0;
 }
 

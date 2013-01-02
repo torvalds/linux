@@ -74,7 +74,7 @@
 
 
 /* 0xE0000000 contains the IO space that is split by speed and
- * wether the access is for 8 or 16bit IO... this ensures that
+ * whether the access is for 8 or 16bit IO... this ensures that
  * the correct access is made
  *
  * 0x10000000 of space, partitioned as so:

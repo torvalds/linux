@@ -30,9 +30,6 @@
 #include <linux/io.h>
 #include <linux/suspend.h>
 
-
-#include <mach/clk.h>
-
 /* Frequency table index must be sequential starting at 0 */
 static struct cpufreq_frequency_table freq_table[] = {
 	{ 0, 216000 },

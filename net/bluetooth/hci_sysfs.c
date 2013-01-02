@@ -38,7 +38,7 @@ static ssize_t show_link_address(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	struct hci_conn *conn = to_hci_conn(dev);
-	return sprintf(buf, "%s\n", batostr(&conn->dst));
+	return sprintf(buf, "%pMR\n", &conn->dst);
 }
 
 static ssize_t show_link_features(struct device *dev,
@@ -224,7 +224,7 @@ static ssize_t show_address(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
 	struct hci_dev *hdev = to_hci_dev(dev);
-	return sprintf(buf, "%s\n", batostr(&hdev->bdaddr));
+	return sprintf(buf, "%pMR\n", &hdev->bdaddr);
 }
 
 static ssize_t show_features(struct device *dev,
@@ -406,8 +406,8 @@ static int inquiry_cache_show(struct seq_file *f, void *p)
 
 	list_for_each_entry(e, &cache->all, all) {
 		struct inquiry_data *data = &e->data;
-		seq_printf(f, "%s %d %d %d 0x%.2x%.2x%.2x 0x%.4x %d %d %u\n",
-			   batostr(&data->bdaddr),
+		seq_printf(f, "%pMR %d %d %d 0x%.2x%.2x%.2x 0x%.4x %d %d %u\n",
+			   &data->bdaddr,
 			   data->pscan_rep_mode, data->pscan_period_mode,
 			   data->pscan_mode, data->dev_class[2],
 			   data->dev_class[1], data->dev_class[0],
@@ -440,7 +440,7 @@ static int blacklist_show(struct seq_file *f, void *p)
 	hci_dev_lock(hdev);
 
 	list_for_each_entry(b, &hdev->blacklist, list)
-		seq_printf(f, "%s\n", batostr(&b->bdaddr));
+		seq_printf(f, "%pMR\n", &b->bdaddr);
 
 	hci_dev_unlock(hdev);
 

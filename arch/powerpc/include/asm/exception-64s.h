@@ -48,6 +48,35 @@
 #define EX_LR		72
 #define EX_CFAR		80
 
+#ifdef CONFIG_RELOCATABLE
+#define EXCEPTION_RELON_PROLOG_PSERIES_1(label, h)			\
+	ld	r12,PACAKBASE(r13);	/* get high part of &label */	\
+	mfspr	r11,SPRN_##h##SRR0;	/* save SRR0 */			\
+	LOAD_HANDLER(r12,label);					\
+	mtlr	r12;							\
+	mfspr	r12,SPRN_##h##SRR1;	/* and SRR1 */			\
+	li	r10,MSR_RI;						\
+	mtmsrd 	r10,1;			/* Set RI (EE=0) */		\
+	blr;
+#else
+/* If not relocatable, we can jump directly -- and save messing with LR */
+#define EXCEPTION_RELON_PROLOG_PSERIES_1(label, h)			\
+	mfspr	r11,SPRN_##h##SRR0;	/* save SRR0 */			\
+	mfspr	r12,SPRN_##h##SRR1;	/* and SRR1 */			\
+	li	r10,MSR_RI;						\
+	mtmsrd 	r10,1;			/* Set RI (EE=0) */		\
+	b	label;
+#endif
+
+/*
+ * As EXCEPTION_PROLOG_PSERIES(), except we've already got relocation on
+ * so no need to rfid.  Save lr in case we're CONFIG_RELOCATABLE, in which
+ * case EXCEPTION_RELON_PROLOG_PSERIES_1 will be using lr.
+ */
+#define EXCEPTION_RELON_PROLOG_PSERIES(area, label, h, extra, vec)	\
+	EXCEPTION_PROLOG_1(area, extra, vec);				\
+	EXCEPTION_RELON_PROLOG_PSERIES_1(label, h)
+
 /*
  * We're short on space and time in the exception prolog, so we can't
  * use the normal SET_REG_IMMEDIATE macro. Normally we just need the
@@ -55,11 +84,28 @@
  * word.
  */
 #define LOAD_HANDLER(reg, label)					\
-	addi	reg,reg,(label)-_stext;	/* virt addr of handler ... */
+	/* Handlers must be within 64K of kbase, which must be 64k aligned */ \
+	ori	reg,reg,(label)-_stext;	/* virt addr of handler ... */
 
 /* Exception register prefixes */
 #define EXC_HV	H
 #define EXC_STD
+
+#if defined(CONFIG_RELOCATABLE)
+/*
+ * If we support interrupts with relocation on AND we're a relocatable
+ * kernel, we need to use LR to get to the 2nd level handler.  So, save/restore
+ * it when required.
+ */
+#define SAVE_LR(reg, area)	mflr	reg ; 	std	reg,area+EX_LR(r13)
+#define GET_LR(reg, area) 			ld	reg,area+EX_LR(r13)
+#define RESTORE_LR(reg, area)	ld	reg,area+EX_LR(r13) ; mtlr reg
+#else
+/* ...else LR is unused and in register. */
+#define SAVE_LR(reg, area)
+#define GET_LR(reg, area) 	mflr	reg
+#define RESTORE_LR(reg, area)
+#endif
 
 #define __EXCEPTION_PROLOG_1(area, extra, vec)				\
 	GET_PACA(r13);							\
@@ -69,6 +115,7 @@
 	mfspr	r10,SPRN_CFAR;						\
 	std	r10,area+EX_CFAR(r13);					\
 	END_FTR_SECTION_NESTED(CPU_FTR_CFAR, CPU_FTR_CFAR, 66);		\
+	SAVE_LR(r10, area);						\
 	mfcr	r9;							\
 	extra(vec);							\
 	std	r11,area+EX_R11(r13);					\
@@ -169,6 +216,7 @@ do_kvm_##n:								\
 	sth	r1,PACA_TRAP_SAVE(r13);					   \
 	std	r3,area+EX_R3(r13);					   \
 	addi	r3,r13,area;		/* r3 -> where regs are saved*/	   \
+	RESTORE_LR(r1, area);						   \
 	b	bad_stack;						   \
 3:	std	r9,_CCR(r1);		/* save CR in stackframe	*/ \
 	std	r11,_NIP(r1);		/* save SRR0 in stackframe	*/ \
@@ -194,8 +242,8 @@ do_kvm_##n:								\
 	ld	r10,area+EX_CFAR(r13);					   \
 	std	r10,ORIG_GPR3(r1);					   \
 	END_FTR_SECTION_NESTED(CPU_FTR_CFAR, CPU_FTR_CFAR, 66);		   \
+	GET_LR(r9,area);		/* Get LR, later save to stack	*/ \
 	ld	r2,PACATOC(r13);	/* get kernel TOC into r2	*/ \
-	mflr	r9;			/* save LR in stackframe	*/ \
 	std	r9,_LINK(r1);						   \
 	mfctr	r10;			/* save CTR in stackframe	*/ \
 	std	r10,_CTR(r1);						   \
@@ -232,6 +280,26 @@ label##_hv:						\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common,	\
 				 EXC_HV, KVMTEST, vec)
 
+#define STD_RELON_EXCEPTION_PSERIES(loc, vec, label)	\
+	. = loc;					\
+	.globl label##_relon_pSeries;			\
+label##_relon_pSeries:					\
+	HMT_MEDIUM;					\
+	/* No guest interrupts come through here */	\
+	SET_SCRATCH0(r13);		/* save r13 */	\
+	EXCEPTION_RELON_PROLOG_PSERIES(PACA_EXGEN, label##_common, \
+				       EXC_STD, KVMTEST_PR, vec)
+
+#define STD_RELON_EXCEPTION_HV(loc, vec, label)		\
+	. = loc;					\
+	.globl label##_relon_hv;			\
+label##_relon_hv:					\
+	HMT_MEDIUM;					\
+	/* No guest interrupts come through here */	\
+	SET_SCRATCH0(r13);	/* save r13 */		\
+	EXCEPTION_RELON_PROLOG_PSERIES(PACA_EXGEN, label##_common, \
+				       EXC_HV, KVMTEST, vec)
+
 /* This associate vector numbers with bits in paca->irq_happened */
 #define SOFTEN_VALUE_0x500	PACA_IRQ_EE
 #define SOFTEN_VALUE_0x502	PACA_IRQ_EE
@@ -257,6 +325,9 @@ label##_hv:						\
 	KVMTEST(vec);							\
 	_SOFTEN_TEST(EXC_STD, vec)
 
+#define SOFTEN_NOTEST_PR(vec)		_SOFTEN_TEST(EXC_STD, vec)
+#define SOFTEN_NOTEST_HV(vec)		_SOFTEN_TEST(EXC_HV, vec)
+
 #define __MASKABLE_EXCEPTION_PSERIES(vec, label, h, extra)		\
 	HMT_MEDIUM;							\
 	SET_SCRATCH0(r13);    /* save r13 */				\
@@ -278,6 +349,28 @@ label##_pSeries:							\
 label##_hv:								\
 	_MASKABLE_EXCEPTION_PSERIES(vec, label,				\
 				    EXC_HV, SOFTEN_TEST_HV)
+
+#define __MASKABLE_RELON_EXCEPTION_PSERIES(vec, label, h, extra)	\
+	HMT_MEDIUM;							\
+	SET_SCRATCH0(r13);    /* save r13 */				\
+	__EXCEPTION_PROLOG_1(PACA_EXGEN, extra, vec);		\
+	EXCEPTION_RELON_PROLOG_PSERIES_1(label##_common, h);
+#define _MASKABLE_RELON_EXCEPTION_PSERIES(vec, label, h, extra)	\
+	__MASKABLE_RELON_EXCEPTION_PSERIES(vec, label, h, extra)
+
+#define MASKABLE_RELON_EXCEPTION_PSERIES(loc, vec, label)		\
+	. = loc;							\
+	.globl label##_relon_pSeries;					\
+label##_relon_pSeries:							\
+	_MASKABLE_RELON_EXCEPTION_PSERIES(vec, label,			\
+					  EXC_STD, SOFTEN_NOTEST_PR)
+
+#define MASKABLE_RELON_EXCEPTION_HV(loc, vec, label)			\
+	. = loc;							\
+	.globl label##_relon_hv;					\
+label##_relon_hv:							\
+	_MASKABLE_RELON_EXCEPTION_PSERIES(vec, label,			\
+					  EXC_HV, SOFTEN_NOTEST_HV)
 
 /*
  * Our exception common code can be passed various "additions"

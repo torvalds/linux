@@ -176,8 +176,8 @@ int iwlagn_hw_valid_rtc_data_addr(u32 addr);
 /* lib */
 int iwlagn_send_tx_power(struct iwl_priv *priv);
 void iwlagn_temperature(struct iwl_priv *priv);
-int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
-void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
+int iwlagn_txfifo_flush(struct iwl_priv *priv);
+void iwlagn_dev_txfifo_flush(struct iwl_priv *priv);
 int iwlagn_send_beacon_cmd(struct iwl_priv *priv);
 int iwl_send_statistics_request(struct iwl_priv *priv,
 				u8 flags, bool clear);

@@ -73,7 +73,7 @@ enum fcp_resp_rsp_codes {
 #define FCP_PTA_SIMPLE      0   /* simple task attribute */
 #define FCP_PTA_HEADQ       1   /* head of queue task attribute */
 #define FCP_PTA_ORDERED     2   /* ordered task attribute */
-#define FCP_PTA_ACA         4   /* auto. contigent allegiance */
+#define FCP_PTA_ACA         4   /* auto. contingent allegiance */
 #define FCP_PTA_MASK        7   /* mask for task attribute field */
 #define FCP_PRI_SHIFT       3   /* priority field starts in bit 3 */
 #define FCP_PRI_RESVD_MASK  0x80        /* reserved bits in priority field */
@@ -1029,7 +1029,7 @@ void qlt_stop_phase2(struct qla_tgt *tgt)
 EXPORT_SYMBOL(qlt_stop_phase2);
 
 /* Called from qlt_remove_target() -> qla2x00_remove_one() */
-void qlt_release(struct qla_tgt *tgt)
+static void qlt_release(struct qla_tgt *tgt)
 {
 	struct qla_hw_data *ha = tgt->ha;
 
@@ -1264,8 +1264,27 @@ static int __qlt_24xx_handle_abts(struct scsi_qla_host *vha,
 	struct abts_recv_from_24xx *abts, struct qla_tgt_sess *sess)
 {
 	struct qla_hw_data *ha = vha->hw;
+	struct se_session *se_sess = sess->se_sess;
 	struct qla_tgt_mgmt_cmd *mcmd;
+	struct se_cmd *se_cmd;
+	u32 lun = 0;
 	int rc;
+	bool found_lun = false;
+
+	spin_lock(&se_sess->sess_cmd_lock);
+	list_for_each_entry(se_cmd, &se_sess->sess_cmd_list, se_cmd_list) {
+		struct qla_tgt_cmd *cmd =
+			container_of(se_cmd, struct qla_tgt_cmd, se_cmd);
+		if (cmd->tag == abts->exchange_addr_to_abort) {
+			lun = cmd->unpacked_lun;
+			found_lun = true;
+			break;
+		}
+	}
+	spin_unlock(&se_sess->sess_cmd_lock);
+
+	if (!found_lun)
+		return -ENOENT;
 
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf00f,
 	    "qla_target(%d): task abort (tag=%d)\n",
@@ -1283,7 +1302,7 @@ static int __qlt_24xx_handle_abts(struct scsi_qla_host *vha,
 	mcmd->sess = sess;
 	memcpy(&mcmd->orig_iocb.abts, abts, sizeof(mcmd->orig_iocb.abts));
 
-	rc = ha->tgt.tgt_ops->handle_tmr(mcmd, 0, TMR_ABORT_TASK,
+	rc = ha->tgt.tgt_ops->handle_tmr(mcmd, lun, TMR_ABORT_TASK,
 	    abts->exchange_addr_to_abort);
 	if (rc != 0) {
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf052,
@@ -3980,7 +3999,7 @@ void qlt_async_event(uint16_t code, struct scsi_qla_host *vha,
 	case MBA_RSP_TRANSFER_ERR:	/* Response Transfer Error */
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf03a,
 		    "qla_target(%d): System error async event %#x "
-		    "occured", vha->vp_idx, code);
+		    "occurred", vha->vp_idx, code);
 		break;
 	case MBA_WAKEUP_THRES:		/* Request Queue Wake-up. */
 		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
@@ -3989,7 +4008,7 @@ void qlt_async_event(uint16_t code, struct scsi_qla_host *vha,
 	case MBA_LOOP_UP:
 	{
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf03b,
-		    "qla_target(%d): Async LOOP_UP occured "
+		    "qla_target(%d): Async LOOP_UP occurred "
 		    "(m[0]=%x, m[1]=%x, m[2]=%x, m[3]=%x)", vha->vp_idx,
 		    le16_to_cpu(mailbox[0]), le16_to_cpu(mailbox[1]),
 		    le16_to_cpu(mailbox[2]), le16_to_cpu(mailbox[3]));
@@ -4006,7 +4025,7 @@ void qlt_async_event(uint16_t code, struct scsi_qla_host *vha,
 	case MBA_LIP_RESET:
 	case MBA_RSCN_UPDATE:
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf03c,
-		    "qla_target(%d): Async event %#x occured "
+		    "qla_target(%d): Async event %#x occurred "
 		    "(m[0]=%x, m[1]=%x, m[2]=%x, m[3]=%x)", vha->vp_idx, code,
 		    le16_to_cpu(mailbox[0]), le16_to_cpu(mailbox[1]),
 		    le16_to_cpu(mailbox[2]), le16_to_cpu(mailbox[3]));
@@ -4015,7 +4034,7 @@ void qlt_async_event(uint16_t code, struct scsi_qla_host *vha,
 	case MBA_PORT_UPDATE:
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf03d,
 		    "qla_target(%d): Port update async event %#x "
-		    "occured: updating the ports database (m[0]=%x, m[1]=%x, "
+		    "occurred: updating the ports database (m[0]=%x, m[1]=%x, "
 		    "m[2]=%x, m[3]=%x)", vha->vp_idx, code,
 		    le16_to_cpu(mailbox[0]), le16_to_cpu(mailbox[1]),
 		    le16_to_cpu(mailbox[2]), le16_to_cpu(mailbox[3]));
@@ -4031,7 +4050,7 @@ void qlt_async_event(uint16_t code, struct scsi_qla_host *vha,
 
 	default:
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf040,
-		    "qla_target(%d): Async event %#x occured: "
+		    "qla_target(%d): Async event %#x occurred: "
 		    "ignore (m[0]=%x, m[1]=%x, m[2]=%x, m[3]=%x)", vha->vp_idx,
 		    code, le16_to_cpu(mailbox[0]), le16_to_cpu(mailbox[1]),
 		    le16_to_cpu(mailbox[2]), le16_to_cpu(mailbox[3]));

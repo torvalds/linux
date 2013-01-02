@@ -494,7 +494,7 @@ static struct pci_driver s2io_driver = {
 	.name = "S2IO",
 	.id_table = s2io_tbl,
 	.probe = s2io_init_nic,
-	.remove = __devexit_p(s2io_rem_nic),
+	.remove = s2io_rem_nic,
 	.err_handler = &s2io_err_handler,
 };
 
@@ -1040,7 +1040,7 @@ static int s2io_verify_pci_mode(struct s2io_nic *nic)
 static int s2io_on_nec_bridge(struct pci_dev *s2io_pdev)
 {
 	struct pci_dev *tdev = NULL;
-	while ((tdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, tdev)) != NULL) {
+	for_each_pci_dev(tdev) {
 		if (tdev->vendor == NEC_VENID && tdev->device == NEC_DEVID) {
 			if (tdev->bus == s2io_pdev->bus->parent) {
 				pci_dev_put(tdev);
@@ -7702,7 +7702,7 @@ static const struct net_device_ops s2io_netdev_ops = {
  *  returns 0 on success and negative on failure.
  */
 
-static int __devinit
+static int
 s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 {
 	struct s2io_nic *sp;
@@ -8200,7 +8200,7 @@ mem_alloc_failed:
  * from memory.
  */
 
-static void __devexit s2io_rem_nic(struct pci_dev *pdev)
+static void s2io_rem_nic(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct s2io_nic *sp;
@@ -8239,7 +8239,8 @@ static int __init s2io_starter(void)
 
 /**
  * s2io_closer - Cleanup routine for the driver
- * Description: This function is the cleanup routine for the driver. It unregist * ers the driver.
+ * Description: This function is the cleanup routine for the driver. It
+ * unregisters the driver.
  */
 
 static __exit void s2io_closer(void)

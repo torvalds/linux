@@ -507,6 +507,7 @@ void gigaset_freecs(struct cardstate *cs)
 		gig_dbg(DEBUG_INIT, "clearing at_state");
 		clear_at_state(&cs->at_state);
 		dealloc_temp_at_states(cs);
+		tty_port_destroy(&cs->port);
 
 		/* fall through */
 	case 0:	/* error in basic setup */

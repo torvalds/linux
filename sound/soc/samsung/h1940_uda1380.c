@@ -207,7 +207,7 @@ static struct snd_soc_dai_link h1940_uda1380_dai[] = {
 		.cpu_dai_name	= "s3c24xx-iis",
 		.codec_dai_name	= "uda1380-hifi",
 		.init		= h1940_uda1380_init,
-		.platform_name	= "samsung-audio",
+		.platform_name	= "s3c24xx-iis",
 		.codec_name	= "uda1380-codec.0-001a",
 		.ops		= &h1940_ops,
 	},

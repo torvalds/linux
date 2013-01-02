@@ -29,6 +29,7 @@
 #include <media/rc-core.h>
 
 #include "cx23885.h"
+#include "cx23888-ir.h"
 
 static unsigned int ir_888_debug;
 module_param(ir_888_debug, int, 0644);

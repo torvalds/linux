@@ -132,6 +132,23 @@ choice
 		  their output to UART1 serial port on DaVinci TNETV107X
 		  devices.
 
+	config DEBUG_ZYNQ_UART0
+		bool "Kernel low-level debugging on Xilinx Zynq using UART0"
+		depends on ARCH_ZYNQ
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART0 on the Zynq platform.
+
+	config DEBUG_ZYNQ_UART1
+		bool "Kernel low-level debugging on Xilinx Zynq using UART1"
+		depends on ARCH_ZYNQ
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART1 on the Zynq platform.
+
+		  If you have a ZC702 board and want early boot messages to
+		  appear on the USB serial adaptor, select this option.
+
 	config DEBUG_DC21285_PORT
 		bool "Kernel low-level debugging messages via footbridge serial port"
 		depends on FOOTBRIDGE
@@ -209,20 +226,12 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on i.MX50 or i.MX53.
 
-	config DEBUG_IMX6Q_UART2
-		bool "i.MX6Q Debug UART2"
+	config DEBUG_IMX6Q_UART
+		bool "i.MX6Q Debug UART"
 		depends on SOC_IMX6Q
 		help
 		  Say Y here if you want kernel low-level debugging support
-		  on i.MX6Q UART2. This is correct for e.g. the SabreLite
-                  board.
-
-	config DEBUG_IMX6Q_UART4
-		bool "i.MX6Q Debug UART4"
-		depends on SOC_IMX6Q
-		help
-		  Say Y here if you want kernel low-level debugging support
-		  on i.MX6Q UART4.
+		  on i.MX6Q.
 
 	config DEBUG_MMP_UART2
 		bool "Kernel low-level debugging message via MMP UART2"
@@ -338,12 +347,44 @@ choice
 		  The uncompressor code port configuration is now handled
 		  by CONFIG_S3C_LOWLEVEL_UART_PORT.
 
+	config DEBUG_S3C_UART3
+		depends on PLAT_SAMSUNG && ARCH_EXYNOS
+		bool "Use S3C UART 3 for low-level debug"
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART 3. The port must have been initialised
+		  by the boot-loader before use.
+
+		  The uncompressor code port configuration is now handled
+		  by CONFIG_S3C_LOWLEVEL_UART_PORT.
+
 	config DEBUG_SOCFPGA_UART
 		depends on ARCH_SOCFPGA
 		bool "Use SOCFPGA UART for low-level debug"
 		help
 		  Say Y here if you want kernel low-level debugging support
 		  on SOCFPGA based platforms.
+
+	config DEBUG_SUNXI_UART0
+		bool "Kernel low-level debugging messages via sunXi UART0"
+		depends on ARCH_SUNXI
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on Allwinner A1X based platforms on the UART0.
+
+	config DEBUG_SUNXI_UART1
+		bool "Kernel low-level debugging messages via sunXi UART1"
+		depends on ARCH_SUNXI
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on Allwinner A1X based platforms on the UART1.
+
+	config DEBUG_TEGRA_UART
+		depends on ARCH_TEGRA
+		bool "Use Tegra UART for low-level debug"
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on Tegra based platforms.
 
 	config DEBUG_VEXPRESS_UART0_DETECT
 		bool "Autodetect UART0 on Versatile Express Cortex-A core tiles"
@@ -409,15 +450,64 @@ choice
 
 endchoice
 
+config DEBUG_IMX6Q_UART_PORT
+	int "i.MX6Q Debug UART Port (1-5)" if DEBUG_IMX6Q_UART
+	range 1 5
+	default 1
+	depends on SOC_IMX6Q
+	help
+	  Choose UART port on which kernel low-level debug messages
+	  should be output.
+
+choice
+	prompt "Low-level debug console UART"
+	depends on DEBUG_LL && DEBUG_TEGRA_UART
+
+	config TEGRA_DEBUG_UART_AUTO_ODMDATA
+	bool "Via ODMDATA"
+	help
+	  Automatically determines which UART to use for low-level debug based
+	  on the ODMDATA value. This value is part of the BCT, and is written
+	  to the boot memory device using nvflash, or other flashing tool.
+	  When bits 19:18 are 3, then bits 17:15 indicate which UART to use;
+	  0/1/2/3/4 are UART A/B/C/D/E.
+
+	config TEGRA_DEBUG_UARTA
+		bool "UART A"
+
+	config TEGRA_DEBUG_UARTB
+		bool "UART B"
+
+	config TEGRA_DEBUG_UARTC
+		bool "UART C"
+
+	config TEGRA_DEBUG_UARTD
+		bool "UART D"
+
+	config TEGRA_DEBUG_UARTE
+		bool "UART E"
+
+endchoice
+
 config DEBUG_LL_INCLUDE
 	string
 	default "debug/icedcc.S" if DEBUG_ICEDCC
+	default "debug/imx.S" if DEBUG_IMX1_UART || \
+				 DEBUG_IMX25_UART || \
+				 DEBUG_IMX21_IMX27_UART || \
+				 DEBUG_IMX31_IMX35_UART || \
+				 DEBUG_IMX51_UART || \
+				 DEBUG_IMX50_IMX53_UART ||\
+				 DEBUG_IMX6Q_UART
 	default "debug/highbank.S" if DEBUG_HIGHBANK_UART
 	default "debug/mvebu.S" if DEBUG_MVEBU_UART
 	default "debug/picoxcell.S" if DEBUG_PICOXCELL_UART
 	default "debug/socfpga.S" if DEBUG_SOCFPGA_UART
+	default "debug/sunxi.S" if DEBUG_SUNXI_UART0 || DEBUG_SUNXI_UART1
 	default "debug/vexpress.S" if DEBUG_VEXPRESS_UART0_DETECT || \
 		DEBUG_VEXPRESS_UART0_CA9 || DEBUG_VEXPRESS_UART0_RS1
+	default "debug/tegra.S" if DEBUG_TEGRA_UART
+	default "debug/zynq.S" if DEBUG_ZYNQ_UART0 || DEBUG_ZYNQ_UART1
 	default "mach/debug-macro.S"
 
 config EARLY_PRINTK

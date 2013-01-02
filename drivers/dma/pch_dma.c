@@ -843,7 +843,7 @@ static int pch_dma_resume(struct pci_dev *pdev)
 }
 #endif
 
-static int __devinit pch_dma_probe(struct pci_dev *pdev,
+static int pch_dma_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *id)
 {
 	struct pch_dma *pd;
@@ -1022,7 +1022,7 @@ static struct pci_driver pch_dma_driver = {
 	.name		= DRV_NAME,
 	.id_table	= pch_dma_id_table,
 	.probe		= pch_dma_probe,
-	.remove		= __devexit_p(pch_dma_remove),
+	.remove		= pch_dma_remove,
 #ifdef CONFIG_PM
 	.suspend	= pch_dma_suspend,
 	.resume		= pch_dma_resume,

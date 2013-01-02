@@ -42,9 +42,7 @@ static int __cpuinit highbank_boot_secondary(unsigned int cpu, struct task_struc
  */
 static void __init highbank_smp_init_cpus(void)
 {
-	unsigned int i, ncores;
-
-	ncores = scu_get_core_count(scu_base_addr);
+	unsigned int i, ncores = 4;
 
 	/* sanity check */
 	if (ncores > NR_CPUS) {
@@ -65,7 +63,8 @@ static void __init highbank_smp_prepare_cpus(unsigned int max_cpus)
 {
 	int i;
 
-	scu_enable(scu_base_addr);
+	if (scu_base_addr)
+		scu_enable(scu_base_addr);
 
 	/*
 	 * Write the address of secondary startup into the jump table

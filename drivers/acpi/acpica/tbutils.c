@@ -354,7 +354,7 @@ u8 acpi_tb_checksum(u8 *buffer, u32 length)
 		sum = (u8) (sum + *(buffer++));
 	}
 
-	return sum;
+	return (sum);
 }
 
 /*******************************************************************************

@@ -677,6 +677,7 @@ static void raw3215_free_info(struct raw3215_info *raw)
 {
 	kfree(raw->inbuf);
 	kfree(raw->buffer);
+	tty_port_destroy(&raw->port);
 	kfree(raw);
 }
 

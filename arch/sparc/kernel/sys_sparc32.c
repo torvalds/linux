@@ -211,20 +211,6 @@ asmlinkage long compat_sys_sysfs(int option, u32 arg1, u32 arg2)
 	return sys_sysfs(option, arg1, arg2);
 }
 
-asmlinkage long compat_sys_sched_rr_get_interval(compat_pid_t pid, struct compat_timespec __user *interval)
-{
-	struct timespec t;
-	int ret;
-	mm_segment_t old_fs = get_fs ();
-	
-	set_fs (KERNEL_DS);
-	ret = sys_sched_rr_get_interval(pid, (struct timespec __user *) &t);
-	set_fs (old_fs);
-	if (put_compat_timespec(&t, interval))
-		return -EFAULT;
-	return ret;
-}
-
 asmlinkage long compat_sys_rt_sigprocmask(int how,
 					  compat_sigset_t __user *set,
 					  compat_sigset_t __user *oset,
@@ -394,42 +380,6 @@ asmlinkage long compat_sys_rt_sigaction(int sig,
         }
 
         return ret;
-}
-
-/*
- * sparc32_execve() executes a new program after the asm stub has set
- * things up for us.  This should basically do what I want it to.
- */
-asmlinkage long sparc32_execve(struct pt_regs *regs)
-{
-	int error, base = 0;
-	struct filename *filename;
-
-	/* User register window flush is done by entry.S */
-
-	/* Check for indirect call. */
-	if ((u32)regs->u_regs[UREG_G1] == 0)
-		base = 1;
-
-	filename = getname(compat_ptr(regs->u_regs[base + UREG_I0]));
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-
-	error = compat_do_execve(filename->name,
-				 compat_ptr(regs->u_regs[base + UREG_I1]),
-				 compat_ptr(regs->u_regs[base + UREG_I2]), regs);
-
-	putname(filename);
-
-	if (!error) {
-		fprs_write(0);
-		current_thread_info()->xfsr[0] = 0;
-		current_thread_info()->fpsaved[0] = 0;
-		regs->tstate &= ~TSTATE_PEF;
-	}
-out:
-	return error;
 }
 
 #ifdef CONFIG_MODULES

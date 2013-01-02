@@ -164,7 +164,6 @@ static irqreturn_t adjd_s311_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct adjd_s311_data *data = iio_priv(indio_dev);
-	struct iio_buffer *buffer = indio_dev->buffer;
 	s64 time_ns = iio_get_time_ns();
 	int len = 0;
 	int i, j = 0;
@@ -187,7 +186,7 @@ static irqreturn_t adjd_s311_trigger_handler(int irq, void *p)
 	if (indio_dev->scan_timestamp)
 		*(s64 *)((u8 *)data->buffer + ALIGN(len, sizeof(s64)))
 			= time_ns;
-	iio_push_to_buffer(buffer, (u8 *)data->buffer);
+	iio_push_to_buffers(indio_dev, (u8 *)data->buffer);
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);

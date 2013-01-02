@@ -46,8 +46,16 @@ void fsnotify_clear_marks_by_mount(struct vfsmount *mnt)
 	spin_unlock(&mnt->mnt_root->d_lock);
 
 	list_for_each_entry_safe(mark, lmark, &free_list, m.free_m_list) {
-		fsnotify_destroy_mark(mark);
+		struct fsnotify_group *group;
+
+		spin_lock(&mark->lock);
+		fsnotify_get_group(mark->group);
+		group = mark->group;
+		spin_unlock(&mark->lock);
+
+		fsnotify_destroy_mark(mark, group);
 		fsnotify_put_mark(mark);
+		fsnotify_put_group(group);
 	}
 }
 
@@ -88,8 +96,8 @@ void fsnotify_destroy_vfsmount_mark(struct fsnotify_mark *mark)
 {
 	struct vfsmount *mnt = mark->m.mnt;
 
+	BUG_ON(!mutex_is_locked(&mark->group->mark_mutex));
 	assert_spin_locked(&mark->lock);
-	assert_spin_locked(&mark->group->mark_lock);
 
 	spin_lock(&mnt->mnt_root->d_lock);
 
@@ -151,8 +159,8 @@ int fsnotify_add_vfsmount_mark(struct fsnotify_mark *mark,
 
 	mark->flags |= FSNOTIFY_MARK_FLAG_VFSMOUNT;
 
+	BUG_ON(!mutex_is_locked(&group->mark_mutex));
 	assert_spin_locked(&mark->lock);
-	assert_spin_locked(&group->mark_lock);
 
 	spin_lock(&mnt->mnt_root->d_lock);
 

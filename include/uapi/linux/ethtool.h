@@ -500,13 +500,26 @@ union ethtool_flow_union {
 	struct ethtool_ah_espip4_spec		esp_ip4_spec;
 	struct ethtool_usrip4_spec		usr_ip4_spec;
 	struct ethhdr				ether_spec;
-	__u8					hdata[60];
+	__u8					hdata[52];
 };
 
+/**
+ * struct ethtool_flow_ext - additional RX flow fields
+ * @h_dest: destination MAC address
+ * @vlan_etype: VLAN EtherType
+ * @vlan_tci: VLAN tag control information
+ * @data: user defined data
+ *
+ * Note, @vlan_etype, @vlan_tci, and @data are only valid if %FLOW_EXT
+ * is set in &struct ethtool_rx_flow_spec @flow_type.
+ * @h_dest is valid if %FLOW_MAC_EXT is set.
+ */
 struct ethtool_flow_ext {
-	__be16	vlan_etype;
-	__be16	vlan_tci;
-	__be32	data[2];
+	__u8		padding[2];
+	unsigned char	h_dest[ETH_ALEN];
+	__be16		vlan_etype;
+	__be16		vlan_tci;
+	__be32		data[2];
 };
 
 /**
@@ -517,7 +530,8 @@ struct ethtool_flow_ext {
  * @m_u: Masks for flow field bits to be matched
  * @m_ext: Masks for additional field bits to be matched
  *	Note, all additional fields must be ignored unless @flow_type
- *	includes the %FLOW_EXT flag.
+ *	includes the %FLOW_EXT or %FLOW_MAC_EXT flag
+ *	(see &struct ethtool_flow_ext description).
  * @ring_cookie: RX ring/queue index to deliver to, or %RX_CLS_FLOW_DISC
  *	if packets should be discarded
  * @location: Location of rule in the table.  Locations must be
@@ -1027,6 +1041,7 @@ enum ethtool_sfeatures_retval_bits {
 #define	ETHER_FLOW	0x12	/* spec only (ether_spec) */
 /* Flag to enable additional fields in struct ethtool_rx_flow_spec */
 #define	FLOW_EXT	0x80000000
+#define	FLOW_MAC_EXT	0x40000000
 
 /* L3-L4 network traffic flow hash options */
 #define	RXH_L2DA	(1 << 1)

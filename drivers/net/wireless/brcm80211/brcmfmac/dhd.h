@@ -23,6 +23,8 @@
 
 #define BRCMF_VERSION_STR		"4.218.248.5"
 
+#include "fweh.h"
+
 /*******************************************************************************
  * IO codes that are interpreted by dongle firmware
  ******************************************************************************/
@@ -38,8 +40,11 @@
 #define BRCMF_C_GET_SSID			25
 #define BRCMF_C_SET_SSID			26
 #define BRCMF_C_GET_CHANNEL			29
+#define BRCMF_C_SET_CHANNEL			30
 #define BRCMF_C_GET_SRL				31
+#define BRCMF_C_SET_SRL				32
 #define BRCMF_C_GET_LRL				33
+#define BRCMF_C_SET_LRL				34
 #define BRCMF_C_GET_RADIO			37
 #define BRCMF_C_SET_RADIO			38
 #define BRCMF_C_GET_PHYTYPE			39
@@ -58,6 +63,7 @@
 #define BRCMF_C_SET_COUNTRY			84
 #define BRCMF_C_GET_PM				85
 #define BRCMF_C_SET_PM				86
+#define BRCMF_C_GET_CURR_RATESET		114
 #define BRCMF_C_GET_AP				117
 #define BRCMF_C_SET_AP				118
 #define BRCMF_C_GET_RSSI			127
@@ -65,6 +71,7 @@
 #define BRCMF_C_SET_WSEC			134
 #define BRCMF_C_GET_PHY_NOISE			135
 #define BRCMF_C_GET_BSS_INFO			136
+#define BRCMF_C_GET_PHYLIST			180
 #define BRCMF_C_SET_SCAN_CHANNEL_TIME		185
 #define BRCMF_C_SET_SCAN_UNASSOC_TIME		187
 #define BRCMF_C_SCB_DEAUTHENTICATE_FOR_REASON	201
@@ -100,29 +107,8 @@
 #define BRCMF_SCAN_PARAMS_COUNT_MASK 0x0000ffff
 #define BRCMF_SCAN_PARAMS_NSSID_SHIFT 16
 
-#define BRCMF_SCAN_ACTION_START      1
-#define BRCMF_SCAN_ACTION_CONTINUE   2
-#define WL_SCAN_ACTION_ABORT      3
-
-#define BRCMF_ISCAN_REQ_VERSION 1
-
-/* brcmf_iscan_results status values */
-#define BRCMF_SCAN_RESULTS_SUCCESS	0
-#define BRCMF_SCAN_RESULTS_PARTIAL	1
-#define BRCMF_SCAN_RESULTS_PENDING	2
-#define BRCMF_SCAN_RESULTS_ABORTED	3
-#define BRCMF_SCAN_RESULTS_NO_MEM	4
-
-/* Indicates this key is using soft encrypt */
-#define WL_SOFT_KEY	(1 << 0)
 /* primary (ie tx) key */
 #define BRCMF_PRIMARY_KEY	(1 << 1)
-/* Reserved for backward compat */
-#define WL_KF_RES_4	(1 << 4)
-/* Reserved for backward compat */
-#define WL_KF_RES_5	(1 << 5)
-/* Indicates a group key for a IBSS PEER */
-#define WL_IBSS_PEER_GROUP_KEY	(1 << 6)
 
 /* For supporting multiple interfaces */
 #define BRCMF_MAX_IFS	16
@@ -130,118 +116,12 @@
 #define DOT11_BSSTYPE_ANY			2
 #define DOT11_MAX_DEFAULT_KEYS	4
 
-#define BRCMF_EVENT_MSG_LINK		0x01
-#define BRCMF_EVENT_MSG_FLUSHTXQ	0x02
-#define BRCMF_EVENT_MSG_GROUP		0x04
-
 #define BRCMF_ESCAN_REQ_VERSION 1
 
 #define WLC_BSS_RSSI_ON_CHANNEL		0x0002
 
 #define BRCMF_MAXRATES_IN_SET		16	/* max # of rates in rateset */
 #define BRCMF_STA_ASSOC			0x10		/* Associated */
-
-struct brcmf_event_msg {
-	__be16 version;
-	__be16 flags;
-	__be32 event_type;
-	__be32 status;
-	__be32 reason;
-	__be32 auth_type;
-	__be32 datalen;
-	u8 addr[ETH_ALEN];
-	char ifname[IFNAMSIZ];
-	u8 ifidx;
-	u8 bsscfgidx;
-} __packed;
-
-struct brcm_ethhdr {
-	u16 subtype;
-	u16 length;
-	u8 version;
-	u8 oui[3];
-	u16 usr_subtype;
-} __packed;
-
-struct brcmf_event {
-	struct ethhdr eth;
-	struct brcm_ethhdr hdr;
-	struct brcmf_event_msg msg;
-} __packed;
-
-/* event codes sent by the dongle to this driver */
-#define BRCMF_E_SET_SSID			0
-#define BRCMF_E_JOIN				1
-#define BRCMF_E_START				2
-#define BRCMF_E_AUTH				3
-#define BRCMF_E_AUTH_IND			4
-#define BRCMF_E_DEAUTH				5
-#define BRCMF_E_DEAUTH_IND			6
-#define BRCMF_E_ASSOC				7
-#define BRCMF_E_ASSOC_IND			8
-#define BRCMF_E_REASSOC				9
-#define BRCMF_E_REASSOC_IND			10
-#define BRCMF_E_DISASSOC			11
-#define BRCMF_E_DISASSOC_IND			12
-#define BRCMF_E_QUIET_START			13
-#define BRCMF_E_QUIET_END			14
-#define BRCMF_E_BEACON_RX			15
-#define BRCMF_E_LINK				16
-#define BRCMF_E_MIC_ERROR			17
-#define BRCMF_E_NDIS_LINK			18
-#define BRCMF_E_ROAM				19
-#define BRCMF_E_TXFAIL				20
-#define BRCMF_E_PMKID_CACHE			21
-#define BRCMF_E_RETROGRADE_TSF			22
-#define BRCMF_E_PRUNE				23
-#define BRCMF_E_AUTOAUTH			24
-#define BRCMF_E_EAPOL_MSG			25
-#define BRCMF_E_SCAN_COMPLETE			26
-#define BRCMF_E_ADDTS_IND			27
-#define BRCMF_E_DELTS_IND			28
-#define BRCMF_E_BCNSENT_IND			29
-#define BRCMF_E_BCNRX_MSG			30
-#define BRCMF_E_BCNLOST_MSG			31
-#define BRCMF_E_ROAM_PREP			32
-#define BRCMF_E_PFN_NET_FOUND			33
-#define BRCMF_E_PFN_NET_LOST			34
-#define BRCMF_E_RESET_COMPLETE			35
-#define BRCMF_E_JOIN_START			36
-#define BRCMF_E_ROAM_START			37
-#define BRCMF_E_ASSOC_START			38
-#define BRCMF_E_IBSS_ASSOC			39
-#define BRCMF_E_RADIO				40
-#define BRCMF_E_PSM_WATCHDOG			41
-#define BRCMF_E_PROBREQ_MSG			44
-#define BRCMF_E_SCAN_CONFIRM_IND		45
-#define BRCMF_E_PSK_SUP				46
-#define BRCMF_E_COUNTRY_CODE_CHANGED		47
-#define	BRCMF_E_EXCEEDED_MEDIUM_TIME		48
-#define BRCMF_E_ICV_ERROR			49
-#define BRCMF_E_UNICAST_DECODE_ERROR		50
-#define BRCMF_E_MULTICAST_DECODE_ERROR		51
-#define BRCMF_E_TRACE				52
-#define BRCMF_E_IF				54
-#define BRCMF_E_RSSI				56
-#define BRCMF_E_PFN_SCAN_COMPLETE		57
-#define BRCMF_E_EXTLOG_MSG			58
-#define BRCMF_E_ACTION_FRAME			59
-#define BRCMF_E_ACTION_FRAME_COMPLETE		60
-#define BRCMF_E_PRE_ASSOC_IND			61
-#define BRCMF_E_PRE_REASSOC_IND			62
-#define BRCMF_E_CHANNEL_ADOPTED			63
-#define BRCMF_E_AP_STARTED			64
-#define BRCMF_E_DFS_AP_STOP			65
-#define BRCMF_E_DFS_AP_RESUME			66
-#define BRCMF_E_RESERVED1			67
-#define BRCMF_E_RESERVED2			68
-#define BRCMF_E_ESCAN_RESULT			69
-#define BRCMF_E_ACTION_FRAME_OFF_CHAN_COMPLETE	70
-#define BRCMF_E_DCS_REQUEST			73
-
-#define BRCMF_E_FIFO_CREDIT_MAP			74
-
-#define BRCMF_E_LAST				75
 
 #define BRCMF_E_STATUS_SUCCESS			0
 #define BRCMF_E_STATUS_FAIL			1
@@ -317,6 +197,12 @@ struct brcmf_event {
 #define BRCMF_E_LINK_DISASSOC			2
 #define BRCMF_E_LINK_ASSOC_REC			3
 #define BRCMF_E_LINK_BSSCFG_DIS			4
+
+/* Small, medium and maximum buffer size for dcmd
+ */
+#define BRCMF_DCMD_SMLEN	256
+#define BRCMF_DCMD_MEDLEN	1536
+#define BRCMF_DCMD_MAXLEN	8192
 
 /* Pattern matching filter. Specifies an offset within received packets to
  * start matching, the pattern to match, the size of the pattern, and a bitmask
@@ -397,7 +283,7 @@ struct brcm_rateset_le {
 	/* # rates in this set */
 	__le32 count;
 	/* rates in 500kbps units w/hi bit set if basic */
-	u8 rates[WL_NUMRATES];
+	u8 rates[BRCMF_MAXRATES_IN_SET];
 };
 
 struct brcmf_ssid {
@@ -446,25 +332,11 @@ struct brcmf_scan_params_le {
 	__le16 channel_list[1];	/* list of chanspecs */
 };
 
-/* incremental scan struct */
-struct brcmf_iscan_params_le {
-	__le32 version;
-	__le16 action;
-	__le16 scan_duration;
-	struct brcmf_scan_params_le params_le;
-};
-
 struct brcmf_scan_results {
 	u32 buflen;
 	u32 version;
 	u32 count;
 	struct brcmf_bss_info_le bss_info_le[];
-};
-
-struct brcmf_scan_results_le {
-	__le32 buflen;
-	__le32 version;
-	__le32 count;
 };
 
 struct brcmf_escan_params_le {
@@ -501,23 +373,6 @@ struct brcmf_join_params {
 	struct brcmf_ssid_le ssid_le;
 	struct brcmf_assoc_params_le params_le;
 };
-
-/* incremental scan results struct */
-struct brcmf_iscan_results {
-	union {
-		u32 status;
-		__le32 status_le;
-	};
-	union {
-		struct brcmf_scan_results results;
-		struct brcmf_scan_results_le results_le;
-	};
-};
-
-/* size of brcmf_iscan_results not including variable length array */
-#define BRCMF_ISCAN_RESULTS_FIXED_SIZE \
-	(sizeof(struct brcmf_scan_results) + \
-	 offsetof(struct brcmf_iscan_results, results))
 
 struct brcmf_wsec_key {
 	u32 index;		/* key index */
@@ -615,7 +470,6 @@ struct brcmf_pub {
 	struct brcmf_bus *bus_if;
 	struct brcmf_proto *prot;
 	struct brcmf_cfg80211_info *config;
-	struct device *dev;		/* fullmac dongle device pointer */
 
 	/* Internal brcmf items */
 	uint hdrlen;		/* Total BRCMF header length (proto + bus) */
@@ -623,7 +477,6 @@ struct brcmf_pub {
 	u8 wme_dp;		/* wme discard priority */
 
 	/* Dongle media info */
-	bool iswl;		/* Dongle-resident driver is wl */
 	unsigned long drv_version;	/* Version of dongle-resident driver */
 	u8 mac[ETH_ALEN];		/* MAC address obtained from dongle */
 
@@ -651,24 +504,24 @@ struct brcmf_pub {
 	int in_suspend;		/* flag set to 1 when early suspend called */
 	int dtim_skip;		/* dtim skip , default 0 means wake each dtim */
 
-	/* Pkt filter defination */
-	char *pktfilter[100];
-	int pktfilter_count;
-
-	u8 country_code[BRCM_CNTRY_BUF_SZ];
-	char eventmask[BRCMF_EVENTING_MASK_LEN];
-
 	struct brcmf_if *iflist[BRCMF_MAX_IFS];
 
 	struct mutex proto_block;
+	unsigned char proto_buf[BRCMF_DCMD_MAXLEN];
 
-	struct work_struct setmacaddr_work;
-	struct work_struct multicast_work;
 	u8 macvalue[ETH_ALEN];
 	atomic_t pend_8021x_cnt;
+	wait_queue_head_t pend_8021x_wait;
+
+	struct brcmf_fweh_info fweh;
 #ifdef DEBUG
 	struct dentry *dbgfs_dir;
 #endif
+};
+
+struct bcmevent_name {
+	uint event;
+	const char *name;
 };
 
 struct brcmf_if_event {
@@ -678,22 +531,41 @@ struct brcmf_if_event {
 	u8 bssidx;
 };
 
-struct bcmevent_name {
-	uint event;
-	const char *name;
+/* forward declaration */
+struct brcmf_cfg80211_vif;
+
+/**
+ * struct brcmf_if - interface control information.
+ *
+ * @drvr: points to device related information.
+ * @vif: points to cfg80211 specific interface information.
+ * @ndev: associated network device.
+ * @stats: interface specific network statistics.
+ * @idx: interface index in device firmware.
+ * @bssidx: index of bss associated with this interface.
+ * @mac_addr: assigned mac address.
+ */
+struct brcmf_if {
+	struct brcmf_pub *drvr;
+	struct brcmf_cfg80211_vif *vif;
+	struct net_device *ndev;
+	struct net_device_stats stats;
+	struct work_struct setmacaddr_work;
+	struct work_struct multicast_work;
+	int idx;
+	s32 bssidx;
+	u8 mac_addr[ETH_ALEN];
 };
+
+static inline s32 brcmf_ndev_bssidx(struct net_device *ndev)
+{
+	struct brcmf_if *ifp = netdev_priv(ndev);
+	return ifp->bssidx;
+}
 
 extern const struct bcmevent_name bcmevent_names[];
 
-extern uint brcmf_c_mkiovar(char *name, char *data, uint datalen,
-			  char *buf, uint len);
-extern uint brcmf_c_mkiovar_bsscfg(char *name, char *data, uint datalen,
-				   char *buf, uint buflen, s32 bssidx);
-
 extern int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
-
-extern s32 brcmf_exec_dcmd(struct net_device *dev, u32 cmd, void *arg, u32 len);
-extern int brcmf_netlink_dcmd(struct net_device *ndev, struct brcmf_dcmd *dcmd);
 
 /* Return pointer to interface name */
 extern char *brcmf_ifname(struct brcmf_pub *drvr, int idx);
@@ -701,24 +573,12 @@ extern char *brcmf_ifname(struct brcmf_pub *drvr, int idx);
 /* Query dongle */
 extern int brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx,
 				       uint cmd, void *buf, uint len);
+extern int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
+				    void *buf, uint len);
 
-#ifdef DEBUG
-extern int brcmf_write_to_file(struct brcmf_pub *drvr, const u8 *buf, int size);
-#endif				/* DEBUG */
-
-extern int brcmf_ifname2idx(struct brcmf_pub *drvr, char *name);
-extern int brcmf_c_host_event(struct brcmf_pub *drvr, int *idx,
-			      void *pktdata, struct brcmf_event_msg *,
-			      void **data_ptr);
-
+extern int brcmf_net_attach(struct brcmf_if *ifp);
+extern struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, int ifidx,
+				     s32 bssidx, char *name, u8 *mac_addr);
 extern void brcmf_del_if(struct brcmf_pub *drvr, int ifidx);
-
-extern void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg);
-extern void brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg,
-					     int enable, int master_mode);
-
-#define	BRCMF_DCMD_SMLEN	256	/* "small" cmd buffer required */
-#define BRCMF_DCMD_MEDLEN	1536	/* "med" cmd buffer required */
-#define	BRCMF_DCMD_MAXLEN	8192	/* max length cmd buffer required */
 
 #endif				/* _BRCMF_H_ */

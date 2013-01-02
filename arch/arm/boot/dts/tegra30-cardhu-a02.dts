@@ -83,5 +83,11 @@
 			gpio = <&gpio 83 0>; /* GPIO PK3 */
 		};
 	};
+
+	sdhci@78000400 {
+		status = "okay";
+		power-gpios = <&gpio 28 0>; /* gpio PD4 */
+		bus-width = <4>;
+	};
 };
 

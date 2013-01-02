@@ -41,7 +41,6 @@
 #include <linux/io.h>
 #include <linux/of_irq.h>
 #include <linux/of_device.h>
-#include <linux/platform_device.h>
 #include <linux/pinctrl/consumer.h>
 
 /*
@@ -168,12 +167,12 @@ static void __iomem *mvebu_gpioreg_level_mask(struct mvebu_gpio_chip *mvchip)
  * Functions implementing the gpio_chip methods
  */
 
-int mvebu_gpio_request(struct gpio_chip *chip, unsigned pin)
+static int mvebu_gpio_request(struct gpio_chip *chip, unsigned pin)
 {
 	return pinctrl_request_gpio(chip->base + pin);
 }
 
-void mvebu_gpio_free(struct gpio_chip *chip, unsigned pin)
+static void mvebu_gpio_free(struct gpio_chip *chip, unsigned pin)
 {
 	pinctrl_free_gpio(chip->base + pin);
 }
@@ -469,20 +468,7 @@ static void mvebu_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	}
 }
 
-static struct platform_device_id mvebu_gpio_ids[] = {
-	{
-		.name = "orion-gpio",
-	}, {
-		.name = "mv78200-gpio",
-	}, {
-		.name = "armadaxp-gpio",
-	}, {
-		/* sentinel */
-	},
-};
-MODULE_DEVICE_TABLE(platform, mvebu_gpio_ids);
-
-static struct of_device_id mvebu_gpio_of_match[] __devinitdata = {
+static struct of_device_id mvebu_gpio_of_match[] = {
 	{
 		.compatible = "marvell,orion-gpio",
 		.data       = (void*) MVEBU_GPIO_SOC_VARIANT_ORION,
@@ -501,7 +487,7 @@ static struct of_device_id mvebu_gpio_of_match[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(of, mvebu_gpio_of_match);
 
-static int __devinit mvebu_gpio_probe(struct platform_device *pdev)
+static int mvebu_gpio_probe(struct platform_device *pdev)
 {
 	struct mvebu_gpio_chip *mvchip;
 	const struct of_device_id *match;
@@ -546,6 +532,7 @@ static int __devinit mvebu_gpio_probe(struct platform_device *pdev)
 	mvchip->chip.label = dev_name(&pdev->dev);
 	mvchip->chip.dev = &pdev->dev;
 	mvchip->chip.request = mvebu_gpio_request;
+	mvchip->chip.free = mvebu_gpio_free;
 	mvchip->chip.direction_input = mvebu_gpio_direction_input;
 	mvchip->chip.get = mvebu_gpio_get;
 	mvchip->chip.direction_output = mvebu_gpio_direction_output;
@@ -554,9 +541,7 @@ static int __devinit mvebu_gpio_probe(struct platform_device *pdev)
 	mvchip->chip.base = id * MVEBU_MAX_GPIO_PER_BANK;
 	mvchip->chip.ngpio = ngpios;
 	mvchip->chip.can_sleep = 0;
-#ifdef CONFIG_OF
 	mvchip->chip.of_node = np;
-#endif
 
 	spin_lock_init(&mvchip->lock);
 	mvchip->membase = devm_request_and_ioremap(&pdev->dev, res);
@@ -673,8 +658,8 @@ static int __devinit mvebu_gpio_probe(struct platform_device *pdev)
 			       IRQ_NOREQUEST, IRQ_LEVEL | IRQ_NOPROBE);
 
 	/* Setup irq domain on top of the generic chip. */
-	mvchip->domain = irq_domain_add_legacy(np, mvchip->chip.ngpio,
-					       mvchip->irqbase, 0,
+	mvchip->domain = irq_domain_add_simple(np, mvchip->chip.ngpio,
+					       mvchip->irqbase,
 					       &irq_domain_simple_ops,
 					       mvchip);
 	if (!mvchip->domain) {
@@ -697,7 +682,6 @@ static struct platform_driver mvebu_gpio_driver = {
 		.of_match_table = mvebu_gpio_of_match,
 	},
 	.probe		= mvebu_gpio_probe,
-	.id_table	= mvebu_gpio_ids,
 };
 
 static int __init mvebu_gpio_init(void)

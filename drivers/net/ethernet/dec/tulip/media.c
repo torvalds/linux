@@ -447,7 +447,7 @@ int tulip_check_duplex(struct net_device *dev)
 	return 0;
 }
 
-void __devinit tulip_find_mii (struct net_device *dev, int board_idx)
+void tulip_find_mii(struct net_device *dev, int board_idx)
 {
 	struct tulip_private *tp = netdev_priv(dev);
 	int phyn, phy_idx = 0;

@@ -362,16 +362,13 @@ acpi_system_write_wakeup_device(struct file *file,
 	struct list_head *node, *next;
 	char strbuf[5];
 	char str[5] = "";
-	unsigned int len = count;
 
-	if (len > 4)
-		len = 4;
-	if (len < 0)
-		return -EFAULT;
+	if (count > 4)
+		count = 4;
 
-	if (copy_from_user(strbuf, buffer, len))
+	if (copy_from_user(strbuf, buffer, count))
 		return -EFAULT;
-	strbuf[len] = '\0';
+	strbuf[count] = '\0';
 	sscanf(strbuf, "%s", str);
 
 	mutex_lock(&acpi_device_lock);

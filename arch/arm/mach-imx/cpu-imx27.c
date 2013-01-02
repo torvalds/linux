@@ -24,7 +24,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 
-#include <mach/hardware.h>
+#include "hardware.h"
 
 static int mx27_cpu_rev = -1;
 static int mx27_cpu_partnumber;

@@ -462,7 +462,7 @@ Differences between the kernel community and corporate structures
 
 The kernel community works differently than most traditional corporate
 development environments.  Here are a list of things that you can try to
-do to try to avoid problems:
+do to avoid problems:
   Good things to say regarding your proposed changes:
     - "This solves multiple problems."
     - "This deletes 2000 lines of code."

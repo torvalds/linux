@@ -66,7 +66,7 @@ out:
 	return err;
 }
 
-static int __devexit bcm47xxsflash_remove(struct platform_device *pdev)
+static int bcm47xxsflash_remove(struct platform_device *pdev)
 {
 	struct bcma_sflash *sflash = dev_get_platdata(&pdev->dev);
 
@@ -77,7 +77,7 @@ static int __devexit bcm47xxsflash_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver bcma_sflash_driver = {
-	.remove = __devexit_p(bcm47xxsflash_remove),
+	.remove = bcm47xxsflash_remove,
 	.driver = {
 		.name = "bcma_sflash",
 		.owner = THIS_MODULE,

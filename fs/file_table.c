@@ -458,8 +458,8 @@ void mark_files_ro(struct super_block *sb)
 		spin_unlock(&f->f_lock);
 		if (file_check_writeable(f) != 0)
 			continue;
+		__mnt_drop_write(f->f_path.mnt);
 		file_release_write(f);
-		mnt_drop_write_file(f);
 	} while_file_list_for_each_entry;
 	lg_global_unlock(&files_lglock);
 }

@@ -113,14 +113,8 @@ static ssize_t highbank_mc_err_inject_write(struct file *file,
 	return count;
 }
 
-static int debugfs_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static const struct file_operations highbank_mc_debug_inject_fops = {
-	.open = debugfs_open,
+	.open = simple_open,
 	.write = highbank_mc_err_inject_write,
 	.llseek = generic_file_llseek,
 };

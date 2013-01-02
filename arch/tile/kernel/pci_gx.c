@@ -1047,8 +1047,7 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 }
 
 /* Called for each device after PCI setup is done. */
-static void __init
-pcibios_fixup_final(struct pci_dev *pdev)
+static void pcibios_fixup_final(struct pci_dev *pdev)
 {
 	set_dma_ops(&pdev->dev, gx_pci_dma_map_ops);
 	set_dma_offset(&pdev->dev, TILE_PCI_MEM_MAP_BASE_OFFSET);

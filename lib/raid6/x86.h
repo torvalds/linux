@@ -45,19 +45,23 @@ static inline void kernel_fpu_end(void)
 #define X86_FEATURE_XMM3	(4*32+ 0) /* "pni" SSE-3 */
 #define X86_FEATURE_SSSE3	(4*32+ 9) /* Supplemental SSE-3 */
 #define X86_FEATURE_AVX	(4*32+28) /* Advanced Vector Extensions */
+#define X86_FEATURE_AVX2        (9*32+ 5) /* AVX2 instructions */
 #define X86_FEATURE_MMXEXT	(1*32+22) /* AMD MMX extensions */
 
 /* Should work well enough on modern CPUs for testing */
 static inline int boot_cpu_has(int flag)
 {
-	u32 eax = (flag & 0x20) ? 0x80000001 : 1;
-	u32 ecx, edx;
+	u32 eax, ebx, ecx, edx;
+
+	eax = (flag & 0x100) ? 7 :
+		(flag & 0x20) ? 0x80000001 : 1;
+	ecx = 0;
 
 	asm volatile("cpuid"
-		     : "+a" (eax), "=d" (edx), "=c" (ecx)
-		     : : "ebx");
+		     : "+a" (eax), "=b" (ebx), "=d" (edx), "+c" (ecx));
 
-	return ((flag & 0x80 ? ecx : edx) >> (flag & 31)) & 1;
+	return ((flag & 0x100 ? ebx :
+		(flag & 0x80) ? ecx : edx) >> (flag & 31)) & 1;
 }
 
 #endif /* ndef __KERNEL__ */

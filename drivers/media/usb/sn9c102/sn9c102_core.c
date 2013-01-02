@@ -2481,11 +2481,13 @@ sn9c102_vidioc_enum_framesizes(struct sn9c102_device* cam, void __user * arg)
 		if (frmsize.pixel_format != V4L2_PIX_FMT_SN9C10X &&
 		    frmsize.pixel_format != V4L2_PIX_FMT_SBGGR8)
 			return -EINVAL;
+		break;
 	case BRIDGE_SN9C105:
 	case BRIDGE_SN9C120:
 		if (frmsize.pixel_format != V4L2_PIX_FMT_JPEG &&
 		    frmsize.pixel_format != V4L2_PIX_FMT_SBGGR8)
 			return -EINVAL;
+		break;
 	}
 
 	frmsize.type = V4L2_FRMSIZE_TYPE_STEPWISE;

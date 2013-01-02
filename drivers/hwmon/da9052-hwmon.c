@@ -60,30 +60,17 @@ static inline int vbbat_reg_to_mV(int value)
 	return DIV_ROUND_CLOSEST(value * 2500, 512);
 }
 
-static int da9052_enable_vddout_channel(struct da9052 *da9052)
+static inline int da9052_enable_vddout_channel(struct da9052 *da9052)
 {
-	int ret;
-
-	ret = da9052_reg_read(da9052, DA9052_ADC_CONT_REG);
-	if (ret < 0)
-		return ret;
-
-	ret |= DA9052_ADCCONT_AUTOVDDEN;
-
-	return da9052_reg_write(da9052, DA9052_ADC_CONT_REG, ret);
+	return da9052_reg_update(da9052, DA9052_ADC_CONT_REG,
+				 DA9052_ADCCONT_AUTOVDDEN,
+				 DA9052_ADCCONT_AUTOVDDEN);
 }
 
-static int da9052_disable_vddout_channel(struct da9052 *da9052)
+static inline int da9052_disable_vddout_channel(struct da9052 *da9052)
 {
-	int ret;
-
-	ret = da9052_reg_read(da9052, DA9052_ADC_CONT_REG);
-	if (ret < 0)
-		return ret;
-
-	ret &= ~DA9052_ADCCONT_AUTOVDDEN;
-
-	return da9052_reg_write(da9052, DA9052_ADC_CONT_REG, ret);
+	return da9052_reg_update(da9052, DA9052_ADC_CONT_REG,
+				 DA9052_ADCCONT_AUTOVDDEN, 0);
 }
 
 static ssize_t da9052_read_vddout(struct device *dev,
@@ -283,7 +270,7 @@ static struct attribute *da9052_attr[] = {
 
 static const struct attribute_group da9052_attr_group = {.attrs = da9052_attr};
 
-static int __devinit da9052_hwmon_probe(struct platform_device *pdev)
+static int da9052_hwmon_probe(struct platform_device *pdev)
 {
 	struct da9052_hwmon *hwmon;
 	int ret;
@@ -316,7 +303,7 @@ err_mem:
 	return ret;
 }
 
-static int __devexit da9052_hwmon_remove(struct platform_device *pdev)
+static int da9052_hwmon_remove(struct platform_device *pdev)
 {
 	struct da9052_hwmon *hwmon = platform_get_drvdata(pdev);
 
@@ -328,7 +315,7 @@ static int __devexit da9052_hwmon_remove(struct platform_device *pdev)
 
 static struct platform_driver da9052_hwmon_driver = {
 	.probe = da9052_hwmon_probe,
-	.remove = __devexit_p(da9052_hwmon_remove),
+	.remove = da9052_hwmon_remove,
 	.driver = {
 		.name = "da9052-hwmon",
 		.owner = THIS_MODULE,

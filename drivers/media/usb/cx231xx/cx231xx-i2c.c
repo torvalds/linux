@@ -72,8 +72,8 @@ static inline bool is_tuner(struct cx231xx *dev, struct cx231xx_i2c *bus,
 /*
  * cx231xx_i2c_send_bytes()
  */
-int cx231xx_i2c_send_bytes(struct i2c_adapter *i2c_adap,
-			   const struct i2c_msg *msg)
+static int cx231xx_i2c_send_bytes(struct i2c_adapter *i2c_adap,
+				  const struct i2c_msg *msg)
 {
 	struct cx231xx_i2c *bus = i2c_adap->algo_data;
 	struct cx231xx *dev = bus->dev;

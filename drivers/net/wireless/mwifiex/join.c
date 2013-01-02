@@ -721,8 +721,7 @@ int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
 
 	if (!netif_carrier_ok(priv->netdev))
 		netif_carrier_on(priv->netdev);
-	if (netif_queue_stopped(priv->netdev))
-		netif_wake_queue(priv->netdev);
+	mwifiex_wake_up_net_dev_queue(priv->netdev, adapter);
 
 	if (priv->sec_info.wpa_enabled || priv->sec_info.wpa2_enabled)
 		priv->scan_block = true;
@@ -1238,8 +1237,7 @@ int mwifiex_ret_802_11_ad_hoc(struct mwifiex_private *priv,
 
 	if (!netif_carrier_ok(priv->netdev))
 		netif_carrier_on(priv->netdev);
-	if (netif_queue_stopped(priv->netdev))
-		netif_wake_queue(priv->netdev);
+	mwifiex_wake_up_net_dev_queue(priv->netdev, adapter);
 
 	mwifiex_save_curr_bcn(priv);
 

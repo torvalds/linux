@@ -288,7 +288,7 @@ static const struct snd_soc_dai_driver au1xpsc_i2s_dai_template = {
 	.ops = &au1xpsc_i2s_dai_ops,
 };
 
-static int __devinit au1xpsc_i2s_drvprobe(struct platform_device *pdev)
+static int au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 {
 	struct resource *iores, *dmares;
 	unsigned long sel;
@@ -353,7 +353,7 @@ static int __devinit au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 	return snd_soc_register_dai(&pdev->dev, &wd->dai_drv);
 }
 
-static int __devexit au1xpsc_i2s_drvremove(struct platform_device *pdev)
+static int au1xpsc_i2s_drvremove(struct platform_device *pdev)
 {
 	struct au1xpsc_audio_data *wd = platform_get_drvdata(pdev);
 
@@ -418,7 +418,7 @@ static struct platform_driver au1xpsc_i2s_driver = {
 		.pm	= AU1XPSCI2S_PMOPS,
 	},
 	.probe		= au1xpsc_i2s_drvprobe,
-	.remove		= __devexit_p(au1xpsc_i2s_drvremove),
+	.remove		= au1xpsc_i2s_drvremove,
 };
 
 module_platform_driver(au1xpsc_i2s_driver);
