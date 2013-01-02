@@ -26,13 +26,13 @@
 #include <plat/pm.h>
 #include <plat/wakeup-mask.h>
 
-#include <mach/regs-sys.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
 #include <mach/regs-syscon-power.h>
 
 #include "regs-gpio-memport.h"
 #include "regs-modem.h"
+#include "regs-sys.h"
 
 struct s3c64xx_pm_domain {
 	char *const name;

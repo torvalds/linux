@@ -23,7 +23,6 @@
 #include <mach/hardware.h>
 #include <mach/map.h>
 
-#include <mach/regs-sys.h>
 #include <mach/regs-clock.h>
 
 #include <plat/cpu.h>
@@ -32,6 +31,8 @@
 #include <plat/clock.h>
 #include <plat/clock-clksrc.h>
 #include <plat/pll.h>
+
+#include "regs-sys.h"
 
 /* fin_apll, fin_mpll and fin_epll are all the same clock, which we call
  * ext_xtal_mux for want of an actual name from the manual.
