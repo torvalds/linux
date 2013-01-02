@@ -1055,109 +1055,35 @@ static int evergreen_cs_packet_next_reloc(struct radeon_cs_parser *p,
 }
 
 /**
- * evergreen_cs_packet_next_vline() - parse userspace VLINE packet
+ * evergreen_cs_packet_parse_vline() - parse userspace VLINE packet
  * @parser:		parser structure holding parsing context.
  *
- * Userspace sends a special sequence for VLINE waits.
- * PACKET0 - VLINE_START_END + value
- * PACKET3 - WAIT_REG_MEM poll vline status reg
- * RELOC (P3) - crtc_id in reloc.
- *
- * This function parses this and relocates the VLINE START END
- * and WAIT_REG_MEM packets to the correct crtc.
- * It also detects a switched off crtc and nulls out the
- * wait in that case.
+ * This is an Evergreen(+)-specific function for parsing VLINE packets.
+ * Real work is done by r600_cs_common_vline_parse function.
+ * Here we just set up ASIC-specific register table and call
+ * the common implementation function.
  */
 static int evergreen_cs_packet_parse_vline(struct radeon_cs_parser *p)
 {
-	struct drm_mode_object *obj;
-	struct drm_crtc *crtc;
-	struct radeon_crtc *radeon_crtc;
-	struct radeon_cs_packet p3reloc, wait_reg_mem;
-	int crtc_id;
-	int r;
-	uint32_t header, h_idx, reg, wait_reg_mem_info;
-	volatile uint32_t *ib;
 
-	ib = p->ib.ptr;
+	static uint32_t vline_start_end[6] = {
+		EVERGREEN_VLINE_START_END + EVERGREEN_CRTC0_REGISTER_OFFSET,
+		EVERGREEN_VLINE_START_END + EVERGREEN_CRTC1_REGISTER_OFFSET,
+		EVERGREEN_VLINE_START_END + EVERGREEN_CRTC2_REGISTER_OFFSET,
+		EVERGREEN_VLINE_START_END + EVERGREEN_CRTC3_REGISTER_OFFSET,
+		EVERGREEN_VLINE_START_END + EVERGREEN_CRTC4_REGISTER_OFFSET,
+		EVERGREEN_VLINE_START_END + EVERGREEN_CRTC5_REGISTER_OFFSET
+	};
+	static uint32_t vline_status[6] = {
+		EVERGREEN_VLINE_STATUS + EVERGREEN_CRTC0_REGISTER_OFFSET,
+		EVERGREEN_VLINE_STATUS + EVERGREEN_CRTC1_REGISTER_OFFSET,
+		EVERGREEN_VLINE_STATUS + EVERGREEN_CRTC2_REGISTER_OFFSET,
+		EVERGREEN_VLINE_STATUS + EVERGREEN_CRTC3_REGISTER_OFFSET,
+		EVERGREEN_VLINE_STATUS + EVERGREEN_CRTC4_REGISTER_OFFSET,
+		EVERGREEN_VLINE_STATUS + EVERGREEN_CRTC5_REGISTER_OFFSET
+	};
 
-	/* parse the WAIT_REG_MEM */
-	r = radeon_cs_packet_parse(p, &wait_reg_mem, p->idx);
-	if (r)
-		return r;
-
-	/* check its a WAIT_REG_MEM */
-	if (wait_reg_mem.type != PACKET_TYPE3 ||
-	    wait_reg_mem.opcode != PACKET3_WAIT_REG_MEM) {
-		DRM_ERROR("vline wait missing WAIT_REG_MEM segment\n");
-		return -EINVAL;
-	}
-
-	wait_reg_mem_info = radeon_get_ib_value(p, wait_reg_mem.idx + 1);
-	/* bit 4 is reg (0) or mem (1) */
-	if (wait_reg_mem_info & 0x10) {
-		DRM_ERROR("vline WAIT_REG_MEM waiting on MEM rather than REG\n");
-		return -EINVAL;
-	}
-	/* waiting for value to be equal */
-	if ((wait_reg_mem_info & 0x7) != 0x3) {
-		DRM_ERROR("vline WAIT_REG_MEM function not equal\n");
-		return -EINVAL;
-	}
-	if ((radeon_get_ib_value(p, wait_reg_mem.idx + 2) << 2) != EVERGREEN_VLINE_STATUS) {
-		DRM_ERROR("vline WAIT_REG_MEM bad reg\n");
-		return -EINVAL;
-	}
-
-	if (radeon_get_ib_value(p, wait_reg_mem.idx + 5) != EVERGREEN_VLINE_STAT) {
-		DRM_ERROR("vline WAIT_REG_MEM bad bit mask\n");
-		return -EINVAL;
-	}
-
-	/* jump over the NOP */
-	r = radeon_cs_packet_parse(p, &p3reloc, p->idx + wait_reg_mem.count + 2);
-	if (r)
-		return r;
-
-	h_idx = p->idx - 2;
-	p->idx += wait_reg_mem.count + 2;
-	p->idx += p3reloc.count + 2;
-
-	header = radeon_get_ib_value(p, h_idx);
-	crtc_id = radeon_get_ib_value(p, h_idx + 2 + 7 + 1);
-	reg = CP_PACKET0_GET_REG(header);
-	obj = drm_mode_object_find(p->rdev->ddev, crtc_id, DRM_MODE_OBJECT_CRTC);
-	if (!obj) {
-		DRM_ERROR("cannot find crtc %d\n", crtc_id);
-		return -EINVAL;
-	}
-	crtc = obj_to_crtc(obj);
-	radeon_crtc = to_radeon_crtc(crtc);
-	crtc_id = radeon_crtc->crtc_id;
-
-	if (!crtc->enabled) {
-		/* if the CRTC isn't enabled - we need to nop out the WAIT_REG_MEM */
-		ib[h_idx + 2] = PACKET2(0);
-		ib[h_idx + 3] = PACKET2(0);
-		ib[h_idx + 4] = PACKET2(0);
-		ib[h_idx + 5] = PACKET2(0);
-		ib[h_idx + 6] = PACKET2(0);
-		ib[h_idx + 7] = PACKET2(0);
-		ib[h_idx + 8] = PACKET2(0);
-	} else {
-		switch (reg) {
-		case EVERGREEN_VLINE_START_END:
-			header &= ~R600_CP_PACKET0_REG_MASK;
-			header |= (EVERGREEN_VLINE_START_END + radeon_crtc->crtc_offset) >> 2;
-			ib[h_idx] = header;
-			ib[h_idx + 4] = (EVERGREEN_VLINE_STATUS + radeon_crtc->crtc_offset) >> 2;
-			break;
-		default:
-			DRM_ERROR("unknown crtc reloc\n");
-			return -EINVAL;
-		}
-	}
-	return 0;
+	return r600_cs_common_vline_parse(p, vline_start_end, vline_status);
 }
 
 static int evergreen_packet0_check(struct radeon_cs_parser *p,

@@ -877,8 +877,29 @@ static int r600_cs_packet_next_reloc_nomm(struct radeon_cs_parser *p,
 }
 
 /**
- * r600_cs_packet_next_vline() - parse userspace VLINE packet
+ * r600_cs_packet_parse_vline() - parse userspace VLINE packet
  * @parser:		parser structure holding parsing context.
+ *
+ * This is an R600-specific function for parsing VLINE packets.
+ * Real work is done by r600_cs_common_vline_parse function.
+ * Here we just set up ASIC-specific register table and call
+ * the common implementation function.
+ */
+static int r600_cs_packet_parse_vline(struct radeon_cs_parser *p)
+{
+	static uint32_t vline_start_end[2] = {AVIVO_D1MODE_VLINE_START_END,
+					      AVIVO_D2MODE_VLINE_START_END};
+	static uint32_t vline_status[2] = {AVIVO_D1MODE_VLINE_STATUS,
+					   AVIVO_D2MODE_VLINE_STATUS};
+
+	return r600_cs_common_vline_parse(p, vline_start_end, vline_status);
+}
+
+/**
+ * r600_cs_common_vline_parse() - common vline parser
+ * @parser:		parser structure holding parsing context.
+ * @vline_start_end:    table of vline_start_end registers
+ * @vline_status:       table of vline_status registers
  *
  * Userspace sends a special sequence for VLINE waits.
  * PACKET0 - VLINE_START_END + value
@@ -888,9 +909,16 @@ static int r600_cs_packet_next_reloc_nomm(struct radeon_cs_parser *p,
  * This function parses this and relocates the VLINE START END
  * and WAIT_REG_MEM packets to the correct crtc.
  * It also detects a switched off crtc and nulls out the
- * wait in that case.
+ * wait in that case. This function is common for all ASICs that
+ * are R600 and newer. The parsing algorithm is the same, and only
+ * differs in which registers are used.
+ *
+ * Caller is the ASIC-specific function which passes the parser
+ * context and ASIC-specific register table
  */
-static int r600_cs_packet_parse_vline(struct radeon_cs_parser *p)
+int r600_cs_common_vline_parse(struct radeon_cs_parser *p,
+			       uint32_t *vline_start_end,
+			       uint32_t *vline_status)
 {
 	struct drm_mode_object *obj;
 	struct drm_crtc *crtc;
@@ -918,7 +946,7 @@ static int r600_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	wait_reg_mem_info = radeon_get_ib_value(p, wait_reg_mem.idx + 1);
 	/* bit 4 is reg (0) or mem (1) */
 	if (wait_reg_mem_info & 0x10) {
-		DRM_ERROR("vline WAIT_REG_MEM waiting on MEM rather than REG\n");
+		DRM_ERROR("vline WAIT_REG_MEM waiting on MEM instead of REG\n");
 		return -EINVAL;
 	}
 	/* waiting for value to be equal */
@@ -926,12 +954,12 @@ static int r600_cs_packet_parse_vline(struct radeon_cs_parser *p)
 		DRM_ERROR("vline WAIT_REG_MEM function not equal\n");
 		return -EINVAL;
 	}
-	if ((radeon_get_ib_value(p, wait_reg_mem.idx + 2) << 2) != AVIVO_D1MODE_VLINE_STATUS) {
+	if ((radeon_get_ib_value(p, wait_reg_mem.idx + 2) << 2) != vline_status[0]) {
 		DRM_ERROR("vline WAIT_REG_MEM bad reg\n");
 		return -EINVAL;
 	}
 
-	if (radeon_get_ib_value(p, wait_reg_mem.idx + 5) != AVIVO_D1MODE_VLINE_STAT) {
+	if (radeon_get_ib_value(p, wait_reg_mem.idx + 5) != RADEON_VLINE_STAT) {
 		DRM_ERROR("vline WAIT_REG_MEM bad bit mask\n");
 		return -EINVAL;
 	}
@@ -959,7 +987,7 @@ static int r600_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	crtc_id = radeon_crtc->crtc_id;
 
 	if (!crtc->enabled) {
-		/* if the CRTC isn't enabled - we need to nop out the WAIT_REG_MEM */
+		/* CRTC isn't enabled - we need to nop out the WAIT_REG_MEM */
 		ib[h_idx + 2] = PACKET2(0);
 		ib[h_idx + 3] = PACKET2(0);
 		ib[h_idx + 4] = PACKET2(0);
@@ -967,20 +995,15 @@ static int r600_cs_packet_parse_vline(struct radeon_cs_parser *p)
 		ib[h_idx + 6] = PACKET2(0);
 		ib[h_idx + 7] = PACKET2(0);
 		ib[h_idx + 8] = PACKET2(0);
-	} else if (crtc_id == 1) {
-		switch (reg) {
-		case AVIVO_D1MODE_VLINE_START_END:
-			header &= ~R600_CP_PACKET0_REG_MASK;
-			header |= AVIVO_D2MODE_VLINE_START_END >> 2;
-			break;
-		default:
-			DRM_ERROR("unknown crtc reloc\n");
-			return -EINVAL;
-		}
+	} else if (reg == vline_start_end[0]) {
+		header &= ~R600_CP_PACKET0_REG_MASK;
+		header |= vline_start_end[crtc_id] >> 2;
 		ib[h_idx] = header;
-		ib[h_idx + 4] = AVIVO_D2MODE_VLINE_STATUS >> 2;
+		ib[h_idx + 4] = vline_status[crtc_id] >> 2;
+	} else {
+		DRM_ERROR("unknown crtc reloc\n");
+		return -EINVAL;
 	}
-
 	return 0;
 }
 
