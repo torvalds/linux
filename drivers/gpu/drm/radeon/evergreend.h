@@ -2027,4 +2027,7 @@
 /* cayman packet3 addition */
 #define	CAYMAN_PACKET3_DEALLOC_STATE			0x14
 
+/* DMA regs common on r6xx/r7xx/evergreen/ni */
+#define DMA_STATUS_REG                                    0xd034
+
 #endif

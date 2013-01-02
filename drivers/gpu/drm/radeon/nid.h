@@ -675,4 +675,3 @@
 #define	DMA_PACKET_NOP					  0xf
 
 #endif
-

@@ -1331,6 +1331,8 @@ static int cayman_gpu_soft_reset(struct radeon_device *rdev)
 		RREG32(CP_BUSY_STAT));
 	dev_info(rdev->dev, "  R_008680_CP_STAT          = 0x%08X\n",
 		RREG32(CP_STAT));
+	dev_info(rdev->dev, "  R_00D034_DMA_STATUS_REG   = 0x%08X\n",
+		RREG32(DMA_STATUS_REG));
 	dev_info(rdev->dev, "  VM_CONTEXT0_PROTECTION_FAULT_ADDR   0x%08X\n",
 		 RREG32(0x14F8));
 	dev_info(rdev->dev, "  VM_CONTEXT0_PROTECTION_FAULT_STATUS 0x%08X\n",
@@ -1387,6 +1389,8 @@ static int cayman_gpu_soft_reset(struct radeon_device *rdev)
 		RREG32(CP_BUSY_STAT));
 	dev_info(rdev->dev, "  R_008680_CP_STAT          = 0x%08X\n",
 		RREG32(CP_STAT));
+	dev_info(rdev->dev, "  R_00D034_DMA_STATUS_REG   = 0x%08X\n",
+		RREG32(DMA_STATUS_REG));
 	evergreen_mc_resume(rdev, &save);
 	return 0;
 }

@@ -1013,6 +1013,8 @@
 #       define DATA_SWAP_ENABLE                           (1 << 3)
 #       define FENCE_SWAP_ENABLE                          (1 << 4)
 #       define CTXEMPTY_INT_ENABLE                        (1 << 28)
+#define DMA_STATUS_REG                                    0xd034
+#       define DMA_IDLE                                   (1 << 0)
 #define DMA_TILING_CONFIG  				  0xd0b8
 
 #define DMA_PACKET(cmd, b, t, s, n)	((((cmd) & 0xF) << 28) |	\

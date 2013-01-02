@@ -2145,6 +2145,13 @@ static int si_gpu_soft_reset(struct radeon_device *rdev)
 		RREG32(GRBM_STATUS_SE1));
 	dev_info(rdev->dev, "  SRBM_STATUS=0x%08X\n",
 		RREG32(SRBM_STATUS));
+	dev_info(rdev->dev, "  DMA_STATUS_REG   = 0x%08X\n",
+		RREG32(DMA_STATUS_REG));
+	dev_info(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_ADDR   0x%08X\n",
+		 RREG32(VM_CONTEXT1_PROTECTION_FAULT_ADDR));
+	dev_info(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
+		 RREG32(VM_CONTEXT1_PROTECTION_FAULT_STATUS));
+
 	evergreen_mc_stop(rdev, &save);
 	if (radeon_mc_wait_for_idle(rdev)) {
 		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
@@ -2185,6 +2192,8 @@ static int si_gpu_soft_reset(struct radeon_device *rdev)
 		RREG32(GRBM_STATUS_SE1));
 	dev_info(rdev->dev, "  SRBM_STATUS=0x%08X\n",
 		RREG32(SRBM_STATUS));
+	dev_info(rdev->dev, "  DMA_STATUS_REG   = 0x%08X\n",
+		RREG32(DMA_STATUS_REG));
 	evergreen_mc_resume(rdev, &save);
 	return 0;
 }
