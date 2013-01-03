@@ -296,7 +296,6 @@ static int omap_wdt_remove(struct platform_device *pdev)
 {
 	struct watchdog_device *wdog = platform_get_drvdata(pdev);
 	struct omap_wdt_dev *wdev = watchdog_get_drvdata(wdog);
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	pm_runtime_disable(wdev->dev);
 	watchdog_unregister_device(wdog);
