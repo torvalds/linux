@@ -873,8 +873,10 @@ static int try_assign_dacs(struct hda_codec *codec, int num_outs,
 		}
 		if (!path)
 			dac = dacs[i] = 0;
-		else
+		else {
 			print_nid_path("output", path);
+			path->active = true;
+		}
 		if (dac)
 			badness += assign_out_path_ctls(codec, pin, dac);
 	}
@@ -1045,6 +1047,7 @@ static bool map_singles(struct hda_codec *codec, int outs,
 			dacs[i] = dac;
 			found = true;
 			print_nid_path("output", path);
+			path->active = true;
 		}
 	}
 	return found;
@@ -2418,6 +2421,7 @@ static void parse_digital(struct hda_codec *codec)
 		if (!path)
 			continue;
 		print_nid_path("digout", path);
+		path->active = true;
 		if (!nums) {
 			spec->multiout.dig_out_nid = dig_nid;
 			spec->dig_out_type = spec->autocfg.dig_out_type[0];
@@ -3556,10 +3560,8 @@ static void set_output_and_unmute(struct hda_codec *codec, hda_nid_t pin,
 	path = snd_hda_get_nid_path(codec, dac, pin);
 	if (!path)
 		return;
-	if (path->active)
-		return;
-	snd_hda_activate_path(codec, path, true, true);
-	set_pin_eapd(codec, pin, true);
+	snd_hda_activate_path(codec, path, path->active, true);
+	set_pin_eapd(codec, pin, path->active);
 }
 
 /* initialize primary output paths */
