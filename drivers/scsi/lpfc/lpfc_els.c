@@ -3122,6 +3122,13 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 		case IOERR_SEQUENCE_TIMEOUT:
 		case IOERR_INVALID_RPI:
+			if (cmd == ELS_CMD_PLOGI &&
+			    did == NameServer_DID) {
+				/* Continue forever if plogi to */
+				/* the nameserver fails */
+				maxretry = 0;
+				delay = 100;
+			}
 			retry = 1;
 			break;
 		}
