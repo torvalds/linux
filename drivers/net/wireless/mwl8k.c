@@ -3788,7 +3788,7 @@ mwl8k_create_ba(struct ieee80211_hw *hw, struct mwl8k_ampdu_stream *stream,
 }
 
 static void mwl8k_destroy_ba(struct ieee80211_hw *hw,
-			     struct mwl8k_ampdu_stream *stream)
+			     u8 idx)
 {
 	struct mwl8k_cmd_bastream *cmd;
 
@@ -3800,10 +3800,10 @@ static void mwl8k_destroy_ba(struct ieee80211_hw *hw,
 	cmd->header.length = cpu_to_le16(sizeof(*cmd));
 	cmd->action = cpu_to_le32(MWL8K_BA_DESTROY);
 
-	cmd->destroy_params.ba_context = cpu_to_le32(stream->idx);
+	cmd->destroy_params.ba_context = cpu_to_le32(idx);
 	mwl8k_post_cmd(hw, &cmd->header);
 
-	wiphy_debug(hw->wiphy, "Deleted BA stream index %d\n", stream->idx);
+	wiphy_debug(hw->wiphy, "Deleted BA stream index %d\n", idx);
 
 	kfree(cmd);
 }
@@ -5117,7 +5117,7 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	int i, rc = 0;
 	struct mwl8k_priv *priv = hw->priv;
 	struct mwl8k_ampdu_stream *stream;
-	u8 *addr = sta->addr;
+	u8 *addr = sta->addr, idx;
 	struct mwl8k_sta *sta_info = MWL8K_STA(sta);
 
 	if (!(hw->flags & IEEE80211_HW_AMPDU_AGGREGATION))
@@ -5200,8 +5200,9 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		if (stream) {
 			if (stream->state == AMPDU_STREAM_ACTIVE) {
+				idx = stream->idx;
 				spin_unlock(&priv->stream_lock);
-				mwl8k_destroy_ba(hw, stream);
+				mwl8k_destroy_ba(hw, idx);
 				spin_lock(&priv->stream_lock);
 			}
 			mwl8k_remove_stream(hw, stream);
@@ -5217,8 +5218,9 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		if (!rc)
 			stream->state = AMPDU_STREAM_ACTIVE;
 		else {
+			idx = stream->idx;
 			spin_unlock(&priv->stream_lock);
-			mwl8k_destroy_ba(hw, stream);
+			mwl8k_destroy_ba(hw, idx);
 			spin_lock(&priv->stream_lock);
 			wiphy_debug(hw->wiphy,
 				"Failed adding stream for sta %pM tid %d\n",
