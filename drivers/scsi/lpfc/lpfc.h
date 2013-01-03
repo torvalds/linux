@@ -466,11 +466,13 @@ enum intr_type_t {
 	MSIX,
 };
 
+#define LPFC_CT_CTX_MAX		64
 struct unsol_rcv_ct_ctx {
 	uint32_t ctxt_id;
 	uint32_t SID;
-	uint32_t flags;
-#define UNSOL_VALID	0x00000001
+	uint32_t valid;
+#define UNSOL_INVALID		0
+#define UNSOL_VALID		1
 	uint16_t oxid;
 	uint16_t rxid;
 };
@@ -938,7 +940,7 @@ struct lpfc_hba {
 
 	spinlock_t ct_ev_lock; /* synchronize access to ct_ev_waiters */
 	struct list_head ct_ev_waiters;
-	struct unsol_rcv_ct_ctx ct_ctx[64];
+	struct unsol_rcv_ct_ctx ct_ctx[LPFC_CT_CTX_MAX];
 	uint32_t ctx_idx;
 
 	uint8_t menlo_flag;	/* menlo generic flags */

@@ -8855,12 +8855,6 @@ lpfc_sli_setup(struct lpfc_hba *phba)
 			pring->prt[3].type = FC_TYPE_CT;
 			pring->prt[3].lpfc_sli_rcv_unsol_event =
 			    lpfc_ct_unsol_event;
-			/* abort unsolicited sequence */
-			pring->prt[4].profile = 0;	/* Mask 4 */
-			pring->prt[4].rctl = FC_RCTL_BA_ABTS;
-			pring->prt[4].type = FC_TYPE_BLS;
-			pring->prt[4].lpfc_sli_rcv_unsol_event =
-			    lpfc_sli4_ct_abort_unsol_event;
 			break;
 		}
 		totiocbsize += (pring->sli.sli3.numCiocb *
@@ -14063,6 +14057,40 @@ lpfc_sli4_abort_partial_seq(struct lpfc_vport *vport,
 }
 
 /**
+ * lpfc_sli4_abort_ulp_seq - Abort assembled unsol sequence from ulp
+ * @vport: pointer to a vitural port
+ * @dmabuf: pointer to a dmabuf that describes the FC sequence
+ *
+ * This function tries to abort from the assembed sequence from upper level
+ * protocol, described by the information from basic abbort @dmabuf. It
+ * checks to see whether such pending context exists at upper level protocol.
+ * If so, it shall clean up the pending context.
+ *
+ * Return
+ * true  -- if there is matching pending context of the sequence cleaned
+ *          at ulp;
+ * false -- if there is no matching pending context of the sequence present
+ *          at ulp.
+ **/
+static bool
+lpfc_sli4_abort_ulp_seq(struct lpfc_vport *vport, struct hbq_dmabuf *dmabuf)
+{
+	struct lpfc_hba *phba = vport->phba;
+	int handled;
+
+	/* Accepting abort at ulp with SLI4 only */
+	if (phba->sli_rev < LPFC_SLI_REV4)
+		return false;
+
+	/* Register all caring upper level protocols to attend abort */
+	handled = lpfc_ct_handle_unsol_abort(phba, dmabuf);
+	if (handled)
+		return true;
+
+	return false;
+}
+
+/**
  * lpfc_sli4_seq_abort_rsp_cmpl - BLS ABORT RSP seq abort iocb complete handler
  * @phba: Pointer to HBA context object.
  * @cmd_iocbq: pointer to the command iocbq structure.
@@ -14077,8 +14105,14 @@ lpfc_sli4_seq_abort_rsp_cmpl(struct lpfc_hba *phba,
 			     struct lpfc_iocbq *cmd_iocbq,
 			     struct lpfc_iocbq *rsp_iocbq)
 {
-	if (cmd_iocbq)
+	struct lpfc_nodelist *ndlp;
+
+	if (cmd_iocbq) {
+		ndlp = (struct lpfc_nodelist *)cmd_iocbq->context1;
+		lpfc_nlp_put(ndlp);
+		lpfc_nlp_not_used(ndlp);
 		lpfc_sli_release_iocbq(phba, cmd_iocbq);
+	}
 
 	/* Failure means BLS ABORT RSP did not get delivered to remote node*/
 	if (rsp_iocbq && rsp_iocbq->iocb.ulpStatus)
@@ -14118,9 +14152,10 @@ lpfc_sli4_xri_inrange(struct lpfc_hba *phba,
  * event after aborting the sequence handling.
  **/
 static void
-lpfc_sli4_seq_abort_rsp(struct lpfc_hba *phba,
-			struct fc_frame_header *fc_hdr)
+lpfc_sli4_seq_abort_rsp(struct lpfc_vport *vport,
+			struct fc_frame_header *fc_hdr, bool aborted)
 {
+	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_iocbq *ctiocb = NULL;
 	struct lpfc_nodelist *ndlp;
 	uint16_t oxid, rxid, xri, lxri;
@@ -14135,12 +14170,27 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_hba *phba,
 	oxid = be16_to_cpu(fc_hdr->fh_ox_id);
 	rxid = be16_to_cpu(fc_hdr->fh_rx_id);
 
-	ndlp = lpfc_findnode_did(phba->pport, sid);
+	ndlp = lpfc_findnode_did(vport, sid);
 	if (!ndlp) {
-		lpfc_printf_log(phba, KERN_WARNING, LOG_ELS,
-				"1268 Find ndlp returned NULL for oxid:x%x "
-				"SID:x%x\n", oxid, sid);
-		return;
+		ndlp = mempool_alloc(phba->nlp_mem_pool, GFP_KERNEL);
+		if (!ndlp) {
+			lpfc_printf_vlog(vport, KERN_WARNING, LOG_ELS,
+					 "1268 Failed to allocate ndlp for "
+					 "oxid:x%x SID:x%x\n", oxid, sid);
+			return;
+		}
+		lpfc_nlp_init(vport, ndlp, sid);
+		/* Put ndlp onto pport node list */
+		lpfc_enqueue_node(vport, ndlp);
+	} else if (!NLP_CHK_NODE_ACT(ndlp)) {
+		/* re-setup ndlp without removing from node list */
+		ndlp = lpfc_enable_node(vport, ndlp, NLP_STE_UNUSED_NODE);
+		if (!ndlp) {
+			lpfc_printf_vlog(vport, KERN_WARNING, LOG_ELS,
+					 "3275 Failed to active ndlp found "
+					 "for oxid:x%x SID:x%x\n", oxid, sid);
+			return;
+		}
 	}
 
 	/* Allocate buffer for rsp iocb */
@@ -14164,7 +14214,7 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_hba *phba,
 	icmd->ulpLe = 1;
 	icmd->ulpClass = CLASS3;
 	icmd->ulpContext = phba->sli4_hba.rpi_ids[ndlp->nlp_rpi];
-	ctiocb->context1 = ndlp;
+	ctiocb->context1 = lpfc_nlp_get(ndlp);
 
 	ctiocb->iocb_cmpl = NULL;
 	ctiocb->vport = phba->pport;
@@ -14183,14 +14233,24 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_hba *phba,
 	if (lxri != NO_XRI)
 		lpfc_set_rrq_active(phba, ndlp, lxri,
 			(xri == oxid) ? rxid : oxid, 0);
-	/* If the oxid maps to the FCP XRI range or if it is out of range,
-	 * send a BLS_RJT.  The driver no longer has that exchange.
-	 * Override the IOCB for a BA_RJT.
+	/* For BA_ABTS from exchange responder, if the logical xri with
+	 * the oxid maps to the FCP XRI range, the port no longer has
+	 * that exchange context, send a BLS_RJT. Override the IOCB for
+	 * a BA_RJT.
 	 */
-	if (xri > (phba->sli4_hba.max_cfg_param.max_xri +
-		    phba->sli4_hba.max_cfg_param.xri_base) ||
-	    xri > (lpfc_sli4_get_els_iocb_cnt(phba) +
-		    phba->sli4_hba.max_cfg_param.xri_base)) {
+	if ((fctl & FC_FC_EX_CTX) &&
+	    (lxri > lpfc_sli4_get_els_iocb_cnt(phba))) {
+		icmd->un.xseq64.w5.hcsw.Rctl = FC_RCTL_BA_RJT;
+		bf_set(lpfc_vndr_code, &icmd->un.bls_rsp, 0);
+		bf_set(lpfc_rsn_expln, &icmd->un.bls_rsp, FC_BA_RJT_INV_XID);
+		bf_set(lpfc_rsn_code, &icmd->un.bls_rsp, FC_BA_RJT_UNABLE);
+	}
+
+	/* If BA_ABTS failed to abort a partially assembled receive sequence,
+	 * the driver no longer has that exchange, send a BLS_RJT. Override
+	 * the IOCB for a BA_RJT.
+	 */
+	if (aborted == false) {
 		icmd->un.xseq64.w5.hcsw.Rctl = FC_RCTL_BA_RJT;
 		bf_set(lpfc_vndr_code, &icmd->un.bls_rsp, 0);
 		bf_set(lpfc_rsn_expln, &icmd->un.bls_rsp, FC_BA_RJT_INV_XID);
@@ -14214,17 +14274,19 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_hba *phba,
 	bf_set(lpfc_abts_oxid, &icmd->un.bls_rsp, oxid);
 
 	/* Xmit CT abts response on exchange <xid> */
-	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"1200 Send BLS cmd x%x on oxid x%x Data: x%x\n",
-			icmd->un.xseq64.w5.hcsw.Rctl, oxid, phba->link_state);
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+			 "1200 Send BLS cmd x%x on oxid x%x Data: x%x\n",
+			 icmd->un.xseq64.w5.hcsw.Rctl, oxid, phba->link_state);
 
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, ctiocb, 0);
 	if (rc == IOCB_ERROR) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
-				"2925 Failed to issue CT ABTS RSP x%x on "
-				"xri x%x, Data x%x\n",
-				icmd->un.xseq64.w5.hcsw.Rctl, oxid,
-				phba->link_state);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "2925 Failed to issue CT ABTS RSP x%x on "
+				 "xri x%x, Data x%x\n",
+				 icmd->un.xseq64.w5.hcsw.Rctl, oxid,
+				 phba->link_state);
+		lpfc_nlp_put(ndlp);
+		ctiocb->context1 = NULL;
 		lpfc_sli_release_iocbq(phba, ctiocb);
 	}
 }
@@ -14249,32 +14311,25 @@ lpfc_sli4_handle_unsol_abort(struct lpfc_vport *vport,
 	struct lpfc_hba *phba = vport->phba;
 	struct fc_frame_header fc_hdr;
 	uint32_t fctl;
-	bool abts_par;
+	bool aborted;
 
 	/* Make a copy of fc_hdr before the dmabuf being released */
 	memcpy(&fc_hdr, dmabuf->hbuf.virt, sizeof(struct fc_frame_header));
 	fctl = sli4_fctl_from_fc_hdr(&fc_hdr);
 
 	if (fctl & FC_FC_EX_CTX) {
-		/*
-		 * ABTS sent by responder to exchange, just free the buffer
-		 */
-		lpfc_in_buf_free(phba, &dmabuf->dbuf);
+		/* ABTS by responder to exchange, no cleanup needed */
+		aborted = true;
 	} else {
-		/*
-		 * ABTS sent by initiator to exchange, need to do cleanup
-		 */
-		/* Try to abort partially assembled seq */
-		abts_par = lpfc_sli4_abort_partial_seq(vport, dmabuf);
-
-		/* Send abort to ULP if partially seq abort failed */
-		if (abts_par == false)
-			lpfc_sli4_send_seq_to_ulp(vport, dmabuf);
-		else
-			lpfc_in_buf_free(phba, &dmabuf->dbuf);
+		/* ABTS by initiator to exchange, need to do cleanup */
+		aborted = lpfc_sli4_abort_partial_seq(vport, dmabuf);
+		if (aborted == false)
+			aborted = lpfc_sli4_abort_ulp_seq(vport, dmabuf);
 	}
-	/* Send basic accept (BA_ACC) to the abort requester */
-	lpfc_sli4_seq_abort_rsp(phba, &fc_hdr);
+	lpfc_in_buf_free(phba, &dmabuf->dbuf);
+
+	/* Respond with BA_ACC or BA_RJT accordingly */
+	lpfc_sli4_seq_abort_rsp(vport, &fc_hdr, aborted);
 }
 
 /**
