@@ -379,7 +379,7 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 {
 	unsigned char buf, *p = eedata;
 	struct em28xx_eeprom *em_eeprom = (void *)eedata;
-	int i, err, size = len, block;
+	int i, err, size = len, block, block_max;
 
 	if (dev->chip_id == CHIP_ID_EM2874 ||
 	    dev->chip_id == CHIP_ID_EM28174 ||
@@ -412,9 +412,15 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 		       dev->name, err);
 		return err;
 	}
+
+	if (dev->board.is_em2800)
+		block_max = 4;
+	else
+		block_max = 64;
+
 	while (size > 0) {
-		if (size > 16)
-			block = 16;
+		if (size > block_max)
+			block = block_max;
 		else
 			block = size;
 
