@@ -496,15 +496,9 @@ struct s5p_mfc_codec_ops {
  *			flushed
  * @head_processed:	flag mentioning whether the header data is processed
  *			completely or not
- * @bank1_buf:		handle to memory allocated for temporary buffers from
+ * @bank1:		handle to memory allocated for temporary buffers from
  *			memory bank 1
- * @bank1_phys:		address of the temporary buffers from memory bank 1
- * @bank1_size:		size of the memory allocated for temporary buffers from
- *			memory bank 1
- * @bank2_buf:		handle to memory allocated for temporary buffers from
- *			memory bank 2
- * @bank2_phys:		address of the temporary buffers from memory bank 2
- * @bank2_size:		size of the memory allocated for temporary buffers from
+ * @bank2:		handle to memory allocated for temporary buffers from
  *			memory bank 2
  * @capture_state:	state of the capture buffers queue
  * @output_state:	state of the output buffers queue
@@ -584,14 +578,8 @@ struct s5p_mfc_ctx {
 	unsigned int dpb_flush_flag;
 	unsigned int head_processed;
 
-	/* Buffers */
-	void *bank1_buf;
-	size_t bank1_phys;
-	size_t bank1_size;
-
-	void *bank2_buf;
-	size_t bank2_phys;
-	size_t bank2_size;
+	struct s5p_mfc_priv_buf bank1;
+	struct s5p_mfc_priv_buf bank2;
 
 	enum s5p_mfc_queue_state capture_state;
 	enum s5p_mfc_queue_state output_state;
