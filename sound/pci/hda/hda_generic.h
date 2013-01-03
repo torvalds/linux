@@ -180,6 +180,14 @@ struct hda_gen_spec {
 	void (*init_hook)(struct hda_codec *codec);
 	void (*automute_hook)(struct hda_codec *codec);
 	void (*cap_sync_hook)(struct hda_codec *codec);
+
+	/* automute / autoswitch hooks */
+	void (*hp_automute_hook)(struct hda_codec *codec,
+				 struct hda_jack_tbl *tbl);
+	void (*line_automute_hook)(struct hda_codec *codec,
+				   struct hda_jack_tbl *tbl);
+	void (*mic_autoswitch_hook)(struct hda_codec *codec,
+				    struct hda_jack_tbl *tbl);
 };
 
 int snd_hda_gen_spec_init(struct hda_gen_spec *spec);

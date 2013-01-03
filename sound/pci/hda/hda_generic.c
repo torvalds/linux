@@ -2780,6 +2780,8 @@ static int check_auto_mute_availability(struct hda_codec *codec)
 		snd_printdd("hda-codec: Enable HP auto-muting on NID 0x%x\n",
 			    nid);
 		snd_hda_jack_detect_enable_callback(codec, nid, HDA_GEN_HP_EVENT,
+						    spec->hp_automute_hook ?
+						    spec->hp_automute_hook :
 						    snd_hda_gen_hp_automute);
 		spec->detect_hp = 1;
 	}
@@ -2793,6 +2795,8 @@ static int check_auto_mute_availability(struct hda_codec *codec)
 				snd_printdd("hda-codec: Enable Line-Out auto-muting on NID 0x%x\n", nid);
 				snd_hda_jack_detect_enable_callback(codec, nid,
 								    HDA_GEN_FRONT_EVENT,
+								    spec->line_automute_hook ?
+								    spec->line_automute_hook :
 								    snd_hda_gen_line_automute);
 				spec->detect_lo = 1;
 			}
@@ -2845,6 +2849,8 @@ static bool auto_mic_check_imux(struct hda_codec *codec)
 		snd_hda_jack_detect_enable_callback(codec,
 						    spec->am_entry[i].pin,
 						    HDA_GEN_MIC_EVENT,
+						    spec->mic_autoswitch_hook ?
+						    spec->mic_autoswitch_hook :
 						    snd_hda_gen_mic_autoswitch);
 	return true;
 }
