@@ -768,7 +768,6 @@ struct ath_hw {
 	struct ath9k_cal_list iq_caldata;
 	struct ath9k_cal_list adcgain_caldata;
 	struct ath9k_cal_list adcdc_caldata;
-	struct ath9k_cal_list tempCompCalData;
 	struct ath9k_cal_list *cal_list;
 	struct ath9k_cal_list *cal_list_last;
 	struct ath9k_cal_list *cal_list_curr;
