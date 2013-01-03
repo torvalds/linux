@@ -170,13 +170,6 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 		}
 	}
 
-	/*
-	 * Ignore masked IRQs and ack if we need to; we ack early so
-	 * there is no race between handling and acknowleding the
-	 * interrupt.  We assume that typically few of the interrupts
-	 * will fire simultaneously so don't worry about overhead from
-	 * doing a write per register.
-	 */
 	for (i = 0; i < data->chip->num_regs; i++) {
 		ret = regmap_read(map, chip->status_base + (i * map->reg_stride
 				   * data->irq_reg_stride),
@@ -189,7 +182,16 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 				pm_runtime_put(map->dev);
 			return IRQ_NONE;
 		}
+	}
 
+	/*
+	 * Ignore masked IRQs and ack if we need to; we ack early so
+	 * there is no race between handling and acknowleding the
+	 * interrupt.  We assume that typically few of the interrupts
+	 * will fire simultaneously so don't worry about overhead from
+	 * doing a write per register.
+	 */
+	for (i = 0; i < data->chip->num_regs; i++) {
 		data->status_buf[i] &= ~data->mask_buf[i];
 
 		if (data->status_buf[i] && chip->ack_base) {
