@@ -616,10 +616,11 @@ static struct regulator_desc lp8788_aldo_desc[] = {
 	},
 };
 
-static int lp8788_gpio_request_ldo_en(struct lp8788_ldo *ldo,
+static int lp8788_gpio_request_ldo_en(struct platform_device *pdev,
+				struct lp8788_ldo *ldo,
 				enum lp8788_ext_ldo_en_id id)
 {
-	struct device *dev = ldo->lp->dev;
+	struct device *dev = &pdev->dev;
 	struct lp8788_ldo_enable_pin *pin = ldo->en_pin;
 	int ret, gpio, pinstate;
 	char *name[] = {
@@ -647,7 +648,8 @@ static int lp8788_gpio_request_ldo_en(struct lp8788_ldo *ldo,
 	return ret;
 }
 
-static int lp8788_config_ldo_enable_mode(struct lp8788_ldo *ldo,
+static int lp8788_config_ldo_enable_mode(struct platform_device *pdev,
+					struct lp8788_ldo *ldo,
 					enum lp8788_ldo_id id)
 {
 	int ret;
@@ -693,7 +695,7 @@ static int lp8788_config_ldo_enable_mode(struct lp8788_ldo *ldo,
 
 	ldo->en_pin = pdata->ldo_pin[enable_id];
 
-	ret = lp8788_gpio_request_ldo_en(ldo, enable_id);
+	ret = lp8788_gpio_request_ldo_en(pdev, ldo, enable_id);
 	if (ret)
 		goto set_default_ldo_enable_mode;
 
@@ -717,7 +719,7 @@ static int lp8788_dldo_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ldo->lp = lp;
-	ret = lp8788_config_ldo_enable_mode(ldo, lp8788_dldo_id[id]);
+	ret = lp8788_config_ldo_enable_mode(pdev, ldo, lp8788_dldo_id[id]);
 	if (ret)
 		return ret;
 
@@ -773,7 +775,7 @@ static int lp8788_aldo_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ldo->lp = lp;
-	ret = lp8788_config_ldo_enable_mode(ldo, lp8788_aldo_id[id]);
+	ret = lp8788_config_ldo_enable_mode(pdev, ldo, lp8788_aldo_id[id]);
 	if (ret)
 		return ret;
 
