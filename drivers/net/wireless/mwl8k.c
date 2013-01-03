@@ -1926,6 +1926,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw,
 		stream = mwl8k_lookup_stream(hw, sta->addr, tid);
 		if (stream != NULL) {
 			if (stream->state == AMPDU_STREAM_ACTIVE) {
+				WARN_ON(!(qos & MWL8K_QOS_ACK_POLICY_BLOCKACK));
 				txpriority = stream->idx + MWL8K_TX_WMM_QUEUES;
 				index = stream->idx + MWL8K_TX_WMM_QUEUES;
 			} else if (stream->state == AMPDU_STREAM_NEW) {
@@ -1969,6 +1970,9 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw,
 			}
 		}
 		spin_unlock(&priv->stream_lock);
+	} else {
+		qos &= ~MWL8K_QOS_ACK_POLICY_MASK;
+		qos |= MWL8K_QOS_ACK_POLICY_NORMAL;
 	}
 
 	dma = pci_map_single(priv->pdev, skb->data,
