@@ -4826,69 +4826,6 @@ void netdev_upper_dev_unlink(struct net_device *dev,
 }
 EXPORT_SYMBOL(netdev_upper_dev_unlink);
 
-/**
- *	netdev_set_master	-	set up master pointer
- *	@slave: slave device
- *	@master: new master device
- *
- *	Changes the master device of the slave. Pass %NULL to break the
- *	bonding. The caller must hold the RTNL semaphore. On a failure
- *	a negative errno code is returned. On success the reference counts
- *	are adjusted and the function returns zero.
- */
-int netdev_set_master(struct net_device *slave, struct net_device *master)
-{
-	struct net_device *old = slave->master;
-	int err;
-
-	ASSERT_RTNL();
-
-	if (master) {
-		if (old)
-			return -EBUSY;
-		err = netdev_master_upper_dev_link(slave, master);
-		if (err)
-			return err;
-	}
-
-	slave->master = master;
-
-	if (old)
-		netdev_upper_dev_unlink(slave, master);
-
-	return 0;
-}
-EXPORT_SYMBOL(netdev_set_master);
-
-/**
- *	netdev_set_bond_master	-	set up bonding master/slave pair
- *	@slave: slave device
- *	@master: new master device
- *
- *	Changes the master device of the slave. Pass %NULL to break the
- *	bonding. The caller must hold the RTNL semaphore. On a failure
- *	a negative errno code is returned. On success %RTM_NEWLINK is sent
- *	to the routing socket and the function returns zero.
- */
-int netdev_set_bond_master(struct net_device *slave, struct net_device *master)
-{
-	int err;
-
-	ASSERT_RTNL();
-
-	err = netdev_set_master(slave, master);
-	if (err)
-		return err;
-	if (master)
-		slave->flags |= IFF_SLAVE;
-	else
-		slave->flags &= ~IFF_SLAVE;
-
-	rtmsg_ifinfo(RTM_NEWLINK, slave, IFF_SLAVE);
-	return 0;
-}
-EXPORT_SYMBOL(netdev_set_bond_master);
-
 static void dev_change_rx_flags(struct net_device *dev, int flags)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
