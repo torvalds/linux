@@ -561,10 +561,7 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 		}
 	}
 
-	if (mutex_lock_interruptible(&adap->dev->usb_mutex) < 0) {
-		err("could not acquire lock");
-		return -EINTR;
-	}
+	mutex_lock(&adap->dev->usb_mutex);
 
 	st->buf[0] = REQUEST_ENABLE_VIDEO;
 	/* this bit gives a kind of command,
