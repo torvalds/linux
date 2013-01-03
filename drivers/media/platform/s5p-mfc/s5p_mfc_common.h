@@ -278,8 +278,9 @@ struct s5p_mfc_priv_buf {
  * @int_err:		error number for last interrupt
  * @queue:		waitqueue for waiting for completion of device commands
  * @fw_size:		size of firmware
- * @bank1:		address of the beggining of bank 1 memory
- * @bank2:		address of the beggining of bank 2 memory
+ * @fw_virt_addr:	virtual firmware address
+ * @bank1:		address of the beginning of bank 1 memory
+ * @bank2:		address of the beginning of bank 2 memory
  * @hw_lock:		used for hardware locking
  * @ctx:		array of driver contexts
  * @curr_ctx:		number of the currently running context
@@ -318,8 +319,9 @@ struct s5p_mfc_dev {
 	unsigned int int_err;
 	wait_queue_head_t queue;
 	size_t fw_size;
-	size_t bank1;
-	size_t bank2;
+	void *fw_virt_addr;
+	dma_addr_t bank1;
+	dma_addr_t bank2;
 	unsigned long hw_lock;
 	struct s5p_mfc_ctx *ctx[MFC_NUM_CONTEXTS];
 	int curr_ctx;
