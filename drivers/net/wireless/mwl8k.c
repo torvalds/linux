@@ -160,7 +160,6 @@ struct mwl8k_ampdu_stream {
 	u8 tid;
 	u8 state;
 	u8 idx;
-	u8 txq_idx; /* index of this stream in priv->txq */
 };
 
 struct mwl8k_priv {
@@ -1741,7 +1740,6 @@ mwl8k_add_stream(struct ieee80211_hw *hw, struct ieee80211_sta *sta, u8 tid)
 			stream->state = AMPDU_STREAM_NEW;
 			stream->tid = tid;
 			stream->idx = i;
-			stream->txq_idx = MWL8K_TX_WMM_QUEUES + i;
 			wiphy_debug(hw->wiphy, "Added a new stream for %pM %d",
 				    sta->addr, tid);
 			return stream;
@@ -1928,8 +1926,8 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw,
 		stream = mwl8k_lookup_stream(hw, sta->addr, tid);
 		if (stream != NULL) {
 			if (stream->state == AMPDU_STREAM_ACTIVE) {
-				txpriority = stream->txq_idx;
-				index = stream->txq_idx;
+				txpriority = stream->idx + MWL8K_TX_WMM_QUEUES;
+				index = stream->idx + MWL8K_TX_WMM_QUEUES;
 			} else if (stream->state == AMPDU_STREAM_NEW) {
 				/* We get here if the driver sends us packets
 				 * after we've initiated a stream, but before
