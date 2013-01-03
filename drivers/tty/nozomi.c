@@ -1679,12 +1679,6 @@ static int ntty_write(struct tty_struct *tty, const unsigned char *buffer,
 
 	rval = kfifo_in(&port->fifo_ul, (unsigned char *)buffer, count);
 
-	/* notify card */
-	if (unlikely(dc == NULL)) {
-		DBG1("No device context?");
-		goto exit;
-	}
-
 	spin_lock_irqsave(&dc->spin_mutex, flags);
 	/* CTS is only valid on the modem channel */
 	if (port == &(dc->port[PORT_MDM])) {
@@ -1700,7 +1694,6 @@ static int ntty_write(struct tty_struct *tty, const unsigned char *buffer,
 	}
 	spin_unlock_irqrestore(&dc->spin_mutex, flags);
 
-exit:
 	return rval;
 }
 
