@@ -67,7 +67,7 @@ static int recover_dentry(struct page *ipage, struct inode *inode)
 		kunmap(page);
 		f2fs_put_page(page, 0);
 	} else {
-		f2fs_add_link(&dent, inode);
+		err = f2fs_add_link(&dent, inode);
 	}
 	iput(dir);
 out:
