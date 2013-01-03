@@ -238,7 +238,6 @@ static int __init nhk8815_eth_init(void)
 	int err;
 
 	err = gpio_request(gpio_nr, "eth_irq");
-	if (!err) err = nmk_gpio_set_mode(gpio_nr, NMK_GPIO_ALT_GPIO);
 	if (!err) err = gpio_direction_input(gpio_nr);
 	if (err)
 		pr_err("Error %i in %s\n", err, __func__);
@@ -321,6 +320,15 @@ static struct pinctrl_map __initdata nhk8815_pinmap[] = {
 	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO111_H21", in_nopull),
 	/* CD bias drive */
 	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO112_J21", out_low),
+	/* I2C0 */
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO62_D3", in_pullup),
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO63_D2", in_pullup),
+	/* I2C1 */
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO53_L4", in_pullup),
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO54_L3", in_pullup),
+	/* I2C2 */
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO73_C21", in_pullup),
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO74_C20", in_pullup),
 };
 
 static void __init nhk8815_platform_init(void)

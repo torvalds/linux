@@ -4,7 +4,6 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/i2c-gpio.h>
 #include <linux/platform_device.h>
-#include <linux/platform_data/pinctrl-nomadik.h>
 
 /*
  * There are two busses in the 8815NHK.
@@ -57,18 +56,8 @@ static struct platform_device nhk8815_i2c_dev2 = {
 	},
 };
 
-static pin_cfg_t cpu8815_pins_i2c[] = {
-	PIN_CFG_INPUT(62, GPIO, PULLUP),
-	PIN_CFG_INPUT(63, GPIO, PULLUP),
-	PIN_CFG_INPUT(53, GPIO, PULLUP),
-	PIN_CFG_INPUT(54, GPIO, PULLUP),
-	PIN_CFG_INPUT(73, GPIO, PULLUP),
-	PIN_CFG_INPUT(74, GPIO, PULLUP),
-};
-
 static int __init nhk8815_i2c_init(void)
 {
-	nmk_config_pins(cpu8815_pins_i2c, ARRAY_SIZE(cpu8815_pins_i2c));
 	platform_device_register(&nhk8815_i2c_dev0);
 	platform_device_register(&nhk8815_i2c_dev1);
 	platform_device_register(&nhk8815_i2c_dev2);
