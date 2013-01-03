@@ -827,15 +827,10 @@ static int receive_data(enum port_type index, struct nozomi *dc)
 	struct tty_struct *tty = tty_port_tty_get(&port->port);
 	int i, ret;
 
-	if (unlikely(!tty)) {
-		DBG1("tty not open for port: %d?", index);
-		return 1;
-	}
-
 	read_mem32((u32 *) &size, addr, 4);
 	/*  DBG1( "%d bytes port: %d", size, index); */
 
-	if (test_bit(TTY_THROTTLED, &tty->flags)) {
+	if (tty && test_bit(TTY_THROTTLED, &tty->flags)) {
 		DBG1("No room in tty, don't read data, don't ack interrupt, "
 			"disable interrupt");
 
@@ -858,10 +853,11 @@ static int receive_data(enum port_type index, struct nozomi *dc)
 			tty_insert_flip_char(&port->port, buf[0], TTY_NORMAL);
 			size = 0;
 		} else if (size < RECEIVE_BUF_MAX) {
-			size -= tty_insert_flip_string(tty, (char *) buf, size);
+			size -= tty_insert_flip_string(&port->port,
+					(char *)buf, size);
 		} else {
-			i = tty_insert_flip_string(tty, \
-						(char *) buf, RECEIVE_BUF_MAX);
+			i = tty_insert_flip_string(&port->port,
+					(char *)buf, RECEIVE_BUF_MAX);
 			size -= i;
 			offset += i;
 		}

@@ -640,7 +640,7 @@ void jsm_input(struct jsm_channel *ch)
 					tty_insert_flip_char(port, *(ch->ch_rqueue +tail +i), TTY_NORMAL);
 			}
 		} else {
-			tty_insert_flip_string(tp, ch->ch_rqueue + tail, s) ;
+			tty_insert_flip_string(port, ch->ch_rqueue + tail, s);
 		}
 		tail += s;
 		n -= s;

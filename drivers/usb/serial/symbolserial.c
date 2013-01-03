@@ -84,7 +84,8 @@ static void symbol_int_callback(struct urb *urb)
 		 */
 		tty = tty_port_tty_get(&port->port);
 		if (tty) {
-			tty_insert_flip_string(tty, &data[1], data_length);
+			tty_insert_flip_string(&port->port, &data[1],
+					data_length);
 			tty_flip_buffer_push(tty);
 			tty_kref_put(tty);
 		}

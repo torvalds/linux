@@ -773,9 +773,10 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 	usb_serial_debug_data(&port->dev, __func__, urb->actual_length, data);
 
 	if (urb->actual_length) {
-		tty = tty_port_tty_get(&mos7840_port->port->port);
+		struct tty_port *tport = &mos7840_port->port->port;
+		tty = tty_port_tty_get(tport);
 		if (tty) {
-			tty_insert_flip_string(tty, data, urb->actual_length);
+			tty_insert_flip_string(tport, data, urb->actual_length);
 			tty_flip_buffer_push(tty);
 			tty_kref_put(tty);
 		}

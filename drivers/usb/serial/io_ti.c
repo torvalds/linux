@@ -201,7 +201,7 @@ static int closing_wait = EDGE_CLOSING_WAIT;
 static bool ignore_cpu_rev;
 static int default_uart_mode;		/* RS232 */
 
-static void edge_tty_recv(struct device *dev, struct tty_struct *tty,
+static void edge_tty_recv(struct usb_serial_port *port, struct tty_struct *tty,
 			  unsigned char *data, int length);
 
 static void stop_read(struct edgeport_port *edge_port);
@@ -1557,7 +1557,7 @@ static void handle_new_lsr(struct edgeport_port *edge_port, int lsr_data,
 	if (lsr_data) {
 		tty = tty_port_tty_get(&edge_port->port->port);
 		if (tty) {
-			edge_tty_recv(&edge_port->port->dev, tty, &data, 1);
+			edge_tty_recv(edge_port->port, tty, &data, 1);
 			tty_kref_put(tty);
 		}
 	}
@@ -1722,7 +1722,8 @@ static void edge_bulk_in_callback(struct urb *urb)
 			dev_dbg(dev, "%s - close pending, dropping data on the floor\n",
 								__func__);
 		else
-			edge_tty_recv(dev, tty, data, urb->actual_length);
+			edge_tty_recv(edge_port->port, tty, data,
+					urb->actual_length);
 		edge_port->icount.rx += urb->actual_length;
 	}
 	tty_kref_put(tty);
@@ -1740,14 +1741,14 @@ exit:
 		dev_err(dev, "%s - usb_submit_urb failed with result %d\n", __func__, retval);
 }
 
-static void edge_tty_recv(struct device *dev, struct tty_struct *tty,
+static void edge_tty_recv(struct usb_serial_port *port, struct tty_struct *tty,
 					unsigned char *data, int length)
 {
 	int queued;
 
-	queued = tty_insert_flip_string(tty, data, length);
+	queued = tty_insert_flip_string(&port->port, data, length);
 	if (queued < length)
-		dev_err(dev, "%s - dropping data, %d bytes lost\n",
+		dev_err(&port->dev, "%s - dropping data, %d bytes lost\n",
 			__func__, length - queued);
 	tty_flip_buffer_push(tty);
 }

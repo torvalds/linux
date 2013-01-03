@@ -57,7 +57,7 @@ static void navman_read_int_callback(struct urb *urb)
 
 	tty = tty_port_tty_get(&port->port);
 	if (tty && urb->actual_length) {
-		tty_insert_flip_string(tty, data, urb->actual_length);
+		tty_insert_flip_string(&port->port, data, urb->actual_length);
 		tty_flip_buffer_push(tty);
 	}
 	tty_kref_put(tty);

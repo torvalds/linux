@@ -698,7 +698,7 @@ void qt2_process_read_urb(struct urb *urb)
 				break;
 			case QT2_CONTROL_ESCAPE:
 				tty_buffer_request_room(&port->port, 2);
-				tty_insert_flip_string(tty, ch, 2);
+				tty_insert_flip_string(&port->port, ch, 2);
 				i += 2;
 				escapeflag = true;
 				break;
@@ -712,10 +712,8 @@ void qt2_process_read_urb(struct urb *urb)
 				continue;
 		}
 
-		if (tty) {
-			tty_buffer_request_room(&port->port, 1);
-			tty_insert_flip_string(tty, ch, 1);
-		}
+		tty_buffer_request_room(&port->port, 1);
+		tty_insert_flip_string(&port->port, ch, 1);
 	}
 
 	if (tty) {

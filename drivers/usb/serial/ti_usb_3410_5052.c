@@ -121,7 +121,7 @@ static void ti_interrupt_callback(struct urb *urb);
 static void ti_bulk_in_callback(struct urb *urb);
 static void ti_bulk_out_callback(struct urb *urb);
 
-static void ti_recv(struct device *dev, struct tty_struct *tty,
+static void ti_recv(struct usb_serial_port *port, struct tty_struct *tty,
 	unsigned char *data, int length);
 static void ti_send(struct ti_port *tport);
 static int ti_set_mcr(struct ti_port *tport, unsigned int mcr);
@@ -1155,8 +1155,7 @@ static void ti_bulk_in_callback(struct urb *urb)
 				dev_dbg(dev, "%s - port closed, dropping data\n",
 					__func__);
 			else
-				ti_recv(&urb->dev->dev, tty,
-						urb->transfer_buffer,
+				ti_recv(port, tty, urb->transfer_buffer,
 						urb->actual_length);
 			spin_lock(&tport->tp_lock);
 			tport->tp_icount.rx += urb->actual_length;
@@ -1210,15 +1209,15 @@ static void ti_bulk_out_callback(struct urb *urb)
 }
 
 
-static void ti_recv(struct device *dev, struct tty_struct *tty,
+static void ti_recv(struct usb_serial_port *port, struct tty_struct *tty,
 	unsigned char *data, int length)
 {
 	int cnt;
 
 	do {
-		cnt = tty_insert_flip_string(tty, data, length);
+		cnt = tty_insert_flip_string(&port->port, data, length);
 		if (cnt < length) {
-			dev_err(dev, "%s - dropping data, %d bytes lost\n",
+			dev_err(&port->dev, "%s - dropping data, %d bytes lost\n",
 						__func__, length - cnt);
 			if (cnt == 0)
 				break;

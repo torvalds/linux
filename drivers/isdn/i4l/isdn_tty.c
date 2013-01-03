@@ -101,7 +101,7 @@ isdn_tty_try_read(modem_info *info, struct sk_buff *skb)
 	} else {
 #endif
 		if (len > 1)
-			tty_insert_flip_string(tty, skb->data, len - 1);
+			tty_insert_flip_string(port, skb->data, len - 1);
 		last = skb->data[len - 1];
 #ifdef CONFIG_ISDN_AUDIO
 	}
@@ -150,9 +150,9 @@ isdn_tty_readmodem(void)
 			if (info->mcr & UART_MCR_RTS) {
 				/* CISCO AsyncPPP Hack */
 				if (!(info->emu.mdmreg[REG_CPPP] & BIT_CPPP))
-					r = isdn_readbchan_tty(info->isdn_driver, info->isdn_channel, tty, 0);
+					r = isdn_readbchan_tty(info->isdn_driver, info->isdn_channel, &info->port, 0);
 				else
-					r = isdn_readbchan_tty(info->isdn_driver, info->isdn_channel, tty, 1);
+					r = isdn_readbchan_tty(info->isdn_driver, info->isdn_channel, &info->port, 1);
 				if (r)
 					tty_flip_buffer_push(tty);
 			} else

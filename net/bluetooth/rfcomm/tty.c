@@ -556,7 +556,7 @@ static void rfcomm_dev_data_ready(struct rfcomm_dlc *dlc, struct sk_buff *skb)
 
 	BT_DBG("dlc %p tty %p len %d", dlc, tty, skb->len);
 
-	tty_insert_flip_string(tty, skb->data, skb->len);
+	tty_insert_flip_string(&dev->port, skb->data, skb->len);
 	tty_flip_buffer_push(tty);
 
 	kfree_skb(skb);
@@ -633,7 +633,8 @@ static void rfcomm_tty_copy_pending(struct rfcomm_dev *dev)
 	rfcomm_dlc_lock(dev->dlc);
 
 	while ((skb = skb_dequeue(&dev->pending))) {
-		inserted += tty_insert_flip_string(tty, skb->data, skb->len);
+		inserted += tty_insert_flip_string(&dev->port, skb->data,
+				skb->len);
 		kfree_skb(skb);
 	}
 

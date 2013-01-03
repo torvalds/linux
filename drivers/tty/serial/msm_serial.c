@@ -133,7 +133,7 @@ static void handle_rx_dm(struct uart_port *port, unsigned int misr)
 			port->icount.frame++;
 
 		/* TODO: handle sysrq */
-		tty_insert_flip_string(tty, (char *) &c,
+		tty_insert_flip_string(tport, (char *)&c,
 				       (count > 4) ? 4 : count);
 		count -= 4;
 	}

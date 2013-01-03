@@ -72,7 +72,7 @@ static void transmit_chars_write(struct uart_port *port, struct circ_buf *xmit)
 	}
 }
 
-static int receive_chars_getchar(struct uart_port *port, struct tty_struct *tty)
+static int receive_chars_getchar(struct uart_port *port)
 {
 	int saw_console_brk = 0;
 	int limit = 10000;
@@ -115,7 +115,7 @@ static int receive_chars_getchar(struct uart_port *port, struct tty_struct *tty)
 	return saw_console_brk;
 }
 
-static int receive_chars_read(struct uart_port *port, struct tty_struct *tty)
+static int receive_chars_read(struct uart_port *port)
 {
 	int saw_console_brk = 0;
 	int limit = 10000;
@@ -152,12 +152,13 @@ static int receive_chars_read(struct uart_port *port, struct tty_struct *tty)
 		for (i = 0; i < bytes_read; i++)
 			uart_handle_sysrq_char(port, con_read_page[i]);
 
-		if (tty == NULL)
+		if (port->state == NULL)
 			continue;
 
 		port->icount.rx += bytes_read;
 
-		tty_insert_flip_string(tty, con_read_page, bytes_read);
+		tty_insert_flip_string(&port->state->port, con_read_page,
+				bytes_read);
 	}
 
 	return saw_console_brk;
@@ -165,7 +166,7 @@ static int receive_chars_read(struct uart_port *port, struct tty_struct *tty)
 
 struct sunhv_ops {
 	void (*transmit_chars)(struct uart_port *port, struct circ_buf *xmit);
-	int (*receive_chars)(struct uart_port *port, struct tty_struct *tty);
+	int (*receive_chars)(struct uart_port *port);
 };
 
 static struct sunhv_ops bychar_ops = {
@@ -187,7 +188,7 @@ static struct tty_struct *receive_chars(struct uart_port *port)
 	if (port->state != NULL)		/* Unopened serial console */
 		tty = port->state->port.tty;
 
-	if (sunhv_ops->receive_chars(port, tty))
+	if (sunhv_ops->receive_chars(port))
 		sun_do_break();
 
 	return tty;

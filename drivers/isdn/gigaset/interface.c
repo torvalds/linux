@@ -569,7 +569,7 @@ void gigaset_if_receive(struct cardstate *cs,
 		return;
 	}
 
-	tty_insert_flip_string(tty, buffer, len);
+	tty_insert_flip_string(&cs->port, buffer, len);
 	tty_flip_buffer_push(tty);
 	tty_kref_put(tty);
 }

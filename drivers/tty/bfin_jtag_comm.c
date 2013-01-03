@@ -104,7 +104,7 @@ bfin_jc_emudat_manager(void *arg)
 					size_t num_chars = (4 <= inbound_len ? 4 : inbound_len);
 					pr_debug("  incoming data: 0x%08x (pushing %zu)\n", emudat, num_chars);
 					inbound_len -= num_chars;
-					tty_insert_flip_string(tty, (unsigned char *)&emudat, num_chars);
+					tty_insert_flip_string(&port, (unsigned char *)&emudat, num_chars);
 					tty_flip_buffer_push(tty);
 				}
 			}

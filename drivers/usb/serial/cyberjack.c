@@ -343,7 +343,7 @@ static void cyberjack_read_bulk_callback(struct urb *urb)
 		return;
 	}
 	if (urb->actual_length) {
-		tty_insert_flip_string(tty, data, urb->actual_length);
+		tty_insert_flip_string(&port->port, data, urb->actual_length);
 		tty_flip_buffer_push(tty);
 	}
 	tty_kref_put(tty);

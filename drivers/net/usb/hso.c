@@ -2044,10 +2044,9 @@ static int put_rxbuf_data(struct urb *urb, struct hso_serial *serial)
 				tty_kref_put(tty);
 				return -1;
 			}
-			curr_write_len =  tty_insert_flip_string
-				(tty, urb->transfer_buffer +
-				 serial->curr_rx_urb_offset,
-				 write_length_remaining);
+			curr_write_len = tty_insert_flip_string(&serial->port,
+				urb->transfer_buffer + serial->curr_rx_urb_offset,
+				write_length_remaining);
 			serial->curr_rx_urb_offset += curr_write_len;
 			write_length_remaining -= curr_write_len;
 			tty_flip_buffer_push(tty);

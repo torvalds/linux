@@ -876,9 +876,8 @@ isdn_readbchan(int di, int channel, u_char *buf, u_char *fp, int len, wait_queue
  * of the mapping (di,ch)<->minor, happen during the sleep? --he
  */
 int
-isdn_readbchan_tty(int di, int channel, struct tty_struct *tty, int cisco_hack)
+isdn_readbchan_tty(int di, int channel, struct tty_port *port, int cisco_hack)
 {
-	struct tty_port *port = tty->port;
 	int count;
 	int count_pull;
 	int count_put;
@@ -941,7 +940,7 @@ isdn_readbchan_tty(int di, int channel, struct tty_struct *tty, int cisco_hack)
 			}
 			count_put = count_pull;
 			if (count_put > 1)
-				tty_insert_flip_string(tty, skb->data, count_put - 1);
+				tty_insert_flip_string(port, skb->data, count_put - 1);
 			last = skb->data[count_put - 1];
 			len -= count_put;
 #ifdef CONFIG_ISDN_AUDIO

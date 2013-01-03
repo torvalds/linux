@@ -1578,7 +1578,7 @@ static void gsm_dlci_data(struct gsm_dlci *dlci, u8 *data, int clen)
 		/* Line state will go via DLCI 0 controls only */
 		case 1:
 		default:
-			tty_insert_flip_string(tty, data, len);
+			tty_insert_flip_string(port, data, len);
 			tty_flip_buffer_push(tty);
 		}
 		tty_kref_put(tty);

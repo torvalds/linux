@@ -480,7 +480,7 @@ sclp_vt220_receiver_fn(struct evbuf_header *evbuf)
 		/* Send input to line discipline */
 		buffer++;
 		count--;
-		tty_insert_flip_string(tty, buffer, count);
+		tty_insert_flip_string(&sclp_vt220_port, buffer, count);
 		tty_flip_buffer_push(tty);
 		break;
 	}

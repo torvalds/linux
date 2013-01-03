@@ -2119,7 +2119,7 @@ static void flush_to_flip_buffer(struct e100_serial *info)
 	while ((buffer = info->first_recv_buffer) != NULL) {
 		unsigned int count = buffer->length;
 
-		tty_insert_flip_string(tty, buffer->buffer, count);
+		tty_insert_flip_string(&info->port, buffer->buffer, count);
 		info->recv_cnt -= count;
 
 		if (count == buffer->length) {

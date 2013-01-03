@@ -57,7 +57,7 @@ static void opticon_process_data_packet(struct usb_serial_port *port,
 	if (!tty)
 		return;
 
-	tty_insert_flip_string(tty, buf, len);
+	tty_insert_flip_string(&port->port, buf, len);
 	tty_flip_buffer_push(tty);
 	tty_kref_put(tty);
 }

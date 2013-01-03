@@ -2362,7 +2362,7 @@ static void receive_chars(struct uart_port *the_port)
 		icount = &the_port->icount;
 		read_count = do_read(the_port, ch, request_count);
 		if (read_count > 0) {
-			tty_insert_flip_string(tty, ch, read_count);
+			tty_insert_flip_string(&state->port, ch, read_count);
 			icount->rx += read_count;
 		}
 	}

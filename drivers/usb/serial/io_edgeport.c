@@ -232,7 +232,7 @@ static void  process_rcvd_data(struct edgeport_serial *edge_serial,
 				unsigned char *buffer, __u16 bufferLength);
 static void process_rcvd_status(struct edgeport_serial *edge_serial,
 				__u8 byte2, __u8 byte3);
-static void edge_tty_recv(struct device *dev, struct tty_struct *tty,
+static void edge_tty_recv(struct usb_serial_port *port, struct tty_struct *tty,
 				unsigned char *data, int length);
 static void handle_new_msr(struct edgeport_port *edge_port, __u8 newMsr);
 static void handle_new_lsr(struct edgeport_port *edge_port, __u8 lsrData,
@@ -1865,7 +1865,7 @@ static void process_rcvd_data(struct edgeport_serial *edge_serial,
 					if (tty) {
 						dev_dbg(dev, "%s - Sending %d bytes to TTY for port %d\n",
 							__func__, rxLen, edge_serial->rxPort);
-						edge_tty_recv(&edge_serial->serial->dev->dev, tty, buffer, rxLen);
+						edge_tty_recv(edge_port->port, tty, buffer, rxLen);
 						tty_kref_put(tty);
 					}
 					edge_port->icount.rx += rxLen;
@@ -2017,14 +2017,14 @@ static void process_rcvd_status(struct edgeport_serial *edge_serial,
  * edge_tty_recv
  *	this function passes data on to the tty flip buffer
  *****************************************************************************/
-static void edge_tty_recv(struct device *dev, struct tty_struct *tty,
+static void edge_tty_recv(struct usb_serial_port *port, struct tty_struct *tty,
 					unsigned char *data, int length)
 {
 	int cnt;
 
-	cnt = tty_insert_flip_string(tty, data, length);
+	cnt = tty_insert_flip_string(&port->port, data, length);
 	if (cnt < length) {
-		dev_err(dev, "%s - dropping data, %d bytes lost\n",
+		dev_err(&port->dev, "%s - dropping data, %d bytes lost\n",
 				__func__, length - cnt);
 	}
 	data += cnt;
@@ -2090,7 +2090,7 @@ static void handle_new_lsr(struct edgeport_port *edge_port, __u8 lsrData,
 		struct tty_struct *tty =
 				tty_port_tty_get(&edge_port->port->port);
 		if (tty) {
-			edge_tty_recv(&edge_port->port->dev, tty, &data, 1);
+			edge_tty_recv(edge_port->port, tty, &data, 1);
 			tty_kref_put(tty);
 		}
 	}

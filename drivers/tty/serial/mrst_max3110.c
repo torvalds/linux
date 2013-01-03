@@ -374,7 +374,7 @@ receive_chars(struct uart_max3110 *max, unsigned short *str, int len)
 	for (r = 0; w; r += usable, w -= usable) {
 		usable = tty_buffer_request_room(tport, w);
 		if (usable) {
-			tty_insert_flip_string(tty, buf + r, usable);
+			tty_insert_flip_string(tport, buf + r, usable);
 			port->icount.rx += usable;
 		}
 	}

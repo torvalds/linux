@@ -24,9 +24,10 @@ static inline int tty_insert_flip_char(struct tty_port *port,
 	return tty_insert_flip_string_flags(port, &ch, &flag, 1);
 }
 
-static inline int tty_insert_flip_string(struct tty_struct *tty, const unsigned char *chars, size_t size)
+static inline int tty_insert_flip_string(struct tty_port *port,
+		const unsigned char *chars, size_t size)
 {
-	return tty_insert_flip_string_fixed_flag(tty->port, chars, TTY_NORMAL, size);
+	return tty_insert_flip_string_fixed_flag(port, chars, TTY_NORMAL, size);
 }
 
 #endif /* _LINUX_TTY_FLIP_H */

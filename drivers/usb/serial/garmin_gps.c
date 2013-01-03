@@ -256,7 +256,7 @@ static void send_to_tty(struct usb_serial_port *port,
 
 	if (tty && actual_length) {
 		usb_serial_debug_data(&port->dev, __func__, actual_length, data);
-		tty_insert_flip_string(tty, data, actual_length);
+		tty_insert_flip_string(&port->port, data, actual_length);
 		tty_flip_buffer_push(tty);
 	}
 	tty_kref_put(tty);

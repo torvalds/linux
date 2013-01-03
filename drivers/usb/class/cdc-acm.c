@@ -419,7 +419,8 @@ static void acm_process_read_urb(struct acm *acm, struct urb *urb)
 	if (!tty)
 		return;
 
-	tty_insert_flip_string(tty, urb->transfer_buffer, urb->actual_length);
+	tty_insert_flip_string(&acm->port, urb->transfer_buffer,
+			urb->actual_length);
 	tty_flip_buffer_push(tty);
 
 	tty_kref_put(tty);

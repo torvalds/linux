@@ -781,7 +781,8 @@ static void atmel_rx_from_ring(struct uart_port *port)
 static void atmel_rx_from_dma(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
-	struct tty_struct *tty = port->state->port.tty;
+	struct tty_port *tport = &port->state->port;
+	struct tty_struct *tty = tport->tty;
 	struct atmel_dma_buffer *pdc;
 	int rx_idx = atmel_port->pdc_rx_idx;
 	unsigned int head;
@@ -820,7 +821,8 @@ static void atmel_rx_from_dma(struct uart_port *port)
 			 */
 			count = head - tail;
 
-			tty_insert_flip_string(tty, pdc->buf + pdc->ofs, count);
+			tty_insert_flip_string(tport, pdc->buf + pdc->ofs,
+						count);
 
 			dma_sync_single_for_device(port->dev, pdc->dma_addr,
 					pdc->dma_size, DMA_FROM_DEVICE);

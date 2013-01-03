@@ -529,7 +529,7 @@ static void gs_rx_push(unsigned long _port)
 				size -= n;
 			}
 
-			count = tty_insert_flip_string(tty, packet, size);
+			count = tty_insert_flip_string(&port->port, packet, size);
 			if (count)
 				do_push = true;
 			if (count != size) {

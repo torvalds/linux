@@ -583,7 +583,7 @@ static void sierra_indat_callback(struct urb *urb)
 		if (urb->actual_length) {
 			tty = tty_port_tty_get(&port->port);
 			if (tty) {
-				tty_insert_flip_string(tty, data,
+				tty_insert_flip_string(&port->port, data,
 					urb->actual_length);
 				tty_flip_buffer_push(tty);
 

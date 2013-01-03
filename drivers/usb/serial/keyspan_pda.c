@@ -166,7 +166,7 @@ static void keyspan_pda_rx_interrupt(struct urb *urb)
 		tty = tty_port_tty_get(&port->port);
 		 /* rest of message is rx data */
 		if (tty && urb->actual_length) {
-			tty_insert_flip_string(tty, data + 1,
+			tty_insert_flip_string(&port->port, data + 1,
 						urb->actual_length - 1);
 			tty_flip_buffer_push(tty);
 		}

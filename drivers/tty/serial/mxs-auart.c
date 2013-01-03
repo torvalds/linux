@@ -457,7 +457,8 @@ static int mxs_auart_dma_prep_rx(struct mxs_auart_port *s);
 static void dma_rx_callback(void *arg)
 {
 	struct mxs_auart_port *s = (struct mxs_auart_port *) arg;
-	struct tty_struct *tty = s->port.state->port.tty;
+	struct tty_port *port = &s->port.state->port;
+	struct tty_struct *tty = port->tty;
 	int count;
 	u32 stat;
 
@@ -468,7 +469,7 @@ static void dma_rx_callback(void *arg)
 			AUART_STAT_PERR | AUART_STAT_FERR);
 
 	count = stat & AUART_STAT_RXCOUNT_MASK;
-	tty_insert_flip_string(tty, s->rx_dma_buf, count);
+	tty_insert_flip_string(port, s->rx_dma_buf, count);
 
 	writel(stat, s->port.membase + AUART_STAT);
 	tty_flip_buffer_push(tty);

@@ -762,7 +762,7 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 		/* Block copy all but the last byte as this may have status */
 		if (count > 0) {
 			first = icom_port->recv_buf[offset];
-			tty_insert_flip_string(tty, icom_port->recv_buf + offset, count - 1);
+			tty_insert_flip_string(port, icom_port->recv_buf + offset, count - 1);
 		}
 
 		icount = &icom_port->uart_port.icount;

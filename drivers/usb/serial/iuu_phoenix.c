@@ -596,7 +596,7 @@ static void read_buf_callback(struct urb *urb)
 	if (data == NULL)
 		dev_dbg(&port->dev, "%s - data is NULL !!!\n", __func__);
 	if (tty && urb->actual_length && data) {
-		tty_insert_flip_string(tty, data, urb->actual_length);
+		tty_insert_flip_string(&port->port, data, urb->actual_length);
 		tty_flip_buffer_push(tty);
 	}
 	tty_kref_put(tty);

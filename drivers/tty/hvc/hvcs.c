@@ -613,7 +613,7 @@ static int hvcs_io(struct hvcs_struct *hvcsd)
 		got = hvc_get_chars(unit_address,
 				&buf[0],
 				HVCS_BUFF_LEN);
-		tty_insert_flip_string(tty, buf, got);
+		tty_insert_flip_string(&hvcsd->port, buf, got);
 	}
 
 	/* Give the TTY time to process the data we just sent. */

@@ -176,7 +176,7 @@ void ipwireless_tty_received(struct ipw_tty *tty, unsigned char *data,
 	}
 	mutex_unlock(&tty->ipw_tty_mutex);
 
-	work = tty_insert_flip_string(linux_tty, data, length);
+	work = tty_insert_flip_string(&tty->port, data, length);
 
 	if (work != length)
 		printk(KERN_DEBUG IPWIRELESS_PCCARD_NAME

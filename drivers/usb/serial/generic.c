@@ -328,7 +328,7 @@ void usb_serial_generic_process_read_urb(struct urb *urb)
 	   stuff like 3G modems, so shortcircuit it in the 99.9999999% of cases
 	   where the USB serial is not a console anyway */
 	if (!port->port.console || !port->sysrq)
-		tty_insert_flip_string(tty, ch, urb->actual_length);
+		tty_insert_flip_string(&port->port, ch, urb->actual_length);
 	else {
 		for (i = 0; i < urb->actual_length; i++, ch++) {
 			if (!usb_serial_handle_sysrq_char(port, *ch))

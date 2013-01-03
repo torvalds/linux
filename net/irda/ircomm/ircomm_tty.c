@@ -1141,7 +1141,7 @@ static int ircomm_tty_data_indication(void *instance, void *sap,
 	 * Use flip buffer functions since the code may be called from interrupt
 	 * context
 	 */
-	tty_insert_flip_string(tty, skb->data, skb->len);
+	tty_insert_flip_string(&self->port, skb->data, skb->len);
 	tty_flip_buffer_push(tty);
 	tty_kref_put(tty);
 

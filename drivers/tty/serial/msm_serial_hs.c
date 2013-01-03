@@ -961,7 +961,7 @@ static void msm_hs_dmov_rx_callback(struct msm_dmov_cmd *cmd_ptr,
 	rx_count = msm_hs_read(uport, UARTDM_RX_TOTAL_SNAP_ADDR);
 
 	if (0 != (uport->read_status_mask & CREAD)) {
-		retval = tty_insert_flip_string(tty, msm_uport->rx.buffer,
+		retval = tty_insert_flip_string(port, msm_uport->rx.buffer,
 						rx_count);
 		BUG_ON(retval != rx_count);
 	}

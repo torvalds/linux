@@ -407,7 +407,7 @@ static irqreturn_t ehv_bc_tty_rx_isr(int irq, void *data)
 		 */
 
 		/* Pass the received data to the tty layer. */
-		ret = tty_insert_flip_string(ttys, buffer, len);
+		ret = tty_insert_flip_string(&bc->port, buffer, len);
 
 		/* 'ret' is the number of bytes that the TTY layer accepted.
 		 * If it's not equal to 'len', then it means the buffer is

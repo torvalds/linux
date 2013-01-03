@@ -387,7 +387,8 @@ void hsu_dma_rx(struct uart_hsu_port *up, u32 int_sts)
 	struct hsu_dma_buffer *dbuf = &up->rxbuf;
 	struct hsu_dma_chan *chan = up->rxc;
 	struct uart_port *port = &up->port;
-	struct tty_struct *tty = port->state->port.tty;
+	struct tty_port *tport = &port->state->port;
+	struct tty_struct *tty = tport->tty;
 	int count;
 
 	if (!tty)
@@ -423,7 +424,7 @@ void hsu_dma_rx(struct uart_hsu_port *up, u32 int_sts)
 	 * explicitly set tail to 0. So head will
 	 * always be greater than tail.
 	 */
-	tty_insert_flip_string(tty, dbuf->buf, count);
+	tty_insert_flip_string(tport, dbuf->buf, count);
 	port->icount.rx += count;
 
 	dma_sync_single_for_device(up->port.dev, dbuf->dma_addr,

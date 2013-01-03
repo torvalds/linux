@@ -411,7 +411,7 @@ static void klsi_105_process_read_urb(struct urb *urb)
 		len = urb->actual_length - KLSI_HDR_LEN;
 	}
 
-	tty_insert_flip_string(tty, data + KLSI_HDR_LEN, len);
+	tty_insert_flip_string(&port->port, data + KLSI_HDR_LEN, len);
 	tty_flip_buffer_push(tty);
 	tty_kref_put(tty);
 }

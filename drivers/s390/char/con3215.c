@@ -425,7 +425,8 @@ static void raw3215_irq(struct ccw_device *cdev, unsigned long intparm,
 					count++;
 				} else
 					count -= 2;
-				tty_insert_flip_string(tty, raw->inbuf, count);
+				tty_insert_flip_string(&raw->port, raw->inbuf,
+						count);
 				tty_flip_buffer_push(tty);
 				break;
 			}

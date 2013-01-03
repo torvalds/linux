@@ -472,7 +472,8 @@ static void usa28_indat_callback(struct urb *urb)
 
 		tty = tty_port_tty_get(&port->port);
 		if (tty && urb->actual_length) {
-			tty_insert_flip_string(tty, data, urb->actual_length);
+			tty_insert_flip_string(&port->port, data,
+					urb->actual_length);
 			tty_flip_buffer_push(tty);
 		}
 		tty_kref_put(tty);
@@ -688,7 +689,7 @@ static void	usa49_indat_callback(struct urb *urb)
 		/* 0x80 bit is error flag */
 		if ((data[0] & 0x80) == 0) {
 			/* no error on any byte */
-			tty_insert_flip_string(tty, data + 1,
+			tty_insert_flip_string(&port->port, data + 1,
 						urb->actual_length - 1);
 		} else {
 			/* some bytes had errors, every byte has status */
@@ -816,7 +817,8 @@ static void usa90_indat_callback(struct urb *urb)
 		   otherwise looks like usa26 data format */
 
 		if (p_priv->baud > 57600)
-			tty_insert_flip_string(tty, data, urb->actual_length);
+			tty_insert_flip_string(&port->port, data,
+					urb->actual_length);
 		else {
 			/* 0x80 bit is error flag */
 			if ((data[0] & 0x80) == 0) {

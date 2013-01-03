@@ -351,10 +351,10 @@ sclp_tty_input(unsigned char* buf, unsigned int count)
 		    (strncmp((const char *) buf + count - 2, "^n", 2) &&
 		     strncmp((const char *) buf + count - 2, "\252n", 2))) {
 			/* add the auto \n */
-			tty_insert_flip_string(tty, buf, count);
+			tty_insert_flip_string(&sclp_port, buf, count);
 			tty_insert_flip_char(&sclp_port, '\n', TTY_NORMAL);
 		} else
-			tty_insert_flip_string(tty, buf, count - 2);
+			tty_insert_flip_string(&sclp_port, buf, count - 2);
 		tty_flip_buffer_push(tty);
 		break;
 	}

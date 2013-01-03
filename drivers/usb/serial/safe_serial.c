@@ -235,7 +235,7 @@ static void safe_process_read_urb(struct urb *urb)
 	dev_info(&urb->dev->dev, "%s - actual: %d\n", __func__, actual_length);
 	length = actual_length;
 out:
-	tty_insert_flip_string(tty, data, length);
+	tty_insert_flip_string(&port->port, data, length);
 	tty_flip_buffer_push(tty);
 err:
 	tty_kref_put(tty);
