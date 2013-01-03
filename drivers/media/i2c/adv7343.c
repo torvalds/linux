@@ -397,7 +397,8 @@ static int adv7343_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	state = kzalloc(sizeof(struct adv7343_state), GFP_KERNEL);
+	state = devm_kzalloc(&client->dev, sizeof(struct adv7343_state),
+			     GFP_KERNEL);
 	if (state == NULL)
 		return -ENOMEM;
 
@@ -431,16 +432,13 @@ static int adv7343_probe(struct i2c_client *client,
 		int err = state->hdl.error;
 
 		v4l2_ctrl_handler_free(&state->hdl);
-		kfree(state);
 		return err;
 	}
 	v4l2_ctrl_handler_setup(&state->hdl);
 
 	err = adv7343_initialize(&state->sd);
-	if (err) {
+	if (err)
 		v4l2_ctrl_handler_free(&state->hdl);
-		kfree(state);
-	}
 	return err;
 }
 
@@ -451,7 +449,6 @@ static int adv7343_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&state->hdl);
-	kfree(state);
 
 	return 0;
 }
