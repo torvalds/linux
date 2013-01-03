@@ -323,7 +323,6 @@ static irqreturn_t serial_lpc32xx_interrupt(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
 	struct tty_port *port = &port->state->port;
-	struct tty_struct *tty = tty_port_tty_get(tport);
 	u32 status;
 
 	spin_lock(&port->lock);
@@ -348,9 +347,7 @@ static irqreturn_t serial_lpc32xx_interrupt(int irq, void *dev_id)
 		       LPC32XX_HSUART_IIR(port->membase));
 		port->icount.overrun++;
 		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
-		if (tty) {
-			tty_schedule_flip(tty);
-		}
+		tty_schedule_flip(tport);
 	}
 
 	/* Data received? */
@@ -366,7 +363,6 @@ static irqreturn_t serial_lpc32xx_interrupt(int irq, void *dev_id)
 	}
 
 	spin_unlock(&port->lock);
-	tty_kref_put(tty);
 
 	return IRQ_HANDLED;
 }

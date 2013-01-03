@@ -349,7 +349,7 @@ EXPORT_SYMBOL(tty_insert_flip_string_flags);
 
 /**
  *	tty_schedule_flip	-	push characters to ldisc
- *	@tty: tty to push from
+ *	@port: tty port to push from
  *
  *	Takes any pending buffers and transfers their ownership to the
  *	ldisc side of the queue. It then schedules those characters for
@@ -360,11 +360,11 @@ EXPORT_SYMBOL(tty_insert_flip_string_flags);
  *	Locking: Takes port->buf.lock
  */
 
-void tty_schedule_flip(struct tty_struct *tty)
+void tty_schedule_flip(struct tty_port *port)
 {
-	struct tty_bufhead *buf = &tty->port->buf;
+	struct tty_bufhead *buf = &port->buf;
 	unsigned long flags;
-	WARN_ON(tty->port->low_latency);
+	WARN_ON(port->low_latency);
 
 	spin_lock_irqsave(&buf->lock, flags);
 	if (buf->tail != NULL)

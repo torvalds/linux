@@ -441,7 +441,6 @@ static void cyy_chip_rx(struct cyclades_card *cinfo, int chip,
 		void __iomem *base_addr)
 {
 	struct cyclades_port *info;
-	struct tty_struct *tty;
 	struct tty_port *port;
 	int len, index = cinfo->bus_index;
 	u8 ivr, save_xir, channel, save_car, data, char_count;
@@ -458,18 +457,6 @@ static void cyy_chip_rx(struct cyclades_card *cinfo, int chip,
 	cyy_writeb(info, CyCAR, save_xir);
 	ivr = cyy_readb(info, CyRIVR) & CyIVRMask;
 
-	tty = tty_port_tty_get(port);
-	/* if there is nowhere to put the data, discard it */
-	if (tty == NULL) {
-		if (ivr == CyIVRRxEx) {	/* exception */
-			data = cyy_readb(info, CyRDSR);
-		} else {	/* normal character reception */
-			char_count = cyy_readb(info, CyRDCR);
-			while (char_count--)
-				data = cyy_readb(info, CyRDSR);
-		}
-		goto end;
-	}
 	/* there is an open port for this data */
 	if (ivr == CyIVRRxEx) {	/* exception */
 		data = cyy_readb(info, CyRDSR);
@@ -486,7 +473,6 @@ static void cyy_chip_rx(struct cyclades_card *cinfo, int chip,
 
 		if (data & info->ignore_status_mask) {
 			info->icount.rx++;
-			tty_kref_put(tty);
 			return;
 		}
 		if (tty_buffer_request_room(port, 1)) {
@@ -496,8 +482,14 @@ static void cyy_chip_rx(struct cyclades_card *cinfo, int chip,
 						cyy_readb(info, CyRDSR),
 						TTY_BREAK);
 					info->icount.rx++;
-					if (port->flags & ASYNC_SAK)
-						do_SAK(tty);
+					if (port->flags & ASYNC_SAK) {
+						struct tty_struct *tty =
+							tty_port_tty_get(port);
+						if (tty) {
+							do_SAK(tty);
+							tty_kref_put(tty);
+						}
+					}
 				} else if (data & CyFRAME) {
 					tty_insert_flip_char(port,
 						cyy_readb(info, CyRDSR),
@@ -566,9 +558,8 @@ static void cyy_chip_rx(struct cyclades_card *cinfo, int chip,
 		}
 		info->idle_stats.recv_idle = jiffies;
 	}
-	tty_schedule_flip(tty);
-	tty_kref_put(tty);
-end:
+	tty_schedule_flip(port);
+
 	/* end of service */
 	cyy_writeb(info, CyRIR, save_xir & 0x3f);
 	cyy_writeb(info, CyCAR, save_car);
@@ -1012,7 +1003,7 @@ static void cyz_handle_rx(struct cyclades_port *info, struct tty_struct *tty)
 						jiffies + 1);
 #endif
 			info->idle_stats.recv_idle = jiffies;
-			tty_schedule_flip(tty);
+			tty_schedule_flip(&info->port);
 		}
 		/* Update rx_get */
 		cy_writel(&buf_ctrl->rx_get, new_rx_get);
@@ -1191,7 +1182,7 @@ static void cyz_handle_cmd(struct cyclades_card *cinfo)
 		if (delta_count)
 			wake_up_interruptible(&info->port.delta_msr_wait);
 		if (special_count)
-			tty_schedule_flip(tty);
+			tty_schedule_flip(&info->port);
 		tty_kref_put(tty);
 	}
 }
