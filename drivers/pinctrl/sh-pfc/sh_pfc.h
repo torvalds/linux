@@ -16,6 +16,8 @@
 
 typedef unsigned short pinmux_enum_t;
 
+#define SH_PFC_MARK_INVALID	((pinmux_enum_t)-1)
+
 enum {
 	PINMUX_TYPE_NONE,
 
@@ -38,6 +40,34 @@ struct sh_pfc_pin {
 	const pinmux_enum_t enum_id;
 	unsigned short flags;
 	const char *name;
+};
+
+#define SH_PFC_PIN_GROUP(n)				\
+	{						\
+		.name = #n,				\
+		.pins = n##_pins,			\
+		.mux = n##_mux,				\
+		.nr_pins = ARRAY_SIZE(n##_pins),	\
+	}
+
+struct sh_pfc_pin_group {
+	const char *name;
+	const unsigned int *pins;
+	const unsigned int *mux;
+	unsigned int nr_pins;
+};
+
+#define SH_PFC_FUNCTION(n)				\
+	{						\
+		.name = #n,				\
+		.groups = n##_groups,			\
+		.nr_groups = ARRAY_SIZE(n##_groups),	\
+	}
+
+struct sh_pfc_function {
+	const char *name;
+	const char * const *groups;
+	unsigned int nr_groups;
 };
 
 struct pinmux_func {
@@ -113,6 +143,11 @@ struct sh_pfc_soc_info {
 	unsigned int nr_pins;
 	const struct pinmux_range *ranges;
 	unsigned int nr_ranges;
+	const struct sh_pfc_pin_group *groups;
+	unsigned int nr_groups;
+	const struct sh_pfc_function *functions;
+	unsigned int nr_functions;
+
 	struct pinmux_func *func_gpios;
 	unsigned int nr_func_gpios;
 
