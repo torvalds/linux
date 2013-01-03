@@ -552,6 +552,11 @@ static struct platform_device *ag5evm_devices[] __initdata = {
 };
 
 static const struct pinctrl_map ag5evm_pinctrl_map[] = {
+	/* I2C2 & I2C3 */
+	PIN_MAP_MUX_GROUP_DEFAULT("i2c-sh_mobile.2", "pfc-sh73a0",
+				  "i2c2_0", "i2c2"),
+	PIN_MAP_MUX_GROUP_DEFAULT("i2c-sh_mobile.3", "pfc-sh73a0",
+				  "i2c3_0", "i2c3"),
 	/* SCIFA2 */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.2", "pfc-sh73a0",
 				  "scifa2_data_0", "scifa2"),
@@ -590,12 +595,6 @@ static void __init ag5evm_init(void)
 	gpio_request(GPIO_FN_PORT58_KEYOUT7, NULL);
 	gpio_request(GPIO_FN_KEYOUT8, NULL);
 	gpio_request(GPIO_FN_PORT149_KEYOUT9, NULL);
-
-	/* enable I2C channel 2 and 3 */
-	gpio_request(GPIO_FN_PORT236_I2C_SDA2, NULL);
-	gpio_request(GPIO_FN_PORT237_I2C_SCL2, NULL);
-	gpio_request(GPIO_FN_PORT248_I2C_SCL3, NULL);
-	gpio_request(GPIO_FN_PORT249_I2C_SDA3, NULL);
 
 	/* enable MMCIF */
 	gpio_request(GPIO_FN_MMCCLK0, NULL);
