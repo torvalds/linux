@@ -334,18 +334,49 @@ int snd_hda_get_sub_nodes(struct hda_codec *codec, hda_nid_t nid,
 }
 EXPORT_SYMBOL_HDA(snd_hda_get_sub_nodes);
 
+/* connection list element */
+struct hda_conn_list {
+	struct list_head list;
+	int len;
+	hda_nid_t nid;
+	hda_nid_t conns[0];
+};
+
 /* look up the cached results */
-static hda_nid_t *lookup_conn_list(struct snd_array *array, hda_nid_t nid)
+static struct hda_conn_list *
+lookup_conn_list(struct hda_codec *codec, hda_nid_t nid)
 {
-	int i, len;
-	for (i = 0; i < array->used; ) {
-		hda_nid_t *p = snd_array_elem(array, i);
-		if (nid == *p)
+	struct hda_conn_list *p;
+	list_for_each_entry(p, &codec->conn_list, list) {
+		if (p->nid == nid)
 			return p;
-		len = p[1];
-		i += len + 2;
 	}
 	return NULL;
+}
+
+static int add_conn_list(struct hda_codec *codec, hda_nid_t nid, int len,
+			 const hda_nid_t *list)
+{
+	struct hda_conn_list *p;
+
+	p = kmalloc(sizeof(*p) + len * sizeof(hda_nid_t), GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+	p->len = len;
+	p->nid = nid;
+	memcpy(p->conns, list, len * sizeof(hda_nid_t));
+	list_add(&p->list, &codec->conn_list);
+	return 0;
+}
+
+static void remove_conn_list(struct hda_codec *codec)
+{
+	while (!list_empty(&codec->conn_list)) {
+		struct hda_conn_list *p;
+		p = list_first_entry(&codec->conn_list, typeof(*p), list);
+		list_del(&p->list);
+		kfree(p);
+	}
 }
 
 /* read the connection and add to the cache */
@@ -359,6 +390,49 @@ static int read_and_add_raw_conns(struct hda_codec *codec, hda_nid_t nid)
 		return len;
 	return snd_hda_override_conn_list(codec, nid, len, list);
 }
+
+/**
+ * snd_hda_get_conn_list - get connection list
+ * @codec: the HDA codec
+ * @nid: NID to parse
+ * @len: number of connection list entries
+ * @listp: the pointer to store NID list
+ *
+ * Parses the connection list of the given widget and stores the pointer
+ * to the list of NIDs.
+ *
+ * Returns the number of connections, or a negative error code.
+ *
+ * Note that the returned pointer isn't protected against the list
+ * modification.  If snd_hda_override_conn_list() might be called
+ * concurrently, protect with a mutex appropriately.
+ */
+int snd_hda_get_conn_list(struct hda_codec *codec, hda_nid_t nid,
+			  const hda_nid_t **listp)
+{
+	bool added = false;
+
+	for (;;) {
+		int err;
+		const struct hda_conn_list *p;
+
+		/* if the connection-list is already cached, read it */
+		p = lookup_conn_list(codec, nid);
+		if (p) {
+			if (listp)
+				*listp = p->conns;
+			return p->len;
+		}
+		if (snd_BUG_ON(added))
+			return -EINVAL;
+
+		err = read_and_add_raw_conns(codec, nid);
+		if (err < 0)
+			return err;
+		added = true;
+	}
+}
+EXPORT_SYMBOL_HDA(snd_hda_get_conn_list);
 
 /**
  * snd_hda_get_connections - copy connection list
@@ -375,39 +449,20 @@ static int read_and_add_raw_conns(struct hda_codec *codec, hda_nid_t nid)
 int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
 			    hda_nid_t *conn_list, int max_conns)
 {
-	struct snd_array *array = &codec->conn_lists;
-	int len;
-	hda_nid_t *p;
-	bool added = false;
+	const hda_nid_t *list;
+	int len = snd_hda_get_conn_list(codec, nid, &list);
 
- again:
-	mutex_lock(&codec->hash_mutex);
-	len = -1;
-	/* if the connection-list is already cached, read it */
-	p = lookup_conn_list(array, nid);
-	if (p) {
-		len = p[1];
-		if (conn_list && len > max_conns) {
+	if (len > 0 && conn_list) {
+		if (len > max_conns) {
 			snd_printk(KERN_ERR "hda_codec: "
 				   "Too many connections %d for NID 0x%x\n",
 				   len, nid);
-			mutex_unlock(&codec->hash_mutex);
 			return -EINVAL;
 		}
-		if (conn_list && len)
-			memcpy(conn_list, p + 2, len * sizeof(hda_nid_t));
+		memcpy(conn_list, list, len * sizeof(hda_nid_t));
 	}
-	mutex_unlock(&codec->hash_mutex);
-	if (len >= 0)
-		return len;
-	if (snd_BUG_ON(added))
-		return -EINVAL;
 
-	len = read_and_add_raw_conns(codec, nid);
-	if (len < 0)
-		return len;
-	added = true;
-	goto again;
+	return len;
 }
 EXPORT_SYMBOL_HDA(snd_hda_get_connections);
 
@@ -519,15 +574,6 @@ int snd_hda_get_raw_connections(struct hda_codec *codec, hda_nid_t nid,
 	return conns;
 }
 
-static bool add_conn_list(struct snd_array *array, hda_nid_t nid)
-{
-	hda_nid_t *p = snd_array_new(array);
-	if (!p)
-		return false;
-	*p = nid;
-	return true;
-}
-
 /**
  * snd_hda_override_conn_list - add/modify the connection-list to cache
  * @codec: the HDA codec
@@ -543,28 +589,15 @@ static bool add_conn_list(struct snd_array *array, hda_nid_t nid)
 int snd_hda_override_conn_list(struct hda_codec *codec, hda_nid_t nid, int len,
 			       const hda_nid_t *list)
 {
-	struct snd_array *array = &codec->conn_lists;
-	hda_nid_t *p;
-	int i, old_used;
+	struct hda_conn_list *p;
 
-	mutex_lock(&codec->hash_mutex);
-	p = lookup_conn_list(array, nid);
-	if (p)
-		*p = -1; /* invalidate the old entry */
+	p = lookup_conn_list(codec, nid);
+	if (p) {
+		list_del(&p->list);
+		kfree(p);
+	}
 
-	old_used = array->used;
-	if (!add_conn_list(array, nid) || !add_conn_list(array, len))
-		goto error_add;
-	for (i = 0; i < len; i++)
-		if (!add_conn_list(array, list[i]))
-			goto error_add;
-	mutex_unlock(&codec->hash_mutex);
-	return 0;
-
- error_add:
-	array->used = old_used;
-	mutex_unlock(&codec->hash_mutex);
-	return -ENOMEM;
+	return add_conn_list(codec, nid, len, list);
 }
 EXPORT_SYMBOL_HDA(snd_hda_override_conn_list);
 
@@ -582,10 +615,10 @@ EXPORT_SYMBOL_HDA(snd_hda_override_conn_list);
 int snd_hda_get_conn_index(struct hda_codec *codec, hda_nid_t mux,
 			   hda_nid_t nid, int recursive)
 {
-	hda_nid_t conn[HDA_MAX_NUM_INPUTS];
+	const hda_nid_t *conn;
 	int i, nums;
 
-	nums = snd_hda_get_connections(codec, mux, conn, ARRAY_SIZE(conn));
+	nums = snd_hda_get_conn_list(codec, mux, &conn);
 	for (i = 0; i < nums; i++)
 		if (conn[i] == nid)
 			return i;
@@ -1186,8 +1219,8 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 	snd_array_free(&codec->mixers);
 	snd_array_free(&codec->nids);
 	snd_array_free(&codec->cvt_setups);
-	snd_array_free(&codec->conn_lists);
 	snd_array_free(&codec->spdif_out);
+	remove_conn_list(codec);
 	codec->bus->caddr_tbl[codec->addr] = NULL;
 	if (codec->patch_ops.free)
 		codec->patch_ops.free(codec);
@@ -1257,10 +1290,11 @@ int snd_hda_codec_new(struct hda_bus *bus,
 	snd_array_init(&codec->init_pins, sizeof(struct hda_pincfg), 16);
 	snd_array_init(&codec->driver_pins, sizeof(struct hda_pincfg), 16);
 	snd_array_init(&codec->cvt_setups, sizeof(struct hda_cvt_setup), 8);
-	snd_array_init(&codec->conn_lists, sizeof(hda_nid_t), 64);
 	snd_array_init(&codec->spdif_out, sizeof(struct hda_spdif_out), 16);
 	snd_array_init(&codec->jacktbl, sizeof(struct hda_jack_tbl), 16);
 	snd_array_init(&codec->verbs, sizeof(struct hda_verb *), 8);
+	INIT_LIST_HEAD(&codec->conn_list);
+
 	INIT_DELAYED_WORK(&codec->jackpoll_work, hda_jackpoll_work);
 
 #ifdef CONFIG_PM

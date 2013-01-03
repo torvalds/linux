@@ -208,7 +208,7 @@ static bool __parse_nid_path(struct hda_codec *codec,
 			     int with_aa_mix, struct nid_path *path, int depth)
 {
 	struct hda_gen_spec *spec = codec->spec;
-	hda_nid_t conn[16];
+	const hda_nid_t *conn;
 	int i, nums;
 
 	if (to_nid == spec->mixer_nid) {
@@ -217,7 +217,7 @@ static bool __parse_nid_path(struct hda_codec *codec,
 		with_aa_mix = HDA_PARSE_ALL; /* mark aa-mix is included */
 	}
 
-	nums = snd_hda_get_connections(codec, to_nid, conn, ARRAY_SIZE(conn));
+	nums = snd_hda_get_conn_list(codec, to_nid, &conn);
 	for (i = 0; i < nums; i++) {
 		if (conn[i] != from_nid) {
 			/* special case: when from_nid is 0,
@@ -481,12 +481,12 @@ static void activate_amp_in(struct hda_codec *codec, struct nid_path *path,
 			    int i, bool enable, bool add_aamix)
 {
 	struct hda_gen_spec *spec = codec->spec;
-	hda_nid_t conn[16];
+	const hda_nid_t *conn;
 	int n, nums, idx;
 	int type;
 	hda_nid_t nid = path->path[i];
 
-	nums = snd_hda_get_connections(codec, nid, conn, ARRAY_SIZE(conn));
+	nums = snd_hda_get_conn_list(codec, nid, &conn);
 	type = get_wcaps_type(get_wcaps(codec, nid));
 	if (type == AC_WID_PIN ||
 	    (type == AC_WID_AUD_IN && codec->single_adc_amp)) {
