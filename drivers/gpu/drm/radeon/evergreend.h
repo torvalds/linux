@@ -2037,5 +2037,6 @@
 #       define DMA_RPTR_WRITEBACK_SWAP_ENABLE             (1 << 13)  /* 8IN32 */
 #       define DMA_RPTR_WRITEBACK_TIMER(x)                ((x) << 16) /* log2 */
 #define DMA_STATUS_REG                                    0xd034
+#       define DMA_IDLE                                   (1 << 0)
 
 #endif
