@@ -15556,10 +15556,13 @@ lpfc_sli4_fcf_rr_next_index_get(struct lpfc_hba *phba)
 {
 	uint16_t next_fcf_index;
 
+initial_priority:
 	/* Search start from next bit of currently registered FCF index */
+	next_fcf_index = phba->fcf.current_rec.fcf_indx;
+
 next_priority:
-	next_fcf_index = (phba->fcf.current_rec.fcf_indx + 1) %
-					LPFC_SLI4_FCF_TBL_INDX_MAX;
+	/* Determine the next fcf index to check */
+	next_fcf_index = (next_fcf_index + 1) % LPFC_SLI4_FCF_TBL_INDX_MAX;
 	next_fcf_index = find_next_bit(phba->fcf.fcf_rr_bmask,
 				       LPFC_SLI4_FCF_TBL_INDX_MAX,
 				       next_fcf_index);
@@ -15586,7 +15589,7 @@ next_priority:
 		 * at that level and continue the selection process.
 		 */
 		if (lpfc_check_next_fcf_pri_level(phba))
-			goto next_priority;
+			goto initial_priority;
 		lpfc_printf_log(phba, KERN_WARNING, LOG_FIP,
 				"2844 No roundrobin failover FCF available\n");
 		if (next_fcf_index >= LPFC_SLI4_FCF_TBL_INDX_MAX)
