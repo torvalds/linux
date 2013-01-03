@@ -445,7 +445,11 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
  */
 static u32 functionality(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_SMBUS_EMUL;
+	struct em28xx *dev = adap->algo_data;
+	u32 func_flags = I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
+	if (dev->board.is_em2800)
+		func_flags &= ~I2C_FUNC_SMBUS_WRITE_BLOCK_DATA;
+	return func_flags;
 }
 
 static struct i2c_algorithm em28xx_algo = {
