@@ -2070,7 +2070,7 @@ static struct omap_hwmod_irq_info am33xx_usbss_mpu_irqs[] = {
 	{ .name = "usbss-irq", .irq = 17 + OMAP_INTC_START, },
 	{ .name = "musb0-irq", .irq = 18 + OMAP_INTC_START, },
 	{ .name = "musb1-irq", .irq = 19 + OMAP_INTC_START, },
-	{ .irq = -1 + OMAP_INTC_START, },
+	{ .irq = -1, },
 };
 
 static struct omap_hwmod am33xx_usbss_hwmod = {
