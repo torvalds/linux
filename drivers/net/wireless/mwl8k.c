@@ -213,6 +213,8 @@ struct mwl8k_priv {
 	int fw_mutex_depth;
 	struct completion *hostcmd_wait;
 
+	atomic_t watchdog_event_pending;
+
 	/* lock held over TX and TX reap */
 	spinlock_t tx_lock;
 
@@ -1527,6 +1529,9 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw)
 			return -EBUSY;
 	}
 
+	if (atomic_read(&priv->watchdog_event_pending))
+		return 0;
+
 	/*
 	 * The TX queues are stopped at this point, so this test
 	 * doesn't need to take ->tx_lock.
@@ -1548,6 +1553,14 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw)
 		spin_unlock_bh(&priv->tx_lock);
 		timeout = wait_for_completion_timeout(&tx_wait,
 			    msecs_to_jiffies(MWL8K_TX_WAIT_TIMEOUT_MS));
+
+		if (atomic_read(&priv->watchdog_event_pending)) {
+			spin_lock_bh(&priv->tx_lock);
+			priv->tx_wait = NULL;
+			spin_unlock_bh(&priv->tx_lock);
+			return 0;
+		}
+
 		spin_lock_bh(&priv->tx_lock);
 
 		if (timeout) {
@@ -3645,6 +3658,7 @@ static void mwl8k_watchdog_ba_events(struct work_struct *work)
 
 	spin_unlock(&priv->stream_lock);
 done:
+	atomic_dec(&priv->watchdog_event_pending);
 	status = ioread32(priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS_MASK);
 	iowrite32((status | MWL8K_A2H_INT_BA_WATCHDOG),
 		  priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS_MASK);
@@ -4346,6 +4360,10 @@ static irqreturn_t mwl8k_interrupt(int irq, void *dev_id)
 	}
 
 	if (status & MWL8K_A2H_INT_BA_WATCHDOG) {
+		iowrite32(~MWL8K_A2H_INT_BA_WATCHDOG,
+			  priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS_MASK);
+
+		atomic_inc(&priv->watchdog_event_pending);
 		status &= ~MWL8K_A2H_INT_BA_WATCHDOG;
 		ieee80211_queue_work(hw, &priv->watchdog_ba_handle);
 	}
@@ -5520,6 +5538,7 @@ static int mwl8k_probe_hw(struct ieee80211_hw *hw)
 	priv->sniffer_enabled = false;
 	priv->wmm_enabled = false;
 	priv->pending_tx_pkts = 0;
+	atomic_set(&priv->watchdog_event_pending, 0);
 
 	rc = mwl8k_rxq_init(hw, 0);
 	if (rc)
