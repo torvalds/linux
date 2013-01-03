@@ -774,7 +774,7 @@
 #define  SG_DIG_AUTONEG_ERROR		 0x00000001
 #define TG3_TX_TSTAMP_LSB		0x000005c0
 #define TG3_TX_TSTAMP_MSB		0x000005c4
-#define  TG3_TSTAMP_MASK		 0x7fffffffffffffff
+#define  TG3_TSTAMP_MASK		 0x7fffffffffffffffLL
 /* 0x5c8 --> 0x600 unused */
 #define MAC_TX_MAC_STATE_BASE		0x00000600 /* 16 bytes */
 #define MAC_RX_MAC_STATE_BASE		0x00000610 /* 20 bytes */
