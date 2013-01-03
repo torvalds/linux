@@ -968,7 +968,7 @@ static void cyz_handle_rx(struct cyclades_port *info, struct tty_struct *tty)
 		   for performance, but because of buffer boundaries, there
 		   may be several steps to the operation */
 			while (1) {
-				len = tty_prepare_flip_string(tty, &buf,
+				len = tty_prepare_flip_string(port, &buf,
 						char_count);
 				if (!len)
 					break;

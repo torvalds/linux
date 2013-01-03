@@ -399,7 +399,7 @@ static void rp_do_receive(struct r_port *info,
 		 * characters at time by doing repeated word IO
 		 * transfer.
 		 */
-		space = tty_prepare_flip_string(tty, &cbuf, ToRecv);
+		space = tty_prepare_flip_string(&info->port, &cbuf, ToRecv);
 		if (space < ToRecv) {
 #ifdef ROCKET_DEBUG_RECEIVE
 			printk(KERN_INFO "rp_do_receive:insufficient space ToRecv=%d space=%d\n", ToRecv, space);

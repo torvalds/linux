@@ -2032,7 +2032,7 @@ static int ftdi_process_packet(struct tty_struct *tty,
 				tty_insert_flip_char(tty, *ch, flag);
 		}
 	} else {
-		tty_insert_flip_string_fixed_flag(tty, ch, flag, len);
+		tty_insert_flip_string_fixed_flag(&port->port, ch, flag, len);
 	}
 
 	return len;

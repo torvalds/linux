@@ -257,7 +257,7 @@ EXPORT_SYMBOL_GPL(tty_buffer_request_room);
 
 /**
  *	tty_insert_flip_string_fixed_flag - Add characters to the tty buffer
- *	@tty: tty structure
+ *	@port: tty port
  *	@chars: characters
  *	@flag: flag value for each character
  *	@size: size
@@ -268,10 +268,10 @@ EXPORT_SYMBOL_GPL(tty_buffer_request_room);
  *	Locking: Called functions may take port->buf.lock
  */
 
-int tty_insert_flip_string_fixed_flag(struct tty_struct *tty,
+int tty_insert_flip_string_fixed_flag(struct tty_port *port,
 		const unsigned char *chars, char flag, size_t size)
 {
-	struct tty_bufhead *buf = &tty->port->buf;
+	struct tty_bufhead *buf = &port->buf;
 	int copied = 0;
 	do {
 		int goal = min_t(size_t, size - copied, TTY_BUFFER_PAGE);
@@ -280,7 +280,7 @@ int tty_insert_flip_string_fixed_flag(struct tty_struct *tty,
 		struct tty_buffer *tb;
 
 		spin_lock_irqsave(&buf->lock, flags);
-		space = __tty_buffer_request_room(tty->port, goal);
+		space = __tty_buffer_request_room(port, goal);
 		tb = buf->tail;
 		/* If there is no space then tb may be NULL */
 		if (unlikely(space == 0)) {
@@ -302,7 +302,7 @@ EXPORT_SYMBOL(tty_insert_flip_string_fixed_flag);
 
 /**
  *	tty_insert_flip_string_flags	-	Add characters to the tty buffer
- *	@tty: tty structure
+ *	@port: tty port
  *	@chars: characters
  *	@flags: flag bytes
  *	@size: size
@@ -314,10 +314,10 @@ EXPORT_SYMBOL(tty_insert_flip_string_fixed_flag);
  *	Locking: Called functions may take port->buf.lock
  */
 
-int tty_insert_flip_string_flags(struct tty_struct *tty,
+int tty_insert_flip_string_flags(struct tty_port *port,
 		const unsigned char *chars, const char *flags, size_t size)
 {
-	struct tty_bufhead *buf = &tty->port->buf;
+	struct tty_bufhead *buf = &port->buf;
 	int copied = 0;
 	do {
 		int goal = min_t(size_t, size - copied, TTY_BUFFER_PAGE);
@@ -326,7 +326,7 @@ int tty_insert_flip_string_flags(struct tty_struct *tty,
 		struct tty_buffer *tb;
 
 		spin_lock_irqsave(&buf->lock, __flags);
-		space = __tty_buffer_request_room(tty->port, goal);
+		space = __tty_buffer_request_room(port, goal);
 		tb = buf->tail;
 		/* If there is no space then tb may be NULL */
 		if (unlikely(space == 0)) {
@@ -376,7 +376,7 @@ EXPORT_SYMBOL(tty_schedule_flip);
 
 /**
  *	tty_prepare_flip_string		-	make room for characters
- *	@tty: tty
+ *	@port: tty port
  *	@chars: return pointer for character write area
  *	@size: desired size
  *
@@ -389,16 +389,16 @@ EXPORT_SYMBOL(tty_schedule_flip);
  *	Locking: May call functions taking port->buf.lock
  */
 
-int tty_prepare_flip_string(struct tty_struct *tty, unsigned char **chars,
+int tty_prepare_flip_string(struct tty_port *port, unsigned char **chars,
 		size_t size)
 {
-	struct tty_bufhead *buf = &tty->port->buf;
+	struct tty_bufhead *buf = &port->buf;
 	int space;
 	unsigned long flags;
 	struct tty_buffer *tb;
 
 	spin_lock_irqsave(&buf->lock, flags);
-	space = __tty_buffer_request_room(tty->port, size);
+	space = __tty_buffer_request_room(port, size);
 
 	tb = buf->tail;
 	if (likely(space)) {
@@ -413,7 +413,7 @@ EXPORT_SYMBOL_GPL(tty_prepare_flip_string);
 
 /**
  *	tty_prepare_flip_string_flags	-	make room for characters
- *	@tty: tty
+ *	@port: tty port
  *	@chars: return pointer for character write area
  *	@flags: return pointer for status flag write area
  *	@size: desired size
@@ -427,16 +427,16 @@ EXPORT_SYMBOL_GPL(tty_prepare_flip_string);
  *	Locking: May call functions taking port->buf.lock
  */
 
-int tty_prepare_flip_string_flags(struct tty_struct *tty,
+int tty_prepare_flip_string_flags(struct tty_port *port,
 			unsigned char **chars, char **flags, size_t size)
 {
-	struct tty_bufhead *buf = &tty->port->buf;
+	struct tty_bufhead *buf = &port->buf;
 	int space;
 	unsigned long __flags;
 	struct tty_buffer *tb;
 
 	spin_lock_irqsave(&buf->lock, __flags);
-	space = __tty_buffer_request_room(tty->port, size);
+	space = __tty_buffer_request_room(port, size);
 
 	tb = buf->tail;
 	if (likely(space)) {

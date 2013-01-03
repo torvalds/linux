@@ -232,7 +232,7 @@ static void dgrp_input(struct ch_struct *ch)
 		    (nd->nd_dpa_port == PORT_NUM(MINOR(tty_devnum(tty)))))
 			dgrp_dpa_data(nd, 1, myflipbuf, len);
 
-		tty_insert_flip_string_flags(tty, myflipbuf,
+		tty_insert_flip_string_flags(&ch->port, myflipbuf,
 					     myflipflagbuf, len);
 		tty_flip_buffer_push(tty);
 

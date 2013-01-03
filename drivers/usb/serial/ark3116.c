@@ -705,7 +705,7 @@ static void ark3116_process_read_urb(struct urb *urb)
 		if (lsr & UART_LSR_OE)
 			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 	}
-	tty_insert_flip_string_fixed_flag(tty, data, tty_flag,
+	tty_insert_flip_string_fixed_flag(&port->port, data, tty_flag,
 							urb->actual_length);
 	tty_flip_buffer_push(tty);
 	tty_kref_put(tty);

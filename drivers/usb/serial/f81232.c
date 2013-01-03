@@ -140,7 +140,7 @@ static void f81232_process_read_urb(struct urb *urb)
 			if (!usb_serial_handle_sysrq_char(port, data[i]))
 				tty_insert_flip_char(tty, data[i], tty_flag);
 	} else {
-		tty_insert_flip_string_fixed_flag(tty, data, tty_flag,
+		tty_insert_flip_string_fixed_flag(&port->port, data, tty_flag,
 							urb->actual_length);
 	}
 

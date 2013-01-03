@@ -1215,7 +1215,7 @@ static void cypress_read_int_callback(struct urb *urb)
 
 	/* process read if there is data other than line status */
 	if (tty && bytes > i) {
-		tty_insert_flip_string_fixed_flag(tty, data + i,
+		tty_insert_flip_string_fixed_flag(&port->port, data + i,
 				tty_flag, bytes - i);
 		tty_flip_buffer_push(tty);
 	}

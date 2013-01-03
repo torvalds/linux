@@ -650,8 +650,8 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 			break;
 		}
 	} else {				/* Data   Packet */
-
-		count = tty_prepare_flip_string(tty, &rp, byte_count & ~1);
+		count = tty_prepare_flip_string(&port->port, &rp,
+				byte_count & ~1);
 		pr_debug("%s: Can rx %d of %d bytes.\n",
 			 __func__, count, byte_count);
 		word_count = count >> 1;

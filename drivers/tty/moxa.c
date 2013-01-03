@@ -1966,7 +1966,7 @@ static int MoxaPortReadData(struct moxa_port *port)
 			ofs = baseAddr + DynPage_addr + bufhead + head;
 			len = (tail >= head) ? (tail - head) :
 					(rx_mask + 1 - head);
-			len = tty_prepare_flip_string(tty, &dst,
+			len = tty_prepare_flip_string(&port->port, &dst,
 					min(len, count));
 			memcpy_fromio(dst, ofs, len);
 			head = (head + len) & rx_mask;
@@ -1978,7 +1978,7 @@ static int MoxaPortReadData(struct moxa_port *port)
 		while (count > 0) {
 			writew(pageno, baseAddr + Control_reg);
 			ofs = baseAddr + DynPage_addr + pageofs;
-			len = tty_prepare_flip_string(tty, &dst,
+			len = tty_prepare_flip_string(&port->port, &dst,
 					min(Page_size - pageofs, count));
 			memcpy_fromio(dst, ofs, len);
 

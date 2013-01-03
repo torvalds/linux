@@ -507,7 +507,8 @@ static void fwtty_emit_breaks(struct work_struct *work)
 
 	while (n) {
 		t = min(n, 16);
-		c = tty_insert_flip_string_fixed_flag(tty, buf, TTY_BREAK, t);
+		c = tty_insert_flip_string_fixed_flag(&port->port, buf,
+				TTY_BREAK, t);
 		n -= c;
 		brk += c;
 		if (c < t)
@@ -535,7 +536,7 @@ static void fwtty_pushrx(struct work_struct *work)
 
 	spin_lock_bh(&port->lock);
 	list_for_each_entry_safe(buf, next, &port->buf_list, list) {
-		n = tty_insert_flip_string_fixed_flag(tty, buf->data,
+		n = tty_insert_flip_string_fixed_flag(&port->port, buf->data,
 						      TTY_NORMAL, buf->n);
 		c += n;
 		port->buffered -= n;
@@ -630,7 +631,8 @@ static int fwtty_rx(struct fwtty_port *port, unsigned char *data, size_t len)
 	}
 
 	if (!test_bit(BUFFERING_RX, &port->flags)) {
-		c = tty_insert_flip_string_fixed_flag(tty, data, TTY_NORMAL, n);
+		c = tty_insert_flip_string_fixed_flag(&port->port, data,
+				TTY_NORMAL, n);
 		if (c > 0)
 			tty_flip_buffer_push(tty);
 		n -= c;

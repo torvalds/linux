@@ -617,7 +617,7 @@ static int ssu100_process_packet(struct urb *urb,
 				tty_insert_flip_char(tty, *ch, flag);
 		}
 	} else
-		tty_insert_flip_string_fixed_flag(tty, ch, flag, len);
+		tty_insert_flip_string_fixed_flag(&port->port, ch, flag, len);
 
 	return len;
 }
