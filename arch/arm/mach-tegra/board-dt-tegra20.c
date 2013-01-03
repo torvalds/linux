@@ -46,31 +46,31 @@
 #include "common.h"
 #include "iomap.h"
 
-struct tegra_ehci_platform_data tegra_ehci1_pdata = {
+static struct tegra_ehci_platform_data tegra_ehci1_pdata = {
 	.operating_mode = TEGRA_USB_OTG,
 	.power_down_on_bus_suspend = 1,
 	.vbus_gpio = -1,
 };
 
-struct tegra_ulpi_config tegra_ehci2_ulpi_phy_config = {
+static struct tegra_ulpi_config tegra_ehci2_ulpi_phy_config = {
 	.reset_gpio = -1,
 	.clk = "cdev2",
 };
 
-struct tegra_ehci_platform_data tegra_ehci2_pdata = {
+static struct tegra_ehci_platform_data tegra_ehci2_pdata = {
 	.phy_config = &tegra_ehci2_ulpi_phy_config,
 	.operating_mode = TEGRA_USB_HOST,
 	.power_down_on_bus_suspend = 1,
 	.vbus_gpio = -1,
 };
 
-struct tegra_ehci_platform_data tegra_ehci3_pdata = {
+static struct tegra_ehci_platform_data tegra_ehci3_pdata = {
 	.operating_mode = TEGRA_USB_HOST,
 	.power_down_on_bus_suspend = 1,
 	.vbus_gpio = -1,
 };
 
-struct of_dev_auxdata tegra20_auxdata_lookup[] __initdata = {
+static struct of_dev_auxdata tegra20_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("nvidia,tegra20-sdhci", TEGRA_SDMMC1_BASE, "sdhci-tegra.0", NULL),
 	OF_DEV_AUXDATA("nvidia,tegra20-sdhci", TEGRA_SDMMC2_BASE, "sdhci-tegra.1", NULL),
 	OF_DEV_AUXDATA("nvidia,tegra20-sdhci", TEGRA_SDMMC3_BASE, "sdhci-tegra.2", NULL),
