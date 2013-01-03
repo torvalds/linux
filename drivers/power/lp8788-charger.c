@@ -690,9 +690,10 @@ static int lp8788_charger_probe(struct platform_device *pdev)
 {
 	struct lp8788 *lp = dev_get_drvdata(pdev->dev.parent);
 	struct lp8788_charger *pchg;
+	struct device *dev = &pdev->dev;
 	int ret;
 
-	pchg = devm_kzalloc(lp->dev, sizeof(struct lp8788_charger), GFP_KERNEL);
+	pchg = devm_kzalloc(dev, sizeof(struct lp8788_charger), GFP_KERNEL);
 	if (!pchg)
 		return -ENOMEM;
 
@@ -718,7 +719,7 @@ static int lp8788_charger_probe(struct platform_device *pdev)
 
 	ret = lp8788_irq_register(pdev, pchg);
 	if (ret)
-		dev_warn(lp->dev, "failed to register charger irq: %d\n", ret);
+		dev_warn(dev, "failed to register charger irq: %d\n", ret);
 
 	return 0;
 }
