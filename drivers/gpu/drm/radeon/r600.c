@@ -1258,9 +1258,8 @@ void r600_vram_scratch_fini(struct radeon_device *rdev)
  * reset, it's up to the caller to determine if the GPU needs one. We
  * might add an helper function to check that.
  */
-static int r600_gpu_soft_reset(struct radeon_device *rdev)
+static void r600_gpu_soft_reset_gfx(struct radeon_device *rdev)
 {
-	struct rv515_mc_save save;
 	u32 grbm_busy_mask = S_008010_VC_BUSY(1) | S_008010_VGT_BUSY_NO_DMA(1) |
 				S_008010_VGT_BUSY(1) | S_008010_TA03_BUSY(1) |
 				S_008010_TC_BUSY(1) | S_008010_SX_BUSY(1) |
@@ -1280,9 +1279,8 @@ static int r600_gpu_soft_reset(struct radeon_device *rdev)
 	u32 tmp;
 
 	if (!(RREG32(GRBM_STATUS) & GUI_ACTIVE))
-		return 0;
+		return;
 
-	dev_info(rdev->dev, "GPU softreset \n");
 	dev_info(rdev->dev, "  R_008010_GRBM_STATUS      = 0x%08X\n",
 		RREG32(R_008010_GRBM_STATUS));
 	dev_info(rdev->dev, "  R_008014_GRBM_STATUS2     = 0x%08X\n",
@@ -1297,29 +1295,9 @@ static int r600_gpu_soft_reset(struct radeon_device *rdev)
 		RREG32(CP_BUSY_STAT));
 	dev_info(rdev->dev, "  R_008680_CP_STAT          = 0x%08X\n",
 		RREG32(CP_STAT));
-	dev_info(rdev->dev, "  R_00D034_DMA_STATUS_REG   = 0x%08X\n",
-		RREG32(DMA_STATUS_REG));
-	rv515_mc_stop(rdev, &save);
-	if (r600_mc_wait_for_idle(rdev)) {
-		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
-	}
 
 	/* Disable CP parsing/prefetching */
 	WREG32(R_0086D8_CP_ME_CNTL, S_0086D8_CP_ME_HALT(1));
-
-	/* Disable DMA */
-	tmp = RREG32(DMA_RB_CNTL);
-	tmp &= ~DMA_RB_ENABLE;
-	WREG32(DMA_RB_CNTL, tmp);
-
-	/* Reset dma */
-	if (rdev->family >= CHIP_RV770)
-		WREG32(SRBM_SOFT_RESET, RV770_SOFT_RESET_DMA);
-	else
-		WREG32(SRBM_SOFT_RESET, SOFT_RESET_DMA);
-	RREG32(SRBM_SOFT_RESET);
-	udelay(50);
-	WREG32(SRBM_SOFT_RESET, 0);
 
 	/* Check if any of the rendering block is busy and reset it */
 	if ((RREG32(R_008010_GRBM_STATUS) & grbm_busy_mask) ||
@@ -1350,8 +1328,7 @@ static int r600_gpu_soft_reset(struct radeon_device *rdev)
 	RREG32(R_008020_GRBM_SOFT_RESET);
 	mdelay(15);
 	WREG32(R_008020_GRBM_SOFT_RESET, 0);
-	/* Wait a little for things to settle down */
-	mdelay(1);
+
 	dev_info(rdev->dev, "  R_008010_GRBM_STATUS      = 0x%08X\n",
 		RREG32(R_008010_GRBM_STATUS));
 	dev_info(rdev->dev, "  R_008014_GRBM_STATUS2     = 0x%08X\n",
@@ -1366,8 +1343,60 @@ static int r600_gpu_soft_reset(struct radeon_device *rdev)
 		RREG32(CP_BUSY_STAT));
 	dev_info(rdev->dev, "  R_008680_CP_STAT          = 0x%08X\n",
 		RREG32(CP_STAT));
+
+}
+
+static void r600_gpu_soft_reset_dma(struct radeon_device *rdev)
+{
+	u32 tmp;
+
+	if (RREG32(DMA_STATUS_REG) & DMA_IDLE)
+		return;
+
 	dev_info(rdev->dev, "  R_00D034_DMA_STATUS_REG   = 0x%08X\n",
 		RREG32(DMA_STATUS_REG));
+
+	/* Disable DMA */
+	tmp = RREG32(DMA_RB_CNTL);
+	tmp &= ~DMA_RB_ENABLE;
+	WREG32(DMA_RB_CNTL, tmp);
+
+	/* Reset dma */
+	if (rdev->family >= CHIP_RV770)
+		WREG32(SRBM_SOFT_RESET, RV770_SOFT_RESET_DMA);
+	else
+		WREG32(SRBM_SOFT_RESET, SOFT_RESET_DMA);
+	RREG32(SRBM_SOFT_RESET);
+	udelay(50);
+	WREG32(SRBM_SOFT_RESET, 0);
+
+	dev_info(rdev->dev, "  R_00D034_DMA_STATUS_REG   = 0x%08X\n",
+		RREG32(DMA_STATUS_REG));
+}
+
+static int r600_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
+{
+	struct rv515_mc_save save;
+
+	if (reset_mask == 0)
+		return 0;
+
+	dev_info(rdev->dev, "GPU softreset: 0x%08X\n", reset_mask);
+
+	rv515_mc_stop(rdev, &save);
+	if (r600_mc_wait_for_idle(rdev)) {
+		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
+	}
+
+	if (reset_mask & (RADEON_RESET_GFX | RADEON_RESET_COMPUTE))
+		r600_gpu_soft_reset_gfx(rdev);
+
+	if (reset_mask & RADEON_RESET_DMA)
+		r600_gpu_soft_reset_dma(rdev);
+
+	/* Wait a little for things to settle down */
+	mdelay(1);
+
 	rv515_mc_resume(rdev, &save);
 	return 0;
 }
@@ -1415,7 +1444,9 @@ bool r600_dma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 
 int r600_asic_reset(struct radeon_device *rdev)
 {
-	return r600_gpu_soft_reset(rdev);
+	return r600_gpu_soft_reset(rdev, (RADEON_RESET_GFX |
+					  RADEON_RESET_COMPUTE |
+					  RADEON_RESET_DMA));
 }
 
 u32 r6xx_remap_render_backend(struct radeon_device *rdev,
