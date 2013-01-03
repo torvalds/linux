@@ -145,7 +145,7 @@ static int rk29_backlight_io_init(void)
 {
 	int ret = 0;
 
-	//iomux_set(PWM_MODE);
+	iomux_set(PWM_MODE);
 #ifdef  LCD_DISP_ON_PIN
 	ret = gpio_request(BL_EN_PIN, NULL);
 	if (ret != 0) {
