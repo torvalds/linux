@@ -2531,7 +2531,7 @@ static int vmaster_mute_mode_info(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_info *uinfo)
 {
 	static const char * const texts[] = {
-		"Off", "On", "Follow Master"
+		"On", "Off", "Follow Master"
 	};
 	unsigned int index;
 
