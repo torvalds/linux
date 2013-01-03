@@ -1781,7 +1781,6 @@ int efx_nic_init_interrupt(struct efx_nic *efx)
 void efx_nic_fini_interrupt(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
-	efx_oword_t reg;
 
 #ifdef CONFIG_RFS_ACCEL
 	free_irq_cpu_rmap(efx->net_dev->rx_cpu_rmap);
@@ -1791,12 +1790,6 @@ void efx_nic_fini_interrupt(struct efx_nic *efx)
 	/* Disable MSI/MSI-X interrupts */
 	efx_for_each_channel(channel, efx)
 		free_irq(channel->irq, &efx->msi_context[channel->channel]);
-
-	/* ACK legacy interrupt */
-	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0)
-		efx_reado(efx, &reg, FR_BZ_INT_ISR0);
-	else
-		falcon_irq_ack_a1(efx);
 
 	/* Disable legacy interrupt */
 	if (efx->legacy_irq)

@@ -336,7 +336,7 @@ static void falcon_prepare_flush(struct efx_nic *efx)
  *
  * NB most hardware supports MSI interrupts
  */
-inline void falcon_irq_ack_a1(struct efx_nic *efx)
+static inline void falcon_irq_ack_a1(struct efx_nic *efx)
 {
 	efx_dword_t reg;
 
@@ -2343,7 +2343,7 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.remove = falcon_remove_nic,
 	.init = falcon_init_nic,
 	.dimension_resources = falcon_dimension_resources,
-	.fini = efx_port_dummy_op_void,
+	.fini = falcon_irq_ack_a1,
 	.monitor = falcon_monitor,
 	.map_reset_reason = falcon_map_reset_reason,
 	.map_reset_flags = falcon_map_reset_flags,
