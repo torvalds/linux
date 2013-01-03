@@ -554,6 +554,7 @@ int parse_chan_pair(char *str, struct line *line, int device,
 
 void chan_interrupt(struct line *line, struct tty_struct *tty, int irq)
 {
+	struct tty_port *port = &line->port;
 	struct chan *chan = line->chan_in;
 	int err;
 	char c;
@@ -562,7 +563,7 @@ void chan_interrupt(struct line *line, struct tty_struct *tty, int irq)
 		goto out;
 
 	do {
-		if (tty && !tty_buffer_request_room(tty, 1)) {
+		if (!tty_buffer_request_room(port, 1)) {
 			schedule_delayed_work(&line->task, 1);
 			goto out;
 		}

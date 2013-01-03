@@ -596,7 +596,8 @@ static void sci_transmit_chars(struct uart_port *port)
 static void sci_receive_chars(struct uart_port *port)
 {
 	struct sci_port *sci_port = to_sci_port(port);
-	struct tty_struct *tty = port->state->port.tty;
+	struct tty_port *tport = &port->state->port;
+	struct tty_struct *tty = tport->tty;
 	int i, count, copied = 0;
 	unsigned short status;
 	unsigned char flag;
@@ -607,7 +608,7 @@ static void sci_receive_chars(struct uart_port *port)
 
 	while (1) {
 		/* Don't copy more bytes than there is room for in the buffer */
-		count = tty_buffer_request_room(tty, sci_rxfill(port));
+		count = tty_buffer_request_room(tport, sci_rxfill(port));
 
 		/* If for any reason we can't copy more data, we're done! */
 		if (count == 0)
@@ -1263,9 +1264,10 @@ static int sci_dma_rx_push(struct sci_port *s, struct tty_struct *tty,
 			   size_t count)
 {
 	struct uart_port *port = &s->port;
+	struct tty_port *tport = &port->state->port;
 	int i, active, room;
 
-	room = tty_buffer_request_room(tty, count);
+	room = tty_buffer_request_room(tport, count);
 
 	if (s->active_rx == s->cookie_rx[0]) {
 		active = 0;

@@ -629,15 +629,16 @@ static int dma_push_rx(struct eg20t_port *priv, int size)
 	struct tty_struct *tty;
 	int room;
 	struct uart_port *port = &priv->port;
+	struct tty_port *tport = &port->state->port;
 
 	port = &priv->port;
-	tty = tty_port_tty_get(&port->state->port);
+	tty = tty_port_tty_get(tport);
 	if (!tty) {
 		dev_dbg(priv->port.dev, "%s:tty is busy now", __func__);
 		return 0;
 	}
 
-	room = tty_buffer_request_room(tty, size);
+	room = tty_buffer_request_room(tport, size);
 
 	if (room < size)
 		dev_warn(port->dev, "Rx overrun: dropping %u bytes\n",

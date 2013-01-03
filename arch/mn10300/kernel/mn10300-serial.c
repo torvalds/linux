@@ -524,7 +524,8 @@ static int mask_test_and_clear(volatile u8 *ptr, u8 mask)
 static void mn10300_serial_receive_interrupt(struct mn10300_serial_port *port)
 {
 	struct uart_icount *icount = &port->uart.icount;
-	struct tty_struct *tty = port->uart.state->port.tty;
+	struct tty_port *port = &port->uart.state->port;
+	struct tty_struct *tty = port->tty;
 	unsigned ix;
 	int count;
 	u8 st, ch, push, status, overrun;
@@ -534,7 +535,7 @@ static void mn10300_serial_receive_interrupt(struct mn10300_serial_port *port)
 	push = 0;
 
 	count = CIRC_CNT(port->rx_inp, port->rx_outp, MNSC_BUFFER_SIZE);
-	count = tty_buffer_request_room(tty, count);
+	count = tty_buffer_request_room(port, count);
 	if (count == 0) {
 		if (!tty->low_latency)
 			tty_flip_buffer_push(tty);

@@ -2356,7 +2356,7 @@ static void receive_chars(struct uart_port *the_port)
 	spin_lock_irqsave(&the_port->lock, pflags);
 	tty = state->port.tty;
 
-	request_count = tty_buffer_request_room(tty, IOC4_MAX_CHARS);
+	request_count = tty_buffer_request_room(&state->port, IOC4_MAX_CHARS);
 
 	if (request_count > 0) {
 		icount = &the_port->icount;

@@ -386,7 +386,7 @@ static irqreturn_t ehv_bc_tty_rx_isr(int irq, void *data)
 	 * read from the byte channel will be accepted by the TTY layer.
 	 */
 	ev_byte_channel_poll(bc->handle, &rx_count, &tx_count);
-	count = tty_buffer_request_room(ttys, rx_count);
+	count = tty_buffer_request_room(&bc->port, rx_count);
 
 	/* 'count' is the maximum amount of data the TTY layer can accept at
 	 * this time.  However, during testing, I was never able to get 'count'

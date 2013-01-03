@@ -442,6 +442,7 @@ static void cyy_chip_rx(struct cyclades_card *cinfo, int chip,
 {
 	struct cyclades_port *info;
 	struct tty_struct *tty;
+	struct tty_port *port;
 	int len, index = cinfo->bus_index;
 	u8 ivr, save_xir, channel, save_car, data, char_count;
 
@@ -452,11 +453,12 @@ static void cyy_chip_rx(struct cyclades_card *cinfo, int chip,
 	save_xir = readb(base_addr + (CyRIR << index));
 	channel = save_xir & CyIRChannel;
 	info = &cinfo->ports[channel + chip * 4];
+	port = &info->port;
 	save_car = cyy_readb(info, CyCAR);
 	cyy_writeb(info, CyCAR, save_xir);
 	ivr = cyy_readb(info, CyRIVR) & CyIVRMask;
 
-	tty = tty_port_tty_get(&info->port);
+	tty = tty_port_tty_get(port);
 	/* if there is nowhere to put the data, discard it */
 	if (tty == NULL) {
 		if (ivr == CyIVRRxEx) {	/* exception */
@@ -487,14 +489,14 @@ static void cyy_chip_rx(struct cyclades_card *cinfo, int chip,
 			tty_kref_put(tty);
 			return;
 		}
-		if (tty_buffer_request_room(tty, 1)) {
+		if (tty_buffer_request_room(port, 1)) {
 			if (data & info->read_status_mask) {
 				if (data & CyBREAK) {
 					tty_insert_flip_char(tty,
 						cyy_readb(info, CyRDSR),
 						TTY_BREAK);
 					info->icount.rx++;
-					if (info->port.flags & ASYNC_SAK)
+					if (port->flags & ASYNC_SAK)
 						do_SAK(tty);
 				} else if (data & CyFRAME) {
 					tty_insert_flip_char(tty,
@@ -552,7 +554,7 @@ static void cyy_chip_rx(struct cyclades_card *cinfo, int chip,
 			info->mon.char_max = char_count;
 		info->mon.char_last = char_count;
 #endif
-		len = tty_buffer_request_room(tty, char_count);
+		len = tty_buffer_request_room(port, char_count);
 		while (len--) {
 			data = cyy_readb(info, CyRDSR);
 			tty_insert_flip_char(tty, data, TTY_NORMAL);
@@ -928,6 +930,7 @@ static void cyz_handle_rx(struct cyclades_port *info, struct tty_struct *tty)
 {
 	struct BUF_CTRL __iomem *buf_ctrl = info->u.cyz.buf_ctrl;
 	struct cyclades_card *cinfo = info->card;
+	struct tty_port *port = &info->port;
 	unsigned int char_count;
 	int len;
 #ifdef BLOCKMOVE
@@ -983,7 +986,7 @@ static void cyz_handle_rx(struct cyclades_port *info, struct tty_struct *tty)
 				info->idle_stats.recv_bytes += len;
 			}
 #else
-			len = tty_buffer_request_room(tty, char_count);
+			len = tty_buffer_request_room(port, char_count);
 			while (len--) {
 				data = readb(cinfo->base_addr + rx_bufaddr +
 						new_rx_get);

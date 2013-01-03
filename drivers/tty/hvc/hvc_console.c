@@ -629,7 +629,7 @@ int hvc_poll(struct hvc_struct *hp)
 
 	/* Read data if any */
 	for (;;) {
-		int count = tty_buffer_request_room(tty, N_INBUF);
+		int count = tty_buffer_request_room(&hp->port, N_INBUF);
 
 		/* If flip is full, just reschedule a later read */
 		if (count == 0) {

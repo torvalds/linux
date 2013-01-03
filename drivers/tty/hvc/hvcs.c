@@ -609,7 +609,7 @@ static int hvcs_io(struct hvcs_struct *hvcsd)
 	/* remove the read masks */
 	hvcsd->todo_mask &= ~(HVCS_READ_MASK);
 
-	if (tty_buffer_request_room(tty, HVCS_BUFF_LEN) >= HVCS_BUFF_LEN) {
+	if (tty_buffer_request_room(&hvcsd->port, HVCS_BUFF_LEN) >= HVCS_BUFF_LEN) {
 		got = hvc_get_chars(unit_address,
 				&buf[0],
 				HVCS_BUFF_LEN);

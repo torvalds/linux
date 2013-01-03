@@ -878,6 +878,7 @@ isdn_readbchan(int di, int channel, u_char *buf, u_char *fp, int len, wait_queue
 int
 isdn_readbchan_tty(int di, int channel, struct tty_struct *tty, int cisco_hack)
 {
+	struct tty_port *port = tty->port;
 	int count;
 	int count_pull;
 	int count_put;
@@ -891,7 +892,7 @@ isdn_readbchan_tty(int di, int channel, struct tty_struct *tty, int cisco_hack)
 	if (skb_queue_empty(&dev->drv[di]->rpqueue[channel]))
 		return 0;
 
-	len = tty_buffer_request_room(tty, dev->drv[di]->rcvcount[channel]);
+	len = tty_buffer_request_room(port, dev->drv[di]->rcvcount[channel]);
 	if (len == 0)
 		return len;
 

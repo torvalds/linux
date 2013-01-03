@@ -235,7 +235,7 @@ static int __tty_buffer_request_room(struct tty_port *port, size_t size)
 
 /**
  *	tty_buffer_request_room		-	grow tty buffer if needed
- *	@tty: tty structure
+ *	@port: tty port structure
  *	@size: size desired
  *
  *	Make at least size bytes of linear space available for the tty
@@ -243,9 +243,8 @@ static int __tty_buffer_request_room(struct tty_port *port, size_t size)
  *
  *	Locking: Takes port->buf.lock
  */
-int tty_buffer_request_room(struct tty_struct *tty, size_t size)
+int tty_buffer_request_room(struct tty_port *port, size_t size)
 {
-	struct tty_port *port = tty->port;
 	unsigned long flags;
 	int length;
 

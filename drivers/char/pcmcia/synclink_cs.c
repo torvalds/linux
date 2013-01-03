@@ -888,6 +888,7 @@ static void rx_ready_hdlc(MGSLPC_INFO *info, int eom)
 
 static void rx_ready_async(MGSLPC_INFO *info, int tcd, struct tty_struct *tty)
 {
+	struct tty_port *port = &info->port;
 	unsigned char data, status, flag;
 	int fifo_count;
 	int work = 0;
@@ -913,7 +914,7 @@ static void rx_ready_async(MGSLPC_INFO *info, int tcd, struct tty_struct *tty)
 	} else
 		fifo_count = 32;
 
-	tty_buffer_request_room(tty, fifo_count);
+	tty_buffer_request_room(port, fifo_count);
 	/* Flush received async data to receive data buffer. */
 	while (fifo_count) {
 		data   = read_reg(info, CHA + RXFIFO);

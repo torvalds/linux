@@ -339,6 +339,7 @@ static int
 receive_chars(struct uart_max3110 *max, unsigned short *str, int len)
 {
 	struct uart_port *port = &max->port;
+	struct tty_port *tport;
 	struct tty_struct *tty;
 	char buf[M3110_RX_FIFO_DEPTH];
 	int r, w, usable;
@@ -347,7 +348,8 @@ receive_chars(struct uart_max3110 *max, unsigned short *str, int len)
 	if (!port->state)
 		return 0;
 
-	tty = tty_port_tty_get(&port->state->port);
+	tport = &port->state->port;
+	tty = tty_port_tty_get(tport);
 	if (!tty)
 		return 0;
 
@@ -370,7 +372,7 @@ receive_chars(struct uart_max3110 *max, unsigned short *str, int len)
 	}
 
 	for (r = 0; w; r += usable, w -= usable) {
-		usable = tty_buffer_request_room(tty, w);
+		usable = tty_buffer_request_room(tport, w);
 		if (usable) {
 			tty_insert_flip_string(tty, buf + r, usable);
 			port->icount.rx += usable;

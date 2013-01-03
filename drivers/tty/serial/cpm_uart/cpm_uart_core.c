@@ -245,7 +245,8 @@ static void cpm_uart_int_rx(struct uart_port *port)
 	int i;
 	unsigned char ch;
 	u8 *cp;
-	struct tty_struct *tty = port->state->port.tty;
+	struct tty_port *tport = &port->state->port;
+	struct tty_struct *tty = tport->tty;
 	struct uart_cpm_port *pinfo = (struct uart_cpm_port *)port;
 	cbd_t __iomem *bdp;
 	u16 status;
@@ -276,7 +277,7 @@ static void cpm_uart_int_rx(struct uart_port *port)
 		/* If we have not enough room in tty flip buffer, then we try
 		 * later, which will be the next rx-interrupt or a timeout
 		 */
-		if(tty_buffer_request_room(tty, i) < i) {
+		if (tty_buffer_request_room(tport, i) < i) {
 			printk(KERN_WARNING "No room in flip buffer\n");
 			return;
 		}

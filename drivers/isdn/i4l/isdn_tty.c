@@ -60,6 +60,7 @@ static int si2bit[8] =
 static int
 isdn_tty_try_read(modem_info *info, struct sk_buff *skb)
 {
+	struct tty_port *port = &info->port;
 	int c;
 	int len;
 	struct tty_struct *tty;
@@ -68,7 +69,7 @@ isdn_tty_try_read(modem_info *info, struct sk_buff *skb)
 	if (!info->online)
 		return 0;
 
-	tty = info->port.tty;
+	tty = port->tty;
 	if (!tty)
 		return 0;
 
@@ -81,7 +82,7 @@ isdn_tty_try_read(modem_info *info, struct sk_buff *skb)
 #endif
 		;
 
-	c = tty_buffer_request_room(tty, len);
+	c = tty_buffer_request_room(port, len);
 	if (c < len)
 		return 0;
 
@@ -2230,6 +2231,7 @@ void
 isdn_tty_at_cout(char *msg, modem_info *info)
 {
 	struct tty_struct *tty;
+	struct tty_port *port = &info->port;
 	atemu *m = &info->emu;
 	char *p;
 	char c;
@@ -2246,15 +2248,15 @@ isdn_tty_at_cout(char *msg, modem_info *info)
 	l = strlen(msg);
 
 	spin_lock_irqsave(&info->readlock, flags);
-	tty = info->port.tty;
-	if ((info->port.flags & ASYNC_CLOSING) || (!tty)) {
+	tty = port->tty;
+	if ((port->flags & ASYNC_CLOSING) || (!tty)) {
 		spin_unlock_irqrestore(&info->readlock, flags);
 		return;
 	}
 
 	/* use queue instead of direct, if online and */
 	/* data is in queue or buffer is full */
-	if (info->online && ((tty_buffer_request_room(tty, l) < l) ||
+	if (info->online && ((tty_buffer_request_room(port, l) < l) ||
 			     !skb_queue_empty(&dev->drv[info->isdn_driver]->rpqueue[info->isdn_channel]))) {
 		skb = alloc_skb(l, GFP_ATOMIC);
 		if (!skb) {
