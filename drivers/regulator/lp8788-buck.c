@@ -449,7 +449,7 @@ static int lp8788_dvs_gpio_request(struct platform_device *pdev,
 		buck->dvs = pdata->buck1_dvs;
 		break;
 	case BUCK2:
-		for (i = 0 ; i < LP8788_NUM_BUCK2_DVS ; i++) {
+		for (i = 0; i < LP8788_NUM_BUCK2_DVS; i++) {
 			gpio = pdata->buck2_dvs->gpio[i];
 			ret = devm_gpio_request_one(&pdev->dev, gpio,
 						    DVS_LOW, b2_name[i]);
