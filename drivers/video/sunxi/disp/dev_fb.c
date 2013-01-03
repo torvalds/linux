@@ -1122,7 +1122,7 @@ static int Fb_set_par(struct fb_info *info)
 static inline __u32 convert_bitfield(int val, struct fb_bitfield *bf)
 {
 	__u32 mask = ((1 << bf->length) - 1) << bf->offset;
-	return (val << bf->offset) & mask;
+	return ((val >> (8 - bf->length)) << bf->offset) & mask;
 }
 
 static int Fb_setcolreg(unsigned regno, unsigned red, unsigned green,
