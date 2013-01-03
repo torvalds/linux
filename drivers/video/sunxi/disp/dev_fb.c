@@ -1034,12 +1034,28 @@ static int Fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
  */
 static int Fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
+	__disp_pixel_fmt_t fmt;
 	__inf("Fb_check_var: %dx%d %dbits\n", var->xres, var->yres,
 	      var->bits_per_pixel);
 
 	switch (var->bits_per_pixel) {
 	case 16:
-		disp_fb_to_var(DISP_FORMAT_ARGB1555, DISP_SEQ_P10, 0, var);
+		if (var->transp.length == 1 && var->transp.offset == 15)
+			fmt = DISP_FORMAT_ARGB1555;
+		else if (var->transp.length == 1 && var->transp.offset == 0)
+			fmt = DISP_FORMAT_RGBA5551;
+		else if (var->transp.length == 4)
+			fmt = DISP_FORMAT_ARGB4444;
+		else if (var->red.length == 6)
+			fmt = DISP_FORMAT_RGB655;
+		else if (var->green.length == 6)
+			fmt = DISP_FORMAT_RGB565;
+		else if (var->blue.length == 6)
+			fmt = DISP_FORMAT_RGB556;
+		else
+			return -EINVAL;
+
+		disp_fb_to_var(fmt, DISP_SEQ_P10, 0, var);
 		break;
 	case 24:
 		disp_fb_to_var(DISP_FORMAT_RGB888, DISP_SEQ_ARGB, 0, var);
