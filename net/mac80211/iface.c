@@ -207,17 +207,8 @@ void ieee80211_recalc_idle(struct ieee80211_local *local)
 
 static int ieee80211_change_mtu(struct net_device *dev, int new_mtu)
 {
-	int meshhdrlen;
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	meshhdrlen = (sdata->vif.type == NL80211_IFTYPE_MESH_POINT) ? 5 : 0;
-
-	/* FIX: what would be proper limits for MTU?
-	 * This interface uses 802.3 frames. */
-	if (new_mtu < 256 ||
-	    new_mtu > IEEE80211_MAX_DATA_LEN - 24 - 6 - meshhdrlen) {
+	if (new_mtu < 256 || new_mtu > IEEE80211_MAX_DATA_LEN)
 		return -EINVAL;
-	}
 
 	dev->mtu = new_mtu;
 	return 0;
@@ -586,11 +577,13 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP_VLAN:
-		/* no need to tell driver, but set carrier */
-		if (rtnl_dereference(sdata->bss->beacon))
+		/* no need to tell driver, but set carrier and chanctx */
+		if (rtnl_dereference(sdata->bss->beacon)) {
+			ieee80211_vif_vlan_copy_chanctx(sdata);
 			netif_carrier_on(dev);
-		else
+		} else {
 			netif_carrier_off(dev);
+		}
 		break;
 	case NL80211_IFTYPE_MONITOR:
 		if (sdata->u.mntr_flags & MONITOR_FLAG_COOK_FRAMES) {
@@ -839,6 +832,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP_VLAN:
 		list_del(&sdata->u.vlan.list);
+		rcu_assign_pointer(sdata->vif.chanctx_conf, NULL);
 		/* no need to tell driver */
 		break;
 	case NL80211_IFTYPE_MONITOR:
@@ -865,20 +859,11 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		cancel_work_sync(&sdata->work);
 		/*
 		 * When we get here, the interface is marked down.
-		 * Call rcu_barrier() to wait both for the RX path
+		 * Call synchronize_rcu() to wait for the RX path
 		 * should it be using the interface and enqueuing
-		 * frames at this very time on another CPU, and
-		 * for the sta free call_rcu callbacks.
+		 * frames at this very time on another CPU.
 		 */
-		rcu_barrier();
-
-		/*
-		 * free_sta_rcu() enqueues a work for the actual
-		 * sta cleanup, so we need to flush it while
-		 * sdata is still valid.
-		 */
-		flush_workqueue(local->workqueue);
-
+		synchronize_rcu();
 		skb_queue_purge(&sdata->skb_queue);
 
 		/*
@@ -1498,6 +1483,15 @@ static void ieee80211_assign_perm_addr(struct ieee80211_local *local,
 	mutex_unlock(&local->iflist_mtx);
 }
 
+static void ieee80211_cleanup_sdata_stas_wk(struct work_struct *wk)
+{
+	struct ieee80211_sub_if_data *sdata;
+
+	sdata = container_of(wk, struct ieee80211_sub_if_data, cleanup_stations_wk);
+
+	ieee80211_cleanup_sdata_stas(sdata);
+}
+
 int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		     struct wireless_dev **new_wdev, enum nl80211_iftype type,
 		     struct vif_params *params)
@@ -1572,6 +1566,10 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		skb_queue_head_init(&sdata->fragments[i].skb_list);
 
 	INIT_LIST_HEAD(&sdata->key_list);
+
+	spin_lock_init(&sdata->cleanup_stations_lock);
+	INIT_LIST_HEAD(&sdata->cleanup_stations);
+	INIT_WORK(&sdata->cleanup_stations_wk, ieee80211_cleanup_sdata_stas_wk);
 
 	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
 		struct ieee80211_supported_band *sband;
