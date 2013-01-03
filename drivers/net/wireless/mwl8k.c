@@ -3603,7 +3603,11 @@ static int mwl8k_cmd_get_watchdog_bitmap(struct ieee80211_hw *hw, u8 *bitmap)
 	return rc;
 }
 
-#define INVALID_BA	0xAA
+#define MWL8K_WMM_QUEUE_NUMBER	3
+
+static void mwl8k_destroy_ba(struct ieee80211_hw *hw,
+			     u8 idx);
+
 static void mwl8k_watchdog_ba_events(struct work_struct *work)
 {
 	int rc;
@@ -3611,24 +3615,40 @@ static void mwl8k_watchdog_ba_events(struct work_struct *work)
 	struct mwl8k_ampdu_stream *streams;
 	struct mwl8k_priv *priv =
 		container_of(work, struct mwl8k_priv, watchdog_ba_handle);
+	struct ieee80211_hw *hw = priv->hw;
+	int i;
+	u32 status = 0;
+
+	mwl8k_fw_lock(hw);
 
 	rc = mwl8k_cmd_get_watchdog_bitmap(priv->hw, &bitmap);
 	if (rc)
-		return;
+		goto done;
 
-	if (bitmap == INVALID_BA)
-		return;
+	spin_lock(&priv->stream_lock);
 
 	/* the bitmap is the hw queue number.  Map it to the ampdu queue. */
-	stream_index = bitmap - MWL8K_TX_WMM_QUEUES;
+	for (i = 0; i < TOTAL_HW_TX_QUEUES; i++) {
+		if (bitmap & (1 << i)) {
+			stream_index = (i + MWL8K_WMM_QUEUE_NUMBER) %
+				       TOTAL_HW_TX_QUEUES;
+			streams = &priv->ampdu[stream_index];
+			if (streams->state == AMPDU_STREAM_ACTIVE) {
+				ieee80211_stop_tx_ba_session(streams->sta,
+							     streams->tid);
+				spin_unlock(&priv->stream_lock);
+				mwl8k_destroy_ba(hw, stream_index);
+				spin_lock(&priv->stream_lock);
+			}
+		}
+	}
 
-	BUG_ON(stream_index >= priv->num_ampdu_queues);
-
-	streams = &priv->ampdu[stream_index];
-
-	if (streams->state == AMPDU_STREAM_ACTIVE)
-		ieee80211_stop_tx_ba_session(streams->sta, streams->tid);
-
+	spin_unlock(&priv->stream_lock);
+done:
+	status = ioread32(priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS_MASK);
+	iowrite32((status | MWL8K_A2H_INT_BA_WATCHDOG),
+		  priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS_MASK);
+	mwl8k_fw_unlock(hw);
 	return;
 }
 
