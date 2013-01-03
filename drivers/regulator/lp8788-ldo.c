@@ -712,7 +712,7 @@ static int lp8788_dldo_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	int ret;
 
-	ldo = devm_kzalloc(lp->dev, sizeof(struct lp8788_ldo), GFP_KERNEL);
+	ldo = devm_kzalloc(&pdev->dev, sizeof(struct lp8788_ldo), GFP_KERNEL);
 	if (!ldo)
 		return -ENOMEM;
 
@@ -721,7 +721,7 @@ static int lp8788_dldo_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	cfg.dev = lp->dev;
+	cfg.dev = pdev->dev.parent;
 	cfg.init_data = lp->pdata ? lp->pdata->dldo_data[id] : NULL;
 	cfg.driver_data = ldo;
 	cfg.regmap = lp->regmap;
@@ -729,7 +729,7 @@ static int lp8788_dldo_probe(struct platform_device *pdev)
 	rdev = regulator_register(&lp8788_dldo_desc[id], &cfg);
 	if (IS_ERR(rdev)) {
 		ret = PTR_ERR(rdev);
-		dev_err(lp->dev, "DLDO%d regulator register err = %d\n",
+		dev_err(&pdev->dev, "DLDO%d regulator register err = %d\n",
 				id + 1, ret);
 		return ret;
 	}
@@ -768,7 +768,7 @@ static int lp8788_aldo_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	int ret;
 
-	ldo = devm_kzalloc(lp->dev, sizeof(struct lp8788_ldo), GFP_KERNEL);
+	ldo = devm_kzalloc(&pdev->dev, sizeof(struct lp8788_ldo), GFP_KERNEL);
 	if (!ldo)
 		return -ENOMEM;
 
@@ -777,7 +777,7 @@ static int lp8788_aldo_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	cfg.dev = lp->dev;
+	cfg.dev = pdev->dev.parent;
 	cfg.init_data = lp->pdata ? lp->pdata->aldo_data[id] : NULL;
 	cfg.driver_data = ldo;
 	cfg.regmap = lp->regmap;
@@ -785,7 +785,7 @@ static int lp8788_aldo_probe(struct platform_device *pdev)
 	rdev = regulator_register(&lp8788_aldo_desc[id], &cfg);
 	if (IS_ERR(rdev)) {
 		ret = PTR_ERR(rdev);
-		dev_err(lp->dev, "ALDO%d regulator register err = %d\n",
+		dev_err(&pdev->dev, "ALDO%d regulator register err = %d\n",
 				id + 1, ret);
 		return ret;
 	}
