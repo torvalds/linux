@@ -463,7 +463,7 @@ static void activate_amp(struct hda_codec *codec, hda_nid_t nid, int dir,
 {
 	int val;
 	if (is_ctl_associated(codec, nid, dir, idx) ||
-	    is_active_nid(codec, nid, dir, idx))
+	    (!enable && is_active_nid(codec, nid, dir, idx)))
 		return;
 	val = get_amp_val_to_activate(codec, nid, dir, enable);
 	snd_hda_codec_amp_stereo(codec, nid, dir, idx, 0xff, val);
