@@ -2880,8 +2880,6 @@ static void ext4_invalidatepage_free_endio(struct page *page, unsigned long offs
 
 static void ext4_invalidatepage(struct page *page, unsigned long offset)
 {
-	journal_t *journal = EXT4_JOURNAL(page->mapping->host);
-
 	trace_ext4_invalidatepage(page, offset);
 
 	/*
@@ -2889,16 +2887,34 @@ static void ext4_invalidatepage(struct page *page, unsigned long offset)
 	 */
 	if (ext4_should_dioread_nolock(page->mapping->host))
 		ext4_invalidatepage_free_endio(page, offset);
+
+	/* No journalling happens on data buffers when this function is used */
+	WARN_ON(page_has_buffers(page) && buffer_jbd(page_buffers(page)));
+
+	block_invalidatepage(page, offset);
+}
+
+static int __ext4_journalled_invalidatepage(struct page *page,
+					    unsigned long offset)
+{
+	journal_t *journal = EXT4_JOURNAL(page->mapping->host);
+
+	trace_ext4_journalled_invalidatepage(page, offset);
+
 	/*
 	 * If it's a full truncate we just forget about the pending dirtying
 	 */
 	if (offset == 0)
 		ClearPageChecked(page);
 
-	if (journal)
-		jbd2_journal_invalidatepage(journal, page, offset);
-	else
-		block_invalidatepage(page, offset);
+	return jbd2_journal_invalidatepage(journal, page, offset);
+}
+
+/* Wrapper for aops... */
+static void ext4_journalled_invalidatepage(struct page *page,
+					   unsigned long offset)
+{
+	WARN_ON(__ext4_journalled_invalidatepage(page, offset) < 0);
 }
 
 static int ext4_releasepage(struct page *page, gfp_t wait)
@@ -3264,7 +3280,7 @@ static const struct address_space_operations ext4_journalled_aops = {
 	.write_end		= ext4_journalled_write_end,
 	.set_page_dirty		= ext4_journalled_set_page_dirty,
 	.bmap			= ext4_bmap,
-	.invalidatepage		= ext4_invalidatepage,
+	.invalidatepage		= ext4_journalled_invalidatepage,
 	.releasepage		= ext4_releasepage,
 	.direct_IO		= ext4_direct_IO,
 	.is_partially_uptodate  = block_is_partially_uptodate,
@@ -4305,6 +4321,47 @@ int ext4_write_inode(struct inode *inode, struct writeback_control *wbc)
 }
 
 /*
+ * In data=journal mode ext4_journalled_invalidatepage() may fail to invalidate
+ * buffers that are attached to a page stradding i_size and are undergoing
+ * commit. In that case we have to wait for commit to finish and try again.
+ */
+static void ext4_wait_for_tail_page_commit(struct inode *inode)
+{
+	struct page *page;
+	unsigned offset;
+	journal_t *journal = EXT4_SB(inode->i_sb)->s_journal;
+	tid_t commit_tid = 0;
+	int ret;
+
+	offset = inode->i_size & (PAGE_CACHE_SIZE - 1);
+	/*
+	 * All buffers in the last page remain valid? Then there's nothing to
+	 * do. We do the check mainly to optimize the common PAGE_CACHE_SIZE ==
+	 * blocksize case
+	 */
+	if (offset > PAGE_CACHE_SIZE - (1 << inode->i_blkbits))
+		return;
+	while (1) {
+		page = find_lock_page(inode->i_mapping,
+				      inode->i_size >> PAGE_CACHE_SHIFT);
+		if (!page)
+			return;
+		ret = __ext4_journalled_invalidatepage(page, offset);
+		unlock_page(page);
+		page_cache_release(page);
+		if (ret != -EBUSY)
+			return;
+		commit_tid = 0;
+		read_lock(&journal->j_state_lock);
+		if (journal->j_committing_transaction)
+			commit_tid = journal->j_committing_transaction->t_tid;
+		read_unlock(&journal->j_state_lock);
+		if (commit_tid)
+			jbd2_log_wait_commit(journal, commit_tid);
+	}
+}
+
+/*
  * ext4_setattr()
  *
  * Called from notify_change.
@@ -4417,16 +4474,28 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 
 	if (attr->ia_valid & ATTR_SIZE) {
-		if (attr->ia_size != i_size_read(inode)) {
-			truncate_setsize(inode, attr->ia_size);
-			/* Inode size will be reduced, wait for dio in flight.
-			 * Temporarily disable dioread_nolock to prevent
-			 * livelock. */
+		if (attr->ia_size != inode->i_size) {
+			loff_t oldsize = inode->i_size;
+
+			i_size_write(inode, attr->ia_size);
+			/*
+			 * Blocks are going to be removed from the inode. Wait
+			 * for dio in flight.  Temporarily disable
+			 * dioread_nolock to prevent livelock.
+			 */
 			if (orphan) {
-				ext4_inode_block_unlocked_dio(inode);
-				inode_dio_wait(inode);
-				ext4_inode_resume_unlocked_dio(inode);
+				if (!ext4_should_journal_data(inode)) {
+					ext4_inode_block_unlocked_dio(inode);
+					inode_dio_wait(inode);
+					ext4_inode_resume_unlocked_dio(inode);
+				} else
+					ext4_wait_for_tail_page_commit(inode);
 			}
+			/*
+			 * Truncate pagecache after we've waited for commit
+			 * in data=journal mode to make pages freeable.
+			 */
+			truncate_pagecache(inode, oldsize, inode->i_size);
 		}
 		ext4_truncate(inode);
 	}
