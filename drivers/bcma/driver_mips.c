@@ -143,8 +143,8 @@ static void bcma_core_mips_set_irq(struct bcma_device *dev, unsigned int irq)
 			     1 << irqflag);
 	}
 
-	bcma_info(bus, "set_irq: core 0x%04x, irq %d => %d\n",
-		  dev->id.id, oldirq + 2, irq + 2);
+	bcma_debug(bus, "set_irq: core 0x%04x, irq %d => %d\n",
+		   dev->id.id, oldirq + 2, irq + 2);
 }
 
 static void bcma_core_mips_set_irq_name(struct bcma_bus *bus, unsigned int irq,
@@ -167,7 +167,7 @@ static void bcma_core_mips_print_irq(struct bcma_device *dev, unsigned int irq)
 {
 	int i;
 	static const char *irq_name[] = {"2(S)", "3", "4", "5", "6", "D", "I"};
-	printk(KERN_INFO KBUILD_MODNAME ": core 0x%04x, irq :", dev->id.id);
+	printk(KERN_DEBUG KBUILD_MODNAME ": core 0x%04x, irq :", dev->id.id);
 	for (i = 0; i <= 6; i++)
 		printk(" %s%s", irq_name[i], i == irq ? "*" : " ");
 	printk("\n");
@@ -252,7 +252,7 @@ void bcma_core_mips_init(struct bcma_drv_mips *mcore)
 	if (mcore->setup_done)
 		return;
 
-	bcma_info(bus, "Initializing MIPS core...\n");
+	bcma_debug(bus, "Initializing MIPS core...\n");
 
 	bcma_core_mips_early_init(mcore);
 
@@ -300,7 +300,7 @@ void bcma_core_mips_init(struct bcma_drv_mips *mcore)
 			 "Unknown device (0x%x) found, can not configure IRQs\n",
 			 bus->chipinfo.id);
 	}
-	bcma_info(bus, "IRQ reconfiguration done\n");
+	bcma_debug(bus, "IRQ reconfiguration done\n");
 	bcma_core_mips_dump_irq(bus);
 
 	mcore->setup_done = true;
