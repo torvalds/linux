@@ -101,7 +101,7 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 		if (reg_debug)
 			printk(" failed!\n");
 		mutex_unlock(&dev->ctrl_urb_lock);
-		return ret;
+		return usb_translate_errors(ret);
 	}
 
 	if (len)
@@ -181,6 +181,9 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      0x0000, reg, dev->urb_buf, len, HZ);
 	mutex_unlock(&dev->ctrl_urb_lock);
+
+	if (ret < 0)
+		return usb_translate_errors(ret);
 
 	if (dev->wait_after_write)
 		msleep(dev->wait_after_write);
