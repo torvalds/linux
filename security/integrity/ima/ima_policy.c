@@ -49,6 +49,7 @@ struct ima_rule_entry {
 	kuid_t fowner;
 	struct {
 		void *rule;	/* LSM file metadata specific */
+		void *args_p;	/* audit value */
 		int type;	/* audit type */
 	} lsm[MAX_LSM_RULES];
 };
@@ -119,6 +120,35 @@ static int __init default_appraise_policy_setup(char *str)
 }
 __setup("ima_appraise_tcb", default_appraise_policy_setup);
 
+/* 
+ * Although the IMA policy does not change, the LSM policy can be
+ * reloaded, leaving the IMA LSM based rules referring to the old,
+ * stale LSM policy.
+ *
+ * Update the IMA LSM based rules to reflect the reloaded LSM policy. 
+ * We assume the rules still exist; and BUG_ON() if they don't.
+ */
+static void ima_lsm_update_rules(void)
+{
+	struct ima_rule_entry *entry, *tmp;
+	int result;
+	int i;
+
+	mutex_lock(&ima_rules_mutex);
+	list_for_each_entry_safe(entry, tmp, &ima_policy_rules, list) {
+		for (i = 0; i < MAX_LSM_RULES; i++) {
+			if (!entry->lsm[i].rule)
+				continue;
+			result = security_filter_rule_init(entry->lsm[i].type,
+							   Audit_equal,
+							   entry->lsm[i].args_p,
+							   &entry->lsm[i].rule);
+			BUG_ON(!entry->lsm[i].rule);
+		}
+	}
+	mutex_unlock(&ima_rules_mutex);
+}
+
 /**
  * ima_match_rules - determine whether an inode matches the measure rule.
  * @rule: a pointer to a rule
@@ -149,10 +179,11 @@ static bool ima_match_rules(struct ima_rule_entry *rule,
 	for (i = 0; i < MAX_LSM_RULES; i++) {
 		int rc = 0;
 		u32 osid, sid;
+		int retried = 0;
 
 		if (!rule->lsm[i].rule)
 			continue;
-
+retry:
 		switch (i) {
 		case LSM_OBJ_USER:
 		case LSM_OBJ_ROLE:
@@ -176,6 +207,11 @@ static bool ima_match_rules(struct ima_rule_entry *rule,
 		default:
 			break;
 		}
+		if ((rc < 0) && (!retried)) {
+			retried = 1;
+			ima_lsm_update_rules();
+			goto retry;
+		} 
 		if (!rc)
 			return false;
 	}
@@ -306,19 +342,27 @@ static match_table_t policy_tokens = {
 };
 
 static int ima_lsm_rule_init(struct ima_rule_entry *entry,
-			     char *args, int lsm_rule, int audit_type)
+			     substring_t *args, int lsm_rule, int audit_type)
 {
 	int result;
 
 	if (entry->lsm[lsm_rule].rule)
 		return -EINVAL;
 
+	entry->lsm[lsm_rule].args_p = match_strdup(args);
+	if (!entry->lsm[lsm_rule].args_p)
+		return -ENOMEM;
+
 	entry->lsm[lsm_rule].type = audit_type;
 	result = security_filter_rule_init(entry->lsm[lsm_rule].type,
-					   Audit_equal, args,
+					   Audit_equal,
+					   entry->lsm[lsm_rule].args_p,
 					   &entry->lsm[lsm_rule].rule);
-	if (!entry->lsm[lsm_rule].rule)
+	if (!entry->lsm[lsm_rule].rule) {
+		kfree(entry->lsm[lsm_rule].args_p);
 		return -EINVAL;
+	}
+
 	return result;
 }
 
@@ -481,37 +525,37 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 			break;
 		case Opt_obj_user:
 			ima_log_string(ab, "obj_user", args[0].from);
-			result = ima_lsm_rule_init(entry, args[0].from,
+			result = ima_lsm_rule_init(entry, args,
 						   LSM_OBJ_USER,
 						   AUDIT_OBJ_USER);
 			break;
 		case Opt_obj_role:
 			ima_log_string(ab, "obj_role", args[0].from);
-			result = ima_lsm_rule_init(entry, args[0].from,
+			result = ima_lsm_rule_init(entry, args,
 						   LSM_OBJ_ROLE,
 						   AUDIT_OBJ_ROLE);
 			break;
 		case Opt_obj_type:
 			ima_log_string(ab, "obj_type", args[0].from);
-			result = ima_lsm_rule_init(entry, args[0].from,
+			result = ima_lsm_rule_init(entry, args,
 						   LSM_OBJ_TYPE,
 						   AUDIT_OBJ_TYPE);
 			break;
 		case Opt_subj_user:
 			ima_log_string(ab, "subj_user", args[0].from);
-			result = ima_lsm_rule_init(entry, args[0].from,
+			result = ima_lsm_rule_init(entry, args,
 						   LSM_SUBJ_USER,
 						   AUDIT_SUBJ_USER);
 			break;
 		case Opt_subj_role:
 			ima_log_string(ab, "subj_role", args[0].from);
-			result = ima_lsm_rule_init(entry, args[0].from,
+			result = ima_lsm_rule_init(entry, args,
 						   LSM_SUBJ_ROLE,
 						   AUDIT_SUBJ_ROLE);
 			break;
 		case Opt_subj_type:
 			ima_log_string(ab, "subj_type", args[0].from);
-			result = ima_lsm_rule_init(entry, args[0].from,
+			result = ima_lsm_rule_init(entry, args,
 						   LSM_SUBJ_TYPE,
 						   AUDIT_SUBJ_TYPE);
 			break;
@@ -589,9 +633,13 @@ ssize_t ima_parse_add_rule(char *rule)
 void ima_delete_rules(void)
 {
 	struct ima_rule_entry *entry, *tmp;
+	int i;
 
 	mutex_lock(&ima_rules_mutex);
 	list_for_each_entry_safe(entry, tmp, &ima_policy_rules, list) {
+		for (i = 0; i < MAX_LSM_RULES; i++)
+			kfree(entry->lsm[i].args_p);
+
 		list_del(&entry->list);
 		kfree(entry);
 	}
