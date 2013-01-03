@@ -6233,9 +6233,11 @@ lpfc_sli4_bar0_register_memmap(struct lpfc_hba *phba, uint32_t if_type)
 			phba->sli4_hba.conf_regs_memmap_p +
 						LPFC_CTL_PORT_SEM_OFFSET;
 		phba->sli4_hba.RQDBregaddr =
-			phba->sli4_hba.conf_regs_memmap_p + LPFC_RQ_DOORBELL;
+			phba->sli4_hba.conf_regs_memmap_p +
+						LPFC_ULP0_RQ_DOORBELL;
 		phba->sli4_hba.WQDBregaddr =
-			phba->sli4_hba.conf_regs_memmap_p + LPFC_WQ_DOORBELL;
+			phba->sli4_hba.conf_regs_memmap_p +
+						LPFC_ULP0_WQ_DOORBELL;
 		phba->sli4_hba.EQCQDBregaddr =
 			phba->sli4_hba.conf_regs_memmap_p + LPFC_EQCQ_DOORBELL;
 		phba->sli4_hba.MQDBregaddr =
@@ -6289,9 +6291,11 @@ lpfc_sli4_bar2_register_memmap(struct lpfc_hba *phba, uint32_t vf)
 		return -ENODEV;
 
 	phba->sli4_hba.RQDBregaddr = (phba->sli4_hba.drbl_regs_memmap_p +
-				vf * LPFC_VFR_PAGE_SIZE + LPFC_RQ_DOORBELL);
+				vf * LPFC_VFR_PAGE_SIZE +
+					LPFC_ULP0_RQ_DOORBELL);
 	phba->sli4_hba.WQDBregaddr = (phba->sli4_hba.drbl_regs_memmap_p +
-				vf * LPFC_VFR_PAGE_SIZE + LPFC_WQ_DOORBELL);
+				vf * LPFC_VFR_PAGE_SIZE +
+					LPFC_ULP0_WQ_DOORBELL);
 	phba->sli4_hba.EQCQDBregaddr = (phba->sli4_hba.drbl_regs_memmap_p +
 				vf * LPFC_VFR_PAGE_SIZE + LPFC_EQCQ_DOORBELL);
 	phba->sli4_hba.MQDBregaddr = (phba->sli4_hba.drbl_regs_memmap_p +
@@ -6987,6 +6991,19 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
 		phba->sli4_hba.fcp_wq = NULL;
 	}
 
+	if (phba->pci_bar0_memmap_p) {
+		iounmap(phba->pci_bar0_memmap_p);
+		phba->pci_bar0_memmap_p = NULL;
+	}
+	if (phba->pci_bar2_memmap_p) {
+		iounmap(phba->pci_bar2_memmap_p);
+		phba->pci_bar2_memmap_p = NULL;
+	}
+	if (phba->pci_bar4_memmap_p) {
+		iounmap(phba->pci_bar4_memmap_p);
+		phba->pci_bar4_memmap_p = NULL;
+	}
+
 	/* Release FCP CQ mapping array */
 	if (phba->sli4_hba.fcp_cq_map != NULL) {
 		kfree(phba->sli4_hba.fcp_cq_map);
@@ -7050,6 +7067,53 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	int rc = -ENOMEM;
 	int fcp_eqidx, fcp_cqidx, fcp_wqidx;
 	int fcp_cq_index = 0;
+	uint32_t shdr_status, shdr_add_status;
+	union lpfc_sli4_cfg_shdr *shdr;
+	LPFC_MBOXQ_t *mboxq;
+	uint32_t length;
+
+	/* Check for dual-ULP support */
+	mboxq = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3249 Unable to allocate memory for "
+				"QUERY_FW_CFG mailbox command\n");
+		return -ENOMEM;
+	}
+	length = (sizeof(struct lpfc_mbx_query_fw_config) -
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
+	lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_QUERY_FW_CFG,
+			 length, LPFC_SLI4_MBX_EMBED);
+
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+
+	shdr = (union lpfc_sli4_cfg_shdr *)
+			&mboxq->u.mqe.un.sli4_config.header.cfg_shdr;
+	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
+	if (shdr_status || shdr_add_status || rc) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3250 QUERY_FW_CFG mailbox failed with status "
+				"x%x add_status x%x, mbx status x%x\n",
+				shdr_status, shdr_add_status, rc);
+		if (rc != MBX_TIMEOUT)
+			mempool_free(mboxq, phba->mbox_mem_pool);
+		rc = -ENXIO;
+		goto out_error;
+	}
+
+	phba->sli4_hba.fw_func_mode =
+			mboxq->u.mqe.un.query_fw_cfg.rsp.function_mode;
+	phba->sli4_hba.ulp0_mode = mboxq->u.mqe.un.query_fw_cfg.rsp.ulp0_mode;
+	phba->sli4_hba.ulp1_mode = mboxq->u.mqe.un.query_fw_cfg.rsp.ulp1_mode;
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+			"3251 QUERY_FW_CFG: func_mode:x%x, ulp0_mode:x%x, "
+			"ulp1_mode:x%x\n", phba->sli4_hba.fw_func_mode,
+			phba->sli4_hba.ulp0_mode, phba->sli4_hba.ulp1_mode);
+
+	if (rc != MBX_TIMEOUT)
+		mempool_free(mboxq, phba->mbox_mem_pool);
 
 	/*
 	 * Set up HBA Event Queues (EQs)

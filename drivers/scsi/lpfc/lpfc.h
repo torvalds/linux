@@ -752,6 +752,15 @@ struct lpfc_hba {
 	void __iomem *ctrl_regs_memmap_p;/* Kernel memory mapped address for
 					    PCI BAR2 */
 
+	void __iomem *pci_bar0_memmap_p; /* Kernel memory mapped address for
+					    PCI BAR0 with dual-ULP support */
+	void __iomem *pci_bar2_memmap_p; /* Kernel memory mapped address for
+					    PCI BAR2 with dual-ULP support */
+	void __iomem *pci_bar4_memmap_p; /* Kernel memory mapped address for
+					    PCI BAR4 with dual-ULP support */
+#define PCI_64BIT_BAR0	0
+#define PCI_64BIT_BAR2	2
+#define PCI_64BIT_BAR4	4
 	void __iomem *MBslimaddr;	/* virtual address for mbox cmds */
 	void __iomem *HAregaddr;	/* virtual address for host attn reg */
 	void __iomem *CAregaddr;	/* virtual address for chip attn reg */

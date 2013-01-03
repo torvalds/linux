@@ -124,10 +124,17 @@ lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe *wqe)
 
 	/* Ring Doorbell */
 	doorbell.word0 = 0;
-	bf_set(lpfc_wq_doorbell_num_posted, &doorbell, 1);
-	bf_set(lpfc_wq_doorbell_index, &doorbell, host_index);
-	bf_set(lpfc_wq_doorbell_id, &doorbell, q->queue_id);
-	writel(doorbell.word0, q->phba->sli4_hba.WQDBregaddr);
+	if (q->db_format == LPFC_DB_LIST_FORMAT) {
+		bf_set(lpfc_wq_db_list_fm_num_posted, &doorbell, 1);
+		bf_set(lpfc_wq_db_list_fm_index, &doorbell, host_index);
+		bf_set(lpfc_wq_db_list_fm_id, &doorbell, q->queue_id);
+	} else if (q->db_format == LPFC_DB_RING_FORMAT) {
+		bf_set(lpfc_wq_db_ring_fm_num_posted, &doorbell, 1);
+		bf_set(lpfc_wq_db_ring_fm_id, &doorbell, q->queue_id);
+	} else {
+		return -EINVAL;
+	}
+	writel(doorbell.word0, q->db_regaddr);
 
 	return 0;
 }
@@ -456,10 +463,20 @@ lpfc_sli4_rq_put(struct lpfc_queue *hq, struct lpfc_queue *dq,
 	/* Ring The Header Receive Queue Doorbell */
 	if (!(hq->host_index % hq->entry_repost)) {
 		doorbell.word0 = 0;
-		bf_set(lpfc_rq_doorbell_num_posted, &doorbell,
-		       hq->entry_repost);
-		bf_set(lpfc_rq_doorbell_id, &doorbell, hq->queue_id);
-		writel(doorbell.word0, hq->phba->sli4_hba.RQDBregaddr);
+		if (hq->db_format == LPFC_DB_RING_FORMAT) {
+			bf_set(lpfc_rq_db_ring_fm_num_posted, &doorbell,
+			       hq->entry_repost);
+			bf_set(lpfc_rq_db_ring_fm_id, &doorbell, hq->queue_id);
+		} else if (hq->db_format == LPFC_DB_LIST_FORMAT) {
+			bf_set(lpfc_rq_db_list_fm_num_posted, &doorbell,
+			       hq->entry_repost);
+			bf_set(lpfc_rq_db_list_fm_index, &doorbell,
+			       hq->host_index);
+			bf_set(lpfc_rq_db_list_fm_id, &doorbell, hq->queue_id);
+		} else {
+			return -EINVAL;
+		}
+		writel(doorbell.word0, hq->db_regaddr);
 	}
 	return put_index;
 }
@@ -4939,7 +4956,7 @@ out_free_mboxq:
 static void
 lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 {
-	uint8_t fcp_eqidx;
+	int fcp_eqidx;
 
 	lpfc_sli4_cq_release(phba->sli4_hba.mbx_cq, LPFC_QUEUE_REARM);
 	lpfc_sli4_cq_release(phba->sli4_hba.els_cq, LPFC_QUEUE_REARM);
@@ -11867,7 +11884,7 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 	struct lpfc_eqe *eqe;
 	unsigned long iflag;
 	int ecount = 0;
-	uint32_t fcp_eqidx;
+	int fcp_eqidx;
 
 	/* Get the driver's phba structure from the dev_id */
 	fcp_eq_hdl = (struct lpfc_fcp_eq_hdl *)dev_id;
@@ -11969,7 +11986,7 @@ lpfc_sli4_intr_handler(int irq, void *dev_id)
 	struct lpfc_hba  *phba;
 	irqreturn_t hba_irq_rc;
 	bool hba_handled = false;
-	uint32_t fcp_eqidx;
+	int fcp_eqidx;
 
 	/* Get the driver's phba structure from the dev_id */
 	phba = (struct lpfc_hba *)dev_id;
@@ -12087,6 +12104,54 @@ lpfc_sli4_queue_alloc(struct lpfc_hba *phba, uint32_t entry_size,
 	return queue;
 out_fail:
 	lpfc_sli4_queue_free(queue);
+	return NULL;
+}
+
+/**
+ * lpfc_dual_chute_pci_bar_map - Map pci base address register to host memory
+ * @phba: HBA structure that indicates port to create a queue on.
+ * @pci_barset: PCI BAR set flag.
+ *
+ * This function shall perform iomap of the specified PCI BAR address to host
+ * memory address if not already done so and return it. The returned host
+ * memory address can be NULL.
+ */
+static void __iomem *
+lpfc_dual_chute_pci_bar_map(struct lpfc_hba *phba, uint16_t pci_barset)
+{
+	struct pci_dev *pdev;
+	unsigned long bar_map, bar_map_len;
+
+	if (!phba->pcidev)
+		return NULL;
+	else
+		pdev = phba->pcidev;
+
+	switch (pci_barset) {
+	case WQ_PCI_BAR_0_AND_1:
+		if (!phba->pci_bar0_memmap_p) {
+			bar_map = pci_resource_start(pdev, PCI_64BIT_BAR0);
+			bar_map_len = pci_resource_len(pdev, PCI_64BIT_BAR0);
+			phba->pci_bar0_memmap_p = ioremap(bar_map, bar_map_len);
+		}
+		return phba->pci_bar0_memmap_p;
+	case WQ_PCI_BAR_2_AND_3:
+		if (!phba->pci_bar2_memmap_p) {
+			bar_map = pci_resource_start(pdev, PCI_64BIT_BAR2);
+			bar_map_len = pci_resource_len(pdev, PCI_64BIT_BAR2);
+			phba->pci_bar2_memmap_p = ioremap(bar_map, bar_map_len);
+		}
+		return phba->pci_bar2_memmap_p;
+	case WQ_PCI_BAR_4_AND_5:
+		if (!phba->pci_bar4_memmap_p) {
+			bar_map = pci_resource_start(pdev, PCI_64BIT_BAR4);
+			bar_map_len = pci_resource_len(pdev, PCI_64BIT_BAR4);
+			phba->pci_bar4_memmap_p = ioremap(bar_map, bar_map_len);
+		}
+		return phba->pci_bar4_memmap_p;
+	default:
+		break;
+	}
 	return NULL;
 }
 
@@ -12667,6 +12732,9 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 	union lpfc_sli4_cfg_shdr *shdr;
 	uint32_t hw_page_size = phba->sli4_hba.pc_sli4_params.if_page_sz;
 	struct dma_address *page;
+	void __iomem *bar_memmap_p;
+	uint32_t db_offset;
+	uint16_t pci_barset;
 
 	/* sanity check on queue memory */
 	if (!wq || !cq)
@@ -12690,6 +12758,7 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 		    cq->queue_id);
 	bf_set(lpfc_mbox_hdr_version, &shdr->request,
 	       phba->sli4_hba.pc_sli4_params.wqv);
+
 	if (phba->sli4_hba.pc_sli4_params.wqv == LPFC_Q_CREATE_VERSION_1) {
 		bf_set(lpfc_mbx_wq_create_wqe_count, &wq_create->u.request_1,
 		       wq->entry_count);
@@ -12717,6 +12786,10 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 		page[dmabuf->buffer_tag].addr_lo = putPaddrLow(dmabuf->phys);
 		page[dmabuf->buffer_tag].addr_hi = putPaddrHigh(dmabuf->phys);
 	}
+
+	if (phba->sli4_hba.fw_func_mode & LPFC_DUA_MODE)
+		bf_set(lpfc_mbx_wq_create_dua, &wq_create->u.request, 1);
+
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
 	/* The IOCTL status is embedded in the mailbox subheader. */
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
@@ -12733,6 +12806,47 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 	if (wq->queue_id == 0xFFFF) {
 		status = -ENXIO;
 		goto out;
+	}
+	if (phba->sli4_hba.fw_func_mode & LPFC_DUA_MODE) {
+		wq->db_format = bf_get(lpfc_mbx_wq_create_db_format,
+				       &wq_create->u.response);
+		if ((wq->db_format != LPFC_DB_LIST_FORMAT) &&
+		    (wq->db_format != LPFC_DB_RING_FORMAT)) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3265 WQ[%d] doorbell format not "
+					"supported: x%x\n", wq->queue_id,
+					wq->db_format);
+			status = -EINVAL;
+			goto out;
+		}
+		pci_barset = bf_get(lpfc_mbx_wq_create_bar_set,
+				    &wq_create->u.response);
+		bar_memmap_p = lpfc_dual_chute_pci_bar_map(phba, pci_barset);
+		if (!bar_memmap_p) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3263 WQ[%d] failed to memmap pci "
+					"barset:x%x\n", wq->queue_id,
+					pci_barset);
+			status = -ENOMEM;
+			goto out;
+		}
+		db_offset = wq_create->u.response.doorbell_offset;
+		if ((db_offset != LPFC_ULP0_WQ_DOORBELL) &&
+		    (db_offset != LPFC_ULP1_WQ_DOORBELL)) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3252 WQ[%d] doorbell offset not "
+					"supported: x%x\n", wq->queue_id,
+					db_offset);
+			status = -EINVAL;
+			goto out;
+		}
+		wq->db_regaddr = bar_memmap_p + db_offset;
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"3264 WQ[%d]: barset:x%x, offset:x%x\n",
+				wq->queue_id, pci_barset, db_offset);
+	} else {
+		wq->db_format = LPFC_DB_LIST_FORMAT;
+		wq->db_regaddr = phba->sli4_hba.WQDBregaddr;
 	}
 	wq->type = LPFC_WQ;
 	wq->assoc_qid = cq->queue_id;
@@ -12810,6 +12924,9 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	uint32_t shdr_status, shdr_add_status;
 	union lpfc_sli4_cfg_shdr *shdr;
 	uint32_t hw_page_size = phba->sli4_hba.pc_sli4_params.if_page_sz;
+	void __iomem *bar_memmap_p;
+	uint32_t db_offset;
+	uint16_t pci_barset;
 
 	/* sanity check on queue memory */
 	if (!hrq || !drq || !cq)
@@ -12888,6 +13005,9 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 		rq_create->u.request.page[dmabuf->buffer_tag].addr_hi =
 					putPaddrHigh(dmabuf->phys);
 	}
+	if (phba->sli4_hba.fw_func_mode & LPFC_DUA_MODE)
+		bf_set(lpfc_mbx_rq_create_dua, &rq_create->u.request, 1);
+
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
 	/* The IOCTL status is embedded in the mailbox subheader. */
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
@@ -12904,6 +13024,50 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	if (hrq->queue_id == 0xFFFF) {
 		status = -ENXIO;
 		goto out;
+	}
+
+	if (phba->sli4_hba.fw_func_mode & LPFC_DUA_MODE) {
+		hrq->db_format = bf_get(lpfc_mbx_rq_create_db_format,
+					&rq_create->u.response);
+		if ((hrq->db_format != LPFC_DB_LIST_FORMAT) &&
+		    (hrq->db_format != LPFC_DB_RING_FORMAT)) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3262 RQ [%d] doorbell format not "
+					"supported: x%x\n", hrq->queue_id,
+					hrq->db_format);
+			status = -EINVAL;
+			goto out;
+		}
+
+		pci_barset = bf_get(lpfc_mbx_rq_create_bar_set,
+				    &rq_create->u.response);
+		bar_memmap_p = lpfc_dual_chute_pci_bar_map(phba, pci_barset);
+		if (!bar_memmap_p) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3269 RQ[%d] failed to memmap pci "
+					"barset:x%x\n", hrq->queue_id,
+					pci_barset);
+			status = -ENOMEM;
+			goto out;
+		}
+
+		db_offset = rq_create->u.response.doorbell_offset;
+		if ((db_offset != LPFC_ULP0_RQ_DOORBELL) &&
+		    (db_offset != LPFC_ULP1_RQ_DOORBELL)) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3270 RQ[%d] doorbell offset not "
+					"supported: x%x\n", hrq->queue_id,
+					db_offset);
+			status = -EINVAL;
+			goto out;
+		}
+		hrq->db_regaddr = bar_memmap_p + db_offset;
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"3266 RQ[qid:%d]: barset:x%x, offset:x%x\n",
+				hrq->queue_id, pci_barset, db_offset);
+	} else {
+		hrq->db_format = LPFC_DB_RING_FORMAT;
+		hrq->db_regaddr = phba->sli4_hba.RQDBregaddr;
 	}
 	hrq->type = LPFC_HRQ;
 	hrq->assoc_qid = cq->queue_id;
@@ -12970,6 +13134,8 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 		rq_create->u.request.page[dmabuf->buffer_tag].addr_hi =
 					putPaddrHigh(dmabuf->phys);
 	}
+	if (phba->sli4_hba.fw_func_mode & LPFC_DUA_MODE)
+		bf_set(lpfc_mbx_rq_create_dua, &rq_create->u.request, 1);
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
 	/* The IOCTL status is embedded in the mailbox subheader. */
 	shdr = (union lpfc_sli4_cfg_shdr *) &rq_create->header.cfg_shdr;
