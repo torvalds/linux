@@ -393,3 +393,33 @@ void exynos_drm_crtc_disable_vblank(struct drm_device *dev, int crtc)
 	exynos_drm_fn_encoder(private->crtc[crtc], &crtc,
 			exynos_drm_disable_vblank);
 }
+
+void exynos_drm_crtc_finish_pageflip(struct drm_device *dev, int crtc)
+{
+	struct exynos_drm_private *dev_priv = dev->dev_private;
+	struct drm_pending_vblank_event *e, *t;
+	struct timeval now;
+	unsigned long flags;
+
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+
+	list_for_each_entry_safe(e, t, &dev_priv->pageflip_event_list,
+			base.link) {
+		/* if event's pipe isn't same as crtc then ignore it. */
+		if (crtc != e->pipe)
+			continue;
+
+		do_gettimeofday(&now);
+		e->event.sequence = 0;
+		e->event.tv_sec = now.tv_sec;
+		e->event.tv_usec = now.tv_usec;
+
+		list_move_tail(&e->base.link, &e->base.file_priv->event_list);
+		wake_up_interruptible(&e->base.file_priv->event_wait);
+		drm_vblank_put(dev, crtc);
+	}
+
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+}
