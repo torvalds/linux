@@ -1222,6 +1222,9 @@ static acpi_status WMID_set_capabilities(void)
 			devices = *((u32 *) obj->buffer.pointer);
 		} else if (obj->type == ACPI_TYPE_INTEGER) {
 			devices = (u32) obj->integer.value;
+		} else {
+			kfree(out.pointer);
+			return AE_ERROR;
 		}
 	} else {
 		kfree(out.pointer);
