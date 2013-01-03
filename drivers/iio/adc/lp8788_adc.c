@@ -179,7 +179,7 @@ static int lp8788_iio_map_register(struct iio_dev *indio_dev,
 
 	ret = iio_map_array_register(indio_dev, map);
 	if (ret) {
-		dev_err(adc->lp->dev, "iio map err: %d\n", ret);
+		dev_err(&indio_dev->dev, "iio map err: %d\n", ret);
 		return ret;
 	}
 
