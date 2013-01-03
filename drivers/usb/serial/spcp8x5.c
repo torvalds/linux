@@ -498,7 +498,7 @@ static void spcp8x5_process_read_urb(struct urb *urb)
 
 		/* overrun is special, not associated with a char */
 		if (status & UART_OVERRUN_ERROR)
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
 
 		if (status & UART_DCD)
 			usb_serial_handle_dcd_change(port, tty,

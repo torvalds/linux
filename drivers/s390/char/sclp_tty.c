@@ -342,7 +342,7 @@ sclp_tty_input(unsigned char* buf, unsigned int count)
 	case CTRLCHAR_SYSRQ:
 		break;
 	case CTRLCHAR_CTRL:
-		tty_insert_flip_char(tty, cchar, TTY_NORMAL);
+		tty_insert_flip_char(&sclp_port, cchar, TTY_NORMAL);
 		tty_flip_buffer_push(tty);
 		break;
 	case CTRLCHAR_NONE:
@@ -352,7 +352,7 @@ sclp_tty_input(unsigned char* buf, unsigned int count)
 		     strncmp((const char *) buf + count - 2, "\252n", 2))) {
 			/* add the auto \n */
 			tty_insert_flip_string(tty, buf, count);
-			tty_insert_flip_char(tty, '\n', TTY_NORMAL);
+			tty_insert_flip_char(&sclp_port, '\n', TTY_NORMAL);
 		} else
 			tty_insert_flip_string(tty, buf, count - 2);
 		tty_flip_buffer_push(tty);

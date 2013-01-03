@@ -46,7 +46,7 @@ kbd_put_queue(struct tty_port *port, int ch)
 	struct tty_struct *tty = tty_port_tty_get(port);
 	if (!tty)
 		return;
-	tty_insert_flip_char(tty, ch, 0);
+	tty_insert_flip_char(port, ch, 0);
 	tty_schedule_flip(tty);
 	tty_kref_put(tty);
 }
@@ -58,7 +58,7 @@ kbd_puts_queue(struct tty_port *port, char *cp)
 	if (!tty)
 		return;
 	while (*cp)
-		tty_insert_flip_char(tty, *cp++, 0);
+		tty_insert_flip_char(port, *cp++, 0);
 	tty_schedule_flip(tty);
 	tty_kref_put(tty);
 }

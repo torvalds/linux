@@ -855,7 +855,7 @@ static int receive_data(enum port_type index, struct nozomi *dc)
 		read_mem32((u32 *) buf, addr + offset, RECEIVE_BUF_MAX);
 
 		if (size == 1) {
-			tty_insert_flip_char(tty, buf[0], TTY_NORMAL);
+			tty_insert_flip_char(&port->port, buf[0], TTY_NORMAL);
 			size = 0;
 		} else if (size < RECEIVE_BUF_MAX) {
 			size -= tty_insert_flip_string(tty, (char *) buf, size);

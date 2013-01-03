@@ -235,6 +235,7 @@ static const char *bcm_uart_type(struct uart_port *port)
  */
 static void bcm_uart_do_rx(struct uart_port *port)
 {
+	struct tty_port *port = &port->state->port;
 	struct tty_struct *tty;
 	unsigned int max_count;
 
@@ -242,7 +243,7 @@ static void bcm_uart_do_rx(struct uart_port *port)
 	 * higher than fifo size anyway since we're much faster than
 	 * serial port */
 	max_count = 32;
-	tty = port->state->port.tty;
+	tty = port->tty;
 	do {
 		unsigned int iestat, c, cstat;
 		char flag;
@@ -261,7 +262,7 @@ static void bcm_uart_do_rx(struct uart_port *port)
 			bcm_uart_writel(port, val, UART_CTL_REG);
 
 			port->icount.overrun++;
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			tty_insert_flip_char(port, 0, TTY_OVERRUN);
 		}
 
 		if (!(iestat & UART_IR_STAT(UART_IR_RXNOTEMPTY)))
@@ -300,7 +301,7 @@ static void bcm_uart_do_rx(struct uart_port *port)
 
 
 		if ((cstat & port->ignore_status_mask) == 0)
-			tty_insert_flip_char(tty, c, flag);
+			tty_insert_flip_char(port, c, flag);
 
 	} while (--max_count);
 

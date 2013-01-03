@@ -634,7 +634,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 			break;
 
 		case 1:	/* Received Break !!! */
-			tty_insert_flip_char(tty, 0, TTY_BREAK);
+			tty_insert_flip_char(&port->port, 0, TTY_BREAK);
 			if (port->port.flags & ASYNC_SAK)
 				do_SAK(tty);
 			tty_flip_buffer_push(tty);
@@ -658,7 +658,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 		insw(base, rp, word_count);
 		byte_count -= (word_count << 1);
 		if (count & 0x0001) {
-			tty_insert_flip_char(tty,  inw(base) & 0xff,
+			tty_insert_flip_char(&port->port, inw(base) & 0xff,
 				TTY_NORMAL);
 			byte_count -= 2;
 		}

@@ -315,7 +315,7 @@ static void	usa26_indat_callback(struct urb *urb)
 			else
 				err = 0;
 			for (i = 1; i < urb->actual_length ; ++i)
-				tty_insert_flip_char(tty, data[i], err);
+				tty_insert_flip_char(&port->port, data[i], err);
 		} else {
 			/* some bytes had errors, every byte has status */
 			dev_dbg(&port->dev, "%s - RX error!!!!\n", __func__);
@@ -328,7 +328,8 @@ static void	usa26_indat_callback(struct urb *urb)
 				if (stat & RXERROR_PARITY)
 					flag |= TTY_PARITY;
 				/* XXX should handle break (0x10) */
-				tty_insert_flip_char(tty, data[i+1], flag);
+				tty_insert_flip_char(&port->port, data[i+1],
+						flag);
 			}
 		}
 		tty_flip_buffer_push(tty);
@@ -700,7 +701,8 @@ static void	usa49_indat_callback(struct urb *urb)
 				if (stat & RXERROR_PARITY)
 					flag |= TTY_PARITY;
 				/* XXX should handle break (0x10) */
-				tty_insert_flip_char(tty, data[i+1], flag);
+				tty_insert_flip_char(&port->port, data[i+1],
+						flag);
 			}
 		}
 		tty_flip_buffer_push(tty);
@@ -751,7 +753,8 @@ static void usa49wg_indat_callback(struct urb *urb)
 				/* no error on any byte */
 				i++;
 				for (x = 1; x < len ; ++x)
-					tty_insert_flip_char(tty, data[i++], 0);
+					tty_insert_flip_char(&port->port,
+							data[i++], 0);
 			} else {
 				/*
 				 * some bytes had errors, every byte has status
@@ -765,7 +768,7 @@ static void usa49wg_indat_callback(struct urb *urb)
 					if (stat & RXERROR_PARITY)
 						flag |= TTY_PARITY;
 					/* XXX should handle break (0x10) */
-					tty_insert_flip_char(tty,
+					tty_insert_flip_char(&port->port,
 							data[i+1], flag);
 					i += 2;
 				}
@@ -824,8 +827,8 @@ static void usa90_indat_callback(struct urb *urb)
 				else
 					err = 0;
 				for (i = 1; i < urb->actual_length ; ++i)
-					tty_insert_flip_char(tty, data[i],
-									err);
+					tty_insert_flip_char(&port->port,
+							data[i], err);
 			}  else {
 			/* some bytes had errors, every byte has status */
 				dev_dbg(&port->dev, "%s - RX error!!!!\n", __func__);
@@ -838,8 +841,8 @@ static void usa90_indat_callback(struct urb *urb)
 					if (stat & RXERROR_PARITY)
 						flag |= TTY_PARITY;
 					/* XXX should handle break (0x10) */
-					tty_insert_flip_char(tty, data[i+1],
-									flag);
+					tty_insert_flip_char(&port->port,
+							data[i+1], flag);
 				}
 			}
 		}

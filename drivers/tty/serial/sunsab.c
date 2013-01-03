@@ -111,6 +111,7 @@ static struct tty_struct *
 receive_chars(struct uart_sunsab_port *up,
 	      union sab82532_irq_status *stat)
 {
+	struct tty_port *port = NULL;
 	struct tty_struct *tty = NULL;
 	unsigned char buf[32];
 	int saw_console_brk = 0;
@@ -118,8 +119,10 @@ receive_chars(struct uart_sunsab_port *up,
 	int count = 0;
 	int i;
 
-	if (up->port.state != NULL)		/* Unopened serial console */
-		tty = up->port.state->port.tty;
+	if (up->port.state != NULL) {		/* Unopened serial console */
+		port = &up->port.state->port;
+		tty = port->tty;
+	}
 
 	/* Read number of BYTES (Character + Status) available. */
 	if (stat->sreg.isr0 & SAB82532_ISR0_RPF) {
@@ -159,11 +162,6 @@ receive_chars(struct uart_sunsab_port *up,
 
 	for (i = 0; i < count; i++) {
 		unsigned char ch = buf[i], flag;
-
-		if (tty == NULL) {
-			uart_handle_sysrq_char(&up->port, ch);
-			continue;
-		}
 
 		flag = TTY_NORMAL;
 		up->port.icount.rx++;
@@ -213,9 +211,9 @@ receive_chars(struct uart_sunsab_port *up,
 
 		if ((stat->sreg.isr0 & (up->port.ignore_status_mask & 0xff)) == 0 &&
 		    (stat->sreg.isr1 & ((up->port.ignore_status_mask >> 8) & 0xff)) == 0)
-			tty_insert_flip_char(tty, ch, flag);
+			tty_insert_flip_char(port, ch, flag);
 		if (stat->sreg.isr0 & SAB82532_ISR0_RFO)
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			tty_insert_flip_char(port, 0, TTY_OVERRUN);
 	}
 
 	if (saw_console_brk)

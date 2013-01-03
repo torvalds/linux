@@ -99,7 +99,7 @@ static int receive_chars_getchar(struct uart_port *port, struct tty_struct *tty)
 			uart_handle_dcd_change(port, 1);
 		}
 
-		if (tty == NULL) {
+		if (port->state == NULL) {
 			uart_handle_sysrq_char(port, c);
 			continue;
 		}
@@ -109,7 +109,7 @@ static int receive_chars_getchar(struct uart_port *port, struct tty_struct *tty)
 		if (uart_handle_sysrq_char(port, c))
 			continue;
 
-		tty_insert_flip_char(tty, c, TTY_NORMAL);
+		tty_insert_flip_char(&port->state->port, c, TTY_NORMAL);
 	}
 
 	return saw_console_brk;

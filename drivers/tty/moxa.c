@@ -1429,7 +1429,7 @@ static int moxa_poll_port(struct moxa_port *p, unsigned int handle,
 		goto put;
 
 	if (tty && (intr & IntrBreak) && !I_IGNBRK(tty)) { /* BREAK */
-		tty_insert_flip_char(tty, 0, TTY_BREAK);
+		tty_insert_flip_char(&p->port, 0, TTY_BREAK);
 		tty_schedule_flip(tty);
 	}
 

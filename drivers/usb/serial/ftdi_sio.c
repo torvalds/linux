@@ -1958,9 +1958,8 @@ static int ftdi_prepare_write_buffer(struct usb_serial_port *port,
 
 #define FTDI_RS_ERR_MASK (FTDI_RS_BI | FTDI_RS_PE | FTDI_RS_FE | FTDI_RS_OE)
 
-static int ftdi_process_packet(struct tty_struct *tty,
-		struct usb_serial_port *port, struct ftdi_private *priv,
-		char *packet, int len)
+static int ftdi_process_packet(struct usb_serial_port *port,
+		struct ftdi_private *priv, char *packet, int len)
 {
 	int i;
 	char status;
@@ -2010,7 +2009,7 @@ static int ftdi_process_packet(struct tty_struct *tty,
 		/* Overrun is special, not associated with a char */
 		if (packet[1] & FTDI_RS_OE) {
 			priv->icount.overrun++;
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
 		}
 	}
 
@@ -2029,7 +2028,7 @@ static int ftdi_process_packet(struct tty_struct *tty,
 	if (port->port.console && port->sysrq) {
 		for (i = 0; i < len; i++, ch++) {
 			if (!usb_serial_handle_sysrq_char(port, *ch))
-				tty_insert_flip_char(tty, *ch, flag);
+				tty_insert_flip_char(&port->port, *ch, flag);
 		}
 	} else {
 		tty_insert_flip_string_fixed_flag(&port->port, ch, flag, len);
@@ -2054,7 +2053,7 @@ static void ftdi_process_read_urb(struct urb *urb)
 
 	for (i = 0; i < urb->actual_length; i += priv->max_packet_size) {
 		len = min_t(int, urb->actual_length - i, priv->max_packet_size);
-		count += ftdi_process_packet(tty, port, priv, &data[i], len);
+		count += ftdi_process_packet(port, priv, &data[i], len);
 	}
 
 	if (count)

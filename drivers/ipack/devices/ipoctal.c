@@ -136,6 +136,7 @@ static int ipoctal_get_icount(struct tty_struct *tty,
 static void ipoctal_irq_rx(struct ipoctal_channel *channel,
 			   struct tty_struct *tty, u8 sr)
 {
+	struct tty_port *port = &channel->tty_port;
 	unsigned char value;
 	unsigned char flag = TTY_NORMAL;
 	u8 isr;
@@ -149,7 +150,7 @@ static void ipoctal_irq_rx(struct ipoctal_channel *channel,
 			if (sr & SR_OVERRUN_ERROR) {
 				channel->stats.overrun_err++;
 				/* Overrun doesn't affect the current character*/
-				tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+				tty_insert_flip_char(port, 0, TTY_OVERRUN);
 			}
 			if (sr & SR_PARITY_ERROR) {
 				channel->stats.parity_err++;
@@ -165,7 +166,7 @@ static void ipoctal_irq_rx(struct ipoctal_channel *channel,
 				flag = TTY_BREAK;
 			}
 		}
-		tty_insert_flip_char(tty, value, flag);
+		tty_insert_flip_char(port, value, flag);
 
 		/* Check if there are more characters in RX FIFO
 		 * If there are more, the isr register for this channel

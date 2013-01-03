@@ -941,7 +941,8 @@ static struct uart_ops mpc52xx_uart_ops = {
 static inline int
 mpc52xx_uart_int_rx_chars(struct uart_port *port)
 {
-	struct tty_struct *tty = port->state->port.tty;
+	struct tty_port *tport = &port->state->port;
+	struct tty_struct *tty = tport->tty;
 	unsigned char ch, flag;
 	unsigned short status;
 
@@ -986,14 +987,14 @@ mpc52xx_uart_int_rx_chars(struct uart_port *port)
 			out_8(&PSC(port)->command, MPC52xx_PSC_RST_ERR_STAT);
 
 		}
-		tty_insert_flip_char(tty, ch, flag);
+		tty_insert_flip_char(tport, ch, flag);
 		if (status & MPC52xx_PSC_SR_OE) {
 			/*
 			 * Overrun is special, since it's
 			 * reported immediately, and doesn't
 			 * affect the current character
 			 */
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 			port->icount.overrun++;
 		}
 	}

@@ -81,12 +81,6 @@ static const struct chan_ops not_configged_ops = {
 };
 #endif /* CONFIG_NOCONFIG_CHAN */
 
-static void tty_receive_char(struct tty_struct *tty, char ch)
-{
-	if (tty)
-		tty_insert_flip_char(tty, ch, TTY_NORMAL);
-}
-
 static int open_one_chan(struct chan *chan)
 {
 	int fd, err;
@@ -569,7 +563,7 @@ void chan_interrupt(struct line *line, struct tty_struct *tty, int irq)
 		}
 		err = chan->ops->read(chan->fd, &c, chan->data);
 		if (err > 0)
-			tty_receive_char(tty, c);
+			tty_insert_flip_char(port, c, TTY_NORMAL);
 	} while (err > 0);
 
 	if (err == 0)

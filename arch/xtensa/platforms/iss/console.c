@@ -98,6 +98,7 @@ static int rs_write(struct tty_struct * tty,
 static void rs_poll(unsigned long priv)
 {
 	struct tty_struct* tty = (struct tty_struct*) priv;
+	struct tty_port *port = tty->port;
 
 	struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
 	int i = 0;
@@ -107,7 +108,7 @@ static void rs_poll(unsigned long priv)
 
 	while (__simc(SYS_select_one, 0, XTISS_SELECT_ONE_READ, (int)&tv,0,0)){
 		__simc (SYS_read, 0, (unsigned long)&c, 1, 0, 0);
-		tty_insert_flip_char(tty, c, TTY_NORMAL);
+		tty_insert_flip_char(port, c, TTY_NORMAL);
 		i++;
 	}
 

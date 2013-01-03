@@ -147,7 +147,7 @@ static void pdc_console_poll(unsigned long unused)
 		data = pdc_console_poll_key(NULL);
 		if (data == -1)
 			break;
-		tty_insert_flip_char(tty, data & 0xFF, TTY_NORMAL);
+		tty_insert_flip_char(&tty_port, data & 0xFF, TTY_NORMAL);
 		count ++;
 	}
 

@@ -734,7 +734,8 @@ static void xmit_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 {
 	short int count, rcv_buff;
-	struct tty_struct *tty = icom_port->uart_port.state->port.tty;
+	struct tty_port *port = &icom_port->uart_port.state->port;
+	struct tty_struct *tty = port->tty;
 	unsigned short int status;
 	struct uart_icount *icount;
 	unsigned long offset;
@@ -812,7 +813,7 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 
 		}
 
-		tty_insert_flip_char(tty, *(icom_port->recv_buf + offset + count - 1), flag);
+		tty_insert_flip_char(port, *(icom_port->recv_buf + offset + count - 1), flag);
 
 		if (status & SA_FLAGS_OVERRUN)
 			/*
@@ -820,7 +821,7 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 			 * reported immediately, and doesn't
 			 * affect the current character
 			 */
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			tty_insert_flip_char(port, 0, TTY_OVERRUN);
 ignore_char:
 		icom_port->statStg->rcv[rcv_buff].flags = 0;
 		icom_port->statStg->rcv[rcv_buff].leLength = 0;

@@ -257,8 +257,9 @@ static void __serial_uart_flush(struct uart_port *port)
 
 static void __serial_lpc32xx_rx(struct uart_port *port)
 {
+	struct tty_port *tport = &port->state->port;
 	unsigned int tmp, flag;
-	struct tty_struct *tty = tty_port_tty_get(&port->state->port);
+	struct tty_struct *tty = tty_port_tty_get(tport);
 
 	if (!tty) {
 		/* Discard data: no tty available */
@@ -281,10 +282,10 @@ static void __serial_lpc32xx_rx(struct uart_port *port)
 			       LPC32XX_HSUART_IIR(port->membase));
 			port->icount.frame++;
 			flag = TTY_FRAME;
-			tty_insert_flip_char(tty, 0, TTY_FRAME);
+			tty_insert_flip_char(tport, 0, TTY_FRAME);
 		}
 
-		tty_insert_flip_char(tty, (tmp & 0xFF), flag);
+		tty_insert_flip_char(tport, (tmp & 0xFF), flag);
 
 		tmp = readl(LPC32XX_HSUART_FIFO(port->membase));
 	}
@@ -332,7 +333,8 @@ exit_tx:
 static irqreturn_t serial_lpc32xx_interrupt(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
-	struct tty_struct *tty = tty_port_tty_get(&port->state->port);
+	struct tty_port *port = &port->state->port;
+	struct tty_struct *tty = tty_port_tty_get(tport);
 	u32 status;
 
 	spin_lock(&port->lock);
@@ -356,8 +358,8 @@ static irqreturn_t serial_lpc32xx_interrupt(int irq, void *dev_id)
 		writel(LPC32XX_HSU_RX_OE_INT,
 		       LPC32XX_HSUART_IIR(port->membase));
 		port->icount.overrun++;
+		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 		if (tty) {
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 			tty_schedule_flip(tty);
 		}
 	}

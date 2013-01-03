@@ -332,7 +332,7 @@ void usb_serial_generic_process_read_urb(struct urb *urb)
 	else {
 		for (i = 0; i < urb->actual_length; i++, ch++) {
 			if (!usb_serial_handle_sysrq_char(port, *ch))
-				tty_insert_flip_char(tty, *ch, TTY_NORMAL);
+				tty_insert_flip_char(&port->port, *ch, TTY_NORMAL);
 		}
 	}
 	tty_flip_buffer_push(tty);

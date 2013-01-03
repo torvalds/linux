@@ -46,13 +46,14 @@ typedef union _srmcons_result {
 static int
 srmcons_do_receive_chars(struct tty_struct *tty)
 {
+	struct tty_port *port = tty->port;
 	srmcons_result result;
 	int count = 0, loops = 0;
 
 	do {
 		result.as_long = callback_getc(0);
 		if (result.bits.status < 2) {
-			tty_insert_flip_char(tty, (char)result.bits.c, 0);
+			tty_insert_flip_char(port, (char)result.bits.c, 0);
 			count++;
 		}
 	} while((result.bits.status & 1) && (++loops < 10));

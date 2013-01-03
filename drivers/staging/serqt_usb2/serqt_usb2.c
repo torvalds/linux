@@ -255,12 +255,11 @@ static void ProcessModemStatus(struct quatech_port *qt_port,
 	wake_up_interruptible(&qt_port->wait);
 }
 
-static void ProcessRxChar(struct tty_struct *tty, struct usb_serial_port *port,
-						unsigned char data)
+static void ProcessRxChar(struct usb_serial_port *port, unsigned char data)
 {
 	struct urb *urb = port->read_urb;
 	if (urb->actual_length)
-		tty_insert_flip_char(tty, data, TTY_NORMAL);
+		tty_insert_flip_char(&port->port, data, TTY_NORMAL);
 }
 
 static void qt_write_bulk_callback(struct urb *urb)
@@ -335,8 +334,8 @@ static void qt_status_change_check(struct tty_struct *tty,
 			case 0xff:
 				dev_dbg(&port->dev, "No status sequence.\n");
 
-				ProcessRxChar(tty, port, data[i]);
-				ProcessRxChar(tty, port, data[i + 1]);
+				ProcessRxChar(port, data[i]);
+				ProcessRxChar(port, data[i + 1]);
 
 				i += 2;
 				break;
@@ -345,8 +344,8 @@ static void qt_status_change_check(struct tty_struct *tty,
 				continue;
 		}
 
-		if (tty && urb->actual_length)
-			tty_insert_flip_char(tty, data[i], TTY_NORMAL);
+		if (urb->actual_length)
+			tty_insert_flip_char(&port->port, data[i], TTY_NORMAL);
 
 	}
 	tty_flip_buffer_push(tty);

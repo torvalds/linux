@@ -582,8 +582,7 @@ static void ssu100_update_lsr(struct usb_serial_port *port, u8 lsr,
 
 }
 
-static int ssu100_process_packet(struct urb *urb,
-				 struct tty_struct *tty)
+static int ssu100_process_packet(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	char *packet = (char *)urb->transfer_buffer;
@@ -598,7 +597,8 @@ static int ssu100_process_packet(struct urb *urb,
 		if (packet[2] == 0x00) {
 			ssu100_update_lsr(port, packet[3], &flag);
 			if (flag == TTY_OVERRUN)
-				tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+				tty_insert_flip_char(&port->port, 0,
+						TTY_OVERRUN);
 		}
 		if (packet[2] == 0x01)
 			ssu100_update_msr(port, packet[3]);
@@ -614,7 +614,7 @@ static int ssu100_process_packet(struct urb *urb,
 	if (port->port.console && port->sysrq) {
 		for (i = 0; i < len; i++, ch++) {
 			if (!usb_serial_handle_sysrq_char(port, *ch))
-				tty_insert_flip_char(tty, *ch, flag);
+				tty_insert_flip_char(&port->port, *ch, flag);
 		}
 	} else
 		tty_insert_flip_string_fixed_flag(&port->port, ch, flag, len);
@@ -632,7 +632,7 @@ static void ssu100_process_read_urb(struct urb *urb)
 	if (!tty)
 		return;
 
-	count = ssu100_process_packet(urb, tty);
+	count = ssu100_process_packet(urb);
 
 	if (count)
 		tty_flip_buffer_push(tty);

@@ -305,7 +305,7 @@ static void receive_chars(struct m68k_serial *info, struct tty_struct *tty,
 		else if (rx & URX_FRAME_ERROR)
 			flag = TTY_FRAME;
 
-		tty_insert_flip_char(tty, ch, flag);
+		tty_insert_flip_char(&info->tport, ch, flag);
 #ifndef CONFIG_XCOPILOT_BUGS
 	} while((rx = uart->urx.w) & URX_DATA_READY);
 #endif

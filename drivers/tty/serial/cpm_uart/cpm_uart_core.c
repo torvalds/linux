@@ -303,7 +303,7 @@ static void cpm_uart_int_rx(struct uart_port *port)
 			}
 #endif
 		      error_return:
-			tty_insert_flip_char(tty, ch, flg);
+			tty_insert_flip_char(tport, ch, flg);
 
 		}		/* End while (i--) */
 

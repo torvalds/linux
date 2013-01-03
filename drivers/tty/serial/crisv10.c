@@ -1760,8 +1760,7 @@ add_char_and_flag(struct e100_serial *info, unsigned char data, unsigned char fl
 
 		info->icount.rx++;
 	} else {
-		struct tty_struct *tty = info->port.tty;
-		tty_insert_flip_char(tty, data, flag);
+		tty_insert_flip_char(&info->port, data, flag);
 		info->icount.rx++;
 	}
 
@@ -2338,8 +2337,7 @@ more_data:
 					data_in, data_read);
 				char flag = TTY_NORMAL;
 				if (info->errorcode == ERRCODE_INSERT_BREAK) {
-					struct tty_struct *tty = info->port.tty;
-					tty_insert_flip_char(tty, 0, flag);
+					tty_insert_flip_char(&info->port, 0, flag);
 					info->icount.rx++;
 				}
 
@@ -2353,7 +2351,7 @@ more_data:
 					info->icount.frame++;
 					flag = TTY_FRAME;
 				}
-				tty_insert_flip_char(tty, data, flag);
+				tty_insert_flip_char(&info->port, data, flag);
 				info->errorcode = 0;
 			}
 			info->break_detected_cnt = 0;
@@ -2369,7 +2367,7 @@ more_data:
 			log_int(rdpc(), 0, 0);
 		}
 		);
-		tty_insert_flip_char(tty,
+		tty_insert_flip_char(&info->port,
 			IO_EXTRACT(R_SERIAL0_READ, data_in, data_read),
 			TTY_NORMAL);
 	} else {

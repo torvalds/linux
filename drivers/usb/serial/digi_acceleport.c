@@ -1441,7 +1441,7 @@ static int digi_read_inb_callback(struct urb *urb)
 
 		/* overrun is special, not associated with a char */
 		if (port_status & DIGI_OVERRUN_ERROR)
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
 
 		/* break takes precedence over parity, */
 		/* which takes precedence over framing errors */

@@ -328,9 +328,9 @@ static void receive_chars(struct serial_state *info)
 	     oe = 1;
 	  }
 	}
-	tty_insert_flip_char(tty, ch, flag);
+	tty_insert_flip_char(&info->tport, ch, flag);
 	if (oe == 1)
-		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		tty_insert_flip_char(&info->tport, 0, TTY_OVERRUN);
 	tty_flip_buffer_push(tty);
 out:
 	return;

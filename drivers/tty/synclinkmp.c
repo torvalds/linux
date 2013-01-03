@@ -2131,13 +2131,11 @@ static void isr_rxint(SLMP_INFO * info)
 			/* process break detection if tty control
 			 * is not set to ignore it
 			 */
-			if ( tty ) {
-				if (!(status & info->ignore_status_mask1)) {
-					if (info->read_status_mask1 & BRKD) {
-						tty_insert_flip_char(tty, 0, TTY_BREAK);
-						if (info->port.flags & ASYNC_SAK)
-							do_SAK(tty);
-					}
+			if (!(status & info->ignore_status_mask1)) {
+				if (info->read_status_mask1 & BRKD) {
+					tty_insert_flip_char(&info->port, 0, TTY_BREAK);
+					if (tty && (info->port.flags & ASYNC_SAK))
+						do_SAK(tty);
 				}
 			}
 		}
@@ -2202,26 +2200,22 @@ static void isr_rxrdy(SLMP_INFO * info)
 
 			status &= info->read_status_mask2;
 
-			if ( tty ) {
-				if (status & PE)
-					flag = TTY_PARITY;
-				else if (status & FRME)
-					flag = TTY_FRAME;
-				if (status & OVRN) {
-					/* Overrun is special, since it's
-					 * reported immediately, and doesn't
-					 * affect the current character
-					 */
-					over = true;
-				}
+			if (status & PE)
+				flag = TTY_PARITY;
+			else if (status & FRME)
+				flag = TTY_FRAME;
+			if (status & OVRN) {
+				/* Overrun is special, since it's
+				 * reported immediately, and doesn't
+				 * affect the current character
+				 */
+				over = true;
 			}
 		}	/* end of if (error) */
 
-		if ( tty ) {
-			tty_insert_flip_char(tty, DataByte, flag);
-			if (over)
-				tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-		}
+		tty_insert_flip_char(&info->port, DataByte, flag);
+		if (over)
+			tty_insert_flip_char(&info->port, 0, TTY_OVERRUN);
 	}
 
 	if ( debug_level >= DEBUG_LEVEL_ISR ) {

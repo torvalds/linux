@@ -457,6 +457,7 @@ static int sn_debug_printf(const char *fmt, ...)
 static void
 sn_receive_chars(struct sn_cons_port *port, unsigned long flags)
 {
+	struct tty_port *tport = NULL;
 	int ch;
 	struct tty_struct *tty;
 
@@ -472,7 +473,8 @@ sn_receive_chars(struct sn_cons_port *port, unsigned long flags)
 
 	if (port->sc_port.state) {
 		/* The serial_core stuffs are initialized, use them */
-		tty = port->sc_port.state->port.tty;
+		tport = &port->sc_port.state->port;
+		tty = tport->tty;
 	}
 	else {
 		/* Not registered yet - can't pass to tty layer.  */
@@ -517,7 +519,7 @@ sn_receive_chars(struct sn_cons_port *port, unsigned long flags)
 
 		/* record the character to pass up to the tty layer */
 		if (tty) {
-			if(tty_insert_flip_char(tty, ch, TTY_NORMAL) == 0)
+			if (tty_insert_flip_char(tport, ch, TTY_NORMAL) == 0)
 				break;
 		}
 		port->sc_port.icount.rx++;

@@ -229,6 +229,7 @@ static void pmz_interrupt_control(struct uart_pmac_port *uap, int enable)
 
 static struct tty_struct *pmz_receive_chars(struct uart_pmac_port *uap)
 {
+	struct tty_port *port;
 	struct tty_struct *tty = NULL;
 	unsigned char ch, r1, drop, error, flag;
 	int loops = 0;
@@ -239,7 +240,8 @@ static struct tty_struct *pmz_receive_chars(struct uart_pmac_port *uap)
 		(void)read_zsdata(uap);
 		return NULL;
 	}
-	tty = uap->port.state->port.tty;
+	port = &uap->port.state->port;
+	tty = port->tty; /* TOCTOU above */
 
 	while (1) {
 		error = 0;
@@ -309,10 +311,10 @@ static struct tty_struct *pmz_receive_chars(struct uart_pmac_port *uap)
 
 		if (uap->port.ignore_status_mask == 0xff ||
 		    (r1 & uap->port.ignore_status_mask) == 0) {
-			tty_insert_flip_char(tty, ch, flag);
+			tty_insert_flip_char(port, ch, flag);
 		}
 		if (r1 & Rx_OVR)
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			tty_insert_flip_char(port, 0, TTY_OVERRUN);
 	next_char:
 		/* We can get stuck in an infinite loop getting char 0 when the
 		 * line is in a wrong HW state, we break that here.

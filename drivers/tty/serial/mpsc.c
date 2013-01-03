@@ -1040,10 +1040,10 @@ static int mpsc_rx_intr(struct mpsc_port_info *pi)
 						| SDMA_DESC_CMDSTAT_FR
 						| SDMA_DESC_CMDSTAT_OR)))
 				&& !(cmdstat & pi->port.ignore_status_mask)) {
-			tty_insert_flip_char(tty, *bp, flag);
+			tty_insert_flip_char(port, *bp, flag);
 		} else {
 			for (i=0; i<bytes_in; i++)
-				tty_insert_flip_char(tty, *bp++, TTY_NORMAL);
+				tty_insert_flip_char(port, *bp++, TTY_NORMAL);
 
 			pi->port.icount.rx += bytes_in;
 		}

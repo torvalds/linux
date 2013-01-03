@@ -908,6 +908,7 @@ static void msm_hs_dmov_rx_callback(struct msm_dmov_cmd *cmd_ptr,
 	unsigned long flags;
 	unsigned int flush;
 	struct tty_struct *tty;
+	struct tty_port *port;
 	struct uart_port *uport;
 	struct msm_hs_port *msm_uport;
 
@@ -917,7 +918,8 @@ static void msm_hs_dmov_rx_callback(struct msm_dmov_cmd *cmd_ptr,
 	spin_lock_irqsave(&uport->lock, flags);
 	clk_enable(msm_uport->clk);
 
-	tty = uport->state->port.tty;
+	port = &uport->state->port;
+	tty = port->tty;
 
 	msm_hs_write(uport, UARTDM_CR_ADDR, STALE_EVENT_DISABLE);
 
@@ -926,7 +928,7 @@ static void msm_hs_dmov_rx_callback(struct msm_dmov_cmd *cmd_ptr,
 	/* overflow is not connect to data in a FIFO */
 	if (unlikely((status & UARTDM_SR_OVERRUN_BMSK) &&
 		     (uport->read_status_mask & CREAD))) {
-		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		tty_insert_flip_char(port, 0, TTY_OVERRUN);
 		uport->icount.buf_overrun++;
 		error_f = 1;
 	}
@@ -939,7 +941,7 @@ static void msm_hs_dmov_rx_callback(struct msm_dmov_cmd *cmd_ptr,
 		uport->icount.parity++;
 		error_f = 1;
 		if (uport->ignore_status_mask & IGNPAR)
-			tty_insert_flip_char(tty, 0, TTY_PARITY);
+			tty_insert_flip_char(port, 0, TTY_PARITY);
 	}
 
 	if (error_f)
@@ -1344,7 +1346,6 @@ static irqreturn_t msm_hs_rx_wakeup_isr(int irq, void *dev)
 	unsigned long flags;
 	struct msm_hs_port *msm_uport = dev;
 	struct uart_port *uport = &msm_uport->uport;
-	struct tty_struct *tty = NULL;
 
 	spin_lock_irqsave(&uport->lock, flags);
 	if (msm_uport->clk_state == MSM_HS_CLK_OFF) {
@@ -1361,8 +1362,7 @@ static irqreturn_t msm_hs_rx_wakeup_isr(int irq, void *dev)
 		 * optionally inject char into tty rx */
 		msm_hs_request_clock_on_locked(uport);
 		if (msm_uport->rx_wakeup.inject_rx) {
-			tty = uport->state->port.tty;
-			tty_insert_flip_char(tty,
+			tty_insert_flip_char(&uport->state->port,
 					     msm_uport->rx_wakeup.rx_to_inject,
 					     TTY_NORMAL);
 			queue_work(msm_hs_workqueue, &msm_uport->rx.tty_work);

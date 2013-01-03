@@ -309,8 +309,8 @@ static void put_queue(struct vc_data *vc, int ch)
 {
 	struct tty_struct *tty = vc->port.tty;
 
+	tty_insert_flip_char(&vc->port, ch, 0);
 	if (tty) {
-		tty_insert_flip_char(tty, ch, 0);
 		tty_schedule_flip(tty);
 	}
 }
@@ -323,7 +323,7 @@ static void puts_queue(struct vc_data *vc, char *cp)
 		return;
 
 	while (*cp) {
-		tty_insert_flip_char(tty, *cp, 0);
+		tty_insert_flip_char(&vc->port, *cp, 0);
 		cp++;
 	}
 	tty_schedule_flip(tty);
@@ -586,7 +586,7 @@ static void fn_send_intr(struct vc_data *vc)
 
 	if (!tty)
 		return;
-	tty_insert_flip_char(tty, 0, TTY_BREAK);
+	tty_insert_flip_char(&vc->port, 0, TTY_BREAK);
 	tty_schedule_flip(tty);
 }
 

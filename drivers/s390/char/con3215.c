@@ -411,7 +411,8 @@ static void raw3215_irq(struct ccw_device *cdev, unsigned long intparm,
 				break;
 
 			case CTRLCHAR_CTRL:
-				tty_insert_flip_char(tty, cchar, TTY_NORMAL);
+				tty_insert_flip_char(&raw->port, cchar,
+						TTY_NORMAL);
 				tty_flip_buffer_push(tty);
 				break;
 

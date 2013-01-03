@@ -12,16 +12,16 @@ extern int tty_prepare_flip_string_flags(struct tty_port *port,
 		unsigned char **chars, char **flags, size_t size);
 void tty_schedule_flip(struct tty_struct *tty);
 
-static inline int tty_insert_flip_char(struct tty_struct *tty,
+static inline int tty_insert_flip_char(struct tty_port *port,
 					unsigned char ch, char flag)
 {
-	struct tty_buffer *tb = tty->port->buf.tail;
+	struct tty_buffer *tb = port->buf.tail;
 	if (tb && tb->used < tb->size) {
 		tb->flag_buf_ptr[tb->used] = flag;
 		tb->char_buf_ptr[tb->used++] = ch;
 		return 1;
 	}
-	return tty_insert_flip_string_flags(tty->port, &ch, &flag, 1);
+	return tty_insert_flip_string_flags(port, &ch, &flag, 1);
 }
 
 static inline int tty_insert_flip_string(struct tty_struct *tty, const unsigned char *chars, size_t size)

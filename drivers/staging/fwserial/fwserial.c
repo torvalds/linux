@@ -617,7 +617,7 @@ static int fwtty_rx(struct fwtty_port *port, unsigned char *data, size_t len)
 
 	lsr &= port->status_mask;
 	if (lsr & ~port->ignore_mask & UART_LSR_OE) {
-		if (!tty_insert_flip_char(tty, 0, TTY_OVERRUN)) {
+		if (!tty_insert_flip_char(&port->port, 0, TTY_OVERRUN)) {
 			err = -EIO;
 			goto out;
 		}

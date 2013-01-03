@@ -216,7 +216,7 @@ static void kgdb_nmi_tty_receiver(unsigned long data)
 		return;
 
 	while (kfifo_out(&priv->fifo, &ch, 1))
-		tty_insert_flip_char(priv->port.tty, ch, TTY_NORMAL);
+		tty_insert_flip_char(&priv->port, ch, TTY_NORMAL);
 	tty_flip_buffer_push(priv->port.tty);
 
 	tty_kref_put(tty);

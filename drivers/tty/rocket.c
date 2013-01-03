@@ -379,7 +379,8 @@ static void rp_do_receive(struct r_port *info,
 				flag = TTY_OVERRUN;
 			else
 				flag = TTY_NORMAL;
-			tty_insert_flip_char(tty, CharNStat & 0xff, flag);
+			tty_insert_flip_char(&info->port, CharNStat & 0xff,
+					flag);
 			ToRecv--;
 		}
 

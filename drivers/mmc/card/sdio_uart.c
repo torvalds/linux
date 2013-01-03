@@ -419,7 +419,7 @@ static void sdio_uart_receive_chars(struct sdio_uart_port *port,
 
 		if ((*status & port->ignore_status_mask & ~UART_LSR_OE) == 0)
 			if (tty)
-				tty_insert_flip_char(tty, ch, flag);
+				tty_insert_flip_char(&port->port, ch, flag);
 
 		/*
 		 * Overrun is special.  Since it's reported immediately,
@@ -427,7 +427,8 @@ static void sdio_uart_receive_chars(struct sdio_uart_port *port,
 		 */
 		if (*status & ~port->ignore_status_mask & UART_LSR_OE)
 			if (tty)
-				tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+				tty_insert_flip_char(&port->port, 0,
+						TTY_OVERRUN);
 
 		*status = sdio_in(port, UART_LSR);
 	} while ((*status & UART_LSR_DR) && (max_count-- > 0));

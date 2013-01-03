@@ -136,7 +136,8 @@ static void vt8500_enable_ms(struct uart_port *port)
 
 static void handle_rx(struct uart_port *port)
 {
-	struct tty_struct *tty = tty_port_tty_get(&port->state->port);
+	struct tty_port *tport = &port->state->port;
+	struct tty_struct *tty = tty_port_tty_get(tport);
 	if (!tty) {
 		/* Discard data: no tty available */
 		int count = (vt8500_read(port, VT8500_URFIDX) & 0x1f00) >> 8;
@@ -151,7 +152,7 @@ static void handle_rx(struct uart_port *port)
 	 */
 	if ((vt8500_read(port, VT8500_URISR) & RXOVER)) {
 		port->icount.overrun++;
-		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 	}
 
 	/* and now the main RX loop */
@@ -174,7 +175,7 @@ static void handle_rx(struct uart_port *port)
 		port->icount.rx++;
 
 		if (!uart_handle_sysrq_char(port, c))
-			tty_insert_flip_char(tty, c, flag);
+			tty_insert_flip_char(tport, c, flag);
 	}
 
 	tty_flip_buffer_push(tty);

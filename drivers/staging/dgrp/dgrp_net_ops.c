@@ -2957,7 +2957,7 @@ check_query:
 			    !(I_IGNBRK(ch->ch_tun.un_tty))) {
 
 				tty_buffer_request_room(&ch->port, 1);
-				tty_insert_flip_char(ch->ch_tun.un_tty, 0, TTY_BREAK);
+				tty_insert_flip_char(&ch->port, 0, TTY_BREAK);
 				tty_flip_buffer_push(ch->ch_tun.un_tty);
 
 			}

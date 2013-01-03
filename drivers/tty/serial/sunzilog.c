@@ -327,13 +327,15 @@ static struct tty_struct *
 sunzilog_receive_chars(struct uart_sunzilog_port *up,
 		       struct zilog_channel __iomem *channel)
 {
+	struct tty_port *port = NULL;
 	struct tty_struct *tty;
 	unsigned char ch, r1, flag;
 
 	tty = NULL;
-	if (up->port.state != NULL &&		/* Unopened serial console */
-	    up->port.state->port.tty != NULL)	/* Keyboard || mouse */
-		tty = up->port.state->port.tty;
+	if (up->port.state != NULL) {		/* Unopened serial console */
+		port = &up->port.state->port;
+		tty = port->tty;		/* mouse => tty is NULL */
+	}
 
 	for (;;) {
 
@@ -366,11 +368,6 @@ sunzilog_receive_chars(struct uart_sunzilog_port *up,
 			continue;
 		}
 
-		if (tty == NULL) {
-			uart_handle_sysrq_char(&up->port, ch);
-			continue;
-		}
-
 		/* A real serial line, record the character and status.  */
 		flag = TTY_NORMAL;
 		up->port.icount.rx++;
@@ -400,10 +397,10 @@ sunzilog_receive_chars(struct uart_sunzilog_port *up,
 
 		if (up->port.ignore_status_mask == 0xff ||
 		    (r1 & up->port.ignore_status_mask) == 0) {
-		    	tty_insert_flip_char(tty, ch, flag);
+		    	tty_insert_flip_char(port, ch, flag);
 		}
 		if (r1 & Rx_OVR)
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			tty_insert_flip_char(port, 0, TTY_OVERRUN);
 	}
 
 	return tty;

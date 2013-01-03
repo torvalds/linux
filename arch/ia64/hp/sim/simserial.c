@@ -55,6 +55,7 @@ static struct console *console;
 
 static void receive_chars(struct tty_struct *tty)
 {
+	struct tty_port *port = tty->port;
 	unsigned char ch;
 	static unsigned char seen_esc = 0;
 
@@ -81,7 +82,7 @@ static void receive_chars(struct tty_struct *tty)
 		}
 		seen_esc = 0;
 
-		if (tty_insert_flip_char(tty, ch, TTY_NORMAL) == 0)
+		if (tty_insert_flip_char(port, ch, TTY_NORMAL) == 0)
 			break;
 	}
 	tty_flip_buffer_push(tty);

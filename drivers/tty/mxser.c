@@ -2079,7 +2079,7 @@ static void mxser_receive_chars(struct tty_struct *tty,
 		}
 		while (gdl--) {
 			ch = inb(port->ioaddr + UART_RX);
-			tty_insert_flip_char(tty, ch, 0);
+			tty_insert_flip_char(&port->port, ch, 0);
 			cnt++;
 		}
 		goto end_intr;
@@ -2118,7 +2118,7 @@ intr_old:
 				} else
 					flag = TTY_BREAK;
 			}
-			tty_insert_flip_char(tty, ch, flag);
+			tty_insert_flip_char(&port->port, ch, flag);
 			cnt++;
 			if (cnt >= recv_room) {
 				if (!port->ldisc_stop_rx)

@@ -672,7 +672,7 @@ int hvc_poll(struct hvc_struct *hp)
 				}
 			}
 #endif /* CONFIG_MAGIC_SYSRQ */
-			tty_insert_flip_char(tty, buf[i], 0);
+			tty_insert_flip_char(&hp->port, buf[i], 0);
 		}
 
 		read_total += n;

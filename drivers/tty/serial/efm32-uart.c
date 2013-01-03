@@ -194,8 +194,7 @@ static void efm32_uart_break_ctl(struct uart_port *port, int ctl)
 	/* not possible without fiddling with gpios */
 }
 
-static void efm32_uart_rx_chars(struct efm32_uart_port *efm_port,
-		struct tty_struct *tty)
+static void efm32_uart_rx_chars(struct efm32_uart_port *efm_port)
 {
 	struct uart_port *port = &efm_port->port;
 
@@ -237,8 +236,8 @@ static void efm32_uart_rx_chars(struct efm32_uart_port *efm_port,
 					rxdata & UARTn_RXDATAX_RXDATA__MASK))
 			continue;
 
-		if (tty && (rxdata & port->ignore_status_mask) == 0)
-			tty_insert_flip_char(tty,
+		if ((rxdata & port->ignore_status_mask) == 0)
+			tty_insert_flip_char(&port->state->port,
 					rxdata & UARTn_RXDATAX_RXDATA__MASK, flag);
 	}
 }
@@ -249,15 +248,16 @@ static irqreturn_t efm32_uart_rxirq(int irq, void *data)
 	u32 irqflag = efm32_uart_read32(efm_port, UARTn_IF);
 	int handled = IRQ_NONE;
 	struct uart_port *port = &efm_port->port;
+	struct tty_port *tport = &port->state->port;
 	struct tty_struct *tty;
 
 	spin_lock(&port->lock);
 
-	tty = tty_kref_get(port->state->port.tty);
+	tty = tty_kref_get(tport->tty);
 
 	if (irqflag & UARTn_IF_RXDATAV) {
 		efm32_uart_write32(efm_port, UARTn_IF_RXDATAV, UARTn_IFC);
-		efm32_uart_rx_chars(efm_port, tty);
+		efm32_uart_rx_chars(efm_port);
 
 		handled = IRQ_HANDLED;
 	}
@@ -265,8 +265,7 @@ static irqreturn_t efm32_uart_rxirq(int irq, void *data)
 	if (irqflag & UARTn_IF_RXOF) {
 		efm32_uart_write32(efm_port, UARTn_IF_RXOF, UARTn_IFC);
 		port->icount.overrun++;
-		if (tty)
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 
 		handled = IRQ_HANDLED;
 	}

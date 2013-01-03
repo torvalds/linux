@@ -945,7 +945,7 @@ static void rx_ready_async(MGSLPC_INFO *info, int tcd, struct tty_struct *tty)
 			else if (status & BIT6)
 				flag = TTY_FRAME;
 		}
-		work += tty_insert_flip_char(tty, data, flag);
+		work += tty_insert_flip_char(port, data, flag);
 	}
 	issue_command(info, CHA, CMD_RXFIFO);
 

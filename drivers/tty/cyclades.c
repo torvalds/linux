@@ -492,34 +492,34 @@ static void cyy_chip_rx(struct cyclades_card *cinfo, int chip,
 		if (tty_buffer_request_room(port, 1)) {
 			if (data & info->read_status_mask) {
 				if (data & CyBREAK) {
-					tty_insert_flip_char(tty,
+					tty_insert_flip_char(port,
 						cyy_readb(info, CyRDSR),
 						TTY_BREAK);
 					info->icount.rx++;
 					if (port->flags & ASYNC_SAK)
 						do_SAK(tty);
 				} else if (data & CyFRAME) {
-					tty_insert_flip_char(tty,
+					tty_insert_flip_char(port,
 						cyy_readb(info, CyRDSR),
 						TTY_FRAME);
 					info->icount.rx++;
 					info->idle_stats.frame_errs++;
 				} else if (data & CyPARITY) {
 					/* Pieces of seven... */
-					tty_insert_flip_char(tty,
+					tty_insert_flip_char(port,
 						cyy_readb(info, CyRDSR),
 						TTY_PARITY);
 					info->icount.rx++;
 					info->idle_stats.parity_errs++;
 				} else if (data & CyOVERRUN) {
-					tty_insert_flip_char(tty, 0,
+					tty_insert_flip_char(port, 0,
 							TTY_OVERRUN);
 					info->icount.rx++;
 					/* If the flip buffer itself is
 					   overflowing, we still lose
 					   the next incoming character.
 					 */
-					tty_insert_flip_char(tty,
+					tty_insert_flip_char(port,
 						cyy_readb(info, CyRDSR),
 						TTY_FRAME);
 					info->icount.rx++;
@@ -529,12 +529,12 @@ static void cyy_chip_rx(struct cyclades_card *cinfo, int chip,
 				/* } else if(data & CyTIMEOUT) { */
 				/* } else if(data & CySPECHAR) { */
 				} else {
-					tty_insert_flip_char(tty, 0,
+					tty_insert_flip_char(port, 0,
 							TTY_NORMAL);
 					info->icount.rx++;
 				}
 			} else {
-				tty_insert_flip_char(tty, 0, TTY_NORMAL);
+				tty_insert_flip_char(port, 0, TTY_NORMAL);
 				info->icount.rx++;
 			}
 		} else {
@@ -557,7 +557,7 @@ static void cyy_chip_rx(struct cyclades_card *cinfo, int chip,
 		len = tty_buffer_request_room(port, char_count);
 		while (len--) {
 			data = cyy_readb(info, CyRDSR);
-			tty_insert_flip_char(tty, data, TTY_NORMAL);
+			tty_insert_flip_char(port, data, TTY_NORMAL);
 			info->idle_stats.recv_bytes++;
 			info->icount.rx++;
 #ifdef CY_16Y_HACK
@@ -992,7 +992,7 @@ static void cyz_handle_rx(struct cyclades_port *info, struct tty_struct *tty)
 						new_rx_get);
 				new_rx_get = (new_rx_get + 1) &
 							(rx_bufsize - 1);
-				tty_insert_flip_char(tty, data, TTY_NORMAL);
+				tty_insert_flip_char(port, data, TTY_NORMAL);
 				info->idle_stats.recv_bytes++;
 				info->icount.rx++;
 			}
@@ -1117,17 +1117,17 @@ static void cyz_handle_cmd(struct cyclades_card *cinfo)
 
 		switch (cmd) {
 		case C_CM_PR_ERROR:
-			tty_insert_flip_char(tty, 0, TTY_PARITY);
+			tty_insert_flip_char(&info->port, 0, TTY_PARITY);
 			info->icount.rx++;
 			special_count++;
 			break;
 		case C_CM_FR_ERROR:
-			tty_insert_flip_char(tty, 0, TTY_FRAME);
+			tty_insert_flip_char(&info->port, 0, TTY_FRAME);
 			info->icount.rx++;
 			special_count++;
 			break;
 		case C_CM_RXBRK:
-			tty_insert_flip_char(tty, 0, TTY_BREAK);
+			tty_insert_flip_char(&info->port, 0, TTY_BREAK);
 			info->icount.rx++;
 			special_count++;
 			break;

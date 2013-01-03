@@ -1507,13 +1507,13 @@ static void mgsl_isr_receive_data( struct mgsl_struct *info )
 			else if (status & RXSTATUS_FRAMING_ERROR)
 				flag = TTY_FRAME;
 		}	/* end of if (error) */
-		tty_insert_flip_char(tty, DataByte, flag);
+		tty_insert_flip_char(&info->port, DataByte, flag);
 		if (status & RXSTATUS_OVERRUN) {
 			/* Overrun is special, since it's
 			 * reported immediately, and doesn't
 			 * affect the current character
 			 */
-			work += tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			work += tty_insert_flip_char(&info->port, 0, TTY_OVERRUN);
 		}
 	}
 

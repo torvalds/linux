@@ -318,7 +318,8 @@ static void sunsu_enable_ms(struct uart_port *port)
 static struct tty_struct *
 receive_chars(struct uart_sunsu_port *up, unsigned char *status)
 {
-	struct tty_struct *tty = up->port.state->port.tty;
+	struct tty_port *port = &up->port.state->port;
+	struct tty_struct *tty = port->tty;
 	unsigned char ch, flag;
 	int max_count = 256;
 	int saw_console_brk = 0;
@@ -376,14 +377,14 @@ receive_chars(struct uart_sunsu_port *up, unsigned char *status)
 		if (uart_handle_sysrq_char(&up->port, ch))
 			goto ignore_char;
 		if ((*status & up->port.ignore_status_mask) == 0)
-			tty_insert_flip_char(tty, ch, flag);
+			tty_insert_flip_char(port, ch, flag);
 		if (*status & UART_LSR_OE)
 			/*
 			 * Overrun is special, since it's reported
 			 * immediately, and doesn't affect the current
 			 * character.
 			 */
-			 tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			 tty_insert_flip_char(port, 0, TTY_OVERRUN);
 	ignore_char:
 		*status = serial_inp(up, UART_LSR);
 	} while ((*status & UART_LSR_DR) && (max_count-- > 0));

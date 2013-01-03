@@ -1336,7 +1336,7 @@ static void csi_m(struct vc_data *vc)
 static void respond_string(const char *p, struct tty_struct *tty)
 {
 	while (*p) {
-		tty_insert_flip_char(tty, *p, 0);
+		tty_insert_flip_char(tty->port, *p, 0);
 		p++;
 	}
 	tty_schedule_flip(tty);

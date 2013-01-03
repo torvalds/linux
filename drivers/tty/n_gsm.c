@@ -1070,9 +1070,9 @@ static void gsm_process_modem(struct tty_struct *tty, struct gsm_dlci *dlci,
 		if ((mlines & TIOCM_CD) == 0 && (dlci->modem_rx & TIOCM_CD))
 			if (!(tty->termios.c_cflag & CLOCAL))
 				tty_hangup(tty);
-		if (brk & 0x01)
-			tty_insert_flip_char(tty, 0, TTY_BREAK);
 	}
+	if (brk & 0x01)
+		tty_insert_flip_char(&dlci->port, 0, TTY_BREAK);
 	dlci->modem_rx = mlines;
 }
 
@@ -1140,6 +1140,7 @@ static void gsm_control_modem(struct gsm_mux *gsm, u8 *data, int clen)
 
 static void gsm_control_rls(struct gsm_mux *gsm, u8 *data, int clen)
 {
+	struct tty_port *port;
 	struct tty_struct *tty;
 	unsigned int addr = 0 ;
 	u8 bits;
@@ -1163,16 +1164,19 @@ static void gsm_control_rls(struct gsm_mux *gsm, u8 *data, int clen)
 	bits = *dp;
 	if ((bits & 1) == 0)
 		return;
-	/* See if we have an uplink tty */
-	tty = tty_port_tty_get(&gsm->dlci[addr]->port);
 
+	port = &gsm->dlci[addr]->port;
+
+	if (bits & 2)
+		tty_insert_flip_char(port, 0, TTY_OVERRUN);
+	if (bits & 4)
+		tty_insert_flip_char(port, 0, TTY_PARITY);
+	if (bits & 8)
+		tty_insert_flip_char(port, 0, TTY_FRAME);
+
+	/* See if we have an uplink tty */
+	tty = tty_port_tty_get(port);
 	if (tty) {
-		if (bits & 2)
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-		if (bits & 4)
-			tty_insert_flip_char(tty, 0, TTY_PARITY);
-		if (bits & 8)
-			tty_insert_flip_char(tty, 0, TTY_FRAME);
 		tty_flip_buffer_push(tty);
 		tty_kref_put(tty);
 	}

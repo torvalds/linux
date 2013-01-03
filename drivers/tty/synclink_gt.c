@@ -1893,10 +1893,8 @@ static void rx_async(struct slgt_info *info)
 				else if (status & BIT0)
 					stat = TTY_FRAME;
 			}
-			if (tty) {
-				tty_insert_flip_char(tty, ch, stat);
-				chars++;
-			}
+			tty_insert_flip_char(&info->port, ch, stat);
+			chars++;
 		}
 
 		if (i < count) {
@@ -2182,7 +2180,7 @@ static void isr_serial(struct slgt_info *info)
 			if (info->port.tty) {
 				if (!(status & info->ignore_status_mask)) {
 					if (info->read_status_mask & MASK_BREAK) {
-						tty_insert_flip_char(info->port.tty, 0, TTY_BREAK);
+						tty_insert_flip_char(&info->port, 0, TTY_BREAK);
 						if (info->port.flags & ASYNC_SAK)
 							do_SAK(info->port.tty);
 					}

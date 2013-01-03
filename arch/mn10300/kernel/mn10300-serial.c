@@ -667,14 +667,14 @@ insert:
 		else
 			flag = TTY_NORMAL;
 
-		tty_insert_flip_char(tty, ch, flag);
+		tty_insert_flip_char(port, ch, flag);
 	}
 
 	/* overrun is special, since it's reported immediately, and doesn't
 	 * affect the current character
 	 */
 	if (overrun)
-		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		tty_insert_flip_char(port, 0, TTY_OVERRUN);
 
 	count--;
 	if (count <= 0) {

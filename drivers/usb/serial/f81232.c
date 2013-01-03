@@ -133,12 +133,13 @@ static void f81232_process_read_urb(struct urb *urb)
 
 	/* overrun is special, not associated with a char */
 	if (line_status & UART_OVERRUN_ERROR)
-		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
 
 	if (port->port.console && port->sysrq) {
 		for (i = 0; i < urb->actual_length; ++i)
 			if (!usb_serial_handle_sysrq_char(port, data[i]))
-				tty_insert_flip_char(tty, data[i], tty_flag);
+				tty_insert_flip_char(&port->port, data[i],
+						tty_flag);
 	} else {
 		tty_insert_flip_string_fixed_flag(&port->port, data, tty_flag,
 							urb->actual_length);

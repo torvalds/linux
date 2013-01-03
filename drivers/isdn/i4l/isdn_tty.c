@@ -92,11 +92,11 @@ isdn_tty_try_read(modem_info *info, struct sk_buff *skb)
 		unsigned char *dp = skb->data;
 		while (--l) {
 			if (*dp == DLE)
-				tty_insert_flip_char(tty, DLE, 0);
-			tty_insert_flip_char(tty, *dp++, 0);
+				tty_insert_flip_char(port, DLE, 0);
+			tty_insert_flip_char(port, *dp++, 0);
 		}
 		if (*dp == DLE)
-			tty_insert_flip_char(tty, DLE, 0);
+			tty_insert_flip_char(port, DLE, 0);
 		last = *dp;
 	} else {
 #endif
@@ -107,9 +107,9 @@ isdn_tty_try_read(modem_info *info, struct sk_buff *skb)
 	}
 #endif
 	if (info->emu.mdmreg[REG_CPPP] & BIT_CPPP)
-		tty_insert_flip_char(tty, last, 0xFF);
+		tty_insert_flip_char(port, last, 0xFF);
 	else
-		tty_insert_flip_char(tty, last, TTY_NORMAL);
+		tty_insert_flip_char(port, last, TTY_NORMAL);
 	tty_flip_buffer_push(tty);
 	kfree_skb(skb);
 
@@ -2287,7 +2287,7 @@ isdn_tty_at_cout(char *msg, modem_info *info)
 		if (skb) {
 			*sp++ = c;
 		} else {
-			if (tty_insert_flip_char(tty, c, TTY_NORMAL) == 0)
+			if (tty_insert_flip_char(port, c, TTY_NORMAL) == 0)
 				break;
 		}
 	}

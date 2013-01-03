@@ -276,7 +276,7 @@ static void belkin_sa_process_read_urb(struct urb *urb)
 
 		/* Overrun is special, not associated with a char. */
 		if (status & BELKIN_SA_LSR_OE)
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
 	}
 
 	tty_insert_flip_string_fixed_flag(&port->port, data, tty_flag,

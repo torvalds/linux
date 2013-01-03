@@ -162,7 +162,8 @@ lqasc_enable_ms(struct uart_port *port)
 static int
 lqasc_rx_chars(struct uart_port *port)
 {
-	struct tty_struct *tty = tty_port_tty_get(&port->state->port);
+	struct tty_port *tport = &port->state->port;
+	struct tty_struct *tty = tty_port_tty_get(tport);
 	unsigned int ch = 0, rsr = 0, fifocnt;
 
 	if (!tty) {
@@ -208,7 +209,7 @@ lqasc_rx_chars(struct uart_port *port)
 		}
 
 		if ((rsr & port->ignore_status_mask) == 0)
-			tty_insert_flip_char(tty, ch, flag);
+			tty_insert_flip_char(tport, ch, flag);
 
 		if (rsr & ASCSTATE_ROE)
 			/*
@@ -216,7 +217,7 @@ lqasc_rx_chars(struct uart_port *port)
 			 * immediately, and doesn't affect the current
 			 * character
 			 */
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 	}
 	if (ch != 0)
 		tty_flip_buffer_push(tty);

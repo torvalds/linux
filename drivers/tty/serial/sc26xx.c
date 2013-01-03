@@ -138,14 +138,18 @@ static void sc26xx_disable_irq(struct uart_port *port, int mask)
 
 static struct tty_struct *receive_chars(struct uart_port *port)
 {
+	struct tty_port *tport = NULL;
 	struct tty_struct *tty = NULL;
 	int limit = 10000;
 	unsigned char ch;
 	char flag;
 	u8 status;
 
-	if (port->state != NULL)		/* Unopened serial console */
-		tty = port->state->port.tty;
+	/* FIXME what is this trying to achieve? */
+	if (port->state != NULL) {		/* Unopened serial console */
+		tport = &port->state->port;
+		tty = tport->tty;
+	}
 
 	while (limit-- > 0) {
 		status = READ_SC_PORT(port, SR);
@@ -185,7 +189,7 @@ static struct tty_struct *receive_chars(struct uart_port *port)
 		if (status & port->ignore_status_mask)
 			continue;
 
-		tty_insert_flip_char(tty, ch, flag);
+		tty_insert_flip_char(tport, ch, flag);
 	}
 	return tty;
 }

@@ -2792,10 +2792,10 @@ EXPORT_SYMBOL_GPL(uart_handle_cts_change);
 void uart_insert_char(struct uart_port *port, unsigned int status,
 		 unsigned int overrun, unsigned int ch, unsigned int flag)
 {
-	struct tty_struct *tty = port->state->port.tty;
+	struct tty_port *tport = &port->state->port;
 
 	if ((status & port->ignore_status_mask & ~overrun) == 0)
-		if (tty_insert_flip_char(tty, ch, flag) == 0)
+		if (tty_insert_flip_char(tport, ch, flag) == 0)
 			++port->icount.buf_overrun;
 
 	/*
@@ -2803,7 +2803,7 @@ void uart_insert_char(struct uart_port *port, unsigned int status,
 	 * it doesn't affect the current character.
 	 */
 	if (status & ~port->ignore_status_mask & overrun)
-		if (tty_insert_flip_char(tty, 0, TTY_OVERRUN) == 0)
+		if (tty_insert_flip_char(tport, 0, TTY_OVERRUN) == 0)
 			++port->icount.buf_overrun;
 }
 EXPORT_SYMBOL_GPL(uart_insert_char);
