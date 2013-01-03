@@ -1149,11 +1149,6 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 	if (ret < 0)
 		return ret;
 
-	ret = devm_regulator_bulk_get(icd->pdev, icl->num_regulators,
-				      icl->regulators);
-	if (ret < 0)
-		goto ereg;
-
 	/* The camera could have been already on, try to reset */
 	if (icl->reset)
 		icl->reset(icd->pdev);
@@ -1260,7 +1255,6 @@ evdc:
 	ici->ops->remove(icd);
 	mutex_unlock(&ici->host_lock);
 eadd:
-ereg:
 	v4l2_ctrl_handler_free(&icd->ctrl_handler);
 	return ret;
 }
@@ -1549,6 +1543,7 @@ static int __devinit soc_camera_pdrv_probe(struct platform_device *pdev)
 {
 	struct soc_camera_link *icl = pdev->dev.platform_data;
 	struct soc_camera_device *icd;
+	int ret;
 
 	if (!icl)
 		return -EINVAL;
@@ -1556,6 +1551,11 @@ static int __devinit soc_camera_pdrv_probe(struct platform_device *pdev)
 	icd = devm_kzalloc(&pdev->dev, sizeof(*icd), GFP_KERNEL);
 	if (!icd)
 		return -ENOMEM;
+
+	ret = devm_regulator_bulk_get(&pdev->dev, icl->num_regulators,
+				      icl->regulators);
+	if (ret < 0)
+		return ret;
 
 	icd->iface = icl->bus_id;
 	icd->link = icl;
