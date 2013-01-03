@@ -969,6 +969,16 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 					priv->adapter->config_bands);
 		mwifiex_fill_cap_info(priv, radio_type, ht_cap);
 
+		if (adapter->sec_chan_offset ==
+					IEEE80211_HT_PARAM_CHA_SEC_NONE) {
+			u16 tmp_ht_cap;
+
+			tmp_ht_cap = le16_to_cpu(ht_cap->ht_cap.cap_info);
+			tmp_ht_cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+			tmp_ht_cap &= ~IEEE80211_HT_CAP_SGI_40;
+			ht_cap->ht_cap.cap_info = cpu_to_le16(tmp_ht_cap);
+		}
+
 		pos += sizeof(struct mwifiex_ie_types_htcap);
 		cmd_append_size += sizeof(struct mwifiex_ie_types_htcap);
 
