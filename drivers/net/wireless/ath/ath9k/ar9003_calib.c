@@ -319,7 +319,7 @@ static void ar9003_hw_init_cal_settings(struct ath_hw *ah)
 
 	if (AR_SREV_9300_20_OR_LATER(ah)) {
 		ah->enabled_cals |= TX_IQ_CAL;
-		if (AR_SREV_9485_OR_LATER(ah))
+		if (AR_SREV_9485_OR_LATER(ah) && !AR_SREV_9340(ah))
 			ah->enabled_cals |= TX_IQ_ON_AGC_CAL;
 	}
 
