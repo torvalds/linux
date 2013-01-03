@@ -107,6 +107,18 @@ config SATA_PHY
 	  with the framework through the APIs provided and the SATA
 	  device finds and requests for an appropriate PHY device.
 
+config SATA_EXYNOS
+        bool "Exynos SATA AHCI support"
+        select I2C
+        select HAVE_S3C2410_I2C
+        select I2C_S3C2410
+        select SATA_PHY
+        help
+          This option enables support for Exynos AHCI Serial ATA
+          controllers.
+
+          If unsure, say N.
+
 config AHCI_IMX
 	tristate "Freescale i.MX AHCI SATA support"
 	depends on SATA_AHCI_PLATFORM && MFD_SYSCON

@@ -312,4 +312,7 @@
 
 #define EXYNOS5_OPTION_USE_RETENTION				(1 << 4)
 
+/* Only for EXYNOS5250 */
+#define EXYNOS5_SATA_PHY_CONTROL		S5P_PMUREG(0x0724)
+
 #endif /* __ASM_ARCH_REGS_PMU_H */

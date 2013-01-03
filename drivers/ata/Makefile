@@ -11,6 +11,7 @@ obj-$(CONFIG_SATA_SIL24)	+= sata_sil24.o
 obj-$(CONFIG_SATA_DWC)		+= sata_dwc_460ex.o
 obj-$(CONFIG_SATA_HIGHBANK)	+= sata_highbank.o libahci.o
 obj-$(CONFIG_SATA_PHY)		+= sata_phy.o
+obj-$(CONFIG_SATA_EXYNOS)	+= sata_exynos.o libahci.o
 obj-$(CONFIG_AHCI_IMX)		+= ahci_imx.o
 
 # SFF w/ custom DMA
