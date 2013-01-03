@@ -273,3 +273,25 @@
 	phy-mode = "mii";
 	status = "okay";
 };
+
+&kpp {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_kpp_1>;
+	linux,keymap = <0x00000067	/* KEY_UP */
+			0x0001006c	/* KEY_DOWN */
+			0x00020072	/* KEY_VOLUMEDOWN */
+			0x00030066	/* KEY_HOME */
+			0x0100006a	/* KEY_RIGHT */
+			0x01010069	/* KEY_LEFT */
+			0x0102001c	/* KEY_ENTER */
+			0x01030073	/* KEY_VOLUMEUP */
+			0x02000040	/* KEY_F6 */
+			0x02010042	/* KEY_F8 */
+			0x02020043	/* KEY_F9 */
+			0x02030044	/* KEY_F10 */
+			0x0300003b	/* KEY_F1 */
+			0x0301003c	/* KEY_F2 */
+			0x0302003d	/* KEY_F3 */
+			0x03030074>;	/* KEY_POWER */
+	status = "okay";
+};
