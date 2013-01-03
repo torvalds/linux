@@ -2568,12 +2568,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		rx_chainmask >>= 1;
 	}
 
-	if (AR_SREV_9300_20_OR_LATER(ah)) {
-		ah->enabled_cals |= TX_IQ_CAL;
-		if (AR_SREV_9485_OR_LATER(ah))
-			ah->enabled_cals |= TX_IQ_ON_AGC_CAL;
-	}
-
 	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
 		if (!(ah->ent_mode & AR_ENT_OTP_49GHZ_DISABLE))
 			pCap->hw_caps |= ATH9K_HW_CAP_MCI;
@@ -2581,7 +2575,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		if (AR_SREV_9462_20(ah))
 			pCap->hw_caps |= ATH9K_HW_CAP_RTT;
 	}
-
 
 	if (AR_SREV_9280_20_OR_LATER(ah)) {
 		pCap->hw_caps |= ATH9K_HW_WOW_DEVICE_CAPABLE |
