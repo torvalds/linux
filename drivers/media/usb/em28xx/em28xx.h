@@ -194,7 +194,7 @@
 */
 
 /* time in msecs to wait for i2c writes to finish */
-#define EM2800_I2C_WRITE_TIMEOUT 20
+#define EM2800_I2C_XFER_TIMEOUT		20
 
 enum em28xx_mode {
 	EM28XX_SUSPEND,

@@ -73,12 +73,14 @@ static int em2800_i2c_send_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 	if (len > 3)
 		b2[0] = buf[3];
 
+	/* trigger write */
 	ret = dev->em28xx_write_regs(dev, 4 - len, &b2[4 - len], 2 + len);
 	if (ret != 2 + len) {
 		em28xx_warn("writing to i2c device failed (error=%i)\n", ret);
 		return -EIO;
 	}
-	for (write_timeout = EM2800_I2C_WRITE_TIMEOUT; write_timeout > 0;
+	/* wait for completion */
+	for (write_timeout = EM2800_I2C_XFER_TIMEOUT; write_timeout > 0;
 	     write_timeout -= 5) {
 		ret = dev->em28xx_read_reg(dev, 0x05);
 		if (ret == 0x80 + len - 1)
@@ -90,66 +92,74 @@ static int em2800_i2c_send_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 }
 
 /*
- * em2800_i2c_check_for_device()
- * check if there is a i2c_device at the supplied address
- */
-static int em2800_i2c_check_for_device(struct em28xx *dev, u8 addr)
-{
-	u8 msg;
-	int ret;
-	int write_timeout;
-	msg = addr;
-	ret = dev->em28xx_write_regs(dev, 0x04, &msg, 1);
-	if (ret < 0) {
-		em28xx_warn("setting i2c device address failed (error=%i)\n",
-			    ret);
-		return ret;
-	}
-	msg = 0x84;
-	ret = dev->em28xx_write_regs(dev, 0x05, &msg, 1);
-	if (ret < 0) {
-		em28xx_warn("preparing i2c read failed (error=%i)\n", ret);
-		return ret;
-	}
-	for (write_timeout = EM2800_I2C_WRITE_TIMEOUT; write_timeout > 0;
-	     write_timeout -= 5) {
-		unsigned reg = dev->em28xx_read_reg(dev, 0x5);
-
-		if (reg == 0x94)
-			return -ENODEV;
-		else if (reg == 0x84)
-			return 0;
-		msleep(5);
-	}
-	return -ENODEV;
-}
-
-/*
  * em2800_i2c_recv_bytes()
- * read from the i2c device
+ * read up to 4 bytes from the em2800 i2c device
  */
 static int em2800_i2c_recv_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 {
+	u8 buf2[4];
 	int ret;
+	int read_timeout;
+	int i;
 
 	if (len < 1 || len > 4)
 		return -EOPNOTSUPP;
 
-	/* check for the device and set i2c read address */
-	ret = em2800_i2c_check_for_device(dev, addr);
-	if (ret) {
-		em28xx_warn
-		    ("preparing read at i2c address 0x%x failed (error=%i)\n",
-		     addr, ret);
-		return ret;
+	/* trigger read */
+	buf2[1] = 0x84 + len - 1;
+	buf2[0] = addr;
+	ret = dev->em28xx_write_regs(dev, 0x04, buf2, 2);
+	if (ret != 2) {
+		em28xx_warn("failed to trigger read from i2c address 0x%x "
+			    "(error=%i)\n", addr, ret);
+		return (ret < 0) ? ret : -EIO;
 	}
-	ret = dev->em28xx_read_reg_req_len(dev, 0x0, 0x3, buf, len);
-	if (ret < 0) {
-		em28xx_warn("reading from i2c device at 0x%x failed (error=%i)",
-			    addr, ret);
-		return ret;
+
+	/* wait for completion */
+	for (read_timeout = EM2800_I2C_XFER_TIMEOUT; read_timeout > 0;
+	     read_timeout -= 5) {
+		ret = dev->em28xx_read_reg(dev, 0x05);
+		if (ret == 0x84 + len - 1) {
+			break;
+		} else if (ret == 0x94 + len - 1) {
+			return -ENODEV;
+		} else if (ret < 0) {
+			em28xx_warn("failed to get i2c transfer status from "
+				    "bridge register (error=%i)\n", ret);
+			return ret;
+		}
+		msleep(5);
 	}
+	if (ret != 0x84 + len - 1)
+		em28xx_warn("read from i2c device at 0x%x timed out\n", addr);
+
+	/* get the received message */
+	ret = dev->em28xx_read_reg_req_len(dev, 0x00, 4-len, buf2, len);
+	if (ret != len) {
+		em28xx_warn("reading from i2c device at 0x%x failed: "
+			    "couldn't get the received message from the bridge "
+			    "(error=%i)\n", addr, ret);
+		return (ret < 0) ? ret : -EIO;
+	}
+	for (i = 0; i < len; i++)
+		buf[i] = buf2[len - 1 - i];
+
 	return ret;
+}
+
+/*
+ * em2800_i2c_check_for_device()
+ * check if there is an i2c device at the supplied address
+ */
+static int em2800_i2c_check_for_device(struct em28xx *dev, u8 addr)
+{
+	u8 buf;
+	int ret;
+
+	ret = em2800_i2c_recv_bytes(dev, addr, &buf, 1);
+	if (ret == 1)
+		return 0;
+	return (ret < 0) ? ret : -EIO;
 }
 
 /*
@@ -167,7 +177,7 @@ static int em28xx_i2c_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 	wrcount = dev->em28xx_write_regs_req(dev, stop ? 2 : 3, addr, buf, len);
 
 	/* Seems to be required after a write */
-	for (write_timeout = EM2800_I2C_WRITE_TIMEOUT; write_timeout > 0;
+	for (write_timeout = EM2800_I2C_XFER_TIMEOUT; write_timeout > 0;
 	     write_timeout -= 5) {
 		ret = dev->em28xx_read_reg(dev, 0x05);
 		if (!ret)
