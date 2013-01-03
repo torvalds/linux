@@ -98,4 +98,35 @@ obj-$(CONFIG_HW_PERF_EVENTS)	+= perf_event_mipsxx.o
 
 obj-$(CONFIG_JUMP_LABEL)	+= jump_label.o
 
+#
+# DSP ASE supported for MIPS32 or MIPS64 Release 2 cores only. It is safe
+# to enable DSP assembler support here even if the MIPS Release 2 CPU we
+# are targetting does not support DSP because all code-paths making use of
+# it properly check that the running CPU *actually does* support these
+# instructions.
+#
+ifeq ($(CONFIG_CPU_MIPSR2), y)
+CFLAGS_DSP 			= -DHAVE_AS_DSP
+
+#
+# Check if assembler supports DSP ASE
+#
+ifeq ($(call cc-option-yn,-mdsp), y)
+CFLAGS_DSP			+= -mdsp
+endif
+
+#
+# Check if assembler supports DSP ASE Rev2
+#
+ifeq ($(call cc-option-yn,-mdspr2), y)
+CFLAGS_DSP			+= -mdspr2
+endif
+
+CFLAGS_signal.o			= $(CFLAGS_DSP)
+CFLAGS_signal32.o		= $(CFLAGS_DSP)
+CFLAGS_process.o		= $(CFLAGS_DSP)
+CFLAGS_branch.o			= $(CFLAGS_DSP)
+CFLAGS_ptrace.o			= $(CFLAGS_DSP)
+endif
+
 CPPFLAGS_vmlinux.lds		:= $(KBUILD_CFLAGS)
