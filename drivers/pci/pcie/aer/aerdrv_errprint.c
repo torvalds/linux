@@ -23,6 +23,9 @@
 
 #include "aerdrv.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/ras.h>
+
 #define AER_AGENT_RECEIVER		0
 #define AER_AGENT_REQUESTER		1
 #define AER_AGENT_COMPLETER		2
@@ -194,6 +197,8 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 	if (info->id && info->error_dev_num > 1 && info->id == id)
 		printk("%s""  Error of this Agent(%04x) is reported first\n",
 			prefix, id);
+	trace_aer_event(dev_name(&dev->dev), (info->status & ~info->mask),
+			info->severity);
 }
 
 void aer_print_port_info(struct pci_dev *dev, struct aer_err_info *info)
@@ -217,7 +222,7 @@ int cper_severity_to_aer(int cper_severity)
 }
 EXPORT_SYMBOL_GPL(cper_severity_to_aer);
 
-void cper_print_aer(const char *prefix, int cper_severity,
+void cper_print_aer(const char *prefix, struct pci_dev *dev, int cper_severity,
 		    struct aer_capability_regs *aer)
 {
 	int aer_severity, layer, agent, status_strs_size, tlp_header_valid = 0;
@@ -259,5 +264,7 @@ void cper_print_aer(const char *prefix, int cper_severity,
 			*(tlp + 8), *(tlp + 15), *(tlp + 14),
 			*(tlp + 13), *(tlp + 12));
 	}
+	trace_aer_event(dev_name(&dev->dev), (status & ~mask),
+			aer_severity);
 }
 #endif
