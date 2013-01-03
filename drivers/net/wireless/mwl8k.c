@@ -5321,7 +5321,7 @@ enum {
 	MWL8366,
 };
 
-#define MWL8K_8366_AP_FW_API 2
+#define MWL8K_8366_AP_FW_API 3
 #define _MWL8K_8366_AP_FW(api) "mwl8k/fmimage_8366_ap-" #api ".fw"
 #define MWL8K_8366_AP_FW(api) _MWL8K_8366_AP_FW(api)
 
