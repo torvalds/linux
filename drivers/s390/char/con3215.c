@@ -44,6 +44,7 @@
 #define RAW3215_NR_CCWS	    3
 #define RAW3215_TIMEOUT	    HZ/10     /* time for delayed output */
 
+#define RAW3215_FIXED	    1	      /* 3215 console device is not be freed */
 #define RAW3215_WORKING	    4	      /* set if a request is being worked on */
 #define RAW3215_THROTTLED   8	      /* set if reading is disabled */
 #define RAW3215_STOPPED	    16	      /* set if writing is disabled */
@@ -630,7 +631,8 @@ static void raw3215_shutdown(struct raw3215_info *raw)
 	DECLARE_WAITQUEUE(wait, current);
 	unsigned long flags;
 
-	if (!(raw->port.flags & ASYNC_INITIALIZED))
+	if (!(raw->port.flags & ASYNC_INITIALIZED) ||
+	    (raw->flags & RAW3215_FIXED))
 		return;
 	/* Wait for outstanding requests, then free irq */
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
@@ -926,6 +928,8 @@ static int __init con3215_init(void)
 	raw->cdev = cdev;
 	dev_set_drvdata(&cdev->dev, raw);
 	cdev->handler = raw3215_irq;
+
+	raw->flags |= RAW3215_FIXED;
 
 	/* Request the console irq */
 	if (raw3215_startup(raw) != 0) {
