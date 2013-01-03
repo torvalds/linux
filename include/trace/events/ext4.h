@@ -451,7 +451,7 @@ DEFINE_EVENT(ext4__page_op, ext4_releasepage,
 	TP_ARGS(page)
 );
 
-TRACE_EVENT(ext4_invalidatepage,
+DECLARE_EVENT_CLASS(ext4_invalidatepage_op,
 	TP_PROTO(struct page *page, unsigned long offset),
 
 	TP_ARGS(page, offset),
@@ -475,6 +475,18 @@ TRACE_EVENT(ext4_invalidatepage,
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
 		  (unsigned long) __entry->index, __entry->offset)
+);
+
+DEFINE_EVENT(ext4_invalidatepage_op, ext4_invalidatepage,
+	TP_PROTO(struct page *page, unsigned long offset),
+
+	TP_ARGS(page, offset)
+);
+
+DEFINE_EVENT(ext4_invalidatepage_op, ext4_journalled_invalidatepage,
+	TP_PROTO(struct page *page, unsigned long offset),
+
+	TP_ARGS(page, offset)
 );
 
 TRACE_EVENT(ext4_discard_blocks,
