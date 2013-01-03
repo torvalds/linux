@@ -1131,12 +1131,6 @@ struct ieee_types_vendor_header {
 	u8 version;
 } __packed;
 
-struct ieee_types_wmm_ac_parameters {
-	u8 aci_aifsn_bitmap;
-	u8 ecw_bitmap;
-	__le16 tx_op_limit;
-} __packed;
-
 struct ieee_types_wmm_parameter {
 	/*
 	 * WMM Parameter IE - Vendor Specific Header:
@@ -1184,6 +1178,11 @@ struct mwifiex_wmm_ac_status {
 struct mwifiex_ie_types_htcap {
 	struct mwifiex_ie_types_header header;
 	struct ieee80211_ht_cap ht_cap;
+} __packed;
+
+struct mwifiex_ie_types_wmmcap {
+	struct mwifiex_ie_types_header header;
+	struct mwifiex_types_wmm_info wmm_info;
 } __packed;
 
 struct mwifiex_ie_types_htinfo {

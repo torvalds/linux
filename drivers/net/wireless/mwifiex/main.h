@@ -890,6 +890,10 @@ void mwifiex_set_ht_params(struct mwifiex_private *priv,
 			   struct cfg80211_ap_settings *params);
 void mwifiex_set_uap_rates(struct mwifiex_uap_bss_param *bss_cfg,
 			   struct cfg80211_ap_settings *params);
+void
+mwifiex_set_wmm_params(struct mwifiex_private *priv,
+		       struct mwifiex_uap_bss_param *bss_cfg,
+		       struct cfg80211_ap_settings *params);
 
 /*
  * This function checks if the queuing is RA based or not.
