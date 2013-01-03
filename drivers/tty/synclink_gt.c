@@ -1957,8 +1957,6 @@ static void bh_handler(struct work_struct *work)
 	struct slgt_info *info = container_of(work, struct slgt_info, task);
 	int action;
 
-	if (!info)
-		return;
 	info->bh_running = true;
 
 	while((action = bh_action(info))) {
