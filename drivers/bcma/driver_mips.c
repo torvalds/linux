@@ -263,8 +263,6 @@ void bcma_core_mips_init(struct bcma_drv_mips *mcore)
 
 	bcma_core_mips_early_init(mcore);
 
-	mcore->assigned_irqs = 1;
-
 	switch (bus->chipinfo.id) {
 	case BCMA_CHIP_ID_BCM4716:
 	case BCMA_CHIP_ID_BCM4748:
