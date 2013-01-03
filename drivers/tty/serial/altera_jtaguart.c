@@ -139,7 +139,7 @@ static void altera_jtaguart_rx_chars(struct altera_jtaguart *pp)
 		uart_insert_char(port, 0, 0, ch, flag);
 	}
 
-	tty_flip_buffer_push(port->state->port.tty);
+	tty_flip_buffer_push(&port->state->port);
 }
 
 static void altera_jtaguart_tx_chars(struct altera_jtaguart *pp)

@@ -78,7 +78,6 @@ static void apbuart_enable_ms(struct uart_port *port)
 
 static void apbuart_rx_chars(struct uart_port *port)
 {
-	struct tty_struct *tty = port->state->port.tty;
 	unsigned int status, ch, rsr, flag;
 	unsigned int max_chars = port->fifosize;
 
@@ -126,7 +125,7 @@ static void apbuart_rx_chars(struct uart_port *port)
 		status = UART_GET_STATUS(port);
 	}
 
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&port->state->port);
 }
 
 static void apbuart_tx_chars(struct uart_port *port)

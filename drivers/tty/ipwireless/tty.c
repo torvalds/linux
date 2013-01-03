@@ -160,15 +160,9 @@ static void ipw_close(struct tty_struct *linux_tty, struct file *filp)
 void ipwireless_tty_received(struct ipw_tty *tty, unsigned char *data,
 			unsigned int length)
 {
-	struct tty_struct *linux_tty;
 	int work = 0;
 
 	mutex_lock(&tty->ipw_tty_mutex);
-	linux_tty = tty->port.tty;
-	if (linux_tty == NULL) {
-		mutex_unlock(&tty->ipw_tty_mutex);
-		return;
-	}
 
 	if (!tty->port.count) {
 		mutex_unlock(&tty->ipw_tty_mutex);
@@ -187,7 +181,7 @@ void ipwireless_tty_received(struct ipw_tty *tty, unsigned char *data,
 	 * This may sleep if ->low_latency is set
 	 */
 	if (work)
-		tty_flip_buffer_push(linux_tty);
+		tty_flip_buffer_push(&tty->port);
 }
 
 static void ipw_write_packet_sent_callback(void *callback_data,

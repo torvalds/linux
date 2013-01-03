@@ -251,7 +251,6 @@ static void receive_chars(struct serial_state *info)
 {
         int status;
 	int serdatr;
-	struct tty_struct *tty = info->tport.tty;
 	unsigned char ch, flag;
 	struct	async_icount *icount;
 	int oe = 0;
@@ -314,7 +313,7 @@ static void receive_chars(struct serial_state *info)
 #endif
 	    flag = TTY_BREAK;
 	    if (info->tport.flags & ASYNC_SAK)
-	      do_SAK(tty);
+	      do_SAK(info->tport.tty);
 	  } else if (status & UART_LSR_PE)
 	    flag = TTY_PARITY;
 	  else if (status & UART_LSR_FE)
@@ -331,7 +330,7 @@ static void receive_chars(struct serial_state *info)
 	tty_insert_flip_char(&info->tport, ch, flag);
 	if (oe == 1)
 		tty_insert_flip_char(&info->tport, 0, TTY_OVERRUN);
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&info->tport);
 out:
 	return;
 }

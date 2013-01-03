@@ -211,11 +211,7 @@ static void arc_serial_start_tx(struct uart_port *port)
 
 static void arc_serial_rx_chars(struct arc_uart_port *uart)
 {
-	struct tty_struct *tty = tty_port_tty_get(&uart->port.state->port);
 	unsigned int status, ch, flg = 0;
-
-	if (!tty)
-		return;
 
 	/*
 	 * UART has 4 deep RX-FIFO. Driver's recongnition of this fact
@@ -252,10 +248,8 @@ static void arc_serial_rx_chars(struct arc_uart_port *uart)
 		uart_insert_char(&uart->port, status, RXOERR, ch, flg);
 
 done:
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&uart->port.state->port);
 	}
-
-	tty_kref_put(tty);
 }
 
 /*

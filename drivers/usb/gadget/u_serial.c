@@ -551,8 +551,8 @@ static void gs_rx_push(unsigned long _port)
 	/* Push from tty to ldisc; without low_latency set this is handled by
 	 * a workqueue, so we won't get callbacks and can hold port_lock
 	 */
-	if (tty && do_push)
-		tty_flip_buffer_push(tty);
+	if (do_push)
+		tty_flip_buffer_push(&port->port);
 
 
 	/* We want our data queue to become empty ASAP, keeping data

@@ -98,7 +98,6 @@ static void serial_pxa_stop_rx(struct uart_port *port)
 
 static inline void receive_chars(struct uart_pxa_port *up, int *status)
 {
-	struct tty_struct *tty = up->port.state->port.tty;
 	unsigned int ch, flag;
 	int max_count = 256;
 
@@ -168,7 +167,7 @@ static inline void receive_chars(struct uart_pxa_port *up, int *status)
 	ignore_char:
 		*status = serial_in(up, UART_LSR);
 	} while ((*status & UART_LSR_DR) && (max_count-- > 0));
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&up->port.state->port);
 
 	/* work around Errata #20 according to
 	 * Intel(R) PXA27x Processor Family

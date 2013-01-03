@@ -107,22 +107,19 @@ static __inline__ void sunsab_cec_wait(struct uart_sunsab_port *up)
 		udelay(1);
 }
 
-static struct tty_struct *
+static struct tty_port *
 receive_chars(struct uart_sunsab_port *up,
 	      union sab82532_irq_status *stat)
 {
 	struct tty_port *port = NULL;
-	struct tty_struct *tty = NULL;
 	unsigned char buf[32];
 	int saw_console_brk = 0;
 	int free_fifo = 0;
 	int count = 0;
 	int i;
 
-	if (up->port.state != NULL) {		/* Unopened serial console */
+	if (up->port.state != NULL)		/* Unopened serial console */
 		port = &up->port.state->port;
-		tty = port->tty;
-	}
 
 	/* Read number of BYTES (Character + Status) available. */
 	if (stat->sreg.isr0 & SAB82532_ISR0_RPF) {
@@ -139,7 +136,7 @@ receive_chars(struct uart_sunsab_port *up,
 	if (stat->sreg.isr0 & SAB82532_ISR0_TIME) {
 		sunsab_cec_wait(up);
 		writeb(SAB82532_CMDR_RFRD, &up->regs->w.cmdr);
-		return tty;
+		return port;
 	}
 
 	if (stat->sreg.isr0 & SAB82532_ISR0_RFO)
@@ -219,7 +216,7 @@ receive_chars(struct uart_sunsab_port *up,
 	if (saw_console_brk)
 		sun_do_break();
 
-	return tty;
+	return port;
 }
 
 static void sunsab_stop_tx(struct uart_port *);
@@ -302,7 +299,7 @@ static void check_status(struct uart_sunsab_port *up,
 static irqreturn_t sunsab_interrupt(int irq, void *dev_id)
 {
 	struct uart_sunsab_port *up = dev_id;
-	struct tty_struct *tty;
+	struct tty_port *port = NULL;
 	union sab82532_irq_status status;
 	unsigned long flags;
 	unsigned char gis;
@@ -316,12 +313,11 @@ static irqreturn_t sunsab_interrupt(int irq, void *dev_id)
 	if (gis & 2)
 		status.sreg.isr1 = readb(&up->regs->r.isr1);
 
-	tty = NULL;
 	if (status.stat) {
 		if ((status.sreg.isr0 & (SAB82532_ISR0_TCD | SAB82532_ISR0_TIME |
 					 SAB82532_ISR0_RFO | SAB82532_ISR0_RPF)) ||
 		    (status.sreg.isr1 & SAB82532_ISR1_BRK))
-			tty = receive_chars(up, &status);
+			port = receive_chars(up, &status);
 		if ((status.sreg.isr0 & SAB82532_ISR0_CDSC) ||
 		    (status.sreg.isr1 & SAB82532_ISR1_CSC))
 			check_status(up, &status);
@@ -331,8 +327,8 @@ static irqreturn_t sunsab_interrupt(int irq, void *dev_id)
 
 	spin_unlock_irqrestore(&up->port.lock, flags);
 
-	if (tty)
-		tty_flip_buffer_push(tty);
+	if (port)
+		tty_flip_buffer_push(port);
 
 	return IRQ_HANDLED;
 }

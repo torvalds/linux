@@ -301,7 +301,6 @@ static void m32r_sio_enable_ms(struct uart_port *port)
 static void receive_chars(struct uart_sio_port *up, int *status)
 {
 	struct tty_port *port = &up->port.state->port;
-	struct tty_struct *tty = tport->tty;
 	unsigned char ch;
 	unsigned char flag;
 	int max_count = 256;
@@ -369,7 +368,7 @@ static void receive_chars(struct uart_sio_port *up, int *status)
 	ignore_char:
 		*status = serial_in(up, UART_LSR);
 	} while ((*status & UART_LSR_DR) && (max_count-- > 0));
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(port);
 }
 
 static void transmit_chars(struct uart_sio_port *up)

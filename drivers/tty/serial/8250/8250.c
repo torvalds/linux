@@ -1323,7 +1323,6 @@ unsigned char
 serial8250_rx_chars(struct uart_8250_port *up, unsigned char lsr)
 {
 	struct uart_port *port = &up->port;
-	struct tty_struct *tty = port->state->port.tty;
 	unsigned char ch;
 	int max_count = 256;
 	char flag;
@@ -1388,7 +1387,7 @@ ignore_char:
 		lsr = serial_in(up, UART_LSR);
 	} while ((lsr & (UART_LSR_DR | UART_LSR_BI)) && (max_count-- > 0));
 	spin_unlock(&port->lock);
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&port->state->port);
 	spin_lock(&port->lock);
 	return lsr;
 }

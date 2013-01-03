@@ -234,7 +234,7 @@ static void dgrp_input(struct ch_struct *ch)
 
 		tty_insert_flip_string_flags(&ch->port, myflipbuf,
 					     myflipflagbuf, len);
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&ch->port);
 
 		ch->ch_rxcount += len;
 	}
@@ -2958,7 +2958,7 @@ check_query:
 
 				tty_buffer_request_room(&ch->port, 1);
 				tty_insert_flip_char(&ch->port, 0, TTY_BREAK);
-				tty_flip_buffer_push(ch->ch_tun.un_tty);
+				tty_flip_buffer_push(&ch->port);
 
 			}
 

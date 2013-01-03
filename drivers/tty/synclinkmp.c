@@ -2167,7 +2167,6 @@ static void isr_rxrdy(SLMP_INFO * info)
 {
 	u16 status;
 	unsigned char DataByte;
- 	struct tty_struct *tty = info->port.tty;
  	struct	mgsl_icount *icount = &info->icount;
 
 	if ( debug_level >= DEBUG_LEVEL_ISR )
@@ -2225,8 +2224,7 @@ static void isr_rxrdy(SLMP_INFO * info)
 			icount->frame,icount->overrun);
 	}
 
-	if ( tty )
-		tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&info->port);
 }
 
 static void isr_txeom(SLMP_INFO * info, unsigned char status)

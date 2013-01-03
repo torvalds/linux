@@ -942,7 +942,6 @@ static inline int
 mpc52xx_uart_int_rx_chars(struct uart_port *port)
 {
 	struct tty_port *tport = &port->state->port;
-	struct tty_struct *tty = tport->tty;
 	unsigned char ch, flag;
 	unsigned short status;
 
@@ -1000,7 +999,7 @@ mpc52xx_uart_int_rx_chars(struct uart_port *port)
 	}
 
 	spin_unlock(&port->lock);
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(tport);
 	spin_lock(&port->lock);
 
 	return psc_ops->raw_rx_rdy(port);

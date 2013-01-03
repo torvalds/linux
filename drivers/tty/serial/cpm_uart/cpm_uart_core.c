@@ -246,7 +246,6 @@ static void cpm_uart_int_rx(struct uart_port *port)
 	unsigned char ch;
 	u8 *cp;
 	struct tty_port *tport = &port->state->port;
-	struct tty_struct *tty = tport->tty;
 	struct uart_cpm_port *pinfo = (struct uart_cpm_port *)port;
 	cbd_t __iomem *bdp;
 	u16 status;
@@ -323,7 +322,7 @@ static void cpm_uart_int_rx(struct uart_port *port)
 	pinfo->rx_cur = bdp;
 
 	/* activate BH processing */
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(tport);
 
 	return;
 

@@ -691,7 +691,7 @@ int hvc_poll(struct hvc_struct *hp)
 		   a minimum for performance. */
 		timeout = MIN_TIMEOUT;
 
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&hp->port);
 	}
 	tty_kref_put(tty);
 

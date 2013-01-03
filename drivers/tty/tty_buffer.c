@@ -544,7 +544,7 @@ void tty_flush_to_ldisc(struct tty_struct *tty)
 
 /**
  *	tty_flip_buffer_push	-	terminal
- *	@tty: tty to push
+ *	@port: tty port to push
  *
  *	Queue a push of the terminal flip buffers to the line discipline. This
  *	function must not be called from IRQ context if port->low_latency is
@@ -556,9 +556,9 @@ void tty_flush_to_ldisc(struct tty_struct *tty)
  *	Locking: tty buffer lock. Driver locks in low latency mode.
  */
 
-void tty_flip_buffer_push(struct tty_struct *tty)
+void tty_flip_buffer_push(struct tty_port *port)
 {
-	struct tty_bufhead *buf = &tty->port->buf;
+	struct tty_bufhead *buf = &port->buf;
 	unsigned long flags;
 
 	spin_lock_irqsave(&buf->lock, flags);
@@ -566,7 +566,7 @@ void tty_flip_buffer_push(struct tty_struct *tty)
 		buf->tail->commit = buf->tail->used;
 	spin_unlock_irqrestore(&buf->lock, flags);
 
-	if (tty->port->low_latency)
+	if (port->low_latency)
 		flush_to_ldisc(&buf->work);
 	else
 		schedule_work(&buf->work);

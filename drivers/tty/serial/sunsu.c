@@ -315,11 +315,10 @@ static void sunsu_enable_ms(struct uart_port *port)
 	spin_unlock_irqrestore(&up->port.lock, flags);
 }
 
-static struct tty_struct *
+static void
 receive_chars(struct uart_sunsu_port *up, unsigned char *status)
 {
 	struct tty_port *port = &up->port.state->port;
-	struct tty_struct *tty = port->tty;
 	unsigned char ch, flag;
 	int max_count = 256;
 	int saw_console_brk = 0;
@@ -391,8 +390,6 @@ receive_chars(struct uart_sunsu_port *up, unsigned char *status)
 
 	if (saw_console_brk)
 		sun_do_break();
-
-	return tty;
 }
 
 static void transmit_chars(struct uart_sunsu_port *up)
@@ -461,20 +458,16 @@ static irqreturn_t sunsu_serial_interrupt(int irq, void *dev_id)
 	spin_lock_irqsave(&up->port.lock, flags);
 
 	do {
-		struct tty_struct *tty;
-
 		status = serial_inp(up, UART_LSR);
-		tty = NULL;
 		if (status & UART_LSR_DR)
-			tty = receive_chars(up, &status);
+			receive_chars(up, &status);
 		check_modem_status(up);
 		if (status & UART_LSR_THRE)
 			transmit_chars(up);
 
 		spin_unlock_irqrestore(&up->port.lock, flags);
 
-		if (tty)
-			tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&up->port.state->port);
 
 		spin_lock_irqsave(&up->port.lock, flags);
 

@@ -623,7 +623,7 @@ static int hvcs_io(struct hvcs_struct *hvcsd)
 	spin_unlock_irqrestore(&hvcsd->lock, flags);
 	/* This is synch because tty->low_latency == 1 */
 	if(got)
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&hvcsd->port);
 
 	if (!got) {
 		/* Do this _after_ the flip_buffer_push */

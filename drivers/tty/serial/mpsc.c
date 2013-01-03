@@ -938,7 +938,6 @@ static int mpsc_rx_intr(struct mpsc_port_info *pi)
 {
 	struct mpsc_rx_desc *rxre;
 	struct tty_port *port = &pi->port.state->port;
-	struct tty_struct *tty = port->tty;
 	u32	cmdstat, bytes_in, i;
 	int	rc = 0;
 	u8	*bp;
@@ -971,7 +970,7 @@ static int mpsc_rx_intr(struct mpsc_port_info *pi)
 		/* Following use of tty struct directly is deprecated */
 		if (tty_buffer_request_room(port, bytes_in) < bytes_in) {
 			if (port->low_latency)
-				tty_flip_buffer_push(tty);
+				tty_flip_buffer_push(port);
 			/*
 			 * If this failed then we will throw away the bytes
 			 * but must do so to clear interrupts.
@@ -1081,7 +1080,7 @@ next_frame:
 	if ((readl(pi->sdma_base + SDMA_SDCM) & SDMA_SDCM_ERD) == 0)
 		mpsc_start_rx(pi);
 
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(port);
 	return rc;
 }
 

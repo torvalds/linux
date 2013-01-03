@@ -323,19 +323,15 @@ static void sunzilog_kbdms_receive_chars(struct uart_sunzilog_port *up,
 	}
 }
 
-static struct tty_struct *
+static struct tty_port *
 sunzilog_receive_chars(struct uart_sunzilog_port *up,
 		       struct zilog_channel __iomem *channel)
 {
 	struct tty_port *port = NULL;
-	struct tty_struct *tty;
 	unsigned char ch, r1, flag;
 
-	tty = NULL;
-	if (up->port.state != NULL) {		/* Unopened serial console */
+	if (up->port.state != NULL)		/* Unopened serial console */
 		port = &up->port.state->port;
-		tty = port->tty;		/* mouse => tty is NULL */
-	}
 
 	for (;;) {
 
@@ -403,7 +399,7 @@ sunzilog_receive_chars(struct uart_sunzilog_port *up,
 			tty_insert_flip_char(port, 0, TTY_OVERRUN);
 	}
 
-	return tty;
+	return port;
 }
 
 static void sunzilog_status_handle(struct uart_sunzilog_port *up,
@@ -536,21 +532,21 @@ static irqreturn_t sunzilog_interrupt(int irq, void *dev_id)
 	while (up) {
 		struct zilog_channel __iomem *channel
 			= ZILOG_CHANNEL_FROM_PORT(&up->port);
-		struct tty_struct *tty;
+		struct tty_port *port;
 		unsigned char r3;
 
 		spin_lock(&up->port.lock);
 		r3 = read_zsreg(channel, R3);
 
 		/* Channel A */
-		tty = NULL;
+		port = NULL;
 		if (r3 & (CHAEXT | CHATxIP | CHARxIP)) {
 			writeb(RES_H_IUS, &channel->control);
 			ZSDELAY();
 			ZS_WSYNC(channel);
 
 			if (r3 & CHARxIP)
-				tty = sunzilog_receive_chars(up, channel);
+				port = sunzilog_receive_chars(up, channel);
 			if (r3 & CHAEXT)
 				sunzilog_status_handle(up, channel);
 			if (r3 & CHATxIP)
@@ -558,22 +554,22 @@ static irqreturn_t sunzilog_interrupt(int irq, void *dev_id)
 		}
 		spin_unlock(&up->port.lock);
 
-		if (tty)
-			tty_flip_buffer_push(tty);
+		if (port)
+			tty_flip_buffer_push(port);
 
 		/* Channel B */
 		up = up->next;
 		channel = ZILOG_CHANNEL_FROM_PORT(&up->port);
 
 		spin_lock(&up->port.lock);
-		tty = NULL;
+		port = NULL;
 		if (r3 & (CHBEXT | CHBTxIP | CHBRxIP)) {
 			writeb(RES_H_IUS, &channel->control);
 			ZSDELAY();
 			ZS_WSYNC(channel);
 
 			if (r3 & CHBRxIP)
-				tty = sunzilog_receive_chars(up, channel);
+				port = sunzilog_receive_chars(up, channel);
 			if (r3 & CHBEXT)
 				sunzilog_status_handle(up, channel);
 			if (r3 & CHBTxIP)
@@ -581,8 +577,8 @@ static irqreturn_t sunzilog_interrupt(int irq, void *dev_id)
 		}
 		spin_unlock(&up->port.lock);
 
-		if (tty)
-			tty_flip_buffer_push(tty);
+		if (port)
+			tty_flip_buffer_push(port);
 
 		up = up->next;
 	}

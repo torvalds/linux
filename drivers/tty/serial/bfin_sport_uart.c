@@ -150,7 +150,6 @@ static irqreturn_t sport_uart_rx_irq(int irq, void *dev_id)
 {
 	struct sport_uart_port *up = dev_id;
 	struct tty_port *port = &up->port.state->port;
-	struct tty_struct *tty = tport->tty;
 	unsigned int ch;
 
 	spin_lock(&up->port.lock);
@@ -162,7 +161,8 @@ static irqreturn_t sport_uart_rx_irq(int irq, void *dev_id)
 		if (!uart_handle_sysrq_char(&up->port, ch))
 			tty_insert_flip_char(port, ch, TTY_NORMAL);
 	}
-	tty_flip_buffer_push(tty);
+	/* XXX this won't deadlock with lowlat? */
+	tty_flip_buffer_push(port);
 
 	spin_unlock(&up->port.lock);
 

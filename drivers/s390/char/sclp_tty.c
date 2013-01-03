@@ -343,7 +343,7 @@ sclp_tty_input(unsigned char* buf, unsigned int count)
 		break;
 	case CTRLCHAR_CTRL:
 		tty_insert_flip_char(&sclp_port, cchar, TTY_NORMAL);
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&sclp_port);
 		break;
 	case CTRLCHAR_NONE:
 		/* send (normal) input to line discipline */
@@ -355,7 +355,7 @@ sclp_tty_input(unsigned char* buf, unsigned int count)
 			tty_insert_flip_char(&sclp_port, '\n', TTY_NORMAL);
 		} else
 			tty_insert_flip_string(&sclp_port, buf, count - 2);
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&sclp_port);
 		break;
 	}
 	tty_kref_put(tty);

@@ -131,11 +131,9 @@ void chan_enable_winch(struct chan *chan, struct tty_struct *tty)
 static void line_timer_cb(struct work_struct *work)
 {
 	struct line *line = container_of(work, struct line, task.work);
-	struct tty_struct *tty = tty_port_tty_get(&line->port);
 
 	if (!line->throttled)
-		chan_interrupt(line, tty, line->driver->read_irq);
-	tty_kref_put(tty);
+		chan_interrupt(line, line->driver->read_irq);
 }
 
 int enable_chan(struct line *line)
@@ -546,7 +544,7 @@ int parse_chan_pair(char *str, struct line *line, int device,
 	return 0;
 }
 
-void chan_interrupt(struct line *line, struct tty_struct *tty, int irq)
+void chan_interrupt(struct line *line, int irq)
 {
 	struct tty_port *port = &line->port;
 	struct chan *chan = line->chan_in;
@@ -570,8 +568,11 @@ void chan_interrupt(struct line *line, struct tty_struct *tty, int irq)
 		reactivate_fd(chan->fd, irq);
 	if (err == -EIO) {
 		if (chan->primary) {
-			if (tty != NULL)
+			struct tty_struct *tty = tty_port_tty_get(&line->port);
+			if (tty != NULL) {
 				tty_hangup(tty);
+				tty_kref_put(tty);
+			}
 			if (line->chan_out != chan)
 				close_one_chan(line->chan_out, 1);
 		}
@@ -580,6 +581,5 @@ void chan_interrupt(struct line *line, struct tty_struct *tty, int irq)
 			return;
 	}
  out:
-	if (tty)
-		tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(port);
 }

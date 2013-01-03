@@ -371,15 +371,10 @@ console_initcall(ehv_bc_console_init);
 static irqreturn_t ehv_bc_tty_rx_isr(int irq, void *data)
 {
 	struct ehv_bc_data *bc = data;
-	struct tty_struct *ttys = tty_port_tty_get(&bc->port);
 	unsigned int rx_count, tx_count, len;
 	int count;
 	char buffer[EV_BYTE_CHANNEL_MAX_BYTES];
 	int ret;
-
-	/* ttys could be NULL during a hangup */
-	if (!ttys)
-		return IRQ_HANDLED;
 
 	/* Find out how much data needs to be read, and then ask the TTY layer
 	 * if it can handle that much.  We want to ensure that every byte we
@@ -422,9 +417,7 @@ static irqreturn_t ehv_bc_tty_rx_isr(int irq, void *data)
 	}
 
 	/* Tell the tty layer that we're done. */
-	tty_flip_buffer_push(ttys);
-
-	tty_kref_put(ttys);
+	tty_flip_buffer_push(&bc->port);
 
 	return IRQ_HANDLED;
 }

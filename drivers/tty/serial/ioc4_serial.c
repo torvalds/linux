@@ -2340,7 +2340,6 @@ static inline int do_read(struct uart_port *the_port, unsigned char *buf,
  */
 static void receive_chars(struct uart_port *the_port)
 {
-	struct tty_struct *tty;
 	unsigned char ch[IOC4_MAX_CHARS];
 	int read_count, request_count = IOC4_MAX_CHARS;
 	struct uart_icount *icount;
@@ -2350,11 +2349,8 @@ static void receive_chars(struct uart_port *the_port)
 	/* Make sure all the pointers are "good" ones */
 	if (!state)
 		return;
-	if (!state->port.tty)
-		return;
 
 	spin_lock_irqsave(&the_port->lock, pflags);
-	tty = state->port.tty;
 
 	request_count = tty_buffer_request_room(&state->port, IOC4_MAX_CHARS);
 
@@ -2369,7 +2365,7 @@ static void receive_chars(struct uart_port *the_port)
 
 	spin_unlock_irqrestore(&the_port->lock, pflags);
 
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&state->port);
 }
 
 /**

@@ -735,7 +735,6 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 {
 	short int count, rcv_buff;
 	struct tty_port *port = &icom_port->uart_port.state->port;
-	struct tty_struct *tty = port->tty;
 	unsigned short int status;
 	struct uart_icount *icount;
 	unsigned long offset;
@@ -835,7 +834,7 @@ ignore_char:
 		status = cpu_to_le16(icom_port->statStg->rcv[rcv_buff].flags);
 	}
 	icom_port->next_rcv = rcv_buff;
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(port);
 }
 
 static void process_interrupt(u16 port_int_reg,

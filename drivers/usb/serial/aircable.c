@@ -140,15 +140,10 @@ static void aircable_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	char *data = (char *)urb->transfer_buffer;
-	struct tty_struct *tty;
 	int has_headers;
 	int count;
 	int len;
 	int i;
-
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
-		return;
 
 	has_headers = (urb->actual_length > 2 && data[0] == RX_HEADER_0);
 
@@ -160,8 +155,7 @@ static void aircable_process_read_urb(struct urb *urb)
 	}
 
 	if (count)
-		tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+		tty_flip_buffer_push(&port->port);
 }
 
 static struct usb_serial_driver aircable_device = {

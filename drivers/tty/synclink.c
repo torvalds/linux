@@ -1439,7 +1439,6 @@ static void mgsl_isr_receive_data( struct mgsl_struct *info )
 	u16 status;
 	int work = 0;
 	unsigned char DataByte;
- 	struct tty_struct *tty = info->port.tty;
  	struct	mgsl_icount *icount = &info->icount;
 	
 	if ( debug_level >= DEBUG_LEVEL_ISR )	
@@ -1501,7 +1500,7 @@ static void mgsl_isr_receive_data( struct mgsl_struct *info )
 			if (status & RXSTATUS_BREAK_RECEIVED) {
 				flag = TTY_BREAK;
 				if (info->port.flags & ASYNC_SAK)
-					do_SAK(tty);
+					do_SAK(info->port.tty);
 			} else if (status & RXSTATUS_PARITY_ERROR)
 				flag = TTY_PARITY;
 			else if (status & RXSTATUS_FRAMING_ERROR)
@@ -1524,7 +1523,7 @@ static void mgsl_isr_receive_data( struct mgsl_struct *info )
 	}
 			
 	if(work)
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&info->port);
 }
 
 /* mgsl_isr_misc()

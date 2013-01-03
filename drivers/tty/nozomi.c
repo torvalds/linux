@@ -1272,15 +1272,11 @@ static irqreturn_t interrupt_handler(int irq, void *dev_id)
 
 exit_handler:
 	spin_unlock(&dc->spin_mutex);
-	for (a = 0; a < NOZOMI_MAX_PORTS; a++) {
-		struct tty_struct *tty;
-		if (test_and_clear_bit(a, &dc->flip)) {
-			tty = tty_port_tty_get(&dc->port[a].port);
-			if (tty)
-				tty_flip_buffer_push(tty);
-			tty_kref_put(tty);
-		}
-	}
+
+	for (a = 0; a < NOZOMI_MAX_PORTS; a++)
+		if (test_and_clear_bit(a, &dc->flip))
+			tty_flip_buffer_push(&dc->port[a].port);
+
 	return IRQ_HANDLED;
 none:
 	spin_unlock(&dc->spin_mutex);

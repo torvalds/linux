@@ -744,7 +744,6 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 	struct usb_serial *serial;
 	struct usb_serial_port *port;
 	struct moschip_port *mos7840_port;
-	struct tty_struct *tty;
 	int status = urb->status;
 
 	mos7840_port = urb->context;
@@ -774,12 +773,8 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 
 	if (urb->actual_length) {
 		struct tty_port *tport = &mos7840_port->port->port;
-		tty = tty_port_tty_get(tport);
-		if (tty) {
-			tty_insert_flip_string(tport, data, urb->actual_length);
-			tty_flip_buffer_push(tty);
-			tty_kref_put(tty);
-		}
+		tty_insert_flip_string(tport, data, urb->actual_length);
+		tty_flip_buffer_push(tport);
 		mos7840_port->icount.rx += urb->actual_length;
 		smp_wmb();
 		dev_dbg(&port->dev, "mos7840_port->icount.rx is %d:\n", mos7840_port->icount.rx);

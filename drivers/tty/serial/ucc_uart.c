@@ -470,7 +470,6 @@ static void qe_uart_int_rx(struct uart_qe_port *qe_port)
 	unsigned char ch, *cp;
 	struct uart_port *port = &qe_port->port;
 	struct tty_port *tport = &port->state->port;
-	struct tty_struct *tty = tport->tty;
 	struct qe_bd *bdp;
 	u16 status;
 	unsigned int flg;
@@ -531,7 +530,7 @@ error_return:
 	qe_port->rx_cur = bdp;
 
 	/* Activate BH processing */
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(tport);
 
 	return;
 

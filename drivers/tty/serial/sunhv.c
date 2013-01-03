@@ -181,17 +181,17 @@ static struct sunhv_ops bywrite_ops = {
 
 static struct sunhv_ops *sunhv_ops = &bychar_ops;
 
-static struct tty_struct *receive_chars(struct uart_port *port)
+static struct tty_port *receive_chars(struct uart_port *port)
 {
-	struct tty_struct *tty = NULL;
+	struct tty_port *tport = NULL;
 
 	if (port->state != NULL)		/* Unopened serial console */
-		tty = port->state->port.tty;
+		tport = &port->state->port;
 
 	if (sunhv_ops->receive_chars(port))
 		sun_do_break();
 
-	return tty;
+	return tport;
 }
 
 static void transmit_chars(struct uart_port *port)
@@ -214,16 +214,16 @@ static void transmit_chars(struct uart_port *port)
 static irqreturn_t sunhv_interrupt(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
-	struct tty_struct *tty;
+	struct tty_port *tport;
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);
-	tty = receive_chars(port);
+	tport = receive_chars(port);
 	transmit_chars(port);
 	spin_unlock_irqrestore(&port->lock, flags);
 
-	if (tty)
-		tty_flip_buffer_push(tty);
+	if (tport)
+		tty_flip_buffer_push(tport);
 
 	return IRQ_HANDLED;
 }

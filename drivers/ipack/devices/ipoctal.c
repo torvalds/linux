@@ -133,8 +133,7 @@ static int ipoctal_get_icount(struct tty_struct *tty,
 	return 0;
 }
 
-static void ipoctal_irq_rx(struct ipoctal_channel *channel,
-			   struct tty_struct *tty, u8 sr)
+static void ipoctal_irq_rx(struct ipoctal_channel *channel, u8 sr)
 {
 	struct tty_port *port = &channel->tty_port;
 	unsigned char value;
@@ -176,7 +175,7 @@ static void ipoctal_irq_rx(struct ipoctal_channel *channel,
 		sr = ioread8(&channel->regs->r.sr);
 	} while (isr & channel->isr_rx_rdy_mask);
 
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(port);
 }
 
 static void ipoctal_irq_tx(struct ipoctal_channel *channel)
@@ -209,15 +208,11 @@ static void ipoctal_irq_tx(struct ipoctal_channel *channel)
 static void ipoctal_irq_channel(struct ipoctal_channel *channel)
 {
 	u8 isr, sr;
-	struct tty_struct *tty;
 
 	/* If there is no client, skip the check */
 	if (!atomic_read(&channel->open))
 		return;
 
-	tty = tty_port_tty_get(&channel->tty_port);
-	if (!tty)
-		return;
 	/* The HW is organized in pair of channels.  See which register we need
 	 * to read from */
 	isr = ioread8(&channel->block_regs->r.isr);
@@ -236,14 +231,13 @@ static void ipoctal_irq_channel(struct ipoctal_channel *channel)
 
 	/* RX data */
 	if ((isr & channel->isr_rx_rdy_mask) && (sr & SR_RX_READY))
-		ipoctal_irq_rx(channel, tty, sr);
+		ipoctal_irq_rx(channel, sr);
 
 	/* TX of each character */
 	if ((isr & channel->isr_tx_rdy_mask) && (sr & SR_TX_READY))
 		ipoctal_irq_tx(channel);
 
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_flip_buffer_push(&channel->tty_port);
 }
 
 static irqreturn_t ipoctal_irq_handler(void *arg)

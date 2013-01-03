@@ -310,7 +310,7 @@ static void mcf_rx_chars(struct mcf_uart *pp)
 		uart_insert_char(port, status, MCFUART_USR_RXOVERRUN, ch, flag);
 	}
 
-	tty_flip_buffer_push(port->state->port.tty);
+	tty_flip_buffer_push(&port->state->port);
 }
 
 /****************************************************************************/

@@ -188,7 +188,6 @@ static void sa1100_enable_ms(struct uart_port *port)
 static void
 sa1100_rx_chars(struct sa1100_port *sport)
 {
-	struct tty_struct *tty = sport->port.state->port.tty;
 	unsigned int status, ch, flg;
 
 	status = UTSR1_TO_SM(UART_GET_UTSR1(sport)) |
@@ -233,7 +232,7 @@ sa1100_rx_chars(struct sa1100_port *sport)
 		status = UTSR1_TO_SM(UART_GET_UTSR1(sport)) |
 			 UTSR0_TO_SM(UART_GET_UTSR0(sport));
 	}
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&sport->port.state->port);
 }
 
 static void sa1100_tx_chars(struct sa1100_port *sport)

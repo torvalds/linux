@@ -206,11 +206,6 @@ static unsigned int
 sirfsoc_uart_pio_rx_chars(struct uart_port *port, unsigned int max_rx_count)
 {
 	unsigned int ch, rx_count = 0;
-	struct tty_struct *tty;
-
-	tty = tty_port_tty_get(&port->state->port);
-	if (!tty)
-		return -ENODEV;
 
 	while (!(rd_regl(port, SIRFUART_RX_FIFO_STATUS) &
 					SIRFUART_FIFOEMPTY_MASK(port))) {
@@ -224,8 +219,7 @@ sirfsoc_uart_pio_rx_chars(struct uart_port *port, unsigned int max_rx_count)
 	}
 
 	port->icount.rx += rx_count;
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_flip_buffer_push(&port->state->port);
 
 	return rx_count;
 }

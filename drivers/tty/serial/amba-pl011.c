@@ -699,7 +699,6 @@ static void pl011_dma_rx_chars(struct uart_amba_port *uap,
 			       bool readfifo)
 {
 	struct tty_port *port = &uap->port.state->port;
-	struct tty_struct *tty = port->tty;
 	struct pl011_sgbuf *sgbuf = use_buf_b ?
 		&uap->dmarx.sgbuf_b : &uap->dmarx.sgbuf_a;
 	struct device *dev = uap->dmarx.chan->device->dev;
@@ -754,7 +753,7 @@ static void pl011_dma_rx_chars(struct uart_amba_port *uap,
 	dev_vdbg(uap->port.dev,
 		 "Took %d chars from DMA buffer and %d chars from the FIFO\n",
 		 dma_count, fifotaken);
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(port);
 	spin_lock(&uap->port.lock);
 }
 
@@ -1076,12 +1075,10 @@ static void pl011_enable_ms(struct uart_port *port)
 
 static void pl011_rx_chars(struct uart_amba_port *uap)
 {
-	struct tty_struct *tty = uap->port.state->port.tty;
-
 	pl011_fifo_to_tty(uap);
 
 	spin_unlock(&uap->port.lock);
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&uap->port.state->port);
 	/*
 	 * If we were temporarily out of DMA mode for a while,
 	 * attempt to switch back to DMA mode again.

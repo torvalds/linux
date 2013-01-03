@@ -223,7 +223,6 @@ static void bfin_serial_enable_ms(struct uart_port *port)
 #ifdef CONFIG_SERIAL_BFIN_PIO
 static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 {
-	struct tty_struct *tty = NULL;
 	unsigned int status, ch, flg;
 	static struct timeval anomaly_start = { .tv_sec = 0 };
 
@@ -242,11 +241,9 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 			return;
 		}
 
-	if (!uart->port.state || !uart->port.state->port.tty)
+	if (!uart->port.state)
 		return;
 #endif
-	tty = uart->port.state->port.tty;
-
 	if (ANOMALY_05000363) {
 		/* The BF533 (and BF561) family of processors have a nice anomaly
 		 * where they continuously generate characters for a "single" break.
@@ -325,7 +322,7 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 	uart_insert_char(&uart->port, status, OE, ch, flg);
 
  ignore_char:
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&uart->port.state->port);
 }
 
 static void bfin_serial_tx_chars(struct bfin_serial_port *uart)
@@ -426,7 +423,6 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
 
 static void bfin_serial_dma_rx_chars(struct bfin_serial_port *uart)
 {
-	struct tty_struct *tty = uart->port.state->port.tty;
 	int i, flg, status;
 
 	status = UART_GET_LSR(uart);
@@ -471,7 +467,7 @@ static void bfin_serial_dma_rx_chars(struct bfin_serial_port *uart)
 	}
 
  dma_ignore_char:
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&uart->port.state->port);
 }
 
 void bfin_serial_rx_dma_timeout(struct bfin_serial_port *uart)

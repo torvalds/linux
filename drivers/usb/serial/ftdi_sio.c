@@ -2040,16 +2040,11 @@ static int ftdi_process_packet(struct usb_serial_port *port,
 static void ftdi_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
-	struct tty_struct *tty;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	char *data = (char *)urb->transfer_buffer;
 	int i;
 	int len;
 	int count = 0;
-
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
-		return;
 
 	for (i = 0; i < urb->actual_length; i += priv->max_packet_size) {
 		len = min_t(int, urb->actual_length - i, priv->max_packet_size);
@@ -2057,8 +2052,7 @@ static void ftdi_process_read_urb(struct urb *urb)
 	}
 
 	if (count)
-		tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+		tty_flip_buffer_push(&port->port);
 }
 
 static void ftdi_break_ctl(struct tty_struct *tty, int break_state)

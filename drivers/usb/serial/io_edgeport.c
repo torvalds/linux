@@ -232,8 +232,8 @@ static void  process_rcvd_data(struct edgeport_serial *edge_serial,
 				unsigned char *buffer, __u16 bufferLength);
 static void process_rcvd_status(struct edgeport_serial *edge_serial,
 				__u8 byte2, __u8 byte3);
-static void edge_tty_recv(struct usb_serial_port *port, struct tty_struct *tty,
-				unsigned char *data, int length);
+static void edge_tty_recv(struct usb_serial_port *port, unsigned char *data,
+		int length);
 static void handle_new_msr(struct edgeport_port *edge_port, __u8 newMsr);
 static void handle_new_lsr(struct edgeport_port *edge_port, __u8 lsrData,
 				__u8 lsr, __u8 data);
@@ -1752,7 +1752,6 @@ static void process_rcvd_data(struct edgeport_serial *edge_serial,
 	struct device *dev = &edge_serial->serial->dev->dev;
 	struct usb_serial_port *port;
 	struct edgeport_port *edge_port;
-	struct tty_struct *tty;
 	__u16 lastBufferLength;
 	__u16 rxLen;
 
@@ -1860,14 +1859,11 @@ static void process_rcvd_data(struct edgeport_serial *edge_serial,
 							edge_serial->rxPort];
 				edge_port = usb_get_serial_port_data(port);
 				if (edge_port->open) {
-					tty = tty_port_tty_get(
-						&edge_port->port->port);
-					if (tty) {
-						dev_dbg(dev, "%s - Sending %d bytes to TTY for port %d\n",
-							__func__, rxLen, edge_serial->rxPort);
-						edge_tty_recv(edge_port->port, tty, buffer, rxLen);
-						tty_kref_put(tty);
-					}
+					dev_dbg(dev, "%s - Sending %d bytes to TTY for port %d\n",
+						__func__, rxLen,
+						edge_serial->rxPort);
+					edge_tty_recv(edge_port->port, buffer,
+							rxLen);
 					edge_port->icount.rx += rxLen;
 				}
 				buffer += rxLen;
@@ -2017,8 +2013,8 @@ static void process_rcvd_status(struct edgeport_serial *edge_serial,
  * edge_tty_recv
  *	this function passes data on to the tty flip buffer
  *****************************************************************************/
-static void edge_tty_recv(struct usb_serial_port *port, struct tty_struct *tty,
-					unsigned char *data, int length)
+static void edge_tty_recv(struct usb_serial_port *port, unsigned char *data,
+		int length)
 {
 	int cnt;
 
@@ -2030,7 +2026,7 @@ static void edge_tty_recv(struct usb_serial_port *port, struct tty_struct *tty,
 	data += cnt;
 	length -= cnt;
 
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&port->port);
 }
 
 
@@ -2086,14 +2082,9 @@ static void handle_new_lsr(struct edgeport_port *edge_port, __u8 lsrData,
 	}
 
 	/* Place LSR data byte into Rx buffer */
-	if (lsrData) {
-		struct tty_struct *tty =
-				tty_port_tty_get(&edge_port->port->port);
-		if (tty) {
-			edge_tty_recv(edge_port->port, tty, &data, 1);
-			tty_kref_put(tty);
-		}
-	}
+	if (lsrData)
+		edge_tty_recv(edge_port->port, &data, 1);
+
 	/* update input line counters */
 	icount = &edge_port->icount;
 	if (newLsr & LSR_BREAK)

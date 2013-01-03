@@ -364,7 +364,6 @@ out:
 
 static void mxs_auart_rx_chars(struct mxs_auart_port *s)
 {
-	struct tty_struct *tty = s->port.state->port.tty;
 	u32 stat = 0;
 
 	for (;;) {
@@ -375,7 +374,7 @@ static void mxs_auart_rx_chars(struct mxs_auart_port *s)
 	}
 
 	writel(stat, s->port.membase + AUART_STAT);
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&s->port.state->port);
 }
 
 static int mxs_auart_request_port(struct uart_port *u)
@@ -458,7 +457,6 @@ static void dma_rx_callback(void *arg)
 {
 	struct mxs_auart_port *s = (struct mxs_auart_port *) arg;
 	struct tty_port *port = &s->port.state->port;
-	struct tty_struct *tty = port->tty;
 	int count;
 	u32 stat;
 
@@ -472,7 +470,7 @@ static void dma_rx_callback(void *arg)
 	tty_insert_flip_string(port, s->rx_dma_buf, count);
 
 	writel(stat, s->port.membase + AUART_STAT);
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(port);
 
 	/* start the next DMA for RX. */
 	mxs_auart_dma_prep_rx(s);

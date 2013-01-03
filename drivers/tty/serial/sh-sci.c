@@ -597,7 +597,6 @@ static void sci_receive_chars(struct uart_port *port)
 {
 	struct sci_port *sci_port = to_sci_port(port);
 	struct tty_port *tport = &port->state->port;
-	struct tty_struct *tty = tport->tty;
 	int i, count, copied = 0;
 	unsigned short status;
 	unsigned char flag;
@@ -675,7 +674,7 @@ static void sci_receive_chars(struct uart_port *port)
 
 	if (copied) {
 		/* Tell the rest of the system the news. New characters! */
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(tport);
 	} else {
 		serial_port_in(port, SCxSR); /* dummy read */
 		serial_port_out(port, SCxSR, SCxSR_RDxF_CLEAR(port));
@@ -722,7 +721,6 @@ static int sci_handle_errors(struct uart_port *port)
 	int copied = 0;
 	unsigned short status = serial_port_in(port, SCxSR);
 	struct tty_port *tport = &port->state->port;
-	struct tty_struct *tty = tport->tty;
 	struct sci_port *s = to_sci_port(port);
 
 	/*
@@ -783,7 +781,7 @@ static int sci_handle_errors(struct uart_port *port)
 	}
 
 	if (copied)
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(tport);
 
 	return copied;
 }
@@ -791,7 +789,6 @@ static int sci_handle_errors(struct uart_port *port)
 static int sci_handle_fifo_overrun(struct uart_port *port)
 {
 	struct tty_port *tport = &port->state->port;
-	struct tty_struct *tty = tport->tty;
 	struct sci_port *s = to_sci_port(port);
 	struct plat_sci_reg *reg;
 	int copied = 0;
@@ -806,7 +803,7 @@ static int sci_handle_fifo_overrun(struct uart_port *port)
 		port->icount.overrun++;
 
 		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(tport);
 
 		dev_notice(port->dev, "overrun error\n");
 		copied++;
@@ -820,7 +817,6 @@ static int sci_handle_breaks(struct uart_port *port)
 	int copied = 0;
 	unsigned short status = serial_port_in(port, SCxSR);
 	struct tty_port *tport = &port->state->port;
-	struct tty_struct *tty = tport->tty;
 	struct sci_port *s = to_sci_port(port);
 
 	if (uart_handle_break(port))
@@ -842,7 +838,7 @@ static int sci_handle_breaks(struct uart_port *port)
 	}
 
 	if (copied)
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(tport);
 
 	copied += sci_handle_fifo_overrun(port);
 
@@ -1299,7 +1295,6 @@ static void sci_dma_rx_complete(void *arg)
 {
 	struct sci_port *s = arg;
 	struct uart_port *port = &s->port;
-	struct tty_struct *tty = port->state->port.tty;
 	unsigned long flags;
 	int count;
 
@@ -1314,7 +1309,7 @@ static void sci_dma_rx_complete(void *arg)
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	if (count)
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&port->state->port);
 
 	schedule_work(&s->work_rx);
 }
@@ -1408,7 +1403,6 @@ static void work_fn_rx(struct work_struct *work)
 	if (dma_async_is_tx_complete(s->chan_rx, s->active_rx, NULL, NULL) !=
 	    DMA_SUCCESS) {
 		/* Handle incomplete DMA receive */
-		struct tty_struct *tty = port->state->port.tty;
 		struct dma_chan *chan = s->chan_rx;
 		struct shdma_desc *sh_desc = container_of(desc,
 					struct shdma_desc, async_tx);
@@ -1424,7 +1418,7 @@ static void work_fn_rx(struct work_struct *work)
 		spin_unlock_irqrestore(&port->lock, flags);
 
 		if (count)
-			tty_flip_buffer_push(tty);
+			tty_flip_buffer_push(&port->state->port);
 
 		sci_submit_rx(s);
 

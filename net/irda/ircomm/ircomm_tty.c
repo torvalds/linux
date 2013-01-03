@@ -1136,14 +1136,14 @@ static int ircomm_tty_data_indication(void *instance, void *sap,
 		ircomm_tty_send_initial_parameters(self);
 		ircomm_tty_link_established(self);
 	}
+	tty_kref_put(tty);
 
 	/*
 	 * Use flip buffer functions since the code may be called from interrupt
 	 * context
 	 */
 	tty_insert_flip_string(&self->port, skb->data, skb->len);
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_flip_buffer_push(&self->port);
 
 	/* No need to kfree_skb - see ircomm_ttp_data_indication() */
 

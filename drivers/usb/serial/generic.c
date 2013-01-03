@@ -313,15 +313,10 @@ EXPORT_SYMBOL_GPL(usb_serial_generic_submit_read_urbs);
 void usb_serial_generic_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
-	struct tty_struct *tty;
 	char *ch = (char *)urb->transfer_buffer;
 	int i;
 
 	if (!urb->actual_length)
-		return;
-
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
 		return;
 
 	/* The per character mucking around with sysrq path it too slow for
@@ -335,8 +330,7 @@ void usb_serial_generic_process_read_urb(struct urb *urb)
 				tty_insert_flip_char(&port->port, *ch, TTY_NORMAL);
 		}
 	}
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_flip_buffer_push(&port->port);
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_process_read_urb);
 

@@ -121,8 +121,8 @@ static void ti_interrupt_callback(struct urb *urb);
 static void ti_bulk_in_callback(struct urb *urb);
 static void ti_bulk_out_callback(struct urb *urb);
 
-static void ti_recv(struct usb_serial_port *port, struct tty_struct *tty,
-	unsigned char *data, int length);
+static void ti_recv(struct usb_serial_port *port, unsigned char *data,
+		int length);
 static void ti_send(struct ti_port *tport);
 static int ti_set_mcr(struct ti_port *tport, unsigned int mcr);
 static int ti_get_lsr(struct ti_port *tport);
@@ -1118,7 +1118,6 @@ static void ti_bulk_in_callback(struct urb *urb)
 	struct device *dev = &urb->dev->dev;
 	int status = urb->status;
 	int retval = 0;
-	struct tty_struct *tty;
 
 	switch (status) {
 	case 0:
@@ -1145,23 +1144,18 @@ static void ti_bulk_in_callback(struct urb *urb)
 		return;
 	}
 
-	tty = tty_port_tty_get(&port->port);
-	if (tty) {
-		if (urb->actual_length) {
-			usb_serial_debug_data(dev, __func__, urb->actual_length,
-					      urb->transfer_buffer);
+	if (urb->actual_length) {
+		usb_serial_debug_data(dev, __func__, urb->actual_length,
+				      urb->transfer_buffer);
 
-			if (!tport->tp_is_open)
-				dev_dbg(dev, "%s - port closed, dropping data\n",
-					__func__);
-			else
-				ti_recv(port, tty, urb->transfer_buffer,
-						urb->actual_length);
-			spin_lock(&tport->tp_lock);
-			tport->tp_icount.rx += urb->actual_length;
-			spin_unlock(&tport->tp_lock);
-		}
-		tty_kref_put(tty);
+		if (!tport->tp_is_open)
+			dev_dbg(dev, "%s - port closed, dropping data\n",
+				__func__);
+		else
+			ti_recv(port, urb->transfer_buffer, urb->actual_length);
+		spin_lock(&tport->tp_lock);
+		tport->tp_icount.rx += urb->actual_length;
+		spin_unlock(&tport->tp_lock);
 	}
 
 exit:
@@ -1209,8 +1203,8 @@ static void ti_bulk_out_callback(struct urb *urb)
 }
 
 
-static void ti_recv(struct usb_serial_port *port, struct tty_struct *tty,
-	unsigned char *data, int length)
+static void ti_recv(struct usb_serial_port *port, unsigned char *data,
+		int length)
 {
 	int cnt;
 
@@ -1222,11 +1216,10 @@ static void ti_recv(struct usb_serial_port *port, struct tty_struct *tty,
 			if (cnt == 0)
 				break;
 		}
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&port->port);
 		data += cnt;
 		length -= cnt;
 	} while (length > 0);
-
 }
 
 

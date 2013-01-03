@@ -981,9 +981,8 @@ static void msm_hs_tty_flip_buffer_work(struct work_struct *work)
 {
 	struct msm_hs_port *msm_uport =
 			container_of(work, struct msm_hs_port, rx.tty_work);
-	struct tty_struct *tty = msm_uport->uport.state->port.tty;
 
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&msm_uport->uport.state->port);
 }
 
 /*

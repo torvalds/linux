@@ -19,11 +19,10 @@ static irqreturn_t line_interrupt(int irq, void *data)
 {
 	struct chan *chan = data;
 	struct line *line = chan->line;
-	struct tty_struct *tty = tty_port_tty_get(&line->port);
 
 	if (line)
-		chan_interrupt(line, tty, irq);
-	tty_kref_put(tty);
+		chan_interrupt(line, irq);
+
 	return IRQ_HANDLED;
 }
 
@@ -234,7 +233,7 @@ void line_unthrottle(struct tty_struct *tty)
 	struct line *line = tty->driver_data;
 
 	line->throttled = 0;
-	chan_interrupt(line, tty, line->driver->read_irq);
+	chan_interrupt(line, line->driver->read_irq);
 
 	/*
 	 * Maybe there is enough stuff pending that calling the interrupt

@@ -582,7 +582,7 @@ static void ssu100_update_lsr(struct usb_serial_port *port, u8 lsr,
 
 }
 
-static int ssu100_process_packet(struct urb *urb)
+static void ssu100_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	char *packet = (char *)urb->transfer_buffer;
@@ -609,7 +609,7 @@ static int ssu100_process_packet(struct urb *urb)
 		ch = packet;
 
 	if (!len)
-		return 0;	/* status only */
+		return;	/* status only */
 
 	if (port->port.console && port->sysrq) {
 		for (i = 0; i < len; i++, ch++) {
@@ -619,24 +619,7 @@ static int ssu100_process_packet(struct urb *urb)
 	} else
 		tty_insert_flip_string_fixed_flag(&port->port, ch, flag, len);
 
-	return len;
-}
-
-static void ssu100_process_read_urb(struct urb *urb)
-{
-	struct usb_serial_port *port = urb->context;
-	struct tty_struct *tty;
-	int count;
-
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
-		return;
-
-	count = ssu100_process_packet(urb);
-
-	if (count)
-		tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_flip_buffer_push(&port->port);
 }
 
 static struct usb_serial_driver ssu100_device = {

@@ -483,7 +483,6 @@ static void serial_omap_rdi(struct uart_omap_port *up, unsigned int lsr)
 static irqreturn_t serial_omap_irq(int irq, void *dev_id)
 {
 	struct uart_omap_port *up = dev_id;
-	struct tty_struct *tty = up->port.state->port.tty;
 	unsigned int iir, lsr;
 	unsigned int type;
 	irqreturn_t ret = IRQ_NONE;
@@ -530,7 +529,7 @@ static irqreturn_t serial_omap_irq(int irq, void *dev_id)
 
 	spin_unlock(&up->port.lock);
 
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&up->port.state->port);
 
 	pm_runtime_mark_last_busy(up->dev);
 	pm_runtime_put_autosuspend(up->dev);

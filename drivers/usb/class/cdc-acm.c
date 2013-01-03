@@ -410,20 +410,12 @@ static int acm_submit_read_urbs(struct acm *acm, gfp_t mem_flags)
 
 static void acm_process_read_urb(struct acm *acm, struct urb *urb)
 {
-	struct tty_struct *tty;
-
 	if (!urb->actual_length)
-		return;
-
-	tty = tty_port_tty_get(&acm->port);
-	if (!tty)
 		return;
 
 	tty_insert_flip_string(&acm->port, urb->transfer_buffer,
 			urb->actual_length);
-	tty_flip_buffer_push(tty);
-
-	tty_kref_put(tty);
+	tty_flip_buffer_push(&acm->port);
 }
 
 static void acm_read_bulk_callback(struct urb *urb)

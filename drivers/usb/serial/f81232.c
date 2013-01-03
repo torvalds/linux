@@ -100,7 +100,6 @@ static void f81232_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct f81232_private *priv = usb_get_serial_port_data(port);
-	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	char tty_flag = TTY_NORMAL;
 	unsigned long flags;
@@ -115,10 +114,6 @@ static void f81232_process_read_urb(struct urb *urb)
 	wake_up_interruptible(&priv->delta_msr_wait);
 
 	if (!urb->actual_length)
-		return;
-
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
 		return;
 
 	/* break takes precedence over parity, */
@@ -145,8 +140,7 @@ static void f81232_process_read_urb(struct urb *urb)
 							urb->actual_length);
 	}
 
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_flip_buffer_push(&port->port);
 }
 
 static int set_control_lines(struct usb_device *dev, u8 value)

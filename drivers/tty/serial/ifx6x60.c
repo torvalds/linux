@@ -669,12 +669,8 @@ static const struct tty_operations ifx_spi_serial_ops = {
 static void ifx_spi_insert_flip_string(struct ifx_spi_device *ifx_dev,
 				    unsigned char *chars, size_t size)
 {
-	struct tty_struct *tty = tty_port_tty_get(&ifx_dev->tty_port);
-	if (!tty)
-		return;
 	tty_insert_flip_string(&ifx_dev->tty_port, chars, size);
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_flip_buffer_push(&ifx_dev->tty_port);
 }
 
 /**

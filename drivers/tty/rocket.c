@@ -315,9 +315,8 @@ static inline int rocket_paranoia_check(struct r_port *info,
  *  that receive data is present on a serial port.  Pulls data from FIFO, moves it into the 
  *  tty layer.  
  */
-static void rp_do_receive(struct r_port *info,
-			  struct tty_struct *tty,
-			  CHANNEL_t * cp, unsigned int ChanStatus)
+static void rp_do_receive(struct r_port *info, CHANNEL_t *cp,
+		unsigned int ChanStatus)
 {
 	unsigned int CharNStat;
 	int ToRecv, wRecv, space;
@@ -416,7 +415,7 @@ static void rp_do_receive(struct r_port *info,
 			cbuf[ToRecv - 1] = sInB(sGetTxRxDataIO(cp));
 	}
 	/*  Push the data up to the tty layer */
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&info->port);
 }
 
 /*
@@ -495,7 +494,6 @@ static void rp_do_transmit(struct r_port *info)
 static void rp_handle_port(struct r_port *info)
 {
 	CHANNEL_t *cp;
-	struct tty_struct *tty;
 	unsigned int IntMask, ChanStatus;
 
 	if (!info)
@@ -506,12 +504,7 @@ static void rp_handle_port(struct r_port *info)
 				"info->flags & NOT_INIT\n");
 		return;
 	}
-	tty = tty_port_tty_get(&info->port);
-	if (!tty) {
-		printk(KERN_WARNING "rp: WARNING: rp_handle_port called with "
-				"tty==NULL\n");
-		return;
-	}
+
 	cp = &info->channel;
 
 	IntMask = sGetChanIntID(cp) & info->intmask;
@@ -520,7 +513,7 @@ static void rp_handle_port(struct r_port *info)
 #endif
 	ChanStatus = sGetChanStatus(cp);
 	if (IntMask & RXF_TRIG) {	/* Rx FIFO trigger level */
-		rp_do_receive(info, tty, cp, ChanStatus);
+		rp_do_receive(info, cp, ChanStatus);
 	}
 	if (IntMask & DELTA_CD) {	/* CD change  */
 #if (defined(ROCKET_DEBUG_OPEN) || defined(ROCKET_DEBUG_INTR) || defined(ROCKET_DEBUG_HANGUP))
@@ -528,10 +521,15 @@ static void rp_handle_port(struct r_port *info)
 		       (ChanStatus & CD_ACT) ? "on" : "off");
 #endif
 		if (!(ChanStatus & CD_ACT) && info->cd_status) {
+			struct tty_struct *tty;
 #ifdef ROCKET_DEBUG_HANGUP
 			printk(KERN_INFO "CD drop, calling hangup.\n");
 #endif
-			tty_hangup(tty);
+			tty = tty_port_tty_get(&info->port);
+			if (tty) {
+				tty_hangup(tty);
+				tty_kref_put(tty);
+			}
 		}
 		info->cd_status = (ChanStatus & CD_ACT) ? 1 : 0;
 		wake_up_interruptible(&info->port.open_wait);
@@ -544,7 +542,6 @@ static void rp_handle_port(struct r_port *info)
 		printk(KERN_INFO "DSR change...\n");
 	}
 #endif
-	tty_kref_put(tty);
 }
 
 /*

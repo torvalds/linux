@@ -654,7 +654,7 @@ void jsm_input(struct jsm_channel *ch)
 	spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 
 	/* Tell the tty layer its okay to "eat" the data now */
-	tty_flip_buffer_push(tp);
+	tty_flip_buffer_push(port);
 
 	jsm_dbg(IOCTL, &ch->ch_bd->pci_dev, "finish\n");
 }

@@ -461,13 +461,8 @@ sclp_vt220_write(struct tty_struct *tty, const unsigned char *buf, int count)
 static void
 sclp_vt220_receiver_fn(struct evbuf_header *evbuf)
 {
-	struct tty_struct *tty = tty_port_tty_get(&sclp_vt220_port);
 	char *buffer;
 	unsigned int count;
-
-	/* Ignore input if device is not open */
-	if (tty == NULL)
-		return;
 
 	buffer = (char *) ((addr_t) evbuf + sizeof(struct evbuf_header));
 	count = evbuf->length - sizeof(struct evbuf_header);
@@ -481,10 +476,9 @@ sclp_vt220_receiver_fn(struct evbuf_header *evbuf)
 		buffer++;
 		count--;
 		tty_insert_flip_string(&sclp_vt220_port, buffer, count);
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&sclp_vt220_port);
 		break;
 	}
-	tty_kref_put(tty);
 }
 
 /*

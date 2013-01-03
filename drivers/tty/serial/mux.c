@@ -244,7 +244,6 @@ static void mux_read(struct uart_port *port)
 {
 	struct tty_port *tport = &port->state->port;
 	int data;
-	struct tty_struct *tty = tport->tty;
 	__u32 start_count = port->icount.rx;
 
 	while(1) {
@@ -270,9 +269,8 @@ static void mux_read(struct uart_port *port)
 		tty_insert_flip_char(tport, data & 0xFF, TTY_NORMAL);
 	}
 	
-	if (start_count != port->icount.rx) {
-		tty_flip_buffer_push(tty);
-	}
+	if (start_count != port->icount.rx)
+		tty_flip_buffer_push(tport);
 }
 
 /**

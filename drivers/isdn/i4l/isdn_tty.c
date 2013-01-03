@@ -63,14 +63,9 @@ isdn_tty_try_read(modem_info *info, struct sk_buff *skb)
 	struct tty_port *port = &info->port;
 	int c;
 	int len;
-	struct tty_struct *tty;
 	char last;
 
 	if (!info->online)
-		return 0;
-
-	tty = port->tty;
-	if (!tty)
 		return 0;
 
 	if (!(info->mcr & UART_MCR_RTS))
@@ -110,7 +105,7 @@ isdn_tty_try_read(modem_info *info, struct sk_buff *skb)
 		tty_insert_flip_char(port, last, 0xFF);
 	else
 		tty_insert_flip_char(port, last, TTY_NORMAL);
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(port);
 	kfree_skb(skb);
 
 	return 1;
@@ -127,7 +122,6 @@ isdn_tty_readmodem(void)
 	int midx;
 	int i;
 	int r;
-	struct tty_struct *tty;
 	modem_info *info;
 
 	for (i = 0; i < ISDN_MAX_CHANNELS; i++) {
@@ -145,20 +139,21 @@ isdn_tty_readmodem(void)
 		if ((info->vonline & 1) && (info->emu.vpar[1]))
 			isdn_audio_eval_silence(info);
 #endif
-		tty = info->port.tty;
-		if (tty) {
-			if (info->mcr & UART_MCR_RTS) {
-				/* CISCO AsyncPPP Hack */
-				if (!(info->emu.mdmreg[REG_CPPP] & BIT_CPPP))
-					r = isdn_readbchan_tty(info->isdn_driver, info->isdn_channel, &info->port, 0);
-				else
-					r = isdn_readbchan_tty(info->isdn_driver, info->isdn_channel, &info->port, 1);
-				if (r)
-					tty_flip_buffer_push(tty);
-			} else
-				r = 1;
+		if (info->mcr & UART_MCR_RTS) {
+			/* CISCO AsyncPPP Hack */
+			if (!(info->emu.mdmreg[REG_CPPP] & BIT_CPPP))
+				r = isdn_readbchan_tty(info->isdn_driver,
+						info->isdn_channel,
+						&info->port, 0);
+			else
+				r = isdn_readbchan_tty(info->isdn_driver,
+						info->isdn_channel,
+						&info->port, 1);
+			if (r)
+				tty_flip_buffer_push(&info->port);
 		} else
 			r = 1;
+
 		if (r) {
 			info->rcvsched = 0;
 			resched = 1;
@@ -2230,7 +2225,6 @@ isdn_tty_stat_callback(int i, isdn_ctrl *c)
 void
 isdn_tty_at_cout(char *msg, modem_info *info)
 {
-	struct tty_struct *tty;
 	struct tty_port *port = &info->port;
 	atemu *m = &info->emu;
 	char *p;
@@ -2248,8 +2242,7 @@ isdn_tty_at_cout(char *msg, modem_info *info)
 	l = strlen(msg);
 
 	spin_lock_irqsave(&info->readlock, flags);
-	tty = port->tty;
-	if ((port->flags & ASYNC_CLOSING) || (!tty)) {
+	if (port->flags & ASYNC_CLOSING) {
 		spin_unlock_irqrestore(&info->readlock, flags);
 		return;
 	}
@@ -2301,7 +2294,7 @@ isdn_tty_at_cout(char *msg, modem_info *info)
 
 	} else {
 		spin_unlock_irqrestore(&info->readlock, flags);
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(port);
 	}
 }
 

@@ -80,7 +80,7 @@ static void smd_tty_notify(void *priv, unsigned event)
 			pr_err("OOPS - smd_tty_buffer mismatch?!");
 		}
 
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&info->port);
 	}
 
 	/* XXX only when writable and necessary */

@@ -1854,7 +1854,6 @@ static void hdlcdev_exit(struct slgt_info *info)
  */
 static void rx_async(struct slgt_info *info)
 {
- 	struct tty_struct *tty = info->port.tty;
  	struct mgsl_icount *icount = &info->icount;
 	unsigned int start, end;
 	unsigned char *p;
@@ -1915,8 +1914,8 @@ static void rx_async(struct slgt_info *info)
 			break;
 	}
 
-	if (tty && chars)
-		tty_flip_buffer_push(tty);
+	if (chars)
+		tty_flip_buffer_push(&info->port);
 }
 
 /*

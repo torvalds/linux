@@ -637,7 +637,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 			tty_insert_flip_char(&port->port, 0, TTY_BREAK);
 			if (port->port.flags & ASYNC_SAK)
 				do_SAK(tty);
-			tty_flip_buffer_push(tty);
+			tty_flip_buffer_push(&port->port);
 			break;
 
 		case 2:	/* Statistics		 */
@@ -671,7 +671,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 				byte_count -= 2;
 			}
 		}
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&port->port);
 	}
 	outw(0x0000, base+0x04); /* enable interrupts */
 	spin_unlock(&card->card_lock);

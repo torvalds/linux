@@ -531,7 +531,6 @@ static void mct_u232_read_int_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct mct_u232_private *priv = usb_get_serial_port_data(port);
-	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	int retval;
 	int status = urb->status;
@@ -561,13 +560,9 @@ static void mct_u232_read_int_callback(struct urb *urb)
 	 */
 	if (urb->transfer_buffer_length > 2) {
 		if (urb->actual_length) {
-			tty = tty_port_tty_get(&port->port);
-			if (tty) {
-				tty_insert_flip_string(&port->port, data,
-						urb->actual_length);
-				tty_flip_buffer_push(tty);
-			}
-			tty_kref_put(tty);
+			tty_insert_flip_string(&port->port, data,
+					urb->actual_length);
+			tty_flip_buffer_push(&port->port);
 		}
 		goto exit;
 	}

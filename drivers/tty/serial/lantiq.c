@@ -163,21 +163,15 @@ static int
 lqasc_rx_chars(struct uart_port *port)
 {
 	struct tty_port *tport = &port->state->port;
-	struct tty_struct *tty = tty_port_tty_get(tport);
 	unsigned int ch = 0, rsr = 0, fifocnt;
 
-	if (!tty) {
-		dev_dbg(port->dev, "%s:tty is busy now", __func__);
-		return -EBUSY;
-	}
-	fifocnt =
-		ltq_r32(port->membase + LTQ_ASC_FSTAT) & ASCFSTAT_RXFFLMASK;
+	fifocnt = ltq_r32(port->membase + LTQ_ASC_FSTAT) & ASCFSTAT_RXFFLMASK;
 	while (fifocnt--) {
 		u8 flag = TTY_NORMAL;
 		ch = ltq_r8(port->membase + LTQ_ASC_RBUF);
 		rsr = (ltq_r32(port->membase + LTQ_ASC_STATE)
 			& ASCSTATE_ANY) | UART_DUMMY_UER_RX;
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(tport);
 		port->icount.rx++;
 
 		/*
@@ -219,9 +213,10 @@ lqasc_rx_chars(struct uart_port *port)
 			 */
 			tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 	}
+
 	if (ch != 0)
-		tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+		tty_flip_buffer_push(tport);
+
 	return 0;
 }
 

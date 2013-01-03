@@ -290,8 +290,7 @@ static void qt_interrupt_callback(struct urb *urb)
 	/* FIXME */
 }
 
-static void qt_status_change_check(struct tty_struct *tty,
-				   struct urb *urb,
+static void qt_status_change_check(struct urb *urb,
 				   struct quatech_port *qt_port,
 				   struct usb_serial_port *port)
 {
@@ -348,7 +347,7 @@ static void qt_status_change_check(struct tty_struct *tty,
 			tty_insert_flip_char(&port->port, data[i], TTY_NORMAL);
 
 	}
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&port->port);
 }
 
 static void qt_read_bulk_callback(struct urb *urb)
@@ -411,7 +410,7 @@ static void qt_read_bulk_callback(struct urb *urb)
 	}
 
 	if (urb->actual_length)
-		qt_status_change_check(tty, urb, qt_port, port);
+		qt_status_change_check(urb, qt_port, port);
 
 	/* Continue trying to always read  */
 	usb_fill_bulk_urb(port->read_urb, serial->dev,
@@ -427,7 +426,7 @@ static void qt_read_bulk_callback(struct urb *urb)
 			__func__, result);
 	else {
 		if (urb->actual_length) {
-			tty_flip_buffer_push(tty);
+			tty_flip_buffer_push(&port->port);
 			tty_schedule_flip(tty);
 		}
 	}

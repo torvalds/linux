@@ -220,7 +220,6 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id)
 {
 	struct s3c24xx_uart_port *ourport = dev_id;
 	struct uart_port *port = &ourport->port;
-	struct tty_struct *tty = port->state->port.tty;
 	unsigned int ufcon, ch, flag, ufstat, uerstat;
 	unsigned long flags;
 	int max_count = 64;
@@ -298,7 +297,7 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id)
  ignore_char:
 		continue;
 	}
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&port->state->port);
 
  out:
 	spin_unlock_irqrestore(&port->lock, flags);

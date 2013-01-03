@@ -285,10 +285,6 @@ static void sccnxp_handle_rx(struct uart_port *port)
 {
 	u8 sr;
 	unsigned int ch, flag;
-	struct tty_struct *tty = tty_port_tty_get(&port->state->port);
-
-	if (!tty)
-		return;
 
 	for (;;) {
 		sr = sccnxp_port_read(port, SCCNXP_SR_REG);
@@ -333,9 +329,7 @@ static void sccnxp_handle_rx(struct uart_port *port)
 		uart_insert_char(port, sr, SR_OVR, ch, flag);
 	}
 
-	tty_flip_buffer_push(tty);
-
-	tty_kref_put(tty);
+	tty_flip_buffer_push(&port->state->port);
 }
 
 static void sccnxp_handle_tx(struct uart_port *port)

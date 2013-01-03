@@ -249,11 +249,8 @@ static irqreturn_t efm32_uart_rxirq(int irq, void *data)
 	int handled = IRQ_NONE;
 	struct uart_port *port = &efm_port->port;
 	struct tty_port *tport = &port->state->port;
-	struct tty_struct *tty;
 
 	spin_lock(&port->lock);
-
-	tty = tty_kref_get(tport->tty);
 
 	if (irqflag & UARTn_IF_RXDATAV) {
 		efm32_uart_write32(efm_port, UARTn_IF_RXDATAV, UARTn_IFC);
@@ -270,10 +267,7 @@ static irqreturn_t efm32_uart_rxirq(int irq, void *data)
 		handled = IRQ_HANDLED;
 	}
 
-	if (tty) {
-		tty_flip_buffer_push(tty);
-		tty_kref_put(tty);
-	}
+	tty_flip_buffer_push(tport);
 
 	spin_unlock(&port->lock);
 

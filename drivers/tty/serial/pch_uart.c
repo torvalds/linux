@@ -593,17 +593,9 @@ static int push_rx(struct eg20t_port *priv, const unsigned char *buf,
 {
 	struct uart_port *port = &priv->port;
 	struct tty_port *tport = &port->state->port;
-	struct tty_struct *tty;
-
-	tty = tty_port_tty_get(tport);
-	if (!tty) {
-		dev_dbg(priv->port.dev, "%s:tty is busy now", __func__);
-		return -EBUSY;
-	}
 
 	tty_insert_flip_string(tport, buf, size);
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_flip_buffer_push(tport);
 
 	return 0;
 }
@@ -744,19 +736,12 @@ static void pch_dma_rx_complete(void *arg)
 {
 	struct eg20t_port *priv = arg;
 	struct uart_port *port = &priv->port;
-	struct tty_struct *tty = tty_port_tty_get(&port->state->port);
 	int count;
-
-	if (!tty) {
-		dev_dbg(priv->port.dev, "%s:tty is busy now", __func__);
-		return;
-	}
 
 	dma_sync_sg_for_cpu(port->dev, &priv->sg_rx, 1, DMA_FROM_DEVICE);
 	count = dma_push_rx(priv, priv->trigger_level);
 	if (count)
-		tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+		tty_flip_buffer_push(&port->state->port);
 	async_tx_ack(priv->desc_rx);
 	pch_uart_hal_enable_interrupt(priv, PCH_UART_HAL_RX_INT |
 					    PCH_UART_HAL_RX_ERR_INT);

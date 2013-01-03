@@ -1141,7 +1141,6 @@ static void gsm_control_modem(struct gsm_mux *gsm, u8 *data, int clen)
 static void gsm_control_rls(struct gsm_mux *gsm, u8 *data, int clen)
 {
 	struct tty_port *port;
-	struct tty_struct *tty;
 	unsigned int addr = 0 ;
 	u8 bits;
 	int len = clen;
@@ -1174,12 +1173,8 @@ static void gsm_control_rls(struct gsm_mux *gsm, u8 *data, int clen)
 	if (bits & 8)
 		tty_insert_flip_char(port, 0, TTY_FRAME);
 
-	/* See if we have an uplink tty */
-	tty = tty_port_tty_get(port);
-	if (tty) {
-		tty_flip_buffer_push(tty);
-		tty_kref_put(tty);
-	}
+	tty_flip_buffer_push(port);
+
 	gsm_control_reply(gsm, CMD_RLS, data, clen);
 }
 
@@ -1552,36 +1547,37 @@ static void gsm_dlci_data(struct gsm_dlci *dlci, u8 *data, int clen)
 {
 	/* krefs .. */
 	struct tty_port *port = &dlci->port;
-	struct tty_struct *tty = tty_port_tty_get(port);
+	struct tty_struct *tty;
 	unsigned int modem = 0;
 	int len = clen;
 
 	if (debug & 16)
-		pr_debug("%d bytes for tty %p\n", len, tty);
-	if (tty) {
-		switch (dlci->adaption)  {
-		/* Unsupported types */
-		/* Packetised interruptible data */
-		case 4:
-			break;
-		/* Packetised uininterruptible voice/data */
-		case 3:
-			break;
-		/* Asynchronous serial with line state in each frame */
-		case 2:
-			while (gsm_read_ea(&modem, *data++) == 0) {
-				len--;
-				if (len == 0)
-					return;
-			}
-			gsm_process_modem(tty, dlci, modem, clen);
-		/* Line state will go via DLCI 0 controls only */
-		case 1:
-		default:
-			tty_insert_flip_string(port, data, len);
-			tty_flip_buffer_push(tty);
+		pr_debug("%d bytes for tty\n", len);
+	switch (dlci->adaption)  {
+	/* Unsupported types */
+	/* Packetised interruptible data */
+	case 4:
+		break;
+	/* Packetised uininterruptible voice/data */
+	case 3:
+		break;
+	/* Asynchronous serial with line state in each frame */
+	case 2:
+		while (gsm_read_ea(&modem, *data++) == 0) {
+			len--;
+			if (len == 0)
+				return;
 		}
-		tty_kref_put(tty);
+		tty = tty_port_tty_get(port);
+		if (tty) {
+			gsm_process_modem(tty, dlci, modem, clen);
+			tty_kref_put(tty);
+		}
+	/* Line state will go via DLCI 0 controls only */
+	case 1:
+	default:
+		tty_insert_flip_string(port, data, len);
+		tty_flip_buffer_push(port);
 	}
 }
 

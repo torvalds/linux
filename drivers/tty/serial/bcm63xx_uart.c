@@ -236,14 +236,12 @@ static const char *bcm_uart_type(struct uart_port *port)
 static void bcm_uart_do_rx(struct uart_port *port)
 {
 	struct tty_port *port = &port->state->port;
-	struct tty_struct *tty;
 	unsigned int max_count;
 
 	/* limit number of char read in interrupt, should not be
 	 * higher than fifo size anyway since we're much faster than
 	 * serial port */
 	max_count = 32;
-	tty = port->tty;
 	do {
 		unsigned int iestat, c, cstat;
 		char flag;
@@ -305,7 +303,7 @@ static void bcm_uart_do_rx(struct uart_port *port)
 
 	} while (--max_count);
 
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(port);
 }
 
 /*

@@ -129,7 +129,6 @@ static irqreturn_t nwpserial_interrupt(int irq, void *dev_id)
 {
 	struct nwpserial_port *up = dev_id;
 	struct tty_port *port = &up->port.state->port;
-	struct tty_struct *tty = port->tty;
 	irqreturn_t ret;
 	unsigned int iir;
 	unsigned char ch;
@@ -150,7 +149,7 @@ static irqreturn_t nwpserial_interrupt(int irq, void *dev_id)
 			tty_insert_flip_char(port, ch, TTY_NORMAL);
 	} while (dcr_read(up->dcr_host, UART_LSR) & UART_LSR_DR);
 
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(port);
 	ret = IRQ_HANDLED;
 
 	/* clear interrupt */

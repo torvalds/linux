@@ -291,7 +291,6 @@ static void	usa26_indat_callback(struct urb *urb)
 	int			i, err;
 	int			endpoint;
 	struct usb_serial_port	*port;
-	struct tty_struct	*tty;
 	unsigned char 		*data = urb->transfer_buffer;
 	int status = urb->status;
 
@@ -304,8 +303,7 @@ static void	usa26_indat_callback(struct urb *urb)
 	}
 
 	port =  urb->context;
-	tty = tty_port_tty_get(&port->port);
-	if (tty && urb->actual_length) {
+	if (urb->actual_length) {
 		/* 0x80 bit is error flag */
 		if ((data[0] & 0x80) == 0) {
 			/* no errors on individual bytes, only
@@ -332,9 +330,8 @@ static void	usa26_indat_callback(struct urb *urb)
 						flag);
 			}
 		}
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&port->port);
 	}
-	tty_kref_put(tty);
 
 	/* Resubmit urb so we continue receiving */
 	err = usb_submit_urb(urb, GFP_ATOMIC);
@@ -447,7 +444,6 @@ static void usa28_indat_callback(struct urb *urb)
 {
 	int                     err;
 	struct usb_serial_port  *port;
-	struct tty_struct       *tty;
 	unsigned char           *data;
 	struct keyspan_port_private             *p_priv;
 	int status = urb->status;
@@ -470,13 +466,11 @@ static void usa28_indat_callback(struct urb *urb)
 		p_priv = usb_get_serial_port_data(port);
 		data = urb->transfer_buffer;
 
-		tty = tty_port_tty_get(&port->port);
-		if (tty && urb->actual_length) {
+		if (urb->actual_length) {
 			tty_insert_flip_string(&port->port, data,
 					urb->actual_length);
-			tty_flip_buffer_push(tty);
+			tty_flip_buffer_push(&port->port);
 		}
-		tty_kref_put(tty);
 
 		/* Resubmit urb so we continue receiving */
 		err = usb_submit_urb(urb, GFP_ATOMIC);
@@ -671,7 +665,6 @@ static void	usa49_indat_callback(struct urb *urb)
 	int			i, err;
 	int			endpoint;
 	struct usb_serial_port	*port;
-	struct tty_struct	*tty;
 	unsigned char 		*data = urb->transfer_buffer;
 	int status = urb->status;
 
@@ -684,8 +677,7 @@ static void	usa49_indat_callback(struct urb *urb)
 	}
 
 	port =  urb->context;
-	tty = tty_port_tty_get(&port->port);
-	if (tty && urb->actual_length) {
+	if (urb->actual_length) {
 		/* 0x80 bit is error flag */
 		if ((data[0] & 0x80) == 0) {
 			/* no error on any byte */
@@ -706,9 +698,8 @@ static void	usa49_indat_callback(struct urb *urb)
 						flag);
 			}
 		}
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&port->port);
 	}
-	tty_kref_put(tty);
 
 	/* Resubmit urb so we continue receiving */
 	err = usb_submit_urb(urb, GFP_ATOMIC);
@@ -721,7 +712,6 @@ static void usa49wg_indat_callback(struct urb *urb)
 	int			i, len, x, err;
 	struct usb_serial	*serial;
 	struct usb_serial_port	*port;
-	struct tty_struct	*tty;
 	unsigned char 		*data = urb->transfer_buffer;
 	int status = urb->status;
 
@@ -746,7 +736,6 @@ static void usa49wg_indat_callback(struct urb *urb)
 				return;
 			}
 			port = serial->port[data[i++]];
-			tty = tty_port_tty_get(&port->port);
 			len = data[i++];
 
 			/* 0x80 bit is error flag */
@@ -774,8 +763,7 @@ static void usa49wg_indat_callback(struct urb *urb)
 					i += 2;
 				}
 			}
-			tty_flip_buffer_push(tty);
-			tty_kref_put(tty);
+			tty_flip_buffer_push(&port->port);
 		}
 	}
 
@@ -796,7 +784,6 @@ static void usa90_indat_callback(struct urb *urb)
 	int			endpoint;
 	struct usb_serial_port	*port;
 	struct keyspan_port_private	 	*p_priv;
-	struct tty_struct	*tty;
 	unsigned char 		*data = urb->transfer_buffer;
 	int status = urb->status;
 
@@ -812,7 +799,6 @@ static void usa90_indat_callback(struct urb *urb)
 	p_priv = usb_get_serial_port_data(port);
 
 	if (urb->actual_length) {
-		tty = tty_port_tty_get(&port->port);
 		/* if current mode is DMA, looks like usa28 format
 		   otherwise looks like usa26 data format */
 
@@ -848,8 +834,7 @@ static void usa90_indat_callback(struct urb *urb)
 				}
 			}
 		}
-		tty_flip_buffer_push(tty);
-		tty_kref_put(tty);
+		tty_flip_buffer_push(&port->port);
 	}
 
 	/* Resubmit urb so we continue receiving */

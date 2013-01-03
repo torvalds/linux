@@ -2145,7 +2145,7 @@ end_intr:
 	 * recursive locking.
 	 */
 	spin_unlock(&port->slock);
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&port->port);
 	spin_lock(&port->slock);
 }
 

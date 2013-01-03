@@ -123,7 +123,7 @@ static int pty_write(struct tty_struct *tty, const unsigned char *buf, int c)
 		c = tty_insert_flip_string(to->port, buf, c);
 		/* And shovel */
 		if (c) {
-			tty_flip_buffer_push(to);
+			tty_flip_buffer_push(to->port);
 			tty_wakeup(tty);
 		}
 	}

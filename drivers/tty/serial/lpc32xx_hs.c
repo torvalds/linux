@@ -259,16 +259,6 @@ static void __serial_lpc32xx_rx(struct uart_port *port)
 {
 	struct tty_port *tport = &port->state->port;
 	unsigned int tmp, flag;
-	struct tty_struct *tty = tty_port_tty_get(tport);
-
-	if (!tty) {
-		/* Discard data: no tty available */
-		while (!(readl(LPC32XX_HSUART_FIFO(port->membase)) &
-			 LPC32XX_HSU_RX_EMPTY))
-			;
-
-		return;
-	}
 
 	/* Read data from FIFO and push into terminal */
 	tmp = readl(LPC32XX_HSUART_FIFO(port->membase));
@@ -289,8 +279,7 @@ static void __serial_lpc32xx_rx(struct uart_port *port)
 
 		tmp = readl(LPC32XX_HSUART_FIFO(port->membase));
 	}
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_flip_buffer_push(tport);
 }
 
 static void __serial_lpc32xx_tx(struct uart_port *port)
@@ -367,8 +356,7 @@ static irqreturn_t serial_lpc32xx_interrupt(int irq, void *dev_id)
 	/* Data received? */
 	if (status & (LPC32XX_HSU_RX_TIMEOUT_INT | LPC32XX_HSU_RX_TRIG_INT)) {
 		__serial_lpc32xx_rx(port);
-		if (tty)
-			tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(tport);
 	}
 
 	/* Transmit data request? */

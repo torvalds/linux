@@ -886,21 +886,13 @@ static void rx_ready_hdlc(MGSLPC_INFO *info, int eom)
 	issue_command(info, CHA, CMD_RXFIFO);
 }
 
-static void rx_ready_async(MGSLPC_INFO *info, int tcd, struct tty_struct *tty)
+static void rx_ready_async(MGSLPC_INFO *info, int tcd)
 {
 	struct tty_port *port = &info->port;
 	unsigned char data, status, flag;
 	int fifo_count;
 	int work = 0;
  	struct mgsl_icount *icount = &info->icount;
-
-	if (!tty) {
-		/* tty is not available anymore */
-		issue_command(info, CHA, CMD_RXRESET);
-		if (debug_level >= DEBUG_LEVEL_ISR)
-			printk("%s(%d):rx_ready_async(tty=NULL)\n",__FILE__,__LINE__);
-		return;
-	}
 
 	if (tcd) {
 		/* early termination, get FIFO count from RBCL register */
@@ -958,7 +950,7 @@ static void rx_ready_async(MGSLPC_INFO *info, int tcd, struct tty_struct *tty)
 	}
 
 	if (work)
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(port);
 }
 
 
@@ -1218,7 +1210,7 @@ static irqreturn_t mgslpc_isr(int dummy, void *dev_id)
 				if (info->params.mode == MGSL_MODE_HDLC)
 					rx_ready_hdlc(info, isr & IRQ_RXEOM);
 				else
-					rx_ready_async(info, isr & IRQ_RXEOM, tty);
+					rx_ready_async(info, isr & IRQ_RXEOM);
 			}
 
 			/* transmit IRQs */

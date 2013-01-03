@@ -2104,17 +2104,10 @@ static int force_eop_if_needed(struct e100_serial *info)
 
 static void flush_to_flip_buffer(struct e100_serial *info)
 {
-	struct tty_struct *tty;
 	struct etrax_recv_buffer *buffer;
 	unsigned long flags;
 
 	local_irq_save(flags);
-	tty = info->port.tty;
-
-	if (!tty) {
-		local_irq_restore(flags);
-		return;
-	}
 
 	while ((buffer = info->first_recv_buffer) != NULL) {
 		unsigned int count = buffer->length;
@@ -2138,7 +2131,7 @@ static void flush_to_flip_buffer(struct e100_serial *info)
 	local_irq_restore(flags);
 
 	/* This includes a check for low-latency */
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&info->port);
 }
 
 static void check_flush_timeout(struct e100_serial *info)
@@ -2274,12 +2267,6 @@ static
 struct e100_serial * handle_ser_rx_interrupt_no_dma(struct e100_serial *info)
 {
 	unsigned long data_read;
-	struct tty_struct *tty = info->port.tty;
-
-	if (!tty) {
-		printk("!NO TTY!\n");
-		return info;
-	}
 
 	/* Read data and status at the same time */
 	data_read = *((unsigned long *)&info->ioport[REG_DATA_STATUS32]);
@@ -2382,7 +2369,7 @@ more_data:
 		goto more_data;
 	}
 
-	tty_flip_buffer_push(info->port.tty);
+	tty_flip_buffer_push(&info->port);
 	return info;
 }
 

@@ -53,9 +53,8 @@ struct tty_driver *hp_simserial_driver;
 
 static struct console *console;
 
-static void receive_chars(struct tty_struct *tty)
+static void receive_chars(struct tty_port *port)
 {
-	struct tty_port *port = tty->port;
 	unsigned char ch;
 	static unsigned char seen_esc = 0;
 
@@ -85,7 +84,7 @@ static void receive_chars(struct tty_struct *tty)
 		if (tty_insert_flip_char(port, ch, TTY_NORMAL) == 0)
 			break;
 	}
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(port);
 }
 
 /*
@@ -94,18 +93,9 @@ static void receive_chars(struct tty_struct *tty)
 static irqreturn_t rs_interrupt_single(int irq, void *dev_id)
 {
 	struct serial_state *info = dev_id;
-	struct tty_struct *tty = tty_port_tty_get(&info->port);
 
-	if (!tty) {
-		printk(KERN_INFO "%s: tty=0 problem\n", __func__);
-		return IRQ_NONE;
-	}
-	/*
-	 * pretty simple in our case, because we only get interrupts
-	 * on inbound traffic
-	 */
-	receive_chars(tty);
-	tty_kref_put(tty);
+	receive_chars(&info->port);
+
 	return IRQ_HANDLED;
 }
 

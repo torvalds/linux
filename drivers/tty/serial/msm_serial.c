@@ -92,7 +92,6 @@ static void msm_enable_ms(struct uart_port *port)
 static void handle_rx_dm(struct uart_port *port, unsigned int misr)
 {
 	struct tty_port *tport = &port->state->port;
-	struct tty_struct *tty = tport->tty;
 	unsigned int sr;
 	int count = 0;
 	struct msm_port *msm_port = UART_TO_MSM(port);
@@ -138,7 +137,7 @@ static void handle_rx_dm(struct uart_port *port, unsigned int misr)
 		count -= 4;
 	}
 
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(tport);
 	if (misr & (UART_IMR_RXSTALE))
 		msm_write(port, UART_CR_CMD_RESET_STALE_INT, UART_CR);
 	msm_write(port, 0xFFFFFF, UARTDM_DMRX);
@@ -148,7 +147,6 @@ static void handle_rx_dm(struct uart_port *port, unsigned int misr)
 static void handle_rx(struct uart_port *port)
 {
 	struct tty_port *tport = &port->state->port;
-	struct tty_struct *tty = tport->tty;
 	unsigned int sr;
 
 	/*
@@ -191,7 +189,7 @@ static void handle_rx(struct uart_port *port)
 			tty_insert_flip_char(tport, c, flag);
 	}
 
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(tport);
 }
 
 static void reset_dm_count(struct uart_port *port)

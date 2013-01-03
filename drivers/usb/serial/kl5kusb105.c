@@ -389,7 +389,6 @@ static void klsi_105_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	unsigned char *data = urb->transfer_buffer;
-	struct tty_struct *tty;
 	unsigned len;
 
 	/* empty urbs seem to happen, we ignore them */
@@ -401,10 +400,6 @@ static void klsi_105_process_read_urb(struct urb *urb)
 		return;
 	}
 
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
-		return;
-
 	len = get_unaligned_le16(data);
 	if (len > urb->actual_length - KLSI_HDR_LEN) {
 		dev_dbg(&port->dev, "%s - packet length mismatch\n", __func__);
@@ -412,8 +407,7 @@ static void klsi_105_process_read_urb(struct urb *urb)
 	}
 
 	tty_insert_flip_string(&port->port, data + KLSI_HDR_LEN, len);
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_flip_buffer_push(&port->port);
 }
 
 static void klsi_105_set_termios(struct tty_struct *tty,

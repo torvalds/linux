@@ -136,20 +136,17 @@ static void sc26xx_disable_irq(struct uart_port *port, int mask)
 	WRITE_SC(port, IMR, up->imr);
 }
 
-static struct tty_struct *receive_chars(struct uart_port *port)
+static bool receive_chars(struct uart_port *port)
 {
 	struct tty_port *tport = NULL;
-	struct tty_struct *tty = NULL;
 	int limit = 10000;
 	unsigned char ch;
 	char flag;
 	u8 status;
 
 	/* FIXME what is this trying to achieve? */
-	if (port->state != NULL) {		/* Unopened serial console */
+	if (port->state != NULL)		/* Unopened serial console */
 		tport = &port->state->port;
-		tty = tport->tty;
-	}
 
 	while (limit-- > 0) {
 		status = READ_SC_PORT(port, SR);
@@ -191,7 +188,7 @@ static struct tty_struct *receive_chars(struct uart_port *port)
 
 		tty_insert_flip_char(tport, ch, flag);
 	}
-	return tty;
+	return !!tport;
 }
 
 static void transmit_chars(struct uart_port *port)
@@ -221,36 +218,36 @@ static void transmit_chars(struct uart_port *port)
 static irqreturn_t sc26xx_interrupt(int irq, void *dev_id)
 {
 	struct uart_sc26xx_port *up = dev_id;
-	struct tty_struct *tty;
 	unsigned long flags;
+	bool push;
 	u8 isr;
 
 	spin_lock_irqsave(&up->port[0].lock, flags);
 
-	tty = NULL;
+	push = false;
 	isr = READ_SC(&up->port[0], ISR);
 	if (isr & ISR_TXRDYA)
 	    transmit_chars(&up->port[0]);
 	if (isr & ISR_RXRDYA)
-	    tty = receive_chars(&up->port[0]);
+	    push = receive_chars(&up->port[0]);
 
 	spin_unlock(&up->port[0].lock);
 
-	if (tty)
-		tty_flip_buffer_push(tty);
+	if (push)
+		tty_flip_buffer_push(&up->port[0].state->port);
 
 	spin_lock(&up->port[1].lock);
 
-	tty = NULL;
+	push = false;
 	if (isr & ISR_TXRDYB)
 	    transmit_chars(&up->port[1]);
 	if (isr & ISR_RXRDYB)
-	    tty = receive_chars(&up->port[1]);
+	    push = receive_chars(&up->port[1]);
 
 	spin_unlock_irqrestore(&up->port[1].lock, flags);
 
-	if (tty)
-		tty_flip_buffer_push(tty);
+	if (push)
+		tty_flip_buffer_push(&up->port[1].state->port);
 
 	return IRQ_HANDLED;
 }

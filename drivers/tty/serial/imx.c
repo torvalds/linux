@@ -518,7 +518,6 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 	unsigned int rx, flg, ignored = 0;
 	struct tty_struct *tty = sport->port.state->port.tty;
 	struct tty_port *port = &sport->port.state->port;
-	struct tty_struct *tty = port->tty;
 	unsigned long flags, temp;
 
 	spin_lock_irqsave(&sport->port.lock, flags);
@@ -576,7 +575,7 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 
 out:
 	spin_unlock_irqrestore(&sport->port.lock, flags);
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(port);
 	return IRQ_HANDLED;
 }
 
