@@ -507,7 +507,7 @@ static void rlb_update_client(struct rlb_client_info *client_info)
 				 client_info->mac_dst);
 		if (!skb) {
 			pr_err("%s: Error: failed to create an ARP packet\n",
-			       client_info->slave->dev->master->name);
+			       client_info->slave->bond->dev->name);
 			continue;
 		}
 
@@ -517,7 +517,7 @@ static void rlb_update_client(struct rlb_client_info *client_info)
 			skb = vlan_put_tag(skb, client_info->vlan_id);
 			if (!skb) {
 				pr_err("%s: Error: failed to insert VLAN tag\n",
-				       client_info->slave->dev->master->name);
+				       client_info->slave->bond->dev->name);
 				continue;
 			}
 		}
@@ -1043,7 +1043,7 @@ static int alb_set_slave_mac_addr(struct slave *slave, u8 addr[])
 	if (dev_set_mac_address(dev, &s_addr)) {
 		pr_err("%s: Error: dev_set_mac_address of dev %s failed!\n"
 		       "ALB mode requires that the base driver support setting the hw address also when the network device's interface is open\n",
-		       dev->master->name, dev->name);
+		       slave->bond->dev->name, dev->name);
 		return -EOPNOTSUPP;
 	}
 	return 0;

@@ -1127,7 +1127,7 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 				// INFO_RECEIVED_LOOPBACK_FRAMES
 				pr_err("%s: An illegal loopback occurred on adapter (%s).\n"
 				       "Check the configuration to verify that all adapters are connected to 802.3ad compliant switch ports\n",
-				       port->slave->dev->master->name, port->slave->dev->name);
+				       port->slave->bond->dev->name, port->slave->dev->name);
 				return;
 			}
 			__update_selected(lacpdu, port);
@@ -1306,7 +1306,7 @@ static void ad_port_selection_logic(struct port *port)
 		}
 		if (!curr_port) { // meaning: the port was related to an aggregator but was not on the aggregator port list
 			pr_warning("%s: Warning: Port %d (on %s) was related to aggregator %d but was not on its port list\n",
-				   port->slave->dev->master->name,
+				   port->slave->bond->dev->name,
 				   port->actor_port_number,
 				   port->slave->dev->name,
 				   port->aggregator->aggregator_identifier);
@@ -1386,7 +1386,7 @@ static void ad_port_selection_logic(struct port *port)
 				 port->aggregator->aggregator_identifier);
 		} else {
 			pr_err("%s: Port %d (on %s) did not find a suitable aggregator\n",
-			       port->slave->dev->master->name,
+			       port->slave->bond->dev->name,
 			       port->actor_port_number, port->slave->dev->name);
 		}
 	}
@@ -1463,7 +1463,7 @@ static struct aggregator *ad_agg_selection_test(struct aggregator *best,
 
 	default:
 		pr_warning("%s: Impossible agg select mode %d\n",
-			   curr->slave->dev->master->name,
+			   curr->slave->bond->dev->name,
 			   __get_agg_selection_mode(curr->lag_ports));
 		break;
 	}
@@ -1571,7 +1571,7 @@ static void ad_agg_selection_logic(struct aggregator *agg)
 		// check if any partner replys
 		if (best->is_individual) {
 			pr_warning("%s: Warning: No 802.3ad response from the link partner for any adapters in the bond\n",
-				   best->slave ? best->slave->dev->master->name : "NULL");
+				   best->slave ? best->slave->bond->dev->name : "NULL");
 		}
 
 		best->is_active = 1;
@@ -1898,7 +1898,7 @@ int bond_3ad_bind_slave(struct slave *slave)
 
 	if (bond == NULL) {
 		pr_err("%s: The slave %s is not attached to its bond\n",
-		       slave->dev->master->name, slave->dev->name);
+		       slave->bond->dev->name, slave->dev->name);
 		return -1;
 	}
 
@@ -1973,7 +1973,7 @@ void bond_3ad_unbind_slave(struct slave *slave)
 	// if slave is null, the whole port is not initialized
 	if (!port->slave) {
 		pr_warning("Warning: %s: Trying to unbind an uninitialized port on %s\n",
-			   slave->dev->master->name, slave->dev->name);
+			   slave->bond->dev->name, slave->dev->name);
 		return;
 	}
 
@@ -2009,7 +2009,7 @@ void bond_3ad_unbind_slave(struct slave *slave)
 
 				if ((new_aggregator->lag_ports == port) && new_aggregator->is_active) {
 					pr_info("%s: Removing an active aggregator\n",
-						aggregator->slave->dev->master->name);
+						aggregator->slave->bond->dev->name);
 					// select new active aggregator
 					 select_new_active_agg = 1;
 				}
@@ -2040,7 +2040,7 @@ void bond_3ad_unbind_slave(struct slave *slave)
 					ad_agg_selection_logic(__get_first_agg(port));
 			} else {
 				pr_warning("%s: Warning: unbinding aggregator, and could not find a new aggregator for its ports\n",
-					   slave->dev->master->name);
+					   slave->bond->dev->name);
 			}
 		} else { // in case that the only port related to this aggregator is the one we want to remove
 			select_new_active_agg = aggregator->is_active;
@@ -2048,7 +2048,7 @@ void bond_3ad_unbind_slave(struct slave *slave)
 			ad_clear_agg(aggregator);
 			if (select_new_active_agg) {
 				pr_info("%s: Removing an active aggregator\n",
-					slave->dev->master->name);
+					slave->bond->dev->name);
 				// select new active aggregator
 				ad_agg_selection_logic(__get_first_agg(port));
 			}
@@ -2076,7 +2076,7 @@ void bond_3ad_unbind_slave(struct slave *slave)
 					ad_clear_agg(temp_aggregator);
 					if (select_new_active_agg) {
 						pr_info("%s: Removing an active aggregator\n",
-							slave->dev->master->name);
+							slave->bond->dev->name);
 						// select new active aggregator
 						ad_agg_selection_logic(__get_first_agg(port));
 					}
@@ -2184,7 +2184,7 @@ static int bond_3ad_rx_indication(struct lacpdu *lacpdu, struct slave *slave, u1
 
 		if (!port->slave) {
 			pr_warning("%s: Warning: port of slave %s is uninitialized\n",
-				   slave->dev->name, slave->dev->master->name);
+				   slave->dev->name, slave->bond->dev->name);
 			return ret;
 		}
 
@@ -2240,7 +2240,7 @@ void bond_3ad_adapter_speed_changed(struct slave *slave)
 	// if slave is null, the whole port is not initialized
 	if (!port->slave) {
 		pr_warning("Warning: %s: speed changed for uninitialized port on %s\n",
-			   slave->dev->master->name, slave->dev->name);
+			   slave->bond->dev->name, slave->dev->name);
 		return;
 	}
 
@@ -2268,7 +2268,7 @@ void bond_3ad_adapter_duplex_changed(struct slave *slave)
 	// if slave is null, the whole port is not initialized
 	if (!port->slave) {
 		pr_warning("%s: Warning: duplex changed for uninitialized port on %s\n",
-			   slave->dev->master->name, slave->dev->name);
+			   slave->bond->dev->name, slave->dev->name);
 		return;
 	}
 
@@ -2297,7 +2297,7 @@ void bond_3ad_handle_link_change(struct slave *slave, char link)
 	// if slave is null, the whole port is not initialized
 	if (!port->slave) {
 		pr_warning("Warning: %s: link status changed for uninitialized port on %s\n",
-			   slave->dev->master->name, slave->dev->name);
+			   slave->bond->dev->name, slave->dev->name);
 		return;
 	}
 
