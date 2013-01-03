@@ -107,6 +107,8 @@ static int loongson2_cpufreq_target(struct cpufreq_policy *policy,
 static int loongson2_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
 	int i;
+	unsigned long rate;
+	int ret;
 
 	if (!cpu_online(policy->cpu))
 		return -ENODEV;
@@ -117,15 +119,22 @@ static int loongson2_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		return PTR_ERR(cpuclk);
 	}
 
-	cpuclk->rate = cpu_clock_freq / 1000;
-	if (!cpuclk->rate)
+	rate = cpu_clock_freq / 1000;
+	if (!rate) {
+		clk_put(cpuclk);
 		return -EINVAL;
+	}
+	ret = clk_set_rate(cpuclk, rate);
+	if (ret) {
+		clk_put(cpuclk);
+		return ret;
+	}
 
 	/* clock table init */
 	for (i = 2;
 	     (loongson2_clockmod_table[i].frequency != CPUFREQ_TABLE_END);
 	     i++)
-		loongson2_clockmod_table[i].frequency = (cpuclk->rate * i) / 8;
+		loongson2_clockmod_table[i].frequency = (rate * i) / 8;
 
 	policy->cur = loongson2_cpufreq_get(policy->cpu);
 
