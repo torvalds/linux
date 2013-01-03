@@ -214,7 +214,7 @@ static int __devinit lp8788_adc_probe(struct platform_device *pdev)
 
 	mutex_init(&adc->lock);
 
-	indio_dev->dev.parent = lp->dev;
+	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->name = pdev->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &lp8788_adc_info;
@@ -223,7 +223,7 @@ static int __devinit lp8788_adc_probe(struct platform_device *pdev)
 
 	ret = iio_device_register(indio_dev);
 	if (ret) {
-		dev_err(lp->dev, "iio dev register err: %d\n", ret);
+		dev_err(&pdev->dev, "iio dev register err: %d\n", ret);
 		goto err_iio_device;
 	}
 
