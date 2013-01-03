@@ -986,7 +986,7 @@ int do_write_data_page(struct page *);
 int start_gc_thread(struct f2fs_sb_info *);
 void stop_gc_thread(struct f2fs_sb_info *);
 block_t start_bidx_of_node(unsigned int);
-int f2fs_gc(struct f2fs_sb_info *, int);
+int f2fs_gc(struct f2fs_sb_info *);
 void build_gc_manager(struct f2fs_sb_info *);
 int create_gc_caches(void);
 void destroy_gc_caches(void);
