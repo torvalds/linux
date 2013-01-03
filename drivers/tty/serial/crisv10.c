@@ -3462,7 +3462,7 @@ set_serial_info(struct e100_serial *info,
 	info->type = new_serial.type;
 	info->close_delay = new_serial.close_delay;
 	info->closing_wait = new_serial.closing_wait;
-	info->port.tty->low_latency = (info->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	info->port.low_latency = (info->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
  check_and_exit:
 	if (info->flags & ASYNC_INITIALIZED) {
@@ -4106,7 +4106,7 @@ rs_open(struct tty_struct *tty, struct file * filp)
 	tty->driver_data = info;
 	info->port.tty = tty;
 
-	tty->low_latency = !!(info->flags & ASYNC_LOW_LATENCY);
+	info->port.low_latency = !!(info->flags & ASYNC_LOW_LATENCY);
 
 	/*
 	 * If the port is in the middle of closing, bail out now

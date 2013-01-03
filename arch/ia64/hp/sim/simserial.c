@@ -436,7 +436,7 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 	struct tty_port *port = &info->port;
 
 	tty->driver_data = info;
-	tty->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	port->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 	/*
 	 * figure out which console to use (should be one already)

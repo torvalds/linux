@@ -860,7 +860,7 @@ static int tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 		tty->driver_data = tp;
 		tty->winsize.ws_row = tp->view.rows - 2;
 		tty->winsize.ws_col = tp->view.cols;
-		tty->low_latency = 0;
+		tp->port.low_latency = 0;
 		/* why to reassign? */
 		tty_port_tty_set(&tp->port, tty);
 		tp->inattr = TF_INPUT;
@@ -893,7 +893,7 @@ static int tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 	}
 
 	tty_port_tty_set(&tp->port, tty);
-	tty->low_latency = 0;
+	tp->port.low_latency = 0;
 	tty->winsize.ws_row = tp->view.rows - 2;
 	tty->winsize.ws_col = tp->view.cols;
 

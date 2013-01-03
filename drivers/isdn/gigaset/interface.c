@@ -164,7 +164,7 @@ static int if_open(struct tty_struct *tty, struct file *filp)
 
 	if (cs->port.count == 1) {
 		tty_port_tty_set(&cs->port, tty);
-		tty->low_latency = 1;
+		cs->port.low_latency = 1;
 	}
 
 	mutex_unlock(&cs->mutex);

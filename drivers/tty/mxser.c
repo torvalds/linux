@@ -1264,7 +1264,7 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 				(new_serial.flags & ASYNC_FLAGS));
 		port->close_delay = new_serial.close_delay * HZ / 100;
 		port->closing_wait = new_serial.closing_wait * HZ / 100;
-		tty->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+		port->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 		if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_CUST &&
 				(new_serial.baud_base != info->baud_base ||
 				new_serial.custom_divisor !=

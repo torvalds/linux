@@ -1400,7 +1400,7 @@ static int msm_hs_startup(struct uart_port *uport)
 
 	/* do not let tty layer execute RX in global workqueue, use a
 	 * dedicated workqueue managed by this driver */
-	uport->state->port.tty->low_latency = 1;
+	uport->state->port.low_latency = 1;
 
 	/* turn on uart clk */
 	ret = msm_hs_init_clk_locked(uport);

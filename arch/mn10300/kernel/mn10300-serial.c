@@ -537,7 +537,7 @@ static void mn10300_serial_receive_interrupt(struct mn10300_serial_port *port)
 	count = CIRC_CNT(port->rx_inp, port->rx_outp, MNSC_BUFFER_SIZE);
 	count = tty_buffer_request_room(port, count);
 	if (count == 0) {
-		if (!tty->low_latency)
+		if (!port->low_latency)
 			tty_flip_buffer_push(tty);
 		return;
 	}
@@ -546,7 +546,7 @@ try_again:
 	/* pull chars out of the hat */
 	ix = ACCESS_ONCE(port->rx_outp);
 	if (CIRC_CNT(port->rx_inp, ix, MNSC_BUFFER_SIZE) == 0) {
-		if (push && !tty->low_latency)
+		if (push && !port->low_latency)
 			tty_flip_buffer_push(tty);
 		return;
 	}
@@ -678,7 +678,7 @@ insert:
 
 	count--;
 	if (count <= 0) {
-		if (!tty->low_latency)
+		if (!port->low_latency)
 			tty_flip_buffer_push(tty);
 		return;
 	}

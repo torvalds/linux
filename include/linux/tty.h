@@ -202,7 +202,8 @@ struct tty_port {
 	unsigned long		iflags;		/* TTYP_ internal flags */
 #define TTYP_FLUSHING			1  /* Flushing to ldisc in progress */
 #define TTYP_FLUSHPENDING		2  /* Queued buffer flush pending */
-	unsigned char		console:1;	/* port is a console */
+	unsigned char		console:1,	/* port is a console */
+				low_latency:1;	/* direct buffer flush */
 	struct mutex		mutex;		/* Locking */
 	struct mutex		buf_mutex;	/* Buffer alloc lock */
 	unsigned char		*xmit_buf;	/* Optional buffer */
@@ -254,7 +255,7 @@ struct tty_struct {
 	int count;
 	struct winsize winsize;		/* termios mutex */
 	unsigned char stopped:1, hw_stopped:1, flow_stopped:1, packet:1;
-	unsigned char low_latency:1, warned:1;
+	unsigned char warned:1;
 	unsigned char ctrl_status;	/* ctrl_lock */
 	unsigned int receive_room;	/* Bytes free for queue */
 

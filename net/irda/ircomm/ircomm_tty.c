@@ -452,7 +452,7 @@ static int ircomm_tty_open(struct tty_struct *tty, struct file *filp)
 		   self->line, self->port.count);
 
 	/* Not really used by us, but lets do it anyway */
-	tty->low_latency = (self->port.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	self->port.low_latency = (self->port.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 	/*
 	 * If the port is the middle of closing, bail out now

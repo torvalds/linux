@@ -364,7 +364,7 @@ void tty_schedule_flip(struct tty_struct *tty)
 {
 	struct tty_bufhead *buf = &tty->port->buf;
 	unsigned long flags;
-	WARN_ON(tty->low_latency);
+	WARN_ON(tty->port->low_latency);
 
 	spin_lock_irqsave(&buf->lock, flags);
 	if (buf->tail != NULL)
@@ -538,7 +538,7 @@ static void flush_to_ldisc(struct work_struct *work)
  */
 void tty_flush_to_ldisc(struct tty_struct *tty)
 {
-	if (!tty->low_latency)
+	if (!tty->port->low_latency)
 		flush_work(&tty->port->buf.work);
 }
 
@@ -547,7 +547,8 @@ void tty_flush_to_ldisc(struct tty_struct *tty)
  *	@tty: tty to push
  *
  *	Queue a push of the terminal flip buffers to the line discipline. This
- *	function must not be called from IRQ context if tty->low_latency is set.
+ *	function must not be called from IRQ context if port->low_latency is
+ *	set.
  *
  *	In the event of the queue being busy for flipping the work will be
  *	held off and retried later.
@@ -565,7 +566,7 @@ void tty_flip_buffer_push(struct tty_struct *tty)
 		buf->tail->commit = buf->tail->used;
 	spin_unlock_irqrestore(&buf->lock, flags);
 
-	if (tty->low_latency)
+	if (tty->port->low_latency)
 		flush_to_ldisc(&buf->work);
 	else
 		schedule_work(&buf->work);

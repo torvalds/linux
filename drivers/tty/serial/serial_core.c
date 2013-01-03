@@ -867,9 +867,7 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 	port->closing_wait    = closing_wait;
 	if (new_info->xmit_fifo_size)
 		uport->fifosize = new_info->xmit_fifo_size;
-	if (port->tty)
-		port->tty->low_latency =
-			(uport->flags & UPF_LOW_LATENCY) ? 1 : 0;
+	port->low_latency = (uport->flags & UPF_LOW_LATENCY) ? 1 : 0;
 
  check_and_exit:
 	retval = 0;
@@ -1565,7 +1563,8 @@ static int uart_open(struct tty_struct *tty, struct file *filp)
 	 */
 	tty->driver_data = state;
 	state->uart_port->state = state;
-	tty->low_latency = (state->uart_port->flags & UPF_LOW_LATENCY) ? 1 : 0;
+	state->port.low_latency =
+		(state->uart_port->flags & UPF_LOW_LATENCY) ? 1 : 0;
 	tty_port_tty_set(port, tty);
 
 	/*

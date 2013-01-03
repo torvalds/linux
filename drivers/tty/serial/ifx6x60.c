@@ -615,7 +615,7 @@ static int ifx_port_activate(struct tty_port *port, struct tty_struct *tty)
 	tty->driver_data = ifx_dev;
 
 	/* allows flip string push from int context */
-	tty->low_latency = 1;
+	port->low_latency = 1;
 
 	/* set flag to allows data transfer */
 	set_bit(IFX_SPI_STATE_IO_AVAILABLE, &ifx_dev->flags);

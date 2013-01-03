@@ -761,7 +761,7 @@ static int open(struct tty_struct *tty, struct file *filp)
 		goto cleanup;
 	}
 
-	info->port.tty->low_latency = (info->port.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	info->port.low_latency = (info->port.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 	spin_lock_irqsave(&info->netlock, flags);
 	if (info->netcount) {

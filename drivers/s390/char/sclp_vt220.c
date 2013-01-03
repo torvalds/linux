@@ -495,7 +495,7 @@ sclp_vt220_open(struct tty_struct *tty, struct file *filp)
 {
 	if (tty->count == 1) {
 		tty_port_tty_set(&sclp_vt220_port, tty);
-		tty->low_latency = 0;
+		sclp_vt220_port.low_latency = 0;
 		if (!tty->winsize.ws_row && !tty->winsize.ws_col) {
 			tty->winsize.ws_row = 24;
 			tty->winsize.ws_col = 80;

@@ -1740,7 +1740,7 @@ ioc4_change_speed(struct uart_port *the_port,
 
 	the_port->ignore_status_mask = N_ALL_INPUT;
 
-	state->port.tty->low_latency = 1;
+	state->port.low_latency = 1;
 
 	if (iflag & IGNPAR)
 		the_port->ignore_status_mask &= ~(N_PARITY_ERROR

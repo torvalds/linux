@@ -970,7 +970,7 @@ static int mpsc_rx_intr(struct mpsc_port_info *pi)
 #endif
 		/* Following use of tty struct directly is deprecated */
 		if (tty_buffer_request_room(port, bytes_in) < bytes_in) {
-			if (tty->low_latency)
+			if (port->low_latency)
 				tty_flip_buffer_push(tty);
 			/*
 			 * If this failed then we will throw away the bytes

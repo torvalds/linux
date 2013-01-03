@@ -1099,7 +1099,7 @@ static int set_serial_info(struct tty_struct *tty, struct serial_state *state,
 	state->custom_divisor = new_serial.custom_divisor;
 	port->close_delay = new_serial.close_delay * HZ/100;
 	port->closing_wait = new_serial.closing_wait * HZ/100;
-	tty->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	port->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 check_and_exit:
 	if (port->flags & ASYNC_INITIALIZED) {
@@ -1528,7 +1528,7 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 	if (serial_paranoia_check(info, tty->name, "rs_open"))
 		return -ENODEV;
 
-	tty->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	port->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 	retval = startup(tty, info);
 	if (retval) {

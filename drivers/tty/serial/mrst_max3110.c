@@ -495,7 +495,7 @@ static int serial_m3110_startup(struct uart_port *port)
 			| WC_BAUD_DR2;
 
 	/* as we use thread to handle tx/rx, need set low latency */
-	port->state->port.tty->low_latency = 1;
+	port->state->port.low_latency = 1;
 
 	if (max->irq) {
 		max->read_thread = NULL;

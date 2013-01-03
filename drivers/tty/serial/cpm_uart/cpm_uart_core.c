@@ -508,7 +508,7 @@ static void cpm_uart_set_termios(struct uart_port *port,
 
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk / 16);
 	if (baud < HW_BUF_SPD_THRESHOLD ||
-	    (pinfo->port.state && pinfo->port.state->port.tty->low_latency))
+	    (pinfo->port.state && pinfo->port.state->port.low_latency))
 		pinfo->rx_fifosize = 1;
 	else
 		pinfo->rx_fifosize = RX_BUF_SIZE;
