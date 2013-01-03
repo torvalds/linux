@@ -94,23 +94,14 @@ static void gpio_pin_set(struct gpio_chip *gc, unsigned offset, int value)
 static int gpio_pin_to_irq(struct gpio_chip *gc, unsigned offset)
 {
 	struct sh_pfc *pfc = gpio_to_pfc(gc);
-	pinmux_enum_t enum_id;
-	pinmux_enum_t *enum_ids;
-	int i, k, pos;
+	int i, k;
 
-	pos = 0;
-	enum_id = 0;
-	while (1) {
-		pos = sh_pfc_gpio_to_enum(pfc, offset, pos, &enum_id);
-		if (pos <= 0 || !enum_id)
-			break;
+	for (i = 0; i < pfc->info->gpio_irq_size; i++) {
+		unsigned short *gpios = pfc->info->gpio_irq[i].gpios;
 
-		for (i = 0; i < pfc->info->gpio_irq_size; i++) {
-			enum_ids = pfc->info->gpio_irq[i].enum_ids;
-			for (k = 0; enum_ids[k]; k++) {
-				if (enum_ids[k] == enum_id)
-					return pfc->info->gpio_irq[i].irq;
-			}
+		for (k = 0; gpios[k]; k++) {
+			if (gpios[k] == offset)
+				return pfc->info->gpio_irq[i].irq;
 		}
 	}
 

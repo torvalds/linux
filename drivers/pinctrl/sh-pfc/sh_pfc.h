@@ -89,11 +89,11 @@ struct pinmux_data_reg {
 
 struct pinmux_irq {
 	int irq;
-	pinmux_enum_t *enum_ids;
+	unsigned short *gpios;
 };
 
 #define PINMUX_IRQ(irq_nr, ids...)			   \
-	{ .irq = irq_nr, .enum_ids = (pinmux_enum_t []) { ids, 0 } }	\
+	{ .irq = irq_nr, .gpios = (unsigned short []) { ids, 0 } }	\
 
 struct pinmux_range {
 	pinmux_enum_t begin;

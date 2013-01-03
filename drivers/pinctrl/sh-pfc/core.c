@@ -350,8 +350,8 @@ static int sh_pfc_get_config_reg(struct sh_pfc *pfc, pinmux_enum_t enum_id,
 	return -1;
 }
 
-int sh_pfc_gpio_to_enum(struct sh_pfc *pfc, unsigned gpio, int pos,
-			pinmux_enum_t *enum_idp)
+static int sh_pfc_gpio_to_enum(struct sh_pfc *pfc, unsigned gpio, int pos,
+			       pinmux_enum_t *enum_idp)
 {
 	pinmux_enum_t *data = pfc->info->gpio_data;
 	pinmux_enum_t enum_id;
