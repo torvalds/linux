@@ -182,7 +182,7 @@ static int ts2020_set_tuner_rf(struct dvb_frontend *fe)
 static int ts2020_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	struct ts2020_priv *priv = fe->demodulator_priv;
+	struct ts2020_priv *priv = fe->tuner_priv;
 	int ret;
 	u32 frequency = c->frequency;
 	s32 offset_khz;
