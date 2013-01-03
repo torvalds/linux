@@ -212,6 +212,7 @@ struct smp_operations tegra_smp_ops __initdata = {
 	.smp_secondary_init	= tegra_secondary_init,
 	.smp_boot_secondary	= tegra_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
+	.cpu_kill		= tegra_cpu_kill,
 	.cpu_die		= tegra_cpu_die,
 	.cpu_disable		= tegra_cpu_disable,
 #endif
