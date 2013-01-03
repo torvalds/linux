@@ -503,7 +503,7 @@ static int lp8788_buck_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	int ret;
 
-	buck = devm_kzalloc(lp->dev, sizeof(struct lp8788_buck), GFP_KERNEL);
+	buck = devm_kzalloc(&pdev->dev, sizeof(struct lp8788_buck), GFP_KERNEL);
 	if (!buck)
 		return -ENOMEM;
 
@@ -513,7 +513,7 @@ static int lp8788_buck_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	cfg.dev = lp->dev;
+	cfg.dev = pdev->dev.parent;
 	cfg.init_data = lp->pdata ? lp->pdata->buck_data[id] : NULL;
 	cfg.driver_data = buck;
 	cfg.regmap = lp->regmap;
@@ -521,7 +521,7 @@ static int lp8788_buck_probe(struct platform_device *pdev)
 	rdev = regulator_register(&lp8788_buck_desc[id], &cfg);
 	if (IS_ERR(rdev)) {
 		ret = PTR_ERR(rdev);
-		dev_err(lp->dev, "BUCK%d regulator register err = %d\n",
+		dev_err(&pdev->dev, "BUCK%d regulator register err = %d\n",
 				id + 1, ret);
 		return ret;
 	}
