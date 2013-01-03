@@ -50,14 +50,18 @@ do {							\
 } while (0)
 
 /*
- * em2800_i2c_send_max4()
- * send up to 4 bytes to the i2c device
+ * em2800_i2c_send_bytes()
+ * send up to 4 bytes to the em2800 i2c device
  */
-static int em2800_i2c_send_max4(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
+static int em2800_i2c_send_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 {
 	int ret;
 	int write_timeout;
 	u8 b2[6];
+
+	if (len < 1 || len > 4)
+		return -EOPNOTSUPP;
+
 	BUG_ON(len < 1 || len > 4);
 	b2[5] = 0x80 + len - 1;
 	b2[4] = addr;
@@ -83,29 +87,6 @@ static int em2800_i2c_send_max4(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 	}
 	em28xx_warn("i2c write timed out\n");
 	return -EIO;
-}
-
-/*
- * em2800_i2c_send_bytes()
- */
-static int em2800_i2c_send_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
-{
-	u8 *bufPtr = buf;
-	int ret;
-	int wrcount = 0;
-	int count;
-	int maxLen = 4;
-	while (len > 0) {
-		count = (len > maxLen) ? maxLen : len;
-		ret = em2800_i2c_send_max4(dev, addr, bufPtr, count);
-		if (ret > 0) {
-			len -= count;
-			bufPtr += count;
-			wrcount += count;
-		} else
-			return (ret < 0) ? ret : -EFAULT;
-	}
-	return wrcount;
 }
 
 /*
@@ -150,6 +131,10 @@ static int em2800_i2c_check_for_device(struct em28xx *dev, u8 addr)
 static int em2800_i2c_recv_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 {
 	int ret;
+
+	if (len < 1 || len > 4)
+		return -EOPNOTSUPP;
+
 	/* check for the device and set i2c read address */
 	ret = em2800_i2c_check_for_device(dev, addr);
 	if (ret) {
@@ -176,6 +161,9 @@ static int em28xx_i2c_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 	int wrcount = 0;
 	int write_timeout, ret;
 
+	if (len < 1 || len > 64)
+		return -EOPNOTSUPP;
+
 	wrcount = dev->em28xx_write_regs_req(dev, stop ? 2 : 3, addr, buf, len);
 
 	/* Seems to be required after a write */
@@ -197,6 +185,10 @@ static int em28xx_i2c_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 static int em28xx_i2c_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf, u16 len)
 {
 	int ret;
+
+	if (len < 1 || len > 64)
+		return -EOPNOTSUPP;
+
 	ret = dev->em28xx_read_reg_req_len(dev, 2, addr, buf, len);
 	if (ret < 0) {
 		em28xx_warn("reading i2c device failed (error=%i)\n", ret);
