@@ -130,9 +130,9 @@ static void bcma_core_mips_set_irq(struct bcma_device *dev, unsigned int irq)
 			    bcma_read32(mdev, BCMA_MIPS_MIPS74K_INTMASK(0)) |
 			    (1 << irqflag));
 	} else {
-		u32 oldirqflag = bcma_read32(mdev,
-					     BCMA_MIPS_MIPS74K_INTMASK(irq));
-		if (oldirqflag) {
+		u32 irqinitmask = bcma_read32(mdev,
+					      BCMA_MIPS_MIPS74K_INTMASK(irq));
+		if (irqinitmask) {
 			struct bcma_device *core;
 
 			/* backplane irq line is in use, find out who uses
@@ -140,7 +140,7 @@ static void bcma_core_mips_set_irq(struct bcma_device *dev, unsigned int irq)
 			 */
 			list_for_each_entry(core, &bus->cores, list) {
 				if ((1 << bcma_core_mips_irqflag(core)) ==
-				    oldirqflag) {
+				    irqinitmask) {
 					bcma_core_mips_set_irq(core, 0);
 					break;
 				}
