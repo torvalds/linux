@@ -1614,7 +1614,7 @@ static int create_cache_proc_entries(struct cache_detail *cd, struct net *net)
 			goto out_nomem;
 	}
 	if (cd->cache_show) {
-		p = proc_create_data("content", S_IFREG|S_IRUSR|S_IWUSR,
+		p = proc_create_data("content", S_IFREG|S_IRUSR,
 				cd->u.procfs.proc_ent,
 				&content_file_operations_procfs, cd);
 		cd->u.procfs.content_ent = p;
