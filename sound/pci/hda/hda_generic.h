@@ -130,6 +130,13 @@ struct hda_gen_spec {
 	/* path list */
 	struct snd_array paths;
 
+	/* path indices */
+	int out_paths[AUTO_CFG_MAX_OUTS];
+	int hp_paths[AUTO_CFG_MAX_OUTS];
+	int speaker_paths[AUTO_CFG_MAX_OUTS];
+	int digout_paths[AUTO_CFG_MAX_OUTS];
+	int loopback_paths[HDA_MAX_NUM_INPUTS];
+
 	/* auto-mic stuff */
 	int am_num_entries;
 	struct automic_entry am_entry[MAX_AUTO_MIC_PINS];
@@ -198,6 +205,8 @@ int snd_hda_gen_init(struct hda_codec *codec);
 
 struct nid_path *snd_hda_get_nid_path(struct hda_codec *codec,
 				      hda_nid_t from_nid, hda_nid_t to_nid);
+int snd_hda_get_path_idx(struct hda_codec *codec, struct nid_path *path);
+struct nid_path *snd_hda_get_path_from_idx(struct hda_codec *codec, int idx);
 
 enum {
 	HDA_PARSE_NO_AAMIX,
