@@ -561,6 +561,19 @@ are doing anyway :)
 
 ==============================================================
 
+shmall:
+
+This parameter sets the total amount of shared memory pages that
+can be used system wide. Hence, SHMALL should always be at least
+ceil(shmmax/PAGE_SIZE).
+
+If you are not sure what the default PAGE_SIZE is on your Linux
+system, you can run the following command:
+
+# getconf PAGE_SIZE
+
+==============================================================
+
 shmmax:
 
 This value can be used to query and set the run time limit
