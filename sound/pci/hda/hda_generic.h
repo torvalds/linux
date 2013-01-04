@@ -53,6 +53,7 @@ struct nid_path {
 	unsigned char multi[MAX_NID_PATH_DEPTH];
 	unsigned int ctls[NID_PATH_NUM_CTLS]; /* NID_PATH_XXX_CTL */
 	bool active;
+	bool with_aa_mix;
 };
 
 /* mic/line-in auto switching entry */

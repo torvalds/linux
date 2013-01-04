@@ -116,11 +116,9 @@ EXPORT_SYMBOL_HDA(snd_hda_gen_spec_free);
  * parsing paths
  */
 
-/* get the path between the given NIDs;
- * passing 0 to either @pin or @dac behaves as a wildcard
- */
-struct nid_path *snd_hda_get_nid_path(struct hda_codec *codec,
-				      hda_nid_t from_nid, hda_nid_t to_nid)
+static struct nid_path *get_nid_path(struct hda_codec *codec,
+				     hda_nid_t from_nid, hda_nid_t to_nid,
+				     int with_aa_mix)
 {
 	struct hda_gen_spec *spec = codec->spec;
 	int i;
@@ -130,10 +128,22 @@ struct nid_path *snd_hda_get_nid_path(struct hda_codec *codec,
 		if (path->depth <= 0)
 			continue;
 		if ((!from_nid || path->path[0] == from_nid) &&
-		    (!to_nid || path->path[path->depth - 1] == to_nid))
-			return path;
+		    (!to_nid || path->path[path->depth - 1] == to_nid)) {
+			if (with_aa_mix == HDA_PARSE_ALL ||
+			    path->with_aa_mix == with_aa_mix)
+				return path;
+		}
 	}
 	return NULL;
+}
+
+/* get the path between the given NIDs;
+ * passing 0 to either @pin or @dac behaves as a wildcard
+ */
+struct nid_path *snd_hda_get_nid_path(struct hda_codec *codec,
+				      hda_nid_t from_nid, hda_nid_t to_nid)
+{
+	return get_nid_path(codec, from_nid, to_nid, HDA_PARSE_ALL);
 }
 EXPORT_SYMBOL_HDA(snd_hda_get_nid_path);
 
@@ -248,6 +258,8 @@ static bool __parse_nid_path(struct hda_codec *codec,
 
  found:
 	path->path[path->depth] = conn[i];
+	if (conn[i] == spec->mixer_nid)
+		path->with_aa_mix = true;
 	path->idx[path->depth + 1] = i;
 	if (nums > 1 && get_wcaps_type(get_wcaps(codec, to_nid)) != AC_WID_AUD_MIX)
 		path->multi[path->depth + 1] = 1;
@@ -289,6 +301,11 @@ snd_hda_add_new_path(struct hda_codec *codec, hda_nid_t from_nid,
 
 	if (from_nid && to_nid && !is_reachable_path(codec, from_nid, to_nid))
 		return NULL;
+
+	/* check whether the path has been already added */
+	path = get_nid_path(codec, from_nid, to_nid, with_aa_mix);
+	if (path)
+		return path;
 
 	path = snd_array_new(&spec->paths);
 	if (!path)
