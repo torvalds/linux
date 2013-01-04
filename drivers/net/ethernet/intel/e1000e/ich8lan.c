@@ -426,6 +426,15 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 		mac_reg |= E1000_FEXTNVM3_PHY_CFG_COUNTER_50MSEC;
 		ew32(FEXTNVM3, mac_reg);
 
+		if (hw->mac.type == e1000_pch_lpt) {
+			/* Toggling LANPHYPC brings the PHY out of SMBus mode
+			 * So ensure that the MAC is also out of SMBus mode
+			 */
+			mac_reg = er32(CTRL_EXT);
+			mac_reg &= ~E1000_CTRL_EXT_FORCE_SMBUS;
+			ew32(CTRL_EXT, mac_reg);
+		}
+
 		/* Toggle LANPHYPC Value bit */
 		mac_reg = er32(CTRL);
 		mac_reg |= E1000_CTRL_LANPHYPC_OVERRIDE;
