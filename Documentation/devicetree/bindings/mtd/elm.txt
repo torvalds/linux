@@ -1,0 +1,16 @@
+Error location module
+
+Required properties:
+- compatible: Must be "ti,am33xx-elm"
+- reg: physical base address and size of the registers map.
+- interrupts: Interrupt number for the elm.
+
+Optional properties:
+- ti,hwmods: Name of the hwmod associated to the elm
+
+Example:
+elm: elm@0 {
+	compatible	= "ti,am33xx-elm";
+	reg = <0x48080000 0x2000>;
+	interrupts = <4>;
+};
