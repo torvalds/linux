@@ -35,12 +35,13 @@ static void au_hfsn_free_mark(struct fsnotify_mark *mark)
 	AuDbg("here\n");
 	au_cache_free_hnotify(hn);
 	smp_mb__before_atomic_dec();
-	atomic64_dec(&au_hfsn_ifree);
-	wake_up(&au_hfsn_wq);
+	if (atomic64_dec_and_test(&au_hfsn_ifree))
+		wake_up(&au_hfsn_wq);
 }
 
 static int au_hfsn_alloc(struct au_hinode *hinode)
 {
+	int err;
 	struct au_hnotify *hn;
 	struct super_block *sb;
 	struct au_branch *br;
@@ -51,6 +52,8 @@ static int au_hfsn_alloc(struct au_hinode *hinode)
 	sb = hn->hn_aufs_inode->i_sb;
 	bindex = au_br_index(sb, hinode->hi_id);
 	br = au_sbr(sb, bindex);
+	AuDebugOn(!br->br_hfsn);
+
 	mark = &hn->hn_mark;
 	fsnotify_init_mark(mark, au_hfsn_free_mark);
 	mark->mask = AuHfsnMask;
@@ -58,21 +61,30 @@ static int au_hfsn_alloc(struct au_hinode *hinode)
 	 * by udba rename or rmdir, aufs assign a new inode to the known
 	 * h_inode, so specify 1 to allow dups.
 	 */
-	return fsnotify_add_mark(mark, br->br_hfsn_group, hinode->hi_inode,
+	err = fsnotify_add_mark(mark, br->br_hfsn->hfsn_group, hinode->hi_inode,
 				 /*mnt*/NULL, /*allow_dups*/1);
+	/* even if err */
+	fsnotify_put_mark(mark);
+
+	return err;
 }
 
 static int au_hfsn_free(struct au_hinode *hinode, struct au_hnotify *hn)
 {
 	struct fsnotify_mark *mark;
 	unsigned long long ull;
+	struct fsnotify_group *group;
 
 	ull = atomic64_inc_return(&au_hfsn_ifree);
 	BUG_ON(!ull);
 
 	mark = &hn->hn_mark;
-	fsnotify_destroy_mark(mark);
-	fsnotify_put_mark(mark);
+	spin_lock(&mark->lock);
+	group = mark->group;
+	fsnotify_get_group(group);
+	spin_unlock(&mark->lock);
+	fsnotify_destroy_mark(mark, group);
+	fsnotify_put_group(group);
 
 	/* free hn by myself */
 	return 0;
@@ -134,6 +146,14 @@ static char *au_hfsn_name(u32 mask)
 
 /* ---------------------------------------------------------------------- */
 
+static void au_hfsn_free_group(struct fsnotify_group *group)
+{
+	struct au_br_hfsnotify *hfsn = group->private;
+
+	AuDbg("here\n");
+	kfree(hfsn);
+}
+
 static int au_hfsn_handle_event(struct fsnotify_group *group,
 				struct fsnotify_mark *inode_mark,
 				struct fsnotify_mark *vfsmount_mark,
@@ -191,22 +211,54 @@ static bool au_hfsn_should_send_event(struct fsnotify_group *group,
 
 static struct fsnotify_ops au_hfsn_ops = {
 	.should_send_event	= au_hfsn_should_send_event,
-	.handle_event		= au_hfsn_handle_event
+	.handle_event		= au_hfsn_handle_event,
+	.free_group_priv	= au_hfsn_free_group
 };
 
 /* ---------------------------------------------------------------------- */
 
 static void au_hfsn_fin_br(struct au_branch *br)
 {
-	if (br->br_hfsn_group)
-		fsnotify_put_group(br->br_hfsn_group);
+	struct au_br_hfsnotify *hfsn;
+
+	hfsn = br->br_hfsn;
+	if (hfsn)
+		fsnotify_put_group(hfsn->hfsn_group);
 }
 
 static int au_hfsn_init_br(struct au_branch *br, int perm)
 {
-	br->br_hfsn_group = NULL;
-	br->br_hfsn_ops = au_hfsn_ops;
-	return 0;
+	int err;
+	struct fsnotify_group *group;
+	struct au_br_hfsnotify *hfsn;
+
+	err = 0;
+	br->br_hfsn = NULL;
+	if (!au_br_hnotifyable(perm))
+		goto out;
+
+	err = -ENOMEM;
+	hfsn = kmalloc(sizeof(*hfsn), GFP_NOFS);
+	if (unlikely(!hfsn))
+		goto out;
+
+	err = 0;
+	group = fsnotify_alloc_group(&au_hfsn_ops);
+	if (IS_ERR(group)) {
+		err = PTR_ERR(group);
+		pr_err("fsnotify_alloc_group() failed, %d\n", err);
+		goto out_hfsn;
+	}
+
+	group->private = hfsn;
+	hfsn->hfsn_group = group;
+	br->br_hfsn = hfsn;
+	goto out; /* success */
+
+out_hfsn:
+	kfree(hfsn);
+out:
+	return err;
 }
 
 static int au_hfsn_reset_br(unsigned int udba, struct au_branch *br, int perm)
@@ -214,25 +266,9 @@ static int au_hfsn_reset_br(unsigned int udba, struct au_branch *br, int perm)
 	int err;
 
 	err = 0;
-	if (udba != AuOpt_UDBA_HNOTIFY
-	    || !au_br_hnotifyable(perm)) {
-		au_hfsn_fin_br(br);
-		br->br_hfsn_group = NULL;
-		goto out;
-	}
+	if (!br->br_hfsn)
+		err = au_hfsn_init_br(br, perm);
 
-	if (br->br_hfsn_group)
-		goto out;
-
-	br->br_hfsn_group = fsnotify_alloc_group(&br->br_hfsn_ops);
-	if (IS_ERR(br->br_hfsn_group)) {
-		err = PTR_ERR(br->br_hfsn_group);
-		pr_err("fsnotify_alloc_group() failed, %d\n", err);
-		br->br_hfsn_group = NULL;
-	}
-
-out:
-	AuTraceErr(err);
 	return err;
 }
 
