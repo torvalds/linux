@@ -11,6 +11,7 @@
 #include <linux/memory.h>
 #include <linux/gfp.h>
 #include <linux/dmapool.h>
+#include <linux/dmaengine.h>
 
 #include "coh901318.h"
 #include "coh901318_lli.h"
