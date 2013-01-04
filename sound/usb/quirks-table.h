@@ -3015,7 +3015,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 			},
 			{
 				.ifnum = 6,
-				.type = QUIRK_MIDI_MBOX2,
+				.type = QUIRK_MIDI_MIDIMAN,
 				.data = &(const struct snd_usb_midi_endpoint_info) {
 					.out_ep =  0x02,
 					.out_cables = 0x0001,
