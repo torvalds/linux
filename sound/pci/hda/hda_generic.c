@@ -943,6 +943,28 @@ static bool can_be_multiio_pin(struct hda_codec *codec,
 	return true;
 }
 
+/* count the number of input pins that are capable to be multi-io */
+static int count_multiio_pins(struct hda_codec *codec, hda_nid_t reference_pin)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	unsigned int defcfg = snd_hda_codec_get_pincfg(codec, reference_pin);
+	unsigned int location = get_defcfg_location(defcfg);
+	int type, i;
+	int num_pins = 0;
+
+	for (type = AUTO_PIN_LINE_IN; type >= AUTO_PIN_MIC; type--) {
+		for (i = 0; i < cfg->num_inputs; i++) {
+			if (cfg->inputs[i].type != type)
+				continue;
+			if (can_be_multiio_pin(codec, location,
+					       cfg->inputs[i].pin))
+				num_pins++;
+		}
+	}
+	return num_pins;
+}
+
 /*
  * multi-io helper
  *
@@ -953,11 +975,11 @@ static bool can_be_multiio_pin(struct hda_codec *codec,
  */
 static int fill_multi_ios(struct hda_codec *codec,
 			  hda_nid_t reference_pin,
-			  bool hardwired, int offset)
+			  bool hardwired)
 {
 	struct hda_gen_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	int type, i, j, dacs, num_pins, old_pins;
+	int type, i, j, num_pins, old_pins;
 	unsigned int defcfg = snd_hda_codec_get_pincfg(codec, reference_pin);
 	unsigned int location = get_defcfg_location(defcfg);
 	int badness = 0;
@@ -966,20 +988,10 @@ static int fill_multi_ios(struct hda_codec *codec,
 	if (old_pins >= 2)
 		goto end_fill;
 
-	num_pins = 0;
-	for (type = AUTO_PIN_LINE_IN; type >= AUTO_PIN_MIC; type--) {
-		for (i = 0; i < cfg->num_inputs; i++) {
-			if (cfg->inputs[i].type != type)
-				continue;
-			if (can_be_multiio_pin(codec, location,
-					       cfg->inputs[i].pin))
-				num_pins++;
-		}
-	}
+	num_pins = count_multiio_pins(codec, reference_pin);
 	if (num_pins < 2)
 		goto end_fill;
 
-	dacs = spec->multiout.num_dacs;
 	for (type = AUTO_PIN_LINE_IN; type >= AUTO_PIN_MIC; type--) {
 		for (i = 0; i < cfg->num_inputs; i++) {
 			struct nid_path *path;
@@ -997,11 +1009,6 @@ static int fill_multi_ios(struct hda_codec *codec,
 			if (j < spec->multi_ios)
 				continue;
 
-			if (offset && offset + spec->multi_ios < dacs) {
-				dac = spec->private_dac_nids[offset + spec->multi_ios];
-				if (!is_reachable_path(codec, dac, nid))
-					dac = 0;
-			}
 			if (hardwired)
 				dac = get_dac_if_single(codec, nid);
 			else if (!dac)
@@ -1109,7 +1116,7 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 					      spec->multiout.extra_out_nid);
 			if (fill_mio_first && cfg->line_outs == 1 &&
 			    cfg->line_out_type != AUTO_PIN_SPEAKER_OUT) {
-				err = fill_multi_ios(codec, cfg->line_out_pins[0], true, 0);
+				err = fill_multi_ios(codec, cfg->line_out_pins[0], true);
 				if (!err)
 					mapped = true;
 			}
@@ -1136,7 +1143,7 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 	if (fill_mio_first &&
 	    cfg->line_outs == 1 && cfg->line_out_type != AUTO_PIN_SPEAKER_OUT) {
 		/* try to fill multi-io first */
-		err = fill_multi_ios(codec, cfg->line_out_pins[0], false, 0);
+		err = fill_multi_ios(codec, cfg->line_out_pins[0], false);
 		if (err < 0)
 			return err;
 		/* we don't count badness at this stage yet */
@@ -1160,21 +1167,15 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 		badness += err;
 	}
 	if (cfg->line_outs == 1 && cfg->line_out_type != AUTO_PIN_SPEAKER_OUT) {
-		err = fill_multi_ios(codec, cfg->line_out_pins[0], false, 0);
+		err = fill_multi_ios(codec, cfg->line_out_pins[0], false);
 		if (err < 0)
 			return err;
 		badness += err;
 	}
-	if (cfg->hp_outs && cfg->line_out_type == AUTO_PIN_SPEAKER_OUT) {
-		/* try multi-ios with HP + inputs */
-		int offset = 0;
-		if (cfg->line_outs >= 3)
-			offset = 1;
-		err = fill_multi_ios(codec, cfg->hp_pins[0], false, offset);
-		if (err < 0)
-			return err;
-		badness += err;
-	}
+
+	if (cfg->hp_outs && cfg->line_out_type == AUTO_PIN_SPEAKER_OUT)
+		if (count_multiio_pins(codec, cfg->hp_pins[0]) >= 2)
+			spec->multi_ios = 1; /* give badness */
 
 	if (spec->multi_ios == 2) {
 		for (i = 0; i < 2; i++)
