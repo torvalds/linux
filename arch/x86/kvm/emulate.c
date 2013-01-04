@@ -24,6 +24,7 @@
 #include "kvm_cache_regs.h"
 #include <linux/module.h>
 #include <asm/kvm_emulate.h>
+#include <linux/stringify.h>
 
 #include "x86.h"
 #include "tss.h"
@@ -438,6 +439,30 @@ static void invalidate_registers(struct x86_emulate_ctxt *ctxt)
 		case 8:	ON64(__emulate_1op(ctxt, _op, "q")); break;	\
 		}							\
 	} while (0)
+
+#define FOP_ALIGN ".align " __stringify(FASTOP_SIZE) " \n\t"
+#define FOP_RET   "ret \n\t"
+
+#define FOP_START(op) \
+	extern void em_##op(struct fastop *fake); \
+	asm(".pushsection .text, \"ax\" \n\t" \
+	    ".global em_" #op " \n\t" \
+            FOP_ALIGN \
+	    "em_" #op ": \n\t"
+
+#define FOP_END \
+	    ".popsection")
+
+#define FOP1E(op,  dst) \
+	FOP_ALIGN #op " %" #dst " \n\t" FOP_RET
+
+#define FASTOP1(op) \
+	FOP_START(op) \
+	FOP1E(op##b, al) \
+	FOP1E(op##w, ax) \
+	FOP1E(op##l, eax) \
+	ON64(FOP1E(op##q, rax))	\
+	FOP_END
 
 #define __emulate_1op_rax_rdx(ctxt, _op, _suffix, _ex)			\
 	do {								\
