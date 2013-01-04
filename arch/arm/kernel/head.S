@@ -331,7 +331,7 @@ ENTRY(secondary_startup)
 	 * as it has already been validated by the primary processor.
 	 */
 #ifdef CONFIG_ARM_VIRT_EXT
-	bl	__hyp_stub_install
+	bl	__hyp_stub_install_secondary
 #endif
 	safe_svcmode_maskall r9
 
