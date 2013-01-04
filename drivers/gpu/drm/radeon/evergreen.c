@@ -3231,7 +3231,7 @@ void evergreen_dma_fence_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_TRAP, 0, 0, 0));
 	/* flush HDP */
 	radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0));
-	radeon_ring_write(ring, (0xf << 16) | HDP_MEM_COHERENCY_FLUSH_CNTL);
+	radeon_ring_write(ring, (0xf << 16) | (HDP_MEM_COHERENCY_FLUSH_CNTL >> 2));
 	radeon_ring_write(ring, 1);
 }
 
