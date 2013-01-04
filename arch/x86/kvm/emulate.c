@@ -3069,16 +3069,12 @@ static int em_xor(struct x86_emulate_ctxt *ctxt)
 static int em_cmp(struct x86_emulate_ctxt *ctxt)
 {
 	emulate_2op_SrcV(ctxt, "cmp");
-	/* Disable writeback. */
-	ctxt->dst.type = OP_NONE;
 	return X86EMUL_CONTINUE;
 }
 
 static int em_test(struct x86_emulate_ctxt *ctxt)
 {
 	emulate_2op_SrcV(ctxt, "test");
-	/* Disable writeback. */
-	ctxt->dst.type = OP_NONE;
 	return X86EMUL_CONTINUE;
 }
 
@@ -3747,7 +3743,7 @@ static const struct opcode group1[] = {
 	I(Lock | PageTable, em_and),
 	I(Lock, em_sub),
 	I(Lock, em_xor),
-	I(0, em_cmp),
+	I(NoWrite, em_cmp),
 };
 
 static const struct opcode group1A[] = {
@@ -3755,8 +3751,8 @@ static const struct opcode group1A[] = {
 };
 
 static const struct opcode group3[] = {
-	I(DstMem | SrcImm, em_test),
-	I(DstMem | SrcImm, em_test),
+	I(DstMem | SrcImm | NoWrite, em_test),
+	I(DstMem | SrcImm | NoWrite, em_test),
 	I(DstMem | SrcNone | Lock, em_not),
 	I(DstMem | SrcNone | Lock, em_neg),
 	I(SrcMem, em_mul_ex),
@@ -3920,7 +3916,7 @@ static const struct opcode opcode_table[256] = {
 	/* 0x30 - 0x37 */
 	I6ALU(Lock, em_xor), N, N,
 	/* 0x38 - 0x3F */
-	I6ALU(0, em_cmp), N, N,
+	I6ALU(NoWrite, em_cmp), N, N,
 	/* 0x40 - 0x4F */
 	X16(D(DstReg)),
 	/* 0x50 - 0x57 */
@@ -3946,7 +3942,7 @@ static const struct opcode opcode_table[256] = {
 	G(DstMem | SrcImm, group1),
 	G(ByteOp | DstMem | SrcImm | No64, group1),
 	G(DstMem | SrcImmByte, group1),
-	I2bv(DstMem | SrcReg | ModRM, em_test),
+	I2bv(DstMem | SrcReg | ModRM | NoWrite, em_test),
 	I2bv(DstMem | SrcReg | ModRM | Lock | PageTable, em_xchg),
 	/* 0x88 - 0x8F */
 	I2bv(DstMem | SrcReg | ModRM | Mov | PageTable, em_mov),
@@ -3966,12 +3962,12 @@ static const struct opcode opcode_table[256] = {
 	I2bv(DstAcc | SrcMem | Mov | MemAbs, em_mov),
 	I2bv(DstMem | SrcAcc | Mov | MemAbs | PageTable, em_mov),
 	I2bv(SrcSI | DstDI | Mov | String, em_mov),
-	I2bv(SrcSI | DstDI | String, em_cmp),
+	I2bv(SrcSI | DstDI | String | NoWrite, em_cmp),
 	/* 0xA8 - 0xAF */
-	I2bv(DstAcc | SrcImm, em_test),
+	I2bv(DstAcc | SrcImm | NoWrite, em_test),
 	I2bv(SrcAcc | DstDI | Mov | String, em_mov),
 	I2bv(SrcSI | DstAcc | Mov | String, em_mov),
-	I2bv(SrcAcc | DstDI | String, em_cmp),
+	I2bv(SrcAcc | DstDI | String | NoWrite, em_cmp),
 	/* 0xB0 - 0xB7 */
 	X8(I(ByteOp | DstReg | SrcImm | Mov, em_mov)),
 	/* 0xB8 - 0xBF */
