@@ -203,19 +203,13 @@ static void waveform_ai_interrupt(unsigned long arg)
 
 	for (i = 0; i < num_scans; i++) {
 		for (j = 0; j < cmd->chanlist_len; j++) {
-			cfc_write_to_buffer(dev->read_subdev,
-					    fake_waveform(dev,
-							  CR_CHAN(cmd->
-								  chanlist[j]),
-							  CR_RANGE(cmd->
-								   chanlist[j]),
-							  devpriv->
-							  usec_current +
-							  i *
-							  devpriv->scan_period +
-							  j *
-							  devpriv->
-							  convert_period));
+			unsigned short sample;
+			sample = fake_waveform(dev, CR_CHAN(cmd->chanlist[j]),
+					       CR_RANGE(cmd->chanlist[j]),
+					       devpriv->usec_current +
+						   i * devpriv->scan_period +
+						   j * devpriv->convert_period);
+			cfc_write_to_buffer(dev->read_subdev, sample);
 		}
 	}
 
