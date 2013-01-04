@@ -966,8 +966,23 @@ mwifiex_pcie_send_boot_cmd(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 	return 0;
 }
 
-/*
- * This function downloads commands to the device
+/* This function init rx port in firmware which in turn enables to receive data
+ * from device before transmitting any packet.
+ */
+static int mwifiex_pcie_init_fw_port(struct mwifiex_adapter *adapter)
+{
+	struct pcie_service_card *card = adapter->card;
+
+	/* Write the RX ring read pointer in to REG_RXBD_RDPTR */
+	if (mwifiex_write_reg(adapter, REG_RXBD_RDPTR, card->rxbd_rdptr | 0)) {
+		dev_err(adapter->dev,
+			"RECV DATA: failed to write REG_RXBD_RDPTR\n");
+		return -1;
+	}
+	return 0;
+}
+
+/* This function downloads commands to the device
  */
 static int
 mwifiex_pcie_send_cmd(struct mwifiex_adapter *adapter, struct sk_buff *skb)
@@ -1899,6 +1914,7 @@ static struct mwifiex_if_ops pcie_ops = {
 	.event_complete =		mwifiex_pcie_event_complete,
 	.update_mp_end_port =		NULL,
 	.cleanup_mpa_buf =		NULL,
+	.init_fw_port =			mwifiex_pcie_init_fw_port,
 };
 
 /*
