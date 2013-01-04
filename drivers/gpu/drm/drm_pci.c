@@ -504,9 +504,9 @@ int drm_pcie_get_speed_cap_mask(struct drm_device *dev, u32 *mask)
 		if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_8_0GB)
 			*mask |= DRM_PCIE_SPEED_80;
 	} else {
-		if (lnkcap & 1)
+		if (lnkcap & PCI_EXP_LNKCAP_SLS_2_5GB)
 			*mask |= DRM_PCIE_SPEED_25;
-		if (lnkcap & 2)
+		if (lnkcap & PCI_EXP_LNKCAP_SLS_5_0GB)
 			*mask |= DRM_PCIE_SPEED_50;
 	}
 
