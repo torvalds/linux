@@ -65,8 +65,8 @@ static struct irq_chip gemini_irq_chip = {
 
 static struct resource irq_resource = {
 	.name	= "irq_handler",
-	.start	= IO_ADDRESS(GEMINI_INTERRUPT_BASE),
-	.end	= IO_ADDRESS(FIQ_STATUS(GEMINI_INTERRUPT_BASE)) + 4,
+	.start	= GEMINI_INTERRUPT_BASE,
+	.end	= FIQ_STATUS(GEMINI_INTERRUPT_BASE) + 4,
 };
 
 void __init gemini_init_irq(void)

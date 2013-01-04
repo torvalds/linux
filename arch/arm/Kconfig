@@ -411,6 +411,7 @@ config ARCH_GEMINI
 	bool "Cortina Systems Gemini"
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_GPIO_H
 	select CPU_FA526
 	help
 	  Support for the Cortina Systems Gemini family SoCs
