@@ -395,7 +395,7 @@ static struct sk_buff *ndisc_build_skb(struct net_device *dev,
 		len += ndisc_opt_addr_space(dev);
 
 	skb = sock_alloc_send_skb(sk,
-				  (MAX_HEADER + sizeof(struct ipv6hdr) +
+				  (sizeof(struct ipv6hdr) +
 				   len + hlen + tlen),
 				  1, &err);
 	if (!skb) {
@@ -1439,7 +1439,7 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 	hlen = LL_RESERVED_SPACE(dev);
 	tlen = dev->needed_tailroom;
 	buff = sock_alloc_send_skb(sk,
-				   (MAX_HEADER + sizeof(struct ipv6hdr) +
+				   (sizeof(struct ipv6hdr) +
 				    len + hlen + tlen),
 				   1, &err);
 	if (buff == NULL) {
