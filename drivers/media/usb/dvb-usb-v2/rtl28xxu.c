@@ -1366,6 +1366,8 @@ static const struct usb_device_id rtl28xxu_id_table[] = {
 		&rtl2832u_props, "TerraTec Cinergy T Stick+", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, 0xd3a8,
 		&rtl2832u_props, "ASUS My Cinema-U3100Mini Plus V2", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, 0xd393,
+		&rtl2832u_props, "Gigabyte U7300 DVB-T Dongle", NULL) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, rtl28xxu_id_table);
