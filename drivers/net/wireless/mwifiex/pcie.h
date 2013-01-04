@@ -114,6 +114,7 @@ struct pcie_service_card {
 	struct pci_dev *dev;
 	struct mwifiex_adapter *adapter;
 
+	u8 txbd_flush;
 	u32 txbd_wrptr;
 	u32 txbd_rdptr;
 	u32 txbd_ring_size;
@@ -145,5 +146,17 @@ struct pcie_service_card {
 	void __iomem *pci_mmap;
 	void __iomem *pci_mmap1;
 };
+
+static inline int
+mwifiex_pcie_txbd_empty(struct pcie_service_card *card, u32 rdptr)
+{
+	if (((card->txbd_wrptr & MWIFIEX_TXBD_MASK) ==
+			(rdptr & MWIFIEX_TXBD_MASK)) &&
+	    ((card->txbd_wrptr & MWIFIEX_BD_FLAG_ROLLOVER_IND) !=
+			(rdptr & MWIFIEX_BD_FLAG_ROLLOVER_IND)))
+		return 1;
+
+	return 0;
+}
 
 #endif /* _MWIFIEX_PCIE_H */

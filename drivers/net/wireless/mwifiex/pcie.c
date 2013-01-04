@@ -764,6 +764,37 @@ static int mwifiex_pcie_delete_sleep_cookie_buf(struct mwifiex_adapter *adapter)
 	return 0;
 }
 
+/* This function flushes the TX buffer descriptor ring
+ * This function defined as handler is also called while cleaning TXRX
+ * during disconnect/ bss stop.
+ */
+static int mwifiex_clean_pcie_ring_buf(struct mwifiex_adapter *adapter)
+{
+	struct pcie_service_card *card = adapter->card;
+	u32 rdptr;
+
+	/* Read the TX ring read pointer set by firmware */
+	if (mwifiex_read_reg(adapter, REG_TXBD_RDPTR, &rdptr)) {
+		dev_err(adapter->dev,
+			"Flush TXBD: failed to read REG_TXBD_RDPTR\n");
+		return -1;
+	}
+
+	if (!mwifiex_pcie_txbd_empty(card, rdptr)) {
+		card->txbd_flush = 1;
+		/* write pointer already set at last send
+		 * send dnld-rdy intr again, wait for completion.
+		 */
+		if (mwifiex_write_reg(adapter, PCIE_CPU_INT_EVENT,
+				      CPU_INTR_DNLD_RDY)) {
+			dev_err(adapter->dev,
+				"failed to assert dnld-rdy interrupt.\n");
+			return -1;
+		}
+	}
+	return 0;
+}
+
 /*
  * This function sends data buffer to device
  */
@@ -1995,6 +2026,7 @@ static struct mwifiex_if_ops pcie_ops = {
 	.update_mp_end_port =		NULL,
 	.cleanup_mpa_buf =		NULL,
 	.init_fw_port =			mwifiex_pcie_init_fw_port,
+	.clean_pcie_ring =		mwifiex_clean_pcie_ring_buf,
 };
 
 /*
