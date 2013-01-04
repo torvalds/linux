@@ -151,6 +151,7 @@
 #define Unaligned   ((u64)1 << 42)  /* Explicitly unaligned (e.g. MOVDQU) */
 #define Avx         ((u64)1 << 43)  /* Advanced Vector Extensions */
 #define Fastop      ((u64)1 << 44)  /* Use opcode::u.fastop */
+#define NoWrite     ((u64)1 << 45)  /* No writeback */
 
 #define X2(x...) x, x
 #define X3(x...) X2(x), x
@@ -1632,6 +1633,9 @@ static void write_register_operand(struct operand *op)
 static int writeback(struct x86_emulate_ctxt *ctxt)
 {
 	int rc;
+
+	if (ctxt->d & NoWrite)
+		return X86EMUL_CONTINUE;
 
 	switch (ctxt->dst.type) {
 	case OP_REG:
