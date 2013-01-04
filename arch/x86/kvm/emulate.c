@@ -465,6 +465,17 @@ static void invalidate_registers(struct x86_emulate_ctxt *ctxt)
 	ON64(FOP1E(op##q, rax))	\
 	FOP_END
 
+#define FOP2E(op,  dst, src)	   \
+	FOP_ALIGN #op " %" #src ", %" #dst " \n\t" FOP_RET
+
+#define FASTOP2(op) \
+	FOP_START(op) \
+	FOP2E(op##b, al, bl) \
+	FOP2E(op##w, ax, bx) \
+	FOP2E(op##l, eax, ebx) \
+	ON64(FOP2E(op##q, rax, rbx)) \
+	FOP_END
+
 #define __emulate_1op_rax_rdx(ctxt, _op, _suffix, _ex)			\
 	do {								\
 		unsigned long _tmp;					\
@@ -3696,6 +3707,7 @@ static int check_perm_out(struct x86_emulate_ctxt *ctxt)
 #define D2bv(_f)      D((_f) | ByteOp), D(_f)
 #define D2bvIP(_f, _i, _p) DIP((_f) | ByteOp, _i, _p), DIP(_f, _i, _p)
 #define I2bv(_f, _e)  I((_f) | ByteOp, _e), I(_f, _e)
+#define F2bv(_f, _e)  F((_f) | ByteOp, _e), F(_f, _e)
 #define I2bvIP(_f, _e, _i, _p) \
 	IIP((_f) | ByteOp, _e, _i, _p), IIP(_f, _e, _i, _p)
 
