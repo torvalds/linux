@@ -918,7 +918,7 @@ static int try_assign_dacs(struct hda_codec *codec, int num_outs,
 				badness += bad->no_dac;
 		}
 		path = snd_hda_add_new_path(codec, dac, pin, HDA_PARSE_NO_AAMIX);
-		if (!path && i > 0 && spec->mixer_nid) {
+		if (!path && !i && spec->mixer_nid) {
 			/* try with aamix */
 			path = snd_hda_add_new_path(codec, dac, pin, HDA_PARSE_ALL);
 		}
@@ -1102,7 +1102,7 @@ static bool map_singles(struct hda_codec *codec, int outs,
 		if (!dac)
 			continue;
 		path = snd_hda_add_new_path(codec, dac, pins[i], HDA_PARSE_NO_AAMIX);
-		if (!path && i > 0 && spec->mixer_nid)
+		if (!path && !i && spec->mixer_nid)
 			path = snd_hda_add_new_path(codec, dac, pins[i], HDA_PARSE_ALL);
 		if (path) {
 			dacs[i] = dac;
