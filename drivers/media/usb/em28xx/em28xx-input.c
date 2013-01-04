@@ -590,6 +590,17 @@ static int em28xx_ir_init(struct em28xx *dev)
 	int err = -ENOMEM;
 	u64 rc_type;
 
+	if (dev->board.has_snapshot_button)
+		em28xx_register_snapshot_button(dev);
+
+	if (dev->board.has_ir_i2c) {
+		em28xx_register_i2c_ir(dev);
+#if defined(CONFIG_MODULES) && defined(MODULE)
+		request_module("ir-kbd-i2c");
+#endif
+		return 0;
+	}
+
 	if (dev->board.ir_codes == NULL) {
 		/* No remote control support */
 		em28xx_warn("Remote control support is not available for "
@@ -662,15 +673,6 @@ static int em28xx_ir_init(struct em28xx *dev)
 	err = rc_register_device(rc);
 	if (err)
 		goto error;
-
-	em28xx_register_i2c_ir(dev);
-
-#if defined(CONFIG_MODULES) && defined(MODULE)
-	if (dev->board.has_ir_i2c)
-		request_module("ir-kbd-i2c");
-#endif
-	if (dev->board.has_snapshot_button)
-		em28xx_register_snapshot_button(dev);
 
 	return 0;
 
