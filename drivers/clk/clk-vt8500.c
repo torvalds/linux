@@ -291,7 +291,7 @@ static __init void vtwm_device_clk_init(struct device_node *node)
 	rc = of_clk_add_provider(node, of_clk_src_simple_get, clk);
 	clk_register_clkdev(clk, clk_name, NULL);
 }
-
+CLK_OF_DECLARE(vt8500_device, "via,vt8500-device-clock", vtwm_device_clk_init);
 
 /* PLL clock related functions */
 
@@ -612,26 +612,19 @@ static void __init vt8500_pll_init(struct device_node *node)
 {
 	vtwm_pll_clk_init(node, PLL_TYPE_VT8500);
 }
+CLK_OF_DECLARE(vt8500_pll, "via,vt8500-pll-clock", vt8500_pll_init);
 
 static void __init wm8650_pll_init(struct device_node *node)
 {
 	vtwm_pll_clk_init(node, PLL_TYPE_WM8650);
 }
+CLK_OF_DECLARE(wm8650_pll, "wm,wm8650-pll-clock", wm8650_pll_init);
 
 static void __init wm8750_pll_init(struct device_node *node)
 {
 	vtwm_pll_clk_init(node, PLL_TYPE_WM8750);
 }
-
-static const __initconst struct of_device_id clk_match[] = {
-	{ .compatible = "fixed-clock", .data = of_fixed_clk_setup, },
-	{ .compatible = "via,vt8500-pll-clock", .data = vt8500_pll_init, },
-	{ .compatible = "wm,wm8650-pll-clock", .data = wm8650_pll_init, },
-	{ .compatible = "wm,wm8750-pll-clock", .data = wm8750_pll_init, },
-	{ .compatible = "via,vt8500-device-clock",
-					.data = vtwm_device_clk_init, },
-	{ /* sentinel */ }
-};
+CLK_OF_DECLARE(wm8750_pll, "wm,wm8750-pll-clock", wm8750_pll_init);
 
 void __init vtwm_clk_init(void __iomem *base)
 {
@@ -640,5 +633,5 @@ void __init vtwm_clk_init(void __iomem *base)
 
 	pmc_base = base;
 
-	of_clk_init(clk_match);
+	of_clk_init(NULL);
 }
