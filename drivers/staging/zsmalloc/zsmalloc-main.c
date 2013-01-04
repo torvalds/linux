@@ -798,6 +798,17 @@ fail:
 	return notifier_to_errno(ret);
 }
 
+/**
+ * zs_create_pool - Creates an allocation pool to work from.
+ * @name: name of the pool to be created
+ * @flags: allocation flags used when growing pool
+ *
+ * This function must be called before anything when using
+ * the zsmalloc allocator.
+ *
+ * On success, a pointer to the newly created pool is returned,
+ * otherwise NULL.
+ */
 struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
 {
 	int i, ovhd_size;
