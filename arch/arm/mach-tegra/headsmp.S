@@ -16,8 +16,6 @@
 #define RESET_DATA(x)	((TEGRA_RESET_##x)*4)
 
         .section ".text.head", "ax"
-	__CPUINIT
-
 /*
  * Tegra specific entry point for secondary CPUs.
  *   The secondary kernel init calls v7_flush_dcache_all before it enables
