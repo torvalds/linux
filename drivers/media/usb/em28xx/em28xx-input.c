@@ -483,6 +483,7 @@ static void em28xx_register_i2c_ir(struct em28xx *dev)
 		dev->init_data.ir_codes = RC_MAP_HAUPPAUGE;
 		dev->init_data.get_key = em28xx_get_key_em_haup;
 		dev->init_data.name = "WinTV USB2";
+		dev->init_data.type = RC_BIT_RC5;
 		break;
 	case EM2820_BOARD_LEADTEK_WINFAST_USBII_DELUXE:
 		dev->init_data.ir_codes = RC_MAP_WINFAST_USBII_DELUXE;
