@@ -202,7 +202,6 @@ static void __init tegra_smp_prepare_cpus(unsigned int max_cpus)
 	/* Always mark the boot CPU (CPU0) as initialized. */
 	cpumask_set_cpu(0, &tegra_cpu_init_mask);
 
-	tegra_cpu_reset_handler_init();
 	scu_enable(scu_base);
 }
 
