@@ -134,6 +134,7 @@ struct hda_gen_spec {
 	int out_paths[AUTO_CFG_MAX_OUTS];
 	int hp_paths[AUTO_CFG_MAX_OUTS];
 	int speaker_paths[AUTO_CFG_MAX_OUTS];
+	int aamix_out_paths[3];
 	int digout_paths[AUTO_CFG_MAX_OUTS];
 	int loopback_paths[HDA_MAX_NUM_INPUTS];
 	int digin_path;
@@ -168,6 +169,9 @@ struct hda_gen_spec {
 	unsigned int vmaster_mute_enum:1; /* add vmaster mute mode enum */
 	unsigned int indep_hp:1; /* independent HP supported */
 	unsigned int indep_hp_enabled:1; /* independent HP enabled */
+
+	/* loopback mixing mode */
+	bool aamix_mode;
 
 	/* for virtual master */
 	hda_nid_t vmaster_nid;

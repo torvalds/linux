@@ -1115,6 +1115,24 @@ static bool map_singles(struct hda_codec *codec, int outs,
 	return found;
 }
 
+/* create a new path including aamix if available, and return its index */
+static int check_aamix_out_path(struct hda_codec *codec, int path_idx)
+{
+	struct nid_path *path;
+
+	path = snd_hda_get_path_from_idx(codec, path_idx);
+	if (!path || !path->depth || path->with_aa_mix)
+		return 0;
+	path = snd_hda_add_new_path(codec, path->path[0],
+				    path->path[path->depth - 1],
+				    HDA_PARSE_ONLY_AAMIX);
+	if (!path)
+		return 0;
+	print_nid_path("output-aamix", path);
+	path->active = false; /* unused as default */
+	return snd_hda_get_path_idx(codec, path);
+}
+
 /* fill in the dac_nids table from the parsed pin configuration */
 static int fill_and_eval_dacs(struct hda_codec *codec,
 			      bool fill_hardwired,
@@ -1209,6 +1227,17 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 		if (err < 0)
 			return err;
 		badness += err;
+	}
+
+	if (spec->mixer_nid) {
+		spec->aamix_out_paths[0] =
+			check_aamix_out_path(codec, spec->out_paths[0]);
+		if (cfg->line_out_type != AUTO_PIN_HP_OUT)
+			spec->aamix_out_paths[1] =
+				check_aamix_out_path(codec, spec->hp_paths[0]);
+		if (cfg->line_out_type != AUTO_PIN_SPEAKER_OUT)
+			spec->aamix_out_paths[2] =
+				check_aamix_out_path(codec, spec->speaker_paths[0]);
 	}
 
 	if (cfg->hp_outs && cfg->line_out_type == AUTO_PIN_SPEAKER_OUT)
@@ -1726,6 +1755,80 @@ static int create_multi_channel_mode(struct hda_codec *codec)
 		if (!snd_hda_gen_add_kctl(spec, NULL, &channel_mode_enum))
 			return -ENOMEM;
 	}
+	return 0;
+}
+
+/*
+ * aamix loopback enable/disable switch
+ */
+
+#define loopback_mixing_info	indep_hp_info
+
+static int loopback_mixing_get(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct hda_gen_spec *spec = codec->spec;
+	ucontrol->value.enumerated.item[0] = spec->aamix_mode;
+	return 0;
+}
+
+static void update_aamix_paths(struct hda_codec *codec, bool do_mix,
+			       int nomix_path_idx, int mix_path_idx)
+{
+	struct nid_path *nomix_path, *mix_path;
+
+	nomix_path = snd_hda_get_path_from_idx(codec, nomix_path_idx);
+	mix_path = snd_hda_get_path_from_idx(codec, mix_path_idx);
+	if (!nomix_path || !mix_path)
+		return;
+	if (do_mix) {
+		snd_hda_activate_path(codec, nomix_path, false, true);
+		snd_hda_activate_path(codec, mix_path, true, true);
+	} else {
+		snd_hda_activate_path(codec, mix_path, false, true);
+		snd_hda_activate_path(codec, nomix_path, true, true);
+	}
+}
+
+static int loopback_mixing_put(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct hda_gen_spec *spec = codec->spec;
+	unsigned int val = ucontrol->value.enumerated.item[0];
+
+	if (val == spec->aamix_mode)
+		return 0;
+	spec->aamix_mode = val;
+	update_aamix_paths(codec, val, spec->out_paths[0],
+			   spec->aamix_out_paths[0]);
+	update_aamix_paths(codec, val, spec->hp_paths[0],
+			   spec->aamix_out_paths[1]);
+	update_aamix_paths(codec, val, spec->speaker_paths[0],
+			   spec->aamix_out_paths[2]);
+	return 1;
+}
+
+static const struct snd_kcontrol_new loopback_mixing_enum = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Loopback Mixing",
+	.info = loopback_mixing_info,
+	.get = loopback_mixing_get,
+	.put = loopback_mixing_put,
+};
+
+static int create_loopback_mixing_ctl(struct hda_codec *codec)
+{
+	struct hda_gen_spec *spec = codec->spec;
+
+	if (!spec->mixer_nid)
+		return 0;
+	if (!(spec->aamix_out_paths[0] || spec->aamix_out_paths[1] ||
+	      spec->aamix_out_paths[2]))
+		return 0;
+	if (!snd_hda_gen_add_kctl(spec, NULL, &loopback_mixing_enum))
+		return -ENOMEM;
 	return 0;
 }
 
@@ -3065,6 +3168,9 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 	if (err < 0)
 		return err;
 	err = create_indep_hp_ctls(codec);
+	if (err < 0)
+		return err;
+	err = create_loopback_mixing_ctl(codec);
 	if (err < 0)
 		return err;
 	err = create_shared_input(codec);
