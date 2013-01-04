@@ -204,6 +204,10 @@ static int __init nhk8815_mmcsd_init(void)
 {
 	int ret;
 
+	/* For e.g. devicetree boot */
+	if (!machine_is_nomadik())
+		return 0;
+
 	ret = gpio_request(112, "card detect bias");
 	if (ret)
 		return ret;

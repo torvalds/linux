@@ -25,13 +25,19 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/dma-mapping.h>
-#include <linux/irqchip/arm-vic.h>
+#include <linux/irqchip.h>
 #include <linux/platform_data/clk-nomadik.h>
 #include <linux/platform_data/pinctrl-nomadik.h>
+#include <linux/platform_data/clocksource-nomadik-mtu.h>
+#include <linux/of_irq.h>
+#include <linux/of_address.h>
+#include <linux/of_platform.h>
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
+#include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/mach/time.h>
 
 #include <asm/cacheflush.h>
 #include <asm/hardware/cache-l2x0.h>
@@ -160,3 +166,73 @@ void cpu8815_restart(char mode, const char *cmd)
 	/* Write anything to Reset status register */
 	writel(1, src_rstsr);
 }
+
+#ifdef CONFIG_OF
+
+/* Initial value for SRC control register: all timers use MXTAL/8 source */
+#define SRC_CR_INIT_MASK	0x00007fff
+#define SRC_CR_INIT_VAL		0x2aaa8000
+
+static void __init cpu8815_timer_init_of(void)
+{
+	struct device_node *mtu;
+	void __iomem *base;
+	int irq;
+	u32 src_cr;
+
+	/* We need this to be up now */
+	nomadik_clk_init();
+
+	mtu = of_find_node_by_path("/mtu0");
+	if (!mtu)
+		return;
+	base = of_iomap(mtu, 0);
+	if (WARN_ON(!base))
+		return;
+	irq = irq_of_parse_and_map(mtu, 0);
+
+	pr_info("Remapped MTU @ %p, irq: %d\n", base, irq);
+
+	/* Configure timer sources in "system reset controller" ctrl reg */
+	src_cr = readl(base);
+	src_cr &= SRC_CR_INIT_MASK;
+	src_cr |= SRC_CR_INIT_VAL;
+	writel(src_cr, base);
+
+	nmdk_timer_init(base, irq);
+}
+
+/* These are mostly to get the right device names for the clock lookups */
+static struct of_dev_auxdata cpu8815_auxdata_lookup[] __initdata = {
+	OF_DEV_AUXDATA("arm,primecell", NOMADIK_UART0_BASE,
+		"uart0", NULL),
+	OF_DEV_AUXDATA("arm,primecell", NOMADIK_UART1_BASE,
+		"uart1", NULL),
+	{ /* sentinel */ },
+};
+
+static void __init cpu8815_init_of(void)
+{
+#ifdef CONFIG_CACHE_L2X0
+	/* At full speed latency must be >=2, so 0x249 in low bits */
+	l2x0_of_init(0x00730249, 0xfe000fff);
+#endif
+	of_platform_populate(NULL, of_default_bus_match_table,
+			cpu8815_auxdata_lookup, NULL);
+}
+
+static const char * cpu8815_board_compat[] = {
+	"calaosystems,usb-s8815",
+	NULL,
+};
+
+DT_MACHINE_START(NOMADIK_DT, "Nomadik STn8815")
+	.map_io		= cpu8815_map_io,
+	.init_irq	= irqchip_init,
+	.init_time	= cpu8815_timer_init_of,
+	.init_machine	= cpu8815_init_of,
+	.restart	= cpu8815_restart,
+	.dt_compat      = cpu8815_board_compat,
+MACHINE_END
+
+#endif

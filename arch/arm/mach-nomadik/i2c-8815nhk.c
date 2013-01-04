@@ -4,6 +4,7 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/i2c-gpio.h>
 #include <linux/platform_device.h>
+#include <asm/mach-types.h>
 
 /*
  * There are two busses in the 8815NHK.
@@ -58,6 +59,10 @@ static struct platform_device nhk8815_i2c_dev2 = {
 
 static int __init nhk8815_i2c_init(void)
 {
+	/* For e.g. devicetree boot */
+	if (!machine_is_nomadik())
+		return 0;
+
 	platform_device_register(&nhk8815_i2c_dev0);
 	platform_device_register(&nhk8815_i2c_dev1);
 	platform_device_register(&nhk8815_i2c_dev2);
