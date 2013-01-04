@@ -88,6 +88,17 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 		if (ret != 0)
 			dev_err(d->map->dev, "Failed to sync masks in %x\n",
 				reg);
+
+		reg = d->chip->wake_base +
+			(i * map->reg_stride * d->irq_reg_stride);
+		if (d->wake_buf) {
+			ret = regmap_update_bits(d->map, reg,
+					 d->mask_buf_def[i], d->wake_buf[i]);
+			if (ret != 0)
+				dev_err(d->map->dev,
+					"Failed to sync wakes in %x: %d\n",
+					reg, ret);
+		}
 	}
 
 	if (d->chip->runtime_pm)
