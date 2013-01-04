@@ -725,9 +725,7 @@ static int tegra_slink_start_transfer_one(struct spi_device *spi,
 	unsigned long command2;
 
 	bits_per_word = t->bits_per_word;
-	speed = t->speed_hz ? t->speed_hz : spi->max_speed_hz;
-	if (!speed)
-		speed = tspi->spi_max_frequency;
+	speed = t->speed_hz;
 	if (speed != tspi->cur_speed) {
 		clk_set_rate(tspi->clk, speed * 4);
 		tspi->cur_speed = speed;
@@ -838,6 +836,8 @@ static int tegra_slink_setup(struct spi_device *spi)
 
 	BUG_ON(spi->chip_select >= MAX_CHIP_SELECT);
 
+	/* Set speed to the spi max fequency if spi device has not set */
+	spi->max_speed_hz = spi->max_speed_hz ? : tspi->spi_max_frequency;
 	ret = pm_runtime_get_sync(tspi->dev);
 	if (ret < 0) {
 		dev_err(tspi->dev, "pm runtime failed, e = %d\n", ret);
