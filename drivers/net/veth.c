@@ -32,7 +32,7 @@ struct pcpu_vstats {
 };
 
 struct veth_priv {
-	struct net_device	*peer;
+	struct net_device __rcu	*peer;
 	atomic64_t		dropped;
 };
 
@@ -89,10 +89,10 @@ static int veth_get_sset_count(struct net_device *dev, int sset)
 static void veth_get_ethtool_stats(struct net_device *dev,
 		struct ethtool_stats *stats, u64 *data)
 {
-	struct veth_priv *priv;
+	struct veth_priv *priv = netdev_priv(dev);
+	struct net_device *peer = rtnl_dereference(priv->peer);
 
-	priv = netdev_priv(dev);
-	data[0] = priv->peer->ifindex;
+	data[0] = peer ? peer->ifindex : 0;
 }
 
 static const struct ethtool_ops veth_ethtool_ops = {
@@ -107,9 +107,15 @@ static const struct ethtool_ops veth_ethtool_ops = {
 static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct veth_priv *priv = netdev_priv(dev);
-	struct net_device *rcv = priv->peer;
+	struct net_device *rcv;
 	int length = skb->len;
 
+	rcu_read_lock();
+	rcv = rcu_dereference(priv->peer);
+	if (unlikely(!rcv)) {
+		kfree_skb(skb);
+		goto drop;
+	}
 	/* don't change ip_summed == CHECKSUM_PARTIAL, as that
 	 * will cause bad checksum on forwarded packets
 	 */
@@ -125,9 +131,10 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 		stats->packets++;
 		u64_stats_update_end(&stats->syncp);
 	} else {
+drop:
 		atomic64_inc(&priv->dropped);
 	}
-
+	rcu_read_unlock();
 	return NETDEV_TX_OK;
 }
 
@@ -162,30 +169,36 @@ static struct rtnl_link_stats64 *veth_get_stats64(struct net_device *dev,
 						  struct rtnl_link_stats64 *tot)
 {
 	struct veth_priv *priv = netdev_priv(dev);
+	struct net_device *peer;
 	struct pcpu_vstats one;
 
 	tot->tx_dropped = veth_stats_one(&one, dev);
 	tot->tx_bytes = one.bytes;
 	tot->tx_packets = one.packets;
 
-	tot->rx_dropped = veth_stats_one(&one, priv->peer);
-	tot->rx_bytes = one.bytes;
-	tot->rx_packets = one.packets;
+	rcu_read_lock();
+	peer = rcu_dereference(priv->peer);
+	if (peer) {
+		tot->rx_dropped = veth_stats_one(&one, peer);
+		tot->rx_bytes = one.bytes;
+		tot->rx_packets = one.packets;
+	}
+	rcu_read_unlock();
 
 	return tot;
 }
 
 static int veth_open(struct net_device *dev)
 {
-	struct veth_priv *priv;
+	struct veth_priv *priv = netdev_priv(dev);
+	struct net_device *peer = rtnl_dereference(priv->peer);
 
-	priv = netdev_priv(dev);
-	if (priv->peer == NULL)
+	if (!peer)
 		return -ENOTCONN;
 
-	if (priv->peer->flags & IFF_UP) {
+	if (peer->flags & IFF_UP) {
 		netif_carrier_on(dev);
-		netif_carrier_on(priv->peer);
+		netif_carrier_on(peer);
 	}
 	return 0;
 }
@@ -195,7 +208,7 @@ static int veth_close(struct net_device *dev)
 	struct veth_priv *priv = netdev_priv(dev);
 
 	netif_carrier_off(dev);
-	netif_carrier_off(priv->peer);
+	netif_carrier_off(rtnl_dereference(priv->peer));
 
 	return 0;
 }
@@ -380,10 +393,10 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	 */
 
 	priv = netdev_priv(dev);
-	priv->peer = peer;
+	rcu_assign_pointer(priv->peer, peer);
 
 	priv = netdev_priv(peer);
-	priv->peer = dev;
+	rcu_assign_pointer(priv->peer, dev);
 	return 0;
 
 err_register_dev:
@@ -404,7 +417,16 @@ static void veth_dellink(struct net_device *dev, struct list_head *head)
 	struct net_device *peer;
 
 	priv = netdev_priv(dev);
-	peer = priv->peer;
+	peer = rtnl_dereference(priv->peer);
+
+	/* Note : dellink() is called from default_device_exit_batch(),
+	 * before a rcu_synchronize() point. The devices are guaranteed
+	 * not being freed before one RCU grace period.
+	 */
+	RCU_INIT_POINTER(priv->peer, NULL);
+
+	priv = netdev_priv(peer);
+	RCU_INIT_POINTER(priv->peer, NULL);
 
 	unregister_netdevice_queue(dev, head);
 	unregister_netdevice_queue(peer, head);
