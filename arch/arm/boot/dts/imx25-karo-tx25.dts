@@ -26,8 +26,8 @@
 };
 
 &fec {
-	status = "okay";
 	phy-mode = "rmii";
+	status = "okay";
 };
 
 &nfc {
