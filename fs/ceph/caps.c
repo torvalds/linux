@@ -2429,7 +2429,9 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 		dout("mds wanted %s -> %s\n",
 		     ceph_cap_string(le32_to_cpu(grant->wanted)),
 		     ceph_cap_string(wanted));
-		grant->wanted = cpu_to_le32(wanted);
+		/* imported cap may not have correct mds_wanted */
+		if (le32_to_cpu(grant->op) == CEPH_CAP_OP_IMPORT)
+			check_caps = 1;
 	}
 
 	cap->seq = seq;
