@@ -1368,7 +1368,7 @@ static int create_multi_out_ctls(struct hda_codec *codec,
 		if (!dac)
 			continue;
 		if (i >= cfg->line_outs) {
-			pin = spec->multi_io[i - 1].pin;
+			pin = spec->multi_io[i - cfg->line_outs].pin;
 			index = 0;
 			name = channel_name[i];
 		} else {
