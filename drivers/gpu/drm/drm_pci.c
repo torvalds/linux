@@ -507,7 +507,7 @@ int drm_pcie_get_speed_cap_mask(struct drm_device *dev, u32 *mask)
 		if (lnkcap & PCI_EXP_LNKCAP_SLS_2_5GB)
 			*mask |= DRM_PCIE_SPEED_25;
 		if (lnkcap & PCI_EXP_LNKCAP_SLS_5_0GB)
-			*mask |= DRM_PCIE_SPEED_50;
+			*mask |= (DRM_PCIE_SPEED_25 | DRM_PCIE_SPEED_50);
 	}
 
 	DRM_INFO("probing gen 2 caps for device %x:%x = %x/%x\n", root->vendor, root->device, lnkcap, lnkcap2);
