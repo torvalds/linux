@@ -770,6 +770,10 @@ static long do_msg_fill(void __user *dest, struct msg_msg *msg, size_t bufsz)
 }
 
 #ifdef CONFIG_CHECKPOINT_RESTORE
+/*
+ * This function creates new kernel message structure, large enough to store
+ * bufsz message bytes.
+ */
 static inline struct msg_msg *prepare_copy(void __user *buf, size_t bufsz,
 					   int msgflg, long *msgtyp,
 					   unsigned long *copy_number)
@@ -881,6 +885,10 @@ long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp,
 				msg = ERR_PTR(-E2BIG);
 				goto out_unlock;
 			}
+			/*
+			 * If we are copying, then do not unlink message and do
+			 * not update queue parameters.
+			 */
 			if (msgflg & MSG_COPY)
 				goto out_unlock;
 			list_del(&msg->m_list);
