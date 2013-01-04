@@ -56,7 +56,6 @@ struct coh901318_params {
  * @desc_nbr_max: number of preallocated descriptors
  * @priority_high: prio of channel, 0 low otherwise high.
  * @param: configuration parameters
- * @dev_addr: physical address of periphal connected to channel
  */
 struct coh_dma_channel {
 	const char name[32];
@@ -64,7 +63,6 @@ struct coh_dma_channel {
 	const int desc_nbr_max;
 	const int priority_high;
 	const struct coh901318_params param;
-	const dma_addr_t dev_addr;
 };
 
 /**

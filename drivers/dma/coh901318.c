@@ -1141,8 +1141,8 @@ struct coh901318_chan {
 	unsigned long nbr_active_done;
 	unsigned long busy;
 
-	u32 runtime_addr;
-	u32 runtime_ctrl;
+	u32 addr;
+	u32 ctrl;
 
 	struct coh901318_base *base;
 };
@@ -1251,15 +1251,6 @@ module_exit(exit_coh901318_debugfs);
 static inline struct coh901318_chan *to_coh901318_chan(struct dma_chan *chan)
 {
 	return container_of(chan, struct coh901318_chan, chan);
-}
-
-static inline dma_addr_t
-cohc_dev_addr(struct coh901318_chan *cohc)
-{
-	/* Runtime supplied address will take precedence */
-	if (cohc->runtime_addr)
-		return cohc->runtime_addr;
-	return cohc->base->platform->chan_conf[cohc->id].dev_addr;
 }
 
 static inline const struct coh901318_params *
@@ -2118,9 +2109,9 @@ coh901318_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	 * sure the bits you set per peripheral channel are
 	 * cleared in the default config from the platform.
 	 */
-	ctrl_chained |= cohc->runtime_ctrl;
-	ctrl_last |= cohc->runtime_ctrl;
-	ctrl |= cohc->runtime_ctrl;
+	ctrl_chained |= cohc->ctrl;
+	ctrl_last |= cohc->ctrl;
+	ctrl |= cohc->ctrl;
 
 	if (direction == DMA_MEM_TO_DEV) {
 		u32 tx_flags = COH901318_CX_CTRL_PRDD_SOURCE |
@@ -2169,7 +2160,7 @@ coh901318_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 	/* initiate allocated lli list */
 	ret = coh901318_lli_fill_sg(&cohc->base->pool, lli, sgl, sg_len,
-				    cohc_dev_addr(cohc),
+				    cohc->addr,
 				    ctrl_chained,
 				    ctrl,
 				    ctrl_last,
@@ -2310,7 +2301,7 @@ static void coh901318_dma_set_runtimeconfig(struct dma_chan *chan,
 	dma_addr_t addr;
 	enum dma_slave_buswidth addr_width;
 	u32 maxburst;
-	u32 runtime_ctrl = 0;
+	u32 ctrl = 0;
 	int i = 0;
 
 	/* We only support mem to per or per to mem transfers */
@@ -2331,7 +2322,7 @@ static void coh901318_dma_set_runtimeconfig(struct dma_chan *chan,
 		addr_width);
 	switch (addr_width)  {
 	case DMA_SLAVE_BUSWIDTH_1_BYTE:
-		runtime_ctrl |=
+		ctrl |=
 			COH901318_CX_CTRL_SRC_BUS_SIZE_8_BITS |
 			COH901318_CX_CTRL_DST_BUS_SIZE_8_BITS;
 
@@ -2343,7 +2334,7 @@ static void coh901318_dma_set_runtimeconfig(struct dma_chan *chan,
 
 		break;
 	case DMA_SLAVE_BUSWIDTH_2_BYTES:
-		runtime_ctrl |=
+		ctrl |=
 			COH901318_CX_CTRL_SRC_BUS_SIZE_16_BITS |
 			COH901318_CX_CTRL_DST_BUS_SIZE_16_BITS;
 
@@ -2356,7 +2347,7 @@ static void coh901318_dma_set_runtimeconfig(struct dma_chan *chan,
 		break;
 	case DMA_SLAVE_BUSWIDTH_4_BYTES:
 		/* Direction doesn't matter here, it's 32/32 bits */
-		runtime_ctrl |=
+		ctrl |=
 			COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
 			COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS;
 
@@ -2373,13 +2364,13 @@ static void coh901318_dma_set_runtimeconfig(struct dma_chan *chan,
 		return;
 	}
 
-	runtime_ctrl |= burst_sizes[i].reg;
+	ctrl |= burst_sizes[i].reg;
 	dev_dbg(COHC_2_DEV(cohc),
 		"selected burst size %d bytes for address width %d bytes, maxburst %d\n",
 		burst_sizes[i].burst_8bit, addr_width, maxburst);
 
-	cohc->runtime_addr = addr;
-	cohc->runtime_ctrl = runtime_ctrl;
+	cohc->addr = addr;
+	cohc->ctrl = ctrl;
 }
 
 static int
