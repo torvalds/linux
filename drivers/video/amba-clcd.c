@@ -33,6 +33,16 @@
 
 #define to_clcd(info)	container_of(info, struct clcd_fb, fb)
 
+#ifdef CONFIG_ARM
+#define clcdfb_dma_alloc	dma_alloc_writecombine
+#define clcdfb_dma_free		dma_free_writecombine
+#define clcdfb_dma_mmap		dma_mmap_writecombine
+#else
+#define clcdfb_dma_alloc	dma_alloc_coherent
+#define clcdfb_dma_free		dma_free_coherent
+#define clcdfb_dma_mmap		dma_mmap_coherent
+#endif
+
 /* This is limited to 16 characters when displayed by X startup */
 static const char *clcd_name = "CLCD FB";
 
@@ -396,16 +406,19 @@ static int clcdfb_blank(int blank_mode, struct fb_info *info)
 }
 int clcdfb_mmap_dma(struct clcd_fb *fb, struct vm_area_struct *vma)
 {
-	return dma_mmap_writecombine(&fb->dev->dev, vma,
-				     fb->fb.screen_base,
-				     fb->fb.fix.smem_start,
-				     fb->fb.fix.smem_len);
+	return clcdfb_dma_mmap(&fb->dev->dev, vma, fb->fb.screen_base,
+			       fb->fb.fix.smem_start, fb->fb.fix.smem_len);
 }
 
 void clcdfb_remove_dma(struct clcd_fb *fb)
 {
-	dma_free_writecombine(&fb->dev->dev, fb->fb.fix.smem_len,
-			      fb->fb.screen_base, fb->fb.fix.smem_start);
+	struct device_node *node = fb->dev->dev.of_node;
+	u32 use_dma = 0;
+
+	of_property_read_u32(node, "use_dma", &use_dma);
+	if (use_dma)
+		clcdfb_dma_free(&fb->dev->dev, fb->fb.fix.smem_len,
+				fb->fb.screen_base, fb->fb.fix.smem_start);
 }
 
 static int clcdfb_mmap(struct fb_info *info,
@@ -739,7 +752,7 @@ static int clcdfb_dt_init(struct clcd_fb *fb)
 	if (of_property_read_u32(node, "use_dma", &use_dma))
 		use_dma = 0;
 	if (use_dma) {
-		fb->fb.screen_base = dma_alloc_writecombine(&fb->dev->dev,
+		fb->fb.screen_base = clcdfb_dma_alloc(&fb->dev->dev,
 			fb->fb.fix.smem_len, &dma, GFP_KERNEL);
 		if (!fb->fb.screen_base) {
 			pr_err("CLCD: unable to map framebuffer\n");
