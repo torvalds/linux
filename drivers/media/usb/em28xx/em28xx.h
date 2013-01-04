@@ -31,15 +31,12 @@
 #include <linux/mutex.h>
 #include <linux/videodev2.h>
 
-#include <media/videobuf-vmalloc.h>
+#include <media/videobuf2-vmalloc.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fh.h>
 #include <media/ir-kbd-i2c.h>
 #include <media/rc-core.h>
-#if defined(CONFIG_VIDEO_EM28XX_DVB) || defined(CONFIG_VIDEO_EM28XX_DVB_MODULE)
-#include <media/videobuf-dvb.h>
-#endif
 #include "tuner-xc2028.h"
 #include "xc5000.h"
 #include "em28xx-reg.h"
@@ -252,8 +249,11 @@ struct em28xx_fmt {
 /* buffer for one video frame */
 struct em28xx_buffer {
 	/* common v4l buffer stuff -- must be first */
-	struct videobuf_buffer vb;
+	struct vb2_buffer vb;
+	struct list_head list;
 
+	void *mem;
+	unsigned int length;
 	int top_field;
 
 	/* counter to control buffer fill */
@@ -480,11 +480,6 @@ struct em28xx;
 struct em28xx_fh {
 	struct v4l2_fh fh;
 	struct em28xx *dev;
-	int           radio;
-	unsigned int  resources;
-
-	struct videobuf_queue        vb_vidq;
-	struct videobuf_queue        vb_vbiq;
 
 	enum v4l2_buf_type           type;
 };
@@ -545,6 +540,7 @@ struct em28xx {
 	struct i2c_client i2c_client;
 	/* video for linux */
 	int users;		/* user count for exclusive use */
+	int streaming_users;    /* Number of actively streaming users */
 	struct video_device *vdev;	/* video for linux device struct */
 	v4l2_std_id norm;	/* selected tv norm */
 	int ctl_freq;		/* selected frequency */
@@ -587,6 +583,12 @@ struct em28xx {
 	struct video_device *vbi_dev;
 	struct video_device *radio_dev;
 
+	/* Videobuf2 */
+	struct vb2_queue vb_vidq;
+	struct vb2_queue vb_vbiq;
+	struct mutex vb_queue_lock;
+	struct mutex vb_vbi_queue_lock;
+
 	/* resources in use */
 	unsigned int resources;
 
@@ -597,6 +599,9 @@ struct em28xx {
 	struct em28xx_dmaqueue vbiq;
 	struct em28xx_usb_ctl usb_ctl;
 	spinlock_t slock;
+
+	unsigned int field_count;
+	unsigned int vbi_field_count;
 
 	/* usb transfer */
 	struct usb_device *udev;	/* the usb device */
@@ -709,9 +714,12 @@ void em28xx_init_extension(struct em28xx *dev);
 void em28xx_close_extension(struct em28xx *dev);
 
 /* Provided by em28xx-video.c */
+int em28xx_vb2_setup(struct em28xx *dev);
 int em28xx_register_analog_devices(struct em28xx *dev);
 void em28xx_release_analog_resources(struct em28xx *dev);
 void em28xx_ctrl_notify(struct v4l2_ctrl *ctrl, void *priv);
+int em28xx_start_analog_streaming(struct vb2_queue *vq, unsigned int count);
+int em28xx_stop_vbi_streaming(struct vb2_queue *vq);
 extern const struct v4l2_ctrl_ops em28xx_ctrl_ops;
 
 /* Provided by em28xx-cards.c */
@@ -723,7 +731,7 @@ int em28xx_tuner_callback(void *ptr, int component, int command, int arg);
 void em28xx_release_resources(struct em28xx *dev);
 
 /* Provided by em28xx-vbi.c */
-extern struct videobuf_queue_ops em28xx_vbi_qops;
+extern struct vb2_ops em28xx_vbi_qops;
 
 /* printk macros */
 

@@ -27,7 +27,9 @@
 
 #include "em28xx.h"
 #include <media/v4l2-common.h>
-#include <media/videobuf-vmalloc.h>
+#include <dvb_demux.h>
+#include <dvb_net.h>
+#include <dmxdev.h>
 #include <media/tuner.h>
 #include "tuner-simple.h"
 #include <linux/gpio.h>

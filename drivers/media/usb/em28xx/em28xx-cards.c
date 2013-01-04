@@ -57,7 +57,7 @@ module_param(disable_usb_speed_check, int, 0444);
 MODULE_PARM_DESC(disable_usb_speed_check,
 		 "override min bandwidth requirement of 480M bps");
 
-static unsigned int card[]     = {[0 ... (EM28XX_MAXBOARDS - 1)] = UNSET };
+static unsigned int card[]     = {[0 ... (EM28XX_MAXBOARDS - 1)] = -1U };
 module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card,     "card type");
 
@@ -2965,6 +2965,8 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 	const char *chip_name = default_chip_name;
 
 	dev->udev = udev;
+	mutex_init(&dev->vb_queue_lock);
+	mutex_init(&dev->vb_vbi_queue_lock);
 	mutex_init(&dev->ctrl_urb_lock);
 	spin_lock_init(&dev->slock);
 
@@ -3410,6 +3412,9 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);
+
+	/* initialize videobuf2 stuff */
+	em28xx_vb2_setup(dev);
 
 	/* allocate device struct */
 	mutex_init(&dev->lock);
