@@ -70,7 +70,6 @@ struct waveform_private {
 	unsigned long ai_count;	/* number of conversions remaining */
 	unsigned int scan_period;	/* scan period in usec */
 	unsigned int convert_period;	/* conversion period in usec */
-	unsigned timer_running:1;
 	unsigned int ao_loopbacks[N_CHANS];
 };
 
@@ -176,6 +175,7 @@ static void waveform_ai_interrupt(unsigned long arg)
 	unsigned long elapsed_time;
 	unsigned int num_scans;
 	struct timeval now;
+	bool stopping = false;
 
 	do_gettimeofday(&now);
 
@@ -188,6 +188,15 @@ static void waveform_ai_interrupt(unsigned long arg)
 	devpriv->usec_remainder =
 	    (devpriv->usec_remainder + elapsed_time) % devpriv->scan_period;
 	async->events = 0;
+
+	if (cmd->stop_src == TRIG_COUNT) {
+		unsigned int remaining = cmd->stop_arg - devpriv->ai_count;
+		if (num_scans >= remaining) {
+			/* about to finish */
+			num_scans = remaining;
+			stopping = true;
+		}
+	}
 
 	for (i = 0; i < num_scans; i++) {
 		for (j = 0; j < cmd->chanlist_len; j++) {
@@ -205,18 +214,15 @@ static void waveform_ai_interrupt(unsigned long arg)
 							  devpriv->
 							  convert_period));
 		}
-		devpriv->ai_count++;
-		if (cmd->stop_src == TRIG_COUNT
-		    && devpriv->ai_count >= cmd->stop_arg) {
-			async->events |= COMEDI_CB_EOA;
-			break;
-		}
 	}
 
+	devpriv->ai_count += i;
 	devpriv->usec_current += elapsed_time;
 	devpriv->usec_current %= devpriv->usec_period;
 
-	if ((async->events & COMEDI_CB_EOA) == 0 && devpriv->timer_running)
+	if (stopping)
+		async->events |= COMEDI_CB_EOA;
+	else
 		mod_timer(&devpriv->timer, jiffies + 1);
 
 	comedi_event(dev, dev->read_subdev);
@@ -315,7 +321,6 @@ static int waveform_ai_cmd(struct comedi_device *dev,
 		return -1;
 	}
 
-	devpriv->timer_running = 1;
 	devpriv->ai_count = 0;
 	devpriv->scan_period = cmd->scan_begin_arg / nano_per_micro;
 
@@ -342,7 +347,6 @@ static int waveform_ai_cancel(struct comedi_device *dev,
 {
 	struct waveform_private *devpriv = dev->private;
 
-	devpriv->timer_running = 0;
 	del_timer_sync(&devpriv->timer);
 	return 0;
 }
