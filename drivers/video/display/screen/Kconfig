@@ -119,6 +119,8 @@ config LCD_TL5001_MIPI
 
 config LCD_LP097QX1
           bool "Display Port screen LP097QX1"
+config LCD_DS1006H
+          bool "Display Port screen for ds1006h(RK3168)"
 endchoice
 
 

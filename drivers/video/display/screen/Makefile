@@ -52,3 +52,4 @@ obj-$(CONFIG_LCD_AUTO)   += lcd_auto.o
 obj-$(CONFIG_LCD_I30_800X480)   += lcd_I30_800x480.o
 obj-$(CONFIG_LCD_TL5001_MIPI)    += lcd_tl5001_mipi.o
 obj-$(CONFIG_LCD_LP097QX1)    += lcd_LP097QX1.o
+obj-$(CONFIG_LCD_DS1006H)    += lcd_ds1006h.o
