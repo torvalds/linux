@@ -26,8 +26,11 @@
 #include <linux/earlysuspend.h>
 #include <asm/io.h>
 #include <mach/board.h>
+#include <plat/pwm.h>
 
-#include "rk2818_backlight.h"
+#define PWM_DIV              PWM_DIV2
+#define PWM_APB_PRE_DIV      1000
+#define BL_STEP              255
 
 /*
  * Debug
@@ -38,20 +41,10 @@
 #define DBG(x...)
 #endif
 
-#if defined(CONFIG_ARCH_RK30)
-#define write_pwm_reg(id, addr, val)        __raw_writel(val, addr+(RK30_PWM01_BASE+(id>>1)*0x20000)+id*0x10)
-#define read_pwm_reg(id, addr)              __raw_readl(addr+(RK30_PWM01_BASE+(id>>1)*0x20000+id*0x10))
-
-#elif defined(CONFIG_ARCH_RK2928)
-#define write_pwm_reg(id, addr, val)        __raw_writel(val, addr+(RK2928_PWM_BASE+id*0x10))
-#define read_pwm_reg(id, addr)              __raw_readl(addr+(RK2928_PWM_BASE+id*0x10))
-
-#elif defined(CONFIG_ARCH_RK29)
-#define write_pwm_reg(id, addr, val)        __raw_writel(val, addr+(RK29_PWM_BASE+id*0x10))
-#define read_pwm_reg(id, addr)              __raw_readl(addr+(RK29_PWM_BASE+id*0x10))    
-#endif
+#define read_pwm_reg(addr)              __raw_readl(pwm_base + addr)
 
 static struct clk *pwm_clk;
+static void __iomem *pwm_base;
 static struct backlight_device *rk29_bl;
 static int suspend_flag = 0;
 
@@ -144,13 +137,13 @@ static int rk29_bl_update_status(struct backlight_device *bl)
 		msleep(1);
 	}
 
-	div_total = read_pwm_reg(id, PWM_REG_LRC);
+	div_total = read_pwm_reg(PWM_REG_LRC);
 	if (ref) {
 		divh = div_total*brightness/BL_STEP;
 	} else {
 		divh = div_total*(BL_STEP-brightness)/BL_STEP;
 	}
-	write_pwm_reg(id, PWM_REG_HRC, divh);
+	rk_pwm_setup(id, PWM_DIV, divh, div_total);
 
 	DBG("%s:line=%d,brightness = %d, div_total = %d, divh = %d state=%x \n",__FUNCTION__,__LINE__,brightness, div_total, divh,bl->props.state);
 out:
@@ -162,11 +155,10 @@ static int rk29_bl_get_brightness(struct backlight_device *bl)
 {
 	u32 divh,div_total;
 	struct rk29_bl_info *rk29_bl_info = bl_get_data(bl);
-	u32 id = rk29_bl_info->pwm_id;
 	u32 ref = rk29_bl_info->bl_ref;
 
-	div_total = read_pwm_reg(id, PWM_REG_LRC);
-	divh = read_pwm_reg(id, PWM_REG_HRC);
+	div_total = read_pwm_reg(PWM_REG_LRC);
+	divh = read_pwm_reg(PWM_REG_HRC);
 
 	if (!div_total)
 		return 0;
@@ -281,14 +273,8 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 		return -ENODEV;		
 	}
 
-#if defined(CONFIG_ARCH_RK29)
-	pwm_clk = clk_get(NULL, "pwm");
-#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK2928)
-	if (id == 0 || id == 1)
-		pwm_clk = clk_get(NULL, "pwm01");
-	else if (id == 2 || id == 3)
-		pwm_clk = clk_get(NULL, "pwm23");
-#endif
+	pwm_base = rk_pwm_get_base(id);
+	pwm_clk = rk_pwm_get_clk(id);
 	if (IS_ERR(pwm_clk) || !pwm_clk) {
 		printk(KERN_ERR "failed to get pwm clock source\n");
 		return -ENODEV;
@@ -306,11 +292,7 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 	}
 
 	clk_enable(pwm_clk);
-	write_pwm_reg(id, PWM_REG_CTRL, PWM_DIV|PWM_RESET);
-	write_pwm_reg(id, PWM_REG_LRC, div_total);
-	write_pwm_reg(id, PWM_REG_HRC, divh);
-	write_pwm_reg(id, PWM_REG_CNTR, 0x0);
-	write_pwm_reg(id, PWM_REG_CTRL, PWM_DIV|PWM_ENABLE|PWM_TIME_EN);
+	rk_pwm_setup(id, PWM_DIV, divh, div_total);
 
 	rk29_bl->props.power = FB_BLANK_UNBLANK;
 	rk29_bl->props.fb_blank = FB_BLANK_UNBLANK;
