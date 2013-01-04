@@ -31,6 +31,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/platform_data/clk-u300.h>
 #include <linux/platform_data/pinctrl-coh901.h>
+#include <linux/platform_data/dma-coh901318.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -49,7 +50,6 @@
 #include "spi.h"
 #include "i2c.h"
 #include "u300-gpio.h"
-#include "dma_channels.h"
 
 /*
  * Static I/O mappings that are needed for booting the U300 platforms. The

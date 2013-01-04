@@ -102,22 +102,6 @@ struct coh901318_platform {
 	const int max_channels;
 };
 
-#ifdef CONFIG_COH901318
-/**
- * coh901318_filter_id() - DMA channel filter function
- * @chan: dma channel handle
- * @chan_id: id of dma channel to be filter out
- *
- * In dma_request_channel() it specifies what channel id to be requested
- */
-bool coh901318_filter_id(struct dma_chan *chan, void *chan_id);
-#else
-static inline bool coh901318_filter_id(struct dma_chan *chan, void *chan_id)
-{
-	return false;
-}
-#endif
-
 /*
  * DMA Controller - this access the static mappings of the coh901318 dma.
  *
