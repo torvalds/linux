@@ -1774,6 +1774,7 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_VPA_SLB   | 128
   PPC   | KVM_REG_PPC_VPA_DTL   | 128
   PPC   | KVM_REG_PPC_EPCR	| 32
+  PPC   | KVM_REG_PPC_EPR	| 32
 
 4.69 KVM_GET_ONE_REG
 
