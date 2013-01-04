@@ -118,7 +118,7 @@ struct pcie_service_card {
 	u32 txbd_rdptr;
 	u32 txbd_ring_size;
 	u8 *txbd_ring_vbase;
-	phys_addr_t txbd_ring_pbase;
+	dma_addr_t txbd_ring_pbase;
 	struct mwifiex_pcie_buf_desc *txbd_ring[MWIFIEX_MAX_TXRX_BD];
 	struct sk_buff *tx_buf_list[MWIFIEX_MAX_TXRX_BD];
 
@@ -126,7 +126,7 @@ struct pcie_service_card {
 	u32 rxbd_rdptr;
 	u32 rxbd_ring_size;
 	u8 *rxbd_ring_vbase;
-	phys_addr_t rxbd_ring_pbase;
+	dma_addr_t rxbd_ring_pbase;
 	struct mwifiex_pcie_buf_desc *rxbd_ring[MWIFIEX_MAX_TXRX_BD];
 	struct sk_buff *rx_buf_list[MWIFIEX_MAX_TXRX_BD];
 
@@ -134,13 +134,14 @@ struct pcie_service_card {
 	u32 evtbd_rdptr;
 	u32 evtbd_ring_size;
 	u8 *evtbd_ring_vbase;
-	phys_addr_t evtbd_ring_pbase;
+	dma_addr_t evtbd_ring_pbase;
 	struct mwifiex_pcie_buf_desc *evtbd_ring[MWIFIEX_MAX_EVT_BD];
 	struct sk_buff *evt_buf_list[MWIFIEX_MAX_EVT_BD];
 
 	struct sk_buff *cmd_buf;
 	struct sk_buff *cmdrsp_buf;
-	struct sk_buff *sleep_cookie;
+	u8 *sleep_cookie_vbase;
+	dma_addr_t sleep_cookie_pbase;
 	void __iomem *pci_mmap;
 	void __iomem *pci_mmap1;
 };
