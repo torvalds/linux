@@ -6,7 +6,7 @@ config NET_VENDOR_I825XX
 	bool "Intel (82586/82593/82596) devices"
 	default y
 	depends on NET_VENDOR_INTEL && (ISA || ISA_DMA_API || ARM || \
-		   ARCH_ACORN || MCA || MCA_LEGACY || SNI_RM || SUN3 || \
+		   ARCH_ACORN || SNI_RM || SUN3 || \
 		   GSC || BVME6000 || MVME16x || EXPERIMENTAL)
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y

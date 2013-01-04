@@ -6,8 +6,8 @@ config NET_VENDOR_8390
 	bool "National Semi-conductor 8390 devices"
 	default y
 	depends on NET_VENDOR_NATSEMI && (AMIGA_PCMCIA || PCI || SUPERH || \
-		   ISA || MCA || EISA || MAC || M32R || MACH_TX49XX || \
-		   MCA_LEGACY || H8300 || ARM || MIPS || ZORRO || PCMCIA || \
+		   ISA || EISA || MAC || M32R || MACH_TX49XX || \
+		   H8300 || ARM || MIPS || ZORRO || PCMCIA || \
 		   EXPERIMENTAL)
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
@@ -188,10 +188,7 @@ config NE2000
 
 	  If you have a PCI NE2000 card however, say N here and Y to "PCI
 	  NE2000 and clone support" under "EISA, VLB, PCI and on board
-	  controllers" below. If you have a NE2000 card and are running on
-	  an MCA system (a bus system used on some IBM PS/2 computers and
-	  laptops), say N here and Y to "NE/2 (ne2000 MCA version) support",
-	  below.
+	  controllers" below.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ne.

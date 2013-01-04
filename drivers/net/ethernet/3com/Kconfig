@@ -5,7 +5,7 @@
 config NET_VENDOR_3COM
 	bool "3Com devices"
 	default y
-	depends on ISA || EISA || MCA || PCI || PCMCIA
+	depends on ISA || EISA || PCI || PCMCIA
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from
@@ -33,8 +33,8 @@ config EL1
 	  will be called 3c501.
 
 config EL3
-	tristate "3c509/3c529 (MCA)/3c579 \"EtherLink III\" support"
-	depends on (ISA || EISA || MCA)
+	tristate "3c509/3c579 \"EtherLink III\" support"
+	depends on (ISA || EISA)
 	---help---
 	  If you have a network (Ethernet) card belonging to the 3Com
 	  EtherLinkIII series, say Y and read the Ethernet-HOWTO, available

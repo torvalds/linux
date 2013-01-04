@@ -7,7 +7,7 @@ config NET_VENDOR_AMD
 	default y
 	depends on DIO || MACH_DECSTATION || MVME147 || ATARI || SUN3 || \
 		   SUN3X || SBUS || PCI || ZORRO || (ISA && ISA_DMA_API) || \
-		   (ARM && ARCH_EBSA110) || ISA || EISA || MCA || PCMCIA
+		   (ARM && ARCH_EBSA110) || ISA || EISA || PCMCIA
 	---help---
 	  If you have a network (Ethernet) chipset belonging to this class,
 	  say Y.
@@ -107,7 +107,7 @@ config DECLANCE
 
 config DEPCA
 	tristate "DEPCA, DE10x, DE200, DE201, DE202, DE422 support"
-	depends on (ISA || EISA || MCA)
+	depends on (ISA || EISA)
 	select CRC32
 	---help---
 	  If you have a network (Ethernet) card of this type, say Y and read
