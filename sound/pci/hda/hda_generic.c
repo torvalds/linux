@@ -833,8 +833,13 @@ static int try_assign_dacs(struct hda_codec *codec, int num_outs,
 	for (i = 0; i < num_outs; i++) {
 		struct nid_path *path;
 		hda_nid_t pin = pins[i];
-		if (!dacs[i])
-			dacs[i] = look_for_dac(codec, pin, false);
+
+		if (dacs[i]) {
+			badness += assign_out_path_ctls(codec, pin, dacs[i]);
+			continue;
+		}
+
+		dacs[i] = look_for_dac(codec, pin, false);
 		if (!dacs[i] && !i) {
 			for (j = 1; j < num_outs; j++) {
 				if (is_reachable_path(codec, dacs[j], pin)) {
