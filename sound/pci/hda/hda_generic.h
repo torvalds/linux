@@ -136,6 +136,7 @@ struct hda_gen_spec {
 	int speaker_paths[AUTO_CFG_MAX_OUTS];
 	int digout_paths[AUTO_CFG_MAX_OUTS];
 	int loopback_paths[HDA_MAX_NUM_INPUTS];
+	int digin_path;
 
 	/* auto-mic stuff */
 	int am_num_entries;

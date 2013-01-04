@@ -2521,6 +2521,7 @@ static void parse_digital(struct hda_codec *codec)
 				print_nid_path("digin", path);
 				path->active = true;
 				spec->dig_in_nid = dig_nid;
+				spec->digin_path = snd_hda_get_path_idx(codec, path);
 				break;
 			}
 		}
@@ -3788,8 +3789,13 @@ static void init_digital(struct hda_codec *codec)
 				      spec->digout_paths[i]);
 	}
 	pin = spec->autocfg.dig_in_pin;
-	if (pin)
+	if (pin) {
+		struct nid_path *path;
 		snd_hda_set_pin_ctl_cache(codec, pin, PIN_IN);
+		path = snd_hda_get_path_from_idx(codec, spec->digin_path);
+		if (path)
+			snd_hda_activate_path(codec, path, path->active, false);
+	}
 }
 
 /* clear unsol-event tags on unused pins; Conexant codecs seem to leave
