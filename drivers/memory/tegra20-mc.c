@@ -177,7 +177,7 @@ static void tegra20_mc_decode(struct tegra20_mc *mc, int n)
 			    "carveout" : "trustzone") : "");
 }
 
-static const struct of_device_id tegra20_mc_of_match[] __devinitconst = {
+static const struct of_device_id tegra20_mc_of_match[] = {
 	{ .compatible = "nvidia,tegra20-mc", },
 	{},
 };
@@ -198,7 +198,7 @@ static irqreturn_t tegra20_mc_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit tegra20_mc_probe(struct platform_device *pdev)
+static int tegra20_mc_probe(struct platform_device *pdev)
 {
 	struct resource *irq;
 	struct tegra20_mc *mc;

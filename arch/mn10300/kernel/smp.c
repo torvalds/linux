@@ -905,7 +905,7 @@ void __init smp_cpus_done(unsigned int max_cpus)
  * Set up the cpu_online_mask, cpu_callout_map and cpu_callin_map of the boot
  * processor (CPU 0).
  */
-void __devinit smp_prepare_boot_cpu(void)
+void smp_prepare_boot_cpu(void)
 {
 	cpumask_set_cpu(0, &cpu_callout_map);
 	cpumask_set_cpu(0, &cpu_callin_map);
@@ -930,7 +930,7 @@ void initialize_secondary(void)
  * __cpu_up - Set smp_commenced_mask for the nominated CPU
  * @cpu: The target CPU.
  */
-int __devinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
+int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int timeout;
 

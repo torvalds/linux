@@ -480,7 +480,7 @@ err:
 	return rc;
 }
 
-static int __devexit dryice_rtc_remove(struct platform_device *pdev)
+static int dryice_rtc_remove(struct platform_device *pdev)
 {
 	struct imxdi_dev *imxdi = platform_get_drvdata(pdev);
 
@@ -512,7 +512,7 @@ static struct platform_driver dryice_rtc_driver = {
 		   .owner = THIS_MODULE,
 		   .of_match_table = of_match_ptr(dryice_dt_ids),
 		   },
-	.remove = __devexit_p(dryice_rtc_remove),
+	.remove = dryice_rtc_remove,
 };
 
 static int __init dryice_rtc_init(void)

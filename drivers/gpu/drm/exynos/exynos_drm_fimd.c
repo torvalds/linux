@@ -898,7 +898,7 @@ static int fimd_activate(struct fimd_context *ctx, bool enable)
 	return 0;
 }
 
-static int __devinit fimd_probe(struct platform_device *pdev)
+static int fimd_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct fimd_context *ctx;
@@ -997,7 +997,7 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit fimd_remove(struct platform_device *pdev)
+static int fimd_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct fimd_context *ctx = platform_get_drvdata(pdev);
@@ -1105,7 +1105,7 @@ static const struct dev_pm_ops fimd_pm_ops = {
 
 struct platform_driver fimd_driver = {
 	.probe		= fimd_probe,
-	.remove		= __devexit_p(fimd_remove),
+	.remove		= fimd_remove,
 	.id_table       = fimd_driver_ids,
 	.driver		= {
 		.name	= "exynos4-fb",

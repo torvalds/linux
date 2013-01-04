@@ -712,7 +712,7 @@ static void dma_do_tasklet(unsigned long data)
 	}
 }
 
-static int __devexit mmp_pdma_remove(struct platform_device *op)
+static int mmp_pdma_remove(struct platform_device *op)
 {
 	struct mmp_pdma_device *pdev = platform_get_drvdata(op);
 

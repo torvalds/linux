@@ -1728,8 +1728,7 @@ static int meye_resume(struct pci_dev *pdev)
 }
 #endif
 
-static int __devinit meye_probe(struct pci_dev *pcidev,
-				const struct pci_device_id *ent)
+static int meye_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 {
 	struct v4l2_device *v4l2_dev = &meye.v4l2_dev;
 	int ret = -EBUSY;
@@ -1889,7 +1888,7 @@ outnotdev:
 	return ret;
 }
 
-static void __devexit meye_remove(struct pci_dev *pcidev)
+static void meye_remove(struct pci_dev *pcidev)
 {
 	video_unregister_device(meye.vdev);
 
@@ -1935,7 +1934,7 @@ static struct pci_driver meye_driver = {
 	.name		= "meye",
 	.id_table	= meye_pci_tbl,
 	.probe		= meye_probe,
-	.remove		= __devexit_p(meye_remove),
+	.remove		= meye_remove,
 #ifdef CONFIG_PM
 	.suspend	= meye_suspend,
 	.resume		= meye_resume,

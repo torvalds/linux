@@ -385,7 +385,7 @@ static void hdmi_subdrv_remove(struct drm_device *drm_dev, struct device *dev)
 		mixer_ops->iommu_on(ctx->mixer_ctx->ctx, false);
 }
 
-static int __devinit exynos_drm_hdmi_probe(struct platform_device *pdev)
+static int exynos_drm_hdmi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct exynos_drm_subdrv *subdrv;
@@ -413,7 +413,7 @@ static int __devinit exynos_drm_hdmi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit exynos_drm_hdmi_remove(struct platform_device *pdev)
+static int exynos_drm_hdmi_remove(struct platform_device *pdev)
 {
 	struct drm_hdmi_context *ctx = platform_get_drvdata(pdev);
 
@@ -426,7 +426,7 @@ static int __devexit exynos_drm_hdmi_remove(struct platform_device *pdev)
 
 struct platform_driver exynos_drm_common_hdmi_driver = {
 	.probe		= exynos_drm_hdmi_probe,
-	.remove		= __devexit_p(exynos_drm_hdmi_remove),
+	.remove		= exynos_drm_hdmi_remove,
 	.driver		= {
 		.name	= "exynos-drm-hdmi",
 		.owner	= THIS_MODULE,

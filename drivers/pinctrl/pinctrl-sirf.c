@@ -1246,7 +1246,7 @@ static void __iomem *sirfsoc_rsc_of_iomap(void)
 	return of_iomap(np, 0);
 }
 
-static int __devinit sirfsoc_pinmux_probe(struct platform_device *pdev)
+static int sirfsoc_pinmux_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct sirfsoc_pmx *spmx;
@@ -1701,7 +1701,7 @@ static void sirfsoc_gpio_set_pulldown(const u32 *pulldowns)
 	}
 }
 
-static int __devinit sirfsoc_gpio_probe(struct device_node *np)
+static int sirfsoc_gpio_probe(struct device_node *np)
 {
 	int i, err = 0;
 	struct sirfsoc_gpio_bank *bank;

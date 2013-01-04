@@ -677,7 +677,7 @@ static struct i2c_driver adv7183_driver = {
 		.name   = "adv7183",
 	},
 	.probe          = adv7183_probe,
-	.remove         = __devexit_p(adv7183_remove),
+	.remove         = adv7183_remove,
 	.id_table       = adv7183_id,
 };
 

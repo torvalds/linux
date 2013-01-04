@@ -2215,7 +2215,7 @@ static struct pci_device_id hfc_ids[] =
 	{},
 };
 
-static int __devinit
+static int
 hfc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int		err = -ENOMEM;
@@ -2246,7 +2246,7 @@ hfc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return err;
 }
 
-static void __devexit
+static void
 hfc_remove_pci(struct pci_dev *pdev)
 {
 	struct hfc_pci	*card = pci_get_drvdata(pdev);
@@ -2263,7 +2263,7 @@ hfc_remove_pci(struct pci_dev *pdev)
 static struct pci_driver hfc_driver = {
 	.name = "hfcpci",
 	.probe = hfc_probe,
-	.remove = __devexit_p(hfc_remove_pci),
+	.remove = hfc_remove_pci,
 	.id_table = hfc_ids,
 };
 

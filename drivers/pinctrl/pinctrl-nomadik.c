@@ -1312,7 +1312,7 @@ const struct irq_domain_ops nmk_gpio_irq_simple_ops = {
 	.xlate = irq_domain_xlate_twocell,
 };
 
-static int __devinit nmk_gpio_probe(struct platform_device *dev)
+static int nmk_gpio_probe(struct platform_device *dev)
 {
 	struct nmk_gpio_platform_data *pdata = dev->dev.platform_data;
 	struct device_node *np = dev->dev.of_node;
@@ -1852,7 +1852,7 @@ static const struct of_device_id nmk_pinctrl_match[] = {
 	{},
 };
 
-static int __devinit nmk_pinctrl_probe(struct platform_device *pdev)
+static int nmk_pinctrl_probe(struct platform_device *pdev)
 {
 	const struct platform_device_id *platid = platform_get_device_id(pdev);
 	struct device_node *np = pdev->dev.of_node;

@@ -3210,7 +3210,7 @@ static struct pci_driver atp870u_driver = {
 	.id_table	= atp870u_id_table,
 	.name		= "atp870u",
 	.probe		= atp870u_probe,
-	.remove		= __devexit_p(atp870u_remove),
+	.remove		= atp870u_remove,
 };
 
 static int __init atp870u_init(void)

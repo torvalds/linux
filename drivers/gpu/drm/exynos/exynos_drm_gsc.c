@@ -1683,7 +1683,7 @@ static void gsc_ippdrv_stop(struct device *dev, enum drm_exynos_ipp_cmd cmd)
 	gsc_write(cfg, GSC_ENABLE);
 }
 
-static int __devinit gsc_probe(struct platform_device *pdev)
+static int gsc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct gsc_context *ctx;
@@ -1784,7 +1784,7 @@ err_ctx:
 	return ret;
 }
 
-static int __devexit gsc_remove(struct platform_device *pdev)
+static int gsc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct gsc_context *ctx = get_gsc_context(dev);
@@ -1860,7 +1860,7 @@ static const struct dev_pm_ops gsc_pm_ops = {
 
 struct platform_driver gsc_driver = {
 	.probe		= gsc_probe,
-	.remove		= __devexit_p(gsc_remove),
+	.remove		= gsc_remove,
 	.driver		= {
 		.name	= "exynos-drm-gsc",
 		.owner	= THIS_MODULE,

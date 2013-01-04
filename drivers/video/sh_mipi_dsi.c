@@ -533,7 +533,7 @@ efindslot:
 	return ret;
 }
 
-static int __devexit sh_mipi_remove(struct platform_device *pdev)
+static int sh_mipi_remove(struct platform_device *pdev)
 {
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct resource *res2 = platform_get_resource(pdev, IORESOURCE_MEM, 1);
@@ -574,7 +574,7 @@ static int __devexit sh_mipi_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver sh_mipi_driver = {
-	.remove		= __devexit_p(sh_mipi_remove),
+	.remove		= sh_mipi_remove,
 	.shutdown	= sh_mipi_shutdown,
 	.driver = {
 		.name	= "sh-mipi-dsi",

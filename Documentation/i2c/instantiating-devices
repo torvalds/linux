@@ -91,7 +91,7 @@ Example (from the nxp OHCI driver):
 
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
 
-static int __devinit usb_hcd_nxp_probe(struct platform_device *pdev)
+static int usb_hcd_nxp_probe(struct platform_device *pdev)
 {
 	(...)
 	struct i2c_adapter *i2c_adap;

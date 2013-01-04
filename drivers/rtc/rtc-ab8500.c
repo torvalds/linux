@@ -389,7 +389,7 @@ static const struct rtc_class_ops ab8500_rtc_ops = {
 	.alarm_irq_enable	= ab8500_rtc_irq_enable,
 };
 
-static int __devinit ab8500_rtc_probe(struct platform_device *pdev)
+static int ab8500_rtc_probe(struct platform_device *pdev)
 {
 	int err;
 	struct rtc_device *rtc;
@@ -448,7 +448,7 @@ static int __devinit ab8500_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit ab8500_rtc_remove(struct platform_device *pdev)
+static int ab8500_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_device *rtc = platform_get_drvdata(pdev);
 	int irq = platform_get_irq_byname(pdev, "ALARM");
@@ -468,7 +468,7 @@ static struct platform_driver ab8500_rtc_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe	= ab8500_rtc_probe,
-	.remove = __devexit_p(ab8500_rtc_remove),
+	.remove = ab8500_rtc_remove,
 };
 
 module_platform_driver(ab8500_rtc_driver);

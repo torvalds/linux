@@ -34,7 +34,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
-#include <linux/init.h>		/* for __init and __devinit */
+#include <linux/init.h>		/* for __init */
 #include <linux/pci.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>

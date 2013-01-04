@@ -159,7 +159,7 @@ struct gxt4500_par {
 static char *mode_option;
 
 /* default mode: 1280x1024 @ 60 Hz, 8 bpp */
-static const struct fb_videomode defaultmode __devinitconst = {
+static const struct fb_videomode defaultmode = {
 	.refresh = 60,
 	.xres = 1280,
 	.yres = 1024,
@@ -588,7 +588,7 @@ static int gxt4500_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static const struct fb_fix_screeninfo gxt4500_fix __devinitconst = {
+static const struct fb_fix_screeninfo gxt4500_fix = {
 	.id = "IBM GXT4500P",
 	.type = FB_TYPE_PACKED_PIXELS,
 	.visual = FB_VISUAL_PSEUDOCOLOR,
@@ -610,8 +610,7 @@ static struct fb_ops gxt4500_ops = {
 };
 
 /* PCI functions */
-static int __devinit gxt4500_probe(struct pci_dev *pdev,
-				   const struct pci_device_id *ent)
+static int gxt4500_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int err;
 	unsigned long reg_phys, fb_phys;
@@ -720,7 +719,7 @@ static int __devinit gxt4500_probe(struct pci_dev *pdev,
 	return -ENODEV;
 }
 
-static void __devexit gxt4500_remove(struct pci_dev *pdev)
+static void gxt4500_remove(struct pci_dev *pdev)
 {
 	struct fb_info *info = pci_get_drvdata(pdev);
 	struct gxt4500_par *par;
@@ -758,10 +757,10 @@ static struct pci_driver gxt4500_driver = {
 	.name = "gxt4500",
 	.id_table = gxt4500_pci_tbl,
 	.probe = gxt4500_probe,
-	.remove = __devexit_p(gxt4500_remove),
+	.remove = gxt4500_remove,
 };
 
-static int __devinit gxt4500_init(void)
+static int gxt4500_init(void)
 {
 #ifndef MODULE
 	if (fb_get_options("gxt4500", &mode_option))

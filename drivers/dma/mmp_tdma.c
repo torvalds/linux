@@ -467,7 +467,7 @@ static void mmp_tdma_issue_pending(struct dma_chan *chan)
 	mmp_tdma_enable_chan(tdmac);
 }
 
-static int __devexit mmp_tdma_remove(struct platform_device *pdev)
+static int mmp_tdma_remove(struct platform_device *pdev)
 {
 	struct mmp_tdma_device *tdev = platform_get_drvdata(pdev);
 
