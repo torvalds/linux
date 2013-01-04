@@ -1391,8 +1391,7 @@ static bool hdmi_is_connected(void *ctx)
 	return hdata->hpd;
 }
 
-static int hdmi_get_edid(void *ctx, struct drm_connector *connector,
-				u8 *edid, int len)
+static struct edid *hdmi_get_edid(void *ctx, struct drm_connector *connector)
 {
 	struct edid *raw_edid;
 	struct hdmi_context *hdata = ctx;
@@ -1400,22 +1399,18 @@ static int hdmi_get_edid(void *ctx, struct drm_connector *connector,
 	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
 	if (!hdata->ddc_port)
-		return -ENODEV;
+		return ERR_PTR(-ENODEV);
 
 	raw_edid = drm_get_edid(connector, hdata->ddc_port->adapter);
-	if (raw_edid) {
-		hdata->dvi_mode = !drm_detect_hdmi_monitor(raw_edid);
-		memcpy(edid, raw_edid, min((1 + raw_edid->extensions)
-					* EDID_LENGTH, len));
-		DRM_DEBUG_KMS("%s : width[%d] x height[%d]\n",
-			(hdata->dvi_mode ? "dvi monitor" : "hdmi monitor"),
-			raw_edid->width_cm, raw_edid->height_cm);
-		kfree(raw_edid);
-	} else {
-		return -ENODEV;
-	}
+	if (!raw_edid)
+		return ERR_PTR(-ENODEV);
 
-	return 0;
+	hdata->dvi_mode = !drm_detect_hdmi_monitor(raw_edid);
+	DRM_DEBUG_KMS("%s : width[%d] x height[%d]\n",
+		(hdata->dvi_mode ? "dvi monitor" : "hdmi monitor"),
+		raw_edid->width_cm, raw_edid->height_cm);
+
+	return raw_edid;
 }
 
 static int hdmi_v13_check_timing(struct fb_videomode *check_timing)

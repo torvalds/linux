@@ -30,8 +30,8 @@ struct exynos_drm_hdmi_context {
 struct exynos_hdmi_ops {
 	/* display */
 	bool (*is_connected)(void *ctx);
-	int (*get_edid)(void *ctx, struct drm_connector *connector,
-			u8 *edid, int len);
+	struct edid *(*get_edid)(void *ctx,
+			struct drm_connector *connector);
 	int (*check_timing)(void *ctx, void *timing);
 	int (*power_on)(void *ctx, int mode);
 
