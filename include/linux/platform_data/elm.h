@@ -30,7 +30,8 @@ enum bch_ecc {
 #define BCH4_ECC_OOB_BYTES		7
 /* RBL requires 14 byte even though BCH8 uses only 13 byte */
 #define BCH8_SIZE			(BCH8_ECC_OOB_BYTES + 1)
-#define BCH4_SIZE			(BCH4_ECC_OOB_BYTES)
+/* Uses 1 extra byte to handle erased pages */
+#define BCH4_SIZE			(BCH4_ECC_OOB_BYTES + 1)
 
 /**
  * struct elm_errorvec - error vector for elm
