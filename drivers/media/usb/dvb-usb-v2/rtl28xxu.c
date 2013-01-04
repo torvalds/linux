@@ -1345,13 +1345,13 @@ static const struct usb_device_id rtl28xxu_id_table[] = {
 	{ DVB_USB_DEVICE(USB_VID_REALTEK, 0x2838,
 		&rtl2832u_props, "Realtek RTL2832U reference design", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_TERRATEC, USB_PID_TERRATEC_CINERGY_T_STICK_BLACK_REV1,
-		&rtl2832u_props, "Terratec Cinergy T Stick Black", NULL) },
+		&rtl2832u_props, "TerraTec Cinergy T Stick Black", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_GTEK, USB_PID_DELOCK_USB2_DVBT,
 		&rtl2832u_props, "G-Tek Electronics Group Lifeview LV5TDLX DVB-T", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_TERRATEC, USB_PID_NOXON_DAB_STICK,
-		&rtl2832u_props, "NOXON DAB/DAB+ USB dongle", NULL) },
+		&rtl2832u_props, "TerraTec NOXON DAB Stick", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_TERRATEC, USB_PID_NOXON_DAB_STICK_REV2,
-		&rtl2832u_props, "NOXON DAB/DAB+ USB dongle (rev 2)", NULL) },
+		&rtl2832u_props, "TerraTec NOXON DAB Stick (rev 2)", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_GTEK, USB_PID_TREKSTOR_TERRES_2_0,
 		&rtl2832u_props, "Trekstor DVB-T Stick Terres 2.0", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_DEXATEK, 0x1101,
@@ -1367,7 +1367,7 @@ static const struct usb_device_id rtl28xxu_id_table[] = {
 	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, 0xd3a8,
 		&rtl2832u_props, "ASUS My Cinema-U3100Mini Plus V2", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, 0xd393,
-		&rtl2832u_props, "Gigabyte U7300 DVB-T Dongle", NULL) },
+		&rtl2832u_props, "GIGABYTE U7300", NULL) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, rtl28xxu_id_table);
