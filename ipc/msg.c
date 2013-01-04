@@ -770,16 +770,6 @@ static long do_msg_fill(void __user *dest, struct msg_msg *msg, size_t bufsz)
 }
 
 #ifdef CONFIG_CHECKPOINT_RESTORE
-static inline struct msg_msg *fill_copy(unsigned long copy_nr,
-					unsigned long msg_nr,
-					struct msg_msg *msg,
-					struct msg_msg *copy)
-{
-	if (copy_nr == msg_nr)
-		return copy_msg(msg, copy);
-	return NULL;
-}
-
 static inline struct msg_msg *prepare_copy(void __user *buf, size_t bufsz,
 					   int msgflg, long *msgtyp,
 					   unsigned long *copy_number)
@@ -803,8 +793,6 @@ static inline void free_copy(struct msg_msg *copy)
 		free_msg(copy);
 }
 #else
-#define fill_copy(copy_nr, msg_nr, msg, copy)		NULL
-
 static inline struct msg_msg *prepare_copy(void __user *buf, size_t bufsz,
 					   int msgflg, long *msgtyp,
 					   unsigned long *copy_number)
@@ -868,11 +856,16 @@ long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp,
 						walk_msg->m_type != 1) {
 					msgtyp = walk_msg->m_type - 1;
 				} else if (msgflg & MSG_COPY) {
-					msg = fill_copy(copy_number,
-							msg_counter,
-							walk_msg, copy);
-					if (msg)
+					if (copy_number == msg_counter) {
+						/*
+						 * Found requested message.
+						 * Copy it.
+						 */
+						msg = copy_msg(msg, copy);
+						if (IS_ERR(msg))
+							goto out_unlock;
 						break;
+					}
 				} else
 					break;
 				msg_counter++;

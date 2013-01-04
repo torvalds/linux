@@ -140,6 +140,11 @@ struct msg_msg *copy_msg(struct msg_msg *src, struct msg_msg *dst)
 
 	return dst;
 }
+#else
+struct msg_msg *copy_msg(struct msg_msg *src, struct msg_msg *dst)
+{
+	return ERR_PTR(-ENOSYS);
+}
 #endif
 int store_msg(void __user *dest, struct msg_msg *msg, int len)
 {
