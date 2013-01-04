@@ -77,7 +77,7 @@ ktime_t rga_end;
 
 int rga_num = 0;
 
-rga_session *rga_session_global;
+rga_session rga_session_global;
 
 struct rga_drvdata {
   	struct miscdevice miscdev;
@@ -135,9 +135,9 @@ static void print_info(struct rga_req *req)
     printk("clip.xmin = %d, clip.xmax = %d. clip.ymin = %d, clip.ymax = %d\n",
         req->clip.xmin, req->clip.xmax, req->clip.ymin, req->clip.ymax);
 
-    printk("alpha_rop_flag = %.8x\n", req->alpha_rop_flag);
-    printk("alpha_rop_mode = %.8x\n", req->alpha_rop_mode);
-    printk("PD_mode = %.8x\n", req->PD_mode);
+    //printk("alpha_rop_flag = %.8x\n", req->alpha_rop_flag);
+    //printk("alpha_rop_mode = %.8x\n", req->alpha_rop_mode);
+    //printk("PD_mode = %.8x\n", req->PD_mode);
 }
 #endif
 
@@ -991,7 +991,7 @@ long rga_ioctl_kernel(struct rga_req *req)
 
     mutex_lock(&rga_service.mutex);
     
-    session = (rga_session *)rga_session_global;
+    session = &rga_session_global;
 
 	if (NULL == session)
     {
@@ -1048,8 +1048,6 @@ static int rga_open(struct inode *inode, struct file *file)
     atomic_set(&session->num_done, 0);
 
 	file->private_data = (void *)session;
-
-    rga_session_global = session;
 
     //DBG("*** rga dev opened by pid %d *** \n", session->pid);
 	return nonseekable_open(inode, file);
@@ -1270,6 +1268,19 @@ static int __init rga_init(void)
         printk(KERN_ERR "Platform device register failed (%d).\n", ret);
 			return ret;
 	}
+
+    {
+        rga_session_global.pid = 0x0000ffff;
+        INIT_LIST_HEAD(&rga_session_global.waiting);
+        INIT_LIST_HEAD(&rga_session_global.running);
+        INIT_LIST_HEAD(&rga_session_global.list_session);
+        init_waitqueue_head(&rga_session_global.wait);
+        //mutex_lock(&rga_service.lock);
+        list_add_tail(&rga_session_global.list_session, &rga_service.session);
+        //mutex_unlock(&rga_service.lock);
+        atomic_set(&rga_session_global.task_running, 0);
+        atomic_set(&rga_session_global.num_done, 0);
+    }
 
     //rga_test_0();
 
