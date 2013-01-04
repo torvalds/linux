@@ -70,7 +70,11 @@ MODULE_PARM_DESC(turbo_mode, "Enable multiple frames per Rx transaction");
 //----------------------------------------------------------------------
 #if defined(CONFIG_MACH_ODROID_4X12)
 
+#if defined(CONFIG_ANDROID_PARANOID_NETWORK)
 const   char *filepath = "/data/misc/smsc95xx_mac_addr";
+#else
+	const	char *filepath - "/usr/smsc95xx_mac_addr";
+#endif
 
 int smsc95xx_read_mac_addr(unsigned char *mac)
 {
