@@ -1380,14 +1380,8 @@ static int wm2200_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_DSP_A:
 		fmt_val = 0;
 		break;
-	case SND_SOC_DAIFMT_DSP_B:
-		fmt_val = 1;
-		break;
 	case SND_SOC_DAIFMT_I2S:
 		fmt_val = 2;
-		break;
-	case SND_SOC_DAIFMT_LEFT_J:
-		fmt_val = 3;
 		break;
 	default:
 		dev_err(codec->dev, "Unsupported DAI format %d\n",
