@@ -317,6 +317,14 @@ struct txdma_regs {			/* Location: */
  * 18-31: unused
  */
 
+#define ET_RXDMA_CSR_HALT		0x0001
+#define ET_RXDMA_CSR_FBR0_SIZE_LO	0x0100
+#define ET_RXDMA_CSR_FBR0_SIZE_HI	0x0200
+#define ET_RXDMA_CSR_FBR0_ENABLE	0x0400
+#define ET_RXDMA_CSR_FBR1_SIZE_LO	0x0800
+#define ET_RXDMA_CSR_FBR1_SIZE_HI	0x1000
+#define ET_RXDMA_CSR_FBR1_ENABLE	0x2000
+#define ET_RXDMA_CSR_HALT_STATUS	0x00020000
 
 /*
  * structure for dma writeback lo reg in rxdma address map

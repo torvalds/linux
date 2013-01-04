@@ -577,7 +577,6 @@ static int eeprom_wait_ready(struct pci_dev *pdev, u32 *status)
 	return -ETIMEDOUT;
 }
 
-
 /**
  * eeprom_write - Write a byte to the ET1310's EEPROM
  * @adapter: pointer to our private adapter structure
@@ -843,29 +842,29 @@ static int et131x_init_eeprom(struct et131x_adapter *adapter)
 static void et131x_rx_dma_enable(struct et131x_adapter *adapter)
 {
 	/* Setup the receive dma configuration register for normal operation */
-	u32 csr =  0x2000;	/* FBR1 enable */
+	u32 csr =  ET_RXDMA_CSR_FBR1_ENABLE;
 
 	if (adapter->rx_ring.fbr[1]->buffsize == 4096)
-		csr |= 0x0800;
+		csr |= ET_RXDMA_CSR_FBR1_SIZE_LO;
 	else if (adapter->rx_ring.fbr[1]->buffsize == 8192)
-		csr |= 0x1000;
+		csr |= ET_RXDMA_CSR_FBR1_SIZE_HI;
 	else if (adapter->rx_ring.fbr[1]->buffsize == 16384)
-		csr |= 0x1800;
+		csr |= ET_RXDMA_CSR_FBR1_SIZE_LO | ET_RXDMA_CSR_FBR1_SIZE_HI;
 
-	csr |= 0x0400;		/* FBR0 enable */
+	csr |= ET_RXDMA_CSR_FBR0_ENABLE;
 	if (adapter->rx_ring.fbr[0]->buffsize == 256)
-		csr |= 0x0100;
+		csr |= ET_RXDMA_CSR_FBR0_SIZE_LO;
 	else if (adapter->rx_ring.fbr[0]->buffsize == 512)
-		csr |= 0x0200;
+		csr |= ET_RXDMA_CSR_FBR0_SIZE_HI;
 	else if (adapter->rx_ring.fbr[0]->buffsize == 1024)
-		csr |= 0x0300;
+		csr |= ET_RXDMA_CSR_FBR0_SIZE_LO | ET_RXDMA_CSR_FBR0_SIZE_HI;
 	writel(csr, &adapter->regs->rxdma.csr);
 
 	csr = readl(&adapter->regs->rxdma.csr);
-	if (csr & 0x00020000) {
+	if (csr & ET_RXDMA_CSR_HALT_STATUS) {
 		udelay(5);
 		csr = readl(&adapter->regs->rxdma.csr);
-		if (csr & 0x00020000) {
+		if (csr & ET_RXDMA_CSR_HALT_STATUS) {
 			dev_err(&adapter->pdev->dev,
 			    "RX Dma failed to exit halt state.  CSR 0x%08x\n",
 				csr);
@@ -881,15 +880,16 @@ static void et131x_rx_dma_disable(struct et131x_adapter *adapter)
 {
 	u32 csr;
 	/* Setup the receive dma configuration register */
-	writel(0x00002001, &adapter->regs->rxdma.csr);
+	writel(ET_RXDMA_CSR_HALT | ET_RXDMA_CSR_FBR1_ENABLE,
+	       &adapter->regs->rxdma.csr);
 	csr = readl(&adapter->regs->rxdma.csr);
-	if ((csr & 0x00020000) == 0) {	/* Check halt status (bit 17) */
+	if (!(csr & ET_RXDMA_CSR_HALT_STATUS)) {
 		udelay(5);
 		csr = readl(&adapter->regs->rxdma.csr);
-		if ((csr & 0x00020000) == 0)
+		if (!(csr & ET_RXDMA_CSR_HALT_STATUS))
 			dev_err(&adapter->pdev->dev,
-			"RX Dma failed to enter halt state. CSR 0x%08x\n",
-				csr);
+			      "RX Dma failed to enter halt state. CSR 0x%08x\n",
+			      csr);
 	}
 }
 
@@ -2032,7 +2032,7 @@ static void et131x_disable_interrupts(struct et131x_adapter *adapter)
 static void et131x_tx_dma_disable(struct et131x_adapter *adapter)
 {
 	/* Setup the tramsmit dma configuration register */
-	writel(ET_TXDMA_CSR_HALT|ET_TXDMA_SNGL_EPKT,
+	writel(ET_TXDMA_CSR_HALT | ET_TXDMA_SNGL_EPKT,
 					&adapter->regs->txdma.csr);
 }
 
