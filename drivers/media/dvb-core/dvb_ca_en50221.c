@@ -1227,8 +1227,10 @@ static int dvb_ca_en50221_io_do_ioctl(struct file *file,
 	case CA_GET_SLOT_INFO: {
 		struct ca_slot_info *info = parg;
 
-		if ((info->num > ca->slot_count) || (info->num < 0))
-			return -EINVAL;
+		if ((info->num > ca->slot_count) || (info->num < 0)) {
+			err = -EINVAL;
+			goto out_unlock;
+		}
 
 		info->type = CA_CI_LINK;
 		info->flags = 0;
@@ -1247,6 +1249,7 @@ static int dvb_ca_en50221_io_do_ioctl(struct file *file,
 		break;
 	}
 
+out_unlock:
 	mutex_unlock(&ca->ioctl_mutex);
 	return err;
 }
