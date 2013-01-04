@@ -446,14 +446,8 @@ static int arizona_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_DSP_A:
 		mode = 0;
 		break;
-	case SND_SOC_DAIFMT_DSP_B:
-		mode = 1;
-		break;
 	case SND_SOC_DAIFMT_I2S:
 		mode = 2;
-		break;
-	case SND_SOC_DAIFMT_LEFT_J:
-		mode = 3;
 		break;
 	default:
 		arizona_aif_err(dai, "Unsupported DAI format %d\n",
