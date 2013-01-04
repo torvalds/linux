@@ -469,41 +469,30 @@ EXPORT_SYMBOL(drm_pci_exit);
 int drm_pcie_get_speed_cap_mask(struct drm_device *dev, u32 *mask)
 {
 	struct pci_dev *root;
-	int pos;
-	u32 lnkcap = 0, lnkcap2 = 0;
+	u32 lnkcap, lnkcap2;
 
 	*mask = 0;
 	if (!dev->pdev)
 		return -EINVAL;
 
-	if (!pci_is_pcie(dev->pdev))
-		return -EINVAL;
-
 	root = dev->pdev->bus->self;
-
-	pos = pci_pcie_cap(root);
-	if (!pos)
-		return -EINVAL;
 
 	/* we've been informed via and serverworks don't make the cut */
 	if (root->vendor == PCI_VENDOR_ID_VIA ||
 	    root->vendor == PCI_VENDOR_ID_SERVERWORKS)
 		return -EINVAL;
 
-	pci_read_config_dword(root, pos + PCI_EXP_LNKCAP, &lnkcap);
-	pci_read_config_dword(root, pos + PCI_EXP_LNKCAP2, &lnkcap2);
+	pcie_capability_read_dword(root, PCI_EXP_LNKCAP, &lnkcap);
+	pcie_capability_read_dword(root, PCI_EXP_LNKCAP2, &lnkcap2);
 
-	lnkcap &= PCI_EXP_LNKCAP_SLS;
-	lnkcap2 &= 0xfe;
-
-	if (lnkcap2) { /* PCIE GEN 3.0 */
+	if (lnkcap2) {	/* PCIe r3.0-compliant */
 		if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_2_5GB)
 			*mask |= DRM_PCIE_SPEED_25;
 		if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_5_0GB)
 			*mask |= DRM_PCIE_SPEED_50;
 		if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_8_0GB)
 			*mask |= DRM_PCIE_SPEED_80;
-	} else {
+	} else {	/* pre-r3.0 */
 		if (lnkcap & PCI_EXP_LNKCAP_SLS_2_5GB)
 			*mask |= DRM_PCIE_SPEED_25;
 		if (lnkcap & PCI_EXP_LNKCAP_SLS_5_0GB)
