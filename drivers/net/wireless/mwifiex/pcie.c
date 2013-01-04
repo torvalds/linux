@@ -1594,39 +1594,40 @@ exit:
 static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 {
 	int ret;
-	u32 pcie_ireg = 0;
+	u32 pcie_ireg;
 	unsigned long flags;
 
 	spin_lock_irqsave(&adapter->int_lock, flags);
 	/* Clear out unused interrupts */
-	adapter->int_status &= HOST_INTR_MASK;
+	pcie_ireg = adapter->int_status;
+	adapter->int_status = 0;
 	spin_unlock_irqrestore(&adapter->int_lock, flags);
 
-	while (adapter->int_status & HOST_INTR_MASK) {
-		if (adapter->int_status & HOST_INTR_DNLD_DONE) {
-			adapter->int_status &= ~HOST_INTR_DNLD_DONE;
+	while (pcie_ireg & HOST_INTR_MASK) {
+		if (pcie_ireg & HOST_INTR_DNLD_DONE) {
+			pcie_ireg &= ~HOST_INTR_DNLD_DONE;
 			if (adapter->data_sent) {
 				dev_dbg(adapter->dev, "info: DATA sent intr\n");
 				adapter->data_sent = false;
 			}
 		}
-		if (adapter->int_status & HOST_INTR_UPLD_RDY) {
-			adapter->int_status &= ~HOST_INTR_UPLD_RDY;
+		if (pcie_ireg & HOST_INTR_UPLD_RDY) {
+			pcie_ireg &= ~HOST_INTR_UPLD_RDY;
 			dev_dbg(adapter->dev, "info: Rx DATA\n");
 			ret = mwifiex_pcie_process_recv_data(adapter);
 			if (ret)
 				return ret;
 		}
-		if (adapter->int_status & HOST_INTR_EVENT_RDY) {
-			adapter->int_status &= ~HOST_INTR_EVENT_RDY;
+		if (pcie_ireg & HOST_INTR_EVENT_RDY) {
+			pcie_ireg &= ~HOST_INTR_EVENT_RDY;
 			dev_dbg(adapter->dev, "info: Rx EVENT\n");
 			ret = mwifiex_pcie_process_event_ready(adapter);
 			if (ret)
 				return ret;
 		}
 
-		if (adapter->int_status & HOST_INTR_CMD_DONE) {
-			adapter->int_status &= ~HOST_INTR_CMD_DONE;
+		if (pcie_ireg & HOST_INTR_CMD_DONE) {
+			pcie_ireg &= ~HOST_INTR_CMD_DONE;
 			if (adapter->cmd_sent) {
 				dev_dbg(adapter->dev,
 					"info: CMD sent Interrupt\n");
@@ -1654,8 +1655,6 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 						 "Write register failed\n");
 					return -1;
 				}
-				adapter->int_status |= pcie_ireg;
-				adapter->int_status &= HOST_INTR_MASK;
 			}
 
 		}
