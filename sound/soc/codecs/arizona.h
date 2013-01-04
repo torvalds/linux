@@ -213,4 +213,7 @@ extern int arizona_set_fll(struct arizona_fll *fll, int source,
 
 extern int arizona_init_dai(struct arizona_priv *priv, int dai);
 
+int arizona_set_output_mode(struct snd_soc_codec *codec, int output,
+			    bool diff);
+
 #endif

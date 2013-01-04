@@ -1164,6 +1164,40 @@ int arizona_init_fll(struct arizona *arizona, int id, int base, int lock_irq,
 }
 EXPORT_SYMBOL_GPL(arizona_init_fll);
 
+/**
+ * arizona_set_output_mode - Set the mode of the specified output
+ *
+ * @codec: Device to configure
+ * @output: Output number
+ * @diff: True to set the output to differential mode
+ *
+ * Some systems use external analogue switches to connect more
+ * analogue devices to the CODEC than are supported by the device.  In
+ * some systems this requires changing the switched output from single
+ * ended to differential mode dynamically at runtime, an operation
+ * supported using this function.
+ *
+ * Most systems have a single static configuration and should use
+ * platform data instead.
+ */
+int arizona_set_output_mode(struct snd_soc_codec *codec, int output, bool diff)
+{
+	unsigned int reg, val;
+
+	if (output < 1 || output > 6)
+		return -EINVAL;
+
+	reg = ARIZONA_OUTPUT_PATH_CONFIG_1L + (output - 1) * 8;
+
+	if (diff)
+		val = ARIZONA_OUT1_MONO;
+	else
+		val = 0;
+
+	return snd_soc_update_bits(codec, reg, ARIZONA_OUT1_MONO, val);
+}
+EXPORT_SYMBOL_GPL(arizona_set_output_mode);
+
 MODULE_DESCRIPTION("ASoC Wolfson Arizona class device support");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
 MODULE_LICENSE("GPL");
