@@ -264,6 +264,15 @@ static inline void kvm_linear_init(void)
 {}
 #endif
 
+static inline void kvmppc_set_epr(struct kvm_vcpu *vcpu, u32 epr)
+{
+#ifdef CONFIG_KVM_BOOKE_HV
+	mtspr(SPRN_GEPR, epr);
+#elif defined(CONFIG_BOOKE)
+	vcpu->arch.epr = epr;
+#endif
+}
+
 int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 			      struct kvm_config_tlb *cfg);
 int kvm_vcpu_ioctl_dirty_tlb(struct kvm_vcpu *vcpu,

@@ -306,6 +306,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 #ifdef CONFIG_BOOKE
 	case KVM_CAP_PPC_BOOKE_SREGS:
 	case KVM_CAP_PPC_BOOKE_WATCHDOG:
+	case KVM_CAP_PPC_EPR:
 #else
 	case KVM_CAP_PPC_SEGSTATE:
 	case KVM_CAP_PPC_HIOR:
@@ -721,6 +722,11 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		for (i = 0; i < 9; ++i)
 			kvmppc_set_gpr(vcpu, 4 + i, run->papr_hcall.args[i]);
 		vcpu->arch.hcall_needed = 0;
+#ifdef CONFIG_BOOKE
+	} else if (vcpu->arch.epr_needed) {
+		kvmppc_set_epr(vcpu, run->epr.epr);
+		vcpu->arch.epr_needed = 0;
+#endif
 	}
 
 	r = kvmppc_vcpu_run(run, vcpu);
@@ -761,6 +767,10 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 	case KVM_CAP_PPC_PAPR:
 		r = 0;
 		vcpu->arch.papr_enabled = true;
+		break;
+	case KVM_CAP_PPC_EPR:
+		r = 0;
+		vcpu->arch.epr_enabled = cap->args[0];
 		break;
 #ifdef CONFIG_BOOKE
 	case KVM_CAP_PPC_BOOKE_WATCHDOG:

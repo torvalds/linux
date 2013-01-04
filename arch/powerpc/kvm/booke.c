@@ -306,7 +306,7 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 {
 	int allowed = 0;
 	ulong msr_mask = 0;
-	bool update_esr = false, update_dear = false;
+	bool update_esr = false, update_dear = false, update_epr = false;
 	ulong crit_raw = vcpu->arch.shared->critical;
 	ulong crit_r1 = kvmppc_get_gpr(vcpu, 1);
 	bool crit;
@@ -329,6 +329,9 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 		priority = BOOKE_IRQPRIO_EXTERNAL;
 		keep_irq = true;
 	}
+
+	if ((priority == BOOKE_IRQPRIO_EXTERNAL) && vcpu->arch.epr_enabled)
+		update_epr = true;
 
 	switch (priority) {
 	case BOOKE_IRQPRIO_DTLB_MISS:
@@ -408,6 +411,8 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 			set_guest_esr(vcpu, vcpu->arch.queued_esr);
 		if (update_dear == true)
 			set_guest_dear(vcpu, vcpu->arch.queued_dear);
+		if (update_epr == true)
+			kvm_make_request(KVM_REQ_EPR_EXIT, vcpu);
 
 		new_msr &= msr_mask;
 #if defined(CONFIG_64BIT)
@@ -612,6 +617,13 @@ int kvmppc_core_check_requests(struct kvm_vcpu *vcpu)
 
 	if (kvm_check_request(KVM_REQ_WATCHDOG, vcpu)) {
 		vcpu->run->exit_reason = KVM_EXIT_WATCHDOG;
+		r = 0;
+	}
+
+	if (kvm_check_request(KVM_REQ_EPR_EXIT, vcpu)) {
+		vcpu->run->epr.epr = 0;
+		vcpu->arch.epr_needed = true;
+		vcpu->run->exit_reason = KVM_EXIT_EPR;
 		r = 0;
 	}
 
