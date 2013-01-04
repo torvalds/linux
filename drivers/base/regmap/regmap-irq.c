@@ -92,8 +92,14 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 		reg = d->chip->wake_base +
 			(i * map->reg_stride * d->irq_reg_stride);
 		if (d->wake_buf) {
-			ret = regmap_update_bits(d->map, reg,
-					 d->mask_buf_def[i], d->wake_buf[i]);
+			if (d->chip->wake_invert)
+				ret = regmap_update_bits(d->map, reg,
+							 d->mask_buf_def[i],
+							 ~d->wake_buf[i]);
+			else
+				ret = regmap_update_bits(d->map, reg,
+							 d->mask_buf_def[i],
+							 d->wake_buf[i]);
 			if (ret != 0)
 				dev_err(d->map->dev,
 					"Failed to sync wakes in %x: %d\n",
@@ -419,8 +425,15 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 			d->wake_buf[i] = d->mask_buf_def[i];
 			reg = chip->wake_base +
 				(i * map->reg_stride * d->irq_reg_stride);
-			ret = regmap_update_bits(map, reg, d->wake_buf[i],
-						 d->wake_buf[i]);
+
+			if (chip->wake_invert)
+				ret = regmap_update_bits(map, reg,
+							 d->mask_buf_def[i],
+							 0);
+			else
+				ret = regmap_update_bits(map, reg,
+							 d->mask_buf_def[i],
+							 d->wake_buf[i]);
 			if (ret != 0) {
 				dev_err(map->dev, "Failed to set masks in 0x%x: %d\n",
 					reg, ret);
