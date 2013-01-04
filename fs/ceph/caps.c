@@ -1468,7 +1468,7 @@ void ceph_check_caps(struct ceph_inode_info *ci, int flags,
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct inode *inode = &ci->vfs_inode;
 	struct ceph_cap *cap;
-	int file_wanted, used;
+	int file_wanted, used, cap_used;
 	int took_snap_rwsem = 0;             /* true if mdsc->snap_rwsem held */
 	int issued, implemented, want, retain, revoking, flushing = 0;
 	int mds = -1;   /* keep track of how far we've gone through i_caps list
@@ -1571,9 +1571,14 @@ retry_locked:
 
 		/* NOTE: no side-effects allowed, until we take s_mutex */
 
+		cap_used = used;
+		if (ci->i_auth_cap && cap != ci->i_auth_cap)
+			cap_used &= ~ci->i_auth_cap->issued;
+
 		revoking = cap->implemented & ~cap->issued;
-		dout(" mds%d cap %p issued %s implemented %s revoking %s\n",
+		dout(" mds%d cap %p used %s issued %s implemented %s revoking %s\n",
 		     cap->mds, cap, ceph_cap_string(cap->issued),
+		     ceph_cap_string(cap_used),
 		     ceph_cap_string(cap->implemented),
 		     ceph_cap_string(revoking));
 
@@ -1601,7 +1606,7 @@ retry_locked:
 		}
 
 		/* completed revocation? going down and there are no caps? */
-		if (revoking && (revoking & used) == 0) {
+		if (revoking && (revoking & cap_used) == 0) {
 			dout("completed revocation of %s\n",
 			     ceph_cap_string(cap->implemented & ~cap->issued));
 			goto ack;
@@ -1678,8 +1683,8 @@ ack:
 		sent++;
 
 		/* __send_cap drops i_ceph_lock */
-		delayed += __send_cap(mdsc, cap, CEPH_CAP_OP_UPDATE, used, want,
-				      retain, flushing, NULL);
+		delayed += __send_cap(mdsc, cap, CEPH_CAP_OP_UPDATE, cap_used,
+				      want, retain, flushing, NULL);
 		goto retry; /* retake i_ceph_lock and restart our cap scan. */
 	}
 
