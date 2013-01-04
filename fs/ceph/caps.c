@@ -611,8 +611,16 @@ retry:
 
 	if (flags & CEPH_CAP_FLAG_AUTH)
 		ci->i_auth_cap = cap;
-	else if (ci->i_auth_cap == cap)
+	else if (ci->i_auth_cap == cap) {
 		ci->i_auth_cap = NULL;
+		spin_lock(&mdsc->cap_dirty_lock);
+		if (!list_empty(&ci->i_dirty_item)) {
+			dout(" moving %p to cap_dirty_migrating\n", inode);
+			list_move(&ci->i_dirty_item,
+				  &mdsc->cap_dirty_migrating);
+		}
+		spin_unlock(&mdsc->cap_dirty_lock);
+	}
 
 	dout("add_cap inode %p (%llx.%llx) cap %p %s now %s seq %d mds%d\n",
 	     inode, ceph_vinop(inode), cap, ceph_cap_string(issued),
