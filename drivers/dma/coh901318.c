@@ -24,7 +24,6 @@
 #include <linux/platform_data/dma-coh901318.h>
 
 #include "coh901318.h"
-#include "coh901318_lli.h"
 #include "dmaengine.h"
 
 #define COH901318_MOD32_MASK					(0x1F)

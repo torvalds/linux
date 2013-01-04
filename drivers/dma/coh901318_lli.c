@@ -14,7 +14,6 @@
 #include <linux/dmaengine.h>
 
 #include "coh901318.h"
-#include "coh901318_lli.h"
 
 #if (defined(CONFIG_DEBUG_FS) && defined(CONFIG_U300_DEBUG))
 #define DEBUGFS_POOL_COUNTER_RESET(pool) (pool->debugfs_pool_counter = 0)
