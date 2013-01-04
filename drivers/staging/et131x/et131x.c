@@ -344,6 +344,10 @@ struct rx_ring {
  * 14: UDP checksum assist
  */
 
+#define TXDESC_FLAG_LASTPKT		0x0001
+#define TXDESC_FLAG_FIRSTPKT		0x0002
+#define TXDESC_FLAG_INTPROC		0x0004
+
 /* struct tx_desc represents each descriptor on the ring */
 struct tx_desc {
 	u32 addr_hi;
@@ -774,13 +778,12 @@ static int et131x_init_eeprom(struct et131x_adapter *adapter)
 	/* We first need to check the EEPROM Status code located at offset
 	 * 0xB2 of config space
 	 */
-	pci_read_config_byte(pdev, ET1310_PCI_EEPROM_STATUS,
-				      &eestatus);
+	pci_read_config_byte(pdev, ET1310_PCI_EEPROM_STATUS, &eestatus);
 
 	/* THIS IS A WORKAROUND:
 	 * I need to call this function twice to get my card in a
 	 * LG M1 Express Dual running. I tried also a msleep before this
-	 * function, because I thought there could be some time condidions
+	 * function, because I thought there could be some time conditions
 	 * but it didn't work. Call the whole function twice also work.
 	 */
 	if (pci_read_config_byte(pdev, ET1310_PCI_EEPROM_STATUS, &eestatus)) {
@@ -932,7 +935,10 @@ static void et1310_config_mac_regs1(struct et131x_adapter *adapter)
 	/* First we need to reset everything.  Write to MAC configuration
 	 * register 1 to perform reset.
 	 */
-	writel(0xC00F0000, &macregs->cfg1);
+	writel(ET_MAC_CFG1_SOFT_RESET | ET_MAC_CFG1_SIM_RESET  |
+	       ET_MAC_CFG1_RESET_RXMC | ET_MAC_CFG1_RESET_TXMC |
+	       ET_MAC_CFG1_RESET_RXFUNC | ET_MAC_CFG1_RESET_TXFUNC,
+	       &macregs->cfg1);
 
 	/* Next lets configure the MAC Inter-packet gap register */
 	ipg = 0x38005860;		/* IPG1 0x38 IPG2 0x58 B2B 0x60 */
@@ -947,7 +953,7 @@ static void et1310_config_mac_regs1(struct et131x_adapter *adapter)
 	writel(0, &macregs->if_ctrl);
 
 	/* Let's move on to setting up the mii management configuration */
-	writel(0x07, &macregs->mii_mgmt_cfg);	/* Clock reset 0x7 */
+	writel(ET_MAC_MIIMGMT_CLK_RST, &macregs->mii_mgmt_cfg);
 
 	/* Next lets configure the MAC Station Address register.  These
 	 * values are read from the EEPROM during initialization and stored
@@ -998,38 +1004,43 @@ static void et1310_config_mac_regs2(struct et131x_adapter *adapter)
 	ifctrl = readl(&mac->if_ctrl);
 
 	/* Set up the if mode bits */
-	cfg2 &= ~0x300;
+	cfg2 &= ~ET_MAC_CFG2_IFMODE_MASK;
 	if (phydev && phydev->speed == SPEED_1000) {
-		cfg2 |= 0x200;
+		cfg2 |= ET_MAC_CFG2_IFMODE_1000;
 		/* Phy mode bit */
-		ifctrl &= ~(1 << 24);
+		ifctrl &= ~ET_MAC_IFCTRL_PHYMODE;
 	} else {
-		cfg2 |= 0x100;
-		ifctrl |= (1 << 24);
+		cfg2 |= ET_MAC_CFG2_IFMODE_100;
+		ifctrl |= ET_MAC_IFCTRL_PHYMODE;
 	}
 
 	/* We need to enable Rx/Tx */
-	cfg1 |= CFG1_RX_ENABLE | CFG1_TX_ENABLE | CFG1_TX_FLOW;
+	cfg1 |= ET_MAC_CFG1_RX_ENABLE | ET_MAC_CFG1_TX_ENABLE |
+							ET_MAC_CFG1_TX_FLOW;
 	/* Initialize loop back to off */
-	cfg1 &= ~(CFG1_LOOPBACK | CFG1_RX_FLOW);
+	cfg1 &= ~(ET_MAC_CFG1_LOOPBACK | ET_MAC_CFG1_RX_FLOW);
 	if (adapter->flowcontrol == FLOW_RXONLY ||
 				adapter->flowcontrol == FLOW_BOTH)
-		cfg1 |= CFG1_RX_FLOW;
+		cfg1 |= ET_MAC_CFG1_RX_FLOW;
 	writel(cfg1, &mac->cfg1);
 
 	/* Now we need to initialize the MAC Configuration 2 register */
 	/* preamble 7, check length, huge frame off, pad crc, crc enable
 	   full duplex off */
-	cfg2 |= 0x7016;
-	cfg2 &= ~0x0021;
+	cfg2 |= 0x7 << ET_MAC_CFG2_PREAMBLE_SHIFT;
+	cfg2 |= ET_MAC_CFG2_IFMODE_LEN_CHECK;
+	cfg2 |= ET_MAC_CFG2_IFMODE_PAD_CRC;
+	cfg2 |=	ET_MAC_CFG2_IFMODE_CRC_ENABLE;
+	cfg2 &= ~ET_MAC_CFG2_IFMODE_HUGE_FRAME;
+	cfg2 &= ~ET_MAC_CFG2_IFMODE_FULL_DPLX;
 
 	/* Turn on duplex if needed */
 	if (phydev && phydev->duplex == DUPLEX_FULL)
-		cfg2 |= 0x01;
+		cfg2 |= ET_MAC_CFG2_IFMODE_FULL_DPLX;
 
-	ifctrl &= ~(1 << 26);
+	ifctrl &= ~ET_MAC_IFCTRL_GHDMODE;
 	if (phydev && phydev->duplex == DUPLEX_HALF)
-		ifctrl |= (1<<26);	/* Enable ghd */
+		ifctrl |= ET_MAC_IFCTRL_GHDMODE;
 
 	writel(ifctrl, &mac->if_ctrl);
 	writel(cfg2, &mac->cfg2);
@@ -1038,7 +1049,7 @@ static void et1310_config_mac_regs2(struct et131x_adapter *adapter)
 		udelay(10);
 		delay++;
 		cfg1 = readl(&mac->cfg1);
-	} while ((cfg1 & CFG1_WAIT) != CFG1_WAIT && delay < 100);
+	} while ((cfg1 & ET_MAC_CFG1_WAIT) != ET_MAC_CFG1_WAIT && delay < 100);
 
 	if (delay == 100) {
 		dev_warn(&adapter->pdev->dev,
@@ -1047,7 +1058,7 @@ static void et1310_config_mac_regs2(struct et131x_adapter *adapter)
 	}
 
 	/* Enable txmac */
-	ctl |= 0x09;	/* TX mac enable, FC disable */
+	ctl |= ET_TX_CTRL_TXMAC_ENABLE | ET_TX_CTRL_FC_DISABLE;
 	writel(ctl, &adapter->regs->txmac.ctl);
 
 	/* Ready to start the RXDMA/TXDMA engine */
@@ -1139,19 +1150,19 @@ static void et1310_setup_device_for_unicast(struct et131x_adapter *adapter)
 	 * Set up unicast packet filter reg 3 to be the octets 2 - 5 of the
 	 * MAC address for first address
 	 */
-	uni_pf3 = (adapter->addr[0] << ET_UNI_PF_ADDR2_1_SHIFT) |
-		  (adapter->addr[1] << ET_UNI_PF_ADDR2_2_SHIFT) |
-		  (adapter->addr[0] << ET_UNI_PF_ADDR1_1_SHIFT) |
+	uni_pf3 = (adapter->addr[0] << ET_RX_UNI_PF_ADDR2_1_SHIFT) |
+		  (adapter->addr[1] << ET_RX_UNI_PF_ADDR2_2_SHIFT) |
+		  (adapter->addr[0] << ET_RX_UNI_PF_ADDR1_1_SHIFT) |
 		   adapter->addr[1];
 
-	uni_pf2 = (adapter->addr[2] << ET_UNI_PF_ADDR2_3_SHIFT) |
-		  (adapter->addr[3] << ET_UNI_PF_ADDR2_4_SHIFT) |
-		  (adapter->addr[4] << ET_UNI_PF_ADDR2_5_SHIFT) |
+	uni_pf2 = (adapter->addr[2] << ET_RX_UNI_PF_ADDR2_3_SHIFT) |
+		  (adapter->addr[3] << ET_RX_UNI_PF_ADDR2_4_SHIFT) |
+		  (adapter->addr[4] << ET_RX_UNI_PF_ADDR2_5_SHIFT) |
 		   adapter->addr[5];
 
-	uni_pf1 = (adapter->addr[2] << ET_UNI_PF_ADDR1_3_SHIFT) |
-		  (adapter->addr[3] << ET_UNI_PF_ADDR1_4_SHIFT) |
-		  (adapter->addr[4] << ET_UNI_PF_ADDR1_5_SHIFT) |
+	uni_pf1 = (adapter->addr[2] << ET_RX_UNI_PF_ADDR1_3_SHIFT) |
+		  (adapter->addr[3] << ET_RX_UNI_PF_ADDR1_4_SHIFT) |
+		  (adapter->addr[4] << ET_RX_UNI_PF_ADDR1_5_SHIFT) |
 		   adapter->addr[5];
 
 	pm_csr = readl(&adapter->regs->global.pm_csr);
@@ -1208,13 +1219,13 @@ static void et1310_config_rxmac_regs(struct et131x_adapter *adapter)
 	writel(0, &rxmac->mask4_word3);
 
 	/* Lets setup the WOL Source Address */
-	sa_lo = (adapter->addr[2] << ET_WOL_LO_SA3_SHIFT) |
-		(adapter->addr[3] << ET_WOL_LO_SA4_SHIFT) |
-		(adapter->addr[4] << ET_WOL_LO_SA5_SHIFT) |
+	sa_lo = (adapter->addr[2] << ET_RX_WOL_LO_SA3_SHIFT) |
+		(adapter->addr[3] << ET_RX_WOL_LO_SA4_SHIFT) |
+		(adapter->addr[4] << ET_RX_WOL_LO_SA5_SHIFT) |
 		 adapter->addr[5];
 	writel(sa_lo, &rxmac->sa_lo);
 
-	sa_hi = (u32) (adapter->addr[0] << ET_WOL_HI_SA1_SHIFT) |
+	sa_hi = (u32) (adapter->addr[0] << ET_RX_WOL_HI_SA1_SHIFT) |
 		       adapter->addr[1];
 	writel(sa_hi, &rxmac->sa_hi);
 
@@ -1224,7 +1235,7 @@ static void et1310_config_rxmac_regs(struct et131x_adapter *adapter)
 	/* Let's initialize the Unicast Packet filtering address */
 	if (adapter->packet_filter & ET131X_PACKET_TYPE_DIRECTED) {
 		et1310_setup_device_for_unicast(adapter);
-		pf_ctrl |= 4;	/* Unicast filter */
+		pf_ctrl |= ET_RX_PFCTRL_UNICST_FILTER_ENABLE;
 	} else {
 		writel(0, &rxmac->uni_pf_addr1);
 		writel(0, &rxmac->uni_pf_addr2);
@@ -1233,13 +1244,13 @@ static void et1310_config_rxmac_regs(struct et131x_adapter *adapter)
 
 	/* Let's initialize the Multicast hash */
 	if (!(adapter->packet_filter & ET131X_PACKET_TYPE_ALL_MULTICAST)) {
-		pf_ctrl |= 2;	/* Multicast filter */
+		pf_ctrl |= ET_RX_PFCTRL_MLTCST_FILTER_ENABLE;
 		et1310_setup_device_for_multicast(adapter);
 	}
 
 	/* Runt packet filtering.  Didn't work in version A silicon. */
-	pf_ctrl |= (NIC_MIN_PACKET_SIZE + 4) << 16;
-	pf_ctrl |= 8;	/* Fragment filter */
+	pf_ctrl |= (NIC_MIN_PACKET_SIZE + 4) << ET_RX_PFCTRL_MIN_PKT_SZ_SHIFT;
+	pf_ctrl |= ET_RX_PFCTRL_FRAG_FILTER_ENABLE;
 
 	if (adapter->registry_jumbo_packet > 8192)
 		/* In order to transmit jumbo packets greater than 8k, the
@@ -1290,7 +1301,7 @@ static void et1310_config_rxmac_regs(struct et131x_adapter *adapter)
 	 * but we still leave the packet filter on.
 	 */
 	writel(pf_ctrl, &rxmac->pf_ctrl);
-	writel(0x9, &rxmac->ctrl);
+	writel(ET_RX_CTRL_RXMAC_ENABLE | ET_RX_CTRL_WOL_DISABLE, &rxmac->ctrl);
 }
 
 static void et1310_config_txmac_regs(struct et131x_adapter *adapter)
@@ -1401,7 +1412,7 @@ static int et131x_phy_mii_read(struct et131x_adapter *adapter, u8 addr,
 	writel(0, &mac->mii_mgmt_cmd);
 
 	/* Set up the register we need to read from on the correct PHY */
-	writel(MII_ADDR(addr, reg), &mac->mii_mgmt_addr);
+	writel(ET_MAC_MII_ADDR(addr, reg), &mac->mii_mgmt_addr);
 
 	writel(0x1, &mac->mii_mgmt_cmd);
 
@@ -1409,7 +1420,7 @@ static int et131x_phy_mii_read(struct et131x_adapter *adapter, u8 addr,
 		udelay(50);
 		delay++;
 		mii_indicator = readl(&mac->mii_mgmt_indicator);
-	} while ((mii_indicator & MGMT_WAIT) && delay < 50);
+	} while ((mii_indicator & ET_MAC_MGMT_WAIT) && delay < 50);
 
 	/* If we hit the max delay, we could not read the register */
 	if (delay == 50) {
@@ -1423,7 +1434,7 @@ static int et131x_phy_mii_read(struct et131x_adapter *adapter, u8 addr,
 
 	/* If we hit here we were able to read the register and we need to
 	 * return the value to the caller */
-	*value = readl(&mac->mii_mgmt_stat) & 0xFFFF;
+	*value = readl(&mac->mii_mgmt_stat) & ET_MAC_MIIMGMT_STAT_PHYCRTL_MASK;
 
 	/* Stop the read operation */
 	writel(0, &mac->mii_mgmt_cmd);
@@ -1483,7 +1494,7 @@ static int et131x_mii_write(struct et131x_adapter *adapter, u8 reg, u16 value)
 	writel(0, &mac->mii_mgmt_cmd);
 
 	/* Set up the register we need to write to on the correct PHY */
-	writel(MII_ADDR(addr, reg), &mac->mii_mgmt_addr);
+	writel(ET_MAC_MII_ADDR(addr, reg), &mac->mii_mgmt_addr);
 
 	/* Add the value to write to the registers to the mac */
 	writel(value, &mac->mii_mgmt_ctrl);
@@ -1492,7 +1503,7 @@ static int et131x_mii_write(struct et131x_adapter *adapter, u8 reg, u16 value)
 		udelay(50);
 		delay++;
 		mii_indicator = readl(&mac->mii_mgmt_indicator);
-	} while ((mii_indicator & MGMT_BUSY) && delay < 100);
+	} while ((mii_indicator & ET_MAC_MGMT_BUSY) && delay < 100);
 
 	/* If we hit the max delay, we could not write the register */
 	if (delay == 100) {
@@ -1528,7 +1539,7 @@ static void et1310_phy_access_mii_bit(struct et131x_adapter *adapter,
 				      u8 *value)
 {
 	u16 reg;
-	u16 mask = 0x0001 << bitnum;
+	u16 mask = 1 << bitnum;
 
 	/* Read the requested register */
 	et131x_mii_read(adapter, regnum, &reg);
@@ -1839,7 +1850,7 @@ static void et131x_config_rx_dma_regs(struct et131x_adapter *adapter)
 	writel(rx_local->psr_num_entries - 1, &rx_dma->psr_num_des);
 	writel(0, &rx_dma->psr_full_offset);
 
-	psr_num_des = readl(&rx_dma->psr_num_des) & 0xFFF;
+	psr_num_des = readl(&rx_dma->psr_num_des) & ET_RXDMA_PSR_NUM_DES_MASK;
 	writel((psr_num_des * LO_MARK_PERCENT_FOR_PSR) / 100,
 	       &rx_dma->psr_min_des);
 
@@ -1983,13 +1994,21 @@ static void et131x_adapter_setup(struct et131x_adapter *adapter)
  */
 static void et131x_soft_reset(struct et131x_adapter *adapter)
 {
-	/* Disable MAC Core */
-	writel(0xc00f0000, &adapter->regs->mac.cfg1);
+	u32 reg;
 
-	/* Set everything to a reset value */
-	writel(0x7F, &adapter->regs->global.sw_reset);
-	writel(0x000f0000, &adapter->regs->mac.cfg1);
-	writel(0x00000000, &adapter->regs->mac.cfg1);
+	/* Disable MAC Core */
+	reg = ET_MAC_CFG1_SOFT_RESET | ET_MAC_CFG1_SIM_RESET |
+	      ET_MAC_CFG1_RESET_RXMC | ET_MAC_CFG1_RESET_TXMC |
+	      ET_MAC_CFG1_RESET_RXFUNC | ET_MAC_CFG1_RESET_TXFUNC;
+	writel(reg, &adapter->regs->mac.cfg1);
+
+	reg = ET_RESET_ALL;
+	writel(reg, &adapter->regs->global.sw_reset);
+
+	reg = ET_MAC_CFG1_RESET_RXMC | ET_MAC_CFG1_RESET_TXMC |
+	      ET_MAC_CFG1_RESET_RXFUNC | ET_MAC_CFG1_RESET_TXFUNC;
+	writel(reg, &adapter->regs->mac.cfg1);
+	writel(0, &adapter->regs->mac.cfg1);
 }
 
 /**
@@ -3022,23 +3041,22 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 	if (phydev && phydev->speed == SPEED_1000) {
 		if (++adapter->tx_ring.since_irq == PARM_TX_NUM_BUFS_DEF) {
 			/* Last element & Interrupt flag */
-			desc[frag - 1].flags = 0x5;
+			desc[frag - 1].flags = TXDESC_FLAG_INTPROC | TXDESC_FLAG_LASTPKT;
 			adapter->tx_ring.since_irq = 0;
 		} else { /* Last element */
-			desc[frag - 1].flags = 0x1;
+			desc[frag - 1].flags = TXDESC_FLAG_LASTPKT;
 		}
 	} else
-		desc[frag - 1].flags = 0x5;
+		desc[frag - 1].flags = TXDESC_FLAG_INTPROC | TXDESC_FLAG_LASTPKT;
 
-	desc[0].flags |= 2;	/* First element flag */
+	desc[0].flags |= TXDESC_FLAG_FIRSTPKT;
 
 	tcb->index_start = adapter->tx_ring.send_idx;
 	tcb->stale = 0;
 
 	spin_lock_irqsave(&adapter->send_hw_lock, flags);
 
-	thiscopy = NUM_DESC_PER_RING_TX -
-				INDEX10(adapter->tx_ring.send_idx);
+	thiscopy = NUM_DESC_PER_RING_TX - INDEX10(adapter->tx_ring.send_idx);
 
 	if (thiscopy >= frag) {
 		remainder = 0;
