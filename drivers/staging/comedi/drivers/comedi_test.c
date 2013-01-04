@@ -85,8 +85,9 @@ static const struct comedi_lrange waveform_ai_ranges = {
 	 }
 };
 
-static short fake_sawtooth(struct comedi_device *dev, unsigned int range_index,
-			   unsigned long current_time)
+static unsigned short fake_sawtooth(struct comedi_device *dev,
+				    unsigned int range_index,
+				    unsigned long current_time)
 {
 	struct waveform_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
@@ -109,9 +110,9 @@ static short fake_sawtooth(struct comedi_device *dev, unsigned int range_index,
 	return offset + value;
 }
 
-static short fake_squarewave(struct comedi_device *dev,
-			     unsigned int range_index,
-			     unsigned long current_time)
+static unsigned short fake_squarewave(struct comedi_device *dev,
+				      unsigned int range_index,
+				      unsigned long current_time)
 {
 	struct waveform_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
@@ -131,15 +132,17 @@ static short fake_squarewave(struct comedi_device *dev,
 	return offset + value;
 }
 
-static short fake_flatline(struct comedi_device *dev, unsigned int range_index,
-			   unsigned long current_time)
+static unsigned short fake_flatline(struct comedi_device *dev,
+				    unsigned int range_index,
+				    unsigned long current_time)
 {
 	return dev->read_subdev->maxdata / 2;
 }
 
 /* generates a different waveform depending on what channel is read */
-static short fake_waveform(struct comedi_device *dev, unsigned int channel,
-			   unsigned int range, unsigned long current_time)
+static unsigned short fake_waveform(struct comedi_device *dev,
+				    unsigned int channel, unsigned int range,
+				    unsigned long current_time)
 {
 	enum {
 		SAWTOOTH_CHAN,
