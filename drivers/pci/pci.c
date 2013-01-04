@@ -1157,7 +1157,7 @@ int pci_reenable_device(struct pci_dev *dev)
 }
 
 static int __pci_enable_device_flags(struct pci_dev *dev,
-				     resource_size_t flags)
+				     unsigned long flags)
 {
 	int err;
 	int i, bars = 0;
