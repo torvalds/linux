@@ -542,16 +542,6 @@ enum e1000_serdes_link_state {
 	e1000_serdes_link_forced_up
 };
 
-/* Receive Descriptor */
-struct e1000_rx_desc {
-	__le64 buffer_addr; /* Address of the descriptor's data buffer */
-	__le16 length;      /* Length of data DMAed into data buffer */
-	__le16 csum;	/* Packet checksum */
-	u8  status;      /* Descriptor status */
-	u8  errors;      /* Descriptor Errors */
-	__le16 special;
-};
-
 /* Receive Descriptor - Extended */
 union e1000_rx_desc_extended {
 	struct {
