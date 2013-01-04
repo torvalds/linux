@@ -102,7 +102,7 @@ static int dvb_usbv2_i2c_exit(struct dvb_usb_device *d)
 	return 0;
 }
 
-#if defined(CONFIG_RC_CORE) || defined(CONFIG_RC_CORE_MODULE)
+#if IS_ENABLED(CONFIG_RC_CORE)
 static void dvb_usb_read_remote_control(struct work_struct *work)
 {
 	struct dvb_usb_device *d = container_of(work,

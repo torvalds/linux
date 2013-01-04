@@ -1156,7 +1156,7 @@ error:
 	return ret;
 }
 
-#if defined(CONFIG_RC_CORE) || defined(CONFIG_RC_CORE_MODULE)
+#if IS_ENABLED(CONFIG_RC_CORE)
 struct af9015_rc_setup {
 	unsigned int id;
 	char *rc_codes;

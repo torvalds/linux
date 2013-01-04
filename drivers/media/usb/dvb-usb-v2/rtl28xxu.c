@@ -1125,7 +1125,7 @@ err:
 	return ret;
 }
 
-#if defined(CONFIG_RC_CORE) || defined(CONFIG_RC_CORE_MODULE)
+#if IS_ENABLED(CONFIG_RC_CORE)
 static int rtl2831u_rc_query(struct dvb_usb_device *d)
 {
 	int ret, i;
@@ -1212,7 +1212,7 @@ static int rtl2831u_get_rc_config(struct dvb_usb_device *d,
 	#define rtl2831u_get_rc_config NULL
 #endif
 
-#if defined(CONFIG_RC_CORE) || defined(CONFIG_RC_CORE_MODULE)
+#if IS_ENABLED(CONFIG_RC_CORE)
 static int rtl2832u_rc_query(struct dvb_usb_device *d)
 {
 	int ret, i;

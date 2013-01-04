@@ -189,7 +189,7 @@ static int az6007_streaming_ctrl(struct dvb_frontend *fe, int onoff)
 	return az6007_write(d, 0xbc, onoff, 0, NULL, 0);
 }
 
-#if defined(CONFIG_RC_CORE) || defined(CONFIG_RC_CORE_MODULE)
+#if IS_ENABLED(CONFIG_RC_CORE)
 /* remote control stuff (does not work with my box) */
 static int az6007_rc_query(struct dvb_usb_device *d)
 {

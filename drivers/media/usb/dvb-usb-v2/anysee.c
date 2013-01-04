@@ -1019,7 +1019,7 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 	return ret;
 }
 
-#if defined(CONFIG_RC_CORE) || defined(CONFIG_RC_CORE_MODULE)
+#if IS_ENABLED(CONFIG_RC_CORE)
 static int anysee_rc_query(struct dvb_usb_device *d)
 {
 	u8 buf[] = {CMD_GET_IR_CODE};

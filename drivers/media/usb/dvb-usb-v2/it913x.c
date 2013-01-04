@@ -308,7 +308,7 @@ static struct i2c_algorithm it913x_i2c_algo = {
 };
 
 /* Callbacks for DVB USB */
-#if defined(CONFIG_RC_CORE) || defined(CONFIG_RC_CORE_MODULE)
+#if IS_ENABLED(CONFIG_RC_CORE)
 static int it913x_rc_query(struct dvb_usb_device *d)
 {
 	u8 ibuf[4];
