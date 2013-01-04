@@ -14,7 +14,7 @@ obj-				:=
 
 # Core support for EXYNOS system
 
-FLAGS_cpu-exynos4.o += $(call as-instr,.arch_extension sec)
+CFLAGS_cpu-exynos4.o += $(call as-instr,.arch_extension sec)
 CFLAGS_pm-exynos4.o += $(call as-instr,.arch_extension sec)
 CFLAGS_tmu-exynos.o += $(call as-instr,.arch_extension sec)
 CFLAGS_platsmp.o += $(call as-instr,.arch_extension sec)
