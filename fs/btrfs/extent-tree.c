@@ -5715,6 +5715,7 @@ have_block_group:
 		 * lets look there
 		 */
 		if (last_ptr) {
+			unsigned long aligned_cluster;
 			/*
 			 * the refill lock keeps out other
 			 * people trying to start a new cluster
@@ -5781,11 +5782,15 @@ refill_cluster:
 				goto unclustered_alloc;
 			}
 
+			aligned_cluster = max_t(unsigned long,
+						empty_cluster + empty_size,
+					      block_group->full_stripe_len);
+
 			/* allocate a cluster in this block group */
 			ret = btrfs_find_space_cluster(trans, root,
 					       block_group, last_ptr,
 					       search_start, num_bytes,
-					       empty_cluster + empty_size);
+					       aligned_cluster);
 			if (ret == 0) {
 				/*
 				 * now pull our allocation out of this
