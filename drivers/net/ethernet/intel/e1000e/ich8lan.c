@@ -4633,7 +4633,7 @@ const struct e1000_info e1000_pch_lpt_info = {
 	.flags2			= FLAG2_HAS_PHY_STATS
 				  | FLAG2_HAS_EEE,
 	.pba			= 26,
-	.max_hw_frame_size	= DEFAULT_JUMBO,
+	.max_hw_frame_size	= 9018,
 	.get_variants		= e1000_get_variants_ich8lan,
 	.mac_ops		= &ich8_mac_ops,
 	.phy_ops		= &ich8_phy_ops,
