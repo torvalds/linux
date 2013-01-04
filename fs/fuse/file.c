@@ -648,6 +648,49 @@ static int fuse_readpages_fill(void *_data, struct page *page)
 			return PTR_ERR(req);
 		}
 	}
+
+#ifdef CONFIG_DMA_CMA
+	if (is_cma_pageblock(page)) {
+		struct page *oldpage = page, *newpage;
+		int err;
+
+		/* make sure that old page is not free in-between the calls */
+		page_cache_get(oldpage);
+
+		newpage = alloc_page(GFP_HIGHUSER);
+		if (!newpage) {
+			page_cache_release(oldpage);
+			return -ENOMEM;
+		}
+
+		if (is_cma_pageblock(newpage)) {
+			page_cache_release(oldpage);
+			__free_page(newpage);
+			printk(KERN_ERR "[%s] still on cma pgblk\n", __func__);
+			return -ENOMEM;
+		}
+
+		err = replace_page_cache_page(oldpage, newpage, GFP_KERNEL);
+		if (err) {
+			__free_page(newpage);
+			page_cache_release(oldpage);
+			return err;
+		}
+
+		/*
+		 * Decrement the count on new page to make page cache the only
+		 * owner of it
+		 */
+		lock_page(newpage);
+		put_page(newpage);
+
+		/* finally release the old page and swap pointers */
+		unlock_page(oldpage);
+		page_cache_release(oldpage);
+		page = newpage;
+	}
+#endif
+
 	page_cache_get(page);
 	req->pages[req->num_pages] = page;
 	req->num_pages++;
