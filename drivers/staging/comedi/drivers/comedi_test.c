@@ -62,12 +62,12 @@ zero volts).
 /* Data unique to this driver */
 struct waveform_private {
 	struct timer_list timer;
-	struct timeval last;	/* time at which last timer interrupt occurred */
+	struct timeval last;		/* time last timer interrupt occurred */
 	unsigned int uvolt_amplitude;	/* waveform amplitude in microvolts */
 	unsigned long usec_period;	/* waveform period in microseconds */
-	unsigned long usec_current;	/* current time (modulo waveform period) */
-	unsigned long usec_remainder;	/* usec since last scan; */
-	unsigned long ai_count;	/* number of conversions remaining */
+	unsigned long usec_current;	/* current time (mod waveform period) */
+	unsigned long usec_remainder;	/* usec since last scan */
+	unsigned long ai_count;		/* number of conversions remaining */
 	unsigned int scan_period;	/* scan period in usec */
 	unsigned int convert_period;	/* conversion period in usec */
 	unsigned int ao_loopbacks[N_CHANS];
