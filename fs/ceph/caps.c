@@ -2833,6 +2833,9 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	dout(" mds%d seq %lld cap seq %u\n", session->s_mds, session->s_seq,
 	     (unsigned)seq);
 
+	if (op == CEPH_CAP_OP_IMPORT)
+		ceph_add_cap_releases(mdsc, session);
+
 	/* lookup ino */
 	inode = ceph_find_inode(sb, vino);
 	ci = ceph_inode(inode);
