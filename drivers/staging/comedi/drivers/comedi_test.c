@@ -218,8 +218,6 @@ static void waveform_ai_interrupt(unsigned long arg)
 
 	if ((async->events & COMEDI_CB_EOA) == 0 && devpriv->timer_running)
 		mod_timer(&devpriv->timer, jiffies + 1);
-	else
-		del_timer(&devpriv->timer);
 
 	comedi_event(dev, dev->read_subdev);
 }
