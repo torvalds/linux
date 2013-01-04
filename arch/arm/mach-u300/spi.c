@@ -12,7 +12,6 @@
 #include <linux/amba/pl022.h>
 #include <linux/platform_data/dma-coh901318.h>
 #include <linux/err.h>
-#include <mach/coh901318.h>
 
 /*
  * The following is for the actual devices on the SSP/SPI bus

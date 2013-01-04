@@ -11,8 +11,8 @@
 #include <linux/memory.h>
 #include <linux/gfp.h>
 #include <linux/dmapool.h>
-#include <mach/coh901318.h>
 
+#include "coh901318.h"
 #include "coh901318_lli.h"
 
 #if (defined(CONFIG_DEBUG_FS) && defined(CONFIG_U300_DEBUG))

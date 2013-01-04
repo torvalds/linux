@@ -10,8 +10,6 @@
 #ifndef COH901318_LLI_H
 #define COH901318_LLI_H
 
-#include <mach/coh901318.h>
-
 struct device;
 
 struct coh901318_pool {

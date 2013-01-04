@@ -1,9 +1,5 @@
 /*
- *
- * include/linux/coh901318.h
- *
- *
- * Copyright (C) 2007-2009 ST-Ericsson
+ * Copyright (C) 2007-2013 ST-Ericsson
  * License terms: GNU General Public License (GPL) version 2
  * DMA driver for COH 901 318
  * Author: Per Friden <per.friden@stericsson.com>

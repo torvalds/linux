@@ -22,8 +22,8 @@
 #include <linux/uaccess.h>
 #include <linux/debugfs.h>
 #include <linux/platform_data/dma-coh901318.h>
-#include <mach/coh901318.h>
 
+#include "coh901318.h"
 #include "coh901318_lli.h"
 #include "dmaengine.h"
 
