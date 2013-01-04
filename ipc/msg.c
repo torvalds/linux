@@ -797,15 +797,17 @@ static inline struct msg_msg *prepare_copy(void __user *buf, size_t bufsz,
 	return copy;
 }
 
-static inline void free_copy(int msgflg, struct msg_msg *copy)
+static inline void free_copy(struct msg_msg *copy)
 {
-	if (msgflg & MSG_COPY)
+	if (copy)
 		free_msg(copy);
 }
 #else
-#define free_copy(msgflg, copy)				do {} while (0)
 #define prepare_copy(buf, sz, msgflg, msgtyp, copy_nr)	ERR_PTR(-ENOSYS)
 #define fill_copy(copy_nr, msg_nr, msg, copy)		NULL
+static inline void free_copy(struct msg_msg *copy)
+{
+}
 #endif
 
 long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp,
@@ -816,7 +818,7 @@ long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp,
 	struct msg_msg *msg;
 	int mode;
 	struct ipc_namespace *ns;
-	struct msg_msg *copy;
+	struct msg_msg *copy = NULL;
 	unsigned long __maybe_unused copy_number;
 
 	if (msqid < 0 || (long) bufsz < 0)
@@ -831,7 +833,7 @@ long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp,
 
 	msq = msg_lock_check(ns, msqid);
 	if (IS_ERR(msq)) {
-		free_copy(msgflg, copy);
+		free_copy(copy);
 		return PTR_ERR(msq);
 	}
 
@@ -965,7 +967,7 @@ out_unlock:
 		}
 	}
 	if (IS_ERR(msg)) {
-		free_copy(msgflg, copy);
+		free_copy(copy);
 		return PTR_ERR(msg);
 	}
 
