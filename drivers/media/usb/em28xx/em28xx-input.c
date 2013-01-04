@@ -472,22 +472,22 @@ static void em28xx_register_i2c_ir(struct em28xx *dev)
 	case EM2820_BOARD_TERRATEC_CINERGY_250:
 		dev->init_data.ir_codes = RC_MAP_EM_TERRATEC;
 		dev->init_data.get_key = em28xx_get_key_terratec;
-		dev->init_data.name = "i2c IR (EM28XX Terratec)";
+		dev->init_data.name = "Terratec Cinergy 200/250";
 		break;
 	case EM2820_BOARD_PINNACLE_USB_2:
 		dev->init_data.ir_codes = RC_MAP_PINNACLE_GREY;
 		dev->init_data.get_key = em28xx_get_key_pinnacle_usb_grey;
-		dev->init_data.name = "i2c IR (EM28XX Pinnacle PCTV)";
+		dev->init_data.name = "Pinnacle USB2";
 		break;
 	case EM2820_BOARD_HAUPPAUGE_WINTV_USB_2:
 		dev->init_data.ir_codes = RC_MAP_HAUPPAUGE;
 		dev->init_data.get_key = em28xx_get_key_em_haup;
-		dev->init_data.name = "i2c IR (EM2840 Hauppauge)";
+		dev->init_data.name = "WinTV USB2";
 		break;
 	case EM2820_BOARD_LEADTEK_WINFAST_USBII_DELUXE:
 		dev->init_data.ir_codes = RC_MAP_WINFAST_USBII_DELUXE;
 		dev->init_data.get_key = em28xx_get_key_winfast_usbii_deluxe;
-		dev->init_data.name = "i2c IR (EM2820 Winfast TV USBII Deluxe)";
+		dev->init_data.name = "Winfast TV USBII Deluxe";
 		break;
 	}
 
