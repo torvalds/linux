@@ -1369,12 +1369,14 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
 	}
 
 	/**
-	 * Set transfer bits_per_word as spi device default if it is not
-	 * set for this transfer.
+	 * Set transfer bits_per_word and max speed as spi device default if
+	 * it is not set for this transfer.
 	 */
 	list_for_each_entry(xfer, &message->transfers, transfer_list) {
 		if (!xfer->bits_per_word)
 			xfer->bits_per_word = spi->bits_per_word;
+		if (!xfer->speed_hz)
+			xfer->speed_hz = spi->max_speed_hz;
 	}
 
 	message->spi = spi;
