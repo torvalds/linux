@@ -746,11 +746,9 @@ static void __bond_resend_igmp_join_requests(struct net_device *dev)
 {
 	struct in_device *in_dev;
 
-	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(dev);
 	if (in_dev)
 		ip_mc_rejoin_groups(in_dev);
-	rcu_read_unlock();
 }
 
 /*
@@ -760,9 +758,10 @@ static void __bond_resend_igmp_join_requests(struct net_device *dev)
  */
 static void bond_resend_igmp_join_requests(struct bonding *bond)
 {
-	struct net_device *bond_dev, *vlan_dev, *master_dev;
+	struct net_device *bond_dev, *vlan_dev, *upper_dev;
 	struct vlan_entry *vlan;
 
+	rcu_read_lock();
 	read_lock(&bond->lock);
 
 	bond_dev = bond->dev;
@@ -774,18 +773,14 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 	 * if bond is enslaved to a bridge,
 	 * then rejoin all groups on its master
 	 */
-	master_dev = bond_dev->master;
-	if (master_dev)
-		if ((master_dev->priv_flags & IFF_EBRIDGE)
-			&& (bond_dev->priv_flags & IFF_BRIDGE_PORT))
-			__bond_resend_igmp_join_requests(master_dev);
+	upper_dev = netdev_master_upper_dev_get_rcu(bond_dev);
+	if (upper_dev && upper_dev->priv_flags & IFF_EBRIDGE)
+		__bond_resend_igmp_join_requests(upper_dev);
 
 	/* rejoin all groups on vlan devices */
 	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
-		rcu_read_lock();
 		vlan_dev = __vlan_find_dev_deep(bond_dev,
 						vlan->vlan_id);
-		rcu_read_unlock();
 		if (vlan_dev)
 			__bond_resend_igmp_join_requests(vlan_dev);
 	}
@@ -794,13 +789,16 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 		queue_delayed_work(bond->wq, &bond->mcast_work, HZ/5);
 
 	read_unlock(&bond->lock);
+	rcu_read_unlock();
 }
 
 static void bond_resend_igmp_join_requests_delayed(struct work_struct *work)
 {
 	struct bonding *bond = container_of(work, struct bonding,
 					    mcast_work.work);
+	rcu_read_lock();
 	bond_resend_igmp_join_requests(bond);
+	rcu_read_unlock();
 }
 
 /*
@@ -1493,6 +1491,27 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 	return ret;
 }
 
+static int bond_master_upper_dev_link(struct net_device *bond_dev,
+				      struct net_device *slave_dev)
+{
+	int err;
+
+	err = netdev_master_upper_dev_link(slave_dev, bond_dev);
+	if (err)
+		return err;
+	slave_dev->flags |= IFF_SLAVE;
+	rtmsg_ifinfo(RTM_NEWLINK, slave_dev, IFF_SLAVE);
+	return 0;
+}
+
+static void bond_upper_dev_unlink(struct net_device *bond_dev,
+				  struct net_device *slave_dev)
+{
+	netdev_upper_dev_unlink(slave_dev, bond_dev);
+	slave_dev->flags &= ~IFF_SLAVE;
+	rtmsg_ifinfo(RTM_NEWLINK, slave_dev, IFF_SLAVE);
+}
+
 /* enslave device <slave> to bond device <master> */
 int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 {
@@ -1655,9 +1674,9 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		}
 	}
 
-	res = netdev_set_bond_master(slave_dev, bond_dev);
+	res = bond_master_upper_dev_link(bond_dev, slave_dev);
 	if (res) {
-		pr_debug("Error %d calling netdev_set_bond_master\n", res);
+		pr_debug("Error %d calling bond_master_upper_dev_link\n", res);
 		goto err_restore_mac;
 	}
 
@@ -1891,7 +1910,7 @@ err_close:
 	dev_close(slave_dev);
 
 err_unset_master:
-	netdev_set_bond_master(slave_dev, NULL);
+	bond_upper_dev_unlink(bond_dev, slave_dev);
 
 err_restore_mac:
 	if (!bond->params.fail_over_mac) {
@@ -1936,7 +1955,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	/* slave is not a slave or master is not master of this slave */
 	if (!(slave_dev->flags & IFF_SLAVE) ||
-	    (slave_dev->master != bond_dev)) {
+	    !netdev_has_upper_dev(slave_dev, bond_dev)) {
 		pr_err("%s: Error: cannot release %s.\n",
 		       bond_dev->name, slave_dev->name);
 		return -EINVAL;
@@ -2080,7 +2099,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 		netif_addr_unlock_bh(bond_dev);
 	}
 
-	netdev_set_bond_master(slave_dev, NULL);
+	bond_upper_dev_unlink(bond_dev, slave_dev);
 
 	slave_disable_netpoll(slave);
 
@@ -2195,7 +2214,7 @@ static int bond_release_all(struct net_device *bond_dev)
 			netif_addr_unlock_bh(bond_dev);
 		}
 
-		netdev_set_bond_master(slave_dev, NULL);
+		bond_upper_dev_unlink(bond_dev, slave_dev);
 
 		slave_disable_netpoll(slave);
 
@@ -2259,8 +2278,9 @@ static int bond_ioctl_change_active(struct net_device *bond_dev, struct net_devi
 	if (!USES_PRIMARY(bond->params.mode))
 		return -EINVAL;
 
-	/* Verify that master_dev is indeed the master of slave_dev */
-	if (!(slave_dev->flags & IFF_SLAVE) || (slave_dev->master != bond_dev))
+	/* Verify that bond_dev is indeed the master of slave_dev */
+	if (!(slave_dev->flags & IFF_SLAVE) ||
+	    !netdev_has_upper_dev(slave_dev, bond_dev))
 		return -EINVAL;
 
 	read_lock(&bond->lock);
@@ -3258,36 +3278,32 @@ static int bond_master_netdev_event(unsigned long event,
 static int bond_slave_netdev_event(unsigned long event,
 				   struct net_device *slave_dev)
 {
-	struct net_device *bond_dev = slave_dev->master;
-	struct bonding *bond = netdev_priv(bond_dev);
-	struct slave *slave = NULL;
+	struct slave *slave = bond_slave_get_rtnl(slave_dev);
+	struct bonding *bond = slave->bond;
+	struct net_device *bond_dev = slave->bond->dev;
+	u32 old_speed;
+	u8 old_duplex;
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
-		if (bond_dev) {
-			if (bond->setup_by_slave)
-				bond_release_and_destroy(bond_dev, slave_dev);
-			else
-				bond_release(bond_dev, slave_dev);
-		}
+		if (bond->setup_by_slave)
+			bond_release_and_destroy(bond_dev, slave_dev);
+		else
+			bond_release(bond_dev, slave_dev);
 		break;
 	case NETDEV_UP:
 	case NETDEV_CHANGE:
-		slave = bond_get_slave_by_dev(bond, slave_dev);
-		if (slave) {
-			u32 old_speed = slave->speed;
-			u8  old_duplex = slave->duplex;
+		old_speed = slave->speed;
+		old_duplex = slave->duplex;
 
-			bond_update_speed_duplex(slave);
+		bond_update_speed_duplex(slave);
 
-			if (bond->params.mode == BOND_MODE_8023AD) {
-				if (old_speed != slave->speed)
-					bond_3ad_adapter_speed_changed(slave);
-				if (old_duplex != slave->duplex)
-					bond_3ad_adapter_duplex_changed(slave);
-			}
+		if (bond->params.mode == BOND_MODE_8023AD) {
+			if (old_speed != slave->speed)
+				bond_3ad_adapter_speed_changed(slave);
+			if (old_duplex != slave->duplex)
+				bond_3ad_adapter_duplex_changed(slave);
 		}
-
 		break;
 	case NETDEV_DOWN:
 		/*

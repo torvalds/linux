@@ -1640,6 +1640,7 @@ static void qeth_l3_add_mc(struct qeth_card *card, struct in_device *in4_dev)
 	}
 }
 
+/* called with rcu_read_lock */
 static void qeth_l3_add_vlan_mc(struct qeth_card *card)
 {
 	struct in_device *in_dev;
@@ -1652,19 +1653,14 @@ static void qeth_l3_add_vlan_mc(struct qeth_card *card)
 	for_each_set_bit(vid, card->active_vlans, VLAN_N_VID) {
 		struct net_device *netdev;
 
-		rcu_read_lock();
 		netdev = __vlan_find_dev_deep(card->dev, vid);
-		rcu_read_unlock();
 		if (netdev == NULL ||
 		    !(netdev->flags & IFF_UP))
 			continue;
-		in_dev = in_dev_get(netdev);
+		in_dev = __in_dev_get_rcu(netdev);
 		if (!in_dev)
 			continue;
-		rcu_read_lock();
 		qeth_l3_add_mc(card, in_dev);
-		rcu_read_unlock();
-		in_dev_put(in_dev);
 	}
 }
 
@@ -1673,14 +1669,14 @@ static void qeth_l3_add_multicast_ipv4(struct qeth_card *card)
 	struct in_device *in4_dev;
 
 	QETH_CARD_TEXT(card, 4, "chkmcv4");
-	in4_dev = in_dev_get(card->dev);
-	if (in4_dev == NULL)
-		return;
 	rcu_read_lock();
+	in4_dev = __in_dev_get_rcu(card->dev);
+	if (in4_dev == NULL)
+		goto unlock;
 	qeth_l3_add_mc(card, in4_dev);
 	qeth_l3_add_vlan_mc(card);
+unlock:
 	rcu_read_unlock();
-	in_dev_put(in4_dev);
 }
 
 #ifdef CONFIG_QETH_IPV6
@@ -1705,6 +1701,7 @@ static void qeth_l3_add_mc6(struct qeth_card *card, struct inet6_dev *in6_dev)
 	}
 }
 
+/* called with rcu_read_lock */
 static void qeth_l3_add_vlan_mc6(struct qeth_card *card)
 {
 	struct inet6_dev *in_dev;
@@ -1741,10 +1738,12 @@ static void qeth_l3_add_multicast_ipv6(struct qeth_card *card)
 	in6_dev = in6_dev_get(card->dev);
 	if (in6_dev == NULL)
 		return;
+	rcu_read_lock();
 	read_lock_bh(&in6_dev->lock);
 	qeth_l3_add_mc6(card, in6_dev);
 	qeth_l3_add_vlan_mc6(card);
 	read_unlock_bh(&in6_dev->lock);
+	rcu_read_unlock();
 	in6_dev_put(in6_dev);
 }
 #endif /* CONFIG_QETH_IPV6 */
@@ -1813,8 +1812,10 @@ static void qeth_l3_free_vlan_addresses6(struct qeth_card *card,
 static void qeth_l3_free_vlan_addresses(struct qeth_card *card,
 			unsigned short vid)
 {
+	rcu_read_lock();
 	qeth_l3_free_vlan_addresses4(card, vid);
 	qeth_l3_free_vlan_addresses6(card, vid);
+	rcu_read_unlock();
 }
 
 static int qeth_l3_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)

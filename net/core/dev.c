@@ -4600,64 +4600,231 @@ static int __init dev_proc_init(void)
 #endif	/* CONFIG_PROC_FS */
 
 
-/**
- *	netdev_set_master	-	set up master pointer
- *	@slave: slave device
- *	@master: new master device
- *
- *	Changes the master device of the slave. Pass %NULL to break the
- *	bonding. The caller must hold the RTNL semaphore. On a failure
- *	a negative errno code is returned. On success the reference counts
- *	are adjusted and the function returns zero.
- */
-int netdev_set_master(struct net_device *slave, struct net_device *master)
+struct netdev_upper {
+	struct net_device *dev;
+	bool master;
+	struct list_head list;
+	struct rcu_head rcu;
+	struct list_head search_list;
+};
+
+static void __append_search_uppers(struct list_head *search_list,
+				   struct net_device *dev)
 {
-	struct net_device *old = slave->master;
+	struct netdev_upper *upper;
 
-	ASSERT_RTNL();
-
-	if (master) {
-		if (old)
-			return -EBUSY;
-		dev_hold(master);
+	list_for_each_entry(upper, &dev->upper_dev_list, list) {
+		/* check if this upper is not already in search list */
+		if (list_empty(&upper->search_list))
+			list_add_tail(&upper->search_list, search_list);
 	}
-
-	slave->master = master;
-
-	if (old)
-		dev_put(old);
-	return 0;
 }
-EXPORT_SYMBOL(netdev_set_master);
+
+static bool __netdev_search_upper_dev(struct net_device *dev,
+				      struct net_device *upper_dev)
+{
+	LIST_HEAD(search_list);
+	struct netdev_upper *upper;
+	struct netdev_upper *tmp;
+	bool ret = false;
+
+	__append_search_uppers(&search_list, dev);
+	list_for_each_entry(upper, &search_list, search_list) {
+		if (upper->dev == upper_dev) {
+			ret = true;
+			break;
+		}
+		__append_search_uppers(&search_list, upper->dev);
+	}
+	list_for_each_entry_safe(upper, tmp, &search_list, search_list)
+		INIT_LIST_HEAD(&upper->search_list);
+	return ret;
+}
+
+static struct netdev_upper *__netdev_find_upper(struct net_device *dev,
+						struct net_device *upper_dev)
+{
+	struct netdev_upper *upper;
+
+	list_for_each_entry(upper, &dev->upper_dev_list, list) {
+		if (upper->dev == upper_dev)
+			return upper;
+	}
+	return NULL;
+}
 
 /**
- *	netdev_set_bond_master	-	set up bonding master/slave pair
- *	@slave: slave device
- *	@master: new master device
+ * netdev_has_upper_dev - Check if device is linked to an upper device
+ * @dev: device
+ * @upper_dev: upper device to check
  *
- *	Changes the master device of the slave. Pass %NULL to break the
- *	bonding. The caller must hold the RTNL semaphore. On a failure
- *	a negative errno code is returned. On success %RTM_NEWLINK is sent
- *	to the routing socket and the function returns zero.
+ * Find out if a device is linked to specified upper device and return true
+ * in case it is. Note that this checks only immediate upper device,
+ * not through a complete stack of devices. The caller must hold the RTNL lock.
  */
-int netdev_set_bond_master(struct net_device *slave, struct net_device *master)
+bool netdev_has_upper_dev(struct net_device *dev,
+			  struct net_device *upper_dev)
 {
-	int err;
+	ASSERT_RTNL();
+
+	return __netdev_find_upper(dev, upper_dev);
+}
+EXPORT_SYMBOL(netdev_has_upper_dev);
+
+/**
+ * netdev_has_any_upper_dev - Check if device is linked to some device
+ * @dev: device
+ *
+ * Find out if a device is linked to an upper device and return true in case
+ * it is. The caller must hold the RTNL lock.
+ */
+bool netdev_has_any_upper_dev(struct net_device *dev)
+{
+	ASSERT_RTNL();
+
+	return !list_empty(&dev->upper_dev_list);
+}
+EXPORT_SYMBOL(netdev_has_any_upper_dev);
+
+/**
+ * netdev_master_upper_dev_get - Get master upper device
+ * @dev: device
+ *
+ * Find a master upper device and return pointer to it or NULL in case
+ * it's not there. The caller must hold the RTNL lock.
+ */
+struct net_device *netdev_master_upper_dev_get(struct net_device *dev)
+{
+	struct netdev_upper *upper;
 
 	ASSERT_RTNL();
 
-	err = netdev_set_master(slave, master);
-	if (err)
-		return err;
-	if (master)
-		slave->flags |= IFF_SLAVE;
-	else
-		slave->flags &= ~IFF_SLAVE;
+	if (list_empty(&dev->upper_dev_list))
+		return NULL;
 
-	rtmsg_ifinfo(RTM_NEWLINK, slave, IFF_SLAVE);
+	upper = list_first_entry(&dev->upper_dev_list,
+				 struct netdev_upper, list);
+	if (likely(upper->master))
+		return upper->dev;
+	return NULL;
+}
+EXPORT_SYMBOL(netdev_master_upper_dev_get);
+
+/**
+ * netdev_master_upper_dev_get_rcu - Get master upper device
+ * @dev: device
+ *
+ * Find a master upper device and return pointer to it or NULL in case
+ * it's not there. The caller must hold the RCU read lock.
+ */
+struct net_device *netdev_master_upper_dev_get_rcu(struct net_device *dev)
+{
+	struct netdev_upper *upper;
+
+	upper = list_first_or_null_rcu(&dev->upper_dev_list,
+				       struct netdev_upper, list);
+	if (upper && likely(upper->master))
+		return upper->dev;
+	return NULL;
+}
+EXPORT_SYMBOL(netdev_master_upper_dev_get_rcu);
+
+static int __netdev_upper_dev_link(struct net_device *dev,
+				   struct net_device *upper_dev, bool master)
+{
+	struct netdev_upper *upper;
+
+	ASSERT_RTNL();
+
+	if (dev == upper_dev)
+		return -EBUSY;
+
+	/* To prevent loops, check if dev is not upper device to upper_dev. */
+	if (__netdev_search_upper_dev(upper_dev, dev))
+		return -EBUSY;
+
+	if (__netdev_find_upper(dev, upper_dev))
+		return -EEXIST;
+
+	if (master && netdev_master_upper_dev_get(dev))
+		return -EBUSY;
+
+	upper = kmalloc(sizeof(*upper), GFP_KERNEL);
+	if (!upper)
+		return -ENOMEM;
+
+	upper->dev = upper_dev;
+	upper->master = master;
+	INIT_LIST_HEAD(&upper->search_list);
+
+	/* Ensure that master upper link is always the first item in list. */
+	if (master)
+		list_add_rcu(&upper->list, &dev->upper_dev_list);
+	else
+		list_add_tail_rcu(&upper->list, &dev->upper_dev_list);
+	dev_hold(upper_dev);
+
 	return 0;
 }
-EXPORT_SYMBOL(netdev_set_bond_master);
+
+/**
+ * netdev_upper_dev_link - Add a link to the upper device
+ * @dev: device
+ * @upper_dev: new upper device
+ *
+ * Adds a link to device which is upper to this one. The caller must hold
+ * the RTNL lock. On a failure a negative errno code is returned.
+ * On success the reference counts are adjusted and the function
+ * returns zero.
+ */
+int netdev_upper_dev_link(struct net_device *dev,
+			  struct net_device *upper_dev)
+{
+	return __netdev_upper_dev_link(dev, upper_dev, false);
+}
+EXPORT_SYMBOL(netdev_upper_dev_link);
+
+/**
+ * netdev_master_upper_dev_link - Add a master link to the upper device
+ * @dev: device
+ * @upper_dev: new upper device
+ *
+ * Adds a link to device which is upper to this one. In this case, only
+ * one master upper device can be linked, although other non-master devices
+ * might be linked as well. The caller must hold the RTNL lock.
+ * On a failure a negative errno code is returned. On success the reference
+ * counts are adjusted and the function returns zero.
+ */
+int netdev_master_upper_dev_link(struct net_device *dev,
+				 struct net_device *upper_dev)
+{
+	return __netdev_upper_dev_link(dev, upper_dev, true);
+}
+EXPORT_SYMBOL(netdev_master_upper_dev_link);
+
+/**
+ * netdev_upper_dev_unlink - Removes a link to upper device
+ * @dev: device
+ * @upper_dev: new upper device
+ *
+ * Removes a link to device which is upper to this one. The caller must hold
+ * the RTNL lock.
+ */
+void netdev_upper_dev_unlink(struct net_device *dev,
+			     struct net_device *upper_dev)
+{
+	struct netdev_upper *upper;
+
+	ASSERT_RTNL();
+
+	upper = __netdev_find_upper(dev, upper_dev);
+	if (!upper)
+		return;
+	list_del_rcu(&upper->list);
+	dev_put(upper_dev);
+	kfree_rcu(upper, rcu);
+}
+EXPORT_SYMBOL(netdev_upper_dev_unlink);
 
 static void dev_change_rx_flags(struct net_device *dev, int flags)
 {
@@ -5503,8 +5670,8 @@ static void rollback_registered_many(struct list_head *head)
 		if (dev->netdev_ops->ndo_uninit)
 			dev->netdev_ops->ndo_uninit(dev);
 
-		/* Notifier chain MUST detach us from master device. */
-		WARN_ON(dev->master);
+		/* Notifier chain MUST detach us all upper devices. */
+		WARN_ON(netdev_has_any_upper_dev(dev));
 
 		/* Remove entries from kobject tree */
 		netdev_unregister_kobject(dev);
@@ -6212,6 +6379,7 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 	INIT_LIST_HEAD(&dev->napi_list);
 	INIT_LIST_HEAD(&dev->unreg_list);
 	INIT_LIST_HEAD(&dev->link_watch_list);
+	INIT_LIST_HEAD(&dev->upper_dev_list);
 	dev->priv_flags = IFF_XMIT_DST_RELEASE;
 	setup(dev);
 

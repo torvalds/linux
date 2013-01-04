@@ -858,8 +858,7 @@ struct netdev_fcoe_hbainfo {
  *	flow_id is a flow ID to be passed to rps_may_expire_flow() later.
  *	Return the filter ID on success, or a negative error code.
  *
- *	Slave management functions (for bridge, bonding, etc). User should
- *	call netdev_set_master() to set dev->master properly.
+ *	Slave management functions (for bridge, bonding, etc).
  * int (*ndo_add_slave)(struct net_device *dev, struct net_device *slave_dev);
  *	Called to make another netdev an underling.
  *
@@ -1170,9 +1169,7 @@ struct net_device {
 						 * avoid dirtying this cache line.
 						 */
 
-	struct net_device	*master; /* Pointer to master device of a group,
-					  * which this device is member of.
-					  */
+	struct list_head	upper_dev_list; /* List of upper devices */
 
 	/* Interface address info used in eth_type_trans() */
 	unsigned char		*dev_addr;	/* hw address, (before bcast
@@ -2636,9 +2633,18 @@ extern int		netdev_max_backlog;
 extern int		netdev_tstamp_prequeue;
 extern int		weight_p;
 extern int		bpf_jit_enable;
-extern int		netdev_set_master(struct net_device *dev, struct net_device *master);
-extern int netdev_set_bond_master(struct net_device *dev,
-				  struct net_device *master);
+
+extern bool netdev_has_upper_dev(struct net_device *dev,
+				 struct net_device *upper_dev);
+extern bool netdev_has_any_upper_dev(struct net_device *dev);
+extern struct net_device *netdev_master_upper_dev_get(struct net_device *dev);
+extern struct net_device *netdev_master_upper_dev_get_rcu(struct net_device *dev);
+extern int netdev_upper_dev_link(struct net_device *dev,
+				 struct net_device *upper_dev);
+extern int netdev_master_upper_dev_link(struct net_device *dev,
+					struct net_device *upper_dev);
+extern void netdev_upper_dev_unlink(struct net_device *dev,
+				    struct net_device *upper_dev);
 extern int skb_checksum_help(struct sk_buff *skb);
 extern struct sk_buff *skb_gso_segment(struct sk_buff *skb,
 	netdev_features_t features);
