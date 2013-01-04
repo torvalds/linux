@@ -149,6 +149,7 @@
 #define Aligned     ((u64)1 << 41)  /* Explicitly aligned (e.g. MOVDQA) */
 #define Unaligned   ((u64)1 << 42)  /* Explicitly unaligned (e.g. MOVDQU) */
 #define Avx         ((u64)1 << 43)  /* Advanced Vector Extensions */
+#define Fastop      ((u64)1 << 44)  /* Use opcode::u.fastop */
 
 #define X2(x...) x, x
 #define X3(x...) X2(x), x
@@ -159,6 +160,27 @@
 #define X8(x...) X4(x), X4(x)
 #define X16(x...) X8(x), X8(x)
 
+#define NR_FASTOP (ilog2(sizeof(ulong)) + 1)
+#define FASTOP_SIZE 8
+
+/*
+ * fastop functions have a special calling convention:
+ *
+ * dst:    [rdx]:rax  (in/out)
+ * src:    rbx        (in/out)
+ * src2:   rcx        (in)
+ * flags:  rflags     (in/out)
+ *
+ * Moreover, they are all exactly FASTOP_SIZE bytes long, so functions for
+ * different operand sizes can be reached by calculation, rather than a jump
+ * table (which would be bigger than the code).
+ *
+ * fastop functions are declared as taking a never-defined fastop parameter,
+ * so they can't be called from C directly.
+ */
+
+struct fastop;
+
 struct opcode {
 	u64 flags : 56;
 	u64 intercept : 8;
@@ -168,6 +190,7 @@ struct opcode {
 		const struct group_dual *gdual;
 		const struct gprefix *gprefix;
 		const struct escape *esc;
+		void (*fastop)(struct fastop *fake);
 	} u;
 	int (*check_perm)(struct x86_emulate_ctxt *ctxt);
 };
@@ -3646,6 +3669,7 @@ static int check_perm_out(struct x86_emulate_ctxt *ctxt)
 #define GD(_f, _g) { .flags = ((_f) | GroupDual | ModRM), .u.gdual = (_g) }
 #define E(_f, _e) { .flags = ((_f) | Escape | ModRM), .u.esc = (_e) }
 #define I(_f, _e) { .flags = (_f), .u.execute = (_e) }
+#define F(_f, _e) { .flags = (_f) | Fastop, .u.fastop = (_e) }
 #define II(_f, _e, _i) \
 	{ .flags = (_f), .u.execute = (_e), .intercept = x86_intercept_##_i }
 #define IIP(_f, _e, _i, _p) \
@@ -4502,6 +4526,16 @@ static void fetch_possible_mmx_operand(struct x86_emulate_ctxt *ctxt,
 		read_mmx_reg(ctxt, &op->mm_val, op->addr.mm);
 }
 
+static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *))
+{
+	ulong flags = (ctxt->eflags & EFLAGS_MASK) | X86_EFLAGS_IF;
+	fop += __ffs(ctxt->dst.bytes) * FASTOP_SIZE;
+	asm("push %[flags]; popf; call *%[fastop]; pushf; pop %[flags]\n"
+	    : "+a"(ctxt->dst.val), "+b"(ctxt->src.val), [flags]"+D"(flags)
+	: "c"(ctxt->src2.val), [fastop]"S"(fop));
+	ctxt->eflags = (ctxt->eflags & ~EFLAGS_MASK) | (flags & EFLAGS_MASK);
+	return X86EMUL_CONTINUE;
+}
 
 int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 {
@@ -4631,6 +4665,13 @@ special_insn:
 	}
 
 	if (ctxt->execute) {
+		if (ctxt->d & Fastop) {
+			void (*fop)(struct fastop *) = (void *)ctxt->execute;
+			rc = fastop(ctxt, fop);
+			if (rc != X86EMUL_CONTINUE)
+				goto done;
+			goto writeback;
+		}
 		rc = ctxt->execute(ctxt);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
