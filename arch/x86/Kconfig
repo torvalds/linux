@@ -2199,6 +2199,15 @@ config GEOS
 	---help---
 	  This option enables system support for the Traverse Technologies GEOS.
 
+config TS5500
+	bool "Technologic Systems TS-5500 platform support"
+	depends on MELAN
+	select CHECK_SIGNATURE
+	select NEW_LEDS
+	select LEDS_CLASS
+	---help---
+	  This option enables system support for the Technologic Systems TS-5500.
+
 endif # X86_32
 
 config AMD_NB

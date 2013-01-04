@@ -7543,6 +7543,11 @@ F:	drivers/net/team/
 F:	include/linux/if_team.h
 F:	include/uapi/linux/if_team.h
 
+TECHNOLOGIC SYSTEMS TS-5500 PLATFORM SUPPORT
+M:	Savoir-faire Linux Inc. <kernel@savoirfairelinux.com>
+S:	Maintained
+F:	arch/x86/platform/ts5500/
+
 TECHNOTREND USB IR RECEIVER
 M:	Sean Young <sean@mess.org>
 L:	linux-media@vger.kernel.org
