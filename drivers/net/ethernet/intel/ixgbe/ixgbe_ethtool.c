@@ -1040,6 +1040,9 @@ static void ixgbe_get_ethtool_stats(struct net_device *netdev,
 			p = (char *) adapter +
 					ixgbe_gstrings_stats[i].stat_offset;
 			break;
+		default:
+			data[i] = 0;
+			continue;
 		}
 
 		data[i] = (ixgbe_gstrings_stats[i].sizeof_stat ==
