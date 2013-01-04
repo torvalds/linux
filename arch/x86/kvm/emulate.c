@@ -2050,17 +2050,8 @@ static int em_grp2(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
-static int em_not(struct x86_emulate_ctxt *ctxt)
-{
-	ctxt->dst.val = ~ctxt->dst.val;
-	return X86EMUL_CONTINUE;
-}
-
-static int em_neg(struct x86_emulate_ctxt *ctxt)
-{
-	emulate_1op(ctxt, "neg");
-	return X86EMUL_CONTINUE;
-}
+FASTOP1(not);
+FASTOP1(neg);
 
 static int em_mul_ex(struct x86_emulate_ctxt *ctxt)
 {
@@ -3753,8 +3744,8 @@ static const struct opcode group1A[] = {
 static const struct opcode group3[] = {
 	I(DstMem | SrcImm | NoWrite, em_test),
 	I(DstMem | SrcImm | NoWrite, em_test),
-	I(DstMem | SrcNone | Lock, em_not),
-	I(DstMem | SrcNone | Lock, em_neg),
+	F(DstMem | SrcNone | Lock, em_not),
+	F(DstMem | SrcNone | Lock, em_neg),
 	I(SrcMem, em_mul_ex),
 	I(SrcMem, em_imul_ex),
 	I(SrcMem, em_div_ex),
