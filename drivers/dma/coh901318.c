@@ -23,7 +23,6 @@
 #include <linux/debugfs.h>
 #include <linux/platform_data/dma-coh901318.h>
 #include <mach/coh901318.h>
-#include <mach/u300-regs.h>
 
 #include "coh901318_lli.h"
 #include "dmaengine.h"
@@ -99,13 +98,11 @@ const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 		.number = U300_DMA_MSL_TX_0,
 		.name = "MSL TX 0",
 		.priority_high = 0,
-		.dev_addr = U300_MSL_BASE + 0 * 0x40 + 0x20,
 	},
 	{
 		.number = U300_DMA_MSL_TX_1,
 		.name = "MSL TX 1",
 		.priority_high = 0,
-		.dev_addr = U300_MSL_BASE + 1 * 0x40 + 0x20,
 		.param.config = COH901318_CX_CFG_CH_DISABLE |
 				COH901318_CX_CFG_LCR_DISABLE |
 				COH901318_CX_CFG_TC_IRQ_ENABLE |
@@ -157,7 +154,6 @@ const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 		.number = U300_DMA_MSL_TX_2,
 		.name = "MSL TX 2",
 		.priority_high = 0,
-		.dev_addr = U300_MSL_BASE + 2 * 0x40 + 0x20,
 		.param.config = COH901318_CX_CFG_CH_DISABLE |
 				COH901318_CX_CFG_LCR_DISABLE |
 				COH901318_CX_CFG_TC_IRQ_ENABLE |
@@ -210,7 +206,6 @@ const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 		.number = U300_DMA_MSL_TX_3,
 		.name = "MSL TX 3",
 		.priority_high = 0,
-		.dev_addr = U300_MSL_BASE + 3 * 0x40 + 0x20,
 		.param.config = COH901318_CX_CFG_CH_DISABLE |
 				COH901318_CX_CFG_LCR_DISABLE |
 				COH901318_CX_CFG_TC_IRQ_ENABLE |
@@ -262,7 +257,6 @@ const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 		.number = U300_DMA_MSL_TX_4,
 		.name = "MSL TX 4",
 		.priority_high = 0,
-		.dev_addr = U300_MSL_BASE + 4 * 0x40 + 0x20,
 		.param.config = COH901318_CX_CFG_CH_DISABLE |
 				COH901318_CX_CFG_LCR_DISABLE |
 				COH901318_CX_CFG_TC_IRQ_ENABLE |
@@ -314,25 +308,21 @@ const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 		.number = U300_DMA_MSL_TX_5,
 		.name = "MSL TX 5",
 		.priority_high = 0,
-		.dev_addr = U300_MSL_BASE + 5 * 0x40 + 0x20,
 	},
 	{
 		.number = U300_DMA_MSL_TX_6,
 		.name = "MSL TX 6",
 		.priority_high = 0,
-		.dev_addr = U300_MSL_BASE + 6 * 0x40 + 0x20,
 	},
 	{
 		.number = U300_DMA_MSL_RX_0,
 		.name = "MSL RX 0",
 		.priority_high = 0,
-		.dev_addr = U300_MSL_BASE + 0 * 0x40 + 0x220,
 	},
 	{
 		.number = U300_DMA_MSL_RX_1,
 		.name = "MSL RX 1",
 		.priority_high = 0,
-		.dev_addr = U300_MSL_BASE + 1 * 0x40 + 0x220,
 		.param.config = COH901318_CX_CFG_CH_DISABLE |
 				COH901318_CX_CFG_LCR_DISABLE |
 				COH901318_CX_CFG_TC_IRQ_ENABLE |
@@ -371,7 +361,6 @@ const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 		.number = U300_DMA_MSL_RX_2,
 		.name = "MSL RX 2",
 		.priority_high = 0,
-		.dev_addr = U300_MSL_BASE + 2 * 0x40 + 0x220,
 		.param.config = COH901318_CX_CFG_CH_DISABLE |
 				COH901318_CX_CFG_LCR_DISABLE |
 				COH901318_CX_CFG_TC_IRQ_ENABLE |
@@ -423,7 +412,6 @@ const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 		.number = U300_DMA_MSL_RX_3,
 		.name = "MSL RX 3",
 		.priority_high = 0,
-		.dev_addr = U300_MSL_BASE + 3 * 0x40 + 0x220,
 		.param.config = COH901318_CX_CFG_CH_DISABLE |
 				COH901318_CX_CFG_LCR_DISABLE |
 				COH901318_CX_CFG_TC_IRQ_ENABLE |
@@ -475,7 +463,6 @@ const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 		.number = U300_DMA_MSL_RX_4,
 		.name = "MSL RX 4",
 		.priority_high = 0,
-		.dev_addr = U300_MSL_BASE + 4 * 0x40 + 0x220,
 		.param.config = COH901318_CX_CFG_CH_DISABLE |
 				COH901318_CX_CFG_LCR_DISABLE |
 				COH901318_CX_CFG_TC_IRQ_ENABLE |
@@ -527,7 +514,6 @@ const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 		.number = U300_DMA_MSL_RX_5,
 		.name = "MSL RX 5",
 		.priority_high = 0,
-		.dev_addr = U300_MSL_BASE + 5 * 0x40 + 0x220,
 		.param.config = COH901318_CX_CFG_CH_DISABLE |
 				COH901318_CX_CFG_LCR_DISABLE |
 				COH901318_CX_CFG_TC_IRQ_ENABLE |
@@ -579,7 +565,6 @@ const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 		.number = U300_DMA_MSL_RX_6,
 		.name = "MSL RX 6",
 		.priority_high = 0,
-		.dev_addr = U300_MSL_BASE + 6 * 0x40 + 0x220,
 	},
 	/*
 	 * Don't set up device address, burst count or size of src
@@ -715,7 +700,6 @@ const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 		.number = U300_DMA_PCM_I2S0_TX,
 		.name = "PCM I2S0 TX",
 		.priority_high = 1,
-		.dev_addr = U300_PCM_I2S0_BASE + 0x14,
 		.param.config = COH901318_CX_CFG_CH_DISABLE |
 				COH901318_CX_CFG_LCR_DISABLE |
 				COH901318_CX_CFG_TC_IRQ_ENABLE |
@@ -767,7 +751,6 @@ const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 		.number = U300_DMA_PCM_I2S0_RX,
 		.name = "PCM I2S0 RX",
 		.priority_high = 1,
-		.dev_addr = U300_PCM_I2S0_BASE + 0x10,
 		.param.config = COH901318_CX_CFG_CH_DISABLE |
 				COH901318_CX_CFG_LCR_DISABLE |
 				COH901318_CX_CFG_TC_IRQ_ENABLE |
@@ -819,7 +802,6 @@ const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 		.number = U300_DMA_PCM_I2S1_TX,
 		.name = "PCM I2S1 TX",
 		.priority_high = 1,
-		.dev_addr =  U300_PCM_I2S1_BASE + 0x14,
 		.param.config = COH901318_CX_CFG_CH_DISABLE |
 				COH901318_CX_CFG_LCR_DISABLE |
 				COH901318_CX_CFG_TC_IRQ_ENABLE |
@@ -871,7 +853,6 @@ const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 		.number = U300_DMA_PCM_I2S1_RX,
 		.name = "PCM I2S1 RX",
 		.priority_high = 1,
-		.dev_addr = U300_PCM_I2S1_BASE + 0x10,
 		.param.config = COH901318_CX_CFG_CH_DISABLE |
 				COH901318_CX_CFG_LCR_DISABLE |
 				COH901318_CX_CFG_TC_IRQ_ENABLE |
