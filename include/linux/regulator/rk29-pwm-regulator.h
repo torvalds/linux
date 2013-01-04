@@ -17,32 +17,7 @@
 #define __LINUX_REGULATOR_PWM_H
 
 #include <linux/regulator/machine.h>
-
-
-#define PWM_REG_CNTR         	0x00
-#define PWM_REG_HRC          	0x04 
-#define PWM_REG_LRC          	0x08
-#define PWM_REG_CTRL         	0x0c
-
-#define PWM_DIV2            (0<<9)
-#define PWM_DIV4            (1<<9)
-#define PWM_DIV8            (2<<9)
-#define PWM_DIV16           (3<<9)
-#define PWM_DIV32           (4<<9)
-#define PWM_DIV64           (5<<9)
-#define PWM_DIV128          (6<<9)
-#define PWM_DIV256          (7<<9)
-#define PWM_DIV512          (8<<9)
-#define PWM_DIV1024         (9<<9)
-
-#define PWM_CAPTURE         (1<<8)
-#define PWM_RESET           (1<<7)
-#define PWM_INTCLR          (1<<6)
-#define PWM_INTEN           (1<<5)
-#define PWM_SINGLE          (1<<6)
-
-#define PWM_ENABLE          (1<<3)
-#define PWM_TimeEN          (1)
+#include <plat/pwm.h>
 
 #define PWM_DIV              PWM_DIV2
 
