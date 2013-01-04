@@ -372,7 +372,7 @@ struct e1000_adapter {
 	/* structs defined in e1000_hw.h */
 	struct e1000_hw hw;
 
-	spinlock_t stats64_lock;
+	spinlock_t stats64_lock;	/* protects statistics counters */
 	struct e1000_hw_stats stats;
 	struct e1000_phy_info phy_info;
 	struct e1000_phy_stats phy_stats;
