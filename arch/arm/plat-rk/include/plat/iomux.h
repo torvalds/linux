@@ -3,10 +3,10 @@
 
 #define INVALID_MODE	0xffffffff
 
-#define get_gpio_mode(m)	((m) & 0x03)
+#define iomux_switch_gpio_mode(m)	((m) & 0x03)
 
-int gpio_to_mode(int gpio);
-int mode_to_gpio(unsigned int mode);
+int iomux_gpio_to_mode(int gpio);
+int iomux_mode_to_gpio(unsigned int mode);
 void iomux_set_gpio_mode(int gpio);
 void iomux_set(unsigned int mode);
 void __init iomux_init(void);

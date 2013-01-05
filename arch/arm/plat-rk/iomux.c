@@ -38,7 +38,7 @@ static inline int mode_is_valid(unsigned int mode)
 
 }
 
-int mode_to_gpio(unsigned int mode)
+int iomux_mode_to_gpio(unsigned int mode)
 {
         struct union_mode m;
 
@@ -50,9 +50,9 @@ int mode_to_gpio(unsigned int mode)
         m.mode = mode;
         return PIN_BASE + m.mux.bank * 32 + (m.mux.goff - 0x0A) * 8 + m.mux.off;
 }
-EXPORT_SYMBOL(mode_to_gpio);
+EXPORT_SYMBOL(iomux_mode_to_gpio);
 
-int gpio_to_mode(int gpio)
+int iomux_gpio_to_mode(int gpio)
 {
         unsigned int off;
         struct union_mode m;
@@ -75,7 +75,7 @@ int gpio_to_mode(int gpio)
 
         return m.mode;
 }
-EXPORT_SYMBOL(gpio_to_mode);
+EXPORT_SYMBOL(iomux_gpio_to_mode);
 
 #ifdef GRF_IOMUX_BASE
 void iomux_set(unsigned int mode)
@@ -110,7 +110,7 @@ void iomux_set_gpio_mode(int gpio)
 {
 	unsigned int mode;
 
-	mode = gpio_to_mode(gpio);
+	mode = iomux_gpio_to_mode(gpio);
 	if(mode_is_valid(mode))
         	iomux_set(mode);
 }
