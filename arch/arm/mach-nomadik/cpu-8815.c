@@ -33,6 +33,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/mtd/fsmc.h>
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
@@ -249,6 +250,17 @@ static void __init cpu8815_timer_init_of(void)
 	nmdk_timer_init(base, irq);
 }
 
+static struct fsmc_nand_timings cpu8815_nand_timings = {
+	.thiz	= 0,
+	.thold	= 0x10,
+	.twait	= 0x0A,
+	.tset	= 0,
+};
+
+static struct fsmc_nand_platform_data cpu8815_nand_data = {
+	.nand_timings = &cpu8815_nand_timings,
+};
+
 /* These are mostly to get the right device names for the clock lookups */
 static struct of_dev_auxdata cpu8815_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("arm,primecell", NOMADIK_UART0_BASE,
@@ -259,6 +271,9 @@ static struct of_dev_auxdata cpu8815_auxdata_lookup[] __initdata = {
 		"rng", NULL),
 	OF_DEV_AUXDATA("arm,primecell", NOMADIK_RTC_BASE,
 		"rtc-pl031", NULL),
+	OF_DEV_AUXDATA("stericsson,fsmc-nand", NOMADIK_FSMC_BASE,
+		"fsmc-nand", &cpu8815_nand_data),
+
 	{ /* sentinel */ },
 };
 

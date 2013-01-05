@@ -1,7 +1,7 @@
 * FSMC NAND
 
 Required properties:
-- compatible : "st,spear600-fsmc-nand"
+- compatible : "st,spear600-fsmc-nand", "stericsson,fsmc-nand"
 - reg : Address range of the mtd chip
 - reg-names: Should contain the reg names "fsmc_regs", "nand_data", "nand_addr" and "nand_cmd"
 

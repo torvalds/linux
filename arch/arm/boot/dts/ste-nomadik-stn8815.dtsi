@@ -35,6 +35,44 @@
 		interrupts = <5>;
 	};
 
+	/* A NAND flash of 128 MiB */
+	fsmc: flash@40000000 {
+		compatible = "stericsson,fsmc-nand";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x10100000 0x1000>,	/* FSMC Register*/
+			<0x40000000 0x2000>,	/* NAND Base DATA */
+			<0x41000000 0x2000>,	/* NAND Base ADDR */
+			<0x40800000 0x2000>;	/* NAND Base CMD */
+		reg-names = "fsmc_regs", "nand_data", "nand_addr", "nand_cmd";
+		status = "okay";
+
+		partition@0 {
+		label = "X-Loader(NAND)";
+			reg = <0x0 0x40000>;
+		};
+		partition@40000 {
+			label = "MemInit(NAND)";
+			reg = <0x40000 0x40000>;
+		};
+		partition@80000 {
+			label = "BootLoader(NAND)";
+			reg = <0x80000 0x200000>;
+		};
+		partition@280000 {
+			label = "Kernel zImage(NAND)";
+			reg = <0x280000 0x300000>;
+		};
+		partition@580000 {
+			label = "Root Filesystem(NAND)";
+			reg = <0x580000 0x1600000>;
+		};
+		partition@1b80000 {
+			label = "User Filesystem(NAND)";
+			reg = <0x1b80000 0x6480000>;
+		};
+	};
+
 	amba {
 		compatible = "arm,amba-bus";
 		#address-cells = <1>;
