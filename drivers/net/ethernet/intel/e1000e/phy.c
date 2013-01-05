@@ -30,7 +30,6 @@
 
 static s32 e1000_get_phy_cfg_done(struct e1000_hw *hw);
 static s32 e1000_phy_force_speed_duplex(struct e1000_hw *hw);
-static s32 e1000_set_d0_lplu_state(struct e1000_hw *hw, bool active);
 static s32 e1000_wait_autoneg(struct e1000_hw *hw);
 static s32 e1000_access_phy_wakeup_reg_bm(struct e1000_hw *hw, u32 offset,
 					  u16 *data, bool read, bool page_set);
@@ -894,10 +893,12 @@ s32 e1000e_copper_link_setup_igp(struct e1000_hw *hw)
 	msleep(100);
 
 	/* disable lplu d0 during driver init */
-	ret_val = e1000_set_d0_lplu_state(hw, false);
-	if (ret_val) {
-		e_dbg("Error Disabling LPLU D0\n");
-		return ret_val;
+	if (hw->phy.ops.set_d0_lplu_state) {
+		ret_val = hw->phy.ops.set_d0_lplu_state(hw, false);
+		if (ret_val) {
+			e_dbg("Error Disabling LPLU D0\n");
+			return ret_val;
+		}
 	}
 	/* Configure mdi-mdix settings */
 	ret_val = e1e_rphy(hw, IGP01E1000_PHY_PORT_CTRL, &data);
@@ -2815,28 +2816,6 @@ s32 e1000e_commit_phy(struct e1000_hw *hw)
 {
 	if (hw->phy.ops.commit)
 		return hw->phy.ops.commit(hw);
-
-	return 0;
-}
-
-/**
- *  e1000_set_d0_lplu_state - Sets low power link up state for D0
- *  @hw: pointer to the HW structure
- *  @active: boolean used to enable/disable lplu
- *
- *  Success returns 0, Failure returns 1
- *
- *  The low power link up (lplu) state is set to the power management level D0
- *  and SmartSpeed is disabled when active is true, else clear lplu for D0
- *  and enable Smartspeed.  LPLU and Smartspeed are mutually exclusive.  LPLU
- *  is used during Dx states where the power conservation is most important.
- *  During driver activity, SmartSpeed should be enabled so performance is
- *  maintained.  This is a function pointer entry point called by drivers.
- **/
-static s32 e1000_set_d0_lplu_state(struct e1000_hw *hw, bool active)
-{
-	if (hw->phy.ops.set_d0_lplu_state)
-		return hw->phy.ops.set_d0_lplu_state(hw, active);
 
 	return 0;
 }
