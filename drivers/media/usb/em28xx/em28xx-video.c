@@ -608,7 +608,7 @@ fail:
 	return rc;
 }
 
-int em28xx_stop_streaming(struct vb2_queue *vq)
+static int em28xx_stop_streaming(struct vb2_queue *vq)
 {
 	struct em28xx *dev = vb2_get_drv_priv(vq);
 	struct em28xx_dmaqueue *vidq = &dev->vidq;
