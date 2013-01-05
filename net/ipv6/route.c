@@ -1705,37 +1705,33 @@ static void rt6_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_bu
 	struct net *net = dev_net(skb->dev);
 	struct netevent_redirect netevent;
 	struct rt6_info *rt, *nrt = NULL;
-	const struct in6_addr *target;
 	struct ndisc_options ndopts;
-	const struct in6_addr *dest;
 	struct neighbour *old_neigh;
 	struct inet6_dev *in6_dev;
 	struct neighbour *neigh;
-	struct icmp6hdr *icmph;
+	struct rd_msg *msg;
 	int optlen, on_link;
 	u8 *lladdr;
 
 	optlen = skb->tail - skb->transport_header;
-	optlen -= sizeof(struct icmp6hdr) + 2 * sizeof(struct in6_addr);
+	optlen -= sizeof(*msg);
 
 	if (optlen < 0) {
 		net_dbg_ratelimited("rt6_do_redirect: packet too short\n");
 		return;
 	}
 
-	icmph = icmp6_hdr(skb);
-	target = (const struct in6_addr *) (icmph + 1);
-	dest = target + 1;
+	msg = (struct rd_msg *)icmp6_hdr(skb);
 
-	if (ipv6_addr_is_multicast(dest)) {
+	if (ipv6_addr_is_multicast(&msg->dest)) {
 		net_dbg_ratelimited("rt6_do_redirect: destination address is multicast\n");
 		return;
 	}
 
 	on_link = 0;
-	if (ipv6_addr_equal(dest, target)) {
+	if (ipv6_addr_equal(&msg->dest, &msg->target)) {
 		on_link = 1;
-	} else if (ipv6_addr_type(target) !=
+	} else if (ipv6_addr_type(&msg->target) !=
 		   (IPV6_ADDR_UNICAST|IPV6_ADDR_LINKLOCAL)) {
 		net_dbg_ratelimited("rt6_do_redirect: target address is not link-local unicast\n");
 		return;
@@ -1752,7 +1748,7 @@ static void rt6_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_bu
 	 *	first-hop router for the specified ICMP Destination Address.
 	 */
 
-	if (!ndisc_parse_options((u8*)(dest + 1), optlen, &ndopts)) {
+	if (!ndisc_parse_options(msg->opt, optlen, &ndopts)) {
 		net_dbg_ratelimited("rt6_redirect: invalid ND options\n");
 		return;
 	}
@@ -1779,7 +1775,7 @@ static void rt6_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_bu
 	 */
 	dst_confirm(&rt->dst);
 
-	neigh = __neigh_lookup(&nd_tbl, target, skb->dev, 1);
+	neigh = __neigh_lookup(&nd_tbl, &msg->target, skb->dev, 1);
 	if (!neigh)
 		return;
 
@@ -1799,7 +1795,7 @@ static void rt6_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_bu
 				     NEIGH_UPDATE_F_ISROUTER))
 		     );
 
-	nrt = ip6_rt_copy(rt, dest);
+	nrt = ip6_rt_copy(rt, &msg->dest);
 	if (!nrt)
 		goto out;
 
@@ -1817,7 +1813,7 @@ static void rt6_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_bu
 	netevent.old_neigh = old_neigh;
 	netevent.new = &nrt->dst;
 	netevent.new_neigh = neigh;
-	netevent.daddr = dest;
+	netevent.daddr = &msg->dest;
 	call_netevent_notifiers(NETEVENT_REDIRECT, &netevent);
 
 	if (rt->rt6i_flags & RTF_CACHE) {
