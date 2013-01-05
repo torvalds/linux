@@ -71,6 +71,12 @@ config XTENSA_VARIANT_DC232B
 	help
 	  This variant refers to Tensilica's Diamond 232L Standard core Rev.B (LE).
 
+config XTENSA_VARIANT_DC233C
+	bool "dc233c - Diamond 233L Standard Core Rev.C (LE)"
+	select MMU
+	help
+	  This variant refers to Tensilica's Diamond 233L Standard core Rev.C (LE).
+
 config XTENSA_VARIANT_S6000
 	bool "s6000 - Stretch software configurable processor"
 	select VARIANT_IRQ_SWITCH
