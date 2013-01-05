@@ -737,11 +737,6 @@ static inline s32 e1e_wphy_locked(struct e1000_hw *hw, u32 offset, u16 data)
 	return hw->phy.ops.write_reg_locked(hw, offset, data);
 }
 
-static inline s32 e1000_get_cable_length(struct e1000_hw *hw)
-{
-	return hw->phy.ops.get_cable_length(hw);
-}
-
 extern s32 e1000e_acquire_nvm(struct e1000_hw *hw);
 extern s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data);
 extern s32 e1000e_update_nvm_checksum_generic(struct e1000_hw *hw);

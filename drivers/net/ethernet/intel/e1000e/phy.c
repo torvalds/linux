@@ -1960,7 +1960,7 @@ s32 e1000e_get_phy_info_m88(struct e1000_hw *hw)
 	phy->is_mdix = !!(phy_data & M88E1000_PSSR_MDIX);
 
 	if ((phy_data & M88E1000_PSSR_SPEED) == M88E1000_PSSR_1000MBS) {
-		ret_val = e1000_get_cable_length(hw);
+		ret_val = hw->phy.ops.get_cable_length(hw);
 		if (ret_val)
 			return ret_val;
 
@@ -2024,7 +2024,7 @@ s32 e1000e_get_phy_info_igp(struct e1000_hw *hw)
 
 	if ((data & IGP01E1000_PSSR_SPEED_MASK) ==
 	    IGP01E1000_PSSR_SPEED_1000MBPS) {
-		ret_val = e1000_get_cable_length(hw);
+		ret_val = phy->ops.get_cable_length(hw);
 		if (ret_val)
 			return ret_val;
 
