@@ -9,43 +9,40 @@
 #include <linux/string.h>
 #define NONE 0xFFFF
 
-//--------------------------------------------------------------------------------
 /* TYPE and SUBTYPE
  * Define valid TYPE (or category or code-path, however you like to think of it)
  * and SUBTYPE s.
  * Type and SubType are treated as bitmasks.
  */
-/*-----------------BEGIN TYPEs------------------------------------------*/
-#define DBG_TYPE_INITEXIT	(1 << 0)	// 1
-#define DBG_TYPE_TX		(1 << 1)	// 2
-#define DBG_TYPE_RX		(1 << 2)	// 4
-#define DBG_TYPE_OTHERS		(1 << 3)	// 8
-/*-----------------END TYPEs------------------------------------------*/
-#define NUMTYPES		4		// careful!
-/*-----------------BEGIN SUBTYPEs---------------------------------------*/
+#define DBG_TYPE_INITEXIT	(1 << 0)	/* 1 */
+#define DBG_TYPE_TX		(1 << 1)	/* 2 */
+#define DBG_TYPE_RX		(1 << 2)	/* 4 */
+#define DBG_TYPE_OTHERS		(1 << 3)	/* 8 */
+#define NUMTYPES		4
 
-/*-SUBTYPEs for TX :  TYPE is DBG_TYPE_TX -----//
- Transmit.c ,Arp.c, LeakyBucket.c, And Qos.c
- total 17 macros */
-// Transmit.c
+/* -SUBTYPEs for TX :  TYPE is DBG_TYPE_TX -----//
+ * Transmit.c ,Arp.c, LeakyBucket.c, And Qos.c
+ * total 17 macros
+ */
+/* Transmit.c */
 #define TX		1
 #define MP_SEND		(TX << 0)
 #define NEXT_SEND	(TX << 1)
 #define TX_FIFO		(TX << 2)
 #define TX_CONTROL	(TX << 3)
 
-// Arp.c
+/* Arp.c */
 #define IP_ADDR		(TX << 4)
 #define ARP_REQ		(TX << 5)
 #define ARP_RESP	(TX << 6)
 
-// Leakybucket.c
+/* Leakybucket.c */
 #define TOKEN_COUNTS	(TX << 8)
 #define CHECK_TOKENS	(TX << 9)
 #define TX_PACKETS	(TX << 10)
 #define TIMER		(TX << 11)
 
-// Qos.c
+/* Qos.c */
 #define QOS		TX
 #define QUEUE_INDEX	(QOS << 12)
 #define IPV4_DBG	(QOS << 13)
@@ -53,12 +50,13 @@
 #define PRUNE_QUEUE	(QOS << 15)
 #define SEND_QUEUE	(QOS << 16)
 
-//TX_Misc
+/* TX_Misc */
 #define TX_OSAL_DBG	(TX << 17)
 
-//--SUBTYPEs for ------INIT & EXIT---------------------
-/*------------ TYPE is DBG_TYPE_INITEXIT -----//
-DriverEntry.c, bcmfwup.c, ChipDetectTask.c, HaltnReset.c, InterfaceDDR.c */
+/* --SUBTYPEs for ------INIT & EXIT---------------------
+ * ------------ TYPE is DBG_TYPE_INITEXIT -----//
+ * DriverEntry.c, bcmfwup.c, ChipDetectTask.c, HaltnReset.c, InterfaceDDR.c
+ */
 #define MP		1
 #define DRV_ENTRY	(MP << 0)
 #define MP_INIT		(MP << 1)
@@ -69,9 +67,10 @@ DriverEntry.c, bcmfwup.c, ChipDetectTask.c, HaltnReset.c, InterfaceDDR.c */
 #define INIT_DISP	(MP << 6)
 #define RX_INIT		(MP << 7)
 
-//-SUBTYPEs for --RX----------------------------------
-//------------RX  :  TYPE is DBG_TYPE_RX -----//
-// Receive.c
+/* -SUBTYPEs for --RX----------------------------------
+ * ------------RX  :  TYPE is DBG_TYPE_RX -----//
+ * Receive.c
+ */
 #define RX		1
 #define RX_DPC		(RX << 0)
 #define RX_CTRL		(RX << 3)
@@ -79,27 +78,27 @@ DriverEntry.c, bcmfwup.c, ChipDetectTask.c, HaltnReset.c, InterfaceDDR.c */
 #define MP_RETURN	(RX << 1)
 #define LINK_MSG	(RX << 2)
 
-//-SUBTYPEs for ----OTHER ROUTINES------------------
-//------------OTHERS  :  TYPE is DBG_TYPE_OTHER -----//
-// HaltnReset,CheckForHang,PnP,Misc,CmHost
-// total 12 macros
+/* -SUBTYPEs for ----OTHER ROUTINES------------------
+ * ------------OTHERS  :  TYPE is DBG_TYPE_OTHER -----//
+ * HaltnReset,CheckForHang,PnP,Misc,CmHost
+ * total 12 macros
+ */
 #define OTHERS		1
-// ??ISR.C
 #define ISR		OTHERS
 #define MP_DPC		(ISR << 0)
 
-// HaltnReset.c
+/* HaltnReset.c */
 #define HALT		OTHERS
 #define MP_HALT		(HALT << 1)
 #define CHECK_HANG	(HALT << 2)
 #define MP_RESET	(HALT << 3)
 #define MP_SHUTDOWN	(HALT << 4)
 
-// pnp.c
+/* pnp.c */
 #define PNP		OTHERS
 #define MP_PNP		(PNP << 5)
 
-// Misc.c
+/* Misc.c */
 #define MISC		OTHERS
 #define DUMP_INFO	(MISC << 6)
 #define CLASSIFY	(MISC << 7)
@@ -108,14 +107,14 @@ DriverEntry.c, bcmfwup.c, ChipDetectTask.c, HaltnReset.c, InterfaceDDR.c */
 #define DUMP_CONTROL	(MISC << 10)
 #define LED_DUMP_INFO	(MISC << 11)
 
-// CmHost.c
+/* CmHost.c */
 #define CMHOST		OTHERS
 #define SERIAL		(OTHERS << 12)
 #define IDLE_MODE	(OTHERS << 13)
 #define WRM		(OTHERS << 14)
 #define RDM		(OTHERS << 15)
 
-// TODO - put PHS_SEND in Tx PHS_RECEIVE in Rx path ?
+/* TODO - put PHS_SEND in Tx PHS_RECEIVE in Rx path ? */
 #define PHS_SEND	(OTHERS << 16)
 #define PHS_RECEIVE	(OTHERS << 17)
 #define PHS_MODULE	(OTHERS << 18)
@@ -133,7 +132,6 @@ DriverEntry.c, bcmfwup.c, ChipDetectTask.c, HaltnReset.c, InterfaceDDR.c */
 
 #define HOST_MIBS	(OTHERS << 28)
 #define CONN_MSG	(CMHOST << 29)
-/*-----------------END SUBTYPEs------------------------------------------*/
 
 /* Debug level
  * We have 8 debug levels, in (numerical) increasing order of verbosity.
@@ -154,13 +152,14 @@ DriverEntry.c, bcmfwup.c, ChipDetectTask.c, HaltnReset.c, InterfaceDDR.c */
 #define	BCM_SCREAM	2
 #define	BCM_ERR		1
 /* Not meant for developer in debug prints.
- * To be used to disable all prints by setting the DBG_LVL_CURR to this value */
+ * To be used to disable all prints by setting the DBG_LVL_CURR to this value
+ */
 #define	BCM_NONE	0
 
 /* The current driver logging level.
  * Everything at this level and (numerically) lower (meaning higher prio)
  * is logged.
-* Replace 'BCM_ALL' in the DBG_LVL_CURR macro with the logging level desired.
+ * Replace 'BCM_ALL' in the DBG_LVL_CURR macro with the logging level desired.
  * For eg. to set the logging level to 'errors only' use:
  *	 #define DBG_LVL_CURR	(BCM_ERR)
  */
@@ -168,7 +167,7 @@ DriverEntry.c, bcmfwup.c, ChipDetectTask.c, HaltnReset.c, InterfaceDDR.c */
 #define DBG_LVL_CURR	(BCM_ALL)
 #define DBG_LVL_ALL	BCM_ALL
 
-/*---Userspace mapping of Debug State.
+/* ---Userspace mapping of Debug State.
  * Delibrately matches that of the Windows driver..
  * The TestApp's ioctl passes this struct to us.
  */
@@ -176,10 +175,10 @@ typedef struct
 {
 	unsigned int Subtype, Type;
 	unsigned int OnOff;
-//	unsigned int debug_level;	 /* future expansion */
+/*	unsigned int debug_level; future expansion */
 } __attribute__((packed)) USER_BCM_DBG_STATE;
 
-//---Kernel-space mapping of Debug State
+/* ---Kernel-space mapping of Debug State */
 typedef struct _S_BCM_DEBUG_STATE {
 	UINT type;
 	/* A bitmap of 32 bits for Subtype per Type.
@@ -190,13 +189,14 @@ typedef struct _S_BCM_DEBUG_STATE {
 	UINT subtype[(NUMTYPES*2)+1];
 	UINT debug_level;
 } S_BCM_DEBUG_STATE;
-/* Instantiated in the Adapter structure */
-/* We'll reuse the debug level parameter to include a bit (the MSB) to indicate whether or not
- * we want the function's name printed.  */
+/* Instantiated in the Adapter structure
+ * We'll reuse the debug level parameter to include a bit (the MSB) to indicate whether or not
+ * we want the function's name printed.
+ */
 #define DBG_NO_FUNC_PRINT	1 << 31
 #define DBG_LVL_BITMASK		0xFF
 
-//--- Only for direct printk's; "hidden" to API.
+/* --- Only for direct printk's; "hidden" to API. */
 #define DBG_TYPE_PRINTK		3
 
 #define BCM_DEBUG_PRINT(Adapter, Type, SubType, dbg_level, string, args...) \
@@ -232,7 +232,8 @@ typedef struct _S_BCM_DEBUG_STATE {
 	for (i = 0; i < (NUMTYPES * 2) + 1; i++) {		\
 		if ((i == 1) || (i == 2) || (i == 4) || (i == 8)) {		\
 			/* CAUTION! Forcefully turn on ALL debug paths and subpaths! \
-			   Adapter->stDebugState.subtype[i] = 0xffffffff;	*/	\
+			 * Adapter->stDebugState.subtype[i] = 0xffffffff; \
+			 */ \
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "subtype[%d] = 0x%08x\n",	\
 					i, Adapter->stDebugState.subtype[i]); \
 		}	\
