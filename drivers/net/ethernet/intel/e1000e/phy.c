@@ -29,7 +29,6 @@
 #include "e1000.h"
 
 static s32 e1000_get_phy_cfg_done(struct e1000_hw *hw);
-static s32 e1000_phy_force_speed_duplex(struct e1000_hw *hw);
 static s32 e1000_wait_autoneg(struct e1000_hw *hw);
 static s32 e1000_access_phy_wakeup_reg_bm(struct e1000_hw *hw, u32 offset,
 					  u16 *data, bool read, bool page_set);
@@ -1196,7 +1195,7 @@ s32 e1000e_setup_copper_link(struct e1000_hw *hw)
 		 * depending on user settings.
 		 */
 		e_dbg("Forcing Speed and Duplex\n");
-		ret_val = e1000_phy_force_speed_duplex(hw);
+		ret_val = hw->phy.ops.force_speed_duplex(hw);
 		if (ret_val) {
 			e_dbg("Error Forcing Speed and Duplex\n");
 			return ret_val;
@@ -2279,21 +2278,6 @@ static s32 e1000_get_phy_cfg_done(struct e1000_hw *hw)
 {
 	if (hw->phy.ops.get_cfg_done)
 		return hw->phy.ops.get_cfg_done(hw);
-
-	return 0;
-}
-
-/**
- *  e1000_phy_force_speed_duplex - Generic force PHY speed/duplex
- *  @hw: pointer to the HW structure
- *
- *  When the silicon family has not implemented a forced speed/duplex
- *  function for the PHY, simply return 0.
- **/
-static s32 e1000_phy_force_speed_duplex(struct e1000_hw *hw)
-{
-	if (hw->phy.ops.force_speed_duplex)
-		return hw->phy.ops.force_speed_duplex(hw);
 
 	return 0;
 }
