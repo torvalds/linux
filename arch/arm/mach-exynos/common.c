@@ -424,11 +424,18 @@ static void __init exynos5_init_clocks(int xtal)
 {
 	printk(KERN_DEBUG "%s: initializing clocks\n", __func__);
 
+	/* EXYNOS5440 can support only common clock framework */
+
+	if (soc_is_exynos5440())
+		return;
+
+#ifdef CONFIG_SOC_EXYNOS5250
 	s3c24xx_register_baseclocks(xtal);
 	s5p_register_clocks(xtal);
 
 	exynos5_register_clocks();
 	exynos5_setup_clocks();
+#endif
 }
 
 #define COMBINER_ENABLE_SET	0x0
