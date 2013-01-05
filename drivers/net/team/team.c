@@ -1747,8 +1747,8 @@ static const struct net_device_ops team_netdev_ops = {
 static void team_ethtool_get_drvinfo(struct net_device *dev,
 				     struct ethtool_drvinfo *drvinfo)
 {
-	strncpy(drvinfo->driver, DRV_NAME, 32);
-	strncpy(drvinfo->version, UTS_RELEASE, 32);
+	strlcpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, UTS_RELEASE, sizeof(drvinfo->version));
 }
 
 static const struct ethtool_ops team_ethtool_ops = {
