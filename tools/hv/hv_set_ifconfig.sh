@@ -65,4 +65,4 @@ cp $1 /etc/sysconfig/network-scripts/
 interface=$(echo $1 | awk -F - '{ print $2 }')
 
 /sbin/ifdown $interface 2>/dev/null
-/sbin/ifup $interfac 2>/dev/null
+/sbin/ifup $interface 2>/dev/null
