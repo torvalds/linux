@@ -171,11 +171,11 @@
  * Delibrately matches that of the Windows driver..
  * The TestApp's ioctl passes this struct to us.
  */
-typedef struct {
+struct bcm_user_debug_state {
 	unsigned int Subtype, Type;
 	unsigned int OnOff;
 /*	unsigned int debug_level; future expansion */
-} __packed USER_BCM_DBG_STATE;
+} __packed;
 
 /* ---Kernel-space mapping of Debug State */
 struct bcm_debug_state {

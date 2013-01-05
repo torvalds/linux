@@ -1229,13 +1229,13 @@ cntrlEnd:
 	case IOCTL_BCM_SET_DEBUG:
 #ifdef DEBUG
 	{
-		USER_BCM_DBG_STATE sUserDebugState;
+		struct bcm_user_debug_state sUserDebugState;
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "In SET_DEBUG ioctl\n");
 		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
-		if (copy_from_user(&sUserDebugState, IoBuffer.InputBuffer, sizeof(USER_BCM_DBG_STATE)))
+		if (copy_from_user(&sUserDebugState, IoBuffer.InputBuffer, sizeof(struct bcm_user_debug_state)))
 			return -EFAULT;
 
 		BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0, "IOCTL_BCM_SET_DEBUG: OnOff=%d Type = 0x%x ",
