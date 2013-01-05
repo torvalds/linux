@@ -175,7 +175,7 @@ typedef struct {
 	unsigned int Subtype, Type;
 	unsigned int OnOff;
 /*	unsigned int debug_level; future expansion */
-} __attribute__((packed)) USER_BCM_DBG_STATE;
+} __packed USER_BCM_DBG_STATE;
 
 /* ---Kernel-space mapping of Debug State */
 typedef struct _S_BCM_DEBUG_STATE {
