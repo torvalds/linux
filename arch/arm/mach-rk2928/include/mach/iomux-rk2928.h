@@ -119,7 +119,7 @@ enum{
 	/* GPIO3_A */
 	/* GPIO3_B */
 	/* GPIO3_C */
-	GPIO3_C1 = 0x3c10, OTG_DRVVBUS, 
+	GPIO3_C1 = 0x3c10, OTG_DRV_VBUS, 
 
 	/* GPIO3_D */
 	GPIO3_D7 = 0x3d70, TEST_CLK_OUT, 
