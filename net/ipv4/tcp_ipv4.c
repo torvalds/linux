@@ -1568,7 +1568,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 		goto drop_and_free;
 
 	if (!want_cookie || tmp_opt.tstamp_ok)
-		TCP_ECN_create_request(req, skb);
+		TCP_ECN_create_request(req, skb, sock_net(sk));
 
 	if (want_cookie) {
 		isn = cookie_v4_init_sequence(sk, skb, &req->mss);
@@ -2888,6 +2888,7 @@ EXPORT_SYMBOL(tcp_prot);
 
 static int __net_init tcp_sk_init(struct net *net)
 {
+	net->ipv4.sysctl_tcp_ecn = 2;
 	return 0;
 }
 

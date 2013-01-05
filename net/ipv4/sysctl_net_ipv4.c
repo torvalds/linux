@@ -538,13 +538,6 @@ static struct ctl_table ipv4_table[] = {
 		.proc_handler	= proc_dointvec
 	},
 	{
-		.procname	= "tcp_ecn",
-		.data		= &sysctl_tcp_ecn,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-	{
 		.procname	= "tcp_dsack",
 		.data		= &sysctl_tcp_dsack,
 		.maxlen		= sizeof(int),
@@ -850,6 +843,13 @@ static struct ctl_table ipv4_net_table[] = {
 		.proc_handler	= ipv4_ping_group_range,
 	},
 	{
+		.procname	= "tcp_ecn",
+		.data		= &init_net.ipv4.sysctl_tcp_ecn,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
+	{
 		.procname	= "tcp_mem",
 		.maxlen		= sizeof(init_net.ipv4.sysctl_tcp_mem),
 		.mode		= 0644,
@@ -882,6 +882,8 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
 			&net->ipv4.sysctl_icmp_ratemask;
 		table[6].data =
 			&net->ipv4.sysctl_ping_group_range;
+		table[7].data =
+			&net->ipv4.sysctl_tcp_ecn;
 
 		/* Don't export sysctls to unprivileged users */
 		if (net->user_ns != &init_user_ns)
