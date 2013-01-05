@@ -994,7 +994,7 @@ static int efivarfs_unlink(struct inode *dir, struct dentry *dentry)
 		list_del(&var->list);
 		spin_unlock(&efivars->lock);
 		efivar_unregister(var);
-		drop_nlink(dir);
+		drop_nlink(dentry->d_inode);
 		dput(dentry);
 		return 0;
 	}
