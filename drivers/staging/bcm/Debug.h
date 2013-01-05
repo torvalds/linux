@@ -171,8 +171,7 @@
  * Delibrately matches that of the Windows driver..
  * The TestApp's ioctl passes this struct to us.
  */
-typedef struct
-{
+typedef struct {
 	unsigned int Subtype, Type;
 	unsigned int OnOff;
 /*	unsigned int debug_level; future expansion */
