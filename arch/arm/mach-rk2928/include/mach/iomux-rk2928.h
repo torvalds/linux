@@ -125,5 +125,4 @@ enum{
 	GPIO3_D7 = 0x3d70, TEST_CLK_OUT, 
 
 };
-void __init iomux_init(void);
 #endif

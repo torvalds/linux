@@ -23,60 +23,6 @@
 #include <mach/iomux.h>
 #include <mach/gpio.h>
 
-/******************** new iomux ********************/
-static unsigned int default_mode[] = {
-	#if defined(CONFIG_UART0_RK29) || (CONFIG_RK_DEBUG_UART == 0)
-        UART0_SOUT, UART0_SIN,
-	#ifdef CONFIG_UART0_CTS_RTS_RK29
-	UART0_RTSN, UART0_CTSN,
-	#endif
-	#endif
-
-	#if defined(CONFIG_UART1_RK29) || (CONFIG_RK_DEBUG_UART == 1)
-	UART1_SIN, UART1_SOUT,
-	#ifdef CONFIG_UART1_CTS_RTS_RK29
-	UART1_CTSN, UART1_RTSN,
-	#endif
-	#endif
-
-	#if defined(CONFIG_UART2_RK29) || (CONFIG_RK_DEBUG_UART == 2)
-        UART2_SIN, UART2_SOUT,
-	#ifdef CONFIG_UART2_CTS_RTS_RK29
-        UART2_RTSN, UART2_CTSN,
-	#endif
-	#endif
-
-	#ifdef CONFIG_SPIM0_RK29
-        SPI0_CLK, SPI0_TXD, SPI0_RXD, SPI0_CSN0,
-	#endif
-
-	#ifdef CONFIG_I2C0_RK30
-        I2C0_SCL, I2C0_SDA,
-	#endif
-
-	#ifdef CONFIG_I2C1_RK30
-        I2C1_SCL, I2C1_SDA,
-	#endif
-
-	#ifdef CONFIG_I2C2_RK30
-        I2C2_SDA, I2C2_SCL,
-	#endif
-
-	#ifdef CONFIG_I2C3_RK30
-        I2C3_SDA, I2C3_SCL,
-	#endif
-};
-void __init iomux_init(void)
-{
-        int i, len;
-
-        len = ARRAY_SIZE(default_mode);
-        for(i = 0; i < len; i++)
-                iomux_set(default_mode[i]);
-        return;
-}
-/***************************************************/
-
 //#define IOMUX_DBG
 #define INVALID_MUX     "invalid"
 static struct mux_config rk30_muxs[] = {

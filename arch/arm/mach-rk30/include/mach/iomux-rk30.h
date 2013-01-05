@@ -359,6 +359,5 @@ enum{
 	/* GPIO6_D */
 };
 #endif
-void __init iomux_init(void);
 
 #endif

@@ -37,6 +37,7 @@ static inline int mode_is_valid(unsigned int mode)
 		return 1;
 
 }
+
 int mode_to_gpio(unsigned int mode)
 {
         struct union_mode m;
@@ -49,6 +50,7 @@ int mode_to_gpio(unsigned int mode)
         m.mode = mode;
         return PIN_BASE + m.mux.bank * 32 + (m.mux.goff - 0x0A) * 8 + m.mux.off;
 }
+EXPORT_SYMBOL(mode_to_gpio);
 
 int gpio_to_mode(int gpio)
 {
@@ -73,6 +75,7 @@ int gpio_to_mode(int gpio)
 
         return m.mode;
 }
+EXPORT_SYMBOL(gpio_to_mode);
 
 #ifdef GRF_IOMUX_BASE
 void iomux_set(unsigned int mode)
@@ -113,5 +116,74 @@ void iomux_set_gpio_mode(int gpio)
 }
 EXPORT_SYMBOL(iomux_set_gpio_mode);
 
+static unsigned int default_mode[] = {
+#ifdef GRF_IOMUX_BASE
+	#if defined(CONFIG_UART0_RK29) || (CONFIG_RK_DEBUG_UART == 0)
+        UART0_SOUT, UART0_SIN,
+	#ifdef CONFIG_UART0_CTS_RTS_RK29
+	UART0_RTSN, UART0_CTSN,
+	#endif
+	#endif
 
+	#if defined(CONFIG_UART1_RK29) || (CONFIG_RK_DEBUG_UART == 1)
+	UART1_SIN, UART1_SOUT,
+	#ifdef CONFIG_UART1_CTS_RTS_RK29
+	UART1_CTSN, UART1_RTSN,
+	#endif
+	#endif
+
+	#if defined(CONFIG_UART2_RK29) || (CONFIG_RK_DEBUG_UART == 2)
+        UART2_SIN, UART2_SOUT,
+	#endif
+
+	#if defined(CONFIG_UART3_RK29) || (CONFIG_RK_DEBUG_UART == 3)
+        UART3_SIN, UART3_SOUT,
+	#endif
+
+	#ifdef CONFIG_SPIM0_RK29
+        SPI0_CLK, SPI0_TXD, SPI0_RXD, SPI0_CSN0,
+	#endif
+
+	#ifdef CONFIG_SPIM1_RK29
+        SPI1_CLK, SPI1_TXD, SPI1_RXD, SPI1_CSN0,
+	#endif
+
+	#ifdef CONFIG_I2C0_RK30
+        I2C0_SCL, I2C0_SDA,
+	#endif
+
+	#ifdef CONFIG_I2C1_RK30
+        I2C1_SCL, I2C1_SDA,
+	#endif
+
+	#ifdef CONFIG_I2C2_RK30
+        I2C2_SDA, I2C2_SCL,
+	#endif
+
+	#ifdef CONFIG_I2C3_RK30
+        I2C3_SDA, I2C3_SCL, 
+	#endif
+
+	#ifdef CONFIG_I2C4_RK30
+        I2C4_SDA, I2C4_SCL,
+	#endif
+
+	#ifdef CONFIG_RK30_VMAC
+	RMII_CLKOUT, RMII_TXEN, RMII_TXD1, RMII_TXD0, RMII_RXERR, 
+	RMII_CRS, RMII_RXD1, RMII_RXD0, RMII_MD, RMII_MDCLK,
+	#endif
+#endif
+};
+
+void __init iomux_init(void)
+{
+        int i, len;
+
+        len = ARRAY_SIZE(default_mode);
+        for(i = 0; i < len; i++)
+                iomux_set(default_mode[i]);
+	
+	return;
+}
+EXPORT_SYMBOL(iomux_init);
 
