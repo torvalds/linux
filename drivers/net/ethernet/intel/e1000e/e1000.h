@@ -654,7 +654,7 @@ extern s32 e1000e_write_phy_reg_igp_locked(struct e1000_hw *hw, u32 offset,
                                            u16 data);
 extern s32 e1000e_phy_sw_reset(struct e1000_hw *hw);
 extern s32 e1000e_phy_force_speed_duplex_m88(struct e1000_hw *hw);
-extern s32 e1000e_get_cfg_done(struct e1000_hw *hw);
+extern s32 e1000e_get_cfg_done_generic(struct e1000_hw *hw);
 extern s32 e1000e_get_cable_length_m88(struct e1000_hw *hw);
 extern s32 e1000e_get_phy_info_m88(struct e1000_hw *hw);
 extern s32 e1000e_read_phy_reg_m88(struct e1000_hw *hw, u32 offset, u16 *data);

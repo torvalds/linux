@@ -4378,7 +4378,7 @@ static s32 e1000_get_cfg_done_ich8lan(struct e1000_hw *hw)
 	u32 bank = 0;
 	u32 status;
 
-	e1000e_get_cfg_done(hw);
+	e1000e_get_cfg_done_generic(hw);
 
 	/* Wait for indication from h/w that it has completed basic config */
 	if (hw->mac.type >= e1000_ich10lan) {
