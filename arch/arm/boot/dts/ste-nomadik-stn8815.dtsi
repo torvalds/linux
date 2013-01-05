@@ -35,6 +35,58 @@
 		interrupts = <5>;
 	};
 
+	gpio0: gpio@101e4000 {
+		compatible = "st,nomadik-gpio";
+		reg =  <0x101e4000 0x80>;
+		interrupt-parent = <&vica>;
+		interrupts = <6>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-bank = <0>;
+	};
+
+	gpio1: gpio@101e5000 {
+		compatible = "st,nomadik-gpio";
+		reg =  <0x101e5000 0x80>;
+		interrupt-parent = <&vica>;
+		interrupts = <7>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-bank = <1>;
+	};
+
+	gpio2: gpio@101e6000 {
+		compatible = "st,nomadik-gpio";
+		reg =  <0x101e6000 0x80>;
+		interrupt-parent = <&vica>;
+		interrupts = <8>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-bank = <2>;
+	};
+
+	gpio3: gpio@101e7000 {
+		compatible = "st,nomadik-gpio";
+		reg =  <0x101e7000 0x80>;
+		interrupt-parent = <&vica>;
+		interrupts = <9>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-bank = <3>;
+	};
+
+	pinctrl {
+		compatible = "stericsson,nmk-pinctrl-stn8815";
+	};
+
 	/* A NAND flash of 128 MiB */
 	fsmc: flash@40000000 {
 		compatible = "stericsson,fsmc-nand";

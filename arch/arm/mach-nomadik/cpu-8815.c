@@ -153,13 +153,15 @@ static int __init cpu8815_init(void)
 		/* No custom data yet */
 	};
 
+	/* For e.g. device tree boots */
+	if (!machine_is_nomadik())
+		return 0;
+
 	cpu8815_add_gpios(cpu8815_gpio_base, ARRAY_SIZE(cpu8815_gpio_base),
 			  IRQ_GPIO0, &pdata);
 	cpu8815_add_pinctrl(NULL, "pinctrl-stn8815");
-	if (machine_is_nomadik()) {
-		amba_apb_device_add(NULL, "rng", NOMADIK_RNG_BASE, SZ_4K, 0, 0, NULL, 0);
-		amba_apb_device_add(NULL, "rtc-pl031", NOMADIK_RTC_BASE, SZ_4K, IRQ_RTC_RTT, 0, NULL, 0);
-	}
+	amba_apb_device_add(NULL, "rng", NOMADIK_RNG_BASE, SZ_4K, 0, 0, NULL, 0);
+	amba_apb_device_add(NULL, "rtc-pl031", NOMADIK_RTC_BASE, SZ_4K, IRQ_RTC_RTT, 0, NULL, 0);
 	return 0;
 }
 arch_initcall(cpu8815_init);
@@ -263,6 +265,16 @@ static struct fsmc_nand_platform_data cpu8815_nand_data = {
 
 /* These are mostly to get the right device names for the clock lookups */
 static struct of_dev_auxdata cpu8815_auxdata_lookup[] __initdata = {
+	OF_DEV_AUXDATA("st,nomadik-gpio", NOMADIK_GPIO0_BASE,
+		"gpio.0", NULL),
+	OF_DEV_AUXDATA("st,nomadik-gpio", NOMADIK_GPIO1_BASE,
+		"gpio.1", NULL),
+	OF_DEV_AUXDATA("st,nomadik-gpio", NOMADIK_GPIO2_BASE,
+		"gpio.2", NULL),
+	OF_DEV_AUXDATA("st,nomadik-gpio", NOMADIK_GPIO3_BASE,
+		"gpio.3", NULL),
+	OF_DEV_AUXDATA("stericsson,nmk-pinctrl-stn8815", 0,
+		"pinctrl-stn8815", NULL),
 	OF_DEV_AUXDATA("arm,primecell", NOMADIK_UART0_BASE,
 		"uart0", NULL),
 	OF_DEV_AUXDATA("arm,primecell", NOMADIK_UART1_BASE,
@@ -283,6 +295,7 @@ static void __init cpu8815_init_of(void)
 	/* At full speed latency must be >=2, so 0x249 in low bits */
 	l2x0_of_init(0x00730249, 0xfe000fff);
 #endif
+	pinctrl_register_mappings(nhk8815_pinmap, ARRAY_SIZE(nhk8815_pinmap));
 	of_platform_populate(NULL, of_default_bus_match_table,
 			cpu8815_auxdata_lookup, NULL);
 }
