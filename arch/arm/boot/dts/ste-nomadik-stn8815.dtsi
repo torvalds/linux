@@ -76,5 +76,17 @@
 			interrupts = <28>;
 			status = "disabled";
 		};
+
+		rng: rng@101b0000 {
+			compatible = "arm,primecell";
+			reg = <0x101b0000 0x1000>;
+		};
+
+		rtc: rtc@101e8000 {
+			compatible = "arm,pl031", "arm,primecell";
+			reg = <0x101e8000 0x1000>;
+			interrupt-parent = <&vica>;
+			interrupts = <10>;
+		};
 	};
 };
