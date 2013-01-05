@@ -207,9 +207,9 @@ struct bcm_debug_state {
 			(Type & Adapter->stDebugState.type) &&		\
 			(SubType & Adapter->stDebugState.subtype[Type])) { \
 			if (dbg_level & DBG_NO_FUNC_PRINT)		\
-				printk(KERN_DEBUG string, ##args);	\
+				pr_debug("%s:\n", string);	\
 			else						\
-				printk(KERN_DEBUG "%s:" string, __func__, ##args); \
+				pr_debug("%s:\n" string, __func__, ##args); \
 		}							\
 	} while (0)
 
@@ -220,7 +220,7 @@ struct bcm_debug_state {
 				(dbg_level & DBG_LVL_BITMASK) <= Adapter->stDebugState.debug_level  && \
 				(Type & Adapter->stDebugState.type) &&	\
 				(SubType & Adapter->stDebugState.subtype[Type]))) { \
-			printk(KERN_DEBUG "%s:\n", __func__);		\
+			pr_debug("%s:\n", __func__);			\
 			print_hex_dump(KERN_DEBUG, " ", DUMP_PREFIX_OFFSET, \
 				16, 1, buffer, bufferlen, false);	\
 		}							\
