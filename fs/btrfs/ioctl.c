@@ -3917,6 +3917,25 @@ out:
 	return ret;
 }
 
+static int btrfs_ioctl_get_fslabel(struct file *file, void __user *arg)
+{
+	struct btrfs_root *root = BTRFS_I(fdentry(file)->d_inode)->root;
+	const char *label = root->fs_info->super_copy->label;
+	size_t len = strnlen(label, BTRFS_LABEL_SIZE);
+	int ret;
+
+	if (len == BTRFS_LABEL_SIZE) {
+		pr_warn("btrfs: label is too long, return the first %zu bytes\n",
+			--len);
+	}
+
+	mutex_lock(&root->fs_info->volume_mutex);
+	ret = copy_to_user(arg, label, len);
+	mutex_unlock(&root->fs_info->volume_mutex);
+
+	return ret ? -EFAULT : 0;
+}
+
 long btrfs_ioctl(struct file *file, unsigned int
 		cmd, unsigned long arg)
 {
@@ -4017,6 +4036,8 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_qgroup_limit(file, argp);
 	case BTRFS_IOC_DEV_REPLACE:
 		return btrfs_ioctl_dev_replace(root, argp);
+	case BTRFS_IOC_GET_FSLABEL:
+		return btrfs_ioctl_get_fslabel(file, argp);
 	}
 
 	return -ENOTTY;
