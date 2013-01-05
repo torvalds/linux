@@ -135,7 +135,6 @@ struct wacom_wac {
 	int pid;
 	int battery_capacity;
 	int num_contacts_left;
-	int *slots;
 };
 
 #endif
