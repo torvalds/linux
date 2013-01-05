@@ -169,6 +169,7 @@ __v7_ca15mp_setup:
 	orreq	r0, r0, r10			@ Enable CPU-specific SMP bits
 	mcreq	p15, 0, r0, c1, c0, 1
 #endif
+	b	__v7_setup
 
 __v7_pj4b_setup:
 #ifdef CONFIG_CPU_PJ4B
