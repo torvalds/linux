@@ -3332,7 +3332,7 @@ s32 e1000_get_cable_length_82577(struct e1000_hw *hw)
 	         I82577_DSTATUS_CABLE_LENGTH_SHIFT;
 
 	if (length == E1000_CABLE_LENGTH_UNDEFINED)
-		ret_val = -E1000_ERR_PHY;
+		return -E1000_ERR_PHY;
 
 	phy->cable_length = length;
 

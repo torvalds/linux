@@ -554,15 +554,13 @@ static s32 e1000_get_hw_semaphore_82573(struct e1000_hw *hw)
 	s32 i = 0;
 
 	extcnf_ctrl = er32(EXTCNF_CTRL);
-	extcnf_ctrl |= E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP;
 	do {
+		extcnf_ctrl |= E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP;
 		ew32(EXTCNF_CTRL, extcnf_ctrl);
 		extcnf_ctrl = er32(EXTCNF_CTRL);
 
 		if (extcnf_ctrl & E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP)
 			break;
-
-		extcnf_ctrl |= E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP;
 
 		usleep_range(2000, 4000);
 		i++;
@@ -935,6 +933,8 @@ static s32 e1000_set_d0_lplu_state_82571(struct e1000_hw *hw, bool active)
 
 		/* When LPLU is enabled, we should disable SmartSpeed */
 		ret_val = e1e_rphy(hw, IGP01E1000_PHY_PORT_CONFIG, &data);
+		if (ret_val)
+			return ret_val;
 		data &= ~IGP01E1000_PSCFR_SMART_SPEED;
 		ret_val = e1e_wphy(hw, IGP01E1000_PHY_PORT_CONFIG, data);
 		if (ret_val)
@@ -1797,6 +1797,8 @@ static s32 e1000_fix_nvm_checksum_82571(struct e1000_hw *hw)
 			if (ret_val)
 				return ret_val;
 			ret_val = e1000e_update_nvm_checksum(hw);
+			if (ret_val)
+				return ret_val;
 		}
 	}
 

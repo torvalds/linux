@@ -773,6 +773,9 @@ static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
 	ctrl = er32(CTRL);
 
 	ret_val = e1000_acquire_phy_80003es2lan(hw);
+	if (ret_val)
+		return ret_val;
+
 	e_dbg("Issuing a global reset to MAC\n");
 	ew32(CTRL, ctrl | E1000_CTRL_RST);
 	e1000_release_phy_80003es2lan(hw);
@@ -832,6 +835,8 @@ static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 
 	/* Setup link and flow control */
 	ret_val = mac->ops.setup_link(hw);
+	if (ret_val)
+		return ret_val;
 
 	/* Disable IBIST slave mode (far-end loopback) */
 	e1000_read_kmrn_reg_80003es2lan(hw, E1000_KMRNCTRLSTA_INBAND_PARAM,
