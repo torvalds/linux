@@ -192,7 +192,7 @@ typedef struct _S_BCM_DEBUG_STATE {
  * We'll reuse the debug level parameter to include a bit (the MSB) to indicate whether or not
  * we want the function's name printed.
  */
-#define DBG_NO_FUNC_PRINT	1 << 31
+#define DBG_NO_FUNC_PRINT	(1 << 31)
 #define DBG_LVL_BITMASK		0xFF
 
 /* --- Only for direct printk's; "hidden" to API. */
