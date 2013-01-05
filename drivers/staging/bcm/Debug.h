@@ -179,14 +179,14 @@ typedef struct {
 
 /* ---Kernel-space mapping of Debug State */
 typedef struct _S_BCM_DEBUG_STATE {
-	UINT type;
+	unsigned int type;
 	/* A bitmap of 32 bits for Subtype per Type.
 	 * Valid indexes in 'subtype' array are *only* 1,2,4 and 8,
 	 * corresponding to valid Type values. Hence we use the 'Type' field
 	 * as the index value, ignoring the array entries 0,3,5,6,7 !
 	 */
-	UINT subtype[(NUMTYPES*2)+1];
-	UINT debug_level;
+	unsigned int subtype[(NUMTYPES*2)+1];
+	unsigned int debug_level;
 } S_BCM_DEBUG_STATE;
 /* Instantiated in the Adapter structure
  * We'll reuse the debug level parameter to include a bit (the MSB) to indicate whether or not
