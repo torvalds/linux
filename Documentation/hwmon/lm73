@@ -77,3 +77,14 @@ via the following function:
 
 where 'x' is the output from 'update_interval' and 'g(x)' is the
 resolution in degrees C per LSB.
+
+Alarm Support
+-------------
+
+The LM73 features a simple over-temperature alarm mechanism.  This
+feature is exposed via the sysfs attributes.
+
+The attributes 'temp1_max_alarm' and 'temp1_min_alarm' are flags
+provided by the LM73 that indicate whether the measured temperature has
+passed the 'temp1_max' and 'temp1_min' thresholds, respectively.  These
+values _must_ be read to clear the registers on the LM73.
