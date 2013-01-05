@@ -269,21 +269,21 @@ static int __devinit pwm_regulator_probe(struct platform_device *pdev)
 	}
 	clk_enable(dcdc->pwm_clk);
 
-	dcdc->suspend_lrc = 0x25;
+	dcdc->suspend_lrc = 0x12;
 	switch (pdata->suspend_voltage)
 	{
 	case 1000000:
 	default:
-		dcdc->suspend_hrc = 0x20;
+		dcdc->suspend_hrc = 0x10;
 		break;
 	case 1050000:
-		dcdc->suspend_hrc = 0x1c;
+		dcdc->suspend_hrc = 0x0e;
 		break;
 	case 1100000:
-		dcdc->suspend_hrc = 0x18;
+		dcdc->suspend_hrc = 0x0c;
 		break;
 	case 1150000:
-		dcdc->suspend_hrc = 0x13;
+		dcdc->suspend_hrc = 0x0a;
 		break;
 	}
 
