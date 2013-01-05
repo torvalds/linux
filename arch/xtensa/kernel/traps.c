@@ -193,28 +193,49 @@ void do_multihit(struct pt_regs *regs, unsigned long exccause)
 }
 
 /*
- * Level-1 interrupt.
- * We currently have no priority encoding.
+ * IRQ handler.
+ * PS.INTLEVEL is the current IRQ priority level.
  */
 
-unsigned long ignored_level1_interrupts;
 extern void do_IRQ(int, struct pt_regs *);
 
-void do_interrupt (struct pt_regs *regs)
+void do_interrupt(struct pt_regs *regs)
 {
-	unsigned long intread = get_sr (interrupt);
-	unsigned long intenable = get_sr (intenable);
-	int i, mask;
+	static const unsigned int_level_mask[] = {
+		0,
+		XCHAL_INTLEVEL1_MASK,
+		XCHAL_INTLEVEL2_MASK,
+		XCHAL_INTLEVEL3_MASK,
+		XCHAL_INTLEVEL4_MASK,
+		XCHAL_INTLEVEL5_MASK,
+		XCHAL_INTLEVEL6_MASK,
+		XCHAL_INTLEVEL7_MASK,
+	};
+	unsigned level = get_sr(ps) & PS_INTLEVEL_MASK;
 
-	/* Handle all interrupts (no priorities).
-	 * (Clear the interrupt before processing, in case it's
-	 *  edge-triggered or software-generated)
-	 */
+	if (WARN_ON_ONCE(level >= ARRAY_SIZE(int_level_mask)))
+		return;
 
-	for (i=0, mask = 1; i < XCHAL_NUM_INTERRUPTS; i++, mask <<= 1) {
-		if (mask & (intread & intenable)) {
-			set_sr (mask, intclear);
-			do_IRQ (i,regs);
+	for (;;) {
+		unsigned intread = get_sr(interrupt);
+		unsigned intenable = get_sr(intenable);
+		unsigned int_at_level = intread & intenable &
+			int_level_mask[level];
+
+		if (!int_at_level)
+			return;
+
+		/*
+		 * Clear the interrupt before processing, in case it's
+		 *  edge-triggered or software-generated
+		 */
+		while (int_at_level) {
+			unsigned i = __ffs(int_at_level);
+			unsigned mask = 1 << i;
+
+			int_at_level ^= mask;
+			set_sr(mask, intclear);
+			do_IRQ(i, regs);
 		}
 	}
 }
@@ -397,7 +418,7 @@ static inline void spill_registers(void)
 	unsigned int a0, ps;
 
 	__asm__ __volatile__ (
-		"movi	a14, " __stringify(PS_EXCM_BIT | 1) "\n\t"
+		"movi	a14, " __stringify(PS_EXCM_BIT | LOCKLEVEL) "\n\t"
 		"mov	a12, a0\n\t"
 		"rsr	a13, sar\n\t"
 		"xsr	a14, ps\n\t"
