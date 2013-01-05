@@ -2671,7 +2671,7 @@ s32 e1000_enable_phy_wakeup_reg_access_bm(struct e1000_hw *hw, u16 *phy_reg)
  **/
 s32 e1000_disable_phy_wakeup_reg_access_bm(struct e1000_hw *hw, u16 *phy_reg)
 {
-	s32 ret_val = 0;
+	s32 ret_val;
 
 	/* Select Port Control Registers page */
 	ret_val = e1000_set_page_igp(hw, (BM_PORT_CTRL_PAGE << IGP_PAGE_SHIFT));
@@ -3103,8 +3103,8 @@ static s32 e1000_access_phy_debug_regs_hv(struct e1000_hw *hw, u32 offset,
                                           u16 *data, bool read)
 {
 	s32 ret_val;
-	u32 addr_reg = 0;
-	u32 data_reg = 0;
+	u32 addr_reg;
+	u32 data_reg;
 
 	/* This takes care of the difference with desktop vs mobile phy */
 	addr_reg = (hw->phy.type == e1000_phy_82578) ?

@@ -1405,7 +1405,7 @@ static int e1000_set_82571_fiber_loopback(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 ctrl = er32(CTRL);
-	int link = 0;
+	int link;
 
 	/* special requirements for 82571/82572 fiber adapters */
 

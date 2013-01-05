@@ -3660,8 +3660,8 @@ static int e1000e_config_hwtstamp(struct e1000_adapter *adapter)
 	e1e_flush();
 
 	/* Clear TSYNCRXCTL_VALID & TSYNCTXCTL_VALID bit */
-	regval = er32(RXSTMPH);
-	regval = er32(TXSTMPH);
+	er32(RXSTMPH);
+	er32(TXSTMPH);
 
 	/* Get and set the System Time Register SYSTIM base frequency */
 	ret_val = e1000e_get_base_timinca(adapter, &regval);
@@ -5834,7 +5834,7 @@ static int e1000_init_phy_wakeup(struct e1000_adapter *adapter, u32 wufc)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 i, mac_reg;
 	u16 phy_reg, wuc_enable;
-	int retval = 0;
+	int retval;
 
 	/* copy MAC RARs to PHY RARs */
 	e1000_copy_rx_addrs_to_phy_ich8lan(hw);

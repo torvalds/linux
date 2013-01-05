@@ -695,7 +695,7 @@ static s32 e1000_phy_force_speed_duplex_80003es2lan(struct e1000_hw *hw)
 static s32 e1000_get_cable_length_80003es2lan(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
-	s32 ret_val = 0;
+	s32 ret_val;
 	u16 phy_data, index;
 
 	ret_val = e1e_rphy(hw, GG82563_PHY_DSP_DISTANCE, &phy_data);
@@ -1276,7 +1276,7 @@ static s32 e1000_read_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset,
 					   u16 *data)
 {
 	u32 kmrnctrlsta;
-	s32 ret_val = 0;
+	s32 ret_val;
 
 	ret_val = e1000_acquire_mac_csr_80003es2lan(hw);
 	if (ret_val)
@@ -1311,7 +1311,7 @@ static s32 e1000_write_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset,
 					    u16 data)
 {
 	u32 kmrnctrlsta;
-	s32 ret_val = 0;
+	s32 ret_val;
 
 	ret_val = e1000_acquire_mac_csr_80003es2lan(hw);
 	if (ret_val)
@@ -1335,7 +1335,7 @@ static s32 e1000_write_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset,
  **/
 static s32 e1000_read_mac_addr_80003es2lan(struct e1000_hw *hw)
 {
-	s32 ret_val = 0;
+	s32 ret_val;
 
 	/* If there's an alternate MAC address place it in RAR0
 	 * so that it will override the Si installed default perm

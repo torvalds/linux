@@ -1397,7 +1397,7 @@ bool e1000_check_phy_82574(struct e1000_hw *hw)
 {
 	u16 status_1kbt = 0;
 	u16 receive_errors = 0;
-	s32 ret_val = 0;
+	s32 ret_val;
 
 	/* Read PHY Receive Error counter first, if its is max - all F's then
 	 * read the Base1000T status register If both are max then PHY is hung.
@@ -1542,7 +1542,7 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 
 	ctrl = er32(CTRL);
 	status = er32(STATUS);
-	rxcw = er32(RXCW);
+	er32(RXCW);
 	/* SYNCH bit and IV bit are sticky */
 	udelay(10);
 	rxcw = er32(RXCW);
@@ -1812,7 +1812,7 @@ static s32 e1000_fix_nvm_checksum_82571(struct e1000_hw *hw)
 static s32 e1000_read_mac_addr_82571(struct e1000_hw *hw)
 {
 	if (hw->mac.type == e1000_82571) {
-		s32 ret_val = 0;
+		s32 ret_val;
 
 		/* If there's an alternate MAC address place it in RAR0
 		 * so that it will override the Si installed default perm

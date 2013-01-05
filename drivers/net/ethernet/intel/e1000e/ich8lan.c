@@ -485,7 +485,7 @@ out:
 static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
-	s32 ret_val = 0;
+	s32 ret_val;
 
 	phy->addr                     = 1;
 	phy->reset_delay_us           = 100;
@@ -783,7 +783,7 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 static s32 __e1000_access_emi_reg_locked(struct e1000_hw *hw, u16 address,
 					 u16 *data, bool read)
 {
-	s32 ret_val = 0;
+	s32 ret_val;
 
 	ret_val = e1e_wphy_locked(hw, I82579_EMI_ADDR, address);
 	if (ret_val)
@@ -1387,7 +1387,7 @@ static s32 e1000_write_smbus_addr(struct e1000_hw *hw)
 	u32 strap = er32(STRAP);
 	u32 freq = (strap & E1000_STRAP_SMT_FREQ_MASK) >>
 	    E1000_STRAP_SMT_FREQ_SHIFT;
-	s32 ret_val = 0;
+	s32 ret_val;
 
 	strap &= E1000_STRAP_SMBUS_ADDRESS_MASK;
 
@@ -1623,7 +1623,7 @@ release:
  **/
 s32 e1000_configure_k1_ich8lan(struct e1000_hw *hw, bool k1_enable)
 {
-	s32 ret_val = 0;
+	s32 ret_val;
 	u32 ctrl_reg = 0;
 	u32 ctrl_ext = 0;
 	u32 reg = 0;
@@ -2284,7 +2284,7 @@ static s32 e1000_phy_hw_reset_ich8lan(struct e1000_hw *hw)
  **/
 static s32 e1000_set_lplu_state_pchlan(struct e1000_hw *hw, bool active)
 {
-	s32 ret_val = 0;
+	s32 ret_val;
 	u16 oem_reg;
 
 	ret_val = e1e_rphy(hw, HV_OEM_BITS, &oem_reg);

@@ -165,7 +165,7 @@ void e1000e_init_rx_addrs(struct e1000_hw *hw, u16 rar_count)
 s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 {
 	u32 i;
-	s32 ret_val = 0;
+	s32 ret_val;
 	u16 offset, nvm_alt_mac_addr_offset, nvm_data;
 	u8 alt_mac_addr[ETH_ALEN];
 
