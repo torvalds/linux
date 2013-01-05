@@ -178,7 +178,7 @@ typedef struct {
 } __packed USER_BCM_DBG_STATE;
 
 /* ---Kernel-space mapping of Debug State */
-typedef struct _S_BCM_DEBUG_STATE {
+struct bcm_debug_state {
 	unsigned int type;
 	/* A bitmap of 32 bits for Subtype per Type.
 	 * Valid indexes in 'subtype' array are *only* 1,2,4 and 8,
@@ -187,7 +187,7 @@ typedef struct _S_BCM_DEBUG_STATE {
 	 */
 	unsigned int subtype[(NUMTYPES*2)+1];
 	unsigned int debug_level;
-} S_BCM_DEBUG_STATE;
+};
 /* Instantiated in the Adapter structure
  * We'll reuse the debug level parameter to include a bit (the MSB) to indicate whether or not
  * we want the function's name printed.

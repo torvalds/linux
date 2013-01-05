@@ -392,7 +392,7 @@ struct bcm_mini_adapter {
 	struct semaphore	LowPowerModeSync;
 	ULONG			liDrainCalculated;
 	UINT			gpioBitMap;
-	S_BCM_DEBUG_STATE	stDebugState;
+	struct bcm_debug_state	stDebugState;
 };
 
 #define GET_BCM_ADAPTER(net_dev) netdev_priv(net_dev)
