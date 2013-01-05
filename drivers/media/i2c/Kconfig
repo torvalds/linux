@@ -477,7 +477,7 @@ config VIDEO_MT9V032
 
 config VIDEO_TCM825X
 	tristate "TCM825x camera sensor support"
-	depends on I2C && VIDEO_V4L2
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_INT_DEVICE
 	depends on MEDIA_CAMERA_SUPPORT
 	---help---
 	  This is a driver for the Toshiba TCM825x VGA camera sensor.
