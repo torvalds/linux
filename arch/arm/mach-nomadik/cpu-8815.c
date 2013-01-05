@@ -28,6 +28,7 @@
 #include <linux/irqchip.h>
 #include <linux/platform_data/clk-nomadik.h>
 #include <linux/platform_data/pinctrl-nomadik.h>
+#include <linux/pinctrl/machine.h>
 #include <linux/platform_data/clocksource-nomadik-mtu.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
@@ -89,6 +90,48 @@ void cpu8815_add_gpios(resource_size_t *base, int num, int irq,
 	}
 }
 
+static unsigned long out_low[] = { PIN_OUTPUT_LOW };
+static unsigned long out_high[] = { PIN_OUTPUT_HIGH };
+static unsigned long in_nopull[] = { PIN_INPUT_NOPULL };
+static unsigned long in_pullup[] = { PIN_INPUT_PULLUP };
+
+static struct pinctrl_map __initdata nhk8815_pinmap[] = {
+	PIN_MAP_MUX_GROUP_DEFAULT("uart0", "pinctrl-stn8815", "u0_a_1", "u0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("uart1", "pinctrl-stn8815", "u1_a_1", "u1"),
+	/* Hog in MMC/SD card mux */
+	PIN_MAP_MUX_GROUP_HOG_DEFAULT("pinctrl-stn8815", "mmcsd_a_1", "mmcsd"),
+	/* MCCLK */
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO8_B10", out_low),
+	/* MCCMD */
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO9_A10", in_pullup),
+	/* MCCMDDIR */
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO10_C11", out_high),
+	/* MCDAT3-0 */
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO11_B11", in_pullup),
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO12_A11", in_pullup),
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO13_C12", in_pullup),
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO14_B12", in_pullup),
+	/* MCDAT0DIR */
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO15_A12", out_high),
+	/* MCDAT31DIR */
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO16_C13", out_high),
+	/* MCMSFBCLK */
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO24_C15", in_pullup),
+	/* CD input GPIO */
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO111_H21", in_nopull),
+	/* CD bias drive */
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO112_J21", out_low),
+	/* I2C0 */
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO62_D3", in_pullup),
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO63_D2", in_pullup),
+	/* I2C1 */
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO53_L4", in_pullup),
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO54_L3", in_pullup),
+	/* I2C2 */
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO73_C21", in_pullup),
+	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO74_C20", in_pullup),
+};
+
 static inline void
 cpu8815_add_pinctrl(struct device *parent, const char *name)
 {
@@ -98,6 +141,7 @@ cpu8815_add_pinctrl(struct device *parent, const char *name)
 		.id = -1,
 	};
 
+	pinctrl_register_mappings(nhk8815_pinmap, ARRAY_SIZE(nhk8815_pinmap));
 	platform_device_register_full(&pdevinfo);
 }
 
