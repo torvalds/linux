@@ -28,7 +28,6 @@
 
 #include "e1000.h"
 
-static s32 e1000_get_phy_cfg_done(struct e1000_hw *hw);
 static s32 e1000_wait_autoneg(struct e1000_hw *hw);
 static s32 e1000_access_phy_wakeup_reg_bm(struct e1000_hw *hw, u32 offset,
 					  u16 *data, bool read, bool page_set);
@@ -2165,7 +2164,7 @@ s32 e1000e_phy_hw_reset_generic(struct e1000_hw *hw)
 
 	phy->ops.release(hw);
 
-	return e1000_get_phy_cfg_done(hw);
+	return phy->ops.get_cfg_done(hw);
 }
 
 /**
@@ -2261,23 +2260,6 @@ s32 e1000e_phy_init_script_igp3(struct e1000_hw *hw)
 	e1e_wphy(hw, 0x0014, 0x0045);
 	/* Restart AN, Speed selection is 1000 */
 	e1e_wphy(hw, 0x0000, 0x1340);
-
-	return 0;
-}
-
-/* Internal function pointers */
-
-/**
- *  e1000_get_phy_cfg_done - Generic PHY configuration done
- *  @hw: pointer to the HW structure
- *
- *  Return success if silicon family did not implement a family specific
- *  get_cfg_done function.
- **/
-static s32 e1000_get_phy_cfg_done(struct e1000_hw *hw)
-{
-	if (hw->phy.ops.get_cfg_done)
-		return hw->phy.ops.get_cfg_done(hw);
 
 	return 0;
 }
