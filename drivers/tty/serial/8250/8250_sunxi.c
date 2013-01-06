@@ -6,6 +6,18 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
+ *
+ * HdG: The sunxi uarts seem to be similar to the Synopsys DesignWare 8250
+ * uarts, they also have a busy-detect interrupt signalled by a value of 7
+ * in the IIR register. The code for handling this is copied from 8250_dw.c :
+ *
+ * Synopsys DesignWare 8250 driver.
+ *
+ * Copyright 2011 Picochip, Jamie Iles.
+ *
+ * The Synopsys DesignWare 8250 has an extra feature whereby it detects if the
+ * LCR is written whilst busy.  If it is, then a busy detect interrupt is
+ * raised, the LCR needs to be rewritten and the uart status register read.
  */
 #define pr_fmt(fmt)	"[uart]: " fmt
 
@@ -13,6 +25,7 @@
 #include <linux/types.h>
 #include <linux/tty.h>
 #include <linux/serial_core.h>
+#include <linux/serial_reg.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
@@ -46,6 +59,7 @@
 struct sw_serial_port {
 	int port_no;
 	int line;
+	int last_lcr;
 	u32 pio_hdle;
 	struct clk *clk;
 	u32 sclk;
@@ -116,6 +130,42 @@ static int sw_serial_put_resource(struct sw_serial_port *sport)
 	return 0;
 }
 
+static void dw8250_serial_out32(struct uart_port *p, int offset, int value)
+{
+	struct sw_serial_port *d = p->private_data;
+
+	if (offset == UART_LCR)
+		d->last_lcr = value;
+
+	offset <<= p->regshift;
+	writel(value, p->membase + offset);
+}
+
+static unsigned int dw8250_serial_in32(struct uart_port *p, int offset)
+{
+	offset <<= p->regshift;
+
+	return readl(p->membase + offset);
+}
+
+static int dw8250_handle_irq(struct uart_port *p)
+{
+	struct sw_serial_port *d = p->private_data;
+	unsigned int iir = p->serial_in(p, UART_IIR);
+
+	if (serial8250_handle_irq(p, iir)) {
+		return 1;
+	} else if ((iir & UART_IIR_BUSY) == UART_IIR_BUSY) {
+		/* Clear the USR and write the LCR again. */
+		(void)p->serial_in(p, UART_USR);
+		p->serial_out(p, d->last_lcr, UART_LCR);
+
+		return 1;
+	}
+
+	return 0;
+}
+
 static void sw_serial_pm(struct uart_port *port, unsigned int state,
 			 unsigned int oldstate)
 {
@@ -155,6 +205,9 @@ static int __devinit sw_serial_probe(struct platform_device *dev)
 	port.uartclk = sport->sclk;
 	port.pm = sw_serial_pm;
 	port.dev = &dev->dev;
+	port.serial_in = dw8250_serial_in32;
+	port.serial_out = dw8250_serial_out32;
+	port.handle_irq = dw8250_handle_irq;
 
 	pr_info("serial probe %d irq %d mapbase 0x%08x\n", dev->id,
 		sport->irq, sport->mmres->start);
