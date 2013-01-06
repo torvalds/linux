@@ -169,11 +169,12 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 	 * Assume that partitions end at the beginning of the one they are
 	 * followed by.
 	 */
-	for (i = 0; i < curr_part - 1; i++)
-		parts[i].size = parts[i + 1].offset - parts[i].offset;
-	if (curr_part > 0)
-		parts[curr_part - 1].size =
-				master->size - parts[curr_part - 1].offset;
+	for (i = 0; i < curr_part; i++) {
+		u64 next_part_offset = (i < curr_part - 1) ?
+				       parts[i + 1].offset : master->size;
+
+		parts[i].size = next_part_offset - parts[i].offset;
+	}
 
 	*pparts = parts;
 	return curr_part;
