@@ -512,6 +512,7 @@ static int iguanair_probe(struct usb_interface *intf,
 	rc->rx_resolution = RX_RESOLUTION;
 
 	iguanair_set_tx_carrier(rc, 38000);
+	iguanair_set_tx_mask(rc, 0);
 
 	ret = rc_register_device(rc);
 	if (ret < 0) {
