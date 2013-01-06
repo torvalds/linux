@@ -97,7 +97,7 @@ static int internal_dev_stop(struct net_device *netdev)
 static void internal_dev_getinfo(struct net_device *netdev,
 				 struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, "openvswitch");
+	strlcpy(info->driver, "openvswitch", sizeof(info->driver));
 }
 
 static const struct ethtool_ops internal_dev_ethtool_ops = {

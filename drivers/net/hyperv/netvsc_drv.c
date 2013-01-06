@@ -304,9 +304,9 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 static void netvsc_get_drvinfo(struct net_device *net,
 			       struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, KBUILD_MODNAME);
-	strcpy(info->version, HV_DRV_VERSION);
-	strcpy(info->fw_version, "N/A");
+	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
+	strlcpy(info->version, HV_DRV_VERSION, sizeof(info->version));
+	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
 }
 
 static int netvsc_change_mtu(struct net_device *ndev, int mtu)

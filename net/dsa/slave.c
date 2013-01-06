@@ -203,10 +203,10 @@ dsa_slave_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static void dsa_slave_get_drvinfo(struct net_device *dev,
 				  struct ethtool_drvinfo *drvinfo)
 {
-	strncpy(drvinfo->driver, "dsa", 32);
-	strncpy(drvinfo->version, dsa_driver_version, 32);
-	strncpy(drvinfo->fw_version, "N/A", 32);
-	strncpy(drvinfo->bus_info, "platform", 32);
+	strlcpy(drvinfo->driver, "dsa", sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, dsa_driver_version, sizeof(drvinfo->version));
+	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
+	strlcpy(drvinfo->bus_info, "platform", sizeof(drvinfo->bus_info));
 }
 
 static int dsa_slave_nway_reset(struct net_device *dev)

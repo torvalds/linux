@@ -685,13 +685,14 @@ static void qe_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	struct sunqe *qep = netdev_priv(dev);
 	struct platform_device *op;
 
-	strcpy(info->driver, "sunqe");
-	strcpy(info->version, "3.0");
+	strlcpy(info->driver, "sunqe", sizeof(info->driver));
+	strlcpy(info->version, "3.0", sizeof(info->version));
 
 	op = qep->op;
 	regs = of_get_property(op->dev.of_node, "reg", NULL);
 	if (regs)
-		sprintf(info->bus_info, "SBUS:%d", regs->which_io);
+		snprintf(info->bus_info, sizeof(info->bus_info), "SBUS:%d",
+			 regs->which_io);
 
 }
 

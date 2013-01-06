@@ -395,9 +395,11 @@ static void brcmf_ethtool_get_drvinfo(struct net_device *ndev,
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_pub *drvr = ifp->drvr;
 
-	sprintf(info->driver, KBUILD_MODNAME);
-	sprintf(info->version, "%lu", drvr->drv_version);
-	sprintf(info->bus_info, "%s", dev_name(drvr->bus_if->dev));
+	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
+	snprintf(info->version, sizeof(info->version), "%lu",
+		 drvr->drv_version);
+	strlcpy(info->bus_info, dev_name(drvr->bus_if->dev),
+		sizeof(info->bus_info));
 }
 
 static const struct ethtool_ops brcmf_ethtool_ops = {

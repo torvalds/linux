@@ -302,9 +302,9 @@ ltq_etop_hw_init(struct net_device *dev)
 static void
 ltq_etop_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, "Lantiq ETOP");
-	strcpy(info->bus_info, "internal");
-	strcpy(info->version, DRV_VERSION);
+	strlcpy(info->driver, "Lantiq ETOP", sizeof(info->driver));
+	strlcpy(info->bus_info, "internal", sizeof(info->bus_info));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 }
 
 static int

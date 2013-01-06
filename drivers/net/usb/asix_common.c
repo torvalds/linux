@@ -510,8 +510,8 @@ void asix_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *info)
 {
 	/* Inherit standard device info */
 	usbnet_get_drvinfo(net, info);
-	strncpy (info->driver, DRIVER_NAME, sizeof info->driver);
-	strncpy (info->version, DRIVER_VERSION, sizeof info->version);
+	strlcpy(info->driver, DRIVER_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRIVER_VERSION, sizeof(info->version));
 	info->eedump_len = AX_EEPROM_LEN;
 }
 

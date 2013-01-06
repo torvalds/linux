@@ -480,8 +480,8 @@ static void emac_dump_regs(struct emac_priv *priv)
 static void emac_get_drvinfo(struct net_device *ndev,
 			     struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, emac_version_string);
-	strcpy(info->version, EMAC_MODULE_VERSION);
+	strlcpy(info->driver, emac_version_string, sizeof(info->driver));
+	strlcpy(info->version, EMAC_MODULE_VERSION, sizeof(info->version));
 }
 
 /**

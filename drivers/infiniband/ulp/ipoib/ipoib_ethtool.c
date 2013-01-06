@@ -39,7 +39,7 @@
 static void ipoib_get_drvinfo(struct net_device *netdev,
 			      struct ethtool_drvinfo *drvinfo)
 {
-	strncpy(drvinfo->driver, "ipoib", sizeof(drvinfo->driver) - 1);
+	strlcpy(drvinfo->driver, "ipoib", sizeof(drvinfo->driver));
 }
 
 static int ipoib_get_coalesce(struct net_device *dev,

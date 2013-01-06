@@ -207,7 +207,7 @@ vmxnet3_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 		sizeof(drvinfo->version));
 
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
-		ETHTOOL_BUSINFO_LEN);
+		sizeof(drvinfo->bus_info));
 	drvinfo->n_stats = vmxnet3_get_sset_count(netdev, ETH_SS_STATS);
 	drvinfo->testinfo_len = 0;
 	drvinfo->eedump_len   = 0;

@@ -585,8 +585,8 @@ static int macvlan_fdb_del(struct ndmsg *ndm,
 static void macvlan_ethtool_get_drvinfo(struct net_device *dev,
 					struct ethtool_drvinfo *drvinfo)
 {
-	snprintf(drvinfo->driver, 32, "macvlan");
-	snprintf(drvinfo->version, 32, "0.1");
+	strlcpy(drvinfo->driver, "macvlan", sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, "0.1", sizeof(drvinfo->version));
 }
 
 static int macvlan_ethtool_get_settings(struct net_device *dev,

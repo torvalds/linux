@@ -1350,10 +1350,10 @@ static void octeon_mgmt_poll_controller(struct net_device *netdev)
 static void octeon_mgmt_get_drvinfo(struct net_device *netdev,
 				    struct ethtool_drvinfo *info)
 {
-	strncpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strncpy(info->version, DRV_VERSION, sizeof(info->version));
-	strncpy(info->fw_version, "N/A", sizeof(info->fw_version));
-	strncpy(info->bus_info, "N/A", sizeof(info->bus_info));
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
+	strlcpy(info->bus_info, "N/A", sizeof(info->bus_info));
 	info->n_stats = 0;
 	info->testinfo_len = 0;
 	info->regdump_len = 0;

@@ -580,10 +580,10 @@ static int batadv_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static void batadv_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, "B.A.T.M.A.N. advanced");
-	strcpy(info->version, BATADV_SOURCE_VERSION);
-	strcpy(info->fw_version, "N/A");
-	strcpy(info->bus_info, "batman");
+	strlcpy(info->driver, "B.A.T.M.A.N. advanced", sizeof(info->driver));
+	strlcpy(info->version, BATADV_SOURCE_VERSION, sizeof(info->version));
+	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
+	strlcpy(info->bus_info, "batman", sizeof(info->bus_info));
 }
 
 static u32 batadv_get_msglevel(struct net_device *dev)

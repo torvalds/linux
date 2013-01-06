@@ -722,9 +722,8 @@ static int netdev_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static void netdev_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
-	strncpy(info->driver, ibmveth_driver_name, sizeof(info->driver) - 1);
-	strncpy(info->version, ibmveth_driver_version,
-		sizeof(info->version) - 1);
+	strlcpy(info->driver, ibmveth_driver_name, sizeof(info->driver));
+	strlcpy(info->version, ibmveth_driver_version, sizeof(info->version));
 }
 
 static netdev_features_t ibmveth_fix_features(struct net_device *dev,

@@ -977,11 +977,12 @@ static void ixp4xx_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
 	struct port *port = netdev_priv(dev);
-	strcpy(info->driver, DRV_NAME);
+
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
 	snprintf(info->fw_version, sizeof(info->fw_version), "%u:%u:%u:%u",
 		 port->firmware[0], port->firmware[1],
 		 port->firmware[2], port->firmware[3]);
-	strcpy(info->bus_info, "internal");
+	strlcpy(info->bus_info, "internal", sizeof(info->bus_info));
 }
 
 static int ixp4xx_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)

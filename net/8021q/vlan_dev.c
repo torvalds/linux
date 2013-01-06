@@ -640,9 +640,9 @@ static int vlan_ethtool_get_settings(struct net_device *dev,
 static void vlan_ethtool_get_drvinfo(struct net_device *dev,
 				     struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, vlan_fullname);
-	strcpy(info->version, vlan_version);
-	strcpy(info->fw_version, "N/A");
+	strlcpy(info->driver, vlan_fullname, sizeof(info->driver));
+	strlcpy(info->version, vlan_version, sizeof(info->version));
+	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
 }
 
 static struct rtnl_link_stats64 *vlan_dev_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)

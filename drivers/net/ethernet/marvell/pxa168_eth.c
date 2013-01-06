@@ -1443,10 +1443,10 @@ static int pxa168_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static void pxa168_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
-	strncpy(info->driver, DRIVER_NAME, 32);
-	strncpy(info->version, DRIVER_VERSION, 32);
-	strncpy(info->fw_version, "N/A", 32);
-	strncpy(info->bus_info, "N/A", 32);
+	strlcpy(info->driver, DRIVER_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRIVER_VERSION, sizeof(info->version));
+	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
+	strlcpy(info->bus_info, "N/A", sizeof(info->bus_info));
 }
 
 static const struct ethtool_ops pxa168_ethtool_ops = {

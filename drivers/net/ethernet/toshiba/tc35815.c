@@ -1976,9 +1976,10 @@ tc35815_set_multicast_list(struct net_device *dev)
 static void tc35815_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct tc35815_local *lp = netdev_priv(dev);
-	strcpy(info->driver, MODNAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->bus_info, pci_name(lp->pci_dev));
+
+	strlcpy(info->driver, MODNAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(lp->pci_dev), sizeof(info->bus_info));
 }
 
 static int tc35815_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)

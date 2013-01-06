@@ -649,8 +649,6 @@ struct gfar_extra_stats {
 /* Number of stats in the stats structure (ignore car and cam regs)*/
 #define GFAR_STATS_LEN (GFAR_RMON_LEN + GFAR_EXTRA_STATS_LEN)
 
-#define GFAR_INFOSTR_LEN 32
-
 struct gfar_stats {
 	u64 extra[GFAR_EXTRA_STATS_LEN];
 	u64 rmon[GFAR_RMON_LEN];

@@ -457,17 +457,17 @@ int wl_close( struct net_device *dev )
 
 static void wl_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-    strncpy(info->driver, DRIVER_NAME, sizeof(info->driver) - 1);
-    strncpy(info->version, DRV_VERSION_STR, sizeof(info->version) - 1);
-//	strncpy(info.fw_version, priv->fw_name,
-//	sizeof(info.fw_version) - 1);
+    strlcpy(info->driver, DRIVER_NAME, sizeof(info->driver));
+    strlcpy(info->version, DRV_VERSION_STR, sizeof(info->version));
+//	strlcpy(info.fw_version, priv->fw_name,
+//	sizeof(info.fw_version));
 
     if (dev->dev.parent) {
     	dev_set_name(dev->dev.parent, "%s", info->bus_info);
-	//strncpy(info->bus_info, dev->dev.parent->bus_id,
-	//	sizeof(info->bus_info) - 1);
+	//strlcpy(info->bus_info, dev->dev.parent->bus_id,
+	//	sizeof(info->bus_info));
     } else {
-	snprintf(info->bus_info, sizeof(info->bus_info) - 1,
+	snprintf(info->bus_info, sizeof(info->bus_info),
 		"PCMCIA FIXME");
 //		    "PCMCIA 0x%lx", priv->hw.iobase);
     }

@@ -4330,11 +4330,12 @@ void bond_set_mode_ops(struct bonding *bond, int mode)
 }
 
 static void bond_ethtool_get_drvinfo(struct net_device *bond_dev,
-				    struct ethtool_drvinfo *drvinfo)
+				     struct ethtool_drvinfo *drvinfo)
 {
-	strncpy(drvinfo->driver, DRV_NAME, 32);
-	strncpy(drvinfo->version, DRV_VERSION, 32);
-	snprintf(drvinfo->fw_version, 32, "%d", BOND_ABI_VERSION);
+	strlcpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, DRV_VERSION, sizeof(drvinfo->version));
+	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version), "%d",
+		 BOND_ABI_VERSION);
 }
 
 static const struct ethtool_ops bond_ethtool_ops = {

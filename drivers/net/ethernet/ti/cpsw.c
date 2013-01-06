@@ -944,9 +944,10 @@ static void cpsw_get_drvinfo(struct net_device *ndev,
 			     struct ethtool_drvinfo *info)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
-	strcpy(info->driver, "TI CPSW Driver v1.0");
-	strcpy(info->version, "1.0");
-	strcpy(info->bus_info, priv->pdev->name);
+
+	strlcpy(info->driver, "TI CPSW Driver v1.0", sizeof(info->driver));
+	strlcpy(info->version, "1.0", sizeof(info->version));
+	strlcpy(info->bus_info, priv->pdev->name, sizeof(info->bus_info));
 }
 
 static u32 cpsw_get_msglevel(struct net_device *ndev)

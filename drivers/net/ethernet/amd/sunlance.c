@@ -1284,8 +1284,8 @@ static void lance_free_hwresources(struct lance_private *lp)
 /* Ethtool support... */
 static void sparc_lance_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, "sunlance");
-	strcpy(info->version, "2.02");
+	strlcpy(info->driver, "sunlance", sizeof(info->driver));
+	strlcpy(info->version, "2.02", sizeof(info->version));
 }
 
 static const struct ethtool_ops sparc_lance_ethtool_ops = {
