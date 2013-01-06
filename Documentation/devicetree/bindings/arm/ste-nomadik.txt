@@ -16,4 +16,9 @@ Required node: usb-s8815
 Example:
 
 usb-s8815 {
+		ethernet-gpio {
+			gpios = <&gpio3 19 0x1>;
+			interrupts = <19 0x1>;
+			interrupt-parent = <&gpio3>;
+		};
 };

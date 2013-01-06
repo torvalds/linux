@@ -239,6 +239,8 @@ static int __init nhk8815_eth_init(void)
 	int gpio_nr = 115; /* hardwired in the board */
 	int err;
 
+	if (!machine_is_nomadik())
+		return 0;
 	err = gpio_request(gpio_nr, "eth_irq");
 	if (!err) err = gpio_direction_input(gpio_nr);
 	if (err)

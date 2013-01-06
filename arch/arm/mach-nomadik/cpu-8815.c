@@ -31,9 +31,11 @@
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_data/clocksource-nomadik-mtu.h>
 #include <linux/of_irq.h>
+#include <linux/of_gpio.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/mtd/fsmc.h>
+#include <linux/gpio.h>
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
@@ -262,6 +264,38 @@ static struct fsmc_nand_timings cpu8815_nand_timings = {
 static struct fsmc_nand_platform_data cpu8815_nand_data = {
 	.nand_timings = &cpu8815_nand_timings,
 };
+
+/*
+ * The SMSC911x IRQ is connected to a GPIO pin, but the driver expects
+ * to simply request an IRQ passed as a resource. So the GPIO pin needs
+ * to be requested by this hog and set as input.
+ */
+static int __init cpu8815_eth_init(void)
+{
+	struct device_node *eth;
+	int gpio, irq, err;
+
+	eth = of_find_node_by_path("/usb-s8815/ethernet-gpio");
+	if (!eth) {
+		pr_info("could not find any ethernet GPIO\n");
+		return 0;
+	}
+	gpio = of_get_gpio(eth, 0);
+	err = gpio_request(gpio, "eth_irq");
+	if (err) {
+		pr_info("failed to request ethernet GPIO\n");
+		return -ENODEV;
+	}
+	err = gpio_direction_input(gpio);
+	if (err) {
+		pr_info("failed to set ethernet GPIO as input\n");
+		return -ENODEV;
+	}
+	irq = gpio_to_irq(gpio);
+	pr_info("enabled USB-S8815 ethernet GPIO %d, IRQ %d\n", gpio, irq);
+	return 0;
+}
+device_initcall(cpu8815_eth_init);
 
 /* These are mostly to get the right device names for the clock lookups */
 static struct of_dev_auxdata cpu8815_auxdata_lookup[] __initdata = {
