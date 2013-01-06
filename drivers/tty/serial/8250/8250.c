@@ -1587,16 +1587,6 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 			handled = 1;
 			end = NULL;
 		} else if (end == NULL) {
-			/*
-			 * modified by yemao, 2011-12-1 13:31:57
-			 * if report to up layer that this irq event no handled
-			 * there will be an error irq state to cause
-			 * console mess.
-			 */
-			if (handled != 1) {
-				printk(KERN_ERR ">>> no handle, treat it handle over\n");
-				handled = 1;
-			}
 			end = l;
 		}
 
