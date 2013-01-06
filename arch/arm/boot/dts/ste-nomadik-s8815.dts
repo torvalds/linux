@@ -22,5 +22,9 @@
 			interrupts = <19 0x1>;
 			interrupt-parent = <&gpio3>;
 		};
+		/* This will bias the MMC/SD card detect line */
+		mmcsd-gpio {
+			gpios = <&gpio3 16 0x1>;
+		};
 	};
 };

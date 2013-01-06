@@ -190,5 +190,18 @@
 			interrupt-parent = <&vica>;
 			interrupts = <10>;
 		};
+
+		mmcsd: sdi@101f6000 {
+			compatible = "arm,pl18x", "arm,primecell";
+			reg = <0x101f6000 0x1000>;
+			interrupt-parent = <&vica>;
+			interrupts = <22>;
+			max-frequency = <48000000>;
+			bus-width = <4>;
+			mmc-cap-mmc-highspeed;
+			mmc-cap-sd-highspeed;
+			cd-gpios = <&gpio3 15 0x1>;
+			cd-inverted;
+		};
 	};
 };

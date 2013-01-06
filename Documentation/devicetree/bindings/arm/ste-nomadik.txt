@@ -21,4 +21,7 @@ usb-s8815 {
 			interrupts = <19 0x1>;
 			interrupt-parent = <&gpio3>;
 		};
+		mmcsd-gpio {
+			gpios = <&gpio3 16 0x1>;
+		};
 };
