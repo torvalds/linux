@@ -34,7 +34,7 @@ struct tcm_vhost_cmd {
 	/* Sense buffer that will be mapped into outgoing status */
 	unsigned char tvc_sense_buf[TRANSPORT_SENSE_BUFFER];
 	/* Completed commands list, serviced from vhost worker thread */
-	struct list_head tvc_completion_list;
+	struct llist_node tvc_completion_list;
 };
 
 struct tcm_vhost_nexus {
