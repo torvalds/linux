@@ -1334,19 +1334,12 @@ static int rk_edp_i2c_probe(struct i2c_client *client,const struct i2c_device_id
 	DP_TX_Initialization(client);
 	DP_TX_HW_LT(client,0x06,0x04); // 1.62 Gpbs 4lane
 	DP_TX_Config_Video(client);
-	
-	char val = 0x33;
-	rk_edp_i2c_write_p0_reg(client, 0x82, &val);
-	
-	val = 0x06;
-	rk_edp_i2c_write_p1_reg(client, 0xe2, &val);
-	
 #else
 	RK_EDP_BIST_Format(client);
 #endif
 
 	printk("edp probe ok\n");
-	//while(1);	
+
 	return ret;
 }
 
