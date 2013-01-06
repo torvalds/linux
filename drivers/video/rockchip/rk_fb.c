@@ -1180,7 +1180,6 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
 #endif 
     {
 	    fb_inf->fb[0]->fbops->fb_open(fb_inf->fb[0],1);
-	    dev_drv->load_screen(dev_drv,1);
 	    fb_inf->fb[0]->fbops->fb_set_par(fb_inf->fb[0]);
 
 #if  defined(CONFIG_LOGO_LINUX_BMP)
