@@ -45,7 +45,6 @@
 struct sw_serial_port {
     int                 port_no;
 	int line;
-    int                 pin_num;
     u32                 pio_hdle;
     struct clk          *clk;
     u32                 sclk;
@@ -128,24 +127,6 @@ static int sw_serial_put_resource(struct sw_serial_port *sport)
     return 0;
 }
 
-static int sw_serial_get_config(struct sw_serial_port *sport, u32 uart_id)
-{
-    char uart_para[16] = {0};
-    int ret;
-    
-    sprintf(uart_para, "uart_para%d", uart_id);
-    ret = script_parser_fetch(uart_para, "uart_port", &sport->port_no, sizeof(int));
-    if (ret)
-        return -1;
-    if (sport->port_no != uart_id)
-        return -1;
-    ret = script_parser_fetch(uart_para, "uart_type", &sport->pin_num, sizeof(int));
-    if (ret)
-        return -1;
-    
-    return 0;
-}
-
 static void
 sw_serial_pm(struct uart_port *port, unsigned int state,
           unsigned int oldstate)
@@ -170,12 +151,6 @@ sw_serial_probe(struct platform_device *dev)
 		return -ENOMEM;
     sport->port_no  = dev->id;
     sport->pdev     = dev;
-    
-    ret = sw_serial_get_config(sport, dev->id);
-    if (ret) {
-        printk(KERN_ERR "Failed to get config information\n");
-        goto free_dev;
-    }
     
     ret = sw_serial_get_resource(sport);
     if (ret) {
