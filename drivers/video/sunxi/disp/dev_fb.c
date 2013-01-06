@@ -1127,6 +1127,8 @@ static int Fb_set_par(struct fb_info *info)
 				struct fb_videomode new_mode;
 				struct fb_videomode old_mode;
 				fb_var_to_videomode(&new_mode, var);
+				var->yres_virtual = new_mode.yres *
+						g_fbi.fb_para[sel].buffer_num;
 				BSP_disp_get_videomode(sel, &old_mode);
 				if (!fb_mode_is_equal(&new_mode, &old_mode)) {
 					mode_changed = (BSP_disp_set_videomode(
@@ -1442,21 +1444,12 @@ __s32 Display_Fb_Request(__u32 fb_id, __disp_fb_create_para_t * fb_para)
 			    ((sel == fb_para->primary_screen_id) &&
 			     (fb_para->fb_mode ==
 			      FB_MODE_DUAL_DIFF_SCREEN_SAME_CONTENTS))) {
-				__disp_tcon_timing_t tt;
 
-				if (BSP_disp_get_timing(sel, &tt) >= 0) {
-					info->var.pixclock =
-					    1000000000 / tt.pixel_clk;
-					info->var.left_margin =
-					    tt.hor_back_porch;
-					info->var.right_margin =
-					    tt.hor_front_porch;
-					info->var.upper_margin =
-					    tt.ver_back_porch;
-					info->var.lower_margin =
-					    tt.ver_front_porch;
-					info->var.hsync_len = tt.hor_sync_time;
-					info->var.vsync_len = tt.ver_sync_time;
+				struct fb_videomode mode;
+				if (BSP_disp_get_videomode(sel, &mode) == 0) {
+					fb_videomode_to_var(&info->var, &mode);
+					info->var.yres_virtual =
+						mode.yres * fb_para->buffer_num;
 				}
 			}
 
@@ -1587,33 +1580,24 @@ __s32 Display_set_fb_timing(__u32 sel)
 	__u8 fb_id = 0;
 
 	for (fb_id = 0; fb_id < SUNXI_MAX_FB; fb_id++) {
+		__disp_fb_create_para_t *fb_para = &g_fbi.fb_para[fb_id];
+		__fb_mode_t fb_mode = g_fbi.fb_mode[fb_id];
+		struct fb_var_screeninfo *var = &g_fbi.fbinfo[sel]->var;
 		if (g_fbi.fb_enable[fb_id]) {
 			if (((sel == 0) &&
-			     (g_fbi.fb_mode[fb_id] == FB_MODE_SCREEN0 ||
-			      g_fbi.fb_mode[fb_id] ==
-			      FB_MODE_DUAL_SAME_SCREEN_TB)) ||
+			     (fb_mode == FB_MODE_SCREEN0 ||
+				 fb_mode == FB_MODE_DUAL_SAME_SCREEN_TB)) ||
 			    ((sel == 1) &&
-			     (g_fbi.fb_mode[fb_id] == FB_MODE_SCREEN1)) ||
-			    ((sel == g_fbi.fb_para[fb_id].primary_screen_id) &&
-			     (g_fbi.fb_mode[fb_id] ==
+			     (fb_mode == FB_MODE_SCREEN1)) ||
+			    ((sel == fb_para->primary_screen_id) &&
+			     (fb_mode ==
 			      FB_MODE_DUAL_DIFF_SCREEN_SAME_CONTENTS))) {
-				__disp_tcon_timing_t tt;
 
-				if (BSP_disp_get_timing(sel, &tt) >= 0) {
-					g_fbi.fbinfo[fb_id]->var.pixclock =
-					    1000000000 / tt.pixel_clk;
-					g_fbi.fbinfo[fb_id]->var.left_margin =
-					    tt.hor_back_porch;
-					g_fbi.fbinfo[fb_id]->var.right_margin =
-					    tt.hor_front_porch;
-					g_fbi.fbinfo[fb_id]->var.upper_margin =
-					    tt.ver_back_porch;
-					g_fbi.fbinfo[fb_id]->var.lower_margin =
-					    tt.ver_front_porch;
-					g_fbi.fbinfo[fb_id]->var.hsync_len =
-					    tt.hor_sync_time;
-					g_fbi.fbinfo[fb_id]->var.vsync_len =
-					    tt.ver_sync_time;
+				struct fb_videomode mode;
+				if (BSP_disp_get_videomode(sel, &mode) == 0) {
+					fb_videomode_to_var(var, &mode);
+					var->yres_virtual = mode.yres *
+						fb_para->buffer_num;
 				}
 			}
 		}
