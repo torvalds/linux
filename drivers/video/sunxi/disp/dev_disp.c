@@ -300,7 +300,6 @@ __s32 DRV_DISP_Init(void)
 
 	return 0;
 }
-EXPORT_SYMBOL(DRV_DISP_Init);
 
 __s32 DRV_DISP_Exit(void)
 {

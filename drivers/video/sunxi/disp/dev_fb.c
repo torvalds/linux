@@ -1770,10 +1770,10 @@ __s32 Fb_Init(__u32 from)
 
 	__inf("Fb_Init: %d %d\n", from, need_open_hdmi);
 
-	if (need_open_hdmi == 1 && from == 0)
+	if (need_open_hdmi == 1 && from == SUNXI_LCD)
 		/* it is called from lcd driver, but hdmi need to be opened */
 		return 0;
-	else if (need_open_hdmi == 0 && from == 1)
+	else if (need_open_hdmi == 0 && from == SUNXI_HDMI)
 		/* it is called from hdmi driver, but hdmi need not be opened */
 		return 0;
 
