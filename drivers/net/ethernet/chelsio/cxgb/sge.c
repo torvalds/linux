@@ -1822,8 +1822,8 @@ netdev_tx_t t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 */
 		if (unlikely(skb->len < ETH_HLEN ||
 			     skb->len > dev->mtu + eth_hdr_len(skb->data))) {
-			pr_debug("%s: packet size %d hdr %d mtu%d\n", dev->name,
-				 skb->len, eth_hdr_len(skb->data), dev->mtu);
+			netdev_dbg(dev, "packet size %d hdr %d mtu%d\n",
+				   skb->len, eth_hdr_len(skb->data), dev->mtu);
 			dev_kfree_skb_any(skb);
 			return NETDEV_TX_OK;
 		}
@@ -1831,7 +1831,7 @@ netdev_tx_t t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (skb->ip_summed == CHECKSUM_PARTIAL &&
 		    ip_hdr(skb)->protocol == IPPROTO_UDP) {
 			if (unlikely(skb_checksum_help(skb))) {
-				pr_debug("%s: unable to do udp checksum\n", dev->name);
+				netdev_dbg(dev, "unable to do udp checksum\n");
 				dev_kfree_skb_any(skb);
 				return NETDEV_TX_OK;
 			}
