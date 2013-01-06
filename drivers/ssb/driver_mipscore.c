@@ -203,7 +203,8 @@ static void ssb_mips_flash_detect(struct ssb_mipscore *mcore)
 	switch (bus->chipco.capabilities & SSB_CHIPCO_CAP_FLASHT) {
 	case SSB_CHIPCO_FLASHT_STSER:
 	case SSB_CHIPCO_FLASHT_ATSER:
-		pr_err("Serial flash not supported\n");
+		pr_debug("Found serial flash\n");
+		ssb_sflash_init(&bus->chipco);
 		break;
 	case SSB_CHIPCO_FLASHT_PARA:
 		pr_debug("Found parallel flash\n");
