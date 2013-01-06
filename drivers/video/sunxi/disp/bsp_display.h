@@ -237,7 +237,6 @@ extern __s32 LCD_BL_EN(__u32 sel, __bool b_en);
 extern __s32 BSP_disp_lcd_user_defined_func(__u32 sel, __u32 para1, __u32 para2,
 					    __u32 para3);
 extern __s32 BSP_disp_get_videomode(__u32 sel, struct fb_videomode *videomode);
-extern __s32 BSP_disp_get_timing(__u32 sel, __disp_tcon_timing_t *tt);
 extern __u32 BSP_disp_get_cur_line(__u32 sel);
 #ifdef CONFIG_ARCH_SUN5I
 extern __s32 BSP_disp_close_lcd_backlight(__u32 sel);

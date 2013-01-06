@@ -544,20 +544,6 @@ typedef struct {
 } __panel_para_t;
 
 typedef struct {
-	__u32 pixel_clk; /* khz */
-	__u32 hor_pixels;
-	__u32 ver_pixels;
-	__u32 hor_total_time;
-	__u32 hor_front_porch;
-	__u32 hor_sync_time;
-	__u32 hor_back_porch;
-	__u32 ver_total_time;
-	__u32 ver_front_porch;
-	__u32 ver_sync_time;
-	__u32 ver_back_porch;
-} __disp_tcon_timing_t;
-
-typedef struct {
 	__u32 base_lcdc0;
 	__u32 base_lcdc1;
 	__u32 base_pioc;

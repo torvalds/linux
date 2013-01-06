@@ -181,7 +181,7 @@ __s32 LCDC_clear_int(__u32 sel, __u32 irqsrc)
 	return 0;
 }
 
-__s32 LCDC_get_timing(__u32 sel, __u32 index, __disp_tcon_timing_t *tt)
+__s32 LCDC_get_timing(__u32 sel, __u32 index, struct fb_videomode *videomode)
 {
 	__u32 reg0, reg1, reg2, reg3;
 	__u32 x, y, ht, hbp, vt, vbp, hspw, vspw;
@@ -207,17 +207,17 @@ __s32 LCDC_get_timing(__u32 sel, __u32 index, __disp_tcon_timing_t *tt)
 	vspw = (reg3 >> 0) & 0x3ff;
 
 	/* left margin */
-	tt->hor_back_porch = (hbp + 1) - (hspw + 1);
+	videomode->left_margin = (hbp + 1) - (hspw + 1);
 	/* right margin */
-	tt->hor_front_porch = (ht + 1) - (x + 1) - (hbp + 1);
+	videomode->right_margin = (ht + 1) - (x + 1) - (hbp + 1);
 	/* upper margin */
-	tt->ver_back_porch = (vbp + 1) - (vspw + 1);
+	videomode->upper_margin = (vbp + 1) - (vspw + 1);
 	/* lower margin */
-	tt->ver_front_porch = (vt / 2) - (y + 1) - (vbp + 1);
+	videomode->lower_margin = (vt / 2) - (y + 1) - (vbp + 1);
 	/* hsync_len */
-	tt->hor_sync_time = (hspw + 1);
+	videomode->hsync_len = (hspw + 1);
 	/* vsync_len */
-	tt->ver_sync_time = (vspw + 1);
+	videomode->vsync_len = (vspw + 1);
 
 	return 0;
 }

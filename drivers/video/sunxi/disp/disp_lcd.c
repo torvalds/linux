@@ -1818,19 +1818,23 @@ EXPORT_SYMBOL(LCD_set_panel_funs);
 
 __s32 BSP_disp_get_videomode(__u32 sel, struct fb_videomode *videomode)
 {
-	__disp_tcon_timing_t tt;
-	bool interlaced, hsync, vsync = false;
+	bool interlaced = false, hsync = false, vsync = false;
 	u32 pixclock, hfreq, htotal, vtotal;
 	memset(videomode, 0, sizeof(struct fb_videomode));
 
-	if (BSP_disp_get_timing(sel, &tt) != 0)
-		return DIS_FAIL;
-
 	if (gdisp.screen[sel].status & LCD_ON) {
+		LCDC_get_timing(sel, 0, videomode);
+		videomode->pixclock = KHZ2PICOS(
+			gpanel_info[sel].lcd_dclk_freq * 1000);
 		interlaced = false;
 	} else if ((gdisp.screen[sel].status & TV_ON)) {
-		interlaced = Disp_get_screen_scan_mode(
-				gdisp.screen[sel].tv_mode);
+		__disp_tv_mode_t tv_mode = gdisp.screen[sel].tv_mode;
+		LCDC_get_timing(sel, 1, videomode);
+		videomode->pixclock = KHZ2PICOS(
+			(clk_tab.tv_clk_tab[tv_mode].tve_clk /
+			 clk_tab.tv_clk_tab[tv_mode].pre_scale) / 1000);
+
+		interlaced = Disp_get_screen_scan_mode(tv_mode);
 	} else if (gdisp.screen[sel].status & HDMI_ON) {
 		struct __disp_video_timing video_timing;
 		__disp_tv_mode_t hdmi_mode = gdisp.screen[sel].hdmi_mode;
@@ -1838,12 +1842,20 @@ __s32 BSP_disp_get_videomode(__u32 sel, struct fb_videomode *videomode)
 				hdmi_mode, &video_timing) != 0)
 			return DIS_FAIL;
 
+		LCDC_get_timing(sel, 1, videomode);
+		videomode->pixclock = KHZ2PICOS(video_timing.PCLK / 1000);
 		interlaced = video_timing.I;
 		hsync = video_timing.HSYNC;
 		vsync = video_timing.VSYNC;
 	} else if (gdisp.screen[sel].status & VGA_ON) {
-		interlaced = Disp_get_screen_scan_mode(
-				gdisp.screen[sel].vga_mode);
+		__disp_vga_mode_t vga_mode = gdisp.screen[sel].vga_mode;
+
+		LCDC_get_timing(sel, 1, videomode);
+
+		videomode->pixclock = KHZ2PICOS(
+			(clk_tab.vga_clk_tab[vga_mode].tve_clk /
+			 clk_tab.vga_clk_tab[vga_mode].pre_scale) / 1000);
+		interlaced = Disp_get_screen_scan_mode(vga_mode);
 	} else {
 		DE_INF("get videomode fail because device is not output !\n");
 		return DIS_FAIL;
@@ -1851,14 +1863,6 @@ __s32 BSP_disp_get_videomode(__u32 sel, struct fb_videomode *videomode)
 
 	videomode->xres = BSP_disp_get_screen_width(sel);
 	videomode->yres = BSP_disp_get_screen_height(sel);
-	videomode->pixclock = KHZ2PICOS(tt.pixel_clk);
-	videomode->left_margin = tt.hor_back_porch;
-	videomode->right_margin = tt.hor_front_porch;
-	videomode->upper_margin = tt.ver_back_porch;
-	videomode->lower_margin = tt.ver_front_porch;
-	videomode->hsync_len = tt.hor_sync_time;
-	videomode->vsync_len = tt.ver_sync_time;
-
 
 	if (interlaced)
 		videomode->vmode = FB_VMODE_INTERLACED;
@@ -1887,42 +1891,6 @@ __s32 BSP_disp_get_videomode(__u32 sel, struct fb_videomode *videomode)
 	hfreq = pixclock/htotal;
 	videomode->refresh = hfreq/vtotal;
 	return DIS_SUCCESS;
-}
-
-__s32 BSP_disp_get_timing(__u32 sel, __disp_tcon_timing_t *tt)
-{
-	memset(tt, 0, sizeof(__disp_tcon_timing_t));
-
-	if (gdisp.screen[sel].status & LCD_ON) {
-		LCDC_get_timing(sel, 0, tt);
-		tt->pixel_clk = gpanel_info[sel].lcd_dclk_freq * 1000;
-	} else if ((gdisp.screen[sel].status & TV_ON)) {
-		__disp_tv_mode_t mode = gdisp.screen[sel].tv_mode;
-		LCDC_get_timing(sel, 1, tt);
-		tt->pixel_clk =
-			(clk_tab.tv_clk_tab[mode].tve_clk /
-			 clk_tab.tv_clk_tab[mode].pre_scale) / 1000;
-	} else if (gdisp.screen[sel].status & HDMI_ON) {
-		struct __disp_video_timing video_timing;
-		__disp_tv_mode_t hdmi_mode = gdisp.screen[sel].hdmi_mode;
-
-		LCDC_get_timing(sel, 1, tt);
-		if (gdisp.init_para.hdmi_get_video_timing(
-				hdmi_mode, &video_timing) == 0)
-			tt->pixel_clk = video_timing.PCLK / 1000;
-	} else if (gdisp.screen[sel].status & VGA_ON) {
-		__disp_vga_mode_t mode = gdisp.screen[sel].vga_mode;
-
-		LCDC_get_timing(sel, 1, tt);
-		tt->pixel_clk =
-			(clk_tab.vga_clk_tab[mode].tve_clk /
-			 clk_tab.vga_clk_tab[mode].pre_scale) / 1000;
-	} else {
-		DE_INF("get timing fail because device is not output !\n");
-		return -1;
-	}
-
-	return 0;
 }
 
 __u32 BSP_disp_get_cur_line(__u32 sel)
