@@ -1217,8 +1217,19 @@ static const struct tegra_dma_chip_data tegra30_dma_chip_data = {
 	.support_channel_pause	= false,
 };
 
-static const struct of_device_id tegra_dma_of_match[] __devinitconst = {
+/* Tegra114 specific DMA controller information */
+static const struct tegra_dma_chip_data tegra114_dma_chip_data = {
+	.nr_channels		= 32,
+	.max_dma_count		= 1024UL * 64,
+	.support_channel_pause	= true,
+};
+
+
+static const struct of_device_id tegra_dma_of_match[] = {
 	{
+		.compatible = "nvidia,tegra114-apbdma",
+		.data = &tegra114_dma_chip_data,
+	}, {
 		.compatible = "nvidia,tegra30-apbdma",
 		.data = &tegra30_dma_chip_data,
 	}, {
