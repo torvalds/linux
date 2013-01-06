@@ -45,8 +45,6 @@ static int sw_serial[MAX_PORTS];
 #define RESSIZE(res)    (((res)->end - (res)->start)+1)
 
 struct sw_serial_port {
-    struct uart_port    port;
-    char                name[16];
     int                 port_no;
     int                 pin_num;
     u32                 pio_hdle;
@@ -165,6 +163,7 @@ static int __devinit
 sw_serial_probe(struct platform_device *dev)
 {
     struct sw_serial_port *sport;
+	struct uart_port port = {};
 	int ret;
     
 	sport = kzalloc(sizeof(struct sw_serial_port), GFP_KERNEL);
@@ -186,21 +185,22 @@ sw_serial_probe(struct platform_device *dev)
     }
     platform_set_drvdata(dev, sport);
 
-	sport->port.private_data = sport;
-    sport->port.irq     = sport->irq;
-    sport->port.fifosize= 64;
-	sport->port.regshift= 2;
-    sport->port.iotype  = UPIO_DWAPB32;
-    sport->port.flags   = UPF_IOREMAP | UPF_BOOT_AUTOCONF;
-    sport->port.uartclk = sport->sclk;
-    sport->port.pm      = sw_serial_pm;
-    sport->port.dev     = &dev->dev;
-    
-    sport->port.mapbase = sport->mmres->start;
-    sw_serial[sport->port_no] = serial8250_register_port(&sport->port);
-    UART_MSG("serial probe %d, membase %p irq %d mapbase 0x%08x\n", 
-             dev->id, sport->port.membase, sport->port.irq, sport->port.mapbase);
-    
+	port.private_data = sport;
+	port.irq = sport->irq;
+	port.mapbase = sport->mmres->start;
+	port.fifosize = 64;
+	port.regshift = 2;
+	port.iotype = UPIO_DWAPB32;
+	port.flags = UPF_IOREMAP | UPF_BOOT_AUTOCONF;
+	port.uartclk = sport->sclk;
+	port.pm = sw_serial_pm;
+	port.dev = &dev->dev;
+
+	pr_info("serial probe %d irq %d mapbase 0x%08x\n", dev->id,
+		sport->irq, sport->mmres->start);
+
+	sw_serial[sport->port_no] = serial8250_register_port(&port);
+
 	return 0;
 free_dev:
     kfree(sport);
