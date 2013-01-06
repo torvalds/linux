@@ -14,21 +14,21 @@
 #define DP_TX_VND_IDH_REG             	0x01
 #define DP_TX_DEV_IDL_REG             	0x02
 #define DP_TX_DEV_IDH_REG             	0x03
-#define DP_POWERD_CTRL_REG			  	0x05
+#define DP_POWERD_CTRL_REG		0x05
 
 #define DP_TX_VID_CTRL1_REG           	0x08
-#define DP_TX_VID_CTRL1_VID_EN     		0x80    // bit position
-#define DP_POWERD_TOTAL_REG			  	0x02// bit position
-#define DP_POWERD_AUDIO_REG				0x10// bit position
+#define DP_TX_VID_CTRL1_VID_EN     	0x80    // bit position
+#define DP_POWERD_TOTAL_REG		0x02// bit position
+#define DP_POWERD_AUDIO_REG		0x10// bit position
 
 #define DP_TX_RST_CTRL_REG            	0x06
-#define DP_TX_RST_CTRL2_REG				0x07
+#define DP_TX_RST_CTRL2_REG		0x07
 #define DP_TX_RST_HW_RST             	0x01    // bit position
 #define DP_TX_AUX_RST					0x04//bit position
 #define DP_TX_RST_SW_RST             	0x02    // bit position
-#define DP_TX_PLL_CTRL_REG				0xC7
-#define DP_TX_EXTRA_ADDR_REG			0xCE
-#define DP_TX_PLL_FILTER_CTRL3			0xE1
+#define DP_TX_PLL_CTRL_REG		0xC7
+#define DP_TX_EXTRA_ADDR_REG		0xCE
+#define DP_TX_PLL_FILTER_CTRL3		0xE1
 #define DP_TX_PLL_CTRL3					0xE6
 #define DP_TX_AC_MODE					0x40//bit position
 #define ANALOG_DEBUG_REG1				0xDC

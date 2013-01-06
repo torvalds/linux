@@ -1,5 +1,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/fs.h>
+#include <linux/seq_file.h>
 #include <linux/time.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -7,6 +9,8 @@
 #include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/rk_edp.h>
+#include <linux/debugfs.h>
+
 
 
 int rk_edp_i2c_read_p0_reg(struct i2c_client *client, char reg, char *val)
@@ -270,9 +274,9 @@ void DP_TX_RST_AUX(struct i2c_client *client)
 
 static void DP_TX_Initialization(struct i2c_client *client)
 {
-	char val;
+	char val = 0x00;
 
-	val = 0x00; //power on all block and select DisplayPort mode
+	 //power on all block and select DisplayPort mode
 	val |= DP_POWERD_AUDIO_REG;
 	rk_edp_i2c_write_p1_reg(client, DP_POWERD_CTRL_REG, &val );
 
@@ -1188,8 +1192,8 @@ static ssize_t rk_edp1_debug_store(struct device *dev, struct device_attribute *
 }
 
 static struct device_attribute rk_edp_attrs[] = {
-        __ATTR(rk_edp-0, S_IRUGO | S_IWUSR, rk_edp0_debug_show,rk_edp0_debug_store),
-        __ATTR(rk_edp-1,S_IRUGO | S_IWUSR, rk_edp1_debug_show,rk_edp1_debug_store),
+        __ATTR(rk_edp-0x70, S_IRUGO | S_IWUSR, rk_edp0_debug_show,rk_edp0_debug_store),
+        __ATTR(rk_edp-0x72,S_IRUGO | S_IWUSR, rk_edp1_debug_show,rk_edp1_debug_store),
 };
 
 
@@ -1211,6 +1215,49 @@ static int rk_edp_create_sysfs(struct device *dev)
 
         return 0;
 }
+
+static int edp_reg_show(struct seq_file *s, void *v)
+{
+	int i = 0;
+	char val;
+	struct rk_edp *rk_edp = s->private;
+	if(!rk_edp)
+	{
+		printk(KERN_ERR "no edp device!\n");
+		return 0;
+	}
+
+	seq_printf(s,"0x70:\n");
+	for(i=0;i< MAX_REG;i++)
+	{
+		rk_edp_i2c_read_p0_reg(rk_edp->client, i , &val);
+		seq_printf(s,"0x%02x>>0x%02x\n",i,val);
+	}
+
+	
+	seq_printf(s,"\n0x72:\n");
+	for(i=0;i< MAX_REG;i++)
+	{
+		rk_edp_i2c_read_p1_reg(rk_edp->client, i , &val);
+		seq_printf(s,"0x%02x>>0x%02x\n",i,val);
+	}
+	return 0;
+}
+
+static int edp_reg_open(struct inode *inode, struct file *file)
+{
+	struct rk_edp *rk_edp = inode->i_private;
+	return single_open(file, edp_reg_show, rk_edp);
+}
+
+static const struct file_operations edp_reg_fops = {
+	.owner		= THIS_MODULE,
+	.open		= edp_reg_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void rk_edp_early_suspend(struct early_suspend *h)
@@ -1264,7 +1311,8 @@ static int rk_edp_i2c_probe(struct i2c_client *client,const struct i2c_device_id
 	if(rk_edp->pdata->power_ctl)
 		rk_edp->pdata->power_ctl();
 
-	rk_edp_create_sysfs(&client->dev);
+	debugfs_create_file("edp-reg", S_IRUSR,NULL, rk_edp,
+				    &edp_reg_fops);
 	ret = DP_TX_Chip_Located(client);
 	if(ret < 0)
 	{
@@ -1278,17 +1326,27 @@ static int rk_edp_i2c_probe(struct i2c_client *client,const struct i2c_device_id
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	rk_edp->early_suspend.suspend = rk_edp_early_suspend;
 	rk_edp->early_suspend.resume = rk_edp_late_resume;
-    rk_edp->early_suspend.level = EARLY_SUSPEND_LEVEL_STOP_DRAWING;
+    	rk_edp->early_suspend.level = EARLY_SUSPEND_LEVEL_STOP_DRAWING;
 	register_early_suspend(&rk_edp->early_suspend);
 #endif
+
 #if 1
 	DP_TX_Initialization(client);
 	DP_TX_HW_LT(client,0x06,0x04); // 1.62 Gpbs 4lane
 	DP_TX_Config_Video(client);
+	
+	char val = 0x33;
+	rk_edp_i2c_write_p0_reg(client, 0x82, &val);
+	
+	val = 0x06;
+	rk_edp_i2c_write_p1_reg(client, 0xe2, &val);
+	
 #else
 	RK_EDP_BIST_Format(client);
 #endif
-	
+
+	printk("edp probe ok\n");
+	//while(1);	
 	return ret;
 }
 
@@ -1325,6 +1383,6 @@ static void __exit rk_edp_module_exit(void)
 }
 
 //subsys_initcall_sync(rk_edp_module_init);
-fs_initcall_sync(rk_edp_module_init);
+late_initcall_sync(rk_edp_module_init);
 module_exit(rk_edp_module_exit);
 
