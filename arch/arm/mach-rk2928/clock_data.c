@@ -123,6 +123,7 @@ struct pll_clk_set {
 	.pllcon2 = PLL_SET_FRAC(_frac),	\
 	.clksel1 = ACLK_CORE_DIV(RATIO_##_aclk_core_div) | CLK_CORE_PERI_DIV(RATIO_##_periph_div),	\
 	.lpj	= (CLK_LOOPS_JIFFY_REF * _mhz) / CLK_LOOPS_RATE_REF,	\
+	.rst_dly = 0,\
 }
 
 static const struct apll_clk_set apll_clks[] = {
@@ -751,7 +752,7 @@ static int pll_set_con(u8 id, u32 refdiv, u32 fbdiv, u32 postdiv1, u32 postdiv2,
 		temp_clk_set.pllcon1 |= PLL_SET_DSMPD(1);
 	}
 	temp_clk_set.pllcon2 = PLL_SET_FRAC(frac);
-	temp_clk_set.rst_dly = 1500;
+	temp_clk_set.rst_dly = 0;
 	CLKDATA_DBG("setting....\n");
 	return pll_clk_set_rate(&temp_clk_set, id);
 }
@@ -795,7 +796,7 @@ static int apll_clk_set_rate(struct clk *clk, unsigned long rate)
 		cru_writel(clk_set->pllcon2, PLL_CONS(pll_id,2));
 		cru_writel(clk_set->clksel0, CRU_CLKSELS_CON(0));
 		cru_writel(clk_set->clksel1, CRU_CLKSELS_CON(1));
-		local_irq_restore(flags);
+		//local_irq_restore(flags);
 
 		CLKDATA_DBG("pllcon0 %08x\n", cru_readl(PLL_CONS(0,0)));
 		CLKDATA_DBG("pllcon1 %08x\n", cru_readl(PLL_CONS(0,1)));
@@ -810,7 +811,7 @@ static int apll_clk_set_rate(struct clk *clk, unsigned long rate)
 		pll_wait_lock(pll_id);
 
 		//return form slow
-		local_irq_save(flags);
+		//local_irq_save(flags);
 		cru_writel(PLL_MODE_NORM(pll_id), CRU_MODE_CON);
 		loops_per_jiffy = clk_set->lpj;
 		local_irq_restore(flags);
