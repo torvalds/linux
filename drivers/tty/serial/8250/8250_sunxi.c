@@ -37,8 +37,6 @@
 #error "Unknown chip ID for Serial"
 #endif
 
-static int sw_serial[MAX_PORTS];
-
 /* Register base define */
 #define UART_BASE       (0x01C28000)
 #define UART_BASE_OS    (0x400)
@@ -47,6 +45,7 @@ static int sw_serial[MAX_PORTS];
 
 struct sw_serial_port {
 	int port_no;
+	int line;
 	int pin_num;
 	u32 pio_hdle;
 	struct clk *clk;
@@ -170,7 +169,6 @@ static int __devinit sw_serial_probe(struct platform_device *dev)
 		printk(KERN_ERR "Failed to get resource\n");
 		goto free_dev;
 	}
-	platform_set_drvdata(dev, sport);
 
 	port.private_data = sport;
 	port.irq = sport->irq;
@@ -185,9 +183,14 @@ static int __devinit sw_serial_probe(struct platform_device *dev)
 
 	pr_info("serial probe %d irq %d mapbase 0x%08x\n", dev->id,
 		sport->irq, sport->mmres->start);
-	sw_serial[sport->port_no] = serial8250_register_port(&port);
+	ret = serial8250_register_port(&port);
+	if (ret < 0)
+		goto free_dev;
 
+	sport->line = ret;
+	platform_set_drvdata(dev, sport);
 	return 0;
+
  free_dev:
 	kfree(sport);
 	sport = NULL;
@@ -199,8 +202,7 @@ static int __devexit sw_serial_remove(struct platform_device *dev)
 	struct sw_serial_port *sport = platform_get_drvdata(dev);
 
 	pr_info("serial remove\n");
-	serial8250_unregister_port(sw_serial[sport->port_no]);
-	sw_serial[sport->port_no] = 0;
+	serial8250_unregister_port(sport->line);
 	sw_serial_put_resource(sport);
 
 	platform_set_drvdata(dev, NULL);
