@@ -499,7 +499,8 @@ void svc_wake_up(struct svc_serv *serv)
 			rqstp->rq_xprt = NULL;
 			 */
 			wake_up(&rqstp->rq_wait);
-		}
+		} else
+			pool->sp_task_pending = 1;
 		spin_unlock_bh(&pool->sp_lock);
 	}
 }
@@ -634,7 +635,13 @@ struct svc_xprt *svc_get_next_xprt(struct svc_rqst *rqstp, long timeout)
 		 * long for cache updates.
 		 */
 		rqstp->rq_chandle.thread_wait = 1*HZ;
+		pool->sp_task_pending = 0;
 	} else {
+		if (pool->sp_task_pending) {
+			pool->sp_task_pending = 0;
+			spin_unlock_bh(&pool->sp_lock);
+			return ERR_PTR(-EAGAIN);
+		}
 		/* No data pending. Go to sleep */
 		svc_thread_enqueue(pool, rqstp);
 
