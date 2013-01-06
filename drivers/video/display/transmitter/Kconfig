@@ -2,6 +2,9 @@ choice
     depends on DISPLAY_SUPPORT
     prompt  "Display interface transmitter Select"
 
+config NO_TRSM
+	bool "no transmitter needed"
+
 config RK610_LVDS
 	bool "RK610(Jetta) lvds transmitter support"
 	depends on MFD_RK610 
