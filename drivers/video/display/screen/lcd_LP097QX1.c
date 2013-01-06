@@ -13,13 +13,20 @@
 #define OUT_FACE	    OUT_P666 
 
 
-#define OUT_CLK	          160000000//205000000
+#define OUT_CLK	          205000000 //160000000//205000000
 #define LCDC_ACLK        300000000           //29 lcdc axi DMA ÆµÂÊ
 
 /* Timing */
 #define H_PW			5
 #define H_BP			5
-#define H_VD			2048
+
+#if defined(CONFIG_ARCH_RK3066B)
+#define H_VD			2047
+#else
+#define H_VD                    2048
+#endif
+
+
 #define H_FP			150
 
 #define V_PW			1
