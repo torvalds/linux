@@ -157,7 +157,7 @@ struct fw_img {
 struct iwl_fw {
 	u32 ucode_ver;
 
-	char fw_version[ETHTOOL_BUSINFO_LEN];
+	char fw_version[ETHTOOL_FWVERS_LEN];
 
 	/* ucode images */
 	struct fw_img img[IWL_UCODE_TYPE_MAX];

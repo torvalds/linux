@@ -2333,7 +2333,7 @@ struct wiphy {
 	u32 rts_threshold;
 	u8 coverage_class;
 
-	char fw_version[ETHTOOL_BUSINFO_LEN];
+	char fw_version[ETHTOOL_FWVERS_LEN];
 	u32 hw_version;
 
 #ifdef CONFIG_PM
