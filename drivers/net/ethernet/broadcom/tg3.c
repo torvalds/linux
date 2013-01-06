@@ -15441,21 +15441,18 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 					      &val);
 			tp->pci_fn = val & 0x7;
 		}
-	} else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717) {
-		tg3_read_mem(tp, NIC_SRAM_CPMU_STATUS, &val);
-		if ((val & NIC_SRAM_CPMUSTAT_SIG_MSK) ==
-		    NIC_SRAM_CPMUSTAT_SIG) {
-			tp->pci_fn = val & TG3_CPMU_STATUS_FMSK_5717;
-			tp->pci_fn = tp->pci_fn ? 1 : 0;
-		}
-	} else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
+	} else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
+		   GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
 		   GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720) {
 		tg3_read_mem(tp, NIC_SRAM_CPMU_STATUS, &val);
-		if ((val & NIC_SRAM_CPMUSTAT_SIG_MSK) ==
-		    NIC_SRAM_CPMUSTAT_SIG) {
+		if ((val & NIC_SRAM_CPMUSTAT_SIG_MSK) != NIC_SRAM_CPMUSTAT_SIG)
+			val = tr32(TG3_CPMU_STATUS);
+
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717)
+			tp->pci_fn = (val & TG3_CPMU_STATUS_FMSK_5717) ? 1 : 0;
+		else
 			tp->pci_fn = (val & TG3_CPMU_STATUS_FMSK_5719) >>
 				     TG3_CPMU_STATUS_FSHFT_5719;
-		}
 	}
 
 	/* Get eeprom hw config before calling tg3_set_power_state().
