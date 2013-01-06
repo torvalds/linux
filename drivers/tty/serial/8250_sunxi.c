@@ -153,7 +153,7 @@ static void
 sw_serial_pm(struct uart_port *port, unsigned int state,
           unsigned int oldstate)
 {
-    struct sw_serial_port *up = (struct sw_serial_port *)port;
+	struct sw_serial_port *up = port->private_data;
 
     if (!state)
         clk_enable(up->clk);
@@ -186,6 +186,7 @@ sw_serial_probe(struct platform_device *dev)
     }
     platform_set_drvdata(dev, sport);
 
+	sport->port.private_data = sport;
     sport->port.irq     = sport->irq;
     sport->port.fifosize= 64;
 	sport->port.regshift= 2;
