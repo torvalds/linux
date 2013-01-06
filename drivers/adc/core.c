@@ -8,7 +8,7 @@
 #include "adc_priv.h"
 
 struct adc_host *g_adc = NULL;
-struct list_head adc_host_head;
+static LIST_HEAD(adc_host_head);
 
 struct adc_host *adc_alloc_host(struct device *dev, int extra, enum host_chn_mask mask)
 {
@@ -270,18 +270,3 @@ int adc_get_curr_ref_volt(void)
         return volt * 1024 / v;
 }
 EXPORT_SYMBOL(adc_get_curr_ref_volt);
-
-static int __init adc_core_init(void)
-{
-        INIT_LIST_HEAD(&adc_host_head);
-        return 0;
-}
-subsys_initcall(adc_core_init);
-
-static void __exit adc_core_exit(void)
-{
-        return;
-}
-module_exit(adc_core_exit);  
-
-
