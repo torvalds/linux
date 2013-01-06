@@ -279,9 +279,9 @@ enum {
 	NTC_INTERNAL,
 };
 
-int bmdevs_of_probe(struct device *dev,
-		struct device_node *np,
-		struct abx500_bm_data **battery);
+int ab8500_bm_of_probe(struct device *dev,
+		       struct device_node *np,
+		       struct abx500_bm_data *bm);
 
 int abx500_set_register_interruptible(struct device *dev, u8 bank, u8 reg,
 	u8 value);
