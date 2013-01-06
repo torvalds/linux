@@ -1366,8 +1366,11 @@ err_channel_add:
 				irq_dispose_mapping(xordev->channels[i]->irq);
 		}
 
-	clk_disable_unprepare(xordev->clk);
-	clk_put(xordev->clk);
+	if (!IS_ERR(xordev->clk)) {
+		clk_disable_unprepare(xordev->clk);
+		clk_put(xordev->clk);
+	}
+
 	return ret;
 }
 
