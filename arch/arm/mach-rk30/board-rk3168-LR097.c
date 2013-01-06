@@ -56,6 +56,10 @@
 	#include <linux/rk_edp.h>
 #endif 
 
+#if defined(CONFIG_CT36X_TS)
+#include <linux/ct36x.h>
+#endif
+
 #if defined(CONFIG_RK_HDMI)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
@@ -134,6 +138,32 @@ struct goodix_platform_data goodix_info = {
 };
 #endif
 
+
+#if defined(CONFIG_CT36X_TS)
+
+#define TOUCH_MODEL		363
+#define TOUCH_MAX_X		1280
+#define TOUCH_MAX_y		800
+#define TOUCH_RESET_PIN		RK30_PIN0_PB6
+#define TOUCH_INT_PIN		RK30_PIN1_PB7
+
+static struct ct36x_platform_data ct36x_info = {
+	.model   = TOUCH_MODEL,
+	.x_max   = TOUCH_MAX_X,
+	.y_max   = TOUCH_MAX_y,
+
+	.rst_io = {
+		.gpio = TOUCH_RESET_PIN,
+		.active_low = 1,
+	},
+	.irq_io = {
+		.gpio = TOUCH_INT_PIN,
+		.active_low = 1,
+	},
+	.orientation = {1, 0, 1, 0},
+};
+#endif
+
 static struct spi_board_info board_spi_devices[] = {
 };
 
@@ -146,7 +176,7 @@ static struct spi_board_info board_spi_devices[] = {
 #define PWM_MUX_MODE      GPIO3D_PWM3
 #define PWM_MUX_MODE_GPIO GPIO3D_GPIO3D6
 #define PWM_GPIO 	  RK30_PIN3_PD6
-#define PWM_EFFECT_VALUE  1
+#define PWM_EFFECT_VALUE  0
 
 #define LCD_DISP_ON_PIN
 
@@ -1673,12 +1703,12 @@ static struct pmu_info  act8846_dcdc_info[] = {
 		.max_uv         = 1200000,
 		.suspend_vol  =  1200000,
 	},
-	{
+	/*{
 		.name          = "vdd_core",    //logic
 		.min_uv          = 1000000,
 		.max_uv         = 1000000,
 		.suspend_vol  =  900000,
-	},
+	},*/
 	{
 		.name          = "vdd_cpu",   //arm
 		.min_uv          = 1000000,
@@ -1883,6 +1913,16 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 		.platform_data = &rk_edp_platform_data,
 	},
 #endif
+
+#if defined (CONFIG_CT36X_TS)
+	{
+		.type	       = CT36X_NAME,
+		.addr          = 0x01,
+		.flags         = 0,
+		.platform_data = &ct36x_info,
+	},
+#endif
+
 
 };
 #endif
@@ -2093,7 +2133,7 @@ static void __init rk30_reserve(void)
 static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
 /*	{.frequency = 312 * 1000, 	.cpu_volt = 850 * 1000,		.logic_volt = 1000 * 1000},
 	{.frequency = 504 * 1000,	.cpu_volt = 900 * 1000,		.logic_volt = 1000 * 1000},
-*/	{.frequency = 816 * 1000,	.cpu_volt = 950 * 1000,		.logic_volt = 1000 * 1000},
+*/	{.frequency = 816 * 1000,	.cpu_volt = 1000 * 1000,		.logic_volt = 1000 * 1000},
 /*	{.frequency = 1008 * 1000,	.cpu_volt = 1025 * 1000,	.logic_volt = 1000 * 1000},
 	{.frequency = 1200 * 1000,	.cpu_volt = 1100 * 1000,	.logic_volt = 1050 * 1000},
 	{.frequency = 1416 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1150 * 1000},
@@ -2102,18 +2142,18 @@ static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
 };
 
 static struct cpufreq_frequency_table dvfs_gpu_table[] = {
-	{.frequency = 100 * 1000,	.index = 900 * 1000},
-	{.frequency = 200 * 1000,	.index = 900 * 1000},
-	{.frequency = 266 * 1000,	.index = 900 * 1000},
-	{.frequency = 300 * 1000,	.index = 900 * 1000},
-	{.frequency = 400 * 1000,	.index = 950 * 1000},
+	{.frequency = 100 * 1000,	.index = 1000 * 1000},
+	{.frequency = 200 * 1000,	.index = 1000 * 1000},
+	{.frequency = 266 * 1000,	.index = 1000 * 1000},
+	{.frequency = 300 * 1000,	.index = 1000 * 1000},
+	{.frequency = 400 * 1000,	.index = 1000 * 1000},
 	{.frequency = 600 * 1000,	.index = 1100 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
 static struct cpufreq_frequency_table dvfs_ddr_table[] = {
-	{.frequency = 300 * 1000,	.index = 900 * 1000},
-	{.frequency = 400 * 1000,	.index = 950 * 1000},
+	{.frequency = 300 * 1000,	.index = 1000 * 1000},
+	{.frequency = 400 * 1000,	.index = 1000 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 #define DVFS_CPU_TABLE_SIZE	(ARRAY_SIZE(dvfs_cpu_logic_table))
