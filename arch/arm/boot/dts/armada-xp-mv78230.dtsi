@@ -41,7 +41,7 @@
 		reg = <1>;
 		clocks = <&cpuclk 1>;
 	    };
-	}
+	};
 
 	soc {
 		pinctrl {
