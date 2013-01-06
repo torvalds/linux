@@ -61,6 +61,8 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 	uint32_t offset;
 	uint32_t blocksize = 0x10000;
 	struct trx_header *trx;
+	int trx_part = -1;
+	int last_trx_part = -1;
 
 	/* Alloc */
 	parts = kzalloc(sizeof(struct mtd_partition) * BCM47XXPART_MAX_PARTS,
@@ -131,6 +133,10 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 		if (buf[0x000 / 4] == TRX_MAGIC) {
 			trx = (struct trx_header *)buf;
 
+			trx_part = curr_part;
+			bcm47xxpart_add_part(&parts[curr_part++], "firmware",
+					     offset, 0);
+
 			i = 0;
 			/* We have LZMA loader if offset[2] points to sth */
 			if (trx->offset[2]) {
@@ -154,6 +160,8 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 					     offset + trx->offset[i], 0);
 			i++;
 
+			last_trx_part = curr_part - 1;
+
 			/*
 			 * We have whole TRX scanned, skip to the next part. Use
 			 * roundown (not roundup), as the loop will increase
@@ -174,6 +182,9 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 				       parts[i + 1].offset : master->size;
 
 		parts[i].size = next_part_offset - parts[i].offset;
+		if (i == last_trx_part && trx_part >= 0)
+			parts[trx_part].size = next_part_offset -
+					       parts[trx_part].offset;
 	}
 
 	*pparts = parts;
