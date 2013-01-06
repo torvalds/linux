@@ -76,7 +76,6 @@ __s32 Display_Fb_get_para(__u32 fb_id, __disp_fb_create_para_t *fb_para);
 
 __s32 Display_get_disp_init_para(__disp_init_t *init_para);
 
-__s32 Fb_Init(__u32 from);
 __s32 Fb_Exit(void);
 
 #endif /* __DEV_FB_H__ */

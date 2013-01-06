@@ -19,6 +19,7 @@
 
 #include "dev_hdmi.h"
 #include "drv_hdmi_i.h"
+#include "../disp/dev_disp.h"
 
 static struct cdev *my_cdev;
 static dev_t devid;
@@ -59,7 +60,7 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 	ghdmi.base_hdmi = 0xf1c16000;
 
 	Hdmi_init();
-	Fb_Init(1);
+	Fb_Init(SUNXI_HDMI);
 
 	return 0;
 }
