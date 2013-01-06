@@ -144,6 +144,7 @@
 			compatible = "marvell,orion-ehci";
 			reg = <0x50000 0x1000>;
 			interrupts = <19>;
+			clocks = <&gate_clk 3>;
 			status = "okay";
 		};
 
