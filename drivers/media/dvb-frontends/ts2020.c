@@ -363,7 +363,6 @@ struct dvb_frontend *ts2020_attach(struct dvb_frontend *fe,
 
 	memcpy(&fe->ops.tuner_ops, &ts2020_tuner_ops,
 				sizeof(struct dvb_tuner_ops));
-	fe->ops.read_signal_strength = fe->ops.tuner_ops.get_rf_strength;
 
 	return fe;
 }

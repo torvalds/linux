@@ -533,6 +533,15 @@ static int ds3000_read_ber(struct dvb_frontend *fe, u32* ber)
 	return 0;
 }
 
+static int ds3000_read_signal_strength(struct dvb_frontend *fe,
+						u16 *signal_strength)
+{
+	if (fe->ops.tuner_ops.get_rf_strength)
+		fe->ops.tuner_ops.get_rf_strength(fe, signal_strength);
+
+	return 0;
+}
+
 /* calculate DS3000 snr value in dB */
 static int ds3000_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
@@ -1102,6 +1111,7 @@ static struct dvb_frontend_ops ds3000_ops = {
 	.i2c_gate_ctrl = ds3000_i2c_gate_ctrl,
 	.read_status = ds3000_read_status,
 	.read_ber = ds3000_read_ber,
+	.read_signal_strength = ds3000_read_signal_strength,
 	.read_snr = ds3000_read_snr,
 	.read_ucblocks = ds3000_read_ucblocks,
 	.set_voltage = ds3000_set_voltage,

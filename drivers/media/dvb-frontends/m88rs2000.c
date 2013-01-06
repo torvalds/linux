@@ -446,7 +446,9 @@ static int m88rs2000_read_ber(struct dvb_frontend *fe, u32 *ber)
 static int m88rs2000_read_signal_strength(struct dvb_frontend *fe,
 	u16 *strength)
 {
-	*strength = 0;
+	if (fe->ops.tuner_ops.get_rf_strength)
+		fe->ops.tuner_ops.get_rf_strength(fe, strength);
+
 	return 0;
 }
 
