@@ -722,7 +722,7 @@ dx_probe(const struct qstr *d_name, struct inode *dir,
 			ext4_warning(dir->i_sb, "Node failed checksum");
 			brelse(bh);
 			*err = ERR_BAD_DX_DIR;
-			goto fail;
+			goto fail2;
 		}
 		set_buffer_verified(bh);
 
