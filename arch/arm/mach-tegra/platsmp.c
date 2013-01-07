@@ -90,7 +90,7 @@ static int tegra30_power_up_cpu(unsigned int cpu)
 	 * next time around.
 	 */
 	if (cpumask_test_cpu(cpu, &tegra_cpu_init_mask)) {
-		timeout = jiffies + 5*HZ;
+		timeout = jiffies + msecs_to_jiffies(50);
 		do {
 			if (!tegra_powergate_is_powered(pwrgateid))
 				goto remove_clamps;
@@ -110,7 +110,7 @@ static int tegra30_power_up_cpu(unsigned int cpu)
 			return ret;
 
 		/* Wait for the power to come up. */
-		timeout = jiffies + 10*HZ;
+		timeout = jiffies + msecs_to_jiffies(100);
 		while (tegra_powergate_is_powered(pwrgateid)) {
 			if (time_after(jiffies, timeout))
 				return -ETIMEDOUT;
