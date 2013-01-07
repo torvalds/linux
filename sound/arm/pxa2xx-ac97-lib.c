@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
 
 #include <sound/ac97_codec.h>
 #include <sound/pxa2xx-lib.h>
@@ -344,8 +345,21 @@ int pxa2xx_ac97_hw_probe(struct platform_device *dev)
 	}
 
 	if (cpu_is_pxa27x()) {
-		/* Use GPIO 113 as AC97 Reset on Bulverde */
+		/*
+		 * This gpio is needed for a work-around to a bug in the ac97
+		 * controller during warm reset.  The direction and level is set
+		 * here so that it is an output driven high when switching from
+		 * AC97_nRESET alt function to generic gpio.
+		 */
+		ret = gpio_request_one(reset_gpio, GPIOF_OUT_INIT_HIGH,
+				       "pxa27x ac97 reset");
+		if (ret < 0) {
+			pr_err("%s: gpio_request_one() failed: %d\n",
+			       __func__, ret);
+			goto err_conf;
+		}
 		pxa27x_assert_ac97reset(reset_gpio, 0);
+
 		ac97conf_clk = clk_get(&dev->dev, "AC97CONFCLK");
 		if (IS_ERR(ac97conf_clk)) {
 			ret = PTR_ERR(ac97conf_clk);
@@ -388,6 +402,8 @@ EXPORT_SYMBOL_GPL(pxa2xx_ac97_hw_probe);
 
 void pxa2xx_ac97_hw_remove(struct platform_device *dev)
 {
+	if (cpu_is_pxa27x())
+		gpio_free(reset_gpio);
 	GCR |= GCR_ACLINK_OFF;
 	free_irq(IRQ_AC97, NULL);
 	if (ac97conf_clk) {
