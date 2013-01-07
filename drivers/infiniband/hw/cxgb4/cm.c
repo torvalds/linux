@@ -1417,7 +1417,7 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 	case FPDU_MODE: {
 		struct c4iw_qp_attributes attrs;
 		BUG_ON(!ep->com.qp);
-		if (ep->com.qp->attr.state == C4IW_QP_STATE_RTS)
+		if (status)
 			pr_err("%s Unexpected streaming data." \
 			       " qpid %u ep %p state %d tid %u status %d\n",
 			       __func__, ep->com.qp->wq.sq.qid, ep,
