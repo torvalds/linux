@@ -50,8 +50,10 @@ ENTRY(startup_32)
 	pushl	%eax
 	pushl	%esi
 	pushl	%ecx
+	sub	$0x4, %esp
 
 	.org 0x30,0x90
+	add	$0x4, %esp
 	call	efi_main
 	cmpl	$0, %eax
 	movl	%eax, %esi
