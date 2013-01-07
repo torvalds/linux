@@ -797,7 +797,8 @@ static int c4iw_uld_rx_handler(void *handle, const __be64 *rsp,
 		       "RSS %#llx, FL %#llx, len %u\n",
 		       pci_name(ctx->lldi.pdev), gl->va,
 		       (unsigned long long)be64_to_cpu(*rsp),
-		       (unsigned long long)be64_to_cpu(*(u64 *)gl->va),
+		       (unsigned long long)be64_to_cpu(
+		       *(__force __be64 *)gl->va),
 		       gl->tot_len);
 
 		return 0;
