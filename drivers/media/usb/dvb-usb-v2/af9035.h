@@ -57,6 +57,9 @@ struct state {
 	u8 buf[BUF_LEN];
 	u8 seq; /* packet sequence number */
 	bool dual_mode;
+	u8 prechip_version;
+	u8 chip_version;
+	u16 chip_type;
 	struct af9033_config af9033_config[2];
 };
 
@@ -89,7 +92,8 @@ u32 clock_lut_it9135[] = {
 };
 
 #define AF9035_FIRMWARE_AF9035 "dvb-usb-af9035-02.fw"
-#define AF9035_FIRMWARE_IT9135 "dvb-usb-it9135-01.fw"
+#define AF9035_FIRMWARE_IT9135_V1 "dvb-usb-it9135-01.fw"
+#define AF9035_FIRMWARE_IT9135_V2 "dvb-usb-it9135-02.fw"
 
 /* EEPROM locations */
 #define EEPROM_IR_MODE            0x430d
