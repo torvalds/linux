@@ -51,39 +51,36 @@
 		};
 
 		gpio0: gpio@d0018100 {
-			compatible = "marvell,armadaxp-gpio";
-			reg = <0xd0018100 0x40>,
-			    <0xd0018800 0x30>;
+			compatible = "marvell,orion-gpio";
+			reg = <0xd0018100 0x40>;
 			ngpios = <32>;
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupts-cells = <2>;
-			interrupts = <16>, <17>, <18>, <19>;
+			interrupts = <82>, <83>, <84>, <85>;
 		};
 
 		gpio1: gpio@d0018140 {
-			compatible = "marvell,armadaxp-gpio";
-			reg = <0xd0018140 0x40>,
-			    <0xd0018840 0x30>;
+			compatible = "marvell,orion-gpio";
+			reg = <0xd0018140 0x40>;
 			ngpios = <32>;
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupts-cells = <2>;
-			interrupts = <20>, <21>, <22>, <23>;
+			interrupts = <87>, <88>, <89>, <90>;
 		};
 
 		gpio2: gpio@d0018180 {
-			compatible = "marvell,armadaxp-gpio";
-			reg = <0xd0018180 0x40>,
-			    <0xd0018870 0x30>;
+			compatible = "marvell,orion-gpio";
+			reg = <0xd0018180 0x40>;
 			ngpios = <3>;
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupts-cells = <2>;
-			interrupts = <24>;
+			interrupts = <91>;
 		};
 
 		ethernet@d0034000 {
