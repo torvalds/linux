@@ -29,7 +29,8 @@ bool is_jack_detectable(struct hda_codec *codec, hda_nid_t nid)
 	if (get_defcfg_misc(snd_hda_codec_get_pincfg(codec, nid)) &
 	     AC_DEFCFG_MISC_NO_PRESENCE)
 		return false;
-	if (!(get_wcaps(codec, nid) & AC_WCAP_UNSOL_CAP))
+	if (!(get_wcaps(codec, nid) & AC_WCAP_UNSOL_CAP) &&
+	    !codec->jackpoll_interval)
 		return false;
 	return true;
 }
