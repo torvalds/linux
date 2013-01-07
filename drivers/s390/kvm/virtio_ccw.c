@@ -132,11 +132,14 @@ static int ccw_io_helper(struct virtio_ccw_device *vcdev,
 	unsigned long flags;
 	int flag = intparm & VIRTIO_CCW_INTPARM_MASK;
 
-	spin_lock_irqsave(get_ccwdev_lock(vcdev->cdev), flags);
-	ret = ccw_device_start(vcdev->cdev, ccw, intparm, 0, 0);
-	if (!ret)
-		vcdev->curr_io |= flag;
-	spin_unlock_irqrestore(get_ccwdev_lock(vcdev->cdev), flags);
+	do {
+		spin_lock_irqsave(get_ccwdev_lock(vcdev->cdev), flags);
+		ret = ccw_device_start(vcdev->cdev, ccw, intparm, 0, 0);
+		if (!ret)
+			vcdev->curr_io |= flag;
+		spin_unlock_irqrestore(get_ccwdev_lock(vcdev->cdev), flags);
+		cpu_relax();
+	} while (ret == -EBUSY);
 	wait_event(vcdev->wait_q, doing_io(vcdev, flag) == 0);
 	return ret ? ret : vcdev->err;
 }
