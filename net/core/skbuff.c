@@ -260,6 +260,7 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 	skb->end = skb->tail + size;
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
 	skb->mac_header = ~0U;
+	skb->transport_header = ~0U;
 #endif
 
 	/* make sure we initialize shinfo sequentially */
@@ -328,6 +329,7 @@ struct sk_buff *build_skb(void *data, unsigned int frag_size)
 	skb->end = skb->tail + size;
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
 	skb->mac_header = ~0U;
+	skb->transport_header = ~0U;
 #endif
 
 	/* make sure we initialize shinfo sequentially */
