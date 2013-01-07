@@ -1729,8 +1729,6 @@ static const struct of_device_id s3c24xx_uart_dt_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, s3c24xx_uart_dt_match);
-#else
-#define s3c24xx_uart_dt_match NULL
 #endif
 
 static struct platform_driver samsung_serial_driver = {
@@ -1741,7 +1739,7 @@ static struct platform_driver samsung_serial_driver = {
 		.name	= "samsung-uart",
 		.owner	= THIS_MODULE,
 		.pm	= SERIAL_SAMSUNG_PM_OPS,
-		.of_match_table	= s3c24xx_uart_dt_match,
+		.of_match_table	= of_match_ptr(s3c24xx_uart_dt_match),
 	},
 };
 
