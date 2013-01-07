@@ -432,10 +432,9 @@ static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
 			 * Once we've found a GOP supporting ConOut,
 			 * don't bother looking any further.
 			 */
+			first_gop = gop;
 			if (conout_found)
 				break;
-
-			first_gop = gop;
 		}
 	}
 
