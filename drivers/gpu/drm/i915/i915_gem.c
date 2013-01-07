@@ -2507,36 +2507,21 @@ int i915_gpu_idle(struct drm_device *dev)
 	return 0;
 }
 
-static void sandybridge_write_fence_reg(struct drm_device *dev, int reg,
-					struct drm_i915_gem_object *obj)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	uint64_t val;
-
-	if (obj) {
-		u32 size = obj->gtt_space->size;
-
-		val = (uint64_t)((obj->gtt_offset + size - 4096) &
-				 0xfffff000) << 32;
-		val |= obj->gtt_offset & 0xfffff000;
-		val |= (uint64_t)((obj->stride / 128) - 1) <<
-			SANDYBRIDGE_FENCE_PITCH_SHIFT;
-
-		if (obj->tiling_mode == I915_TILING_Y)
-			val |= 1 << I965_FENCE_TILING_Y_SHIFT;
-		val |= I965_FENCE_REG_VALID;
-	} else
-		val = 0;
-
-	I915_WRITE64(FENCE_REG_SANDYBRIDGE_0 + reg * 8, val);
-	POSTING_READ(FENCE_REG_SANDYBRIDGE_0 + reg * 8);
-}
-
 static void i965_write_fence_reg(struct drm_device *dev, int reg,
 				 struct drm_i915_gem_object *obj)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	int fence_reg;
+	int fence_pitch_shift;
 	uint64_t val;
+
+	if (INTEL_INFO(dev)->gen >= 6) {
+		fence_reg = FENCE_REG_SANDYBRIDGE_0;
+		fence_pitch_shift = SANDYBRIDGE_FENCE_PITCH_SHIFT;
+	} else {
+		fence_reg = FENCE_REG_965_0;
+		fence_pitch_shift = I965_FENCE_PITCH_SHIFT;
+	}
 
 	if (obj) {
 		u32 size = obj->gtt_space->size;
@@ -2544,15 +2529,16 @@ static void i965_write_fence_reg(struct drm_device *dev, int reg,
 		val = (uint64_t)((obj->gtt_offset + size - 4096) &
 				 0xfffff000) << 32;
 		val |= obj->gtt_offset & 0xfffff000;
-		val |= ((obj->stride / 128) - 1) << I965_FENCE_PITCH_SHIFT;
+		val |= (uint64_t)((obj->stride / 128) - 1) << fence_pitch_shift;
 		if (obj->tiling_mode == I915_TILING_Y)
 			val |= 1 << I965_FENCE_TILING_Y_SHIFT;
 		val |= I965_FENCE_REG_VALID;
 	} else
 		val = 0;
 
-	I915_WRITE64(FENCE_REG_965_0 + reg * 8, val);
-	POSTING_READ(FENCE_REG_965_0 + reg * 8);
+	fence_reg += reg * 8;
+	I915_WRITE64(fence_reg, val);
+	POSTING_READ(fence_reg);
 }
 
 static void i915_write_fence_reg(struct drm_device *dev, int reg,
@@ -2636,7 +2622,7 @@ static void i915_gem_write_fence(struct drm_device *dev, int reg,
 {
 	switch (INTEL_INFO(dev)->gen) {
 	case 7:
-	case 6: sandybridge_write_fence_reg(dev, reg, obj); break;
+	case 6:
 	case 5:
 	case 4: i965_write_fence_reg(dev, reg, obj); break;
 	case 3: i915_write_fence_reg(dev, reg, obj); break;
