@@ -652,6 +652,10 @@ static int af9035_read_config_it9135(struct dvb_usb_device *d)
 	int ret, i;
 	u8 tmp;
 
+	/* demod I2C "address" */
+	state->af9033_config[0].i2c_addr = 0x38;
+	state->af9033_config[0].tuner = AF9033_TUNER_IT9135_38;
+	state->af9033_config[0].adc_multiplier = AF9033_ADC_MULTIPLIER_2X;
 	state->dual_mode = false;
 
 	/* get demod clock */
@@ -920,6 +924,20 @@ static const struct fc0012_config af9035_fc0012_config[] = {
 	}
 };
 
+static struct ite_config af9035_it913x_config = {
+	.chip_ver = 0x01,
+	.chip_type = 0x9135,
+	.firmware = 0x00000000,
+	.firmware_ver = 1,
+	.adc_x2 = 1,
+	.tuner_id_0 = AF9033_TUNER_IT9135_38,
+	.tuner_id_1 = 0x00,
+	.dual_mode = 0x00,
+	.adf = 0x00,
+	/* option to read SIGNAL_LEVEL */
+	.read_slevel = 0,
+};
+
 static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	struct state *state = adap_to_priv(adap);
@@ -1081,6 +1099,11 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 
 		fe = dvb_attach(fc0012_attach, adap->fe[0], &d->i2c_adap,
 				&af9035_fc0012_config[adap->id]);
+		break;
+	case AF9033_TUNER_IT9135_38:
+		/* attach tuner */
+		fe = dvb_attach(it913x_attach, adap->fe[0],
+				&d->i2c_adap, 0x38, &af9035_it913x_config);
 		break;
 	default:
 		fe = NULL;
@@ -1275,7 +1298,6 @@ static const struct dvb_usb_device_properties it9135_props = {
 	.frontend_attach = af9035_frontend_attach,
 	.tuner_attach = af9035_tuner_attach,
 	.init = af9035_init,
-	.get_rc_config = af9035_get_rc_config,
 
 	.num_adapters = 1,
 	.adapter = {
