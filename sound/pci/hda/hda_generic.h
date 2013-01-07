@@ -117,8 +117,20 @@ struct hda_gen_spec {
 	unsigned int cur_mux[3];
 
 	/* channel model */
-	int const_channel_count;	/* min. channel count (for speakers) */
-	int ext_channel_count;		/* current channel count for multi-io */
+	/* min_channel_count contains the minimum channel count for primary
+	 * outputs.  When multi_ios is set, the channels can be configured
+	 * between min_channel_count and (min_channel_count + multi_ios * 2).
+	 *
+	 * ext_channel_count contains the current channel count of the primary
+	 * out.  This varies in the range above.
+	 *
+	 * Meanwhile, const_channel_count is the channel count for all outputs
+	 * including headphone and speakers.  It's a constant value, and the
+	 * PCM is set up as max(ext_channel_count, const_channel_count).
+	 */
+	int min_channel_count;		/* min. channel count for primary out */
+	int ext_channel_count;		/* current channel count for primary */
+	int const_channel_count;	/* channel count for all */
 
 	/* PCM information */
 	struct hda_pcm pcm_rec[3];	/* used in build_pcms() */
