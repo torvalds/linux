@@ -94,7 +94,7 @@ struct ovs_vport_stats {
 };
 
 /* Fixed logical ports. */
-#define OVSP_LOCAL      ((__u16)0)
+#define OVSP_LOCAL      ((__u32)0)
 
 /* Packet transfer. */
 
