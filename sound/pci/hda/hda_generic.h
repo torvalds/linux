@@ -53,7 +53,6 @@ struct nid_path {
 	unsigned char multi[MAX_NID_PATH_DEPTH];
 	unsigned int ctls[NID_PATH_NUM_CTLS]; /* NID_PATH_XXX_CTL */
 	bool active;
-	bool with_aa_mix;
 };
 
 /* mic/line-in auto switching entry */
@@ -237,19 +236,12 @@ struct nid_path *snd_hda_get_nid_path(struct hda_codec *codec,
 				      hda_nid_t from_nid, hda_nid_t to_nid);
 int snd_hda_get_path_idx(struct hda_codec *codec, struct nid_path *path);
 struct nid_path *snd_hda_get_path_from_idx(struct hda_codec *codec, int idx);
-
-enum {
-	HDA_PARSE_NO_AAMIX,
-	HDA_PARSE_ONLY_AAMIX,
-	HDA_PARSE_ALL,
-};
-
 bool snd_hda_parse_nid_path(struct hda_codec *codec, hda_nid_t from_nid,
-			    hda_nid_t to_nid, int with_aa_mix,
+			    hda_nid_t to_nid, int anchor_nid,
 			    struct nid_path *path);
 struct nid_path *
 snd_hda_add_new_path(struct hda_codec *codec, hda_nid_t from_nid,
-		     hda_nid_t to_nid, int with_aa_mix);
+		     hda_nid_t to_nid, int anchor_nid);
 void snd_hda_activate_path(struct hda_codec *codec, struct nid_path *path,
 			   bool enable, bool add_aamix);
 
