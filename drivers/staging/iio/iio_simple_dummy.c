@@ -54,7 +54,7 @@ struct iio_dummy_accel_calibscale {
 static const struct iio_dummy_accel_calibscale dummy_scales[] = {
 	{ 0, 100, 0x8 }, /* 0.000100 */
 	{ 0, 133, 0x7 }, /* 0.000133 */
-	{ 733, 13, 0x9 }, /* 733.00013 */
+	{ 733, 13, 0x9 }, /* 733.000013 */
 };
 
 /*
@@ -284,7 +284,7 @@ static int iio_dummy_read_raw(struct iio_dev *indio_dev,
 /**
  * iio_dummy_write_raw() - data write function.
  * @indio_dev:	the struct iio_dev associated with this device instance
- * @chan:	the channel whose data is to be read
+ * @chan:	the channel whose data is to be written
  * @val:	first element of value to set (typically INT)
  * @val2:	second element of value to set (typically MICRO)
  * @mask:	what we actually want to write. 0 is the channel, everything else

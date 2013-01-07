@@ -75,11 +75,6 @@ static const char * const mxs_lradc_irq_name[] = {
 	"mxs-lradc-button1",
 };
 
-struct mxs_lradc_chan {
-	uint8_t				slot;
-	uint8_t				flags;
-};
-
 struct mxs_lradc {
 	struct device		*dev;
 	void __iomem		*base;
@@ -89,8 +84,6 @@ struct mxs_lradc {
 	struct iio_trigger	*trig;
 
 	struct mutex		lock;
-
-	uint8_t			enable;
 
 	struct completion	completion;
 };

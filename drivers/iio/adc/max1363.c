@@ -39,6 +39,7 @@
 #include <linux/iio/driver.h>
 #include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 
 #define MAX1363_SETUP_BYTE(a) ((a) | 0x80)
 
@@ -55,7 +56,7 @@
 #define MAX1363_SETUP_POWER_UP_INT_REF		0x10
 #define MAX1363_SETUP_POWER_DOWN_INT_REF	0x00
 
-/* think about includeing max11600 etc - more settings */
+/* think about including max11600 etc - more settings */
 #define MAX1363_SETUP_EXT_CLOCK			0x08
 #define MAX1363_SETUP_INT_CLOCK			0x00
 #define MAX1363_SETUP_UNIPOLAR			0x00
@@ -86,7 +87,7 @@
 /* max123{6-9} only */
 #define MAX1236_SCAN_MID_TO_CHANNEL		0x40
 
-/* max1363 only - merely part of channel selects or don't care for others*/
+/* max1363 only - merely part of channel selects or don't care for others */
 #define MAX1363_CONFIG_EN_MON_MODE_READ 0x18
 
 #define MAX1363_CHANNEL_SEL(a) ((a) << 1)
@@ -133,7 +134,7 @@ enum max1363_modes {
  * @mode_list:		array of available scan modes
  * @default_mode:	the scan mode in which the chip starts up
  * @int_vref_mv:	the internal reference voltage
- * @num_channels:	number of channels
+ * @num_modes:		number of modes
  * @bits:		accuracy of the adc in bits
  */
 struct max1363_chip_info {
@@ -152,7 +153,7 @@ struct max1363_chip_info {
  * @client:		i2c_client
  * @setupbyte:		cache of current device setup byte
  * @configbyte:		cache of current device config byte
- * @chip_info:		chip model specific constants, available modes etc
+ * @chip_info:		chip model specific constants, available modes, etc.
  * @current_mode:	the scan mode of this chip
  * @requestedmask:	a valid requested set of channels
  * @reg:		supply regulator
@@ -293,7 +294,7 @@ static const struct max1363_mode max1363_mode_table[] = {
 
 static const struct max1363_mode
 *max1363_match_mode(const unsigned long *mask,
-const struct max1363_chip_info *ci)
+	const struct max1363_chip_info *ci)
 {
 	int i;
 	if (mask)
@@ -1394,7 +1395,7 @@ static int max1363_initial_setup(struct max1363_state *st)
 		| MAX1363_SETUP_UNIPOLAR
 		| MAX1363_SETUP_NORESET;
 
-	/* Set scan mode writes the config anyway so wait until then*/
+	/* Set scan mode writes the config anyway so wait until then */
 	st->setupbyte = MAX1363_SETUP_BYTE(st->setupbyte);
 	st->current_mode = &max1363_mode_table[st->chip_info->default_mode];
 	st->configbyte = MAX1363_CONFIG_BYTE(st->configbyte);
@@ -1422,7 +1423,6 @@ static int __devinit max1363_alloc_scan_masks(struct iio_dev *indio_dev)
 
 	return 0;
 }
-
 
 static irqreturn_t max1363_trigger_handler(int irq, void *p)
 {
@@ -1483,48 +1483,6 @@ static const struct iio_buffer_setup_ops max1363_buffered_setup_ops = {
 	.predisable = &iio_triggered_buffer_predisable,
 };
 
-static int max1363_register_buffered_funcs_and_init(struct iio_dev *indio_dev)
-{
-	struct max1363_state *st = iio_priv(indio_dev);
-	int ret = 0;
-
-	indio_dev->buffer = iio_kfifo_allocate(indio_dev);
-	if (!indio_dev->buffer) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	indio_dev->pollfunc = iio_alloc_pollfunc(NULL,
-						 &max1363_trigger_handler,
-						 IRQF_ONESHOT,
-						 indio_dev,
-						 "%s_consumer%d",
-						 st->client->name,
-						 indio_dev->id);
-	if (indio_dev->pollfunc == NULL) {
-		ret = -ENOMEM;
-		goto error_deallocate_sw_rb;
-	}
-	/* Buffer functions - here trigger setup related */
-	indio_dev->setup_ops = &max1363_buffered_setup_ops;
-
-	/* Flag that polled buffering is possible */
-	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
-
-	return 0;
-
-error_deallocate_sw_rb:
-	iio_kfifo_free(indio_dev->buffer);
-error_ret:
-	return ret;
-}
-
-static void max1363_buffer_cleanup(struct iio_dev *indio_dev)
-{
-	/* ensure that the trigger has been detached */
-	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_kfifo_free(indio_dev->buffer);
-}
-
 static int __devinit max1363_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
@@ -1564,7 +1522,7 @@ static int __devinit max1363_probe(struct i2c_client *client,
 	if (ret)
 		goto error_disable_reg;
 
-	/* Estabilish that the iio_dev is a child of the i2c device */
+	/* Establish that the iio_dev is a child of the i2c device */
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = id->name;
 	indio_dev->channels = st->chip_info->channels;
@@ -1577,15 +1535,10 @@ static int __devinit max1363_probe(struct i2c_client *client,
 	if (ret < 0)
 		goto error_free_available_scan_masks;
 
-	ret = max1363_register_buffered_funcs_and_init(indio_dev);
+	ret = iio_triggered_buffer_setup(indio_dev, NULL,
+		&max1363_trigger_handler, &max1363_buffered_setup_ops);
 	if (ret)
 		goto error_free_available_scan_masks;
-
-	ret = iio_buffer_register(indio_dev,
-				  st->chip_info->channels,
-				  st->chip_info->num_channels);
-	if (ret)
-		goto error_cleanup_buffer;
 
 	if (client->irq) {
 		ret = request_threaded_irq(st->client->irq,
@@ -1607,9 +1560,7 @@ static int __devinit max1363_probe(struct i2c_client *client,
 error_free_irq:
 	free_irq(st->client->irq, indio_dev);
 error_uninit_buffer:
-	iio_buffer_unregister(indio_dev);
-error_cleanup_buffer:
-	max1363_buffer_cleanup(indio_dev);
+	iio_triggered_buffer_cleanup(indio_dev);
 error_free_available_scan_masks:
 	kfree(indio_dev->available_scan_masks);
 error_unregister_map:
@@ -1632,8 +1583,7 @@ static int __devexit max1363_remove(struct i2c_client *client)
 	iio_device_unregister(indio_dev);
 	if (client->irq)
 		free_irq(st->client->irq, indio_dev);
-	iio_buffer_unregister(indio_dev);
-	max1363_buffer_cleanup(indio_dev);
+	iio_triggered_buffer_cleanup(indio_dev);
 	kfree(indio_dev->available_scan_masks);
 	if (!IS_ERR(st->reg)) {
 		regulator_disable(st->reg);
