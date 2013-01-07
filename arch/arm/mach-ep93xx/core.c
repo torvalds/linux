@@ -34,6 +34,7 @@
 #include <linux/i2c-gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/export.h>
+#include <linux/irqchip/arm-vic.h>
 
 #include <mach/hardware.h>
 #include <linux/platform_data/video-ep93xx.h>
@@ -43,8 +44,6 @@
 
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-
-#include <asm/hardware/vic.h>
 
 #include "soc.h"
 

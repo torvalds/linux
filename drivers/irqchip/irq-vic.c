@@ -30,10 +30,10 @@
 #include <linux/syscore_ops.h>
 #include <linux/device.h>
 #include <linux/amba/bus.h>
+#include <linux/irqchip/arm-vic.h>
 
 #include <asm/exception.h>
 #include <asm/mach/irq.h>
-#include <asm/hardware/vic.h>
 
 #include "irqchip.h"
 
