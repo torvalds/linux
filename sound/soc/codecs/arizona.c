@@ -1082,6 +1082,9 @@ int arizona_init_fll(struct arizona *arizona, int id, int base, int lock_irq,
 			id, ret);
 	}
 
+	regmap_update_bits(arizona->regmap, fll->base + 1,
+			   ARIZONA_FLL1_FREERUN, 0);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(arizona_init_fll);
